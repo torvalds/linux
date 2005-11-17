@@ -389,14 +389,14 @@ static int parse_output(struct hda_codec *codec)
  */
 
 /* control callbacks */
-static int capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int capture_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gspec *spec = codec->spec;
 	return snd_hda_input_mux_info(&spec->input_mux, uinfo);
 }
 
-static int capture_source_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int capture_source_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gspec *spec = codec->spec;
@@ -405,7 +405,7 @@ static int capture_source_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
 	return 0;
 }
 
-static int capture_source_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int capture_source_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct hda_gspec *spec = codec->spec;
@@ -617,7 +617,7 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 	char name[32];
 	int err;
 	int created = 0;
-	snd_kcontrol_new_t knew;
+	struct snd_kcontrol_new knew;
 
 	if (type)
 		sprintf(name, "%s %s Switch", type, dir_sfx);
@@ -625,14 +625,14 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		sprintf(name, "%s Switch", dir_sfx);
 	if ((node->wid_caps & AC_WCAP_IN_AMP) &&
 	    (node->amp_in_caps & AC_AMPCAP_MUTE)) {
-		knew = (snd_kcontrol_new_t)HDA_CODEC_MUTE(name, node->nid, index, HDA_INPUT);
+		knew = (struct snd_kcontrol_new)HDA_CODEC_MUTE(name, node->nid, index, HDA_INPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=IN, IDX=0x%x\n", name, node->nid, index);
 		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&knew, codec))) < 0)
 			return err;
 		created = 1;
 	} else if ((node->wid_caps & AC_WCAP_OUT_AMP) &&
 		   (node->amp_out_caps & AC_AMPCAP_MUTE)) {
-		knew = (snd_kcontrol_new_t)HDA_CODEC_MUTE(name, node->nid, 0, HDA_OUTPUT);
+		knew = (struct snd_kcontrol_new)HDA_CODEC_MUTE(name, node->nid, 0, HDA_OUTPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=OUT\n", name, node->nid);
 		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&knew, codec))) < 0)
 			return err;
@@ -645,14 +645,14 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
 		sprintf(name, "%s Volume", dir_sfx);
 	if ((node->wid_caps & AC_WCAP_IN_AMP) &&
 	    (node->amp_in_caps & AC_AMPCAP_NUM_STEPS)) {
-		knew = (snd_kcontrol_new_t)HDA_CODEC_VOLUME(name, node->nid, index, HDA_INPUT);
+		knew = (struct snd_kcontrol_new)HDA_CODEC_VOLUME(name, node->nid, index, HDA_INPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=IN, IDX=0x%x\n", name, node->nid, index);
 		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&knew, codec))) < 0)
 			return err;
 		created = 1;
 	} else if ((node->wid_caps & AC_WCAP_OUT_AMP) &&
 		   (node->amp_out_caps & AC_AMPCAP_NUM_STEPS)) {
-		knew = (snd_kcontrol_new_t)HDA_CODEC_VOLUME(name, node->nid, 0, HDA_OUTPUT);
+		knew = (struct snd_kcontrol_new)HDA_CODEC_VOLUME(name, node->nid, 0, HDA_OUTPUT);
 		snd_printdd("[%s] NID=0x%x, DIR=OUT\n", name, node->nid);
 		if ((err = snd_ctl_add(codec->bus->card, snd_ctl_new1(&knew, codec))) < 0)
 			return err;
@@ -667,7 +667,7 @@ static int create_mixer(struct hda_codec *codec, struct hda_gnode *node,
  */
 static int check_existing_control(struct hda_codec *codec, const char *type, const char *dir)
 {
-	snd_ctl_elem_id_t id;
+	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
 	sprintf(id.name, "%s %s Volume", type, dir);
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
@@ -710,7 +710,7 @@ static int build_input_controls(struct hda_codec *codec)
 
 	/* create input MUX if multiple sources are available */
 	if (spec->input_mux.num_items > 1) {
-		static snd_kcontrol_new_t cap_sel = {
+		static struct snd_kcontrol_new cap_sel = {
 			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 			.name = "Capture Source",
 			.info = capture_source_info,

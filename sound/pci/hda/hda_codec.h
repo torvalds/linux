@@ -420,7 +420,7 @@ struct hda_bus_template {
  * A hda_bus contains several codecs in the list codec_list.
  */
 struct hda_bus {
-	snd_card_t *card;
+	struct snd_card *card;
 
 	/* copied from template */
 	void *private_data;
@@ -437,7 +437,7 @@ struct hda_bus {
 	/* unsolicited event queue */
 	struct hda_bus_unsolicited *unsol;
 
-	snd_info_entry_t *proc;
+	struct snd_info_entry *proc;
 };
 
 /*
@@ -481,14 +481,14 @@ struct hda_amp_info {
 /* PCM callbacks */
 struct hda_pcm_ops {
 	int (*open)(struct hda_pcm_stream *info, struct hda_codec *codec,
-		    snd_pcm_substream_t *substream);
+		    struct snd_pcm_substream *substream);
 	int (*close)(struct hda_pcm_stream *info, struct hda_codec *codec,
-		     snd_pcm_substream_t *substream);
+		     struct snd_pcm_substream *substream);
 	int (*prepare)(struct hda_pcm_stream *info, struct hda_codec *codec,
 		       unsigned int stream_tag, unsigned int format,
-		       snd_pcm_substream_t *substream);
+		       struct snd_pcm_substream *substream);
 	int (*cleanup)(struct hda_pcm_stream *info, struct hda_codec *codec,
-		       snd_pcm_substream_t *substream);
+		       struct snd_pcm_substream *substream);
 };
 
 /* PCM information for each substream */
@@ -563,7 +563,7 @@ enum {
 /*
  * constructors
  */
-int snd_hda_bus_new(snd_card_t *card, const struct hda_bus_template *temp,
+int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
 		    struct hda_bus **busp);
 int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 		      struct hda_codec **codecp);

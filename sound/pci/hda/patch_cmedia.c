@@ -79,14 +79,14 @@ struct cmi_spec {
 /*
  * input MUX
  */
-static int cmi_mux_enum_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int cmi_mux_enum_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_input_mux_info(spec->input_mux, uinfo);
 }
 
-static int cmi_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cmi_mux_enum_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
@@ -96,7 +96,7 @@ static int cmi_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 	return 0;
 }
 
-static int cmi_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cmi_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
@@ -149,7 +149,7 @@ static struct hda_channel_mode cmi9880_channel_modes[3] = {
 	{ 8, cmi9880_ch8_init },
 };
 
-static int cmi_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int cmi_ch_mode_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
@@ -157,7 +157,7 @@ static int cmi_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo
 				    spec->num_channel_modes);
 }
 
-static int cmi_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cmi_ch_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
@@ -165,7 +165,7 @@ static int cmi_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucont
 				   spec->num_channel_modes, spec->multiout.max_channels);
 }
 
-static int cmi_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int cmi_ch_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct cmi_spec *spec = codec->spec;
@@ -175,7 +175,7 @@ static int cmi_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucont
 
 /*
  */
-static snd_kcontrol_new_t cmi9880_basic_mixer[] = {
+static struct snd_kcontrol_new cmi9880_basic_mixer[] = {
 	/* CMI9880 has no playback volumes! */
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT), /* front */
 	HDA_CODEC_MUTE("Surround Playback Switch", 0x04, 0x0, HDA_OUTPUT),
@@ -207,7 +207,7 @@ static snd_kcontrol_new_t cmi9880_basic_mixer[] = {
 /*
  * shared I/O pins
  */
-static snd_kcontrol_new_t cmi9880_ch_mode_mixer[] = {
+static struct snd_kcontrol_new cmi9880_ch_mode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Channel Mode",
@@ -452,7 +452,7 @@ static int cmi9880_resume(struct hda_codec *codec)
  */
 static int cmi9880_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				     struct hda_codec *codec,
-				     snd_pcm_substream_t *substream)
+				     struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream);
@@ -462,7 +462,7 @@ static int cmi9880_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
 					unsigned int stream_tag,
 					unsigned int format,
-					snd_pcm_substream_t *substream)
+					struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_prepare(codec, &spec->multiout, stream_tag,
@@ -471,7 +471,7 @@ static int cmi9880_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int cmi9880_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				       struct hda_codec *codec,
-				       snd_pcm_substream_t *substream)
+				       struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
@@ -482,7 +482,7 @@ static int cmi9880_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
  */
 static int cmi9880_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 					 struct hda_codec *codec,
-					 snd_pcm_substream_t *substream)
+					 struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
@@ -490,7 +490,7 @@ static int cmi9880_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 
 static int cmi9880_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 					  struct hda_codec *codec,
-					  snd_pcm_substream_t *substream)
+					  struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
@@ -503,7 +503,7 @@ static int cmi9880_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
 				      unsigned int stream_tag,
 				      unsigned int format,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 
@@ -514,7 +514,7 @@ static int cmi9880_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int cmi9880_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct cmi_spec *spec = codec->spec;
 

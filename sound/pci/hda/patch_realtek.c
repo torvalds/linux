@@ -63,7 +63,7 @@ enum {
 
 struct alc_spec {
 	/* codec parameterization */
-	snd_kcontrol_new_t *mixers[3];	/* mixer arrays */
+	struct snd_kcontrol_new *mixers[3];	/* mixer arrays */
 	unsigned int num_mixers;
 
 	const struct hda_verb *init_verbs[3];	/* initialization verbs
@@ -104,7 +104,7 @@ struct alc_spec {
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
 	unsigned int num_kctl_alloc, num_kctl_used;
-	snd_kcontrol_new_t *kctl_alloc;
+	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[4];
 };
@@ -113,14 +113,14 @@ struct alc_spec {
 /*
  * input MUX handling
  */
-static int alc_mux_enum_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int alc_mux_enum_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
 	return snd_hda_input_mux_info(spec->input_mux, uinfo);
 }
 
-static int alc_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_mux_enum_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -130,7 +130,7 @@ static int alc_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 	return 0;
 }
 
-static int alc_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -143,7 +143,7 @@ static int alc_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 /*
  * channel mode setting
  */
-static int alc880_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int alc880_ch_mode_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -151,7 +151,7 @@ static int alc880_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *ui
 				    spec->num_channel_mode);
 }
 
-static int alc880_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc880_ch_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -159,7 +159,7 @@ static int alc880_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
 				   spec->num_channel_mode, spec->multiout.max_channels);
 }
 
-static int alc880_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc880_ch_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -173,7 +173,7 @@ static int alc880_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uc
  * supported, so VrefEn can't be controlled using these functions as they
  * stand.
  */
-static int alc_pinctl_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int alc_pinctl_switch_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -182,7 +182,7 @@ static int alc_pinctl_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int alc_pinctl_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_pinctl_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = kcontrol->private_value & 0xffff;
@@ -195,7 +195,7 @@ static int alc_pinctl_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int alc_pinctl_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_pinctl_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = kcontrol->private_value & 0xffff;
@@ -284,7 +284,7 @@ static struct hda_channel_mode alc880_threestack_modes[2] = {
 	{ 6, alc880_threestack_ch6_init },
 };
 
-static snd_kcontrol_new_t alc880_three_stack_mixer[] = {
+static struct snd_kcontrol_new alc880_three_stack_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
@@ -315,7 +315,7 @@ static snd_kcontrol_new_t alc880_three_stack_mixer[] = {
 };
 
 /* capture mixer elements */
-static snd_kcontrol_new_t alc880_capture_mixer[] = {
+static struct snd_kcontrol_new alc880_capture_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
@@ -339,7 +339,7 @@ static snd_kcontrol_new_t alc880_capture_mixer[] = {
 };
 
 /* capture mixer elements (in case NID 0x07 not available) */
-static snd_kcontrol_new_t alc880_capture_alt_mixer[] = {
+static struct snd_kcontrol_new alc880_capture_alt_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
@@ -371,7 +371,7 @@ static snd_kcontrol_new_t alc880_capture_alt_mixer[] = {
  */
 
 /* additional mixers to alc880_three_stack_mixer */
-static snd_kcontrol_new_t alc880_five_stack_mixer[] = {
+static struct snd_kcontrol_new alc880_five_stack_mixer[] = {
 	HDA_CODEC_VOLUME("Side Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Side Playback Switch", 0x0d, 2, HDA_INPUT),
 	{ } /* end */
@@ -428,7 +428,7 @@ static struct hda_channel_mode alc880_sixstack_modes[1] = {
 	{ 8, NULL },
 };
 
-static snd_kcontrol_new_t alc880_six_stack_mixer[] = {
+static struct snd_kcontrol_new alc880_six_stack_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
@@ -496,7 +496,7 @@ static struct hda_channel_mode alc880_w810_modes[1] = {
 };
 
 /* Pin assignment: Front = 0x14, Surr = 0x15, CLFE = 0x16, HP = 0x1b */
-static snd_kcontrol_new_t alc880_w810_base_mixer[] = {
+static struct snd_kcontrol_new alc880_w810_base_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
@@ -527,7 +527,7 @@ static struct hda_channel_mode alc880_2_jack_modes[1] = {
 	{ 2, NULL }
 };
 
-static snd_kcontrol_new_t alc880_z71v_mixer[] = {
+static struct snd_kcontrol_new alc880_z71v_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
@@ -553,7 +553,7 @@ static hda_nid_t alc880_f1734_dac_nids[1] = {
 };
 #define ALC880_F1734_HP_DAC	0x02
 
-static snd_kcontrol_new_t alc880_f1734_mixer[] = {
+static struct snd_kcontrol_new alc880_f1734_mixer[] = {
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Headphone Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Internal Speaker Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
@@ -578,7 +578,7 @@ static snd_kcontrol_new_t alc880_f1734_mixer[] = {
 #define alc880_asus_dac_nids	alc880_w810_dac_nids	/* identical with w810 */
 #define alc880_asus_modes	alc880_threestack_modes	/* 2/6 channel mode */
 
-static snd_kcontrol_new_t alc880_asus_mixer[] = {
+static struct snd_kcontrol_new alc880_asus_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
@@ -613,14 +613,14 @@ static snd_kcontrol_new_t alc880_asus_mixer[] = {
  */
 
 /* additional mixers to alc880_asus_mixer */
-static snd_kcontrol_new_t alc880_asus_w1v_mixer[] = {
+static struct snd_kcontrol_new alc880_asus_w1v_mixer[] = {
 	HDA_CODEC_VOLUME("Line2 Playback Volume", 0x0b, 0x03, HDA_INPUT),
 	HDA_CODEC_MUTE("Line2 Playback Switch", 0x0b, 0x03, HDA_INPUT),
 	{ } /* end */
 };
 
 /* additional mixers to alc880_asus_mixer */
-static snd_kcontrol_new_t alc880_pcbeep_mixer[] = {
+static struct snd_kcontrol_new alc880_pcbeep_mixer[] = {
 	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
 	{ } /* end */
@@ -974,7 +974,7 @@ static int alc_resume(struct hda_codec *codec)
  */
 static int alc880_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				    struct hda_codec *codec,
-				    snd_pcm_substream_t *substream)
+				    struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream);
@@ -984,7 +984,7 @@ static int alc880_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 				       struct hda_codec *codec,
 				       unsigned int stream_tag,
 				       unsigned int format,
-				       snd_pcm_substream_t *substream)
+				       struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_prepare(codec, &spec->multiout, stream_tag,
@@ -993,7 +993,7 @@ static int alc880_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int alc880_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				       struct hda_codec *codec,
-				       snd_pcm_substream_t *substream)
+				       struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
@@ -1004,7 +1004,7 @@ static int alc880_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
  */
 static int alc880_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
-					snd_pcm_substream_t *substream)
+					struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
@@ -1012,7 +1012,7 @@ static int alc880_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 
 static int alc880_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 					 struct hda_codec *codec,
-					 snd_pcm_substream_t *substream)
+					 struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
@@ -1025,7 +1025,7 @@ static int alc880_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
 				      unsigned int stream_tag,
 				      unsigned int format,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
 
@@ -1036,7 +1036,7 @@ static int alc880_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int alc880_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
 
@@ -1185,7 +1185,7 @@ static struct hda_channel_mode alc880_test_modes[4] = {
 	{ 8, NULL },
 };
 
-static int alc_test_pin_ctl_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int alc_test_pin_ctl_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = {
 		"N/A", "Line Out", "HP Out",
@@ -1200,7 +1200,7 @@ static int alc_test_pin_ctl_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int alc_test_pin_ctl_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_test_pin_ctl_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
@@ -1226,7 +1226,7 @@ static int alc_test_pin_ctl_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 
-static int alc_test_pin_ctl_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_test_pin_ctl_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
@@ -1252,7 +1252,7 @@ static int alc_test_pin_ctl_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 
-static int alc_test_pin_src_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int alc_test_pin_src_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = {
 		"Front", "Surround", "CLFE", "Side"
@@ -1266,7 +1266,7 @@ static int alc_test_pin_src_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int alc_test_pin_src_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_test_pin_src_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
@@ -1277,7 +1277,7 @@ static int alc_test_pin_src_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 
-static int alc_test_pin_src_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc_test_pin_src_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = (hda_nid_t)kcontrol->private_value;
@@ -1310,7 +1310,7 @@ static int alc_test_pin_src_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 			.private_value = nid	       \
 			}
 
-static snd_kcontrol_new_t alc880_test_mixer[] = {
+static struct snd_kcontrol_new alc880_test_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("CLFE Playback Volume", 0x0e, 0x0, HDA_OUTPUT),
@@ -1527,7 +1527,7 @@ static struct hda_board_config alc880_cfg_tbl[] = {
  * configuration template - to be copied to the spec instance
  */
 struct alc_config_preset {
-	snd_kcontrol_new_t *mixers[4];
+	struct snd_kcontrol_new *mixers[4];
 	const struct hda_verb *init_verbs[4];
 	unsigned int num_dacs;
 	hda_nid_t *dac_nids;
@@ -1698,7 +1698,7 @@ enum {
 	ALC_CTL_WIDGET_MUTE,
 	ALC_CTL_BIND_MUTE,
 };
-static snd_kcontrol_new_t alc880_control_templates[] = {
+static struct snd_kcontrol_new alc880_control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 	HDA_BIND_MUTE(NULL, 0, 0, 0),
@@ -1707,7 +1707,7 @@ static snd_kcontrol_new_t alc880_control_templates[] = {
 /* add dynamic controls */
 static int add_control(struct alc_spec *spec, int type, const char *name, unsigned long val)
 {
-	snd_kcontrol_new_t *knew;
+	struct snd_kcontrol_new *knew;
 
 	if (spec->num_kctl_used >= spec->num_kctl_alloc) {
 		int num = spec->num_kctl_alloc + NUM_CONTROL_ALLOC;
@@ -2168,7 +2168,7 @@ static struct hda_channel_mode alc260_modes[1] = {
 	{ 2, NULL },
 };
 
-static snd_kcontrol_new_t alc260_base_mixer[] = {
+static struct snd_kcontrol_new alc260_base_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x08, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x08, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
@@ -2197,7 +2197,7 @@ static snd_kcontrol_new_t alc260_base_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t alc260_hp_mixer[] = {
+static struct snd_kcontrol_new alc260_hp_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x08, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x08, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x07, 0x04, HDA_INPUT),
@@ -2224,7 +2224,7 @@ static snd_kcontrol_new_t alc260_hp_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t alc260_fujitsu_mixer[] = {
+static struct snd_kcontrol_new alc260_fujitsu_mixer[] = {
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x08, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Headphone Playback Switch", 0x08, 2, HDA_INPUT),
 	ALC_PINCTL_SWITCH("Headphone Amp Switch", 0x14, PIN_HP_AMP),
@@ -2498,7 +2498,7 @@ static struct hda_input_mux alc882_capture_source = {
 #define alc882_mux_enum_info alc_mux_enum_info
 #define alc882_mux_enum_get alc_mux_enum_get
 
-static int alc882_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int alc882_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
@@ -2526,7 +2526,7 @@ static int alc882_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u
 /* Pin assignment: Front=0x14, Rear=0x15, CLFE=0x16, Side=0x17
  *                 Mic=0x18, Front Mic=0x19, Line-In=0x1a, HP=0x1b
  */
-static snd_kcontrol_new_t alc882_base_mixer[] = {
+static struct snd_kcontrol_new alc882_base_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0d, 0x0, HDA_OUTPUT),

@@ -28,7 +28,7 @@
 #include "hda_local.h"
 
 struct ad198x_spec {
-	snd_kcontrol_new_t *mixers[5];
+	struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
 
 	const struct hda_verb *init_verbs[3];	/* initialization verbs
@@ -65,7 +65,7 @@ struct ad198x_spec {
 /*
  * input MUX handling (common part)
  */
-static int ad198x_mux_enum_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int ad198x_mux_enum_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
@@ -73,7 +73,7 @@ static int ad198x_mux_enum_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *u
 	return snd_hda_input_mux_info(spec->input_mux, uinfo);
 }
 
-static int ad198x_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int ad198x_mux_enum_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
@@ -83,7 +83,7 @@ static int ad198x_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u
 	return 0;
 }
 
-static int ad198x_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int ad198x_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
@@ -135,7 +135,7 @@ static int ad198x_build_controls(struct hda_codec *codec)
  */
 static int ad198x_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				    struct hda_codec *codec,
-				    snd_pcm_substream_t *substream)
+				    struct snd_pcm_substream *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream);
@@ -145,7 +145,7 @@ static int ad198x_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 				       struct hda_codec *codec,
 				       unsigned int stream_tag,
 				       unsigned int format,
-				       snd_pcm_substream_t *substream)
+				       struct snd_pcm_substream *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_prepare(codec, &spec->multiout, stream_tag,
@@ -154,7 +154,7 @@ static int ad198x_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int ad198x_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				       struct hda_codec *codec,
-				       snd_pcm_substream_t *substream)
+				       struct snd_pcm_substream *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
@@ -165,7 +165,7 @@ static int ad198x_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
  */
 static int ad198x_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
-					snd_pcm_substream_t *substream)
+					struct snd_pcm_substream *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
@@ -173,7 +173,7 @@ static int ad198x_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 
 static int ad198x_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 					 struct hda_codec *codec,
-					 snd_pcm_substream_t *substream)
+					 struct snd_pcm_substream *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
@@ -186,7 +186,7 @@ static int ad198x_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
 				      unsigned int stream_tag,
 				      unsigned int format,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
 	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
@@ -196,7 +196,7 @@ static int ad198x_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int ad198x_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
 	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
@@ -348,7 +348,7 @@ static struct hda_input_mux ad1986a_capture_source = {
 
 #define ad1986a_pcm_amp_vol_info	snd_hda_mixer_amp_volume_info
 
-static int ad1986a_pcm_amp_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int ad1986a_pcm_amp_vol_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *ad = codec->spec;
@@ -359,7 +359,7 @@ static int ad1986a_pcm_amp_vol_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int ad1986a_pcm_amp_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int ad1986a_pcm_amp_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *ad = codec->spec;
@@ -377,7 +377,7 @@ static int ad1986a_pcm_amp_vol_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 
 #define ad1986a_pcm_amp_sw_info		snd_hda_mixer_amp_switch_info
 
-static int ad1986a_pcm_amp_sw_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int ad1986a_pcm_amp_sw_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *ad = codec->spec;
@@ -388,7 +388,7 @@ static int ad1986a_pcm_amp_sw_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int ad1986a_pcm_amp_sw_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int ad1986a_pcm_amp_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *ad = codec->spec;
@@ -407,7 +407,7 @@ static int ad1986a_pcm_amp_sw_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
 /*
  * mixers
  */
-static snd_kcontrol_new_t ad1986a_mixers[] = {
+static struct snd_kcontrol_new ad1986a_mixers[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "PCM Playback Volume",
@@ -570,7 +570,7 @@ static struct hda_input_mux ad1983_capture_source = {
 /*
  * SPDIF playback route
  */
-static int ad1983_spdif_route_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int ad1983_spdif_route_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "PCM", "ADC" };
 
@@ -583,7 +583,7 @@ static int ad1983_spdif_route_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
 
-static int ad1983_spdif_route_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int ad1983_spdif_route_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
@@ -592,7 +592,7 @@ static int ad1983_spdif_route_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int ad1983_spdif_route_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int ad1983_spdif_route_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
@@ -606,7 +606,7 @@ static int ad1983_spdif_route_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static snd_kcontrol_new_t ad1983_mixers[] = {
+static struct snd_kcontrol_new ad1983_mixers[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x05, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x05, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x06, 0x0, HDA_OUTPUT),
@@ -736,7 +736,7 @@ static struct hda_input_mux ad1981_capture_source = {
 	},
 };
 
-static snd_kcontrol_new_t ad1981_mixers[] = {
+static struct snd_kcontrol_new ad1981_mixers[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x05, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x05, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x06, 0x0, HDA_OUTPUT),

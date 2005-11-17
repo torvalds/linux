@@ -41,7 +41,7 @@
 #define STAC_UNSOL_ENABLE 	(AC_USRSP_EN | STAC_HP_EVENT)
 
 struct sigmatel_spec {
-	snd_kcontrol_new_t *mixers[4];
+	struct snd_kcontrol_new *mixers[4];
 	unsigned int num_mixers;
 
 	unsigned int surr_switch: 1;
@@ -66,7 +66,7 @@ struct sigmatel_spec {
 
 	/* codec specific stuff */
 	struct hda_verb *init;
-	snd_kcontrol_new_t *mixer;
+	struct snd_kcontrol_new *mixer;
 
 	/* capture source */
 	struct hda_input_mux *input_mux;
@@ -81,7 +81,7 @@ struct sigmatel_spec {
 	/* dynamic controls and input_mux */
 	struct auto_pin_cfg autocfg;
 	unsigned int num_kctl_alloc, num_kctl_used;
-	snd_kcontrol_new_t *kctl_alloc;
+	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
 };
 
@@ -116,14 +116,14 @@ static hda_nid_t stac922x_pin_nids[10] = {
 };
 #endif
 
-static int stac92xx_mux_enum_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int stac92xx_mux_enum_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct sigmatel_spec *spec = codec->spec;
 	return snd_hda_input_mux_info(spec->input_mux, uinfo);
 }
 
-static int stac92xx_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac92xx_mux_enum_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct sigmatel_spec *spec = codec->spec;
@@ -133,7 +133,7 @@ static int stac92xx_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int stac92xx_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac92xx_mux_enum_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct sigmatel_spec *spec = codec->spec;
@@ -157,7 +157,7 @@ static struct hda_verb stac922x_core_init[] = {
 
 static int stac922x_channel_modes[3] = {2, 6, 8};
 
-static int stac922x_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int stac922x_ch_mode_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct sigmatel_spec *spec = codec->spec;
@@ -172,7 +172,7 @@ static int stac922x_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int stac922x_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac922x_ch_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct sigmatel_spec *spec = codec->spec;
@@ -181,7 +181,7 @@ static int stac922x_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 
-static int stac922x_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int stac922x_ch_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct sigmatel_spec *spec = codec->spec;
@@ -198,7 +198,7 @@ static int stac922x_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *
 	return 1;
 }
 
-static snd_kcontrol_new_t stac9200_mixer[] = {
+static struct snd_kcontrol_new stac9200_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Master Playback Switch", 0xb, 0, HDA_OUTPUT),
 	{
@@ -216,7 +216,7 @@ static snd_kcontrol_new_t stac9200_mixer[] = {
 };
 
 /* This needs to be generated dynamically based on sequence */
-static snd_kcontrol_new_t stac922x_mixer[] = {
+static struct snd_kcontrol_new stac922x_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Input Source",
@@ -231,7 +231,7 @@ static snd_kcontrol_new_t stac922x_mixer[] = {
 	{ } /* end */
 };
 
-static snd_kcontrol_new_t stac922x_ch_mode_mixer[] = {
+static struct snd_kcontrol_new stac922x_ch_mode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Channel Mode",
@@ -320,7 +320,7 @@ static void stac92xx_set_config_regs(struct hda_codec *codec)
  */
 static int stac92xx_playback_pcm_open(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_open(codec, &spec->multiout, substream);
@@ -333,7 +333,7 @@ static int stac92xx_playback_pcm_open(struct hda_pcm_stream *hinfo,
 static int stac92xx_multi_out_analog_prepare(struct hda_codec *codec, struct hda_multi_out *mout,
 				     unsigned int stream_tag,
 				     unsigned int format,
-				     snd_pcm_substream_t *substream)
+				     struct snd_pcm_substream *substream)
 {
 	hda_nid_t *nids = mout->dac_nids;
 	int chs = substream->runtime->channels;
@@ -380,7 +380,7 @@ static int stac92xx_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					 struct hda_codec *codec,
 					 unsigned int stream_tag,
 					 unsigned int format,
-					 snd_pcm_substream_t *substream)
+					 struct snd_pcm_substream *substream)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	return stac92xx_multi_out_analog_prepare(codec, &spec->multiout, stream_tag,
@@ -389,7 +389,7 @@ static int stac92xx_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int stac92xx_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
-					snd_pcm_substream_t *substream)
+					struct snd_pcm_substream *substream)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	return snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
@@ -400,7 +400,7 @@ static int stac92xx_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
  */
 static int stac92xx_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 					  struct hda_codec *codec,
-					  snd_pcm_substream_t *substream)
+					  struct snd_pcm_substream *substream)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_open(codec, &spec->multiout);
@@ -408,7 +408,7 @@ static int stac92xx_dig_playback_pcm_open(struct hda_pcm_stream *hinfo,
 
 static int stac92xx_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 					   struct hda_codec *codec,
-					   snd_pcm_substream_t *substream)
+					   struct snd_pcm_substream *substream)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
@@ -422,7 +422,7 @@ static int stac92xx_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
 					unsigned int stream_tag,
 					unsigned int format,
-					snd_pcm_substream_t *substream)
+					struct snd_pcm_substream *substream)
 {
 	struct sigmatel_spec *spec = codec->spec;
 
@@ -433,7 +433,7 @@ static int stac92xx_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int stac92xx_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 					struct hda_codec *codec,
-					snd_pcm_substream_t *substream)
+					struct snd_pcm_substream *substream)
 {
 	struct sigmatel_spec *spec = codec->spec;
 
@@ -516,7 +516,7 @@ enum {
 	STAC_CTL_WIDGET_MUTE,
 };
 
-static snd_kcontrol_new_t stac92xx_control_templates[] = {
+static struct snd_kcontrol_new stac92xx_control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 };
@@ -524,7 +524,7 @@ static snd_kcontrol_new_t stac92xx_control_templates[] = {
 /* add dynamic controls */
 static int stac92xx_add_control(struct sigmatel_spec *spec, int type, const char *name, unsigned long val)
 {
-	snd_kcontrol_new_t *knew;
+	struct snd_kcontrol_new *knew;
 
 	if (spec->num_kctl_used >= spec->num_kctl_alloc) {
 		int num = spec->num_kctl_alloc + NUM_CONTROL_ALLOC;

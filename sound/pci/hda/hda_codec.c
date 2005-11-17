@@ -332,7 +332,7 @@ static int snd_hda_bus_free(struct hda_bus *bus)
 	return 0;
 }
 
-static int snd_hda_bus_dev_free(snd_device_t *device)
+static int snd_hda_bus_dev_free(struct snd_device *device)
 {
 	struct hda_bus *bus = device->device_data;
 	return snd_hda_bus_free(bus);
@@ -346,12 +346,12 @@ static int snd_hda_bus_dev_free(snd_device_t *device)
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_bus_new(snd_card_t *card, const struct hda_bus_template *temp,
+int snd_hda_bus_new(struct snd_card *card, const struct hda_bus_template *temp,
 		    struct hda_bus **busp)
 {
 	struct hda_bus *bus;
 	int err;
-	static snd_device_ops_t dev_ops = {
+	static struct snd_device_ops dev_ops = {
 		.dev_free = snd_hda_bus_dev_free,
 	};
 
@@ -732,7 +732,7 @@ static int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int 
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
 
 /* volume */
-int snd_hda_mixer_amp_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	u16 nid = get_amp_nid(kcontrol);
@@ -753,7 +753,7 @@ int snd_hda_mixer_amp_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-int snd_hda_mixer_amp_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+int snd_hda_mixer_amp_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = get_amp_nid(kcontrol);
@@ -769,7 +769,7 @@ int snd_hda_mixer_amp_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-int snd_hda_mixer_amp_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+int snd_hda_mixer_amp_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = get_amp_nid(kcontrol);
@@ -791,7 +791,7 @@ int snd_hda_mixer_amp_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 }
 
 /* switch */
-int snd_hda_mixer_amp_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+int snd_hda_mixer_amp_switch_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int chs = get_amp_channels(kcontrol);
 
@@ -802,7 +802,7 @@ int snd_hda_mixer_amp_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-int snd_hda_mixer_amp_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+int snd_hda_mixer_amp_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = get_amp_nid(kcontrol);
@@ -818,7 +818,7 @@ int snd_hda_mixer_amp_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-int snd_hda_mixer_amp_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+int snd_hda_mixer_amp_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = get_amp_nid(kcontrol);
@@ -849,7 +849,7 @@ int snd_hda_mixer_amp_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 #define AMP_VAL_IDX_SHIFT	19
 #define AMP_VAL_IDX_MASK	(0x0f<<19)
 
-int snd_hda_mixer_bind_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+int snd_hda_mixer_bind_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned long pval;
@@ -864,7 +864,7 @@ int snd_hda_mixer_bind_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
 	return err;
 }
 
-int snd_hda_mixer_bind_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+int snd_hda_mixer_bind_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned long pval;
@@ -889,14 +889,14 @@ int snd_hda_mixer_bind_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
  * SPDIF out controls
  */
 
-static int snd_hda_spdif_mask_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_hda_spdif_mask_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
 	uinfo->count = 1;
 	return 0;
 }
 
-static int snd_hda_spdif_cmask_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_cmask_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.iec958.status[0] = IEC958_AES0_PROFESSIONAL |
 					   IEC958_AES0_NONAUDIO |
@@ -907,7 +907,7 @@ static int snd_hda_spdif_cmask_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_hda_spdif_pmask_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_pmask_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.iec958.status[0] = IEC958_AES0_PROFESSIONAL |
 					   IEC958_AES0_NONAUDIO |
@@ -915,7 +915,7 @@ static int snd_hda_spdif_pmask_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_hda_spdif_default_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_default_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 
@@ -978,7 +978,7 @@ static unsigned int convert_to_spdif_status(unsigned short val)
 	return sbits;
 }
 
-static int snd_hda_spdif_default_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_default_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = kcontrol->private_value;
@@ -1004,7 +1004,7 @@ static int snd_hda_spdif_default_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_valu
 	return change;
 }
 
-static int snd_hda_spdif_out_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_hda_spdif_out_switch_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -1013,7 +1013,7 @@ static int snd_hda_spdif_out_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_hda_spdif_out_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_out_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 
@@ -1021,7 +1021,7 @@ static int snd_hda_spdif_out_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 	return 0;
 }
 
-static int snd_hda_spdif_out_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_out_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = kcontrol->private_value;
@@ -1044,7 +1044,7 @@ static int snd_hda_spdif_out_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 	return change;
 }
 
-static snd_kcontrol_new_t dig_mixes[] = {
+static struct snd_kcontrol_new dig_mixes[] = {
 	{
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1089,8 +1089,8 @@ static snd_kcontrol_new_t dig_mixes[] = {
 int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 {
 	int err;
-	snd_kcontrol_t *kctl;
-	snd_kcontrol_new_t *dig_mix;
+	struct snd_kcontrol *kctl;
+	struct snd_kcontrol_new *dig_mix;
 
 	for (dig_mix = dig_mixes; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
@@ -1109,7 +1109,7 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 
 #define snd_hda_spdif_in_switch_info	snd_hda_spdif_out_switch_info
 
-static int snd_hda_spdif_in_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_in_switch_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 
@@ -1117,7 +1117,7 @@ static int snd_hda_spdif_in_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 	return 0;
 }
 
-static int snd_hda_spdif_in_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_in_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = kcontrol->private_value;
@@ -1134,7 +1134,7 @@ static int snd_hda_spdif_in_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 	return change;
 }
 
-static int snd_hda_spdif_in_status_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_hda_spdif_in_status_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = kcontrol->private_value;
@@ -1150,7 +1150,7 @@ static int snd_hda_spdif_in_status_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 	return 0;
 }
 
-static snd_kcontrol_new_t dig_in_ctls[] = {
+static struct snd_kcontrol_new dig_in_ctls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH),
@@ -1181,8 +1181,8 @@ static snd_kcontrol_new_t dig_in_ctls[] = {
 int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 {
 	int err;
-	snd_kcontrol_t *kctl;
-	snd_kcontrol_new_t *dig_mix;
+	struct snd_kcontrol *kctl;
+	struct snd_kcontrol_new *dig_mix;
 
 	for (dig_mix = dig_in_ctls; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
@@ -1498,7 +1498,7 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
  */
 static int hda_pcm_default_open_close(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
-				      snd_pcm_substream_t *substream)
+				      struct snd_pcm_substream *substream)
 {
 	return 0;
 }
@@ -1507,7 +1507,7 @@ static int hda_pcm_default_prepare(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
 				   unsigned int stream_tag,
 				   unsigned int format,
-				   snd_pcm_substream_t *substream)
+				   struct snd_pcm_substream *substream)
 {
 	snd_hda_codec_setup_stream(codec, hinfo->nid, stream_tag, 0, format);
 	return 0;
@@ -1515,7 +1515,7 @@ static int hda_pcm_default_prepare(struct hda_pcm_stream *hinfo,
 
 static int hda_pcm_default_cleanup(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
-				   snd_pcm_substream_t *substream)
+				   struct snd_pcm_substream *substream)
 {
 	snd_hda_codec_setup_stream(codec, hinfo->nid, 0, 0, 0);
 	return 0;
@@ -1646,14 +1646,14 @@ int snd_hda_check_board_config(struct hda_codec *codec, const struct hda_board_c
 /**
  * snd_hda_add_new_ctls - create controls from the array
  * @codec: the HDA codec
- * @knew: the array of snd_kcontrol_new_t
+ * @knew: the array of struct snd_kcontrol_new
  *
  * This helper function creates and add new controls in the given array.
  * The array must be terminated with an empty entry as terminator.
  *
  * Returns 0 if successful, or a negative error code.
  */
-int snd_hda_add_new_ctls(struct hda_codec *codec, snd_kcontrol_new_t *knew)
+int snd_hda_add_new_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 {
 	int err;
 
@@ -1666,10 +1666,10 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, snd_kcontrol_new_t *knew)
 }
 
 
- /*
+/*
  * Channel mode helper
  */
-int snd_hda_ch_mode_info(struct hda_codec *codec, snd_ctl_elem_info_t *uinfo,
+int snd_hda_ch_mode_info(struct hda_codec *codec, struct snd_ctl_elem_info *uinfo,
 			 const struct hda_channel_mode *chmode, int num_chmodes)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -1682,7 +1682,7 @@ int snd_hda_ch_mode_info(struct hda_codec *codec, snd_ctl_elem_info_t *uinfo,
 	return 0;
 }
 
-int snd_hda_ch_mode_get(struct hda_codec *codec, snd_ctl_elem_value_t *ucontrol,
+int snd_hda_ch_mode_get(struct hda_codec *codec, struct snd_ctl_elem_value *ucontrol,
 			const struct hda_channel_mode *chmode, int num_chmodes,
 			int max_channels)
 {
@@ -1697,7 +1697,7 @@ int snd_hda_ch_mode_get(struct hda_codec *codec, snd_ctl_elem_value_t *ucontrol,
 	return 0;
 }
 
-int snd_hda_ch_mode_put(struct hda_codec *codec, snd_ctl_elem_value_t *ucontrol,
+int snd_hda_ch_mode_put(struct hda_codec *codec, struct snd_ctl_elem_value *ucontrol,
 			const struct hda_channel_mode *chmode, int num_chmodes,
 			int *max_channelsp)
 {
@@ -1717,7 +1717,7 @@ int snd_hda_ch_mode_put(struct hda_codec *codec, snd_ctl_elem_value_t *ucontrol,
 /*
  * input MUX helper
  */
-int snd_hda_input_mux_info(const struct hda_input_mux *imux, snd_ctl_elem_info_t *uinfo)
+int snd_hda_input_mux_info(const struct hda_input_mux *imux, struct snd_ctl_elem_info *uinfo)
 {
 	unsigned int index;
 
@@ -1732,7 +1732,7 @@ int snd_hda_input_mux_info(const struct hda_input_mux *imux, snd_ctl_elem_info_t
 }
 
 int snd_hda_input_mux_put(struct hda_codec *codec, const struct hda_input_mux *imux,
-			  snd_ctl_elem_value_t *ucontrol, hda_nid_t nid,
+			  struct snd_ctl_elem_value *ucontrol, hda_nid_t nid,
 			  unsigned int *cur_val)
 {
 	unsigned int idx;
@@ -1783,7 +1783,7 @@ int snd_hda_multi_out_dig_close(struct hda_codec *codec, struct hda_multi_out *m
  * set up more restrictions for analog out
  */
 int snd_hda_multi_out_analog_open(struct hda_codec *codec, struct hda_multi_out *mout,
-				  snd_pcm_substream_t *substream)
+				  struct snd_pcm_substream *substream)
 {
 	substream->runtime->hw.channels_max = mout->max_channels;
 	return snd_pcm_hw_constraint_step(substream->runtime, 0,
@@ -1797,7 +1797,7 @@ int snd_hda_multi_out_analog_open(struct hda_codec *codec, struct hda_multi_out 
 int snd_hda_multi_out_analog_prepare(struct hda_codec *codec, struct hda_multi_out *mout,
 				     unsigned int stream_tag,
 				     unsigned int format,
-				     snd_pcm_substream_t *substream)
+				     struct snd_pcm_substream *substream)
 {
 	hda_nid_t *nids = mout->dac_nids;
 	int chs = substream->runtime->channels;
@@ -2019,15 +2019,15 @@ int snd_hda_resume(struct hda_bus *bus)
 /**
  * snd_hda_resume_ctls - resume controls in the new control list
  * @codec: the HDA codec
- * @knew: the array of snd_kcontrol_new_t
+ * @knew: the array of struct snd_kcontrol_new
  *
- * This function resumes the mixer controls in the snd_kcontrol_new_t array,
+ * This function resumes the mixer controls in the struct snd_kcontrol_new array,
  * originally for snd_hda_add_new_ctls().
  * The array must be terminated with an empty entry as terminator.
  */
-int snd_hda_resume_ctls(struct hda_codec *codec, snd_kcontrol_new_t *knew)
+int snd_hda_resume_ctls(struct hda_codec *codec, struct snd_kcontrol_new *knew)
 {
-	snd_ctl_elem_value_t *val;
+	struct snd_ctl_elem_value *val;
 
 	val = kmalloc(sizeof(*val), GFP_KERNEL);
 	if (! val)
