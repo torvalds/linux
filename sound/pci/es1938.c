@@ -1398,11 +1398,13 @@ static unsigned char saved_regs[SAVED_REG_SIZE+1] = {
 };
 
 
-static int es1938_suspend(struct snd_card *card, pm_message_t state)
+static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct es1938 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 
 	/* save mixer-related registers */
@@ -1411,20 +1413,23 @@ static int es1938_suspend(struct snd_card *card, pm_message_t state)
 
 	outb(0x00, SLIO_REG(chip, IRQCONTROL)); /* disable irqs */
 	if (chip->irq >= 0)
-		free_irq(chip->irq, chip);  
-	pci_disable_device(chip->pci);
+		free_irq(chip->irq, chip);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int es1938_resume(struct snd_card *card)
+static int es1938_resume(struct pci_dev *pci)
 {
-	struct es1938 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
-	pci_enable_device(chip->pci);
-	request_irq(chip->pci->irq, snd_es1938_interrupt,
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	request_irq(pci->irq, snd_es1938_interrupt,
 		    SA_INTERRUPT|SA_SHIRQ, "ES1938", chip);
-	chip->irq = chip->pci->irq;
+	chip->irq = pci->irq;
 	snd_es1938_chip_init(chip);
 
 	/* restore mixer-related registers */
@@ -1435,6 +1440,7 @@ static int es1938_resume(struct snd_card *card)
 			snd_es1938_write(chip, *s, *d);
 	}
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -1552,8 +1558,6 @@ static int __devinit snd_es1938_create(struct snd_card *card,
 	chip->ddma_port = chip->vc_port + 0x00;		/* fix from Thomas Sailer */
 
 	snd_es1938_chip_init(chip);
-
-	snd_card_set_pm_callback(card, es1938_suspend, es1938_resume, chip);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_es1938_free(chip);
@@ -1717,6 +1721,7 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	strcpy(card->driver, "ES1938");
 	strcpy(card->shortname, "ESS ES1938 (Solo-1)");
@@ -1781,7 +1786,10 @@ static struct pci_driver driver = {
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
 	.remove = __devexit_p(snd_es1938_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = es1938_suspend,
+	.resume = es1938_resume,
+#endif
 };
 
 static int __init alsa_card_es1938_init(void)
