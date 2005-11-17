@@ -45,6 +45,8 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
 #include <linux/moduleparam.h>
@@ -155,8 +157,6 @@ struct snd_cmi8330 {
 		void *private_data; /* sb or wss */
 	} streams[2];
 };
-
-static struct snd_card *snd_cmi8330_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #ifdef CONFIG_PNP
 
@@ -429,6 +429,31 @@ static int __devinit snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *
 }
 
 
+#ifdef CONFIG_PM
+static int snd_cmi8330_suspend(struct snd_card *card)
+{
+	struct snd_cmi8330 *acard = card->private_data;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	snd_pcm_suspend_all(acard->pcm);
+	acard->wss->suspend(acard->wss);
+	snd_sbmixer_suspend(acard->sb);
+	return 0;
+}
+
+static int snd_cmi8330_resume(struct snd_card *card)
+{
+	struct snd_cmi8330 *acard = card->private_data;
+
+	snd_sbdsp_reset(acard->sb);
+	snd_sbmixer_suspend(acard->sb);
+	acard->wss->resume(acard->wss);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
+
 /*
  */
 
@@ -440,44 +465,28 @@ static int __devinit snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *
 
 #define PFX	"cmi8330: "
 
-static int __devinit snd_cmi8330_probe(int dev,
-				       struct pnp_card_link *pcard,
-				       const struct pnp_card_device_id *pid)
+static struct snd_card *snd_cmi8330_card_new(int dev)
 {
 	struct snd_card *card;
 	struct snd_cmi8330 *acard;
-	int i, err;
-
-	if (! is_isapnp_selected(dev)) {
-		if (wssport[dev] == SNDRV_AUTO_PORT) {
-			snd_printk(KERN_ERR PFX "specify wssport\n");
-			return -EINVAL;
-		}
-		if (sbport[dev] == SNDRV_AUTO_PORT) {
-			snd_printk(KERN_ERR PFX "specify sbport\n");
-			return -EINVAL;
-		}
-	}
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 			    sizeof(struct snd_cmi8330));
 	if (card == NULL) {
 		snd_printk(KERN_ERR PFX "could not get a new card\n");
-		return -ENOMEM;
+		return NULL;
 	}
-	acard = (struct snd_cmi8330 *)card->private_data;
+	acard = card->private_data;
 	acard->card = card;
+	return card;
+}
 
-#ifdef CONFIG_PNP
-	if (isapnp[dev]) {
-		if ((err = snd_cmi8330_pnp(dev, acard, pcard, pid)) < 0) {
-			snd_printk(KERN_ERR PFX "PnP detection failed\n");
-			goto _err;
-		}
-		snd_card_set_dev(card, &pcard->card->dev);
-	}
-#endif
+static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
+{
+	struct snd_cmi8330 *acard;
+	int i, err;
 
+	acard = card->private_data;
 	if ((err = snd_ad1848_create(card,
 				     wssport[dev] + 4,
 				     wssirq[dev],
@@ -485,12 +494,11 @@ static int __devinit snd_cmi8330_probe(int dev,
 				     AD1848_HW_DETECT,
 				     &acard->wss)) < 0) {
 		snd_printk(KERN_ERR PFX "(AD1848) device busy??\n");
-		goto _err;
+		return err;
 	}
 	if (acard->wss->hardware != AD1848_HW_CMI8330) {
 		snd_printk(KERN_ERR PFX "(AD1848) not found during probe\n");
-		err = -ENODEV;
-		goto _err;
+		return -ENODEV;
 	}
 
 	if ((err = snd_sbdsp_create(card, sbport[dev],
@@ -500,11 +508,11 @@ static int __devinit snd_cmi8330_probe(int dev,
 				    sbdma16[dev],
 				    SB_HW_AUTO, &acard->sb)) < 0) {
 		snd_printk(KERN_ERR PFX "(SB16) device busy??\n");
-		goto _err;
+		return err;
 	}
 	if (acard->sb->hardware != SB_HW_16) {
 		snd_printk(KERN_ERR PFX "(SB16) not found during probe\n");
-		goto _err;
+		return err;
 	}
 
 	snd_ad1848_out(acard->wss, AD1848_MISC_INFO, 0x40); /* switch on MODE2 */
@@ -513,12 +521,12 @@ static int __devinit snd_cmi8330_probe(int dev,
 
 	if ((err = snd_cmi8330_mixer(card, acard)) < 0) {
 		snd_printk(KERN_ERR PFX "failed to create mixers\n");
-		goto _err;
+		return err;
 	}
 
 	if ((err = snd_cmi8330_pcm(card, acard)) < 0) {
 		snd_printk(KERN_ERR PFX "failed to create pcms\n");
-		goto _err;
+		return err;
 	}
 
 	strcpy(card->driver, "CMI8330/C3D");
@@ -529,49 +537,120 @@ static int __devinit snd_cmi8330_probe(int dev,
 		wssirq[dev],
 		wssdma[dev]);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
-
-	if ((err = snd_card_register(card)) < 0)
-		goto _err;
-
-	if (pcard)
-		pnp_set_card_drvdata(pcard, card);
-	else
-		snd_cmi8330_legacy[dev] = card;
-	return 0;
-
- _err:
-	snd_card_free(card);
-	return err;
+	return snd_card_register(card);
 }
 
+static int __init snd_cmi8330_nonpnp_probe(struct platform_device *pdev)
+{
+	struct snd_card *card;
+	int err;
+	int dev = pdev->id;
+
+	if (wssport[dev] == SNDRV_AUTO_PORT) {
+		snd_printk(KERN_ERR PFX "specify wssport\n");
+		return -EINVAL;
+	}
+	if (sbport[dev] == SNDRV_AUTO_PORT) {
+		snd_printk(KERN_ERR PFX "specify sbport\n");
+		return -EINVAL;
+	}
+
+	card = snd_cmi8330_card_new(dev);
+	if (! card)
+		return -ENOMEM;
+	snd_card_set_dev(card, &pdev->dev);
+	if ((err = snd_cmi8330_probe(card, dev)) < 0) {
+		snd_card_free(card);
+		return err;
+	}
+	platform_set_drvdata(pdev, card);
+	return 0;
+}
+
+static int snd_cmi8330_nonpnp_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int snd_cmi8330_nonpnp_suspend(struct platform_device *dev, pm_message_t state)
+{
+	return snd_cmi8330_suspend(platform_get_drvdata(dev));
+}
+
+static int snd_cmi8330_nonpnp_resume(struct platform_device *dev)
+{
+	return snd_cmi8330_resume(platform_get_drvdata(dev));
+}
+#endif
+
+#define CMI8330_DRIVER	"snd_cmi8330"
+
+static struct platform_driver snd_cmi8330_driver = {
+	.probe		= snd_cmi8330_nonpnp_probe,
+	.remove		= snd_cmi8330_nonpnp_remove,
+#ifdef CONFIG_PM
+	.suspend	= snd_cmi8330_nonpnp_suspend,
+	.resume		= snd_cmi8330_nonpnp_resume,
+#endif
+	.driver		= {
+		.name	= CMI8330_DRIVER
+	},
+};
+
+
 #ifdef CONFIG_PNP
-static int __devinit snd_cmi8330_pnp_detect(struct pnp_card_link *card,
-					    const struct pnp_card_device_id *id)
+static int __devinit snd_cmi8330_pnp_detect(struct pnp_card_link *pcard,
+					    const struct pnp_card_device_id *pid)
 {
 	static int dev;
+	struct snd_card *card;
 	int res;
 
 	for ( ; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev] || !isapnp[dev])
-			continue;
-		res = snd_cmi8330_probe(dev, card, id);
-		if (res < 0)
-			return res;
-		dev++;
-		return 0;
+		if (enable[dev] && isapnp[dev])
+			break;
 	}
-	return -ENODEV;
+	if (dev >= SNDRV_CARDS)
+		return -ENODEV;
+			       
+	card = snd_cmi8330_card_new(dev);
+	if (! card)
+		return -ENOMEM;
+	if ((res = snd_cmi8330_pnp(dev, card->private_data, pcard, pid)) < 0) {
+		snd_printk(KERN_ERR PFX "PnP detection failed\n");
+		snd_card_free(card);
+		return res;
+	}
+	snd_card_set_dev(card, &pcard->card->dev);
+	if ((res = snd_cmi8330_probe(card, dev)) < 0) {
+		snd_card_free(card);
+		return res;
+	}
+	pnp_set_card_drvdata(pcard, card);
+	dev++;
+	return 0;
 }
 
 static void __devexit snd_cmi8330_pnp_remove(struct pnp_card_link * pcard)
 {
-	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
-
-	snd_card_disconnect(card);
-	snd_card_free_in_thread(card);
+	snd_card_free(pnp_get_card_drvdata(pcard));
+	pnp_set_card_drvdata(pcard, NULL);
 }
+
+#ifdef CONFIG_PM
+static int snd_cmi8330_pnp_suspend(struct pnp_card_link *pcard, pm_message_t state)
+{
+	return snd_cmi8330_suspend(pnp_get_card_drvdata(pcard));
+}
+
+static int snd_cmi8330_pnp_resume(struct pnp_card_link *pcard)
+{
+	return snd_cmi8330_resume(pnp_get_card_drvdata(pcard));
+}
+#endif
 
 static struct pnp_card_driver cmi8330_pnpc_driver = {
 	.flags = PNP_DRIVER_RES_DISABLE,
@@ -579,29 +658,41 @@ static struct pnp_card_driver cmi8330_pnpc_driver = {
 	.id_table = snd_cmi8330_pnpids,
 	.probe = snd_cmi8330_pnp_detect,
 	.remove = __devexit_p(snd_cmi8330_pnp_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_cmi8330_pnp_suspend,
+	.resume		= snd_cmi8330_pnp_resume,
+#endif
 };
 #endif /* CONFIG_PNP */
 
 static int __init alsa_card_cmi8330_init(void)
 {
-	int dev, cards = 0;
+	int i, err, cards = 0;
 
-	for (dev = 0; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev])
+	if ((err = platform_driver_register(&snd_cmi8330_driver)) < 0)
+		return err;
+
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		if (is_isapnp_selected(i))
 			continue;
-		if (is_isapnp_selected(dev))
-			continue;
-		if (snd_cmi8330_probe(dev, NULL, NULL) >= 0)
-			cards++;
+		device = platform_device_register_simple(CMI8330_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			platform_driver_unregister(&snd_cmi8330_driver);
+			return err;
+		}
+		cards++;
 	}
-#ifdef CONFIG_PNP
-	cards += pnp_register_card_driver(&cmi8330_pnpc_driver);
-#endif
+
+	err = pnp_register_card_driver(&cmi8330_pnpc_driver);
+	if (err > 0)
+		cards += err;
 
 	if (!cards) {
-#ifdef CONFIG_PNP
 		pnp_unregister_card_driver(&cmi8330_pnpc_driver);
-#endif
+		platform_driver_unregister(&snd_cmi8330_driver);
 #ifdef MODULE
 		snd_printk(KERN_ERR "CMI8330 not found or device busy\n");
 #endif
@@ -612,14 +703,8 @@ static int __init alsa_card_cmi8330_init(void)
 
 static void __exit alsa_card_cmi8330_exit(void)
 {
-	int i;
-
-#ifdef CONFIG_PNP
-	/* PnP cards first */
 	pnp_unregister_card_driver(&cmi8330_pnpc_driver);
-#endif
-	for (i = 0; i < SNDRV_CARDS; i++)
-		snd_card_free(snd_cmi8330_legacy[i]);
+	platform_driver_unregister(&snd_cmi8330_driver);
 }
 
 module_init(alsa_card_cmi8330_init)
