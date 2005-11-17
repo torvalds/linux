@@ -147,9 +147,7 @@ MODULE_PARM_DESC(tea575x_tuner, "Enable TEA575x tuner.");
 
  */
 
-typedef struct _snd_fm801 fm801_t;
-
-struct _snd_fm801 {
+struct fm801 {
 	int irq;
 
 	unsigned long port;	/* I/O port number */
@@ -172,24 +170,24 @@ struct _snd_fm801 {
 	unsigned int cap_size;
 	unsigned int cap_pos;
 
-	ac97_bus_t *ac97_bus;
-	ac97_t *ac97;
-	ac97_t *ac97_sec;
+	struct snd_ac97_bus *ac97_bus;
+	struct snd_ac97 *ac97;
+	struct snd_ac97 *ac97_sec;
 
 	struct pci_dev *pci;
-	snd_card_t *card;
-	snd_pcm_t *pcm;
-	snd_rawmidi_t *rmidi;
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_rawmidi *rmidi;
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
 	unsigned int p_dma_size;
 	unsigned int c_dma_size;
 
 	spinlock_t reg_lock;
-	snd_info_entry_t *proc_entry;
+	struct snd_info_entry *proc_entry;
 
 #ifdef TEA575X_RADIO
-	tea575x_t tea;
+	struct snd_tea575x tea;
 #endif
 };
 
@@ -205,7 +203,7 @@ MODULE_DEVICE_TABLE(pci, snd_fm801_ids);
  *  common I/O routines
  */
 
-static int snd_fm801_update_bits(fm801_t *chip, unsigned short reg,
+static int snd_fm801_update_bits(struct fm801 *chip, unsigned short reg,
 				 unsigned short mask, unsigned short value)
 {
 	int change;
@@ -222,11 +220,11 @@ static int snd_fm801_update_bits(fm801_t *chip, unsigned short reg,
 	return change;
 }
 
-static void snd_fm801_codec_write(ac97_t *ac97,
+static void snd_fm801_codec_write(struct snd_ac97 *ac97,
 				  unsigned short reg,
 				  unsigned short val)
 {
-	fm801_t *chip = ac97->private_data;
+	struct fm801 *chip = ac97->private_data;
 	int idx;
 
 	/*
@@ -255,9 +253,9 @@ static void snd_fm801_codec_write(ac97_t *ac97,
 	snd_printk(KERN_ERR "AC'97 interface #%d is busy (2)\n", ac97->num);
 }
 
-static unsigned short snd_fm801_codec_read(ac97_t *ac97, unsigned short reg)
+static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 {
-	fm801_t *chip = ac97->private_data;
+	struct fm801 *chip = ac97->private_data;
 	int idx;
 
 	/*
@@ -301,7 +299,7 @@ static unsigned int rates[] = {
   38400, 44100, 48000
 };
 
-static snd_pcm_hw_constraint_list_t hw_constraints_rates = {
+static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,
@@ -313,7 +311,7 @@ static unsigned int channels[] = {
 
 #define CHANNELS sizeof(channels) / sizeof(channels[0])
 
-static snd_pcm_hw_constraint_list_t hw_constraints_channels = {
+static struct snd_pcm_hw_constraint_list hw_constraints_channels = {
 	.count = CHANNELS,
 	.list = channels,
 	.mask = 0,
@@ -338,10 +336,10 @@ static unsigned short snd_fm801_rate_bits(unsigned int rate)
  *  PCM part
  */
 
-static int snd_fm801_playback_trigger(snd_pcm_substream_t * substream,
+static int snd_fm801_playback_trigger(struct snd_pcm_substream *substream,
 				      int cmd)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
 
 	spin_lock(&chip->reg_lock);
 	switch (cmd) {
@@ -371,10 +369,10 @@ static int snd_fm801_playback_trigger(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-static int snd_fm801_capture_trigger(snd_pcm_substream_t * substream,
+static int snd_fm801_capture_trigger(struct snd_pcm_substream *substream,
 				     int cmd)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
 
 	spin_lock(&chip->reg_lock);
 	switch (cmd) {
@@ -404,21 +402,21 @@ static int snd_fm801_capture_trigger(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-static int snd_fm801_hw_params(snd_pcm_substream_t * substream,
-			       snd_pcm_hw_params_t * hw_params)
+static int snd_fm801_hw_params(struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
-static int snd_fm801_hw_free(snd_pcm_substream_t * substream)
+static int snd_fm801_hw_free(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static int snd_fm801_playback_prepare(snd_pcm_substream_t * substream)
+static int snd_fm801_playback_prepare(struct snd_pcm_substream *substream)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	chip->ply_size = snd_pcm_lib_buffer_bytes(substream);
 	chip->ply_count = snd_pcm_lib_period_bytes(substream);
@@ -447,10 +445,10 @@ static int snd_fm801_playback_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_fm801_capture_prepare(snd_pcm_substream_t * substream)
+static int snd_fm801_capture_prepare(struct snd_pcm_substream *substream)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	chip->cap_size = snd_pcm_lib_buffer_bytes(substream);
 	chip->cap_count = snd_pcm_lib_period_bytes(substream);
@@ -473,9 +471,9 @@ static int snd_fm801_capture_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static snd_pcm_uframes_t snd_fm801_playback_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_fm801_playback_pointer(struct snd_pcm_substream *substream)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 
 	if (!(chip->ply_ctrl & FM801_START))
@@ -490,9 +488,9 @@ static snd_pcm_uframes_t snd_fm801_playback_pointer(snd_pcm_substream_t * substr
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static snd_pcm_uframes_t snd_fm801_capture_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_fm801_capture_pointer(struct snd_pcm_substream *substream)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 
 	if (!(chip->cap_ctrl & FM801_START))
@@ -509,7 +507,7 @@ static snd_pcm_uframes_t snd_fm801_capture_pointer(snd_pcm_substream_t * substre
 
 static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	fm801_t *chip = dev_id;
+	struct fm801 *chip = dev_id;
 	unsigned short status;
 	unsigned int tmp;
 
@@ -555,7 +553,7 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id, struct pt_regs *re
 	return IRQ_HANDLED;
 }
 
-static snd_pcm_hardware_t snd_fm801_playback =
+static struct snd_pcm_hardware snd_fm801_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -575,7 +573,7 @@ static snd_pcm_hardware_t snd_fm801_playback =
 	.fifo_size =		0,
 };
 
-static snd_pcm_hardware_t snd_fm801_capture =
+static struct snd_pcm_hardware snd_fm801_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -595,55 +593,59 @@ static snd_pcm_hardware_t snd_fm801_capture =
 	.fifo_size =		0,
 };
 
-static int snd_fm801_playback_open(snd_pcm_substream_t * substream)
+static int snd_fm801_playback_open(struct snd_pcm_substream *substream)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
 	chip->playback_substream = substream;
 	runtime->hw = snd_fm801_playback;
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				   &hw_constraints_rates);
 	if (chip->multichannel) {
 		runtime->hw.channels_max = 6;
-		snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS, &hw_constraints_channels);
+		snd_pcm_hw_constraint_list(runtime, 0,
+					   SNDRV_PCM_HW_PARAM_CHANNELS,
+					   &hw_constraints_channels);
 	}
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
 		return err;
 	return 0;
 }
 
-static int snd_fm801_capture_open(snd_pcm_substream_t * substream)
+static int snd_fm801_capture_open(struct snd_pcm_substream *substream)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
 	chip->capture_substream = substream;
 	runtime->hw = snd_fm801_capture;
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates);
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				   &hw_constraints_rates);
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
 		return err;
 	return 0;
 }
 
-static int snd_fm801_playback_close(snd_pcm_substream_t * substream)
+static int snd_fm801_playback_close(struct snd_pcm_substream *substream)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
 
 	chip->playback_substream = NULL;
 	return 0;
 }
 
-static int snd_fm801_capture_close(snd_pcm_substream_t * substream)
+static int snd_fm801_capture_close(struct snd_pcm_substream *substream)
 {
-	fm801_t *chip = snd_pcm_substream_chip(substream);
+	struct fm801 *chip = snd_pcm_substream_chip(substream);
 
 	chip->capture_substream = NULL;
 	return 0;
 }
 
-static snd_pcm_ops_t snd_fm801_playback_ops = {
+static struct snd_pcm_ops snd_fm801_playback_ops = {
 	.open =		snd_fm801_playback_open,
 	.close =	snd_fm801_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -654,7 +656,7 @@ static snd_pcm_ops_t snd_fm801_playback_ops = {
 	.pointer =	snd_fm801_playback_pointer,
 };
 
-static snd_pcm_ops_t snd_fm801_capture_ops = {
+static struct snd_pcm_ops snd_fm801_capture_ops = {
 	.open =		snd_fm801_capture_open,
 	.close =	snd_fm801_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -665,9 +667,9 @@ static snd_pcm_ops_t snd_fm801_capture_ops = {
 	.pointer =	snd_fm801_capture_pointer,
 };
 
-static int __devinit snd_fm801_pcm(fm801_t *chip, int device, snd_pcm_t ** rpcm)
+static int __devinit snd_fm801_pcm(struct fm801 *chip, int device, struct snd_pcm ** rpcm)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	if (rpcm)
@@ -703,9 +705,9 @@ static int __devinit snd_fm801_pcm(fm801_t *chip, int device, snd_pcm_t ** rpcm)
 #define TEA_256PCS_WRITE_ENABLE		2	/* inverted */
 #define TEA_256PCS_BUS_CLOCK		3
 
-static void snd_fm801_tea575x_256pcs_write(tea575x_t *tea, unsigned int val)
+static void snd_fm801_tea575x_256pcs_write(struct snd_tea575x *tea, unsigned int val)
 {
-	fm801_t *chip = tea->private_data;
+	struct fm801 *chip = tea->private_data;
 	unsigned short reg;
 	int i = 25;
 
@@ -747,9 +749,9 @@ static void snd_fm801_tea575x_256pcs_write(tea575x_t *tea, unsigned int val)
 	spin_unlock_irq(&chip->reg_lock);
 }
 
-static unsigned int snd_fm801_tea575x_256pcs_read(tea575x_t *tea)
+static unsigned int snd_fm801_tea575x_256pcs_read(struct snd_tea575x *tea)
 {
-	fm801_t *chip = tea->private_data;
+	struct fm801 *chip = tea->private_data;
 	unsigned short reg;
 	unsigned int val = 0;
 	int i;
@@ -791,9 +793,9 @@ static unsigned int snd_fm801_tea575x_256pcs_read(tea575x_t *tea)
 #define TEA_256PCPR_DATA		1
 #define TEA_256PCPR_WRITE_ENABLE	2	/* inverted */
 
-static void snd_fm801_tea575x_256pcpr_write(tea575x_t *tea, unsigned int val)
+static void snd_fm801_tea575x_256pcpr_write(struct snd_tea575x *tea, unsigned int val)
 {
-	fm801_t *chip = tea->private_data;
+	struct fm801 *chip = tea->private_data;
 	unsigned short reg;
 	int i = 25;
 
@@ -835,9 +837,9 @@ static void snd_fm801_tea575x_256pcpr_write(tea575x_t *tea, unsigned int val)
 	spin_unlock_irq(&chip->reg_lock);
 }
 
-static unsigned int snd_fm801_tea575x_256pcpr_read(tea575x_t *tea)
+static unsigned int snd_fm801_tea575x_256pcpr_read(struct snd_tea575x *tea)
 {
-	fm801_t *chip = tea->private_data;
+	struct fm801 *chip = tea->private_data;
 	unsigned short reg;
 	unsigned int val = 0;
 	int i;
@@ -879,9 +881,9 @@ static unsigned int snd_fm801_tea575x_256pcpr_read(tea575x_t *tea)
 #define TEA_64PCR_WRITE_ENABLE		1	/* inverted */
 #define TEA_64PCR_DATA			2
 
-static void snd_fm801_tea575x_64pcr_write(tea575x_t *tea, unsigned int val)
+static void snd_fm801_tea575x_64pcr_write(struct snd_tea575x *tea, unsigned int val)
 {
-	fm801_t *chip = tea->private_data;
+	struct fm801 *chip = tea->private_data;
 	unsigned short reg;
 	int i = 25;
 
@@ -923,9 +925,9 @@ static void snd_fm801_tea575x_64pcr_write(tea575x_t *tea, unsigned int val)
 	spin_unlock_irq(&chip->reg_lock);
 }
 
-static unsigned int snd_fm801_tea575x_64pcr_read(tea575x_t *tea)
+static unsigned int snd_fm801_tea575x_64pcr_read(struct snd_tea575x *tea)
 {
-	fm801_t *chip = tea->private_data;
+	struct fm801 *chip = tea->private_data;
 	unsigned short reg;
 	unsigned int val = 0;
 	int i;
@@ -990,7 +992,8 @@ static struct snd_tea575x_ops snd_fm801_tea_ops[3] = {
   .get = snd_fm801_get_single, .put = snd_fm801_put_single, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
 
-static int snd_fm801_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_fm801_info_single(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 
@@ -1001,9 +1004,10 @@ static int snd_fm801_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int snd_fm801_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_fm801_get_single(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
-	fm801_t *chip = snd_kcontrol_chip(kcontrol);
+	struct fm801 *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
@@ -1015,9 +1019,10 @@ static int snd_fm801_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int snd_fm801_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_fm801_put_single(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
-	fm801_t *chip = snd_kcontrol_chip(kcontrol);
+	struct fm801 *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
@@ -1035,7 +1040,8 @@ static int snd_fm801_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
   .get = snd_fm801_get_double, .put = snd_fm801_put_double, \
   .private_value = reg | (shift_left << 8) | (shift_right << 12) | (mask << 16) | (invert << 24) }
 
-static int snd_fm801_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_fm801_info_double(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 
@@ -1046,9 +1052,10 @@ static int snd_fm801_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int snd_fm801_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_fm801_get_double(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
-	fm801_t *chip = snd_kcontrol_chip(kcontrol);
+	struct fm801 *chip = snd_kcontrol_chip(kcontrol);
         int reg = kcontrol->private_value & 0xff;
 	int shift_left = (kcontrol->private_value >> 8) & 0x0f;
 	int shift_right = (kcontrol->private_value >> 12) & 0x0f;
@@ -1066,9 +1073,10 @@ static int snd_fm801_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int snd_fm801_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_fm801_put_double(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
-	fm801_t *chip = snd_kcontrol_chip(kcontrol);
+	struct fm801 *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift_left = (kcontrol->private_value >> 8) & 0x0f;
 	int shift_right = (kcontrol->private_value >> 12) & 0x0f;
@@ -1087,7 +1095,8 @@ static int snd_fm801_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 				     (val1 << shift_left ) | (val2 << shift_right));
 }
 
-static int snd_fm801_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_fm801_info_mux(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[5] = {
 		"AC97 Primary", "FM", "I2S", "PCM", "AC97 Secondary"
@@ -1102,9 +1111,10 @@ static int snd_fm801_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * ui
 	return 0;
 }
 
-static int snd_fm801_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_fm801_get_mux(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
 {
-	fm801_t *chip = snd_kcontrol_chip(kcontrol);
+	struct fm801 *chip = snd_kcontrol_chip(kcontrol);
         unsigned short val;
  
 	val = inw(FM801_REG(chip, REC_SRC)) & 7;
@@ -1114,9 +1124,10 @@ static int snd_fm801_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * u
         return 0;
 }
 
-static int snd_fm801_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_fm801_put_mux(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
 {
-	fm801_t *chip = snd_kcontrol_chip(kcontrol);
+	struct fm801 *chip = snd_kcontrol_chip(kcontrol);
         unsigned short val;
  
         if ((val = ucontrol->value.enumerated.item[0]) > 4)
@@ -1124,9 +1135,9 @@ static int snd_fm801_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * u
 	return snd_fm801_update_bits(chip, FM801_REC_SRC, 7, val);
 }
 
-#define FM801_CONTROLS (sizeof(snd_fm801_controls)/sizeof(snd_kcontrol_new_t))
+#define FM801_CONTROLS ARRAY_SIZE(snd_fm801_controls)
 
-static snd_kcontrol_new_t snd_fm801_controls[] __devinitdata = {
+static struct snd_kcontrol_new snd_fm801_controls[] __devinitdata = {
 FM801_DOUBLE("Wave Playback Volume", FM801_PCM_VOL, 0, 8, 31, 1),
 FM801_SINGLE("Wave Playback Switch", FM801_PCM_VOL, 15, 1, 1),
 FM801_DOUBLE("I2S Playback Volume", FM801_I2S_VOL, 0, 8, 31, 1),
@@ -1142,9 +1153,9 @@ FM801_SINGLE("FM Playback Switch", FM801_FM_VOL, 15, 1, 1),
 }
 };
 
-#define FM801_CONTROLS_MULTI (sizeof(snd_fm801_controls_multi)/sizeof(snd_kcontrol_new_t))
+#define FM801_CONTROLS_MULTI ARRAY_SIZE(snd_fm801_controls_multi)
 
-static snd_kcontrol_new_t snd_fm801_controls_multi[] __devinitdata = {
+static struct snd_kcontrol_new snd_fm801_controls_multi[] __devinitdata = {
 FM801_SINGLE("AC97 2ch->4ch Copy Switch", FM801_CODEC_CTRL, 7, 1, 0),
 FM801_SINGLE("AC97 18-bit Switch", FM801_CODEC_CTRL, 10, 1, 0),
 FM801_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), FM801_I2S_MODE, 8, 1, 0),
@@ -1153,15 +1164,15 @@ FM801_SINGLE(SNDRV_CTL_NAME_IEC958("Raw Data ",CAPTURE,SWITCH), FM801_I2S_MODE, 
 FM801_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), FM801_GEN_CTRL, 2, 1, 0),
 };
 
-static void snd_fm801_mixer_free_ac97_bus(ac97_bus_t *bus)
+static void snd_fm801_mixer_free_ac97_bus(struct snd_ac97_bus *bus)
 {
-	fm801_t *chip = bus->private_data;
+	struct fm801 *chip = bus->private_data;
 	chip->ac97_bus = NULL;
 }
 
-static void snd_fm801_mixer_free_ac97(ac97_t *ac97)
+static void snd_fm801_mixer_free_ac97(struct snd_ac97 *ac97)
 {
-	fm801_t *chip = ac97->private_data;
+	struct fm801 *chip = ac97->private_data;
 	if (ac97->num == 0) {
 		chip->ac97 = NULL;
 	} else {
@@ -1169,12 +1180,12 @@ static void snd_fm801_mixer_free_ac97(ac97_t *ac97)
 	}
 }
 
-static int __devinit snd_fm801_mixer(fm801_t *chip)
+static int __devinit snd_fm801_mixer(struct fm801 *chip)
 {
-	ac97_template_t ac97;
+	struct snd_ac97_template ac97;
 	unsigned int i;
 	int err;
-	static ac97_bus_ops_t ops = {
+	static struct snd_ac97_bus_ops ops = {
 		.write = snd_fm801_codec_write,
 		.read = snd_fm801_codec_read,
 	};
@@ -1207,7 +1218,7 @@ static int __devinit snd_fm801_mixer(fm801_t *chip)
  *  initialization routines
  */
 
-static int snd_fm801_free(fm801_t *chip)
+static int snd_fm801_free(struct fm801 *chip)
 {
 	unsigned short cmdw;
 
@@ -1224,7 +1235,7 @@ static int snd_fm801_free(fm801_t *chip)
 	snd_tea575x_exit(&chip->tea);
 #endif
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 
@@ -1232,23 +1243,23 @@ static int snd_fm801_free(fm801_t *chip)
 	return 0;
 }
 
-static int snd_fm801_dev_free(snd_device_t *device)
+static int snd_fm801_dev_free(struct snd_device *device)
 {
-	fm801_t *chip = device->device_data;
+	struct fm801 *chip = device->device_data;
 	return snd_fm801_free(chip);
 }
 
-static int __devinit snd_fm801_create(snd_card_t * card,
+static int __devinit snd_fm801_create(struct snd_card *card,
 				      struct pci_dev * pci,
 				      int tea575x_tuner,
-				      fm801_t ** rchip)
+				      struct fm801 ** rchip)
 {
-	fm801_t *chip;
+	struct fm801 *chip;
 	unsigned char rev, id;
 	unsigned short cmdw;
 	unsigned long timeout;
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_fm801_dev_free,
 	};
 
@@ -1270,7 +1281,8 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 		return err;
 	}
 	chip->port = pci_resource_start(pci, 0);
-	if (request_irq(pci->irq, snd_fm801_interrupt, SA_INTERRUPT|SA_SHIRQ, "FM801", (void *)chip)) {
+	if (request_irq(pci->irq, snd_fm801_interrupt, SA_INTERRUPT|SA_SHIRQ,
+			"FM801", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->irq);
 		snd_fm801_free(chip);
 		return -EBUSY;
@@ -1309,7 +1321,8 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 
 		timeout = jiffies + HZ / 20;
 
-		outw((1<<7) | (id << FM801_AC97_ADDR_SHIFT) | AC97_VENDOR_ID1, FM801_REG(chip, AC97_CMD));
+		outw((1<<7) | (id << FM801_AC97_ADDR_SHIFT) | AC97_VENDOR_ID1,
+		     FM801_REG(chip, AC97_CMD));
 		udelay(5);
 		do {
 			if ((inw(FM801_REG(chip, AC97_CMD)) & (3<<8)) == (1<<8)) {
@@ -1383,9 +1396,9 @@ static int __devinit snd_card_fm801_probe(struct pci_dev *pci,
 					  const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	fm801_t *chip;
-	opl3_t *opl3;
+	struct snd_card *card;
+	struct fm801 *chip;
+	struct snd_opl3 *opl3;
 	int err;
 
         if (dev >= SNDRV_CARDS)
