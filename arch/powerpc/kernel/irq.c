@@ -31,7 +31,6 @@
  * to reduce code space and undefined function references.
  */
 
-#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/threads.h>
 #include <linux/kernel_stat.h>
@@ -44,18 +43,12 @@
 #include <linux/config.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/proc_fs.h>
-#include <linux/random.h>
 #include <linux/seq_file.h>
 #include <linux/cpumask.h>
 #include <linux/profile.h>
 #include <linux/bitops.h>
-#ifdef CONFIG_PPC64
-#include <linux/kallsyms.h>
-#endif
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -66,8 +59,7 @@
 #include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
-#ifdef CONFIG_PPC64
-#include <asm/iseries/it_lp_queue.h>
+#ifdef CONFIG_PPC_ISERIES
 #include <asm/paca.h>
 #endif
 
