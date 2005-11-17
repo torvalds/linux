@@ -1071,9 +1071,6 @@ static int __devinit _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	u32 *gpr_map;
 	mm_segment_t seg;
 
-	spin_lock_init(&emu->fx8010.irq_lock);
-	INIT_LIST_HEAD(&emu->fx8010.gpr_ctl);
-
 	if ((icode = kzalloc(sizeof(*icode), GFP_KERNEL)) == NULL ||
 	    (icode->gpr_map = (u_int32_t __user *)
 	     kcalloc(512 + 256 + 256 + 2 * 1024, sizeof(u_int32_t),
@@ -1540,9 +1537,6 @@ static int __devinit _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 	struct snd_emu10k1_fx8010_control_gpr *controls = NULL, *ctl;
 	u32 *gpr_map;
 	mm_segment_t seg;
-
-	spin_lock_init(&emu->fx8010.irq_lock);
-	INIT_LIST_HEAD(&emu->fx8010.gpr_ctl);
 
 	if ((icode = kzalloc(sizeof(*icode), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -2102,6 +2096,8 @@ static int __devinit _snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 
 int __devinit snd_emu10k1_init_efx(struct snd_emu10k1 *emu)
 {
+	spin_lock_init(&emu->fx8010.irq_lock);
+	INIT_LIST_HEAD(&emu->fx8010.gpr_ctl);
 	if (emu->audigy)
 		return _snd_emu10k1_audigy_init_efx(emu);
 	else
@@ -2171,7 +2167,7 @@ int snd_emu10k1_fx8010_tram_setup(struct snd_emu10k1 *emu, u32 size)
 		snd_emu10k1_ptr_write(emu, TCBS, 0, size_reg);
 		spin_lock_irq(&emu->emu_lock);
 		outl(inl(emu->port + HCFG) & ~HCFG_LOCKTANKCACHE_MASK, emu->port + HCFG);
-		spin_unlock_irq(&emu->emu_lock);	
+		spin_unlock_irq(&emu->emu_lock);
 	}
 
 	return 0;
@@ -2387,3 +2383,114 @@ int __devinit snd_emu10k1_fx8010_new(struct snd_emu10k1 *emu, int device, struct
 		*rhwdep = hw;
 	return 0;
 }
+
+#ifdef CONFIG_PM
+int __devinit snd_emu10k1_efx_alloc_pm_buffer(struct snd_emu10k1 *emu)
+{
+	int len;
+
+	len = emu->audigy ? 0x200 : 0x100;
+	emu->saved_gpr = kmalloc(len * 4, GFP_KERNEL);
+	if (! emu->saved_gpr)
+		return -ENOMEM;
+	len = emu->audigy ? 0x100 : 0xa0;
+	emu->tram_val_saved = kmalloc(len * 4, GFP_KERNEL);
+	emu->tram_addr_saved = kmalloc(len * 4, GFP_KERNEL);
+	if (! emu->tram_val_saved || ! emu->tram_addr_saved)
+		return -ENOMEM;
+	len = emu->audigy ? 2 * 1024 : 2 * 512;
+	emu->saved_icode = vmalloc(len * 4);
+	if (! emu->saved_icode)
+		return -ENOMEM;
+	return 0;
+}
+
+void snd_emu10k1_efx_free_pm_buffer(struct snd_emu10k1 *emu)
+{
+	kfree(emu->saved_gpr);
+	kfree(emu->tram_val_saved);
+	kfree(emu->tram_addr_saved);
+	vfree(emu->saved_icode);
+}
+
+/*
+ * save/restore GPR, TRAM and codes
+ */
+void snd_emu10k1_efx_suspend(struct snd_emu10k1 *emu)
+{
+	int i, len;
+
+	len = emu->audigy ? 0x200 : 0x100;
+	for (i = 0; i < len; i++)
+		emu->saved_gpr[i] = snd_emu10k1_ptr_read(emu, emu->gpr_base + i, 0);
+
+	len = emu->audigy ? 0x100 : 0xa0;
+	for (i = 0; i < len; i++) {
+		emu->tram_val_saved[i] = snd_emu10k1_ptr_read(emu, TANKMEMDATAREGBASE + i, 0);
+		emu->tram_addr_saved[i] = snd_emu10k1_ptr_read(emu, TANKMEMADDRREGBASE + i, 0);
+		if (emu->audigy) {
+			emu->tram_addr_saved[i] >>= 12;
+			emu->tram_addr_saved[i] |=
+				snd_emu10k1_ptr_read(emu, A_TANKMEMCTLREGBASE + i, 0) << 20;
+		}
+	}
+
+	len = emu->audigy ? 2 * 1024 : 2 * 512;
+	for (i = 0; i < len; i++)
+		emu->saved_icode[i] = snd_emu10k1_efx_read(emu, i);
+}
+
+void snd_emu10k1_efx_resume(struct snd_emu10k1 *emu)
+{
+	int i, len;
+
+	/* set up TRAM */
+	if (emu->fx8010.etram_pages.bytes > 0) {
+		unsigned size, size_reg = 0;
+		size = emu->fx8010.etram_pages.bytes / 2;
+		size = (size - 1) >> 13;
+		while (size) {
+			size >>= 1;
+			size_reg++;
+		}
+		outl(HCFG_LOCKTANKCACHE_MASK | inl(emu->port + HCFG), emu->port + HCFG);
+		snd_emu10k1_ptr_write(emu, TCB, 0, emu->fx8010.etram_pages.addr);
+		snd_emu10k1_ptr_write(emu, TCBS, 0, size_reg);
+		outl(inl(emu->port + HCFG) & ~HCFG_LOCKTANKCACHE_MASK, emu->port + HCFG);
+	}
+
+	if (emu->audigy)
+		snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg | A_DBG_SINGLE_STEP);
+	else
+		snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg | EMU10K1_DBG_SINGLE_STEP);
+
+	len = emu->audigy ? 0x200 : 0x100;
+	for (i = 0; i < len; i++)
+		snd_emu10k1_ptr_write(emu, emu->gpr_base + i, 0, emu->saved_gpr[i]);
+
+	len = emu->audigy ? 0x100 : 0xa0;
+	for (i = 0; i < len; i++) {
+		snd_emu10k1_ptr_write(emu, TANKMEMDATAREGBASE + i, 0,
+				      emu->tram_val_saved[i]);
+		if (! emu->audigy)
+			snd_emu10k1_ptr_write(emu, TANKMEMADDRREGBASE + i, 0,
+					      emu->tram_addr_saved[i]);
+		else {
+			snd_emu10k1_ptr_write(emu, TANKMEMADDRREGBASE + i, 0,
+					      emu->tram_addr_saved[i] << 12);
+			snd_emu10k1_ptr_write(emu, TANKMEMADDRREGBASE + i, 0,
+					      emu->tram_addr_saved[i] >> 20);
+		}
+	}
+
+	len = emu->audigy ? 2 * 1024 : 2 * 512;
+	for (i = 0; i < len; i++)
+		snd_emu10k1_efx_write(emu, i, emu->saved_icode[i]);
+
+	/* start FX processor when the DSP code is updated */
+	if (emu->audigy)
+		snd_emu10k1_ptr_write(emu, A_DBG, 0, emu->fx8010.dbg);
+	else
+		snd_emu10k1_ptr_write(emu, DBG, 0, emu->fx8010.dbg);
+}
+#endif

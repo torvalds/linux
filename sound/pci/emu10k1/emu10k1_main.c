@@ -42,12 +42,6 @@
 #include "p16v.h"
 #include "tina2.h"
 
-#if 0
-MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Creative Labs, Inc.");
-MODULE_DESCRIPTION("Routines for control of EMU10K1 chips");
-MODULE_LICENSE("GPL");
-#endif
-
 /*************************************************************************
  * EMU10K1 init / done
  *************************************************************************/
@@ -97,17 +91,14 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 * emu, int ch)
 	}
 }
 
-static int __devinit snd_emu10k1_init(struct snd_emu10k1 * emu, int enable_ir)
+static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 {
-	int ch, idx, err;
 	unsigned int silent_page;
-
-	emu->fx8010.itram_size = (16 * 1024)/2;
-	emu->fx8010.etram_pages.area = NULL;
-	emu->fx8010.etram_pages.bytes = 0;
+	int ch;
 
 	/* disable audio and lock cache */
-	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, emu->port + HCFG);
+	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE,
+	     emu->port + HCFG);
 
 	/* reset recording buffers */
 	snd_emu10k1_ptr_write(emu, MICBS, 0, ADCBS_BUFSIZE_NONE);
@@ -128,48 +119,17 @@ static int __devinit snd_emu10k1_init(struct snd_emu10k1 * emu, int enable_ir)
 		/* set SPDIF bypass mode */
 		snd_emu10k1_ptr_write(emu, SPBYPASS, 0, SPBYPASS_FORMAT);
 		/* enable rear left + rear right AC97 slots */
-		snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_REAR_RIGHT | AC97SLOT_REAR_LEFT);
+		snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_REAR_RIGHT |
+				      AC97SLOT_REAR_LEFT);
 	}
 
 	/* init envelope engine */
-	for (ch = 0; ch < NUM_G; ch++) {
-		emu->voices[ch].emu = emu;
-		emu->voices[ch].number = ch;
+	for (ch = 0; ch < NUM_G; ch++)
 		snd_emu10k1_voice_init(emu, ch);
-	}
 
-	/*
-	 *  Init to 0x02109204 :
-	 *  Clock accuracy    = 0     (1000ppm)
-	 *  Sample Rate       = 2     (48kHz)
-	 *  Audio Channel     = 1     (Left of 2)
-	 *  Source Number     = 0     (Unspecified)
-	 *  Generation Status = 1     (Original for Cat Code 12)
-	 *  Cat Code          = 12    (Digital Signal Mixer)
-	 *  Mode              = 0     (Mode 0)
-	 *  Emphasis          = 0     (None)
-	 *  CP                = 1     (Copyright unasserted)
-	 *  AN                = 0     (Audio data)
-	 *  P                 = 0     (Consumer)
-	 */
-	snd_emu10k1_ptr_write(emu, SPCS0, 0,
-			emu->spdif_bits[0] =
-			SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
-			SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
-			SPCS_GENERATIONSTATUS | 0x00001200 |
-			0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
-	snd_emu10k1_ptr_write(emu, SPCS1, 0,
-			emu->spdif_bits[1] =
-			SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
-			SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
-			SPCS_GENERATIONSTATUS | 0x00001200 |
-			0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
-	snd_emu10k1_ptr_write(emu, SPCS2, 0,
-			emu->spdif_bits[2] =
-			SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
-			SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
-			SPCS_GENERATIONSTATUS | 0x00001200 |
-			0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT);
+	snd_emu10k1_ptr_write(emu, SPCS0, 0, emu->spdif_bits[0]);
+	snd_emu10k1_ptr_write(emu, SPCS1, 0, emu->spdif_bits[1]);
+	snd_emu10k1_ptr_write(emu, SPCS2, 0, emu->spdif_bits[2]);
 
 	if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
 		/* Hacks for Alice3 to work independent of haP16V driver */
@@ -196,7 +156,7 @@ static int __devinit snd_emu10k1_init(struct snd_emu10k1 * emu, int enable_ir)
 		/* Hacks for Alice3 to work independent of haP16V driver */
 		u32 tmp;
 
-		snd_printk(KERN_ERR "Audigy2 value:Special config.\n");
+		snd_printk(KERN_INFO "Audigy2 value: Special config.\n");
 		//Setup SRCMulti_I2S SamplingRate
 		tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, 0);
 		tmp &= 0xfffff1ff;
@@ -221,14 +181,6 @@ static int __devinit snd_emu10k1_init(struct snd_emu10k1 * emu, int enable_ir)
 		outl(tmp, emu->port + A_IOCFG);
 	}
 
-
-	/*
-	 *  Clear page with silence & setup all pointers to this page
-	 */
-	memset(emu->silent_page.area, 0, PAGE_SIZE);
-	silent_page = emu->silent_page.addr << 1;
-	for (idx = 0; idx < MAXPAGES; idx++)
-		((u32 *)emu->ptb_pages.area)[idx] = cpu_to_le32(silent_page | idx);
 	snd_emu10k1_ptr_write(emu, PTB, 0, emu->ptb_pages.addr);
 	snd_emu10k1_ptr_write(emu, TCB, 0, 0);	/* taken from original driver */
 	snd_emu10k1_ptr_write(emu, TCBS, 0, 4);	/* taken from original driver */
@@ -287,12 +239,11 @@ static int __devinit snd_emu10k1_init(struct snd_emu10k1 * emu, int enable_ir)
 		outl(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
 	}
 
-	/*
-	 *  Initialize the effect engine
-	 */
-	if ((err = snd_emu10k1_init_efx(emu)) < 0)
-		return err;
+	return 0;
+}
 
+static void snd_emu10k1_audio_enable(struct snd_emu10k1 *emu)
+{
 	/*
 	 *  Enable the audio bit
 	 */
@@ -335,15 +286,9 @@ static int __devinit snd_emu10k1_init(struct snd_emu10k1 * emu, int enable_ir)
 #endif
 
 	snd_emu10k1_intr_enable(emu, INTE_PCIERRORENABLE);
-
-	emu->reserved_page = (struct snd_emu10k1_memblk *)snd_emu10k1_synth_alloc(emu, 4096);
-	if (emu->reserved_page)
-		emu->reserved_page->map_locked = 1;
-	
-	return 0;
 }
 
-static int snd_emu10k1_done(struct snd_emu10k1 * emu)
+int snd_emu10k1_done(struct snd_emu10k1 * emu)
 {
 	int ch;
 
@@ -382,17 +327,9 @@ static int snd_emu10k1_done(struct snd_emu10k1 * emu)
 	snd_emu10k1_ptr_write(emu, SOLEL, 0, 0);
 	snd_emu10k1_ptr_write(emu, SOLEH, 0, 0);
 
-	/* remove reserved page */
-	if (emu->reserved_page != NULL) {
-		snd_emu10k1_synth_free(emu, (struct snd_util_memblk *)emu->reserved_page);
-		emu->reserved_page = NULL;
-	}
-
 	/* disable audio and lock cache */
 	outl(HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE_MASK | HCFG_MUTEBUTTONENABLE, emu->port + HCFG);
 	snd_emu10k1_ptr_write(emu, PTB, 0, 0);
-
-	snd_emu10k1_free_efx(emu);
 
 	return 0;
 }
@@ -609,11 +546,22 @@ static int __devinit snd_emu10k1_cardbus_init(struct snd_emu10k1 * emu)
  *  Create the EMU10K1 instance
  */
 
+#ifdef CONFIG_PM
+static int alloc_pm_buffer(struct snd_emu10k1 *emu);
+static void free_pm_buffer(struct snd_emu10k1 *emu);
+#endif
+
 static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 {
 	if (emu->port) {	/* avoid access to already used hardware */
 	       	snd_emu10k1_fx8010_tram_setup(emu, 0);
 		snd_emu10k1_done(emu);
+		/* remove reserved page */
+		if (emu->reserved_page) {
+			snd_emu10k1_synth_free(emu, (struct snd_util_memblk *)emu->reserved_page);
+			emu->reserved_page = NULL;
+		}
+		snd_emu10k1_free_efx(emu);
        	}
 	if (emu->memhdr)
 		snd_util_memhdr_free(emu->memhdr);
@@ -623,13 +571,16 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 		snd_dma_free_pages(&emu->ptb_pages);
 	vfree(emu->page_ptr_table);
 	vfree(emu->page_addr_table);
+#ifdef CONFIG_PM
+	free_pm_buffer(emu);
+#endif
 	if (emu->irq >= 0)
 		free_irq(emu->irq, (void *)emu);
 	if (emu->port)
 		pci_release_regions(emu->pci);
-	pci_disable_device(emu->pci);
 	if (emu->card_capabilities->ca0151_chip) /* P16V */	
 		snd_p16v_free(emu);
+	pci_disable_device(emu->pci);
 	kfree(emu);
 	return 0;
 }
@@ -900,9 +851,10 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 		       struct snd_emu10k1 ** remu)
 {
 	struct snd_emu10k1 *emu;
-	int err;
+	int idx, err;
 	int is_audigy;
 	unsigned char revision;
+	unsigned int silent_page;
 	const struct snd_emu_chip_details *c;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_emu10k1_dev_free,
@@ -1012,34 +964,34 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	emu->port = pci_resource_start(pci, 0);
 
 	if (request_irq(pci->irq, snd_emu10k1_interrupt, SA_INTERRUPT|SA_SHIRQ, "EMU10K1", (void *)emu)) {
-		snd_emu10k1_free(emu);
-		return -EBUSY;
+		err = -EBUSY;
+		goto error;
 	}
 	emu->irq = pci->irq;
 
 	emu->max_cache_pages = max_cache_bytes >> PAGE_SHIFT;
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				32 * 1024, &emu->ptb_pages) < 0) {
-		snd_emu10k1_free(emu);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto error;
 	}
 
 	emu->page_ptr_table = (void **)vmalloc(emu->max_cache_pages * sizeof(void*));
 	emu->page_addr_table = (unsigned long*)vmalloc(emu->max_cache_pages * sizeof(unsigned long));
 	if (emu->page_ptr_table == NULL || emu->page_addr_table == NULL) {
-		snd_emu10k1_free(emu);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto error;
 	}
 
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				EMUPAGESIZE, &emu->silent_page) < 0) {
-		snd_emu10k1_free(emu);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto error;
 	}
 	emu->memhdr = snd_util_memhdr_new(emu->max_cache_pages * PAGE_SIZE);
 	if (emu->memhdr == NULL) {
-		snd_emu10k1_free(emu);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto error;
 	}
 	emu->memhdr->block_extra_size = sizeof(struct snd_emu10k1_memblk) -
 		sizeof(struct snd_util_memblk);
@@ -1053,39 +1005,183 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 		extout_mask = 0x7fff;
 	emu->fx8010.extin_mask = extin_mask;
 	emu->fx8010.extout_mask = extout_mask;
+	emu->enable_ir = enable_ir;
 
 	if (emu->card_capabilities->ecard) {
-		if ((err = snd_emu10k1_ecard_init(emu)) < 0) {
-			snd_emu10k1_free(emu);
-			return err;
-		}
+		if ((err = snd_emu10k1_ecard_init(emu)) < 0)
+			goto error;
 	} else if (emu->card_capabilities->ca_cardbus_chip) {
-		if ((err = snd_emu10k1_cardbus_init(emu)) < 0) {
-			snd_emu10k1_free(emu);
-			return err;
-		}
+		if ((err = snd_emu10k1_cardbus_init(emu)) < 0)
+			goto error;
 	} else {
 		/* 5.1: Enable the additional AC97 Slots. If the emu10k1 version
 			does not support this, it shouldn't do any harm */
 		snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_CNTR|AC97SLOT_LFE);
 	}
 
-	if ((err = snd_emu10k1_init(emu, enable_ir)) < 0) {
-		snd_emu10k1_free(emu);
-		return err;
+	/* initialize TRAM setup */
+	emu->fx8010.itram_size = (16 * 1024)/2;
+	emu->fx8010.etram_pages.area = NULL;
+	emu->fx8010.etram_pages.bytes = 0;
+
+	/*
+	 *  Init to 0x02109204 :
+	 *  Clock accuracy    = 0     (1000ppm)
+	 *  Sample Rate       = 2     (48kHz)
+	 *  Audio Channel     = 1     (Left of 2)
+	 *  Source Number     = 0     (Unspecified)
+	 *  Generation Status = 1     (Original for Cat Code 12)
+	 *  Cat Code          = 12    (Digital Signal Mixer)
+	 *  Mode              = 0     (Mode 0)
+	 *  Emphasis          = 0     (None)
+	 *  CP                = 1     (Copyright unasserted)
+	 *  AN                = 0     (Audio data)
+	 *  P                 = 0     (Consumer)
+	 */
+	emu->spdif_bits[0] = emu->spdif_bits[1] =
+		emu->spdif_bits[2] = SPCS_CLKACCY_1000PPM | SPCS_SAMPLERATE_48 |
+		SPCS_CHANNELNUM_LEFT | SPCS_SOURCENUM_UNSPEC |
+		SPCS_GENERATIONSTATUS | 0x00001200 |
+		0x00000000 | SPCS_EMPHASIS_NONE | SPCS_COPYRIGHT;
+
+	emu->reserved_page = (struct snd_emu10k1_memblk *)
+		snd_emu10k1_synth_alloc(emu, 4096);
+	if (emu->reserved_page)
+		emu->reserved_page->map_locked = 1;
+	
+	/* Clear silent pages and set up pointers */
+	memset(emu->silent_page.area, 0, PAGE_SIZE);
+	silent_page = emu->silent_page.addr << 1;
+	for (idx = 0; idx < MAXPAGES; idx++)
+		((u32 *)emu->ptb_pages.area)[idx] = cpu_to_le32(silent_page | idx);
+
+	/* set up voice indices */
+	for (idx = 0; idx < NUM_G; idx++) {
+		emu->voices[idx].emu = emu;
+		emu->voices[idx].number = idx;
 	}
 
-	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, emu, &ops)) < 0) {
-		snd_emu10k1_free(emu);
-		return err;
-	}
+	if ((err = snd_emu10k1_init(emu, enable_ir, 0)) < 0)
+		goto error;
+#ifdef CONFIG_PM
+	if ((err = alloc_pm_buffer(emu)) < 0)
+		goto error;
+#endif
+
+	/*  Initialize the effect engine */
+	if ((err = snd_emu10k1_init_efx(emu)) < 0)
+		goto error;
+	snd_emu10k1_audio_enable(emu);
+
+	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, emu, &ops)) < 0)
+		goto error;
 
 	snd_emu10k1_proc_init(emu);
 
 	snd_card_set_dev(card, &pci->dev);
 	*remu = emu;
 	return 0;
+
+ error:
+	snd_emu10k1_free(emu);
+	return err;
 }
+
+#ifdef CONFIG_PM
+static unsigned char saved_regs[] = {
+	CPF, PTRX, CVCF, VTFT, Z1, Z2, PSST, DSL, CCCA, CCR, CLP,
+	FXRT, MAPA, MAPB, ENVVOL, ATKHLDV, DCYSUSV, LFOVAL1, ENVVAL,
+	ATKHLDM, DCYSUSM, LFOVAL2, IP, IFATN, PEFE, FMMOD, TREMFRQ, FM2FRQ2,
+	TEMPENV, ADCCR, FXWC, MICBA, ADCBA, FXBA,
+	MICBS, ADCBS, FXBS, CDCS, GPSCS, SPCS0, SPCS1, SPCS2,
+	SPBYPASS, AC97SLOT, CDSRCS, GPSRCS, ZVSRCS, MICIDX, ADCIDX, FXIDX,
+	0xff /* end */
+};
+static unsigned char saved_regs_audigy[] = {
+	A_ADCIDX, A_MICIDX, A_FXWC1, A_FXWC2, A_SAMPLE_RATE,
+	A_FXRT2, A_SENDAMOUNTS, A_FXRT1,
+	0xff /* end */
+};
+
+static int __devinit alloc_pm_buffer(struct snd_emu10k1 *emu)
+{
+	int size;
+
+	size = ARRAY_SIZE(saved_regs);
+	if (emu->audigy)
+		size += ARRAY_SIZE(saved_regs_audigy);
+	emu->saved_ptr = vmalloc(4 * NUM_G * size);
+	if (! emu->saved_ptr)
+		return -ENOMEM;
+	if (snd_emu10k1_efx_alloc_pm_buffer(emu) < 0)
+		return -ENOMEM;
+	if (emu->card_capabilities->ca0151_chip &&
+	    snd_p16v_alloc_pm_buffer(emu) < 0)
+		return -ENOMEM;
+	return 0;
+}
+
+static void free_pm_buffer(struct snd_emu10k1 *emu)
+{
+	vfree(emu->saved_ptr);
+	snd_emu10k1_efx_free_pm_buffer(emu);
+	if (emu->card_capabilities->ca0151_chip)
+		snd_p16v_free_pm_buffer(emu);
+}
+
+void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu)
+{
+	int i;
+	unsigned char *reg;
+	unsigned int *val;
+
+	val = emu->saved_ptr;
+	for (reg = saved_regs; *reg != 0xff; reg++)
+		for (i = 0; i < NUM_G; i++, val++)
+			*val = snd_emu10k1_ptr_read(emu, *reg, i);
+	if (emu->audigy) {
+		for (reg = saved_regs_audigy; *reg != 0xff; reg++)
+			for (i = 0; i < NUM_G; i++, val++)
+				*val = snd_emu10k1_ptr_read(emu, *reg, i);
+	}
+	if (emu->audigy)
+		emu->saved_a_iocfg = inl(emu->port + A_IOCFG);
+	emu->saved_hcfg = inl(emu->port + HCFG);
+}
+
+void snd_emu10k1_resume_init(struct snd_emu10k1 *emu)
+{
+	if (emu->card_capabilities->ecard)
+		snd_emu10k1_ecard_init(emu);
+	else
+		snd_emu10k1_ptr_write(emu, AC97SLOT, 0, AC97SLOT_CNTR|AC97SLOT_LFE);
+	snd_emu10k1_init(emu, emu->enable_ir, 1);
+}
+
+void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu)
+{
+	int i;
+	unsigned char *reg;
+	unsigned int *val;
+
+	snd_emu10k1_audio_enable(emu);
+
+	/* resore for spdif */
+	if (emu->audigy)
+		outl(emu->port + A_IOCFG, emu->saved_a_iocfg);
+	outl(emu->port + HCFG, emu->saved_hcfg);
+
+	val = emu->saved_ptr;
+	for (reg = saved_regs; *reg != 0xff; reg++)
+		for (i = 0; i < NUM_G; i++, val++)
+			snd_emu10k1_ptr_write(emu, *reg, i, *val);
+	if (emu->audigy) {
+		for (reg = saved_regs_audigy; *reg != 0xff; reg++)
+			for (i = 0; i < NUM_G; i++, val++)
+				snd_emu10k1_ptr_write(emu, *reg, i, *val);
+	}
+}
+#endif
 
 /* memory.c */
 EXPORT_SYMBOL(snd_emu10k1_synth_alloc);

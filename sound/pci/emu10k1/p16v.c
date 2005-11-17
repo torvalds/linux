@@ -125,6 +125,7 @@ static struct snd_pcm_hardware snd_p16v_playback_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | 
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE, /* Only supports 24-bit samples padded to 32 bits. */
 	.rates =		SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100, 
@@ -144,6 +145,7 @@ static struct snd_pcm_hardware snd_p16v_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
 	.rates =		SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100, 
@@ -611,7 +613,7 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	strcpy(pcm->name, "p16v");
-	emu->pcm = pcm;
+	emu->pcm_p16v = pcm;
 
 	for(substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; 
 	    substream; 
@@ -1030,3 +1032,42 @@ int snd_p16v_mixer(struct snd_emu10k1 *emu)
         return 0;
 }
 
+#ifdef CONFIG_PM
+
+#define NUM_CHS	1	/* up to 4, but only first channel is used */
+
+int __devinit snd_p16v_alloc_pm_buffer(struct snd_emu10k1 *emu)
+{
+	emu->p16v_saved = vmalloc(NUM_CHS * 4 * 0x80);
+	if (! emu->p16v_saved)
+		return -ENOMEM;
+	return 0;
+}
+
+void snd_p16v_free_pm_buffer(struct snd_emu10k1 *emu)
+{
+	vfree(emu->p16v_saved);
+}
+
+void snd_p16v_suspend(struct snd_emu10k1 *emu)
+{
+	int i, ch;
+	unsigned int *val;
+
+	val = emu->p16v_saved;
+	for (ch = 0; ch < NUM_CHS; ch++)
+		for (i = 0; i < 0x80; i++, val++)
+			*val = snd_emu10k1_ptr20_read(emu, i, ch);
+}
+
+void snd_p16v_resume(struct snd_emu10k1 *emu)
+{
+	int i, ch;
+	unsigned int *val;
+
+	val = emu->p16v_saved;
+	for (ch = 0; ch < NUM_CHS; ch++)
+		for (i = 0; i < 0x80; i++, val++)
+			snd_emu10k1_ptr20_write(emu, i, ch, *val);
+}
+#endif

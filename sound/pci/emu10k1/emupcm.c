@@ -551,6 +551,7 @@ static struct snd_pcm_hardware snd_emu10k1_efx_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_NONINTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,
@@ -739,6 +740,7 @@ static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 		snd_emu10k1_playback_invalidate_cache(emu, 0, epcm->voices[0]);
 		/* follow thru */
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		mix = &emu->pcm_mixer[substream->number];
 		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[0], 1, 0, mix);
 		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[1], 0, 0, mix);
@@ -750,6 +752,7 @@ static int snd_emu10k1_playback_trigger(struct snd_pcm_substream *substream,
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		epcm->running = 0;
 		snd_emu10k1_playback_stop_voice(emu, epcm->voices[0]);
 		snd_emu10k1_playback_stop_voice(emu, epcm->voices[1]);
@@ -774,6 +777,7 @@ static int snd_emu10k1_capture_trigger(struct snd_pcm_substream *substream,
 	spin_lock(&emu->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		// hmm this should cause full and half full interrupt to be raised?  
 		outl(epcm->capture_ipr, emu->port + IPR);
 		snd_emu10k1_intr_enable(emu, epcm->capture_inte);
@@ -797,6 +801,7 @@ static int snd_emu10k1_capture_trigger(struct snd_pcm_substream *substream,
 		epcm->first_ptr = 1;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		epcm->running = 0;
 		snd_emu10k1_intr_disable(emu, epcm->capture_inte);
 		outl(epcm->capture_ipr, emu->port + IPR);
@@ -871,6 +876,7 @@ static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 
 		/* follow thru */
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		snd_emu10k1_playback_prepare_voice(emu, epcm->extra, 1, 1, NULL);
 		snd_emu10k1_playback_prepare_voice(emu, epcm->voices[0], 0, 0,
 						   &emu->efx_pcm_mixer[0]);
@@ -883,6 +889,7 @@ static int snd_emu10k1_efx_playback_trigger(struct snd_pcm_substream *substream,
 			snd_emu10k1_playback_trigger_voice(emu, epcm->voices[i], 0, 0);
 		epcm->running = 1;
 		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		epcm->running = 0;
@@ -925,6 +932,7 @@ static struct snd_pcm_hardware snd_emu10k1_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_96000,
@@ -948,6 +956,7 @@ static struct snd_pcm_hardware snd_emu10k1_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				 SNDRV_PCM_INFO_RESUME |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_8000_48000,
@@ -1309,7 +1318,7 @@ int __devinit snd_emu10k1_pcm_multi(struct snd_emu10k1 * emu, int device, struct
 	pcm->info_flags = 0;
 	pcm->dev_subclass = SNDRV_PCM_SUBCLASS_GENERIC_MIX;
 	strcpy(pcm->name, "Multichannel Playback");
-	emu->pcm = pcm;
+	emu->pcm_multi = pcm;
 
 	for (substream = pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream; substream; substream = substream->next)
 		if ((err = snd_pcm_lib_preallocate_pages(substream, SNDRV_DMA_TYPE_DEV_SG, snd_dma_pci_data(emu->pci), 64*1024, 64*1024)) < 0)
@@ -1556,6 +1565,7 @@ static int snd_emu10k1_fx8010_playback_trigger(struct snd_pcm_substream *substre
 	case SNDRV_PCM_TRIGGER_START:
 		/* follow thru */
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 #ifdef EMU10K1_SET_AC3_IEC958
 	{
 		int i;
@@ -1576,6 +1586,7 @@ static int snd_emu10k1_fx8010_playback_trigger(struct snd_pcm_substream *substre
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		snd_emu10k1_fx8010_unregister_irq_handler(emu, pcm->irq); pcm->irq = NULL;
 		snd_emu10k1_ptr_write(emu, emu->gpr_base + pcm->gpr_trigger, 0, 0);
 		pcm->tram_pos = INITIAL_TRAM_POS(pcm->buffer_size);
@@ -1605,6 +1616,7 @@ static snd_pcm_uframes_t snd_emu10k1_fx8010_playback_pointer(struct snd_pcm_subs
 static struct snd_pcm_hardware snd_emu10k1_fx8010_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
+				 SNDRV_PCM_INFO_RESUME |
 				 /* SNDRV_PCM_INFO_MMAP_VALID | */ SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,

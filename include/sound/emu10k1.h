@@ -1071,7 +1071,8 @@ struct snd_emu10k1 {
 
 	unsigned long port;			/* I/O port number */
 	unsigned int tos_link: 1,		/* tos link detected */
-	    rear_ac97: 1;			/* rear channels are on AC'97 */
+		rear_ac97: 1,			/* rear channels are on AC'97 */
+		enable_ir: 1;
 	/* Contains profile of card capabilities */
 	const struct snd_emu_chip_details *card_capabilities;
 	unsigned int audigy;			/* is Audigy? */
@@ -1108,6 +1109,7 @@ struct snd_emu10k1 {
 	struct snd_pcm *pcm;
 	struct snd_pcm *pcm_mic;
 	struct snd_pcm *pcm_efx;
+	struct snd_pcm *pcm_multi;
 	struct snd_pcm *pcm_p16v;
 
 	spinlock_t synth_lock;
@@ -1153,6 +1155,17 @@ struct snd_emu10k1 {
 
 	unsigned int efx_voices_mask[2];
 	unsigned int next_free_voice;
+
+#ifdef CONFIG_PM
+	unsigned int *saved_ptr;
+	unsigned int *saved_gpr;
+	unsigned int *tram_val_saved;
+	unsigned int *tram_addr_saved;
+	unsigned int *saved_icode;
+	unsigned int *p16v_saved;
+	unsigned int saved_a_iocfg, saved_hcfg;
+#endif
+
 };
 
 int snd_emu10k1_create(struct snd_card *card,
@@ -1178,11 +1191,11 @@ int snd_emu10k1_fx8010_new(struct snd_emu10k1 *emu, int device, struct snd_hwdep
 
 irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-/* initialization */
 void snd_emu10k1_voice_init(struct snd_emu10k1 * emu, int voice);
 int snd_emu10k1_init_efx(struct snd_emu10k1 *emu);
 void snd_emu10k1_free_efx(struct snd_emu10k1 *emu);
 int snd_emu10k1_fx8010_tram_setup(struct snd_emu10k1 *emu, u32 size);
+int snd_emu10k1_done(struct snd_emu10k1 * emu);
 
 /* I/O functions */
 unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
@@ -1205,6 +1218,20 @@ static inline unsigned int snd_emu10k1_wc(struct snd_emu10k1 *emu) { return (inl
 unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg);
 void snd_emu10k1_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short data);
 unsigned int snd_emu10k1_rate_to_pitch(unsigned int rate);
+
+#ifdef CONFIG_PM
+void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu);
+void snd_emu10k1_resume_init(struct snd_emu10k1 *emu);
+void snd_emu10k1_resume_regs(struct snd_emu10k1 *emu);
+int snd_emu10k1_efx_alloc_pm_buffer(struct snd_emu10k1 *emu);
+void snd_emu10k1_efx_free_pm_buffer(struct snd_emu10k1 *emu);
+void snd_emu10k1_efx_suspend(struct snd_emu10k1 *emu);
+void snd_emu10k1_efx_resume(struct snd_emu10k1 *emu);
+int snd_p16v_alloc_pm_buffer(struct snd_emu10k1 *emu);
+void snd_p16v_free_pm_buffer(struct snd_emu10k1 *emu);
+void snd_p16v_suspend(struct snd_emu10k1 *emu);
+void snd_p16v_resume(struct snd_emu10k1 *emu);
+#endif
 
 /* memory allocation */
 struct snd_util_memblk *snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *substream);
