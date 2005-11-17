@@ -467,15 +467,19 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 
 #else /* CONFIG_PCMCIA_PROBE */
 
-static void validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
+static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 {
 	struct resource_map *m, mm;
 	struct socket_data *s_data = s->resource_data;
+	unsigned long ok = 0;
 
 	for (m = s_data->mem_db.next; m != &s_data->mem_db; m = mm.next) {
 		mm = *m;
-		do_mem_probe(mm.base, mm.num, s);
+		ok += do_mem_probe(mm.base, mm.num, s);
 	}
+	if (ok > 0)
+		return 0;
+	return -ENODEV;
 }
 
 #endif /* CONFIG_PCMCIA_PROBE */
