@@ -2034,40 +2034,45 @@ static void snd_ensoniq_chip_init(struct ensoniq *ensoniq)
 }
 
 #ifdef CONFIG_PM
-static int snd_ensoniq_suspend(struct snd_card *card, pm_message_t state)
+static int snd_ensoniq_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct ensoniq *ensoniq = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct ensoniq *ensoniq = card->private_data;
 	
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+
 	snd_pcm_suspend_all(ensoniq->pcm1);
 	snd_pcm_suspend_all(ensoniq->pcm2);
 	
 #ifdef CHIP1371	
-	if (ensoniq->u.es1371.ac97)
-		snd_ac97_suspend(ensoniq->u.es1371.ac97);
+	snd_ac97_suspend(ensoniq->u.es1371.ac97);
 #else
-	/* FIXME */
+	snd_ak4531_suspend(ensoniq->u.es1370.ak4531);
 #endif	
-	pci_set_power_state(ensoniq->pci, 3);
-	pci_disable_device(ensoniq->pci);
+	pci_set_power_state(pci, PCI_D3hot);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int snd_ensoniq_resume(struct snd_card *card)
+static int snd_ensoniq_resume(struct pci_dev *pci)
 {
-	struct ensoniq *ensoniq = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct ensoniq *ensoniq = card->private_data;
 
-	pci_enable_device(ensoniq->pci);
-	pci_set_power_state(ensoniq->pci, 0);	
-	pci_set_master(ensoniq->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_power_state(pci, PCI_D0);
+	pci_set_master(pci);
 
 	snd_ensoniq_chip_init(ensoniq);
 
 #ifdef CHIP1371	
-	if (ensoniq->u.es1371.ac97)
-		snd_ac97_resume(ensoniq->u.es1371.ac97);
+	snd_ac97_resume(ensoniq->u.es1371.ac97);
 #else
-	/* FIXME */
+	snd_ak4531_resume(ensoniq->u.es1370.ak4531);
 #endif	
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2164,8 +2169,6 @@ static int __devinit snd_ensoniq_create(struct snd_card *card,
 	}
 
 	snd_ensoniq_proc_init(ensoniq);
-
-	snd_card_set_pm_callback(card, snd_ensoniq_suspend, snd_ensoniq_resume, ensoniq);
 
 	snd_card_set_dev(card, &pci->dev);
 
@@ -2436,6 +2439,7 @@ static int __devinit snd_audiopci_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = ensoniq;
 
 	pcm_devs[0] = 0; pcm_devs[1] = 1;
 #ifdef CHIP1370
@@ -2495,7 +2499,10 @@ static struct pci_driver driver = {
 	.id_table = snd_audiopci_ids,
 	.probe = snd_audiopci_probe,
 	.remove = __devexit_p(snd_audiopci_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = snd_ensoniq_suspend,
+	.resume = snd_ensoniq_resume,
+#endif
 };
 	
 static int __init alsa_card_ens137x_init(void)
