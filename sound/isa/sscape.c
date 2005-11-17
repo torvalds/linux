@@ -75,7 +75,7 @@ static struct pnp_card_device_id sscape_pnpids[] = {
 MODULE_DEVICE_TABLE(pnp_card, sscape_pnpids);
 #endif
 
-static snd_card_t *sscape_card[SNDRV_CARDS];
+static struct snd_card *sscape_card[SNDRV_CARDS];
 
 
 #define MPU401_IO(i)     ((i) + 0)
@@ -127,9 +127,9 @@ struct soundscape {
 	int codec_type;
 	int ic_type;
 	struct resource *io_res;
-	cs4231_t *chip;
-	mpu401_t *mpu;
-	snd_hwdep_t *hw;
+	struct snd_cs4231 *chip;
+	struct snd_mpu401 *mpu;
+	struct snd_hwdep *hw;
 
 	/*
 	 * The MIDI device won't work until we've loaded
@@ -144,17 +144,17 @@ struct soundscape {
 #define INVALID_IRQ  ((unsigned)-1)
 
 
-static inline struct soundscape *get_card_soundscape(snd_card_t * c)
+static inline struct soundscape *get_card_soundscape(struct snd_card *c)
 {
 	return (struct soundscape *) (c->private_data);
 }
 
-static inline struct soundscape *get_mpu401_soundscape(mpu401_t * mpu)
+static inline struct soundscape *get_mpu401_soundscape(struct snd_mpu401 * mpu)
 {
 	return (struct soundscape *) (mpu->private_data);
 }
 
-static inline struct soundscape *get_hwdep_soundscape(snd_hwdep_t * hw)
+static inline struct soundscape *get_hwdep_soundscape(struct snd_hwdep * hw)
 {
 	return (struct soundscape *) (hw->private_data);
 }
@@ -308,7 +308,7 @@ static int host_write_ctrl_unsafe(unsigned io_base, unsigned char data,
  *
  * NOTE: This check is based upon observation, not documentation.
  */
-static inline int verify_mpu401(const mpu401_t * mpu)
+static inline int verify_mpu401(const struct snd_mpu401 * mpu)
 {
 	return ((inb(MIDI_CTRL_IO(mpu->port)) & 0xc0) == 0x80);
 }
@@ -316,7 +316,7 @@ static inline int verify_mpu401(const mpu401_t * mpu)
 /*
  * This is apparently the standard way to initailise an MPU-401
  */
-static inline void initialise_mpu401(const mpu401_t * mpu)
+static inline void initialise_mpu401(const struct snd_mpu401 * mpu)
 {
 	outb(0, MIDI_DATA_IO(mpu->port));
 }
@@ -335,7 +335,7 @@ static inline void activate_ad1845_unsafe(unsigned io_base)
 /*
  * Do the necessary ALSA-level cleanup to deallocate our driver ...
  */
-static void soundscape_free(snd_card_t * c)
+static void soundscape_free(struct snd_card *c)
 {
 	register struct soundscape *sscape = get_card_soundscape(c);
 	release_and_free_resource(sscape->io_res);
@@ -613,7 +613,7 @@ static int sscape_upload_microcode(struct soundscape *sscape,
  * simultaneously, and that we can't open it at all if
  * someone is using the MIDI device.
  */
-static int sscape_hw_open(snd_hwdep_t * hw, struct file *file)
+static int sscape_hw_open(struct snd_hwdep * hw, struct file *file)
 {
 	register struct soundscape *sscape = get_hwdep_soundscape(hw);
 	unsigned long flags;
@@ -632,7 +632,7 @@ static int sscape_hw_open(snd_hwdep_t * hw, struct file *file)
 	return err;
 }
 
-static int sscape_hw_release(snd_hwdep_t * hw, struct file *file)
+static int sscape_hw_release(struct snd_hwdep * hw, struct file *file)
 {
 	register struct soundscape *sscape = get_hwdep_soundscape(hw);
 	unsigned long flags;
@@ -643,7 +643,7 @@ static int sscape_hw_release(snd_hwdep_t * hw, struct file *file)
 	return 0;
 }
 
-static int sscape_hw_ioctl(snd_hwdep_t * hw, struct file *file,
+static int sscape_hw_ioctl(struct snd_hwdep * hw, struct file *file,
                            unsigned int cmd, unsigned long arg)
 {
 	struct soundscape *sscape = get_hwdep_soundscape(hw);
@@ -692,8 +692,8 @@ static int sscape_hw_ioctl(snd_hwdep_t * hw, struct file *file,
 /*
  * Mixer control for the SoundScape's MIDI device.
  */
-static int sscape_midi_info(snd_kcontrol_t * ctl,
-                            snd_ctl_elem_info_t * uinfo)
+static int sscape_midi_info(struct snd_kcontrol *ctl,
+                            struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -702,11 +702,11 @@ static int sscape_midi_info(snd_kcontrol_t * ctl,
 	return 0;
 }
 
-static int sscape_midi_get(snd_kcontrol_t * kctl,
-                           snd_ctl_elem_value_t * uctl)
+static int sscape_midi_get(struct snd_kcontrol *kctl,
+                           struct snd_ctl_elem_value *uctl)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kctl);
-	snd_card_t *card = chip->card;
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kctl);
+	struct snd_card *card = chip->card;
 	register struct soundscape *s = get_card_soundscape(card);
 	unsigned long flags;
 
@@ -722,11 +722,11 @@ static int sscape_midi_get(snd_kcontrol_t * kctl,
 	return 0;
 }
 
-static int sscape_midi_put(snd_kcontrol_t * kctl,
-                           snd_ctl_elem_value_t * uctl)
+static int sscape_midi_put(struct snd_kcontrol *kctl,
+                           struct snd_ctl_elem_value *uctl)
 {
-	cs4231_t *chip = snd_kcontrol_chip(kctl);
-	snd_card_t *card = chip->card;
+	struct snd_cs4231 *chip = snd_kcontrol_chip(kctl);
+	struct snd_card *card = chip->card;
 	register struct soundscape *s = get_card_soundscape(card);
 	unsigned long flags;
 	int change;
@@ -763,7 +763,7 @@ static int sscape_midi_put(snd_kcontrol_t * kctl,
 	return change;
 }
 
-static snd_kcontrol_new_t midi_mixer_ctl = {
+static struct snd_kcontrol_new midi_mixer_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "MIDI",
 	.info = sscape_midi_info,
@@ -849,7 +849,7 @@ static int __devinit detect_sscape(struct soundscape *s)
  * to crash the machine. Also check that someone isn't using the hardware
  * IOCTL device.
  */
-static int mpu401_open(mpu401_t * mpu)
+static int mpu401_open(struct snd_mpu401 * mpu)
 {
 	int err;
 
@@ -875,7 +875,7 @@ static int mpu401_open(mpu401_t * mpu)
 	return err;
 }
 
-static void mpu401_close(mpu401_t * mpu)
+static void mpu401_close(struct snd_mpu401 * mpu)
 {
 	register struct soundscape *sscape = get_mpu401_soundscape(mpu);
 	unsigned long flags;
@@ -888,10 +888,10 @@ static void mpu401_close(mpu401_t * mpu)
 /*
  * Initialse an MPU-401 subdevice for MIDI support on the SoundScape.
  */
-static int __devinit create_mpu401(snd_card_t * card, int devnum, unsigned long port, int irq)
+static int __devinit create_mpu401(struct snd_card *card, int devnum, unsigned long port, int irq)
 {
 	struct soundscape *sscape = get_card_soundscape(card);
-	snd_rawmidi_t *rawmidi;
+	struct snd_rawmidi *rawmidi;
 	int err;
 
 #define MPU401_SHARE_HARDWARE  1
@@ -900,7 +900,7 @@ static int __devinit create_mpu401(snd_card_t * card, int devnum, unsigned long 
 	                               port, MPU401_SHARE_HARDWARE,
 	                               irq, SA_INTERRUPT,
 	                               &rawmidi)) == 0) {
-		mpu401_t *mpu = (mpu401_t *) rawmidi->private_data;
+		struct snd_mpu401 *mpu = (struct snd_mpu401 *) rawmidi->private_data;
 		mpu->open_input = mpu401_open;
 		mpu->open_output = mpu401_open;
 		mpu->close_input = mpu401_close;
@@ -919,7 +919,7 @@ static int __devinit create_mpu401(snd_card_t * card, int devnum, unsigned long 
  * Override for the CS4231 playback format function.
  * The AD1845 has much simpler format and rate selection.
  */
-static void ad1845_playback_format(cs4231_t * chip, snd_pcm_hw_params_t * params, unsigned char format)
+static void ad1845_playback_format(struct snd_cs4231 * chip, struct snd_pcm_hw_params *params, unsigned char format)
 {
 	unsigned long flags;
 	unsigned rate = params_rate(params);
@@ -955,7 +955,7 @@ static void ad1845_playback_format(cs4231_t * chip, snd_pcm_hw_params_t * params
  * Override for the CS4231 capture format function. 
  * The AD1845 has much simpler format and rate selection.
  */
-static void ad1845_capture_format(cs4231_t * chip, snd_pcm_hw_params_t * params, unsigned char format)
+static void ad1845_capture_format(struct snd_cs4231 * chip, struct snd_pcm_hw_params *params, unsigned char format)
 {
 	unsigned long flags;
 	unsigned rate = params_rate(params);
@@ -993,10 +993,10 @@ static void ad1845_capture_format(cs4231_t * chip, snd_pcm_hw_params_t * params,
  * try to support at least some of the extra bits by overriding
  * some of the CS4231 callback.
  */
-static int __devinit create_ad1845(snd_card_t * card, unsigned port, int irq, int dma1)
+static int __devinit create_ad1845(struct snd_card *card, unsigned port, int irq, int dma1)
 {
 	register struct soundscape *sscape = get_card_soundscape(card);
-	cs4231_t *chip;
+	struct snd_cs4231 *chip;
 	int err;
 
 #define CS4231_SHARE_HARDWARE  (CS4231_HWSHARE_DMA1 | CS4231_HWSHARE_DMA2)
@@ -1009,7 +1009,7 @@ static int __devinit create_ad1845(snd_card_t * card, unsigned port, int irq, in
 				     CS4231_HW_DETECT,
 				     CS4231_HWSHARE_DMA1, &chip)) == 0) {
 		unsigned long flags;
-		snd_pcm_t *pcm;
+		struct snd_pcm *pcm;
 
 #define AD1845_FREQ_SEL_ENABLE  0x08
 
@@ -1115,9 +1115,9 @@ init_params(struct params *params,
  * Create an ALSA soundcard entry for the SoundScape, using
  * the given list of port, IRQ and DMA resources.
  */
-static int __devinit create_sscape(const struct params *params, snd_card_t **rcardp)
+static int __devinit create_sscape(const struct params *params, struct snd_card **rcardp)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	register struct soundscape *sscape;
 	register unsigned dma_cfg;
 	unsigned irq_cfg;
@@ -1370,7 +1370,7 @@ static int __devinit sscape_pnp_detect(struct pnp_card_link *pcard,
 		 * Do we know about this sound card already?
 		 */
 		if ( !is_port_known(this->port, sscape_params, sscape_cards) ) {
-			snd_card_t *card;
+			struct snd_card *card;
 
 			ret = create_sscape(this, &card);
 			if (ret < 0)
@@ -1394,7 +1394,7 @@ static int __devinit sscape_pnp_detect(struct pnp_card_link *pcard,
 
 static void __devexit sscape_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
+	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
         
 	pnp_set_card_drvdata(pcard, NULL);
 	snd_card_disconnect(card);
@@ -1415,7 +1415,7 @@ static int __init sscape_manual_probe(struct params *params)
 {
 	int ret;
 	unsigned i;
-	snd_card_t *card;
+	struct snd_card *card;
 
 	for (i = 0; i < SNDRV_CARDS; ++i) {
 		/*
