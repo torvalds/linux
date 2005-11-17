@@ -109,6 +109,7 @@ struct snd_card_als4000 {
 	/* most frequent access first */
 	unsigned long gcr;
 	struct pci_dev *pci;
+	struct snd_sb *chip;
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
 #endif
@@ -305,14 +306,20 @@ static int snd_als4000_capture_trigger(struct snd_pcm_substream *substream, int 
 	int result = 0;
 	
 	spin_lock(&chip->mixer_lock);
-	if (cmd == SNDRV_PCM_TRIGGER_START) {
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		chip->mode |= SB_RATE_LOCK_CAPTURE;
 		snd_sbmixer_write(chip, 0xde, capture_cmd(chip));
-	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		chip->mode &= ~SB_RATE_LOCK_CAPTURE;
 		snd_sbmixer_write(chip, 0xde, 0);
-	} else {
+		break;
+	default:
 		result = -EINVAL;
+		break;
 	}
 	spin_unlock(&chip->mixer_lock);
 	return result;
@@ -324,14 +331,20 @@ static int snd_als4000_playback_trigger(struct snd_pcm_substream *substream, int
 	int result = 0;
 
 	spin_lock(&chip->reg_lock);
-	if (cmd == SNDRV_PCM_TRIGGER_START) {
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		chip->mode |= SB_RATE_LOCK_PLAYBACK;
 		snd_sbdsp_command(chip, playback_cmd(chip).dma_on);
-	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		snd_sbdsp_command(chip, playback_cmd(chip).dma_off);
 		chip->mode &= ~SB_RATE_LOCK_PLAYBACK;
-	} else {
+		break;
+	default:
 		result = -EINVAL;
+		break;
 	}
 	spin_unlock(&chip->reg_lock);
 	return result;
@@ -551,7 +564,7 @@ static void snd_als4000_set_addr(unsigned long gcr,
 	snd_als4000_gcr_write_addr(gcr, 0xa9, confB);
 }
 
-static void __devinit snd_als4000_configure(struct snd_sb *chip)
+static void snd_als4000_configure(struct snd_sb *chip)
 {
 	unsigned tmp;
 	int i;
@@ -718,6 +731,7 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 				    &chip)) < 0) {
 		goto out_err;
 	}
+	acard->chip = chip;
 
 	chip->pci = pci;
 	chip->alt_port = gcr;
@@ -777,11 +791,59 @@ static void __devexit snd_card_als4000_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
+#ifdef CONFIG_PM
+static int snd_als4000_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_card_als4000 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	
+	snd_pcm_suspend_all(chip->pcm);
+	snd_sbmixer_suspend(chip);
+
+	pci_set_power_state(pci, PCI_D3hot);
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	return 0;
+}
+
+static int snd_als4000_resume(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_card_als4000 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_power_state(pci, PCI_D0);
+	pci_set_master(pci);
+
+	snd_als4000_configure(chip);
+	snd_sbdsp_reset(chip);
+	snd_sbmixer_resume(chip);
+
+#ifdef SUPPORT_JOYSTICK
+	if (acard->gameport)
+		snd_als4000_set_addr(acard->gcr, 0, 0, 0, 1);
+#endif
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
+
 static struct pci_driver driver = {
 	.name = "ALS4000",
 	.id_table = snd_als4000_ids,
 	.probe = snd_card_als4000_probe,
 	.remove = __devexit_p(snd_card_als4000_remove),
+#ifdef CONFIG_PM
+	.suspend = snd_als4000_suspend,
+	.resume = snd_als4000_resume,
+#endif
 };
 
 static int __init alsa_card_als4000_init(void)
