@@ -176,6 +176,11 @@ unsigned int snd_pmac_rate_index(struct snd_pmac *chip, struct pmac_stream *rec,
 void snd_pmac_beep_dma_start(struct snd_pmac *chip, int bytes, unsigned long addr, int speed);
 void snd_pmac_beep_dma_stop(struct snd_pmac *chip);
 
+#ifdef CONFIG_PM
+void snd_pmac_suspend(struct snd_pmac *chip);
+void snd_pmac_resume(struct snd_pmac *chip);
+#endif
+
 /* initialize mixer */
 int snd_pmac_awacs_init(struct snd_pmac *chip);
 int snd_pmac_burgundy_init(struct snd_pmac *chip);

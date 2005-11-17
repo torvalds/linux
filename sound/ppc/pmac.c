@@ -36,14 +36,6 @@
 #include <asm/pci-bridge.h>
 
 
-#ifdef CONFIG_PM
-static int snd_pmac_register_sleep_notifier(struct snd_pmac *chip);
-static int snd_pmac_unregister_sleep_notifier(struct snd_pmac *chip);
-static int snd_pmac_suspend(struct snd_card *card, pm_message_t state);
-static int snd_pmac_resume(struct snd_card *card);
-#endif
-
-
 /* fixed frequency table for awacs, screamer, burgundy, DACA (44100 max) */
 static int awacs_freqs[8] = {
 	44100, 29400, 22050, 17640, 14700, 11025, 8820, 7350
@@ -784,9 +776,6 @@ static int snd_pmac_free(struct snd_pmac *chip)
 	}
 
 	snd_pmac_sound_feature(chip, 0);
-#ifdef CONFIG_PM
-	snd_pmac_unregister_sleep_notifier(chip);
-#endif
 
 	/* clean up mixer if any */
 	if (chip->mixer_free)
@@ -1298,12 +1287,6 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	/* Reset dbdma channels */
 	snd_pmac_dbdma_reset(chip);
 
-#ifdef CONFIG_PM
-	/* add sleep notifier */
-	if (! snd_pmac_register_sleep_notifier(chip))
-		snd_card_set_pm_callback(chip->card, snd_pmac_suspend, snd_pmac_resume, chip);
-#endif
-
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0)
 		goto __error;
 
@@ -1328,11 +1311,11 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
  * Save state when going to sleep, restore it afterwards.
  */
 
-static int snd_pmac_suspend(struct snd_card *card, pm_message_t state)
+void snd_pmac_suspend(struct snd_pmac *chip)
 {
-	struct snd_pmac *chip = card->pm_private_data;
 	unsigned long flags;
 
+	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	if (chip->suspend)
 		chip->suspend(chip);
 	snd_pcm_suspend_all(chip->pcm);
@@ -1346,22 +1329,18 @@ static int snd_pmac_suspend(struct snd_card *card, pm_message_t state)
 	if (chip->rx_irq >= 0)
 		disable_irq(chip->rx_irq);
 	snd_pmac_sound_feature(chip, 0);
-	return 0;
 }
 
-static int snd_pmac_resume(struct snd_card *card)
+void snd_pmac_resume(struct snd_pmac *chip)
 {
-	struct snd_pmac *chip = card->pm_private_data;
-
 	snd_pmac_sound_feature(chip, 1);
 	if (chip->resume)
 		chip->resume(chip);
 	/* enable CD sound input */
-	if (chip->macio_base && chip->is_pbook_G3) {
+	if (chip->macio_base && chip->is_pbook_G3)
 		out_8(chip->macio_base + 0x37, 3);
-	} else if (chip->is_pbook_3400) {
+	else if (chip->is_pbook_3400)
 		in_8(chip->latch_base + 0x190);
-	}
 
 	snd_pmac_pcm_set_format(chip);
 
@@ -1372,53 +1351,7 @@ static int snd_pmac_resume(struct snd_card *card)
 	if (chip->rx_irq >= 0)
 		enable_irq(chip->rx_irq);
 
-	return 0;
-}
-
-/* the chip is stored statically by snd_pmac_register_sleep_notifier
- * because we can't have any private data for notify callback.
- */
-static struct snd_pmac *sleeping_pmac = NULL;
-
-static int snd_pmac_sleep_notify(struct pmu_sleep_notifier *self, int when)
-{
-	struct snd_pmac *chip;
-
-	chip = sleeping_pmac;
-	if (! chip)
-		return 0;
-
-	switch (when) {
-	case PBOOK_SLEEP_NOW:
-		snd_pmac_suspend(chip->card, PMSG_SUSPEND);
-		break;
-	case PBOOK_WAKE:
-		snd_pmac_resume(chip->card);
-		break;
-	}
-	return PBOOK_SLEEP_OK;
-}
-
-static struct pmu_sleep_notifier snd_pmac_sleep_notifier = {
-	snd_pmac_sleep_notify, SLEEP_LEVEL_SOUND,
-};
-
-static int __init snd_pmac_register_sleep_notifier(struct snd_pmac *chip)
-{
-	/* should be protected here.. */
-	snd_assert(! sleeping_pmac, return -EBUSY);
-	sleeping_pmac = chip;
-	pmu_register_sleep_notifier(&snd_pmac_sleep_notifier);
-	return 0;
-}
-						    
-static int snd_pmac_unregister_sleep_notifier(struct snd_pmac *chip)
-{
-	/* should be protected here.. */
-	snd_assert(sleeping_pmac == chip, return -ENODEV);
-	pmu_unregister_sleep_notifier(&snd_pmac_sleep_notifier);
-	sleeping_pmac = NULL;
-	return 0;
+	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D0);
 }
 
 #endif /* CONFIG_PM */
