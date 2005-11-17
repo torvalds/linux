@@ -237,12 +237,12 @@
 #define MAX_OPL2_VOICES		9
 #define MAX_OPL3_VOICES		18
 
-typedef struct snd_opl3 opl3_t;
+struct snd_opl3;
 
 /*
  * A structure to keep track of each hardware voice
  */
-typedef struct snd_opl3_voice {
+struct snd_opl3_voice {
 	int  state;		/* status */
 #define SNDRV_OPL3_ST_OFF		0	/* Not playing */
 #define SNDRV_OPL3_ST_ON_2OP	1	/* 2op voice is allocated */
@@ -257,8 +257,8 @@ typedef struct snd_opl3_voice {
 
 	unsigned char keyon_reg;	/* KON register shadow */
 
-	snd_midi_channel_t *chan;	/* Midi channel for this note */
-} snd_opl3_voice_t;
+	struct snd_midi_channel *chan;	/* Midi channel for this note */
+};
 
 struct snd_opl3 {
 	unsigned long l_port;
@@ -267,18 +267,18 @@ struct snd_opl3 {
 	struct resource *res_r_port;
 	unsigned short hardware;
 	/* hardware access */
-	void (*command) (opl3_t * opl3, unsigned short cmd, unsigned char val);
+	void (*command) (struct snd_opl3 * opl3, unsigned short cmd, unsigned char val);
 	unsigned short timer_enable;
 	int seq_dev_num;	/* sequencer device number */
-	snd_timer_t *timer1;
-	snd_timer_t *timer2;
+	struct snd_timer *timer1;
+	struct snd_timer *timer2;
 	spinlock_t timer_lock;
 
 	void *private_data;
-	void (*private_free)(opl3_t *);
+	void (*private_free)(struct snd_opl3 *);
 
 	spinlock_t reg_lock;
-	snd_card_t *card;		/* The card that this belongs to */
+	struct snd_card *card;		/* The card that this belongs to */
 	int used;			/* usage flag - exclusive */
 	unsigned char fm_mode;		/* OPL mode, see SNDRV_DM_FM_MODE_XXX */
 	unsigned char rhythm;		/* percussion mode flag */
@@ -289,18 +289,18 @@ struct snd_opl3 {
 	int synth_mode;			/* synth mode */
 	int seq_client;
 
-	snd_seq_device_t *seq_dev;	/* sequencer device */
-	snd_midi_channel_set_t * chset;
+	struct snd_seq_device *seq_dev;	/* sequencer device */
+	struct snd_midi_channel_set * chset;
 
 #ifdef CONFIG_SND_SEQUENCER_OSS
-	snd_seq_device_t *oss_seq_dev;	/* OSS sequencer device */
-	snd_midi_channel_set_t * oss_chset;
+	struct snd_seq_device *oss_seq_dev;	/* OSS sequencer device */
+	struct snd_midi_channel_set * oss_chset;
 #endif
  
-	snd_seq_kinstr_ops_t fm_ops;
-	snd_seq_kinstr_list_t *ilist;
+	struct snd_seq_kinstr_ops fm_ops;
+	struct snd_seq_kinstr_list *ilist;
 
-	snd_opl3_voice_t voices[MAX_OPL3_VOICES]; /* Voices (OPL3 'channel') */
+	struct snd_opl3_voice voices[MAX_OPL3_VOICES]; /* Voices (OPL3 'channel') */
 	int use_time;			/* allocation counter */
 
 	unsigned short connection_reg;	/* connection reg shadow */
@@ -316,24 +316,25 @@ struct snd_opl3 {
 };
 
 /* opl3.c */
-void snd_opl3_interrupt(snd_hwdep_t * hw);
-int snd_opl3_new(snd_card_t *card, unsigned short hardware, opl3_t **ropl3);
-int snd_opl3_init(opl3_t *opl3);
-int snd_opl3_create(snd_card_t * card,
+void snd_opl3_interrupt(struct snd_hwdep * hw);
+int snd_opl3_new(struct snd_card *card, unsigned short hardware,
+		 struct snd_opl3 **ropl3);
+int snd_opl3_init(struct snd_opl3 *opl3);
+int snd_opl3_create(struct snd_card *card,
 		    unsigned long l_port, unsigned long r_port,
 		    unsigned short hardware,
 		    int integrated,
-		    opl3_t ** opl3);
-int snd_opl3_timer_new(opl3_t * opl3, int timer1_dev, int timer2_dev);
-int snd_opl3_hwdep_new(opl3_t * opl3, int device, int seq_device,
-		       snd_hwdep_t ** rhwdep);
+		    struct snd_opl3 ** opl3);
+int snd_opl3_timer_new(struct snd_opl3 * opl3, int timer1_dev, int timer2_dev);
+int snd_opl3_hwdep_new(struct snd_opl3 * opl3, int device, int seq_device,
+		       struct snd_hwdep ** rhwdep);
 
 /* opl3_synth */
-int snd_opl3_open(snd_hwdep_t * hw, struct file *file);
-int snd_opl3_ioctl(snd_hwdep_t * hw, struct file *file,
+int snd_opl3_open(struct snd_hwdep * hw, struct file *file);
+int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 		   unsigned int cmd, unsigned long arg);
-int snd_opl3_release(snd_hwdep_t * hw, struct file *file);
+int snd_opl3_release(struct snd_hwdep * hw, struct file *file);
 
-void snd_opl3_reset(opl3_t * opl3);
+void snd_opl3_reset(struct snd_opl3 * opl3);
 
 #endif /* __SOUND_OPL3_H */
