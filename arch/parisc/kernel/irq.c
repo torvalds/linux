@@ -261,12 +261,16 @@ int txn_alloc_irq(unsigned int bits_wide)
 	return -1;
 }
 
+
 unsigned long txn_affinity_addr(unsigned int irq, int cpu)
 {
+#ifdef CONFIG_SMP
 	irq_affinity[irq] = cpumask_of_cpu(cpu);
+#endif
 
 	return cpu_data[cpu].txn_addr;
 }
+
 
 unsigned long txn_alloc_addr(unsigned int virt_irq)
 {
@@ -321,14 +325,16 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 
 		/* Work our way from MSb to LSb...same order we alloc EIRs */
 		for (irq = TIMER_IRQ; eirr_val && bit; bit>>=1, irq++) {
+#ifdef CONFIG_SMP
 			cpumask_t dest = irq_affinity[irq];
-
+#endif
 			if (!(bit & eirr_val))
 				continue;
 
 			/* clear bit in mask - can exit loop sooner */
 			eirr_val &= ~bit;
 
+#ifdef CONFIG_SMP
 			/* FIXME: because generic set affinity mucks
 			 * with the affinity before sending it to us
 			 * we can get the situation where the affinity is
@@ -337,12 +343,13 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 			    !cpu_isset(smp_processor_id(), dest)) {
 				int cpu = first_cpu(dest);
 
-				printk("rethrowing irq %d from %d to %d\n",
+				printk("redirecting irq %d from CPU %d to %d\n",
 				       irq, smp_processor_id(), cpu);
 				gsc_writel(irq + CPU_IRQ_BASE,
 					   cpu_data[cpu].hpa);
 				continue;
 			}
+#endif
 
 			__do_IRQ(irq, regs);
 		}
