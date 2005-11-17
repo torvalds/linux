@@ -635,19 +635,14 @@ static struct snd_pcm_ops aaci_playback_ops = {
 static int aaci_do_suspend(struct snd_card *card, unsigned int state)
 {
 	struct aaci *aaci = card->private_data;
-	if (aaci->card->power_state != SNDRV_CTL_POWER_D3cold) {
-		snd_pcm_suspend_all(aaci->pcm);
-		snd_power_change_state(aaci->card, SNDRV_CTL_POWER_D3cold);
-	}
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
+	snd_pcm_suspend_all(aaci->pcm);
 	return 0;
 }
 
 static int aaci_do_resume(struct snd_card *card, unsigned int state)
 {
-	struct aaci *aaci = card->private_data;
-	if (aaci->card->power_state != SNDRV_CTL_POWER_D0) {
-		snd_power_change_state(aaci->card, SNDRV_CTL_POWER_D0);
-	}
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 
@@ -780,7 +775,6 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 		return ERR_PTR(-ENOMEM);
 
 	card->private_free = aaci_free_card;
-	snd_card_set_pm_callback(card, aaci_do_suspend, aaci_do_resume, NULL);
 
 	strlcpy(card->driver, DRIVER_NAME, sizeof(card->driver));
 	strlcpy(card->shortname, "ARM AC'97 Interface", sizeof(card->shortname));

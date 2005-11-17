@@ -247,30 +247,28 @@ static struct pxa2xx_pcm_client pxa2xx_ac97_pcm_client = {
 
 static int pxa2xx_ac97_do_suspend(struct snd_card *card, pm_message_t state)
 {
-	if (card->power_state != SNDRV_CTL_POWER_D3cold) {
-		pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
-		snd_pcm_suspend_all(pxa2xx_ac97_pcm);
-		snd_ac97_suspend(pxa2xx_ac97_ac97);
-		snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
-		if (platform_ops && platform_ops->suspend)
-			platform_ops->suspend(platform_ops->priv);
-		GCR |= GCR_ACLINK_OFF;
-		pxa_set_cken(CKEN2_AC97, 0);
-	}
+	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
+	snd_pcm_suspend_all(pxa2xx_ac97_pcm);
+	snd_ac97_suspend(pxa2xx_ac97_ac97);
+	if (platform_ops && platform_ops->suspend)
+		platform_ops->suspend(platform_ops->priv);
+	GCR |= GCR_ACLINK_OFF;
+	pxa_set_cken(CKEN2_AC97, 0);
 
 	return 0;
 }
 
 static int pxa2xx_ac97_do_resume(struct snd_card *card)
 {
-	if (card->power_state != SNDRV_CTL_POWER_D0) {
-		pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
-		pxa_set_cken(CKEN2_AC97, 1);
-		if (platform_ops && platform_ops->resume)
-			platform_ops->resume(platform_ops->priv);
-		snd_ac97_resume(pxa2xx_ac97_ac97);
-		snd_power_change_state(card, SNDRV_CTL_POWER_D0);
-	}
+	pxa2xx_audio_ops_t *platform_ops = card->dev->platform_data;
+
+	pxa_set_cken(CKEN2_AC97, 1);
+	if (platform_ops && platform_ops->resume)
+		platform_ops->resume(platform_ops->priv);
+	snd_ac97_resume(pxa2xx_ac97_ac97);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
 	return 0;
 }
@@ -349,8 +347,6 @@ static int pxa2xx_ac97_probe(struct platform_device *dev)
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s (%s)", dev->dev.driver->name, card->mixername);
 
-	snd_card_set_pm_callback(card, pxa2xx_ac97_do_suspend,
-				 pxa2xx_ac97_do_resume, NULL);
 	ret = snd_card_register(card);
 	if (ret == 0) {
 		platform_set_drvdata(dev, card);
