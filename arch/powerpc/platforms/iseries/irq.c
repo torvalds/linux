@@ -82,31 +82,29 @@ struct pci_event {
 	} data;
 };
 
+static DEFINE_SPINLOCK(pending_irqs_lock);
+static int num_pending_irqs;
+static int pending_irqs[NR_IRQS];
+
 static void int_received(struct pci_event *event, struct pt_regs *regs)
 {
 	int irq;
-#ifdef CONFIG_IRQSTACKS
-	struct thread_info *curtp, *irqtp;
-#endif
 
 	switch (event->event.xSubtype) {
 	case pe_slot_interrupt:
 		irq = event->event.xCorrelationToken;
-		/* Dispatch the interrupt handlers for this irq */
-#ifdef CONFIG_IRQSTACKS
-		/* Switch to the irq stack to handle this */
-		curtp = current_thread_info();
-		irqtp = hardirq_ctx[smp_processor_id()];
-		if (curtp != irqtp) {
-			irqtp->task = curtp->task;
-			irqtp->flags = 0;
-			call___do_IRQ(irq, regs, irqtp);
-			irqtp->task = NULL;
-			if (irqtp->flags)
-				set_bits(irqtp->flags, &curtp->flags);
-		} else
-#endif
-			__do_IRQ(irq, regs);
+		if (irq < NR_IRQS) {
+			spin_lock(&pending_irqs_lock);
+			pending_irqs[irq]++;
+			num_pending_irqs++;
+			spin_unlock(&pending_irqs_lock);
+		} else {
+			printk(KERN_WARNING "int_received: bad irq number %d\n",
+					irq);
+			HvCallPci_eoi(event->data.slot.bus_number,
+					event->data.slot.sub_bus_number,
+					event->data.slot.dev_id);
+		}
 		break;
 		/* Ignore error recovery events for now */
 	case pe_bus_created:
@@ -342,6 +340,8 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 int iSeries_get_irq(struct pt_regs *regs)
 {
 	struct paca_struct *lpaca;
+	/* -2 means ignore this interrupt */
+	int irq = -2;
 
 	lpaca = get_paca();
 #ifdef CONFIG_SMP
@@ -353,6 +353,19 @@ int iSeries_get_irq(struct pt_regs *regs)
 	if (hvlpevent_is_pending())
 		process_hvlpevents(regs);
 
-	/* -2 means ignore this interrupt */
-	return -2;
+	if (num_pending_irqs) {
+		spin_lock(&pending_irqs_lock);
+		for (irq = 0; irq < NR_IRQS; irq++) {
+			if (pending_irqs[irq]) {
+				pending_irqs[irq]--;
+				num_pending_irqs--;
+				break;
+			}
+		}
+		spin_unlock(&pending_irqs_lock);
+		if (irq >= NR_IRQS)
+			irq = -2;
+	}
+
+	return irq;
 }
