@@ -49,14 +49,15 @@
 #include <asm/paca.h>
 #endif
 
-int smp_hw_index[NR_CPUS];
-struct thread_info *secondary_ti;
-
 #ifdef DEBUG
+#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
 #endif
+
+int smp_hw_index[NR_CPUS];
+struct thread_info *secondary_ti;
 
 cpumask_t cpu_possible_map = CPU_MASK_NONE;
 cpumask_t cpu_online_map = CPU_MASK_NONE;

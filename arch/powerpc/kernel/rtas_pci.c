@@ -304,73 +304,16 @@ static int __devinit setup_phb(struct device_node *dev,
 			       struct pci_controller *phb,
 			       unsigned int addr_size_words)
 {
-	pci_setup_pci_controller(phb);
-
 	if (is_python(dev))
 		python_countermeasures(dev, addr_size_words);
 
 	if (phb_set_bus_ranges(dev, phb))
 		return 1;
 
-	phb->arch_data = dev;
 	phb->ops = &rtas_pci_ops;
 	phb->buid = get_phb_buid(dev);
 
 	return 0;
-}
-
-static void __devinit add_linux_pci_domain(struct device_node *dev,
-					   struct pci_controller *phb,
-					   struct property *of_prop)
-{
-	memset(of_prop, 0, sizeof(struct property));
-	of_prop->name = "linux,pci-domain";
-	of_prop->length = sizeof(phb->global_number);
-	of_prop->value = (unsigned char *)&of_prop[1];
-	memcpy(of_prop->value, &phb->global_number, sizeof(phb->global_number));
-	prom_add_property(dev, of_prop);
-}
-
-static struct pci_controller * __init alloc_phb(struct device_node *dev,
-						unsigned int addr_size_words)
-{
-	struct pci_controller *phb;
-	struct property *of_prop;
-
-	phb = alloc_bootmem(sizeof(struct pci_controller));
-	if (phb == NULL)
-		return NULL;
-
-	of_prop = alloc_bootmem(sizeof(struct property) +
-				sizeof(phb->global_number));
-	if (!of_prop)
-		return NULL;
-
-	if (setup_phb(dev, phb, addr_size_words))
-		return NULL;
-
-	add_linux_pci_domain(dev, phb, of_prop);
-
-	return phb;
-}
-
-static struct pci_controller * __devinit alloc_phb_dynamic(struct device_node *dev, unsigned int addr_size_words)
-{
-	struct pci_controller *phb;
-
-	phb = (struct pci_controller *)kmalloc(sizeof(struct pci_controller),
-					       GFP_KERNEL);
-	if (phb == NULL)
-		return NULL;
-
-	if (setup_phb(dev, phb, addr_size_words))
-		return NULL;
-
-	phb->is_dynamic = 1;
-
-	/* TODO: linux,pci-domain? */
-
- 	return phb;
 }
 
 unsigned long __init find_and_init_phbs(void)
@@ -397,10 +340,10 @@ unsigned long __init find_and_init_phbs(void)
 		if (node->type == NULL || strcmp(node->type, "pci") != 0)
 			continue;
 
-		phb = alloc_phb(node, root_size_cells);
+		phb = pcibios_alloc_controller(node);
 		if (!phb)
 			continue;
-
+		setup_phb(node, phb, root_size_cells);
 		pci_process_bridge_OF_ranges(phb, node, 0);
 		pci_setup_phb_io(phb, index == 0);
 #ifdef CONFIG_PPC_PSERIES
@@ -446,10 +389,10 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	root_size_cells = prom_n_size_cells(root);
 
 	primary = list_empty(&hose_list);
-	phb = alloc_phb_dynamic(dn, root_size_cells);
+	phb = pcibios_alloc_controller(dn);
 	if (!phb)
 		return NULL;
-
+	setup_phb(dn, phb, root_size_cells);
 	pci_process_bridge_OF_ranges(phb, dn, primary);
 
 	pci_setup_phb_io_dynamic(phb, primary);
@@ -505,8 +448,7 @@ int pcibios_remove_root_bus(struct pci_controller *phb)
 	}
 
 	list_del(&phb->list_node);
-	if (phb->is_dynamic)
-		kfree(phb);
+	pcibios_free_controller(phb);
 
 	return 0;
 }
