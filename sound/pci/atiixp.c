@@ -328,12 +328,6 @@ static int snd_atiixp_update_bits(atiixp_t *chip, unsigned int reg,
 #define atiixp_update(chip,reg,mask,val) \
 	snd_atiixp_update_bits(chip, ATI_REG_##reg, mask, val)
 
-/* delay for one tick */
-#define do_delay() do { \
-	schedule_timeout_uninterruptible(1); \
-} while (0)
-
-
 /*
  * handling DMA packets
  *
@@ -513,7 +507,7 @@ static int snd_atiixp_aclink_reset(atiixp_t *chip)
 		atiixp_update(chip, CMD, ATI_REG_CMD_AC_SYNC|ATI_REG_CMD_AC_RESET,
 			      ATI_REG_CMD_AC_SYNC);
 		atiixp_read(chip, CMD);
-		do_delay();
+		msleep(1);
 		atiixp_update(chip, CMD, ATI_REG_CMD_AC_RESET, ATI_REG_CMD_AC_RESET);
 		if (--timeout) {
 			snd_printk(KERN_ERR "atiixp: codec reset timeout\n");
@@ -561,9 +555,9 @@ static int snd_atiixp_codec_detect(atiixp_t *chip)
 	chip->codec_not_ready_bits = 0;
 	atiixp_write(chip, IER, CODEC_CHECK_BITS);
 	/* wait for the interrupts */
-	timeout = HZ / 10;
+	timeout = 50;
 	while (timeout-- > 0) {
-		do_delay();
+		msleep(1);
 		if (chip->codec_not_ready_bits)
 			break;
 	}
