@@ -29,6 +29,7 @@ extern cpumask_t cpu_online_map;
 #define cpu_logical_map(cpu)	(cpu)
 
 extern void smp_send_reschedule(int cpu);
+extern void smp_send_all_nop(void);
 
 #endif /* !ASSEMBLY */
 

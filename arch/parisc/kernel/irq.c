@@ -43,26 +43,34 @@ extern irqreturn_t ipi_interrupt(int, void *, struct pt_regs *);
 */
 static volatile unsigned long cpu_eiem = 0;
 
-static void cpu_set_eiem(void *info)
-{
-	set_eiem((unsigned long) info);
-}
-
-static inline void cpu_disable_irq(unsigned int irq)
+static void cpu_disable_irq(unsigned int irq)
 {
 	unsigned long eirr_bit = EIEM_MASK(irq);
 
 	cpu_eiem &= ~eirr_bit;
-        on_each_cpu(cpu_set_eiem, (void *) cpu_eiem, 1, 1);
+	/* Do nothing on the other CPUs.  If they get this interrupt,
+	 * The & cpu_eiem in the do_cpu_irq_mask() ensures they won't
+	 * handle it, and the set_eiem() at the bottom will ensure it
+	 * then gets disabled */
 }
 
 static void cpu_enable_irq(unsigned int irq)
 {
 	unsigned long eirr_bit = EIEM_MASK(irq);
 
-	mtctl(eirr_bit, 23);	/* clear EIRR bit before unmasking */
 	cpu_eiem |= eirr_bit;
-        on_each_cpu(cpu_set_eiem, (void *) cpu_eiem, 1, 1);
+
+	/* FIXME: while our interrupts aren't nested, we cannot reset
+	 * the eiem mask if we're already in an interrupt.  Once we
+	 * implement nested interrupts, this can go away
+	 */
+	if (!in_interrupt())
+		set_eiem(cpu_eiem);
+
+	/* This is just a simple NOP IPI.  But what it does is cause
+	 * all the other CPUs to do a set_eiem(cpu_eiem) at the end
+	 * of the interrupt handler */
+	smp_send_all_nop();
 }
 
 static unsigned int cpu_startup_irq(unsigned int irq)
