@@ -81,7 +81,7 @@ MODULE_PARM_DESC(fm_port, "FM port #.");
 module_param_array(use_cs4232_midi, bool, NULL, 0444);
 MODULE_PARM_DESC(use_cs4232_midi, "Use CS4232 MPU-401 interface (inaccessibly located inside your computer)");
 
-static snd_card_t *snd_wavefront_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_wavefront_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #ifdef CONFIG_PNP
 
@@ -279,12 +279,12 @@ static irqreturn_t snd_wavefront_ics2115_interrupt(int irq,
 	return IRQ_HANDLED;
 }
 
-static snd_hwdep_t * __devinit
-snd_wavefront_new_synth (snd_card_t *card,
+static struct snd_hwdep * __devinit
+snd_wavefront_new_synth (struct snd_card *card,
 			 int hw_dev,
 			 snd_wavefront_card_t *acard)
 {
-	snd_hwdep_t *wavefront_synth;
+	struct snd_hwdep *wavefront_synth;
 
 	if (snd_wavefront_detect (acard) < 0) {
 		return NULL;
@@ -305,14 +305,14 @@ snd_wavefront_new_synth (snd_card_t *card,
 	return wavefront_synth;
 }
 
-static snd_hwdep_t * __devinit
-snd_wavefront_new_fx (snd_card_t *card,
+static struct snd_hwdep * __devinit
+snd_wavefront_new_fx (struct snd_card *card,
 		      int hw_dev,
 		      snd_wavefront_card_t *acard,
 		      unsigned long port)
 
 {
-	snd_hwdep_t *fx_processor;
+	struct snd_hwdep *fx_processor;
 
 	if (snd_wavefront_fx_start (&acard->wavefront)) {
 		snd_printk ("cannot initialize YSS225 FX processor");
@@ -332,15 +332,15 @@ snd_wavefront_new_fx (snd_card_t *card,
 static snd_wavefront_mpu_id internal_id = internal_mpu;
 static snd_wavefront_mpu_id external_id = external_mpu;
 
-static snd_rawmidi_t * __devinit
-snd_wavefront_new_midi (snd_card_t *card,
+static struct snd_rawmidi *__devinit
+snd_wavefront_new_midi (struct snd_card *card,
 			int midi_dev,
 			snd_wavefront_card_t *acard,
 			unsigned long port,
 			snd_wavefront_mpu_id mpu)
 
 {
-	snd_rawmidi_t *rmidi;
+	struct snd_rawmidi *rmidi;
 	static int first = 1;
 
 	if (first) {
@@ -374,7 +374,7 @@ snd_wavefront_new_midi (snd_card_t *card,
 }
 
 static void
-snd_wavefront_free(snd_card_t *card)
+snd_wavefront_free(struct snd_card *card)
 {
 	snd_wavefront_card_t *acard = (snd_wavefront_card_t *)card->private_data;
 	
@@ -389,13 +389,13 @@ static int __devinit
 snd_wavefront_probe (int dev, struct pnp_card_link *pcard,
 		     const struct pnp_card_device_id *pid)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	snd_wavefront_card_t *acard;
-	cs4231_t *chip;
-	snd_hwdep_t *wavefront_synth;
-	snd_rawmidi_t *ics2115_internal_rmidi = NULL;
-	snd_rawmidi_t *ics2115_external_rmidi = NULL;
-	snd_hwdep_t *fx_processor;
+	struct snd_cs4231 *chip;
+	struct snd_hwdep *wavefront_synth;
+	struct snd_rawmidi *ics2115_internal_rmidi = NULL;
+	struct snd_rawmidi *ics2115_external_rmidi = NULL;
+	struct snd_hwdep *fx_processor;
 	int hw_dev = 0, midi_dev = 0, err;
 
 #ifdef CONFIG_PNP
@@ -467,7 +467,7 @@ snd_wavefront_probe (int dev, struct pnp_card_link *pcard,
 	/* ---------- OPL3 synth --------- */
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
-		opl3_t *opl3;
+		struct snd_opl3 *opl3;
 
 	        if ((err = snd_opl3_create(card,
 					   fm_port[dev],
@@ -658,7 +658,7 @@ static int __devinit snd_wavefront_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_wavefront_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
+	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
 
 	snd_card_disconnect(card);
 	snd_card_free_in_thread(card);
