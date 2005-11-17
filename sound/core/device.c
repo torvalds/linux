@@ -50,8 +50,10 @@ int snd_device_new(struct snd_card *card, snd_device_type_t type,
 	snd_assert(device_data != NULL, return -ENXIO);
 	snd_assert(ops != NULL, return -ENXIO);
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL)
+	if (dev == NULL) {
+		snd_printk(KERN_ERR "Cannot allocate device\n");
 		return -ENOMEM;
+	}
 	dev->card = card;
 	dev->type = type;
 	dev->state = SNDRV_DEV_BUILD;
@@ -173,6 +175,7 @@ int snd_device_register(struct snd_card *card, void *device_data)
 			dev->state = SNDRV_DEV_REGISTERED;
 			return 0;
 		}
+		snd_printd("snd_device_register busy\n");
 		return -EBUSY;
 	}
 	snd_BUG();

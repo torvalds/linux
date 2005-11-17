@@ -1382,8 +1382,10 @@ static int snd_rawmidi_alloc_substreams(struct snd_rawmidi *rmidi,
 	INIT_LIST_HEAD(&stream->substreams);
 	for (idx = 0; idx < count; idx++) {
 		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
-		if (substream == NULL)
+		if (substream == NULL) {
+			snd_printk(KERN_ERR "rawmidi: cannot allocate substream\n");
 			return -ENOMEM;
+		}
 		substream->stream = direction;
 		substream->number = idx;
 		substream->rmidi = rmidi;
@@ -1425,19 +1427,27 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 	*rrawmidi = NULL;
 	snd_assert(card != NULL, return -ENXIO);
 	rmidi = kzalloc(sizeof(*rmidi), GFP_KERNEL);
-	if (rmidi == NULL)
+	if (rmidi == NULL) {
+		snd_printk(KERN_ERR "rawmidi: cannot allocate\n");
 		return -ENOMEM;
+	}
 	rmidi->card = card;
 	rmidi->device = device;
 	init_MUTEX(&rmidi->open_mutex);
 	init_waitqueue_head(&rmidi->open_wait);
 	if (id != NULL)
 		strlcpy(rmidi->id, id, sizeof(rmidi->id));
-	if ((err = snd_rawmidi_alloc_substreams(rmidi, &rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT], SNDRV_RAWMIDI_STREAM_INPUT, input_count)) < 0) {
+	if ((err = snd_rawmidi_alloc_substreams(rmidi,
+						&rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT],
+						SNDRV_RAWMIDI_STREAM_INPUT,
+						input_count)) < 0) {
 		snd_rawmidi_free(rmidi);
 		return err;
 	}
-	if ((err = snd_rawmidi_alloc_substreams(rmidi, &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT], SNDRV_RAWMIDI_STREAM_OUTPUT, output_count)) < 0) {
+	if ((err = snd_rawmidi_alloc_substreams(rmidi,
+						&rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT],
+						SNDRV_RAWMIDI_STREAM_OUTPUT,
+						output_count)) < 0) {
 		snd_rawmidi_free(rmidi);
 		return err;
 	}

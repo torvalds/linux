@@ -364,13 +364,14 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 	*rhwdep = NULL;
 	snd_assert(card != NULL, return -ENXIO);
 	hwdep = kzalloc(sizeof(*hwdep), GFP_KERNEL);
-	if (hwdep == NULL)
+	if (hwdep == NULL) {
+		snd_printk(KERN_ERR "hwdep: cannot allocate\n");
 		return -ENOMEM;
+	}
 	hwdep->card = card;
 	hwdep->device = device;
-	if (id) {
+	if (id)
 		strlcpy(hwdep->id, id, sizeof(hwdep->id));
-	}
 #ifdef CONFIG_SND_OSSEMUL
 	hwdep->oss_type = -1;
 #endif

@@ -777,8 +777,10 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 	snd_assert(rtimer != NULL, return -EINVAL);
 	*rtimer = NULL;
 	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
-	if (timer == NULL)
+	if (timer == NULL) {
+		snd_printk(KERN_ERR "timer: cannot allocate\n");
 		return -ENOMEM;
+	}
 	timer->tmr_class = tid->dev_class;
 	timer->card = card;
 	timer->tmr_device = tid->device;

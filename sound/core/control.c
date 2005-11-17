@@ -195,8 +195,10 @@ struct snd_kcontrol *snd_ctl_new(struct snd_kcontrol *control, unsigned int acce
 	snd_assert(control != NULL, return NULL);
 	snd_assert(control->count > 0, return NULL);
 	kctl = kzalloc(sizeof(*kctl) + sizeof(struct snd_kcontrol_volatile) * control->count, GFP_KERNEL);
-	if (kctl == NULL)
+	if (kctl == NULL) {
+		snd_printk(KERN_ERR "Cannot allocate control instance\n");
 		return NULL;
+	}
 	*kctl = *control;
 	for (idx = 0; idx < kctl->count; idx++)
 		kctl->vd[idx].access = access;
@@ -309,7 +311,9 @@ int snd_ctl_add(struct snd_card *card, struct snd_kcontrol *kcontrol)
 	struct snd_ctl_elem_id id;
 	unsigned int idx;
 
-	snd_assert(card != NULL && kcontrol != NULL, return -EINVAL);
+	snd_assert(card != NULL, return -EINVAL);
+	if (! kcontrol)
+		return -EINVAL;
 	snd_assert(kcontrol->info != NULL, return -EINVAL);
 	id = kcontrol->id;
 	down_write(&card->controls_rwsem);

@@ -600,14 +600,18 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	pstr->reg = &snd_pcm_reg[stream];
 	if (substream_count > 0) {
 		err = snd_pcm_stream_proc_init(pstr);
-		if (err < 0)
+		if (err < 0) {
+			snd_printk(KERN_ERR "Error in snd_pcm_stream_proc_init\n");
 			return err;
+		}
 	}
 	prev = NULL;
 	for (idx = 0, prev = NULL; idx < substream_count; idx++) {
 		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
-		if (substream == NULL)
+		if (substream == NULL) {
+			snd_printk(KERN_ERR "Cannot allocate PCM substream\n");
 			return -ENOMEM;
+		}
 		substream->pcm = pcm;
 		substream->pstr = pstr;
 		substream->number = idx;
@@ -620,6 +624,7 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 			prev->next = substream;
 		err = snd_pcm_substream_proc_init(substream);
 		if (err < 0) {
+			snd_printk(KERN_ERR "Error in snd_pcm_stream_proc_init\n");
 			kfree(substream);
 			return err;
 		}
@@ -666,13 +671,14 @@ int snd_pcm_new(struct snd_card *card, char *id, int device,
 	*rpcm = NULL;
 	snd_assert(card != NULL, return -ENXIO);
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
-	if (pcm == NULL)
+	if (pcm == NULL) {
+		snd_printk(KERN_ERR "Cannot allocate PCM\n");
 		return -ENOMEM;
+	}
 	pcm->card = card;
 	pcm->device = device;
-	if (id) {
+	if (id)
 		strlcpy(pcm->id, id, sizeof(pcm->id));
-	}
 	if ((err = snd_pcm_new_stream(pcm, SNDRV_PCM_STREAM_PLAYBACK, playback_count)) < 0) {
 		snd_pcm_free(pcm);
 		return err;

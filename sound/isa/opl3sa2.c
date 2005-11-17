@@ -496,21 +496,29 @@ static int __init snd_opl3sa2_mixer(struct snd_opl3sa2 *chip)
 	/* reassign AUX0 to CD */
         strcpy(id1.name, "Aux Playback Switch");
         strcpy(id2.name, "CD Playback Switch");
-        if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+        if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0) {
+		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
                 return err;
+	}
         strcpy(id1.name, "Aux Playback Volume");
         strcpy(id2.name, "CD Playback Volume");
-        if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+        if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0) {
+		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
                 return err;
+	}
 	/* reassign AUX1 to FM */
         strcpy(id1.name, "Aux Playback Switch"); id1.index = 1;
         strcpy(id2.name, "FM Playback Switch");
-        if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+        if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0) {
+		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
                 return err;
+	}
         strcpy(id1.name, "Aux Playback Volume");
         strcpy(id2.name, "FM Playback Volume");
-        if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0)
+        if ((err = snd_ctl_rename_id(card, &id1, &id2)) < 0) {
+		snd_printk(KERN_ERR "Cannot rename opl3sa2 control\n");
                 return err;
+	}
 	/* add OPL3SA2 controls */
 	for (idx = 0; idx < ARRAY_SIZE(snd_opl3sa2_controls); idx++) {
 		if ((err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_opl3sa2_controls[idx], chip))) < 0)
@@ -575,8 +583,10 @@ static int __init snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
 	int err;
 
 	cfg = kmalloc(sizeof(struct pnp_resource_table), GFP_KERNEL);
-	if (!cfg)
+	if (!cfg) {
+		snd_printk(KERN_ERR PFX "cannot allocate pnp cfg\n");
 		return -ENOMEM;
+	}
 	/* PnP initialization */
 	pnp_init_resource_table(cfg);
 	if (sb_port[dev] != SNDRV_AUTO_PORT)
@@ -597,7 +607,7 @@ static int __init snd_opl3sa2_pnp(int dev, struct snd_opl3sa2 *chip,
 		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
 	err = pnp_manual_config_dev(pdev, cfg, 0);
 	if (err < 0)
-		snd_printk(KERN_ERR "PnP manual resources are invalid, using auto config\n");
+		snd_printk(KERN_WARNING "PnP manual resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		kfree(cfg);
@@ -784,8 +794,11 @@ static int __devinit snd_opl3sa2_pnp_cdetect(struct pnp_card_link *pcard,
 	struct snd_card *card;
 
 	pdev = pnp_request_card_device(pcard, id->devs[0].id, NULL);
-	if (pdev == NULL)
+	if (pdev == NULL) {
+		snd_printk(KERN_ERR PFX "can't get pnp device from id '%s'\n",
+			   id->devs[0].id);
 		return -EBUSY;
+	}
 	for (; dev < SNDRV_CARDS; dev++) {
 		if (enable[dev] && isapnp[dev])
 			break;
