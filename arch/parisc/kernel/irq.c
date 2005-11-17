@@ -343,7 +343,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 			    !cpu_isset(smp_processor_id(), dest)) {
 				int cpu = first_cpu(dest);
 
-				printk("redirecting irq %d from CPU %d to %d\n",
+				printk(KERN_DEBUG "redirecting irq %d from CPU %d to %d\n",
 				       irq, smp_processor_id(), cpu);
 				gsc_writel(irq + CPU_IRQ_BASE,
 					   cpu_data[cpu].hpa);
