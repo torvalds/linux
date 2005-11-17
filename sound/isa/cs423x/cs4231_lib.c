@@ -1484,10 +1484,12 @@ int snd_cs4231_create(struct snd_card *card,
 	}
 	snd_cs4231_init(chip);
 
+#if 0
 	if (chip->hardware & CS4231_HW_CS4232_MASK) {
 		if (chip->res_cport == NULL)
 			snd_printk("CS4232 control port features are not accessible\n");
 	}
+#endif
 
 	/* Register device */
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
