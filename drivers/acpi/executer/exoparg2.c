@@ -344,10 +344,6 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		       (length < operand[1]->integer.value) &&
 		       (operand[0]->buffer.pointer[length])) {
 			length++;
-			if (length > ACPI_MAX_STRING_CONVERSION) {
-				status = AE_AML_STRING_LIMIT;
-				goto cleanup;
-			}
 		}
 
 		/* Allocate a new string object */
@@ -358,8 +354,10 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 			goto cleanup;
 		}
 
-		/* Copy the raw buffer data with no transform. NULL terminated already */
-
+		/*
+		 * Copy the raw buffer data with no transform.
+		 * (NULL terminated already)
+		 */
 		ACPI_MEMCPY(return_desc->string.pointer,
 			    operand[0]->buffer.pointer, length);
 		break;

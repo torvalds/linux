@@ -272,6 +272,12 @@ acpi_status(*ACPI_WALK_RESOURCE_CALLBACK) (struct acpi_resource * resource,
 					   void *context);
 
 acpi_status
+acpi_get_vendor_resource(acpi_handle device_handle,
+			 char *name,
+			 struct acpi_vendor_uuid *uuid,
+			 struct acpi_buffer *ret_buffer);
+
+acpi_status
 acpi_get_current_resources(acpi_handle device_handle,
 			   struct acpi_buffer *ret_buffer);
 
@@ -283,7 +289,7 @@ acpi_get_possible_resources(acpi_handle device_handle,
 
 acpi_status
 acpi_walk_resources(acpi_handle device_handle,
-		    char *path,
+		    char *name,
 		    ACPI_WALK_RESOURCE_CALLBACK user_function, void *context);
 
 acpi_status

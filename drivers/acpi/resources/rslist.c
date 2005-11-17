@@ -112,7 +112,7 @@ acpi_rs_convert_aml_to_resources(u8 * aml, u32 aml_length, u8 * output_buffer)
 		/* Point to the next structure in the output buffer */
 
 		resource =
-		    ACPI_PTR_ADD(struct acpi_resource, resource,
+		    ACPI_ADD_PTR(struct acpi_resource, resource,
 				 resource->length);
 	}
 
@@ -201,7 +201,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 		/* Point to the next input resource descriptor */
 
 		resource =
-		    ACPI_PTR_ADD(struct acpi_resource, resource,
+		    ACPI_ADD_PTR(struct acpi_resource, resource,
 				 resource->length);
 	}
 

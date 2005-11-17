@@ -638,7 +638,7 @@ char *acpi_ut_get_node_name(void *object)
 
 	/* Name must be a valid ACPI name */
 
-	if (!acpi_ut_valid_acpi_name(*(u32 *) node->name.ascii)) {
+	if (!acpi_ut_valid_acpi_name(node->name.integer)) {
 		return ("????");
 	}
 
@@ -831,6 +831,7 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_ps_find_count = 0;
 	acpi_gbl_acpi_hardware_present = TRUE;
 	acpi_gbl_owner_id_mask = 0;
+	acpi_gbl_last_owner_id = 0;
 	acpi_gbl_trace_method_name = 0;
 	acpi_gbl_trace_dbg_level = 0;
 	acpi_gbl_trace_dbg_layer = 0;
@@ -845,7 +846,6 @@ void acpi_ut_init_globals(void)
 	/* Namespace */
 
 	acpi_gbl_root_node = NULL;
-
 	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
 	acpi_gbl_root_node_struct.descriptor = ACPI_DESC_TYPE_NAMED;
 	acpi_gbl_root_node_struct.type = ACPI_TYPE_DEVICE;

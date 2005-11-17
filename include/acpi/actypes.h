@@ -326,7 +326,7 @@ typedef u64 acpi_integer;
 /*
  * Constants with special meanings
  */
-#define ACPI_ROOT_OBJECT                (acpi_handle) ACPI_PTR_ADD (char, NULL, ACPI_MAX_PTR)
+#define ACPI_ROOT_OBJECT                ACPI_ADD_PTR (acpi_handle, NULL, ACPI_MAX_PTR)
 
 /*
  * Initialization sequence
@@ -986,6 +986,17 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (length+3) = (6
 #pragma pack(1)
 #endif
 
+/* UUID data structures for use in vendor-defined resource descriptors */
+
+struct acpi_uuid {
+	u8 data[ACPI_UUID_LENGTH];
+};
+
+struct acpi_vendor_uuid {
+	u8 subtype;
+	u8 data[ACPI_UUID_LENGTH];
+};
+
 /*
  *  Structures used to describe device resources
  */
@@ -1030,6 +1041,15 @@ struct acpi_resource_fixed_io {
 
 struct acpi_resource_vendor {
 	u16 byte_length;
+	u8 byte_data[1];
+};
+
+/* Vendor resource with UUID info (introduced in ACPI 3.0) */
+
+struct acpi_resource_vendor_typed {
+	u16 byte_length;
+	u8 uuid_subtype;
+	u8 uuid[ACPI_UUID_LENGTH];
 	u8 byte_data[1];
 };
 
@@ -1184,6 +1204,7 @@ union acpi_resource_data {
 	struct acpi_resource_io io;
 	struct acpi_resource_fixed_io fixed_io;
 	struct acpi_resource_vendor vendor;
+	struct acpi_resource_vendor_typed vendor_typed;
 	struct acpi_resource_end_tag end_tag;
 	struct acpi_resource_memory24 memory24;
 	struct acpi_resource_memory32 memory32;

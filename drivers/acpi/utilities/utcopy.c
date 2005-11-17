@@ -398,14 +398,17 @@ acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *internal_object,
 		 * Build a simple object (no nested objects)
 		 */
 		status = acpi_ut_copy_isimple_to_esimple(internal_object,
-							 (union acpi_object *)
-							 ret_buffer->pointer,
-							 ((u8 *) ret_buffer->
-							  pointer +
-							  ACPI_ROUND_UP_TO_NATIVE_WORD
-							  (sizeof
-							   (union
-							    acpi_object))),
+							 ACPI_CAST_PTR(union
+								       acpi_object,
+								       ret_buffer->
+								       pointer),
+							 ACPI_ADD_PTR(u8,
+								      ret_buffer->
+								      pointer,
+								      ACPI_ROUND_UP_TO_NATIVE_WORD
+								      (sizeof
+								       (union
+									acpi_object))),
 							 &ret_buffer->length);
 		/*
 		 * build simple does not include the object size in the length

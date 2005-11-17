@@ -71,6 +71,10 @@
 #define acpi_cache_t	kmem_cache_t
 #endif
 
+/* Full namespace pathname length limit - arbitrary */
+
+#define ACPI_PATHNAME_MAX              256
+
 #else				/* !__KERNEL__ */
 
 #include <stdarg.h>

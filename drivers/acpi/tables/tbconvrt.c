@@ -554,7 +554,9 @@ acpi_status acpi_tb_convert_table_fadt(void)
 	ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
 			  "Hex dump of common internal FADT, size %d (%X)\n",
 			  acpi_gbl_FADT->length, acpi_gbl_FADT->length));
-	ACPI_DUMP_BUFFER((u8 *) (acpi_gbl_FADT), acpi_gbl_FADT->length);
+
+	ACPI_DUMP_BUFFER(ACPI_CAST_PTR(u8, acpi_gbl_FADT),
+			 acpi_gbl_FADT->length);
 
 	return_ACPI_STATUS(AE_OK);
 }

@@ -63,7 +63,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20051102
+#define ACPI_CA_VERSION                 0x20051117
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -98,11 +98,6 @@
 
 #define ACPI_CA_SUPPORT_LEVEL           3
 
-/* String size constants */
-
-#define ACPI_MAX_STRING_LENGTH          512
-#define ACPI_PATHNAME_MAX               256	/* A full namespace pathname */
-
 /* Maximum count for a semaphore object */
 
 #define ACPI_MAX_SEMAPHORE_COUNT        256
@@ -134,14 +129,11 @@
 #define ACPI_METHOD_NUM_ARGS            7
 #define ACPI_METHOD_MAX_ARG             6
 
-/* Maximum length of resulting string when converting from a buffer */
-
-#define ACPI_MAX_STRING_CONVERSION      200
-
-/* Length of _HID, _UID, and _CID values */
+/* Length of _HID, _UID, _CID, and UUID values */
 
 #define ACPI_DEVICE_ID_LENGTH           0x09
 #define ACPI_MAX_CID_LENGTH             48
+#define ACPI_UUID_LENGTH                16
 
 /*
  * Operand Stack (in WALK_STATE), Must be large enough to contain METHOD_MAX_ARG

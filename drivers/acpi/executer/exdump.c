@@ -117,12 +117,13 @@ static struct acpi_exdump_info acpi_ex_dump_event[2] = {
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(event.semaphore), "Semaphore"}
 };
 
-static struct acpi_exdump_info acpi_ex_dump_method[7] = {
+static struct acpi_exdump_info acpi_ex_dump_method[8] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_method), NULL},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.param_count), "param_count"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.concurrency), "Concurrency"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(method.semaphore), "Semaphore"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.owner_id), "Owner Id"},
+	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(method.thread_count), "Thread Count"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(method.aml_length), "Aml Length"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(method.aml_start), "Aml Start"}
 };
@@ -339,7 +340,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 	count = info->offset;
 
 	while (count) {
-		target = ((u8 *) obj_desc) + info->offset;
+		target = ACPI_ADD_PTR(u8, obj_desc, info->offset);
 		name = info->name;
 
 		switch (info->opcode) {
@@ -360,20 +361,19 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 		case ACPI_EXD_UINT16:
 
 			acpi_os_printf("%20s : %4.4X\n", name,
-				       *ACPI_CAST_PTR(u16, target));
+				       ACPI_GET16(target));
 			break;
 
 		case ACPI_EXD_UINT32:
 
 			acpi_os_printf("%20s : %8.8X\n", name,
-				       *ACPI_CAST_PTR(u32, target));
+				       ACPI_GET32(target));
 			break;
 
 		case ACPI_EXD_UINT64:
 
 			acpi_os_printf("%20s : %8.8X%8.8X\n", "Value",
-				       ACPI_FORMAT_UINT64(*ACPI_CAST_PTR
-							  (u64, target)));
+				       ACPI_FORMAT_UINT64(ACPI_GET64(target)));
 			break;
 
 		case ACPI_EXD_POINTER:
@@ -969,7 +969,8 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 		acpi_os_printf("[Buffer] Length %.2X = ",
 			       obj_desc->buffer.length);
 		if (obj_desc->buffer.length) {
-			acpi_ut_dump_buffer((u8 *) obj_desc->buffer.pointer,
+			acpi_ut_dump_buffer(ACPI_CAST_PTR
+					    (u8, obj_desc->buffer.pointer),
 					    obj_desc->buffer.length,
 					    DB_DWORD_DISPLAY, _COMPONENT);
 		} else {

@@ -137,9 +137,14 @@ extern struct acpi_rsconvert_info *acpi_gbl_set_resource_dispatch[];
 
 /* Resource tables indexed by raw AML resource descriptor type */
 
+extern const u8 acpi_gbl_resource_struct_sizes[];
 extern struct acpi_rsconvert_info *acpi_gbl_get_resource_dispatch[];
 
-extern const u8 acpi_gbl_resource_struct_sizes[];
+struct acpi_vendor_walk_info {
+	struct acpi_vendor_uuid *uuid;
+	struct acpi_buffer *buffer;
+	acpi_status status;
+};
 
 /*
  * rscreate

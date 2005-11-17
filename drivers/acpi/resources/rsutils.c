@@ -152,18 +152,18 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 			 * misaligned memory transfers
 			 */
 		case ACPI_RSC_MOVE16:
-			ACPI_MOVE_16_TO_16(&((u16 *) destination)[i],
-					   &((u16 *) source)[i]);
+			ACPI_MOVE_16_TO_16(&ACPI_CAST_PTR(u16, destination)[i],
+					   &ACPI_CAST_PTR(u16, source)[i]);
 			break;
 
 		case ACPI_RSC_MOVE32:
-			ACPI_MOVE_32_TO_32(&((u32 *) destination)[i],
-					   &((u32 *) source)[i]);
+			ACPI_MOVE_32_TO_32(&ACPI_CAST_PTR(u32, destination)[i],
+					   &ACPI_CAST_PTR(u32, source)[i]);
 			break;
 
 		case ACPI_RSC_MOVE64:
-			ACPI_MOVE_64_TO_64(&((u64 *) destination)[i],
-					   &((u64 *) source)[i]);
+			ACPI_MOVE_64_TO_64(&ACPI_CAST_PTR(u64, destination)[i],
+					   &ACPI_CAST_PTR(u64, source)[i]);
 			break;
 
 		default:
@@ -318,7 +318,7 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 
 	total_length =
 	    resource_length + sizeof(struct aml_resource_large_header);
-	aml_resource_source = ((u8 *) aml) + minimum_length;
+	aml_resource_source = ACPI_ADD_PTR(u8, aml, minimum_length);
 
 	/*
 	 * resource_source is present if the length of the descriptor is longer than
@@ -338,9 +338,9 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 			 * String destination pointer is not specified; Set the String
 			 * pointer to the end of the current resource_source structure.
 			 */
-			resource_source->string_ptr = (char *)
-			    ((u8 *) resource_source) +
-			    sizeof(struct acpi_resource_source);
+			resource_source->string_ptr =
+			    ACPI_ADD_PTR(char, resource_source,
+					 sizeof(struct acpi_resource_source));
 		}
 
 		/*
@@ -407,7 +407,7 @@ acpi_rs_set_resource_source(union aml_resource * aml,
 	if (resource_source->string_length) {
 		/* Point to the end of the AML descriptor */
 
-		aml_resource_source = ((u8 *) aml) + minimum_length;
+		aml_resource_source = ACPI_ADD_PTR(u8, aml, minimum_length);
 
 		/* Copy the resource_source_index */
 

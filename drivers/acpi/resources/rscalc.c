@@ -300,7 +300,7 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 		/* Point to the next object */
 
 		resource =
-		    ACPI_PTR_ADD(struct acpi_resource, resource,
+		    ACPI_ADD_PTR(struct acpi_resource, resource,
 				 resource->length);
 	}
 
@@ -374,8 +374,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Get the number of bits set in the 16-bit IRQ mask
 			 */
 			ACPI_MOVE_16_TO_16(&temp16, buffer);
-			extra_struct_bytes =
-			    acpi_rs_count_set_bits(temp16) * sizeof(u32);
+			extra_struct_bytes = acpi_rs_count_set_bits(temp16);
 			break;
 
 		case ACPI_RESOURCE_NAME_DMA:
@@ -383,8 +382,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * DMA Resource:
 			 * Get the number of bits set in the 8-bit DMA mask
 			 */
-			extra_struct_bytes =
-			    acpi_rs_count_set_bits(*buffer) * sizeof(u32);
+			extra_struct_bytes = acpi_rs_count_set_bits(*buffer);
 			break;
 
 		case ACPI_RESOURCE_NAME_VENDOR_SMALL:
@@ -399,9 +397,9 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 
 		case ACPI_RESOURCE_NAME_END_TAG:
 			/*
-			 * End Tag: This is the normal exit
+			 * End Tag: This is the normal exit, add size of end_tag
 			 */
-			*size_needed = buffer_size;
+			*size_needed = buffer_size + ACPI_RS_SIZE_MIN;
 			return_ACPI_STATUS(AE_OK);
 
 		case ACPI_RESOURCE_NAME_VENDOR_LARGE:
@@ -466,7 +464,7 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 
 		temp16 = (u16) (acpi_gbl_resource_struct_sizes[resource_index] +
 				extra_struct_bytes);
-		buffer_size += (u32) ACPI_ALIGN_RESOURCE_SIZE(temp16);
+		buffer_size += (u32) ACPI_ROUND_UP_TO_NATIVE_WORD(temp16);
 
 		/*
 		 * Point to the next resource within the stream

@@ -504,18 +504,12 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		}
 
 		/*
-		 * Perform the conversion.
+		 * Create a new string object and string buffer
 		 * (-1 because of extra separator included in string_length from above)
 		 */
-		string_length--;
-		if (string_length > ACPI_MAX_STRING_CONVERSION) {	/* ACPI limit */
-			return_ACPI_STATUS(AE_AML_STRING_LIMIT);
-		}
-
-		/* Create a new string object and string buffer */
-
 		return_desc =
-		    acpi_ut_create_string_object((acpi_size) string_length);
+		    acpi_ut_create_string_object((acpi_size)
+						 (string_length - 1));
 		if (!return_desc) {
 			return_ACPI_STATUS(AE_NO_MEMORY);
 		}

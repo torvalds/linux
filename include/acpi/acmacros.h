@@ -107,22 +107,28 @@
  * Extract a byte of data using a pointer.  Any more than a byte and we
  * get into potential aligment issues -- see the STORE macros below
  */
-#define ACPI_GET8(addr)                 (*(u8*)(addr))
+#define ACPI_GET8(ptr)                  *ACPI_CAST_PTR (u8, ptr)
+#define ACPI_GET16(ptr)                 *ACPI_CAST_PTR (u16, ptr)
+#define ACPI_GET32(ptr)                 *ACPI_CAST_PTR (u32, ptr)
+#define ACPI_GET64(ptr)                 *ACPI_CAST_PTR (u64, ptr)
+#define ACPI_SET8(ptr)                  *ACPI_CAST_PTR (u8, ptr)
+#define ACPI_SET16(ptr)                 *ACPI_CAST_PTR (u16, ptr)
+#define ACPI_SET32(ptr)                 *ACPI_CAST_PTR (u32, ptr)
+#define ACPI_SET64(ptr)                 *ACPI_CAST_PTR (u64, ptr)
 
-/* Pointer arithmetic */
+/* Pointer manipulation */
 
-#define ACPI_PTR_ADD(t,a,b)             (t *) (void *)((char *)(a) + (acpi_native_uint)(b))
+#define ACPI_CAST_PTR(t, p)             ((t *)(void *)(p))
+#define ACPI_CAST_INDIRECT_PTR(t, p)    ((t **)(void *)(p))
+#define ACPI_ADD_PTR(t,a,b)             ACPI_CAST_PTR (t, (ACPI_CAST_PTR (u8, (a)) + (acpi_native_uint)(b)))
 #define ACPI_PTR_DIFF(a,b)              (acpi_native_uint) ((char *)(a) - (char *)(b))
 
 /* Pointer/Integer type conversions */
 
-#define ACPI_TO_POINTER(i)              ACPI_PTR_ADD (void, (void *) NULL,(acpi_native_uint)i)
+#define ACPI_TO_POINTER(i)              ACPI_ADD_PTR (void, (void *) NULL,(acpi_native_uint)i)
 #define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF (p,(void *) NULL)
 #define ACPI_OFFSET(d,f)                (acpi_size) ACPI_PTR_DIFF (&(((d *)0)->f),(void *) NULL)
 #define ACPI_FADT_OFFSET(f)             ACPI_OFFSET (FADT_DESCRIPTOR, f)
-
-#define ACPI_CAST_PTR(t, p)             ((t *)(void *)(p))
-#define ACPI_CAST_INDIRECT_PTR(t, p)    ((t **)(void *)(p))
 
 #if ACPI_MACHINE_WIDTH == 16
 #define ACPI_STORE_POINTER(d,s)         ACPI_MOVE_32_TO_32(d,s)
@@ -364,6 +370,13 @@
 
 #define ACPI_REGISTER_PREPARE_BITS(val, pos, mask)      ((val << pos) & mask)
 #define ACPI_REGISTER_INSERT_VALUE(reg, pos, mask, val)  reg = (reg & (~(mask))) | ACPI_REGISTER_PREPARE_BITS(val, pos, mask)
+
+/* Generate a UUID */
+
+#define ACPI_INIT_UUID(a,b,c,d0,d1,d2,d3,d4,d5,d6,d7)   (a) & 0xFF, ((a) >> 8) & 0xFF, ((a) >> 16) & 0xFF, ((a) >> 24) & 0xFF, \
+												  (b) & 0xFF, ((b) >> 8) & 0xFF, \
+												  (c) & 0xFF, ((c) >> 8) & 0xFF, \
+												  (d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7)
 
 /*
  * An struct acpi_namespace_node * can appear in some contexts,

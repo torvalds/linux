@@ -383,7 +383,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 
 	while (count) {
 		previous_target = target;
-		target = ((u8 *) resource) + table->offset;
+		target = ACPI_ADD_PTR(u8, resource, table->offset);
 		name = table->name;
 
 		switch (table->opcode) {
@@ -410,22 +410,19 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			/* Data items, 8/16/32/64 bit */
 
 		case ACPI_RSD_UINT8:
-			acpi_rs_out_integer8(name, *ACPI_CAST_PTR(u8, target));
+			acpi_rs_out_integer8(name, ACPI_GET8(target));
 			break;
 
 		case ACPI_RSD_UINT16:
-			acpi_rs_out_integer16(name,
-					      *ACPI_CAST_PTR(u16, target));
+			acpi_rs_out_integer16(name, ACPI_GET16(target));
 			break;
 
 		case ACPI_RSD_UINT32:
-			acpi_rs_out_integer32(name,
-					      *ACPI_CAST_PTR(u32, target));
+			acpi_rs_out_integer32(name, ACPI_GET32(target));
 			break;
 
 		case ACPI_RSD_UINT64:
-			acpi_rs_out_integer64(name,
-					      *ACPI_CAST_PTR(u64, target));
+			acpi_rs_out_integer64(name, ACPI_GET64(target));
 			break;
 
 			/* Flags: 1-bit and 2-bit flags supported */
@@ -462,8 +459,8 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			 * Note: The list length is obtained from the previous table entry
 			 */
 			if (previous_target) {
-				acpi_rs_dump_byte_list(*ACPI_CAST_PTR
-						       (u16, previous_target),
+				acpi_rs_dump_byte_list(ACPI_GET16
+						       (previous_target),
 						       target);
 			}
 			break;
@@ -634,7 +631,7 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
 		/* Point to the next resource structure */
 
 		resource_list =
-		    ACPI_PTR_ADD(struct acpi_resource, resource_list,
+		    ACPI_ADD_PTR(struct acpi_resource, resource_list,
 				 resource_list->length);
 
 		/* Exit when END_TAG descriptor is reached */
@@ -675,9 +672,8 @@ void acpi_rs_dump_irq_list(u8 * route_table)
 			       count);
 		acpi_rs_dump_descriptor(prt_element, acpi_rs_dump_prt);
 
-		prt_element = ACPI_CAST_PTR(struct acpi_pci_routing_table,
-					    ((u8 *) prt_element) +
-					    prt_element->length);
+		prt_element = ACPI_ADD_PTR(struct acpi_pci_routing_table,
+					   prt_element, prt_element->length);
 	}
 }
 

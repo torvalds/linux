@@ -63,6 +63,7 @@ ACPI_MODULE_NAME("utmisc")
 acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 {
 	acpi_native_uint i;
+	acpi_native_uint j;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE("ut_allocate_owner_id");
@@ -82,29 +83,46 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 		return_ACPI_STATUS(status);
 	}
 
-	/* Find a free owner ID */
+	/*
+	 * Find a free owner ID, cycle through all possible IDs on repeated
+	 * allocations. Note: Index for next possible ID is equal to the value
+	 * of the last allocated ID.
+	 */
+	for (i = 0, j = acpi_gbl_last_owner_id; i < 32; i++, j++) {
+		if (j >= 32) {
+			j = 0;	/* Wraparound to ID start */
+		}
 
-	for (i = 0; i < 32; i++) {
-		if (!(acpi_gbl_owner_id_mask & (1 << i))) {
+		if (!(acpi_gbl_owner_id_mask & (1 << j))) {
+			/*
+			 * Found a free ID. The actual ID is the bit index plus one,
+			 * making zero an invalid Owner ID. Save this as the last ID
+			 * allocated and update the global ID mask.
+			 */
+			acpi_gbl_last_owner_id = (acpi_owner_id) (j + 1);
+			*owner_id = acpi_gbl_last_owner_id;
+
 			ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
 					  "Current owner_id mask: %8.8X New ID: %2.2X\n",
 					  acpi_gbl_owner_id_mask,
-					  (unsigned int)(i + 1)));
+					  (unsigned int)
+					  acpi_gbl_last_owner_id));
 
-			acpi_gbl_owner_id_mask |= (1 << i);
-			*owner_id = (acpi_owner_id) (i + 1);
+			acpi_gbl_owner_id_mask |= (1 << j);
 			goto exit;
 		}
 	}
 
 	/*
-	 * If we are here, all owner_ids have been allocated. This probably should
+	 * All owner_ids have been allocated. This typically should
 	 * not happen since the IDs are reused after deallocation. The IDs are
 	 * allocated upon table load (one per table) and method execution, and
 	 * they are released when a table is unloaded or a method completes
 	 * execution.
+	 *
+	 * If this error happens, there may be very deep nesting of invoked control
+	 * methods, or there may be a bug where the IDs are not released.
 	 */
-	*owner_id = 0;
 	status = AE_OWNER_ID_LIMIT;
 	ACPI_REPORT_ERROR(("Could not allocate new owner_id (32 max), AE_OWNER_ID_LIMIT\n"));
 

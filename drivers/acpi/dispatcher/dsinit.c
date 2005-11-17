@@ -118,14 +118,6 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 	case ACPI_TYPE_METHOD:
 
 		/*
-		 * Print a dot for each method unless we are going to print
-		 * the entire pathname
-		 */
-		if (!(acpi_dbg_level & ACPI_LV_INIT_NAMES)) {
-			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "."));
-		}
-
-		/*
 		 * Set the execution data width (32 or 64) based upon the
 		 * revision number of the parent ACPI table.
 		 * TBD: This is really for possible future support of integer width
@@ -133,6 +125,21 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 		 */
 		if (info->table_desc->pointer->revision == 1) {
 			node->flags |= ANOBJ_DATA_WIDTH_32;
+		}
+#ifdef ACPI_INIT_PARSE_METHODS
+		/*
+		 * Note 11/2005: Removed this code to parse all methods during table
+		 * load because it causes problems if there are any errors during the
+		 * parse. Also, it seems like overkill and we probably don't want to
+		 * abort a table load because of an issue with a single method.
+		 */
+
+		/*
+		 * Print a dot for each method unless we are going to print
+		 * the entire pathname
+		 */
+		if (!(acpi_dbg_level & ACPI_LV_INIT_NAMES)) {
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "."));
 		}
 
 		/*
@@ -149,7 +156,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 
 			/* This parse failed, but we will continue parsing more methods */
 		}
-
+#endif
 		info->method_count++;
 		break;
 

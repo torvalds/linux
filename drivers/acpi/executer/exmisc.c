@@ -205,11 +205,9 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 	ACPI_MEMCPY(new_buf, operand0->buffer.pointer, length0);
 	ACPI_MEMCPY(new_buf + length0, operand1->buffer.pointer, length1);
 
-	/* Compute the new checksum */
+	/* Set the end_tag checksum to zero, means "ignore checksum" */
 
-	new_buf[return_desc->buffer.length - 1] =
-	    acpi_ut_generate_checksum(return_desc->buffer.pointer,
-				      (return_desc->buffer.length - 1));
+	new_buf[return_desc->buffer.length - 1] = 0;
 
 	/* Return the completed resource template */
 
@@ -242,7 +240,6 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	union acpi_operand_object *return_desc;
 	char *new_buf;
 	acpi_status status;
-	acpi_size new_length;
 
 	ACPI_FUNCTION_TRACE("ex_do_concatenate");
 
@@ -269,7 +266,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 		break;
 
 	default:
-		ACPI_REPORT_ERROR(("Concat - invalid obj type: %X\n",
+		ACPI_REPORT_ERROR(("Concatanate - invalid object type: %X\n",
 				   ACPI_GET_OBJECT_TYPE(operand0)));
 		status = AE_AML_INTERNAL;
 	}
@@ -309,8 +306,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 		/* Copy the first integer, LSB first */
 
-		ACPI_MEMCPY(new_buf,
-			    &operand0->integer.value,
+		ACPI_MEMCPY(new_buf, &operand0->integer.value,
 			    acpi_gbl_integer_byte_width);
 
 		/* Copy the second integer (LSB first) after the first */
@@ -324,14 +320,11 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 		/* Result of two Strings is a String */
 
-		new_length = (acpi_size) operand0->string.length +
-		    (acpi_size) local_operand1->string.length;
-		if (new_length > ACPI_MAX_STRING_CONVERSION) {
-			status = AE_AML_STRING_LIMIT;
-			goto cleanup;
-		}
-
-		return_desc = acpi_ut_create_string_object(new_length);
+		return_desc = acpi_ut_create_string_object((acpi_size)
+							   (operand0->string.
+							    length +
+							    local_operand1->
+							    string.length));
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
@@ -351,11 +344,10 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 		/* Result of two Buffers is a Buffer */
 
 		return_desc = acpi_ut_create_buffer_object((acpi_size)
-							   operand0->buffer.
-							   length +
-							   (acpi_size)
-							   local_operand1->
-							   buffer.length);
+							   (operand0->buffer.
+							    length +
+							    local_operand1->
+							    buffer.length));
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
@@ -365,8 +357,8 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 		/* Concatenate the buffers */
 
-		ACPI_MEMCPY(new_buf,
-			    operand0->buffer.pointer, operand0->buffer.length);
+		ACPI_MEMCPY(new_buf, operand0->buffer.pointer,
+			    operand0->buffer.length);
 		ACPI_MEMCPY(new_buf + operand0->buffer.length,
 			    local_operand1->buffer.pointer,
 			    local_operand1->buffer.length);

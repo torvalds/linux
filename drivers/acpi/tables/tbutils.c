@@ -240,16 +240,16 @@ acpi_tb_verify_table_checksum(struct acpi_table_header * table_header)
 
 u8 acpi_tb_generate_checksum(void *buffer, u32 length)
 {
-	const u8 *limit;
-	const u8 *rover;
+	u8 *end_buffer;
+	u8 *rover;
 	u8 sum = 0;
 
 	if (buffer && length) {
 		/*  Buffer and Length are valid   */
 
-		limit = (u8 *) buffer + length;
+		end_buffer = ACPI_ADD_PTR(u8, buffer, length);
 
-		for (rover = buffer; rover < limit; rover++) {
+		for (rover = buffer; rover < end_buffer; rover++) {
 			sum = (u8) (sum + *rover);
 		}
 	}

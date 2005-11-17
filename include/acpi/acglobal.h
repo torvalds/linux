@@ -223,6 +223,7 @@ ACPI_EXTERN u32 acpi_gbl_ps_find_count;
 ACPI_EXTERN u32 acpi_gbl_owner_id_mask;
 ACPI_EXTERN u16 acpi_gbl_pm1_enable_register_save;
 ACPI_EXTERN u16 acpi_gbl_global_lock_handle;
+ACPI_EXTERN u8 acpi_gbl_last_owner_id;
 ACPI_EXTERN u8 acpi_gbl_debugger_configuration;
 ACPI_EXTERN u8 acpi_gbl_global_lock_acquired;
 ACPI_EXTERN u8 acpi_gbl_step_to_next_call;

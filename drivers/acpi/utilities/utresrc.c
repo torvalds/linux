@@ -157,7 +157,7 @@ acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index)
 	/*
 	 * 1) Validate the resource_type field (Byte 0)
 	 */
-	resource_type = *((u8 *) aml);
+	resource_type = ACPI_GET8(aml);
 
 	/*
 	 * Byte 0 contains the descriptor name (Resource Type)
@@ -266,14 +266,14 @@ u8 acpi_ut_get_resource_type(void *aml)
 	 * Byte 0 contains the descriptor name (Resource Type)
 	 * Examine the large/small bit in the resource header
 	 */
-	if (*((u8 *) aml) & ACPI_RESOURCE_NAME_LARGE) {
+	if (ACPI_GET8(aml) & ACPI_RESOURCE_NAME_LARGE) {
 		/* Large Resource Type -- bits 6:0 contain the name */
 
-		return (*((u8 *) aml));
+		return (ACPI_GET8(aml));
 	} else {
 		/* Small Resource Type -- bits 6:3 contain the name */
 
-		return ((u8) (*((u8 *) aml) & ACPI_RESOURCE_NAME_SMALL_MASK));
+		return ((u8) (ACPI_GET8(aml) & ACPI_RESOURCE_NAME_SMALL_MASK));
 	}
 }
 
@@ -301,15 +301,15 @@ u16 acpi_ut_get_resource_length(void *aml)
 	 * Byte 0 contains the descriptor name (Resource Type)
 	 * Examine the large/small bit in the resource header
 	 */
-	if (*((u8 *) aml) & ACPI_RESOURCE_NAME_LARGE) {
+	if (ACPI_GET8(aml) & ACPI_RESOURCE_NAME_LARGE) {
 		/* Large Resource type -- bytes 1-2 contain the 16-bit length */
 
-		ACPI_MOVE_16_TO_16(&resource_length, &((u8 *) aml)[1]);
+		ACPI_MOVE_16_TO_16(&resource_length, ACPI_ADD_PTR(u8, aml, 1));
 
 	} else {
 		/* Small Resource type -- bits 2:0 of byte 0 contain the length */
 
-		resource_length = (u16) (*((u8 *) aml) &
+		resource_length = (u16) (ACPI_GET8(aml) &
 					 ACPI_RESOURCE_NAME_SMALL_LENGTH_MASK);
 	}
 
@@ -334,7 +334,7 @@ u8 acpi_ut_get_resource_header_length(void *aml)
 
 	/* Examine the large/small bit in the resource header */
 
-	if (*((u8 *) aml) & ACPI_RESOURCE_NAME_LARGE) {
+	if (ACPI_GET8(aml) & ACPI_RESOURCE_NAME_LARGE) {
 		return (sizeof(struct aml_resource_large_header));
 	} else {
 		return (sizeof(struct aml_resource_small_header));
@@ -372,8 +372,9 @@ u32 acpi_ut_get_descriptor_length(void *aml)
  * FUNCTION:    acpi_ut_get_resource_end_tag
  *
  * PARAMETERS:  obj_desc        - The resource template buffer object
+ *              end_tag         - Where the pointer to the end_tag is returned
  *
- * RETURN:      Pointer to the end tag
+ * RETURN:      Status, pointer to the end tag
  *
  * DESCRIPTION: Find the end_tag resource descriptor in an AML resource template
  *

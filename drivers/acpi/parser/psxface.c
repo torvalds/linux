@@ -87,7 +87,7 @@ acpi_debug_trace(char *name, u32 debug_level, u32 debug_layer, u32 flags)
 
 	/* TBDs: Validate name, allow full path or just nameseg */
 
-	acpi_gbl_trace_method_name = *(u32 *) name;
+	acpi_gbl_trace_method_name = *ACPI_CAST_PTR(u32, name);
 	acpi_gbl_trace_flags = flags;
 
 	if (debug_level) {

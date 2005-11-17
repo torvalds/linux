@@ -199,20 +199,20 @@ acpi_ex_system_memory_space_handler(u32 function,
 		*value = 0;
 		switch (bit_width) {
 		case 8:
-			*value = (acpi_integer) * ((u8 *) logical_addr_ptr);
+			*value = (acpi_integer) ACPI_GET8(logical_addr_ptr);
 			break;
 
 		case 16:
-			*value = (acpi_integer) * ((u16 *) logical_addr_ptr);
+			*value = (acpi_integer) ACPI_GET16(logical_addr_ptr);
 			break;
 
 		case 32:
-			*value = (acpi_integer) * ((u32 *) logical_addr_ptr);
+			*value = (acpi_integer) ACPI_GET32(logical_addr_ptr);
 			break;
 
 #if ACPI_MACHINE_WIDTH != 16
 		case 64:
-			*value = (acpi_integer) * ((u64 *) logical_addr_ptr);
+			*value = (acpi_integer) ACPI_GET64(logical_addr_ptr);
 			break;
 #endif
 		default:
@@ -225,20 +225,20 @@ acpi_ex_system_memory_space_handler(u32 function,
 
 		switch (bit_width) {
 		case 8:
-			*(u8 *) logical_addr_ptr = (u8) * value;
+			ACPI_SET8(logical_addr_ptr) = (u8) * value;
 			break;
 
 		case 16:
-			*(u16 *) logical_addr_ptr = (u16) * value;
+			ACPI_SET16(logical_addr_ptr) = (u16) * value;
 			break;
 
 		case 32:
-			*(u32 *) logical_addr_ptr = (u32) * value;
+			ACPI_SET32(logical_addr_ptr) = (u32) * value;
 			break;
 
 #if ACPI_MACHINE_WIDTH != 16
 		case 64:
-			*(u64 *) logical_addr_ptr = (u64) * value;
+			ACPI_SET64(logical_addr_ptr) = (u64) * value;
 			break;
 #endif
 

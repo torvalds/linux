@@ -104,8 +104,9 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 		 * Source is the external AML byte stream buffer,
 		 * destination is the internal resource descriptor
 		 */
-		source = ((u8 *) aml) + info->aml_offset;
-		destination = ((u8 *) resource) + info->resource_offset;
+		source = ACPI_ADD_PTR(void, aml, info->aml_offset);
+		destination =
+		    ACPI_ADD_PTR(void, resource, info->resource_offset);
 
 		switch (info->opcode) {
 		case ACPI_RSC_INITGET:
@@ -129,22 +130,22 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			/*
 			 * Mask and shift the flag bit
 			 */
-			*((u8 *) destination) = (u8)
-			    ((*((u8 *) source) >> info->value) & 0x01);
+			ACPI_SET8(destination) = (u8)
+			    ((ACPI_GET8(source) >> info->value) & 0x01);
 			break;
 
 		case ACPI_RSC_2BITFLAG:
 			/*
 			 * Mask and shift the flag bits
 			 */
-			*((u8 *) destination) = (u8)
-			    ((*((u8 *) source) >> info->value) & 0x03);
+			ACPI_SET8(destination) = (u8)
+			    ((ACPI_GET8(source) >> info->value) & 0x03);
 			break;
 
 		case ACPI_RSC_COUNT:
 
-			item_count = *((u8 *) source);
-			*((u8 *) destination) = (u8) item_count;
+			item_count = ACPI_GET8(source);
+			ACPI_SET8(destination) = (u8) item_count;
 
 			resource->length = resource->length +
 			    (info->value * (item_count - 1));
@@ -153,7 +154,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 		case ACPI_RSC_COUNT16:
 
 			item_count = aml_resource_length;
-			*((u16 *) destination) = item_count;
+			ACPI_SET16(destination) = item_count;
 
 			resource->length = resource->length +
 			    (info->value * (item_count - 1));
@@ -186,9 +187,8 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 		case ACPI_RSC_DATA8:
 
-			target = ((char *)resource) + info->value;
-			ACPI_MEMCPY(destination, source,
-				    *(ACPI_CAST_PTR(u16, target)));
+			target = ACPI_ADD_PTR(char, resource, info->value);
+			ACPI_MEMCPY(destination, source, ACPI_GET16(target));
 			break;
 
 		case ACPI_RSC_ADDRESS:
@@ -217,8 +217,8 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			 * complicated case used by the Interrupt() macro
 			 */
 			target =
-			    ((char *)resource) + info->aml_offset +
-			    (item_count * 4);
+			    ACPI_ADD_PTR(char, resource,
+					 info->aml_offset + (item_count * 4));
 
 			resource->length +=
 			    acpi_rs_get_resource_source(aml_resource_length,
@@ -230,15 +230,14 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			 * 8-bit encoded bitmask (DMA macro)
 			 */
 			item_count =
-			    acpi_rs_decode_bitmask(*((u8 *) source),
+			    acpi_rs_decode_bitmask(ACPI_GET8(source),
 						   destination);
 			if (item_count) {
-				resource->length +=
-				    resource->length + (item_count - 1);
+				resource->length += (item_count - 1);
 			}
 
-			target = ((char *)resource) + info->value;
-			*((u8 *) target) = (u8) item_count;
+			target = ACPI_ADD_PTR(char, resource, info->value);
+			ACPI_SET8(target) = (u8) item_count;
 			break;
 
 		case ACPI_RSC_BITMASK16:
@@ -250,12 +249,11 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 			item_count =
 			    acpi_rs_decode_bitmask(temp16, destination);
 			if (item_count) {
-				resource->length =
-				    resource->length + (item_count - 1);
+				resource->length += (item_count - 1);
 			}
 
-			target = ((char *)resource) + info->value;
-			*((u8 *) target) = (u8) item_count;
+			target = ACPI_ADD_PTR(char, resource, info->value);
+			ACPI_SET8(target) = (u8) item_count;
 			break;
 
 		case ACPI_RSC_EXIT_NE:
@@ -270,7 +268,7 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 				break;
 
 			case ACPI_RSC_COMPARE_VALUE:
-				if (*((u8 *) source) != info->value) {
+				if (ACPI_GET8(source) != info->value) {
 					goto exit;
 				}
 				break;
@@ -349,8 +347,8 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 		 * Source is the internal resource descriptor,
 		 * destination is the external AML byte stream buffer
 		 */
-		source = ((u8 *) resource) + info->resource_offset;
-		destination = ((u8 *) aml) + info->aml_offset;
+		source = ACPI_ADD_PTR(void, resource, info->resource_offset);
+		destination = ACPI_ADD_PTR(void, aml, info->aml_offset);
 
 		switch (info->opcode) {
 		case ACPI_RSC_INITSET:
@@ -368,37 +366,38 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			/*
 			 * Clear the flag byte
 			 */
-			*((u8 *) destination) = 0;
+			ACPI_SET8(destination) = 0;
 			break;
 
 		case ACPI_RSC_1BITFLAG:
 			/*
 			 * Mask and shift the flag bit
 			 */
-			*((u8 *) destination) |= (u8)
-			    ((*((u8 *) source) & 0x01) << info->value);
+			ACPI_SET8(destination) |= (u8)
+			    ((ACPI_GET8(source) & 0x01) << info->value);
 			break;
 
 		case ACPI_RSC_2BITFLAG:
 			/*
 			 * Mask and shift the flag bits
 			 */
-			*((u8 *) destination) |= (u8)
-			    ((*((u8 *) source) & 0x03) << info->value);
+			ACPI_SET8(destination) |= (u8)
+			    ((ACPI_GET8(source) & 0x03) << info->value);
 			break;
 
 		case ACPI_RSC_COUNT:
 
-			item_count = *((u8 *) source);
-			*((u8 *) destination) = (u8) item_count;
+			item_count = ACPI_GET8(source);
+			ACPI_SET8(destination) = (u8) item_count;
 
-			aml_length = (u16) (aml_length +
-					    (info->value * (item_count - 1)));
+			aml_length =
+			    (u16) (aml_length +
+				   (info->value * (item_count - 1)));
 			break;
 
 		case ACPI_RSC_COUNT16:
 
-			item_count = *((u16 *) source);
+			item_count = ACPI_GET16(source);
 			aml_length = (u16) (aml_length + item_count);
 			acpi_rs_set_resource_length(aml_length, aml);
 			break;
@@ -453,20 +452,21 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			/*
 			 * 8-bit encoded bitmask (DMA macro)
 			 */
-			*((u8 *) destination) = (u8)
+			ACPI_SET8(destination) = (u8)
 			    acpi_rs_encode_bitmask(source,
-						   *(((u8 *) resource) +
-						     info->value));
+						   *ACPI_ADD_PTR(u8, resource,
+								 info->value));
 			break;
 
 		case ACPI_RSC_BITMASK16:
 			/*
 			 * 16-bit encoded bitmask (IRQ macro)
 			 */
-			temp16 =
-			    acpi_rs_encode_bitmask(source,
-						   *(((u8 *) resource) +
-						     info->value));
+			temp16 = acpi_rs_encode_bitmask(source,
+							*ACPI_ADD_PTR(u8,
+								      resource,
+								      info->
+								      value));
 			ACPI_MOVE_16_TO_16(destination, &temp16);
 			break;
 
@@ -485,9 +485,9 @@ acpi_rs_convert_resource_to_aml(struct acpi_resource *resource,
 			 */
 			switch (COMPARE_OPCODE(info)) {
 			case ACPI_RSC_COMPARE_VALUE:
-				if (*
-				    ((u8 *) (((u8 *) resource) +
-					     COMPARE_TARGET(info))) !=
+
+				if (*ACPI_ADD_PTR(u8, resource,
+						  COMPARE_TARGET(info)) !=
 				    COMPARE_VALUE(info)) {
 					goto exit;
 				}

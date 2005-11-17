@@ -311,7 +311,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 	op->named.name = node->name.integer;
 
 #if (defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY))
-	op->named.path = (u8 *) path;
+	op->named.path = ACPI_CAST_PTR(u8, path);
 #endif
 
 	/*

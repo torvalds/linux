@@ -573,6 +573,8 @@ struct acpi_parse_obj_named {
 
 /* The parse node is the fundamental element of the parse tree */
 
+#define ACPI_MAX_PARSEOP_NAME   20
+
 struct acpi_parse_obj_asl {
 	ACPI_PARSE_COMMON union acpi_parse_object *child;
 	union acpi_parse_object *parent_method;
@@ -597,7 +599,7 @@ struct acpi_parse_obj_asl {
 	u8 aml_opcode_length;
 	u8 aml_pkg_len_bytes;
 	u8 extra;
-	char parse_op_name[12];
+	char parse_op_name[ACPI_MAX_PARSEOP_NAME];
 };
 
 union acpi_parse_object {

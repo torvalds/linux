@@ -216,7 +216,7 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 				  *aml_address, aml_address));
 	}
 
-	*in_aml_address = (u8 *) aml_address;
+	*in_aml_address = ACPI_CAST_PTR(u8, aml_address);
 	return_ACPI_STATUS(status);
 }
 

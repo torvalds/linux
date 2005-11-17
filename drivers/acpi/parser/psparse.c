@@ -503,22 +503,23 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		} else if (status == AE_CTRL_TERMINATE) {
 			status = AE_OK;
 		} else if ((status != AE_OK) && (walk_state->method_desc)) {
-			ACPI_REPORT_METHOD_ERROR("Method execution failed",
-						 walk_state->method_node, NULL,
-						 status);
+			/* Either the method parse or actual execution failed */
 
-			/* Ensure proper cleanup */
-
-			walk_state->parse_flags |= ACPI_PARSE_EXECUTE;
+			ACPI_REPORT_METHOD_ERROR
+			    ("Method parse/execution failed",
+			     walk_state->method_node, NULL, status);
 
 			/* Check for possible multi-thread reentrancy problem */
 
 			if ((status == AE_ALREADY_EXISTS) &&
 			    (!walk_state->method_desc->method.semaphore)) {
 				/*
-				 * This method is marked not_serialized, but it tried to create
+				 * Method tried to create an object twice. The probable cause is
+				 * that the method cannot handle reentrancy.
+				 *
+				 * The method is marked not_serialized, but it tried to create
 				 * a named object, causing the second thread entrance to fail.
-				 * We will workaround this by marking the method permanently
+				 * Workaround this problem by marking the method permanently
 				 * as Serialized.
 				 */
 				walk_state->method_desc->method.method_flags |=
@@ -536,15 +537,22 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		acpi_ds_scope_stack_clear(walk_state);
 
 		/*
-		 * If we just returned from the execution of a control method,
-		 * there's lots of cleanup to do
+		 * If we just returned from the execution of a control method or if we
+		 * encountered an error during the method parse phase, there's lots of
+		 * cleanup to do
 		 */
-		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
-		    ACPI_PARSE_EXECUTE) {
+		if (((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
+		     ACPI_PARSE_EXECUTE) || (ACPI_FAILURE(status))) {
 			if (walk_state->method_desc) {
 				/* Decrement the thread count on the method parse tree */
 
-				walk_state->method_desc->method.thread_count--;
+				if (walk_state->method_desc->method.
+				    thread_count) {
+					walk_state->method_desc->method.
+					    thread_count--;
+				} else {
+					ACPI_REPORT_ERROR(("Invalid zero thread count in method\n"));
+				}
 			}
 
 			acpi_ds_terminate_control_method(walk_state);
@@ -553,7 +561,6 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 		/* Delete this walk state and all linked control states */
 
 		acpi_ps_cleanup_scope(&walk_state->parser_state);
-
 		previous_walk_state = walk_state;
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
