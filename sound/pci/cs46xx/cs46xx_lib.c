@@ -3654,18 +3654,19 @@ static struct cs_card_type __devinitdata cards[] = {
  * APM support
  */
 #ifdef CONFIG_PM
-static int snd_cs46xx_suspend(struct snd_card *card, pm_message_t state)
+int snd_cs46xx_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct snd_cs46xx *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_cs46xx *chip = card->private_data;
 	int amp_saved;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 	// chip->ac97_powerdown = snd_cs46xx_codec_read(chip, AC97_POWER_CONTROL);
 	// chip->ac97_general_purpose = snd_cs46xx_codec_read(chip, BA0_AC97_GENERAL_PURPOSE);
 
 	snd_ac97_suspend(chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]);
-	if (chip->ac97[CS46XX_SECONDARY_CODEC_INDEX])
-		snd_ac97_suspend(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
+	snd_ac97_suspend(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
 
 	amp_saved = chip->amplifier;
 	/* turn off amp */
@@ -3674,17 +3675,20 @@ static int snd_cs46xx_suspend(struct snd_card *card, pm_message_t state)
 	/* disable CLKRUN */
 	chip->active_ctrl(chip, -chip->amplifier);
 	chip->amplifier = amp_saved; /* restore the status */
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int snd_cs46xx_resume(struct snd_card *card)
+int snd_cs46xx_resume(struct pci_dev *pci)
 {
-	struct snd_cs46xx *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_cs46xx *chip = card->private_data;
 	int amp_saved;
 
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
 	amp_saved = chip->amplifier;
 	chip->amplifier = 0;
 	chip->active_ctrl(chip, 1); /* force to on */
@@ -3703,14 +3707,14 @@ static int snd_cs46xx_resume(struct snd_card *card)
 #endif
 
 	snd_ac97_resume(chip->ac97[CS46XX_PRIMARY_CODEC_INDEX]);
-	if (chip->ac97[CS46XX_SECONDARY_CODEC_INDEX])
-		snd_ac97_resume(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
+	snd_ac97_resume(chip->ac97[CS46XX_SECONDARY_CODEC_INDEX]);
 
 	if (amp_saved)
 		chip->amplifier_ctrl(chip, 1); /* turn amp on */
 	else
 		chip->active_ctrl(chip, -1); /* disable CLKRUN */
 	chip->amplifier = amp_saved;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -3869,8 +3873,6 @@ int __devinit snd_cs46xx_create(struct snd_card *card,
 	}
 	
 	snd_cs46xx_proc_init(card, chip);
-
-	snd_card_set_pm_callback(card, snd_cs46xx_suspend, snd_cs46xx_resume, chip);
 
 	chip->active_ctrl(chip, -1); /* disable CLKRUN */
 
