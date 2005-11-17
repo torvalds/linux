@@ -1392,7 +1392,7 @@ static int proc_ioctl_default(struct dev_state *ps, void __user *arg)
 }
 
 #ifdef CONFIG_COMPAT
-static int proc_ioctl_compat(struct dev_state *ps, void __user *arg)
+static int proc_ioctl_compat(struct dev_state *ps, compat_uptr_t arg)
 {
 	struct usbdevfs_ioctl32 __user *uioc;
 	struct usbdevfs_ioctl ctrl;
@@ -1511,7 +1511,7 @@ static int usbdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 
 	case USBDEVFS_IOCTL32:
 		snoop(&dev->dev, "%s: IOCTL\n", __FUNCTION__);
-		ret = proc_ioctl_compat(ps, p);
+		ret = proc_ioctl_compat(ps, (compat_uptr_t)(long)p);
 		break;
 #endif
 
