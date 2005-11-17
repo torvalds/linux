@@ -137,7 +137,7 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x43585421, 0xffffffff, "HSD11246",		NULL,		NULL },	// SmartMC II
 { 0x43585428, 0xfffffff8, "Cx20468",		patch_conexant,	NULL }, // SmartAMC fixme: the mask might be different
 { 0x44543031, 0xfffffff0, "DT0398",		NULL,		NULL },
-{ 0x454d4328, 0xffffffff, "28028",		NULL,		NULL },  // same as TR28028?
+{ 0x454d4328, 0xffffffff, "EM28028",		NULL,		NULL },  // same as TR28028?
 { 0x45838308, 0xffffffff, "ESS1988",		NULL,		NULL },
 { 0x48525300, 0xffffff00, "HMP9701",		NULL,		NULL },
 { 0x49434501, 0xffffffff, "ICE1230",		NULL,		NULL },
@@ -1816,7 +1816,9 @@ static int snd_ac97_dev_register(struct snd_device *device)
 	ac97->dev.bus = &ac97_bus_type;
 	ac97->dev.parent = ac97->bus->card->dev;
 	ac97->dev.release = ac97_device_release;
-	snprintf(ac97->dev.bus_id, BUS_ID_SIZE, "card%d-%d", ac97->bus->card->number, ac97->num);
+	snprintf(ac97->dev.bus_id, BUS_ID_SIZE, "%d-%d:%s",
+		 ac97->bus->card->number, ac97->num,
+		 snd_ac97_get_short_name(ac97));
 	if ((err = device_register(&ac97->dev)) < 0) {
 		snd_printk(KERN_ERR "Can't register ac97 bus\n");
 		ac97->dev.bus = NULL;
