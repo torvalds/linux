@@ -561,11 +561,6 @@ IOCTL_TABLE_START
 #define DECLARES
 #include "compat_ioctl.c"
 
-/* PA-specific ioctls */
-COMPATIBLE_IOCTL(PA_PERF_ON)
-COMPATIBLE_IOCTL(PA_PERF_OFF)
-COMPATIBLE_IOCTL(PA_PERF_VERSION)
-
 /* And these ioctls need translation */
 HANDLE_IOCTL(SIOCGPPPSTATS, dev_ifsioc)
 HANDLE_IOCTL(SIOCGPPPCSTATS, dev_ifsioc)
