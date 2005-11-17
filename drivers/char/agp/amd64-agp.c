@@ -416,7 +416,7 @@ static void __devinit amd8151_init(struct pci_dev *pdev, struct agp_bridge_data 
 }
 
 
-static struct aper_size_info_32 uli_sizes[7] =
+static const struct aper_size_info_32 uli_sizes[7] =
 {
 	{256, 65536, 6, 10},
 	{128, 32768, 5, 9},
@@ -470,7 +470,7 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 }
 
 
-static struct aper_size_info_32 nforce3_sizes[5] =
+static const struct aper_size_info_32 nforce3_sizes[5] =
 {
 	{512,  131072, 7, 0x00000000 },
 	{256,  65536,  6, 0x00000008 },
