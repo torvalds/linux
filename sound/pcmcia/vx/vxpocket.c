@@ -342,9 +342,9 @@ static int vxpocket_event(event_t event, int priority, event_callback_args_t *ar
 	case CS_EVENT_PM_SUSPEND:
 		snd_printdd(KERN_DEBUG "SUSPEND\n");
 		link->state |= DEV_SUSPEND;
-		if (chip && chip->card->pm_suspend) {
+		if (chip) {
 			snd_printdd(KERN_DEBUG "snd_vx_suspend calling\n");
-			chip->card->pm_suspend(chip->card, PMSG_SUSPEND);
+			snd_vx_suspend(chip, PMSG_SUSPEND);
 		}
 		/* Fall through... */
 	case CS_EVENT_RESET_PHYSICAL:
@@ -362,9 +362,9 @@ static int vxpocket_event(event_t event, int priority, event_callback_args_t *ar
 			//struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
 			snd_printdd(KERN_DEBUG "requestconfig...\n");
 			pcmcia_request_configuration(link->handle, &link->conf);
-			if (chip && chip->card->pm_resume) {
+			if (chip) {
 				snd_printdd(KERN_DEBUG "calling snd_vx_resume\n");
-				chip->card->pm_resume(chip->card);
+				snd_vx_resume(chip);
 			}
 		}
 		snd_printdd(KERN_DEBUG "resume done!\n");
@@ -407,6 +407,7 @@ static dev_link_t *vxpocket_attach(void)
 		snd_card_free(card);
 		return NULL;
 	}
+	card->private_data = vxp;
 
 	vxp->index = i;
 	card_alloc |= 1 << i;

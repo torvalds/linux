@@ -709,13 +709,11 @@ int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp)
 /*
  * suspend
  */
-static int snd_vx_suspend(struct snd_card *card, pm_message_t state)
+int snd_vx_suspend(struct vx_core *chip, pm_message_t state)
 {
-	struct vx_core *chip = card->pm_private_data;
 	unsigned int i;
 
-	snd_assert(chip, return -EINVAL);
-
+	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	chip->chip_status |= VX_STAT_IN_SUSPEND;
 	for (i = 0; i < chip->hw->num_codecs; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
@@ -726,12 +724,9 @@ static int snd_vx_suspend(struct snd_card *card, pm_message_t state)
 /*
  * resume
  */
-static int snd_vx_resume(struct snd_card *card)
+int snd_vx_resume(struct vx_core *chip)
 {
-	struct vx_core *chip = card->pm_private_data;
 	int i, err;
-
-	snd_assert(chip, return -EINVAL);
 
 	chip->chip_status &= ~VX_STAT_CHIP_INIT;
 
@@ -748,6 +743,7 @@ static int snd_vx_resume(struct snd_card *card)
 	chip->chip_status |= VX_STAT_CHIP_INIT;
 	chip->chip_status &= ~VX_STAT_IN_SUSPEND;
 
+	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 
@@ -789,8 +785,6 @@ struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
 	strcpy(card->driver, hw->name);
 	sprintf(card->shortname, "Digigram %s", hw->name);
 
-	snd_card_set_pm_callback(card, snd_vx_suspend, snd_vx_resume, chip);
-
 	vx_proc_init(chip);
 
 	return chip;
@@ -822,3 +816,7 @@ EXPORT_SYMBOL(snd_vx_irq_handler);
 EXPORT_SYMBOL(snd_vx_dsp_boot);
 EXPORT_SYMBOL(snd_vx_dsp_load);
 EXPORT_SYMBOL(snd_vx_load_boot_image);
+#ifdef CONFIG_PM
+EXPORT_SYMBOL(snd_vx_suspend);
+EXPORT_SYMBOL(snd_vx_resume);
+#endif

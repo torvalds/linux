@@ -218,6 +218,7 @@ static int __devinit snd_vx222_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = vx;
 	vx->core.ibl.size = ibl[dev];
 
 	sprintf(card->longname, "%s at 0x%lx & 0x%lx, irq %i",
@@ -250,12 +251,42 @@ static void __devexit snd_vx222_remove(struct pci_dev *pci)
 	pci_set_drvdata(pci, NULL);
 }
 
+#ifdef CONFIG_PM
+static int snd_vx222_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_vx222 *vx = card->private_data;
+	int err;
+
+	err = snd_vx_suspend(&vx->core, state);
+	pci_set_power_state(pci, PCI_D3hot);
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	return err;
+}
+
+static int snd_vx222_resume(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_vx222 *vx = card->private_data;
+
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_power_state(pci, PCI_D0);
+	pci_set_master(pci);
+	return snd_vx_resume(&vx->core);
+}
+#endif
+
 static struct pci_driver driver = {
 	.name = "Digigram VX222",
 	.id_table = snd_vx222_ids,
 	.probe = snd_vx222_probe,
 	.remove = __devexit_p(snd_vx222_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = snd_vx222_suspend,
+	.resume = snd_vx222_resume,
+#endif
 };
 
 static int __init alsa_card_vx222_init(void)
