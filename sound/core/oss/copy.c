@@ -25,9 +25,9 @@
 #include <sound/pcm.h>
 #include "pcm_plugin.h"
 
-static snd_pcm_sframes_t copy_transfer(snd_pcm_plugin_t *plugin,
-			     const snd_pcm_plugin_channel_t *src_channels,
-			     snd_pcm_plugin_channel_t *dst_channels,
+static snd_pcm_sframes_t copy_transfer(struct snd_pcm_plugin *plugin,
+			     const struct snd_pcm_plugin_channel *src_channels,
+			     struct snd_pcm_plugin_channel *dst_channels,
 			     snd_pcm_uframes_t frames)
 {
 	unsigned int channel;
@@ -58,13 +58,13 @@ static snd_pcm_sframes_t copy_transfer(snd_pcm_plugin_t *plugin,
 	return frames;
 }
 
-int snd_pcm_plugin_build_copy(snd_pcm_plug_t *plug,
-			      snd_pcm_plugin_format_t *src_format,
-			      snd_pcm_plugin_format_t *dst_format,
-			      snd_pcm_plugin_t **r_plugin)
+int snd_pcm_plugin_build_copy(struct snd_pcm_substream *plug,
+			      struct snd_pcm_plugin_format *src_format,
+			      struct snd_pcm_plugin_format *dst_format,
+			      struct snd_pcm_plugin **r_plugin)
 {
 	int err;
-	snd_pcm_plugin_t *plugin;
+	struct snd_pcm_plugin *plugin;
 	int width;
 
 	snd_assert(r_plugin != NULL, return -ENXIO);
