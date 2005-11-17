@@ -207,7 +207,8 @@ static snd_pcm_hardware_t snd_ca0106_playback_hw = {
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000,
+	.rates =		(SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |
+				 SNDRV_PCM_RATE_192000),
 	.rate_min =		48000,
 	.rate_max =		192000,
 	.channels_min =		2,  //1,
@@ -226,7 +227,8 @@ static snd_pcm_hardware_t snd_ca0106_capture_hw = {
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000,
+	.rates =		(SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000 |
+				 SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000),
 	.rate_min =		44100,
 	.rate_max =		192000,
 	.channels_min =		2,
@@ -276,11 +278,10 @@ int snd_ca0106_i2c_write(ca0106_t *emu,
 				u32 value)
 {
 	u32 tmp;
-	int timeout=0;
+	int timeout = 0;
 	int status;
 	int retry;
-	if ((reg > 0x7f) || (value > 0x1ff))
-	{
+	if ((reg > 0x7f) || (value > 0x1ff)) {
 		snd_printk(KERN_ERR "i2c_write: invalid values.\n");
 		return -EINVAL;
 	}
@@ -292,8 +293,7 @@ int snd_ca0106_i2c_write(ca0106_t *emu,
 	/* This controls the I2C connected to the WM8775 ADC Codec */
 	snd_ca0106_ptr_write(emu, I2C_D1, 0, tmp);
 
-	for(retry=0;retry<10;retry++)
-	{
+	for (retry = 0; retry < 10; retry++) {
 		/* Send the data to i2c */
 		tmp = snd_ca0106_ptr_read(emu, I2C_A, 0);
 		tmp = tmp & ~(I2C_A_ADC_READ|I2C_A_ADC_LAST|I2C_A_ADC_START|I2C_A_ADC_ADD_MASK);
@@ -301,24 +301,22 @@ int snd_ca0106_i2c_write(ca0106_t *emu,
 		snd_ca0106_ptr_write(emu, I2C_A, 0, tmp);
 
 		/* Wait till the transaction ends */
-		while(1)
-		{
+		while (1) {
 			status = snd_ca0106_ptr_read(emu, I2C_A, 0);
                 	//snd_printk("I2C:status=0x%x\n", status);
 			timeout++;
-			if((status & I2C_A_ADC_START)==0)
+			if ((status & I2C_A_ADC_START) == 0)
 				break;
 
-			if(timeout>1000)
+			if (timeout > 1000)
 				break;
 		}
 		//Read back and see if the transaction is successful
-		if((status & I2C_A_ADC_ABORT)==0)
+		if ((status & I2C_A_ADC_ABORT) == 0)
 			break;
 	}
 
-	if(retry==10)
-	{
+	if (retry == 10) {
 		snd_printk(KERN_ERR "Writing to ADC failed!\n");
 		return -EINVAL;
 	}
@@ -380,10 +378,10 @@ static int snd_ca0106_pcm_open_playback_channel(snd_pcm_substream_t *substream, 
         channel->emu = chip;
         channel->number = channel_id;
 
-        channel->use=1;
+	channel->use = 1;
         //printk("open:channel_id=%d, chip=%p, channel=%p\n",channel_id, chip, channel);
         //channel->interrupt = snd_ca0106_pcm_channel_interrupt;
-        channel->epcm=epcm;
+	channel->epcm = epcm;
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
                 return err;
 	if ((err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64)) < 0)
@@ -448,10 +446,10 @@ static int snd_ca0106_pcm_open_capture_channel(snd_pcm_substream_t *substream, i
         channel->emu = chip;
         channel->number = channel_id;
 
-        channel->use=1;
+	channel->use = 1;
         //printk("open:channel_id=%d, chip=%p, channel=%p\n",channel_id, chip, channel);
         //channel->interrupt = snd_ca0106_pcm_channel_interrupt;
-        channel->epcm=epcm;
+	channel->epcm = epcm;
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
                 return err;
 	//snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, &hw_constraints_capture_period_sizes);
@@ -593,8 +591,8 @@ static int snd_ca0106_pcm_prepare_playback(snd_pcm_substream_t *substream)
 
 	/* FIXME: Check emu->buffer.size before actually writing to it. */
         for(i=0; i < runtime->periods; i++) {
-		table_base[i*2]=runtime->dma_addr+(i*period_size_bytes);
-		table_base[(i*2)+1]=period_size_bytes<<16;
+		table_base[i*2] = runtime->dma_addr + (i * period_size_bytes);
+		table_base[i*2+1] = period_size_bytes << 16;
 	}
  
 	snd_ca0106_ptr_write(emu, PLAYBACK_LIST_ADDR, channel, emu->buffer.addr+(8*16*channel));
@@ -1008,13 +1006,8 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id,
         unsigned int stat76;
 	ca0106_channel_t *pchannel;
 
-	spin_lock(&chip->emu_lock);
-
 	status = inl(chip->port + IPR);
 
-	// call updater, unlock before it
-	spin_unlock(&chip->emu_lock);
-  
 	if (! status)
 		return IRQ_NONE;
 
@@ -1024,11 +1017,11 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id,
         mask = 0x11; /* 0x1 for one half, 0x10 for the other half period. */
 	for(i = 0; i < 4; i++) {
 		pchannel = &(chip->playback_channels[i]);
-		if(stat76 & mask) {
+		if (stat76 & mask) {
 /* FIXME: Select the correct substream for period elapsed */
 			if(pchannel->use) {
-                          snd_pcm_period_elapsed(pchannel->epcm->substream);
-	                //printk(KERN_INFO "interrupt [%d] used\n", i);
+				snd_pcm_period_elapsed(pchannel->epcm->substream);
+				//printk(KERN_INFO "interrupt [%d] used\n", i);
                         }
 		}
 	        //printk(KERN_INFO "channel=%p\n",pchannel);
@@ -1038,11 +1031,11 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id,
         mask = 0x110000; /* 0x1 for one half, 0x10 for the other half period. */
 	for(i = 0; i < 4; i++) {
 		pchannel = &(chip->capture_channels[i]);
-		if(stat76 & mask) {
+		if (stat76 & mask) {
 /* FIXME: Select the correct substream for period elapsed */
 			if(pchannel->use) {
-                          snd_pcm_period_elapsed(pchannel->epcm->substream);
-	                //printk(KERN_INFO "interrupt [%d] used\n", i);
+				snd_pcm_period_elapsed(pchannel->epcm->substream);
+				//printk(KERN_INFO "interrupt [%d] used\n", i);
                         }
 		}
 	        //printk(KERN_INFO "channel=%p\n",pchannel);
@@ -1051,10 +1044,9 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id,
 	}
 
         snd_ca0106_ptr_write(chip, EXTENDED_INT, 0, stat76);
-	spin_lock(&chip->emu_lock);
 
 	if (chip->midi.dev_id &&
-	  (status & (chip->midi.ipr_tx|chip->midi.ipr_rx))) {
+	    (status & (chip->midi.ipr_tx|chip->midi.ipr_rx))) {
 		if (chip->midi.interrupt)
 			chip->midi.interrupt(&chip->midi, status);
 		else
@@ -1063,8 +1055,6 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id,
 
 	// acknowledge the interrupt if necessary
 	outl(status, chip->port+IPR);
-
-	spin_unlock(&chip->emu_lock);
 
 	return IRQ_HANDLED;
 }
@@ -1202,8 +1192,9 @@ static int __devinit snd_ca0106_create(snd_card_t *card,
 	strcpy(card->driver, "CA0106");
 	strcpy(card->shortname, "CA0106");
 
-	for (c=ca0106_chip_details; c->serial; c++) {
-		if (c->serial == chip->serial) break;
+	for (c = ca0106_chip_details; c->serial; c++) {
+		if (c->serial == chip->serial)
+			break;
 	}
 	chip->details = c;
 	sprintf(card->longname, "%s at 0x%lx irq %i",
@@ -1359,7 +1350,7 @@ static int __devinit snd_ca0106_midi(ca0106_t *chip, unsigned int channel)
 	char *name;
 	int err;
 
-        if(channel==CA0106_MIDI_CHAN_B) {
+	if (channel == CA0106_MIDI_CHAN_B) {
 		name = "CA0106 MPU-401 (UART) B";
 		midi =  &chip->midi2;
 		midi->tx_enable = INTE_MIDI_TX_B;
@@ -1499,12 +1490,7 @@ static struct pci_driver driver = {
 // initialization of the module
 static int __init alsa_card_ca0106_init(void)
 {
-	int err;
-
-	if ((err = pci_register_driver(&driver)) > 0)
-		return err;
-
-	return 0;
+	return pci_register_driver(&driver);
 }
 
 // clean up the module
