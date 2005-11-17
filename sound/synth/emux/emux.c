@@ -35,9 +35,9 @@ MODULE_LICENSE("GPL");
 /*
  * create a new hardware dependent device for Emu8000/Emu10k1
  */
-int snd_emux_new(snd_emux_t **remu)
+int snd_emux_new(struct snd_emux **remu)
 {
-	snd_emux_t *emu;
+	struct snd_emux *emu;
 
 	*remu = NULL;
 	emu = kzalloc(sizeof(*emu), GFP_KERNEL);
@@ -66,33 +66,33 @@ int snd_emux_new(snd_emux_t **remu)
 
 /*
  */
-static int sf_sample_new(void *private_data, snd_sf_sample_t *sp,
-			 snd_util_memhdr_t *hdr,
-			 const void __user *buf, long count)
+static int sf_sample_new(void *private_data, struct snd_sf_sample *sp,
+				  struct snd_util_memhdr *hdr,
+				  const void __user *buf, long count)
 {
-	snd_emux_t *emu = private_data;
+	struct snd_emux *emu = private_data;
 	return emu->ops.sample_new(emu, sp, hdr, buf, count);
 	
 }
 
-static int sf_sample_free(void *private_data, snd_sf_sample_t *sp,
-			  snd_util_memhdr_t *hdr)
+static int sf_sample_free(void *private_data, struct snd_sf_sample *sp,
+				   struct snd_util_memhdr *hdr)
 {
-	snd_emux_t *emu = private_data;
+	struct snd_emux *emu = private_data;
 	return emu->ops.sample_free(emu, sp, hdr);
 	
 }
 
 static void sf_sample_reset(void *private_data)
 {
-	snd_emux_t *emu = private_data;
+	struct snd_emux *emu = private_data;
 	emu->ops.sample_reset(emu);
 }
 
-int snd_emux_register(snd_emux_t *emu, snd_card_t *card, int index, char *name)
+int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, char *name)
 {
 	int err;
-	snd_sf_callback_t sf_cb;
+	struct snd_sf_callback sf_cb;
 
 	snd_assert(emu->hw != NULL, return -EINVAL);
 	snd_assert(emu->max_voices > 0, return -EINVAL);
@@ -101,7 +101,8 @@ int snd_emux_register(snd_emux_t *emu, snd_card_t *card, int index, char *name)
 
 	emu->card = card;
 	emu->name = kstrdup(name, GFP_KERNEL);
-	emu->voices = kcalloc(emu->max_voices, sizeof(snd_emux_voice_t), GFP_KERNEL);
+	emu->voices = kcalloc(emu->max_voices, sizeof(struct snd_emux_voice),
+			      GFP_KERNEL);
 	if (emu->voices == NULL)
 		return -ENOMEM;
 
@@ -138,7 +139,7 @@ int snd_emux_register(snd_emux_t *emu, snd_card_t *card, int index, char *name)
 
 /*
  */
-int snd_emux_free(snd_emux_t *emu)
+int snd_emux_free(struct snd_emux *emu)
 {
 	unsigned long flags;
 
