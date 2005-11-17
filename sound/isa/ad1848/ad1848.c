@@ -60,14 +60,14 @@ MODULE_PARM_DESC(dma1, "DMA1 # for AD1848 driver.");
 module_param_array(thinkpad, bool, NULL, 0444);
 MODULE_PARM_DESC(thinkpad, "Enable only for the onboard CS4248 of IBM Thinkpad 360/750/755 series.");
 
-static snd_card_t *snd_ad1848_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_ad1848_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 
 static int __init snd_card_ad1848_probe(int dev)
 {
-	snd_card_t *card;
-	ad1848_t *chip;
-	snd_pcm_t *pcm;
+	struct snd_card *card;
+	struct snd_ad1848 *chip;
+	struct snd_pcm *pcm;
 	int err;
 
 	if (port[dev] == SNDRV_AUTO_PORT) {
