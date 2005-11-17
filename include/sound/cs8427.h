@@ -186,11 +186,16 @@
 #define CS8427_VERSHIFT		0
 #define CS8427_VER8427A		0x71
 
-int snd_cs8427_create(snd_i2c_bus_t *bus, unsigned char addr,
-		      unsigned int reset_timeout, snd_i2c_device_t **r_cs8427);
-int snd_cs8427_reg_write(snd_i2c_device_t *device, unsigned char reg, unsigned char val);
-int snd_cs8427_iec958_build(snd_i2c_device_t *cs8427, snd_pcm_substream_t *playback_substream, snd_pcm_substream_t *capture_substream);
-int snd_cs8427_iec958_active(snd_i2c_device_t *cs8427, int active);
-int snd_cs8427_iec958_pcm(snd_i2c_device_t *cs8427, unsigned int rate);
+struct snd_pcm_substream;
+
+int snd_cs8427_create(struct snd_i2c_bus *bus, unsigned char addr,
+		      unsigned int reset_timeout, struct snd_i2c_device **r_cs8427);
+int snd_cs8427_reg_write(struct snd_i2c_device *device, unsigned char reg,
+			 unsigned char val);
+int snd_cs8427_iec958_build(struct snd_i2c_device *cs8427,
+			    struct snd_pcm_substream *playback_substream,
+			    struct snd_pcm_substream *capture_substream);
+int snd_cs8427_iec958_active(struct snd_i2c_device *cs8427, int active);
+int snd_cs8427_iec958_pcm(struct snd_i2c_device *cs8427, unsigned int rate);
 
 #endif /* __SOUND_CS8427_H */

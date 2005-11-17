@@ -17,7 +17,7 @@
  * 2002-05-12   Tomas Kasparek  another code cleanup
  */
 
-/* $Id: uda1341.c,v 1.17 2005/11/17 10:25:22 tiwai Exp $ */
+/* $Id: uda1341.c,v 1.18 2005/11/17 14:17:21 tiwai Exp $ */
 
 #include <sound/driver.h>
 #include <linux/module.h>
@@ -140,15 +140,13 @@ static const char ** uda1341_enum_names[] = {
 
 typedef int uda1341_cfg[CMD_LAST];
 
-typedef struct uda1341 uda1341_t;
-
 struct uda1341 {
 	int (*write) (struct l3_client *uda1341, unsigned short reg, unsigned short val);
 	int (*read) (struct l3_client *uda1341, unsigned short reg);        
 	unsigned char regs[uda1341_reg_last];
 	int active;
 	spinlock_t reg_lock;
-	snd_card_t *card;
+	struct snd_card *card;
 	uda1341_cfg cfg;
 #ifdef CONFIG_PM
 	unsigned char suspend_regs[uda1341_reg_last];
@@ -429,8 +427,8 @@ static const char *peak_value[] = {
 	"-8.76 dB", "-7.28 dB", "-5.81 dB", "-4.34 dB", "-2.88 dB", "-1.43 dB", "0.00 dB",
 };
 
-static void snd_uda1341_proc_read(snd_info_entry_t *entry, 
-				  snd_info_buffer_t * buffer)
+static void snd_uda1341_proc_read(struct snd_info_entry *entry, 
+				  struct snd_info_buffer *buffer)
 {
 	struct l3_client *clnt = entry->private_data;
 	struct uda1341 *uda = clnt->driver_data;
@@ -494,8 +492,8 @@ static void snd_uda1341_proc_read(snd_info_entry_t *entry,
 		snd_iprintf(buffer, "Input Amp. Gain ch 2: %s dB\n",  ig_small_value[uda->cfg[CMD_IG]]);
 }
 
-static void snd_uda1341_proc_regs_read(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_uda1341_proc_regs_read(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
 	struct l3_client *clnt = entry->private_data;
 	struct uda1341 *uda = clnt->driver_data;		
@@ -514,9 +512,9 @@ static void snd_uda1341_proc_regs_read(snd_info_entry_t *entry,
 }
 #endif /* CONFIG_PROC_FS */
 
-static void __devinit snd_uda1341_proc_init(snd_card_t *card, struct l3_client *clnt)
+static void __devinit snd_uda1341_proc_init(struct snd_card *card, struct l3_client *clnt)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(card, "uda1341", &entry))
 		snd_info_set_text_ops(entry, clnt, 1024, snd_uda1341_proc_read);
@@ -536,7 +534,8 @@ static void __devinit snd_uda1341_proc_init(snd_card_t *card, struct l3_client *
   .private_value = where | (reg << 5) | (shift << 9) | (mask << 12) | (invert << 18) \
 }
 
-static int snd_uda1341_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_uda1341_info_single(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 12) & 63;
 
@@ -547,10 +546,11 @@ static int snd_uda1341_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
 
-static int snd_uda1341_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_uda1341_get_single(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct l3_client *clnt = snd_kcontrol_chip(kcontrol);
-	uda1341_t *uda = clnt->driver_data;
+	struct uda1341 *uda = clnt->driver_data;
 	int where = kcontrol->private_value & 31;        
 	int mask = (kcontrol->private_value >> 12) & 63;
 	int invert = (kcontrol->private_value >> 18) & 1;
@@ -562,10 +562,11 @@ static int snd_uda1341_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_uda1341_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_uda1341_put_single(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct l3_client *clnt = snd_kcontrol_chip(kcontrol);
-	uda1341_t *uda = clnt->driver_data;
+	struct uda1341 *uda = clnt->driver_data;
 	int where = kcontrol->private_value & 31;        
 	int reg = (kcontrol->private_value >> 5) & 15;
 	int shift = (kcontrol->private_value >> 9) & 7;
@@ -591,7 +592,8 @@ static int snd_uda1341_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
   .private_value = where | (reg << 5) | (shift << 9) | (mask << 12) | (invert << 18) \
 }
 
-static int snd_uda1341_info_enum(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_uda1341_info_enum(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
 {
 	int where = kcontrol->private_value & 31;
 	const char **texts;
@@ -612,20 +614,22 @@ static int snd_uda1341_info_enum(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 	return 0;
 }
 
-static int snd_uda1341_get_enum(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_uda1341_get_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
 	struct l3_client *clnt = snd_kcontrol_chip(kcontrol);
-	uda1341_t *uda = clnt->driver_data;
+	struct uda1341 *uda = clnt->driver_data;
 	int where = kcontrol->private_value & 31;        
         
 	ucontrol->value.enumerated.item[0] = uda->cfg[where];	
 	return 0;
 }
 
-static int snd_uda1341_put_enum(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_uda1341_put_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
 	struct l3_client *clnt = snd_kcontrol_chip(kcontrol);
-	uda1341_t *uda = clnt->driver_data;
+	struct uda1341 *uda = clnt->driver_data;
 	int where = kcontrol->private_value & 31;        
 	int reg = (kcontrol->private_value >> 5) & 15;
 	int shift = (kcontrol->private_value >> 9) & 7;
@@ -648,7 +652,8 @@ static int snd_uda1341_put_enum(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 }
 
 
-static int snd_uda1341_info_2regs(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_uda1341_info_2regs(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
 {
 	int mask_1 = (kcontrol->private_value >> 19) & 63;
 	int mask_2 = (kcontrol->private_value >> 25) & 63;
@@ -662,10 +667,11 @@ static int snd_uda1341_info_2regs(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int snd_uda1341_get_2regs(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_uda1341_get_2regs(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct l3_client *clnt = snd_kcontrol_chip(kcontrol);
-	uda1341_t *uda = clnt->driver_data;
+	struct uda1341 *uda = clnt->driver_data;
 	int where = kcontrol->private_value & 31;
 	int mask_1 = (kcontrol->private_value >> 19) & 63;
 	int mask_2 = (kcontrol->private_value >> 25) & 63;        
@@ -680,10 +686,11 @@ static int snd_uda1341_get_2regs(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_uda1341_put_2regs(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_uda1341_put_2regs(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct l3_client *clnt = snd_kcontrol_chip(kcontrol);
-	uda1341_t *uda = clnt->driver_data;        
+	struct uda1341 *uda = clnt->driver_data;        
 	int where = kcontrol->private_value & 31;        
 	int reg_1 = (kcontrol->private_value >> 5) & 15;
 	int reg_2 = (kcontrol->private_value >> 9) & 15;        
@@ -716,7 +723,7 @@ static int snd_uda1341_put_2regs(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 
 /* }}} */
   
-static snd_kcontrol_new_t snd_uda1341_controls[] = {
+static struct snd_kcontrol_new snd_uda1341_controls[] = {
 	UDA1341_SINGLE("Master Playback Switch", CMD_MUTE, data0_2, 2, 1, 1),
 	UDA1341_SINGLE("Master Playback Volume", CMD_VOLUME, data0_0, 0, 63, 1),
 
@@ -748,20 +755,20 @@ static snd_kcontrol_new_t snd_uda1341_controls[] = {
 
 static void uda1341_free(struct l3_client *clnt)
 {
-	l3_detach_client(clnt); // calls kfree for driver_data (uda1341_t)
+	l3_detach_client(clnt); // calls kfree for driver_data (struct uda1341)
 	kfree(clnt);
 }
 
-static int uda1341_dev_free(snd_device_t *device)
+static int uda1341_dev_free(struct snd_device *device)
 {
 	struct l3_client *clnt = device->device_data;
 	uda1341_free(clnt);
 	return 0;
 }
 
-int __init snd_chip_uda1341_mixer_new(snd_card_t *card, struct l3_client **clntp)
+int __init snd_chip_uda1341_mixer_new(struct snd_card *card, struct l3_client **clntp)
 {
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =     uda1341_dev_free,
 	};
 	struct l3_client *clnt;
@@ -792,7 +799,7 @@ int __init snd_chip_uda1341_mixer_new(snd_card_t *card, struct l3_client **clntp
 
 	*clntp = clnt;
 	strcpy(card->mixername, "UDA1341TS Mixer");
-	((uda1341_t *)uda1341->driver_data)->card = card;
+	((struct uda1341 *)clnt->driver_data)->card = card;
         
 	snd_uda1341_proc_init(card, clnt);
         

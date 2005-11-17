@@ -34,7 +34,7 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("Routines for control of AK452x / AK43xx  AD/DA converters");
 MODULE_LICENSE("GPL");
 
-void snd_akm4xxx_write(akm4xxx_t *ak, int chip, unsigned char reg, unsigned char val)
+void snd_akm4xxx_write(struct snd_akm4xxx *ak, int chip, unsigned char reg, unsigned char val)
 {
 	ak->ops.lock(ak, chip);
 	ak->ops.write(ak, chip, reg, val);
@@ -58,7 +58,7 @@ void snd_akm4xxx_write(akm4xxx_t *ak, int chip, unsigned char reg, unsigned char
  *
  * assert the reset operation and restores the register values to the chips.
  */
-void snd_akm4xxx_reset(akm4xxx_t *ak, int state)
+void snd_akm4xxx_reset(struct snd_akm4xxx *ak, int state)
 {
 	unsigned int chip;
 	unsigned char reg;
@@ -109,7 +109,7 @@ void snd_akm4xxx_reset(akm4xxx_t *ak, int state)
 /*
  * initialize all the ak4xxx chips
  */
-void snd_akm4xxx_init(akm4xxx_t *ak)
+void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 {
 	static unsigned char inits_ak4524[] = {
 		0x00, 0x07, /* 0: all power up */
@@ -247,7 +247,8 @@ void snd_akm4xxx_init(akm4xxx_t *ak)
 #define AK_COMPOSE(chip,addr,shift,mask) (((chip) << 8) | (addr) | ((shift) << 16) | ((mask) << 24))
 #define AK_INVERT 			(1<<23)
 
-static int snd_akm4xxx_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_akm4xxx_volume_info(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_info *uinfo)
 {
 	unsigned int mask = AK_GET_MASK(kcontrol->private_value);
 
@@ -258,9 +259,10 @@ static int snd_akm4xxx_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
 
-static int snd_akm4xxx_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_akm4xxx_volume_get(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
 {
-	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
@@ -271,9 +273,10 @@ static int snd_akm4xxx_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_akm4xxx_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_akm4xxx_volume_put(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
 {
-	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int invert = AK_GET_INVERT(kcontrol->private_value);
@@ -289,7 +292,8 @@ static int snd_akm4xxx_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t
 	return change;
 }
 
-static int snd_akm4xxx_ipga_gain_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_akm4xxx_ipga_gain_info(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -298,18 +302,20 @@ static int snd_akm4xxx_ipga_gain_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_inf
 	return 0;
 }
 
-static int snd_akm4xxx_ipga_gain_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_akm4xxx_ipga_gain_get(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
 {
-	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	ucontrol->value.integer.value[0] = snd_akm4xxx_get_ipga(ak, chip, addr) & 0x7f;
 	return 0;
 }
 
-static int snd_akm4xxx_ipga_gain_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_akm4xxx_ipga_gain_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
 {
-	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	unsigned char nval = (ucontrol->value.integer.value[0] % 37) | 0x80;
@@ -319,7 +325,8 @@ static int snd_akm4xxx_ipga_gain_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_valu
 	return change;
 }
 
-static int snd_akm4xxx_deemphasis_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_akm4xxx_deemphasis_info(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[4] = {
 		"44.1kHz", "Off", "48kHz", "32kHz",
@@ -333,9 +340,10 @@ static int snd_akm4xxx_deemphasis_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_in
 	return 0;
 }
 
-static int snd_akm4xxx_deemphasis_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_akm4xxx_deemphasis_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
 {
-	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int shift = AK_GET_SHIFT(kcontrol->private_value);
@@ -343,9 +351,10 @@ static int snd_akm4xxx_deemphasis_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_va
 	return 0;
 }
 
-static int snd_akm4xxx_deemphasis_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_akm4xxx_deemphasis_put(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
 {
-	akm4xxx_t *ak = snd_kcontrol_chip(kcontrol);
+	struct snd_akm4xxx *ak = snd_kcontrol_chip(kcontrol);
 	int chip = AK_GET_CHIP(kcontrol->private_value);
 	int addr = AK_GET_ADDR(kcontrol->private_value);
 	int shift = AK_GET_SHIFT(kcontrol->private_value);
@@ -363,10 +372,10 @@ static int snd_akm4xxx_deemphasis_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_val
  * build AK4xxx controls
  */
 
-int snd_akm4xxx_build_controls(akm4xxx_t *ak)
+int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 {
 	unsigned int idx, num_emphs;
-	snd_kcontrol_t *ctl;
+	struct snd_kcontrol *ctl;
 	int err;
 
 	ctl = kmalloc(sizeof(*ctl), GFP_KERNEL);

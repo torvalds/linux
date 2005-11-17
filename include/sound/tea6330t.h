@@ -24,7 +24,8 @@
 
 #include "i2c.h"		/* generic i2c support */
 
-int snd_tea6330t_detect(snd_i2c_bus_t *bus, int equalizer);
-int snd_tea6330t_update_mixer(snd_card_t * card, snd_i2c_bus_t * bus, int equalizer, int fader);
+int snd_tea6330t_detect(struct snd_i2c_bus *bus, int equalizer);
+int snd_tea6330t_update_mixer(struct snd_card *card, struct snd_i2c_bus *bus,
+			      int equalizer, int fader);
 
 #endif /* __SOUND_TEA6330T_H */

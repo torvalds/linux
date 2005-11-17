@@ -15,7 +15,7 @@
  *                           features support
  */
 
-/* $Id: uda1341.h,v 1.7 2005/11/17 10:25:22 tiwai Exp $ */
+/* $Id: uda1341.h,v 1.8 2005/11/17 14:17:21 tiwai Exp $ */
 
 #define UDA1341_ALSA_NAME "snd-uda1341"
 
@@ -119,7 +119,7 @@ enum write_through {
 	FLUSH,
 };
 
-int __init snd_chip_uda1341_mixer_new(snd_card_t *card, struct l3_client **clnt);
+int __init snd_chip_uda1341_mixer_new(struct snd_card *card, struct l3_client **clnt);
 
 /*
  * Local variables:

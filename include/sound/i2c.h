@@ -21,82 +21,84 @@
  *
  */
 
-typedef struct _snd_i2c_device snd_i2c_device_t;
-typedef struct _snd_i2c_bus snd_i2c_bus_t;
-
 #define SND_I2C_DEVICE_ADDRTEN	(1<<0)	/* 10-bit I2C address */
 
-struct _snd_i2c_device {
+struct snd_i2c_device {
 	struct list_head list;
-	snd_i2c_bus_t *bus;	/* I2C bus */
+	struct snd_i2c_bus *bus;	/* I2C bus */
 	char name[32];		/* some useful device name */
 	unsigned short flags;	/* device flags */
 	unsigned short addr;	/* device address (might be 10-bit) */
 	unsigned long private_value;
 	void *private_data;
-	void (*private_free)(snd_i2c_device_t *device);
+	void (*private_free)(struct snd_i2c_device *device);
 };
 
-#define snd_i2c_device(n) list_entry(n, snd_i2c_device_t, list)
+#define snd_i2c_device(n) list_entry(n, struct snd_i2c_device, list)
 
-typedef struct _snd_i2c_bit_ops {
-	void (*start)(snd_i2c_bus_t *bus);	/* transfer start */
-	void (*stop)(snd_i2c_bus_t *bus);	/* transfer stop */
-	void (*direction)(snd_i2c_bus_t *bus, int clock, int data);  /* set line direction (0 = write, 1 = read) */
-	void (*setlines)(snd_i2c_bus_t *bus, int clock, int data);
-	int (*getclock)(snd_i2c_bus_t *bus);
-	int (*getdata)(snd_i2c_bus_t *bus, int ack);
-} snd_i2c_bit_ops_t;
+struct snd_i2c_bit_ops {
+	void (*start)(struct snd_i2c_bus *bus);	/* transfer start */
+	void (*stop)(struct snd_i2c_bus *bus);	/* transfer stop */
+	void (*direction)(struct snd_i2c_bus *bus, int clock, int data);  /* set line direction (0 = write, 1 = read) */
+	void (*setlines)(struct snd_i2c_bus *bus, int clock, int data);
+	int (*getclock)(struct snd_i2c_bus *bus);
+	int (*getdata)(struct snd_i2c_bus *bus, int ack);
+};
 
-typedef struct _snd_i2c_ops {
-	int (*sendbytes)(snd_i2c_device_t *device, unsigned char *bytes, int count);
-	int (*readbytes)(snd_i2c_device_t *device, unsigned char *bytes, int count);
-	int (*probeaddr)(snd_i2c_bus_t *bus, unsigned short addr);
-} snd_i2c_ops_t;
+struct snd_i2c_ops {
+	int (*sendbytes)(struct snd_i2c_device *device, unsigned char *bytes, int count);
+	int (*readbytes)(struct snd_i2c_device *device, unsigned char *bytes, int count);
+	int (*probeaddr)(struct snd_i2c_bus *bus, unsigned short addr);
+};
 
-struct _snd_i2c_bus {
-	snd_card_t *card;	/* card which I2C belongs to */
+struct snd_i2c_bus {
+	struct snd_card *card;	/* card which I2C belongs to */
 	char name[32];		/* some useful label */
 
 	struct semaphore lock_mutex;
 
-	snd_i2c_bus_t *master;	/* master bus when SCK/SCL is shared */
+	struct snd_i2c_bus *master;	/* master bus when SCK/SCL is shared */
 	struct list_head buses;	/* master: slave buses sharing SCK/SCL, slave: link list */
 
 	struct list_head devices; /* attached devices to this bus */
 
 	union {
-		snd_i2c_bit_ops_t *bit;
+		struct snd_i2c_bit_ops *bit;
 		void *ops;
 	} hw_ops;		/* lowlevel operations */
-	snd_i2c_ops_t *ops;	/* midlevel operations */
+	struct snd_i2c_ops *ops;	/* midlevel operations */
 
 	unsigned long private_value;
 	void *private_data;
-	void (*private_free)(snd_i2c_bus_t *bus);
+	void (*private_free)(struct snd_i2c_bus *bus);
 };
 
-#define snd_i2c_slave_bus(n) list_entry(n, snd_i2c_bus_t, buses)
+#define snd_i2c_slave_bus(n) list_entry(n, struct snd_i2c_bus, buses)
 
-int snd_i2c_bus_create(snd_card_t *card, const char *name, snd_i2c_bus_t *master, snd_i2c_bus_t **ri2c);
-int snd_i2c_device_create(snd_i2c_bus_t *bus, const char *name, unsigned char addr, snd_i2c_device_t **rdevice);
-int snd_i2c_device_free(snd_i2c_device_t *device);
+int snd_i2c_bus_create(struct snd_card *card, const char *name,
+		       struct snd_i2c_bus *master, struct snd_i2c_bus **ri2c);
+int snd_i2c_device_create(struct snd_i2c_bus *bus, const char *name,
+			  unsigned char addr, struct snd_i2c_device **rdevice);
+int snd_i2c_device_free(struct snd_i2c_device *device);
 
-static inline void snd_i2c_lock(snd_i2c_bus_t *bus) {
+static inline void snd_i2c_lock(struct snd_i2c_bus *bus)
+{
 	if (bus->master)
 		down(&bus->master->lock_mutex);
 	else
 		down(&bus->lock_mutex);
 }
-static inline void snd_i2c_unlock(snd_i2c_bus_t *bus) {
+
+static inline void snd_i2c_unlock(struct snd_i2c_bus *bus)
+{
 	if (bus->master)
 		up(&bus->master->lock_mutex);
 	else
 		up(&bus->lock_mutex);
 }
 
-int snd_i2c_sendbytes(snd_i2c_device_t *device, unsigned char *bytes, int count);
-int snd_i2c_readbytes(snd_i2c_device_t *device, unsigned char *bytes, int count);
-int snd_i2c_probeaddr(snd_i2c_bus_t *bus, unsigned short addr);
+int snd_i2c_sendbytes(struct snd_i2c_device *device, unsigned char *bytes, int count);
+int snd_i2c_readbytes(struct snd_i2c_device *device, unsigned char *bytes, int count);
+int snd_i2c_probeaddr(struct snd_i2c_bus *bus, unsigned short addr);
 
 #endif /* __SOUND_I2C_H */
