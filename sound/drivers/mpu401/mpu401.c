@@ -56,12 +56,12 @@ MODULE_PARM_DESC(port, "Port # for MPU-401 device.");
 module_param_array(irq, int, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for MPU-401 device.");
 
-static snd_card_t *snd_mpu401_legacy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_mpu401_legacy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 static int pnp_registered = 0;
 
-static int snd_mpu401_create(int dev, snd_card_t **rcard)
+static int snd_mpu401_create(int dev, struct snd_card **rcard)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	int err;
 
 	*rcard = NULL;
@@ -152,7 +152,7 @@ static int __devinit snd_mpu401_pnp_probe(struct pnp_dev *pnp_dev,
 					  const struct pnp_device_id *id)
 {
 	static int dev;
-	snd_card_t *card;
+	struct snd_card *card;
 	int err;
 
 	for ( ; dev < SNDRV_CARDS; ++dev) {
@@ -174,7 +174,7 @@ static int __devinit snd_mpu401_pnp_probe(struct pnp_dev *pnp_dev,
 
 static void __devexit snd_mpu401_pnp_remove(struct pnp_dev *dev)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_drvdata(dev);
+	struct snd_card *card = (struct snd_card *) pnp_get_drvdata(dev);
 
 	snd_card_disconnect(card);
 	snd_card_free_in_thread(card);
