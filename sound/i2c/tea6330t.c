@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <sound/core.h>
+#include <sound/control.h>
 #include <sound/tea6330t.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
@@ -42,6 +43,17 @@ MODULE_LICENSE("GPL");
 #define TEA6330T_SADDR_AUDIO_SWITCH	0x05	/* audio switch */
 #define   TEA6330T_GMU			0x80	/* mute control, general mute */
 #define   TEA6330T_EQN			0x40	/* equalizer switchover (0=equalizer-on) */
+
+typedef struct {
+	snd_i2c_device_t *device;
+	snd_i2c_bus_t *bus;
+	int equalizer;
+	int fader;
+	unsigned char regs[8];
+	unsigned char mleft, mright;
+	unsigned char bass, treble;
+	unsigned char max_bass, max_treble;
+} tea6330t_t;
 
 int snd_tea6330t_detect(snd_i2c_bus_t *bus, int equalizer)
 {
