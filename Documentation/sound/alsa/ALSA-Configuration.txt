@@ -410,6 +410,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
     
+  Module snd-cs5535audio
+  ----------------------
+
+    Module for multifunction CS5535 companion PCI device
+
+    Module supports up to 8 cards.
+
   Module snd-dt019x
   -----------------
 

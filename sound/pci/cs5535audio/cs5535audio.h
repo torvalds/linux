@@ -1,11 +1,11 @@
 #ifndef __SOUND_CS5535AUDIO_H
 #define __SOUND_CS5535AUDIO_H
 
-#define cs_writel(cs5535au, reg, val) outl(val, (int) cs5535au->port + reg)
-#define cs_writeb(cs5535au, reg, val) outb(val, (int) cs5535au->port + reg)
-#define cs_readl(cs5535au, reg)	inl((unsigned short) (cs5535au->port + reg))
-#define cs_readw(cs5535au, reg)	inw((unsigned short) (cs5535au->port + reg))
-#define cs_readb(cs5535au, reg)	inb((unsigned short) (cs5535au->port + reg))
+#define cs_writel(cs5535au, reg, val)	outl(val, (cs5535au)->port + reg)
+#define cs_writeb(cs5535au, reg, val)	outb(val, (cs5535au)->port + reg)
+#define cs_readl(cs5535au, reg)		inl((cs5535au)->port + reg)
+#define cs_readw(cs5535au, reg)		inw((cs5535au)->port + reg)
+#define cs_readb(cs5535au, reg)		inb((cs5535au)->port + reg)
 
 #define CS5535AUDIO_MAX_DESCRIPTORS	128
 

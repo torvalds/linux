@@ -55,7 +55,7 @@ MODULE_DEVICE_TABLE(pci, snd_cs5535audio_ids);
 
 static void wait_till_cmd_acked(cs5535audio_t *cs5535au, unsigned long timeout)
 {
-	unsigned long tmp;
+	unsigned int tmp;
 	do {
 		tmp = cs_readl(cs5535au, ACC_CODEC_CNTL);
 		if (!(tmp & CMD_NEW))
@@ -69,11 +69,11 @@ static void wait_till_cmd_acked(cs5535audio_t *cs5535au, unsigned long timeout)
 static unsigned short snd_cs5535audio_codec_read(cs5535audio_t *cs5535au,
 							unsigned short reg)
 {
-	unsigned long regdata;
-	unsigned long timeout;
-	unsigned long val;
+	unsigned int regdata;
+	int timeout;
+	unsigned int val;
 
-	regdata = ((unsigned long) reg) << 24;
+	regdata = ((unsigned int) reg) << 24;
 	regdata |= ACC_CODEC_CNTL_RD_CMD;
 	regdata |= CMD_NEW;
 
@@ -83,24 +83,23 @@ static unsigned short snd_cs5535audio_codec_read(cs5535audio_t *cs5535au,
 	timeout = 50;
 	do {
 		val = cs_readl(cs5535au, ACC_CODEC_STATUS);
-		if (	(val & STS_NEW) &&
-			((unsigned long) reg == ((0xFF000000 & val)>>24)) )
+		if ((val & STS_NEW) && reg == (val >> 24))
 			break;
 		msleep(10);
 	} while (--timeout);
 	if (!timeout)
 		snd_printk(KERN_ERR "Failure reading cs5535 codec\n");
 
-	return ((unsigned short) val);
+	return (unsigned short) val;
 }
 
 static void snd_cs5535audio_codec_write(cs5535audio_t *cs5535au,
 				   unsigned short reg, unsigned short val)
 {
-	unsigned long regdata;
+	unsigned int regdata;
 
-	regdata = ((unsigned long) reg) << 24;
-	regdata |= (unsigned long) val;
+	regdata = ((unsigned int) reg) << 24;
+	regdata |= val;
 	regdata &= CMD_MASK;
 	regdata |= CMD_NEW;
 	regdata &= ACC_CODEC_CNTL_WR_CMD;
@@ -123,12 +122,6 @@ static unsigned short snd_cs5535audio_ac97_codec_read(ac97_t *ac97,
 	return snd_cs5535audio_codec_read(cs5535au, reg);
 }
 
-static void snd_cs5535audio_mixer_free_ac97(ac97_t *ac97)
-{
-	cs5535audio_t *cs5535audio = ac97->private_data;
-	cs5535audio->ac97 = NULL;
-}
-
 static int snd_cs5535audio_mixer(cs5535audio_t *cs5535au)
 {
 	snd_card_t *card = cs5535au->card;
@@ -147,10 +140,9 @@ static int snd_cs5535audio_mixer(cs5535audio_t *cs5535au)
 	ac97.scaps = AC97_SCAP_AUDIO|AC97_SCAP_SKIP_MODEM;
 	ac97.private_data = cs5535au;
 	ac97.pci = cs5535au->pci;
-	ac97.private_free = snd_cs5535audio_mixer_free_ac97;
 
 	if ((err = snd_ac97_mixer(pbus, &ac97, &cs5535au->ac97)) < 0) {
-		snd_printk("mixer failed\n");
+		snd_printk(KERN_ERR "mixer failed\n");
 		return err;
 	}
 
@@ -201,8 +193,8 @@ static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id,
 
 	if (!acc_irq_stat)
 		return IRQ_NONE;
-	for (count=0; count < 10; count++) {
-		if (acc_irq_stat & (1<<count)) {
+	for (count = 0; count < 10; count++) {
+		if (acc_irq_stat & (1 << count)) {
 			switch (count) {
 			case IRQ_STS:
 				cs_readl(cs5535au, ACC_GPIO_STATUS);

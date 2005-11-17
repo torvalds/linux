@@ -150,8 +150,8 @@ static int cs5535audio_build_dma_packets(cs5535audio_t *cs5535au,
 		cs5535audio_dma_desc_t *desc =
 			&((cs5535audio_dma_desc_t *) dma->desc_buf.area)[i];
 		desc->addr = cpu_to_le32(addr);
-		desc->size = period_bytes;
-		desc->ctlreserved = PRD_EOP;
+		desc->size = cpu_to_le32(period_bytes);
+		desc->ctlreserved = cpu_to_le32(PRD_EOP);
 		desc_addr += sizeof(cs5535audio_dma_desc_t);
 		addr += period_bytes;
 	}
@@ -159,7 +159,7 @@ static int cs5535audio_build_dma_packets(cs5535audio_t *cs5535au,
 	lastdesc = &((cs5535audio_dma_desc_t *) dma->desc_buf.area)[periods];
 	lastdesc->addr = cpu_to_le32((u32) dma->desc_buf.addr);
 	lastdesc->size = 0;
-	lastdesc->ctlreserved = PRD_JMP;
+	lastdesc->ctlreserved = cpu_to_le32(PRD_JMP);
 	jmpprd_addr = cpu_to_le32(lastdesc->addr +
 				(sizeof(cs5535audio_dma_desc_t)*periods));
 
@@ -272,34 +272,29 @@ static int snd_cs5535audio_trigger(snd_pcm_substream_t *substream, int cmd)
 {
 	cs5535audio_t *cs5535au = snd_pcm_substream_chip(substream);
 	cs5535audio_dma_t *dma = substream->runtime->private_data;
+	int err = 0;
 
+	spin_lock(&cs5535au->reg_lock);
 	switch (cmd) {
-		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			spin_lock_irq(&cs5535au->reg_lock);
-			dma->ops->pause_dma(cs5535au);
-			spin_unlock_irq(&cs5535au->reg_lock);
-			break;
-		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-			spin_lock_irq(&cs5535au->reg_lock);
-			dma->ops->enable_dma(cs5535au);
-			spin_unlock_irq(&cs5535au->reg_lock);
-			break;
-		case SNDRV_PCM_TRIGGER_START:
-			spin_lock_irq(&cs5535au->reg_lock);
-			dma->ops->enable_dma(cs5535au);
-			spin_unlock_irq(&cs5535au->reg_lock);
-			break;
-		case SNDRV_PCM_TRIGGER_STOP:
-			spin_lock_irq(&cs5535au->reg_lock);
-			dma->ops->disable_dma(cs5535au);
-			spin_unlock_irq(&cs5535au->reg_lock);
-			break;
-		default:
-			snd_printk(KERN_ERR "unhandled trigger\n");
-			return -EINVAL;
-			break;
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		dma->ops->pause_dma(cs5535au);
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		dma->ops->enable_dma(cs5535au);
+		break;
+	case SNDRV_PCM_TRIGGER_START:
+		dma->ops->enable_dma(cs5535au);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+		dma->ops->disable_dma(cs5535au);
+		break;
+	default:
+		snd_printk(KERN_ERR "unhandled trigger\n");
+		err = -EINVAL;
+		break;
 	}
-	return 0;
+	spin_unlock(&cs5535au->reg_lock);
+	return err;
 }
 
 static snd_pcm_uframes_t snd_cs5535audio_pcm_pointer(snd_pcm_substream_t
@@ -375,11 +370,6 @@ static snd_pcm_ops_t snd_cs5535audio_capture_ops = {
 	.pointer =	snd_cs5535audio_pcm_pointer,
 };
 
-static void snd_cs5535audio_pcm_free(snd_pcm_t *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static cs5535audio_dma_ops_t snd_cs5535audio_playback_dma_ops = {
         .type = CS5535AUDIO_DMA_PLAYBACK,
         .enable_dma = cs5535audio_playback_enable_dma,
@@ -417,7 +407,6 @@ int __devinit snd_cs5535audio_pcm(cs5535audio_t *cs5535au)
 					&snd_cs5535audio_capture_ops);
 
 	pcm->private_data = cs5535au;
-	pcm->private_free = snd_cs5535audio_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "CS5535 Audio");
 
