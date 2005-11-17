@@ -59,6 +59,14 @@
 
 #include "harmony.h"
 
+static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+module_param(index, int, 0444);
+MODULE_PARM_DESC(index, "Index value for Harmony driver.");
+module_param(id, charp, 0444);
+MODULE_PARM_DESC(id, "ID string for Harmony driver.");
+
+
 static struct parisc_device_id snd_harmony_devtable[] = {
 	/* bushmaster / flounder */
 	{ HPHW_FIO, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0007A }, 
@@ -299,12 +307,11 @@ static int
 snd_harmony_playback_trigger(snd_pcm_substream_t *ss, int cmd)
 {
 	harmony_t *h = snd_pcm_substream_chip(ss);
-	unsigned long flags;
 
 	if (h->st.capturing)
 		return -EBUSY;
 
-	spin_lock_irqsave(&h->lock, flags);
+	spin_lock(&h->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		h->st.playing = 1;
@@ -323,11 +330,11 @@ snd_harmony_playback_trigger(snd_pcm_substream_t *ss, int cmd)
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	default:
-		spin_unlock_irqrestore(&h->lock, flags);
+		spin_unlock(&h->lock);
 		snd_BUG();
 		return -EINVAL;
 	}
-	spin_unlock_irqrestore(&h->lock, flags);
+	spin_unlock(&h->lock);
 	
 	return 0;
 }
@@ -336,12 +343,11 @@ static int
 snd_harmony_capture_trigger(snd_pcm_substream_t *ss, int cmd)
 {
         harmony_t *h = snd_pcm_substream_chip(ss);
-	unsigned long flags;
 
 	if (h->st.playing)
 		return -EBUSY;
 
-	spin_lock_irqsave(&h->lock, flags);
+	spin_lock(&h->lock);
         switch (cmd) {
         case SNDRV_PCM_TRIGGER_START:
 		h->st.capturing = 1;
@@ -360,11 +366,11 @@ snd_harmony_capture_trigger(snd_pcm_substream_t *ss, int cmd)
         case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
         case SNDRV_PCM_TRIGGER_SUSPEND:
 	default:
-		spin_unlock_irqrestore(&h->lock, flags);
+		spin_unlock(&h->lock);
 		snd_BUG();
                 return -EINVAL;
         }
-	spin_unlock_irqrestore(&h->lock, flags);
+	spin_unlock(&h->lock);
 		
         return 0;
 }
@@ -710,9 +716,8 @@ snd_harmony_volume_get(snd_kcontrol_t *kc,
 	int mask = (kc->private_value >> 16) & 0xff;
 	int invert = (kc->private_value >> 24) & 0xff;
 	int left, right;
-	unsigned long flags;
 	
-	spin_lock_irqsave(&h->mixer_lock, flags);
+	spin_lock_irq(&h->mixer_lock);
 
 	left = (h->st.gain >> shift_left) & mask;
 	right = (h->st.gain >> shift_right) & mask;
@@ -725,7 +730,7 @@ snd_harmony_volume_get(snd_kcontrol_t *kc,
 	if (shift_left != shift_right)
 		ucontrol->value.integer.value[1] = right;
 
-	spin_unlock_irqrestore(&h->mixer_lock, flags);
+	spin_unlock_irq(&h->mixer_lock);
 
 	return 0;
 }  
@@ -741,9 +746,8 @@ snd_harmony_volume_put(snd_kcontrol_t *kc,
 	int invert = (kc->private_value >> 24) & 0xff;
 	int left, right;
 	int old_gain = h->st.gain;
-	unsigned long flags;
 	
-	spin_lock_irqsave(&h->mixer_lock, flags);
+	spin_lock_irq(&h->mixer_lock);
 
 	left = ucontrol->value.integer.value[0] & mask;
 	if (invert)
@@ -761,7 +765,7 @@ snd_harmony_volume_put(snd_kcontrol_t *kc,
 
 	snd_harmony_set_new_gain(h);
 
-	spin_unlock_irqrestore(&h->mixer_lock, flags);
+	spin_unlock_irq(&h->mixer_lock);
 	
 	return h->st.gain != old_gain;
 }
@@ -787,14 +791,13 @@ snd_harmony_captureroute_get(snd_kcontrol_t *kc,
 {
 	harmony_t *h = snd_kcontrol_chip(kc);
 	int value;
-	unsigned long flags;
 	
-	spin_lock_irqsave(&h->mixer_lock, flags);
+	spin_lock_irq(&h->mixer_lock);
 
 	value = (h->st.gain >> HARMONY_GAIN_IS_SHIFT) & 1;
 	ucontrol->value.enumerated.item[0] = value;
 
-	spin_unlock_irqrestore(&h->mixer_lock, flags);
+	spin_unlock_irq(&h->mixer_lock);
 
 	return 0;
 }  
@@ -806,9 +809,8 @@ snd_harmony_captureroute_put(snd_kcontrol_t *kc,
 	harmony_t *h = snd_kcontrol_chip(kc);
 	int value;
 	int old_gain = h->st.gain;
-	unsigned long flags;
 	
-	spin_lock_irqsave(&h->mixer_lock, flags);
+	spin_lock_irq(&h->mixer_lock);
 
 	value = ucontrol->value.enumerated.item[0] & 1;
 	h->st.gain &= ~HARMONY_GAIN_IS_MASK;
@@ -816,7 +818,7 @@ snd_harmony_captureroute_put(snd_kcontrol_t *kc,
 
 	snd_harmony_set_new_gain(h);
 
-	spin_unlock_irqrestore(&h->mixer_lock, flags);
+	spin_unlock_irq(&h->mixer_lock);
 	
 	return h->st.gain != old_gain;
 }
@@ -923,19 +925,14 @@ snd_harmony_create(snd_card_t *card,
 
 	*rchip = NULL;
 
-	h = kmalloc(sizeof(*h), GFP_KERNEL);
+	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (h == NULL)
 		return -ENOMEM;
-
-	memset(&h->st, 0, sizeof(h->st));
-	memset(&h->stats, 0, sizeof(h->stats));
-	memset(&h->pbuf, 0, sizeof(h->pbuf));
-	memset(&h->cbuf, 0, sizeof(h->cbuf));
 
 	h->hpa = padev->hpa.start;
 	h->card = card;
 	h->dev = padev;
-	h->irq = padev->irq;
+	h->irq = -1;
 	h->iobase = ioremap_nocache(padev->hpa.start, HARMONY_SIZE);
 	if (h->iobase == NULL) {
 		printk(KERN_ERR PFX "unable to remap hpa 0x%lx\n",
@@ -944,13 +941,14 @@ snd_harmony_create(snd_card_t *card,
 		goto free_and_ret;
 	}
 		
-	err = request_irq(h->irq, snd_harmony_interrupt, 0,
+	err = request_irq(padev->irq, snd_harmony_interrupt, 0,
 			  "harmony", h);
 	if (err) {
 		printk(KERN_ERR PFX "could not obtain interrupt %d",
-		       h->irq);
+		       padev->irq);
 		goto free_and_ret;
 	}
+	h->irq = padev->irq;
 
 	spin_lock_init(&h->mixer_lock);
 	spin_lock_init(&h->lock);
@@ -975,35 +973,24 @@ static int __devinit
 snd_harmony_probe(struct parisc_device *padev)
 {
 	int err;
-	static int dev;
 	snd_card_t *card;
 	harmony_t *h;
-	static int index = SNDRV_DEFAULT_IDX1;
-	static char *id = SNDRV_DEFAULT_STR1;
-
-	h = parisc_get_drvdata(padev);
-	if (h != NULL) {
-		return -ENODEV;
-	}
 
 	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
 	err = snd_harmony_create(card, padev, &h);
-	if (err < 0) {
+	if (err < 0)
 		goto free_and_ret;
-	}
 
 	err = snd_harmony_pcm_init(h);
-	if (err < 0) {
+	if (err < 0)
 		goto free_and_ret;
-	}
 
 	err = snd_harmony_mixer_init(h);
-	if (err < 0) {
+	if (err < 0)
 		goto free_and_ret;
-	}
 
 	strcpy(card->driver, "harmony");
 	strcpy(card->shortname, "Harmony");
@@ -1011,13 +998,10 @@ snd_harmony_probe(struct parisc_device *padev)
 		card->shortname, h->hpa, h->irq);
 
 	err = snd_card_register(card);
-	if (err < 0) {
+	if (err < 0)
 		goto free_and_ret;
-	}
 
-	dev++;
-	parisc_set_drvdata(padev, h);
-
+	parisc_set_drvdata(padev, card);
 	return 0;
 
 free_and_ret:
@@ -1028,8 +1012,8 @@ free_and_ret:
 static int __devexit
 snd_harmony_remove(struct parisc_device *padev)
 {
-	harmony_t *h = parisc_get_drvdata(padev);
-	snd_card_free(h->card);
+	snd_card_free(parisc_get_drvdata(padev));
+	parisc_set_drvdata(padev, NULL);
 	return 0;
 }
 
@@ -1043,28 +1027,13 @@ static struct parisc_driver snd_harmony_driver = {
 static int __init 
 alsa_harmony_init(void)
 {
-	int err;
-
-	err = register_parisc_driver(&snd_harmony_driver);
-	if (err < 0) {
-		printk(KERN_ERR PFX "device not found\n");
-		return err;
-	}
-
-	return 0;
+	return register_parisc_driver(&snd_harmony_driver);
 }
 
 static void __exit
 alsa_harmony_fini(void)
 {
-	int err;
-
-	err = unregister_parisc_driver(&snd_harmony_driver);
-	if (err < 0) {
-		printk(KERN_ERR PFX "failed to unregister\n");
-	}
-	
-	return;
+	return unregister_parisc_driver(&snd_harmony_driver);
 }
 
 MODULE_LICENSE("GPL");
