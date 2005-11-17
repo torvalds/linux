@@ -83,9 +83,9 @@ static void vxpocket_release(dev_link_t *link)
 /*
  * destructor, called from snd_card_free_in_thread()
  */
-static int snd_vxpocket_dev_free(snd_device_t *device)
+static int snd_vxpocket_dev_free(struct snd_device *device)
 {
-	vx_core_t *chip = device->device_data;
+	struct vx_core *chip = device->device_data;
 
 	snd_vx_free_firmware(chip);
 	kfree(chip);
@@ -142,19 +142,19 @@ static struct snd_vx_hardware vxp440_hw = {
 /*
  * create vxpocket instance
  */
-static struct snd_vxpocket *snd_vxpocket_new(snd_card_t *card, int ibl)
+static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl)
 {
 	client_reg_t client_reg;	/* Register with cardmgr */
 	dev_link_t *link;		/* Info for cardmgr */
-	vx_core_t *chip;
+	struct vx_core *chip;
 	struct snd_vxpocket *vxp;
 	int ret;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_vxpocket_dev_free,
 	};
 
 	chip = snd_vx_create(card, &vxpocket_hw, &snd_vxpocket_ops,
-			     sizeof(struct snd_vxpocket) - sizeof(vx_core_t));
+			     sizeof(struct snd_vxpocket) - sizeof(struct vx_core));
 	if (! chip)
 		return NULL;
 
@@ -218,10 +218,10 @@ static struct snd_vxpocket *snd_vxpocket_new(snd_card_t *card, int ibl)
  *
  * returns 0 if successful, or a negative error code.
  */
-static int snd_vxpocket_assign_resources(vx_core_t *chip, int port, int irq)
+static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq)
 {
 	int err;
-	snd_card_t *card = chip->card;
+	struct snd_card *card = chip->card;
 	struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
 
 	snd_printdd(KERN_DEBUG "vxpocket assign resources: port = 0x%x, irq = %d\n", port, irq);
@@ -250,7 +250,7 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 static void vxpocket_config(dev_link_t *link)
 {
 	client_handle_t handle = link->handle;
-	vx_core_t *chip = link->priv;
+	struct vx_core *chip = link->priv;
 	struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
 	tuple_t tuple;
 	cisparse_t *parse;
@@ -324,7 +324,7 @@ failed:
 static int vxpocket_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	vx_core_t *chip = link->priv;
+	struct vx_core *chip = link->priv;
 
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
@@ -379,7 +379,7 @@ static int vxpocket_event(event_t event, int priority, event_callback_args_t *ar
  */
 static dev_link_t *vxpocket_attach(void)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_vxpocket *vxp;
 	int i;
 
@@ -421,14 +421,14 @@ static dev_link_t *vxpocket_attach(void)
 static void vxpocket_detach(dev_link_t *link)
 {
 	struct snd_vxpocket *vxp;
-	vx_core_t *chip;
+	struct vx_core *chip;
 	dev_link_t **linkp;
 
 	if (! link)
 		return;
 
 	vxp = link->priv;
-	chip = (vx_core_t *)vxp;
+	chip = (struct vx_core *)vxp;
 	card_alloc &= ~(1 << vxp->index);
 
 	/* Remove the interface data from the linked list */

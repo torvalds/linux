@@ -108,7 +108,7 @@ static struct snd_vx_hardware vx222_mic_hw = {
 
 /*
  */
-static int snd_vx222_free(vx_core_t *chip)
+static int snd_vx222_free(struct vx_core *chip)
 {
 	struct snd_vx222 *vx = (struct snd_vx222 *)chip;
 
@@ -121,21 +121,21 @@ static int snd_vx222_free(vx_core_t *chip)
 	return 0;
 }
 
-static int snd_vx222_dev_free(snd_device_t *device)
+static int snd_vx222_dev_free(struct snd_device *device)
 {
-	vx_core_t *chip = device->device_data;
+	struct vx_core *chip = device->device_data;
 	return snd_vx222_free(chip);
 }
 
 
-static int __devinit snd_vx222_create(snd_card_t *card, struct pci_dev *pci,
+static int __devinit snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 				      struct snd_vx_hardware *hw,
 				      struct snd_vx222 **rchip)
 {
-	vx_core_t *chip;
+	struct vx_core *chip;
 	struct snd_vx222 *vx;
 	int i, err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_vx222_dev_free,
 	};
 	struct snd_vx_ops *vx_ops;
@@ -147,7 +147,7 @@ static int __devinit snd_vx222_create(snd_card_t *card, struct pci_dev *pci,
 
 	vx_ops = hw->type == VX_TYPE_BOARD ? &vx222_old_ops : &vx222_ops;
 	chip = snd_vx_create(card, hw, vx_ops,
-			     sizeof(struct snd_vx222) - sizeof(vx_core_t));
+			     sizeof(struct snd_vx222) - sizeof(struct vx_core));
 	if (! chip) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -186,7 +186,7 @@ static int __devinit snd_vx222_probe(struct pci_dev *pci,
 				     const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_vx_hardware *hw;
 	struct snd_vx222 *vx;
 	int err;
