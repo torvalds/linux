@@ -59,11 +59,11 @@ struct snd_sb8 {
 	struct resource *fm_res;	/* used to block FM i/o region for legacy cards */
 };
 
-static snd_card_t *snd_sb8_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_sb8_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 static irqreturn_t snd_sb8_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	sb_t *chip = dev_id;
+	struct snd_sb *chip = dev_id;
 
 	if (chip->open & SB_OPEN_PCM) {
 		return snd_sb8dsp_interrupt(chip);
@@ -72,7 +72,7 @@ static irqreturn_t snd_sb8_interrupt(int irq, void *dev_id, struct pt_regs *regs
 	}
 }
 
-static void snd_sb8_free(snd_card_t *card)
+static void snd_sb8_free(struct snd_card *card)
 {
 	struct snd_sb8 *acard = (struct snd_sb8 *)card->private_data;
 
@@ -83,10 +83,10 @@ static void snd_sb8_free(snd_card_t *card)
 
 static int __init snd_sb8_probe(int dev)
 {
-	sb_t *chip;
-	snd_card_t *card;
+	struct snd_sb *chip;
+	struct snd_card *card;
 	struct snd_sb8 *acard;
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 	int err;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,

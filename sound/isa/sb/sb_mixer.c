@@ -29,7 +29,7 @@
 
 #undef IO_DEBUG
 
-void snd_sbmixer_write(sb_t *chip, unsigned char reg, unsigned char data)
+void snd_sbmixer_write(struct snd_sb *chip, unsigned char reg, unsigned char data)
 {
 	outb(reg, SBP(chip, MIXER_ADDR));
 	udelay(10);
@@ -40,7 +40,7 @@ void snd_sbmixer_write(sb_t *chip, unsigned char reg, unsigned char data)
 #endif
 }
 
-unsigned char snd_sbmixer_read(sb_t *chip, unsigned char reg)
+unsigned char snd_sbmixer_read(struct snd_sb *chip, unsigned char reg)
 {
 	unsigned char result;
 
@@ -58,7 +58,7 @@ unsigned char snd_sbmixer_read(sb_t *chip, unsigned char reg)
  * Single channel mixer element
  */
 
-static int snd_sbmixer_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sbmixer_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 
@@ -69,9 +69,9 @@ static int snd_sbmixer_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
 
-static int snd_sbmixer_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sbmixer_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 16) & 0xff;
@@ -85,9 +85,9 @@ static int snd_sbmixer_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_sbmixer_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sbmixer_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 16) & 0x07;
@@ -110,7 +110,7 @@ static int snd_sbmixer_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
  * Double channel mixer element
  */
 
-static int snd_sbmixer_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sbmixer_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 
@@ -121,9 +121,9 @@ static int snd_sbmixer_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
 
-static int snd_sbmixer_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sbmixer_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
@@ -141,9 +141,9 @@ static int snd_sbmixer_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_sbmixer_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sbmixer_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
@@ -181,7 +181,7 @@ static int snd_sbmixer_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
  * DT-019x / ALS-007 capture/input switch
  */
 
-static int snd_dt019x_input_sw_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_dt019x_input_sw_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[5] = {
 		"CD", "Mic", "Line", "Synth", "Master"
@@ -196,9 +196,9 @@ static int snd_dt019x_input_sw_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_
 	return 0;
 }
 
-static int snd_dt019x_input_sw_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_dt019x_input_sw_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	unsigned char oval;
 	
@@ -232,9 +232,9 @@ static int snd_dt019x_input_sw_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 	return 0;
 }
 
-static int snd_dt019x_input_sw_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_dt019x_input_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int change;
 	unsigned char nval, oval;
@@ -273,7 +273,7 @@ static int snd_dt019x_input_sw_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
  * SBPRO input multiplexer
  */
 
-static int snd_sb8mixer_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sb8mixer_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[3] = {
 		"Mic", "CD", "Line"
@@ -289,9 +289,9 @@ static int snd_sb8mixer_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 }
 
 
-static int snd_sb8mixer_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sb8mixer_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	unsigned char oval;
 	
@@ -312,9 +312,9 @@ static int snd_sb8mixer_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int snd_sb8mixer_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sb8mixer_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int change;
 	unsigned char nval, oval;
@@ -346,7 +346,7 @@ static int snd_sb8mixer_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
  * SB16 input switch
  */
 
-static int snd_sb16mixer_info_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_sb16mixer_info_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 4;
@@ -355,9 +355,9 @@ static int snd_sb16mixer_info_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_i
 	return 0;
 }
 
-static int snd_sb16mixer_get_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sb16mixer_get_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg1 = kcontrol->private_value & 0xff;
 	int reg2 = (kcontrol->private_value >> 8) & 0xff;
@@ -376,9 +376,9 @@ static int snd_sb16mixer_get_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_va
 	return 0;
 }                                                                                                                   
 
-static int snd_sb16mixer_put_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_sb16mixer_put_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	sb_t *sb = snd_kcontrol_chip(kcontrol);
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg1 = kcontrol->private_value & 0xff;
 	int reg2 = (kcontrol->private_value >> 8) & 0xff;
@@ -410,9 +410,9 @@ static int snd_sb16mixer_put_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_va
  */
 /*
  */
-int snd_sbmixer_add_ctl(sb_t *chip, const char *name, int index, int type, unsigned long value)
+int snd_sbmixer_add_ctl(struct snd_sb *chip, const char *name, int index, int type, unsigned long value)
 {
-	static snd_kcontrol_new_t newctls[] = {
+	static struct snd_kcontrol_new newctls[] = {
 		[SB_MIX_SINGLE] = {
 			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 			.info = snd_sbmixer_info_single,
@@ -444,7 +444,7 @@ int snd_sbmixer_add_ctl(sb_t *chip, const char *name, int index, int type, unsig
 			.put = snd_dt019x_input_sw_put,
 		},
 	};
-	snd_kcontrol_t *ctl;
+	struct snd_kcontrol *ctl;
 	int err;
 
 	ctl = snd_ctl_new1(&newctls[type], chip);
@@ -758,7 +758,7 @@ static unsigned char snd_als4000_init_values[][2] = {
 
 /*
  */
-static int snd_sbmixer_init(sb_t *chip,
+static int snd_sbmixer_init(struct snd_sb *chip,
 			    struct sbmix_elem **controls,
 			    int controls_count,
 			    unsigned char map[][2],
@@ -766,7 +766,7 @@ static int snd_sbmixer_init(sb_t *chip,
 			    char *name)
 {
 	unsigned long flags;
-	snd_card_t *card = chip->card;
+	struct snd_card *card = chip->card;
 	int idx, err;
 
 	/* mixer reset */
@@ -790,9 +790,9 @@ static int snd_sbmixer_init(sb_t *chip,
 	return 0;
 }
 
-int snd_sbmixer_new(sb_t *chip)
+int snd_sbmixer_new(struct snd_sb *chip)
 {
-	snd_card_t * card;
+	struct snd_card *card;
 	int err;
 
 	snd_assert(chip != NULL && chip->card != NULL, return -EINVAL);

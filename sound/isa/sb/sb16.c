@@ -138,7 +138,7 @@ struct snd_card_sb16 {
 #endif
 };
 
-static snd_card_t *snd_sb16_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_sb16_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #ifdef CONFIG_PNP
 
@@ -339,7 +339,7 @@ __wt_error:
 
 #endif /* CONFIG_PNP */
 
-static void snd_sb16_free(snd_card_t *card)
+static void snd_sb16_free(struct snd_card *card)
 {
 	struct snd_card_sb16 *acard = (struct snd_card_sb16 *)card->private_data;
         
@@ -362,13 +362,13 @@ static int __init snd_sb16_probe(int dev,
 	static int possible_dmas8[] = {1, 3, 0, -1};
 	static int possible_dmas16[] = {5, 6, 7, -1};
 	int xirq, xdma8, xdma16;
-	sb_t *chip;
-	snd_card_t *card;
+	struct snd_sb *chip;
+	struct snd_card *card;
 	struct snd_card_sb16 *acard;
-	opl3_t *opl3;
-	snd_hwdep_t *synth = NULL;
+	struct snd_opl3 *opl3;
+	struct snd_hwdep *synth = NULL;
 #ifdef CONFIG_SND_SB16_CSP
-	snd_hwdep_t *xcsp = NULL;
+	struct snd_hwdep *xcsp = NULL;
 #endif
 	unsigned long flags;
 	int err;
@@ -583,7 +583,7 @@ static int __devinit snd_sb16_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_sb16_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
+	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
 
 	snd_card_disconnect(card);
 	snd_card_free_in_thread(card);

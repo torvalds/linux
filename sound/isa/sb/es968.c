@@ -72,7 +72,7 @@ MODULE_DEVICE_TABLE(pnp_card, snd_es968_pnpids);
 static irqreturn_t snd_card_es968_interrupt(int irq, void *dev_id,
 					    struct pt_regs *regs)
 {
-	sb_t *chip = dev_id;
+	struct snd_sb *chip = dev_id;
 
 	if (chip->open & SB_OPEN_PCM) {
 		return snd_sb8dsp_interrupt(chip);
@@ -128,8 +128,8 @@ static int __init snd_card_es968_probe(int dev,
 					const struct pnp_card_device_id *pid)
 {
 	int error;
-	sb_t *chip;
-	snd_card_t *card;
+	struct snd_sb *chip;
+	struct snd_card *card;
 	struct snd_card_es968 *acard;
 
 	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
@@ -200,7 +200,7 @@ static int __devinit snd_es968_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_es968_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
+	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
 
 	snd_card_disconnect(card);
 	snd_card_free_in_thread(card);
