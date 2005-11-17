@@ -149,3 +149,13 @@ Files:	drivers/md/md.c
 Why:	Not reliable by design - can fail when most needed.
 	Alternatives exist
 Who:	NeilBrown <neilb@suse.de>
+
+---------------------------
+
+What:	au1x00_uart driver
+When:	January 2006
+Why:	The 8250 serial driver now has the ability to deal with the differences
+	between the standard 8250 family of UARTs and their slightly strange
+	brother on Alchemy SOCs.  The loss of features is not considered an
+	issue.
+Who:	Ralf Baechle <ralf@linux-mips.org>
