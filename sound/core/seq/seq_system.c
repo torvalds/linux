@@ -66,12 +66,12 @@ static int announce_port = -1;
 
 
 /* fill standard header data, source port & channel are filled in */
-static int setheader(snd_seq_event_t * ev, int client, int port)
+static int setheader(struct snd_seq_event * ev, int client, int port)
 {
 	if (announce_port < 0)
 		return -ENODEV;
 
-	memset(ev, 0, sizeof(snd_seq_event_t));
+	memset(ev, 0, sizeof(struct snd_seq_event));
 
 	ev->flags &= ~SNDRV_SEQ_EVENT_LENGTH_MASK;
 	ev->flags |= SNDRV_SEQ_EVENT_LENGTH_FIXED;
@@ -92,7 +92,7 @@ static int setheader(snd_seq_event_t * ev, int client, int port)
 /* entry points for broadcasting system events */
 void snd_seq_system_broadcast(int client, int port, int type)
 {
-	snd_seq_event_t ev;
+	struct snd_seq_event ev;
 	
 	if (setheader(&ev, client, port) < 0)
 		return;
@@ -101,7 +101,7 @@ void snd_seq_system_broadcast(int client, int port, int type)
 }
 
 /* entry points for broadcasting system events */
-int snd_seq_system_notify(int client, int port, snd_seq_event_t *ev)
+int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev)
 {
 	ev->flags = SNDRV_SEQ_EVENT_LENGTH_FIXED;
 	ev->source.client = sysclient;
@@ -112,7 +112,7 @@ int snd_seq_system_notify(int client, int port, snd_seq_event_t *ev)
 }
 
 /* call-back handler for timer events */
-static int event_input_timer(snd_seq_event_t * ev, int direct, void *private_data, int atomic, int hop)
+static int event_input_timer(struct snd_seq_event * ev, int direct, void *private_data, int atomic, int hop)
 {
 	return snd_seq_control_queue(ev, atomic, hop);
 }
@@ -121,10 +121,10 @@ static int event_input_timer(snd_seq_event_t * ev, int direct, void *private_dat
 int __init snd_seq_system_client_init(void)
 {
 
-	snd_seq_client_callback_t callbacks;
-	snd_seq_port_callback_t pcallbacks;
-	snd_seq_client_info_t *inf;
-	snd_seq_port_info_t *port;
+	struct snd_seq_client_callback callbacks;
+	struct snd_seq_port_callback pcallbacks;
+	struct snd_seq_client_info *inf;
+	struct snd_seq_port_info *port;
 
 	inf = kzalloc(sizeof(*inf), GFP_KERNEL);
 	port = kzalloc(sizeof(*port), GFP_KERNEL);

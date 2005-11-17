@@ -28,15 +28,16 @@
 #include "seq_timer.h"
 
 
-static snd_info_entry_t *queues_entry;
-static snd_info_entry_t *clients_entry;
-static snd_info_entry_t *timer_entry;
+static struct snd_info_entry *queues_entry;
+static struct snd_info_entry *clients_entry;
+static struct snd_info_entry *timer_entry;
 
 
-static snd_info_entry_t * __init
-create_info_entry(char *name, int size, void (*read)(snd_info_entry_t *, snd_info_buffer_t *))
+static struct snd_info_entry * __init
+create_info_entry(char *name, int size, void (*read)(struct snd_info_entry *,
+						     struct snd_info_buffer *))
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, name, snd_seq_root);
 	if (entry == NULL)

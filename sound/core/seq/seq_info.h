@@ -24,9 +24,9 @@
 #include <sound/info.h>
 #include <sound/seq_kernel.h>
 
-void snd_seq_info_clients_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer);
-void snd_seq_info_timer_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer);
-void snd_seq_info_queues_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer);
+void snd_seq_info_clients_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer);
+void snd_seq_info_timer_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer);
+void snd_seq_info_queues_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer);
 
 
 int snd_seq_info_init( void );
