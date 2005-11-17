@@ -1481,7 +1481,7 @@ the proper value with this option.
 
 The following strings are accepted:
     - default	Don't override the default setting
-    - disable	Disable the quirk
+    - none	Disable the quirk
     - hp_only	Bind Master and Headphone controls as a single control
     - swap_hp	Swap headphone and master controls
     - swap_surround  Swap master and surround controls
