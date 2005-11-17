@@ -63,16 +63,14 @@ MODULE_SUPPORTED_DEVICE("{{AMD,Au1000 AC'97}}");
 #define READ_WAIT 2
 #define RW_DONE 3
 
-typedef struct au1000_period au1000_period_t;
 struct au1000_period
 {
 	u32 start;
 	u32 relative_end;	/*realtive to start of buffer*/
-	au1000_period_t * next;
+	struct au1000_period * next;
 };
 
 /*Au1000 AC97 Port Control Reisters*/
-typedef struct au1000_ac97_reg au1000_ac97_reg_t;
 struct au1000_ac97_reg {
 	u32 volatile config;
 	u32 volatile status;
@@ -81,31 +79,30 @@ struct au1000_ac97_reg {
 	u32 volatile cntrl;
 };
 
-typedef struct audio_stream audio_stream_t;
 struct audio_stream {
-	snd_pcm_substream_t * substream;
+	struct snd_pcm_substream *substream;
 	int dma;
 	spinlock_t dma_lock;
-	au1000_period_t * buffer;
+	struct au1000_period * buffer;
 	unsigned int period_size;
 	unsigned int periods;
 };
 
-typedef struct snd_card_au1000 {
-	snd_card_t *card;
-	au1000_ac97_reg_t volatile *ac97_ioport;
+struct snd_au1000 {
+	struct snd_card *card;
+	struct au1000_ac97_reg volatile *ac97_ioport;
 
 	struct resource *ac97_res_port;
 	spinlock_t ac97_lock;
-	ac97_t *ac97;
+	struct snd_ac97 *ac97;
 
-	snd_pcm_t *pcm;
-	audio_stream_t *stream[2];	/* playback & capture */
-} au1000_t;
+	struct snd_pcm *pcm;
+	struct audio_stream *stream[2];	/* playback & capture */
+};
 
 /*--------------------------- Local Functions --------------------------------*/
 static void
-au1000_set_ac97_xmit_slots(au1000_t *au1000, long xmit_slots)
+au1000_set_ac97_xmit_slots(struct snd_au1000 *au1000, long xmit_slots)
 {
 	u32 volatile ac97_config;
 
@@ -118,7 +115,7 @@ au1000_set_ac97_xmit_slots(au1000_t *au1000, long xmit_slots)
 }
 
 static void
-au1000_set_ac97_recv_slots(au1000_t *au1000, long recv_slots)
+au1000_set_ac97_recv_slots(struct snd_au1000 *au1000, long recv_slots)
 {
 	u32 volatile ac97_config;
 
@@ -132,10 +129,10 @@ au1000_set_ac97_recv_slots(au1000_t *au1000, long recv_slots)
 
 
 static void
-au1000_release_dma_link(audio_stream_t *stream)
+au1000_release_dma_link(struct audio_stream *stream)
 {
-	au1000_period_t * pointer;
-	au1000_period_t * pointer_next;
+	struct au1000_period * pointer;
+	struct au1000_period * pointer_next;
 
 	stream->period_size = 0;
 	stream->periods = 0;
@@ -151,11 +148,11 @@ au1000_release_dma_link(audio_stream_t *stream)
 }
 
 static int
-au1000_setup_dma_link(audio_stream_t *stream, unsigned int period_bytes,
+au1000_setup_dma_link(struct audio_stream *stream, unsigned int period_bytes,
 		      unsigned int periods)
 {
-	snd_pcm_substream_t *substream = stream->substream;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_substream *substream = stream->substream;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long dma_start;
 	int i;
 
@@ -170,7 +167,7 @@ au1000_setup_dma_link(audio_stream_t *stream, unsigned int period_bytes,
 	stream->period_size = period_bytes;
 	stream->periods = periods;
 
-	stream->buffer = kmalloc(sizeof(au1000_period_t), GFP_KERNEL);
+	stream->buffer = kmalloc(sizeof(struct au1000_period), GFP_KERNEL);
 	if (! stream->buffer)
 		return -ENOMEM;
 	pointer = stream->buffer;
@@ -191,14 +188,14 @@ au1000_setup_dma_link(audio_stream_t *stream, unsigned int period_bytes,
 }
 
 static void
-au1000_dma_stop(audio_stream_t *stream)
+au1000_dma_stop(struct audio_stream *stream)
 {
 	snd_assert(stream->buffer, return);
 	disable_dma(stream->dma);
 }
 
 static void
-au1000_dma_start(audio_stream_t *stream)
+au1000_dma_start(struct audio_stream *stream)
 {
 	snd_assert(stream->buffer, return);
 
@@ -223,8 +220,8 @@ au1000_dma_start(audio_stream_t *stream)
 static irqreturn_t
 au1000_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	audio_stream_t *stream = (audio_stream_t *) dev_id;
-	snd_pcm_substream_t *substream = stream->substream;
+	struct audio_stream *stream = (struct audio_stream *) dev_id;
+	struct snd_pcm_substream *substream = stream->substream;
 
 	spin_lock(&stream->dma_lock);
 	switch (get_dma_buffer_done(stream->dma)) {
@@ -258,13 +255,13 @@ au1000_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 /*-------------------------- PCM Audio Streams -------------------------------*/
 
 static unsigned int rates[] = {8000, 11025, 16000, 22050};
-static snd_pcm_hw_constraint_list_t hw_constraints_rates = {
+static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count	=  sizeof(rates) / sizeof(rates[0]),
 	.list	= rates,
 	.mask	= 0,
 };
 
-static snd_pcm_hardware_t snd_au1000_hw =
+static struct snd_pcm_hardware snd_au1000_hw =
 {
 	.info			= (SNDRV_PCM_INFO_INTERLEAVED | \
 				SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
@@ -284,9 +281,9 @@ static snd_pcm_hardware_t snd_au1000_hw =
 };
 
 static int
-snd_au1000_playback_open(snd_pcm_substream_t * substream)
+snd_au1000_playback_open(struct snd_pcm_substream *substream)
 {
-	au1000_t *au1000 = substream->pcm->private_data;
+	struct snd_au1000 *au1000 = substream->pcm->private_data;
 
 	au1000->stream[PLAYBACK]->substream = substream;
 	au1000->stream[PLAYBACK]->buffer = NULL;
@@ -297,9 +294,9 @@ snd_au1000_playback_open(snd_pcm_substream_t * substream)
 }
 
 static int
-snd_au1000_capture_open(snd_pcm_substream_t * substream)
+snd_au1000_capture_open(struct snd_pcm_substream *substream)
 {
-	au1000_t *au1000 = substream->pcm->private_data;
+	struct snd_au1000 *au1000 = substream->pcm->private_data;
 
 	au1000->stream[CAPTURE]->substream = substream;
 	au1000->stream[CAPTURE]->buffer = NULL;
@@ -307,32 +304,31 @@ snd_au1000_capture_open(snd_pcm_substream_t * substream)
 	substream->runtime->hw = snd_au1000_hw;
 	return (snd_pcm_hw_constraint_list(substream->runtime, 0,
 		SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates) < 0);
-
 }
 
 static int
-snd_au1000_playback_close(snd_pcm_substream_t * substream)
+snd_au1000_playback_close(struct snd_pcm_substream *substream)
 {
-	au1000_t *au1000 = substream->pcm->private_data;
+	struct snd_au1000 *au1000 = substream->pcm->private_data;
 
 	au1000->stream[PLAYBACK]->substream = NULL;
 	return 0;
 }
 
 static int
-snd_au1000_capture_close(snd_pcm_substream_t * substream)
+snd_au1000_capture_close(struct snd_pcm_substream *substream)
 {
-	au1000_t *au1000 = substream->pcm->private_data;
+	struct snd_au1000 *au1000 = substream->pcm->private_data;
 
 	au1000->stream[CAPTURE]->substream = NULL;
 	return 0;
 }
 
 static int
-snd_au1000_hw_params(snd_pcm_substream_t * substream,
-					snd_pcm_hw_params_t * hw_params)
+snd_au1000_hw_params(struct snd_pcm_substream *substream,
+					struct snd_pcm_hw_params *hw_params)
 {
-	audio_stream_t *stream = substream->private_data;
+	struct audio_stream *stream = substream->private_data;
 	int err;
 
 	err = snd_pcm_lib_malloc_pages(substream,
@@ -345,18 +341,18 @@ snd_au1000_hw_params(snd_pcm_substream_t * substream,
 }
 
 static int
-snd_au1000_hw_free(snd_pcm_substream_t * substream)
+snd_au1000_hw_free(struct snd_pcm_substream *substream)
 {
-	audio_stream_t *stream = substream->private_data;
+	struct audio_stream *stream = substream->private_data;
 	au1000_release_dma_link(stream);
 	return snd_pcm_lib_free_pages(substream);
 }
 
 static int
-snd_au1000_playback_prepare(snd_pcm_substream_t * substream)
+snd_au1000_playback_prepare(struct snd_pcm_substream *substream)
 {
-	au1000_t *au1000 = substream->pcm->private_data;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_au1000 *au1000 = substream->pcm->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	if (runtime->channels == 1)
 		au1000_set_ac97_xmit_slots(au1000, AC97_SLOT_4);
@@ -367,10 +363,10 @@ snd_au1000_playback_prepare(snd_pcm_substream_t * substream)
 }
 
 static int
-snd_au1000_capture_prepare(snd_pcm_substream_t * substream)
+snd_au1000_capture_prepare(struct snd_pcm_substream *substream)
 {
-	au1000_t *au1000 = substream->pcm->private_data;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_au1000 *au1000 = substream->pcm->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	if (runtime->channels == 1)
 		au1000_set_ac97_recv_slots(au1000, AC97_SLOT_4);
@@ -381,9 +377,9 @@ snd_au1000_capture_prepare(snd_pcm_substream_t * substream)
 }
 
 static int
-snd_au1000_trigger(snd_pcm_substream_t * substream, int cmd)
+snd_au1000_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	audio_stream_t *stream = substream->private_data;
+	struct audio_stream *stream = substream->private_data;
 	int err = 0;
 
 	spin_lock(&stream->dma_lock);
@@ -403,10 +399,10 @@ snd_au1000_trigger(snd_pcm_substream_t * substream, int cmd)
 }
 
 static snd_pcm_uframes_t
-snd_au1000_pointer(snd_pcm_substream_t * substream)
+snd_au1000_pointer(struct snd_pcm_substream *substream)
 {
-	audio_stream_t *stream = substream->private_data;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct audio_stream *stream = substream->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	long location;
 
 	spin_lock(&stream->dma_lock);
@@ -418,7 +414,7 @@ snd_au1000_pointer(snd_pcm_substream_t * substream)
 	return bytes_to_frames(runtime,location);
 }
 
-static snd_pcm_ops_t snd_card_au1000_playback_ops = {
+static struct snd_pcm_ops snd_card_au1000_playback_ops = {
 	.open			= snd_au1000_playback_open,
 	.close			= snd_au1000_playback_close,
 	.ioctl			= snd_pcm_lib_ioctl,
@@ -429,7 +425,7 @@ static snd_pcm_ops_t snd_card_au1000_playback_ops = {
 	.pointer		= snd_au1000_pointer,
 };
 
-static snd_pcm_ops_t snd_card_au1000_capture_ops = {
+static struct snd_pcm_ops snd_card_au1000_capture_ops = {
 	.open			= snd_au1000_capture_open,
 	.close			= snd_au1000_capture_close,
 	.ioctl			= snd_pcm_lib_ioctl,
@@ -441,9 +437,9 @@ static snd_pcm_ops_t snd_card_au1000_capture_ops = {
 };
 
 static int __devinit
-snd_au1000_pcm_new(void)
+snd_au1000_pcm_new(struct snd_au1000 *au1000)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 	unsigned long flags;
 
@@ -492,9 +488,9 @@ snd_au1000_pcm_new(void)
 /*-------------------------- AC97 CODEC Control ------------------------------*/
 
 static unsigned short
-snd_au1000_ac97_read(ac97_t *ac97, unsigned short reg)
+snd_au1000_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
-	au1000_t *au1000 = ac97->private_data;
+	struct snd_au1000 *au1000 = ac97->private_data;
 	u32 volatile cmd;
 	u16 volatile data;
 	int             i;
@@ -530,9 +526,9 @@ get the interupt driven case to work efficiently */
 
 
 static void
-snd_au1000_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short val)
+snd_au1000_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short val)
 {
-	au1000_t *au1000 = ac97->private_data;
+	struct snd_au1000 *au1000 = ac97->private_data;
 	u32 cmd;
 	int i;
 
@@ -553,18 +549,22 @@ get the interupt driven case to work efficiently */
 }
 
 static int __devinit
-snd_au1000_ac97_new(au1000_t *au1000)
+snd_au1000_ac97_new(struct snd_au1000 *au1000)
 {
 	int err;
-	ac97_bus_t bus, *pbus;
-	ac97_t ac97;
+	struct snd_ac97_bus *pbus;
+	struct snd_ac97_template ac97;
+ 	static struct snd_ac97_bus_ops ops = {
+		.write = snd_au1000_ac97_write,
+		.read = snd_au1000_ac97_read,
+	};
 
 	if ((au1000->ac97_res_port = request_region(AC97C_CONFIG,
-	       		sizeof(au1000_ac97_reg_t), "Au1x00 AC97")) == NULL) {
+	       		sizeof(struct au1000_ac97_reg), "Au1x00 AC97")) == NULL) {
 		snd_printk(KERN_ERR "ALSA AC97: can't grap AC97 port\n");
 		return -EBUSY;
 	}
-	au1000->ac97_ioport = (au1000_ac97_reg_t *) au1000->ac97_res_port->start;
+	au1000->ac97_ioport = (struct au1000_ac97_reg *) au1000->ac97_res_port->start;
 
 	spin_lock_init(&au1000->ac97_lock);
 
@@ -599,9 +599,9 @@ snd_au1000_ac97_new(au1000_t *au1000)
 /*------------------------------ Setup / Destroy ----------------------------*/
 
 void
-snd_au1000_free(snd_card_t *card)
+snd_au1000_free(struct snd_card *card)
 {
-	au1000_t *au1000 = card->private_data;
+	struct snd_au1000 *au1000 = card->private_data;
 
 	if (au1000->ac97_res_port) {
 		/* put internal AC97 block into reset */
@@ -621,16 +621,16 @@ snd_au1000_free(snd_card_t *card)
 }
 
 
-static snd_card_t *au1000_card;
+static struct snd_card *au1000_card;
 
 static int __init
 au1000_init(void)
 {
 	int err;
-	snd_card_t *card;
-	au1000_t *au1000;
+	struct snd_card *card;
+	struct snd_au1000 *au1000;
 
-	card = snd_card_new(-1, "AC97", THIS_MODULE, sizeof(au1000_t));
+	card = snd_card_new(-1, "AC97", THIS_MODULE, sizeof(struct snd_au1000));
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -641,8 +641,8 @@ au1000_init(void)
 	au1000->stream[PLAYBACK]->dma = -1;
 	au1000->stream[CAPTURE]->dma = -1;
  	au1000->ac97_res_port = NULL;
-	au1000->stream[PLAYBACK] = kmalloc(sizeof(audio_stream_t), GFP_KERNEL);
-	au1000->stream[CAPTURE] = kmalloc(sizeof(audio_stream_t), GFP_KERNEL);
+	au1000->stream[PLAYBACK] = kmalloc(sizeof(struct audio_stream), GFP_KERNEL);
+	au1000->stream[CAPTURE] = kmalloc(sizeof(struct audio_stream), GFP_KERNEL);
 	if (au1000->stream[PLAYBACK] == NULL ||
 	    au1000->stream[CAPTURE] == NULL) {
 		snd_card_free(card);
