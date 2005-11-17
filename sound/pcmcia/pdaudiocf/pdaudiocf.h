@@ -134,8 +134,8 @@ struct snd_pdacf *snd_pdacf_create(struct snd_card *card);
 int snd_pdacf_ak4117_create(struct snd_pdacf *pdacf);
 void snd_pdacf_powerdown(struct snd_pdacf *chip);
 #ifdef CONFIG_PM
-int snd_pdacf_suspend(struct snd_card *card, pm_message_t state);
-int snd_pdacf_resume(struct snd_card *card);
+int snd_pdacf_suspend(struct snd_pdacf *chip, pm_message_t state);
+int snd_pdacf_resume(struct snd_pdacf *chip);
 #endif
 int snd_pdacf_pcm_new(struct snd_pdacf *chip);
 irqreturn_t pdacf_interrupt(int irq, void *dev, struct pt_regs *regs);

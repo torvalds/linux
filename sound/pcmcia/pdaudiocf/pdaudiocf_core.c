@@ -255,11 +255,11 @@ void snd_pdacf_powerdown(struct snd_pdacf *chip)
 
 #ifdef CONFIG_PM
 
-int snd_pdacf_suspend(struct snd_card *card, pm_message_t state)
+int snd_pdacf_suspend(struct snd_pdacf *chip, pm_message_t state)
 {
-	struct snd_pdacf *chip = card->pm_private_data;
 	u16 val;
 	
+	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 	/* disable interrupts, but use direct write to preserve old register value in chip->regmap */
 	val = inw(chip->port + PDAUDIOCF_REG_IER);
@@ -275,9 +275,8 @@ static inline int check_signal(struct snd_pdacf *chip)
 	return (chip->ak4117->rcs0 & AK4117_UNLCK) == 0;
 }
 
-int snd_pdacf_resume(struct snd_card *card)
+int snd_pdacf_resume(struct snd_pdacf *chip)
 {
-	struct snd_pdacf *chip = card->pm_private_data;
 	int timeout = 40;
 
 	pdacf_reinit(chip, 1);
@@ -286,6 +285,7 @@ int snd_pdacf_resume(struct snd_card *card)
 	       (snd_ak4117_external_rate(chip->ak4117) <= 0 || !check_signal(chip)))
 		mdelay(1);
 	chip->chip_status &= ~PDAUDIOCF_STAT_IS_SUSPENDED;
+	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif
