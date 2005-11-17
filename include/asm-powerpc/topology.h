@@ -42,7 +42,7 @@ static inline int node_to_first_cpu(int node)
 	.cache_nice_tries	= 1,			\
 	.per_cpu_gain		= 100,			\
 	.busy_idx		= 3,			\
-	.idle_id		= 1,			\
+	.idle_idx		= 1,			\
 	.newidle_idx		= 2,			\
 	.wake_idx		= 1,			\
 	.flags			= SD_LOAD_BALANCE	\
