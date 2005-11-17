@@ -1041,7 +1041,7 @@ void spi_display_xfer_agreement(struct scsi_target *starget)
 			 tp->hold_mcs ? " HMCS" : "",
 			 tmp, tp->offset);
 	} else {
-		dev_info(&starget->dev, "%sasynchronous.\n",
+		dev_info(&starget->dev, "%sasynchronous\n",
 				tp->width ? "wide " : "");
 	}
 }
