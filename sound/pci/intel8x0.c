@@ -2396,11 +2396,13 @@ static int snd_intel8x0_free(struct intel8x0 *chip)
 /*
  * power management
  */
-static int intel8x0_suspend(struct snd_card *card, pm_message_t state)
+static int intel8x0_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct intel8x0 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct intel8x0 *chip = card->private_data;
 	int i;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for (i = 0; i < chip->pcm_devs; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	/* clear nocache */
@@ -2415,26 +2417,29 @@ static int intel8x0_suspend(struct snd_card *card, pm_message_t state)
 		}
 	}
 	for (i = 0; i < 3; i++)
-		if (chip->ac97[i])
-			snd_ac97_suspend(chip->ac97[i]);
+		snd_ac97_suspend(chip->ac97[i]);
 	if (chip->device_type == DEVICE_INTEL_ICH4)
 		chip->sdm_saved = igetbyte(chip, ICHREG(SDM));
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int intel8x0_resume(struct snd_card *card)
+static int intel8x0_resume(struct pci_dev *pci)
 {
-	struct intel8x0 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct intel8x0 *chip = card->private_data;
 	int i;
 
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
-	request_irq(chip->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
+	request_irq(pci->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ,
 		    card->shortname, chip);
+	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
 	snd_intel8x0_chip_init(chip, 1);
 
@@ -2453,8 +2458,7 @@ static int intel8x0_resume(struct snd_card *card)
 		fill_nocache(chip->bdbars.area, chip->bdbars.bytes, 1);
 
 	for (i = 0; i < 3; i++)
-		if (chip->ac97[i])
-			snd_ac97_resume(chip->ac97[i]);
+		snd_ac97_resume(chip->ac97[i]);
 
 	/* refill nocache */
 	if (chip->fix_nocache) {
@@ -2482,6 +2486,7 @@ static int intel8x0_resume(struct snd_card *card)
 		iputbyte(chip, port + ichdev->roff_sr, ICH_FIFOE | ICH_BCIS | ICH_LVBCI);
 	}
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2800,8 +2805,6 @@ static int __devinit snd_intel8x0_create(struct snd_card *card,
 		return err;
 	}
 
-	snd_card_set_pm_callback(card, intel8x0_suspend, intel8x0_resume, chip);
-
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_intel8x0_free(chip);
 		return err;
@@ -2889,6 +2892,7 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	if ((err = snd_intel8x0_mixer(chip, ac97_clock, ac97_quirk)) < 0) {
 		snd_card_free(card);
@@ -2927,7 +2931,10 @@ static struct pci_driver driver = {
 	.id_table = snd_intel8x0_ids,
 	.probe = snd_intel8x0_probe,
 	.remove = __devexit_p(snd_intel8x0_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = intel8x0_suspend,
+	.resume = intel8x0_resume,
+#endif
 };
 
 

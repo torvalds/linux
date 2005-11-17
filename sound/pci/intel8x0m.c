@@ -1035,28 +1035,33 @@ static int snd_intel8x0_free(struct intel8x0m *chip)
 /*
  * power management
  */
-static int intel8x0m_suspend(struct snd_card *card, pm_message_t state)
+static int intel8x0m_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct intel8x0m *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct intel8x0m *chip = card->private_data;
 	int i;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for (i = 0; i < chip->pcm_devs; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
-	if (chip->ac97)
-		snd_ac97_suspend(chip->ac97);
-	pci_disable_device(chip->pci);
+	snd_ac97_suspend(chip->ac97);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int intel8x0m_resume(struct snd_card *card)
+static int intel8x0m_resume(struct pci_dev *pci)
 {
-	struct intel8x0m *chip = card->pm_private_data;
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
-	snd_intel8x0_chip_init(chip, 0);
-	if (chip->ac97)
-		snd_ac97_resume(chip->ac97);
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct intel8x0m *chip = card->private_data;
 
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
+	snd_intel8x0_chip_init(chip, 0);
+	snd_ac97_resume(chip->ac97);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -1233,8 +1238,6 @@ static int __devinit snd_intel8x0m_create(struct snd_card *card,
 		return err;
 	}
 
-	snd_card_set_pm_callback(card, intel8x0m_suspend, intel8x0m_resume, chip);
-
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_intel8x0_free(chip);
 		return err;
@@ -1298,6 +1301,7 @@ static int __devinit snd_intel8x0m_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	if ((err = snd_intel8x0_mixer(chip, ac97_clock)) < 0) {
 		snd_card_free(card);
@@ -1332,7 +1336,10 @@ static struct pci_driver driver = {
 	.id_table = snd_intel8x0m_ids,
 	.probe = snd_intel8x0m_probe,
 	.remove = __devexit_p(snd_intel8x0m_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = intel8x0m_suspend,
+	.resume = intel8x0m_resume,
+#endif
 };
 
 
