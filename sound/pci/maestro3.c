@@ -2546,14 +2546,16 @@ static int snd_m3_free(struct snd_m3 *chip)
  * APM support
  */
 #ifdef CONFIG_PM
-static int m3_suspend(struct snd_card *card, pm_message_t state)
+static int m3_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct snd_m3 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_m3 *chip = card->private_data;
 	int i, index;
 
 	if (chip->suspend_mem == NULL)
 		return 0;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 
@@ -2574,20 +2576,23 @@ static int m3_suspend(struct snd_card *card, pm_message_t state)
 	snd_m3_outw(chip, 0xffff, 0x54);
 	snd_m3_outw(chip, 0xffff, 0x56);
 
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int m3_resume(struct snd_card *card)
+static int m3_resume(struct pci_dev *pci)
 {
-	struct snd_m3 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_m3 *chip = card->private_data;
 	int i, index;
 
 	if (chip->suspend_mem == NULL)
 		return 0;
 
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
 
 	/* first lets just bring everything back. .*/
 	snd_m3_outw(chip, 0, 0x54);
@@ -2617,6 +2622,7 @@ static int m3_resume(struct snd_card *card)
 	snd_m3_enable_ints(chip);
 	snd_m3_amp_enable(chip, 1);
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2748,8 +2754,6 @@ snd_m3_create(struct snd_card *card, struct pci_dev *pci,
 	chip->suspend_mem = vmalloc(sizeof(u16) * (REV_B_CODE_MEMORY_LENGTH + REV_B_DATA_MEMORY_LENGTH));
 	if (chip->suspend_mem == NULL)
 		snd_printk(KERN_WARNING "can't allocate apm buffer\n");
-	else
-		snd_card_set_pm_callback(card, m3_suspend, m3_resume, chip);
 #endif
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
@@ -2825,6 +2829,7 @@ snd_m3_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	sprintf(card->shortname, "ESS %s PCI", card->driver);
 	sprintf(card->longname, "%s at 0x%lx, irq %d",
@@ -2860,7 +2865,10 @@ static struct pci_driver driver = {
 	.id_table = snd_m3_ids,
 	.probe = snd_m3_probe,
 	.remove = __devexit_p(snd_m3_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = m3_suspend,
+	.resume = m3_resume,
+#endif
 };
 	
 static int __init alsa_card_m3_init(void)
