@@ -2186,6 +2186,8 @@ static void snd_ac97_powerdown(struct snd_ac97 *ac97)
  */
 void snd_ac97_suspend(struct snd_ac97 *ac97)
 {
+	if (! ac97)
+		return;
 	if (ac97->build_ops->suspend)
 		ac97->build_ops->suspend(ac97);
 	snd_ac97_powerdown(ac97);
@@ -2241,6 +2243,9 @@ void snd_ac97_restore_iec958(struct snd_ac97 *ac97)
 void snd_ac97_resume(struct snd_ac97 *ac97)
 {
 	unsigned long end_time;
+
+	if (! ac97)
+		return;
 
 	if (ac97->bus->ops->reset) {
 		ac97->bus->ops->reset(ac97);
