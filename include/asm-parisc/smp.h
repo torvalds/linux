@@ -54,7 +54,11 @@ extern unsigned long cpu_present_mask;
 
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
-#endif /* CONFIG_SMP */
+#else /* CONFIG_SMP */
+
+static inline void smp_send_all_nop(void) { return; }
+
+#endif
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 #define ANY_PROC_ID		0xFF		/* Any processor magic marker */

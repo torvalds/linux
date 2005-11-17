@@ -31,6 +31,8 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
+#include <asm/smp.h>
+
 #undef PARISC_IRQ_CR16_COUNTS
 
 extern irqreturn_t timer_interrupt(int, void *, struct pt_regs *);
