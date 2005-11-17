@@ -33,6 +33,8 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/moduleparam.h>
@@ -165,8 +167,6 @@ typedef struct _snd_uart16550 {
 	struct timer_list buffer_timer;
 
 } snd_uart16550_t;
-
-static struct snd_card *snd_serial_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 static inline void snd_uart16550_add_timer(snd_uart16550_t *uart)
 {
@@ -869,14 +869,12 @@ static int __init snd_uart16550_rmidi(snd_uart16550_t *uart, int device, int out
 	return 0;
 }
 
-static int __init snd_serial_probe(int dev)
+static int __init snd_serial_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	snd_uart16550_t *uart;
 	int err;
-
-	if (!enable[dev])
-		return -ENOENT;
+	int dev = devptr->id;
 
 	switch (adaptor[dev]) {
 	case SNDRV_SERIAL_SOUNDCANVAS:
@@ -942,13 +940,12 @@ static int __init snd_serial_probe(int dev)
 		adaptor_names[uart->adaptor],
 		uart->drop_on_full);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
+	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
-	snd_serial_cards[dev] = card;
+	platform_set_drvdata(devptr, card);
 	return 0;
 
  _err:
@@ -956,33 +953,58 @@ static int __init snd_serial_probe(int dev)
 	return err;
 }
 
+static int snd_serial_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#define SND_SERIAL_DRIVER	"snd_serial_u16550"
+
+static struct platform_driver snd_serial_driver = {
+	.probe		= snd_serial_probe,
+	.remove		= snd_serial_remove,
+	.driver		= {
+		.name	= SND_SERIAL_DRIVER
+	},
+};
+
 static int __init alsa_card_serial_init(void)
 {
-	int dev = 0;
-	int cards = 0;
+	int i, cards, err;
 
-	for (dev = 0; dev < SNDRV_CARDS; dev++) {
-		if (snd_serial_probe(dev) == 0)
-			cards++;
+	if ((err = platform_driver_register(&snd_serial_driver)) < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(SND_SERIAL_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		cards++;
 	}
-
-	if (cards == 0) {
+	if (! cards) {
 #ifdef MODULE
 		printk(KERN_ERR "serial midi soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	platform_driver_unregister(&snd_serial_driver);
+	return err;
 }
 
 static void __exit alsa_card_serial_exit(void)
 {
-	int dev;
-
-	for (dev = 0; dev < SNDRV_CARDS; dev++) {
-		if (snd_serial_cards[dev] != NULL)
-			snd_card_free(snd_serial_cards[dev]);
-	}
+	platform_driver_unregister(&snd_serial_driver);
 }
 
 module_init(alsa_card_serial_init)
