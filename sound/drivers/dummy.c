@@ -172,47 +172,33 @@ typedef struct snd_card_dummy_pcm {
 static snd_card_t *snd_dummy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 
-static void snd_card_dummy_pcm_timer_start(snd_pcm_substream_t * substream)
+static inline void snd_card_dummy_pcm_timer_start(snd_card_dummy_pcm_t *dpcm)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_card_dummy_pcm_t *dpcm = runtime->private_data;
-
 	dpcm->timer.expires = 1 + jiffies;
 	add_timer(&dpcm->timer);
 }
 
-static void snd_card_dummy_pcm_timer_stop(snd_pcm_substream_t * substream)
+static inline void snd_card_dummy_pcm_timer_stop(snd_card_dummy_pcm_t *dpcm)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_card_dummy_pcm_t *dpcm = runtime->private_data;
-
 	del_timer(&dpcm->timer);
 }
 
-static int snd_card_dummy_playback_trigger(snd_pcm_substream_t * substream,
-					   int cmd)
+static int snd_card_dummy_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 {
-	if (cmd == SNDRV_PCM_TRIGGER_START) {
-		snd_card_dummy_pcm_timer_start(substream);
-	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
-		snd_card_dummy_pcm_timer_stop(substream);
-	} else {
-		return -EINVAL;
-	}
-	return 0;
-}
+	snd_pcm_runtime_t *runtime = substream->runtime;
+	snd_dummy_card_pcm_t *dpcm = runtime->private_data;
+	int err = 0;
 
-static int snd_card_dummy_capture_trigger(snd_pcm_substream_t * substream,
-					  int cmd)
-{
+	spin_lock(&dpcm->lock);
 	if (cmd == SNDRV_PCM_TRIGGER_START) {
-		snd_card_dummy_pcm_timer_start(substream);
+		snd_card_dummy_pcm_timer_start(dpcm);
 	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
-		snd_card_dummy_pcm_timer_stop(substream);
+		snd_card_dummy_pcm_timer_stop(dpcm);
 	} else {
-		return -EINVAL;
+		err = -EINVAL;
 	}
-	return 0;
+	spin_unlock(&dpcm->lock);
+	return err;
 }
 
 static int snd_card_dummy_pcm_prepare(snd_pcm_substream_t * substream)
@@ -235,42 +221,26 @@ static int snd_card_dummy_pcm_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_card_dummy_playback_prepare(snd_pcm_substream_t * substream)
-{
-	return snd_card_dummy_pcm_prepare(substream);
-}
-
-static int snd_card_dummy_capture_prepare(snd_pcm_substream_t * substream)
-{
-	return snd_card_dummy_pcm_prepare(substream);
-}
-
 static void snd_card_dummy_pcm_timer_function(unsigned long data)
 {
 	snd_card_dummy_pcm_t *dpcm = (snd_card_dummy_pcm_t *)data;
 	
+	spin_lock(&dpcm->lock);
 	dpcm->timer.expires = 1 + jiffies;
 	add_timer(&dpcm->timer);
-	spin_lock_irq(&dpcm->lock);
 	dpcm->pcm_irq_pos += dpcm->pcm_jiffie;
 	dpcm->pcm_buf_pos += dpcm->pcm_jiffie;
 	dpcm->pcm_buf_pos %= dpcm->pcm_size;
 	if (dpcm->pcm_irq_pos >= dpcm->pcm_count) {
 		dpcm->pcm_irq_pos %= dpcm->pcm_count;
+		spin_unlock(&dpcm->lock);
 		snd_pcm_period_elapsed(dpcm->substream);
+		spin_lock(&dpcm->lock);
 	}
-	spin_unlock_irq(&dpcm->lock);	
+	spin_unlock(&dpcm->lock);
 }
 
-static snd_pcm_uframes_t snd_card_dummy_playback_pointer(snd_pcm_substream_t * substream)
-{
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_card_dummy_pcm_t *dpcm = runtime->private_data;
-
-	return bytes_to_frames(runtime, dpcm->pcm_buf_pos);
-}
-
-static snd_pcm_uframes_t snd_card_dummy_capture_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_card_dummy_pcm_pointer(snd_pcm_substream_t * substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_card_dummy_pcm_t *dpcm = runtime->private_data;
@@ -316,8 +286,7 @@ static snd_pcm_hardware_t snd_card_dummy_capture =
 
 static void snd_card_dummy_runtime_free(snd_pcm_runtime_t *runtime)
 {
-	snd_card_dummy_pcm_t *dpcm = runtime->private_data;
-	kfree(dpcm);
+	kfree(runtime->private_data);
 }
 
 static int snd_card_dummy_hw_params(snd_pcm_substream_t * substream,
@@ -331,20 +300,29 @@ static int snd_card_dummy_hw_free(snd_pcm_substream_t * substream)
 	return snd_pcm_lib_free_pages(substream);
 }
 
+static snd_card_dummy_pcm_t *new_pcm_stream(snd_pcm_substream_t *substream)
+{
+	snd_card_dummy_pcm_t *dpcm;
+
+	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
+	if (! dpcm)
+		return dpcm;
+	init_timer(&dpcm->timer);
+	dpcm->timer.data = (unsigned long) dpcm;
+	dpcm->timer.function = snd_card_dummy_pcm_timer_function;
+	spin_lock_init(&dpcm->lock);
+	dpcm->substream = substream;
+	return dpcm;
+}
+
 static int snd_card_dummy_playback_open(snd_pcm_substream_t * substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_card_dummy_pcm_t *dpcm;
 	int err;
 
-	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
-	if (dpcm == NULL)
+	if ((dpcm = new_pcm_stream(substream)) == NULL)
 		return -ENOMEM;
-	init_timer(&dpcm->timer);
-	dpcm->timer.data = (unsigned long) dpcm;
-	dpcm->timer.function = snd_card_dummy_pcm_timer_function;
-	spin_lock_init(&dpcm->lock);
-	dpcm->substream = substream;
 	runtime->private_data = dpcm;
 	runtime->private_free = snd_card_dummy_runtime_free;
 	runtime->hw = snd_card_dummy_playback;
@@ -368,14 +346,8 @@ static int snd_card_dummy_capture_open(snd_pcm_substream_t * substream)
 	snd_card_dummy_pcm_t *dpcm;
 	int err;
 
-	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
-	if (dpcm == NULL)
+	if ((dpcm = new_pcm_stream(substream)) == NULL)
 		return -ENOMEM;
-	init_timer(&dpcm->timer);
-	dpcm->timer.data = (unsigned long) dpcm;
-	dpcm->timer.function = snd_card_dummy_pcm_timer_function;
-	spin_lock_init(&dpcm->lock);
-	dpcm->substream = substream;
 	runtime->private_data = dpcm;
 	runtime->private_free = snd_card_dummy_runtime_free;
 	runtime->hw = snd_card_dummy_capture;
@@ -409,9 +381,9 @@ static snd_pcm_ops_t snd_card_dummy_playback_ops = {
 	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_card_dummy_hw_params,
 	.hw_free =		snd_card_dummy_hw_free,
-	.prepare =		snd_card_dummy_playback_prepare,
-	.trigger =		snd_card_dummy_playback_trigger,
-	.pointer =		snd_card_dummy_playback_pointer,
+	.prepare =		snd_card_dummy_pcm_prepare,
+	.trigger =		snd_card_dummy_pcm_trigger,
+	.pointer =		snd_card_dummy_pcm_pointer,
 };
 
 static snd_pcm_ops_t snd_card_dummy_capture_ops = {
@@ -420,9 +392,9 @@ static snd_pcm_ops_t snd_card_dummy_capture_ops = {
 	.ioctl =		snd_pcm_lib_ioctl,
 	.hw_params =		snd_card_dummy_hw_params,
 	.hw_free =		snd_card_dummy_hw_free,
-	.prepare =		snd_card_dummy_capture_prepare,
-	.trigger =		snd_card_dummy_capture_trigger,
-	.pointer =		snd_card_dummy_capture_pointer,
+	.prepare =		snd_card_dummy_pcm_prepare,
+	.trigger =		snd_card_dummy_pcm_trigger,
+	.pointer =		snd_card_dummy_pcm_pointer,
 };
 
 static int __init snd_card_dummy_pcm(snd_card_dummy_t *dummy, int device, int substreams)
@@ -461,20 +433,18 @@ static int snd_dummy_volume_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t 
 static int snd_dummy_volume_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	snd_card_dummy_t *dummy = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int addr = kcontrol->private_value;
 
-	spin_lock_irqsave(&dummy->mixer_lock, flags);
+	spin_lock_irq(&dummy->mixer_lock);
 	ucontrol->value.integer.value[0] = dummy->mixer_volume[addr][0];
 	ucontrol->value.integer.value[1] = dummy->mixer_volume[addr][1];
-	spin_unlock_irqrestore(&dummy->mixer_lock, flags);
+	spin_unlock_irq(&dummy->mixer_lock);
 	return 0;
 }
 
 static int snd_dummy_volume_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	snd_card_dummy_t *dummy = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int change, addr = kcontrol->private_value;
 	int left, right;
 
@@ -488,12 +458,12 @@ static int snd_dummy_volume_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 		right = -50;
 	if (right > 100)
 		right = 100;
-	spin_lock_irqsave(&dummy->mixer_lock, flags);
+	spin_lock_irq(&dummy->mixer_lock);
 	change = dummy->mixer_volume[addr][0] != left ||
 	         dummy->mixer_volume[addr][1] != right;
 	dummy->mixer_volume[addr][0] = left;
 	dummy->mixer_volume[addr][1] = right;
-	spin_unlock_irqrestore(&dummy->mixer_lock, flags);
+	spin_unlock_irq(&dummy->mixer_lock);
 	return change;
 }
 
@@ -515,31 +485,29 @@ static int snd_dummy_capsrc_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t 
 static int snd_dummy_capsrc_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	snd_card_dummy_t *dummy = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int addr = kcontrol->private_value;
 
-	spin_lock_irqsave(&dummy->mixer_lock, flags);
+	spin_lock_irq(&dummy->mixer_lock);
 	ucontrol->value.integer.value[0] = dummy->capture_source[addr][0];
 	ucontrol->value.integer.value[1] = dummy->capture_source[addr][1];
-	spin_unlock_irqrestore(&dummy->mixer_lock, flags);
+	spin_unlock_irq(&dummy->mixer_lock);
 	return 0;
 }
 
 static int snd_dummy_capsrc_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
 	snd_card_dummy_t *dummy = snd_kcontrol_chip(kcontrol);
-	unsigned long flags;
 	int change, addr = kcontrol->private_value;
 	int left, right;
 
 	left = ucontrol->value.integer.value[0] & 1;
 	right = ucontrol->value.integer.value[1] & 1;
-	spin_lock_irqsave(&dummy->mixer_lock, flags);
+	spin_lock_irq(&dummy->mixer_lock);
 	change = dummy->capture_source[addr][0] != left &&
 	         dummy->capture_source[addr][1] != right;
 	dummy->capture_source[addr][0] = left;
 	dummy->capture_source[addr][1] = right;
-	spin_unlock_irqrestore(&dummy->mixer_lock, flags);
+	spin_unlock_irq(&dummy->mixer_lock);
 	return change;
 }
 
