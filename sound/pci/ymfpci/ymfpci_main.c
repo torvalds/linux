@@ -2175,11 +2175,13 @@ static int saved_regs_index[] = {
 };
 #define YDSXGR_NUM_SAVED_REGS	ARRAY_SIZE(saved_regs_index)
 
-static int snd_ymfpci_suspend(struct snd_card *card, pm_message_t state)
+int snd_ymfpci_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct snd_ymfpci *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ymfpci *chip = card->private_data;
 	unsigned int i;
 	
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 	snd_pcm_suspend_all(chip->pcm2);
 	snd_pcm_suspend_all(chip->pcm_spdif);
@@ -2190,18 +2192,21 @@ static int snd_ymfpci_suspend(struct snd_card *card, pm_message_t state)
 	chip->saved_ydsxgr_mode = snd_ymfpci_readl(chip, YDSXGR_MODE);
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0);
 	snd_ymfpci_disable_dsp(chip);
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int snd_ymfpci_resume(struct snd_card *card)
+int snd_ymfpci_resume(struct pci_dev *pci)
 {
-	struct snd_ymfpci *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ymfpci *chip = card->private_data;
 	unsigned int i;
 
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
-	snd_ymfpci_aclink_reset(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
+	snd_ymfpci_aclink_reset(pci);
 	snd_ymfpci_codec_ready(chip, 0);
 	snd_ymfpci_download_image(chip);
 	udelay(100);
@@ -2218,6 +2223,7 @@ static int snd_ymfpci_resume(struct snd_card *card)
 		chip->active_bank = snd_ymfpci_readl(chip, YDSXGR_CTRLSELECT);
 		spin_unlock_irq(&chip->reg_lock);
 	}
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2296,7 +2302,6 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 		snd_ymfpci_free(chip);
 		return -ENOMEM;
 	}
-	snd_card_set_pm_callback(card, snd_ymfpci_suspend, snd_ymfpci_resume, chip);
 #endif
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
