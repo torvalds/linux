@@ -186,7 +186,7 @@ static __inline__ void __gen_sigdelset(sigset_t *set, int _sig)
 	__asm__("btrl %1,%0" : "+m"(*set) : "Ir"(_sig - 1) : "cc");
 }
 
-static __inline__ void __const_sigaddset(sigset_t *set, int _sig)
+static __inline__ void __const_sigdelset(sigset_t *set, int _sig)
 {
 	unsigned long sig = _sig - 1;
 	set->sig[sig / _NSIG_BPW] &= ~(1 << (sig % _NSIG_BPW));
