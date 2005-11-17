@@ -282,10 +282,8 @@ static int __devinit snd_ad1816a_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_ad1816a_pnp_remove(struct pnp_card_link * pcard)
 {
-	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
-
-	snd_card_disconnect(card);
-	snd_card_free_in_thread(card);
+	snd_card_free(pnp_get_card_drvdata(pcard));
+	pnp_set_card_drvdata(pcard, NULL);
 }
 
 static struct pnp_card_driver ad1816a_pnpc_driver = {
@@ -294,20 +292,22 @@ static struct pnp_card_driver ad1816a_pnpc_driver = {
 	.id_table	= snd_ad1816a_pnpids,
 	.probe		= snd_ad1816a_pnp_detect,
 	.remove		= __devexit_p(snd_ad1816a_pnp_remove),
+	/* FIXME: suspend/resume */
 };
 
 static int __init alsa_card_ad1816a_init(void)
 {
-	int cards = 0;
+	int cards;
 
-	cards += pnp_register_card_driver(&ad1816a_pnpc_driver);
-#ifdef MODULE
-	if (!cards) {
+	cards = pnp_register_card_driver(&ad1816a_pnpc_driver);
+	if (cards <= 0) {
 		pnp_unregister_card_driver(&ad1816a_pnpc_driver);
+#ifdef MODULE
 		printk(KERN_ERR "no AD1816A based soundcards found.\n");
-	}
 #endif	/* MODULE */
-	return cards ? 0 : -ENODEV;
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static void __exit alsa_card_ad1816a_exit(void)
