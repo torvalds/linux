@@ -1740,9 +1740,6 @@ static int cs4231_attach_finish(snd_card_t *card, cs4231_t *chip)
 	if ((err = snd_cs4231_timer(chip)) < 0)
 		goto out_err;
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto out_err;
-
 	if ((err = snd_card_register(card)) < 0)
 		goto out_err;
 

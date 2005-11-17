@@ -1079,9 +1079,6 @@ static int __init amd7930_attach(int prom_node, struct sbus_dev *sdev)
 	if ((err = snd_amd7930_mixer(amd)) < 0)
 		goto out_err;
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto out_err;
-
 	if ((err = snd_card_register(card)) < 0)
 		goto out_err;
 

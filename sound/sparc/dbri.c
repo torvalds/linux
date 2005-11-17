@@ -2664,9 +2664,6 @@ static int __init dbri_attach(int prom_node, struct sbus_dev *sdev)
 	/* /proc file handling */
 	snd_dbri_proc(dbri);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
-
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
