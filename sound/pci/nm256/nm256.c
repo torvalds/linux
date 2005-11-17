@@ -1308,24 +1308,29 @@ snd_nm256_peek_for_sig(struct nm256 *chip)
  * APM event handler, so the card is properly reinitialized after a power
  * event.
  */
-static int nm256_suspend(struct snd_card *card, pm_message_t state)
+static int nm256_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct nm256 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct nm256 *chip = card->private_data;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 	chip->coeffs_current = 0;
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int nm256_resume(struct snd_card *card)
+static int nm256_resume(struct pci_dev *pci)
 {
-	struct nm256 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct nm256 *chip = card->private_data;
 	int i;
 
 	/* Perform a full reset on the hardware */
-	pci_enable_device(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
 	snd_nm256_init_chip(chip);
 
 	/* restore ac97 */
@@ -1340,6 +1345,7 @@ static int nm256_resume(struct snd_card *card)
 		}
 	}
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -1524,8 +1530,6 @@ snd_nm256_create(struct snd_card *card, struct pci_dev *pci,
 
 	// pci_set_master(pci); /* needed? */
 	
-	snd_card_set_pm_callback(card, nm256_suspend, nm256_resume, chip);
-
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0)
 		goto __error;
 
@@ -1625,6 +1629,7 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	if (reset_workaround) {
 		snd_printdd(KERN_INFO "nm256: reset_workaround activated\n");
@@ -1668,7 +1673,10 @@ static struct pci_driver driver = {
 	.id_table = snd_nm256_ids,
 	.probe = snd_nm256_probe,
 	.remove = __devexit_p(snd_nm256_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = nm256_suspend,
+	.resume = nm256_resume,
+#endif
 };
 
 
