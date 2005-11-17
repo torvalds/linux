@@ -49,6 +49,8 @@
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
 #include <linux/ext2_fs.h>
+#include <linux/ext3_jbd.h>
+#include <linux/ext3_fs.h>
 #include <linux/videodev.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
@@ -134,6 +136,15 @@
 /* Aiee. Someone does not find a difference between int and long */
 #define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
 #define EXT2_IOC32_SETFLAGS               _IOW('f', 2, int)
+#define EXT3_IOC32_GETVERSION             _IOR('f', 3, int)
+#define EXT3_IOC32_SETVERSION             _IOR('f', 4, int)
+#define EXT3_IOC32_GETRSVSZ               _IOR('f', 5, int)
+#define EXT3_IOC32_SETRSVSZ               _IOW('f', 6, int)
+#define EXT3_IOC32_GROUP_EXTEND           _IOW('f', 7, unsigned int)
+#ifdef CONFIG_JBD_DEBUG
+#define EXT3_IOC32_WAIT_FOR_READONLY      _IOR('f', 99, int)
+#endif
+
 #define EXT2_IOC32_GETVERSION             _IOR('v', 1, int)
 #define EXT2_IOC32_SETVERSION             _IOW('v', 2, int)
 
@@ -176,6 +187,22 @@ static int do_ext2_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 	case EXT2_IOC32_SETFLAGS: cmd = EXT2_IOC_SETFLAGS; break;
 	case EXT2_IOC32_GETVERSION: cmd = EXT2_IOC_GETVERSION; break;
 	case EXT2_IOC32_SETVERSION: cmd = EXT2_IOC_SETVERSION; break;
+	}
+	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
+}
+
+static int do_ext3_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	/* These are just misnamed, they actually get/put from/to user an int */
+	switch (cmd) {
+	case EXT3_IOC32_GETVERSION: cmd = EXT3_IOC_GETVERSION; break;
+	case EXT3_IOC32_SETVERSION: cmd = EXT3_IOC_SETVERSION; break;
+	case EXT3_IOC32_GETRSVSZ: cmd = EXT3_IOC_GETRSVSZ; break;
+	case EXT3_IOC32_SETRSVSZ: cmd = EXT3_IOC_SETRSVSZ; break;
+	case EXT3_IOC32_GROUP_EXTEND: cmd = EXT3_IOC_GROUP_EXTEND; break;
+#ifdef CONFIG_JBD_DEBUG
+	case EXT3_IOC32_WAIT_FOR_READONLY: cmd = EXT3_IOC_WAIT_FOR_READONLY; break;
+#endif
 	}
 	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -2981,6 +3008,15 @@ HANDLE_IOCTL(EXT2_IOC32_GETFLAGS, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_SETFLAGS, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_GETVERSION, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_SETVERSION, do_ext2_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GETVERSION, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_SETVERSION, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GETRSVSZ, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_SETRSVSZ, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GROUP_EXTEND, do_ext3_ioctl)
+COMPATIBLE_IOCTL(EXT3_IOC_GROUP_ADD)
+#ifdef CONFIG_JBD_DEBUG
+HANDLE_IOCTL(EXT3_IOC32_WAIT_FOR_READONLY, do_ext3_ioctl)
+#endif
 HANDLE_IOCTL(VIDIOCGTUNER32, do_video_ioctl)
 HANDLE_IOCTL(VIDIOCSTUNER32, do_video_ioctl)
 HANDLE_IOCTL(VIDIOCGWIN32, do_video_ioctl)
