@@ -70,11 +70,11 @@ MODULE_PARM_DESC(channels, "GF1 channels for GUS Classic driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Classic driver.");
 
-static snd_card_t *snd_gusclassic_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_gusclassic_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #define PFX	"gusclassic: "
 
-static int __init snd_gusclassic_detect(snd_gus_card_t * gus)
+static int __init snd_gusclassic_detect(struct snd_gus_card * gus)
 {
 	unsigned char d;
 
@@ -93,7 +93,7 @@ static int __init snd_gusclassic_detect(snd_gus_card_t * gus)
 	return 0;
 }
 
-static void __init snd_gusclassic_init(int dev, snd_gus_card_t * gus)
+static void __init snd_gusclassic_init(int dev, struct snd_gus_card * gus)
 {
 	gus->equal_irq = 0;
 	gus->codec_flag = 0;
@@ -106,9 +106,9 @@ static int __init snd_gusclassic_probe(int dev)
 	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, 4, -1};
 	static int possible_dmas[] = {5, 6, 7, 1, 3, -1};
 	int xirq, xdma1, xdma2;
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_gusclassic *guscard;
-	snd_gus_card_t *gus = NULL;
+	struct snd_gus_card *gus = NULL;
 	int err;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);

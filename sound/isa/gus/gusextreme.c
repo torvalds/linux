@@ -85,14 +85,14 @@ MODULE_PARM_DESC(channels, "GF1 channels for GUS Extreme driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Extreme driver.");
 
-static snd_card_t *snd_gusextreme_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_gusextreme_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #define PFX	"gusextreme: "
 
 static int __init snd_gusextreme_detect(int dev,
-					snd_card_t * card,
-					snd_gus_card_t * gus,
-					es1688_t *es1688)
+					struct snd_card *card,
+					struct snd_gus_card * gus,
+					struct snd_es1688 *es1688)
 {
 	unsigned long flags;
 	unsigned char d;
@@ -139,15 +139,15 @@ static int __init snd_gusextreme_detect(int dev,
 	return 0;
 }
 
-static void __init snd_gusextreme_init(int dev, snd_gus_card_t * gus)
+static void __init snd_gusextreme_init(int dev, struct snd_gus_card * gus)
 {
 	gus->joystick_dac = joystick_dac[dev];
 }
 
-static int __init snd_gusextreme_mixer(es1688_t *chip)
+static int __init snd_gusextreme_mixer(struct snd_es1688 *chip)
 {
-	snd_card_t *card = chip->card;
-	snd_ctl_elem_id_t id1, id2;
+	struct snd_card *card = chip->card;
+	struct snd_ctl_elem_id id1, id2;
 	int err;
 
 	memset(&id1, 0, sizeof(id1));
@@ -173,11 +173,11 @@ static int __init snd_gusextreme_probe(int dev)
 	static int possible_gf1_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
 	static int possible_gf1_dmas[] = {5, 6, 7, 1, 3, -1};
 	int xgf1_irq, xgf1_dma, xess_irq, xmpu_irq, xess_dma;
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_gusextreme *acard;
-	snd_gus_card_t *gus;
-	es1688_t *es1688;
-	opl3_t *opl3;
+	struct snd_gus_card *gus;
+	struct snd_es1688 *es1688;
+	struct snd_opl3 *opl3;
 	int err;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
@@ -345,7 +345,7 @@ static int __init alsa_card_gusextreme_init(void)
 static void __exit alsa_card_gusextreme_exit(void)
 {
 	int idx;
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_gusextreme *acard;
 
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
