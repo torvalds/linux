@@ -80,7 +80,7 @@ static struct pci_device_id snd_ymfpci_ids[] = {
 MODULE_DEVICE_TABLE(pci, snd_ymfpci_ids);
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_ymfpci_create_gameport(ymfpci_t *chip, int dev,
+static int __devinit snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev,
 						int legacy_ctrl, int legacy_ctrl2)
 {
 	struct gameport *gp;
@@ -152,7 +152,7 @@ static int __devinit snd_ymfpci_create_gameport(ymfpci_t *chip, int dev,
 	return 0;
 }
 
-void snd_ymfpci_free_gameport(ymfpci_t *chip)
+void snd_ymfpci_free_gameport(struct snd_ymfpci *chip)
 {
 	if (chip->gameport) {
 		struct resource *r = gameport_get_port_data(chip->gameport);
@@ -164,19 +164,19 @@ void snd_ymfpci_free_gameport(ymfpci_t *chip)
 	}
 }
 #else
-static inline int snd_ymfpci_create_gameport(ymfpci_t *chip, int dev, int l, int l2) { return -ENOSYS; }
-void snd_ymfpci_free_gameport(ymfpci_t *chip) { }
+static inline int snd_ymfpci_create_gameport(struct snd_ymfpci *chip, int dev, int l, int l2) { return -ENOSYS; }
+void snd_ymfpci_free_gameport(struct snd_ymfpci *chip) { }
 #endif /* SUPPORT_JOYSTICK */
 
 static int __devinit snd_card_ymfpci_probe(struct pci_dev *pci,
 					   const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
+	struct snd_card *card;
 	struct resource *fm_res = NULL;
 	struct resource *mpu_res = NULL;
-	ymfpci_t *chip;
-	opl3_t *opl3;
+	struct snd_ymfpci *chip;
+	struct snd_opl3 *opl3;
 	char *str;
 	int err;
 	u16 legacy_ctrl, legacy_ctrl2, old_legacy_ctrl;
