@@ -26,21 +26,6 @@
 #include "pcm.h"
 #include "timer.h"
 
-#ifdef CONFIG_SBUS
-#define SBUS_SUPPORT
-#include <asm/sbus.h>
-#endif
-
-#if defined(CONFIG_PCI) && defined(CONFIG_SPARC64)
-#define EBUS_SUPPORT
-#include <linux/pci.h>
-#include <asm/ebus.h>
-#endif
-
-#if !defined(SBUS_SUPPORT) && !defined(EBUS_SUPPORT)
-#define LEGACY_SUPPORT
-#endif
-
 /* IO ports */
 
 #define CS4231P(x)		(c_d_c_CS4231##x)
@@ -236,38 +221,18 @@ typedef struct _snd_cs4231 cs4231_t;
 
 struct _snd_cs4231 {
 	unsigned long port;		/* base i/o port */
-#ifdef LEGACY_SUPPORT
 	struct resource *res_port;
 	unsigned long cport;		/* control base i/o port (CS4236) */
 	struct resource *res_cport;
 	int irq;			/* IRQ line */
 	int dma1;			/* playback DMA */
 	int dma2;			/* record DMA */
-#endif
 	unsigned short version;		/* version of CODEC chip */
 	unsigned short mode;		/* see to CS4231_MODE_XXXX */
 	unsigned short hardware;	/* see to CS4231_HW_XXXX */
 	unsigned short hwshare;		/* shared resources */
 	unsigned short single_dma:1,	/* forced single DMA mode (GUS 16-bit daughter board) or dma1 == dma2 */
 		       ebus_flag:1;	/* SPARC: EBUS present */
-
-#ifdef EBUS_SUPPORT
-	struct ebus_dma_info eb2c;
-        struct ebus_dma_info eb2p;
-#endif
-
-#if defined(SBUS_SUPPORT) || defined(EBUS_SUPPORT)
-	union {
-#ifdef SBUS_SUPPORT
-		struct sbus_dev         *sdev;
-#endif
-#ifdef EBUS_SUPPORT
-		struct pci_dev          *pdev;
-#endif
-	} dev_u;
-	unsigned int p_periods_sent;
-	unsigned int c_periods_sent;
-#endif
 
 	snd_card_t *card;
 	snd_pcm_t *pcm;
@@ -281,10 +246,8 @@ struct _snd_cs4231 {
 	int mce_bit;
 	int calibrate_mute;
 	int sw_3d_bit;
-#ifdef LEGACY_SUPPORT
 	unsigned int p_dma_size;
 	unsigned int c_dma_size;
-#endif
 
 	spinlock_t reg_lock;
 	struct semaphore mce_mutex;
@@ -299,10 +262,8 @@ struct _snd_cs4231 {
 	void (*resume) (cs4231_t *chip);
 #endif
 	void *dma_private_data;
-#ifdef LEGACY_SUPPORT
 	int (*claim_dma) (cs4231_t *chip, void *dma_private_data, int dma);
 	int (*release_dma) (cs4231_t *chip, void *dma_private_data, int dma);
-#endif
 };
 
 /* exported functions */

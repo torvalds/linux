@@ -124,46 +124,14 @@ static unsigned char snd_cs4231_original_image[32] =
  *  Basic I/O functions
  */
 
-#if !defined(EBUS_SUPPORT) && !defined(SBUS_SUPPORT)
-#define __CS4231_INLINE__ inline
-#else
-#define __CS4231_INLINE__ /* nothing */
-#endif
-
-static __CS4231_INLINE__ void cs4231_outb(cs4231_t *chip, u8 offset, u8 val)
+static inline void cs4231_outb(cs4231_t *chip, u8 offset, u8 val)
 {
-#ifdef EBUS_SUPPORT
-	if (chip->ebus->flag) {
-		writeb(val, chip->port + (offset << 2));
-	} else {
-#endif
-#ifdef SBUS_SUPPORT
-		sbus_writeb(val, chip->port + (offset << 2));
-#endif
-#ifdef EBUS_SUPPORT
-	}
-#endif
-#ifdef LEGACY_SUPPORT
 	outb(val, chip->port + offset);
-#endif
 }
 
-static __CS4231_INLINE__ u8 cs4231_inb(cs4231_t *chip, u8 offset)
+static inline u8 cs4231_inb(cs4231_t *chip, u8 offset)
 {
-#ifdef EBUS_SUPPORT
-	if (chip->ebus_flag) {
-		return readb(chip->port + (offset << 2));
-	} else {
-#endif
-#ifdef SBUS_SUPPORT
-		return sbus_readb(chip->port + (offset << 2));
-#endif
-#ifdef EBUS_SUPPORT
-	}
-#endif
-#ifdef LEGACY_SUPPORT
 	return inb(chip->port + offset);
-#endif
 }
 
 static void snd_cs4231_outm(cs4231_t *chip, unsigned char reg,
@@ -874,7 +842,6 @@ static int snd_cs4231_playback_hw_free(snd_pcm_substream_t * substream)
 	return snd_pcm_lib_free_pages(substream);
 }
 
-#ifdef LEGACY_SUPPORT
 static int snd_cs4231_playback_prepare(snd_pcm_substream_t * substream)
 {
 	cs4231_t *chip = snd_pcm_substream_chip(substream);
@@ -896,7 +863,6 @@ static int snd_cs4231_playback_prepare(snd_pcm_substream_t * substream)
 #endif
 	return 0;
 }
-#endif /* LEGACY_SUPPORT */
 
 static int snd_cs4231_capture_hw_params(snd_pcm_substream_t * substream,
 					snd_pcm_hw_params_t * hw_params)
@@ -918,7 +884,6 @@ static int snd_cs4231_capture_hw_free(snd_pcm_substream_t * substream)
 	return snd_pcm_lib_free_pages(substream);
 }
 
-#ifdef LEGACY_SUPPORT
 static int snd_cs4231_capture_prepare(snd_pcm_substream_t * substream)
 {
 	cs4231_t *chip = snd_pcm_substream_chip(substream);
@@ -942,7 +907,6 @@ static int snd_cs4231_capture_prepare(snd_pcm_substream_t * substream)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return 0;
 }
-#endif
 
 static void snd_cs4231_overrange(cs4231_t *chip)
 {
@@ -998,7 +962,6 @@ irqreturn_t snd_cs4231_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-#ifdef LEGACY_SUPPORT
 static snd_pcm_uframes_t snd_cs4231_playback_pointer(snd_pcm_substream_t * substream)
 {
 	cs4231_t *chip = snd_pcm_substream_chip(substream);
@@ -1020,7 +983,6 @@ static snd_pcm_uframes_t snd_cs4231_capture_pointer(snd_pcm_substream_t * substr
 	ptr = snd_dma_pointer(chip->dma2, chip->c_dma_size);
 	return bytes_to_frames(substream->runtime, ptr);
 }
-#endif /* LEGACY_SUPPORT */
 
 /*
 
@@ -1253,7 +1215,6 @@ static int snd_cs4231_playback_open(snd_pcm_substream_t * substream)
 	    chip->hardware == CS4231_HW_CS4239)
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE;
 
-#ifdef LEGACY_SUPPORT
 	snd_pcm_limit_isa_dma_size(chip->dma1, &runtime->hw.buffer_bytes_max);
 	snd_pcm_limit_isa_dma_size(chip->dma1, &runtime->hw.period_bytes_max);
 
@@ -1261,20 +1222,14 @@ static int snd_cs4231_playback_open(snd_pcm_substream_t * substream)
 		if ((err = chip->claim_dma(chip, chip->dma_private_data, chip->dma1)) < 0)
 			return err;
 	}
-#endif
 
 	if ((err = snd_cs4231_open(chip, CS4231_MODE_PLAY)) < 0) {
-#ifdef LEGACY_SUPPORT
 		if (chip->release_dma)
 			chip->release_dma(chip, chip->dma_private_data, chip->dma1);
-#endif
 		snd_free_pages(runtime->dma_area, runtime->dma_bytes);
 		return err;
 	}
 	chip->playback_substream = substream;
-#if defined(SBUS_SUPPORT) || defined(EBUS_SUPPORT)
-	chip->p_periods_sent = 0;
-#endif
 	snd_pcm_set_sync(substream);
 	chip->rate_constraint(runtime);
 	return 0;
@@ -1293,7 +1248,6 @@ static int snd_cs4231_capture_open(snd_pcm_substream_t * substream)
 	    chip->hardware == CS4231_HW_CS4239)
 		runtime->hw.formats = SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE;
 
-#ifdef LEGACY_SUPPORT
 	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.buffer_bytes_max);
 	snd_pcm_limit_isa_dma_size(chip->dma2, &runtime->hw.period_bytes_max);
 
@@ -1301,20 +1255,14 @@ static int snd_cs4231_capture_open(snd_pcm_substream_t * substream)
 		if ((err = chip->claim_dma(chip, chip->dma_private_data, chip->dma2)) < 0)
 			return err;
 	}
-#endif
 
 	if ((err = snd_cs4231_open(chip, CS4231_MODE_RECORD)) < 0) {
-#ifdef LEGACY_SUPPORT
 		if (chip->release_dma)
 			chip->release_dma(chip, chip->dma_private_data, chip->dma2);
-#endif
 		snd_free_pages(runtime->dma_area, runtime->dma_bytes);
 		return err;
 	}
 	chip->capture_substream = substream;
-#if defined(SBUS_SUPPORT) || defined(EBUS_SUPPORT)
-	chip->c_periods_sent = 0;
-#endif
 	snd_pcm_set_sync(substream);
 	chip->rate_constraint(runtime);
 	return 0;
@@ -1413,8 +1361,6 @@ static int snd_cs4231_pm_resume(snd_card_t *card)
 }
 #endif /* CONFIG_PM */
 
-#ifdef LEGACY_SUPPORT
-
 static int snd_cs4231_free(cs4231_t *chip)
 {
 	release_and_free_resource(chip->res_port);
@@ -1443,8 +1389,6 @@ static int snd_cs4231_dev_free(snd_device_t *device)
 	cs4231_t *chip = device->device_data;
 	return snd_cs4231_free(chip);	
 }
-
-#endif /* LEGACY_SUPPORT */
 
 const char *snd_cs4231_chip_id(cs4231_t *chip)
 {
@@ -1492,8 +1436,6 @@ static int snd_cs4231_new(snd_card_t * card,
         *rchip = chip;
         return 0;
 }
-
-#ifdef LEGACY_SUPPORT
 
 int snd_cs4231_create(snd_card_t * card,
 	              unsigned long port,
@@ -1581,8 +1523,6 @@ int snd_cs4231_create(snd_card_t * card,
 	return 0;
 }
 
-#endif /* LEGACY_SUPPORT */
-
 static snd_pcm_ops_t snd_cs4231_playback_ops = {
 	.open =		snd_cs4231_playback_open,
 	.close =	snd_cs4231_playback_close,
@@ -1629,27 +1569,9 @@ int snd_cs4231_pcm(cs4231_t *chip, int device, snd_pcm_t **rpcm)
 		pcm->info_flags |= SNDRV_PCM_INFO_JOINT_DUPLEX;
 	strcpy(pcm->name, snd_cs4231_chip_id(chip));
 
-#ifdef LEGACY_SUPPORT
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
 					      snd_dma_isa_data(),
 					      64*1024, chip->dma1 > 3 || chip->dma2 > 3 ? 128*1024 : 64*1024);
-#else
-#  ifdef EBUS_SUPPORT
-        if (chip->ebus_flag) {
-                snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-                				      chip->dev_u.pdev,
-						      64*1024, 128*1024);
-        } else {
-#  endif
-#  ifdef SBUS_SUPPORT
-                snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_SBUS,
-                				      chip->dev_u.sdev,
-						      64*1024, 128*1024);
-#  endif
-#  ifdef EBUS_SUPPORT
-        }
-#  endif
-#endif
 
 	chip->pcm = pcm;
 	if (rpcm)
