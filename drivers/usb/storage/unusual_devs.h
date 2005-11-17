@@ -1003,6 +1003,11 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
  *
  */
 #ifdef CONFIG_USB_STORAGE_ONETOUCH
+	UNUSUAL_DEV(  0x0d49, 0x7000, 0x0000, 0x9999,
+			"Maxtor",
+			"OneTouch External Harddrive",
+			US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
+			0),
 	UNUSUAL_DEV(  0x0d49, 0x7010, 0x0000, 0x9999,
 			"Maxtor",
 			"OneTouch External Harddrive",
