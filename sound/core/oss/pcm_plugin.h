@@ -22,71 +22,11 @@
  *
  */
 
-#ifndef ATTRIBUTE_UNUSED
-#define ATTRIBUTE_UNUSED __attribute__ ((__unused__))
-#endif
+#include <linux/bitmap.h>
 
-typedef unsigned int bitset_t;
-
-static inline size_t bitset_size(int nbits)
+static inline unsigned long *bitmap_alloc(unsigned int nbits)
 {
-	return (nbits + sizeof(bitset_t) * 8 - 1) / (sizeof(bitset_t) * 8);
-}
-
-static inline bitset_t *bitset_alloc(int nbits)
-{
-	return kcalloc(bitset_size(nbits), sizeof(bitset_t), GFP_KERNEL);
-}
-	
-static inline void bitset_set(bitset_t *bitmap, unsigned int pos)
-{
-	size_t bits = sizeof(*bitmap) * 8;
-	bitmap[pos / bits] |= 1 << (pos % bits);
-}
-
-static inline void bitset_reset(bitset_t *bitmap, unsigned int pos)
-{
-	size_t bits = sizeof(*bitmap) * 8;
-	bitmap[pos / bits] &= ~(1 << (pos % bits));
-}
-
-static inline int bitset_get(bitset_t *bitmap, unsigned int pos)
-{
-	size_t bits = sizeof(*bitmap) * 8;
-	return !!(bitmap[pos / bits] & (1 << (pos % bits)));
-}
-
-static inline void bitset_copy(bitset_t *dst, bitset_t *src, unsigned int nbits)
-{
-	memcpy(dst, src, bitset_size(nbits) * sizeof(bitset_t));
-}
-
-static inline void bitset_and(bitset_t *dst, bitset_t *bs, unsigned int nbits)
-{
-	bitset_t *end = dst + bitset_size(nbits);
-	while (dst < end)
-		*dst++ &= *bs++;
-}
-
-static inline void bitset_or(bitset_t *dst, bitset_t *bs, unsigned int nbits)
-{
-	bitset_t *end = dst + bitset_size(nbits);
-	while (dst < end)
-		*dst++ |= *bs++;
-}
-
-static inline void bitset_zero(bitset_t *dst, unsigned int nbits)
-{
-	bitset_t *end = dst + bitset_size(nbits);
-	while (dst < end)
-		*dst++ = 0;
-}
-
-static inline void bitset_one(bitset_t *dst, unsigned int nbits)
-{
-	bitset_t *end = dst + bitset_size(nbits);
-	while (dst < end)
-		*dst++ = ~(bitset_t)0;
+	return kmalloc(BITS_TO_LONGS(nbits), GFP_KERNEL);
 }
 
 #define snd_pcm_plug_t snd_pcm_substream_t
@@ -131,11 +71,11 @@ struct _snd_pcm_plugin {
 				 snd_pcm_uframes_t frames,
 				 snd_pcm_plugin_channel_t **channels);
 	int (*src_channels_mask)(snd_pcm_plugin_t *plugin,
-			       bitset_t *dst_vmask,
-			       bitset_t **src_vmask);
+				 unsigned long *dst_vmask,
+				 unsigned long **src_vmask);
 	int (*dst_channels_mask)(snd_pcm_plugin_t *plugin,
-			       bitset_t *src_vmask,
-			       bitset_t **dst_vmask);
+				 unsigned long *src_vmask,
+				 unsigned long **dst_vmask);
 	snd_pcm_sframes_t (*transfer)(snd_pcm_plugin_t *plugin,
 			    const snd_pcm_plugin_channel_t *src_channels,
 			    snd_pcm_plugin_channel_t *dst_channels,
@@ -151,8 +91,8 @@ struct _snd_pcm_plugin {
 	char *buf;
 	snd_pcm_uframes_t buf_frames;
 	snd_pcm_plugin_channel_t *buf_channels;
-	bitset_t *src_vmask;
-	bitset_t *dst_vmask;
+	unsigned long *src_vmask;
+	unsigned long *dst_vmask;
 	char extra_data[0];
 };
 

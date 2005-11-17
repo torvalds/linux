@@ -70,9 +70,9 @@ typedef union {
 
 
 static void route_to_channel_from_zero(snd_pcm_plugin_t *plugin,
-				     const snd_pcm_plugin_channel_t *src_channels ATTRIBUTE_UNUSED,
+				     const snd_pcm_plugin_channel_t *src_channels,
 				     snd_pcm_plugin_channel_t *dst_channel,
-				     ttable_dst_t* ttable ATTRIBUTE_UNUSED, snd_pcm_uframes_t frames)
+				     ttable_dst_t* ttable, snd_pcm_uframes_t frames)
 {
 	if (dst_channel->wanted)
 		snd_pcm_area_silence(&dst_channel->area, 0, frames, plugin->dst_format.format);
@@ -298,46 +298,46 @@ static void route_to_channel(snd_pcm_plugin_t *plugin,
 }
 
 static int route_src_channels_mask(snd_pcm_plugin_t *plugin,
-				   bitset_t *dst_vmask,
-				   bitset_t **src_vmask)
+				   unsigned long *dst_vmask,
+				   unsigned long **src_vmask)
 {
 	route_t *data = (route_t *)plugin->extra_data;
 	int schannels = plugin->src_format.channels;
 	int dchannels = plugin->dst_format.channels;
-	bitset_t *vmask = plugin->src_vmask;
+	unsigned long *vmask = plugin->src_vmask;
 	int channel;
 	ttable_dst_t *dp = data->ttable;
-	bitset_zero(vmask, schannels);
+	bitmap_zero(vmask, schannels);
 	for (channel = 0; channel < dchannels; channel++, dp++) {
 		unsigned int src;
 		ttable_src_t *sp;
-		if (!bitset_get(dst_vmask, channel))
+		if (!test_bit(channel, dst_vmask))
 			continue;
 		sp = dp->srcs;
 		for (src = 0; src < dp->nsrcs; src++, sp++)
-			bitset_set(vmask, sp->channel);
+			set_bit(sp->channel, vmask);
 	}
 	*src_vmask = vmask;
 	return 0;
 }
 
 static int route_dst_channels_mask(snd_pcm_plugin_t *plugin,
-				   bitset_t *src_vmask,
-				   bitset_t **dst_vmask)
+				   unsigned long *src_vmask,
+				   unsigned long **dst_vmask)
 {
 	route_t *data = (route_t *)plugin->extra_data;
 	int dchannels = plugin->dst_format.channels;
-	bitset_t *vmask = plugin->dst_vmask;
+	unsigned long *vmask = plugin->dst_vmask;
 	int channel;
 	ttable_dst_t *dp = data->ttable;
-	bitset_zero(vmask, dchannels);
+	bitmap_zero(vmask, dchannels);
 	for (channel = 0; channel < dchannels; channel++, dp++) {
 		unsigned int src;
 		ttable_src_t *sp;
 		sp = dp->srcs;
 		for (src = 0; src < dp->nsrcs; src++, sp++) {
-			if (bitset_get(src_vmask, sp->channel)) {
-				bitset_set(vmask, channel);
+			if (test_bit(sp->channel, src_vmask)) {
+				set_bit(channel, vmask);
 				break;
 			}
 		}

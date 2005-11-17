@@ -37,21 +37,21 @@
 #define snd_pcm_plug_last(plug) ((plug)->runtime->oss.plugin_last)
 
 static int snd_pcm_plugin_src_channels_mask(snd_pcm_plugin_t *plugin,
-					    bitset_t *dst_vmask,
-					    bitset_t **src_vmask)
+					    unsigned long *dst_vmask,
+					    unsigned long **src_vmask)
 {
-	bitset_t *vmask = plugin->src_vmask;
-	bitset_copy(vmask, dst_vmask, plugin->src_format.channels);
+	unsigned long *vmask = plugin->src_vmask;
+	bitmap_copy(vmask, dst_vmask, plugin->src_format.channels);
 	*src_vmask = vmask;
 	return 0;
 }
 
 static int snd_pcm_plugin_dst_channels_mask(snd_pcm_plugin_t *plugin,
-					    bitset_t *src_vmask,
-					    bitset_t **dst_vmask)
+					    unsigned long *src_vmask,
+					    unsigned long **dst_vmask)
 {
-	bitset_t *vmask = plugin->dst_vmask;
-	bitset_copy(vmask, src_vmask, plugin->dst_format.channels);
+	unsigned long *vmask = plugin->dst_vmask;
+	bitmap_copy(vmask, src_vmask, plugin->dst_format.channels);
 	*dst_vmask = vmask;
 	return 0;
 }
@@ -193,12 +193,12 @@ int snd_pcm_plugin_build(snd_pcm_plug_t *plug,
 		snd_pcm_plugin_free(plugin);
 		return -ENOMEM;
 	}
-	plugin->src_vmask = bitset_alloc(src_format->channels);
+	plugin->src_vmask = bitmap_alloc(src_format->channels);
 	if (plugin->src_vmask == NULL) {
 		snd_pcm_plugin_free(plugin);
 		return -ENOMEM;
 	}
-	plugin->dst_vmask = bitset_alloc(dst_format->channels);
+	plugin->dst_vmask = bitmap_alloc(dst_format->channels);
 	if (plugin->dst_vmask == NULL) {
 		snd_pcm_plugin_free(plugin);
 		return -ENOMEM;
@@ -651,18 +651,18 @@ snd_pcm_sframes_t snd_pcm_plug_client_channels_buf(snd_pcm_plug_t *plug,
 }
 
 static int snd_pcm_plug_playback_channels_mask(snd_pcm_plug_t *plug,
-					       bitset_t *client_vmask)
+					       unsigned long *client_vmask)
 {
 	snd_pcm_plugin_t *plugin = snd_pcm_plug_last(plug);
 	if (plugin == NULL) {
 		return 0;
 	} else {
 		int schannels = plugin->dst_format.channels;
-		bitset_t bs[bitset_size(schannels)];
-		bitset_t *srcmask;
-		bitset_t *dstmask = bs;
+		DECLARE_BITMAP(bs, schannels);
+		unsigned long *srcmask;
+		unsigned long *dstmask = bs;
 		int err;
-		bitset_one(dstmask, schannels);
+		bitmap_fill(dstmask, schannels);
 
 		while (1) {
 			err = plugin->src_channels_mask(plugin, dstmask, &srcmask);
@@ -673,7 +673,7 @@ static int snd_pcm_plug_playback_channels_mask(snd_pcm_plug_t *plug,
 				break;
 			plugin = plugin->prev;
 		}
-		bitset_and(client_vmask, dstmask, plugin->src_format.channels);
+		bitmap_and(client_vmask, client_vmask, dstmask, plugin->src_format.channels);
 		return 0;
 	}
 }
@@ -683,21 +683,21 @@ static int snd_pcm_plug_playback_disable_useless_channels(snd_pcm_plug_t *plug,
 {
 	snd_pcm_plugin_t *plugin = snd_pcm_plug_first(plug);
 	unsigned int nchannels = plugin->src_format.channels;
-	bitset_t bs[bitset_size(nchannels)];
-	bitset_t *srcmask = bs;
+	DECLARE_BITMAP(bs, nchannels);
+	unsigned long *srcmask = bs;
 	int err;
 	unsigned int channel;
 	for (channel = 0; channel < nchannels; channel++) {
 		if (src_channels[channel].enabled)
-			bitset_set(srcmask, channel);
+			set_bit(channel, srcmask);
 		else
-			bitset_reset(srcmask, channel);
+			clear_bit(channel, srcmask);
 	}
 	err = snd_pcm_plug_playback_channels_mask(plug, srcmask);
 	if (err < 0)
 		return err;
 	for (channel = 0; channel < nchannels; channel++) {
-		if (!bitset_get(srcmask, channel))
+		if (!test_bit(channel, srcmask))
 			src_channels[channel].enabled = 0;
 	}
 	return 0;
@@ -709,16 +709,16 @@ static int snd_pcm_plug_capture_disable_useless_channels(snd_pcm_plug_t *plug,
 {
 	snd_pcm_plugin_t *plugin = snd_pcm_plug_last(plug);
 	unsigned int nchannels = plugin->dst_format.channels;
-	bitset_t bs[bitset_size(nchannels)];
-	bitset_t *dstmask = bs;
-	bitset_t *srcmask;
+	DECLARE_BITMAP(bs, nchannels);
+	unsigned long *dstmask = bs;
+	unsigned long *srcmask;
 	int err;
 	unsigned int channel;
 	for (channel = 0; channel < nchannels; channel++) {
 		if (client_channels[channel].enabled)
-			bitset_set(dstmask, channel);
+			set_bit(channel, dstmask);
 		else
-			bitset_reset(dstmask, channel);
+			clear_bit(channel, dstmask);
 	}
 	while (plugin) {
 		err = plugin->src_channels_mask(plugin, dstmask, &srcmask);
@@ -730,7 +730,7 @@ static int snd_pcm_plug_capture_disable_useless_channels(snd_pcm_plug_t *plug,
 	plugin = snd_pcm_plug_first(plug);
 	nchannels = plugin->src_format.channels;
 	for (channel = 0; channel < nchannels; channel++) {
-		if (!bitset_get(dstmask, channel))
+		if (!test_bit(channel, dstmask))
 			src_channels[channel].enabled = 0;
 	}
 	return 0;

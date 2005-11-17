@@ -315,7 +315,7 @@ static snd_pcm_sframes_t rate_transfer(snd_pcm_plugin_t *plugin,
 
 static int rate_action(snd_pcm_plugin_t *plugin,
 		       snd_pcm_plugin_action_t action,
-		       unsigned long udata ATTRIBUTE_UNUSED)
+		       unsigned long udata)
 {
 	snd_assert(plugin != NULL, return -ENXIO);
 	switch (action) {
