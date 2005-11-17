@@ -21,6 +21,8 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
 #include <linux/moduleparam.h>
@@ -123,6 +125,7 @@ module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for " IDENT " driver.");
 
 struct snd_card_cs4236 {
+	struct snd_cs4231 *chip;
 	struct resource *res_sb_port;
 #ifdef CONFIG_PNP
 	struct pnp_dev *wss;
@@ -130,8 +133,6 @@ struct snd_card_cs4236 {
 	struct pnp_dev *mpu;
 #endif
 };
-
-static struct snd_card *snd_cs4236_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #ifdef CONFIG_PNP
 
@@ -158,6 +159,8 @@ static struct snd_card *snd_cs4236_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 
 #ifdef CS4232
+#define CS423X_DRIVER		"snd_cs4232"
+#define CS423X_ISAPNP_DRIVER	"cs4232_isapnp"
 static struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	/* Philips PCA70PS */
 	{ .id = "CSC0d32", .devs = { { "CSC0000" }, { "CSC0010" }, { "PNPb006" } } },
@@ -177,6 +180,8 @@ static struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	{ .id = "" }	/* end */
 };
 #else /* CS4236 */
+#define CS423X_DRIVER		"snd_cs4236"
+#define CS423X_ISAPNP_DRIVER	"cs4236_isapnp"
 static struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	/* Intel Marlin Spike Motherboard - CS4235 */
 	{ .id = "CSC0225", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
@@ -375,60 +380,44 @@ static int __devinit snd_card_cs4236_pnp(int dev, struct snd_card_cs4236 *acard,
 }
 #endif /* CONFIG_PNP */
 
-static void snd_card_cs4236_free(struct snd_card *card)
-{
-	struct snd_card_cs4236 *acard = (struct snd_card_cs4236 *)card->private_data;
-
-	if (acard)
-		release_and_free_resource(acard->res_sb_port);
-}
-
 #ifdef CONFIG_PNP
 #define is_isapnp_selected(dev)		isapnp[dev]
 #else
 #define is_isapnp_selected(dev)		0
 #endif
 
-static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
-					   const struct pnp_card_device_id *pid)
+static void snd_card_cs4236_free(struct snd_card *card)
+{
+	struct snd_card_cs4236 *acard = card->private_data;
+
+	release_and_free_resource(acard->res_sb_port);
+}
+
+static struct snd_card *snd_cs423x_card_new(int dev)
 {
 	struct snd_card *card;
+
+	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
+			    sizeof(struct snd_card_cs4236));
+	if (card == NULL)
+		return NULL;
+	card->private_free = snd_card_cs4236_free;
+	return card;
+}
+
+static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
+{
 	struct snd_card_cs4236 *acard;
-	struct snd_pcm *pcm = NULL;
+	struct snd_pcm *pcm;
 	struct snd_cs4231 *chip;
 	struct snd_opl3 *opl3;
 	int err;
 
-	if (! is_isapnp_selected(dev)) {
-		if (port[dev] == SNDRV_AUTO_PORT) {
-			snd_printk(KERN_ERR "specify port\n");
-			return -EINVAL;
-		}
-		if (cport[dev] == SNDRV_AUTO_PORT) {
-			snd_printk(KERN_ERR "specify cport\n");
-			return -EINVAL;
-		}
-	}
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_card_cs4236));
-	if (card == NULL)
-		return -ENOMEM;
-	acard = (struct snd_card_cs4236 *)card->private_data;
-	card->private_free = snd_card_cs4236_free;
-#ifdef CONFIG_PNP
-	if (isapnp[dev]) {
-		if ((err = snd_card_cs4236_pnp(dev, acard, pcard, pid))<0) {
-			printk(KERN_ERR "isapnp detection failed and probing for " IDENT " is not supported\n");
-			goto _err;
-		}
-		snd_card_set_dev(card, &pcard->card->dev);
-	}
-#endif
+	acard = card->private_data;
 	if (sb_port[dev] > 0 && sb_port[dev] != SNDRV_AUTO_PORT)
 		if ((acard->res_sb_port = request_region(sb_port[dev], 16, IDENT " SB")) == NULL) {
 			printk(KERN_ERR IDENT ": unable to register SB port at 0x%lx\n", sb_port[dev]);
-			err = -EBUSY;
-			goto _err;
+			return -EBUSY;
 		}
 
 #ifdef CS4232
@@ -441,13 +430,14 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 				     CS4231_HW_DETECT,
 				     0,
 				     &chip)) < 0)
-		goto _err;
+		return err;
+	acard->chip = chip;
 
 	if ((err = snd_cs4231_pcm(chip, 0, &pcm)) < 0)
-		goto _err;
+		return err;
 
 	if ((err = snd_cs4231_mixer(chip)) < 0)
-		goto _err;
+		return err;
 
 #else /* CS4236 */
 	if ((err = snd_cs4236_create(card,
@@ -459,13 +449,14 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 				     CS4231_HW_DETECT,
 				     0,
 				     &chip)) < 0)
-		goto _err;
+		return err;
+	acard->chip = chip;
 
 	if ((err = snd_cs4236_pcm(chip, 0, &pcm)) < 0)
-		goto _err;
+		return err;
 
 	if ((err = snd_cs4236_mixer(chip)) < 0)
-		goto _err;
+		return err;
 #endif
 	strcpy(card->driver, pcm->name);
 	strcpy(card->shortname, pcm->name);
@@ -478,7 +469,7 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 		sprintf(card->longname + strlen(card->longname), "&%d", dma2[dev]);
 
 	if ((err = snd_cs4231_timer(chip, 0, NULL)) < 0)
-		goto _err;
+		return err;
 
 	if (fm_port[dev] > 0 && fm_port[dev] != SNDRV_AUTO_PORT) {
 		if (snd_opl3_create(card,
@@ -487,7 +478,7 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 			printk(KERN_WARNING IDENT ": OPL3 not detected\n");
 		} else {
 			if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
-				goto _err;
+				return err;
 		}
 	}
 
@@ -501,77 +492,175 @@ static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 			printk(KERN_WARNING IDENT ": MPU401 not detected\n");
 	}
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
-
-	if ((err = snd_card_register(card)) < 0)
-		goto _err;
-	if (pcard)
-		pnp_set_card_drvdata(pcard, card);
-	else
-		snd_cs4236_legacy[dev] = card;
-	return 0;
-
- _err:
-	snd_card_free(card);
-	return err;
+	return snd_card_register(card);
 }
 
+static int __init snd_cs423x_nonpnp_probe(struct platform_device *pdev)
+{
+	int dev = pdev->id;
+	struct snd_card *card;
+	int err;
+
+	if (port[dev] == SNDRV_AUTO_PORT) {
+		snd_printk(KERN_ERR "specify port\n");
+		return -EINVAL;
+	}
+	if (cport[dev] == SNDRV_AUTO_PORT) {
+		snd_printk(KERN_ERR "specify cport\n");
+		return -EINVAL;
+	}
+
+	card = snd_cs423x_card_new(dev);
+	if (! card)
+		return -ENOMEM;
+	snd_card_set_dev(card, &pdev->dev);
+	if ((err = snd_cs423x_probe(card, dev)) < 0) {
+		snd_card_free(card);
+		return err;
+	}
+	
+	platform_set_drvdata(pdev, card);
+	return 0;
+}
+
+static int __devexit snd_cs423x_nonpnp_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int snd_cs423x_suspend(struct snd_card *card)
+{
+	struct snd_card_cs4236 *acard = card->private_data;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	acard->chip->suspend(acard->chip);
+	return 0;
+}
+
+static int snd_cs423x_resume(struct snd_card *card)
+{
+	struct snd_card_cs4236 *acard = card->private_data;
+	acard->chip->resume(acard->chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+
+static int snd_cs423x_nonpnp_suspend(struct platform_device *dev, pm_message_t state)
+{
+	return snd_cs423x_suspend(platform_get_drvdata(dev));
+}
+
+static int snd_cs423x_nonpnp_resume(struct platform_device *dev)
+{
+	return snd_cs423x_resume(platform_get_drvdata(dev));
+}
+#endif
+
+static struct platform_driver snd_cs423x_nonpnp_driver = {
+	.probe		= snd_cs423x_nonpnp_probe,
+	.remove		= __devexit_p(snd_cs423x_nonpnp_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_cs423x_nonpnp_suspend,
+	.resume		= snd_cs423x_nonpnp_resume,
+#endif
+	.driver		= {
+		.name	= CS423X_DRIVER
+	},
+};
+
+
 #ifdef CONFIG_PNP
-static int __devinit snd_cs423x_pnp_detect(struct pnp_card_link *card,
-					   const struct pnp_card_device_id *id)
+static int __devinit snd_cs423x_pnp_detect(struct pnp_card_link *pcard,
+					   const struct pnp_card_device_id *pid)
 {
 	static int dev;
+	struct snd_card *card;
 	int res;
 
 	for ( ; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev] || !isapnp[dev])
-			continue;
-		res = snd_card_cs423x_probe(dev, card, id);
-		if (res < 0)
-			return res;
-		dev++;
-		return 0;
+		if (enable[dev] && isapnp[dev])
+			break;
 	}
-	return -ENODEV;
+	if (dev >= SNDRV_CARDS)
+		return -ENODEV;
+
+	card = snd_cs423x_card_new(dev);
+	if (! card)
+		return -ENOMEM;
+	if ((res = snd_card_cs4236_pnp(dev, card->private_data, pcard, pid))<0) {
+		printk(KERN_ERR "isapnp detection failed and probing for " IDENT " is not supported\n");
+		snd_card_free(card);
+		return res;
+	}
+	snd_card_set_dev(card, &pcard->card->dev);
+	if ((res = snd_cs423x_probe(card, dev)) < 0) {
+		snd_card_free(card);
+		return res;
+	}
+	pnp_set_card_drvdata(pcard, card);
+	dev++;
+	return 0;
 }
 
 static void __devexit snd_cs423x_pnp_remove(struct pnp_card_link * pcard)
 {
-	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
-        
-	snd_card_disconnect(card);
-	snd_card_free_in_thread(card);
+	snd_card_free(pnp_get_card_drvdata(pcard));
+	pnp_set_card_drvdata(pcard, NULL);
 }
                         
+#ifdef CONFIG_PM
+static int snd_cs423x_pnp_suspend(struct pnp_card_link *pcard, pm_message_t state)
+{
+	return snd_cs423x_suspend(pnp_get_card_drvdata(pcard));
+}
+
+static int snd_cs423x_pnp_resume(struct pnp_card_link *pcard)
+{
+	return snd_cs423x_resume(pnp_get_card_drvdata(pcard));
+}
+#endif
+
 static struct pnp_card_driver cs423x_pnpc_driver = {
 	.flags = PNP_DRIVER_RES_DISABLE,
-	.name = "cs423x",
+	.name = CS423X_ISAPNP_DRIVER,
 	.id_table = snd_cs423x_pnpids,
 	.probe = snd_cs423x_pnp_detect,
 	.remove = __devexit_p(snd_cs423x_pnp_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_cs423x_pnp_suspend,
+	.resume		= snd_cs423x_pnp_resume,
+#endif
 };
 #endif /* CONFIG_PNP */
 
 static int __init alsa_card_cs423x_init(void)
 {
-	int dev, cards = 0;
+	int i, err, cards = 0;
 
-	for (dev = 0; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev])
+	if ((err = platform_driver_register(&snd_cs423x_nonpnp_driver)) < 0)
+		return err;
+
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		if (is_isapnp_selected(i))
 			continue;
-		if (is_isapnp_selected(dev))
-			continue;
-		if (snd_card_cs423x_probe(dev, NULL, NULL) >= 0)
-			cards++;
+		device = platform_device_register_simple(CS423X_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			platform_driver_unregister(&snd_cs423x_nonpnp_driver);
+			return err;
+		}
+		cards++;
 	}
-#ifdef CONFIG_PNP
-	cards += pnp_register_card_driver(&cs423x_pnpc_driver);
-#endif
+	i = pnp_register_card_driver(&cs423x_pnpc_driver);
+	if (i > 0)
+		cards += i;
 	if (!cards) {
-#ifdef CONFIG_PNP
 		pnp_unregister_card_driver(&cs423x_pnpc_driver);
-#endif
+		platform_driver_unregister(&snd_cs423x_nonpnp_driver);
 #ifdef MODULE
 		printk(KERN_ERR IDENT " soundcard not found or device busy\n");
 #endif
@@ -582,14 +671,8 @@ static int __init alsa_card_cs423x_init(void)
 
 static void __exit alsa_card_cs423x_exit(void)
 {
-	int idx;
-
-#ifdef CONFIG_PNP
-	/* PnP cards first */
 	pnp_unregister_card_driver(&cs423x_pnpc_driver);
-#endif
-	for (idx = 0; idx < SNDRV_CARDS; idx++)
-		snd_card_free(snd_cs4236_legacy[idx]);
+	platform_driver_unregister(&snd_cs423x_nonpnp_driver);
 }
 
 module_init(alsa_card_cs423x_init)
