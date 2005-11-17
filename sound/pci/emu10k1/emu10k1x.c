@@ -795,44 +795,43 @@ static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id,
 
 	status = inl(chip->port + IPR);
 
-	if(status) {
-		// capture interrupt
-		if(status & (IPR_CAP_0_LOOP | IPR_CAP_0_HALF_LOOP)) {
-			emu10k1x_voice_t *pvoice = &chip->capture_voice;
-			if(pvoice->use)
-				snd_emu10k1x_pcm_interrupt(chip, pvoice);
-			else
-				snd_emu10k1x_intr_disable(chip, 
-							  INTE_CAP_0_LOOP |
-							  INTE_CAP_0_HALF_LOOP);
-		}
-		
-		mask = IPR_CH_0_LOOP|IPR_CH_0_HALF_LOOP;
-		for(i = 0; i < 3; i++) {
-			if(status & mask) {
-				if(pvoice->use)
-					snd_emu10k1x_pcm_interrupt(chip, pvoice);
-				else 
-					snd_emu10k1x_intr_disable(chip, mask);
-			}
-			pvoice++;
-			mask <<= 1;
-		}
-		
-		if (status & (IPR_MIDITRANSBUFEMPTY|IPR_MIDIRECVBUFEMPTY)) {
-			if (chip->midi.interrupt)
-				chip->midi.interrupt(chip, status);
-			else
-				snd_emu10k1x_intr_disable(chip, INTE_MIDITXENABLE|INTE_MIDIRXENABLE);
-		}
-		
-		// acknowledge the interrupt if necessary
-		if(status)
-			outl(status, chip->port+IPR);
+	if (! status)
+		return IRQ_NONE;
 
-//		snd_printk(KERN_INFO "interrupt %08x\n", status);
+	// capture interrupt
+	if (status & (IPR_CAP_0_LOOP | IPR_CAP_0_HALF_LOOP)) {
+		emu10k1x_voice_t *pvoice = &chip->capture_voice;
+		if(pvoice->use)
+			snd_emu10k1x_pcm_interrupt(chip, pvoice);
+		else
+			snd_emu10k1x_intr_disable(chip, 
+						  INTE_CAP_0_LOOP |
+						  INTE_CAP_0_HALF_LOOP);
 	}
+		
+	mask = IPR_CH_0_LOOP|IPR_CH_0_HALF_LOOP;
+	for (i = 0; i < 3; i++) {
+		if (status & mask) {
+			if (pvoice->use)
+				snd_emu10k1x_pcm_interrupt(chip, pvoice);
+			else 
+				snd_emu10k1x_intr_disable(chip, mask);
+		}
+		pvoice++;
+		mask <<= 1;
+	}
+		
+	if (status & (IPR_MIDITRANSBUFEMPTY|IPR_MIDIRECVBUFEMPTY)) {
+		if (chip->midi.interrupt)
+			chip->midi.interrupt(chip, status);
+		else
+			snd_emu10k1x_intr_disable(chip, INTE_MIDITXENABLE|INTE_MIDIRXENABLE);
+	}
+		
+	// acknowledge the interrupt if necessary
+	outl(status, chip->port + IPR);
 
+	// snd_printk(KERN_INFO "interrupt %08x\n", status);
 	return IRQ_HANDLED;
 }
 
