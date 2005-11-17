@@ -148,6 +148,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module supports up to 8 cards. This module does not support autoprobe
     thus main port must be specified!!! Other ports are optional.
     
+    The power-management is supported.
+
   Module snd-ad1889
   -----------------
 
@@ -186,6 +188,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     Module supports up to 8 cards, autoprobe and PnP.
 
+    The power-management is supported.
+
   Module snd-als4000
   ------------------
 
@@ -195,6 +199,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
                     0 = disabled (default), 1 = auto-detect
     
     Module supports up to 8 cards, autoprobe and PnP.
+
+    The power-management is supported.
 
   Module snd-atiixp
   -----------------
@@ -213,6 +219,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     implementation depends on the motherboard, and you'll need to
     choose the correct one via spdif_aclink module option.
 
+    The power-management is supported.
+
   Module snd-atiixp-modem
   -----------------------
 
@@ -222,6 +230,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
+
+    The power-management is supported.
 
   Module snd-au8810, snd-au8820, snd-au8830
   -----------------------------------------
@@ -265,6 +275,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     Module supports up to 8 cards, PnP and autoprobe.
     
+    The power-management is supported.
+
   Module snd-azt3328
   ------------------
 
@@ -310,6 +322,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports up to 8 cards and autoprobe.
 
+    The power-management is supported.
+
   Module snd-cmipci
   -----------------
 
@@ -323,6 +337,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports autoprobe and multiple chips (max 8).
     
+    The power-management is supported.
+
   Module snd-cs4231
   -----------------
 
@@ -433,12 +449,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module supports up to 8 cards.  This module is enabled only with
     ISA PnP support.
 
+    The power-management is supported.
+
   Module snd-dummy
   ----------------
 
     Module for the dummy sound card. This "card" doesn't do any output
     or input, but you may use this module for any application which
     requires a sound card (like RealPlayer).
+
+    The power-management is supported.
 
   Module snd-emu10k1
   ------------------
@@ -473,6 +493,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	* Creative Card 5.1 (c) 2003			[0x3fc3/0x7cff]
         * Creative Card all ins and outs		[0x3fff/0x7fff]
     
+    The power-management is supported.
+
   Module snd-emu10k1x
   -------------------
 
@@ -515,6 +537,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     Module supports up to 8 cards, PnP and autoprobe.
     
+    The power-management is supported.
+
   Module snd-es1688
   -----------------
 
@@ -554,6 +578,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports up to 8 cards and autoprobe.
 
+    The power-management is supported.
+
   Module snd-es1968
   -----------------
 
@@ -586,6 +612,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports up to 8 cards and autoprobe.
     
+    The power-management is supported.
+
   Module snd-gusclassic
   ---------------------
 
@@ -694,6 +722,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	    the position buffer instead of reading SD_LPIB register.
 	    (Usually SD_LPLIB register is more accurate than the
 	    position buffer.)
+
+    The power-management is supported.
 
   Module snd-hdsp
   ---------------
@@ -845,6 +875,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
+
+    The power-management is supported.
 
   Module snd-interwave
   --------------------
@@ -1091,6 +1123,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     For ARM architecture only.
 
+    The power-management is supported.
+
   Module snd-rme32
   ----------------
 
@@ -1131,6 +1165,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module supports only one card.
     Module has no enable and index options.
 
+    The power-management is supported.
+
   Module snd-sb8
   --------------
 
@@ -1144,6 +1180,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module supports up to 8 cards and autoprobe.
     
+    The power-management is supported.
+
   Module snd-sb16 and snd-sbawe
   -----------------------------
 
@@ -1170,6 +1208,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
           half duplex mode through 8-bit DMA channel by disabling their
           16-bit DMA channel.
     
+    The power-management is supported.
+
   Module snd-sgalaxy
   ------------------
 
@@ -1181,6 +1221,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma1	- DMA #
 
     Module supports up to 8 cards.
+
+    The power-management is supported.
 
   Module snd-sscape
   -----------------
@@ -1363,6 +1405,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Note: for the MPU401 on VIA823x, use snd-mpu401 driver
 	  additionally.  The mpu_port option is for VIA686 chips only.
 
+    The power-management is supported.
+
   Module snd-via82xx-modem
   ------------------------
 
@@ -1374,6 +1418,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
+
+    The power-management is supported.
 
   Module snd-virmidi
   ------------------
@@ -1413,6 +1459,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     size is chosen.  The possible IBL values can be found in
     /proc/asound/cardX/vx-status proc file.
 
+    The power-management is supported.
+
   Module snd-vxpocket
   -------------------
 
@@ -1441,6 +1489,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Note2: snd-vxp440 driver is merged to snd-vxpocket driver since
            ALSA 1.0.10.
 
+    The power-management is supported.
+
   Module snd-ymfpci
   -----------------
 
@@ -1464,6 +1514,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for Sound Core PDAudioCF sound card.
 
     Note: the driver is build only when CONFIG_ISA is set.
+
+    The power-management is supported.
 
 
 AC97 Quirk Option
