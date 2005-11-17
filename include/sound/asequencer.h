@@ -22,11 +22,10 @@
 #ifndef __SOUND_ASEQUENCER_H
 #define __SOUND_ASEQUENCER_H
 
-#ifndef __KERNEL__
+#ifdef __KERNEL__
 #include <linux/ioctl.h>
-#endif
-
 #include <sound/asound.h>
+#endif
 
 /** version of the sequencer */
 #define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION (1, 0, 1)
