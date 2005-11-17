@@ -903,7 +903,7 @@ typedef struct _MPT_LOCAL_REPLY {
 
 typedef enum {
 	FC,
-	SCSI,
+	SPI,
 	SAS
 } BUS_TYPE;
 

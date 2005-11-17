@@ -677,7 +677,7 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			sc->result = DID_RESET << 16;
 
 			/* GEM Workaround. */
-			if (ioc->bus_type == SCSI)
+			if (ioc->bus_type == SPI)
 				mptscsih_no_negotiate(hd, sc->device->id);
 			break;
 
@@ -1403,7 +1403,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	SCpnt->host_scribble = NULL;
 
 #ifdef MPTSCSIH_ENABLE_DOMAIN_VALIDATION
-	if (hd->ioc->bus_type == SCSI) {
+	if (hd->ioc->bus_type == SPI) {
 		int dvStatus = hd->ioc->spi_data.dvStatus[pTarget->target_id];
 		int issueCmd = 1;
 
@@ -2183,7 +2183,7 @@ mptscsih_slave_alloc(struct scsi_device *device)
 	vdev->bus_id = device->channel;
 	vdev->raidVolume = 0;
 	hd->Targets[device->id] = vdev;
-	if (hd->ioc->bus_type == SCSI) {
+	if (hd->ioc->bus_type == SPI) {
 		if (hd->ioc->raid_data.isRaid & (1 << device->id)) {
 			vdev->raidVolume = 1;
 			ddvtprintk((KERN_INFO
@@ -2225,7 +2225,7 @@ mptscsih_slave_destroy(struct scsi_device *device)
 	kfree(hd->Targets[target]);
 	hd->Targets[target] = NULL;
 
-	if (hd->ioc->bus_type == SCSI) {
+	if (hd->ioc->bus_type == SPI) {
 		if (mptscsih_is_phys_disk(hd->ioc, target)) {
 			hd->ioc->spi_data.forceDv |= MPT_SCSICFG_RELOAD_IOC_PG3;
 		} else {
@@ -2261,7 +2261,7 @@ mptscsih_change_queue_depth(struct scsi_device *sdev, int qdepth)
 	if (!(pTarget = hd->Targets[sdev->id]))
 		return 0;
 
-	if (hd->ioc->bus_type == SCSI) {
+	if (hd->ioc->bus_type == SPI) {
 		if (pTarget->tflags & MPT_TARGET_FLAGS_VALID_INQUIRY) {
 			if (!(pTarget->tflags & MPT_TARGET_FLAGS_Q_YES))
 				max_depth = 1;
@@ -2503,9 +2503,9 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 		/* 2. Chain Buffer initialization
 		 */
 
-		/* 4. Renegotiate to all devices, if SCSI
+		/* 4. Renegotiate to all devices, if SPI
 		 */
-		if (ioc->bus_type == SCSI) {
+		if (ioc->bus_type == SPI) {
 			dnegoprintk(("writeSDP1: ALL_IDS USE_NVRAM\n"));
 			mptscsih_writeSDP1(hd, 0, 0, MPT_SCSICFG_ALL_IDS | MPT_SCSICFG_USE_NVRAM);
 		}
@@ -2534,7 +2534,7 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 
 		/* 7. Set flag to force DV and re-read IOC Page 3
 		 */
-		if (ioc->bus_type == SCSI) {
+		if (ioc->bus_type == SPI) {
 			ioc->spi_data.forceDv = MPT_SCSICFG_NEED_DV | MPT_SCSICFG_RELOAD_IOC_PG3;
 			ddvtprintk(("Set reload IOC Pg3 Flag\n"));
 		}
@@ -2576,7 +2576,7 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 		break;
 	case MPI_EVENT_IOC_BUS_RESET:			/* 04 */
 	case MPI_EVENT_EXT_BUS_RESET:			/* 05 */
-		if (hd && (ioc->bus_type == SCSI) && (hd->soft_resets < -1))
+		if (hd && (ioc->bus_type == SPI) && (hd->soft_resets < -1))
 			hd->soft_resets++;
 		break;
 	case MPI_EVENT_LOGOUT:				/* 09 */
@@ -2601,7 +2601,7 @@ mptscsih_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 		    (pMpiEventDataRaid_t) pEvReply->Data;
 #ifdef MPTSCSIH_ENABLE_DOMAIN_VALIDATION
 		/* Domain Validation Needed */
-		if (ioc->bus_type == SCSI &&
+		if (ioc->bus_type == SPI &&
 		    pRaidEventData->ReasonCode ==
 		    MPI_EVENT_RAID_RC_DOMAIN_VAL_NEEDED)
 			mptscsih_set_dvflags_raid(hd, pRaidEventData->PhysDiskNum);
@@ -2682,7 +2682,7 @@ mptscsih_initTarget(MPT_SCSI_HOST *hd, int bus_id, int target_id, u8 lun, char *
 	indexed_lun = (lun % 32);
 	vdev->luns[lun_index] |= (1 << indexed_lun);
 
-	if (hd->ioc->bus_type == SCSI) {
+	if (hd->ioc->bus_type == SPI) {
 		if ((data[0] == TYPE_PROCESSOR) && (hd->ioc->spi_data.Saf_Te)) {
 			/* Treat all Processors as SAF-TE if
 			 * command line option is set */
@@ -3956,10 +3956,10 @@ mptscsih_synchronize_cache(MPT_SCSI_HOST *hd, int portnum)
 	if (id == hostId)
 		id++;
 
-	/* Write SDP1 for all SCSI devices
+	/* Write SDP1 for all SPI devices
 	 * Alloc memory and set up config buffer
 	 */
-	if (ioc->bus_type == SCSI) {
+	if (ioc->bus_type == SPI) {
 		if (ioc->spi_data.sdp1length > 0) {
 			pcfg1Data = (SCSIDevicePage1_t *)pci_alloc_consistent(ioc->pcidev,
 					 ioc->spi_data.sdp1length * 4, &cfg1_dma_addr);
@@ -4101,8 +4101,8 @@ mptscsih_domainValidation(void *arg)
 
 			msleep(250);
 
-			/* DV only to SCSI adapters */
-			if (ioc->bus_type != SCSI)
+			/* DV only to SPI adapters */
+			if (ioc->bus_type != SPI)
 				continue;
 
 			/* Make sure everything looks ok */
