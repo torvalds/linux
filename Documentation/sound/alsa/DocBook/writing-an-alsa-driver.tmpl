@@ -18,8 +18,8 @@
       </affiliation>
      </author>
 
-     <date>October 6, 2005</date>
-     <edition>0.3.5</edition>
+     <date>November 17, 2005</date>
+     <edition>0.3.6</edition>
 
     <abstract>
       <para>
@@ -2329,9 +2329,14 @@ struct _snd_pcm_runtime {
         <constant>PAUSE</constant> bit means that the pcm supports the
         <quote>pause</quote> operation, while the
         <constant>RESUME</constant> bit means that the pcm supports
-        the <quote>suspend/resume</quote> operation. If these flags
-        are set, the <structfield>trigger</structfield> callback below
-        must handle the corresponding commands. 
+        the full <quote>suspend/resume</quote> operation.
+	If <constant>PAUSE</constant> flag is set,
+	the <structfield>trigger</structfield> callback below
+        must handle the corresponding (pause push/release) commands.
+	The suspend/resume trigger commands can be defined even without
+	<constant>RESUME</constant> flag.  See <link
+	linkend="power-management"><citetitle>
+	Power Management</citetitle></link> section for details.
         </para>
 
 	<para>
@@ -2903,8 +2908,8 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          When the pcm supports the suspend/resume operation
-        (i.e. <constant>SNDRV_PCM_INFO_RESUME</constant> flag is set),
+          When the pcm supports the suspend/resume operation,
+	regardless of full or partial suspend/resume support,
         <constant>SUSPEND</constant> and <constant>RESUME</constant>
         commands must be handled, too.
         These commands are issued when the power-management status is
@@ -2913,6 +2918,8 @@ struct _snd_pcm_runtime {
         do suspend and resume of the pcm substream, and usually, they
         are identical with <constant>STOP</constant> and
         <constant>START</constant> commands, respectively.
+	  See <link linkend="power-management"><citetitle>
+	Power Management</citetitle></link> section for details.
         </para>
 
         <para>
@@ -5483,22 +5490,60 @@ struct _snd_pcm_runtime {
       <constant>CONFIG_PM</constant>. 
     </para>
 
+	<para>
+	If the driver supports the suspend/resume
+	<emphasis>fully</emphasis>, that is, the device can be
+	properly resumed to the status at the suspend is called,
+	you can set <constant>SNDRV_PCM_INFO_RESUME</constant> flag
+	to pcm info field.  Usually, this is possible when the
+	registers of ths chip can be safely saved and restored to the
+	RAM.  If this is set, the trigger callback is called with
+	<constant>SNDRV_PCM_TRIGGER_RESUME</constant> after resume
+	callback is finished. 
+	</para>
+
+	<para>
+	Even if the driver doesn't support PM fully but only the
+	partial suspend/resume is possible, it's still worthy to
+	implement suspend/resume callbacks.  In such a case, applications
+	would reset the status by calling
+	<function>snd_pcm_prepare()</function> and restart the stream
+	appropriately.  Hence, you can define suspend/resume callbacks
+	below but don't set <constant>SNDRV_PCM_INFO_RESUME</constant>
+	info flag to the PCM.
+	</para>
+	
+	<para>
+	Note that the trigger with SUSPEND can be always called when
+	<function>snd_pcm_suspend_all</function> is called,
+	regardless of <constant>SNDRV_PCM_INFO_RESUME</constant> flag.
+	The <constant>RESUME</constant> flag affects only the behavior
+	of <function>snd_pcm_resume()</function>.
+	(Thus, in theory,
+	<constant>SNDRV_PCM_TRIGGER_RESUME</constant> isn't needed
+	to be handled in the trigger callback when no
+	<constant>SNDRV_PCM_INFO_RESUME</constant> flag is set.  But,
+	it's better to keep it for compatibility reason.)
+	</para>
     <para>
-      ALSA provides the common power-management layer. Each card driver
-      needs to have only low-level suspend and resume callbacks.
+      In the earlier version of ALSA drivers, a common
+      power-management layer was provided, but it has been removed.
+      The driver needs to define the suspend/resume hooks according to
+      the bus the device is assigned.  In the case of PCI driver, the
+      callbacks look like below:
 
       <informalexample>
         <programlisting>
 <![CDATA[
   #ifdef CONFIG_PM
-  static int snd_my_suspend(struct snd_card *card, pm_message_t state)
+  static int snd_my_suspend(struct pci_dev *pci, pm_message_t state)
   {
-          .... // do things for suspsend
+          .... /* do things for suspsend */
           return 0;
   }
-  static int snd_my_resume(struct snd_card *card)
+  static int snd_my_resume(struct pci_dev *pci)
   {
-          .... // do things for suspsend
+          .... /* do things for suspsend */
           return 0;
   }
   #endif
@@ -5511,11 +5556,18 @@ struct _snd_pcm_runtime {
       The scheme of the real suspend job is as following.
 
       <orderedlist>
-        <listitem><para>Retrieve the chip data from pm_private_data field.</para></listitem>
+        <listitem><para>Retrieve the card and the chip data.</para></listitem>
+        <listitem><para>Call <function>snd_power_change_state()</function> with
+	  <constant>SNDRV_CTL_POWER_D3hot</constant> to change the
+	  power status.</para></listitem>
         <listitem><para>Call <function>snd_pcm_suspend_all()</function> to suspend the running PCM streams.</para></listitem>
+	<listitem><para>If AC97 codecs are used, call
+	<function>snd_ac97_resume()</function> for each codec.</para></listitem>
         <listitem><para>Save the register values if necessary.</para></listitem>
         <listitem><para>Stop the hardware if necessary.</para></listitem>
-        <listitem><para>Disable the PCI device by calling <function>pci_disable_device()</function>.</para></listitem>
+        <listitem><para>Disable the PCI device by calling
+	  <function>pci_disable_device()</function>.  Then, call
+          <function>pci_save_state()</function> at last.</para></listitem>
       </orderedlist>
     </para>
 
@@ -5525,18 +5577,24 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static int mychip_suspend(struct snd_card *card, pm_message_t state)
+  static int mychip_suspend(strut pci_dev *pci, pm_message_t state)
   {
           /* (1) */
-          struct mychip *chip = card->pm_private_data;
+          struct snd_card *card = pci_get_drvdata(pci);
+          struct mychip *chip = card->private_data;
           /* (2) */
-          snd_pcm_suspend_all(chip->pcm);
+          snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
           /* (3) */
-          snd_mychip_save_registers(chip);
+          snd_pcm_suspend_all(chip->pcm);
           /* (4) */
-          snd_mychip_stop_hardware(chip);
+          snd_ac97_suspend(chip->ac97);
           /* (5) */
-          pci_disable_device(chip->pci);
+          snd_mychip_save_registers(chip);
+          /* (6) */
+          snd_mychip_stop_hardware(chip);
+          /* (7) */
+          pci_disable_device(pci);
+          pci_save_state(pci);
           return 0;
   }
 ]]>
@@ -5548,14 +5606,17 @@ struct _snd_pcm_runtime {
     The scheme of the real resume job is as following.
 
     <orderedlist>
-    <listitem><para>Retrieve the chip data from pm_private_data field.</para></listitem>
-    <listitem><para>Enable the pci device again by calling
-    <function>pci_enable_device()</function>.</para></listitem>
+    <listitem><para>Retrieve the card and the chip data.</para></listitem>
+    <listitem><para>Set up PCI.  First, call <function>pci_restore_state()</function>.
+    	Then enable the pci device again by calling <function>pci_enable_device()</function>.
+	Call <function>pci_set_master()</function> if necessary, too.</para></listitem>
     <listitem><para>Re-initialize the chip.</para></listitem>
     <listitem><para>Restore the saved registers if necessary.</para></listitem>
     <listitem><para>Resume the mixer, e.g. calling
     <function>snd_ac97_resume()</function>.</para></listitem>
     <listitem><para>Restart the hardware (if any).</para></listitem>
+    <listitem><para>Call <function>snd_power_change_state()</function> with
+	<constant>SNDRV_CTL_POWER_D0</constant> to notify the processes.</para></listitem>
     </orderedlist>
     </para>
 
@@ -5565,12 +5626,15 @@ struct _snd_pcm_runtime {
       <informalexample>
         <programlisting>
 <![CDATA[
-  static void mychip_resume(struct mychip *chip)
+  static int mychip_resume(struct pci_dev *pci)
   {
           /* (1) */
-          struct mychip *chip = card->pm_private_data;
+          struct snd_card *card = pci_get_drvdata(pci);
+          struct mychip *chip = card->private_data;
           /* (2) */
-          pci_enable_device(chip->pci);
+          pci_restore_state(pci);
+          pci_enable_device(pci);
+          pci_set_master(pci);
           /* (3) */
           snd_mychip_reinit_chip(chip);
           /* (4) */
@@ -5579,6 +5643,8 @@ struct _snd_pcm_runtime {
           snd_ac97_resume(chip->ac97);
           /* (6) */
           snd_mychip_restart_chip(chip);
+          /* (7) */
+          snd_power_change_state(card, SNDRV_CTL_POWER_D0);
           return 0;
   }
 ]]>
@@ -5587,8 +5653,23 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-      OK, we have all callbacks now. Let's set up them now. In the
-      initialization of the card, add the following: 
+	As shown in the above, it's better to save registers after
+	suspending the PCM operations via
+	<function>snd_pcm_suspend_all()</function> or
+	<function>snd_pcm_suspend()</function>.  It means that the PCM
+	streams are already stoppped when the register snapshot is
+	taken.  But, remind that you don't have to restart the PCM
+	stream in the resume callback. It'll be restarted via 
+	trigger call with <constant>SNDRV_PCM_TRIGGER_RESUME</constant>
+	when necessary.
+    </para>
+
+    <para>
+      OK, we have all callbacks now. Let's set them up. In the
+      initialization of the card, make sure that you can get the chip
+      data from the card instance, typically via
+      <structfield>private_data</structfield> field, in case you
+      created the chip data individually.
 
       <informalexample>
         <programlisting>
@@ -5600,30 +5681,53 @@ struct _snd_pcm_runtime {
           struct snd_card *card;
           struct mychip *chip;
           ....
-          snd_card_set_pm_callback(card, snd_my_suspend, snd_my_resume, chip);
+          card = snd_card_new(index[dev], id[dev], THIS_MODULE, NULL);
+          ....
+          chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+          ....
+          card->private_data = chip;
           ....
   }
 ]]>
         </programlisting>
       </informalexample>
 
-    Here you don't have to put ifdef CONFIG_PM around, since it's already
-    checked in the header and expanded to empty if not needed.
+	When you created the chip data with
+	<function>snd_card_new()</function>, it's anyway accessible
+	via <structfield>private_data</structfield> field.
+
+      <informalexample>
+        <programlisting>
+<![CDATA[
+  static int __devinit snd_mychip_probe(struct pci_dev *pci,
+                               const struct pci_device_id *pci_id)
+  {
+          ....
+          struct snd_card *card;
+          struct mychip *chip;
+          ....
+          card = snd_card_new(index[dev], id[dev], THIS_MODULE,
+                              sizeof(struct mychip));
+          ....
+          chip = card->private_data;
+          ....
+  }
+]]>
+        </programlisting>
+      </informalexample>
+
     </para>
 
     <para>
-      If you need a space for saving the registers, you'll need to
-    allocate the buffer for it here, too, since it would be fatal
+      If you need a space for saving the registers, allocate the
+	buffer for it here, too, since it would be fatal
     if you cannot allocate a memory in the suspend phase.
     The allocated buffer should be released in the corresponding
     destructor.
     </para>
 
     <para>
-      And next, set suspend/resume callbacks to the pci_driver,
-      This can be done by passing a macro SND_PCI_PM_CALLBACKS
-      in the pci_driver struct.  This macro is expanded to the correct
-      (global) callbacks if CONFIG_PM is set.
+      And next, set suspend/resume callbacks to the pci_driver.
 
       <informalexample>
         <programlisting>
@@ -5633,7 +5737,10 @@ struct _snd_pcm_runtime {
           .id_table = snd_my_ids,
           .probe = snd_my_probe,
           .remove = __devexit_p(snd_my_remove),
-          SND_PCI_PM_CALLBACKS
+  #ifdef CONFIG_PM
+          .suspend = snd_my_suspend,
+          .resume = snd_my_resume,
+  #endif
   };
 ]]>
         </programlisting>
