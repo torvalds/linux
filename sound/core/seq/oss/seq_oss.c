@@ -62,7 +62,7 @@ static ssize_t odev_write(struct file *file, const char __user *buf, size_t coun
 static long odev_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static unsigned int odev_poll(struct file *file, poll_table * wait);
 #ifdef CONFIG_PROC_FS
-static void info_read(snd_info_entry_t *entry, snd_info_buffer_t *buf);
+static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buf);
 #endif
 
 
@@ -73,7 +73,7 @@ static void info_read(snd_info_entry_t *entry, snd_info_buffer_t *buf);
 static int __init alsa_seq_oss_init(void)
 {
 	int rc;
-	static snd_seq_dev_ops_t ops = {
+	static struct snd_seq_dev_ops ops = {
 		snd_seq_oss_synth_register,
 		snd_seq_oss_synth_unregister,
 	};
@@ -92,7 +92,7 @@ static int __init alsa_seq_oss_init(void)
 	}
 
 	if ((rc = snd_seq_device_register_driver(SNDRV_SEQ_DEV_ID_OSS, &ops,
-						 sizeof(snd_seq_oss_reg_t))) < 0) {
+						 sizeof(struct snd_seq_oss_reg))) < 0) {
 		snd_seq_oss_delete_client();
 		unregister_proc();
 		unregister_device();
@@ -144,7 +144,7 @@ odev_open(struct inode *inode, struct file *file)
 static int
 odev_release(struct inode *inode, struct file *file)
 {
-	seq_oss_devinfo_t *dp;
+	struct seq_oss_devinfo *dp;
 
 	if ((dp = file->private_data) == NULL)
 		return 0;
@@ -161,7 +161,7 @@ odev_release(struct inode *inode, struct file *file)
 static ssize_t
 odev_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
-	seq_oss_devinfo_t *dp;
+	struct seq_oss_devinfo *dp;
 	dp = file->private_data;
 	snd_assert(dp != NULL, return -EIO);
 	return snd_seq_oss_read(dp, buf, count);
@@ -171,7 +171,7 @@ odev_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 static ssize_t
 odev_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
 {
-	seq_oss_devinfo_t *dp;
+	struct seq_oss_devinfo *dp;
 	dp = file->private_data;
 	snd_assert(dp != NULL, return -EIO);
 	return snd_seq_oss_write(dp, buf, count, file);
@@ -180,7 +180,7 @@ odev_write(struct file *file, const char __user *buf, size_t count, loff_t *offs
 static long
 odev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	seq_oss_devinfo_t *dp;
+	struct seq_oss_devinfo *dp;
 	dp = file->private_data;
 	snd_assert(dp != NULL, return -EIO);
 	return snd_seq_oss_ioctl(dp, cmd, arg);
@@ -195,7 +195,7 @@ odev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static unsigned int
 odev_poll(struct file *file, poll_table * wait)
 {
-	seq_oss_devinfo_t *dp;
+	struct seq_oss_devinfo *dp;
 	dp = file->private_data;
 	snd_assert(dp != NULL, return 0);
 	return snd_seq_oss_poll(dp, file, wait);
@@ -217,7 +217,7 @@ static struct file_operations seq_oss_f_ops =
 	.compat_ioctl =	odev_ioctl_compat,
 };
 
-static snd_minor_t seq_oss_reg = {
+static struct snd_minor seq_oss_reg = {
 	.comment =	"sequencer",
 	.f_ops =	&seq_oss_f_ops,
 };
@@ -268,10 +268,10 @@ unregister_device(void)
 
 #ifdef CONFIG_PROC_FS
 
-static snd_info_entry_t *info_entry;
+static struct snd_info_entry *info_entry;
 
 static void
-info_read(snd_info_entry_t *entry, snd_info_buffer_t *buf)
+info_read(struct snd_info_entry *entry, struct snd_info_buffer *buf)
 {
 	down(&register_mutex);
 	snd_iprintf(buf, "OSS sequencer emulation version %s\n", SNDRV_SEQ_OSS_VERSION_STR);
@@ -287,7 +287,7 @@ static int __init
 register_proc(void)
 {
 #ifdef CONFIG_PROC_FS
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, SNDRV_SEQ_OSS_PROCNAME, snd_seq_root);
 	if (entry == NULL)
