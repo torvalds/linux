@@ -52,6 +52,7 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	stw	r4,TZONE_TZ_MINWEST(r10)
 	stw	r5,TZONE_TZ_DSTTIME(r10)
 1:	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0			/* always success */
 	blr
   .cfi_endproc
@@ -99,6 +100,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	std	r0,TSPC64_TV_NSEC(r11)	/* store nsec in tp */
 
 	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -159,6 +161,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	std	r7,TSPC64_TV_NSEC(r11)
 
 	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -193,6 +196,7 @@ V_FUNCTION_BEGIN(__kernel_clock_getres)
 
 	li	r3,0
 	cmpli	cr0,r4,0
+	crclr	cr0*4+so
 	beqlr
 	lis	r5,CLOCK_REALTIME_RES@h
 	ori	r5,r5,CLOCK_REALTIME_RES@l

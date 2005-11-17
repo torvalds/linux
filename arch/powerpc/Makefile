@@ -14,10 +14,6 @@
 
 HAS_BIARCH	:= $(call cc-option-yn, -m32)
 
-ifeq ($(CONFIG_PPC64),y)
-OLDARCH	:= ppc64
-SZ	:= 64
-
 # Set default 32 bits cross compilers for vdso and boot wrapper
 CROSS32_COMPILE ?=
 
@@ -36,6 +32,10 @@ endif
 endif
 
 export CROSS32CC CROSS32AS CROSS32LD CROSS32OBJCOPY
+
+ifeq ($(CONFIG_PPC64),y)
+OLDARCH	:= ppc64
+SZ	:= 64
 
 new_nm := $(shell if $(NM) --help 2>&1 | grep -- '--synthetic' > /dev/null; then echo y; else echo n; fi)
 
@@ -139,7 +139,7 @@ drivers-$(CONFIG_CPM2)		+= arch/ppc/8260_io/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
-defaultimage-$(CONFIG_PPC32)	:= uImage zImage
+defaultimage-$(CONFIG_PPC32)	:= zImage
 defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
 defaultimage-$(CONFIG_PPC_PSERIES) := zImage
 KBUILD_IMAGE := $(defaultimage-y)
@@ -154,23 +154,13 @@ BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
 
 .PHONY: $(BOOT_TARGETS)
 
-boot := arch/$(OLDARCH)/boot
+boot := arch/$(ARCH)/boot
 
-# urk
-ifeq ($(CONFIG_PPC64),y)
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) ARCH=ppc64 $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
-else
-$(BOOT_TARGETS): vmlinux
-	$(Q)$(MAKE) ARCH=ppc $(build)=$(boot) $@
-endif
-
-uImage: vmlinux
-	$(Q)$(MAKE) ARCH=$(OLDARCH) $(build)=$(boot)/images $(boot)/images/$@
 
 define archhelp
-  @echo '* zImage          - Compressed kernel image (arch/$(ARCH)/boot/images/zImage.*)'
-  @echo '  uImage          - Create a bootable image for U-Boot / PPCBoot'
+  @echo '* zImage          - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
   @echo '  install         - Install kernel using'
   @echo '                    (your) ~/bin/installkernel or'
   @echo '                    (distribution) /sbin/installkernel or'
@@ -180,7 +170,6 @@ endef
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-	# Temporary hack until we have migrated to asm-powerpc
 	$(Q)rm -rf arch/$(ARCH)/include
 
 archprepare: checkbin

@@ -22,7 +22,8 @@
 
 
 HOSTCC		:= gcc
-BOOTCFLAGS	:= $(HOSTCFLAGS) -fno-builtin -nostdinc -isystem $(shell $(CROSS32CC) -print-file-name=include) -fPIC
+BOOTCFLAGS	:= $(HOSTCFLAGS) -fno-builtin -nostdinc -isystem \
+		   $(shell $(CROSS32CC) -print-file-name=include) -fPIC
 BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -traditional -nostdinc
 BOOTLFLAGS	:= -T $(srctree)/$(src)/zImage.lds
 OBJCOPYFLAGS    := contents,alloc,load,readonly,data
@@ -98,7 +99,7 @@ quiet_cmd_ramdisk = RAMDISK $@
       cmd_ramdisk = $(obj)/addRamDisk $(obj)/ramdisk.image.gz $< $@
 
 quiet_cmd_stripvm = STRIP   $@
-      cmd_stripvm = $(STRIP) -s $< -o $@
+      cmd_stripvm = $(STRIP) -s -R .comment $< -o $@
 
 vmlinux.strip: vmlinux
 	$(call if_changed,stripvm)
