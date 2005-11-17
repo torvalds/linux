@@ -30,7 +30,7 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Universal routines for AK4531 codec");
 MODULE_LICENSE("GPL");
 
-static void snd_ak4531_proc_init(snd_card_t * card, ak4531_t * ak4531);
+static void snd_ak4531_proc_init(struct snd_card *card, struct snd_ak4531 *ak4531);
 
 /*
  *
@@ -38,7 +38,7 @@ static void snd_ak4531_proc_init(snd_card_t * card, ak4531_t * ak4531);
  
 #if 0
 
-static void snd_ak4531_dump(ak4531_t *ak4531)
+static void snd_ak4531_dump(struct snd_ak4531 *ak4531)
 {
 	int idx;
 	
@@ -58,7 +58,7 @@ static void snd_ak4531_dump(ak4531_t *ak4531)
   .get = snd_ak4531_get_single, .put = snd_ak4531_put_single, \
   .private_value = reg | (shift << 16) | (mask << 24) | (invert << 22) }
 
-static int snd_ak4531_info_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ak4531_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 
@@ -69,9 +69,9 @@ static int snd_ak4531_info_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
  
-static int snd_ak4531_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4531_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
+	struct snd_ak4531 *ak4531 = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 16) & 0x07;
 	int mask = (kcontrol->private_value >> 24) & 0xff;
@@ -88,9 +88,9 @@ static int snd_ak4531_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_ak4531_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4531_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
+	struct snd_ak4531 *ak4531 = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 16) & 0x07;
 	int mask = (kcontrol->private_value >> 24) & 0xff;
@@ -117,7 +117,7 @@ static int snd_ak4531_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
   .get = snd_ak4531_get_double, .put = snd_ak4531_put_double, \
   .private_value = left_reg | (right_reg << 8) | (left_shift << 16) | (right_shift << 19) | (mask << 24) | (invert << 22) }
 
-static int snd_ak4531_info_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ak4531_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 
@@ -128,9 +128,9 @@ static int snd_ak4531_info_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
  
-static int snd_ak4531_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4531_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
+	struct snd_ak4531 *ak4531 = snd_kcontrol_chip(kcontrol);
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int left_shift = (kcontrol->private_value >> 16) & 0x07;
@@ -152,9 +152,9 @@ static int snd_ak4531_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_ak4531_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4531_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
+	struct snd_ak4531 *ak4531 = snd_kcontrol_chip(kcontrol);
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int left_shift = (kcontrol->private_value >> 16) & 0x07;
@@ -194,7 +194,7 @@ static int snd_ak4531_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
   .get = snd_ak4531_get_input_sw, .put = snd_ak4531_put_input_sw, \
   .private_value = reg1 | (reg2 << 8) | (left_shift << 16) | (right_shift << 24) }
 
-static int snd_ak4531_info_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ak4531_info_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 4;
@@ -203,9 +203,9 @@ static int snd_ak4531_info_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_info
 	return 0;
 }
  
-static int snd_ak4531_get_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4531_get_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
+	struct snd_ak4531 *ak4531 = snd_kcontrol_chip(kcontrol);
 	int reg1 = kcontrol->private_value & 0xff;
 	int reg2 = (kcontrol->private_value >> 8) & 0xff;
 	int left_shift = (kcontrol->private_value >> 16) & 0x0f;
@@ -220,9 +220,9 @@ static int snd_ak4531_get_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 	return 0;
 }
 
-static int snd_ak4531_put_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ak4531_put_input_sw(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ak4531_t *ak4531 = snd_kcontrol_chip(kcontrol);
+	struct snd_ak4531 *ak4531 = snd_kcontrol_chip(kcontrol);
 	int reg1 = kcontrol->private_value & 0xff;
 	int reg2 = (kcontrol->private_value >> 8) & 0xff;
 	int left_shift = (kcontrol->private_value >> 16) & 0x0f;
@@ -244,7 +244,7 @@ static int snd_ak4531_put_input_sw(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 	return change;
 }
 
-static snd_kcontrol_new_t snd_ak4531_controls[] = {
+static struct snd_kcontrol_new snd_ak4531_controls[] = {
 
 AK4531_DOUBLE("Master Playback Switch", 0, AK4531_LMASTER, AK4531_RMASTER, 7, 7, 1, 1),
 AK4531_DOUBLE("Master Playback Volume", 0, AK4531_LMASTER, AK4531_RMASTER, 0, 0, 0x1f, 1),
@@ -300,7 +300,7 @@ AK4531_SINGLE("AD Input Select", 0, AK4531_AD_IN, 0, 1, 0),
 AK4531_SINGLE("Mic Boost (+30dB)", 0, AK4531_MIC_GAIN, 0, 1, 0)
 };
 
-static int snd_ak4531_free(ak4531_t *ak4531)
+static int snd_ak4531_free(struct snd_ak4531 *ak4531)
 {
 	if (ak4531) {
 		if (ak4531->private_free)
@@ -310,9 +310,9 @@ static int snd_ak4531_free(ak4531_t *ak4531)
 	return 0;
 }
 
-static int snd_ak4531_dev_free(snd_device_t *device)
+static int snd_ak4531_dev_free(struct snd_device *device)
 {
-	ak4531_t *ak4531 = device->device_data;
+	struct snd_ak4531 *ak4531 = device->device_data;
 	return snd_ak4531_free(ak4531);
 }
 
@@ -345,12 +345,13 @@ static u8 snd_ak4531_initial_map[0x19 + 1] = {
 	0x01		/* 19: Mic Amp Setup */
 };
 
-int snd_ak4531_mixer(snd_card_t * card, ak4531_t * _ak4531, ak4531_t ** rak4531)
+int snd_ak4531_mixer(struct snd_card *card, struct snd_ak4531 *_ak4531,
+		     struct snd_ak4531 **rak4531)
 {
 	unsigned int idx;
 	int err;
-	ak4531_t * ak4531;
-	static snd_device_ops_t ops = {
+	struct snd_ak4531 *ak4531;
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_ak4531_dev_free,
 	};
 
@@ -398,10 +399,10 @@ int snd_ak4531_mixer(snd_card_t * card, ak4531_t * _ak4531, ak4531_t ** rak4531)
 
  */
 
-static void snd_ak4531_proc_read(snd_info_entry_t *entry, 
-				 snd_info_buffer_t * buffer)
+static void snd_ak4531_proc_read(struct snd_info_entry *entry, 
+				 struct snd_info_buffer *buffer)
 {
-	ak4531_t *ak4531 = entry->private_data;
+	struct snd_ak4531 *ak4531 = entry->private_data;
 
 	snd_iprintf(buffer, "Asahi Kasei AK4531\n\n");
 	snd_iprintf(buffer, "Recording source   : %s\n"
@@ -410,9 +411,9 @@ static void snd_ak4531_proc_read(snd_info_entry_t *entry,
 		    ak4531->regs[AK4531_MIC_GAIN] & 1 ? "+30dB" : "+0dB");
 }
 
-static void snd_ak4531_proc_init(snd_card_t * card, ak4531_t * ak4531)
+static void snd_ak4531_proc_init(struct snd_card *card, struct snd_ak4531 *ak4531)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(card, "ak4531", &entry))
 		snd_info_set_text_ops(entry, ak4531, 1024, snd_ak4531_proc_read);
