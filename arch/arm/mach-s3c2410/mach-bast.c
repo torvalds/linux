@@ -203,7 +203,7 @@ static struct s3c24xx_uart_clksrc bast_serial_clocks[] = {
 		.name		= "pclk",
 		.divisor	= 1,
 		.min_baud	= 0,
-		.max_baud	= 0.
+		.max_baud	= 0,
 	}
 };
 
@@ -216,7 +216,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	},
 	[1] = {
 		.hwport	     = 1,
@@ -225,7 +225,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	},
 	/* port 2 is not actually used */
 	[2] = {
@@ -235,7 +235,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	}
 };
 
@@ -268,7 +268,7 @@ static struct mtd_partition bast_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
-		.offset	= 0
+		.offset	= 0,
 	},
 	[1] = {
 		.name	= "/boot",
@@ -296,28 +296,28 @@ static struct s3c2410_nand_set bast_nand_sets[] = {
 		.nr_chips	= 1,
 		.nr_map		= smartmedia_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[1] = {
 		.name		= "chip0",
 		.nr_chips	= 1,
 		.nr_map		= chip0_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[2] = {
 		.name		= "chip1",
 		.nr_chips	= 1,
 		.nr_map		= chip1_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[3] = {
 		.name		= "chip2",
 		.nr_chips	= 1,
 		.nr_map		= chip2_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	}
 };
 
@@ -355,17 +355,17 @@ static struct resource bast_dm9k_resource[] = {
 	[0] = {
 		.start = S3C2410_CS5 + BAST_PA_DM9000,
 		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 3,
-		.flags = IORESOURCE_MEM
+		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
 		.start = S3C2410_CS5 + BAST_PA_DM9000 + 0x40,
 		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 0x40 + 0x3f,
-		.flags = IORESOURCE_MEM
+		.flags = IORESOURCE_MEM,
 	},
 	[2] = {
 		.start = IRQ_DM9000,
 		.end   = IRQ_DM9000,
-		.flags = IORESOURCE_IRQ
+		.flags = IORESOURCE_IRQ,
 	}
 
 };
@@ -375,7 +375,7 @@ static struct resource bast_dm9k_resource[] = {
 */
 
 static struct dm9000_plat_data bast_dm9k_platdata = {
-	.flags		= DM9000_PLATF_16BITONLY
+	.flags		= DM9000_PLATF_16BITONLY,
 };
 
 static struct platform_device bast_device_dm9k = {
@@ -492,7 +492,7 @@ static struct s3c24xx_board bast_board __initdata = {
 	.devices       = bast_devices,
 	.devices_count = ARRAY_SIZE(bast_devices),
 	.clocks	       = bast_clocks,
-	.clocks_count  = ARRAY_SIZE(bast_clocks)
+	.clocks_count  = ARRAY_SIZE(bast_clocks),
 };
 
 static void __init bast_map_io(void)
