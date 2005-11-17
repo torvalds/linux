@@ -32,7 +32,7 @@
 #include "hub.h"
 
 /* Protect struct usb_device->state and ->children members
- * Note: Both are also protected by ->serialize, except that ->state can
+ * Note: Both are also protected by ->dev.sem, except that ->state can
  * change to USB_STATE_NOTATTACHED even when the semaphore isn't held. */
 static DEFINE_SPINLOCK(device_state_lock);
 
@@ -975,8 +975,8 @@ static int locktree(struct usb_device *udev)
 			/* when everyone grabs locks top->bottom,
 			 * non-overlapping work may be concurrent
 			 */
-			down(&udev->serialize);
-			up(&hdev->serialize);
+			usb_lock_device(udev);
+			usb_unlock_device(hdev);
 			return t + 1;
 		}
 	}
@@ -1132,15 +1132,9 @@ void usb_disconnect(struct usb_device **pdev)
 	 * this quiesces everyting except pending urbs.
 	 */
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
-
-	/* lock the bus list on behalf of HCDs unregistering their root hubs */
-	if (!udev->parent) {
-		down(&usb_bus_list_lock);
-		usb_lock_device(udev);
-	} else
-		down(&udev->serialize);
-
 	dev_info (&udev->dev, "USB disconnect, address %d\n", udev->devnum);
+
+	usb_lock_device(udev);
 
 	/* Free up all the children before we remove this device */
 	for (i = 0; i < USB_MAXCHILDREN; i++) {
@@ -1169,11 +1163,7 @@ void usb_disconnect(struct usb_device **pdev)
 	*pdev = NULL;
 	spin_unlock_irq(&device_state_lock);
 
-	if (!udev->parent) {
-		usb_unlock_device(udev);
-		up(&usb_bus_list_lock);
-	} else
-		up(&udev->serialize);
+	usb_unlock_device(udev);
 
 	device_unregister(&udev->dev);
 }
@@ -1243,8 +1233,8 @@ static inline void show_string(struct usb_device *udev, char *id, char *string)
  *
  * This is called with devices which have been enumerated, but not yet
  * configured.  The device descriptor is available, but not descriptors
- * for any device configuration.  The caller must have locked udev and
- * either the parent hub (if udev is a normal device) or else the
+ * for any device configuration.  The caller must have locked either
+ * the parent hub (if udev is a normal device) or else the
  * usb_bus_list_lock (if udev is a root hub).  The parent's pointer to
  * udev has already been installed, but udev is not yet visible through
  * sysfs or other filesystem code.
@@ -1254,8 +1244,7 @@ static inline void show_string(struct usb_device *udev, char *id, char *string)
  *
  * This call is synchronous, and may not be used in an interrupt context.
  *
- * Only the hub driver should ever call this; root hub registration
- * uses it indirectly.
+ * Only the hub driver or root-hub registrar should ever call this.
  */
 int usb_new_device(struct usb_device *udev)
 {
@@ -1364,6 +1353,8 @@ int usb_new_device(struct usb_device *udev)
 	}
 	usb_create_sysfs_dev_files (udev);
 
+	usb_lock_device(udev);
+
 	/* choose and set the configuration. that registers the interfaces
 	 * with the driver core, and lets usb device drivers bind to them.
 	 */
@@ -1384,6 +1375,8 @@ int usb_new_device(struct usb_device *udev)
 
 	/* USB device state == configured ... usable */
 	usb_notify_add_device(udev);
+
+	usb_unlock_device(udev);
 
 	return 0;
 
@@ -1872,11 +1865,8 @@ int usb_resume_device(struct usb_device *udev)
 	usb_unlock_device(udev);
 
 	/* rebind drivers that had no suspend() */
-	if (status == 0) {
-		usb_lock_all_devices();
+	if (status == 0)
 		bus_rescan_devices(&usb_bus_type);
-		usb_unlock_all_devices();
-	}
 	return status;
 }
 
@@ -1889,14 +1879,14 @@ static int remote_wakeup(struct usb_device *udev)
 	/* don't repeat RESUME sequence if this device
 	 * was already woken up by some other task
 	 */
-	down(&udev->serialize);
+	usb_lock_device(udev);
 	if (udev->state == USB_STATE_SUSPENDED) {
 		dev_dbg(&udev->dev, "RESUME (wakeup)\n");
 		/* TRSMRCY = 10 msec */
 		msleep(10);
 		status = finish_device_resume(udev);
 	}
-	up(&udev->serialize);
+	usb_unlock_device(udev);
 #endif
 	return status;
 }
@@ -1997,7 +1987,7 @@ static int hub_resume(struct usb_interface *intf)
 
 		if (!udev || status < 0)
 			continue;
-		down (&udev->serialize);
+		usb_lock_device(udev);
 		if (portstat & USB_PORT_STAT_SUSPEND)
 			status = hub_port_resume(hub, port1, udev);
 		else {
@@ -2008,7 +1998,7 @@ static int hub_resume(struct usb_interface *intf)
 				hub_port_logical_disconnect(hub, port1);
 			}
 		}
-		up(&udev->serialize);
+		usb_unlock_device(udev);
 	}
 	}
 #endif
@@ -2573,7 +2563,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		 * udev becomes globally accessible, although presumably
 		 * no one will look at it until hdev is unlocked.
 		 */
-		down (&udev->serialize);
 		status = 0;
 
 		/* We mustn't add new devices if the parent hub has
@@ -2597,7 +2586,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			}
 		}
 
-		up (&udev->serialize);
 		if (status)
 			goto loop_disable;
 

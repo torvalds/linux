@@ -857,9 +857,7 @@ static int register_root_hub (struct usb_device *usb_dev,
 		return (retval < 0) ? retval : -EMSGSIZE;
 	}
 
-	usb_lock_device (usb_dev);
 	retval = usb_new_device (usb_dev);
-	usb_unlock_device (usb_dev);
 	if (retval) {
 		usb_dev->bus->root_hub = NULL;
 		dev_err (parent_dev, "can't register root hub for %s, %d\n",
@@ -1891,7 +1889,10 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	spin_lock_irq (&hcd_root_hub_lock);
 	hcd->rh_registered = 0;
 	spin_unlock_irq (&hcd_root_hub_lock);
+
+	down(&usb_bus_list_lock);
 	usb_disconnect(&hcd->self.root_hub);
+	up(&usb_bus_list_lock);
 
 	hcd->poll_rh = 0;
 	del_timer_sync(&hcd->rh_timer);

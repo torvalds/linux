@@ -545,10 +545,10 @@ static ssize_t usb_device_dump(char __user **buffer, size_t *nbytes, loff_t *ski
 		struct usb_device *childdev = usbdev->children[chix];
 
 		if (childdev) {
-			down(&childdev->serialize);
+			usb_lock_device(childdev);
 			ret = usb_device_dump(buffer, nbytes, skip_bytes, file_offset, childdev,
 					bus, level + 1, chix, ++cnt);
-			up(&childdev->serialize);
+			usb_unlock_device(childdev);
 			if (ret == -EFAULT)
 				return total_written;
 			total_written += ret;

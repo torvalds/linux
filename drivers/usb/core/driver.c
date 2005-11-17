@@ -432,9 +432,7 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner)
 	spin_lock_init(&new_driver->dynids.lock);
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 
-	usb_lock_all_devices();
 	retval = driver_register(&new_driver->driver);
-	usb_unlock_all_devices();
 
 	if (!retval) {
 		pr_info("%s: registered new driver %s\n",
@@ -465,11 +463,9 @@ void usb_deregister(struct usb_driver *driver)
 {
 	pr_info("%s: deregistering driver %s\n", usbcore_name, driver->name);
 
-	usb_lock_all_devices();
 	usb_remove_newid_file(driver);
 	usb_free_dynids(driver);
 	driver_unregister(&driver->driver);
-	usb_unlock_all_devices();
 
 	usbfs_update_special();
 }

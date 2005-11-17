@@ -16,9 +16,6 @@ extern int usb_get_device_descriptor(struct usb_device *dev,
 extern char *usb_cache_string(struct usb_device *udev, int index);
 extern int usb_set_configuration(struct usb_device *dev, int configuration);
 
-extern void usb_lock_all_devices(void);
-extern void usb_unlock_all_devices(void);
-
 extern void usb_kick_khubd(struct usb_device *dev);
 extern void usb_suspend_root_hub(struct usb_device *hdev);
 extern void usb_resume_root_hub(struct usb_device *dev);

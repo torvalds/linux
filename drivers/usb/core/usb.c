@@ -32,7 +32,6 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/smp_lock.h>
-#include <linux/rwsem.h>
 #include <linux/usb.h>
 
 #include <asm/io.h>
@@ -48,8 +47,6 @@ const char *usbcore_name = "usbcore";
 
 static int nousb;	/* Disable USB when built into kernel image */
 			/* Not honored on modular build */
-
-static DECLARE_RWSEM(usb_all_devices_rwsem);
 
 
 /**
@@ -446,8 +443,6 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	dev->parent = parent;
 	INIT_LIST_HEAD(&dev->filelist);
 
-	init_MUTEX(&dev->serialize);
-
 	return dev;
 }
 
@@ -520,74 +515,19 @@ void usb_put_intf(struct usb_interface *intf)
 
 /*			USB device locking
  *
- * Although locking USB devices should be straightforward, it is
- * complicated by the way the driver-model core works.  When a new USB
- * driver is registered or unregistered, the core will automatically
- * probe or disconnect all matching interfaces on all USB devices while
- * holding the USB subsystem writelock.  There's no good way for us to
- * tell which devices will be used or to lock them beforehand; our only
- * option is to effectively lock all the USB devices.
- *
- * We do that by using a private rw-semaphore, usb_all_devices_rwsem.
- * When locking an individual device you must first acquire the rwsem's
- * readlock.  When a driver is registered or unregistered the writelock
- * must be held.  These actions are encapsulated in the subroutines
- * below, so all a driver needs to do is call usb_lock_device() and
- * usb_unlock_device().
+ * USB devices and interfaces are locked using the semaphore in their
+ * embedded struct device.  The hub driver guarantees that whenever a
+ * device is connected or disconnected, drivers are called with the
+ * USB device locked as well as their particular interface.
  *
  * Complications arise when several devices are to be locked at the same
  * time.  Only hub-aware drivers that are part of usbcore ever have to
- * do this; nobody else needs to worry about it.  The problem is that
- * usb_lock_device() must not be called to lock a second device since it
- * would acquire the rwsem's readlock reentrantly, leading to deadlock if
- * another thread was waiting for the writelock.  The solution is simple:
- *
- *	When locking more than one device, call usb_lock_device()
- *	to lock the first one.  Lock the others by calling
- *	down(&udev->serialize) directly.
- *
- *	When unlocking multiple devices, use up(&udev->serialize)
- *	to unlock all but the last one.  Unlock the last one by
- *	calling usb_unlock_device().
+ * do this; nobody else needs to worry about it.  The rule for locking
+ * is simple:
  *
  *	When locking both a device and its parent, always lock the
  *	the parent first.
  */
-
-/**
- * usb_lock_device - acquire the lock for a usb device structure
- * @udev: device that's being locked
- *
- * Use this routine when you don't hold any other device locks;
- * to acquire nested inner locks call down(&udev->serialize) directly.
- * This is necessary for proper interaction with usb_lock_all_devices().
- */
-void usb_lock_device(struct usb_device *udev)
-{
-	down_read(&usb_all_devices_rwsem);
-	down(&udev->serialize);
-}
-
-/**
- * usb_trylock_device - attempt to acquire the lock for a usb device structure
- * @udev: device that's being locked
- *
- * Don't use this routine if you already hold a device lock;
- * use down_trylock(&udev->serialize) instead.
- * This is necessary for proper interaction with usb_lock_all_devices().
- *
- * Returns 1 if successful, 0 if contention.
- */
-int usb_trylock_device(struct usb_device *udev)
-{
-	if (!down_read_trylock(&usb_all_devices_rwsem))
-		return 0;
-	if (down_trylock(&udev->serialize)) {
-		up_read(&usb_all_devices_rwsem);
-		return 0;
-	}
-	return 1;
-}
 
 /**
  * usb_lock_device_for_reset - cautiously acquire the lock for a
@@ -627,7 +567,7 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 		}
 	}
 
-	while (!usb_trylock_device(udev)) {
+	while (usb_trylock_device(udev) != 0) {
 
 		/* If we can't acquire the lock after waiting one second,
 		 * we're probably deadlocked */
@@ -643,39 +583,6 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 			return -EINTR;
 	}
 	return 1;
-}
-
-/**
- * usb_unlock_device - release the lock for a usb device structure
- * @udev: device that's being unlocked
- *
- * Use this routine when releasing the only device lock you hold;
- * to release inner nested locks call up(&udev->serialize) directly.
- * This is necessary for proper interaction with usb_lock_all_devices().
- */
-void usb_unlock_device(struct usb_device *udev)
-{
-	up(&udev->serialize);
-	up_read(&usb_all_devices_rwsem);
-}
-
-/**
- * usb_lock_all_devices - acquire the lock for all usb device structures
- *
- * This is necessary when registering a new driver or probing a bus,
- * since the driver-model core may try to use any usb_device.
- */
-void usb_lock_all_devices(void)
-{
-	down_write(&usb_all_devices_rwsem);
-}
-
-/**
- * usb_unlock_all_devices - release the lock for all usb device structures
- */
-void usb_unlock_all_devices(void)
-{
-	up_write(&usb_all_devices_rwsem);
 }
 
 
@@ -700,10 +607,10 @@ static struct usb_device *match_device(struct usb_device *dev,
 	/* look through all of the children of this device */
 	for (child = 0; child < dev->maxchild; ++child) {
 		if (dev->children[child]) {
-			down(&dev->children[child]->serialize);
+			usb_lock_device(dev->children[child]);
 			ret_dev = match_device(dev->children[child],
 					       vendor_id, product_id);
-			up(&dev->children[child]->serialize);
+			usb_unlock_device(dev->children[child]);
 			if (ret_dev)
 				goto exit;
 		}
@@ -1300,10 +1207,7 @@ EXPORT_SYMBOL(usb_put_dev);
 EXPORT_SYMBOL(usb_get_dev);
 EXPORT_SYMBOL(usb_hub_tt_clear_buffer);
 
-EXPORT_SYMBOL(usb_lock_device);
-EXPORT_SYMBOL(usb_trylock_device);
 EXPORT_SYMBOL(usb_lock_device_for_reset);
-EXPORT_SYMBOL(usb_unlock_device);
 
 EXPORT_SYMBOL(usb_driver_claim_interface);
 EXPORT_SYMBOL(usb_driver_release_interface);

@@ -329,8 +329,6 @@ struct usb_device {
 	struct usb_tt	*tt; 		/* low/full speed dev, highspeed hub */
 	int		ttport;		/* device port on that tt hub */
 
-	struct semaphore serialize;
-
 	unsigned int toggle[2];		/* one bit for each endpoint
 					 * ([0] = IN, [1] = OUT) */
 
@@ -377,11 +375,12 @@ struct usb_device {
 extern struct usb_device *usb_get_dev(struct usb_device *dev);
 extern void usb_put_dev(struct usb_device *dev);
 
-extern void usb_lock_device(struct usb_device *udev);
-extern int usb_trylock_device(struct usb_device *udev);
+/* USB device locking */
+#define usb_lock_device(udev)		down(&(udev)->dev.sem)
+#define usb_unlock_device(udev)		up(&(udev)->dev.sem)
+#define usb_trylock_device(udev)	down_trylock(&(udev)->dev.sem)
 extern int usb_lock_device_for_reset(struct usb_device *udev,
 		struct usb_interface *iface);
-extern void usb_unlock_device(struct usb_device *udev);
 
 /* USB port reset for device reinitialization */
 extern int usb_reset_device(struct usb_device *dev);
