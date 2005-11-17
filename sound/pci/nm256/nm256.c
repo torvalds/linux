@@ -1375,10 +1375,6 @@ static int snd_nm256_dev_free(snd_device_t *device)
 
 static int __devinit
 snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
-		 int play_bufsize, int capt_bufsize,
-		 int force_load,
-		 u32 buffertop,
-		 int usecache,
 		 nm256_t **chip_ret)
 {
 	nm256_t *chip;
@@ -1401,13 +1397,14 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 
 	chip->card = card;
 	chip->pci = pci;
-	chip->use_cache = usecache;
+	chip->use_cache = use_cache;
 	spin_lock_init(&chip->reg_lock);
 	chip->irq = -1;
 	init_MUTEX(&chip->irq_mutex);
 
-	chip->streams[SNDRV_PCM_STREAM_PLAYBACK].bufsize = play_bufsize;
-	chip->streams[SNDRV_PCM_STREAM_CAPTURE].bufsize = capt_bufsize;
+	/* store buffer sizes in bytes */
+	chip->streams[SNDRV_PCM_STREAM_PLAYBACK].bufsize = playback_bufsize * 1024;
+	chip->streams[SNDRV_PCM_STREAM_CAPTURE].bufsize = capture_bufsize * 1024;
 
 	/* 
 	 * The NM256 has two memory ports.  The first port is nothing
@@ -1440,7 +1437,7 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 		/* Ok, try to see if this is a non-AC97 version of the hardware. */
 		pval = snd_nm256_readw(chip, NM_MIXER_PRESENCE);
 		if ((pval & NM_PRESENCE_MASK) != NM_PRESENCE_VALUE) {
-			if (! force_load) {
+			if (! force_ac97) {
 				printk(KERN_ERR "nm256: no ac97 is found!\n");
 				printk(KERN_ERR "  force the driver to load by passing in the module parameter\n");
 				printk(KERN_ERR "    force_ac97=1\n");
@@ -1471,8 +1468,8 @@ snd_nm256_create(snd_card_t *card, struct pci_dev *pci,
 	else
 		chip->buffer_size += NM_MAX_PLAYBACK_COEF_SIZE + NM_MAX_RECORD_COEF_SIZE;
 
-	if (buffertop >= chip->buffer_size && buffertop < chip->buffer_end)
-		chip->buffer_end = buffertop;
+	if (buffer_top >= chip->buffer_size && buffer_top < chip->buffer_end)
+		chip->buffer_end = buffer_top;
 	else {
 		/* get buffer end pointer from signature */
 		if ((err = snd_nm256_peek_for_sig(chip)) < 0)
@@ -1567,7 +1564,6 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 	snd_card_t *card;
 	nm256_t *chip;
 	int err;
-	unsigned int xbuffer_top;
 	struct nm256_quirk *q;
 	u16 subsystem_vendor, subsystem_device;
 
@@ -1611,9 +1607,7 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 	}
 
 	if (vaio_hack)
-		xbuffer_top = 0x25a800;	/* this avoids conflicts with XFree86 server */
-	else
-		xbuffer_top = buffer_top;
+		buffer_top = 0x25a800;	/* this avoids conflicts with XFree86 server */
 
 	if (playback_bufsize < 4)
 		playback_bufsize = 4;
@@ -1623,13 +1617,7 @@ static int __devinit snd_nm256_probe(struct pci_dev *pci,
 		capture_bufsize = 4;
 	if (capture_bufsize > 128)
 		capture_bufsize = 128;
-	if ((err = snd_nm256_create(card, pci,
-				    playback_bufsize * 1024, /* in bytes */
-				    capture_bufsize * 1024,  /* in bytes */
-				    force_ac97,
-				    xbuffer_top,
-				    use_cache,
-				    &chip)) < 0) {
+	if ((err = snd_nm256_create(card, pci, &chip)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
