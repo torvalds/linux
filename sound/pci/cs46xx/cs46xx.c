@@ -78,8 +78,8 @@ static int __devinit snd_card_cs46xx_probe(struct pci_dev *pci,
 					   const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	cs46xx_t *chip;
+	struct snd_card *card;
+	struct snd_cs46xx *chip;
 	int err;
 
 	if (dev >= SNDRV_CARDS)
