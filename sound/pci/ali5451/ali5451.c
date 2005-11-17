@@ -1991,9 +1991,10 @@ static int __devinit snd_ali_mixer(struct snd_ali * codec)
 }
 
 #ifdef CONFIG_PM
-static int ali_suspend(struct snd_card *card, pm_message_t state)
+static int ali_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct snd_ali *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ali *chip = card->private_data;
 	struct snd_ali_image *im;
 	int i, j;
 
@@ -2001,11 +2002,10 @@ static int ali_suspend(struct snd_card *card, pm_message_t state)
 	if (! im)
 		return 0;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for(i = 0 ; i < chip->num_of_codecs ; i++) {
-		if (chip->pcm[i])
-			snd_pcm_suspend_all(chip->pcm[i]);
-		if(chip->ac97[i])
-			snd_ac97_suspend(chip->ac97[i]);
+		snd_pcm_suspend_all(chip->pcm[i]);
+		snd_ac97_suspend(chip->ac97[i]);
 	}
 
 	spin_lock_irq(&chip->reg_lock);
@@ -2033,13 +2033,15 @@ static int ali_suspend(struct snd_card *card, pm_message_t state)
 	outl(0xffffffff, ALI_REG(chip, ALI_STOP));
 
 	spin_unlock_irq(&chip->reg_lock);
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int ali_resume(struct snd_card *card)
+static int ali_resume(struct pci_dev *pci)
 {
-	struct snd_ali *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_ali *chip = card->private_data;
 	struct snd_ali_image *im;
 	int i, j;
 
@@ -2047,7 +2049,8 @@ static int ali_resume(struct snd_card *card)
 	if (! im)
 		return 0;
 
-	pci_enable_device(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
 
 	spin_lock_irq(&chip->reg_lock);
 	
@@ -2071,9 +2074,9 @@ static int ali_resume(struct snd_card *card)
 	spin_unlock_irq(&chip->reg_lock);
 
 	for(i = 0 ; i < chip->num_of_codecs ; i++)
-		if(chip->ac97[i])
-			snd_ac97_resume(chip->ac97[i]);
+		snd_ac97_resume(chip->ac97[i]);
 	
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2204,9 +2207,8 @@ static int __devinit snd_ali_create(struct snd_card *card,
 {
 	struct snd_ali *codec;
 	int i, err;
-	unsigned short cmdw = 0;
-	struct pci_dev *pci_dev = NULL;
-        static struct snd_device_ops ops = {
+	unsigned short cmdw;
+	static struct snd_device_ops ops = {
 		.dev_free = snd_ali_dev_free,
         };
 
@@ -2281,16 +2283,14 @@ static int __devinit snd_ali_create(struct snd_card *card,
 	codec->chregs.data.ainten = 0x00;
 
 	/* M1533: southbridge */
-	pci_dev = pci_get_device(0x10b9, 0x1533, NULL);
-	codec->pci_m1533 = pci_dev;
+	codec->pci_m1533 = pci_get_device(0x10b9, 0x1533, NULL);
 	if (! codec->pci_m1533) {
 		snd_printk(KERN_ERR "ali5451: cannot find ALi 1533 chip.\n");
 		snd_ali_free(codec);
 		return -ENODEV;
 	}
 	/* M7101: power management */
-	pci_dev = pci_get_device(0x10b9, 0x7101, NULL);
-	codec->pci_m7101 = pci_dev;
+	codec->pci_m7101 = pci_get_device(0x10b9, 0x7101, NULL);
 	if (! codec->pci_m7101 && codec->revision == ALI_5451_V02) {
 		snd_printk(KERN_ERR "ali5451: cannot find ALi 7101 chip.\n");
 		snd_ali_free(codec);
@@ -2317,8 +2317,6 @@ static int __devinit snd_ali_create(struct snd_card *card,
 	codec->image = kmalloc(sizeof(*codec->image), GFP_KERNEL);
 	if (! codec->image)
 		snd_printk(KERN_WARNING "can't allocate apm buffer\n");
-	else
-		snd_card_set_pm_callback(card, ali_suspend, ali_resume, codec);
 #endif
 
 	snd_ali_enable_address_interrupt(codec);
@@ -2346,6 +2344,7 @@ static int __devinit snd_ali_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = codec;
 
 	snd_ali_printk("mixer building ...\n");
 	if ((err = snd_ali_mixer(codec)) < 0) {
@@ -2387,7 +2386,10 @@ static struct pci_driver driver = {
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.remove = __devexit_p(snd_ali_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = ali_suspend,
+	.resume = ali_resume,
+#endif
 };                                
 
 static int __init alsa_card_ali_init(void)
