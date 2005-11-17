@@ -65,7 +65,7 @@ MODULE_PARM_DESC(dma1, "DMA1 # for Sound Galaxy driver.");
 #define SGALAXY_AUXC_LEFT 18
 #define SGALAXY_AUXC_RIGHT 19
 
-static snd_card_t *snd_sgalaxy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_sgalaxy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #define PFX	"sgalaxy: "
 
@@ -75,7 +75,7 @@ static snd_card_t *snd_sgalaxy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #define AD1848P1( port, x ) ( port + c_d_c_AD1848##x )
 
-/* from lowlevel/sb/sb.c - to avoid having to allocate a sb_t for the */
+/* from lowlevel/sb/sb.c - to avoid having to allocate a struct snd_sb for the */
 /* short time we actually need it.. */
 
 static int snd_sgalaxy_sbdsp_reset(unsigned long port)
@@ -180,10 +180,10 @@ AD1848_DOUBLE("Aux Playback Switch", 0, SGALAXY_AUXC_LEFT, SGALAXY_AUXC_RIGHT, 7
 AD1848_DOUBLE("Aux Playback Volume", 0, SGALAXY_AUXC_LEFT, SGALAXY_AUXC_RIGHT, 0, 0, 31, 0)
 };
 
-static int __init snd_sgalaxy_mixer(ad1848_t *chip)
+static int __init snd_sgalaxy_mixer(struct snd_ad1848 *chip)
 {
-	snd_card_t *card = chip->card;
-	snd_ctl_elem_id_t id1, id2;
+	struct snd_card *card = chip->card;
+	struct snd_ctl_elem_id id1, id2;
 	unsigned int idx;
 	int err;
 
@@ -221,8 +221,8 @@ static int __init snd_sgalaxy_probe(int dev)
 	static int possible_irqs[] = {7, 9, 10, 11, -1};
 	static int possible_dmas[] = {1, 3, 0, -1};
 	int err, xirq, xdma1;
-	snd_card_t *card;
-	ad1848_t *chip;
+	struct snd_card *card;
+	struct snd_ad1848 *chip;
 
 	if (sbport[dev] == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR PFX "specify SB port\n");

@@ -188,10 +188,10 @@ static int __devinit snd_card_dt019x_pnp(int dev, struct snd_card_dt019x *acard,
 static int __devinit snd_card_dt019x_probe(int dev, struct pnp_card_link *pcard, const struct pnp_card_device_id *pid)
 {
 	int error;
-	sb_t *chip;
-	snd_card_t *card;
+	struct snd_sb *chip;
+	struct snd_card *card;
 	struct snd_card_dt019x *acard;
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 
 	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 				 sizeof(struct snd_card_dt019x))) == NULL)
@@ -290,7 +290,7 @@ static int __devinit snd_dt019x_pnp_probe(struct pnp_card_link *card,
 
 static void __devexit snd_dt019x_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
+	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
 	snd_card_disconnect(card);
 	snd_card_free_in_thread(card);
 }
