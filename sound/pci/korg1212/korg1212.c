@@ -61,7 +61,7 @@
 // ----------------------------------------------------------------------------
 // Valid states of the Korg 1212 I/O card.
 // ----------------------------------------------------------------------------
-typedef enum {
+enum CardState {
    K1212_STATE_NONEXISTENT,		// there is no card here
    K1212_STATE_UNINITIALIZED,		// the card is awaiting DSP download
    K1212_STATE_DSP_IN_PROCESS,		// the card is currently downloading its DSP code
@@ -77,13 +77,13 @@ typedef enum {
    K1212_STATE_ERRORSTOP,		// the card has stopped itself because of an error and we
 					//    are in the process of cleaning things up.
    K1212_STATE_MAX_STATE		// state values of this and beyond are invalid
-} CardState;
+};
 
 // ----------------------------------------------------------------------------
 // The following enumeration defines the constants written to the card's
 // host-to-card doorbell to initiate a command.
 // ----------------------------------------------------------------------------
-typedef enum {
+enum korg1212_dbcnst {
    K1212_DB_RequestForData        = 0,    // sent by the card to request a buffer fill.
    K1212_DB_TriggerPlay           = 1,    // starts playback/record on the card.
    K1212_DB_SelectPlayMode        = 2,    // select monitor, playback setup, or stop.
@@ -101,14 +101,14 @@ typedef enum {
    K1212_DB_DSPDownloadDone       = 0xAE, // sent by the card to indicate the download has
                                           //    completed.
    K1212_DB_StartDSPDownload      = 0xAF  // tells the card to download its DSP firmware.
-} korg1212_dbcnst_t;
+};
 
 
 // ----------------------------------------------------------------------------
 // The following enumeration defines return codes 
 // to the Korg 1212 I/O driver.
 // ----------------------------------------------------------------------------
-typedef enum {
+enum snd_korg1212rc {
    K1212_CMDRET_Success         = 0,   // command was successfully placed
    K1212_CMDRET_DIOCFailure,           // the DeviceIoControl call failed
    K1212_CMDRET_PMFailure,             // the protected mode call failed
@@ -126,27 +126,27 @@ typedef enum {
 
    K1212_CMDRET_BadDevice,             // the specified wave device was out of range
    K1212_CMDRET_BadFormat              // the specified wave format is unsupported
-} snd_korg1212rc;
+};
 
 // ----------------------------------------------------------------------------
 // The following enumeration defines the constants used to select the play
 // mode for the card in the SelectPlayMode command.
 // ----------------------------------------------------------------------------
-typedef enum {
+enum PlayModeSelector {
    K1212_MODE_SetupPlay  = 0x00000001,     // provides card with pre-play information
    K1212_MODE_MonitorOn  = 0x00000002,     // tells card to turn on monitor mode
    K1212_MODE_MonitorOff = 0x00000004,     // tells card to turn off monitor mode
    K1212_MODE_StopPlay   = 0x00000008      // stops playback on the card
-} PlayModeSelector;
+};
 
 // ----------------------------------------------------------------------------
 // The following enumeration defines the constants used to select the monitor
 // mode for the card in the SetMonitorMode command.
 // ----------------------------------------------------------------------------
-typedef enum {
+enum MonitorModeSelector {
    K1212_MONMODE_Off  = 0,     // tells card to turn off monitor mode
    K1212_MONMODE_On            // tells card to turn on monitor mode
-} MonitorModeSelector;
+};
 
 #define MAILBOX0_OFFSET      0x40	// location of mailbox 0 relative to base address
 #define MAILBOX1_OFFSET      0x44	// location of mailbox 1 relative to base address
@@ -188,7 +188,7 @@ typedef enum {
 #define K1212_CHANNELS		(K1212_ADAT_CHANNELS + K1212_ANALOG_CHANNELS)
 #define K1212_MIN_CHANNELS	1
 #define K1212_MAX_CHANNELS	K1212_CHANNELS
-#define K1212_FRAME_SIZE        (sizeof(KorgAudioFrame))
+#define K1212_FRAME_SIZE        (sizeof(struct KorgAudioFrame))
 #define K1212_MAX_SAMPLES	(kPlayBufferFrames*kNumBuffers)
 #define K1212_PERIODS		(kNumBuffers)
 #define K1212_PERIOD_BYTES	(K1212_FRAME_SIZE*kPlayBufferFrames)
@@ -264,14 +264,7 @@ typedef enum {
 
 #include "korg1212-firmware.h"
 
-typedef struct _snd_korg1212 korg1212_t;
-
-typedef u16 K1212Sample;          // channels 0-9 use 16 bit samples
-typedef u32 K1212SpdifSample;     // channels 10-11 use 32 bits - only 20 are sent
-                                  //  across S/PDIF.
-typedef u32 K1212TimeCodeSample;  // holds the ADAT timecode value
-
-typedef enum {
+enum ClockSourceIndex {
    K1212_CLKIDX_AdatAt44_1K = 0,    // selects source as ADAT at 44.1 kHz
    K1212_CLKIDX_AdatAt48K,          // selects source as ADAT at 48 kHz
    K1212_CLKIDX_WordAt44_1K,        // selects source as S/PDIF at 44.1 kHz
@@ -279,36 +272,36 @@ typedef enum {
    K1212_CLKIDX_LocalAt44_1K,       // selects source as local clock at 44.1 kHz
    K1212_CLKIDX_LocalAt48K,         // selects source as local clock at 48 kHz
    K1212_CLKIDX_Invalid             // used to check validity of the index
-} ClockSourceIndex;
+};
 
-typedef enum {
+enum ClockSourceType {
    K1212_CLKIDX_Adat = 0,    // selects source as ADAT
    K1212_CLKIDX_Word,        // selects source as S/PDIF
    K1212_CLKIDX_Local        // selects source as local clock
-} ClockSourceType;
+};
 
-typedef struct KorgAudioFrame {
-   K1212Sample          frameData16[k16BitChannels];
-   K1212SpdifSample     frameData32[k32BitChannels];
-   K1212TimeCodeSample  timeCodeVal;
-} KorgAudioFrame;
+struct KorgAudioFrame {
+	u16 frameData16[k16BitChannels]; /* channels 0-9 use 16 bit samples */
+	u32 frameData32[k32BitChannels]; /* channels 10-11 use 32 bits - only 20 are sent across S/PDIF */
+	u32 timeCodeVal; /* holds the ADAT timecode value */
+};
 
-typedef struct KorgAudioBuffer {
-   KorgAudioFrame  bufferData[kPlayBufferFrames];     /* buffer definition */
-} KorgAudioBuffer;
+struct KorgAudioBuffer {
+	struct KorgAudioFrame  bufferData[kPlayBufferFrames];     /* buffer definition */
+};
 
-typedef struct KorgSharedBuffer {
+struct KorgSharedBuffer {
 #ifdef K1212_LARGEALLOC
-   KorgAudioBuffer   playDataBufs[kNumBuffers];
-   KorgAudioBuffer   recordDataBufs[kNumBuffers];
+   struct KorgAudioBuffer   playDataBufs[kNumBuffers];
+   struct KorgAudioBuffer   recordDataBufs[kNumBuffers];
 #endif
    short             volumeData[kAudioChannels];
    u32               cardCommand;
    u16               routeData [kAudioChannels];
    u32               AdatTimeCode;                 // ADAT timecode value
-} KorgSharedBuffer;
+};
 
-typedef struct SensBits {
+struct SensBits {
    union {
       struct {
          unsigned int leftChanVal:8;
@@ -323,12 +316,12 @@ typedef struct SensBits {
       } v;
       u16  rightSensBits;
    } r;
-} SensBits;
+};
 
-struct _snd_korg1212 {
-        snd_card_t *card;
+struct snd_korg1212 {
+        struct snd_card *card;
         struct pci_dev *pci;
-        snd_pcm_t *pcm;
+        struct snd_pcm *pcm;
         int irq;
 
         spinlock_t    lock;
@@ -355,10 +348,10 @@ struct _snd_korg1212 {
 
 	u32 DataBufsSize;
 
-        KorgAudioBuffer  * playDataBufsPtr;
-        KorgAudioBuffer  * recordDataBufsPtr;
+        struct KorgAudioBuffer  * playDataBufsPtr;
+        struct KorgAudioBuffer  * recordDataBufsPtr;
 
-	KorgSharedBuffer * sharedBufferPtr;
+	struct KorgSharedBuffer * sharedBufferPtr;
 
 	u32 RecDataPhy;
 	u32 PlayDataPhy;
@@ -382,20 +375,20 @@ struct _snd_korg1212 {
 	int channels;
         int currentBuffer;
 
-        snd_pcm_substream_t *playback_substream;
-        snd_pcm_substream_t *capture_substream;
+        struct snd_pcm_substream *playback_substream;
+        struct snd_pcm_substream *capture_substream;
 
 	pid_t capture_pid;
 	pid_t playback_pid;
 
- 	CardState cardState;
+ 	enum CardState cardState;
         int running;
         int idleMonitorOn;           // indicates whether the card is in idle monitor mode.
         u32 cmdRetryCount;           // tracks how many times we have retried sending to the card.
 
-        ClockSourceIndex clkSrcRate; // sample rate and clock source
+        enum ClockSourceIndex clkSrcRate; // sample rate and clock source
 
-        ClockSourceType clkSource;   // clock source
+        enum ClockSourceType clkSource;   // clock source
         int clkRate;                 // clock rate
 
         int volumePhase[kAudioChannels];
@@ -439,6 +432,8 @@ static struct pci_device_id snd_korg1212_ids[] = {
 	},
 	{ 0, },
 };
+
+MODULE_DEVICE_TABLE(pci, snd_korg1212_ids);
 
 static char *stateName[] = {
 	"Non-existent",
@@ -489,11 +484,7 @@ static u16 ClockSourceSelector[] = {
 	0x0002    // selects source as local clock at 48 kHz
 };
 
-static snd_korg1212rc rc;
-
-MODULE_DEVICE_TABLE(pci, snd_korg1212_ids);
-
-typedef union swap_u32 { unsigned char c[4]; u32 i; } swap_u32;
+union swap_u32 { unsigned char c[4]; u32 i; };
 
 #ifdef SNDRV_BIG_ENDIAN
 static u32 LowerWordSwap(u32 swappee)
@@ -501,7 +492,7 @@ static u32 LowerWordSwap(u32 swappee)
 static u32 UpperWordSwap(u32 swappee)
 #endif
 {
-   swap_u32 retVal, swapper;
+   union swap_u32 retVal, swapper;
 
    swapper.i = swappee;
    retVal.c[2] = swapper.c[3];
@@ -518,7 +509,7 @@ static u32 UpperWordSwap(u32 swappee)
 static u32 LowerWordSwap(u32 swappee)
 #endif
 {
-   swap_u32 retVal, swapper;
+   union swap_u32 retVal, swapper;
 
    swapper.i = swappee;
    retVal.c[2] = swapper.c[2];
@@ -534,12 +525,14 @@ static u32 LowerWordSwap(u32 swappee)
 #define ClearBitInWord(theWord,bitPosition)     (*theWord) &= ~(0x0001 << bitPosition)
 #define ClearBitInDWord(theWord,bitPosition)    (*theWord) &= ~(0x00000001 << bitPosition)
 
-static snd_korg1212rc snd_korg1212_Send1212Command(korg1212_t *korg1212, korg1212_dbcnst_t doorbellVal,
-                            u32 mailBox0Val, u32 mailBox1Val, u32 mailBox2Val, u32 mailBox3Val)
+static int snd_korg1212_Send1212Command(struct snd_korg1212 *korg1212,
+					enum korg1212_dbcnst doorbellVal,
+					u32 mailBox0Val, u32 mailBox1Val,
+					u32 mailBox2Val, u32 mailBox3Val)
 {
         u32 retryCount;
         u16 mailBox3Lo;
-	snd_korg1212rc rc = K1212_CMDRET_Success;
+	int rc = K1212_CMDRET_Success;
 
         if (!korg1212->outDoorbellPtr) {
 		K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: CardUninitialized\n");
@@ -591,7 +584,7 @@ static snd_korg1212rc snd_korg1212_Send1212Command(korg1212_t *korg1212, korg121
 }
 
 /* spinlock already held */
-static void snd_korg1212_SendStop(korg1212_t *korg1212)
+static void snd_korg1212_SendStop(struct snd_korg1212 *korg1212)
 {
 	if (! korg1212->stop_pending_cnt) {
 		korg1212->sharedBufferPtr->cardCommand = 0xffffffff;
@@ -602,7 +595,7 @@ static void snd_korg1212_SendStop(korg1212_t *korg1212)
 	}
 }
 
-static void snd_korg1212_SendStopAndWait(korg1212_t *korg1212)
+static void snd_korg1212_SendStopAndWait(struct snd_korg1212 *korg1212)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&korg1212->lock, flags);
@@ -615,7 +608,7 @@ static void snd_korg1212_SendStopAndWait(korg1212_t *korg1212)
 /* timer callback for checking the ack of stop request */
 static void snd_korg1212_timer_func(unsigned long data)
 {
-        korg1212_t *korg1212 = (korg1212_t *) data;
+        struct snd_korg1212 *korg1212 = (struct snd_korg1212 *) data;
 	
 	spin_lock(&korg1212->lock);
 	if (korg1212->sharedBufferPtr->cardCommand == 0) {
@@ -642,7 +635,7 @@ static void snd_korg1212_timer_func(unsigned long data)
 	spin_unlock(&korg1212->lock);
 }
 
-static int snd_korg1212_TurnOnIdleMonitor(korg1212_t *korg1212)
+static int snd_korg1212_TurnOnIdleMonitor(struct snd_korg1212 *korg1212)
 {
 	unsigned long flags;
 	int rc;
@@ -656,7 +649,7 @@ static int snd_korg1212_TurnOnIdleMonitor(korg1212_t *korg1212)
 	return rc;
 }
 
-static void snd_korg1212_TurnOffIdleMonitor(korg1212_t *korg1212)
+static void snd_korg1212_TurnOffIdleMonitor(struct snd_korg1212 *korg1212)
 {
         if (korg1212->idleMonitorOn) {
 		snd_korg1212_SendStopAndWait(korg1212);
@@ -664,12 +657,12 @@ static void snd_korg1212_TurnOffIdleMonitor(korg1212_t *korg1212)
         }
 }
 
-static inline void snd_korg1212_setCardState(korg1212_t * korg1212, CardState csState)
+static inline void snd_korg1212_setCardState(struct snd_korg1212 * korg1212, enum CardState csState)
 {
         korg1212->cardState = csState;
 }
 
-static int snd_korg1212_OpenCard(korg1212_t * korg1212)
+static int snd_korg1212_OpenCard(struct snd_korg1212 * korg1212)
 {
 	K1212_DEBUG_PRINTK("K1212_DEBUG: OpenCard [%s] %d\n",
 			   stateName[korg1212->cardState], korg1212->opencnt);
@@ -683,7 +676,7 @@ static int snd_korg1212_OpenCard(korg1212_t * korg1212)
         return 1;
 }
 
-static int snd_korg1212_CloseCard(korg1212_t * korg1212)
+static int snd_korg1212_CloseCard(struct snd_korg1212 * korg1212)
 {
 	K1212_DEBUG_PRINTK("K1212_DEBUG: CloseCard [%s] %d\n",
 			   stateName[korg1212->cardState], korg1212->opencnt);
@@ -718,7 +711,7 @@ static int snd_korg1212_CloseCard(korg1212_t * korg1212)
 }
 
 /* spinlock already held */
-static int snd_korg1212_SetupForPlay(korg1212_t * korg1212)
+static int snd_korg1212_SetupForPlay(struct snd_korg1212 * korg1212)
 {
 	int rc;
 
@@ -741,7 +734,7 @@ static int snd_korg1212_SetupForPlay(korg1212_t * korg1212)
 }
 
 /* spinlock already held */
-static int snd_korg1212_TriggerPlay(korg1212_t * korg1212)
+static int snd_korg1212_TriggerPlay(struct snd_korg1212 * korg1212)
 {
 	int rc;
 
@@ -763,7 +756,7 @@ static int snd_korg1212_TriggerPlay(korg1212_t * korg1212)
 }
 
 /* spinlock already held */
-static int snd_korg1212_StopPlay(korg1212_t * korg1212)
+static int snd_korg1212_StopPlay(struct snd_korg1212 * korg1212)
 {
 	K1212_DEBUG_PRINTK("K1212_DEBUG: StopPlay [%s] %d\n",
 			   stateName[korg1212->cardState], korg1212->playcnt);
@@ -780,7 +773,7 @@ static int snd_korg1212_StopPlay(korg1212_t * korg1212)
         return 0;
 }
 
-static void snd_korg1212_EnableCardInterrupts(korg1212_t * korg1212)
+static void snd_korg1212_EnableCardInterrupts(struct snd_korg1212 * korg1212)
 {
 	writel(PCI_INT_ENABLE_BIT            |
 	       PCI_DOORBELL_INT_ENABLE_BIT   |
@@ -792,7 +785,8 @@ static void snd_korg1212_EnableCardInterrupts(korg1212_t * korg1212)
 
 #if 0 /* not used */
 
-static int snd_korg1212_SetMonitorMode(korg1212_t *korg1212, MonitorModeSelector mode)
+static int snd_korg1212_SetMonitorMode(struct snd_korg1212 *korg1212,
+				       enum MonitorModeSelector mode)
 {
 	K1212_DEBUG_PRINTK("K1212_DEBUG: SetMonitorMode [%s]\n",
 			   stateName[korg1212->cardState]);
@@ -829,7 +823,7 @@ static int snd_korg1212_SetMonitorMode(korg1212_t *korg1212, MonitorModeSelector
 
 #endif /* not used */
 
-static inline int snd_korg1212_use_is_exclusive(korg1212_t *korg1212)
+static inline int snd_korg1212_use_is_exclusive(struct snd_korg1212 *korg1212)
 {
 	if (korg1212->playback_pid != korg1212->capture_pid &&
 	    korg1212->playback_pid >= 0 && korg1212->capture_pid >= 0)
@@ -838,14 +832,14 @@ static inline int snd_korg1212_use_is_exclusive(korg1212_t *korg1212)
 	return 1;
 }
 
-static int snd_korg1212_SetRate(korg1212_t *korg1212, int rate)
+static int snd_korg1212_SetRate(struct snd_korg1212 *korg1212, int rate)
 {
-        static ClockSourceIndex s44[] = {
+        static enum ClockSourceIndex s44[] = {
 		K1212_CLKIDX_AdatAt44_1K,
 		K1212_CLKIDX_WordAt44_1K,
 		K1212_CLKIDX_LocalAt44_1K
 	};
-        static ClockSourceIndex s48[] = {
+        static enum ClockSourceIndex s48[] = {
 		K1212_CLKIDX_AdatAt48K,
 		K1212_CLKIDX_WordAt48K,
 		K1212_CLKIDX_LocalAt48K
@@ -855,7 +849,7 @@ static int snd_korg1212_SetRate(korg1212_t *korg1212, int rate)
 	if (!snd_korg1212_use_is_exclusive (korg1212))
 		return -EBUSY;
 
-        switch(rate) {
+	switch (rate) {
 	case 44100:
 		parm = s44[korg1212->clkSource];
 		break;
@@ -875,7 +869,6 @@ static int snd_korg1212_SetRate(korg1212_t *korg1212, int rate)
 	rc = snd_korg1212_Send1212Command(korg1212, K1212_DB_SetClockSourceRate,
 					  ClockSourceSelector[korg1212->clkSrcRate],
 					  0, 0, 0);
-
 	if (rc)
 		K1212_DEBUG_PRINTK("K1212_DEBUG: Set Clock Source Selector - RC = %d [%s]\n",
 				   rc, stateName[korg1212->cardState]);
@@ -883,7 +876,7 @@ static int snd_korg1212_SetRate(korg1212_t *korg1212, int rate)
         return 0;
 }
 
-static int snd_korg1212_SetClockSource(korg1212_t *korg1212, int source)
+static int snd_korg1212_SetClockSource(struct snd_korg1212 *korg1212, int source)
 {
 
 	if (source < 0 || source > 2)
@@ -896,14 +889,14 @@ static int snd_korg1212_SetClockSource(korg1212_t *korg1212, int source)
         return 0;
 }
 
-static void snd_korg1212_DisableCardInterrupts(korg1212_t *korg1212)
+static void snd_korg1212_DisableCardInterrupts(struct snd_korg1212 *korg1212)
 {
 	writel(0, korg1212->statusRegPtr);
 }
 
-static int snd_korg1212_WriteADCSensitivity(korg1212_t *korg1212)
+static int snd_korg1212_WriteADCSensitivity(struct snd_korg1212 *korg1212)
 {
-        SensBits  sensVals;
+        struct SensBits  sensVals;
         int       bitPosition;
         int       channel;
         int       clkIs48K;
@@ -985,7 +978,7 @@ static int snd_korg1212_WriteADCSensitivity(korg1212_t *korg1212)
                 for (bitPosition = 15; bitPosition >= 0; bitPosition--) {       // for all the bits
 			if (channel == 0) {
 				if (sensVals.l.leftSensBits & (0x0001 << bitPosition))
-					SetBitInWord(&controlValue, SET_SENS_DATA_BITPOS);     // data bit set high
+                                        SetBitInWord(&controlValue, SET_SENS_DATA_BITPOS);     // data bit set high
 				else
 					ClearBitInWord(&controlValue, SET_SENS_DATA_BITPOS);   // data bit set low
 			} else {
@@ -1034,7 +1027,7 @@ static int snd_korg1212_WriteADCSensitivity(korg1212_t *korg1212)
                 udelay(SENSCLKPULSE_WIDTH);
 
         if (monModeSet) {
-                rc = snd_korg1212_Send1212Command(korg1212, K1212_DB_SelectPlayMode,
+                int rc = snd_korg1212_Send1212Command(korg1212, K1212_DB_SelectPlayMode,
                                 K1212_MODE_MonitorOn, 0, 0, 0);
 	        if (rc)
 			K1212_DEBUG_PRINTK("K1212_DEBUG: WriteADCSensivity - RC = %d [%s]\n",
@@ -1046,9 +1039,9 @@ static int snd_korg1212_WriteADCSensitivity(korg1212_t *korg1212)
         return 1;
 }
 
-static void snd_korg1212_OnDSPDownloadComplete(korg1212_t *korg1212)
+static void snd_korg1212_OnDSPDownloadComplete(struct snd_korg1212 *korg1212)
 {
-        int channel;
+        int channel, rc;
 
         K1212_DEBUG_PRINTK("K1212_DEBUG: DSP download is complete. [%s]\n",
 			   stateName[korg1212->cardState]);
@@ -1127,7 +1120,7 @@ static void snd_korg1212_OnDSPDownloadComplete(korg1212_t *korg1212)
 static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
         u32 doorbellValue;
-        korg1212_t *korg1212 = dev_id;
+        struct snd_korg1212 *korg1212 = dev_id;
 
 	if(irq != korg1212->irq)
 		return IRQ_NONE;
@@ -1176,7 +1169,7 @@ static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id, struct pt_regs 
                 // the semaphore in case someone is waiting for this.
                 // ------------------------------------------------------------------------
                 case K1212_DB_CARDSTOPPED:
-			K1212_DEBUG_PRINTK_VEROBSE("K1212_DEBUG: IRQ CSTP count - %ld, %x, [%s].\n",
+                        K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: IRQ CSTP count - %ld, %x, [%s].\n",
 						   korg1212->irqcount, doorbellValue,
 						   stateName[korg1212->cardState]);
 			korg1212->sharedBufferPtr->cardCommand = 0;
@@ -1184,9 +1177,8 @@ static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id, struct pt_regs 
 
                 default:
 			K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: IRQ DFLT count - %ld, %x, cpos=%d [%s].\n",
-						   korg1212->irqcount, doorbellValue, 
-						   korg1212->currentBuffer,
-						   stateName[korg1212->cardState]);
+			       korg1212->irqcount, doorbellValue, 
+			       korg1212->currentBuffer, stateName[korg1212->cardState]);
                         if ((korg1212->cardState > K1212_STATE_SETUP) || korg1212->idleMonitorOn) {
                                 korg1212->currentBuffer++;
 
@@ -1218,8 +1210,9 @@ static irqreturn_t snd_korg1212_interrupt(int irq, void *dev_id, struct pt_regs 
 	return IRQ_HANDLED;
 }
 
-static int snd_korg1212_downloadDSPCode(korg1212_t *korg1212)
+static int snd_korg1212_downloadDSPCode(struct snd_korg1212 *korg1212)
 {
+	int rc;
 
         K1212_DEBUG_PRINTK("K1212_DEBUG: DSP download is starting... [%s]\n",
 			   stateName[korg1212->cardState]);
@@ -1251,7 +1244,7 @@ static int snd_korg1212_downloadDSPCode(korg1212_t *korg1212)
         return 0;
 }
 
-static snd_pcm_hardware_t snd_korg1212_playback_info =
+static struct snd_pcm_hardware snd_korg1212_playback_info =
 {
 	.info =              (SNDRV_PCM_INFO_MMAP |
                               SNDRV_PCM_INFO_MMAP_VALID |
@@ -1271,7 +1264,7 @@ static snd_pcm_hardware_t snd_korg1212_playback_info =
         .fifo_size =          0,
 };
 
-static snd_pcm_hardware_t snd_korg1212_capture_info =
+static struct snd_pcm_hardware snd_korg1212_capture_info =
 {
         .info =              (SNDRV_PCM_INFO_MMAP |
                               SNDRV_PCM_INFO_MMAP_VALID |
@@ -1291,9 +1284,9 @@ static snd_pcm_hardware_t snd_korg1212_capture_info =
         .fifo_size =          0,
 };
 
-static int snd_korg1212_silence(korg1212_t *korg1212, int pos, int count, int offset, int size)
+static int snd_korg1212_silence(struct snd_korg1212 *korg1212, int pos, int count, int offset, int size)
 {
-	KorgAudioFrame * dst =  korg1212->playDataBufsPtr[0].bufferData + pos;
+	struct KorgAudioFrame * dst =  korg1212->playDataBufsPtr[0].bufferData + pos;
 	int i;
 
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_silence pos=%d offset=%d size=%d count=%d\n",
@@ -1316,9 +1309,9 @@ static int snd_korg1212_silence(korg1212_t *korg1212, int pos, int count, int of
 	return 0;
 }
 
-static int snd_korg1212_copy_to(korg1212_t *korg1212, void __user *dst, int pos, int count, int offset, int size)
+static int snd_korg1212_copy_to(struct snd_korg1212 *korg1212, void __user *dst, int pos, int count, int offset, int size)
 {
-	KorgAudioFrame * src =  korg1212->recordDataBufsPtr[0].bufferData + pos;
+	struct KorgAudioFrame * src =  korg1212->recordDataBufsPtr[0].bufferData + pos;
 	int i, rc;
 
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_copy_to pos=%d offset=%d size=%d\n",
@@ -1345,9 +1338,9 @@ static int snd_korg1212_copy_to(korg1212_t *korg1212, void __user *dst, int pos,
 	return 0;
 }
 
-static int snd_korg1212_copy_from(korg1212_t *korg1212, void __user *src, int pos, int count, int offset, int size)
+static int snd_korg1212_copy_from(struct snd_korg1212 *korg1212, void __user *src, int pos, int count, int offset, int size)
 {
-	KorgAudioFrame * dst =  korg1212->playDataBufsPtr[0].bufferData + pos;
+	struct KorgAudioFrame * dst =  korg1212->playDataBufsPtr[0].bufferData + pos;
 	int i, rc;
 
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_copy_from pos=%d offset=%d size=%d count=%d\n",
@@ -1359,15 +1352,13 @@ static int snd_korg1212_copy_from(korg1212_t *korg1212, void __user *src, int po
 #if K1212_DEBUG_LEVEL > 0
 		if ( (void *) dst < (void *) korg1212->playDataBufsPtr ||
 		     (void *) dst > (void *) korg1212->playDataBufsPtr[8].bufferData ) {
-			printk(KERN_DEBUG "K1212_DEBUG: snd_korg1212_copy_from KERNEL EFAULT, src=%p dst=%p iter=%d\n",
-			       src, dst, i);
+			printk(KERN_DEBUG "K1212_DEBUG: snd_korg1212_copy_from KERNEL EFAULT, src=%p dst=%p iter=%d\n", src, dst, i);
 			return -EFAULT;
 		}
 #endif
 		rc = copy_from_user((void*) dst + offset, src, size);
 		if (rc) {
-			K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_copy_from USER EFAULT src=%p dst=%p iter=%d\n",
-					   src, dst, i);
+			K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_copy_from USER EFAULT src=%p dst=%p iter=%d\n", src, dst, i);
 			return -EFAULT;
 		}
 		dst++;
@@ -1377,9 +1368,9 @@ static int snd_korg1212_copy_from(korg1212_t *korg1212, void __user *src, int po
 	return 0;
 }
 
-static void snd_korg1212_free_pcm(snd_pcm_t *pcm)
+static void snd_korg1212_free_pcm(struct snd_pcm *pcm)
 {
-        korg1212_t *korg1212 = (korg1212_t *) pcm->private_data;
+        struct snd_korg1212 *korg1212 = pcm->private_data;
 
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_free_pcm [%s]\n",
 			   stateName[korg1212->cardState]);
@@ -1387,11 +1378,11 @@ static void snd_korg1212_free_pcm(snd_pcm_t *pcm)
         korg1212->pcm = NULL;
 }
 
-static int snd_korg1212_playback_open(snd_pcm_substream_t *substream)
+static int snd_korg1212_playback_open(struct snd_pcm_substream *substream)
 {
         unsigned long flags;
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
-        snd_pcm_runtime_t *runtime = substream->runtime;
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_pcm_runtime *runtime = substream->runtime;
 
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_playback_open [%s]\n",
 			   stateName[korg1212->cardState]);
@@ -1418,11 +1409,11 @@ static int snd_korg1212_playback_open(snd_pcm_substream_t *substream)
 }
 
 
-static int snd_korg1212_capture_open(snd_pcm_substream_t *substream)
+static int snd_korg1212_capture_open(struct snd_pcm_substream *substream)
 {
         unsigned long flags;
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
-        snd_pcm_runtime_t *runtime = substream->runtime;
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_pcm_runtime *runtime = substream->runtime;
 
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_capture_open [%s]\n",
 			   stateName[korg1212->cardState]);
@@ -1443,14 +1434,15 @@ static int snd_korg1212_capture_open(snd_pcm_substream_t *substream)
 
         spin_unlock_irqrestore(&korg1212->lock, flags);
 
-        snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, kPlayBufferFrames, kPlayBufferFrames);
+        snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+				     kPlayBufferFrames, kPlayBufferFrames);
         return 0;
 }
 
-static int snd_korg1212_playback_close(snd_pcm_substream_t *substream)
+static int snd_korg1212_playback_close(struct snd_pcm_substream *substream)
 {
         unsigned long flags;
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
 
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_playback_close [%s]\n",
 			   stateName[korg1212->cardState]);
@@ -1469,10 +1461,10 @@ static int snd_korg1212_playback_close(snd_pcm_substream_t *substream)
         return 0;
 }
 
-static int snd_korg1212_capture_close(snd_pcm_substream_t *substream)
+static int snd_korg1212_capture_close(struct snd_pcm_substream *substream)
 {
         unsigned long flags;
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
 
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_capture_close [%s]\n",
 			   stateName[korg1212->cardState]);
@@ -1489,13 +1481,13 @@ static int snd_korg1212_capture_close(snd_pcm_substream_t *substream)
         return 0;
 }
 
-static int snd_korg1212_ioctl(snd_pcm_substream_t *substream,
+static int snd_korg1212_ioctl(struct snd_pcm_substream *substream,
 			     unsigned int cmd, void *arg)
 {
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_ioctl: cmd=%d\n", cmd);
 
 	if (cmd == SNDRV_PCM_IOCTL1_CHANNEL_INFO ) {
-		snd_pcm_channel_info_t *info = arg;
+		struct snd_pcm_channel_info *info = arg;
         	info->offset = 0;
         	info->first = info->channel * 16;
         	info->step = 256;
@@ -1506,11 +1498,11 @@ static int snd_korg1212_ioctl(snd_pcm_substream_t *substream,
         return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
 
-static int snd_korg1212_hw_params(snd_pcm_substream_t *substream,
-                             snd_pcm_hw_params_t *params)
+static int snd_korg1212_hw_params(struct snd_pcm_substream *substream,
+                             struct snd_pcm_hw_params *params)
 {
         unsigned long flags;
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
         int err;
 	pid_t this_pid;
 	pid_t other_pid;
@@ -1558,9 +1550,9 @@ static int snd_korg1212_hw_params(snd_pcm_substream_t *substream,
         return 0;
 }
 
-static int snd_korg1212_prepare(snd_pcm_substream_t *substream)
+static int snd_korg1212_prepare(struct snd_pcm_substream *substream)
 {
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
 	int rc;
 
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_prepare [%s]\n",
@@ -1590,10 +1582,10 @@ static int snd_korg1212_prepare(snd_pcm_substream_t *substream)
 	return rc ? -EINVAL : 0;
 }
 
-static int snd_korg1212_trigger(snd_pcm_substream_t *substream,
+static int snd_korg1212_trigger(struct snd_pcm_substream *substream,
                            int cmd)
 {
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
 	int rc;
 
 	K1212_DEBUG_PRINTK("K1212_DEBUG: snd_korg1212_trigger [%s] cmd=%d\n",
@@ -1631,9 +1623,9 @@ static int snd_korg1212_trigger(snd_pcm_substream_t *substream,
         return rc ? -EINVAL : 0;
 }
 
-static snd_pcm_uframes_t snd_korg1212_playback_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_korg1212_playback_pointer(struct snd_pcm_substream *substream)
 {
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
         snd_pcm_uframes_t pos;
 
 	pos = korg1212->currentBuffer * kPlayBufferFrames;
@@ -1644,9 +1636,9 @@ static snd_pcm_uframes_t snd_korg1212_playback_pointer(snd_pcm_substream_t *subs
         return pos;
 }
 
-static snd_pcm_uframes_t snd_korg1212_capture_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_korg1212_capture_pointer(struct snd_pcm_substream *substream)
 {
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
         snd_pcm_uframes_t pos;
 
 	pos = korg1212->currentBuffer * kPlayBufferFrames;
@@ -1657,13 +1649,13 @@ static snd_pcm_uframes_t snd_korg1212_capture_pointer(snd_pcm_substream_t *subst
         return pos;
 }
 
-static int snd_korg1212_playback_copy(snd_pcm_substream_t *substream,
+static int snd_korg1212_playback_copy(struct snd_pcm_substream *substream,
                         int channel, /* not used (interleaved data) */
                         snd_pcm_uframes_t pos,
                         void __user *src,
                         snd_pcm_uframes_t count)
 {
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
 
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_playback_copy [%s] %ld %ld\n",
 				   stateName[korg1212->cardState], pos, count);
@@ -1672,12 +1664,12 @@ static int snd_korg1212_playback_copy(snd_pcm_substream_t *substream,
 
 }
 
-static int snd_korg1212_playback_silence(snd_pcm_substream_t *substream,
+static int snd_korg1212_playback_silence(struct snd_pcm_substream *substream,
                            int channel, /* not used (interleaved data) */
                            snd_pcm_uframes_t pos,
                            snd_pcm_uframes_t count)
 {
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
 
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_playback_silence [%s]\n",
 				   stateName[korg1212->cardState]);
@@ -1685,13 +1677,13 @@ static int snd_korg1212_playback_silence(snd_pcm_substream_t *substream,
 	return snd_korg1212_silence(korg1212, pos, count, 0, korg1212->channels * 2);
 }
 
-static int snd_korg1212_capture_copy(snd_pcm_substream_t *substream,
+static int snd_korg1212_capture_copy(struct snd_pcm_substream *substream,
                         int channel, /* not used (interleaved data) */
                         snd_pcm_uframes_t pos,
                         void __user *dst,
                         snd_pcm_uframes_t count)
 {
-        korg1212_t *korg1212 = snd_pcm_substream_chip(substream);
+        struct snd_korg1212 *korg1212 = snd_pcm_substream_chip(substream);
 
 	K1212_DEBUG_PRINTK_VERBOSE("K1212_DEBUG: snd_korg1212_capture_copy [%s] %ld %ld\n",
 				   stateName[korg1212->cardState], pos, count);
@@ -1699,7 +1691,7 @@ static int snd_korg1212_capture_copy(snd_pcm_substream_t *substream,
 	return snd_korg1212_copy_to(korg1212, dst, pos, count, 0, korg1212->channels * 2);
 }
 
-static snd_pcm_ops_t snd_korg1212_playback_ops = {
+static struct snd_pcm_ops snd_korg1212_playback_ops = {
         .open =		snd_korg1212_playback_open,
         .close =	snd_korg1212_playback_close,
         .ioctl =	snd_korg1212_ioctl,
@@ -1711,7 +1703,7 @@ static snd_pcm_ops_t snd_korg1212_playback_ops = {
         .silence =	snd_korg1212_playback_silence,
 };
 
-static snd_pcm_ops_t snd_korg1212_capture_ops = {
+static struct snd_pcm_ops snd_korg1212_capture_ops = {
 	.open =		snd_korg1212_capture_open,
 	.close =	snd_korg1212_capture_close,
 	.ioctl =	snd_korg1212_ioctl,
@@ -1726,16 +1718,18 @@ static snd_pcm_ops_t snd_korg1212_capture_ops = {
  * Control Interface
  */
 
-static int snd_korg1212_control_phase_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_korg1212_control_phase_info(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = (kcontrol->private_value >= 8) ? 2 : 1;
 	return 0;
 }
 
-static int snd_korg1212_control_phase_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u)
+static int snd_korg1212_control_phase_get(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *u)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
 	int i = kcontrol->private_value;
 
 	spin_lock_irq(&korg1212->lock);
@@ -1750,9 +1744,10 @@ static int snd_korg1212_control_phase_get(snd_kcontrol_t *kcontrol, snd_ctl_elem
         return 0;
 }
 
-static int snd_korg1212_control_phase_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u)
+static int snd_korg1212_control_phase_put(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *u)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
         int change = 0;
         int i, val;
 
@@ -1787,7 +1782,8 @@ static int snd_korg1212_control_phase_put(snd_kcontrol_t *kcontrol, snd_ctl_elem
         return change;
 }
 
-static int snd_korg1212_control_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_korg1212_control_volume_info(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_info *uinfo)
 {
         uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = (kcontrol->private_value >= 8) ? 2 : 1;
@@ -1796,9 +1792,10 @@ static int snd_korg1212_control_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_el
         return 0;
 }
 
-static int snd_korg1212_control_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u)
+static int snd_korg1212_control_volume_get(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *u)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
         int i;
 
 	spin_lock_irq(&korg1212->lock);
@@ -1814,9 +1811,10 @@ static int snd_korg1212_control_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_ele
         return 0;
 }
 
-static int snd_korg1212_control_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u)
+static int snd_korg1212_control_volume_put(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *u)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
         int change = 0;
         int i;
 	int val;
@@ -1846,7 +1844,8 @@ static int snd_korg1212_control_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_ele
         return change;
 }
 
-static int snd_korg1212_control_route_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_korg1212_control_route_info(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = (kcontrol->private_value >= 8) ? 2 : 1;
@@ -1858,9 +1857,10 @@ static int snd_korg1212_control_route_info(snd_kcontrol_t *kcontrol, snd_ctl_ele
 	return 0;
 }
 
-static int snd_korg1212_control_route_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u)
+static int snd_korg1212_control_route_get(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *u)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
         int i;
 
 	spin_lock_irq(&korg1212->lock);
@@ -1876,9 +1876,10 @@ static int snd_korg1212_control_route_get(snd_kcontrol_t *kcontrol, snd_ctl_elem
         return 0;
 }
 
-static int snd_korg1212_control_route_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u)
+static int snd_korg1212_control_route_put(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *u)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
         int change = 0, i;
 
 	spin_lock_irq(&korg1212->lock);
@@ -1902,7 +1903,8 @@ static int snd_korg1212_control_route_put(snd_kcontrol_t *kcontrol, snd_ctl_elem
         return change;
 }
 
-static int snd_korg1212_control_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_korg1212_control_info(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_info *uinfo)
 {
         uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
         uinfo->count = 2;
@@ -1911,9 +1913,10 @@ static int snd_korg1212_control_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info
         return 0;
 }
 
-static int snd_korg1212_control_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u)
+static int snd_korg1212_control_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *u)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
 
 	spin_lock_irq(&korg1212->lock);
 
@@ -1925,9 +1928,10 @@ static int snd_korg1212_control_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value
         return 0;
 }
 
-static int snd_korg1212_control_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u)
+static int snd_korg1212_control_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *u)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
         int change = 0;
 
 	spin_lock_irq(&korg1212->lock);
@@ -1949,7 +1953,8 @@ static int snd_korg1212_control_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value
         return change;
 }
 
-static int snd_korg1212_control_sync_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_korg1212_control_sync_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -1961,9 +1966,10 @@ static int snd_korg1212_control_sync_info(snd_kcontrol_t *kcontrol, snd_ctl_elem
 	return 0;
 }
 
-static int snd_korg1212_control_sync_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_korg1212_control_sync_get(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
 
 	spin_lock_irq(&korg1212->lock);
 
@@ -1973,9 +1979,10 @@ static int snd_korg1212_control_sync_get(snd_kcontrol_t * kcontrol, snd_ctl_elem
 	return 0;
 }
 
-static int snd_korg1212_control_sync_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_korg1212_control_sync_put(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	korg1212_t *korg1212 = snd_kcontrol_chip(kcontrol);
+	struct snd_korg1212 *korg1212 = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change;
 
@@ -2016,7 +2023,7 @@ static int snd_korg1212_control_sync_put(snd_kcontrol_t * kcontrol, snd_ctl_elem
 		.private_value = ord,								\
         }
 
-static snd_kcontrol_new_t snd_korg1212_controls[] = {
+static struct snd_kcontrol_new snd_korg1212_controls[] = {
         MON_MIXER(8, "Analog"),
 	MON_MIXER(10, "SPDIF"), 
         MON_MIXER(0, "ADAT-1"), MON_MIXER(1, "ADAT-2"), MON_MIXER(2, "ADAT-3"), MON_MIXER(3, "ADAT-4"),
@@ -2043,10 +2050,11 @@ static snd_kcontrol_new_t snd_korg1212_controls[] = {
  * proc interface
  */
 
-static void snd_korg1212_proc_read(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
+static void snd_korg1212_proc_read(struct snd_info_entry *entry,
+				   struct snd_info_buffer *buffer)
 {
 	int n;
-	korg1212_t *korg1212 = (korg1212_t *)entry->private_data;
+	struct snd_korg1212 *korg1212 = entry->private_data;
 
 	snd_iprintf(buffer, korg1212->card->longname);
 	snd_iprintf(buffer, " (index #%d)\n", korg1212->card->number + 1);
@@ -2070,16 +2078,16 @@ static void snd_korg1212_proc_read(snd_info_entry_t *entry, snd_info_buffer_t *b
         snd_iprintf(buffer, "    Error count: %ld\n", korg1212->totalerrorcnt);
 }
 
-static void __devinit snd_korg1212_proc_init(korg1212_t *korg1212)
+static void __devinit snd_korg1212_proc_init(struct snd_korg1212 *korg1212)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(korg1212->card, "korg1212", &entry))
 		snd_info_set_text_ops(entry, korg1212, 1024, snd_korg1212_proc_read);
 }
 
 static int
-snd_korg1212_free(korg1212_t *korg1212)
+snd_korg1212_free(struct snd_korg1212 *korg1212)
 {
         snd_korg1212_TurnOffIdleMonitor(korg1212);
 
@@ -2135,23 +2143,23 @@ snd_korg1212_free(korg1212_t *korg1212)
         return 0;
 }
 
-static int snd_korg1212_dev_free(snd_device_t *device)
+static int snd_korg1212_dev_free(struct snd_device *device)
 {
-        korg1212_t *korg1212 = device->device_data;
+        struct snd_korg1212 *korg1212 = device->device_data;
         K1212_DEBUG_PRINTK("K1212_DEBUG: Freeing device\n");
 	return snd_korg1212_free(korg1212);
 }
 
-static int __devinit snd_korg1212_create(snd_card_t * card, struct pci_dev *pci,
-                                         korg1212_t ** rchip)
+static int __devinit snd_korg1212_create(struct snd_card *card, struct pci_dev *pci,
+                                         struct snd_korg1212 ** rchip)
 
 {
         int err, rc;
         unsigned int i;
 	unsigned ioport_size, iomem_size, iomem2_size;
-        korg1212_t * korg1212;
+        struct snd_korg1212 * korg1212;
 
-        static snd_device_ops_t ops = {
+        static struct snd_device_ops ops = {
                 .dev_free = snd_korg1212_dev_free,
         };
 
@@ -2276,19 +2284,19 @@ static int __devinit snd_korg1212_create(snd_card_t * card, struct pci_dev *pci,
 		   stateName[korg1212->cardState]);
 
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
-				sizeof(KorgSharedBuffer), &korg1212->dma_shared) < 0) {
-		snd_printk(KERN_ERR "korg1212: can not allocate shared buffer memory (%Zd bytes)\n", sizeof(KorgSharedBuffer));
+				sizeof(struct KorgSharedBuffer), &korg1212->dma_shared) < 0) {
+		snd_printk(KERN_ERR "korg1212: can not allocate shared buffer memory (%Zd bytes)\n", sizeof(struct KorgSharedBuffer));
                 snd_korg1212_free(korg1212);
                 return -ENOMEM;
         }
-        korg1212->sharedBufferPtr = (KorgSharedBuffer *)korg1212->dma_shared.area;
+        korg1212->sharedBufferPtr = (struct KorgSharedBuffer *)korg1212->dma_shared.area;
         korg1212->sharedBufferPhy = korg1212->dma_shared.addr;
 
-        K1212_DEBUG_PRINTK("K1212_DEBUG: Shared Buffer Area = 0x%p (0x%08lx), %d bytes\n", korg1212->sharedBufferPtr, korg1212->sharedBufferPhy, sizeof(KorgSharedBuffer));
+        K1212_DEBUG_PRINTK("K1212_DEBUG: Shared Buffer Area = 0x%p (0x%08lx), %d bytes\n", korg1212->sharedBufferPtr, korg1212->sharedBufferPhy, sizeof(struct KorgSharedBuffer));
 
 #ifndef K1212_LARGEALLOC
 
-        korg1212->DataBufsSize = sizeof(KorgAudioBuffer) * kNumBuffers;
+        korg1212->DataBufsSize = sizeof(struct KorgAudioBuffer) * kNumBuffers;
 
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				korg1212->DataBufsSize, &korg1212->dma_play) < 0) {
@@ -2296,7 +2304,7 @@ static int __devinit snd_korg1212_create(snd_card_t * card, struct pci_dev *pci,
                 snd_korg1212_free(korg1212);
                 return -ENOMEM;
         }
-	korg1212->playDataBufsPtr = (KorgAudioBuffer *)korg1212->dma_play.area;
+	korg1212->playDataBufsPtr = (struct KorgAudioBuffer *)korg1212->dma_play.area;
 	korg1212->PlayDataPhy = korg1212->dma_play.addr;
 
         K1212_DEBUG_PRINTK("K1212_DEBUG: Play Data Area = 0x%p (0x%08x), %d bytes\n",
@@ -2308,7 +2316,7 @@ static int __devinit snd_korg1212_create(snd_card_t * card, struct pci_dev *pci,
                 snd_korg1212_free(korg1212);
                 return -ENOMEM;
         }
-        korg1212->recordDataBufsPtr = (KorgAudioBuffer *)korg1212->dma_rec.area;
+        korg1212->recordDataBufsPtr = (struct KorgAudioBuffer *)korg1212->dma_rec.area;
         korg1212->RecDataPhy = korg1212->dma_rec.addr;
 
         K1212_DEBUG_PRINTK("K1212_DEBUG: Record Data Area = 0x%p (0x%08x), %d bytes\n",
@@ -2318,19 +2326,19 @@ static int __devinit snd_korg1212_create(snd_card_t * card, struct pci_dev *pci,
 
         korg1212->recordDataBufsPtr = korg1212->sharedBufferPtr->recordDataBufs;
         korg1212->playDataBufsPtr = korg1212->sharedBufferPtr->playDataBufs;
-        korg1212->PlayDataPhy = (u32) &((KorgSharedBuffer *) korg1212->sharedBufferPhy)->playDataBufs;
-        korg1212->RecDataPhy  = (u32) &((KorgSharedBuffer *) korg1212->sharedBufferPhy)->recordDataBufs;
+        korg1212->PlayDataPhy = (u32) &((struct KorgSharedBuffer *) korg1212->sharedBufferPhy)->playDataBufs;
+        korg1212->RecDataPhy  = (u32) &((struct KorgSharedBuffer *) korg1212->sharedBufferPhy)->recordDataBufs;
 
 #endif // K1212_LARGEALLOC
 
         korg1212->dspCodeSize = sizeof (dspCode);
 
         korg1212->VolumeTablePhy = korg1212->sharedBufferPhy +
-		offsetof(KorgSharedBuffer, volumeData);
+		offsetof(struct KorgSharedBuffer, volumeData);
         korg1212->RoutingTablePhy = korg1212->sharedBufferPhy +
-		offsetof(KorgSharedBuffer, routeData);
+		offsetof(struct KorgSharedBuffer, routeData);
         korg1212->AdatTimeCodePhy = korg1212->sharedBufferPhy +
-		offsetof(KorgSharedBuffer, AdatTimeCode);
+		offsetof(struct KorgSharedBuffer, AdatTimeCode);
 
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				korg1212->dspCodeSize, &korg1212->dma_dsp) < 0) {
@@ -2360,7 +2368,7 @@ static int __devinit snd_korg1212_create(snd_card_t * card, struct pci_dev *pci,
         if (snd_korg1212_downloadDSPCode(korg1212))
         	return -EBUSY;
 
-	K1212_DEBUG_PRINTK("korg1212: dspMemPhy = %08x U[%08x], "
+        K1212_DEBUG_PRINTK("korg1212: dspMemPhy = %08x U[%08x], "
                "PlayDataPhy = %08x L[%08x]\n"
 	       "korg1212: RecDataPhy = %08x L[%08x], "
                "VolumeTablePhy = %08x L[%08x]\n"
@@ -2410,8 +2418,8 @@ snd_korg1212_probe(struct pci_dev *pci,
 		const struct pci_device_id *pci_id)
 {
 	static int dev;
-	korg1212_t *korg1212;
-	snd_card_t *card;
+	struct snd_korg1212 *korg1212;
+	struct snd_card *card;
 	int err;
 
 	if (dev >= SNDRV_CARDS) {
