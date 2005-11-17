@@ -1073,6 +1073,9 @@ int snd_pcm_suspend(struct snd_pcm_substream *substream)
 	int err;
 	unsigned long flags;
 
+	if (! substream)
+		return 0;
+
 	snd_pcm_stream_lock_irqsave(substream, flags);
 	err = snd_pcm_action(&snd_pcm_action_suspend, substream, 0);
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
@@ -1090,6 +1093,9 @@ int snd_pcm_suspend_all(struct snd_pcm *pcm)
 {
 	struct snd_pcm_substream *substream;
 	int stream, err = 0;
+
+	if (! pcm)
+		return 0;
 
 	for (stream = 0; stream < 2; stream++) {
 		for (substream = pcm->streams[stream].substream;
