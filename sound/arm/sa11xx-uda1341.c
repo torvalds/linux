@@ -21,7 +21,7 @@
  *                              merged HAL layer (patches from Brian)
  */
 
-/* $Id: sa11xx-uda1341.c,v 1.23 2005/09/09 13:22:34 tiwai Exp $ */
+/* $Id: sa11xx-uda1341.c,v 1.24 2005/11/17 10:25:22 tiwai Exp $ */
 
 /***************************************************************************************************
 *
@@ -140,8 +140,6 @@ typedef struct snd_card_sa11xx_uda1341 {
 	long samplerate;
 	audio_stream_t s[2];	/* playback & capture */
 } sa11xx_uda1341_t;
-
-static struct snd_card_sa11xx_uda1341 *sa11xx_uda1341 = NULL;
 
 static unsigned int rates[] = {
 	8000,  10666, 10985, 14647,
@@ -411,8 +409,8 @@ static int audio_dma_request(audio_stream_t *s, void (*callback)(void *))
 
 static void audio_dma_free(audio_stream_t *s)
 {
-	sa1100_free_dma((s)->dma_regs);
-	(s)->dma_regs = 0;
+	sa1100_free_dma(s->dma_regs);
+	s->dma_regs = 0;
 }
 
 #endif
@@ -835,8 +833,8 @@ static int __init snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341_t *sa11xx_uda1341, 
 	 * isa works but I'm not sure why (or if) it's the right choice
 	 * this may be too large, trying it for now
 	 */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_ISA, 
-					      snd_pcm_dma_flags(0),
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV, 
+					      snd_dma_isa_data(),
 					      64*1024, 64*1024);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_card_sa11xx_uda1341_playback_ops);
@@ -900,15 +898,15 @@ void snd_sa11xx_uda1341_free(snd_card_t *card)
 
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_PLAYBACK]);
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_CAPTURE]);
-	sa11xx_uda1341 = NULL;
-	card->private_data = NULL;
-	kfree(chip);
 }
+
+static snd_card_t *sa11xx_uda1341_card;
 
 static int __init sa11xx_uda1341_init(void)
 {
 	int err;
 	snd_card_t *card;
+	sa11xx_uda1341_t *chip;
 
 	if (!machine_is_h3xxx())
 		return -ENODEV;
@@ -921,26 +919,25 @@ static int __init sa11xx_uda1341_init(void)
 	sa11xx_uda1341 = kzalloc(sizeof(*sa11xx_uda1341), GFP_KERNEL);
 	if (sa11xx_uda1341 == NULL)
 		return -ENOMEM;	
+	card->private_free = snd_sa11xx_uda1341_free;
+	chip = card->private_data;
 	spin_lock_init(&chip->s[0].dma_lock);
 	spin_lock_init(&chip->s[1].dma_lock);
          
-	card->private_data = (void *)sa11xx_uda1341;
-	card->private_free = snd_sa11xx_uda1341_free;
-
-	sa11xx_uda1341->card = card;
-	sa11xx_uda1341->samplerate = AUDIO_RATE_DEFAULT;
+	chip->card = card;
+	chip->samplerate = AUDIO_RATE_DEFAULT;
 
 	// mixer
-	if ((err = snd_chip_uda1341_mixer_new(sa11xx_uda1341->card, &sa11xx_uda1341->uda1341)))
+	if ((err = snd_chip_uda1341_mixer_new(chip->card, &sa11xx_uda1341->uda1341)))
 		goto nodev;
 
 	// PCM
-	if ((err = snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341, 0)) < 0)
+	if ((err = snd_card_sa11xx_uda1341_pcm(chip, 0)) < 0)
 		goto nodev;
         
 	snd_card_set_generic_pm_callback(card,
-				     snd_sa11xx_uda1341_suspend, snd_sa11_uda1341_resume,
-				     sa11xx_uda1341);
+					 snd_sa11xx_uda1341_suspend, snd_sa11_uda1341_resume,
+					 chip);
 
 	strcpy(card->driver, "UDA1341");
 	strcpy(card->shortname, "H3600 UDA1341TS");
@@ -951,6 +948,7 @@ static int __init sa11xx_uda1341_init(void)
 
 	if ((err = snd_card_register(card)) == 0) {
 		printk( KERN_INFO "iPAQ audio support initialized\n" );
+		sa11xx_uda1341_card = card;
 		return 0;
 	}
         
@@ -961,7 +959,7 @@ static int __init sa11xx_uda1341_init(void)
 
 static void __exit sa11xx_uda1341_exit(void)
 {
-	snd_card_free(sa11xx_uda1341->card);
+	snd_card_free(sa11xx_uda1341_card);
 }
 
 module_init(sa11xx_uda1341_init);
