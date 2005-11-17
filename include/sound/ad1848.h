@@ -148,6 +148,11 @@ struct snd_ad1848 {
 	int dma_size;
 	int thinkpad_flag;		/* Thinkpad CS4248 needs some extra help */
 
+#ifdef CONFIG_PM
+	void (*suspend)(struct snd_ad1848 *chip);
+	void (*resume)(struct snd_ad1848 *chip);
+#endif
+
 	spinlock_t reg_lock;
 	struct semaphore open_mutex;
 };

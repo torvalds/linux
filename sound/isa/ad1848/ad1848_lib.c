@@ -24,7 +24,6 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <sound/core.h>
@@ -642,29 +641,30 @@ static void snd_ad1848_thinkpad_twiddle(struct snd_ad1848 *chip, int on) {
 }
 
 #ifdef CONFIG_PM
-static int snd_ad1848_suspend(struct snd_card *card, pm_message_t state)
+static void snd_ad1848_suspend(struct snd_ad1848 *chip)
 {
-	struct snd_ad1848 *chip = card->pm_private_data;
-
 	snd_pcm_suspend_all(chip->pcm);
-	/* FIXME: save registers? */
-
 	if (chip->thinkpad_flag)
 		snd_ad1848_thinkpad_twiddle(chip, 0);
-
-	return 0;
 }
 
-static int snd_ad1848_resume(struct snd_card *card)
+static void snd_ad1848_resume(struct snd_ad1848 *chip)
 {
-	struct snd_ad1848 *chip = card->pm_private_data;
+	int i;
 
 	if (chip->thinkpad_flag)
 		snd_ad1848_thinkpad_twiddle(chip, 1);
 
-	/* FIXME: restore registers? */
+	/* clear any pendings IRQ */
+	inb(AD1848P(chip, STATUS));
+	outb(0, AD1848P(chip, STATUS));
+	mb();
 
-	return 0;
+	snd_ad1848_mce_down(chip);
+	for (i = 0; i < 16; i++)
+		snd_ad1848_out(chip, i, chip->image[i]);
+	snd_ad1848_mce_up(chip);
+	snd_ad1848_mce_down(chip);
 }
 #endif /* CONFIG_PM */
 
@@ -919,7 +919,6 @@ int snd_ad1848_create(struct snd_card *card,
 		chip->thinkpad_flag = 1;
 		chip->hardware = AD1848_HW_DETECT; /* reset */
 		snd_ad1848_thinkpad_twiddle(chip, 1);
-		snd_card_set_isa_pm_callback(card, snd_ad1848_suspend, snd_ad1848_resume, chip);
 	}
 
 	if (snd_ad1848_probe(chip) < 0) {
@@ -932,6 +931,9 @@ int snd_ad1848_create(struct snd_card *card,
 		snd_ad1848_free(chip);
 		return err;
 	}
+
+	chip->suspend = snd_ad1848_suspend;
+	chip->resume = snd_ad1848_resume;
 
 	*rchip = chip;
 	return 0;
