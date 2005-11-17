@@ -1219,6 +1219,10 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			handled++;
 		}
 
+		if (ap &&
+		    (ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR)))
+			continue;
+
 		err_mask = ac_err_mask(ata_status);
 
 		shift = port << 1;		/* (port * 2) */
@@ -1237,7 +1241,8 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				VPRINTK("port %u IRQ found for qc, "
 					"ata_status 0x%x\n", port,ata_status);
 				/* mark qc status appropriately */
-				ata_qc_complete(qc, err_mask);
+				if (!(qc->tf.ctl & ATA_NIEN))
+					ata_qc_complete(qc, err_mask);
 			}
 		}
 	}
