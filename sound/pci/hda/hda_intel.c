@@ -238,11 +238,7 @@ enum {
 /*
  */
 
-typedef struct snd_azx azx_t;
-typedef struct snd_azx_rb azx_rb_t;
-typedef struct snd_azx_dev azx_dev_t;
-
-struct snd_azx_dev {
+struct azx_dev {
 	u32 *bdl;			/* virtual address of the BDL */
 	dma_addr_t bdl_addr;		/* physical address of the BDL */
 	volatile u32 *posbuf;			/* position buffer pointer */
@@ -258,7 +254,7 @@ struct snd_azx_dev {
 	u32 sd_int_sta_mask;		/* stream int status mask */
 
 	/* pcm support */
-	snd_pcm_substream_t *substream;	/* assigned substream, set in PCM open */
+	struct snd_pcm_substream *substream;	/* assigned substream, set in PCM open */
 	unsigned int format_val;	/* format value to be set in the controller and the codec */
 	unsigned char stream_tag;	/* assigned stream */
 	unsigned char index;		/* stream index */
@@ -269,7 +265,7 @@ struct snd_azx_dev {
 };
 
 /* CORB/RIRB */
-struct snd_azx_rb {
+struct azx_rb {
 	u32 *buf;		/* CORB/RIRB buffer
 				 * Each CORB entry is 4byte, RIRB is 8byte
 				 */
@@ -280,8 +276,8 @@ struct snd_azx_rb {
 	u32 res;		/* last read value */
 };
 
-struct snd_azx {
-	snd_card_t *card;
+struct azx {
+	struct snd_card *card;
 	struct pci_dev *pci;
 
 	/* chip type specific */
@@ -302,19 +298,19 @@ struct snd_azx {
 	struct semaphore open_mutex;
 
 	/* streams (x num_streams) */
-	azx_dev_t *azx_dev;
+	struct azx_dev *azx_dev;
 
 	/* PCM */
 	unsigned int pcm_devs;
-	snd_pcm_t *pcm[AZX_MAX_PCMS];
+	struct snd_pcm *pcm[AZX_MAX_PCMS];
 
 	/* HD codec */
 	unsigned short codec_mask;
 	struct hda_bus *bus;
 
 	/* CORB/RIRB */
-	azx_rb_t corb;
-	azx_rb_t rirb;
+	struct azx_rb corb;
+	struct azx_rb rirb;
 
 	/* BDL, CORB/RIRB and position buffers */
 	struct snd_dma_buffer bdl;
@@ -375,7 +371,7 @@ static char *driver_short_names[] __devinitdata = {
 	readb((dev)->sd_addr + ICH6_REG_##reg)
 
 /* for pcm support */
-#define get_azx_dev(substream) (azx_dev_t*)(substream->runtime->private_data)
+#define get_azx_dev(substream) (substream->runtime->private_data)
 
 /* Get the upper 32bit of the given dma_addr_t
  * Compiler should optimize and eliminate the code if dma_addr_t is 32bit
@@ -391,7 +387,7 @@ static char *driver_short_names[] __devinitdata = {
 /*
  * CORB / RIRB interface
  */
-static int azx_alloc_cmd_io(azx_t *chip)
+static int azx_alloc_cmd_io(struct azx *chip)
 {
 	int err;
 
@@ -405,7 +401,7 @@ static int azx_alloc_cmd_io(azx_t *chip)
 	return 0;
 }
 
-static void azx_init_cmd_io(azx_t *chip)
+static void azx_init_cmd_io(struct azx *chip)
 {
 	/* CORB set up */
 	chip->corb.addr = chip->rb.addr;
@@ -443,7 +439,7 @@ static void azx_init_cmd_io(azx_t *chip)
 	chip->rirb.rp = chip->rirb.cmds = 0;
 }
 
-static void azx_free_cmd_io(azx_t *chip)
+static void azx_free_cmd_io(struct azx *chip)
 {
 	/* disable ringbuffer DMAs */
 	azx_writeb(chip, RIRBCTL, 0);
@@ -454,7 +450,7 @@ static void azx_free_cmd_io(azx_t *chip)
 static int azx_send_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
 			unsigned int verb, unsigned int para)
 {
-	azx_t *chip = codec->bus->private_data;
+	struct azx *chip = codec->bus->private_data;
 	unsigned int wp;
 	u32 val;
 
@@ -481,7 +477,7 @@ static int azx_send_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
 #define ICH6_RIRB_EX_UNSOL_EV	(1<<4)
 
 /* retrieve RIRB entry - called from interrupt handler */
-static void azx_update_rirb(azx_t *chip)
+static void azx_update_rirb(struct azx *chip)
 {
 	unsigned int rp, wp;
 	u32 res, res_ex;
@@ -510,7 +506,7 @@ static void azx_update_rirb(azx_t *chip)
 /* receive a response */
 static unsigned int azx_get_response(struct hda_codec *codec)
 {
-	azx_t *chip = codec->bus->private_data;
+	struct azx *chip = codec->bus->private_data;
 	int timeout = 50;
 
 	while (chip->rirb.cmds) {
@@ -546,7 +542,7 @@ static unsigned int azx_get_response(struct hda_codec *codec)
 static int azx_send_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
 			unsigned int verb, unsigned int para)
 {
-	azx_t *chip = codec->bus->private_data;
+	struct azx *chip = codec->bus->private_data;
 	u32 val;
 	int timeout = 50;
 
@@ -574,7 +570,7 @@ static int azx_send_cmd(struct hda_codec *codec, hda_nid_t nid, int direct,
 /* receive a response */
 static unsigned int azx_get_response(struct hda_codec *codec)
 {
-	azx_t *chip = codec->bus->private_data;
+	struct azx *chip = codec->bus->private_data;
 	int timeout = 50;
 
 	while (timeout--) {
@@ -592,7 +588,7 @@ static unsigned int azx_get_response(struct hda_codec *codec)
 #endif /* USE_CORB_RIRB */
 
 /* reset codec link */
-static int azx_reset(azx_t *chip)
+static int azx_reset(struct azx *chip)
 {
 	int count;
 
@@ -642,7 +638,7 @@ static int azx_reset(azx_t *chip)
  */  
 
 /* enable interrupts */
-static void azx_int_enable(azx_t *chip)
+static void azx_int_enable(struct azx *chip)
 {
 	/* enable controller CIE and GIE */
 	azx_writel(chip, INTCTL, azx_readl(chip, INTCTL) |
@@ -650,13 +646,13 @@ static void azx_int_enable(azx_t *chip)
 }
 
 /* disable interrupts */
-static void azx_int_disable(azx_t *chip)
+static void azx_int_disable(struct azx *chip)
 {
 	int i;
 
 	/* disable interrupts in stream descriptor */
 	for (i = 0; i < chip->num_streams; i++) {
-		azx_dev_t *azx_dev = &chip->azx_dev[i];
+		struct azx_dev *azx_dev = &chip->azx_dev[i];
 		azx_sd_writeb(azx_dev, SD_CTL,
 			      azx_sd_readb(azx_dev, SD_CTL) & ~SD_INT_MASK);
 	}
@@ -670,13 +666,13 @@ static void azx_int_disable(azx_t *chip)
 }
 
 /* clear interrupts */
-static void azx_int_clear(azx_t *chip)
+static void azx_int_clear(struct azx *chip)
 {
 	int i;
 
 	/* clear stream status */
 	for (i = 0; i < chip->num_streams; i++) {
-		azx_dev_t *azx_dev = &chip->azx_dev[i];
+		struct azx_dev *azx_dev = &chip->azx_dev[i];
 		azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK);
 	}
 
@@ -691,7 +687,7 @@ static void azx_int_clear(azx_t *chip)
 }
 
 /* start a stream */
-static void azx_stream_start(azx_t *chip, azx_dev_t *azx_dev)
+static void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
 {
 	/* enable SIE */
 	azx_writeb(chip, INTCTL,
@@ -702,7 +698,7 @@ static void azx_stream_start(azx_t *chip, azx_dev_t *azx_dev)
 }
 
 /* stop a stream */
-static void azx_stream_stop(azx_t *chip, azx_dev_t *azx_dev)
+static void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev)
 {
 	/* stop DMA */
 	azx_sd_writeb(azx_dev, SD_CTL, azx_sd_readb(azx_dev, SD_CTL) &
@@ -717,7 +713,7 @@ static void azx_stream_stop(azx_t *chip, azx_dev_t *azx_dev)
 /*
  * initialize the chip
  */
-static void azx_init_chip(azx_t *chip)
+static void azx_init_chip(struct azx *chip)
 {
 	unsigned char reg;
 
@@ -765,8 +761,8 @@ static void azx_init_chip(azx_t *chip)
  */
 static irqreturn_t azx_interrupt(int irq, void* dev_id, struct pt_regs *regs)
 {
-	azx_t *chip = dev_id;
-	azx_dev_t *azx_dev;
+	struct azx *chip = dev_id;
+	struct azx_dev *azx_dev;
 	u32 status;
 	int i;
 
@@ -814,7 +810,7 @@ static irqreturn_t azx_interrupt(int irq, void* dev_id, struct pt_regs *regs)
 /*
  * set up BDL entries
  */
-static void azx_setup_periods(azx_dev_t *azx_dev)
+static void azx_setup_periods(struct azx_dev *azx_dev)
 {
 	u32 *bdl = azx_dev->bdl;
 	dma_addr_t dma_addr = azx_dev->substream->runtime->dma_addr;
@@ -843,7 +839,7 @@ static void azx_setup_periods(azx_dev_t *azx_dev)
 /*
  * set up the SD for streaming
  */
-static int azx_setup_controller(azx_t *chip, azx_dev_t *azx_dev)
+static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 {
 	unsigned char val;
 	int timeout;
@@ -903,7 +899,7 @@ static int azx_setup_controller(azx_t *chip, azx_dev_t *azx_dev)
  * Codec initialization
  */
 
-static int __devinit azx_codec_create(azx_t *chip, const char *model)
+static int __devinit azx_codec_create(struct azx *chip, const char *model)
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, err;
@@ -941,7 +937,7 @@ static int __devinit azx_codec_create(azx_t *chip, const char *model)
  */
 
 /* assign a stream for the PCM */
-static inline azx_dev_t *azx_assign_device(azx_t *chip, int stream)
+static inline struct azx_dev *azx_assign_device(struct azx *chip, int stream)
 {
 	int dev, i, nums;
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -960,12 +956,12 @@ static inline azx_dev_t *azx_assign_device(azx_t *chip, int stream)
 }
 
 /* release the assigned stream */
-static inline void azx_release_device(azx_dev_t *azx_dev)
+static inline void azx_release_device(struct azx_dev *azx_dev)
 {
 	azx_dev->opened = 0;
 }
 
-static snd_pcm_hardware_t azx_pcm_hw = {
+static struct snd_pcm_hardware azx_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID |
@@ -986,18 +982,18 @@ static snd_pcm_hardware_t azx_pcm_hw = {
 };
 
 struct azx_pcm {
-	azx_t *chip;
+	struct azx *chip;
 	struct hda_codec *codec;
 	struct hda_pcm_stream *hinfo[2];
 };
 
-static int azx_pcm_open(snd_pcm_substream_t *substream)
+static int azx_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
-	azx_t *chip = apcm->chip;
-	azx_dev_t *azx_dev;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct azx *chip = apcm->chip;
+	struct azx_dev *azx_dev;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long flags;
 	int err;
 
@@ -1029,12 +1025,12 @@ static int azx_pcm_open(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static int azx_pcm_close(snd_pcm_substream_t *substream)
+static int azx_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
-	azx_t *chip = apcm->chip;
-	azx_dev_t *azx_dev = get_azx_dev(substream);
+	struct azx *chip = apcm->chip;
+	struct azx_dev *azx_dev = get_azx_dev(substream);
 	unsigned long flags;
 
 	down(&chip->open_mutex);
@@ -1048,15 +1044,15 @@ static int azx_pcm_close(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static int azx_pcm_hw_params(snd_pcm_substream_t *substream, snd_pcm_hw_params_t *hw_params)
+static int azx_pcm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
-static int azx_pcm_hw_free(snd_pcm_substream_t *substream)
+static int azx_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	azx_dev_t *azx_dev = get_azx_dev(substream);
+	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
 
 	/* reset BDL address */
@@ -1069,13 +1065,13 @@ static int azx_pcm_hw_free(snd_pcm_substream_t *substream)
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static int azx_pcm_prepare(snd_pcm_substream_t *substream)
+static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	azx_t *chip = apcm->chip;
-	azx_dev_t *azx_dev = get_azx_dev(substream);
+	struct azx *chip = apcm->chip;
+	struct azx_dev *azx_dev = get_azx_dev(substream);
 	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	azx_dev->bufsize = snd_pcm_lib_buffer_bytes(substream);
 	azx_dev->fragsize = snd_pcm_lib_period_bytes(substream);
@@ -1104,11 +1100,11 @@ static int azx_pcm_prepare(snd_pcm_substream_t *substream)
 				  azx_dev->format_val, substream);
 }
 
-static int azx_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
+static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	azx_dev_t *azx_dev = get_azx_dev(substream);
-	azx_t *chip = apcm->chip;
+	struct azx_dev *azx_dev = get_azx_dev(substream);
+	struct azx *chip = apcm->chip;
 	int err = 0;
 
 	spin_lock(&chip->reg_lock);
@@ -1139,11 +1135,11 @@ static int azx_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 	return err;
 }
 
-static snd_pcm_uframes_t azx_pcm_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
-	azx_t *chip = apcm->chip;
-	azx_dev_t *azx_dev = get_azx_dev(substream);
+	struct azx *chip = apcm->chip;
+	struct azx_dev *azx_dev = get_azx_dev(substream);
 	unsigned int pos;
 
 	if (chip->position_fix == POS_FIX_POSBUF) {
@@ -1185,7 +1181,7 @@ static snd_pcm_uframes_t azx_pcm_pointer(snd_pcm_substream_t *substream)
 	return bytes_to_frames(substream->runtime, pos);
 }
 
-static snd_pcm_ops_t azx_pcm_ops = {
+static struct snd_pcm_ops azx_pcm_ops = {
 	.open = azx_pcm_open,
 	.close = azx_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -1196,16 +1192,16 @@ static snd_pcm_ops_t azx_pcm_ops = {
 	.pointer = azx_pcm_pointer,
 };
 
-static void azx_pcm_free(snd_pcm_t *pcm)
+static void azx_pcm_free(struct snd_pcm *pcm)
 {
 	kfree(pcm->private_data);
 }
 
-static int __devinit create_codec_pcm(azx_t *chip, struct hda_codec *codec,
+static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 				      struct hda_pcm *cpcm, int pcm_dev)
 {
 	int err;
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	struct azx_pcm *apcm;
 
 	snd_assert(cpcm->stream[0].substreams || cpcm->stream[1].substreams, return -EINVAL);
@@ -1239,7 +1235,7 @@ static int __devinit create_codec_pcm(azx_t *chip, struct hda_codec *codec,
 	return 0;
 }
 
-static int __devinit azx_pcm_create(azx_t *chip)
+static int __devinit azx_pcm_create(struct azx *chip)
 {
 	struct list_head *p;
 	struct hda_codec *codec;
@@ -1291,7 +1287,7 @@ static int __devinit azx_pcm_create(azx_t *chip)
 /*
  * mixer creation - all stuff is implemented in hda module
  */
-static int __devinit azx_mixer_create(azx_t *chip)
+static int __devinit azx_mixer_create(struct azx *chip)
 {
 	return snd_hda_build_controls(chip->bus);
 }
@@ -1300,7 +1296,7 @@ static int __devinit azx_mixer_create(azx_t *chip)
 /*
  * initialize SD streams
  */
-static int __devinit azx_init_stream(azx_t *chip)
+static int __devinit azx_init_stream(struct azx *chip)
 {
 	int i;
 
@@ -1309,7 +1305,7 @@ static int __devinit azx_init_stream(azx_t *chip)
 	 */
 	for (i = 0; i < chip->num_streams; i++) {
 		unsigned int off = sizeof(u32) * (i * AZX_MAX_FRAG * 4);
-		azx_dev_t *azx_dev = &chip->azx_dev[i];
+		struct azx_dev *azx_dev = &chip->azx_dev[i];
 		azx_dev->bdl = (u32 *)(chip->bdl.area + off);
 		azx_dev->bdl_addr = chip->bdl.addr + off;
 		azx_dev->posbuf = (volatile u32 *)(chip->posbuf.area + i * 8);
@@ -1330,9 +1326,9 @@ static int __devinit azx_init_stream(azx_t *chip)
 /*
  * power management
  */
-static int azx_suspend(snd_card_t *card, pm_message_t state)
+static int azx_suspend(struct snd_card *card, pm_message_t state)
 {
-	azx_t *chip = card->pm_private_data;
+	struct azx *chip = card->pm_private_data;
 	int i;
 
 	for (i = 0; i < chip->pcm_devs; i++)
@@ -1344,9 +1340,9 @@ static int azx_suspend(snd_card_t *card, pm_message_t state)
 	return 0;
 }
 
-static int azx_resume(snd_card_t *card)
+static int azx_resume(struct snd_card *card)
 {
-	azx_t *chip = card->pm_private_data;
+	struct azx *chip = card->pm_private_data;
 
 	pci_enable_device(chip->pci);
 	pci_set_master(chip->pci);
@@ -1360,7 +1356,7 @@ static int azx_resume(snd_card_t *card)
 /*
  * destructor
  */
-static int azx_free(azx_t *chip)
+static int azx_free(struct azx *chip)
 {
 	if (chip->initialized) {
 		int i;
@@ -1402,7 +1398,7 @@ static int azx_free(azx_t *chip)
 	return 0;
 }
 
-static int azx_dev_free(snd_device_t *device)
+static int azx_dev_free(struct snd_device *device)
 {
 	return azx_free(device->device_data);
 }
@@ -1410,13 +1406,13 @@ static int azx_dev_free(snd_device_t *device)
 /*
  * constructor
  */
-static int __devinit azx_create(snd_card_t *card, struct pci_dev *pci,
+static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 				int posfix, int driver_type,
-				azx_t **rchip)
+				struct azx **rchip)
 {
-	azx_t *chip;
+	struct azx *chip;
 	int err = 0;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free = azx_dev_free,
 	};
 
@@ -1548,8 +1544,8 @@ static int __devinit azx_create(snd_card_t *card, struct pci_dev *pci,
 
 static int __devinit azx_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
-	snd_card_t *card;
-	azx_t *chip;
+	struct snd_card *card;
+	struct azx *chip;
 	int err = 0;
 
 	card = snd_card_new(index, id, THIS_MODULE, 0);
