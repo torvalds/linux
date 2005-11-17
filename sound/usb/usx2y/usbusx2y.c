@@ -285,7 +285,6 @@ int usX2Y_AsyncSeq04_init(usX2Ydev_t* usX2Y)
 
 int usX2Y_In04_init(usX2Ydev_t* usX2Y)
 {
-	int	err = 0;
 	if (! (usX2Y->In04urb = usb_alloc_urb(0, GFP_KERNEL)))
 		return -ENOMEM;
 
@@ -299,8 +298,7 @@ int usX2Y_In04_init(usX2Ydev_t* usX2Y)
 			 usX2Y->In04Buf, 21,
 			 i_usX2Y_In04Int, usX2Y,
 			 10);
-	err = usb_submit_urb(usX2Y->In04urb, GFP_KERNEL);
-	return err;
+	return usb_submit_urb(usX2Y->In04urb, GFP_KERNEL);
 }
 
 static void usX2Y_unlinkSeq(snd_usX2Y_AsyncSeq_t* S)
@@ -432,20 +430,21 @@ static void snd_usX2Y_card_private_free(snd_card_t *card)
 static void usX2Y_usb_disconnect(struct usb_device* device, void* ptr)
 {
 	if (ptr) {
-		usX2Ydev_t* usX2Y = usX2Y((snd_card_t*)ptr);
-		struct list_head* p;
+		snd_card_t *card = ptr;
+		usX2Ydev_t* usX2Y = usX2Y(card);
+		struct list_head *p;
 		usX2Y->chip.shutdown = 1;
 		usX2Y->chip_status = USX2Y_STAT_CHIP_HUP;
 		usX2Y_unlinkSeq(&usX2Y->AS04);
 		usb_kill_urb(usX2Y->In04urb);
-		snd_card_disconnect((snd_card_t*)ptr);
+		snd_card_disconnect(card);
 		/* release the midi resources */
 		list_for_each(p, &usX2Y->chip.midi_list) {
 			snd_usbmidi_disconnect(p);
 		}
 		if (usX2Y->us428ctls_sharedmem) 
 			wake_up(&usX2Y->us428ctls_wait_queue_head);
-		snd_card_free((snd_card_t*)ptr);
+		snd_card_free(card);
 	}
 }
 

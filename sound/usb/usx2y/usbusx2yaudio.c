@@ -205,47 +205,42 @@ static int usX2Y_urb_submit(snd_usX2Y_substream_t *subs, struct urb *urb, int fr
 static inline int usX2Y_usbframe_complete(snd_usX2Y_substream_t *capsubs, snd_usX2Y_substream_t *playbacksubs, int frame)
 {
 	int err, state;
-	{
-		struct urb *urb = playbacksubs->completed_urb;
+	struct urb *urb = playbacksubs->completed_urb;
 
-		state = atomic_read(&playbacksubs->state);
-		if (NULL != urb) {
-			if (state == state_RUNNING)
-				usX2Y_urb_play_retire(playbacksubs, urb);
-			else
-				if (state >= state_PRERUNNING) {
-					atomic_inc(&playbacksubs->state);
-				}
-		} else {
-			switch (state) {
-			case state_STARTING1:
-				urb = playbacksubs->urb[0];
+	state = atomic_read(&playbacksubs->state);
+	if (NULL != urb) {
+		if (state == state_RUNNING)
+			usX2Y_urb_play_retire(playbacksubs, urb);
+		else
+			if (state >= state_PRERUNNING)
 				atomic_inc(&playbacksubs->state);
-				break;
-			case state_STARTING2:
-				urb = playbacksubs->urb[1];
-				atomic_inc(&playbacksubs->state);
-				break;
-			}
+	} else {
+		switch (state) {
+		case state_STARTING1:
+			urb = playbacksubs->urb[0];
+			atomic_inc(&playbacksubs->state);
+			break;
+		case state_STARTING2:
+			urb = playbacksubs->urb[1];
+			atomic_inc(&playbacksubs->state);
+			break;
 		}
-		if (urb) {
-			if ((err = usX2Y_urb_play_prepare(playbacksubs, capsubs->completed_urb, urb)) ||
-			    (err = usX2Y_urb_submit(playbacksubs, urb, frame))) {
-				return err;
-			}
-		}
-
-		playbacksubs->completed_urb = NULL;
 	}
+	if (urb) {
+		if ((err = usX2Y_urb_play_prepare(playbacksubs, capsubs->completed_urb, urb)) ||
+		    (err = usX2Y_urb_submit(playbacksubs, urb, frame)))
+			return err;
+	}
+
+	playbacksubs->completed_urb = NULL;
+
 	state = atomic_read(&capsubs->state);
 	if (state >= state_PREPARED) {
 		if (state == state_RUNNING) {
 			if ((err = usX2Y_urb_capt_retire(capsubs)))
 				return err;
-		} else
-			if (state >= state_PRERUNNING) {
-				atomic_inc(&capsubs->state);
-			}
+		} else if (state >= state_PRERUNNING)
+			atomic_inc(&capsubs->state);
 		if ((err = usX2Y_urb_submit(capsubs, capsubs->completed_urb, frame)))
 			return err;
 	}
@@ -429,7 +424,7 @@ static int usX2Y_urbs_allocate(snd_usX2Y_substream_t *subs)
 	}
 	/* allocate and initialize data urbs */
 	for (i = 0; i < NRURBS; i++) {
-		struct urb** purb = subs->urb + i;
+		struct urb **purb = subs->urb + i;
 		if (*purb) {
 			usb_kill_urb(*purb);
 			continue;
@@ -480,47 +475,45 @@ static int usX2Y_urbs_start(snd_usX2Y_substream_t *subs)
 			goto start;
 	}
 	usX2Y->wait_iso_frame = -1;
- start:
-	{
-		usX2Y_subs_startup(subs);
-		for (i = 0; i < NRURBS; i++) {
-			struct urb *urb = subs->urb[i];
-			if (usb_pipein(urb->pipe)) {
-				unsigned long pack;
-				if (0 == i)
-					atomic_set(&subs->state, state_STARTING3);
-				urb->dev = usX2Y->chip.dev;
-				urb->transfer_flags = URB_ISO_ASAP;
-				for (pack = 0; pack < nr_of_packs(); pack++) {
-					urb->iso_frame_desc[pack].offset = subs->maxpacksize * pack;
-					urb->iso_frame_desc[pack].length = subs->maxpacksize;
-				}
-				urb->transfer_buffer_length = subs->maxpacksize * nr_of_packs(); 
-				if ((err = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
-					snd_printk (KERN_ERR "cannot submit datapipe for urb %d, err = %d\n", i, err);
-					err = -EPIPE;
-					goto cleanup;
-				} else {
-					if (0 > usX2Y->wait_iso_frame)
-						usX2Y->wait_iso_frame = urb->start_frame;
-				}
-				urb->transfer_flags = 0;
-			} else {
-				atomic_set(&subs->state, state_STARTING1);
-				break;
-			}
-		}
-		err = 0;
-		wait_event(usX2Y->prepare_wait_queue, NULL == usX2Y->prepare_subs);
-		if (atomic_read(&subs->state) != state_PREPARED) {
-			err = -EPIPE;
-		}
 
-	cleanup:
-		if (err) {
-			usX2Y_subs_startup_finish(usX2Y);
-			usX2Y_clients_stop(usX2Y);		// something is completely wroong > stop evrything
+ start:
+	usX2Y_subs_startup(subs);
+	for (i = 0; i < NRURBS; i++) {
+		struct urb *urb = subs->urb[i];
+		if (usb_pipein(urb->pipe)) {
+			unsigned long pack;
+			if (0 == i)
+				atomic_set(&subs->state, state_STARTING3);
+			urb->dev = usX2Y->chip.dev;
+			urb->transfer_flags = URB_ISO_ASAP;
+			for (pack = 0; pack < nr_of_packs(); pack++) {
+				urb->iso_frame_desc[pack].offset = subs->maxpacksize * pack;
+				urb->iso_frame_desc[pack].length = subs->maxpacksize;
+			}
+			urb->transfer_buffer_length = subs->maxpacksize * nr_of_packs(); 
+			if ((err = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
+				snd_printk (KERN_ERR "cannot submit datapipe for urb %d, err = %d\n", i, err);
+				err = -EPIPE;
+				goto cleanup;
+			} else {
+				if (0 > usX2Y->wait_iso_frame)
+					usX2Y->wait_iso_frame = urb->start_frame;
+			}
+			urb->transfer_flags = 0;
+		} else {
+			atomic_set(&subs->state, state_STARTING1);
+			break;
 		}
+	}
+	err = 0;
+	wait_event(usX2Y->prepare_wait_queue, NULL == usX2Y->prepare_subs);
+	if (atomic_read(&subs->state) != state_PREPARED)
+		err = -EPIPE;
+
+ cleanup:
+	if (err) {
+		usX2Y_subs_startup_finish(usX2Y);
+		usX2Y_clients_stop(usX2Y);		// something is completely wroong > stop evrything
 	}
 	return err;
 }
@@ -667,13 +660,12 @@ static int usX2Y_rate_set(usX2Ydev_t *usX2Y, int rate)
 	struct s_c2		*ra = rate == 48000 ? SetRate48000 : SetRate44100;
 
 	if (usX2Y->rate != rate) {
-		us = kmalloc(sizeof(*us) + sizeof(struct urb*) * NOOF_SETRATE_URBS, GFP_KERNEL);
+		us = kzalloc(sizeof(*us) + sizeof(struct urb*) * NOOF_SETRATE_URBS, GFP_KERNEL);
 		if (NULL == us) {
 			err = -ENOMEM;
 			goto cleanup;
 		}
-		memset(us, 0, sizeof(*us) + sizeof(struct urb*) * NOOF_SETRATE_URBS); 
-		usbdata = kmalloc(sizeof(int)*NOOF_SETRATE_URBS, GFP_KERNEL);
+		usbdata = kmalloc(sizeof(int) * NOOF_SETRATE_URBS, GFP_KERNEL);
 		if (NULL == usbdata) {
 			err = -ENOMEM;
 			goto cleanup;
@@ -713,9 +705,8 @@ static int usX2Y_rate_set(usX2Ydev_t *usX2Y, int rate)
 			usX2Y->US04 = NULL;
 			kfree(usbdata);
 			kfree(us);
-			if (!err) {
+			if (!err)
 				usX2Y->rate = rate;
-			}
 		}
 	}
 
@@ -759,30 +750,29 @@ static int snd_usX2Y_pcm_hw_params(snd_pcm_substream_t *substream,
 	int			err = 0;
 	unsigned int		rate = params_rate(hw_params);
 	snd_pcm_format_t	format = params_format(hw_params);
-	snd_printdd("snd_usX2Y_hw_params(%p, %p)\n", substream, hw_params);
-
-	{	// all pcm substreams off one usX2Y have to operate at the same rate & format
 		snd_card_t *card = substream->pstr->pcm->card;
 		struct list_head *list;
-		list_for_each(list, &card->devices) {
-			snd_device_t *dev;
-			snd_pcm_t *pcm;
-			int s;
-			dev = snd_device(list);
-			if (dev->type != SNDRV_DEV_PCM)
-				continue;
-			pcm = dev->device_data;
-			for (s = 0; s < 2; ++s) {
-				snd_pcm_substream_t *test_substream;
-				test_substream = pcm->streams[s].substream;
-				if (test_substream && test_substream != substream  &&
-				    test_substream->runtime &&
-				    ((test_substream->runtime->format &&
-				      test_substream->runtime->format != format) ||
-				     (test_substream->runtime->rate &&
-				      test_substream->runtime->rate != rate)))
-					return -EINVAL;
-			}
+
+	snd_printdd("snd_usX2Y_hw_params(%p, %p)\n", substream, hw_params);
+	// all pcm substreams off one usX2Y have to operate at the same rate & format
+	list_for_each(list, &card->devices) {
+		snd_device_t *dev;
+		snd_pcm_t *pcm;
+		int s;
+		dev = snd_device(list);
+		if (dev->type != SNDRV_DEV_PCM)
+			continue;
+		pcm = dev->device_data;
+		for (s = 0; s < 2; ++s) {
+			snd_pcm_substream_t *test_substream;
+			test_substream = pcm->streams[s].substream;
+			if (test_substream && test_substream != substream  &&
+			    test_substream->runtime &&
+			    ((test_substream->runtime->format &&
+			      test_substream->runtime->format != format) ||
+			     (test_substream->runtime->rate &&
+			      test_substream->runtime->rate != rate)))
+				return -EINVAL;
 		}
 	}
 	if (0 > (err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params)))) {

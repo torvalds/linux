@@ -177,10 +177,8 @@ static inline int usX2Y_usbpcm_usbframe_complete(snd_usX2Y_substream_t *capsubs,
 	if (NULL != urb) {
 		if (state == state_RUNNING)
 			usX2Y_urb_play_retire(playbacksubs, urb);
-		else
-			if (state >= state_PRERUNNING) {
-				atomic_inc(&playbacksubs->state);
-			}
+		else if (state >= state_PRERUNNING)
+			atomic_inc(&playbacksubs->state);
 	} else {
 		switch (state) {
 		case state_STARTING1:
@@ -207,10 +205,8 @@ static inline int usX2Y_usbpcm_usbframe_complete(snd_usX2Y_substream_t *capsubs,
 		if (state == state_RUNNING) {
 			if ((err = usX2Y_usbpcm_urb_capt_retire(capsubs)))
 				return err;
-		} else {
-			if (state >= state_PRERUNNING)
-				atomic_inc(&capsubs->state);
-		}
+		} else if (state >= state_PRERUNNING)
+			atomic_inc(&capsubs->state);
 		usX2Y_usbpcm_urb_capt_iso_advance(capsubs, capsubs->completed_urb);
 		if (NULL != capsubs2)
 			usX2Y_usbpcm_urb_capt_iso_advance(NULL, capsubs2->completed_urb);
@@ -330,7 +326,7 @@ static int usX2Y_usbpcm_urbs_allocate(snd_usX2Y_substream_t *subs)
 
 	/* allocate and initialize data urbs */
 	for (i = 0; i < NRURBS; i++) {
-		struct urb** purb = subs->urb + i;
+		struct urb **purb = subs->urb + i;
 		if (*purb) {
 			usb_kill_urb(*purb);
 			continue;
@@ -582,10 +578,9 @@ static int snd_usX2Y_usbpcm_close(snd_pcm_substream_t *substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_usX2Y_substream_t *subs = (snd_usX2Y_substream_t *)runtime->private_data;
-	int err = 0;
-	snd_printd("\n");
+
 	subs->pcm_substream = NULL;
-	return err;
+	return 0;
 }
 
 
@@ -710,9 +705,9 @@ static struct vm_operations_struct snd_usX2Y_hwdep_pcm_vm_ops = {
 static int snd_usX2Y_hwdep_pcm_mmap(snd_hwdep_t * hw, struct file *filp, struct vm_area_struct *area)
 {
 	unsigned long	size = (unsigned long)(area->vm_end - area->vm_start);
-	usX2Ydev_t	*usX2Y = (usX2Ydev_t*)hw->private_data;
+	usX2Ydev_t	*usX2Y = hw->private_data;
 
-	if (!(((usX2Ydev_t*)hw->private_data)->chip_status & USX2Y_STAT_CHIP_INIT))
+	if (!(usX2Y->chip_status & USX2Y_STAT_CHIP_INIT))
 		return -EBUSY;
 
 	/* if userspace tries to mmap beyond end of our buffer, fail */ 
@@ -726,7 +721,6 @@ static int snd_usX2Y_hwdep_pcm_mmap(snd_hwdep_t * hw, struct file *filp, struct 
 	}
 	area->vm_ops = &snd_usX2Y_hwdep_pcm_vm_ops;
 	area->vm_flags |= VM_RESERVED;
-	snd_printd("vm_flags=0x%lX\n", area->vm_flags);
 	area->vm_private_data = hw->private_data;
 	return 0;
 }
@@ -734,7 +728,7 @@ static int snd_usX2Y_hwdep_pcm_mmap(snd_hwdep_t * hw, struct file *filp, struct 
 
 static void snd_usX2Y_hwdep_pcm_private_free(snd_hwdep_t *hwdep)
 {
-	usX2Ydev_t *usX2Y = (usX2Ydev_t *)hwdep->private_data;
+	usX2Ydev_t *usX2Y = hwdep->private_data;
 	if (NULL != usX2Y->hwdep_pcm_shm)
 		snd_free_pages(usX2Y->hwdep_pcm_shm, sizeof(snd_usX2Y_hwdep_pcm_shm_t));
 }
@@ -749,10 +743,9 @@ int usX2Y_hwdep_pcm_new(snd_card_t* card)
 	if (1 != nr_of_packs())
 		return 0;
 
-	if ((err = snd_hwdep_new(card, SND_USX2Y_USBPCM_ID, 1, &hw)) < 0) {
-		snd_printd("\n");
+	if ((err = snd_hwdep_new(card, SND_USX2Y_USBPCM_ID, 1, &hw)) < 0)
 		return err;
-	}
+
 	hw->iface = SNDRV_HWDEP_IFACE_USX2Y_PCM;
 	hw->private_data = usX2Y(card);
 	hw->private_free = snd_usX2Y_hwdep_pcm_private_free;

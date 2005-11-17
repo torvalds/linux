@@ -67,15 +67,15 @@ static struct vm_operations_struct us428ctls_vm_ops = {
 static int snd_us428ctls_mmap(snd_hwdep_t * hw, struct file *filp, struct vm_area_struct *area)
 {
 	unsigned long	size = (unsigned long)(area->vm_end - area->vm_start);
-	usX2Ydev_t	*us428 = (usX2Ydev_t*)hw->private_data;
+	usX2Ydev_t	*us428 = hw->private_data;
 
 	// FIXME this hwdep interface is used twice: fpga download and mmap for controlling Lights etc. Maybe better using 2 hwdep devs?
 	// so as long as the device isn't fully initialised yet we return -EBUSY here.
- 	if (!(((usX2Ydev_t*)hw->private_data)->chip_status & USX2Y_STAT_CHIP_INIT))
+ 	if (!(us428->chip_status & USX2Y_STAT_CHIP_INIT))
 		return -EBUSY;
 
 	/* if userspace tries to mmap beyond end of our buffer, fail */ 
-        if (size > ((PAGE_SIZE - 1 + sizeof(us428ctls_sharedmem_t)) / PAGE_SIZE) * PAGE_SIZE) {
+        if (size > PAGE_ALIGN(sizeof(us428ctls_sharedmem_t))) {
 		snd_printd( "%lu > %lu\n", size, (unsigned long)sizeof(us428ctls_sharedmem_t)); 
                 return -EINVAL;
 	}
@@ -96,7 +96,7 @@ static int snd_us428ctls_mmap(snd_hwdep_t * hw, struct file *filp, struct vm_are
 static unsigned int snd_us428ctls_poll(snd_hwdep_t *hw, struct file *file, poll_table *wait)
 {
 	unsigned int	mask = 0;
-	usX2Ydev_t	*us428 = (usX2Ydev_t*)hw->private_data;
+	usX2Ydev_t	*us428 = hw->private_data;
 	us428ctls_sharedmem_t *shm = us428->us428ctls_sharedmem;
 	if (us428->chip_status & USX2Y_STAT_CHIP_HUP)
 		return POLLHUP;
@@ -127,9 +127,10 @@ static int snd_usX2Y_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t *i
 		[USX2Y_TYPE_224] = "us224",
 		[USX2Y_TYPE_428] = "us428",
 	};
+	usX2Ydev_t *us428 = hw->private_data;
 	int id = -1;
 
-	switch (le16_to_cpu(((usX2Ydev_t*)hw->private_data)->chip.dev->descriptor.idProduct)) {
+	switch (le16_to_cpu(us428->chip.dev->descriptor.idProduct)) {
 	case USB_ID_US122:
 		id = USX2Y_TYPE_122;
 		break;
@@ -144,7 +145,7 @@ static int snd_usX2Y_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t *i
 		return -ENODEV;
 	strcpy(info->id, type_ids[id]);
 	info->num_dsps = 2;		// 0: Prepad Data, 1: FPGA Code
- 	if (((usX2Ydev_t*)hw->private_data)->chip_status & USX2Y_STAT_CHIP_INIT) 
+ 	if (us428->chip_status & USX2Y_STAT_CHIP_INIT) 
 		info->chip_ready = 1;
  	info->version = USX2Y_DRIVER_VERSION; 
 	return 0;
