@@ -269,6 +269,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_MICGAINZ		0x01	/* mic boost */
 #define CM_MICGAINZ_SHIFT	0
 
+#define CM_REG_MIXER3		0x24
 #define CM_REG_AUX_VOL		0x26
 #define CM_VAUXL_MASK		0xf0
 #define CM_VAUXR_MASK		0x0f
@@ -324,6 +325,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_REG_CH0_FRAME2	0x84
 #define CM_REG_CH1_FRAME1	0x88	/* 0-15: count of samples at bus master; buffer size */
 #define CM_REG_CH1_FRAME2	0x8C	/* 16-31: count of samples at codec; fragment size */
+#define CM_REG_EXT_MISC		0x90
 #define CM_REG_MISC_CTRL_8768	0x92	/* reg. name the same as 0x18 */
 #define CM_CHB3D8C		0x20	/* 7.1 channels support */
 #define CM_SPD32FMT		0x10	/* SPDIF/IN 32k */
@@ -453,6 +455,11 @@ struct cmipci {
 #endif
 
 	spinlock_t reg_lock;
+
+#ifdef CONFIG_PM
+	unsigned int saved_regs[0x20];
+	unsigned char saved_mixers[0x20];
+#endif
 };
 
 
@@ -849,10 +856,12 @@ static int snd_cmipci_pcm_trigger(struct cmipci *cm, struct cmipci_pcm *rec,
 		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl & ~reset);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		cm->ctrl |= pause;
 		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		cm->ctrl &= ~pause;
 		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl);
 		break;
@@ -1325,7 +1334,7 @@ static struct snd_pcm_hardware snd_cmipci_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_5512 | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5512,
@@ -1345,7 +1354,7 @@ static struct snd_pcm_hardware snd_cmipci_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_5512 | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5512,
@@ -1365,7 +1374,7 @@ static struct snd_pcm_hardware snd_cmipci_playback2 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_5512 | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		5512,
@@ -1385,7 +1394,7 @@ static struct snd_pcm_hardware snd_cmipci_playback_spdif =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,
 	.rate_min =		44100,
@@ -1405,7 +1414,7 @@ static struct snd_pcm_hardware snd_cmipci_playback_iec958_subframe =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE,
 	.rates =		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,
 	.rate_min =		44100,
@@ -1425,7 +1434,7 @@ static struct snd_pcm_hardware snd_cmipci_capture_spdif =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =	        SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,
 	.rate_min =		44100,
@@ -3038,6 +3047,7 @@ static int __devinit snd_cmipci_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = cm;
 
 	sprintf(card->shortname, "C-Media PCI %s", card->driver);
 	sprintf(card->longname, "%s (model %d) at 0x%lx, irq %i",
@@ -3065,11 +3075,93 @@ static void __devexit snd_cmipci_remove(struct pci_dev *pci)
 }
 
 
+#ifdef CONFIG_PM
+/*
+ * power management
+ */
+static unsigned char saved_regs[] = {
+	CM_REG_FUNCTRL1, CM_REG_CHFORMAT, CM_REG_LEGACY_CTRL, CM_REG_MISC_CTRL,
+	CM_REG_MIXER0, CM_REG_MIXER1, CM_REG_MIXER2, CM_REG_MIXER3, CM_REG_PLL,
+	CM_REG_CH0_FRAME1, CM_REG_CH0_FRAME2,
+	CM_REG_CH1_FRAME1, CM_REG_CH1_FRAME2, CM_REG_EXT_MISC,
+	CM_REG_INT_STATUS, CM_REG_INT_HLDCLR, CM_REG_FUNCTRL0,
+};
+
+static unsigned char saved_mixers[] = {
+	SB_DSP4_MASTER_DEV, SB_DSP4_MASTER_DEV + 1,
+	SB_DSP4_PCM_DEV, SB_DSP4_PCM_DEV + 1,
+	SB_DSP4_SYNTH_DEV, SB_DSP4_SYNTH_DEV + 1,
+	SB_DSP4_CD_DEV, SB_DSP4_CD_DEV + 1,
+	SB_DSP4_LINE_DEV, SB_DSP4_LINE_DEV + 1,
+	SB_DSP4_MIC_DEV, SB_DSP4_SPEAKER_DEV,
+	CM_REG_EXTENT_IND, SB_DSP4_OUTPUT_SW,
+	SB_DSP4_INPUT_LEFT, SB_DSP4_INPUT_RIGHT,
+};
+
+static int snd_cmipci_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct cmipci *cm = card->private_data;
+	int i;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	
+	snd_pcm_suspend_all(cm->pcm);
+	snd_pcm_suspend_all(cm->pcm2);
+	snd_pcm_suspend_all(cm->pcm_spdif);
+
+	/* save registers */
+	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
+		cm->saved_regs[i] = snd_cmipci_read(cm, saved_regs[i]);
+	for (i = 0; i < ARRAY_SIZE(saved_mixers); i++)
+		cm->saved_mixers[i] = snd_cmipci_mixer_read(cm, saved_mixers[i]);
+
+	/* disable ints */
+	snd_cmipci_write(cm, CM_REG_INT_HLDCLR, 0);
+
+	pci_set_power_state(pci, PCI_D3hot);
+	pci_disable_device(pci);
+	pci_save_state(pci);
+	return 0;
+}
+
+static int snd_cmipci_resume(struct pci_dev *pci)
+{
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct cmipci *cm = card->private_data;
+	int i;
+
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_power_state(pci, PCI_D0);
+	pci_set_master(pci);
+
+	/* reset / initialize to a sane state */
+	snd_cmipci_write(cm, CM_REG_INT_HLDCLR, 0);
+	snd_cmipci_ch_reset(cm, CM_CH_PLAY);
+	snd_cmipci_ch_reset(cm, CM_CH_CAPT);
+	snd_cmipci_mixer_write(cm, 0, 0);
+
+	/* restore registers */
+	for (i = 0; i < ARRAY_SIZE(saved_regs); i++)
+		snd_cmipci_write(cm, saved_regs[i], cm->saved_regs[i]);
+	for (i = 0; i < ARRAY_SIZE(saved_mixers); i++)
+		snd_cmipci_mixer_write(cm, saved_mixers[i], cm->saved_mixers[i]);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 static struct pci_driver driver = {
 	.name = "C-Media PCI",
 	.id_table = snd_cmipci_ids,
 	.probe = snd_cmipci_probe,
 	.remove = __devexit_p(snd_cmipci_remove),
+#ifdef CONFIG_PM
+	.suspend = snd_cmipci_suspend,
+	.resume = snd_cmipci_resume,
+#endif
 };
 	
 static int __init alsa_card_cmipci_init(void)
