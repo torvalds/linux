@@ -2126,14 +2126,15 @@ static int snd_via82xx_chip_init(struct via82xx *chip)
 /*
  * power management
  */
-static int snd_via82xx_suspend(struct snd_card *card, pm_message_t state)
+static int snd_via82xx_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct via82xx *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct via82xx *chip = card->private_data;
 	int i;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for (i = 0; i < 2; i++)
-		if (chip->pcms[i])
-			snd_pcm_suspend_all(chip->pcms[i]);
+		snd_pcm_suspend_all(chip->pcms[i]);
 	for (i = 0; i < chip->num_devs; i++)
 		snd_via82xx_channel_reset(chip, &chip->devs[i]);
 	synchronize_irq(chip->irq);
@@ -2146,18 +2147,21 @@ static int snd_via82xx_suspend(struct snd_card *card, pm_message_t state)
 		chip->capture_src_saved[1] = inb(chip->port + VIA_REG_CAPTURE_CHANNEL + 0x10);
 	}
 
-	pci_set_power_state(chip->pci, 3);
-	pci_disable_device(chip->pci);
+	pci_set_power_state(pci, PCI_D3hot);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int snd_via82xx_resume(struct snd_card *card)
+static int snd_via82xx_resume(struct pci_dev *pci)
 {
-	struct via82xx *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct via82xx *chip = card->private_data;
 	int i;
 
-	pci_enable_device(chip->pci);
-	pci_set_power_state(chip->pci, 0);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_power_state(pci, PCI_D0);
 
 	snd_via82xx_chip_init(chip);
 
@@ -2177,6 +2181,7 @@ static int snd_via82xx_resume(struct snd_card *card)
 	for (i = 0; i < chip->num_devs; i++)
 		snd_via82xx_channel_reset(chip, &chip->devs[i]);
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2453,6 +2458,7 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 	if ((err = snd_via82xx_create(card, pci, chip_type, revision,
 				      ac97_clock, &chip)) < 0)
 		goto __error;
+	card->private_data = chip;
 	if ((err = snd_via82xx_mixer_new(chip, ac97_quirk)) < 0)
 		goto __error;
 
@@ -2480,8 +2486,6 @@ static int __devinit snd_via82xx_probe(struct pci_dev *pci,
 		if ((err = snd_via8233_init_misc(chip)) < 0)
 			goto __error;
 	}
-
-	snd_card_set_pm_callback(card, snd_via82xx_suspend, snd_via82xx_resume, chip);
 
 	/* disable interrupts */
 	for (i = 0; i < chip->num_devs; i++)
@@ -2516,7 +2520,10 @@ static struct pci_driver driver = {
 	.id_table = snd_via82xx_ids,
 	.probe = snd_via82xx_probe,
 	.remove = __devexit_p(snd_via82xx_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = snd_via82xx_suspend,
+	.resume = snd_via82xx_resume,
+#endif
 };
 
 static int __init alsa_card_via82xx_init(void)
