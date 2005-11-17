@@ -514,27 +514,6 @@ MODULE_DEVICE_TABLE(pci, snd_cs4281_ids);
  *  common I/O routines
  */
 
-static void snd_cs4281_delay(unsigned int delay)
-{
-	if (delay > 999) {
-		unsigned long end_time;
-		delay = (delay * HZ) / 1000000;
-		if (delay < 1)
-			delay = 1;
-		end_time = jiffies + delay;
-		do {
-			schedule_timeout_uninterruptible(1);
-		} while (time_after_eq(end_time, jiffies));
-	} else {
-		udelay(delay);
-	}
-}
-
-static inline void snd_cs4281_delay_long(void)
-{
-	schedule_timeout_uninterruptible(1);
-}
-
 static inline void snd_cs4281_pokeBA0(cs4281_t *chip, unsigned long offset, unsigned int val)
 {
         writel(val, chip->ba0 + offset);
@@ -1493,7 +1472,7 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 	snd_cs4281_pokeBA0(chip, BA0_SPMC, 0);
 	udelay(50);
 	snd_cs4281_pokeBA0(chip, BA0_SPMC, BA0_SPMC_RSTN);
-	snd_cs4281_delay(50000);
+	msleep(50);
 
 	if (chip->dual_codec)
 		snd_cs4281_pokeBA0(chip, BA0_SPMC, BA0_SPMC_RSTN | BA0_SPMC_ASDI2E);
@@ -1509,13 +1488,13 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 	 *  Start the DLL Clock logic.
 	 */
 	snd_cs4281_pokeBA0(chip, BA0_CLKCR1, BA0_CLKCR1_DLLP);
-	snd_cs4281_delay(50000);
+	msleep(50);
 	snd_cs4281_pokeBA0(chip, BA0_CLKCR1, BA0_CLKCR1_SWCE | BA0_CLKCR1_DLLP);
 
 	/*
 	 * Wait for the DLL ready signal from the clock logic.
 	 */
-	timeout = HZ;
+	timeout = 100;
 	do {
 		/*
 		 *  Read the AC97 status register to see if we've seen a CODEC
@@ -1523,7 +1502,7 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 		 */
 		if (snd_cs4281_peekBA0(chip, BA0_CLKCR1) & BA0_CLKCR1_DLLRDY)
 			goto __ok0;
-		snd_cs4281_delay_long();
+		msleep(1);
 	} while (timeout-- > 0);
 
 	snd_printk(KERN_ERR "DLLRDY not seen\n");
@@ -1541,7 +1520,7 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 	/*
 	 * Wait for the codec ready signal from the AC97 codec.
 	 */
-	timeout = HZ;
+	timeout = 100;
 	do {
 		/*
 		 *  Read the AC97 status register to see if we've seen a CODEC
@@ -1549,7 +1528,7 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 		 */
 		if (snd_cs4281_peekBA0(chip, BA0_ACSTS) & BA0_ACSTS_CRDY)
 			goto __ok1;
-		snd_cs4281_delay_long();
+		msleep(1);
 	} while (timeout-- > 0);
 
 	snd_printk(KERN_ERR "never read codec ready from AC'97 (0x%x)\n", snd_cs4281_peekBA0(chip, BA0_ACSTS));
@@ -1557,11 +1536,11 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 
       __ok1:
 	if (chip->dual_codec) {
-		timeout = HZ;
+		timeout = 100;
 		do {
 			if (snd_cs4281_peekBA0(chip, BA0_ACSTS2) & BA0_ACSTS_CRDY)
 				goto __codec2_ok;
-			snd_cs4281_delay_long();
+			msleep(1);
 		} while (timeout-- > 0);
 		snd_printk(KERN_INFO "secondary codec doesn't respond. disable it...\n");
 		chip->dual_codec = 0;
@@ -1580,7 +1559,7 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 	 *  the codec is pumping ADC data across the AC-link.
 	 */
 
-	timeout = HZ;
+	timeout = 100;
 	do {
 		/*
 		 *  Read the input slot valid register and see if input slots 3
@@ -1588,7 +1567,7 @@ static int snd_cs4281_chip_init(cs4281_t *chip)
 		 */
                 if ((snd_cs4281_peekBA0(chip, BA0_ACISV) & (BA0_ACISV_SLV(3) | BA0_ACISV_SLV(4))) == (BA0_ACISV_SLV(3) | BA0_ACISV_SLV(4)))
                         goto __ok2;
-		snd_cs4281_delay_long();
+		msleep(1);
 	} while (timeout-- > 0);
 
 	if (--retry_count > 0)
