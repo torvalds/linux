@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.14-rc2
-# Thu Oct 20 22:27:10 2005
+# Linux kernel version: 2.6.14
+# Mon Nov  7 23:06:49 2005
 #
 CONFIG_MIPS=y
 
@@ -55,6 +55,24 @@ CONFIG_OBSOLETE_MODPARM=y
 CONFIG_MODVERSIONS=y
 CONFIG_MODULE_SRCVERSION_ALL=y
 CONFIG_KMOD=y
+
+#
+# Block layer
+#
+# CONFIG_LBD is not set
+
+#
+# IO Schedulers
+#
+CONFIG_IOSCHED_NOOP=y
+CONFIG_IOSCHED_AS=y
+CONFIG_IOSCHED_DEADLINE=y
+CONFIG_IOSCHED_CFQ=y
+CONFIG_DEFAULT_AS=y
+# CONFIG_DEFAULT_DEADLINE is not set
+# CONFIG_DEFAULT_CFQ is not set
+# CONFIG_DEFAULT_NOOP is not set
+CONFIG_DEFAULT_IOSCHED="anticipatory"
 
 #
 # Machine selection
@@ -183,6 +201,7 @@ CONFIG_FLATMEM_MANUAL=y
 CONFIG_FLATMEM=y
 CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
+CONFIG_SPLIT_PTLOCK_CPUS=4
 CONFIG_PREEMPT_NONE=y
 # CONFIG_PREEMPT_VOLUNTARY is not set
 # CONFIG_PREEMPT is not set
@@ -277,6 +296,10 @@ CONFIG_TCP_CONG_BIC=y
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
+
+#
+# QoS and/or fair queueing
+#
 # CONFIG_NET_SCHED is not set
 # CONFIG_NET_CLS_ROUTE is not set
 
@@ -339,16 +362,7 @@ CONFIG_BLK_DEV_NBD=m
 CONFIG_BLK_DEV_RAM=m
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=4096
-# CONFIG_LBD is not set
 # CONFIG_CDROM_PKTCDVD is not set
-
-#
-# IO Schedulers
-#
-CONFIG_IOSCHED_NOOP=y
-CONFIG_IOSCHED_AS=y
-CONFIG_IOSCHED_DEADLINE=y
-CONFIG_IOSCHED_CFQ=y
 CONFIG_ATA_OVER_ETH=m
 
 #
@@ -385,12 +399,13 @@ CONFIG_SCSI_MULTI_LUN=y
 #
 # CONFIG_SCSI_SPI_ATTRS is not set
 # CONFIG_SCSI_FC_ATTRS is not set
-# CONFIG_SCSI_ISCSI_ATTRS is not set
+CONFIG_SCSI_ISCSI_ATTRS=m
 # CONFIG_SCSI_SAS_ATTRS is not set
 
 #
 # SCSI low-level drivers
 #
+CONFIG_ISCSI_TCP=m
 # CONFIG_BLK_DEV_3W_XXXX_RAID is not set
 # CONFIG_SCSI_3W_9XXX is not set
 # CONFIG_SCSI_ACARD is not set
@@ -401,6 +416,7 @@ CONFIG_SCSI_MULTI_LUN=y
 # CONFIG_SCSI_DPT_I2O is not set
 # CONFIG_MEGARAID_NEWGEN is not set
 # CONFIG_MEGARAID_LEGACY is not set
+# CONFIG_MEGARAID_SAS is not set
 # CONFIG_SCSI_SATA is not set
 # CONFIG_SCSI_DMX3191D is not set
 # CONFIG_SCSI_FUTURE_DOMAIN is not set
@@ -435,6 +451,7 @@ CONFIG_SCSI_QLA2XXX=y
 # CONFIG_FUSION is not set
 # CONFIG_FUSION_SPI is not set
 # CONFIG_FUSION_FC is not set
+# CONFIG_FUSION_SAS is not set
 
 #
 # IEEE 1394 (FireWire) support
@@ -464,7 +481,6 @@ CONFIG_NETDEVICES=y
 # PHY device support
 #
 CONFIG_PHYLIB=m
-CONFIG_PHYCONTROL=y
 
 #
 # MII PHY device drivers
@@ -482,6 +498,7 @@ CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
 # CONFIG_HAPPYMEAL is not set
 # CONFIG_SUNGEM is not set
+# CONFIG_CASSINI is not set
 # CONFIG_NET_VENDOR_3COM is not set
 
 #
@@ -634,6 +651,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_WATCHDOG is not set
 # CONFIG_RTC is not set
 # CONFIG_GEN_RTC is not set
+# CONFIG_RTC_VR41XX is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 # CONFIG_APPLICOM is not set
@@ -650,6 +668,7 @@ CONFIG_GPIO_VR41XX=y
 # TPM devices
 #
 # CONFIG_TCG_TPM is not set
+# CONFIG_TELCLOCK is not set
 
 #
 # I2C support
@@ -733,12 +752,15 @@ CONFIG_USB_OHCI_LITTLE_ENDIAN=y
 #
 # USB Device Class drivers
 #
-# CONFIG_USB_BLUETOOTH_TTY is not set
 # CONFIG_USB_ACM is not set
 # CONFIG_USB_PRINTER is not set
 
 #
-# NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support' may also be needed; see USB_STORAGE Help for more information
+# NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
+#
+
+#
+# may also be needed; see USB_STORAGE Help for more information
 #
 CONFIG_USB_STORAGE=m
 # CONFIG_USB_STORAGE_DEBUG is not set
