@@ -321,6 +321,7 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
 static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
 static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
 static void mv_phy_reset(struct ata_port *ap);
+static void __mv_phy_reset(struct ata_port *ap, int can_sleep);
 static void mv_host_stop(struct ata_host_set *host_set);
 static int mv_port_start(struct ata_port *ap);
 static void mv_port_stop(struct ata_port *ap);
@@ -362,7 +363,7 @@ static struct scsi_host_template mv_sht = {
 	.eh_strategy_handler	= ata_scsi_error,
 	.can_queue		= MV_USE_Q_DEPTH,
 	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= MV_MAX_SG_CT,
+	.sg_tablesize		= MV_MAX_SG_CT / 2,
 	.max_sectors		= ATA_MAX_SECTORS,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
@@ -893,20 +894,30 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 	struct scatterlist *sg;
 
 	ata_for_each_sg(sg, qc) {
-		u32 sg_len;
 		dma_addr_t addr;
+		u32 sg_len, len, offset;
 
 		addr = sg_dma_address(sg);
 		sg_len = sg_dma_len(sg);
 
-		pp->sg_tbl[i].addr = cpu_to_le32(addr & 0xffffffff);
-		pp->sg_tbl[i].addr_hi = cpu_to_le32((addr >> 16) >> 16);
-		assert(0 == (sg_len & ~MV_DMA_BOUNDARY));
-		pp->sg_tbl[i].flags_size = cpu_to_le32(sg_len);
-		if (ata_sg_is_last(sg, qc))
-			pp->sg_tbl[i].flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+		while (sg_len) {
+			offset = addr & MV_DMA_BOUNDARY;
+			len = sg_len;
+			if ((offset + sg_len) > 0x10000)
+				len = 0x10000 - offset;
 
-		i++;
+			pp->sg_tbl[i].addr = cpu_to_le32(addr & 0xffffffff);
+			pp->sg_tbl[i].addr_hi = cpu_to_le32((addr >> 16) >> 16);
+			pp->sg_tbl[i].flags_size = cpu_to_le32(len);
+
+			sg_len -= len;
+			addr += len;
+
+			if (!sg_len && ata_sg_is_last(sg, qc))
+				pp->sg_tbl[i].flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+
+			i++;
+		}
 	}
 }
 
@@ -1693,11 +1704,19 @@ static void mv_stop_and_reset(struct ata_port *ap)
 
 	mv_channel_reset(hpriv, mmio, ap->port_no);
 
-	mv_phy_reset(ap);
+	__mv_phy_reset(ap, 0);
+}
+
+static inline void __msleep(unsigned int msec, int can_sleep)
+{
+	if (can_sleep)
+		msleep(msec);
+	else
+		mdelay(msec);
 }
 
 /**
- *      mv_phy_reset - Perform eDMA reset followed by COMRESET
+ *      __mv_phy_reset - Perform eDMA reset followed by COMRESET
  *      @ap: ATA channel to manipulate
  *
  *      Part of this is taken from __sata_phy_reset and modified to
@@ -1707,13 +1726,16 @@ static void mv_stop_and_reset(struct ata_port *ap)
  *      Inherited from caller.  This is coded to safe to call at
  *      interrupt level, i.e. it does not sleep.
  */
-static void mv_phy_reset(struct ata_port *ap)
+static void __mv_phy_reset(struct ata_port *ap, int can_sleep)
 {
 	struct mv_port_priv *pp	= ap->private_data;
+	struct mv_host_priv *hpriv = ap->host_set->private_data;
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct ata_taskfile tf;
 	struct ata_device *dev = &ap->device[0];
 	unsigned long timeout;
+	int retry = 5;
+	u32 sstatus;
 
 	VPRINTK("ENTER, port %u, mmio 0x%p\n", ap->port_no, port_mmio);
 
@@ -1721,18 +1743,28 @@ static void mv_phy_reset(struct ata_port *ap)
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
 		mv_scr_read(ap, SCR_ERROR), mv_scr_read(ap, SCR_CONTROL));
 
-	/* proceed to init communications via the scr_control reg */
+	/* Issue COMRESET via SControl */
+comreset_retry:
 	scr_write_flush(ap, SCR_CONTROL, 0x301);
-	mdelay(1);
+	__msleep(1, can_sleep);
+
 	scr_write_flush(ap, SCR_CONTROL, 0x300);
-	timeout = jiffies + (HZ * 1);
+	__msleep(20, can_sleep);
+
+	timeout = jiffies + msecs_to_jiffies(200);
 	do {
-		mdelay(10);
-		if ((scr_read(ap, SCR_STATUS) & 0xf) != 1)
+		sstatus = scr_read(ap, SCR_STATUS) & 0x3;
+		if ((sstatus == 3) || (sstatus == 0))
 			break;
+
+		__msleep(1, can_sleep);
 	} while (time_before(jiffies, timeout));
 
-	mv_scr_write(ap, SCR_ERROR, mv_scr_read(ap, SCR_ERROR));
+	/* work around errata */
+	if (IS_60XX(hpriv) &&
+	    (sstatus != 0x0) && (sstatus != 0x113) && (sstatus != 0x123) &&
+	    (retry-- > 0))
+		goto comreset_retry;
 
 	DPRINTK("S-regs after PHY wake: SStat 0x%08x SErr 0x%08x "
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
@@ -1747,6 +1779,21 @@ static void mv_phy_reset(struct ata_port *ap)
 		return;
 	}
 	ap->cbl = ATA_CBL_SATA;
+
+	/* even after SStatus reflects that device is ready,
+	 * it seems to take a while for link to be fully
+	 * established (and thus Status no longer 0x80/0x7F),
+	 * so we poll a bit for that, here.
+	 */
+	retry = 20;
+	while (1) {
+		u8 drv_stat = ata_check_status(ap);
+		if ((drv_stat != 0x80) && (drv_stat != 0x7f))
+			break;
+		__msleep(500, can_sleep);
+		if (retry-- <= 0)
+			break;
+	}
 
 	tf.lbah = readb((void __iomem *) ap->ioaddr.lbah_addr);
 	tf.lbam = readb((void __iomem *) ap->ioaddr.lbam_addr);
@@ -1764,6 +1811,11 @@ static void mv_phy_reset(struct ata_port *ap)
 	pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
 
 	VPRINTK("EXIT\n");
+}
+
+static void mv_phy_reset(struct ata_port *ap)
+{
+	__mv_phy_reset(ap, 1);
 }
 
 /**
