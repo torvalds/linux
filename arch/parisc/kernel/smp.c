@@ -338,6 +338,10 @@ smp_call_function (void (*func) (void *info), void *info, int retry, int wait)
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
+
+	/* can also deadlock if IPIs are disabled */
+	WARN_ON((get_eiem() & (1UL<<(CPU_IRQ_MAX - IPI_IRQ))) == 0);
+
 	
 	data.func = func;
 	data.info = info;
