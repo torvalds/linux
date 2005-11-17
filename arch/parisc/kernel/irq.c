@@ -250,10 +250,11 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	irq_enter();
 
 	/*
-	 * Only allow interrupt processing to be interrupted by the
-	 * timer tick
+	 * Don't allow TIMER or IPI nested interrupts.
+	 * Allowing any single interrupt to nest can lead to that CPU
+	 * handling interrupts with all enabled interrupts unmasked.
 	 */
-	set_eiem(EIEM_MASK(TIMER_IRQ));
+	set_eiem(0UL);
 
 	/* 1) only process IRQs that are enabled/unmasked (cpu_eiem)
 	 * 2) We loop here on EIRR contents in order to avoid
@@ -266,9 +267,6 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 		eirr_val = mfctl(23) & cpu_eiem;
 		if (!eirr_val)
 			break;
-
-		if (eirr_val & EIEM_MASK(TIMER_IRQ))
-			set_eiem(0);
 
 		mtctl(eirr_val, 23); /* reset bits we are going to process */
 
@@ -283,7 +281,8 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 			__do_IRQ(irq, regs);
 		}
 	}
-	set_eiem(cpu_eiem);
+
+	set_eiem(cpu_eiem);	/* restore original mask */
 	irq_exit();
 }
 
