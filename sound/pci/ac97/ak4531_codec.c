@@ -371,7 +371,7 @@ int snd_ak4531_mixer(struct snd_card *card, struct snd_ak4531 *_ak4531,
 	ak4531->write(ak4531, AK4531_RESET, 0x03);	/* no RST, PD */
 	udelay(100);
 	ak4531->write(ak4531, AK4531_CLOCK, 0x00);	/* CODEC ADC and CODEC DAC use {LR,B}CLK2 and run off LRCLK2 PLL */
-	for (idx = 0; idx < 0x19; idx++) {
+	for (idx = 0; idx <= 0x19; idx++) {
 		if (idx == AK4531_RESET || idx == AK4531_CLOCK)
 			continue;
 		ak4531->write(ak4531, idx, ak4531->regs[idx] = snd_ak4531_initial_map[idx]);	/* recording source is mixer */
@@ -394,6 +394,36 @@ int snd_ak4531_mixer(struct snd_card *card, struct snd_ak4531 *_ak4531,
 	*rak4531 = ak4531;
 	return 0;
 }
+
+/*
+ * power management
+ */
+#ifdef CONFIG_PM
+void snd_ak4531_suspend(struct snd_ak4531 *ak4531)
+{
+	/* mute */
+	ak4531->write(ak4531, AK4531_LMASTER, 0x9f);
+	ak4531->write(ak4531, AK4531_RMASTER, 0x9f);
+	/* powerdown */
+	ak4531->write(ak4531, AK4531_RESET, 0x01);
+}
+
+void snd_ak4531_resume(struct snd_ak4531 *ak4531)
+{
+	int idx;
+
+	/* initialize */
+	ak4531->write(ak4531, AK4531_RESET, 0x03);
+	udelay(100);
+	ak4531->write(ak4531, AK4531_CLOCK, 0x00);
+	/* restore mixer registers */
+	for (idx = 0; idx <= 0x19; idx++) {
+		if (idx == AK4531_RESET || idx == AK4531_CLOCK)
+			continue;
+		ak4531->write(ak4531, idx, ak4531->regs[idx]);
+	}
+}
+#endif
 
 /*
 
@@ -420,6 +450,10 @@ static void snd_ak4531_proc_init(struct snd_card *card, struct snd_ak4531 *ak453
 }
 
 EXPORT_SYMBOL(snd_ak4531_mixer);
+#ifdef CONFIG_PM
+EXPORT_SYMBOL(snd_ak4531_suspend);
+EXPORT_SYMBOL(snd_ak4531_resume);
+#endif
 
 /*
  *  INIT part
