@@ -120,8 +120,6 @@ MODULE_PARM_DESC(dma2, "2nd dma # for opti9xx driver.");
 
 #define OPTi9XX_MC_REG(n)	n
 
-typedef struct _snd_opti9xx opti9xx_t;
-
 #ifdef OPTi93X
 
 #define OPTi93X_INDEX			0x00
@@ -193,16 +191,14 @@ typedef struct _snd_opti9xx opti9xx_t;
 #define OPTi93X_IRQ_CAPTURE		0x08
 
 
-typedef struct _snd_opti93x opti93x_t;
-
-struct _snd_opti93x {
+struct snd_opti93x {
 	unsigned long port;
 	struct resource *res_port;
 	int irq;
 	int dma1;
 	int dma2;
 
-	opti9xx_t *chip;
+	struct snd_opti9xx *chip;
 	unsigned short hardware;
 	unsigned char image[32];
 
@@ -212,10 +208,10 @@ struct _snd_opti93x {
 
 	spinlock_t lock;
 
-	snd_card_t *card;
-	snd_pcm_t *pcm;
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
 	unsigned int p_dma_size;
 	unsigned int c_dma_size;
 };
@@ -227,7 +223,7 @@ struct _snd_opti93x {
 
 #endif /* OPTi93X */
 
-struct _snd_opti9xx {
+struct snd_opti9xx {
 	unsigned short hardware;
 	unsigned char password;
 	char name[7];
@@ -261,7 +257,7 @@ struct _snd_opti9xx {
 };
 
 static int snd_opti9xx_first_hit = 1;
-static snd_card_t *snd_opti9xx_legacy = SNDRV_DEFAULT_PTR1;
+static struct snd_card *snd_opti9xx_legacy = SNDRV_DEFAULT_PTR1;
 
 #ifdef CONFIG_PNP
 
@@ -308,7 +304,7 @@ static long snd_legacy_find_free_ioport(long *port_table, long size)
 	return -1;
 }
 
-static int __devinit snd_opti9xx_init(opti9xx_t *chip, unsigned short hardware)
+static int __devinit snd_opti9xx_init(struct snd_opti9xx *chip, unsigned short hardware)
 {
 	static int opti9xx_mc_size[] = {7, 7, 10, 10, 2, 2, 2};
 
@@ -363,7 +359,7 @@ static int __devinit snd_opti9xx_init(opti9xx_t *chip, unsigned short hardware)
 	return 0;
 }
 
-static unsigned char snd_opti9xx_read(opti9xx_t *chip,
+static unsigned char snd_opti9xx_read(struct snd_opti9xx *chip,
 				      unsigned char reg)
 {
 	unsigned long flags;
@@ -406,7 +402,7 @@ static unsigned char snd_opti9xx_read(opti9xx_t *chip,
 	return retval;
 }
 	
-static void snd_opti9xx_write(opti9xx_t *chip, unsigned char reg,
+static void snd_opti9xx_write(struct snd_opti9xx *chip, unsigned char reg,
 			      unsigned char value)
 {
 	unsigned long flags;
@@ -453,7 +449,7 @@ static void snd_opti9xx_write(opti9xx_t *chip, unsigned char reg,
 		(snd_opti9xx_read(chip, reg) & ~(mask)) | ((value) & (mask)))
 
 
-static int __devinit snd_opti9xx_configure(opti9xx_t *chip)
+static int __devinit snd_opti9xx_configure(struct snd_opti9xx *chip)
 {
 	unsigned char wss_base_bits;
 	unsigned char irq_bits;
@@ -684,7 +680,7 @@ static unsigned char snd_opti93x_default_image[32] =
 };
 
 
-static int snd_opti93x_busy_wait(opti93x_t *chip)
+static int snd_opti93x_busy_wait(struct snd_opti93x *chip)
 {
 	int timeout;
 
@@ -696,14 +692,14 @@ static int snd_opti93x_busy_wait(opti93x_t *chip)
 	return -EBUSY;
 }
 
-static unsigned char snd_opti93x_in(opti93x_t *chip, unsigned char reg)
+static unsigned char snd_opti93x_in(struct snd_opti93x *chip, unsigned char reg)
 {
 	snd_opti93x_busy_wait(chip);
 	outb(chip->mce_bit | (reg & 0x1f), OPTi93X_PORT(chip, INDEX));
 	return inb(OPTi93X_PORT(chip, DATA));
 }
 
-static void snd_opti93x_out(opti93x_t *chip, unsigned char reg,
+static void snd_opti93x_out(struct snd_opti93x *chip, unsigned char reg,
 			    unsigned char value)
 {
 	snd_opti93x_busy_wait(chip);
@@ -711,13 +707,13 @@ static void snd_opti93x_out(opti93x_t *chip, unsigned char reg,
 	outb(value, OPTi93X_PORT(chip, DATA));
 }
 
-static void snd_opti93x_out_image(opti93x_t *chip, unsigned char reg,
+static void snd_opti93x_out_image(struct snd_opti93x *chip, unsigned char reg,
 				  unsigned char value)
 {
 	snd_opti93x_out(chip, reg, chip->image[reg] = value);
 }
 
-static void snd_opti93x_out_mask(opti93x_t *chip, unsigned char reg,
+static void snd_opti93x_out_mask(struct snd_opti93x *chip, unsigned char reg,
 				 unsigned char mask, unsigned char value)
 {
 	snd_opti93x_out_image(chip, reg,
@@ -725,7 +721,7 @@ static void snd_opti93x_out_mask(opti93x_t *chip, unsigned char reg,
 }
 
 
-static void snd_opti93x_mce_up(opti93x_t *chip)
+static void snd_opti93x_mce_up(struct snd_opti93x *chip)
 {
 	snd_opti93x_busy_wait(chip);
 
@@ -734,7 +730,7 @@ static void snd_opti93x_mce_up(opti93x_t *chip)
 		outb(chip->mce_bit, OPTi93X_PORT(chip, INDEX));
 }
 
-static void snd_opti93x_mce_down(opti93x_t *chip)
+static void snd_opti93x_mce_down(struct snd_opti93x *chip)
 {
 	snd_opti93x_busy_wait(chip);
 
@@ -746,7 +742,7 @@ static void snd_opti93x_mce_down(opti93x_t *chip)
 #define snd_opti93x_mute_reg(chip, reg, mute)	\
 	snd_opti93x_out(chip, reg, mute ? 0x80 : chip->image[reg]);
 
-static void snd_opti93x_mute(opti93x_t *chip, int mute)
+static void snd_opti93x_mute(struct snd_opti93x *chip, int mute)
 {
 	mute = mute ? 1 : 0;
 	if (chip->mute == mute)
@@ -798,7 +794,7 @@ static unsigned int rates[] = {  5512,  6615,  8000,  9600, 11025, 16000,
 				44100, 48000 };
 #define RATES ARRAY_SIZE(rates)
 
-static snd_pcm_hw_constraint_list_t hw_constraints_rates = {
+static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count = RATES,
 	.list = rates,
 	.mask = 0,
@@ -820,7 +816,7 @@ static unsigned char snd_opti93x_get_freq(unsigned int rate)
 	return bits[RATES-1];
 }
 
-static unsigned char snd_opti93x_get_format(opti93x_t *chip,
+static unsigned char snd_opti93x_get_format(struct snd_opti93x *chip,
 					    unsigned int format, int channels)
 {
 	unsigned char retval = OPTi93X_LINEAR_8;
@@ -845,7 +841,7 @@ static unsigned char snd_opti93x_get_format(opti93x_t *chip,
 }
 
 
-static void snd_opti93x_playback_format(opti93x_t *chip, unsigned char fmt)
+static void snd_opti93x_playback_format(struct snd_opti93x *chip, unsigned char fmt)
 {
 	unsigned char mask;
 
@@ -859,7 +855,7 @@ static void snd_opti93x_playback_format(opti93x_t *chip, unsigned char fmt)
 	snd_opti93x_mute(chip, 0);
 }
 
-static void snd_opti93x_capture_format(opti93x_t *chip, unsigned char fmt)
+static void snd_opti93x_capture_format(struct snd_opti93x *chip, unsigned char fmt)
 {
 	snd_opti93x_mute(chip, 1);
 
@@ -875,7 +871,7 @@ static void snd_opti93x_capture_format(opti93x_t *chip, unsigned char fmt)
 }
 
 
-static int snd_opti93x_open(opti93x_t *chip, unsigned int mode)
+static int snd_opti93x_open(struct snd_opti93x *chip, unsigned int mode)
 {
 	unsigned long flags;
 
@@ -899,7 +895,7 @@ static int snd_opti93x_open(opti93x_t *chip, unsigned int mode)
 	return 0;
 }
 
-static void snd_opti93x_close(opti93x_t *chip, unsigned int mode)
+static void snd_opti93x_close(struct snd_opti93x *chip, unsigned int mode)
 {
 	unsigned long flags;
 
@@ -926,10 +922,10 @@ static void snd_opti93x_close(opti93x_t *chip, unsigned int mode)
 	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
-static int snd_opti93x_trigger(snd_pcm_substream_t *substream, 
+static int snd_opti93x_trigger(struct snd_pcm_substream *substream, 
 			       unsigned char what, int cmd)
 {
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -937,7 +933,7 @@ static int snd_opti93x_trigger(snd_pcm_substream_t *substream,
 	{
 		unsigned int what = 0;
 		struct list_head *pos;
-		snd_pcm_substream_t *s;
+		struct snd_pcm_substream *s;
 		snd_pcm_group_for_each(pos, substream) {
 			s = snd_pcm_group_substream_entry(pos);
 			if (s == chip->playback_substream) {
@@ -964,36 +960,36 @@ static int snd_opti93x_trigger(snd_pcm_substream_t *substream,
 	return 0;
 }
 
-static int snd_opti93x_playback_trigger(snd_pcm_substream_t *substream, int cmd)
+static int snd_opti93x_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	return snd_opti93x_trigger(substream,
 				   OPTi93X_PLAYBACK_ENABLE, cmd);
 }
 
-static int snd_opti93x_capture_trigger(snd_pcm_substream_t * substream, int cmd)
+static int snd_opti93x_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	return snd_opti93x_trigger(substream,
 				   OPTi93X_CAPTURE_ENABLE, cmd);
 }
 
-static int snd_opti93x_hw_params(snd_pcm_substream_t * substream,
-				 snd_pcm_hw_params_t * hw_params)
+static int snd_opti93x_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
 
-static int snd_opti93x_hw_free(snd_pcm_substream_t * substream)
+static int snd_opti93x_hw_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
 
-static int snd_opti93x_playback_prepare(snd_pcm_substream_t * substream)
+static int snd_opti93x_playback_prepare(struct snd_pcm_substream *substream)
 {
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long flags;
 	unsigned char format;
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
@@ -1023,10 +1019,10 @@ static int snd_opti93x_playback_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_opti93x_capture_prepare(snd_pcm_substream_t *substream)
+static int snd_opti93x_capture_prepare(struct snd_pcm_substream *substream)
 {
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long flags;
 	unsigned char format;
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
@@ -1055,9 +1051,9 @@ static int snd_opti93x_capture_prepare(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static snd_pcm_uframes_t snd_opti93x_playback_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_opti93x_playback_pointer(struct snd_pcm_substream *substream)
 {
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 
 	if (!(chip->image[OPTi93X_IFACE_CONF] & OPTi93X_PLAYBACK_ENABLE))
@@ -1067,9 +1063,9 @@ static snd_pcm_uframes_t snd_opti93x_playback_pointer(snd_pcm_substream_t *subst
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static snd_pcm_uframes_t snd_opti93x_capture_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_opti93x_capture_pointer(struct snd_pcm_substream *substream)
 {
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 	
 	if (!(chip->image[OPTi93X_IFACE_CONF] & OPTi93X_CAPTURE_ENABLE))
@@ -1080,7 +1076,7 @@ static snd_pcm_uframes_t snd_opti93x_capture_pointer(snd_pcm_substream_t *substr
 }
 
 
-static void snd_opti93x_overrange(opti93x_t *chip)
+static void snd_opti93x_overrange(struct snd_opti93x *chip)
 {
 	unsigned long flags;
 
@@ -1094,7 +1090,7 @@ static void snd_opti93x_overrange(opti93x_t *chip)
 
 static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	opti93x_t *codec = dev_id;
+	struct snd_opti93x *codec = dev_id;
 	unsigned char status;
 
 	status = snd_opti9xx_read(codec->chip, OPTi9XX_MC_REG(11));
@@ -1109,7 +1105,7 @@ static irqreturn_t snd_opti93x_interrupt(int irq, void *dev_id, struct pt_regs *
 }
 
 
-static snd_pcm_hardware_t snd_opti93x_playback = {
+static struct snd_pcm_hardware snd_opti93x_playback = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_SYNC_START),
 	.formats =		(SNDRV_PCM_FMTBIT_MU_LAW | SNDRV_PCM_FMTBIT_A_LAW | SNDRV_PCM_FMTBIT_IMA_ADPCM |
@@ -1127,7 +1123,7 @@ static snd_pcm_hardware_t snd_opti93x_playback = {
 	.fifo_size =		0,
 };
 
-static snd_pcm_hardware_t snd_opti93x_capture = {
+static struct snd_pcm_hardware snd_opti93x_capture = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_SYNC_START),
 	.formats =		(SNDRV_PCM_FMTBIT_MU_LAW | SNDRV_PCM_FMTBIT_A_LAW | SNDRV_PCM_FMTBIT_IMA_ADPCM |
@@ -1145,11 +1141,11 @@ static snd_pcm_hardware_t snd_opti93x_capture = {
 	.fifo_size =		0,
 };
 
-static int snd_opti93x_playback_open(snd_pcm_substream_t *substream)
+static int snd_opti93x_playback_open(struct snd_pcm_substream *substream)
 {
 	int error;
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	if ((error = snd_opti93x_open(chip, OPTi93X_MODE_PLAY)) < 0)
 		return error;
@@ -1161,11 +1157,11 @@ static int snd_opti93x_playback_open(snd_pcm_substream_t *substream)
 	return error;
 }
 
-static int snd_opti93x_capture_open(snd_pcm_substream_t *substream)
+static int snd_opti93x_capture_open(struct snd_pcm_substream *substream)
 {
 	int error;
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	if ((error = snd_opti93x_open(chip, OPTi93X_MODE_CAPTURE)) < 0)
 		return error;
@@ -1177,18 +1173,18 @@ static int snd_opti93x_capture_open(snd_pcm_substream_t *substream)
 	return error;
 }
 
-static int snd_opti93x_playback_close(snd_pcm_substream_t *substream)
+static int snd_opti93x_playback_close(struct snd_pcm_substream *substream)
 {
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
 
 	chip->playback_substream = NULL;
 	snd_opti93x_close(chip, OPTi93X_MODE_PLAY);
 	return 0;
 }
 
-static int snd_opti93x_capture_close(snd_pcm_substream_t *substream)
+static int snd_opti93x_capture_close(struct snd_pcm_substream *substream)
 {
-	opti93x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_opti93x *chip = snd_pcm_substream_chip(substream);
 
 	chip->capture_substream = NULL;
 	snd_opti93x_close(chip, OPTi93X_MODE_CAPTURE);
@@ -1196,7 +1192,7 @@ static int snd_opti93x_capture_close(snd_pcm_substream_t *substream)
 }
 
 
-static void snd_opti93x_init(opti93x_t *chip)
+static void snd_opti93x_init(struct snd_opti93x *chip)
 {
 	unsigned long flags;
 	int i;
@@ -1211,7 +1207,7 @@ static void snd_opti93x_init(opti93x_t *chip)
 	spin_unlock_irqrestore(&chip->lock, flags);
 }
 
-static int snd_opti93x_probe(opti93x_t *chip)
+static int snd_opti93x_probe(struct snd_opti93x *chip)
 {
 	unsigned long flags;
 	unsigned char val;
@@ -1223,7 +1219,7 @@ static int snd_opti93x_probe(opti93x_t *chip)
 	return (val == 0x0a) ? 0 : -ENODEV;
 }
 
-static int snd_opti93x_free(opti93x_t *chip)
+static int snd_opti93x_free(struct snd_opti93x *chip)
 {
 	release_and_free_resource(chip->res_port);
 	if (chip->dma1 >= 0) {
@@ -1241,13 +1237,13 @@ static int snd_opti93x_free(opti93x_t *chip)
 	return 0;
 }
 
-static int snd_opti93x_dev_free(snd_device_t *device)
+static int snd_opti93x_dev_free(struct snd_device *device)
 {
-	opti93x_t *chip = device->device_data;
+	struct snd_opti93x *chip = device->device_data;
 	return snd_opti93x_free(chip);
 }
 
-static const char *snd_opti93x_chip_id(opti93x_t *codec)
+static const char *snd_opti93x_chip_id(struct snd_opti93x *codec)
 {
 	switch (codec->hardware) {
 	case OPTi9XX_HW_82C930: return "82C930";
@@ -1257,15 +1253,15 @@ static const char *snd_opti93x_chip_id(opti93x_t *codec)
 	}
 }
 
-static int snd_opti93x_create(snd_card_t *card, opti9xx_t *chip,
+static int snd_opti93x_create(struct snd_card *card, struct snd_opti9xx *chip,
 			      int dma1, int dma2,
-			      opti93x_t **rcodec)
+			      struct snd_opti93x **rcodec)
 {
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_opti93x_dev_free,
 	};
 	int error;
-	opti93x_t *codec;
+	struct snd_opti93x *codec;
 
 	*rcodec = NULL;
 	codec = kzalloc(sizeof(*codec), GFP_KERNEL);
@@ -1324,7 +1320,7 @@ static int snd_opti93x_create(snd_card_t *card, opti9xx_t *chip,
 	return 0;
 }
 
-static snd_pcm_ops_t snd_opti93x_playback_ops = {
+static struct snd_pcm_ops snd_opti93x_playback_ops = {
 	.open =		snd_opti93x_playback_open,
 	.close =	snd_opti93x_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1335,7 +1331,7 @@ static snd_pcm_ops_t snd_opti93x_playback_ops = {
 	.pointer =	snd_opti93x_playback_pointer,
 };
 
-static snd_pcm_ops_t snd_opti93x_capture_ops = {
+static struct snd_pcm_ops snd_opti93x_capture_ops = {
 	.open =		snd_opti93x_capture_open,
 	.close =	snd_opti93x_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1346,10 +1342,10 @@ static snd_pcm_ops_t snd_opti93x_capture_ops = {
 	.pointer =	snd_opti93x_capture_pointer,
 };
 
-static int snd_opti93x_pcm(opti93x_t *codec, int device, snd_pcm_t **rpcm)
+static int snd_opti93x_pcm(struct snd_opti93x *codec, int device, struct snd_pcm **rpcm)
 {
 	int error;
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 
 	if ((error = snd_pcm_new(codec->card, "OPTi 82C93X", device, 1, 1, &pcm)))
 		return error;
@@ -1376,7 +1372,7 @@ static int snd_opti93x_pcm(opti93x_t *codec, int device, snd_pcm_t **rpcm)
  *  MIXER part
  */
 
-static int snd_opti93x_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_opti93x_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[4] = {
 		"Line1", "Aux", "Mic", "Mix"
@@ -1391,9 +1387,9 @@ static int snd_opti93x_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * 
 	return 0;
 }
 
-static int snd_opti93x_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_opti93x_get_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	opti93x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_opti93x *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	
 	spin_lock_irqsave(&chip->lock, flags);
@@ -1403,9 +1399,9 @@ static int snd_opti93x_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *
 	return 0;
 }
 
-static int snd_opti93x_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_opti93x_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	opti93x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_opti93x *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	unsigned short left, right;
 	int change;
@@ -1434,7 +1430,7 @@ static int snd_opti93x_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *
   .get = snd_opti93x_get_single, .put = snd_opti93x_put_single, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
 
-static int snd_opti93x_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_opti93x_info_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 
@@ -1445,9 +1441,9 @@ static int snd_opti93x_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
 
-static int snd_opti93x_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_opti93x_get_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	opti93x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_opti93x *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
@@ -1462,9 +1458,9 @@ static int snd_opti93x_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_opti93x_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_opti93x_put_single(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	opti93x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_opti93x *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
@@ -1499,7 +1495,7 @@ static int snd_opti93x_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	do { xctl.private_value &= ~0x0000ffff; \
 	     xctl.private_value |= left_reg | (right_reg << 8); } while (0)
 
-static int snd_opti93x_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_opti93x_info_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 
@@ -1510,9 +1506,9 @@ static int snd_opti93x_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t
 	return 0;
 }
 
-static int snd_opti93x_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_opti93x_get_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	opti93x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_opti93x *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
@@ -1532,9 +1528,9 @@ static int snd_opti93x_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return 0;
 }
 
-static int snd_opti93x_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_opti93x_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	opti93x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_opti93x *chip = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
@@ -1563,7 +1559,7 @@ static int snd_opti93x_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	return change;
 }
 
-static snd_kcontrol_new_t snd_opti93x_controls[] = {
+static struct snd_kcontrol_new snd_opti93x_controls[] = {
 OPTi93X_DOUBLE("Master Playback Switch", 0, OPTi93X_OUT_LEFT, OPTi93X_OUT_RIGHT, 7, 7, 1, 1),
 OPTi93X_DOUBLE("Master Playback Volume", 0, OPTi93X_OUT_LEFT, OPTi93X_OUT_RIGHT, 1, 1, 31, 1), 
 OPTi93X_DOUBLE("PCM Playback Switch", 0, OPTi93X_DAC_LEFT, OPTi93X_DAC_RIGHT, 7, 7, 1, 1),
@@ -1589,10 +1585,10 @@ OPTi93X_DOUBLE("Capture Volume", 0, OPTi93X_MIXOUT_LEFT, OPTi93X_MIXOUT_RIGHT, 0
 }
 };
                                         
-static int snd_opti93x_mixer(opti93x_t *chip)
+static int snd_opti93x_mixer(struct snd_opti93x *chip)
 {
-	snd_card_t *card;
-	snd_kcontrol_new_t knew;
+	struct snd_card *card;
+	struct snd_kcontrol_new knew;
 	int err;
 	unsigned int idx;
 
@@ -1624,7 +1620,7 @@ static int snd_opti93x_mixer(opti93x_t *chip)
 
 #endif /* OPTi93X */
 
-static int __devinit snd_card_opti9xx_detect(snd_card_t *card, opti9xx_t *chip)
+static int __devinit snd_card_opti9xx_detect(struct snd_card *card, struct snd_opti9xx *chip)
 {
 	int i, err;
 
@@ -1678,7 +1674,7 @@ static int __devinit snd_card_opti9xx_detect(snd_card_t *card, opti9xx_t *chip)
 }
 
 #ifdef CONFIG_PNP
-static int __devinit snd_card_opti9xx_pnp(opti9xx_t *chip, struct pnp_card_link *card,
+static int __devinit snd_card_opti9xx_pnp(struct snd_opti9xx *chip, struct pnp_card_link *card,
 					  const struct pnp_card_device_id *pid)
 {
 	struct pnp_dev *pdev;
@@ -1772,7 +1768,7 @@ static int __devinit snd_card_opti9xx_pnp(opti9xx_t *chip, struct pnp_card_link 
 
 #if 0
 static int __devinit snd_card_opti9xx_resources(struct snd_card_opti9xx *chip,
-						snd_card_t *card)
+						struct snd_card *card)
 {
 	int error, i, pnp = 0;
 
@@ -1867,9 +1863,9 @@ static int __devinit snd_card_opti9xx_resources(struct snd_card_opti9xx *chip,
 }
 #endif
 
-static void snd_card_opti9xx_free(snd_card_t *card)
+static void snd_card_opti9xx_free(struct snd_card *card)
 {
-	opti9xx_t *chip = (opti9xx_t *)card->private_data;
+	struct snd_opti9xx *chip = (struct snd_opti9xx *)card->private_data;
         
 	if (chip)
 		release_and_free_resource(chip->res_mc_base);
@@ -1891,19 +1887,19 @@ static int snd_card_opti9xx_probe(struct pnp_card_link *pcard,
 	static int possible_dma2s[][2] = {{1,-1}, {0,-1}, {-1,-1}, {0,-1}};
 #endif	/* CS4231 || OPTi93X */
 	int error;
-	opti9xx_t *chip;
+	struct snd_opti9xx *chip;
 #if defined(OPTi93X)
-	opti93x_t *codec;
+	struct snd_opti93x *codec;
 #elif defined(CS4231)
-	cs4231_t *codec;
-	snd_timer_t *timer;
+	struct snd_cs4231 *codec;
+	struct snd_timer *timer;
 #else
-	ad1848_t *codec;
+	struct snd_ad1848 *codec;
 #endif
-	snd_card_t *card;
-	snd_pcm_t *pcm;
-	snd_rawmidi_t *rmidi;
-	snd_hwdep_t *synth;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_rawmidi *rmidi;
+	struct snd_hwdep *synth;
 #ifdef CONFIG_PNP
 	int hw;
 #endif	/* CONFIG_PNP */
@@ -1911,10 +1907,10 @@ static int snd_card_opti9xx_probe(struct pnp_card_link *pcard,
 	if (pcard && !snd_opti9xx_first_hit)
 		return -EBUSY;
 	if (!(card = snd_card_new(index, id, THIS_MODULE,
-				  sizeof(opti9xx_t))))
+				  sizeof(struct snd_opti9xx))))
 		return -ENOMEM;
 	card->private_free = snd_card_opti9xx_free;
-	chip = (opti9xx_t *)card->private_data;
+	chip = (struct snd_opti9xx *)card->private_data;
 
 #ifdef CONFIG_PNP
 	if (isapnp && pcard && (hw = snd_card_opti9xx_pnp(chip, pcard, pid)) > 0) {
@@ -2098,12 +2094,12 @@ static int snd_card_opti9xx_probe(struct pnp_card_link *pcard,
 			snd_printk("no MPU-401 device at 0x%lx?\n", chip->mpu_port);
 
 	if (chip->fm_port > 0 && chip->fm_port != SNDRV_AUTO_PORT) {
-		opl3_t *opl3 = NULL;
+		struct snd_opl3 *opl3 = NULL;
 #ifndef OPTi93X
 		if (chip->hardware == OPTi9XX_HW_82C928 ||
 		    chip->hardware == OPTi9XX_HW_82C929 ||
 		    chip->hardware == OPTi9XX_HW_82C924) {
-			opl4_t *opl4;
+			struct snd_opl4 *opl4;
 			/* assume we have an OPL4 */
 			snd_opti9xx_write_mask(chip, OPTi9XX_MC_REG(2),
 					       0x20, 0x20);
@@ -2156,7 +2152,7 @@ static int snd_card_opti9xx_probe(struct pnp_card_link *pcard,
 #ifdef CONFIG_PNP
 static void __devexit snd_opti9xx_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
+	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
 
 	snd_card_disconnect(card);
 	snd_card_free_in_thread(card);
