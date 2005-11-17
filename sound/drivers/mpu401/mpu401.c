@@ -23,6 +23,8 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/pnp.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/mpu401.h>
@@ -56,7 +58,6 @@ MODULE_PARM_DESC(port, "Port # for MPU-401 device.");
 module_param_array(irq, int, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for MPU-401 device.");
 
-static struct snd_card *snd_mpu401_legacy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 static int pnp_registered = 0;
 
 static int snd_mpu401_create(int dev, struct snd_card **rcard)
@@ -85,12 +86,6 @@ static int snd_mpu401_create(int dev, struct snd_card **rcard)
 		goto _err;
 	}
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
-
-	if ((err = snd_card_register(card)) < 0)
-		goto _err;
-
 	*rcard = card;
 	return 0;
 
@@ -99,8 +94,12 @@ static int snd_mpu401_create(int dev, struct snd_card **rcard)
 	return err;
 }
 
-static int __devinit snd_mpu401_probe(int dev)
+static int __devinit snd_mpu401_probe(struct platform_device *devptr)
 {
+	int dev = devptr->id;
+	int err;
+	struct snd_card *card;
+
 	if (port[dev] == SNDRV_AUTO_PORT) {
 		snd_printk(KERN_ERR "specify port\n");
 		return -EINVAL;
@@ -109,8 +108,35 @@ static int __devinit snd_mpu401_probe(int dev)
 		snd_printk(KERN_ERR "specify or disable IRQ\n");
 		return -EINVAL;
 	}
-	return snd_mpu401_create(dev, &snd_mpu401_legacy_cards[dev]);
+	err = snd_mpu401_create(dev, &card);
+	if (err < 0)
+		return err;
+	snd_card_set_dev(card, &devptr->dev);
+	if ((err = snd_card_register(card)) < 0) {
+		snd_card_free(card);
+		return err;
+	}
+	platform_set_drvdata(devptr, card);
+	return 0;
 }
+
+static int __devexit snd_mpu401_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#define SND_MPU401_DRIVER	"snd_mpu401"
+
+static struct platform_driver snd_mpu401_driver = {
+	.probe		= snd_mpu401_probe,
+	.remove		= __devexit_p(snd_mpu401_remove),
+	.driver		= {
+		.name	= SND_MPU401_DRIVER
+	},
+};
+
 
 #ifdef CONFIG_PNP
 
@@ -164,6 +190,10 @@ static int __devinit snd_mpu401_pnp_probe(struct pnp_dev *pnp_dev,
 		err = snd_mpu401_create(dev, &card);
 		if (err < 0)
 			return err;
+		if ((err = snd_card_register(card)) < 0) {
+			snd_card_free(card);
+			return err;
+		}
 		snd_card_set_dev(card, &pnp_dev->dev);
 		pnp_set_drvdata(pnp_dev, card);
 		++dev;
@@ -192,18 +222,25 @@ static struct pnp_driver snd_mpu401_pnp_driver;
 
 static int __init alsa_card_mpu401_init(void)
 {
-	int dev, devices = 0;
-	int err;
+	int i, err, devices;
 
-	for (dev = 0; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev])
-			continue;
+	if ((err = platform_driver_register(&snd_mpu401_driver)) < 0)
+		return err;
+
+	devices = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
 #ifdef CONFIG_PNP
-		if (pnp[dev])
+		if (pnp[i])
 			continue;
 #endif
-		if (snd_mpu401_probe(dev) >= 0)
-			devices++;
+		device = platform_device_register_simple(SND_MPU401_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		devices++;
 	}
 	if ((err = pnp_register_driver(&snd_mpu401_pnp_driver)) >= 0) {
 		pnp_registered = 1;
@@ -214,21 +251,23 @@ static int __init alsa_card_mpu401_init(void)
 #ifdef MODULE
 		printk(KERN_ERR "MPU-401 device not found or device busy\n");
 #endif
-		if (pnp_registered)
-			pnp_unregister_driver(&snd_mpu401_pnp_driver);
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	if (pnp_registered)
+		pnp_unregister_driver(&snd_mpu401_pnp_driver);
+	platform_driver_unregister(&snd_mpu401_driver);
+	return err;
 }
 
 static void __exit alsa_card_mpu401_exit(void)
 {
-	int idx;
-
 	if (pnp_registered)
 		pnp_unregister_driver(&snd_mpu401_pnp_driver);
-	for (idx = 0; idx < SNDRV_CARDS; idx++)
-		snd_card_free(snd_mpu401_legacy_cards[idx]);
+	platform_driver_unregister(&snd_mpu401_driver);
 }
 
 module_init(alsa_card_mpu401_init)
