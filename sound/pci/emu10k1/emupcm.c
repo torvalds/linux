@@ -405,15 +405,17 @@ static int snd_emu10k1_playback_hw_params(snd_pcm_substream_t * substream,
 	if ((err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params))) < 0)
 		return err;
 	if (err > 0) {	/* change */
-		snd_util_memblk_t *memblk;
+		int mapped;
 		if (epcm->memblk != NULL)
 			snd_emu10k1_free_pages(emu, epcm->memblk);
-		memblk = snd_emu10k1_alloc_pages(emu, substream);
-		if ((epcm->memblk = memblk) == NULL || ((emu10k1_memblk_t *)memblk)->mapped_page < 0) {
-			epcm->start_addr = 0;
+		epcm->memblk = snd_emu10k1_alloc_pages(emu, substream);
+		epcm->start_addr = 0;
+		if (! epcm->memblk)
 			return -ENOMEM;
-		}
-		epcm->start_addr = ((emu10k1_memblk_t *)memblk)->mapped_page << PAGE_SHIFT;
+		mapped = ((emu10k1_memblk_t *)epcm->memblk)->mapped_page;
+		if (mapped < 0)
+			return -ENOMEM;
+		epcm->start_addr = mapped << PAGE_SHIFT;
 	}
 	return 0;
 }
