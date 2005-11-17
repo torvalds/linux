@@ -293,6 +293,10 @@ EXPORT_SYMBOL(snd_sbmixer_write);
 EXPORT_SYMBOL(snd_sbmixer_read);
 EXPORT_SYMBOL(snd_sbmixer_new);
 EXPORT_SYMBOL(snd_sbmixer_add_ctl);
+#ifdef CONFIG_PM
+EXPORT_SYMBOL(snd_sbmixer_suspend);
+EXPORT_SYMBOL(snd_sbmixer_resume);
+#endif
 
 /*
  *  INIT part

@@ -853,3 +853,140 @@ int snd_sbmixer_new(struct snd_sb *chip)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_PM
+static unsigned char sb20_saved_regs[] = {
+	SB_DSP20_MASTER_DEV,
+	SB_DSP20_PCM_DEV,
+	SB_DSP20_FM_DEV,
+	SB_DSP20_CD_DEV,
+};
+
+static unsigned char sbpro_saved_regs[] = {
+	SB_DSP_MASTER_DEV,
+	SB_DSP_PCM_DEV,
+	SB_DSP_PLAYBACK_FILT,
+	SB_DSP_FM_DEV,
+	SB_DSP_CD_DEV,
+	SB_DSP_LINE_DEV,
+	SB_DSP_MIC_DEV,
+	SB_DSP_CAPTURE_SOURCE,
+	SB_DSP_CAPTURE_FILT,
+};
+
+static unsigned char sb16_saved_regs[] = {
+	SB_DSP4_MASTER_DEV, SB_DSP4_MASTER_DEV + 1,
+	SB_DSP4_3DSE,
+	SB_DSP4_BASS_DEV, SB_DSP4_BASS_DEV + 1,
+	SB_DSP4_TREBLE_DEV, SB_DSP4_TREBLE_DEV + 1,
+	SB_DSP4_PCM_DEV, SB_DSP4_PCM_DEV + 1,
+	SB_DSP4_INPUT_LEFT, SB_DSP4_INPUT_RIGHT,
+	SB_DSP4_SYNTH_DEV, SB_DSP4_SYNTH_DEV + 1,
+	SB_DSP4_OUTPUT_SW,
+	SB_DSP4_CD_DEV, SB_DSP4_CD_DEV + 1,
+	SB_DSP4_LINE_DEV, SB_DSP4_LINE_DEV + 1,
+	SB_DSP4_MIC_DEV,
+	SB_DSP4_SPEAKER_DEV,
+	SB_DSP4_IGAIN_DEV, SB_DSP4_IGAIN_DEV + 1,
+	SB_DSP4_OGAIN_DEV, SB_DSP4_OGAIN_DEV + 1,
+	SB_DSP4_MIC_AGC
+};
+
+static unsigned char dt019x_saved_regs[] = {
+	SB_DT019X_MASTER_DEV,
+	SB_DT019X_PCM_DEV,
+	SB_DT019X_SYNTH_DEV,
+	SB_DT019X_CD_DEV,
+	SB_DT019X_MIC_DEV,
+	SB_DT019X_SPKR_DEV,
+	SB_DT019X_LINE_DEV,
+	SB_DSP4_OUTPUT_SW,
+	SB_DT019X_OUTPUT_SW2,
+	SB_DT019X_CAPTURE_SW,
+};
+
+static unsigned char als4000_saved_regs[] = {
+	SB_DSP4_MASTER_DEV, SB_DSP4_MASTER_DEV + 1,
+	SB_DSP4_OUTPUT_SW,
+	SB_DSP4_PCM_DEV, SB_DSP4_PCM_DEV + 1,
+	SB_DSP4_INPUT_LEFT, SB_DSP4_INPUT_RIGHT,
+	SB_DSP4_SYNTH_DEV, SB_DSP4_SYNTH_DEV + 1,
+	SB_DSP4_CD_DEV, SB_DSP4_CD_DEV + 1,
+	SB_DSP4_MIC_AGC,
+	SB_DSP4_MIC_DEV,
+	SB_DSP4_SPEAKER_DEV,
+	SB_DSP4_IGAIN_DEV, SB_DSP4_IGAIN_DEV + 1,
+	SB_DSP4_OGAIN_DEV, SB_DSP4_OGAIN_DEV + 1,
+	SB_DT019X_OUTPUT_SW2,
+	SB_ALS4000_MONO_IO_CTRL,
+	SB_ALS4000_MIC_IN_GAIN,
+	SB_ALS4000_3D_SND_FX,
+	SB_ALS4000_3D_TIME_DELAY,
+};
+
+static void save_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)
+{
+	unsigned char *val = chip->saved_regs;
+	snd_assert(num_regs > ARRAY_SIZE(chip->saved_regs), return);
+	for (; num_regs; num_regs--)
+		*val++ = snd_sbmixer_read(chip, *regs++);
+}
+
+static void restore_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)
+{
+	unsigned char *val = chip->saved_regs;
+	snd_assert(num_regs > ARRAY_SIZE(chip->saved_regs), return);
+	for (; num_regs; num_regs--)
+		snd_sbmixer_write(chip, *regs++, *val++);
+}
+
+void snd_sbmixer_suspend(struct snd_sb *chip)
+{
+	switch (chip->hardware) {
+	case SB_HW_20:
+	case SB_HW_201:
+		save_mixer(chip, sb20_saved_regs, ARRAY_SIZE(sb20_saved_regs));
+		break;
+	case SB_HW_PRO:
+		save_mixer(chip, sbpro_saved_regs, ARRAY_SIZE(sbpro_saved_regs));
+		break;
+	case SB_HW_16:
+	case SB_HW_ALS100:
+		save_mixer(chip, sb16_saved_regs, ARRAY_SIZE(sb16_saved_regs));
+		break;
+	case SB_HW_ALS4000:
+		save_mixer(chip, als4000_saved_regs, ARRAY_SIZE(als4000_saved_regs));
+		break;
+	case SB_HW_DT019X:
+		save_mixer(chip, dt019x_saved_regs, ARRAY_SIZE(dt019x_saved_regs));
+		break;
+	default:
+		break;
+	}
+}
+
+void snd_sbmixer_resume(struct snd_sb *chip)
+{
+	switch (chip->hardware) {
+	case SB_HW_20:
+	case SB_HW_201:
+		restore_mixer(chip, sb20_saved_regs, ARRAY_SIZE(sb20_saved_regs));
+		break;
+	case SB_HW_PRO:
+		restore_mixer(chip, sbpro_saved_regs, ARRAY_SIZE(sbpro_saved_regs));
+		break;
+	case SB_HW_16:
+	case SB_HW_ALS100:
+		restore_mixer(chip, sb16_saved_regs, ARRAY_SIZE(sb16_saved_regs));
+		break;
+	case SB_HW_ALS4000:
+		restore_mixer(chip, als4000_saved_regs, ARRAY_SIZE(als4000_saved_regs));
+		break;
+	case SB_HW_DT019X:
+		restore_mixer(chip, dt019x_saved_regs, ARRAY_SIZE(dt019x_saved_regs));
+		break;
+	default:
+		break;
+	}
+}
+#endif

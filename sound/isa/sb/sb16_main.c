@@ -307,10 +307,12 @@ static int snd_sb16_playback_trigger(struct snd_pcm_substream *substream,
 	spin_lock(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		chip->mode |= SB_RATE_LOCK_PLAYBACK;
 		snd_sbdsp_command(chip, chip->mode & SB_MODE_PLAYBACK_16 ? SB_DSP_DMA16_ON : SB_DSP_DMA8_ON);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		snd_sbdsp_command(chip, chip->mode & SB_MODE_PLAYBACK_16 ? SB_DSP_DMA16_OFF : SB_DSP_DMA8_OFF);
 		/* next two lines are needed for some types of DSP4 (SB AWE 32 - 4.13) */
 		if (chip->mode & SB_RATE_LOCK_CAPTURE)
@@ -374,10 +376,12 @@ static int snd_sb16_capture_trigger(struct snd_pcm_substream *substream,
 	spin_lock(&chip->reg_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		chip->mode |= SB_RATE_LOCK_CAPTURE;
 		snd_sbdsp_command(chip, chip->mode & SB_MODE_CAPTURE_16 ? SB_DSP_DMA16_ON : SB_DSP_DMA8_ON);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		snd_sbdsp_command(chip, chip->mode & SB_MODE_CAPTURE_16 ? SB_DSP_DMA16_OFF : SB_DSP_DMA8_OFF);
 		/* next two lines are needed for some types of DSP4 (SB AWE 32 - 4.13) */
 		if (chip->mode & SB_RATE_LOCK_PLAYBACK)

@@ -107,6 +107,10 @@ struct snd_sb {
 	spinlock_t midi_input_lock;
 
 	struct snd_info_entry *proc_entry;
+
+#ifdef CONFIG_PM
+	unsigned char saved_regs[0x20];
+#endif
 };
 
 /* I/O ports */
@@ -290,6 +294,10 @@ int snd_sbdsp_create(struct snd_card *card,
 void snd_sbmixer_write(struct snd_sb *chip, unsigned char reg, unsigned char data);
 unsigned char snd_sbmixer_read(struct snd_sb *chip, unsigned char reg);
 int snd_sbmixer_new(struct snd_sb *chip);
+#ifdef CONFIG_PM
+void snd_sbmixer_suspend(struct snd_sb *chip);
+void snd_sbmixer_resume(struct snd_sb *chip);
+#endif
 
 /* sb8_init.c */
 int snd_sb8dsp_pcm(struct snd_sb *chip, int device, struct snd_pcm ** rpcm);
