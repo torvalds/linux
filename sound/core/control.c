@@ -1023,36 +1023,6 @@ static int snd_ctl_subscribe_events(struct snd_ctl_file *file, int __user *ptr)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-/*
- * change the power state
- */
-static int snd_ctl_set_power_state(struct snd_card *card, unsigned int power_state)
-{
-	switch (power_state) {
-	case SNDRV_CTL_POWER_D0:
-		if (card->power_state != power_state) {
-			card->pm_resume(card);
-			snd_power_change_state(card, power_state);
-		}
-		break;
-	case SNDRV_CTL_POWER_D3hot:
-		if (card->power_state != power_state) {
-			card->pm_suspend(card, PMSG_SUSPEND);
-			snd_power_change_state(card, power_state);
-		}
-		break;
-	case SNDRV_CTL_POWER_D1:
-	case SNDRV_CTL_POWER_D2:
-	case SNDRV_CTL_POWER_D3cold:
-		/* not supported yet */
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-#endif
-
 static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct snd_ctl_file *ctl;
@@ -1092,19 +1062,7 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS:
 		return snd_ctl_subscribe_events(ctl, ip);
 	case SNDRV_CTL_IOCTL_POWER:
-		if (get_user(err, ip))
-			return -EFAULT;
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-#ifdef CONFIG_PM
-		if (card->pm_suspend && card->pm_resume) {
-			snd_power_lock(card);
-			err = snd_ctl_set_power_state(card, err);
-			snd_power_unlock(card);
-		} else
-#endif
-			err = -ENOPROTOOPT;
-		return err;
+		return -ENOPROTOOPT;
 	case SNDRV_CTL_IOCTL_POWER_STATE:
 #ifdef CONFIG_PM
 		return put_user(card->power_state, ip) ? -EFAULT : 0;

@@ -133,7 +133,3 @@ config SND_DEBUG_DETECT
 	help
 	  Say Y here to enable extra-verbose log messages printed when
 	  detecting devices.
-
-config SND_GENERIC_DRIVER
-	bool
-	depends on SND

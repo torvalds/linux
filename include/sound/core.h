@@ -134,14 +134,8 @@ struct snd_card {
 	wait_queue_head_t shutdown_sleep;
 	struct work_struct free_workq;	/* for free in workqueue */
 	struct device *dev;
-#ifdef CONFIG_SND_GENERIC_DRIVER
-	struct snd_generic_device *generic_dev;
-#endif
 
 #ifdef CONFIG_PM
-	int (*pm_suspend)(struct snd_card *card, pm_message_t state);
-	int (*pm_resume)(struct snd_card *card);
-	void *pm_private_data;
 	unsigned int power_state;	/* power state */
 	struct semaphore power_lock;	/* power lock */
 	wait_queue_head_t power_sleep;
@@ -178,22 +172,6 @@ static inline void snd_power_change_state(struct snd_card *card, unsigned int st
 /* init.c */
 int snd_power_wait(struct snd_card *card, unsigned int power_state, struct file *file);
 
-int snd_card_set_pm_callback(struct snd_card *card,
-			     int (*suspend)(struct snd_card *, pm_message_t),
-			     int (*resume)(struct snd_card *),
-			     void *private_data);
-int snd_card_set_generic_pm_callback(struct snd_card *card,
-				     int (*suspend)(struct snd_card *, pm_message_t),
-				     int (*resume)(struct snd_card *),
-				     void *private_data);
-#define snd_card_set_isa_pm_callback(card,suspend,resume,data) \
-	snd_card_set_generic_pm_callback(card, suspend, resume, data)
-struct pci_dev;
-int snd_card_pci_suspend(struct pci_dev *dev, pm_message_t state);
-int snd_card_pci_resume(struct pci_dev *dev);
-#define SND_PCI_PM_CALLBACKS \
-	.suspend = snd_card_pci_suspend,  .resume = snd_card_pci_resume
-
 #else /* ! CONFIG_PM */
 
 #define snd_power_lock(card)		do { (void)(card); } while (0)
@@ -201,10 +179,6 @@ int snd_card_pci_resume(struct pci_dev *dev);
 static inline int snd_power_wait(struct snd_card *card, unsigned int state, struct file *file) { return 0; }
 #define snd_power_get_state(card)	SNDRV_CTL_POWER_D0
 #define snd_power_change_state(card, state)	do { (void)(card); } while (0)
-#define snd_card_set_pm_callback(card,suspend,resume,data)
-#define snd_card_set_generic_pm_callback(card,suspend,resume,data)
-#define snd_card_set_isa_pm_callback(card,suspend,resume,data)
-#define SND_PCI_PM_CALLBACKS
 
 #endif /* CONFIG_PM */
 
@@ -280,8 +254,6 @@ int snd_card_file_remove(struct snd_card *card, struct file *file);
 #ifndef snd_card_set_dev
 #define snd_card_set_dev(card,devptr) ((card)->dev = (devptr))
 #endif
-/* register a generic device (for ISA, etc) */
-int snd_card_set_generic_dev(struct snd_card *card);
 
 /* device.c */
 

@@ -28,7 +28,6 @@
 #include <linux/ctype.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
-#include <linux/platform_device.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -229,12 +228,6 @@ int snd_card_disconnect(struct snd_card *card)
 	return 0;	
 }
 
-#ifdef CONFIG_SND_GENERIC_DRIVER
-static void snd_generic_device_unregister(struct snd_card *card);
-#else
-#define snd_generic_device_unregister(x) /*NOP*/
-#endif
-
 /**
  *  snd_card_free - frees given soundcard structure
  *  @card: soundcard structure
@@ -286,7 +279,6 @@ int snd_card_free(struct snd_card *card)
 		snd_printk(KERN_WARNING "unable to free card info\n");
 		/* Not fatal error */
 	}
-	snd_generic_device_unregister(card);
 	while (card->s_f_ops) {
 		s_f_ops = card->s_f_ops;
 		card->s_f_ops = s_f_ops->next;
@@ -459,7 +451,8 @@ int snd_card_register(struct snd_card *card)
 
 static struct snd_info_entry *snd_card_info_entry = NULL;
 
-static void snd_card_info_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
+static void snd_card_info_read(struct snd_info_entry *entry,
+			       struct snd_info_buffer *buffer)
 {
 	int idx, count;
 	struct snd_card *card;
@@ -666,97 +659,6 @@ int snd_card_file_remove(struct snd_card *card, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_SND_GENERIC_DRIVER
-/*
- * generic device without a proper bus using platform_device
- * (e.g. ISA)
- */
-struct snd_generic_device {
-	struct platform_device pdev;
-	struct snd_card *card;
-};
-
-#define get_snd_generic_card(dev)	container_of(dev, struct snd_generic_device, pdev)->card
-
-#define SND_GENERIC_NAME	"snd_generic"
-
-#ifdef CONFIG_PM
-static int snd_generic_suspend(struct platform_device *dev, pm_message_t state);
-static int snd_generic_resume(struct platform_device *dev);
-#endif
-
-/* initialized in sound.c */
-struct platform_driver snd_generic_driver = {
-#ifdef CONFIG_PM
-	.suspend	= snd_generic_suspend,
-	.resume		= snd_generic_resume,
-#endif
-	.driver		= {
-		.name	= SND_GENERIC_NAME,
-	},
-};
-
-void snd_generic_device_release(struct device *dev)
-{
-}
-
-static int snd_generic_device_register(struct snd_card *card)
-{
-	struct snd_generic_device *dev;
-	int err;
-
-	if (card->generic_dev)
-		return 0; /* already registered */
-
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (! dev) {
-		snd_printk(KERN_ERR "can't allocate generic_device\n");
-		return -ENOMEM;
-	}
-
-	dev->pdev.name = SND_GENERIC_NAME;
-	dev->pdev.id = card->number;
-	dev->pdev.dev.release = snd_generic_device_release;
-	dev->card = card;
-	if ((err = platform_device_register(&dev->pdev)) < 0) {
-		kfree(dev);
-		return err;
-	}
-	card->generic_dev = dev;
-	return 0;
-}
-
-static void snd_generic_device_unregister(struct snd_card *card)
-{
-	struct snd_generic_device *dev = card->generic_dev;
-	if (dev) {
-		platform_device_unregister(&dev->pdev);
-		kfree(dev);
-		card->generic_dev = NULL;
-	}
-}
-
-/**
- * snd_card_set_generic_dev - assign the generic device to the card
- * @card: soundcard structure
- *
- * Assigns a generic device to the card.  This function is provided as the
- * last resort, for devices without any proper bus.  Thus this won't override
- * the device already assigned to the card.
- * 
- * Returns zero if successful, or a negative error code.
- */
-int snd_card_set_generic_dev(struct snd_card *card)
-{
-	int err;
-	if ((err = snd_generic_device_register(card)) < 0)
-		return err;
-	if (! card->dev)
-		snd_card_set_dev(card, &card->generic_dev->pdev.dev);
-	return 0;
-}
-#endif /* CONFIG_SND_GENERIC_DRIVER */
-
 #ifdef CONFIG_PM
 /**
  *  snd_power_wait - wait until the power-state is changed.
@@ -799,108 +701,5 @@ int snd_power_wait(struct snd_card *card, unsigned int power_state, struct file 
 	remove_wait_queue(&card->power_sleep, &wait);
 	return result;
 }
-
-/**
- * snd_card_set_pm_callback - set the PCI power-management callbacks
- * @card: soundcard structure
- * @suspend: suspend callback function
- * @resume: resume callback function
- * @private_data: private data to pass to the callback functions
- *
- * Sets the power-management callback functions of the card.
- * These callbacks are called from ALSA's common PCI suspend/resume
- * handler and from the control API.
- */
-int snd_card_set_pm_callback(struct snd_card *card,
-			     int (*suspend)(struct snd_card *, pm_message_t),
-			     int (*resume)(struct snd_card *),
-			     void *private_data)
-{
-	card->pm_suspend = suspend;
-	card->pm_resume = resume;
-	card->pm_private_data = private_data;
-	return 0;
-}
-
-#ifdef CONFIG_SND_GENERIC_DRIVER
-/* suspend/resume callbacks for snd_generic platform device */
-static int snd_generic_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct snd_card *card;
-
-	card = get_snd_generic_card(dev);
-	if (card->power_state == SNDRV_CTL_POWER_D3hot)
-		return 0;
-	if (card->pm_suspend)
-		card->pm_suspend(card, PMSG_SUSPEND);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	return 0;
-}
-
-static int snd_generic_resume(struct platform_device *dev)
-{
-	struct snd_card *card;
-
-	card = get_snd_generic_card(dev);
-	if (card->power_state == SNDRV_CTL_POWER_D0)
-		return 0;
-	if (card->pm_resume)
-		card->pm_resume(card);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
-	return 0;
-}
-
-/**
- * snd_card_set_generic_pm_callback - set the generic power-management callbacks
- * @card: soundcard structure
- * @suspend: suspend callback function
- * @resume: resume callback function
- * @private_data: private data to pass to the callback functions
- *
- * Registers the power-management and sets the lowlevel callbacks for
- * the given card.  These callbacks are called from the ALSA's common
- * PM handler and from the control API.
- */
-int snd_card_set_generic_pm_callback(struct snd_card *card,
-				 int (*suspend)(struct snd_card *, pm_message_t),
-				 int (*resume)(struct snd_card *),
-				 void *private_data)
-{
-	int err;
-	if ((err = snd_generic_device_register(card)) < 0)
-		return err;
-	return snd_card_set_pm_callback(card, suspend, resume, private_data);
-}
-#endif /* CONFIG_SND_GENERIC_DRIVER */
-
-#ifdef CONFIG_PCI
-int snd_card_pci_suspend(struct pci_dev *dev, pm_message_t state)
-{
-	struct snd_card *card = pci_get_drvdata(dev);
-	int err;
-	if (! card || ! card->pm_suspend)
-		return 0;
-	if (card->power_state == SNDRV_CTL_POWER_D3hot)
-		return 0;
-	err = card->pm_suspend(card, PMSG_SUSPEND);
-	pci_save_state(dev);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	return err;
-}
-
-int snd_card_pci_resume(struct pci_dev *dev)
-{
-	struct snd_card *card = pci_get_drvdata(dev);
-	if (! card || ! card->pm_resume)
-		return 0;
-	if (card->power_state == SNDRV_CTL_POWER_D0)
-		return 0;
-	/* restore the PCI config space */
-	pci_restore_state(dev);
-	card->pm_resume(card);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
-	return 0;
-}
-#endif
 
 #endif /* CONFIG_PM */
