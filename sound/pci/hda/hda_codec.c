@@ -288,6 +288,9 @@ static int init_unsol_queue(struct hda_bus *bus)
 {
 	struct hda_bus_unsolicited *unsol;
 
+	if (bus->unsol) /* already initialized */
+		return 0;
+
 	unsol = kzalloc(sizeof(*unsol), GFP_KERNEL);
 	if (! unsol) {
 		snd_printk(KERN_ERR "hda_codec: can't allocate unsolicited queue\n");
@@ -372,8 +375,6 @@ int snd_hda_bus_new(snd_card_t *card, const struct hda_bus_template *temp,
 
 	init_MUTEX(&bus->cmd_mutex);
 	INIT_LIST_HEAD(&bus->codec_list);
-
-	init_unsol_queue(bus);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_BUS, bus, &dev_ops)) < 0) {
 		snd_hda_bus_free(bus);
@@ -539,6 +540,9 @@ int snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 		snd_hda_codec_free(codec);
 		return err;
 	}
+
+	if (codec->patch_ops.unsol_event)
+		init_unsol_queue(bus);
 
 	snd_hda_codec_proc_new(codec);
 
