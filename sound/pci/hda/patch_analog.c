@@ -52,7 +52,7 @@ struct ad198x_spec {
 	unsigned int cur_mux[3];
 
 	/* channel model */
-	const struct alc_channel_mode *channel_mode;
+	const struct hda_channel_mode *channel_mode;
 	int num_channel_mode;
 
 	/* PCM information */

@@ -102,6 +102,23 @@ int snd_hda_input_mux_put(struct hda_codec *codec, const struct hda_input_mux *i
 			  snd_ctl_elem_value_t *ucontrol, hda_nid_t nid,
 			  unsigned int *cur_val);
 
+ /*
+ * Channel mode helper
+ */
+struct hda_channel_mode {
+	int channels;
+	const struct hda_verb *sequence;
+};
+
+int snd_hda_ch_mode_info(struct hda_codec *codec, snd_ctl_elem_info_t *uinfo,
+			 const struct hda_channel_mode *chmode, int num_chmodes);
+int snd_hda_ch_mode_get(struct hda_codec *codec, snd_ctl_elem_value_t *ucontrol,
+			const struct hda_channel_mode *chmode, int num_chmodes,
+			int max_channels);
+int snd_hda_ch_mode_put(struct hda_codec *codec, snd_ctl_elem_value_t *ucontrol,
+			const struct hda_channel_mode *chmode, int num_chmodes,
+			int *max_channelsp);
+
 /*
  * Multi-channel / digital-out PCM helper
  */

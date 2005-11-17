@@ -1662,6 +1662,54 @@ int snd_hda_add_new_ctls(struct hda_codec *codec, snd_kcontrol_new_t *knew)
 }
 
 
+ /*
+ * Channel mode helper
+ */
+int snd_hda_ch_mode_info(struct hda_codec *codec, snd_ctl_elem_info_t *uinfo,
+			 const struct hda_channel_mode *chmode, int num_chmodes)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = num_chmodes;
+	if (uinfo->value.enumerated.item >= num_chmodes)
+		uinfo->value.enumerated.item = num_chmodes - 1;
+	sprintf(uinfo->value.enumerated.name, "%dch",
+		chmode[uinfo->value.enumerated.item].channels);
+	return 0;
+}
+
+int snd_hda_ch_mode_get(struct hda_codec *codec, snd_ctl_elem_value_t *ucontrol,
+			const struct hda_channel_mode *chmode, int num_chmodes,
+			int max_channels)
+{
+	int i;
+
+	for (i = 0; i < num_chmodes; i++) {
+		if (max_channels == chmode[i].channels) {
+			ucontrol->value.enumerated.item[0] = i;
+			break;
+		}
+	}
+	return 0;
+}
+
+int snd_hda_ch_mode_put(struct hda_codec *codec, snd_ctl_elem_value_t *ucontrol,
+			const struct hda_channel_mode *chmode, int num_chmodes,
+			int *max_channelsp)
+{
+	unsigned int mode;
+
+	mode = ucontrol->value.enumerated.item[0];
+	snd_assert(mode < num_chmodes, return -EINVAL);
+	if (*max_channelsp && ! codec->in_resume)
+		return 0;
+	/* change the current channel setting */
+	*max_channelsp = chmode[mode].channels;
+	if (chmode[mode].sequence)
+		snd_hda_sequence_write(codec, chmode[mode].sequence);
+	return 1;
+}
+
 /*
  * input MUX helper
  */

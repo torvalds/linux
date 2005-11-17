@@ -109,7 +109,7 @@ struct alc_spec {
 	unsigned int cur_mux[3];
 
 	/* channel model */
-	const struct alc_channel_mode *channel_mode;
+	const struct hda_channel_mode *channel_mode;
 	int num_channel_mode;
 
 	/* PCM information */
@@ -157,63 +157,28 @@ static int alc_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 /*
  * channel mode setting
  */
-struct alc_channel_mode {
-	int channels;
-	const struct hda_verb *sequence;
-};
-
 static int alc880_ch_mode_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
-	int items = kcontrol->private_value ? (int)kcontrol->private_value : 2;
-
-	snd_assert(spec->channel_mode, return -ENXIO);
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = items;
-	if (uinfo->value.enumerated.item >= items)
-		uinfo->value.enumerated.item = items - 1;
-	sprintf(uinfo->value.enumerated.name, "%dch",
-		spec->channel_mode[uinfo->value.enumerated.item].channels);
-	return 0;
+	return snd_hda_ch_mode_info(codec, uinfo, spec->channel_mode,
+				    spec->num_channel_mode);
 }
 
 static int alc880_ch_mode_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
-	int items = kcontrol->private_value ? (int)kcontrol->private_value : 2;
-	int i;
-
-	snd_assert(spec->channel_mode, return -ENXIO);
-	for (i = 0; i < items; i++) {
-		if (spec->multiout.max_channels == spec->channel_mode[i].channels) {
-			ucontrol->value.enumerated.item[0] = i;
-			break;
-		}
-	}
-	return 0;
+	return snd_hda_ch_mode_get(codec, ucontrol, spec->channel_mode,
+				   spec->num_channel_mode, spec->multiout.max_channels);
 }
 
 static int alc880_ch_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
-	int mode;
-
-	snd_assert(spec->channel_mode, return -ENXIO);
-	mode = ucontrol->value.enumerated.item[0] ? 1 : 0;
-	if (spec->multiout.max_channels == spec->channel_mode[mode].channels &&
-	    ! codec->in_resume)
-		return 0;
-
-	/* change the current channel setting */
-	spec->multiout.max_channels = spec->channel_mode[mode].channels;
-	if (spec->channel_mode[mode].sequence)
-		snd_hda_sequence_write(codec, spec->channel_mode[mode].sequence);
-
-	return 1;
+	return snd_hda_ch_mode_put(codec, ucontrol, spec->channel_mode,
+				   spec->num_channel_mode, &spec->multiout.max_channels);
 }
 
 
@@ -328,7 +293,7 @@ static struct hda_verb alc880_threestack_ch6_init[] = {
 	{ } /* end */
 };
 
-static struct alc_channel_mode alc880_threestack_modes[2] = {
+static struct hda_channel_mode alc880_threestack_modes[2] = {
 	{ 2, alc880_threestack_ch2_init },
 	{ 6, alc880_threestack_ch6_init },
 };
@@ -443,7 +408,7 @@ static struct hda_verb alc880_fivestack_ch8_init[] = {
 	{ } /* end */
 };
 
-static struct alc_channel_mode alc880_fivestack_modes[2] = {
+static struct hda_channel_mode alc880_fivestack_modes[2] = {
 	{ 6, alc880_fivestack_ch6_init },
 	{ 8, alc880_fivestack_ch8_init },
 };
@@ -473,7 +438,7 @@ static struct hda_input_mux alc880_6stack_capture_source = {
 };
 
 /* fixed 8-channels */
-static struct alc_channel_mode alc880_sixstack_modes[1] = {
+static struct hda_channel_mode alc880_sixstack_modes[1] = {
 	{ 8, NULL },
 };
 
@@ -540,7 +505,7 @@ static hda_nid_t alc880_w810_dac_nids[3] = {
 };
 
 /* fixed 6 channels */
-static struct alc_channel_mode alc880_w810_modes[1] = {
+static struct hda_channel_mode alc880_w810_modes[1] = {
 	{ 6, NULL }
 };
 
@@ -572,7 +537,7 @@ static hda_nid_t alc880_z71v_dac_nids[1] = {
 #define ALC880_Z71V_HP_DAC	0x03
 
 /* fixed 2 channels */
-static struct alc_channel_mode alc880_2_jack_modes[1] = {
+static struct hda_channel_mode alc880_2_jack_modes[1] = {
 	{ 2, NULL }
 };
 
@@ -1227,7 +1192,7 @@ static struct hda_input_mux alc880_test_capture_source = {
 	},
 };
 
-static struct alc_channel_mode alc880_test_modes[4] = {
+static struct hda_channel_mode alc880_test_modes[4] = {
 	{ 2, NULL },
 	{ 4, NULL },
 	{ 6, NULL },
@@ -1585,7 +1550,7 @@ struct alc_config_preset {
 	unsigned int num_adc_nids;
 	hda_nid_t *adc_nids;
 	unsigned int num_channel_mode;
-	const struct alc_channel_mode *channel_mode;
+	const struct hda_channel_mode *channel_mode;
 	const struct hda_input_mux *input_mux;
 };
 
@@ -2202,7 +2167,7 @@ static struct hda_input_mux alc260_fujitsu_capture_source = {
  * element which allows changing the channel mode, so the verb list is
  * never used.
  */
-static struct alc_channel_mode alc260_modes[1] = {
+static struct hda_channel_mode alc260_modes[1] = {
 	{ 2, NULL },
 };
 
@@ -2506,7 +2471,7 @@ static int patch_alc260(struct hda_codec *codec)
  * driver yet).
  */
 
-static struct alc_channel_mode alc882_ch_modes[1] = {
+static struct hda_channel_mode alc882_ch_modes[1] = {
 	{ 8, NULL }
 };
 
