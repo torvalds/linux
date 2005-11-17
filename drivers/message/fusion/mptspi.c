@@ -103,6 +103,7 @@ static int	mptspiTaskCtx = -1;
 static int	mptspiInternalCtx = -1; /* Used only for internal commands */
 
 static struct scsi_host_template mptspi_driver_template = {
+	.module				= THIS_MODULE,
 	.proc_name			= "mptspi",
 	.proc_info			= mptscsih_proc_info,
 	.name				= "MPT SPI Host",

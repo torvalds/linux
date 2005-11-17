@@ -84,6 +84,7 @@ static int	mptfcTaskCtx = -1;
 static int	mptfcInternalCtx = -1; /* Used only for internal commands */
 
 static struct scsi_host_template mptfc_driver_template = {
+	.module				= THIS_MODULE,
 	.proc_name			= "mptfc",
 	.proc_info			= mptscsih_proc_info,
 	.name				= "MPT FC Host",

@@ -277,6 +277,7 @@ mptsas_slave_alloc(struct scsi_device *device)
 }
 
 static struct scsi_host_template mptsas_driver_template = {
+	.module				= THIS_MODULE,
 	.proc_name			= "mptsas",
 	.proc_info			= mptscsih_proc_info,
 	.name				= "MPT SPI Host",
