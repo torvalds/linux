@@ -25,6 +25,8 @@
 #define BCSR_ADDR		((uint)0xf8000000)
 #define BCSR_SIZE		((uint)(32 * 1024))
 
+struct seq_file;
+
 extern int mpc85xx_ads_show_cpuinfo(struct seq_file *m);
 extern void mpc85xx_ads_init_IRQ(void) __init;
 extern void mpc85xx_ads_map_io(void) __init;
