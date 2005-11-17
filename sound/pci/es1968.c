@@ -2378,33 +2378,38 @@ static void snd_es1968_start_irq(struct es1968 *chip)
 /*
  * PM support
  */
-static int es1968_suspend(struct snd_card *card, pm_message_t state)
+static int es1968_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct es1968 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct es1968 *chip = card->private_data;
 
 	if (! chip->do_pm)
 		return 0;
 
 	chip->in_suspend = 1;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 	snd_es1968_bob_stop(chip);
 	snd_es1968_set_acpi(chip, ACPI_D3);
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int es1968_resume(struct snd_card *card)
+static int es1968_resume(struct pci_dev *pci)
 {
-	struct es1968 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct es1968 *chip = card->private_data;
 	struct list_head *p;
 
 	if (! chip->do_pm)
 		return 0;
 
 	/* restore all our config */
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
 	snd_es1968_chip_init(chip);
 
 	/* need to restore the base pointers.. */ 
@@ -2434,6 +2439,7 @@ static int es1968_resume(struct snd_card *card)
 	if (chip->bobclient)
 		snd_es1968_bob_start(chip);
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	chip->in_suspend = 0;
 	return 0;
 }
@@ -2631,9 +2637,6 @@ static int __devinit snd_es1968_create(struct snd_card *card,
 
 	snd_es1968_chip_init(chip);
 
-	if (chip->do_pm)
-		snd_card_set_pm_callback(card, es1968_suspend, es1968_resume, chip);
-
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_es1968_free(chip);
 		return err;
@@ -2683,6 +2686,7 @@ static int __devinit snd_es1968_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	switch (chip->type) {
 	case TYPE_MAESTRO2E:
@@ -2760,7 +2764,10 @@ static struct pci_driver driver = {
 	.id_table = snd_es1968_ids,
 	.probe = snd_es1968_probe,
 	.remove = __devexit_p(snd_es1968_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = es1968_suspend,
+	.resume = es1968_resume,
+#endif
 };
 
 static int __init alsa_card_es1968_init(void)
