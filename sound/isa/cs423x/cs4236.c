@@ -131,7 +131,7 @@ struct snd_card_cs4236 {
 #endif
 };
 
-static snd_card_t *snd_cs4236_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_cs4236_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #ifdef CONFIG_PNP
 
@@ -375,7 +375,7 @@ static int __devinit snd_card_cs4236_pnp(int dev, struct snd_card_cs4236 *acard,
 }
 #endif /* CONFIG_PNP */
 
-static void snd_card_cs4236_free(snd_card_t *card)
+static void snd_card_cs4236_free(struct snd_card *card)
 {
 	struct snd_card_cs4236 *acard = (struct snd_card_cs4236 *)card->private_data;
 
@@ -392,11 +392,11 @@ static void snd_card_cs4236_free(snd_card_t *card)
 static int __devinit snd_card_cs423x_probe(int dev, struct pnp_card_link *pcard,
 					   const struct pnp_card_device_id *pid)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_card_cs4236 *acard;
-	snd_pcm_t *pcm = NULL;
-	cs4231_t *chip;
-	opl3_t *opl3;
+	struct snd_pcm *pcm = NULL;
+	struct snd_cs4231 *chip;
+	struct snd_opl3 *opl3;
 	int err;
 
 	if (! is_isapnp_selected(dev)) {
@@ -538,7 +538,7 @@ static int __devinit snd_cs423x_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_cs423x_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
+	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
         
 	snd_card_disconnect(card);
 	snd_card_free_in_thread(card);

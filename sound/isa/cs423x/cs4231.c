@@ -64,15 +64,15 @@ MODULE_PARM_DESC(dma1, "DMA1 # for CS4231 driver.");
 module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for CS4231 driver.");
 
-static snd_card_t *snd_cs4231_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_cs4231_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 
 static int __init snd_card_cs4231_probe(int dev)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_card_cs4231 *acard;
-	snd_pcm_t *pcm = NULL;
-	cs4231_t *chip;
+	struct snd_pcm *pcm = NULL;
+	struct snd_cs4231 *chip;
 	int err;
 
 	if (port[dev] == SNDRV_AUTO_PORT) {
