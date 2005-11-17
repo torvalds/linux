@@ -34,7 +34,7 @@
  * proc interface
  */
 
-static void snd_ac97_proc_read_functions(ac97_t *ac97, snd_info_buffer_t *buffer)
+static void snd_ac97_proc_read_functions(struct snd_ac97 *ac97, struct snd_info_buffer *buffer)
 {
 	int header = 0, function;
 	unsigned short info, sense_info;
@@ -68,7 +68,7 @@ static void snd_ac97_proc_read_functions(ac97_t *ac97, snd_info_buffer_t *buffer
 	}
 }
 
-static void snd_ac97_proc_read_main(ac97_t *ac97, snd_info_buffer_t * buffer, int subidx)
+static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffer *buffer, int subidx)
 {
 	char name[64];
 	unsigned short val, tmp, ext, mext;
@@ -79,7 +79,6 @@ static void snd_ac97_proc_read_main(ac97_t *ac97, snd_info_buffer_t * buffer, in
 
 	snd_ac97_get_name(NULL, ac97->id, name, 0);
 	snd_iprintf(buffer, "%d-%d/%d: %s\n\n", ac97->addr, ac97->num, subidx, name);
-
 
 	if ((ac97->scaps & AC97_SCAP_AUDIO) == 0)
 		goto __modem;
@@ -299,9 +298,9 @@ static void snd_ac97_proc_read_main(ac97_t *ac97, snd_info_buffer_t * buffer, in
 	}
 }
 
-static void snd_ac97_proc_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void snd_ac97_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	ac97_t *ac97 = entry->private_data;
+	struct snd_ac97 *ac97 = entry->private_data;
 	
 	down(&ac97->page_mutex);
 	if ((ac97->id & 0xffffff40) == AC97_ID_AD1881) {	// Analog Devices AD1881/85/86
@@ -334,9 +333,9 @@ static void snd_ac97_proc_read(snd_info_entry_t *entry, snd_info_buffer_t * buff
 
 #ifdef CONFIG_SND_DEBUG
 /* direct register write for debugging */
-static void snd_ac97_proc_regs_write(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
+static void snd_ac97_proc_regs_write(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	ac97_t *ac97 = entry->private_data;
+	struct snd_ac97 *ac97 = entry->private_data;
 	char line[64];
 	unsigned int reg, val;
 	down(&ac97->page_mutex);
@@ -351,7 +350,7 @@ static void snd_ac97_proc_regs_write(snd_info_entry_t *entry, snd_info_buffer_t 
 }
 #endif
 
-static void snd_ac97_proc_regs_read_main(ac97_t *ac97, snd_info_buffer_t * buffer, int subidx)
+static void snd_ac97_proc_regs_read_main(struct snd_ac97 *ac97, struct snd_info_buffer *buffer, int subidx)
 {
 	int reg, val;
 
@@ -361,10 +360,10 @@ static void snd_ac97_proc_regs_read_main(ac97_t *ac97, snd_info_buffer_t * buffe
 	}
 }
 
-static void snd_ac97_proc_regs_read(snd_info_entry_t *entry, 
-				    snd_info_buffer_t * buffer)
+static void snd_ac97_proc_regs_read(struct snd_info_entry *entry, 
+				    struct snd_info_buffer *buffer)
 {
-	ac97_t *ac97 = entry->private_data;
+	struct snd_ac97 *ac97 = entry->private_data;
 
 	down(&ac97->page_mutex);
 	if ((ac97->id & 0xffffff40) == AC97_ID_AD1881) {	// Analog Devices AD1881/85/86
@@ -385,9 +384,9 @@ static void snd_ac97_proc_regs_read(snd_info_entry_t *entry,
 	up(&ac97->page_mutex);
 }
 
-void snd_ac97_proc_init(ac97_t * ac97)
+void snd_ac97_proc_init(struct snd_ac97 * ac97)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	char name[32];
 	const char *prefix;
 
@@ -419,7 +418,7 @@ void snd_ac97_proc_init(ac97_t * ac97)
 	ac97->proc_regs = entry;
 }
 
-void snd_ac97_proc_done(ac97_t * ac97)
+void snd_ac97_proc_done(struct snd_ac97 * ac97)
 {
 	if (ac97->proc_regs) {
 		snd_info_unregister(ac97->proc_regs);
@@ -431,9 +430,9 @@ void snd_ac97_proc_done(ac97_t * ac97)
 	}
 }
 
-void snd_ac97_bus_proc_init(ac97_bus_t * bus)
+void snd_ac97_bus_proc_init(struct snd_ac97_bus * bus)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	char name[32];
 
 	sprintf(name, "codec97#%d", bus->num);
@@ -447,7 +446,7 @@ void snd_ac97_bus_proc_init(ac97_bus_t * bus)
 	bus->proc = entry;
 }
 
-void snd_ac97_bus_proc_done(ac97_bus_t * bus)
+void snd_ac97_bus_proc_done(struct snd_ac97_bus * bus)
 {
 	if (bus->proc) {
 		snd_info_unregister(bus->proc);

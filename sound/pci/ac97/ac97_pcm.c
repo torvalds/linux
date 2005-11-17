@@ -170,7 +170,7 @@ static unsigned char get_slot_reg(struct ac97_pcm *pcm, unsigned short cidx,
 		return rate_cregs[slot - 3];
 }
 
-static int set_spdif_rate(ac97_t *ac97, unsigned short rate)
+static int set_spdif_rate(struct snd_ac97 *ac97, unsigned short rate)
 {
 	unsigned short old, bits, reg, mask;
 	unsigned int sbits;
@@ -254,7 +254,7 @@ static int set_spdif_rate(ac97_t *ac97, unsigned short rate)
  *
  * Returns zero if successful, or a negative error code on failure.
  */
-int snd_ac97_set_rate(ac97_t *ac97, int reg, unsigned int rate)
+int snd_ac97_set_rate(struct snd_ac97 *ac97, int reg, unsigned int rate)
 {
 	int dbl;
 	unsigned int tmp;
@@ -315,7 +315,7 @@ int snd_ac97_set_rate(ac97_t *ac97, int reg, unsigned int rate)
 	return 0;
 }
 
-static unsigned short get_pslots(ac97_t *ac97, unsigned char *rate_table, unsigned short *spdif_slots)
+static unsigned short get_pslots(struct snd_ac97 *ac97, unsigned char *rate_table, unsigned short *spdif_slots)
 {
 	if (!ac97_is_audio(ac97))
 		return 0;
@@ -390,7 +390,7 @@ static unsigned short get_pslots(ac97_t *ac97, unsigned char *rate_table, unsign
 	}
 }
 
-static unsigned short get_cslots(ac97_t *ac97)
+static unsigned short get_cslots(struct snd_ac97 *ac97)
 {
 	unsigned short slots;
 
@@ -437,7 +437,7 @@ static unsigned int get_rates(struct ac97_pcm *pcm, unsigned int cidx, unsigned 
  * some slots are available, pcm->xxx.slots and pcm->xxx.rslots[] members
  * are reduced and might be zero.
  */
-int snd_ac97_pcm_assign(ac97_bus_t *bus,
+int snd_ac97_pcm_assign(struct snd_ac97_bus *bus,
 			unsigned short pcms_count,
 			const struct ac97_pcm *pcms)
 {
@@ -449,7 +449,7 @@ int snd_ac97_pcm_assign(ac97_bus_t *bus,
 	unsigned short tmp, slots;
 	unsigned short spdif_slots[4];
 	unsigned int rates;
-	ac97_t *codec;
+	struct snd_ac97 *codec;
 
 	rpcms = kcalloc(pcms_count, sizeof(struct ac97_pcm), GFP_KERNEL);
 	if (rpcms == NULL)
@@ -560,7 +560,7 @@ int snd_ac97_pcm_assign(ac97_bus_t *bus,
 int snd_ac97_pcm_open(struct ac97_pcm *pcm, unsigned int rate,
 		      enum ac97_pcm_cfg cfg, unsigned short slots)
 {
-	ac97_bus_t *bus;
+	struct snd_ac97_bus *bus;
 	int i, cidx, r, ok_flag;
 	unsigned int reg_ok[4] = {0,0,0,0};
 	unsigned char reg;
@@ -639,7 +639,7 @@ int snd_ac97_pcm_open(struct ac97_pcm *pcm, unsigned int rate,
  */
 int snd_ac97_pcm_close(struct ac97_pcm *pcm)
 {
-	ac97_bus_t *bus;
+	struct snd_ac97_bus *bus;
 	unsigned short slots = pcm->aslots;
 	int i, cidx;
 
@@ -656,31 +656,31 @@ int snd_ac97_pcm_close(struct ac97_pcm *pcm)
 	return 0;
 }
 
-static int double_rate_hw_constraint_rate(snd_pcm_hw_params_t *params,
-					  snd_pcm_hw_rule_t *rule)
+static int double_rate_hw_constraint_rate(struct snd_pcm_hw_params *params,
+					  struct snd_pcm_hw_rule *rule)
 {
-	snd_interval_t *channels = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval *channels = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	if (channels->min > 2) {
-		static const snd_interval_t single_rates = {
+		static const struct snd_interval single_rates = {
 			.min = 1,
 			.max = 48000,
 		};
-		snd_interval_t *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+		struct snd_interval *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 		return snd_interval_refine(rate, &single_rates);
 	}
 	return 0;
 }
 
-static int double_rate_hw_constraint_channels(snd_pcm_hw_params_t *params,
-					      snd_pcm_hw_rule_t *rule)
+static int double_rate_hw_constraint_channels(struct snd_pcm_hw_params *params,
+					      struct snd_pcm_hw_rule *rule)
 {
-	snd_interval_t *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	if (rate->min > 48000) {
-		static const snd_interval_t double_rate_channels = {
+		static const struct snd_interval double_rate_channels = {
 			.min = 2,
 			.max = 2,
 		};
-		snd_interval_t *channels = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+		struct snd_interval *channels = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 		return snd_interval_refine(channels, &double_rate_channels);
 	}
 	return 0;
@@ -693,7 +693,7 @@ static int double_rate_hw_constraint_channels(snd_pcm_hw_params_t *params,
  * Installs the hardware constraint rules to prevent using double rates and
  * more than two channels at the same time.
  */
-int snd_ac97_pcm_double_rate_rules(snd_pcm_runtime_t *runtime)
+int snd_ac97_pcm_double_rate_rules(struct snd_pcm_runtime *runtime)
 {
 	int err;
 
