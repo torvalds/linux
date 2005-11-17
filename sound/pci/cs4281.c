@@ -1339,10 +1339,6 @@ static int snd_cs4281_dev_free(struct snd_device *device)
 }
 
 static int snd_cs4281_chip_init(struct cs4281 *chip); /* defined below */
-#ifdef CONFIG_PM
-static int cs4281_suspend(struct snd_card *card, pm_message_t state);
-static int cs4281_resume(struct snd_card *card);
-#endif
 
 static int __devinit snd_cs4281_create(struct snd_card *card,
 				       struct pci_dev *pci,
@@ -1410,8 +1406,6 @@ static int __devinit snd_cs4281_create(struct snd_card *card,
 	}
 
 	snd_cs4281_proc_init(chip);
-
-	snd_card_set_pm_callback(card, cs4281_suspend, cs4281_resume, chip);
 
 	snd_card_set_dev(card, &pci->dev);
 
@@ -1936,6 +1930,7 @@ static int __devinit snd_cs4281_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	if ((err = snd_cs4281_mixer(chip)) < 0) {
 		snd_card_free(card);
@@ -2007,18 +2002,18 @@ static int saved_regs[SUSPEND_REGISTERS] = {
 
 #define CLKCR1_CKRA                             0x00010000L
 
-static int cs4281_suspend(struct snd_card *card, pm_message_t state)
+static int cs4281_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct cs4281 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct cs4281 *chip = card->private_data;
 	u32 ulCLK;
 	unsigned int i;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 
-	if (chip->ac97)
-		snd_ac97_suspend(chip->ac97);
-	if (chip->ac97_secondary)
-		snd_ac97_suspend(chip->ac97_secondary);
+	snd_ac97_suspend(chip->ac97);
+	snd_ac97_suspend(chip->ac97_secondary);
 
 	ulCLK = snd_cs4281_peekBA0(chip, BA0_CLKCR1);
 	ulCLK |= CLKCR1_CKRA;
@@ -2048,18 +2043,21 @@ static int cs4281_suspend(struct snd_card *card, pm_message_t state)
 	ulCLK &= ~CLKCR1_CKRA;
 	snd_cs4281_pokeBA0(chip, BA0_CLKCR1, ulCLK);
 
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int cs4281_resume(struct snd_card *card)
+static int cs4281_resume(struct pci_dev *pci)
 {
-	struct cs4281 *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct cs4281 *chip = card->private_data;
 	unsigned int i;
 	u32 ulCLK;
 
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
 
 	ulCLK = snd_cs4281_peekBA0(chip, BA0_CLKCR1);
 	ulCLK |= CLKCR1_CKRA;
@@ -2072,15 +2070,14 @@ static int cs4281_resume(struct snd_card *card)
 		if (saved_regs[i])
 			snd_cs4281_pokeBA0(chip, saved_regs[i], chip->suspend_regs[i]);
 
-	if (chip->ac97)
-		snd_ac97_resume(chip->ac97);
-	if (chip->ac97_secondary)
-		snd_ac97_resume(chip->ac97_secondary);
+	snd_ac97_resume(chip->ac97);
+	snd_ac97_resume(chip->ac97_secondary);
 
 	ulCLK = snd_cs4281_peekBA0(chip, BA0_CLKCR1);
 	ulCLK &= ~CLKCR1_CKRA;
 	snd_cs4281_pokeBA0(chip, BA0_CLKCR1, ulCLK);
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -2090,7 +2087,10 @@ static struct pci_driver driver = {
 	.id_table = snd_cs4281_ids,
 	.probe = snd_cs4281_probe,
 	.remove = __devexit_p(snd_cs4281_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = cs4281_suspend,
+	.resume = cs4281_resume,
+#endif
 };
 	
 static int __init alsa_card_cs4281_init(void)
