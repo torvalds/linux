@@ -68,7 +68,7 @@ MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for ESx688 driver.");
 module_param_array(dma8, int, NULL, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for ESx688 driver.");
 
-static snd_card_t *snd_audiodrive_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_audiodrive_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #define PFX	"es1688: "
 
@@ -77,10 +77,10 @@ static int __init snd_audiodrive_probe(int dev)
 	static int possible_irqs[] = {5, 9, 10, 7, -1};
 	static int possible_dmas[] = {1, 3, 0, -1};
 	int xirq, xdma, xmpu_irq;
-	snd_card_t *card;
-	es1688_t *chip;
-	opl3_t *opl3;
-	snd_pcm_t *pcm;
+	struct snd_card *card;
+	struct snd_es1688 *chip;
+	struct snd_opl3 *opl3;
+	struct snd_pcm *pcm;
 	int err;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
