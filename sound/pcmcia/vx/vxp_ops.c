@@ -96,7 +96,7 @@ static int vx_check_magic(vx_core_t *chip)
 		c = vx_inb(chip, CDSP);
 		if (c == CDSP_MAGIC)
 			return 0;
-		snd_vx_delay(chip, 10);
+		msleep(10);
 	} while (time_after_eq(end_time, jiffies));
 	snd_printk(KERN_ERR "cannot find xilinx magic word (%x)\n", c);
 	return -EIO;
@@ -134,12 +134,12 @@ static void vxp_reset_codec(vx_core_t *_chip)
 	/* Set the reset CODEC bit to 1. */
 	vx_outb(chip, CDSP, chip->regCDSP | VXP_CDSP_CODEC_RESET_MASK);
 	vx_inb(chip, CDSP);
-	snd_vx_delay(_chip, 10);
+	msleep(10);
 	/* Set the reset CODEC bit to 0. */
 	chip->regCDSP &= ~VXP_CDSP_CODEC_RESET_MASK;
 	vx_outb(chip, CDSP, chip->regCDSP);
 	vx_inb(chip, CDSP);
-	snd_vx_delay(_chip, 1);
+	msleep(1);
 }
 
 /*
@@ -207,7 +207,7 @@ static int vxp_load_xilinx_binary(vx_core_t *_chip, const struct firmware *fw)
 	vx_outb(chip, ICR, ICR_HF0);
 
 	/* TEMPO 250ms : wait until Xilinx is downloaded */
-	snd_vx_delay(_chip, 300);
+	msleep(300);
 
 	/* test magical word */
 	if (vx_check_magic(_chip) < 0)
@@ -221,7 +221,7 @@ static int vxp_load_xilinx_binary(vx_core_t *_chip, const struct firmware *fw)
 	chip->regDIALOG |= VXP_DLG_XILINX_REPROG_MASK;
 	vx_outb(chip, DIALOG, chip->regDIALOG);
 	vx_inb(chip, DIALOG);
-	snd_vx_delay(_chip, 10);
+	msleep(10);
 	chip->regDIALOG &= ~VXP_DLG_XILINX_REPROG_MASK;
 	vx_outb(chip, DIALOG, chip->regDIALOG);
 	vx_inb(chip, DIALOG);

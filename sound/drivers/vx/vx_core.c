@@ -41,18 +41,6 @@ MODULE_LICENSE("GPL");
 
 
 /*
- * snd_vx_delay - delay for the specified time
- * @xmsec: the time to delay in msec
- */
-void snd_vx_delay(vx_core_t *chip, int xmsec)
-{
-	if (! in_interrupt() && xmsec >= 1000 / HZ)
-		msleep(xmsec);
-	else
-		mdelay(xmsec);
-}
-
-/*
  * vx_check_reg_bit - wait for the specified bit is set/reset on a register
  * @reg: register to check
  * @mask: bit mask
@@ -76,7 +64,7 @@ int snd_vx_check_reg_bit(vx_core_t *chip, int reg, int mask, int bit, int time)
 	do {
 		if ((snd_vx_inb(chip, reg) & mask) == bit)
 			return 0;
-		//snd_vx_delay(chip, 10);
+		//msleep(10);
 	} while (time_after_eq(end_time, jiffies));
 	snd_printd(KERN_DEBUG "vx_check_reg_bit: timeout, reg=%s, mask=0x%x, val=0x%x\n", reg_names[reg], mask, snd_vx_inb(chip, reg));
 	return -EIO;
@@ -664,7 +652,7 @@ int snd_vx_dsp_boot(vx_core_t *chip, const struct firmware *boot)
 
 	if ((err = snd_vx_load_boot_image(chip, boot)) < 0)
 		return err;
-	snd_vx_delay(chip, 10);
+	msleep(10);
 
 	return 0;
 }
@@ -704,7 +692,7 @@ int snd_vx_dsp_load(vx_core_t *chip, const struct firmware *dsp)
 	}
 	snd_printdd(KERN_DEBUG "checksum = 0x%08x\n", csum);
 
-	snd_vx_delay(chip, 200);
+	msleep(200);
 
 	if ((err = vx_wait_isr_bit(chip, ISR_CHK)) < 0)
 		return err;
@@ -831,7 +819,6 @@ EXPORT_SYMBOL(snd_vx_create);
 EXPORT_SYMBOL(snd_vx_setup_firmware);
 EXPORT_SYMBOL(snd_vx_free_firmware);
 EXPORT_SYMBOL(snd_vx_irq_handler);
-EXPORT_SYMBOL(snd_vx_delay);
 EXPORT_SYMBOL(snd_vx_dsp_boot);
 EXPORT_SYMBOL(snd_vx_dsp_load);
 EXPORT_SYMBOL(snd_vx_load_boot_image);

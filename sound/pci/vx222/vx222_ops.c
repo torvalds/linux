@@ -154,7 +154,7 @@ static void vx2_reset_dsp(vx_core_t *_chip)
 	/* set the reset dsp bit to 0 */
 	vx_outl(chip, CDSP, chip->regCDSP & ~VX_CDSP_DSP_RESET_MASK);
 
-	snd_vx_delay(_chip, XX_DSP_RESET_WAIT_TIME);
+	mdelay(XX_DSP_RESET_WAIT_TIME);
 
 	chip->regCDSP |= VX_CDSP_DSP_RESET_MASK;
 	/* set the reset dsp bit to 1 */
@@ -362,10 +362,10 @@ static int vx2_load_xilinx_binary(vx_core_t *chip, const struct firmware *xilinx
 	/* XILINX reset (wait at least 1 milisecond between reset on and off). */
 	vx_outl(chip, CNTRL, VX_CNTRL_REGISTER_VALUE | VX_XILINX_RESET_MASK);
 	vx_inl(chip, CNTRL);
-	snd_vx_delay(chip, 10);
+	msleep(10);
 	vx_outl(chip, CNTRL, VX_CNTRL_REGISTER_VALUE);
 	vx_inl(chip, CNTRL);
-	snd_vx_delay(chip, 10);
+	msleep(10);
 
 	if (chip->type == VX_TYPE_BOARD)
 		port = VX_CNTRL;
@@ -381,7 +381,7 @@ static int vx2_load_xilinx_binary(vx_core_t *chip, const struct firmware *xilinx
 	}
 	put_xilinx_data(chip, port, 4, 0xff); /* end signature */
 
-	snd_vx_delay(chip, 200);
+	msleep(200);
 
 	/* test after loading (is buggy with VX222) */
 	if (chip->type != VX_TYPE_BOARD) {
@@ -720,17 +720,17 @@ static void vx2_reset_codec(vx_core_t *_chip)
 	/* Set the reset CODEC bit to 0. */
 	vx_outl(chip, CDSP, chip->regCDSP &~ VX_CDSP_CODEC_RESET_MASK);
 	vx_inl(chip, CDSP);
-	snd_vx_delay(_chip, 10);
+	msleep(10);
 	/* Set the reset CODEC bit to 1. */
 	chip->regCDSP |= VX_CDSP_CODEC_RESET_MASK;
 	vx_outl(chip, CDSP, chip->regCDSP);
 	vx_inl(chip, CDSP);
 	if (_chip->type == VX_TYPE_BOARD) {
-		snd_vx_delay(_chip, 1);
+		msleep(1);
 		return;
 	}
 
-	snd_vx_delay(_chip, 5);  /* additionnel wait time for AKM's */
+	msleep(5);  /* additionnel wait time for AKM's */
 
 	vx2_write_codec_reg(_chip, AKM_CODEC_POWER_CONTROL_CMD); /* DAC power up, ADC power up, Vref power down */
 	

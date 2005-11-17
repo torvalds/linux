@@ -274,8 +274,6 @@ static inline void snd_vx_outl(vx_core_t *chip, int reg, unsigned int val)
 #define vx_inl(chip,reg)	snd_vx_inl(chip, VX_##reg)
 #define vx_outl(chip,reg,val)	snd_vx_outl(chip, VX_##reg,val)
 
-void snd_vx_delay(vx_core_t *chip, int msec);
-
 static inline void vx_reset_dsp(vx_core_t *chip)
 {
 	snd_assert(chip->ops->reset_dsp, return);
