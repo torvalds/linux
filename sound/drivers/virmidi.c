@@ -75,17 +75,17 @@ MODULE_PARM_DESC(enable, "Enable this soundcard.");
 module_param_array(midi_devs, int, NULL, 0444);
 MODULE_PARM_DESC(midi_devs, "MIDI devices # (1-8)");
 
-typedef struct snd_card_virmidi {
-	snd_card_t *card;
-	snd_rawmidi_t *midi[MAX_MIDI_DEVICES];
-} snd_card_virmidi_t;
+struct snd_card_virmidi {
+	struct snd_card *card;
+	struct snd_rawmidi *midi[MAX_MIDI_DEVICES];
+};
 
-static snd_card_t *snd_virmidi_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_virmidi_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 
 static int __init snd_card_virmidi_probe(int dev)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_card_virmidi *vmidi;
 	int idx, err;
 
@@ -103,8 +103,8 @@ static int __init snd_card_virmidi_probe(int dev)
 		midi_devs[dev] = MAX_MIDI_DEVICES;
 	}
 	for (idx = 0; idx < midi_devs[dev]; idx++) {
-		snd_rawmidi_t *rmidi;
-		snd_virmidi_dev_t *rdev;
+		struct snd_rawmidi *rmidi;
+		struct snd_virmidi_dev *rdev;
 		if ((err = snd_virmidi_new(card, idx, &rmidi)) < 0)
 			goto __nodev;
 		rdev = rmidi->private_data;

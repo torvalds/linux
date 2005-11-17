@@ -42,7 +42,7 @@ MODULE_SUPPORTED_DEVICE("{{ALSA,Dummy soundcard}}");
 
 #if 0 /* emu10k1 emulation */
 #define MAX_BUFFER_SIZE		(128 * 1024)
-static int emu10k1_playback_constraints(snd_pcm_runtime_t *runtime)
+static int emu10k1_playback_constraints(struct snd_pcm_runtime *runtime)
 {
 	int err;
 	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
@@ -149,15 +149,15 @@ MODULE_PARM_DESC(pcm_substreams, "PCM substreams # (1-16) for dummy driver.");
 #define MIXER_ADDR_CD		4
 #define MIXER_ADDR_LAST		4
 
-typedef struct snd_card_dummy {
-	snd_card_t *card;
+struct snd_dummy {
+	struct snd_card *card;
 	spinlock_t mixer_lock;
 	int mixer_volume[MIXER_ADDR_LAST+1][2];
 	int capture_source[MIXER_ADDR_LAST+1][2];
-} snd_card_dummy_t;
+};
 
-typedef struct snd_card_dummy_pcm {
-	snd_card_dummy_t *dummy;
+struct snd_dummy_pcm {
+	struct snd_dummy *dummy;
 	spinlock_t lock;
 	struct timer_list timer;
 	unsigned int pcm_size;
@@ -166,27 +166,27 @@ typedef struct snd_card_dummy_pcm {
 	unsigned int pcm_jiffie;	/* bytes per one jiffie */
 	unsigned int pcm_irq_pos;	/* IRQ position */
 	unsigned int pcm_buf_pos;	/* position in buffer */
-	snd_pcm_substream_t *substream;
-} snd_card_dummy_pcm_t;
+	struct snd_pcm_substream *substream;
+};
 
-static snd_card_t *snd_dummy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_dummy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 
-static inline void snd_card_dummy_pcm_timer_start(snd_card_dummy_pcm_t *dpcm)
+static inline void snd_card_dummy_pcm_timer_start(struct snd_dummy_pcm *dpcm)
 {
 	dpcm->timer.expires = 1 + jiffies;
 	add_timer(&dpcm->timer);
 }
 
-static inline void snd_card_dummy_pcm_timer_stop(snd_card_dummy_pcm_t *dpcm)
+static inline void snd_card_dummy_pcm_timer_stop(struct snd_dummy_pcm *dpcm)
 {
 	del_timer(&dpcm->timer);
 }
 
-static int snd_card_dummy_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
+static int snd_card_dummy_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_dummy_card_pcm_t *dpcm = runtime->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_dummy_pcm *dpcm = runtime->private_data;
 	int err = 0;
 
 	spin_lock(&dpcm->lock);
@@ -201,10 +201,10 @@ static int snd_card_dummy_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
 	return err;
 }
 
-static int snd_card_dummy_pcm_prepare(snd_pcm_substream_t * substream)
+static int snd_card_dummy_pcm_prepare(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_card_dummy_pcm_t *dpcm = runtime->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_dummy_pcm *dpcm = runtime->private_data;
 	unsigned int bps;
 
 	bps = runtime->rate * runtime->channels;
@@ -223,7 +223,7 @@ static int snd_card_dummy_pcm_prepare(snd_pcm_substream_t * substream)
 
 static void snd_card_dummy_pcm_timer_function(unsigned long data)
 {
-	snd_card_dummy_pcm_t *dpcm = (snd_card_dummy_pcm_t *)data;
+	struct snd_dummy_pcm *dpcm = (struct snd_dummy_pcm *)data;
 	
 	spin_lock(&dpcm->lock);
 	dpcm->timer.expires = 1 + jiffies;
@@ -240,15 +240,15 @@ static void snd_card_dummy_pcm_timer_function(unsigned long data)
 	spin_unlock(&dpcm->lock);
 }
 
-static snd_pcm_uframes_t snd_card_dummy_pcm_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_card_dummy_pcm_pointer(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_card_dummy_pcm_t *dpcm = runtime->private_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_dummy_pcm *dpcm = runtime->private_data;
 
 	return bytes_to_frames(runtime, dpcm->pcm_buf_pos);
 }
 
-static snd_pcm_hardware_t snd_card_dummy_playback =
+static struct snd_pcm_hardware snd_card_dummy_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -266,7 +266,7 @@ static snd_pcm_hardware_t snd_card_dummy_playback =
 	.fifo_size =		0,
 };
 
-static snd_pcm_hardware_t snd_card_dummy_capture =
+static struct snd_pcm_hardware snd_card_dummy_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -284,25 +284,25 @@ static snd_pcm_hardware_t snd_card_dummy_capture =
 	.fifo_size =		0,
 };
 
-static void snd_card_dummy_runtime_free(snd_pcm_runtime_t *runtime)
+static void snd_card_dummy_runtime_free(struct snd_pcm_runtime *runtime)
 {
 	kfree(runtime->private_data);
 }
 
-static int snd_card_dummy_hw_params(snd_pcm_substream_t * substream,
-				    snd_pcm_hw_params_t * hw_params)
+static int snd_card_dummy_hw_params(struct snd_pcm_substream *substream,
+				    struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
-static int snd_card_dummy_hw_free(snd_pcm_substream_t * substream)
+static int snd_card_dummy_hw_free(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static snd_card_dummy_pcm_t *new_pcm_stream(snd_pcm_substream_t *substream)
+static struct snd_dummy_pcm *new_pcm_stream(struct snd_pcm_substream *substream)
 {
-	snd_card_dummy_pcm_t *dpcm;
+	struct snd_dummy_pcm *dpcm;
 
 	dpcm = kzalloc(sizeof(*dpcm), GFP_KERNEL);
 	if (! dpcm)
@@ -315,10 +315,10 @@ static snd_card_dummy_pcm_t *new_pcm_stream(snd_pcm_substream_t *substream)
 	return dpcm;
 }
 
-static int snd_card_dummy_playback_open(snd_pcm_substream_t * substream)
+static int snd_card_dummy_playback_open(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_card_dummy_pcm_t *dpcm;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_dummy_pcm *dpcm;
 	int err;
 
 	if ((dpcm = new_pcm_stream(substream)) == NULL)
@@ -340,10 +340,10 @@ static int snd_card_dummy_playback_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_card_dummy_capture_open(snd_pcm_substream_t * substream)
+static int snd_card_dummy_capture_open(struct snd_pcm_substream *substream)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_card_dummy_pcm_t *dpcm;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_dummy_pcm *dpcm;
 	int err;
 
 	if ((dpcm = new_pcm_stream(substream)) == NULL)
@@ -365,17 +365,17 @@ static int snd_card_dummy_capture_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_card_dummy_playback_close(snd_pcm_substream_t * substream)
+static int snd_card_dummy_playback_close(struct snd_pcm_substream *substream)
 {
 	return 0;
 }
 
-static int snd_card_dummy_capture_close(snd_pcm_substream_t * substream)
+static int snd_card_dummy_capture_close(struct snd_pcm_substream *substream)
 {
 	return 0;
 }
 
-static snd_pcm_ops_t snd_card_dummy_playback_ops = {
+static struct snd_pcm_ops snd_card_dummy_playback_ops = {
 	.open =			snd_card_dummy_playback_open,
 	.close =		snd_card_dummy_playback_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -386,7 +386,7 @@ static snd_pcm_ops_t snd_card_dummy_playback_ops = {
 	.pointer =		snd_card_dummy_pcm_pointer,
 };
 
-static snd_pcm_ops_t snd_card_dummy_capture_ops = {
+static struct snd_pcm_ops snd_card_dummy_capture_ops = {
 	.open =			snd_card_dummy_capture_open,
 	.close =		snd_card_dummy_capture_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -397,12 +397,13 @@ static snd_pcm_ops_t snd_card_dummy_capture_ops = {
 	.pointer =		snd_card_dummy_pcm_pointer,
 };
 
-static int __init snd_card_dummy_pcm(snd_card_dummy_t *dummy, int device, int substreams)
+static int __init snd_card_dummy_pcm(struct snd_dummy *dummy, int device, int substreams)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
-	if ((err = snd_pcm_new(dummy->card, "Dummy PCM", device, substreams, substreams, &pcm)) < 0)
+	if ((err = snd_pcm_new(dummy->card, "Dummy PCM", device,
+			       substreams, substreams, &pcm)) < 0)
 		return err;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_card_dummy_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_card_dummy_capture_ops);
@@ -421,7 +422,8 @@ static int __init snd_card_dummy_pcm(snd_card_dummy_t *dummy, int device, int su
   .get = snd_dummy_volume_get, .put = snd_dummy_volume_put, \
   .private_value = addr }
 
-static int snd_dummy_volume_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_dummy_volume_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -430,9 +432,10 @@ static int snd_dummy_volume_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
  
-static int snd_dummy_volume_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_dummy_volume_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
-	snd_card_dummy_t *dummy = snd_kcontrol_chip(kcontrol);
+	struct snd_dummy *dummy = snd_kcontrol_chip(kcontrol);
 	int addr = kcontrol->private_value;
 
 	spin_lock_irq(&dummy->mixer_lock);
@@ -442,9 +445,10 @@ static int snd_dummy_volume_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int snd_dummy_volume_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_dummy_volume_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
-	snd_card_dummy_t *dummy = snd_kcontrol_chip(kcontrol);
+	struct snd_dummy *dummy = snd_kcontrol_chip(kcontrol);
 	int change, addr = kcontrol->private_value;
 	int left, right;
 
@@ -473,7 +477,8 @@ static int snd_dummy_volume_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
   .get = snd_dummy_capsrc_get, .put = snd_dummy_capsrc_put, \
   .private_value = addr }
 
-static int snd_dummy_capsrc_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_dummy_capsrc_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 2;
@@ -482,9 +487,10 @@ static int snd_dummy_capsrc_info(snd_kcontrol_t * kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
  
-static int snd_dummy_capsrc_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_dummy_capsrc_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
 {
-	snd_card_dummy_t *dummy = snd_kcontrol_chip(kcontrol);
+	struct snd_dummy *dummy = snd_kcontrol_chip(kcontrol);
 	int addr = kcontrol->private_value;
 
 	spin_lock_irq(&dummy->mixer_lock);
@@ -494,9 +500,9 @@ static int snd_dummy_capsrc_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	return 0;
 }
 
-static int snd_dummy_capsrc_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_dummy_capsrc_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	snd_card_dummy_t *dummy = snd_kcontrol_chip(kcontrol);
+	struct snd_dummy *dummy = snd_kcontrol_chip(kcontrol);
 	int change, addr = kcontrol->private_value;
 	int left, right;
 
@@ -511,7 +517,7 @@ static int snd_dummy_capsrc_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 	return change;
 }
 
-static snd_kcontrol_new_t snd_dummy_controls[] = {
+static struct snd_kcontrol_new snd_dummy_controls[] = {
 DUMMY_VOLUME("Master Volume", 0, MIXER_ADDR_MASTER),
 DUMMY_CAPSRC("Master Capture Switch", 0, MIXER_ADDR_MASTER),
 DUMMY_VOLUME("Synth Volume", 0, MIXER_ADDR_SYNTH),
@@ -524,9 +530,9 @@ DUMMY_VOLUME("CD Volume", 0, MIXER_ADDR_CD),
 DUMMY_CAPSRC("CD Capture Switch", 0, MIXER_ADDR_MASTER)
 };
 
-static int __init snd_card_dummy_new_mixer(snd_card_dummy_t * dummy)
+static int __init snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 {
-	snd_card_t *card = dummy->card;
+	struct snd_card *card = dummy->card;
 	unsigned int idx;
 	int err;
 
@@ -543,17 +549,17 @@ static int __init snd_card_dummy_new_mixer(snd_card_dummy_t * dummy)
 
 static int __init snd_card_dummy_probe(int dev)
 {
-	snd_card_t *card;
-	struct snd_card_dummy *dummy;
+	struct snd_card *card;
+	struct snd_dummy *dummy;
 	int idx, err;
 
 	if (!enable[dev])
 		return -ENODEV;
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_card_dummy));
+			    sizeof(struct snd_dummy));
 	if (card == NULL)
 		return -ENOMEM;
-	dummy = (struct snd_card_dummy *)card->private_data;
+	dummy = card->private_data;
 	dummy->card = card;
 	for (idx = 0; idx < MAX_PCM_DEVICES && idx < pcm_devs[dev]; idx++) {
 		if (pcm_substreams[dev] < 1)

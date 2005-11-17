@@ -130,12 +130,12 @@ typedef struct mtpav_port {
 	u8 hwport;
 	u8 mode;
 	u8 running_status;
-	snd_rawmidi_substream_t *input;
-	snd_rawmidi_substream_t *output;
+	struct snd_rawmidi_substream *input;
+	struct snd_rawmidi_substream *output;
 } mtpav_port_t;
 
 typedef struct mtpav {
-	snd_card_t *card;
+	struct snd_card *card;
 	unsigned long port;
 	struct resource *res_port;
 	int irq;			/* interrupt (for inputs) */
@@ -143,7 +143,7 @@ typedef struct mtpav {
 	int share_irq;			/* number of accesses to input interrupts */
 	int istimer;			/* number of accesses to timer interrupts */
 	struct timer_list timer;	/* timer interrupts for outputs */
-	snd_rawmidi_t *rmidi;
+	struct snd_rawmidi *rmidi;
 	int num_ports;		/* number of hw ports (1-8) */
 	mtpav_port_t ports[NUMPORTS];	/* all ports including computer, adat and bc */
 
@@ -292,7 +292,7 @@ static void snd_mtpav_send_byte(mtpav_t *chip, u8 byte)
 
 /* call this with spin lock held */
 static void snd_mtpav_output_port_write(mtpav_port_t *port,
-					snd_rawmidi_substream_t *substream)
+					struct snd_rawmidi_substream *substream)
 {
 	u8 outbyte;
 
@@ -324,7 +324,7 @@ static void snd_mtpav_output_port_write(mtpav_port_t *port,
 	} while (snd_rawmidi_transmit(substream, &outbyte, 1) == 1);
 }
 
-static void snd_mtpav_output_write(snd_rawmidi_substream_t * substream)
+static void snd_mtpav_output_write(struct snd_rawmidi_substream *substream)
 {
 	mtpav_port_t *port = &mtp_card->ports[substream->number];
 	unsigned long flags;
@@ -353,7 +353,7 @@ static void snd_mtpav_portscan(mtpav_t *chip)	// put mtp into smart routing mode
 /*
  */
 
-static int snd_mtpav_input_open(snd_rawmidi_substream_t * substream)
+static int snd_mtpav_input_open(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	mtpav_port_t *portp = &mtp_card->ports[substream->number];
@@ -371,7 +371,7 @@ static int snd_mtpav_input_open(snd_rawmidi_substream_t * substream)
 /*
  */
 
-static int snd_mtpav_input_close(snd_rawmidi_substream_t *substream)
+static int snd_mtpav_input_close(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	mtpav_port_t *portp = &mtp_card->ports[substream->number];
@@ -392,7 +392,7 @@ static int snd_mtpav_input_close(snd_rawmidi_substream_t *substream)
 /*
  */
 
-static void snd_mtpav_input_trigger(snd_rawmidi_substream_t * substream, int up)
+static void snd_mtpav_input_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	unsigned long flags;
 	mtpav_port_t *portp = &mtp_card->ports[substream->number];
@@ -449,7 +449,7 @@ static void snd_mtpav_remove_output_timer(mtpav_t *chip)
 /*
  */
 
-static int snd_mtpav_output_open(snd_rawmidi_substream_t * substream)
+static int snd_mtpav_output_open(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	mtpav_port_t *portp = &mtp_card->ports[substream->number];
@@ -464,7 +464,7 @@ static int snd_mtpav_output_open(snd_rawmidi_substream_t * substream)
 /*
  */
 
-static int snd_mtpav_output_close(snd_rawmidi_substream_t * substream)
+static int snd_mtpav_output_close(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	mtpav_port_t *portp = &mtp_card->ports[substream->number];
@@ -479,7 +479,7 @@ static int snd_mtpav_output_close(snd_rawmidi_substream_t * substream)
 /*
  */
 
-static void snd_mtpav_output_trigger(snd_rawmidi_substream_t * substream, int up)
+static void snd_mtpav_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	unsigned long flags;
 	mtpav_port_t *portp = &mtp_card->ports[substream->number];
@@ -611,13 +611,13 @@ static int snd_mtpav_get_ISA(mtpav_t * mcard)
 /*
  */
 
-static snd_rawmidi_ops_t snd_mtpav_output = {
+static struct snd_rawmidi_ops snd_mtpav_output = {
 	.open =		snd_mtpav_output_open,
 	.close =	snd_mtpav_output_close,
 	.trigger =	snd_mtpav_output_trigger,
 };
 
-static snd_rawmidi_ops_t snd_mtpav_input = {
+static struct snd_rawmidi_ops snd_mtpav_input = {
 	.open =		snd_mtpav_input_open,
 	.close =	snd_mtpav_input_close,
 	.trigger =	snd_mtpav_input_trigger,
@@ -628,7 +628,7 @@ static snd_rawmidi_ops_t snd_mtpav_input = {
  * get RAWMIDI resources
  */
 
-static void snd_mtpav_set_name(mtpav_t *chip, snd_rawmidi_substream_t *substream)
+static void snd_mtpav_set_name(mtpav_t *chip, struct snd_rawmidi_substream *substream)
 {
 	if (substream->number >= 0 && substream->number < chip->num_ports)
 		sprintf(substream->name, "MTP direct %d", (substream->number % chip->num_ports) + 1);
@@ -645,8 +645,8 @@ static void snd_mtpav_set_name(mtpav_t *chip, snd_rawmidi_substream_t *substream
 static int snd_mtpav_get_RAWMIDI(mtpav_t * mcard)
 {
 	int rval = 0;
-	snd_rawmidi_t *rawmidi;
-	snd_rawmidi_substream_t *substream;
+	struct snd_rawmidi *rawmidi;
+	struct snd_rawmidi_substream *substream;
 	struct list_head *list;
 
 	//printk("entering snd_mtpav_get_RAWMIDI\n");
@@ -666,12 +666,12 @@ static int snd_mtpav_get_RAWMIDI(mtpav_t * mcard)
 	rawmidi = mcard->rmidi;
 
 	list_for_each(list, &rawmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substreams) {
-		substream = list_entry(list, snd_rawmidi_substream_t, list);
+		substream = list_entry(list, struct snd_rawmidi_substream, list);
 		snd_mtpav_set_name(mcard, substream);
 		substream->ops = &snd_mtpav_input;
 	}
 	list_for_each(list, &rawmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams) {
-		substream = list_entry(list, snd_rawmidi_substream_t, list);
+		substream = list_entry(list, struct snd_rawmidi_substream, list);
 		snd_mtpav_set_name(mcard, substream);
 		substream->ops = &snd_mtpav_output;
 		mcard->ports[substream->number].hwport = translate_subdevice_to_hwport(mcard, substream->number);
