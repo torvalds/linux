@@ -118,7 +118,7 @@ static void __devinit snd_vortex_workaround(struct pci_dev *vortex, int fix)
 
 // component-destructor
 // (see "Management of Cards and Components")
-static int snd_vortex_dev_free(snd_device_t * device)
+static int snd_vortex_dev_free(struct snd_device *device)
 {
 	vortex_t *vortex = device->device_data;
 
@@ -137,11 +137,11 @@ static int snd_vortex_dev_free(snd_device_t * device)
 // chip-specific constructor
 // (see "Management of Cards and Components")
 static int __devinit
-snd_vortex_create(snd_card_t * card, struct pci_dev *pci, vortex_t ** rchip)
+snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 {
 	vortex_t *chip;
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free = snd_vortex_dev_free,
 	};
 
@@ -233,7 +233,7 @@ static int __devinit
 snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
+	struct snd_card *card;
 	vortex_t *chip;
 	int err;
 
