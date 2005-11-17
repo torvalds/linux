@@ -105,14 +105,14 @@ module_param_array(joystick_port, int, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port address for ALS4000 soundcard. (0 = disabled)");
 #endif
 
-typedef struct {
+struct snd_card_als4000 {
 	/* most frequent access first */
 	unsigned long gcr;
 	struct pci_dev *pci;
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
 #endif
-} snd_card_als4000_t;
+};
 
 static struct pci_device_id snd_als4000_ids[] = {
 	{ 0x4005, 0x4000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0, },   /* ALS4000 */
@@ -127,7 +127,7 @@ static inline void snd_als4000_gcr_write_addr(unsigned long port, u32 reg, u32 v
 	outl(val, port+0x08);
 }
 
-static inline void snd_als4000_gcr_write(sb_t *sb, u32 reg, u32 val)
+static inline void snd_als4000_gcr_write(struct snd_sb *sb, u32 reg, u32 val)
 {
 	snd_als4000_gcr_write_addr(sb->alt_port, reg, val);
 }	
@@ -138,12 +138,12 @@ static inline u32 snd_als4000_gcr_read_addr(unsigned long port, u32 reg)
 	return inl(port+0x08);
 }
 
-static inline u32 snd_als4000_gcr_read(sb_t *sb, u32 reg)
+static inline u32 snd_als4000_gcr_read(struct snd_sb *sb, u32 reg)
 {
 	return snd_als4000_gcr_read_addr(sb->alt_port, reg);
 }
 
-static void snd_als4000_set_rate(sb_t *chip, unsigned int rate)
+static void snd_als4000_set_rate(struct snd_sb *chip, unsigned int rate)
 {
 	if (!(chip->mode & SB_RATE_LOCK)) {
 		snd_sbdsp_command(chip, SB_DSP_SAMPLE_RATE_OUT);
@@ -152,13 +152,15 @@ static void snd_als4000_set_rate(sb_t *chip, unsigned int rate)
 	}
 }
 
-static inline void snd_als4000_set_capture_dma(sb_t *chip, dma_addr_t addr, unsigned size)
+static inline void snd_als4000_set_capture_dma(struct snd_sb *chip,
+					       dma_addr_t addr, unsigned size)
 {
 	snd_als4000_gcr_write(chip, 0xa2, addr);
 	snd_als4000_gcr_write(chip, 0xa3, (size-1));
 }
 
-static inline void snd_als4000_set_playback_dma(sb_t *chip, dma_addr_t addr, unsigned size)
+static inline void snd_als4000_set_playback_dma(struct snd_sb *chip,
+						dma_addr_t addr, unsigned size)
 {
 	snd_als4000_gcr_write(chip, 0x91, addr);
 	snd_als4000_gcr_write(chip, 0x92, (size-1)|0x180000);
@@ -168,7 +170,7 @@ static inline void snd_als4000_set_playback_dma(sb_t *chip, dma_addr_t addr, uns
 #define ALS4000_FORMAT_16BIT	(1<<1)
 #define ALS4000_FORMAT_STEREO	(1<<2)
 
-static int snd_als4000_get_format(snd_pcm_runtime_t *runtime)
+static int snd_als4000_get_format(struct snd_pcm_runtime *runtime)
 {
 	int result;
 
@@ -220,23 +222,22 @@ CMD_SIGNED|CMD_STEREO,			/* ALS4000_FORMAT_S16L_STEREO */
 };	
 #define capture_cmd(chip) (capture_cmd_vals[(chip)->capture_format])
 
-static int snd_als4000_hw_params(snd_pcm_substream_t * substream,
-				 snd_pcm_hw_params_t * hw_params)
+static int snd_als4000_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
-static int snd_als4000_hw_free(snd_pcm_substream_t * substream)
+static int snd_als4000_hw_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
-static int snd_als4000_capture_prepare(snd_pcm_substream_t * substream)
+static int snd_als4000_capture_prepare(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	unsigned long flags;
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long size;
 	unsigned count;
 
@@ -249,22 +250,21 @@ static int snd_als4000_capture_prepare(snd_pcm_substream_t * substream)
 		count >>=1;
 	count--;
 
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	snd_als4000_set_rate(chip, runtime->rate);
 	snd_als4000_set_capture_dma(chip, runtime->dma_addr, size);
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	spin_lock_irqsave(&chip->mixer_lock, flags );
+	spin_unlock_irq(&chip->reg_lock);
+	spin_lock_irq(&chip->mixer_lock);
 	snd_sbmixer_write(chip, 0xdc, count);
 	snd_sbmixer_write(chip, 0xdd, count>>8);
-	spin_unlock_irqrestore(&chip->mixer_lock, flags );
+	spin_unlock_irq(&chip->mixer_lock);
 	return 0;
 }
 
-static int snd_als4000_playback_prepare(snd_pcm_substream_t *substream)
+static int snd_als4000_playback_prepare(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	unsigned long flags;
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long size;
 	unsigned count;
 
@@ -283,7 +283,7 @@ static int snd_als4000_playback_prepare(snd_pcm_substream_t *substream)
 	 * reordering, ...). Something seems to get enabled on playback
 	 * that I haven't found out how to disable again, which then causes
 	 * the switching pops to reach the speakers the next time here. */
-	spin_lock_irqsave(&chip->reg_lock, flags);
+	spin_lock_irq(&chip->reg_lock);
 	snd_als4000_set_rate(chip, runtime->rate);
 	snd_als4000_set_playback_dma(chip, runtime->dma_addr, size);
 	
@@ -294,14 +294,14 @@ static int snd_als4000_playback_prepare(snd_pcm_substream_t *substream)
 	snd_sbdsp_command(chip, count);
 	snd_sbdsp_command(chip, count>>8);
 	snd_sbdsp_command(chip, playback_cmd(chip).dma_off);	
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	spin_unlock_irq(&chip->reg_lock);
 	
 	return 0;
 }
 
-static int snd_als4000_capture_trigger(snd_pcm_substream_t * substream, int cmd)
+static int snd_als4000_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	int result = 0;
 	
 	spin_lock(&chip->mixer_lock);
@@ -318,9 +318,9 @@ static int snd_als4000_capture_trigger(snd_pcm_substream_t * substream, int cmd)
 	return result;
 }
 
-static int snd_als4000_playback_trigger(snd_pcm_substream_t * substream, int cmd)
+static int snd_als4000_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	int result = 0;
 
 	spin_lock(&chip->reg_lock);
@@ -337,9 +337,9 @@ static int snd_als4000_playback_trigger(snd_pcm_substream_t * substream, int cmd
 	return result;
 }
 
-static snd_pcm_uframes_t snd_als4000_capture_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_als4000_capture_pointer(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	unsigned int result;
 
 	spin_lock(&chip->reg_lock);	
@@ -348,9 +348,9 @@ static snd_pcm_uframes_t snd_als4000_capture_pointer(snd_pcm_substream_t * subst
 	return bytes_to_frames( substream->runtime, result );
 }
 
-static snd_pcm_uframes_t snd_als4000_playback_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_als4000_playback_pointer(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	unsigned result;
 
 	spin_lock(&chip->reg_lock);	
@@ -373,7 +373,7 @@ static snd_pcm_uframes_t snd_als4000_playback_pointer(snd_pcm_substream_t * subs
  * */
 static irqreturn_t snd_als4000_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	sb_t *chip = dev_id;
+	struct snd_sb *chip = dev_id;
 	unsigned gcr_status;
 	unsigned sb_status;
 
@@ -406,7 +406,7 @@ static irqreturn_t snd_als4000_interrupt(int irq, void *dev_id, struct pt_regs *
 
 /*****************************************************************/
 
-static snd_pcm_hardware_t snd_als4000_playback =
+static struct snd_pcm_hardware snd_als4000_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -425,7 +425,7 @@ static snd_pcm_hardware_t snd_als4000_playback =
 	.fifo_size =		0
 };
 
-static snd_pcm_hardware_t snd_als4000_capture =
+static struct snd_pcm_hardware snd_als4000_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -446,38 +446,38 @@ static snd_pcm_hardware_t snd_als4000_capture =
 
 /*****************************************************************/
 
-static int snd_als4000_playback_open(snd_pcm_substream_t * substream)
+static int snd_als4000_playback_open(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	chip->playback_substream = substream;
 	runtime->hw = snd_als4000_playback;
 	return 0;
 }
 
-static int snd_als4000_playback_close(snd_pcm_substream_t * substream)
+static int snd_als4000_playback_close(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 
 	chip->playback_substream = NULL;
 	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
-static int snd_als4000_capture_open(snd_pcm_substream_t * substream)
+static int snd_als4000_capture_open(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	chip->capture_substream = substream;
 	runtime->hw = snd_als4000_capture;
 	return 0;
 }
 
-static int snd_als4000_capture_close(snd_pcm_substream_t * substream)
+static int snd_als4000_capture_close(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 
 	chip->capture_substream = NULL;
 	snd_pcm_lib_free_pages(substream);
@@ -486,7 +486,7 @@ static int snd_als4000_capture_close(snd_pcm_substream_t * substream)
 
 /******************************************************************/
 
-static snd_pcm_ops_t snd_als4000_playback_ops = {
+static struct snd_pcm_ops snd_als4000_playback_ops = {
 	.open =		snd_als4000_playback_open,
 	.close =	snd_als4000_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -497,7 +497,7 @@ static snd_pcm_ops_t snd_als4000_playback_ops = {
 	.pointer =	snd_als4000_playback_pointer
 };
 
-static snd_pcm_ops_t snd_als4000_capture_ops = {
+static struct snd_pcm_ops snd_als4000_capture_ops = {
 	.open =		snd_als4000_capture_open,
 	.close =	snd_als4000_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -508,9 +508,9 @@ static snd_pcm_ops_t snd_als4000_capture_ops = {
 	.pointer =	snd_als4000_capture_pointer
 };
 
-static int __devinit snd_als4000_pcm(sb_t *chip, int device)
+static int __devinit snd_als4000_pcm(struct snd_sb *chip, int device)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	if ((err = snd_pcm_new(chip->card, "ALS4000 DSP", device, 1, 1, &pcm)) < 0)
@@ -551,7 +551,7 @@ static void snd_als4000_set_addr(unsigned long gcr,
 	snd_als4000_gcr_write_addr(gcr, 0xa9, confB);
 }
 
-static void __devinit snd_als4000_configure(sb_t *chip)
+static void __devinit snd_als4000_configure(struct snd_sb *chip)
 {
 	unsigned tmp;
 	int i;
@@ -576,7 +576,7 @@ static void __devinit snd_als4000_configure(sb_t *chip)
 }
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_als4000_create_gameport(snd_card_als4000_t *acard, int dev)
+static int __devinit snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev)
 {
 	struct gameport *gp;
 	struct resource *r;
@@ -622,7 +622,7 @@ static int __devinit snd_als4000_create_gameport(snd_card_als4000_t *acard, int 
 	return 0;
 }
 
-static void snd_als4000_free_gameport(snd_card_als4000_t *acard)
+static void snd_als4000_free_gameport(struct snd_card_als4000 *acard)
 {
 	if (acard->gameport) {
 		struct resource *r = gameport_get_port_data(acard->gameport);
@@ -635,13 +635,13 @@ static void snd_als4000_free_gameport(snd_card_als4000_t *acard)
 	}
 }
 #else
-static inline int snd_als4000_create_gameport(snd_card_als4000_t *acard, int dev) { return -ENOSYS; }
-static inline void snd_als4000_free_gameport(snd_card_als4000_t *acard) { }
+static inline int snd_als4000_create_gameport(struct snd_card_als4000 *acard, int dev) { return -ENOSYS; }
+static inline void snd_als4000_free_gameport(struct snd_card_als4000 *acard) { }
 #endif
 
-static void snd_card_als4000_free( snd_card_t *card )
+static void snd_card_als4000_free( struct snd_card *card )
 {
-	snd_card_als4000_t * acard = (snd_card_als4000_t *)card->private_data;
+	struct snd_card_als4000 * acard = (struct snd_card_als4000 *)card->private_data;
 
 	/* make sure that interrupts are disabled */
 	snd_als4000_gcr_write_addr( acard->gcr, 0x8c, 0);
@@ -655,11 +655,11 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 					  const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	snd_card_als4000_t *acard;
+	struct snd_card *card;
+	struct snd_card_als4000 *acard;
 	unsigned long gcr;
-	sb_t *chip;
-	opl3_t *opl3;
+	struct snd_sb *chip;
+	struct snd_opl3 *opl3;
 	unsigned short word;
 	int err;
 
@@ -693,14 +693,14 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 	pci_set_master(pci);
 	
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 
-			    sizeof( snd_card_als4000_t ) );
+			    sizeof( struct snd_card_als4000 ) );
 	if (card == NULL) {
 		pci_release_regions(pci);
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
 
-	acard = (snd_card_als4000_t *)card->private_data;
+	acard = (struct snd_card_als4000 *)card->private_data;
 	acard->pci = pci;
 	acard->gcr = gcr;
 	card->private_free = snd_card_als4000_free;
