@@ -1415,11 +1415,13 @@ static int __devinit snd_atiixp_mixer_new(struct atiixp *chip, int clock,
 /*
  * power management
  */
-static int snd_atiixp_suspend(struct snd_card *card, pm_message_t state)
+static int snd_atiixp_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct atiixp *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct atiixp *chip = card->private_data;
 	int i;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for (i = 0; i < NUM_ATI_PCMDEVS; i++)
 		if (chip->pcmdevs[i]) {
 			struct atiixp_dma *dma = &chip->dmas[i];
@@ -1429,31 +1431,32 @@ static int snd_atiixp_suspend(struct snd_card *card, pm_message_t state)
 			snd_pcm_suspend_all(chip->pcmdevs[i]);
 		}
 	for (i = 0; i < NUM_ATI_CODECS; i++)
-		if (chip->ac97[i])
-			snd_ac97_suspend(chip->ac97[i]);
+		snd_ac97_suspend(chip->ac97[i]);
 	snd_atiixp_aclink_down(chip);
 	snd_atiixp_chip_stop(chip);
 
-	pci_set_power_state(chip->pci, PCI_D3hot);
-	pci_disable_device(chip->pci);
+	pci_set_power_state(pci, PCI_D3hot);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int snd_atiixp_resume(struct snd_card *card)
+static int snd_atiixp_resume(struct pci_dev *pci)
 {
-	struct atiixp *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct atiixp *chip = card->private_data;
 	int i;
 
-	pci_enable_device(chip->pci);
-	pci_set_power_state(chip->pci, PCI_D0);
-	pci_set_master(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_power_state(pci, PCI_D0);
+	pci_set_master(pci);
 
 	snd_atiixp_aclink_reset(chip);
 	snd_atiixp_chip_start(chip);
 
 	for (i = 0; i < NUM_ATI_CODECS; i++)
-		if (chip->ac97[i])
-			snd_ac97_resume(chip->ac97[i]);
+		snd_ac97_resume(chip->ac97[i]);
 
 	for (i = 0; i < NUM_ATI_PCMDEVS; i++)
 		if (chip->pcmdevs[i]) {
@@ -1468,6 +1471,7 @@ static int snd_atiixp_resume(struct snd_card *card)
 			}
 		}
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -1604,6 +1608,7 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 	strcpy(card->shortname, "ATI IXP");
 	if ((err = snd_atiixp_create(card, pci, &chip)) < 0)
 		goto __error;
+	card->private_data = chip;
 
 	if ((err = snd_atiixp_aclink_reset(chip)) < 0)
 		goto __error;
@@ -1624,8 +1629,6 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 		 "%s rev %x with %s at %#lx, irq %i", card->shortname, revision,
 		 chip->ac97[0] ? snd_ac97_get_short_name(chip->ac97[0]) : "?",
 		 chip->addr, chip->irq);
-
-	snd_card_set_pm_callback(card, snd_atiixp_suspend, snd_atiixp_resume, chip);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto __error;
@@ -1649,7 +1652,10 @@ static struct pci_driver driver = {
 	.id_table = snd_atiixp_ids,
 	.probe = snd_atiixp_probe,
 	.remove = __devexit_p(snd_atiixp_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = snd_atiixp_suspend,
+	.resume = snd_atiixp_resume,
+#endif
 };
 
 
