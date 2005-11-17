@@ -73,7 +73,8 @@
 
 #include "ca0106.h"
 
-static int snd_ca0106_shared_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_shared_spdif_info(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -82,19 +83,19 @@ static int snd_ca0106_shared_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_i
 	return 0;
 }
 
-static int snd_ca0106_shared_spdif_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_shared_spdif_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.enumerated.item[0] = emu->spdif_enable;
 	return 0;
 }
 
-static int snd_ca0106_shared_spdif_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_shared_spdif_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
 	u32 mask;
@@ -125,7 +126,8 @@ static int snd_ca0106_shared_spdif_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static int snd_ca0106_capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_capture_source_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[6] = {
 		"SPDIF out", "i2s mixer out", "SPDIF in", "i2s in", "AC97 in", "SRC out"
@@ -140,19 +142,19 @@ static int snd_ca0106_capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem
 	return 0;
 }
 
-static int snd_ca0106_capture_source_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_capture_source_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.enumerated.item[0] = emu->capture_source;
 	return 0;
 }
 
-static int snd_ca0106_capture_source_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_capture_source_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
 	u32 mask;
@@ -169,7 +171,8 @@ static int snd_ca0106_capture_source_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static int snd_ca0106_capture_mic_line_in_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_capture_mic_line_in_info(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[2] = { "Line in", "Mic in" };
 
@@ -182,19 +185,19 @@ static int snd_ca0106_capture_mic_line_in_info(snd_kcontrol_t *kcontrol, snd_ctl
 	return 0;
 }
 
-static int snd_ca0106_capture_mic_line_in_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_capture_mic_line_in_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.enumerated.item[0] = emu->capture_mic_line_in;
 	return 0;
 }
 
-static int snd_ca0106_capture_mic_line_in_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_capture_mic_line_in_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
 	u32 tmp;
@@ -219,7 +222,7 @@ static int snd_ca0106_capture_mic_line_in_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static snd_kcontrol_new_t snd_ca0106_capture_mic_line_in __devinitdata =
+static struct snd_kcontrol_new snd_ca0106_capture_mic_line_in __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Mic/Line in Capture",
@@ -228,17 +231,18 @@ static snd_kcontrol_new_t snd_ca0106_capture_mic_line_in __devinitdata =
 	.put =		snd_ca0106_capture_mic_line_in_put
 };
 
-static int snd_ca0106_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_spdif_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
 	uinfo->count = 1;
 	return 0;
 }
 
-static int snd_ca0106_spdif_get(snd_kcontrol_t * kcontrol,
-                                 snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_spdif_get(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 
 	ucontrol->value.iec958.status[0] = (emu->spdif_bits[idx] >> 0) & 0xff;
@@ -248,8 +252,8 @@ static int snd_ca0106_spdif_get(snd_kcontrol_t * kcontrol,
         return 0;
 }
 
-static int snd_ca0106_spdif_get_mask(snd_kcontrol_t * kcontrol,
-				      snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_spdif_get_mask(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.iec958.status[0] = 0xff;
 	ucontrol->value.iec958.status[1] = 0xff;
@@ -258,10 +262,10 @@ static int snd_ca0106_spdif_get_mask(snd_kcontrol_t * kcontrol,
         return 0;
 }
 
-static int snd_ca0106_spdif_put(snd_kcontrol_t * kcontrol,
-                                 snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_spdif_put(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	int change;
 	unsigned int val;
@@ -278,7 +282,8 @@ static int snd_ca0106_spdif_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static int snd_ca0106_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_volume_info(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
 {
         uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
         uinfo->count = 2;
@@ -287,10 +292,10 @@ static int snd_ca0106_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
         return 0;
 }
 
-static int snd_ca0106_volume_get(snd_kcontrol_t * kcontrol,
-				 snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_volume_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-        ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+        struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
         unsigned int value;
 	int channel_id, reg;
 
@@ -303,10 +308,10 @@ static int snd_ca0106_volume_get(snd_kcontrol_t * kcontrol,
         return 0;
 }
 
-static int snd_ca0106_volume_put(snd_kcontrol_t * kcontrol,
-				 snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_volume_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-        ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+        struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
         unsigned int oval, nval;
 	int channel_id, reg;
 
@@ -334,7 +339,7 @@ static int snd_ca0106_volume_put(snd_kcontrol_t * kcontrol,
 }
 
 
-static snd_kcontrol_new_t snd_ca0106_volume_ctls[] __devinitdata = {
+static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 	CA_VOLUME("Analog Front Playback Volume",
 		  CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME2),
         CA_VOLUME("Analog Rear Playback Volume",
@@ -388,18 +393,18 @@ static snd_kcontrol_new_t snd_ca0106_volume_ctls[] __devinitdata = {
 	},
 };
 
-static int __devinit remove_ctl(snd_card_t *card, const char *name)
+static int __devinit remove_ctl(struct snd_card *card, const char *name)
 {
-	snd_ctl_elem_id_t id;
+	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
 	strcpy(id.name, name);
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	return snd_ctl_remove_id(card, &id);
 }
 
-static snd_kcontrol_t __devinit *ctl_find(snd_card_t *card, const char *name)
+static struct snd_kcontrol __devinit *ctl_find(struct snd_card *card, const char *name)
 {
-	snd_ctl_elem_id_t sid;
+	struct snd_ctl_elem_id sid;
 	memset(&sid, 0, sizeof(sid));
 	/* FIXME: strcpy is bad. */
 	strcpy(sid.name, name);
@@ -407,9 +412,9 @@ static snd_kcontrol_t __devinit *ctl_find(snd_card_t *card, const char *name)
 	return snd_ctl_find_id(card, &sid);
 }
 
-static int __devinit rename_ctl(snd_card_t *card, const char *src, const char *dst)
+static int __devinit rename_ctl(struct snd_card *card, const char *src, const char *dst)
 {
-	snd_kcontrol_t *kctl = ctl_find(card, src);
+	struct snd_kcontrol *kctl = ctl_find(card, src);
 	if (kctl) {
 		strcpy(kctl->id.name, dst);
 		return 0;
@@ -417,10 +422,10 @@ static int __devinit rename_ctl(snd_card_t *card, const char *src, const char *d
 	return -ENOENT;
 }
 
-int __devinit snd_ca0106_mixer(ca0106_t *emu)
+int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 {
 	int i, err;
-        snd_card_t *card = emu->card;
+        struct snd_card *card = emu->card;
 	char **c;
 	static char *ca0106_remove_ctls[] = {
 		"Master Mono Playback Switch",
