@@ -33,7 +33,7 @@
 #include "envy24ht.h"
 #include "revo.h"
 
-static void revo_i2s_mclk_changed(ice1712_t *ice)
+static void revo_i2s_mclk_changed(struct snd_ice1712 *ice)
 {
 	/* assert PRST# to converters; MT05 bit 7 */
 	outb(inb(ICEMT1724(ice, AC97_CMD)) | 0x80, ICEMT1724(ice, AC97_CMD));
@@ -45,7 +45,7 @@ static void revo_i2s_mclk_changed(ice1712_t *ice)
 /*
  * change the rate of envy24HT, AK4355 and AK4381
  */
-static void revo_set_rate_val(akm4xxx_t *ak, unsigned int rate)
+static void revo_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
 	unsigned char old, tmp, dfs;
 	int reg, shift;
@@ -87,7 +87,7 @@ static void revo_set_rate_val(akm4xxx_t *ak, unsigned int rate)
  * initialize the chips on M-Audio Revolution cards
  */
 
-static akm4xxx_t akm_revo_front __devinitdata = {
+static struct snd_akm4xxx akm_revo_front __devinitdata = {
 	.type = SND_AK4381,
 	.num_dacs = 2,
 	.ops = {
@@ -107,7 +107,7 @@ static struct snd_ak4xxx_private akm_revo_front_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static akm4xxx_t akm_revo_surround __devinitdata = {
+static struct snd_akm4xxx akm_revo_surround __devinitdata = {
 	.type = SND_AK4355,
 	.idx_offset = 1,
 	.num_dacs = 6,
@@ -128,9 +128,9 @@ static struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static int __devinit revo_init(ice1712_t *ice)
+static int __devinit revo_init(struct snd_ice1712 *ice)
 {
-	akm4xxx_t *ak;
+	struct snd_akm4xxx *ak;
 	int err;
 
 	/* determine I2C, DACs and ADCs */
@@ -147,7 +147,7 @@ static int __devinit revo_init(ice1712_t *ice)
 	ice->gpio.i2s_mclk_changed = revo_i2s_mclk_changed;
 
 	/* second stage of initialization, analog parts and others */
-	ak = ice->akm = kcalloc(2, sizeof(akm4xxx_t), GFP_KERNEL);
+	ak = ice->akm = kcalloc(2, sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 2;
@@ -166,7 +166,7 @@ static int __devinit revo_init(ice1712_t *ice)
 }
 
 
-static int __devinit revo_add_controls(ice1712_t *ice)
+static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 {
 	int err;
 
