@@ -52,10 +52,6 @@ static int snd_trident_pcm_mixer_free(struct snd_trident *trident,
 				      struct snd_pcm_substream *substream);
 static irqreturn_t snd_trident_interrupt(int irq, void *dev_id,
 					 struct pt_regs *regs);
-#ifdef CONFIG_PM
-static int snd_trident_suspend(struct snd_card *card, pm_message_t state);
-static int snd_trident_resume(struct snd_card *card);
-#endif
 static int snd_trident_sis_reset(struct snd_trident *trident);
 
 static void snd_trident_clear_voices(struct snd_trident * trident,
@@ -3661,8 +3657,6 @@ int __devinit snd_trident_create(struct snd_card *card,
 
 	snd_trident_enable_eso(trident);
 
-	
-	snd_card_set_pm_callback(card, snd_trident_suspend, snd_trident_resume, trident);
 	snd_trident_proc_init(trident);
 	snd_card_set_dev(card, &pci->dev);
 	*rtrident = trident;
@@ -3938,20 +3932,19 @@ static void snd_trident_clear_voices(struct snd_trident * trident, unsigned shor
 }
 
 #ifdef CONFIG_PM
-static int snd_trident_suspend(struct snd_card *card, pm_message_t state)
+int snd_trident_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct snd_trident *trident = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_trident *trident = card->private_data;
 
 	trident->in_suspend = 1;
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(trident->pcm);
-	if (trident->foldback)
-		snd_pcm_suspend_all(trident->foldback);
-	if (trident->spdif)
-		snd_pcm_suspend_all(trident->spdif);
+	snd_pcm_suspend_all(trident->foldback);
+	snd_pcm_suspend_all(trident->spdif);
 
 	snd_ac97_suspend(trident->ac97);
-	if (trident->ac97_sec)
-		snd_ac97_suspend(trident->ac97_sec);
+	snd_ac97_suspend(trident->ac97_sec);
 
 	switch (trident->device) {
 	case TRIDENT_DEVICE_ID_DX:
@@ -3960,19 +3953,19 @@ static int snd_trident_suspend(struct snd_card *card, pm_message_t state)
 	case TRIDENT_DEVICE_ID_SI7018:
 		break;
 	}
-	pci_disable_device(trident->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int snd_trident_resume(struct snd_card *card)
+int snd_trident_resume(struct pci_dev *pci)
 {
-	struct snd_trident *trident = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct snd_trident *trident = card->private_data;
 
-	pci_enable_device(trident->pci);
-	if (pci_set_dma_mask(trident->pci, 0x3fffffff) < 0 ||
-	    pci_set_consistent_dma_mask(trident->pci, 0x3fffffff) < 0)
-		snd_printk(KERN_WARNING "trident: can't set the proper DMA mask\n");
-	pci_set_master(trident->pci); /* to be sure */
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci); /* to be sure */
 
 	switch (trident->device) {
 	case TRIDENT_DEVICE_ID_DX:
@@ -3987,14 +3980,14 @@ static int snd_trident_resume(struct snd_card *card)
 	}
 
 	snd_ac97_resume(trident->ac97);
-	if (trident->ac97_sec)
-		snd_ac97_resume(trident->ac97_sec);
+	snd_ac97_resume(trident->ac97_sec);
 
 	/* restore some registers */
 	outl(trident->musicvol_wavevol, TRID_REG(trident, T4D_MUSICVOL_WAVEVOL));
 
 	snd_trident_enable_eso(trident);
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	trident->in_suspend = 0;
 	return 0;
 }

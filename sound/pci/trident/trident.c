@@ -100,6 +100,7 @@ static int __devinit snd_trident_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = trident;
 
 	switch (trident->device) {
 	case TRIDENT_DEVICE_ID_DX:
@@ -180,7 +181,10 @@ static struct pci_driver driver = {
 	.id_table = snd_trident_ids,
 	.probe = snd_trident_probe,
 	.remove = __devexit_p(snd_trident_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = snd_trident_suspend,
+	.resume = snd_trident_resume,
+#endif
 };
 
 static int __init alsa_card_trident_init(void)
