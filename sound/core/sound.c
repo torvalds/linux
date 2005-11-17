@@ -108,13 +108,13 @@ static void snd_request_other(int minor)
 
 #endif				/* request_module support */
 
-static snd_minor_t *snd_minor_search(int minor)
+static struct snd_minor *snd_minor_search(int minor)
 {
 	struct list_head *list;
-	snd_minor_t *mptr;
+	struct snd_minor *mptr;
 
 	list_for_each(list, &snd_minors_hash[SNDRV_MINOR_CARD(minor)]) {
-		mptr = list_entry(list, snd_minor_t, list);
+		mptr = list_entry(list, struct snd_minor, list);
 		if (mptr->number == minor)
 			return mptr;
 	}
@@ -126,7 +126,7 @@ static int snd_open(struct inode *inode, struct file *file)
 	int minor = iminor(inode);
 	int card = SNDRV_MINOR_CARD(minor);
 	int dev = SNDRV_MINOR_DEVICE(minor);
-	snd_minor_t *mptr = NULL;
+	struct snd_minor *mptr = NULL;
 	struct file_operations *old_fops;
 	int err = 0;
 
@@ -164,7 +164,7 @@ static struct file_operations snd_fops =
 	.open =		snd_open
 };
 
-static int snd_kernel_minor(int type, snd_card_t * card, int dev)
+static int snd_kernel_minor(int type, struct snd_card *card, int dev)
 {
 	int minor;
 
@@ -196,7 +196,7 @@ static int snd_kernel_minor(int type, snd_card_t * card, int dev)
  * @type: the device type, SNDRV_DEVICE_TYPE_XXX
  * @card: the card instance
  * @dev: the device index
- * @reg: the snd_minor_t record
+ * @reg: the struct snd_minor record
  * @name: the device file name
  *
  * Registers an ALSA device file for the given card.
@@ -204,16 +204,16 @@ static int snd_kernel_minor(int type, snd_card_t * card, int dev)
  *
  * Retrurns zero if successful, or a negative error code on failure.
  */
-int snd_register_device(int type, snd_card_t * card, int dev, snd_minor_t * reg, const char *name)
+int snd_register_device(int type, struct snd_card *card, int dev, struct snd_minor * reg, const char *name)
 {
 	int minor = snd_kernel_minor(type, card, dev);
-	snd_minor_t *preg;
+	struct snd_minor *preg;
 	struct device *device = NULL;
 
 	if (minor < 0)
 		return minor;
 	snd_assert(name, return -EINVAL);
-	preg = (snd_minor_t *)kmalloc(sizeof(snd_minor_t) + strlen(name) + 1, GFP_KERNEL);
+	preg = kmalloc(sizeof(struct snd_minor) + strlen(name) + 1, GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
 	*preg = *reg;
@@ -248,10 +248,10 @@ int snd_register_device(int type, snd_card_t * card, int dev, snd_minor_t * reg,
  *
  * Returns zero if sucecessful, or a negative error code on failure
  */
-int snd_unregister_device(int type, snd_card_t * card, int dev)
+int snd_unregister_device(int type, struct snd_card *card, int dev)
 {
 	int minor = snd_kernel_minor(type, card, dev);
-	snd_minor_t *mptr;
+	struct snd_minor *mptr;
 
 	if (minor < 0)
 		return minor;
@@ -275,18 +275,18 @@ int snd_unregister_device(int type, snd_card_t * card, int dev)
  *  INFO PART
  */
 
-static snd_info_entry_t *snd_minor_info_entry = NULL;
+static struct snd_info_entry *snd_minor_info_entry = NULL;
 
-static void snd_minor_info_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	int card, device;
 	struct list_head *list;
-	snd_minor_t *mptr;
+	struct snd_minor *mptr;
 
 	down(&sound_mutex);
 	for (card = 0; card < SNDRV_CARDS; card++) {
 		list_for_each(list, &snd_minors_hash[card]) {
-			mptr = list_entry(list, snd_minor_t, list);
+			mptr = list_entry(list, struct snd_minor, list);
 			if (SNDRV_MINOR_DEVICE(mptr->number) != SNDRV_MINOR_GLOBAL) {
 				if ((device = mptr->device) >= 0)
 					snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mptr->number, card, device, mptr->comment);
@@ -302,7 +302,7 @@ static void snd_minor_info_read(snd_info_entry_t *entry, snd_info_buffer_t * buf
 
 int __init snd_minor_info_init(void)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", NULL);
 	if (entry) {
