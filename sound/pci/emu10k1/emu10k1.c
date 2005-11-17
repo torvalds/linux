@@ -101,10 +101,10 @@ static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
 					    const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	emu10k1_t *emu;
+	struct snd_card *card;
+	struct snd_emu10k1 *emu;
 #ifdef ENABLE_SYNTH
-	snd_seq_device_t *wave = NULL;
+	struct snd_seq_device *wave = NULL;
 #endif
 	int err;
 
@@ -186,11 +186,11 @@ static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
 	}
 #ifdef ENABLE_SYNTH
 	if (snd_seq_device_new(card, 1, SNDRV_SEQ_DEV_ID_EMU10K1_SYNTH,
-			       sizeof(snd_emu10k1_synth_arg_t), &wave) < 0 ||
+			       sizeof(struct snd_emu10k1_synth_arg), &wave) < 0 ||
 	    wave == NULL) {
 		snd_printk(KERN_WARNING "can't initialize Emu10k1 wavetable synth\n");
 	} else {
-		snd_emu10k1_synth_arg_t *arg;
+		struct snd_emu10k1_synth_arg *arg;
 		arg = SNDRV_SEQ_DEVICE_ARGPTR(wave);
 		strcpy(wave->name, "Emu-10k1 Synth");
 		arg->hwptr = emu;

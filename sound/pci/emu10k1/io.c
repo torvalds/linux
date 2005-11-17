@@ -30,7 +30,7 @@
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 
-unsigned int snd_emu10k1_ptr_read(emu10k1_t * emu, unsigned int reg, unsigned int chn)
+unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn)
 {
 	unsigned long flags;
 	unsigned int regptr, val;
@@ -61,7 +61,7 @@ unsigned int snd_emu10k1_ptr_read(emu10k1_t * emu, unsigned int reg, unsigned in
 	}
 }
 
-void snd_emu10k1_ptr_write(emu10k1_t *emu, unsigned int reg, unsigned int chn, unsigned int data)
+void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data)
 {
 	unsigned int regptr;
 	unsigned long flags;
@@ -91,7 +91,7 @@ void snd_emu10k1_ptr_write(emu10k1_t *emu, unsigned int reg, unsigned int chn, u
 	}
 }
 
-unsigned int snd_emu10k1_ptr20_read(emu10k1_t * emu, 
+unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, 
 					  unsigned int reg, 
 					  unsigned int chn)
 {
@@ -107,7 +107,7 @@ unsigned int snd_emu10k1_ptr20_read(emu10k1_t * emu,
 	return val;
 }
 
-void snd_emu10k1_ptr20_write(emu10k1_t *emu, 
+void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, 
 				   unsigned int reg, 
 				   unsigned int chn, 
 				   unsigned int data)
@@ -123,7 +123,7 @@ void snd_emu10k1_ptr20_write(emu10k1_t *emu,
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_intr_enable(emu10k1_t *emu, unsigned int intrenb)
+void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
 	unsigned long flags;
 	unsigned int enable;
@@ -134,7 +134,7 @@ void snd_emu10k1_intr_enable(emu10k1_t *emu, unsigned int intrenb)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_intr_disable(emu10k1_t *emu, unsigned int intrenb)
+void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
 	unsigned long flags;
 	unsigned int enable;
@@ -145,7 +145,7 @@ void snd_emu10k1_intr_disable(emu10k1_t *emu, unsigned int intrenb)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_voice_intr_enable(emu10k1_t *emu, unsigned int voicenum)
+void snd_emu10k1_voice_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
 	unsigned int val;
@@ -165,7 +165,7 @@ void snd_emu10k1_voice_intr_enable(emu10k1_t *emu, unsigned int voicenum)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_voice_intr_disable(emu10k1_t *emu, unsigned int voicenum)
+void snd_emu10k1_voice_intr_disable(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
 	unsigned int val;
@@ -185,7 +185,7 @@ void snd_emu10k1_voice_intr_disable(emu10k1_t *emu, unsigned int voicenum)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_voice_intr_ack(emu10k1_t *emu, unsigned int voicenum)
+void snd_emu10k1_voice_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
 
@@ -202,7 +202,7 @@ void snd_emu10k1_voice_intr_ack(emu10k1_t *emu, unsigned int voicenum)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_voice_half_loop_intr_enable(emu10k1_t *emu, unsigned int voicenum)
+void snd_emu10k1_voice_half_loop_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
 	unsigned int val;
@@ -222,7 +222,7 @@ void snd_emu10k1_voice_half_loop_intr_enable(emu10k1_t *emu, unsigned int voicen
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_voice_half_loop_intr_disable(emu10k1_t *emu, unsigned int voicenum)
+void snd_emu10k1_voice_half_loop_intr_disable(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
 	unsigned int val;
@@ -242,7 +242,7 @@ void snd_emu10k1_voice_half_loop_intr_disable(emu10k1_t *emu, unsigned int voice
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_voice_half_loop_intr_ack(emu10k1_t *emu, unsigned int voicenum)
+void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
 
@@ -259,7 +259,7 @@ void snd_emu10k1_voice_half_loop_intr_ack(emu10k1_t *emu, unsigned int voicenum)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_voice_set_loop_stop(emu10k1_t *emu, unsigned int voicenum)
+void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
 	unsigned int sol;
@@ -279,7 +279,7 @@ void snd_emu10k1_voice_set_loop_stop(emu10k1_t *emu, unsigned int voicenum)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_voice_clear_loop_stop(emu10k1_t *emu, unsigned int voicenum)
+void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum)
 {
 	unsigned long flags;
 	unsigned int sol;
@@ -299,7 +299,7 @@ void snd_emu10k1_voice_clear_loop_stop(emu10k1_t *emu, unsigned int voicenum)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-void snd_emu10k1_wait(emu10k1_t *emu, unsigned int wait)
+void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait)
 {
 	volatile unsigned count;
 	unsigned int newtime = 0, curtime;
@@ -318,9 +318,9 @@ void snd_emu10k1_wait(emu10k1_t *emu, unsigned int wait)
 	}
 }
 
-unsigned short snd_emu10k1_ac97_read(ac97_t *ac97, unsigned short reg)
+unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
-	emu10k1_t *emu = ac97->private_data;
+	struct snd_emu10k1 *emu = ac97->private_data;
 	unsigned long flags;
 	unsigned short val;
 
@@ -331,9 +331,9 @@ unsigned short snd_emu10k1_ac97_read(ac97_t *ac97, unsigned short reg)
 	return val;
 }
 
-void snd_emu10k1_ac97_write(ac97_t *ac97, unsigned short reg, unsigned short data)
+void snd_emu10k1_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short data)
 {
-	emu10k1_t *emu = ac97->private_data;
+	struct snd_emu10k1 *emu = ac97->private_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&emu->emu_lock, flags);

@@ -121,7 +121,7 @@
  */
 
  /* hardware definition */
-static snd_pcm_hardware_t snd_p16v_playback_hw = {
+static struct snd_pcm_hardware snd_p16v_playback_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | 
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -140,7 +140,7 @@ static snd_pcm_hardware_t snd_p16v_playback_hw = {
 	.fifo_size =		0,
 };
 
-static snd_pcm_hardware_t snd_p16v_capture_hw = {
+static struct snd_pcm_hardware snd_p16v_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -159,9 +159,9 @@ static snd_pcm_hardware_t snd_p16v_capture_hw = {
 	.fifo_size =		0,
 };
 
-static void snd_p16v_pcm_free_substream(snd_pcm_runtime_t *runtime)
+static void snd_p16v_pcm_free_substream(struct snd_pcm_runtime *runtime)
 {
-	emu10k1_pcm_t *epcm = runtime->private_data;
+	struct snd_emu10k1_pcm *epcm = runtime->private_data;
   
 	if (epcm) {
         	//snd_printk("epcm free: %p\n", epcm);
@@ -170,12 +170,12 @@ static void snd_p16v_pcm_free_substream(snd_pcm_runtime_t *runtime)
 }
 
 /* open_playback callback */
-static int snd_p16v_pcm_open_playback_channel(snd_pcm_substream_t *substream, int channel_id)
+static int snd_p16v_pcm_open_playback_channel(struct snd_pcm_substream *substream, int channel_id)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-        emu10k1_voice_t *channel = &(emu->p16v_voices[channel_id]);
-	emu10k1_pcm_t *epcm;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+        struct snd_emu10k1_voice *channel = &(emu->p16v_voices[channel_id]);
+	struct snd_emu10k1_pcm *epcm;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
@@ -206,12 +206,12 @@ static int snd_p16v_pcm_open_playback_channel(snd_pcm_substream_t *substream, in
 	return 0;
 }
 /* open_capture callback */
-static int snd_p16v_pcm_open_capture_channel(snd_pcm_substream_t *substream, int channel_id)
+static int snd_p16v_pcm_open_capture_channel(struct snd_pcm_substream *substream, int channel_id)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	emu10k1_voice_t *channel = &(emu->p16v_capture_voice);
-	emu10k1_pcm_t *epcm;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	struct snd_emu10k1_voice *channel = &(emu->p16v_capture_voice);
+	struct snd_emu10k1_pcm *epcm;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
@@ -244,41 +244,41 @@ static int snd_p16v_pcm_open_capture_channel(snd_pcm_substream_t *substream, int
 
 
 /* close callback */
-static int snd_p16v_pcm_close_playback(snd_pcm_substream_t *substream)
+static int snd_p16v_pcm_close_playback(struct snd_pcm_substream *substream)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	//snd_pcm_runtime_t *runtime = substream->runtime;
-	//emu10k1_pcm_t *epcm = runtime->private_data;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	//struct snd_pcm_runtime *runtime = substream->runtime;
+	//struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	emu->p16v_voices[substream->pcm->device - emu->p16v_device_offset].use=0;
 	/* FIXME: maybe zero others */
 	return 0;
 }
 
 /* close callback */
-static int snd_p16v_pcm_close_capture(snd_pcm_substream_t *substream)
+static int snd_p16v_pcm_close_capture(struct snd_pcm_substream *substream)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	//snd_pcm_runtime_t *runtime = substream->runtime;
-	//emu10k1_pcm_t *epcm = runtime->private_data;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	//struct snd_pcm_runtime *runtime = substream->runtime;
+	//struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	emu->p16v_capture_voice.use=0;
 	/* FIXME: maybe zero others */
 	return 0;
 }
 
-static int snd_p16v_pcm_open_playback_front(snd_pcm_substream_t *substream)
+static int snd_p16v_pcm_open_playback_front(struct snd_pcm_substream *substream)
 {
 	return snd_p16v_pcm_open_playback_channel(substream, PCM_FRONT_CHANNEL);
 }
 
-static int snd_p16v_pcm_open_capture(snd_pcm_substream_t *substream)
+static int snd_p16v_pcm_open_capture(struct snd_pcm_substream *substream)
 {
 	// Only using channel 0 for now, but the card has 2 channels.
 	return snd_p16v_pcm_open_capture_channel(substream, 0);
 }
 
 /* hw_params callback */
-static int snd_p16v_pcm_hw_params_playback(snd_pcm_substream_t *substream,
-				      snd_pcm_hw_params_t * hw_params)
+static int snd_p16v_pcm_hw_params_playback(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *hw_params)
 {
 	int result;
 	result = snd_pcm_lib_malloc_pages(substream,
@@ -287,8 +287,8 @@ static int snd_p16v_pcm_hw_params_playback(snd_pcm_substream_t *substream,
 }
 
 /* hw_params callback */
-static int snd_p16v_pcm_hw_params_capture(snd_pcm_substream_t *substream,
-				      snd_pcm_hw_params_t * hw_params)
+static int snd_p16v_pcm_hw_params_capture(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *hw_params)
 {
 	int result;
 	result = snd_pcm_lib_malloc_pages(substream,
@@ -298,7 +298,7 @@ static int snd_p16v_pcm_hw_params_capture(snd_pcm_substream_t *substream,
 
 
 /* hw_free callback */
-static int snd_p16v_pcm_hw_free_playback(snd_pcm_substream_t *substream)
+static int snd_p16v_pcm_hw_free_playback(struct snd_pcm_substream *substream)
 {
 	int result;
 	result = snd_pcm_lib_free_pages(substream);
@@ -306,7 +306,7 @@ static int snd_p16v_pcm_hw_free_playback(snd_pcm_substream_t *substream)
 }
 
 /* hw_free callback */
-static int snd_p16v_pcm_hw_free_capture(snd_pcm_substream_t *substream)
+static int snd_p16v_pcm_hw_free_capture(struct snd_pcm_substream *substream)
 {
 	int result;
 	result = snd_pcm_lib_free_pages(substream);
@@ -315,10 +315,10 @@ static int snd_p16v_pcm_hw_free_capture(snd_pcm_substream_t *substream)
 
 
 /* prepare playback callback */
-static int snd_p16v_pcm_prepare_playback(snd_pcm_substream_t *substream)
+static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int channel = substream->pcm->device - emu->p16v_device_offset;
 	u32 *table_base = (u32 *)(emu->p16v_buffer.area+(8*16*channel));
 	u32 period_size_bytes = frames_to_bytes(runtime, runtime->period_size);
@@ -364,10 +364,10 @@ static int snd_p16v_pcm_prepare_playback(snd_pcm_substream_t *substream)
 }
 
 /* prepare capture callback */
-static int snd_p16v_pcm_prepare_capture(snd_pcm_substream_t *substream)
+static int snd_p16v_pcm_prepare_capture(struct snd_pcm_substream *substream)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int channel = substream->pcm->device - emu->p16v_device_offset;
 	u32 tmp;
 	//printk("prepare capture:channel_number=%d, rate=%d, format=0x%x, channels=%d, buffer_size=%ld, period_size=%ld, frames_to_bytes=%d\n",channel, runtime->rate, runtime->format, runtime->channels, runtime->buffer_size, runtime->period_size,  frames_to_bytes(runtime, 1));
@@ -398,7 +398,7 @@ static int snd_p16v_pcm_prepare_capture(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static void snd_p16v_intr_enable(emu10k1_t *emu, unsigned int intrenb)
+static void snd_p16v_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
 	unsigned long flags;
 	unsigned int enable;
@@ -409,7 +409,7 @@ static void snd_p16v_intr_enable(emu10k1_t *emu, unsigned int intrenb)
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-static void snd_p16v_intr_disable(emu10k1_t *emu, unsigned int intrenb)
+static void snd_p16v_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb)
 {
 	unsigned long flags;
 	unsigned int disable;
@@ -421,16 +421,16 @@ static void snd_p16v_intr_disable(emu10k1_t *emu, unsigned int intrenb)
 }
 
 /* trigger_playback callback */
-static int snd_p16v_pcm_trigger_playback(snd_pcm_substream_t *substream,
+static int snd_p16v_pcm_trigger_playback(struct snd_pcm_substream *substream,
 				    int cmd)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime;
-	emu10k1_pcm_t *epcm;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime;
+	struct snd_emu10k1_pcm *epcm;
 	int channel;
 	int result = 0;
 	struct list_head *pos;
-        snd_pcm_substream_t *s;
+        struct snd_pcm_substream *s;
 	u32 basic = 0;
 	u32 inte = 0;
 	int running=0;
@@ -474,12 +474,12 @@ static int snd_p16v_pcm_trigger_playback(snd_pcm_substream_t *substream,
 }
 
 /* trigger_capture callback */
-static int snd_p16v_pcm_trigger_capture(snd_pcm_substream_t *substream,
+static int snd_p16v_pcm_trigger_capture(struct snd_pcm_substream *substream,
                                    int cmd)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	emu10k1_pcm_t *epcm = runtime->private_data;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	int channel = 0;
 	int result = 0;
 	u32 inte = INTE2_CAPTURE_CH_0_LOOP | INTE2_CAPTURE_CH_0_HALF_LOOP;
@@ -505,11 +505,11 @@ static int snd_p16v_pcm_trigger_capture(snd_pcm_substream_t *substream,
 
 /* pointer_playback callback */
 static snd_pcm_uframes_t
-snd_p16v_pcm_pointer_playback(snd_pcm_substream_t *substream)
+snd_p16v_pcm_pointer_playback(struct snd_pcm_substream *substream)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	emu10k1_pcm_t *epcm = runtime->private_data;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	snd_pcm_uframes_t ptr, ptr1, ptr2,ptr3,ptr4 = 0;
 	int channel = substream->pcm->device - emu->p16v_device_offset;
 	if (!epcm->running)
@@ -530,11 +530,11 @@ snd_p16v_pcm_pointer_playback(snd_pcm_substream_t *substream)
 
 /* pointer_capture callback */
 static snd_pcm_uframes_t
-snd_p16v_pcm_pointer_capture(snd_pcm_substream_t *substream)
+snd_p16v_pcm_pointer_capture(struct snd_pcm_substream *substream)
 {
-	emu10k1_t *emu = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	emu10k1_pcm_t *epcm = runtime->private_data;
+	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_emu10k1_pcm *epcm = runtime->private_data;
 	snd_pcm_uframes_t ptr, ptr1, ptr2 = 0;
 	int channel = 0;
 
@@ -554,7 +554,7 @@ snd_p16v_pcm_pointer_capture(snd_pcm_substream_t *substream)
 }
 
 /* operators */
-static snd_pcm_ops_t snd_p16v_playback_front_ops = {
+static struct snd_pcm_ops snd_p16v_playback_front_ops = {
 	.open =        snd_p16v_pcm_open_playback_front,
 	.close =       snd_p16v_pcm_close_playback,
 	.ioctl =       snd_pcm_lib_ioctl,
@@ -565,7 +565,7 @@ static snd_pcm_ops_t snd_p16v_playback_front_ops = {
 	.pointer =     snd_p16v_pcm_pointer_playback,
 };
 
-static snd_pcm_ops_t snd_p16v_capture_ops = {
+static struct snd_pcm_ops snd_p16v_capture_ops = {
 	.open =        snd_p16v_pcm_open_capture,
 	.close =       snd_p16v_pcm_close_capture,
 	.ioctl =       snd_pcm_lib_ioctl,
@@ -577,7 +577,7 @@ static snd_pcm_ops_t snd_p16v_capture_ops = {
 };
 
 
-int snd_p16v_free(emu10k1_t *chip)
+int snd_p16v_free(struct snd_emu10k1 *chip)
 {
 	// release the data
 	if (chip->p16v_buffer.area) {
@@ -587,10 +587,10 @@ int snd_p16v_free(emu10k1_t *chip)
 	return 0;
 }
 
-int snd_p16v_pcm(emu10k1_t *emu, int device, snd_pcm_t **rpcm)
+int snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
 {
-	snd_pcm_t *pcm;
-	snd_pcm_substream_t *substream;
+	struct snd_pcm *pcm;
+	struct snd_pcm_substream *substream;
 	int err;
         int capture=1;
   
@@ -641,7 +641,7 @@ int snd_p16v_pcm(emu10k1_t *emu, int device, snd_pcm_t **rpcm)
 	return 0;
 }
 
-static int snd_p16v_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_p16v_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
         uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
         uinfo->count = 2;
@@ -650,10 +650,10 @@ static int snd_p16v_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * 
         return 0;
 }
 
-static int snd_p16v_volume_get(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol, int reg, int high_low)
+static int snd_p16v_volume_get(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol, int reg, int high_low)
 {
-        emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+        struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
         u32 value;
 
         value = snd_emu10k1_ptr20_read(emu, reg, high_low);
@@ -667,71 +667,71 @@ static int snd_p16v_volume_get(snd_kcontrol_t * kcontrol,
         return 0;
 }
 
-static int snd_p16v_volume_get_spdif_front(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_get_spdif_front(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 0;
 	int reg = PLAYBACK_VOLUME_MIXER7;
         return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_get_spdif_center_lfe(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_get_spdif_center_lfe(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 1;
 	int reg = PLAYBACK_VOLUME_MIXER7;
         return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
 }
-static int snd_p16v_volume_get_spdif_unknown(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_get_spdif_unknown(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 0;
 	int reg = PLAYBACK_VOLUME_MIXER8;
         return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
 }
-static int snd_p16v_volume_get_spdif_rear(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_get_spdif_rear(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 1;
 	int reg = PLAYBACK_VOLUME_MIXER8;
         return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_get_analog_front(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_get_analog_front(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 0;
 	int reg = PLAYBACK_VOLUME_MIXER9;
         return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_get_analog_center_lfe(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_get_analog_center_lfe(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 1;
 	int reg = PLAYBACK_VOLUME_MIXER9;
         return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
 }
-static int snd_p16v_volume_get_analog_rear(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_get_analog_rear(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 1;
 	int reg = PLAYBACK_VOLUME_MIXER10;
         return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_get_analog_unknown(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_get_analog_unknown(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 0;
 	int reg = PLAYBACK_VOLUME_MIXER10;
         return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_put(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol, int reg, int high_low)
+static int snd_p16v_volume_put(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol, int reg, int high_low)
 {
-        emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+        struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
         u32 value;
         value = snd_emu10k1_ptr20_read(emu, reg, 0);
         //value = value & 0xffff;
@@ -746,71 +746,71 @@ static int snd_p16v_volume_put(snd_kcontrol_t * kcontrol,
         return 1;
 }
 
-static int snd_p16v_volume_put_spdif_front(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_put_spdif_front(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 0;
 	int reg = PLAYBACK_VOLUME_MIXER7;
         return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_put_spdif_center_lfe(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_put_spdif_center_lfe(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 1;
 	int reg = PLAYBACK_VOLUME_MIXER7;
         return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_put_spdif_unknown(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_put_spdif_unknown(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 0;
 	int reg = PLAYBACK_VOLUME_MIXER8;
         return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_put_spdif_rear(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_put_spdif_rear(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 1;
 	int reg = PLAYBACK_VOLUME_MIXER8;
         return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_put_analog_front(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_put_analog_front(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 0;
 	int reg = PLAYBACK_VOLUME_MIXER9;
         return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_put_analog_center_lfe(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_put_analog_center_lfe(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 1;
 	int reg = PLAYBACK_VOLUME_MIXER9;
         return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_put_analog_rear(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_put_analog_rear(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 1;
 	int reg = PLAYBACK_VOLUME_MIXER10;
         return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
 }
 
-static int snd_p16v_volume_put_analog_unknown(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_volume_put_analog_unknown(struct snd_kcontrol *kcontrol,
+                                       struct snd_ctl_elem_value *ucontrol)
 {
 	int high_low = 0;
 	int reg = PLAYBACK_VOLUME_MIXER10;
         return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
 }
 
-static snd_kcontrol_new_t snd_p16v_volume_control_analog_front =
+static struct snd_kcontrol_new snd_p16v_volume_control_analog_front =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
         .name =         "HD Analog Front Playback Volume",
@@ -819,7 +819,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_analog_front =
         .put =          snd_p16v_volume_put_analog_front
 };
 
-static snd_kcontrol_new_t snd_p16v_volume_control_analog_center_lfe =
+static struct snd_kcontrol_new snd_p16v_volume_control_analog_center_lfe =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
         .name =         "HD Analog Center/LFE Playback Volume",
@@ -828,7 +828,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_analog_center_lfe =
         .put =          snd_p16v_volume_put_analog_center_lfe
 };
 
-static snd_kcontrol_new_t snd_p16v_volume_control_analog_unknown =
+static struct snd_kcontrol_new snd_p16v_volume_control_analog_unknown =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
         .name =         "HD Analog Unknown Playback Volume",
@@ -837,7 +837,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_analog_unknown =
         .put =          snd_p16v_volume_put_analog_unknown
 };
 
-static snd_kcontrol_new_t snd_p16v_volume_control_analog_rear =
+static struct snd_kcontrol_new snd_p16v_volume_control_analog_rear =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
         .name =         "HD Analog Rear Playback Volume",
@@ -846,7 +846,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_analog_rear =
         .put =          snd_p16v_volume_put_analog_rear
 };
 
-static snd_kcontrol_new_t snd_p16v_volume_control_spdif_front =
+static struct snd_kcontrol_new snd_p16v_volume_control_spdif_front =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
         .name =         "HD SPDIF Front Playback Volume",
@@ -855,7 +855,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_spdif_front =
         .put =          snd_p16v_volume_put_spdif_front
 };
 
-static snd_kcontrol_new_t snd_p16v_volume_control_spdif_center_lfe =
+static struct snd_kcontrol_new snd_p16v_volume_control_spdif_center_lfe =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
         .name =         "HD SPDIF Center/LFE Playback Volume",
@@ -864,7 +864,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_spdif_center_lfe =
         .put =          snd_p16v_volume_put_spdif_center_lfe
 };
 
-static snd_kcontrol_new_t snd_p16v_volume_control_spdif_unknown =
+static struct snd_kcontrol_new snd_p16v_volume_control_spdif_unknown =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
         .name =         "HD SPDIF Unknown Playback Volume",
@@ -873,7 +873,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_spdif_unknown =
         .put =          snd_p16v_volume_put_spdif_unknown
 };
 
-static snd_kcontrol_new_t snd_p16v_volume_control_spdif_rear =
+static struct snd_kcontrol_new snd_p16v_volume_control_spdif_rear =
 {
         .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
         .name =         "HD SPDIF Rear Playback Volume",
@@ -882,7 +882,7 @@ static snd_kcontrol_new_t snd_p16v_volume_control_spdif_rear =
         .put =          snd_p16v_volume_put_spdif_rear
 };
 
-static int snd_p16v_capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_p16v_capture_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[8] = { "SPDIF", "I2S", "SRC48", "SRCMulti_SPDIF", "SRCMulti_I2S", "CDIF", "FX", "AC97" };
 
@@ -895,19 +895,19 @@ static int snd_p16v_capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_i
 	return 0;
 }
 
-static int snd_p16v_capture_source_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_capture_source_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.enumerated.item[0] = emu->p16v_capture_source;
 	return 0;
 }
 
-static int snd_p16v_capture_source_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_capture_source_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
 	u32 mask;
@@ -924,7 +924,7 @@ static int snd_p16v_capture_source_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static snd_kcontrol_new_t snd_p16v_capture_source __devinitdata =
+static struct snd_kcontrol_new snd_p16v_capture_source __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"HD source Capture",
@@ -933,7 +933,7 @@ static snd_kcontrol_new_t snd_p16v_capture_source __devinitdata =
 	.put =		snd_p16v_capture_source_put
 };
 
-static int snd_p16v_capture_channel_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_p16v_capture_channel_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[4] = { "0", "1", "2", "3",  };
 
@@ -946,19 +946,19 @@ static int snd_p16v_capture_channel_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_p16v_capture_channel_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_capture_channel_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.enumerated.item[0] = emu->p16v_capture_channel;
 	return 0;
 }
 
-static int snd_p16v_capture_channel_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_p16v_capture_channel_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	emu10k1_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
 	u32 tmp;
@@ -973,7 +973,7 @@ static int snd_p16v_capture_channel_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static snd_kcontrol_new_t snd_p16v_capture_channel __devinitdata =
+static struct snd_kcontrol_new snd_p16v_capture_channel __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"HD channel Capture",
@@ -982,11 +982,11 @@ static snd_kcontrol_new_t snd_p16v_capture_channel __devinitdata =
 	.put =		snd_p16v_capture_channel_put
 };
 
-int snd_p16v_mixer(emu10k1_t *emu)
+int snd_p16v_mixer(struct snd_emu10k1 *emu)
 {
         int err;
-        snd_kcontrol_t *kctl;
-        snd_card_t *card = emu->card;
+        struct snd_kcontrol *kctl;
+        struct snd_card *card = emu->card;
         if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_analog_front, emu)) == NULL)
                 return -ENOMEM;
         if ((err = snd_ctl_add(card, kctl)))

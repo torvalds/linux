@@ -52,7 +52,7 @@ MODULE_LICENSE("GPL");
  * EMU10K1 init / done
  *************************************************************************/
 
-void snd_emu10k1_voice_init(emu10k1_t * emu, int ch)
+void snd_emu10k1_voice_init(struct snd_emu10k1 * emu, int ch)
 {
 	snd_emu10k1_ptr_write(emu, DCYSUSV, ch, 0);
 	snd_emu10k1_ptr_write(emu, IP, ch, 0);
@@ -97,7 +97,7 @@ void snd_emu10k1_voice_init(emu10k1_t * emu, int ch)
 	}
 }
 
-static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
+static int __devinit snd_emu10k1_init(struct snd_emu10k1 * emu, int enable_ir)
 {
 	int ch, idx, err;
 	unsigned int silent_page;
@@ -336,14 +336,14 @@ static int __devinit snd_emu10k1_init(emu10k1_t * emu, int enable_ir)
 
 	snd_emu10k1_intr_enable(emu, INTE_PCIERRORENABLE);
 
-	emu->reserved_page = (emu10k1_memblk_t *)snd_emu10k1_synth_alloc(emu, 4096);
+	emu->reserved_page = (struct snd_emu10k1_memblk *)snd_emu10k1_synth_alloc(emu, 4096);
 	if (emu->reserved_page)
 		emu->reserved_page->map_locked = 1;
 	
 	return 0;
 }
 
-static int snd_emu10k1_done(emu10k1_t * emu)
+static int snd_emu10k1_done(struct snd_emu10k1 * emu)
 {
 	int ch;
 
@@ -384,7 +384,7 @@ static int snd_emu10k1_done(emu10k1_t * emu)
 
 	/* remove reserved page */
 	if (emu->reserved_page != NULL) {
-		snd_emu10k1_synth_free(emu, (snd_util_memblk_t *)emu->reserved_page);
+		snd_emu10k1_synth_free(emu, (struct snd_util_memblk *)emu->reserved_page);
 		emu->reserved_page = NULL;
 	}
 
@@ -474,7 +474,7 @@ static int snd_emu10k1_done(emu10k1_t * emu)
  *  register.
  */
 
-static void snd_emu10k1_ecard_write(emu10k1_t * emu, unsigned int value)
+static void snd_emu10k1_ecard_write(struct snd_emu10k1 * emu, unsigned int value)
 {
 	unsigned short count;
 	unsigned int data;
@@ -512,7 +512,7 @@ static void snd_emu10k1_ecard_write(emu10k1_t * emu, unsigned int value)
  * channel.
  */
 
-static void snd_emu10k1_ecard_setadcgain(emu10k1_t * emu,
+static void snd_emu10k1_ecard_setadcgain(struct snd_emu10k1 * emu,
 					 unsigned short gain)
 {
 	unsigned int bit;
@@ -540,7 +540,7 @@ static void snd_emu10k1_ecard_setadcgain(emu10k1_t * emu,
 	snd_emu10k1_ecard_write(emu, emu->ecard_ctrl);
 }
 
-static int __devinit snd_emu10k1_ecard_init(emu10k1_t * emu)
+static int __devinit snd_emu10k1_ecard_init(struct snd_emu10k1 * emu)
 {
 	unsigned int hc_value;
 
@@ -580,7 +580,7 @@ static int __devinit snd_emu10k1_ecard_init(emu10k1_t * emu)
 	return 0;
 }
 
-static int __devinit snd_emu10k1_cardbus_init(emu10k1_t * emu)
+static int __devinit snd_emu10k1_cardbus_init(struct snd_emu10k1 * emu)
 {
 	unsigned long special_port;
 	unsigned int value;
@@ -609,7 +609,7 @@ static int __devinit snd_emu10k1_cardbus_init(emu10k1_t * emu)
  *  Create the EMU10K1 instance
  */
 
-static int snd_emu10k1_free(emu10k1_t *emu)
+static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 {
 	if (emu->port) {	/* avoid access to already used hardware */
 	       	snd_emu10k1_fx8010_tram_setup(emu, 0);
@@ -634,13 +634,13 @@ static int snd_emu10k1_free(emu10k1_t *emu)
 	return 0;
 }
 
-static int snd_emu10k1_dev_free(snd_device_t *device)
+static int snd_emu10k1_dev_free(struct snd_device *device)
 {
-	emu10k1_t *emu = device->device_data;
+	struct snd_emu10k1 *emu = device->device_data;
 	return snd_emu10k1_free(emu);
 }
 
-static emu_chip_details_t emu_chip_details[] = {
+static struct snd_emu_chip_details emu_chip_details[] = {
 	/* Audigy 2 Value AC3 out does not work yet. Need to find out how to turn off interpolators.*/
 	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x10011102,
@@ -890,21 +890,21 @@ static emu_chip_details_t emu_chip_details[] = {
 	{ } /* terminator */
 };
 
-int __devinit snd_emu10k1_create(snd_card_t * card,
+int __devinit snd_emu10k1_create(struct snd_card *card,
 		       struct pci_dev * pci,
 		       unsigned short extin_mask,
 		       unsigned short extout_mask,
 		       long max_cache_bytes,
 		       int enable_ir,
 		       uint subsystem,
-		       emu10k1_t ** remu)
+		       struct snd_emu10k1 ** remu)
 {
-	emu10k1_t *emu;
+	struct snd_emu10k1 *emu;
 	int err;
 	int is_audigy;
 	unsigned char revision;
-	const emu_chip_details_t *c;
-	static snd_device_ops_t ops = {
+	const struct snd_emu_chip_details *c;
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_emu10k1_dev_free,
 	};
 	
@@ -1041,7 +1041,8 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 		snd_emu10k1_free(emu);
 		return -ENOMEM;
 	}
-	emu->memhdr->block_extra_size = sizeof(emu10k1_memblk_t) - sizeof(snd_util_memblk_t);
+	emu->memhdr->block_extra_size = sizeof(struct snd_emu10k1_memblk) -
+		sizeof(struct snd_util_memblk);
 
 	pci_set_master(pci);
 
