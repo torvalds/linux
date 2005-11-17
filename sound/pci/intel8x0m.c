@@ -889,10 +889,6 @@ static int __devinit snd_intel8x0_mixer(intel8x0_t *chip, int ac97_clock)
  *
  */
 
-#define do_delay(chip) do {\
-	schedule_timeout_uninterruptible(1);\
-} while (0)
-
 static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)
 {
 	unsigned long end_time;
@@ -914,7 +910,7 @@ static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)
 	do {
 		if ((igetdword(chip, ICHREG(GLOB_CNT)) & ICH_AC97WARM) == 0)
 			goto __ok;
-		do_delay(chip);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	snd_printk(KERN_ERR "AC'97 warm reset still in progress? [0x%x]\n", igetdword(chip, ICHREG(GLOB_CNT)));
 	return -EIO;
@@ -930,7 +926,7 @@ static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)
 			status = igetdword(chip, ICHREG(GLOB_STA)) & (ICH_PCR | ICH_SCR | ICH_TCR);
 			if (status)
 				break;
-			do_delay(chip);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		if (! status) {
 			/* no codec is found */
@@ -944,7 +940,7 @@ static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)
 		/* wait for other codecs ready status. */
 		end_time = jiffies + HZ / 4;
 		while (status != nstatus && time_after_eq(end_time, jiffies)) {
-			do_delay(chip);
+			schedule_timeout_uninterruptible(1);
 			status |= igetdword(chip, ICHREG(GLOB_STA)) & nstatus;
 		}
 
@@ -959,7 +955,7 @@ static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)
 			nstatus = igetdword(chip, ICHREG(GLOB_STA)) & (ICH_PCR | ICH_SCR | ICH_TCR);
 			if (status == nstatus)
 				break;
-			do_delay(chip);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 	}
 
