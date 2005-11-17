@@ -1398,7 +1398,7 @@ static int proc_ioctl_compat(struct dev_state *ps, compat_uptr_t arg)
 	struct usbdevfs_ioctl ctrl;
 	u32 udata;
 
-	uioc = compat_ptr(arg);
+	uioc = compat_ptr((long)arg);
 	if (get_user(ctrl.ifno, &uioc->ifno) ||
 	    get_user(ctrl.ioctl_code, &uioc->ioctl_code) ||
 	    __get_user(udata, &uioc->data))
