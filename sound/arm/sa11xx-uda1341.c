@@ -21,7 +21,7 @@
  *                              merged HAL layer (patches from Brian)
  */
 
-/* $Id: sa11xx-uda1341.c,v 1.25 2005/11/17 15:10:58 tiwai Exp $ */
+/* $Id: sa11xx-uda1341.c,v 1.26 2005/11/17 17:19:50 tiwai Exp $ */
 
 /***************************************************************************************************
 *
@@ -64,6 +64,8 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/ioctl.h>
 #include <linux/delay.h>
@@ -860,12 +862,15 @@ static int __init snd_card_sa11xx_uda1341_pcm(struct sa11xx_uda1341 *sa11xx_uda1
 
 #ifdef CONFIG_PM
 
-static int snd_sa11xx_uda1341_suspend(struct snd_card *card, pm_message_t state)
+static int snd_sa11xx_uda1341_suspend(struct platform_device *devptr,
+				      pm_message_t state)
 {
-	struct sa11xx_uda1341 *chip = card->pm_private_data;
+	struct snd_card *card = platform_get_drvdata(devptr);
+	struct sa11xx_uda1341 *chip = card->private_data;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
-#ifdef HH_VERSION	
+#ifdef HH_VERSION
 	sa1100_dma_sleep(chip->s[SNDRV_PCM_STREAM_PLAYBACK].dmach);
 	sa1100_dma_sleep(chip->s[SNDRV_PCM_STREAM_CAPTURE].dmach);
 #else
@@ -873,12 +878,14 @@ static int snd_sa11xx_uda1341_suspend(struct snd_card *card, pm_message_t state)
 #endif
 	l3_command(chip->uda1341, CMD_SUSPEND, NULL);
 	sa11xx_uda1341_audio_shutdown(chip);
+
 	return 0;
 }
 
-static int snd_sa11xx_uda1341_resume(struct snd_card *card)
+static int snd_sa11xx_uda1341_resume(struct platform_device *devptr)
 {
-	struct sa11xx_uda1341 *chip = card->pm_private_data;
+	struct snd_card *card = platform_get_drvdata(devptr);
+	struct sa11xx_uda1341 *chip = card->private_data;
 
 	sa11xx_uda1341_audio_init(chip);
 	l3_command(chip->uda1341, CMD_RESUME, NULL);
@@ -888,6 +895,7 @@ static int snd_sa11xx_uda1341_resume(struct snd_card *card)
 #else
 	//FIXME
 #endif
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* COMFIG_PM */
@@ -900,27 +908,22 @@ void snd_sa11xx_uda1341_free(struct snd_card *card)
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_CAPTURE]);
 }
 
-static struct snd_card *sa11xx_uda1341_card;
-
-static int __init sa11xx_uda1341_init(void)
+static int __init sa11xx_uda1341_probe(struct platform_device *devptr)
 {
 	int err;
 	struct snd_card *card;
 	struct sa11xx_uda1341 *chip;
-
-	if (!machine_is_h3xxx())
-		return -ENODEV;
 
 	/* register the soundcard */
 	card = snd_card_new(-1, id, THIS_MODULE, sizeof(struct sa11xx_uda1341));
 	if (card == NULL)
 		return -ENOMEM;
 
-	card->private_free = snd_sa11xx_uda1341_free;
 	chip = card->private_data;
 	spin_lock_init(&chip->s[0].dma_lock);
 	spin_lock_init(&chip->s[1].dma_lock);
 
+	card->private_free = snd_sa11xx_uda1341_free;
 	chip->card = card;
 	chip->samplerate = AUDIO_RATE_DEFAULT;
 
@@ -932,20 +935,15 @@ static int __init sa11xx_uda1341_init(void)
 	if ((err = snd_card_sa11xx_uda1341_pcm(chip, 0)) < 0)
 		goto nodev;
         
-	snd_card_set_generic_pm_callback(card,
-					 snd_sa11xx_uda1341_suspend, snd_sa11_uda1341_resume,
-					 chip);
-
 	strcpy(card->driver, "UDA1341");
 	strcpy(card->shortname, "H3600 UDA1341TS");
 	sprintf(card->longname, "Compaq iPAQ H3600 with Philips UDA1341TS");
         
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto nodev;
+	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) == 0) {
 		printk( KERN_INFO "iPAQ audio support initialized\n" );
-		sa11xx_uda1341_card = card;
+		platform_set_drvdata(devptr, card);
 		return 0;
 	}
         
@@ -954,9 +952,47 @@ static int __init sa11xx_uda1341_init(void)
 	return err;
 }
 
+static int __devexit sa11xx_uda1341_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#define SA11XX_UDA1341_DRIVER	"sa11xx_uda1341"
+
+static struct platform_driver sa11xx_uda1341_driver = {
+	.probe		= sa11xx_uda1341_probe,
+	.remove		= __devexit_p(sa11xx_uda1341_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_sa11xx_uda1341_suspend,
+	.resume		= snd_sa11xx_uda1341_resume,
+#endif
+	.driver		= {
+		.name	= SA11XX_UDA1341_DRIVER,
+	},
+};
+
+static int __init sa11xx_uda1341_init(void)
+{
+	int err;
+	struct platform_device *device;
+
+	if (!machine_is_h3xxx())
+		return -ENODEV;
+	if ((err = platform_driver_register(&sa11xx_uda1341_driver)) < 0)
+		return err;
+	device = platform_device_register_simple(SA11XX_UDA1341_DRIVER, -1, NULL, 0);
+	if (IS_ERR(device)) {
+		platform_driver_unregister(&sa11xx_uda1341_driver);
+		return PTR_ERR(device);
+	}
+	return 0;
+}
+
 static void __exit sa11xx_uda1341_exit(void)
 {
-	snd_card_free(sa11xx_uda1341_card);
+	platform_driver_unregister(&sa11xx_uda1341_driver);
 }
 
 module_init(sa11xx_uda1341_init);
