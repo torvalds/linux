@@ -1294,8 +1294,7 @@ static void snd_cs4231_suspend(struct snd_cs4231 *chip)
 	int reg;
 	unsigned long flags;
 	
-	if (chip->pcm)
-		snd_pcm_suspend_all(chip->pcm);
+	snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (reg = 0; reg < 32; reg++)
 		chip->image[reg] = snd_cs4231_in(chip, reg);
@@ -1342,22 +1341,6 @@ static void snd_cs4231_resume(struct snd_cs4231 *chip)
 	}
 	snd_cs4231_busy_wait(chip);
 #endif
-}
-
-static int snd_cs4231_pm_suspend(struct snd_card *card, pm_message_t state)
-{
-	struct snd_cs4231 *chip = card->pm_private_data;
-	if (chip->suspend)
-		chip->suspend(chip);
-	return 0;
-}
-
-static int snd_cs4231_pm_resume(struct snd_card *card)
-{
-	struct snd_cs4231 *chip = card->pm_private_data;
-	if (chip->resume)
-		chip->resume(chip);
-	return 0;
 }
 #endif /* CONFIG_PM */
 
@@ -1516,7 +1499,6 @@ int snd_cs4231_create(struct snd_card *card,
 	/* Power Management */
 	chip->suspend = snd_cs4231_suspend;
 	chip->resume = snd_cs4231_resume;
-	snd_card_set_isa_pm_callback(card, snd_cs4231_pm_suspend, snd_cs4231_pm_resume, chip);
 #endif
 
 	*rchip = chip;
