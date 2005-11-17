@@ -321,7 +321,7 @@ typedef struct _SYSIF_REGS
  *	Dynamic Multi-Pathing specific stuff...
  */
 
-/* VirtDevice negoFlags field */
+/* VirtTarget negoFlags field */
 #define MPT_TARGET_NO_NEGO_WIDE		0x01
 #define MPT_TARGET_NO_NEGO_SYNC		0x02
 #define MPT_TARGET_NO_NEGO_QAS		0x04
@@ -330,8 +330,7 @@ typedef struct _SYSIF_REGS
 /*
  *	VirtDevice - FC LUN device or SCSI target device
  */
-typedef struct _VirtDevice {
-	struct scsi_device	*device;
+typedef struct _VirtTarget {
 	u8			 tflags;
 	u8			 ioc_id;
 	u8			 target_id;
@@ -342,21 +341,18 @@ typedef struct _VirtDevice {
 	u8			 negoFlags;	/* bit field, see above */
 	u8			 raidVolume;	/* set, if RAID Volume */
 	u8			 type;		/* byte 0 of Inquiry data */
-	u8			 cflags;	/* controller flags */
-	u8			 rsvd1raid;
-	u16			 fc_phys_lun;
-	u16			 fc_xlat_lun;
 	u32			 num_luns;
 	u32			 luns[8];		/* Max LUNs is 256 */
-	u8			 pad[4];
 	u8			 inq_data[8];
-		/* IEEE Registered Extended Identifier
-		   obtained via INQUIRY VPD page 0x83 */
-		/* NOTE: Do not separate uniq_prepad and uniq_data
-		   as they are treateed as a single entity in the code */
-	u8			 uniq_prepad[8];
-	u8			 uniq_data[20];
-	u8			 pad2[4];
+} VirtTarget;
+
+typedef struct _VirtDevice {
+	VirtTarget	 	*vtarget;
+	u8			 ioc_id;
+	u8			 bus_id;
+	u8			 target_id;
+	u8			 configured_lun;
+	u32			 lun;
 } VirtDevice;
 
 /*
@@ -912,7 +908,7 @@ typedef struct _MPT_SCSI_HOST {
 	int			  port;
 	u32			  pad0;
 	struct scsi_cmnd	**ScsiLookup;
-	VirtDevice		**Targets;
+	VirtTarget		**Targets;
 	MPT_LOCAL_REPLY		 *pLocal;		/* used for internal commands */
 	struct timer_list	  timer;
 		/* Pool of memory for holding SCpnts before doing

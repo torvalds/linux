@@ -90,8 +90,10 @@ static struct scsi_host_template mptfc_driver_template = {
 	.name				= "MPT FC Host",
 	.info				= mptscsih_info,
 	.queuecommand			= mptscsih_qcmd,
+	.target_alloc			= mptscsih_target_alloc,
 	.slave_alloc			= mptscsih_slave_alloc,
 	.slave_configure		= mptscsih_slave_configure,
+	.target_destroy			= mptscsih_target_destroy,
 	.slave_destroy			= mptscsih_slave_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
 	.eh_abort_handler		= mptscsih_abort,
@@ -292,10 +294,10 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	memset(mem, 0, sz);
-	hd->Targets = (VirtDevice **) mem;
+	hd->Targets = (VirtTarget **) mem;
 
 	dprintk((KERN_INFO
-	  "  Targets @ %p, sz=%d\n", hd->Targets, sz));
+	  "  vdev @ %p, sz=%d\n", hd->Targets, sz));
 
 	/* Clear the TM flags
 	 */
