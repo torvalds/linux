@@ -1,9 +1,4 @@
 #include <linux/config.h>
-
-#ifdef CONFIG_USB_DEBUG
-#define DEBUG
-#endif
-
 #include <linux/usb.h>
 #include <linux/module.h>
 #include <linux/init.h>

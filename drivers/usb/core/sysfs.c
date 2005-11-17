@@ -12,14 +12,7 @@
 
 #include <linux/config.h>
 #include <linux/kernel.h>
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
 #include <linux/usb.h>
-
 #include "usb.h"
 
 /* endpoint stuff */

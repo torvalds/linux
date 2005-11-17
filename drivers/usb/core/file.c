@@ -19,12 +19,6 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
 #include <linux/usb.h>
 
 #include "usb.h"
