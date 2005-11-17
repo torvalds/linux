@@ -396,33 +396,6 @@ typedef struct _snd_ac97_bus_ops ac97_bus_ops_t;
 typedef struct _snd_ac97_template ac97_template_t;
 typedef struct _snd_ac97 ac97_t;
 
-enum ac97_pcm_cfg {
-	AC97_PCM_CFG_FRONT = 2,
-	AC97_PCM_CFG_REAR = 10,		/* alias surround */
-	AC97_PCM_CFG_LFE = 11,		/* center + lfe */
-	AC97_PCM_CFG_40 = 4,		/* front + rear */
-	AC97_PCM_CFG_51 = 6,		/* front + rear + center/lfe */
-	AC97_PCM_CFG_SPDIF = 20
-};
-
-/* PCM allocation */
-struct ac97_pcm {
-	ac97_bus_t *bus;
-	unsigned int stream: 1,	   	   /* stream type: 1 = capture */
-		     exclusive: 1,	   /* exclusive mode, don't override with other pcms */
-		     copy_flag: 1,	   /* lowlevel driver must fill all entries */
-		     spdif: 1;		   /* spdif pcm */
-	unsigned short aslots;		   /* active slots */
-	unsigned int rates;		   /* available rates */
-	struct {
-		unsigned short slots;	   /* driver input: requested AC97 slot numbers */
-		unsigned short rslots[4];  /* allocated slots per codecs */
-		unsigned char rate_table[4];
-		ac97_t *codec[4];	   /* allocated codecs */
-	} r[2];				   /* 0 = standard rates, 1 = double rates */
-	unsigned long private_value;	   /* used by the hardware driver */
-};
-
 struct snd_ac97_build_ops {
 	int (*build_3d) (ac97_t *ac97);
 	int (*build_specific) (ac97_t *ac97);
@@ -581,6 +554,36 @@ struct ac97_quirk {
 int snd_ac97_tune_hardware(ac97_t *ac97, struct ac97_quirk *quirk, const char *override);
 int snd_ac97_set_rate(ac97_t *ac97, int reg, unsigned int rate);
 
+/*
+ * PCM allocation
+ */
+
+enum ac97_pcm_cfg {
+	AC97_PCM_CFG_FRONT = 2,
+	AC97_PCM_CFG_REAR = 10,		/* alias surround */
+	AC97_PCM_CFG_LFE = 11,		/* center + lfe */
+	AC97_PCM_CFG_40 = 4,		/* front + rear */
+	AC97_PCM_CFG_51 = 6,		/* front + rear + center/lfe */
+	AC97_PCM_CFG_SPDIF = 20
+};
+
+struct ac97_pcm {
+	ac97_bus_t *bus;
+	unsigned int stream: 1,	   	   /* stream type: 1 = capture */
+		     exclusive: 1,	   /* exclusive mode, don't override with other pcms */
+		     copy_flag: 1,	   /* lowlevel driver must fill all entries */
+		     spdif: 1;		   /* spdif pcm */
+	unsigned short aslots;		   /* active slots */
+	unsigned int rates;		   /* available rates */
+	struct {
+		unsigned short slots;	   /* driver input: requested AC97 slot numbers */
+		unsigned short rslots[4];  /* allocated slots per codecs */
+		unsigned char rate_table[4];
+		ac97_t *codec[4];	   /* allocated codecs */
+	} r[2];				   /* 0 = standard rates, 1 = double rates */
+	unsigned long private_value;	   /* used by the hardware driver */
+};
+
 int snd_ac97_pcm_assign(ac97_bus_t *ac97,
 			unsigned short pcms_count,
 			const struct ac97_pcm *pcms);
@@ -588,14 +591,6 @@ int snd_ac97_pcm_open(struct ac97_pcm *pcm, unsigned int rate,
 		      enum ac97_pcm_cfg cfg, unsigned short slots);
 int snd_ac97_pcm_close(struct ac97_pcm *pcm);
 int snd_ac97_pcm_double_rate_rules(snd_pcm_runtime_t *runtime);
-
-struct ac97_enum {
-	unsigned char reg;
-	unsigned char shift_l;
-	unsigned char shift_r;
-	unsigned short mask;
-	const char **texts;
-};
 
 /* ad hoc AC97 device driver access */
 extern struct bus_type ac97_bus_type;

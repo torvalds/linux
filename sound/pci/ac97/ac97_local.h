@@ -36,6 +36,15 @@
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), .info = snd_ac97_info_volsw, \
   .get = snd_ac97_get_volsw, .put = snd_ac97_put_volsw, \
   .private_value = (reg) | ((shift_left) << 8) | ((shift_right) << 12) | ((mask) << 16) | ((invert) << 24) }
+
+struct ac97_enum {
+	unsigned char reg;
+	unsigned char shift_l;
+	unsigned char shift_r;
+	unsigned short mask;
+	const char **texts;
+};
+
 #define AC97_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xtexts) \
 { .reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
   .mask = xmask, .texts = xtexts }
