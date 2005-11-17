@@ -1320,7 +1320,7 @@ static void snd_cs4231_resume(struct snd_cs4231 *chip)
 		}
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
-#if 0
+#if 1
 	snd_cs4231_mce_down(chip);
 #else
 	/* The following is a workaround to avoid freeze after resume on TP600E.
