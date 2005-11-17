@@ -137,26 +137,26 @@ static unsigned char snd_cmi8330_image[((CMI8330_CDINGAIN)-16) + 1] =
 	0x0			/* 26 - cd-in rec gain */
 };
 
-typedef int (*snd_pcm_open_callback_t)(snd_pcm_substream_t *);
+typedef int (*snd_pcm_open_callback_t)(struct snd_pcm_substream *);
 
 struct snd_cmi8330 {
 #ifdef CONFIG_PNP
 	struct pnp_dev *cap;
 	struct pnp_dev *play;
 #endif
-	snd_card_t *card;
-	ad1848_t *wss;
-	sb_t *sb;
+	struct snd_card *card;
+	struct snd_ad1848 *wss;
+	struct snd_sb *sb;
 
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	struct snd_cmi8330_stream {
-		snd_pcm_ops_t ops;
+		struct snd_pcm_ops ops;
 		snd_pcm_open_callback_t open;
 		void *private_data; /* sb or wss */
 	} streams[2];
 };
 
-static snd_card_t *snd_cmi8330_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct snd_card *snd_cmi8330_legacy[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 #ifdef CONFIG_PNP
 
@@ -231,7 +231,7 @@ static unsigned char cmi8330_sb_init_values[][2] __initdata = {
 };
 
 
-static int __devinit cmi8330_add_sb_mixers(sb_t *chip)
+static int __devinit cmi8330_add_sb_mixers(struct snd_sb *chip)
 {
 	int idx, err;
 	unsigned long flags;
@@ -256,7 +256,7 @@ static int __devinit cmi8330_add_sb_mixers(sb_t *chip)
 }
 #endif
 
-static int __devinit snd_cmi8330_mixer(snd_card_t *card, struct snd_cmi8330 *acard)
+static int __devinit snd_cmi8330_mixer(struct snd_card *card, struct snd_cmi8330 *acard)
 {
 	unsigned int idx;
 	int err;
@@ -370,7 +370,7 @@ static int __devinit snd_cmi8330_pnp(int dev, struct snd_cmi8330 *acard,
 #define CMI_AD_STREAM	SNDRV_PCM_STREAM_PLAYBACK
 #endif
 
-static int snd_cmi8330_playback_open(snd_pcm_substream_t * substream)
+static int snd_cmi8330_playback_open(struct snd_pcm_substream *substream)
 {
 	struct snd_cmi8330 *chip = snd_pcm_substream_chip(substream);
 
@@ -379,7 +379,7 @@ static int snd_cmi8330_playback_open(snd_pcm_substream_t * substream)
 	return chip->streams[SNDRV_PCM_STREAM_PLAYBACK].open(substream);
 }
 
-static int snd_cmi8330_capture_open(snd_pcm_substream_t * substream)
+static int snd_cmi8330_capture_open(struct snd_pcm_substream *substream)
 {
 	struct snd_cmi8330 *chip = snd_pcm_substream_chip(substream);
 
@@ -388,10 +388,10 @@ static int snd_cmi8330_capture_open(snd_pcm_substream_t * substream)
 	return chip->streams[SNDRV_PCM_STREAM_CAPTURE].open(substream);
 }
 
-static int __devinit snd_cmi8330_pcm(snd_card_t *card, struct snd_cmi8330 *chip)
+static int __devinit snd_cmi8330_pcm(struct snd_card *card, struct snd_cmi8330 *chip)
 {
-	snd_pcm_t *pcm;
-	const snd_pcm_ops_t *ops;
+	struct snd_pcm *pcm;
+	const struct snd_pcm_ops *ops;
 	int err;
 	static snd_pcm_open_callback_t cmi_open_callbacks[2] = {
 		snd_cmi8330_playback_open,
@@ -444,7 +444,7 @@ static int __devinit snd_cmi8330_probe(int dev,
 				       struct pnp_card_link *pcard,
 				       const struct pnp_card_device_id *pid)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_cmi8330 *acard;
 	int i, err;
 
@@ -567,7 +567,7 @@ static int __devinit snd_cmi8330_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_cmi8330_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
+	struct snd_card *card = (struct snd_card *) pnp_get_card_drvdata(pcard);
 
 	snd_card_disconnect(card);
 	snd_card_free_in_thread(card);
