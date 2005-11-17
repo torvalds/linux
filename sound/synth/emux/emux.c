@@ -66,6 +66,29 @@ int snd_emux_new(snd_emux_t **remu)
 
 /*
  */
+static int sf_sample_new(void *private_data, snd_sf_sample_t *sp,
+			 snd_util_memhdr_t *hdr,
+			 const void __user *buf, long count)
+{
+	snd_emux_t *emu = private_data;
+	return emu->ops.sample_new(emu, sp, hdr, buf, count);
+	
+}
+
+static int sf_sample_free(void *private_data, snd_sf_sample_t *sp,
+			  snd_util_memhdr_t *hdr)
+{
+	snd_emux_t *emu = private_data;
+	return emu->ops.sample_free(emu, sp, hdr);
+	
+}
+
+static void sf_sample_reset(void *private_data)
+{
+	snd_emux_t *emu = private_data;
+	emu->ops.sample_reset(emu);
+}
+
 int snd_emux_register(snd_emux_t *emu, snd_card_t *card, int index, char *name)
 {
 	int err;
@@ -85,9 +108,12 @@ int snd_emux_register(snd_emux_t *emu, snd_card_t *card, int index, char *name)
 	/* create soundfont list */
 	memset(&sf_cb, 0, sizeof(sf_cb));
 	sf_cb.private_data = emu;
-	sf_cb.sample_new = (snd_sf_sample_new_t)emu->ops.sample_new;
-	sf_cb.sample_free = (snd_sf_sample_free_t)emu->ops.sample_free;
-	sf_cb.sample_reset = (snd_sf_sample_reset_t)emu->ops.sample_reset;
+	if (emu->ops.sample_new)
+		sf_cb.sample_new = sf_sample_new;
+	if (emu->ops.sample_free)
+		sf_cb.sample_free = sf_sample_free;
+	if (emu->ops.sample_reset)
+		sf_cb.sample_reset = sf_sample_reset;
 	emu->sflist = snd_sf_new(&sf_cb, emu->memhdr);
 	if (emu->sflist == NULL)
 		return -ENOMEM;
