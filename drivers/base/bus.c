@@ -152,7 +152,11 @@ static ssize_t driver_unbind(struct device_driver *drv,
 
 	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
 	if (dev && dev->driver == drv) {
+		if (dev->parent)	/* Needed for USB */
+			down(&dev->parent->sem);
 		device_release_driver(dev);
+		if (dev->parent)
+			up(&dev->parent->sem);
 		err = count;
 	}
 	put_device(dev);
@@ -175,9 +179,13 @@ static ssize_t driver_bind(struct device_driver *drv,
 
 	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
 	if (dev && dev->driver == NULL) {
+		if (dev->parent)	/* Needed for USB */
+			down(&dev->parent->sem);
 		down(&dev->sem);
 		err = driver_probe_device(drv, dev);
 		up(&dev->sem);
+		if (dev->parent)
+			up(&dev->parent->sem);
 	}
 	put_device(dev);
 	put_bus(bus);
@@ -484,8 +492,13 @@ void bus_remove_driver(struct device_driver * drv)
 /* Helper for bus_rescan_devices's iter */
 static int bus_rescan_devices_helper(struct device *dev, void *data)
 {
-	if (!dev->driver)
+	if (!dev->driver) {
+		if (dev->parent)	/* Needed for USB */
+			down(&dev->parent->sem);
 		device_attach(dev);
+		if (dev->parent)
+			up(&dev->parent->sem);
+	}
 	return 0;
 }
 
