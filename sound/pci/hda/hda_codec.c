@@ -1889,7 +1889,6 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 		loc = get_defcfg_location(def_conf);
 		switch (get_defcfg_device(def_conf)) {
 		case AC_JACK_LINE_OUT:
-		case AC_JACK_SPEAKER:
 			seq = get_defcfg_sequence(def_conf);
 			assoc = get_defcfg_association(def_conf);
 			if (! assoc)
@@ -1903,6 +1902,9 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 			cfg->line_out_pins[cfg->line_outs] = nid;
 			sequences[cfg->line_outs] = seq;
 			cfg->line_outs++;
+			break;
+		case AC_JACK_SPEAKER:
+			cfg->speaker_pin = nid;
 			break;
 		case AC_JACK_HP_OUT:
 			cfg->hp_pin = nid;

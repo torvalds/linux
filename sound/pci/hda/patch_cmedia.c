@@ -76,19 +76,6 @@ struct cmi_spec {
 	struct hda_verb multi_init[9];	/* 2 verbs for each pin + terminator */
 };
 
-/* amp values */
-#define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
-#define AMP_IN_UNMUTE(idx)	(0x7000 | ((idx)<<8))
-#define AMP_OUT_MUTE	0xb080
-#define AMP_OUT_UNMUTE	0xb000
-#define AMP_OUT_ZERO	0xb000
-/* pinctl values */
-#define PIN_IN		0x20
-#define PIN_VREF80	0x24
-#define PIN_VREF50	0x21
-#define PIN_OUT		0x40
-#define PIN_HP		0xc0
-
 /*
  * input MUX
  */

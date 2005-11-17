@@ -214,6 +214,7 @@ enum {
 struct auto_pin_cfg {
 	int line_outs;
 	hda_nid_t line_out_pins[4]; /* sorted in the order of Front/Surr/CLFE/Side */
+	hda_nid_t speaker_pin;
 	hda_nid_t hp_pin;
 	hda_nid_t input_pins[AUTO_PIN_LAST];
 	hda_nid_t dig_out_pin;
@@ -227,5 +228,19 @@ struct auto_pin_cfg {
 #define get_defcfg_device(cfg) ((cfg & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT)
 
 int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *cfg);
+
+/* amp values */
+#define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
+#define AMP_IN_UNMUTE(idx)	(0x7000 | ((idx)<<8))
+#define AMP_OUT_MUTE	0xb080
+#define AMP_OUT_UNMUTE	0xb000
+#define AMP_OUT_ZERO	0xb000
+/* pinctl values */
+#define PIN_IN		0x20
+#define PIN_VREF80	0x24
+#define PIN_VREF50	0x21
+#define PIN_OUT		0x40
+#define PIN_HP		0xc0
+#define PIN_HP_AMP	0x80
 
 #endif /* __SOUND_HDA_LOCAL_H */

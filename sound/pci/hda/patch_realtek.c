@@ -61,20 +61,6 @@ enum {
 	ALC260_MODEL_LAST /* last tag */
 };
 
-/* amp values */
-#define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
-#define AMP_IN_UNMUTE(idx)	(0x7000 | ((idx)<<8))
-#define AMP_OUT_MUTE	0xb080
-#define AMP_OUT_UNMUTE	0xb000
-#define AMP_OUT_ZERO	0xb000
-/* pinctl values */
-#define PIN_IN		0x20
-#define PIN_VREF80	0x24
-#define PIN_VREF50	0x21
-#define PIN_OUT		0x40
-#define PIN_HP		0xc0
-#define PIN_HP_AMP	0x80
-
 struct alc_spec {
 	/* codec parameterization */
 	snd_kcontrol_new_t *mixers[3];	/* mixer arrays */
@@ -1833,15 +1819,16 @@ static int alc880_auto_create_multi_out_ctls(struct alc_spec *spec, const struct
 				return err;
 		}
 	}
-
 	return 0;
 }
 
-/* add playback controls for HP output */
-static int alc880_auto_create_hp_ctls(struct alc_spec *spec, hda_nid_t pin)
+/* add playback controls for speaker and HP outputs */
+static int alc880_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
+					const char *pfx)
 {
 	hda_nid_t nid;
 	int err;
+	char name[32];
 
 	if (! pin)
 		return 0;
@@ -1854,14 +1841,16 @@ static int alc880_auto_create_hp_ctls(struct alc_spec *spec, hda_nid_t pin)
 			if (! spec->multiout.num_dacs)
 				spec->multiout.num_dacs = 1;
 		} else 
-			/* specify the DAC as the extra HP output */
+			/* specify the DAC as the extra output */
 			spec->multiout.hp_nid = nid;
 		/* control HP volume/switch on the output mixer amp */
 		nid = alc880_idx_to_mixer(alc880_fixed_pin_idx(pin));
-		if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, "Headphone Playback Volume",
+		sprintf(name, "%s Playback Volume", pfx);
+		if ((err = add_control(spec, ALC_CTL_WIDGET_VOL, name,
 				       HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT))) < 0)
 			return err;
-		if ((err = add_control(spec, ALC_CTL_BIND_MUTE, "Headphone Playback Switch",
+		sprintf(name, "%s Playback Switch", pfx);
+		if ((err = add_control(spec, ALC_CTL_BIND_MUTE, name,
 				       HDA_COMPOSE_AMP_VAL(nid, 3, 2, HDA_INPUT))) < 0)
 			return err;
 	} else if (alc880_is_multi_pin(pin)) {
@@ -1873,7 +1862,8 @@ static int alc880_auto_create_hp_ctls(struct alc_spec *spec, hda_nid_t pin)
 				spec->multiout.num_dacs = 1;
 		}
 		/* we have only a switch on HP-out PIN */
-		if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, "Headphone Playback Switch",
+		sprintf(name, "%s Playback Switch", pfx);
+		if ((err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
 				       HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT))) < 0)
 			return err;
 	}
@@ -1947,11 +1937,14 @@ static void alc880_auto_init_multi_out(struct hda_codec *codec)
 	}
 }
 
-static void alc880_auto_init_hp_out(struct hda_codec *codec)
+static void alc880_auto_init_extra_out(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t pin;
 
+	pin = spec->autocfg.speaker_pin;
+	if (pin) /* connect to front */
+		alc880_auto_set_output_and_unmute(codec, pin, PIN_OUT, 0);
 	pin = spec->autocfg.hp_pin;
 	if (pin) /* connect to front */
 		alc880_auto_set_output_and_unmute(codec, pin, PIN_HP, 0);
@@ -1985,10 +1978,14 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 		return err;
 	if ((err = alc880_auto_fill_dac_nids(spec, &spec->autocfg)) < 0)
 		return err;
-	if (! spec->autocfg.line_outs && ! spec->autocfg.hp_pin)
+	if (! spec->autocfg.line_outs && ! spec->autocfg.speaker_pin &&
+	    ! spec->autocfg.hp_pin)
 		return 0; /* can't find valid BIOS pin config */
 	if ((err = alc880_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
-	    (err = alc880_auto_create_hp_ctls(spec, spec->autocfg.hp_pin)) < 0 ||
+	    (err = alc880_auto_create_extra_out(spec, spec->autocfg.speaker_pin,
+						"Speaker")) < 0 ||
+	    (err = alc880_auto_create_extra_out(spec, spec->autocfg.speaker_pin,
+						"Headphone")) < 0 ||
 	    (err = alc880_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
 		return err;
 
@@ -2014,7 +2011,7 @@ static int alc880_auto_init(struct hda_codec *codec)
 {
 	alc_init(codec);
 	alc880_auto_init_multi_out(codec);
-	alc880_auto_init_hp_out(codec);
+	alc880_auto_init_extra_out(codec);
 	alc880_auto_init_analog_input(codec);
 	return 0;
 }
