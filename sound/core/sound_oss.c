@@ -41,20 +41,20 @@ static struct list_head snd_oss_minors_hash[SNDRV_CARDS];
 
 static DECLARE_MUTEX(sound_oss_mutex);
 
-static snd_minor_t *snd_oss_minor_search(int minor)
+static struct snd_minor *snd_oss_minor_search(int minor)
 {
 	struct list_head *list;
-	snd_minor_t *mptr;
+	struct snd_minor *mptr;
 
 	list_for_each(list, &snd_oss_minors_hash[SNDRV_MINOR_OSS_CARD(minor)]) {
-		mptr = list_entry(list, snd_minor_t, list);
+		mptr = list_entry(list, struct snd_minor, list);
 		if (mptr->number == minor)
 			return mptr;
 	}
 	return NULL;
 }
 
-static int snd_oss_kernel_minor(int type, snd_card_t * card, int dev)
+static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 {
 	int minor;
 
@@ -90,11 +90,12 @@ static int snd_oss_kernel_minor(int type, snd_card_t * card, int dev)
 	return minor;
 }
 
-int snd_register_oss_device(int type, snd_card_t * card, int dev, snd_minor_t * reg, const char *name)
+int snd_register_oss_device(int type, struct snd_card *card, int dev,
+			    struct snd_minor * reg, const char *name)
 {
 	int minor = snd_oss_kernel_minor(type, card, dev);
 	int minor_unit;
-	snd_minor_t *preg;
+	struct snd_minor *preg;
 	int cidx = SNDRV_MINOR_OSS_CARD(minor);
 	int track2 = -1;
 	int register1 = -1, register2 = -1;
@@ -102,7 +103,7 @@ int snd_register_oss_device(int type, snd_card_t * card, int dev, snd_minor_t * 
 
 	if (minor < 0)
 		return minor;
-	preg = (snd_minor_t *)kmalloc(sizeof(snd_minor_t), GFP_KERNEL);
+	preg = (struct snd_minor *)kmalloc(sizeof(struct snd_minor), GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
 	*preg = *reg;
@@ -146,12 +147,12 @@ int snd_register_oss_device(int type, snd_card_t * card, int dev, snd_minor_t * 
       	return -EBUSY;
 }
 
-int snd_unregister_oss_device(int type, snd_card_t * card, int dev)
+int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 {
 	int minor = snd_oss_kernel_minor(type, card, dev);
 	int cidx = SNDRV_MINOR_OSS_CARD(minor);
 	int track2 = -1;
-	snd_minor_t *mptr;
+	struct snd_minor *mptr;
 
 	if (minor < 0)
 		return minor;
@@ -187,18 +188,19 @@ int snd_unregister_oss_device(int type, snd_card_t * card, int dev)
 
 #ifdef CONFIG_PROC_FS
 
-static snd_info_entry_t *snd_minor_info_oss_entry = NULL;
+static struct snd_info_entry *snd_minor_info_oss_entry = NULL;
 
-static void snd_minor_info_oss_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void snd_minor_info_oss_read(struct snd_info_entry *entry,
+				    struct snd_info_buffer *buffer)
 {
 	int card, dev;
 	struct list_head *list;
-	snd_minor_t *mptr;
+	struct snd_minor *mptr;
 
 	down(&sound_oss_mutex);
 	for (card = 0; card < SNDRV_CARDS; card++) {
 		list_for_each(list, &snd_oss_minors_hash[card]) {
-			mptr = list_entry(list, snd_minor_t, list);
+			mptr = list_entry(list, struct snd_minor, list);
 			dev = SNDRV_MINOR_OSS_DEVICE(mptr->number);
 		        if (dev != SNDRV_MINOR_OSS_SNDSTAT &&
 			    dev != SNDRV_MINOR_OSS_SEQUENCER &&
@@ -216,7 +218,7 @@ static void snd_minor_info_oss_read(snd_info_entry_t *entry, snd_info_buffer_t *
 int __init snd_minor_info_oss_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", snd_oss_root);
 	if (entry) {
