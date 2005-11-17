@@ -6,6 +6,21 @@
  *
  *  Framework borrowed from Massimo Piccioni's card-als100.c.
  *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ *
  * NOTES
  *
  *  Since Avance does not provide any meaningful documentation, and I
@@ -43,19 +58,9 @@
  * Set KSound:
  * - value -> some port 0x0c0d
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
-
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ * ToDo:
+ * - Proper shared IRQ handling?
+ * - power management? (card can do voice wakeup according to datasheet!!)
  */
 
 #include <sound/driver.h>
@@ -101,8 +106,9 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address for ALS4000 soundcard. (0
 #endif
 
 typedef struct {
-	struct pci_dev *pci;
+	/* most frequent access first */
 	unsigned long gcr;
+	struct pci_dev *pci;
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
 #endif
@@ -146,13 +152,13 @@ static void snd_als4000_set_rate(sb_t *chip, unsigned int rate)
 	}
 }
 
-static void snd_als4000_set_capture_dma(sb_t *chip, dma_addr_t addr, unsigned size)
+static inline void snd_als4000_set_capture_dma(sb_t *chip, dma_addr_t addr, unsigned size)
 {
 	snd_als4000_gcr_write(chip, 0xa2, addr);
 	snd_als4000_gcr_write(chip, 0xa3, (size-1));
 }
 
-static void snd_als4000_set_playback_dma(sb_t *chip, dma_addr_t addr, unsigned size)
+static inline void snd_als4000_set_playback_dma(sb_t *chip, dma_addr_t addr, unsigned size)
 {
 	snd_als4000_gcr_write(chip, 0x91, addr);
 	snd_als4000_gcr_write(chip, 0x92, (size-1)|0x180000);
@@ -177,7 +183,7 @@ static int snd_als4000_get_format(snd_pcm_runtime_t *runtime)
 }
 
 /* structure for setting up playback */
-static struct {
+static const struct {
 	unsigned char dsp_cmd, dma_on, dma_off, format;
 } playback_cmd_vals[]={
 /* ALS4000_FORMAT_U8_MONO */
@@ -201,7 +207,7 @@ static struct {
 
 /* structure for setting up capture */
 enum { CMD_WIDTH8=0x04, CMD_SIGNED=0x10, CMD_MONO=0x80, CMD_STEREO=0xA0 };
-static unsigned char capture_cmd_vals[]=
+static const unsigned char capture_cmd_vals[]=
 {
 CMD_WIDTH8|CMD_MONO,			/* ALS4000_FORMAT_U8_MONO */
 CMD_WIDTH8|CMD_SIGNED|CMD_MONO,		/* ALS4000_FORMAT_S8_MONO */	
@@ -228,9 +234,9 @@ static int snd_als4000_hw_free(snd_pcm_substream_t * substream)
 
 static int snd_als4000_capture_prepare(snd_pcm_substream_t * substream)
 {
-	unsigned long flags;
 	sb_t *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
+	unsigned long flags;
 	unsigned long size;
 	unsigned count;
 
@@ -256,9 +262,9 @@ static int snd_als4000_capture_prepare(snd_pcm_substream_t * substream)
 
 static int snd_als4000_playback_prepare(snd_pcm_substream_t *substream)
 {
-	unsigned long flags;
 	sb_t *chip = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
+	unsigned long flags;
 	unsigned long size;
 	unsigned count;
 
@@ -353,6 +359,18 @@ static snd_pcm_uframes_t snd_als4000_playback_pointer(snd_pcm_substream_t * subs
 	return bytes_to_frames( substream->runtime, result );
 }
 
+/* FIXME: this IRQ routine doesn't really support IRQ sharing (we always
+ * return IRQ_HANDLED no matter whether we actually had an IRQ flag or not).
+ * ALS4000a.PDF writes that while ACKing IRQ in PCI block will *not* ACK
+ * the IRQ in the SB core, ACKing IRQ in SB block *will* ACK the PCI IRQ
+ * register (alt_port + 0x0e). Probably something could be optimized here to
+ * query/write one register only...
+ * And even if both registers need to be queried, then there's still the
+ * question of whether it's actually correct to ACK PCI IRQ before reading
+ * SB IRQ like we do now, since ALS4000a.PDF mentions that PCI IRQ will *clear*
+ * SB IRQ status.
+ * And do we *really* need the lock here for *reading* SB_DSP4_IRQSTATUS??
+ * */
 static irqreturn_t snd_als4000_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	sb_t *chip = dev_id;
@@ -698,8 +716,7 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 				    -1,
 				    SB_HW_ALS4000,
 				    &chip)) < 0) {
-		snd_card_free(card);
-		return err;
+		goto out_err;
 	}
 
 	chip->pci = pci;
@@ -716,40 +733,42 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 	if ((err = snd_mpu401_uart_new( card, 0, MPU401_HW_ALS4000,
 				        gcr+0x30, 1, pci->irq, 0,
 				        &chip->rmidi)) < 0) {
-		snd_card_free(card);
-		printk(KERN_ERR "als4000: no MPU-401device at 0x%lx ?\n", gcr+0x30);
-		return err;
+		printk(KERN_ERR "als4000: no MPU-401 device at 0x%lx?\n", gcr+0x30);
+		goto out_err;
 	}
 
 	if ((err = snd_als4000_pcm(chip, 0)) < 0) {
-		snd_card_free(card);
-		return err;
+		goto out_err;
 	}
 	if ((err = snd_sbmixer_new(chip)) < 0) {
-		snd_card_free(card);
-		return err;
+		goto out_err;
 	}	    
 
 	if (snd_opl3_create(card, gcr+0x10, gcr+0x12,
 			    OPL3_HW_AUTO, 1, &opl3) < 0) {
-		printk(KERN_ERR "als4000: no OPL device at 0x%lx-0x%lx ?\n",
+		printk(KERN_ERR "als4000: no OPL device at 0x%lx-0x%lx?\n",
 			   gcr+0x10, gcr+0x12 );
 	} else {
 		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-			snd_card_free(card);
-			return err;
+			goto out_err;
 		}
 	}
 
 	snd_als4000_create_gameport(acard, dev);
 
 	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
+		goto out_err;
 	}
 	pci_set_drvdata(pci, card);
 	dev++;
-	return 0;
+	err = 0;
+	goto out;
+
+out_err:
+	snd_card_free(card);
+	
+out:
+	return err;
 }
 
 static void __devexit snd_card_als4000_remove(struct pci_dev *pci)

@@ -669,25 +669,34 @@ static unsigned char snd_dt019x_init_values[][2] = {
 /*
  * ALS4000 specific mixer elements
  */
-/* FIXME: SB_ALS4000_MONO_IO_CTRL needs output select ctrl ! */
-static struct sbmix_elem snd_als4000_ctl_mono_output_switch =
-	SB_SINGLE("Mono Output Switch", SB_ALS4000_MONO_IO_CTRL, 5, 1);
-/* FIXME: mono input switch also available on DT019X ? */
-static struct sbmix_elem snd_als4000_ctl_mono_input_switch =
-	SB_SINGLE("Mono Input Switch", SB_DT019X_OUTPUT_SW2, 0, 1);
+/* FIXME: SB_ALS4000_MONO_IO_CTRL needs output select ctrl! */
+static struct sbmix_elem snd_als4000_ctl_master_mono_playback_switch =
+	SB_SINGLE("Master Mono Playback Switch", SB_ALS4000_MONO_IO_CTRL, 5, 1);
+static struct sbmix_elem snd_als4000_ctl_master_mono_capture_route =
+	SB_SINGLE("Master Mono Capture Route", SB_ALS4000_MONO_IO_CTRL, 6, 0x03);
+/* FIXME: mono playback switch also available on DT019X? */
+static struct sbmix_elem snd_als4000_ctl_mono_playback_switch =
+	SB_SINGLE("Mono Playback Switch", SB_DT019X_OUTPUT_SW2, 0, 1);
 static struct sbmix_elem snd_als4000_ctl_mic_20db_boost =
 	SB_SINGLE("Mic Boost (+20dB)", SB_ALS4000_MIC_IN_GAIN, 0, 0x03);
-static struct sbmix_elem snd_als4000_ctl_mixer_out_to_in =
-	SB_SINGLE("Mixer Out To In", SB_ALS4000_MIC_IN_GAIN, 7, 0x01);
-/* FIXME: 3D needs much more sophisticated controls, many more features ! */
-static struct sbmix_elem snd_als4000_ctl_3d_output_switch =
-	SB_SINGLE("3D Output Switch", SB_ALS4000_3D_SND_FX, 6, 0x01);
-static struct sbmix_elem snd_als4000_ctl_3d_output_ratio =
-	SB_SINGLE("3D Output Ratio", SB_ALS4000_3D_SND_FX, 0, 0x07);
-static struct sbmix_elem snd_als4000_ctl_3d_poweroff_switch =
+static struct sbmix_elem snd_als4000_ctl_mixer_loopback =
+	SB_SINGLE("Analog Loopback", SB_ALS4000_MIC_IN_GAIN, 7, 0x01);
+/* FIXME: functionality of 3D controls might be swapped, I didn't find
+ * a description of how to identify what is supposed to be what */
+static struct sbmix_elem snd_als4000_3d_control_switch =
+	SB_SINGLE("3D Control - Switch", SB_ALS4000_3D_SND_FX, 6, 0x01);
+static struct sbmix_elem snd_als4000_3d_control_ratio =
+	SB_SINGLE("3D Control - Level", SB_ALS4000_3D_SND_FX, 0, 0x07);
+static struct sbmix_elem snd_als4000_3d_control_freq =
+	/* FIXME: maybe there's actually some standard 3D ctrl name for it?? */
+	SB_SINGLE("3D Control - Freq", SB_ALS4000_3D_SND_FX, 4, 0x03);
+static struct sbmix_elem snd_als4000_3d_control_delay =
+	/* FIXME: ALS4000a.pdf mentions BBD (Bucket Brigade Device) time delay,
+	 * but what ALSA 3D attribute is that actually? "Center", "Depth",
+	 * "Wide" or "Space" or even "Level"? Assuming "Wide" for now... */
+	SB_SINGLE("3D Control - Wide", SB_ALS4000_3D_TIME_DELAY, 0, 0x0f);
+static struct sbmix_elem snd_als4000_3d_control_poweroff_switch =
 	SB_SINGLE("3D PowerOff Switch", SB_ALS4000_3D_TIME_DELAY, 4, 0x01);
-static struct sbmix_elem snd_als4000_ctl_3d_delay =
-	SB_SINGLE("3D Delay", SB_ALS4000_3D_TIME_DELAY, 0, 0x0f);
 #ifdef NOT_AVAILABLE
 static struct sbmix_elem snd_als4000_ctl_fmdac =
 	SB_SINGLE("FMDAC Switch (Option ?)", SB_ALS4000_FMDAC, 0, 0x01);
@@ -716,13 +725,15 @@ static struct sbmix_elem *snd_als4000_controls[] = {
 	&snd_sb16_ctl_pc_speaker_vol,
 	&snd_sb16_ctl_capture_vol,
 	&snd_sb16_ctl_play_vol,
-	&snd_als4000_ctl_mono_output_switch,
-	&snd_als4000_ctl_mono_input_switch,
-	&snd_als4000_ctl_mixer_out_to_in,
-	&snd_als4000_ctl_3d_output_switch,
-	&snd_als4000_ctl_3d_output_ratio,
-	&snd_als4000_ctl_3d_delay,
-	&snd_als4000_ctl_3d_poweroff_switch,
+	&snd_als4000_ctl_master_mono_playback_switch,
+	&snd_als4000_ctl_master_mono_capture_route,
+	&snd_als4000_ctl_mono_playback_switch,
+	&snd_als4000_ctl_mixer_loopback,
+	&snd_als4000_3d_control_switch,
+	&snd_als4000_3d_control_ratio,
+	&snd_als4000_3d_control_freq,
+	&snd_als4000_3d_control_delay,
+	&snd_als4000_3d_control_poweroff_switch,
 #ifdef NOT_AVAILABLE
 	&snd_als4000_ctl_fmdac,
 	&snd_als4000_ctl_qsound,
