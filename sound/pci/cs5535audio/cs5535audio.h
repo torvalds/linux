@@ -78,46 +78,46 @@
 #define PRD_EOP				0x4000
 #define PRD_EOT				0x8000
 
-typedef struct _snd_cs5535audio cs5535audio_t;
-typedef struct snd_cs5535audio_dma cs5535audio_dma_t;
-typedef struct snd_cs5535audio_dma_ops cs5535audio_dma_ops_t;
-
 enum { CS5535AUDIO_DMA_PLAYBACK, CS5535AUDIO_DMA_CAPTURE, NUM_CS5535AUDIO_DMAS };
-struct snd_cs5535audio_dma_ops {
+
+struct cs5535audio;
+
+struct cs5535audio_dma_ops {
 	int type;
-	void (*enable_dma)(cs5535audio_t *cs5535au);
-	void (*disable_dma)(cs5535audio_t *cs5535au);
-	void (*pause_dma)(cs5535audio_t *cs5535au);
-	void (*setup_prd)(cs5535audio_t *cs5535au, u32 prd_addr);
-	u32 (*read_dma_pntr)(cs5535audio_t *cs5535au);
+	void (*enable_dma)(struct cs5535audio *cs5535au);
+	void (*disable_dma)(struct cs5535audio *cs5535au);
+	void (*pause_dma)(struct cs5535audio *cs5535au);
+	void (*setup_prd)(struct cs5535audio *cs5535au, u32 prd_addr);
+	u32 (*read_dma_pntr)(struct cs5535audio *cs5535au);
 };
 
-typedef struct cs5535audio_dma_desc {
+struct cs5535audio_dma_desc {
 	u32 addr;
 	u16 size;
 	u16 ctlreserved;
-} cs5535audio_dma_desc_t;
+};
 
-struct snd_cs5535audio_dma {
-	const cs5535audio_dma_ops_t *ops;
+struct cs5535audio_dma {
+	const struct cs5535audio_dma_ops *ops;
 	struct snd_dma_buffer desc_buf;
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_substream *substream;
 	unsigned int buf_addr, buf_bytes;
 	unsigned int period_bytes, periods;
 };
 
-struct _snd_cs5535audio {
-	snd_card_t *card;
-	ac97_t *ac97;
+struct cs5535audio {
+	struct snd_card *card;
+	struct snd_ac97 *ac97;
 	int irq;
 	struct pci_dev *pci;
 	unsigned long port;
 	spinlock_t reg_lock;
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
-	cs5535audio_dma_t dmas[NUM_CS5535AUDIO_DMAS];
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
+	struct cs5535audio_dma dmas[NUM_CS5535AUDIO_DMAS];
 };
 
-int __devinit snd_cs5535audio_pcm(cs5535audio_t *cs5535audio);
+int __devinit snd_cs5535audio_pcm(struct cs5535audio *cs5535audio);
+
 #endif /* __SOUND_CS5535AUDIO_H */
 

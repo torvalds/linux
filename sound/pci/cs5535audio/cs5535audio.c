@@ -53,7 +53,7 @@ static struct pci_device_id snd_cs5535audio_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, snd_cs5535audio_ids);
 
-static void wait_till_cmd_acked(cs5535audio_t *cs5535au, unsigned long timeout)
+static void wait_till_cmd_acked(struct cs5535audio *cs5535au, unsigned long timeout)
 {
 	unsigned int tmp;
 	do {
@@ -66,11 +66,11 @@ static void wait_till_cmd_acked(cs5535audio_t *cs5535au, unsigned long timeout)
 		snd_printk(KERN_ERR "Failure writing to cs5535 codec\n");
 }
 
-static unsigned short snd_cs5535audio_codec_read(cs5535audio_t *cs5535au,
-							unsigned short reg)
+static unsigned short snd_cs5535audio_codec_read(struct cs5535audio *cs5535au,
+						 unsigned short reg)
 {
 	unsigned int regdata;
-	int timeout;
+	unsigned int timeout;
 	unsigned int val;
 
 	regdata = ((unsigned int) reg) << 24;
@@ -93,8 +93,8 @@ static unsigned short snd_cs5535audio_codec_read(cs5535audio_t *cs5535au,
 	return (unsigned short) val;
 }
 
-static void snd_cs5535audio_codec_write(cs5535audio_t *cs5535au,
-				   unsigned short reg, unsigned short val)
+static void snd_cs5535audio_codec_write(struct cs5535audio *cs5535au,
+					unsigned short reg, unsigned short val)
 {
 	unsigned int regdata;
 
@@ -108,27 +108,27 @@ static void snd_cs5535audio_codec_write(cs5535audio_t *cs5535au,
 	wait_till_cmd_acked(cs5535au, 50);
 }
 
-static void snd_cs5535audio_ac97_codec_write(ac97_t *ac97,
-				   unsigned short reg, unsigned short val)
+static void snd_cs5535audio_ac97_codec_write(struct snd_ac97 *ac97,
+					     unsigned short reg, unsigned short val)
 {
-	cs5535audio_t *cs5535au = ac97->private_data;
+	struct cs5535audio *cs5535au = ac97->private_data;
 	snd_cs5535audio_codec_write(cs5535au, reg, val);
 }
 
-static unsigned short snd_cs5535audio_ac97_codec_read(ac97_t *ac97,
-					    unsigned short reg)
+static unsigned short snd_cs5535audio_ac97_codec_read(struct snd_ac97 *ac97,
+						      unsigned short reg)
 {
-	cs5535audio_t *cs5535au = ac97->private_data;
+	struct cs5535audio *cs5535au = ac97->private_data;
 	return snd_cs5535audio_codec_read(cs5535au, reg);
 }
 
-static int snd_cs5535audio_mixer(cs5535audio_t *cs5535au)
+static int snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
 {
-	snd_card_t *card = cs5535au->card;
-	ac97_bus_t *pbus;
-	ac97_template_t ac97;
+	struct snd_card *card = cs5535au->card;
+	struct snd_ac97_bus *pbus;
+	struct snd_ac97_template ac97;
 	int err;
-	static ac97_bus_ops_t ops = {
+	static struct snd_ac97_bus_ops ops = {
 		.write = snd_cs5535audio_ac97_codec_write,
 		.read = snd_cs5535audio_ac97_codec_read,
 	};
@@ -149,14 +149,14 @@ static int snd_cs5535audio_mixer(cs5535audio_t *cs5535au)
 	return 0;
 }
 
-static void process_bm0_irq(cs5535audio_t *cs5535au)
+static void process_bm0_irq(struct cs5535audio *cs5535au)
 {
 	u8 bm_stat;
 	spin_lock(&cs5535au->reg_lock);
 	bm_stat = cs_readb(cs5535au, ACC_BM0_STATUS);
 	spin_unlock(&cs5535au->reg_lock);
 	if (bm_stat & EOP) {
-		cs5535audio_dma_t *dma;
+		struct cs5535audio_dma *dma;
 		dma = cs5535au->playback_substream->runtime->private_data;
 		snd_pcm_period_elapsed(cs5535au->playback_substream);
 	} else {
@@ -165,26 +165,26 @@ static void process_bm0_irq(cs5535audio_t *cs5535au)
 	}
 }
 
-static void process_bm1_irq(cs5535audio_t *cs5535au)
+static void process_bm1_irq(struct cs5535audio *cs5535au)
 {
 	u8 bm_stat;
 	spin_lock(&cs5535au->reg_lock);
 	bm_stat = cs_readb(cs5535au, ACC_BM1_STATUS);
 	spin_unlock(&cs5535au->reg_lock);
 	if (bm_stat & EOP) {
-		cs5535audio_dma_t *dma;
+		struct cs5535audio_dma *dma;
 		dma = cs5535au->capture_substream->runtime->private_data;
 		snd_pcm_period_elapsed(cs5535au->capture_substream);
 	}
 }
 
 static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id,
-						struct pt_regs *regs)
+					     struct pt_regs *regs)
 {
 	u16 acc_irq_stat;
 	u8 bm_stat;
 	unsigned char count;
-	cs5535audio_t *cs5535au = dev_id;
+	struct cs5535audio *cs5535au = dev_id;
 
 	if (cs5535au == NULL)
 		return IRQ_NONE;
@@ -235,7 +235,7 @@ static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id,
 	return IRQ_HANDLED;
 }
 
-static int snd_cs5535audio_free(cs5535audio_t *cs5535au)
+static int snd_cs5535audio_free(struct cs5535audio *cs5535au)
 {
 	synchronize_irq(cs5535au->irq);
 	pci_set_power_state(cs5535au->pci, 3);
@@ -249,20 +249,20 @@ static int snd_cs5535audio_free(cs5535audio_t *cs5535au)
 	return 0;
 }
 
-static int snd_cs5535audio_dev_free(snd_device_t *device)
+static int snd_cs5535audio_dev_free(struct snd_device *device)
 {
-	cs5535audio_t *cs5535au = device->device_data;
+	struct cs5535audio *cs5535au = device->device_data;
 	return snd_cs5535audio_free(cs5535au);
 }
 
-static int __devinit snd_cs5535audio_create(snd_card_t *card,
-				     struct pci_dev *pci,
-				     cs5535audio_t **rcs5535au)
+static int __devinit snd_cs5535audio_create(struct snd_card *card,
+					    struct pci_dev *pci,
+					    struct cs5535audio **rcs5535au)
 {
-	cs5535audio_t *cs5535au;
+	struct cs5535audio *cs5535au;
 
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_cs5535audio_dev_free,
 	};
 
@@ -271,7 +271,7 @@ static int __devinit snd_cs5535audio_create(snd_card_t *card,
 		return err;
 
 	if (pci_set_dma_mask(pci, DMA_32BIT_MASK) < 0 ||
-		pci_set_consistent_dma_mask(pci, DMA_32BIT_MASK) < 0) {
+	    pci_set_consistent_dma_mask(pci, DMA_32BIT_MASK) < 0) {
 		printk(KERN_WARNING "unable to get 32bit dma\n");
 		err = -ENXIO;
 		goto pcifail;
@@ -296,7 +296,7 @@ static int __devinit snd_cs5535audio_create(snd_card_t *card,
 	cs5535au->port = pci_resource_start(pci, 0);
 
 	if (request_irq(pci->irq, snd_cs5535audio_interrupt,
-		SA_INTERRUPT|SA_SHIRQ, "CS5535 Audio", cs5535au)) {
+			SA_INTERRUPT|SA_SHIRQ, "CS5535 Audio", cs5535au)) {
 		snd_printk("unable to grab IRQ %d\n", pci->irq);
 		err = -EBUSY;
 		goto sndfail;
@@ -306,7 +306,7 @@ static int __devinit snd_cs5535audio_create(snd_card_t *card,
 	pci_set_master(pci);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,
-					cs5535au, &ops)) < 0)
+				  cs5535au, &ops)) < 0)
 		goto sndfail;
 
 	snd_card_set_dev(card, &pci->dev);
@@ -324,11 +324,11 @@ pcifail:
 }
 
 static int __devinit snd_cs5535audio_probe(struct pci_dev *pci,
-					const struct pci_device_id *pci_id)
+					   const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	cs5535audio_t *cs5535au;
+	struct snd_card *card;
+	struct cs5535audio *cs5535au;
 	int err;
 
 	if (dev >= SNDRV_CARDS)
