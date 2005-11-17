@@ -20,6 +20,8 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -151,6 +153,7 @@ MODULE_PARM_DESC(pcm_substreams, "PCM substreams # (1-16) for dummy driver.");
 
 struct snd_dummy {
 	struct snd_card *card;
+	struct snd_pcm *pcm;
 	spinlock_t mixer_lock;
 	int mixer_volume[MIXER_ADDR_LAST+1][2];
 	int capture_source[MIXER_ADDR_LAST+1][2];
@@ -168,8 +171,6 @@ struct snd_dummy_pcm {
 	unsigned int pcm_buf_pos;	/* position in buffer */
 	struct snd_pcm_substream *substream;
 };
-
-static struct snd_card *snd_dummy_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 
 static inline void snd_card_dummy_pcm_timer_start(struct snd_dummy_pcm *dpcm)
@@ -190,15 +191,21 @@ static int snd_card_dummy_pcm_trigger(struct snd_pcm_substream *substream, int c
 	int err = 0;
 
 	spin_lock(&dpcm->lock);
-	if (cmd == SNDRV_PCM_TRIGGER_START) {
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		snd_card_dummy_pcm_timer_start(dpcm);
-	} else if (cmd == SNDRV_PCM_TRIGGER_STOP) {
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		snd_card_dummy_pcm_timer_stop(dpcm);
-	} else {
+		break;
+	default:
 		err = -EINVAL;
+		break;
 	}
 	spin_unlock(&dpcm->lock);
-	return err;
+	return 0;
 }
 
 static int snd_card_dummy_pcm_prepare(struct snd_pcm_substream *substream)
@@ -251,7 +258,7 @@ static snd_pcm_uframes_t snd_card_dummy_pcm_pointer(struct snd_pcm_substream *su
 static struct snd_pcm_hardware snd_card_dummy_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		USE_FORMATS,
 	.rates =		USE_RATE,
 	.rate_min =		USE_RATE_MIN,
@@ -269,7 +276,7 @@ static struct snd_pcm_hardware snd_card_dummy_playback =
 static struct snd_pcm_hardware snd_card_dummy_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		USE_FORMATS,
 	.rates =		USE_RATE,
 	.rate_min =		USE_RATE_MIN,
@@ -405,6 +412,7 @@ static int __init snd_card_dummy_pcm(struct snd_dummy *dummy, int device, int su
 	if ((err = snd_pcm_new(dummy->card, "Dummy PCM", device,
 			       substreams, substreams, &pcm)) < 0)
 		return err;
+	dummy->pcm = pcm;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_card_dummy_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_card_dummy_capture_ops);
 	pcm->private_data = dummy;
@@ -547,14 +555,13 @@ static int __init snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 	return 0;
 }
 
-static int __init snd_card_dummy_probe(int dev)
+static int __init snd_dummy_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_dummy *dummy;
 	int idx, err;
+	int dev = devptr->id;
 
-	if (!enable[dev])
-		return -ENODEV;
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 			    sizeof(struct snd_dummy));
 	if (card == NULL)
@@ -575,11 +582,10 @@ static int __init snd_card_dummy_probe(int dev)
 	strcpy(card->shortname, "Dummy");
 	sprintf(card->longname, "Dummy %i", dev + 1);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto __nodev;
+	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) == 0) {
-		snd_dummy_cards[dev] = card;
+		platform_set_drvdata(devptr, card);
 		return 0;
 	}
       __nodev:
@@ -587,16 +593,62 @@ static int __init snd_card_dummy_probe(int dev)
 	return err;
 }
 
+static int snd_dummy_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int snd_dummy_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct snd_card *card = platform_get_drvdata(pdev);
+	struct snd_dummy *dummy = card->private_data;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	snd_pcm_suspend_all(dummy->pcm);
+	return 0;
+}
+	
+static int snd_dummy_resume(struct platform_device *pdev)
+{
+	struct snd_card *card = platform_get_drvdata(pdev);
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
+#define SND_DUMMY_DRIVER	"snd_dummy"
+
+static struct platform_driver snd_dummy_driver = {
+	.probe		= snd_dummy_probe,
+	.remove		= snd_dummy_remove,
+#ifdef CONFIG_PM
+	.suspend	= snd_dummy_suspend,
+	.resume		= snd_dummy_resume,
+#endif
+	.driver		= {
+		.name	= SND_DUMMY_DRIVER
+	},
+};
+
 static int __init alsa_card_dummy_init(void)
 {
-	int dev, cards;
+	int i, cards, err;
 
-	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev]; dev++) {
-		if (snd_card_dummy_probe(dev) < 0) {
-#ifdef MODULE
-			printk(KERN_ERR "Dummy soundcard #%i not found or device busy\n", dev + 1);
-#endif
-			break;
+	if ((err = platform_driver_register(&snd_dummy_driver)) < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(SND_DUMMY_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
 		}
 		cards++;
 	}
@@ -604,17 +656,19 @@ static int __init alsa_card_dummy_init(void)
 #ifdef MODULE
 		printk(KERN_ERR "Dummy soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	platform_driver_unregister(&snd_dummy_driver);
+	return err;
 }
 
 static void __exit alsa_card_dummy_exit(void)
 {
-	int idx;
-
-	for (idx = 0; idx < SNDRV_CARDS; idx++)
-		snd_card_free(snd_dummy_cards[idx]);
+	platform_driver_unregister(&snd_dummy_driver);
 }
 
 module_init(alsa_card_dummy_init)
