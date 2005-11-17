@@ -1326,28 +1326,33 @@ static int __devinit azx_init_stream(struct azx *chip)
 /*
  * power management
  */
-static int azx_suspend(struct snd_card *card, pm_message_t state)
+static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	struct azx *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct azx *chip = card->private_data;
 	int i;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for (i = 0; i < chip->pcm_devs; i++)
-		if (chip->pcm[i])
-			snd_pcm_suspend_all(chip->pcm[i]);
+		snd_pcm_suspend_all(chip->pcm[i]);
 	snd_hda_suspend(chip->bus, state);
 	azx_free_cmd_io(chip);
-	pci_disable_device(chip->pci);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int azx_resume(struct snd_card *card)
+static int azx_resume(struct pci_dev *pci)
 {
-	struct azx *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct azx *chip = card->private_data;
 
-	pci_enable_device(chip->pci);
-	pci_set_master(chip->pci);
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	pci_set_master(pci);
 	azx_init_chip(chip);
 	snd_hda_resume(chip->bus);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
@@ -1559,6 +1564,7 @@ static int __devinit azx_probe(struct pci_dev *pci, const struct pci_device_id *
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	/* create codec instances */
 	if ((err = azx_codec_create(chip, model)) < 0) {
@@ -1578,7 +1584,6 @@ static int __devinit azx_probe(struct pci_dev *pci, const struct pci_device_id *
 		return err;
 	}
 
-	snd_card_set_pm_callback(card, azx_suspend, azx_resume, chip);
 	snd_card_set_dev(card, &pci->dev);
 
 	if ((err = snd_card_register(card)) < 0) {
@@ -1618,7 +1623,10 @@ static struct pci_driver driver = {
 	.id_table = azx_ids,
 	.probe = azx_probe,
 	.remove = __devexit_p(azx_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = azx_suspend,
+	.resume = azx_resume,
+#endif
 };
 
 static int __init alsa_card_azx_init(void)
