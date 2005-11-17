@@ -170,10 +170,10 @@ module_param(enable, bool, 0444);
 #define MAX_CODECS 2
 
 
-typedef struct snd_stru_ali ali_t;
-typedef struct snd_ali_stru_voice snd_ali_voice_t;
+struct snd_ali;
+struct snd_ali_voice;
 
-typedef struct snd_ali_channel_control {
+struct snd_ali_channel_control {
 	// register data
 	struct REGDATA {
 		unsigned int start;
@@ -192,9 +192,9 @@ typedef struct snd_ali_channel_control {
 		unsigned int ac97write;
 	} regs;
 
-} snd_ali_channel_control_t;
+};
 
-struct snd_ali_stru_voice {
+struct snd_ali_voice {
 	unsigned int number;
 	unsigned int use: 1,
 	    pcm: 1,
@@ -203,9 +203,9 @@ struct snd_ali_stru_voice {
 	    synth: 1;
 
 	/* PCM data */
-	ali_t *codec;
-	snd_pcm_substream_t *substream;
-	snd_ali_voice_t *extra;
+	struct snd_ali *codec;
+	struct snd_pcm_substream *substream;
+	struct snd_ali_voice *extra;
 	
 	unsigned int running: 1;
 
@@ -219,28 +219,28 @@ struct snd_ali_stru_voice {
 };
 
 
-typedef struct snd_stru_alidev {
+struct snd_alidev {
 
-	snd_ali_voice_t voices[ALI_CHANNELS];	
+	struct snd_ali_voice voices[ALI_CHANNELS];	
 
 	unsigned int	chcnt;			/* num of opened channels */
 	unsigned int	chmap;			/* bitmap for opened channels */
 	unsigned int synthcount;
 
-} alidev_t;
+};
 
 
 #ifdef CONFIG_PM
 #define ALI_GLOBAL_REGS		56
 #define ALI_CHANNEL_REGS	8
-typedef struct snd_ali_image {
+struct snd_ali_image {
 	unsigned long regs[ALI_GLOBAL_REGS];
 	unsigned long channel_regs[ALI_CHANNELS][ALI_CHANNEL_REGS];
-} ali_image_t;
+};
 #endif
 
 
-struct snd_stru_ali {
+struct snd_ali {
 	unsigned long	irq;
 	unsigned long	port;
 	unsigned char	revision;
@@ -252,10 +252,10 @@ struct snd_stru_ali {
 	struct pci_dev	*pci_m1533;
 	struct pci_dev	*pci_m7101;
 
-	snd_card_t	*card;
-	snd_pcm_t	*pcm[MAX_CODECS];
-	alidev_t	synth;
-	snd_ali_channel_control_t chregs;
+	struct snd_card	*card;
+	struct snd_pcm	*pcm[MAX_CODECS];
+	struct snd_alidev	synth;
+	struct snd_ali_channel_control chregs;
 
 	/* S/PDIF Mask */
 	unsigned int	spdif_mask;
@@ -265,8 +265,8 @@ struct snd_stru_ali {
 
 	unsigned int num_of_codecs;
 
-	ac97_bus_t *ac97_bus;
-	ac97_t *ac97[MAX_CODECS];
+	struct snd_ac97_bus *ac97_bus;
+	struct snd_ac97 *ac97[MAX_CODECS];
 	unsigned short	ac97_ext_id;
 	unsigned short	ac97_ext_status;
 
@@ -274,7 +274,7 @@ struct snd_stru_ali {
 	spinlock_t	voice_alloc;
 
 #ifdef CONFIG_PM
-	ali_image_t *image;
+	struct snd_ali_image *image;
 #endif
 };
 
@@ -284,9 +284,9 @@ static struct pci_device_id snd_ali_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, snd_ali_ids);
 
-static void snd_ali_clear_voices(ali_t *, unsigned int, unsigned int);
-static unsigned short snd_ali_codec_peek(ali_t *, int, unsigned short);
-static void snd_ali_codec_poke(ali_t *, int, unsigned short, unsigned short);
+static void snd_ali_clear_voices(struct snd_ali *, unsigned int, unsigned int);
+static unsigned short snd_ali_codec_peek(struct snd_ali *, int, unsigned short);
+static void snd_ali_codec_poke(struct snd_ali *, int, unsigned short, unsigned short);
 
 /*
  *  Debug Part
@@ -294,7 +294,7 @@ static void snd_ali_codec_poke(ali_t *, int, unsigned short, unsigned short);
 
 #ifdef ALI_DEBUG
 
-static void ali_read_regs(ali_t *codec, int channel)
+static void ali_read_regs(struct snd_ali *codec, int channel)
 {
 	int i,j;
 	unsigned int dwVal;
@@ -344,7 +344,7 @@ static void ali_read_cfg(unsigned int vendor, unsigned deviceid)
 	}
 	pci_dev_put(pci_dev);
  }
-static void ali_read_ac97regs(ali_t *codec, int secondary)
+static void ali_read_ac97regs(struct snd_ali *codec, int secondary)
 {
 	unsigned short i,j;
 	unsigned short wVal;
@@ -373,20 +373,20 @@ static void ali_read_ac97regs(ali_t *codec, int secondary)
  *  AC97 ACCESS
  */
 
-static inline unsigned int snd_ali_5451_peek(ali_t *codec,
+static inline unsigned int snd_ali_5451_peek(struct snd_ali *codec,
 						unsigned int port )
 {
 	return (unsigned int)inl(ALI_REG(codec, port)); 
 }
 
-static inline void snd_ali_5451_poke(	ali_t *codec,
+static inline void snd_ali_5451_poke(	struct snd_ali *codec,
 					unsigned int port,
 					unsigned int val )
 {
 	outl((unsigned int)val, ALI_REG(codec, port));
 }
 
-static int snd_ali_codec_ready(	ali_t *codec,
+static int snd_ali_codec_ready(	struct snd_ali *codec,
 				unsigned int port )
 {
 	unsigned long end_time;
@@ -404,7 +404,7 @@ static int snd_ali_codec_ready(	ali_t *codec,
 	return -EIO;
 }
 
-static int snd_ali_stimer_ready(ali_t *codec)
+static int snd_ali_stimer_ready(struct snd_ali *codec)
 {
 	unsigned long end_time;
 	unsigned long dwChk1,dwChk2;
@@ -423,7 +423,7 @@ static int snd_ali_stimer_ready(ali_t *codec)
 	return -EIO;
 }
 
-static void snd_ali_codec_poke(ali_t *codec,int secondary,
+static void snd_ali_codec_poke(struct snd_ali *codec,int secondary,
 				     unsigned short reg,
 				     unsigned short val)
 {
@@ -452,7 +452,7 @@ static void snd_ali_codec_poke(ali_t *codec,int secondary,
 	return ;
 }
 
-static unsigned short snd_ali_codec_peek( ali_t *codec,
+static unsigned short snd_ali_codec_peek( struct snd_ali *codec,
 					  int secondary,
 					  unsigned short reg)
 {
@@ -485,11 +485,11 @@ static unsigned short snd_ali_codec_peek( ali_t *codec,
 	return (snd_ali_5451_peek(codec, port) & 0xffff0000)>>16;
 }
 
-static void snd_ali_codec_write(ac97_t *ac97,
+static void snd_ali_codec_write(struct snd_ac97 *ac97,
 				unsigned short reg,
 				unsigned short val )
 {
-	ali_t *codec = ac97->private_data;
+	struct snd_ali *codec = ac97->private_data;
 
 	snd_ali_printk("codec_write: reg=%xh data=%xh.\n", reg, val);
 	if(reg == AC97_GPIO_STATUS) {
@@ -502,9 +502,9 @@ static void snd_ali_codec_write(ac97_t *ac97,
 }
 
 
-static unsigned short snd_ali_codec_read(ac97_t *ac97, unsigned short reg)
+static unsigned short snd_ali_codec_read(struct snd_ac97 *ac97, unsigned short reg)
 {
-	ali_t *codec = ac97->private_data;
+	struct snd_ali *codec = ac97->private_data;
 
 	snd_ali_printk("codec_read reg=%xh.\n", reg);
 	return (snd_ali_codec_peek(codec, ac97->num, reg));
@@ -514,7 +514,7 @@ static unsigned short snd_ali_codec_read(ac97_t *ac97, unsigned short reg)
  *	AC97 Reset
  */
 
-static int snd_ali_reset_5451(ali_t *codec)
+static int snd_ali_reset_5451(struct snd_ali *codec)
 {
 	struct pci_dev *pci_dev = NULL;
 	unsigned short wCount, wReg;
@@ -552,7 +552,7 @@ static int snd_ali_reset_5451(ali_t *codec)
 
 #ifdef CODEC_RESET
 
-static int snd_ali_reset_codec(ali_t *codec)
+static int snd_ali_reset_codec(struct snd_ali *codec)
 {
 	struct pci_dev *pci_dev = NULL;
 	unsigned char bVal = 0;
@@ -593,7 +593,7 @@ static int snd_ali_reset_codec(ali_t *codec)
  *  ALI 5451 Controller
  */
 
-static void snd_ali_enable_special_channel(ali_t *codec, unsigned int channel)
+static void snd_ali_enable_special_channel(struct snd_ali *codec, unsigned int channel)
 {
 	unsigned long dwVal = 0;
 
@@ -602,7 +602,7 @@ static void snd_ali_enable_special_channel(ali_t *codec, unsigned int channel)
 	outl(dwVal, ALI_REG(codec,ALI_GLOBAL_CONTROL));
 }
 
-static void snd_ali_disable_special_channel(ali_t *codec, unsigned int channel)
+static void snd_ali_disable_special_channel(struct snd_ali *codec, unsigned int channel)
 {
 	unsigned long dwVal = 0;
 
@@ -611,7 +611,7 @@ static void snd_ali_disable_special_channel(ali_t *codec, unsigned int channel)
 	outl(dwVal, ALI_REG(codec,ALI_GLOBAL_CONTROL));
 }
 
-static void snd_ali_enable_address_interrupt(ali_t * codec)
+static void snd_ali_enable_address_interrupt(struct snd_ali * codec)
 {
 	unsigned int gc;
 
@@ -621,7 +621,7 @@ static void snd_ali_enable_address_interrupt(ali_t * codec)
 	outl( gc, ALI_REG(codec, ALI_GC_CIR));
 }
 
-static void snd_ali_disable_address_interrupt(ali_t * codec)
+static void snd_ali_disable_address_interrupt(struct snd_ali * codec)
 {
 	unsigned int gc;
 
@@ -632,10 +632,10 @@ static void snd_ali_disable_address_interrupt(ali_t * codec)
 }
 
 #if 0 // not used
-static void snd_ali_enable_voice_irq(ali_t *codec, unsigned int channel)
+static void snd_ali_enable_voice_irq(struct snd_ali *codec, unsigned int channel)
 {
 	unsigned int mask;
-	snd_ali_channel_control_t *pchregs = &(codec->chregs);
+	struct snd_ali_channel_control *pchregs = &(codec->chregs);
 
 	snd_ali_printk("enable_voice_irq channel=%d\n",channel);
 	
@@ -646,10 +646,10 @@ static void snd_ali_enable_voice_irq(ali_t *codec, unsigned int channel)
 }
 #endif
 
-static void snd_ali_disable_voice_irq(ali_t *codec, unsigned int channel)
+static void snd_ali_disable_voice_irq(struct snd_ali *codec, unsigned int channel)
 {
 	unsigned int mask;
-	snd_ali_channel_control_t *pchregs = &(codec->chregs);
+	struct snd_ali_channel_control *pchregs = &(codec->chregs);
 
 	snd_ali_printk("disable_voice_irq channel=%d\n",channel);
 
@@ -659,7 +659,7 @@ static void snd_ali_disable_voice_irq(ali_t *codec, unsigned int channel)
 	outl(pchregs->data.ainten,ALI_REG(codec,pchregs->regs.ainten));
 }
 
-static int snd_ali_alloc_pcm_channel(ali_t *codec, int channel)
+static int snd_ali_alloc_pcm_channel(struct snd_ali *codec, int channel)
 {
 	unsigned int idx =  channel & 0x1f;
 
@@ -677,7 +677,7 @@ static int snd_ali_alloc_pcm_channel(ali_t *codec, int channel)
 	return -1;
 }
 
-static int snd_ali_find_free_channel(ali_t * codec, int rec)
+static int snd_ali_find_free_channel(struct snd_ali * codec, int rec)
 {
 	int idx;
 	int result = -1;
@@ -719,7 +719,7 @@ static int snd_ali_find_free_channel(ali_t * codec, int rec)
 	return -1;
 }
 
-static void snd_ali_free_channel_pcm(ali_t *codec, int channel)
+static void snd_ali_free_channel_pcm(struct snd_ali *codec, int channel)
 {
 	unsigned int idx = channel & 0x0000001f;
 
@@ -738,7 +738,7 @@ static void snd_ali_free_channel_pcm(ali_t *codec, int channel)
 }
 
 #if 0 // not used
-static void snd_ali_start_voice(ali_t * codec, unsigned int channel)
+static void snd_ali_start_voice(struct snd_ali * codec, unsigned int channel)
 {
 	unsigned int mask = 1 << (channel & 0x1f);
 	
@@ -747,7 +747,7 @@ static void snd_ali_start_voice(ali_t * codec, unsigned int channel)
 }
 #endif
 
-static void snd_ali_stop_voice(ali_t * codec, unsigned int channel)
+static void snd_ali_stop_voice(struct snd_ali * codec, unsigned int channel)
 {
 	unsigned int mask = 1 << (channel & 0x1f);
 
@@ -759,7 +759,7 @@ static void snd_ali_stop_voice(ali_t * codec, unsigned int channel)
  *    S/PDIF Part
  */
 
-static void snd_ali_delay(ali_t *codec,int interval)
+static void snd_ali_delay(struct snd_ali *codec,int interval)
 {
 	unsigned long  begintimer,currenttimer;
 
@@ -773,7 +773,7 @@ static void snd_ali_delay(ali_t *codec,int interval)
 	}
 }
 
-static void snd_ali_detect_spdif_rate(ali_t *codec)
+static void snd_ali_detect_spdif_rate(struct snd_ali *codec)
 {
 	u16 wval  = 0;
 	u16 count = 0;
@@ -827,7 +827,7 @@ static void snd_ali_detect_spdif_rate(ali_t *codec)
 	}
 }
 
-static unsigned int snd_ali_get_spdif_in_rate(ali_t *codec)
+static unsigned int snd_ali_get_spdif_in_rate(struct snd_ali *codec)
 {
 	u32	dwRate = 0;
 	u8	bval = 0;
@@ -849,7 +849,7 @@ static unsigned int snd_ali_get_spdif_in_rate(ali_t *codec)
 	return dwRate;
 }
 
-static void snd_ali_enable_spdif_in(ali_t *codec)
+static void snd_ali_enable_spdif_in(struct snd_ali *codec)
 {	
 	unsigned int dwVal;
 
@@ -864,7 +864,7 @@ static void snd_ali_enable_spdif_in(ali_t *codec)
 	snd_ali_enable_special_channel(codec, ALI_SPDIF_IN_CHANNEL);
 }
 
-static void snd_ali_disable_spdif_in(ali_t *codec)
+static void snd_ali_disable_spdif_in(struct snd_ali *codec)
 {
 	unsigned int dwVal;
 	
@@ -876,7 +876,7 @@ static void snd_ali_disable_spdif_in(ali_t *codec)
 }
 
 
-static void snd_ali_set_spdif_out_rate(ali_t *codec, unsigned int rate)
+static void snd_ali_set_spdif_out_rate(struct snd_ali *codec, unsigned int rate)
 {
 	unsigned char  bVal;
 	unsigned int  dwRate = 0;
@@ -897,7 +897,7 @@ static void snd_ali_set_spdif_out_rate(ali_t *codec, unsigned int rate)
 	outw(rate | 0x10, ALI_REG(codec, ALI_SPDIF_CS + 2));
 }
 
-static void snd_ali_enable_spdif_out(ali_t *codec)
+static void snd_ali_enable_spdif_out(struct snd_ali *codec)
 {
 	unsigned short wVal;
 	unsigned char bVal;
@@ -933,7 +933,7 @@ static void snd_ali_enable_spdif_out(ali_t *codec)
    	}
 }
 
-static void snd_ali_enable_spdif_chnout(ali_t *codec)
+static void snd_ali_enable_spdif_chnout(struct snd_ali *codec)
 {
 	unsigned short wVal = 0;
 
@@ -951,7 +951,7 @@ static void snd_ali_enable_spdif_chnout(ali_t *codec)
 	snd_ali_enable_special_channel(codec,ALI_SPDIF_OUT_CHANNEL);
 }
 
-static void snd_ali_disable_spdif_chnout(ali_t *codec)
+static void snd_ali_disable_spdif_chnout(struct snd_ali *codec)
 {
 	unsigned short wVal = 0;
   	wVal  = inw(ALI_REG(codec, ALI_GLOBAL_CONTROL));
@@ -961,7 +961,7 @@ static void snd_ali_disable_spdif_chnout(ali_t *codec)
 	snd_ali_enable_special_channel(codec, ALI_SPDIF_OUT_CHANNEL);
 }
 
-static void snd_ali_disable_spdif_out(ali_t *codec)
+static void snd_ali_disable_spdif_out(struct snd_ali *codec)
 {
 	unsigned char  bVal;
 
@@ -971,11 +971,11 @@ static void snd_ali_disable_spdif_out(ali_t *codec)
 	snd_ali_disable_spdif_chnout(codec);
 }
 
-static void snd_ali_update_ptr(ali_t *codec,int channel)
+static void snd_ali_update_ptr(struct snd_ali *codec,int channel)
 {
-	snd_ali_voice_t *pvoice = NULL;
-	snd_pcm_runtime_t *runtime;
-	snd_ali_channel_control_t *pchregs = NULL;
+	struct snd_ali_voice *pvoice = NULL;
+	struct snd_pcm_runtime *runtime;
+	struct snd_ali_channel_control *pchregs = NULL;
 	unsigned int old, mask;
 #ifdef ALI_DEBUG
 	unsigned int temp, cspf;
@@ -1026,11 +1026,11 @@ static void snd_ali_update_ptr(ali_t *codec,int channel)
 	pchregs->data.aint = old & (~mask);
 }
 
-static void snd_ali_interrupt(ali_t * codec)
+static void snd_ali_interrupt(struct snd_ali * codec)
 {
 	int channel;
 	unsigned int audio_int;
-	snd_ali_channel_control_t *pchregs = NULL;
+	struct snd_ali_channel_control *pchregs = NULL;
 	pchregs = &(codec->chregs);
 
 	audio_int = inl(ALI_REG(codec, ALI_MISCINT));
@@ -1050,7 +1050,7 @@ static irqreturn_t snd_ali_card_interrupt(int irq,
 				   void *dev_id,
 				   struct pt_regs *regs)
 {
-	ali_t 	*codec = dev_id;
+	struct snd_ali 	*codec = dev_id;
 
 	if (codec == NULL)
 		return IRQ_NONE;
@@ -1059,9 +1059,9 @@ static irqreturn_t snd_ali_card_interrupt(int irq,
 }
 
 
-static snd_ali_voice_t *snd_ali_alloc_voice(ali_t * codec, int type, int rec, int channel)
+static struct snd_ali_voice *snd_ali_alloc_voice(struct snd_ali * codec, int type, int rec, int channel)
 {
-	snd_ali_voice_t *pvoice = NULL;
+	struct snd_ali_voice *pvoice = NULL;
 	int idx;
 
 	snd_ali_printk("alloc_voice: type=%d rec=%d\n",type,rec);
@@ -1088,7 +1088,7 @@ static snd_ali_voice_t *snd_ali_alloc_voice(ali_t * codec, int type, int rec, in
 }
 
 
-static void snd_ali_free_voice(ali_t * codec, snd_ali_voice_t *pvoice)
+static void snd_ali_free_voice(struct snd_ali * codec, struct snd_ali_voice *pvoice)
 {
 	void (*private_free)(void *);
 	void *private_data;
@@ -1113,7 +1113,7 @@ static void snd_ali_free_voice(ali_t * codec, snd_ali_voice_t *pvoice)
 }
 
 
-static void snd_ali_clear_voices(ali_t * codec,
+static void snd_ali_clear_voices(struct snd_ali * codec,
 			  unsigned int v_min,
 			  unsigned int v_max)
 {
@@ -1125,7 +1125,7 @@ static void snd_ali_clear_voices(ali_t * codec,
 	}
 }
 
-static void snd_ali_write_voice_regs(ali_t * codec,
+static void snd_ali_write_voice_regs(struct snd_ali * codec,
 			 unsigned int Channel,
 			 unsigned int LBA,
 			 unsigned int CSO,
@@ -1192,10 +1192,10 @@ static unsigned int snd_ali_convert_rate(unsigned int rate, int rec)
 	return delta;
 }
 
-static unsigned int snd_ali_control_mode(snd_pcm_substream_t *substream)
+static unsigned int snd_ali_control_mode(struct snd_pcm_substream *substream)
 {
 	unsigned int CTRL;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	/* set ctrl mode
 	   CTRL default: 8-bit (unsigned) mono, loop mode enabled
@@ -1214,21 +1214,21 @@ static unsigned int snd_ali_control_mode(snd_pcm_substream_t *substream)
  *  PCM part
  */
 
-static int snd_ali_ioctl(snd_pcm_substream_t * substream,
+static int snd_ali_ioctl(struct snd_pcm_substream *substream,
 				  unsigned int cmd, void *arg)
 {
 	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
 
-static int snd_ali_trigger(snd_pcm_substream_t *substream,
+static int snd_ali_trigger(struct snd_pcm_substream *substream,
 			       int cmd)
 				    
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
 	struct list_head *pos;
-	snd_pcm_substream_t *s;
+	struct snd_pcm_substream *s;
 	unsigned int what, whati, capture_flag;
-	snd_ali_voice_t *pvoice = NULL, *evoice = NULL;
+	struct snd_ali_voice *pvoice = NULL, *evoice = NULL;
 	unsigned int val;
 	int do_start;
 
@@ -1246,8 +1246,8 @@ static int snd_ali_trigger(snd_pcm_substream_t *substream,
 	what = whati = capture_flag = 0;
 	snd_pcm_group_for_each(pos, substream) {
 		s = snd_pcm_group_substream_entry(pos);
-		if ((ali_t *) snd_pcm_substream_chip(s) == codec) {
-			pvoice = (snd_ali_voice_t *) s->runtime->private_data;
+		if ((struct snd_ali *) snd_pcm_substream_chip(s) == codec) {
+			pvoice = s->runtime->private_data;
 			evoice = pvoice->extra;
 			what |= 1 << (pvoice->number & 0x1f);
 			if (evoice == NULL) {
@@ -1290,13 +1290,13 @@ static int snd_ali_trigger(snd_pcm_substream_t *substream,
 	return 0;
 }
 
-static int snd_ali_playback_hw_params(snd_pcm_substream_t * substream,
-				 snd_pcm_hw_params_t * hw_params)
+static int snd_ali_playback_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *hw_params)
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
-	snd_ali_voice_t *evoice = pvoice->extra;
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_ali_voice *pvoice = runtime->private_data;
+	struct snd_ali_voice *evoice = pvoice->extra;
 	int err;
 	err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 	if (err < 0) return err;
@@ -1321,12 +1321,12 @@ static int snd_ali_playback_hw_params(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-static int snd_ali_playback_hw_free(snd_pcm_substream_t * substream)
+static int snd_ali_playback_hw_free(struct snd_pcm_substream *substream)
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
-	snd_ali_voice_t *evoice = pvoice ? pvoice->extra : NULL;
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_ali_voice *pvoice = runtime->private_data;
+	struct snd_ali_voice *evoice = pvoice ? pvoice->extra : NULL;
 
 	snd_pcm_lib_free_pages(substream);
 	if (evoice != NULL) {
@@ -1336,23 +1336,23 @@ static int snd_ali_playback_hw_free(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_ali_hw_params(snd_pcm_substream_t * substream,
-				 snd_pcm_hw_params_t * hw_params)
+static int snd_ali_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
-static int snd_ali_hw_free(snd_pcm_substream_t * substream)
+static int snd_ali_hw_free(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
 
-static int snd_ali_playback_prepare(snd_pcm_substream_t * substream)
+static int snd_ali_playback_prepare(struct snd_pcm_substream *substream)
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
-	snd_ali_voice_t *evoice = pvoice->extra;
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_ali_voice *pvoice = runtime->private_data;
+	struct snd_ali_voice *evoice = pvoice->extra;
 
 	unsigned int LBA;
 	unsigned int Delta;
@@ -1435,11 +1435,11 @@ static int snd_ali_playback_prepare(snd_pcm_substream_t * substream)
 }
 
 
-static int snd_ali_prepare(snd_pcm_substream_t * substream)
+static int snd_ali_prepare(struct snd_pcm_substream *substream)
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_ali_voice *pvoice = runtime->private_data;
 	unsigned int LBA;
 	unsigned int Delta;
 	unsigned int ESO;
@@ -1522,11 +1522,11 @@ static int snd_ali_prepare(snd_pcm_substream_t * substream)
 }
 
 
-static snd_pcm_uframes_t snd_ali_playback_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_ali_playback_pointer(struct snd_pcm_substream *substream)
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_ali_voice *pvoice = runtime->private_data;
 	unsigned int cso;
 
 	spin_lock(&codec->reg_lock);
@@ -1543,11 +1543,11 @@ static snd_pcm_uframes_t snd_ali_playback_pointer(snd_pcm_substream_t *substream
 }
 
 
-static snd_pcm_uframes_t snd_ali_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_ali_pointer(struct snd_pcm_substream *substream)
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_ali_voice *pvoice = runtime->private_data;
 	unsigned int cso;
 
 	spin_lock(&codec->reg_lock);
@@ -1562,7 +1562,7 @@ static snd_pcm_uframes_t snd_ali_pointer(snd_pcm_substream_t *substream)
 	return cso;
 }
 
-static snd_pcm_hardware_t snd_ali_playback =
+static struct snd_pcm_hardware snd_ali_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1588,7 +1588,7 @@ static snd_pcm_hardware_t snd_ali_playback =
  *  Capture support device description
  */
 
-static snd_pcm_hardware_t snd_ali_capture =
+static struct snd_pcm_hardware snd_ali_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1610,10 +1610,10 @@ static snd_pcm_hardware_t snd_ali_capture =
 	.fifo_size =		0,
 };
 
-static void snd_ali_pcm_free_substream(snd_pcm_runtime_t *runtime)
+static void snd_ali_pcm_free_substream(struct snd_pcm_runtime *runtime)
 {
-	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
-	ali_t *codec;
+	struct snd_ali_voice *pvoice = runtime->private_data;
+	struct snd_ali *codec;
 
 	if (pvoice) {
 		codec = pvoice->codec;
@@ -1621,12 +1621,12 @@ static void snd_ali_pcm_free_substream(snd_pcm_runtime_t *runtime)
 	}
 }
 
-static int snd_ali_open(snd_pcm_substream_t * substream, int rec, int channel,
-		snd_pcm_hardware_t *phw)
+static int snd_ali_open(struct snd_pcm_substream *substream, int rec, int channel,
+		struct snd_pcm_hardware *phw)
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_ali_voice_t *pvoice;
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_ali_voice *pvoice;
 
 	pvoice = snd_ali_alloc_voice(codec, SNDRV_ALI_VOICE_TYPE_PCM, rec, channel);
 	if (pvoice == NULL)
@@ -1642,32 +1642,32 @@ static int snd_ali_open(snd_pcm_substream_t * substream, int rec, int channel,
 	return 0;
 }
 
-static int snd_ali_playback_open(snd_pcm_substream_t * substream)
+static int snd_ali_playback_open(struct snd_pcm_substream *substream)
 {
 	return snd_ali_open(substream, 0, -1, &snd_ali_playback);
 }
 
-static int snd_ali_capture_open(snd_pcm_substream_t * substream)
+static int snd_ali_capture_open(struct snd_pcm_substream *substream)
 {
 	return snd_ali_open(substream, 1, -1, &snd_ali_capture);
 }
 
-static int snd_ali_playback_close(snd_pcm_substream_t * substream)
+static int snd_ali_playback_close(struct snd_pcm_substream *substream)
 {
 	return 0;
 }
 
-static int snd_ali_close(snd_pcm_substream_t * substream)
+static int snd_ali_close(struct snd_pcm_substream *substream)
 {
-	ali_t *codec = snd_pcm_substream_chip(substream);
-	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) substream->runtime->private_data;
+	struct snd_ali *codec = snd_pcm_substream_chip(substream);
+	struct snd_ali_voice *pvoice = substream->runtime->private_data;
 
 	snd_ali_disable_special_channel(codec,pvoice->number);
 
 	return 0;
 }
 
-static snd_pcm_ops_t snd_ali_playback_ops = {
+static struct snd_pcm_ops snd_ali_playback_ops = {
 	.open =		snd_ali_playback_open,
 	.close =	snd_ali_playback_close,
 	.ioctl =	snd_ali_ioctl,
@@ -1678,7 +1678,7 @@ static snd_pcm_ops_t snd_ali_playback_ops = {
 	.pointer =	snd_ali_playback_pointer,
 };
 
-static snd_pcm_ops_t snd_ali_capture_ops = {
+static struct snd_pcm_ops snd_ali_capture_ops = {
 	.open =		snd_ali_capture_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_ali_ioctl,
@@ -1693,17 +1693,17 @@ static snd_pcm_ops_t snd_ali_capture_ops = {
  * Modem PCM
  */
 
-static int snd_ali_modem_hw_params(snd_pcm_substream_t * substream,
-				 snd_pcm_hw_params_t * hw_params)
+static int snd_ali_modem_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *hw_params)
 {
-	ali_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_ali *chip = snd_pcm_substream_chip(substream);
 	unsigned int modem_num = chip->num_of_codecs - 1;
 	snd_ac97_write(chip->ac97[modem_num], AC97_LINE1_RATE, params_rate(hw_params));
 	snd_ac97_write(chip->ac97[modem_num], AC97_LINE1_LEVEL, 0);
 	return snd_ali_hw_params(substream, hw_params);
 }
 
-static snd_pcm_hardware_t snd_ali_modem =
+static struct snd_pcm_hardware snd_ali_modem =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1724,10 +1724,10 @@ static snd_pcm_hardware_t snd_ali_modem =
 	.fifo_size =		0,
 };
 
-static int snd_ali_modem_open(snd_pcm_substream_t * substream, int rec, int channel)
+static int snd_ali_modem_open(struct snd_pcm_substream *substream, int rec, int channel)
 {
 	static unsigned int rates [] = {8000,9600,12000,16000};
-	static snd_pcm_hw_constraint_list_t hw_constraint_rates = {
+	static struct snd_pcm_hw_constraint_list hw_constraint_rates = {
 		.count = ARRAY_SIZE(rates),
 		.list = rates,
 		.mask = 0,
@@ -1739,17 +1739,17 @@ static int snd_ali_modem_open(snd_pcm_substream_t * substream, int rec, int chan
 			SNDRV_PCM_HW_PARAM_RATE, &hw_constraint_rates);
 }
 
-static int snd_ali_modem_playback_open(snd_pcm_substream_t * substream)
+static int snd_ali_modem_playback_open(struct snd_pcm_substream *substream)
 {
 	return snd_ali_modem_open(substream, 0, ALI_MODEM_OUT_CHANNEL);
 }
 
-static int snd_ali_modem_capture_open(snd_pcm_substream_t * substream)
+static int snd_ali_modem_capture_open(struct snd_pcm_substream *substream)
 {
 	return snd_ali_modem_open(substream, 1, ALI_MODEM_IN_CHANNEL);
 }
 
-static snd_pcm_ops_t snd_ali_modem_playback_ops = {
+static struct snd_pcm_ops snd_ali_modem_playback_ops = {
 	.open =		snd_ali_modem_playback_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1760,7 +1760,7 @@ static snd_pcm_ops_t snd_ali_modem_playback_ops = {
 	.pointer =	snd_ali_pointer,
 };
 
-static snd_pcm_ops_t snd_ali_modem_capture_ops = {
+static struct snd_pcm_ops snd_ali_modem_capture_ops = {
 	.open =		snd_ali_modem_capture_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1776,22 +1776,22 @@ struct ali_pcm_description {
 	char *name;
 	unsigned int playback_num;
 	unsigned int capture_num;
-	snd_pcm_ops_t *playback_ops;
-	snd_pcm_ops_t *capture_ops;
+	struct snd_pcm_ops *playback_ops;
+	struct snd_pcm_ops *capture_ops;
 	unsigned short class;
 };
 
 
-static void snd_ali_pcm_free(snd_pcm_t *pcm)
+static void snd_ali_pcm_free(struct snd_pcm *pcm)
 {
-	ali_t *codec = pcm->private_data;
+	struct snd_ali *codec = pcm->private_data;
 	codec->pcm[pcm->device] = NULL;
 }
 
 
-static int __devinit snd_ali_pcm(ali_t * codec, int device, struct ali_pcm_description *desc)
+static int __devinit snd_ali_pcm(struct snd_ali * codec, int device, struct ali_pcm_description *desc)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	err = snd_pcm_new(codec->card, desc->name, device,
@@ -1823,7 +1823,7 @@ static struct ali_pcm_description ali_pcms[] = {
 	{ "ALI 5451 modem", 1, 1, &snd_ali_modem_playback_ops, &snd_ali_modem_capture_ops, SNDRV_PCM_CLASS_MODEM }
 };
 
-static int __devinit snd_ali_build_pcms(ali_t *codec)
+static int __devinit snd_ali_build_pcms(struct snd_ali *codec)
 {
 	int i, err;
 	for(i = 0 ; i < codec->num_of_codecs && i < ARRAY_SIZE(ali_pcms) ; i++)
@@ -1838,7 +1838,7 @@ static int __devinit snd_ali_build_pcms(ali_t *codec)
 .info = snd_ali5451_spdif_info, .get = snd_ali5451_spdif_get, \
 .put = snd_ali5451_spdif_put, .private_value = value}
 
-static int snd_ali5451_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_ali5451_spdif_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
         uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
         uinfo->count = 1;
@@ -1847,9 +1847,9 @@ static int snd_ali5451_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
         return 0;
 }
 
-static int snd_ali5451_spdif_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ali5451_spdif_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ali_t *codec = kcontrol->private_data;
+	struct snd_ali *codec = kcontrol->private_data;
 	unsigned int enable;
 
 	enable = ucontrol->value.integer.value[0] ? 1 : 0;
@@ -1873,9 +1873,9 @@ static int snd_ali5451_spdif_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_ali5451_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ali5451_spdif_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	ali_t *codec = kcontrol->private_data;
+	struct snd_ali *codec = kcontrol->private_data;
 	unsigned int change = 0, enable = 0;
 
 	enable = ucontrol->value.integer.value[0] ? 1 : 0;
@@ -1930,7 +1930,7 @@ static int snd_ali5451_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return change;
 }
 
-static snd_kcontrol_new_t snd_ali5451_mixer_spdif[] __devinitdata = {
+static struct snd_kcontrol_new snd_ali5451_mixer_spdif[] __devinitdata = {
 	/* spdif aplayback switch */
 	/* FIXME: "IEC958 Playback Switch" may conflict with one on ac97_codec */
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH), 0, 0),
@@ -1940,24 +1940,24 @@ static snd_kcontrol_new_t snd_ali5451_mixer_spdif[] __devinitdata = {
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, 2)
 };
 
-static void snd_ali_mixer_free_ac97_bus(ac97_bus_t *bus)
+static void snd_ali_mixer_free_ac97_bus(struct snd_ac97_bus *bus)
 {
-	ali_t *codec = bus->private_data;
+	struct snd_ali *codec = bus->private_data;
 	codec->ac97_bus = NULL;
 }
 
-static void snd_ali_mixer_free_ac97(ac97_t *ac97)
+static void snd_ali_mixer_free_ac97(struct snd_ac97 *ac97)
 {
-	ali_t *codec = ac97->private_data;
+	struct snd_ali *codec = ac97->private_data;
 	codec->ac97[ac97->num] = NULL;
 }
 
-static int __devinit snd_ali_mixer(ali_t * codec)
+static int __devinit snd_ali_mixer(struct snd_ali * codec)
 {
-	ac97_template_t ac97;
+	struct snd_ac97_template ac97;
 	unsigned int idx;
 	int i, err;
-	static ac97_bus_ops_t ops = {
+	static struct snd_ac97_bus_ops ops = {
 		.write = snd_ali_codec_write,
 		.read = snd_ali_codec_read,
 	};
@@ -1991,10 +1991,10 @@ static int __devinit snd_ali_mixer(ali_t * codec)
 }
 
 #ifdef CONFIG_PM
-static int ali_suspend(snd_card_t *card, pm_message_t state)
+static int ali_suspend(struct snd_card *card, pm_message_t state)
 {
-	ali_t *chip = card->pm_private_data;
-	ali_image_t *im;
+	struct snd_ali *chip = card->pm_private_data;
+	struct snd_ali_image *im;
 	int i, j;
 
 	im = chip->image;
@@ -2037,10 +2037,10 @@ static int ali_suspend(snd_card_t *card, pm_message_t state)
 	return 0;
 }
 
-static int ali_resume(snd_card_t *card)
+static int ali_resume(struct snd_card *card)
 {
-	ali_t *chip = card->pm_private_data;
-	ali_image_t *im;
+	struct snd_ali *chip = card->pm_private_data;
+	struct snd_ali_image *im;
 	int i, j;
 
 	im = chip->image;
@@ -2078,7 +2078,7 @@ static int ali_resume(snd_card_t *card)
 }
 #endif /* CONFIG_PM */
 
-static int snd_ali_free(ali_t * codec)
+static int snd_ali_free(struct snd_ali * codec)
 {
 	if (codec->hw_initialized)
 		snd_ali_disable_address_interrupt(codec);
@@ -2098,7 +2098,7 @@ static int snd_ali_free(ali_t * codec)
 	return 0;
 }
 
-static int snd_ali_chip_init(ali_t *codec)
+static int snd_ali_chip_init(struct snd_ali *codec)
 {
 	unsigned int legacy;
 	unsigned char temp;
@@ -2157,22 +2157,22 @@ static int snd_ali_chip_init(ali_t *codec)
 }
 
 /* proc for register dump */
-static void snd_ali_proc_read(snd_info_entry_t *entry, snd_info_buffer_t *buf)
+static void snd_ali_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buf)
 {
-	ali_t *codec = entry->private_data;
+	struct snd_ali *codec = entry->private_data;
 	int i;
 	for(i = 0 ; i < 256 ; i+= 4)
 		snd_iprintf(buf, "%02x: %08x\n", i, inl(ALI_REG(codec, i)));
 }
 
-static void __devinit snd_ali_proc_init(ali_t *codec)
+static void __devinit snd_ali_proc_init(struct snd_ali *codec)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	if(!snd_card_proc_new(codec->card, "ali5451", &entry))
 		snd_info_set_text_ops(entry, codec, 1024, snd_ali_proc_read);
 }
 
-static int __devinit snd_ali_resources(ali_t *codec)
+static int __devinit snd_ali_resources(struct snd_ali *codec)
 {
 	int err;
 
@@ -2189,27 +2189,25 @@ static int __devinit snd_ali_resources(ali_t *codec)
 	snd_ali_printk("resouces allocated.\n");
 	return 0;
 }
-static int snd_ali_dev_free(snd_device_t *device) 
+static int snd_ali_dev_free(struct snd_device *device) 
 {
-	ali_t *codec=device->device_data;
+	struct snd_ali *codec=device->device_data;
 	snd_ali_free(codec);
 	return 0;
 }
 
-static int __devinit snd_ali_create(snd_card_t * card,
+static int __devinit snd_ali_create(struct snd_card *card,
 				    struct pci_dev *pci,
 				    int pcm_streams,
 				    int spdif_support,
-				    ali_t ** r_ali)
+				    struct snd_ali ** r_ali)
 {
-	ali_t *codec;
+	struct snd_ali *codec;
 	int i, err;
 	unsigned short cmdw = 0;
 	struct pci_dev *pci_dev = NULL;
-        static snd_device_ops_t ops = {
-		(snd_dev_free_t *)snd_ali_dev_free,
-		NULL,
-		NULL
+        static struct snd_device_ops ops = {
+		.dev_free = snd_ali_dev_free,
         };
 
 	*r_ali = NULL;
@@ -2334,8 +2332,8 @@ static int __devinit snd_ali_create(snd_card_t * card,
 static int __devinit snd_ali_probe(struct pci_dev *pci,
 				   const struct pci_device_id *pci_id)
 {
-	snd_card_t *card;
-	ali_t *codec;
+	struct snd_card *card;
+	struct snd_ali *codec;
 	int err;
 
 	snd_ali_printk("probe ...\n");
