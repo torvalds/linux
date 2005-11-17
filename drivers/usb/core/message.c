@@ -1457,12 +1457,11 @@ free_interfaces:
 		 */
 		for (i = 0; i < nintf; ++i) {
 			struct usb_interface *intf = cp->interface[i];
-			struct usb_host_interface *alt = intf->cur_altsetting;
 
 			dev_dbg (&dev->dev,
 				"adding %s (config #%d, interface %d)\n",
 				intf->dev.bus_id, configuration,
-				alt->desc.bInterfaceNumber);
+				intf->cur_altsetting->desc.bInterfaceNumber);
 			ret = device_add (&intf->dev);
 			if (ret != 0) {
 				dev_err(&dev->dev,
