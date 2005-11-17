@@ -359,6 +359,19 @@ config SND_ENS1370
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ens1370.
 
+config SND_CS5535AUDIO
+	tristate "CS5535 Audio"
+	depends on SND && X86 && !X86_64
+	select SND_PCM
+	select SND_AC97_CODEC
+	help
+	  Say Y here to include support for audio on CS5535 chips. It is
+	  referred to as NS CS5535 IO or AMD CS5535 IO companion in
+	  various literature.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-cs5535audio.
+
 config SND_ENS1371
 	tristate "(Creative) Ensoniq AudioPCI 1371/1373"
 	depends on SND
