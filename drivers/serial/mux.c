@@ -65,8 +65,8 @@ static struct uart_driver mux_driver = {
 
 static struct timer_list mux_timer;
 
-#define UART_PUT_CHAR(p, c) __raw_writel((c), (unsigned long)(p)->membase + IO_DATA_REG_OFFSET)
-#define UART_GET_FIFO_CNT(p) __raw_readl((unsigned long)(p)->membase + IO_DCOUNT_REG_OFFSET)
+#define UART_PUT_CHAR(p, c) __raw_writel((c), (p)->membase + IO_DATA_REG_OFFSET)
+#define UART_GET_FIFO_CNT(p) __raw_readl((p)->membase + IO_DCOUNT_REG_OFFSET)
 #define GET_MUX_PORTS(iodc_data) ((((iodc_data)[4] & 0xf0) >> 4) * 8) + 8
 
 /**
@@ -79,10 +79,7 @@ static struct timer_list mux_timer;
  */
 static unsigned int mux_tx_empty(struct uart_port *port)
 {
-	unsigned int cnt = __raw_readl((unsigned long)port->membase 
-				+ IO_DCOUNT_REG_OFFSET);
-
-	return cnt ? 0 : TIOCSER_TEMT;
+	return UART_GET_FIFO_CNT(port) ? 0 : TIOCSER_TEMT;
 } 
 
 /**
@@ -218,8 +215,7 @@ static void mux_read(struct uart_port *port)
 	__u32 start_count = port->icount.rx;
 
 	while(1) {
-		data = __raw_readl((unsigned long)port->membase
-						+ IO_DATA_REG_OFFSET);
+		data = __raw_readl(port->membase + IO_DATA_REG_OFFSET);
 
 		if (MUX_STATUS(data))
 			continue;
