@@ -53,7 +53,7 @@ MODULE_PARM_DESC(enable, "Enable " CARD_NAME " soundcard.");
  */
 
 static dev_info_t dev_info = "snd-pdaudiocf";
-static snd_card_t *card_list[SNDRV_CARDS];
+static struct snd_card *card_list[SNDRV_CARDS];
 static dev_link_t *dev_list;
 
 /*
@@ -77,7 +77,7 @@ static void pdacf_release(dev_link_t *link)
 /*
  * destructor
  */
-static int snd_pdacf_free(pdacf_t *pdacf)
+static int snd_pdacf_free(struct snd_pdacf *pdacf)
 {
 	dev_link_t *link = &pdacf->link;
 
@@ -94,9 +94,9 @@ static int snd_pdacf_free(pdacf_t *pdacf)
 	return 0;
 }
 
-static int snd_pdacf_dev_free(snd_device_t *device)
+static int snd_pdacf_dev_free(struct snd_device *device)
 {
-	pdacf_t *chip = device->device_data;
+	struct snd_pdacf *chip = device->device_data;
 	return snd_pdacf_free(chip);
 }
 
@@ -108,9 +108,9 @@ static dev_link_t *snd_pdacf_attach(void)
 	client_reg_t client_reg;	/* Register with cardmgr */
 	dev_link_t *link;		/* Info for cardmgr */
 	int i, ret;
-	pdacf_t *pdacf;
-	snd_card_t *card;
-	static snd_device_ops_t ops = {
+	struct snd_pdacf *pdacf;
+	struct snd_card *card;
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_pdacf_dev_free,
 	};
 
@@ -194,10 +194,10 @@ static dev_link_t *snd_pdacf_attach(void)
  *
  * returns 0 if successful, or a negative error code.
  */
-static int snd_pdacf_assign_resources(pdacf_t *pdacf, int port, int irq)
+static int snd_pdacf_assign_resources(struct snd_pdacf *pdacf, int port, int irq)
 {
 	int err;
-	snd_card_t *card = pdacf->card;
+	struct snd_card *card = pdacf->card;
 
 	snd_printdd(KERN_DEBUG "pdacf assign resources: port = 0x%x, irq = %d\n", port, irq);
 	pdacf->port = port;
@@ -231,7 +231,7 @@ static int snd_pdacf_assign_resources(pdacf_t *pdacf, int port, int irq)
  */
 static void snd_pdacf_detach(dev_link_t *link)
 {
-	pdacf_t *chip = link->priv;
+	struct snd_pdacf *chip = link->priv;
 
 	snd_printdd(KERN_DEBUG "pdacf_detach called\n");
 	/* Remove the interface data from the linked list */
@@ -261,7 +261,7 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 static void pdacf_config(dev_link_t *link)
 {
 	client_handle_t handle = link->handle;
-	pdacf_t *pdacf = link->priv;
+	struct snd_pdacf *pdacf = link->priv;
 	tuple_t tuple;
 	cisparse_t *parse = NULL;
 	config_info_t conf;
@@ -318,7 +318,7 @@ failed:
 static int pdacf_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	pdacf_t *chip = link->priv;
+	struct snd_pdacf *chip = link->priv;
 
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
