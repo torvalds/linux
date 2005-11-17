@@ -49,15 +49,15 @@ MODULE_PARM_DESC(enable_beep, "Enable beep using PCM.");
  * card entry
  */
 
-static snd_card_t *snd_pmac_card = NULL;
+static struct snd_card *snd_pmac_card = NULL;
 
 /*
  */
 
 static int __init snd_pmac_probe(void)
 {
-	snd_card_t *card;
-	pmac_t *chip;
+	struct snd_card *card;
+	struct snd_pmac *chip;
 	char *name_ext;
 	int err;
 
