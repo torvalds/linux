@@ -1139,8 +1139,15 @@ static int revalidate_allvol(ctlr_info_t *host)
 
 	for(i=0; i< NWD; i++) {
 		struct gendisk *disk = host->gendisk[i];
-		if (disk->flags & GENHD_FL_UP)
-			del_gendisk(disk);
+		if (disk) {
+			request_queue_t *q = disk->queue;
+
+			if (disk->flags & GENHD_FL_UP)
+				del_gendisk(disk);
+			if (q)
+				blk_cleanup_queue(q);
+			put_disk(disk);
+		}
 	}
 
         /*
@@ -1454,10 +1461,13 @@ static int deregister_disk(struct gendisk *disk, drive_info_struct *drv,
 	 * allows us to delete disk zero but keep the controller registered.
 	*/
 	if (h->gendisk[0] != disk){
-		if (disk->flags & GENHD_FL_UP){
-			blk_cleanup_queue(disk->queue);
-		del_gendisk(disk);
-			drv->queue = NULL;
+		if (disk) {
+			request_queue_t *q = disk->queue;
+			if (disk->flags & GENHD_FL_UP)
+				del_gendisk(disk);
+			if (q)	
+				blk_cleanup_queue(q);
+			put_disk(disk);	
 		}
 	}
 
@@ -3226,9 +3236,14 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 	/* remove it from the disk list */
 	for (j = 0; j < NWD; j++) {
 		struct gendisk *disk = hba[i]->gendisk[j];
-		if (disk->flags & GENHD_FL_UP) {
-			del_gendisk(disk);
-			blk_cleanup_queue(disk->queue);
+		if (disk) {
+			request_queue_t *q = disk->queue;
+
+			if (disk->flags & GENHD_FL_UP) 
+				del_gendisk(disk);
+			if (q)
+				blk_cleanup_queue(q);
+			put_disk(disk);
 		}
 	}
 
