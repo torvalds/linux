@@ -1912,6 +1912,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
+		.subvendor = 0x10cf,
+		.subdevice = 0x12f2,
+		.name = "Fujitsu-Siemens Celsius H320",
+		.type = AC97_TUNE_SWAP_HP
+	},
+	{
 		.subvendor = 0x10f1,
 		.subdevice = 0x2665,
 		.name = "Fujitsu-Siemens Celsius",	/* AD1981? */
