@@ -918,10 +918,12 @@ static void mthca_adjust_qp_caps(struct mthca_dev *dev,
         else
 		qp->max_inline_data = max_data_size - MTHCA_INLINE_HEADER_SIZE;
 
-	qp->sq.max_gs = max_data_size / sizeof (struct mthca_data_seg);
-	qp->rq.max_gs = (min(dev->limits.max_desc_sz, 1 << qp->rq.wqe_shift) -
-			sizeof (struct mthca_next_seg)) /
-			sizeof (struct mthca_data_seg);
+	qp->sq.max_gs = min_t(int, dev->limits.max_sg,
+			      max_data_size / sizeof (struct mthca_data_seg));
+	qp->rq.max_gs = min_t(int, dev->limits.max_sg,
+			       (min(dev->limits.max_desc_sz, 1 << qp->rq.wqe_shift) -
+				sizeof (struct mthca_next_seg)) /
+			       sizeof (struct mthca_data_seg));
 }
 
 /*
