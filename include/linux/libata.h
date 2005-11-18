@@ -59,6 +59,8 @@
 #define VPRINTK(fmt, args...)
 #endif	/* ATA_DEBUG */
 
+#define BPRINTK(fmt, args...) if (ap->flags & ATA_FLAG_DEBUGMSG) printk(KERN_ERR "%s: " fmt, __FUNCTION__, ## args)
+
 #ifdef ATA_NDEBUG
 #define assert(expr)
 #else
@@ -119,6 +121,7 @@ enum {
 	ATA_FLAG_PIO_DMA	= (1 << 8), /* PIO cmds via DMA */
 	ATA_FLAG_NOINTR		= (1 << 9), /* FIXME: Remove this once
 					     * proper HSM is in place. */
+	ATA_FLAG_DEBUGMSG	= (1 << 10),
 
 	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
 	ATA_QCFLAG_SG		= (1 << 3), /* have s/g table? */
@@ -327,8 +330,6 @@ struct ata_port {
 
 	u8			ctl;	/* cache of ATA control register */
 	u8			last_ctl;	/* Cache last written value */
-	unsigned int		bus_state;
-	unsigned int		port_state;
 	unsigned int		pio_mask;
 	unsigned int		mwdma_mask;
 	unsigned int		udma_mask;
@@ -657,6 +658,17 @@ static inline void ata_tf_init(struct ata_port *ap, struct ata_taskfile *tf, uns
 		tf->device = ATA_DEVICE_OBS;
 	else
 		tf->device = ATA_DEVICE_OBS | ATA_DEV1;
+}
+
+static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
+{
+	qc->__sg = NULL;
+	qc->flags = 0;
+	qc->cursect = qc->cursg = qc->cursg_ofs = 0;
+	qc->nsect = 0;
+	qc->nbytes = qc->curbytes = 0;
+
+	ata_tf_init(qc->ap, &qc->tf, qc->dev->devno);
 }
 
 

@@ -113,6 +113,7 @@
 #define TUNER_PHILIPS_TD1316		67
 
 #define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
+#define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
 
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */

@@ -2529,6 +2529,32 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		}},
 	},
+	[SAA7134_BOARD_MSI_TVATANYWHERE_PLUS] = {
+		.name           = "MSI TV@Anywhere plus",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+		},{
+			.name   = name_svideo,
+			.vmux   = 0,
+			.amux   = LINE1,
+		}},
+		.radio = {
+			.name   = name_radio,
+			.amux   = LINE1,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2969,6 +2995,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = PCI_VENDOR_ID_PHILIPS,
 		.subdevice    = 0x2018,
 		.driver_data  = SAA7134_BOARD_PHILIPS_TIGER,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1462,
+		.subdevice    = 0x6231,
+		.driver_data  = SAA7134_BOARD_MSI_TVATANYWHERE_PLUS,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,

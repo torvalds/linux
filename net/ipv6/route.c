@@ -1701,10 +1701,8 @@ static void fib6_dump_end(struct netlink_callback *cb)
 		fib6_walker_unlink(w);
 		kfree(w);
 	}
-	if (cb->args[1]) {
-		cb->done = (void*)cb->args[1];
-		cb->args[1] = 0;
-	}
+	cb->done = (void*)cb->args[1];
+	cb->args[1] = 0;
 }
 
 static int fib6_dump_done(struct netlink_callback *cb)

@@ -119,13 +119,12 @@ static int stop_machine(void)
 		return ret;
 	}
 
-	/* Don't schedule us away at this point, please. */
-	local_irq_disable();
-
 	/* Now they are all started, make them hold the CPUs, ready. */
+	preempt_disable();
 	stopmachine_set_state(STOPMACHINE_PREPARE);
 
 	/* Make them disable irqs. */
+	local_irq_disable();
 	stopmachine_set_state(STOPMACHINE_DISABLE_IRQ);
 
 	return 0;
@@ -135,6 +134,7 @@ static void restart_machine(void)
 {
 	stopmachine_set_state(STOPMACHINE_EXIT);
 	local_irq_enable();
+	preempt_enable_no_resched();
 }
 
 struct stop_machine_data

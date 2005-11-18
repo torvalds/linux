@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/list.h>
 #include <linux/compiler.h>
 
 struct file;
@@ -859,6 +858,7 @@ enum
 };
 
 #ifdef __KERNEL__
+#include <linux/list.h>
 
 extern void sysctl_init(void);
 

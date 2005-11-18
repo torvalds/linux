@@ -255,7 +255,7 @@ scsi_cmd_stack_free(int ctlr)
 #define DEVICETYPE(n) (n<0 || n>MAX_SCSI_DEVICE_CODE) ? \
 	"Unknown" : scsi_device_types[n]
 
-#if 1
+#if 0
 static int xmargin=8;
 static int amargin=60;
 

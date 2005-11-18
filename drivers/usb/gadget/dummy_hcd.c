@@ -944,7 +944,7 @@ static int dummy_udc_suspend (struct platform_device *dev, pm_message_t state)
 	set_link_state (dum);
 	spin_unlock_irq (&dum->lock);
 
-	dev->power.power_state = state;
+	dev->dev.power.power_state = state;
 	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }
@@ -1904,7 +1904,7 @@ static int dummy_hcd_probe (struct platform_device *dev)
 	struct usb_hcd		*hcd;
 	int			retval;
 
-	dev_info (dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
+	dev_info(&dev->dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
 
 	hcd = usb_create_hcd (&dummy_hcd, &dev->dev, dev->dev.bus_id);
 	if (!hcd)

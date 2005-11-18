@@ -22,35 +22,38 @@
 #include "mmu_decl.h"		/* for __max_low_memory */
 #endif
 
-struct lmb lmb;
-
 #undef DEBUG
+
+#ifdef DEBUG
+#include <asm/udbg.h>
+#define DBG(fmt...) udbg_printf(fmt)
+#else
+#define DBG(fmt...)
+#endif
+
+struct lmb lmb;
 
 void lmb_dump_all(void)
 {
 #ifdef DEBUG
 	unsigned long i;
 
-	udbg_printf("lmb_dump_all:\n");
-	udbg_printf("    memory.cnt		  = 0x%lx\n",
-		    lmb.memory.cnt);
-	udbg_printf("    memory.size		  = 0x%lx\n",
-		    lmb.memory.size);
+	DBG("lmb_dump_all:\n");
+	DBG("    memory.cnt		  = 0x%lx\n", lmb.memory.cnt);
+	DBG("    memory.size		  = 0x%lx\n", lmb.memory.size);
 	for (i=0; i < lmb.memory.cnt ;i++) {
-		udbg_printf("    memory.region[0x%x].base       = 0x%lx\n",
+		DBG("    memory.region[0x%x].base       = 0x%lx\n",
 			    i, lmb.memory.region[i].base);
-		udbg_printf("		      .size     = 0x%lx\n",
+		DBG("		      .size     = 0x%lx\n",
 			    lmb.memory.region[i].size);
 	}
 
-	udbg_printf("\n    reserved.cnt	  = 0x%lx\n",
-		    lmb.reserved.cnt);
-	udbg_printf("    reserved.size	  = 0x%lx\n",
-		    lmb.reserved.size);
+	DBG("\n    reserved.cnt	  = 0x%lx\n", lmb.reserved.cnt);
+	DBG("    reserved.size	  = 0x%lx\n", lmb.reserved.size);
 	for (i=0; i < lmb.reserved.cnt ;i++) {
-		udbg_printf("    reserved.region[0x%x].base       = 0x%lx\n",
+		DBG("    reserved.region[0x%x].base       = 0x%lx\n",
 			    i, lmb.reserved.region[i].base);
-		udbg_printf("		      .size     = 0x%lx\n",
+		DBG("		      .size     = 0x%lx\n",
 			    lmb.reserved.region[i].size);
 	}
 #endif /* DEBUG */

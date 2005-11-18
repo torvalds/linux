@@ -326,25 +326,11 @@ static int __init add_bridge(struct device_node *dev)
 		dev->full_name);
 	}
 
-	hose = alloc_bootmem(sizeof(struct pci_controller));
+	hose = pcibios_alloc_controller(dev);
 	if (hose == NULL)
 		return -ENOMEM;
-	pci_setup_pci_controller(hose);
-
-	hose->arch_data = dev;
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
-
-	of_prop = alloc_bootmem(sizeof(struct property) +
-				sizeof(hose->global_number));
-	if (of_prop) {
-		memset(of_prop, 0, sizeof(struct property));
-		of_prop->name = "linux,pci-domain";
-		of_prop->length = sizeof(hose->global_number);
-		of_prop->value = (unsigned char *)&of_prop[1];
-		memcpy(of_prop->value, &hose->global_number, sizeof(hose->global_number));
-		prom_add_property(dev, of_prop);
-	}
 
 	disp_name = NULL;
 	if (device_is_compatible(dev, "u3-agp")) {

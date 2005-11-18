@@ -14,3 +14,7 @@ ifeq ($(CONFIG_USB_DEVICEFS),y)
 endif
 
 obj-$(CONFIG_USB)	+= usbcore.o
+
+ifeq ($(CONFIG_USB_DEBUG),y)
+EXTRA_CFLAGS += -DDEBUG
+endif

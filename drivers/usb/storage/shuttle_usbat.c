@@ -853,7 +853,7 @@ static int usbat_identify_device(struct us_data *us,
 	rc = usbat_device_reset(us);
 	if (rc != USB_STOR_TRANSPORT_GOOD)
 		return rc;
-	msleep(25);
+	msleep(500);
 
 	/*
 	 * In attempt to distinguish between HP CDRW's and Flash readers, we now

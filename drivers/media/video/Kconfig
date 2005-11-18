@@ -333,4 +333,18 @@ config VIDEO_M32R_AR_M64278
 	  Say Y here to use the Renesas M64278E-800 camera module,
 	  which supports VGA(640x480 pixcels) size of images.
 
+config VIDEO_AUDIO_DECODER
+	tristate "Add support for additional audio chipsets"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Say Y here to compile drivers for WM8775 and CS53L32A audio
+	  decoders.
+
+config VIDEO_DECODER
+	tristate "Add support for additional video chipsets"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
+	  video  decoders.
+
 endmenu

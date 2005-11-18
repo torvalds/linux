@@ -459,10 +459,10 @@ __BUILDIO(q, u64)
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
 									\
-static inline void writes##bwlq(volatile void __iomem *mem, void *addr,	\
-				unsigned int count)			\
+static inline void writes##bwlq(volatile void __iomem *mem,		\
+				const void *addr, unsigned int count)	\
 {									\
-	volatile type *__addr = addr;					\
+	const volatile type *__addr = addr;				\
 									\
 	while (count--) {						\
 		mem_write##bwlq(*__addr, mem);				\

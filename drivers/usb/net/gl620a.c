@@ -22,9 +22,6 @@
 // #define	VERBOSE			// more; success messages
 
 #include <linux/config.h>
-#ifdef	CONFIG_USB_DEBUG
-#   define DEBUG
-#endif
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>

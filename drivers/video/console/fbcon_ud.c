@@ -48,10 +48,10 @@ static inline void ud_update_attr(u8 *dst, u8 *src, int attribute,
 static void ud_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int dy, int dx, int height, int width)
 {
-	struct display *p = &fb_display[vc->vc_num];
+	struct fbcon_ops *ops = info->fbcon_par;
 	struct fb_copyarea area;
-	u32 vyres = GETVYRES(p->scrollmode, info);
-	u32 vxres = GETVXRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 
 	area.sy = vyres - ((sy + height) * vc->vc_font.height);
 	area.sx = vxres - ((sx + width) * vc->vc_font.width);
@@ -66,11 +66,11 @@ static void ud_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 static void ud_clear(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int height, int width)
 {
-	struct display *p = &fb_display[vc->vc_num];
+	struct fbcon_ops *ops = info->fbcon_par;
 	struct fb_fillrect region;
 	int bgshift = (vc->vc_hi_font_mask) ? 13 : 12;
-	u32 vyres = GETVYRES(p->scrollmode, info);
-	u32 vxres = GETVXRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 
 	region.color = attr_bgcol_ec(bgshift,vc);
 	region.dy = vyres - ((sy + height) * vc->vc_font.height);
@@ -153,7 +153,6 @@ static void ud_putcs(struct vc_data *vc, struct fb_info *info,
 		      int fg, int bg)
 {
 	struct fb_image image;
-	struct display *p = &fb_display[vc->vc_num];
 	struct fbcon_ops *ops = info->fbcon_par;
 	u32 width = (vc->vc_font.width + 7)/8;
 	u32 cellsize = width * vc->vc_font.height;
@@ -163,8 +162,8 @@ static void ud_putcs(struct vc_data *vc, struct fb_info *info,
 	u32 mod = vc->vc_font.width % 8, cnt, pitch, size;
 	u32 attribute = get_attribute(info, scr_readw(s));
 	u8 *dst, *buf = NULL;
-	u32 vyres = GETVYRES(p->scrollmode, info);
-	u32 vxres = GETVXRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -421,10 +420,9 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info,
 int ud_update_start(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
-	struct display *p = &fb_display[ops->currcon];
 	u32 xoffset, yoffset;
-	u32 vyres = GETVYRES(p->scrollmode, info);
-	u32 vxres = GETVXRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
+	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 	int err;
 
 	xoffset = (vxres - info->var.xres) - ops->var.xoffset;

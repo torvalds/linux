@@ -19,7 +19,7 @@
 			    : "=a" (a__), "=d" (b__) \
 			    : "c" (msr)); \
        val = a__ | (b__<<32); \
-} while(0); 
+} while(0)
 
 #define wrmsr(msr,val1,val2) \
      __asm__ __volatile__("wrmsr" \

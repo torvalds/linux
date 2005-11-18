@@ -861,8 +861,8 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 * store what was left of this slice, if the queue idled out
 	 * or was preempted
 	 */
-	if (time_after(now, cfqq->slice_end))
-		cfqq->slice_left = now - cfqq->slice_end;
+	if (time_after(cfqq->slice_end, now))
+		cfqq->slice_left = cfqq->slice_end - now;
 	else
 		cfqq->slice_left = 0;
 
@@ -999,7 +999,7 @@ cfq_prio_to_maxrq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 /*
  * get next queue for service
  */
-static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd, int force)
+static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 {
 	unsigned long now = jiffies;
 	struct cfq_queue *cfqq;
@@ -1023,7 +1023,7 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd, int force)
 	 */
 	if (!RB_EMPTY(&cfqq->sort_list))
 		goto keep_queue;
-	else if (!force && cfq_cfqq_class_sync(cfqq) &&
+	else if (cfq_cfqq_class_sync(cfqq) &&
 		 time_before(now, cfqq->slice_end)) {
 		if (cfq_arm_slice_timer(cfqd, cfqq))
 			return NULL;
@@ -1092,6 +1092,42 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 }
 
 static int
+cfq_forced_dispatch_cfqqs(struct list_head *list)
+{
+	int dispatched = 0;
+	struct cfq_queue *cfqq, *next;
+	struct cfq_rq *crq;
+
+	list_for_each_entry_safe(cfqq, next, list, cfq_list) {
+		while ((crq = cfqq->next_crq)) {
+			cfq_dispatch_insert(cfqq->cfqd->queue, crq);
+			dispatched++;
+		}
+		BUG_ON(!list_empty(&cfqq->fifo));
+	}
+	return dispatched;
+}
+
+static int
+cfq_forced_dispatch(struct cfq_data *cfqd)
+{
+	int i, dispatched = 0;
+
+	for (i = 0; i < CFQ_PRIO_LISTS; i++)
+		dispatched += cfq_forced_dispatch_cfqqs(&cfqd->rr_list[i]);
+
+	dispatched += cfq_forced_dispatch_cfqqs(&cfqd->busy_rr);
+	dispatched += cfq_forced_dispatch_cfqqs(&cfqd->cur_rr);
+	dispatched += cfq_forced_dispatch_cfqqs(&cfqd->idle_rr);
+
+	cfq_slice_expired(cfqd, 0);
+
+	BUG_ON(cfqd->busy_queues);
+
+	return dispatched;
+}
+
+static int
 cfq_dispatch_requests(request_queue_t *q, int force)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
@@ -1100,7 +1136,10 @@ cfq_dispatch_requests(request_queue_t *q, int force)
 	if (!cfqd->busy_queues)
 		return 0;
 
-	cfqq = cfq_select_queue(cfqd, force);
+	if (unlikely(force))
+		return cfq_forced_dispatch(cfqd);
+
+	cfqq = cfq_select_queue(cfqd);
 	if (cfqq) {
 		int max_dispatch;
 
@@ -1115,12 +1154,9 @@ cfq_dispatch_requests(request_queue_t *q, int force)
 		cfq_clear_cfqq_wait_request(cfqq);
 		del_timer(&cfqd->idle_slice_timer);
 
-		if (!force) {
-			max_dispatch = cfqd->cfq_quantum;
-			if (cfq_class_idle(cfqq))
-				max_dispatch = 1;
-		} else
-			max_dispatch = INT_MAX;
+		max_dispatch = cfqd->cfq_quantum;
+		if (cfq_class_idle(cfqq))
+			max_dispatch = 1;
 
 		return __cfq_dispatch_requests(cfqd, cfqq, max_dispatch);
 	}

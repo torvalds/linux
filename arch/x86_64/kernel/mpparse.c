@@ -42,7 +42,7 @@ int acpi_found_madt;
  * Various Linux-internal data structures created from the
  * MP-table.
  */
-int apic_version [MAX_APICS];
+unsigned char apic_version [MAX_APICS];
 unsigned char mp_bus_id_to_type [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 
@@ -65,7 +65,9 @@ unsigned long mp_lapic_addr = 0;
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_id = -1U;
 /* Internal processor count */
-static unsigned int num_processors = 0;
+unsigned int num_processors __initdata = 0;
+
+unsigned disabled_cpus __initdata;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
@@ -106,11 +108,14 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 
 static void __init MP_processor_info (struct mpc_config_processor *m)
 {
-	int ver, cpu;
+	int cpu;
+	unsigned char ver;
 	static int found_bsp=0;
 
-	if (!(m->mpc_cpuflag & CPU_ENABLED))
+	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
+		disabled_cpus++;
 		return;
+	}
 
 	printk(KERN_INFO "Processor #%d %d:%d APIC version %d\n",
 		m->mpc_apicid,
@@ -129,12 +134,14 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	}
 
 	cpu = num_processors++;
-
-	if (m->mpc_apicid > MAX_APICS) {
+	
+#if MAX_APICS < 255	
+	if ((int)m->mpc_apicid > MAX_APICS) {
 		printk(KERN_ERR "Processor #%d INVALID. (Max ID: %d).\n",
 			m->mpc_apicid, MAX_APICS);
 		return;
 	}
+#endif
 	ver = m->mpc_apicver;
 
 	physid_set(m->mpc_apicid, phys_cpu_present_map);
@@ -218,7 +225,7 @@ static void __init MP_intsrc_info (struct mpc_config_intsrc *m)
 			m->mpc_irqtype, m->mpc_irqflag & 3,
 			(m->mpc_irqflag >> 2) & 3, m->mpc_srcbus,
 			m->mpc_srcbusirq, m->mpc_dstapic, m->mpc_dstirq);
-	if (++mp_irq_entries == MAX_IRQ_SOURCES)
+	if (++mp_irq_entries >= MAX_IRQ_SOURCES)
 		panic("Max # of irq sources exceeded!!\n");
 }
 
@@ -549,7 +556,7 @@ void __init get_smp_config (void)
 		 * Read the physical hardware table.  Anything here will
 		 * override the defaults.
 		 */
-		if (!smp_read_mpc((void *)(unsigned long)mpf->mpf_physptr)) {
+		if (!smp_read_mpc(phys_to_virt(mpf->mpf_physptr))) {
 			smp_found_config = 0;
 			printk(KERN_ERR "BIOS bug, MP table errors detected!...\n");
 			printk(KERN_ERR "... disabling SMP support. (tell your hw vendor)\n");

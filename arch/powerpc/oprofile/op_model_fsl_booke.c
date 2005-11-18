@@ -7,7 +7,7 @@
  * Copyright (c) 2004 Freescale Semiconductor, Inc
  *
  * Author: Andy Fleming
- * Maintainer: Kumar Gala <Kumar.Gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

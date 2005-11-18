@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_qstor"
-#define DRV_VERSION	"0.04"
+#define DRV_VERSION	"0.05"
 
 enum {
 	QS_PORTS		= 4,
@@ -268,7 +268,7 @@ static void qs_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 	writel(val, (void __iomem *)(ap->ioaddr.scr_addr + (sc_reg * 8)));
 }
 
-static void qs_fill_sg(struct ata_queued_cmd *qc)
+static unsigned int qs_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct scatterlist *sg;
 	struct ata_port *ap = qc->ap;
@@ -296,6 +296,8 @@ static void qs_fill_sg(struct ata_queued_cmd *qc)
 					(unsigned long long)addr, len);
 		nelem++;
 	}
+
+	return nelem;
 }
 
 static void qs_qc_prep(struct ata_queued_cmd *qc)
@@ -304,6 +306,7 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 	u8 dflags = QS_DF_PORD, *buf = pp->pkt;
 	u8 hflags = QS_HF_DAT | QS_HF_IEN | QS_HF_VLD;
 	u64 addr;
+	unsigned int nelem;
 
 	VPRINTK("ENTER\n");
 
@@ -313,7 +316,7 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 		return;
 	}
 
-	qs_fill_sg(qc);
+	nelem = qs_fill_sg(qc);
 
 	if ((qc->tf.flags & ATA_TFLAG_WRITE))
 		hflags |= QS_HF_DIRO;
@@ -324,7 +327,7 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 	buf[ 0] = QS_HCB_HDR;
 	buf[ 1] = hflags;
 	*(__le32 *)(&buf[ 4]) = cpu_to_le32(qc->nsect * ATA_SECT_SIZE);
-	*(__le32 *)(&buf[ 8]) = cpu_to_le32(qc->n_elem);
+	*(__le32 *)(&buf[ 8]) = cpu_to_le32(nelem);
 	addr = ((u64)pp->pkt_dma) + QS_CPB_BYTES;
 	*(__le64 *)(&buf[16]) = cpu_to_le64(addr);
 

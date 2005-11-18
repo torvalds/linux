@@ -102,7 +102,7 @@ static unsigned long from_rtc_time(struct rtc_time *tm)
 static unsigned long cuda_get_time(void)
 {
 	struct adb_request req;
-	unsigned long now;
+	unsigned int now;
 
 	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_GET_TIME) < 0)
 		return 0;
@@ -113,7 +113,7 @@ static unsigned long cuda_get_time(void)
 		       req.reply_len);
 	now = (req.reply[3] << 24) + (req.reply[4] << 16)
 		+ (req.reply[5] << 8) + req.reply[6];
-	return now - RTC_OFFSET;
+	return ((unsigned long)now) - RTC_OFFSET;
 }
 
 #define cuda_get_rtc_time(tm)	to_rtc_time(cuda_get_time(), (tm))
@@ -146,7 +146,7 @@ static int cuda_set_rtc_time(struct rtc_time *tm)
 static unsigned long pmu_get_time(void)
 {
 	struct adb_request req;
-	unsigned long now;
+	unsigned int now;
 
 	if (pmu_request(&req, NULL, 1, PMU_READ_RTC) < 0)
 		return 0;
@@ -156,7 +156,7 @@ static unsigned long pmu_get_time(void)
 		       req.reply_len);
 	now = (req.reply[0] << 24) + (req.reply[1] << 16)
 		+ (req.reply[2] << 8) + req.reply[3];
-	return now - RTC_OFFSET;
+	return ((unsigned long)now) - RTC_OFFSET;
 }
 
 #define pmu_get_rtc_time(tm)	to_rtc_time(pmu_get_time(), (tm))
@@ -199,6 +199,7 @@ static unsigned long smu_get_time(void)
 #define smu_set_rtc_time(tm, spin)	0
 #endif
 
+/* Can't be __init, it's called when suspending and resuming */
 unsigned long pmac_get_boot_time(void)
 {
 	/* Get the time from the RTC, used only at boot time */

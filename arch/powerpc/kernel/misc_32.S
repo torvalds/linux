@@ -27,14 +27,6 @@
 
 	.text
 
-	.align	5
-_GLOBAL(__delay)
-	cmpwi	0,r3,0
-	mtctr	r3
-	beqlr
-1:	bdnz	1b
-	blr
-
 /*
  * This returns the high 64 bits of the product of two 64-bit numbers.
  */

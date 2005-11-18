@@ -54,7 +54,6 @@ V_FUNCTION_BEGIN(__kernel_get_syscall_map)
   .cfi_startproc
 	mflr	r12
   .cfi_register lr,r12
-
 	mr	r4,r3
 	bl	__get_datapage@local
 	mtlr	r12
@@ -63,6 +62,7 @@ V_FUNCTION_BEGIN(__kernel_get_syscall_map)
 	beqlr
 	li	r0,__NR_syscalls
 	stw	r0,0(r4)
+	crclr	cr0*4+so
 	blr
   .cfi_endproc
 V_FUNCTION_END(__kernel_get_syscall_map)
@@ -77,8 +77,10 @@ V_FUNCTION_BEGIN(__kernel_get_tbfreq)
 	mflr	r12
   .cfi_register lr,r12
 	bl	__get_datapage@local
-	lwz	r3,CFG_TB_TICKS_PER_SEC(r3)
 	lwz	r4,(CFG_TB_TICKS_PER_SEC + 4)(r3)
+	lwz	r3,CFG_TB_TICKS_PER_SEC(r3)
 	mtlr	r12
+	crclr	cr0*4+so
+	blr
   .cfi_endproc
 V_FUNCTION_END(__kernel_get_tbfreq)

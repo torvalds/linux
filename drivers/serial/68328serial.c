@@ -34,6 +34,7 @@
 #include <linux/keyboard.h>
 #include <linux/init.h>
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 
@@ -1343,7 +1344,7 @@ static void show_serial_version(void)
 	printk("MC68328 serial driver version 1.00\n");
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 /* Serial Power management
  *  The console (currently fixed at line 0) is a special case for power
  *  management because the kernel is so chatty. The console will be 
@@ -1393,7 +1394,7 @@ void startup_console(void)
 	struct m68k_serial *info = &m68k_soft[0];
 	startup(info);
 }
-#endif
+#endif /* CONFIG_PM_LEGACY */
 
 
 static struct tty_operations rs_ops = {
@@ -1486,7 +1487,7 @@ rs68328_init(void)
 			    IRQ_FLG_STD,
 			    "M68328_UART", NULL))
                 panic("Unable to attach 68328 serial interrupt\n");
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 	    serial_pm[i] = pm_register(PM_SYS_DEV, PM_SYS_COM, serial_pm_callback);
 	    if (serial_pm[i])
 		    serial_pm[i]->data = info;

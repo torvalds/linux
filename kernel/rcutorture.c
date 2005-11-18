@@ -80,6 +80,7 @@ struct rcu_torture {
 	struct rcu_head rtort_rcu;
 	int rtort_pipe_count;
 	struct list_head rtort_free;
+	int rtort_mbtest;
 };
 
 static int fullstop = 0;	/* stop generating callbacks at test end. */
@@ -96,6 +97,8 @@ static atomic_t rcu_torture_wcount[RCU_TORTURE_PIPE_LEN + 1];
 atomic_t n_rcu_torture_alloc;
 atomic_t n_rcu_torture_alloc_fail;
 atomic_t n_rcu_torture_free;
+atomic_t n_rcu_torture_mberror;
+atomic_t n_rcu_torture_error;
 
 /*
  * Allocate an element from the rcu_tortures pool.
@@ -145,9 +148,10 @@ rcu_torture_cb(struct rcu_head *p)
 	if (i > RCU_TORTURE_PIPE_LEN)
 		i = RCU_TORTURE_PIPE_LEN;
 	atomic_inc(&rcu_torture_wcount[i]);
-	if (++rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN)
+	if (++rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN) {
+		rp->rtort_mbtest = 0;
 		rcu_torture_free(rp);
-	else
+	} else
 		call_rcu(p, rcu_torture_cb);
 }
 
@@ -195,6 +199,8 @@ rcu_torture_writer(void *arg)
 	static DEFINE_RCU_RANDOM(rand);
 
 	VERBOSE_PRINTK_STRING("rcu_torture_writer task started");
+	set_user_nice(current, 19);
+
 	do {
 		schedule_timeout_uninterruptible(1);
 		if (rcu_batches_completed() == oldbatch)
@@ -204,6 +210,7 @@ rcu_torture_writer(void *arg)
 		rp->rtort_pipe_count = 0;
 		udelay(rcu_random(&rand) & 0x3ff);
 		old_rp = rcu_torture_current;
+		rp->rtort_mbtest = 1;
 		rcu_assign_pointer(rcu_torture_current, rp);
 		smp_wmb();
 		if (old_rp != NULL) {
@@ -238,6 +245,8 @@ rcu_torture_reader(void *arg)
 	int pipe_count;
 
 	VERBOSE_PRINTK_STRING("rcu_torture_reader task started");
+	set_user_nice(current, 19);
+
 	do {
 		rcu_read_lock();
 		completed = rcu_batches_completed();
@@ -248,6 +257,8 @@ rcu_torture_reader(void *arg)
 			schedule_timeout_interruptible(HZ);
 			continue;
 		}
+		if (p->rtort_mbtest == 0)
+			atomic_inc(&n_rcu_torture_mberror);
 		udelay(rcu_random(&rand) & 0x7f);
 		preempt_disable();
 		pipe_count = p->rtort_pipe_count;
@@ -296,16 +307,22 @@ rcu_torture_printk(char *page)
 	}
 	cnt += sprintf(&page[cnt], "rcutorture: ");
 	cnt += sprintf(&page[cnt],
-		       "rtc: %p ver: %ld tfle: %d rta: %d rtaf: %d rtf: %d",
+		       "rtc: %p ver: %ld tfle: %d rta: %d rtaf: %d rtf: %d "
+		       "rtmbe: %d",
 		       rcu_torture_current,
 		       rcu_torture_current_version,
 		       list_empty(&rcu_torture_freelist),
 		       atomic_read(&n_rcu_torture_alloc),
 		       atomic_read(&n_rcu_torture_alloc_fail),
-		       atomic_read(&n_rcu_torture_free));
+		       atomic_read(&n_rcu_torture_free),
+		       atomic_read(&n_rcu_torture_mberror));
+	if (atomic_read(&n_rcu_torture_mberror) != 0)
+		cnt += sprintf(&page[cnt], " !!!");
 	cnt += sprintf(&page[cnt], "\nrcutorture: ");
-	if (i > 1)
+	if (i > 1) {
 		cnt += sprintf(&page[cnt], "!!! ");
+		atomic_inc(&n_rcu_torture_error);
+	}
 	cnt += sprintf(&page[cnt], "Reader Pipe: ");
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
 		cnt += sprintf(&page[cnt], " %ld", pipesummary[i]);
@@ -396,7 +413,9 @@ rcu_torture_cleanup(void)
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN; i++)
 		synchronize_rcu();
 	rcu_torture_stats_print();  /* -After- the stats thread is stopped! */
-	PRINTK_STRING("--- End of test");
+	printk(KERN_ALERT TORTURE_FLAG
+	       "--- End of test: %s\n",
+	       atomic_read(&n_rcu_torture_error) == 0 ? "SUCCESS" : "FAILURE");
 }
 
 static int
@@ -421,6 +440,7 @@ rcu_torture_init(void)
 
 	INIT_LIST_HEAD(&rcu_torture_freelist);
 	for (i = 0; i < sizeof(rcu_tortures) / sizeof(rcu_tortures[0]); i++) {
+		rcu_tortures[i].rtort_mbtest = 0;
 		list_add_tail(&rcu_tortures[i].rtort_free,
 			      &rcu_torture_freelist);
 	}
@@ -432,6 +452,8 @@ rcu_torture_init(void)
 	atomic_set(&n_rcu_torture_alloc, 0);
 	atomic_set(&n_rcu_torture_alloc_fail, 0);
 	atomic_set(&n_rcu_torture_free, 0);
+	atomic_set(&n_rcu_torture_mberror, 0);
+	atomic_set(&n_rcu_torture_error, 0);
 	for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++)
 		atomic_set(&rcu_torture_wcount[i], 0);
 	for_each_cpu(cpu) {

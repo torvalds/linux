@@ -82,6 +82,33 @@ static __inline__ int atomic_dec_and_test(atomic_t *v)
 	return ret == 0;
 }
 
+static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	int ret;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ret = v->counter;
+	if (likely(ret == old))
+		v->counter = new;
+	local_irq_restore(flags);
+	return ret;
+}
+
+static inline int atomic_add_unless(atomic_t *v, int a, int u)
+{
+	int ret;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ret = v->counter;
+	if (ret != u)
+		v->counter += a;
+	local_irq_restore(flags);
+	return ret != u;
+}
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+
 static __inline__ void atomic_clear_mask(unsigned long mask, unsigned long *v)
 {
 	__asm__ __volatile__("stc ccr,r1l\n\t"

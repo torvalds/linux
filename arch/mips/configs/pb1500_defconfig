@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.14-rc2
-# Thu Oct 20 22:26:44 2005
+# Linux kernel version: 2.6.15-rc1
+# Tue Nov 15 11:14:25 2005
 #
 CONFIG_MIPS=y
 
@@ -55,6 +55,24 @@ CONFIG_OBSOLETE_MODPARM=y
 CONFIG_MODVERSIONS=y
 CONFIG_MODULE_SRCVERSION_ALL=y
 CONFIG_KMOD=y
+
+#
+# Block layer
+#
+# CONFIG_LBD is not set
+
+#
+# IO Schedulers
+#
+CONFIG_IOSCHED_NOOP=y
+CONFIG_IOSCHED_AS=y
+CONFIG_IOSCHED_DEADLINE=y
+CONFIG_IOSCHED_CFQ=y
+CONFIG_DEFAULT_AS=y
+# CONFIG_DEFAULT_DEADLINE is not set
+# CONFIG_DEFAULT_CFQ is not set
+# CONFIG_DEFAULT_NOOP is not set
+CONFIG_DEFAULT_IOSCHED="anticipatory"
 
 #
 # Machine selection
@@ -179,6 +197,7 @@ CONFIG_FLATMEM_MANUAL=y
 CONFIG_FLATMEM=y
 CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
+CONFIG_SPLIT_PTLOCK_CPUS=4
 CONFIG_PREEMPT_NONE=y
 # CONFIG_PREEMPT_VOLUNTARY is not set
 # CONFIG_PREEMPT is not set
@@ -207,7 +226,6 @@ CONFIG_CARDBUS=y
 # CONFIG_YENTA is not set
 CONFIG_PD6729=m
 # CONFIG_I82092 is not set
-# CONFIG_TCIC is not set
 # CONFIG_PCMCIA_AU1X00 is not set
 CONFIG_PCCARD_NONSTATIC=m
 
@@ -267,15 +285,19 @@ CONFIG_TCP_CONG_BIC=y
 # CONFIG_IPV6 is not set
 CONFIG_NETFILTER=y
 # CONFIG_NETFILTER_DEBUG is not set
+
+#
+# Core Netfilter Configuration
+#
 CONFIG_NETFILTER_NETLINK=m
 CONFIG_NETFILTER_NETLINK_QUEUE=m
 CONFIG_NETFILTER_NETLINK_LOG=m
+# CONFIG_NF_CONNTRACK is not set
 
 #
 # IP: Netfilter Configuration
 #
 # CONFIG_IP_NF_CONNTRACK is not set
-CONFIG_IP_NF_PPTP=m
 # CONFIG_IP_NF_QUEUE is not set
 # CONFIG_IP_NF_IPTABLES is not set
 # CONFIG_IP_NF_ARPTABLES is not set
@@ -301,6 +323,10 @@ CONFIG_IP_NF_PPTP=m
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
+
+#
+# QoS and/or fair queueing
+#
 # CONFIG_NET_SCHED is not set
 # CONFIG_NET_CLS_ROUTE is not set
 
@@ -351,6 +377,7 @@ CONFIG_MTD_BLOCK=y
 # CONFIG_FTL is not set
 # CONFIG_NFTL is not set
 # CONFIG_INFTL is not set
+# CONFIG_RFD_FTL is not set
 
 #
 # RAM/ROM/Flash chip drivers
@@ -409,6 +436,11 @@ CONFIG_MTD_ALCHEMY=y
 # CONFIG_MTD_NAND is not set
 
 #
+# OneNAND Flash Device Drivers
+#
+# CONFIG_MTD_ONENAND is not set
+
+#
 # Parallel port support
 #
 # CONFIG_PARPORT is not set
@@ -431,18 +463,9 @@ CONFIG_BLK_DEV_LOOP=y
 # CONFIG_BLK_DEV_SX8 is not set
 # CONFIG_BLK_DEV_RAM is not set
 CONFIG_BLK_DEV_RAM_COUNT=16
-# CONFIG_LBD is not set
 CONFIG_CDROM_PKTCDVD=m
 CONFIG_CDROM_PKTCDVD_BUFFERS=8
 # CONFIG_CDROM_PKTCDVD_WCACHE is not set
-
-#
-# IO Schedulers
-#
-CONFIG_IOSCHED_NOOP=y
-CONFIG_IOSCHED_AS=y
-CONFIG_IOSCHED_DEADLINE=y
-CONFIG_IOSCHED_CFQ=y
 CONFIG_ATA_OVER_ETH=m
 
 #
@@ -546,7 +569,6 @@ CONFIG_NETDEVICES=y
 # PHY device support
 #
 CONFIG_PHYLIB=m
-CONFIG_PHYCONTROL=y
 
 #
 # MII PHY device drivers
@@ -565,7 +587,9 @@ CONFIG_MII=m
 CONFIG_MIPS_AU1X00_ENET=y
 # CONFIG_HAPPYMEAL is not set
 # CONFIG_SUNGEM is not set
+# CONFIG_CASSINI is not set
 # CONFIG_NET_VENDOR_3COM is not set
+# CONFIG_SMC91X is not set
 
 #
 # Tulip family network device support
@@ -635,6 +659,7 @@ CONFIG_PPP_ASYNC=m
 # CONFIG_PPP_SYNC_TTY is not set
 CONFIG_PPP_DEFLATE=m
 # CONFIG_PPP_BSDCOMP is not set
+CONFIG_PPP_MPPE=m
 CONFIG_PPPOE=m
 # CONFIG_SLIP is not set
 # CONFIG_SHAPER is not set
@@ -700,13 +725,17 @@ CONFIG_SERIO_RAW=m
 #
 # Serial drivers
 #
-# CONFIG_SERIAL_8250 is not set
+CONFIG_SERIAL_8250=y
+CONFIG_SERIAL_8250_CONSOLE=y
+# CONFIG_SERIAL_8250_CS is not set
+CONFIG_SERIAL_8250_NR_UARTS=4
+# CONFIG_SERIAL_8250_EXTENDED is not set
+CONFIG_SERIAL_8250_AU1X00=y
 
 #
 # Non-8250 serial port support
 #
-CONFIG_SERIAL_AU1X00=y
-CONFIG_SERIAL_AU1X00_CONSOLE=y
+# CONFIG_SERIAL_AU1X00 is not set
 CONFIG_SERIAL_CORE=y
 CONFIG_SERIAL_CORE_CONSOLE=y
 # CONFIG_SERIAL_JSM is not set
@@ -738,12 +767,15 @@ CONFIG_LEGACY_PTY_COUNT=256
 # PCMCIA character devices
 #
 CONFIG_SYNCLINK_CS=m
+# CONFIG_CARDMAN_4000 is not set
+# CONFIG_CARDMAN_4040 is not set
 # CONFIG_RAW_DRIVER is not set
 
 #
 # TPM devices
 #
 # CONFIG_TCG_TPM is not set
+# CONFIG_TELCLOCK is not set
 
 #
 # I2C support
@@ -795,6 +827,10 @@ CONFIG_SYNCLINK_CS=m
 CONFIG_USB_ARCH_HAS_HCD=y
 CONFIG_USB_ARCH_HAS_OHCI=y
 # CONFIG_USB is not set
+
+#
+# NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
+#
 
 #
 # USB Gadget Support

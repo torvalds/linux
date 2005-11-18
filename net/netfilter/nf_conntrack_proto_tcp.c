@@ -779,6 +779,7 @@ static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG) + 1] =
 {
 	[TH_SYN]			= 1,
 	[TH_SYN|TH_ACK]			= 1,
+	[TH_SYN|TH_PUSH]		= 1,
 	[TH_SYN|TH_ACK|TH_PUSH]		= 1,
 	[TH_RST]			= 1,
 	[TH_RST|TH_ACK]			= 1,
@@ -969,6 +970,12 @@ static int tcp_packet(struct nf_conn *conntrack,
 		    		conntrack->timeout.function((unsigned long)
 		    					    conntrack);
 		    	return -NF_REPEAT;
+		} else {
+			write_unlock_bh(&tcp_lock);
+			if (LOG_INVALID(IPPROTO_TCP))
+				nf_log_packet(pf, 0, skb, NULL, NULL,
+					      NULL, "nf_ct_tcp: invalid SYN");
+			return -NF_ACCEPT;
 		}
 	case TCP_CONNTRACK_CLOSE:
 		if (index == TCP_RST_SET

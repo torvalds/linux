@@ -49,6 +49,9 @@ static struct fb_ops cg14_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= cg14_mmap,
 	.fb_ioctl		= cg14_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 #define CG14_MCR_INTENABLE_SHIFT	7

@@ -153,7 +153,7 @@ int __init scoop_probe(struct platform_device *pdev)
 	printk("Sharp Scoop Device found at 0x%08x -> 0x%08x\n",(unsigned int)mem->start,(unsigned int)devptr->base);
 
 	SCOOP_REG(devptr->base, SCOOP_MCR) = 0x0140;
-	reset_scoop(dev);
+	reset_scoop(&pdev->dev);
 	SCOOP_REG(devptr->base, SCOOP_GPCR) = inf->io_dir & 0xffff;
 	SCOOP_REG(devptr->base, SCOOP_GPWR) = inf->io_out & 0xffff;
 

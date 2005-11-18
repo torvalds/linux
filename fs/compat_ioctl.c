@@ -49,6 +49,8 @@
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
 #include <linux/ext2_fs.h>
+#include <linux/ext3_jbd.h>
+#include <linux/ext3_fs.h>
 #include <linux/videodev.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
@@ -121,6 +123,11 @@
 
 #include <linux/hiddev.h>
 
+#include <linux/dvb/audio.h>
+#include <linux/dvb/dmx.h>
+#include <linux/dvb/frontend.h>
+#include <linux/dvb/video.h>
+
 #undef INCLUDES
 #endif
 
@@ -129,6 +136,15 @@
 /* Aiee. Someone does not find a difference between int and long */
 #define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
 #define EXT2_IOC32_SETFLAGS               _IOW('f', 2, int)
+#define EXT3_IOC32_GETVERSION             _IOR('f', 3, int)
+#define EXT3_IOC32_SETVERSION             _IOR('f', 4, int)
+#define EXT3_IOC32_GETRSVSZ               _IOR('f', 5, int)
+#define EXT3_IOC32_SETRSVSZ               _IOW('f', 6, int)
+#define EXT3_IOC32_GROUP_EXTEND           _IOW('f', 7, unsigned int)
+#ifdef CONFIG_JBD_DEBUG
+#define EXT3_IOC32_WAIT_FOR_READONLY      _IOR('f', 99, int)
+#endif
+
 #define EXT2_IOC32_GETVERSION             _IOR('v', 1, int)
 #define EXT2_IOC32_SETVERSION             _IOW('v', 2, int)
 
@@ -171,6 +187,22 @@ static int do_ext2_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 	case EXT2_IOC32_SETFLAGS: cmd = EXT2_IOC_SETFLAGS; break;
 	case EXT2_IOC32_GETVERSION: cmd = EXT2_IOC_GETVERSION; break;
 	case EXT2_IOC32_SETVERSION: cmd = EXT2_IOC_SETVERSION; break;
+	}
+	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
+}
+
+static int do_ext3_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	/* These are just misnamed, they actually get/put from/to user an int */
+	switch (cmd) {
+	case EXT3_IOC32_GETVERSION: cmd = EXT3_IOC_GETVERSION; break;
+	case EXT3_IOC32_SETVERSION: cmd = EXT3_IOC_SETVERSION; break;
+	case EXT3_IOC32_GETRSVSZ: cmd = EXT3_IOC_GETRSVSZ; break;
+	case EXT3_IOC32_SETRSVSZ: cmd = EXT3_IOC_SETRSVSZ; break;
+	case EXT3_IOC32_GROUP_EXTEND: cmd = EXT3_IOC_GROUP_EXTEND; break;
+#ifdef CONFIG_JBD_DEBUG
+	case EXT3_IOC32_WAIT_FOR_READONLY: cmd = EXT3_IOC_WAIT_FOR_READONLY; break;
+#endif
 	}
 	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -410,6 +442,128 @@ static int do_video_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 		};
 	}
 out:
+	return err;
+}
+
+struct compat_dmx_event {
+	dmx_event_t	event;
+	compat_time_t	timeStamp;
+	union
+	{
+		dmx_scrambling_status_t scrambling;
+	} u;
+};
+
+static int do_dmx_get_event(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct dmx_event kevent;
+	mm_segment_t old_fs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sys_ioctl(fd, cmd, (unsigned long) &kevent);
+	set_fs(old_fs);
+
+	if (!err) {
+		struct compat_dmx_event __user *up = compat_ptr(arg);
+
+		err  = put_user(kevent.event, &up->event);
+		err |= put_user(kevent.timeStamp, &up->timeStamp);
+		err |= put_user(kevent.u.scrambling, &up->u.scrambling);
+		if (err)
+			err = -EFAULT;
+	}
+
+	return err;
+}
+
+struct compat_video_event {
+	int32_t		type;
+	compat_time_t	timestamp;
+	union {
+	        video_size_t size;
+		unsigned int frame_rate;
+	} u;
+};
+
+static int do_video_get_event(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct video_event kevent;
+	mm_segment_t old_fs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sys_ioctl(fd, cmd, (unsigned long) &kevent);
+	set_fs(old_fs);
+
+	if (!err) {
+		struct compat_video_event __user *up = compat_ptr(arg);
+
+		err  = put_user(kevent.type, &up->type);
+		err |= put_user(kevent.timestamp, &up->timestamp);
+		err |= put_user(kevent.u.size.w, &up->u.size.w);
+		err |= put_user(kevent.u.size.h, &up->u.size.h);
+		err |= put_user(kevent.u.size.aspect_ratio,
+				&up->u.size.aspect_ratio);
+		if (err)
+			err = -EFAULT;
+	}
+
+	return err;
+}
+
+struct compat_video_still_picture {
+        compat_uptr_t iFrame;
+        int32_t size;
+};
+
+static int do_video_stillpicture(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_video_still_picture __user *up;
+	struct video_still_picture __user *up_native;
+	compat_uptr_t fp;
+	int32_t size;
+	int err;
+
+	up = (struct compat_video_still_picture __user *) arg;
+	err  = get_user(fp, &up->iFrame);
+	err |= get_user(size, &up->size);
+	if (err)
+		return -EFAULT;
+
+	up_native =
+		compat_alloc_user_space(sizeof(struct video_still_picture));
+
+	put_user(compat_ptr(fp), &up_native->iFrame);
+	put_user(size, &up_native->size);
+
+	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
+
+	return err;
+}
+
+struct compat_video_spu_palette {
+	int length;
+	compat_uptr_t palette;
+};
+
+static int do_video_set_spu_palette(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_video_spu_palette __user *up;
+	struct video_spu_palette __user *up_native;
+	compat_uptr_t palp;
+	int length, err;
+
+	up = (struct compat_video_spu_palette __user *) arg;
+	err  = get_user(palp, &up->palette);
+	err |= get_user(length, &up->length);
+
+	up_native = compat_alloc_user_space(sizeof(struct video_spu_palette));
+	put_user(compat_ptr(palp), &up_native->palette);
+	put_user(length, &up_native->length);
+
+	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
+
 	return err;
 }
 
@@ -2854,6 +3008,15 @@ HANDLE_IOCTL(EXT2_IOC32_GETFLAGS, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_SETFLAGS, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_GETVERSION, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_SETVERSION, do_ext2_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GETVERSION, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_SETVERSION, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GETRSVSZ, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_SETRSVSZ, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GROUP_EXTEND, do_ext3_ioctl)
+COMPATIBLE_IOCTL(EXT3_IOC_GROUP_ADD)
+#ifdef CONFIG_JBD_DEBUG
+HANDLE_IOCTL(EXT3_IOC32_WAIT_FOR_READONLY, do_ext3_ioctl)
+#endif
 HANDLE_IOCTL(VIDIOCGTUNER32, do_video_ioctl)
 HANDLE_IOCTL(VIDIOCSTUNER32, do_video_ioctl)
 HANDLE_IOCTL(VIDIOCGWIN32, do_video_ioctl)
@@ -2953,6 +3116,12 @@ HANDLE_IOCTL(NCP_IOC_SETOBJECTNAME_32, do_ncp_setobjectname)
 HANDLE_IOCTL(NCP_IOC_GETPRIVATEDATA_32, do_ncp_getprivatedata)
 HANDLE_IOCTL(NCP_IOC_SETPRIVATEDATA_32, do_ncp_setprivatedata)
 #endif
+
+/* dvb */
+HANDLE_IOCTL(DMX_GET_EVENT, do_dmx_get_event)
+HANDLE_IOCTL(VIDEO_GET_EVENT, do_video_get_event)
+HANDLE_IOCTL(VIDEO_STILLPICTURE, do_video_stillpicture)
+HANDLE_IOCTL(VIDEO_SET_SPU_PALETTE, do_video_set_spu_palette)
 
 #undef DECLARES
 #endif

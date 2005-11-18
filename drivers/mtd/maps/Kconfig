@@ -94,7 +94,7 @@ config MTD_NETSC520
 
 config MTD_TS5500
 	tristate "JEDEC Flash device mapped on Technologic Systems TS-5500"
-	depends on ELAN
+	depends on X86
 	select MTD_PARTITIONS
 	select MTD_JEDECPROBE
 	select MTD_CFI_AMDSTD
