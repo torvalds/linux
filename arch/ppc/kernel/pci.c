@@ -45,7 +45,6 @@ static void update_bridge_base(struct pci_bus *bus, int i);
 static void pcibios_fixup_resources(struct pci_dev* dev);
 static void fixup_broken_pcnet32(struct pci_dev* dev);
 static int reparent_resources(struct resource *parent, struct resource *res);
-static void fixup_rev1_53c810(struct pci_dev* dev);
 static void fixup_cpc710_pci64(struct pci_dev* dev);
 #ifdef CONFIG_PPC_OF
 static u8* pci_to_OF_bus_map;
