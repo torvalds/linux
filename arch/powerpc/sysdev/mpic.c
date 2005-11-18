@@ -361,7 +361,8 @@ static void mpic_enable_irq(unsigned int irq)
 	DBG("%p: %s: enable_irq: %d (src %d)\n", mpic, mpic->name, irq, src);
 
 	mpic_irq_write(src, MPIC_IRQ_VECTOR_PRI,
-		       mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) & ~MPIC_VECPRI_MASK);
+		       mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) &
+		       ~MPIC_VECPRI_MASK);
 
 	/* make sure mask gets to controller before we return to user */
 	do {
@@ -381,7 +382,8 @@ static void mpic_disable_irq(unsigned int irq)
 	DBG("%s: disable_irq: %d (src %d)\n", mpic->name, irq, src);
 
 	mpic_irq_write(src, MPIC_IRQ_VECTOR_PRI,
-		       mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) | MPIC_VECPRI_MASK);
+		       mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) |
+		       MPIC_VECPRI_MASK);
 
 	/* make sure mask gets to controller before we return to user */
 	do {
@@ -735,12 +737,13 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 
 	spin_lock_irqsave(&mpic_lock, flags);
 	if (is_ipi) {
-		reg = mpic_ipi_read(irq - mpic->ipi_offset) & MPIC_VECPRI_PRIORITY_MASK;
+		reg = mpic_ipi_read(irq - mpic->ipi_offset) &
+			~MPIC_VECPRI_PRIORITY_MASK;
 		mpic_ipi_write(irq - mpic->ipi_offset,
 			       reg | (pri << MPIC_VECPRI_PRIORITY_SHIFT));
 	} else {
-		reg = mpic_irq_read(irq - mpic->irq_offset, MPIC_IRQ_VECTOR_PRI)
-			& MPIC_VECPRI_PRIORITY_MASK;
+		reg = mpic_irq_read(irq - mpic->irq_offset,MPIC_IRQ_VECTOR_PRI)
+			& ~MPIC_VECPRI_PRIORITY_MASK;
 		mpic_irq_write(irq - mpic->irq_offset, MPIC_IRQ_VECTOR_PRI,
 			       reg | (pri << MPIC_VECPRI_PRIORITY_SHIFT));
 	}
