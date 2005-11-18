@@ -125,11 +125,11 @@ head-$(CONFIG_PPC64)		+= arch/powerpc/kernel/entry_64.o
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 
 core-y				+= arch/powerpc/kernel/ \
-				   arch/$(OLDARCH)/kernel/ \
 				   arch/powerpc/mm/ \
 				   arch/powerpc/lib/ \
 				   arch/powerpc/sysdev/ \
 				   arch/powerpc/platforms/
+core-$(CONFIG_PPC32)		+= arch/ppc/kernel/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_APUS)		+= arch/ppc/amiga/
@@ -165,7 +165,7 @@ define archhelp
   @echo '                    (your) ~/bin/installkernel or'
   @echo '                    (distribution) /sbin/installkernel or'
   @echo '                    install to $$(INSTALL_PATH) and run lilo'
-  @echo '  *_defconfig     - Select default config from arch/$(ARCH)/ppc/configs'
+  @echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
 endef
 
 archclean:
