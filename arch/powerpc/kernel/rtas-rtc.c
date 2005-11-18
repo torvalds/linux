@@ -15,7 +15,7 @@ unsigned long __init rtas_get_boot_time(void)
 {
 	int ret[8];
 	int error, wait_time;
-	unsigned long max_wait_tb;
+	u64 max_wait_tb;
 
 	max_wait_tb = get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
@@ -45,7 +45,7 @@ void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 {
         int ret[8];
 	int error, wait_time;
-	unsigned long max_wait_tb;
+	u64 max_wait_tb;
 
 	max_wait_tb = get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
@@ -80,7 +80,7 @@ void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 int rtas_set_rtc_time(struct rtc_time *tm)
 {
 	int error, wait_time;
-	unsigned long max_wait_tb;
+	u64 max_wait_tb;
 
 	max_wait_tb = get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
