@@ -1925,8 +1925,8 @@ static ide_proc_entry_t idefloppy_proc[] = {
 static int ide_floppy_probe(struct device *);
 
 static ide_driver_t idefloppy_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-floppy",
 		.bus		= &ide_bus_type,
 		.probe		= ide_floppy_probe,

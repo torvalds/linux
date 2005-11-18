@@ -1089,8 +1089,8 @@ static void ide_device_shutdown(struct device *dev)
 }
 
 static ide_driver_t idedisk_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-disk",
 		.bus		= &ide_bus_type,
 		.probe		= ide_disk_probe,
