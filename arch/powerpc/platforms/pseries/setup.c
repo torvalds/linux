@@ -504,7 +504,7 @@ static void pseries_dedicated_idle(void)
 		lpaca->lppaca.idle = 1;
 
 		if (!need_resched()) {
-			start_snooze = __get_tb() +
+			start_snooze = get_tb() +
 				*smt_snooze_delay * tb_ticks_per_usec;
 
 			while (!need_resched() && !cpu_is_offline(cpu)) {
@@ -518,7 +518,7 @@ static void pseries_dedicated_idle(void)
 				HMT_very_low();
 
 				if (*smt_snooze_delay != 0 &&
-				    __get_tb() > start_snooze) {
+				    get_tb() > start_snooze) {
 					HMT_medium();
 					dedicated_idle_sleep(cpu);
 				}

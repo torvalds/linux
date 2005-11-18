@@ -1,6 +1,7 @@
 /*
- * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2000, 2005  MIPS Technologies, Inc.  All rights reserved.
+ *	Authors: Carsten Langgaard <carstenl@mips.com>
+ *		 Maciej W. Rozycki <macro@mips.com>
  *
  * ########################################################################
  *
@@ -265,6 +266,7 @@
 
 /* The SAA9730 (LAN) controller register map, as seen via the PCI-bus. */
 #define SAA9730_LAN_REGS_ADDR   0x20400
+#define SAA9730_LAN_REGS_SIZE   0x00400
 
 struct lan_saa9730_regmap {
 	volatile unsigned int TxBuffA;			/* 0x20400 */
@@ -309,6 +311,7 @@ typedef volatile struct lan_saa9730_regmap t_lan_saa9730_regmap;
 
 /* The SAA9730 (EVM) controller register map, as seen via the PCI-bus. */
 #define SAA9730_EVM_REGS_ADDR   0x02000
+#define SAA9730_EVM_REGS_SIZE   0x00400
 
 struct evm_saa9730_regmap {
 	volatile unsigned int InterruptStatus1;		/* 0x2000 */
@@ -329,16 +332,32 @@ typedef volatile struct evm_saa9730_regmap t_evm_saa9730_regmap;
 
 
 struct lan_saa9730_private {
+	/*
+	 * Rx/Tx packet buffers.
+	 * The Rx and Tx packets must be PACKET_SIZE aligned.
+	 */
+	void		*buffer_start;
+	unsigned int	buffer_size;
+
+	/*
+	 * DMA address of beginning of this object, returned
+	 * by pci_alloc_consistent().
+	 */
+	dma_addr_t	dma_addr;
+
+	/* Pointer to the associated pci device structure */
+	struct pci_dev	*pci_dev;
+
 	/* Pointer for the SAA9730 LAN controller register set. */
 	t_lan_saa9730_regmap *lan_saa9730_regs;
 
 	/* Pointer to the SAA9730 EVM register. */
 	t_evm_saa9730_regmap *evm_saa9730_regs;
 
-	/* TRUE if the next buffer to write is RxBuffA,  FALSE if RxBuffB. */
-	unsigned char NextRcvToUseIsA;
 	/* Rcv buffer Index. */
 	unsigned char NextRcvPacketIndex;
+	/* Next buffer index. */
+	unsigned char NextRcvBufferIndex;
 
 	/* Index of next packet to use in that buffer. */
 	unsigned char NextTxmPacketIndex;
@@ -353,13 +372,8 @@ struct lan_saa9730_private {
 	unsigned char DmaRcvPackets;
 	unsigned char DmaTxmPackets;
 
-	unsigned char RcvAIndex;	/* index into RcvBufferSpace[] for Blk A */
-	unsigned char RcvBIndex;	/* index into RcvBufferSpace[] for Blk B */
-
-	unsigned int
-	    TxmBuffer[LAN_SAA9730_BUFFERS][LAN_SAA9730_TXM_Q_SIZE];
-	unsigned int
-	    RcvBuffer[LAN_SAA9730_BUFFERS][LAN_SAA9730_RCV_Q_SIZE];
+	void	      *TxmBuffer[LAN_SAA9730_BUFFERS][LAN_SAA9730_TXM_Q_SIZE];
+	void	      *RcvBuffer[LAN_SAA9730_BUFFERS][LAN_SAA9730_RCV_Q_SIZE];
 	unsigned int TxBufferFree[LAN_SAA9730_BUFFERS];
 
 	unsigned char PhysicalAddress[LAN_SAA9730_CAM_ENTRIES][6];
