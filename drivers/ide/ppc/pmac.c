@@ -1401,20 +1401,6 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	/* We probe the hwif now */
 	probe_hwif_init(hwif);
 
-	/* The code IDE code will have set hwif->present if we have devices attached,
-	 * if we don't, the discard the interface except if we are on a media bay slot
-	 */
-	if (!hwif->present && !pmif->mediabay) {
-		printk(KERN_INFO "ide%d: Bus empty, interface released.\n",
-			hwif->index);
-		default_hwif_iops(hwif);
-		for (i = IDE_DATA_OFFSET; i <= IDE_CONTROL_OFFSET; ++i)
-			hwif->io_ports[i] = 0;
-		hwif->chipset = ide_unknown;
-		hwif->noprobe = 1;
-		return -ENODEV;
-	}
-
 	return 0;
 }
 
