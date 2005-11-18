@@ -42,3 +42,7 @@ obj-$(CONFIG_USB_ACECAD)	+= acecad.o
 obj-$(CONFIG_USB_YEALINK)	+= yealink.o
 obj-$(CONFIG_USB_XPAD)		+= xpad.o
 obj-$(CONFIG_USB_APPLETOUCH)	+= appletouch.o
+
+ifeq ($(CONFIG_USB_DEBUG),y)
+EXTRA_CFLAGS += -DDEBUG
+endif

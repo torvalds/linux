@@ -1063,8 +1063,8 @@ Aside:
 4.4 I/O contexts
 I/O contexts provide a dynamically allocated per process data area. They may
 be used in I/O schedulers, and in the block layer (could be used for IO statis,
-priorities for example). See *io_context in drivers/block/ll_rw_blk.c, and
-as-iosched.c for an example of usage in an i/o scheduler.
+priorities for example). See *io_context in block/ll_rw_blk.c, and as-iosched.c
+for an example of usage in an i/o scheduler.
 
 
 5. Scalability related changes

@@ -845,21 +845,22 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 
 	might_sleep_if(wait);
 
+restart:
 	z = zonelist->zones;  /* the list of zones suitable for gfp_mask */
 
 	if (unlikely(*z == NULL)) {
 		/* Should this ever happen?? */
 		return NULL;
 	}
-restart:
+
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
 				zonelist, ALLOC_CPUSET);
 	if (page)
 		goto got_pg;
 
-	do
+	do {
 		wakeup_kswapd(*z, order);
-	while (*(++z));
+	} while (*(++z));
 
 	/*
 	 * OK, we're below the kswapd watermark and have kicked background

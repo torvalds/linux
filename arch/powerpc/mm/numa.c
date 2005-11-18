@@ -483,6 +483,7 @@ static void __init setup_nonnuma(void)
 {
 	unsigned long top_of_ram = lmb_end_of_DRAM();
 	unsigned long total_ram = lmb_phys_mem_size();
+	unsigned int i;
 
 	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
@@ -490,7 +491,9 @@ static void __init setup_nonnuma(void)
 	       (top_of_ram - total_ram) >> 20);
 
 	map_cpu_to_node(boot_cpuid, 0);
-	add_region(0, 0, lmb_end_of_DRAM() >> PAGE_SHIFT);
+	for (i = 0; i < lmb.memory.cnt; ++i)
+		add_region(0, lmb.memory.region[i].base >> PAGE_SHIFT,
+			   lmb_size_pages(&lmb.memory, i));
 	node_set_online(0);
 }
 

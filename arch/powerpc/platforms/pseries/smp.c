@@ -51,6 +51,7 @@
 #include "plpar_wrappers.h"
 
 #ifdef DEBUG
+#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)

@@ -2203,7 +2203,7 @@ static void setup_xaction_handlers(struct smi_info *smi_info)
 
 static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 {
-	if (smi_info->thread != ERR_PTR(-ENOMEM))
+	if (smi_info->thread != NULL && smi_info->thread != ERR_PTR(-ENOMEM))
 		kthread_stop(smi_info->thread);
 	del_timer_sync(&smi_info->si_timer);
 }

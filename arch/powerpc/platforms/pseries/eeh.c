@@ -86,7 +86,8 @@ static int ibm_read_slot_reset_state;
 static int ibm_read_slot_reset_state2;
 static int ibm_slot_error_detail;
 
-static int eeh_subsystem_enabled;
+int eeh_subsystem_enabled;
+EXPORT_SYMBOL(eeh_subsystem_enabled);
 
 /* Lock to avoid races due to multiple reports of an error */
 static DEFINE_SPINLOCK(confirm_error_lock);

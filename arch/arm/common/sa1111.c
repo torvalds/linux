@@ -32,6 +32,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
+#include <asm/sizes.h>
 
 #include <asm/hardware/sa1111.h>
 
@@ -131,6 +132,17 @@ static struct sa1111_dev_info sa1111_devices[] = {
 		},
 	},
 };
+
+void __init sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes)
+{
+	unsigned int sz = SZ_1M >> PAGE_SHIFT;
+
+	if (node != 0)
+		sz = 0;
+
+	size[1] = size[0] - sz;
+	size[0] = sz;
+}
 
 /*
  * SA1111 interrupt support.  Since clearing an IRQ while there are
@@ -1266,7 +1278,7 @@ static void __exit sa1111_exit(void)
 	bus_unregister(&sa1111_bus_type);
 }
 
-module_init(sa1111_init);
+subsys_initcall(sa1111_init);
 module_exit(sa1111_exit);
 
 MODULE_DESCRIPTION("Intel Corporation SA1111 core driver");

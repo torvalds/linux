@@ -15,14 +15,6 @@
 #include <asm/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
-
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/usb.h>
 #include "hcd.h"
 

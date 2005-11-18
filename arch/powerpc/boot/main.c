@@ -42,6 +42,8 @@ static struct addr_range vmlinux;
 static struct addr_range vmlinuz;
 static struct addr_range initrd;
 
+static unsigned long elfoffset;
+
 static char scratch[46912];	/* scratch space for gunzip, from zlib_inflate_workspacesize() */
 static char elfheader[256];
 
@@ -131,13 +133,70 @@ static unsigned long try_claim(unsigned long size)
 	return addr;
 }
 
+static int is_elf64(void *hdr)
+{
+	Elf64_Ehdr *elf64 = hdr;
+	Elf64_Phdr *elf64ph;
+	unsigned int i;
+
+	if (!(elf64->e_ident[EI_MAG0]  == ELFMAG0	&&
+	      elf64->e_ident[EI_MAG1]  == ELFMAG1	&&
+	      elf64->e_ident[EI_MAG2]  == ELFMAG2	&&
+	      elf64->e_ident[EI_MAG3]  == ELFMAG3	&&
+	      elf64->e_ident[EI_CLASS] == ELFCLASS64	&&
+	      elf64->e_ident[EI_DATA]  == ELFDATA2MSB	&&
+	      elf64->e_type            == ET_EXEC	&&
+	      elf64->e_machine         == EM_PPC64))
+		return 0;
+
+	elf64ph = (Elf64_Phdr *)((unsigned long)elf64 +
+				 (unsigned long)elf64->e_phoff);
+	for (i = 0; i < (unsigned int)elf64->e_phnum; i++, elf64ph++)
+		if (elf64ph->p_type == PT_LOAD && elf64ph->p_offset != 0)
+			break;
+	if (i >= (unsigned int)elf64->e_phnum)
+		return 0;
+
+	elfoffset = (unsigned long)elf64ph->p_offset;
+	vmlinux.size = (unsigned long)elf64ph->p_filesz + elfoffset;
+	vmlinux.memsize = (unsigned long)elf64ph->p_memsz + elfoffset;
+	return 1;
+}
+
+static int is_elf32(void *hdr)
+{
+	Elf32_Ehdr *elf32 = hdr;
+	Elf32_Phdr *elf32ph;
+	unsigned int i;
+
+	if (!(elf32->e_ident[EI_MAG0]  == ELFMAG0	&&
+	      elf32->e_ident[EI_MAG1]  == ELFMAG1	&&
+	      elf32->e_ident[EI_MAG2]  == ELFMAG2	&&
+	      elf32->e_ident[EI_MAG3]  == ELFMAG3	&&
+	      elf32->e_ident[EI_CLASS] == ELFCLASS32	&&
+	      elf32->e_ident[EI_DATA]  == ELFDATA2MSB	&&
+	      elf32->e_type            == ET_EXEC	&&
+	      elf32->e_machine         == EM_PPC))
+		return 0;
+
+	elf32 = (Elf32_Ehdr *)elfheader;
+	elf32ph = (Elf32_Phdr *) ((unsigned long)elf32 + elf32->e_phoff);
+	for (i = 0; i < elf32->e_phnum; i++, elf32ph++)
+		if (elf32ph->p_type == PT_LOAD && elf32ph->p_offset != 0)
+			break;
+	if (i >= elf32->e_phnum)
+		return 0;
+
+	elfoffset = elf32ph->p_offset;
+	vmlinux.size = elf32ph->p_filesz + elf32ph->p_offset;
+	vmlinux.memsize = elf32ph->p_memsz + elf32ph->p_offset;
+	return 1;
+}
+
 void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 {
-	unsigned long i;
 	int len;
 	kernel_entry_t kernel_entry;
-	Elf64_Ehdr *elf64;
-	Elf64_Phdr *elf64ph;
 
 	memset(__bss_start, 0, _end - __bss_start);
 
@@ -152,6 +211,22 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		exit();
 
 	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r", _start, sp);
+
+	vmlinuz.addr = (unsigned long)_vmlinux_start;
+	vmlinuz.size = (unsigned long)(_vmlinux_end - _vmlinux_start);
+
+	/* gunzip the ELF header of the kernel */
+	if (*(unsigned short *)vmlinuz.addr == 0x1f8b) {
+		len = vmlinuz.size;
+		gunzip(elfheader, sizeof(elfheader),
+				(unsigned char *)vmlinuz.addr, &len);
+	} else
+		memcpy(elfheader, (const void *)vmlinuz.addr, sizeof(elfheader));
+
+	if (!is_elf64(elfheader) && !is_elf32(elfheader)) {
+		printf("Error: not a valid PPC32 or PPC64 ELF file!\n\r");
+		exit();
+	}
 
 	/*
 	 * The first available claim_base must be above the end of the
@@ -172,46 +247,11 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		claim_base = PROG_START;
 #endif
 
-	vmlinuz.addr = (unsigned long)_vmlinux_start;
-	vmlinuz.size = (unsigned long)(_vmlinux_end - _vmlinux_start);
-
-	/* gunzip the ELF header of the kernel */
-	if (*(unsigned short *)vmlinuz.addr == 0x1f8b) {
-		len = vmlinuz.size;
-		gunzip(elfheader, sizeof(elfheader),
-				(unsigned char *)vmlinuz.addr, &len);
-	} else
-		memcpy(elfheader, (const void *)vmlinuz.addr, sizeof(elfheader));
-
-	elf64 = (Elf64_Ehdr *)elfheader;
-	if ( elf64->e_ident[EI_MAG0]  != ELFMAG0	||
-	     elf64->e_ident[EI_MAG1]  != ELFMAG1	||
-	     elf64->e_ident[EI_MAG2]  != ELFMAG2	||
-	     elf64->e_ident[EI_MAG3]  != ELFMAG3	||
-	     elf64->e_ident[EI_CLASS] != ELFCLASS64	||
-	     elf64->e_ident[EI_DATA]  != ELFDATA2MSB	||
-	     elf64->e_type            != ET_EXEC	||
-	     elf64->e_machine         != EM_PPC64 )
-	{
-		printf("Error: not a valid PPC64 ELF file!\n\r");
-		exit();
-	}
-
-	elf64ph = (Elf64_Phdr *)((unsigned long)elf64 +
-				(unsigned long)elf64->e_phoff);
-	for(i=0; i < (unsigned int)elf64->e_phnum ;i++,elf64ph++) {
-		if (elf64ph->p_type == PT_LOAD && elf64ph->p_offset != 0)
-			break;
-	}
-	vmlinux.size = (unsigned long)elf64ph->p_filesz +
-		(unsigned long)elf64ph->p_offset;
 	/* We need to claim the memsize plus the file offset since gzip
 	 * will expand the header (file offset), then the kernel, then
 	 * possible rubbish we don't care about. But the kernel bss must
 	 * be claimed (it will be zero'd by the kernel itself)
 	 */
-	vmlinux.memsize = (unsigned long)elf64ph->p_memsz +
-		(unsigned long)elf64ph->p_offset;
 	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux.memsize);
 	vmlinux.addr = try_claim(vmlinux.memsize);
 	if (vmlinux.addr == 0) {
@@ -254,9 +294,9 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 	/* Skip over the ELF header */
 #ifdef DEBUG
 	printf("... skipping 0x%lx bytes of ELF header\n\r",
-			(unsigned long)elf64ph->p_offset);
+			elfoffset);
 #endif
-	vmlinux.addr += (unsigned long)elf64ph->p_offset;
+	vmlinux.addr += elfoffset;
 
 	flush_cache((void *)vmlinux.addr, vmlinux.size);
 
@@ -272,7 +312,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		(unsigned long)prom, NULL);
 #endif
 
-	kernel_entry( a1, a2, prom, NULL );
+	kernel_entry(a1, a2, prom, NULL);
 
 	printf("Error: Linux kernel returned to zImage bootloader!\n\r");
 

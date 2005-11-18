@@ -9,11 +9,6 @@
  */
 
 #include <linux/config.h>
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/module.h>

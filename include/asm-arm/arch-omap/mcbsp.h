@@ -24,7 +24,7 @@
 #ifndef __ASM_ARCH_OMAP_MCBSP_H
 #define __ASM_ARCH_OMAP_MCBSP_H
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #define OMAP730_MCBSP1_BASE	0xfffb1000
 #define OMAP730_MCBSP2_BASE	0xfffb1800

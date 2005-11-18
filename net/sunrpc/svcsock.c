@@ -1178,6 +1178,7 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 	arg->tail[0].iov_len = 0;
 
 	try_to_freeze();
+	cond_resched();
 	if (signalled())
 		return -EINTR;
 

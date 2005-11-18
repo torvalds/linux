@@ -34,7 +34,7 @@
 #include <linux/moduleparam.h>
 
 #define MAX_PORTS 8
-static short ports[MAX_PORTS];
+static unsigned short ports[MAX_PORTS];
 static int ports_c;
 static int max_dcc_channels = 8;
 static unsigned int dcc_timeout = 300;
@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(ip_nat_irc_hook);
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IRC (DCC) connection tracking helper");
 MODULE_LICENSE("GPL");
-module_param_array(ports, short, &ports_c, 0400);
+module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of IRC servers");
 module_param(max_dcc_channels, int, 0400);
 MODULE_PARM_DESC(max_dcc_channels, "max number of expected DCC channels per IRC session");

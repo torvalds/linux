@@ -29,9 +29,9 @@ static char *ftp_buffer;
 static DEFINE_SPINLOCK(ip_ftp_lock);
 
 #define MAX_PORTS 8
-static short ports[MAX_PORTS];
+static unsigned short ports[MAX_PORTS];
 static int ports_c;
-module_param_array(ports, short, &ports_c, 0400);
+module_param_array(ports, ushort, &ports_c, 0400);
 
 static int loose;
 module_param(loose, int, 0600);

@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include "asm/arch/platform.h"
-#include "asm/arch/hardware.h"
+#include "asm/hardware.h"
 #define UART00_TYPE (volatile unsigned int*)
 #include "asm/arch/uart00.h"
 

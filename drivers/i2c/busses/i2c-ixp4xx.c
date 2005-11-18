@@ -35,7 +35,7 @@
 
 #include <asm/hardware.h>	/* Pick up IXP4xx-specific bits */
 
-static struct device_driver ixp4xx_i2c_driver;
+static struct platform_driver ixp4xx_i2c_driver;
 
 static inline int ixp4xx_scl_pin(void *data)
 {
@@ -128,7 +128,7 @@ static int ixp4xx_i2c_probe(struct platform_device *plat_dev)
 	drv_data->algo_data.timeout = 100;
 
 	drv_data->adapter.id = I2C_HW_B_IXP4XX;
-	strlcpy(drv_data->adapter.name, ixp4xx_i2c_driver.name,
+	strlcpy(drv_data->adapter.name, ixp4xx_i2c_driver.driver.name,
 		I2C_NAME_SIZE);
 	drv_data->adapter.algo_data = &drv_data->algo_data;
 
@@ -140,7 +140,8 @@ static int ixp4xx_i2c_probe(struct platform_device *plat_dev)
 	gpio_line_set(gpio->sda_pin, 0);
 
 	if ((err = i2c_bit_add_bus(&drv_data->adapter) != 0)) {
-		printk(KERN_ERR "ERROR: Could not install %s\n", dev->bus_id);
+		printk(KERN_ERR "ERROR: Could not install %s\n", 
+				plat_dev->dev.bus_id);
 
 		kfree(drv_data);
 		return err;

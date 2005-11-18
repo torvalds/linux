@@ -178,7 +178,7 @@ void gt64240_time_init(void)
 	timer.name = "timer";
 	timer.dev_id = NULL;
 	timer.next = NULL;
-	timer.mask = 0;
+	timer.mask = CPU_MASK_NONE;
 	irq_desc[6].action = &timer;
 
 	enable_irq(6);

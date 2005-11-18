@@ -1994,7 +1994,7 @@ static int detect_s514 (sdlahw_t* hw)
 		modname, hw->irq);
 
 	/* map the physical PCI memory to virtual memory */
-	(void *)hw->dpmbase = ioremap((unsigned long)S514_mem_base_addr,
+	hw->dpmbase = ioremap((unsigned long)S514_mem_base_addr,
 		(unsigned long)MAX_SIZEOF_S514_MEMORY);
     	/* map the physical control register memory to virtual memory */
 	hw->vector = (unsigned long)ioremap(

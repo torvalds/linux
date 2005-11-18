@@ -47,13 +47,12 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -EIO;
 
 	for (i = 0; i < 6; i++) {
-		status = atmel_getb(chip, 1);
+		status = ioread8(chip->vendor->iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(chip->dev,
-				"error reading header\n");
+			dev_err(chip->dev, "error reading header\n");
 			return -EIO;
 		}
-		*buf++ = atmel_getb(chip, 0);
+		*buf++ = ioread8(chip->vendor->iobase);
 	}
 
 	/* size of the data received */
@@ -64,10 +63,9 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		dev_err(chip->dev,
 			"Recv size(%d) less than available space\n", size);
 		for (; i < size; i++) {	/* clear the waiting data anyway */
-			status = atmel_getb(chip, 1);
+			status = ioread8(chip->vendor->iobase + 1);
 			if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-				dev_err(chip->dev,
-					"error reading data\n");
+				dev_err(chip->dev, "error reading data\n");
 				return -EIO;
 			}
 		}
@@ -76,17 +74,17 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	/* read all the data available */
 	for (; i < size; i++) {
-		status = atmel_getb(chip, 1);
+		status = ioread8(chip->vendor->iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(chip->dev,
-				"error reading data\n");
+			dev_err(chip->dev, "error reading data\n");
 			return -EIO;
 		}
-		*buf++ = atmel_getb(chip, 0);
+		*buf++ = ioread8(chip->vendor->iobase);
 	}
 
 	/* make sure data available is gone */
-	status = atmel_getb(chip, 1);
+	status = ioread8(chip->vendor->iobase + 1);
+
 	if (status & ATML_STATUS_DATA_AVAIL) {
 		dev_err(chip->dev, "data available is stuck\n");
 		return -EIO;
@@ -102,7 +100,7 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	dev_dbg(chip->dev, "tpm_atml_send:\n");
 	for (i = 0; i < count; i++) {
 		dev_dbg(chip->dev, "%d 0x%x(%d)\n",  i, buf[i], buf[i]);
-		atmel_putb(buf[i], chip, 0);
+ 		iowrite8(buf[i], chip->vendor->iobase);
 	}
 
 	return count;
@@ -110,12 +108,12 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static void tpm_atml_cancel(struct tpm_chip *chip)
 {
-	atmel_putb(ATML_STATUS_ABORT, chip, 1);
+	iowrite8(ATML_STATUS_ABORT, chip->vendor->iobase + 1);
 }
 
 static u8 tpm_atml_status(struct tpm_chip *chip)
 {
-	return atmel_getb(chip, 1);
+	return ioread8(chip->vendor->iobase + 1);
 }
 
 static struct file_operations atmel_ops = {
@@ -162,7 +160,8 @@ static void atml_plat_remove(void)
 
 	if (chip) {
 		if (chip->vendor->have_region)
-			atmel_release_region(chip->vendor->base, chip->vendor->region_size);
+			atmel_release_region(chip->vendor->base,
+					     chip->vendor->region_size);
 		atmel_put_base_addr(chip->vendor);
 		tpm_remove_hardware(chip->dev);
 		platform_device_unregister(pdev);
@@ -183,14 +182,19 @@ static int __init init_atmel(void)
 
 	driver_register(&atml_drv);
 
-	if (atmel_get_base_addr(&tpm_atmel) != 0) {
+	if ((tpm_atmel.iobase = atmel_get_base_addr(&tpm_atmel)) == NULL) {
 		rc = -ENODEV;
 		goto err_unreg_drv;
 	}
 
-	tpm_atmel.have_region = (atmel_request_region( tpm_atmel.base, tpm_atmel.region_size, "tpm_atmel0") == NULL) ? 0 : 1;
+	tpm_atmel.have_region =
+	    (atmel_request_region
+	     (tpm_atmel.base, tpm_atmel.region_size,
+	      "tpm_atmel0") == NULL) ? 0 : 1;
 
-	if (IS_ERR(pdev = platform_device_register_simple("tpm_atmel", -1, NULL, 0 ))) {
+	if (IS_ERR
+	    (pdev =
+	     platform_device_register_simple("tpm_atmel", -1, NULL, 0))) {
 		rc = PTR_ERR(pdev);
 		goto err_rel_reg;
 	}
@@ -202,9 +206,10 @@ static int __init init_atmel(void)
 err_unreg_dev:
 	platform_device_unregister(pdev);
 err_rel_reg:
-	if (tpm_atmel.have_region)
-		atmel_release_region(tpm_atmel.base, tpm_atmel.region_size);
 	atmel_put_base_addr(&tpm_atmel);
+	if (tpm_atmel.have_region)
+		atmel_release_region(tpm_atmel.base,
+				     tpm_atmel.region_size);
 err_unreg_drv:
 	driver_unregister(&atml_drv);
 	return rc;

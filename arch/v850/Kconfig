@@ -23,6 +23,14 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
 # Turn off some random 386 crap that can affect device config
 config ISA
 	bool
