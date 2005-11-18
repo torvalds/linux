@@ -486,6 +486,31 @@ static void sil24_irq_clear(struct ata_port *ap)
 	/* unused */
 }
 
+static int __sil24_restart_controller(void __iomem *port)
+{
+	u32 tmp;
+	int cnt;
+
+	writel(PORT_CS_INIT, port + PORT_CTRL_STAT);
+
+	/* Max ~10ms */
+	for (cnt = 0; cnt < 10000; cnt++) {
+		tmp = readl(port + PORT_CTRL_STAT);
+		if (tmp & PORT_CS_RDY)
+			return 0;
+		udelay(1);
+	}
+
+	return -1;
+}
+
+static void sil24_restart_controller(struct ata_port *ap)
+{
+	if (__sil24_restart_controller((void __iomem *)ap->ioaddr.cmd_addr))
+		printk(KERN_ERR DRV_NAME
+		       " ata%u: failed to restart controller\n", ap->id);
+}
+
 static int __sil24_reset_controller(void __iomem *port)
 {
 	int cnt;
@@ -505,7 +530,11 @@ static int __sil24_reset_controller(void __iomem *port)
 
 	if (tmp & PORT_CS_DEV_RST)
 		return -1;
-	return 0;
+
+	if (tmp & PORT_CS_RDY)
+		return 0;
+
+	return __sil24_restart_controller(port);
 }
 
 static void sil24_reset_controller(struct ata_port *ap)
@@ -577,6 +606,7 @@ static void sil24_error_intr(struct ata_port *ap, u32 slot_stat)
 		 */
 		sil24_update_tf(ap);
 		err_mask = ac_err_mask(pp->tf.command);
+		sil24_restart_controller(ap);
 	} else {
 		/*
 		 * Other errors.  libata currently doesn't have any
@@ -584,12 +614,11 @@ static void sil24_error_intr(struct ata_port *ap, u32 slot_stat)
 		 * ATA_ERR.
 		 */
 		err_mask = AC_ERR_OTHER;
+		sil24_reset_controller(ap);
 	}
 
 	if (qc)
 		ata_qc_complete(qc, err_mask);
-
-	sil24_reset_controller(ap);
 }
 
 static inline void sil24_host_intr(struct ata_port *ap)
