@@ -142,6 +142,11 @@ static void fill_in_inode(struct inode *tmp_inode,
 		tmp_inode->i_gid = cifs_sb->mnt_gid;
 		/* set default mode. will override for dirs below */
 		tmp_inode->i_mode = cifs_sb->mnt_file_mode;
+	} else {
+		/* mask off the type bits since it gets set
+		below and we do not want to get two type
+		bits set */
+		tmp_inode->i_mode &= ~S_IFMT;
 	}
 
 	if (attr & ATTR_DIRECTORY) {
@@ -152,12 +157,18 @@ static void fill_in_inode(struct inode *tmp_inode,
 		}
 		tmp_inode->i_mode |= S_IFDIR;
 	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) && 
-		   (attr & ATTR_SYSTEM) && (end_of_file == 0)) {
-		*pobject_type = DT_FIFO;
-		tmp_inode->i_mode |= S_IFIFO;
-/* BB Finish for SFU style symlinks and devies */
-/*	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
-		(attr & ATTR_SYSTEM) && ) { */
+		   (attr & ATTR_SYSTEM)) {
+		if (end_of_file == 0)  {
+			*pobject_type = DT_FIFO;
+			tmp_inode->i_mode |= S_IFIFO;
+		} else {
+			/* rather than get the type here, we mark the
+			inode as needing revalidate and get the real type
+			(blk vs chr vs. symlink) later ie in lookup */
+			*pobject_type = DT_REG;
+			tmp_inode->i_mode |= S_IFREG; 
+			cifsInfo->time = 0;	
+		}
 /* we no longer mark these because we could not follow them */
 /*        } else if (attr & ATTR_REPARSE) {
                 *pobject_type = DT_LNK;
@@ -264,6 +275,9 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastStatusChange));
 
 	tmp_inode->i_mode = le64_to_cpu(pfindData->Permissions);
+	/* since we set the inode type below we need to mask off type
+           to avoid strange results if bits above were corrupt */
+        tmp_inode->i_mode &= ~S_IFMT;
 	if (type == UNIX_FILE) {
 		*pobject_type = DT_REG;
 		tmp_inode->i_mode |= S_IFREG;
@@ -289,6 +303,11 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	} else if (type == UNIX_SOCKET) {
 		*pobject_type = DT_SOCK;
 		tmp_inode->i_mode |= S_IFSOCK;
+	} else {
+		/* safest to just call it a file */
+		*pobject_type = DT_REG;
+		tmp_inode->i_mode |= S_IFREG;
+		cFYI(1,("unknown inode type %d",type)); 
 	}
 
 	tmp_inode->i_uid = le64_to_cpu(pfindData->Uid);

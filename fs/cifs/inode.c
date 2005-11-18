@@ -41,7 +41,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	char *tmp_path;
 
 	pTcon = cifs_sb->tcon;
-	cFYI(1, (" Getting info on %s ", search_path));
+	cFYI(1, ("Getting info on %s ", search_path));
 	/* could have done a find first instead but this returns more info */
 	rc = CIFSSMBUnixQPathInfo(xid, pTcon, search_path, &findData,
 				  cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
@@ -111,6 +111,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		inode->i_ctime =
 		    cifs_NTtimeToUnix(le64_to_cpu(findData.LastStatusChange));
 		inode->i_mode = le64_to_cpu(findData.Permissions);
+		/* since we set the inode type below we need to mask off
+                   to avoid strange results if bits set above */
+                        inode->i_mode &= ~S_IFMT;
 		if (type == UNIX_FILE) {
 			inode->i_mode |= S_IFREG;
 		} else if (type == UNIX_SYMLINK) {
@@ -129,6 +132,10 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 			inode->i_mode |= S_IFIFO;
 		} else if (type == UNIX_SOCKET) {
 			inode->i_mode |= S_IFSOCK;
+		} else {
+			/* safest to call it a file if we do not know */
+			inode->i_mode |= S_IFREG;
+			cFYI(1,("unknown type %d",type));
 		}
 		inode->i_uid = le64_to_cpu(findData.Uid);
 		inode->i_gid = le64_to_cpu(findData.Gid);
@@ -228,20 +235,19 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 				 8 /* length */, 0 /* offset */,
 				 &bytes_read, &pbuf);
 		if((rc == 0) && (bytes_read == 8)) {
-			cERROR(1,("intx %s" ,pbuf));
 			if(memcmp("IntxBLK", pbuf, 8) == 0) {
 				cFYI(1,("Block device"));
-				inode->i_mode = S_IFBLK;
+				inode->i_mode |= S_IFBLK;
 			} else if(memcmp("IntxCHR", pbuf, 8) == 0) {
 				cFYI(1,("Char device"));
-				inode->i_mode = S_IFCHR;
+				inode->i_mode |= S_IFCHR;
 			} else if(memcmp("IntxLNK", pbuf, 7) == 0) {
 				cFYI(1,("Symlink"));
-				inode->i_mode = S_IFLNK;
-			} else
-				inode->i_mode = S_IFREG; /* then it is a file */
-				rc = -EOPNOTSUPP; /* or some unknown SFU type */ 
-			 
+				inode->i_mode |= S_IFLNK;
+			} 
+		} else {
+			inode->i_mode |= S_IFREG; /* then it is a file */
+			rc = -EOPNOTSUPP; /* or some unknown SFU type */	
 		}
 		
 		CIFSSMBClose(xid, pTcon, netfid);
@@ -261,6 +267,7 @@ static int get_sfu_uid_mode(struct inode * inode,
 			const unsigned char *path,
 			struct cifs_sb_info *cifs_sb, int xid)
 {
+#ifdef CONFIG_CIFS_XATTR
 	ssize_t rc;
 	char ea_value[4];
 	__u32 mode;
@@ -272,12 +279,17 @@ static int get_sfu_uid_mode(struct inode * inode,
 		return (int)rc;
 	else if (rc > 3) {
 		mode = le32_to_cpu(*((__le32 *)ea_value));
+		cFYI(1,("special bits 0%o org mode 0%o", mode, inode->i_mode));
 		inode->i_mode = (mode &  SFBITS_MASK) | inode->i_mode;
 		cFYI(1,("special mode bits 0%o", mode));
 		return 0;
 	} else {
 		return 0;
 	}
+#else
+	return -EOPNOTSUPP;
+#endif
+
 		
 }
 
@@ -394,9 +406,9 @@ int cifs_get_inode_info(struct inode **pinode,
 		inode = *pinode;
 		cifsInfo = CIFS_I(inode);
 		cifsInfo->cifsAttrs = attr;
-		cFYI(1, (" Old time %ld ", cifsInfo->time));
+		cFYI(1, ("Old time %ld ", cifsInfo->time));
 		cifsInfo->time = jiffies;
-		cFYI(1, (" New time %ld ", cifsInfo->time));
+		cFYI(1, ("New time %ld ", cifsInfo->time));
 
 		/* blksize needs to be multiple of two. So safer to default to
 		blksize and blkbits set in superblock so 2**blkbits and blksize
@@ -410,13 +422,15 @@ int cifs_get_inode_info(struct inode **pinode,
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastWriteTime));
 		inode->i_ctime =
 		    cifs_NTtimeToUnix(le64_to_cpu(pfindData->ChangeTime));
-		cFYI(0, (" Attributes came in as 0x%x ", attr));
+		cFYI(0, ("Attributes came in as 0x%x ", attr));
 
 		/* set default mode. will override for dirs below */
 		if (atomic_read(&cifsInfo->inUse) == 0)
 			/* new inode, can safely set these fields */
 			inode->i_mode = cifs_sb->mnt_file_mode;
-
+		else /* since we set the inode type below we need to mask off
+		     to avoid strange results if type changes and both get orred in */ 
+			inode->i_mode &= ~S_IFMT; 
 /*		if (attr & ATTR_REPARSE)  */
 		/* We no longer handle these as symlinks because we could not
 		   follow them due to the absolute path with drive letter */
@@ -440,6 +454,7 @@ int cifs_get_inode_info(struct inode **pinode,
 					 cifs_sb, xid)) {
 				cFYI(1,("Unrecognized sfu inode type"));
 			}
+			cFYI(1,("sfu mode 0%o",inode->i_mode));
 		} else {
 			inode->i_mode |= S_IFREG;
 			/* treat the dos attribute of read-only as read-only
@@ -535,7 +550,7 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 	struct cifsInodeInfo *cifsInode;
 	FILE_BASIC_INFO *pinfo_buf;
 
-	cFYI(1, (" cifs_unlink, inode = 0x%p with ", inode));
+	cFYI(1, ("cifs_unlink, inode = 0x%p with ", inode));
 
 	xid = GetXid();
 
@@ -755,7 +770,7 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	char *full_path = NULL;
 	struct cifsInodeInfo *cifsInode;
 
-	cFYI(1, (" cifs_rmdir, inode = 0x%p with ", inode));
+	cFYI(1, ("cifs_rmdir, inode = 0x%p with ", inode));
 
 	xid = GetXid();
 
@@ -1074,7 +1089,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 
 	xid = GetXid();
 
-	cFYI(1, (" In cifs_setattr, name = %s attrs->iavalid 0x%x ",
+	cFYI(1, ("In cifs_setattr, name = %s attrs->iavalid 0x%x ",
 		 direntry->d_name.name, attrs->ia_valid));
 	cifs_sb = CIFS_SB(direntry->d_inode->i_sb);
 	pTcon = cifs_sb->tcon;
