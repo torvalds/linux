@@ -515,6 +515,31 @@ static int hub_port_disable(struct usb_hub *hub, int port1, int set_state)
 	return ret;
 }
 
+
+/* caller has locked the hub device */
+static void hub_pre_reset(struct usb_hub *hub, int disable_ports)
+{
+	struct usb_device *hdev = hub->hdev;
+	int port1;
+
+	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
+		if (hdev->children[port1 - 1]) {
+			usb_disconnect(&hdev->children[port1 - 1]);
+			if (disable_ports)
+				hub_port_disable(hub, port1, 0);
+		}
+	}
+	hub_quiesce(hub);
+}
+
+/* caller has locked the hub device */
+static void hub_post_reset(struct usb_hub *hub)
+{
+	hub_activate(hub);
+	hub_power_on(hub);
+}
+
+
 static int hub_configure(struct usb_hub *hub,
 	struct usb_endpoint_descriptor *endpoint)
 {
@@ -750,29 +775,10 @@ fail:
 
 static unsigned highspeed_hubs;
 
-/* Called after the hub driver is unbound from a hub with children */
-static void hub_remove_children_work(void *__hub)
-{
-	struct usb_hub		*hub = __hub;
-	struct usb_device	*hdev = hub->hdev;
-	int			i;
-
-	kfree(hub);
-
-	usb_lock_device(hdev);
-	for (i = 0; i < hdev->maxchild; ++i) {
-		if (hdev->children[i])
-			usb_disconnect(&hdev->children[i]);
-	}
-	usb_unlock_device(hdev);
-	usb_put_dev(hdev);
-}
-
 static void hub_disconnect(struct usb_interface *intf)
 {
 	struct usb_hub *hub = usb_get_intfdata (intf);
 	struct usb_device *hdev;
-	int n, port1;
 
 	usb_set_intfdata (intf, NULL);
 	hdev = hub->hdev;
@@ -780,7 +786,9 @@ static void hub_disconnect(struct usb_interface *intf)
 	if (hdev->speed == USB_SPEED_HIGH)
 		highspeed_hubs--;
 
-	hub_quiesce(hub);
+	/* Disconnect all children and quiesce the hub */
+	hub_pre_reset(hub, 1);
+
 	usb_free_urb(hub->urb);
 	hub->urb = NULL;
 
@@ -800,27 +808,7 @@ static void hub_disconnect(struct usb_interface *intf)
 		hub->buffer = NULL;
 	}
 
-	/* If there are any children then this is an unbind only, not a
-	 * physical disconnection.  The active ports must be disabled
-	 * and later on we must call usb_disconnect().  We can't call
-	 * it now because we may not hold the hub's device lock.
-	 */
-	n = 0;
-	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
-		if (hdev->children[port1 - 1]) {
-			++n;
-			hub_port_disable(hub, port1, 1);
-		}
-	}
-
-	if (n == 0)
-		kfree(hub);
-	else {
-		/* Reuse the hub->leds work_struct for our own purposes */
-		INIT_WORK(&hub->leds, hub_remove_children_work, hub);
-		schedule_work(&hub->leds);
-		usb_get_dev(hdev);
-	}
+	kfree(hub);
 }
 
 static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
@@ -915,26 +903,6 @@ hub_ioctl(struct usb_interface *intf, unsigned int code, void *user_data)
 	default:
 		return -ENOSYS;
 	}
-}
-
-/* caller has locked the hub device */
-static void hub_pre_reset(struct usb_hub *hub)
-{
-	struct usb_device *hdev = hub->hdev;
-	int i;
-
-	for (i = 0; i < hdev->maxchild; ++i) {
-		if (hdev->children[i])
-			usb_disconnect(&hdev->children[i]);
-	}
-	hub_quiesce(hub);
-}
-
-/* caller has locked the hub device */
-static void hub_post_reset(struct usb_hub *hub)
-{
-	hub_activate(hub);
-	hub_power_on(hub);
 }
 
 
@@ -2682,7 +2650,7 @@ static void hub_events(void)
 
 		/* If the hub has died, clean up after it */
 		if (hdev->state == USB_STATE_NOTATTACHED) {
-			hub_pre_reset(hub);
+			hub_pre_reset(hub, 0);
 			goto loop;
 		}
 
@@ -2997,7 +2965,7 @@ int usb_reset_device(struct usb_device *udev)
 			udev->actconfig->interface[0]->dev.driver ==
 				&hub_driver.driver &&
 			(hub = hdev_to_hub(udev)) != NULL) {
-		hub_pre_reset(hub);
+		hub_pre_reset(hub, 0);
 	}
 
 	set_bit(port1, parent_hub->busy_bits);
