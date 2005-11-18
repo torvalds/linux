@@ -684,9 +684,15 @@ static void sil24_error_intr(struct ata_port *ap, u32 slot_stat)
 	if (serror)
 		writel(serror, port + PORT_SERROR);
 
-	printk(KERN_ERR DRV_NAME " ata%u: error interrupt on port%d\n"
-	       "  stat=0x%x irq=0x%x cmd_err=%d sstatus=0x%x serror=0x%x\n",
-	       ap->id, ap->port_no, slot_stat, irq_stat, cmd_err, sstatus, serror);
+	/*
+	 * Don't log ATAPI device errors.  They're supposed to happen
+	 * and any serious errors will be logged using sense data by
+	 * the SCSI layer.
+	 */
+	if (ap->device[0].class != ATA_DEV_ATAPI || cmd_err > PORT_CERR_SDB)
+		printk("ata%u: error interrupt on port%d\n"
+		       "  stat=0x%x irq=0x%x cmd_err=%d sstatus=0x%x serror=0x%x\n",
+		       ap->id, ap->port_no, slot_stat, irq_stat, cmd_err, sstatus, serror);
 
 	if (cmd_err == PORT_CERR_DEV || cmd_err == PORT_CERR_SDB) {
 		/*
