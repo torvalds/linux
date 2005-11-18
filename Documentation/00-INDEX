@@ -24,6 +24,8 @@ DMA-mapping.txt
 	- info for PCI drivers using DMA portably across all platforms.
 DocBook/
 	- directory with DocBook templates etc. for kernel documentation.
+HOWTO
+	- The process and procedures of how to do Linux kernel development.
 IO-mapping.txt
 	- how to access I/O mapped memory from within device drivers.
 IPMI.txt
