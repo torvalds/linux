@@ -299,7 +299,7 @@
 #define __NR_spu_run		278
 #define __NR_spu_create		279
 
-#define __NR_syscalls		278
+#define __NR_syscalls		280
 
 #ifdef __KERNEL__
 #define __NR__exit __NR_exit
