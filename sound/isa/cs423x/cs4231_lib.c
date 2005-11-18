@@ -1306,7 +1306,7 @@ static void snd_cs4231_resume(struct snd_cs4231 *chip)
 {
 	int reg;
 	unsigned long flags;
-	int timeout;
+	/* int timeout; */
 	
 	snd_cs4231_mce_up(chip);
 	spin_lock_irqsave(&chip->reg_lock, flags);
