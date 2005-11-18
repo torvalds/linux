@@ -71,7 +71,7 @@ struct ipfrag_skb_cb
 
 /* Describe an entry in the "incomplete datagrams" queue. */
 struct ipq {
-	struct ipq	*next;		/* linked list pointers			*/
+	struct hlist_node list;
 	struct list_head lru_list;	/* lru list member 			*/
 	u32		user;
 	u32		saddr;
@@ -89,7 +89,6 @@ struct ipq {
 	spinlock_t	lock;
 	atomic_t	refcnt;
 	struct timer_list timer;	/* when will this queue expire?		*/
-	struct ipq	**pprev;
 	int		iif;
 	struct timeval	stamp;
 };
@@ -99,7 +98,7 @@ struct ipq {
 #define IPQ_HASHSZ	64
 
 /* Per-bucket lock is easy to add now. */
-static struct ipq *ipq_hash[IPQ_HASHSZ];
+static struct hlist_head ipq_hash[IPQ_HASHSZ];
 static DEFINE_RWLOCK(ipfrag_lock);
 static u32 ipfrag_hash_rnd;
 static LIST_HEAD(ipq_lru_list);
@@ -107,9 +106,7 @@ int ip_frag_nqueues = 0;
 
 static __inline__ void __ipq_unlink(struct ipq *qp)
 {
-	if(qp->next)
-		qp->next->pprev = qp->pprev;
-	*qp->pprev = qp->next;
+	hlist_del(&qp->list);
 	list_del(&qp->lru_list);
 	ip_frag_nqueues--;
 }
@@ -139,27 +136,18 @@ static void ipfrag_secret_rebuild(unsigned long dummy)
 	get_random_bytes(&ipfrag_hash_rnd, sizeof(u32));
 	for (i = 0; i < IPQ_HASHSZ; i++) {
 		struct ipq *q;
+		struct hlist_node *p, *n;
 
-		q = ipq_hash[i];
-		while (q) {
-			struct ipq *next = q->next;
+		hlist_for_each_entry_safe(q, p, n, &ipq_hash[i], list) {
 			unsigned int hval = ipqhashfn(q->id, q->saddr,
 						      q->daddr, q->protocol);
 
 			if (hval != i) {
-				/* Unlink. */
-				if (q->next)
-					q->next->pprev = q->pprev;
-				*q->pprev = q->next;
+				hlist_del(&q->list);
 
 				/* Relink to new hash chain. */
-				if ((q->next = ipq_hash[hval]) != NULL)
-					q->next->pprev = &q->next;
-				ipq_hash[hval] = q;
-				q->pprev = &ipq_hash[hval];
+				hlist_add_head(&q->list, &ipq_hash[hval]);
 			}
-
-			q = next;
 		}
 	}
 	write_unlock(&ipfrag_lock);
@@ -310,14 +298,16 @@ out:
 static struct ipq *ip_frag_intern(unsigned int hash, struct ipq *qp_in)
 {
 	struct ipq *qp;
-
+#ifdef CONFIG_SMP
+	struct hlist_node *n;
+#endif
 	write_lock(&ipfrag_lock);
 #ifdef CONFIG_SMP
 	/* With SMP race we have to recheck hash table, because
 	 * such entry could be created on other cpu, while we
 	 * promoted read lock to write lock.
 	 */
-	for(qp = ipq_hash[hash]; qp; qp = qp->next) {
+	hlist_for_each_entry(qp, n, &ipq_hash[hash], list) {
 		if(qp->id == qp_in->id		&&
 		   qp->saddr == qp_in->saddr	&&
 		   qp->daddr == qp_in->daddr	&&
@@ -337,10 +327,7 @@ static struct ipq *ip_frag_intern(unsigned int hash, struct ipq *qp_in)
 		atomic_inc(&qp->refcnt);
 
 	atomic_inc(&qp->refcnt);
-	if((qp->next = ipq_hash[hash]) != NULL)
-		qp->next->pprev = &qp->next;
-	ipq_hash[hash] = qp;
-	qp->pprev = &ipq_hash[hash];
+	hlist_add_head(&qp->list, &ipq_hash[hash]);
 	INIT_LIST_HEAD(&qp->lru_list);
 	list_add_tail(&qp->lru_list, &ipq_lru_list);
 	ip_frag_nqueues++;
@@ -392,9 +379,10 @@ static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 	__u8 protocol = iph->protocol;
 	unsigned int hash = ipqhashfn(id, saddr, daddr, protocol);
 	struct ipq *qp;
+	struct hlist_node *n;
 
 	read_lock(&ipfrag_lock);
-	for(qp = ipq_hash[hash]; qp; qp = qp->next) {
+	hlist_for_each_entry(qp, n, &ipq_hash[hash], list) {
 		if(qp->id == id		&&
 		   qp->saddr == saddr	&&
 		   qp->daddr == daddr	&&

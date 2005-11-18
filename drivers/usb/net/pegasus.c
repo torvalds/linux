@@ -28,8 +28,6 @@
  * 			is out of the interrupt routine.
  */
 
-#undef	DEBUG
-
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>

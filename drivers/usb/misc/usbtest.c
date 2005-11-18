@@ -1,7 +1,4 @@
 #include <linux/config.h>
-#if !defined (DEBUG) && defined (CONFIG_USB_DEBUG)
-#   define DEBUG
-#endif
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>

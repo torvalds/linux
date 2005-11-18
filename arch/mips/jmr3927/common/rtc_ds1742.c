@@ -41,11 +41,11 @@
 #include <linux/types.h>
 #include <linux/time.h>
 #include <linux/rtc.h>
+#include <linux/ds1742rtc.h>
 
 #include <asm/time.h>
 #include <asm/addrspace.h>
 
-#include <asm/jmr3927/ds1742rtc.h>
 #include <asm/debug.h>
 
 #define	EPOCH		2000

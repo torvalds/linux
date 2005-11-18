@@ -1732,7 +1732,7 @@ int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 		/*
 		 * 2. allocate and initialize walker.
 		 */
-		w = kmalloc(sizeof(*w), GFP_KERNEL);
+		w = kmalloc(sizeof(*w), GFP_ATOMIC);
 		if (w == NULL)
 			return -ENOMEM;
 		RT6_TRACE("dump<%p", w);

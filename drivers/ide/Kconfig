@@ -787,6 +787,10 @@ config BLK_DEV_IDE_PMAC_BLINK
 	  This option enables the use of the sleep LED as a hard drive
 	  activity LED.
 
+config BLK_DEV_IDE_SWARM
+	tristate "IDE for Sibyte evaluation boards"
+	depends on SIBYTE_SB1xxx_SOC
+
 config BLK_DEV_IDE_AU1XXX
        bool "IDE for AMD Alchemy Au1200"
        depends on SOC_AU1200

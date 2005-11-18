@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/wait.h>
-#undef DEBUG   		/* include debug macros until it's done	*/
 #include <linux/usb.h>
 
 /*-------------------------------------------------------------------*/

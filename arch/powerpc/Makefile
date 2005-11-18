@@ -33,6 +33,8 @@ endif
 
 export CROSS32CC CROSS32AS CROSS32LD CROSS32OBJCOPY
 
+KBUILD_DEFCONFIG := $(shell uname -m)_defconfig
+
 ifeq ($(CONFIG_PPC64),y)
 OLDARCH	:= ppc64
 SZ	:= 64
@@ -111,9 +113,6 @@ cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 AFLAGS += $(cpu-as-y)
 CFLAGS += $(cpu-as-y)
 
-# Default to the common case.
-KBUILD_DEFCONFIG := common_defconfig
-
 head-y				:= arch/powerpc/kernel/head_32.o
 head-$(CONFIG_PPC64)		:= arch/powerpc/kernel/head_64.o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
@@ -125,11 +124,11 @@ head-$(CONFIG_PPC64)		+= arch/powerpc/kernel/entry_64.o
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 
 core-y				+= arch/powerpc/kernel/ \
-				   arch/$(OLDARCH)/kernel/ \
 				   arch/powerpc/mm/ \
 				   arch/powerpc/lib/ \
 				   arch/powerpc/sysdev/ \
 				   arch/powerpc/platforms/
+core-$(CONFIG_PPC32)		+= arch/ppc/kernel/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_APUS)		+= arch/ppc/amiga/
@@ -165,7 +164,7 @@ define archhelp
   @echo '                    (your) ~/bin/installkernel or'
   @echo '                    (distribution) /sbin/installkernel or'
   @echo '                    install to $$(INSTALL_PATH) and run lilo'
-  @echo '  *_defconfig     - Select default config from arch/$(ARCH)/ppc/configs'
+  @echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
 endef
 
 archclean:

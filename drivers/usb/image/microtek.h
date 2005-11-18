@@ -22,7 +22,7 @@ struct mts_transfer_context
 	int data_pipe;
 	int fragment;
 
-	u8 status; /* status returned from ep_response after command completion */
+	u8 *scsi_status; /* status returned from ep_response after command completion */
 };
 
 

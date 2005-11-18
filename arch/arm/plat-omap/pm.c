@@ -509,7 +509,7 @@ static void omap_pm_init_proc(void)
  *	@state:		suspend state we're entering.
  *
  */
-//#include <asm/arch/hardware.h>
+//#include <asm/hardware.h>
 
 static int omap_pm_prepare(suspend_state_t state)
 {

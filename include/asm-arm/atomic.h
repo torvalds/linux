@@ -12,6 +12,7 @@
 #define __ASM_ARM_ATOMIC_H
 
 #include <linux/config.h>
+#include <linux/compiler.h>
 
 typedef struct { volatile int counter; } atomic_t;
 
@@ -82,11 +83,12 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 
 static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 {
-	u32 oldval, res;
+	unsigned long oldval, res;
 
 	do {
 		__asm__ __volatile__("@ atomic_cmpxchg\n"
 		"ldrex	%1, [%2]\n"
+		"mov	%0, #0\n"
 		"teq	%1, %3\n"
 		"strexeq %0, %4, [%2]\n"
 		    : "=&r" (res), "=&r" (oldval)
