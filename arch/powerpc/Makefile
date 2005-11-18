@@ -33,6 +33,8 @@ endif
 
 export CROSS32CC CROSS32AS CROSS32LD CROSS32OBJCOPY
 
+KBUILD_DEFCONFIG := $(shell uname -m)_defconfig
+
 ifeq ($(CONFIG_PPC64),y)
 OLDARCH	:= ppc64
 SZ	:= 64
@@ -110,9 +112,6 @@ cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 
 AFLAGS += $(cpu-as-y)
 CFLAGS += $(cpu-as-y)
-
-# Default to the common case.
-KBUILD_DEFCONFIG := common_defconfig
 
 head-y				:= arch/powerpc/kernel/head_32.o
 head-$(CONFIG_PPC64)		:= arch/powerpc/kernel/head_64.o
