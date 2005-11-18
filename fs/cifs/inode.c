@@ -228,9 +228,20 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 				 8 /* length */, 0 /* offset */,
 				 &bytes_read, &pbuf);
 		if((rc == 0) && (bytes_read == 8)) {
-			/* if memcmp(IntxCHR\000, pbuf, 8)
-			   else if memcmp(IntxBLK\000, pbuf, 8)
-			   else if memcmp(IntxLNK\001, pbuf, 8) */
+			cERROR(1,("intx %s" ,pbuf));
+			if(memcmp("IntxBLK", pbuf, 8) == 0) {
+				cFYI(1,("Block device"));
+				inode->i_mode = S_IFBLK;
+			} else if(memcmp("IntxCHR", pbuf, 8) == 0) {
+				cFYI(1,("Char device"));
+				inode->i_mode = S_IFCHR;
+			} else if(memcmp("IntxLNK", pbuf, 7) == 0) {
+				cFYI(1,("Symlink"));
+				inode->i_mode = S_IFLNK;
+			} else
+				inode->i_mode = S_IFREG; /* then it is a file */
+				rc = -EOPNOTSUPP; /* or some unknown SFU type */ 
+			 
 		}
 		
 		CIFSSMBClose(xid, pTcon, netfid);
@@ -242,6 +253,32 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 	}
 	return rc;
 	
+}
+
+#define SFBITS_MASK (S_ISVTX | S_ISGID | S_ISUID)  /* SETFILEBITS valid bits */
+
+static int get_sfu_uid_mode(struct inode * inode,
+			const unsigned char *path,
+			struct cifs_sb_info *cifs_sb, int xid)
+{
+	ssize_t rc;
+	char ea_value[4];
+	__u32 mode;
+
+	rc = CIFSSMBQueryEA(xid, cifs_sb->tcon, path, "SETFILEBITS",
+			ea_value, 4 /* size of buf */, cifs_sb->local_nls,
+                        cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if(rc < 0)
+		return (int)rc;
+	else if (rc > 3) {
+		mode = le32_to_cpu(*((__le32 *)ea_value));
+		inode->i_mode = (mode &  SFBITS_MASK) | inode->i_mode;
+		cFYI(1,("special mode bits 0%o", mode));
+		return 0;
+	} else {
+		return 0;
+	}
+		
 }
 
 int cifs_get_inode_info(struct inode **pinode,
@@ -427,7 +464,10 @@ int cifs_get_inode_info(struct inode **pinode,
 
 		/* BB fill in uid and gid here? with help from winbind? 
 		   or retrieve from NTFS stream extended attribute */
-		if (atomic_read(&cifsInfo->inUse) == 0) {
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+			/* fill in uid, gid, mode from server ACL */
+			get_sfu_uid_mode(inode, search_path, cifs_sb, xid);
+		} else if (atomic_read(&cifsInfo->inUse) == 0) {
 			inode->i_uid = cifs_sb->mnt_uid;
 			inode->i_gid = cifs_sb->mnt_gid;
 			/* set so we do not keep refreshing these fields with
