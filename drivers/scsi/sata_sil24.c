@@ -333,7 +333,7 @@ static struct ata_port_info sil24_port_info[] = {
 	{
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
+				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
 				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(4),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
@@ -344,7 +344,7 @@ static struct ata_port_info sil24_port_info[] = {
 	{
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
+				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
 				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(2),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
@@ -355,7 +355,7 @@ static struct ata_port_info sil24_port_info[] = {
 	{
 		.sht		= &sil24_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO |
+				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
 				  ATA_FLAG_PIO_DMA | SIL24_NPORTS2FLAG(1),
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
@@ -415,16 +415,72 @@ static void sil24_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	*tf = pp->tf;
 }
 
+static int sil24_issue_SRST(struct ata_port *ap)
+{
+	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
+	struct sil24_port_priv *pp = ap->private_data;
+	struct sil24_prb *prb = &pp->cmd_block[0].prb;
+	dma_addr_t paddr = pp->cmd_block_dma;
+	u32 irq_enable, irq_stat;
+	int cnt;
+
+	/* temporarily turn off IRQs during SRST */
+	irq_enable = readl(port + PORT_IRQ_ENABLE_SET);
+	writel(irq_enable, port + PORT_IRQ_ENABLE_CLR);
+
+	/*
+	 * XXX: Not sure whether the following sleep is needed or not.
+	 * The original driver had it.  So....
+	 */
+	msleep(10);
+
+	prb->ctrl = PRB_CTRL_SRST;
+	prb->fis[1] = 0; /* no PM yet */
+
+	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
+
+	for (cnt = 0; cnt < 100; cnt++) {
+		irq_stat = readl(port + PORT_IRQ_STAT);
+		writel(irq_stat, port + PORT_IRQ_STAT);		/* clear irq */
+
+		irq_stat >>= PORT_IRQ_RAW_SHIFT;
+		if (irq_stat & (PORT_IRQ_COMPLETE | PORT_IRQ_ERROR))
+			break;
+
+		msleep(1);
+	}
+
+	/* restore IRQs */
+	writel(irq_enable, port + PORT_IRQ_ENABLE_SET);
+
+	if (!(irq_stat & PORT_IRQ_COMPLETE))
+		return -1;
+
+	/* update TF */
+	sil24_update_tf(ap);
+	return 0;
+}
+
 static void sil24_phy_reset(struct ata_port *ap)
 {
+	struct sil24_port_priv *pp = ap->private_data;
+
 	__sata_phy_reset(ap);
-	/*
-	 * No ATAPI yet.  Just unconditionally indicate ATA device.
-	 * If ATAPI device is attached, it will fail ATA_CMD_ID_ATA
-	 * and libata core will ignore the device.
-	 */
-	if (!(ap->flags & ATA_FLAG_PORT_DISABLED))
-		ap->device[0].class = ATA_DEV_ATA;
+	if (ap->flags & ATA_FLAG_PORT_DISABLED)
+		return;
+
+	if (sil24_issue_SRST(ap) < 0) {
+		printk(KERN_ERR DRV_NAME
+		       " ata%u: SRST failed, disabling port\n", ap->id);
+		ap->ops->port_disable(ap);
+		return;
+	}
+
+	ap->device->class = ata_dev_classify(&pp->tf);
+
+	/* No ATAPI yet */
+	if (ap->device->class == ATA_DEV_ATAPI)
+		ap->ops->port_disable(ap);
 }
 
 static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
