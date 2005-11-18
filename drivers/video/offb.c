@@ -26,6 +26,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 
