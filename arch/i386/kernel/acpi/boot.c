@@ -39,16 +39,13 @@
 
 #ifdef	CONFIG_X86_64
 
-static inline void acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-{
-}
 extern void __init clustered_apic_check(void);
-static inline int ioapic_setup_disabled(void)
-{
-	return 0;
-}
 
+extern int gsi_irq_sharing(int gsi);
 #include <asm/proto.h>
+
+static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return 0; }
+
 
 #else				/* X86 */
 
@@ -56,6 +53,8 @@ static inline int ioapic_setup_disabled(void)
 #include <mach_apic.h>
 #include <mach_mpparse.h>
 #endif				/* CONFIG_X86_LOCAL_APIC */
+
+static inline int gsi_irq_sharing(int gsi) { return gsi; }
 
 #endif				/* X86 */
 
@@ -459,7 +458,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 		*irq = IO_APIC_VECTOR(gsi);
 	else
 #endif
-		*irq = gsi;
+		*irq = gsi_irq_sharing(gsi);
 	return 0;
 }
 
@@ -543,7 +542,7 @@ acpi_scan_rsdp(unsigned long start, unsigned long length)
 	 * RSDP signature.
 	 */
 	for (offset = 0; offset < length; offset += 16) {
-		if (strncmp((char *)(start + offset), "RSD PTR ", sig_len))
+		if (strncmp((char *)(phys_to_virt(start) + offset), "RSD PTR ", sig_len))
 			continue;
 		return (start + offset);
 	}

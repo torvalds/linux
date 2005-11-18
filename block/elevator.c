@@ -155,9 +155,10 @@ static void elevator_setup_default(void)
  	/*
  	 * If the given scheduler is not available, fall back to no-op.
  	 */
- 	if (!(e = elevator_find(chosen_elevator)))
+ 	if ((e = elevator_find(chosen_elevator)))
+		elevator_put(e);
+	else
  		strcpy(chosen_elevator, "noop");
-	elevator_put(e);
 }
 
 static int __init elevator_setup(char *str)
@@ -190,14 +191,14 @@ int elevator_init(request_queue_t *q, char *name)
 
 	eq = kmalloc(sizeof(struct elevator_queue), GFP_KERNEL);
 	if (!eq) {
-		elevator_put(e->elevator_type);
+		elevator_put(e);
 		return -ENOMEM;
 	}
 
 	ret = elevator_attach(q, e, eq);
 	if (ret) {
 		kfree(eq);
-		elevator_put(e->elevator_type);
+		elevator_put(e);
 	}
 
 	return ret;
@@ -225,6 +226,7 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
+	q->nr_sorted--;
 
 	boundary = q->end_sector;
 
@@ -283,6 +285,7 @@ void elv_merge_requests(request_queue_t *q, struct request *rq,
 
 	if (e->ops->elevator_merge_req_fn)
 		e->ops->elevator_merge_req_fn(q, rq, next);
+	q->nr_sorted--;
 
 	q->last_merge = rq;
 }
@@ -312,6 +315,20 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 	}
 
 	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+}
+
+static void elv_drain_elevator(request_queue_t *q)
+{
+	static int printed;
+	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
+		;
+	if (q->nr_sorted == 0)
+		return;
+	if (printed++ < 10) {
+		printk(KERN_ERR "%s: forced dispatching is broken "
+		       "(nr_sorted=%u), please report this\n",
+		       q->elevator->elevator_type->elevator_name, q->nr_sorted);
+	}
 }
 
 void __elv_add_request(request_queue_t *q, struct request *rq, int where,
@@ -348,9 +365,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 
 	case ELEVATOR_INSERT_BACK:
 		rq->flags |= REQ_SOFTBARRIER;
-
-		while (q->elevator->ops->elevator_dispatch_fn(q, 1))
-			;
+		elv_drain_elevator(q);
 		list_add_tail(&rq->queuelist, &q->queue_head);
 		/*
 		 * We kick the queue here for the following reasons.
@@ -369,6 +384,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(!blk_fs_request(rq));
 		rq->flags |= REQ_SORTED;
+		q->nr_sorted++;
 		if (q->last_merge == NULL && rq_mergeable(rq))
 			q->last_merge = rq;
 		/*
@@ -525,33 +541,19 @@ int elv_queue_empty(request_queue_t *q)
 
 struct request *elv_latter_request(request_queue_t *q, struct request *rq)
 {
-	struct list_head *next;
-
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_latter_req_fn)
 		return e->ops->elevator_latter_req_fn(q, rq);
-
-	next = rq->queuelist.next;
-	if (next != &q->queue_head && next != &rq->queuelist)
-		return list_entry_rq(next);
-
 	return NULL;
 }
 
 struct request *elv_former_request(request_queue_t *q, struct request *rq)
 {
-	struct list_head *prev;
-
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_former_req_fn)
 		return e->ops->elevator_former_req_fn(q, rq);
-
-	prev = rq->queuelist.prev;
-	if (prev != &q->queue_head && prev != &rq->queuelist)
-		return list_entry_rq(prev);
-
 	return NULL;
 }
 
@@ -691,13 +693,15 @@ static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 
 	set_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 
-	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
-		;
+	elv_drain_elevator(q);
 
 	while (q->rq.elvpriv) {
+		blk_remove_plug(q);
+		q->request_fn(q);
 		spin_unlock_irq(q->queue_lock);
 		msleep(10);
 		spin_lock_irq(q->queue_lock);
+		elv_drain_elevator(q);
 	}
 
 	spin_unlock_irq(q->queue_lock);
@@ -744,13 +748,15 @@ error:
 ssize_t elv_iosched_store(request_queue_t *q, const char *name, size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
+	size_t len;
 	struct elevator_type *e;
 
-	memset(elevator_name, 0, sizeof(elevator_name));
-	strncpy(elevator_name, name, sizeof(elevator_name));
+	elevator_name[sizeof(elevator_name) - 1] = '\0';
+	strncpy(elevator_name, name, sizeof(elevator_name) - 1);
+	len = strlen(elevator_name);
 
-	if (elevator_name[strlen(elevator_name) - 1] == '\n')
-		elevator_name[strlen(elevator_name) - 1] = '\0';
+	if (len && elevator_name[len - 1] == '\n')
+		elevator_name[len - 1] = '\0';
 
 	e = elevator_get(elevator_name);
 	if (!e) {

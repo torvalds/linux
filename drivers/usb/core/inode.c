@@ -46,7 +46,6 @@
 
 static struct super_operations usbfs_ops;
 static struct file_operations default_file_operations;
-static struct inode_operations usbfs_dir_inode_operations;
 static struct vfsmount *usbfs_mount;
 static int usbfs_mount_count;	/* = 0 */
 static int ignore_mount = 0;
@@ -262,7 +261,7 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 			inode->i_fop = &default_file_operations;
 			break;
 		case S_IFDIR:
-			inode->i_op = &usbfs_dir_inode_operations;
+			inode->i_op = &simple_dir_inode_operations;
 			inode->i_fop = &simple_dir_operations;
 
 			/* directory inodes start off with i_nlink == 2 (for "." entry) */
@@ -415,10 +414,6 @@ static struct file_operations default_file_operations = {
 	.write =	default_write_file,
 	.open =		default_open,
 	.llseek =	default_file_lseek,
-};
-
-static struct inode_operations usbfs_dir_inode_operations = {
-	.lookup =	simple_lookup,
 };
 
 static struct super_operations usbfs_ops = {

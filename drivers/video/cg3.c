@@ -50,6 +50,9 @@ static struct fb_ops cg3_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= cg3_mmap,
 	.fb_ioctl		= cg3_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 

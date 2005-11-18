@@ -19,38 +19,28 @@
  */
 #ifdef DEBUG
 
-#include <asm/arch/debug-macro.S>
-
 #if defined(CONFIG_DEBUG_ICEDCC)
 		.macro	loadsp, rb
 		.endm
-		.macro writeb, ch, rb
+		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c0, c1, 0
 		.endm
 #else
+
+#include <asm/arch/debug-macro.S>
+
 		.macro	writeb,	ch, rb
 		senduart \ch, \rb
 		.endm
 
-#if defined(CONFIG_FOOTBRIDGE) || \
-    defined(CONFIG_ARCH_RPC) || \
-    defined(CONFIG_ARCH_INTEGRATOR) || \
-    defined(CONFIG_ARCH_PXA) || \
-    defined(CONFIG_ARCH_IXP4XX) || \
-    defined(CONFIG_ARCH_IXP2000) || \
-    defined(CONFIG_ARCH_LH7A40X) || \
-    defined(CONFIG_ARCH_OMAP)
-		.macro	loadsp,	rb
-		addruart \rb
-		.endm
-#elif defined(CONFIG_ARCH_SA1100)
+#if defined(CONFIG_ARCH_SA1100)
 		.macro	loadsp, rb
 		mov	\rb, #0x80000000	@ physical base address
-#  if defined(CONFIG_DEBUG_LL_SER3)
+#ifdef CONFIG_DEBUG_LL_SER3
 		add	\rb, \rb, #0x00050000	@ Ser3
-#  else
+#else
 		add	\rb, \rb, #0x00010000	@ Ser1
-#  endif
+#endif
 		.endm
 #elif defined(CONFIG_ARCH_IOP331)
 		.macro loadsp, rb
@@ -64,7 +54,9 @@
 		add	\rb, \rb, #0x4000 * CONFIG_S3C2410_LOWLEVEL_UART_PORT
 		.endm
 #else
-#error no serial architecture defined
+		.macro	loadsp,	rb
+		addruart \rb
+		.endm
 #endif
 #endif
 #endif

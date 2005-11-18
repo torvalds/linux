@@ -270,13 +270,15 @@ int main(void)
 	DEFINE(TVAL64_TV_USEC, offsetof(struct timeval, tv_usec));
 	DEFINE(TVAL32_TV_SEC, offsetof(struct compat_timeval, tv_sec));
 	DEFINE(TVAL32_TV_USEC, offsetof(struct compat_timeval, tv_usec));
+	DEFINE(TSPC64_TV_SEC, offsetof(struct timespec, tv_sec));
+	DEFINE(TSPC64_TV_NSEC, offsetof(struct timespec, tv_nsec));
 	DEFINE(TSPC32_TV_SEC, offsetof(struct compat_timespec, tv_sec));
 	DEFINE(TSPC32_TV_NSEC, offsetof(struct compat_timespec, tv_nsec));
 #else
 	DEFINE(TVAL32_TV_SEC, offsetof(struct timeval, tv_sec));
 	DEFINE(TVAL32_TV_USEC, offsetof(struct timeval, tv_usec));
-	DEFINE(TSPEC32_TV_SEC, offsetof(struct timespec, tv_sec));
-	DEFINE(TSPEC32_TV_NSEC, offsetof(struct timespec, tv_nsec));
+	DEFINE(TSPC32_TV_SEC, offsetof(struct timespec, tv_sec));
+	DEFINE(TSPC32_TV_NSEC, offsetof(struct timespec, tv_nsec));
 #endif
 	/* timeval/timezone offsets for use by vdso */
 	DEFINE(TZONE_TZ_MINWEST, offsetof(struct timezone, tz_minuteswest));

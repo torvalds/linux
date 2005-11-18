@@ -257,6 +257,13 @@ void __init chrp_setup_arch(void)
 	if (rtas_token("display-character") >= 0)
 		ppc_md.progress = rtas_progress;
 
+	/* use RTAS time-of-day routines if available */
+	if (rtas_token("get-time-of-day") != RTAS_UNKNOWN_SERVICE) {
+		ppc_md.get_boot_time	= rtas_get_boot_time;
+		ppc_md.get_rtc_time	= rtas_get_rtc_time;
+		ppc_md.set_rtc_time	= rtas_set_rtc_time;
+	}
+
 #ifdef CONFIG_BOOTX_TEXT
 	if (ppc_md.progress == NULL && boot_text_mapped)
 		ppc_md.progress = btext_progress;
@@ -505,9 +512,11 @@ void __init chrp_init(void)
 	ppc_md.halt           = rtas_halt;
 
 	ppc_md.time_init      = chrp_time_init;
+	ppc_md.calibrate_decr = chrp_calibrate_decr;
+
+	/* this may get overridden with rtas routines later... */
 	ppc_md.set_rtc_time   = chrp_set_rtc_time;
 	ppc_md.get_rtc_time   = chrp_get_rtc_time;
-	ppc_md.calibrate_decr = chrp_calibrate_decr;
 
 #ifdef CONFIG_SMP
 	smp_ops = &chrp_smp_ops;

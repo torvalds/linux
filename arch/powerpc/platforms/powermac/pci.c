@@ -640,15 +640,16 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	 * the reg address cell, we shall fix that by killing struct
 	 * reg_property and using some accessor functions instead
 	 */
-	hose->cfg_data = (volatile unsigned char *)ioremap(0xf2000000, 0x02000000);
+	hose->cfg_data = (volatile unsigned char *)ioremap(0xf2000000,
+							   0x02000000);
 
 	/*
-	 * /ht node doesn't expose a "ranges" property, so we "remove" regions that
-	 * have been allocated to AGP. So far, this version of the code doesn't assign
-	 * any of the 0xfxxxxxxx "fine" memory regions to /ht.
-	 * We need to fix that sooner or later by either parsing all child "ranges"
-	 * properties or figuring out the U3 address space decoding logic and
-	 * then read its configuration register (if any).
+	 * /ht node doesn't expose a "ranges" property, so we "remove"
+	 * regions that have been allocated to AGP. So far, this version of
+	 * the code doesn't assign any of the 0xfxxxxxxx "fine" memory regions
+	 * to /ht. We need to fix that sooner or later by either parsing all
+	 * child "ranges" properties or figuring out the U3 address space
+	 * decoding logic and then read its configuration register (if any).
 	 */
 	hose->io_base_phys = 0xf4000000;
 	hose->pci_io_size = 0x00400000;
@@ -671,10 +672,10 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 		return;
 	}
 
-	/* We "remove" the AGP resources from the resources allocated to HT, that
-	 * is we create "holes". However, that code does assumptions that so far
-	 * happen to be true (cross fingers...), typically that resources in the
-	 * AGP node are properly ordered
+	/* We "remove" the AGP resources from the resources allocated to HT,
+	 * that is we create "holes". However, that code does assumptions
+	 * that so far happen to be true (cross fingers...), typically that
+	 * resources in the AGP node are properly ordered
 	 */
 	cur = 0;
 	for (i=0; i<3; i++) {
@@ -684,23 +685,30 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 		/* We don't care about "fine" resources */
 		if (res->start >= 0xf0000000)
 			continue;
-		/* Check if it's just a matter of "shrinking" us in one direction */
+		/* Check if it's just a matter of "shrinking" us in one
+		 * direction
+		 */
 		if (hose->mem_resources[cur].start == res->start) {
 			DBG("U3/HT: shrink start of %d, %08lx -> %08lx\n",
-			    cur, hose->mem_resources[cur].start, res->end + 1);
+			    cur, hose->mem_resources[cur].start,
+			    res->end + 1);
 			hose->mem_resources[cur].start = res->end + 1;
 			continue;
 		}
 		if (hose->mem_resources[cur].end == res->end) {
 			DBG("U3/HT: shrink end of %d, %08lx -> %08lx\n",
-			    cur, hose->mem_resources[cur].end, res->start - 1);
+			    cur, hose->mem_resources[cur].end,
+			    res->start - 1);
 			hose->mem_resources[cur].end = res->start - 1;
 			continue;
 		}
 		/* No, it's not the case, we need a hole */
 		if (cur == 2) {
-			/* not enough resources for a hole, we drop part of the range */
-			printk(KERN_WARNING "Running out of resources for /ht host !\n");
+			/* not enough resources for a hole, we drop part
+			 * of the range
+			 */
+			printk(KERN_WARNING "Running out of resources"
+			       " for /ht host !\n");
 			hose->mem_resources[cur].end = res->start - 1;
 			continue;
 		}
@@ -713,17 +721,6 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 		hose->mem_resources[cur].end = hose->mem_resources[cur-1].end;
 		hose->mem_resources[cur-1].end = res->start - 1;
 	}
-}
-
-/* XXX this needs to be converged between ppc32 and ppc64... */
-static struct pci_controller * __init pcibios_alloc_controller(void)
-{
-	struct pci_controller *hose;
-
-	hose = alloc_bootmem(sizeof(struct pci_controller));
-	if (hose)
-		pci_setup_pci_controller(hose);
-	return hose;
 }
 #endif
 
@@ -756,11 +753,16 @@ static int __init add_bridge(struct device_node *dev)
 #endif
 	bus_range = (int *) get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
-		printk(KERN_WARNING "Can't get bus-range for %s, assume bus 0\n",
-			       dev->full_name);
+		printk(KERN_WARNING "Can't get bus-range for %s, assume"
+		       " bus 0\n", dev->full_name);
 	}
 
+	/* XXX Different prototypes, to be merged */
+#ifdef CONFIG_PPC64
+	hose = pcibios_alloc_controller(dev);
+#else
 	hose = pcibios_alloc_controller();
+#endif
 	if (!hose)
 		return -ENOMEM;
 	hose->arch_data = dev;
@@ -768,7 +770,7 @@ static int __init add_bridge(struct device_node *dev)
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	disp_name = NULL;
-#ifdef CONFIG_POWER4
+#ifdef CONFIG_PPC64
 	if (device_is_compatible(dev, "u3-agp")) {
 		setup_u3_agp(hose);
 		disp_name = "U3-AGP";

@@ -251,7 +251,7 @@ static inline int check_mode(struct tuner *t, char *cmd)
 
 static char pal[] = "-";
 module_param_string(pal, pal, sizeof(pal), 0644);
-static char secam[] = "-";
+static char secam[] = "--";
 module_param_string(secam, secam, sizeof(secam), 0644);
 
 /* get more precise norm info from insmod option */
@@ -307,8 +307,13 @@ static int tuner_fixup_std(struct tuner *t)
 			break;
 		case 'l':
 		case 'L':
-			tuner_dbg ("insmod fixup: SECAM => SECAM-L\n");
-			t->std = V4L2_STD_SECAM_L;
+			if ((secam[1]=='C')||(secam[1]=='c')) {
+				tuner_dbg ("insmod fixup: SECAM => SECAM-L'\n");
+				t->std = V4L2_STD_SECAM_LC;
+			} else {
+				tuner_dbg ("insmod fixup: SECAM => SECAM-L\n");
+				t->std = V4L2_STD_SECAM_L;
+			}
 			break;
 		case '-':
 			/* default parameter, do nothing */

@@ -287,7 +287,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 	{
 		struct ipv6_txoptions *opt;
 		if (optlen == 0)
-			optval = 0;
+			optval = NULL;
 
 		/* hop-by-hop / destination options are privileged option */
 		retv = -EPERM;

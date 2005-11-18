@@ -5,10 +5,20 @@
 menu "IPv6: Netfilter Configuration (EXPERIMENTAL)"
 	depends on INET && IPV6 && NETFILTER && EXPERIMENTAL
 
-#tristate 'Connection tracking (required for masq/NAT)' CONFIG_IP6_NF_CONNTRACK
-#if [ "$CONFIG_IP6_NF_CONNTRACK" != "n" ]; then
-#  dep_tristate '  FTP protocol support' CONFIG_IP6_NF_FTP $CONFIG_IP6_NF_CONNTRACK
-#fi
+config NF_CONNTRACK_IPV6
+	tristate "IPv6 support for new connection tracking (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	---help---
+	  Connection tracking keeps a record of what packets have passed
+	  through your machine, in order to figure out how they are related
+	  into connections.
+
+	  This is IPv6 support on Layer 3 independent connection tracking.
+	  Layer 3 independent connection tracking is experimental scheme
+	  which generalize ip_conntrack to support other layer 3 protocols.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP6_NF_QUEUE
 	tristate "IP6 Userspace queueing via NETLINK (OBSOLETE)"
 	---help---
@@ -114,7 +124,6 @@ config IP6_NF_MATCH_OWNER
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-#  dep_tristate '  MAC address match support' CONFIG_IP6_NF_MATCH_MAC $CONFIG_IP6_NF_IPTABLES
 config IP6_NF_MATCH_MARK
 	tristate "netfilter MARK match support"
 	depends on IP6_NF_IPTABLES
@@ -170,15 +179,6 @@ config IP6_NF_MATCH_PHYSDEV
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-#  dep_tristate '  Multiple port match support' CONFIG_IP6_NF_MATCH_MULTIPORT $CONFIG_IP6_NF_IPTABLES
-#  dep_tristate '  TOS match support' CONFIG_IP6_NF_MATCH_TOS $CONFIG_IP6_NF_IPTABLES
-#  if [ "$CONFIG_IP6_NF_CONNTRACK" != "n" ]; then
-#    dep_tristate '  Connection state match support' CONFIG_IP6_NF_MATCH_STATE $CONFIG_IP6_NF_CONNTRACK $CONFIG_IP6_NF_IPTABLES 
-#  fi
-#  if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
-#    dep_tristate '  Unclean match support (EXPERIMENTAL)' CONFIG_IP6_NF_MATCH_UNCLEAN $CONFIG_IP6_NF_IPTABLES
-#    dep_tristate '  Owner match support (EXPERIMENTAL)' CONFIG_IP6_NF_MATCH_OWNER $CONFIG_IP6_NF_IPTABLES
-#  fi
 # The targets
 config IP6_NF_FILTER
 	tristate "Packet filtering"
@@ -220,12 +220,6 @@ config IP6_NF_TARGET_NFQUEUE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-#  if [ "$CONFIG_IP6_NF_FILTER" != "n" ]; then
-#    dep_tristate '    REJECT target support' CONFIG_IP6_NF_TARGET_REJECT $CONFIG_IP6_NF_FILTER
-#    if [ "$CONFIG_EXPERIMENTAL" = "y" ]; then
-#      dep_tristate '    MIRROR target support (EXPERIMENTAL)' CONFIG_IP6_NF_TARGET_MIRROR $CONFIG_IP6_NF_FILTER
-#    fi
-#  fi
 config IP6_NF_MANGLE
 	tristate "Packet mangling"
 	depends on IP6_NF_IPTABLES
@@ -236,7 +230,6 @@ config IP6_NF_MANGLE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-#    dep_tristate '    TOS target support' CONFIG_IP6_NF_TARGET_TOS $CONFIG_IP_NF_MANGLE
 config IP6_NF_TARGET_MARK
 	tristate "MARK target support"
 	depends on IP6_NF_MANGLE
@@ -266,7 +259,6 @@ config IP6_NF_TARGET_HL
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-#dep_tristate '  LOG target support' CONFIG_IP6_NF_TARGET_LOG $CONFIG_IP6_NF_IPTABLES
 config IP6_NF_RAW
 	tristate  'raw table support (required for TRACE)'
 	depends on IP6_NF_IPTABLES
@@ -277,20 +269,6 @@ config IP6_NF_RAW
 	
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/modules.txt>.  If unsure, say `N'.
-
-config NF_CONNTRACK_IPV6
-	tristate "IPv6 support for new connection tracking (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && NF_CONNTRACK
-	---help---
-	  Connection tracking keeps a record of what packets have passed
-	  through your machine, in order to figure out how they are related
-	  into connections.
-
-	  This is IPv6 support on Layer 3 independent connection tracking.
-	  Layer 3 independent connection tracking is experimental scheme
-	  which generalize ip_conntrack to support other layer 3 protocols.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
 
 endmenu
 

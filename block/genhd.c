@@ -391,12 +391,14 @@ static ssize_t disk_stats_read(struct gendisk * disk, char *page)
 		"%8u %8u %8llu %8u "
 		"%8u %8u %8u"
 		"\n",
-		disk_stat_read(disk, ios[0]), disk_stat_read(disk, merges[0]),
-		(unsigned long long)disk_stat_read(disk, sectors[0]),
-		jiffies_to_msecs(disk_stat_read(disk, ticks[0])),
-		disk_stat_read(disk, ios[1]), disk_stat_read(disk, merges[1]),
-		(unsigned long long)disk_stat_read(disk, sectors[1]),
-		jiffies_to_msecs(disk_stat_read(disk, ticks[1])),
+		disk_stat_read(disk, ios[READ]),
+		disk_stat_read(disk, merges[READ]),
+		(unsigned long long)disk_stat_read(disk, sectors[READ]),
+		jiffies_to_msecs(disk_stat_read(disk, ticks[READ])),
+		disk_stat_read(disk, ios[WRITE]),
+		disk_stat_read(disk, merges[WRITE]),
+		(unsigned long long)disk_stat_read(disk, sectors[WRITE]),
+		jiffies_to_msecs(disk_stat_read(disk, ticks[WRITE])),
 		disk->in_flight,
 		jiffies_to_msecs(disk_stat_read(disk, io_ticks)),
 		jiffies_to_msecs(disk_stat_read(disk, time_in_queue)));

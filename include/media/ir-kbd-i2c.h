@@ -19,4 +19,6 @@ struct IR_i2c {
 	char                   phys[32];
 	int                    (*get_key)(struct IR_i2c*, u32*, u32*);
 };
+
+int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
 #endif

@@ -61,10 +61,12 @@ struct cpuinfo_x86 {
 	int	x86_cache_alignment;
 	int	x86_tlbsize;	/* number of 4K pages in DTLB/ITLB combined(in pages)*/
         __u8    x86_virt_bits, x86_phys_bits;
-	__u8	x86_num_cores;
+	__u8	x86_max_cores;	/* cpuid returned max cores value */
         __u32   x86_power; 	
 	__u32   extended_cpuid_level;	/* Max extended CPUID function supported */
 	unsigned long loops_per_jiffy;
+	__u8	apicid;
+	__u8	booted_cores;	/* number of cores as seen by OS */
 } ____cacheline_aligned;
 
 #define X86_VENDOR_INTEL 0

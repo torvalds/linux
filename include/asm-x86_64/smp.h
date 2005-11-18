@@ -47,7 +47,6 @@ extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
 extern int smp_num_siblings;
 extern void smp_send_reschedule(int cpu);
-extern void zap_low_mappings(void);
 void smp_stop_cpu(void);
 extern int smp_call_function_single(int cpuid, void (*func) (void *info),
 				void *info, int retry, int wait);
@@ -82,6 +81,8 @@ extern int safe_smp_processor_id(void);
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern void prefill_possible_map(void);
+extern unsigned num_processors;
+extern unsigned disabled_cpus;
 
 #endif /* !ASSEMBLY */
 

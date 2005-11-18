@@ -40,9 +40,10 @@ config NET_SCHED
 	  The available schedulers are listed in the following questions; you
 	  can say Y to as many as you like. If unsure, say N now.
 
+if NET_SCHED
+
 choice
 	prompt "Packet scheduler clock source"
-	depends on NET_SCHED
 	default NET_SCH_CLK_JIFFIES
 	---help---
 	  Packet schedulers need a monotonic clock that increments at a static
@@ -98,11 +99,9 @@ config NET_SCH_CLK_CPU
 endchoice
 
 comment "Queueing/Scheduling"
-	depends on NET_SCHED
 
 config NET_SCH_CBQ
 	tristate "Class Based Queueing (CBQ)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use the Class-Based Queueing (CBQ) packet
 	  scheduling algorithm. This algorithm classifies the waiting packets
@@ -120,7 +119,6 @@ config NET_SCH_CBQ
 
 config NET_SCH_HTB
 	tristate "Hierarchical Token Bucket (HTB)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use the Hierarchical Token Buckets (HTB)
 	  packet scheduling algorithm. See
@@ -135,7 +133,6 @@ config NET_SCH_HTB
 
 config NET_SCH_HFSC
 	tristate "Hierarchical Fair Service Curve (HFSC)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use the Hierarchical Fair Service Curve
 	  (HFSC) packet scheduling algorithm.
@@ -145,7 +142,7 @@ config NET_SCH_HFSC
 
 config NET_SCH_ATM
 	tristate "ATM Virtual Circuits (ATM)"
-	depends on NET_SCHED && ATM
+	depends on ATM
 	---help---
 	  Say Y here if you want to use the ATM pseudo-scheduler.  This
 	  provides a framework for invoking classifiers, which in turn
@@ -159,7 +156,6 @@ config NET_SCH_ATM
 
 config NET_SCH_PRIO
 	tristate "Multi Band Priority Queueing (PRIO)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use an n-band priority queue packet
 	  scheduler.
@@ -169,7 +165,6 @@ config NET_SCH_PRIO
 
 config NET_SCH_RED
 	tristate "Random Early Detection (RED)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use the Random Early Detection (RED)
 	  packet scheduling algorithm.
@@ -181,7 +176,6 @@ config NET_SCH_RED
 
 config NET_SCH_SFQ
 	tristate "Stochastic Fairness Queueing (SFQ)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use the Stochastic Fairness Queueing (SFQ)
 	  packet scheduling algorithm .
@@ -193,7 +187,6 @@ config NET_SCH_SFQ
 
 config NET_SCH_TEQL
 	tristate "True Link Equalizer (TEQL)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use the True Link Equalizer (TLE) packet
 	  scheduling algorithm. This queueing discipline allows the combination
@@ -206,7 +199,6 @@ config NET_SCH_TEQL
 
 config NET_SCH_TBF
 	tristate "Token Bucket Filter (TBF)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use the Token Bucket Filter (TBF) packet
 	  scheduling algorithm.
@@ -218,7 +210,6 @@ config NET_SCH_TBF
 
 config NET_SCH_GRED
 	tristate "Generic Random Early Detection (GRED)"
-	depends on NET_SCHED
 	---help---
 	  Say Y here if you want to use the Generic Random Early Detection
 	  (GRED) packet scheduling algorithm for some of your network devices
@@ -230,7 +221,6 @@ config NET_SCH_GRED
 
 config NET_SCH_DSMARK
 	tristate "Differentiated Services marker (DSMARK)"
-	depends on NET_SCHED
 	---help---
 	  Say Y if you want to schedule packets according to the
 	  Differentiated Services architecture proposed in RFC 2475.
@@ -242,7 +232,6 @@ config NET_SCH_DSMARK
 
 config NET_SCH_NETEM
 	tristate "Network emulator (NETEM)"
-	depends on NET_SCHED
 	---help---
 	  Say Y if you want to emulate network delay, loss, and packet
 	  re-ordering. This is often useful to simulate networks when
@@ -255,7 +244,6 @@ config NET_SCH_NETEM
 
 config NET_SCH_INGRESS
 	tristate "Ingress Qdisc"
-	depends on NET_SCHED 
 	---help---
 	  Say Y here if you want to use classifiers for incoming packets.
 	  If unsure, say Y.
@@ -264,14 +252,12 @@ config NET_SCH_INGRESS
 	  module will be called sch_ingress.
 
 comment "Classification"
-	depends on NET_SCHED
 
 config NET_CLS
 	boolean
 
 config NET_CLS_BASIC
 	tristate "Elementary classification (BASIC)"
-	depends NET_SCHED
 	select NET_CLS
 	---help---
 	  Say Y here if you want to be able to classify packets using
@@ -282,7 +268,6 @@ config NET_CLS_BASIC
 
 config NET_CLS_TCINDEX
 	tristate "Traffic-Control Index (TCINDEX)"
-	depends NET_SCHED
 	select NET_CLS
 	---help---
 	  Say Y here if you want to be able to classify packets based on
@@ -294,7 +279,6 @@ config NET_CLS_TCINDEX
 
 config NET_CLS_ROUTE4
 	tristate "Routing decision (ROUTE)"
-	depends NET_SCHED
 	select NET_CLS_ROUTE
 	select NET_CLS
 	---help---
@@ -306,11 +290,9 @@ config NET_CLS_ROUTE4
 
 config NET_CLS_ROUTE
 	bool
-	default n
 
 config NET_CLS_FW
 	tristate "Netfilter mark (FW)"
-	depends NET_SCHED
 	select NET_CLS
 	---help---
 	  If you say Y here, you will be able to classify packets
@@ -321,7 +303,6 @@ config NET_CLS_FW
 
 config NET_CLS_U32
 	tristate "Universal 32bit comparisons w/ hashing (U32)"
-	depends NET_SCHED
 	select NET_CLS
 	---help---
 	  Say Y here to be able to classify packetes using a universal
@@ -345,7 +326,6 @@ config CLS_U32_MARK
 
 config NET_CLS_RSVP
 	tristate "IPv4 Resource Reservation Protocol (RSVP)"
-	depends on NET_SCHED
 	select NET_CLS
 	select NET_ESTIMATOR
 	---help---
@@ -361,7 +341,6 @@ config NET_CLS_RSVP
 
 config NET_CLS_RSVP6
 	tristate "IPv6 Resource Reservation Protocol (RSVP6)"
-	depends on NET_SCHED
 	select NET_CLS
 	select NET_ESTIMATOR
 	---help---
@@ -377,7 +356,6 @@ config NET_CLS_RSVP6
 
 config NET_EMATCH
 	bool "Extended Matches"
-	depends NET_SCHED
 	select NET_CLS
 	---help---
 	  Say Y here if you want to use extended matches on top of classifiers
@@ -456,7 +434,7 @@ config NET_EMATCH_TEXT
 
 config NET_CLS_ACT
 	bool "Actions"
-	depends on EXPERIMENTAL && NET_SCHED
+	depends on EXPERIMENTAL
 	select NET_ESTIMATOR
 	---help---
 	  Say Y here if you want to use traffic control actions. Actions
@@ -539,7 +517,7 @@ config NET_ACT_SIMP
 
 config NET_CLS_POLICE
 	bool "Traffic Policing (obsolete)"
-	depends on NET_SCHED && NET_CLS_ACT!=y
+	depends on NET_CLS_ACT!=y
 	select NET_ESTIMATOR
 	---help---
 	  Say Y here if you want to do traffic policing, i.e. strict
@@ -549,7 +527,7 @@ config NET_CLS_POLICE
 
 config NET_CLS_IND
 	bool "Incoming device classification"
-	depends on NET_SCHED && (NET_CLS_U32 || NET_CLS_FW)
+	depends on NET_CLS_U32 || NET_CLS_FW
 	---help---
 	  Say Y here to extend the u32 and fw classifier to support
 	  classification based on the incoming device. This option is
@@ -557,11 +535,12 @@ config NET_CLS_IND
 
 config NET_ESTIMATOR
 	bool "Rate estimator"
-	depends on NET_SCHED
 	---help---
 	  Say Y here to allow using rate estimators to estimate the current
 	  rate-of-flow for network devices, queues, etc. This module is
 	  automaticaly selected if needed but can be selected manually for
 	  statstical purposes.
+
+endif # NET_SCHED
 
 endmenu

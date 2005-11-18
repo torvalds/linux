@@ -514,8 +514,6 @@ static int acpi_processor_set_power_policy(struct acpi_processor *pr)
 
 static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 {
-	int i;
-
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_fadt");
 
 	if (!pr)
@@ -524,8 +522,7 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	if (!pr->pblk)
 		return_VALUE(-ENODEV);
 
-	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(pr->power.states, 0, sizeof(struct acpi_processor_cx));
+	memset(pr->power.states, 0, sizeof(pr->power.states));
 
 	/* if info is obtained from pblk/fadt, type equals state */
 	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
@@ -555,13 +552,9 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 
 static int acpi_processor_get_power_info_default_c1(struct acpi_processor *pr)
 {
-	int i;
-
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_default_c1");
 
-	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(&(pr->power.states[i]), 0,
-		       sizeof(struct acpi_processor_cx));
+	memset(pr->power.states, 0, sizeof(pr->power.states));
 
 	/* if info is obtained from pblk/fadt, type equals state */
 	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
@@ -873,7 +866,8 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
 		if (pr->power.states[i].valid) {
 			pr->power.count = i;
-			pr->flags.power = 1;
+			if (pr->power.states[i].type >= ACPI_STATE_C2)
+				pr->flags.power = 1;
 		}
 	}
 

@@ -470,7 +470,7 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 
 	if (request == PTRACE_ATTACH) {
 		ret = ptrace_attach(child);
-		goto out;
+		goto out_put_task_struct;
 	}
 
 	ret = ptrace_check_attach(child, request == PTRACE_KILL);

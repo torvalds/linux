@@ -437,6 +437,10 @@ static void set_audio(struct tuner *t)
 		t->sgIF = 124;
 		t->tda8290_easy_mode = 0x20;
 		mode = "L";
+	} else if (t->std & V4L2_STD_SECAM_LC) {
+		t->sgIF = 20;
+		t->tda8290_easy_mode = 0x40;
+		mode = "LC";
 	}
     tuner_dbg("setting tda8290 to system %s\n", mode);
 }

@@ -31,6 +31,8 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
+
 #include "shpchp.h"
 
 #ifdef DEBUG

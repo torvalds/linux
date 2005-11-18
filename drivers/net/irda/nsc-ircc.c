@@ -59,6 +59,7 @@
 #include <asm/byteorder.h>
 
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 
 #include <net/irda/wrapper.h>
 #include <net/irda/irda.h>

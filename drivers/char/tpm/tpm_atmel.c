@@ -19,14 +19,8 @@
  * 
  */
 
-#include <linux/platform_device.h>
 #include "tpm.h"
-
-/* Atmel definitions */
-enum tpm_atmel_addr {
-	TPM_ATMEL_BASE_ADDR_LO = 0x08,
-	TPM_ATMEL_BASE_ADDR_HI = 0x09
-};
+#include "tpm_atmel.h"
 
 /* write status bits */
 enum tpm_atmel_write_status {
@@ -53,13 +47,12 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		return -EIO;
 
 	for (i = 0; i < 6; i++) {
-		status = inb(chip->vendor->base + 1);
+		status = ioread8(chip->vendor->iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(chip->dev,
-				"error reading header\n");
+			dev_err(chip->dev, "error reading header\n");
 			return -EIO;
 		}
-		*buf++ = inb(chip->vendor->base);
+		*buf++ = ioread8(chip->vendor->iobase);
 	}
 
 	/* size of the data received */
@@ -70,10 +63,9 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 		dev_err(chip->dev,
 			"Recv size(%d) less than available space\n", size);
 		for (; i < size; i++) {	/* clear the waiting data anyway */
-			status = inb(chip->vendor->base + 1);
+			status = ioread8(chip->vendor->iobase + 1);
 			if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-				dev_err(chip->dev,
-					"error reading data\n");
+				dev_err(chip->dev, "error reading data\n");
 				return -EIO;
 			}
 		}
@@ -82,17 +74,17 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 
 	/* read all the data available */
 	for (; i < size; i++) {
-		status = inb(chip->vendor->base + 1);
+		status = ioread8(chip->vendor->iobase + 1);
 		if ((status & ATML_STATUS_DATA_AVAIL) == 0) {
-			dev_err(chip->dev,
-				"error reading data\n");
+			dev_err(chip->dev, "error reading data\n");
 			return -EIO;
 		}
-		*buf++ = inb(chip->vendor->base);
+		*buf++ = ioread8(chip->vendor->iobase);
 	}
 
 	/* make sure data available is gone */
-	status = inb(chip->vendor->base + 1);
+	status = ioread8(chip->vendor->iobase + 1);
+
 	if (status & ATML_STATUS_DATA_AVAIL) {
 		dev_err(chip->dev, "data available is stuck\n");
 		return -EIO;
@@ -108,7 +100,7 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	dev_dbg(chip->dev, "tpm_atml_send:\n");
 	for (i = 0; i < count; i++) {
 		dev_dbg(chip->dev, "%d 0x%x(%d)\n",  i, buf[i], buf[i]);
-		outb(buf[i], chip->vendor->base);
+ 		iowrite8(buf[i], chip->vendor->iobase);
 	}
 
 	return count;
@@ -116,12 +108,12 @@ static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 
 static void tpm_atml_cancel(struct tpm_chip *chip)
 {
-	outb(ATML_STATUS_ABORT, chip->vendor->base + 1);
+	iowrite8(ATML_STATUS_ABORT, chip->vendor->iobase + 1);
 }
 
 static u8 tpm_atml_status(struct tpm_chip *chip)
 {
-	return inb(chip->vendor->base + 1);
+	return ioread8(chip->vendor->iobase + 1);
 }
 
 static struct file_operations atmel_ops = {
@@ -162,12 +154,17 @@ static struct tpm_vendor_specific tpm_atmel = {
 
 static struct platform_device *pdev;
 
-static void __devexit tpm_atml_remove(struct device *dev)
+static void atml_plat_remove(void)
 {
-	struct tpm_chip *chip = dev_get_drvdata(dev);
+	struct tpm_chip *chip = dev_get_drvdata(&pdev->dev);
+
 	if (chip) {
-		release_region(chip->vendor->base, 2);
+		if (chip->vendor->have_region)
+			atmel_release_region(chip->vendor->base,
+					     chip->vendor->region_size);
+		atmel_put_base_addr(chip->vendor);
 		tpm_remove_hardware(chip->dev);
+		platform_device_unregister(pdev);
 	}
 }
 
@@ -182,72 +179,46 @@ static struct device_driver atml_drv = {
 static int __init init_atmel(void)
 {
 	int rc = 0;
-	int lo, hi;
 
 	driver_register(&atml_drv);
 
-	lo = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_LO);
-	hi = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_HI);
-
-	tpm_atmel.base = (hi<<8)|lo;
-
-	/* verify that it is an Atmel part */
-	if (tpm_read_index(TPM_ADDR, 4) != 'A' || tpm_read_index(TPM_ADDR, 5) != 'T'
-	    || tpm_read_index(TPM_ADDR, 6) != 'M' || tpm_read_index(TPM_ADDR, 7) != 'L') {
-		return -ENODEV;
+	if ((tpm_atmel.iobase = atmel_get_base_addr(&tpm_atmel)) == NULL) {
+		rc = -ENODEV;
+		goto err_unreg_drv;
 	}
 
-	/* verify chip version number is 1.1 */
-	if (	(tpm_read_index(TPM_ADDR, 0x00) != 0x01) ||
-		(tpm_read_index(TPM_ADDR, 0x01) != 0x01 ))
-		return -ENODEV;
+	tpm_atmel.have_region =
+	    (atmel_request_region
+	     (tpm_atmel.base, tpm_atmel.region_size,
+	      "tpm_atmel0") == NULL) ? 0 : 1;
 
-	pdev = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
-	if ( !pdev )
-		return -ENOMEM;
-
-	pdev->name = "tpm_atmel0";
-	pdev->id = -1;
-	pdev->num_resources = 0;
-	pdev->dev.release = tpm_atml_remove;
-	pdev->dev.driver = &atml_drv;
-
-	if ((rc = platform_device_register(pdev)) < 0) {
-		kfree(pdev);
-		pdev = NULL;
-		return rc;
+	if (IS_ERR
+	    (pdev =
+	     platform_device_register_simple("tpm_atmel", -1, NULL, 0))) {
+		rc = PTR_ERR(pdev);
+		goto err_rel_reg;
 	}
 
-	if (request_region(tpm_atmel.base, 2, "tpm_atmel0") == NULL ) {
-		platform_device_unregister(pdev);
-		kfree(pdev);
-		pdev = NULL;
-		return -EBUSY;
-	}
-
-	if ((rc = tpm_register_hardware(&pdev->dev, &tpm_atmel)) < 0) {
-		release_region(tpm_atmel.base, 2);
-		platform_device_unregister(pdev);
-		kfree(pdev);
-		pdev = NULL;
-		return rc;
-	}
-
-	dev_info(&pdev->dev, "Atmel TPM 1.1, Base Address: 0x%x\n",
-			tpm_atmel.base);
+	if ((rc = tpm_register_hardware(&pdev->dev, &tpm_atmel)) < 0)
+		goto err_unreg_dev;
 	return 0;
+
+err_unreg_dev:
+	platform_device_unregister(pdev);
+err_rel_reg:
+	atmel_put_base_addr(&tpm_atmel);
+	if (tpm_atmel.have_region)
+		atmel_release_region(tpm_atmel.base,
+				     tpm_atmel.region_size);
+err_unreg_drv:
+	driver_unregister(&atml_drv);
+	return rc;
 }
 
 static void __exit cleanup_atmel(void)
 {
-	if (pdev) {
-		tpm_atml_remove(&pdev->dev);
-		platform_device_unregister(pdev);
-		kfree(pdev);
-		pdev = NULL;
-	}
-
 	driver_unregister(&atml_drv);
+	atml_plat_remove();
 }
 
 module_init(init_atmel);

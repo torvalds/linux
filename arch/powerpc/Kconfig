@@ -261,7 +261,7 @@ config PPC_ISERIES
 
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based board"
-	depends on PPC32
+	depends on PPC32 && BROKEN
 
 config APUS
 	bool "Amiga-APUS"
@@ -305,7 +305,7 @@ config PPC_PMAC64
 
 config PPC_PREP
 	bool "  PowerPC Reference Platform (PReP) based machines"
-	depends on PPC_MULTIPLATFORM && PPC32
+	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	default y
@@ -597,19 +597,6 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 config ARCH_MEMORY_PROBE
 	def_bool y
 	depends on MEMORY_HOTPLUG
-
-# Some NUMA nodes have memory ranges that span
-# other nodes.  Even though a pfn is valid and
-# between a node's start and end pfns, it may not
-# reside on that node.
-#
-# This is a relatively temporary hack that should
-# be able to go away when sparsemem is fully in
-# place
-
-config NODES_SPAN_OTHER_NODES
-	def_bool y
-	depends on NEED_MULTIPLE_NODES
 
 config PPC_64K_PAGES
 	bool "64k page size"
@@ -932,6 +919,7 @@ source "arch/powerpc/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes (EXPERIMENTAL)"
+	depends on PPC64
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes

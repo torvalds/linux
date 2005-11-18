@@ -4,6 +4,8 @@
  * oss dsp interface
  *
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ *     2005 conversion to standalone module:
+ *         Ricardo Cerqueira <v4l@cerqueira.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,7 +27,9 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
+#include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/sound.h>
 #include <linux/soundcard.h>
 
 #include "saa7134-reg.h"
@@ -33,15 +37,23 @@
 
 /* ------------------------------------------------------------------ */
 
-static unsigned int oss_debug  = 0;
-module_param(oss_debug, int, 0644);
-MODULE_PARM_DESC(oss_debug,"enable debug messages [oss]");
+static unsigned int debug  = 0;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug,"enable debug messages [oss]");
 
-static unsigned int oss_rate  = 0;
-module_param(oss_rate, int, 0444);
-MODULE_PARM_DESC(oss_rate,"sample rate (valid are: 32000,48000)");
+static unsigned int rate  = 0;
+module_param(rate, int, 0444);
+MODULE_PARM_DESC(rate,"sample rate (valid are: 32000,48000)");
 
-#define dprintk(fmt, arg...)	if (oss_debug) \
+static unsigned int dsp_nr[]   = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
+MODULE_PARM_DESC(dsp_nr, "device numbers for SAA7134 capture interface(s).");
+module_param_array(dsp_nr,   int, NULL, 0444);
+
+static unsigned int mixer_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
+MODULE_PARM_DESC(mixer_nr, "mixer numbers for SAA7134 capture interface(s).");
+module_param_array(mixer_nr, int, NULL, 0444);
+
+#define dprintk(fmt, arg...)	if (debug) \
 	printk(KERN_DEBUG "%s/oss: " fmt, dev->name , ## arg)
 
 
@@ -369,7 +381,7 @@ static int dsp_ioctl(struct inode *inode, struct file *file,
 	int __user *p = argp;
 	int val = 0;
 
-	if (oss_debug > 1)
+	if (debug > 1)
 		saa7134_print_ioctl(dev->name,cmd);
 	switch (cmd) {
 	case OSS_GETVERSION:
@@ -665,7 +677,7 @@ static int mixer_ioctl(struct inode *inode, struct file *file,
 	void __user *argp = (void __user *) arg;
 	int __user *p = argp;
 
-	if (oss_debug > 1)
+	if (debug > 1)
 		saa7134_print_ioctl(dev->name,cmd);
 	switch (cmd) {
 	case OSS_GETVERSION:
@@ -768,8 +780,41 @@ struct file_operations saa7134_mixer_fops = {
 
 /* ------------------------------------------------------------------ */
 
+static irqreturn_t saa7134_oss_irq(int irq, void *dev_id, struct pt_regs *regs)
+{
+        struct saa7134_dmasound *dmasound = dev_id;
+        struct saa7134_dev *dev = dmasound->priv_data;
+        unsigned long report, status;
+        int loop, handled = 0;
+
+        for (loop = 0; loop < 10; loop++) {
+                report = saa_readl(SAA7134_IRQ_REPORT);
+                status = saa_readl(SAA7134_IRQ_STATUS);
+
+                if (report & SAA7134_IRQ_REPORT_DONE_RA3) {
+                        handled = 1;
+                        saa_writel(SAA7134_IRQ_REPORT,report);
+                        saa7134_irq_oss_done(dev, status);
+                } else {
+                        goto out;
+                }
+        }
+
+        if (loop == 10) {
+                dprintk("error! looping IRQ!");
+        }
+out:
+        return IRQ_RETVAL(handled);
+}
+
 int saa7134_oss_init1(struct saa7134_dev *dev)
 {
+
+        if ((request_irq(dev->pci->irq, saa7134_oss_irq,
+                         SA_SHIRQ | SA_INTERRUPT, dev->name,
+			(void*) &dev->dmasound)) < 0)
+		return -1;
+
 	/* general */
 	init_MUTEX(&dev->dmasound.lock);
 	init_waitqueue_head(&dev->dmasound.wq);
@@ -785,8 +830,8 @@ int saa7134_oss_init1(struct saa7134_dev *dev)
 
 	/* dsp */
 	dev->dmasound.rate = 32000;
-	if (oss_rate)
-		dev->dmasound.rate = oss_rate;
+	if (rate)
+		dev->dmasound.rate = rate;
 	dev->dmasound.rate = (dev->dmasound.rate > 40000) ? 48000 : 32000;
 
 	/* mixer */
@@ -840,7 +885,7 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status)
 	/* next block addr */
 	next_blk = (dev->dmasound.dma_blk + 2) % dev->dmasound.blocks;
 	saa_writel(reg,next_blk * dev->dmasound.blksize);
-	if (oss_debug > 2)
+	if (debug > 2)
 		dprintk("irq: ok, %s, next_blk=%d, addr=%x\n",
 			(status & 0x10000000) ? "even" : "odd ", next_blk,
 			next_blk * dev->dmasound.blksize);
@@ -853,6 +898,98 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status)
  done:
 	spin_unlock(&dev->slock);
 }
+
+int saa7134_dsp_create(struct saa7134_dev *dev)
+{
+	int err;
+
+                        err = dev->dmasound.minor_dsp =
+                                register_sound_dsp(&saa7134_dsp_fops,
+                                                   dsp_nr[dev->nr]);
+                        if (err < 0) {
+                                goto fail;
+                        }
+                        printk(KERN_INFO "%s: registered device dsp%d\n",
+                               dev->name,dev->dmasound.minor_dsp >> 4);
+
+                        err = dev->dmasound.minor_mixer =
+                                register_sound_mixer(&saa7134_mixer_fops,
+                                                     mixer_nr[dev->nr]);
+                        if (err < 0)
+                                goto fail;
+                        printk(KERN_INFO "%s: registered device mixer%d\n",
+                               dev->name,dev->dmasound.minor_mixer >> 4);
+
+	return 0;
+
+fail:
+        unregister_sound_dsp(dev->dmasound.minor_dsp);
+	return 0;
+
+
+}
+
+static int saa7134_oss_init(void)
+{
+        struct saa7134_dev *dev = NULL;
+        struct list_head *list;
+
+        printk(KERN_INFO "saa7134 OSS driver for DMA sound loaded\n");
+
+        list_for_each(list,&saa7134_devlist) {
+                dev = list_entry(list, struct saa7134_dev, devlist);
+		if (dev->dmasound.priv_data == NULL) {
+			dev->dmasound.priv_data = dev;
+			saa7134_oss_init1(dev);
+			saa7134_dsp_create(dev);
+		} else {
+                	printk(KERN_ERR "saa7134 OSS: DMA sound is being handled by ALSA, ignoring %s\n",dev->name);
+			return -EBUSY;
+		}
+        }
+
+        if (dev == NULL)
+                printk(KERN_INFO "saa7134 OSS: no saa7134 cards found\n");
+
+        return 0;
+
+}
+
+void saa7134_oss_exit(void)
+{
+        struct saa7134_dev *dev = NULL;
+        struct list_head *list;
+
+        list_for_each(list,&saa7134_devlist) {
+                dev = list_entry(list, struct saa7134_dev, devlist);
+
+		/* Device isn't registered by OSS, probably ALSA's */
+		if (!dev->dmasound.minor_dsp)
+			continue;
+
+                unregister_sound_mixer(dev->dmasound.minor_mixer);
+                unregister_sound_dsp(dev->dmasound.minor_dsp);
+
+		saa7134_oss_fini(dev);
+
+		if (dev->pci->irq > 0) {
+			synchronize_irq(dev->pci->irq);
+			free_irq(dev->pci->irq,&dev->dmasound);
+		}
+
+        	dev->dmasound.priv_data = NULL;
+
+        }
+
+        printk(KERN_INFO "saa7134 OSS driver for DMA sound unloaded\n");
+
+        return;
+}
+
+module_init(saa7134_oss_init);
+module_exit(saa7134_oss_exit);
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 
 /* ----------------------------------------------------------- */
 /*

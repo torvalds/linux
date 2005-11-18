@@ -15,7 +15,7 @@ obj-$(CONFIG_MIPS_GT96100)	+= ops-gt96100.o
 obj-$(CONFIG_PCI_MARVELL)	+= ops-marvell.o
 obj-$(CONFIG_MIPS_MSC)		+= ops-msc.o
 obj-$(CONFIG_MIPS_NILE4)	+= ops-nile4.o
-obj-$(CONFIG_MIPS_TX3927)	+= ops-jmr3927.o
+obj-$(CONFIG_MIPS_TX3927)	+= ops-tx3927.o
 obj-$(CONFIG_PCI_VR41XX)	+= ops-vr41xx.o pci-vr41xx.o
 obj-$(CONFIG_NEC_CMBVR4133)	+= fixup-vr4133.o
 

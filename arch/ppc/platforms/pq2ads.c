@@ -3,7 +3,7 @@
  *
  * PQ2ADS platform support
  *
- * Author: Kumar Gala <kumar.gala@freescale.com>
+ * Author: Kumar Gala <galak@kernel.crashing.org>
  * Derived from: est8260_setup.c by Allen Curtis
  *
  * Copyright 2004 Freescale Semiconductor, Inc.

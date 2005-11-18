@@ -39,7 +39,6 @@
 #include <asm/sections.h>
 #include <asm/iommu.h>
 #include <asm/firmware.h>
-#include <asm/systemcfg.h>
 #include <asm/system.h>
 #include <asm/time.h>
 #include <asm/paca.h>
@@ -548,8 +547,6 @@ static unsigned long __init build_iSeries_Memory_Map(void)
  */
 static void __init iSeries_setup_arch(void)
 {
-	unsigned procIx = get_paca()->lppaca.dyn_hv_phys_proc_index;
-
 	if (get_paca()->lppaca.shared_proc) {
 		ppc_md.idle_loop = iseries_shared_idle;
 		printk(KERN_INFO "Using shared processor idle loop\n");
@@ -565,9 +562,6 @@ static void __init iSeries_setup_arch(void)
 			itVpdAreas.xSlicMaxLogicalProcs);
 	printk("Max physical processors = %d\n",
 			itVpdAreas.xSlicMaxPhysicalProcs);
-
-	_systemcfg->processor = xIoHriProcessorVpd[procIx].xPVR;
-	printk("Processor version = %x\n", _systemcfg->processor);
 }
 
 static void iSeries_show_cpuinfo(struct seq_file *m)

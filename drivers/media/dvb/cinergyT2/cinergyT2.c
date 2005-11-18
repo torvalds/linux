@@ -276,7 +276,7 @@ static void cinergyt2_free_stream_urbs (struct cinergyt2 *cinergyt2)
 		if (cinergyt2->stream_urb[i])
 			usb_free_urb(cinergyt2->stream_urb[i]);
 
-	pci_free_consistent(NULL, STREAM_URB_COUNT*STREAM_BUF_SIZE,
+	usb_buffer_free(cinergyt2->udev, STREAM_URB_COUNT*STREAM_BUF_SIZE,
 			    cinergyt2->streambuf, cinergyt2->streambuf_dmahandle);
 }
 
@@ -284,9 +284,8 @@ static int cinergyt2_alloc_stream_urbs (struct cinergyt2 *cinergyt2)
 {
 	int i;
 
-	cinergyt2->streambuf = pci_alloc_consistent(NULL,
-					      STREAM_URB_COUNT*STREAM_BUF_SIZE,
-					      &cinergyt2->streambuf_dmahandle);
+	cinergyt2->streambuf = usb_buffer_alloc(cinergyt2->udev, STREAM_URB_COUNT*STREAM_BUF_SIZE,
+					      SLAB_KERNEL, &cinergyt2->streambuf_dmahandle);
 	if (!cinergyt2->streambuf) {
 		dprintk(1, "failed to alloc consistent stream memory area, bailing out!\n");
 		return -ENOMEM;
@@ -780,6 +779,8 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 
 	input_register_device(cinergyt2->rc_input_dev);
 	schedule_delayed_work(&cinergyt2->rc_query_work, HZ/2);
+
+	return 0;
 }
 
 static void cinergyt2_unregister_rc(struct cinergyt2 *cinergyt2)

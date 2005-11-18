@@ -200,14 +200,12 @@ static void __init pSeries_setup_arch(void)
 	if (ppc64_interrupt_controller == IC_OPEN_PIC) {
 		ppc_md.init_IRQ       = pSeries_init_mpic;
 		ppc_md.get_irq        = mpic_get_irq;
-	 	ppc_md.cpu_irq_down   = mpic_teardown_this_cpu;
 		/* Allocate the mpic now, so that find_and_init_phbs() can
 		 * fill the ISUs */
 		pSeries_setup_mpic();
 	} else {
 		ppc_md.init_IRQ       = xics_init_IRQ;
 		ppc_md.get_irq        = xics_get_irq;
-		ppc_md.cpu_irq_down   = xics_teardown_cpu;
 	}
 
 #ifdef CONFIG_SMP
@@ -506,7 +504,7 @@ static void pseries_dedicated_idle(void)
 		lpaca->lppaca.idle = 1;
 
 		if (!need_resched()) {
-			start_snooze = __get_tb() +
+			start_snooze = get_tb() +
 				*smt_snooze_delay * tb_ticks_per_usec;
 
 			while (!need_resched() && !cpu_is_offline(cpu)) {
@@ -520,7 +518,7 @@ static void pseries_dedicated_idle(void)
 				HMT_very_low();
 
 				if (*smt_snooze_delay != 0 &&
-				    __get_tb() > start_snooze) {
+				    get_tb() > start_snooze) {
 					HMT_medium();
 					dedicated_idle_sleep(cpu);
 				}
@@ -595,6 +593,27 @@ static int pSeries_pci_probe_mode(struct pci_bus *bus)
 	return PCI_PROBE_NORMAL;
 }
 
+#ifdef CONFIG_KEXEC
+static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
+{
+	/* Don't risk a hypervisor call if we're crashing */
+	if (!crash_shutdown) {
+		unsigned long vpa = __pa(&get_paca()->lppaca);
+
+		if (unregister_vpa(hard_smp_processor_id(), vpa)) {
+			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
+					"failed\n", smp_processor_id(),
+					hard_smp_processor_id());
+		}
+	}
+
+	if (ppc64_interrupt_controller == IC_OPEN_PIC)
+		mpic_teardown_this_cpu(secondary);
+	else
+		xics_teardown_cpu(secondary);
+}
+#endif
+
 struct machdep_calls __initdata pSeries_md = {
 	.probe			= pSeries_probe,
 	.setup_arch		= pSeries_setup_arch,
@@ -617,4 +636,7 @@ struct machdep_calls __initdata pSeries_md = {
 	.check_legacy_ioport	= pSeries_check_legacy_ioport,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,
+#ifdef CONFIG_KEXEC
+	.kexec_cpu_down		= pseries_kexec_cpu_down,
+#endif
 };

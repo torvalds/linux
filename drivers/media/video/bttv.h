@@ -162,6 +162,7 @@
 #define BTTV_BOARD_PV_M4900                0x8b
 #define BTTV_BOARD_OSPREY440               0x8c
 #define BTTV_BOARD_ASOUND_SKYEYE	   0x8d
+#define BTTV_BOARD_SABRENT_TVFM   	   0x8e
 
 /* i2c address list */
 #define I2C_TSA5522        0xc2
@@ -234,6 +235,7 @@ struct tvcard
 	unsigned int has_dvb:1;
 	unsigned int has_remote:1;
 	unsigned int no_gpioirq:1;
+	unsigned int any_irq:1;
 
 	/* other settings */
 	unsigned int pll;
@@ -333,6 +335,7 @@ struct bttv_sub_driver {
 	struct device_driver   drv;
 	char                   wanted[BUS_ID_SIZE];
 	void                   (*gpio_irq)(struct bttv_sub_device *sub);
+	int                    (*any_irq)(struct bttv_sub_device *sub);
 };
 #define to_bttv_sub_drv(x) container_of((x), struct bttv_sub_driver, drv)
 

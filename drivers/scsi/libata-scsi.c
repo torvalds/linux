@@ -1955,21 +1955,43 @@ void ata_scsi_badcmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *), u8
 	done(cmd);
 }
 
-void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
-			 struct scsi_cmnd *cmd)
+static int atapi_sense_complete(struct ata_queued_cmd *qc,unsigned int err_mask)
 {
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	unsigned long flags;
-	int rc;
+	if (err_mask && ((err_mask & AC_ERR_DEV) == 0))
+		/* FIXME: not quite right; we don't want the
+		 * translation of taskfile registers into
+		 * a sense descriptors, since that's only
+		 * correct for ATA, not ATAPI
+		 */
+		ata_gen_ata_desc_sense(qc);
+
+	qc->scsidone(qc->scsicmd);
+	return 0;
+}
+
+/* is it pointless to prefer PIO for "safety reasons"? */
+static inline int ata_pio_use_silly(struct ata_port *ap)
+{
+	return (ap->flags & ATA_FLAG_PIO_DMA);
+}
+
+static void atapi_request_sense(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct scsi_cmnd *cmd = qc->scsicmd;
 
 	DPRINTK("ATAPI request sense\n");
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
-
 	/* FIXME: is this needed? */
 	memset(cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
+
+	ap->ops->tf_read(ap, &qc->tf);
+
+	/* fill these in, for the case where they are -not- overwritten */
+	cmd->sense_buffer[0] = 0x70;
+	cmd->sense_buffer[2] = qc->tf.feature >> 4;
+
+	ata_qc_reinit(qc);
 
 	ata_sg_init_one(qc, cmd->sense_buffer, sizeof(cmd->sense_buffer));
 	qc->dma_dir = DMA_FROM_DEVICE;
@@ -1981,22 +2003,20 @@ void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
 	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	qc->tf.command = ATA_CMD_PACKET;
 
-	qc->tf.protocol = ATA_PROT_ATAPI;
-	qc->tf.lbam = (8 * 1024) & 0xff;
-	qc->tf.lbah = (8 * 1024) >> 8;
+	if (ata_pio_use_silly(ap)) {
+		qc->tf.protocol = ATA_PROT_ATAPI_DMA;
+		qc->tf.feature |= ATAPI_PKT_DMA;
+	} else {
+		qc->tf.protocol = ATA_PROT_ATAPI;
+		qc->tf.lbam = (8 * 1024) & 0xff;
+		qc->tf.lbah = (8 * 1024) >> 8;
+	}
 	qc->nbytes = SCSI_SENSE_BUFFERSIZE;
 
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
+	qc->complete_fn = atapi_sense_complete;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (rc)
-		ata_port_disable(ap);
-	else
-		wait_for_completion(&wait);
+	if (ata_qc_issue(qc))
+		ata_qc_complete(qc, AC_ERR_OTHER);
 
 	DPRINTK("EXIT\n");
 }
@@ -2008,19 +2028,8 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	VPRINTK("ENTER, err_mask 0x%X\n", err_mask);
 
 	if (unlikely(err_mask & AC_ERR_DEV)) {
-		DPRINTK("request check condition\n");
-
-		/* FIXME: command completion with check condition
-		 * but no sense causes the error handler to run,
-		 * which then issues REQUEST SENSE, fills in the sense 
-		 * buffer, and completes the command (for the second
-		 * time).  We need to issue REQUEST SENSE some other
-		 * way, to avoid completing the command twice.
-		 */
 		cmd->result = SAM_STAT_CHECK_CONDITION;
-
-		qc->scsidone(cmd);
-
+		atapi_request_sense(qc);
 		return 1;
 	}
 
@@ -2276,6 +2285,12 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 		tf->device = scsicmd[8];
 		tf->command = scsicmd[9];
 	}
+	/*
+	 * If slave is possible, enforce correct master/slave bit
+	*/
+	if (qc->ap->flags & ATA_FLAG_SLAVE_POSS)
+		tf->device = qc->dev->devno ?
+			tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
 
 	/*
 	 * Filter SET_FEATURES - XFER MODE command -- otherwise,

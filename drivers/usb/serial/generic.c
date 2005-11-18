@@ -309,6 +309,7 @@ void usb_serial_generic_write_bulk_callback (struct urb *urb, struct pt_regs *re
 
 	schedule_work(&port->work);
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_write_bulk_callback);
 
 void usb_serial_generic_shutdown (struct usb_serial *serial)
 {

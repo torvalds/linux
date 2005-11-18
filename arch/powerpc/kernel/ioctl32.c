@@ -40,10 +40,6 @@ IOCTL_TABLE_START
 #define DECLARES
 #include "compat_ioctl.c"
 
-/* Little p (/dev/rtc, /dev/envctrl, etc.) */
-COMPATIBLE_IOCTL(_IOR('p', 20, int[7])) /* RTCGET */
-COMPATIBLE_IOCTL(_IOW('p', 21, int[7])) /* RTCSET */
-
 IOCTL_TABLE_END
 
 int ioctl_table_size = ARRAY_SIZE(ioctl_start);

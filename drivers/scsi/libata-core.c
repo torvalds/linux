@@ -533,8 +533,7 @@ void ata_tf_to_fis(const struct ata_taskfile *tf, u8 *fis, u8 pmp)
  *	@fis: Buffer from which data will be input
  *	@tf: Taskfile to output
  *
- *	Converts a standard ATA taskfile to a Serial ATA
- *	FIS structure (Register - Host to Device).
+ *	Converts a serial ATA FIS structure to a standard ATA taskfile.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -1048,6 +1047,30 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 	return modes;
 }
 
+static int ata_qc_wait_err(struct ata_queued_cmd *qc,
+			   struct completion *wait)
+{
+	int rc = 0;
+
+	if (wait_for_completion_timeout(wait, 30 * HZ) < 1) {
+		/* timeout handling */
+		unsigned int err_mask = ac_err_mask(ata_chk_status(qc->ap));
+
+		if (!err_mask) {
+			printk(KERN_WARNING "ata%u: slow completion (cmd %x)\n",
+			       qc->ap->id, qc->tf.command);
+		} else {
+			printk(KERN_WARNING "ata%u: qc timeout (cmd %x)\n",
+			       qc->ap->id, qc->tf.command);
+			rc = -EIO;
+		}
+
+		ata_qc_complete(qc, err_mask);
+	}
+
+	return rc;
+}
+
 /**
  *	ata_dev_identify - obtain IDENTIFY x DEVICE page
  *	@ap: port on which device we wish to probe resides
@@ -1127,7 +1150,7 @@ retry:
 	if (rc)
 		goto err_out;
 	else
-		wait_for_completion(&wait);
+		ata_qc_wait_err(qc, &wait);
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	ap->ops->tf_read(ap, &qc->tf);
@@ -1271,7 +1294,7 @@ retry:
 	}
 
 	/* ATAPI-specific feature tests */
-	else {
+	else if (dev->class == ATA_DEV_ATAPI) {
 		if (ata_id_is_ata(dev->id))		/* sanity check */
 			goto err_out_nosup;
 
@@ -1581,10 +1604,12 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 
 	/*
 	 * Find the mode. 
-	*/
+	 */
 
 	if (!(s = ata_timing_find_mode(speed)))
 		return -EINVAL;
+
+	memcpy(t, s, sizeof(*s));
 
 	/*
 	 * If the drive is an EIDE drive, it can tell us it needs extended
@@ -1606,7 +1631,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	 * Convert the timing to bus clock counts.
 	 */
 
-	ata_timing_quantize(s, t, T, UT);
+	ata_timing_quantize(t, t, T, UT);
 
 	/*
 	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY, S.M.A.R.T
@@ -2278,7 +2303,7 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 	if (rc)
 		ata_port_disable(ap);
 	else
-		wait_for_completion(&wait);
+		ata_qc_wait_err(qc, &wait);
 
 	DPRINTK("EXIT\n");
 }
@@ -2326,7 +2351,7 @@ static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
 	if (rc)
 		goto err_out;
 
-	wait_for_completion(&wait);
+	ata_qc_wait_err(qc, &wait);
 
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
@@ -2382,7 +2407,7 @@ static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 	if (rc)
 		ata_port_disable(ap);
 	else
-		wait_for_completion(&wait);
+		ata_qc_wait_err(qc, &wait);
 
 	DPRINTK("EXIT\n");
 }
@@ -2410,7 +2435,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	if (qc->flags & ATA_QCFLAG_SINGLE)
 		assert(qc->n_elem == 1);
 
-	DPRINTK("unmapping %u sg elements\n", qc->n_elem);
+	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
 	/* if we padded the buffer out to 32-bit bound, and data
 	 * xfer direction is from-device, we must copy from the
@@ -2420,7 +2445,8 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 		pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
 
 	if (qc->flags & ATA_QCFLAG_SG) {
-		dma_unmap_sg(ap->host_set->dev, sg, qc->n_elem, dir);
+		if (qc->n_elem)
+			dma_unmap_sg(ap->host_set->dev, sg, qc->n_elem, dir);
 		/* restore last sg */
 		sg[qc->orig_n_elem - 1].length += qc->pad_len;
 		if (pad_buf) {
@@ -2430,8 +2456,10 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 			kunmap_atomic(psg->page, KM_IRQ0);
 		}
 	} else {
-		dma_unmap_single(ap->host_set->dev, sg_dma_address(&sg[0]),
-				 sg_dma_len(&sg[0]), dir);
+		if (sg_dma_len(&sg[0]) > 0)
+			dma_unmap_single(ap->host_set->dev,
+				sg_dma_address(&sg[0]), sg_dma_len(&sg[0]),
+				dir);
 		/* restore sg */
 		sg->length += qc->pad_len;
 		if (pad_buf)
@@ -2630,6 +2658,11 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 			sg->length, qc->pad_len);
 	}
 
+	if (!sg->length) {
+		sg_dma_address(sg) = 0;
+		goto skip_map;
+	}
+
 	dma_address = dma_map_single(ap->host_set->dev, qc->buf_virt,
 				     sg->length, dir);
 	if (dma_mapping_error(dma_address)) {
@@ -2639,6 +2672,7 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 	}
 
 	sg_dma_address(sg) = dma_address;
+skip_map:
 	sg_dma_len(sg) = sg->length;
 
 	DPRINTK("mapped buffer of %d bytes for %s\n", sg_dma_len(sg),
@@ -2666,7 +2700,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg = qc->__sg;
 	struct scatterlist *lsg = &sg[qc->n_elem - 1];
-	int n_elem, dir;
+	int n_elem, pre_n_elem, dir, trim_sg = 0;
 
 	VPRINTK("ENTER, ata%u\n", ap->id);
 	assert(qc->flags & ATA_QCFLAG_SG);
@@ -2700,13 +2734,24 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
 		/* trim last sg */
 		lsg->length -= qc->pad_len;
+		if (lsg->length == 0)
+			trim_sg = 1;
 
 		DPRINTK("padding done, sg[%d].length=%u pad_len=%u\n",
 			qc->n_elem - 1, lsg->length, qc->pad_len);
 	}
 
+	pre_n_elem = qc->n_elem;
+	if (trim_sg && pre_n_elem)
+		pre_n_elem--;
+
+	if (!pre_n_elem) {
+		n_elem = 0;
+		goto skip_map;
+	}
+
 	dir = qc->dma_dir;
-	n_elem = dma_map_sg(ap->host_set->dev, sg, qc->n_elem, dir);
+	n_elem = dma_map_sg(ap->host_set->dev, sg, pre_n_elem, dir);
 	if (n_elem < 1) {
 		/* restore last sg */
 		lsg->length += qc->pad_len;
@@ -2715,6 +2760,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 
 	DPRINTK("%d sg elements mapped\n", n_elem);
 
+skip_map:
 	qc->n_elem = n_elem;
 
 	return 0;
@@ -3445,31 +3491,10 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_host_set *host_set = ap->host_set;
-	struct ata_device *dev = qc->dev;
 	u8 host_stat = 0, drv_stat;
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
-
-	/* FIXME: doesn't this conflict with timeout handling? */
-	if (qc->dev->class == ATA_DEV_ATAPI && qc->scsicmd) {
-		struct scsi_cmnd *cmd = qc->scsicmd;
-
-		if (!(cmd->eh_eflags & SCSI_EH_CANCEL_CMD)) {
-
-			/* finish completing original command */
-			spin_lock_irqsave(&host_set->lock, flags);
-			__ata_qc_complete(qc);
-			spin_unlock_irqrestore(&host_set->lock, flags);
-
-			atapi_request_sense(ap, dev, cmd);
-
-			cmd->result = (CHECK_CONDITION << 1) | (DID_OK << 16);
-			scsi_finish_command(cmd);
-
-			goto out;
-		}
-	}
 
 	spin_lock_irqsave(&host_set->lock, flags);
 
@@ -3511,7 +3536,6 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
 
-out:
 	DPRINTK("EXIT\n");
 }
 
@@ -3595,16 +3619,11 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 
 	qc = ata_qc_new(ap);
 	if (qc) {
-		qc->__sg = NULL;
-		qc->flags = 0;
 		qc->scsicmd = NULL;
 		qc->ap = ap;
 		qc->dev = dev;
-		qc->cursect = qc->cursg = qc->cursg_ofs = 0;
-		qc->nsect = 0;
-		qc->nbytes = qc->curbytes = 0;
 
-		ata_tf_init(ap, &qc->tf, dev->devno);
+		ata_qc_reinit(qc);
 	}
 
 	return qc;

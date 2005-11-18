@@ -14,10 +14,6 @@
 
 HAS_BIARCH	:= $(call cc-option-yn, -m32)
 
-ifeq ($(CONFIG_PPC64),y)
-OLDARCH	:= ppc64
-SZ	:= 64
-
 # Set default 32 bits cross compilers for vdso and boot wrapper
 CROSS32_COMPILE ?=
 
@@ -36,6 +32,12 @@ endif
 endif
 
 export CROSS32CC CROSS32AS CROSS32LD CROSS32OBJCOPY
+
+KBUILD_DEFCONFIG := $(shell uname -m)_defconfig
+
+ifeq ($(CONFIG_PPC64),y)
+OLDARCH	:= ppc64
+SZ	:= 64
 
 new_nm := $(shell if $(NM) --help 2>&1 | grep -- '--synthetic' > /dev/null; then echo y; else echo n; fi)
 
@@ -111,9 +113,6 @@ cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 AFLAGS += $(cpu-as-y)
 CFLAGS += $(cpu-as-y)
 
-# Default to the common case.
-KBUILD_DEFCONFIG := common_defconfig
-
 head-y				:= arch/powerpc/kernel/head_32.o
 head-$(CONFIG_PPC64)		:= arch/powerpc/kernel/head_64.o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
@@ -125,11 +124,11 @@ head-$(CONFIG_PPC64)		+= arch/powerpc/kernel/entry_64.o
 head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 
 core-y				+= arch/powerpc/kernel/ \
-				   arch/$(OLDARCH)/kernel/ \
 				   arch/powerpc/mm/ \
 				   arch/powerpc/lib/ \
 				   arch/powerpc/sysdev/ \
 				   arch/powerpc/platforms/
+core-$(CONFIG_PPC32)		+= arch/ppc/kernel/
 core-$(CONFIG_MATH_EMULATION)	+= arch/ppc/math-emu/
 core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
 core-$(CONFIG_APUS)		+= arch/ppc/amiga/
@@ -139,7 +138,7 @@ drivers-$(CONFIG_CPM2)		+= arch/ppc/8260_io/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
-defaultimage-$(CONFIG_PPC32)	:= uImage zImage
+defaultimage-$(CONFIG_PPC32)	:= zImage
 defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
 defaultimage-$(CONFIG_PPC_PSERIES) := zImage
 KBUILD_IMAGE := $(defaultimage-y)
@@ -154,40 +153,29 @@ BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
 
 .PHONY: $(BOOT_TARGETS)
 
-boot := arch/$(OLDARCH)/boot
+boot := arch/$(ARCH)/boot
 
-# urk
-ifeq ($(CONFIG_PPC64),y)
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) ARCH=ppc64 $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
-else
-$(BOOT_TARGETS): vmlinux
-	$(Q)$(MAKE) ARCH=ppc $(build)=$(boot) $@
-endif
-
-uImage: vmlinux
-	$(Q)$(MAKE) ARCH=$(OLDARCH) $(build)=$(boot)/images $(boot)/images/$@
 
 define archhelp
-  @echo '* zImage          - Compressed kernel image (arch/$(ARCH)/boot/images/zImage.*)'
-  @echo '  uImage          - Create a bootable image for U-Boot / PPCBoot'
+  @echo '* zImage          - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
   @echo '  install         - Install kernel using'
   @echo '                    (your) ~/bin/installkernel or'
   @echo '                    (distribution) /sbin/installkernel or'
   @echo '                    install to $$(INSTALL_PATH) and run lilo'
-  @echo '  *_defconfig     - Select default config from arch/$(ARCH)/ppc/configs'
+  @echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
 endef
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-	# Temporary hack until we have migrated to asm-powerpc
 	$(Q)rm -rf arch/$(ARCH)/include
 
 archprepare: checkbin
 
 # Temporary hack until we have migrated to asm-powerpc
 include/asm: arch/$(ARCH)/include/asm
-arch/$(ARCH)/include/asm:
+arch/$(ARCH)/include/asm: FORCE
 	$(Q)if [ ! -d arch/$(ARCH)/include ]; then mkdir -p arch/$(ARCH)/include; fi
 	$(Q)ln -fsn $(srctree)/include/asm-$(OLDARCH) arch/$(ARCH)/include/asm
 

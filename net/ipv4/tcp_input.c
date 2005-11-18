@@ -367,7 +367,7 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 		 * are stalled on filesystem I/O.
 		 *
 		 * Also, since we are only going for a minimum in the
-		 * non-timestamp case, we do not smoother things out
+		 * non-timestamp case, we do not smooth things out
 		 * else with timestamps disabled convergence takes too
 		 * long.
 		 */
@@ -546,7 +546,7 @@ static void tcp_rtt_estimator(struct sock *sk, const __u32 mrtt)
 	 *
 	 * Funny. This algorithm seems to be very broken.
 	 * These formulae increase RTO, when it should be decreased, increase
-	 * too slowly, when it should be increased fastly, decrease too fastly
+	 * too slowly, when it should be increased quickly, decrease too quickly
 	 * etc. I guess in BSD RTO takes ONE value, so that it is absolutely
 	 * does not matter how to _calculate_ it. Seems, it was trap
 	 * that VJ failed to avoid. 8)
