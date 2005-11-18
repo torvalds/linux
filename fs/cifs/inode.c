@@ -279,6 +279,7 @@ static int get_sfu_uid_mode(struct inode * inode,
 		return (int)rc;
 	else if (rc > 3) {
 		mode = le32_to_cpu(*((__le32 *)ea_value));
+		inode->i_mode &= ~SFBITS_MASK; 
 		cFYI(1,("special bits 0%o org mode 0%o", mode, inode->i_mode));
 		inode->i_mode = (mode &  SFBITS_MASK) | inode->i_mode;
 		cFYI(1,("special mode bits 0%o", mode));
