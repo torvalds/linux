@@ -60,7 +60,6 @@ extern SK_U64		SkOsGetTime(SK_AC*);
 extern int		SkPciReadCfgDWord(SK_AC*, int, SK_U32*);
 extern int		SkPciReadCfgWord(SK_AC*, int, SK_U16*);
 extern int		SkPciReadCfgByte(SK_AC*, int, SK_U8*);
-extern int		SkPciWriteCfgDWord(SK_AC*, int, SK_U32);
 extern int		SkPciWriteCfgWord(SK_AC*, int, SK_U16);
 extern int		SkPciWriteCfgByte(SK_AC*, int, SK_U8);
 extern int		SkDrvEvent(SK_AC*, SK_IOC IoC, SK_U32, SK_EVPARA);

@@ -279,6 +279,27 @@ static uintptr_t RxQueueAddr[SK_MAX_MACS] = {0x400, 0x480};
 
 /*****************************************************************************
  *
+ *	SkPciWriteCfgDWord - write a 32 bit value to pci config space
+ *
+ * Description:
+ *	This routine writes a 32 bit value to the pci configuration
+ *	space.
+ *
+ * Returns:
+ *	0 - indicate everything worked ok.
+ *	!= 0 - error indication
+ */
+static inline int SkPciWriteCfgDWord(
+SK_AC *pAC,	/* Adapter Control structure pointer */
+int PciAddr,		/* PCI register address */
+SK_U32 Val)		/* pointer to store the read value */
+{
+	pci_write_config_dword(pAC->PciDev, PciAddr, Val);
+	return(0);
+} /* SkPciWriteCfgDWord */
+
+/*****************************************************************************
+ *
  * 	SkGeInitPCI - Init the PCI resources
  *
  * Description:
@@ -4081,28 +4102,6 @@ SK_U8 *pVal)		/* pointer to store the read value */
 	pci_read_config_byte(pAC->PciDev, PciAddr, pVal);
 	return(0);
 } /* SkPciReadCfgByte */
-
-
-/*****************************************************************************
- *
- *	SkPciWriteCfgDWord - write a 32 bit value to pci config space
- *
- * Description:
- *	This routine writes a 32 bit value to the pci configuration
- *	space.
- *
- * Returns:
- *	0 - indicate everything worked ok.
- *	!= 0 - error indication
- */
-int SkPciWriteCfgDWord(
-SK_AC *pAC,	/* Adapter Control structure pointer */
-int PciAddr,		/* PCI register address */
-SK_U32 Val)		/* pointer to store the read value */
-{
-	pci_write_config_dword(pAC->PciDev, PciAddr, Val);
-	return(0);
-} /* SkPciWriteCfgDWord */
 
 
 /*****************************************************************************

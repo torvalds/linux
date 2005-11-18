@@ -1,3 +1,4 @@
+hostap-y := hostap_main.o
 obj-$(CONFIG_HOSTAP) += hostap.o
 
 obj-$(CONFIG_HOSTAP_CS) += hostap_cs.o
