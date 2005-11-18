@@ -238,10 +238,11 @@ void snd_opl3_timer_func(unsigned long data)
 {
 
 	struct snd_opl3 *opl3 = (struct snd_opl3 *)data;
+	unsigned long flags;
 	int again = 0;
 	int i;
 
-	spin_lock(&opl3->sys_timer_lock);
+	spin_lock_irqsave(&opl3->sys_timer_lock, flags);
 	for (i = 0; i < opl3->max_voices; i++) {
 		struct snd_opl3_voice *vp = &opl3->voices[i];
 		if (vp->state > 0 && vp->note_off_check) {
@@ -257,7 +258,7 @@ void snd_opl3_timer_func(unsigned long data)
 	} else {
 		opl3->sys_timer_status = 0;
 	}
-	spin_unlock(&opl3->sys_timer_lock);
+	spin_unlock_irqrestore(&opl3->sys_timer_lock, flags);
 }
 
 /*

@@ -205,9 +205,10 @@ void snd_emux_timer_callback(unsigned long data)
 {
 	struct snd_emux *emu = (struct snd_emux *) data;
 	struct snd_emux_voice *vp;
+	unsigned long flags;
 	int ch, do_again = 0;
 
-	spin_lock(&emu->voice_lock);
+	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (ch = 0; ch < emu->max_voices; ch++) {
 		vp = &emu->voices[ch];
 		if (vp->state == SNDRV_EMUX_ST_PENDING) {
@@ -225,7 +226,7 @@ void snd_emux_timer_callback(unsigned long data)
 		emu->timer_active = 1;
 	} else
 		emu->timer_active = 0;
-	spin_unlock(&emu->voice_lock);
+	spin_unlock_irqrestore(&emu->voice_lock, flags);
 }
 
 /*

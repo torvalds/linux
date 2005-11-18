@@ -609,8 +609,9 @@ static void snd_korg1212_SendStopAndWait(struct snd_korg1212 *korg1212)
 static void snd_korg1212_timer_func(unsigned long data)
 {
         struct snd_korg1212 *korg1212 = (struct snd_korg1212 *) data;
+	unsigned long flags;
 	
-	spin_lock(&korg1212->lock);
+	spin_lock_irqsave(&korg1212->lock, flags);
 	if (korg1212->sharedBufferPtr->cardCommand == 0) {
 		/* ack'ed */
 		korg1212->stop_pending_cnt = 0;
@@ -632,7 +633,7 @@ static void snd_korg1212_timer_func(unsigned long data)
 					   stateName[korg1212->cardState]);
 		}
 	}
-	spin_unlock(&korg1212->lock);
+	spin_unlock_irqrestore(&korg1212->lock, flags);
 }
 
 static int snd_korg1212_TurnOnIdleMonitor(struct snd_korg1212 *korg1212)

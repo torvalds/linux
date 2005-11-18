@@ -231,8 +231,9 @@ static int snd_card_dummy_pcm_prepare(struct snd_pcm_substream *substream)
 static void snd_card_dummy_pcm_timer_function(unsigned long data)
 {
 	struct snd_dummy_pcm *dpcm = (struct snd_dummy_pcm *)data;
+	unsigned long flags;
 	
-	spin_lock(&dpcm->lock);
+	spin_lock_irqsave(&dpcm->lock, flags);
 	dpcm->timer.expires = 1 + jiffies;
 	add_timer(&dpcm->timer);
 	dpcm->pcm_irq_pos += dpcm->pcm_jiffie;
@@ -240,11 +241,10 @@ static void snd_card_dummy_pcm_timer_function(unsigned long data)
 	dpcm->pcm_buf_pos %= dpcm->pcm_size;
 	if (dpcm->pcm_irq_pos >= dpcm->pcm_count) {
 		dpcm->pcm_irq_pos %= dpcm->pcm_count;
-		spin_unlock(&dpcm->lock);
+		spin_unlock_irqrestore(&dpcm->lock, flags);
 		snd_pcm_period_elapsed(dpcm->substream);
-		spin_lock(&dpcm->lock);
-	}
-	spin_unlock(&dpcm->lock);
+	} else
+		spin_unlock_irqrestore(&dpcm->lock, flags);
 }
 
 static snd_pcm_uframes_t snd_card_dummy_pcm_pointer(struct snd_pcm_substream *substream)

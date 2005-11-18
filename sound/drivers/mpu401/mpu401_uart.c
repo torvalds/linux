@@ -133,12 +133,13 @@ irqreturn_t snd_mpu401_uart_interrupt(int irq, void *dev_id, struct pt_regs *reg
 static void snd_mpu401_uart_timer(unsigned long data)
 {
 	struct snd_mpu401 *mpu = (struct snd_mpu401 *)data;
+	unsigned long flags;
 
-	spin_lock(&mpu->timer_lock);
+	spin_lock_irqsave(&mpu->timer_lock, flags);
 	/*mpu->mode |= MPU401_MODE_TIMER;*/
 	mpu->timer.expires = 1 + jiffies;
 	add_timer(&mpu->timer);
-	spin_unlock(&mpu->timer_lock);
+	spin_unlock_irqrestore(&mpu->timer_lock, flags);
 	if (mpu->rmidi)
 		_snd_mpu401_uart_interrupt(mpu);
 }
