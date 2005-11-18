@@ -1042,7 +1042,7 @@ static inline u8 *ieee80211_get_payload(struct ieee80211_hdr *hdr)
 	case IEEE80211_4ADDR_LEN:
 		return ((struct ieee80211_hdr_4addr *)hdr)->payload;
 	}
-
+	return NULL;
 }
 
 static inline int ieee80211_is_ofdm_rate(u8 rate)

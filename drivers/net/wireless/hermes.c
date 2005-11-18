@@ -398,7 +398,7 @@ static int hermes_bap_seek(hermes_t *hw, int bap, u16 id, u16 offset)
  *
  * Returns: < 0 on internal failure (errno), 0 on success, > 0 on error from firmware
  */
-int hermes_bap_pread(hermes_t *hw, int bap, void *buf, unsigned len,
+int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
 		     u16 id, u16 offset)
 {
 	int dreg = bap ? HERMES_DATA1 : HERMES_DATA0;
@@ -424,7 +424,7 @@ int hermes_bap_pread(hermes_t *hw, int bap, void *buf, unsigned len,
  *
  * Returns: < 0 on internal failure (errno), 0 on success, > 0 on error from firmware
  */
-int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, unsigned len,
+int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
 		      u16 id, u16 offset)
 {
 	int dreg = bap ? HERMES_DATA1 : HERMES_DATA0;
@@ -450,7 +450,7 @@ int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, unsigned len,
  *
  * Returns: < 0 on internal failure (errno), 0 on success, > 0 on error from firmware
  */
-int hermes_bap_pwrite_pad(hermes_t *hw, int bap, const void *buf, unsigned data_len, unsigned len,
+int hermes_bap_pwrite_pad(hermes_t *hw, int bap, const void *buf, unsigned data_len, int len,
 		      u16 id, u16 offset)
 {
 	int dreg = bap ? HERMES_DATA1 : HERMES_DATA0;
