@@ -191,7 +191,7 @@ void __init corgi_ssp_set_machinfo(struct corgissp_machinfo *machinfo)
 	ssp_machinfo = machinfo;
 }
 
-static int __init corgi_ssp_probe(struct device *dev)
+static int __init corgi_ssp_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -203,7 +203,7 @@ static int __init corgi_ssp_probe(struct device *dev)
 	GPDR(ssp_machinfo->cs_ads7846) |= GPIO_bit(ssp_machinfo->cs_ads7846);  /* output */
 	GPSR(ssp_machinfo->cs_ads7846) = GPIO_bit(ssp_machinfo->cs_ads7846);   /* High - Disable ADS7846*/
 
-	ret = ssp_init(&corgi_ssp_dev,ssp_machinfo->port);
+	ret = ssp_init(&corgi_ssp_dev, ssp_machinfo->port, 0);
 
 	if (ret)
 		printk(KERN_ERR "Unable to register SSP handler!\n");
@@ -216,13 +216,13 @@ static int __init corgi_ssp_probe(struct device *dev)
 	return ret;
 }
 
-static int corgi_ssp_remove(struct device *dev)
+static int corgi_ssp_remove(struct platform_device *dev)
 {
 	ssp_exit(&corgi_ssp_dev);
 	return 0;
 }
 
-static int corgi_ssp_suspend(struct device *dev, pm_message_t state)
+static int corgi_ssp_suspend(struct platform_device *dev, pm_message_t state)
 {
 	ssp_flush(&corgi_ssp_dev);
 	ssp_save_state(&corgi_ssp_dev,&corgi_ssp_state);
@@ -230,7 +230,7 @@ static int corgi_ssp_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int corgi_ssp_resume(struct device *dev)
+static int corgi_ssp_resume(struct platform_device *dev)
 {
 	GPSR(ssp_machinfo->cs_lcdcon) = GPIO_bit(ssp_machinfo->cs_lcdcon);  /* High - Disable LCD Control/Timing Gen */
 	GPSR(ssp_machinfo->cs_max1111) = GPIO_bit(ssp_machinfo->cs_max1111); /* High - Disable MAX1111*/
@@ -241,18 +241,19 @@ static int corgi_ssp_resume(struct device *dev)
 	return 0;
 }
 
-static struct device_driver corgissp_driver = {
-	.name		= "corgi-ssp",
-	.bus		= &platform_bus_type,
+static struct platform_driver corgissp_driver = {
 	.probe		= corgi_ssp_probe,
 	.remove		= corgi_ssp_remove,
 	.suspend	= corgi_ssp_suspend,
 	.resume		= corgi_ssp_resume,
+	.driver		= {
+		.name	= "corgi-ssp",
+	},
 };
 
 int __init corgi_ssp_init(void)
 {
-	return driver_register(&corgissp_driver);
+	return platform_driver_register(&corgissp_driver);
 }
 
 arch_initcall(corgi_ssp_init);

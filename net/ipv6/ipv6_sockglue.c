@@ -80,8 +80,7 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 		if (ra->sk == sk) {
 			if (sel>=0) {
 				write_unlock_bh(&ip6_ra_lock);
-				if (new_ra)
-					kfree(new_ra);
+				kfree(new_ra);
 				return -EADDRINUSE;
 			}
 
@@ -288,7 +287,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 	{
 		struct ipv6_txoptions *opt;
 		if (optlen == 0)
-			optval = 0;
+			optval = NULL;
 
 		/* hop-by-hop / destination options are privileged option */
 		retv = -EPERM;

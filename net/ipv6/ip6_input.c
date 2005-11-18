@@ -176,6 +176,11 @@ resubmit:
 		if (ipprot->flags & INET6_PROTO_FINAL) {
 			struct ipv6hdr *hdr;	
 
+			/* Free reference early: we don't need it any more,
+			   and it may hold ip_conntrack module loaded
+			   indefinitely. */
+			nf_reset(skb);
+
 			skb_postpull_rcsum(skb, skb->nh.raw,
 					   skb->h.raw - skb->nh.raw);
 			hdr = skb->nh.ipv6h;

@@ -3,4 +3,5 @@
 <param name="chunk.quietly">1</param>
 <param name="funcsynopsis.style">ansi</param>
 <param name="funcsynopsis.tabular.threshold">80</param>
+<!-- <param name="paper.type">A4</param> -->
 </stylesheet>

@@ -129,9 +129,7 @@ struct drive_info_struct { char dummy[32]; } drive_info;
 EXPORT_SYMBOL(drive_info);
 #endif
 struct screen_info screen_info;
-#ifdef CONFIG_VT
 EXPORT_SYMBOL(screen_info);
-#endif
 struct apm_info apm_info;
 EXPORT_SYMBOL(apm_info);
 struct sys_desc_table_struct {

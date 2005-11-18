@@ -3,7 +3,7 @@
  *
  * MPC83xx definitions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor, Inc
  *
@@ -107,6 +107,7 @@ enum ppc_sys_devices {
 	MPC83xx_SEC2,
 	MPC83xx_USB2_DR,
 	MPC83xx_USB2_MPH,
+	MPC83xx_MDIO,
 };
 
 #endif /* CONFIG_83xx */

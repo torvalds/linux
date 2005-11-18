@@ -1,10 +1,10 @@
 /*
  * sharpsl-flash.c
- * 
+ *
  * Copyright (C) 2001 Lineo Japan, Inc.
  * Copyright (C) 2002  SHARP
  *
- * $Id: sharpsl-flash.c,v 1.5 2005/03/21 08:42:11 rpurdie Exp $
+ * $Id: sharpsl-flash.c,v 1.7 2005/11/07 11:14:28 gleixner Exp $
  *
  * based on rpxlite.c,v 1.15 2001/10/02 15:05:14 dwmw2 Exp
  *          Handle mapping of the flash on the RPX Lite and CLLF boards
@@ -57,7 +57,7 @@ int __init init_sharpsl(void)
 	int nb_parts = 0;
 	char *part_type = "static";
 
-	printk(KERN_NOTICE "Sharp SL series flash device: %x at %x\n", 
+	printk(KERN_NOTICE "Sharp SL series flash device: %x at %x\n",
 		WINDOW_SIZE, WINDOW_ADDR);
 	sharpsl_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
 	if (!sharpsl_map.virt) {
@@ -75,7 +75,7 @@ int __init init_sharpsl(void)
 
 	mymtd->owner = THIS_MODULE;
 
-	if (machine_is_corgi() || machine_is_shepherd() || machine_is_husky() 
+	if (machine_is_corgi() || machine_is_shepherd() || machine_is_husky()
 		|| machine_is_poodle()) {
 		sharpsl_partitions[0].size=0x006d0000;
 		sharpsl_partitions[0].offset=0x00120000;
@@ -87,10 +87,10 @@ int __init init_sharpsl(void)
 		sharpsl_partitions[0].offset=0x00140000;
 	} else {
 		map_destroy(mymtd);
-		iounmap(sharpsl_map.virt);	
+		iounmap(sharpsl_map.virt);
 		return -ENODEV;
 	}
-	
+
 	parts = sharpsl_partitions;
 	nb_parts = NB_OF(sharpsl_partitions);
 

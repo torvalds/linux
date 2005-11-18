@@ -16,7 +16,11 @@
 /* Pickup Book E specific registers. */
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 #include <asm/reg_booke.h>
-#endif
+#endif /* CONFIG_BOOKE || CONFIG_40x */
+
+#ifdef CONFIG_8xx
+#include <asm/reg_8xx.h>
+#endif /* CONFIG_8xx */
 
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
 #define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
@@ -359,6 +363,7 @@
 #define SPRN_RPA	0x3D6	/* Required Physical Address Register */
 #define SPRN_SDA	0x3BF	/* Sampled Data Address Register */
 #define SPRN_SDR1	0x019	/* MMU Hash Base Register */
+#define SPRN_ASR	0x118   /* Address Space Register */
 #define SPRN_SIA	0x3BB	/* Sampled Instruction Address Register */
 #define SPRN_SPRG0	0x110	/* Special Purpose Register General 0 */
 #define SPRN_SPRG1	0x111	/* Special Purpose Register General 1 */
@@ -395,6 +400,9 @@
 #define SPRN_USIA	0x3AB	/* User Sampled Instruction Address Register */
 #define SPRN_VRSAVE	0x100	/* Vector Register Save Register */
 #define SPRN_XER	0x001	/* Fixed Point Exception Register */
+
+#define SPRN_SCOMC	0x114	/* SCOM Access Control */
+#define SPRN_SCOMD	0x115	/* SCOM Access DATA */
 
 /* Performance monitor SPRs */
 #ifdef CONFIG_PPC64
@@ -594,7 +602,11 @@ static inline void ppc64_runlatch_off(void)
 		mtspr(SPRN_CTRLT, ctrl);
 	}
 }
-#endif
+
+extern unsigned long scom970_read(unsigned int address);
+extern void scom970_write(unsigned int address, unsigned long value);
+
+#endif /* CONFIG_PPC64 */
 
 #define __get_SP()	({unsigned long sp; \
 			asm volatile("mr %0,1": "=r" (sp)); sp;})

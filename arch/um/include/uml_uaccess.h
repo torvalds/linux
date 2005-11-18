@@ -8,10 +8,6 @@
 
 extern int __do_copy_to_user(void *to, const void *from, int n,
 			     void **fault_addr, void **fault_catcher);
-extern unsigned long __do_user_copy(void *to, const void *from, int n,
-				    void **fault_addr, void **fault_catcher,
-				    void (*op)(void *to, const void *from,
-					       int n), int *faulted_out);
 void __do_copy(void *to, const void *from, int n);
 
 #endif

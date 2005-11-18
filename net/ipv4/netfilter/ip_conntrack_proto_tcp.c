@@ -357,13 +357,24 @@ nfattr_failure:
 	return -1;
 }
 
+static const size_t cta_min_tcp[CTA_PROTOINFO_TCP_MAX] = {
+	[CTA_PROTOINFO_TCP_STATE-1]	= sizeof(u_int8_t),
+};
+
 static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 {
 	struct nfattr *attr = cda[CTA_PROTOINFO_TCP-1];
 	struct nfattr *tb[CTA_PROTOINFO_TCP_MAX];
 
-        if (nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr) < 0)
-                goto nfattr_failure;
+	/* updates could not contain anything about the private
+	 * protocol info, in that case skip the parsing */
+	if (!attr)
+		return 0;
+
+        nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr);
+
+	if (nfattr_bad_size(tb, CTA_PROTOINFO_TCP_MAX, cta_min_tcp))
+		return -EINVAL;
 
 	if (!tb[CTA_PROTOINFO_TCP_STATE-1])
 		return -EINVAL;
@@ -374,9 +385,6 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 	write_unlock_bh(&tcp_lock);
 
 	return 0;
-
-nfattr_failure:
-	return -1;
 }
 #endif
 
@@ -813,6 +821,7 @@ static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG) + 1] =
 {
 	[TH_SYN]			= 1,
 	[TH_SYN|TH_ACK]			= 1,
+	[TH_SYN|TH_PUSH]		= 1,
 	[TH_SYN|TH_ACK|TH_PUSH]		= 1,
 	[TH_RST]			= 1,
 	[TH_RST|TH_ACK]			= 1,

@@ -1,9 +1,9 @@
 /*
  * Flash memory access on SA11x0 based devices
- * 
+ *
  * (C) 2000 Nicolas Pitre <nico@cam.org>
- * 
- * $Id: sa1100-flash.c,v 1.47 2004/11/01 13:44:36 rmk Exp $
+ *
+ * $Id: sa1100-flash.c,v 1.51 2005/11/07 11:14:28 gleixner Exp $
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -241,8 +241,7 @@ static void sa1100_destroy(struct sa_info *info, struct flash_platform_data *pla
 #endif
 	}
 
-	if (info->parts)
-		kfree(info->parts);
+	kfree(info->parts);
 
 	for (i = info->num_subdev - 1; i >= 0; i--)
 		sa1100_destroy_subdev(&info->subdev[i]);
@@ -357,9 +356,8 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 
 static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
-static int __init sa1100_mtd_probe(struct device *dev)
+static int __init sa1100_mtd_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct flash_platform_data *plat = pdev->dev.platform_data;
 	struct mtd_partition *parts;
 	const char *part_type = NULL;
@@ -403,28 +401,28 @@ static int __init sa1100_mtd_probe(struct device *dev)
 
 	info->nr_parts = nr_parts;
 
-	dev_set_drvdata(dev, info);
+	platform_set_drvdata(pdev, info);
 	err = 0;
 
  out:
 	return err;
 }
 
-static int __exit sa1100_mtd_remove(struct device *dev)
+static int __exit sa1100_mtd_remove(struct platform_device *pdev)
 {
-	struct sa_info *info = dev_get_drvdata(dev);
-	struct flash_platform_data *plat = dev->platform_data;
+	struct sa_info *info = platform_get_drvdata(pdev);
+	struct flash_platform_data *plat = pdev->dev.platform_data;
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 	sa1100_destroy(info, plat);
 
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int sa1100_mtd_suspend(struct device *dev, pm_message_t state)
+static int sa1100_mtd_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct sa_info *info = dev_get_drvdata(dev);
+	struct sa_info *info = platform_get_drvdata(dev);
 	int ret = 0;
 
 	if (info)
@@ -433,17 +431,17 @@ static int sa1100_mtd_suspend(struct device *dev, pm_message_t state)
 	return ret;
 }
 
-static int sa1100_mtd_resume(struct device *dev)
+static int sa1100_mtd_resume(struct platform_device *dev)
 {
-	struct sa_info *info = dev_get_drvdata(dev);
+	struct sa_info *info = platform_get_drvdata(dev);
 	if (info)
 		info->mtd->resume(info->mtd);
 	return 0;
 }
 
-static void sa1100_mtd_shutdown(struct device *dev)
+static void sa1100_mtd_shutdown(struct platform_device *dev)
 {
-	struct sa_info *info = dev_get_drvdata(dev);
+	struct sa_info *info = platform_get_drvdata(dev);
 	if (info && info->mtd->suspend(info->mtd) == 0)
 		info->mtd->resume(info->mtd);
 }
@@ -453,24 +451,25 @@ static void sa1100_mtd_shutdown(struct device *dev)
 #define sa1100_mtd_shutdown NULL
 #endif
 
-static struct device_driver sa1100_mtd_driver = {
-	.name		= "flash",
-	.bus		= &platform_bus_type,
+static struct platform_driver sa1100_mtd_driver = {
 	.probe		= sa1100_mtd_probe,
 	.remove		= __exit_p(sa1100_mtd_remove),
 	.suspend	= sa1100_mtd_suspend,
 	.resume		= sa1100_mtd_resume,
 	.shutdown	= sa1100_mtd_shutdown,
+	.driver		= {
+		.name	= "flash",
+	},
 };
 
 static int __init sa1100_mtd_init(void)
 {
-	return driver_register(&sa1100_mtd_driver);
+	return platform_driver_register(&sa1100_mtd_driver);
 }
 
 static void __exit sa1100_mtd_exit(void)
 {
-	driver_unregister(&sa1100_mtd_driver);
+	platform_driver_unregister(&sa1100_mtd_driver);
 }
 
 module_init(sa1100_mtd_init);

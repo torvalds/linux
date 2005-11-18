@@ -20,7 +20,6 @@
 #ifndef _ISL_38XX_H
 #define _ISL_38XX_H
 
-#include <linux/version.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 

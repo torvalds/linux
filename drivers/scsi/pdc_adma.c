@@ -41,7 +41,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <asm/io.h>
 #include <linux/libata.h>
@@ -139,7 +138,7 @@ static u8 adma_bmdma_status(struct ata_port *ap);
 static void adma_irq_clear(struct ata_port *ap);
 static void adma_eng_timeout(struct ata_port *ap);
 
-static Scsi_Host_Template adma_ata_sht = {
+static struct scsi_host_template adma_ata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -191,7 +190,7 @@ static struct ata_port_info adma_port_info[] = {
 	},
 };
 
-static struct pci_device_id adma_ata_pci_tbl[] = {
+static const struct pci_device_id adma_ata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PDC, 0x1841, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_1841_idx },
 

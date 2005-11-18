@@ -124,7 +124,7 @@ struct kiocb {
 		(x)->ki_users = 1;			\
 		(x)->ki_key = KIOCB_SYNC_KEY;		\
 		(x)->ki_filp = (filp);			\
-		(x)->ki_ctx = &tsk->active_mm->default_kioctx;	\
+		(x)->ki_ctx = NULL;			\
 		(x)->ki_cancel = NULL;			\
 		(x)->ki_dtor = NULL;			\
 		(x)->ki_obj.tsk = tsk;			\
@@ -183,6 +183,7 @@ struct kioctx {
 	struct list_head	active_reqs;	/* used for cancellation */
 	struct list_head	run_list;	/* used for kicked reqs */
 
+	/* sys_io_setup currently limits this to an unsigned int */
 	unsigned		max_reqs;
 
 	struct aio_ring_info	ring_info;
@@ -209,8 +210,15 @@ struct kioctx *lookup_ioctx(unsigned long ctx_id);
 int FASTCALL(io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 				  struct iocb *iocb));
 
-#define get_ioctx(kioctx)	do { if (unlikely(atomic_read(&(kioctx)->users) <= 0)) BUG(); atomic_inc(&(kioctx)->users); } while (0)
-#define put_ioctx(kioctx)	do { if (unlikely(atomic_dec_and_test(&(kioctx)->users))) __put_ioctx(kioctx); else if (unlikely(atomic_read(&(kioctx)->users) < 0)) BUG(); } while (0)
+#define get_ioctx(kioctx) do {						\
+	BUG_ON(unlikely(atomic_read(&(kioctx)->users) <= 0));		\
+	atomic_inc(&(kioctx)->users);					\
+} while (0)
+#define put_ioctx(kioctx) do {						\
+	BUG_ON(unlikely(atomic_read(&(kioctx)->users) <= 0));		\
+	if (unlikely(atomic_dec_and_test(&(kioctx)->users))) 		\
+		__put_ioctx(kioctx);					\
+} while (0)
 
 #define in_aio() !is_sync_wait(current->io_wait)
 /* may be used for debugging */
@@ -234,7 +242,7 @@ static inline struct kiocb *list_kiocb(struct list_head *h)
 }
 
 /* for sysctl: */
-extern atomic_t aio_nr;
-extern unsigned aio_max_nr;
+extern unsigned long aio_nr;
+extern unsigned long aio_max_nr;
 
 #endif /* __LINUX__AIO_H */

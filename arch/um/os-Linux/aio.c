@@ -10,7 +10,6 @@
 #include <sched.h>
 #include <sys/syscall.h>
 #include "os.h"
-#include "helper.h"
 #include "aio.h"
 #include "init.h"
 #include "user.h"

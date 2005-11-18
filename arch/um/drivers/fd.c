@@ -76,13 +76,6 @@ static void fd_close(int fd, void *d)
 	}
 }
 
-static int fd_console_write(int fd, const char *buf, int n, void *d)
-{
-	struct fd_chan *data = d;
-
-	return(generic_console_write(fd, buf, n, &data->tt));
-}
-
 struct chan_ops fd_ops = {
 	.type		= "fd",
 	.init		= fd_init,
@@ -90,7 +83,7 @@ struct chan_ops fd_ops = {
 	.close		= fd_close,
 	.read		= generic_read,
 	.write		= generic_write,
-	.console_write	= fd_console_write,
+	.console_write	= generic_console_write,
 	.window_size	= generic_window_size,
 	.free		= generic_free,
 	.winch		= 1,

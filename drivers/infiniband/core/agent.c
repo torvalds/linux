@@ -37,6 +37,9 @@
  * $Id: agent.c 1389 2004-12-27 22:56:47Z roland $
  */
 
+#include <linux/slab.h>
+#include <linux/string.h>
+
 #include "agent.h"
 #include "smi.h"
 

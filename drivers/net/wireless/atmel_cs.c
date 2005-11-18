@@ -63,6 +63,7 @@
    be present but disabled -- but it can then be enabled for specific
    modules at load time with a 'pc_debug=#' option to insmod.
 */
+
 #ifdef PCMCIA_DEBUG
 static int pc_debug = PCMCIA_DEBUG;
 module_param(pc_debug, int, 0);
@@ -180,12 +181,11 @@ static dev_link_t *atmel_attach(void)
 	DEBUG(0, "atmel_attach()\n");
 
 	/* Initialize the dev_link_t structure */
-	link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
+	link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 	if (!link) {
 		printk(KERN_ERR "atmel_cs: no memory for new device\n");
 		return NULL;
 	}
-	memset(link, 0, sizeof(struct dev_link_t));
 	
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -204,13 +204,12 @@ static dev_link_t *atmel_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	
 	/* Allocate space for private device-specific data */
-	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local) {
 		printk(KERN_ERR "atmel_cs: no memory for new device\n");
 		kfree (link);
 		return NULL;
 	}
-	memset(local, 0, sizeof(local_info_t));
 	link->priv = local;
 	
 	/* Register with Card Services */
@@ -287,41 +286,6 @@ static int card_present(void *arg)
 	return 0;
 }
 
-/* list of cards we know about and their firmware requirements.
-   Go either by Manfid or version strings.
-   Cards not in this list will need a firmware parameter to the module
-   in all probability. Note that the SMC 2632 V2 and V3 have the same
-   manfids, so we ignore those and use the version1 strings. */
-
-static struct { 
-	int manf, card;
-	char *ver1;
-	AtmelFWType firmware;
-	char *name;
-} card_table[] = {
-	{ 0, 0, "WLAN/802.11b PC CARD", ATMEL_FW_TYPE_502D, "Actiontec 802CAT1" },  
-	{ 0, 0, "ATMEL/AT76C502AR", ATMEL_FW_TYPE_502, "NoName-RFMD" }, 
-	{ 0, 0, "ATMEL/AT76C502AR_D", ATMEL_FW_TYPE_502D, "NoName-revD" }, 
-	{ 0, 0, "ATMEL/AT76C502AR_E", ATMEL_FW_TYPE_502E, "NoName-revE" },
-	{ 0, 0, "ATMEL/AT76C504", ATMEL_FW_TYPE_504, "NoName-504" },
-	{ 0, 0, "ATMEL/AT76C504A", ATMEL_FW_TYPE_504A_2958, "NoName-504a-2958" },
-	{ 0, 0, "ATMEL/AT76C504_R", ATMEL_FW_TYPE_504_2958, "NoName-504-2958" },
-	{ MANFID_3COM, 0x0620, NULL, ATMEL_FW_TYPE_502_3COM, "3com 3CRWE62092B" }, 
-	{ MANFID_3COM, 0x0696, NULL, ATMEL_FW_TYPE_502_3COM, "3com 3CRSHPW196" }, 
-	{ 0, 0, "SMC/2632W-V2", ATMEL_FW_TYPE_502, "SMC 2632W-V2" },
-	{ 0, 0, "SMC/2632W", ATMEL_FW_TYPE_502D, "SMC 2632W-V3" },
-	{ 0xd601, 0x0007, NULL, ATMEL_FW_TYPE_502, "Sitecom WLAN-011" }, 
-	{ 0x01bf, 0x3302, NULL, ATMEL_FW_TYPE_502E, "Belkin F5D6020-V2" }, 
-	{ 0, 0, "BT/Voyager 1020 Laptop Adapter", ATMEL_FW_TYPE_502, "BT Voyager 1020" },
-	{ 0, 0, "IEEE 802.11b/Wireless LAN PC Card", ATMEL_FW_TYPE_502, "Siemens Gigaset PC Card II" },
-	{ 0, 0, "IEEE 802.11b/Wireless LAN Card S", ATMEL_FW_TYPE_504_2958, "Siemens Gigaset PC Card II" },
-	{ 0, 0, "CNet/CNWLC 11Mbps Wireless PC Card V-5", ATMEL_FW_TYPE_502E, "CNet CNWLC-811ARL" },
-	{ 0, 0, "Wireless/PC_CARD", ATMEL_FW_TYPE_502D, "Planet WL-3552" },
-	{ 0, 0, "OEM/11Mbps Wireless LAN PC Card V-3", ATMEL_FW_TYPE_502, "OEM 11Mbps WLAN PCMCIA Card" },
-	{ 0, 0, "11WAVE/11WP611AL-E", ATMEL_FW_TYPE_502E, "11WAVE WaveBuddy" },
-	{ 0, 0, "LG/LW2100N", ATMEL_FW_TYPE_502E, "LG LW2100N 11Mbps WLAN PCMCIA Card" },
-};
-
 static void atmel_config(dev_link_t *link)
 {
 	client_handle_t handle;
@@ -330,10 +294,11 @@ static void atmel_config(dev_link_t *link)
 	local_info_t *dev;
 	int last_fn, last_ret;
 	u_char buf[64];
-	int card_index = -1, done = 0;
-	
+	struct pcmcia_device_id *did;
+
 	handle = link->handle;
 	dev = link->priv;
+	did = handle_to_dev(handle).driver_data;
 
 	DEBUG(0, "atmel_config(0x%p)\n", link);
 	
@@ -342,59 +307,6 @@ static void atmel_config(dev_link_t *link)
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
 	
-	tuple.DesiredTuple = CISTPL_MANFID;
-	if (pcmcia_get_first_tuple(handle, &tuple) == 0) {
-		int i;
-		cistpl_manfid_t *manfid;
-		CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-		CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
-		manfid = &(parse.manfid);
-		for (i = 0; i < sizeof(card_table)/sizeof(card_table[0]); i++) {
-			if (!card_table[i].ver1 &&
-			    manfid->manf == card_table[i].manf &&
-			    manfid->card == card_table[i].card) {
-				card_index = i;
-				done = 1;
-			}
-		}
-	}
-
-	tuple.DesiredTuple = CISTPL_VERS_1;
-	if (!done && (pcmcia_get_first_tuple(handle, &tuple) == 0)) {
-		int i, j, k;
-		cistpl_vers_1_t *ver1;
-		CS_CHECK(GetTupleData, pcmcia_get_tuple_data(handle, &tuple));
-		CS_CHECK(ParseTuple, pcmcia_parse_tuple(handle, &tuple, &parse));
-		ver1 = &(parse.version_1);
-		
-		for (i = 0; i < sizeof(card_table)/sizeof(card_table[0]); i++) {
-			for (j = 0; j < ver1->ns; j++) {
-				char *p = card_table[i].ver1;
-				char *q = &ver1->str[ver1->ofs[j]];
-				if (!p)
-					goto mismatch;
-				for (k = 0; k < j; k++) {
-					while ((*p != '\0') && (*p != '/')) p++;
-					if (*p == '\0') {
-						if (*q != '\0')
-							goto mismatch;
-					} else {
-						p++;
-					}
-				}
-				while((*q != '\0') && (*p != '\0') && 
-				      (*p != '/') && (*p == *q)) p++, q++;
-				if (((*p != '\0') && *p != '/') || *q != '\0')
-					goto mismatch;
-			}
-			card_index = i;
-			break;	/* done */
-			
-		mismatch:
-			j = 0; /* dummy stmt to shut up compiler */
-		}
-	}		
-
 	/*
 	  This reads the card's CONFIG tuple to find its configuration
 	  registers.
@@ -511,12 +423,13 @@ static void atmel_config(dev_link_t *link)
 	((local_info_t*)link->priv)->eth_dev = 
 		init_atmel_card(link->irq.AssignedIRQ,
 				link->io.BasePort1,
-				card_index == -1 ? ATMEL_FW_TYPE_NONE :  card_table[card_index].firmware,
+				did ? did->driver_info : ATMEL_FW_TYPE_NONE,
 				&handle_to_dev(handle),
 				card_present, 
 				link);
 	if (!((local_info_t*)link->priv)->eth_dev) 
-		goto cs_failed;
+			goto cs_failed;
+	
 	
 	/*
 	  At this point, the dev_node_t structure(s) need to be
@@ -525,26 +438,7 @@ static void atmel_config(dev_link_t *link)
 	strcpy(dev->node.dev_name, ((local_info_t*)link->priv)->eth_dev->name );
 	dev->node.major = dev->node.minor = 0;
 	link->dev = &dev->node;
-	
-	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: %s%sindex 0x%02x: Vcc %d.%d",
-	       dev->node.dev_name,
-	       card_index == -1 ? "" :  card_table[card_index].name,
-	       card_index == -1 ? "" : " ",
-	       link->conf.ConfigIndex,
-	       link->conf.Vcc/10, link->conf.Vcc%10);
-	if (link->conf.Vpp1)
-		printk(", Vpp %d.%d", link->conf.Vpp1/10, link->conf.Vpp1%10);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1+link->io.NumPorts1-1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2+link->io.NumPorts2-1);
-	printk("\n");
-	
+			
 	link->state &= ~DEV_CONFIG_PENDING;
 	return;
 	
@@ -571,7 +465,7 @@ static void atmel_release(dev_link_t *link)
 	link->dev = NULL;
 	
 	if (dev) 
-		stop_atmel_card(dev, 0);
+		stop_atmel_card(dev);
 	((local_info_t*)link->priv)->eth_dev = NULL; 
 	
 	/* Don't bother checking to see if these succeed or not */
@@ -639,25 +533,47 @@ static int atmel_event(event_t event, int priority,
 } /* atmel_event */
 
 /*====================================================================*/
+/* We use the driver_info field to store the correct firmware type for a card. */
+
+#define PCMCIA_DEVICE_MANF_CARD_INFO(manf, card, info) { \
+	.match_flags = PCMCIA_DEV_ID_MATCH_MANF_ID| \
+			PCMCIA_DEV_ID_MATCH_CARD_ID, \
+	.manf_id = (manf), \
+	.card_id = (card), \
+        .driver_info = (kernel_ulong_t)(info), }
+
+#define PCMCIA_DEVICE_PROD_ID12_INFO(v1, v2, vh1, vh2, info) { \
+	.match_flags = PCMCIA_DEV_ID_MATCH_PROD_ID1| \
+			PCMCIA_DEV_ID_MATCH_PROD_ID2, \
+	.prod_id = { (v1), (v2), NULL, NULL }, \
+	.prod_id_hash = { (vh1), (vh2), 0, 0 }, \
+        .driver_info = (kernel_ulong_t)(info), }
+
 static struct pcmcia_device_id atmel_ids[] = {
-	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0620),
-	PCMCIA_DEVICE_MANF_CARD(0x0101, 0x0696),
-	PCMCIA_DEVICE_MANF_CARD(0x01bf, 0x3302),
-	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0007),
-	PCMCIA_DEVICE_PROD_ID12("11WAVE", "11WP611AL-E", 0x9eb2da1f, 0xc9a0d3f9),
-	PCMCIA_DEVICE_PROD_ID12("ATMEL", "AT76C502AR", 0xabda4164, 0x41b37e1f),
-	PCMCIA_DEVICE_PROD_ID12("ATMEL", "AT76C504", 0xabda4164, 0x5040670a),
-	PCMCIA_DEVICE_PROD_ID12("ATMEL", "AT76C504A", 0xabda4164, 0xe15ed87f),
-	PCMCIA_DEVICE_PROD_ID12("BT", "Voyager 1020 Laptop Adapter", 0xae49b86a, 0x1e957cd5),
-	PCMCIA_DEVICE_PROD_ID12("CNet", "CNWLC 11Mbps Wireless PC Card V-5", 0xbc477dde, 0x502fae6b),
-	PCMCIA_DEVICE_PROD_ID12("IEEE 802.11b", "Wireless LAN PC Card", 0x5b878724, 0x122f1df6),
-	PCMCIA_DEVICE_PROD_ID12("OEM", "11Mbps Wireless LAN PC Card V-3", 0xfea54c90, 0x1c5b0f68),
-	PCMCIA_DEVICE_PROD_ID12("SMC", "2632W", 0xc4f8b18b, 0x30f38774),
-	PCMCIA_DEVICE_PROD_ID12("SMC", "2632W-V2", 0xc4f8b18b, 0x172d1377),
-	PCMCIA_DEVICE_PROD_ID12("Wireless", "PC", 0xa407ecdd, 0x556e4d7e),
-	PCMCIA_DEVICE_PROD_ID12("WLAN", "802.11b PC CARD", 0x575c516c, 0xb1f6dbc4),
+	PCMCIA_DEVICE_MANF_CARD_INFO(0x0101, 0x0620, ATMEL_FW_TYPE_502_3COM),
+	PCMCIA_DEVICE_MANF_CARD_INFO(0x0101, 0x0696, ATMEL_FW_TYPE_502_3COM),
+	PCMCIA_DEVICE_MANF_CARD_INFO(0x01bf, 0x3302, ATMEL_FW_TYPE_502E),
+	PCMCIA_DEVICE_MANF_CARD_INFO(0xd601, 0x0007, ATMEL_FW_TYPE_502),
+	PCMCIA_DEVICE_PROD_ID12_INFO("11WAVE", "11WP611AL-E", 0x9eb2da1f, 0xc9a0d3f9, ATMEL_FW_TYPE_502E),
+	PCMCIA_DEVICE_PROD_ID12_INFO("ATMEL", "AT76C502AR", 0xabda4164, 0x41b37e1f, ATMEL_FW_TYPE_502),
+	PCMCIA_DEVICE_PROD_ID12_INFO("ATMEL", "AT76C502AR_D", 0xabda4164, 0x3675d704, ATMEL_FW_TYPE_502D),
+	PCMCIA_DEVICE_PROD_ID12_INFO("ATMEL", "AT76C502AR_E", 0xabda4164, 0x4172e792, ATMEL_FW_TYPE_502E),
+	PCMCIA_DEVICE_PROD_ID12_INFO("ATMEL", "AT76C504_R", 0xabda4164, 0x917f3d72, ATMEL_FW_TYPE_504_2958),
+	PCMCIA_DEVICE_PROD_ID12_INFO("ATMEL", "AT76C504", 0xabda4164, 0x5040670a, ATMEL_FW_TYPE_504),
+	PCMCIA_DEVICE_PROD_ID12_INFO("ATMEL", "AT76C504A", 0xabda4164, 0xe15ed87f, ATMEL_FW_TYPE_504A_2958),
+	PCMCIA_DEVICE_PROD_ID12_INFO("BT", "Voyager 1020 Laptop Adapter", 0xae49b86a, 0x1e957cd5, ATMEL_FW_TYPE_502),
+	PCMCIA_DEVICE_PROD_ID12_INFO("CNet", "CNWLC 11Mbps Wireless PC Card V-5", 0xbc477dde, 0x502fae6b, ATMEL_FW_TYPE_502E),
+	PCMCIA_DEVICE_PROD_ID12_INFO("IEEE 802.11b", "Wireless LAN PC Card", 0x5b878724, 0x122f1df6, ATMEL_FW_TYPE_502),
+	PCMCIA_DEVICE_PROD_ID12_INFO("IEEE 802.11b", "Wireless LAN Card S", 0x5b878724, 0x5fba533a, ATMEL_FW_TYPE_504_2958),
+	PCMCIA_DEVICE_PROD_ID12_INFO("OEM", "11Mbps Wireless LAN PC Card V-3", 0xfea54c90, 0x1c5b0f68, ATMEL_FW_TYPE_502),
+	PCMCIA_DEVICE_PROD_ID12_INFO("SMC", "2632W", 0xc4f8b18b, 0x30f38774, ATMEL_FW_TYPE_502D),
+	PCMCIA_DEVICE_PROD_ID12_INFO("SMC", "2632W-V2", 0xc4f8b18b, 0x172d1377, ATMEL_FW_TYPE_502),
+	PCMCIA_DEVICE_PROD_ID12_INFO("Wireless", "PC_CARD", 0xa407ecdd, 0x119f6314, ATMEL_FW_TYPE_502D),
+	PCMCIA_DEVICE_PROD_ID12_INFO("WLAN", "802.11b PC CARD", 0x575c516c, 0xb1f6dbc4, ATMEL_FW_TYPE_502D),
+	PCMCIA_DEVICE_PROD_ID12_INFO("LG", "LW2100N", 0xb474d43a, 0x6b1fec94, ATMEL_FW_TYPE_502E),
 	PCMCIA_DEVICE_NULL
 };
+
 MODULE_DEVICE_TABLE(pcmcia, atmel_ids);
 
 static struct pcmcia_driver atmel_driver = {

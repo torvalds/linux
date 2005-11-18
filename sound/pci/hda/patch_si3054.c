@@ -3,7 +3,7 @@
  *
  * HD audio interface patch for Silicon Labs 3054/5 modem codec
  *
- * Copyright (c) 2005 Sasha Khapyorsky <sashak@smlink.com>
+ * Copyright (c) 2005 Sasha Khapyorsky <sashak@alsa-project.org>
  *                    Takashi Iwai <tiwai@suse.de>
  *
  *

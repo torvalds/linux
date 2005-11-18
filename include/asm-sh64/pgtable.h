@@ -24,6 +24,8 @@
 #include <linux/threads.h>
 #include <linux/config.h>
 
+struct vm_area_struct;
+
 extern void paging_init(void);
 
 /* We provide our own get_unmapped_area to avoid cache synonym issue */

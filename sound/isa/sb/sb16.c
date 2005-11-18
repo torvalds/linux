@@ -345,10 +345,7 @@ static void snd_sb16_free(snd_card_t *card)
         
 	if (acard == NULL)
 		return;
-	if (acard->fm_res) {
-		release_resource(acard->fm_res);
-		kfree_nocheck(acard->fm_res);
-	}
+	release_and_free_resource(acard->fm_res);
 }
 
 #ifdef CONFIG_PNP

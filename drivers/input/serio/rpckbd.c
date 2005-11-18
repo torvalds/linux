@@ -107,7 +107,7 @@ static void rpckbd_close(struct serio *port)
  * Allocate and initialize serio structure for subsequent registration
  * with serio core.
  */
-static int __devinit rpckbd_probe(struct device *dev)
+static int __devinit rpckbd_probe(struct platform_device *dev)
 {
 	struct serio *serio;
 
@@ -120,37 +120,38 @@ static int __devinit rpckbd_probe(struct device *dev)
 	serio->write		= rpckbd_write;
 	serio->open		= rpckbd_open;
 	serio->close		= rpckbd_close;
-	serio->dev.parent	= dev;
+	serio->dev.parent	= &dev->dev;
 	strlcpy(serio->name, "RiscPC PS/2 kbd port", sizeof(serio->name));
 	strlcpy(serio->phys, "rpckbd/serio0", sizeof(serio->phys));
 
-	dev_set_drvdata(dev, serio);
+	platform_set_drvdata(dev, serio);
 	serio_register_port(serio);
 	return 0;
 }
 
-static int __devexit rpckbd_remove(struct device *dev)
+static int __devexit rpckbd_remove(struct platform_device *dev)
 {
-	struct serio *serio = dev_get_drvdata(dev);
+	struct serio *serio = platform_get_drvdata(dev);
 	serio_unregister_port(serio);
 	return 0;
 }
 
-static struct device_driver rpckbd_driver = {
-	.name		= "kart",
-	.bus		= &platform_bus_type,
+static struct platform_driver rpckbd_driver = {
 	.probe		= rpckbd_probe,
 	.remove		= __devexit_p(rpckbd_remove),
+	.driver		= {
+		.name	= "kart",
+	},
 };
 
 static int __init rpckbd_init(void)
 {
-	return driver_register(&rpckbd_driver);
+	return platform_driver_register(&rpckbd_driver);
 }
 
 static void __exit rpckbd_exit(void)
 {
-	driver_unregister(&rpckbd_driver);
+	platform_driver_unregister(&rpckbd_driver);
 }
 
 module_init(rpckbd_init);

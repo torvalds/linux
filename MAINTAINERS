@@ -707,7 +707,7 @@ DCCP PROTOCOL
 P:	Arnaldo Carvalho de Melo
 M:	acme@mandriva.com
 L:	dccp@vger.kernel.org
-W:	http://www.wlug.org.nz/DCCP
+W:	http://linux-net.osdl.org/index.php/DCCP
 S:	Maintained
 
 DECnet NETWORK LAYER
@@ -1077,6 +1077,26 @@ P:	Jaroslav Kysela
 M:	perex@suse.cz
 S:	Maintained
 
+HPET:	High Precision Event Timers driver (hpet.c)
+P:	Clemens Ladisch
+M:	clemens@ladisch.de
+S:	Maintained
+
+HPET:	i386
+P:	Venkatesh Pallipadi (Venki)
+M:	venkatesh.pallipadi@intel.com
+S:	Maintained
+
+HPET:	x86_64
+P:	Andi Kleen and Vojtech Pavlik
+M:	ak@muc.de and vojtech@suse.cz
+S:	Maintained
+
+HPET:	ACPI hpet.c
+P:	Bob Picco
+M:	bob.picco@hp.com
+S:	Maintained
+
 HPFS FILESYSTEM
 P:	Mikulas Patocka
 M:	mikulas@artax.karlin.mff.cuni.cz
@@ -1310,6 +1330,24 @@ M:	john.ronciak@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
+INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
+P:	Yi Zhu
+M:	yi.zhu@intel.com
+P:	James Ketrenos
+M:	jketreno@linux.intel.com
+L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
+W:	http://ipw2100.sourceforge.net
+S:	Supported
+
+INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
+P:	Yi Zhu
+M:	yi.zhu@intel.com
+P:	James Ketrenos
+M:	jketreno@linux.intel.com
+L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
+W:	http://ipw2200.sourceforge.net
+S:	Supported
+
 IOC3 DRIVER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
@@ -1527,7 +1565,7 @@ S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC83XX AND PPC85XX
 P:     Kumar Gala
-M:     kumar.gala@freescale.com
+M:     galak@kernel.crashing.org
 W:     http://www.penguinppc.org/
 L:     linuxppc-embedded@ozlabs.org
 S:     Maintained
@@ -1835,6 +1873,16 @@ L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
 S:	Maintained
 
+OMNIKEY CARDMAN 4000 DRIVER
+P:	Harald Welte
+M:	laforge@gnumonks.org
+S:	Maintained
+
+OMNIKEY CARDMAN 4040 DRIVER
+P:	Harald Welte
+M:	laforge@gnumonks.org
+S:	Maintained
+
 ONSTREAM SCSI TAPE DRIVER
 P:	Willem Riede
 M:	osst@riede.org
@@ -1950,7 +1998,6 @@ PKTCDVD DRIVER
 P:	Peter Osterlund
 M:	petero2@telia.com
 L:	linux-kernel@vger.kernel.org
-L:	packet-writing@suse.com
 S:	Maintained
 
 POSIX CLOCKS and TIMERS
@@ -2049,6 +2096,12 @@ S:	Maintained
 RANDOM NUMBER DRIVER
 P:	Matt Mackall
 M:	mpm@selenic.com
+S:	Maintained
+
+RAPIDIO SUBSYSTEM
+P:	Matt Porter
+M:	mporter@kernel.crashing.org
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 REAL TIME CLOCK DRIVER
@@ -2455,10 +2508,10 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 TRIVIAL PATCHES
-P:      Rusty Russell
-M:      trivial@rustcorp.com.au
+P:      Adrian Bunk
+M:      trivial@kernel.org
 L:      linux-kernel@vger.kernel.org
-W:      http://www.kernel.org/pub/linux/kernel/people/rusty/trivial/
+W:      http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/
 S:      Maintained
 
 TMS380 TOKEN-RING NETWORK DRIVER

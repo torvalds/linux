@@ -46,10 +46,8 @@
 #include <linux/udp.h>
 
 #ifdef CONFIG_SERIAL_8250
-#include <linux/serial.h>
-#include <asm/serial.h>
-#define IOC3_BAUD (22000000 / (3*16))
-#define IOC3_COM_FLAGS (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST)
+#include <linux/serial_core.h>
+#include <linux/serial_8250.h>
 #endif
 
 #include <linux/netdevice.h>
@@ -1146,12 +1144,11 @@ static inline int ioc3_is_menet(struct pci_dev *pdev)
  * around ioc3 oddities in this respect.
  *
  * The IOC3 serials use a 22MHz clock rate with an additional divider by 3.
- * (IOC3_BAUD = (22000000 / (3*16)))
  */
 
 static void __devinit ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
 {
-	struct serial_struct req;
+	struct uart_port port;
 
 	/*
 	 * We need to recognice and treat the fourth MENET serial as it
@@ -1165,20 +1162,25 @@ static void __devinit ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
 	if (ioc3_is_menet(pdev) && PCI_SLOT(pdev->devfn) == 3)
 		return;
 
-	/* Register to interrupt zero because we share the interrupt with
-	   the serial driver which we don't properly support yet.  */
-	memset(&req, 0, sizeof(req));
-	req.irq             = 0;
-	req.flags           = IOC3_COM_FLAGS;
-	req.io_type         = SERIAL_IO_MEM;
-	req.iomem_reg_shift = 0;
-	req.baud_base       = IOC3_BAUD;
+	/*
+	 * Register to interrupt zero because we share the interrupt with
+	 * the serial driver which we don't properly support yet.
+	 *
+	 * Can't use UPF_IOREMAP as the whole of IOC3 resources have already
+	 * been registered.
+	 */
+	memset(&port, 0, sizeof(port));
+	port.irq      = 0;
+	port.flags    = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
+	port.iotype   = UPIO_MEM;
+	port.regshift = 0;
+	port.uartclk  = 22000000 / 3;
 
-	req.iomem_base      = (unsigned char *) &ioc3->sregs.uarta;
-	register_serial(&req);
+	port.membase  = (unsigned char *) &ioc3->sregs.uarta;
+	serial8250_register_port(&port);
 
-	req.iomem_base      = (unsigned char *) &ioc3->sregs.uartb;
-	register_serial(&req);
+	port.membase  = (unsigned char *) &ioc3->sregs.uartb;
+	serial8250_register_port(&port);
 }
 #endif
 

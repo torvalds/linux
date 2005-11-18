@@ -785,8 +785,7 @@ static void __exit stallion_module_exit(void)
 			"errno=%d\n", -i);
 	class_destroy(stallion_class);
 
-	if (stl_tmpwritebuf != (char *) NULL)
-		kfree(stl_tmpwritebuf);
+	kfree(stl_tmpwritebuf);
 
 	for (i = 0; (i < stl_nrbrds); i++) {
 		if ((brdp = stl_brds[i]) == (stlbrd_t *) NULL)
@@ -804,8 +803,7 @@ static void __exit stallion_module_exit(void)
 					continue;
 				if (portp->tty != (struct tty_struct *) NULL)
 					stl_hangup(portp->tty);
-				if (portp->tx.buf != (char *) NULL)
-					kfree(portp->tx.buf);
+				kfree(portp->tx.buf);
 				kfree(portp);
 			}
 			kfree(panelp);

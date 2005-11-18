@@ -1478,7 +1478,7 @@ static inline int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 
 	if(pci_dma_mapping_error(rx->dma_addr)) {
 		dev_kfree_skb_any(rx->skb);
-		rx->skb = 0;
+		rx->skb = NULL;
 		rx->dma_addr = 0;
 		return -ENOMEM;
 	}
@@ -1764,7 +1764,7 @@ static int e100_up(struct nic *nic)
 	if((err = e100_hw_init(nic)))
 		goto err_clean_cbs;
 	e100_set_multicast_list(nic->netdev);
-	e100_start_receiver(nic, 0);
+	e100_start_receiver(nic, NULL);
 	mod_timer(&nic->watchdog, jiffies);
 	if((err = request_irq(nic->pdev->irq, e100_intr, SA_SHIRQ,
 		nic->netdev->name, nic->netdev)))
@@ -1844,7 +1844,7 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 		mdio_write(nic->netdev, nic->mii.phy_id, MII_BMCR,
 			BMCR_LOOPBACK);
 
-	e100_start_receiver(nic, 0);
+	e100_start_receiver(nic, NULL);
 
 	if(!(skb = dev_alloc_skb(ETH_DATA_LEN))) {
 		err = -ENOMEM;

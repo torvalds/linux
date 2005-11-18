@@ -1,8 +1,8 @@
 /*
- * NV-RAM memory access on autcpu12 
+ * NV-RAM memory access on autcpu12
  * (C) 2002 Thomas Gleixner (gleixner@autronix.de)
  *
- * $Id: autcpu12-nvram.c,v 1.8 2004/11/04 13:24:14 gleixner Exp $ 
+ * $Id: autcpu12-nvram.c,v 1.9 2005/11/07 11:14:26 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,10 +55,10 @@ static int __init init_autcpu12_sram (void)
 	}
 	simple_map_init(&autcpu_sram_map);
 
-	/* 
-	 * Check for 32K/128K 
-	 * read ofs 0 
-	 * read ofs 0x10000 
+	/*
+	 * Check for 32K/128K
+	 * read ofs 0
+	 * read ofs 0x10000
 	 * Write complement to ofs 0x100000
 	 * Read	and check result on ofs 0x0
 	 * Restore contents
@@ -66,7 +66,7 @@ static int __init init_autcpu12_sram (void)
 	save0 = map_read32(&autcpu12_sram_map,0);
 	save1 = map_read32(&autcpu12_sram_map,0x10000);
 	map_write32(&autcpu12_sram_map,~save0,0x10000);
-	/* if we find this pattern on 0x0, we have 32K size 
+	/* if we find this pattern on 0x0, we have 32K size
 	 * restore contents and exit
 	 */
 	if ( map_read32(&autcpu12_sram_map,0) != save0) {
@@ -89,7 +89,7 @@ map:
 
 	sram_mtd->owner = THIS_MODULE;
 	sram_mtd->erasesize = 16;
-	
+
 	if (add_mtd_device(sram_mtd)) {
 		printk("NV-RAM device addition failed\n");
 		err = -ENOMEM;
@@ -97,7 +97,7 @@ map:
 	}
 
 	printk("NV-RAM device size %ldKiB registered on AUTCPU12\n",autcpu12_sram_map.size/SZ_1K);
-		
+
 	return 0;
 
 out_probe:

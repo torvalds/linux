@@ -37,6 +37,7 @@
 #ifndef _SISUSB_H_
 #define _SISUSB_H_
 
+#include <linux/version.h>
 #ifdef CONFIG_COMPAT
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,10)
 #include <linux/ioctl32.h>

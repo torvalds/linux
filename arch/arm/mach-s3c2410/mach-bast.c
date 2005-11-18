@@ -89,32 +89,63 @@
 
 /* macros to modify the physical addresses for io space */
 
-#define PA_CS2(item) ((item) + S3C2410_CS2)
-#define PA_CS3(item) ((item) + S3C2410_CS3)
-#define PA_CS4(item) ((item) + S3C2410_CS4)
-#define PA_CS5(item) ((item) + S3C2410_CS5)
+#define PA_CS2(item) (__phys_to_pfn((item) + S3C2410_CS2))
+#define PA_CS3(item) (__phys_to_pfn((item) + S3C2410_CS3))
+#define PA_CS4(item) (__phys_to_pfn((item) + S3C2410_CS4))
+#define PA_CS5(item) (__phys_to_pfn((item) + S3C2410_CS5))
 
 static struct map_desc bast_iodesc[] __initdata = {
   /* ISA IO areas */
-
-  { (u32)S3C24XX_VA_ISA_BYTE, PA_CS2(BAST_PA_ISAIO),   SZ_16M, MT_DEVICE },
-  { (u32)S3C24XX_VA_ISA_WORD, PA_CS3(BAST_PA_ISAIO),   SZ_16M, MT_DEVICE },
-
-  /* we could possibly compress the next set down into a set of smaller tables
-   * pagetables, but that would mean using an L2 section, and it still means
-   * we cannot actually feed the same register to an LDR due to 16K spacing
-   */
-
+  {
+	  .virtual	= (u32)S3C24XX_VA_ISA_BYTE,
+	  .pfn		= PA_CS2(BAST_PA_ISAIO),
+	  .length	= SZ_16M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)S3C24XX_VA_ISA_WORD,
+	  .pfn		= PA_CS3(BAST_PA_ISAIO),
+	  .length	= SZ_16M,
+	  .type		= MT_DEVICE,
+  },
   /* bast CPLD control registers, and external interrupt controls */
-  { (u32)BAST_VA_CTRL1, BAST_PA_CTRL1,		   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_CTRL2, BAST_PA_CTRL2,		   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_CTRL3, BAST_PA_CTRL3,		   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_CTRL4, BAST_PA_CTRL4,		   SZ_1M, MT_DEVICE },
-
+  {
+	  .virtual	= (u32)BAST_VA_CTRL1,
+	  .pfn		= __phys_to_pfn(BAST_PA_CTRL1),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_CTRL2,
+	  .pfn		= __phys_to_pfn(BAST_PA_CTRL2),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_CTRL3,
+	  .pfn		= __phys_to_pfn(BAST_PA_CTRL3),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_CTRL4,
+	  .pfn		= __phys_to_pfn(BAST_PA_CTRL4),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  },
   /* PC104 IRQ mux */
-  { (u32)BAST_VA_PC104_IRQREQ,  BAST_PA_PC104_IRQREQ,   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_PC104_IRQRAW,  BAST_PA_PC104_IRQRAW,   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_PC104_IRQMASK, BAST_PA_PC104_IRQMASK,  SZ_1M, MT_DEVICE },
+  {
+	  .virtual	= (u32)BAST_VA_PC104_IRQREQ,
+	  .pfn		= __phys_to_pfn(BAST_PA_PC104_IRQREQ),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_PC104_IRQRAW,
+	  .pfn		= __phys_to_pfn(BAST_PA_PC104_IRQRAW),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_PC104_IRQMASK,
+	  .pfn		= __phys_to_pfn(BAST_PA_PC104_IRQMASK),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  },
 
   /* peripheral space... one for each of fast/slow/byte/16bit */
   /* note, ide is only decoded in word space, even though some registers
@@ -172,7 +203,7 @@ static struct s3c24xx_uart_clksrc bast_serial_clocks[] = {
 		.name		= "pclk",
 		.divisor	= 1,
 		.min_baud	= 0,
-		.max_baud	= 0.
+		.max_baud	= 0,
 	}
 };
 
@@ -185,7 +216,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	},
 	[1] = {
 		.hwport	     = 1,
@@ -194,7 +225,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	},
 	/* port 2 is not actually used */
 	[2] = {
@@ -204,7 +235,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	}
 };
 
@@ -237,7 +268,7 @@ static struct mtd_partition bast_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
-		.offset	= 0
+		.offset	= 0,
 	},
 	[1] = {
 		.name	= "/boot",
@@ -265,28 +296,28 @@ static struct s3c2410_nand_set bast_nand_sets[] = {
 		.nr_chips	= 1,
 		.nr_map		= smartmedia_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[1] = {
 		.name		= "chip0",
 		.nr_chips	= 1,
 		.nr_map		= chip0_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[2] = {
 		.name		= "chip1",
 		.nr_chips	= 1,
 		.nr_map		= chip1_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[3] = {
 		.name		= "chip2",
 		.nr_chips	= 1,
 		.nr_map		= chip2_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	}
 };
 
@@ -324,17 +355,17 @@ static struct resource bast_dm9k_resource[] = {
 	[0] = {
 		.start = S3C2410_CS5 + BAST_PA_DM9000,
 		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 3,
-		.flags = IORESOURCE_MEM
+		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
 		.start = S3C2410_CS5 + BAST_PA_DM9000 + 0x40,
 		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 0x40 + 0x3f,
-		.flags = IORESOURCE_MEM
+		.flags = IORESOURCE_MEM,
 	},
 	[2] = {
 		.start = IRQ_DM9000,
 		.end   = IRQ_DM9000,
-		.flags = IORESOURCE_IRQ
+		.flags = IORESOURCE_IRQ,
 	}
 
 };
@@ -344,7 +375,7 @@ static struct resource bast_dm9k_resource[] = {
 */
 
 static struct dm9000_plat_data bast_dm9k_platdata = {
-	.flags		= DM9000_PLATF_16BITONLY
+	.flags		= DM9000_PLATF_16BITONLY,
 };
 
 static struct platform_device bast_device_dm9k = {
@@ -461,7 +492,7 @@ static struct s3c24xx_board bast_board __initdata = {
 	.devices       = bast_devices,
 	.devices_count = ARRAY_SIZE(bast_devices),
 	.clocks	       = bast_clocks,
-	.clocks_count  = ARRAY_SIZE(bast_clocks)
+	.clocks_count  = ARRAY_SIZE(bast_clocks),
 };
 
 static void __init bast_map_io(void)

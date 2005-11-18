@@ -36,6 +36,9 @@
 
 #include "core_priv.h"
 
+#include <linux/slab.h>
+#include <linux/string.h>
+
 #include <rdma/ib_mad.h>
 
 struct ib_port {

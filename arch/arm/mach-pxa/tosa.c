@@ -98,6 +98,9 @@ struct platform_device tosascoop_jc_device = {
 	.resource	= tosa_scoop_jc_resources,
 };
 
+/*
+ * PCMCIA
+ */
 static struct scoop_pcmcia_dev tosa_pcmcia_scoop[] = {
 {
 	.dev        = &tosascoop_device.dev,
@@ -111,16 +114,155 @@ static struct scoop_pcmcia_dev tosa_pcmcia_scoop[] = {
 },
 };
 
+static void tosa_pcmcia_init(void)
+{
+	/* Setup default state of GPIO outputs
+	   before we enable them as outputs. */
+	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
+		GPIO_bit(GPIO49_nPWE) | GPIO_bit(GPIO50_nPIOR) |
+		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO52_nPCE_1) |
+		GPIO_bit(GPIO53_nPCE_2);
+
+	pxa_gpio_mode(GPIO48_nPOE_MD);
+	pxa_gpio_mode(GPIO49_nPWE_MD);
+	pxa_gpio_mode(GPIO50_nPIOR_MD);
+	pxa_gpio_mode(GPIO51_nPIOW_MD);
+	pxa_gpio_mode(GPIO55_nPREG_MD);
+	pxa_gpio_mode(GPIO56_nPWAIT_MD);
+	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+	pxa_gpio_mode(GPIO52_nPCE_1_MD);
+	pxa_gpio_mode(GPIO53_nPCE_2_MD);
+	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
+}
+
+static struct scoop_pcmcia_config tosa_pcmcia_config = {
+	.devs         = &tosa_pcmcia_scoop[0],
+	.num_devs     = 2,
+	.pcmcia_init  = tosa_pcmcia_init,
+};
+
+/*
+ * USB Device Controller
+ */
+static void tosa_udc_command(int cmd)
+{
+	switch(cmd)	{
+		case PXA2XX_UDC_CMD_CONNECT:
+			set_scoop_gpio(&tosascoop_jc_device.dev,TOSA_SCOOP_JC_USB_PULLUP);
+			break;
+		case PXA2XX_UDC_CMD_DISCONNECT:
+			reset_scoop_gpio(&tosascoop_jc_device.dev,TOSA_SCOOP_JC_USB_PULLUP);
+			break;
+	}
+}
+
+static int tosa_udc_is_connected(void)
+{
+	return ((GPLR(TOSA_GPIO_USB_IN) & GPIO_bit(TOSA_GPIO_USB_IN)) == 0);
+}
+
+
+static struct pxa2xx_udc_mach_info udc_info __initdata = {
+	.udc_command		= tosa_udc_command,
+	.udc_is_connected	= tosa_udc_is_connected,
+};
+
+/*
+ * MMC/SD Device
+ */
+static struct pxamci_platform_data tosa_mci_platform_data;
+
+static int tosa_mci_init(struct device *dev, irqreturn_t (*tosa_detect_int)(int, void *, struct pt_regs *), void *data)
+{
+	int err;
+
+	/* setup GPIO for PXA25x MMC controller */
+	pxa_gpio_mode(GPIO6_MMCCLK_MD);
+	pxa_gpio_mode(GPIO8_MMCCS0_MD);
+	pxa_gpio_mode(TOSA_GPIO_nSD_DETECT | GPIO_IN);
+
+	tosa_mci_platform_data.detect_delay = msecs_to_jiffies(250);
+
+	err = request_irq(TOSA_IRQ_GPIO_nSD_DETECT, tosa_detect_int, SA_INTERRUPT,
+				"MMC/SD card detect", data);
+	if (err) {
+		printk(KERN_ERR "tosa_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+		return -1;
+	}
+
+	set_irq_type(TOSA_IRQ_GPIO_nSD_DETECT, IRQT_BOTHEDGE);
+
+	return 0;
+}
+
+static void tosa_mci_setpower(struct device *dev, unsigned int vdd)
+{
+	struct pxamci_platform_data* p_d = dev->platform_data;
+
+	if (( 1 << vdd) & p_d->ocr_mask) {
+		set_scoop_gpio(&tosascoop_device.dev,TOSA_SCOOP_PWR_ON);
+	} else {
+		reset_scoop_gpio(&tosascoop_device.dev,TOSA_SCOOP_PWR_ON);
+	}
+}
+
+static int tosa_mci_get_ro(struct device *dev)
+{
+	return (read_scoop_reg(&tosascoop_device.dev, SCOOP_GPWR)&TOSA_SCOOP_SD_WP);
+}
+
+static void tosa_mci_exit(struct device *dev, void *data)
+{
+	free_irq(TOSA_IRQ_GPIO_nSD_DETECT, data);
+}
+
+static struct pxamci_platform_data tosa_mci_platform_data = {
+	.ocr_mask       = MMC_VDD_32_33|MMC_VDD_33_34,
+	.init           = tosa_mci_init,
+	.get_ro		= tosa_mci_get_ro,
+	.setpower       = tosa_mci_setpower,
+	.exit           = tosa_mci_exit,
+};
+
+/*
+ * Irda
+ */
+static void tosa_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF) {
+		reset_scoop_gpio(&tosascoop_device.dev,TOSA_SCOOP_IR_POWERDWN);
+		pxa_gpio_mode(GPIO47_STTXD|GPIO_DFLT_LOW);
+		pxa_gpio_mode(GPIO47_STTXD|GPIO_OUT);
+	} else {
+		pxa_gpio_mode(GPIO47_STTXD_MD);
+		set_scoop_gpio(&tosascoop_device.dev,TOSA_SCOOP_IR_POWERDWN);
+	}
+}
+
+static struct pxaficp_platform_data tosa_ficp_platform_data = {
+	.transceiver_cap  = IR_SIRMODE | IR_OFF,
+	.transceiver_mode = tosa_irda_transceiver_mode,
+};
+
+/*
+ * Tosa Keyboard
+ */
+static struct platform_device tosakbd_device = {
+	.name		= "tosa-keyboard",
+	.id		= -1,
+};
 
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
+	&tosakbd_device,
 };
 
 static void __init tosa_init(void)
 {
 	pxa_gpio_mode(TOSA_GPIO_ON_RESET | GPIO_IN);
 	pxa_gpio_mode(TOSA_GPIO_TC6393_INT | GPIO_IN);
+	pxa_gpio_mode(TOSA_GPIO_USB_IN | GPIO_IN);
 
 	/* setup sleep mode values */
 	PWER  = 0x00000002;
@@ -131,13 +273,15 @@ static void __init tosa_init(void)
 	PGSR2 = 0x00014000;
 	PCFR |= PCFR_OPDE;
 
-	// enable batt_fault
+	/* enable batt_fault */
 	PMCR = 0x01;
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pxa_set_mci_info(&tosa_mci_platform_data);
+	pxa_set_udc_info(&udc_info);
+	pxa_set_ficp_info(&tosa_ficp_platform_data);
+	platform_scoop_config = &tosa_pcmcia_config;
 
-	scoop_num = 2;
-	scoop_devs = &tosa_pcmcia_scoop[0];
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 static void __init fixup_tosa(struct machine_desc *desc,

@@ -7,7 +7,7 @@
 
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
-                           & Marcus Metzler (mocm@thp.uni-koeln.de)
+			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
 
     This program is free software; you can redistribute it and/or modify
@@ -111,6 +111,24 @@ void bttv_gpio_irq(struct bttv_core *core)
 		if (drv && drv->gpio_irq)
 			drv->gpio_irq(dev);
 	}
+}
+
+int bttv_any_irq(struct bttv_core *core)
+{
+	struct bttv_sub_driver *drv;
+	struct bttv_sub_device *dev;
+	struct list_head *item;
+	int handled = 0;
+
+	list_for_each(item,&core->subs) {
+		dev = list_entry(item,struct bttv_sub_device,list);
+		drv = to_bttv_sub_drv(dev->dev.driver);
+		if (drv && drv->any_irq) {
+			if (drv->any_irq(dev))
+				handled = 1;
+		}
+	}
+	return handled;
 }
 
 /* ----------------------------------------------------------------------- */

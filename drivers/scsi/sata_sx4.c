@@ -39,14 +39,14 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include <asm/io.h>
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_sx4"
-#define DRV_VERSION	"0.7"
+#define DRV_VERSION	"0.8"
 
 
 enum {
@@ -177,7 +177,7 @@ static void pdc20621_irq_clear(struct ata_port *ap);
 static int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc);
 
 
-static Scsi_Host_Template pdc_sata_sht = {
+static struct scsi_host_template pdc_sata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -229,7 +229,7 @@ static struct ata_port_info pdc_port_info[] = {
 
 };
 
-static struct pci_device_id pdc_sata_pci_tbl[] = {
+static const struct pci_device_id pdc_sata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x6622, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20621 },
 	{ }	/* terminate list */

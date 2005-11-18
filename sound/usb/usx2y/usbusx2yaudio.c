@@ -78,7 +78,7 @@ static int usX2Y_urb_capt_retire(snd_usX2Y_substream_t *subs)
 	for (i = 0; i < nr_of_packs(); i++) {
 		cp = (unsigned char*)urb->transfer_buffer + urb->iso_frame_desc[i].offset;
 		if (urb->iso_frame_desc[i].status) { /* active? hmm, skip this */
-			snd_printk("activ frame status %i. Most propably some hardware problem.\n", urb->iso_frame_desc[i].status);
+			snd_printk(KERN_ERR "activ frame status %i. Most propably some hardware problem.\n", urb->iso_frame_desc[i].status);
 			return urb->iso_frame_desc[i].status;
 		}
 		len = urb->iso_frame_desc[i].actual_length / usX2Y->stride;
@@ -134,7 +134,7 @@ static int usX2Y_urb_play_prepare(snd_usX2Y_substream_t *subs,
 		counts = cap_urb->iso_frame_desc[pack].actual_length / usX2Y->stride;
 		count += counts;
 		if (counts < 43 || counts > 50) {
-			snd_printk("should not be here with counts=%i\n", counts);
+			snd_printk(KERN_ERR "should not be here with counts=%i\n", counts);
 			return -EPIPE;
 		}
 		/* set up descriptor */
@@ -196,7 +196,7 @@ static int usX2Y_urb_submit(snd_usX2Y_substream_t *subs, struct urb *urb, int fr
 	urb->hcpriv = NULL;
 	urb->dev = subs->usX2Y->chip.dev; /* we need to set this at each time */
 	if ((err = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
-		snd_printk("usb_submit_urb() returned %i\n", err);
+		snd_printk(KERN_ERR "usb_submit_urb() returned %i\n", err);
 		return err;
 	}
 	return 0;
@@ -283,16 +283,16 @@ static void usX2Y_clients_stop(usX2Ydev_t *usX2Y)
 
 static void usX2Y_error_urb_status(usX2Ydev_t *usX2Y, snd_usX2Y_substream_t *subs, struct urb *urb)
 {
-	snd_printk("ep=%i stalled with status=%i\n", subs->endpoint, urb->status);
+	snd_printk(KERN_ERR "ep=%i stalled with status=%i\n", subs->endpoint, urb->status);
 	urb->status = 0;
 	usX2Y_clients_stop(usX2Y);
 }
 
 static void usX2Y_error_sequence(usX2Ydev_t *usX2Y, snd_usX2Y_substream_t *subs, struct urb *urb)
 {
-	snd_printk("Sequence Error!(hcd_frame=%i ep=%i%s;wait=%i,frame=%i).\n"
-		   "Most propably some urb of usb-frame %i is still missing.\n"
-		   "Cause could be too long delays in usb-hcd interrupt handling.\n",
+	snd_printk(KERN_ERR "Sequence Error!(hcd_frame=%i ep=%i%s;wait=%i,frame=%i).\n"
+		   KERN_ERR "Most propably some urb of usb-frame %i is still missing.\n"
+		   KERN_ERR "Cause could be too long delays in usb-hcd interrupt handling.\n",
 		   usb_get_current_frame_number(usX2Y->chip.dev),
 		   subs->endpoint, usb_pipein(urb->pipe) ? "in" : "out", usX2Y->wait_iso_frame, urb->start_frame, usX2Y->wait_iso_frame);
 	usX2Y_clients_stop(usX2Y);
@@ -653,9 +653,8 @@ static void i_usX2Y_04Int(struct urb* urb, struct pt_regs *regs)
 {
 	usX2Ydev_t*	usX2Y = urb->context;
 	
-	if (urb->status) {
-		snd_printk("snd_usX2Y_04Int() urb->status=%i\n", urb->status);
-	}
+	if (urb->status)
+		snd_printk(KERN_ERR "snd_usX2Y_04Int() urb->status=%i\n", urb->status);
 	if (0 == --usX2Y->US04->len)
 		wake_up(&usX2Y->In04WaitQueue);
 }
@@ -740,7 +739,7 @@ static int usX2Y_format_set(usX2Ydev_t *usX2Y, snd_pcm_format_t format)
 	}
 	usb_kill_urb(usX2Y->In04urb);
 	if ((err = usb_set_interface(usX2Y->chip.dev, 0, alternate))) {
-		snd_printk("usb_set_interface error \n");
+		snd_printk(KERN_ERR "usb_set_interface error \n");
 		return err;
 	}
 	usX2Y->In04urb->dev = usX2Y->chip.dev;
@@ -787,7 +786,7 @@ static int snd_usX2Y_pcm_hw_params(snd_pcm_substream_t *substream,
 		}
 	}
 	if (0 > (err = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params)))) {
-		snd_printk("snd_pcm_lib_malloc_pages(%p, %i) returned %i\n", substream, params_buffer_bytes(hw_params), err);
+		snd_printk(KERN_ERR "snd_pcm_lib_malloc_pages(%p, %i) returned %i\n", substream, params_buffer_bytes(hw_params), err);
 		return err;
 	}
 	return 0;

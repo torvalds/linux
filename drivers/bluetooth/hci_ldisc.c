@@ -272,12 +272,10 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	if (hu)
 		return -EEXIST;
 
-	if (!(hu = kmalloc(sizeof(struct hci_uart), GFP_KERNEL))) {
+	if (!(hu = kzalloc(sizeof(struct hci_uart), GFP_KERNEL))) {
 		BT_ERR("Can't allocate controll structure");
 		return -ENFILE;
 	}
-
-	memset(hu, 0, sizeof(struct hci_uart));
 
 	tty->disc_data = hu;
 	hu->tty = tty;

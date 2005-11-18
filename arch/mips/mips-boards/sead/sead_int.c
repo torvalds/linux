@@ -30,19 +30,9 @@
 
 extern asmlinkage void mipsIRQ(void);
 
-asmlinkage void sead_hw0_irqdispatch(struct pt_regs *regs)
-{
-	do_IRQ(SEADINT_UART0, regs);
-}
-
-asmlinkage void sead_hw1_irqdispatch(struct pt_regs *regs)
-{
-	do_IRQ(SEADINT_UART1, regs);
-}
-
 void __init arch_init_irq(void)
 {
-	mips_cpu_irq_init(0);
+	mips_cpu_irq_init(MIPSCPU_INT_BASE);
 
 	/* Now safe to set the exception vector. */
 	set_except_vector(0, mipsIRQ);

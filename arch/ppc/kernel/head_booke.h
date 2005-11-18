@@ -358,6 +358,6 @@ label:
 	NORMAL_EXCEPTION_PROLOG;					      \
 	bne	load_up_fpu;		/* if from user, just load it up */   \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_EE_LITE(0x800, KernelFP)
+	EXC_XFER_EE_LITE(0x800, kernel_fp_unavailable_exception)
 
 #endif /* __HEAD_BOOKE_H__ */

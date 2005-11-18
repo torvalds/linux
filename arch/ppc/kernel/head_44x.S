@@ -190,8 +190,8 @@ skpinv:	addi	r4,r4,1				/* Increment */
 
 	/* xlat fields */
 	lis	r4,UART0_PHYS_IO_BASE@h		/* RPN depends on SoC */
-#ifndef CONFIG_440EP
-	ori	r4,r4,0x0001		/* ERPN is 1 for second 4GB page */
+#ifdef UART0_PHYS_ERPN
+	ori	r4,r4,UART0_PHYS_ERPN		/* Add ERPN if above 4GB */
 #endif
 
 	/* attrib fields */

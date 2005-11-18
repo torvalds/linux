@@ -2,7 +2,7 @@
 /*
  * MTD driver for the 28F160F3 Flash Memory (non-CFI) on LART.
  *
- * $Id: lart.c,v 1.7 2004/08/09 13:19:44 dwmw2 Exp $
+ * $Id: lart.c,v 1.9 2005/11/07 11:14:25 gleixner Exp $
  *
  * Author: Abraham vd Merwe <abraham@2d3d.co.za>
  *
@@ -122,7 +122,7 @@ static char module_name[] = "lart";
 
 /*
  * The data line mapping on LART is as follows:
- * 
+ *
  *   	 U2  CPU |   U3  CPU
  *   	 -------------------
  *   	  0  20  |   0   12
@@ -181,7 +181,7 @@ static char module_name[] = "lart";
 		(((x) & 0x00004000) >> 13)		\
 	)
 
-/* 
+/*
  * The address line mapping on LART is as follows:
  *
  *   	 U3  CPU |   U2  CPU
@@ -204,7 +204,7 @@ static char module_name[] = "lart";
  *   	 12  15  |   12  15
  *   	 13  14  |   13  14
  *   	 14  16  |   14  16
- * 
+ *
  *   	 MAIN BLOCK BOUNDARY
  *
  *   	 15  17  |   15  18

@@ -45,7 +45,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
@@ -55,7 +54,7 @@
 #endif /* CONFIG_PPC_OF */
 
 #define DRV_NAME	"sata_svw"
-#define DRV_VERSION	"1.06"
+#define DRV_VERSION	"1.07"
 
 /* Taskfile registers offsets */
 #define K2_SATA_TF_CMD_OFFSET		0x00
@@ -284,7 +283,7 @@ static int k2_sata_proc_info(struct Scsi_Host *shost, char *page, char **start,
 #endif /* CONFIG_PPC_OF */
 
 
-static Scsi_Host_Template k2_sata_sht = {
+static struct scsi_host_template k2_sata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -467,7 +466,7 @@ err_out:
  * 0x24a is device ID for BCM5785 (aka HT1000) HT southbridge integrated SATA
  * controller
  * */
-static struct pci_device_id k2_sata_pci_tbl[] = {
+static const struct pci_device_id k2_sata_pci_tbl[] = {
 	{ 0x1166, 0x0240, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
 	{ 0x1166, 0x0241, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
 	{ 0x1166, 0x0242, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 8 },

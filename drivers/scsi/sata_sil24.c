@@ -37,7 +37,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
-#include "scsi.h"
+#include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include <asm/io.h>
 
@@ -139,6 +139,7 @@ enum {
 	PORT_CS_DEV_RST		= (1 << 1), /* device reset */
 	PORT_CS_INIT		= (1 << 2), /* port initialize */
 	PORT_CS_IRQ_WOC		= (1 << 3), /* interrupt write one to clear */
+	PORT_CS_CDB16		= (1 << 5), /* 0=12b cdb, 1=16b cdb */
 	PORT_CS_RESUME		= (1 << 6), /* port resume */
 	PORT_CS_32BIT_ACTV	= (1 << 10), /* 32-bit activation */
 	PORT_CS_PM_EN		= (1 << 13), /* port multiplier enable */
@@ -188,11 +189,29 @@ enum {
 	PORT_CERR_XFR_PCIPERR	= 35, /* PSD ecode 11 - PCI prity err during transfer */
 	PORT_CERR_SENDSERVICE	= 36, /* FIS received while sending service */
 
+	/* bits of PRB control field */
+	PRB_CTRL_PROTOCOL	= (1 << 0), /* override def. ATA protocol */
+	PRB_CTRL_PACKET_READ	= (1 << 4), /* PACKET cmd read */
+	PRB_CTRL_PACKET_WRITE	= (1 << 5), /* PACKET cmd write */
+	PRB_CTRL_NIEN		= (1 << 6), /* Mask completion irq */
+	PRB_CTRL_SRST		= (1 << 7), /* Soft reset request (ign BSY?) */
+
+	/* PRB protocol field */
+	PRB_PROT_PACKET		= (1 << 0),
+	PRB_PROT_TCQ		= (1 << 1),
+	PRB_PROT_NCQ		= (1 << 2),
+	PRB_PROT_READ		= (1 << 3),
+	PRB_PROT_WRITE		= (1 << 4),
+	PRB_PROT_TRANSPARENT	= (1 << 5),
+
 	/*
 	 * Other constants
 	 */
 	SGE_TRM			= (1 << 31), /* Last SGE in chain */
-	PRB_SOFT_RST		= (1 << 7),  /* Soft reset request (ign BSY?) */
+	SGE_LNK			= (1 << 30), /* linked list
+						Points to SGT, not SGE */
+	SGE_DRD			= (1 << 29), /* discard data read (/dev/null)
+						data address ignored */
 
 	/* board id */
 	BID_SIL3124		= 0,
@@ -240,7 +259,7 @@ static void sil24_port_stop(struct ata_port *ap);
 static void sil24_host_stop(struct ata_host_set *host_set);
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-static struct pci_device_id sil24_pci_tbl[] = {
+static const struct pci_device_id sil24_pci_tbl[] = {
 	{ 0x1095, 0x3124, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3124 },
 	{ 0x1095, 0x3132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3132 },
 	{ 0x1095, 0x3131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, BID_SIL3131 },
@@ -255,7 +274,7 @@ static struct pci_driver sil24_pci_driver = {
 	.remove			= ata_pci_remove_one, /* safe? */
 };
 
-static Scsi_Host_Template sil24_sht = {
+static struct scsi_host_template sil24_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -687,6 +706,7 @@ static void sil24_port_stop(struct ata_port *ap)
 	struct sil24_port_priv *pp = ap->private_data;
 
 	sil24_cblk_free(pp, dev);
+	ata_pad_free(ap, dev);
 	kfree(pp);
 }
 

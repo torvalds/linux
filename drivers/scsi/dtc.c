@@ -199,7 +199,7 @@ static void __init dtc_setup(char *str, int *ints)
 #endif
 
 /* 
- * Function : int dtc_detect(Scsi_Host_Template * tpnt)
+ * Function : int dtc_detect(struct scsi_host_template * tpnt)
  *
  * Purpose : detects and initializes DTC 3180/3280 controllers
  *	that were autoprobed, overridden on the LILO command line, 
@@ -211,7 +211,7 @@ static void __init dtc_setup(char *str, int *ints)
  *
 */
 
-static int __init dtc_detect(Scsi_Host_Template * tpnt)
+static int __init dtc_detect(struct scsi_host_template * tpnt)
 {
 	static int current_override = 0, current_base = 0;
 	struct Scsi_Host *instance;
@@ -471,7 +471,7 @@ static int dtc_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name				= "DTC 3180/3280 ",
 	.detect				= dtc_detect,
 	.release			= dtc_release,

@@ -35,9 +35,8 @@
 #include <linux/signal.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/device.h>
 #include <linux/net.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <net/sock.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
@@ -47,15 +46,11 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/rfcomm.h>
 
-#define VERSION "1.5"
+#define VERSION "1.6"
 
 #ifndef CONFIG_BT_RFCOMM_DEBUG
 #undef  BT_DBG
 #define BT_DBG(D...)
-#endif
-
-#ifdef CONFIG_PROC_FS
-struct proc_dir_entry *proc_bt_rfcomm;
 #endif
 
 static struct task_struct *rfcomm_thread;
@@ -2001,117 +1996,32 @@ static struct hci_cb rfcomm_cb = {
 	.encrypt_cfm	= rfcomm_encrypt_cfm
 };
 
-/* ---- Proc fs support ---- */
-#ifdef CONFIG_PROC_FS
-static void *rfcomm_seq_start(struct seq_file *seq, loff_t *pos)
+static ssize_t rfcomm_dlc_sysfs_show(struct class *dev, char *buf)
 {
 	struct rfcomm_session *s;
 	struct list_head *pp, *p;
-	loff_t l = *pos;
+	char *str = buf;
 
 	rfcomm_lock();
 
 	list_for_each(p, &session_list) {
 		s = list_entry(p, struct rfcomm_session, list);
-		list_for_each(pp, &s->dlcs)
-			if (!l--) {
-				seq->private = s;
-				return pp;
-			}
-	}
-	return NULL;
-}
+		list_for_each(pp, &s->dlcs) {
+			struct sock *sk = s->sock->sk;
+			struct rfcomm_dlc *d = list_entry(pp, struct rfcomm_dlc, list);
 
-static void *rfcomm_seq_next(struct seq_file *seq, void *e, loff_t *pos)
-{
-	struct rfcomm_session *s = seq->private;
-	struct list_head *pp, *p = e;
-	(*pos)++;
-
-	if (p->next != &s->dlcs)
-		return p->next;
-
-	list_for_each(p, &session_list) {
-		s = list_entry(p, struct rfcomm_session, list);
-		__list_for_each(pp, &s->dlcs) {
-			seq->private = s;
-			return pp;
+			str += sprintf(str, "%s %s %ld %d %d %d %d\n",
+					batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
+					d->state, d->dlci, d->mtu, d->rx_credits, d->tx_credits);
 		}
 	}
-	return NULL;
-}
 
-static void rfcomm_seq_stop(struct seq_file *seq, void *e)
-{
 	rfcomm_unlock();
+
+	return (str - buf);
 }
 
-static int  rfcomm_seq_show(struct seq_file *seq, void *e)
-{
-	struct rfcomm_session *s = seq->private;
-	struct sock *sk = s->sock->sk;
-	struct rfcomm_dlc *d = list_entry(e, struct rfcomm_dlc, list);
-
-	seq_printf(seq, "%s %s %ld %d %d %d %d\n",
-			batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-			d->state, d->dlci, d->mtu, d->rx_credits, d->tx_credits);
-	return 0;
-}
-
-static struct seq_operations rfcomm_seq_ops = {
-	.start  = rfcomm_seq_start,
-	.next   = rfcomm_seq_next,
-	.stop   = rfcomm_seq_stop,
-	.show   = rfcomm_seq_show 
-};
-
-static int rfcomm_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rfcomm_seq_ops);
-}
-
-static struct file_operations rfcomm_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open    = rfcomm_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = seq_release,
-};
-
-static int  __init rfcomm_proc_init(void)
-{
-        struct proc_dir_entry *p;
-
-	proc_bt_rfcomm = proc_mkdir("rfcomm", proc_bt);
-	if (proc_bt_rfcomm) {
-		proc_bt_rfcomm->owner = THIS_MODULE;
-
-        	p = create_proc_entry("dlc", S_IRUGO, proc_bt_rfcomm);
-		if (p)
-        		p->proc_fops = &rfcomm_seq_fops;
-	}
-        return 0;
-}
-
-static void __exit rfcomm_proc_cleanup(void)
-{
-        remove_proc_entry("dlc", proc_bt_rfcomm);
-
-	remove_proc_entry("rfcomm", proc_bt);
-}
-
-#else /* CONFIG_PROC_FS */
-
-static int  __init rfcomm_proc_init(void)
-{
-        return 0;
-}
-
-static void __exit rfcomm_proc_cleanup(void)
-{
-        return;
-}
-#endif /* CONFIG_PROC_FS */
+static CLASS_ATTR(rfcomm_dlc, S_IRUGO, rfcomm_dlc_sysfs_show, NULL);
 
 /* ---- Initialization ---- */
 static int __init rfcomm_init(void)
@@ -2122,9 +2032,7 @@ static int __init rfcomm_init(void)
 
 	kernel_thread(rfcomm_run, NULL, CLONE_KERNEL);
 
-	BT_INFO("RFCOMM ver %s", VERSION);
-
-	rfcomm_proc_init();
+	class_create_file(&bt_class, &class_attr_rfcomm_dlc);
 
 	rfcomm_init_sockets();
 
@@ -2132,11 +2040,15 @@ static int __init rfcomm_init(void)
 	rfcomm_init_ttys();
 #endif
 
+	BT_INFO("RFCOMM ver %s", VERSION);
+
 	return 0;
 }
 
 static void __exit rfcomm_exit(void)
 {
+	class_remove_file(&bt_class, &class_attr_rfcomm_dlc);
+
 	hci_unregister_cb(&rfcomm_cb);
 
 	/* Terminate working thread.
@@ -2153,8 +2065,6 @@ static void __exit rfcomm_exit(void)
 #endif
 
 	rfcomm_cleanup_sockets();
-
-	rfcomm_proc_cleanup();
 }
 
 module_init(rfcomm_init);

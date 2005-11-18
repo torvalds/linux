@@ -416,7 +416,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb->dev = (void *) hdev;
 
 	if (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
-		u16 opcode = __le16_to_cpu(get_unaligned((u16 *)skb->data));
+		u16 opcode = __le16_to_cpu(get_unaligned((__le16 *) skb->data));
 		u16 ogf = hci_opcode_ogf(opcode);
 		u16 ocf = hci_opcode_ocf(opcode);
 

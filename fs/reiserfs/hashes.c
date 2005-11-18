@@ -19,6 +19,7 @@
 //
 
 #include <linux/kernel.h>
+#include <linux/reiserfs_fs.h>
 #include <asm/types.h>
 #include <asm/bug.h>
 

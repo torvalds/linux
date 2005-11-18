@@ -420,8 +420,7 @@ static int impd1_probe(struct lm_device *dev)
  free_impd1:
 	if (impd1 && impd1->base)
 		iounmap(impd1->base);
-	if (impd1)
-		kfree(impd1);
+	kfree(impd1);
  release_lm:
 	release_mem_region(dev->resource.start, SZ_4K);
 	return ret;

@@ -261,7 +261,7 @@ config PPC_ISERIES
 
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based board"
-	depends on PPC32
+	depends on PPC32 && BROKEN
 
 config APUS
 	bool "Amiga-APUS"
@@ -305,7 +305,7 @@ config PPC_PMAC64
 
 config PPC_PREP
 	bool "  PowerPC Reference Platform (PReP) based machines"
-	depends on PPC_MULTIPLATFORM && PPC32
+	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	default y
@@ -404,6 +404,14 @@ config CPU_FREQ_PMAC
 	  this currently includes some models of iBook & Titanium
 	  PowerBook.
 
+config CPU_FREQ_PMAC64
+	bool "Support for some Apple G5s"
+	depends on CPU_FREQ && PMAC_SMU && PPC64
+	select CPU_FREQ_TABLE
+	help
+	  This adds support for frequency switching on Apple iMac G5,
+	  and some of the more recent desktop G5 machines as well.
+
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
 	depends on 6xx && (PPC_PREP || PPC_PMAC)
@@ -484,6 +492,7 @@ source "fs/Kconfig.binfmt"
 config FORCE_MAX_ZONEORDER
 	int
 	depends on PPC64
+	default "9" if PPC_64K_PAGES
 	default "13"
 
 config MATH_EMULATION
@@ -572,23 +581,22 @@ config ARCH_FLATMEM_ENABLE
        def_bool y
        depends on PPC64 && !NUMA
 
-config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
-	depends on SMP && PPC_PSERIES
-
-config ARCH_DISCONTIGMEM_DEFAULT
-	def_bool y
-	depends on ARCH_DISCONTIGMEM_ENABLE
-
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on ARCH_DISCONTIGMEM_ENABLE
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+	depends on SMP && PPC_PSERIES
 
 source "mm/Kconfig"
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
+
+config ARCH_MEMORY_PROBE
+	def_bool y
+	depends on MEMORY_HOTPLUG
 
 # Some NUMA nodes have memory ranges that span
 # other nodes.  Even though a pfn is valid and
@@ -605,6 +613,7 @@ config NODES_SPAN_OTHER_NODES
 
 config PPC_64K_PAGES
 	bool "64k page size"
+	depends on PPC64
 	help
 	  This option changes the kernel logical page size to 64k. On machines
           without processor support for 64k pages, the kernel will simulate
@@ -916,7 +925,21 @@ source "arch/powerpc/platforms/iseries/Kconfig"
 
 source "lib/Kconfig"
 
+menu "Instrumentation Support"
+        depends on EXPERIMENTAL
+
 source "arch/powerpc/oprofile/Kconfig"
+
+config KPROBES
+	bool "Kprobes (EXPERIMENTAL)"
+	depends on PPC64
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.  register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+endmenu
 
 source "arch/powerpc/Kconfig.debug"
 

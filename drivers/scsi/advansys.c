@@ -114,7 +114,7 @@
           #include "advansys.h"
           #endif
 
-        and after "static Scsi_Host_Template builtin_scsi_hosts[] =":
+        and after "static struct scsi_host_template builtin_scsi_hosts[] =":
 
           #ifdef CONFIG_SCSI_ADVANSYS
           ADVANSYS,
@@ -160,7 +160,7 @@
            --- Driver Structures
            --- Driver Data
            --- Driver Function Prototypes
-           --- Linux 'Scsi_Host_Template' and advansys_setup() Functions
+           --- Linux 'struct scsi_host_template' and advansys_setup() Functions
            --- Loadable Driver Support
            --- Miscellaneous Driver Functions
            --- Functions Required by the Asc Library
@@ -4068,7 +4068,7 @@ STATIC void         asc_prt_hex(char *f, uchar *, int);
 
 
 /*
- * --- Linux 'Scsi_Host_Template' and advansys_setup() Functions
+ * --- Linux 'struct scsi_host_template' and advansys_setup() Functions
  */
 
 #ifdef CONFIG_PROC_FS
@@ -5402,10 +5402,8 @@ advansys_detect(struct scsi_host_template *tpnt)
                 release_region(shp->io_port, boardp->asc_n_io_port);
                 if (ASC_WIDE_BOARD(boardp)) {
                     iounmap(boardp->ioremap_addr);
-                    if (boardp->orig_carrp) {
-                        kfree(boardp->orig_carrp);
-                        boardp->orig_carrp = NULL;
-                    }
+                    kfree(boardp->orig_carrp);
+                    boardp->orig_carrp = NULL;
                     if (boardp->orig_reqp) {
                         kfree(boardp->orig_reqp);
                         boardp->orig_reqp = boardp->adv_reqp = NULL;
@@ -5457,10 +5455,8 @@ advansys_release(struct Scsi_Host *shp)
         adv_sgblk_t    *sgp = NULL;
 
         iounmap(boardp->ioremap_addr);
-        if (boardp->orig_carrp) {
-            kfree(boardp->orig_carrp);
-            boardp->orig_carrp = NULL;
-        }
+        kfree(boardp->orig_carrp);
+        boardp->orig_carrp = NULL;
         if (boardp->orig_reqp) {
             kfree(boardp->orig_reqp);
             boardp->orig_reqp = boardp->adv_reqp = NULL;

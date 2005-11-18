@@ -39,7 +39,7 @@
  *					request_sock handling and moved
  *					most of it into the af independent code.
  *					Added tail drop and some other bugfixes.
- *					Added new listen sematics.
+ *					Added new listen semantics.
  *		Mike McLagan	:	Routing by source
  *	Juan Jose Ciarlante:		ip_dynaddr bits
  *		Andi Kleen:		various fixes.
@@ -93,8 +93,6 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 	.lhash_lock	= RW_LOCK_UNLOCKED,
 	.lhash_users	= ATOMIC_INIT(0),
 	.lhash_wait	= __WAIT_QUEUE_HEAD_INITIALIZER(tcp_hashinfo.lhash_wait),
-	.portalloc_lock	= SPIN_LOCK_UNLOCKED,
-	.port_rover	= 1024 - 1,
 };
 
 static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
@@ -825,8 +823,7 @@ out:
  */
 static void tcp_v4_reqsk_destructor(struct request_sock *req)
 {
-	if (inet_rsk(req)->opt)
-		kfree(inet_rsk(req)->opt);
+	kfree(inet_rsk(req)->opt);
 }
 
 static inline void syn_flood_warning(struct sk_buff *skb)
@@ -1113,24 +1110,18 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 static int tcp_v4_checksum_init(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_HW) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (!tcp_v4_check(skb->h.th, skb->len, skb->nh.iph->saddr,
-				  skb->nh.iph->daddr, skb->csum))
+				  skb->nh.iph->daddr, skb->csum)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			return 0;
-
-		LIMIT_NETDEBUG(KERN_DEBUG "hw tcp v4 csum failed\n");
-		skb->ip_summed = CHECKSUM_NONE;
+		}
 	}
+
+	skb->csum = csum_tcpudp_nofold(skb->nh.iph->saddr, skb->nh.iph->daddr,
+				       skb->len, IPPROTO_TCP, 0);
+
 	if (skb->len <= 76) {
-		if (tcp_v4_check(skb->h.th, skb->len, skb->nh.iph->saddr,
-				 skb->nh.iph->daddr,
-				 skb_checksum(skb, 0, skb->len, 0)))
-			return -1;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else {
-		skb->csum = ~tcp_v4_check(skb->h.th, skb->len,
-					  skb->nh.iph->saddr,
-					  skb->nh.iph->daddr, 0);
+		return __skb_checksum_complete(skb);
 	}
 	return 0;
 }
@@ -1219,10 +1210,10 @@ int tcp_v4_rcv(struct sk_buff *skb)
 
 	/* An explanation is required here, I think.
 	 * Packet length and doff are validated by header prediction,
-	 * provided case of th->doff==0 is elimineted.
+	 * provided case of th->doff==0 is eliminated.
 	 * So, we defer the checks. */
 	if ((skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	     tcp_v4_checksum_init(skb) < 0))
+	     tcp_v4_checksum_init(skb)))
 		goto bad_packet;
 
 	th = skb->h.th;

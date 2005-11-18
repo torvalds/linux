@@ -32,7 +32,6 @@
  * $Id: ib_srp.c 3932 2005-11-01 17:19:29Z roland $
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>

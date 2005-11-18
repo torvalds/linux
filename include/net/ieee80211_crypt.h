@@ -31,6 +31,7 @@ enum {
 
 struct ieee80211_crypto_ops {
 	const char *name;
+	struct list_head list;
 
 	/* init new crypto context (e.g., allocate private data space,
 	 * select IV, etc.); returns NULL on failure or pointer to allocated

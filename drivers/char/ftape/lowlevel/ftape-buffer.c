@@ -33,6 +33,7 @@
 #include "../lowlevel/ftape-rw.h"
 #include "../lowlevel/ftape-read.h"
 #include "../lowlevel/ftape-tracing.h"
+#include "../lowlevel/ftape-buffer.h"
 
 /*  DMA'able memory allocation stuff.
  */

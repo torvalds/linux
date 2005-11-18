@@ -1057,10 +1057,8 @@ zr36057_init (struct zoran *zr)
 			KERN_ERR
 			"%s: zr36057_init() - kmalloc (STAT_COM) failed\n",
 			ZR_DEVNAME(zr));
-		if (vdev)
-			kfree(vdev);
-		if (mem)
-			kfree((void *)mem);
+		kfree(vdev);
+		kfree((void *)mem);
 		return -ENOMEM;
 	}
 	memset((void *) mem, 0, mem_needed);
@@ -1105,15 +1103,15 @@ zoran_release (struct zoran *zr)
 	/* unregister videocodec bus */
 	if (zr->codec) {
 		struct videocodec_master *master = zr->codec->master_data;
+
 		videocodec_detach(zr->codec);
-		if (master)
-			kfree(master);
+		kfree(master);
 	}
 	if (zr->vfe) {
 		struct videocodec_master *master = zr->vfe->master_data;
+
 		videocodec_detach(zr->vfe);
-		if (master)
-			kfree(master);
+		kfree(master);
 	}
 
 	/* unregister i2c bus */

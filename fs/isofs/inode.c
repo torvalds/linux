@@ -855,8 +855,7 @@ root_found:
 	if (opt.check == 'r') table++;
 	s->s_root->d_op = &isofs_dentry_ops[table];
 
-	if (opt.iocharset)
-		kfree(opt.iocharset);
+	kfree(opt.iocharset);
 
 	return 0;
 
@@ -895,8 +894,7 @@ out_unknown_format:
 out_freebh:
 	brelse(bh);
 out_freesbi:
-	if (opt.iocharset)
-		kfree(opt.iocharset);
+	kfree(opt.iocharset);
 	kfree(sbi);
 	s->s_fs_info = NULL;
 	return -EINVAL;
@@ -1164,8 +1162,7 @@ out_nomem:
 
 out_noread:
 	printk(KERN_INFO "ISOFS: unable to read i-node block %lu\n", block);
-	if (tmpde)
-		kfree(tmpde);
+	kfree(tmpde);
 	return -EIO;
 
 out_toomany:
@@ -1334,8 +1331,7 @@ static void isofs_read_inode(struct inode *inode)
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 
 out:
-	if (tmpde)
-		kfree(tmpde);
+	kfree(tmpde);
 	if (bh)
 		brelse(bh);
 	return;

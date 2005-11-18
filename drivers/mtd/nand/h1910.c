@@ -7,7 +7,7 @@
  *       Copyright (C) 2002 Marius Gröger (mag@sysgo.de)
  *       Copyright (c) 2001 Thomas Gleixner (gleixner@autronix.de)
  *
- * $Id: h1910.c,v 1.5 2004/11/04 12:53:10 gleixner Exp $
+ * $Id: h1910.c,v 1.6 2005/11/07 11:14:30 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -54,24 +54,24 @@ static struct mtd_partition partition_info[] = {
 #endif
 
 
-/* 
+/*
  *	hardware specific access to control-lines
  */
-static void h1910_hwcontrol(struct mtd_info *mtd, int cmd) 
+static void h1910_hwcontrol(struct mtd_info *mtd, int cmd)
 {
 	struct nand_chip* this = (struct nand_chip *) (mtd->priv);
-	
+
 	switch(cmd) {
-		
-	case NAND_CTL_SETCLE: 
+
+	case NAND_CTL_SETCLE:
 		this->IO_ADDR_R |= (1 << 2);
 		this->IO_ADDR_W |= (1 << 2);
 		break;
-	case NAND_CTL_CLRCLE: 
+	case NAND_CTL_CLRCLE:
 		this->IO_ADDR_R &= ~(1 << 2);
 		this->IO_ADDR_W &= ~(1 << 2);
 		break;
-		
+
 	case NAND_CTL_SETALE:
 		this->IO_ADDR_R |= (1 << 3);
 		this->IO_ADDR_W |= (1 << 3);
@@ -80,7 +80,7 @@ static void h1910_hwcontrol(struct mtd_info *mtd, int cmd)
 		this->IO_ADDR_R &= ~(1 << 3);
 		this->IO_ADDR_W &= ~(1 << 3);
 		break;
-		
+
 	case NAND_CTL_SETNCE:
 		break;
 	case NAND_CTL_CLRNCE:
@@ -108,18 +108,18 @@ static int __init h1910_init (void)
 	int mtd_parts_nb = 0;
 	struct mtd_partition *mtd_parts = 0;
 	void __iomem *nandaddr;
-	
+
 	if (!machine_is_h1900())
 		return -ENODEV;
-		
+
 	nandaddr = __ioremap(0x08000000, 0x1000, 0, 1);
 	if (!nandaddr) {
 		printk("Failed to ioremap nand flash.\n");
 		return -ENOMEM;
 	}
-	
+
 	/* Allocate memory for MTD device structure and private data */
-	h1910_nand_mtd = kmalloc(sizeof(struct mtd_info) + 
+	h1910_nand_mtd = kmalloc(sizeof(struct mtd_info) +
 			     sizeof(struct nand_chip),
 			     GFP_KERNEL);
 	if (!h1910_nand_mtd) {
@@ -127,22 +127,22 @@ static int __init h1910_init (void)
 		iounmap ((void *) nandaddr);
 		return -ENOMEM;
 	}
-	
+
 	/* Get pointer to private data */
 	this = (struct nand_chip *) (&h1910_nand_mtd[1]);
-	
+
 	/* Initialize structures */
 	memset((char *) h1910_nand_mtd, 0, sizeof(struct mtd_info));
 	memset((char *) this, 0, sizeof(struct nand_chip));
-	
+
 	/* Link the private data with the MTD structure */
 	h1910_nand_mtd->priv = this;
-	
+
 	/*
 	 * Enable VPEN
 	 */
 	GPSR(37) = GPIO_bit(37);
-	
+
 	/* insert callbacks */
 	this->IO_ADDR_R = nandaddr;
 	this->IO_ADDR_W = nandaddr;
@@ -152,7 +152,7 @@ static int __init h1910_init (void)
 	this->chip_delay = 50;
 	this->eccmode = NAND_ECC_SOFT;
 	this->options = NAND_NO_AUTOINCR;
-	
+
 	/* Scan to find existence of the device */
 	if (nand_scan (h1910_nand_mtd, 1)) {
 		printk(KERN_NOTICE "No NAND device - returning -ENXIO\n");
@@ -160,9 +160,9 @@ static int __init h1910_init (void)
 		iounmap ((void *) nandaddr);
 		return -ENXIO;
 	}
-	
+
 #ifdef CONFIG_MTD_CMDLINE_PARTS
-	mtd_parts_nb = parse_cmdline_partitions(h1910_nand_mtd, &mtd_parts, 
+	mtd_parts_nb = parse_cmdline_partitions(h1910_nand_mtd, &mtd_parts,
 						"h1910-nand");
 	if (mtd_parts_nb > 0)
 	  part_type = "command line";
@@ -175,11 +175,11 @@ static int __init h1910_init (void)
 		mtd_parts_nb = NUM_PARTITIONS;
 		part_type = "static";
 	}
-	
+
 	/* Register the partitions */
 	printk(KERN_NOTICE "Using %s partition definition\n", part_type);
 	add_mtd_partitions(h1910_nand_mtd, mtd_parts, mtd_parts_nb);
-	
+
 	/* Return happy */
 	return 0;
 }
@@ -191,7 +191,7 @@ module_init(h1910_init);
 static void __exit h1910_cleanup (void)
 {
 	struct nand_chip *this = (struct nand_chip *) &h1910_nand_mtd[1];
-	
+
 	/* Release resources, unregister device */
 	nand_release (h1910_nand_mtd);
 

@@ -393,7 +393,7 @@ read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 				      ibuf, this_read, &partial,
 				      8000);
 
-		dbg(KERN_DEBUG "read stats: result:%d this_read:%u partial:%u",
+		dbg("read stats: result:%d this_read:%u partial:%u",
 		       result, this_read, partial);
 
 		if (partial) {

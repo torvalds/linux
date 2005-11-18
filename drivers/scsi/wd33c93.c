@@ -77,7 +77,6 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <asm/irq.h>

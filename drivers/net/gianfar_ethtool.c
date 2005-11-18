@@ -6,7 +6,7 @@
  *  Based on e1000 ethtool support
  *
  *  Author: Andy Fleming
- *  Maintainer: Kumar Gala (kumar.gala@freescale.com)
+ *  Maintainer: Kumar Gala
  *
  *  Copyright (c) 2003,2004 Freescale Semiconductor, Inc.
  *
@@ -34,7 +34,6 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/crc32.h>
 #include <asm/types.h>
 #include <asm/uaccess.h>

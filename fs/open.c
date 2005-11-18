@@ -194,7 +194,7 @@ out:
 	return error;
 }
 
-int do_truncate(struct dentry *dentry, loff_t length)
+int do_truncate(struct dentry *dentry, loff_t length, struct file *filp)
 {
 	int err;
 	struct iattr newattrs;
@@ -205,6 +205,10 @@ int do_truncate(struct dentry *dentry, loff_t length)
 
 	newattrs.ia_size = length;
 	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
+	if (filp) {
+		newattrs.ia_file = filp;
+		newattrs.ia_valid |= ATTR_FILE;
+	}
 
 	down(&dentry->d_inode->i_sem);
 	err = notify_change(dentry, &newattrs);
@@ -236,7 +240,7 @@ static inline long do_sys_truncate(const char __user * path, loff_t length)
 	if (!S_ISREG(inode->i_mode))
 		goto dput_and_out;
 
-	error = permission(inode,MAY_WRITE,&nd);
+	error = vfs_permission(&nd, MAY_WRITE);
 	if (error)
 		goto dput_and_out;
 
@@ -262,7 +266,7 @@ static inline long do_sys_truncate(const char __user * path, loff_t length)
 	error = locks_verify_truncate(inode, NULL, length);
 	if (!error) {
 		DQUOT_INIT(inode);
-		error = do_truncate(nd.dentry, length);
+		error = do_truncate(nd.dentry, length, NULL);
 	}
 	put_write_access(inode);
 
@@ -314,7 +318,7 @@ static inline long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 
 	error = locks_verify_truncate(inode, file, length);
 	if (!error)
-		error = do_truncate(dentry, length);
+		error = do_truncate(dentry, length, file);
 out_putf:
 	fput(file);
 out:
@@ -390,7 +394,7 @@ asmlinkage long sys_utime(char __user * filename, struct utimbuf __user * times)
                         goto dput_and_out;
 
 		if (current->fsuid != inode->i_uid &&
-		    (error = permission(inode,MAY_WRITE,&nd)) != 0)
+		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
 			goto dput_and_out;
 	}
 	down(&inode->i_sem);
@@ -443,7 +447,7 @@ long do_utimes(char __user * filename, struct timeval * times)
                         goto dput_and_out;
 
 		if (current->fsuid != inode->i_uid &&
-		    (error = permission(inode,MAY_WRITE,&nd)) != 0)
+		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
 			goto dput_and_out;
 	}
 	down(&inode->i_sem);
@@ -502,7 +506,7 @@ asmlinkage long sys_access(const char __user * filename, int mode)
 
 	res = __user_walk(filename, LOOKUP_FOLLOW|LOOKUP_ACCESS, &nd);
 	if (!res) {
-		res = permission(nd.dentry->d_inode, mode, &nd);
+		res = vfs_permission(&nd, mode);
 		/* SuS v2 requires we report a read only fs too */
 		if(!res && (mode & S_IWOTH) && IS_RDONLY(nd.dentry->d_inode)
 		   && !special_file(nd.dentry->d_inode->i_mode))
@@ -526,7 +530,7 @@ asmlinkage long sys_chdir(const char __user * filename)
 	if (error)
 		goto out;
 
-	error = permission(nd.dentry->d_inode,MAY_EXEC,&nd);
+	error = vfs_permission(&nd, MAY_EXEC);
 	if (error)
 		goto dput_and_out;
 
@@ -559,7 +563,7 @@ asmlinkage long sys_fchdir(unsigned int fd)
 	if (!S_ISDIR(inode->i_mode))
 		goto out_putf;
 
-	error = permission(inode, MAY_EXEC, NULL);
+	error = file_permission(file, MAY_EXEC);
 	if (!error)
 		set_fs_pwd(current->fs, mnt, dentry);
 out_putf:
@@ -577,7 +581,7 @@ asmlinkage long sys_chroot(const char __user * filename)
 	if (error)
 		goto out;
 
-	error = permission(nd.dentry->d_inode,MAY_EXEC,&nd);
+	error = vfs_permission(&nd, MAY_EXEC);
 	if (error)
 		goto dput_and_out;
 
@@ -887,6 +891,10 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 	return filp;
 }
 
+/*
+ * dentry_open() will have done dput(dentry) and mntput(mnt) if it returns an
+ * error.
+ */
 struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 {
 	int error;
@@ -894,8 +902,11 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 
 	error = -ENFILE;
 	f = get_empty_filp();
-	if (f == NULL)
+	if (f == NULL) {
+		dput(dentry);
+		mntput(mnt);
 		return ERR_PTR(error);
+	}
 
 	return __dentry_open(dentry, mnt, flags, f, NULL);
 }

@@ -33,7 +33,6 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/ppcdebug.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 #include <asm/vdso.h>
@@ -131,9 +130,6 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	long err = 0;
 
 	flush_fp_to_thread(current);
-
-	/* Make sure signal doesn't get spurrious FP exceptions */
-	current->thread.fpscr.val = 0;
 
 #ifdef CONFIG_ALTIVEC
 	err |= __put_user(v_regs, &sc->v_regs);
@@ -423,6 +419,9 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
 		goto badframe;
+
+	/* Make sure signal handler doesn't get spurious FP exceptions */
+	current->thread.fpscr.val = 0;
 
 	/* Set up to return from userspace. */
 	if (vdso64_rt_sigtramp && current->thread.vdso_base) {

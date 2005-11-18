@@ -43,12 +43,11 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_vsc"
-#define DRV_VERSION	"1.0"
+#define DRV_VERSION	"1.1"
 
 /* Interrupt register offsets (from chip base address) */
 #define VSC_SATA_INT_STAT_OFFSET	0x00
@@ -219,7 +218,7 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 }
 
 
-static Scsi_Host_Template vsc_sata_sht = {
+static struct scsi_host_template vsc_sata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -401,7 +400,7 @@ err_out:
  * 0x8086/0x3200 is the Intel 31244, which is supposed to be identical
  * compatibility is untested as of yet
  */
-static struct pci_device_id vsc_sata_pci_tbl[] = {
+static const struct pci_device_id vsc_sata_pci_tbl[] = {
 	{ 0x1725, 0x7174, PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
 	{ 0x8086, 0x3200, PCI_ANY_ID, PCI_ANY_ID, 0x10600, 0xFFFFFF, 0 },
 	{ }

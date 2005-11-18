@@ -31,7 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 
 #include "cx88.h"
 
@@ -153,26 +153,26 @@ static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
 		}
 		if (bpl <= sg_dma_len(sg)-offset) {
 			/* fits into current chunk */
-                        *(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|RISC_EOL|bpl);
-                        *(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
-                        offset+=bpl;
+			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|RISC_EOL|bpl);
+			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
+			offset+=bpl;
 		} else {
 			/* scanline needs to be splitted */
-                        todo = bpl;
-                        *(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|
+			todo = bpl;
+			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|
 					    (sg_dma_len(sg)-offset));
-                        *(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
-                        todo -= (sg_dma_len(sg)-offset);
-                        offset = 0;
-                        sg++;
-                        while (todo > sg_dma_len(sg)) {
-                                *(rp++)=cpu_to_le32(RISC_WRITE|
+			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
+			todo -= (sg_dma_len(sg)-offset);
+			offset = 0;
+			sg++;
+			while (todo > sg_dma_len(sg)) {
+				*(rp++)=cpu_to_le32(RISC_WRITE|
 						    sg_dma_len(sg));
-                                *(rp++)=cpu_to_le32(sg_dma_address(sg));
+				*(rp++)=cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
 				sg++;
 			}
-                        *(rp++)=cpu_to_le32(RISC_WRITE|RISC_EOL|todo);
+			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_EOL|todo);
 			*(rp++)=cpu_to_le32(sg_dma_address(sg));
 			offset += todo;
 		}
@@ -309,7 +309,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "video y / packed",
 		.cmds_start = 0x180040,
 		.ctrl_start = 0x180400,
-	        .cdt        = 0x180400 + 64,
+		.cdt        = 0x180400 + 64,
 		.fifo_start = 0x180c00,
 		.fifo_size  = 0x002800,
 		.ptr1_reg   = MO_DMA21_PTR1,
@@ -321,7 +321,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "video u",
 		.cmds_start = 0x180080,
 		.ctrl_start = 0x1804a0,
-	        .cdt        = 0x1804a0 + 64,
+		.cdt        = 0x1804a0 + 64,
 		.fifo_start = 0x183400,
 		.fifo_size  = 0x000800,
 		.ptr1_reg   = MO_DMA22_PTR1,
@@ -333,7 +333,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "video v",
 		.cmds_start = 0x1800c0,
 		.ctrl_start = 0x180540,
-	        .cdt        = 0x180540 + 64,
+		.cdt        = 0x180540 + 64,
 		.fifo_start = 0x183c00,
 		.fifo_size  = 0x000800,
 		.ptr1_reg   = MO_DMA23_PTR1,
@@ -345,7 +345,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "vbi",
 		.cmds_start = 0x180100,
 		.ctrl_start = 0x1805e0,
-	        .cdt        = 0x1805e0 + 64,
+		.cdt        = 0x1805e0 + 64,
 		.fifo_start = 0x184400,
 		.fifo_size  = 0x001000,
 		.ptr1_reg   = MO_DMA24_PTR1,
@@ -357,7 +357,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "audio from",
 		.cmds_start = 0x180140,
 		.ctrl_start = 0x180680,
-	        .cdt        = 0x180680 + 64,
+		.cdt        = 0x180680 + 64,
 		.fifo_start = 0x185400,
 		.fifo_size  = 0x000200,
 		.ptr1_reg   = MO_DMA25_PTR1,
@@ -369,7 +369,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "audio to",
 		.cmds_start = 0x180180,
 		.ctrl_start = 0x180720,
-	        .cdt        = 0x180680 + 64,  /* same as audio IN */
+		.cdt        = 0x180680 + 64,  /* same as audio IN */
 		.fifo_start = 0x185400,       /* same as audio IN */
 		.fifo_size  = 0x000200,       /* same as audio IN */
 		.ptr1_reg   = MO_DMA26_PTR1,
@@ -431,7 +431,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 /* ------------------------------------------------------------------ */
 /* debug helper code                                                  */
 
-int cx88_risc_decode(u32 risc)
+static int cx88_risc_decode(u32 risc)
 {
 	static char *instr[16] = {
 		[ RISC_SYNC    >> 28 ] = "sync",
@@ -845,19 +845,19 @@ static int set_tvaudio(struct cx88_core *core)
 		return 0;
 
 	if (V4L2_STD_PAL_BG & norm->id) {
-		core->tvaudio = nicam ? WW_NICAM_BGDKL : WW_A2_BG;
+		core->tvaudio = WW_BG;
 
 	} else if (V4L2_STD_PAL_DK & norm->id) {
-		core->tvaudio = nicam ? WW_NICAM_BGDKL : WW_A2_DK;
+		core->tvaudio = WW_DK;
 
 	} else if (V4L2_STD_PAL_I & norm->id) {
-		core->tvaudio = WW_NICAM_I;
+		core->tvaudio = WW_I;
 
 	} else if (V4L2_STD_SECAM_L & norm->id) {
-		core->tvaudio = WW_SYSTEM_L_AM;
+		core->tvaudio = WW_L;
 
 	} else if (V4L2_STD_SECAM_DK & norm->id) {
-		core->tvaudio = WW_A2_DK;
+		core->tvaudio = WW_DK;
 
 	} else if ((V4L2_STD_NTSC_M & norm->id) ||
 		   (V4L2_STD_PAL_M  & norm->id)) {
@@ -1137,7 +1137,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	if (!core->radio_addr)
 		core->radio_addr = cx88_boards[core->board].radio_addr;
 
-        printk(KERN_INFO "TV tuner %d at 0x%02x, Radio tuner %d at 0x%02x\n",
+	printk(KERN_INFO "TV tuner %d at 0x%02x, Radio tuner %d at 0x%02x\n",
 		core->tuner_type, core->tuner_addr<<1,
 		core->radio_type, core->radio_addr<<1);
 
@@ -1146,6 +1146,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	/* init hardware */
 	cx88_reset(core);
 	cx88_i2c_init(core,pci);
+	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
 	cx88_card_setup(core);
 	cx88_ir_init(core,pci);
 

@@ -194,7 +194,7 @@ out:
  * Probe for a SONIC ethernet controller on a Mips Jazz board.
  * Actually probing is superfluous but we're paranoid.
  */
-static int __init jazz_sonic_probe(struct device *device)
+static int __init jazz_sonic_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
@@ -212,8 +212,8 @@ static int __init jazz_sonic_probe(struct device *device)
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
-	lp->device = device;
-	SET_NETDEV_DEV(dev, device);
+	lp->device = &pdev->dev;
+	SET_NETDEV_DEV(dev, &pdev->dev);
  	SET_MODULE_OWNER(dev);
 
 	netdev_boot_setup_check(dev);
@@ -264,9 +264,9 @@ MODULE_PARM_DESC(sonic_debug, "jazzsonic debug level (1-4)");
 
 #include "sonic.c"
 
-static int __devexit jazz_sonic_device_remove (struct device *device)
+static int __devexit jazz_sonic_device_remove (struct platform_device *pdev)
 {
-	struct net_device *dev = device->driver_data;
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sonic_local* lp = netdev_priv(dev);
 
 	unregister_netdev (dev);
@@ -278,18 +278,19 @@ static int __devexit jazz_sonic_device_remove (struct device *device)
 	return 0;
 }
 
-static struct device_driver jazz_sonic_driver = {
-	.name	= jazz_sonic_string,
-	.bus	= &platform_bus_type,
+static struct platform_driver jazz_sonic_driver = {
 	.probe	= jazz_sonic_probe,
 	.remove	= __devexit_p(jazz_sonic_device_remove),
+	.driver	= {
+		.name	= jazz_sonic_string,
+	},
 };
 
 static int __init jazz_sonic_init_module(void)
 {
 	int err;
 
-	if ((err = driver_register(&jazz_sonic_driver))) {
+	if ((err = platform_driver_register(&jazz_sonic_driver))) {
 		printk(KERN_ERR "Driver registration failed\n");
 		return err;
 	}
@@ -313,7 +314,7 @@ out_unregister:
 
 static void __exit jazz_sonic_cleanup_module(void)
 {
-	driver_unregister(&jazz_sonic_driver);
+	platform_driver_unregister(&jazz_sonic_driver);
 
 	if (jazz_sonic_device) {
 		platform_device_unregister(jazz_sonic_device);

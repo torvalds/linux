@@ -47,6 +47,7 @@
 #include <linux/module.h>
 #include <linux/stddef.h>
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 #include <linux/isapnp.h>
 #include <linux/pnp.h>
 #include <linux/spinlock.h>

@@ -12,7 +12,7 @@ extra-$(CONFIG_6xx)		+= idle_6xx.o
 extra-$(CONFIG_POWER4)		+= idle_power4.o
 extra-y				+= vmlinux.lds
 
-obj-y				:= entry.o traps.o irq.o idle.o time.o misc.o \
+obj-y				:= entry.o traps.o idle.o time.o misc.o \
 					process.o align.o \
 					setup.o \
 					ppc_htab.o
@@ -22,6 +22,7 @@ obj-$(CONFIG_POWER4)		+= cpu_setup_power4.o
 obj-$(CONFIG_MODULES)		+= module.o ppc_ksyms.o
 obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
 obj-$(CONFIG_PCI)		+= pci.o
+obj-$(CONFIG_RAPIDIO)		+= rio.o
 obj-$(CONFIG_KGDB)		+= ppc-stub.o
 obj-$(CONFIG_SMP)		+= smp.o smp-tbsync.o
 obj-$(CONFIG_TAU)		+= temp.o
@@ -37,8 +38,7 @@ endif
 # These are here while we do the architecture merge
 
 else
-obj-y				:= irq.o idle.o \
-					align.o
+obj-y				:= idle.o align.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_MODULES)		+= module.o

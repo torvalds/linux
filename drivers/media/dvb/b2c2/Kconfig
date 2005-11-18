@@ -7,6 +7,7 @@ config DVB_B2C2_FLEXCOP
 	select DVB_NXT2002
 	select DVB_STV0297
 	select DVB_BCM3510
+	select DVB_LGDT330X
 	help
 	  Support for the digital TV receiver chip made by B2C2 Inc. included in
 	  Technisats PCI cards and USB boxes.

@@ -163,14 +163,24 @@ static int ac97_channel_mode_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 		.private_value = 1, \
 	}
 
+static inline int is_surround_on(ac97_t *ac97)
+{
+	return ac97->channel_mode >= 1;
+}
+
+static inline int is_clfe_on(ac97_t *ac97)
+{
+	return ac97->channel_mode >= 2;
+}
+
 static inline int is_shared_linein(ac97_t *ac97)
 {
-	return ! ac97->indep_surround && ac97->channel_mode >= 1;
+	return ! ac97->indep_surround && is_surround_on(ac97);
 }
 
 static inline int is_shared_micin(ac97_t *ac97)
 {
-	return ! ac97->indep_surround && ac97->channel_mode >= 2;
+	return ! ac97->indep_surround && is_clfe_on(ac97);
 }
 
 
@@ -1450,7 +1460,8 @@ int patch_ad1881(ac97_t * ac97)
 	codecs[1] = patch_ad1881_unchained(ac97, 1, (1<<14));
 	codecs[2] = patch_ad1881_unchained(ac97, 2, (1<<13));
 
-	snd_runtime_check(codecs[0] | codecs[1] | codecs[2], goto __end);
+	if (! (codecs[0] || codecs[1] || codecs[2]))
+		goto __end;
 
 	for (idx = 0; idx < 3; idx++)
 		if (ac97->spec.ad18xx.unchained[idx])
@@ -1753,12 +1764,13 @@ static int snd_ac97_ad1888_downmix_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 
 static void ad1888_update_jacks(ac97_t *ac97)
 {
+	unsigned short val = 0;
+	if (! is_shared_linein(ac97))
+		val |= (1 << 12);
+	if (! is_shared_micin(ac97))
+		val |= (1 << 11);
 	/* shared Line-In */
-	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 12,
-			     is_shared_linein(ac97) ? 0 : 1 << 12);
-	/* shared Mic */
-	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 11,
-			     is_shared_micin(ac97) ? 0 : 1 << 11);
+	snd_ac97_update_bits(ac97, AC97_AD_MISC, (1 << 11) | (1 << 12), val);
 }
 
 static const snd_kcontrol_new_t snd_ac97_ad1888_controls[] = {
@@ -1852,12 +1864,7 @@ static const snd_kcontrol_new_t snd_ac97_ad1985_controls[] = {
 
 static void ad1985_update_jacks(ac97_t *ac97)
 {
-	/* shared Line-In */
-	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 12,
-			     is_shared_linein(ac97) ? 0 : 1 << 12);
-	/* shared Mic */
-	snd_ac97_update_bits(ac97, AC97_AD_MISC, 1 << 11,
-			     is_shared_micin(ac97) ? 0 : 1 << 11);
+	ad1888_update_jacks(ac97);
 	snd_ac97_update_bits(ac97, AC97_AD_SERIAL_CFG, 1 << 9,
 			     is_shared_micin(ac97) ? 0 : 1 << 9);
 }
@@ -2442,21 +2449,37 @@ int patch_cm9739(ac97_t * ac97)
 
 static void cm9761_update_jacks(ac97_t *ac97)
 {
-	unsigned short surr_vals[2][2] = {
-		{ 0x0008, 0x0400 }, /* off, on */
-		{ 0x0000, 0x0408 }, /* off, on (9761-82 rev.B) */
+	/* FIXME: check the bits for each model
+	 *        model 83 is confirmed to work
+	 */
+	static unsigned short surr_on[3][2] = {
+		{ 0x0008, 0x0000 }, /* 9761-78 & 82 */
+		{ 0x0000, 0x0008 }, /* 9761-82 rev.B */
+		{ 0x0000, 0x0008 }, /* 9761-83 */
 	};
-	unsigned short clfe_vals[2][2] = {
-		{ 0x2000, 0x1880 }, /* off, on */
-		{ 0x1000, 0x2880 }, /* off, on (9761-82 rev.B) */
+	static unsigned short clfe_on[3][2] = {
+		{ 0x0000, 0x1000 }, /* 9761-78 & 82 */
+		{ 0x1000, 0x0000 }, /* 9761-82 rev.B */
+		{ 0x0000, 0x1000 }, /* 9761-83 */
 	};
+	static unsigned short surr_shared[3][2] = {
+		{ 0x0000, 0x0400 }, /* 9761-78 & 82 */
+		{ 0x0000, 0x0400 }, /* 9761-82 rev.B */
+		{ 0x0000, 0x0400 }, /* 9761-83 */
+	};
+	static unsigned short clfe_shared[3][2] = {
+		{ 0x2000, 0x0880 }, /* 9761-78 & 82 */
+		{ 0x0000, 0x2880 }, /* 9761-82 rev.B */
+		{ 0x2000, 0x0800 }, /* 9761-83 */
+	};
+	unsigned short val = 0;
 
-	/* shared Line-In */
-	snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x0408,
-			     surr_vals[ac97->spec.dev_flags][is_shared_linein(ac97)]);
-	/* shared Mic */
-	snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x3880,
-			     clfe_vals[ac97->spec.dev_flags][is_shared_micin(ac97)]);
+	val |= surr_on[ac97->spec.dev_flags][is_surround_on(ac97)];
+	val |= clfe_on[ac97->spec.dev_flags][is_clfe_on(ac97)];
+	val |= surr_shared[ac97->spec.dev_flags][is_shared_linein(ac97)];
+	val |= clfe_shared[ac97->spec.dev_flags][is_shared_micin(ac97)];
+
+	snd_ac97_update_bits(ac97, AC97_CM9761_MULTI_CHAN, 0x3c88, val);
 }
 
 static const snd_kcontrol_new_t snd_ac97_cm9761_controls[] = {
@@ -2551,7 +2574,7 @@ int patch_cm9761(ac97_t *ac97)
 	snd_ac97_write_cache(ac97, AC97_MASTER, 0x8808);
 	snd_ac97_write_cache(ac97, AC97_PCM, 0x8808);
 
-	ac97->spec.dev_flags = 0; /* 1 = model 82 revision B */
+	ac97->spec.dev_flags = 0; /* 1 = model 82 revision B, 2 = model 83 */
 	if (ac97->id == AC97_ID_CM9761_82) {
 		unsigned short tmp;
 		/* check page 1, reg 0x60 */
@@ -2560,7 +2583,8 @@ int patch_cm9761(ac97_t *ac97)
 		tmp = snd_ac97_read(ac97, 0x60);
 		ac97->spec.dev_flags = tmp & 1; /* revision B? */
 		snd_ac97_write_cache(ac97, AC97_INT_PAGING, val);
-	}
+	} else if (ac97->id == AC97_ID_CM9761_83)
+		ac97->spec.dev_flags = 2;
 
 	ac97->build_ops = &patch_cm9761_ops;
 

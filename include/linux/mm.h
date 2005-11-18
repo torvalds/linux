@@ -206,12 +206,6 @@ struct vm_operations_struct {
 struct mmu_gather;
 struct inode;
 
-#ifdef ARCH_HAS_ATOMIC_UNSIGNED
-typedef unsigned page_flags_t;
-#else
-typedef unsigned long page_flags_t;
-#endif
-
 /*
  * Each physical page in the system has a struct page associated with
  * it to keep track of whatever it is we are using the page for at the
@@ -219,7 +213,7 @@ typedef unsigned long page_flags_t;
  * a page.
  */
 struct page {
-	page_flags_t flags;		/* Atomic flags, some possibly
+	unsigned long flags;		/* Atomic flags, some possibly
 					 * updated asynchronously */
 	atomic_t _count;		/* Usage count, see below. */
 	atomic_t _mapcount;		/* Count of ptes mapped in mms,
@@ -435,7 +429,7 @@ static inline void put_page(struct page *page)
 #endif
 
 /* Page flags: | [SECTION] | [NODE] | ZONE | ... | FLAGS | */
-#define SECTIONS_PGOFF		((sizeof(page_flags_t)*8) - SECTIONS_WIDTH)
+#define SECTIONS_PGOFF		((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
 #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
 #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
 
@@ -932,13 +926,13 @@ int write_one_page(struct page *page, int wait);
 					 * turning readahead off */
 
 int do_page_cache_readahead(struct address_space *mapping, struct file *filp,
-			unsigned long offset, unsigned long nr_to_read);
+			pgoff_t offset, unsigned long nr_to_read);
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-			unsigned long offset, unsigned long nr_to_read);
-unsigned long  page_cache_readahead(struct address_space *mapping,
+			pgoff_t offset, unsigned long nr_to_read);
+unsigned long page_cache_readahead(struct address_space *mapping,
 			  struct file_ra_state *ra,
 			  struct file *filp,
-			  unsigned long offset,
+			  pgoff_t offset,
 			  unsigned long size);
 void handle_ra_miss(struct address_space *mapping, 
 		    struct file_ra_state *ra, pgoff_t offset);

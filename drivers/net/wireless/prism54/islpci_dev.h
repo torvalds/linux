@@ -23,7 +23,6 @@
 #ifndef _ISLPCI_DEV_H
 #define _ISLPCI_DEV_H
 
-#include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>

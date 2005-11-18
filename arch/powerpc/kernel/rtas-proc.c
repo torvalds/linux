@@ -32,7 +32,6 @@
 #include <asm/rtas.h>
 #include <asm/machdep.h> /* for ppc_md */
 #include <asm/time.h>
-#include <asm/systemcfg.h>
 
 /* Token for Sensors */
 #define KEY_SWITCH		0x0001
@@ -259,7 +258,7 @@ static int __init proc_rtas_init(void)
 {
 	struct proc_dir_entry *entry;
 
-	if (!(systemcfg->platform & PLATFORM_PSERIES))
+	if (_machine != PLATFORM_PSERIES && _machine != PLATFORM_PSERIES_LPAR)
 		return 1;
 
 	rtas_node = of_find_node_by_name(NULL, "rtas");

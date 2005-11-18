@@ -52,8 +52,6 @@ ppa.txt
 	- info on driver for IOmega zip drive
 qlogicfas.txt
 	- info on driver for QLogic FASxxx based adapters
-qlogicisp.txt
-	- info on driver for QLogic ISP 1020 based adapters
 scsi-generic.txt
 	- info on the sg driver for generic (non-disk/CD/tape) SCSI devices.
 scsi.txt

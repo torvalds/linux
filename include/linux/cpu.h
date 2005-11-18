@@ -42,6 +42,7 @@ struct notifier_block;
 /* Need to know about CPUs going up/down? */
 extern int register_cpu_notifier(struct notifier_block *nb);
 extern void unregister_cpu_notifier(struct notifier_block *nb);
+extern int current_in_cpu_hotplug(void);
 
 int cpu_up(unsigned int cpu);
 
@@ -53,6 +54,10 @@ static inline int register_cpu_notifier(struct notifier_block *nb)
 }
 static inline void unregister_cpu_notifier(struct notifier_block *nb)
 {
+}
+static inline int current_in_cpu_hotplug(void)
+{
+	return 0;
 }
 
 #endif /* CONFIG_SMP */

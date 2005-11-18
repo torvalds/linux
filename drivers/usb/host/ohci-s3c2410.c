@@ -459,39 +459,38 @@ static const struct hc_driver ohci_s3c2410_hc_driver = {
 
 /* device driver */
 
-static int ohci_hcd_s3c2410_drv_probe(struct device *dev)
+static int ohci_hcd_s3c2410_drv_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	return usb_hcd_s3c2410_probe(&ohci_s3c2410_hc_driver, pdev);
 }
 
-static int ohci_hcd_s3c2410_drv_remove(struct device *dev)
+static int ohci_hcd_s3c2410_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_s3c2410_remove(hcd, pdev);
 	return 0;
 }
 
-static struct device_driver ohci_hcd_s3c2410_driver = {
-	.name		= "s3c2410-ohci",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.probe		= ohci_hcd_s3c2410_drv_probe,
 	.remove		= ohci_hcd_s3c2410_drv_remove,
 	/*.suspend	= ohci_hcd_s3c2410_drv_suspend, */
 	/*.resume	= ohci_hcd_s3c2410_drv_resume, */
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "s3c2410-ohci",
+	},
 };
 
 static int __init ohci_hcd_s3c2410_init (void)
 {
-	return driver_register(&ohci_hcd_s3c2410_driver);
+	return platform_driver_register(&ohci_hcd_s3c2410_driver);
 }
 
 static void __exit ohci_hcd_s3c2410_cleanup (void)
 {
-	driver_unregister(&ohci_hcd_s3c2410_driver);
+	platform_driver_unregister(&ohci_hcd_s3c2410_driver);
 }
 
 module_init (ohci_hcd_s3c2410_init);

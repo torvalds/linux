@@ -262,8 +262,11 @@ int mls_context_to_sid(char oldc,
 	struct cat_datum *catdatum, *rngdatum;
 	int l, rc = -EINVAL;
 
-	if (!selinux_mls_enabled)
+	if (!selinux_mls_enabled) {
+		if (def_sid != SECSID_NULL && oldc)
+			*scontext += strlen(*scontext);
 		return 0;
+	}
 
 	/*
 	 * No MLS component to the security context, try and map to

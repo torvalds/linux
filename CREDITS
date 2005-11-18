@@ -1097,7 +1097,7 @@ S: 80050-430 - Curitiba - Paraná
 S: Brazil
 
 N: Kumar Gala
-E: kumar.gala@freescale.com
+E: galak@kernel.crashing.org
 D: Embedded PowerPC 6xx/7xx/74xx/82xx/83xx/85xx support
 S: Austin, Texas 78729
 S: USA
@@ -3642,11 +3642,9 @@ S: Beaverton, OR 97005
 S: USA
 
 N: Michal Wronski
-E: wrona@mat.uni.torun.pl
-W: http://www.mat.uni.torun.pl/~wrona
+E: Michal.Wronski@motorola.com
 D: POSIX message queues fs (with K. Benedyczak)
-S: ul. Teczowa 23/12
-S: 80-680 Gdansk-Sobieszewo
+S: Krakow
 S: Poland
 
 N: Frank Xia

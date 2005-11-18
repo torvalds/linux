@@ -5,7 +5,7 @@
  *                     Steven J. Hill <sjhill@realitydiluted.com>
  *		       Thomas Gleixner <tglx@linutronix.de>
  *
- * $Id: nand.h,v 1.73 2005/05/31 19:39:17 gleixner Exp $
+ * $Id: nand.h,v 1.74 2005/09/15 13:58:50 vwool Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,7 +24,7 @@
  *			bat later if I did something naughty.
  *   10-11-2000 SJH     Added private NAND flash structure for driver
  *   10-24-2000 SJH     Added prototype for 'nand_scan' function
- *   10-29-2001 TG	changed nand_chip structure to support 
+ *   10-29-2001 TG	changed nand_chip structure to support
  *			hardwarespecific function for accessing control lines
  *   02-21-2002 TG	added support for different read/write adress and
  *			ready/busy line access function
@@ -36,21 +36,21 @@
  *			CONFIG_MTD_NAND_ECC_JFFS2 is not set
  *   08-10-2002 TG	extensions to nand_chip structure to support HW-ECC
  *
- *   08-29-2002 tglx 	nand_chip structure: data_poi for selecting 
+ *   08-29-2002 tglx 	nand_chip structure: data_poi for selecting
  *			internal / fs-driver buffer
  *			support for 6byte/512byte hardware ECC
  *			read_ecc, write_ecc extended for different oob-layout
  *			oob layout selections: NAND_NONE_OOB, NAND_JFFS2_OOB,
  *			NAND_YAFFS_OOB
  *  11-25-2002 tglx	Added Manufacturer code FUJITSU, NATIONAL
- *			Split manufacturer and device ID structures 
+ *			Split manufacturer and device ID structures
  *
  *  02-08-2004 tglx 	added option field to nand structure for chip anomalities
  *  05-25-2004 tglx 	added bad block table support, ST-MICRO manufacturer id
  *			update of nand_chip structure description
- *  01-17-2005 dmarlin	added extended commands for AG-AND device and added option 
+ *  01-17-2005 dmarlin	added extended commands for AG-AND device and added option
  * 			for BBT_AUTO_REFRESH.
- *  01-20-2005 dmarlin	added optional pointer to hardware specific callback for 
+ *  01-20-2005 dmarlin	added optional pointer to hardware specific callback for
  *			extra error status checks.
  */
 #ifndef __LINUX_MTD_NAND_H
@@ -120,8 +120,8 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 #define NAND_CMD_CACHEDPROG	0x15
 
 /* Extended commands for AG-AND device */
-/* 
- * Note: the command for NAND_CMD_DEPLETE1 is really 0x00 but 
+/*
+ * Note: the command for NAND_CMD_DEPLETE1 is really 0x00 but
  *       there is no way to distinguish that from NAND_CMD_READ0
  *       until the remaining sequence of commands has been completed
  *       so add a high order bit and mask it off in the command.
@@ -145,7 +145,7 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 #define NAND_STATUS_READY	0x40
 #define NAND_STATUS_WP		0x80
 
-/* 
+/*
  * Constants for ECC_MODES
  */
 
@@ -191,12 +191,12 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 #define NAND_CACHEPRG		0x00000008
 /* Chip has copy back function */
 #define NAND_COPYBACK		0x00000010
-/* AND Chip which has 4 banks and a confusing page / block 
+/* AND Chip which has 4 banks and a confusing page / block
  * assignment. See Renesas datasheet for further information */
 #define NAND_IS_AND		0x00000020
 /* Chip has a array of 4 pages which can be read without
  * additional ready /busy waits */
-#define NAND_4PAGE_ARRAY	0x00000040 
+#define NAND_4PAGE_ARRAY	0x00000040
 /* Chip requires that BBT is periodically rewritten to prevent
  * bits from adjacent blocks from 'leaking' in altering data.
  * This happens with the Renesas AG-AND chips, possibly others.  */
@@ -219,8 +219,8 @@ extern int nand_read_raw (struct mtd_info *mtd, uint8_t *buf, loff_t from, size_
 /* Use a flash based bad block table. This option is passed to the
  * default bad block table function. */
 #define NAND_USE_FLASH_BBT	0x00010000
-/* The hw ecc generator provides a syndrome instead a ecc value on read 
- * This can only work if we have the ecc bytes directly behind the 
+/* The hw ecc generator provides a syndrome instead a ecc value on read
+ * This can only work if we have the ecc bytes directly behind the
  * data bytes. Applies for DOC and AG-AND Renesas HW Reed Solomon generators */
 #define NAND_HWECC_SYNDROME	0x00020000
 /* This option skips the bbt scan during initialization. */
@@ -244,6 +244,7 @@ typedef enum {
 	FL_ERASING,
 	FL_SYNCING,
 	FL_CACHEDPRG,
+	FL_PM_SUSPENDED,
 } nand_state_t;
 
 /* Keep gcc happy */
@@ -251,7 +252,7 @@ struct nand_chip;
 
 /**
  * struct nand_hw_control - Control structure for hardware controller (e.g ECC generator) shared among independend devices
- * @lock:               protection lock  
+ * @lock:               protection lock
  * @active:		the mtd device which holds the controller currently
  * @wq:			wait queue to sleep on if a NAND operation is in progress
  *                      used instead of the per chip wait queue when a hw controller is available
@@ -264,8 +265,8 @@ struct nand_hw_control {
 
 /**
  * struct nand_chip - NAND Private Flash Chip Data
- * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the flash device 
- * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the flash device 
+ * @IO_ADDR_R:		[BOARDSPECIFIC] address to read the 8 I/O lines of the flash device
+ * @IO_ADDR_W:		[BOARDSPECIFIC] address to write the 8 I/O lines of the flash device
  * @read_byte:		[REPLACEABLE] read one byte from the chip
  * @write_byte:		[REPLACEABLE] write one byte to the chip
  * @read_word:		[REPLACEABLE] read one word from the chip
@@ -288,7 +289,7 @@ struct nand_hw_control {
  *			be provided if a hardware ECC is available
  * @erase_cmd:		[INTERN] erase command write function, selectable due to AND support
  * @scan_bbt:		[REPLACEABLE] function to scan bad block table
- * @eccmode:		[BOARDSPECIFIC] mode of ecc, see defines 
+ * @eccmode:		[BOARDSPECIFIC] mode of ecc, see defines
  * @eccsize: 		[INTERN] databytes used per ecc-calculation
  * @eccbytes: 		[INTERN] number of ecc bytes per ecc-calculation step
  * @eccsteps:		[INTERN] number of ecc calculation steps per page
@@ -300,7 +301,7 @@ struct nand_hw_control {
  * @phys_erase_shift:	[INTERN] number of address bits in a physical eraseblock
  * @bbt_erase_shift:	[INTERN] number of address bits in a bbt entry
  * @chip_shift:		[INTERN] number of address bits in one chip
- * @data_buf:		[INTERN] internal buffer for one page + oob 
+ * @data_buf:		[INTERN] internal buffer for one page + oob
  * @oob_buf:		[INTERN] oob buffer for one eraseblock
  * @oobdirty:		[INTERN] indicates that oob_buf must be reinitialized
  * @data_poi:		[INTERN] pointer to a data buffer
@@ -315,22 +316,22 @@ struct nand_hw_control {
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash lookup
  * @bbt_md:		[REPLACEABLE] bad block table mirror descriptor
- * @badblock_pattern:	[REPLACEABLE] bad block scan pattern used for initial bad block scan 
+ * @badblock_pattern:	[REPLACEABLE] bad block scan pattern used for initial bad block scan
  * @controller:		[OPTIONAL] a pointer to a hardware controller structure which is shared among multiple independend devices
  * @priv:		[OPTIONAL] pointer to private chip date
- * @errstat:		[OPTIONAL] hardware specific function to perform additional error status checks 
+ * @errstat:		[OPTIONAL] hardware specific function to perform additional error status checks
  *			(determine if errors are correctable)
  */
- 
+
 struct nand_chip {
 	void  __iomem	*IO_ADDR_R;
 	void  __iomem 	*IO_ADDR_W;
-	
+
 	u_char		(*read_byte)(struct mtd_info *mtd);
 	void		(*write_byte)(struct mtd_info *mtd, u_char byte);
 	u16		(*read_word)(struct mtd_info *mtd);
 	void		(*write_word)(struct mtd_info *mtd, u16 word);
-	
+
 	void		(*write_buf)(struct mtd_info *mtd, const u_char *buf, int len);
 	void		(*read_buf)(struct mtd_info *mtd, u_char *buf, int len);
 	int		(*verify_buf)(struct mtd_info *mtd, const u_char *buf, int len);
@@ -395,7 +396,7 @@ struct nand_chip {
  * @name:  	Identify the device type
  * @id:   	device ID code
  * @pagesize:  	Pagesize in bytes. Either 256 or 512 or 0
- *		If the pagesize is 0, then the real pagesize 
+ *		If the pagesize is 0, then the real pagesize
  *		and the eraseize are determined from the
  *		extended id bytes in the chip
  * @erasesize: 	Size of an erase block in the flash device.
@@ -424,7 +425,7 @@ struct nand_manufacturers {
 extern struct nand_flash_dev nand_flash_ids[];
 extern struct nand_manufacturers nand_manuf_ids[];
 
-/** 
+/**
  * struct nand_bbt_descr - bad block table descriptor
  * @options:	options for this descriptor
  * @pages:	the page(s) where we find the bbt, used with option BBT_ABSPAGE
@@ -435,14 +436,14 @@ extern struct nand_manufacturers nand_manuf_ids[];
  * @version:	version read from the bbt page during scan
  * @len:	length of the pattern, if 0 no pattern check is performed
  * @maxblocks:	maximum number of blocks to search for a bbt. This number of
- *		blocks is reserved at the end of the device where the tables are 
+ *		blocks is reserved at the end of the device where the tables are
  *		written.
  * @reserved_block_code: if non-0, this pattern denotes a reserved (rather than
  *              bad) block in the stored bbt
- * @pattern:	pattern to identify bad block table or factory marked good / 
+ * @pattern:	pattern to identify bad block table or factory marked good /
  *		bad blocks, can be NULL, if len = 0
  *
- * Descriptor for the bad block table marker and the descriptor for the 
+ * Descriptor for the bad block table marker and the descriptor for the
  * pattern which identifies good and bad blocks. The assumption is made
  * that the pattern and the version count are always located in the oob area
  * of the first block.

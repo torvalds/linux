@@ -225,9 +225,8 @@ static const struct hc_driver ohci_au1xxx_hc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int ohci_hcd_au1xxx_drv_probe(struct device *dev)
+static int ohci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
 	pr_debug ("In ohci_hcd_au1xxx_drv_probe");
@@ -239,39 +238,37 @@ static int ohci_hcd_au1xxx_drv_probe(struct device *dev)
 	return ret;
 }
 
-static int ohci_hcd_au1xxx_drv_remove(struct device *dev)
+static int ohci_hcd_au1xxx_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_au1xxx_remove(hcd, pdev);
 	return 0;
 }
 	/*TBD*/
-/*static int ohci_hcd_au1xxx_drv_suspend(struct device *dev)
+/*static int ohci_hcd_au1xxx_drv_suspend(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(dev);
 
 	return 0;
 }
-static int ohci_hcd_au1xxx_drv_resume(struct device *dev)
+static int ohci_hcd_au1xxx_drv_resume(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(dev);
 
 	return 0;
 }
 */
 
-static struct device_driver ohci_hcd_au1xxx_driver = {
-	.name		= "au1xxx-ohci",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver ohci_hcd_au1xxx_driver = {
 	.probe		= ohci_hcd_au1xxx_drv_probe,
 	.remove		= ohci_hcd_au1xxx_drv_remove,
 	/*.suspend	= ohci_hcd_au1xxx_drv_suspend, */
 	/*.resume	= ohci_hcd_au1xxx_drv_resume, */
+	.driver		= {
+		.name	= "au1xxx-ohci",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init ohci_hcd_au1xxx_init (void)
@@ -280,12 +277,12 @@ static int __init ohci_hcd_au1xxx_init (void)
 	pr_debug ("block sizes: ed %d td %d\n",
 		sizeof (struct ed), sizeof (struct td));
 
-	return driver_register(&ohci_hcd_au1xxx_driver);
+	return platform_driver_register(&ohci_hcd_au1xxx_driver);
 }
 
 static void __exit ohci_hcd_au1xxx_cleanup (void)
 {
-	driver_unregister(&ohci_hcd_au1xxx_driver);
+	platform_driver_unregister(&ohci_hcd_au1xxx_driver);
 }
 
 module_init (ohci_hcd_au1xxx_init);

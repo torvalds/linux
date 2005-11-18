@@ -1,5 +1,5 @@
 # drivers/mtd/nand/Kconfig
-# $Id: Kconfig,v 1.31 2005/06/20 12:03:21 bjd Exp $
+# $Id: Kconfig,v 1.35 2005/11/07 11:14:30 gleixner Exp $
 
 menu "NAND Flash Device Drivers"
 	depends on MTD!=n
@@ -25,33 +25,33 @@ config MTD_NAND_VERIFY_WRITE
 
 config MTD_NAND_AUTCPU12
 	tristate "SmartMediaCard on autronix autcpu12 board"
-	depends on ARM && MTD_NAND && ARCH_AUTCPU12
+	depends on MTD_NAND && ARCH_AUTCPU12
 	help
-	  This enables the driver for the autronix autcpu12 board to 
+	  This enables the driver for the autronix autcpu12 board to
 	  access the SmartMediaCard.
 
 config MTD_NAND_EDB7312
 	tristate "Support for Cirrus Logic EBD7312 evaluation board"
-	depends on ARM && MTD_NAND && ARCH_EDB7312
+	depends on MTD_NAND && ARCH_EDB7312
 	help
-	  This enables the driver for the Cirrus Logic EBD7312 evaluation 
+	  This enables the driver for the Cirrus Logic EBD7312 evaluation
 	  board to access the onboard NAND Flash.
 
 config MTD_NAND_H1900
 	tristate "iPAQ H1900 flash"
-	depends on ARM && MTD_NAND && ARCH_PXA && MTD_PARTITIONS
+	depends on MTD_NAND && ARCH_PXA && MTD_PARTITIONS
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
 config MTD_NAND_SPIA
 	tristate "NAND Flash device on SPIA board"
-	depends on ARM && ARCH_P720T && MTD_NAND
+	depends on ARCH_P720T && MTD_NAND
 	help
 	  If you had to ask, you don't have one. Say 'N'.
 
 config MTD_NAND_TOTO
 	tristate "NAND Flash device on TOTO board"
-	depends on ARM && ARCH_OMAP && MTD_NAND
+	depends on ARCH_OMAP && MTD_NAND
 	help
 	  Support for NAND flash on Texas Instruments Toto platform.
 
@@ -59,8 +59,8 @@ config MTD_NAND_IDS
 	tristate
 
 config MTD_NAND_AU1550
-	tristate "Au1550 NAND support"
-	depends on SOC_AU1550 && MTD_NAND
+	tristate "Au1550/1200 NAND support"
+	depends on (SOC_AU1200 || SOC_AU1550) && MTD_NAND
 	help
 	  This enables the driver for the NAND flash controller on the
 	  AMD/Alchemy 1550 SOC.
@@ -71,7 +71,7 @@ config MTD_NAND_RTC_FROM4
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC8
 	help
-	  This enables the driver for the Renesas Technology AG-AND 
+	  This enables the driver for the Renesas Technology AG-AND
 	  flash interface board (FROM_BOARD4)
 
 config MTD_NAND_PPCHAMELEONEVB
@@ -88,7 +88,7 @@ config MTD_NAND_S3C2410
 	  SoCs
 
 	  No board specfic support is done by this driver, each board
-	  must advertise a platform_device for the driver to attach. 
+	  must advertise a platform_device for the driver to attach.
 
 config MTD_NAND_S3C2410_DEBUG
 	bool "S3C2410 NAND driver debug"
@@ -181,7 +181,7 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	  
  config MTD_NAND_SHARPSL
  	bool "Support for NAND Flash on Sharp SL Series (C7xx + others)"
- 	depends on MTD_NAND	&& ARCH_PXA
+ 	depends on MTD_NAND && ARCH_PXA
  
  config MTD_NAND_NANDSIM
  	bool "Support for NAND Flash Simulator"

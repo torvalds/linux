@@ -462,7 +462,7 @@ __SYSCALL(__NR_fremovexattr, sys_fremovexattr)
 #define __NR_tkill	200
 __SYSCALL(__NR_tkill, sys_tkill) 
 #define __NR_time      201
-__SYSCALL(__NR_time, sys_time64)
+__SYSCALL(__NR_time, sys_time)
 #define __NR_futex     202
 __SYSCALL(__NR_futex, sys_futex)
 #define __NR_sched_setaffinity    203
@@ -608,6 +608,7 @@ do { \
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
+#define __ARCH_WANT_SYS_TIME
 #define __ARCH_WANT_COMPAT_SYS_TIME
 #endif
 

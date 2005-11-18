@@ -399,6 +399,7 @@ start_secondary (void *unused)
 	Dprintk("start_secondary: starting CPU 0x%x\n", hard_smp_processor_id());
 	efi_map_pal_code();
 	cpu_init();
+	preempt_disable();
 	smp_callin();
 
 	cpu_idle();

@@ -33,7 +33,6 @@
 #include <linux/init.h>
 #include <linux/signal.h>
 
-#include <asm/ppcdebug.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -85,10 +84,11 @@
 extern unsigned long dart_tablebase;
 #endif /* CONFIG_U3_DART */
 
+static unsigned long _SDR1;
+struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+
 hpte_t *htab_address;
 unsigned long htab_hash_mask;
-unsigned long _SDR1;
-struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 int mmu_linear_psize = MMU_PAGE_4K;
 int mmu_virtual_psize = MMU_PAGE_4K;
 #ifdef CONFIG_HUGETLB_PAGE
@@ -166,7 +166,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		 * normal insert callback here.
 		 */
 #ifdef CONFIG_PPC_ISERIES
-		if (systemcfg->platform == PLATFORM_ISERIES_LPAR)
+		if (_machine == PLATFORM_ISERIES_LPAR)
 			ret = iSeries_hpte_insert(hpteg, va,
 						  virt_to_abs(paddr),
 						  tmp_mode,
@@ -175,7 +175,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		else
 #endif
 #ifdef CONFIG_PPC_PSERIES
-		if (systemcfg->platform & PLATFORM_LPAR)
+		if (_machine & PLATFORM_LPAR)
 			ret = pSeries_lpar_hpte_insert(hpteg, va,
 						       virt_to_abs(paddr),
 						       tmp_mode,
@@ -294,7 +294,7 @@ static void __init htab_init_page_sizes(void)
 	 * Not in the device-tree, let's fallback on known size
 	 * list for 16M capable GP & GR
 	 */
-	if ((systemcfg->platform != PLATFORM_ISERIES_LPAR) &&
+	if ((_machine != PLATFORM_ISERIES_LPAR) &&
 	    cpu_has_feature(CPU_FTR_16M_PAGE))
 		memcpy(mmu_psize_defs, mmu_psize_defaults_gp,
 		       sizeof(mmu_psize_defaults_gp));
@@ -329,12 +329,14 @@ static void __init htab_init_page_sizes(void)
 	 */
 	if (mmu_psize_defs[MMU_PAGE_16M].shift)
 		mmu_huge_psize = MMU_PAGE_16M;
+	/* With 4k/4level pagetables, we can't (for now) cope with a
+	 * huge page size < PMD_SIZE */
 	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
 		mmu_huge_psize = MMU_PAGE_1M;
 
 	/* Calculate HPAGE_SHIFT and sanity check it */
-	if (mmu_psize_defs[mmu_huge_psize].shift > 16 &&
-	    mmu_psize_defs[mmu_huge_psize].shift < 28)
+	if (mmu_psize_defs[mmu_huge_psize].shift > MIN_HUGEPTE_SHIFT &&
+	    mmu_psize_defs[mmu_huge_psize].shift < SID_SHIFT)
 		HPAGE_SHIFT = mmu_psize_defs[mmu_huge_psize].shift;
 	else
 		HPAGE_SHIFT = 0; /* No huge pages dude ! */
@@ -363,7 +365,7 @@ static int __init htab_dt_scan_pftsize(unsigned long node,
 
 static unsigned long __init htab_get_table_size(void)
 {
-	unsigned long rnd_mem_size, pteg_count;
+	unsigned long mem_size, rnd_mem_size, pteg_count;
 
 	/* If hash size isn't already provided by the platform, we try to
 	 * retreive it from the device-tree. If it's not there neither, we
@@ -375,8 +377,9 @@ static unsigned long __init htab_get_table_size(void)
 		return 1UL << ppc64_pft_size;
 
 	/* round mem_size up to next power of 2 */
-	rnd_mem_size = 1UL << __ilog2(systemcfg->physicalMemorySize);
-	if (rnd_mem_size < systemcfg->physicalMemorySize)
+	mem_size = lmb_phys_mem_size();
+	rnd_mem_size = 1UL << __ilog2(mem_size);
+	if (rnd_mem_size < mem_size)
 		rnd_mem_size <<= 1;
 
 	/* # pages / 2 */
@@ -384,6 +387,15 @@ static unsigned long __init htab_get_table_size(void)
 
 	return pteg_count << 7;
 }
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+void create_section_mapping(unsigned long start, unsigned long end)
+{
+		BUG_ON(htab_bolt_mapping(start, end, start,
+			_PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX,
+			mmu_linear_psize));
+}
+#endif /* CONFIG_MEMORY_HOTPLUG */
 
 void __init htab_initialize(void)
 {
@@ -407,15 +419,9 @@ void __init htab_initialize(void)
 	htab_size_bytes = htab_get_table_size();
 	pteg_count = htab_size_bytes >> 7;
 
-	/* For debug, make the HTAB 1/8 as big as it normally would be. */
-	ifppcdebug(PPCDBG_HTABSIZE) {
-		pteg_count >>= 3;
-		htab_size_bytes = pteg_count << 7;
-	}
-
 	htab_hash_mask = pteg_count - 1;
 
-	if (systemcfg->platform & PLATFORM_LPAR) {
+	if (platform_is_lpar()) {
 		/* Using a hypervisor which owns the htab */
 		htab_address = NULL;
 		_SDR1 = 0; 
@@ -436,6 +442,9 @@ void __init htab_initialize(void)
 
 		/* Initialize the HPT with no entries */
 		memset((void *)table, 0, htab_size_bytes);
+
+		/* Set SDR1 */
+		mtspr(SPRN_SDR1, _SDR1);
 	}
 
 	mode_rw = _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX;
@@ -505,12 +514,21 @@ void __init htab_initialize(void)
 #undef KB
 #undef MB
 
+void __init htab_initialize_secondary(void)
+{
+	if (!platform_is_lpar())
+		mtspr(SPRN_SDR1, _SDR1);
+}
+
 /*
  * Called by asm hashtable.S for doing lazy icache flush
  */
 unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 {
 	struct page *page;
+
+	if (!pfn_valid(pte_pfn(pte)))
+		return pp;
 
 	page = pte_page(pte);
 

@@ -114,16 +114,9 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 		int low = sysctl_local_port_range[0];
 		int high = sysctl_local_port_range[1];
 		int remaining = (high - low) + 1;
-		int rover;
+		int rover = net_random() % (high - low) + low;
 
-		spin_lock(&tcp_hashinfo.portalloc_lock);
-		if (tcp_hashinfo.port_rover < low)
-			rover = low;
-		else
-			rover = tcp_hashinfo.port_rover;
-		do {	rover++;
-			if (rover > high)
-				rover = low;
+		do {
 			head = &tcp_hashinfo.bhash[inet_bhashfn(rover, tcp_hashinfo.bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
@@ -132,9 +125,9 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 			break;
 		next:
 			spin_unlock(&head->lock);
+			if (++rover > high)
+				rover = low;
 		} while (--remaining > 0);
-		tcp_hashinfo.port_rover = rover;
-		spin_unlock(&tcp_hashinfo.portalloc_lock);
 
 		/* Exhausted local port range during search?  It is not
 		 * possible for us to be holding one of the bind hash
@@ -1408,20 +1401,18 @@ out:
 static int tcp_v6_checksum_init(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_HW) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (!tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-				  &skb->nh.ipv6h->daddr,skb->csum))
+				  &skb->nh.ipv6h->daddr,skb->csum)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			return 0;
-		LIMIT_NETDEBUG(KERN_DEBUG "hw tcp v6 csum failed\n");
+		}
 	}
+
+	skb->csum = ~tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
+				  &skb->nh.ipv6h->daddr, 0);
+
 	if (skb->len <= 76) {
-		if (tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-				 &skb->nh.ipv6h->daddr,skb_checksum(skb, 0, skb->len, 0)))
-			return -1;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else {
-		skb->csum = ~tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-					  &skb->nh.ipv6h->daddr,0);
+		return __skb_checksum_complete(skb);
 	}
 	return 0;
 }
@@ -1582,7 +1573,7 @@ static int tcp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 		goto discard_it;
 
 	if ((skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	     tcp_v6_checksum_init(skb) < 0))
+	     tcp_v6_checksum_init(skb)))
 		goto bad_packet;
 
 	th = skb->h.th;

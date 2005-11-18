@@ -46,6 +46,7 @@
 #include <asm/btext.h>
 #include <asm/div64.h>
 #include <asm/xmon.h>
+#include <asm/signal.h>
 
 #ifdef  CONFIG_8xx
 #include <asm/commproc.h>
@@ -57,7 +58,6 @@ extern void machine_check_exception(struct pt_regs *regs);
 extern void alignment_exception(struct pt_regs *regs);
 extern void program_check_exception(struct pt_regs *regs);
 extern void single_step_exception(struct pt_regs *regs);
-extern int do_signal(sigset_t *, struct pt_regs *);
 extern int pmac_newworld;
 extern int sys_sigreturn(struct pt_regs *regs);
 
@@ -78,7 +78,6 @@ EXPORT_SYMBOL(program_check_exception);
 EXPORT_SYMBOL(single_step_exception);
 EXPORT_SYMBOL(sys_sigreturn);
 EXPORT_SYMBOL(ppc_n_lost_interrupts);
-EXPORT_SYMBOL(ppc_lost_interrupts);
 
 EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
 EXPORT_SYMBOL(DMA_MODE_READ);
@@ -176,6 +175,7 @@ EXPORT_SYMBOL(pci_bus_to_phys);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
+extern void flush_dcache_all(void);
 EXPORT_SYMBOL(flush_dcache_all);
 #endif
 
@@ -217,9 +217,6 @@ EXPORT_SYMBOL(adb_try_handler_change);
 EXPORT_SYMBOL(cuda_request);
 EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
-#ifdef CONFIG_PPC_MULTIPLATFORM
-EXPORT_SYMBOL(_machine);
-#endif
 #ifdef CONFIG_PPC_PMAC
 EXPORT_SYMBOL(sys_ctrler);
 EXPORT_SYMBOL(pmac_newworld);

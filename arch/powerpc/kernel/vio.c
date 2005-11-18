@@ -21,6 +21,7 @@
 #include <asm/iommu.h>
 #include <asm/dma.h>
 #include <asm/vio.h>
+#include <asm/prom.h>
 
 static const struct vio_device_id *vio_match_device(
 		const struct vio_device_id *, const struct vio_dev *);
@@ -265,7 +266,33 @@ static int vio_bus_match(struct device *dev, struct device_driver *drv)
 	return (ids != NULL) && (vio_match_device(ids, vio_dev) != NULL);
 }
 
+static int vio_hotplug(struct device *dev, char **envp, int num_envp,
+			char *buffer, int buffer_size)
+{
+	const struct vio_dev *vio_dev = to_vio_dev(dev);
+	char *cp;
+	int length;
+
+	if (!num_envp)
+		return -ENOMEM;
+
+	if (!vio_dev->dev.platform_data)
+		return -ENODEV;
+	cp = (char *)get_property(vio_dev->dev.platform_data, "compatible", &length);
+	if (!cp)
+		return -ENODEV;
+
+	envp[0] = buffer;
+	length = scnprintf(buffer, buffer_size, "MODALIAS=vio:T%sS%s",
+				vio_dev->type, cp);
+	if (buffer_size - length <= 0)
+		return -ENOMEM;
+	envp[1] = NULL;
+	return 0;
+}
+
 struct bus_type vio_bus_type = {
 	.name = "vio",
+	.hotplug = vio_hotplug,
 	.match = vio_bus_match,
 };

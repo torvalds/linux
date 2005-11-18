@@ -2,7 +2,7 @@
 
 #include <linux/types.h>
 
-int amiga7xx_detect(Scsi_Host_Template *);
+int amiga7xx_detect(struct scsi_host_template *);
 const char *NCR53c7x0_info(void);
 int NCR53c7xx_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 int NCR53c7xx_abort(Scsi_Cmnd *);

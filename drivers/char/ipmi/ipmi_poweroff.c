@@ -56,7 +56,7 @@ static int poweroff_powercycle;
 
 /* parameter definition to allow user to flag power cycle */
 module_param(poweroff_powercycle, int, 0644);
-MODULE_PARM_DESC(poweroff_powercycles, " Set to non-zero to enable power cycle instead of power down. Power cycle is contingent on hardware support, otherwise it defaults back to power down.");
+MODULE_PARM_DESC(poweroff_powercycle, " Set to non-zero to enable power cycle instead of power down. Power cycle is contingent on hardware support, otherwise it defaults back to power down.");
 
 /* Stuff from the get device id command. */
 static unsigned int mfg_id;
@@ -611,9 +611,7 @@ static int ipmi_poweroff_init (void)
 	}
 #endif
 
-#ifdef CONFIG_PROC_FS
 	rv = ipmi_smi_watcher_register(&smi_watcher);
-#endif
 	if (rv) {
 		unregister_sysctl_table(ipmi_table_header);
 		printk(KERN_ERR PFX "Unable to register SMI watcher: %d\n", rv);

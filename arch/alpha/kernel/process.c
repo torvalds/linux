@@ -43,21 +43,17 @@
 #include "proto.h"
 #include "pci_impl.h"
 
-void default_idle(void)
-{
-	barrier();
-}
-
 void
 cpu_idle(void)
 {
+	set_thread_flag(TIF_POLLING_NRFLAG);
+
 	while (1) {
-		void (*idle)(void) = default_idle;
 		/* FIXME -- EV6 and LCA45 know how to power down
 		   the CPU.  */
 
 		while (!need_resched())
-			idle();
+			cpu_relax();
 		schedule();
 	}
 }

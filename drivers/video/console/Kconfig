@@ -98,6 +98,18 @@ config FRAMEBUFFER_CONSOLE
 	tristate "Framebuffer Console support"
 	depends on FB
 	select CRC32
+	help
+	  Low-level framebuffer-based console driver.
+
+config FRAMEBUFFER_CONSOLE_ROTATION
+       bool "Framebuffer Console Rotation"
+       depends on FRAMEBUFFER_CONSOLE
+       help
+         Enable display rotation for the framebuffer console.  This is done
+         in software and may be significantly slower than a normally oriented
+         display.  Note that the rotation is done at the console level only
+         such that other users of the framebuffer will remain normally
+         oriented.
 
 config STI_CONSOLE
         tristate "STI text console" 

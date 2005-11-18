@@ -14,6 +14,7 @@
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
 #include <linux/config.h>
+#include <linux/thread_info.h>
 #include <asm/segment.h>
 #include <asm/fpu.h>
 #include <asm/ptrace.h>
@@ -55,17 +56,6 @@ static inline void wrusp(unsigned long usp)
 #endif
 #define TASK_UNMAPPED_ALIGN(addr, off)	PAGE_ALIGN(addr)
 
-struct task_work {
-	unsigned char sigpending;
-	unsigned char notify_resume;	/* request for notification on
-					   userspace execution resumption */
-	char          need_resched;
-	unsigned char delayed_trace;	/* single step a syscall */
-	unsigned char syscall_trace;	/* count of syscall interceptors */
-	unsigned char memdie;		/* task was selected to be killed */
-	unsigned char pad[2];
-};
-
 struct thread_struct {
 	unsigned long  ksp;		/* kernel stack pointer */
 	unsigned long  usp;		/* user stack pointer */
@@ -78,7 +68,7 @@ struct thread_struct {
 	unsigned long  fp[8*3];
 	unsigned long  fpcntl[3];	/* fp control regs */
 	unsigned char  fpstate[FPSTATESIZE];  /* floating point state */
-	struct task_work work;
+	struct thread_info info;
 };
 
 #define INIT_THREAD  {							\

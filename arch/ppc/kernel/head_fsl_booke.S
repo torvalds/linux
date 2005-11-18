@@ -24,7 +24,7 @@
  *    Copyright 2002-2004 MontaVista Software, Inc.
  *      PowerPC 44x support, Matt Porter <mporter@kernel.crashing.org>
  *    Copyright 2004 Freescale Semiconductor, Inc
- *      PowerPC e500 modifications, Kumar Gala <kumar.gala@freescale.com>
+ *      PowerPC e500 modifications, Kumar Gala <galak@kernel.crashing.org>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the

@@ -9,7 +9,7 @@
  * global variable (boot or module load time) settings.
  *
  * A specific LUN is scanned via an INQUIRY command; if the LUN has a
- * device attached, a Scsi_Device is allocated and setup for it.
+ * device attached, a scsi_device is allocated and setup for it.
  *
  * For every id of every channel on the given host:
  *
@@ -17,7 +17,7 @@
  * 	device or storage attached to LUN 0):
  *
  * 		If LUN 0 has a device attached, allocate and setup a
- * 		Scsi_Device for it.
+ * 		scsi_device for it.
  *
  * 		If target is SCSI-3 or up, issue a REPORT LUN, and scan
  * 		all of the LUNs returned by the REPORT LUN; else,
@@ -441,7 +441,7 @@ void scsi_target_reap(struct scsi_target *starget)
  *
  *     If the INQUIRY is successful, zero is returned and the
  *     INQUIRY data is in @inq_result; the scsi_level and INQUIRY length
- *     are copied to the Scsi_Device any flags value is stored in *@bflags.
+ *     are copied to the scsi_device any flags value is stored in *@bflags.
  **/
 static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 			  int result_len, int *bflags)
@@ -509,8 +509,8 @@ static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 		/*
 		 * Get any flags for this device.
 		 *
-		 * XXX add a bflags to Scsi_Device, and replace the
-		 * corresponding bit fields in Scsi_Device, so bflags
+		 * XXX add a bflags to scsi_device, and replace the
+		 * corresponding bit fields in scsi_device, so bflags
 		 * need not be passed as an argument.
 		 */
 		*bflags = scsi_get_device_flags(sdev, &inq_result[8],
@@ -592,21 +592,21 @@ static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 }
 
 /**
- * scsi_add_lun - allocate and fully initialze a Scsi_Device
- * @sdevscan:	holds information to be stored in the new Scsi_Device
- * @sdevnew:	store the address of the newly allocated Scsi_Device
+ * scsi_add_lun - allocate and fully initialze a scsi_device
+ * @sdevscan:	holds information to be stored in the new scsi_device
+ * @sdevnew:	store the address of the newly allocated scsi_device
  * @inq_result:	holds the result of a previous INQUIRY to the LUN
  * @bflags:	black/white list flag
  *
  * Description:
- *     Allocate and initialize a Scsi_Device matching sdevscan. Optionally
+ *     Allocate and initialize a scsi_device matching sdevscan. Optionally
  *     set fields based on values in *@bflags. If @sdevnew is not
- *     NULL, store the address of the new Scsi_Device in *@sdevnew (needed
+ *     NULL, store the address of the new scsi_device in *@sdevnew (needed
  *     when scanning a particular LUN).
  *
  * Return:
- *     SCSI_SCAN_NO_RESPONSE: could not allocate or setup a Scsi_Device
- *     SCSI_SCAN_LUN_PRESENT: a new Scsi_Device was allocated and initialized
+ *     SCSI_SCAN_NO_RESPONSE: could not allocate or setup a scsi_device
+ *     SCSI_SCAN_LUN_PRESENT: a new scsi_device was allocated and initialized
  **/
 static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 {
@@ -674,7 +674,7 @@ static int scsi_add_lun(struct scsi_device *sdev, char *inq_result, int *bflags)
 	 *
 	 * The above is vague, as it implies that we could treat 001 and
 	 * 011 the same. Stay compatible with previous code, and create a
-	 * Scsi_Device for a PQ of 1
+	 * scsi_device for a PQ of 1
 	 *
 	 * Don't set the device offline here; rather let the upper
 	 * level drivers eval the PQ to decide whether they should
@@ -784,8 +784,8 @@ static inline void scsi_destroy_sdev(struct scsi_device *sdev)
  * scsi_probe_and_add_lun - probe a LUN, if a LUN is found add it
  * @starget:	pointer to target device structure
  * @lun:	LUN of target device
- * @sdevscan:	probe the LUN corresponding to this Scsi_Device
- * @sdevnew:	store the value of any new Scsi_Device allocated
+ * @sdevscan:	probe the LUN corresponding to this scsi_device
+ * @sdevnew:	store the value of any new scsi_device allocated
  * @bflagsp:	store bflags here if not NULL
  *
  * Description:
@@ -793,10 +793,10 @@ static inline void scsi_destroy_sdev(struct scsi_device *sdev)
  *     allocate and set it up by calling scsi_add_lun.
  *
  * Return:
- *     SCSI_SCAN_NO_RESPONSE: could not allocate or setup a Scsi_Device
+ *     SCSI_SCAN_NO_RESPONSE: could not allocate or setup a scsi_device
  *     SCSI_SCAN_TARGET_PRESENT: target responded, but no device is
  *         attached at the LUN
- *     SCSI_SCAN_LUN_PRESENT: a new Scsi_Device was allocated and initialized
+ *     SCSI_SCAN_LUN_PRESENT: a new scsi_device was allocated and initialized
  **/
 static int scsi_probe_and_add_lun(struct scsi_target *starget,
 				  uint lun, int *bflagsp,
@@ -1046,7 +1046,7 @@ EXPORT_SYMBOL(int_to_scsilun);
 
 /**
  * scsi_report_lun_scan - Scan using SCSI REPORT LUN results
- * @sdevscan:	scan the host, channel, and id of this Scsi_Device
+ * @sdevscan:	scan the host, channel, and id of this scsi_device
  *
  * Description:
  *     If @sdevscan is for a SCSI-3 or up device, send a REPORT LUN
@@ -1074,6 +1074,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 	struct scsi_sense_hdr sshdr;
 	struct scsi_device *sdev;
 	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
+	int ret = 0;
 
 	/*
 	 * Only support SCSI-3 and up devices if BLIST_NOREPORTLUN is not set.
@@ -1169,8 +1170,8 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		/*
 		 * The device probably does not support a REPORT LUN command
 		 */
-		kfree(lun_data);
-		return 1;
+		ret = 1;
+		goto out_err;
 	}
 
 	/*
@@ -1238,6 +1239,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		}
 	}
 
+ out_err:
 	kfree(lun_data);
  out:
 	scsi_device_put(sdev);
@@ -1246,7 +1248,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		 * the sdev we used didn't appear in the report luns scan
 		 */
 		scsi_destroy_sdev(sdev);
-	return 0;
+	return ret;
 }
 
 struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
@@ -1472,16 +1474,16 @@ void scsi_forget_host(struct Scsi_Host *shost)
 /*
  * Function:    scsi_get_host_dev()
  *
- * Purpose:     Create a Scsi_Device that points to the host adapter itself.
+ * Purpose:     Create a scsi_device that points to the host adapter itself.
  *
- * Arguments:   SHpnt   - Host that needs a Scsi_Device
+ * Arguments:   SHpnt   - Host that needs a scsi_device
  *
  * Lock status: None assumed.
  *
- * Returns:     The Scsi_Device or NULL
+ * Returns:     The scsi_device or NULL
  *
  * Notes:
- *	Attach a single Scsi_Device to the Scsi_Host - this should
+ *	Attach a single scsi_device to the Scsi_Host - this should
  *	be made to look like a "pseudo-device" that points to the
  *	HA itself.
  *
@@ -1518,7 +1520,7 @@ EXPORT_SYMBOL(scsi_get_host_dev);
  *
  * Purpose:     Free a scsi_device that points to the host adapter itself.
  *
- * Arguments:   SHpnt   - Host that needs a Scsi_Device
+ * Arguments:   SHpnt   - Host that needs a scsi_device
  *
  * Lock status: None assumed.
  *

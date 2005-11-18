@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 
 #include <asm/hw_irq.h>
-#include <asm/ppc_asm.h>
 #include <asm/atomic.h>
 
 /*
@@ -180,6 +179,7 @@ extern struct task_struct *_switch(struct thread_struct *prev,
 extern unsigned int rtas_data;
 extern int mem_init_done;	/* set on boot once kmalloc can be called */
 extern unsigned long memory_limit;
+extern unsigned long klimit;
 
 extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 

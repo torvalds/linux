@@ -81,6 +81,11 @@ INSTALLING the kernel:
    failed patches (xxx# or xxx.rej). If there are, either you or me has
    made a mistake.
 
+   Unlike patches for the 2.6.x kernels, patches for the 2.6.x.y kernels
+   (also known as the -stable kernels) are not incremental but instead apply
+   directly to the base 2.6.x kernel.  Please read
+   Documentation/applying-patches.txt for more information.
+
    Alternatively, the script patch-kernel can be used to automate this
    process.  It determines the current kernel version and applies any
    patches found.

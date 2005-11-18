@@ -497,16 +497,19 @@ pmu_hd_blink_init(void)
 	if (pmu_get_model() != PMU_KEYLARGO_BASED)
 		return 0;
 	
-	dt = find_devices("device-tree");
+	dt = of_find_node_by_path("/");
 	if (dt == NULL)
 		return 0;
 	model = (const char *)get_property(dt, "model", NULL);
 	if (model == NULL)
 		return 0;
 	if (strncmp(model, "PowerBook", strlen("PowerBook")) != 0 &&
-	    strncmp(model, "iBook", strlen("iBook")) != 0)
+	    strncmp(model, "iBook", strlen("iBook")) != 0) {
+		of_node_put(dt);
 	    	return 0;
-	
+	}
+	of_node_put(dt);
+
 	pmu_blink_on.complete = 1;
 	pmu_blink_off.complete = 1;
 	spin_lock_init(&pmu_blink_lock);
@@ -1664,10 +1667,15 @@ static struct macio_driver pmac_ide_macio_driver =
 };
 
 static struct pci_device_id pmac_ide_pci_match[] = {
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_ATA, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID_ATA100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_K2_ATA100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_ATA,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID_ATA100,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_K2_ATA100,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_SH_ATA,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID2_ATA,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 };
 

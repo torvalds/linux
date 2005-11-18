@@ -143,6 +143,6 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 
 	return ((ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE);
 out_err:
-	if (md5cksum.data) kfree(md5cksum.data);
+	kfree(md5cksum.data);
 	return GSS_S_FAILURE;
 }

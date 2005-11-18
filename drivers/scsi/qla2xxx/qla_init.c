@@ -147,8 +147,8 @@ check_fw_ready_again:
 					 * LIP to complete
 					 */
 
-					if (atomic_read(&ha->loop_state) ==
-					    LOOP_DOWN && retry--) {
+					if (atomic_read(&ha->loop_state) !=
+					    LOOP_READY && retry--) {
 						goto check_fw_ready_again;
 					}
 					wait_time--;
@@ -567,6 +567,7 @@ qla24xx_reset_risc(scsi_qla_host_t *ha)
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t cnt, d2;
+	uint16_t wd;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -581,10 +582,10 @@ qla24xx_reset_risc(scsi_qla_host_t *ha)
 
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
-	RD_REG_DWORD(&reg->ctrl_status);
+	pci_read_config_word(ha->pdev, PCI_COMMAND, &wd);
 
+	udelay(100);
 	/* Wait for firmware to complete NVRAM accesses. */
-	udelay(5);
 	d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
 	for (cnt = 10000 ; cnt && d2; cnt--) {
 		udelay(5);
@@ -592,7 +593,7 @@ qla24xx_reset_risc(scsi_qla_host_t *ha)
 		barrier();
 	}
 
-	udelay(20);
+	/* Wait for soft-reset to complete. */
 	d2 = RD_REG_DWORD(&reg->ctrl_status);
 	for (cnt = 6000000 ; cnt && (d2 & CSRX_ISP_SOFT_RESET); cnt--) {
 		udelay(5);
@@ -1258,9 +1259,15 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 	rval = qla2x00_get_adapter_id(ha,
 	    &loop_id, &al_pa, &area, &domain, &topo);
 	if (rval != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "ERROR -- Unable to get host loop ID.\n");
-		set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+		if (LOOP_NOT_READY(ha) || atomic_read(&ha->loop_down_timer) ||
+		    (rval == QLA_COMMAND_ERROR && loop_id == 0x7)) {
+			DEBUG2(printk("%s(%ld) Loop is in a transition state\n",
+			    __func__, ha->host_no));
+		} else {
+			qla_printk(KERN_WARNING, ha,
+			    "ERROR -- Unable to get host loop ID.\n");
+			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+		}
 		return (rval);
 	}
 
@@ -1789,7 +1796,7 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 	}
 
 	if (rval == QLA_SUCCESS && test_bit(RSCN_UPDATE, &flags)) {
-		if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags)) {
+		if (LOOP_NOT_READY(ha)) {
 			rval = QLA_FUNCTION_FAILED;
 		} else {
 			rval = qla2x00_configure_fabric(ha);
@@ -1977,8 +1984,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 	}
 
 cleanup_allocation:
-	if (new_fcport)
-		kfree(new_fcport);
+	kfree(new_fcport);
 
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(printk("scsi(%ld): Configure local loop error exit: "
@@ -2348,8 +2354,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 	/* Allocate temporary fcport for any new fcports discovered. */
 	new_fcport = qla2x00_alloc_fcport(ha, GFP_KERNEL);
 	if (new_fcport == NULL) {
-		if (swl)
-			kfree(swl);
+		kfree(swl);
 		return (QLA_MEMORY_ALLOC_FAILED);
 	}
 	new_fcport->flags |= (FCF_FABRIC_DEVICE | FCF_LOGIN_NEEDED);
@@ -2364,8 +2369,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		if (qla2x00_is_reserved_id(ha, loop_id))
 			continue;
 
-		if (atomic_read(&ha->loop_down_timer) ||
-		    test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
+		if (atomic_read(&ha->loop_down_timer) || LOOP_NOT_READY(ha))
 			break;
 
 		if (swl != NULL) {
@@ -2485,19 +2489,15 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		nxt_d_id.b24 = new_fcport->d_id.b24;
 		new_fcport = qla2x00_alloc_fcport(ha, GFP_KERNEL);
 		if (new_fcport == NULL) {
-			if (swl)
-				kfree(swl);
+			kfree(swl);
 			return (QLA_MEMORY_ALLOC_FAILED);
 		}
 		new_fcport->flags |= (FCF_FABRIC_DEVICE | FCF_LOGIN_NEEDED);
 		new_fcport->d_id.b24 = nxt_d_id.b24;
 	}
 
-	if (swl)
-		kfree(swl);
-
-	if (new_fcport)
-		kfree(new_fcport);
+	kfree(swl);
+	kfree(new_fcport);
 
 	if (!list_empty(new_fcports))
 		ha->device_flags |= DFLG_FABRIC_DEVICES;

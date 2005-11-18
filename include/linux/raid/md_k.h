@@ -105,6 +105,8 @@ struct mdk_rdev_s
 	int		sb_size;	/* bytes in the superblock */
 	int		preferred_minor;	/* autorun support */
 
+	struct kobject	kobj;
+
 	/* A device can be in one of three states based on two flags:
 	 * Not working:   faulty==1 in_sync==0
 	 * Fully working: faulty==0 in_sync==1
@@ -115,11 +117,12 @@ struct mdk_rdev_s
 	 * It can never have faulty==1, in_sync==1
 	 * This reduces the burden of testing multiple flags in many cases
 	 */
-	int faulty;			/* if faulty do not issue IO requests */
-	int in_sync;			/* device is a full member of the array */
 
-	unsigned long	flags;		/* Should include faulty and in_sync here. */
+	unsigned long	flags;
+#define	Faulty		1		/* device is known to have a fault */
+#define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
+#define	BarriersNotsupp	5		/* BIO_RW_BARRIER is not supported */
 
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */
@@ -131,6 +134,9 @@ struct mdk_rdev_s
 	atomic_t	nr_pending;	/* number of pending requests.
 					 * only maintained for arrays that
 					 * support hot removal
+					 */
+	atomic_t	read_errors;	/* number of consecutive read errors that
+					 * we have tried to ignore.
 					 */
 };
 
@@ -147,6 +153,8 @@ struct mddev_s
 	int				ro;
 
 	struct gendisk			*gendisk;
+
+	struct kobject			kobj;
 
 	/* Superblock information */
 	int				major_version,
@@ -171,6 +179,10 @@ struct mddev_s
 	sector_t			resync_mark_cnt;/* blocks written at resync_mark */
 
 	sector_t			resync_max_sectors; /* may be set by personality */
+
+	sector_t			resync_mismatches; /* count of sectors where
+							    * parity/replica mismatch found
+							    */
 	/* recovery/resync flags 
 	 * NEEDED:   we might need to start a resync/recover
 	 * RUNNING:  a thread is running, or about to be started
@@ -178,6 +190,8 @@ struct mddev_s
 	 * ERR:      and IO error was detected - abort the resync/recovery
 	 * INTR:     someone requested a (clean) early abort.
 	 * DONE:     thread is done and is waiting to be reaped
+	 * REQUEST:  user-space has requested a sync (used with SYNC)
+	 * CHECK:    user-space request for for check-only, no repair
 	 */
 #define	MD_RECOVERY_RUNNING	0
 #define	MD_RECOVERY_SYNC	1
@@ -185,6 +199,8 @@ struct mddev_s
 #define	MD_RECOVERY_INTR	3
 #define	MD_RECOVERY_DONE	4
 #define	MD_RECOVERY_NEEDED	5
+#define	MD_RECOVERY_REQUESTED	6
+#define	MD_RECOVERY_CHECK	7
 	unsigned long			recovery;
 
 	int				in_sync;	/* know to not need resync */
@@ -194,6 +210,13 @@ struct mddev_s
 	int				changed;	/* true if we might need to reread partition info */
 	int				degraded;	/* whether md should consider
 							 * adding a spare
+							 */
+	int				barriers_work;	/* initialised to true, cleared as soon
+							 * as a barrier request to slave
+							 * fails.  Only supported
+							 */
+	struct bio			*biolist; 	/* bios that need to be retried
+							 * because BIO_RW_BARRIER is not supported
 							 */
 
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
@@ -232,7 +255,7 @@ struct mddev_s
 
 static inline void rdev_dec_pending(mdk_rdev_t *rdev, mddev_t *mddev)
 {
-	int faulty = rdev->faulty;
+	int faulty = test_bit(Faulty, &rdev->flags);
 	if (atomic_dec_and_test(&rdev->nr_pending) && faulty)
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 }
@@ -270,6 +293,13 @@ struct mdk_personality_s
 };
 
 
+struct md_sysfs_entry {
+	struct attribute attr;
+	ssize_t (*show)(mddev_t *, char *);
+	ssize_t (*store)(mddev_t *, const char *, size_t);
+};
+
+
 static inline char * mdname (mddev_t * mddev)
 {
 	return mddev->gendisk ? mddev->gendisk->disk_name : "mdX";
@@ -304,10 +334,8 @@ typedef struct mdk_thread_s {
 	mddev_t			*mddev;
 	wait_queue_head_t	wqueue;
 	unsigned long           flags;
-	struct completion	*event;
 	struct task_struct	*tsk;
 	unsigned long		timeout;
-	const char		*name;
 } mdk_thread_t;
 
 #define THREAD_WAKEUP  0

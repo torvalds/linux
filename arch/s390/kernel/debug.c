@@ -486,7 +486,7 @@ out:
  * - goto next entry in p_info
  */
 
-extern inline int
+static inline int
 debug_next_entry(file_private_info_t *p_info)
 {
 	debug_info_t *id;
@@ -800,7 +800,7 @@ debug_set_level(debug_info_t* id, int new_level)
  * - set active entry to next in the ring buffer
  */
 
-extern inline void
+static inline void
 proceed_active_entry(debug_info_t * id)
 {
 	if ((id->active_entries[id->active_area] += id->entry_size)
@@ -817,7 +817,7 @@ proceed_active_entry(debug_info_t * id)
  * - set active area to next in the ring buffer
  */
 
-extern inline void
+static inline void
 proceed_active_area(debug_info_t * id)
 {
 	id->active_area++;
@@ -828,7 +828,7 @@ proceed_active_area(debug_info_t * id)
  * get_active_entry:
  */
 
-extern inline debug_entry_t*
+static inline debug_entry_t*
 get_active_entry(debug_info_t * id)
 {
 	return (debug_entry_t *) (((char *) id->areas[id->active_area]
@@ -841,7 +841,7 @@ get_active_entry(debug_info_t * id)
  * - set timestamp, caller address, cpu number etc.
  */
 
-extern inline void
+static inline void
 debug_finish_entry(debug_info_t * id, debug_entry_t* active, int level,
 			int exception)
 {
@@ -971,7 +971,7 @@ debug_entry_t
  * counts arguments in format string for sprintf view
  */
 
-extern inline int
+static inline int
 debug_count_numargs(char *string)
 {
 	int numargs=0;

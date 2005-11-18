@@ -820,7 +820,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 				break;
 
 			/*
-			 *	Find the Scsi_Device associated with the SCSI
+			 *	Find the scsi_device associated with the SCSI
 			 * address. Make sure we have the right array, and if
 			 * so set the flag to initiate a new re-config once we
 			 * see an AifEnConfigChange AIF come through.
@@ -987,7 +987,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 
 
 	/*
-	 *	Find the Scsi_Device associated with the SCSI address,
+	 *	Find the scsi_device associated with the SCSI address,
 	 * and mark it as changed, invalidating the cache. This deals
 	 * with changes to existing device IDs.
 	 */
@@ -1164,7 +1164,7 @@ int aac_command_thread(struct aac_dev * dev)
 						kfree(hw_fib_pool);
 						hw_fib_pool = NULL;
 					}
-				} else if (hw_fib_pool) {
+				} else {
 					kfree(hw_fib_pool);
 					hw_fib_pool = NULL;
 				}
@@ -1247,17 +1247,13 @@ int aac_command_thread(struct aac_dev * dev)
 				hw_fib_p = hw_fib_pool;
 				fib_p = fib_pool;
 				while (hw_fib_p < &hw_fib_pool[num]) {
-					if (*hw_fib_p)
-						kfree(*hw_fib_p);
-					if (*fib_p)
-						kfree(*fib_p);
+					kfree(*hw_fib_p);
+					kfree(*fib_p);
 					++fib_p;
 					++hw_fib_p;
 				}
-				if (hw_fib_pool)
-					kfree(hw_fib_pool);
-				if (fib_pool)
-					kfree(fib_pool);
+				kfree(hw_fib_pool);
+				kfree(fib_pool);
 			}
 			kfree(fib);
 			spin_lock_irqsave(dev->queues->queue[HostNormCmdQueue].lock, flags);

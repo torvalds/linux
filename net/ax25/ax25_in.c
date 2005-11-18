@@ -401,10 +401,8 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if (dp.ndigi == 0) {
-		if (ax25->digipeat != NULL) {
-			kfree(ax25->digipeat);
-			ax25->digipeat = NULL;
-		}
+		kfree(ax25->digipeat);
+		ax25->digipeat = NULL;
 	} else {
 		/* Reverse the source SABM's path */
 		memcpy(ax25->digipeat, &reverse_dp, sizeof(ax25_digi));

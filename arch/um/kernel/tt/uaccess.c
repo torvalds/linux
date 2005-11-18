@@ -8,7 +8,7 @@
 
 int copy_from_user_tt(void *to, const void __user *from, int n)
 {
-	if(!access_ok_tt(VERIFY_READ, from, n))
+	if(!access_ok(VERIFY_READ, from, n))
 		return(n);
 
 	return(__do_copy_from_user(to, from, n, &current->thread.fault_addr,
@@ -17,7 +17,7 @@ int copy_from_user_tt(void *to, const void __user *from, int n)
 
 int copy_to_user_tt(void __user *to, const void *from, int n)
 {
-	if(!access_ok_tt(VERIFY_WRITE, to, n))
+	if(!access_ok(VERIFY_WRITE, to, n))
 		return(n);
 
 	return(__do_copy_to_user(to, from, n, &current->thread.fault_addr,
@@ -28,7 +28,7 @@ int strncpy_from_user_tt(char *dst, const char __user *src, int count)
 {
 	int n;
 
-	if(!access_ok_tt(VERIFY_READ, src, 1))
+	if(!access_ok(VERIFY_READ, src, 1))
 		return(-EFAULT);
 
 	n = __do_strncpy_from_user(dst, src, count,
@@ -47,7 +47,7 @@ int __clear_user_tt(void __user *mem, int len)
 
 int clear_user_tt(void __user *mem, int len)
 {
-	if(!access_ok_tt(VERIFY_WRITE, mem, len))
+	if(!access_ok(VERIFY_WRITE, mem, len))
 		return(len);
 
 	return(__do_clear_user(mem, len, &current->thread.fault_addr,

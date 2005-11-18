@@ -413,7 +413,6 @@ void vm_acct_memory(long pages)
 	}
 	preempt_enable();
 }
-EXPORT_SYMBOL(vm_acct_memory);
 
 #ifdef CONFIG_HOTPLUG_CPU
 static void lru_drain_cache(unsigned int cpu)

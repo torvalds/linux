@@ -36,10 +36,14 @@ putstr(const char *s)
 	volatile u8 * uart = 0;
 	int shift = 2;
 
+#ifdef CONFIG_MACH_OMAP_PALMTE
+	return;
+#endif
+
 #ifdef CONFIG_ARCH_OMAP
 #ifdef	CONFIG_OMAP_LL_DEBUG_UART3
 	uart = (volatile u8 *)(OMAP_UART3_BASE);
-#elif	CONFIG_OMAP_LL_DEBUG_UART2
+#elif defined(CONFIG_OMAP_LL_DEBUG_UART2)
 	uart = (volatile u8 *)(OMAP_UART2_BASE);
 #else
 	uart = (volatile u8 *)(OMAP_UART1_BASE);

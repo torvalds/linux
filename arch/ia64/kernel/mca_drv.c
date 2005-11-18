@@ -88,7 +88,7 @@ mca_page_isolate(unsigned long paddr)
 	if (!ia64_phys_addr_valid(paddr))
 		return ISOLATE_NONE;
 
-	if (!pfn_valid(paddr))
+	if (!pfn_valid(paddr >> PAGE_SHIFT))
 		return ISOLATE_NONE;
 
 	/* convert physical address to physical page number */
@@ -108,6 +108,7 @@ mca_page_isolate(unsigned long paddr)
 		return ISOLATE_NG;
 
 	/* add attribute 'Reserved' and register the page */
+	get_page(p);
 	SetPageReserved(p);
 	page_isolate[num_page_isolate++] = p;
 
@@ -546,9 +547,20 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 		(pal_processor_state_info_t*)peidx_psp(peidx);
 
 	/*
-	 * We cannot recover errors with other than bus_check.
+	 * Processor recovery status must key off of the PAL recovery
+	 * status in the Processor State Parameter.
 	 */
-	if (psp->cc || psp->rc || psp->uc)
+
+	/*
+	 * The machine check is corrected.
+	 */
+	if (psp->cm == 1)
+		return 1;
+
+	/*
+	 * The error was not contained.  Software must be reset.
+	 */
+	if (psp->us || psp->ci == 0)
 		return 0;
 
 	/*
@@ -568,8 +580,6 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 	if (pbci->ib || pbci->cc)
 		return 0;
 	if (pbci->eb && pbci->bsi > 0)
-		return 0;
-	if (psp->ci == 0)
 		return 0;
 
 	/*

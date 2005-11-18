@@ -3,7 +3,7 @@
  *
  * MPC85xx ADS board common routines
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2004 Freescale Semiconductor Inc.
  *
@@ -44,6 +44,8 @@
 #include <asm/ppc_sys.h>
 
 #include <mm/mmu_decl.h>
+
+#include <syslib/ppc85xx_rio.h>
 
 #include <platforms/85xx/mpc85xx_ads_common.h>
 
@@ -189,3 +191,11 @@ mpc85xx_exclude_device(u_char bus, u_char devfn)
 }
 
 #endif /* CONFIG_PCI */
+
+#ifdef CONFIG_RAPIDIO
+void platform_rio_init(void)
+{
+	/* 512MB RIO LAW at 0xc0000000 */
+	mpc85xx_rio_setup(0xc0000000, 0x20000000);
+}
+#endif /* CONFIG_RAPIDIO */

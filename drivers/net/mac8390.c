@@ -15,7 +15,6 @@
  * and fixed access to Sonic Sys card which masquerades as a Farallon 
  * by rayk@knightsmanor.org */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

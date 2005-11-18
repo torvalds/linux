@@ -116,7 +116,9 @@ static int llc_ui_send_data(struct sock* sk, struct sk_buff *skb, int noblock)
 	struct llc_sock* llc = llc_sk(sk);
 	int rc = 0;
 
-	if (unlikely(llc_data_accept_state(llc->state) || llc->p_flag)) {
+	if (unlikely(llc_data_accept_state(llc->state) || 
+		     llc->remote_busy_flag ||
+		     llc->p_flag)) {
 		long timeout = sock_sndtimeo(sk, noblock);
 
 		rc = llc_ui_wait_for_busy_core(sk, timeout);
@@ -542,6 +544,7 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout)
 		if (sk_wait_event(sk, &timeout,
 				  (sk->sk_shutdown & RCV_SHUTDOWN) ||
 				  (!llc_data_accept_state(llc->state) &&
+				   !llc->remote_busy_flag &&
 				   !llc->p_flag)))
 			break;
 		rc = -ERESTARTSYS;

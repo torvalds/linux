@@ -47,6 +47,10 @@ struct lgdt330x_config
 
 	/* Need to set device param for start_dma */
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);
+
+	/* Flip the polarity of the mpeg data transfer clock using alternate init data
+	 * This option applies ONLY to LGDT3303 - 0:disabled (default) 1:enabled */
+	int clock_polarity_flip;
 };
 
 extern struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,

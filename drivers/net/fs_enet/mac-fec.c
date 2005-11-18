@@ -34,6 +34,7 @@
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 #include <linux/fs.h>
+#include <linux/platform_device.h>
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>

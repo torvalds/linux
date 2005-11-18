@@ -1,5 +1,5 @@
 /*
- * Modifications by Kumar Gala (kumar.gala@freescale.com) to support
+ * Modifications by Kumar Gala (galak@kernel.crashing.org) to support
  * E500 Book E processors.
  *
  * Copyright 2004 Freescale Semiconductor, Inc

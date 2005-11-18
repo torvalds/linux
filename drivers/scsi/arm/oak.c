@@ -111,7 +111,7 @@ printk("reading %p len %d\n", addr, len);
 
 #include "../NCR5380.c"
 
-static Scsi_Host_Template oakscsi_template = {
+static struct scsi_host_template oakscsi_template = {
 	.module			= THIS_MODULE,
 	.proc_info		= oakscsi_proc_info,
 	.name			= "Oak 16-bit SCSI",

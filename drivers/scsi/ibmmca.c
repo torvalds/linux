@@ -18,12 +18,6 @@
  */
 
 #include <linux/config.h>
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,45)
-#error "This driver works only with kernel 2.5.45 or higher!"
-#endif
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -498,7 +492,7 @@ static char *ibmrate(unsigned int, int);
 static int probe_display(int);
 static int probe_bus_mode(int);
 static int device_exists(int, int, int *, int *);
-static struct Scsi_Host *ibmmca_register(Scsi_Host_Template *, int, int, int, char *);
+static struct Scsi_Host *ibmmca_register(struct scsi_host_template *, int, int, int, char *);
 static int option_setup(char *);
 /* local functions needed for proc_info */
 static int ldn_access_load(int, int);
@@ -1489,7 +1483,7 @@ static int ibmmca_getinfo(char *buf, int slot, void *dev_id)
 	return len;
 }
 
-int ibmmca_detect(Scsi_Host_Template * scsi_template)
+int ibmmca_detect(struct scsi_host_template * scsi_template)
 {
 	struct Scsi_Host *shpnt;
 	int port, id, i, j, k, list_size, slot;
@@ -1742,7 +1736,7 @@ int ibmmca_detect(Scsi_Host_Template * scsi_template)
 	return found;		/* return the number of found SCSI hosts. Should be 1 or 0. */
 }
 
-static struct Scsi_Host *ibmmca_register(Scsi_Host_Template * scsi_template, int port, int id, int adaptertype, char *hostname)
+static struct Scsi_Host *ibmmca_register(struct scsi_host_template * scsi_template, int port, int id, int adaptertype, char *hostname)
 {
 	struct Scsi_Host *shpnt;
 	int i, j;
@@ -2500,7 +2494,7 @@ static int option_setup(char *str)
 
 __setup("ibmmcascsi=", option_setup);
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
           .proc_name      = "ibmmca",
 	  .proc_info	  = ibmmca_proc_info,
           .name           = "IBM SCSI-Subsystem",

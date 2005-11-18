@@ -1,11 +1,11 @@
 /*
- * $Id: mbx860.c,v 1.8 2004/11/04 13:24:15 gleixner Exp $
+ * $Id: mbx860.c,v 1.9 2005/11/07 11:14:27 gleixner Exp $
  *
  * Handle mapping of the flash on MBX860 boards
  *
  * Author:	Anton Todorov
  * Copyright:	(C) 2001 Emness Technology
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -46,7 +46,7 @@ static struct mtd_partition partition_info[]={
 	{ .name = "MBX flash APPLICATION partition",
 	.offset = (BOOT_PARTITION_SIZE_KiB+KERNEL_PARTITION_SIZE_KiB)*1024 }
 };
-				   
+
 
 static struct mtd_info *mymtd;
 

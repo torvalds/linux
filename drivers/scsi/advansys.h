@@ -19,7 +19,7 @@
 #define _ADVANSYS_H
 
 /*
- * Scsi_Host_Template function prototypes.
+ * struct scsi_host_template function prototypes.
  */
 int advansys_detect(struct scsi_host_template *);
 int advansys_release(struct Scsi_Host *);

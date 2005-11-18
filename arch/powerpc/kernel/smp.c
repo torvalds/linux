@@ -40,23 +40,24 @@
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/time.h>
-#include <asm/xmon.h>
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/system.h>
 #include <asm/mpic.h>
+#include <asm/vdso_datapage.h>
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #endif
 
-int smp_hw_index[NR_CPUS];
-struct thread_info *secondary_ti;
-
 #ifdef DEBUG
+#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
 #endif
+
+int smp_hw_index[NR_CPUS];
+struct thread_info *secondary_ti;
 
 cpumask_t cpu_possible_map = CPU_MASK_NONE;
 cpumask_t cpu_online_map = CPU_MASK_NONE;
@@ -369,9 +370,11 @@ int generic_cpu_disable(void)
 	if (cpu == boot_cpuid)
 		return -EBUSY;
 
-	systemcfg->processorCount--;
 	cpu_clear(cpu, cpu_online_map);
+#ifdef CONFIG_PPC64
+	vdso_data->processorCount--;
 	fixup_irqs(cpu_online_map);
+#endif
 	return 0;
 }
 
@@ -389,9 +392,11 @@ int generic_cpu_enable(unsigned int cpu)
 	while (!cpu_online(cpu))
 		cpu_relax();
 
+#ifdef CONFIG_PPC64
 	fixup_irqs(cpu_online_map);
 	/* counter the irq disable in fixup_irqs */
 	local_irq_enable();
+#endif
 	return 0;
 }
 
@@ -420,7 +425,9 @@ void generic_mach_cpu_die(void)
 	while (__get_cpu_var(cpu_state) != CPU_UP_PREPARE)
 		cpu_relax();
 
+#ifdef CONFIG_PPC64
 	flush_tlb_pending();
+#endif
 	cpu_set(cpu, cpu_online_map);
 	local_irq_enable();
 }
@@ -511,6 +518,7 @@ int __devinit start_secondary(void *unused)
 
 	smp_store_cpu_info(cpu);
 	set_dec(tb_ticks_per_jiffy);
+	preempt_disable();
 	cpu_callin_map[cpu] = 1;
 
 	smp_ops->setup_cpu(cpu);

@@ -93,7 +93,7 @@ void __init plat_setup(void)
 
 	argptr = prom_getcmdline();
 
-#ifdef CONFIG_SERIAL_AU1X00_CONSOLE
+#if defined(CONFIG_SERIAL_AU1X00_CONSOLE) || defined(CONFIG_SERIAL_8250_CONSOLE)
 	if ((argptr = strstr(argptr, "console=")) == NULL) {
 		argptr = prom_getcmdline();
 		strcat(argptr, " console=ttyS0,115200");
@@ -109,17 +109,6 @@ void __init plat_setup(void)
          strcat(argptr, " video=au1100fb:panel:Hydrogen_3_NEC_panel_320x240,nohwcursor");
 #endif
     }
-#endif
-
-#ifdef CONFIG_FB_E1356
-	if ((argptr = strstr(argptr, "video=")) == NULL) {
-		argptr = prom_getcmdline();
-#ifdef CONFIG_MIPS_PB1000
-		strcat(argptr, " video=e1356fb:system:pb1000,mmunalign:1");
-#else
-		strcat(argptr, " video=e1356fb:system:pb1500");
-#endif
-	}
 #endif
 
 #ifdef CONFIG_FB_XPERT98

@@ -992,8 +992,7 @@ xdr_xcode_array2(struct xdr_buf *buf, unsigned int base,
 	err = 0;
 
 out:
-	if (elem)
-		kfree(elem);
+	kfree(elem);
 	if (ppages)
 		kunmap(*ppages);
 	return err;

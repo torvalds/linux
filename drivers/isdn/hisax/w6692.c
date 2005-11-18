@@ -819,14 +819,10 @@ close_w6692state(struct BCState *bcs)
 {
 	W6692Bmode(bcs, 0, bcs->channel);
 	if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-		if (bcs->hw.w6692.rcvbuf) {
-			kfree(bcs->hw.w6692.rcvbuf);
-			bcs->hw.w6692.rcvbuf = NULL;
-		}
-		if (bcs->blog) {
-			kfree(bcs->blog);
-			bcs->blog = NULL;
-		}
+		kfree(bcs->hw.w6692.rcvbuf);
+		bcs->hw.w6692.rcvbuf = NULL;
+		kfree(bcs->blog);
+		bcs->blog = NULL;
 		skb_queue_purge(&bcs->rqueue);
 		skb_queue_purge(&bcs->squeue);
 		if (bcs->tx_skb) {

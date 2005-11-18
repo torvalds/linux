@@ -5,7 +5,7 @@
  * Driver for the MDIO bus controller in the Gianfar register space
  *
  * Author: Andy Fleming
- * Maintainer: Kumar Gala (kumar.gala@freescale.com)
+ * Maintainer: Kumar Gala
  *
  * Copyright (c) 2002-2004 Freescale Semiconductor, Inc.
  *

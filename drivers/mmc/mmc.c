@@ -1263,7 +1263,7 @@ EXPORT_SYMBOL(mmc_suspend_host);
  */
 int mmc_resume_host(struct mmc_host *host)
 {
-	mmc_detect_change(host, 0);
+	mmc_rescan(host);
 
 	return 0;
 }

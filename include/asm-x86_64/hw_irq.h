@@ -55,7 +55,7 @@ struct hw_interrupt_type;
 #define CALL_FUNCTION_VECTOR	0xfc
 #define KDB_VECTOR		0xfb	/* reserved for KDB */
 #define THERMAL_APIC_VECTOR	0xfa
-/* 0xf9 free */
+#define THRESHOLD_APIC_VECTOR   0xf9
 #define INVALIDATE_TLB_VECTOR_END	0xf8
 #define INVALIDATE_TLB_VECTOR_START	0xf0	/* f0-f8 used for TLB flush */
 

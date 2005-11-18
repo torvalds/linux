@@ -154,6 +154,7 @@ int prom_callback(long *args)
 			pud_t *pudp;
 			pmd_t *pmdp;
 			pte_t *ptep;
+			pte_t pte;
 
 			for_each_process(p) {
 				mm = p->mm;
@@ -178,8 +179,9 @@ int prom_callback(long *args)
 			 * being called from inside OBP.
 			 */
 			ptep = pte_offset_map(pmdp, va);
-			if (pte_present(*ptep)) {
-				tte = pte_val(*ptep);
+			pte = *ptep;
+			if (pte_present(pte)) {
+				tte = pte_val(pte);
 				res = PROM_TRUE;
 			}
 			pte_unmap(ptep);
@@ -218,6 +220,7 @@ int prom_callback(long *args)
 			pud_t *pudp;
 			pmd_t *pmdp;
 			pte_t *ptep;
+			pte_t pte;
 			int error;
 
 			if ((va >= LOW_OBP_ADDRESS) && (va < HI_OBP_ADDRESS)) {
@@ -240,8 +243,9 @@ int prom_callback(long *args)
 			 * being called from inside OBP.
 			 */
 			ptep = pte_offset_kernel(pmdp, va);
-			if (pte_present(*ptep)) {
-				tte = pte_val(*ptep);
+			pte = *ptep;
+			if (pte_present(pte)) {
+				tte = pte_val(pte);
 				res = PROM_TRUE;
 			}
 			goto done;
@@ -583,6 +587,8 @@ extern void mmu_info(struct seq_file *);
 unsigned int dcache_parity_tl1_occurred;
 unsigned int icache_parity_tl1_occurred;
 
+static int ncpus_probed;
+
 static int show_cpuinfo(struct seq_file *m, void *__unused)
 {
 	seq_printf(m, 
@@ -591,8 +597,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "promlib\t\t: Version 3 Revision %d\n"
 		   "prom\t\t: %d.%d.%d\n"
 		   "type\t\t: sun4u\n"
-		   "ncpus probed\t: %ld\n"
-		   "ncpus active\t: %ld\n"
+		   "ncpus probed\t: %d\n"
+		   "ncpus active\t: %d\n"
 		   "D$ parity tl1\t: %u\n"
 		   "I$ parity tl1\t: %u\n"
 #ifndef CONFIG_SMP
@@ -606,8 +612,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   prom_prev >> 16,
 		   (prom_prev >> 8) & 0xff,
 		   prom_prev & 0xff,
-		   (long)num_possible_cpus(),
-		   (long)num_online_cpus(),
+		   ncpus_probed,
+		   num_online_cpus(),
 		   dcache_parity_tl1_occurred,
 		   icache_parity_tl1_occurred
 #ifndef CONFIG_SMP
@@ -673,6 +679,15 @@ static int __init topology_init(void)
 	int i, err;
 
 	err = -ENOMEM;
+
+	/* Count the number of physically present processors in
+	 * the machine, even on uniprocessor, so that /proc/cpuinfo
+	 * output is consistent with 2.4.x
+	 */
+	ncpus_probed = 0;
+	while (!cpu_find_by_instance(ncpus_probed, NULL, NULL))
+		ncpus_probed++;
+
 	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_possible(i)) {
 			struct cpu *p = kmalloc(sizeof(*p), GFP_KERNEL);

@@ -750,7 +750,6 @@ int clear_page_dirty_for_io(struct page *page)
 	}
 	return TestClearPageDirty(page);
 }
-EXPORT_SYMBOL(clear_page_dirty_for_io);
 
 int test_clear_page_writeback(struct page *page)
 {

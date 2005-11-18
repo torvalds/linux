@@ -14,7 +14,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
@@ -23,19 +22,20 @@
 
 #include <linux/platform_device.h>
 
-static int hdpu_nexus_probe(struct device *ddev);
-static int hdpu_nexus_remove(struct device *ddev);
+static int hdpu_nexus_probe(struct platform_device *pdev);
+static int hdpu_nexus_remove(struct platform_device *pdev);
 
 static struct proc_dir_entry *hdpu_slot_id;
 static struct proc_dir_entry *hdpu_chassis_id;
 static int slot_id = -1;
 static int chassis_id = -1;
 
-static struct device_driver hdpu_nexus_driver = {
-	.name = HDPU_NEXUS_NAME,
-	.bus = &platform_bus_type,
+static struct platform_driver hdpu_nexus_driver = {
 	.probe = hdpu_nexus_probe,
 	.remove = hdpu_nexus_remove,
+	.driver = {
+		.name = HDPU_NEXUS_NAME,
+	},
 };
 
 int hdpu_slot_id_read(char *buffer, char **buffer_location, off_t offset,
@@ -56,9 +56,8 @@ int hdpu_chassis_id_read(char *buffer, char **buffer_location, off_t offset,
 	return sprintf(buffer, "%d\n", chassis_id);
 }
 
-static int hdpu_nexus_probe(struct device *ddev)
+static int hdpu_nexus_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(ddev);
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -81,7 +80,7 @@ static int hdpu_nexus_probe(struct device *ddev)
 	return 0;
 }
 
-static int hdpu_nexus_remove(struct device *ddev)
+static int hdpu_nexus_remove(struct platform_device *pdev)
 {
 	slot_id = -1;
 	chassis_id = -1;
@@ -95,13 +94,13 @@ static int hdpu_nexus_remove(struct device *ddev)
 static int __init nexus_init(void)
 {
 	int rc;
-	rc = driver_register(&hdpu_nexus_driver);
+	rc = platform_driver_register(&hdpu_nexus_driver);
 	return rc;
 }
 
 static void __exit nexus_exit(void)
 {
-	driver_unregister(&hdpu_nexus_driver);
+	platform_driver_unregister(&hdpu_nexus_driver);
 }
 
 module_init(nexus_init);

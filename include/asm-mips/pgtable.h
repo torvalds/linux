@@ -19,6 +19,9 @@
 #include <asm/io.h>
 #include <asm/pgtable-bits.h>
 
+struct mm_struct;
+struct vm_area_struct;
+
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _CACHE_CACHABLE_NONCOHERENT)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
 			PAGE_CACHABLE_DEFAULT)

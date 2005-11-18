@@ -14,7 +14,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -27,8 +26,8 @@
 
 #define SKY_CPUSTATE_VERSION		"1.1"
 
-static int hdpu_cpustate_probe(struct device *ddev);
-static int hdpu_cpustate_remove(struct device *ddev);
+static int hdpu_cpustate_probe(struct platform_device *pdev);
+static int hdpu_cpustate_remove(struct platform_device *pdev);
 
 struct cpustate_t cpustate;
 
@@ -159,11 +158,12 @@ static int cpustate_read_proc(char *page, char **start, off_t off,
 	return len;
 }
 
-static struct device_driver hdpu_cpustate_driver = {
-	.name = HDPU_CPUSTATE_NAME,
-	.bus = &platform_bus_type,
+static struct platform_driver hdpu_cpustate_driver = {
 	.probe = hdpu_cpustate_probe,
 	.remove = hdpu_cpustate_remove,
+	.driver = {
+		.name = HDPU_CPUSTATE_NAME,
+	},
 };
 
 /*
@@ -188,9 +188,8 @@ static struct miscdevice cpustate_dev = {
 	&cpustate_fops
 };
 
-static int hdpu_cpustate_probe(struct device *ddev)
+static int hdpu_cpustate_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(ddev);
 	struct resource *res;
 	struct proc_dir_entry *proc_de;
 	int ret;
@@ -218,7 +217,7 @@ static int hdpu_cpustate_probe(struct device *ddev)
 	return 0;
 }
 
-static int hdpu_cpustate_remove(struct device *ddev)
+static int hdpu_cpustate_remove(struct platform_device *pdev)
 {
 
 	cpustate.set_addr = NULL;
@@ -233,13 +232,13 @@ static int hdpu_cpustate_remove(struct device *ddev)
 static int __init cpustate_init(void)
 {
 	int rc;
-	rc = driver_register(&hdpu_cpustate_driver);
+	rc = platform_driver_register(&hdpu_cpustate_driver);
 	return rc;
 }
 
 static void __exit cpustate_exit(void)
 {
-	driver_unregister(&hdpu_cpustate_driver);
+	platform_driver_unregister(&hdpu_cpustate_driver);
 }
 
 module_init(cpustate_init);

@@ -82,7 +82,6 @@ struct machdep_calls {
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
 	void		(*irq_bus_setup)(struct pci_bus *bus);
-	int		(*set_dabr)(unsigned long dabr);
 #endif
 
 	int		(*probe)(int platform);
@@ -94,7 +93,9 @@ struct machdep_calls {
 
 	void		(*init_IRQ)(void);
 	int		(*get_irq)(struct pt_regs *);
-	void		(*cpu_irq_down)(int secondary);
+#ifdef CONFIG_KEXEC
+	void		(*kexec_cpu_down)(int crash_shutdown, int secondary);
+#endif
 
 	/* PCI stuff */
 	/* Called after scanning the bus, before allocating resources */
@@ -157,6 +158,9 @@ struct machdep_calls {
 	/* Function to enable performance monitor counters for this
 	   platform, called once per cpu. */
 	void		(*enable_pmcs)(void);
+
+	/* Set DABR for this platform, leave empty for default implemenation */
+	int		(*set_dabr)(unsigned long dabr);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
 	/* A general init function, called by ppc_init in init/main.c.

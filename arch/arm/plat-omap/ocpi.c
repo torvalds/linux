@@ -25,7 +25,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -35,7 +34,7 @@
 
 #include <asm/io.h>
 #include <asm/hardware/clock.h>
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #define OCPI_BASE		0xfffec320
 #define OCPI_FAULT		(OCPI_BASE + 0x00)
