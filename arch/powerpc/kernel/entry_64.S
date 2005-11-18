@@ -241,7 +241,7 @@ syscall_exit_work:
 	bne-	3b
 	subi	r12,r12,TI_FLAGS
 	
-4:	bl	save_nvgprs
+4:	bl	.save_nvgprs
 	/* Anything else left to do? */
 	andi.	r0,r9,(_TIF_SYSCALL_T_OR_A|_TIF_SINGLESTEP|_TIF_SAVE_NVGPRS)
 	beq	.ret_from_except_lite
