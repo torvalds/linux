@@ -67,7 +67,7 @@ static void print_item(WINDOW * win, const char *item, int choice,
 		       int selected, int hotkey)
 {
 	int j;
-	char menu_item[menu_width + 1];
+	char *menu_item = malloc(menu_width + 1);
 
 	strncpy(menu_item, item, menu_width);
 	menu_item[menu_width] = 0;
@@ -95,6 +95,7 @@ static void print_item(WINDOW * win, const char *item, int choice,
 		wmove(win, choice, item_x + 1);
 		wrefresh(win);
 	}
+	free(menu_item);
 }
 
 /*
@@ -221,7 +222,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 
 	/*
 	 * Find length of longest item in order to center menu.
-	 * Set 'choice' to default item. 
+	 * Set 'choice' to default item.
 	 */
 	item_x = 0;
 	for (i = 0; i < item_no; i++) {
