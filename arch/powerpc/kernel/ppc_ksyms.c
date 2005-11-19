@@ -146,9 +146,6 @@ EXPORT_SYMBOL(pci_bus_io_base);
 EXPORT_SYMBOL(pci_bus_io_base_phys);
 EXPORT_SYMBOL(pci_bus_mem_base_phys);
 EXPORT_SYMBOL(pci_bus_to_hose);
-EXPORT_SYMBOL(pci_resource_to_bus);
-EXPORT_SYMBOL(pci_phys_to_bus);
-EXPORT_SYMBOL(pci_bus_to_phys);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
