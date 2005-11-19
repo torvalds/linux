@@ -730,14 +730,15 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_ACCESS_FLAGS) {
+		qp_context->params2 |=
+			cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_WRITE ?
+				    MTHCA_QP_BIT_RWE : 0);
+
 		/*
-		 * Only enable RDMA/atomics if we have responder
-		 * resources set to a non-zero value.
+		 * Only enable RDMA reads and atomics if we have
+		 * responder resources set to a non-zero value.
 		 */
 		if (qp->resp_depth) {
-			qp_context->params2 |=
-				cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_WRITE ?
-					    MTHCA_QP_BIT_RWE : 0);
 			qp_context->params2 |=
 				cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_READ ?
 					    MTHCA_QP_BIT_RRE : 0);
@@ -759,22 +760,19 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		if (qp->resp_depth && !attr->max_dest_rd_atomic) {
 			/*
 			 * Lowering our responder resources to zero.
-			 * Turn off RDMA/atomics as responder.
-			 * (RWE/RRE/RAE in params2 already zero)
+			 * Turn off reads RDMA and atomics as responder.
+			 * (RRE/RAE in params2 already zero)
 			 */
-			qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RWE |
-								MTHCA_QP_OPTPAR_RRE |
+			qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRE |
 								MTHCA_QP_OPTPAR_RAE);
 		}
 
 		if (!qp->resp_depth && attr->max_dest_rd_atomic) {
 			/*
 			 * Increasing our responder resources from
-			 * zero.  Turn on RDMA/atomics as appropriate.
+			 * zero.  Turn on RDMA reads and atomics as
+			 * appropriate.
 			 */
-			qp_context->params2 |=
-				cpu_to_be32(qp->atomic_rd_en & IB_ACCESS_REMOTE_WRITE ?
-					    MTHCA_QP_BIT_RWE : 0);
 			qp_context->params2 |=
 				cpu_to_be32(qp->atomic_rd_en & IB_ACCESS_REMOTE_READ ?
 					    MTHCA_QP_BIT_RRE : 0);
@@ -782,8 +780,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 				cpu_to_be32(qp->atomic_rd_en & IB_ACCESS_REMOTE_ATOMIC ?
 					    MTHCA_QP_BIT_RAE : 0);
 
-			qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RWE |
-								MTHCA_QP_OPTPAR_RRE |
+			qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRE |
 								MTHCA_QP_OPTPAR_RAE);
 		}
 
@@ -921,10 +918,12 @@ static void mthca_adjust_qp_caps(struct mthca_dev *dev,
         else
 		qp->max_inline_data = max_data_size - MTHCA_INLINE_HEADER_SIZE;
 
-	qp->sq.max_gs = max_data_size / sizeof (struct mthca_data_seg);
-	qp->rq.max_gs = (min(dev->limits.max_desc_sz, 1 << qp->rq.wqe_shift) -
-			sizeof (struct mthca_next_seg)) /
-			sizeof (struct mthca_data_seg);
+	qp->sq.max_gs = min_t(int, dev->limits.max_sg,
+			      max_data_size / sizeof (struct mthca_data_seg));
+	qp->rq.max_gs = min_t(int, dev->limits.max_sg,
+			       (min(dev->limits.max_desc_sz, 1 << qp->rq.wqe_shift) -
+				sizeof (struct mthca_next_seg)) /
+			       sizeof (struct mthca_data_seg));
 }
 
 /*

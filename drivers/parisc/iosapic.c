@@ -700,6 +700,28 @@ static unsigned int iosapic_startup_irq(unsigned int irq)
 	return 0;
 }
 
+#ifdef CONFIG_SMP
+static void iosapic_set_affinity_irq(unsigned int irq, cpumask_t dest)
+{
+	struct vector_info *vi = iosapic_get_vector(irq);
+	u32 d0, d1, dummy_d0;
+	unsigned long flags;
+
+	if (cpu_check_affinity(irq, &dest))
+		return;
+
+	vi->txn_addr = txn_affinity_addr(irq, first_cpu(dest));
+
+	spin_lock_irqsave(&iosapic_lock, flags);
+	/* d1 contains the destination CPU, so only want to set that
+	 * entry */
+	iosapic_rd_irt_entry(vi, &d0, &d1);
+	iosapic_set_irt_data(vi, &dummy_d0, &d1);
+	iosapic_wr_irt_entry(vi, d0, d1);
+	spin_unlock_irqrestore(&iosapic_lock, flags);
+}
+#endif
+
 static struct hw_interrupt_type iosapic_interrupt_type = {
 	.typename =	"IO-SAPIC-level",
 	.startup =	iosapic_startup_irq,
@@ -708,7 +730,9 @@ static struct hw_interrupt_type iosapic_interrupt_type = {
 	.disable =	iosapic_disable_irq,
 	.ack =		no_ack_irq,
 	.end =		iosapic_end_irq,
-//	.set_affinity =	iosapic_set_affinity_irq,
+#ifdef CONFIG_SMP
+	.set_affinity =	iosapic_set_affinity_irq,
+#endif
 };
 
 int iosapic_fixup_irq(void *isi_obj, struct pci_dev *pcidev)

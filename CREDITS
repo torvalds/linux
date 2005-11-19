@@ -611,8 +611,7 @@ S: USA
 N: Randolph Chung
 E: tausq@debian.org
 D: Linux/PA-RISC hacker
-S: Los Altos, CA 94022
-S: USA
+S: Hong Kong
 
 N: Juan Jose Ciarlante
 W: http://juanjox.kernelnotes.org/
@@ -3404,6 +3403,15 @@ D: Matrox framebuffer driver
 S: Chudenicka 8
 S: 10200 Prague 10, Hostivar
 S: Czech Republic
+
+N: Thibaut Varene
+E: T-Bone@parisc-linux.org
+W: http://www.parisc-linux.org/
+P: 1024D/B7D2F063 E67C 0D43 A75E 12A5 BB1C  FA2F 1E32 C3DA B7D2 F063
+D: PA-RISC port minion, PDC and GSCPS2 drivers, debuglocks and other bits
+D: Some bits in an ARM port, S1D13XXX FB driver, random patches here and there
+D: AD1889 sound driver
+S: Paris, France
 
 N: Heikki Vatiainen
 E: hessu@cs.tut.fi

@@ -3328,8 +3328,8 @@ static ide_proc_entry_t idecd_proc[] = {
 #endif
 
 static ide_driver_t ide_cdrom_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-cdrom",
 		.bus		= &ide_bus_type,
 		.probe		= ide_cd_probe,

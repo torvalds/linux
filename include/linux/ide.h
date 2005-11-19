@@ -1089,9 +1089,11 @@ enum {
 
 /*
  * Subdrivers support.
+ *
+ * The gendriver.owner field should be set to the module owner of this driver.
+ * The gendriver.name field should be set to the name of this driver
  */
 typedef struct ide_driver_s {
-	struct module			*owner;
 	const char			*version;
 	u8				media;
 	unsigned supports_dsc_overlap	: 1;

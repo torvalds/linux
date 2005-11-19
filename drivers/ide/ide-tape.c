@@ -4748,8 +4748,8 @@ static ide_proc_entry_t idetape_proc[] = {
 static int ide_tape_probe(struct device *);
 
 static ide_driver_t idetape_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-tape",
 		.bus		= &ide_bus_type,
 		.probe		= ide_tape_probe,
