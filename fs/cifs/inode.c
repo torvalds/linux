@@ -210,7 +210,7 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 	int oplock = FALSE;
 	__u16 netfid;
 	struct cifsTconInfo *pTcon = cifs_sb->tcon;
-	char buf[8];
+	char buf[24];
 	unsigned int bytes_read;
 	char * pbuf;
 
@@ -232,30 +232,43 @@ static int decode_sfu_inode(struct inode * inode, __u64 size,
 			/* Read header */
 		rc = CIFSSMBRead(xid, pTcon,
 			         netfid,
-				 8 /* length */, 0 /* offset */,
+				 24 /* length */, 0 /* offset */,
 				 &bytes_read, &pbuf);
-		if((rc == 0) && (bytes_read == 8)) {
+		if((rc == 0) && (bytes_read >= 8)) {
 			if(memcmp("IntxBLK", pbuf, 8) == 0) {
 				cFYI(1,("Block device"));
 				inode->i_mode |= S_IFBLK;
+				if(bytes_read == 24) {
+					/* we have enough to decode dev num */
+					__u64 mjr; /* major */
+					__u64 mnr; /* minor */
+					mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
+					mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
+					inode->i_rdev = MKDEV(mjr, mnr);
+				}
 			} else if(memcmp("IntxCHR", pbuf, 8) == 0) {
 				cFYI(1,("Char device"));
 				inode->i_mode |= S_IFCHR;
+				if(bytes_read == 24) {
+					/* we have enough to decode dev num */
+					__u64 mjr; /* major */
+					__u64 mnr; /* minor */
+					mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
+					mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
+					inode->i_rdev = MKDEV(mjr, mnr);
+                                }
 			} else if(memcmp("IntxLNK", pbuf, 7) == 0) {
 				cFYI(1,("Symlink"));
 				inode->i_mode |= S_IFLNK;
-			} 
+			} else {
+				inode->i_mode |= S_IFREG; /* file? */
+				rc = -EOPNOTSUPP; 
+			}
 		} else {
 			inode->i_mode |= S_IFREG; /* then it is a file */
 			rc = -EOPNOTSUPP; /* or some unknown SFU type */	
 		}
-		
 		CIFSSMBClose(xid, pTcon, netfid);
-	
-
-	/* inode->i_rdev = MKDEV(le64_to_cpu(DevMajor),
-                            le64_to_cpu(DevMinor) & MINORMASK);*/
-/*	inode->i_mode |= S_IFBLK; */
 	}
 	return rc;
 	
