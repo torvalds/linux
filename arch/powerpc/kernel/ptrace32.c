@@ -33,7 +33,8 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
-#include <asm/ptrace-common.h>
+
+#include "ptrace-common.h"
 
 /*
  * does not yet catch signals sent when the child dies.
