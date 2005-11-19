@@ -145,6 +145,7 @@ void dialog_clear(void);
 void color_setup(void);
 void print_autowrap(WINDOW * win, const char *prompt, int width, int y, int x);
 void print_button(WINDOW * win, const char *label, int y, int x, int selected);
+void print_title(WINDOW *dialog, const char *title, int width);
 void draw_box(WINDOW * win, int y, int x, int height, int width, chtype box,
 	      chtype border);
 void draw_shadow(WINDOW * win, int y, int x, int height, int width);

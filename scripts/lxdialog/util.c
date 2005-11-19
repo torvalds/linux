@@ -177,6 +177,20 @@ void end_dialog(void)
 	endwin();
 }
 
+/* Print the title of the dialog. Center the title and truncate
+ * tile if wider than dialog (- 2 chars).
+ **/
+void print_title(WINDOW *dialog, const char *title, int width)
+{
+	if (title) {
+		int tlen = MIN(width - 2, strlen(title));
+		wattrset(dialog, title_attr);
+		mvwaddch(dialog, 0, (width - tlen) / 2 - 1, ' ');
+		mvwaddnstr(dialog, 0, (width - tlen)/2, title, tlen);
+		waddch(dialog, ' ');
+	}
+}
+
 /*
  * Print a string of text in a window, automatically wrap around to the
  * next line if the string is too long to fit on one line. Newline

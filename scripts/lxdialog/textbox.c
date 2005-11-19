@@ -103,20 +103,8 @@ int dialog_textbox(const char *title, const char *file, int height, int width)
 	wbkgdset(dialog, dialog_attr & A_COLOR);
 	waddch(dialog, ACS_RTEE);
 
-	if (title != NULL && strlen(title) >= width - 2) {
-		/* truncate long title -- mec */
-		char *title2 = malloc(width - 2 + 1);
-		memcpy(title2, title, width - 2);
-		title2[width - 2] = '\0';
-		title = title2;
-	}
+	print_title(dialog, title, width);
 
-	if (title != NULL) {
-		wattrset(dialog, title_attr);
-		mvwaddch(dialog, 0, (width - strlen(title)) / 2 - 1, ' ');
-		waddstr(dialog, (char *)title);
-		waddch(dialog, ' ');
-	}
 	print_button(dialog, " Exit ", height - 2, width / 2 - 4, TRUE);
 	wnoutrefresh(dialog);
 	getyx(dialog, cur_y, cur_x);	/* Save cursor position */
