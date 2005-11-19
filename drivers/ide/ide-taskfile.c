@@ -773,19 +773,13 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 	}
 
 	/*
-	 * (ks) Check taskfile in/out flags.
+	 * (ks) Check taskfile in flags.
 	 * If set, then execute as it is defined.
 	 * If not set, then define default settings.
 	 * The default values are:
-	 *	write and read all taskfile registers (except data) 
-	 *	write and read the hob registers (sector,nsector,lcyl,hcyl)
+	 *	read all taskfile registers (except data)
+	 *	read the hob registers (sector, nsector, lcyl, hcyl)
 	 */
-	if (task->tf_out_flags.all == 0) {
-		task->tf_out_flags.all = IDE_TASKFILE_STD_OUT_FLAGS;
-		if (drive->addressing == 1)
-			task->tf_out_flags.all |= (IDE_HOB_STD_OUT_FLAGS << 8);
-        }
-
 	if (task->tf_in_flags.all == 0) {
 		task->tf_in_flags.all = IDE_TASKFILE_STD_IN_FLAGS;
 		if (drive->addressing == 1)
