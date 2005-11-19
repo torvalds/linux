@@ -12,20 +12,14 @@
  * N class systems, only one PxTLB inter processor broadcast can be
  * active at any one time on the Merced bus.  This tlb purge
  * synchronisation is fairly lightweight and harmless so we activate
- * it on all SMP systems not just the N class. */
-#ifdef CONFIG_SMP
+ * it on all SMP systems not just the N class.  We also need to have
+ * preemption disabled on uniprocessor machines, and spin_lock does that
+ * nicely.
+ */
 extern spinlock_t pa_tlb_lock;
 
 #define purge_tlb_start(x) spin_lock(&pa_tlb_lock)
 #define purge_tlb_end(x) spin_unlock(&pa_tlb_lock)
-
-#else
-
-#define purge_tlb_start(x) do { } while(0)
-#define purge_tlb_end(x) do { } while (0)
-
-#endif
-
 
 extern void flush_tlb_all(void);
 
@@ -88,7 +82,6 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 	if (npages >= 512)  /* 2MB of space: arbitrary, should be tuned */
 		flush_tlb_all();
 	else {
-		preempt_disable();
 		mtsp(vma->vm_mm->context,1);
 		purge_tlb_start();
 		if (split_tlb) {
@@ -102,7 +95,6 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 				pdtlb(start);
 				start += PAGE_SIZE;
 			}
-		preempt_enable();
 		}
 		purge_tlb_end();
 	}

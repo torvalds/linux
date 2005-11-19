@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/block/elevator.c
- *
  *  Block device elevator/IO-scheduler.
  *
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE

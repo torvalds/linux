@@ -787,7 +787,7 @@ static int pre_init = 1;		/* Before first ordered IDE scan */
 static LIST_HEAD(ide_pci_drivers);
 
 /*
- *	__ide_register_pci_driver	-	attach IDE driver
+ *	__ide_pci_register_driver	-	attach IDE driver
  *	@driver: pci driver
  *	@module: owner module of the driver
  *
