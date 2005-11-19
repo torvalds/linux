@@ -46,30 +46,26 @@ int dialog_textbox(const char *title, const char *file, int height, int width)
 	/* Open input file for reading */
 	if ((fd = open(file, O_RDONLY)) == -1) {
 		endwin();
-		fprintf(stderr,
-			"\nCan't open input file in dialog_textbox().\n");
+		fprintf(stderr, "\nCan't open input file in dialog_textbox().\n");
 		exit(-1);
 	}
 	/* Get file size. Actually, 'file_size' is the real file size - 1,
 	   since it's only the last byte offset from the beginning */
 	if ((file_size = lseek(fd, 0, SEEK_END)) == -1) {
 		endwin();
-		fprintf(stderr,
-			"\nError getting file size in dialog_textbox().\n");
+		fprintf(stderr, "\nError getting file size in dialog_textbox().\n");
 		exit(-1);
 	}
 	/* Restore file pointer to beginning of file after getting file size */
 	if (lseek(fd, 0, SEEK_SET) == -1) {
 		endwin();
-		fprintf(stderr,
-			"\nError moving file pointer in dialog_textbox().\n");
+		fprintf(stderr, "\nError moving file pointer in dialog_textbox().\n");
 		exit(-1);
 	}
 	/* Allocate space for read buffer */
 	if ((buf = malloc(BUF_SIZE + 1)) == NULL) {
 		endwin();
-		fprintf(stderr,
-			"\nCan't allocate memory in dialog_textbox().\n");
+		fprintf(stderr, "\nCan't allocate memory in dialog_textbox().\n");
 		exit(-1);
 	}
 	if ((bytes_read = read(fd, buf, BUF_SIZE)) == -1) {
@@ -150,23 +146,20 @@ int dialog_textbox(const char *title, const char *file, int height, int width)
 				/* First page not in buffer? */
 				if ((fpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 					endwin();
-					fprintf(stderr,
-						"\nError moving file pointer in dialog_textbox().\n");
+					fprintf(stderr, "\nError moving file pointer in dialog_textbox().\n");
 					exit(-1);
 				}
 				if (fpos > bytes_read) {	/* Yes, we have to read it in */
 					if (lseek(fd, 0, SEEK_SET) == -1) {
 						endwin();
-						fprintf(stderr,
-							"\nError moving file pointer in "
-							"dialog_textbox().\n");
+						fprintf(stderr, "\nError moving file pointer in "
+							        "dialog_textbox().\n");
 						exit(-1);
 					}
 					if ((bytes_read =
 					     read(fd, buf, BUF_SIZE)) == -1) {
 						endwin();
-						fprintf(stderr,
-							"\nError reading file in dialog_textbox().\n");
+						fprintf(stderr, "\nError reading file in dialog_textbox().\n");
 						exit(-1);
 					}
 					buf[bytes_read] = '\0';
@@ -185,22 +178,19 @@ int dialog_textbox(const char *title, const char *file, int height, int width)
 			/* Last page not in buffer? */
 			if ((fpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 				endwin();
-				fprintf(stderr,
-					"\nError moving file pointer in dialog_textbox().\n");
+				fprintf(stderr, "\nError moving file pointer in dialog_textbox().\n");
 				exit(-1);
 			}
 			if (fpos < file_size) {	/* Yes, we have to read it in */
 				if (lseek(fd, -BUF_SIZE, SEEK_END) == -1) {
 					endwin();
-					fprintf(stderr,
-						"\nError moving file pointer in dialog_textbox().\n");
+					fprintf(stderr, "\nError moving file pointer in dialog_textbox().\n");
 					exit(-1);
 				}
 				if ((bytes_read =
 				     read(fd, buf, BUF_SIZE)) == -1) {
 					endwin();
-					fprintf(stderr,
-						"\nError reading file in dialog_textbox().\n");
+					fprintf(stderr, "\nError reading file in dialog_textbox().\n");
 					exit(-1);
 				}
 				buf[bytes_read] = '\0';
@@ -342,9 +332,8 @@ static void back_lines(int n)
 		if (page == buf) {
 			if ((fpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 				endwin();
-				fprintf(stderr,
-					"\nError moving file pointer in "
-					"back_lines().\n");
+				fprintf(stderr, "\nError moving file pointer in "
+					        "back_lines().\n");
 				exit(-1);
 			}
 			if (fpos > bytes_read) {	/* Not beginning of file yet */
@@ -358,21 +347,16 @@ static void back_lines(int n)
 					/* No, move less then */
 					if (lseek(fd, 0, SEEK_SET) == -1) {
 						endwin();
-						fprintf(stderr,
-							"\nError moving file pointer in "
-							"back_lines().\n");
+						fprintf(stderr, "\nError moving file pointer in "
+						                "back_lines().\n");
 						exit(-1);
 					}
 					page = buf + fpos - bytes_read;
 				} else {	/* Move backward BUF_SIZE/2 bytes */
-					if (lseek
-					    (fd, -(BUF_SIZE / 2 + bytes_read),
-					     SEEK_CUR)
-					    == -1) {
+					if (lseek (fd, -(BUF_SIZE / 2 + bytes_read), SEEK_CUR) == -1) {
 						endwin();
-						fprintf(stderr,
-							"\nError moving file pointer "
-							"in back_lines().\n");
+						fprintf(stderr, "\nError moving file pointer "
+						                "in back_lines().\n");
 						exit(-1);
 					}
 					page = buf + BUF_SIZE / 2;
@@ -380,8 +364,7 @@ static void back_lines(int n)
 				if ((bytes_read =
 				     read(fd, buf, BUF_SIZE)) == -1) {
 					endwin();
-					fprintf(stderr,
-						"\nError reading file in back_lines().\n");
+					fprintf(stderr, "\nError reading file in back_lines().\n");
 					exit(-1);
 				}
 				buf[bytes_read] = '\0';
@@ -403,33 +386,25 @@ static void back_lines(int n)
 			if (page == buf) {
 				if ((fpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 					endwin();
-					fprintf(stderr,
-						"\nError moving file pointer in back_lines().\n");
+					fprintf(stderr, "\nError moving file pointer in back_lines().\n");
 					exit(-1);
 				}
 				if (fpos > bytes_read) {
 					/* Really possible to move backward BUF_SIZE/2 bytes? */
 					if (fpos < BUF_SIZE / 2 + bytes_read) {
 						/* No, move less then */
-						if (lseek(fd, 0, SEEK_SET) ==
-						    -1) {
+						if (lseek(fd, 0, SEEK_SET) == -1) {
 							endwin();
-							fprintf(stderr,
-								"\nError moving file pointer "
-								"in back_lines().\n");
+							fprintf(stderr, "\nError moving file pointer "
+							                "in back_lines().\n");
 							exit(-1);
 						}
 						page = buf + fpos - bytes_read;
 					} else {	/* Move backward BUF_SIZE/2 bytes */
-						if (lseek
-						    (fd,
-						     -(BUF_SIZE / 2 +
-						       bytes_read),
-						     SEEK_CUR) == -1) {
+						if (lseek (fd, -(BUF_SIZE / 2 + bytes_read), SEEK_CUR) == -1) {
 							endwin();
-							fprintf(stderr,
-								"\nError moving file pointer"
-								" in back_lines().\n");
+							fprintf(stderr, "\nError moving file pointer"
+							                " in back_lines().\n");
 							exit(-1);
 						}
 						page = buf + BUF_SIZE / 2;
@@ -437,9 +412,8 @@ static void back_lines(int n)
 					if ((bytes_read =
 					     read(fd, buf, BUF_SIZE)) == -1) {
 						endwin();
-						fprintf(stderr,
-							"\nError reading file in "
-							"back_lines().\n");
+						fprintf(stderr, "\nError reading file in "
+						                "back_lines().\n");
 						exit(-1);
 					}
 					buf[bytes_read] = '\0';
@@ -513,9 +487,8 @@ static char *get_line(void)
 			/* Either end of file or end of buffer reached */
 			if ((fpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 				endwin();
-				fprintf(stderr,
-					"\nError moving file pointer in "
-					"get_line().\n");
+				fprintf(stderr, "\nError moving file pointer in "
+				                "get_line().\n");
 				exit(-1);
 			}
 			if (fpos < file_size) {	/* Not end of file yet */
@@ -524,8 +497,7 @@ static char *get_line(void)
 				if ((bytes_read =
 				     read(fd, buf, BUF_SIZE)) == -1) {
 					endwin();
-					fprintf(stderr,
-						"\nError reading file in get_line().\n");
+					fprintf(stderr, "\nError reading file in get_line().\n");
 					exit(-1);
 				}
 				buf[bytes_read] = '\0';
@@ -561,8 +533,7 @@ static void print_position(WINDOW * win, int height, int width)
 
 	if ((fpos = lseek(fd, 0, SEEK_CUR)) == -1) {
 		endwin();
-		fprintf(stderr,
-			"\nError moving file pointer in print_position().\n");
+		fprintf(stderr, "\nError moving file pointer in print_position().\n");
 		exit(-1);
 	}
 	wattrset(win, position_indicator_attr);

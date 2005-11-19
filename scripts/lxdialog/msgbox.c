@@ -25,9 +25,8 @@
  * Display a message box. Program will pause and display an "OK" button
  * if the parameter 'pause' is non-zero.
  */
-int
-dialog_msgbox(const char *title, const char *prompt, int height, int width,
-	      int pause)
+int dialog_msgbox(const char *title, const char *prompt, int height, int width,
+                  int pause)
 {
 	int i, x, y, key = 0;
 	WINDOW *dialog;

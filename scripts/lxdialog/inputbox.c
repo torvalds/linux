@@ -41,9 +41,8 @@ static void print_buttons(WINDOW * dialog, int height, int width, int selected)
 /*
  * Display a dialog box for inputing a string
  */
-int
-dialog_inputbox(const char *title, const char *prompt, int height, int width,
-		const char *init)
+int dialog_inputbox(const char *title, const char *prompt, int height, int width,
+                    const char *init)
 {
 	int i, x, y, box_y, box_x, box_width;
 	int input_x = 0, scroll = 0, key = 0, button = -1;
@@ -90,8 +89,7 @@ dialog_inputbox(const char *title, const char *prompt, int height, int width,
 	getyx(dialog, y, x);
 	box_y = y + 2;
 	box_x = (width - box_width) / 2;
-	draw_box(dialog, y + 1, box_x - 1, 3, box_width + 2,
-		 border_attr, dialog_attr);
+	draw_box(dialog, y + 1, box_x - 1, 3, box_width + 2, border_attr, dialog_attr);
 
 	print_buttons(dialog, height, width, 0);
 
@@ -111,8 +109,9 @@ dialog_inputbox(const char *title, const char *prompt, int height, int width,
 		input_x = box_width - 1;
 		for (i = 0; i < box_width - 1; i++)
 			waddch(dialog, instr[scroll + i]);
-	} else
+	} else {
 		waddstr(dialog, instr);
+	}
 
 	wmove(dialog, box_y, box_x + input_x);
 
@@ -136,26 +135,17 @@ dialog_inputbox(const char *title, const char *prompt, int height, int width,
 				if (input_x || scroll) {
 					wattrset(dialog, inputbox_attr);
 					if (!input_x) {
-						scroll =
-						    scroll <
-						    box_width - 1 ? 0 : scroll -
-						    (box_width - 1);
+						scroll = scroll < box_width - 1 ? 0 : scroll - (box_width - 1);
 						wmove(dialog, box_y, box_x);
 						for (i = 0; i < box_width; i++)
 							waddch(dialog,
-							       instr[scroll +
-								     input_x +
-								     i] ?
-							       instr[scroll +
-								     input_x +
-								     i] : ' ');
-						input_x =
-						    strlen(instr) - scroll;
+							       instr[scroll + input_x + i] ?
+							       instr[scroll + input_x + i] : ' ');
+						input_x = strlen(instr) - scroll;
 					} else
 						input_x--;
 					instr[scroll + input_x] = '\0';
-					mvwaddch(dialog, box_y, input_x + box_x,
-						 ' ');
+					mvwaddch(dialog, box_y, input_x + box_x, ' ');
 					wmove(dialog, box_y, input_x + box_x);
 					wrefresh(dialog);
 				}
@@ -165,23 +155,14 @@ dialog_inputbox(const char *title, const char *prompt, int height, int width,
 					if (scroll + input_x < MAX_LEN) {
 						wattrset(dialog, inputbox_attr);
 						instr[scroll + input_x] = key;
-						instr[scroll + input_x + 1] =
-						    '\0';
+						instr[scroll + input_x + 1] = '\0';
 						if (input_x == box_width - 1) {
 							scroll++;
-							wmove(dialog, box_y,
-							      box_x);
-							for (i = 0;
-							     i < box_width - 1;
-							     i++)
-								waddch(dialog,
-								       instr
-								       [scroll +
-									i]);
+							wmove(dialog, box_y, box_x);
+							for (i = 0; i < box_width - 1; i++)
+								waddch(dialog, instr [scroll + i]);
 						} else {
-							wmove(dialog, box_y,
-							      input_x++ +
-							      box_x);
+							wmove(dialog, box_y, input_x++ + box_x);
 							waddch(dialog, key);
 						}
 						wrefresh(dialog);

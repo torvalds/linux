@@ -28,7 +28,7 @@ const char *backtitle = NULL;
 
 const char *dialog_result;
 
-/* 
+/*
  * Attribute values, default is for mono display
  */
 chtype attributes[] = {

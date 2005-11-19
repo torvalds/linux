@@ -63,8 +63,8 @@ static int menu_width, item_x;
 /*
  * Print menu item
  */
-static void
-print_item(WINDOW * win, const char *item, int choice, int selected, int hotkey)
+static void print_item(WINDOW * win, const char *item, int choice,
+		       int selected, int hotkey)
 {
 	int j;
 	char menu_item[menu_width + 1];
@@ -100,8 +100,8 @@ print_item(WINDOW * win, const char *item, int choice, int selected, int hotkey)
 /*
  * Print the scroll indicators.
  */
-static void
-print_arrows(WINDOW * win, int item_no, int scroll, int y, int x, int height)
+static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
+			 int height)
 {
 	int cur_y, cur_x;
 
@@ -158,10 +158,9 @@ static void print_buttons(WINDOW * win, int height, int width, int selected)
 /*
  * Display a menu for choosing among a number of options
  */
-int
-dialog_menu(const char *title, const char *prompt, int height, int width,
-	    int menu_height, const char *current, int item_no,
-	    const char *const *items)
+int dialog_menu(const char *title, const char *prompt, int height, int width,
+                int menu_height, const char *current, int item_no,
+                const char *const *items)
 {
 	int i, j, x, y, box_x, box_y;
 	int key = 0, button = 0, scroll = 0, choice = 0, first_item =
@@ -283,20 +282,14 @@ dialog_menu(const char *title, const char *prompt, int height, int width,
 			i = max_choice;
 		else {
 			for (i = choice + 1; i < max_choice; i++) {
-				j = first_alpha(items[(scroll + i) * 2 + 1],
-						"YyNnMmHh");
-				if (key ==
-				    tolower(items[(scroll + i) * 2 + 1][j]))
+				j = first_alpha(items[(scroll + i) * 2 + 1], "YyNnMmHh");
+				if (key == tolower(items[(scroll + i) * 2 + 1][j]))
 					break;
 			}
 			if (i == max_choice)
 				for (i = 0; i < max_choice; i++) {
-					j = first_alpha(items
-							[(scroll + i) * 2 + 1],
-							"YyNnMmHh");
-					if (key ==
-					    tolower(items[(scroll + i) * 2 + 1]
-						    [j]))
+					j = first_alpha(items [(scroll + i) * 2 + 1], "YyNnMmHh");
+					if (key == tolower(items[(scroll + i) * 2 + 1][j]))
 						break;
 				}
 		}
@@ -319,24 +312,19 @@ dialog_menu(const char *title, const char *prompt, int height, int width,
 
 					scroll--;
 
-					print_item(menu, items[scroll * 2 + 1],
-						   0, FALSE,
-						   (items[scroll * 2][0] !=
-						    ':'));
+					print_item(menu, items[scroll * 2 + 1], 0, FALSE,
+						   (items[scroll * 2][0] != ':'));
 				} else
 					choice = MAX(choice - 1, 0);
 
 			} else if (key == KEY_DOWN || key == '+') {
 
 				print_item(menu,
-					   items[(scroll + choice) * 2 + 1],
-					   choice, FALSE,
-					   (items[(scroll + choice) * 2][0] !=
-					    ':'));
+					   items[(scroll + choice) * 2 + 1], choice, FALSE,
+					   (items[(scroll + choice) * 2][0] != ':'));
 
 				if ((choice > max_choice - 3) &&
-				    (scroll + max_choice < item_no)
-				    ) {
+				    (scroll + max_choice < item_no)) {
 					/* Scroll menu up */
 					scrollok(menu, TRUE);
 					wscrl(menu, 1);
@@ -344,16 +332,11 @@ dialog_menu(const char *title, const char *prompt, int height, int width,
 
 					scroll++;
 
-					print_item(menu,
-						   items[(scroll + max_choice -
-							  1) * 2 + 1],
+					print_item(menu, items[(scroll + max_choice - 1) * 2 + 1],
 						   max_choice - 1, FALSE,
-						   (items
-						    [(scroll + max_choice -
-						      1) * 2][0] != ':'));
+						   (items [(scroll + max_choice - 1) * 2][0] != ':'));
 				} else
-					choice =
-					    MIN(choice + 1, max_choice - 1);
+					choice = MIN(choice + 1, max_choice - 1);
 
 			} else if (key == KEY_PPAGE) {
 				scrollok(menu, TRUE);
@@ -361,11 +344,8 @@ dialog_menu(const char *title, const char *prompt, int height, int width,
 					if (scroll > 0) {
 						wscrl(menu, -1);
 						scroll--;
-						print_item(menu,
-							   items[scroll * 2 +
-								 1], 0, FALSE,
-							   (items[scroll * 2][0]
-							    != ':'));
+						print_item(menu, items[scroll * 2 + 1], 0, FALSE,
+							   (items[scroll * 2][0] != ':'));
 					} else {
 						if (choice > 0)
 							choice--;
@@ -380,17 +360,9 @@ dialog_menu(const char *title, const char *prompt, int height, int width,
 						wscrl(menu, 1);
 						scrollok(menu, FALSE);
 						scroll++;
-						print_item(menu,
-							   items[(scroll +
-								  max_choice -
-								  1) * 2 + 1],
-							   max_choice - 1,
-							   FALSE,
-							   (items
-							    [(scroll +
-							      max_choice -
-							      1) * 2][0] !=
-							    ':'));
+						print_item(menu, items[(scroll + max_choice - 1) * 2 + 1],
+							   max_choice - 1, FALSE,
+							   (items [(scroll + max_choice - 1) * 2][0] != ':'));
 					} else {
 						if (choice + 1 < max_choice)
 							choice++;
@@ -401,8 +373,7 @@ dialog_menu(const char *title, const char *prompt, int height, int width,
 				choice = i;
 
 			print_item(menu, items[(scroll + choice) * 2 + 1],
-				   choice, TRUE,
-				   (items[(scroll + choice) * 2][0] != ':'));
+				   choice, TRUE, (items[(scroll + choice) * 2][0] != ':'));
 
 			print_arrows(dialog, item_no, scroll,
 				     box_y, box_x + item_x + 1, menu_height);
@@ -460,9 +431,7 @@ dialog_menu(const char *title, const char *prompt, int height, int width,
 				fprintf(stderr, "%s \"%s\"\n",
 					items[(scroll + choice) * 2],
 					items[(scroll + choice) * 2 + 1] +
-					first_alpha(items
-						    [(scroll + choice) * 2 + 1],
-						    ""));
+					first_alpha(items [(scroll + choice) * 2 + 1], ""));
 			else
 				fprintf(stderr, "%s\n",
 					items[(scroll + choice) * 2]);

@@ -1,4 +1,3 @@
-
 /*
  *  dialog.h -- common declarations for all dialog modules
  *
@@ -87,7 +86,7 @@
 #define ACS_DARROW 'v'
 #endif
 
-/* 
+/*
  * Attribute names
  */
 #define screen_attr                   attributes[0]
