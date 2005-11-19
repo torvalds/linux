@@ -1,5 +1,9 @@
-#ifndef _PPC64_PGTABLE_H
-#define _PPC64_PGTABLE_H
+#ifndef _ASM_POWERPC_PGTABLE_H
+#define _ASM_POWERPC_PGTABLE_H
+
+#ifndef CONFIG_PPC64
+#include <asm-ppc/pgtable.h>
+#else
 
 /*
  * This file contains the functions and defines necessary to modify and use
@@ -76,7 +80,7 @@ struct mm_struct;
 
 #define _PAGE_WRENABLE	(_PAGE_RW | _PAGE_DIRTY)
 
-/* __pgprot defined in asm-ppc64/page.h */
+/* __pgprot defined in asm-powerpc/page.h */
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED)
 
 #define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_RW | _PAGE_USER)
@@ -516,4 +520,5 @@ void pgtable_cache_init(void);
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* _PPC64_PGTABLE_H */
+#endif /* CONFIG_PPC64 */
+#endif /* _ASM_POWERPC_PGTABLE_H */
