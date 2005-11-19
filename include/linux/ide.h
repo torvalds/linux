@@ -1201,7 +1201,6 @@ extern u64 ide_get_error_location(ide_drive_t *, char *);
  */
 typedef enum {
 	ide_wait,	/* insert rq at end of list, and wait for it */
-	ide_next,	/* insert rq immediately after current request */
 	ide_preempt,	/* insert rq in front of current request */
 	ide_head_wait,	/* insert rq in front of current request and wait for it */
 	ide_end		/* insert rq at end of list, but don't wait for it */
