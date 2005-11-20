@@ -451,6 +451,12 @@ static int wistron_suspend(struct platform_device *dev, pm_message_t state)
 {
 	del_timer_sync(&poll_timer);
 
+	if (have_wifi)
+		bios_set_state(WIFI, 0);
+
+	if (have_bluetooth)
+		bios_set_state(BLUETOOTH, 0);
+
 	return 0;
 }
 
