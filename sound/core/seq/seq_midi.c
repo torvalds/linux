@@ -183,7 +183,10 @@ static int midisynth_subscribe(void *private_data, struct snd_seq_port_subscribe
 	struct snd_rawmidi_params params;
 
 	/* open midi port */
-	if ((err = snd_rawmidi_kernel_open(msynth->card->number, msynth->device, msynth->subdevice, SNDRV_RAWMIDI_LFLG_INPUT, &msynth->input_rfile)) < 0) {
+	if ((err = snd_rawmidi_kernel_open(msynth->card, msynth->device,
+					   msynth->subdevice,
+					   SNDRV_RAWMIDI_LFLG_INPUT,
+					   &msynth->input_rfile)) < 0) {
 		snd_printd("midi input open failed!!!\n");
 		return err;
 	}
@@ -221,7 +224,10 @@ static int midisynth_use(void *private_data, struct snd_seq_port_subscribe *info
 	struct snd_rawmidi_params params;
 
 	/* open midi port */
-	if ((err = snd_rawmidi_kernel_open(msynth->card->number, msynth->device, msynth->subdevice, SNDRV_RAWMIDI_LFLG_OUTPUT, &msynth->output_rfile)) < 0) {
+	if ((err = snd_rawmidi_kernel_open(msynth->card, msynth->device,
+					   msynth->subdevice,
+					   SNDRV_RAWMIDI_LFLG_OUTPUT,
+					   &msynth->output_rfile)) < 0) {
 		snd_printd("midi output open failed!!!\n");
 		return err;
 	}

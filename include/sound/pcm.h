@@ -412,6 +412,7 @@ struct snd_pcm_str {
 
 struct snd_pcm {
 	struct snd_card *card;
+	struct list_head list;
 	unsigned int device;	/* device number */
 	unsigned int info_flags;
 	unsigned short dev_class;
@@ -439,7 +440,6 @@ struct snd_pcm_notify {
  *  Registering
  */
 
-extern struct snd_pcm *snd_pcm_devices[];
 extern struct file_operations snd_pcm_f_ops[2];
 
 int snd_pcm_new(struct snd_card *card, char *id, int device,

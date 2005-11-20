@@ -1834,9 +1834,6 @@ static int snd_task_name(struct task_struct *task, char *name, size_t size)
 
 static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 {
-	int minor = iminor(inode);
-	int cardnum = SNDRV_MINOR_OSS_CARD(minor);
-	int device;
 	int err;
 	char task_name[32];
 	struct snd_pcm *pcm;
@@ -1845,11 +1842,8 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 	int nonblock;
 	wait_queue_t wait;
 
-	snd_assert(cardnum >= 0 && cardnum < SNDRV_CARDS, return -ENXIO);
-	device = SNDRV_MINOR_OSS_DEVICE(minor) == SNDRV_MINOR_OSS_PCM1 ?
-		adsp_map[cardnum] : dsp_map[cardnum];
-
-	pcm = snd_pcm_devices[(cardnum * SNDRV_PCM_DEVICES) + device];
+	pcm = snd_lookup_oss_minor_data(iminor(inode),
+					SNDRV_OSS_DEVICE_TYPE_PCM);
 	if (pcm == NULL) {
 		err = -ENODEV;
 		goto __error1;
@@ -1890,7 +1884,7 @@ static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 	down(&pcm->open_mutex);
 	while (1) {
 		err = snd_pcm_oss_open_file(file, pcm, &pcm_oss_file,
-					    minor, psetup, csetup);
+					    iminor(inode), psetup, csetup);
 		if (err >= 0)
 			break;
 		if (err == -EAGAIN) {
@@ -2450,7 +2444,7 @@ static void register_oss_dsp(struct snd_pcm *pcm, int index)
 	sprintf(name, "dsp%i%i", pcm->card->number, pcm->device);
 	if (snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_PCM,
 				    pcm->card, index, &snd_pcm_oss_f_reg,
-				    name) < 0) {
+				    pcm, name) < 0) {
 		snd_printk(KERN_ERR "unable to register OSS PCM device %i:%i\n",
 			   pcm->card->number, pcm->device);
 	}

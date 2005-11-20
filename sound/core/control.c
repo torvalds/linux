@@ -47,13 +47,12 @@ static LIST_HEAD(snd_control_compat_ioctls);
 
 static int snd_ctl_open(struct inode *inode, struct file *file)
 {
-	int cardnum = SNDRV_MINOR_CARD(iminor(inode));
 	unsigned long flags;
 	struct snd_card *card;
 	struct snd_ctl_file *ctl;
 	int err;
 
-	card = snd_cards[cardnum];
+	card = snd_lookup_minor_data(iminor(inode), SNDRV_DEVICE_TYPE_CONTROL);
 	if (!card) {
 		err = -ENODEV;
 		goto __error1;
@@ -1277,8 +1276,8 @@ static int snd_ctl_dev_register(struct snd_device *device)
 	cardnum = card->number;
 	snd_assert(cardnum >= 0 && cardnum < SNDRV_CARDS, return -ENXIO);
 	sprintf(name, "controlC%i", cardnum);
-	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_CONTROL,
-				       card, -1, &snd_ctl_f_ops, name)) < 0)
+	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_CONTROL, card, -1,
+				       &snd_ctl_f_ops, card, name)) < 0)
 		return err;
 	return 0;
 }

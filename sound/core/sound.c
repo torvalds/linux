@@ -60,7 +60,6 @@ MODULE_ALIAS_CHARDEV_MAJOR(CONFIG_SND_MAJOR);
 int snd_ecards_limit;
 
 static struct snd_minor *snd_minors[SNDRV_OS_MINORS];
-
 static DECLARE_MUTEX(sound_mutex);
 
 extern struct class *sound_class;
@@ -106,6 +105,31 @@ static void snd_request_other(int minor)
 }
 
 #endif				/* request_module support */
+
+/**
+ * snd_lookup_minor_data - get user data of a registered device
+ * @minor: the minor number
+ * @type: device type (SNDRV_DEVICE_TYPE_XXX)
+ *
+ * Checks that a minor device with the specified type is registered, and returns
+ * its user data pointer.
+ */
+void *snd_lookup_minor_data(unsigned int minor, int type)
+{
+	struct snd_minor *mreg;
+	void *private_data;
+
+	if (minor > ARRAY_SIZE(snd_minors))
+		return NULL;
+	down(&sound_mutex);
+	mreg = snd_minors[minor];
+	if (mreg && mreg->type == type)
+		private_data = mreg->private_data;
+	else
+		private_data = NULL;
+	up(&sound_mutex);
+	return private_data;
+}
 
 static int snd_open(struct inode *inode, struct file *file)
 {
@@ -183,6 +207,7 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  * @card: the card instance
  * @dev: the device index
  * @f_ops: the file operations
+ * @private_data: user pointer for f_ops->open()
  * @name: the device file name
  *
  * Registers an ALSA device file for the given card.
@@ -191,7 +216,8 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  * Retrurns zero if successful, or a negative error code on failure.
  */
 int snd_register_device(int type, struct snd_card *card, int dev,
-			struct file_operations *f_ops, const char *name)
+			struct file_operations *f_ops, void *private_data,
+			const char *name)
 {
 	int minor = snd_kernel_minor(type, card, dev);
 	struct snd_minor *preg;
@@ -207,6 +233,7 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	preg->card = card ? card->number : -1;
 	preg->device = dev;
 	preg->f_ops = f_ops;
+	preg->private_data = private_data;
 	strcpy(preg->name, name);
 	down(&sound_mutex);
 	if (snd_minors[minor]) {
@@ -238,13 +265,18 @@ int snd_register_device(int type, struct snd_card *card, int dev,
  */
 int snd_unregister_device(int type, struct snd_card *card, int dev)
 {
-	int minor = snd_kernel_minor(type, card, dev);
+	int cardnum, minor;
 	struct snd_minor *mptr;
 
-	if (minor < 0)
-		return minor;
+	cardnum = card ? card->number : -1;
 	down(&sound_mutex);
-	if ((mptr = snd_minors[minor]) == NULL) {
+	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor)
+		if ((mptr = snd_minors[minor]) != NULL &&
+		    mptr->type == type &&
+		    mptr->card == cardnum &&
+		    mptr->device == dev)
+			break;
+	if (minor == ARRAY_SIZE(snd_minors)) {
 		up(&sound_mutex);
 		return -EINVAL;
 	}
@@ -392,9 +424,11 @@ EXPORT_SYMBOL(snd_request_card);
 #endif
 EXPORT_SYMBOL(snd_register_device);
 EXPORT_SYMBOL(snd_unregister_device);
+EXPORT_SYMBOL(snd_lookup_minor_data);
 #if defined(CONFIG_SND_OSSEMUL)
 EXPORT_SYMBOL(snd_register_oss_device);
 EXPORT_SYMBOL(snd_unregister_oss_device);
+EXPORT_SYMBOL(snd_lookup_oss_minor_data);
 #endif
   /* memory.c */
 EXPORT_SYMBOL(copy_to_user_fromio);

@@ -187,6 +187,7 @@ struct snd_minor {
 	int card;			/* card number */
 	int device;			/* device number */
 	struct file_operations *f_ops;	/* file operations */
+	void *private_data;		/* private data for f_ops->open */
 	char name[0];			/* device name (keep at the end of
 								structure) */
 };
@@ -199,13 +200,17 @@ extern int snd_ecards_limit;
 void snd_request_card(int card);
 
 int snd_register_device(int type, struct snd_card *card, int dev,
-			struct file_operations *f_ops, const char *name);
+			struct file_operations *f_ops, void *private_data,
+			const char *name);
 int snd_unregister_device(int type, struct snd_card *card, int dev);
+void *snd_lookup_minor_data(unsigned int minor, int type);
 
 #ifdef CONFIG_SND_OSSEMUL
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
-			    struct file_operations *f_ops, const char *name);
+			    struct file_operations *f_ops, void *private_data,
+			    const char *name);
 int snd_unregister_oss_device(int type, struct snd_card *card, int dev);
+void *snd_lookup_oss_minor_data(unsigned int minor, int type);
 #endif
 
 int snd_minor_info_init(void);

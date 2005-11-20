@@ -38,8 +38,24 @@
 #define SNDRV_OSS_MINORS 128
 
 static struct snd_minor *snd_oss_minors[SNDRV_OSS_MINORS];
-
 static DECLARE_MUTEX(sound_oss_mutex);
+
+void *snd_lookup_oss_minor_data(unsigned int minor, int type)
+{
+	struct snd_minor *mreg;
+	void *private_data;
+
+	if (minor > ARRAY_SIZE(snd_oss_minors))
+		return NULL;
+	down(&sound_oss_mutex);
+	mreg = snd_oss_minors[minor];
+	if (mreg && mreg->type == type)
+		private_data = mreg->private_data;
+	else
+		private_data = NULL;
+	up(&sound_oss_mutex);
+	return private_data;
+}
 
 static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 {
@@ -78,7 +94,8 @@ static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 }
 
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
-			    struct file_operations *f_ops, const char *name)
+			    struct file_operations *f_ops, void *private_data,
+			    const char *name)
 {
 	int minor = snd_oss_kernel_minor(type, card, dev);
 	int minor_unit;
@@ -97,6 +114,7 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 	preg->card = card ? card->number : -1;
 	preg->device = dev;
 	preg->f_ops = f_ops;
+	preg->private_data = private_data;
 	down(&sound_oss_mutex);
 	snd_oss_minors[minor] = preg;
 	minor_unit = SNDRV_MINOR_OSS_DEVICE(minor);
@@ -121,6 +139,7 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 							  carddev);
 		if (register2 != track2)
 			goto __end;
+		snd_oss_minors[track2] = preg;
 	}
 	up(&sound_oss_mutex);
 	return 0;
@@ -163,8 +182,10 @@ int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 		track2 = SNDRV_MINOR_OSS(cidx, SNDRV_MINOR_OSS_DMMIDI1);
 		break;
 	}
-	if (track2 >= 0)
+	if (track2 >= 0) {
 		unregister_sound_special(track2);
+		snd_oss_minors[track2] = NULL;
+	}
 	snd_oss_minors[minor] = NULL;
 	up(&sound_oss_mutex);
 	kfree(mptr);

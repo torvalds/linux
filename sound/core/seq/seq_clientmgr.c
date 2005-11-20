@@ -2531,7 +2531,7 @@ int __init snd_sequencer_device_init(void)
 		return -ERESTARTSYS;
 
 	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0,
-				       &snd_seq_f_ops, "seq")) < 0) {
+				       &snd_seq_f_ops, NULL, "seq")) < 0) {
 		up(&register_mutex);
 		return err;
 	}

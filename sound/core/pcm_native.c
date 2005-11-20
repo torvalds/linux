@@ -62,6 +62,7 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params_old __user * _oparams);
 static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params_old __user * _oparams);
+static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream);
 
 /*
  *
@@ -1554,7 +1555,8 @@ static struct file *snd_pcm_file_fd(int fd)
 {
 	struct file *file;
 	struct inode *inode;
-	unsigned short minor;
+	unsigned int minor;
+
 	file = fget(fd);
 	if (!file)
 		return NULL;
@@ -1565,8 +1567,8 @@ static struct file *snd_pcm_file_fd(int fd)
 		return NULL;
 	}
 	minor = iminor(inode);
-	if (minor >= 256 || 
-	    minor % SNDRV_MINOR_DEVICES < SNDRV_MINOR_PCM_PLAYBACK) {
+	if (!snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_PLAYBACK) &&
+	    !snd_lookup_minor_data(minor, SNDRV_DEVICE_TYPE_PCM_CAPTURE)) {
 		fput(file);
 		return NULL;
 	}
@@ -2071,18 +2073,30 @@ static int snd_pcm_open_file(struct file *file,
 	return 0;
 }
 
-static int snd_pcm_open(struct inode *inode, struct file *file)
+static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 {
-	int cardnum = SNDRV_MINOR_CARD(iminor(inode));
-	int device = SNDRV_MINOR_DEVICE(iminor(inode));
-	int err;
 	struct snd_pcm *pcm;
+
+	pcm = snd_lookup_minor_data(iminor(inode),
+				    SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
+	return snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_PLAYBACK);
+}
+
+static int snd_pcm_capture_open(struct inode *inode, struct file *file)
+{
+	struct snd_pcm *pcm;
+
+	pcm = snd_lookup_minor_data(iminor(inode),
+				    SNDRV_DEVICE_TYPE_PCM_CAPTURE);
+	return snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_CAPTURE);
+}
+
+static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream)
+{
+	int err;
 	struct snd_pcm_file *pcm_file;
 	wait_queue_t wait;
 
-	if (device < SNDRV_MINOR_PCM_PLAYBACK || device >= SNDRV_MINOR_DEVICES)
-		return -ENXIO;
-	pcm = snd_pcm_devices[(cardnum * SNDRV_PCM_DEVICES) + (device % SNDRV_MINOR_PCMS)];
 	if (pcm == NULL) {
 		err = -ENODEV;
 		goto __error1;
@@ -2098,7 +2112,7 @@ static int snd_pcm_open(struct inode *inode, struct file *file)
 	add_wait_queue(&pcm->open_wait, &wait);
 	down(&pcm->open_mutex);
 	while (1) {
-		err = snd_pcm_open_file(file, pcm, device >= SNDRV_MINOR_PCM_CAPTURE ? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK, &pcm_file);
+		err = snd_pcm_open_file(file, pcm, stream, &pcm_file);
 		if (err >= 0)
 			break;
 		if (err == -EAGAIN) {
@@ -3375,7 +3389,7 @@ struct file_operations snd_pcm_f_ops[2] = {
 		.owner =		THIS_MODULE,
 		.write =		snd_pcm_write,
 		.writev =		snd_pcm_writev,
-		.open =			snd_pcm_open,
+		.open =			snd_pcm_playback_open,
 		.release =		snd_pcm_release,
 		.poll =			snd_pcm_playback_poll,
 		.unlocked_ioctl =	snd_pcm_playback_ioctl,
@@ -3387,7 +3401,7 @@ struct file_operations snd_pcm_f_ops[2] = {
 		.owner =		THIS_MODULE,
 		.read =			snd_pcm_read,
 		.readv =		snd_pcm_readv,
-		.open =			snd_pcm_open,
+		.open =			snd_pcm_capture_open,
 		.release =		snd_pcm_release,
 		.poll =			snd_pcm_capture_poll,
 		.unlocked_ioctl =	snd_pcm_capture_ioctl,

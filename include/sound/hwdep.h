@@ -43,6 +43,7 @@ struct snd_hwdep_ops {
 
 struct snd_hwdep {
 	struct snd_card *card;
+	struct list_head list;
 	int device;
 	char id[32];
 	char name[80];

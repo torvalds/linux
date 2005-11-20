@@ -113,7 +113,7 @@ struct snd_rawmidi_str {
 
 struct snd_rawmidi {
 	struct snd_card *card;
-
+	struct list_head list;
 	unsigned int device;		/* device number */
 	unsigned int info_flags;	/* SNDRV_RAWMIDI_INFO_XXXX */
 	char id[64];
@@ -165,8 +165,8 @@ int snd_rawmidi_transmit(struct snd_rawmidi_substream *substream,
 /* main midi functions */
 
 int snd_rawmidi_info_select(struct snd_card *card, struct snd_rawmidi_info *info);
-int snd_rawmidi_kernel_open(int cardnum, int device, int subdevice, int mode,
-			    struct snd_rawmidi_file *rfile);
+int snd_rawmidi_kernel_open(struct snd_card *card, int device, int subdevice,
+			    int mode, struct snd_rawmidi_file *rfile);
 int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile);
 int snd_rawmidi_output_params(struct snd_rawmidi_substream *substream,
 			      struct snd_rawmidi_params *params);

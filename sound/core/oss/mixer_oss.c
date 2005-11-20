@@ -41,12 +41,13 @@ MODULE_ALIAS_SNDRV_MINOR(SNDRV_MINOR_OSS_MIXER);
 
 static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 {
-	int cardnum = SNDRV_MINOR_OSS_CARD(iminor(inode));
 	struct snd_card *card;
 	struct snd_mixer_oss_file *fmixer;
 	int err;
 
-	if ((card = snd_cards[cardnum]) == NULL)
+	card = snd_lookup_oss_minor_data(iminor(inode),
+					 SNDRV_OSS_DEVICE_TYPE_MIXER);
+	if (card == NULL)
 		return -ENODEV;
 	if (card->mixer_oss == NULL)
 		return -ENODEV;
@@ -1286,7 +1287,7 @@ static int snd_mixer_oss_notify_handler(struct snd_card *card, int cmd)
 		sprintf(name, "mixer%i%i", card->number, 0);
 		if ((err = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_MIXER,
 						   card, 0,
-						   &snd_mixer_oss_f_ops,
+						   &snd_mixer_oss_f_ops, card,
 						   name)) < 0) {
 			snd_printk(KERN_ERR "unable to register OSS mixer device %i:%i\n",
 				   card->number, 0);

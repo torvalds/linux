@@ -35,8 +35,7 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("Hardware dependent layer");
 MODULE_LICENSE("GPL");
 
-static struct snd_hwdep *snd_hwdep_devices[SNDRV_CARDS * SNDRV_MINOR_HWDEPS];
-
+static LIST_HEAD(snd_hwdep_devices);
 static DECLARE_MUTEX(register_mutex);
 
 static int snd_hwdep_free(struct snd_hwdep *hwdep);
@@ -44,9 +43,19 @@ static int snd_hwdep_dev_free(struct snd_device *device);
 static int snd_hwdep_dev_register(struct snd_device *device);
 static int snd_hwdep_dev_unregister(struct snd_device *device);
 
-/*
 
- */
+static struct snd_hwdep *snd_hwdep_search(struct snd_card *card, int device)
+{
+	struct list_head *p;
+	struct snd_hwdep *hwdep;
+
+	list_for_each(p, &snd_hwdep_devices) {
+		hwdep = list_entry(p, struct snd_hwdep, list);
+		if (hwdep->card == card && hwdep->device == device)
+			return hwdep;
+	}
+	return NULL;
+}
 
 static loff_t snd_hwdep_llseek(struct file * file, loff_t offset, int orig)
 {
@@ -77,34 +86,25 @@ static ssize_t snd_hwdep_write(struct file * file, const char __user *buf,
 static int snd_hwdep_open(struct inode *inode, struct file * file)
 {
 	int major = imajor(inode);
-	int cardnum;
-	int device;
 	struct snd_hwdep *hw;
 	int err;
 	wait_queue_t wait;
 
 	if (major == snd_major) {
-		cardnum = SNDRV_MINOR_CARD(iminor(inode));
-		device = SNDRV_MINOR_DEVICE(iminor(inode)) - SNDRV_MINOR_HWDEP;
+		hw = snd_lookup_minor_data(iminor(inode),
+					   SNDRV_DEVICE_TYPE_HWDEP);
 #ifdef CONFIG_SND_OSSEMUL
 	} else if (major == SOUND_MAJOR) {
-		cardnum = SNDRV_MINOR_OSS_CARD(iminor(inode));
-		device = 0;
+		hw = snd_lookup_oss_minor_data(iminor(inode),
+					       SNDRV_OSS_DEVICE_TYPE_DMFM);
 #endif
 	} else
 		return -ENXIO;
-	cardnum %= SNDRV_CARDS;
-	device %= SNDRV_MINOR_HWDEPS;
-	hw = snd_hwdep_devices[(cardnum * SNDRV_MINOR_HWDEPS) + device];
 	if (hw == NULL)
 		return -ENODEV;
 
 	if (!hw->ops.open)
 		return -ENXIO;
-#ifdef CONFIG_SND_OSSEMUL
-	if (major == SOUND_MAJOR && hw->oss_type < 0)
-		return -ENXIO;
-#endif
 
 	if (!try_module_get(hw->card->module))
 		return -EFAULT;
@@ -265,9 +265,6 @@ static int snd_hwdep_control_ioctl(struct snd_card *card,
 				   struct snd_ctl_file * control,
 				   unsigned int cmd, unsigned long arg)
 {
-	unsigned int tmp;
-	
-	tmp = card->number * SNDRV_MINOR_HWDEPS;
 	switch (cmd) {
 	case SNDRV_CTL_IOCTL_HWDEP_NEXT_DEVICE:
 		{
@@ -275,14 +272,16 @@ static int snd_hwdep_control_ioctl(struct snd_card *card,
 
 			if (get_user(device, (int __user *)arg))
 				return -EFAULT;
+			down(&register_mutex);
 			device = device < 0 ? 0 : device + 1;
 			while (device < SNDRV_MINOR_HWDEPS) {
-				if (snd_hwdep_devices[tmp + device])
+				if (snd_hwdep_search(card, device))
 					break;
 				device++;
 			}
 			if (device >= SNDRV_MINOR_HWDEPS)
 				device = -1;
+			up(&register_mutex);
 			if (put_user(device, (int __user *)arg))
 				return -EFAULT;
 			return 0;
@@ -290,17 +289,19 @@ static int snd_hwdep_control_ioctl(struct snd_card *card,
 	case SNDRV_CTL_IOCTL_HWDEP_INFO:
 		{
 			struct snd_hwdep_info __user *info = (struct snd_hwdep_info __user *)arg;
-			int device;
+			int device, err;
 			struct snd_hwdep *hwdep;
 
 			if (get_user(device, &info->device))
 				return -EFAULT;
-			if (device < 0 || device >= SNDRV_MINOR_HWDEPS)
-				return -ENXIO;
-			hwdep = snd_hwdep_devices[tmp + device];
-			if (hwdep == NULL)
-				return -ENXIO;
-			return snd_hwdep_info(hwdep, info);
+			down(&register_mutex);
+			hwdep = snd_hwdep_search(card, device);
+			if (hwdep)
+				err = snd_hwdep_info(hwdep, info);
+			else
+				err = -ENXIO;
+			up(&register_mutex);
+			return err;
 		}
 	}
 	return -ENOIOCTLCMD;
@@ -397,23 +398,22 @@ static int snd_hwdep_dev_free(struct snd_device *device)
 static int snd_hwdep_dev_register(struct snd_device *device)
 {
 	struct snd_hwdep *hwdep = device->device_data;
-	int idx, err;
+	int err;
 	char name[32];
 
 	down(&register_mutex);
-	idx = (hwdep->card->number * SNDRV_MINOR_HWDEPS) + hwdep->device;
-	if (snd_hwdep_devices[idx]) {
+	if (snd_hwdep_search(hwdep->card, hwdep->device)) {
 		up(&register_mutex);
 		return -EBUSY;
 	}
-	snd_hwdep_devices[idx] = hwdep;
+	list_add_tail(&hwdep->list, &snd_hwdep_devices);
 	sprintf(name, "hwC%iD%i", hwdep->card->number, hwdep->device);
 	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_HWDEP,
 				       hwdep->card, hwdep->device,
-				       &snd_hwdep_f_ops, name)) < 0) {
+				       &snd_hwdep_f_ops, hwdep, name)) < 0) {
 		snd_printk(KERN_ERR "unable to register hardware dependent device %i:%i\n",
 			   hwdep->card->number, hwdep->device);
-		snd_hwdep_devices[idx] = NULL;
+		list_del(&hwdep->list);
 		up(&register_mutex);
 		return err;
 	}
@@ -425,7 +425,7 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 		} else {
 			if (snd_register_oss_device(hwdep->oss_type,
 						    hwdep->card, hwdep->device,
-						    &snd_hwdep_f_ops,
+						    &snd_hwdep_f_ops, hwdep,
 						    hwdep->oss_dev) < 0) {
 				snd_printk(KERN_ERR "unable to register OSS compatibility device %i:%i\n",
 					   hwdep->card->number, hwdep->device);
@@ -441,12 +441,10 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 static int snd_hwdep_dev_unregister(struct snd_device *device)
 {
 	struct snd_hwdep *hwdep = device->device_data;
-	int idx;
 
 	snd_assert(hwdep != NULL, return -ENXIO);
 	down(&register_mutex);
-	idx = (hwdep->card->number * SNDRV_MINOR_HWDEPS) + hwdep->device;
-	if (snd_hwdep_devices[idx] != hwdep) {
+	if (snd_hwdep_search(hwdep->card, hwdep->device) != hwdep) {
 		up(&register_mutex);
 		return -EINVAL;
 	}
@@ -455,7 +453,7 @@ static int snd_hwdep_dev_unregister(struct snd_device *device)
 		snd_unregister_oss_device(hwdep->oss_type, hwdep->card, hwdep->device);
 #endif
 	snd_unregister_device(SNDRV_DEVICE_TYPE_HWDEP, hwdep->card, hwdep->device);
-	snd_hwdep_devices[idx] = NULL;
+	list_del(&hwdep->list);
 	up(&register_mutex);
 	return snd_hwdep_free(hwdep);
 }
@@ -467,18 +465,14 @@ static int snd_hwdep_dev_unregister(struct snd_device *device)
 static void snd_hwdep_proc_read(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer)
 {
-	int idx;
+	struct list_head *p;
 	struct snd_hwdep *hwdep;
 
 	down(&register_mutex);
-	for (idx = 0; idx < SNDRV_CARDS * SNDRV_MINOR_HWDEPS; idx++) {
-		hwdep = snd_hwdep_devices[idx];
-		if (hwdep == NULL)
-			continue;
+	list_for_each(p, &snd_hwdep_devices) {
+		hwdep = list_entry(p, struct snd_hwdep, list);
 		snd_iprintf(buffer, "%02i-%02i: %s\n",
-					idx / SNDRV_MINOR_HWDEPS,
-					idx % SNDRV_MINOR_HWDEPS,
-					hwdep->name);
+			    hwdep->card->number, hwdep->device, hwdep->name);
 	}
 	up(&register_mutex);
 }
@@ -493,9 +487,8 @@ static int __init alsa_hwdep_init(void)
 {
 	struct snd_info_entry *entry;
 
-	memset(snd_hwdep_devices, 0, sizeof(snd_hwdep_devices));
 	if ((entry = snd_info_create_module_entry(THIS_MODULE, "hwdep", NULL)) != NULL) {
-		entry->c.text.read_size = 512;
+		entry->c.text.read_size = PAGE_SIZE;
 		entry->c.text.read = snd_hwdep_proc_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);

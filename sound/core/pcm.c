@@ -33,7 +33,7 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Abramo Bagnara <abramo@alsa-proj
 MODULE_DESCRIPTION("Midlevel PCM code for ALSA.");
 MODULE_LICENSE("GPL");
 
-struct snd_pcm *snd_pcm_devices[SNDRV_CARDS * SNDRV_PCM_DEVICES];
+static LIST_HEAD(snd_pcm_devices);
 static LIST_HEAD(snd_pcm_notify_list);
 static DECLARE_MUTEX(register_mutex);
 
@@ -43,13 +43,23 @@ static int snd_pcm_dev_register(struct snd_device *device);
 static int snd_pcm_dev_disconnect(struct snd_device *device);
 static int snd_pcm_dev_unregister(struct snd_device *device);
 
+static struct snd_pcm *snd_pcm_search(struct snd_card *card, int device)
+{
+	struct list_head *p;
+	struct snd_pcm *pcm;
+
+	list_for_each(p, &snd_pcm_devices) {
+		pcm = list_entry(p, struct snd_pcm, list);
+		if (pcm->card == card && pcm->device == device)
+			return pcm;
+	}
+	return NULL;
+}
+
 static int snd_pcm_control_ioctl(struct snd_card *card,
 				 struct snd_ctl_file *control,
 				 unsigned int cmd, unsigned long arg)
 {
-	unsigned int tmp;
-
-	tmp = card->number * SNDRV_PCM_DEVICES;
 	switch (cmd) {
 	case SNDRV_CTL_IOCTL_PCM_NEXT_DEVICE:
 		{
@@ -57,14 +67,16 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 
 			if (get_user(device, (int __user *)arg))
 				return -EFAULT;
+			down(&register_mutex);
 			device = device < 0 ? 0 : device + 1;
 			while (device < SNDRV_PCM_DEVICES) {
-				if (snd_pcm_devices[tmp + device])
+				if (snd_pcm_search(card, device))
 					break;
 				device++;
 			}
 			if (device == SNDRV_PCM_DEVICES)
 				device = -1;
+			up(&register_mutex);
 			if (put_user(device, (int __user *)arg))
 				return -EFAULT;
 			return 0;
@@ -77,31 +89,44 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 			struct snd_pcm *pcm;
 			struct snd_pcm_str *pstr;
 			struct snd_pcm_substream *substream;
+			int err;
+
 			info = (struct snd_pcm_info __user *)arg;
 			if (get_user(device, &info->device))
 				return -EFAULT;
-			if (device >= SNDRV_PCM_DEVICES)
-				return -ENXIO;
-			pcm = snd_pcm_devices[tmp + device];
-			if (pcm == NULL)
-				return -ENXIO;
 			if (get_user(stream, &info->stream))
 				return -EFAULT;
 			if (stream < 0 || stream > 1)
 				return -EINVAL;
-			pstr = &pcm->streams[stream];
-			if (pstr->substream_count == 0)
-				return -ENOENT;
 			if (get_user(subdevice, &info->subdevice))
 				return -EFAULT;
-			if (subdevice >= pstr->substream_count)
-				return -ENXIO;
-			for (substream = pstr->substream; substream; substream = substream->next)
+			down(&register_mutex);
+			pcm = snd_pcm_search(card, device);
+			if (pcm == NULL) {
+				err = -ENXIO;
+				goto _error;
+			}
+			pstr = &pcm->streams[stream];
+			if (pstr->substream_count == 0) {
+				err = -ENOENT;
+				goto _error;
+			}
+			if (subdevice >= pstr->substream_count) {
+				err = -ENXIO;
+				goto _error;
+			}
+			for (substream = pstr->substream; substream;
+			     substream = substream->next)
 				if (substream->number == (int)subdevice)
 					break;
-			if (substream == NULL)
-				return -ENXIO;
-			return snd_pcm_info_user(substream, info);
+			if (substream == NULL) {
+				err = -ENXIO;
+				goto _error;
+			}
+			err = snd_pcm_info_user(substream, info);
+		_error:
+			up(&register_mutex);
+			return err;
 		}
 	case SNDRV_CTL_IOCTL_PCM_PREFER_SUBDEVICE:
 		{
@@ -865,8 +890,7 @@ void snd_pcm_release_substream(struct snd_pcm_substream *substream)
 
 static int snd_pcm_dev_register(struct snd_device *device)
 {
-	int idx, cidx, err;
-	unsigned short minor;
+	int cidx, err;
 	struct snd_pcm_substream *substream;
 	struct list_head *list;
 	char str[16];
@@ -874,12 +898,11 @@ static int snd_pcm_dev_register(struct snd_device *device)
 
 	snd_assert(pcm != NULL && device != NULL, return -ENXIO);
 	down(&register_mutex);
-	idx = (pcm->card->number * SNDRV_PCM_DEVICES) + pcm->device;
-	if (snd_pcm_devices[idx]) {
+	if (snd_pcm_search(pcm->card, pcm->device)) {
 		up(&register_mutex);
 		return -EBUSY;
 	}
-	snd_pcm_devices[idx] = pcm;
+	list_add_tail(&pcm->list, &snd_pcm_devices);
 	for (cidx = 0; cidx < 2; cidx++) {
 		int devtype = -1;
 		if (pcm->streams[cidx].substream == NULL)
@@ -887,20 +910,19 @@ static int snd_pcm_dev_register(struct snd_device *device)
 		switch (cidx) {
 		case SNDRV_PCM_STREAM_PLAYBACK:
 			sprintf(str, "pcmC%iD%ip", pcm->card->number, pcm->device);
-			minor = SNDRV_MINOR_PCM_PLAYBACK + idx;
 			devtype = SNDRV_DEVICE_TYPE_PCM_PLAYBACK;
 			break;
 		case SNDRV_PCM_STREAM_CAPTURE:
 			sprintf(str, "pcmC%iD%ic", pcm->card->number, pcm->device);
-			minor = SNDRV_MINOR_PCM_CAPTURE + idx;
 			devtype = SNDRV_DEVICE_TYPE_PCM_CAPTURE;
 			break;
 		}
 		if ((err = snd_register_device(devtype, pcm->card,
 					       pcm->device,
-					       &snd_pcm_f_ops[cidx], str)) < 0)
+					       &snd_pcm_f_ops[cidx],
+					       pcm, str)) < 0)
 		{
-			snd_pcm_devices[idx] = NULL;
+			list_del(&pcm->list);
 			up(&register_mutex);
 			return err;
 		}
@@ -921,11 +943,10 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 	struct snd_pcm *pcm = device->device_data;
 	struct list_head *list;
 	struct snd_pcm_substream *substream;
-	int idx, cidx;
+	int cidx;
 
 	down(&register_mutex);
-	idx = (pcm->card->number * SNDRV_PCM_DEVICES) + pcm->device;
-	snd_pcm_devices[idx] = NULL;
+	list_del_init(&pcm->list);
 	for (cidx = 0; cidx < 2; cidx++)
 		for (substream = pcm->streams[cidx].substream; substream; substream = substream->next)
 			if (substream->runtime)
@@ -941,15 +962,14 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 
 static int snd_pcm_dev_unregister(struct snd_device *device)
 {
-	int idx, cidx, devtype;
+	int cidx, devtype;
 	struct snd_pcm_substream *substream;
 	struct list_head *list;
 	struct snd_pcm *pcm = device->device_data;
 
 	snd_assert(pcm != NULL, return -ENXIO);
 	down(&register_mutex);
-	idx = (pcm->card->number * SNDRV_PCM_DEVICES) + pcm->device;
-	snd_pcm_devices[idx] = NULL;
+	list_del(&pcm->list);
 	for (cidx = 0; cidx < 2; cidx++) {
 		devtype = -1;
 		switch (cidx) {
@@ -975,24 +995,19 @@ static int snd_pcm_dev_unregister(struct snd_device *device)
 
 int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 {
-	int idx;
+	struct list_head *p;
 
 	snd_assert(notify != NULL && notify->n_register != NULL && notify->n_unregister != NULL, return -EINVAL);
 	down(&register_mutex);
 	if (nfree) {
 		list_del(&notify->list);
-		for (idx = 0; idx < SNDRV_CARDS * SNDRV_PCM_DEVICES; idx++) {
-			if (snd_pcm_devices[idx] == NULL)
-				continue;
-			notify->n_unregister(snd_pcm_devices[idx]);
-		}
+		list_for_each(p, &snd_pcm_devices)
+			notify->n_unregister(list_entry(p,
+							struct snd_pcm, list));
 	} else {
 		list_add_tail(&notify->list, &snd_pcm_notify_list);
-		for (idx = 0; idx < SNDRV_CARDS * SNDRV_PCM_DEVICES; idx++) {
-			if (snd_pcm_devices[idx] == NULL)
-				continue;
-			notify->n_register(snd_pcm_devices[idx]);
-		}
+		list_for_each(p, &snd_pcm_devices)
+			notify->n_register(list_entry(p, struct snd_pcm, list));
 	}
 	up(&register_mutex);
 	return 0;
@@ -1005,16 +1020,14 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 static void snd_pcm_proc_read(struct snd_info_entry *entry,
 			      struct snd_info_buffer *buffer)
 {
-	int idx;
+	struct list_head *p;
 	struct snd_pcm *pcm;
 
 	down(&register_mutex);
-	for (idx = 0; idx < SNDRV_CARDS * SNDRV_PCM_DEVICES; idx++) {
-		pcm = snd_pcm_devices[idx];
-		if (pcm == NULL)
-			continue;
-		snd_iprintf(buffer, "%02i-%02i: %s : %s", idx / SNDRV_PCM_DEVICES,
-			    idx % SNDRV_PCM_DEVICES, pcm->id, pcm->name);
+	list_for_each(p, &snd_pcm_devices) {
+		pcm = list_entry(p, struct snd_pcm, list);
+		snd_iprintf(buffer, "%02i-%02i: %s : %s",
+			    pcm->card->number, pcm->device, pcm->id, pcm->name);
 		if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream)
 			snd_iprintf(buffer, " : playback %i",
 				    pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream_count);
@@ -1063,7 +1076,6 @@ static void __exit alsa_pcm_exit(void)
 module_init(alsa_pcm_init)
 module_exit(alsa_pcm_exit)
 
-EXPORT_SYMBOL(snd_pcm_devices);
 EXPORT_SYMBOL(snd_pcm_new);
 EXPORT_SYMBOL(snd_pcm_new_stream);
 EXPORT_SYMBOL(snd_pcm_notify);
