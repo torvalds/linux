@@ -79,6 +79,7 @@ static struct via_isa_bridge {
 	u8 rev_max;
 	u16 flags;
 } via_isa_bridges[] = {
+	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8237",	PCI_DEVICE_ID_VIA_8237,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8235",	PCI_DEVICE_ID_VIA_8235,     0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
 	{ "vt8233a",	PCI_DEVICE_ID_VIA_8233A,    0x00, 0x2f, VIA_UDMA_133 | VIA_BAD_AST },
@@ -467,24 +468,35 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 	hwif->drives[1].autodma = hwif->autodma;
 }
 
-static ide_pci_device_t via82cxxx_chipset __devinitdata = {
-	.name		= "VP_IDE",
-	.init_chipset	= init_chipset_via82cxxx,
-	.init_hwif	= init_hwif_via82cxxx,
-	.channels	= 2,
-	.autodma	= NOAUTODMA,
-	.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},
-	.bootable	= ON_BOARD,
+static ide_pci_device_t via82cxxx_chipsets[] __devinitdata = {
+	{	/* 0 */
+		.name		= "VP_IDE",
+		.init_chipset	= init_chipset_via82cxxx,
+		.init_hwif	= init_hwif_via82cxxx,
+		.channels	= 2,
+		.autodma	= NOAUTODMA,
+		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},
+		.bootable	= ON_BOARD
+	},{	/* 1 */
+		.name		= "VP_IDE",
+		.init_chipset	= init_chipset_via82cxxx,
+		.init_hwif	= init_hwif_via82cxxx,
+		.channels	= 2,
+		.autodma	= AUTODMA,
+		.enablebits	= {{0x00,0x00,0x00}, {0x00,0x00,0x00}},
+		.bootable	= ON_BOARD,
+	}
 };
 
 static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &via82cxxx_chipset);
+	return ide_setup_pci_device(dev, &via82cxxx_chipsets[id->driver_data]);
 }
 
 static struct pci_device_id via_pci_tbl[] = {
 	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C576_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_6410,     PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, via_pci_tbl);

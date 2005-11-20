@@ -1629,12 +1629,6 @@ EXPORT_SYMBOL(ide_init_drive_cmd);
  *	for the new rq to be completed.  This is VERY DANGEROUS, and is
  *	intended for careful use by the ATAPI tape/cdrom driver code.
  *
- *	If action is ide_next, then the rq is queued immediately after
- *	the currently-being-processed-request (if any), and the function
- *	returns without waiting for the new rq to be completed.  As above,
- *	This is VERY DANGEROUS, and is intended for careful use by the
- *	ATAPI tape/cdrom driver code.
- *
  *	If action is ide_end, then the rq is queued at the end of the
  *	request queue, and the function returns immediately without waiting
  *	for the new rq to be completed. This is again intended for careful
