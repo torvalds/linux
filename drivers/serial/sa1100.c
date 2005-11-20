@@ -161,7 +161,6 @@ static void sa1100_stop_tx(struct uart_port *port)
 static void sa1100_start_tx(struct uart_port *port)
 {
 	struct sa1100_port *sport = (struct sa1100_port *)port;
-	unsigned long flags;
 	u32 utcr3;
 
 	utcr3 = UART_GET_UTCR3(sport);

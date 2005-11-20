@@ -1846,6 +1846,7 @@ sys_clone_wrapper:
 	ldo	-16(%r30),%r29		/* Reference param save area */
 #endif
 
+	/* WARNING - Clobbers r19 and r21, userspace must save these! */
 	STREG	%r2,PT_GR19(%r1)	/* save for child */
 	STREG	%r30,PT_GR21(%r1)
 	BL	sys_clone,%r2

@@ -59,6 +59,7 @@ V_FUNCTION_BEGIN(__kernel_gettimeofday)
 	stw	r5,TZONE_TZ_DSTTIME(r11)
 
 1:	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -117,6 +118,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	mulli	r5,r5,1000
 	stw	r5,TSPC32_TV_NSEC(r11)
 	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -185,6 +187,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	stw	r4,TSPC32_TV_NSEC(r11)
 
 	mtlr	r12
+	crclr	cr0*4+so
 	li	r3,0
 	blr
 
@@ -219,6 +222,7 @@ V_FUNCTION_BEGIN(__kernel_clock_getres)
 
 	li	r3,0
 	cmpli	cr0,r4,0
+	crclr	cr0*4+so
 	beqlr
 	lis	r5,CLOCK_REALTIME_RES@h
 	ori	r5,r5,CLOCK_REALTIME_RES@l

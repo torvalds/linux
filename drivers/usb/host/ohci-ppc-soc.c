@@ -185,7 +185,7 @@ static int ohci_hcd_ppc_soc_drv_probe(struct platform_device *pdev)
 
 static int ohci_hcd_ppc_soc_drv_remove(struct platform_device *pdev)
 {
-	struct usb_hcd *hcd = platform_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_ppc_soc_remove(hcd, pdev);
 	return 0;

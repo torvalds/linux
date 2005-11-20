@@ -27,12 +27,14 @@
 #define atmel_putb(val, chip, offset) writeb(val, chip->vendor->iobase + offset)
 #define atmel_request_region request_mem_region
 #define atmel_release_region release_mem_region
-static inline void atmel_put_base_addr(struct tpm_vendor_specific *vendor)
+
+static inline void atmel_put_base_addr(struct tpm_vendor_specific
+					 *vendor)
 {
 	iounmap(vendor->iobase);
 }
 
-static int atmel_get_base_addr(struct tpm_vendor_specific *vendor)
+static void __iomem * atmel_get_base_addr(struct tpm_vendor_specific *vendor)
 {
 	struct device_node *dn;
 	unsigned long address, size;
@@ -44,11 +46,11 @@ static int atmel_get_base_addr(struct tpm_vendor_specific *vendor)
 	dn = of_find_node_by_name(NULL, "tpm");
 
 	if (!dn)
-		return 1;
+		return NULL;
 
 	if (!device_is_compatible(dn, "AT97SC3201")) {
 		of_node_put(dn);
-		return 1;
+		return NULL;
 	}
 
 	reg = (unsigned int *) get_property(dn, "reg", &reglen);
@@ -71,8 +73,7 @@ static int atmel_get_base_addr(struct tpm_vendor_specific *vendor)
 
 	vendor->base = address;
 	vendor->region_size = size;
-	vendor->iobase = ioremap(address, size);
-	return 0;
+	return ioremap(vendor->base, vendor->region_size);
 }
 #else
 #define atmel_getb(chip, offset) inb(chip->vendor->base + offset)
@@ -105,18 +106,19 @@ static int atmel_verify_tpm11(void)
 	return 0;
 }
 
-static inline void atmel_put_base_addr(struct tpm_vendor_specific *vendor)
+static inline void atmel_put_base_addr(struct tpm_vendor_specific
+					 *vendor)
 {
 }
 
 /* Determine where to talk to device */
-static unsigned long atmel_get_base_addr(struct tpm_vendor_specific
+static void __iomem * atmel_get_base_addr(struct tpm_vendor_specific
 					 *vendor)
 {
 	int lo, hi;
 
 	if (atmel_verify_tpm11() != 0)
-		return 1;
+		return NULL;
 
 	lo = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_LO);
 	hi = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_HI);
@@ -124,6 +126,6 @@ static unsigned long atmel_get_base_addr(struct tpm_vendor_specific
 	vendor->base = (hi << 8) | lo;
 	vendor->region_size = 2;
 
-	return 0;
+	return ioport_map(vendor->base, vendor->region_size);
 }
 #endif

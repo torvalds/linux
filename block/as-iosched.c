@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/block/as-iosched.c
- *
  *  Anticipatory & deadline i/o scheduler.
  *
  *  Copyright (C) 2002 Jens Axboe <axboe@suse.de>

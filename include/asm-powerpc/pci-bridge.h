@@ -1,8 +1,10 @@
-#ifdef __KERNEL__
-#ifndef _ASM_PCI_BRIDGE_H
-#define _ASM_PCI_BRIDGE_H
+#ifndef _ASM_POWERPC_PCI_BRIDGE_H
+#define _ASM_POWERPC_PCI_BRIDGE_H
 
-#include <linux/config.h>
+#ifndef CONFIG_PPC64
+#include <asm-ppc/pci-bridge.h>
+#else
+
 #include <linux/pci.h>
 #include <linux/list.h>
 
@@ -61,12 +63,14 @@ struct pci_dn {
 	int	busno;			/* for pci devices */
 	int	bussubno;		/* for pci devices */
 	int	devfn;			/* for pci devices */
+
+#ifdef CONFIG_PPC_PSERIES
 	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
 	int	eeh_config_addr;
 	int 	eeh_check_count;	/* # times driver ignored error */
 	int 	eeh_freeze_count;	/* # times this device froze up. */
 	int	eeh_is_bridge;		/* device is pci-to-pci bridge */
-
+#endif
 	int	pci_ext_config_space;	/* for pci devices */
 	struct  pci_controller *phb;	/* for pci devices */
 	struct	iommu_table *iommu_table;	/* for phb's or bridges */
@@ -74,9 +78,9 @@ struct pci_dn {
 	struct	device_node *node;	/* back-pointer to the device_node */
 #ifdef CONFIG_PPC_ISERIES
 	struct	list_head Device_List;
-	int		Irq;		/* Assigned IRQ */
-	int		Flags;		/* Possible flags(disable/bist)*/
-	u8		LogicalSlot;	/* Hv Slot Index for Tces */
+	int	Irq;			/* Assigned IRQ */
+	int	Flags;			/* Possible flags(disable/bist)*/
+	u8	LogicalSlot;		/* Hv Slot Index for Tces */
 #endif
 	u32	config_space[16];	/* saved PCI config space */
 };
@@ -136,10 +140,14 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	return PCI_DN(busdn)->phb;
 }
 
+extern struct pci_controller *
+pcibios_alloc_controller(struct device_node *dev);
+extern void pcibios_free_controller(struct pci_controller *phb);
+
 /* Return values for ppc_md.pci_probe_mode function */
 #define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
 #define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
 #define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
 
+#endif /* CONFIG_PPC64 */
 #endif
-#endif /* __KERNEL__ */

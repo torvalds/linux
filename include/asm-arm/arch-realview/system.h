@@ -36,7 +36,7 @@ static inline void arch_idle(void)
 
 static inline void arch_reset(char mode)
 {
-	unsigned int hdr_ctrl =	(IO_ADDRESS(REALVIEW_SYS_BASE) + REALVIEW_SYS_RESETCTL_OFFSET);
+	void __iomem *hdr_ctrl = __io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_RESETCTL_OFFSET;
 	unsigned int val;
 
 	/*

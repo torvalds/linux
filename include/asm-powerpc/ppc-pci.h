@@ -14,7 +14,6 @@
 
 extern unsigned long isa_io_base;
 
-extern void pci_setup_pci_controller(struct pci_controller *hose);
 extern void pci_setup_phb_io(struct pci_controller *hose, int primary);
 extern void pci_setup_phb_io_dynamic(struct pci_controller *hose, int primary);
 
@@ -49,8 +48,6 @@ extern void pSeries_final_fixup(void);
 extern void pSeries_irq_bus_setup(struct pci_bus *bus);
 
 extern unsigned long pci_probe_only;
-extern unsigned long pci_assign_all_buses;
-extern int pci_read_irq_line(struct pci_dev *pci_dev);
 
 /* ---- EEH internal-use-only related routines ---- */
 #ifdef CONFIG_EEH

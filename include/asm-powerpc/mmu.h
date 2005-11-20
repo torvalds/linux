@@ -1,3 +1,10 @@
+#ifndef _ASM_POWERPC_MMU_H_
+#define _ASM_POWERPC_MMU_H_
+
+#ifndef CONFIG_PPC64
+#include <asm-ppc/mmu.h>
+#else
+
 /*
  * PowerPC memory management structures
  *
@@ -10,10 +17,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PPC64_MMU_H_
-#define _PPC64_MMU_H_
-
-#include <linux/config.h>
 #include <asm/asm-compat.h>
 #include <asm/page.h>
 
@@ -392,4 +395,5 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
 
 #endif /* __ASSEMBLY */
 
-#endif /* _PPC64_MMU_H_ */
+#endif /* CONFIG_PPC64 */
+#endif /* _ASM_POWERPC_MMU_H_ */
