@@ -58,7 +58,8 @@
 
 #include "dialog.h"
 
-static int menu_width, item_x;
+#define ITEM_IDENT 4   /* Indent of menu entries. Fixed for all menus */
+static int menu_width;
 
 /*
  * Print menu item
@@ -86,13 +87,13 @@ static void print_item(WINDOW * win, const char *item, int choice,
 	wclrtoeol(win);
 #endif
 	wattrset(win, selected ? item_selected_attr : item_attr);
-	mvwaddstr(win, choice, item_x, menu_item);
+	mvwaddstr(win, choice, ITEM_IDENT, menu_item);
 	if (hotkey) {
 		wattrset(win, selected ? tag_key_selected_attr : tag_key_attr);
-		mvwaddch(win, choice, item_x + j, menu_item[j]);
+		mvwaddch(win, choice, ITEM_IDENT + j, menu_item[j]);
 	}
 	if (selected) {
-		wmove(win, choice, item_x + 1);
+		wmove(win, choice, ITEM_IDENT + 1);
 		wrefresh(win);
 	}
 	free(menu_item);
@@ -207,19 +208,10 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 	draw_box(dialog, box_y, box_x, menu_height + 2, menu_width + 2,
 		 menubox_border_attr, menubox_attr);
 
-	/*
-	 * Find length of longest item in order to center menu.
-	 * Set 'choice' to default item.
-	 */
-	item_x = 0;
-	for (i = 0; i < item_no; i++) {
-		item_x =
-		    MAX(item_x, MIN(menu_width, strlen(items[i * 2 + 1]) + 2));
+	/* Set choice to default item */
+	for (i = 0; i < item_no; i++)
 		if (strcmp(current, items[i * 2]) == 0)
 			choice = i;
-	}
-
-	item_x = (menu_width - item_x) / 2;
 
 	/* get the scroll info from the temp file */
 	if ((f = fopen("lxdialog.scrltmp", "r")) != NULL) {
@@ -254,10 +246,10 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 	wnoutrefresh(menu);
 
 	print_arrows(dialog, item_no, scroll,
-		     box_y, box_x + item_x + 1, menu_height);
+		     box_y, box_x + ITEM_IDENT + 1, menu_height);
 
 	print_buttons(dialog, height, width, 0);
-	wmove(menu, choice, item_x + 1);
+	wmove(menu, choice, ITEM_IDENT + 1);
 	wrefresh(menu);
 
 	while (key != ESC) {
@@ -286,7 +278,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 		    key == KEY_UP || key == KEY_DOWN ||
 		    key == '-' || key == '+' ||
 		    key == KEY_PPAGE || key == KEY_NPAGE) {
-
+			/* Remove highligt of current item */
 			print_item(menu, items[(scroll + choice) * 2 + 1],
 				   choice, FALSE,
 				   (items[(scroll + choice) * 2][0] != ':'));
@@ -364,7 +356,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 				   choice, TRUE, (items[(scroll + choice) * 2][0] != ':'));
 
 			print_arrows(dialog, item_no, scroll,
-				     box_y, box_x + item_x + 1, menu_height);
+				     box_y, box_x + ITEM_IDENT + 1, menu_height);
 
 			wnoutrefresh(dialog);
 			wrefresh(menu);
