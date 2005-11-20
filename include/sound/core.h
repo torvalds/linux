@@ -185,8 +185,8 @@ static inline int snd_power_wait(struct snd_card *card, unsigned int state, stru
 struct snd_minor {
 	struct list_head list;		/* list of all minors per card */
 	int number;			/* minor number */
+	int type;			/* SNDRV_DEVICE_TYPE_XXX */
 	int device;			/* device number */
-	const char *comment;		/* for /proc/asound/devices */
 	struct file_operations *f_ops;	/* file operations */
 	char name[0];			/* device name (keep at the end of
 								structure) */
@@ -199,11 +199,13 @@ extern int snd_ecards_limit;
 
 void snd_request_card(int card);
 
-int snd_register_device(int type, struct snd_card *card, int dev, struct snd_minor *reg, const char *name);
+int snd_register_device(int type, struct snd_card *card, int dev,
+			struct file_operations *f_ops, const char *name);
 int snd_unregister_device(int type, struct snd_card *card, int dev);
 
 #ifdef CONFIG_SND_OSSEMUL
-int snd_register_oss_device(int type, struct snd_card *card, int dev, struct snd_minor *reg, const char *name);
+int snd_register_oss_device(int type, struct snd_card *card, int dev,
+			    struct file_operations *f_ops, const char *name);
 int snd_unregister_oss_device(int type, struct snd_card *card, int dev);
 #endif
 

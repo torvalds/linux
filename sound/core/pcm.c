@@ -597,7 +597,6 @@ int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count)
 	pstr->stream = stream;
 	pstr->pcm = pcm;
 	pstr->substream_count = substream_count;
-	pstr->reg = &snd_pcm_reg[stream];
 	if (substream_count > 0) {
 		err = snd_pcm_stream_proc_init(pstr);
 		if (err < 0) {
@@ -897,7 +896,10 @@ static int snd_pcm_dev_register(struct snd_device *device)
 			devtype = SNDRV_DEVICE_TYPE_PCM_CAPTURE;
 			break;
 		}
-		if ((err = snd_register_device(devtype, pcm->card, pcm->device, pcm->streams[cidx].reg, str)) < 0) {
+		if ((err = snd_register_device(devtype, pcm->card,
+					       pcm->device,
+					       &snd_pcm_f_ops[cidx], str)) < 0)
+		{
 			snd_pcm_devices[idx] = NULL;
 			up(&register_mutex);
 			return err;

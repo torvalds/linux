@@ -3370,40 +3370,29 @@ out:
  *  Register section
  */
 
-static struct file_operations snd_pcm_f_ops_playback = {
-	.owner =	THIS_MODULE,
-	.write =	snd_pcm_write,
-	.writev =	snd_pcm_writev,
-	.open =		snd_pcm_open,
-	.release =	snd_pcm_release,
-	.poll =		snd_pcm_playback_poll,
-	.unlocked_ioctl =	snd_pcm_playback_ioctl,
-	.compat_ioctl = snd_pcm_ioctl_compat,
-	.mmap =		snd_pcm_mmap,
-	.fasync =	snd_pcm_fasync,
-};
-
-static struct file_operations snd_pcm_f_ops_capture = {
-	.owner =	THIS_MODULE,
-	.read =		snd_pcm_read,
-	.readv =	snd_pcm_readv,
-	.open =		snd_pcm_open,
-	.release =	snd_pcm_release,
-	.poll =		snd_pcm_capture_poll,
-	.unlocked_ioctl =	snd_pcm_capture_ioctl,
-	.compat_ioctl = snd_pcm_ioctl_compat,
-	.mmap =		snd_pcm_mmap,
-	.fasync =	snd_pcm_fasync,
-};
-
-struct snd_minor snd_pcm_reg[2] =
-{
+struct file_operations snd_pcm_f_ops[2] = {
 	{
-		.comment =	"digital audio playback",
-		.f_ops =	&snd_pcm_f_ops_playback,
+		.owner =		THIS_MODULE,
+		.write =		snd_pcm_write,
+		.writev =		snd_pcm_writev,
+		.open =			snd_pcm_open,
+		.release =		snd_pcm_release,
+		.poll =			snd_pcm_playback_poll,
+		.unlocked_ioctl =	snd_pcm_playback_ioctl,
+		.compat_ioctl = 	snd_pcm_ioctl_compat,
+		.mmap =			snd_pcm_mmap,
+		.fasync =		snd_pcm_fasync,
 	},
 	{
-		.comment =	"digital audio capture",
-		.f_ops =	&snd_pcm_f_ops_capture,
+		.owner =		THIS_MODULE,
+		.read =			snd_pcm_read,
+		.readv =		snd_pcm_readv,
+		.open =			snd_pcm_open,
+		.release =		snd_pcm_release,
+		.poll =			snd_pcm_capture_poll,
+		.unlocked_ioctl =	snd_pcm_capture_ioctl,
+		.compat_ioctl = 	snd_pcm_ioctl_compat,
+		.mmap =			snd_pcm_mmap,
+		.fasync =		snd_pcm_fasync,
 	}
 };

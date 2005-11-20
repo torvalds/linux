@@ -2444,18 +2444,12 @@ static struct file_operations snd_pcm_oss_f_reg =
 	.mmap =		snd_pcm_oss_mmap,
 };
 
-static struct snd_minor snd_pcm_oss_reg =
-{
-	.comment =	"digital audio",
-	.f_ops =	&snd_pcm_oss_f_reg,
-};
-
 static void register_oss_dsp(struct snd_pcm *pcm, int index)
 {
 	char name[128];
 	sprintf(name, "dsp%i%i", pcm->card->number, pcm->device);
 	if (snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_PCM,
-				    pcm->card, index, &snd_pcm_oss_reg,
+				    pcm->card, index, &snd_pcm_oss_f_reg,
 				    name) < 0) {
 		snd_printk(KERN_ERR "unable to register OSS PCM device %i:%i\n",
 			   pcm->card->number, pcm->device);

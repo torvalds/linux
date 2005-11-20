@@ -330,12 +330,6 @@ static struct file_operations snd_hwdep_f_ops =
 	.mmap =		snd_hwdep_mmap,
 };
 
-static struct snd_minor snd_hwdep_reg =
-{
-	.comment =	"hardware dependent",
-	.f_ops =	&snd_hwdep_f_ops,
-};
-
 /**
  * snd_hwdep_new - create a new hwdep instance
  * @card: the card instance
@@ -416,7 +410,7 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 	sprintf(name, "hwC%iD%i", hwdep->card->number, hwdep->device);
 	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_HWDEP,
 				       hwdep->card, hwdep->device,
-				       &snd_hwdep_reg, name)) < 0) {
+				       &snd_hwdep_f_ops, name)) < 0) {
 		snd_printk(KERN_ERR "unable to register hardware dependent device %i:%i\n",
 			   hwdep->card->number, hwdep->device);
 		snd_hwdep_devices[idx] = NULL;
@@ -431,7 +425,8 @@ static int snd_hwdep_dev_register(struct snd_device *device)
 		} else {
 			if (snd_register_oss_device(hwdep->oss_type,
 						    hwdep->card, hwdep->device,
-						    &snd_hwdep_reg, hwdep->oss_dev) < 0) {
+						    &snd_hwdep_f_ops,
+						    hwdep->oss_dev) < 0) {
 				snd_printk(KERN_ERR "unable to register OSS compatibility device %i:%i\n",
 					   hwdep->card->number, hwdep->device);
 			} else

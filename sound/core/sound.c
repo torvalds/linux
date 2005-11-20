@@ -195,7 +195,7 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  * @type: the device type, SNDRV_DEVICE_TYPE_XXX
  * @card: the card instance
  * @dev: the device index
- * @reg: the struct snd_minor record
+ * @f_ops: the file operations
  * @name: the device file name
  *
  * Registers an ALSA device file for the given card.
@@ -203,7 +203,8 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
  *
  * Retrurns zero if successful, or a negative error code on failure.
  */
-int snd_register_device(int type, struct snd_card *card, int dev, struct snd_minor * reg, const char *name)
+int snd_register_device(int type, struct snd_card *card, int dev,
+			struct file_operations *f_ops, const char *name)
 {
 	int minor = snd_kernel_minor(type, card, dev);
 	struct snd_minor *preg;
@@ -212,12 +213,13 @@ int snd_register_device(int type, struct snd_card *card, int dev, struct snd_min
 	if (minor < 0)
 		return minor;
 	snd_assert(name, return -EINVAL);
-	preg = kmalloc(sizeof(struct snd_minor) + strlen(name) + 1, GFP_KERNEL);
+	preg = kzalloc(sizeof(struct snd_minor) + strlen(name) + 1, GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
-	*preg = *reg;
 	preg->number = minor;
+	preg->type = type;
 	preg->device = dev;
+	preg->f_ops = f_ops;
 	strcpy(preg->name, name);
 	down(&sound_mutex);
 	if (snd_minor_search(minor)) {
@@ -276,6 +278,28 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 
 static struct snd_info_entry *snd_minor_info_entry = NULL;
 
+static const char *snd_device_type_name(int type)
+{
+	switch (type) {
+	case SNDRV_DEVICE_TYPE_CONTROL:
+		return "control";
+	case SNDRV_DEVICE_TYPE_HWDEP:
+		return "hardware dependent";
+	case SNDRV_DEVICE_TYPE_RAWMIDI:
+		return "raw midi";
+	case SNDRV_DEVICE_TYPE_PCM_PLAYBACK:
+		return "digital audio playback";
+	case SNDRV_DEVICE_TYPE_PCM_CAPTURE:
+		return "digital audio capture";
+	case SNDRV_DEVICE_TYPE_SEQUENCER:
+		return "sequencer";
+	case SNDRV_DEVICE_TYPE_TIMER:
+		return "timer";
+	default:
+		return "?";
+	}
+}
+
 static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	int card, device;
@@ -288,11 +312,11 @@ static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_bu
 			mptr = list_entry(list, struct snd_minor, list);
 			if (SNDRV_MINOR_DEVICE(mptr->number) != SNDRV_MINOR_GLOBAL) {
 				if ((device = mptr->device) >= 0)
-					snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mptr->number, card, device, mptr->comment);
+					snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mptr->number, card, device, snd_device_type_name(mptr->type));
 				else
-					snd_iprintf(buffer, "%3i: [%i]   : %s\n", mptr->number, card, mptr->comment);
+					snd_iprintf(buffer, "%3i: [%i]   : %s\n", mptr->number, card, snd_device_type_name(mptr->type));
 			} else {
-				snd_iprintf(buffer, "%3i:       : %s\n", mptr->number, mptr->comment);
+				snd_iprintf(buffer, "%3i:       : %s\n", mptr->number, snd_device_type_name(mptr->type));
 			}
 		}
 	}

@@ -2520,13 +2520,6 @@ static struct file_operations snd_seq_f_ops =
 	.compat_ioctl =	snd_seq_ioctl_compat,
 };
 
-static struct snd_minor snd_seq_reg =
-{
-	.comment =	"sequencer",
-	.f_ops =	&snd_seq_f_ops,
-};
-
-
 /* 
  * register sequencer device 
  */
@@ -2537,7 +2530,8 @@ int __init snd_sequencer_device_init(void)
 	if (down_interruptible(&register_mutex))
 		return -ERESTARTSYS;
 
-	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0, &snd_seq_reg, "seq")) < 0) {
+	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0,
+				       &snd_seq_f_ops, "seq")) < 0) {
 		up(&register_mutex);
 		return err;
 	}

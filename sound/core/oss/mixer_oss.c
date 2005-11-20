@@ -398,12 +398,6 @@ static struct file_operations snd_mixer_oss_f_ops =
 	.compat_ioctl =	snd_mixer_oss_ioctl_compat,
 };
 
-static struct snd_minor snd_mixer_oss_reg =
-{
-	.comment =	"mixer",
-	.f_ops =	&snd_mixer_oss_f_ops,
-};
-
 /*
  *  utilities
  */
@@ -1292,7 +1286,7 @@ static int snd_mixer_oss_notify_handler(struct snd_card *card, int cmd)
 		sprintf(name, "mixer%i%i", card->number, 0);
 		if ((err = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_MIXER,
 						   card, 0,
-						   &snd_mixer_oss_reg,
+						   &snd_mixer_oss_f_ops,
 						   name)) < 0) {
 			snd_printk(KERN_ERR "unable to register OSS mixer device %i:%i\n",
 				   card->number, 0);

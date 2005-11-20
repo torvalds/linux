@@ -91,7 +91,7 @@ static int snd_oss_kernel_minor(int type, struct snd_card *card, int dev)
 }
 
 int snd_register_oss_device(int type, struct snd_card *card, int dev,
-			    struct snd_minor * reg, const char *name)
+			    struct file_operations *f_ops, const char *name)
 {
 	int minor = snd_oss_kernel_minor(type, card, dev);
 	int minor_unit;
@@ -103,12 +103,13 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 
 	if (minor < 0)
 		return minor;
-	preg = (struct snd_minor *)kmalloc(sizeof(struct snd_minor), GFP_KERNEL);
+	preg = kzalloc(sizeof(struct snd_minor), GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
-	*preg = *reg;
 	preg->number = minor;
+	preg->type = type;
 	preg->device = dev;
+	preg->f_ops = f_ops;
 	down(&sound_oss_mutex);
 	list_add_tail(&preg->list, &snd_oss_minors_hash[cidx]);
 	minor_unit = SNDRV_MINOR_OSS_DEVICE(minor);
@@ -125,11 +126,12 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 	}
 	if (card)
 		carddev = card->dev;
-	register1 = register_sound_special_device(reg->f_ops, minor, carddev);
+	register1 = register_sound_special_device(f_ops, minor, carddev);
 	if (register1 != minor)
 		goto __end;
 	if (track2 >= 0) {
-		register2 = register_sound_special_device(reg->f_ops, track2, carddev);
+		register2 = register_sound_special_device(f_ops, track2,
+							  carddev);
 		if (register2 != track2)
 			goto __end;
 	}
@@ -190,6 +192,25 @@ int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 
 static struct snd_info_entry *snd_minor_info_oss_entry = NULL;
 
+static const char *snd_oss_device_type_name(int type)
+{
+	switch (type) {
+	case SNDRV_OSS_DEVICE_TYPE_MIXER:
+		return "mixer";
+	case SNDRV_OSS_DEVICE_TYPE_SEQUENCER:
+	case SNDRV_OSS_DEVICE_TYPE_MUSIC:
+		return "sequencer";
+	case SNDRV_OSS_DEVICE_TYPE_PCM:
+		return "digital audio";
+	case SNDRV_OSS_DEVICE_TYPE_MIDI:
+		return "raw midi";
+	case SNDRV_OSS_DEVICE_TYPE_DMFM:
+		return "hardware dependent";
+	default:
+		return "?";
+	}
+}
+
 static void snd_minor_info_oss_read(struct snd_info_entry *entry,
 				    struct snd_info_buffer *buffer)
 {
@@ -205,9 +226,9 @@ static void snd_minor_info_oss_read(struct snd_info_entry *entry,
 		        if (dev != SNDRV_MINOR_OSS_SNDSTAT &&
 			    dev != SNDRV_MINOR_OSS_SEQUENCER &&
 			    dev != SNDRV_MINOR_OSS_MUSIC)
-				snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mptr->number, card, dev, mptr->comment);
+				snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mptr->number, card, dev, snd_oss_device_type_name(mptr->type));
 			else
-				snd_iprintf(buffer, "%3i:       : %s\n", mptr->number, mptr->comment);
+				snd_iprintf(buffer, "%3i:       : %s\n", mptr->number, snd_oss_device_type_name(mptr->type));
 		}
 	}
 	up(&sound_oss_mutex);

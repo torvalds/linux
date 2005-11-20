@@ -1264,12 +1264,6 @@ static struct file_operations snd_ctl_f_ops =
 	.fasync =	snd_ctl_fasync,
 };
 
-static struct snd_minor snd_ctl_reg =
-{
-	.comment =	"ctl",
-	.f_ops =	&snd_ctl_f_ops,
-};
-
 /*
  * registration of the control device
  */
@@ -1284,7 +1278,7 @@ static int snd_ctl_dev_register(struct snd_device *device)
 	snd_assert(cardnum >= 0 && cardnum < SNDRV_CARDS, return -ENXIO);
 	sprintf(name, "controlC%i", cardnum);
 	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_CONTROL,
-					card, 0, &snd_ctl_reg, name)) < 0)
+				       card, -1, &snd_ctl_f_ops, name)) < 0)
 		return err;
 	return 0;
 }
@@ -1336,7 +1330,8 @@ static int snd_ctl_dev_unregister(struct snd_device *device)
 	snd_assert(card != NULL, return -ENXIO);
 	cardnum = card->number;
 	snd_assert(cardnum >= 0 && cardnum < SNDRV_CARDS, return -ENXIO);
-	if ((err = snd_unregister_device(SNDRV_DEVICE_TYPE_CONTROL, card, 0)) < 0)
+	if ((err = snd_unregister_device(SNDRV_DEVICE_TYPE_CONTROL,
+					 card, -1)) < 0)
 		return err;
 	return snd_ctl_dev_free(device);
 }

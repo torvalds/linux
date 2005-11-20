@@ -1924,12 +1924,6 @@ static struct file_operations snd_timer_f_ops =
 	.fasync = 	snd_timer_user_fasync,
 };
 
-static struct snd_minor snd_timer_reg =
-{
-	.comment =	"timer",
-	.f_ops =	&snd_timer_f_ops,
-};
-
 /*
  *  ENTRY functions
  */
@@ -1959,7 +1953,7 @@ static int __init alsa_timer_init(void)
 		snd_printk(KERN_ERR "unable to register system timer (%i)\n",
 			   err);
 	if ((err = snd_register_device(SNDRV_DEVICE_TYPE_TIMER,
-					NULL, 0, &snd_timer_reg, "timer"))<0)
+				       NULL, 0, &snd_timer_f_ops, "timer")) < 0)
 		snd_printk(KERN_ERR "unable to register timer device (%i)\n",
 			   err);
 	return 0;

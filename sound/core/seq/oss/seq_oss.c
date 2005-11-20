@@ -217,11 +217,6 @@ static struct file_operations seq_oss_f_ops =
 	.compat_ioctl =	odev_ioctl_compat,
 };
 
-static struct snd_minor seq_oss_reg = {
-	.comment =	"sequencer",
-	.f_ops =	&seq_oss_f_ops,
-};
-
 static int __init
 register_device(void)
 {
@@ -230,7 +225,7 @@ register_device(void)
 	down(&register_mutex);
 	if ((rc = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_SEQUENCER,
 					  NULL, 0,
-					  &seq_oss_reg,
+					  &seq_oss_f_ops,
 					  SNDRV_SEQ_OSS_DEVNAME)) < 0) {
 		snd_printk(KERN_ERR "can't register device seq\n");
 		up(&register_mutex);
@@ -238,7 +233,7 @@ register_device(void)
 	}
 	if ((rc = snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_MUSIC,
 					  NULL, 0,
-					  &seq_oss_reg,
+					  &seq_oss_f_ops,
 					  SNDRV_SEQ_OSS_DEVNAME)) < 0) {
 		snd_printk(KERN_ERR "can't register device music\n");
 		snd_unregister_oss_device(SNDRV_OSS_DEVICE_TYPE_SEQUENCER, NULL, 0);

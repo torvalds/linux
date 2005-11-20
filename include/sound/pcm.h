@@ -402,7 +402,6 @@ struct snd_pcm_str {
 	struct snd_pcm_oss_stream oss;
 #endif
 	struct snd_pcm_file *files;
-	struct snd_minor *reg;
 	struct snd_info_entry *proc_root;
 	struct snd_info_entry *proc_info_entry;
 #ifdef CONFIG_SND_DEBUG
@@ -441,7 +440,7 @@ struct snd_pcm_notify {
  */
 
 extern struct snd_pcm *snd_pcm_devices[];
-extern struct snd_minor snd_pcm_reg[2];
+extern struct file_operations snd_pcm_f_ops[2];
 
 int snd_pcm_new(struct snd_card *card, char *id, int device,
 		int playback_count, int capture_count,
