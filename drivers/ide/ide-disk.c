@@ -1266,7 +1266,7 @@ static void __exit idedisk_exit (void)
 	driver_unregister(&idedisk_driver.gen_driver);
 }
 
-static int idedisk_init (void)
+static int __init idedisk_init(void)
 {
 	return driver_register(&idedisk_driver.gen_driver);
 }

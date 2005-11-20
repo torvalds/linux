@@ -4916,10 +4916,7 @@ static void __exit idetape_exit (void)
 	unregister_chrdev(IDETAPE_MAJOR, "ht");
 }
 
-/*
- *	idetape_init will register the driver for each tape.
- */
-static int idetape_init (void)
+static int __init idetape_init(void)
 {
 	int error = 1;
 	idetape_sysfs_class = class_create(THIS_MODULE, "ide_tape");

@@ -3510,8 +3510,8 @@ static void __exit ide_cdrom_exit(void)
 {
 	driver_unregister(&ide_cdrom_driver.gen_driver);
 }
- 
-static int ide_cdrom_init(void)
+
+static int __init ide_cdrom_init(void)
 {
 	return driver_register(&ide_cdrom_driver.gen_driver);
 }

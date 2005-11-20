@@ -55,6 +55,12 @@ extern void __raw_readsl(void __iomem *addr, void *data, int longlen);
 #define __raw_readl(a)		(__chk_io_ptr(a), *(volatile unsigned int __force   *)(a))
 
 /*
+ * Architecture ioremap implementation.
+ */
+extern void __iomem * __ioremap(unsigned long, size_t, unsigned long);
+extern void __iounmap(void __iomem *addr);
+
+/*
  * Bad read/write accesses...
  */
 extern void __readwrite_bug(const char *fn);
@@ -256,18 +262,15 @@ out:
  * ioremap takes a PCI memory address, as specified in
  * Documentation/IO-mapping.txt.
  */
-extern void __iomem * __ioremap(unsigned long, size_t, unsigned long, unsigned long);
-extern void __iounmap(void __iomem *addr);
-
 #ifndef __arch_ioremap
-#define ioremap(cookie,size)		__ioremap(cookie,size,0,1)
-#define ioremap_nocache(cookie,size)	__ioremap(cookie,size,0,1)
-#define ioremap_cached(cookie,size)	__ioremap(cookie,size,L_PTE_CACHEABLE,1)
+#define ioremap(cookie,size)		__ioremap(cookie,size,0)
+#define ioremap_nocache(cookie,size)	__ioremap(cookie,size,0)
+#define ioremap_cached(cookie,size)	__ioremap(cookie,size,L_PTE_CACHEABLE)
 #define iounmap(cookie)			__iounmap(cookie)
 #else
-#define ioremap(cookie,size)		__arch_ioremap((cookie),(size),0,1)
-#define ioremap_nocache(cookie,size)	__arch_ioremap((cookie),(size),0,1)
-#define ioremap_cached(cookie,size)	__arch_ioremap((cookie),(size),L_PTE_CACHEABLE,1)
+#define ioremap(cookie,size)		__arch_ioremap((cookie),(size),0)
+#define ioremap_nocache(cookie,size)	__arch_ioremap((cookie),(size),0)
+#define ioremap_cached(cookie,size)	__arch_ioremap((cookie),(size),L_PTE_CACHEABLE)
 #define iounmap(cookie)			__arch_iounmap(cookie)
 #endif
 

@@ -2191,10 +2191,7 @@ static void __exit idefloppy_exit (void)
 	driver_unregister(&idefloppy_driver.gen_driver);
 }
 
-/*
- *	idefloppy_init will register the driver for each floppy.
- */
-static int idefloppy_init (void)
+static int __init idefloppy_init(void)
 {
 	printk("ide-floppy driver " IDEFLOPPY_VERSION "\n");
 	return driver_register(&idefloppy_driver.gen_driver);
