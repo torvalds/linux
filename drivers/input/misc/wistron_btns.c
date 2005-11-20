@@ -149,7 +149,7 @@ err:
 	return -ENOMEM;
 }
 
-static void __exit unmap_bios(void)
+static inline void unmap_bios(void)
 {
 	iounmap(bios_code_map_base);
 	iounmap(bios_data_map_base);
@@ -180,7 +180,7 @@ static void __init bios_attach(void)
 	call_bios(&regs);
 }
 
-static void __exit bios_detach(void)
+static void bios_detach(void)
 {
 	struct regs regs;
 
@@ -342,31 +342,43 @@ static int __init select_keymap(void)
 
  /* Input layer interface */
 
-static struct input_dev input_dev = {
-	.name = "Wistron laptop buttons",
-};
+static struct input_dev *input_dev;
 
-static void __init setup_input_dev(void)
+static int __init setup_input_dev(void)
 {
 	const struct key_entry *key;
+	int error;
+
+	input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
+
+	input_dev->name = "Wistron laptop buttons";
+	input_dev->phys = "wistron/input0";
+	input_dev->id.bustype = BUS_HOST;
 
 	for (key = keymap; key->type != KE_END; key++) {
 		if (key->type == KE_KEY) {
-			input_dev.evbit[LONG(EV_KEY)] = BIT(EV_KEY);
-			input_dev.keybit[LONG(key->keycode)]
-				|= BIT(key->keycode);
+			input_dev->evbit[LONG(EV_KEY)] = BIT(EV_KEY);
+			set_bit(key->keycode, input_dev->keybit);
 		}
 	}
 
-	input_register_device(&input_dev);
+	error = input_register_device(input_dev);
+	if (error) {
+		input_free_device(input_dev);
+		return error;
+	}
+
+	return 0;
 }
 
 static void report_key(unsigned keycode)
 {
-	input_report_key(&input_dev, keycode, 1);
-	input_sync(&input_dev);
-	input_report_key(&input_dev, keycode, 0);
-	input_sync(&input_dev);
+	input_report_key(input_dev, keycode, 1);
+	input_sync(input_dev);
+	input_report_key(input_dev, keycode, 0);
+	input_sync(input_dev);
 }
 
  /* Driver core */
@@ -437,11 +449,14 @@ static int __init wb_module_init(void)
 	err = select_keymap();
 	if (err)
 		return err;
+
 	err = map_bios();
 	if (err)
 		return err;
+
 	bios_attach();
 	cmos_address = bios_get_cmos_address();
+
 	if (have_wifi) {
 		u16 wifi = bios_get_default_setting(WIFI);
 		if (wifi & 1)
@@ -452,6 +467,7 @@ static int __init wb_module_init(void)
 		if (have_wifi)
 			bios_set_state(WIFI, wifi_enabled);
 	}
+
 	if (have_bluetooth) {
 		u16 bt = bios_get_default_setting(BLUETOOTH);
 		if (bt & 1)
@@ -463,7 +479,12 @@ static int __init wb_module_init(void)
 			bios_set_state(BLUETOOTH, bluetooth_enabled);
 	}
 
-	setup_input_dev();
+	err = setup_input_dev();
+	if (err) {
+		bios_detach();
+		unmap_bios();
+		return err;
+	}
 
 	poll_bios(1); /* Flush stale event queue and arm timer */
 
@@ -473,7 +494,7 @@ static int __init wb_module_init(void)
 static void __exit wb_module_exit(void)
 {
 	del_timer_sync(&poll_timer);
-	input_unregister_device(&input_dev);
+	input_unregister_device(input_dev);
 	bios_detach();
 	unmap_bios();
 }
