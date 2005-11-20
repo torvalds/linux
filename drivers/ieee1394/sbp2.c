@@ -2609,25 +2609,15 @@ static int sbp2scsi_reset(struct scsi_cmnd *SCpnt)
 {
 	struct scsi_id_instance_data *scsi_id =
 		(struct scsi_id_instance_data *)SCpnt->device->host->hostdata[0];
-	unsigned long flags;
 
 	SBP2_ERR("reset requested");
-
-	spin_lock_irqsave(SCpnt->device->host->host_lock, flags);
 
 	if (sbp2util_node_is_available(scsi_id)) {
 		SBP2_ERR("Generating sbp2 fetch agent reset");
 		sbp2_agent_reset(scsi_id, 0);
 	}
 
-	spin_unlock_irqrestore(SCpnt->device->host->host_lock, flags);
-
 	return SUCCESS;
-}
-
-static const char *sbp2scsi_info(struct Scsi_Host *host)
-{
-	return "SCSI emulation for IEEE-1394 SBP-2 Devices";
 }
 
 static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev,
@@ -2666,12 +2656,9 @@ static struct scsi_host_template scsi_driver_template = {
 	.module =			THIS_MODULE,
 	.name =				"SBP-2 IEEE-1394",
 	.proc_name =			SBP2_DEVICE_NAME,
-	.info =				sbp2scsi_info,
 	.queuecommand =			sbp2scsi_queuecommand,
 	.eh_abort_handler =		sbp2scsi_abort,
 	.eh_device_reset_handler =	sbp2scsi_reset,
-	.eh_bus_reset_handler =		sbp2scsi_reset,
-	.eh_host_reset_handler =	sbp2scsi_reset,
 	.slave_alloc =			sbp2scsi_slave_alloc,
 	.slave_configure =		sbp2scsi_slave_configure,
 	.slave_destroy =		sbp2scsi_slave_destroy,
