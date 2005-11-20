@@ -1,5 +1,9 @@
-#ifndef _PPC64_PGALLOC_H
-#define _PPC64_PGALLOC_H
+#ifndef _ASM_POWERPC_PGALLOC_H
+#define _ASM_POWERPC_PGALLOC_H
+
+#ifndef CONFIG_PPC64
+#include <asm-ppc/pgalloc.h>
+#else
 
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -148,4 +152,5 @@ extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
 
 #define check_pgt_cache()	do { } while (0)
 
-#endif /* _PPC64_PGALLOC_H */
+#endif /* CONFIG_PPC64 */
+#endif /* _ASM_POWERPC_PGALLOC_H */

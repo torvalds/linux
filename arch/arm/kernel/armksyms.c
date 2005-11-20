@@ -120,7 +120,6 @@ EXPORT_SYMBOL(__arch_strncpy_from_user);
 EXPORT_SYMBOL(__get_user_1);
 EXPORT_SYMBOL(__get_user_2);
 EXPORT_SYMBOL(__get_user_4);
-EXPORT_SYMBOL(__get_user_8);
 
 EXPORT_SYMBOL(__put_user_1);
 EXPORT_SYMBOL(__put_user_2);

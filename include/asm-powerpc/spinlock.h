@@ -18,12 +18,22 @@
  *
  * (the type definitions are in asm/spinlock_types.h)
  */
-#include <linux/config.h>
+#ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/hvcall.h>
 #include <asm/iseries/hv_call.h>
+#endif
+#include <asm/asm-compat.h>
+#include <asm/synch.h>
 
 #define __raw_spin_is_locked(x)		((x)->slock != 0)
+
+#ifdef CONFIG_PPC64
+/* use 0x800000yy when locked, where yy == CPU number */
+#define LOCK_TOKEN	(*(u32 *)(&get_paca()->lock_token))
+#else
+#define LOCK_TOKEN	1
+#endif
 
 /*
  * This returns the old value in the lock, so we succeeded
@@ -31,18 +41,18 @@
  */
 static __inline__ unsigned long __spin_trylock(raw_spinlock_t *lock)
 {
-	unsigned long tmp, tmp2;
+	unsigned long tmp, token;
 
+	token = LOCK_TOKEN;
 	__asm__ __volatile__(
-"	lwz		%1,%3(13)		# __spin_trylock\n\
-1:	lwarx		%0,0,%2\n\
+"1:	lwarx		%0,0,%2		# __spin_trylock\n\
 	cmpwi		0,%0,0\n\
 	bne-		2f\n\
 	stwcx.		%1,0,%2\n\
 	bne-		1b\n\
 	isync\n\
-2:"	: "=&r" (tmp), "=&r" (tmp2)
-	: "r" (&lock->slock), "i" (offsetof(struct paca_struct, lock_token))
+2:"	: "=&r" (tmp)
+	: "r" (token), "r" (&lock->slock)
 	: "cr0", "memory");
 
 	return tmp;
@@ -113,11 +123,17 @@ static void __inline__ __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long
 
 static __inline__ void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	__asm__ __volatile__("lwsync	# __raw_spin_unlock": : :"memory");
+	__asm__ __volatile__(SYNC_ON_SMP"	# __raw_spin_unlock"
+			     : : :"memory");
 	lock->slock = 0;
 }
 
+#ifdef CONFIG_PPC64
 extern void __raw_spin_unlock_wait(raw_spinlock_t *lock);
+#else
+#define __raw_spin_unlock_wait(lock) \
+	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
+#endif
 
 /*
  * Read-write spinlocks, allowing multiple readers
@@ -133,6 +149,14 @@ extern void __raw_spin_unlock_wait(raw_spinlock_t *lock);
 #define __raw_read_can_lock(rw)		((rw)->lock >= 0)
 #define __raw_write_can_lock(rw)	(!(rw)->lock)
 
+#ifdef CONFIG_PPC64
+#define __DO_SIGN_EXTEND	"extsw	%0,%0\n"
+#define WRLOCK_TOKEN		LOCK_TOKEN	/* it's negative */
+#else
+#define __DO_SIGN_EXTEND
+#define WRLOCK_TOKEN		(-1)
+#endif
+
 /*
  * This returns the old value in the lock + 1,
  * so we got a read lock if the return value is > 0.
@@ -142,11 +166,12 @@ static long __inline__ __read_trylock(raw_rwlock_t *rw)
 	long tmp;
 
 	__asm__ __volatile__(
-"1:	lwarx		%0,0,%1		# read_trylock\n\
-	extsw		%0,%0\n\
-	addic.		%0,%0,1\n\
-	ble-		2f\n\
-	stwcx.		%0,0,%1\n\
+"1:	lwarx		%0,0,%1		# read_trylock\n"
+	__DO_SIGN_EXTEND
+"	addic.		%0,%0,1\n\
+	ble-		2f\n"
+	PPC405_ERR77(0,%1)
+"	stwcx.		%0,0,%1\n\
 	bne-		1b\n\
 	isync\n\
 2:"	: "=&r" (tmp)
@@ -162,18 +187,19 @@ static long __inline__ __read_trylock(raw_rwlock_t *rw)
  */
 static __inline__ long __write_trylock(raw_rwlock_t *rw)
 {
-	long tmp, tmp2;
+	long tmp, token;
 
+	token = WRLOCK_TOKEN;
 	__asm__ __volatile__(
-"	lwz		%1,%3(13)	# write_trylock\n\
-1:	lwarx		%0,0,%2\n\
+"1:	lwarx		%0,0,%2	# write_trylock\n\
 	cmpwi		0,%0,0\n\
-	bne-		2f\n\
-	stwcx.		%1,0,%2\n\
+	bne-		2f\n"
+	PPC405_ERR77(0,%1)
+"	stwcx.		%1,0,%2\n\
 	bne-		1b\n\
 	isync\n\
-2:"	: "=&r" (tmp), "=&r" (tmp2)
-	: "r" (&rw->lock), "i" (offsetof(struct paca_struct, lock_token))
+2:"	: "=&r" (tmp)
+	: "r" (token), "r" (&rw->lock)
 	: "cr0", "memory");
 
 	return tmp;
@@ -224,8 +250,9 @@ static void __inline__ __raw_read_unlock(raw_rwlock_t *rw)
 	__asm__ __volatile__(
 	"eieio				# read_unlock\n\
 1:	lwarx		%0,0,%1\n\
-	addic		%0,%0,-1\n\
-	stwcx.		%0,0,%1\n\
+	addic		%0,%0,-1\n"
+	PPC405_ERR77(0,%1)
+"	stwcx.		%0,0,%1\n\
 	bne-		1b"
 	: "=&r"(tmp)
 	: "r"(&rw->lock)
@@ -234,7 +261,8 @@ static void __inline__ __raw_read_unlock(raw_rwlock_t *rw)
 
 static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
 {
-	__asm__ __volatile__("lwsync	# write_unlock": : :"memory");
+	__asm__ __volatile__(SYNC_ON_SMP"	# write_unlock"
+			     : : :"memory");
 	rw->lock = 0;
 }
 

@@ -1,7 +1,10 @@
-#ifndef __PPC64_MMU_CONTEXT_H
-#define __PPC64_MMU_CONTEXT_H
+#ifndef __ASM_POWERPC_MMU_CONTEXT_H
+#define __ASM_POWERPC_MMU_CONTEXT_H
 
-#include <linux/config.h>
+#ifndef CONFIG_PPC64
+#include <asm-ppc/mmu_context.h>
+#else
+
 #include <linux/kernel.h>	
 #include <linux/mm.h>	
 #include <asm/mmu.h>	
@@ -82,4 +85,5 @@ static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 	local_irq_restore(flags);
 }
 
-#endif /* __PPC64_MMU_CONTEXT_H */
+#endif /* CONFIG_PPC64 */
+#endif /* __ASM_POWERPC_MMU_CONTEXT_H */

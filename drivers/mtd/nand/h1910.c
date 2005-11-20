@@ -112,7 +112,7 @@ static int __init h1910_init (void)
 	if (!machine_is_h1900())
 		return -ENODEV;
 
-	nandaddr = __ioremap(0x08000000, 0x1000, 0, 1);
+	nandaddr = ioremap(0x08000000, 0x1000);
 	if (!nandaddr) {
 		printk("Failed to ioremap nand flash.\n");
 		return -ENOMEM;

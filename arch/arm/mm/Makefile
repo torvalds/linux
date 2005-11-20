@@ -51,4 +51,4 @@ obj-$(CONFIG_CPU_ARM1026)	+= proc-arm1026.o
 obj-$(CONFIG_CPU_SA110)		+= proc-sa110.o
 obj-$(CONFIG_CPU_SA1100)	+= proc-sa1100.o
 obj-$(CONFIG_CPU_XSCALE)	+= proc-xscale.o
-obj-$(CONFIG_CPU_V6)		+= proc-v6.o blockops.o
+obj-$(CONFIG_CPU_V6)		+= proc-v6.o

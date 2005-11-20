@@ -50,6 +50,11 @@
 #define UART011_ICR		0x44	/* Interrupt clear register. */
 #define UART011_DMACR		0x48	/* DMA control register. */
 
+#define UART011_DR_OE		(1 << 11)
+#define UART011_DR_BE		(1 << 10)
+#define UART011_DR_PE		(1 << 9)
+#define UART011_DR_FE		(1 << 8)
+
 #define UART01x_RSR_OE 		0x08
 #define UART01x_RSR_BE 		0x04
 #define UART01x_RSR_PE 		0x02
