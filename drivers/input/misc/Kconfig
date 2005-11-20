@@ -42,7 +42,7 @@ config INPUT_M68K_BEEP
 
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
-	depends on X86
+	depends on X86 && !X86_64
 	help
 	  Say Y here for support of Winstron laptop button interface, used on
 	  laptops of various brands, including Acer and Fujitsu-Siemens.
