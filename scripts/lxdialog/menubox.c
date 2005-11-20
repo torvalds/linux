@@ -94,9 +94,9 @@ static void print_item(WINDOW * win, const char *item, int choice,
 	}
 	if (selected) {
 		wmove(win, choice, ITEM_IDENT + 1);
-		wrefresh(win);
 	}
 	free(menu_item);
+	wrefresh(win);
 }
 
 /*
@@ -125,6 +125,7 @@ static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
 
 	y = y + height + 1;
 	wmove(win, y, x);
+	wrefresh(win);
 
 	if ((height < item_no) && (scroll + height < item_no)) {
 		wattrset(win, darrow_attr);
@@ -139,6 +140,7 @@ static void print_arrows(WINDOW * win, int item_no, int scroll, int y, int x,
 	}
 
 	wmove(win, cur_y, cur_x);
+	wrefresh(win);
 }
 
 /*
@@ -154,6 +156,17 @@ static void print_buttons(WINDOW * win, int height, int width, int selected)
 	print_button(win, " Help ", y, x + 24, selected == 2);
 
 	wmove(win, y, x + 1 + 12 * selected);
+	wrefresh(win);
+}
+
+/* scroll up n lines (n may be negative) */
+static void do_scroll(WINDOW *win, int *scroll, int n)
+{
+	/* Scroll menu up */
+	scrollok(win, TRUE);
+	wscrl(win, n);
+	scrollok(win, FALSE);
+	*scroll = *scroll + n;
 	wrefresh(win);
 }
 
@@ -286,11 +299,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 			if (key == KEY_UP || key == '-') {
 				if (choice < 2 && scroll) {
 					/* Scroll menu down */
-					scrollok(menu, TRUE);
-					wscrl(menu, -1);
-					scrollok(menu, FALSE);
-
-					scroll--;
+					do_scroll(menu, &scroll, -1);
 
 					print_item(menu, items[scroll * 2 + 1], 0, FALSE,
 						   (items[scroll * 2][0] != ':'));
@@ -306,11 +315,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 				if ((choice > max_choice - 3) &&
 				    (scroll + max_choice < item_no)) {
 					/* Scroll menu up */
-					scrollok(menu, TRUE);
-					wscrl(menu, 1);
-					scrollok(menu, FALSE);
-
-					scroll++;
+					do_scroll(menu, &scroll, 1);
 
 					print_item(menu, items[(scroll + max_choice - 1) * 2 + 1],
 						   max_choice - 1, FALSE,
@@ -322,8 +327,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 				scrollok(menu, TRUE);
 				for (i = 0; (i < max_choice); i++) {
 					if (scroll > 0) {
-						wscrl(menu, -1);
-						scroll--;
+						do_scroll(menu, &scroll, -1);
 						print_item(menu, items[scroll * 2 + 1], 0, FALSE,
 							   (items[scroll * 2][0] != ':'));
 					} else {
@@ -331,15 +335,11 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 							choice--;
 					}
 				}
-				scrollok(menu, FALSE);
 
 			} else if (key == KEY_NPAGE) {
 				for (i = 0; (i < max_choice); i++) {
 					if (scroll + max_choice < item_no) {
-						scrollok(menu, TRUE);
-						wscrl(menu, 1);
-						scrollok(menu, FALSE);
-						scroll++;
+						do_scroll(menu, &scroll, 1);
 						print_item(menu, items[(scroll + max_choice - 1) * 2 + 1],
 							   max_choice - 1, FALSE,
 							   (items [(scroll + max_choice - 1) * 2][0] != ':'));
@@ -348,7 +348,6 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 							choice++;
 					}
 				}
-
 			} else
 				choice = i;
 
