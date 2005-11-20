@@ -2907,6 +2907,11 @@ M:	zaga@fly.cc.fer.hr
 L:	linux-scsi@vger.kernel.org
 S:	Maintained
 
+WISTRON LAPTOP BUTTON DRIVER
+P:	Miloslav Trmac
+M:	mitr@volny.cz
+S:	Maintained
+
 WL3501 WIRELESS PCMCIA CARD DRIVER
 P:	Arnaldo Carvalho de Melo
 M:	acme@conectiva.com.br
