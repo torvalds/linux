@@ -133,29 +133,34 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 
 static int snd_open(struct inode *inode, struct file *file)
 {
-	int minor = iminor(inode);
-	int card = SNDRV_MINOR_CARD(minor);
-	int dev = SNDRV_MINOR_DEVICE(minor);
+	unsigned int minor = iminor(inode);
 	struct snd_minor *mptr = NULL;
 	struct file_operations *old_fops;
 	int err = 0;
 
-	if (dev != SNDRV_MINOR_GLOBAL) {
-		if (snd_cards[card] == NULL) {
-#ifdef CONFIG_KMOD
-			snd_request_card(card);
-			if (snd_cards[card] == NULL)
-#endif
-				return -ENODEV;
-		}
-	} else {
-#ifdef CONFIG_KMOD
-		if ((mptr = snd_minors[minor]) == NULL)
-			snd_request_other(minor);
-#endif
-	}
-	if (mptr == NULL && (mptr = snd_minors[minor]) == NULL)
+	if (minor > ARRAY_SIZE(snd_minors))
 		return -ENODEV;
+	mptr = snd_minors[minor];
+	if (mptr == NULL) {
+#ifdef CONFIG_KMOD
+		int dev = SNDRV_MINOR_DEVICE(minor);
+		if (dev == SNDRV_MINOR_CONTROL) {
+			/* /dev/aloadC? */
+			int card = SNDRV_MINOR_CARD(minor);
+			if (snd_cards[card] == NULL)
+				snd_request_card(card);
+		} else if (dev == SNDRV_MINOR_GLOBAL) {
+			/* /dev/aloadSEQ */
+			snd_request_other(minor);
+		}
+#ifndef CONFIG_SND_DYNAMIC_MINORS
+		/* /dev/snd/{controlC?,seq} */
+		mptr = snd_minors[minor];
+		if (mptr == NULL)
+#endif
+#endif
+			return -ENODEV;
+	}
 	old_fops = file->f_op;
 	file->f_op = fops_get(mptr->f_ops);
 	if (file->f_op->open)
@@ -174,6 +179,22 @@ static struct file_operations snd_fops =
 	.open =		snd_open
 };
 
+#ifdef CONFIG_SND_DYNAMIC_MINORS
+static int snd_find_free_minor(void)
+{
+	int minor;
+
+	for (minor = 0; minor < ARRAY_SIZE(snd_minors); ++minor) {
+		/* skip minors still used statically for autoloading devices */
+		if (SNDRV_MINOR_DEVICE(minor) == SNDRV_MINOR_CONTROL ||
+		    minor == SNDRV_MINOR_SEQUENCER)
+			continue;
+		if (!snd_minors[minor])
+			return minor;
+	}
+	return -EBUSY;
+}
+#else
 static int snd_kernel_minor(int type, struct snd_card *card, int dev)
 {
 	int minor;
@@ -200,6 +221,7 @@ static int snd_kernel_minor(int type, struct snd_card *card, int dev)
 	snd_assert(minor >= 0 && minor < SNDRV_OS_MINORS, return -EINVAL);
 	return minor;
 }
+#endif
 
 /**
  * snd_register_device - Register the ALSA device file for the card
@@ -219,12 +241,10 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 			struct file_operations *f_ops, void *private_data,
 			const char *name)
 {
-	int minor = snd_kernel_minor(type, card, dev);
+	int minor;
 	struct snd_minor *preg;
 	struct device *device = NULL;
 
-	if (minor < 0)
-		return minor;
 	snd_assert(name, return -EINVAL);
 	preg = kmalloc(sizeof(struct snd_minor) + strlen(name) + 1, GFP_KERNEL);
 	if (preg == NULL)
@@ -236,10 +256,17 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	preg->private_data = private_data;
 	strcpy(preg->name, name);
 	down(&sound_mutex);
-	if (snd_minors[minor]) {
+#ifdef CONFIG_SND_DYNAMIC_MINORS
+	minor = snd_find_free_minor();
+#else
+	minor = snd_kernel_minor(type, card, dev);
+	if (minor >= 0 && snd_minors[minor])
+		minor = -EBUSY;
+#endif
+	if (minor < 0) {
 		up(&sound_mutex);
 		kfree(preg);
-		return -EBUSY;
+		return minor;
 	}
 	snd_minors[minor] = preg;
 	if (type != SNDRV_DEVICE_TYPE_CONTROL || preg->card >= cards_limit)
