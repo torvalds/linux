@@ -92,24 +92,19 @@ static void uinput_request_done(struct uinput_device *udev, struct uinput_reques
 {
 	/* Mark slot as available */
 	udev->requests[request->id] = NULL;
-	wake_up_interruptible(&udev->requests_waitq);
+	wake_up(&udev->requests_waitq);
 
 	complete(&request->done);
 }
 
 static int uinput_request_submit(struct input_dev *dev, struct uinput_request *request)
 {
-	int retval;
-
 	/* Tell our userspace app about this new request by queueing an input event */
 	uinput_dev_event(dev, EV_UINPUT, request->code, request->id);
 
 	/* Wait for the request to complete */
-	retval = wait_for_completion_interruptible(&request->done);
-	if (!retval)
-		retval = request->retval;
-
-	return retval;
+	wait_for_completion(&request->done);
+	return request->retval;
 }
 
 static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *effect)
