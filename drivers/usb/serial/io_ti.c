@@ -2843,7 +2843,7 @@ static struct edge_buf *edge_buf_alloc(unsigned int size)
  * Free the buffer and all associated memory.
  */
 
-void edge_buf_free(struct edge_buf *eb)
+static void edge_buf_free(struct edge_buf *eb)
 {
 	if (eb) {
 		kfree(eb->buf_buf);
