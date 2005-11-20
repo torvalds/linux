@@ -59,7 +59,7 @@ MODULE_ALIAS_CHARDEV_MAJOR(CONFIG_SND_MAJOR);
  */
 int snd_ecards_limit;
 
-static struct list_head snd_minors_hash[SNDRV_CARDS];
+static struct snd_minor *snd_minors[SNDRV_OS_MINORS];
 
 static DECLARE_MUTEX(sound_mutex);
 
@@ -107,19 +107,6 @@ static void snd_request_other(int minor)
 
 #endif				/* request_module support */
 
-static struct snd_minor *snd_minor_search(int minor)
-{
-	struct list_head *list;
-	struct snd_minor *mptr;
-
-	list_for_each(list, &snd_minors_hash[SNDRV_MINOR_CARD(minor)]) {
-		mptr = list_entry(list, struct snd_minor, list);
-		if (mptr->number == minor)
-			return mptr;
-	}
-	return NULL;
-}
-
 static int snd_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
@@ -139,11 +126,11 @@ static int snd_open(struct inode *inode, struct file *file)
 		}
 	} else {
 #ifdef CONFIG_KMOD
-		if ((mptr = snd_minor_search(minor)) == NULL)
+		if ((mptr = snd_minors[minor]) == NULL)
 			snd_request_other(minor);
 #endif
 	}
-	if (mptr == NULL && (mptr = snd_minor_search(minor)) == NULL)
+	if (mptr == NULL && (mptr = snd_minors[minor]) == NULL)
 		return -ENODEV;
 	old_fops = file->f_op;
 	file->f_op = fops_get(mptr->f_ops);
@@ -213,22 +200,22 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	if (minor < 0)
 		return minor;
 	snd_assert(name, return -EINVAL);
-	preg = kzalloc(sizeof(struct snd_minor) + strlen(name) + 1, GFP_KERNEL);
+	preg = kmalloc(sizeof(struct snd_minor) + strlen(name) + 1, GFP_KERNEL);
 	if (preg == NULL)
 		return -ENOMEM;
-	preg->number = minor;
 	preg->type = type;
+	preg->card = card ? card->number : -1;
 	preg->device = dev;
 	preg->f_ops = f_ops;
 	strcpy(preg->name, name);
 	down(&sound_mutex);
-	if (snd_minor_search(minor)) {
+	if (snd_minors[minor]) {
 		up(&sound_mutex);
 		kfree(preg);
 		return -EBUSY;
 	}
-	list_add_tail(&preg->list, &snd_minors_hash[SNDRV_MINOR_CARD(minor)]);
-	if (strncmp(name, "controlC", 8) || card->number >= cards_limit)
+	snd_minors[minor] = preg;
+	if (type != SNDRV_DEVICE_TYPE_CONTROL || preg->card >= cards_limit)
 		devfs_mk_cdev(MKDEV(major, minor), S_IFCHR | device_mode, "snd/%s", name);
 	if (card)
 		device = card->dev;
@@ -257,16 +244,17 @@ int snd_unregister_device(int type, struct snd_card *card, int dev)
 	if (minor < 0)
 		return minor;
 	down(&sound_mutex);
-	if ((mptr = snd_minor_search(minor)) == NULL) {
+	if ((mptr = snd_minors[minor]) == NULL) {
 		up(&sound_mutex);
 		return -EINVAL;
 	}
 
-	if (strncmp(mptr->name, "controlC", 8) || card->number >= cards_limit) /* created in sound.c */
+	if (mptr->type != SNDRV_DEVICE_TYPE_CONTROL ||
+	    mptr->card >= cards_limit)			/* created in sound.c */
 		devfs_remove("snd/%s", mptr->name);
 	class_device_destroy(sound_class, MKDEV(major, minor));
 
-	list_del(&mptr->list);
+	snd_minors[minor] = NULL;
 	up(&sound_mutex);
 	kfree(mptr);
 	return 0;
@@ -302,23 +290,25 @@ static const char *snd_device_type_name(int type)
 
 static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
-	int card, device;
-	struct list_head *list;
+	int minor;
 	struct snd_minor *mptr;
 
 	down(&sound_mutex);
-	for (card = 0; card < SNDRV_CARDS; card++) {
-		list_for_each(list, &snd_minors_hash[card]) {
-			mptr = list_entry(list, struct snd_minor, list);
-			if (SNDRV_MINOR_DEVICE(mptr->number) != SNDRV_MINOR_GLOBAL) {
-				if ((device = mptr->device) >= 0)
-					snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mptr->number, card, device, snd_device_type_name(mptr->type));
-				else
-					snd_iprintf(buffer, "%3i: [%i]   : %s\n", mptr->number, card, snd_device_type_name(mptr->type));
-			} else {
-				snd_iprintf(buffer, "%3i:       : %s\n", mptr->number, snd_device_type_name(mptr->type));
-			}
-		}
+	for (minor = 0; minor < SNDRV_OS_MINORS; ++minor) {
+		if (!(mptr = snd_minors[minor]))
+			continue;
+		if (mptr->card >= 0) {
+			if (mptr->device >= 0)
+				snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n",
+					    minor, mptr->card, mptr->device,
+					    snd_device_type_name(mptr->type));
+			else
+				snd_iprintf(buffer, "%3i: [%i]   : %s\n",
+					    minor, mptr->card,
+					    snd_device_type_name(mptr->type));
+		} else
+			snd_iprintf(buffer, "%3i:       : %s\n", minor,
+				    snd_device_type_name(mptr->type));
 	}
 	up(&sound_mutex);
 }
@@ -354,15 +344,9 @@ int __exit snd_minor_info_done(void)
 static int __init alsa_sound_init(void)
 {
 	short controlnum;
-	int err;
-	int card;
 
 	snd_major = major;
 	snd_ecards_limit = cards_limit;
-	for (card = 0; card < SNDRV_CARDS; card++)
-		INIT_LIST_HEAD(&snd_minors_hash[card]);
-	if ((err = snd_oss_init_module()) < 0)
-		return err;
 	devfs_mk_dir("snd");
 	if (register_chrdev(major, "alsa", &snd_fops)) {
 		snd_printk(KERN_ERR "unable to register native major device number %d\n", major);

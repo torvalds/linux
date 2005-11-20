@@ -183,9 +183,8 @@ static inline int snd_power_wait(struct snd_card *card, unsigned int state, stru
 #endif /* CONFIG_PM */
 
 struct snd_minor {
-	struct list_head list;		/* list of all minors per card */
-	int number;			/* minor number */
 	int type;			/* SNDRV_DEVICE_TYPE_XXX */
+	int card;			/* card number */
 	int device;			/* device number */
 	struct file_operations *f_ops;	/* file operations */
 	char name[0];			/* device name (keep at the end of
@@ -217,11 +216,9 @@ int snd_minor_info_done(void);
 #ifdef CONFIG_SND_OSSEMUL
 int snd_minor_info_oss_init(void);
 int snd_minor_info_oss_done(void);
-int snd_oss_init_module(void);
 #else
 #define snd_minor_info_oss_init() /*NOP*/
 #define snd_minor_info_oss_done() /*NOP*/
-#define snd_oss_init_module() 0
 #endif
 
 /* memory.c */
