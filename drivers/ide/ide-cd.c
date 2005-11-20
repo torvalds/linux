@@ -3328,8 +3328,8 @@ static ide_proc_entry_t idecd_proc[] = {
 #endif
 
 static ide_driver_t ide_cdrom_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-cdrom",
 		.bus		= &ide_bus_type,
 		.probe		= ide_cd_probe,
@@ -3510,8 +3510,8 @@ static void __exit ide_cdrom_exit(void)
 {
 	driver_unregister(&ide_cdrom_driver.gen_driver);
 }
- 
-static int ide_cdrom_init(void)
+
+static int __init ide_cdrom_init(void)
 {
 	return driver_register(&ide_cdrom_driver.gen_driver);
 }

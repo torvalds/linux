@@ -48,8 +48,7 @@ work_pending:
 	mov	r0, sp				@ 'regs'
 	mov	r2, why				@ 'syscall'
 	bl	do_notify_resume
-	disable_irq				@ disable interrupts
-	b	no_work_pending
+	b	ret_slow_syscall		@ Check work again
 
 work_resched:
 	bl	schedule

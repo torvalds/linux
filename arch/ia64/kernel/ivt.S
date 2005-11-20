@@ -91,16 +91,17 @@ ENTRY(vhpt_miss)
 	 * (the "original") TLB miss, which may either be caused by an instruction
 	 * fetch or a data access (or non-access).
 	 *
-	 * What we do here is normal TLB miss handing for the _original_ miss, followed
-	 * by inserting the TLB entry for the virtual page table page that the VHPT
-	 * walker was attempting to access.  The latter gets inserted as long
-	 * as both L1 and L2 have valid mappings for the faulting address.
-	 * The TLB entry for the original miss gets inserted only if
-	 * the L3 entry indicates that the page is present.
+	 * What we do here is normal TLB miss handing for the _original_ miss,
+	 * followed by inserting the TLB entry for the virtual page table page
+	 * that the VHPT walker was attempting to access.  The latter gets
+	 * inserted as long as page table entry above pte level have valid
+	 * mappings for the faulting address.  The TLB entry for the original
+	 * miss gets inserted only if the pte entry indicates that the page is
+	 * present.
 	 *
 	 * do_page_fault gets invoked in the following cases:
 	 *	- the faulting virtual address uses unimplemented address bits
-	 *	- the faulting virtual address has no L1, L2, or L3 mapping
+	 *	- the faulting virtual address has no valid page table mapping
 	 */
 	mov r16=cr.ifa				// get address that caused the TLB miss
 #ifdef CONFIG_HUGETLB_PAGE
@@ -126,7 +127,7 @@ ENTRY(vhpt_miss)
 #endif
 	;;
 	cmp.eq p6,p7=5,r17			// is IFA pointing into to region 5?
-	shr.u r18=r22,PGDIR_SHIFT		// get bits 33-63 of the faulting address
+	shr.u r18=r22,PGDIR_SHIFT		// get bottom portion of pgd index bit
 	;;
 (p7)	dep r17=r17,r19,(PAGE_SHIFT-3),3	// put region number bits in place
 
@@ -137,38 +138,38 @@ ENTRY(vhpt_miss)
 (p6)	shr.u r21=r21,PGDIR_SHIFT+PAGE_SHIFT
 (p7)	shr.u r21=r21,PGDIR_SHIFT+PAGE_SHIFT-3
 	;;
-(p6)	dep r17=r18,r19,3,(PAGE_SHIFT-3)	// r17=PTA + IFA(33,42)*8
-(p7)	dep r17=r18,r17,3,(PAGE_SHIFT-6)	// r17=PTA + (((IFA(61,63) << 7) | IFA(33,39))*8)
+(p6)	dep r17=r18,r19,3,(PAGE_SHIFT-3)	// r17=pgd_offset for region 5
+(p7)	dep r17=r18,r17,3,(PAGE_SHIFT-6)	// r17=pgd_offset for region[0-4]
 	cmp.eq p7,p6=0,r21			// unused address bits all zeroes?
 #ifdef CONFIG_PGTABLE_4
-	shr.u r28=r22,PUD_SHIFT			// shift L2 index into position
+	shr.u r28=r22,PUD_SHIFT			// shift pud index into position
 #else
-	shr.u r18=r22,PMD_SHIFT			// shift L3 index into position
+	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
 #endif
 	;;
-	ld8 r17=[r17]				// fetch the L1 entry (may be 0)
+	ld8 r17=[r17]				// get *pgd (may be 0)
 	;;
-(p7)	cmp.eq p6,p7=r17,r0			// was L1 entry NULL?
+(p7)	cmp.eq p6,p7=r17,r0			// was pgd_present(*pgd) == NULL?
 #ifdef CONFIG_PGTABLE_4
-	dep r28=r28,r17,3,(PAGE_SHIFT-3)	// compute address of L2 page table entry
+	dep r28=r28,r17,3,(PAGE_SHIFT-3)	// r28=pud_offset(pgd,addr)
 	;;
-	shr.u r18=r22,PMD_SHIFT			// shift L3 index into position
-(p7)	ld8 r29=[r28]				// fetch the L2 entry (may be 0)
+	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
+(p7)	ld8 r29=[r28]				// get *pud (may be 0)
 	;;
-(p7)	cmp.eq.or.andcm p6,p7=r29,r0		// was L2 entry NULL?
-	dep r17=r18,r29,3,(PAGE_SHIFT-3)	// compute address of L3 page table entry
+(p7)	cmp.eq.or.andcm p6,p7=r29,r0		// was pud_present(*pud) == NULL?
+	dep r17=r18,r29,3,(PAGE_SHIFT-3)	// r17=pmd_offset(pud,addr)
 #else
-	dep r17=r18,r17,3,(PAGE_SHIFT-3)	// compute address of L3 page table entry
+	dep r17=r18,r17,3,(PAGE_SHIFT-3)	// r17=pmd_offset(pgd,addr)
 #endif
 	;;
-(p7)	ld8 r20=[r17]				// fetch the L3 entry (may be 0)
-	shr.u r19=r22,PAGE_SHIFT		// shift L4 index into position
+(p7)	ld8 r20=[r17]				// get *pmd (may be 0)
+	shr.u r19=r22,PAGE_SHIFT		// shift pte index into position
 	;;
-(p7)	cmp.eq.or.andcm p6,p7=r20,r0		// was L3 entry NULL?
-	dep r21=r19,r20,3,(PAGE_SHIFT-3)	// compute address of L4 page table entry
+(p7)	cmp.eq.or.andcm p6,p7=r20,r0		// was pmd_present(*pmd) == NULL?
+	dep r21=r19,r20,3,(PAGE_SHIFT-3)	// r21=pte_offset(pmd,addr)
 	;;
-(p7)	ld8 r18=[r21]				// read the L4 PTE
-	mov r19=cr.isr				// cr.isr bit 0 tells us if this is an insn miss
+(p7)	ld8 r18=[r21]				// read *pte
+	mov r19=cr.isr				// cr.isr bit 32 tells us if this is an insn miss
 	;;
 (p7)	tbit.z p6,p7=r18,_PAGE_P_BIT		// page present bit cleared?
 	mov r22=cr.iha				// get the VHPT address that caused the TLB miss
@@ -202,25 +203,33 @@ ENTRY(vhpt_miss)
 	dv_serialize_data
 
 	/*
-	 * Re-check L2 and L3 pagetable.  If they changed, we may have received a ptc.g
+	 * Re-check pagetable entry.  If they changed, we may have received a ptc.g
 	 * between reading the pagetable and the "itc".  If so, flush the entry we
-	 * inserted and retry.
+	 * inserted and retry.  At this point, we have:
+	 *
+	 * r28 = equivalent of pud_offset(pgd, ifa)
+	 * r17 = equivalent of pmd_offset(pud, ifa)
+	 * r21 = equivalent of pte_offset(pmd, ifa)
+	 *
+	 * r29 = *pud
+	 * r20 = *pmd
+	 * r18 = *pte
 	 */
-	ld8 r25=[r21]				// read L4 entry again
-	ld8 r26=[r17]				// read L3 PTE again
+	ld8 r25=[r21]				// read *pte again
+	ld8 r26=[r17]				// read *pmd again
 #ifdef CONFIG_PGTABLE_4
-	ld8 r18=[r28]				// read L2 entry again
+	ld8 r19=[r28]				// read *pud again
 #endif
 	cmp.ne p6,p7=r0,r0
 	;;
-	cmp.ne.or.andcm p6,p7=r26,r20		// did L3 entry change
+	cmp.ne.or.andcm p6,p7=r26,r20		// did *pmd change
 #ifdef CONFIG_PGTABLE_4
-	cmp.ne.or.andcm p6,p7=r29,r18		// did L4 PTE change
+	cmp.ne.or.andcm p6,p7=r19,r29		// did *pud change
 #endif
 	mov r27=PAGE_SHIFT<<2
 	;;
 (p6)	ptc.l r22,r27				// purge PTE page translation
-(p7)	cmp.ne.or.andcm p6,p7=r25,r18		// did L4 PTE change
+(p7)	cmp.ne.or.andcm p6,p7=r25,r18		// did *pte change
 	;;
 (p6)	ptc.l r16,r27				// purge translation
 #endif
@@ -235,19 +244,19 @@ END(vhpt_miss)
 ENTRY(itlb_miss)
 	DBG_FAULT(1)
 	/*
-	 * The ITLB handler accesses the L3 PTE via the virtually mapped linear
+	 * The ITLB handler accesses the PTE via the virtually mapped linear
 	 * page table.  If a nested TLB miss occurs, we switch into physical
-	 * mode, walk the page table, and then re-execute the L3 PTE read
-	 * and go on normally after that.
+	 * mode, walk the page table, and then re-execute the PTE read and
+	 * go on normally after that.
 	 */
 	mov r16=cr.ifa				// get virtual address
 	mov r29=b0				// save b0
 	mov r31=pr				// save predicates
 .itlb_fault:
-	mov r17=cr.iha				// get virtual address of L3 PTE
+	mov r17=cr.iha				// get virtual address of PTE
 	movl r30=1f				// load nested fault continuation point
 	;;
-1:	ld8 r18=[r17]				// read L3 PTE
+1:	ld8 r18=[r17]				// read *pte
 	;;
 	mov b0=r29
 	tbit.z p6,p0=r18,_PAGE_P_BIT		// page present bit cleared?
@@ -262,7 +271,7 @@ ENTRY(itlb_miss)
 	 */
 	dv_serialize_data
 
-	ld8 r19=[r17]				// read L3 PTE again and see if same
+	ld8 r19=[r17]				// read *pte again and see if same
 	mov r20=PAGE_SHIFT<<2			// setup page size for purge
 	;;
 	cmp.ne p7,p0=r18,r19
@@ -279,19 +288,19 @@ END(itlb_miss)
 ENTRY(dtlb_miss)
 	DBG_FAULT(2)
 	/*
-	 * The DTLB handler accesses the L3 PTE via the virtually mapped linear
+	 * The DTLB handler accesses the PTE via the virtually mapped linear
 	 * page table.  If a nested TLB miss occurs, we switch into physical
-	 * mode, walk the page table, and then re-execute the L3 PTE read
-	 * and go on normally after that.
+	 * mode, walk the page table, and then re-execute the PTE read and
+	 * go on normally after that.
 	 */
 	mov r16=cr.ifa				// get virtual address
 	mov r29=b0				// save b0
 	mov r31=pr				// save predicates
 dtlb_fault:
-	mov r17=cr.iha				// get virtual address of L3 PTE
+	mov r17=cr.iha				// get virtual address of PTE
 	movl r30=1f				// load nested fault continuation point
 	;;
-1:	ld8 r18=[r17]				// read L3 PTE
+1:	ld8 r18=[r17]				// read *pte
 	;;
 	mov b0=r29
 	tbit.z p6,p0=r18,_PAGE_P_BIT		// page present bit cleared?
@@ -306,7 +315,7 @@ dtlb_fault:
 	 */
 	dv_serialize_data
 
-	ld8 r19=[r17]				// read L3 PTE again and see if same
+	ld8 r19=[r17]				// read *pte again and see if same
 	mov r20=PAGE_SHIFT<<2			// setup page size for purge
 	;;
 	cmp.ne p7,p0=r18,r19
@@ -420,7 +429,7 @@ ENTRY(nested_dtlb_miss)
 	 *		r30:	continuation address
 	 *		r31:	saved pr
 	 *
-	 * Output:	r17:	physical address of L3 PTE of faulting address
+	 * Output:	r17:	physical address of PTE of faulting address
 	 *		r29:	saved b0
 	 *		r30:	continuation address
 	 *		r31:	saved pr
@@ -450,33 +459,33 @@ ENTRY(nested_dtlb_miss)
 (p6)	shr.u r21=r21,PGDIR_SHIFT+PAGE_SHIFT
 (p7)	shr.u r21=r21,PGDIR_SHIFT+PAGE_SHIFT-3
 	;;
-(p6)	dep r17=r18,r19,3,(PAGE_SHIFT-3)	// r17=PTA + IFA(33,42)*8
-(p7)	dep r17=r18,r17,3,(PAGE_SHIFT-6)	// r17=PTA + (((IFA(61,63) << 7) | IFA(33,39))*8)
+(p6)	dep r17=r18,r19,3,(PAGE_SHIFT-3)	// r17=pgd_offset for region 5
+(p7)	dep r17=r18,r17,3,(PAGE_SHIFT-6)	// r17=pgd_offset for region[0-4]
 	cmp.eq p7,p6=0,r21			// unused address bits all zeroes?
 #ifdef CONFIG_PGTABLE_4
-	shr.u r18=r22,PUD_SHIFT			// shift L2 index into position
+	shr.u r18=r22,PUD_SHIFT			// shift pud index into position
 #else
-	shr.u r18=r22,PMD_SHIFT			// shift L3 index into position
+	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
 #endif
 	;;
-	ld8 r17=[r17]				// fetch the L1 entry (may be 0)
+	ld8 r17=[r17]				// get *pgd (may be 0)
 	;;
-(p7)	cmp.eq p6,p7=r17,r0			// was L1 entry NULL?
-	dep r17=r18,r17,3,(PAGE_SHIFT-3)	// compute address of L2 page table entry
+(p7)	cmp.eq p6,p7=r17,r0			// was pgd_present(*pgd) == NULL?
+	dep r17=r18,r17,3,(PAGE_SHIFT-3)	// r17=p[u|m]d_offset(pgd,addr)
 	;;
 #ifdef CONFIG_PGTABLE_4
-(p7)	ld8 r17=[r17]				// fetch the L2 entry (may be 0)
-	shr.u r18=r22,PMD_SHIFT			// shift L3 index into position
+(p7)	ld8 r17=[r17]				// get *pud (may be 0)
+	shr.u r18=r22,PMD_SHIFT			// shift pmd index into position
 	;;
-(p7)	cmp.eq.or.andcm p6,p7=r17,r0		// was L2 entry NULL?
-	dep r17=r18,r17,3,(PAGE_SHIFT-3)	// compute address of L2 page table entry
+(p7)	cmp.eq.or.andcm p6,p7=r17,r0		// was pud_present(*pud) == NULL?
+	dep r17=r18,r17,3,(PAGE_SHIFT-3)	// r17=pmd_offset(pud,addr)
 	;;
 #endif
-(p7)	ld8 r17=[r17]				// fetch the L3 entry (may be 0)
-	shr.u r19=r22,PAGE_SHIFT		// shift L4 index into position
+(p7)	ld8 r17=[r17]				// get *pmd (may be 0)
+	shr.u r19=r22,PAGE_SHIFT		// shift pte index into position
 	;;
-(p7)	cmp.eq.or.andcm p6,p7=r17,r0		// was L3 entry NULL?
-	dep r17=r19,r17,3,(PAGE_SHIFT-3)	// compute address of L4 page table entry
+(p7)	cmp.eq.or.andcm p6,p7=r17,r0		// was pmd_present(*pmd) == NULL?
+	dep r17=r19,r17,3,(PAGE_SHIFT-3)	// r17=pte_offset(pmd,addr);
 (p6)	br.cond.spnt page_fault
 	mov b0=r30
 	br.sptk.many b0				// return to continuation point

@@ -14,8 +14,9 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/semaphore.h>
-#include <asm/imalloc.h>
 #include <asm/cacheflush.h>
+
+#include "mmu_decl.h"
 
 static DECLARE_MUTEX(imlist_sem);
 struct vm_struct * imlist = NULL;

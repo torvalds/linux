@@ -40,7 +40,7 @@
 #endif
 
 unsigned long pci_probe_only = 1;
-unsigned long pci_assign_all_buses = 0;
+int pci_assign_all_buses = 0;
 
 /*
  * legal IO pages under MAX_ISA_PORT.  This is to ensure we don't touch
@@ -54,11 +54,6 @@ EXPORT_SYMBOL(io_page_mask);
 static void fixup_resource(struct resource *res, struct pci_dev *dev);
 static void do_bus_setup(struct pci_bus *bus);
 #endif
-
-unsigned int pcibios_assign_all_busses(void)
-{
-	return pci_assign_all_buses;
-}
 
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),
@@ -1184,17 +1179,6 @@ void phbs_remap_io(void)
 
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
 		remap_bus_range(hose->bus);
-}
-
-/*
- * ppc64 can have multifunction devices that do not respond to function 0.
- * In this case we must scan all functions.
- * XXX this can go now, we use the OF device tree in all the
- * cases that caused problems. -- paulus
- */
-int pcibios_scan_all_fns(struct pci_bus *bus, int devfn)
-{
-       return 0;
 }
 
 static void __devinit fixup_resource(struct resource *res, struct pci_dev *dev)

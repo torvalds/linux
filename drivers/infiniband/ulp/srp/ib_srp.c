@@ -802,12 +802,20 @@ static int srp_post_recv(struct srp_target_port *target)
 
 /*
  * Must be called with target->scsi_host->host_lock held to protect
- * req_lim and tx_head.
+ * req_lim and tx_head.  Lock cannot be dropped between call here and
+ * call to __srp_post_send().
  */
 static struct srp_iu *__srp_get_tx_iu(struct srp_target_port *target)
 {
 	if (target->tx_head - target->tx_tail >= SRP_SQ_SIZE)
 		return NULL;
+
+	if (unlikely(target->req_lim < 1)) {
+		if (printk_ratelimit())
+			printk(KERN_DEBUG PFX "Target has req_lim %d\n",
+			       target->req_lim);
+		return NULL;
+	}
 
 	return target->tx_ring[target->tx_head & SRP_SQ_SIZE];
 }
@@ -822,11 +830,6 @@ static int __srp_post_send(struct srp_target_port *target,
 	struct ib_sge list;
 	struct ib_send_wr wr, *bad_wr;
 	int ret = 0;
-
-	if (target->req_lim < 1) {
-		printk(KERN_ERR PFX "Target has req_lim %d\n", target->req_lim);
-		return -EAGAIN;
-	}
 
 	list.addr   = iu->dma;
 	list.length = len;
@@ -1416,6 +1419,8 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 				      sizeof (struct srp_target_port));
 	if (!target_host)
 		return -ENOMEM;
+
+	target_host->max_lun = SRP_MAX_LUN;
 
 	target = host_to_target(target_host);
 	memset(target, 0, sizeof *target);
