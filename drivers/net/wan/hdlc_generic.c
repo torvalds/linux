@@ -79,11 +79,13 @@ static void __hdlc_set_carrier_on(struct net_device *dev)
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	if (hdlc->proto.start)
 		return hdlc->proto.start(dev);
+#if 0
 #ifdef DEBUG_LINK
 	if (netif_carrier_ok(dev))
 		printk(KERN_ERR "hdlc_set_carrier_on(): already on\n");
 #endif
 	netif_carrier_on(dev);
+#endif
 }
 
 
@@ -94,11 +96,13 @@ static void __hdlc_set_carrier_off(struct net_device *dev)
 	if (hdlc->proto.stop)
 		return hdlc->proto.stop(dev);
 
+#if 0
 #ifdef DEBUG_LINK
 	if (!netif_carrier_ok(dev))
 		printk(KERN_ERR "hdlc_set_carrier_off(): already off\n");
 #endif
 	netif_carrier_off(dev);
+#endif
 }
 
 
@@ -294,8 +298,10 @@ int register_hdlc_device(struct net_device *dev)
 	if (result != 0)
 		return -EIO;
 
+#if 0
 	if (netif_carrier_ok(dev))
 		netif_carrier_off(dev); /* no carrier until DCD goes up */
+#endif
 
 	return 0;
 }

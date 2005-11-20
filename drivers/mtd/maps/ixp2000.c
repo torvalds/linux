@@ -159,12 +159,12 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 		return -ENODEV;
 
 	window_size = dev->resource->end - dev->resource->start + 1;
-	dev_info(_dev, "Probe of IXP2000 flash(%d banks x %dMiB)\n",
-			ixp_data->nr_banks, ((u32)window_size >> 20));
+	dev_info(&dev->dev, "Probe of IXP2000 flash(%d banks x %dMiB)\n",
+		 ixp_data->nr_banks, ((u32)window_size >> 20));
 
 	if (plat->width != 1) {
-		dev_err(_dev, "IXP2000 MTD map only supports 8-bit mode, asking for %d\n",
-				plat->width * 8);
+		dev_err(&dev->dev, "IXP2000 MTD map only supports 8-bit mode, asking for %d\n",
+			plat->width * 8);
 		return -EIO;
 	}
 
@@ -202,7 +202,7 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 			dev->resource->end - dev->resource->start + 1,
 			dev->dev.bus_id);
 	if (!info->res) {
-		dev_err(_dev, "Could not reserve memory region\n");
+		dev_err(&dev->dev, "Could not reserve memory region\n");
 		err = -ENOMEM;
 		goto Error;
 	}
@@ -210,7 +210,7 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	info->map.map_priv_1 = (unsigned long) ioremap(dev->resource->start,
 			    	dev->resource->end - dev->resource->start + 1);
 	if (!info->map.map_priv_1) {
-		dev_err(_dev, "Failed to ioremap flash region\n");
+		dev_err(&dev->dev, "Failed to ioremap flash region\n");
 		err = -EIO;
 		goto Error;
 	}
@@ -221,13 +221,13 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	 */
 
 	erratum44_workaround = ixp2000_has_broken_slowport();
-	dev_info(_dev, "Erratum 44 workaround %s\n",
+	dev_info(&dev->dev, "Erratum 44 workaround %s\n",
 	       erratum44_workaround ? "enabled" : "disabled");
 #endif
 
 	info->mtd = do_map_probe(plat->map_name, &info->map);
 	if (!info->mtd) {
-		dev_err(_dev, "map_probe failed\n");
+		dev_err(&dev->dev, "map_probe failed\n");
 		err = -ENXIO;
 		goto Error;
 	}
@@ -237,7 +237,7 @@ static int ixp2000_flash_probe(struct platform_device *dev)
 	if (err > 0) {
 		err = add_mtd_partitions(info->mtd, info->partitions, err);
 		if(err)
-			dev_err(_dev, "Could not parse partitions\n");
+			dev_err(&dev->dev, "Could not parse partitions\n");
 	}
 
 	if (err)
@@ -251,8 +251,8 @@ Error:
 }
 
 static struct platform_driver ixp2000_flash_driver = {
-	.probe		= &ixp2000_flash_probe,
-	.remove		= &ixp2000_flash_remove
+	.probe		= ixp2000_flash_probe,
+	.remove		= ixp2000_flash_remove,
 	.driver		= {
 		.name	= "IXP2000-Flash",
 	},

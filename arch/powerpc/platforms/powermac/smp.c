@@ -34,6 +34,7 @@
 #include <linux/errno.h>
 #include <linux/hardirq.h>
 #include <linux/cpu.h>
+#include <linux/compiler.h>
 
 #include <asm/ptrace.h>
 #include <asm/atomic.h>
@@ -631,8 +632,9 @@ void smp_core99_give_timebase(void)
 	mb();
 
 	/* wait for the secondary to have taken it */
-	for (t = 100000; t > 0 && sec_tb_reset; --t)
-		udelay(10);
+	/* note: can't use udelay here, since it needs the timebase running */
+	for (t = 10000000; t > 0 && sec_tb_reset; --t)
+		barrier();
 	if (sec_tb_reset)
 		/* XXX BUG_ON here? */
 		printk(KERN_WARNING "Timeout waiting sync(2) on second CPU\n");

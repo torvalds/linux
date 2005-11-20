@@ -1,8 +1,10 @@
-#ifdef __KERNEL__
-#ifndef _ASM_PCI_BRIDGE_H
-#define _ASM_PCI_BRIDGE_H
+#ifndef _ASM_POWERPC_PCI_BRIDGE_H
+#define _ASM_POWERPC_PCI_BRIDGE_H
 
-#include <linux/config.h>
+#ifndef CONFIG_PPC64
+#include <asm-ppc/pci-bridge.h>
+#else
+
 #include <linux/pci.h>
 #include <linux/list.h>
 
@@ -147,5 +149,5 @@ extern void pcibios_free_controller(struct pci_controller *phb);
 #define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
 #define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
 
+#endif /* CONFIG_PPC64 */
 #endif
-#endif /* __KERNEL__ */

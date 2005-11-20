@@ -7,11 +7,16 @@
  *
  * Copyright 1994, Anders Klemets <klemets@it.kth.se>
  *
- * This software may be freely distributed for noncommercial purposes
- * as long as this notice is retained.
- * 
  * HISTORY
  * i82593.h,v
+ * Revision 1.4  2005/11/4  09:15:00  baroniunas
+ * Modified copyright with permission of author as follows:
+ *
+ *   "If I82539.H is the only file with my copyright statement
+ *    that is included in the Source Forge project, then you have
+ *    my approval to change the copyright statement to be a GPL
+ *    license, in the way you proposed on October 10."
+ *
  * Revision 1.1  1996/07/17 15:23:12  root
  * Initial revision
  *
