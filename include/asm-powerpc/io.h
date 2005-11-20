@@ -1,5 +1,5 @@
-#ifndef _PPC64_IO_H
-#define _PPC64_IO_H
+#ifndef _ASM_POWERPC_IO_H
+#define _ASM_POWERPC_IO_H
 
 /* 
  * This program is free software; you can redistribute it and/or
@@ -8,7 +8,10 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
+#ifndef CONFIG_PPC64
+#include <asm-ppc/io.h>
+#else
+
 #include <linux/compiler.h>
 #include <asm/page.h>
 #include <asm/byteorder.h>
@@ -455,4 +458,5 @@ extern int check_legacy_ioport(unsigned long base_port);
 
 #endif /* __KERNEL__ */
 
-#endif /* _PPC64_IO_H */
+#endif /* CONFIG_PPC64 */
+#endif /* _ASM_POWERPC_IO_H */

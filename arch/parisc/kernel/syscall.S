@@ -164,7 +164,7 @@ linux_gateway_entry:
 #endif
 	STREG	%r2,  TASK_PT_GR30(%r1)		/* ... and save it */
 	
-	STREG	%r20, TASK_PT_GR20(%r1)
+	STREG	%r20, TASK_PT_GR20(%r1)		/* Syscall number */
 	STREG	%r21, TASK_PT_GR21(%r1)
 	STREG	%r22, TASK_PT_GR22(%r1)
 	STREG	%r23, TASK_PT_GR23(%r1)		/* 4th argument */
@@ -527,6 +527,7 @@ lws_compare_and_swap:
 		We *must* giveup this call and fail.
 	*/
 	ldw	4(%sr2,%r20), %r28			/* Load thread register */
+	/* WARNING: If cr27 cycles to the same value we have problems */
 	mfctl	%cr27, %r21				/* Get current thread register */
 	cmpb,<>,n	%r21, %r28, cas_lock		/* Called recursive? */
 	b	lws_exit				/* Return error! */

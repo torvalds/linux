@@ -625,7 +625,7 @@ config BLK_DEV_NS87415
 	tristate "NS87415 chipset support"
 	help
 	  This driver adds detection and support for the NS87415 chip
-	  (used in SPARC64, among others).
+	  (used mainly on SPARC64 and PA-RISC machines).
 
 	  Please read the comments at the top of <file:drivers/ide/pci/ns87415.c>.
 

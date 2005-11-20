@@ -137,7 +137,7 @@
 #define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
 #define EXT2_IOC32_SETFLAGS               _IOW('f', 2, int)
 #define EXT3_IOC32_GETVERSION             _IOR('f', 3, int)
-#define EXT3_IOC32_SETVERSION             _IOR('f', 4, int)
+#define EXT3_IOC32_SETVERSION             _IOW('f', 4, int)
 #define EXT3_IOC32_GETRSVSZ               _IOR('f', 5, int)
 #define EXT3_IOC32_SETRSVSZ               _IOW('f', 6, int)
 #define EXT3_IOC32_GROUP_EXTEND           _IOW('f', 7, unsigned int)

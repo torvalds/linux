@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/block/deadline-iosched.c
- *
  *  Deadline i/o scheduler.
  *
  *  Copyright (C) 2002 Jens Axboe <axboe@suse.de>

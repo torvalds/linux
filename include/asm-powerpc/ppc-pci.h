@@ -48,8 +48,6 @@ extern void pSeries_final_fixup(void);
 extern void pSeries_irq_bus_setup(struct pci_bus *bus);
 
 extern unsigned long pci_probe_only;
-extern unsigned long pci_assign_all_buses;
-extern int pci_read_irq_line(struct pci_dev *pci_dev);
 
 /* ---- EEH internal-use-only related routines ---- */
 #ifdef CONFIG_EEH
