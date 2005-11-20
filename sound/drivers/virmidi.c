@@ -61,7 +61,7 @@ MODULE_DESCRIPTION("Dummy soundcard for virtual rawmidi devices");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ALSA,Virtual rawmidi device}}");
 
-#define MAX_MIDI_DEVICES	8
+#define MAX_MIDI_DEVICES	4
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -75,7 +75,7 @@ MODULE_PARM_DESC(id, "ID string for virmidi soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable this soundcard.");
 module_param_array(midi_devs, int, NULL, 0444);
-MODULE_PARM_DESC(midi_devs, "MIDI devices # (1-8)");
+MODULE_PARM_DESC(midi_devs, "MIDI devices # (1-4)");
 
 struct snd_card_virmidi {
 	struct snd_card *card;

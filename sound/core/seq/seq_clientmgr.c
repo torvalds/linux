@@ -157,7 +157,7 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 				}
 			}
 		} else if (clientid >= 64 && clientid < 128) {
-			int card = (clientid - 64) / 8;
+			int card = (clientid - 64) / 4;
 			if (card < snd_ecards_limit) {
 				if (! card_requested[card]) {
 					card_requested[card] = 1;
@@ -2208,12 +2208,12 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 
 	if (callback == NULL)
 		return -EINVAL;
-	if (card && client_index > 7)
+	if (card && client_index > 3)
 		return -EINVAL;
 	if (card == NULL && client_index > 63)
 		return -EINVAL;
 	if (card)
-		client_index += 64 + (card->number << 3);
+		client_index += 64 + (card->number << 2);
 
 	if (down_interruptible(&register_mutex))
 		return -ERESTARTSYS;
