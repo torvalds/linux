@@ -1219,6 +1219,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					 cifs_sb->mnt_cifs_flags & 
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else if (attrs->ia_valid & ATTR_MODE) {
+		rc = 0;
 		if ((mode & S_IWUGO) == 0) /* not writeable */ {
 			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0)
 				time_buf.Attributes =
