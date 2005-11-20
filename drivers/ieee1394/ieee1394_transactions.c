@@ -22,6 +22,7 @@
 #include "ieee1394_core.h"
 #include "highlevel.h"
 #include "nodemgr.h"
+#include "ieee1394_transactions.h"
 
 
 #define PREP_ASYNC_HEAD_ADDRESS(tc) \
