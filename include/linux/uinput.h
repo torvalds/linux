@@ -34,8 +34,7 @@
 #define UINPUT_BUFFER_SIZE	16
 #define UINPUT_NUM_REQUESTS	16
 
-/* state flags => bit index for {set|clear|test}_bit ops */
-#define UIST_CREATED		0
+enum uinput_state { UIST_NEW_DEVICE, UIST_SETUP_COMPLETE, UIST_CREATED };
 
 struct uinput_request {
 	int			id;
@@ -52,11 +51,12 @@ struct uinput_request {
 
 struct uinput_device {
 	struct input_dev	*dev;
-	unsigned long		state;
+	struct semaphore	sem;
+	enum uinput_state	state;
 	wait_queue_head_t	waitq;
-	unsigned char		ready,
-				head,
-				tail;
+	unsigned char		ready;
+	unsigned char		head;
+	unsigned char		tail;
 	struct input_event	buff[UINPUT_BUFFER_SIZE];
 
 	struct uinput_request	*requests[UINPUT_NUM_REQUESTS];
