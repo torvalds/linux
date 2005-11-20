@@ -19,12 +19,6 @@
  *
  * NOTES:
  *
- * jds -- add private data to file to keep track of iso contexts associated
- * with each open -- so release won't kill all iso transfers.
- * 
- * Damien Douxchamps: Fix failure when the number of DMA pages per frame is
- * one.
- * 
  * ioctl return codes:
  * EFAULT is only for invalid address for the argp
  * EINVAL for out of range values
@@ -34,12 +28,6 @@
  * ENOTTY for unsupported ioctl request
  *
  */
-
-/* Markus Tavenrath <speedygoo@speedygoo.de> :
-   - fixed checks for valid buffer-numbers in video1394_icotl
-   - changed the ways the dma prg's are used, now it's possible to use
-     even a single dma buffer
-*/
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -503,7 +491,7 @@ static void wakeup_dma_ir_ctx(unsigned long l)
 		if (d->ir_prg[i][d->nb_cmd-1].status & cpu_to_le32(0xFFFF0000)) {
 			reset_ir_status(d, i);
 			d->buffer_status[d->buffer_prg_assignment[i]] = VIDEO1394_BUFFER_READY;
-			do_gettimeofday(&d->buffer_time[i]);
+			do_gettimeofday(&d->buffer_time[d->buffer_prg_assignment[i]]);
 		}
 	}
 
@@ -1010,7 +998,6 @@ static int __video1394_ioctl(struct file *file,
 
 		/* set time of buffer */
 		v.filltime = d->buffer_time[v.buffer];
-//		printk("Buffer %d time %d\n", v.buffer, (d->buffer_time[v.buffer]).tv_usec);
 
 		/*
 		 * Look ahead to see how many more buffers have been received
@@ -1068,7 +1055,7 @@ static int __video1394_ioctl(struct file *file,
 
 		spin_lock_irqsave(&d->lock,flags);
 
-		// last_buffer is last_prg
+		/* last_buffer is last_prg */
 		next_prg = (d->last_buffer + 1) % d->num_desc;
 		if (d->buffer_status[v.buffer]!=VIDEO1394_BUFFER_FREE) {
 			PRINT(KERN_ERR, ohci->host->id,
