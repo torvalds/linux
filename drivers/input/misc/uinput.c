@@ -495,6 +495,10 @@ static long uinput_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			retval = uinput_set_bit(arg, ffbit, FF_MAX);
 			break;
 
+		case UI_SET_SWBIT:
+			retval = uinput_set_bit(arg, swbit, SW_MAX);
+			break;
+
 		case UI_SET_PHYS:
 			if (udev->state == UIST_CREATED) {
 				retval = -EINVAL;
