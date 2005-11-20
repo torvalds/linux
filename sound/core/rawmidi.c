@@ -573,6 +573,8 @@ int snd_rawmidi_info_select(struct snd_card *card, struct snd_rawmidi_info *info
 	if (info->device >= SNDRV_RAWMIDI_DEVICES)
 		return -ENXIO;
 	rmidi = snd_rawmidi_devices[card->number * SNDRV_RAWMIDI_DEVICES + info->device];
+	if (!rmidi)
+		return -ENXIO;
 	if (info->stream < 0 || info->stream > 1)
 		return -EINVAL;
 	pstr = &rmidi->streams[info->stream];
