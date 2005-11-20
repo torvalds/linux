@@ -105,6 +105,8 @@ int snd_register_oss_device(int type, struct snd_card *card, int dev,
 	int register1 = -1, register2 = -1;
 	struct device *carddev = NULL;
 
+	if (card && card->number >= 8)
+		return 0; /* ignore silently */
 	if (minor < 0)
 		return minor;
 	preg = kmalloc(sizeof(struct snd_minor), GFP_KERNEL);
@@ -162,6 +164,8 @@ int snd_unregister_oss_device(int type, struct snd_card *card, int dev)
 	int track2 = -1;
 	struct snd_minor *mptr;
 
+	if (card && card->number >= 8)
+		return 0;
 	if (minor < 0)
 		return minor;
 	down(&sound_oss_mutex);

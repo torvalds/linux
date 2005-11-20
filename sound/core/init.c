@@ -338,7 +338,7 @@ int snd_card_free_in_thread(struct snd_card *card)
 
 static void choose_default_id(struct snd_card *card)
 {
-	int i, len, idx_flag = 0, loops = 8;
+	int i, len, idx_flag = 0, loops = SNDRV_CARDS;
 	char *id, *spos;
 	
 	id = spos = card->shortname;	
@@ -380,9 +380,12 @@ static void choose_default_id(struct snd_card *card)
 
 	      __change:
 		len = strlen(id);
-		if (idx_flag)
-			id[len-1]++;
-		else if ((size_t)len <= sizeof(card->id) - 3) {
+		if (idx_flag) {
+			if (id[len-1] != '9')
+				id[len-1]++;
+			else
+				id[len-1] = 'A';
+		} else if ((size_t)len <= sizeof(card->id) - 3) {
 			strcat(id, "_1");
 			idx_flag++;
 		} else {
@@ -461,12 +464,12 @@ static void snd_card_info_read(struct snd_info_entry *entry,
 		read_lock(&snd_card_rwlock);
 		if ((card = snd_cards[idx]) != NULL) {
 			count++;
-			snd_iprintf(buffer, "%i [%-15s]: %s - %s\n",
+			snd_iprintf(buffer, "%2i [%-15s]: %s - %s\n",
 					idx,
 					card->id,
 					card->driver,
 					card->shortname);
-			snd_iprintf(buffer, "                     %s\n",
+			snd_iprintf(buffer, "                      %s\n",
 					card->longname);
 		}
 		read_unlock(&snd_card_rwlock);
@@ -508,7 +511,8 @@ static void snd_card_module_info_read(struct snd_info_entry *entry,
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
 		read_lock(&snd_card_rwlock);
 		if ((card = snd_cards[idx]) != NULL)
-			snd_iprintf(buffer, "%i %s\n", idx, card->module->name);
+			snd_iprintf(buffer, "%2i %s\n",
+				    idx, card->module->name);
 		read_unlock(&snd_card_rwlock);
 	}
 }

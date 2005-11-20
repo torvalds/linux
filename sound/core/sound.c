@@ -358,15 +358,15 @@ static void snd_minor_info_read(struct snd_info_entry *entry, struct snd_info_bu
 			continue;
 		if (mptr->card >= 0) {
 			if (mptr->device >= 0)
-				snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n",
+				snd_iprintf(buffer, "%3i: [%2i-%2i]: %s\n",
 					    minor, mptr->card, mptr->device,
 					    snd_device_type_name(mptr->type));
 			else
-				snd_iprintf(buffer, "%3i: [%i]   : %s\n",
+				snd_iprintf(buffer, "%3i: [%2i]   : %s\n",
 					    minor, mptr->card,
 					    snd_device_type_name(mptr->type));
 		} else
-			snd_iprintf(buffer, "%3i:       : %s\n", minor,
+			snd_iprintf(buffer, "%3i:        : %s\n", minor,
 				    snd_device_type_name(mptr->type));
 	}
 	up(&sound_mutex);
