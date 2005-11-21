@@ -206,6 +206,7 @@ enum {
  *	@nfct: Associated connection, if any
  *	@ipvs_property: skbuff is owned by ipvs
  *	@nfctinfo: Relationship of this skb to the connection
+ *	@nfct_reasm: netfilter conntrack re-assembly pointer
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
