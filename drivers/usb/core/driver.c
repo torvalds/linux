@@ -404,8 +404,9 @@ int usb_device_match(struct device *dev, struct device_driver *drv)
 }
 
 /**
- * usb_register - register a USB driver
+ * usb_register_driver - register a USB driver
  * @new_driver: USB operations for the driver
+ * @owner: module owner of this driver.
  *
  * Registers a USB driver with the USB core.  The list of unattached
  * interfaces will be rescanned whenever a new driver is added, allowing
@@ -416,7 +417,7 @@ int usb_device_match(struct device *dev, struct device_driver *drv)
  * usb_register_dev() to enable that functionality.  This function no longer
  * takes care of that.
  */
-int usb_register(struct usb_driver *new_driver)
+int usb_register_driver(struct usb_driver *new_driver, struct module *owner)
 {
 	int retval = 0;
 
@@ -427,7 +428,7 @@ int usb_register(struct usb_driver *new_driver)
 	new_driver->driver.bus = &usb_bus_type;
 	new_driver->driver.probe = usb_probe_interface;
 	new_driver->driver.remove = usb_unbind_interface;
-	new_driver->driver.owner = new_driver->owner;
+	new_driver->driver.owner = owner;
 	spin_lock_init(&new_driver->dynids.lock);
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 
@@ -447,7 +448,7 @@ int usb_register(struct usb_driver *new_driver)
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL(usb_register);
+EXPORT_SYMBOL_GPL(usb_register_driver);
 
 /**
  * usb_deregister - unregister a USB driver
