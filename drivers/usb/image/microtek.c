@@ -327,6 +327,18 @@ static inline void mts_urb_abort(struct mts_desc* desc) {
 	usb_kill_urb( desc->urb );
 }
 
+static int mts_slave_alloc (struct scsi_device *s)
+{
+	s->inquiry_len = 0x24;
+	return 0;
+}
+
+static int mts_slave_configure (struct scsi_device *s)
+{
+	blk_queue_dma_alignment(s->request_queue, (512 - 1));
+	return 0;
+}
+
 static int mts_scsi_abort (Scsi_Cmnd *srb)
 {
 	struct mts_desc* desc = (struct mts_desc*)(srb->device->host->hostdata[0]);
@@ -411,7 +423,7 @@ static void mts_transfer_done( struct urb *transfer, struct pt_regs *regs )
 	MTS_INT_INIT();
 
 	context->srb->result &= MTS_SCSI_ERR_MASK;
-	context->srb->result |= (unsigned)context->status<<1;
+	context->srb->result |= (unsigned)(*context->scsi_status)<<1;
 
 	mts_transfer_cleanup(transfer);
 
@@ -427,7 +439,7 @@ static void mts_get_status( struct urb *transfer )
 	mts_int_submit_urb(transfer,
 			   usb_rcvbulkpipe(context->instance->usb_dev,
 					   context->instance->ep_response),
-			   &context->status,
+			   context->scsi_status,
 			   1,
 			   mts_transfer_done );
 }
@@ -481,7 +493,7 @@ static void mts_command_done( struct urb *transfer, struct pt_regs *regs )
 					   context->data_pipe,
 					   context->data,
 					   context->data_length,
-					   context->srb->use_sg ? mts_do_sg : mts_data_done);
+					   context->srb->use_sg > 1 ? mts_do_sg : mts_data_done);
 		} else {
 			mts_get_status(transfer);
 		}
@@ -627,7 +639,6 @@ int mts_scsi_queuecommand( Scsi_Cmnd *srb, mts_scsi_cmnd_callback callback )
 			callback(srb);
 
 	}
-
 out:
 	return err;
 }
@@ -645,6 +656,9 @@ static struct scsi_host_template mts_scsi_host_template = {
 	.cmd_per_lun =		1,
 	.use_clustering =	1,
 	.emulated =		1,
+	.slave_alloc =		mts_slave_alloc,
+	.slave_configure =	mts_slave_configure,
+	.max_sectors=		256, /* 128 K */
 };
 
 struct vendor_product
@@ -771,8 +785,8 @@ static int mts_usb_probe(struct usb_interface *intf,
 		MTS_WARNING( "couldn't find an output bulk endpoint. Bailing out.\n" );
 		return -ENODEV;
 	}
-	
-	
+
+
 	new_desc = kzalloc(sizeof(struct mts_desc), GFP_KERNEL);
 	if (!new_desc)
 		goto out;
@@ -780,6 +794,10 @@ static int mts_usb_probe(struct usb_interface *intf,
 	new_desc->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!new_desc->urb)
 		goto out_kfree;
+
+	new_desc->context.scsi_status = kmalloc(1, GFP_KERNEL);
+	if (!new_desc->context.scsi_status)
+		goto out_kfree2;
 
 	new_desc->usb_dev = dev;
 	new_desc->usb_intf = intf;
@@ -817,6 +835,8 @@ static int mts_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, new_desc);
 	return 0;
 
+ out_kfree2:
+	kfree(new_desc->context.scsi_status);
  out_free_urb:
 	usb_free_urb(new_desc->urb);
  out_kfree:
@@ -836,6 +856,7 @@ static void mts_usb_disconnect (struct usb_interface *intf)
 
 	scsi_host_put(desc->host);
 	usb_free_urb(desc->urb);
+	kfree(desc->context.scsi_status);
 	kfree(desc);
 }
 
@@ -856,5 +877,3 @@ module_exit(microtek_drv_exit);
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
 MODULE_LICENSE("GPL");
-
-

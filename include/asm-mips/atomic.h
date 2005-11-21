@@ -231,11 +231,12 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 }
 
 /*
- * atomic_sub_if_positive - add integer to atomic variable
+ * atomic_sub_if_positive - conditionally subtract integer from atomic variable
+ * @i: integer value to subtract
  * @v: pointer of type atomic_t
  *
- * Atomically test @v and decrement if it is greater than 0.
- * The function returns the old value of @v minus 1.
+ * Atomically test @v and subtract @i if @v is greater or equal than @i.
+ * The function returns the old value of @v minus @i.
  */
 static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 {
@@ -577,11 +578,12 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 }
 
 /*
- * atomic64_sub_if_positive - add integer to atomic variable
+ * atomic64_sub_if_positive - conditionally subtract integer from atomic variable
+ * @i: integer value to subtract
  * @v: pointer of type atomic64_t
  *
- * Atomically test @v and decrement if it is greater than 0.
- * The function returns the old value of @v minus 1.
+ * Atomically test @v and subtract @i if @v is greater or equal than @i.
+ * The function returns the old value of @v minus @i.
  */
 static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 {

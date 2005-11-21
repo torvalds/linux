@@ -312,7 +312,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	int ret, length, hdr_len, copy_offset;
 	int rmpp_active = 0;
 
-	if (count < sizeof (struct ib_user_mad))
+	if (count < sizeof (struct ib_user_mad) + IB_MGMT_RMPP_HDR)
 		return -EINVAL;
 
 	length = count - sizeof (struct ib_user_mad);

@@ -1046,6 +1046,30 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 	return modes;
 }
 
+static int ata_qc_wait_err(struct ata_queued_cmd *qc,
+			   struct completion *wait)
+{
+	int rc = 0;
+
+	if (wait_for_completion_timeout(wait, 30 * HZ) < 1) {
+		/* timeout handling */
+		unsigned int err_mask = ac_err_mask(ata_chk_status(qc->ap));
+
+		if (!err_mask) {
+			printk(KERN_WARNING "ata%u: slow completion (cmd %x)\n",
+			       qc->ap->id, qc->tf.command);
+		} else {
+			printk(KERN_WARNING "ata%u: qc timeout (cmd %x)\n",
+			       qc->ap->id, qc->tf.command);
+			rc = -EIO;
+		}
+
+		ata_qc_complete(qc, err_mask);
+	}
+
+	return rc;
+}
+
 /**
  *	ata_dev_identify - obtain IDENTIFY x DEVICE page
  *	@ap: port on which device we wish to probe resides
@@ -1125,7 +1149,7 @@ retry:
 	if (rc)
 		goto err_out;
 	else
-		wait_for_completion(&wait);
+		ata_qc_wait_err(qc, &wait);
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	ap->ops->tf_read(ap, &qc->tf);
@@ -1570,10 +1594,12 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 
 	/*
 	 * Find the mode. 
-	*/
+	 */
 
 	if (!(s = ata_timing_find_mode(speed)))
 		return -EINVAL;
+
+	memcpy(t, s, sizeof(*s));
 
 	/*
 	 * If the drive is an EIDE drive, it can tell us it needs extended
@@ -1595,7 +1621,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	 * Convert the timing to bus clock counts.
 	 */
 
-	ata_timing_quantize(s, t, T, UT);
+	ata_timing_quantize(t, t, T, UT);
 
 	/*
 	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY, S.M.A.R.T
@@ -2267,7 +2293,7 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 	if (rc)
 		ata_port_disable(ap);
 	else
-		wait_for_completion(&wait);
+		ata_qc_wait_err(qc, &wait);
 
 	DPRINTK("EXIT\n");
 }
@@ -2315,7 +2341,7 @@ static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
 	if (rc)
 		goto err_out;
 
-	wait_for_completion(&wait);
+	ata_qc_wait_err(qc, &wait);
 
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
@@ -2371,7 +2397,7 @@ static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 	if (rc)
 		ata_port_disable(ap);
 	else
-		wait_for_completion(&wait);
+		ata_qc_wait_err(qc, &wait);
 
 	DPRINTK("EXIT\n");
 }

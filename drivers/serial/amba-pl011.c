@@ -49,7 +49,6 @@
 #include <linux/serial.h>
 
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/sizes.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/clock.h>
@@ -63,7 +62,8 @@
 
 #define AMBA_ISR_PASS_LIMIT	256
 
-#define UART_DUMMY_RSR_RX	256
+#define UART_DR_ERROR		(UART011_DR_OE|UART011_DR_BE|UART011_DR_PE|UART011_DR_FE)
+#define UART_DUMMY_DR_RX	(1 << 16)
 
 /*
  * We wrap our port structure around the generic uart_port.
@@ -116,7 +116,7 @@ pl011_rx_chars(struct uart_amba_port *uap)
 #endif
 {
 	struct tty_struct *tty = uap->port.info->tty;
-	unsigned int status, ch, flag, rsr, max_count = 256;
+	unsigned int status, ch, flag, max_count = 256;
 
 	status = readw(uap->port.membase + UART01x_FR);
 	while ((status & UART01x_FR_RXFE) == 0 && max_count--) {
@@ -129,7 +129,7 @@ pl011_rx_chars(struct uart_amba_port *uap)
 			 */
 		}
 
-		ch = readw(uap->port.membase + UART01x_DR);
+		ch = readw(uap->port.membase + UART01x_DR) | UART_DUMMY_DR_RX;
 		flag = TTY_NORMAL;
 		uap->port.icount.rx++;
 
@@ -137,34 +137,33 @@ pl011_rx_chars(struct uart_amba_port *uap)
 		 * Note that the error handling code is
 		 * out of the main execution path
 		 */
-		rsr = readw(uap->port.membase + UART01x_RSR) | UART_DUMMY_RSR_RX;
-		if (unlikely(rsr & UART01x_RSR_ANY)) {
-			if (rsr & UART01x_RSR_BE) {
-				rsr &= ~(UART01x_RSR_FE | UART01x_RSR_PE);
+		if (unlikely(ch & UART_DR_ERROR)) {
+			if (ch & UART011_DR_BE) {
+				ch &= ~(UART011_DR_FE | UART011_DR_PE);
 				uap->port.icount.brk++;
 				if (uart_handle_break(&uap->port))
 					goto ignore_char;
-			} else if (rsr & UART01x_RSR_PE)
+			} else if (ch & UART011_DR_PE)
 				uap->port.icount.parity++;
-			else if (rsr & UART01x_RSR_FE)
+			else if (ch & UART011_DR_FE)
 				uap->port.icount.frame++;
-			if (rsr & UART01x_RSR_OE)
+			if (ch & UART011_DR_OE)
 				uap->port.icount.overrun++;
 
-			rsr &= uap->port.read_status_mask;
+			ch &= uap->port.read_status_mask;
 
-			if (rsr & UART01x_RSR_BE)
+			if (ch & UART011_DR_BE)
 				flag = TTY_BREAK;
-			else if (rsr & UART01x_RSR_PE)
+			else if (ch & UART011_DR_PE)
 				flag = TTY_PARITY;
-			else if (rsr & UART01x_RSR_FE)
+			else if (ch & UART011_DR_FE)
 				flag = TTY_FRAME;
 		}
 
 		if (uart_handle_sysrq_char(&uap->port, ch, regs))
 			goto ignore_char;
 
-		uart_insert_char(&uap->port, rsr, UART01x_RSR_OE, ch, flag);
+		uart_insert_char(&uap->port, ch, UART011_DR_OE, ch, flag);
 
 	ignore_char:
 		status = readw(uap->port.membase + UART01x_FR);
@@ -476,33 +475,33 @@ pl011_set_termios(struct uart_port *port, struct termios *termios,
 	 */
 	uart_update_timeout(port, termios->c_cflag, baud);
 
-	port->read_status_mask = UART01x_RSR_OE;
+	port->read_status_mask = UART011_DR_OE | 255;
 	if (termios->c_iflag & INPCK)
-		port->read_status_mask |= UART01x_RSR_FE | UART01x_RSR_PE;
+		port->read_status_mask |= UART011_DR_FE | UART011_DR_PE;
 	if (termios->c_iflag & (BRKINT | PARMRK))
-		port->read_status_mask |= UART01x_RSR_BE;
+		port->read_status_mask |= UART011_DR_BE;
 
 	/*
 	 * Characters to ignore
 	 */
 	port->ignore_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= UART01x_RSR_FE | UART01x_RSR_PE;
+		port->ignore_status_mask |= UART011_DR_FE | UART011_DR_PE;
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= UART01x_RSR_BE;
+		port->ignore_status_mask |= UART011_DR_BE;
 		/*
 		 * If we're ignoring parity and break indicators,
 		 * ignore overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= UART01x_RSR_OE;
+			port->ignore_status_mask |= UART011_DR_OE;
 	}
 
 	/*
 	 * Ignore all characters if CREAD is not set.
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_DUMMY_RSR_RX;
+		port->ignore_status_mask |= UART_DUMMY_DR_RX;
 
 	if (UART_ENABLE_MS(port, termios->c_cflag))
 		pl011_enable_ms(port);

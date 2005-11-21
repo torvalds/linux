@@ -9,7 +9,7 @@
 #ifndef _ASM_ARCH_AUXREG_H
 #define _ASM_ARCH_AUXREG_H
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #define l7200aux_reg	*((volatile unsigned int *) (AUX_BASE))
 

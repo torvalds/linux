@@ -34,7 +34,7 @@
 
 #include <asm/io.h>
 #include <asm/hardware/clock.h>
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 #define OCPI_BASE		0xfffec320
 #define OCPI_FAULT		(OCPI_BASE + 0x00)

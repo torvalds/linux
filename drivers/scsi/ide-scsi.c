@@ -784,8 +784,8 @@ static ide_proc_entry_t idescsi_proc[] = {
 #endif
 
 static ide_driver_t idescsi_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-scsi",
 		.bus		= &ide_bus_type,
 		.probe		= ide_scsi_probe,

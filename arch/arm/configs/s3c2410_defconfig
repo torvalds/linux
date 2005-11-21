@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.13-git8
-# Thu Sep  8 19:24:02 2005
+# Linux kernel version: 2.6.15-rc1
+# Sun Nov 13 17:41:24 2005
 #
 CONFIG_ARM=y
 CONFIG_MMU=y
@@ -62,6 +62,23 @@ CONFIG_OBSOLETE_MODPARM=y
 CONFIG_KMOD=y
 
 #
+# Block layer
+#
+
+#
+# IO Schedulers
+#
+CONFIG_IOSCHED_NOOP=y
+CONFIG_IOSCHED_AS=y
+CONFIG_IOSCHED_DEADLINE=y
+CONFIG_IOSCHED_CFQ=y
+CONFIG_DEFAULT_AS=y
+# CONFIG_DEFAULT_DEADLINE is not set
+# CONFIG_DEFAULT_CFQ is not set
+# CONFIG_DEFAULT_NOOP is not set
+CONFIG_DEFAULT_IOSCHED="anticipatory"
+
+#
 # System Type
 #
 # CONFIG_ARCH_CLPS7500 is not set
@@ -83,6 +100,7 @@ CONFIG_ARCH_S3C2410=y
 # CONFIG_ARCH_LH7A40X is not set
 # CONFIG_ARCH_OMAP is not set
 # CONFIG_ARCH_VERSATILE is not set
+# CONFIG_ARCH_REALVIEW is not set
 # CONFIG_ARCH_IMX is not set
 # CONFIG_ARCH_H720X is not set
 # CONFIG_ARCH_AAEC2000 is not set
@@ -108,6 +126,7 @@ CONFIG_CPU_S3C2440=y
 # S3C2410 Boot
 #
 # CONFIG_S3C2410_BOOT_WATCHDOG is not set
+# CONFIG_S3C2410_BOOT_ERROR_RESET is not set
 
 #
 # S3C2410 Setup
@@ -142,6 +161,7 @@ CONFIG_CPU_TLB_V4WBI=y
 #
 # Bus support
 #
+CONFIG_ISA=y
 CONFIG_ISA_DMA_API=y
 
 #
@@ -152,7 +172,6 @@ CONFIG_ISA_DMA_API=y
 #
 # Kernel Features
 #
-# CONFIG_SMP is not set
 # CONFIG_PREEMPT is not set
 # CONFIG_NO_IDLE_HZ is not set
 # CONFIG_ARCH_DISCONTIGMEM_ENABLE is not set
@@ -163,6 +182,7 @@ CONFIG_FLATMEM_MANUAL=y
 CONFIG_FLATMEM=y
 CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
+CONFIG_SPLIT_PTLOCK_CPUS=4096
 CONFIG_ALIGNMENT_TRAP=y
 
 #
@@ -253,6 +273,10 @@ CONFIG_TCP_CONG_BIC=y
 # CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
+
+#
+# QoS and/or fair queueing
+#
 # CONFIG_NET_SCHED is not set
 # CONFIG_NET_CLS_ROUTE is not set
 
@@ -260,7 +284,6 @@ CONFIG_TCP_CONG_BIC=y
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
-# CONFIG_NETFILTER_NETLINK is not set
 # CONFIG_HAMRADIO is not set
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
@@ -300,6 +323,7 @@ CONFIG_MTD_BLOCK=y
 # CONFIG_FTL is not set
 # CONFIG_NFTL is not set
 # CONFIG_INFTL is not set
+# CONFIG_RFD_FTL is not set
 
 #
 # RAM/ROM/Flash chip drivers
@@ -335,7 +359,6 @@ CONFIG_MTD_ROM=y
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
 # CONFIG_MTD_PHYSMAP is not set
 # CONFIG_MTD_ARM_INTEGRATOR is not set
-# CONFIG_MTD_EDB7312 is not set
 # CONFIG_MTD_IMPA7 is not set
 CONFIG_MTD_BAST=y
 CONFIG_MTD_BAST_MAXSIZE=4
@@ -370,6 +393,11 @@ CONFIG_MTD_NAND_S3C2410=y
 # CONFIG_MTD_NAND_NANDSIM is not set
 
 #
+# OneNAND Flash Device Drivers
+#
+# CONFIG_MTD_ONENAND is not set
+
+#
 # Parallel port support
 #
 CONFIG_PARPORT=y
@@ -381,10 +409,12 @@ CONFIG_PARPORT_1284=y
 #
 # Plug and Play support
 #
+# CONFIG_PNP is not set
 
 #
 # Block devices
 #
+# CONFIG_BLK_DEV_XD is not set
 # CONFIG_PARIDE is not set
 # CONFIG_BLK_DEV_COW_COMMON is not set
 CONFIG_BLK_DEV_LOOP=y
@@ -395,14 +425,6 @@ CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=4096
 CONFIG_BLK_DEV_INITRD=y
 # CONFIG_CDROM_PKTCDVD is not set
-
-#
-# IO Schedulers
-#
-CONFIG_IOSCHED_NOOP=y
-CONFIG_IOSCHED_AS=y
-CONFIG_IOSCHED_DEADLINE=y
-CONFIG_IOSCHED_CFQ=y
 CONFIG_ATA_OVER_ETH=m
 
 #
@@ -428,6 +450,7 @@ CONFIG_BLK_DEV_IDEFLOPPY=m
 CONFIG_IDE_GENERIC=y
 # CONFIG_IDE_ARM is not set
 CONFIG_BLK_DEV_IDE_BAST=y
+# CONFIG_IDE_CHIPSETS is not set
 # CONFIG_BLK_DEV_IDEDMA is not set
 # CONFIG_IDEDMA_AUTO is not set
 # CONFIG_BLK_DEV_HD is not set
@@ -467,6 +490,11 @@ CONFIG_NETDEVICES=y
 # CONFIG_TUN is not set
 
 #
+# ARCnet devices
+#
+# CONFIG_ARCNET is not set
+
+#
 # PHY device support
 #
 # CONFIG_PHYLIB is not set
@@ -475,9 +503,19 @@ CONFIG_NETDEVICES=y
 # Ethernet (10 or 100Mbit)
 #
 CONFIG_NET_ETHERNET=y
-CONFIG_MII=m
+CONFIG_MII=y
+# CONFIG_NET_VENDOR_3COM is not set
+# CONFIG_LANCE is not set
+# CONFIG_NET_VENDOR_SMC is not set
 # CONFIG_SMC91X is not set
-CONFIG_DM9000=m
+CONFIG_DM9000=y
+# CONFIG_NET_VENDOR_RACAL is not set
+# CONFIG_AT1700 is not set
+# CONFIG_DEPCA is not set
+# CONFIG_HP100 is not set
+# CONFIG_NET_ISA is not set
+# CONFIG_NET_PCI is not set
+# CONFIG_NET_POCKET is not set
 
 #
 # Ethernet (1000 Mbit)
@@ -490,6 +528,7 @@ CONFIG_DM9000=m
 #
 # Token Ring devices
 #
+# CONFIG_TR is not set
 
 #
 # Wireless LAN (non-hamradio)
@@ -542,6 +581,9 @@ CONFIG_KEYBOARD_ATKBD=y
 CONFIG_INPUT_MOUSE=y
 CONFIG_MOUSE_PS2=y
 # CONFIG_MOUSE_SERIAL is not set
+# CONFIG_MOUSE_INPORT is not set
+# CONFIG_MOUSE_LOGIBM is not set
+# CONFIG_MOUSE_PC110PAD is not set
 # CONFIG_MOUSE_VSXXXAA is not set
 # CONFIG_INPUT_JOYSTICK is not set
 # CONFIG_INPUT_TOUCHSCREEN is not set
@@ -568,6 +610,7 @@ CONFIG_SERIAL_NONSTANDARD=y
 # CONFIG_ROCKETPORT is not set
 # CONFIG_CYCLADES is not set
 # CONFIG_DIGIEPCA is not set
+# CONFIG_ESPSERIAL is not set
 # CONFIG_MOXA_INTELLIO is not set
 # CONFIG_MOXA_SMARTIO is not set
 # CONFIG_ISI is not set
@@ -590,6 +633,10 @@ CONFIG_SERIAL_8250_MANY_PORTS=y
 CONFIG_SERIAL_8250_SHARE_IRQ=y
 # CONFIG_SERIAL_8250_DETECT_IRQ is not set
 # CONFIG_SERIAL_8250_RSA is not set
+# CONFIG_SERIAL_8250_FOURPORT is not set
+# CONFIG_SERIAL_8250_ACCENT is not set
+# CONFIG_SERIAL_8250_BOCA is not set
+# CONFIG_SERIAL_8250_HUB6 is not set
 
 #
 # Non-8250 serial port support
@@ -622,6 +669,13 @@ CONFIG_WATCHDOG=y
 #
 # CONFIG_SOFT_WATCHDOG is not set
 CONFIG_S3C2410_WATCHDOG=y
+
+#
+# ISA-based Watchdog Cards
+#
+# CONFIG_PCWATCHDOG is not set
+# CONFIG_MIXCOMWD is not set
+# CONFIG_WDT is not set
 # CONFIG_NVRAM is not set
 # CONFIG_RTC is not set
 CONFIG_S3C2410_RTC=y
@@ -636,6 +690,7 @@ CONFIG_S3C2410_RTC=y
 #
 # TPM devices
 #
+# CONFIG_TELCLOCK is not set
 
 #
 # I2C support
@@ -653,6 +708,7 @@ CONFIG_I2C_ALGOBIT=m
 #
 # I2C Hardware Bus support
 #
+# CONFIG_I2C_ELEKTOR is not set
 CONFIG_I2C_ISA=m
 # CONFIG_I2C_PARPORT is not set
 # CONFIG_I2C_PARPORT_LIGHT is not set
@@ -671,6 +727,7 @@ CONFIG_SENSORS_EEPROM=m
 # CONFIG_SENSORS_PCF8591 is not set
 # CONFIG_SENSORS_RTC8564 is not set
 # CONFIG_SENSORS_MAX6875 is not set
+# CONFIG_RTC_X1205_I2C is not set
 # CONFIG_I2C_DEBUG_CORE is not set
 # CONFIG_I2C_DEBUG_ALGO is not set
 # CONFIG_I2C_DEBUG_BUS is not set
@@ -737,22 +794,28 @@ CONFIG_SENSORS_LM85=m
 # Graphics support
 #
 CONFIG_FB=y
-# CONFIG_FB_CFB_FILLRECT is not set
-# CONFIG_FB_CFB_COPYAREA is not set
-# CONFIG_FB_CFB_IMAGEBLIT is not set
-# CONFIG_FB_SOFT_CURSOR is not set
+CONFIG_FB_CFB_FILLRECT=y
+CONFIG_FB_CFB_COPYAREA=y
+CONFIG_FB_CFB_IMAGEBLIT=y
 # CONFIG_FB_MACMODES is not set
 CONFIG_FB_MODE_HELPERS=y
 # CONFIG_FB_TILEBLITTING is not set
 # CONFIG_FB_S1D13XXX is not set
+CONFIG_FB_S3C2410=y
+# CONFIG_FB_S3C2410_DEBUG is not set
 # CONFIG_FB_VIRTUAL is not set
 
 #
 # Console display driver support
 #
 # CONFIG_VGA_CONSOLE is not set
+# CONFIG_MDA_CONSOLE is not set
 CONFIG_DUMMY_CONSOLE=y
-# CONFIG_FRAMEBUFFER_CONSOLE is not set
+CONFIG_FRAMEBUFFER_CONSOLE=y
+# CONFIG_FRAMEBUFFER_CONSOLE_ROTATION is not set
+# CONFIG_FONTS is not set
+CONFIG_FONT_8x8=y
+CONFIG_FONT_8x16=y
 
 #
 # Logo configuration
@@ -771,6 +834,10 @@ CONFIG_DUMMY_CONSOLE=y
 CONFIG_USB_ARCH_HAS_HCD=y
 CONFIG_USB_ARCH_HAS_OHCI=y
 # CONFIG_USB is not set
+
+#
+# NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
+#
 
 #
 # USB Gadget Support
@@ -798,10 +865,6 @@ CONFIG_FS_MBCACHE=y
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
 # CONFIG_FS_POSIX_ACL is not set
-
-#
-# XFS support
-#
 # CONFIG_XFS_FS is not set
 # CONFIG_MINIX_FS is not set
 CONFIG_ROMFS_FS=y
@@ -810,6 +873,7 @@ CONFIG_INOTIFY=y
 CONFIG_DNOTIFY=y
 # CONFIG_AUTOFS_FS is not set
 # CONFIG_AUTOFS4_FS is not set
+# CONFIG_FUSE_FS is not set
 
 #
 # CD-ROM/DVD Filesystems
@@ -854,6 +918,7 @@ CONFIG_JFFS_FS_VERBOSE=0
 CONFIG_JFFS2_FS=y
 CONFIG_JFFS2_FS_DEBUG=0
 CONFIG_JFFS2_FS_WRITEBUFFER=y
+# CONFIG_JFFS2_SUMMARY is not set
 # CONFIG_JFFS2_COMPRESSION_OPTIONS is not set
 CONFIG_JFFS2_ZLIB=y
 CONFIG_JFFS2_RTIME=y
@@ -884,6 +949,7 @@ CONFIG_SUNRPC=y
 # CONFIG_NCP_FS is not set
 # CONFIG_CODA_FS is not set
 # CONFIG_AFS_FS is not set
+# CONFIG_9P_FS is not set
 
 #
 # Partition Types
@@ -959,7 +1025,7 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 #
 # CONFIG_PRINTK_TIME is not set
 CONFIG_DEBUG_KERNEL=y
-# CONFIG_MAGIC_SYSRQ is not set
+CONFIG_MAGIC_SYSRQ=y
 CONFIG_LOG_BUF_SHIFT=16
 CONFIG_DETECT_SOFTLOCKUP=y
 # CONFIG_SCHEDSTATS is not set
@@ -970,7 +1036,9 @@ CONFIG_DETECT_SOFTLOCKUP=y
 CONFIG_DEBUG_BUGVERBOSE=y
 CONFIG_DEBUG_INFO=y
 # CONFIG_DEBUG_FS is not set
+# CONFIG_DEBUG_VM is not set
 CONFIG_FRAME_POINTER=y
+# CONFIG_RCU_TORTURE_TEST is not set
 CONFIG_DEBUG_USER=y
 # CONFIG_DEBUG_WAITQ is not set
 # CONFIG_DEBUG_ERRORS is not set
@@ -998,6 +1066,7 @@ CONFIG_DEBUG_S3C2410_UART=0
 # Library routines
 #
 # CONFIG_CRC_CCITT is not set
+# CONFIG_CRC16 is not set
 CONFIG_CRC32=y
 # CONFIG_LIBCRC32C is not set
 CONFIG_ZLIB_INFLATE=y

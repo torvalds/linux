@@ -387,7 +387,7 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 static void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 {
 	ASSERT_WRITE_LOCK(&nf_conntrack_lock);
-	NF_CT_ASSERT(!timer_pending(&exp_timeout));
+	NF_CT_ASSERT(!timer_pending(&exp->timeout));
 	list_del(&exp->list);
 	NF_CT_STAT_INC(expect_delete);
 	exp->master->expecting--;

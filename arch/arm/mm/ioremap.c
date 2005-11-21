@@ -130,8 +130,7 @@ remap_area_pages(unsigned long start, unsigned long phys_addr,
  * mapping.  See include/asm-arm/proc-armv/pgtable.h for more information.
  */
 void __iomem *
-__ioremap(unsigned long phys_addr, size_t size, unsigned long flags,
-	  unsigned long align)
+__ioremap(unsigned long phys_addr, size_t size, unsigned long flags)
 {
 	void * addr;
 	struct vm_struct * area;
