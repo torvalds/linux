@@ -1648,15 +1648,22 @@ static int __usb_suspend_device (struct usb_device *udev, int port1)
 int usb_suspend_device(struct usb_device *udev)
 {
 #ifdef	CONFIG_USB_SUSPEND
-	int	port1, status;
+	int	port1;
 
-	port1 = locktree(udev);
-	if (port1 < 0)
-		return port1;
+	if (udev->state == USB_STATE_NOTATTACHED)
+		return -ENODEV;
+	if (!udev->parent)
+		port1 = 0;
+	else {
+		for (port1 = udev->parent->maxchild; port1 > 0; --port1) {
+			if (udev->parent->children[port1-1] == udev)
+				break;
+		}
+		if (port1 == 0)
+			return -ENODEV;
+	}
 
-	status = __usb_suspend_device(udev, port1);
-	usb_unlock_device(udev);
-	return status;
+	return __usb_suspend_device(udev, port1);
 #else
 	/* NOTE:  udev->state unchanged, it's not lying ... */
 	udev->dev.power.power_state = PMSG_SUSPEND;
@@ -1688,6 +1695,7 @@ static int finish_device_resume(struct usb_device *udev)
 	usb_set_device_state(udev, udev->actconfig
 			? USB_STATE_CONFIGURED
 			: USB_STATE_ADDRESS);
+	udev->dev.power.power_state = PMSG_ON;
 
  	/* 10.5.4.5 says be sure devices in the tree are still there.
  	 * For now let's assume the device didn't go crazy on resume,
@@ -1723,8 +1731,14 @@ static int finish_device_resume(struct usb_device *udev)
 		 * may have a child resume event to deal with soon
 		 */
 		resume = udev->dev.bus->resume;
-		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++)
-			(void) resume(&udev->actconfig->interface[i]->dev);
+		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
+			struct device *dev =
+					&udev->actconfig->interface[i]->dev;
+
+			down(&dev->sem);
+			(void) resume(dev);
+			up(&dev->sem);
+		}
 		status = 0;
 
 	} else if (udev->devnum <= 0) {
@@ -1809,9 +1823,18 @@ int usb_resume_device(struct usb_device *udev)
 {
 	int	port1, status;
 
-	port1 = locktree(udev);
-	if (port1 < 0)
-		return port1;
+	if (udev->state == USB_STATE_NOTATTACHED)
+		return -ENODEV;
+	if (!udev->parent)
+		port1 = 0;
+	else {
+		for (port1 = udev->parent->maxchild; port1 > 0; --port1) {
+			if (udev->parent->children[port1-1] == udev)
+				break;
+		}
+		if (port1 == 0)
+			return -ENODEV;
+	}
 
 #ifdef	CONFIG_USB_SUSPEND
 	/* selective resume of one downstream hub-to-device port */
@@ -1830,11 +1853,12 @@ int usb_resume_device(struct usb_device *udev)
 		dev_dbg(&udev->dev, "can't resume, status %d\n",
 			status);
 
-	usb_unlock_device(udev);
-
 	/* rebind drivers that had no suspend() */
-	if (status == 0)
+	if (status == 0) {
+		usb_unlock_device(udev);
 		bus_rescan_devices(&usb_bus_type);
+		usb_lock_device(udev);
+	}
 	return status;
 }
 
