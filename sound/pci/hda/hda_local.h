@@ -87,7 +87,7 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid);
 /*
  * input MUX helper
  */
-#define HDA_MAX_NUM_INPUTS	8
+#define HDA_MAX_NUM_INPUTS	16
 struct hda_input_mux_item {
 	const char *label;
 	unsigned int index;
@@ -242,5 +242,17 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 #define PIN_OUT		0x40
 #define PIN_HP		0xc0
 #define PIN_HP_AMP	0x80
+
+/*
+ * get widget capabilities
+ */
+static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
+{
+	if (nid < codec->start_nid ||
+	    nid >= codec->start_nid + codec->num_nodes)
+		return snd_hda_param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
+	return codec->wcaps[nid - codec->start_nid];
+}
+
 
 #endif /* __SOUND_HDA_LOCAL_H */

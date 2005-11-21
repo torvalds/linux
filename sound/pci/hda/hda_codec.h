@@ -214,6 +214,12 @@ enum {
 #define AC_PWRST_D2SUP			(1<<2)
 #define AC_PWRST_D3SUP			(1<<3)
 
+/* Power state values */
+#define AC_PWRST_D0			0x00
+#define AC_PWRST_D1			0x01
+#define AC_PWRST_D2			0x02
+#define AC_PWRST_D3			0x03
+
 /* Processing capabilies */
 #define AC_PCAP_BENIGN			(1<<0)
 #define AC_PCAP_NUM_COEF		(0xff<<8)
@@ -376,7 +382,7 @@ enum {
 };
 
 /* max. connections to a widget */
-#define HDA_MAX_CONNECTIONS	16
+#define HDA_MAX_CONNECTIONS	32
 
 /* max. codec address */
 #define HDA_MAX_CODEC_ADDRESS	0x0f
@@ -541,6 +547,11 @@ struct hda_codec {
 
 	/* codec specific info */
 	void *spec;
+
+	/* widget capabilities cache */
+	unsigned int num_nodes;
+	hda_nid_t start_nid;
+	u32 *wcaps;
 
 	/* hash for amp access */
 	u16 amp_hash[32];

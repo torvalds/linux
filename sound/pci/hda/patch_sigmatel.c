@@ -624,7 +624,7 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec, struct auto_pin
 	if (! pin)
 		return 0;
 
-	wid_caps = snd_hda_param_read(codec, pin, AC_PAR_AUDIO_WIDGET_CAP);
+	wid_caps = get_wcaps(codec, pin);
 	if (wid_caps & AC_WCAP_UNSOL_CAP)
 		/* Enable unsolicited responses on the HP widget */
 		snd_hda_codec_write(codec, pin, 0,
@@ -786,32 +786,9 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 	return 1;
 }
 
-static int stac92xx_init_pstate(struct hda_codec *codec)
-{
-       hda_nid_t nid, nid_start;
-       int nodes;
-
-	snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_POWER_STATE, 0x00);
-
-       nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid_start);
-       for (nid = nid_start; nid < nodes + nid_start; nid++) {
-               unsigned int wid_caps = snd_hda_param_read(codec, nid,
-                                                  AC_PAR_AUDIO_WIDGET_CAP);
-		if (wid_caps & AC_WCAP_POWER)
-			snd_hda_codec_write(codec, nid, 0,
-                                    AC_VERB_SET_POWER_STATE, 0x00);
-	}
-
-	mdelay(100);
-
-	return 0;
-}
-
 static int stac92xx_init(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-
-	stac92xx_init_pstate(codec);
 
 	snd_hda_sequence_write(codec, spec->init);
 

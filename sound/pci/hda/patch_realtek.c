@@ -2091,8 +2091,7 @@ static int patch_alc880(struct hda_codec *codec)
 
 	if (! spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
-		unsigned int wcap = snd_hda_param_read(codec, alc880_adc_nids[0],
-						       AC_PAR_AUDIO_WIDGET_CAP);
+		unsigned int wcap = get_wcaps(codec, alc880_adc_nids[0]);
 		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT; /* get type */
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc880_adc_nids_alt;
