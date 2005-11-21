@@ -665,16 +665,50 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.type = QUIRK_COMPOSITE,
 		.data = (const struct snd_usb_audio_quirk[]) {
 			{
+				.ifnum = 0,
+				.type = QUIRK_IGNORE_INTERFACE
+			},
+			{
 				.ifnum = 1,
-				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = & (const struct audioformat) {
+					.format = SNDRV_PCM_FORMAT_S24_3LE,
+					.channels = 2,
+					.iface = 1,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = 0,
+					.endpoint = 0x01,
+					.ep_attr = 0x01,
+					.rates = SNDRV_PCM_RATE_CONTINUOUS,
+					.rate_min = 44100,
+					.rate_max = 44100,
+				}
 			},
 			{
 				.ifnum = 2,
-				.type = QUIRK_AUDIO_STANDARD_INTERFACE
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = & (const struct audioformat) {
+					.format = SNDRV_PCM_FORMAT_S24_3LE,
+					.channels = 2,
+					.iface = 2,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = 0,
+					.endpoint = 0x82,
+					.ep_attr = 0x01,
+					.rates = SNDRV_PCM_RATE_CONTINUOUS,
+					.rate_min = 44100,
+					.rate_max = 44100,
+				}
 			},
 			{
 				.ifnum = 3,
-				.type = QUIRK_MIDI_STANDARD_INTERFACE
+				.type = QUIRK_MIDI_FIXED_ENDPOINT,
+				.data = & (const struct snd_usb_midi_endpoint_info) {
+					.out_cables = 0x0001,
+					.in_cables  = 0x0001
+				}
 			},
 			{
 				.ifnum = -1
