@@ -3489,7 +3489,6 @@ static struct usb_device_id sisusb_table [] = {
 MODULE_DEVICE_TABLE (usb, sisusb_table);
 
 static struct usb_driver sisusb_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"sisusb",
 	.probe =	sisusb_probe,
 	.disconnect =	sisusb_disconnect,

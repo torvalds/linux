@@ -1776,7 +1776,6 @@ static const struct usb_device_id uea_ids[] = {
  * USB driver descriptor
  */
 static struct usb_driver uea_driver = {
-	.owner = THIS_MODULE,
 	.name = "ueagle-atm",
 	.id_table = uea_ids,
 	.probe = uea_probe,

@@ -522,7 +522,6 @@ static struct usb_device_id rio_table [] = {
 MODULE_DEVICE_TABLE (usb, rio_table);
 
 static struct usb_driver rio_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"rio500",
 	.probe =	probe_rio,
 	.disconnect =	disconnect_rio,

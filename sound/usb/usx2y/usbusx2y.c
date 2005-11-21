@@ -409,7 +409,6 @@ static void snd_usX2Y_disconnect(struct usb_interface *intf)
 
 MODULE_DEVICE_TABLE(usb, snd_usX2Y_usb_id_table);
 static struct usb_driver snd_usX2Y_usb_driver = {
- 	.owner =	THIS_MODULE,
 	.name =		"snd-usb-usx2y",
 	.probe =	snd_usX2Y_probe,
 	.disconnect =	snd_usX2Y_disconnect,

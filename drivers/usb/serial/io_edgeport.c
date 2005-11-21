@@ -242,7 +242,6 @@ static void edge_shutdown		(struct usb_serial *serial);
 #include "io_tables.h"	/* all of the devices that this driver supports */
 
 static struct usb_driver io_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"io_edgeport",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,

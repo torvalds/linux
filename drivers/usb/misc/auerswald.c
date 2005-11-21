@@ -2103,7 +2103,6 @@ MODULE_DEVICE_TABLE (usb, auerswald_ids);
 
 /* Standard usb driver struct */
 static struct usb_driver auerswald_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"auerswald",
 	.probe =	auerswald_probe,
 	.disconnect =	auerswald_disconnect,

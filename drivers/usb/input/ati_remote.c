@@ -295,7 +295,6 @@ static void ati_remote_disconnect	(struct usb_interface *interface);
 
 /* usb specific object to register with the usb subsystem */
 static struct usb_driver ati_remote_driver = {
-	.owner        = THIS_MODULE,
 	.name         = "ati_remote",
 	.probe        = ati_remote_probe,
 	.disconnect   = ati_remote_disconnect,

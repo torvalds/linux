@@ -536,8 +536,6 @@ struct usb_dynids {
 
 /**
  * struct usb_driver - identifies USB driver to usbcore
- * @owner: Pointer to the module owner of this driver; initialize
- *	it using THIS_MODULE.
  * @name: The driver name should be unique among USB drivers,
  *	and should normally be the same as the module name.
  * @probe: Called to see if the driver is willing to manage a particular
@@ -580,8 +578,6 @@ struct usb_dynids {
  * them as necessary, and blocking until the unlinks complete).
  */
 struct usb_driver {
-	struct module *owner;
-
 	const char *name;
 
 	int (*probe) (struct usb_interface *intf,

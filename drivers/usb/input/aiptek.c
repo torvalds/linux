@@ -2190,7 +2190,6 @@ fail1:	input_free_device(inputdev);
 static void aiptek_disconnect(struct usb_interface *intf);
 
 static struct usb_driver aiptek_driver = {
-	.owner = THIS_MODULE,
 	.name = "aiptek",
 	.probe = aiptek_probe,
 	.disconnect = aiptek_disconnect,

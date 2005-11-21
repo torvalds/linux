@@ -493,7 +493,6 @@ static struct usb_device_id id_table_4 [] = {
 MODULE_DEVICE_TABLE (usb, id_table_combined);
 
 static struct usb_driver digi_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"digi_acceleport",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,

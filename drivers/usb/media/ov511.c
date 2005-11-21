@@ -6008,7 +6008,6 @@ ov51x_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver ov511_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"ov511",
 	.id_table =	device_table,
 	.probe =	ov51x_probe,

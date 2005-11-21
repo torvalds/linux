@@ -3668,7 +3668,6 @@ static void w9968cf_usb_disconnect(struct usb_interface* intf)
 
 
 static struct usb_driver w9968cf_usb_driver = {
-	.owner =      THIS_MODULE,
 	.name =       "w9968cf",
 	.id_table =   winbond_id_table,
 	.probe =      w9968cf_usb_probe,

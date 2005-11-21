@@ -559,7 +559,6 @@ static void keyspan_disconnect(struct usb_interface *interface)
  */
 static struct usb_driver keyspan_driver =
 {
-	.owner =	THIS_MODULE,
 	.name =		"keyspan_remote",
 	.probe =	keyspan_probe,
 	.disconnect =	keyspan_disconnect,

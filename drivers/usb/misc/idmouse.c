@@ -114,7 +114,6 @@ static struct usb_class_driver idmouse_class = {
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver idmouse_driver = {
-	.owner = THIS_MODULE,
 	.name = DRIVER_SHORT,
 	.probe = idmouse_probe,
 	.disconnect = idmouse_disconnect,

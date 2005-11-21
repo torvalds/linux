@@ -222,7 +222,6 @@ static struct usb_device_id id_table [] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver garmin_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"garmin_gps",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,

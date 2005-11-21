@@ -267,7 +267,6 @@ static void touchkit_disconnect(struct usb_interface *intf)
 MODULE_DEVICE_TABLE(usb, touchkit_devices);
 
 static struct usb_driver touchkit_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "touchkitusb",
 	.probe		= touchkit_probe,
 	.disconnect	= touchkit_disconnect,

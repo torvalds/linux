@@ -1923,7 +1923,6 @@ static int zd1201_resume(struct usb_interface *interface)
 #endif
 
 static struct usb_driver zd1201_usb = {
-	.owner = THIS_MODULE,
 	.name = "zd1201",
 	.probe = zd1201_probe,
 	.disconnect = zd1201_disconnect,

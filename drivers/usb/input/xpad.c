@@ -316,7 +316,6 @@ static void xpad_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver xpad_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "xpad",
 	.probe		= xpad_probe,
 	.disconnect	= xpad_disconnect,

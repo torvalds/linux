@@ -42,7 +42,6 @@
 
 /* Driver structure we register with the USB core */
 static struct usb_driver usb_serial_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbserial",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,

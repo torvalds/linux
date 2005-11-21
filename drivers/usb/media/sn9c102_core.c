@@ -2711,7 +2711,6 @@ static void sn9c102_usb_disconnect(struct usb_interface* intf)
 
 
 static struct usb_driver sn9c102_usb_driver = {
-	.owner =      THIS_MODULE,
 	.name =       "sn9c102",
 	.id_table =   sn9c102_id_table,
 	.probe =      sn9c102_usb_probe,

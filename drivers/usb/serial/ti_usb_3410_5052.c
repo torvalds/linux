@@ -248,7 +248,6 @@ static struct usb_device_id ti_id_table_combined[] = {
 };
 
 static struct usb_driver ti_usb_driver = {
-	.owner			= THIS_MODULE,
 	.name			= "ti_usb_3410_5052",
 	.probe			= usb_serial_probe,
 	.disconnect		= usb_serial_disconnect,

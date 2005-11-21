@@ -27,7 +27,6 @@ static int buffer_size;
 static int debug;
 
 static struct usb_driver anydata_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"anydata",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,

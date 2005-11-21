@@ -1000,7 +1000,6 @@ static void storage_disconnect(struct usb_interface *intf)
  ***********************************************************************/
 
 static struct usb_driver usb_storage_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usb-storage",
 	.probe =	storage_probe,
 	.disconnect =	storage_disconnect,
