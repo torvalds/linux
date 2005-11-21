@@ -70,7 +70,7 @@ static void do_print_item(WINDOW * win, const char *item, int choice,
 	int j;
 	char *menu_item = malloc(menu_width + 1);
 
-	strncpy(menu_item, item, menu_width);
+	strncpy(menu_item, item, menu_width - ITEM_IDENT);
 	menu_item[menu_width] = 0;
 	j = first_alpha(menu_item, "YyNnMmHh");
 
@@ -184,8 +184,8 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
                 const char *const *items)
 {
 	int i, j, x, y, box_x, box_y;
-	int key = 0, button = 0, scroll = 0, choice = 0, first_item =
-	    0, max_choice;
+	int key = 0, button = 0, scroll = 0, choice = 0;
+	int first_item =  0, max_choice;
 	WINDOW *dialog, *menu;
 	FILE *f;
 
