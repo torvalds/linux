@@ -45,7 +45,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.50.4"
+#define VERSION "version 1.50.5"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -464,7 +464,7 @@ static int check_supported_cpu(unsigned int cpu)
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 
 	if (smp_processor_id() != cpu) {
-		printk(KERN_ERR "limiting to cpu %u failed\n", cpu);
+		printk(KERN_ERR PFX "limiting to cpu %u failed\n", cpu);
 		goto out;
 	}
 
@@ -517,22 +517,28 @@ static int check_pst_table(struct powernow_k8_data *data, struct pst_s *pst, u8 
 			printk(KERN_ERR BFX "maxvid exceeded with pstate %d\n", j);
 			return -ENODEV;
 		}
-		if ((pst[j].fid > MAX_FID)
-		    || (pst[j].fid & 1)
-		    || (j && (pst[j].fid < HI_FID_TABLE_BOTTOM))) {
+		if (pst[j].fid > MAX_FID) {
+			printk(KERN_ERR BFX "maxfid exceeded with pstate %d\n", j);
+			return -ENODEV;
+		}
+		if (pst[j].fid & 1) {
+			printk(KERN_ERR BFX "fid invalid - %d : 0x%x\n", j, pst[j].fid);
+			return -EINVAL;
+		}
+		if (j && (pst[j].fid < HI_FID_TABLE_BOTTOM)) {
 			/* Only first fid is allowed to be in "low" range */
-			printk(KERN_ERR PFX "two low fids - %d : 0x%x\n", j, pst[j].fid);
+			printk(KERN_ERR BFX "two low fids - %d : 0x%x\n", j, pst[j].fid);
 			return -EINVAL;
 		}
 		if (pst[j].fid < lastfid)
 			lastfid = pst[j].fid;
 	}
 	if (lastfid & 1) {
-		printk(KERN_ERR PFX "lastfid invalid\n");
+		printk(KERN_ERR BFX "lastfid invalid\n");
 		return -EINVAL;
 	}
 	if (lastfid > LO_FID_TABLE_TOP)
-		printk(KERN_INFO PFX  "first fid not from lo freq table\n");
+		printk(KERN_INFO BFX  "first fid not from lo freq table\n");
 
 	return 0;
 }
@@ -912,7 +918,7 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
 
 	if (smp_processor_id() != pol->cpu) {
-		printk(KERN_ERR "limiting to cpu %u failed\n", pol->cpu);
+		printk(KERN_ERR PFX "limiting to cpu %u failed\n", pol->cpu);
 		goto err_out;
 	}
 
@@ -982,6 +988,9 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 	cpumask_t oldmask = CPU_MASK_ALL;
 	int rc, i;
 
+	if (!cpu_online(pol->cpu))
+		return -ENODEV;
+
 	if (!check_supported_cpu(pol->cpu))
 		return -ENODEV;
 
@@ -1021,7 +1030,7 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
 
 	if (smp_processor_id() != pol->cpu) {
-		printk(KERN_ERR "limiting to cpu %u failed\n", pol->cpu);
+		printk(KERN_ERR PFX "limiting to cpu %u failed\n", pol->cpu);
 		goto err_out;
 	}
 
@@ -1162,7 +1171,7 @@ static void __exit powernowk8_exit(void)
 	cpufreq_unregister_driver(&cpufreq_amd64_driver);
 }
 
-MODULE_AUTHOR("Paul Devriendt <paul.devriendt@amd.com> and Mark Langsdorf <mark.langsdorf@amd.com.");
+MODULE_AUTHOR("Paul Devriendt <paul.devriendt@amd.com> and Mark Langsdorf <mark.langsdorf@amd.com>");
 MODULE_DESCRIPTION("AMD Athlon 64 and Opteron processor frequency driver.");
 MODULE_LICENSE("GPL");
 
