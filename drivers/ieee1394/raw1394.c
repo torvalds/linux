@@ -2166,7 +2166,7 @@ static int modify_config_rom(struct file_info *fi, struct pending_request *req)
 		}
 	}
 	kfree(cache->filled_head);
-	kfree(cache);
+	CSR1212_FREE(cache);
 
 	if (ret >= 0) {
 		/* we have to free the request, because we queue no response,
