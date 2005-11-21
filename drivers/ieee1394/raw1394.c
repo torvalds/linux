@@ -2131,7 +2131,6 @@ static int modify_config_rom(struct file_info *fi, struct pending_request *req)
 			   req->req.length)) {
 		csr1212_release_keyval(fi->csr1212_dirs[dr]);
 		fi->csr1212_dirs[dr] = NULL;
-		CSR1212_FREE(cache);
 		ret = -EFAULT;
 	} else {
 		cache->len = req->req.length;
