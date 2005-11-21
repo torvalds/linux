@@ -225,20 +225,16 @@ struct ipv6_txoptions *fl6_merge_options(struct ipv6_txoptions * opt_space,
 					 struct ip6_flowlabel * fl,
 					 struct ipv6_txoptions * fopt)
 {
-	struct ipv6_txoptions * fl_opt = fl ? fl->opt : NULL;
-
-	if (fopt == NULL || fopt->opt_flen == 0) {
-		if (!fl_opt || !fl_opt->dst0opt || fl_opt->srcrt)
-			return fl_opt;
-	}
-
+	struct ipv6_txoptions * fl_opt = fl->opt;
+	
+	if (fopt == NULL || fopt->opt_flen == 0)
+		return fl_opt;
+	
 	if (fl_opt != NULL) {
 		opt_space->hopopt = fl_opt->hopopt;
-		opt_space->dst0opt = fl_opt->srcrt ? fl_opt->dst0opt : NULL;
+		opt_space->dst0opt = fl_opt->dst0opt;
 		opt_space->srcrt = fl_opt->srcrt;
 		opt_space->opt_nflen = fl_opt->opt_nflen;
-		if (fl_opt->dst0opt && !fl_opt->srcrt)
-			opt_space->opt_nflen -= ipv6_optlen(fl_opt->dst0opt);
 	} else {
 		if (fopt->opt_nflen == 0)
 			return fopt;
