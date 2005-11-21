@@ -32,7 +32,8 @@
 struct hda_gnode {
 	hda_nid_t nid;		/* NID of this widget */
 	unsigned short nconns;	/* number of input connections */
-	hda_nid_t conn_list[HDA_MAX_CONNECTIONS]; /* input connections */
+	hda_nid_t *conn_list;
+	hda_nid_t slist[2];	/* temporay list */
 	unsigned int wid_caps;	/* widget capabilities */
 	unsigned char type;	/* widget type */
 	unsigned char pin_ctl;	/* pin controls */
@@ -84,6 +85,8 @@ static void snd_hda_generic_free(struct hda_codec *codec)
 	/* free all widgets */
 	list_for_each_safe(p, n, &spec->nid_list) {
 		struct hda_gnode *node = list_entry(p, struct hda_gnode, list);
+		if (node->conn_list != node->slist)
+			kfree(node->conn_list);
 		kfree(node);
 	}
 	kfree(spec);
@@ -97,18 +100,32 @@ static int add_new_node(struct hda_codec *codec, struct hda_gspec *spec, hda_nid
 {
 	struct hda_gnode *node;
 	int nconns;
+	hda_nid_t conn_list[HDA_MAX_CONNECTIONS];
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (node == NULL)
 		return -ENOMEM;
 	node->nid = nid;
-	nconns = snd_hda_get_connections(codec, nid, node->conn_list, HDA_MAX_CONNECTIONS);
+	nconns = snd_hda_get_connections(codec, nid, conn_list,
+					 HDA_MAX_CONNECTIONS);
 	if (nconns < 0) {
 		kfree(node);
 		return nconns;
 	}
+	if (nconns <= ARRAY_SIZE(node->slist))
+		node->conn_list = node->slist;
+	else {
+		node->conn_list = kmalloc(sizeof(hda_nid_t) * nconns,
+					  GFP_KERNEL);
+		if (! node->conn_list) {
+			snd_printk(KERN_ERR "hda-generic: cannot malloc\n");
+			kfree(node);
+			return -ENOMEM;
+		}
+	}
+	memcpy(node->conn_list, conn_list, nconns);
 	node->nconns = nconns;
-	node->wid_caps = snd_hda_param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
+	node->wid_caps = get_wcaps(codec, nid);
 	node->type = (node->wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 
 	if (node->type == AC_WID_PIN) {
