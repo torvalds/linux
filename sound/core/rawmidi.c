@@ -635,6 +635,7 @@ int snd_rawmidi_output_params(struct snd_rawmidi_substream *substream,
 		kfree(runtime->buffer);
 		runtime->buffer = newbuf;
 		runtime->buffer_size = params->buffer_size;
+		runtime->avail = runtime->buffer_size;
 	}
 	runtime->avail_min = params->avail_min;
 	substream->active_sensing = !params->no_active_sensing;
