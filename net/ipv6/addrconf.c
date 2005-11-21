@@ -2627,7 +2627,7 @@ static void addrconf_verify(unsigned long foo)
 	for (i=0; i < IN6_ADDR_HSIZE; i++) {
 
 restart:
-		write_lock(&addrconf_hash_lock);
+		read_lock(&addrconf_hash_lock);
 		for (ifp=inet6_addr_lst[i]; ifp; ifp=ifp->lst_next) {
 			unsigned long age;
 #ifdef CONFIG_IPV6_PRIVACY
@@ -2649,7 +2649,7 @@ restart:
 			if (age >= ifp->valid_lft) {
 				spin_unlock(&ifp->lock);
 				in6_ifa_hold(ifp);
-				write_unlock(&addrconf_hash_lock);
+				read_unlock(&addrconf_hash_lock);
 				ipv6_del_addr(ifp);
 				goto restart;
 			} else if (age >= ifp->prefered_lft) {
@@ -2668,7 +2668,7 @@ restart:
 
 				if (deprecate) {
 					in6_ifa_hold(ifp);
-					write_unlock(&addrconf_hash_lock);
+					read_unlock(&addrconf_hash_lock);
 
 					ipv6_ifa_notify(0, ifp);
 					in6_ifa_put(ifp);
@@ -2686,7 +2686,7 @@ restart:
 						in6_ifa_hold(ifp);
 						in6_ifa_hold(ifpub);
 						spin_unlock(&ifp->lock);
-						write_unlock(&addrconf_hash_lock);
+						read_unlock(&addrconf_hash_lock);
 						ipv6_create_tempaddr(ifpub, ifp);
 						in6_ifa_put(ifpub);
 						in6_ifa_put(ifp);
@@ -2703,7 +2703,7 @@ restart:
 				spin_unlock(&ifp->lock);
 			}
 		}
-		write_unlock(&addrconf_hash_lock);
+		read_unlock(&addrconf_hash_lock);
 	}
 
 	addr_chk_timer.expires = time_before(next, jiffies + HZ) ? jiffies + HZ : next;
