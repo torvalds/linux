@@ -260,7 +260,7 @@ static void __init clps7500_init_irq(void)
 
 static struct map_desc cl7500_io_desc[] __initdata = {
 	{ 	/* IO space	*/
-		.virtual	= IO_BASE,
+		.virtual	= (unsigned long)IO_BASE,
 		.pfn		= __phys_to_pfn(IO_START),
 		.length		= IO_SIZE,
 		.type		= MT_DEVICE
