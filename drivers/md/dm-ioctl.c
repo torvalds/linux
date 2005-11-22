@@ -974,6 +974,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	if (!hc) {
 		DMWARN("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
+		dm_table_put(t);
 		return -ENXIO;
 	}
 
