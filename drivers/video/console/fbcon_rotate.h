@@ -49,7 +49,7 @@ static inline void pattern_set_bit(u32 x, u32 y, u32 pitch, char *pat)
 static inline void rotate_ud(const char *in, char *out, u32 width, u32 height)
 {
 	int i, j;
-	int shift = width % 8;
+	int shift = (8 - (width % 8)) & 7;
 
 	width = (width + 7) & ~7;
 
@@ -85,7 +85,7 @@ static inline void rotate_cw(const char *in, char *out, u32 width, u32 height)
 static inline void rotate_ccw(const char *in, char *out, u32 width, u32 height)
 {
 	int i, j, h = height, w = width;
-	int shift = width % 8;
+	int shift = (8 - (width % 8)) & 7;
 
 	width = (width + 7) & ~7;
 	height = (height + 7) & ~7;
