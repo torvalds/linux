@@ -1812,7 +1812,16 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	spinlock_t *ptl;
 	pte_t entry;
 
-	if (write_access) {
+	/*
+	 * A VM_UNPAGED vma will normally be filled with present ptes
+	 * by remap_pfn_range, and never arrive here; but it might have
+	 * holes, or if !VM_DONTEXPAND, mremap might have expanded it.
+	 * It's weird enough handling anon pages in unpaged vmas, we do
+	 * not want to worry about ZERO_PAGEs too (it may or may not
+	 * matter if their counts wrap): just give them anon pages.
+	 */
+
+	if (write_access || (vma->vm_flags & VM_UNPAGED)) {
 		/* Allocate our own private page. */
 		pte_unmap(page_table);
 
@@ -1887,6 +1896,7 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	int anon = 0;
 
 	pte_unmap(page_table);
+	BUG_ON(vma->vm_flags & VM_UNPAGED);
 
 	if (vma->vm_file) {
 		mapping = vma->vm_file->f_mapping;
@@ -1962,7 +1972,7 @@ retry:
 			inc_mm_counter(mm, anon_rss);
 			lru_cache_add_active(new_page);
 			page_add_anon_rmap(new_page, vma, address);
-		} else if (!(vma->vm_flags & VM_UNPAGED)) {
+		} else {
 			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(new_page);
 		}
