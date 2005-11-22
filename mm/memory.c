@@ -350,6 +350,22 @@ void print_bad_pte(struct vm_area_struct *vma, pte_t pte, unsigned long vaddr)
 }
 
 /*
+ * page_is_anon applies strict checks for an anonymous page belonging to
+ * this vma at this address.  It is used on VM_UNPAGED vmas, which are
+ * usually populated with shared originals (which must not be counted),
+ * but occasionally contain private COWed copies (when !VM_SHARED, or
+ * perhaps via ptrace when VM_SHARED).  An mmap of /dev/mem might window
+ * free pages, pages from other processes, or from other parts of this:
+ * it's tricky, but try not to be deceived by foreign anonymous pages.
+ */
+static inline int page_is_anon(struct page *page,
+			struct vm_area_struct *vma, unsigned long addr)
+{
+	return page && PageAnon(page) && page_mapped(page) &&
+		page_address_in_vma(page, vma) == addr;
+}
+
+/*
  * copy one vm_area from one task to the other. Assumes the page tables
  * already present in the new task to be cleared in the whole range
  * covered by this vma.
@@ -381,22 +397,21 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		goto out_set_pte;
 	}
 
-	/* If the region is VM_UNPAGED, the mapping is not
-	 * mapped via rmap - duplicate the pte as is.
-	 */
-	if (vm_flags & VM_UNPAGED)
-		goto out_set_pte;
-
 	pfn = pte_pfn(pte);
-	/* If the pte points outside of valid memory but
+	page = pfn_valid(pfn)? pfn_to_page(pfn): NULL;
+
+	if (unlikely(vm_flags & VM_UNPAGED))
+		if (!page_is_anon(page, vma, addr))
+			goto out_set_pte;
+
+	/*
+	 * If the pte points outside of valid memory but
 	 * the region is not VM_UNPAGED, we have a problem.
 	 */
-	if (unlikely(!pfn_valid(pfn))) {
+	if (unlikely(!page)) {
 		print_bad_pte(vma, pte, addr);
 		goto out_set_pte; /* try to do something sane */
 	}
-
-	page = pfn_to_page(pfn);
 
 	/*
 	 * If it's a COW mapping, write protect it both
@@ -568,17 +583,20 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 			continue;
 		}
 		if (pte_present(ptent)) {
-			struct page *page = NULL;
+			struct page *page;
+			unsigned long pfn;
 
 			(*zap_work) -= PAGE_SIZE;
 
-			if (!(vma->vm_flags & VM_UNPAGED)) {
-				unsigned long pfn = pte_pfn(ptent);
-				if (unlikely(!pfn_valid(pfn)))
-					print_bad_pte(vma, ptent, addr);
-				else
-					page = pfn_to_page(pfn);
-			}
+			pfn = pte_pfn(ptent);
+			page = pfn_valid(pfn)? pfn_to_page(pfn): NULL;
+
+			if (unlikely(vma->vm_flags & VM_UNPAGED)) {
+				if (!page_is_anon(page, vma, addr))
+					page = NULL;
+			} else if (unlikely(!page))
+				print_bad_pte(vma, ptent, addr);
+
 			if (unlikely(details) && page) {
 				/*
 				 * unmap_shared_mapping_pages() wants to
@@ -1295,10 +1313,11 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	old_page = pfn_to_page(pfn);
 	src_page = old_page;
 
-	if (unlikely(vma->vm_flags & VM_UNPAGED)) {
-		old_page = NULL;
-		goto gotten;
-	}
+	if (unlikely(vma->vm_flags & VM_UNPAGED))
+		if (!page_is_anon(old_page, vma, address)) {
+			old_page = NULL;
+			goto gotten;
+		}
 
 	if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
 		int reuse = can_share_swap_page(old_page);
