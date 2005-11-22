@@ -296,7 +296,7 @@ static int __init jazz_sonic_init_module(void)
 	}
 
 	jazz_sonic_device = platform_device_alloc(jazz_sonic_string, 0);
-	if (!jazz_sonnic_device)
+	if (!jazz_sonic_device)
 		goto out_unregister;
 
 	if (platform_device_add(jazz_sonic_device)) {
