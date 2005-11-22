@@ -307,7 +307,7 @@ static int __init jazz_sonic_init_module(void)
 	return 0;
 
 out_unregister:
-	driver_unregister(&jazz_sonic_driver);
+	platform_driver_unregister(&jazz_sonic_driver);
 
 	return -ENOMEM;
 }
