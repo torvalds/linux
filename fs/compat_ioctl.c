@@ -137,7 +137,7 @@
 #define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
 #define EXT2_IOC32_SETFLAGS               _IOW('f', 2, int)
 #define EXT3_IOC32_GETVERSION             _IOR('f', 3, int)
-#define EXT3_IOC32_SETVERSION             _IOR('f', 4, int)
+#define EXT3_IOC32_SETVERSION             _IOW('f', 4, int)
 #define EXT3_IOC32_GETRSVSZ               _IOR('f', 5, int)
 #define EXT3_IOC32_SETRSVSZ               _IOW('f', 6, int)
 #define EXT3_IOC32_GROUP_EXTEND           _IOW('f', 7, unsigned int)
@@ -686,7 +686,8 @@ static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)
 
 	ifr = ifc.ifc_req;
 	ifr32 = compat_ptr(ifc32.ifcbuf);
-	for (i = 0, j = 0; i < ifc32.ifc_len && j < ifc.ifc_len;
+	for (i = 0, j = 0;
+             i + sizeof (struct ifreq32) < ifc32.ifc_len && j < ifc.ifc_len;
 	     i += sizeof (struct ifreq32), j += sizeof (struct ifreq)) {
 		if (copy_in_user(ifr32, ifr, sizeof (struct ifreq32)))
 			return -EFAULT;
@@ -702,10 +703,7 @@ static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)
 		i = ((i / sizeof(struct ifreq)) * sizeof(struct ifreq32));
 		ifc32.ifc_len = i;
 	} else {
-		if (i <= ifc32.ifc_len)
-			ifc32.ifc_len = i;
-		else
-			ifc32.ifc_len = i - sizeof (struct ifreq32);
+		ifc32.ifc_len = i;
 	}
 	if (copy_to_user(compat_ptr(arg), &ifc32, sizeof(struct ifconf32)))
 		return -EFAULT;

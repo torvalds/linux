@@ -483,56 +483,29 @@ cifs_get_sb(struct file_system_type *fs_type,
 	return sb;
 }
 
-static ssize_t
-cifs_read_wrapper(struct file * file, char __user *read_data, size_t read_size,
-          loff_t * poffset)
+static ssize_t cifs_file_writev(struct file *file, const struct iovec *iov,
+				unsigned long nr_segs, loff_t *ppos)
 {
-	if(file->f_dentry == NULL)
-		return -EIO;
-	else if(file->f_dentry->d_inode == NULL)
-		return -EIO;
-
-	cFYI(1,("In read_wrapper size %zd at %lld",read_size,*poffset));
-
-	if(CIFS_I(file->f_dentry->d_inode)->clientCanCacheRead) {
-		return generic_file_read(file,read_data,read_size,poffset);
-	} else {
-		/* BB do we need to lock inode from here until after invalidate? */
-/*		if(file->f_dentry->d_inode->i_mapping) {
-			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
-			filemap_fdatawait(file->f_dentry->d_inode->i_mapping);
-		}*/
-/*		cifs_revalidate(file->f_dentry);*/ /* BB fixme */
-
-		/* BB we should make timer configurable - perhaps 
-		   by simply calling cifs_revalidate here */
-		/* invalidate_remote_inode(file->f_dentry->d_inode);*/
-		return generic_file_read(file,read_data,read_size,poffset);
-	}
-}
-
-static ssize_t
-cifs_write_wrapper(struct file * file, const char __user *write_data,
-           size_t write_size, loff_t * poffset) 
-{
+	struct inode *inode = file->f_dentry->d_inode;
 	ssize_t written;
 
-	if(file->f_dentry == NULL)
-		return -EIO;
-	else if(file->f_dentry->d_inode == NULL)
-		return -EIO;
-
-	cFYI(1,("In write_wrapper size %zd at %lld",write_size,*poffset));
-
-	written = generic_file_write(file,write_data,write_size,poffset);
-	if(!CIFS_I(file->f_dentry->d_inode)->clientCanCacheAll)  {
-		if(file->f_dentry->d_inode->i_mapping) {
-			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
-		}
-	}
+	written = generic_file_writev(file, iov, nr_segs, ppos);
+	if (!CIFS_I(inode)->clientCanCacheAll)
+		filemap_fdatawrite(inode->i_mapping);
 	return written;
 }
 
+static ssize_t cifs_file_aio_write(struct kiocb *iocb, const char __user *buf,
+				   size_t count, loff_t pos)
+{
+	struct inode *inode = iocb->ki_filp->f_dentry->d_inode;
+	ssize_t written;
+
+	written = generic_file_aio_write(iocb, buf, count, pos);
+	if (!CIFS_I(inode)->clientCanCacheAll)
+		filemap_fdatawrite(inode->i_mapping);
+	return written;
+}
 
 static struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
@@ -594,8 +567,12 @@ struct inode_operations cifs_symlink_inode_ops = {
 };
 
 struct file_operations cifs_file_ops = {
-	.read = cifs_read_wrapper,
-	.write = cifs_write_wrapper, 
+	.read = do_sync_read,
+	.write = do_sync_write,
+	.readv = generic_file_readv,
+	.writev = cifs_file_writev,
+	.aio_read = generic_file_aio_read,
+	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
@@ -608,10 +585,6 @@ struct file_operations cifs_file_ops = {
 #endif /* CONFIG_CIFS_POSIX */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-	.readv = generic_file_readv,
-	.writev = generic_file_writev,
-	.aio_read = generic_file_aio_read,
-	.aio_write = generic_file_aio_write,
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
@@ -624,6 +597,46 @@ struct file_operations cifs_file_direct_ops = {
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
+	.fsync = cifs_fsync,
+	.flush = cifs_flush,
+	.sendfile = generic_file_sendfile, /* BB removeme BB */
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
+struct file_operations cifs_file_nobrl_ops = {
+	.read = do_sync_read,
+	.write = do_sync_write,
+	.readv = generic_file_readv,
+	.writev = cifs_file_writev,
+	.aio_read = generic_file_aio_read,
+	.aio_write = cifs_file_aio_write,
+	.open = cifs_open,
+	.release = cifs_close,
+	.fsync = cifs_fsync,
+	.flush = cifs_flush,
+	.mmap  = cifs_file_mmap,
+	.sendfile = generic_file_sendfile,
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl	= cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
+
+struct file_operations cifs_file_direct_nobrl_ops = {
+	/* no mmap, no aio, no readv - 
+	   BB reevaluate whether they can be done with directio, no cache */
+	.read = cifs_user_read,
+	.write = cifs_user_write,
+	.open = cifs_open,
+	.release = cifs_close,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.sendfile = generic_file_sendfile, /* BB removeme BB */

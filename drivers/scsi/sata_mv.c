@@ -2,6 +2,7 @@
  * sata_mv.c - Marvell SATA support
  *
  * Copyright 2005: EMC Corporation, all rights reserved.
+ * Copyright 2005 Red Hat, Inc.  All rights reserved.
  *
  * Please ALWAYS copy linux-ide@vger.kernel.org on emails.
  *
@@ -36,7 +37,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"0.25"
+#define DRV_VERSION	"0.5"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */

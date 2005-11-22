@@ -246,7 +246,7 @@ int __init ipaq_mtd_init(void)
 			ipaq_map[i].size = h3xxx_max_flash_size;
 			ipaq_map[i].set_vpp = h3xxx_set_vpp;
 			ipaq_map[i].phys = cs_phys[i];
-			ipaq_map[i].virt = __ioremap(cs_phys[i], 0x04000000, 0, 1);
+			ipaq_map[i].virt = ioremap(cs_phys[i], 0x04000000);
 			if (machine_is_h3100 () || machine_is_h1900())
 				ipaq_map[i].bankwidth = 2;
 		}
@@ -280,7 +280,7 @@ int __init ipaq_mtd_init(void)
 		nb_parts = ARRAY_SIZE(jornada_partitions);
 		ipaq_map[0].size = jornada_max_flash_size;
 		ipaq_map[0].set_vpp = jornada56x_set_vpp;
-		ipaq_map[0].virt = (__u32)__ioremap(0x0, 0x04000000, 0, 1);
+		ipaq_map[0].virt = (__u32)ioremap(0x0, 0x04000000);
 	}
 #endif
 #ifdef CONFIG_SA1100_JORNADA720
@@ -442,7 +442,7 @@ static int __init h1900_special_case(void)
 	ipaq_map[0].size = 0x80000;
 	ipaq_map[0].set_vpp = h3xxx_set_vpp;
 	ipaq_map[0].phys = 0x0;
-	ipaq_map[0].virt = __ioremap(0x0, 0x04000000, 0, 1);
+	ipaq_map[0].virt = ioremap(0x0, 0x04000000);
 	ipaq_map[0].bankwidth = 2;
 
 	printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%lx with JEDEC.\n", ipaq_map[0].bankwidth*8, ipaq_map[0].virt);

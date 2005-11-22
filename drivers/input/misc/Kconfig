@@ -40,6 +40,16 @@ config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
 
+config INPUT_WISTRON_BTNS
+	tristate "x86 Wistron laptop button interface"
+	depends on X86 && !X86_64
+	help
+	  Say Y here for support of Winstron laptop button interface, used on
+	  laptops of various brands, including Acer and Fujitsu-Siemens.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called wistron_btns.
+
 config INPUT_UINPUT
 	tristate "User level driver support"
 	help

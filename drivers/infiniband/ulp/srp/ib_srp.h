@@ -54,6 +54,7 @@ enum {
 	SRP_PORT_REDIRECT	= 1,
 	SRP_DLID_REDIRECT	= 2,
 
+	SRP_MAX_LUN		= 512,
 	SRP_MAX_IU_LEN		= 256,
 
 	SRP_RQ_SHIFT    	= 6,

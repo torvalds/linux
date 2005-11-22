@@ -1,6 +1,4 @@
 /*
- *  linux/drivers/block/cfq-iosched.c
- *
  *  CFQ, or complete fairness queueing, disk scheduler.
  *
  *  Based on ideas from a previously unfinished io

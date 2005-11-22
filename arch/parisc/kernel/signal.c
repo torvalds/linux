@@ -296,7 +296,6 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	struct rt_sigframe __user *frame;
 	unsigned long rp, usp;
 	unsigned long haddr, sigframe_size;
-	struct siginfo si;
 	int err = 0;
 #ifdef __LP64__
 	compat_int_t compat_val;

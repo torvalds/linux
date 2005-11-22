@@ -65,23 +65,6 @@ static struct chipset_bus_clock_list_entry aec6xxx_34_base [] = {
 #define BUSCLOCK(D)	\
 	((struct chipset_bus_clock_list_entry *) pci_get_drvdata((D)))
 
-#if 0
-		if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
-			(void) pci_read_config_byte(dev, 0x54, &art);
-			p += sprintf(p, "DMA Mode:       %s(%s)",
-				(c0&0x20)?((art&0x03)?"UDMA":" DMA"):" PIO",
-				(art&0x02)?"2":(art&0x01)?"1":"0");
-			p += sprintf(p, "          %s(%s)",
-				(c0&0x40)?((art&0x0c)?"UDMA":" DMA"):" PIO",
-				(art&0x08)?"2":(art&0x04)?"1":"0");
-			p += sprintf(p, "         %s(%s)",
-				(c1&0x20)?((art&0x30)?"UDMA":" DMA"):" PIO",
-				(art&0x20)?"2":(art&0x10)?"1":"0");
-			p += sprintf(p, "           %s(%s)\n",
-				(c1&0x40)?((art&0xc0)?"UDMA":" DMA"):" PIO",
-				(art&0x80)?"2":(art&0x40)?"1":"0");
-		} else {
-#endif
 
 /*
  * TO DO: active tuning and correction of cards without a bios.
@@ -112,13 +95,9 @@ static u8 aec62xx_ratemask (ide_drive_t *drive)
 	switch(hwif->pci_dev->device) {
 		case PCI_DEVICE_ID_ARTOP_ATP865:
 		case PCI_DEVICE_ID_ARTOP_ATP865R:
-#if 0
-			mode = (hwif->INB(hwif->dma_master) & 0x10) ? 4 : 3;
-#else
 			mode = (hwif->INB(((hwif->channel) ?
 					hwif->mate->dma_status :
 					hwif->dma_status)) & 0x10) ? 4 : 3;
-#endif
 			break;
 		case PCI_DEVICE_ID_ARTOP_ATP860:
 		case PCI_DEVICE_ID_ARTOP_ATP860R:
@@ -263,35 +242,9 @@ static int aec62xx_irq_timeout (ide_drive_t *drive)
 		case PCI_DEVICE_ID_ARTOP_ATP865:
 		case PCI_DEVICE_ID_ARTOP_ATP865R:
 			printk(" AEC62XX time out ");
-#if 0
-			{
-				int i = 0;
-				u8 reg49h = 0;
-				pci_read_config_byte(HWIF(drive)->pci_dev, 0x49, &reg49h);
-				for (i=0;i<256;i++)
-					pci_write_config_byte(HWIF(drive)->pci_dev, 0x49, reg49h|0x10);
-				pci_write_config_byte(HWIF(drive)->pci_dev, 0x49, reg49h & ~0x10);
-			}
-			return 0;
-#endif
 		default:
 			break;
 	}
-#if 0
-	{
-		ide_hwif_t *hwif	= HWIF(drive);
-		struct pci_dev *dev	= hwif->pci_dev;
-		u8 tmp1 = 0, tmp2 = 0, mode6 = 0;
-
-		pci_read_config_byte(dev, 0x44, &tmp1);
-		pci_read_config_byte(dev, 0x45, &tmp2);
-		printk(" AEC6280 r44=%x r45=%x ",tmp1,tmp2);
-		mode6 = HWIF(drive)->INB(((hwif->channel) ?
-					   hwif->mate->dma_status :
-					   hwif->dma_status));
-		printk(" AEC6280 133=%x ", (mode6 & 0x10));
-	}
-#endif
 	return 0;
 }
 

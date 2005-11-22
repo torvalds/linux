@@ -54,15 +54,6 @@ __get_user_4:
 	mov	r0, #0
 	mov	pc, lr
 
-	.global	__get_user_8
-__get_user_8:
-5:	ldrt	r2, [r0], #4
-6:	ldrt	r3, [r0]
-	mov	r0, #0
-	mov	pc, lr
-
-__get_user_bad_8:
-	mov	r3, #0
 __get_user_bad:
 	mov	r2, #0
 	mov	r0, #-EFAULT
@@ -73,6 +64,4 @@ __get_user_bad:
 	.long	2b, __get_user_bad
 	.long	3b, __get_user_bad
 	.long	4b, __get_user_bad
-	.long	5b, __get_user_bad_8
-	.long	6b, __get_user_bad_8
 .previous

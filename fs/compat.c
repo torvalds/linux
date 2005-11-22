@@ -268,7 +268,6 @@ out:
 
 #define IOCTL_HASHSIZE 256
 static struct ioctl_trans *ioctl32_hash_table[IOCTL_HASHSIZE];
-static DECLARE_RWSEM(ioctl32_sem);
 
 extern struct ioctl_trans ioctl_start[];
 extern int ioctl_table_size;
@@ -390,14 +389,10 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		break;
 	}
 
-	/* When register_ioctl32_conversion is finally gone remove
-	   this lock! -AK */
-	down_read(&ioctl32_sem);
 	for (t = ioctl32_hash_table[ioctl32_hash(cmd)]; t; t = t->next) {
 		if (t->cmd == cmd)
 			goto found_handler;
 	}
-	up_read(&ioctl32_sem);
 
 	if (S_ISSOCK(filp->f_dentry->d_inode->i_mode) &&
 	    cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
@@ -417,11 +412,9 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		lock_kernel();
 		error = t->handler(fd, cmd, arg, filp);
 		unlock_kernel();
-		up_read(&ioctl32_sem);
 		goto out_fput;
 	}
 
-	up_read(&ioctl32_sem);
  do_ioctl:
 	error = vfs_ioctl(filp, fd, cmd, arg);
  out_fput:

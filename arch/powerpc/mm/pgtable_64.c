@@ -64,7 +64,8 @@
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 #include <asm/vdso.h>
-#include <asm/imalloc.h>
+
+#include "mmu_decl.h"
 
 unsigned long ioremap_bot = IMALLOC_BASE;
 static unsigned long phbs_io_bot = PHBS_IO_BASE;

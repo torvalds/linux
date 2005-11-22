@@ -507,7 +507,7 @@ config SERIAL_SUNSU_CONSOLE
 
 config SERIAL_MUX
 	tristate "Serial MUX support"
-	depends on PARISC
+	depends on GSC
 	select SERIAL_CORE
 	default y
 	---help---
