@@ -529,10 +529,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	 * If the page is mlock()d, we cannot swap it out.
 	 * If it's recently referenced (perhaps page_referenced
 	 * skipped over this mm) then we should reactivate it.
-	 *
-	 * Pages belonging to VM_RESERVED regions should not happen here.
 	 */
-	if ((vma->vm_flags & (VM_LOCKED|VM_RESERVED)) ||
+	if ((vma->vm_flags & VM_LOCKED) ||
 			ptep_clear_flush_young(vma, address, pte)) {
 		ret = SWAP_FAIL;
 		goto out_unmap;
@@ -727,7 +725,7 @@ static int try_to_unmap_file(struct page *page)
 
 	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
 						shared.vm_set.list) {
-		if (vma->vm_flags & (VM_LOCKED|VM_RESERVED))
+		if (vma->vm_flags & VM_LOCKED)
 			continue;
 		cursor = (unsigned long) vma->vm_private_data;
 		if (cursor > max_nl_cursor)
@@ -761,7 +759,7 @@ static int try_to_unmap_file(struct page *page)
 	do {
 		list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
 						shared.vm_set.list) {
-			if (vma->vm_flags & (VM_LOCKED|VM_RESERVED))
+			if (vma->vm_flags & VM_LOCKED)
 				continue;
 			cursor = (unsigned long) vma->vm_private_data;
 			while ( cursor < max_nl_cursor &&
@@ -783,11 +781,8 @@ static int try_to_unmap_file(struct page *page)
 	 * in locked vmas).  Reset cursor on all unreserved nonlinear
 	 * vmas, now forgetting on which ones it had fallen behind.
 	 */
-	list_for_each_entry(vma, &mapping->i_mmap_nonlinear,
-						shared.vm_set.list) {
-		if (!(vma->vm_flags & VM_RESERVED))
-			vma->vm_private_data = NULL;
-	}
+	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list)
+		vma->vm_private_data = NULL;
 out:
 	spin_unlock(&mapping->i_mmap_lock);
 	return ret;
