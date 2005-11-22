@@ -917,7 +917,7 @@ static struct snd_kcontrol_new snd_ice1712_6fire_controls[] __devinitdata = {
 		.get = snd_ice1712_6fire_select_input_get,
 		.put = snd_ice1712_6fire_select_input_put,
 	},
-	DMX6FIRE_CONTROL("Front Digital Input Switch", 2, 0),
+	DMX6FIRE_CONTROL("Front Digital Input Switch", 2, 1),
 	// DMX6FIRE_CONTROL("Master Clock Select", 3, 0),
 	DMX6FIRE_CONTROL("Optical Digital Input Switch", 4, 0),
 	DMX6FIRE_CONTROL("Phono Analog Input Switch", 5, 0),
