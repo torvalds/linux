@@ -1618,7 +1618,8 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	 * and make cache regions for them */
 	for (dentry = csr->root_kv->value.directory.dentries_head;
 	     dentry; dentry = dentry->next) {
-		if (dentry->kv->key.id == CSR1212_KV_ID_EXTENDED_ROM) {
+		if (dentry->kv->key.id == CSR1212_KV_ID_EXTENDED_ROM &&
+			!dentry->kv->valid) {
 			ret = _csr1212_read_keyval(csr, dentry->kv);
 			if (ret != CSR1212_SUCCESS)
 				return ret;
