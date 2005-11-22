@@ -1277,22 +1277,28 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, pte_t *page_table, pmd_t *pmd,
 		spinlock_t *ptl, pte_t orig_pte)
 {
-	struct page *old_page, *new_page;
+	struct page *old_page, *src_page, *new_page;
 	unsigned long pfn = pte_pfn(orig_pte);
 	pte_t entry;
 	int ret = VM_FAULT_MINOR;
 
-	BUG_ON(vma->vm_flags & VM_UNPAGED);
-
 	if (unlikely(!pfn_valid(pfn))) {
 		/*
 		 * Page table corrupted: show pte and kill process.
+		 * Or it's an attempt to COW an out-of-map VM_UNPAGED
+		 * entry, which copy_user_highpage does not support.
 		 */
 		print_bad_pte(vma, orig_pte, address);
 		ret = VM_FAULT_OOM;
 		goto unlock;
 	}
 	old_page = pfn_to_page(pfn);
+	src_page = old_page;
+
+	if (unlikely(vma->vm_flags & VM_UNPAGED)) {
+		old_page = NULL;
+		goto gotten;
+	}
 
 	if (PageAnon(old_page) && !TestSetPageLocked(old_page)) {
 		int reuse = can_share_swap_page(old_page);
@@ -1313,11 +1319,12 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * Ok, we need to copy. Oh, well..
 	 */
 	page_cache_get(old_page);
+gotten:
 	pte_unmap_unlock(page_table, ptl);
 
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
-	if (old_page == ZERO_PAGE(address)) {
+	if (src_page == ZERO_PAGE(address)) {
 		new_page = alloc_zeroed_user_highpage(vma, address);
 		if (!new_page)
 			goto oom;
@@ -1325,7 +1332,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
 		if (!new_page)
 			goto oom;
-		copy_user_highpage(new_page, old_page, address);
+		copy_user_highpage(new_page, src_page, address);
 	}
 
 	/*
@@ -1333,11 +1340,14 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 */
 	page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
 	if (likely(pte_same(*page_table, orig_pte))) {
-		page_remove_rmap(old_page);
-		if (!PageAnon(old_page)) {
+		if (old_page) {
+			page_remove_rmap(old_page);
+			if (!PageAnon(old_page)) {
+				dec_mm_counter(mm, file_rss);
+				inc_mm_counter(mm, anon_rss);
+			}
+		} else
 			inc_mm_counter(mm, anon_rss);
-			dec_mm_counter(mm, file_rss);
-		}
 		flush_cache_page(vma, address, pfn);
 		entry = mk_pte(new_page, vma->vm_page_prot);
 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
@@ -1351,13 +1361,16 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		new_page = old_page;
 		ret |= VM_FAULT_WRITE;
 	}
-	page_cache_release(new_page);
-	page_cache_release(old_page);
+	if (new_page)
+		page_cache_release(new_page);
+	if (old_page)
+		page_cache_release(old_page);
 unlock:
 	pte_unmap_unlock(page_table, ptl);
 	return ret;
 oom:
-	page_cache_release(old_page);
+	if (old_page)
+		page_cache_release(old_page);
 	return VM_FAULT_OOM;
 }
 
