@@ -1610,15 +1610,16 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	csr->root_kv->valid = 0;
 	csr->root_kv->next = csr->root_kv;
 	csr->root_kv->prev = csr->root_kv;
-	csr1212_get_keyval(csr, csr->root_kv);
+	ret = _csr1212_read_keyval(csr, csr->root_kv);
+	if (ret != CSR1212_SUCCESS)
+		return ret;
 
 	/* Scan through the Root directory finding all extended ROM regions
 	 * and make cache regions for them */
 	for (dentry = csr->root_kv->value.directory.dentries_head;
 	     dentry; dentry = dentry->next) {
 		if (dentry->kv->key.id == CSR1212_KV_ID_EXTENDED_ROM) {
-			csr1212_get_keyval(csr, dentry->kv);
-
+			ret = _csr1212_read_keyval(csr, dentry->kv);
 			if (ret != CSR1212_SUCCESS)
 				return ret;
 		}
