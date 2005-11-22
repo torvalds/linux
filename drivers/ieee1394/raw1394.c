@@ -2482,8 +2482,8 @@ static int raw1394_iso_recv_packets(struct file_info *fi, void __user * uaddr)
 
 	/* ensure user-supplied buffer is accessible and big enough */
 	if (!access_ok(VERIFY_WRITE, upackets.infos,
-			upackets.n_packets *
-			sizeof(struct raw1394_iso_packet_info)))
+		       upackets.n_packets *
+		       sizeof(struct raw1394_iso_packet_info)))
 		return -EFAULT;
 
 	/* copy the packet_infos out */
@@ -2516,8 +2516,8 @@ static int raw1394_iso_send_packets(struct file_info *fi, void __user * uaddr)
 
 	/* ensure user-supplied buffer is accessible and big enough */
 	if (!access_ok(VERIFY_READ, upackets.infos,
-			upackets.n_packets *
-			sizeof(struct raw1394_iso_packet_info)))
+		       upackets.n_packets *
+		       sizeof(struct raw1394_iso_packet_info)))
 		return -EFAULT;
 
 	/* copy the infos structs in and queue the packets */
@@ -2741,8 +2741,7 @@ static int raw1394_release(struct inode *inode, struct file *file)
 						    list) {
 					entry = fi_hlp->addr_list.next;
 					while (entry != &(fi_hlp->addr_list)) {
-						arm_addr = list_entry(entry,
-								      struct
+						arm_addr = list_entry(entry, struct
 								      arm_addr,
 								      addr_list);
 						if (arm_addr->start ==
@@ -2905,16 +2904,17 @@ static int __init init_raw1394(void)
 
 	hpsb_register_highlevel(&raw1394_highlevel);
 
-	if (IS_ERR(class_device_create(hpsb_protocol_class, NULL, MKDEV(
-		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_RAW1394 * 16), 
-		NULL, RAW1394_DEVICE_NAME))) {
+	if (IS_ERR
+	    (class_device_create
+	     (hpsb_protocol_class, NULL,
+	      MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16), NULL,
+	      RAW1394_DEVICE_NAME))) {
 		ret = -EFAULT;
 		goto out_unreg;
 	}
-	
-	devfs_mk_cdev(MKDEV(
-		IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
-		S_IFCHR | S_IRUSR | S_IWUSR, RAW1394_DEVICE_NAME);
+
+	devfs_mk_cdev(MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
+		      S_IFCHR | S_IRUSR | S_IWUSR, RAW1394_DEVICE_NAME);
 
 	cdev_init(&raw1394_cdev, &raw1394_fops);
 	raw1394_cdev.owner = THIS_MODULE;
@@ -2936,20 +2936,22 @@ static int __init init_raw1394(void)
 
 	goto out;
 
-out_dev:
+      out_dev:
 	devfs_remove(RAW1394_DEVICE_NAME);
 	class_device_destroy(hpsb_protocol_class,
-		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16));
-out_unreg:
+			     MKDEV(IEEE1394_MAJOR,
+				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
+      out_unreg:
 	hpsb_unregister_highlevel(&raw1394_highlevel);
-out:
+      out:
 	return ret;
 }
 
 static void __exit cleanup_raw1394(void)
 {
 	class_device_destroy(hpsb_protocol_class,
-		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16));
+			     MKDEV(IEEE1394_MAJOR,
+				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
 	cdev_del(&raw1394_cdev);
 	devfs_remove(RAW1394_DEVICE_NAME);
 	hpsb_unregister_highlevel(&raw1394_highlevel);
