@@ -311,8 +311,6 @@ struct page {
 
 extern void FASTCALL(__page_cache_release(struct page *));
 
-#ifdef CONFIG_HUGETLB_PAGE
-
 static inline int page_count(struct page *page)
 {
 	if (PageCompound(page))
@@ -328,23 +326,6 @@ static inline void get_page(struct page *page)
 }
 
 void put_page(struct page *page);
-
-#else		/* CONFIG_HUGETLB_PAGE */
-
-#define page_count(p)		(atomic_read(&(p)->_count) + 1)
-
-static inline void get_page(struct page *page)
-{
-	atomic_inc(&page->_count);
-}
-
-static inline void put_page(struct page *page)
-{
-	if (put_page_testzero(page))
-		__page_cache_release(page);
-}
-
-#endif		/* CONFIG_HUGETLB_PAGE */
 
 /*
  * Multiple processes may "see" the same page. E.g. for untouched

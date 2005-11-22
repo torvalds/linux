@@ -148,10 +148,6 @@ static void bad_page(const char *function, struct page *page)
 	add_taint(TAINT_BAD_PAGE);
 }
 
-#ifndef CONFIG_HUGETLB_PAGE
-#define prep_compound_page(page, order) do { } while (0)
-#define destroy_compound_page(page, order) do { } while (0)
-#else
 /*
  * Higher-order pages are called "compound pages".  They are structured thusly:
  *
@@ -205,7 +201,6 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 		ClearPageCompound(p);
 	}
 }
-#endif		/* CONFIG_HUGETLB_PAGE */
 
 /*
  * function for dealing with page's order in buddy system.
