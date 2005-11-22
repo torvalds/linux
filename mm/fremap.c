@@ -65,7 +65,7 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t pte_val;
 	spinlock_t *ptl;
 
-	BUG_ON(vma->vm_flags & VM_RESERVED);
+	BUG_ON(vma->vm_flags & VM_UNPAGED);
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
@@ -122,7 +122,7 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t pte_val;
 	spinlock_t *ptl;
 
-	BUG_ON(vma->vm_flags & VM_RESERVED);
+	BUG_ON(vma->vm_flags & VM_UNPAGED);
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);

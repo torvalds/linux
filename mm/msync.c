@@ -97,9 +97,9 @@ static void msync_page_range(struct vm_area_struct *vma,
 	/* For hugepages we can't go walking the page table normally,
 	 * but that's ok, hugetlbfs is memory based, so we don't need
 	 * to do anything more on an msync().
-	 * Can't do anything with VM_RESERVED regions either.
+	 * Can't do anything with VM_UNPAGED regions either.
 	 */
-	if (vma->vm_flags & (VM_HUGETLB|VM_RESERVED))
+	if (vma->vm_flags & (VM_HUGETLB|VM_UNPAGED))
 		return;
 
 	BUG_ON(addr >= end);

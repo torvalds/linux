@@ -334,7 +334,7 @@ static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
 
 /*
  * This function is called to print an error when a pte in a
- * !VM_RESERVED region is found pointing to an invalid pfn (which
+ * !VM_UNPAGED region is found pointing to an invalid pfn (which
  * is an error.
  *
  * The calling function must still handle the error.
@@ -381,15 +381,15 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		goto out_set_pte;
 	}
 
-	/* If the region is VM_RESERVED, the mapping is not
+	/* If the region is VM_UNPAGED, the mapping is not
 	 * mapped via rmap - duplicate the pte as is.
 	 */
-	if (vm_flags & VM_RESERVED)
+	if (vm_flags & VM_UNPAGED)
 		goto out_set_pte;
 
 	pfn = pte_pfn(pte);
 	/* If the pte points outside of valid memory but
-	 * the region is not VM_RESERVED, we have a problem.
+	 * the region is not VM_UNPAGED, we have a problem.
 	 */
 	if (unlikely(!pfn_valid(pfn))) {
 		print_bad_pte(vma, pte, addr);
@@ -528,7 +528,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * readonly mappings. The tradeoff is that copy_page_range is more
 	 * efficient than faulting.
 	 */
-	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_RESERVED))) {
+	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_UNPAGED))) {
 		if (!vma->anon_vma)
 			return 0;
 	}
@@ -572,7 +572,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 
 			(*zap_work) -= PAGE_SIZE;
 
-			if (!(vma->vm_flags & VM_RESERVED)) {
+			if (!(vma->vm_flags & VM_UNPAGED)) {
 				unsigned long pfn = pte_pfn(ptent);
 				if (unlikely(!pfn_valid(pfn)))
 					print_bad_pte(vma, ptent, addr);
@@ -1191,10 +1191,16 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 * rest of the world about it:
 	 *   VM_IO tells people not to look at these pages
 	 *	(accesses can have side effects).
-	 *   VM_RESERVED tells the core MM not to "manage" these pages
-         *	(e.g. refcount, mapcount, try to swap them out).
+	 *   VM_RESERVED is specified all over the place, because
+	 *	in 2.4 it kept swapout's vma scan off this vma; but
+	 *	in 2.6 the LRU scan won't even find its pages, so this
+	 *	flag means no more than count its pages in reserved_vm,
+	 * 	and omit it from core dump, even when VM_IO turned off.
+	 *   VM_UNPAGED tells the core MM not to "manage" these pages
+         *	(e.g. refcount, mapcount, try to swap them out): in
+	 *	particular, zap_pte_range does not try to free them.
 	 */
-	vma->vm_flags |= VM_IO | VM_RESERVED;
+	vma->vm_flags |= VM_IO | VM_RESERVED | VM_UNPAGED;
 
 	BUG_ON(addr >= end);
 	pfn -= addr >> PAGE_SHIFT;
@@ -1276,7 +1282,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t entry;
 	int ret = VM_FAULT_MINOR;
 
-	BUG_ON(vma->vm_flags & VM_RESERVED);
+	BUG_ON(vma->vm_flags & VM_UNPAGED);
 
 	if (unlikely(!pfn_valid(pfn))) {
 		/*
@@ -1924,7 +1930,7 @@ retry:
 			inc_mm_counter(mm, anon_rss);
 			lru_cache_add_active(new_page);
 			page_add_anon_rmap(new_page, vma, address);
-		} else if (!(vma->vm_flags & VM_RESERVED)) {
+		} else if (!(vma->vm_flags & VM_UNPAGED)) {
 			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(new_page);
 		}
@@ -2203,7 +2209,7 @@ static int __init gate_vma_init(void)
 	gate_vma.vm_start = FIXADDR_USER_START;
 	gate_vma.vm_end = FIXADDR_USER_END;
 	gate_vma.vm_page_prot = PAGE_READONLY;
-	gate_vma.vm_flags = VM_RESERVED;
+	gate_vma.vm_flags = 0;
 	return 0;
 }
 __initcall(gate_vma_init);
