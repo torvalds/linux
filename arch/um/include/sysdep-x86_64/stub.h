@@ -6,7 +6,6 @@
 #ifndef __SYSDEP_STUB_H
 #define __SYSDEP_STUB_H
 
-#include <asm/ptrace.h>
 #include <asm/unistd.h>
 #include <sysdep/ptrace_user.h>
 
@@ -19,6 +18,17 @@ extern void stub_clone_handler(void);
 
 #define __syscall_clobber "r11","rcx","memory"
 #define __syscall "syscall"
+
+static inline long stub_syscall0(long syscall)
+{
+	long ret;
+
+	__asm__ volatile (__syscall
+		: "=a" (ret)
+		: "0" (syscall) : __syscall_clobber );
+
+	return ret;
+}
 
 static inline long stub_syscall2(long syscall, long arg1, long arg2)
 {
