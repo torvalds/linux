@@ -151,12 +151,12 @@ static void enp2611_check_link_status(unsigned long __dummy)
 		dev = nds[i];
 
 		status = pm3386_is_link_up(i);
-		if (status && !netif_carrier_ok(nds[i])) {
+		if (status && !netif_carrier_ok(dev)) {
 			pm3386_enable_tx(i);
 			caleb_enable_tx(i);
-			netif_carrier_on(nds[i]);
-		} else if (!status && netif_carrier_ok(nds[i])) {
-			netif_carrier_off(nds[i]);
+			netif_carrier_on(dev);
+		} else if (!status && netif_carrier_ok(dev)) {
+			netif_carrier_off(dev);
 			caleb_disable_tx(i);
 			pm3386_disable_tx(i);
 		}
