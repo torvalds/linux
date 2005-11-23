@@ -175,10 +175,15 @@ static void enp2611_set_port_admin_status(int port, int up)
 {
 	if (up) {
 		caleb_enable_rx(port);
+
+		pm3386_set_carrier(port, 1);
 		pm3386_enable_rx(port);
 	} else {
 		caleb_disable_tx(port);
 		pm3386_disable_tx(port);
+		/* @@@ Flush out pending packets.  */
+		pm3386_set_carrier(port, 0);
+
 		pm3386_disable_rx(port);
 		caleb_disable_rx(port);
 	}
