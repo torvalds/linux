@@ -4,7 +4,7 @@
  * IOP3xx architecture timex specifications
  */
 #include <linux/config.h>
-
+#include <asm/hardware.h>
 
 #if defined(CONFIG_ARCH_IQ80321) || defined(CONFIG_ARCH_IQ31244)
 
