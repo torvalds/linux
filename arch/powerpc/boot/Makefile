@@ -169,7 +169,7 @@ $(obj)/vmlinux.gz: $(obj)/vmlinux.bin FORCE
 
 $(obj)/uImage: $(obj)/vmlinux.gz
 	$(Q)rm -f $@
-	$(call if_changed,uimage)
+	$(call cmd,uimage)
 	@echo -n '  Image: $@ '
 	@if [ -f $@ ]; then echo 'is ready' ; else echo 'not made'; fi
 
