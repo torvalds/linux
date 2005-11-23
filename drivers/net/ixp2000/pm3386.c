@@ -238,7 +238,7 @@ void pm3386_get_stats(int port, struct net_device_stats *stats)
 	while (pm3386_port_reg_read(port, 0x500, 0x100) & 0x0001)
 		;
 
-	memset(stats, 0, sizeof(stats));
+	memset(stats, 0, sizeof(*stats));
 
 	stats->rx_packets = pm3386_get_stat(port, 0x510);
 	stats->tx_packets = pm3386_get_stat(port, 0x590);
