@@ -16,8 +16,8 @@
 #include <linux/console.h>
 #include <asm/processor.h>
 
-void (*udbg_putc)(unsigned char c);
-unsigned char (*udbg_getc)(void);
+void (*udbg_putc)(char c);
+char (*udbg_getc)(void);
 int (*udbg_getc_poll)(void);
 
 /* udbg library, used by xmon et al */
@@ -78,7 +78,7 @@ int udbg_read(char *buf, int buflen)
 #define UDBG_BUFSIZE 256
 void udbg_printf(const char *fmt, ...)
 {
-	unsigned char buf[UDBG_BUFSIZE];
+	char buf[UDBG_BUFSIZE];
 	va_list args;
 
 	va_start(args, fmt);
@@ -116,6 +116,8 @@ void __init disable_early_printk(void)
 /* called by setup_system */
 void register_early_udbg_console(void)
 {
+	if (early_console_initialized)
+		return;
 	early_console_initialized = 1;
 	register_console(&udbg_console);
 }

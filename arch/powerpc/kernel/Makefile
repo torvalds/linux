@@ -18,7 +18,7 @@ obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o systbl.o \
 				   paca.o ioctl32.o cpu_setup_power4.o \
-				   firmware.o sysfs.o udbg.o idle_64.o
+				   firmware.o sysfs.o idle_64.o
 obj-$(CONFIG_PPC64)		+= vdso64/
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
@@ -46,7 +46,7 @@ extra-$(CONFIG_8xx)		:= head_8xx.o
 extra-y				+= vmlinux.lds
 
 obj-y				+= process.o init_task.o time.o \
-				   prom.o traps.o setup-common.o
+				   prom.o traps.o setup-common.o udbg.o
 obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o systbl.o
 obj-$(CONFIG_PPC64)		+= misc_64.o dma_64.o iommu.o
 obj-$(CONFIG_PPC_OF)		+= prom_init.o
@@ -56,8 +56,7 @@ obj-$(CONFIG_6xx)		+= idle_6xx.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_PPC_MULTIPLATFORM) += legacy_serial.o
-obj64-$(CONFIG_PPC_MULTIPLATFORM) += udbg_16550.o
-obj64-$(CONFIG_PPC_PMAC)	+= udbg_scc.o
+obj-$(CONFIG_PPC_MULTIPLATFORM) += udbg_16550.o
 module-$(CONFIG_PPC64)		+= module_64.o
 obj-$(CONFIG_MODULES)		+= $(module-y)
 

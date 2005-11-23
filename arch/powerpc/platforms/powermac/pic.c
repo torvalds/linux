@@ -459,7 +459,7 @@ void __init pmac_pic_init(void)
 			mpic_setup_cascade(irqctrler2->intrs[0].line,
 					   pmac_u3_cascade, mpic2);
 		}
-#if defined(CONFIG_XMON) && defined(CONFIG_PPC32)
+#ifdef CONFIG_XMON
 		{
 			struct device_node* pswitch;
 			int nmi_irq;

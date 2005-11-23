@@ -2607,6 +2607,8 @@ found:
  */
 static void __init probe_uninorth(void)
 {
+	u32 *addrp;
+	phys_addr_t address;
 	unsigned long actrl;
 
 	/* Locate core99 Uni-N */
@@ -2616,20 +2618,23 @@ static void __init probe_uninorth(void)
 		uninorth_node = of_find_node_by_name(NULL, "u3");
 		uninorth_u3 = 1;
 	}
-	if (uninorth_node && uninorth_node->n_addrs > 0) {
-		unsigned long address = uninorth_node->addrs[0].address;
-		uninorth_base = ioremap(address, 0x40000);
-		uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
-		if (uninorth_u3)
-			u3_ht = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
-	} else
-		uninorth_node = NULL;
-
-	if (!uninorth_node)
+	if (uninorth_node == NULL)
 		return;
 
-	printk(KERN_INFO "Found %s memory controller & host bridge, revision: %d\n",
-	       uninorth_u3 ? "U3" : "UniNorth", uninorth_rev);
+	addrp = (u32 *)get_property(uninorth_node, "reg", NULL);
+	if (addrp == NULL)
+		return;
+	address = of_translate_address(uninorth_node, addrp);
+	if (address == 0)
+		return;
+	uninorth_base = ioremap(address, 0x40000);
+	uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
+	if (uninorth_u3)
+		u3_ht = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
+
+	printk(KERN_INFO "Found %s memory controller & host bridge,"
+	       " revision: %d\n", uninorth_u3 ? "U3" : "UniNorth",
+	       uninorth_rev);
 	printk(KERN_INFO "Mapped at 0x%08lx\n", (unsigned long)uninorth_base);
 
 	/* Set the arbitrer QAck delay according to what Apple does
@@ -2653,18 +2658,17 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 {
 	struct device_node*	node;
 	int			i;
-	volatile u32 __iomem *	base;
-	u32*			revp;
+	volatile u32 __iomem	*base;
+	u32			*addrp, *revp;
+	phys_addr_t		addr;
+	u64			size;
 
-	node = find_devices(name);
-	if (!node || !node->n_addrs)
-		return;
-	if (compat)
-		do {
-			if (device_is_compatible(node, compat))
-				break;
-			node = node->next;
-		} while (node);
+	for (node = NULL; (node = of_find_node_by_name(node, name)) != NULL;) {
+		if (!compat)
+			break;
+		if (device_is_compatible(node, compat))
+			break;
+	}
 	if (!node)
 		return;
 	for(i=0; i<MAX_MACIO_CHIPS; i++) {
@@ -2673,14 +2677,28 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 		if (macio_chips[i].of_node == node)
 			return;
 	}
+
 	if (i >= MAX_MACIO_CHIPS) {
 		printk(KERN_ERR "pmac_feature: Please increase MAX_MACIO_CHIPS !\n");
 		printk(KERN_ERR "pmac_feature: %s skipped\n", node->full_name);
 		return;
 	}
-	base = ioremap(node->addrs[0].address, node->addrs[0].size);
+	addrp = of_get_pci_address(node, 0, &size);
+	if (addrp == NULL) {
+		printk(KERN_ERR "pmac_feature: %s: can't find base !\n",
+		       node->full_name);
+		return;
+	}
+	addr = of_translate_address(node, addrp);
+	if (addr == 0) {
+		printk(KERN_ERR "pmac_feature: %s, can't translate base !\n",
+		       node->full_name);
+		return;
+	}
+	base = ioremap(addr, (unsigned long)size);
 	if (!base) {
-		printk(KERN_ERR "pmac_feature: Can't map mac-io chip !\n");
+		printk(KERN_ERR "pmac_feature: %s, can't map mac-io chip !\n",
+		       node->full_name);
 		return;
 	}
 	if (type == macio_keylargo) {

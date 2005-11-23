@@ -61,7 +61,7 @@ extern void pSeries_find_serial_port(void);
 int vtermno;	/* virtual terminal# for udbg  */
 
 #define __ALIGNED__ __attribute__((__aligned__(sizeof(long))))
-static void udbg_hvsi_putc(unsigned char c)
+static void udbg_hvsi_putc(char c)
 {
 	/* packet's seqno isn't used anyways */
 	uint8_t packet[] __ALIGNED__ = { 0xff, 5, 0, 0, c };
@@ -112,7 +112,7 @@ static int udbg_hvsi_getc_poll(void)
 	return ch;
 }
 
-static unsigned char udbg_hvsi_getc(void)
+static char udbg_hvsi_getc(void)
 {
 	int ch;
 	for (;;) {
@@ -128,7 +128,7 @@ static unsigned char udbg_hvsi_getc(void)
 	}
 }
 
-static void udbg_putcLP(unsigned char c)
+static void udbg_putcLP(char c)
 {
 	char buf[16];
 	unsigned long rc;
@@ -173,7 +173,7 @@ static int udbg_getc_pollLP(void)
 	return ch;
 }
 
-static unsigned char udbg_getcLP(void)
+static char udbg_getcLP(void)
 {
 	int ch;
 	for (;;) {

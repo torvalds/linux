@@ -77,6 +77,7 @@
 #include <asm/pmc.h>
 #include <asm/mpic.h>
 #include <asm/lmb.h>
+#include <asm/udbg.h>
 
 #include "pmac.h"
 
@@ -321,16 +322,6 @@ void __init pmac_setup_arch(void)
 	ohare_init();
 	l2cr_init();
 #endif /* CONFIG_PPC32 */
-
-#ifdef CONFIG_PPC64
-	/* Probe motherboard chipset */
-	/* this is done earlier in setup_arch for 32-bit */
-	pmac_feature_init();
-
-	/* We can NAP */
-	powersave_nap = 1;
-	printk(KERN_INFO "Using native/NAP idle loop\n");
-#endif
 
 #ifdef CONFIG_KGDB
 	zs_kgdb_hook(0);
@@ -622,13 +613,26 @@ static void __init pmac_init_early(void)
 	 * and call ioremap
 	 */
 	hpte_init_native();
+#endif
 
-	/* Init SCC */
-	if (strstr(cmd_line, "sccdbg")) {
-		sccdbg = 1;
-		udbg_init_scc(NULL);
+	/* Enable early btext debug if requested */
+	if (strstr(cmd_line, "btextdbg")) {
+		udbg_adb_init_early();
+		register_early_udbg_console();
 	}
 
+	/* Probe motherboard chipset */
+	pmac_feature_init();
+
+	/* We can NAP */
+	powersave_nap = 1;
+	printk(KERN_INFO "Using native/NAP idle loop\n");
+
+	/* Initialize debug stuff */
+	udbg_scc_init(!!strstr(cmd_line, "sccdbg"));
+	udbg_adb_init(!!strstr(cmd_line, "btextdbg"));
+
+#ifdef CONFIG_PPC64
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
 
@@ -638,19 +642,8 @@ static void __init pmac_init_early(void)
 
 static void __init pmac_progress(char *s, unsigned short hex)
 {
-#ifdef CONFIG_PPC64
-	if (sccdbg) {
-		udbg_puts(s);
-		udbg_puts("\n");
-		return;
-	}
-#endif
-#ifdef CONFIG_BOOTX_TEXT
-	if (boot_text_mapped) {
-		btext_drawstring(s);
-		btext_drawchar('\n');
-	}
-#endif /* CONFIG_BOOTX_TEXT */
+	udbg_puts(s);
+	udbg_puts("\n");
 }
 
 /*
@@ -735,7 +728,8 @@ static int __init pmac_probe(int platform)
 }
 
 #ifdef CONFIG_PPC64
-static int pmac_probe_mode(struct pci_bus *bus)
+/* Move that to pci.c */
+static int pmac_pci_probe_mode(struct pci_bus *bus)
 {
 	struct device_node *node = bus->sysdata;
 
@@ -771,7 +765,7 @@ struct machdep_calls __initdata pmac_md = {
 	.check_legacy_ioport	= pmac_check_legacy_ioport,
 	.progress		= pmac_progress,
 #ifdef CONFIG_PPC64
-	.pci_probe_mode		= pmac_probe_mode,
+	.pci_probe_mode		= pmac_pci_probe_mode,
 	.idle_loop		= native_idle,
 	.enable_pmcs		= power4_enable_pmcs,
 #ifdef CONFIG_KEXEC

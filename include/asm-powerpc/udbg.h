@@ -13,8 +13,8 @@
 #include <linux/compiler.h>
 #include <linux/init.h>
 
-extern void (*udbg_putc)(unsigned char c);
-extern unsigned char (*udbg_getc)(void);
+extern void (*udbg_putc)(char c);
+extern char (*udbg_getc)(void);
 extern int (*udbg_getc_poll)(void);
 
 extern void udbg_puts(const char *s);
@@ -30,5 +30,8 @@ extern unsigned int udbg_probe_uart_speed(void __iomem *comport,
 					  unsigned int clock);
 
 struct device_node;
-extern void udbg_init_scc(struct device_node *np);
+extern void udbg_scc_init(int force_scc);
+extern int udbg_adb_init(int force_btext);
+extern void udbg_adb_init_early(void);
+
 #endif /* _ASM_POWERPC_UDBG_H */

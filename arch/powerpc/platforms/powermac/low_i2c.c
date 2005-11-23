@@ -36,7 +36,7 @@
 
 #ifdef DEBUG
 #define DBG(x...) do {\
-		printk(KERN_DEBUG "KW:" x);	\
+		printk(KERN_DEBUG "low_i2c:" x);	\
 	} while(0)
 #else
 #define DBG(x...)
@@ -342,7 +342,7 @@ static int keywest_low_i2c_func(struct low_i2c_host *host, u8 addr, u8 subaddr, 
 static void keywest_low_i2c_add(struct device_node *np)
 {
 	struct low_i2c_host	*host = find_low_i2c_host(NULL);
-	u32			*psteps, *prate, steps, aoffset = 0;
+	u32			*psteps, *prate, *addrp, steps;
 	struct device_node	*parent;
 
 	if (host == NULL) {
@@ -352,6 +352,16 @@ static void keywest_low_i2c_add(struct device_node *np)
 	}
 	memset(host, 0, sizeof(*host));
 
+	/* Apple is kind enough to provide a valid AAPL,address property
+	 * on all i2c keywest nodes so far ... we would have to fallback
+	 * to macio parsing if that wasn't the case
+	 */
+	addrp = (u32 *)get_property(np, "AAPL,address", NULL);
+	if (addrp == NULL) {
+		printk(KERN_ERR "low_i2c: Can't find address for %s\n",
+		       np->full_name);
+		return;
+	}
 	init_MUTEX(&host->mutex);
 	host->np = of_node_get(np);	
 	psteps = (u32 *)get_property(np, "AAPL,address-step", NULL);
@@ -360,12 +370,10 @@ static void keywest_low_i2c_add(struct device_node *np)
 		steps >>= 1;
 	parent = of_get_parent(np);
 	host->num_channels = 1;
-	if (parent && parent->name[0] == 'u') {
+	if (parent && parent->name[0] == 'u')
 		host->num_channels = 2;
-		aoffset = 3;
-	}
 	/* Select interface rate */
-	host->speed = KW_I2C_MODE_100KHZ;
+	host->speed = KW_I2C_MODE_25KHZ;
 	prate = (u32 *)get_property(np, "AAPL,i2c-rate", NULL);
 	if (prate) switch(*prate) {
 	case 100:
@@ -379,9 +387,12 @@ static void keywest_low_i2c_add(struct device_node *np)
 		break;
 	}	
 
+	printk(KERN_INFO "low_i2c: Bus %s found at 0x%08x, %d channels,"
+	       " speed = %d KHz\n",
+	       np->full_name, *addrp, host->num_channels, prate ? *prate : 25);
+
 	host->mode = pmac_low_i2c_mode_std;
-	host->base = ioremap(np->addrs[0].address + aoffset,
-						np->addrs[0].size);
+	host->base = ioremap((*addrp), 0x1000);
 	host->func = keywest_low_i2c_func;
 }
 

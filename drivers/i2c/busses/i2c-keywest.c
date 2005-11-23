@@ -505,16 +505,23 @@ static int
 create_iface(struct device_node *np, struct device *dev)
 {
 	unsigned long steps;
-	unsigned bsteps, tsize, i, nchan, addroffset;
+	unsigned bsteps, tsize, i, nchan;
 	struct keywest_iface* iface;
-	u32 *psteps, *prate;
+	u32 *psteps, *prate, *addrp;
 	int rc;
 
-	if (np->n_intrs < 1 || np->n_addrs < 1) {
-		printk(KERN_ERR "%s: Missing interrupt or address !\n",
+	if (np->n_intrs < 1) {
+		printk(KERN_ERR "%s: Missing interrupt !\n",
 		       np->full_name);
 		return -ENODEV;
 	}
+	addrp = (u32 *)get_property(np, "AAPL,address", NULL);
+	if (addrp == NULL) {
+		printk(KERN_ERR "%s: Can't find address !\n",
+		       np->full_name);
+		return -ENODEV;
+	}
+
 	if (pmac_low_i2c_lock(np))
 		return -ENODEV;
 
@@ -525,13 +532,10 @@ create_iface(struct device_node *np, struct device *dev)
 	for (bsteps = 0; (steps & 0x01) == 0; bsteps++)
 		steps >>= 1;
 
-	if (np->parent->name[0] == 'u') {
+	if (np->parent->name[0] == 'u')
 		nchan = 2;
-		addroffset = 3;
-	} else {
-		addroffset = 0;
+	else
 		nchan = 1;
-	}
 
 	tsize = sizeof(struct keywest_iface) +
 		(sizeof(struct keywest_chan) + 4) * nchan;
@@ -550,8 +554,7 @@ create_iface(struct device_node *np, struct device *dev)
 	iface->irq = np->intrs[0].line;
 	iface->channels = (struct keywest_chan *)
 		(((unsigned long)(iface + 1) + 3UL) & ~3UL);
-	iface->base = ioremap(np->addrs[0].address + addroffset,
-						np->addrs[0].size);
+	iface->base = ioremap(*addrp, 0x1000);
 	if (!iface->base) {
 		printk(KERN_ERR "i2c-keywest: can't map inteface !\n");
 		kfree(iface);

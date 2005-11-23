@@ -147,6 +147,7 @@ static struct device_node *vias;
 static int pmu_kind = PMU_UNKNOWN;
 static int pmu_fully_inited = 0;
 static int pmu_has_adb;
+static struct device_node *gpio_node;
 static unsigned char __iomem *gpio_reg = NULL;
 static int gpio_irq = -1;
 static int gpio_irq_enabled = -1;
@@ -295,22 +296,26 @@ static struct backlight_controller pmu_backlight_controller = {
 };
 #endif /* CONFIG_PMAC_BACKLIGHT */
 
-int
-find_via_pmu(void)
+int __init find_via_pmu(void)
 {
+	phys_addr_t taddr;
+	u32 *reg;
+
 	if (via != 0)
 		return 1;
-	vias = find_devices("via-pmu");
-	if (vias == 0)
+	vias = of_find_node_by_name(NULL, "via-pmu");
+	if (vias == NULL)
 		return 0;
-	if (vias->next != 0)
-		printk(KERN_WARNING "Warning: only using 1st via-pmu\n");
 
-	if (vias->n_addrs < 1 || vias->n_intrs < 1) {
-		printk(KERN_ERR "via-pmu: %d addresses, %d interrupts!\n",
-		       vias->n_addrs, vias->n_intrs);
-		if (vias->n_addrs < 1 || vias->n_intrs < 1)
-			return 0;
+	reg = (u32 *)get_property(vias, "reg", NULL);
+	if (reg == NULL) {
+		printk(KERN_ERR "via-pmu: No \"reg\" property !\n");
+		goto fail;
+	}
+	taddr = of_translate_address(vias, reg);
+	if (taddr == 0) {
+		printk(KERN_ERR "via-pmu: Can't translate address !\n");
+		goto fail;
 	}
 
 	spin_lock_init(&pmu_lock);
@@ -331,7 +336,8 @@ find_via_pmu(void)
 		pmu_kind = PMU_HEATHROW_BASED;
 	else if (device_is_compatible(vias->parent, "Keylargo")
 		 || device_is_compatible(vias->parent, "K2-Keylargo")) {
-		struct device_node *gpio, *gpiop;
+		struct device_node *gpiop;
+		phys_addr_t gaddr = 0;
 
 		pmu_kind = PMU_KEYLARGO_BASED;
 		pmu_has_adb = (find_type_devices("adb") != NULL);
@@ -341,19 +347,24 @@ find_via_pmu(void)
 				PMU_INT_TICK |
 				PMU_INT_ENVIRONMENT;
 		
-		gpiop = find_devices("gpio");
-		if (gpiop && gpiop->n_addrs) {
-			gpio_reg = ioremap(gpiop->addrs->address, 0x10);
-			gpio = find_devices("extint-gpio1");
-			if (gpio == NULL)
-				gpio = find_devices("pmu-interrupt");
-			if (gpio && gpio->parent == gpiop && gpio->n_intrs)
-				gpio_irq = gpio->intrs[0].line;
+		gpiop = of_find_node_by_name(NULL, "gpio");
+		if (gpiop) {
+			reg = (u32 *)get_property(gpiop, "reg", NULL);
+			if (reg)
+				gaddr = of_translate_address(gpiop, reg);
+			if (gaddr != 0)
+				gpio_reg = ioremap(gaddr, 0x10);
 		}
+		if (gpio_reg == NULL)
+			printk(KERN_ERR "via-pmu: Can't find GPIO reg !\n");
 	} else
 		pmu_kind = PMU_UNKNOWN;
 
-	via = ioremap(vias->addrs->address, 0x2000);
+	via = ioremap(taddr, 0x2000);
+	if (via == NULL) {
+		printk(KERN_ERR "via-pmu: Can't map address !\n");
+		goto fail;
+	}
 	
 	out_8(&via[IER], IER_CLR | 0x7f);	/* disable all intrs */
 	out_8(&via[IFR], 0x7f);			/* clear IFR */
@@ -371,17 +382,19 @@ find_via_pmu(void)
 	sys_ctrler = SYS_CTRLER_PMU;
 	
 	return 1;
+ fail:
+	of_node_put(vias);
+	vias = NULL;
+	return 0;
 }
 
 #ifdef CONFIG_ADB
-static int
-pmu_probe(void)
+static int pmu_probe(void)
 {
 	return vias == NULL? -ENODEV: 0;
 }
 
-static int __init
-pmu_init(void)
+static int __init pmu_init(void)
 {
 	if (vias == NULL)
 		return -ENODEV;
@@ -405,7 +418,7 @@ static int __init via_pmu_start(void)
 	bright_req_2.complete = 1;
 	batt_req.complete = 1;
 
-#if defined(CONFIG_PPC32) && !defined(CONFIG_PPC_MERGE)
+#ifndef CONFIG_PPC_MERGE
 	if (pmu_kind == PMU_KEYLARGO_BASED)
 		openpic_set_irq_priority(vias->intrs[0].line,
 					 OPENPIC_PRIORITY_DEFAULT + 1);
@@ -418,10 +431,22 @@ static int __init via_pmu_start(void)
 		return -EAGAIN;
 	}
 
-	if (pmu_kind == PMU_KEYLARGO_BASED && gpio_irq != -1) {
-		if (request_irq(gpio_irq, gpio1_interrupt, 0, "GPIO1 ADB", (void *)0))
-			printk(KERN_ERR "pmu: can't get irq %d (GPIO1)\n", gpio_irq);
-		gpio_irq_enabled = 1;
+	if (pmu_kind == PMU_KEYLARGO_BASED) {
+		gpio_node = of_find_node_by_name(NULL, "extint-gpio1");
+		if (gpio_node == NULL)
+			gpio_node = of_find_node_by_name(NULL,
+							 "pmu-interrupt");
+		if (gpio_node && gpio_node->n_intrs > 0)
+			gpio_irq = gpio_node->intrs[0].line;
+
+		if (gpio_irq != -1) {
+			if (request_irq(gpio_irq, gpio1_interrupt, 0,
+					"GPIO1 ADB", (void *)0))
+				printk(KERN_ERR "pmu: can't get irq %d"
+				       " (GPIO1)\n", gpio_irq);
+			else
+				gpio_irq_enabled = 1;
+		}
 	}
 
 	/* Enable interrupts */
@@ -1371,7 +1396,6 @@ next:
 			}
 			pmu_done(req);
 		} else {
-#if defined(CONFIG_XMON) && !defined(CONFIG_PPC64)
 			if (len == 4 && data[1] == 0x2c) {
 				extern int xmon_wants_key, xmon_adb_keycode;
 				if (xmon_wants_key) {
@@ -1379,7 +1403,6 @@ next:
 					return;
 				}
 			}
-#endif /* defined(CONFIG_XMON) && !defined(CONFIG_PPC64) */
 #ifdef CONFIG_ADB
 			/*
 			 * XXX On the [23]400 the PMU gives us an up

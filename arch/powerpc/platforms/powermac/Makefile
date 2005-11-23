@@ -7,3 +7,4 @@ obj-$(CONFIG_NVRAM)		+= nvram.o
 # ppc64 pmac doesn't define CONFIG_NVRAM but needs nvram stuff
 obj-$(CONFIG_PPC64)		+= nvram.o
 obj-$(CONFIG_SMP)		+= smp.o
+obj-$(CONFIG_PPC_MERGE)		+= udbg_scc.o udbg_adb.o

@@ -47,7 +47,7 @@ struct NS16550 {
 
 static volatile struct NS16550 __iomem *udbg_comport;
 
-static void udbg_550_putc(unsigned char c)
+static void udbg_550_putc(char c)
 {
 	if (udbg_comport) {
 		while ((in_8(&udbg_comport->lsr) & LSR_THRE) == 0)
@@ -69,7 +69,7 @@ static int udbg_550_getc_poll(void)
 	return -1;
 }
 
-static unsigned char udbg_550_getc(void)
+static char udbg_550_getc(void)
 {
 	if (udbg_comport) {
 		while ((in_8(&udbg_comport->lsr) & LSR_DR) == 0)

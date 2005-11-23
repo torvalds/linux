@@ -153,6 +153,9 @@ __after_mmu_off:
 	bl	flush_tlbs
 
 	bl	initial_bats
+#if !defined(CONFIG_APUS) && defined(CONFIG_BOOTX_TEXT)
+	bl	setup_disp_bat
+#endif
 
 /*
  * Call setup_cpu for CPU 0 and initialize 6xx Idle
@@ -1305,6 +1308,32 @@ initial_bats:
 	isync
 	blr
 
+
+#if !defined(CONFIG_APUS) && defined(CONFIG_BOOTX_TEXT)
+setup_disp_bat:
+	/*
+	 * setup the display bat prepared for us in prom.c
+	 */
+	mflr	r8
+	bl	reloc_offset
+	mtlr	r8
+	addis	r8,r3,disp_BAT@ha
+	addi	r8,r8,disp_BAT@l
+	cmpwi	cr0,r8,0
+	beqlr
+	lwz	r11,0(r8)
+	lwz	r8,4(r8)
+	mfspr	r9,SPRN_PVR
+	rlwinm	r9,r9,16,16,31		/* r9 = 1 for 601, 4 for 604 */
+	cmpwi	0,r9,1
+	beq	1f
+	mtspr	SPRN_DBAT3L,r8
+	mtspr	SPRN_DBAT3U,r11
+	blr
+1:	mtspr	SPRN_IBAT3L,r8
+	mtspr	SPRN_IBAT3U,r11
+	blr
+#endif /* !defined(CONFIG_APUS) && defined(CONFIG_BOOTX_TEXT) */
 
 #ifdef CONFIG_8260
 /* Jump into the system reset for the rom.

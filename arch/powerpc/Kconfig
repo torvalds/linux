@@ -50,7 +50,7 @@ config PPC
 
 config EARLY_PRINTK
 	bool
-	default y if PPC64
+	default y
 
 config COMPAT
 	bool

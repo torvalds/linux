@@ -744,6 +744,9 @@ void __init setup_arch(char **cmdline_p)
 	/* so udelay does something sensible, assume <= 1000 bogomips */
 	loops_per_jiffy = 500000000 / HZ;
 
+	if (ppc_md.init_early)
+		ppc_md.init_early();
+
 #ifdef CONFIG_PPC_MULTIPLATFORM
 	/* This could be called "early setup arch", it must be done
 	 * now because xmon need it
