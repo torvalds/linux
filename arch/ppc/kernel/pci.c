@@ -815,8 +815,7 @@ EXPORT_SYMBOL(pci_device_to_OF_node);
  * to set pci_assign_all_buses to 1 and still use RTAS for PCI
  * config cycles.
  */
-struct pci_controller*
-pci_find_hose_for_OF_device(struct device_node* node)
+struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 {
 	if (!have_of)
 		return NULL;

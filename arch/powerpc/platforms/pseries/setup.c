@@ -79,8 +79,6 @@
 extern void find_udbg_vterm(void);
 extern void system_reset_fwnmi(void);	/* from head.S */
 extern void machine_check_fwnmi(void);	/* from head.S */
-extern void generic_find_legacy_serial_ports(u64 *physport,
-		unsigned int *default_speed);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
@@ -366,10 +364,7 @@ static int pseries_set_xdabr(unsigned long dabr)
  */
 static void __init pSeries_init_early(void)
 {
-	void *comport;
 	int iommu_off = 0;
-	unsigned int default_speed;
-	u64 physport;
 
 	DBG(" -> pSeries_init_early()\n");
 
@@ -383,17 +378,8 @@ static void __init pSeries_init_early(void)
 			     get_property(of_chosen, "linux,iommu-off", NULL));
 	}
 
-	generic_find_legacy_serial_ports(&physport, &default_speed);
-
 	if (platform_is_lpar())
 		find_udbg_vterm();
-	else if (physport) {
-		/* Map the uart for udbg. */
-		comport = (void *)ioremap(physport, 16);
-		udbg_init_uart(comport, default_speed);
-
-		DBG("Hello World !\n");
-	}
 
 	if (firmware_has_feature(FW_FEATURE_DABR))
 		ppc_md.set_dabr = pseries_set_dabr;

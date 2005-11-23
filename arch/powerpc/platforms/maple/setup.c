@@ -192,20 +192,6 @@ static void __init maple_init_early(void)
 	 */
 	hpte_init_native();
 
-	/* Find the serial port */
-	generic_find_legacy_serial_ports(&physport, &default_speed);
-
-	DBG("phys port addr: %lx\n", (long)physport);
-
-	if (physport) {
-		void *comport;
-		/* Map the uart for udbg. */
-		comport = (void *)ioremap(physport, 16);
-		udbg_init_uart(comport, default_speed);
-
-		DBG("Hello World !\n");
-	}
-
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
 

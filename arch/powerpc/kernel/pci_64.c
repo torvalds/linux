@@ -1223,6 +1223,7 @@ void __devinit pcibios_fixup_device_resources(struct pci_dev *dev,
 }
 EXPORT_SYMBOL(pcibios_fixup_device_resources);
 
+
 static void __devinit do_bus_setup(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
@@ -1304,6 +1305,20 @@ void pci_resource_to_user(const struct pci_dev *dev, int bar,
 
 	*start = rsrc->start + offset;
 	*end = rsrc->end + offset;
+}
+
+struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
+{
+	if (!have_of)
+		return NULL;
+	while(node) {
+		struct pci_controller *hose, *tmp;
+		list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+			if (hose->arch_data == node)
+				return hose;
+		node = node->parent;
+	}
+	return NULL;
 }
 
 #endif /* CONFIG_PPC_MULTIPLATFORM */

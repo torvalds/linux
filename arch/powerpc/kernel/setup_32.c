@@ -39,6 +39,7 @@
 #include <asm/nvram.h>
 #include <asm/xmon.h>
 #include <asm/time.h>
+#include <asm/serial.h>
 
 #include "setup.h"
 
@@ -282,6 +283,13 @@ void __init setup_arch(char **cmdline_p)
 
 	unflatten_device_tree();
 	check_for_initrd();
+
+	if (ppc_md.init_early)
+		ppc_md.init_early();
+
+#ifdef CONFIG_PPC_MULTIPLATFORM
+	find_legacy_serial_ports();
+#endif
 	finish_device_tree();
 
 	smp_setup_cpu_maps();

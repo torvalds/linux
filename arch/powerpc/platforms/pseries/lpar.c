@@ -24,6 +24,7 @@
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
+#include <linux/console.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/page.h>
@@ -191,7 +192,7 @@ static unsigned char udbg_getcLP(void)
 /* call this from early_init() for a working debug console on
  * vterm capable LPAR machines
  */
-void udbg_init_debug_lpar(void)
+void __init udbg_init_debug_lpar(void)
 {
 	vtermno = 0;
 	udbg_putc = udbg_putcLP;
@@ -200,63 +201,54 @@ void udbg_init_debug_lpar(void)
 }
 
 /* returns 0 if couldn't find or use /chosen/stdout as console */
-int find_udbg_vterm(void)
+void __init find_udbg_vterm(void)
 {
 	struct device_node *stdout_node;
 	u32 *termno;
 	char *name;
-	int found = 0;
+	int add_console;
 
 	/* find the boot console from /chosen/stdout */
 	if (!of_chosen)
-		return 0;
+		return;
 	name = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
 	if (name == NULL)
-		return 0;
+		return;
 	stdout_node = of_find_node_by_path(name);
 	if (!stdout_node)
-		return 0;
-
-	/* now we have the stdout node; figure out what type of device it is. */
+		return;
 	name = (char *)get_property(stdout_node, "name", NULL);
 	if (!name) {
 		printk(KERN_WARNING "stdout node missing 'name' property!\n");
 		goto out;
 	}
+	/* The user has requested a console so this is already set up. */
+	add_console = !strstr(cmd_line, "console=");
 
-	if (strncmp(name, "vty", 3) == 0) {
-		if (device_is_compatible(stdout_node, "hvterm1")) {
-			termno = (u32 *)get_property(stdout_node, "reg", NULL);
-			if (termno) {
-				vtermno = termno[0];
-				udbg_putc = udbg_putcLP;
-				udbg_getc = udbg_getcLP;
-				udbg_getc_poll = udbg_getc_pollLP;
-				found = 1;
-			}
-		} else if (device_is_compatible(stdout_node, "hvterm-protocol")) {
-			termno = (u32 *)get_property(stdout_node, "reg", NULL);
-			if (termno) {
-				vtermno = termno[0];
-				udbg_putc = udbg_hvsi_putc;
-				udbg_getc = udbg_hvsi_getc;
-				udbg_getc_poll = udbg_hvsi_getc_poll;
-				found = 1;
-			}
-		}
-	} else if (strncmp(name, "serial", 6)) {
-		/* XXX fix ISA serial console */
-		printk(KERN_WARNING "serial stdout on LPAR ('%s')! "
-				"can't print udbg messages\n",
-		       stdout_node->full_name);
-	} else {
-		printk(KERN_WARNING "don't know how to print to stdout '%s'\n",
-		       stdout_node->full_name);
+	/* Check if it's a virtual terminal */
+	if (strncmp(name, "vty", 3) != 0)
+		goto out;
+	termno = (u32 *)get_property(stdout_node, "reg", NULL);
+	if (termno == NULL)
+		goto out;
+	vtermno = termno[0];
+
+	if (device_is_compatible(stdout_node, "hvterm1")) {
+		udbg_putc = udbg_putcLP;
+		udbg_getc = udbg_getcLP;
+		udbg_getc_poll = udbg_getc_pollLP;
+		if (add_console)
+			add_preferred_console("hvc", termno[0] & 0xff, NULL);
+	} else if (device_is_compatible(stdout_node, "hvterm-protocol")) {
+		vtermno = termno[0];
+		udbg_putc = udbg_hvsi_putc;
+		udbg_getc = udbg_hvsi_getc;
+		udbg_getc_poll = udbg_hvsi_getc_poll;
+		if (add_console)
+			add_preferred_console("hvsi", termno[0] & 0xff, NULL);
 	}
-
 out:
 	of_node_put(stdout_node);
-	return found;
 }
 
 void vpa_init(int cpu)

@@ -140,6 +140,9 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	return PCI_DN(busdn)->phb;
 }
 
+extern struct pci_controller*
+pci_find_hose_for_OF_device(struct device_node* node);
+
 extern struct pci_controller *
 pcibios_alloc_controller(struct device_node *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);

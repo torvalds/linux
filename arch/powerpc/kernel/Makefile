@@ -33,10 +33,6 @@ obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_IBMEBUS)           += ibmebus.o
 obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
-obj-$(CONFIG_PPC_PSERIES)	+= udbg_16550.o
-obj-$(CONFIG_PPC_MAPLE)		+= udbg_16550.o
-udbgscc-$(CONFIG_PPC64)		:= udbg_scc.o
-obj-$(CONFIG_PPC_PMAC)		+= $(udbgscc-y)
 obj64-$(CONFIG_PPC_MULTIPLATFORM) += nvram_64.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
@@ -59,14 +55,15 @@ obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
-
+obj-$(CONFIG_PPC_MULTIPLATFORM) += legacy_serial.o
+obj64-$(CONFIG_PPC_MULTIPLATFORM) += udbg_16550.o
+obj64-$(CONFIG_PPC_PMAC)	+= udbg_scc.o
 module-$(CONFIG_PPC64)		+= module_64.o
 obj-$(CONFIG_MODULES)		+= $(module-y)
 
 pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o pci_iommu.o \
 				   pci_direct_iommu.o iomap.o
 obj-$(CONFIG_PCI)		+= $(pci64-y)
-
 kexec-$(CONFIG_PPC64)		:= machine_kexec_64.o
 kexec-$(CONFIG_PPC32)		:= machine_kexec_32.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o $(kexec-y)
