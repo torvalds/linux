@@ -1760,7 +1760,7 @@ static int alc880_auto_fill_dac_nids(struct alc_spec *spec, const struct auto_pi
 		nid = cfg->line_out_pins[i];
 		if (alc880_is_fixed_pin(nid)) {
 			int idx = alc880_fixed_pin_idx(nid);
-			spec->multiout.dac_nids[i] = alc880_dac_to_idx(idx);
+			spec->multiout.dac_nids[i] = alc880_idx_to_dac(idx);
 			assigned[idx] = 1;
 		}
 	}
