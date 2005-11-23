@@ -152,10 +152,15 @@ static void enp2611_check_link_status(unsigned long __dummy)
 
 		status = pm3386_is_link_up(i);
 		if (status && !netif_carrier_ok(dev)) {
+			/* @@@ Should report autonegotiation status.  */
+			printk(KERN_INFO "%s: NIC Link is Up\n", dev->name);
+
 			pm3386_enable_tx(i);
 			caleb_enable_tx(i);
 			netif_carrier_on(dev);
 		} else if (!status && netif_carrier_ok(dev)) {
+			printk(KERN_INFO "%s: NIC Link is Down\n", dev->name);
+
 			netif_carrier_off(dev);
 			caleb_disable_tx(i);
 			pm3386_disable_tx(i);
