@@ -235,10 +235,11 @@ static void ehci_pci_stop (struct usb_hcd *hcd)
 
 /* suspend/resume, section 4.3 */
 
-/* These routines rely on the bus (pci, platform, etc)
+/* These routines rely on the PCI bus glue
  * to handle powerdown and wakeup, and currently also on
  * transceivers that don't need any software attention to set up
  * the right sort of wakeup.
+ * Also they depend on separate root hub suspend/resume.
  */
 
 static int ehci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
@@ -246,17 +247,9 @@ static int ehci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 
 	if (time_before (jiffies, ehci->next_statechange))
-		msleep (100);
+		msleep (10);
 
-#ifdef	CONFIG_USB_SUSPEND
-	(void) usb_suspend_device (hcd->self.root_hub);
-#else
-	usb_lock_device (hcd->self.root_hub);
-	(void) ehci_bus_suspend (hcd);
-	usb_unlock_device (hcd->self.root_hub);
-#endif
-
-	// save (PCI) FLADJ in case of Vaux power loss
+	// could save FLADJ in case of Vaux power loss
 	// ... we'd only use it to handle clock skew
 
 	return 0;
@@ -269,13 +262,18 @@ static int ehci_pci_resume (struct usb_hcd *hcd)
 	struct usb_device	*root = hcd->self.root_hub;
 	int			retval = -EINVAL;
 
-	// maybe restore (PCI) FLADJ
+	// maybe restore FLADJ
 
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep (100);
 
+	/* If CF is clear, we lost PCI Vaux power and need to restart.  */
+	if (readl (&ehci->regs->configured_flag) != cpu_to_le32(FLAG_CF))
+		goto restart;
+
 	/* If any port is suspended (or owned by the companion),
 	 * we know we can/must resume the HC (and mustn't reset it).
+	 * We just defer that to the root hub code.
 	 */
 	for (port = HCS_N_PORTS (ehci->hcs_params); port > 0; ) {
 		u32	status;
@@ -283,42 +281,43 @@ static int ehci_pci_resume (struct usb_hcd *hcd)
 		status = readl (&ehci->regs->port_status [port]);
 		if (!(status & PORT_POWER))
 			continue;
-		if (status & (PORT_SUSPEND | PORT_OWNER)) {
-			down (&hcd->self.root_hub->serialize);
-			retval = ehci_bus_resume (hcd);
-			up (&hcd->self.root_hub->serialize);
-			break;
+		if (status & (PORT_SUSPEND | PORT_RESUME | PORT_OWNER)) {
+			usb_hcd_resume_root_hub(hcd);
+			return 0;
 		}
+	}
+
+restart:
+	ehci_dbg(ehci, "lost power, restarting\n");
+	for (port = HCS_N_PORTS (ehci->hcs_params); port > 0; ) {
+		port--;
 		if (!root->children [port])
 			continue;
-		dbg_port (ehci, __FUNCTION__, port + 1, status);
 		usb_set_device_state (root->children[port],
 					USB_STATE_NOTATTACHED);
 	}
 
 	/* Else reset, to cope with power loss or flush-to-storage
-	 * style "resume" having activated BIOS during reboot.
+	 * style "resume" having let BIOS kick in during reboot.
 	 */
-	if (port == 0) {
-		(void) ehci_halt (ehci);
-		(void) ehci_reset (ehci);
-		(void) ehci_pci_reset (hcd);
+	(void) ehci_halt (ehci);
+	(void) ehci_reset (ehci);
+	(void) ehci_pci_reset (hcd);
 
-		/* emptying the schedule aborts any urbs */
-		spin_lock_irq (&ehci->lock);
-		if (ehci->reclaim)
-			ehci->reclaim_ready = 1;
-		ehci_work (ehci, NULL);
-		spin_unlock_irq (&ehci->lock);
+	/* emptying the schedule aborts any urbs */
+	spin_lock_irq (&ehci->lock);
+	if (ehci->reclaim)
+		ehci->reclaim_ready = 1;
+	ehci_work (ehci, NULL);
+	spin_unlock_irq (&ehci->lock);
 
-		/* restart; khubd will disconnect devices */
-		retval = ehci_run (hcd);
+	/* restart; khubd will disconnect devices */
+	retval = ehci_run (hcd);
 
-		/* here we "know" root ports should always stay powered;
-		 * but some controllers may lose all power.
-		 */
-		ehci_port_power (ehci, 1);
-	}
+	/* here we "know" root ports should always stay powered;
+	 * but some controllers may lose all power.
+	 */
+	ehci_port_power (ehci, 1);
 
 	return retval;
 }
