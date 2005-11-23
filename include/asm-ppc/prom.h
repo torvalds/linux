@@ -136,5 +136,15 @@ extern unsigned long sub_reloc_offset(unsigned long);
 #define PTRRELOC(x)	((typeof(x))add_reloc_offset((unsigned long)(x)))
 #define PTRUNRELOC(x)	((typeof(x))sub_reloc_offset((unsigned long)(x)))
 
+
+/*
+ * Address translation function(s)
+ */
+#define OF_BAD_ADDR	((u64)-1)
+extern u64 of_translate_address(struct device_node *np, u32 *addr);
+extern u32 *of_get_address(struct device_node *dev, int index, u64 *size);
+extern u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size);
+
+
 #endif /* _PPC_PROM_H */
 #endif /* __KERNEL__ */

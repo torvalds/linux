@@ -394,6 +394,10 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
 #define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER) % VSID_MODULUS)
 #define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
 
+/* Physical address used by some IO functions */
+typedef unsigned long phys_addr_t;
+
+
 #endif /* __ASSEMBLY */
 
 #endif /* CONFIG_PPC64 */

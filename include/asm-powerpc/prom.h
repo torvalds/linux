@@ -223,5 +223,14 @@ extern struct resource *request_OF_resource(struct device_node* node,
 				int index, const char* name_postfix);
 extern int release_OF_resource(struct device_node* node, int index);
 
+/*
+ * Address translation function(s)
+ */
+#define OF_BAD_ADDR	((u64)-1)
+extern u64 of_translate_address(struct device_node *np, u32 *addr);
+extern u32 *of_get_address(struct device_node *dev, int index, u64 *size);
+extern u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size);
+
+
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */
