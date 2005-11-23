@@ -754,9 +754,7 @@ repeat:
 	}
 
 	/*
-	 * No need to use ldarx/stdcx here because all who
-	 * might be updating the pte will hold the
-	 * page_table_lock
+	 * No need to use ldarx/stdcx here
 	 */
 	*ptep = __pte(new_pte & ~_PAGE_BUSY);
 
