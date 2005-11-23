@@ -218,6 +218,15 @@ static irqreturn_t ixpdev_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void ixpdev_poll_controller(struct net_device *dev)
+{
+	disable_irq(IRQ_IXP2000_THDA0);
+	ixpdev_interrupt(IRQ_IXP2000_THDA0, dev, NULL);
+	enable_irq(IRQ_IXP2000_THDA0);
+}
+#endif
+
 static int ixpdev_open(struct net_device *dev)
 {
 	struct ixpdev_priv *ip = netdev_priv(dev);
@@ -268,6 +277,9 @@ struct net_device *ixpdev_alloc(int channel, int sizeof_priv)
 	dev->poll = ixpdev_poll;
 	dev->open = ixpdev_open;
 	dev->stop = ixpdev_close;
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	dev->poll_controller = ixpdev_poll_controller;
+#endif
 
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	dev->weight = 64;
