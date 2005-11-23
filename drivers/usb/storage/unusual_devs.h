@@ -1118,6 +1118,15 @@ UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_GO_SLOW ),
 
+/*
+ * David Härdeman <david@2gen.com>
+ * The key makes the SCSI stack print confusing (but harmless) messages
+ */
+UNUSUAL_DEV(  0x4146, 0xba01, 0x0100, 0x0100,
+		"Iomega",
+		"Micro Mini 1GB",
+		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
+
 #ifdef CONFIG_USB_STORAGE_SDDR55
 UNUSUAL_DEV(  0x55aa, 0xa103, 0x0000, 0x9999, 
 		"Sandisk",
