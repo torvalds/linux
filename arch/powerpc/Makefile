@@ -151,7 +151,7 @@ CPPFLAGS_vmlinux.lds	:= -Upowerpc
 # All the instructions talk about "make bzImage".
 bzImage: zImage
 
-BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
+BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm uImage
 
 .PHONY: $(BOOT_TARGETS)
 
