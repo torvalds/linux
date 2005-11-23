@@ -59,7 +59,6 @@ struct slot {
 	struct slot *next;
 	u8 bus;
 	u8 device;
-	u16 status;
 	u32 number;
 	u8 state;
 	struct timer_list task_event;
