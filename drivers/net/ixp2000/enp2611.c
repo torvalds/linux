@@ -148,9 +148,6 @@ static void enp2611_check_link_status(unsigned long __dummy)
 		struct net_device *dev;
 		int status;
 
-		if (!netif_running(nds[i]))
-			continue;
-
 		dev = nds[i];
 
 		status = pm3386_is_link_up(i);
