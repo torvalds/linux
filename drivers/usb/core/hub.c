@@ -946,24 +946,21 @@ static int locktree(struct usb_device *udev)
 	t = locktree(hdev);
 	if (t < 0)
 		return t;
-	for (t = 0; t < hdev->maxchild; t++) {
-		if (hdev->children[t] == udev) {
-			/* everything is fail-fast once disconnect
-			 * processing starts
-			 */
-			if (udev->state == USB_STATE_NOTATTACHED)
-				break;
 
-			/* when everyone grabs locks top->bottom,
-			 * non-overlapping work may be concurrent
-			 */
-			usb_lock_device(udev);
-			usb_unlock_device(hdev);
-			return t + 1;
-		}
+	/* everything is fail-fast once disconnect
+	 * processing starts
+	 */
+	if (udev->state == USB_STATE_NOTATTACHED) {
+		usb_unlock_device(hdev);
+		return -ENODEV;
 	}
+
+	/* when everyone grabs locks top->bottom,
+	 * non-overlapping work may be concurrent
+	 */
+	usb_lock_device(udev);
 	usb_unlock_device(hdev);
-	return -ENODEV;
+	return udev->portnum;
 }
 
 static void recursively_mark_NOTATTACHED(struct usb_device *udev)
@@ -1335,15 +1332,9 @@ int usb_new_device(struct usb_device *udev)
 					le16_to_cpu(udev->config[0].desc.wTotalLength),
 					USB_DT_OTG, (void **) &desc) == 0) {
 			if (desc->bmAttributes & USB_OTG_HNP) {
-				unsigned		port1;
+				unsigned		port1 = udev->portnum;
 				struct usb_device	*root = udev->parent;
 				
-				for (port1 = 1; port1 <= root->maxchild;
-						port1++) {
-					if (root->children[port1-1] == udev)
-						break;
-				}
-
 				dev_info(&udev->dev,
 					"Dual-Role OTG device on %sHNP port\n",
 					(port1 == bus->otg_port)
@@ -1720,22 +1711,9 @@ static int __usb_suspend_device (struct usb_device *udev, int port1)
 int usb_suspend_device(struct usb_device *udev)
 {
 #ifdef	CONFIG_USB_SUSPEND
-	int	port1;
-
 	if (udev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
-	if (!udev->parent)
-		port1 = 0;
-	else {
-		for (port1 = udev->parent->maxchild; port1 > 0; --port1) {
-			if (udev->parent->children[port1-1] == udev)
-				break;
-		}
-		if (port1 == 0)
-			return -ENODEV;
-	}
-
-	return __usb_suspend_device(udev, port1);
+	return __usb_suspend_device(udev, udev->portnum);
 #else
 	/* NOTE:  udev->state unchanged, it's not lying ... */
 	udev->dev.power.power_state = PMSG_SUSPEND;
@@ -1893,20 +1871,10 @@ hub_port_resume(struct usb_hub *hub, int port1, struct usb_device *udev)
  */
 int usb_resume_device(struct usb_device *udev)
 {
-	int	port1, status;
+	int	status;
 
 	if (udev->state == USB_STATE_NOTATTACHED)
 		return -ENODEV;
-	if (!udev->parent)
-		port1 = 0;
-	else {
-		for (port1 = udev->parent->maxchild; port1 > 0; --port1) {
-			if (udev->parent->children[port1-1] == udev)
-				break;
-		}
-		if (port1 == 0)
-			return -ENODEV;
-	}
 
 #ifdef	CONFIG_USB_SUSPEND
 	/* selective resume of one downstream hub-to-device port */
@@ -1915,7 +1883,7 @@ int usb_resume_device(struct usb_device *udev)
 			// NOTE swsusp may bork us, device state being wrong...
 			// NOTE this fails if parent is also suspended...
 			status = hub_port_resume(hdev_to_hub(udev->parent),
-					port1, udev);
+					udev->portnum, udev);
 		} else
 			status = 0;
 	} else
@@ -3029,7 +2997,8 @@ int usb_reset_device(struct usb_device *udev)
 	struct usb_hub			*parent_hub;
 	struct usb_device_descriptor	descriptor = udev->descriptor;
 	struct usb_hub			*hub = NULL;
-	int 				i, ret = 0, port1 = -1;
+	int 				i, ret = 0;
+	int				port1 = udev->portnum;
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			udev->state == USB_STATE_SUSPENDED) {
@@ -3042,18 +3011,6 @@ int usb_reset_device(struct usb_device *udev)
 		/* this requires hcd-specific logic; see OHCI hc_restart() */
 		dev_dbg(&udev->dev, "%s for root hub!\n", __FUNCTION__);
 		return -EISDIR;
-	}
-
-	for (i = 0; i < parent_hdev->maxchild; i++)
-		if (parent_hdev->children[i] == udev) {
-			port1 = i + 1;
-			break;
-		}
-
-	if (port1 < 0) {
-		/* If this ever happens, it's very bad */
-		dev_err(&udev->dev, "Can't locate device's port!\n");
-		return -ENOENT;
 	}
 	parent_hub = hdev_to_hub(parent_hdev);
 

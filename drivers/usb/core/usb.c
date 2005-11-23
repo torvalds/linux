@@ -439,6 +439,7 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 		/* hub driver sets up TT records */
 	}
 
+	dev->portnum = port1;
 	dev->bus = bus;
 	dev->parent = parent;
 	INIT_LIST_HEAD(&dev->filelist);

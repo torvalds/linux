@@ -348,6 +348,7 @@ struct usb_device {
 	char **rawdescriptors;		/* Raw descriptors for each config */
 
 	unsigned short bus_mA;		/* Current available from the bus */
+	u8 portnum;			/* Parent port number (origin 1) */
 
 	int have_langid;		/* whether string_langid is valid */
 	int string_langid;		/* language ID for strings */
