@@ -125,6 +125,19 @@ __start:
 	bl	prom_init
 	trap
 
+/*
+ * Check for BootX signature when supporting PowerMac and branch to
+ * appropriate trampoline if it's present
+ */
+#ifdef CONFIG_PPC_PMAC
+1:	lis	r31,0x426f
+	ori	r31,r31,0x6f58
+	cmpw	0,r3,r31
+	bne	1f
+	bl	bootx_init
+	trap
+#endif /* CONFIG_PPC_PMAC */
+
 1:	mr	r31,r3			/* save parameters */
 	mr	r30,r4
 	li	r24,0			/* cpu # */
