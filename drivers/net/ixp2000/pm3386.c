@@ -166,9 +166,7 @@ void pm3386_init_port(int port)
 	 * Soft reset the EGMAC block.
 	 */
 	pm3386_port_reg_write(port, 0x301, 0x100, 0x8000);
-	udelay(10);
 	pm3386_port_reg_write(port, 0x301, 0x100, 0x0000);
-	udelay(10);
 
 	/*
 	 * Auto-sense autonegotiation status.
@@ -191,15 +189,12 @@ void pm3386_init_port(int port)
 	 * Set autonegotiation parameters to 'no PAUSE, full duplex.'
 	 */
 	pm3386_port_reg_write(port, 0x31c, 0x100, 0x0020);
-	udelay(10);
 
 	/*
 	 * Enable and restart autonegotiation.
 	 */
 	pm3386_port_reg_write(port, 0x318, 0x100, 0x0003);
-	udelay(1000);
 	pm3386_port_reg_write(port, 0x318, 0x100, 0x0002);
-	udelay(10);
 }
 
 void pm3386_get_mac(int port, u8 *mac)
@@ -264,8 +259,6 @@ void pm3386_enable_rx(int port)
 	temp = pm3386_port_reg_read(port, 0x303, 0x100);
 	temp |= 0x1000;
 	pm3386_port_reg_write(port, 0x303, 0x100, temp);
-
-	udelay(10);
 }
 
 void pm3386_disable_rx(int port)
@@ -275,8 +268,6 @@ void pm3386_disable_rx(int port)
 	temp = pm3386_port_reg_read(port, 0x303, 0x100);
 	temp &= 0xefff;
 	pm3386_port_reg_write(port, 0x303, 0x100, temp);
-
-	udelay(10);
 }
 
 void pm3386_enable_tx(int port)
@@ -286,8 +277,6 @@ void pm3386_enable_tx(int port)
 	temp = pm3386_port_reg_read(port, 0x303, 0x100);
 	temp |= 0x4000;
 	pm3386_port_reg_write(port, 0x303, 0x100, temp);
-
-	udelay(10);
 }
 
 void pm3386_disable_tx(int port)
@@ -297,8 +286,6 @@ void pm3386_disable_tx(int port)
 	temp = pm3386_port_reg_read(port, 0x303, 0x100);
 	temp &= 0xbfff;
 	pm3386_port_reg_write(port, 0x303, 0x100, temp);
-
-	udelay(10);
 }
 
 MODULE_LICENSE("GPL");
