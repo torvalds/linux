@@ -58,15 +58,76 @@ static int bios_handoff(struct ehci_hcd *ehci, int where, u32 cap)
 	return 0;
 }
 
-/* called by khubd or root hub init threads */
+/* called after powerup, by probe or system-pm "wakeup" */
+static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
+{
+	u32			temp;
+	int			retval;
+	unsigned		count = 256/4;
+
+	/* optional debug port, normally in the first BAR */
+	temp = pci_find_capability(pdev, 0x0a);
+	if (temp) {
+		pci_read_config_dword(pdev, temp, &temp);
+		temp >>= 16;
+		if ((temp & (3 << 13)) == (1 << 13)) {
+			temp &= 0x1fff;
+			ehci->debug = ehci_to_hcd(ehci)->regs + temp;
+			temp = readl(&ehci->debug->control);
+			ehci_info(ehci, "debug port %d%s\n",
+				HCS_DEBUG_PORT(ehci->hcs_params),
+				(temp & DBGP_ENABLED)
+					? " IN USE"
+					: "");
+			if (!(temp & DBGP_ENABLED))
+				ehci->debug = NULL;
+		}
+	}
+
+	temp = HCC_EXT_CAPS(readl(&ehci->caps->hcc_params));
+
+	/* EHCI 0.96 and later may have "extended capabilities" */
+	while (temp && count--) {
+		u32		cap;
+
+		pci_read_config_dword(pdev, temp, &cap);
+		ehci_dbg(ehci, "capability %04x at %02x\n", cap, temp);
+		switch (cap & 0xff) {
+		case 1:			/* BIOS/SMM/... handoff */
+			if (bios_handoff(ehci, temp, cap) != 0)
+				return -EOPNOTSUPP;
+			break;
+		case 0:			/* illegal reserved capability */
+			ehci_dbg(ehci, "illegal capability!\n");
+			cap = 0;
+			/* FALLTHROUGH */
+		default:		/* unknown */
+			break;
+		}
+		temp = (cap >> 8) & 0xff;
+	}
+	if (!count) {
+		ehci_err(ehci, "bogus capabilities ... PCI problems!\n");
+		return -EIO;
+	}
+
+	/* PCI Memory-Write-Invalidate cycle support is optional (uncommon) */
+	retval = pci_set_mwi(pdev);
+	if (!retval)
+		ehci_dbg(ehci, "MWI active\n");
+
+	ehci_port_power(ehci, 0);
+
+	return 0;
+}
+
+/* called by khubd or root hub (re)init threads; leaves HC in halt state */
 static int ehci_pci_reset(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	u32			temp;
-	unsigned		count = 256/4;
-
-	spin_lock_init (&ehci->lock);
+	int			retval;
 
 	ehci->caps = hcd->regs;
 	ehci->regs = hcd->regs + HC_LENGTH(readl(&ehci->caps->hc_capbase));
@@ -75,6 +136,10 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = readl(&ehci->caps->hcs_params);
+
+	retval = ehci_halt(ehci);
+	if (retval)
+		return retval;
 
 	/* NOTE:  only the parts below this line are PCI-specific */
 
@@ -111,56 +176,8 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 		break;
 	}
 
-	/* optional debug port, normally in the first BAR */
-	temp = pci_find_capability(pdev, 0x0a);
-	if (temp) {
-		pci_read_config_dword(pdev, temp, &temp);
-		temp >>= 16;
-		if ((temp & (3 << 13)) == (1 << 13)) {
-			temp &= 0x1fff;
-			ehci->debug = hcd->regs + temp;
-			temp = readl(&ehci->debug->control);
-			ehci_info(ehci, "debug port %d%s\n",
-				HCS_DEBUG_PORT(ehci->hcs_params),
-				(temp & DBGP_ENABLED)
-					? " IN USE"
-					: "");
-			if (!(temp & DBGP_ENABLED))
-				ehci->debug = NULL;
-		}
-	}
-
-	temp = HCC_EXT_CAPS(readl(&ehci->caps->hcc_params));
-
-	/* EHCI 0.96 and later may have "extended capabilities" */
-	while (temp && count--) {
-		u32		cap;
-
-		pci_read_config_dword(to_pci_dev(hcd->self.controller),
-				temp, &cap);
-		ehci_dbg(ehci, "capability %04x at %02x\n", cap, temp);
-		switch (cap & 0xff) {
-		case 1:			/* BIOS/SMM/... handoff */
-			if (bios_handoff(ehci, temp, cap) != 0)
-				return -EOPNOTSUPP;
-			break;
-		case 0:			/* illegal reserved capability */
-			ehci_warn(ehci, "illegal capability!\n");
-			cap = 0;
-			/* FALLTHROUGH */
-		default:		/* unknown */
-			break;
-		}
-		temp = (cap >> 8) & 0xff;
-	}
-	if (!count) {
-		ehci_err(ehci, "bogus capabilities ... PCI problems!\n");
-		return -EIO;
-	}
 	if (ehci_is_TDI(ehci))
 		ehci_reset(ehci);
-
-	ehci_port_power(ehci, 0);
 
 	/* at least the Genesys GL880S needs fixup here */
 	temp = HCS_N_CC(ehci->hcs_params) * HCS_N_PCC(ehci->hcs_params);
@@ -184,39 +201,15 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 		}
 	}
 
-	/* force HC to halt state */
-	return ehci_halt(ehci);
-}
-
-static int ehci_pci_start(struct usb_hcd *hcd)
-{
-	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
-	int			result = 0;
-	struct pci_dev		*pdev;
-	u16			port_wake;
-
-	pdev = to_pci_dev(hcd->self.controller);
-
 	/* Serial Bus Release Number is at PCI 0x60 offset */
 	pci_read_config_byte(pdev, 0x60, &ehci->sbrn);
 
-	/* port wake capability, reported by boot firmware */
-	pci_read_config_word(pdev, 0x62, &port_wake);
-	hcd->can_wakeup = (port_wake & 1) != 0;
+	/* REVISIT:  per-port wake capability (PCI 0x62) currently unused */
 
-	/* PCI Memory-Write-Invalidate cycle support is optional (uncommon) */
-	result = pci_set_mwi(pdev);
-	if (!result)
-		ehci_dbg(ehci, "MWI active\n");
+	retval = ehci_pci_reinit(ehci, pdev);
 
-	return ehci_run(hcd);
-}
-
-/* always called by thread; normally rmmod */
-
-static void ehci_pci_stop(struct usb_hcd *hcd)
-{
-	ehci_stop(hcd);
+	/* finish init */
+	return ehci_init(hcd);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -250,6 +243,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	unsigned		port;
 	struct usb_device	*root = hcd->self.root_hub;
+	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int			retval = -EINVAL;
 
 	// maybe restore FLADJ
@@ -258,7 +252,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 		msleep(100);
 
 	/* If CF is clear, we lost PCI Vaux power and need to restart.  */
-	if (readl(&ehci->regs->configured_flag) != cpu_to_le32(FLAG_CF))
+	if (readl(&ehci->regs->configured_flag) != FLAG_CF)
 		goto restart;
 
 	/* If any port is suspended (or owned by the companion),
@@ -292,7 +286,7 @@ restart:
 	 */
 	(void) ehci_halt(ehci);
 	(void) ehci_reset(ehci);
-	(void) ehci_pci_reset(hcd);
+	(void) ehci_pci_reinit(ehci, pdev);
 
 	/* emptying the schedule aborts any urbs */
 	spin_lock_irq(&ehci->lock);
@@ -304,9 +298,7 @@ restart:
 	/* restart; khubd will disconnect devices */
 	retval = ehci_run(hcd);
 
-	/* here we "know" root ports should always stay powered;
-	 * but some controllers may lose all power.
-	 */
+	/* here we "know" root ports should always stay powered */
 	ehci_port_power(ehci, 1);
 
 	return retval;
@@ -328,12 +320,12 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	 * basic lifecycle operations
 	 */
 	.reset =		ehci_pci_reset,
-	.start =		ehci_pci_start,
+	.start =		ehci_run,
 #ifdef	CONFIG_PM
 	.suspend =		ehci_pci_suspend,
 	.resume =		ehci_pci_resume,
 #endif
-	.stop =			ehci_pci_stop,
+	.stop =			ehci_stop,
 
 	/*
 	 * managing i/o requests and associated device resources
