@@ -215,6 +215,13 @@ void pm3386_get_mac(int port, u8 *mac)
 	mac[5] = (temp >> 8) & 0xff;
 }
 
+void pm3386_set_mac(int port, u8 *mac)
+{
+	pm3386_port_reg_write(port, 0x308, 0x100, (mac[1] << 8) | mac[0]);
+	pm3386_port_reg_write(port, 0x309, 0x100, (mac[3] << 8) | mac[2]);
+	pm3386_port_reg_write(port, 0x30a, 0x100, (mac[5] << 8) | mac[4]);
+}
+
 static u32 pm3386_get_stat(int port, u16 base)
 {
 	u32 value;
