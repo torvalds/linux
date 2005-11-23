@@ -534,8 +534,8 @@ static int snd_rawmidi_release(struct inode *inode, struct file *file)
 	return err;
 }
 
-int snd_rawmidi_info(struct snd_rawmidi_substream *substream,
-		     struct snd_rawmidi_info *info)
+static int snd_rawmidi_info(struct snd_rawmidi_substream *substream,
+			    struct snd_rawmidi_info *info)
 {
 	struct snd_rawmidi *rmidi;
 	
@@ -1694,7 +1694,6 @@ EXPORT_SYMBOL(snd_rawmidi_transmit_ack);
 EXPORT_SYMBOL(snd_rawmidi_transmit);
 EXPORT_SYMBOL(snd_rawmidi_new);
 EXPORT_SYMBOL(snd_rawmidi_set_ops);
-EXPORT_SYMBOL(snd_rawmidi_info);
 EXPORT_SYMBOL(snd_rawmidi_info_select);
 EXPORT_SYMBOL(snd_rawmidi_kernel_open);
 EXPORT_SYMBOL(snd_rawmidi_kernel_release);

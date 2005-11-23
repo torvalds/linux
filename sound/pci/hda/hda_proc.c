@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <sound/core.h>
 #include "hda_codec.h"
+#include "hda_local.h"
 
 static const char *get_wid_type_name(unsigned int wid_value)
 {
