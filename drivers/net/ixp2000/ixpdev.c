@@ -24,6 +24,8 @@
 #include "ixpdev_priv.h"
 #include "ixpdev.h"
 
+#define DRV_MODULE_VERSION	"0.2"
+
 static int nds_count;
 static struct net_device **nds;
 static int nds_open;
@@ -301,6 +303,8 @@ int ixpdev_init(int __nds_count, struct net_device **__nds,
 		static void __too_many_rx_or_tx_buffers(void);
 		__too_many_rx_or_tx_buffers();
 	}
+
+	printk(KERN_INFO "IXP2000 MSF ethernet driver %s\n", DRV_MODULE_VERSION);
 
 	nds_count = __nds_count;
 	nds = __nds;
