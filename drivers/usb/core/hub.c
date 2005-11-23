@@ -702,26 +702,40 @@ static int hub_configure(struct usb_hub *hub,
 	 * and battery-powered root hubs (may provide just 8 mA).
 	 */
 	ret = usb_get_status(hdev, USB_RECIP_DEVICE, 0, &hubstatus);
-	if (ret < 0) {
+	if (ret < 2) {
 		message = "can't get hub status";
 		goto fail;
 	}
 	le16_to_cpus(&hubstatus);
 	if (hdev == hdev->bus->root_hub) {
-		struct usb_hcd *hcd =
-				container_of(hdev->bus, struct usb_hcd, self);
-
-		hub->power_budget = min(500u, hcd->power_budget) / 2;
+		if (hdev->bus_mA == 0 || hdev->bus_mA >= 500)
+			hub->mA_per_port = 500;
+		else {
+			hub->mA_per_port = hdev->bus_mA;
+			hub->limited_power = 1;
+		}
 	} else if ((hubstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
 		dev_dbg(hub_dev, "hub controller current requirement: %dmA\n",
 			hub->descriptor->bHubContrCurrent);
-		hub->power_budget = (501 - hub->descriptor->bHubContrCurrent)
-					/ 2;
-	}
-	if (hub->power_budget)
-		dev_dbg(hub_dev, "%dmA bus power budget for children\n",
-			hub->power_budget * 2);
+		hub->limited_power = 1;
+		if (hdev->maxchild > 0) {
+			int remaining = hdev->bus_mA -
+					hub->descriptor->bHubContrCurrent;
 
+			if (remaining < hdev->maxchild * 100)
+				dev_warn(hub_dev,
+					"insufficient power available "
+					"to use all downstream ports\n");
+			hub->mA_per_port = 100;		/* 7.2.1.1 */
+		}
+	} else {	/* Self-powered external hub */
+		/* FIXME: What about battery-powered external hubs that
+		 * provide less current per port? */
+		hub->mA_per_port = 500;
+	}
+	if (hub->mA_per_port < 500)
+		dev_dbg(hub_dev, "%umA bus power budget for each child\n",
+				hub->mA_per_port);
 
 	ret = hub_hub_status(hub, &hubstatus, &hubchange);
 	if (ret < 0) {
@@ -1136,45 +1150,107 @@ void usb_disconnect(struct usb_device **pdev)
 	device_unregister(&udev->dev);
 }
 
+static inline const char *plural(int n)
+{
+	return (n == 1 ? "" : "s");
+}
+
 static int choose_configuration(struct usb_device *udev)
 {
-	int c, i;
+	int i;
+	u16 devstatus;
+	int bus_powered;
+	int num_configs;
+	struct usb_host_config *c, *best;
 
-	/* NOTE: this should interact with hub power budgeting */
+	/* If this fails, assume the device is bus-powered */
+	devstatus = 0;
+	usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
+	le16_to_cpus(&devstatus);
+	bus_powered = ((devstatus & (1 << USB_DEVICE_SELF_POWERED)) == 0);
+	dev_dbg(&udev->dev, "device is %s-powered\n",
+			bus_powered ? "bus" : "self");
 
-	c = udev->config[0].desc.bConfigurationValue;
-	if (udev->descriptor.bNumConfigurations != 1) {
-		for (i = 0; i < udev->descriptor.bNumConfigurations; i++) {
-			struct usb_interface_descriptor	*desc;
+	best = NULL;
+	c = udev->config;
+	num_configs = udev->descriptor.bNumConfigurations;
+	for (i = 0; i < num_configs; (i++, c++)) {
+		struct usb_interface_descriptor	*desc =
+				&c->intf_cache[0]->altsetting->desc;
 
-			/* heuristic:  Linux is more likely to have class
-			 * drivers, so avoid vendor-specific interfaces.
-			 */
-			desc = &udev->config[i].intf_cache[0]
-					->altsetting->desc;
-			if (desc->bInterfaceClass == USB_CLASS_VENDOR_SPEC)
-				continue;
-			/* COMM/2/all is CDC ACM, except 0xff is MSFT RNDIS.
-			 * MSFT needs this to be the first config; never use
-			 * it as the default unless Linux has host-side RNDIS.
-			 * A second config would ideally be CDC-Ethernet, but
-			 * may instead be the "vendor specific" CDC subset
-			 * long used by ARM Linux for sa1100 or pxa255.
-			 */
-			if (desc->bInterfaceClass == USB_CLASS_COMM
-					&& desc->bInterfaceSubClass == 2
-					&& desc->bInterfaceProtocol == 0xff) {
-				c = udev->config[1].desc.bConfigurationValue;
-				continue;
-			}
-			c = udev->config[i].desc.bConfigurationValue;
+		/*
+		 * HP's USB bus-powered keyboard has only one configuration
+		 * and it claims to be self-powered; other devices may have
+		 * similar errors in their descriptors.  If the next test
+		 * were allowed to execute, such configurations would always
+		 * be rejected and the devices would not work as expected.
+		 */
+#if 0
+		/* Rule out self-powered configs for a bus-powered device */
+		if (bus_powered && (c->desc.bmAttributes &
+					USB_CONFIG_ATT_SELFPOWER))
+			continue;
+#endif
+
+		/*
+		 * The next test may not be as effective as it should be.
+		 * Some hubs have errors in their descriptor, claiming
+		 * to be self-powered when they are really bus-powered.
+		 * We will overestimate the amount of current such hubs
+		 * make available for each port.
+		 *
+		 * This is a fairly benign sort of failure.  It won't
+		 * cause us to reject configurations that we should have
+		 * accepted.
+		 */
+
+		/* Rule out configs that draw too much bus current */
+		if (c->desc.bMaxPower * 2 > udev->bus_mA)
+			continue;
+
+		/* If the first config's first interface is COMM/2/0xff
+		 * (MSFT RNDIS), rule it out unless Linux has host-side
+		 * RNDIS support. */
+		if (i == 0 && desc->bInterfaceClass == USB_CLASS_COMM
+				&& desc->bInterfaceSubClass == 2
+				&& desc->bInterfaceProtocol == 0xff) {
+#ifndef CONFIG_USB_NET_RNDIS
+			continue;
+#else
+			best = c;
+#endif
+		}
+
+		/* From the remaining configs, choose the first one whose
+		 * first interface is for a non-vendor-specific class.
+		 * Reason: Linux is more likely to have a class driver
+		 * than a vendor-specific driver. */
+		else if (udev->descriptor.bDeviceClass !=
+						USB_CLASS_VENDOR_SPEC &&
+				desc->bInterfaceClass !=
+						USB_CLASS_VENDOR_SPEC) {
+			best = c;
 			break;
 		}
-		dev_info(&udev->dev,
-			"configuration #%d chosen from %d choices\n",
-			c, udev->descriptor.bNumConfigurations);
+
+		/* If all the remaining configs are vendor-specific,
+		 * choose the first one. */
+		else if (!best)
+			best = c;
 	}
-	return c;
+
+	if (best) {
+		i = best->desc.bConfigurationValue;
+		dev_info(&udev->dev,
+			"configuration #%d chosen from %d choice%s\n",
+			i, num_configs, plural(num_configs));
+	} else {
+		i = -1;
+		dev_warn(&udev->dev,
+			"no configuration chosen from %d choice%s\n",
+			num_configs, plural(num_configs));
+	}
+	return i;
 }
 
 #ifdef DEBUG
@@ -1327,17 +1403,13 @@ int usb_new_device(struct usb_device *udev)
 	 * with the driver core, and lets usb device drivers bind to them.
 	 */
 	c = choose_configuration(udev);
-	if (c < 0)
-		dev_warn(&udev->dev,
-				"can't choose an initial configuration\n");
-	else {
+	if (c >= 0) {
 		err = usb_set_configuration(udev, c);
 		if (err) {
 			dev_err(&udev->dev, "can't set config #%d, error %d\n",
 					c, err);
-			usb_remove_sysfs_dev_files(udev);
-			device_del(&udev->dev);
-			goto fail;
+			/* This need not be fatal.  The user can try to
+			 * set other configurations. */
 		}
 	}
 
@@ -1702,7 +1774,7 @@ static int finish_device_resume(struct usb_device *udev)
 	 * and device drivers will know about any resume quirks.
 	 */
 	status = usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
-	if (status < 0)
+	if (status < 2)
 		dev_dbg(&udev->dev,
 			"gone after usb resume? status %d\n",
 			status);
@@ -1711,7 +1783,7 @@ static int finish_device_resume(struct usb_device *udev)
 		int		(*resume)(struct device *);
 
 		le16_to_cpus(&devstatus);
-		if (devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP)
+		if ((devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP))
 				&& udev->parent) {
 			status = usb_control_msg(udev,
 					usb_sndctrlpipe(udev, 0),
@@ -2374,39 +2446,36 @@ hub_power_remaining (struct usb_hub *hub)
 {
 	struct usb_device *hdev = hub->hdev;
 	int remaining;
-	unsigned i;
+	int port1;
 
-	remaining = hub->power_budget;
-	if (!remaining)		/* self-powered */
+	if (!hub->limited_power)
 		return 0;
 
-	for (i = 0; i < hdev->maxchild; i++) {
-		struct usb_device	*udev = hdev->children[i];
-		int			delta, ceiling;
+	remaining = hdev->bus_mA - hub->descriptor->bHubContrCurrent;
+	for (port1 = 1; port1 <= hdev->maxchild; ++port1) {
+		struct usb_device	*udev = hdev->children[port1 - 1];
+		int			delta;
 
 		if (!udev)
 			continue;
 
-		/* 100mA per-port ceiling, or 8mA for OTG ports */
-		if (i != (udev->bus->otg_port - 1) || hdev->parent)
-			ceiling = 50;
-		else
-			ceiling = 4;
-
+		/* Unconfigured devices may not use more than 100mA,
+		 * or 8mA for OTG ports */
 		if (udev->actconfig)
-			delta = udev->actconfig->desc.bMaxPower;
+			delta = udev->actconfig->desc.bMaxPower * 2;
+		else if (port1 != udev->bus->otg_port || hdev->parent)
+			delta = 100;
 		else
-			delta = ceiling;
-		// dev_dbg(&udev->dev, "budgeted %dmA\n", 2 * delta);
-		if (delta > ceiling)
-			dev_warn(&udev->dev, "%dmA over %dmA budget!\n",
-				2 * (delta - ceiling), 2 * ceiling);
+			delta = 8;
+		if (delta > hub->mA_per_port)
+			dev_warn(&udev->dev, "%dmA is over %umA budget "
+					"for port %d!\n",
+					delta, hub->mA_per_port, port1);
 		remaining -= delta;
 	}
 	if (remaining < 0) {
-		dev_warn(hub->intfdev,
-			"%dmA over power budget!\n",
-			-2 * remaining);
+		dev_warn(hub->intfdev, "%dmA over power budget!\n",
+			- remaining);
 		remaining = 0;
 	}
 	return remaining;
@@ -2501,7 +2570,8 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 
 		usb_set_device_state(udev, USB_STATE_POWERED);
 		udev->speed = USB_SPEED_UNKNOWN;
- 
+ 		udev->bus_mA = hub->mA_per_port;
+
 		/* set the address */
 		choose_address(udev);
 		if (udev->devnum <= 0) {
@@ -2521,16 +2591,16 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		 * on the parent.
 		 */
 		if (udev->descriptor.bDeviceClass == USB_CLASS_HUB
-				&& hub->power_budget) {
+				&& udev->bus_mA <= 100) {
 			u16	devstat;
 
 			status = usb_get_status(udev, USB_RECIP_DEVICE, 0,
 					&devstat);
-			if (status < 0) {
+			if (status < 2) {
 				dev_dbg(&udev->dev, "get status %d ?\n", status);
 				goto loop_disable;
 			}
-			cpu_to_le16s(&devstat);
+			le16_to_cpus(&devstat);
 			if ((devstat & (1 << USB_DEVICE_SELF_POWERED)) == 0) {
 				dev_err(&udev->dev,
 					"can't connect bus-powered hub "
@@ -2583,9 +2653,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 
 		status = hub_power_remaining(hub);
 		if (status)
-			dev_dbg(hub_dev,
-				"%dmA power budget left\n",
-				2 * status);
+			dev_dbg(hub_dev, "%dmA power budget left\n", status);
 
 		return;
 
@@ -2797,6 +2865,11 @@ static void hub_events(void)
 			if (hubchange & HUB_CHANGE_LOCAL_POWER) {
 				dev_dbg (hub_dev, "power change\n");
 				clear_hub_feature(hdev, C_HUB_LOCAL_POWER);
+				if (hubstatus & HUB_STATUS_LOCAL_POWER)
+					/* FIXME: Is this always true? */
+					hub->limited_power = 0;
+				else
+					hub->limited_power = 1;
 			}
 			if (hubchange & HUB_CHANGE_OVERCURRENT) {
 				dev_dbg (hub_dev, "overcurrent change\n");

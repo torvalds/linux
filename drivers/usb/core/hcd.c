@@ -1825,8 +1825,6 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		retval = -ENOMEM;
 		goto err_allocate_root_hub;
 	}
-	rhdev->speed = (hcd->driver->flags & HCD_USB2) ? USB_SPEED_HIGH :
-			USB_SPEED_FULL;
 
 	/* Although in principle hcd->driver->start() might need to use rhdev,
 	 * none of the current drivers do.
@@ -1844,6 +1842,9 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
 	hcd->remote_wakeup = hcd->can_wakeup;
 
+	rhdev->speed = (hcd->driver->flags & HCD_USB2) ? USB_SPEED_HIGH :
+			USB_SPEED_FULL;
+	rhdev->bus_mA = min(500u, hcd->power_budget);
 	if ((retval = register_root_hub(rhdev, hcd)) != 0)
 		goto err_register_root_hub;
 
