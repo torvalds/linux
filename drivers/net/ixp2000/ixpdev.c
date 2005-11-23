@@ -300,15 +300,6 @@ int ixpdev_init(int __nds_count, struct net_device **__nds,
 	nds = __nds;
 	set_port_admin_status = __set_port_admin_status;
 
-	for (i = 0; i < nds_count; i++) {
-		err = register_netdev(nds[i]);
-		if (err) {
-			while (--i >= 0)
-				unregister_netdev(nds[i]);
-			goto err_out;
-		}
-	}
-
 	for (i = 0; i < RX_BUF_COUNT; i++) {
 		void *buf;
 
@@ -317,7 +308,7 @@ int ixpdev_init(int __nds_count, struct net_device **__nds,
 			err = -ENOMEM;
 			while (--i >= 0)
 				free_page((unsigned long)phys_to_virt(rx_desc[i].buf_addr));
-			goto err_unregister;
+			goto err_out;
 		}
 		rx_desc[i].buf_addr = virt_to_phys(buf);
 		rx_desc[i].buf_length = PAGE_SIZE;
@@ -355,7 +346,6 @@ int ixpdev_init(int __nds_count, struct net_device **__nds,
 	ixp2000_uengine_load(0, &ixp2400_rx);
 	ixp2000_uengine_start_contexts(0, 0xff);
 
-
 	/* 256 entries, ring status set means 'empty', base address 0x0800.  */
 	ixp2000_reg_write(RING_TX_PENDING_BASE, 0x44000800);
 	ixp2000_reg_write(RING_TX_PENDING_HEAD, 0x00000000);
@@ -369,15 +359,24 @@ int ixpdev_init(int __nds_count, struct net_device **__nds,
 	ixp2000_uengine_load(1, &ixp2400_tx);
 	ixp2000_uengine_start_contexts(1, 0xff);
 
+	for (i = 0; i < nds_count; i++) {
+		err = register_netdev(nds[i]);
+		if (err) {
+			while (--i >= 0)
+				unregister_netdev(nds[i]);
+			goto err_free_tx;
+		}
+	}
+
 	return 0;
+
+err_free_tx:
+	for (i = 0; i < TX_BUF_COUNT; i++)
+		free_page((unsigned long)phys_to_virt(tx_desc[i].buf_addr));
 
 err_free_rx:
 	for (i = 0; i < RX_BUF_COUNT; i++)
 		free_page((unsigned long)phys_to_virt(rx_desc[i].buf_addr));
-
-err_unregister:
-	for (i = 0; i < nds_count; i++)
-		unregister_netdev(nds[i]);
 
 err_out:
 	return err;
@@ -389,6 +388,9 @@ void ixpdev_deinit(void)
 
 	/* @@@ Flush out pending packets.  */
 
+	for (i = 0; i < nds_count; i++)
+		unregister_netdev(nds[i]);
+
 	ixp2000_uengine_stop_contexts(1, 0xff);
 	ixp2000_uengine_stop_contexts(0, 0xff);
 	ixp2000_uengine_reset(0x3);
@@ -398,7 +400,4 @@ void ixpdev_deinit(void)
 
 	for (i = 0; i < RX_BUF_COUNT; i++)
 		free_page((unsigned long)phys_to_virt(rx_desc[i].buf_addr));
-
-	for (i = 0; i < nds_count; i++)
-		unregister_netdev(nds[i]);
 }
