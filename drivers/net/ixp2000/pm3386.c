@@ -89,7 +89,37 @@ static void pm3386_port_reg_write(int port, int _reg, int spacing, u16 value)
 
 void pm3386_reset(void)
 {
-	/* @@@ Implement me.  */
+	u8 mac[3][6];
+
+	/* Save programmed MAC addresses.  */
+	pm3386_get_mac(0, mac[0]);
+	pm3386_get_mac(1, mac[1]);
+	pm3386_get_mac(2, mac[2]);
+
+	/* Assert analog and digital reset.  */
+	pm3386_reg_write(0, 0x002, 0x0060);
+	pm3386_reg_write(1, 0x002, 0x0060);
+	mdelay(1);
+
+	/* Deassert analog reset.  */
+	pm3386_reg_write(0, 0x002, 0x0062);
+	pm3386_reg_write(1, 0x002, 0x0062);
+	mdelay(10);
+
+	/* Deassert digital reset.  */
+	pm3386_reg_write(0, 0x002, 0x0063);
+	pm3386_reg_write(1, 0x002, 0x0063);
+	mdelay(10);
+
+	/* Restore programmed MAC addresses.  */
+	pm3386_set_mac(0, mac[0]);
+	pm3386_set_mac(1, mac[1]);
+	pm3386_set_mac(2, mac[2]);
+
+	/* Disable carrier on all ports.  */
+	pm3386_set_carrier(0, 0);
+	pm3386_set_carrier(1, 0);
+	pm3386_set_carrier(2, 0);
 }
 
 static u16 swaph(u16 x)
