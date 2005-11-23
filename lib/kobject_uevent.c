@@ -25,9 +25,7 @@
 #define BUFFER_SIZE	1024	/* buffer for the variables */
 #define NUM_ENVP	32	/* number of env pointers */
 
-#if defined(CONFIG_HOTPLUG)
-char uevent_helper[UEVENT_HELPER_PATH_LEN] = "/sbin/hotplug";
-u64 uevent_seqnum;
+#if defined(CONFIG_HOTPLUG) && defined(CONFIG_NET)
 static DEFINE_SPINLOCK(sequence_lock);
 static struct sock *uevent_sock;
 
