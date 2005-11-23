@@ -147,12 +147,6 @@ static int ixpdev_poll(struct net_device *dev, int *budget)
 	return 0;
 }
 
-/* @@@ Ugly hack.  */
-static inline int netif_rx_schedule_prep_notup(struct net_device *dev)
-{
-	return !test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state);
-}
-
 static void ixpdev_tx_complete(void)
 {
 	int channel;
@@ -206,7 +200,7 @@ static irqreturn_t ixpdev_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 */
 	if (status & 0x00ff) {
 		ixp2000_reg_wrb(IXP2000_IRQ_THD_ENABLE_CLEAR_A_0, 0x00ff);
-		if (likely(netif_rx_schedule_prep_notup(nds[0]))) {
+		if (likely(netif_rx_schedule_test(nds[0]))) {
 			__netif_rx_schedule(nds[0]);
 		} else {
 			printk(KERN_CRIT "ixp2000: irq while polling!!\n");
