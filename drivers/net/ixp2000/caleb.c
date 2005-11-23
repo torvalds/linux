@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <asm/io.h>
+#include "caleb.h"
 
 #define CALEB_IDLO		0x00
 #define CALEB_IDHI		0x01

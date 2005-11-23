@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <asm/io.h>
+#include "pm3386.h"
 
 /*
  * Read from register 'reg' of PM3386 device 'pm'.
