@@ -4908,8 +4908,8 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 
 	SkGeYellowLED(pAC, pAC->IoBase, 1);
 
-
 	memcpy(&dev->dev_addr, &pAC->Addr.Net[0].CurrentMacAddress, 6);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	SkGeProcCreate(dev);
 
@@ -4962,6 +4962,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 			SkGeProcCreate(dev);
 			memcpy(&dev->dev_addr,
 					&pAC->Addr.Net[1].CurrentMacAddress, 6);
+			memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	
 			printk("%s: %s\n", dev->name, pAC->DeviceStr);
 			printk("      PrefPort:B  RlmtMode:Dual Check Link State\n");
