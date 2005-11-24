@@ -604,7 +604,7 @@ static int hpc_get_mode1_ECC_cap(struct slot *slot, u8 *mode)
 	sec_bus_status = readw(php_ctlr->creg + SEC_BUS_CONFIG);
 
 	if (pi == 2) {
-		*mode = (sec_bus_status & 0x0100) >> 7;
+		*mode = (sec_bus_status & 0x0100) >> 8;
 	} else {
 		retval = -1;
 	}
