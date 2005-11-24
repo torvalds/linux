@@ -911,7 +911,7 @@ static int patch_ad1981(struct hda_codec *codec)
  *
  * DAC assignment
  *   6stack - front/surr/CLFE/side/opt DACs - 04/06/05/0a/03
- *   3stack - front/surr/CLFE/opt DACs - 04/0a/05/03
+ *   3stack - front/surr/CLFE/opt DACs - 04/05/0a/03
  *
  * Inputs of Analog Mix (0x20)
  *   0:Port-B (front mic)
@@ -988,7 +988,7 @@ static hda_nid_t ad1988_6stack_dac_nids[4] = {
 };
 
 static hda_nid_t ad1988_3stack_dac_nids[3] = {
-	0x04, 0x0a, 0x05
+	0x04, 0x05, 0x0a
 };
 
 /* for AD1988A revision-2, DAC2-4 are swapped */
@@ -997,7 +997,7 @@ static hda_nid_t ad1988_6stack_dac_nids_rev2[4] = {
 };
 
 static hda_nid_t ad1988_3stack_dac_nids_rev2[3] = {
-	0x04, 0x06, 0x0a
+	0x04, 0x0a, 0x06
 };
 
 static hda_nid_t ad1988_adc_nids[3] = {
@@ -1155,9 +1155,9 @@ static struct snd_kcontrol_new ad1988_3stack_mixers1[] = {
 
 static struct snd_kcontrol_new ad1988_3stack_mixers1_rev2[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x04, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Surround Playback Volume", 0x06, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0a, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0a, 2, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0a, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x06, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x06, 2, 0x0, HDA_OUTPUT),
 };
 
 static struct snd_kcontrol_new ad1988_3stack_mixers2[] = {
@@ -1491,7 +1491,7 @@ static struct hda_verb ad1988_3stack_init_verbs[] = {
 	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{0x3c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
-	{0x32, AC_VERB_SET_CONNECT_SEL, 0x1}, /* output sel: DAC 0x06 */
+	{0x32, AC_VERB_SET_CONNECT_SEL, 0x1}, /* output sel: DAC 0x0a */
 	{0x34, AC_VERB_SET_CONNECT_SEL, 0x0},
 	/* mute analog mix */
 	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
@@ -1657,11 +1657,11 @@ static inline hda_nid_t ad1988_idx_to_dac(struct hda_codec *codec, int idx)
 {
 	static hda_nid_t idx_to_dac[8] = {
 		/* A     B     C     D     E     F     G     H */
-		0x04, 0x06, 0x0a, 0x04, 0x05, 0x06, 0x05, 0x0a
+		0x04, 0x06, 0x05, 0x04, 0x0a, 0x06, 0x05, 0x0a
 	};
 	static hda_nid_t idx_to_dac_rev2[8] = {
 		/* A     B     C     D     E     F     G     H */
-		0x04, 0x05, 0x06, 0x04, 0x0a, 0x05, 0x0a, 0x06
+		0x04, 0x05, 0x0a, 0x04, 0x06, 0x05, 0x0a, 0x06
 	};
 	if (codec->revision_id == AD1988A_REV2)
 		return idx_to_dac_rev2[idx];
@@ -1898,7 +1898,7 @@ static void ad1988_auto_set_output_and_unmute(struct hda_codec *codec,
 	case 0x15: /* port-C - DAC 05 */
 		snd_hda_codec_write(codec, 0x31, 0, AC_VERB_SET_CONNECT_SEL, 0x00);
 		break;
-	case 0x17: /* port-E - DAC 06 */
+	case 0x17: /* port-E - DAC 0a */
 		snd_hda_codec_write(codec, 0x32, 0, AC_VERB_SET_CONNECT_SEL, 0x01);
 		break;
 	case 0x13: /* mono - DAC 04 */
@@ -2036,6 +2036,9 @@ static int patch_ad1988(struct hda_codec *codec)
 
 	init_MUTEX(&spec->amp_mutex);
 	codec->spec = spec;
+
+	if (codec->revision_id == AD1988A_REV2)
+		snd_printk(KERN_INFO "patch_analog: AD1988A rev.2 is detected, enable workarounds\n");
 
 	board_config = snd_hda_check_board_config(codec, ad1988_cfg_tbl);
 	if (board_config < 0 || board_config >= AD1988_MODEL_LAST) {
