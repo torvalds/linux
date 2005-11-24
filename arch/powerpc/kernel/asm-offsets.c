@@ -131,11 +131,9 @@ int main(void)
 	DEFINE(PACALOWHTLBAREAS, offsetof(struct paca_struct, context.low_htlb_areas));
 	DEFINE(PACAHIGHHTLBAREAS, offsetof(struct paca_struct, context.high_htlb_areas));
 #endif /* CONFIG_HUGETLB_PAGE */
-	DEFINE(PACADEFAULTDECR, offsetof(struct paca_struct, default_decr));
 	DEFINE(PACA_EXGEN, offsetof(struct paca_struct, exgen));
 	DEFINE(PACA_EXMC, offsetof(struct paca_struct, exmc));
 	DEFINE(PACA_EXSLB, offsetof(struct paca_struct, exslb));
-	DEFINE(PACA_EXDSI, offsetof(struct paca_struct, exdsi));
 	DEFINE(PACAEMERGSP, offsetof(struct paca_struct, emergency_sp));
 	DEFINE(PACALPPACA, offsetof(struct paca_struct, lppaca));
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));

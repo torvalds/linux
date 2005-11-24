@@ -699,10 +699,6 @@ void __init time_init(void)
 	div128_by_32(1024*1024, 0, tb_ticks_per_sec, &res);
 	tb_to_xs = res.result_low;
 
-#ifdef CONFIG_PPC64
-	get_paca()->default_decr = tb_ticks_per_jiffy;
-#endif
-
 	/*
 	 * Compute scale factor for sched_clock.
 	 * The calibrate_decr() function has set tb_ticks_per_sec,

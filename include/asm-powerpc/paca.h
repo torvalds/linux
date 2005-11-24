@@ -60,7 +60,6 @@ struct paca_struct {
 	u16 lock_token;			/* Constant 0x8000, used in locks */
 	u16 paca_index;			/* Logical processor number */
 
-	u32 default_decr;		/* Default decrementer value */
 	u64 kernel_toc;			/* Kernel TOC address */
 	u64 stab_real;			/* Absolute address of segment table */
 	u64 stab_addr;			/* Virtual address of segment table */
@@ -91,13 +90,9 @@ struct paca_struct {
 	struct task_struct *__current;	/* Pointer to current */
 	u64 kstack;			/* Saved Kernel stack addr */
 	u64 stab_rr;			/* stab/slb round-robin counter */
-	u64 next_jiffy_update_tb;	/* TB value for next jiffy update */
 	u64 saved_r1;			/* r1 save for RTAS calls */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u8 proc_enabled;		/* irq soft-enable flag */
-
-	/* not yet used */
-	u64 exdsi[8];		/* used for linear mapping hash table misses */
 
 	/*
 	 * iSeries structure which the hypervisor knows about -

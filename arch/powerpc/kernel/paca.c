@@ -37,7 +37,6 @@ extern unsigned long __toc_start;
 #define PACA_INIT_COMMON(number, start, asrr, asrv)			    \
 	.lock_token = 0x8000,						    \
 	.paca_index = (number),		/* Paca Index */		    \
-	.default_decr = 0x00ff0000,	/* Initial Decr */		    \
 	.kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL,		    \
 	.stab_real = (asrr), 		/* Real pointer to segment table */ \
 	.stab_addr = (asrv),		/* Virt pointer to segment table */ \

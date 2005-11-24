@@ -452,10 +452,6 @@ int __devinit __cpu_up(unsigned int cpu)
 	if (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu))
 		return -EINVAL;
 
-#ifdef CONFIG_PPC64
-	paca[cpu].default_decr = tb_ticks_per_jiffy;
-#endif
-
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug
 	 */
