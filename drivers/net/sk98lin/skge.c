@@ -206,7 +206,6 @@ static void	SkGeSetRxMode(struct SK_NET_DEVICE *dev);
 static struct	net_device_stats *SkGeStats(struct SK_NET_DEVICE *dev);
 static int	SkGeIoctl(struct SK_NET_DEVICE *dev, struct ifreq *rq, int cmd);
 static void	GetConfiguration(SK_AC*);
-static void	ProductStr(SK_AC*);
 static int	XmitFrame(SK_AC*, TX_PORT*, struct sk_buff*);
 static void	FreeTxDescriptors(SK_AC*pAC, TX_PORT*);
 static void	FillRxRing(SK_AC*, RX_PORT*);
@@ -321,7 +320,7 @@ int SkGeInitPCI(SK_AC *pAC)
 	dev->mem_start = pci_resource_start (pdev, 0);
 	pci_set_master(pdev);
 
-	if (pci_request_regions(pdev, pAC->Name) != 0) {
+	if (pci_request_regions(pdev, "sk98lin") != 0) {
 		retval = 2;
 		goto out_disable;
 	}
@@ -599,10 +598,10 @@ SK_BOOL	DualNet;
 	spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
 
 	if (pAC->GIni.GIMacsFound == 2) {
-		 Ret = request_irq(dev->irq, SkGeIsr, SA_SHIRQ, pAC->Name, dev);
+		 Ret = request_irq(dev->irq, SkGeIsr, SA_SHIRQ, "sk98lin", dev);
 	} else if (pAC->GIni.GIMacsFound == 1) {
 		Ret = request_irq(dev->irq, SkGeIsrOnePort, SA_SHIRQ,
-			pAC->Name, dev);
+			"sk98lin", dev);
 	} else {
 		printk(KERN_WARNING "sk98lin: Illegal number of ports: %d\n",
 		       pAC->GIni.GIMacsFound);
@@ -1286,7 +1285,6 @@ struct SK_NET_DEVICE	*dev)
 	spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
 
 	pAC->MaxPorts++;
-	pNet->Up = 1;
 
 
 	SK_DBG_MSG(NULL, SK_DBGMOD_DRV, SK_DBGCAT_DRV_ENTRY,
@@ -1416,7 +1414,6 @@ struct SK_NET_DEVICE	*dev)
 			sizeof(SK_PNMI_STRUCT_DATA));
 
 	pAC->MaxPorts--;
-	pNet->Up = 0;
 
 	return (0);
 } /* SkGeClose */
@@ -2568,7 +2565,7 @@ unsigned long		Flags;
 static int SkGeChangeMtu(struct SK_NET_DEVICE *dev, int NewMtu)
 {
 DEV_NET		*pNet;
-DEV_NET		*pOtherNet;
+struct net_device *pOtherDev;
 SK_AC		*pAC;
 unsigned long	Flags;
 int		i;
@@ -2598,11 +2595,11 @@ SK_EVPARA 	EvPara;
 	}
 #endif
 
-	pNet->Mtu = NewMtu;
-	pOtherNet = netdev_priv(pAC->dev[1 - pNet->NetNr]);
-	if ((pOtherNet->Mtu>1500) && (NewMtu<=1500) && (pOtherNet->Up==1)) {
-		return(0);
-	}
+	pOtherDev = pAC->dev[1 - pNet->NetNr];
+
+	if ( netif_running(pOtherDev) && (pOtherDev->mtu > 1500)
+	     && (NewMtu <= 1500))
+		return 0;
 
 	pAC->RxBufSize = NewMtu + 32;
 	dev->mtu = NewMtu;
@@ -2764,7 +2761,8 @@ SK_EVPARA 	EvPara;
 		EvPara.Para32[1] = -1;
 		SkEventQueue(pAC, SKGE_RLMT, SK_RLMT_START, EvPara);
 			
-		if (pOtherNet->Up) {
+		if (netif_running(pOtherDev)) {
+			DEV_NET *pOtherNet = netdev_priv(pOtherDev);
 			EvPara.Para32[0] = pOtherNet->PortNr;
 			SkEventQueue(pAC, SKGE_RLMT, SK_RLMT_START, EvPara);
 		}
@@ -2838,7 +2836,7 @@ unsigned long	Flags;			/* for spin lock */
 	pAC->stats.rx_bytes = (SK_U32) pPnmiStruct->RxOctetsDeliveredCts;
 	pAC->stats.tx_bytes = (SK_U32) pPnmiStat->StatTxOctetsOkCts;
 	
-        if (pNet->Mtu <= 1500) {
+        if (dev->mtu <= 1500) {
                 pAC->stats.rx_errors = (SK_U32) pPnmiStruct->InErrorsCts & 0xFFFFFFFF;
         } else {
                 pAC->stats.rx_errors = (SK_U32) ((pPnmiStruct->InErrorsCts -
@@ -3789,25 +3787,21 @@ int	Capabilities[3][3] =
  *
  * Returns: N/A
  */
-static void ProductStr(
-SK_AC	*pAC		/* pointer to adapter context */
+static inline int ProductStr(
+	SK_AC	*pAC,		/* pointer to adapter context */
+	char    *DeviceStr,	/* result string */
+	int      StrLen		/* length of the string */
 )
 {
-int	StrLen = 80;		/* length of the string, defined in SK_AC */
 char	Keyword[] = VPD_NAME;	/* vpd productname identifier */
 int	ReturnCode;		/* return code from vpd_read */
 unsigned long Flags;
 
 	spin_lock_irqsave(&pAC->SlowPathLock, Flags);
-	ReturnCode = VpdRead(pAC, pAC->IoBase, Keyword, pAC->DeviceStr,
-		&StrLen);
+	ReturnCode = VpdRead(pAC, pAC->IoBase, Keyword, DeviceStr, &StrLen);
 	spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
-	if (ReturnCode != 0) {
-		/* there was an error reading the vpd data */
-		SK_DBG_MSG(NULL, SK_DBGMOD_DRV, SK_DBGCAT_DRV_ERROR,
-			("Error reading VPD data: %d\n", ReturnCode));
-		pAC->DeviceStr[0] = '\0';
-	}
+
+	return ReturnCode;
 } /* ProductStr */
 
 /*****************************************************************************
@@ -4466,7 +4460,7 @@ SK_AC   *pAc)   /* pointer to adapter context */
 
 	pAC->DiagModeActive = DIAG_ACTIVE;
 	if (pAC->BoardLevel > SK_INIT_DATA) {
-		if (pNet->Up) {
+		if (netif_running(pAC->dev[0])) {
 			pAC->WasIfUp[0] = SK_TRUE;
 			pAC->DiagFlowCtrl = SK_TRUE; /* for SkGeClose      */
 			DoPrintInterfaceChange = SK_FALSE;
@@ -4476,7 +4470,7 @@ SK_AC   *pAc)   /* pointer to adapter context */
 		}
 		if (pNet != netdev_priv(pAC->dev[1])) {
 			pNet = netdev_priv(pAC->dev[1]);
-			if (pNet->Up) {
+			if (netif_running(pAC->dev[1])) {
 				pAC->WasIfUp[1] = SK_TRUE;
 				pAC->DiagFlowCtrl = SK_TRUE; /* for SkGeClose */
 				DoPrintInterfaceChange = SK_FALSE;
@@ -4802,6 +4796,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	struct net_device	*dev = NULL;
 	static int boards_found = 0;
 	int error = -ENODEV;
+	char DeviceStr[80];
 
 	if (pci_enable_device(pdev))
 		goto out;
@@ -4829,14 +4824,11 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	memset(pNet->pAC, 0, sizeof(SK_AC));
 	pAC = pNet->pAC;
 	pAC->PciDev = pdev;
-	pAC->PciDevId = pdev->device;
+
 	pAC->dev[0] = dev;
 	pAC->dev[1] = dev;
-	sprintf(pAC->Name, "SysKonnect SK-98xx");
 	pAC->CheckQueue = SK_FALSE;
 
-	pNet->Mtu = 1500;
-	pNet->Up = 0;
 	dev->irq = pdev->irq;
 	error = SkGeInitPCI(pAC);
 	if (error) {
@@ -4877,6 +4869,12 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	if (SkGeBoardInit(dev, pAC))
 		goto out_free_netdev;
 
+	/* Read Adapter name from VPD */
+	if (ProductStr(pAC, DeviceStr, sizeof(DeviceStr)) != 0) {
+		printk(KERN_ERR "sk98lin: Could not read VPD data.\n");
+		goto out_free_resources;
+	}
+
 	/* Register net device */
 	if (register_netdev(dev)) {
 		printk(KERN_ERR "sk98lin: Could not register device.\n");
@@ -4884,8 +4882,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	}
 
 	/* Print adapter specific string from vpd */
-	ProductStr(pAC);
-	printk("%s: %s\n", dev->name, pAC->DeviceStr);
+	printk("%s: %s\n", dev->name, DeviceStr);
 
 	/* Print configuration settings */
 	printk("      PrefPort:%c  RlmtMode:%s\n",
@@ -4921,8 +4918,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		pNet->PortNr  = 1;
 		pNet->NetNr   = 1;
 		pNet->pAC     = pAC;
-		pNet->Mtu     = 1500;
-		pNet->Up      = 0;
 
 		dev->open               = &SkGeOpen;
 		dev->stop               = &SkGeClose;
@@ -4957,7 +4952,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 					&pAC->Addr.Net[1].CurrentMacAddress, 6);
 			memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	
-			printk("%s: %s\n", dev->name, pAC->DeviceStr);
+			printk("%s: %s\n", dev->name, DeviceStr);
 			printk("      PrefPort:B  RlmtMode:Dual Check Link State\n");
 		}
 	}
@@ -5081,9 +5076,9 @@ static int skge_resume(struct pci_dev *pdev)
 	pci_enable_device(pdev);
 	pci_set_master(pdev);
 	if (pAC->GIni.GIMacsFound == 2)
-		ret = request_irq(dev->irq, SkGeIsr, SA_SHIRQ, pAC->Name, dev);
+		ret = request_irq(dev->irq, SkGeIsr, SA_SHIRQ, "sk98lin", dev);
 	else
-		ret = request_irq(dev->irq, SkGeIsrOnePort, SA_SHIRQ, pAC->Name, dev);
+		ret = request_irq(dev->irq, SkGeIsrOnePort, SA_SHIRQ, "sk98lin", dev);
 	if (ret) {
 		printk(KERN_WARNING "sk98lin: unable to acquire IRQ %d\n", dev->irq);
 		pAC->AllocFlag &= ~SK_ALLOC_IRQ;
