@@ -52,6 +52,7 @@ static int index = SNDRV_DEFAULT_IDX1;
 static char *id = SNDRV_DEFAULT_STR1;
 static char *model;
 static int position_fix;
+static int probe_mask;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
@@ -61,6 +62,9 @@ module_param(model, charp, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 module_param(position_fix, int, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size).");
+module_param(probe_mask, int, 0444);
+MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
+
 
 /* just for backward compatibility */
 static int enable;
@@ -916,7 +920,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 
 	codecs = 0;
 	for (c = 0; c < AZX_MAX_CODECS; c++) {
-		if (chip->codec_mask & (1 << c)) {
+		if ((chip->codec_mask & (1 << c)) & probe_mask) {
 			err = snd_hda_codec_new(chip->bus, c, NULL);
 			if (err < 0)
 				continue;
@@ -1150,31 +1154,6 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 		pos = azx_sd_readl(azx_dev, SD_LPIB);
 		if (chip->position_fix == POS_FIX_FIFO)
 			pos += azx_dev->fifo_size;
-#if 0 /* disabled temprarily, auto-correction doesn't work well... */
-		else if (chip->position_fix == POS_FIX_AUTO && azx_dev->period_updating) {
-			/* check the validity of DMA position */
-			unsigned int diff = 0;
-			azx_dev->last_pos += azx_dev->fragsize;
-			if (azx_dev->last_pos > pos)
-				diff = azx_dev->last_pos - pos;
-			if (azx_dev->last_pos >= azx_dev->bufsize) {
-				if (pos < azx_dev->fragsize)
-					diff = 0;
-				azx_dev->last_pos = 0;
-			}
-			if (diff > 0 && diff <= azx_dev->fifo_size)
-				pos += azx_dev->fifo_size;
-			else {
-				snd_printdd(KERN_INFO "hda_intel: DMA position fix %d, switching to posbuf\n", diff);
-				chip->position_fix = POS_FIX_POSBUF;
-				pos = *azx_dev->posbuf;
-			}
-			azx_dev->period_updating = 0;
-		}
-#else
-		else if (chip->position_fix == POS_FIX_AUTO)
-			pos += azx_dev->fifo_size;
-#endif
 	}
 	if (pos >= azx_dev->bufsize)
 		pos = 0;
@@ -1412,7 +1391,7 @@ static int azx_dev_free(struct snd_device *device)
  * constructor
  */
 static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
-				int posfix, int driver_type,
+				int driver_type,
 				struct azx **rchip)
 {
 	struct azx *chip;
@@ -1441,7 +1420,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->irq = -1;
 	chip->driver_type = driver_type;
 
-	chip->position_fix = posfix;
+	chip->position_fix = position_fix ? position_fix : POS_FIX_POSBUF;
 
 #if BITS_PER_LONG != 64
 	/* Fix up base address on ULI M5461 */
@@ -1559,7 +1538,7 @@ static int __devinit azx_probe(struct pci_dev *pci, const struct pci_device_id *
 		return -ENOMEM;
 	}
 
-	if ((err = azx_create(card, pci, position_fix, pci_id->driver_data,
+	if ((err = azx_create(card, pci, pci_id->driver_data,
 			      &chip)) < 0) {
 		snd_card_free(card);
 		return err;
