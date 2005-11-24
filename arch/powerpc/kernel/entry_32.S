@@ -368,7 +368,7 @@ save_user_nvgprs_cont:
 	b	6b
 
 save_user_nvgprs:
-	ld	r8,TI_SIGFRAME(r12)
+	lwz	r8,TI_SIGFRAME(r12)
 
 .macro savewords start, end
   1:	stw \start,4*(\start)(r8)
@@ -386,11 +386,11 @@ save_user_nvgprs:
 	
 save_user_nvgprs_fault:
 	li	r3,11		/* SIGSEGV */
-	ld	r4,TI_TASK(r12)
+	lwz	r4,TI_TASK(r12)
 	bl	force_sigsegv
 
 	rlwinm	r12,r1,0,0,(31-THREAD_SHIFT)	/* current_thread_info() */
-	ld	r9,TI_FLAGS(r12)
+	lwz	r9,TI_FLAGS(r12)
 	b	save_user_nvgprs_cont
 	
 #ifdef SHOW_SYSCALLS
