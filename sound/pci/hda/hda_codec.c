@@ -1771,7 +1771,7 @@ int snd_hda_ch_mode_put(struct hda_codec *codec, struct snd_ctl_elem_value *ucon
 
 	mode = ucontrol->value.enumerated.item[0];
 	snd_assert(mode < num_chmodes, return -EINVAL);
-	if (*max_channelsp && ! codec->in_resume)
+	if (*max_channelsp == chmode[mode].channels && ! codec->in_resume)
 		return 0;
 	/* change the current channel setting */
 	*max_channelsp = chmode[mode].channels;
