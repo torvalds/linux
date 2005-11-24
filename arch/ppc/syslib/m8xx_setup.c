@@ -135,6 +135,16 @@ static struct irqaction tbint_irqaction = {
 	.name = "tbint",
 };
 
+/* per-board overridable init_internal_rtc() function. */
+void __init __attribute__ ((weak))
+init_internal_rtc(void)
+{
+	/* Disable the RTC one second and alarm interrupts. */
+	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, in_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc) & ~(RTCSC_SIE | RTCSC_ALE));
+	/* Enable the RTC */
+	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, in_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc) | (RTCSC_RTF | RTCSC_RTE));
+}
+
 /* The decrementer counts at the system (internal) clock frequency divided by
  * sixteen, or external oscillator divided by four.  We force the processor
  * to use system clock divided by sixteen.
@@ -183,10 +193,7 @@ void __init m8xx_calibrate_decr(void)
 	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck, KAPWR_KEY);
 	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_tbk, KAPWR_KEY);
 
-	/* Disable the RTC one second and alarm interrupts. */
-	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, in_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc) & ~(RTCSC_SIE | RTCSC_ALE));
-	/* Enable the RTC */
-	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, in_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc) | (RTCSC_RTF | RTCSC_RTE));
+	init_internal_rtc();
 
 	/* Enabling the decrementer also enables the timebase interrupts
 	 * (or from the other point of view, to get decrementer interrupts

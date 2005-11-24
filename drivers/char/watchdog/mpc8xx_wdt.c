@@ -27,7 +27,10 @@ static void mpc8xx_wdt_handler_disable(void)
 {
 	volatile immap_t *imap = (volatile immap_t *)IMAP_ADDR;
 
-	imap->im_sit.sit_piscr &= ~(PISCR_PIE | PISCR_PTE);
+	if (!m8xx_has_internal_rtc)
+		m8xx_wdt_stop_timer();
+	else
+		out_be32(imap->im_sit.sit_piscr, in_be32(&imap->im_sit.sit_piscr) & ~(PISCR_PIE | PISCR_PTE));
 
 	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler deactivated\n");
 }
@@ -36,7 +39,10 @@ static void mpc8xx_wdt_handler_enable(void)
 {
 	volatile immap_t *imap = (volatile immap_t *)IMAP_ADDR;
 
-	imap->im_sit.sit_piscr |= PISCR_PIE | PISCR_PTE;
+	if (!m8xx_has_internal_rtc)
+		m8xx_wdt_install_timer();
+	else
+		out_be32(&imap->im_sit.sit_piscr, in_be32(&imap->im_sit.sit_piscr) | PISCR_PIE | PISCR_PTE);
 
 	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler activated\n");
 }
@@ -68,9 +74,6 @@ static int mpc8xx_wdt_release(struct inode *inode, struct file *file)
 static ssize_t mpc8xx_wdt_write(struct file *file, const char *data, size_t len,
 				loff_t * ppos)
 {
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
-
 	if (len)
 		m8xx_wdt_reset();
 
