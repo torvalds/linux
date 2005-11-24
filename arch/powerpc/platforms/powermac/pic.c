@@ -459,7 +459,7 @@ void __init pmac_pic_init(void)
 			mpic_setup_cascade(irqctrler2->intrs[0].line,
 					   pmac_u3_cascade, mpic2);
 		}
-#ifdef CONFIG_XMON
+#if defined(CONFIG_XMON) && defined(CONFIG_PPC32)
 		{
 			struct device_node* pswitch;
 			int nmi_irq;
@@ -471,7 +471,7 @@ void __init pmac_pic_init(void)
 				setup_irq(nmi_irq, &xmon_action);
 			}
 		}
-#endif	/* CONFIG_XMON */
+#endif	/* defined(CONFIG_XMON) && defined(CONFIG_PPC32) */
 		return;
 	}
 	irqctrler = NULL;
