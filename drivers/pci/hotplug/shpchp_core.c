@@ -377,8 +377,6 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_ctrl;
 	}
 
-	ctrl->pci_dev = pdev;  /* pci_dev of the P2P bridge */
-
 	pci_set_drvdata(pdev, ctrl);
 
 	ctrl->pci_bus = kmalloc (sizeof (*ctrl->pci_bus), GFP_KERNEL);
