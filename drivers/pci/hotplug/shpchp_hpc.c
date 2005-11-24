@@ -1121,7 +1121,6 @@ static int hpc_get_max_bus_speed (struct slot *slot, enum pci_bus_speed *value)
 	int retval = 0;
 	u8 pi;
 	u32 slot_avail1, slot_avail2;
-	int slot_num;
 
 	DBG_ENTER_ROUTINE 
 
@@ -1140,39 +1139,39 @@ static int hpc_get_max_bus_speed (struct slot *slot, enum pci_bus_speed *value)
 	slot_avail2 = readl(php_ctlr->creg + SLOT_AVAIL2);
 
 	if (pi == 2) {
-		if ((slot_num = ((slot_avail2 & SLOT_133MHZ_PCIX_533) >> 27)  ) != 0 )
+		if (slot_avail2 & SLOT_133MHZ_PCIX_533)
 			bus_speed = PCIX_133MHZ_533;
-		else if ((slot_num = ((slot_avail2 & SLOT_100MHZ_PCIX_533) >> 23)  ) != 0 )
+		else if (slot_avail2 & SLOT_100MHZ_PCIX_533)
 			bus_speed = PCIX_100MHZ_533;
-		else if ((slot_num = ((slot_avail2 & SLOT_66MHZ_PCIX_533) >> 19)  ) != 0 )
+		else if (slot_avail2 & SLOT_66MHZ_PCIX_533)
 			bus_speed = PCIX_66MHZ_533;
-		else if ((slot_num = ((slot_avail2 & SLOT_133MHZ_PCIX_266) >> 15)  ) != 0 )
+		else if (slot_avail2 & SLOT_133MHZ_PCIX_266)
 			bus_speed = PCIX_133MHZ_266;
-		else if ((slot_num = ((slot_avail2 & SLOT_100MHZ_PCIX_266) >> 11)  ) != 0 )
+		else if (slot_avail2 & SLOT_100MHZ_PCIX_266)
 			bus_speed = PCIX_100MHZ_266;
-		else if ((slot_num = ((slot_avail2 & SLOT_66MHZ_PCIX_266) >> 7)  ) != 0 )
+		else if (slot_avail2 & SLOT_66MHZ_PCIX_266)
 			bus_speed = PCIX_66MHZ_266;
-		else if ((slot_num = ((slot_avail1 & SLOT_133MHZ_PCIX) >> 23)  ) != 0 )
+		else if (slot_avail1 & SLOT_133MHZ_PCIX)
 			bus_speed = PCIX_133MHZ;
-		else if ((slot_num = ((slot_avail1 & SLOT_100MHZ_PCIX) >> 15)  ) != 0 )
+		else if (slot_avail1 & SLOT_100MHZ_PCIX)
 			bus_speed = PCIX_100MHZ;
-		else if ((slot_num = ((slot_avail1 & SLOT_66MHZ_PCIX) >> 7)  ) != 0 )
+		else if (slot_avail1 & SLOT_66MHZ_PCIX)
 			bus_speed = PCIX_66MHZ;
-		else if ((slot_num = (slot_avail2 & SLOT_66MHZ)) != 0 )
+		else if (slot_avail2 & SLOT_66MHZ)
 			bus_speed = PCI_66MHZ;
-		else if ((slot_num = (slot_avail1 & SLOT_33MHZ)) != 0 )
+		else if (slot_avail1 & SLOT_33MHZ)
 			bus_speed = PCI_33MHZ;
 		else bus_speed = PCI_SPEED_UNKNOWN;
 	} else {
-		if ((slot_num = ((slot_avail1 & SLOT_133MHZ_PCIX) >> 23)  ) != 0 )
+		if (slot_avail1 & SLOT_133MHZ_PCIX)
 			bus_speed = PCIX_133MHZ;
-		else if ((slot_num = ((slot_avail1 & SLOT_100MHZ_PCIX) >> 15)  ) != 0 )
+		else if (slot_avail1 & SLOT_100MHZ_PCIX)
 			bus_speed = PCIX_100MHZ;
-		else if ((slot_num = ((slot_avail1 & SLOT_66MHZ_PCIX) >> 7)  ) != 0 )
+		else if (slot_avail1 & SLOT_66MHZ_PCIX)
 			bus_speed = PCIX_66MHZ;
-		else if ((slot_num = (slot_avail2 & SLOT_66MHZ)) != 0 )
+		else if (slot_avail2 & SLOT_66MHZ)
 			bus_speed = PCI_66MHZ;
-		else if ((slot_num = (slot_avail1 & SLOT_33MHZ)) != 0 )
+		else if (slot_avail1 & SLOT_33MHZ)
 			bus_speed = PCI_33MHZ;
 		else bus_speed = PCI_SPEED_UNKNOWN;
 	}
