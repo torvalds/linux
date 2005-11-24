@@ -1058,11 +1058,11 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 	if (intr_loc & 0x0001) {
 		/* 
 		 * Command Complete Interrupt Pending 
-		 * RO only - clear by writing 0 to the Command Completion
+		 * RO only - clear by writing 1 to the Command Completion
 		 * Detect bit in Controller SERR-INT register
 		 */
 		temp_dword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
-		temp_dword &= 0xfffeffff;
+		temp_dword &= 0xfffdffff;
 		writel(temp_dword, php_ctlr->creg + SERR_INTR_ENABLE);
 		wake_up_interruptible(&ctrl->queue);
 	}
