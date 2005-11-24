@@ -228,14 +228,36 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 static int ehci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+	unsigned long		flags;
+	int			rc = 0;
 
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(10);
 
+	/* Root hub was already suspended. Disable irq emission and
+	 * mark HW unaccessible, bail out if RH has been resumed. Use
+	 * the spinlock to properly synchronize with possible pending
+	 * RH suspend or resume activity.
+	 *
+	 * This is still racy as hcd->state is manipulated outside of
+	 * any locks =P But that will be a different fix.
+	 */
+	spin_lock_irqsave (&ehci->lock, flags);
+	if (hcd->state != HC_STATE_SUSPENDED) {
+		rc = -EINVAL;
+		goto bail;
+	}
+	writel (0, &ehci->regs->intr_enable);
+	(void)readl(&ehci->regs->intr_enable);
+
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+ bail:
+	spin_unlock_irqrestore (&ehci->lock, flags);
+
 	// could save FLADJ in case of Vaux power loss
 	// ... we'd only use it to handle clock skew
 
-	return 0;
+	return rc;
 }
 
 static int ehci_pci_resume(struct usb_hcd *hcd)
@@ -250,6 +272,9 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(100);
+
+	/* Mark hardware accessible again as we are out of D3 state by now */
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	/* If CF is clear, we lost PCI Vaux power and need to restart.  */
 	if (readl(&ehci->regs->configured_flag) != FLAG_CF)
