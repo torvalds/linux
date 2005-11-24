@@ -4853,7 +4853,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 	error = SkGeInitPCI(pAC);
 	if (error) {
-		printk("SKGE: PCI setup failed: %i\n", error);
+		printk(KERN_ERR "sk98lin: PCI setup failed: %i\n", error);
 		goto out_free_netdev;
 	}
 
@@ -4889,7 +4889,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 
 	/* Register net device */
 	if (register_netdev(dev)) {
-		printk(KERN_ERR "SKGE: Could not register device.\n");
+		printk(KERN_ERR "sk98lin: Could not register device.\n");
 		goto out_free_resources;
 	}
 
@@ -4955,7 +4955,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 #endif
 
 		if (register_netdev(dev)) {
-			printk(KERN_ERR "SKGE: Could not register device.\n");
+			printk(KERN_ERR "sk98lin: Could not register device for seconf port.\n");
 			free_netdev(dev);
 			pAC->dev[1] = pAC->dev[0];
 		} else {
