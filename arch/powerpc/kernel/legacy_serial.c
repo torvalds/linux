@@ -43,7 +43,10 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 
 	/* get clock freq. if present */
 	clk = (u32 *)get_property(np, "clock-frequency", NULL);
-	clock = clk ? *clk : BASE_BAUD * 16;
+	if (clk && *clk)
+		clock = *clk;
+	else
+		clock = BASE_BAUD * 16;
 
 	/* get default speed if present */
 	spd = (u32 *)get_property(np, "current-speed", NULL);
