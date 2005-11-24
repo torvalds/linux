@@ -225,3 +225,10 @@ struct ItVpdAreas itVpdAreas = {
 		0,0
 	}
 };
+
+struct ItLpRegSave iseries_reg_save[] = {
+	[0 ... (NR_CPUS-1)] = {
+		.xDesc = 0xd397d9e2,	/* "LpRS" */
+		.xSize = sizeof(struct ItLpRegSave),
+	},
+};

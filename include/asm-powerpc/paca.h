@@ -18,7 +18,6 @@
 #include	<linux/config.h>
 #include	<asm/types.h>
 #include	<asm/lppaca.h>
-#include	<asm/iseries/it_lp_reg_save.h>
 #include	<asm/mmu.h>
 
 register struct paca_struct *local_paca asm("r13");
@@ -31,9 +30,9 @@ struct task_struct;
  *
  * This structure is not directly accessed by firmware or the service
  * processor except for the first two pointers that point to the
- * lppaca area and the ItLpRegSave area for this CPU.  Both the
- * lppaca and ItLpRegSave objects are currently contained within the
- * PACA but they do not need to be.
+ * lppaca area and the ItLpRegSave area for this CPU.  The lppaca
+ * object is currently contained within the PACA but it doesn't need
+ * to be.
  */
 struct paca_struct {
 	/*
@@ -48,7 +47,9 @@ struct paca_struct {
 	 * accessed by the firmware
 	 */
 	struct lppaca *lppaca_ptr;	/* Pointer to LpPaca for PLIC */
-	struct ItLpRegSave *reg_save_ptr; /* Pointer to LpRegSave for PLIC */
+#ifdef CONFIG_PPC_ISERIES
+	void *reg_save_ptr; /* Pointer to LpRegSave for PLIC */
+#endif /* CONFIG_PPC_ISERIES */
 
 	/*
 	 * MAGIC: the spinlock functions in arch/ppc64/lib/locks.c
@@ -110,9 +111,6 @@ struct paca_struct {
 	 * cross a page boundary.
 	 */
 	struct lppaca lppaca __attribute__((__aligned__(0x400)));
-#ifdef CONFIG_PPC_ISERIES
-	struct ItLpRegSave reg_save;
-#endif
 };
 
 extern struct paca_struct paca[];
