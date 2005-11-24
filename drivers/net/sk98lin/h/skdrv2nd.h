@@ -297,6 +297,7 @@ struct s_RxPort {
 	RXD		*pRxdRingTail;	/* Tail of Rx rings */
 	RXD		*pRxdRingPrev;	/* descriptor given to BMU previously */
 	int		RxdRingFree;	/* # of free entrys */
+	int		RxCsum;		/* use receive checksum hardware */
 	spinlock_t	RxDesRingLock;	/* serialize descriptor accesses */
 	int		RxFillLimit;	/* limit for buffers in ring */
 	SK_IOC		HwAddr;		/* bmu registers address */

@@ -2189,13 +2189,10 @@ rx_start:
 			skb_put(pMsg, FrameLength);
 		} /* frame > SK_COPY_TRESHOLD */
 
-#ifdef USE_SK_RX_CHECKSUM
-		pMsg->csum = pRxd->TcpSums;
-		pMsg->ip_summed = CHECKSUM_HW;
-#else
-		pMsg->ip_summed = CHECKSUM_NONE;
-#endif
-
+		if (pRxPort->RxCsum) {
+			pMsg->csum = pRxd->TcpSums;
+			pMsg->ip_summed = CHECKSUM_HW;
+		}
 
 		SK_DBG_MSG(NULL, SK_DBGMOD_DRV,	1,("V"));
 		ForRlmt = SK_RLMT_RX_PROTOCOL;
@@ -4149,6 +4146,7 @@ SK_BOOL		DualNet;
 			Flags);
 		break;
 	case SK_DRV_NET_UP:	 /* SK_U32 PortIdx */
+	{	struct net_device *dev = pAC->dev[Param.Para32[0]];
 		/* action list 5 */
 		FromPort = Param.Para32[0];
 		SK_DBG_MSG(NULL, SK_DBGMOD_DRV, SK_DBGCAT_DRV_EVENT,
@@ -4232,22 +4230,12 @@ SK_BOOL		DualNet;
 			printk("    irq moderation:  disabled\n");
 
 
-#ifdef SK_ZEROCOPY
-		if (pAC->ChipsetType)
-#ifdef USE_SK_TX_CHECKSUM
-			printk("    scatter-gather:  enabled\n");
-#else
-			printk("    tx-checksum:     disabled\n");
-#endif
-		else
-			printk("    scatter-gather:  disabled\n");
-#else
-			printk("    scatter-gather:  disabled\n");
-#endif
-
-#ifndef USE_SK_RX_CHECKSUM
-			printk("    rx-checksum:     disabled\n");
-#endif
+		printk("    scatter-gather:  %s\n",
+		       (dev->features & NETIF_F_SG) ? "enabled" : "disabled");
+		printk("    tx-checksum:     %s\n",
+		       (dev->features & NETIF_F_IP_CSUM) ? "enabled" : "disabled");
+		printk("    rx-checksum:     %s\n",
+		       pAC->RxPort[Param.Para32[0]].RxCsum ? "enabled" : "disabled");
 
 		} else {
                         DoPrintInterfaceChange = SK_TRUE;
@@ -4262,9 +4250,9 @@ SK_BOOL		DualNet;
 		}
 
 		/* Inform the world that link protocol is up. */
-		netif_carrier_on(pAC->dev[Param.Para32[0]]);
-
+		netif_carrier_on(dev);
 		break;
+	}
 	case SK_DRV_NET_DOWN:	 /* SK_U32 Reason */
 		/* action list 7 */
 		SK_DBG_MSG(NULL, SK_DBGMOD_DRV, SK_DBGCAT_DRV_EVENT,
@@ -4871,15 +4859,18 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	SET_ETHTOOL_OPS(dev, &SkGeEthtoolOps);
 
-#ifdef SK_ZEROCOPY
-#ifdef USE_SK_TX_CHECKSUM
+	/* Use only if yukon hardware */
 	if (pAC->ChipsetType) {
-		/* Use only if yukon hardware */
-		/* SK and ZEROCOPY - fly baby... */
-		dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+#ifdef USE_SK_TX_CHECKSUM
+		dev->features |= NETIF_F_IP_CSUM;
+#endif
+#ifdef SK_ZEROCOPY
+		dev->features |= NETIF_F_SG;
+#endif
+#ifdef USE_SK_RX_CHECKSUM
+		pAC->RxPort[0].RxCsum = 1;
+#endif
 	}
-#endif
-#endif
 
 	pAC->Index = boards_found++;
 
@@ -4944,14 +4935,17 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		SET_NETDEV_DEV(dev, &pdev->dev);
 		SET_ETHTOOL_OPS(dev, &SkGeEthtoolOps);
 
-#ifdef SK_ZEROCOPY
-#ifdef USE_SK_TX_CHECKSUM
 		if (pAC->ChipsetType) {
-			/* SG and ZEROCOPY - fly baby... */
-			dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+#ifdef USE_SK_TX_CHECKSUM
+			dev->features |= NETIF_F_IP_CSUM;
+#endif
+#ifdef SK_ZEROCOPY
+			dev->features |= NETIF_F_SG;
+#endif
+#ifdef USE_SK_RX_CHECKSUM
+			pAC->RxPort[1].RxCsum = 1;
+#endif
 		}
-#endif
-#endif
 
 		if (register_netdev(dev)) {
 			printk(KERN_ERR "sk98lin: Could not register device for seconf port.\n");
