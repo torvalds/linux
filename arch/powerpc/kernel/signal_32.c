@@ -219,6 +219,15 @@ static inline int get_old_sigaction(struct k_sigaction *new_ka,
 static inline int save_general_regs(struct pt_regs *regs,
 		struct mcontext __user *frame)
 {
+	if (!FULL_REGS(regs)) {
+		/* Zero out the unsaved GPRs to avoid information
+		   leak, and set TIF_SAVE_NVGPRS to ensure that the
+		   registers do actually get saved later. */
+		memset(&regs->gpr[14], 0, 18 * sizeof(unsigned long));
+		current_thread_info()->nvgprs_frame = &frame->mc_gregs;
+		set_thread_flag(TIF_SAVE_NVGPRS);
+	}
+
 	return __copy_to_user(&frame->mc_gregs, regs, GP_REGS_SIZE);
 }
 
