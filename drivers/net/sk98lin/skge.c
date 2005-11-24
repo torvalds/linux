@@ -110,7 +110,6 @@
 #include	<linux/module.h>
 #include	<linux/moduleparam.h>
 #include	<linux/init.h>
-#include 	<linux/proc_fs.h>
 #include	<linux/dma-mapping.h>
 #include	<linux/ip.h>
 
@@ -234,28 +233,6 @@ static int      SkDrvDeInitAdapter(SK_AC *pAC, int devNbr);
  * Extern Function Prototypes
  *
  ******************************************************************************/
-static const char 	SKRootName[] = "net/sk98lin";
-static struct		proc_dir_entry *pSkRootDir;
-extern struct	file_operations sk_proc_fops;
-
-static inline void SkGeProcCreate(struct net_device *dev)
-{
-	struct proc_dir_entry *pe;
-
-	if (pSkRootDir && 
-	    (pe = create_proc_entry(dev->name, S_IRUGO, pSkRootDir))) {
-		pe->proc_fops = &sk_proc_fops;
-		pe->data = dev;
-		pe->owner = THIS_MODULE;
-	}
-}
- 
-static inline void SkGeProcRemove(struct net_device *dev)
-{
-	if (pSkRootDir)
-		remove_proc_entry(dev->name, pSkRootDir);
-}
-
 extern void SkDimEnableModerationIfNeeded(SK_AC *pAC);	
 extern void SkDimDisplayModerationSettings(SK_AC *pAC);
 extern void SkDimStartModerationTimer(SK_AC *pAC);
@@ -4898,8 +4875,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	memcpy(&dev->dev_addr, &pAC->Addr.Net[0].CurrentMacAddress, 6);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	SkGeProcCreate(dev);
-
 	pNet->PortNr = 0;
 	pNet->NetNr  = 0;
 
@@ -4947,7 +4922,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 			free_netdev(dev);
 			pAC->dev[1] = pAC->dev[0];
 		} else {
-			SkGeProcCreate(dev);
 			memcpy(&dev->dev_addr,
 					&pAC->Addr.Net[1].CurrentMacAddress, 6);
 			memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
@@ -4988,10 +4962,7 @@ static void __devexit skge_remove_one(struct pci_dev *pdev)
 	SK_AC *pAC = pNet->pAC;
 	struct net_device *otherdev = pAC->dev[1];
 
-	SkGeProcRemove(dev);
 	unregister_netdev(dev);
-	if (otherdev != dev)
-		SkGeProcRemove(otherdev);
 
 	SkGeYellowLED(pAC, pAC->IoBase, 0);
 
@@ -5136,23 +5107,12 @@ static struct pci_driver skge_driver = {
 
 static int __init skge_init(void)
 {
-	int error;
-
-	pSkRootDir = proc_mkdir(SKRootName, NULL);
-	if (pSkRootDir) 
-		pSkRootDir->owner = THIS_MODULE;
-	
-	error = pci_register_driver(&skge_driver);
-	if (error)
-		remove_proc_entry(SKRootName, NULL);
-	return error;
+	return pci_module_init(&skge_driver);
 }
 
 static void __exit skge_exit(void)
 {
 	pci_unregister_driver(&skge_driver);
-	remove_proc_entry(SKRootName, NULL);
-
 }
 
 module_init(skge_init);
