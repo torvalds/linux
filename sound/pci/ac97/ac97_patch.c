@@ -1639,8 +1639,12 @@ static void check_ad1981_hp_jack_sense(struct snd_ac97 *ac97)
 {
 	u32 subid = ((u32)ac97->subsystem_vendor << 16) | ac97->subsystem_device;
 	switch (subid) {
+	case 0x0e11005a: /* HP nc4000/4010 */
 	case 0x103c0890: /* HP nc6000 */
+	case 0x103c0938: /* HP nc4220 */
 	case 0x103c099c: /* HP nx6110 */
+	case 0x103c0944: /* HP nc6220 */
+	case 0x103c0934: /* HP nc8220 */
 	case 0x103c006d: /* HP nx9105 */
 	case 0x17340088: /* FSC Scenic-W */
 		/* enable headphone jack sense */
