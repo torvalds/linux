@@ -5,7 +5,7 @@
  *
  * Rewrite, cleanup: 
  *
- * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
+ * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
  * Dynamic DMA mapping support, pSeries-specific parts, both SMP and LPAR.
  *
