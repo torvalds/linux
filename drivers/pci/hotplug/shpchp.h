@@ -101,6 +101,7 @@ struct controller {
 	u32 cap_offset;
 	unsigned long mmio_base;
 	unsigned long mmio_size;
+	volatile int cmd_busy;
 };
 
 struct hotplug_params {

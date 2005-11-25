@@ -275,6 +275,25 @@ static void start_int_poll_timer(struct php_ctlr_state_s *php_ctlr, int seconds)
 	return;
 }
 
+static inline int shpc_wait_cmd(struct controller *ctrl)
+{
+	int retval = 0;
+	unsigned int timeout_msec = shpchp_poll_mode ? 2000 : 1000;
+	unsigned long timeout = msecs_to_jiffies(timeout_msec);
+	int rc = wait_event_interruptible_timeout(ctrl->queue,
+						  !ctrl->cmd_busy, timeout);
+	if (!rc) {
+		retval = -EIO;
+		err("Command not completed in %d msec\n", timeout_msec);
+	} else if (rc < 0) {
+		retval = -EINTR;
+		info("Command was interrupted by a signal\n");
+	}
+	ctrl->cmd_busy = 0;
+
+	return retval;
+}
+
 static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 {
 	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
@@ -314,7 +333,13 @@ static int shpc_write_cmd(struct slot *slot, u8 t_slot, u8 cmd)
 	/* To make sure the Controller Busy bit is 0 before we send out the
 	 * command. 
 	 */
+	slot->ctrl->cmd_busy = 1;
 	writew(temp_word, php_ctlr->creg + CMD);
+
+	/*
+	 * Wait for command completion.
+	 */
+	retval = shpc_wait_cmd(slot->ctrl);
 
 	DBG_LEAVE_ROUTINE 
 	return retval;
@@ -1064,6 +1089,7 @@ static irqreturn_t shpc_isr(int IRQ, void *dev_id, struct pt_regs *regs)
 		temp_dword = readl(php_ctlr->creg + SERR_INTR_ENABLE);
 		temp_dword &= 0xfffdffff;
 		writel(temp_dword, php_ctlr->creg + SERR_INTR_ENABLE);
+		ctrl->cmd_busy = 0;
 		wake_up_interruptible(&ctrl->queue);
 	}
 
