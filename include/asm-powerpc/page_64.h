@@ -135,9 +135,9 @@ extern unsigned int HPAGE_SHIFT;
 
 #define in_hugepage_area(context, addr) \
 	(cpu_has_feature(CPU_FTR_16M_PAGE) && \
-	 ( ((1 << GET_HTLB_AREA(addr)) & (context).high_htlb_areas) || \
-	   ( ((addr) < 0x100000000L) && \
-	     ((1 << GET_ESID(addr)) & (context).low_htlb_areas) ) ) )
+	 ( ( (addr) >= 0x100000000UL) \
+	   ? ((1 << GET_HTLB_AREA(addr)) & (context).high_htlb_areas) \
+	   : ((1 << GET_ESID(addr)) & (context).low_htlb_areas) ) )
 
 #else /* !CONFIG_HUGETLB_PAGE */
 

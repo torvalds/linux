@@ -14,15 +14,6 @@
  * This file is licenced under the GPL.
  */
  
-#include <linux/jiffies.h>
-
-#ifdef CONFIG_PPC_PMAC
-#include <asm/machdep.h>
-#include <asm/pmac_feature.h>
-#include <asm/pci-bridge.h>
-#include <asm/prom.h>
-#endif
-
 #ifndef CONFIG_PCI
 #error "This file is PCI bus glue.  CONFIG_PCI must be defined."
 #endif
@@ -115,39 +106,12 @@ ohci_pci_start (struct usb_hcd *hcd)
 static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 {
 	/* root hub was already suspended */
-
-	/* FIXME these PMAC things get called in the wrong places.  ASIC
-	 * clocks should be turned off AFTER entering D3, and on BEFORE
-	 * trying to enter D0.  Evidently the PCI layer doesn't currently
-	 * provide the right sort of platform hooks for this ...
-	 */
-#ifdef CONFIG_PPC_PMAC
-	if (_machine == _MACH_Pmac) {
-	   	struct device_node	*of_node;
- 
-		/* Disable USB PAD & cell clock */
-		of_node = pci_device_to_OF_node (to_pci_dev(hcd->self.controller));
-		if (of_node)
-			pmac_call_feature(PMAC_FTR_USB_ENABLE, of_node, 0, 0);
-	}
-#endif /* CONFIG_PPC_PMAC */
 	return 0;
 }
 
 
 static int ohci_pci_resume (struct usb_hcd *hcd)
 {
-#ifdef CONFIG_PPC_PMAC
-	if (_machine == _MACH_Pmac) {
-		struct device_node *of_node;
-
-		/* Re-enable USB PAD & cell clock */
-		of_node = pci_device_to_OF_node (to_pci_dev(hcd->self.controller));
-		if (of_node)
-			pmac_call_feature (PMAC_FTR_USB_ENABLE, of_node, 0, 1);
-	}
-#endif /* CONFIG_PPC_PMAC */
-
 	usb_hcd_resume_root_hub(hcd);
 	return 0;
 }
