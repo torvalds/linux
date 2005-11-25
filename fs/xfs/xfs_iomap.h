@@ -69,7 +69,7 @@ typedef struct xfs_iomap {
 	xfs_buftarg_t		*iomap_target;
 	xfs_off_t		iomap_offset;	/* offset of mapping, bytes */
 	xfs_off_t		iomap_bsize;	/* size of mapping, bytes */
-	size_t			iomap_delta;	/* offset into mapping, bytes */
+	xfs_off_t		iomap_delta;	/* offset into mapping, bytes */
 	iomap_flags_t		iomap_flags;
 } xfs_iomap_t;
 
