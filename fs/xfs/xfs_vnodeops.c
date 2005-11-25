@@ -3958,8 +3958,9 @@ xfs_finish_reclaim_all(xfs_mount_t *mp, int noblock)
 				}
 			}
 			XFS_MOUNT_IUNLOCK(mp);
-			xfs_finish_reclaim(ip, noblock,
-				XFS_IFLUSH_DELWRI_ELSE_ASYNC);
+			if (xfs_finish_reclaim(ip, noblock,
+					XFS_IFLUSH_DELWRI_ELSE_ASYNC))
+				delay(1);
 			purged = 1;
 			break;
 		}
