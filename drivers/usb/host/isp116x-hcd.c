@@ -1426,7 +1426,6 @@ static int isp116x_bus_suspend(struct usb_hcd *hcd)
 	val = isp116x_read_reg32(isp116x, HCCONTROL);
 	switch (val & HCCONTROL_HCFS) {
 	case HCCONTROL_USB_OPER:
-		hcd->state = HC_STATE_QUIESCING;
 		val &= (~HCCONTROL_HCFS & ~HCCONTROL_RWE);
 		val |= HCCONTROL_USB_SUSPEND;
 		if (device_may_wakeup(&hcd->self.root_hub->dev))
@@ -1434,7 +1433,6 @@ static int isp116x_bus_suspend(struct usb_hcd *hcd)
 		/* Wait for usb transfers to finish */
 		mdelay(2);
 		isp116x_write_reg32(isp116x, HCCONTROL, val);
-		hcd->state = HC_STATE_SUSPENDED;
 		/* Wait for devices to suspend */
 		mdelay(5);
 	case HCCONTROL_USB_SUSPEND:
