@@ -125,6 +125,10 @@ Technical changes:
 
 * [Driver] The flags field of the i2c_driver structure is gone.
   I2C_DF_NOTIFY is now the default behavior.
+  The i2c_driver structure has a driver member, which is itself a
+  structure, those owner and name members should be initialized to
+  THIS_MODULE and a driver name string, respectively. i2c_driver
+  itself has no name member anymore.
 
 Coding policy:
 

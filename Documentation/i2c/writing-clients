@@ -25,8 +25,10 @@ routines, a client structure specific information like the actual I2C
 address.
 
 static struct i2c_driver foo_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "Foo version 2.3 driver",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "foo",
+	},
 	.attach_adapter	= &foo_attach_adapter,
 	.detach_client	= &foo_detach_client,
 	.command	= &foo_command /* may be NULL */
