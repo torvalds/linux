@@ -41,8 +41,10 @@ static int daca_detect_client(struct i2c_adapter *adapter, int address);
 static int daca_detach_client(struct i2c_client *client);
 
 struct i2c_driver daca_driver = {  
-	.owner			= THIS_MODULE,
-	.name			= "DAC3550A driver  V " DACA_VERSION,
+	.driver = {
+		.owner		= THIS_MODULE,
+		.name		= "DAC3550A driver  V " DACA_VERSION,
+	},
 	.id			= I2C_DRIVERID_DACA,
 	.attach_adapter		= daca_attach_adapter,
 	.detach_client		= daca_detach_client,
