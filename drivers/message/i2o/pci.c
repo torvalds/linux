@@ -421,8 +421,8 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	i2o_pci_free(c);
 
       free_controller:
-	i2o_iop_free(c);
 	put_device(c->device.parent);
+	i2o_iop_free(c);
 
       disable:
 	pci_disable_device(pdev);
