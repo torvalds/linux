@@ -497,14 +497,9 @@ int i2c_use_client(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	if (client->usage_count > 0)
-		goto busy;
 	client->usage_count++;
 
 	return 0;
- busy:
-	i2c_dec_use_client(client);
-	return -EBUSY;
 }
 
 int i2c_release_client(struct i2c_client *client)

@@ -307,9 +307,7 @@ extern struct i2c_client *i2c_get_client(int driver_id, int adapter_id,
    extern struct i2c_client *i2c_get_client(int,int,struct i2c_client *);
    to make sure that client-struct is valid and that it is okay to access
    the i2c-client. 
-   returns -EACCES if client doesn't allow use (default)
-   returns -EBUSY if client doesn't allow multiple use (default) and 
-   usage_count >0 */
+   returns -ENODEV if client has gone in the meantime */
 extern int i2c_use_client(struct i2c_client *);
 extern int i2c_release_client(struct i2c_client *);
 
