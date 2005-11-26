@@ -409,7 +409,6 @@ static struct i2c_driver i2c_driver_bt856 = {
 	.name = "bt856",
 
 	.id = I2C_DRIVERID_BT856,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = bt856_attach_adapter,
 	.detach_client = bt856_detach_client,

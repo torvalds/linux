@@ -272,7 +272,6 @@ static struct i2c_driver w83781d_driver = {
 	.owner = THIS_MODULE,
 	.name = "w83781d",
 	.id = I2C_DRIVERID_W83781D,
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = w83781d_attach_adapter,
 	.detach_client = w83781d_detach_client,
 };

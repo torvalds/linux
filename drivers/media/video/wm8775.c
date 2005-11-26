@@ -236,7 +236,6 @@ static struct i2c_driver i2c_driver = {
 	.name = "wm8775",
 
 	.id = I2C_DRIVERID_WM8775,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = wm8775_probe,
 	.detach_client = wm8775_detach,

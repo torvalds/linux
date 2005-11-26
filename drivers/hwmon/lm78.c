@@ -167,7 +167,6 @@ static struct i2c_driver lm78_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "lm78",
 	.id		= I2C_DRIVERID_LM78,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= lm78_attach_adapter,
 	.detach_client	= lm78_detach_client,
 };

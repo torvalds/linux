@@ -232,7 +232,6 @@ static struct i2c_driver driver = {
 #endif
 	.name            = "tv card mixer driver",
 	.id              = I2C_DRIVERID_TVMIXER,
-	.flags           = I2C_DF_NOTIFY,
 	.detach_adapter  = tvmixer_adapters,
 	.attach_adapter  = tvmixer_adapters,
 	.detach_client   = tvmixer_clients,

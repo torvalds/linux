@@ -214,7 +214,6 @@ static struct i2c_driver m41t00_driver = {
 	.owner		= THIS_MODULE,
 	.name		= M41T00_DRV_NAME,
 	.id		= I2C_DRIVERID_STM41T00,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= m41t00_attach,
 	.detach_client	= m41t00_detach,
 };

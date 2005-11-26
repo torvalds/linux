@@ -454,7 +454,6 @@ static struct i2c_driver i2c_driver_indycam = {
 	.owner		= THIS_MODULE,
 	.name		= "indycam",
 	.id		= I2C_DRIVERID_INDYCAM,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter = indycam_probe,
 	.detach_client	= indycam_detach,
 	.command	= indycam_command,

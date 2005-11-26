@@ -822,7 +822,6 @@ static struct i2c_driver driver = {
 	.owner          = THIS_MODULE,
 	.name           = "i2c tda9887 driver",
 	.id             = -1, /* FIXME */
-	.flags          = I2C_DF_NOTIFY,
 	.attach_adapter = tda9887_probe,
 	.detach_client  = tda9887_detach,
 	.command        = tda9887_command,

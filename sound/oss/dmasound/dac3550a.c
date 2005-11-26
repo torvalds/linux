@@ -44,7 +44,6 @@ struct i2c_driver daca_driver = {
 	.owner			= THIS_MODULE,
 	.name			= "DAC3550A driver  V " DACA_VERSION,
 	.id			= I2C_DRIVERID_DACA,
-	.flags			= I2C_DF_NOTIFY,
 	.attach_adapter		= daca_attach_adapter,
 	.detach_client		= daca_detach_client,
 };

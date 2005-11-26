@@ -173,7 +173,6 @@ detach_thermostat(struct i2c_adapter *adapter)
 static struct i2c_driver thermostat_driver = {  
 	.owner		= THIS_MODULE,
 	.name		= "therm_adt746x",
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= attach_thermostat,
 	.detach_adapter	= detach_thermostat,
 };

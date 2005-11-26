@@ -121,7 +121,6 @@ static struct i2c_driver adm1025_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "adm1025",
 	.id		= I2C_DRIVERID_ADM1025,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= adm1025_attach_adapter,
 	.detach_client	= adm1025_detach_client,
 };

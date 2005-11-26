@@ -1296,7 +1296,6 @@ static struct i2c_driver maven_driver={
 	.owner		= THIS_MODULE,
 	.name		= "maven",
 	.id		= I2C_DRIVERID_MGATVO,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= maven_attach_adapter,
 	.detach_client	= maven_detach_client,
 	.command	= maven_command,

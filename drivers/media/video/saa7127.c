@@ -821,7 +821,6 @@ static int saa7127_detach(struct i2c_client *client)
 static struct i2c_driver i2c_driver_saa7127 = {
 	.name = "saa7127",
 	.id = I2C_DRIVERID_SAA7127,
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = saa7127_probe,
 	.detach_client = saa7127_detach,
 	.command = saa7127_command,

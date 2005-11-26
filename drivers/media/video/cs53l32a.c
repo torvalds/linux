@@ -218,7 +218,6 @@ static int cs53l32a_detach(struct i2c_client *client)
 static struct i2c_driver i2c_driver = {
 	.name = "cs53l32a",
 	.id = I2C_DRIVERID_CS53L32A,
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = cs53l32a_probe,
 	.detach_client = cs53l32a_detach,
 	.command = cs53l32a_command,

@@ -127,7 +127,6 @@ static struct i2c_driver max7310_i2c_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "akita-max7310",
 	.id		= I2C_DRIVERID_AKITAIOEXP,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= max7310_attach_adapter,
 	.detach_client	= max7310_detach_client,
 };

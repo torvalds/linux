@@ -197,7 +197,7 @@ int i2c_add_adapter(struct i2c_adapter *adap)
 	/* inform drivers of new adapters */
 	list_for_each(item,&drivers) {
 		driver = list_entry(item, struct i2c_driver, list);
-		if (driver->flags & I2C_DF_NOTIFY)
+		if (driver->attach_adapter)
 			/* We ignore the return code; if it fails, too bad */
 			driver->attach_adapter(adap);
 	}
@@ -309,7 +309,7 @@ int i2c_add_driver(struct i2c_driver *driver)
 	pr_debug("i2c-core: driver [%s] registered\n", driver->name);
 
 	/* now look for instances of driver on our adapters */
-	if (driver->flags & I2C_DF_NOTIFY) {
+	if (driver->attach_adapter) {
 		list_for_each(item,&adapters) {
 			adapter = list_entry(item, struct i2c_adapter, list);
 			driver->attach_adapter(adapter);

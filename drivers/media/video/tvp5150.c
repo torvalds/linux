@@ -806,7 +806,6 @@ static struct i2c_driver driver = {
 
 	/* FIXME */
 	.id = I2C_DRIVERID_SAA7110,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = tvp5150_attach_adapter,
 	.detach_client = tvp5150_detach_client,

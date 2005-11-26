@@ -591,7 +591,6 @@ static struct i2c_driver i2c_driver_saa7110 = {
 	.name = "saa7110",
 
 	.id = I2C_DRIVERID_SAA7110,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = saa7110_attach_adapter,
 	.detach_client = saa7110_detach_client,

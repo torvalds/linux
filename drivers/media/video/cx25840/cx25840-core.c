@@ -847,7 +847,6 @@ static struct i2c_driver i2c_driver_cx25840 = {
 	.name = "cx25840",
 
 	.id = I2C_DRIVERID_CX25840,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = cx25840_attach_adapter,
 	.detach_client = cx25840_detach_client,

@@ -95,7 +95,6 @@ static struct i2c_driver w83l785ts_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "w83l785ts",
 	.id		= I2C_DRIVERID_W83L785TS,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= w83l785ts_attach_adapter,
 	.detach_client	= w83l785ts_detach_client,
 };

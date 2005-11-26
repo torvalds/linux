@@ -502,7 +502,6 @@ static struct i2c_driver i2c_driver_adv7170 = {
 	.name = "adv7170",	/* name */
 
 	.id = I2C_DRIVERID_ADV7170,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = adv7170_attach_adapter,
 	.detach_client = adv7170_detach_client,

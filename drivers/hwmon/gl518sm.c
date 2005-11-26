@@ -154,7 +154,6 @@ static struct i2c_driver gl518_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "gl518sm",
 	.id		= I2C_DRIVERID_GL518,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= gl518_attach_adapter,
 	.detach_client	= gl518_detach_client,
 };

@@ -498,7 +498,6 @@ static struct i2c_driver driver = {
 	.owner = THIS_MODULE,
 	.name = "i2c saa6588 driver",
 	.id = -1,		/* FIXME */
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = saa6588_probe,
 	.detach_client = saa6588_detach,
 	.command = saa6588_command,

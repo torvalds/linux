@@ -109,6 +109,9 @@ Technical changes:
   there is a MODULE_LICENSE() line, at the bottom of the file
   (after MODULE_AUTHOR() and MODULE_DESCRIPTION(), in this order).
 
+* [Driver] The flags field of the i2c_driver structure is gone.
+  I2C_DF_NOTIFY is now the default behavior.
+
 Coding policy:
 
 * [Copyright] Use (C), not (c), for copyright.

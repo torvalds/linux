@@ -726,7 +726,6 @@ static struct i2c_driver vpx3220_i2c_driver = {
 	.name = "vpx3220",
 
 	.id = I2C_DRIVERID_VPX3220,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = vpx3220_attach_adapter,
 	.detach_client = vpx3220_detach_client,

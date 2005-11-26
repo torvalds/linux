@@ -121,7 +121,6 @@ static struct i2c_driver fscher_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "fscher",
 	.id		= I2C_DRIVERID_FSCHER,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= fscher_attach_adapter,
 	.detach_client	= fscher_detach_client,
 };

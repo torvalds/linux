@@ -220,7 +220,6 @@ static struct i2c_driver asb100_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "asb100",
 	.id		= I2C_DRIVERID_ASB100,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= asb100_attach_adapter,
 	.detach_client	= asb100_detach_client,
 };

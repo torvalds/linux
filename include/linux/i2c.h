@@ -251,7 +251,6 @@ static inline void i2c_set_adapdata (struct i2c_adapter *dev, void *data)
 }
 
 /*flags for the driver struct: */
-#define I2C_DF_NOTIFY	0x01		/* notify on bus (de/a)ttaches 	*/
 
 /*flags for the client struct: */
 #define I2C_CLIENT_ALLOW_USE		0x01	/* Client allows access */

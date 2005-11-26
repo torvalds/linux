@@ -362,7 +362,6 @@ static struct i2c_driver rtc8564_driver = {
 	.owner		= THIS_MODULE,
 	.name		= "RTC8564",
 	.id		= I2C_DRIVERID_RTC8564,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter = rtc8564_probe,
 	.detach_client	= rtc8564_detach,
 	.command	= rtc8564_command

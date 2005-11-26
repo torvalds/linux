@@ -239,7 +239,6 @@ static struct i2c_driver i2c_driver_videotext =
 	.owner 		= THIS_MODULE,
 	.name 		= IF_NAME,		/* name */
 	.id 		= I2C_DRIVERID_SAA5249, /* in i2c.h */
-	.flags 		= I2C_DF_NOTIFY,
 	.attach_adapter = saa5249_probe,
 	.detach_client  = saa5249_detach,
 	.command 	= saa5249_command

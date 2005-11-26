@@ -224,7 +224,6 @@ static struct i2c_driver driver = {
 	.owner	= THIS_MODULE,
 	.name	= "tda9840",
 	.id	= I2C_DRIVERID_TDA9840,
-	.flags	= I2C_DF_NOTIFY,
 	.attach_adapter	= attach,
 	.detach_client	= detach,
 	.command	= command,
