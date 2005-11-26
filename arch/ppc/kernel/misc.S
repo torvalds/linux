@@ -1197,7 +1197,7 @@ _GLOBAL(sys_call_table)
 	.long sys_ssetmask
 	.long sys_setreuid	/* 70 */
 	.long sys_setregid
-	.long ppc_sigsuspend
+	.long sys_sigsuspend
 	.long sys_sigpending
 	.long sys_sethostname
 	.long sys_setrlimit	/* 75 */
@@ -1303,7 +1303,7 @@ _GLOBAL(sys_call_table)
 	.long sys_rt_sigpending	/* 175 */
 	.long sys_rt_sigtimedwait
 	.long sys_rt_sigqueueinfo
-	.long ppc_rt_sigsuspend
+	.long sys_rt_sigsuspend
 	.long sys_pread64
 	.long sys_pwrite64	/* 180 */
 	.long sys_chown
@@ -1374,7 +1374,7 @@ _GLOBAL(sys_call_table)
 	.long sys_clock_gettime
 	.long sys_clock_getres
 	.long sys_clock_nanosleep
-	.long ppc_swapcontext
+	.long sys_swapcontext
 	.long sys_tgkill	/* 250 */
 	.long sys_utimes
 	.long sys_statfs64
