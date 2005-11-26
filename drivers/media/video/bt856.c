@@ -323,7 +323,6 @@ bt856_detect_client (struct i2c_adapter *adapter,
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_bt856;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	strlcpy(I2C_NAME(client), "bt856", sizeof(I2C_NAME(client)));
 
 	encoder = kmalloc(sizeof(struct bt856), GFP_KERNEL);

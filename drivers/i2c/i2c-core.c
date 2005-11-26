@@ -419,8 +419,7 @@ int i2c_attach_client(struct i2c_client *client)
 		}
 	}
 
-	if (client->flags & I2C_CLIENT_ALLOW_USE)
-		client->usage_count = 0;
+	client->usage_count = 0;
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.driver = &client->driver->driver;
@@ -443,8 +442,7 @@ int i2c_detach_client(struct i2c_client *client)
 	struct i2c_adapter *adapter = client->adapter;
 	int res = 0;
 	
-	if ((client->flags & I2C_CLIENT_ALLOW_USE)
-	 && (client->usage_count > 0)) {
+	if (client->usage_count > 0) {
 		dev_warn(&client->dev, "Client [%s] still busy, "
 			 "can't detach\n", client->name);
 		return -EBUSY;
@@ -499,12 +497,9 @@ int i2c_use_client(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	if (client->flags & I2C_CLIENT_ALLOW_USE) {
-		if (client->usage_count > 0)
-			goto busy;
-		else 
-			client->usage_count++;
-	}
+	if (client->usage_count > 0)
+		goto busy;
+	client->usage_count++;
 
 	return 0;
  busy:
@@ -514,16 +509,13 @@ int i2c_use_client(struct i2c_client *client)
 
 int i2c_release_client(struct i2c_client *client)
 {
-	if(client->flags & I2C_CLIENT_ALLOW_USE) {
-		if(client->usage_count>0)
-			client->usage_count--;
-		else {
-			pr_debug("i2c-core: %s used one too many times\n",
-				__FUNCTION__);
-			return -EPERM;
-		}
+	if (!client->usage_count) {
+		pr_debug("i2c-core: %s used one too many times\n",
+			 __FUNCTION__);
+		return -EPERM;
 	}
 	
+	client->usage_count--;
 	i2c_dec_use_client(client);
 	
 	return 0;

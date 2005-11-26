@@ -833,7 +833,6 @@ static struct i2c_driver driver = {
 static struct i2c_client client_template =
 {
 	.name      = "tda9887",
-	.flags     = I2C_CLIENT_ALLOW_USE,
 	.driver    = &driver,
 };
 

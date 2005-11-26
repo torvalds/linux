@@ -719,7 +719,6 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa7127;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name) - 1, "saa7127");
 
 	saa7127_dbg("detecting saa7127 client on address 0x%x\n", address << 1);

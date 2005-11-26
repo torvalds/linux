@@ -133,7 +133,6 @@ static struct i2c_driver max7310_i2c_driver = {
 
 static struct i2c_client max7310_template = {
 	name:   "akita-max7310",
-	flags:  I2C_CLIENT_ALLOW_USE,
 	driver: &max7310_i2c_driver,
 };
 

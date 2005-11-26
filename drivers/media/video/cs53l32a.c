@@ -154,7 +154,6 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name) - 1, "cs53l32a");
 
 	cs53l32a_info("chip found @ 0x%x (%s)\n", address << 1, adapter->name);
