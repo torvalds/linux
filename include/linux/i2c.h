@@ -105,11 +105,12 @@ extern s32 i2c_smbus_read_i2c_block_data(struct i2c_client * client,
  * A driver is capable of handling one or more physical devices present on
  * I2C adapters. This information is used to inform the driver of adapter
  * events.
+ *
+ * The driver.owner field should be set to the module owner of this driver.
+ * The driver.name field should be set to the name of this driver.
  */
 
 struct i2c_driver {
-	struct module *owner;
-	char name[32];
 	int id;
 	unsigned int class;
 

@@ -235,7 +235,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		if (driver->detach_adapter)
 			if ((res = driver->detach_adapter(adap))) {
 				dev_err(&adap->dev, "detach_adapter failed "
-					"for driver [%s]\n", driver->name);
+					"for driver [%s]\n",
+					driver->driver.name);
 				goto out_unlock;
 			}
 	}
@@ -295,8 +296,6 @@ int i2c_add_driver(struct i2c_driver *driver)
 	down(&core_lists);
 
 	/* add the driver to the list of i2c drivers in the driver core */
-	driver->driver.owner = driver->owner;
-	driver->driver.name = driver->name;
 	driver->driver.bus = &i2c_bus_type;
 	driver->driver.probe = i2c_device_probe;
 	driver->driver.remove = i2c_device_remove;
@@ -306,7 +305,7 @@ int i2c_add_driver(struct i2c_driver *driver)
 		goto out_unlock;
 	
 	list_add_tail(&driver->list,&drivers);
-	pr_debug("i2c-core: driver [%s] registered\n", driver->name);
+	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
 	/* now look for instances of driver on our adapters */
 	if (driver->attach_adapter) {
@@ -344,7 +343,8 @@ int i2c_del_driver(struct i2c_driver *driver)
 		if (driver->detach_adapter) {
 			if ((res = driver->detach_adapter(adap))) {
 				dev_err(&adap->dev, "detach_adapter failed "
-					"for driver [%s]\n", driver->name);
+					"for driver [%s]\n",
+					driver->driver.name);
 				goto out_unlock;
 			}
 		} else {
@@ -368,7 +368,7 @@ int i2c_del_driver(struct i2c_driver *driver)
 
 	driver_unregister(&driver->driver);
 	list_del(&driver->list);
-	pr_debug("i2c-core: driver [%s] unregistered\n", driver->name);
+	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
 
  out_unlock:
 	up(&core_lists);
@@ -473,10 +473,10 @@ int i2c_detach_client(struct i2c_client *client)
 static int i2c_inc_use_client(struct i2c_client *client)
 {
 
-	if (!try_module_get(client->driver->owner))
+	if (!try_module_get(client->driver->driver.owner))
 		return -ENODEV;
 	if (!try_module_get(client->adapter->owner)) {
-		module_put(client->driver->owner);
+		module_put(client->driver->driver.owner);
 		return -ENODEV;
 	}
 
@@ -485,7 +485,7 @@ static int i2c_inc_use_client(struct i2c_client *client)
 
 static void i2c_dec_use_client(struct i2c_client *client)
 {
-	module_put(client->driver->owner);
+	module_put(client->driver->driver.owner);
 	module_put(client->adapter->owner);
 }
 
@@ -524,14 +524,14 @@ void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
 	down(&adap->clist_lock);
 	list_for_each(item,&adap->clients) {
 		client = list_entry(item, struct i2c_client, list);
-		if (!try_module_get(client->driver->owner))
+		if (!try_module_get(client->driver->driver.owner))
 			continue;
 		if (NULL != client->driver->command) {
 			up(&adap->clist_lock);
 			client->driver->command(client,cmd,arg);
 			down(&adap->clist_lock);
 		}
-		module_put(client->driver->owner);
+		module_put(client->driver->driver.owner);
        }
        up(&adap->clist_lock);
 }

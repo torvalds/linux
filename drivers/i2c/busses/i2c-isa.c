@@ -92,8 +92,6 @@ int i2c_isa_add_driver(struct i2c_driver *driver)
 	int res;
 
 	/* Add the driver to the list of i2c drivers in the driver core */
-	driver->driver.name = driver->name;
-	driver->driver.owner = driver->owner;
 	driver->driver.bus = &i2c_bus_type;
 	driver->driver.probe = i2c_isa_device_probe;
 	driver->driver.remove = i2c_isa_device_remove;
@@ -124,7 +122,7 @@ int i2c_isa_del_driver(struct i2c_driver *driver)
 		if ((res = driver->detach_client(client))) {
 			dev_err(&isa_adapter.dev, "Failed, driver "
 				"%s not unregistered!\n",
-				driver->name);
+				driver->driver.name);
 			return res;
 		}
 	}
