@@ -2902,6 +2902,12 @@ W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
+VT8231 HARDWARE MONITOR DRIVER
+P:	Roger Lucas
+M:	roger@planbit.co.uk
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 W1 DALLAS'S 1-WIRE BUS
 P:	Evgeniy Polyakov
 M:	johnpol@2ka.mipt.ru
