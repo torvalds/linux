@@ -252,11 +252,6 @@ static inline void i2c_set_adapdata (struct i2c_adapter *dev, void *data)
 
 /*flags for the driver struct: */
 #define I2C_DF_NOTIFY	0x01		/* notify on bus (de/a)ttaches 	*/
-#if 0
-/* this flag is gone -- there is a (optional) driver->detach_adapter
- * callback now which can be used instead */
-# define I2C_DF_DUMMY	0x02
-#endif
 
 /*flags for the client struct: */
 #define I2C_CLIENT_ALLOW_USE		0x01	/* Client allows access */
