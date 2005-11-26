@@ -88,8 +88,10 @@ static int pcf8591_read_channel(struct device *dev, int channel);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver pcf8591_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "pcf8591",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "pcf8591",
+	},
 	.id		= I2C_DRIVERID_PCF8591,
 	.attach_adapter	= pcf8591_attach_adapter,
 	.detach_client	= pcf8591_detach_client,

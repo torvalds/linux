@@ -637,8 +637,10 @@ static int __init tps65010_scan_bus(struct i2c_adapter *bus)
 }
 
 static struct i2c_driver tps65010_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "tps65010",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tps65010",
+	},
 	.attach_adapter	= tps65010_scan_bus,
 	.detach_client	= __exit_p(tps65010_detach_client),
 };
