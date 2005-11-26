@@ -585,8 +585,10 @@ static ssize_t show_alarms(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 static struct i2c_driver vt8231_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "vt8231",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "vt8231",
+	},
 	.attach_adapter	= vt8231_detect,
 	.detach_client	= vt8231_detach_client,
 };

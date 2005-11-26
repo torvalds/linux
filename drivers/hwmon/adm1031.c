@@ -105,8 +105,10 @@ static struct adm1031_data *adm1031_update_device(struct device *dev);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver adm1031_driver = {
-	.owner = THIS_MODULE,
-	.name = "adm1031",
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "adm1031",
+	},
 	.attach_adapter = adm1031_attach_adapter,
 	.detach_client = adm1031_detach_client,
 };

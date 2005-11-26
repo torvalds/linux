@@ -89,8 +89,10 @@ static struct ds1621_data *ds1621_update_client(struct device *dev);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver ds1621_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "ds1621",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "ds1621",
+	},
 	.id		= I2C_DRIVERID_DS1621,
 	.attach_adapter	= ds1621_attach_adapter,
 	.detach_client	= ds1621_detach_client,

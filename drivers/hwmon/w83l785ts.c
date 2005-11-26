@@ -92,8 +92,10 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev);
  */
  
 static struct i2c_driver w83l785ts_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "w83l785ts",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "w83l785ts",
+	},
 	.id		= I2C_DRIVERID_W83L785TS,
 	.attach_adapter	= w83l785ts_attach_adapter,
 	.detach_client	= w83l785ts_detach_client,

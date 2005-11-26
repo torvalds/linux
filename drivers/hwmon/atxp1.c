@@ -50,8 +50,10 @@ static struct atxp1_data * atxp1_update_device(struct device *dev);
 static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind);
 
 static struct i2c_driver atxp1_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "atxp1",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "atxp1",
+	},
 	.attach_adapter = atxp1_attach_adapter,
 	.detach_client	= atxp1_detach_client,
 };

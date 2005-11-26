@@ -317,8 +317,10 @@ static void w83792d_print_debug(struct w83792d_data *data, struct device *dev);
 static void w83792d_init_client(struct i2c_client *client);
 
 static struct i2c_driver w83792d_driver = {
-	.owner = THIS_MODULE,
-	.name = "w83792d",
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "w83792d",
+	},
 	.attach_adapter = w83792d_attach_adapter,
 	.detach_client = w83792d_detach_client,
 };

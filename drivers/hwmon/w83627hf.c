@@ -332,8 +332,10 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev);
 static void w83627hf_init_client(struct i2c_client *client);
 
 static struct i2c_driver w83627hf_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "w83627hf",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "w83627hf",
+	},
 	.attach_adapter	= w83627hf_detect,
 	.detach_client	= w83627hf_detach_client,
 };
@@ -1009,7 +1011,7 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 		address = force_addr & WINB_ALIGNMENT;
 
 	if (!request_region(address + WINB_REGION_OFFSET, WINB_REGION_SIZE,
-	                    w83627hf_driver.name)) {
+	                    w83627hf_driver.driver.name)) {
 		err = -EBUSY;
 		goto ERROR0;
 	}

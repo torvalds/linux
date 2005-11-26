@@ -109,8 +109,10 @@ static struct gl520_data *gl520_update_device(struct device *dev);
 
 /* Driver data */
 static struct i2c_driver gl520_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "gl520sm",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "gl520sm",
+	},
 	.id		= I2C_DRIVERID_GL520,
 	.attach_adapter	= gl520_attach_adapter,
 	.detach_client	= gl520_detach_client,

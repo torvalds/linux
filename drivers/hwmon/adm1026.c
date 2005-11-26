@@ -308,8 +308,10 @@ static void adm1026_init_client(struct i2c_client *client);
 
 
 static struct i2c_driver adm1026_driver = {
-	.owner          = THIS_MODULE,
-	.name           = "adm1026",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "adm1026",
+	},
 	.attach_adapter = adm1026_attach_adapter,
 	.detach_client  = adm1026_detach_client,
 };

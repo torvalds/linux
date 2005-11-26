@@ -126,8 +126,10 @@ static int read_only;
 
 /* This is the driver that will be inserted */
 static struct i2c_driver adm1021_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "adm1021",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "adm1021",
+	},
 	.id		= I2C_DRIVERID_ADM1021,
 	.attach_adapter	= adm1021_attach_adapter,
 	.detach_client	= adm1021_detach_client,

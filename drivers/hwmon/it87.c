@@ -234,16 +234,20 @@ static void it87_init_client(struct i2c_client *client, struct it87_data *data);
 
 
 static struct i2c_driver it87_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "it87",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "it87",
+	},
 	.id		= I2C_DRIVERID_IT87,
 	.attach_adapter	= it87_attach_adapter,
 	.detach_client	= it87_detach_client,
 };
 
 static struct i2c_driver it87_isa_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "it87-isa",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "it87-isa",
+	},
 	.attach_adapter	= it87_isa_attach_adapter,
 	.detach_client	= it87_detach_client,
 };
@@ -760,7 +764,8 @@ static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Reserve the ISA region */
 	if (is_isa)
-		if (!request_region(address, IT87_EXTENT, it87_isa_driver.name))
+		if (!request_region(address, IT87_EXTENT,
+				    it87_isa_driver.driver.name))
 			goto ERROR0;
 
 	/* For now, we presume we have a valid client. We create the
