@@ -296,17 +296,8 @@ extern int i2c_del_driver(struct i2c_driver *);
 extern int i2c_attach_client(struct i2c_client *);
 extern int i2c_detach_client(struct i2c_client *);
 
-/* New function: This is to get an i2c_client-struct for controlling the 
-   client either by using i2c_control-function or having the 
-   client-module export functions that can be used with the i2c_client
-   -struct. */
-extern struct i2c_client *i2c_get_client(int driver_id, int adapter_id, 
-					struct i2c_client *prev);
-
-/* Should be used with new function
-   extern struct i2c_client *i2c_get_client(int,int,struct i2c_client *);
-   to make sure that client-struct is valid and that it is okay to access
-   the i2c-client. 
+/* Should be used to make sure that client-struct is valid and that it
+   is okay to access the i2c-client.
    returns -ENODEV if client has gone in the meantime */
 extern int i2c_use_client(struct i2c_client *);
 extern int i2c_release_client(struct i2c_client *);
