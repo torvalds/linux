@@ -300,7 +300,7 @@ static int attach_inform(struct i2c_client *client)
 
 	if (bttv_debug)
 		printk(KERN_DEBUG "bttv%d: %s i2c attach [addr=0x%x,client=%s]\n",
-			btv->c.nr,client->driver->name,client->addr,
+			btv->c.nr, client->driver->driver.name, client->addr,
 			client->name);
 	if (!client->driver->command)
 		return 0;

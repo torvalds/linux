@@ -230,8 +230,10 @@ bt832_command(struct i2c_client *client, unsigned int cmd, void *arg)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner          = THIS_MODULE,
-	.name           = "i2c bt832 driver",
+	.driver = {
+		.owner  = THIS_MODULE,
+		.name   = "i2c bt832 driver",
+	},
 	.id             = -1, /* FIXME */
 	.attach_adapter = bt832_probe,
 	.detach_client  = bt832_detach,

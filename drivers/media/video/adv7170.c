@@ -497,8 +497,10 @@ adv7170_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_adv7170 = {
-	.owner = THIS_MODULE,
-	.name = "adv7170",	/* name */
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "adv7170",	/* name */
+	},
 
 	.id = I2C_DRIVERID_ADV7170,
 

@@ -278,7 +278,10 @@ static int ir_detach(struct i2c_client *client);
 static int ir_probe(struct i2c_adapter *adap);
 
 static struct i2c_driver driver = {
-	.name           = "ir remote kbd driver",
+	.driver = {
+		.owner  = THIS_MODULE,
+		.name   = "ir remote kbd driver",
+	},
 	.id             = I2C_DRIVERID_INFRARED,
 	.attach_adapter = ir_probe,
 	.detach_client  = ir_detach,

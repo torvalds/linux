@@ -721,8 +721,10 @@ vpx3220_attach_adapter (struct i2c_adapter *adapter)
  */
 
 static struct i2c_driver vpx3220_i2c_driver = {
-	.owner = THIS_MODULE,
-	.name = "vpx3220",
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "vpx3220",
+	},
 
 	.id = I2C_DRIVERID_VPX3220,
 

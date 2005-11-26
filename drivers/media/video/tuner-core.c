@@ -206,7 +206,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 	set_freq(c, t->freq);
 	tuner_dbg("%s %s I2C addr 0x%02x with type %d used for 0x%02x\n",
-		  c->adapter->name, c->driver->name, c->addr << 1, type,
+		  c->adapter->name, c->driver->driver.name, c->addr << 1, type,
 		  t->mode_mask);
 }
 
@@ -742,13 +742,13 @@ static int tuner_resume(struct device *dev)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner = THIS_MODULE,
-	.name = "tuner",
 	.id = I2C_DRIVERID_TUNER,
 	.attach_adapter = tuner_probe,
 	.detach_client = tuner_detach,
 	.command = tuner_command,
 	.driver = {
+		   .owner = THIS_MODULE,
+		   .name = "tuner",
 		   .suspend = tuner_suspend,
 		   .resume = tuner_resume,
 		   },

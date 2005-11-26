@@ -843,14 +843,16 @@ static int cx25840_detach_client(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_cx25840 = {
-	.name = "cx25840",
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "cx25840",
+	},
 
 	.id = I2C_DRIVERID_CX25840,
 
 	.attach_adapter = cx25840_attach_adapter,
 	.detach_client = cx25840_detach_client,
 	.command = cx25840_command,
-	.owner = THIS_MODULE,
 };
 
 

@@ -167,8 +167,10 @@ static int command(struct i2c_client *client, unsigned int cmd, void *arg)
 }
 
 static struct i2c_driver driver = {
-	.owner	= THIS_MODULE,
-	.name	= "tea6420",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "tea6420",
+	},
 	.id	= I2C_DRIVERID_TEA6420,
 	.attach_adapter	= attach,
 	.detach_client	= detach,

@@ -778,8 +778,10 @@ tveeprom_detach_client (struct i2c_client *client)
 }
 
 static struct i2c_driver i2c_driver_tveeprom = {
-	.owner          = THIS_MODULE,
-	.name           = "tveeprom",
+	.driver = {
+		.owner  = THIS_MODULE,
+		.name   = "tveeprom",
+	},
 	.id             = I2C_DRIVERID_TVEEPROM,
 	.attach_adapter = tveeprom_attach_adapter,
 	.detach_client  = tveeprom_detach_client,

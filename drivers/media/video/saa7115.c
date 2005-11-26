@@ -52,15 +52,16 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define saa7115_dbg(fmt,arg...) \
 	do { \
 		if (debug) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
+			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
+			       client->driver->driver.name, \
 			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
 	} while (0)
 
 #define saa7115_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 #define saa7115_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 static unsigned short normal_i2c[] = { 0x42 >> 1, 0x40 >> 1, I2C_CLIENT_END };
@@ -1353,12 +1354,14 @@ static int saa7115_detach(struct i2c_client *client)
 
 /* i2c implementation */
 static struct i2c_driver i2c_driver_saa7115 = {
-	.name = "saa7115",
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "saa7115",
+	},
 	.id = I2C_DRIVERID_SAA711X,
 	.attach_adapter = saa7115_probe,
 	.detach_client = saa7115_detach,
 	.command = saa7115_command,
-	.owner = THIS_MODULE,
 };
 
 

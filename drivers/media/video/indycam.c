@@ -451,8 +451,10 @@ static int indycam_command(struct i2c_client *client, unsigned int cmd,
 }
 
 static struct i2c_driver i2c_driver_indycam = {
-	.owner		= THIS_MODULE,
-	.name		= "indycam",
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name 	= "indycam",
+	},
 	.id		= I2C_DRIVERID_INDYCAM,
 	.attach_adapter = indycam_probe,
 	.detach_client	= indycam_detach,

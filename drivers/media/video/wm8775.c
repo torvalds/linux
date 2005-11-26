@@ -40,10 +40,10 @@ MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
 #define wm8775_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 #define wm8775_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 
@@ -232,14 +232,16 @@ static int wm8775_detach(struct i2c_client *client)
 
 /* i2c implementation */
 static struct i2c_driver i2c_driver = {
-	.name = "wm8775",
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "wm8775",
+	},
 
 	.id = I2C_DRIVERID_WM8775,
 
 	.attach_adapter = wm8775_probe,
 	.detach_client = wm8775_detach,
 	.command = wm8775_command,
-	.owner = THIS_MODULE,
 };
 
 

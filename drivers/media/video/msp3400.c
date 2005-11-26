@@ -59,7 +59,8 @@
 #define msp3400_dbg(fmt, arg...) \
 	do { \
 		if (debug) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
+			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
+			       client->driver->driver.name, \
 			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
 	} while (0)
 
@@ -67,7 +68,8 @@
 #define msp3400_dbg_mediumvol(fmt, arg...) \
 	do { \
 		if (debug >= 2) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
+			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
+				client->driver->driver.name, \
 				i2c_adapter_id(client->adapter), client->addr , ## arg); \
 	} while (0)
 
@@ -75,18 +77,19 @@
 #define msp3400_dbg_highvol(fmt, arg...) \
 	do { \
 		if (debug >= 16) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
+			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
+				client->driver->driver.name, \
 				i2c_adapter_id(client->adapter), client->addr , ## arg); \
 	} while (0)
 
 #define msp3400_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
 		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 #define msp3400_warn(fmt, arg...) do { \
-	printk(KERN_WARNING "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_WARNING "%s %d-%04x: " fmt, client->driver->driver.name, \
 		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 #define msp3400_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
 		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 #define OPMODE_AUTO    -1
@@ -1561,13 +1564,13 @@ static int msp_resume(struct device * dev);
 static void msp_wake_thread(struct i2c_client *client);
 
 static struct i2c_driver driver = {
-	.owner          = THIS_MODULE,
-	.name           = "msp3400",
 	.id             = I2C_DRIVERID_MSP3400,
 	.attach_adapter = msp_probe,
 	.detach_client  = msp_detach,
 	.command        = msp_command,
 	.driver = {
+		.owner   = THIS_MODULE,
+		.name    = "i2c msp3400 driver",
 		.suspend = msp_suspend,
 		.resume  = msp_resume,
 	},
