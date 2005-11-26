@@ -500,9 +500,7 @@ int i2c_use_client(struct i2c_client *client)
 		return ret;
 
 	if (client->flags & I2C_CLIENT_ALLOW_USE) {
-		if (client->flags & I2C_CLIENT_ALLOW_MULTIPLE_USE)
-			client->usage_count++;
-		else if (client->usage_count > 0) 
+		if (client->usage_count > 0)
 			goto busy;
 		else 
 			client->usage_count++;
