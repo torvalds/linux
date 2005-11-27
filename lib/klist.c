@@ -199,6 +199,8 @@ void klist_iter_init_node(struct klist * k, struct klist_iter * i, struct klist_
 	i->i_klist = k;
 	i->i_head = &k->k_list;
 	i->i_cur = n;
+	if (n)
+		kref_get(&n->n_ref);
 }
 
 EXPORT_SYMBOL_GPL(klist_iter_init_node);
