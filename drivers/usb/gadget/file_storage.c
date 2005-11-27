@@ -336,8 +336,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define MAX_LUNS	8
 
 	/* Arggh!  There should be a module_param_array_named macro! */
-static char		*file[MAX_LUNS] = {NULL, };
-static int		ro[MAX_LUNS] = {0, };
+static char		*file[MAX_LUNS];
+static int		ro[MAX_LUNS];
 
 static struct {
 	int		num_filenames;
