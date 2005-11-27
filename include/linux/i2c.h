@@ -112,7 +112,6 @@ struct i2c_driver {
 	char name[32];
 	int id;
 	unsigned int class;
-	unsigned int flags;		/* div., see below		*/
 
 	/* Notifies the driver that a new bus has appeared. This routine
 	 * can be used by the driver to test if the bus meets its conditions
@@ -249,8 +248,6 @@ static inline void i2c_set_adapdata (struct i2c_adapter *dev, void *data)
 {
 	dev_set_drvdata (&dev->dev, data);
 }
-
-/*flags for the driver struct: */
 
 /*flags for the client struct: */
 #define I2C_CLIENT_ALLOW_USE		0x01	/* Client allows access */
