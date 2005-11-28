@@ -121,8 +121,8 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 	return 0;
 }
 
-/* called by khubd or root hub (re)init threads; leaves HC in halt state */
-static int ehci_pci_reset(struct usb_hcd *hcd)
+/* called during probe() after chip reset completes */
+static int ehci_pci_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
@@ -141,6 +141,11 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
+	/* data structure init */
+	retval = ehci_init(hcd);
+	if (retval)
+		return retval;
+
 	/* NOTE:  only the parts below this line are PCI-specific */
 
 	switch (pdev->vendor) {
@@ -154,7 +159,8 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 		/* AMD8111 EHCI doesn't work, according to AMD errata */
 		if (pdev->device == 0x7463) {
 			ehci_info(ehci, "ignoring AMD8111 (errata)\n");
-			return -EIO;
+			retval = -EIO;
+			goto done;
 		}
 		break;
 	case PCI_VENDOR_ID_NVIDIA:
@@ -207,9 +213,8 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 	/* REVISIT:  per-port wake capability (PCI 0x62) currently unused */
 
 	retval = ehci_pci_reinit(ehci, pdev);
-
-	/* finish init */
-	return ehci_init(hcd);
+done:
+	return retval;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -344,7 +349,7 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset =		ehci_pci_reset,
+	.reset =		ehci_pci_setup,
 	.start =		ehci_run,
 #ifdef	CONFIG_PM
 	.suspend =		ehci_pci_suspend,
