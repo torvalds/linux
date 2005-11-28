@@ -201,13 +201,25 @@ static int shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 	list_for_each_entry(shrinker, &shrinker_list, list) {
 		unsigned long long delta;
 		unsigned long total_scan;
+		unsigned long max_pass = (*shrinker->shrinker)(0, gfp_mask);
 
 		delta = (4 * scanned) / shrinker->seeks;
-		delta *= (*shrinker->shrinker)(0, gfp_mask);
+		delta *= max_pass;
 		do_div(delta, lru_pages + 1);
 		shrinker->nr += delta;
-		if (shrinker->nr < 0)
-			shrinker->nr = LONG_MAX;	/* It wrapped! */
+		if (shrinker->nr < 0) {
+			printk(KERN_ERR "%s: nr=%ld\n",
+					__FUNCTION__, shrinker->nr);
+			shrinker->nr = max_pass;
+		}
+
+		/*
+		 * Avoid risking looping forever due to too large nr value:
+		 * never try to free more than twice the estimate number of
+		 * freeable entries.
+		 */
+		if (shrinker->nr > max_pass * 2)
+			shrinker->nr = max_pass * 2;
 
 		total_scan = shrinker->nr;
 		shrinker->nr = 0;
