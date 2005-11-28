@@ -721,8 +721,9 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	}
 	lpfc_cmd = lpfc_sli_get_scsi_buf (phba);
 	if (lpfc_cmd == NULL) {
-		printk(KERN_WARNING "%s: No buffer available - list empty, "
-		       "total count %d\n", __FUNCTION__, phba->total_scsi_bufs);
+		lpfc_printf_log(phba, KERN_INFO, LOG_FCP,
+				"%d:0707 driver's buffer pool is empty, "
+				"IO busied\n", phba->brd_no);
 		goto out_host_busy;
 	}
 
@@ -844,8 +845,8 @@ __lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
  out:
 	lpfc_printf_log(phba, KERN_WARNING, LOG_FCP,
-			"%d:0749 SCSI layer issued abort device: ret %#x, "
-			"ID %d, LUN %d, snum %#lx\n",
+			"%d:0749 SCSI Layer I/O Abort Request "
+			"Status x%x ID %d LUN %d snum %#lx\n",
 			phba->brd_no, ret, cmnd->device->id,
 			cmnd->device->lun, cmnd->serial_number);
 

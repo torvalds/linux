@@ -126,34 +126,26 @@ lpfc_config_port_prep(struct lpfc_hba * phba)
 		return -ERESTART;
 	}
 
-	/* The HBA's current state is provided by the ProgType and rr fields.
-	 * Read and check the value of these fields before continuing to config
-	 * this port.
+	/*
+	 * The value of rr must be 1 since the driver set the cv field to 1.
+	 * This setting requires the FW to set all revision fields.
 	 */
-	if (mb->un.varRdRev.rr == 0 || mb->un.varRdRev.un.b.ProgType != 2) {
-		/* Old firmware */
+	if (mb->un.varRdRev.rr == 0) {
 		vp->rev.rBit = 0;
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
-				"%d:0440 Adapter failed to init, mbxCmd x%x "
-				"READ_REV detected outdated firmware"
-				"Data: x%x\n",
-				phba->brd_no,
-				mb->mbxCommand, 0);
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"%d:0440 Adapter failed to init, READ_REV has "
+				"missing revision information.\n",
+				phba->brd_no);
 		mempool_free(pmb, phba->mbox_mem_pool);
 		return -ERESTART;
-	} else {
-		vp->rev.rBit = 1;
-		vp->rev.sli1FwRev = mb->un.varRdRev.sli1FwRev;
-		memcpy(vp->rev.sli1FwName,
-			(char*)mb->un.varRdRev.sli1FwName, 16);
-		vp->rev.sli2FwRev = mb->un.varRdRev.sli2FwRev;
-		memcpy(vp->rev.sli2FwName,
-					(char *)mb->un.varRdRev.sli2FwName, 16);
 	}
 
 	/* Save information as VPD data */
+	vp->rev.rBit = 1;
+	vp->rev.sli1FwRev = mb->un.varRdRev.sli1FwRev;
+	memcpy(vp->rev.sli1FwName, (char*) mb->un.varRdRev.sli1FwName, 16);
+	vp->rev.sli2FwRev = mb->un.varRdRev.sli2FwRev;
+	memcpy(vp->rev.sli2FwName, (char *) mb->un.varRdRev.sli2FwName, 16);
 	vp->rev.biuRev = mb->un.varRdRev.biuRev;
 	vp->rev.smRev = mb->un.varRdRev.smRev;
 	vp->rev.smFwRev = mb->un.varRdRev.un.smFwRev;
