@@ -86,6 +86,8 @@ static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable switches */
 #ifdef SUPPORT_JOYSTICK
 #ifdef CHIP1371
 static int joystick_port[SNDRV_CARDS];
+static int spdif[SNDRV_CARDS];
+static int lineio[SNDRV_CARDS];
 #else
 static int joystick[SNDRV_CARDS];
 #endif
@@ -101,6 +103,10 @@ MODULE_PARM_DESC(enable, "Enable Ensoniq AudioPCI soundcard.");
 #ifdef CHIP1371
 module_param_array(joystick_port, int, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port address.");
+module_param_array(spdif, int, NULL, 0444);
+MODULE_PARM_DESC(spdif, "S/PDIF output (-1 = none, 0 = auto, 1 = force).");
+module_param_array(lineio, int, NULL, 0444);
+MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 #else
 module_param_array(joystick, bool, NULL, 0444);
 MODULE_PARM_DESC(joystick, "Enable joystick.");
@@ -1608,7 +1614,7 @@ static struct {
 	{ .vid = PCI_ANY_ID, .did = PCI_ANY_ID }
 };
 
-static int snd_ensoniq_1371_mixer(struct ensoniq * ensoniq)
+static int snd_ensoniq_1371_mixer(struct ensoniq * ensoniq, int has_spdif, int has_line)
 {
 	struct snd_card *card = ensoniq->card;
 	struct snd_ac97_bus *pbus;
@@ -1630,11 +1636,14 @@ static int snd_ensoniq_1371_mixer(struct ensoniq * ensoniq)
 	if ((err = snd_ac97_mixer(pbus, &ac97, &ensoniq->u.es1371.ac97)) < 0)
 		return err;
 	for (idx = 0; es1371_spdif_present[idx].vid != (unsigned short)PCI_ANY_ID; idx++)
-		if (ensoniq->pci->vendor == es1371_spdif_present[idx].vid &&
-		    ensoniq->pci->device == es1371_spdif_present[idx].did &&
-		    ensoniq->rev == es1371_spdif_present[idx].rev) {
+		if ((ensoniq->pci->vendor == es1371_spdif_present[idx].vid &&
+		     ensoniq->pci->device == es1371_spdif_present[idx].did &&
+		     ensoniq->rev == es1371_spdif_present[idx].rev) || has_spdif > 0) {
 		    	struct snd_kcontrol *kctl;
 			int i, index = 0; 
+
+                        if (has_spdif < 0)
+                                break;
 
 			ensoniq->spdif_default = ensoniq->spdif_stream =
 				SNDRV_PCM_DEFAULT_CON_SPDIF;
@@ -1664,7 +1673,8 @@ static int snd_ensoniq_1371_mixer(struct ensoniq * ensoniq)
 	if (((ensoniq->subsystem_vendor_id == 0x1274) &&
 	    (ensoniq->subsystem_device_id == 0x2000)) || /* GA-7DXR */
 	    ((ensoniq->subsystem_vendor_id == 0x1458) &&
-	    (ensoniq->subsystem_device_id == 0xa000))) { /* GA-8IEXP */
+	    (ensoniq->subsystem_device_id == 0xa000)) || /* GA-8IEXP */
+	    has_line > 0) {
 		 err = snd_ctl_add(card, snd_ctl_new1(&snd_ens1373_line, ensoniq));
 		 if (err < 0)
 			 return err;
@@ -2449,7 +2459,7 @@ static int __devinit snd_audiopci_probe(struct pci_dev *pci,
 	}
 #endif
 #ifdef CHIP1371
-	if ((err = snd_ensoniq_1371_mixer(ensoniq)) < 0) {
+	if ((err = snd_ensoniq_1371_mixer(ensoniq, spdif[dev], lineio[dev])) < 0) {
 		snd_card_free(card);
 		return err;
 	}
