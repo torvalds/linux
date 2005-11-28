@@ -760,11 +760,12 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 	return 0;
 }
 
+
 static int
-__lpfc_abort_handler(struct scsi_cmnd *cmnd)
+lpfc_abort_handler(struct scsi_cmnd *cmnd)
 {
-	struct lpfc_hba *phba =
-			(struct lpfc_hba *)cmnd->device->host->hostdata[0];
+	struct Scsi_Host *shost = cmnd->device->host;
+	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
 	struct lpfc_sli_ring *pring = &phba->sli.ring[phba->sli.fcp_ring];
 	struct lpfc_iocbq *iocb;
 	struct lpfc_iocbq *abtsiocb;
@@ -773,6 +774,7 @@ __lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	unsigned int loop_count = 0;
 	int ret = SUCCESS;
 
+	spin_lock_irq(shost->host_lock);
 
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
 	BUG_ON(!lpfc_cmd);
@@ -850,21 +852,13 @@ __lpfc_abort_handler(struct scsi_cmnd *cmnd)
 			phba->brd_no, ret, cmnd->device->id,
 			cmnd->device->lun, cmnd->serial_number);
 
+	spin_unlock_irq(shost->host_lock);
+
 	return ret;
 }
 
 static int
-lpfc_abort_handler(struct scsi_cmnd *cmnd)
-{
-	int rc;
-	spin_lock_irq(cmnd->device->host->host_lock);
-	rc = __lpfc_abort_handler(cmnd);
-	spin_unlock_irq(cmnd->device->host->host_lock);
-	return rc;
-}
-
-static int
-__lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
+lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
@@ -875,6 +869,7 @@ __lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	int ret = FAILED;
 	int cnt, loopcnt;
 
+	spin_lock_irq(shost->host_lock);
 	/*
 	 * If target is not in a MAPPED state, delay the reset until
 	 * target is rediscovered or nodev timeout expires.
@@ -964,24 +959,12 @@ out_free_scsi_buf:
 			lpfc_cmd->result);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 out:
+	spin_unlock_irq(shost->host_lock);
 	return ret;
 }
 
 static int
-lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
-{
-	int rc;
-	spin_lock_irq(cmnd->device->host->host_lock);
-	rc = __lpfc_reset_lun_handler(cmnd);
-	spin_unlock_irq(cmnd->device->host->host_lock);
-	return rc;
-}
-
-/*
- * Note: midlayer calls this function with the host_lock held
- */
-static int
-__lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
+lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
@@ -991,6 +974,8 @@ __lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 	int cnt, loopcnt;
 	unsigned int midlayer_id = 0;
 	struct lpfc_scsi_buf * lpfc_cmd;
+
+	spin_lock_irq(shost->host_lock);
 
 	lpfc_cmd = lpfc_sli_get_scsi_buf (phba);
 	if (lpfc_cmd == NULL)
@@ -1067,17 +1052,8 @@ __lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 			"%d:0714 SCSI layer issued Bus Reset Data: x%x\n",
 			phba->brd_no, ret);
 out:
+	spin_unlock_irq(shost->host_lock);
 	return ret;
-}
-
-static int
-lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
-{
-	int rc;
-	spin_lock_irq(cmnd->device->host->host_lock);
-	rc = __lpfc_reset_bus_handler(cmnd);
-	spin_unlock_irq(cmnd->device->host->host_lock);
-	return rc;
 }
 
 static int
