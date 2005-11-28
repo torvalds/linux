@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
-#include <linux/blkdev.h>
 
 /*
  * for max sense size
