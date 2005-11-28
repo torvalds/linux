@@ -188,6 +188,8 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 
 	portNumber = tty->index - serial->minor;
 	port = serial->port[portNumber];
+	if (!port)
+		return -ENODEV;
 	 
 	++port->open_count;
 
@@ -258,6 +260,9 @@ static int serial_write (struct tty_struct * tty, const unsigned char *buf, int 
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -EINVAL;
 
+	if (!port)
+		goto exit;
+
 	dbg("%s - port %d, %d byte(s)", __FUNCTION__, port->number, count);
 
 	if (!port->open_count) {
@@ -276,6 +281,9 @@ static int serial_write_room (struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -EINVAL;
+
+	if (!port)
+		goto exit;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -296,6 +304,9 @@ static int serial_chars_in_buffer (struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -EINVAL;
 
+	if (!port)
+		goto exit;
+
 	dbg("%s = port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -314,6 +325,9 @@ static void serial_throttle (struct tty_struct * tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
+	if (!port)
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -329,6 +343,9 @@ static void serial_throttle (struct tty_struct * tty)
 static void serial_unthrottle (struct tty_struct * tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
+
+	if (!port)
+		return;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -346,6 +363,9 @@ static int serial_ioctl (struct tty_struct *tty, struct file * file, unsigned in
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int retval = -ENODEV;
+
+	if (!port)
+		goto exit;
 
 	dbg("%s - port %d, cmd 0x%.4x", __FUNCTION__, port->number, cmd);
 
@@ -368,6 +388,9 @@ static void serial_set_termios (struct tty_struct *tty, struct termios * old)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
+	if (!port)
+		return;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -383,6 +406,9 @@ static void serial_set_termios (struct tty_struct *tty, struct termios * old)
 static void serial_break (struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
+
+	if (!port)
+		return;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -445,6 +471,9 @@ static int serial_tiocmget (struct tty_struct *tty, struct file *file)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
+	if (!port)
+		goto exit;
+
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (!port->open_count) {
@@ -463,6 +492,9 @@ static int serial_tiocmset (struct tty_struct *tty, struct file *file,
 			    unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
+
+	if (!port)
+		goto exit;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
