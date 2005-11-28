@@ -1039,14 +1039,20 @@ int cifs_revalidate(struct dentry *direntry)
 		filemap_fdatawrite(direntry->d_inode->i_mapping);
 	}
 	if (invalidate_inode) {
-		if (direntry->d_inode->i_mapping)
-			filemap_fdatawait(direntry->d_inode->i_mapping);
-		/* may eventually have to do this for open files too */
-		if (list_empty(&(cifsInode->openFileList))) {
-			/* Has changed on server - flush read ahead pages */
-			cFYI(1, ("Invalidating read ahead data on "
-				 "closed file"));
-			invalidate_remote_inode(direntry->d_inode);
+	/* shrink_dcache not necessary now that cifs dentry ops
+	are exported for negative dentries */
+/*		if(S_ISDIR(direntry->d_inode->i_mode)) 
+			shrink_dcache_parent(direntry); */
+		if (S_ISREG(direntry->d_inode->i_mode)) {
+			if (direntry->d_inode->i_mapping)
+				filemap_fdatawait(direntry->d_inode->i_mapping);
+			/* may eventually have to do this for open files too */
+			if (list_empty(&(cifsInode->openFileList))) {
+				/* changed on server - flush read ahead pages */
+				cFYI(1, ("Invalidating read ahead data on "
+					 "closed file"));
+				invalidate_remote_inode(direntry->d_inode);
+			}
 		}
 	}
 /*	up(&direntry->d_inode->i_sem); */
