@@ -1028,7 +1028,6 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->size = le64_to_cpu(sb->size)/2;
 		mddev->events = le64_to_cpu(sb->events);
 		mddev->bitmap_offset = 0;
-		mddev->default_bitmap_offset = 0;
 		mddev->default_bitmap_offset = 1024;
 		
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
@@ -2931,6 +2930,9 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	mddev->max_disks     = MD_SB_DISKS;
 
 	mddev->sb_dirty      = 1;
+
+	mddev->default_bitmap_offset = MD_SB_BYTES >> 9;
+	mddev->bitmap_offset = 0;
 
 	/*
 	 * Generate a 128 bit UUID
