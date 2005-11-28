@@ -309,20 +309,22 @@ static int ohci_hcd_pxa27x_drv_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_pxa27x_remove(hcd, pdev);
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
 #ifdef	CONFIG_PM
 static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct ohci_hcd *ohci = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
 	ohci->next_statechange = jiffies;
 
 	pxa27x_stop_hc(&pdev->dev);
-	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
+	hcd->state = HC_STATE_SUSPENDED;
 	pdev->dev.power.power_state = PMSG_SUSPEND;
 
 	return 0;
@@ -330,7 +332,8 @@ static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *pdev, pm_message_
 
 static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 {
-	struct ohci_hcd	*ohci = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	int status;
 
 	if (time_before(jiffies, ohci->next_statechange))
@@ -341,7 +344,7 @@ static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 		return status;
 
 	pdev->dev.power.power_state = PMSG_ON;
-	usb_hcd_resume_root_hub(platform_get_drvdata(pdev));
+	usb_hcd_resume_root_hub(hcd);
 
 	return 0;
 }
