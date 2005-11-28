@@ -409,6 +409,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *pnode = rdata->pnode;
 	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
+	int result;
+	struct scsi_device *sdev, *tmp_sdev;
+	int depth = 0;
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
@@ -460,7 +463,62 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				*lp, *(lp + 3), cmd->retries, cmd->resid);
 	}
 
+	result = cmd->result;
+	sdev = cmd->device;
 	cmd->scsi_done(cmd);
+
+	if (!result &&
+	   ((jiffies - pnode->last_ramp_up_time) >
+		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
+	   ((jiffies - pnode->last_q_full_time) >
+		LPFC_Q_RAMP_UP_INTERVAL * HZ) &&
+	   (phba->cfg_lun_queue_depth > sdev->queue_depth)) {
+		shost_for_each_device(tmp_sdev, sdev->host) {
+			if (phba->cfg_lun_queue_depth > tmp_sdev->queue_depth) {
+				if (tmp_sdev->id != sdev->id)
+					continue;
+				if (tmp_sdev->ordered_tags)
+					scsi_adjust_queue_depth(tmp_sdev,
+						MSG_ORDERED_TAG,
+						tmp_sdev->queue_depth+1);
+				else
+					scsi_adjust_queue_depth(tmp_sdev,
+						MSG_SIMPLE_TAG,
+						tmp_sdev->queue_depth+1);
+
+				pnode->last_ramp_up_time = jiffies;
+			}
+		}
+	}
+
+	/*
+	 * Check for queue full.  If the lun is reporting queue full, then
+	 * back off the lun queue depth to prevent target overloads.
+	 */
+	if (result == SAM_STAT_TASK_SET_FULL) {
+		pnode->last_q_full_time = jiffies;
+
+		shost_for_each_device(tmp_sdev, sdev->host) {
+			if (tmp_sdev->id != sdev->id)
+				continue;
+			depth = scsi_track_queue_full(tmp_sdev,
+					tmp_sdev->queue_depth - 1);
+		}
+		/*
+ 		 * The queue depth cannot be lowered any more.
+		 * Modify the returned error code to store
+		 * the final depth value set by
+		 * scsi_track_queue_full.
+		 */
+		if (depth == -1)
+			depth = sdev->host->cmd_per_lun;
+
+		if (depth) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_FCP,
+				"%d:0711 detected queue full - lun queue depth "
+				" adjusted to %d.\n", phba->brd_no, depth);
+		}
+	}
 
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }

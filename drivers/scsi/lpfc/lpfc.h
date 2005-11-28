@@ -29,9 +29,10 @@ struct lpfc_sli2_slim;
 #define LPFC_LC_HBA_Q_DEPTH	1024	/* max cmds per low cost hba */
 #define LPFC_LP101_HBA_Q_DEPTH	128	/* max cmds per low cost hba */
 
-#define LPFC_CMD_PER_LUN	30	/* max outstanding cmds per lun */
+#define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_SG_SEG_CNT		64	/* sg element count per scsi cmnd */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
+#define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 
 /* Define macros for 64 bit support */
 #define putPaddrLow(addr)    ((uint32_t) (0xffffffff & (u64)(addr)))
