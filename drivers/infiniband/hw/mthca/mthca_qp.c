@@ -871,7 +871,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 				       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 
 		mthca_wq_init(&qp->sq);
+		qp->sq.last = get_send_wqe(qp, qp->sq.max - 1);
+
 		mthca_wq_init(&qp->rq);
+		qp->rq.last = get_recv_wqe(qp, qp->rq.max - 1);
 
 		if (mthca_is_memfree(dev)) {
 			*qp->sq.db = 0;
