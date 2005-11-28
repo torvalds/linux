@@ -5,9 +5,9 @@
  *
  * Copyright (C) 2003, 2005 by Ralf Baechle
  */
-#ifndef __ASM_MACH_GENERIC_TIMEX_H
-#define __ASM_MACH_GENERIC_TIMEX_H
+#ifndef __ASM_MACH_RM200_TIMEX_H
+#define __ASM_MACH_RM200_TIMEX_H
 
-#define CLOCK_TICK_RATE		500000
+#define CLOCK_TICK_RATE		1193182
 
-#endif /* __ASM_MACH_GENERIC_TIMEX_H */
+#endif /* __ASM_MACH_RM200_TIMEX_H */
