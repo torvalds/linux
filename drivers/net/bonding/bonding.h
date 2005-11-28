@@ -10,29 +10,6 @@
  *	This software may be used and distributed according to the terms
  *	of the GNU Public License, incorporated herein by reference.
  *
- *
- * 2003/03/18 - Amir Noam <amir.noam at intel dot com>,
- *		Tsippy Mendelson <tsippy.mendelson at intel dot com> and
- *		Shmulik Hen <shmulik.hen at intel dot com>
- *	- Added support for IEEE 802.3ad Dynamic link aggregation mode.
- *
- * 2003/05/01 - Tsippy Mendelson <tsippy.mendelson at intel dot com> and
- *		Amir Noam <amir.noam at intel dot com>
- *	- Code beautification and style changes (mainly in comments).
- *
- * 2003/05/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Added support for Transmit load balancing mode.
- *
- * 2003/12/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Code cleanup and style changes
- *
- * 2005/05/05 - Jason Gabler <jygabler at lbl dot gov>
- *      - added "xmit_policy" kernel parameter for alternate hashing policy
- *	  support for mode 2
- *
- * 2005/09/27 - Mitch Williams <mitch.a.williams at intel dot com>
- *		Radheka Godse <radheka.godse at intel dot com>
- *      - Added bonding sysfs interface
  */
 
 #ifndef _LINUX_BONDING_H

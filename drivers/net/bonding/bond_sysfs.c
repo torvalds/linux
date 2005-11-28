@@ -19,47 +19,6 @@
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
- *
- * Changes:
- *
- * 2004/12/12 - Mitch Williams <mitch.a.williams at intel dot com>
- *	- Initial creation of sysfs interface.
- *
- * 2005/06/22 - Radheka Godse <radheka.godse at intel dot com>
- *	- Added ifenslave -c type functionality to sysfs
- *	- Added sysfs files for attributes such as  MII Status and
- *	  802.3ad aggregator that are displayed in /proc
- *	- Added "name value" format to sysfs "mode" and
- *	  "lacp_rate", for e.g., "active-backup 1" or "slow 0" for
- *	  consistency and ease of script parsing
- *	- Fixed reversal of octets in arp_ip_targets via sysfs
- *	- sysfs support to handle bond interface re-naming
- *	- Moved all sysfs entries into /sys/class/net instead of
- *	  of using a standalone subsystem.
- *	- Added sysfs symlinks between masters and slaves
- *	- Corrected bugs in sysfs unload path when creating bonds
- *	  with existing interface names.
- *	- Removed redundant sysfs stat file since it duplicates slave info
- *	  from the proc file
- *	- Fixed errors in sysfs show/store arp targets.
- *	- For consistency with ifenslave, instead of exiting
- *	  with an error, updated bonding sysfs to
- *	  close and attempt to enslave an up adapter.
- *	- Fixed NULL dereference when adding a slave interface
- *	  that does not exist.
- *	- Added checks in sysfs bonding to reject invalid ip addresses
- *	- Synch up with post linux-2.6.12 bonding changes
- *	- Created sysfs bond attrib for xmit_hash_policy
- *
- * 2005/09/19 - Mitch Williams <mitch.a.williams at intel dot com>
- *	- Changed semantics of multi-item files to be command-based
- *	  instead of list-based.
- *	- Changed ARP target handler to use in_aton instead of sscanf
- *      - Style changes.
- * 2005/09/27 - Mitch Williams <mitch.a.williams at intel dot com>
- *      - Made line endings consistent.
- *      - Removed "none" from primary output - just put blank instead
- *      - Fixed bug with long interface names
  */
 #include <linux/config.h>
 #include <linux/kernel.h>

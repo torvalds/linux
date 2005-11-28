@@ -18,25 +18,6 @@
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
- *
- * Changes:
- *
- * 2003/06/25 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Fixed signed/unsigned calculation errors that caused load sharing
- *	  to collapse to one slave under very heavy UDP Tx stress.
- *
- * 2003/08/06 - Amir Noam <amir.noam at intel dot com>
- *	- Add support for setting bond's MAC address with special
- *	  handling required for ALB/TLB.
- *
- * 2003/12/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Code cleanup and style changes
- *
- * 2003/12/30 - Amir Noam <amir.noam at intel dot com>
- *	- Fixed: Cannot remove and re-enslave the original active slave.
- *
- * 2004/01/14 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Add capability to tag self generated packets in ALB/TLB modes.
  */
 
 //#define BONDING_DEBUG 1

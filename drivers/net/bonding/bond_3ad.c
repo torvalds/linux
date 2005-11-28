@@ -18,38 +18,6 @@
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
- *
- * Changes:
- *
- * 2003/05/01 - Tsippy Mendelson <tsippy.mendelson at intel dot com> and
- *		Amir Noam <amir.noam at intel dot com>
- *	- Added support for lacp_rate module param.
- *
- * 2003/05/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Based on discussion on mailing list, changed locking scheme
- *	  to use lock/unlock or lock_bh/unlock_bh appropriately instead
- *	  of lock_irqsave/unlock_irqrestore. The new scheme helps exposing
- *	  hidden bugs and solves system hangs that occurred due to the fact
- *	  that holding lock_irqsave doesn't prevent softirqs from running.
- *	  This also increases total throughput since interrupts are not
- *	  blocked on each transmitted packets or monitor timeout.
- *
- * 2003/05/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Renamed bond_3ad_link_status_changed() to
- *	  bond_3ad_handle_link_change() for compatibility with TLB.
- *
- * 2003/05/20 - Amir Noam <amir.noam at intel dot com>
- *	- Fix long fail over time when releasing last slave of an active
- *	  aggregator - send LACPDU on unbind of slave to tell partner this
- *	  port is no longer aggregatable.
- *
- * 2003/06/25 - Tsippy Mendelson <tsippy.mendelson at intel dot com>
- *	- Send LACPDU as highest priority packet to further fix the above
- *	  problem on very high Tx traffic load where packets may get dropped
- *	  by the slave.
- *
- * 2003/12/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Code cleanup and style changes
  */
 
 //#define BONDING_DEBUG 1

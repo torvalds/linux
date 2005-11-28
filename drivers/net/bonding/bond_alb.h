@@ -18,15 +18,6 @@
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
- *
- * Changes:
- *
- * 2003/08/06 - Amir Noam <amir.noam at intel dot com>
- *	- Add support for setting bond's MAC address with special
- *	  handling required for ALB/TLB.
- *
- * 2003/12/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Code cleanup and style changes
  */
 
 #ifndef __BOND_ALB_H__
