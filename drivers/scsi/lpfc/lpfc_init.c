@@ -763,14 +763,12 @@ static void
 lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 {
 	lpfc_vpd_t *vp;
-	uint16_t dev_id;
-	uint16_t dev_subid;
-	uint8_t hdrtype;
+	uint16_t dev_id = phba->pcidev->device;
+	uint16_t dev_subid = phba->pcidev->subsystem_device;
+	uint8_t hdrtype = phba->pcidev->hdr_type;
 	char *model_str = "";
 
 	vp = &phba->vpd;
-	pci_read_config_word(phba->pcidev, PCI_DEVICE_ID, &dev_id);
-	pci_read_config_byte(phba->pcidev, PCI_HEADER_TYPE, &hdrtype);
 
 	switch (dev_id) {
 	case PCI_DEVICE_ID_FIREFLY:
@@ -871,8 +869,6 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		break;
 	case PCI_DEVICE_ID_LP11000S:
 	case PCI_DEVICE_ID_LPE11000S:
-		pci_read_config_word(phba->pcidev, PCI_SUBSYSTEM_ID,
-				     &dev_subid);
 		switch (dev_subid) {
 		case PCI_SUBSYSTEM_ID_LP11000S:
 			model_str = "LP11002-S 4Gb PCI-X2";
