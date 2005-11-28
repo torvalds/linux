@@ -30,6 +30,7 @@
 #include <linux/list.h>
 #include <linux/smp_lock.h>
 #include <asm/uaccess.h>
+#include <asm/semaphore.h>
 #include <linux/usb.h>
 #include "usb-serial.h"
 #include "pl2303.h"
@@ -190,6 +191,9 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 	port = serial->port[portNumber];
 	if (!port)
 		return -ENODEV;
+
+	if (down_interruptible(&port->sem))
+		return -ERESTARTSYS;
 	 
 	++port->open_count;
 
@@ -215,6 +219,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 			goto bailout_module_put;
 	}
 
+	up(&port->sem);
 	return 0;
 
 bailout_module_put:
@@ -222,6 +227,7 @@ bailout_module_put:
 bailout_kref_put:
 	kref_put(&serial->kref, destroy_serial);
 	port->open_count = 0;
+	up(&port->sem);
 	return retval;
 }
 
@@ -234,8 +240,10 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
+	down(&port->sem);
+
 	if (port->open_count == 0)
-		return;
+		goto out;
 
 	--port->open_count;
 	if (port->open_count == 0) {
@@ -253,6 +261,9 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 	}
 
 	kref_put(&port->serial->kref, destroy_serial);
+
+out:
+	up(&port->sem);
 }
 
 static int serial_write (struct tty_struct * tty, const unsigned char *buf, int count)
@@ -774,6 +785,7 @@ int usb_serial_probe(struct usb_interface *interface,
 		port->number = i + serial->minor;
 		port->serial = serial;
 		spin_lock_init(&port->lock);
+		sema_init(&port->sem, 1);
 		INIT_WORK(&port->work, usb_serial_port_softint, port);
 		serial->port[i] = port;
 	}
