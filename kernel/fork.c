@@ -1135,13 +1135,13 @@ static task_t *copy_process(unsigned long clone_flags,
 			__get_cpu_var(process_counts)++;
 	}
 
-	proc_fork_connector(p);
 	if (!current->signal->tty && p->signal->tty)
 		p->signal->tty = NULL;
 
 	nr_threads++;
 	total_forks++;
 	write_unlock_irq(&tasklist_lock);
+	proc_fork_connector(p);
 	retval = 0;
 
 fork_out:
