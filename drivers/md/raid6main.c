@@ -1702,6 +1702,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	int data_disks = raid_disks - 2;
 	sector_t max_sector = mddev->size << 1;
 	int sync_blocks;
+	int still_degraded = 0;
+	int i;
 
 	if (sector_nr >= max_sector) {
 		/* just being told to finish up .. nothing much to do */
@@ -1710,7 +1712,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		if (mddev->curr_resync < max_sector) /* aborted */
 			bitmap_end_sync(mddev->bitmap, mddev->curr_resync,
 					&sync_blocks, 1);
-		else /* compelted sync */
+		else /* completed sync */
 			conf->fullsync = 0;
 		bitmap_close_sync(mddev->bitmap);
 
@@ -1748,7 +1750,16 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		 */
 		schedule_timeout_uninterruptible(1);
 	}
-	bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, 0);
+	/* Need to check if array will still be degraded after recovery/resync
+	 * We don't need to check the 'failed' flag as when that gets set,
+	 * recovery aborts.
+	 */
+	for (i=0; i<mddev->raid_disks; i++)
+		if (conf->disks[i].rdev == NULL)
+			still_degraded = 1;
+
+	bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, still_degraded);
+
 	spin_lock(&sh->lock);
 	set_bit(STRIPE_SYNCING, &sh->state);
 	clear_bit(STRIPE_INSYNC, &sh->state);
