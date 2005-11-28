@@ -2158,9 +2158,15 @@ static int raid6_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		/* no point adding a device */
 		return 0;
 	/*
-	 * find the disk ...
+	 * find the disk ... but prefer rdev->saved_raid_disk
+	 * if possible.
 	 */
-	for (disk=0; disk < mddev->raid_disks; disk++)
+	if (rdev->saved_raid_disk >= 0 &&
+	    conf->disks[rdev->saved_raid_disk].rdev == NULL)
+		disk = rdev->saved_raid_disk;
+	else
+		disk = 0;
+	for ( ; disk < mddev->raid_disks; disk++)
 		if ((p=conf->disks + disk)->rdev == NULL) {
 			clear_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = disk;
