@@ -257,7 +257,7 @@ int platform_device_add(struct platform_device *pdev)
 				p = &ioport_resource;
 		}
 
-		if (p && request_resource(p, r)) {
+		if (p && insert_resource(p, r)) {
 			printk(KERN_ERR
 			       "%s: failed to claim resource %d\n",
 			       pdev->dev.bus_id, i);
