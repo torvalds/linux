@@ -21,21 +21,13 @@
         (s == SCROLL_REDRAW || s == SCROLL_MOVE || !(i)->fix.xpanstep) ? \
         (i)->var.xres : (i)->var.xres_virtual; })
 
-/*
- * The bitmap is always big endian
- */
-#if defined(__LITTLE_ENDIAN)
-#define FBCON_BIT(b) (7 - (b))
-#else
-#define FBCON_BIT(b) (b)
-#endif
 
 static inline int pattern_test_bit(u32 x, u32 y, u32 pitch, const char *pat)
 {
 	u32 tmp = (y * pitch) + x, index = tmp / 8,  bit = tmp % 8;
 
 	pat +=index;
-	return (test_bit(FBCON_BIT(bit), (void *)pat));
+	return (*pat) & (0x80 >> bit);
 }
 
 static inline void pattern_set_bit(u32 x, u32 y, u32 pitch, char *pat)
@@ -43,7 +35,8 @@ static inline void pattern_set_bit(u32 x, u32 y, u32 pitch, char *pat)
 	u32 tmp = (y * pitch) + x, index = tmp / 8, bit = tmp % 8;
 
 	pat += index;
-	set_bit(FBCON_BIT(bit), (void *)pat);
+
+	(*pat) |= 0x80 >> bit;
 }
 
 static inline void rotate_ud(const char *in, char *out, u32 width, u32 height)
