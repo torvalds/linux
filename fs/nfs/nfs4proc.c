@@ -3071,15 +3071,15 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	struct nfs4_client *clp = state->owner->so_client;
 	int status;
 
-	down_read(&clp->cl_sem);
 	/* Is this a delegated open? */
-	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
+	if (NFS_I(state->inode)->delegation_state != 0) {
 		/* Yes: cache locks! */
 		status = do_vfs_lock(request->fl_file, request);
 		/* ...but avoid races with delegation recall... */
 		if (status < 0 || test_bit(NFS_DELEGATED_STATE, &state->flags))
-			goto out;
+			return status;
 	}
+	down_read(&clp->cl_sem);
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
 		goto out;

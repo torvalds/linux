@@ -91,21 +91,11 @@ struct per_cpu_pageset {
  * will be a maximum of 4 (2 ** 2) zonelists, for 3 modifiers there will
  * be 8 (2 ** 3) zonelists.  GFP_ZONETYPES defines the number of possible
  * combinations of zone modifiers in "zone modifier space".
+ *
+ * NOTE! Make sure this matches the zones in <linux/gfp.h>
  */
-#define GFP_ZONEMASK	0x03
-/*
- * As an optimisation any zone modifier bits which are only valid when
- * no other zone modifier bits are set (loners) should be placed in
- * the highest order bits of this field.  This allows us to reduce the
- * extent of the zonelists thus saving space.  For example in the case
- * of three zone modifier bits, we could require up to eight zonelists.
- * If the left most zone modifier is a "loner" then the highest valid
- * zonelist would be four allowing us to allocate only five zonelists.
- * Use the first form when the left most bit is not a "loner", otherwise
- * use the second.
- */
-/* #define GFP_ZONETYPES	(GFP_ZONEMASK + 1) */		/* Non-loner */
-#define GFP_ZONETYPES	((GFP_ZONEMASK + 1) / 2 + 1)		/* Loner */
+#define GFP_ZONEMASK	0x07
+#define GFP_ZONETYPES	5
 
 /*
  * On machines where it is needed (eg PCs) we divide physical memory

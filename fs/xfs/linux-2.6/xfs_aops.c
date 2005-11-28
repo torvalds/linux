@@ -941,13 +941,12 @@ __linvfs_get_block(
 	int			retpbbm = 1;
 	int			error;
 
-	if (blocks) {
-		offset = blocks << inode->i_blkbits;	/* 64 bit goodness */
-		size = (ssize_t) min_t(xfs_off_t, offset, LONG_MAX);
-	} else {
-		size = 1 << inode->i_blkbits;
-	}
 	offset = (xfs_off_t)iblock << inode->i_blkbits;
+	if (blocks)
+		size = (ssize_t) min_t(xfs_off_t, LONG_MAX,
+					(xfs_off_t)blocks << inode->i_blkbits);
+	else
+		size = 1 << inode->i_blkbits;
 
 	VOP_BMAP(vp, offset, size,
 		create ? flags : BMAPI_READ, &iomap, &retpbbm, error);
@@ -1007,7 +1006,7 @@ __linvfs_get_block(
 		ASSERT(iomap.iomap_bsize - iomap.iomap_delta > 0);
 		offset = min_t(xfs_off_t,
 				iomap.iomap_bsize - iomap.iomap_delta,
-				blocks << inode->i_blkbits);
+				(xfs_off_t)blocks << inode->i_blkbits);
 		bh_result->b_size = (u32) min_t(xfs_off_t, UINT_MAX, offset);
 	}
 

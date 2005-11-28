@@ -178,6 +178,7 @@ EXPORT_SYMBOL(pci_osc_support_set);
 
 /**
  * pci_osc_control_set - commit requested control to Firmware
+ * @handle: acpi_handle for the target ACPI object
  * @flags: driver's requested control bits
  *
  * Attempt to take control from Firmware on requested control bits.

@@ -144,7 +144,8 @@ extern unsigned int kobjsize(const void *objp);
 
 #define VM_GROWSDOWN	0x00000100	/* general info on the segment */
 #define VM_GROWSUP	0x00000200
-#define VM_SHM		0x00000400	/* shared memory area, don't swap out */
+#define VM_SHM		0x00000000	/* Means nothing: delete it later */
+#define VM_UNPAGED	0x00000400	/* Pages managed without map count */
 #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
 
 #define VM_EXECUTABLE	0x00001000
@@ -157,7 +158,7 @@ extern unsigned int kobjsize(const void *objp);
 
 #define VM_DONTCOPY	0x00020000      /* Do not copy this vma on fork */
 #define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
-#define VM_RESERVED	0x00080000	/* Pages managed in a special way */
+#define VM_RESERVED	0x00080000	/* Count as reserved_vm like IO */
 #define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
 #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
 #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
@@ -311,8 +312,6 @@ struct page {
 
 extern void FASTCALL(__page_cache_release(struct page *));
 
-#ifdef CONFIG_HUGETLB_PAGE
-
 static inline int page_count(struct page *page)
 {
 	if (PageCompound(page))
@@ -328,23 +327,6 @@ static inline void get_page(struct page *page)
 }
 
 void put_page(struct page *page);
-
-#else		/* CONFIG_HUGETLB_PAGE */
-
-#define page_count(p)		(atomic_read(&(p)->_count) + 1)
-
-static inline void get_page(struct page *page)
-{
-	atomic_inc(&page->_count);
-}
-
-static inline void put_page(struct page *page)
-{
-	if (put_page_testzero(page))
-		__page_cache_release(page);
-}
-
-#endif		/* CONFIG_HUGETLB_PAGE */
 
 /*
  * Multiple processes may "see" the same page. E.g. for untouched

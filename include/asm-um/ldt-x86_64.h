@@ -35,7 +35,7 @@ typedef struct uml_ldt {
 	union {
 		struct ldt_entry * pages[LDT_PAGES_MAX];
 		struct ldt_entry entries[LDT_DIRECT_ENTRIES];
-	};
+	} u;
 } uml_ldt_t;
 
 /*
@@ -66,9 +66,4 @@ typedef struct uml_ldt {
 	(info)->seg_not_present	== 1	&& \
 	(info)->useable		== 0	)
 
-#endif
-#ifndef __UM_LDT_H
-#define __UM_LDT_H
-
-#include "asm/arch/ldt.h"
 #endif

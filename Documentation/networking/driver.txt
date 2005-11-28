@@ -1,7 +1,4 @@
-Documents about softnet driver issues in general can be found
-at:
-
-	http://www.firstfloor.org/~andi/softnet/
+Document about softnet driver issues
 
 Transmit path guidelines:
 

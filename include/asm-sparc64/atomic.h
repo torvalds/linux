@@ -54,6 +54,7 @@ extern int atomic64_sub_ret(int, atomic64_t *);
  * other cases.
  */
 #define atomic_inc_and_test(v) (atomic_inc_return(v) == 0)
+#define atomic64_inc_and_test(v) (atomic64_inc_return(v) == 0)
 
 #define atomic_sub_and_test(i, v) (atomic_sub_ret(i, v) == 0)
 #define atomic64_sub_and_test(i, v) (atomic64_sub_ret(i, v) == 0)

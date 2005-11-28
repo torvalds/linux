@@ -65,7 +65,7 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t pte_val;
 	spinlock_t *ptl;
 
-	BUG_ON(vma->vm_flags & VM_RESERVED);
+	BUG_ON(vma->vm_flags & VM_UNPAGED);
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
@@ -122,7 +122,7 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t pte_val;
 	spinlock_t *ptl;
 
-	BUG_ON(vma->vm_flags & VM_RESERVED);
+	BUG_ON(vma->vm_flags & VM_UNPAGED);
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
@@ -204,12 +204,10 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 	 * Make sure the vma is shared, that it supports prefaulting,
 	 * and that the remapped range is valid and fully within
 	 * the single existing vma.  vm_private_data is used as a
-	 * swapout cursor in a VM_NONLINEAR vma (unless VM_RESERVED
-	 * or VM_LOCKED, but VM_LOCKED could be revoked later on).
+	 * swapout cursor in a VM_NONLINEAR vma.
 	 */
 	if (vma && (vma->vm_flags & VM_SHARED) &&
-		(!vma->vm_private_data ||
-			(vma->vm_flags & (VM_NONLINEAR|VM_RESERVED))) &&
+		(!vma->vm_private_data || (vma->vm_flags & VM_NONLINEAR)) &&
 		vma->vm_ops && vma->vm_ops->populate &&
 			end > start && start >= vma->vm_start &&
 				end <= vma->vm_end) {
