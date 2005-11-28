@@ -407,7 +407,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		if (PageWriteback(page))
 			goto keep_locked;
 
-		referenced = page_referenced(page, 1, sc->priority <= 0);
+		referenced = page_referenced(page, 1);
 		/* In active use or really unfreeable?  Activate it. */
 		if (referenced && page_mapping_inuse(page))
 			goto activate_locked;
@@ -756,7 +756,7 @@ refill_inactive_zone(struct zone *zone, struct scan_control *sc)
 		if (page_mapped(page)) {
 			if (!reclaim_mapped ||
 			    (total_swap_pages == 0 && PageAnon(page)) ||
-			    page_referenced(page, 0, sc->priority <= 0)) {
+			    page_referenced(page, 0)) {
 				list_add(&page->lru, &l_active);
 				continue;
 			}
@@ -960,6 +960,8 @@ int try_to_free_pages(struct zone **zones, gfp_t gfp_mask)
 		sc.nr_reclaimed = 0;
 		sc.priority = priority;
 		sc.swap_cluster_max = SWAP_CLUSTER_MAX;
+		if (!priority)
+			disable_swap_token();
 		shrink_caches(zones, &sc);
 		shrink_slab(sc.nr_scanned, gfp_mask, lru_pages);
 		if (reclaim_state) {
@@ -1055,6 +1057,10 @@ loop_again:
 	for (priority = DEF_PRIORITY; priority >= 0; priority--) {
 		int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
 		unsigned long lru_pages = 0;
+
+		/* The swap token gets in the way of swapout... */
+		if (!priority)
+			disable_swap_token();
 
 		all_zones_ok = 1;
 
@@ -1360,6 +1366,7 @@ int zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
 	sc.nr_reclaimed = 0;
 	/* scan at the highest priority */
 	sc.priority = 0;
+	disable_swap_token();
 
 	if (nr_pages > SWAP_CLUSTER_MAX)
 		sc.swap_cluster_max = nr_pages;

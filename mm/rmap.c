@@ -290,7 +290,7 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
  * repeatedly from either page_referenced_anon or page_referenced_file.
  */
 static int page_referenced_one(struct page *page,
-	struct vm_area_struct *vma, unsigned int *mapcount, int ignore_token)
+	struct vm_area_struct *vma, unsigned int *mapcount)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
@@ -311,7 +311,7 @@ static int page_referenced_one(struct page *page,
 
 	/* Pretend the page is referenced if the task has the
 	   swap token and is in the middle of a page fault. */
-	if (mm != current->mm && !ignore_token && has_swap_token(mm) &&
+	if (mm != current->mm && has_swap_token(mm) &&
 			rwsem_is_locked(&mm->mmap_sem))
 		referenced++;
 
@@ -321,7 +321,7 @@ out:
 	return referenced;
 }
 
-static int page_referenced_anon(struct page *page, int ignore_token)
+static int page_referenced_anon(struct page *page)
 {
 	unsigned int mapcount;
 	struct anon_vma *anon_vma;
@@ -334,8 +334,7 @@ static int page_referenced_anon(struct page *page, int ignore_token)
 
 	mapcount = page_mapcount(page);
 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
-		referenced += page_referenced_one(page, vma, &mapcount,
-							ignore_token);
+		referenced += page_referenced_one(page, vma, &mapcount);
 		if (!mapcount)
 			break;
 	}
@@ -354,7 +353,7 @@ static int page_referenced_anon(struct page *page, int ignore_token)
  *
  * This function is only called from page_referenced for object-based pages.
  */
-static int page_referenced_file(struct page *page, int ignore_token)
+static int page_referenced_file(struct page *page)
 {
 	unsigned int mapcount;
 	struct address_space *mapping = page->mapping;
@@ -392,8 +391,7 @@ static int page_referenced_file(struct page *page, int ignore_token)
 			referenced++;
 			break;
 		}
-		referenced += page_referenced_one(page, vma, &mapcount,
-							ignore_token);
+		referenced += page_referenced_one(page, vma, &mapcount);
 		if (!mapcount)
 			break;
 	}
@@ -410,12 +408,9 @@ static int page_referenced_file(struct page *page, int ignore_token)
  * Quick test_and_clear_referenced for all mappings to a page,
  * returns the number of ptes which referenced the page.
  */
-int page_referenced(struct page *page, int is_locked, int ignore_token)
+int page_referenced(struct page *page, int is_locked)
 {
 	int referenced = 0;
-
-	if (!swap_token_default_timeout)
-		ignore_token = 1;
 
 	if (page_test_and_clear_young(page))
 		referenced++;
@@ -425,15 +420,14 @@ int page_referenced(struct page *page, int is_locked, int ignore_token)
 
 	if (page_mapped(page) && page->mapping) {
 		if (PageAnon(page))
-			referenced += page_referenced_anon(page, ignore_token);
+			referenced += page_referenced_anon(page);
 		else if (is_locked)
-			referenced += page_referenced_file(page, ignore_token);
+			referenced += page_referenced_file(page);
 		else if (TestSetPageLocked(page))
 			referenced++;
 		else {
 			if (page->mapping)
-				referenced += page_referenced_file(page,
-								ignore_token);
+				referenced += page_referenced_file(page);
 			unlock_page(page);
 		}
 	}
