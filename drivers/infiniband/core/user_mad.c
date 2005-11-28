@@ -310,7 +310,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	u8 method;
 	__be64 *tid;
 	int ret, length, hdr_len, copy_offset;
-	int rmpp_active = 0;
+	int rmpp_active, has_rmpp_header;
 
 	if (count < sizeof (struct ib_user_mad) + IB_MGMT_RMPP_HDR)
 		return -EINVAL;
@@ -360,28 +360,31 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 	}
 
 	rmpp_mad = (struct ib_rmpp_mad *) packet->mad.data;
-	if (ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) & IB_MGMT_RMPP_FLAG_ACTIVE) {
-		/* RMPP active */
-		if (!agent->rmpp_version) {
-			ret = -EINVAL;
-			goto err_ah;
-		}
-
-		/* Validate that the management class can support RMPP */
-		if (rmpp_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_ADM) {
-			hdr_len = IB_MGMT_SA_HDR;
-		} else if ((rmpp_mad->mad_hdr.mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START) &&
-			    (rmpp_mad->mad_hdr.mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END)) {
-				hdr_len = IB_MGMT_VENDOR_HDR;
-		} else {
-			ret = -EINVAL;
-			goto err_ah;
-		}
-		rmpp_active = 1;
+	if (rmpp_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_ADM) {
+		hdr_len = IB_MGMT_SA_HDR;
 		copy_offset = IB_MGMT_RMPP_HDR;
+		has_rmpp_header = 1;
+	} else if (rmpp_mad->mad_hdr.mgmt_class >= IB_MGMT_CLASS_VENDOR_RANGE2_START &&
+		   rmpp_mad->mad_hdr.mgmt_class <= IB_MGMT_CLASS_VENDOR_RANGE2_END) {
+			hdr_len = IB_MGMT_VENDOR_HDR;
+			copy_offset = IB_MGMT_RMPP_HDR;
+			has_rmpp_header = 1;
 	} else {
 		hdr_len = IB_MGMT_MAD_HDR;
 		copy_offset = IB_MGMT_MAD_HDR;
+		has_rmpp_header = 0;
+	}
+
+	if (has_rmpp_header)
+		rmpp_active = ib_get_rmpp_flags(&rmpp_mad->rmpp_hdr) &
+			      IB_MGMT_RMPP_FLAG_ACTIVE;
+	else
+		rmpp_active = 0;
+
+	/* Validate that the management class can support RMPP */
+	if (rmpp_active && !agent->rmpp_version) {
+		ret = -EINVAL;
+		goto err_ah;
 	}
 
 	packet->msg = ib_create_send_mad(agent,
