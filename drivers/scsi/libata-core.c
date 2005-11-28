@@ -605,7 +605,7 @@ void ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	tf->command = ata_rw_cmds[index + lba48 + write];
 }
 
-static const char * xfer_mode_str[] = {
+static const char * const xfer_mode_str[] = {
 	"UDMA/16",
 	"UDMA/25",
 	"UDMA/33",
@@ -2083,7 +2083,7 @@ static void ata_pr_blacklisted(const struct ata_port *ap,
 		ap->id, dev->devno);
 }
 
-static const char * ata_dma_blacklist [] = {
+static const char * const ata_dma_blacklist [] = {
 	"WDC AC11000H",
 	"WDC AC22100H",
 	"WDC AC32500H",

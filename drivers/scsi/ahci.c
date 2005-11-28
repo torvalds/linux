@@ -243,7 +243,7 @@ static const struct ata_port_operations ahci_ops = {
 	.port_stop		= ahci_port_stop,
 };
 
-static struct ata_port_info ahci_port_info[] = {
+static const struct ata_port_info ahci_port_info[] = {
 	/* board_ahci */
 	{
 		.sht		= &ahci_sht,

@@ -170,7 +170,7 @@ static const struct ata_port_operations qs_ata_ops = {
 	.bmdma_status		= qs_bmdma_status,
 };
 
-static struct ata_port_info qs_port_info[] = {
+static const struct ata_port_info qs_port_info[] = {
 	/* board_2068_idx */
 	{
 		.sht		= &qs_ata_sht,

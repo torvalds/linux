@@ -418,7 +418,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 	int i;
 
 	/* Based on the 3ware driver translation table */
-	static unsigned char sense_table[][4] = {
+	static const unsigned char sense_table[][4] = {
 		/* BBD|ECC|ID|MAR */
 		{0xd1, 		ABORTED_COMMAND, 0x00, 0x00}, 	// Device busy                  Aborted command
 		/* BBD|ECC|ID */
@@ -449,7 +449,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 		{0x80, 		MEDIUM_ERROR, 0x11, 0x04}, 	// Block marked bad		  Medium error, unrecovered read error
 		{0xFF, 0xFF, 0xFF, 0xFF}, // END mark
 	};
-	static unsigned char stat_table[][4] = {
+	static const unsigned char stat_table[][4] = {
 		/* Must be first because BUSY means no other bits valid */
 		{0x80, 		ABORTED_COMMAND, 0x47, 0x00},	// Busy, fake parity for now
 		{0x20, 		HARDWARE_ERROR,  0x00, 0x00}, 	// Device fault
@@ -1532,7 +1532,7 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
 	return 0;
 }
 
-static const char *inq_83_str = "Linux ATA-SCSI simulator";
+static const char * const inq_83_str = "Linux ATA-SCSI simulator";
 
 /**
  *	ata_scsiop_inq_83 - Simulate INQUIRY EVPD page 83, device identity

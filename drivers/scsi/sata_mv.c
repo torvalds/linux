@@ -430,7 +430,7 @@ static const struct ata_port_operations mv6_ops = {
 	.host_stop		= mv_host_stop,
 };
 
-static struct ata_port_info mv_port_info[] = {
+static const struct ata_port_info mv_port_info[] = {
 	{  /* chip_504x */
 		.sht		= &mv_sht,
 		.host_flags	= MV_COMMON_FLAGS,

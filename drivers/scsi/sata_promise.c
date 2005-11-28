@@ -158,7 +158,7 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.host_stop		= ata_pci_host_stop,
 };
 
-static struct ata_port_info pdc_port_info[] = {
+static const struct ata_port_info pdc_port_info[] = {
 	/* board_2037x */
 	{
 		.sht		= &pdc_ata_sht,
