@@ -563,6 +563,8 @@ lpfc_handle_latt(struct lpfc_hba * phba)
 
 	rc = -EIO;
 
+	/* Cleanup any outstanding ELS commands */
+	lpfc_els_flush_cmd(phba);
 
 	psli->slistat.link_event++;
 	lpfc_read_la(phba, pmb, mp);
