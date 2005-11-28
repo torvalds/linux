@@ -760,8 +760,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 {
 	lpfc_vpd_t *vp;
 	uint16_t dev_id;
+	uint16_t dev_subid;
 	uint8_t hdrtype;
-	char str[16];
+	char *model_str = "";
 
 	vp = &phba->vpd;
 	pci_read_config_word(phba->pcidev, PCI_DEVICE_ID, &dev_id);
@@ -769,122 +770,132 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 
 	switch (dev_id) {
 	case PCI_DEVICE_ID_FIREFLY:
-		strcpy(str, "LP6000 1");
+		model_str = "LP6000 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_SUPERFLY:
 		if (vp->rev.biuRev >= 1 && vp->rev.biuRev <= 3)
-			strcpy(str, "LP7000 1");
+			model_str = "LP7000 1Gb PCI";
 		else
-			strcpy(str, "LP7000E 1");
+			model_str = "LP7000E 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_DRAGONFLY:
-		strcpy(str, "LP8000 1");
+		model_str = "LP8000 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_CENTAUR:
 		if (FC_JEDEC_ID(vp->rev.biuRev) == CENTAUR_2G_JEDEC_ID)
-			strcpy(str, "LP9002 2");
+			model_str = "LP9002 2Gb PCI";
 		else
-			strcpy(str, "LP9000 1");
+			model_str = "LP9000 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_RFLY:
-		strcpy(str, "LP952 2");
+		model_str = "LP952 2Gb PCI";
 		break;
 	case PCI_DEVICE_ID_PEGASUS:
-		strcpy(str, "LP9802 2");
+		model_str = "LP9802 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_THOR:
 		if (hdrtype == 0x80)
-			strcpy(str, "LP10000DC 2");
+			model_str = "LP10000DC 2Gb 2-port PCI-X";
 		else
-			strcpy(str, "LP10000 2");
+			model_str = "LP10000 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_VIPER:
-		strcpy(str, "LPX1000 10");
+		model_str = "LPX1000 10Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_PFLY:
-		strcpy(str, "LP982 2");
+		model_str = "LP982 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_TFLY:
 		if (hdrtype == 0x80)
-			strcpy(str, "LP1050DC 2");
+			model_str = "LP1050DC 2Gb 2-port PCI-X";
 		else
-			strcpy(str, "LP1050 2");
+			model_str = "LP1050 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_HELIOS:
 		if (hdrtype == 0x80)
-			strcpy(str, "LP11002 4");
+			model_str = "LP11002 4Gb 2-port PCI-X2";
 		else
-			strcpy(str, "LP11000 4");
+			model_str = "LP11000 4Gb PCI-X2";
 		break;
 	case PCI_DEVICE_ID_HELIOS_SCSP:
-		strcpy(str, "LP11000-SP 4");
+		model_str = "LP11000-SP 4Gb PCI-X2";
 		break;
 	case PCI_DEVICE_ID_HELIOS_DCSP:
-		strcpy(str, "LP11002-SP 4");
+		model_str = "LP11002-SP 4Gb 2-port PCI-X2";
 		break;
 	case PCI_DEVICE_ID_NEPTUNE:
 		if (hdrtype == 0x80)
-			strcpy(str, "LPe1002 4");
+			model_str = "LPe1002 4Gb 2-port";
 		else
-			strcpy(str, "LPe1000 4");
+			model_str = "LPe1000 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_NEPTUNE_SCSP:
-		strcpy(str, "LPe1000-SP 4");
+		model_str = "LPe1000-SP 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_NEPTUNE_DCSP:
-		strcpy(str, "LPe1002-SP 4");
+		model_str = "LPe1002-SP 4Gb 2-port PCIe";
 		break;
 	case PCI_DEVICE_ID_BMID:
-		strcpy(str, "LP1150 4");
+		model_str = "LP1150 4Gb PCI-X2";
 		break;
 	case PCI_DEVICE_ID_BSMB:
-		strcpy(str, "LP111 4");
+		model_str = "LP111 4Gb PCI-X2";
 		break;
 	case PCI_DEVICE_ID_ZEPHYR:
 		if (hdrtype == 0x80)
-			strcpy(str, "LPe11002 4");
+			model_str = "LPe11002 4Gb 2-port PCIe";
 		else
-			strcpy(str, "LPe11000 4");
+			model_str = "LPe11000 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_ZEPHYR_SCSP:
-		strcpy(str, "LPe11000-SP 4");
+		model_str = "LPe11000-SP 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_ZEPHYR_DCSP:
-		strcpy(str, "LPe11002-SP 4");
+		model_str = "LPe11002-SP 4Gb 2-port PCIe";
 		break;
 	case PCI_DEVICE_ID_ZMID:
-		strcpy(str, "LPe1150 4");
+		model_str = "LPe1150 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_ZSMB:
-		strcpy(str, "LPe111 4");
+		model_str = "LPe111 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_LP101:
-		strcpy(str, "LP101 2");
+		model_str = "LP101 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_LP10000S:
-		strcpy(str, "LP10000-S 2");
-		break;
-	default:
-		memset(str, 0, 16);
+		model_str = "LP10000-S 2Gb PCI";
 		break;
 	case PCI_DEVICE_ID_LP11000S:
-		if (hdrtype == 0x80)
-			strcpy(str, "LP11002-S 4");
-		else
-			strcpy(str, "LP11000-S 4");
-		break;
 	case PCI_DEVICE_ID_LPE11000S:
-		if (hdrtype == 0x80)
-			strcpy(str, "LPe11002-S 4");
-		else
-			strcpy(str, "LPe11000-S 4");
+		pci_read_config_word(phba->pcidev, PCI_SUBSYSTEM_ID,
+				     &dev_subid);
+		switch (dev_subid) {
+		case PCI_SUBSYSTEM_ID_LP11000S:
+			model_str = "LP11002-S 4Gb PCI-X2";
+			break;
+		case PCI_SUBSYSTEM_ID_LP11002S:
+			model_str = "LP11000-S 4Gb 2-port PCI-X2";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11000S:
+			model_str = "LPe11002-S 4Gb PCIe";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11002S:
+			model_str = "LPe11002-S 4Gb 2-port PCIe";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11010S:
+			model_str = "LPe11010-S 4Gb 10-port PCIe";
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
 		break;
 	}
 	if (mdp)
-		sscanf(str, "%s", mdp);
+		sscanf(model_str, "%s", mdp);
 	if (descp)
-		sprintf(descp, "Emulex LightPulse %s Gigabit PCI Fibre "
-			"Channel Adapter", str);
+		sprintf(descp, "Emulex %s Fibre Channel Adapter", model_str);
 }
 
 /**************************************************/
