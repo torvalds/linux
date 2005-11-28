@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static char *verstr = "20050830";
+static const char *verstr = "20050830";
 
 #include <linux/module.h>
 
@@ -134,7 +134,7 @@ static struct st_dev_parm {
 #endif
 /* Bit reversed order to get same names for same minors with all
    mode counts */
-static char *st_formats[] = {
+static const char *st_formats[] = {
 	"",  "r", "k", "s", "l", "t", "o", "u",
 	"m", "v", "p", "x", "a", "y", "q", "z"}; 
 

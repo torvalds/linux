@@ -730,7 +730,7 @@ static void get_capabilities(struct scsi_cd *cd)
 	unsigned int the_result;
 	int retries, rc, n;
 
-	static char *loadmech[] =
+	static const char *loadmech[] =
 	{
 		"caddy",
 		"tray",
