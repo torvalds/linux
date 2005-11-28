@@ -773,9 +773,12 @@ again:
 }
 
 #define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
-#define ALLOC_HARDER		0x02 /* try to alloc harder */
-#define ALLOC_HIGH		0x04 /* __GFP_HIGH set */
-#define ALLOC_CPUSET		0x08 /* check for correct cpuset */
+#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+#define ALLOC_HARDER		0x10 /* try to alloc harder */
+#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
 
 /*
  * Return 1 if free pages are above 'mark'. This takes into account the order
@@ -830,7 +833,14 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 			continue;
 
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-			if (!zone_watermark_ok(*z, order, (*z)->pages_low,
+			unsigned long mark;
+			if (alloc_flags & ALLOC_WMARK_MIN)
+				mark = (*z)->pages_min;
+			else if (alloc_flags & ALLOC_WMARK_LOW)
+				mark = (*z)->pages_low;
+			else
+				mark = (*z)->pages_high;
+			if (!zone_watermark_ok(*z, order, mark,
 				    classzone_idx, alloc_flags))
 				continue;
 		}
@@ -871,7 +881,7 @@ restart:
 	}
 
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
-				zonelist, ALLOC_CPUSET);
+				zonelist, ALLOC_WMARK_LOW|ALLOC_CPUSET);
 	if (page)
 		goto got_pg;
 
@@ -888,7 +898,7 @@ restart:
 	 * cannot run direct reclaim, or if the caller has realtime scheduling
 	 * policy.
 	 */
-	alloc_flags = 0;
+	alloc_flags = ALLOC_WMARK_MIN;
 	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
 		alloc_flags |= ALLOC_HARDER;
 	if (gfp_mask & __GFP_HIGH)
@@ -959,7 +969,7 @@ rebalance:
 		 * under heavy pressure.
 		 */
 		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
-						zonelist, ALLOC_CPUSET);
+				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
 		if (page)
 			goto got_pg;
 
