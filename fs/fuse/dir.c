@@ -87,6 +87,11 @@ static int dir_alias(struct inode *inode)
 	return 0;
 }
 
+static inline int invalid_nodeid(u64 nodeid)
+{
+	return !nodeid || nodeid == FUSE_ROOT_ID;
+}
+
 static struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 };
@@ -110,7 +115,7 @@ static int fuse_lookup_iget(struct inode *dir, struct dentry *entry,
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
 	err = req->out.h.error;
-	if (!err && (!outarg.nodeid || outarg.nodeid == FUSE_ROOT_ID))
+	if (!err && invalid_nodeid(outarg.nodeid))
 		err = -EIO;
 	if (!err) {
 		inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
@@ -206,7 +211,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	}
 
 	err = -EIO;
-	if (!S_ISREG(outentry.attr.mode))
+	if (!S_ISREG(outentry.attr.mode) || invalid_nodeid(outentry.nodeid))
 		goto out_free_ff;
 
 	inode = fuse_iget(dir->i_sb, outentry.nodeid, outentry.generation,
@@ -263,7 +268,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 		fuse_put_request(fc, req);
 		return err;
 	}
-	if (!outarg.nodeid || outarg.nodeid == FUSE_ROOT_ID) {
+	if (invalid_nodeid(outarg.nodeid)) {
 		fuse_put_request(fc, req);
 		return -EIO;
 	}
