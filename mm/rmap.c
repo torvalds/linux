@@ -226,8 +226,6 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 /*
  * At what user virtual address is page expected in vma? checking that the
  * page matches the vma: currently only used on anon pages, by unuse_vma;
- * and by extraordinary checks on anon pages in VM_UNPAGED vmas, taking
- * care that an mmap of /dev/mem might window free and foreign pages.
  */
 unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 {
@@ -614,7 +612,6 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	struct page *page;
 	unsigned long address;
 	unsigned long end;
-	unsigned long pfn;
 
 	address = (vma->vm_start + cursor) & CLUSTER_MASK;
 	end = address + CLUSTER_SIZE;
@@ -643,15 +640,8 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	for (; address < end; pte++, address += PAGE_SIZE) {
 		if (!pte_present(*pte))
 			continue;
-
-		pfn = pte_pfn(*pte);
-		if (unlikely(!pfn_valid(pfn))) {
-			print_bad_pte(vma, *pte, address);
-			continue;
-		}
-
-		page = pfn_to_page(pfn);
-		BUG_ON(PageAnon(page));
+		page = vm_normal_page(vma, address, *pte);
+		BUG_ON(!page || PageAnon(page));
 
 		if (ptep_clear_flush_young(vma, address, pte))
 			continue;

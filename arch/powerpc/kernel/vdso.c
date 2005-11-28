@@ -145,8 +145,7 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
 			struct page *pg = virt_to_page(vdso32_kbase +
 						       i*PAGE_SIZE);
 			struct page *upg = (vma && vma->vm_mm) ?
-				follow_page(vma->vm_mm, vma->vm_start +
-					    i*PAGE_SIZE, 0)
+				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
 				: NULL;
 			dump_one_vdso_page(pg, upg);
 		}
@@ -157,8 +156,7 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
 			struct page *pg = virt_to_page(vdso64_kbase +
 						       i*PAGE_SIZE);
 			struct page *upg = (vma && vma->vm_mm) ?
-				follow_page(vma->vm_mm, vma->vm_start +
-					    i*PAGE_SIZE, 0)
+				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
 				: NULL;
 			dump_one_vdso_page(pg, upg);
 		}
