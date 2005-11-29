@@ -45,7 +45,11 @@ static struct mpic *mpic_primary;
 static DEFINE_SPINLOCK(mpic_lock);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
-#define distribute_irqs	CONFIG_IRQ_ALL_CPUS
+#ifdef CONFIG_IRQ_ALL_CPUS
+#define distribute_irqs	(1)
+#else
+#define distribute_irqs	(0)
+#endif
 #endif
 
 /*
