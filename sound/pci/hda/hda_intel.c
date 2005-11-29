@@ -52,7 +52,7 @@ static int index = SNDRV_DEFAULT_IDX1;
 static char *id = SNDRV_DEFAULT_STR1;
 static char *model;
 static int position_fix;
-static int probe_mask;
+static int probe_mask = -1;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
