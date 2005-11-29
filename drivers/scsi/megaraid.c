@@ -380,23 +380,23 @@ megaraid_queue(Scsi_Cmnd *scmd, void (*done)(Scsi_Cmnd *))
 
 	spin_lock_irqsave(&adapter->lock, flags);
 	scb = mega_build_cmd(adapter, scmd, &busy);
+	if (!scb)
+		goto out;
 
-	if(scb) {
-		scb->state |= SCB_PENDQ;
-		list_add_tail(&scb->list, &adapter->pending_list);
+	scb->state |= SCB_PENDQ;
+	list_add_tail(&scb->list, &adapter->pending_list);
 
-		/*
-		 * Check if the HBA is in quiescent state, e.g., during a
-		 * delete logical drive opertion. If it is, don't run
-		 * the pending_list.
-		 */
-		if(atomic_read(&adapter->quiescent) == 0) {
-			mega_runpendq(adapter);
-		}
-		return 0;
-	}
+	/*
+	 * Check if the HBA is in quiescent state, e.g., during a
+	 * delete logical drive opertion. If it is, don't run
+	 * the pending_list.
+	 */
+	if (atomic_read(&adapter->quiescent) == 0)
+		mega_runpendq(adapter);
+
+	busy = 0;
+ out:
 	spin_unlock_irqrestore(&adapter->lock, flags);
-
 	return busy;
 }
 
@@ -4677,7 +4677,6 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	adapter->flag = flag;
 	spin_lock_init(&adapter->lock);
-	scsi_assign_lock(host, &adapter->lock);
 
 	host->cmd_per_lun = max_cmd_per_lun;
 	host->max_sectors = max_sectors_per_io;
