@@ -1755,7 +1755,7 @@ static void carm_remove_one (struct pci_dev *pdev)
 
 static int __init carm_init(void)
 {
-	return pci_module_init(&carm_driver);
+	return pci_register_driver(&carm_driver);
 }
 
 static void __exit carm_exit(void)
