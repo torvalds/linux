@@ -988,7 +988,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				return i ? : -EFAULT;
 			}
 			if (pages) {
-				struct page *page = vm_normal_page(vma, start, *pte);
+				struct page *page = vm_normal_page(gate_vma, start, *pte);
 				pages[i] = page;
 				if (page)
 					get_page(page);
