@@ -126,6 +126,9 @@ extern int		ip_rt_ioctl(unsigned int cmd, void __user *arg);
 extern void		ip_rt_get_source(u8 *src, struct rtable *rt);
 extern int		ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb);
 
+struct in_ifaddr;
+extern void fib_add_ifaddr(struct in_ifaddr *);
+
 static inline void ip_rt_put(struct rtable * rt)
 {
 	if (rt)

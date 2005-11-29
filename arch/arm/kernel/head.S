@@ -17,7 +17,6 @@
 
 #include <asm/assembler.h>
 #include <asm/domain.h>
-#include <asm/mach-types.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
@@ -83,7 +82,7 @@ ENTRY(stext)
 						@ and irqs disabled
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
-	beq	__error_p				@ yes, error 'p'
+	beq	__error_p			@ yes, error 'p'
 	bl	__lookup_machine_type		@ r5=machinfo
 	movs	r8, r5				@ invalid machine (r5=0)?
 	beq	__error_a			@ yes, error 'a'
@@ -343,16 +342,12 @@ __create_page_tables:
 	bne	1b
 #if defined(CONFIG_ARCH_NETWINDER) || defined(CONFIG_ARCH_CATS)
 	/*
-	 * If we're using the NetWinder, we need to map in
-	 * the 16550-type serial port for the debug messages
+	 * If we're using the NetWinder or CATS, we also need to map
+	 * in the 16550-type serial port for the debug messages
 	 */
-	teq	r1, #MACH_TYPE_NETWINDER
-	teqne	r1, #MACH_TYPE_CATS
-	bne	1f
 	add	r0, r4, #0xff000000 >> 18
 	orr	r3, r7, #0x7c000000
 	str	r3, [r0]
-1:
 #endif
 #ifdef CONFIG_ARCH_RPC
 	/*

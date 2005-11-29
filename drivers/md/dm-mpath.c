@@ -1000,6 +1000,7 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 {
 	struct hw_handler *hwh = &m->hw_handler;
 	unsigned err_flags = MP_FAIL_PATH;	/* Default behavior */
+	unsigned long flags;
 
 	if (!error)
 		return 0;	/* I/O complete */
@@ -1010,17 +1011,17 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 	if (error == -EOPNOTSUPP)
 		return error;
 
-	spin_lock(&m->lock);
+	spin_lock_irqsave(&m->lock, flags);
 	if (!m->nr_valid_paths) {
 		if (!m->queue_if_no_path) {
-			spin_unlock(&m->lock);
+			spin_unlock_irqrestore(&m->lock, flags);
 			return -EIO;
 		} else {
-			spin_unlock(&m->lock);
+			spin_unlock_irqrestore(&m->lock, flags);
 			goto requeue;
 		}
 	}
-	spin_unlock(&m->lock);
+	spin_unlock_irqrestore(&m->lock, flags);
 
 	if (hwh->type && hwh->type->error)
 		err_flags = hwh->type->error(hwh, bio);
@@ -1040,12 +1041,12 @@ static int do_end_io(struct multipath *m, struct bio *bio,
 	dm_bio_restore(&mpio->details, bio);
 
 	/* queue for the daemon to resubmit or fail */
-	spin_lock(&m->lock);
+	spin_lock_irqsave(&m->lock, flags);
 	bio_list_add(&m->queued_ios, bio);
 	m->queue_size++;
 	if (!m->queue_io)
 		queue_work(kmultipathd, &m->process_queued_ios);
-	spin_unlock(&m->lock);
+	spin_unlock_irqrestore(&m->lock, flags);
 
 	return 1;	/* io not complete */
 }

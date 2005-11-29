@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifs_unicode.c
  *
- *   Copyright (c) International Business Machines  Corp., 2000,2002
+ *   Copyright (c) International Business Machines  Corp., 2000,2005
  *   Modified by Steve French (sfrench@us.ibm.com)
  *
  *   This program is free software;  you can redistribute it and/or modify
@@ -31,7 +31,7 @@
  *
  */
 int
-cifs_strfromUCS_le(char *to, const wchar_t * from,	/* LITTLE ENDIAN */
+cifs_strfromUCS_le(char *to, const __le16 * from,	
 		   int len, const struct nls_table *codepage)
 {
 	int i;
@@ -60,25 +60,26 @@ cifs_strfromUCS_le(char *to, const wchar_t * from,	/* LITTLE ENDIAN */
  *
  */
 int
-cifs_strtoUCS(wchar_t * to, const char *from, int len,
+cifs_strtoUCS(__le16 * to, const char *from, int len,
 	      const struct nls_table *codepage)
 {
 	int charlen;
 	int i;
+	wchar_t * wchar_to = (wchar_t *)to; /* needed to quiet sparse */  
 
 	for (i = 0; len && *from; i++, from += charlen, len -= charlen) {
 
 		/* works for 2.4.0 kernel or later */
-		charlen = codepage->char2uni(from, len, &to[i]);
+		charlen = codepage->char2uni(from, len, &wchar_to[i]);
 		if (charlen < 1) {
 			cERROR(1,
 			       ("cifs_strtoUCS: char2uni returned %d",
 				charlen));
 			/* A question mark */
-			to[i] = (wchar_t)cpu_to_le16(0x003f);
+			to[i] = cpu_to_le16(0x003f);
 			charlen = 1;
 		} else 
-			to[i] = (wchar_t)cpu_to_le16(to[i]);
+			to[i] = cpu_to_le16(wchar_to[i]);
 
 	}
 

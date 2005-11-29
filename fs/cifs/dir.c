@@ -292,7 +292,8 @@ cifs_create_out:
 	return rc;
 }
 
-int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t device_number) 
+int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, 
+		dev_t device_number) 
 {
 	int rc = -EPERM;
 	int xid;
@@ -368,7 +369,34 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 
 			if(!rc) {
 				/* BB Do not bother to decode buf since no
-				   local inode yet to put timestamps in */
+				   local inode yet to put timestamps in,
+				   but we can reuse it safely */
+				int bytes_written;
+				struct win_dev *pdev;
+				pdev = (struct win_dev *)buf;
+				if(S_ISCHR(mode)) {
+					memcpy(pdev->type, "IntxCHR", 8);
+					pdev->major =
+					      cpu_to_le64(MAJOR(device_number));
+					pdev->minor = 
+					      cpu_to_le64(MINOR(device_number));
+					rc = CIFSSMBWrite(xid, pTcon,
+						fileHandle,
+						sizeof(struct win_dev),
+						0, &bytes_written, (char *)pdev,
+						NULL, 0);
+				} else if(S_ISBLK(mode)) {
+					memcpy(pdev->type, "IntxBLK", 8);
+					pdev->major =
+					      cpu_to_le64(MAJOR(device_number));
+					pdev->minor =
+					      cpu_to_le64(MINOR(device_number));
+					rc = CIFSSMBWrite(xid, pTcon,
+						fileHandle,
+						sizeof(struct win_dev),
+						0, &bytes_written, (char *)pdev,
+						NULL, 0);
+				} /* else if(S_ISFIFO */
 				CIFSSMBClose(xid, pTcon, fileHandle);
 				d_drop(direntry);
 			}

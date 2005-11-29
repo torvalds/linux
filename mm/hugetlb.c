@@ -22,6 +22,10 @@ unsigned long max_huge_pages;
 static struct list_head hugepage_freelists[MAX_NUMNODES];
 static unsigned int nr_huge_pages_node[MAX_NUMNODES];
 static unsigned int free_huge_pages_node[MAX_NUMNODES];
+
+/*
+ * Protects updates to hugepage_freelists, nr_huge_pages, and free_huge_pages
+ */
 static DEFINE_SPINLOCK(hugetlb_lock);
 
 static void enqueue_huge_page(struct page *page)
@@ -61,8 +65,10 @@ static struct page *alloc_fresh_huge_page(void)
 					HUGETLB_PAGE_ORDER);
 	nid = (nid + 1) % num_online_nodes();
 	if (page) {
+		spin_lock(&hugetlb_lock);
 		nr_huge_pages++;
 		nr_huge_pages_node[page_to_nid(page)]++;
+		spin_unlock(&hugetlb_lock);
 	}
 	return page;
 }

@@ -476,7 +476,7 @@ static int netlink_autobind(struct socket *sock)
 	struct hlist_head *head;
 	struct sock *osk;
 	struct hlist_node *node;
-	s32 pid = current->pid;
+	s32 pid = current->tgid;
 	int err;
 	static s32 rover = -4097;
 

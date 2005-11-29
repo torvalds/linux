@@ -102,7 +102,7 @@ static unsigned int share_irqs = SERIAL8250_SHARE_IRQS;
 #define SERIAL_PORT_DFNS
 #endif
 
-static struct old_serial_port old_serial_port[] = {
+static const struct old_serial_port old_serial_port[] = {
 	SERIAL_PORT_DFNS /* defined in asm/serial.h */
 };
 

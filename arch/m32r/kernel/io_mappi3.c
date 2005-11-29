@@ -36,12 +36,13 @@ static inline void *_port2addr(unsigned long port)
 	return (void *)(port + NONCACHE_OFFSET);
 }
 
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
+#if defined(CONFIG_IDE)
 static inline void *__port2addr_ata(unsigned long port)
 {
 	static int	dummy_reg;
 
 	switch (port) {
+	  /* IDE0 CF */
 	case 0x1f0:	return (void *)0xb4002000;
 	case 0x1f1:	return (void *)0xb4012800;
 	case 0x1f2:	return (void *)0xb4012002;
@@ -51,6 +52,17 @@ static inline void *__port2addr_ata(unsigned long port)
 	case 0x1f6:	return (void *)0xb4012006;
 	case 0x1f7:	return (void *)0xb4012806;
 	case 0x3f6:	return (void *)0xb401200e;
+	  /* IDE1 IDE */
+	case 0x170:	return (void *)0xb4810000;  /* Data 16bit */
+	case 0x171:	return (void *)0xb4810002;  /* Features / Error */
+	case 0x172:	return (void *)0xb4810004;  /* Sector count */
+	case 0x173:	return (void *)0xb4810006;  /* Sector number */
+	case 0x174:	return (void *)0xb4810008;  /* Cylinder low */
+	case 0x175:	return (void *)0xb481000a;  /* Cylinder high */
+	case 0x176:	return (void *)0xb481000c;  /* Device head */
+	case 0x177:	return (void *)0xb481000e;  /* Command     */
+	case 0x376:	return (void *)0xb480800c;  /* Device control / Alt status */
+
 	default: 	return (void *)&dummy_reg;
 	}
 }
@@ -108,8 +120,9 @@ unsigned char _inb(unsigned long port)
 {
 	if (port >= LAN_IOSTART && port < LAN_IOEND)
 		return _ne_inb(PORT2ADDR_NE(port));
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	else if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
+#if defined(CONFIG_IDE)
+	else if ( ((port >= 0x170 && port <=0x177) || port == 0x376) ||
+		  ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) ){
 		return *(volatile unsigned char *)__port2addr_ata(port);
 	}
 #endif
@@ -127,8 +140,9 @@ unsigned short _inw(unsigned long port)
 {
 	if (port >= LAN_IOSTART && port < LAN_IOEND)
 		return _ne_inw(PORT2ADDR_NE(port));
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	else if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
+#if defined(CONFIG_IDE)
+	else if ( ((port >= 0x170 && port <=0x177) || port == 0x376) ||
+		  ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) ){
 		return *(volatile unsigned short *)__port2addr_ata(port);
 	}
 #endif
@@ -185,8 +199,9 @@ void _outb(unsigned char b, unsigned long port)
 	if (port >= LAN_IOSTART && port < LAN_IOEND)
 		_ne_outb(b, PORT2ADDR_NE(port));
 	else
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
+#if defined(CONFIG_IDE)
+	if ( ((port >= 0x170 && port <=0x177) || port == 0x376) ||
+		  ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) ){
 		*(volatile unsigned char *)__port2addr_ata(port) = b;
 	} else
 #endif
@@ -203,8 +218,9 @@ void _outw(unsigned short w, unsigned long port)
 	if (port >= LAN_IOSTART && port < LAN_IOEND)
 		_ne_outw(w, PORT2ADDR_NE(port));
 	else
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
+#if defined(CONFIG_IDE)
+	if ( ((port >= 0x170 && port <=0x177) || port == 0x376) ||
+		  ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) ){
 		*(volatile unsigned short *)__port2addr_ata(port) = w;
 	} else
 #endif
@@ -253,8 +269,9 @@ void _insb(unsigned int port, void * addr, unsigned long count)
 {
 	if (port >= LAN_IOSTART && port < LAN_IOEND)
 		_ne_insb(PORT2ADDR_NE(port), addr, count);
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	else if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
+#if defined(CONFIG_IDE)
+	else if ( ((port >= 0x170 && port <=0x177) || port == 0x376) ||
+		  ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) ){
 		unsigned char *buf = addr;
 		unsigned char *portp = __port2addr_ata(port);
 		while (count--)
@@ -289,8 +306,9 @@ void _insw(unsigned int port, void * addr, unsigned long count)
 		pcc_ioread_word(9, port, (void *)addr, sizeof(unsigned short),
 				count, 1);
 #endif
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	} else if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
+#if defined(CONFIG_IDE)
+	} else if ( ((port >= 0x170 && port <=0x177) || port == 0x376) ||
+		  ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) ){
 		portp = __port2addr_ata(port);
 		while (count--)
 			*buf++ = *(volatile unsigned short *)portp;
@@ -321,8 +339,9 @@ void _outsb(unsigned int port, const void * addr, unsigned long count)
 		portp = PORT2ADDR_NE(port);
 		while (count--)
 			_ne_outb(*buf++, portp);
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	} else if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
+#if defined(CONFIG_IDE)
+	} else if ( ((port >= 0x170 && port <=0x177) || port == 0x376) ||
+		  ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) ){
 		portp = __port2addr_ata(port);
 		while (count--)
 			*(volatile unsigned char *)portp = *buf++;
@@ -348,8 +367,9 @@ void _outsw(unsigned int port, const void * addr, unsigned long count)
 		portp = PORT2ADDR_NE(port);
 		while (count--)
 			*(volatile unsigned short *)portp = *buf++;
-#if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
-	} else if ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) {
+#if defined(CONFIG_IDE)
+	} else if ( ((port >= 0x170 && port <=0x177) || port == 0x376) ||
+		  ((port >= 0x1f0 && port <=0x1f7) || port == 0x3f6) ){
 		portp = __port2addr_ata(port);
 		while (count--)
 			*(volatile unsigned short *)portp = *buf++;
