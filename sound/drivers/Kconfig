@@ -23,6 +23,14 @@ config SND_VX_LIB
 	select SND_HWDEP
 	select SND_PCM
 
+config SND_AC97_CODEC
+	tristate
+	select SND_PCM
+	select SND_AC97_BUS
+
+config SND_AC97_BUS
+	tristate
+
 
 config SND_DUMMY
 	tristate "Dummy (/dev/null) soundcard"
