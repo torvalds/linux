@@ -1454,11 +1454,23 @@ void __sata_phy_reset(struct ata_port *ap)
 	} while (time_before(jiffies, timeout));
 
 	/* TODO: phy layer with polling, timeouts, etc. */
-	if (sata_dev_present(ap))
+	sstatus = scr_read(ap, SCR_STATUS);
+	if (sata_dev_present(ap)) {
+		const char *speed;
+		u32 tmp;
+
+		tmp = (sstatus >> 4) & 0xf;
+		if (tmp & (1 << 0))
+			speed = "1.5";
+		else if (tmp & (1 << 1))
+			speed = "3.0";
+		else
+			speed = "<unknown>";
+		printk(KERN_INFO "ata%u: SATA link up %s Gbps (SStatus %X)\n",
+		       ap->id, speed, sstatus);
 		ata_port_probe(ap);
-	else {
-		sstatus = scr_read(ap, SCR_STATUS);
-		printk(KERN_INFO "ata%u: no device found (phy stat %08x)\n",
+	} else {
+		printk(KERN_INFO "ata%u: SATA link down (SStatus %X)\n",
 		       ap->id, sstatus);
 		ata_port_disable(ap);
 	}

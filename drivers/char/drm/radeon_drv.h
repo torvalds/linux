@@ -214,8 +214,6 @@ typedef struct drm_radeon_private {
 
 	int microcode_version;
 
-	int is_pci;
-
 	struct {
 		u32 boxes;
 		int freelist_timeouts;
@@ -275,6 +273,7 @@ typedef struct drm_radeon_private {
 
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
+	int is_pci;
 } drm_radeon_private_t;
 
 typedef struct drm_radeon_buf_priv {

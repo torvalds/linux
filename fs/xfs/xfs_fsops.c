@@ -550,7 +550,7 @@ xfs_fs_goingdown(
 		struct vfs *vfsp = XFS_MTOVFS(mp);
 		struct super_block *sb = freeze_bdev(vfsp->vfs_super->s_bdev);
 
-		if (sb) {
+		if (sb && !IS_ERR(sb)) {
 			xfs_force_shutdown(mp, XFS_FORCE_UMOUNT);
 			thaw_bdev(sb->s_bdev, sb);
 		}

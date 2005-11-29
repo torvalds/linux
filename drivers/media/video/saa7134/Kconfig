@@ -42,8 +42,8 @@ config VIDEO_SAA7134_DVB_ALL_FRONTENDS
 	  If you are unsure, choose Y.
 
 config VIDEO_SAA7134_DVB_MT352
-	tristate "Zarlink MT352 DVB-T Support"
-	default m
+	bool "Zarlink MT352 DVB-T Support"
+	default y
 	depends on VIDEO_SAA7134_DVB && !VIDEO_SAA7134_DVB_ALL_FRONTENDS
 	select DVB_MT352
 	---help---
@@ -51,8 +51,8 @@ config VIDEO_SAA7134_DVB_MT352
 	  Philips saa7134 chip and the MT352 demodulator.
 
 config VIDEO_SAA7134_DVB_TDA1004X
-	tristate "Phillips TDA10045H/TDA10046H DVB-T Support"
-	default m
+	bool "Phillips TDA10045H/TDA10046H DVB-T Support"
+	default y
 	depends on VIDEO_SAA7134_DVB && !VIDEO_SAA7134_DVB_ALL_FRONTENDS
 	select DVB_TDA1004X
 	---help---
@@ -60,8 +60,8 @@ config VIDEO_SAA7134_DVB_TDA1004X
 	  Philips saa7134 chip and the TDA10045H/TDA10046H demodulator.
 
 config VIDEO_SAA7134_DVB_NXT200X
-	tristate "NXT2002/NXT2004 ATSC Support"
-	default m
+	bool "NXT2002/NXT2004 ATSC Support"
+	default y
 	depends on VIDEO_SAA7134_DVB && !VIDEO_SAA7134_DVB_ALL_FRONTENDS
 	select DVB_NXT200X
 	---help---

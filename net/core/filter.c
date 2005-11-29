@@ -116,8 +116,6 @@ int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 			A /= X;
 			continue;
 		case BPF_ALU|BPF_DIV|BPF_K:
-			if (fentry->k == 0)
-				return 0;
 			A /= fentry->k;
 			continue;
 		case BPF_ALU|BPF_AND|BPF_X:
@@ -319,6 +317,10 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 					return -EINVAL;
 			}
 		}
+
+		/* check for division by zero   -Kris Katterjohn 2005-10-30 */
+		if (ftest->code == (BPF_ALU|BPF_DIV|BPF_K) && ftest->k == 0)
+			return -EINVAL;
 
 		/* check that memory operations use valid addresses. */
 		if (ftest->k >= BPF_MEMWORDS) {

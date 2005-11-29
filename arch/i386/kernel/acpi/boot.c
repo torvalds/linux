@@ -248,9 +248,7 @@ acpi_parse_lapic(acpi_table_entry_header * header, const unsigned long end)
 
 	acpi_table_print_madt_entry(header);
 
-	/* no utility in registering a disabled processor */
-	if (processor->flags.enabled == 0)
-		return 0;
+	/* Register even disabled CPUs for cpu hotplug */
 
 	x86_acpiid_to_apicid[processor->acpi_id] = processor->id;
 

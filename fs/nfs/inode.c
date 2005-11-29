@@ -643,13 +643,10 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 /*
  * Invalidate the local caches
  */
-void
-nfs_zap_caches(struct inode *inode)
+static void nfs_zap_caches_locked(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	int mode = inode->i_mode;
-
-	spin_lock(&inode->i_lock);
 
 	NFS_ATTRTIMEO(inode) = NFS_MINATTRTIMEO(inode);
 	NFS_ATTRTIMEO_UPDATE(inode) = jiffies;
@@ -659,7 +656,12 @@ nfs_zap_caches(struct inode *inode)
 		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL|NFS_INO_REVAL_PAGECACHE;
 	else
 		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL|NFS_INO_REVAL_PAGECACHE;
+}
 
+void nfs_zap_caches(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	nfs_zap_caches_locked(inode);
 	spin_unlock(&inode->i_lock);
 }
 
@@ -676,16 +678,13 @@ static void nfs_zap_acl_cache(struct inode *inode)
 }
 
 /*
- * Invalidate, but do not unhash, the inode
+ * Invalidate, but do not unhash, the inode.
+ * NB: must be called with inode->i_lock held!
  */
-static void
-nfs_invalidate_inode(struct inode *inode)
+static void nfs_invalidate_inode(struct inode *inode)
 {
-	umode_t save_mode = inode->i_mode;
-
-	make_bad_inode(inode);
-	inode->i_mode = save_mode;
-	nfs_zap_caches(inode);
+	set_bit(NFS_INO_STALE, &NFS_FLAGS(inode));
+	nfs_zap_caches_locked(inode);
 }
 
 struct nfs_find_desc {
@@ -1528,14 +1527,13 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsign
 	printk(KERN_DEBUG "%s: inode %ld mode changed, %07o to %07o\n",
 			__FUNCTION__, inode->i_ino, inode->i_mode, fattr->mode);
 #endif
+ out_err:
 	/*
 	 * No need to worry about unhashing the dentry, as the
 	 * lookup validation will know that the inode is bad.
 	 * (But we fall through to invalidate the caches.)
 	 */
 	nfs_invalidate_inode(inode);
- out_err:
-	set_bit(NFS_INO_STALE, &NFS_FLAGS(inode));
 	return -ESTALE;
 }
 

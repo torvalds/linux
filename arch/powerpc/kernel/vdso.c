@@ -145,8 +145,7 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
 			struct page *pg = virt_to_page(vdso32_kbase +
 						       i*PAGE_SIZE);
 			struct page *upg = (vma && vma->vm_mm) ?
-				follow_page(vma->vm_mm, vma->vm_start +
-					    i*PAGE_SIZE, 0)
+				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
 				: NULL;
 			dump_one_vdso_page(pg, upg);
 		}
@@ -157,8 +156,7 @@ static void dump_vdso_pages(struct vm_area_struct * vma)
 			struct page *pg = virt_to_page(vdso64_kbase +
 						       i*PAGE_SIZE);
 			struct page *upg = (vma && vma->vm_mm) ?
-				follow_page(vma->vm_mm, vma->vm_start +
-					    i*PAGE_SIZE, 0)
+				follow_page(vma, vma->vm_start + i*PAGE_SIZE, 0)
 				: NULL;
 			dump_one_vdso_page(pg, upg);
 		}
@@ -285,8 +283,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	 * It's fine to use that for setting breakpoints in the vDSO code
 	 * pages though
 	 */
-	vma->vm_flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE |
-		VM_MAYEXEC | VM_RESERVED;
+	vma->vm_flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 	vma->vm_flags |= mm->def_flags;
 	vma->vm_page_prot = protection_map[vma->vm_flags & 0x7];
 	vma->vm_ops = &vdso_vmops;

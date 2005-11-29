@@ -60,7 +60,7 @@ void __init pcibios_fixup_irqs(void)
 	}
 }
 
-void __init pcibios_penalize_isa_irq(int irq, int active)
+void __init pcibios_penalize_isa_irq(int irq)
 {
 }
 

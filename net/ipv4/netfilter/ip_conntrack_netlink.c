@@ -27,6 +27,7 @@
 #include <linux/errno.h>
 #include <linux/netlink.h>
 #include <linux/spinlock.h>
+#include <linux/interrupt.h>
 #include <linux/notifier.h>
 
 #include <linux/netfilter.h>
@@ -59,11 +60,13 @@ ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 
 	NFA_PUT(skb, CTA_PROTO_NUM, sizeof(u_int8_t), &tuple->dst.protonum);
 
+	/* If no protocol helper is found, this function will return the
+	 * generic protocol helper, so proto won't *ever* be NULL */
 	proto = ip_conntrack_proto_find_get(tuple->dst.protonum);
-	if (likely(proto && proto->tuple_to_nfattr)) {
+	if (likely(proto->tuple_to_nfattr))
 		ret = proto->tuple_to_nfattr(skb, tuple);
-		ip_conntrack_proto_put(proto);
-	}
+	
+	ip_conntrack_proto_put(proto);
 
 	return ret;
 
@@ -128,9 +131,11 @@ ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct ip_conntrack *ct)
 
 	struct nfattr *nest_proto;
 	int ret;
-	
-	if (!proto || !proto->to_nfattr)
+
+	if (!proto->to_nfattr) {
+		ip_conntrack_proto_put(proto);
 		return 0;
+	}
 	
 	nest_proto = NFA_NEST(skb, CTA_PROTOINFO);
 
@@ -527,10 +532,10 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 
 	proto = ip_conntrack_proto_find_get(tuple->dst.protonum);
 
-	if (likely(proto && proto->nfattr_to_tuple)) {
+	if (likely(proto->nfattr_to_tuple))
 		ret = proto->nfattr_to_tuple(tb, tuple);
-		ip_conntrack_proto_put(proto);
-	}
+	
+	ip_conntrack_proto_put(proto);
 	
 	return ret;
 }
@@ -596,8 +601,6 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 		return -EINVAL;
 
 	npt = ip_nat_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
-	if (!npt)
-		return 0;
 
 	if (!npt->nfattr_to_range) {
 		ip_nat_proto_put(npt);
@@ -957,8 +960,6 @@ ctnetlink_change_protoinfo(struct ip_conntrack *ct, struct nfattr *cda[])
 	nfattr_parse_nested(tb, CTA_PROTOINFO_MAX, attr);
 
 	proto = ip_conntrack_proto_find_get(npt);
-	if (!proto)
-		return -EINVAL;
 
 	if (proto->from_nfattr)
 		err = proto->from_nfattr(tb, ct);

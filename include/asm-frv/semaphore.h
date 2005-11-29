@@ -20,7 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 
-#define SEMAPHORE_DEBUG		WAITQUEUE_DEBUG
+#define SEMAPHORE_DEBUG		0
 
 /*
  * the semaphore definition

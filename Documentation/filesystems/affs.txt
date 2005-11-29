@@ -216,4 +216,4 @@ due to an incompatibility with the Amiga floppy controller.
 
 If you are interested in an Amiga Emulator for Linux, look at
 
-http://www-users.informatik.rwth-aachen.de/~crux/uae.html
+http://www.freiburg.linux.de/~uae/

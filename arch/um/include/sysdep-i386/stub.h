@@ -16,6 +16,15 @@ extern void stub_clone_handler(void);
 #define STUB_MMAP_NR __NR_mmap2
 #define MMAP_OFFSET(o) ((o) >> PAGE_SHIFT)
 
+static inline long stub_syscall0(long syscall)
+{
+	long ret;
+
+	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall));
+
+	return ret;
+}
+
 static inline long stub_syscall1(long syscall, long arg1)
 {
 	long ret;

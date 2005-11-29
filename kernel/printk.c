@@ -956,7 +956,7 @@ int unregister_console(struct console *console)
 	if (console_drivers == console) {
 		console_drivers=console->next;
 		res = 0;
-	} else {
+	} else if (console_drivers) {
 		for (a=console_drivers->next, b=console_drivers ;
 		     a; b=a, a=b->next) {
 			if (a == console) {

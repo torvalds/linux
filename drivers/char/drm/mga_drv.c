@@ -161,7 +161,7 @@ static int mga_driver_device_is_agp(drm_device_t * dev)
 	 * device.
 	 */
 
-	if ((pdev->device == 0x0525)
+	if ((pdev->device == 0x0525) && pdev->bus->self
 	    && (pdev->bus->self->vendor == 0x3388)
 	    && (pdev->bus->self->device == 0x0021)) {
 		return 0;
