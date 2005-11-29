@@ -146,10 +146,30 @@ static int pnp_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
+static int pnp_bus_suspend(struct device *dev, pm_message_t state)
+{
+	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver * pnp_drv = pnp_dev->driver;
+
+	if (pnp_drv && pnp_drv->suspend)
+		return pnp_drv->suspend(pnp_dev, state);
+	return 0;
+}
+
+static void pnp_bus_resume(struct device *dev)
+{
+	struct pnp_dev * pnp_dev = to_pnp_dev(dev);
+	struct pnp_driver * pnp_drv = pnp_dev->driver;
+
+	if (pnp_drv && pnp_drv->resume)
+		pnp_drv->resume(pnp_dev);
+}
 
 struct bus_type pnp_bus_type = {
 	.name	= "pnp",
 	.match	= pnp_bus_match,
+	.suspend = pnp_bus_suspend,
+	.resume = pnp_bus_resume,
 };
 
 

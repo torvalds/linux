@@ -162,6 +162,7 @@ struct pnp_card_link {
 	struct pnp_card * card;
 	struct pnp_card_driver * driver;
 	void * driver_data;
+	pm_message_t pm_state;
 };
 
 static inline void *pnp_get_card_drvdata (struct pnp_card_link *pcard)
@@ -294,6 +295,8 @@ struct pnp_driver {
 	unsigned int flags;
 	int  (*probe)  (struct pnp_dev *dev, const struct pnp_device_id *dev_id);
 	void (*remove) (struct pnp_dev *dev);
+	int  (*suspend) (struct pnp_dev *dev, pm_message_t state);
+	int  (*resume) (struct pnp_dev *dev);
 	struct device_driver driver;
 };
 
@@ -306,6 +309,8 @@ struct pnp_card_driver {
 	unsigned int flags;
 	int  (*probe)  (struct pnp_card_link *card, const struct pnp_card_device_id *card_id);
 	void (*remove) (struct pnp_card_link *card);
+	int  (*suspend) (struct pnp_card_link *card, pm_message_t state);
+	int  (*resume) (struct pnp_card_link *card);
 	struct pnp_driver link;
 };
 
