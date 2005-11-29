@@ -241,19 +241,7 @@ illegal_syscall:
 	sw	zero, PT_R7(sp)		# success
 	sw	v0, PT_R2(sp)		# result
 
-	/* Success, so skip usual error handling garbage.  */
-	lw	a2, TI_FLAGS($28)	# syscall tracing enabled?
-	li	t0, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
-	and	t0, a2, t0
-	bnez	t0, 1f
-
-	j	o32_syscall_exit
-
-1:	SAVE_STATIC
-	move	a0, sp
-	li	a1, 1
-	jal	do_syscall_trace
-	j	syscall_exit
+	j	o32_syscall_exit	# continue like a normal syscall
 
 no_mem:	li	v0, -ENOMEM
 	jr	ra
