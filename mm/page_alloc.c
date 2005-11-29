@@ -140,18 +140,13 @@ static void bad_page(const char *function, struct page *page)
 			1 << PG_reclaim |
 			1 << PG_slab    |
 			1 << PG_swapcache |
-			1 << PG_writeback |
-			1 << PG_reserved );
+			1 << PG_writeback );
 	set_page_count(page, 0);
 	reset_page_mapcount(page);
 	page->mapping = NULL;
 	add_taint(TAINT_BAD_PAGE);
 }
 
-#ifndef CONFIG_HUGETLB_PAGE
-#define prep_compound_page(page, order) do { } while (0)
-#define destroy_compound_page(page, order) do { } while (0)
-#else
 /*
  * Higher-order pages are called "compound pages".  They are structured thusly:
  *
@@ -205,7 +200,6 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 		ClearPageCompound(p);
 	}
 }
-#endif		/* CONFIG_HUGETLB_PAGE */
 
 /*
  * function for dealing with page's order in buddy system.
@@ -340,7 +334,7 @@ static inline void __free_pages_bulk (struct page *page,
 	zone->free_area[order].nr_free++;
 }
 
-static inline void free_pages_check(const char *function, struct page *page)
+static inline int free_pages_check(const char *function, struct page *page)
 {
 	if (	page_mapcount(page) ||
 		page->mapping != NULL ||
@@ -358,6 +352,12 @@ static inline void free_pages_check(const char *function, struct page *page)
 		bad_page(function, page);
 	if (PageDirty(page))
 		__ClearPageDirty(page);
+	/*
+	 * For now, we report if PG_reserved was found set, but do not
+	 * clear it, and do not free the page.  But we shall soon need
+	 * to do more, for when the ZERO_PAGE count wraps negative.
+	 */
+	return PageReserved(page);
 }
 
 /*
@@ -397,10 +397,9 @@ void __free_pages_ok(struct page *page, unsigned int order)
 {
 	LIST_HEAD(list);
 	int i;
+	int reserved = 0;
 
 	arch_free_page(page, order);
-
-	mod_page_state(pgfree, 1 << order);
 
 #ifndef CONFIG_MMU
 	if (order > 0)
@@ -409,8 +408,12 @@ void __free_pages_ok(struct page *page, unsigned int order)
 #endif
 
 	for (i = 0 ; i < (1 << order) ; ++i)
-		free_pages_check(__FUNCTION__, page + i);
+		reserved += free_pages_check(__FUNCTION__, page + i);
+	if (reserved)
+		return;
+
 	list_add(&page->lru, &list);
+	mod_page_state(pgfree, 1 << order);
 	kernel_map_pages(page, 1<<order, 0);
 	free_pages_bulk(page_zone(page), 1, &list, order);
 }
@@ -468,7 +471,7 @@ void set_page_refs(struct page *page, int order)
 /*
  * This page is about to be returned from the page allocator
  */
-static void prep_new_page(struct page *page, int order)
+static int prep_new_page(struct page *page, int order)
 {
 	if (	page_mapcount(page) ||
 		page->mapping != NULL ||
@@ -486,12 +489,20 @@ static void prep_new_page(struct page *page, int order)
 			1 << PG_reserved )))
 		bad_page(__FUNCTION__, page);
 
+	/*
+	 * For now, we report if PG_reserved was found set, but do not
+	 * clear it, and do not allocate the page: as a safety net.
+	 */
+	if (PageReserved(page))
+		return 1;
+
 	page->flags &= ~(1 << PG_uptodate | 1 << PG_error |
 			1 << PG_referenced | 1 << PG_arch_1 |
 			1 << PG_checked | 1 << PG_mappedtodisk);
 	set_page_private(page, 0);
 	set_page_refs(page, order);
 	kernel_map_pages(page, 1 << order, 1);
+	return 0;
 }
 
 /* 
@@ -674,11 +685,14 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 
 	arch_free_page(page, 0);
 
-	kernel_map_pages(page, 1, 0);
-	inc_page_state(pgfree);
 	if (PageAnon(page))
 		page->mapping = NULL;
-	free_pages_check(__FUNCTION__, page);
+	if (free_pages_check(__FUNCTION__, page))
+		return;
+
+	inc_page_state(pgfree);
+	kernel_map_pages(page, 1, 0);
+
 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 	local_irq_save(flags);
 	list_add(&page->lru, &pcp->list);
@@ -717,12 +731,14 @@ static struct page *
 buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 {
 	unsigned long flags;
-	struct page *page = NULL;
+	struct page *page;
 	int cold = !!(gfp_flags & __GFP_COLD);
 
+again:
 	if (order == 0) {
 		struct per_cpu_pages *pcp;
 
+		page = NULL;
 		pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 		local_irq_save(flags);
 		if (pcp->count <= pcp->low)
@@ -744,7 +760,8 @@ buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 	if (page != NULL) {
 		BUG_ON(bad_range(zone, page));
 		mod_page_state_zone(zone, pgalloc, 1 << order);
-		prep_new_page(page, order);
+		if (prep_new_page(page, order))
+			goto again;
 
 		if (gfp_flags & __GFP_ZERO)
 			prep_zero_page(page, order, gfp_flags);
@@ -756,9 +773,12 @@ buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 }
 
 #define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
-#define ALLOC_HARDER		0x02 /* try to alloc harder */
-#define ALLOC_HIGH		0x04 /* __GFP_HIGH set */
-#define ALLOC_CPUSET		0x08 /* check for correct cpuset */
+#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+#define ALLOC_HARDER		0x10 /* try to alloc harder */
+#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
 
 /*
  * Return 1 if free pages are above 'mark'. This takes into account the order
@@ -813,7 +833,14 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 			continue;
 
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-			if (!zone_watermark_ok(*z, order, (*z)->pages_low,
+			unsigned long mark;
+			if (alloc_flags & ALLOC_WMARK_MIN)
+				mark = (*z)->pages_min;
+			else if (alloc_flags & ALLOC_WMARK_LOW)
+				mark = (*z)->pages_low;
+			else
+				mark = (*z)->pages_high;
+			if (!zone_watermark_ok(*z, order, mark,
 				    classzone_idx, alloc_flags))
 				continue;
 		}
@@ -854,7 +881,7 @@ restart:
 	}
 
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
-				zonelist, ALLOC_CPUSET);
+				zonelist, ALLOC_WMARK_LOW|ALLOC_CPUSET);
 	if (page)
 		goto got_pg;
 
@@ -871,7 +898,7 @@ restart:
 	 * cannot run direct reclaim, or if the caller has realtime scheduling
 	 * policy.
 	 */
-	alloc_flags = 0;
+	alloc_flags = ALLOC_WMARK_MIN;
 	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
 		alloc_flags |= ALLOC_HARDER;
 	if (gfp_mask & __GFP_HIGH)
@@ -942,7 +969,7 @@ rebalance:
 		 * under heavy pressure.
 		 */
 		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
-						zonelist, ALLOC_CPUSET);
+				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
 		if (page)
 			goto got_pg;
 

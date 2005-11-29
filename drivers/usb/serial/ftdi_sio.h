@@ -128,6 +128,13 @@
 #define SEALEVEL_2803_8_PID	0X2883 	/* SeaLINK+8 (2803) Port 8 */
 
 /*
+ * The following are the values for two KOBIL chipcard terminals.
+ */
+#define KOBIL_VID		0x0d46	/* KOBIL Vendor ID */
+#define KOBIL_CONV_B1_PID	0x2020	/* KOBIL Konverter for B1 */
+#define KOBIL_CONV_KAAN_PID	0x2021	/* KOBIL_Konverter for KAAN */
+
+/*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
  

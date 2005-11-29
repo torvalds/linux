@@ -4,7 +4,7 @@ FAQ list:
 =========
 
  A FAQ list may be found in the fdutils package (see below), and also
-at http://fdutils.linux.lu/FAQ.html
+at <http://fdutils.linux.lu/faq.html>.
 
 
 LILO configuration options (Thinkpad users, read this)
@@ -217,10 +217,10 @@ It also contains additional documentation about the floppy driver.
 The latest version can be found at fdutils homepage:
  http://fdutils.linux.lu
 
-The fdutils-5.4 release can be found at:
- http://fdutils.linux.lu/fdutils-5.4.src.tar.gz
- http://www.tux.org/pub/knaff/fdutils/fdutils-5.4.src.tar.gz
- ftp://metalab.unc.edu/pub/Linux/utils/disk-management/fdutils-5.4.src.tar.gz
+The fdutils releases can be found at:
+ http://fdutils.linux.lu/download.html
+ http://www.tux.org/pub/knaff/fdutils/
+ ftp://metalab.unc.edu/pub/Linux/utils/disk-management/
 
 Reporting problems about the floppy driver
 ==========================================

@@ -12,7 +12,7 @@ lib-y = bitops.o bugs.o csum-partial.o delay.o fault.o ldt.o mem.o memcpy.o \
 obj-y := ksyms.o
 obj-$(CONFIG_MODULES) += module.o um_module.o
 
-USER_OBJS := ptrace_user.o sigcontext.o
+USER_OBJS := ptrace_user.o sigcontext.o stub_segv.o
 
 SYMLINKS = bitops.c csum-copy.S csum-partial.c csum-wrappers.c ldt.c memcpy.S \
 	thunk.S module.c

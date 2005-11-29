@@ -11,7 +11,7 @@ struct vm_area_struct;
 /*
  * GFP bitmasks..
  */
-/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
+/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low three bits) */
 #define __GFP_DMA	((__force gfp_t)0x01u)
 #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
 #ifdef CONFIG_DMA_IS_DMA32
@@ -74,7 +74,12 @@ struct vm_area_struct;
 #define GFP_DMA32	__GFP_DMA32
 
 
-#define gfp_zone(mask) ((__force int)((mask) & (__force gfp_t)GFP_ZONEMASK))
+static inline int gfp_zone(gfp_t gfp)
+{
+	int zone = GFP_ZONEMASK & (__force int) gfp;
+	BUG_ON(zone >= GFP_ZONETYPES);
+	return zone;
+}
 
 /*
  * There is only one page-allocator function, and two main namespaces to

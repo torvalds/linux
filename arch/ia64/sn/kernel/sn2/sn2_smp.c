@@ -492,6 +492,9 @@ static struct proc_dir_entry *proc_sn2_ptc;
 
 static int __init sn2_ptc_init(void)
 {
+	if (!ia64_platform_is("sn2"))
+		return -ENOSYS;
+
 	if (!(proc_sn2_ptc = create_proc_entry(PTC_BASENAME, 0444, NULL))) {
 		printk(KERN_ERR "unable to create %s proc entry", PTC_BASENAME);
 		return -EINVAL;

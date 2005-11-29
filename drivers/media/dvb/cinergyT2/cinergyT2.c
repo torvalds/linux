@@ -772,7 +772,7 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 	input_dev->name = DRIVER_NAME " remote control";
 	input_dev->phys = cinergyt2->phys;
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
-	for (i = 0; ARRAY_SIZE(rc_keys); i += 3)
+	for (i = 0; i < ARRAY_SIZE(rc_keys); i += 3)
 		set_bit(rc_keys[i + 2], input_dev->keybit);
 	input_dev->keycodesize = 0;
 	input_dev->keycodemax = 0;

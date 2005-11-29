@@ -121,6 +121,9 @@
 
 #define PORT_IP3106	70
 
+/* Hilscher netx */
+#define PORT_NETX	71
+
 #ifdef __KERNEL__
 
 #include <linux/config.h>

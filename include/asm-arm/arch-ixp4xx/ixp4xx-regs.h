@@ -47,6 +47,7 @@
  * Queue Manager
  */
 #define IXP4XX_QMGR_BASE_PHYS		(0x60000000)
+#define IXP4XX_QMGR_REGION_SIZE		(0x00004000)
 
 /*
  * Expansion BUS Configuration registers

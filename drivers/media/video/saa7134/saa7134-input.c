@@ -713,6 +713,8 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		return -ENOMEM;
 	}
 
+	ir->dev = input_dev;
+
 	/* init hardware-specific stuff */
 	ir->mask_keycode = mask_keycode;
 	ir->mask_keydown = mask_keydown;

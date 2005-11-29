@@ -27,24 +27,20 @@ static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *page = NULL;
 
 	if (pte_present(pte)) {
-		unsigned long pfn = pte_pfn(pte);
-		flush_cache_page(vma, addr, pfn);
+		flush_cache_page(vma, addr, pte_pfn(pte));
 		pte = ptep_clear_flush(vma, addr, ptep);
-		if (unlikely(!pfn_valid(pfn))) {
-			print_bad_pte(vma, pte, addr);
-			goto out;
+		page = vm_normal_page(vma, addr, pte);
+		if (page) {
+			if (pte_dirty(pte))
+				set_page_dirty(page);
+			page_remove_rmap(page);
+			page_cache_release(page);
 		}
-		page = pfn_to_page(pfn);
-		if (pte_dirty(pte))
-			set_page_dirty(page);
-		page_remove_rmap(page);
-		page_cache_release(page);
 	} else {
 		if (!pte_file(pte))
 			free_swap_and_cache(pte_to_swp_entry(pte));
 		pte_clear(mm, addr, ptep);
 	}
-out:
 	return !!page;
 }
 
@@ -64,8 +60,6 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pgd_t *pgd;
 	pte_t pte_val;
 	spinlock_t *ptl;
-
-	BUG_ON(vma->vm_flags & VM_RESERVED);
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
@@ -121,8 +115,6 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	pgd_t *pgd;
 	pte_t pte_val;
 	spinlock_t *ptl;
-
-	BUG_ON(vma->vm_flags & VM_RESERVED);
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
@@ -204,12 +196,10 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 	 * Make sure the vma is shared, that it supports prefaulting,
 	 * and that the remapped range is valid and fully within
 	 * the single existing vma.  vm_private_data is used as a
-	 * swapout cursor in a VM_NONLINEAR vma (unless VM_RESERVED
-	 * or VM_LOCKED, but VM_LOCKED could be revoked later on).
+	 * swapout cursor in a VM_NONLINEAR vma.
 	 */
 	if (vma && (vma->vm_flags & VM_SHARED) &&
-		(!vma->vm_private_data ||
-			(vma->vm_flags & (VM_NONLINEAR|VM_RESERVED))) &&
+		(!vma->vm_private_data || (vma->vm_flags & VM_NONLINEAR)) &&
 		vma->vm_ops && vma->vm_ops->populate &&
 			end > start && start >= vma->vm_start &&
 				end <= vma->vm_end) {
