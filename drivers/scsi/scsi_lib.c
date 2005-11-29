@@ -884,7 +884,8 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 			* system where READ CAPACITY failed, we may have read
 			* past the end of the disk.
 		 	*/
-			if (cmd->device->use_10_for_rw &&
+			if ((cmd->device->use_10_for_rw &&
+			    sshdr.asc == 0x20 && sshdr.ascq == 0x00) &&
 			    (cmd->cmnd[0] == READ_10 ||
 			     cmd->cmnd[0] == WRITE_10)) {
 				cmd->device->use_10_for_rw = 0;
