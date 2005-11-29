@@ -4,7 +4,7 @@
  *
  * (C) 2000 Red Hat. GPL'd
  *
- * $Id: cfi_cmdset_0001.c,v 1.185 2005/11/07 11:14:22 gleixner Exp $
+ * $Id: cfi_cmdset_0001.c,v 1.186 2005/11/23 22:07:52 nico Exp $
  *
  *
  * 10/10/2000	Nicolas Pitre <nico@cam.org>
@@ -644,9 +644,8 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		 *
 		 * - contension arbitration is handled in the owner's context.
 		 *
-		 * The 'shared' struct can be read when its lock is taken.
-		 * However any writes to it can only be made when the current
-		 * owner's lock is also held.
+		 * The 'shared' struct can be read and/or written only when
+		 * its lock is taken.
 		 */
 		struct flchip_shared *shared = chip->priv;
 		struct flchip *contender;
@@ -675,14 +674,13 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 			}
 			timeo = jiffies + HZ;
 			spin_lock(&shared->lock);
+			spin_unlock(contender->mutex);
 		}
 
 		/* We now own it */
 		shared->writing = chip;
 		if (mode == FL_ERASING)
 			shared->erasing = chip;
-		if (contender && contender != chip)
-			spin_unlock(contender->mutex);
 		spin_unlock(&shared->lock);
 	}
 

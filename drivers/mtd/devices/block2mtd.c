@@ -1,5 +1,5 @@
 /*
- * $Id: block2mtd.c,v 1.29 2005/11/07 11:14:24 gleixner Exp $
+ * $Id: block2mtd.c,v 1.30 2005/11/29 14:48:32 gleixner Exp $
  *
  * block2mtd.c - create an mtd from a block device
  *
@@ -19,7 +19,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/buffer_head.h>
 
-#define VERSION "$Revision: 1.29 $"
+#define VERSION "$Revision: 1.30 $"
 
 
 #define ERROR(fmt, args...) printk(KERN_ERR "block2mtd: " fmt "\n" , ## args)
@@ -40,7 +40,7 @@ static LIST_HEAD(blkmtd_device_list);
 
 
 #define PAGE_READAHEAD 64
-void cache_readahead(struct address_space *mapping, int index)
+static void cache_readahead(struct address_space *mapping, int index)
 {
 	filler_t *filler = (filler_t*)mapping->a_ops->readpage;
 	int i, pagei;

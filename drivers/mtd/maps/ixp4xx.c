@@ -1,5 +1,5 @@
 /*
- * $Id: ixp4xx.c,v 1.12 2005/11/07 11:14:27 gleixner Exp $
+ * $Id: ixp4xx.c,v 1.13 2005/11/16 16:23:21 dvrabel Exp $
  *
  * drivers/mtd/maps/ixp4xx.c
  *
@@ -34,10 +34,55 @@
 
 #include <linux/reboot.h>
 
+/*
+ * Read/write a 16 bit word from flash address 'addr'.
+ *
+ * When the cpu is in little-endian mode it swizzles the address lines
+ * ('address coherency') so we need to undo the swizzling to ensure commands
+ * and the like end up on the correct flash address.
+ *
+ * To further complicate matters, due to the way the expansion bus controller
+ * handles 32 bit reads, the byte stream ABCD is stored on the flash as:
+ *     D15    D0
+ *     +---+---+
+ *     | A | B | 0
+ *     +---+---+
+ *     | C | D | 2
+ *     +---+---+
+ * This means that on LE systems each 16 bit word must be swapped. Note that
+ * this requires CONFIG_MTD_CFI_BE_BYTE_SWAP to be enabled to 'unswap' the CFI
+ * data and other flash commands which are always in D7-D0.
+ */
 #ifndef __ARMEB__
+#ifndef CONFIG_MTD_CFI_BE_BYTE_SWAP
+#  error CONFIG_MTD_CFI_BE_BYTE_SWAP required
+#endif
+
+static inline u16 flash_read16(void __iomem *addr)
+{
+	return be16_to_cpu(__raw_readw((void __iomem *)((unsigned long)addr ^ 0x2)));
+}
+
+static inline void flash_write16(u16 d, void __iomem *addr)
+{
+	__raw_writew(cpu_to_be16(d), (void __iomem *)((unsigned long)addr ^ 0x2));
+}
+
 #define	BYTE0(h)	((h) & 0xFF)
 #define	BYTE1(h)	(((h) >> 8) & 0xFF)
+
 #else
+
+static inline u16 flash_read16(const void __iomem *addr)
+{
+	return __raw_readw(addr);
+}
+
+static inline void flash_write16(u16 d, void __iomem *addr)
+{
+	__raw_writew(d, addr);
+}
+
 #define	BYTE0(h)	(((h) >> 8) & 0xFF)
 #define	BYTE1(h)	((h) & 0xFF)
 #endif
@@ -45,7 +90,7 @@
 static map_word ixp4xx_read16(struct map_info *map, unsigned long ofs)
 {
 	map_word val;
-	val.x[0] = le16_to_cpu(readw(map->virt + ofs));
+	val.x[0] = flash_read16(map->virt + ofs);
 	return val;
 }
 
@@ -57,19 +102,28 @@ static map_word ixp4xx_read16(struct map_info *map, unsigned long ofs)
 static void ixp4xx_copy_from(struct map_info *map, void *to,
 			     unsigned long from, ssize_t len)
 {
-	int i;
 	u8 *dest = (u8 *) to;
 	void __iomem *src = map->virt + from;
-	u16 data;
 
-	for (i = 0; i < (len / 2); i++) {
-		data = le16_to_cpu(readw(src + 2*i));
-		dest[i * 2] = BYTE0(data);
-		dest[i * 2 + 1] = BYTE1(data);
+	if (len <= 0)
+		return;
+
+	if (from & 1) {
+		*dest++ = BYTE1(flash_read16(src));
+                src++;
+		--len;
 	}
 
-	if (len & 1)
-		dest[len - 1] = BYTE0(le16_to_cpu(readw(src + 2*i)));
+	while (len >= 2) {
+		u16 data = flash_read16(src);
+		*dest++ = BYTE0(data);
+		*dest++ = BYTE1(data);
+		src += 2;
+		len -= 2;
+        }
+
+	if (len > 0)
+		*dest++ = BYTE0(flash_read16(src));
 }
 
 /*
@@ -79,7 +133,7 @@ static void ixp4xx_copy_from(struct map_info *map, void *to,
 static void ixp4xx_probe_write16(struct map_info *map, map_word d, unsigned long adr)
 {
 	if (!(adr & 1))
-		writew(cpu_to_le16(d.x[0]), map->virt + adr);
+		flash_write16(d.x[0], map->virt + adr);
 }
 
 /*
@@ -87,7 +141,7 @@ static void ixp4xx_probe_write16(struct map_info *map, map_word d, unsigned long
  */
 static void ixp4xx_write16(struct map_info *map, map_word d, unsigned long adr)
 {
-	writew(cpu_to_le16(d.x[0]), map->virt + adr);
+	flash_write16(d.x[0], map->virt + adr);
 }
 
 struct ixp4xx_flash_info {
