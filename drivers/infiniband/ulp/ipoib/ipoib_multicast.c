@@ -138,14 +138,10 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 	mcast->dev = dev;
 	mcast->created = jiffies;
 	mcast->backoff = 1;
-	mcast->logcount = 0;
 
 	INIT_LIST_HEAD(&mcast->list);
 	INIT_LIST_HEAD(&mcast->neigh_list);
 	skb_queue_head_init(&mcast->pkt_queue);
-
-	mcast->ah    = NULL;
-	mcast->query = NULL;
 
 	return mcast;
 }
