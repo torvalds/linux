@@ -1576,7 +1576,7 @@ static int dummy_hub_status (struct usb_hcd *hcd, char *buf)
 	dum = hcd_to_dummy (hcd);
 
 	spin_lock_irqsave (&dum->lock, flags);
-	if (hcd->state != HC_STATE_RUNNING)
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
 		goto done;
 
 	if (dum->resuming && time_after_eq (jiffies, dum->re_timeout)) {
@@ -1623,7 +1623,7 @@ static int dummy_hub_control (
 	int		retval = 0;
 	unsigned long	flags;
 
-	if (hcd->state != HC_STATE_RUNNING)
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
 		return -ETIMEDOUT;
 
 	dum = hcd_to_dummy (hcd);
@@ -1756,9 +1756,12 @@ static int dummy_bus_suspend (struct usb_hcd *hcd)
 {
 	struct dummy *dum = hcd_to_dummy (hcd);
 
+	dev_dbg (&hcd->self.root_hub->dev, "%s\n", __FUNCTION__);
+
 	spin_lock_irq (&dum->lock);
 	dum->rh_state = DUMMY_RH_SUSPENDED;
 	set_link_state (dum);
+	hcd->state = HC_STATE_SUSPENDED;
 	spin_unlock_irq (&dum->lock);
 	return 0;
 }
@@ -1766,14 +1769,23 @@ static int dummy_bus_suspend (struct usb_hcd *hcd)
 static int dummy_bus_resume (struct usb_hcd *hcd)
 {
 	struct dummy *dum = hcd_to_dummy (hcd);
+	int rc = 0;
+
+	dev_dbg (&hcd->self.root_hub->dev, "%s\n", __FUNCTION__);
 
 	spin_lock_irq (&dum->lock);
-	dum->rh_state = DUMMY_RH_RUNNING;
-	set_link_state (dum);
-	if (!list_empty(&dum->urbp_list))
-		mod_timer (&dum->timer, jiffies);
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+		dev_warn (&hcd->self.root_hub->dev, "HC isn't running!\n");
+		rc = -ENODEV;
+	} else {
+		dum->rh_state = DUMMY_RH_RUNNING;
+		set_link_state (dum);
+		if (!list_empty(&dum->urbp_list))
+			mod_timer (&dum->timer, jiffies);
+		hcd->state = HC_STATE_RUNNING;
+	}
 	spin_unlock_irq (&dum->lock);
-	return 0;
+	return rc;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1933,12 +1945,19 @@ static int dummy_hcd_remove (struct platform_device *pdev)
 static int dummy_hcd_suspend (struct platform_device *pdev, pm_message_t state)
 {
 	struct usb_hcd		*hcd;
+	struct dummy		*dum;
+	int			rc = 0;
 
 	dev_dbg (&pdev->dev, "%s\n", __FUNCTION__);
-	hcd = platform_get_drvdata (pdev);
 
-	hcd->state = HC_STATE_SUSPENDED;
-	return 0;
+	hcd = platform_get_drvdata (pdev);
+	dum = hcd_to_dummy (hcd);
+	if (dum->rh_state == DUMMY_RH_RUNNING) {
+		dev_warn(&pdev->dev, "Root hub isn't suspended!\n");
+		rc = -EBUSY;
+	} else
+		clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+	return rc;
 }
 
 static int dummy_hcd_resume (struct platform_device *pdev)
@@ -1946,9 +1965,9 @@ static int dummy_hcd_resume (struct platform_device *pdev)
 	struct usb_hcd		*hcd;
 
 	dev_dbg (&pdev->dev, "%s\n", __FUNCTION__);
-	hcd = platform_get_drvdata (pdev);
-	hcd->state = HC_STATE_RUNNING;
 
+	hcd = platform_get_drvdata (pdev);
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	usb_hcd_poll_rh_status (hcd);
 	return 0;
 }
