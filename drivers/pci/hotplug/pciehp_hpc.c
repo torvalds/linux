@@ -750,7 +750,7 @@ static int hpc_power_on_slot(struct slot * slot)
 {
 	struct php_ctlr_state_s *php_ctlr = slot->ctrl->hpc_ctlr_handle;
 	u16 slot_cmd;
-	u16 slot_ctrl;
+	u16 slot_ctrl, slot_status;
 
 	int retval = 0;
 
@@ -766,6 +766,14 @@ static int hpc_power_on_slot(struct slot * slot)
 		err("%s: Invalid HPC slot number!\n", __FUNCTION__);
 		return -1;
 	}
+
+	/* Clear sticky power-fault bit from previous power failures */
+	hp_register_read_word(php_ctlr->pci_dev,
+			SLOT_STATUS(slot->ctrl->cap_base), slot_status);
+	slot_status &= PWR_FAULT_DETECTED;
+	if (slot_status)
+		hp_register_write_word(php_ctlr->pci_dev,
+			SLOT_STATUS(slot->ctrl->cap_base), slot_status);
 
 	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_CTRL(slot->ctrl->cap_base), slot_ctrl);
 

@@ -34,7 +34,7 @@ static inline void ccw_update_attr(u8 *dst, u8 *src, int attribute,
 		msk <<= (8 - mod);
 
 	if (offset > mod)
-		set_bit(FBCON_BIT(7), (void *)&msk1);
+		msk1 |= 0x01;
 
 	for (i = 0; i < vc->vc_font.width; i++) {
 		for (j = 0; j < width; j++) {

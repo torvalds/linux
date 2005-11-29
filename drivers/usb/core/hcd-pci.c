@@ -20,9 +20,17 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/usb.h>
+
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <linux/usb.h>
+
+#ifdef CONFIG_PPC_PMAC
+#include <asm/machdep.h>
+#include <asm/pmac_feature.h>
+#include <asm/pci-bridge.h>
+#include <asm/prom.h>
+#endif
 
 #include "usb.h"
 #include "hcd.h"
@@ -277,8 +285,22 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 	}
 
 done:
-	if (retval == 0)
+	if (retval == 0) {
 		dev->dev.power.power_state = PMSG_SUSPEND;
+
+#ifdef CONFIG_PPC_PMAC
+		/* Disable ASIC clocks for USB */
+		if (_machine == _MACH_Pmac) {
+			struct device_node	*of_node;
+
+			of_node = pci_device_to_OF_node (dev);
+			if (of_node)
+				pmac_call_feature(PMAC_FTR_USB_ENABLE,
+							of_node, 0, 0);
+		}
+#endif
+	}
+
 	return retval;
 }
 EXPORT_SYMBOL (usb_hcd_pci_suspend);
@@ -300,6 +322,18 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 				"can't resume, not suspended!\n");
 		return 0;
 	}
+
+#ifdef CONFIG_PPC_PMAC
+	/* Reenable ASIC clocks for USB */
+	if (_machine == _MACH_Pmac) {
+		struct device_node *of_node;
+
+		of_node = pci_device_to_OF_node (dev);
+		if (of_node)
+			pmac_call_feature (PMAC_FTR_USB_ENABLE,
+						of_node, 0, 1);
+	}
+#endif
 
 	/* NOTE:  chip docs cover clean "real suspend" cases (what Linux
 	 * calls "standby", "suspend to RAM", and so on).  There are also

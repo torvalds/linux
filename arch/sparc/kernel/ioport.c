@@ -252,7 +252,7 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 	}
 
 	order = get_order(len_total);
-	if ((va = __get_free_pages(GFP_KERNEL, order)) == 0)
+	if ((va = __get_free_pages(GFP_KERNEL|__GFP_COMP, order)) == 0)
 		goto err_nopages;
 
 	if ((res = kmalloc(sizeof(struct resource), GFP_KERNEL)) == NULL)

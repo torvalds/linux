@@ -3714,12 +3714,6 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		USETF(FD_VERIFY);
 	}
 
-	/* set underlying gendisk policy to reflect real ro/rw status */
-	if (UTESTF(FD_DISK_WRITABLE))
-		inode->i_bdev->bd_disk->policy = 0;
-	else
-		inode->i_bdev->bd_disk->policy = 1;
-
 	if (UDRS->fd_ref == -1 || (UDRS->fd_ref && (filp->f_flags & O_EXCL)))
 		goto out2;
 

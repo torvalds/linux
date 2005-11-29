@@ -39,23 +39,27 @@ static kmem_cache_t *rpc_inode_cachep __read_mostly;
 #define RPC_UPCALL_TIMEOUT (30*HZ)
 
 static void
+__rpc_purge_list(struct rpc_inode *rpci, struct list_head *head, int err)
+{
+	struct rpc_pipe_msg *msg;
+	void (*destroy_msg)(struct rpc_pipe_msg *);
+
+	destroy_msg = rpci->ops->destroy_msg;
+	while (!list_empty(head)) {
+		msg = list_entry(head->next, struct rpc_pipe_msg, list);
+		list_del_init(&msg->list);
+		msg->errno = err;
+		destroy_msg(msg);
+	}
+}
+
+static void
 __rpc_purge_upcall(struct inode *inode, int err)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
-	struct rpc_pipe_msg *msg;
 
-	while (!list_empty(&rpci->pipe)) {
-		msg = list_entry(rpci->pipe.next, struct rpc_pipe_msg, list);
-		list_del_init(&msg->list);
-		msg->errno = err;
-		rpci->ops->destroy_msg(msg);
-	}
-	while (!list_empty(&rpci->in_upcall)) {
-		msg = list_entry(rpci->pipe.next, struct rpc_pipe_msg, list);
-		list_del_init(&msg->list);
-		msg->errno = err;
-		rpci->ops->destroy_msg(msg);
-	}
+	__rpc_purge_list(rpci, &rpci->pipe, err);
+	__rpc_purge_list(rpci, &rpci->in_upcall, err);
 	rpci->pipelen = 0;
 	wake_up(&rpci->waitq);
 }

@@ -95,12 +95,10 @@ unsigned long gen_pool_alloc(struct gen_pool *poolp, int size)
 	if (size > max_chunk_size)
 		return 0;
 
-	i = 0;
-
 	size = max(size, 1 << ALLOC_MIN_SHIFT);
-	s = roundup_pow_of_two(size);
-
-	j = i;
+	i = fls(size - 1);
+	s = 1 << i;
+	j = i -= ALLOC_MIN_SHIFT;
 
 	spin_lock_irqsave(&poolp->lock, flags);
 	while (!h[j].next) {
@@ -153,10 +151,10 @@ void gen_pool_free(struct gen_pool *poolp, unsigned long ptr, int size)
 	if (size > max_chunk_size)
 		return;
 
-	i = 0;
-
 	size = max(size, 1 << ALLOC_MIN_SHIFT);
-	s = roundup_pow_of_two(size);
+	i = fls(size - 1);
+	s = 1 << i;
+	i -= ALLOC_MIN_SHIFT;
 
 	a = ptr;
 

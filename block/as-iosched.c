@@ -1371,10 +1371,6 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 	struct as_rq *alias;
 	int data_dir;
 
-	if (arq->state != AS_RQ_PRESCHED) {
-		printk("arq->state: %d\n", arq->state);
-		WARN_ON(1);
-	}
 	arq->state = AS_RQ_NEW;
 
 	if (rq_data_dir(arq->request) == READ

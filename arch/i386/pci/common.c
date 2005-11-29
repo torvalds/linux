@@ -132,7 +132,7 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 		}
 	}
 
-	printk("PCI: Probing PCI hardware (bus %02x)\n", busnum);
+	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
 
 	return pci_scan_bus_parented(NULL, busnum, &pci_root_ops, NULL);
 }
@@ -144,7 +144,7 @@ static int __init pcibios_init(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	if (!raw_pci_ops) {
-		printk("PCI: System does not support PCI\n");
+		printk(KERN_WARNING "PCI: System does not support PCI\n");
 		return 0;
 	}
 

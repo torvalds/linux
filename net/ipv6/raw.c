@@ -748,7 +748,9 @@ static int rawv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	}
 	if (opt == NULL)
 		opt = np->opt;
-	opt = fl6_merge_options(&opt_space, flowlabel, opt);
+	if (flowlabel)
+		opt = fl6_merge_options(&opt_space, flowlabel, opt);
+	opt = ipv6_fixup_options(&opt_space, opt);
 
 	fl.proto = proto;
 	rawv6_probe_proto_opt(&fl, msg);

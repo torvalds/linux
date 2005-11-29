@@ -160,8 +160,8 @@ static __inline__ int atomic_inc_and_test(atomic_t *v)
 
 /**
  * atomic_add_negative - add and test if negative
- * @v: pointer of type atomic_t
  * @i: integer value to add
+ * @v: pointer of type atomic_t
  * 
  * Atomically adds @i to @v and returns true
  * if the result is negative, or false when
@@ -177,6 +177,31 @@ static __inline__ int atomic_add_negative(int i, atomic_t *v)
 		:"ir" (i), "m" (v->counter) : "memory");
 	return c;
 }
+
+/**
+ * atomic_add_return - add and return
+ * @i: integer value to add
+ * @v: pointer of type atomic_t
+ *
+ * Atomically adds @i to @v and returns @i + @v
+ */
+static __inline__ int atomic_add_return(int i, atomic_t *v)
+{
+	int __i = i;
+	__asm__ __volatile__(
+		LOCK "xaddl %0, %1;"
+		:"=r"(i)
+		:"m"(v->counter), "0"(i));
+	return i + __i;
+}
+
+static __inline__ int atomic_sub_return(int i, atomic_t *v)
+{
+	return atomic_add_return(-i,v);
+}
+
+#define atomic_inc_return(v)  (atomic_add_return(1,v))
+#define atomic_dec_return(v)  (atomic_sub_return(1,v))
 
 /* An 64bit atomic type */
 
@@ -320,14 +345,14 @@ static __inline__ int atomic64_inc_and_test(atomic64_t *v)
 
 /**
  * atomic64_add_negative - add and test if negative
- * @v: pointer to atomic64_t
  * @i: integer value to add
+ * @v: pointer to type atomic64_t
  *
  * Atomically adds @i to @v and returns true
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-static __inline__ long atomic64_add_negative(long i, atomic64_t *v)
+static __inline__ int atomic64_add_negative(long i, atomic64_t *v)
 {
 	unsigned char c;
 
@@ -339,26 +364,29 @@ static __inline__ long atomic64_add_negative(long i, atomic64_t *v)
 }
 
 /**
- * atomic_add_return - add and return
- * @v: pointer of type atomic_t
+ * atomic64_add_return - add and return
  * @i: integer value to add
+ * @v: pointer to type atomic64_t
  *
  * Atomically adds @i to @v and returns @i + @v
  */
-static __inline__ int atomic_add_return(int i, atomic_t *v)
+static __inline__ long atomic64_add_return(long i, atomic64_t *v)
 {
-	int __i = i;
+	long __i = i;
 	__asm__ __volatile__(
-		LOCK "xaddl %0, %1;"
+		LOCK "xaddq %0, %1;"
 		:"=r"(i)
 		:"m"(v->counter), "0"(i));
 	return i + __i;
 }
 
-static __inline__ int atomic_sub_return(int i, atomic_t *v)
+static __inline__ long atomic64_sub_return(long i, atomic64_t *v)
 {
-	return atomic_add_return(-i,v);
+	return atomic64_add_return(-i,v);
 }
+
+#define atomic64_inc_return(v)  (atomic64_add_return(1,v))
+#define atomic64_dec_return(v)  (atomic64_sub_return(1,v))
 
 #define atomic_cmpxchg(v, old, new) ((int)cmpxchg(&((v)->counter), old, new))
 
@@ -380,9 +408,6 @@ static __inline__ int atomic_sub_return(int i, atomic_t *v)
 	c != (u);						\
 })
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
-
-#define atomic_inc_return(v)  (atomic_add_return(1,v))
-#define atomic_dec_return(v)  (atomic_sub_return(1,v))
 
 /* These are x86-specific, used by some header files */
 #define atomic_clear_mask(mask, addr) \

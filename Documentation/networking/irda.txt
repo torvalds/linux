@@ -3,12 +3,8 @@ of the IrDA Utilities. More detailed information about these and associated
 programs can be found on http://irda.sourceforge.net/
 
 For more information about how to use the IrDA protocol stack, see the
-Linux Infared HOWTO (http://www.tuxmobil.org/Infrared-HOWTO/Infrared-HOWTO.html)
-by Werner Heuser <wehe@tuxmobil.org>
+Linux Infrared HOWTO by Werner Heuser <wehe@tuxmobil.org>:
+<http://www.tuxmobil.org/Infrared-HOWTO/Infrared-HOWTO.html>
 
 There is an active mailing list for discussing Linux-IrDA matters called
     irda-users@lists.sourceforge.net
-
-
-
-

@@ -310,7 +310,8 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 	 * Fix up the start offset of the attribute fork
 	 */
 	totsize -= size;
-	if (totsize == sizeof(xfs_attr_sf_hdr_t) && !args->addname) {
+	if (totsize == sizeof(xfs_attr_sf_hdr_t) && !args->addname &&
+	    !(mp->m_flags & XFS_MOUNT_COMPAT_ATTR)) {
 		/*
 		 * Last attribute now removed, revert to original
 		 * inode format making all literal area available
@@ -328,7 +329,8 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 		xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
 		dp->i_d.di_forkoff = xfs_attr_shortform_bytesfit(dp, totsize);
 		ASSERT(dp->i_d.di_forkoff);
-		ASSERT(totsize > sizeof(xfs_attr_sf_hdr_t) || args->addname);
+		ASSERT(totsize > sizeof(xfs_attr_sf_hdr_t) || args->addname ||
+			(mp->m_flags & XFS_MOUNT_COMPAT_ATTR));
 		dp->i_afp->if_ext_max =
 			XFS_IFORK_ASIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
 		dp->i_df.if_ext_max =
@@ -737,7 +739,8 @@ xfs_attr_shortform_allfit(xfs_dabuf_t *bp, xfs_inode_t *dp)
 				+ name_loc->namelen
 				+ INT_GET(name_loc->valuelen, ARCH_CONVERT);
 	}
-	if (bytes == sizeof(struct xfs_attr_sf_hdr))
+	if (!(dp->i_mount->m_flags & XFS_MOUNT_COMPAT_ATTR) &&
+	    (bytes == sizeof(struct xfs_attr_sf_hdr)))
 		return(-1);
 	return(xfs_attr_shortform_bytesfit(dp, bytes));
 }
@@ -775,6 +778,8 @@ xfs_attr_leaf_to_shortform(xfs_dabuf_t *bp, xfs_da_args_t *args, int forkoff)
 		goto out;
 
 	if (forkoff == -1) {
+		ASSERT(!(dp->i_mount->m_flags & XFS_MOUNT_COMPAT_ATTR));
+
 		/*
 		 * Last attribute was removed, revert to original
 		 * inode format making all literal area available
