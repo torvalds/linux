@@ -84,7 +84,7 @@ static int irq_in_use(unsigned int irq)
 
 static void eeh_report_error(struct pci_dev *dev, void *userdata)
 {
-	enum pcierr_result rc, *res = userdata;
+	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver = dev->driver;
 
 	dev->error_state = pci_channel_io_frozen;
@@ -103,10 +103,10 @@ static void eeh_report_error(struct pci_dev *dev, void *userdata)
 		return;
 
 	rc = driver->err_handler->error_detected (dev, pci_channel_io_frozen);
-	if (*res == PCIERR_RESULT_NONE) *res = rc;
-	if (*res == PCIERR_RESULT_NEED_RESET) return;
-	if (*res == PCIERR_RESULT_DISCONNECT &&
-	     rc == PCIERR_RESULT_NEED_RESET) *res = rc;
+	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
+	if (*res == PCI_ERS_RESULT_NEED_RESET) return;
+	if (*res == PCI_ERS_RESULT_DISCONNECT &&
+	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 }
 
 /** eeh_report_reset -- tell this device that the pci slot
@@ -256,6 +256,7 @@ void handle_eeh_events (struct eeh_event *event)
 	struct pci_dn *frozen_pdn;
 	struct pci_bus *frozen_bus;
 	int rc = 0;
+	enum pci_ers_result result = PCI_ERS_RESULT_NONE;
 
 	frozen_dn = find_device_pe(event->dn);
 	frozen_bus = pcibios_find_pci_bus(frozen_dn);
@@ -315,21 +316,20 @@ void handle_eeh_events (struct eeh_event *event)
 	 * status ... if any child can't handle the reset, then the entire
 	 * slot is dlpar removed and added.
 	 */
-	enum pcierr_result result = PCIERR_RESULT_NONE;
 	pci_walk_bus(frozen_bus, eeh_report_error, &result);
 
 	/* If all device drivers were EEH-unaware, then shut
 	 * down all of the device drivers, and hope they
 	 * go down willingly, without panicing the system.
 	 */
-	if (result == PCIERR_RESULT_NONE) {
+	if (result == PCI_ERS_RESULT_NONE) {
 		rc = eeh_reset_device(frozen_pdn, frozen_bus);
 		if (rc)
 			goto hard_fail;
 	}
 
 	/* If any device called out for a reset, then reset the slot */
-	if (result == PCIERR_RESULT_NEED_RESET) {
+	if (result == PCI_ERS_RESULT_NEED_RESET) {
 		rc = eeh_reset_device(frozen_pdn, NULL);
 		if (rc)
 			goto hard_fail;
@@ -337,7 +337,7 @@ void handle_eeh_events (struct eeh_event *event)
 	}
 
 	/* If all devices reported they can proceed, the re-enable PIO */
-	if (result == PCIERR_RESULT_CAN_RECOVER) {
+	if (result == PCI_ERS_RESULT_CAN_RECOVER) {
 		/* XXX Not supported; we brute-force reset the device */
 		rc = eeh_reset_device(frozen_pdn, NULL);
 		if (rc)
