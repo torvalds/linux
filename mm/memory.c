@@ -2009,6 +2009,8 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	int anon = 0;
 
 	pte_unmap(page_table);
+	BUG_ON(vma->vm_flags & VM_PFNMAP);
+
 	if (vma->vm_file) {
 		mapping = vma->vm_file->f_mapping;
 		sequence = mapping->truncate_count;
@@ -2041,7 +2043,7 @@ retry:
 		page = alloc_page_vma(GFP_HIGHUSER, vma, address);
 		if (!page)
 			goto oom;
-		cow_user_page(page, new_page, address);
+		copy_user_highpage(page, new_page, address);
 		page_cache_release(new_page);
 		new_page = page;
 		anon = 1;
