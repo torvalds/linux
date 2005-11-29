@@ -1486,7 +1486,7 @@ ns_nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
 /*
  * Module initialization function
  */
-int __init ns_init_module(void)
+static int __init ns_init_module(void)
 {
 	struct nand_chip *chip;
 	struct nandsim *nand;

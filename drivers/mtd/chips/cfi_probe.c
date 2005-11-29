@@ -1,7 +1,7 @@
 /*
    Common Flash Interface probe code.
    (C) 2000 Red Hat. GPL'd.
-   $Id: cfi_probe.c,v 1.85 2005/11/15 23:28:17 tpoynor Exp $
+   $Id: cfi_probe.c,v 1.86 2005/11/29 14:48:31 gleixner Exp $
 */
 
 #include <linux/config.h>
@@ -426,7 +426,7 @@ static struct mtd_chip_driver cfi_chipdrv = {
 	.module		= THIS_MODULE
 };
 
-int __init cfi_probe_init(void)
+static int __init cfi_probe_init(void)
 {
 	register_mtd_chip_driver(&cfi_chipdrv);
 	return 0;
