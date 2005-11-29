@@ -239,7 +239,6 @@
 #include <linux/string.h>
 #include <linux/suspend.h>
 #include <linux/utsname.h>
-#include <linux/wait.h>
 
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
@@ -251,7 +250,7 @@
 
 #define DRIVER_DESC		"File-backed Storage Gadget"
 #define DRIVER_NAME		"g_file_storage"
-#define DRIVER_VERSION		"20 October 2004"
+#define DRIVER_VERSION		"28 November 2005"
 
 static const char longname[] = DRIVER_DESC;
 static const char shortname[] = DRIVER_NAME;
@@ -588,7 +587,7 @@ enum fsg_buffer_state {
 struct fsg_buffhd {
 	void				*buf;
 	dma_addr_t			dma;
-	volatile enum fsg_buffer_state	state;
+	enum fsg_buffer_state		state;
 	struct fsg_buffhd		*next;
 
 	/* The NetChip 2280 is faster, and handles some protocol faults
@@ -597,9 +596,9 @@ struct fsg_buffhd {
 	unsigned int			bulk_out_intended_length;
 
 	struct usb_request		*inreq;
-	volatile int			inreq_busy;
+	int				inreq_busy;
 	struct usb_request		*outreq;
-	volatile int			outreq_busy;
+	int				outreq_busy;
 };
 
 enum fsg_state {
@@ -637,11 +636,11 @@ struct fsg_dev {
 
 	struct usb_ep		*ep0;		// Handy copy of gadget->ep0
 	struct usb_request	*ep0req;	// For control responses
-	volatile unsigned int	ep0_req_tag;
+	unsigned int		ep0_req_tag;
 	const char		*ep0req_name;
 
 	struct usb_request	*intreq;	// For interrupt responses
-	volatile int		intreq_busy;
+	int			intreq_busy;
 	struct fsg_buffhd	*intr_buffhd;
 
  	unsigned int		bulk_out_maxpacket;
@@ -671,7 +670,6 @@ struct fsg_dev {
 	struct fsg_buffhd	*next_buffhd_to_drain;
 	struct fsg_buffhd	buffhds[NUM_BUFFERS];
 
-	wait_queue_head_t	thread_wqh;
 	int			thread_wakeup_needed;
 	struct completion	thread_notifier;
 	struct task_struct	*thread_task;
@@ -1076,11 +1074,13 @@ static int populate_config_buf(struct usb_gadget *gadget,
 
 /* These routines may be called in process context or in_irq */
 
+/* Caller must hold fsg->lock */
 static void wakeup_thread(struct fsg_dev *fsg)
 {
 	/* Tell the main thread that something has happened */
 	fsg->thread_wakeup_needed = 1;
-	wake_up_all(&fsg->thread_wqh);
+	if (fsg->thread_task)
+		wake_up_process(fsg->thread_task);
 }
 
 
@@ -1167,11 +1167,12 @@ static void bulk_in_complete(struct usb_ep *ep, struct usb_request *req)
 		usb_ep_fifo_flush(ep);
 
 	/* Hold the lock while we update the request and buffer states */
+	smp_wmb();
 	spin_lock(&fsg->lock);
 	bh->inreq_busy = 0;
 	bh->state = BUF_STATE_EMPTY;
-	spin_unlock(&fsg->lock);
 	wakeup_thread(fsg);
+	spin_unlock(&fsg->lock);
 }
 
 static void bulk_out_complete(struct usb_ep *ep, struct usb_request *req)
@@ -1188,11 +1189,12 @@ static void bulk_out_complete(struct usb_ep *ep, struct usb_request *req)
 		usb_ep_fifo_flush(ep);
 
 	/* Hold the lock while we update the request and buffer states */
+	smp_wmb();
 	spin_lock(&fsg->lock);
 	bh->outreq_busy = 0;
 	bh->state = BUF_STATE_FULL;
-	spin_unlock(&fsg->lock);
 	wakeup_thread(fsg);
+	spin_unlock(&fsg->lock);
 }
 
 
@@ -1209,11 +1211,12 @@ static void intr_in_complete(struct usb_ep *ep, struct usb_request *req)
 		usb_ep_fifo_flush(ep);
 
 	/* Hold the lock while we update the request and buffer states */
+	smp_wmb();
 	spin_lock(&fsg->lock);
 	fsg->intreq_busy = 0;
 	bh->state = BUF_STATE_EMPTY;
-	spin_unlock(&fsg->lock);
 	wakeup_thread(fsg);
+	spin_unlock(&fsg->lock);
 }
 
 #else
@@ -1264,8 +1267,8 @@ static void received_cbi_adsc(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	fsg->cbbuf_cmnd_size = req->actual;
 	memcpy(fsg->cbbuf_cmnd, req->buf, fsg->cbbuf_cmnd_size);
 
-	spin_unlock(&fsg->lock);
 	wakeup_thread(fsg);
+	spin_unlock(&fsg->lock);
 }
 
 #else
@@ -1517,8 +1520,8 @@ static int fsg_setup(struct usb_gadget *gadget,
 
 /* Use this for bulk or interrupt transfers, not ep0 */
 static void start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
-		struct usb_request *req, volatile int *pbusy,
-		volatile enum fsg_buffer_state *state)
+		struct usb_request *req, int *pbusy,
+		enum fsg_buffer_state *state)
 {
 	int	rc;
 
@@ -1526,8 +1529,11 @@ static void start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
 		dump_msg(fsg, "bulk-in", req->buf, req->length);
 	else if (ep == fsg->intr_in)
 		dump_msg(fsg, "intr-in", req->buf, req->length);
+
+	spin_lock_irq(&fsg->lock);
 	*pbusy = 1;
 	*state = BUF_STATE_BUSY;
+	spin_unlock_irq(&fsg->lock);
 	rc = usb_ep_queue(ep, req, GFP_KERNEL);
 	if (rc != 0) {
 		*pbusy = 0;
@@ -1547,14 +1553,23 @@ static void start_transfer(struct fsg_dev *fsg, struct usb_ep *ep,
 
 static int sleep_thread(struct fsg_dev *fsg)
 {
-	int	rc;
+	int	rc = 0;
 
 	/* Wait until a signal arrives or we are woken up */
-	rc = wait_event_interruptible(fsg->thread_wqh,
-			fsg->thread_wakeup_needed);
+	for (;;) {
+		try_to_freeze();
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (signal_pending(current)) {
+			rc = -EINTR;
+			break;
+		}
+		if (fsg->thread_wakeup_needed)
+			break;
+		schedule();
+	}
+	__set_current_state(TASK_RUNNING);
 	fsg->thread_wakeup_needed = 0;
-	try_to_freeze();
-	return (rc ? -EINTR : 0);
+	return rc;
 }
 
 
@@ -1791,6 +1806,7 @@ static int do_write(struct fsg_dev *fsg)
 		if (bh->state == BUF_STATE_EMPTY && !get_some_more)
 			break;			// We stopped early
 		if (bh->state == BUF_STATE_FULL) {
+			smp_rmb();
 			fsg->next_buffhd_to_drain = bh->next;
 			bh->state = BUF_STATE_EMPTY;
 
@@ -2359,6 +2375,7 @@ static int throw_away_data(struct fsg_dev *fsg)
 
 		/* Throw away the data in a filled buffer */
 		if (bh->state == BUF_STATE_FULL) {
+			smp_rmb();
 			bh->state = BUF_STATE_EMPTY;
 			fsg->next_buffhd_to_drain = bh->next;
 
@@ -3024,6 +3041,7 @@ static int get_next_command(struct fsg_dev *fsg)
 			if ((rc = sleep_thread(fsg)) != 0)
 				return rc;
 			}
+		smp_rmb();
 		rc = received_cbw(fsg, bh);
 		bh->state = BUF_STATE_EMPTY;
 
@@ -4072,7 +4090,6 @@ static int __init fsg_alloc(void)
 	spin_lock_init(&fsg->lock);
 	init_rwsem(&fsg->filesem);
 	kref_init(&fsg->ref);
-	init_waitqueue_head(&fsg->thread_wqh);
 	init_completion(&fsg->thread_notifier);
 
 	the_fsg = fsg;
