@@ -29,8 +29,7 @@ with nondefault parameters, they can be edited in
 will find them all.
 
 Information on card services is available at:
-	ftp://hyper.stanford.edu/pub/pcmcia/doc
-        http://hyper.stanford.edu/HyperNews/get/pcmcia/home.html
+	http://pcmcia-cs.sourceforge.net/
 
 
 Card services user programs are still required for PCMCIA devices.

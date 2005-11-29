@@ -1,22 +1,10 @@
-/**************************************************************************
- *                                                                        *
- *  Unpublished copyright (c) 2005, Silicon Graphics, Inc.                *
- *  THIS IS UNPUBLISHED CONFIDENTIAL AND PROPRIETARY SOURCE CODE OF SGI.  *
- *                                                                        *
- *  The copyright notice above does  not evidence any actual or intended  *
- *  publication  or  disclosure  of  this source  code,  which  includes  *
- *  information that is confidential  and/or proprietary, and is a trade  *
- *  secret, of  Silicon Graphics, Inc.   ANY REPRODUCTION, MODIFICATION,  *
- *  DISTRIBUTION, PUBLIC  PERFORMANCE, OR  PUBLIC DISPLAY OF  OR THROUGH  *
- *  USE  OF THIS  SOURCE CODE  WITHOUT  THE EXPRESS  WRITTEN CONSENT  OF  *
- *  SILICON GRAPHICS, INC.  IS  STRICTLY PROHIBITED, AND IN VIOLATION OF  *
- *  APPLICABLE  LAWS   AND  INTERNATIONAL  TREATIES.    THE  RECEIPT  OR  *
- *  POSSESSION OF  THIS SOURCE CODE AND/OR RELATED  INFORMATION DOES NOT  *
- *  CONVEY OR IMPLY ANY RIGHTS  TO REPRODUCE, DISCLOSE OR DISTRIBUTE ITS  *
- *  CONTENTS,  OR TO  MANUFACTURE, USE,  OR  SELL ANYTHING  THAT IT  MAY  *
- *  DESCRIBE, IN WHOLE OR IN PART.                                        *
- *                                                                        *
- **************************************************************************/
+/*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * Copyright (c) 2003-2005 Silicon Graphics, Inc. All rights reserved.
+ */
 
 #ifndef __ASM_IA64_SN_TIOCE_H__
 #define __ASM_IA64_SN_TIOCE_H__

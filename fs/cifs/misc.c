@@ -678,7 +678,7 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 	__u16 temp;
 
 	if(!mapChars) 
-		return cifs_strtoUCS((wchar_t *) target, source, PATH_MAX, cp);
+		return cifs_strtoUCS(target, source, PATH_MAX, cp);
 
 	for(i = 0, j = 0; i < maxlen; j++) {
 		src_char = source[i];

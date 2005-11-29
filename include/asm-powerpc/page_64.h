@@ -103,8 +103,9 @@ extern unsigned int HPAGE_SHIFT;
 #define HTLB_AREA_SIZE		(1UL << HTLB_AREA_SHIFT)
 #define GET_HTLB_AREA(x)	((x) >> HTLB_AREA_SHIFT)
 
-#define LOW_ESID_MASK(addr, len)    (((1U << (GET_ESID(addr+len-1)+1)) \
-		                      - (1U << GET_ESID(addr))) & 0xffff)
+#define LOW_ESID_MASK(addr, len)    \
+	(((1U << (GET_ESID(min((addr)+(len)-1, 0x100000000UL))+1)) \
+	  - (1U << GET_ESID(min((addr), 0x100000000UL)))) & 0xffff)
 #define HTLB_AREA_MASK(addr, len)   (((1U << (GET_HTLB_AREA(addr+len-1)+1)) \
 		                      - (1U << GET_HTLB_AREA(addr))) & 0xffff)
 
@@ -113,17 +114,21 @@ extern unsigned int HPAGE_SHIFT;
 #define ARCH_HAS_SETCLEAR_HUGE_PTE
 
 #define touches_hugepage_low_range(mm, addr, len) \
-	(LOW_ESID_MASK((addr), (len)) & (mm)->context.low_htlb_areas)
+	(((addr) < 0x100000000UL) \
+	 && (LOW_ESID_MASK((addr), (len)) & (mm)->context.low_htlb_areas))
 #define touches_hugepage_high_range(mm, addr, len) \
-	(HTLB_AREA_MASK((addr), (len)) & (mm)->context.high_htlb_areas)
+	((((addr) + (len)) > 0x100000000UL) \
+	  && (HTLB_AREA_MASK((addr), (len)) & (mm)->context.high_htlb_areas))
 
 #define __within_hugepage_low_range(addr, len, segmask) \
-	((LOW_ESID_MASK((addr), (len)) | (segmask)) == (segmask))
+	( (((addr)+(len)) <= 0x100000000UL) \
+	  && ((LOW_ESID_MASK((addr), (len)) | (segmask)) == (segmask)))
 #define within_hugepage_low_range(addr, len) \
 	__within_hugepage_low_range((addr), (len), \
 				    current->mm->context.low_htlb_areas)
 #define __within_hugepage_high_range(addr, len, zonemask) \
-	((HTLB_AREA_MASK((addr), (len)) | (zonemask)) == (zonemask))
+	( ((addr) >= 0x100000000UL) \
+	  && ((HTLB_AREA_MASK((addr), (len)) | (zonemask)) == (zonemask)))
 #define within_hugepage_high_range(addr, len) \
 	__within_hugepage_high_range((addr), (len), \
 				    current->mm->context.high_htlb_areas)
@@ -135,9 +140,9 @@ extern unsigned int HPAGE_SHIFT;
 
 #define in_hugepage_area(context, addr) \
 	(cpu_has_feature(CPU_FTR_16M_PAGE) && \
-	 ( ((1 << GET_HTLB_AREA(addr)) & (context).high_htlb_areas) || \
-	   ( ((addr) < 0x100000000L) && \
-	     ((1 << GET_ESID(addr)) & (context).low_htlb_areas) ) ) )
+	 ( ( (addr) >= 0x100000000UL) \
+	   ? ((1 << GET_HTLB_AREA(addr)) & (context).high_htlb_areas) \
+	   : ((1 << GET_ESID(addr)) & (context).low_htlb_areas) ) )
 
 #else /* !CONFIG_HUGETLB_PAGE */
 

@@ -2194,7 +2194,7 @@ static int map_block_for_writepage(struct inode *inode,
 	INITIALIZE_PATH(path);
 	int pos_in_item;
 	int jbegin_count = JOURNAL_PER_BALANCE_CNT;
-	loff_t byte_offset = (block << inode->i_sb->s_blocksize_bits) + 1;
+	loff_t byte_offset = ((loff_t)block << inode->i_sb->s_blocksize_bits)+1;
 	int retval;
 	int use_get_block = 0;
 	int bytes_copied = 0;

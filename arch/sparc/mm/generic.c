@@ -32,9 +32,7 @@ static inline void io_remap_pte_range(struct mm_struct *mm, pte_t * pte, unsigne
 	if (end > PMD_SIZE)
 		end = PMD_SIZE;
 	do {
-		pte_t oldpage = *pte;
-		pte_clear(mm, address, pte);
-		set_pte(pte, mk_pte_io(offset, prot, space));
+		set_pte_at(mm, address, pte, mk_pte_io(offset, prot, space));
 		address += PAGE_SIZE;
 		offset += PAGE_SIZE;
 		pte++;
@@ -63,7 +61,7 @@ static inline int io_remap_pmd_range(struct mm_struct *mm, pmd_t * pmd, unsigned
 }
 
 int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
-			unsigned long pfn, unsigned long size, pgprot_t prot)
+		       unsigned long pfn, unsigned long size, pgprot_t prot)
 {
 	int error = 0;
 	pgd_t * dir;
@@ -74,7 +72,9 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	unsigned long offset = GET_PFN(pfn) << PAGE_SHIFT;
 
 	/* See comment in mm/memory.c remap_pfn_range */
-	vma->vm_flags |= VM_IO | VM_RESERVED;
+	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+	vma->vm_pgoff = (offset >> PAGE_SHIFT) |
+		((unsigned long)space << 28UL);
 
 	prot = __pgprot(pg_iobits);
 	offset -= from;

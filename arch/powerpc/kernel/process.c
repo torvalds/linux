@@ -457,7 +457,6 @@ void flush_thread(void)
 	if (t->flags & _TIF_ABI_PENDING)
 		t->flags ^= (_TIF_ABI_PENDING | _TIF_32BIT);
 #endif
-	kprobe_flush_task(current);
 
 #ifndef CONFIG_SMP
 	if (last_task_used_math == current)

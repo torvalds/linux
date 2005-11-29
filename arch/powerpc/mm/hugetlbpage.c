@@ -287,15 +287,15 @@ static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 
 int prepare_hugepage_range(unsigned long addr, unsigned long len)
 {
-	int err;
+	int err = 0;
 
 	if ( (addr+len) < addr )
 		return -EINVAL;
 
-	if ((addr + len) < 0x100000000UL)
+	if (addr < 0x100000000UL)
 		err = open_low_hpage_areas(current->mm,
 					  LOW_ESID_MASK(addr, len));
-	else
+	if ((addr + len) > 0x100000000UL)
 		err = open_high_hpage_areas(current->mm,
 					    HTLB_AREA_MASK(addr, len));
 	if (err) {
@@ -754,9 +754,7 @@ repeat:
 	}
 
 	/*
-	 * No need to use ldarx/stdcx here because all who
-	 * might be updating the pte will hold the
-	 * page_table_lock
+	 * No need to use ldarx/stdcx here
 	 */
 	*ptep = __pte(new_pte & ~_PAGE_BUSY);
 

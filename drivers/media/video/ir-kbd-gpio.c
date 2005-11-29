@@ -673,7 +673,6 @@ static int ir_probe(struct device *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(sub->core->pci));
 
-	ir->sub = sub;
 	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
@@ -687,6 +686,9 @@ static int ir_probe(struct device *dev)
 		input_dev->id.product = sub->core->pci->device;
 	}
 	input_dev->cdev.dev = &sub->core->pci->dev;
+
+	ir->input = input_dev;
+	ir->sub = sub;
 
 	if (ir->polling) {
 		INIT_WORK(&ir->work, ir_work, ir);
@@ -708,7 +710,6 @@ static int ir_probe(struct device *dev)
 	/* all done */
 	dev_set_drvdata(dev, ir);
 	input_register_device(ir->input);
-	printk(DEVNAME ": %s detected at %s\n",ir->name,ir->phys);
 
 	/* the remote isn't as bouncy as a keyboard */
 	ir->input->rep[REP_DELAY] = repeat_delay;

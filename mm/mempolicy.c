@@ -189,17 +189,15 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
-		unsigned long pfn;
+		struct page *page;
 		unsigned int nid;
 
 		if (!pte_present(*pte))
 			continue;
-		pfn = pte_pfn(*pte);
-		if (!pfn_valid(pfn)) {
-			print_bad_pte(vma, *pte, addr);
+		page = vm_normal_page(vma, addr, *pte);
+		if (!page)
 			continue;
-		}
-		nid = pfn_to_nid(pfn);
+		nid = page_to_nid(page);
 		if (!node_isset(nid, *nodes))
 			break;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
@@ -269,8 +267,6 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 	first = find_vma(mm, start);
 	if (!first)
 		return ERR_PTR(-EFAULT);
-	if (first->vm_flags & VM_RESERVED)
-		return ERR_PTR(-EACCES);
 	prev = NULL;
 	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
 		if (!vma->vm_next && vma->vm_end < end)

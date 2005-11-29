@@ -1458,6 +1458,8 @@ static struct pci_driver dgrs_pci_driver = {
 	.probe = dgrs_pci_probe,
 	.remove = __devexit_p(dgrs_pci_remove),
 };
+#else
+static struct pci_driver dgrs_pci_driver = {};
 #endif
 
 

@@ -1076,17 +1076,6 @@ munmap_back:
 		error = file->f_op->mmap(file, vma);
 		if (error)
 			goto unmap_and_free_vma;
-		if ((vma->vm_flags & (VM_SHARED | VM_WRITE | VM_RESERVED))
-						== (VM_WRITE | VM_RESERVED)) {
-			printk(KERN_WARNING "program %s is using MAP_PRIVATE, "
-				"PROT_WRITE mmap of VM_RESERVED memory, which "
-				"is deprecated. Please report this to "
-				"linux-kernel@vger.kernel.org\n",current->comm);
-			if (vma->vm_ops && vma->vm_ops->close)
-				vma->vm_ops->close(vma);
-			error = -EACCES;
-			goto unmap_and_free_vma;
-		}
 	} else if (vm_flags & VM_SHARED) {
 		error = shmem_zero_setup(vma);
 		if (error)
