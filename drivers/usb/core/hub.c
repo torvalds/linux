@@ -2697,6 +2697,8 @@ static void hub_events(void)
 		if (i) {
 			dpm_runtime_resume(&hdev->dev);
 			dpm_runtime_resume(&intf->dev);
+			usb_put_intf(intf);
+			continue;
 		}
 
 		/* Lock the device, then check to see if we were
