@@ -686,7 +686,8 @@ static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)
 
 	ifr = ifc.ifc_req;
 	ifr32 = compat_ptr(ifc32.ifcbuf);
-	for (i = 0, j = 0; i < ifc32.ifc_len && j < ifc.ifc_len;
+	for (i = 0, j = 0;
+             i + sizeof (struct ifreq32) < ifc32.ifc_len && j < ifc.ifc_len;
 	     i += sizeof (struct ifreq32), j += sizeof (struct ifreq)) {
 		if (copy_in_user(ifr32, ifr, sizeof (struct ifreq32)))
 			return -EFAULT;
@@ -702,10 +703,7 @@ static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)
 		i = ((i / sizeof(struct ifreq)) * sizeof(struct ifreq32));
 		ifc32.ifc_len = i;
 	} else {
-		if (i <= ifc32.ifc_len)
-			ifc32.ifc_len = i;
-		else
-			ifc32.ifc_len = i - sizeof (struct ifreq32);
+		ifc32.ifc_len = i;
 	}
 	if (copy_to_user(compat_ptr(arg), &ifc32, sizeof(struct ifconf32)))
 		return -EFAULT;

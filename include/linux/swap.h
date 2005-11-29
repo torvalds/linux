@@ -239,6 +239,11 @@ static inline void put_swap_token(struct mm_struct *mm)
 		__put_swap_token(mm);
 }
 
+static inline void disable_swap_token(void)
+{
+	put_swap_token(swap_token_mm);
+}
+
 #else /* CONFIG_SWAP */
 
 #define total_swap_pages			0
@@ -283,6 +288,7 @@ static inline swp_entry_t get_swap_page(void)
 #define put_swap_token(x) do { } while(0)
 #define grab_swap_token()  do { } while(0)
 #define has_swap_token(x) 0
+#define disable_swap_token() do { } while(0)
 
 #endif /* CONFIG_SWAP */
 #endif /* __KERNEL__*/

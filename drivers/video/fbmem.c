@@ -452,13 +452,17 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 
 	/* Return if no suitable logo was found */
 	fb_logo.logo = fb_find_logo(depth);
+
+	if (!fb_logo.logo) {
+		return 0;
+	}
 	
 	if (rotate == FB_ROTATE_UR || rotate == FB_ROTATE_UD)
 		yres = info->var.yres;
 	else
 		yres = info->var.xres;
 
-	if (fb_logo.logo && fb_logo.logo->height > yres) {
+	if (fb_logo.logo->height > yres) {
 		fb_logo.logo = NULL;
 		return 0;
 	}

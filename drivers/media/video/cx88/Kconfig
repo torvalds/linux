@@ -46,8 +46,8 @@ config VIDEO_CX88_DVB_ALL_FRONTENDS
 	  If you are unsure, choose Y.
 
 config VIDEO_CX88_DVB_MT352
-	tristate "Zarlink MT352 DVB-T Support"
-	default m
+	bool "Zarlink MT352 DVB-T Support"
+	default y
 	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
 	select DVB_MT352
 	---help---
@@ -55,8 +55,8 @@ config VIDEO_CX88_DVB_MT352
 	  Connexant 2388x chip and the MT352 demodulator.
 
 config VIDEO_CX88_DVB_OR51132
-	tristate "OR51132 ATSC Support"
-	default m
+	bool "OR51132 ATSC Support"
+	default y
 	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
 	select DVB_OR51132
 	---help---
@@ -64,8 +64,8 @@ config VIDEO_CX88_DVB_OR51132
 	  Connexant 2388x chip and the OR51132 demodulator.
 
 config VIDEO_CX88_DVB_CX22702
-	tristate "Conexant CX22702 DVB-T Support"
-	default m
+	bool "Conexant CX22702 DVB-T Support"
+	default y
 	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
 	select DVB_CX22702
 	---help---
@@ -73,8 +73,8 @@ config VIDEO_CX88_DVB_CX22702
 	  Connexant 2388x chip and the CX22702 demodulator.
 
 config VIDEO_CX88_DVB_LGDT330X
-	tristate "LG Electronics DT3302/DT3303 ATSC Support"
-	default m
+	bool "LG Electronics DT3302/DT3303 ATSC Support"
+	default y
 	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
 	select DVB_LGDT330X
 	---help---
@@ -82,8 +82,8 @@ config VIDEO_CX88_DVB_LGDT330X
 	  Connexant 2388x chip and the LGDT3302/LGDT3303 demodulator.
 
 config VIDEO_CX88_DVB_NXT200X
-	tristate "NXT2002/NXT2004 ATSC Support"
-	default m
+	bool "NXT2002/NXT2004 ATSC Support"
+	default y
 	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
 	select DVB_NXT200X
 	---help---

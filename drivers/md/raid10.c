@@ -552,7 +552,11 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 		    !test_bit(In_sync, &rdev->flags))
 			continue;
 
-		if (!atomic_read(&rdev->nr_pending)) {
+		/* This optimisation is debatable, and completely destroys
+		 * sequential read speed for 'far copies' arrays.  So only
+		 * keep it for 'near' arrays, and review those later.
+		 */
+		if (conf->near_copies > 1 && !atomic_read(&rdev->nr_pending)) {
 			disk = ndisk;
 			slot = nslot;
 			break;

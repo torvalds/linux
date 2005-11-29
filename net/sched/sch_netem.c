@@ -464,7 +464,7 @@ static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
 			const struct netem_skb_cb *cb
 				= (const struct netem_skb_cb *)skb->cb;
 
-			if (PSCHED_TLESS(cb->time_to_send, ncb->time_to_send))
+			if (!PSCHED_TLESS(ncb->time_to_send, cb->time_to_send))
 				break;
 		}
 

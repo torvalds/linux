@@ -11,7 +11,7 @@ The driver was written by Donald Becker <becker@scyld.com>
 Don is no longer the prime maintainer of this version of the driver. 
 Please report problems to one or more of:
 
-  Andrew Morton <andrewm@uow.edu.au>
+  Andrew Morton <akpm@osdl.org>
   Netdev mailing list <netdev@vger.kernel.org>
   Linux kernel mailing list <linux-kernel@vger.kernel.org>
 
@@ -274,24 +274,24 @@ Details of the device driver implementation are at the top of the source file.
 
 Additional documentation is available at Don Becker's Linux Drivers site:
 
-  http://www.scyld.com/network/vortex.html
+     http://www.scyld.com/vortex.html
 
 Donald Becker's driver development site:
 
-     http://www.scyld.com/network
+     http://www.scyld.com/network.html
 
 Donald's vortex-diag program is useful for inspecting the NIC's state:
 
-     http://www.scyld.com/diag/#pci-diags
+     http://www.scyld.com/ethercard_diag.html
 
 Donald's mii-diag program may be used for inspecting and manipulating
 the NIC's Media Independent Interface subsystem:
 
-     http://www.scyld.com/diag/#mii-diag
+     http://www.scyld.com/ethercard_diag.html#mii-diag
 
 Donald's wake-on-LAN page:
 
-     http://www.scyld.com/expert/wake-on-lan.html
+     http://www.scyld.com/wakeonlan.html
 
 3Com's documentation for many NICs, including the ones supported by
 this driver is available at 
@@ -305,7 +305,7 @@ this driver is available at
 Driver updates and a detailed changelog for the modifications which
 were made for the 2.3/2,4 series kernel is available at
 
-     http://www.uow.edu.au/~andrewm/linux/#3c59x-2.3
+     http://www.zip.com.au/~akpm/linux/#3c59x-bc
 
 
 Autonegotiation notes
@@ -434,8 +434,8 @@ steps you should take:
          send all logs to the maintainer.
 
       3) Download you card's diagnostic tool from Donald
-         Backer's website http://www.scyld.com/diag.  Download
-         mii-diag.c as well.  Build these.
+         Becker's website <http://www.scyld.com/ethercard_diag.html>.
+         Download mii-diag.c as well.  Build these.
 
          a) Run 'vortex-diag -aaee' and 'mii-diag -v' when the card is
             working correctly.  Save the output.
@@ -443,8 +443,8 @@ steps you should take:
          b) Run the above commands when the card is malfunctioning.  Send
             both sets of output.
 
-Finally, please be patient and be prepared to do some work.  You may end up working on
-this problem for a week or more as the maintainer asks more questions, asks for more
-tests, asks for patches to be applied, etc.  At the end of it all, the problem may even
-remain unresolved.
-
+Finally, please be patient and be prepared to do some work.  You may
+end up working on this problem for a week or more as the maintainer
+asks more questions, asks for more tests, asks for patches to be
+applied, etc.  At the end of it all, the problem may even remain
+unresolved.

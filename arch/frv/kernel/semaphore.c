@@ -20,7 +20,7 @@ struct sem_waiter {
 	struct task_struct	*task;
 };
 
-#if SEM_DEBUG
+#if SEMAPHORE_DEBUG
 void semtrace(struct semaphore *sem, const char *str)
 {
 	if (sem->debug)

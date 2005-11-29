@@ -201,21 +201,6 @@ static int get_futex_key(unsigned long uaddr, union futex_key *key)
 	 * from swap.  But that's a lot of code to duplicate here
 	 * for a rare case, so we simply fetch the page.
 	 */
-
-	/*
-	 * Do a quick atomic lookup first - this is the fastpath.
-	 */
-	page = follow_page(mm, uaddr, FOLL_TOUCH|FOLL_GET);
-	if (likely(page != NULL)) {
-		key->shared.pgoff =
-			page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-		put_page(page);
-		return 0;
-	}
-
-	/*
-	 * Do it the general way.
-	 */
 	err = get_user_pages(current, mm, uaddr, 1, 0, 0, &page, NULL);
 	if (err >= 0) {
 		key->shared.pgoff =

@@ -495,7 +495,7 @@ EXPORT_SYMBOL(flush_icache_user_range);
  * We use it to preload an HPTE into the hash table corresponding to
  * the updated linux PTE.
  * 
- * This must always be called with the mm->page_table_lock held
+ * This must always be called with the pte lock held.
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t pte)

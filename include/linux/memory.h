@@ -85,7 +85,6 @@ struct notifier_block;
 extern int register_memory_notifier(struct notifier_block *nb);
 extern void unregister_memory_notifier(struct notifier_block *nb);
 
-extern struct sysdev_class memory_sysdev_class;
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 #define hotplug_memory_notifier(fn, pri) {			\

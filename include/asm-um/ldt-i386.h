@@ -35,7 +35,7 @@ typedef struct uml_ldt {
 	union {
 		struct ldt_entry * pages[LDT_PAGES_MAX];
 		struct ldt_entry entries[LDT_DIRECT_ENTRIES];
-	};
+	} u;
 } uml_ldt_t;
 
 /*

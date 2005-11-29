@@ -440,7 +440,7 @@ config IP_NF_MATCH_COMMENT
 config IP_NF_MATCH_CONNMARK
 	tristate  'Connection mark match support'
 	depends on IP_NF_IPTABLES
-	depends on IP_NF_CONNTRACK_MARK || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
+	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
 	help
 	  This option adds a `connmark' match, which allows you to match the
 	  connection mark value previously set for the session by `CONNMARK'. 
@@ -452,7 +452,7 @@ config IP_NF_MATCH_CONNMARK
 config IP_NF_MATCH_CONNBYTES
 	tristate  'Connection byte/packet counter match support'
 	depends on IP_NF_IPTABLES
-	depends on IP_NF_CT_ACCT || (NF_CT_ACCT && NF_CONNTRACK_IPV4)
+	depends on (IP_NF_CONNTRACK && IP_NF_CT_ACCT) || (NF_CT_ACCT && NF_CONNTRACK_IPV4)
 	help
 	  This option adds a `connbytes' match, which allows you to match the
 	  number of bytes and/or packets for each direction within a connection.
@@ -767,7 +767,7 @@ config IP_NF_TARGET_TTL
 config IP_NF_TARGET_CONNMARK
 	tristate  'CONNMARK target support'
 	depends on IP_NF_MANGLE
-	depends on IP_NF_CONNTRACK_MARK || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
+	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
 	help
 	  This option adds a `CONNMARK' target, which allows one to manipulate
 	  the connection mark value.  Similar to the MARK target, but
@@ -779,8 +779,8 @@ config IP_NF_TARGET_CONNMARK
 
 config IP_NF_TARGET_CLUSTERIP
 	tristate "CLUSTERIP target support (EXPERIMENTAL)"
-	depends on IP_NF_IPTABLES && EXPERIMENTAL
-	depends on IP_NF_CONNTRACK_MARK || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
+	depends on IP_NF_MANGLE && EXPERIMENTAL
+	depends on (IP_NF_CONNTRACK && IP_NF_CONNTRACK_MARK) || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
 	help
 	  The CLUSTERIP target allows you to build load-balancing clusters of
 	  network servers without having a dedicated load-balancing

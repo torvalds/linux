@@ -22,7 +22,7 @@ The features and limitations of this driver are as follows:
     - All variants of Interphase ATM PCI (i)Chip adapter cards are supported, 
       including x575 (OC3, control memory 128K , 512K and packet memory 128K, 
       512K and 1M), x525 (UTP25) and x531 (DS3 and E3). See 
-           http://www.iphase.com/products/ClassSheet.cfm?ClassID=ATM 
+      http://www.iphase.com/site/iphase-web/?epi_menuItemID=e196f04b4b3b40502f150882e21046a0
       for details.
     - Only x86 platforms are supported.
     - SMP is supported.
