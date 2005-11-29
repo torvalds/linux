@@ -1433,12 +1433,11 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, pte_t *page_table, pmd_t *pmd,
 		spinlock_t *ptl, pte_t orig_pte)
 {
-	struct page *old_page, *src_page, *new_page;
+	struct page *old_page, *new_page;
 	pte_t entry;
 	int ret = VM_FAULT_MINOR;
 
 	old_page = vm_normal_page(vma, address, orig_pte);
-	src_page = old_page;
 	if (!old_page)
 		goto gotten;
 
@@ -1466,7 +1465,7 @@ gotten:
 
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
-	if (src_page == ZERO_PAGE(address)) {
+	if (old_page == ZERO_PAGE(address)) {
 		new_page = alloc_zeroed_user_highpage(vma, address);
 		if (!new_page)
 			goto oom;
@@ -1474,7 +1473,7 @@ gotten:
 		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
 		if (!new_page)
 			goto oom;
-		cow_user_page(new_page, src_page, address);
+		cow_user_page(new_page, old_page, address);
 	}
 
 	/*
