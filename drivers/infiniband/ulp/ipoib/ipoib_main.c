@@ -428,7 +428,6 @@ static struct ipoib_path *path_rec_create(struct net_device *dev,
 	skb_queue_head_init(&path->queue);
 
 	INIT_LIST_HEAD(&path->neigh_list);
-	init_completion(&path->done);
 
 	memcpy(path->pathrec.dgid.raw, gid->raw, sizeof (union ib_gid));
 	path->pathrec.sgid      = priv->local_gid;
@@ -445,6 +444,8 @@ static int path_rec_start(struct net_device *dev,
 
 	ipoib_dbg(priv, "Start path record lookup for " IPOIB_GID_FMT "\n",
 		  IPOIB_GID_ARG(path->pathrec.dgid));
+
+	init_completion(&path->done);
 
 	path->query_id =
 		ib_sa_path_rec_get(priv->ca, priv->port,
