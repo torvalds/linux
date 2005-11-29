@@ -45,6 +45,11 @@ struct lpfc_sli2_slim;
 
 #define MAX_HBAEVT	32
 
+enum lpfc_polling_flags {
+	ENABLE_FCP_RING_POLLING = 0x1,
+	DISABLE_FCP_RING_INT    = 0x2
+};
+
 /* Provide DMA memory definitions the driver uses per port instance. */
 struct lpfc_dmabuf {
 	struct list_head list;
@@ -287,6 +292,8 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_bind_method;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_max_luns;
+	uint32_t cfg_poll;
+	uint32_t cfg_poll_tmo;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 
@@ -338,7 +345,9 @@ struct lpfc_hba {
 #define VPD_PORT            0x8         /* valid vpd port data */
 #define VPD_MASK            0xf         /* mask for any vpd data */
 
+	struct timer_list fcp_poll_timer;
 	struct timer_list els_tmofunc;
+
 	/*
 	 * stat  counters
 	 */
@@ -349,6 +358,7 @@ struct lpfc_hba {
 	struct lpfc_sysfs_mbox sysfs_mbox;
 
 	/* fastpath list. */
+	spinlock_t scsi_buf_list_lock;
 	struct list_head lpfc_scsi_buf_list;
 	uint32_t total_scsi_bufs;
 	struct list_head lpfc_iocb_list;

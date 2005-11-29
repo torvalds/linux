@@ -370,6 +370,10 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	if (psli->num_rings > 3)
 		status |= HC_R3INT_ENA;
 
+	if ((phba->cfg_poll & ENABLE_FCP_RING_POLLING) &&
+	    (phba->cfg_poll & DISABLE_FCP_RING_INT))
+		status &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
+
 	writel(status, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
 	spin_unlock_irq(phba->host->host_lock);
@@ -1237,6 +1241,7 @@ lpfc_stop_timer(struct lpfc_hba * phba)
 		}
 	}
 
+	del_timer_sync(&phba->fcp_poll_timer);
 	del_timer_sync(&phba->fc_estabtmo);
 	del_timer_sync(&phba->fc_disctmo);
 	del_timer_sync(&phba->fc_fdmitmo);
@@ -1416,6 +1421,10 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	psli->mbox_tmo.function = lpfc_mbox_timeout;
 	psli->mbox_tmo.data = (unsigned long)phba;
 
+	init_timer(&phba->fcp_poll_timer);
+	phba->fcp_poll_timer.function = lpfc_poll_timeout;
+	phba->fcp_poll_timer.data = (unsigned long)phba;
+
 	/*
 	 * Get all the module params for configuring this host and then
 	 * establish the host parameters.
@@ -1530,6 +1539,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	host->max_cmd_len = 16;
 
 	/* Initialize the list of scsi buffers used by driver for scsi IO. */
+	spin_lock_init(&phba->scsi_buf_list_lock);
 	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list);
 
 	host->transportt = lpfc_transport_template;
@@ -1560,6 +1570,12 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	error = lpfc_sli_hba_setup(phba);
 	if (error)
 		goto out_free_irq;
+
+	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
+		spin_lock_irq(phba->host->host_lock);
+		lpfc_poll_start_timer(phba);
+		spin_unlock_irq(phba->host->host_lock);
+	}
 
 	/*
 	 * set fixed host attributes

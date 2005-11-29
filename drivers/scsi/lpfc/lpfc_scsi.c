@@ -151,18 +151,22 @@ lpfc_new_scsi_buf(struct lpfc_hba * phba)
 }
 
 struct  lpfc_scsi_buf*
-lpfc_sli_get_scsi_buf(struct lpfc_hba * phba)
+lpfc_get_scsi_buf(struct lpfc_hba * phba)
 {
 	struct  lpfc_scsi_buf * lpfc_cmd = NULL;
 	struct list_head *scsi_buf_list = &phba->lpfc_scsi_buf_list;
+	unsigned long iflag = 0;
 
+	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
 	list_remove_head(scsi_buf_list, lpfc_cmd, struct lpfc_scsi_buf, list);
+	spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
 	return  lpfc_cmd;
 }
 
 static void
 lpfc_release_scsi_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
 {
+	unsigned long iflag = 0;
 	/*
 	 * There are only two special cases to consider.  (1) the scsi command
 	 * requested scatter-gather usage or (2) the scsi command allocated
@@ -180,8 +184,10 @@ lpfc_release_scsi_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
 		 }
 	}
 
+	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
 	psb->pCmd = NULL;
 	list_add_tail(&psb->list, &phba->lpfc_scsi_buf_list);
+	spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
 }
 
 static int
@@ -403,7 +409,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *pnode = rdata->pnode;
 	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
-	unsigned long iflag;
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
@@ -457,9 +462,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 	cmd->scsi_done(cmd);
 
-	spin_lock_irqsave(phba->host->host_lock, iflag);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
-	spin_unlock_irqrestore(phba->host->host_lock, iflag);
 }
 
 static void
@@ -707,6 +710,37 @@ lpfc_info(struct Scsi_Host *host)
 	return lpfcinfobuf;
 }
 
+static __inline__ void lpfc_poll_rearm_timer(struct lpfc_hba * phba)
+{
+	unsigned long  poll_tmo_expires =
+		(jiffies + msecs_to_jiffies(phba->cfg_poll_tmo));
+
+	if (phba->sli.ring[LPFC_FCP_RING].txcmplq_cnt)
+		mod_timer(&phba->fcp_poll_timer,
+			  poll_tmo_expires);
+}
+
+void lpfc_poll_start_timer(struct lpfc_hba * phba)
+{
+	lpfc_poll_rearm_timer(phba);
+}
+
+void lpfc_poll_timeout(unsigned long ptr)
+{
+	struct lpfc_hba *phba = (struct lpfc_hba *)ptr;
+	unsigned long iflag;
+
+	spin_lock_irqsave(phba->host->host_lock, iflag);
+
+	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		lpfc_sli_poll_fcp_ring (phba);
+		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
+			lpfc_poll_rearm_timer(phba);
+	}
+
+	spin_unlock_irqrestore(phba->host->host_lock, iflag);
+}
+
 static int
 lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 {
@@ -733,7 +767,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		cmnd->result = ScsiResult(DID_BUS_BUSY, 0);
 		goto out_fail_command;
 	}
-	lpfc_cmd = lpfc_sli_get_scsi_buf (phba);
+	lpfc_cmd = lpfc_get_scsi_buf (phba);
 	if (lpfc_cmd == NULL) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_FCP,
 				"%d:0707 driver's buffer pool is empty, "
@@ -761,11 +795,17 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 				&lpfc_cmd->cur_iocbq, SLI_IOCB_RET_IOCB);
 	if (err)
 		goto out_host_busy_free_buf;
+
+	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		lpfc_sli_poll_fcp_ring(phba);
+		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
+			lpfc_poll_rearm_timer(phba);
+	}
+
 	return 0;
 
  out_host_busy_free_buf:
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
-	cmnd->host_scribble = NULL;
  out_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
 
@@ -839,9 +879,15 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		goto out;
 	}
 
+	if (phba->cfg_poll & DISABLE_FCP_RING_INT)
+		lpfc_sli_poll_fcp_ring (phba);
+
 	/* Wait for abort to complete */
 	while (lpfc_cmd->pCmd == cmnd)
 	{
+		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
+			lpfc_sli_poll_fcp_ring (phba);
+
 		spin_unlock_irq(phba->host->host_lock);
 			schedule_timeout_uninterruptible(LPFC_ABORT_WAIT*HZ);
 		spin_lock_irq(phba->host->host_lock);
@@ -905,7 +951,7 @@ lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 			break;
 	}
 
-	lpfc_cmd = lpfc_sli_get_scsi_buf (phba);
+	lpfc_cmd = lpfc_get_scsi_buf (phba);
 	if (lpfc_cmd == NULL)
 		goto out;
 
@@ -1001,7 +1047,7 @@ lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 	lpfc_block_requests(phba);
 	spin_lock_irq(shost->host_lock);
 
-	lpfc_cmd = lpfc_sli_get_scsi_buf (phba);
+	lpfc_cmd = lpfc_get_scsi_buf(phba);
 	if (lpfc_cmd == NULL)
 		goto out;
 
@@ -1136,10 +1182,10 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 			break;
 		}
 
-		spin_lock_irqsave(phba->host->host_lock, flags);
+		spin_lock_irqsave(&phba->scsi_buf_list_lock, flags);
 		phba->total_scsi_bufs++;
 		list_add_tail(&scsi_buf->list, &phba->lpfc_scsi_buf_list);
-		spin_unlock_irqrestore(phba->host->host_lock, flags);
+		spin_unlock_irqrestore(&phba->scsi_buf_list_lock, flags);
 	}
 	return 0;
 }
@@ -1162,6 +1208,12 @@ lpfc_slave_configure(struct scsi_device *sdev)
 	 * driver's sysfs entry point functions.
 	 */
 	rport->dev_loss_tmo = phba->cfg_nodev_tmo + 5;
+
+	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		lpfc_sli_poll_fcp_ring(phba);
+		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
+			lpfc_poll_rearm_timer(phba);
+	}
 
 	return 0;
 }
