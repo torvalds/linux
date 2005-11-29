@@ -55,20 +55,10 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pgoff_t size;
 	int err = -ENOMEM;
 	pte_t *pte;
-	pmd_t *pmd;
-	pud_t *pud;
-	pgd_t *pgd;
 	pte_t pte_val;
 	spinlock_t *ptl;
 
-	pgd = pgd_offset(mm, addr);
-	pud = pud_alloc(mm, pgd, addr);
-	if (!pud)
-		goto out;
-	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
-		goto out;
-	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
 		goto out;
 
@@ -110,20 +100,10 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	int err = -ENOMEM;
 	pte_t *pte;
-	pmd_t *pmd;
-	pud_t *pud;
-	pgd_t *pgd;
 	pte_t pte_val;
 	spinlock_t *ptl;
 
-	pgd = pgd_offset(mm, addr);
-	pud = pud_alloc(mm, pgd, addr);
-	if (!pud)
-		goto out;
-	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
-		goto out;
-	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
 		goto out;
 

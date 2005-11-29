@@ -1146,6 +1146,18 @@ int zeromap_page_range(struct vm_area_struct *vma,
 	return err;
 }
 
+pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl)
+{
+	pgd_t * pgd = pgd_offset(mm, addr);
+	pud_t * pud = pud_alloc(mm, pgd, addr);
+	if (pud) {
+		pmd_t * pmd = pmd_alloc(mm, pgd, addr);
+		if (pmd)
+			return pte_alloc_map_lock(mm, pmd, addr, ptl);
+	}
+	return NULL;
+}
+
 /*
  * This is the old fallback for page remapping.
  *
@@ -1156,10 +1168,7 @@ int zeromap_page_range(struct vm_area_struct *vma,
 static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *page, pgprot_t prot)
 {
 	int retval;
-	pgd_t * pgd;
-	pud_t * pud;
-	pmd_t * pmd;  
-	pte_t * pte;
+	pte_t *pte;
 	spinlock_t *ptl;  
 
 	retval = -EINVAL;
@@ -1167,14 +1176,7 @@ static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *pa
 		goto out;
 	retval = -ENOMEM;
 	flush_dcache_page(page);
-	pgd = pgd_offset(mm, addr);
-	pud = pud_alloc(mm, pgd, addr);
-	if (!pud)
-		goto out;
-	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
-		goto out;
-	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
 		goto out;
 	retval = -EBUSY;

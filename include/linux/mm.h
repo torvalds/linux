@@ -742,6 +742,8 @@ struct shrinker;
 extern struct shrinker *set_shrinker(int, shrinker_t);
 extern void remove_shrinker(struct shrinker *shrinker);
 
+extern pte_t *FASTCALL(get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl));
+
 int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
 int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
 int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address);
