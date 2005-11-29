@@ -125,7 +125,7 @@ static int dbGetL2AGSize(s64 nblocks);
  * into the table, with the table elements yielding the maximum
  * binary buddy of free bits within the character.
  */
-static s8 budtab[256] = {
+static const s8 budtab[256] = {
 	3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 	2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 	2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
