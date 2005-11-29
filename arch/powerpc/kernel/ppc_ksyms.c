@@ -163,15 +163,13 @@ EXPORT_SYMBOL(giveup_altivec);
 EXPORT_SYMBOL(giveup_spe);
 #endif /* CONFIG_SPE */
 
-#ifdef CONFIG_PPC64
-EXPORT_SYMBOL(__flush_icache_range);
-#else
+#ifndef CONFIG_PPC64
 EXPORT_SYMBOL(flush_instruction_cache);
-EXPORT_SYMBOL(flush_icache_range);
 EXPORT_SYMBOL(flush_tlb_kernel_range);
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(_tlbie);
 #endif
+EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
 
 #ifdef CONFIG_SMP
