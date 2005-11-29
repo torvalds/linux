@@ -985,6 +985,8 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 			}
 
 			/* Rule 4: Prefer home address -- not implemented yet */
+			if (hiscore.rule < 4)
+				hiscore.rule++;
 
 			/* Rule 5: Prefer outgoing interface */
 			if (hiscore.rule < 5) {
