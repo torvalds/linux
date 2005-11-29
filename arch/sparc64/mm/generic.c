@@ -77,6 +77,7 @@ static inline void io_remap_pte_range(struct mm_struct *mm, pte_t * pte,
 			BUG_ON(!pte_none(*pte));
 			set_pte_at(mm, address, pte, entry);
 			address += PAGE_SIZE;
+			pte_val(entry) += PAGE_SIZE;
 			pte++;
 		} while (address < curend);
 	} while (address < end);
