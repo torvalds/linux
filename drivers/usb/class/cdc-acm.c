@@ -658,7 +658,7 @@ static int acm_tty_ioctl(struct tty_struct *tty, struct file *file, unsigned int
 	return -ENOIOCTLCMD;
 }
 
-static __u32 acm_tty_speed[] = {
+static const __u32 acm_tty_speed[] = {
 	0, 50, 75, 110, 134, 150, 200, 300, 600,
 	1200, 1800, 2400, 4800, 9600, 19200, 38400,
 	57600, 115200, 230400, 460800, 500000, 576000,
@@ -666,7 +666,7 @@ static __u32 acm_tty_speed[] = {
 	2500000, 3000000, 3500000, 4000000
 };
 
-static __u8 acm_tty_size[] = {
+static const __u8 acm_tty_size[] = {
 	5, 6, 7, 8
 };
 

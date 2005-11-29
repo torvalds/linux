@@ -1454,7 +1454,7 @@ void hid_init_reports(struct hid_device *hid)
  * Alphabetically sorted blacklist by quirk type.
  */
 
-static struct hid_blacklist {
+static const struct hid_blacklist {
 	__u16 idVendor;
 	__u16 idProduct;
 	unsigned quirks;

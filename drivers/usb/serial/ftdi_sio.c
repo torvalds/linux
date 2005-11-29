@@ -491,7 +491,7 @@ static struct usb_driver ftdi_driver = {
 	.no_dynamic_id = 	1,
 };
 
-static char *ftdi_chip_name[] = {
+static const char *ftdi_chip_name[] = {
 	[SIO] = "SIO",	/* the serial part of FT8U100AX */
 	[FT8U232AM] = "FT8U232AM",
 	[FT232BM] = "FT232BM",

@@ -211,7 +211,7 @@ static struct ov51x_decomp_ops *ov518_mmx_decomp_ops;
 
 /* Number of times to retry a failed I2C transaction. Increase this if you
  * are getting "Failed to read sensor ID..." */
-static int i2c_detect_tries = 5;
+static const int i2c_detect_tries = 5;
 
 /* MMX support is present in kernel and CPU. Checked upon decomp module load. */
 #if defined(__i386__) || defined(__x86_64__)

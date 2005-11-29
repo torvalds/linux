@@ -95,7 +95,7 @@ struct usb_keyspan {
  * Currently there are 15 and 17 button models so RESERVED codes
  * are blank areas in the mapping.
  */
-static int keyspan_key_table[] = {
+static const int keyspan_key_table[] = {
 	KEY_RESERVED,		/* 0 is just a place holder. */
 	KEY_RESERVED,
 	KEY_STOP,

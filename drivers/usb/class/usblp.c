@@ -199,7 +199,7 @@ struct quirk_printer_struct {
 #define USBLP_QUIRK_BIDIR	0x1	/* reports bidir but requires unidirectional mode (no INs/reads) */
 #define USBLP_QUIRK_USB_INIT	0x2	/* needs vendor USB init string */
 
-static struct quirk_printer_struct quirk_printers[] = {
+static const struct quirk_printer_struct quirk_printers[] = {
 	{ 0x03f0, 0x0004, USBLP_QUIRK_BIDIR }, /* HP DeskJet 895C */
 	{ 0x03f0, 0x0104, USBLP_QUIRK_BIDIR }, /* HP DeskJet 880C */
 	{ 0x03f0, 0x0204, USBLP_QUIRK_BIDIR }, /* HP DeskJet 815C */
@@ -301,7 +301,7 @@ static void usblp_bulk_write(struct urb *urb, struct pt_regs *regs)
  * Get and print printer errors.
  */
 
-static char *usblp_messages[] = { "ok", "out of paper", "off-line", "on fire" };
+static const char *usblp_messages[] = { "ok", "out of paper", "off-line", "on fire" };
 
 static int usblp_check_status(struct usblp *usblp, int err)
 {

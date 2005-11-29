@@ -470,7 +470,7 @@ static void get_device_info(struct us_data *us, const struct usb_device_id *id)
 	 * from the unusual_devs.h table.
 	 */
 	if (id->idVendor || id->idProduct) {
-		static char *msgs[3] = {
+		static const char *msgs[3] = {
 			"an unneeded SubClass entry",
 			"an unneeded Protocol entry",
 			"unneeded SubClass and Protocol entries"};

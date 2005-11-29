@@ -146,7 +146,7 @@ static char init1[] = { 0x01, 0x00, 0x20, 0x14 };
 static char init2[] = { 0x01, 0x00, 0x20, 0x14, 0x20, 0x20, 0x20 };
 
 /* Acceleration curve for directional control pad */
-static char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
+static const char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
 
 /* Duplicate event filtering time.
  * Sequential, identical KIND_FILTERED inputs with less than
@@ -197,7 +197,7 @@ struct ati_remote {
 #define KIND_ACCEL      7   /* Directional keypad - left, right, up, down.*/
 
 /* Translation table from hardware messages to input events. */
-static struct {
+static const struct {
 	short kind;
 	unsigned char data1, data2;
 	int type;

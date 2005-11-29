@@ -2437,8 +2437,8 @@ sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 	u8 *tempbuf;
 	u16 *tempbufb;
 	size_t written;
-	static char bootstring[] = "SiSUSB VGA text console, (C) 2005 Thomas Winischhofer.";
-	static char bootlogo[] = "(o_ //\\ V_/_";
+	static const char bootstring[] = "SiSUSB VGA text console, (C) 2005 Thomas Winischhofer.";
+	static const char bootlogo[] = "(o_ //\\ V_/_";
 
 	/* sisusb->lock is down */
 

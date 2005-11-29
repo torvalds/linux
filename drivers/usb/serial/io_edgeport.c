@@ -184,7 +184,7 @@ struct divisor_table_entry {
 // These assume a 3.6864MHz crystal, the standard /16, and
 // MCR.7 = 0.
 //
-static struct divisor_table_entry divisor_table[] = {
+static const struct divisor_table_entry divisor_table[] = {
 	{   50,		4608},  
 	{   75,		3072},  
 	{   110,	2095},		/* 2094.545455 => 230450   => .0217 % over */

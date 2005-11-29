@@ -197,7 +197,7 @@ out:
 	}
 
 #ifdef CONFIG_PROC_FS
-static const char *qh_names[] = {
+static const char * const qh_names[] = {
   "skel_int128_qh", "skel_int64_qh",
   "skel_int32_qh", "skel_int16_qh",
   "skel_int8_qh", "skel_int4_qh",

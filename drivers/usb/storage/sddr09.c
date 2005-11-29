@@ -237,7 +237,7 @@ static void nand_store_ecc(unsigned char *data, unsigned char *ecc) {
 #define SPARE    0xfffffffe
 #define UNUSABLE 0xfffffffd
 
-static int erase_bad_lba_entries = 0;
+static const int erase_bad_lba_entries = 0;
 
 /* send vendor interface command (0x41) */
 /* called for requests 0, 1, 8 */

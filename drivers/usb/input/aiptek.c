@@ -338,7 +338,7 @@ struct aiptek {
  * the bitmap which comes from the tablet. This hides the
  * issue that the F_keys are not sequentially numbered.
  */
-static int macroKeyEvents[] = {
+static const int macroKeyEvents[] = {
 	KEY_ESC, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5,
 	KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11,
 	KEY_F12, KEY_F13, KEY_F14, KEY_F15, KEY_F16, KEY_F17,
