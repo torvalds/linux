@@ -94,8 +94,10 @@ int ipoib_open(struct net_device *dev)
 	if (ipoib_ib_dev_open(dev))
 		return -EINVAL;
 
-	if (ipoib_ib_dev_up(dev))
+	if (ipoib_ib_dev_up(dev)) {
+		ipoib_ib_dev_stop(dev);
 		return -EINVAL;
+	}
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
