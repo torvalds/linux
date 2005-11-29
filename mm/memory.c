@@ -1147,6 +1147,95 @@ int zeromap_page_range(struct vm_area_struct *vma,
 }
 
 /*
+ * This is the old fallback for page remapping.
+ *
+ * For historical reasons, it only allows reserved pages. Only
+ * old drivers should use this, and they needed to mark their
+ * pages reserved for the old functions anyway.
+ */
+static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *page, pgprot_t prot)
+{
+	int retval;
+	pgd_t * pgd;
+	pud_t * pud;
+	pmd_t * pmd;  
+	pte_t * pte;
+	spinlock_t *ptl;  
+
+	retval = -EINVAL;
+	if (PageAnon(page) || !PageReserved(page))
+		goto out;
+	retval = -ENOMEM;
+	flush_dcache_page(page);
+	pgd = pgd_offset(mm, addr);
+	pud = pud_alloc(mm, pgd, addr);
+	if (!pud)
+		goto out;
+	pmd = pmd_alloc(mm, pud, addr);
+	if (!pmd)
+		goto out;
+	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+	if (!pte)
+		goto out;
+	retval = -EBUSY;
+	if (!pte_none(*pte))
+		goto out_unlock;
+
+	/* Ok, finally just insert the thing.. */
+	get_page(page);
+	inc_mm_counter(mm, file_rss);
+	page_add_file_rmap(page);
+	set_pte_at(mm, addr, pte, mk_pte(page, prot));
+
+	retval = 0;
+out_unlock:
+	pte_unmap_unlock(pte, ptl);
+out:
+	return retval;
+}
+
+/*
+ * Somebody does a pfn remapping that doesn't actually work as a vma.
+ *
+ * Do it as individual pages instead, and warn about it. It's bad form,
+ * and very inefficient.
+ */
+static int incomplete_pfn_remap(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end,
+		unsigned long pfn, pgprot_t prot)
+{
+	static int warn = 10;
+	struct page *page;
+	int retval;
+
+	if (!(vma->vm_flags & VM_INCOMPLETE)) {
+		if (warn) {
+			warn--;
+			printk("%s does an incomplete pfn remapping", current->comm);
+			dump_stack();
+		}
+	}
+	vma->vm_flags |= VM_INCOMPLETE | VM_IO | VM_RESERVED;
+
+	if (start < vma->vm_start || end > vma->vm_end)
+		return -EINVAL;
+
+	if (!pfn_valid(pfn))
+		return -EINVAL;
+
+	retval = 0;
+	page = pfn_to_page(pfn);
+	while (start < end) {
+		retval = insert_page(vma->vm_mm, start, page, prot);
+		if (retval < 0)
+			break;
+		start += PAGE_SIZE;
+		page++;
+	}
+	return retval;
+}
+
+/*
  * maps a range of physical memory into the requested pages. the old
  * mappings are removed. any references to nonexistent pages results
  * in null mappings (currently treated as "copy-on-access")
@@ -1219,6 +1308,9 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	unsigned long end = addr + PAGE_ALIGN(size);
 	struct mm_struct *mm = vma->vm_mm;
 	int err;
+
+	if (addr != vma->vm_start || end != vma->vm_end)
+		return incomplete_pfn_remap(vma, addr, end, pfn, prot);
 
 	/*
 	 * Physically remapped pages are special. Tell the
