@@ -561,7 +561,7 @@ static int __devinit vrc4173_init(void)
 {
 	int err;
 
-	err = pci_module_init(&vrc4173_driver);
+	err = pci_register_driver(&vrc4173_driver);
 	if (err < 0)
 		return err;
 
