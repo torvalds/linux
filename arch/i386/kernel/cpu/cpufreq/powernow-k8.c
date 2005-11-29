@@ -45,7 +45,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.50.5"
+#define VERSION "version 1.60.0"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -336,7 +336,7 @@ static int core_voltage_pre_transition(struct powernow_k8_data *data, u32 reqvid
 /* Phase 2 - core frequency transition */
 static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid)
 {
-	u32 vcoreqfid, vcocurrfid, vcofiddiff, savevid = data->currvid;
+	u32 vcoreqfid, vcocurrfid, vcofiddiff, fid_interval, savevid = data->currvid;
 
 	if ((reqfid < HI_FID_TABLE_BOTTOM) && (data->currfid < HI_FID_TABLE_BOTTOM)) {
 		printk(KERN_ERR PFX "ph2: illegal lo-lo transition 0x%x 0x%x\n",
@@ -359,9 +359,11 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid)
 	    : vcoreqfid - vcocurrfid;
 
 	while (vcofiddiff > 2) {
+		(data->currfid & 1) ? (fid_interval = 1) : (fid_interval = 2);
+
 		if (reqfid > data->currfid) {
 			if (data->currfid > LO_FID_TABLE_TOP) {
-				if (write_new_fid(data, data->currfid + 2)) {
+				if (write_new_fid(data, data->currfid + fid_interval)) {
 					return 1;
 				}
 			} else {
@@ -371,7 +373,7 @@ static int core_frequency_transition(struct powernow_k8_data *data, u32 reqfid)
 				}
 			}
 		} else {
-			if (write_new_fid(data, data->currfid - 2))
+			if (write_new_fid(data, data->currfid - fid_interval))
 				return 1;
 		}
 
@@ -474,7 +476,7 @@ static int check_supported_cpu(unsigned int cpu)
 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
 	if (((eax & CPUID_USE_XFAM_XMOD) != CPUID_USE_XFAM_XMOD) ||
 	    ((eax & CPUID_XFAM) != CPUID_XFAM_K8) ||
-	    ((eax & CPUID_XMOD) > CPUID_XMOD_REV_F)) {
+	    ((eax & CPUID_XMOD) > CPUID_XMOD_REV_G)) {
 		printk(KERN_INFO PFX "Processor cpuid %x not supported\n", eax);
 		goto out;
 	}
@@ -520,10 +522,6 @@ static int check_pst_table(struct powernow_k8_data *data, struct pst_s *pst, u8 
 		if (pst[j].fid > MAX_FID) {
 			printk(KERN_ERR BFX "maxfid exceeded with pstate %d\n", j);
 			return -ENODEV;
-		}
-		if (pst[j].fid & 1) {
-			printk(KERN_ERR BFX "fid invalid - %d : 0x%x\n", j, pst[j].fid);
-			return -EINVAL;
 		}
 		if (j && (pst[j].fid < HI_FID_TABLE_BOTTOM)) {
 			/* Only first fid is allowed to be in "low" range */
@@ -1177,4 +1175,3 @@ MODULE_LICENSE("GPL");
 
 late_initcall(powernowk8_init);
 module_exit(powernowk8_exit);
-

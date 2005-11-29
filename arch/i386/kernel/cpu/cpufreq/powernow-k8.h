@@ -42,7 +42,7 @@ struct powernow_k8_data {
 #define CPUID_XFAM			0x0ff00000	/* extended family */
 #define CPUID_XFAM_K8			0
 #define CPUID_XMOD			0x000f0000	/* extended model */
-#define CPUID_XMOD_REV_F		0x00040000
+#define CPUID_XMOD_REV_G		0x00060000
 #define CPUID_USE_XFAM_XMOD		0x00000f00
 #define CPUID_GET_MAX_CAPABILITIES	0x80000000
 #define CPUID_FREQ_VOLT_CAPABILITIES	0x80000007
@@ -86,13 +86,14 @@ struct powernow_k8_data {
  *   low fid table
  * - lowest entry in the high fid table must be a <= 200MHz + 2 * the entry
  *   in the low fid table
- * - the parts can only step at 200 MHz intervals, so 1.9 GHz is never valid
+ * - the parts can only step at <= 200 MHz intervals, odd fid values are
+ *   supported in revision G and later revisions.
  * - lowest frequency must be >= interprocessor hypertransport link speed
  *   (only applies to MP systems obviously)
  */
 
 /* fids (frequency identifiers) are arranged in 2 tables - lo and hi */
-#define LO_FID_TABLE_TOP     6	/* fid values marking the boundary    */
+#define LO_FID_TABLE_TOP     7	/* fid values marking the boundary    */
 #define HI_FID_TABLE_BOTTOM  8	/* between the low and high tables    */
 
 #define LO_VCOFREQ_TABLE_TOP    1400	/* corresponding vco frequency values */
@@ -106,7 +107,7 @@ struct powernow_k8_data {
 #define MIN_FREQ 800	/* Min and max freqs, per spec */
 #define MAX_FREQ 5000
 
-#define INVALID_FID_MASK 0xffffffc1  /* not a valid fid if these bits are set */
+#define INVALID_FID_MASK 0xffffffc0  /* not a valid fid if these bits are set */
 #define INVALID_VID_MASK 0xffffffc0  /* not a valid vid if these bits are set */
 
 #define VID_OFF 0x3f
