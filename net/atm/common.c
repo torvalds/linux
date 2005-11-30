@@ -423,33 +423,23 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 	if (vcc->qos.txtp.traffic_class == ATM_ANYCLASS ||
 	    vcc->qos.rxtp.traffic_class == ATM_ANYCLASS)
 		return -EINVAL;
-	if (itf != ATM_ITF_ANY) {
+	if (likely(itf != ATM_ITF_ANY)) {
 		dev = atm_dev_lookup(itf);
-		if (!dev)
-			return -ENODEV;
-		error = __vcc_connect(vcc, dev, vpi, vci);
-		if (error) {
-			atm_dev_put(dev);
-			return error;
-		}
 	} else {
-		struct list_head *p, *next;
-
 		dev = NULL;
 		spin_lock(&atm_dev_lock);
-		list_for_each_safe(p, next, &atm_devs) {
-			dev = list_entry(p, struct atm_dev, dev_list);
+		if (!list_empty(&atm_devs)) {
+			dev = list_entry(atm_devs.next, struct atm_dev, dev_list);
 			atm_dev_hold(dev);
-			spin_unlock(&atm_dev_lock);
-			if (!__vcc_connect(vcc, dev, vpi, vci))
-				break;
-			atm_dev_put(dev);
-			dev = NULL;
-			spin_lock(&atm_dev_lock);
 		}
 		spin_unlock(&atm_dev_lock);
-		if (!dev)
-			return -ENODEV;
+	}
+	if (!dev)
+		return -ENODEV;
+	error = __vcc_connect(vcc, dev, vpi, vci);
+	if (error) {
+		atm_dev_put(dev);
+		return error;
 	}
 	if (vpi == ATM_VPI_UNSPEC || vci == ATM_VCI_UNSPEC)
 		set_bit(ATM_VF_PARTIAL,&vcc->flags);
