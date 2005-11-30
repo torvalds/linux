@@ -29,7 +29,7 @@
  */
 
 static void (*udbg_adb_old_putc)(char c);
-static char (*udbg_adb_old_getc)(void);
+static int (*udbg_adb_old_getc)(void);
 static int (*udbg_adb_old_getc_poll)(void);
 
 static enum {
@@ -73,7 +73,7 @@ static unsigned char xmon_shift_keytab[128] =
 	"\0.\0*\0+\0\0\0\0\0/\r\0-\0"			/* 0x40 - 0x4f */
 	"\0\0000123456789\0\0\0";			/* 0x50 - 0x5f */
 
-static char udbg_adb_local_getc(void)
+static int udbg_adb_local_getc(void)
 {
 	int k, t, on;
 
@@ -116,7 +116,7 @@ static char udbg_adb_local_getc(void)
 }
 #endif /* CONFIG_BOOTX_TEXT */
 
-static char udbg_adb_getc(void)
+static int udbg_adb_getc(void)
 {
 #ifdef CONFIG_BOOTX_TEXT
 	if (udbg_adb_use_btext && input_type != input_adb_none)
@@ -195,7 +195,7 @@ int udbg_adb_init(int force_btext)
 	 */
 	for (np = NULL; (np = of_find_node_by_name(np, "keyboard")) != NULL;) {
 		struct device_node *parent = of_get_parent(np);
-		int found = (parent && !strcmp(parent->type, "adb") == 0);
+		int found = (parent && strcmp(parent->type, "adb") == 0);
 		of_node_put(parent);
 		if (found)
 			break;

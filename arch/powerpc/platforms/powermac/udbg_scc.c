@@ -47,14 +47,14 @@ static int udbg_scc_getc_poll(void)
 	return -1;
 }
 
-static char udbg_scc_getc(void)
+static int udbg_scc_getc(void)
 {
 	if (sccc) {
 		while ((in_8(sccc) & SCC_RXRDY) == 0)
 			;
 		return in_8(sccd);
 	}
-	return 0;
+	return -1;
 }
 
 static unsigned char scc_inittab[] = {

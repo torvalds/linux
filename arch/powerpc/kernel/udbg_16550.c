@@ -69,14 +69,14 @@ static int udbg_550_getc_poll(void)
 	return -1;
 }
 
-static char udbg_550_getc(void)
+static int udbg_550_getc(void)
 {
 	if (udbg_comport) {
 		while ((in_8(&udbg_comport->lsr) & LSR_DR) == 0)
 			/* wait for char */;
 		return in_8(&udbg_comport->rbr);
 	}
-	return 0;
+	return -1;
 }
 
 void udbg_init_uart(void __iomem *comport, unsigned int speed,

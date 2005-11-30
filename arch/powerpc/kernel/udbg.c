@@ -17,7 +17,7 @@
 #include <asm/processor.h>
 
 void (*udbg_putc)(char c);
-char (*udbg_getc)(void);
+int (*udbg_getc)(void);
 int (*udbg_getc_poll)(void);
 
 /* udbg library, used by xmon et al */
@@ -57,8 +57,8 @@ int udbg_write(const char *s, int n)
 
 int udbg_read(char *buf, int buflen)
 {
-	char c, *p = buf;
-	int i;
+	char *p = buf;
+	int i, c;
 
 	if (!udbg_getc)
 		return 0;
@@ -66,8 +66,11 @@ int udbg_read(char *buf, int buflen)
 	for (i = 0; i < buflen; ++i) {
 		do {
 			c = udbg_getc();
+			if (c == -1 && i == 0)
+				return -1;
+
 		} while (c == 0x11 || c == 0x13);
-		if (c == 0)
+		if (c == 0 || c == -1)
 			break;
 		*p++ = c;
 	}

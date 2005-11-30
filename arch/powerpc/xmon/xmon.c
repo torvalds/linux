@@ -450,7 +450,6 @@ int xmon_core(struct pt_regs *regs, int fromipi)
  leave:
 	cpu_clear(cpu, cpus_in_xmon);
 	xmon_fault_jmp[cpu] = NULL;
-
 #else
 	/* UP is simple... */
 	if (in_xmon) {
@@ -805,7 +804,10 @@ cmds(struct pt_regs *excp)
 			break;
 		case 'x':
 		case 'X':
+			return cmd;
 		case EOF:
+			printf(" <no input ...>\n");
+			mdelay(2000);
 			return cmd;
 		case '?':
 			printf(help_string);

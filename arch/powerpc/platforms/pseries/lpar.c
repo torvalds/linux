@@ -112,7 +112,7 @@ static int udbg_hvsi_getc_poll(void)
 	return ch;
 }
 
-static char udbg_hvsi_getc(void)
+static int udbg_hvsi_getc(void)
 {
 	int ch;
 	for (;;) {
@@ -173,7 +173,7 @@ static int udbg_getc_pollLP(void)
 	return ch;
 }
 
-static char udbg_getcLP(void)
+static int udbg_getcLP(void)
 {
 	int ch;
 	for (;;) {

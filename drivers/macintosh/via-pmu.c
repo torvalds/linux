@@ -313,7 +313,7 @@ int __init find_via_pmu(void)
 		goto fail;
 	}
 	taddr = of_translate_address(vias, reg);
-	if (taddr == 0) {
+	if (taddr == OF_BAD_ADDR) {
 		printk(KERN_ERR "via-pmu: Can't translate address !\n");
 		goto fail;
 	}
@@ -376,7 +376,7 @@ int __init find_via_pmu(void)
 		return 0;
 	}
 
-	printk(KERN_INFO "PMU driver %d initialized for %s, firmware: %02x\n",
+	printk(KERN_INFO "PMU driver v%d initialized for %s, firmware: %02x\n",
 	       PMU_DRIVER_VERSION, pbook_type[pmu_kind], pmu_version);
 	       
 	sys_ctrler = SYS_CTRLER_PMU;

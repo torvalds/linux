@@ -276,7 +276,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 
  finish:
 	of_dump_addr("OF: parent translation for:", addr, pna);
-	DBG("OF: with offset: %lx\n", offset);
+	DBG("OF: with offset: "PRu64"\n", offset);
 
 	/* Translate it into parent bus space */
 	return pbus->translate(addr, offset, pna);

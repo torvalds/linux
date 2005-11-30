@@ -14,7 +14,7 @@
 #include <linux/init.h>
 
 extern void (*udbg_putc)(char c);
-extern char (*udbg_getc)(void);
+extern int (*udbg_getc)(void);
 extern int (*udbg_getc_poll)(void);
 
 extern void udbg_puts(const char *s);
