@@ -770,6 +770,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 						 -1, -1, local_nls); */
 			if(direntry->d_inode) {
 				direntry->d_inode->i_mode = mode;
+				direntry->d_inode->i_mode |= S_IFDIR;
 				if(cifs_sb->mnt_cifs_flags & 
 				     CIFS_MOUNT_SET_UID) {
 					direntry->d_inode->i_uid = 
