@@ -83,7 +83,7 @@ static int nfs_readpage_sync(struct nfs_open_context *ctx, struct inode *inode,
 	int		result;
 	struct nfs_read_data *rdata;
 
-	rdata = nfs_readdata_alloc();
+	rdata = nfs_readdata_alloc(1);
 	if (!rdata)
 		return -ENOMEM;
 
@@ -283,7 +283,7 @@ static int nfs_pagein_multi(struct list_head *head, struct inode *inode)
 
 	nbytes = req->wb_bytes;
 	for(;;) {
-		data = nfs_readdata_alloc();
+		data = nfs_readdata_alloc(1);
 		if (!data)
 			goto out_bad;
 		INIT_LIST_HEAD(&data->pages);
@@ -339,7 +339,7 @@ static int nfs_pagein_one(struct list_head *head, struct inode *inode)
 	if (NFS_SERVER(inode)->rsize < PAGE_CACHE_SIZE)
 		return nfs_pagein_multi(head, inode);
 
-	data = nfs_readdata_alloc();
+	data = nfs_readdata_alloc(NFS_SERVER(inode)->rpages);
 	if (!data)
 		goto out_bad;
 

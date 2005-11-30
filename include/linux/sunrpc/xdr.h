@@ -135,11 +135,6 @@ xdr_adjust_iovec(struct kvec *iov, u32 *p)
 }
 
 /*
- * Maximum number of iov's we use.
- */
-#define MAX_IOVEC	(12)
-
-/*
  * XDR buffer helper functions
  */
 extern void xdr_shift_buf(struct xdr_buf *, size_t);

@@ -154,6 +154,7 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, unsigned int 
 	struct list_head *list;
 	struct nfs_direct_req *dreq;
 	unsigned int reads = 0;
+	unsigned int rpages = (rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
 	dreq = kmem_cache_alloc(nfs_direct_cachep, SLAB_KERNEL);
 	if (!dreq)
@@ -167,7 +168,7 @@ static struct nfs_direct_req *nfs_direct_read_alloc(size_t nbytes, unsigned int 
 
 	list = &dreq->list;
 	for(;;) {
-		struct nfs_read_data *data = nfs_readdata_alloc();
+		struct nfs_read_data *data = nfs_readdata_alloc(rpages);
 
 		if (unlikely(!data)) {
 			while (!list_empty(list)) {
@@ -431,7 +432,7 @@ static ssize_t nfs_direct_write_seg(struct inode *inode,
 	struct nfs_writeverf first_verf;
 	struct nfs_write_data *wdata;
 
-	wdata = nfs_writedata_alloc();
+	wdata = nfs_writedata_alloc(NFS_SERVER(inode)->wpages);
 	if (!wdata)
 		return -ENOMEM;
 

@@ -38,9 +38,6 @@
 # define NFS_DEBUG
 #endif
 
-#define NFS_MAX_FILE_IO_BUFFER_SIZE	32768
-#define NFS_DEF_FILE_IO_BUFFER_SIZE	4096
-
 /* Default timeout values */
 #define NFS_MAX_UDP_TIMEOUT	(60*HZ)
 #define NFS_MAX_TCP_TIMEOUT	(600*HZ)
@@ -462,18 +459,33 @@ static inline int nfs_wb_page(struct inode *inode, struct page* page)
  */
 extern mempool_t *nfs_wdata_mempool;
 
-static inline struct nfs_write_data *nfs_writedata_alloc(void)
+static inline struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
 {
 	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, SLAB_NOFS);
+
 	if (p) {
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&p->pages);
+		if (pagecount < NFS_PAGEVEC_SIZE)
+			p->pagevec = &p->page_array[0];
+		else {
+			size_t size = ++pagecount * sizeof(struct page *);
+			p->pagevec = kmalloc(size, GFP_NOFS);
+			if (p->pagevec) {
+				memset(p->pagevec, 0, size);
+			} else {
+				mempool_free(p, nfs_wdata_mempool);
+				p = NULL;
+			}
+		}
 	}
 	return p;
 }
 
 static inline void nfs_writedata_free(struct nfs_write_data *p)
 {
+	if (p && (p->pagevec != &p->page_array[0]))
+		kfree(p->pagevec);
 	mempool_free(p, nfs_wdata_mempool);
 }
 
@@ -492,16 +504,33 @@ extern void  nfs_readdata_release(void *data);
  */
 extern mempool_t *nfs_rdata_mempool;
 
-static inline struct nfs_read_data *nfs_readdata_alloc(void)
+static inline struct nfs_read_data *nfs_readdata_alloc(unsigned int pagecount)
 {
 	struct nfs_read_data *p = mempool_alloc(nfs_rdata_mempool, SLAB_NOFS);
-	if (p)
+
+	if (p) {
 		memset(p, 0, sizeof(*p));
+		INIT_LIST_HEAD(&p->pages);
+		if (pagecount < NFS_PAGEVEC_SIZE)
+			p->pagevec = &p->page_array[0];
+		else {
+			size_t size = ++pagecount * sizeof(struct page *);
+			p->pagevec = kmalloc(size, GFP_NOFS);
+			if (p->pagevec) {
+				memset(p->pagevec, 0, size);
+			} else {
+				mempool_free(p, nfs_rdata_mempool);
+				p = NULL;
+			}
+		}
+	}
 	return p;
 }
 
 static inline void nfs_readdata_free(struct nfs_read_data *p)
 {
+	if (p && (p->pagevec != &p->page_array[0]))
+		kfree(p->pagevec);
 	mempool_free(p, nfs_rdata_mempool);
 }
 

@@ -296,8 +296,8 @@ static int __init root_nfs_name(char *name)
 	nfs_port          = -1;
 	nfs_data.version  = NFS_MOUNT_VERSION;
 	nfs_data.flags    = NFS_MOUNT_NONLM;	/* No lockd in nfs root yet */
-	nfs_data.rsize    = NFS_DEF_FILE_IO_BUFFER_SIZE;
-	nfs_data.wsize    = NFS_DEF_FILE_IO_BUFFER_SIZE;
+	nfs_data.rsize    = NFS_DEF_FILE_IO_SIZE;
+	nfs_data.wsize    = NFS_DEF_FILE_IO_SIZE;
 	nfs_data.acregmin = 3;
 	nfs_data.acregmax = 60;
 	nfs_data.acdirmin = 30;

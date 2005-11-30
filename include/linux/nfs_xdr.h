@@ -4,6 +4,16 @@
 #include <linux/sunrpc/xprt.h>
 #include <linux/nfsacl.h>
 
+/*
+ * To change the maximum rsize and wsize supported by the NFS client, adjust
+ * NFS_MAX_FILE_IO_SIZE.  64KB is a typical maximum, but some servers can
+ * support a megabyte or more.  The default is left at 4096 bytes, which is
+ * reasonable for NFS over UDP.
+ */
+#define NFS_MAX_FILE_IO_SIZE	(1048576U)
+#define NFS_DEF_FILE_IO_SIZE	(4096U)
+#define NFS_MIN_FILE_IO_SIZE	(1024U)
+
 struct nfs4_fsid {
 	__u64 major;
 	__u64 minor;
@@ -215,12 +225,6 @@ struct nfs4_delegreturnargs {
 /*
  * Arguments to the read call.
  */
-
-#define NFS_READ_MAXIOV		(9U)
-#if (NFS_READ_MAXIOV > (MAX_IOVEC -2))
-#error "NFS_READ_MAXIOV is too large"
-#endif
-
 struct nfs_readargs {
 	struct nfs_fh *		fh;
 	struct nfs_open_context *context;
@@ -239,11 +243,6 @@ struct nfs_readres {
 /*
  * Arguments to the write call.
  */
-#define NFS_WRITE_MAXIOV	(9U)
-#if (NFS_WRITE_MAXIOV > (MAX_IOVEC -2))
-#error "NFS_WRITE_MAXIOV is too large"
-#endif
-
 struct nfs_writeargs {
 	struct nfs_fh *		fh;
 	struct nfs_open_context *context;
@@ -674,6 +673,8 @@ struct nfs4_server_caps_res {
 
 struct nfs_page;
 
+#define NFS_PAGEVEC_SIZE	(8U)
+
 struct nfs_read_data {
 	int			flags;
 	struct rpc_task		task;
@@ -682,13 +683,14 @@ struct nfs_read_data {
 	struct nfs_fattr	fattr;	/* fattr storage */
 	struct list_head	pages;	/* Coalesced read requests */
 	struct nfs_page		*req;	/* multi ops per nfs_page */
-	struct page		*pagevec[NFS_READ_MAXIOV];
+	struct page		**pagevec;
 	struct nfs_readargs args;
 	struct nfs_readres  res;
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
 	void (*complete) (struct nfs_read_data *, int);
+	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
 };
 
 struct nfs_write_data {
@@ -700,13 +702,14 @@ struct nfs_write_data {
 	struct nfs_writeverf	verf;
 	struct list_head	pages;		/* Coalesced requests we wish to flush */
 	struct nfs_page		*req;		/* multi ops per nfs_page */
-	struct page		*pagevec[NFS_WRITE_MAXIOV];
+	struct page		**pagevec;
 	struct nfs_writeargs	args;		/* argument struct */
 	struct nfs_writeres	res;		/* result struct */
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
 	void (*complete) (struct nfs_write_data *, int);
+	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
 };
 
 struct nfs_access_entry;

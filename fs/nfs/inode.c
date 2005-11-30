@@ -221,10 +221,10 @@ nfs_calc_block_size(u64 tsize)
 static inline unsigned long
 nfs_block_size(unsigned long bsize, unsigned char *nrbitsp)
 {
-	if (bsize < 1024)
-		bsize = NFS_DEF_FILE_IO_BUFFER_SIZE;
-	else if (bsize >= NFS_MAX_FILE_IO_BUFFER_SIZE)
-		bsize = NFS_MAX_FILE_IO_BUFFER_SIZE;
+	if (bsize < NFS_MIN_FILE_IO_SIZE)
+		bsize = NFS_DEF_FILE_IO_SIZE;
+	else if (bsize >= NFS_MAX_FILE_IO_SIZE)
+		bsize = NFS_MAX_FILE_IO_SIZE;
 
 	return nfs_block_bits(bsize, nrbitsp);
 }
@@ -307,20 +307,15 @@ nfs_sb_init(struct super_block *sb, rpc_authflavor_t authflavor)
 	max_rpc_payload = nfs_block_size(rpc_max_payload(server->client), NULL);
 	if (server->rsize > max_rpc_payload)
 		server->rsize = max_rpc_payload;
+	if (server->rsize > NFS_MAX_FILE_IO_SIZE)
+		server->rsize = NFS_MAX_FILE_IO_SIZE;
+	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+
 	if (server->wsize > max_rpc_payload)
 		server->wsize = max_rpc_payload;
-
-	server->rpages = (server->rsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	if (server->rpages > NFS_READ_MAXIOV) {
-		server->rpages = NFS_READ_MAXIOV;
-		server->rsize = server->rpages << PAGE_CACHE_SHIFT;
-	}
-
+	if (server->wsize > NFS_MAX_FILE_IO_SIZE)
+		server->wsize = NFS_MAX_FILE_IO_SIZE;
 	server->wpages = (server->wsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-        if (server->wpages > NFS_WRITE_MAXIOV) {
-		server->wpages = NFS_WRITE_MAXIOV;
-                server->wsize = server->wpages << PAGE_CACHE_SHIFT;
-	}
 
 	if (sb->s_blocksize == 0)
 		sb->s_blocksize = nfs_block_bits(server->wsize,
