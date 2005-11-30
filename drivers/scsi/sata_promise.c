@@ -703,7 +703,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		probe_ent->port[3].scr_addr = base + 0x700;
 		break;
 	case board_2037x:
-       		probe_ent->n_ports = 2;
+		probe_ent->n_ports = 2;
 		break;
 	case board_20619:
 		probe_ent->n_ports = 4;
@@ -713,7 +713,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 		probe_ent->port[2].scr_addr = base + 0x600;
 		probe_ent->port[3].scr_addr = base + 0x700;
-                break;
+		break;
 	default:
 		BUG();
 		break;
