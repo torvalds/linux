@@ -651,12 +651,12 @@ static void sky2_ramset(struct sky2_hw *hw, u16 q, u32 start, size_t len)
 }
 
 /* Setup Bus Memory Interface */
-static void sky2_qset(struct sky2_hw *hw, u16 q, u32 wm)
+static void sky2_qset(struct sky2_hw *hw, u16 q)
 {
 	sky2_write32(hw, Q_ADDR(q, Q_CSR), BMU_CLR_RESET);
 	sky2_write32(hw, Q_ADDR(q, Q_CSR), BMU_OPER_INIT);
 	sky2_write32(hw, Q_ADDR(q, Q_CSR), BMU_FIFO_OP_ON);
-	sky2_write32(hw, Q_ADDR(q, Q_WM), wm);
+	sky2_write32(hw, Q_ADDR(q, Q_WM),  BMU_WM_DEFAULT);
 }
 
 /* Setup prefetch unit registers. This is the interface between
@@ -921,7 +921,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	int i;
 
 	sky2->rx_put = sky2->rx_next = 0;
-	sky2_qset(hw, rxq, is_pciex(hw) ? 0x80 : 0x600);
+	sky2_qset(hw, rxq);
 	sky2_prefetch_init(hw, rxq, sky2->rx_le_map, RX_LE_SIZE - 1);
 
 	rx_set_checksum(sky2);
@@ -1004,7 +1004,7 @@ static int sky2_up(struct net_device *dev)
 	sky2_write8(hw, RB_ADDR(port == 0 ? Q_XS1 : Q_XS2, RB_CTRL),
 		    RB_RST_SET);
 
-	sky2_qset(hw, txqaddr[port], 0x600);
+	sky2_qset(hw, txqaddr[port]);
 	if (hw->chip_id == CHIP_ID_YUKON_EC_U)
 		sky2_write16(hw, Q_ADDR(txqaddr[port], Q_AL), 0x1a0);
 
@@ -2146,20 +2146,6 @@ static int sky2_reset(struct sky2_hw *hw)
 		sky2_write8(hw, RAM_BUFFER(i, B3_RI_RTO_R2), SK_RI_TO_53);
 		sky2_write8(hw, RAM_BUFFER(i, B3_RI_RTO_XA2), SK_RI_TO_53);
 		sky2_write8(hw, RAM_BUFFER(i, B3_RI_RTO_XS2), SK_RI_TO_53);
-	}
-
-	if (is_pciex(hw)) {
-		u16 pctrl;
-
-		/* change Max. Read Request Size to 2048 bytes */
-		pci_read_config_word(hw->pdev, PEX_DEV_CTRL, &pctrl);
-		pctrl &= ~PEX_DC_MAX_RRS_MSK;
-		pctrl |= PEX_DC_MAX_RD_RQ_SIZE(4);
-
-
-		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-		pci_write_config_word(hw->pdev, PEX_DEV_CTRL, pctrl);
-		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	}
 
 	sky2_write32(hw, B0_HWE_IMSK, Y2_HWE_ALL_MASK);

@@ -631,6 +631,8 @@ enum {
 	BMU_CLR_RESET	= BMU_FIFO_RST | BMU_OP_OFF | BMU_RST_CLR,
 	BMU_OPER_INIT	= BMU_CLR_IRQ_PAR | BMU_CLR_IRQ_CHK | BMU_START |
 			  BMU_FIFO_ENA | BMU_OP_ON,
+
+	BMU_WM_DEFAULT = 0x600,
 };
 
 /* Tx BMU Control / Status Registers (Yukon-2) */
