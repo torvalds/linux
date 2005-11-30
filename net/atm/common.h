@@ -47,4 +47,6 @@ static inline void atm_proc_exit(void)
 /* SVC */
 int svc_change_qos(struct atm_vcc *vcc,struct atm_qos *qos);
 
+void atm_dev_release_vccs(struct atm_dev *dev);
+
 #endif

@@ -70,6 +70,7 @@ struct atm_dev *atm_dev_lookup(int number)
 	return dev;
 }
 
+
 struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 				 int number, unsigned long *flags)
 {
@@ -123,37 +124,22 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 
 void atm_dev_deregister(struct atm_dev *dev)
 {
-	unsigned long warning_time;
+	BUG_ON(test_bit(ATM_DF_REMOVED, &dev->flags));
+	set_bit(ATM_DF_REMOVED, &dev->flags);
 
-	atm_proc_dev_deregister(dev);
-
+	/*
+	 * if we remove current device from atm_devs list, new device 
+	 * with same number can appear, such we need deregister proc, 
+	 * release async all vccs and remove them from vccs list too
+	 */
 	down(&atm_dev_mutex);
 	list_del(&dev->dev_list);
 	up(&atm_dev_mutex);
 
-        warning_time = jiffies;
-        while (atomic_read(&dev->refcnt) != 1) {
-                msleep(250);
-                if ((jiffies - warning_time) > 10 * HZ) {
-                        printk(KERN_EMERG "atm_dev_deregister: waiting for "
-                               "dev %d to become free. Usage count = %d\n",
-                               dev->number, atomic_read(&dev->refcnt));
-                        warning_time = jiffies;
-                }
-        }
+	atm_dev_release_vccs(dev);
+	atm_proc_dev_deregister(dev);
 
-	kfree(dev);
-}
-
-void shutdown_atm_dev(struct atm_dev *dev)
-{
-	if (atomic_read(&dev->refcnt) > 1) {
-		set_bit(ATM_DF_CLOSE, &dev->flags);
-		return;
-	}
-	if (dev->ops->dev_close)
-		dev->ops->dev_close(dev);
-	atm_dev_deregister(dev);
+	atm_dev_put(dev);
 }
 
 
@@ -433,4 +419,3 @@ void *atm_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 EXPORT_SYMBOL(atm_dev_register);
 EXPORT_SYMBOL(atm_dev_deregister);
 EXPORT_SYMBOL(atm_dev_lookup);
-EXPORT_SYMBOL(shutdown_atm_dev);

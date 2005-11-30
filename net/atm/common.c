@@ -221,6 +221,29 @@ void vcc_release_async(struct atm_vcc *vcc, int reply)
 EXPORT_SYMBOL(vcc_release_async);
 
 
+void atm_dev_release_vccs(struct atm_dev *dev)
+{
+	int i;
+
+	write_lock_irq(&vcc_sklist_lock);
+	for (i = 0; i < VCC_HTABLE_SIZE; i++) {
+		struct hlist_head *head = &vcc_hash[i];
+		struct hlist_node *node, *tmp;
+		struct sock *s;
+		struct atm_vcc *vcc;
+
+		sk_for_each_safe(s, node, tmp, head) {
+			vcc = atm_sk(s);
+			if (vcc->dev == dev) {
+				vcc_release_async(vcc, -EPIPE);
+				sk_del_node_init(s);
+			}
+		}
+	}
+	write_unlock_irq(&vcc_sklist_lock);
+}
+
+
 static int adjust_tp(struct atm_trafprm *tp,unsigned char aal)
 {
 	int max_sdu;
@@ -332,12 +355,13 @@ static int __vcc_connect(struct atm_vcc *vcc, struct atm_dev *dev, short vpi,
 		return -EINVAL;
 	if (vci > 0 && vci < ATM_NOT_RSV_VCI && !capable(CAP_NET_BIND_SERVICE))
 		return -EPERM;
-	error = 0;
+	error = -ENODEV;
 	if (!try_module_get(dev->ops->owner))
-		return -ENODEV;
+		return error;
 	vcc->dev = dev;
 	write_lock_irq(&vcc_sklist_lock);
-	if ((error = find_ci(vcc, &vpi, &vci))) {
+	if (test_bit(ATM_DF_REMOVED, &dev->flags) || 
+	    (error = find_ci(vcc, &vpi, &vci))) {
 		write_unlock_irq(&vcc_sklist_lock);
 		goto fail_module_put;
 	}
