@@ -584,7 +584,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 	}
 
 	/* save opcode for later */
-	conn->in.opcode = hdr->opcode;
+	conn->in.opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 
 	/* verify itt (itt encoding: age+cid+itt) */
 	if (hdr->itt != cpu_to_be32(ISCSI_RESERVED_TAG)) {
