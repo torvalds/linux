@@ -616,29 +616,6 @@ static __inline void sym_init_burst(struct sym_hcb *np, u_char bc)
 	}
 }
 
-
-/*
- * Print out the list of targets that have some flag disabled by user.
- */
-static void sym_print_targets_flag(struct sym_hcb *np, int mask, char *msg)
-{
-	int cnt;
-	int i;
-
-	for (cnt = 0, i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
-		if (i == np->myaddr)
-			continue;
-		if (np->target[i].usrflags & mask) {
-			if (!cnt++)
-				printf("%s: %s disabled for targets",
-					sym_name(np), msg);
-			printf(" %d", i);
-		}
-	}
-	if (cnt)
-		printf(".\n");
-}
-
 /*
  *  Save initial settings of some IO registers.
  *  Assumed to have been set by BIOS.
@@ -986,13 +963,6 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 			sym_name(np), np->rv_scntl3, np->rv_dmode, np->rv_dcntl,
 			np->rv_ctest3, np->rv_ctest4, np->rv_ctest5);
 	}
-	/*
-	 *  Let user be aware of targets that have some disable flags set.
-	 */
-	sym_print_targets_flag(np, SYM_SCAN_BOOT_DISABLED, "SCAN AT BOOT");
-	if (sym_verbose)
-		sym_print_targets_flag(np, SYM_SCAN_LUNS_DISABLED,
-				       "SCAN FOR LUNS");
 
 	return 0;
 }

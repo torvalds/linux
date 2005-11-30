@@ -1018,6 +1018,7 @@ static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 	if (sdev->id >= SYM_CONF_MAX_TARGET || sdev->lun >= SYM_CONF_MAX_LUN)
 		return -ENXIO;
 
+	tp->starget = sdev->sdev_target;
 	/*
 	 * Fail the device init if the device is flagged NOSCAN at BOOT in
 	 * the NVRAM.  This may speed up boot and maintain coherency with
@@ -1027,17 +1028,24 @@ static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 	 * lun devices behave badly when asked for a non zero LUN.
 	 */
 
-	if ((tp->usrflags & SYM_SCAN_BOOT_DISABLED) ||
-	    ((tp->usrflags & SYM_SCAN_LUNS_DISABLED) && sdev->lun != 0)) {
+	if (tp->usrflags & SYM_SCAN_BOOT_DISABLED) {
 		tp->usrflags &= ~SYM_SCAN_BOOT_DISABLED;
+		starget_printk(KERN_INFO, tp->starget,
+				"Scan at boot disabled in NVRAM\n");
 		return -ENXIO;
+	}
+
+	if (tp->usrflags & SYM_SCAN_LUNS_DISABLED) {
+		if (sdev->lun != 0)
+			return -ENXIO;
+		starget_printk(KERN_INFO, tp->starget,
+				"Multiple LUNs disabled in NVRAM\n");
 	}
 
 	lp = sym_alloc_lcb(np, sdev->id, sdev->lun);
 	if (!lp)
 		return -ENOMEM;
 
-	tp->starget = sdev->sdev_target;
 	spi_min_period(tp->starget) = tp->usr_period;
 	spi_max_width(tp->starget) = tp->usr_width;
 
