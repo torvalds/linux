@@ -2152,11 +2152,11 @@ out:
 #ifdef CONFIG_PROC_FS
 	rpc_proc_unregister("nfs");
 #endif
-	nfs_destroy_writepagecache();
 #ifdef CONFIG_NFS_DIRECTIO
-out0:
 	nfs_destroy_directcache();
+out0:
 #endif
+	nfs_destroy_writepagecache();
 out1:
 	nfs_destroy_readpagecache();
 out2:
