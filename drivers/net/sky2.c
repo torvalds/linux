@@ -67,13 +67,9 @@
  * a receive requires one (or two if using 64 bit dma).
  */
 
-#ifdef CONFIG_SKY2_EC_A1
 #define is_ec_a1(hw) \
-	((hw)->chip_id == CHIP_ID_YUKON_EC && \
-	 (hw)->chip_rev == CHIP_REV_YU_EC_A1)
-#else
-#define is_ec_a1(hw)	0
-#endif
+	unlikely((hw)->chip_id == CHIP_ID_YUKON_EC && \
+		 (hw)->chip_rev == CHIP_REV_YU_EC_A1)
 
 #define RX_LE_SIZE	    	256
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
