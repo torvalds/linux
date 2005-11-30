@@ -642,9 +642,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 		switch(conn->in.opcode) {
 		case ISCSI_OP_SCSI_CMD_RSP:
 			BUG_ON((void*)ctask != ctask->sc->SCp.ptr);
-			if (ctask->hdr.flags & ISCSI_FLAG_CMD_WRITE)
-				rc = iscsi_cmd_rsp(conn, ctask);
-			else if (!conn->in.datalen)
+			if (!conn->in.datalen)
 				rc = iscsi_cmd_rsp(conn, ctask);
 			else
 				/*
@@ -666,8 +664,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 			break;
 		case ISCSI_OP_R2T:
 			BUG_ON((void*)ctask != ctask->sc->SCp.ptr);
-			if (ctask->hdr.flags & ISCSI_FLAG_CMD_WRITE &&
-			    ctask->sc->sc_data_direction == DMA_TO_DEVICE)
+			if (ctask->sc->sc_data_direction == DMA_TO_DEVICE)
 				rc = iscsi_r2t_rsp(conn, ctask);
 			else
 				rc = ISCSI_ERR_PROTO;
