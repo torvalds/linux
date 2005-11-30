@@ -1172,7 +1172,7 @@ static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *pa
 	spinlock_t *ptl;  
 
 	retval = -EINVAL;
-	if (PageAnon(page) || !PageReserved(page))
+	if (PageAnon(page))
 		goto out;
 	retval = -ENOMEM;
 	flush_dcache_page(page);
@@ -1195,6 +1195,35 @@ out_unlock:
 out:
 	return retval;
 }
+
+/*
+ * This allows drivers to insert individual pages they've allocated
+ * into a user vma.
+ *
+ * The page has to be a nice clean _individual_ kernel allocation.
+ * If you allocate a compound page, you need to have marked it as
+ * such (__GFP_COMP), or manually just split the page up yourself
+ * (which is mainly an issue of doing "set_page_count(page, 1)" for
+ * each sub-page, and then freeing them one by one when you free
+ * them rather than freeing it as a compound page).
+ *
+ * NOTE! Traditionally this was done with "remap_pfn_range()" which
+ * took an arbitrary page protection parameter. This doesn't allow
+ * that. Your vma protection will have to be set up correctly, which
+ * means that if you want a shared writable mapping, you'd better
+ * ask for a shared writable mapping!
+ *
+ * The page does not need to be reserved.
+ */
+int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *page)
+{
+	if (addr < vma->vm_start || addr >= vma->vm_end)
+		return -EFAULT;
+	if (!page_count(page))
+		return -EINVAL;
+	return insert_page(vma->vm_mm, addr, page, vma->vm_page_prot);
+}
+EXPORT_SYMBOL_GPL(vm_insert_page);
 
 /*
  * Somebody does a pfn remapping that doesn't actually work as a vma.
@@ -1225,8 +1254,11 @@ static int incomplete_pfn_remap(struct vm_area_struct *vma,
 	if (!pfn_valid(pfn))
 		return -EINVAL;
 
-	retval = 0;
 	page = pfn_to_page(pfn);
+	if (!PageReserved(page))
+		return -EINVAL;
+
+	retval = 0;
 	while (start < end) {
 		retval = insert_page(vma->vm_mm, start, page, prot);
 		if (retval < 0)
