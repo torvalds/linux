@@ -397,12 +397,12 @@ checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 			if(smb->Command == SMB_COM_LOCKING_ANDX)
 				return 0;
 			else
-				cERROR(1, ("Rcvd Request not response "));         
+				cERROR(1, ("Rcvd Request not response"));         
 		}
 	} else { /* bad signature or mid */
 		if (*(__le32 *) smb->Protocol != cpu_to_le32(0x424d53ff))
 			cERROR(1,
-			       ("Bad protocol string signature header %x ",
+			       ("Bad protocol string signature header %x",
 				*(unsigned int *) smb->Protocol));
 		if (mid != smb->Mid)
 			cERROR(1, ("Mids do not match"));
@@ -417,7 +417,7 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 	__u32 len = smb->smb_buf_length;
 	__u32 clc_len;  /* calculated length */
 	cFYI(0,
-	     ("Entering checkSMB with Length: %x, smb_buf_length: %x ",
+	     ("Entering checkSMB with Length: %x, smb_buf_length: %x",
 	      length, len));
 	if (((unsigned int)length < 2 + sizeof (struct smb_hdr)) ||
 	    (len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4)) {
@@ -451,9 +451,16 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 		cERROR(1, ("bad smb size detected for Mid=%d", smb->Mid));
 		/* Windows XP can return a few bytes too much, presumably
 		an illegal pad, at the end of byte range lock responses 
-		so we allow for up to eight byte pad, as long as actual
+		so we allow for that three byte pad, as long as actual
 		received length is as long or longer than calculated length */
-		if((4+len > clc_len) && (len <= clc_len + 3))
+		/* We have now had to extend this more, since there is a 
+		case in which it needs to be bigger still to handle a
+		malformed response to transact2 findfirst from WinXP when
+		access denied is returned and thus bcc and wct are zero
+		but server says length is 0x21 bytes too long as if the server
+		forget to reset the smb rfc1001 length when it reset the
+		wct and bcc to minimum size and drop the t2 parms and data */
+		if((4+len > clc_len) && (len <= clc_len + 512))
 			return 0;
 		else
 			return 1;
