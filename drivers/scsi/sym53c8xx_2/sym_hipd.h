@@ -416,19 +416,6 @@ struct sym_tcb {
 	struct sym_lcb **lunmp;		/* Other LCBs [1..MAX_LUN]	*/
 #endif
 
-	/*
-	 *  Bitmap that tells about LUNs that succeeded at least 
-	 *  1 IO and therefore assumed to be a real device.
-	 *  Avoid useless allocation of the LCB structure.
-	 */
-	u32	lun_map[(SYM_CONF_MAX_LUN+31)/32];
-
-	/*
-	 *  Bitmap that tells about LUNs that haven't yet an LCB 
-	 *  allocated (not discovered or LCB allocation failed).
-	 */
-	u32	busy0_map[(SYM_CONF_MAX_LUN+31)/32];
-
 #ifdef	SYM_HAVE_STCB
 	/*
 	 *  O/S specific data structure.
@@ -1077,7 +1064,6 @@ char *sym_driver_name(void);
 void sym_print_xerr(struct scsi_cmnd *cmd, int x_status);
 int sym_reset_scsi_bus(struct sym_hcb *np, int enab_int);
 struct sym_chip *sym_lookup_chip_table(u_short device_id, u_char revision);
-void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp);
 #ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 void sym_start_next_ccbs(struct sym_hcb *np, struct sym_lcb *lp, int maxn);
 #endif

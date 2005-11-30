@@ -1523,7 +1523,7 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 /*
  *  Insert a job into the start queue.
  */
-void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
+static void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
 {
 	u_short	qidx;
 
@@ -4664,30 +4664,7 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 		goto out;
 	cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 
-#ifndef SYM_OPT_HANDLE_DEVICE_QUEUEING
-	/*
-	 *  If the LCB is not yet available and the LUN
-	 *  has been probed ok, try to allocate the LCB.
-	 */
-	if (!lp && sym_is_bit(tp->lun_map, ln)) {
-		lp = sym_alloc_lcb(np, tn, ln);
-		if (!lp)
-			goto out_free;
-	}
-#endif
-
-	/*
-	 *  If the LCB is not available here, then the 
-	 *  logical unit is not yet discovered. For those 
-	 *  ones only accept 1 SCSI IO per logical unit, 
-	 *  since we cannot allow disconnections.
-	 */
-	if (!lp) {
-		if (!sym_is_bit(tp->busy0_map, ln))
-			sym_set_bit(tp->busy0_map, ln);
-		else
-			goto out_free;
-	} else {
+	{
 		/*
 		 *  If we have been asked for a tagged command.
 		 */
@@ -4840,12 +4817,6 @@ void sym_free_ccb (struct sym_hcb *np, struct sym_ccb *cp)
 			lp->head.resel_sa =
 				cpu_to_scr(SCRIPTB_BA(np, resel_bad_lun));
 	}
-	/*
-	 *  Otherwise, we only accept 1 IO per LUN.
-	 *  Clear the bit that keeps track of this IO.
-	 */
-	else
-		sym_clr_bit(tp->busy0_map, cp->lun);
 
 	/*
 	 *  We donnot queue more than 1 ccb per target 
@@ -4997,20 +4968,7 @@ static void sym_init_tcb (struct sym_hcb *np, u_char tn)
 struct sym_lcb *sym_alloc_lcb (struct sym_hcb *np, u_char tn, u_char ln)
 {
 	struct sym_tcb *tp = &np->target[tn];
-	struct sym_lcb *lp = sym_lp(tp, ln);
-
-	/*
-	 *  Already done, just return.
-	 */
-	if (lp)
-		return lp;
-
-	/*
-	 *  Donnot allow LUN control block 
-	 *  allocation for not probed LUNs.
-	 */
-	if (!sym_is_bit(tp->lun_map, ln))
-		return NULL;
+	struct sym_lcb *lp = NULL;
 
 	/*
 	 *  Initialize the target control block if not yet.
@@ -5082,13 +5040,7 @@ struct sym_lcb *sym_alloc_lcb (struct sym_hcb *np, u_char tn, u_char ln)
 	lp->started_max   = SYM_CONF_MAX_TASK;
 	lp->started_limit = SYM_CONF_MAX_TASK;
 #endif
-	/*
-	 *  If we are busy, count the IO.
-	 */
-	if (sym_is_bit(tp->busy0_map, ln)) {
-		lp->busy_itl = 1;
-		sym_clr_bit(tp->busy0_map, ln);
-	}
+
 fail:
 	return lp;
 }
@@ -5101,12 +5053,6 @@ static void sym_alloc_lcb_tags (struct sym_hcb *np, u_char tn, u_char ln)
 	struct sym_tcb *tp = &np->target[tn];
 	struct sym_lcb *lp = sym_lp(tp, ln);
 	int i;
-
-	/*
-	 *  If LCB not available, try to allocate it.
-	 */
-	if (!lp && !(lp = sym_alloc_lcb(np, tn, ln)))
-		goto fail;
 
 	/*
 	 *  Allocate the task table and and the tag allocation 
@@ -5481,8 +5427,7 @@ finish:
 	/*
 	 *  Donnot start more than 1 command after an error.
 	 */
-	if (lp)
-		sym_start_next_ccbs(np, lp, 1);
+	sym_start_next_ccbs(np, lp, 1);
 #endif
 }
 
@@ -5519,12 +5464,6 @@ void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
 	 */
 	tp = &np->target[cp->target];
 	lp = sym_lp(tp, cp->lun);
-
-	/*
-	 *  Assume device discovered on first success.
-	 */
-	if (!lp)
-		sym_set_bit(tp->lun_map, cp->lun);
 
 	/*
 	 *  If all data have been transferred, given than no
@@ -5578,7 +5517,7 @@ if (resid)
 	/*
 	 *  Requeue a couple of awaiting scsi commands.
 	 */
-	if (lp && !sym_que_empty(&lp->waiting_ccbq))
+	if (!sym_que_empty(&lp->waiting_ccbq))
 		sym_start_next_ccbs(np, lp, 2);
 #endif
 	/*
@@ -5821,8 +5760,7 @@ void sym_hcb_free(struct sym_hcb *np)
 	SYM_QUEHEAD *qp;
 	struct sym_ccb *cp;
 	struct sym_tcb *tp;
-	struct sym_lcb *lp;
-	int target, lun;
+	int target;
 
 	if (np->scriptz0)
 		sym_mfree_dma(np->scriptz0, np->scriptz_sz, "SCRIPTZ0");
@@ -5848,16 +5786,6 @@ void sym_hcb_free(struct sym_hcb *np)
 
 	for (target = 0; target < SYM_CONF_MAX_TARGET ; target++) {
 		tp = &np->target[target];
-		for (lun = 0 ; lun < SYM_CONF_MAX_LUN ; lun++) {
-			lp = sym_lp(tp, lun);
-			if (!lp)
-				continue;
-			if (lp->itlq_tbl)
-				sym_mfree_dma(lp->itlq_tbl, SYM_CONF_MAX_TASK*4,
-				       "ITLQ_TBL");
-			kfree(lp->cb_tags);
-			sym_mfree_dma(lp, sizeof(*lp), "LCB");
-		}
 #if SYM_CONF_MAX_LUN > 1
 		kfree(tp->lunmp);
 #endif 
