@@ -96,6 +96,7 @@
 #include <linux/usb.h>
 #include <linux/usb_input.h>
 #include <linux/wait.h>
+#include <linux/jiffies.h>
 
 /*
  * Module and Version Information, Module Parameters
@@ -471,7 +472,7 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 		/* Filter duplicate events which happen "too close" together. */
 		if ((ati_remote->old_data[0] == data[1]) &&
 			(ati_remote->old_data[1] == data[2]) &&
-			((ati_remote->old_jiffies + FILTER_TIME) > jiffies)) {
+			time_before(jiffies, ati_remote->old_jiffies + FILTER_TIME)) {
 			ati_remote->repeat_count++;
 		} else {
 			ati_remote->repeat_count = 0;
@@ -506,16 +507,16 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 	 * pad down, so we increase acceleration, ramping up over two seconds to
 	 * a maximum speed.  The acceleration curve is #defined above.
 	 */
-	if ((jiffies - ati_remote->old_jiffies) > (HZ >> 2)) {
+	if (time_after(jiffies, ati_remote->old_jiffies + (HZ >> 2))) {
 		acc = 1;
 		ati_remote->acc_jiffies = jiffies;
 	}
-	else if ((jiffies - ati_remote->acc_jiffies) < (HZ >> 3))  acc = accel[0];
-	else if ((jiffies - ati_remote->acc_jiffies) < (HZ >> 2))  acc = accel[1];
-	else if ((jiffies - ati_remote->acc_jiffies) < (HZ >> 1))  acc = accel[2];
-	else if ((jiffies - ati_remote->acc_jiffies) < HZ )        acc = accel[3];
-	else if ((jiffies - ati_remote->acc_jiffies) < HZ+(HZ>>1)) acc = accel[4];
-	else if ((jiffies - ati_remote->acc_jiffies) < (HZ << 1))  acc = accel[5];
+	else if (time_before(jiffies, ati_remote->acc_jiffies + (HZ >> 3)))  acc = accel[0];
+	else if (time_before(jiffies, ati_remote->acc_jiffies + (HZ >> 2)))  acc = accel[1];
+	else if (time_before(jiffies, ati_remote->acc_jiffies + (HZ >> 1)))  acc = accel[2];
+	else if (time_before(jiffies, ati_remote->acc_jiffies + HZ))         acc = accel[3];
+	else if (time_before(jiffies, ati_remote->acc_jiffies + HZ+(HZ>>1))) acc = accel[4];
+	else if (time_before(jiffies, ati_remote->acc_jiffies + (HZ << 1)))  acc = accel[5];
 	else acc = accel[6];
 
 	input_regs(dev, regs);
