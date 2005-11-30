@@ -485,8 +485,8 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	int i;
 	const u8 *addr = hw->dev[port]->dev_addr;
 
-	sky2_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
-	sky2_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_CLR);
+	sky2_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_SET);
+	sky2_write32(hw, SK_REG(port, GPHY_CTRL), GPC_RST_CLR|GPC_ENA_PAUSE);
 
 	sky2_write8(hw, SK_REG(port, GMAC_CTRL), GMC_RST_CLR);
 
@@ -589,11 +589,8 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 		     GMF_RX_CTRL_DEF);
 
 	/* Flush Rx MAC FIFO on any flow control or error */
-	reg = GMR_FS_ANY_ERR;
-	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev <= 1)
-		reg = 0;	/* WA dev #4.115 */
+	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), GMR_FS_ANY_ERR);
 
-	sky2_write16(hw, SK_REG(port, RX_GMF_FL_MSK), reg);
 	/* Set threshold to 0xa (64 bytes)
 	 *  ASF disabled so no need to do WA dev #4.30
 	 */
@@ -1363,9 +1360,6 @@ static void sky2_link_up(struct sky2_port *sky2)
 	unsigned port = sky2->port;
 	u16 reg;
 
-	/* disable Rx GMAC FIFO flush mode */
-	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RX_F_FL_OFF);
-
 	/* Enable Transmit FIFO Underrun */
 	sky2_write8(hw, SK_REG(port, GMAC_IRQ_MSK), GMAC_DEF_MSK);
 
@@ -1611,8 +1605,11 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 
 	sky2->rx_next = (sky2->rx_next + 1) % sky2->rx_pending;
 
-	if (!(status & GMR_FS_RX_OK) || (status & GMR_FS_ANY_ERR))
+	if (status & GMR_FS_ANY_ERR)
 		goto error;
+
+	if (!(status & GMR_FS_RX_OK))
+		goto resubmit;
 
 	if (length < RX_COPY_THRESHOLD) {
 		skb = alloc_skb(length + 2, GFP_ATOMIC);
@@ -1662,9 +1659,6 @@ resubmit:
 	return skb;
 
 error:
-	if (status & GMR_FS_GOOD_FC)
-		goto resubmit;
-
 	if (netif_msg_rx_err(sky2))
 		printk(KERN_INFO PFX "%s: rx error, status 0x%x length %d\n",
 		       sky2->netdev->name, status, length);
