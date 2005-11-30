@@ -308,10 +308,11 @@ static int cm_alloc_id(struct cm_id_private *cm_id_priv)
 {
 	unsigned long flags;
 	int ret;
+	static int next_id;
 
 	do {
 		spin_lock_irqsave(&cm.lock, flags);
-		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv, 1,
+		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv, next_id++,
 					(__force int *) &cm_id_priv->id.local_id);
 		spin_unlock_irqrestore(&cm.lock, flags);
 	} while( (ret == -EAGAIN) && idr_pre_get(&cm.local_id_table, GFP_KERNEL) );
