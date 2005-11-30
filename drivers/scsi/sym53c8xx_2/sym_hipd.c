@@ -40,6 +40,7 @@
 
 #include <linux/slab.h>
 #include <asm/param.h>		/* for timeouts in units of HZ */
+#include <scsi/scsi_dbg.h>
 
 #include "sym_glue.h"
 #include "sym_nvram.h"
@@ -70,32 +71,12 @@ static void sym_printl_hex(u_char *p, int n)
 	printf (".\n");
 }
 
-/*
- *  Print out the content of a SCSI message.
- */
-static int sym_show_msg (u_char * msg)
-{
-	u_char i;
-	printf ("%x",*msg);
-	if (*msg==M_EXTENDED) {
-		for (i=1;i<8;i++) {
-			if (i-1>msg[1]) break;
-			printf ("-%x",msg[i]);
-		}
-		return (i+1);
-	} else if ((*msg & 0xf0) == 0x20) {
-		printf ("-%x",msg[1]);
-		return (2);
-	}
-	return (1);
-}
-
 static void sym_print_msg(struct sym_ccb *cp, char *label, u_char *msg)
 {
 	sym_print_addr(cp->cmd, "%s: ", label);
 
-	sym_show_msg(msg);
-	printf(".\n");
+	scsi_print_msg(msg);
+	printf("\n");
 }
 
 static void sym_print_nego_msg(struct sym_hcb *np, int target, char *label, u_char *msg)
@@ -103,8 +84,8 @@ static void sym_print_nego_msg(struct sym_hcb *np, int target, char *label, u_ch
 	struct sym_tcb *tp = &np->target[target];
 	dev_info(&tp->starget->dev, "%s: ", label);
 
-	sym_show_msg(msg);
-	printf(".\n");
+	scsi_print_msg(msg);
+	printf("\n");
 }
 
 /*
