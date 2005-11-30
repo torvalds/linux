@@ -55,7 +55,7 @@ static int try_rfc959(const char *, size_t, u_int32_t [], char);
 static int try_eprt(const char *, size_t, u_int32_t [], char);
 static int try_epsv_response(const char *, size_t, u_int32_t [], char);
 
-static struct ftp_search {
+static const struct ftp_search {
 	enum ip_conntrack_dir dir;
 	const char *pattern;
 	size_t plen;

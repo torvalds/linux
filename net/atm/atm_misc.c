@@ -74,11 +74,14 @@ struct sk_buff *atm_alloc_charge(struct atm_vcc *vcc,int pdu_size,
  */
 
 
-int atm_pcr_goal(struct atm_trafprm *tp)
+int atm_pcr_goal(const struct atm_trafprm *tp)
 {
-	if (tp->pcr && tp->pcr != ATM_MAX_PCR) return -tp->pcr;
-	if (tp->min_pcr && !tp->pcr) return tp->min_pcr;
-	if (tp->max_pcr != ATM_MAX_PCR) return -tp->max_pcr;
+	if (tp->pcr && tp->pcr != ATM_MAX_PCR)
+		return -tp->pcr;
+	if (tp->min_pcr && !tp->pcr)
+		return tp->min_pcr;
+	if (tp->max_pcr != ATM_MAX_PCR)
+		return -tp->max_pcr;
 	return 0;
 }
 

@@ -1354,7 +1354,7 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced,int size)
 			   get_order(sizeof(struct list_head) * size));
 }
 
-void ip_conntrack_flush()
+void ip_conntrack_flush(void)
 {
 	/* This makes sure all current packets have passed through
            netfilter framework.  Roll on, two-stage module
@@ -1408,7 +1408,7 @@ static struct list_head *alloc_hashtable(int size, int *vmalloced)
 	return hash;
 }
 
-int set_hashsize(const char *val, struct kernel_param *kp)
+static int set_hashsize(const char *val, struct kernel_param *kp)
 {
 	int i, bucket, hashsize, vmalloced;
 	int old_vmalloced, old_size;

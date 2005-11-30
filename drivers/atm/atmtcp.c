@@ -246,10 +246,6 @@ static void atmtcp_c_close(struct atm_vcc *vcc)
 {
 	struct atm_dev *atmtcp_dev;
 	struct atmtcp_dev_data *dev_data;
-	struct sock *s;
-	struct hlist_node *node;
-	struct atm_vcc *walk;
-	int i;
 
 	atmtcp_dev = (struct atm_dev *) vcc->dev_data;
 	dev_data = PRIV(atmtcp_dev);
@@ -257,20 +253,8 @@ static void atmtcp_c_close(struct atm_vcc *vcc)
 	if (dev_data->persist) return;
 	atmtcp_dev->dev_data = NULL;
 	kfree(dev_data);
-	shutdown_atm_dev(atmtcp_dev);
+	atm_dev_deregister(atmtcp_dev);
 	vcc->dev_data = NULL;
-	read_lock(&vcc_sklist_lock);
-	for(i = 0; i < VCC_HTABLE_SIZE; ++i) {
-		struct hlist_head *head = &vcc_hash[i];
-
-		sk_for_each(s, node, head) {
-			walk = atm_sk(s);
-			if (walk->dev != atmtcp_dev)
-				continue;
-			wake_up(s->sk_sleep);
-		}
-	}
-	read_unlock(&vcc_sklist_lock);
 	module_put(THIS_MODULE);
 }
 
@@ -450,7 +434,7 @@ static int atmtcp_remove_persistent(int itf)
 	if (PRIV(dev)->vcc) return 0;
 	kfree(dev_data);
 	atm_dev_put(dev);
-	shutdown_atm_dev(dev);
+	atm_dev_deregister(dev);
 	return 0;
 }
 

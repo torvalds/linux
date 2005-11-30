@@ -879,7 +879,7 @@ static int usbatm_atm_init(struct usbatm_data *instance)
 
  fail:
 	instance->atm_dev = NULL;
-	shutdown_atm_dev(atm_dev); /* usbatm_atm_dev_close will eventually be called */
+	atm_dev_deregister(atm_dev); /* usbatm_atm_dev_close will eventually be called */
 	return ret;
 }
 
@@ -1164,7 +1164,7 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 
 	/* ATM finalize */
 	if (instance->atm_dev)
-		shutdown_atm_dev(instance->atm_dev);
+		atm_dev_deregister(instance->atm_dev);
 
 	usbatm_put_instance(instance);	/* taken in usbatm_usb_probe */
 }

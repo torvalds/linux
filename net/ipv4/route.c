@@ -1371,7 +1371,7 @@ out:	kfree_skb(skb);
  *	are needed for AMPRnet AX.25 paths.
  */
 
-static unsigned short mtu_plateau[] =
+static const unsigned short mtu_plateau[] =
 {32000, 17914, 8166, 4352, 2002, 1492, 576, 296, 216, 128 };
 
 static __inline__ unsigned short guess_mtu(unsigned short old_mtu)
@@ -3149,8 +3149,7 @@ int __init ip_rt_init(void)
 					sizeof(struct rt_hash_bucket),
 					rhash_entries,
 					(num_physpages >= 128 * 1024) ?
-						(27 - PAGE_SHIFT) :
-						(29 - PAGE_SHIFT),
+					15 : 17,
 					HASH_HIGHMEM,
 					&rt_hash_log,
 					&rt_hash_mask,

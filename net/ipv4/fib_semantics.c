@@ -83,7 +83,7 @@ for (nhsel=0; nhsel < 1; nhsel++)
 #define endfor_nexthops(fi) }
 
 
-static struct 
+static const struct 
 {
 	int	error;
 	u8	scope;

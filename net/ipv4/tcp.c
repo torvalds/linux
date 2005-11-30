@@ -1413,7 +1413,7 @@ recv_urg:
  *	closed.
  */
 
-static unsigned char new_state[16] = {
+static const unsigned char new_state[16] = {
   /* current state:        new state:      action:	*/
   /* (Invalid)		*/ TCP_CLOSE,
   /* TCP_ESTABLISHED	*/ TCP_FIN_WAIT1 | TCP_ACTION_FIN,
@@ -2065,8 +2065,7 @@ void __init tcp_init(void)
 					sizeof(struct inet_ehash_bucket),
 					thash_entries,
 					(num_physpages >= 128 * 1024) ?
-						(25 - PAGE_SHIFT) :
-						(27 - PAGE_SHIFT),
+					13 : 15,
 					HASH_HIGHMEM,
 					&tcp_hashinfo.ehash_size,
 					NULL,
@@ -2082,8 +2081,7 @@ void __init tcp_init(void)
 					sizeof(struct inet_bind_hashbucket),
 					tcp_hashinfo.ehash_size,
 					(num_physpages >= 128 * 1024) ?
-						(25 - PAGE_SHIFT) :
-						(27 - PAGE_SHIFT),
+					13 : 15,
 					HASH_HIGHMEM,
 					&tcp_hashinfo.bhash_size,
 					NULL,

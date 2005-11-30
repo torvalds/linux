@@ -1217,7 +1217,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-int __init ipgre_fb_tunnel_init(struct net_device *dev)
+static int __init ipgre_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = (struct ip_tunnel*)dev->priv;
 	struct iphdr *iph = &tunnel->parms.iph;

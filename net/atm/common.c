@@ -221,6 +221,29 @@ void vcc_release_async(struct atm_vcc *vcc, int reply)
 EXPORT_SYMBOL(vcc_release_async);
 
 
+void atm_dev_release_vccs(struct atm_dev *dev)
+{
+	int i;
+
+	write_lock_irq(&vcc_sklist_lock);
+	for (i = 0; i < VCC_HTABLE_SIZE; i++) {
+		struct hlist_head *head = &vcc_hash[i];
+		struct hlist_node *node, *tmp;
+		struct sock *s;
+		struct atm_vcc *vcc;
+
+		sk_for_each_safe(s, node, tmp, head) {
+			vcc = atm_sk(s);
+			if (vcc->dev == dev) {
+				vcc_release_async(vcc, -EPIPE);
+				sk_del_node_init(s);
+			}
+		}
+	}
+	write_unlock_irq(&vcc_sklist_lock);
+}
+
+
 static int adjust_tp(struct atm_trafprm *tp,unsigned char aal)
 {
 	int max_sdu;
@@ -332,12 +355,13 @@ static int __vcc_connect(struct atm_vcc *vcc, struct atm_dev *dev, short vpi,
 		return -EINVAL;
 	if (vci > 0 && vci < ATM_NOT_RSV_VCI && !capable(CAP_NET_BIND_SERVICE))
 		return -EPERM;
-	error = 0;
+	error = -ENODEV;
 	if (!try_module_get(dev->ops->owner))
-		return -ENODEV;
+		return error;
 	vcc->dev = dev;
 	write_lock_irq(&vcc_sklist_lock);
-	if ((error = find_ci(vcc, &vpi, &vci))) {
+	if (test_bit(ATM_DF_REMOVED, &dev->flags) || 
+	    (error = find_ci(vcc, &vpi, &vci))) {
 		write_unlock_irq(&vcc_sklist_lock);
 		goto fail_module_put;
 	}
@@ -423,33 +447,23 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 	if (vcc->qos.txtp.traffic_class == ATM_ANYCLASS ||
 	    vcc->qos.rxtp.traffic_class == ATM_ANYCLASS)
 		return -EINVAL;
-	if (itf != ATM_ITF_ANY) {
-		dev = atm_dev_lookup(itf);
-		if (!dev)
-			return -ENODEV;
-		error = __vcc_connect(vcc, dev, vpi, vci);
-		if (error) {
-			atm_dev_put(dev);
-			return error;
-		}
+	if (likely(itf != ATM_ITF_ANY)) {
+		dev = try_then_request_module(atm_dev_lookup(itf), "atm-device-%d", itf);
 	} else {
-		struct list_head *p, *next;
-
 		dev = NULL;
-		spin_lock(&atm_dev_lock);
-		list_for_each_safe(p, next, &atm_devs) {
-			dev = list_entry(p, struct atm_dev, dev_list);
+		down(&atm_dev_mutex);
+		if (!list_empty(&atm_devs)) {
+			dev = list_entry(atm_devs.next, struct atm_dev, dev_list);
 			atm_dev_hold(dev);
-			spin_unlock(&atm_dev_lock);
-			if (!__vcc_connect(vcc, dev, vpi, vci))
-				break;
-			atm_dev_put(dev);
-			dev = NULL;
-			spin_lock(&atm_dev_lock);
 		}
-		spin_unlock(&atm_dev_lock);
-		if (!dev)
-			return -ENODEV;
+		up(&atm_dev_mutex);
+	}
+	if (!dev)
+		return -ENODEV;
+	error = __vcc_connect(vcc, dev, vpi, vci);
+	if (error) {
+		atm_dev_put(dev);
+		return error;
 	}
 	if (vpi == ATM_VPI_UNSPEC || vci == ATM_VCI_UNSPEC)
 		set_bit(ATM_VF_PARTIAL,&vcc->flags);
