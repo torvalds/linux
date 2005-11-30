@@ -921,7 +921,7 @@ static int cifs_dnotify_thread(void * dummyarg)
 			ses = list_entry(tmp, struct cifsSesInfo, 
 				cifsSessionList);
 			if(ses && ses->server && 
-			     atomic_read(&ses->server->inSend))
+			     atomic_read(&ses->server->inFlight))
 				wake_up_all(&ses->server->response_q);
 		}
 		read_unlock(&GlobalSMBSeslock);

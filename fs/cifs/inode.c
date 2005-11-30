@@ -778,6 +778,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 						current->fsgid;
 				}
 			}
+		}
 	}
 	kfree(full_path);
 	FreeXid(xid);
@@ -1124,7 +1125,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	cifs_sb = CIFS_SB(direntry->d_inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM == 0) {
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
 		/* check if we have permission to change attrs */
 		rc = inode_change_ok(direntry->d_inode, attrs);
 		if(rc < 0) {
