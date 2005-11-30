@@ -903,11 +903,20 @@ partial_sg_digest_update(struct iscsi_conn *conn, struct scatterlist *sg,
 	crypto_digest_update(conn->data_rx_tfm, &temp, 1);
 }
 
+static void
+iscsi_recv_digest_update(struct iscsi_conn *conn, char* buf, int len)
+{
+	struct scatterlist tmp;
+
+	sg_init_one(&tmp, buf, len);
+	crypto_digest_update(conn->data_rx_tfm, &tmp, 1);
+}
+
 static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 {
 	struct iscsi_cmd_task *ctask = conn->in.ctask;
 	struct scsi_cmnd *sc = ctask->sc;
-	struct scatterlist tmp, *sg;
+	struct scatterlist *sg;
 	int i, offset, rc = 0;
 
 	BUG_ON((void*)ctask != sc->SCp.ptr);
@@ -921,10 +930,8 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 				      sc->request_bufflen, ctask->data_offset);
 		if (rc == -EAGAIN)
 			return rc;
-		if (conn->datadgst_en) {
-			sg_init_one(&tmp, sc->request_buffer, i);
-			crypto_digest_update(conn->data_rx_tfm, &tmp, 1);
-		}
+		if (conn->datadgst_en) 
+			iscsi_recv_digest_update(conn, sc->request_buffer, i);
 		rc = 0;
 		goto done;
 	}
@@ -1018,6 +1025,9 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		conn->in.hdr = &conn->hdr;
 		conn->senselen = (conn->data[0] << 8) | conn->data[1];
 		rc = iscsi_cmd_rsp(conn, conn->in.ctask);
+		if (!rc && conn->datadgst_en) 
+			iscsi_recv_digest_update(conn, conn->data,
+						 conn->in.datalen);
 	}
 	break;
 	case ISCSI_OP_TEXT_RSP:
@@ -1042,6 +1052,11 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		rc = iscsi_recv_pdu(iscsi_handle(conn), conn->in.hdr,
 				    conn->data, conn->in.datalen);
 
+		if (!rc && conn->datadgst_en && 
+			conn->in.opcode != ISCSI_OP_LOGIN_RSP)
+			iscsi_recv_digest_update(conn, conn->data,
+			  			conn->in.datalen);
+
 		if (mtask && conn->login_mtask != mtask) {
 			spin_lock(&session->lock);
 			__kfifo_put(session->mgmtpool.queue, (void*)&mtask,
@@ -1050,6 +1065,8 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		}
 	}
 	break;
+	case ISCSI_OP_ASYNC_EVENT:
+	case ISCSI_OP_REJECT:
 	default:
 		BUG_ON(1);
 	}
@@ -1112,7 +1129,7 @@ more:
 		rc = iscsi_hdr_recv(conn);
 		if (!rc && conn->in.datalen) {
 			if (conn->datadgst_en &&
-			    conn->in.opcode == ISCSI_OP_SCSI_DATA_IN) {
+				conn->in.opcode != ISCSI_OP_LOGIN_RSP) {
 				BUG_ON(!conn->data_rx_tfm);
 				crypto_digest_init(conn->data_rx_tfm);
 			}
@@ -1124,26 +1141,24 @@ more:
 	}
 
 	if (conn->in_progress == IN_PROGRESS_DDIGEST_RECV) {
+		uint32_t recv_digest;
 		debug_tcp("extra data_recv offset %d copy %d\n",
 			  conn->in.offset, conn->in.copy);
-		if (conn->in.opcode == ISCSI_OP_SCSI_DATA_IN) {
-			uint32_t recv_digest;
-			skb_copy_bits(conn->in.skb, conn->in.offset,
-				      &recv_digest, 4);
-			conn->in.offset += 4;
-			conn->in.copy -= 4;
-			if (recv_digest != conn->in.datadgst) {
-				debug_tcp("iscsi_tcp: data digest error!"
-					  "0x%x != 0x%x\n", recv_digest,
-					  conn->in.datadgst);
-				iscsi_conn_failure(conn, ISCSI_ERR_DATA_DGST);
-				return 0;
-			} else {
-				debug_tcp("iscsi_tcp: data digest match!"
-					  "0x%x == 0x%x\n", recv_digest,
-					  conn->in.datadgst);
-				conn->in_progress = IN_PROGRESS_WAIT_HEADER;
-			}
+		skb_copy_bits(conn->in.skb, conn->in.offset,
+				&recv_digest, 4);
+		conn->in.offset += 4;
+		conn->in.copy -= 4;
+		if (recv_digest != conn->in.datadgst) {
+			debug_tcp("iscsi_tcp: data digest error!"
+				  "0x%x != 0x%x\n", recv_digest,
+				  conn->in.datadgst);
+			iscsi_conn_failure(conn, ISCSI_ERR_DATA_DGST);
+			return 0;
+		} else {
+			debug_tcp("iscsi_tcp: data digest match!"
+				  "0x%x == 0x%x\n", recv_digest,
+				  conn->in.datadgst);
+			conn->in_progress = IN_PROGRESS_WAIT_HEADER;
 		}
 	}
 
@@ -1165,7 +1180,7 @@ more:
 		conn->in.copy -= conn->in.padding;
 		conn->in.offset += conn->in.padding;
 		if (conn->datadgst_en &&
-		    conn->in.opcode == ISCSI_OP_SCSI_DATA_IN) {
+			conn->in.opcode != ISCSI_OP_LOGIN_RSP) {
 			if (conn->in.padding) {
 				debug_tcp("padding -> %d\n", conn->in.padding);
 				memset(pad, 0, conn->in.padding);
