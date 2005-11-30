@@ -35,7 +35,7 @@ acpi_vendor_resource_match(struct acpi_resource *resource, void *context)
 	struct acpi_vendor_descriptor *descriptor;
 	u32 length;
 
-	if (resource->id != ACPI_RSTYPE_VENDOR)
+	if (resource->type != ACPI_RSTYPE_VENDOR)
 		return AE_OK;
 
 	vendor = (struct acpi_resource_vendor *)&resource->data;
