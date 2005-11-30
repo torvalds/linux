@@ -171,9 +171,12 @@ int udbg_adb_init(int force_btext)
 	udbg_adb_old_getc_poll = udbg_getc_poll;
 
 	/* Check if our early init was already called */
-	if (udbg_adb_old_putc == udbg_adb_putc ||
-	    udbg_adb_old_putc == btext_drawchar)
+	if (udbg_adb_old_putc == udbg_adb_putc)
 		udbg_adb_old_putc = NULL;
+#ifdef CONFIG_BOOTX_TEXT
+	if (udbg_adb_old_putc == btext_drawchar)
+		udbg_adb_old_putc = NULL;
+#endif
 
 	/* Set ours as output */
 	udbg_putc = udbg_adb_putc;
