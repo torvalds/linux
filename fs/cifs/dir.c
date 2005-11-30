@@ -228,8 +228,15 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		else {
 			rc = cifs_get_inode_info(&newinode, full_path,
 						 buf, inode->i_sb,xid);
-			if(newinode)
+			if(newinode) {
 				newinode->i_mode = mode;
+				if((oplock & CIFS_CREATE_ACTION) &&
+				  (cifs_sb->mnt_cifs_flags & 
+				     CIFS_MOUNT_SET_UID)) {
+					newinode->i_uid = current->fsuid;
+					newinode->i_gid = current->fsgid;
+				}
+			}
 		}
 
 		if (rc != 0) {
