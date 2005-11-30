@@ -932,8 +932,10 @@ int snd_ad1848_create(struct snd_card *card,
 		return err;
 	}
 
+#ifdef CONFIG_PM
 	chip->suspend = snd_ad1848_suspend;
 	chip->resume = snd_ad1848_resume;
+#endif
 
 	*rchip = chip;
 	return 0;
