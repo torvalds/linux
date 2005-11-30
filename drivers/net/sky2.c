@@ -3106,7 +3106,7 @@ static struct pci_driver sky2_driver = {
 
 static int __init sky2_init_module(void)
 {
-	return pci_module_init(&sky2_driver);
+	return pci_register_driver(&sky2_driver);
 }
 
 static void __exit sky2_cleanup_module(void)
