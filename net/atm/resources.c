@@ -245,7 +245,8 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 	if (get_user(number, &sioc->number))
 		return -EFAULT;
 
-	if (!(dev = atm_dev_lookup(number)))
+	if (!(dev = try_then_request_module(atm_dev_lookup(number),
+					    "atm-device-%d", number)))
 		return -ENODEV;
 	
 	switch (cmd) {

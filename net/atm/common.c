@@ -424,7 +424,7 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 	    vcc->qos.rxtp.traffic_class == ATM_ANYCLASS)
 		return -EINVAL;
 	if (likely(itf != ATM_ITF_ANY)) {
-		dev = atm_dev_lookup(itf);
+		dev = try_then_request_module(atm_dev_lookup(itf), "atm-device-%d", itf);
 	} else {
 		dev = NULL;
 		spin_lock(&atm_dev_lock);
