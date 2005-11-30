@@ -220,7 +220,7 @@ struct icmp_control {
 	short   error;		/* This ICMP is classed as an error message */
 };
 
-static struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
+static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
 
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
@@ -994,7 +994,7 @@ error:
 /*
  *	This table is the definition of how we handle ICMP.
  */
-static struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
+static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 	[ICMP_ECHOREPLY] = {
 		.output_entry = ICMP_MIB_OUTECHOREPS,
 		.input_entry = ICMP_MIB_INECHOREPS,

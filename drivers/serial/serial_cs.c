@@ -85,7 +85,7 @@ struct multi_id {
 	int multi;		/* 1 = multifunction, > 1 = # ports */
 };
 
-static struct multi_id multi_id[] = {
+static const struct multi_id multi_id[] = {
 	{ MANFID_OMEGA,   PRODID_OMEGA_QSP_100,         4 },
 	{ MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232,    2 },
 	{ MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
@@ -354,8 +354,8 @@ next_tuple(client_handle_t handle, tuple_t * tuple, cisparse_t * parse)
 
 static int simple_config(dev_link_t *link)
 {
-	static kio_addr_t base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
-	static int size_table[2] = { 8, 16 };
+	static const kio_addr_t base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
+	static const int size_table[2] = { 8, 16 };
 	client_handle_t handle = link->handle;
 	struct serial_info *info = link->priv;
 	struct serial_cfg_mem *cfg_mem;

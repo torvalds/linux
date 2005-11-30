@@ -123,11 +123,13 @@ struct hfsplus_vh {
 } __packed;
 
 /* HFS+ volume attributes */
-#define HFSPLUS_VOL_UNMNT     (1 << 8)
-#define HFSPLUS_VOL_SPARE_BLK (1 << 9)
-#define HFSPLUS_VOL_NOCACHE   (1 << 10)
-#define HFSPLUS_VOL_INCNSTNT  (1 << 11)
-#define HFSPLUS_VOL_SOFTLOCK  (1 << 15)
+#define HFSPLUS_VOL_UNMNT		(1 << 8)
+#define HFSPLUS_VOL_SPARE_BLK		(1 << 9)
+#define HFSPLUS_VOL_NOCACHE		(1 << 10)
+#define HFSPLUS_VOL_INCNSTNT		(1 << 11)
+#define HFSPLUS_VOL_NODEID_REUSED	(1 << 12)
+#define HFSPLUS_VOL_JOURNALED		(1 << 13)
+#define HFSPLUS_VOL_SOFTLOCK		(1 << 15)
 
 /* HFS+ BTree node descriptor */
 struct hfs_bnode_desc {

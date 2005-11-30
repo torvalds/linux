@@ -355,9 +355,10 @@ static void add_pcc_socket(ulong base, int irq, ulong mapaddr, kio_addr_t ioaddr
 #ifndef CONFIG_PLAT_USRV
 	/* insert interrupt */
 	request_irq(irq, pcc_interrupt, 0, "m32r_cfc", pcc_interrupt);
+#ifndef CONFIG_PLAT_MAPPI3
 	/* eject interrupt */
 	request_irq(irq+1, pcc_interrupt, 0, "m32r_cfc", pcc_interrupt);
-
+#endif
 	debug(3, "m32r_cfc: enable CFMSK, RDYSEL\n");
 	pcc_set(pcc_sockets, (unsigned int)PLD_CFIMASK, 0x01);
 #endif	/* CONFIG_PLAT_USRV */

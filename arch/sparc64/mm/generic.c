@@ -15,6 +15,15 @@
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 
+static inline pte_t mk_pte_io(unsigned long page, pgprot_t prot, int space)
+{
+	pte_t pte;
+	pte_val(pte) = (((page) | pgprot_val(prot) | _PAGE_E) &
+			~(unsigned long)_PAGE_CACHE);
+	pte_val(pte) |= (((unsigned long)space) << 32);
+	return pte;
+}
+
 /* Remap IO memory, the same way as remap_pfn_range(), but use
  * the obio memory space.
  *
@@ -68,6 +77,7 @@ static inline void io_remap_pte_range(struct mm_struct *mm, pte_t * pte,
 			BUG_ON(!pte_none(*pte));
 			set_pte_at(mm, address, pte, entry);
 			address += PAGE_SIZE;
+			pte_val(entry) += PAGE_SIZE;
 			pte++;
 		} while (address < curend);
 	} while (address < end);
@@ -126,9 +136,13 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	struct mm_struct *mm = vma->vm_mm;
 	int space = GET_IOSPACE(pfn);
 	unsigned long offset = GET_PFN(pfn) << PAGE_SHIFT;
+	unsigned long phys_base;
+
+	phys_base = offset | (((unsigned long) space) << 32UL);
 
 	/* See comment in mm/memory.c remap_pfn_range */
-	vma->vm_flags |= VM_IO | VM_RESERVED | VM_UNPAGED;
+	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+	vma->vm_pgoff = phys_base >> PAGE_SHIFT;
 
 	prot = __pgprot(pg_iobits);
 	offset -= from;

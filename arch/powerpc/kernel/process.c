@@ -201,6 +201,28 @@ int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
 }
 #endif /* CONFIG_SPE */
 
+/*
+ * If we are doing lazy switching of CPU state (FP, altivec or SPE),
+ * and the current task has some state, discard it.
+ */
+static inline void discard_lazy_cpu_state(void)
+{
+#ifndef CONFIG_SMP
+	preempt_disable();
+	if (last_task_used_math == current)
+		last_task_used_math = NULL;
+#ifdef CONFIG_ALTIVEC
+	if (last_task_used_altivec == current)
+		last_task_used_altivec = NULL;
+#endif /* CONFIG_ALTIVEC */
+#ifdef CONFIG_SPE
+	if (last_task_used_spe == current)
+		last_task_used_spe = NULL;
+#endif
+	preempt_enable();
+#endif /* CONFIG_SMP */
+}
+
 int set_dabr(unsigned long dabr)
 {
 	if (ppc_md.set_dabr)
@@ -434,19 +456,7 @@ void show_regs(struct pt_regs * regs)
 void exit_thread(void)
 {
 	kprobe_flush_task(current);
-
-#ifndef CONFIG_SMP
-	if (last_task_used_math == current)
-		last_task_used_math = NULL;
-#ifdef CONFIG_ALTIVEC
-	if (last_task_used_altivec == current)
-		last_task_used_altivec = NULL;
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-	if (last_task_used_spe == current)
-		last_task_used_spe = NULL;
-#endif
-#endif /* CONFIG_SMP */
+	discard_lazy_cpu_state();
 }
 
 void flush_thread(void)
@@ -458,18 +468,7 @@ void flush_thread(void)
 		t->flags ^= (_TIF_ABI_PENDING | _TIF_32BIT);
 #endif
 
-#ifndef CONFIG_SMP
-	if (last_task_used_math == current)
-		last_task_used_math = NULL;
-#ifdef CONFIG_ALTIVEC
-	if (last_task_used_altivec == current)
-		last_task_used_altivec = NULL;
-#endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-	if (last_task_used_spe == current)
-		last_task_used_spe = NULL;
-#endif
-#endif /* CONFIG_SMP */
+	discard_lazy_cpu_state();
 
 #ifdef CONFIG_PPC64	/* for now */
 	if (current->thread.dabr) {
@@ -635,18 +634,7 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	}
 #endif
 
-#ifndef CONFIG_SMP
-	if (last_task_used_math == current)
-		last_task_used_math = NULL;
-#ifdef CONFIG_ALTIVEC
-	if (last_task_used_altivec == current)
-		last_task_used_altivec = NULL;
-#endif
-#ifdef CONFIG_SPE
-	if (last_task_used_spe == current)
-		last_task_used_spe = NULL;
-#endif
-#endif /* CONFIG_SMP */
+	discard_lazy_cpu_state();
 	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
 	current->thread.fpscr.val = 0;
 #ifdef CONFIG_ALTIVEC

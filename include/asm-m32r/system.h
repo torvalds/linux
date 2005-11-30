@@ -11,6 +11,7 @@
  */
 
 #include <linux/config.h>
+#include <asm/assembler.h>
 
 #ifdef __KERNEL__
 
@@ -132,8 +133,6 @@ static inline void local_irq_disable(void)
 		!(flags & 0x40);			\
 	})
 
-#endif  /* __KERNEL__ */
-
 #define nop()	__asm__ __volatile__ ("nop" : : )
 
 #define xchg(ptr,x) \
@@ -212,6 +211,67 @@ static __inline__ unsigned long __xchg(unsigned long x, volatile void * ptr,
 
 	return (tmp);
 }
+
+#define __HAVE_ARCH_CMPXCHG	1
+
+static __inline__ unsigned long
+__cmpxchg_u32(volatile unsigned int *p, unsigned int old, unsigned int new)
+{
+	unsigned long flags;
+	unsigned int retval;
+
+	local_irq_save(flags);
+	__asm__ __volatile__ (
+			DCACHE_CLEAR("%0", "r4", "%1")
+			M32R_LOCK" %0, @%1;	\n"
+		"	bne	%0, %2, 1f;	\n"
+			M32R_UNLOCK" %3, @%1;	\n"
+		"	bra	2f;		\n"
+                "       .fillinsn		\n"
+		"1:"
+			M32R_UNLOCK" %2, @%1;	\n"
+                "       .fillinsn		\n"
+		"2:"
+			: "=&r" (retval)
+			: "r" (p), "r" (old), "r" (new)
+			: "cbit", "memory"
+#ifdef CONFIG_CHIP_M32700_TS1
+			, "r4"
+#endif  /* CONFIG_CHIP_M32700_TS1 */
+		);
+	local_irq_restore(flags);
+
+	return retval;
+}
+
+/* This function doesn't exist, so you'll get a linker error
+   if something tries to do an invalid cmpxchg().  */
+extern void __cmpxchg_called_with_bad_pointer(void);
+
+static __inline__ unsigned long
+__cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
+{
+	switch (size) {
+	case 4:
+		return __cmpxchg_u32(ptr, old, new);
+#if 0	/* we don't have __cmpxchg_u64 */
+	case 8:
+		return __cmpxchg_u64(ptr, old, new);
+#endif /* 0 */
+	}
+	__cmpxchg_called_with_bad_pointer();
+	return old;
+}
+
+#define cmpxchg(ptr,o,n)						 \
+  ({									 \
+     __typeof__(*(ptr)) _o_ = (o);					 \
+     __typeof__(*(ptr)) _n_ = (n);					 \
+     (__typeof__(*(ptr))) __cmpxchg((ptr), (unsigned long)_o_,		 \
+				    (unsigned long)_n_, sizeof(*(ptr))); \
+  })
+
+#endif  /* __KERNEL__ */
 
 /*
  * Memory barrier.

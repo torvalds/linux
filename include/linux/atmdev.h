@@ -7,7 +7,6 @@
 #define LINUX_ATMDEV_H
 
 
-#include <linux/config.h>
 #include <linux/atmapi.h>
 #include <linux/atm.h>
 #include <linux/atmioc.h>
@@ -210,6 +209,7 @@ struct atm_cirange {
 
 #ifdef __KERNEL__
 
+#include <linux/config.h>
 #include <linux/wait.h> /* wait_queue_head_t */
 #include <linux/time.h> /* struct timeval */
 #include <linux/net.h>
@@ -274,7 +274,7 @@ enum {
 
 
 enum {
-	ATM_DF_CLOSE,		/* close device when last VCC is closed */
+	ATM_DF_REMOVED,		/* device was removed from atm_devs list */
 };
 
 
@@ -415,7 +415,6 @@ struct atm_dev *atm_dev_register(const char *type,const struct atmdev_ops *ops,
     int number,unsigned long *flags); /* number == -1: pick first available */
 struct atm_dev *atm_dev_lookup(int number);
 void atm_dev_deregister(struct atm_dev *dev);
-void shutdown_atm_dev(struct atm_dev *dev);
 void vcc_insert_socket(struct sock *sk);
 
 
@@ -457,18 +456,19 @@ static inline void atm_dev_hold(struct atm_dev *dev)
 
 static inline void atm_dev_put(struct atm_dev *dev)
 {
-	atomic_dec(&dev->refcnt);
-
-	if ((atomic_read(&dev->refcnt) == 1) &&
-	    test_bit(ATM_DF_CLOSE,&dev->flags))
-		shutdown_atm_dev(dev);
+	if (atomic_dec_and_test(&dev->refcnt)) {
+		BUG_ON(!test_bit(ATM_DF_REMOVED, &dev->flags));
+		if (dev->ops->dev_close)
+			dev->ops->dev_close(dev);
+		kfree(dev);
+	}
 }
 
 
 int atm_charge(struct atm_vcc *vcc,int truesize);
 struct sk_buff *atm_alloc_charge(struct atm_vcc *vcc,int pdu_size,
     gfp_t gfp_flags);
-int atm_pcr_goal(struct atm_trafprm *tp);
+int atm_pcr_goal(const struct atm_trafprm *tp);
 
 void vcc_release_async(struct atm_vcc *vcc, int reply);
 

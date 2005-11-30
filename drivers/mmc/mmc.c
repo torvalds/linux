@@ -816,7 +816,7 @@ static void mmc_discover_cards(struct mmc_host *host)
 
 			cmd.opcode = SD_SEND_RELATIVE_ADDR;
 			cmd.arg = 0;
-			cmd.flags = MMC_RSP_R1;
+			cmd.flags = MMC_RSP_R6;
 
 			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
 			if (err != MMC_ERR_NONE)

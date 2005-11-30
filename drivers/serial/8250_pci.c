@@ -468,7 +468,7 @@ static unsigned short timedia_eight_port[] = {
 	0x9167, 0x9168, 0xA066, 0xA167, 0xA168, 0
 };
 
-static struct timedia_struct {
+static const struct timedia_struct {
 	int num;
 	unsigned short *ids;
 } timedia_data[] = {

@@ -226,8 +226,6 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 /*
  * At what user virtual address is page expected in vma? checking that the
  * page matches the vma: currently only used on anon pages, by unuse_vma;
- * and by extraordinary checks on anon pages in VM_UNPAGED vmas, taking
- * care that an mmap of /dev/mem might window free and foreign pages.
  */
 unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 {
@@ -292,7 +290,7 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
  * repeatedly from either page_referenced_anon or page_referenced_file.
  */
 static int page_referenced_one(struct page *page,
-	struct vm_area_struct *vma, unsigned int *mapcount, int ignore_token)
+	struct vm_area_struct *vma, unsigned int *mapcount)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
@@ -313,7 +311,7 @@ static int page_referenced_one(struct page *page,
 
 	/* Pretend the page is referenced if the task has the
 	   swap token and is in the middle of a page fault. */
-	if (mm != current->mm && !ignore_token && has_swap_token(mm) &&
+	if (mm != current->mm && has_swap_token(mm) &&
 			rwsem_is_locked(&mm->mmap_sem))
 		referenced++;
 
@@ -323,7 +321,7 @@ out:
 	return referenced;
 }
 
-static int page_referenced_anon(struct page *page, int ignore_token)
+static int page_referenced_anon(struct page *page)
 {
 	unsigned int mapcount;
 	struct anon_vma *anon_vma;
@@ -336,8 +334,7 @@ static int page_referenced_anon(struct page *page, int ignore_token)
 
 	mapcount = page_mapcount(page);
 	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
-		referenced += page_referenced_one(page, vma, &mapcount,
-							ignore_token);
+		referenced += page_referenced_one(page, vma, &mapcount);
 		if (!mapcount)
 			break;
 	}
@@ -356,7 +353,7 @@ static int page_referenced_anon(struct page *page, int ignore_token)
  *
  * This function is only called from page_referenced for object-based pages.
  */
-static int page_referenced_file(struct page *page, int ignore_token)
+static int page_referenced_file(struct page *page)
 {
 	unsigned int mapcount;
 	struct address_space *mapping = page->mapping;
@@ -394,8 +391,7 @@ static int page_referenced_file(struct page *page, int ignore_token)
 			referenced++;
 			break;
 		}
-		referenced += page_referenced_one(page, vma, &mapcount,
-							ignore_token);
+		referenced += page_referenced_one(page, vma, &mapcount);
 		if (!mapcount)
 			break;
 	}
@@ -412,12 +408,9 @@ static int page_referenced_file(struct page *page, int ignore_token)
  * Quick test_and_clear_referenced for all mappings to a page,
  * returns the number of ptes which referenced the page.
  */
-int page_referenced(struct page *page, int is_locked, int ignore_token)
+int page_referenced(struct page *page, int is_locked)
 {
 	int referenced = 0;
-
-	if (!swap_token_default_timeout)
-		ignore_token = 1;
 
 	if (page_test_and_clear_young(page))
 		referenced++;
@@ -427,15 +420,14 @@ int page_referenced(struct page *page, int is_locked, int ignore_token)
 
 	if (page_mapped(page) && page->mapping) {
 		if (PageAnon(page))
-			referenced += page_referenced_anon(page, ignore_token);
+			referenced += page_referenced_anon(page);
 		else if (is_locked)
-			referenced += page_referenced_file(page, ignore_token);
+			referenced += page_referenced_file(page);
 		else if (TestSetPageLocked(page))
 			referenced++;
 		else {
 			if (page->mapping)
-				referenced += page_referenced_file(page,
-								ignore_token);
+				referenced += page_referenced_file(page);
 			unlock_page(page);
 		}
 	}
@@ -614,7 +606,6 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	struct page *page;
 	unsigned long address;
 	unsigned long end;
-	unsigned long pfn;
 
 	address = (vma->vm_start + cursor) & CLUSTER_MASK;
 	end = address + CLUSTER_SIZE;
@@ -643,21 +634,14 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	for (; address < end; pte++, address += PAGE_SIZE) {
 		if (!pte_present(*pte))
 			continue;
-
-		pfn = pte_pfn(*pte);
-		if (unlikely(!pfn_valid(pfn))) {
-			print_bad_pte(vma, *pte, address);
-			continue;
-		}
-
-		page = pfn_to_page(pfn);
-		BUG_ON(PageAnon(page));
+		page = vm_normal_page(vma, address, *pte);
+		BUG_ON(!page || PageAnon(page));
 
 		if (ptep_clear_flush_young(vma, address, pte))
 			continue;
 
 		/* Nuke the page table entry. */
-		flush_cache_page(vma, address, pfn);
+		flush_cache_page(vma, address, pte_pfn(*pte));
 		pteval = ptep_clear_flush(vma, address, pte);
 
 		/* If nonlinear, store the file page offset in the pte. */

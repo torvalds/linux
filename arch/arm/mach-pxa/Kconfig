@@ -44,6 +44,7 @@ config PXA_SHARPSL_25x
 config PXA_SHARPSL_27x
 	bool "Sharp PXA270 models (SL-Cxx00)"
 	select PXA27x
+	select IWMMXT
 
 endchoice
 
@@ -60,7 +61,6 @@ config MACH_CORGI
 	bool "Enable Sharp SL-C700 (Corgi) Support"
 	depends PXA_SHARPSL_25x
 	select PXA_SHARP_C7xx
-	select PXA_SSP
 
 config MACH_SHEPHERD
 	bool "Enable Sharp SL-C750 (Shepherd) Support"
@@ -90,7 +90,7 @@ config MACH_BORZOI
 
 config MACH_TOSA
 	bool "Enable Sharp SL-6000x (Tosa) Support"
-	depends PXA_SHARPSL
+	depends PXA_SHARPSL_25x
 
 config PXA25x
 	bool
