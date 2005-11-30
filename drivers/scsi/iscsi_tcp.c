@@ -1237,8 +1237,9 @@ iscsi_tcp_state_change(struct sock *sk)
 	conn = (struct iscsi_conn*)sk->sk_user_data;
 	session = conn->session;
 
-	if (sk->sk_state == TCP_CLOSE_WAIT ||
-	    sk->sk_state == TCP_CLOSE) {
+	if ((sk->sk_state == TCP_CLOSE_WAIT ||
+	     sk->sk_state == TCP_CLOSE) &&
+	    !atomic_read(&sk->sk_rmem_alloc)) {
 		debug_tcp("iscsi_tcp_state_change: TCP_CLOSE|TCP_CLOSE_WAIT\n");
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 	}
