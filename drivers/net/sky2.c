@@ -1298,7 +1298,15 @@ static int sky2_down(struct net_device *dev)
 	if (netif_msg_ifdown(sky2))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
 
+	/* Stop more packets from being queued */
 	netif_stop_queue(dev);
+
+	/* Disable port IRQ */
+	local_irq_disable();
+	hw->intr_mask &= ~((sky2->port == 0) ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2);
+	sky2_write32(hw, B0_IMSK, hw->intr_mask);
+	local_irq_enable();
+
 
 	sky2_phy_reset(hw, port);
 
@@ -1345,6 +1353,8 @@ static int sky2_down(struct net_device *dev)
 
 	/* turn off LED's */
 	sky2_write16(hw, B0_Y2LED, LED_STAT_OFF);
+
+	synchronize_irq(hw->pdev->irq);
 
 	sky2_tx_clean(sky2);
 	sky2_rx_clean(sky2);
@@ -1586,8 +1596,11 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	local_irq_disable();
 	sky2_write32(hw, B0_IMSK, 0);
+
+	dev->trans_start = jiffies;	/* prevent tx timeout */
+	netif_stop_queue(dev);
+	netif_poll_disable(hw->dev[0]);
 
 	ctl = gma_read16(hw, sky2->port, GM_GP_CTRL);
 	gma_write16(hw, sky2->port, GM_GP_CTRL, ctl & ~GM_GPCR_RX_ENA);
@@ -1608,9 +1621,10 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	err = sky2_rx_start(sky2);
 	gma_write16(hw, sky2->port, GM_GP_CTRL, ctl);
 
+	netif_poll_disable(hw->dev[0]);
+	netif_wake_queue(dev);
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
-	sky2_read32(hw, B0_IMSK);
-	local_irq_enable();
+
 	return err;
 }
 
