@@ -1409,14 +1409,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
 		return 0;
 
-	if (nfsi->fileid != fattr->fileid) {
-		printk(KERN_ERR "%s: inode number mismatch\n"
-		       "expected (%s/0x%Lx), got (%s/0x%Lx)\n",
-		       __FUNCTION__,
-		       inode->i_sb->s_id, (long long)nfsi->fileid,
-		       inode->i_sb->s_id, (long long)fattr->fileid);
-		goto out_err;
-	}
+	if (nfsi->fileid != fattr->fileid)
+		goto out_fileid;
 
 	/*
 	 * Make sure the inode's type hasn't changed.
@@ -1538,6 +1532,13 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	 */
 	nfs_invalidate_inode(inode);
 	return -ESTALE;
+
+ out_fileid:
+	printk(KERN_ERR "NFS: server %s error: fileid changed\n"
+		"fsid %s: expected fileid 0x%Lx, got 0x%Lx\n",
+		NFS_SERVER(inode)->hostname, inode->i_sb->s_id,
+		(long long)nfsi->fileid, (long long)fattr->fileid);
+	goto out_err;
 }
 
 /*
