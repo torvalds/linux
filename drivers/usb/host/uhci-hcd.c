@@ -62,10 +62,10 @@ Alan Stern"
 
 /*
  * debug = 0, no debugging messages
- * debug = 1, dump failed URB's except for stalls
- * debug = 2, dump all failed URB's (including stalls)
+ * debug = 1, dump failed URBs except for stalls
+ * debug = 2, dump all failed URBs (including stalls)
  *            show all queues in /debug/uhci/[pci_addr]
- * debug = 3, show all TD's in URB's when dumping
+ * debug = 3, show all TDs in URBs when dumping
  */
 #ifdef DEBUG
 static int debug = 1;
@@ -88,7 +88,7 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 #define FSBR_DELAY	msecs_to_jiffies(50)
 
 /* When we timeout an idle transfer for FSBR, we'll switch it over to */
-/* depth first traversal. We'll do it in groups of this number of TD's */
+/* depth first traversal. We'll do it in groups of this number of TDs */
 /* to make sure it doesn't hog all of the bandwidth */
 #define DEPTH_INTERVAL 5
 
@@ -728,8 +728,9 @@ static int uhci_resume(struct usb_hcd *hcd)
 
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
 
-	/* We aren't in D3 state anymore, we do that even if dead as I
-	 * really don't want to keep a stale HCD_FLAG_HW_ACCESSIBLE=0
+	/* Since we aren't in D3 any more, it's safe to set this flag
+	 * even if the controller was dead.  It might not even be dead
+	 * any more, if the firmware or quirks code has reset it.
 	 */
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	mb();
@@ -879,7 +880,7 @@ static int __init uhci_hcd_init(void)
 
 init_failed:
 	if (kmem_cache_destroy(uhci_up_cachep))
-		warn("not all urb_priv's were freed!");
+		warn("not all urb_privs were freed!");
 
 up_failed:
 	debugfs_remove(uhci_debugfs_root);
@@ -897,7 +898,7 @@ static void __exit uhci_hcd_cleanup(void)
 	pci_unregister_driver(&uhci_pci_driver);
 	
 	if (kmem_cache_destroy(uhci_up_cachep))
-		warn("not all urb_priv's were freed!");
+		warn("not all urb_privs were freed!");
 
 	debugfs_remove(uhci_debugfs_root);
 	kfree(errbuf);
