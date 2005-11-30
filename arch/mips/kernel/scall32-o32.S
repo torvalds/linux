@@ -94,11 +94,13 @@ syscall_trace_entry:
 	li	a1, 0
 	jal	do_syscall_trace
 
+	move	t0, s0
+	RESTORE_STATIC
 	lw	a0, PT_R4(sp)		# Restore argument registers
 	lw	a1, PT_R5(sp)
 	lw	a2, PT_R6(sp)
 	lw	a3, PT_R7(sp)
-	jalr	s0
+	jalr	t0
 
 	li	t0, -EMAXERRNO - 1	# error?
 	sltu	t0, t0, v0
