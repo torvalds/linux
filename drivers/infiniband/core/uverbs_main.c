@@ -160,6 +160,18 @@ void ib_uverbs_release_uevent(struct ib_uverbs_file *file,
 	spin_unlock_irq(&file->async_file->lock);
 }
 
+static void ib_uverbs_detach_umcast(struct ib_qp *qp,
+				    struct ib_uqp_object *uobj)
+{
+	struct ib_uverbs_mcast_entry *mcast, *tmp;
+
+	list_for_each_entry_safe(mcast, tmp, &uobj->mcast_list, list) {
+		ib_detach_mcast(qp, &mcast->gid, mcast->lid);
+		list_del(&mcast->list);
+		kfree(mcast);
+	}
+}
+
 static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 				      struct ib_ucontext *context)
 {
@@ -180,13 +192,14 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 
 	list_for_each_entry_safe(uobj, tmp, &context->qp_list, list) {
 		struct ib_qp *qp = idr_find(&ib_uverbs_qp_idr, uobj->id);
-		struct ib_uevent_object *uevent =
-			container_of(uobj, struct ib_uevent_object, uobject);
+		struct ib_uqp_object *uqp =
+			container_of(uobj, struct ib_uqp_object, uevent.uobject);
 		idr_remove(&ib_uverbs_qp_idr, uobj->id);
+		ib_uverbs_detach_umcast(qp, uqp);
 		ib_destroy_qp(qp);
 		list_del(&uobj->list);
-		ib_uverbs_release_uevent(file, uevent);
-		kfree(uevent);
+		ib_uverbs_release_uevent(file, &uqp->uevent);
+		kfree(uqp);
 	}
 
 	list_for_each_entry_safe(uobj, tmp, &context->cq_list, list) {
