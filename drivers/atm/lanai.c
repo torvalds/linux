@@ -305,7 +305,7 @@ struct lanai_dev {
  * vci with their bit set
  */
 static void vci_bitfield_iterate(struct lanai_dev *lanai,
-	/*const*/ unsigned long *lp,
+	const unsigned long *lp,
 	void (*func)(struct lanai_dev *,vci_t vci))
 {
 	vci_t vci = find_first_bit(lp, NUM_VCI);
@@ -951,7 +951,7 @@ static int __devinit eeprom_read(struct lanai_dev *lanai)
 /* read a big-endian 4-byte value out of eeprom */
 static inline u32 eeprom_be4(const struct lanai_dev *lanai, int address)
 {
-	return be32_to_cpup((u32 *) (&lanai->eeprom[address]));
+	return be32_to_cpup((const u32 *) &lanai->eeprom[address]);
 }
 
 /* Checksum/validate EEPROM contents */
@@ -1160,7 +1160,7 @@ static inline int vcc_tx_space(const struct lanai_vcc *lvcc, int endptr)
 }
 
 /* test if VCC is currently backlogged */
-static inline int vcc_is_backlogged(/*const*/ struct lanai_vcc *lvcc)
+static inline int vcc_is_backlogged(const struct lanai_vcc *lvcc)
 {
 	return !skb_queue_empty(&lvcc->tx.backlog);
 }
@@ -1395,7 +1395,8 @@ static void vcc_rx_aal5(struct lanai_vcc *lvcc, int endptr)
 {
 	int size;
 	struct sk_buff *skb;
-	/*const*/ u32 *x, *end = &lvcc->rx.buf.start[endptr * 4];
+	const u32 *x;
+	u32 *end = &lvcc->rx.buf.start[endptr * 4];
 	int n = ((unsigned long) end) - ((unsigned long) lvcc->rx.buf.ptr);
 	if (n < 0)
 		n += lanai_buf_size(&lvcc->rx.buf);
@@ -2111,7 +2112,7 @@ static int lanai_normalize_ci(struct lanai_dev *lanai,
  * shifted by that much as we compute
  *
  */
-static int pcr_to_cbricg(/*const*/ struct atm_qos *qos)
+static int pcr_to_cbricg(const struct atm_qos *qos)
 {
 	int rounddown = 0;	/* 1 = Round PCR down, i.e. round ICG _up_ */
 	int x, icg, pcr = atm_pcr_goal(&qos->txtp);
