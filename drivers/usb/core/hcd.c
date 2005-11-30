@@ -1315,11 +1315,12 @@ static int hcd_unlink_urb (struct urb *urb, int status)
 	 * finish unlinking the initial failed usb_set_address()
 	 * or device descriptor fetch.
 	 */
-	if (!hcd->saw_irq && hcd->self.root_hub != urb->dev) {
+	if (!test_bit(HCD_FLAG_SAW_IRQ, &hcd->flags)
+	    && hcd->self.root_hub != urb->dev) {
 		dev_warn (hcd->self.controller, "Unlink after no-IRQ?  "
 			"Controller is probably using the wrong IRQ."
 			"\n");
-		hcd->saw_irq = 1;
+		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 	}
 
 	urb->status = status;
@@ -1649,13 +1650,15 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd, struct pt_regs * r)
 	struct usb_hcd		*hcd = __hcd;
 	int			start = hcd->state;
 
-	if (start == HC_STATE_HALT)
+	if (unlikely(start == HC_STATE_HALT ||
+	    !test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)))
 		return IRQ_NONE;
 	if (hcd->driver->irq (hcd, r) == IRQ_NONE)
 		return IRQ_NONE;
 
-	hcd->saw_irq = 1;
-	if (hcd->state == HC_STATE_HALT)
+	set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
+
+	if (unlikely(hcd->state == HC_STATE_HALT))
 		usb_hc_died (hcd);
 	return IRQ_HANDLED;
 }
@@ -1767,6 +1770,8 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	struct usb_device *rhdev;
 
 	dev_info(hcd->self.controller, "%s\n", hcd->product_desc);
+
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	/* till now HC has been in an indeterminate state ... */
 	if (hcd->driver->reset && (retval = hcd->driver->reset(hcd)) < 0) {
