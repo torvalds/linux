@@ -351,7 +351,7 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* maxlen = 230+   91  + 230 + 252 = 803 */
 }
 
-struct nf_loginfo default_loginfo = {
+static struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
