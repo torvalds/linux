@@ -197,7 +197,7 @@ static void dump_packet(const struct nf_loginfo *info,
 	}
 	case IPPROTO_ICMP: {
 		struct icmphdr _icmph, *ich;
-		static size_t required_len[NR_ICMP_TYPES+1]
+		static const size_t required_len[NR_ICMP_TYPES+1]
 			= { [ICMP_ECHOREPLY] = 4,
 			    [ICMP_DEST_UNREACH]
 			    = 8 + sizeof(struct iphdr),

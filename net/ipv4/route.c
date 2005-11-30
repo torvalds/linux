@@ -1371,7 +1371,7 @@ out:	kfree_skb(skb);
  *	are needed for AMPRnet AX.25 paths.
  */
 
-static unsigned short mtu_plateau[] =
+static const unsigned short mtu_plateau[] =
 {32000, 17914, 8166, 4352, 2002, 1492, 576, 296, 216, 128 };
 
 static __inline__ unsigned short guess_mtu(unsigned short old_mtu)

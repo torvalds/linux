@@ -1909,7 +1909,7 @@ static int ip_vs_set_timeout(struct ip_vs_timeout_user *u)
 #define DAEMON_ARG_LEN		(sizeof(struct ip_vs_daemon_user))
 #define MAX_ARG_LEN		SVCDEST_ARG_LEN
 
-static unsigned char set_arglen[SET_CMDID(IP_VS_SO_SET_MAX)+1] = {
+static const unsigned char set_arglen[SET_CMDID(IP_VS_SO_SET_MAX)+1] = {
 	[SET_CMDID(IP_VS_SO_SET_ADD)]		= SERVICE_ARG_LEN,
 	[SET_CMDID(IP_VS_SO_SET_EDIT)]		= SERVICE_ARG_LEN,
 	[SET_CMDID(IP_VS_SO_SET_DEL)]		= SERVICE_ARG_LEN,
@@ -2180,7 +2180,7 @@ __ip_vs_get_timeouts(struct ip_vs_timeout_user *u)
 #define GET_TIMEOUT_ARG_LEN	(sizeof(struct ip_vs_timeout_user))
 #define GET_DAEMON_ARG_LEN	(sizeof(struct ip_vs_daemon_user) * 2)
 
-static unsigned char get_arglen[GET_CMDID(IP_VS_SO_GET_MAX)+1] = {
+static const unsigned char get_arglen[GET_CMDID(IP_VS_SO_GET_MAX)+1] = {
 	[GET_CMDID(IP_VS_SO_GET_VERSION)]	= 64,
 	[GET_CMDID(IP_VS_SO_GET_INFO)]		= GET_INFO_ARG_LEN,
 	[GET_CMDID(IP_VS_SO_GET_SERVICES)]	= GET_SERVICES_ARG_LEN,

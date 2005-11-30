@@ -975,7 +975,7 @@ static void fib_seq_stop(struct seq_file *seq, void *v)
 
 static unsigned fib_flag_trans(int type, u32 mask, struct fib_info *fi)
 {
-	static unsigned type2flags[RTN_MAX + 1] = {
+	static const unsigned type2flags[RTN_MAX + 1] = {
 		[7] = RTF_REJECT, [8] = RTF_REJECT,
 	};
 	unsigned flags = type2flags[type];

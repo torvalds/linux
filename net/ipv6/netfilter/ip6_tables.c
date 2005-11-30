@@ -1972,7 +1972,7 @@ static int ip6t_get_matches(char *buffer, char **start, off_t offset, int length
 	return pos;
 }
 
-static struct { char *name; get_info_t *get_info; } ip6t_proc_entry[] =
+static const struct { char *name; get_info_t *get_info; } ip6t_proc_entry[] =
 { { "ip6_tables_names", ip6t_get_tables },
   { "ip6_tables_targets", ip6t_get_targets },
   { "ip6_tables_matches", ip6t_get_matches },

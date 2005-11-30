@@ -1413,7 +1413,7 @@ recv_urg:
  *	closed.
  */
 
-static unsigned char new_state[16] = {
+static const unsigned char new_state[16] = {
   /* current state:        new state:      action:	*/
   /* (Invalid)		*/ TCP_CLOSE,
   /* TCP_ESTABLISHED	*/ TCP_FIN_WAIT1 | TCP_ACTION_FIN,
