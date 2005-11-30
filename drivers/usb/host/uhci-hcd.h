@@ -71,8 +71,6 @@
 #define   USBLEGSUP_RWC		0x8f00	/* the R/WC bits */
 #define   USBLEGSUP_RO		0x5040	/* R/O and reserved bits */
 
-#define UHCI_NULL_DATA_SIZE	0x7FF	/* for UHCI controller TD */
-
 #define UHCI_PTR_BITS		cpu_to_le32(0x000F)
 #define UHCI_PTR_TERM		cpu_to_le32(0x0001)
 #define UHCI_PTR_QH		cpu_to_le32(0x0002)
@@ -168,9 +166,11 @@ static __le32 inline qh_element(struct uhci_qh *qh) {
 #define TD_TOKEN_EXPLEN_MASK	0x7FF		/* expected length, encoded as n - 1 */
 #define TD_TOKEN_PID_MASK	0xFF
 
-#define uhci_explen(len)	((len) << TD_TOKEN_EXPLEN_SHIFT)
+#define uhci_explen(len)	((((len) - 1) & TD_TOKEN_EXPLEN_MASK) << \
+					TD_TOKEN_EXPLEN_SHIFT)
 
-#define uhci_expected_length(token) ((((token) >> 21) + 1) & TD_TOKEN_EXPLEN_MASK)
+#define uhci_expected_length(token) ((((token) >> TD_TOKEN_EXPLEN_SHIFT) + \
+					1) & TD_TOKEN_EXPLEN_MASK)
 #define uhci_toggle(token)	(((token) >> TD_TOKEN_TOGGLE_SHIFT) & 1)
 #define uhci_endpoint(token)	(((token) >> 15) & 0xf)
 #define uhci_devaddr(token)	(((token) >> TD_TOKEN_DEVADDR_SHIFT) & 0x7f)

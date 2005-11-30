@@ -566,7 +566,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	uhci->skel_bulk_qh->link = cpu_to_le32(uhci->skel_term_qh->dma_handle) | UHCI_PTR_QH;
 
 	/* This dummy TD is to work around a bug in Intel PIIX controllers */
-	uhci_fill_td(uhci->term_td, 0, (UHCI_NULL_DATA_SIZE << 21) |
+	uhci_fill_td(uhci->term_td, 0, uhci_explen(0) |
 		(0x7f << TD_TOKEN_DEVADDR_SHIFT) | USB_PID_IN, 0);
 	uhci->term_td->link = cpu_to_le32(uhci->term_td->dma_handle);
 

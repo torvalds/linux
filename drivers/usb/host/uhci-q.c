@@ -596,7 +596,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 		return -ENOMEM;
 
 	uhci_add_td_to_urb(urb, td);
-	uhci_fill_td(td, status, destination | uhci_explen(7),
+	uhci_fill_td(td, status, destination | uhci_explen(8),
 		urb->setup_dma);
 
 	/*
@@ -628,7 +628,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 		destination ^= TD_TOKEN_TOGGLE;
 	
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(pktsze - 1),
+		uhci_fill_td(td, status, destination | uhci_explen(pktsze),
 			data);
 
 		data += pktsze;
@@ -658,7 +658,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 
 	uhci_add_td_to_urb(urb, td);
 	uhci_fill_td(td, status | TD_CTRL_IOC,
-		destination | uhci_explen(UHCI_NULL_DATA_SIZE), 0);
+		destination | uhci_explen(0), 0);
 
 	qh = uhci_alloc_qh(uhci);
 	if (!qh)
@@ -864,7 +864,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 			return -ENOMEM;
 
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(pktsze - 1) |
+		uhci_fill_td(td, status, destination | uhci_explen(pktsze) |
 			(usb_gettoggle(urb->dev, usb_pipeendpoint(urb->pipe),
 			 usb_pipeout(urb->pipe)) << TD_TOKEN_TOGGLE_SHIFT),
 			data);
@@ -890,7 +890,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 			return -ENOMEM;
 
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(UHCI_NULL_DATA_SIZE) |
+		uhci_fill_td(td, status, destination | uhci_explen(0) |
 			(usb_gettoggle(urb->dev, usb_pipeendpoint(urb->pipe),
 			 usb_pipeout(urb->pipe)) << TD_TOKEN_TOGGLE_SHIFT),
 			data);
@@ -1092,7 +1092,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 			return -ENOMEM;
 
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(urb->iso_frame_desc[i].length - 1),
+		uhci_fill_td(td, status, destination | uhci_explen(urb->iso_frame_desc[i].length),
 			urb->transfer_dma + urb->iso_frame_desc[i].offset);
 
 		if (i + 1 >= urb->number_of_packets)
