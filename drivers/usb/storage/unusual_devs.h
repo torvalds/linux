@@ -187,6 +187,14 @@ UNUSUAL_DEV(  0x04b0, 0x0405, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Patch for Nikon coolpix 2000
+ * Submitted by Fabien Cosse <fabien.cosse@wanadoo.fr>*/
+UNUSUAL_DEV(  0x04b0, 0x0301, 0x0010, 0x0010,
+		"NIKON",
+		"NIKON DSC E2000",
+		US_SC_DEVICE, US_PR_DEVICE,NULL,
+		US_FL_NOT_LOCKABLE ),
+
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
  * Frank Copeland <fjc@thingy.apana.org.au> */
