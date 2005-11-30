@@ -38,8 +38,6 @@ static enum {
 	input_adb_cuda,
 } input_type = input_adb_none;
 
-static int udbg_adb_use_btext;
-
 int xmon_wants_key, xmon_adb_keycode;
 
 static inline void udbg_adb_poll(void)
@@ -55,6 +53,8 @@ static inline void udbg_adb_poll(void)
 }
 
 #ifdef CONFIG_BOOTX_TEXT
+
+static int udbg_adb_use_btext;
 static int xmon_adb_shiftstate;
 
 static unsigned char xmon_keytab[128] =
