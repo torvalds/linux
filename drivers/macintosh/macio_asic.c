@@ -332,18 +332,14 @@ static void macio_setup_resources(struct macio_dev *dev,
 				  struct resource *parent_res)
 {
 	struct device_node *np = dev->ofdev.node;
-	u32 *addr;
-	u64 size;
+	struct resource r;
 	int index;
 
-	for (index = 0; (addr = of_get_address(np, index, &size)) != NULL;
-	     index++) {
+	for (index = 0; of_address_to_resource(np, index, &r) == 0; index++) {
 		struct resource *res = &dev->resource[index];
 		if (index >= MACIO_DEV_COUNT_RESOURCES)
 			break;
-		res->start = of_translate_address(np, addr);
-		res->end = res->start + (unsigned long)size - 1;
-		res->flags = IORESOURCE_MEM;
+		*res = r;
 		res->name = dev->ofdev.dev.bus_id;
 
 		if (macio_resource_quirks(np, res, index)) {
@@ -353,7 +349,7 @@ static void macio_setup_resources(struct macio_dev *dev,
 		/* Currently, we consider failure as harmless, this may
 		 * change in the future, once I've found all the device
 		 * tree bugs in older machines & worked around them
-		 */
+l		 */
 		if (insert_resource(parent_res, res)) {
 			printk(KERN_WARNING "Can't request resource "
 			       "%d for MacIO device %s\n",

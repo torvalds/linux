@@ -223,14 +223,36 @@ extern struct resource *request_OF_resource(struct device_node* node,
 				int index, const char* name_postfix);
 extern int release_OF_resource(struct device_node* node, int index);
 
+
 /*
- * Address translation function(s)
+ * OF address retreival & translation
+ */
+
+
+/* Translate an OF address block into a CPU physical address
  */
 #define OF_BAD_ADDR	((u64)-1)
 extern u64 of_translate_address(struct device_node *np, u32 *addr);
-extern u32 *of_get_address(struct device_node *dev, int index, u64 *size);
-extern u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size);
 
+/* Extract an address from a device, returns the region size and
+ * the address space flags too. The PCI version uses a BAR number
+ * instead of an absolute index
+ */
+extern u32 *of_get_address(struct device_node *dev, int index,
+			   u64 *size, unsigned int *flags);
+extern u32 *of_get_pci_address(struct device_node *dev, int bar_no,
+			       u64 *size, unsigned int *flags);
+
+/* Get an address as a resource. Note that if your address is
+ * a PIO address, the conversion will fail if the physical address
+ * can't be internally converted to an IO token with
+ * pci_address_to_pio(), that is because it's either called to early
+ * or it can't be matched to any host bridge IO space
+ */
+extern int of_address_to_resource(struct device_node *dev, int index,
+				  struct resource *r);
+extern int of_pci_address_to_resource(struct device_node *dev, int bar,
+				      struct resource *r);
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

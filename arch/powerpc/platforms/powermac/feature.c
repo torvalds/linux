@@ -2683,7 +2683,7 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 		printk(KERN_ERR "pmac_feature: %s skipped\n", node->full_name);
 		return;
 	}
-	addrp = of_get_pci_address(node, 0, &size);
+	addrp = of_get_pci_address(node, 0, &size, NULL);
 	if (addrp == NULL) {
 		printk(KERN_ERR "pmac_feature: %s: can't find base !\n",
 		       node->full_name);

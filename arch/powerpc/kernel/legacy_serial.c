@@ -146,6 +146,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 {
 	phys_addr_t addr, base;
 	u32 *addrp;
+	unsigned int flags;
 	int iotype, index = -1, lindex = 0;
 
 	/* We only support ports that have a clock frequency properly
@@ -159,12 +160,12 @@ static int __init add_legacy_pci_port(struct device_node *np,
 		return -1;
 
 	/* Get the PCI address. Assume BAR 0 */
-	addrp = of_get_pci_address(pci_dev, 0, NULL);
+	addrp = of_get_pci_address(pci_dev, 0, NULL, &flags);
 	if (addrp == NULL)
 		return -1;
 
 	/* We only support BAR 0 for now */
-	iotype = (addrp[0] & 0x02000000) ? UPIO_MEM : UPIO_PORT;
+	iotype = (flags & IORESOURCE_MEM) ? UPIO_MEM : UPIO_PORT;
 	addr = of_translate_address(pci_dev, addrp);
 
 	/* Set the IO base to the same as the translated address for MMIO,

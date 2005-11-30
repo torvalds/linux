@@ -4,7 +4,9 @@
 #include <linux/string.h>
 #include <linux/pci_regs.h>
 #include <linux/module.h>
+#include <linux/ioport.h>
 #include <asm/prom.h>
+#include <asm/pci-bridge.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) do { printk(fmt); } while(0)
@@ -54,6 +56,7 @@ struct of_bus {
 				       int *addrc, int *sizec);
 	u64		(*map)(u32 *addr, u32 *range, int na, int ns, int pna);
 	int		(*translate)(u32 *addr, u64 offset, int na);
+	unsigned int	(*get_flags)(u32 *addr);
 };
 
 
@@ -61,8 +64,8 @@ struct of_bus {
  * Default translator (generic bus)
  */
 
-static void of_default_count_cells(struct device_node *dev,
-				   int *addrc, int *sizec)
+static void of_bus_default_count_cells(struct device_node *dev,
+				       int *addrc, int *sizec)
 {
 	if (addrc)
 		*addrc = prom_n_addr_cells(dev);
@@ -70,7 +73,7 @@ static void of_default_count_cells(struct device_node *dev,
 		*sizec = prom_n_size_cells(dev);
 }
 
-static u64 of_default_map(u32 *addr, u32 *range, int na, int ns, int pna)
+static u64 of_bus_default_map(u32 *addr, u32 *range, int na, int ns, int pna)
 {
 	u64 cp, s, da;
 
@@ -86,7 +89,7 @@ static u64 of_default_map(u32 *addr, u32 *range, int na, int ns, int pna)
 	return da - cp;
 }
 
-static int of_default_translate(u32 *addr, u64 offset, int na)
+static int of_bus_default_translate(u32 *addr, u64 offset, int na)
 {
 	u64 a = of_read_addr(addr, na);
 	memset(addr, 0, na * 4);
@@ -96,6 +99,11 @@ static int of_default_translate(u32 *addr, u64 offset, int na)
 	addr[na - 1] = a & 0xffffffffu;
 
 	return 0;
+}
+
+static unsigned int of_bus_default_get_flags(u32 *addr)
+{
+	return IORESOURCE_MEM;
 }
 
 
@@ -139,7 +147,24 @@ static u64 of_bus_pci_map(u32 *addr, u32 *range, int na, int ns, int pna)
 
 static int of_bus_pci_translate(u32 *addr, u64 offset, int na)
 {
-	return of_default_translate(addr + 1, offset, na - 1);
+	return of_bus_default_translate(addr + 1, offset, na - 1);
+}
+
+static unsigned int of_bus_pci_get_flags(u32 *addr)
+{
+	unsigned int flags = 0;
+	u32 w = addr[0];
+
+	switch((w >> 24) & 0x03) {
+	case 0x01:
+		flags |= IORESOURCE_IO;
+	case 0x02: /* 32 bits */
+	case 0x03: /* 64 bits */
+		flags |= IORESOURCE_MEM;
+	}
+	if (w & 0x40000000)
+		flags |= IORESOURCE_PREFETCH;
+	return flags;
 }
 
 /*
@@ -182,8 +207,21 @@ static u64 of_bus_isa_map(u32 *addr, u32 *range, int na, int ns, int pna)
 
 static int of_bus_isa_translate(u32 *addr, u64 offset, int na)
 {
-	return of_default_translate(addr + 1, offset, na - 1);
+	return of_bus_default_translate(addr + 1, offset, na - 1);
 }
+
+static unsigned int of_bus_isa_get_flags(u32 *addr)
+{
+	unsigned int flags = 0;
+	u32 w = addr[0];
+
+	if (w & 1)
+		flags |= IORESOURCE_IO;
+	else
+		flags |= IORESOURCE_MEM;
+	return flags;
+}
+
 
 /*
  * Array of bus specific translators
@@ -198,6 +236,7 @@ static struct of_bus of_busses[] = {
 		.count_cells = of_bus_pci_count_cells,
 		.map = of_bus_pci_map,
 		.translate = of_bus_pci_translate,
+		.get_flags = of_bus_pci_get_flags,
 	},
 	/* ISA */
 	{
@@ -207,15 +246,17 @@ static struct of_bus of_busses[] = {
 		.count_cells = of_bus_isa_count_cells,
 		.map = of_bus_isa_map,
 		.translate = of_bus_isa_translate,
+		.get_flags = of_bus_isa_get_flags,
 	},
 	/* Default */
 	{
 		.name = "default",
 		.addresses = "reg",
 		.match = NULL,
-		.count_cells = of_default_count_cells,
-		.map = of_default_map,
-		.translate = of_default_translate,
+		.count_cells = of_bus_default_count_cells,
+		.map = of_bus_default_map,
+		.translate = of_bus_default_translate,
+		.get_flags = of_bus_default_get_flags,
 	},
 };
 
@@ -254,7 +295,8 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	ranges = (u32 *)get_property(parent, "ranges", &rlen);
 	if (ranges == NULL || rlen == 0) {
 		offset = of_read_addr(addr, na);
-		memset(addr, 0, pna);
+		memset(addr, 0, pna * 4);
+		DBG("OF: no ranges, 1:1 translation\n");
 		goto finish;
 	}
 
@@ -370,7 +412,8 @@ u64 of_translate_address(struct device_node *dev, u32 *in_addr)
 }
 EXPORT_SYMBOL(of_translate_address);
 
-u32 *of_get_address(struct device_node *dev, int index, u64 *size)
+u32 *of_get_address(struct device_node *dev, int index, u64 *size,
+		    unsigned int *flags)
 {
 	u32 *prop;
 	unsigned int psize;
@@ -399,22 +442,106 @@ u32 *of_get_address(struct device_node *dev, int index, u64 *size)
 		if (i == index) {
 			if (size)
 				*size = of_read_addr(prop + na, ns);
+			if (flags)
+				*flags = bus->get_flags(prop);
 			return prop;
 		}
 	return NULL;
 }
 EXPORT_SYMBOL(of_get_address);
 
-u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size)
+u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
+			unsigned int *flags)
 {
-	u32 *addr;
-	int index;
+	u32 *prop;
+	unsigned int psize;
+	struct device_node *parent;
+	struct of_bus *bus;
+	int onesize, i, na, ns;
 
-	for (index = 0; (addr = of_get_address(dev, index, size)) != NULL;
-	     index++) {
-		if ((addr[0] & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0))
-			return addr;
-	}
+	/* Get parent & match bus type */
+	parent = of_get_parent(dev);
+	if (parent == NULL)
+		return NULL;
+	bus = of_match_bus(parent);
+	if (strcmp(bus->name, "pci"))
+		return NULL;
+	bus->count_cells(dev, &na, &ns);
+	of_node_put(parent);
+	if (!OF_CHECK_COUNTS(na, ns))
+		return NULL;
+
+	/* Get "reg" or "assigned-addresses" property */
+	prop = (u32 *)get_property(dev, bus->addresses, &psize);
+	if (prop == NULL)
+		return NULL;
+	psize /= 4;
+
+	onesize = na + ns;
+	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++)
+		if ((prop[0] & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0)) {
+			if (size)
+				*size = of_read_addr(prop + na, ns);
+			if (flags)
+				*flags = bus->get_flags(prop);
+			return prop;
+		}
 	return NULL;
 }
 EXPORT_SYMBOL(of_get_pci_address);
+
+static int __of_address_to_resource(struct device_node *dev, u32 *addrp,
+				    u64 size, unsigned int flags,
+				    struct resource *r)
+{
+	u64 taddr;
+
+	if ((flags & (IORESOURCE_IO | IORESOURCE_MEM)) == 0)
+		return -EINVAL;
+	taddr = of_translate_address(dev, addrp);
+	if (taddr == OF_BAD_ADDR)
+		return -EINVAL;
+	memset(r, 0, sizeof(struct resource));
+	if (flags & IORESOURCE_IO) {
+		unsigned int port;
+		port = pci_address_to_pio(taddr);
+		if (port == (unsigned int)-1)
+			return -EINVAL;
+		r->start = port;
+		r->end = port + size - 1;
+	} else {
+		r->start = taddr;
+		r->end = taddr + size - 1;
+	}
+	r->flags = flags;
+	r->name = dev->name;
+	return 0;
+}
+
+int of_address_to_resource(struct device_node *dev, int index,
+			   struct resource *r)
+{
+	u32		*addrp;
+	u64		size;
+	unsigned int	flags;
+
+	addrp = of_get_address(dev, index, &size, &flags);
+	if (addrp == NULL)
+		return -EINVAL;
+	return __of_address_to_resource(dev, addrp, size, flags, r);
+}
+EXPORT_SYMBOL_GPL(of_address_to_resource);
+
+int of_pci_address_to_resource(struct device_node *dev, int bar,
+			       struct resource *r)
+{
+	u32		*addrp;
+	u64		size;
+	unsigned int	flags;
+
+	addrp = of_get_pci_address(dev, bar, &size, &flags);
+	if (addrp == NULL)
+		return -EINVAL;
+	return __of_address_to_resource(dev, addrp, size, flags, r);
+}
+EXPORT_SYMBOL_GPL(of_pci_address_to_resource);

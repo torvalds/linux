@@ -1805,6 +1805,21 @@ void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 EXPORT_SYMBOL(pci_iomap);
 EXPORT_SYMBOL(pci_iounmap);
 
+unsigned int pci_address_to_pio(phys_addr_t address)
+{
+	struct pci_controller* hose = hose_head;
+
+	for (; hose; hose = hose->next) {
+		unsigned int size = hose->io_resource.end -
+			hose->io_resource.start + 1;
+		if (address >= hose->io_base_phys &&
+		    address < (hose->io_base_phys + size))
+			return (unsigned int)hose->io_base_virt +
+				(address - hose->io_base_phys);
+	}
+	return (unsigned int)-1;
+}
+EXPORT_SYMBOL(pci_address_to_pio);
 
 /*
  * Null PCI config access functions, for the case when we can't
