@@ -114,9 +114,11 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4347) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4350) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4351) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4352) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4360) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4361) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4362) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4363) },
 	{ 0 }
 };
 
@@ -130,6 +132,7 @@ static const char *yukon_name[] = {
 	[CHIP_ID_YUKON_LITE - CHIP_ID_YUKON] = "Lite",	/* 0xb0 */
 	[CHIP_ID_YUKON_LP - CHIP_ID_YUKON] = "LP",	/* 0xb2 */
 	[CHIP_ID_YUKON_XL - CHIP_ID_YUKON] = "XL",	/* 0xb3 */
+	[CHIP_ID_YUKON_EC_U - CHIP_ID_YUKON] = "EC Ultra", /* 0xb4 */
 
 	[CHIP_ID_YUKON_EC - CHIP_ID_YUKON] = "EC",	/* 0xb6 */
 	[CHIP_ID_YUKON_FE - CHIP_ID_YUKON] = "FE",	/* 0xb7 */
@@ -599,6 +602,18 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	/* Configure Tx MAC FIFO */
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
 	sky2_write16(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_OPER_ON);
+
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
+		sky2_write8(hw, SK_REG(port, RX_GMF_LP_THR), 768/8);
+		sky2_write8(hw, SK_REG(port, RX_GMF_UP_THR), 1024/8);
+		if (hw->dev[port]->mtu > ETH_DATA_LEN) {
+			/* set Tx GMAC FIFO Almost Empty Threshold */
+			sky2_write32(hw, SK_REG(port, TX_GMF_AE_THR), 0x180);
+			/* Disable Store & Forward mode for TX */
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_STFW_DIS);
+		}
+	}
+
 }
 
 static void sky2_ramset(struct sky2_hw *hw, u16 q, u32 start, size_t len)
@@ -984,6 +999,10 @@ static int sky2_up(struct net_device *dev)
 		    RB_RST_SET);
 
 	sky2_qset(hw, txqaddr[port], 0x600);
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U)
+		sky2_write16(hw, Q_ADDR(txqaddr[port], Q_AL), 0x1a0);
+
+
 	sky2_prefetch_init(hw, txqaddr[port], sky2->tx_le_map,
 			   TX_RING_SIZE - 1);
 
@@ -1553,6 +1572,9 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U && new_mtu > ETH_DATA_LEN)
+		return -EINVAL;
+
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
 		return 0;
@@ -1972,6 +1994,7 @@ static inline u32 sky2_khz(const struct sky2_hw *hw)
 {
 	switch (hw->chip_id) {
 	case CHIP_ID_YUKON_EC:
+	case CHIP_ID_YUKON_EC_U:
 		return 125000;	/* 125 Mhz */
 	case CHIP_ID_YUKON_FE:
 		return 100000;	/* 100 Mhz */
@@ -2796,7 +2819,9 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 
 	sky2->port = port;
 
-	dev->features |= NETIF_F_LLTX | NETIF_F_TSO;
+	dev->features |= NETIF_F_LLTX;
+	if (hw->chip_id != CHIP_ID_YUKON_EC_U)
+		dev->features |= NETIF_F_TSO;
 	if (highmem)
 		dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
