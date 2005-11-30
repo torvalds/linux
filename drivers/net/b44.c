@@ -1417,6 +1417,7 @@ static int b44_open(struct net_device *dev)
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
+	netif_start_queue(dev);
 out:
 	return err;
 }
@@ -2113,6 +2114,7 @@ static int b44_resume(struct pci_dev *pdev)
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
+	netif_wake_queue(dev);
 	return 0;
 }
 
