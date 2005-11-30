@@ -660,10 +660,10 @@ nfs_file_direct_read(struct kiocb *iocb, char __user *buf, size_t count, loff_t 
 		.iov_len = count,
 	};
 
-	dprintk("nfs: direct read(%s/%s, %lu@%lu)\n",
+	dprintk("nfs: direct read(%s/%s, %lu@%Ld)\n",
 		file->f_dentry->d_parent->d_name.name,
 		file->f_dentry->d_name.name,
-		(unsigned long) count, (unsigned long) pos);
+		(unsigned long) count, (long long) pos);
 
 	if (!is_sync_kiocb(iocb))
 		goto out;
@@ -716,9 +716,7 @@ out:
 ssize_t
 nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t count, loff_t pos)
 {
-	ssize_t retval = -EINVAL;
-	loff_t *ppos = &iocb->ki_pos;
-	unsigned long limit = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
+	ssize_t retval;
 	struct file *file = iocb->ki_filp;
 	struct nfs_open_context *ctx =
 			(struct nfs_open_context *) file->private_data;
@@ -726,34 +724,31 @@ nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t count, 
 	struct inode *inode = mapping->host;
 	struct iovec iov = {
 		.iov_base = (char __user *)buf,
-		.iov_len = count,
 	};
 
-	dfprintk(VFS, "nfs: direct write(%s/%s(%ld), %lu@%lu)\n",
+	dfprintk(VFS, "nfs: direct write(%s/%s, %lu@%Ld)\n",
 		file->f_dentry->d_parent->d_name.name,
-		file->f_dentry->d_name.name, inode->i_ino,
-		(unsigned long) count, (unsigned long) pos);
+		file->f_dentry->d_name.name,
+		(unsigned long) count, (long long) pos);
 
+	retval = -EINVAL;
 	if (!is_sync_kiocb(iocb))
 		goto out;
-	if (count < 0)
+
+	retval = generic_write_checks(file, &pos, &count, 0);
+	if (retval)
 		goto out;
-        if (pos < 0)
+
+	retval = -EINVAL;
+	if ((ssize_t) count < 0)
 		goto out;
-	retval = -EFAULT;
-	if (!access_ok(VERIFY_READ, iov.iov_base, iov.iov_len))
-		goto out;
-	retval = -EFBIG;
-	if (limit != RLIM_INFINITY) {
-		if (pos >= limit) {
-			send_sig(SIGXFSZ, current, 0);
-			goto out;
-		}
-		if (count > limit - (unsigned long) pos)
-			count = limit - (unsigned long) pos;
-	}
 	retval = 0;
 	if (!count)
+		goto out;
+	iov.iov_len = count,
+
+	retval = -EFAULT;
+	if (!access_ok(VERIFY_READ, iov.iov_base, iov.iov_len))
 		goto out;
 
 	retval = nfs_sync_mapping(mapping);
@@ -764,7 +759,7 @@ nfs_file_direct_write(struct kiocb *iocb, const char __user *buf, size_t count, 
 	if (mapping->nrpages)
 		invalidate_inode_pages2(mapping);
 	if (retval > 0)
-		*ppos = pos + retval;
+		iocb->ki_pos = pos + retval;
 
 out:
 	return retval;
