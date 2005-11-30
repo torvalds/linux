@@ -581,6 +581,12 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 		crypto_digest_digest(conn->rx_tfm, &sg, 1, (u8 *)&cdgst);
 		rdgst = *(uint32_t*)((char*)hdr + sizeof(struct iscsi_hdr) +
 				     conn->in.ahslen);
+		if (cdgst != rdgst) {
+			printk(KERN_ERR "iscsi_tcp: itt %x: hdrdgst error "
+			       "recv 0x%x calc 0x%x\n", conn->in.itt, rdgst,
+			       cdgst);
+			return ISCSI_ERR_HDR_DGST;
+		}
 	}
 
 	/* save opcode for later */
@@ -610,13 +616,6 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 		  conn->in.ahslen, conn->in.datalen);
 
 	if (conn->in.itt < session->cmds_max) {
-		if (conn->hdrdgst_en && cdgst != rdgst) {
-			printk(KERN_ERR "iscsi_tcp: itt %x: hdrdgst error "
-			       "recv 0x%x calc 0x%x\n", conn->in.itt, rdgst,
-			       cdgst);
-			return ISCSI_ERR_HDR_DGST;
-		}
-
 		ctask = (struct iscsi_cmd_task *)session->cmds[conn->in.itt];
 
 		if (!ctask->sc) {
@@ -1128,8 +1127,7 @@ more:
 		 */
 		rc = iscsi_hdr_recv(conn);
 		if (!rc && conn->in.datalen) {
-			if (conn->datadgst_en &&
-				conn->in.opcode != ISCSI_OP_LOGIN_RSP) {
+			if (conn->datadgst_en) {
 				BUG_ON(!conn->data_rx_tfm);
 				crypto_digest_init(conn->data_rx_tfm);
 			}
@@ -1179,8 +1177,7 @@ more:
 		}
 		conn->in.copy -= conn->in.padding;
 		conn->in.offset += conn->in.padding;
-		if (conn->datadgst_en &&
-			conn->in.opcode != ISCSI_OP_LOGIN_RSP) {
+		if (conn->datadgst_en) {
 			if (conn->in.padding) {
 				debug_tcp("padding -> %d\n", conn->in.padding);
 				memset(pad, 0, conn->in.padding);
@@ -2875,8 +2872,11 @@ iscsi_conn_stop(iscsi_connh_t connh, int flag)
 		 * in hdr_extract() and will be re-negotiated at
 		 * set_param() time.
 		 */
-		if (flag == STOP_CONN_RECOVER)
+		if (flag == STOP_CONN_RECOVER) {
 			conn->hdr_size = sizeof(struct iscsi_hdr);
+			conn->hdrdgst_en = 0;
+			conn->datadgst_en = 0;
+		}
 	}
 	up(&conn->xmitsema);
 }
