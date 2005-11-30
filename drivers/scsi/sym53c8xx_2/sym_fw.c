@@ -37,11 +37,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifdef __FreeBSD__
-#include <dev/sym/sym_glue.h>
-#else
 #include "sym_glue.h"
-#endif
 
 /*
  *  Macros used for all firmwares.
@@ -60,11 +56,7 @@
 #define	SYM_FWA_SCR		sym_fw1a_scr
 #define	SYM_FWB_SCR		sym_fw1b_scr
 #define	SYM_FWZ_SCR		sym_fw1z_scr
-#ifdef __FreeBSD__
-#include <dev/sym/sym_fw1.h>
-#else
 #include "sym_fw1.h"
-#endif
 static struct sym_fwa_ofs sym_fw1a_ofs = {
 	SYM_GEN_FW_A(struct SYM_FWA_SCR)
 };
@@ -88,11 +80,7 @@ static struct sym_fwz_ofs sym_fw1z_ofs = {
 #define	SYM_FWA_SCR		sym_fw2a_scr
 #define	SYM_FWB_SCR		sym_fw2b_scr
 #define	SYM_FWZ_SCR		sym_fw2z_scr
-#ifdef __FreeBSD__
-#include <dev/sym/sym_fw2.h>
-#else
 #include "sym_fw2.h"
-#endif
 static struct sym_fwa_ofs sym_fw2a_ofs = {
 	SYM_GEN_FW_A(struct SYM_FWA_SCR)
 };
