@@ -58,7 +58,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"0.7"
+#define DRV_VERSION		"0.9"
 #define PFX			DRV_NAME " "
 
 /*
@@ -2948,8 +2948,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_out_iounmap;
 
-	printk(KERN_INFO PFX "addr 0x%lx irq %d Yukon-%s (0x%x) rev %d\n",
-	       pci_resource_start(pdev, 0), pdev->irq,
+	printk(KERN_INFO PFX "v%s addr 0x%lx irq %d Yukon-%s (0x%x) rev %d\n",
+	       DRV_VERSION, pci_resource_start(pdev, 0), pdev->irq,
 	       yukon_name[hw->chip_id - CHIP_ID_YUKON],
 	       hw->chip_id, hw->chip_rev);
 
@@ -3120,3 +3120,4 @@ module_exit(sky2_cleanup_module);
 MODULE_DESCRIPTION("Marvell Yukon 2 Gigabit Ethernet driver");
 MODULE_AUTHOR("Stephen Hemminger <shemminger@osdl.org>");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(DRV_VERSION);
