@@ -47,6 +47,7 @@
 #include <linux/in.h>
 #include <linux/delay.h>
 #include <linux/if_vlan.h>
+#include <linux/mii.h>
 
 #include <asm/irq.h>
 
@@ -136,7 +137,7 @@ static const char *yukon_name[] = {
 
 
 /* Access to external PHY */
-static void gm_phy_write(struct sky2_hw *hw, unsigned port, u16 reg, u16 val)
+static int gm_phy_write(struct sky2_hw *hw, unsigned port, u16 reg, u16 val)
 {
 	int i;
 
@@ -146,13 +147,15 @@ static void gm_phy_write(struct sky2_hw *hw, unsigned port, u16 reg, u16 val)
 
 	for (i = 0; i < PHY_RETRIES; i++) {
 		if (!(gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_BUSY))
-			return;
+			return 0;
 		udelay(1);
 	}
+
 	printk(KERN_WARNING PFX "%s: phy write timeout\n", hw->dev[port]->name);
+	return -ETIMEDOUT;
 }
 
-static u16 gm_phy_read(struct sky2_hw *hw, unsigned port, u16 reg)
+static int __gm_phy_read(struct sky2_hw *hw, unsigned port, u16 reg, u16 *val)
 {
 	int i;
 
@@ -160,14 +163,24 @@ static u16 gm_phy_read(struct sky2_hw *hw, unsigned port, u16 reg)
 		    | GM_SMI_CT_REG_AD(reg) | GM_SMI_CT_OP_RD);
 
 	for (i = 0; i < PHY_RETRIES; i++) {
-		if (gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_RD_VAL)
-			goto ready;
+		if (gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_RD_VAL) {
+			*val = gma_read16(hw, port, GM_SMI_DATA);
+			return 0;
+		}
+
 		udelay(1);
 	}
 
-	printk(KERN_WARNING PFX "%s: phy read timeout\n", hw->dev[port]->name);
-ready:
-	return gma_read16(hw, port, GM_SMI_DATA);
+	return -ETIMEDOUT;
+}
+
+static u16 gm_phy_read(struct sky2_hw *hw, unsigned port, u16 reg)
+{
+	u16 v;
+
+	if (__gm_phy_read(hw, port, reg, &v) != 0)
+		printk(KERN_WARNING PFX "%s: phy read timeout\n", hw->dev[port]->name);
+	return v;
 }
 
 static int sky2_set_power_state(struct sky2_hw *hw, pci_power_t state)
@@ -790,6 +803,44 @@ static void sky2_rx_clean(struct sky2_port *sky2)
 			re->skb = NULL;
 		}
 	}
+}
+
+/* Basic MII support */
+static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct mii_ioctl_data *data = if_mii(ifr);
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	int err = -EOPNOTSUPP;
+
+	if (!netif_running(dev))
+		return -ENODEV;	/* Phy still in reset */
+
+	switch(cmd) {
+	case SIOCGMIIPHY:
+		data->phy_id = PHY_ADDR_MARV;
+
+		/* fallthru */
+	case SIOCGMIIREG: {
+		u16 val = 0;
+		spin_lock_bh(&hw->phy_lock);
+		err = __gm_phy_read(hw, sky2->port, data->reg_num & 0x1f, &val);
+		spin_unlock_bh(&hw->phy_lock);
+		data->val_out = val;
+		break;
+	}
+
+	case SIOCSMIIREG:
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+
+		spin_lock_bh(&hw->phy_lock);
+		err = gm_phy_write(hw, sky2->port, data->reg_num & 0x1f,
+				   data->val_in);
+		spin_unlock_bh(&hw->phy_lock);
+		break;
+	}
+	return err;
 }
 
 #ifdef SKY2_VLAN_TAG_USED
@@ -2708,8 +2759,10 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
+	dev->irq = hw->pdev->irq;
 	dev->open = sky2_up;
 	dev->stop = sky2_down;
+	dev->do_ioctl = sky2_ioctl;
 	dev->hard_start_xmit = sky2_xmit_frame;
 	dev->get_stats = sky2_get_stats;
 	dev->set_multicast_list = sky2_set_multicast;
