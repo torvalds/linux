@@ -802,16 +802,16 @@ static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
 	return (1 << debug_value) - 1;
 }
 
-/* Schedule rx intr now? */
-static inline int netif_rx_schedule_test(struct net_device *dev)
+/* Test if receive needs to be scheduled */
+static inline int __netif_rx_schedule_prep(struct net_device *dev)
 {
 	return !test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state);
 }
 
-/* Schedule only if device is up */
+/* Test if receive needs to be scheduled but only if up */
 static inline int netif_rx_schedule_prep(struct net_device *dev)
 {
-	return netif_running(dev) && netif_rx_schedule_test(dev);
+	return netif_running(dev) && __netif_rx_schedule_prep(dev);
 }
 
 /* Add interface to tail of rx poll list. This assumes that _prep has

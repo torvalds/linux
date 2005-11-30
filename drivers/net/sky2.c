@@ -1961,10 +1961,11 @@ static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
 	if (status & Y2_IS_STAT_BMU) {
 		hw->intr_mask &= ~Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
-		prefetch(&hw->st_le[hw->st_idx]);
 
-		if (netif_rx_schedule_test(dev0))
+		if (likely(__netif_rx_schedule_prep(dev0))) {
+			prefetch(&hw->st_le[hw->st_idx]);
 			__netif_rx_schedule(dev0);
+		}
 	}
 
 	if (status & Y2_IS_IRQ_PHY1)
