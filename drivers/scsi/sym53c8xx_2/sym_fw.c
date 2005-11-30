@@ -62,9 +62,6 @@ static struct sym_fwa_ofs sym_fw1a_ofs = {
 };
 static struct sym_fwb_ofs sym_fw1b_ofs = {
 	SYM_GEN_FW_B(struct SYM_FWB_SCR)
-#ifdef SYM_OPT_HANDLE_DIR_UNKNOWN
-	SYM_GEN_B(struct SYM_FWB_SCR, data_io)
-#endif
 };
 static struct sym_fwz_ofs sym_fw1z_ofs = {
 	SYM_GEN_FW_Z(struct SYM_FWZ_SCR)
@@ -86,9 +83,6 @@ static struct sym_fwa_ofs sym_fw2a_ofs = {
 };
 static struct sym_fwb_ofs sym_fw2b_ofs = {
 	SYM_GEN_FW_B(struct SYM_FWB_SCR)
-#ifdef SYM_OPT_HANDLE_DIR_UNKNOWN
-	SYM_GEN_B(struct SYM_FWB_SCR, data_io)
-#endif
 	SYM_GEN_B(struct SYM_FWB_SCR, start64)
 	SYM_GEN_B(struct SYM_FWB_SCR, pm_handle)
 };
