@@ -937,10 +937,6 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 	if (err)
 		goto out;
 
-	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SRQ_SZ_OFFSET);
-	dev_lim->max_srq_sz = (1 << field) - 1;
-	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_QP_SZ_OFFSET);
-	dev_lim->max_qp_sz = (1 << field) - 1;
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_RSVD_QP_OFFSET);
 	dev_lim->reserved_qps = 1 << (field & 0xf);
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_QP_OFFSET);
@@ -1056,6 +1052,10 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 	mthca_dbg(dev, "Flags: %08x\n", dev_lim->flags);
 
 	if (mthca_is_memfree(dev)) {
+		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SRQ_SZ_OFFSET);
+		dev_lim->max_srq_sz = 1 << field;
+		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_QP_SZ_OFFSET);
+		dev_lim->max_qp_sz = 1 << field;
 		MTHCA_GET(field, outbox, QUERY_DEV_LIM_RSZ_SRQ_OFFSET);
 		dev_lim->hca.arbel.resize_srq = field & 1;
 		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SG_RQ_OFFSET);
@@ -1087,6 +1087,10 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 		mthca_dbg(dev, "Max ICM size %lld MB\n",
 			  (unsigned long long) dev_lim->hca.arbel.max_icm_sz >> 20);
 	} else {
+		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SRQ_SZ_OFFSET);
+		dev_lim->max_srq_sz = (1 << field) - 1;
+		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_QP_SZ_OFFSET);
+		dev_lim->max_qp_sz = (1 << field) - 1;
 		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_AV_OFFSET);
 		dev_lim->hca.tavor.max_avs = 1 << (field & 0x3f);
 		dev_lim->mpt_entry_sz = MTHCA_MPT_ENTRY_SIZE;
