@@ -1746,31 +1746,31 @@ enum {
  */
 struct sky2_tx_le {
 	union {
-		u32	addr;
+		__le32	addr;
 		struct {
-			u16	offset;
-			u16	start;
+			__le16	offset;
+			__le16	start;
 		} csum  __attribute((packed));
 		struct {
-			u16	size;
-			u16	rsvd;
+			__le16	size;
+			__le16	rsvd;
 		} tso  __attribute((packed));
 	} tx;
-	u16	length;	/* also vlan tag or checksum start */
+	__le16	length;	/* also vlan tag or checksum start */
 	u8	ctrl;
 	u8	opcode;
 } __attribute((packed));
 
 struct sky2_rx_le {
-	u32	addr;
-	u16	length;
+	__le32	addr;
+	__le16	length;
 	u8	ctrl;
 	u8	opcode;
 } __attribute((packed));;
 
 struct sky2_status_le {
-	u32	status;	/* also checksum */
-	u16	length;	/* also vlan tag */
+	__le32	status;	/* also checksum */
+	__le16	length;	/* also vlan tag */
 	u8	link;
 	u8	opcode;
 } __attribute((packed));
