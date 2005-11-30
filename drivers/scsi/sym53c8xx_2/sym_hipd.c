@@ -943,7 +943,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 		tp->usrflags |= (SYM_DISC_ENABLED | SYM_TAGS_ENABLED);
 		tp->usrtags = SYM_SETUP_MAX_TAG;
 
-		sym_nvram_setup_target(np, i, nvram);
+		sym_nvram_setup_target(tp, i, nvram);
 
 		if (!tp->usrtags)
 			tp->usrflags &= ~SYM_TAGS_ENABLED;

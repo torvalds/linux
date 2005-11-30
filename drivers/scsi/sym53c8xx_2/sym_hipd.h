@@ -434,8 +434,10 @@ struct sym_tcb {
 	 *  Other user settable limits and options.
 	 *  These limits are read from the NVRAM if present.
 	 */
-	u_char	usrflags;
-	u_short	usrtags;
+	unsigned char	usrflags;
+	unsigned char	usr_period;
+	unsigned char	usr_width;
+	unsigned short	usrtags;
 	struct scsi_target *starget;
 };
 

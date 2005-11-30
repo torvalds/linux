@@ -1038,6 +1038,9 @@ static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 		return -ENOMEM;
 
 	tp->starget = sdev->sdev_target;
+	spi_min_period(tp->starget) = tp->usr_period;
+	spi_max_width(tp->starget) = tp->usr_width;
+
 	return 0;
 }
 
