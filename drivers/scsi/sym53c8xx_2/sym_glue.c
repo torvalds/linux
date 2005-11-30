@@ -1532,7 +1532,7 @@ static int sym_setup_bus_dma_mask(struct sym_hcb *np)
 {
 #if SYM_CONF_DMA_ADDRESSING_MODE > 0
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 1
-#define	DMA_DAC_MASK	0x000000ffffffffffULL /* 40-bit */
+#define	DMA_DAC_MASK	DMA_40BIT_MASK
 #elif SYM_CONF_DMA_ADDRESSING_MODE == 2
 #define	DMA_DAC_MASK	DMA_64BIT_MASK
 #endif
