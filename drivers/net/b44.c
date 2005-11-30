@@ -1838,12 +1838,15 @@ static int b44_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mii_ioctl_data *data = if_mii(ifr);
 	struct b44 *bp = netdev_priv(dev);
-	int err;
+	int err = -EINVAL;
+
+	if (!netif_running(dev))
+		goto out;
 
 	spin_lock_irq(&bp->lock);
 	err = generic_mii_ioctl(&bp->mii_if, data, cmd, NULL);
 	spin_unlock_irq(&bp->lock);
-
+out:
 	return err;
 }
 
