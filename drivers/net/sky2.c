@@ -72,10 +72,10 @@
 	unlikely((hw)->chip_id == CHIP_ID_YUKON_EC && \
 		 (hw)->chip_rev == CHIP_REV_YU_EC_A1)
 
-#define RX_LE_SIZE	    	256
+#define RX_LE_SIZE	    	512
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
 #define RX_MAX_PENDING		(RX_LE_SIZE/2 - 2)
-#define RX_DEF_PENDING		128
+#define RX_DEF_PENDING		RX_MAX_PENDING
 #define RX_COPY_THRESHOLD	256
 
 #define TX_RING_SIZE		512
@@ -1596,7 +1596,6 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 {
 	struct ring_info *re = sky2->rx_ring + sky2->rx_next;
 	struct sk_buff *skb = NULL;
-	struct net_device *dev;
 	const unsigned int bufsize = rx_size(sky2);
 
 	if (unlikely(netif_msg_rx_status(sky2)))
@@ -1643,11 +1642,6 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 	}
 
 	skb_put(skb, length);
-	dev = sky2->netdev;
-	skb->dev = dev;
-	skb->protocol = eth_type_trans(skb, dev);
-	dev->last_rx = jiffies;
-
 resubmit:
 	re->skb->ip_summed = CHECKSUM_NONE;
 	sky2_rx_add(sky2, re);
@@ -1702,35 +1696,42 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	BUG_ON(hwidx >= STATUS_RING_SIZE);
  	rmb();
 
-	do {
-		struct sky2_status_le *le = hw->st_le + hw->st_idx;
+	while (hwidx != hw->st_idx) {
+		struct sky2_status_le *le  = hw->st_le + hw->st_idx;
+		struct net_device *dev;
 		struct sky2_port *sky2;
 		struct sk_buff *skb;
 		u32 status;
 		u16 length;
+		u8 op;
 
-		/* Are we done yet? */
-		if (hw->st_idx == hwidx) {
-			sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
-			hwidx = sky2_read16(hw, STAT_PUT_IDX);
-			if (hwidx == hw->st_idx)
-				break;
-		}
-
+		le = hw->st_le + hw->st_idx;
 		hw->st_idx = (hw->st_idx + 1) % STATUS_RING_SIZE;
-		prefetch(&hw->st_le[hw->st_idx]);
+		prefetch(hw->st_le + hw->st_idx);
 
 		BUG_ON(le->link >= hw->ports || !hw->dev[le->link]);
 
-		sky2 = netdev_priv(hw->dev[le->link]);
+		BUG_ON(le->link >= 2);
+		dev = hw->dev[le->link];
+		if (dev == NULL || !netif_running(dev))
+			continue;
+
+		sky2 = netdev_priv(dev);
 		status = le32_to_cpu(le->status);
 		length = le16_to_cpu(le->length);
+		op = le->opcode & ~HW_OWNER;
+		le->opcode = 0;
 
-		switch (le->opcode & ~HW_OWNER) {
+		switch (op) {
 		case OP_RXSTAT:
 			skb = sky2_receive(sky2, length, status);
 			if (!skb)
 				break;
+
+			skb->dev = dev;
+			skb->protocol = eth_type_trans(skb, dev);
+			dev->last_rx = jiffies;
+
 #ifdef SKY2_VLAN_TAG_USED
 			if (sky2->vlgrp && (status & GMR_FS_VLAN)) {
 				vlan_hwaccel_receive_skb(skb,
@@ -1739,7 +1740,9 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 			} else
 #endif
 				netif_receive_skb(skb);
-			++work_done;
+
+			if (++work_done >= to_do)
+				goto exit_loop;
 			break;
 
 #ifdef SKY2_VLAN_TAG_USED
@@ -1765,18 +1768,15 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		default:
 			if (net_ratelimit())
 				printk(KERN_WARNING PFX
-				       "unknown status opcode 0x%x\n",
-				       le->opcode);
+				       "unknown status opcode 0x%x\n", op);
 			break;
 		}
+	}
 
-		le->opcode = 0;	/* paranoia */
-	} while (work_done < to_do);
+exit_loop:
 
 	mmiowb();
 
-	*budget -= work_done;
-	dev0->quota -= work_done;
 	if (work_done < to_do) {
 		/*
 		 * Another chip workaround, need to restart TX timer if status
@@ -1790,11 +1790,13 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 		netif_rx_complete(dev0);
 		hw->intr_mask |= Y2_IS_STAT_BMU;
 		sky2_write32(hw, B0_IMSK, hw->intr_mask);
-		sky2_read32(hw, B0_IMSK);
+		mmiowb();
+		return 0;
+	} else {
+		*budget -= work_done;
+		dev0->quota -= work_done;
+		return 1;
 	}
-
-	return work_done >= to_do;
-
 }
 
 static void sky2_hw_error(struct sky2_hw *hw, unsigned port, u32 status)
