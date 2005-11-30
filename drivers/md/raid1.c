@@ -953,9 +953,6 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int mirror = 0;
 	mirror_info_t *p;
 
-	if (rdev->saved_raid_disk >= 0 &&
-	    conf->mirrors[rdev->saved_raid_disk].rdev == NULL)
-		mirror = rdev->saved_raid_disk;
 	for (mirror=0; mirror < mddev->raid_disks; mirror++)
 		if ( !(p=conf->mirrors+mirror)->rdev) {
 
@@ -972,7 +969,10 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
 			found = 1;
-			if (rdev->saved_raid_disk != mirror)
+			/* As all devices are equivalent, we don't need a full recovery
+			 * if this was recently any drive of the array
+			 */
+			if (rdev->saved_raid_disk < 0)
 				conf->fullsync = 1;
 			rcu_assign_pointer(p->rdev, rdev);
 			break;

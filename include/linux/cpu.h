@@ -65,10 +65,9 @@ extern struct sysdev_class cpu_sysdev_class;
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* Stop CPUs going up and down. */
-extern struct semaphore cpucontrol;
-#define lock_cpu_hotplug()	down(&cpucontrol)
-#define unlock_cpu_hotplug()	up(&cpucontrol)
-#define lock_cpu_hotplug_interruptible() down_interruptible(&cpucontrol)
+extern void lock_cpu_hotplug(void);
+extern void unlock_cpu_hotplug(void);
+extern int lock_cpu_hotplug_interruptible(void);
 #define hotcpu_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
 		{ .notifier_call = fn, .priority = pri };	\

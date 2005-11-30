@@ -59,7 +59,7 @@
 #define  M32R_IRQ_I2C          (28)  /* I2C-BUS     */
 #define  PLD_IRQ_CFIREQ       (6)  /* INT5 CFC Card Interrupt */
 #define  PLD_IRQ_CFC_INSERT   (7)  /* INT6 CFC Card Insert */
-#define  PLD_IRQ_CFC_EJECT    (8)  /* INT7 CFC Card Eject */
+#define  PLD_IRQ_IDEIREQ      (8)  /* INT7 IDE Interrupt   */
 #define  PLD_IRQ_MMCCARD      (43)  /* MMC Card Insert */
 #define  PLD_IRQ_MMCIRQ       (44)  /* MMC Transfer Done */
 

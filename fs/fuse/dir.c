@@ -74,6 +74,24 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 	return 1;
 }
 
+static int dir_alias(struct inode *inode)
+{
+	if (S_ISDIR(inode->i_mode)) {
+		/* Don't allow creating an alias to a directory  */
+		struct dentry *alias = d_find_alias(inode);
+		if (alias) {
+			dput(alias);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static inline int invalid_nodeid(u64 nodeid)
+{
+	return !nodeid || nodeid == FUSE_ROOT_ID;
+}
+
 static struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 };
@@ -97,7 +115,7 @@ static int fuse_lookup_iget(struct inode *dir, struct dentry *entry,
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
 	err = req->out.h.error;
-	if (!err && (!outarg.nodeid || outarg.nodeid == FUSE_ROOT_ID))
+	if (!err && invalid_nodeid(outarg.nodeid))
 		err = -EIO;
 	if (!err) {
 		inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
@@ -193,7 +211,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	}
 
 	err = -EIO;
-	if (!S_ISREG(outentry.attr.mode))
+	if (!S_ISREG(outentry.attr.mode) || invalid_nodeid(outentry.nodeid))
 		goto out_free_ff;
 
 	inode = fuse_iget(dir->i_sb, outentry.nodeid, outentry.generation,
@@ -250,7 +268,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 		fuse_put_request(fc, req);
 		return err;
 	}
-	if (!outarg.nodeid || outarg.nodeid == FUSE_ROOT_ID) {
+	if (invalid_nodeid(outarg.nodeid)) {
 		fuse_put_request(fc, req);
 		return -EIO;
 	}
@@ -263,7 +281,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	fuse_put_request(fc, req);
 
 	/* Don't allow userspace to do really stupid things... */
-	if ((inode->i_mode ^ mode) & S_IFMT) {
+	if (((inode->i_mode ^ mode) & S_IFMT) || dir_alias(inode)) {
 		iput(inode);
 		return -EIO;
 	}
@@ -874,14 +892,9 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	err = fuse_lookup_iget(dir, entry, &inode);
 	if (err)
 		return ERR_PTR(err);
-	if (inode && S_ISDIR(inode->i_mode)) {
-		/* Don't allow creating an alias to a directory  */
-		struct dentry *alias = d_find_alias(inode);
-		if (alias) {
-			dput(alias);
-			iput(inode);
-			return ERR_PTR(-EIO);
-		}
+	if (inode && dir_alias(inode)) {
+		iput(inode);
+		return ERR_PTR(-EIO);
 	}
 	d_add(entry, inode);
 	return NULL;

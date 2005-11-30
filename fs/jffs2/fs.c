@@ -234,6 +234,7 @@ void jffs2_read_inode (struct inode *inode)
 	c = JFFS2_SB_INFO(inode->i_sb);
 
 	jffs2_init_inode_info(f);
+	down(&f->sem);
 
 	ret = jffs2_do_read_inode(c, f, inode->i_ino, &latest_node);
 
@@ -400,6 +401,7 @@ struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_i
 
 	f = JFFS2_INODE_INFO(inode);
 	jffs2_init_inode_info(f);
+	down(&f->sem);
 
 	memset(ri, 0, sizeof(*ri));
 	/* Set OS-specific defaults for new inodes */

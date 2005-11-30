@@ -102,7 +102,7 @@ int fastcall queue_work(struct workqueue_struct *wq, struct work_struct *work)
 
 	if (!test_and_set_bit(0, &work->pending)) {
 		if (unlikely(is_single_threaded(wq)))
-			cpu = 0;
+			cpu = any_online_cpu(cpu_online_map);
 		BUG_ON(!list_empty(&work->entry));
 		__queue_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
 		ret = 1;
@@ -118,7 +118,7 @@ static void delayed_work_timer_fn(unsigned long __data)
 	int cpu = smp_processor_id();
 
 	if (unlikely(is_single_threaded(wq)))
-		cpu = 0;
+		cpu = any_online_cpu(cpu_online_map);
 
 	__queue_work(per_cpu_ptr(wq->cpu_wq, cpu), work);
 }
@@ -266,8 +266,8 @@ void fastcall flush_workqueue(struct workqueue_struct *wq)
 	might_sleep();
 
 	if (is_single_threaded(wq)) {
-		/* Always use cpu 0's area. */
-		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, 0));
+		/* Always use first cpu's area. */
+		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, any_online_cpu(cpu_online_map)));
 	} else {
 		int cpu;
 
@@ -320,7 +320,7 @@ struct workqueue_struct *__create_workqueue(const char *name,
 	lock_cpu_hotplug();
 	if (singlethread) {
 		INIT_LIST_HEAD(&wq->list);
-		p = create_workqueue_thread(wq, 0);
+		p = create_workqueue_thread(wq, any_online_cpu(cpu_online_map));
 		if (!p)
 			destroy = 1;
 		else
@@ -374,7 +374,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	/* We don't need the distraction of CPUs appearing and vanishing. */
 	lock_cpu_hotplug();
 	if (is_single_threaded(wq))
-		cleanup_workqueue_thread(wq, 0);
+		cleanup_workqueue_thread(wq, any_online_cpu(cpu_online_map));
 	else {
 		for_each_online_cpu(cpu)
 			cleanup_workqueue_thread(wq, cpu);

@@ -30,7 +30,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
-#include <asm/mach-types.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/amba_clcd.h>
 #include <asm/hardware/arm_timer.h>
