@@ -5551,15 +5551,6 @@ if (resid)
 	 */
 	sym_set_cam_result_ok(cp, cmd, resid);
 
-#ifdef	SYM_OPT_SNIFF_INQUIRY
-	/*
-	 *  On standard INQUIRY response (EVPD and CmDt 
-	 *  not set), sniff out device capabilities.
-	 */
-	if (cp->cdb_buf[0] == INQUIRY && !(cp->cdb_buf[1] & 0x3))
-		sym_sniff_inquiry(np, cmd, resid);
-#endif
-
 #ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	/*
 	 *  If max number of started ccbs had been reduced,
