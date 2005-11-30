@@ -690,7 +690,7 @@ csum_page(struct page *page, int offset, int copy)
 	return csum;
 }
 
-inline int ip_ufo_append_data(struct sock *sk,
+static inline int ip_ufo_append_data(struct sock *sk,
 			int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
 			void *from, int length, int hh_len, int fragheaderlen,
