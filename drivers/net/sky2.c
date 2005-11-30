@@ -1242,6 +1242,9 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	struct net_device *dev = sky2->netdev;
 	unsigned i;
 
+	if (done == sky2->tx_cons)
+		return;
+
 	if (unlikely(netif_msg_tx_done(sky2)))
 		printk(KERN_DEBUG "%s: tx done, up to %u\n",
 		       dev->name, done);
@@ -1711,16 +1714,18 @@ error:
 	goto resubmit;
 }
 
-/* Transmit ring index in reported status block is encoded as:
- *
- *   | TXS2 | TXA2 | TXS1 | TXA1
+/*
+ * Check for transmit complete
  */
-static inline u16 tx_index(u8 port, u32 status, u16 len)
+static inline void sky2_tx_check(struct sky2_hw *hw, int port)
 {
-	if (port == 0)
-		return status & 0xfff;
-	else
-		return ((status >> 24) & 0xff) | (len & 0xf) << 8;
+	struct net_device *dev = hw->dev[port];
+
+	if (dev && netif_running(dev)) {
+		sky2_tx_complete(netdev_priv(dev),
+				 sky2_read16(hw, port == 0
+					     ? STAT_TXA1_RIDX : STAT_TXA2_RIDX));
+	}
 }
 
 /*
@@ -1803,8 +1808,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 			break;
 
 		case OP_TXINDEXLE:
-			sky2_tx_complete(sky2,
-					 tx_index(sky2->port, status, length));
+			/* pick up transmit status later */
 			break;
 
 		default:
@@ -1816,6 +1820,8 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	}
 
 exit_loop:
+ 	sky2_tx_check(hw, 0);
+ 	sky2_tx_check(hw, 1);
 
 	mmiowb();
 
