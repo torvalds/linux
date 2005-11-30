@@ -254,29 +254,17 @@ static int __init find_min_common_depth(void)
 	return depth;
 }
 
-static int __init get_mem_addr_cells(void)
+static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 {
 	struct device_node *memory = NULL;
-	int rc;
 
 	memory = of_find_node_by_type(memory, "memory");
 	if (!memory)
-		return 0; /* it won't matter */
+		panic("numa.c: No memory nodes found!");
 
-	rc = prom_n_addr_cells(memory);
-	return rc;
-}
-
-static int __init get_mem_size_cells(void)
-{
-	struct device_node *memory = NULL;
-	int rc;
-
-	memory = of_find_node_by_type(memory, "memory");
-	if (!memory)
-		return 0; /* it won't matter */
-	rc = prom_n_size_cells(memory);
-	return rc;
+	*n_addr_cells = prom_n_addr_cells(memory);
+	*n_size_cells = prom_n_size_cells(memory);
+	of_node_put(memory);
 }
 
 static unsigned long __init read_n_cells(int n, unsigned int **buf)
@@ -386,7 +374,7 @@ static int __init parse_numa_properties(void)
 {
 	struct device_node *cpu = NULL;
 	struct device_node *memory = NULL;
-	int addr_cells, size_cells;
+	int n_addr_cells, n_size_cells;
 	int max_domain;
 	unsigned long i;
 
@@ -425,8 +413,7 @@ static int __init parse_numa_properties(void)
 		}
 	}
 
-	addr_cells = get_mem_addr_cells();
-	size_cells = get_mem_size_cells();
+	get_n_mem_cells(&n_addr_cells, &n_size_cells);
 	memory = NULL;
 	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
 		unsigned long start;
@@ -443,8 +430,8 @@ static int __init parse_numa_properties(void)
 		ranges = memory->n_addrs;
 new_range:
 		/* these are order-sensitive, and modify the buffer pointer */
-		start = read_n_cells(addr_cells, &memcell_buf);
-		size = read_n_cells(size_cells, &memcell_buf);
+		start = read_n_cells(n_addr_cells, &memcell_buf);
+		size = read_n_cells(n_size_cells, &memcell_buf);
 
 		numa_domain = of_node_numa_domain(memory);
 
