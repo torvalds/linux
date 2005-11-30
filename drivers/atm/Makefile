@@ -31,6 +31,7 @@ ifeq ($(CONFIG_ATM_IDT77252_USE_SUNI),y)
   obj-$(CONFIG_ATM_IDT77252)	+= suni.o
 endif
 
+obj-$(CONFIG_ATM_DUMMY)		+= adummy.o
 obj-$(CONFIG_ATM_TCP)		+= atmtcp.o
 obj-$(CONFIG_ATM_FIRESTREAM)	+= firestream.o
 obj-$(CONFIG_ATM_LANAI)		+= lanai.o

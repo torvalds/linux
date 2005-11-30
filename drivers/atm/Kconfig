@@ -5,6 +5,13 @@
 menu "ATM drivers"
 	depends on NETDEVICES && ATM
 
+config ATM_DUMMY
+	tristate "Dummy ATM driver"
+	depends on ATM
+	help
+	  Dummy ATM driver. Useful for proxy signalling, testing,
+	  and development.  If unsure, say N.
+
 config ATM_TCP
 	tristate "ATM over TCP"
 	depends on INET && ATM
