@@ -575,11 +575,10 @@ nfs_statfs(struct super_block *sb, struct kstatfs *buf)
 	buf->f_namelen = server->namelen;
  out:
 	unlock_kernel();
-
 	return 0;
 
  out_err:
-	printk(KERN_WARNING "nfs_statfs: statfs error = %d\n", -error);
+	dprintk("%s: statfs error = %d\n", __FUNCTION__, -error);
 	buf->f_bsize = buf->f_blocks = buf->f_bfree = buf->f_bavail = -1;
 	goto out;
 
