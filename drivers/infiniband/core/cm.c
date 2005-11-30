@@ -684,6 +684,13 @@ retest:
 		cm_reject_sidr_req(cm_id_priv, IB_SIDR_REJECT);
 		break;
 	case IB_CM_REQ_SENT:
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
+		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
+		ib_send_cm_rej(cm_id, IB_CM_REJ_TIMEOUT,
+			       &cm_id_priv->av.port->cm_dev->ca_guid,
+			       sizeof cm_id_priv->av.port->cm_dev->ca_guid,
+			       NULL, 0);
+		break;
 	case IB_CM_MRA_REQ_RCVD:
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
@@ -694,10 +701,8 @@ retest:
 	case IB_CM_REP_RCVD:
 	case IB_CM_MRA_REP_SENT:
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
-		ib_send_cm_rej(cm_id, IB_CM_REJ_TIMEOUT,
-			       &cm_id_priv->av.port->cm_dev->ca_guid,
-			       sizeof cm_id_priv->av.port->cm_dev->ca_guid,
-			       NULL, 0);
+		ib_send_cm_rej(cm_id, IB_CM_REJ_CONSUMER_DEFINED,
+			       NULL, 0, NULL, 0);
 		break;
 	case IB_CM_ESTABLISHED:
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
