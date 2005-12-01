@@ -87,8 +87,6 @@ struct snd_info_entry {
 	struct semaphore access;
 };
 
-int snd_info_check_reserved_words(const char *str);
-
 #if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_PROC_FS)
 int snd_info_minor_register(void);
 int snd_info_minor_unregister(void);
@@ -142,6 +140,7 @@ static inline void snd_info_set_text_ops(struct snd_info_entry *entry,
 	entry->c.text.read = read;
 }
 
+int snd_info_check_reserved_words(const char *str);
 
 #else
 
@@ -164,8 +163,14 @@ static inline int snd_info_card_free(struct snd_card * card) { return 0; }
 static inline int snd_info_register(struct snd_info_entry * entry) { return 0; }
 static inline int snd_info_unregister(struct snd_info_entry * entry) { return 0; }
 
-#define snd_card_proc_new(card,name,entryp)  0 /* always success */
-#define snd_info_set_text_ops(entry,private_data,read_size,read) /*NOP*/
+static inline int snd_card_proc_new(struct snd_card *card, const char *name,
+				    struct snd_info_entry **entryp) { return -EINVAL; }
+static inline void snd_info_set_text_ops(struct snd_info_entry *entry __attribute__((unused)),
+					 void *private_data,
+					 long read_size,
+					 void (*read)(struct snd_info_entry *, struct snd_info_buffer *)) {}
+
+static inline int snd_info_check_reserved_words(const char *str) { return 1; }
 
 #endif
 

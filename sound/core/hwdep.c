@@ -458,6 +458,7 @@ static int snd_hwdep_dev_unregister(struct snd_device *device)
 	return snd_hwdep_free(hwdep);
 }
 
+#ifdef CONFIG_PROC_FS
 /*
  *  Info interface
  */
@@ -477,13 +478,9 @@ static void snd_hwdep_proc_read(struct snd_info_entry *entry,
 	up(&register_mutex);
 }
 
-/*
- *  ENTRY functions
- */
+static struct snd_info_entry *snd_hwdep_proc_entry;
 
-static struct snd_info_entry *snd_hwdep_proc_entry = NULL;
-
-static int __init alsa_hwdep_init(void)
+static void __init snd_hwdep_proc_init(void)
 {
 	struct snd_info_entry *entry;
 
@@ -496,6 +493,25 @@ static int __init alsa_hwdep_init(void)
 		}
 	}
 	snd_hwdep_proc_entry = entry;
+}
+
+static void __exit snd_hwdep_proc_done(void)
+{
+	snd_info_unregister(snd_hwdep_proc_entry);
+}
+#else /* !CONFIG_PROC_FS */
+#define snd_hwdep_proc_init()
+#define snd_hwdep_proc_done()
+#endif /* CONFIG_PROC_FS */
+
+
+/*
+ *  ENTRY functions
+ */
+
+static int __init alsa_hwdep_init(void)
+{
+	snd_hwdep_proc_init();
 	snd_ctl_register_ioctl(snd_hwdep_control_ioctl);
 	snd_ctl_register_ioctl_compat(snd_hwdep_control_ioctl);
 	return 0;
@@ -505,10 +521,7 @@ static void __exit alsa_hwdep_exit(void)
 {
 	snd_ctl_unregister_ioctl(snd_hwdep_control_ioctl);
 	snd_ctl_unregister_ioctl_compat(snd_hwdep_control_ioctl);
-	if (snd_hwdep_proc_entry) {
-		snd_info_unregister(snd_hwdep_proc_entry);
-		snd_hwdep_proc_entry = NULL;
-	}
+	snd_hwdep_proc_done();
 }
 
 module_init(alsa_hwdep_init)

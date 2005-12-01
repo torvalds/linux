@@ -151,30 +151,6 @@ static int snd_pcm_control_ioctl(struct snd_card *card,
 #define FORMAT(v) [SNDRV_PCM_FORMAT_##v] = #v
 #define SUBFORMAT(v) [SNDRV_PCM_SUBFORMAT_##v] = #v 
 
-static char *snd_pcm_stream_names[] = {
-	STREAM(PLAYBACK),
-	STREAM(CAPTURE),
-};
-
-static char *snd_pcm_state_names[] = {
-	STATE(OPEN),
-	STATE(SETUP),
-	STATE(PREPARED),
-	STATE(RUNNING),
-	STATE(XRUN),
-	STATE(DRAINING),
-	STATE(PAUSED),
-	STATE(SUSPENDED),
-};
-
-static char *snd_pcm_access_names[] = {
-	ACCESS(MMAP_INTERLEAVED), 
-	ACCESS(MMAP_NONINTERLEAVED),
-	ACCESS(MMAP_COMPLEX),
-	ACCESS(RW_INTERLEAVED),
-	ACCESS(RW_NONINTERLEAVED),
-};
-
 static char *snd_pcm_format_names[] = {
 	FORMAT(S8),
 	FORMAT(U8),
@@ -216,6 +192,36 @@ static char *snd_pcm_format_names[] = {
 	FORMAT(U18_3BE),
 };
 
+const char *snd_pcm_format_name(snd_pcm_format_t format)
+{
+	return snd_pcm_format_names[format];
+}
+
+#ifdef CONFIG_PROC_FS
+static char *snd_pcm_stream_names[] = {
+	STREAM(PLAYBACK),
+	STREAM(CAPTURE),
+};
+
+static char *snd_pcm_state_names[] = {
+	STATE(OPEN),
+	STATE(SETUP),
+	STATE(PREPARED),
+	STATE(RUNNING),
+	STATE(XRUN),
+	STATE(DRAINING),
+	STATE(PAUSED),
+	STATE(SUSPENDED),
+};
+
+static char *snd_pcm_access_names[] = {
+	ACCESS(MMAP_INTERLEAVED), 
+	ACCESS(MMAP_NONINTERLEAVED),
+	ACCESS(MMAP_COMPLEX),
+	ACCESS(RW_INTERLEAVED),
+	ACCESS(RW_NONINTERLEAVED),
+};
+
 static char *snd_pcm_subformat_names[] = {
 	SUBFORMAT(STD), 
 };
@@ -234,11 +240,6 @@ static const char *snd_pcm_stream_name(int stream)
 static const char *snd_pcm_access_name(snd_pcm_access_t access)
 {
 	return snd_pcm_access_names[access];
-}
-
-const char *snd_pcm_format_name(snd_pcm_format_t format)
-{
-	return snd_pcm_format_names[format];
 }
 
 static const char *snd_pcm_subformat_name(snd_pcm_subformat_t subformat)
@@ -288,7 +289,6 @@ static const char *snd_pcm_oss_format_name(int format)
 }
 #endif
 
-#ifdef CONFIG_PROC_FS
 static void snd_pcm_proc_info_read(struct snd_pcm_substream *substream,
 				   struct snd_info_buffer *buffer)
 {
@@ -431,7 +431,6 @@ static void snd_pcm_substream_proc_status_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "hw_ptr      : %ld\n", runtime->status->hw_ptr);
 	snd_iprintf(buffer, "appl_ptr    : %ld\n", runtime->control->appl_ptr);
 }
-#endif
 
 #ifdef CONFIG_SND_DEBUG
 static void snd_pcm_xrun_debug_read(struct snd_info_entry *entry,
@@ -596,6 +595,12 @@ static int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream)
 	}
 	return 0;
 }
+#else /* !CONFIG_PROC_FS */
+static inline int snd_pcm_stream_proc_init(struct snd_pcm_str *pstr) { return 0; }
+static inline int snd_pcm_stream_proc_done(struct snd_pcm_str *pstr) { return 0; }
+static inline int snd_pcm_substream_proc_init(struct snd_pcm_substream *substream) { return 0; }
+static inline int snd_pcm_substream_proc_done(struct snd_pcm_substream *substream) { return 0; }
+#endif /* CONFIG_PROC_FS */
 
 /**
  * snd_pcm_new_stream - create a new PCM stream
@@ -1013,6 +1018,7 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 /*
  *  Info interface
  */
@@ -1039,18 +1045,12 @@ static void snd_pcm_proc_read(struct snd_info_entry *entry,
 	up(&register_mutex);
 }
 
-/*
- *  ENTRY functions
- */
-
 static struct snd_info_entry *snd_pcm_proc_entry = NULL;
 
-static int __init alsa_pcm_init(void)
+static void snd_pcm_proc_init(void)
 {
 	struct snd_info_entry *entry;
 
-	snd_ctl_register_ioctl(snd_pcm_control_ioctl);
-	snd_ctl_register_ioctl_compat(snd_pcm_control_ioctl);
 	if ((entry = snd_info_create_module_entry(THIS_MODULE, "pcm", NULL)) != NULL) {
 		snd_info_set_text_ops(entry, NULL, SNDRV_CARDS * SNDRV_PCM_DEVICES * 128,
 				      snd_pcm_proc_read);
@@ -1060,6 +1060,29 @@ static int __init alsa_pcm_init(void)
 		}
 	}
 	snd_pcm_proc_entry = entry;
+}
+
+static void snd_pcm_proc_done(void)
+{
+	if (snd_pcm_proc_entry)
+		snd_info_unregister(snd_pcm_proc_entry);
+}
+
+#else /* !CONFIG_PROC_FS */
+#define snd_pcm_proc_init()
+#define snd_pcm_proc_done()
+#endif /* CONFIG_PROC_FS */
+
+
+/*
+ *  ENTRY functions
+ */
+
+static int __init alsa_pcm_init(void)
+{
+	snd_ctl_register_ioctl(snd_pcm_control_ioctl);
+	snd_ctl_register_ioctl_compat(snd_pcm_control_ioctl);
+	snd_pcm_proc_init();
 	return 0;
 }
 
@@ -1067,10 +1090,7 @@ static void __exit alsa_pcm_exit(void)
 {
 	snd_ctl_unregister_ioctl(snd_pcm_control_ioctl);
 	snd_ctl_unregister_ioctl_compat(snd_pcm_control_ioctl);
-	if (snd_pcm_proc_entry) {
-		snd_info_unregister(snd_pcm_proc_entry);
-		snd_pcm_proc_entry = NULL;
-	}
+	snd_pcm_proc_done();
 }
 
 module_init(alsa_pcm_init)

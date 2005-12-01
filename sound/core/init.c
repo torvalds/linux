@@ -46,11 +46,38 @@ DEFINE_RWLOCK(snd_card_rwlock);
 int (*snd_mixer_oss_notify_callback)(struct snd_card *card, int free_flag);
 #endif
 
+#ifdef CONFIG_PROC_FS
 static void snd_card_id_read(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
 	snd_iprintf(buffer, "%s\n", entry->card->id);
 }
+
+static inline int init_info_for_card(struct snd_card *card)
+{
+	int err;
+	struct snd_info_entry *entry;
+
+	if ((err = snd_info_card_register(card)) < 0) {
+		snd_printd("unable to create card info\n");
+		return err;
+	}
+	if ((entry = snd_info_create_card_entry(card, "id", card->proc_root)) == NULL) {
+		snd_printd("unable to create card entry\n");
+		return err;
+	}
+	entry->c.text.read_size = PAGE_SIZE;
+	entry->c.text.read = snd_card_id_read;
+	if (snd_info_register(entry) < 0) {
+		snd_info_free_entry(entry);
+		entry = NULL;
+	}
+	card->proc_id = entry;
+	return 0;
+}
+#else /* !CONFIG_PROC_FS */
+#define init_info_for_card(card)
+#endif
 
 static void snd_card_free_thread(void * __card);
 
@@ -273,8 +300,7 @@ int snd_card_free(struct snd_card *card)
 	}
 	if (card->private_free)
 		card->private_free(card);
-	if (card->proc_id)
-		snd_info_unregister(card->proc_id);
+	snd_info_unregister(card->proc_id);
 	if (snd_info_card_free(card) < 0) {
 		snd_printk(KERN_WARNING "unable to free card info\n");
 		/* Not fatal error */
@@ -414,7 +440,6 @@ static void choose_default_id(struct snd_card *card)
 int snd_card_register(struct snd_card *card)
 {
 	int err;
-	struct snd_info_entry *entry;
 
 	snd_assert(card != NULL, return -EINVAL);
 	if ((err = snd_device_register_all(card)) < 0)
@@ -429,22 +454,7 @@ int snd_card_register(struct snd_card *card)
 		choose_default_id(card);
 	snd_cards[card->number] = card;
 	write_unlock(&snd_card_rwlock);
-	if ((err = snd_info_card_register(card)) < 0) {
-		snd_printd("unable to create card info\n");
-		goto __skip_info;
-	}
-	if ((entry = snd_info_create_card_entry(card, "id", card->proc_root)) == NULL) {
-		snd_printd("unable to create card entry\n");
-		goto __skip_info;
-	}
-	entry->c.text.read_size = PAGE_SIZE;
-	entry->c.text.read = snd_card_id_read;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		entry = NULL;
-	}
-	card->proc_id = entry;
-      __skip_info:
+	init_info_for_card(card);
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 	if (snd_mixer_oss_notify_callback)
 		snd_mixer_oss_notify_callback(card, SND_MIXER_OSS_NOTIFY_REGISTER);
@@ -452,6 +462,7 @@ int snd_card_register(struct snd_card *card)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 static struct snd_info_entry *snd_card_info_entry = NULL;
 
 static void snd_card_info_read(struct snd_info_entry *entry,
@@ -478,7 +489,7 @@ static void snd_card_info_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "--- no soundcards ---\n");
 }
 
-#if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_PROC_FS)
+#ifdef CONFIG_SND_OSSEMUL
 
 void snd_card_info_read_oss(struct snd_info_buffer *buffer)
 {
@@ -550,14 +561,14 @@ int __init snd_card_info_init(void)
 
 int __exit snd_card_info_done(void)
 {
-	if (snd_card_info_entry)
-		snd_info_unregister(snd_card_info_entry);
+	snd_info_unregister(snd_card_info_entry);
 #ifdef MODULE
-	if (snd_card_module_info_entry)
-		snd_info_unregister(snd_card_module_info_entry);
+	snd_info_unregister(snd_card_module_info_entry);
 #endif
 	return 0;
 }
+
+#endif /* CONFIG_PROC_FS */
 
 /**
  *  snd_component_add - add a component string

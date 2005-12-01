@@ -37,6 +37,8 @@
  *
  */
 
+#ifdef CONFIG_PROC_FS
+
 int snd_info_check_reserved_words(const char *str)
 {
 	static char *reserved[] =
@@ -65,8 +67,6 @@ int snd_info_check_reserved_words(const char *str)
 		return 0;
 	return 1;
 }
-
-#ifdef CONFIG_PROC_FS
 
 static DECLARE_MUTEX(info_mutex);
 
@@ -580,12 +580,10 @@ int __exit snd_info_done(void)
 	snd_info_version_done();
 	if (snd_proc_root) {
 #if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
-		if (snd_seq_root)
-			snd_info_unregister(snd_seq_root);
+		snd_info_unregister(snd_seq_root);
 #endif
 #ifdef CONFIG_SND_OSSEMUL
-		if (snd_oss_root)
-			snd_info_unregister(snd_oss_root);
+		snd_info_unregister(snd_oss_root);
 #endif
 		snd_remove_proc_entry(&proc_root, snd_proc_root);
 	}
@@ -937,7 +935,8 @@ int snd_info_unregister(struct snd_info_entry * entry)
 {
 	struct proc_dir_entry *root;
 
-	snd_assert(entry != NULL, return -ENXIO);
+	if (! entry)
+		return 0;
 	snd_assert(entry->p != NULL, return -ENXIO);
 	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
 	snd_assert(root, return -ENXIO);

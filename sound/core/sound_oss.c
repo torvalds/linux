@@ -244,11 +244,9 @@ static void snd_minor_info_oss_read(struct snd_info_entry *entry,
 	up(&sound_oss_mutex);
 }
 
-#endif /* CONFIG_PROC_FS */
 
 int __init snd_minor_info_oss_init(void)
 {
-#ifdef CONFIG_PROC_FS
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "devices", snd_oss_root);
@@ -261,17 +259,15 @@ int __init snd_minor_info_oss_init(void)
 		}
 	}
 	snd_minor_info_oss_entry = entry;
-#endif
 	return 0;
 }
 
 int __exit snd_minor_info_oss_done(void)
 {
-#ifdef CONFIG_PROC_FS
 	if (snd_minor_info_oss_entry)
 		snd_info_unregister(snd_minor_info_oss_entry);
-#endif
 	return 0;
 }
+#endif /* CONFIG_PROC_FS */
 
 #endif /* CONFIG_SND_OSSEMUL */

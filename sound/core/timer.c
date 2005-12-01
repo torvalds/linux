@@ -1052,6 +1052,7 @@ static int snd_timer_register_system(void)
 	return snd_timer_global_register(timer);
 }
 
+#ifdef CONFIG_PROC_FS
 /*
  *  Info interface
  */
@@ -1106,6 +1107,33 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 	}
 	up(&register_mutex);
 }
+
+static struct snd_info_entry *snd_timer_proc_entry = NULL;
+
+static void __init snd_timer_proc_init(void)
+{
+	struct snd_info_entry *entry;
+
+	entry = snd_info_create_module_entry(THIS_MODULE, "timers", NULL);
+	if (entry != NULL) {
+		entry->c.text.read_size = SNDRV_TIMER_DEVICES * 128;
+		entry->c.text.read = snd_timer_proc_read;
+		if (snd_info_register(entry) < 0) {
+			snd_info_free_entry(entry);
+			entry = NULL;
+		}
+	}
+	snd_timer_proc_entry = entry;
+}
+
+static void __exit snd_timer_proc_done(void)
+{
+	snd_info_unregister(snd_timer_proc_entry);
+}
+#else /* !CONFIG_PROC_FS */
+#define snd_timer_proc_init()
+#define snd_timer_proc_done()
+#endif
 
 /*
  *  USER SPACE interface
@@ -1928,27 +1956,15 @@ static struct file_operations snd_timer_f_ops =
  *  ENTRY functions
  */
 
-static struct snd_info_entry *snd_timer_proc_entry = NULL;
-
 static int __init alsa_timer_init(void)
 {
 	int err;
-	struct snd_info_entry *entry;
 
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_register(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1,
 			      "system timer");
 #endif
-	entry = snd_info_create_module_entry(THIS_MODULE, "timers", NULL);
-	if (entry != NULL) {
-		entry->c.text.read_size = SNDRV_TIMER_DEVICES * 128;
-		entry->c.text.read = snd_timer_proc_read;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			entry = NULL;
-		}
-	}
-	snd_timer_proc_entry = entry;
+
 	if ((err = snd_timer_register_system()) < 0)
 		snd_printk(KERN_ERR "unable to register system timer (%i)\n",
 			   err);
@@ -1956,6 +1972,7 @@ static int __init alsa_timer_init(void)
 				       &snd_timer_f_ops, NULL, "timer")) < 0)
 		snd_printk(KERN_ERR "unable to register timer device (%i)\n",
 			   err);
+	snd_timer_proc_init();
 	return 0;
 }
 
@@ -1969,10 +1986,7 @@ static void __exit alsa_timer_exit(void)
 		struct snd_timer *timer = list_entry(p, struct snd_timer, device_list);
 		snd_timer_unregister(timer);
 	}
-	if (snd_timer_proc_entry) {
-		snd_info_unregister(snd_timer_proc_entry);
-		snd_timer_proc_entry = NULL;
-	}
+	snd_timer_proc_done();
 #ifdef SNDRV_OSS_INFO_DEV_TIMERS
 	snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_TIMERS, SNDRV_CARDS - 1);
 #endif

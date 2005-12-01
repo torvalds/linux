@@ -100,10 +100,8 @@ static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream
 int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_preallocate_dma_free(substream);
-	if (substream->proc_prealloc_entry) {
-		snd_info_unregister(substream->proc_prealloc_entry);
-		substream->proc_prealloc_entry = NULL;
-	}
+	snd_info_unregister(substream->proc_prealloc_entry);
+	substream->proc_prealloc_entry = NULL;
 	return 0;
 }
 
@@ -126,6 +124,7 @@ int snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 /*
  * read callback for prealloc proc file
  *
@@ -185,20 +184,10 @@ static void snd_pcm_lib_preallocate_proc_write(struct snd_info_entry *entry,
 	}
 }
 
-/*
- * pre-allocate the buffer and create a proc file for the substream
- */
-static int snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
-					  size_t size, size_t max)
+static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 {
 	struct snd_info_entry *entry;
 
-	if (size > 0 && preallocate_dma && substream->number < maximum_substreams)
-		preallocate_pcm_pages(substream, size);
-
-	if (substream->dma_buffer.bytes > 0)
-		substream->buffer_bytes_max = substream->dma_buffer.bytes;
-	substream->dma_max = max;
 	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc", substream->proc_root)) != NULL) {
 		entry->c.text.read_size = 64;
 		entry->c.text.read = snd_pcm_lib_preallocate_proc_read;
@@ -212,6 +201,26 @@ static int snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
 		}
 	}
 	substream->proc_prealloc_entry = entry;
+}
+
+#else /* !CONFIG_PROC_FS */
+#define preallocate_info_init(s)
+#endif
+
+/*
+ * pre-allocate the buffer and create a proc file for the substream
+ */
+static int snd_pcm_lib_preallocate_pages1(struct snd_pcm_substream *substream,
+					  size_t size, size_t max)
+{
+
+	if (size > 0 && preallocate_dma && substream->number < maximum_substreams)
+		preallocate_pcm_pages(substream, size);
+
+	if (substream->dma_buffer.bytes > 0)
+		substream->buffer_bytes_max = substream->dma_buffer.bytes;
+	substream->dma_max = max;
+	preallocate_info_init(substream);
 	return 0;
 }
 
