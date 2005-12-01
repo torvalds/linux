@@ -83,11 +83,11 @@ static acpi_status acpi_serial_resource(struct acpi_resource *res, void *data)
 	status = acpi_resource_to_address64(res, &addr);
 	if (ACPI_SUCCESS(status))
 		return acpi_serial_mmio(port, &addr);
-	else if (res->id == ACPI_RSTYPE_IO)
+	else if (res->type == ACPI_RSTYPE_IO)
 		return acpi_serial_port(port, &res->data.io);
-	else if (res->id == ACPI_RSTYPE_EXT_IRQ)
+	else if (res->type == ACPI_RSTYPE_EXT_IRQ)
 		return acpi_serial_ext_irq(port, &res->data.extended_irq);
-	else if (res->id == ACPI_RSTYPE_IRQ)
+	else if (res->type == ACPI_RSTYPE_IRQ)
 		return acpi_serial_irq(port, &res->data.irq);
 	return AE_OK;
 }
