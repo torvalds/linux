@@ -187,8 +187,7 @@ void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 /* ----------------------------------------------------------- */
 /* delayed request_module                                      */
 
-#ifdef CONFIG_MODULES
-
+#if defined(CONFIG_MODULES) && defined(MODULE)
 static int need_empress;
 static int need_dvb;
 static int need_alsa;
@@ -237,9 +236,7 @@ static void request_module_depend(char *name, int *flag)
 }
 
 #else
-
 #define request_module_depend(name,flag)
-
 #endif /* CONFIG_MODULES */
 
 /* ------------------------------------------------------------------ */
@@ -1163,10 +1160,10 @@ static int saa7134_init(void)
 
 static void saa7134_fini(void)
 {
-#ifdef CONFIG_MODULES
+#if defined(CONFIG_MODULES) && defined(MODULE)
 	if (pending_registered)
 		unregister_module_notifier(&pending_notifier);
-#endif
+#endif /* CONFIG_MODULES */
 	pci_unregister_driver(&saa7134_pci_driver);
 }
 
