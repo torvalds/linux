@@ -641,7 +641,7 @@ static void try_to_unmap_cluster(unsigned long cursor,
 			continue;
 
 		/* Nuke the page table entry. */
-		flush_cache_page(vma, address, pfn);
+		flush_cache_page(vma, address, pte_pfn(*pte));
 		pteval = ptep_clear_flush(vma, address, pte);
 
 		/* If nonlinear, store the file page offset in the pte. */

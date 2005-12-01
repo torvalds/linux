@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/vfs.h>
 #include <linux/mempool.h>
+#include <linux/delay.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -429,6 +430,11 @@ static void cifs_umount_begin(struct super_block * sblock)
 	{
 		cFYI(1,("wake up tasks now - umount begin not complete"));
 		wake_up_all(&tcon->ses->server->request_q);
+		wake_up_all(&tcon->ses->server->response_q);
+		msleep(1); /* yield */
+		/* we have to kick the requests once more */
+		wake_up_all(&tcon->ses->server->response_q);
+		msleep(1);
 	}
 /* BB FIXME - finish add checks for tidStatus BB */
 
@@ -895,6 +901,9 @@ static int cifs_oplock_thread(void * dummyarg)
 
 static int cifs_dnotify_thread(void * dummyarg)
 {
+	struct list_head *tmp;
+	struct cifsSesInfo *ses;
+
 	daemonize("cifsdnotifyd");
 	allow_signal(SIGTERM);
 
@@ -903,7 +912,19 @@ static int cifs_dnotify_thread(void * dummyarg)
 		if(try_to_freeze())
 			continue;
 		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(39*HZ);
+		schedule_timeout(15*HZ);
+		read_lock(&GlobalSMBSeslock);
+		/* check if any stuck requests that need
+		   to be woken up and wakeq so the
+		   thread can wake up and error out */
+		list_for_each(tmp, &GlobalSMBSessionList) {
+			ses = list_entry(tmp, struct cifsSesInfo, 
+				cifsSessionList);
+			if(ses && ses->server && 
+			     atomic_read(&ses->server->inFlight))
+				wake_up_all(&ses->server->response_q);
+		}
+		read_unlock(&GlobalSMBSeslock);
 	} while(!signal_pending(current));
 	complete_and_exit (&cifs_dnotify_exited, 0);
 }

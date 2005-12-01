@@ -740,7 +740,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	switch(val) {
 	case DIE_BREAK:
 		/* err is break number from ia64_bad_break() */
-		if (args->err == 0x80200 || args->err == 0x80300)
+		if (args->err == 0x80200 || args->err == 0x80300 || args->err == 0)
 			if (pre_kprobes_handler(args))
 				ret = NOTIFY_STOP;
 		break;

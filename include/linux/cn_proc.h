@@ -86,12 +86,12 @@ struct proc_event {
 			pid_t process_pid;
 			pid_t process_tgid;
 			union {
-				uid_t ruid; /* current->uid */
-				gid_t rgid; /* current->gid */
+				__u32 ruid; /* task uid */
+				__u32 rgid; /* task gid */
 			} r;
 			union {
-				uid_t euid;
-				gid_t egid;
+				__u32 euid;
+				__u32 egid;
 			} e;
 		} id;
 

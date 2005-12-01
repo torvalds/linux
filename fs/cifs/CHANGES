@@ -1,10 +1,12 @@
 Version 1.39
 ------------
-Defer close of a file handle slightly if pending writes depend on that file handle
+Defer close of a file handle slightly if pending writes depend on that handle
 (this reduces the EBADF bad file handle errors that can be logged under heavy
 stress on writes). Modify cifs Kconfig options to expose CONFIG_CIFS_STATS2 
-Fix SFU style symlinks and mknod needed for servers which do not support the CIFS
-Unix Extensions.  Fix setfacl/getfacl on bigendian. 
+Fix SFU style symlinks and mknod needed for servers which do not support the
+CIFS Unix Extensions.  Fix setfacl/getfacl on bigendian. Timeout negative
+dentries so files that the client sees as deleted but that later get created
+on the server will be recognized.  Add client side permission check on setattr.
 
 Version 1.38
 ------------

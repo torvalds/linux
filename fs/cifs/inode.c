@@ -710,7 +710,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 	char *full_path = NULL;
 	struct inode *newinode = NULL;
 
-	cFYI(1, ("In cifs_mkdir, mode = 0x%x inode = 0x%p ", mode, inode));
+	cFYI(1, ("In cifs_mkdir, mode = 0x%x inode = 0x%p", mode, inode));
 
 	xid = GetXid();
 
@@ -768,6 +768,17 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			/* BB to be implemented via Windows secrty descriptors
 			   eg CIFSSMBWinSetPerms(xid, pTcon, full_path, mode,
 						 -1, -1, local_nls); */
+			if(direntry->d_inode) {
+				direntry->d_inode->i_mode = mode;
+				direntry->d_inode->i_mode |= S_IFDIR;
+				if(cifs_sb->mnt_cifs_flags & 
+				     CIFS_MOUNT_SET_UID) {
+					direntry->d_inode->i_uid = 
+						current->fsuid;
+					direntry->d_inode->i_gid = 
+						current->fsgid;
+				}
+			}
 		}
 	}
 	kfree(full_path);
@@ -1039,14 +1050,20 @@ int cifs_revalidate(struct dentry *direntry)
 		filemap_fdatawrite(direntry->d_inode->i_mapping);
 	}
 	if (invalidate_inode) {
-		if (direntry->d_inode->i_mapping)
-			filemap_fdatawait(direntry->d_inode->i_mapping);
-		/* may eventually have to do this for open files too */
-		if (list_empty(&(cifsInode->openFileList))) {
-			/* Has changed on server - flush read ahead pages */
-			cFYI(1, ("Invalidating read ahead data on "
-				 "closed file"));
-			invalidate_remote_inode(direntry->d_inode);
+	/* shrink_dcache not necessary now that cifs dentry ops
+	are exported for negative dentries */
+/*		if(S_ISDIR(direntry->d_inode->i_mode)) 
+			shrink_dcache_parent(direntry); */
+		if (S_ISREG(direntry->d_inode->i_mode)) {
+			if (direntry->d_inode->i_mapping)
+				filemap_fdatawait(direntry->d_inode->i_mapping);
+			/* may eventually have to do this for open files too */
+			if (list_empty(&(cifsInode->openFileList))) {
+				/* changed on server - flush read ahead pages */
+				cFYI(1, ("Invalidating read ahead data on "
+					 "closed file"));
+				invalidate_remote_inode(direntry->d_inode);
+			}
 		}
 	}
 /*	up(&direntry->d_inode->i_sem); */
@@ -1105,9 +1122,20 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 
 	cFYI(1, ("In cifs_setattr, name = %s attrs->iavalid 0x%x ",
 		 direntry->d_name.name, attrs->ia_valid));
+
 	cifs_sb = CIFS_SB(direntry->d_inode->i_sb);
 	pTcon = cifs_sb->tcon;
 
+	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
+		/* check if we have permission to change attrs */
+		rc = inode_change_ok(direntry->d_inode, attrs);
+		if(rc < 0) {
+			FreeXid(xid);
+			return rc;
+		} else
+			rc = 0;
+	}
+		
 	down(&direntry->d_sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(direntry);
 	up(&direntry->d_sb->s_vfs_rename_sem);
@@ -1147,7 +1175,9 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 						  1 /* 45 seconds */);
 				cFYI(1,("Wrt seteof rc %d", rc));
 			}
-		}
+		} else 
+			rc = -EINVAL;
+
 		if (rc != 0) {
 			/* Set file size by pathname rather than by handle
 			   either because no valid, writeable file handle for
