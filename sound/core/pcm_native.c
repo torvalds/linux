@@ -55,6 +55,7 @@ struct snd_pcm_hw_params_old {
 	unsigned char reserved[64];
 };
 
+#ifdef CONFIG_SND_SUPPORT_OLD_API
 #define SNDRV_PCM_IOCTL_HW_REFINE_OLD _IOWR('A', 0x10, struct snd_pcm_hw_params_old)
 #define SNDRV_PCM_IOCTL_HW_PARAMS_OLD _IOWR('A', 0x11, struct snd_pcm_hw_params_old)
 
@@ -62,6 +63,7 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params_old __user * _oparams);
 static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params_old __user * _oparams);
+#endif
 static int snd_pcm_open(struct file *file, struct snd_pcm *pcm, int stream);
 
 /*
@@ -2527,10 +2529,12 @@ static int snd_pcm_common_ioctl1(struct snd_pcm_substream *substream,
 		return snd_pcm_delay(substream, arg);
 	case SNDRV_PCM_IOCTL_SYNC_PTR:
 		return snd_pcm_sync_ptr(substream, arg);
+#ifdef CONFIG_SND_SUPPORT_OLD_API
 	case SNDRV_PCM_IOCTL_HW_REFINE_OLD:
 		return snd_pcm_hw_refine_old_user(substream, arg);
 	case SNDRV_PCM_IOCTL_HW_PARAMS_OLD:
 		return snd_pcm_hw_params_old_user(substream, arg);
+#endif
 	case SNDRV_PCM_IOCTL_DRAIN:
 		return snd_pcm_drain(substream);
 	case SNDRV_PCM_IOCTL_DROP:
@@ -3270,6 +3274,7 @@ static int snd_pcm_fasync(int fd, struct file * file, int on)
  *  To be removed helpers to keep binary compatibility
  */
 
+#ifdef CONFIG_SND_SUPPORT_OLD_API
 #define __OLD_TO_NEW_MASK(x) ((x&7)|((x&0x07fffff8)<<5))
 #define __NEW_TO_OLD_MASK(x) ((x&7)|((x&0xffffff00)>>5))
 
@@ -3379,6 +3384,7 @@ out:
 	kfree(oparams);
 	return err;
 }
+#endif /* CONFIG_SND_SUPPORT_OLD_API */
 
 /*
  *  Register section

@@ -122,6 +122,14 @@ config SND_DYNAMIC_MINORS
 
 	  If you are unsure about this, say N here.
 
+config SND_SUPPORT_OLD_API
+	bool "Support old ALSA API"
+	depends on SND
+	default y
+	help
+	  Say Y here to support the obsolete ALSA PCM API (ver.0.9.0 rc3
+	  or older).
+
 config SND_VERBOSE_PRINTK
 	bool "Verbose printk"
 	depends on SND
