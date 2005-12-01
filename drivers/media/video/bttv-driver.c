@@ -2290,6 +2290,15 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			retval = -EINVAL;
 			goto fh_unlock_and_return;
 		}
+		if (fmt->flags & FORMAT_FLAGS_RAW) {
+			/* VIDIOCMCAPTURE uses gbufsize, not RAW_BPL *
+			   RAW_LINES * 2. F1 is stored at offset 0, F2
+			   at buffer size / 2. */
+			fh->width = RAW_BPL;
+			fh->height = gbufsize / RAW_BPL;
+			btv->init.width  = RAW_BPL;
+			btv->init.height = gbufsize / RAW_BPL;
+		}
 		fh->ovfmt   = fmt;
 		fh->fmt     = fmt;
 		btv->init.ovfmt   = fmt;

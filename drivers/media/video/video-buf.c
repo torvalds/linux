@@ -816,6 +816,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 		if (NULL == q->read_buf)
 			goto done;
 		q->read_buf->memory = V4L2_MEMORY_USERPTR;
+		q->read_buf->bsize = count; /* preferred size */
 		field = videobuf_next_field(q);
 		retval = q->ops->buf_prepare(q,q->read_buf,field);
 		if (0 != retval) {
