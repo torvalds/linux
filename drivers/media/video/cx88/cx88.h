@@ -491,6 +491,10 @@ extern struct cx88_core* cx88_core_get(struct pci_dev *pci);
 extern void cx88_core_put(struct cx88_core *core,
 			  struct pci_dev *pci);
 
+extern int cx88_start_audio_dma(struct cx88_core *core);
+extern int cx88_stop_audio_dma(struct cx88_core *core);
+
+
 /* ----------------------------------------------------------- */
 /* cx88-vbi.c                                                  */
 
