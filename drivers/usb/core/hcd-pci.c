@@ -219,6 +219,7 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 			goto done;
 		}
 	}
+	synchronize_irq(dev->irq);
 
 	/* FIXME until the generic PM interfaces change a lot more, this
 	 * can't use PCI D1 and D2 states.  For example, the confusion
@@ -392,7 +393,7 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 
 	dev->dev.power.power_state = PMSG_ON;
 
-	hcd->saw_irq = 0;
+	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
 	if (hcd->driver->resume) {
 		retval = hcd->driver->resume(hcd);

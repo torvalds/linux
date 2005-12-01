@@ -1,5 +1,5 @@
 /*
- * $Id: physmap.c,v 1.38 2005/11/07 11:14:28 gleixner Exp $
+ * $Id: physmap.c,v 1.39 2005/11/29 14:49:36 gleixner Exp $
  *
  * Normal mappings of chips in physical memory
  *
@@ -19,6 +19,7 @@
 #include <linux/mtd/map.h>
 #include <linux/config.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 static struct mtd_info *mymtd;
 

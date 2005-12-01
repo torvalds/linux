@@ -53,6 +53,11 @@ static int ohci_bus_suspend (struct usb_hcd *hcd)
 
 	spin_lock_irqsave (&ohci->lock, flags);
 
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))) {
+		spin_unlock_irqrestore (&ohci->lock, flags);
+		return -ESHUTDOWN;
+	}
+
 	ohci->hc_control = ohci_readl (ohci, &ohci->regs->control);
 	switch (ohci->hc_control & OHCI_CTRL_HCFS) {
 	case OHCI_USB_RESUME:
@@ -140,11 +145,19 @@ static int ohci_bus_resume (struct usb_hcd *hcd)
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	u32			temp, enables;
 	int			status = -EINPROGRESS;
+	unsigned long		flags;
 
 	if (time_before (jiffies, ohci->next_statechange))
 		msleep(5);
 
-	spin_lock_irq (&ohci->lock);
+	spin_lock_irqsave (&ohci->lock, flags);
+
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))) {
+		spin_unlock_irqrestore (&ohci->lock, flags);
+		return -ESHUTDOWN;
+	}
+
+
 	ohci->hc_control = ohci_readl (ohci, &ohci->regs->control);
 
 	if (ohci->hc_control & (OHCI_CTRL_IR | OHCI_SCHED_ENABLES)) {
@@ -179,7 +192,7 @@ static int ohci_bus_resume (struct usb_hcd *hcd)
 		ohci_dbg (ohci, "lost power\n");
 		status = -EBUSY;
 	}
-	spin_unlock_irq (&ohci->lock);
+	spin_unlock_irqrestore (&ohci->lock, flags);
 	if (status == -EBUSY) {
 		(void) ohci_init (ohci);
 		return ohci_restart (ohci);
@@ -297,8 +310,8 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	/* handle autosuspended root:  finish resuming before
 	 * letting khubd or root hub timer see state changes.
 	 */
-	if ((ohci->hc_control & OHCI_CTRL_HCFS) != OHCI_USB_OPER
-			|| !HC_IS_RUNNING(hcd->state)) {
+	if (unlikely((ohci->hc_control & OHCI_CTRL_HCFS) != OHCI_USB_OPER
+		     || !HC_IS_RUNNING(hcd->state))) {
 		can_suspend = 0;
 		goto done;
 	}
@@ -507,6 +520,9 @@ static int ohci_hub_control (
 	int		ports = hcd_to_bus (hcd)->root_hub->maxchild;
 	u32		temp;
 	int		retval = 0;
+
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)))
+		return -ESHUTDOWN;
 
 	switch (typeReq) {
 	case ClearHubFeature:

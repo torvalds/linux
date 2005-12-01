@@ -717,6 +717,7 @@ static int uhci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	 * at the source, so we must turn off PIRQ.
 	 */
 	pci_write_config_word(to_pci_dev(uhci_dev(uhci)), USBLEGSUP, 0);
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	uhci->hc_inaccessible = 1;
 	hcd->poll_rh = 0;
 
@@ -732,6 +733,11 @@ static int uhci_resume(struct usb_hcd *hcd)
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
+
+	/* We aren't in D3 state anymore, we do that even if dead as I
+	 * really don't want to keep a stale HCD_FLAG_HW_ACCESSIBLE=0
+	 */
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	if (uhci->rh_state == UHCI_RH_RESET)	/* Dead */
 		return 0;
