@@ -602,6 +602,12 @@ static int intr_submit (
 
 	spin_lock_irqsave (&ehci->lock, flags);
 
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
+			       &ehci_to_hcd(ehci)->flags))) {
+		status = -ESHUTDOWN;
+		goto done;
+	}
+
 	/* get qh and force any scheduling errors */
 	INIT_LIST_HEAD (&empty);
 	qh = qh_append_tds (ehci, urb, &empty, epnum, &ep->hcpriv);
@@ -1456,7 +1462,11 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 
 	/* schedule ... need to lock */
 	spin_lock_irqsave (&ehci->lock, flags);
-	status = iso_stream_schedule (ehci, urb, stream);
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
+			       &ehci_to_hcd(ehci)->flags)))
+		status = -ESHUTDOWN;
+	else
+		status = iso_stream_schedule (ehci, urb, stream);
  	if (likely (status == 0))
 		itd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
 	spin_unlock_irqrestore (&ehci->lock, flags);
@@ -1815,7 +1825,11 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 
 	/* schedule ... need to lock */
 	spin_lock_irqsave (&ehci->lock, flags);
-	status = iso_stream_schedule (ehci, urb, stream);
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
+			       &ehci_to_hcd(ehci)->flags)))
+		status = -ESHUTDOWN;
+	else
+		status = iso_stream_schedule (ehci, urb, stream);
  	if (status == 0)
 		sitd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
 	spin_unlock_irqrestore (&ehci->lock, flags);

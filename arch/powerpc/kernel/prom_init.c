@@ -265,7 +265,7 @@ static int __init call_prom_ret(const char *service, int nargs, int nret,
 	va_end(list);
 
 	for (i = 0; i < nret; i++)
-		rets[nargs+i] = 0;
+		args.args[nargs+i] = 0;
 
 	if (enter_prom(&args, RELOC(prom_entry)) < 0)
 		return PROM_ERROR;

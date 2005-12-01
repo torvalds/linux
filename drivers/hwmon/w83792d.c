@@ -193,6 +193,7 @@ static const u8 W83792D_REG_LEVELS[3][4] = {
 	  0xE2 }	/* (bit3-0) SmartFanII: Fan3 Level 3 */
 };
 
+#define W83792D_REG_GPIO_EN		0x1A
 #define W83792D_REG_CONFIG		0x40
 #define W83792D_REG_VID_FANDIV		0x47
 #define W83792D_REG_CHIPID		0x49
@@ -257,7 +258,7 @@ DIV_TO_REG(long val)
 {
 	int i;
 	val = SENSORS_LIMIT(val, 1, 128) >> 1;
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 7; i++) {
 		if (val == 0)
 			break;
 		val >>= 1;
@@ -1282,8 +1283,8 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 	w83792d_init_client(new_client);
 
 	/* A few vars need to be filled upon startup */
-	for (i = 1; i <= 7; i++) {
-		data->fan_min[i - 1] = w83792d_read_value(new_client,
+	for (i = 0; i < 7; i++) {
+		data->fan_min[i] = w83792d_read_value(new_client,
 					W83792D_REG_FAN_MIN[i]);
 	}
 
@@ -1306,10 +1307,20 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 	device_create_file_fan(new_client, 1);
 	device_create_file_fan(new_client, 2);
 	device_create_file_fan(new_client, 3);
-	device_create_file_fan(new_client, 4);
-	device_create_file_fan(new_client, 5);
-	device_create_file_fan(new_client, 6);
-	device_create_file_fan(new_client, 7);
+
+	/* Read GPIO enable register to check if pins for fan 4,5 are used as
+	   GPIO */
+	val1 = w83792d_read_value(new_client, W83792D_REG_GPIO_EN);
+	if (!(val1 & 0x40))
+		device_create_file_fan(new_client, 4);
+	if (!(val1 & 0x20))
+		device_create_file_fan(new_client, 5);
+
+	val1 = w83792d_read_value(new_client, W83792D_REG_PIN);
+	if (val1 & 0x40)
+		device_create_file_fan(new_client, 6);
+	if (val1 & 0x04)
+		device_create_file_fan(new_client, 7);
 
 	device_create_file_temp1(new_client);		/* Temp1 */
 	device_create_file_temp_add(new_client, 2);	/* Temp2 */

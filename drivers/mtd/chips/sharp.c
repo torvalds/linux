@@ -4,7 +4,7 @@
  * Copyright 2000,2001 David A. Schleef <ds@schleef.org>
  *           2000,2001 Lineo, Inc.
  *
- * $Id: sharp.c,v 1.16 2005/11/07 11:14:23 gleixner Exp $
+ * $Id: sharp.c,v 1.17 2005/11/29 14:28:28 gleixner Exp $
  *
  * Devices supported:
  *   LH28F016SCT Symmetrical block flash memory, 2Mx8
@@ -160,22 +160,28 @@ struct mtd_info *sharp_probe(struct map_info *map)
 	return mtd;
 }
 
+static inline void sharp_send_cmd(struct map_info *map, unsigned long cmd, unsigned long adr)
+{
+	map_word map_cmd;
+	map_cmd.x[0] = cmd;
+	map_write(map, map_cmd, adr);
+}
+
 static int sharp_probe_map(struct map_info *map,struct mtd_info *mtd)
 {
-	unsigned long tmp;
+	map_word tmp, read0, read4;
 	unsigned long base = 0;
-	u32 read0, read4;
 	int width = 4;
 
-	tmp = map_read32(map, base+0);
+	tmp = map_read(map, base+0);
 
-	map_write32(map, CMD_READ_ID, base+0);
+	sharp_send_cmd(map, CMD_READ_ID, base+0);
 
-	read0=map_read32(map, base+0);
-	read4=map_read32(map, base+4);
-	if(read0 == 0x89898989){
+	read0 = map_read(map, base+0);
+	read4 = map_read(map, base+4);
+	if(read0.x[0] == 0x89898989){
 		printk("Looks like sharp flash\n");
-		switch(read4){
+		switch(read4.x[0]){
 		case 0xaaaaaaaa:
 		case 0xa0a0a0a0:
 			/* aa - LH28F016SCT-L95 2Mx8, 32 64k blocks*/
@@ -197,16 +203,16 @@ static int sharp_probe_map(struct map_info *map,struct mtd_info *mtd)
 			return width;
 #endif
 		default:
-			printk("Sort-of looks like sharp flash, 0x%08x 0x%08x\n",
-				read0,read4);
+			printk("Sort-of looks like sharp flash, 0x%08lx 0x%08lx\n",
+				read0.x[0], read4.x[0]);
 		}
-	}else if((map_read32(map, base+0) == CMD_READ_ID)){
+	}else if((map_read(map, base+0).x[0] == CMD_READ_ID)){
 		/* RAM, probably */
 		printk("Looks like RAM\n");
-		map_write32(map, tmp, base+0);
+		map_write(map, tmp, base+0);
 	}else{
-		printk("Doesn't look like sharp flash, 0x%08x 0x%08x\n",
-			read0,read4);
+		printk("Doesn't look like sharp flash, 0x%08lx 0x%08lx\n",
+			read0.x[0], read4.x[0]);
 	}
 
 	return 0;
@@ -215,7 +221,8 @@ static int sharp_probe_map(struct map_info *map,struct mtd_info *mtd)
 /* This function returns with the chip->mutex lock held. */
 static int sharp_wait(struct map_info *map, struct flchip *chip)
 {
-	int status, i;
+	int i;
+	map_word status;
 	unsigned long timeo = jiffies + HZ;
 	DECLARE_WAITQUEUE(wait, current);
 	int adr = 0;
@@ -225,12 +232,12 @@ retry:
 
 	switch(chip->state){
 	case FL_READY:
-		map_write32(map,CMD_READ_STATUS,adr);
+		sharp_send_cmd(map, CMD_READ_STATUS, adr);
 		chip->state = FL_STATUS;
 	case FL_STATUS:
 		for(i=0;i<100;i++){
-			status = map_read32(map,adr);
-			if((status & SR_READY)==SR_READY)
+			status = map_read(map, adr);
+			if((status.x[0] & SR_READY)==SR_READY)
 				break;
 			udelay(1);
 		}
@@ -254,7 +261,7 @@ retry:
 		goto retry;
 	}
 
-	map_write32(map,CMD_RESET, adr);
+	sharp_send_cmd(map, CMD_RESET, adr);
 
 	chip->state = FL_READY;
 
@@ -351,37 +358,39 @@ static int sharp_write_oneword(struct map_info *map, struct flchip *chip,
 	int timeo;
 	int try;
 	int i;
-	int status = 0;
+	map_word data, status;
 
+	status.x[0] = 0;
 	ret = sharp_wait(map,chip);
 
 	for(try=0;try<10;try++){
-		map_write32(map,CMD_BYTE_WRITE,adr);
+		sharp_send_cmd(map, CMD_BYTE_WRITE, adr);
 		/* cpu_to_le32 -> hack to fix the writel be->le conversion */
-		map_write32(map,cpu_to_le32(datum),adr);
+		data.x[0] = cpu_to_le32(datum);
+		map_write(map, data, adr);
 
 		chip->state = FL_WRITING;
 
 		timeo = jiffies + (HZ/2);
 
-		map_write32(map,CMD_READ_STATUS,adr);
+		sharp_send_cmd(map, CMD_READ_STATUS, adr);
 		for(i=0;i<100;i++){
-			status = map_read32(map,adr);
-			if((status & SR_READY)==SR_READY)
+			status = map_read(map, adr);
+			if((status.x[0] & SR_READY) == SR_READY)
 				break;
 		}
 		if(i==100){
 			printk("sharp: timed out writing\n");
 		}
 
-		if(!(status&SR_ERRORS))
+		if(!(status.x[0] & SR_ERRORS))
 			break;
 
-		printk("sharp: error writing byte at addr=%08lx status=%08x\n",adr,status);
+		printk("sharp: error writing byte at addr=%08lx status=%08lx\n", adr, status.x[0]);
 
-		map_write32(map,CMD_CLEAR_STATUS,adr);
+		sharp_send_cmd(map, CMD_CLEAR_STATUS, adr);
 	}
-	map_write32(map,CMD_RESET,adr);
+	sharp_send_cmd(map, CMD_RESET, adr);
 	chip->state = FL_READY;
 
 	wake_up(&chip->wq);
@@ -434,18 +443,18 @@ static int sharp_do_wait_for_ready(struct map_info *map, struct flchip *chip,
 {
 	int ret;
 	unsigned long timeo;
-	int status;
+	map_word status;
 	DECLARE_WAITQUEUE(wait, current);
 
-	map_write32(map,CMD_READ_STATUS,adr);
-	status = map_read32(map,adr);
+	sharp_send_cmd(map, CMD_READ_STATUS, adr);
+	status = map_read(map, adr);
 
 	timeo = jiffies + HZ;
 
 	while(time_before(jiffies, timeo)){
-		map_write32(map,CMD_READ_STATUS,adr);
-		status = map_read32(map,adr);
-		if((status & SR_READY)==SR_READY){
+		sharp_send_cmd(map, CMD_READ_STATUS, adr);
+		status = map_read(map, adr);
+		if((status.x[0] & SR_READY)==SR_READY){
 			ret = 0;
 			goto out;
 		}
@@ -476,7 +485,7 @@ static int sharp_erase_oneblock(struct map_info *map, struct flchip *chip,
 {
 	int ret;
 	//int timeo;
-	int status;
+	map_word status;
 	//int i;
 
 //printk("sharp_erase_oneblock()\n");
@@ -486,26 +495,26 @@ static int sharp_erase_oneblock(struct map_info *map, struct flchip *chip,
 	sharp_unlock_oneblock(map,chip,adr);
 #endif
 
-	map_write32(map,CMD_BLOCK_ERASE_1,adr);
-	map_write32(map,CMD_BLOCK_ERASE_2,adr);
+	sharp_send_cmd(map, CMD_BLOCK_ERASE_1, adr);
+	sharp_send_cmd(map, CMD_BLOCK_ERASE_2, adr);
 
 	chip->state = FL_ERASING;
 
 	ret = sharp_do_wait_for_ready(map,chip,adr);
 	if(ret<0)return ret;
 
-	map_write32(map,CMD_READ_STATUS,adr);
-	status = map_read32(map,adr);
+	sharp_send_cmd(map, CMD_READ_STATUS, adr);
+	status = map_read(map, adr);
 
-	if(!(status&SR_ERRORS)){
-		map_write32(map,CMD_RESET,adr);
+	if(!(status.x[0] & SR_ERRORS)){
+		sharp_send_cmd(map, CMD_RESET, adr);
 		chip->state = FL_READY;
 		//spin_unlock_bh(chip->mutex);
 		return 0;
 	}
 
-	printk("sharp: error erasing block at addr=%08lx status=%08x\n",adr,status);
-	map_write32(map,CMD_CLEAR_STATUS,adr);
+	printk("sharp: error erasing block at addr=%08lx status=%08lx\n", adr, status.x[0]);
+	sharp_send_cmd(map, CMD_CLEAR_STATUS, adr);
 
 	//spin_unlock_bh(chip->mutex);
 
@@ -517,20 +526,20 @@ static void sharp_unlock_oneblock(struct map_info *map, struct flchip *chip,
 	unsigned long adr)
 {
 	int i;
-	int status;
+	map_word status;
 
-	map_write32(map,CMD_CLEAR_BLOCK_LOCKS_1,adr);
-	map_write32(map,CMD_CLEAR_BLOCK_LOCKS_2,adr);
+	sharp_send_cmd(map, CMD_CLEAR_BLOCK_LOCKS_1, adr);
+	sharp_send_cmd(map, CMD_CLEAR_BLOCK_LOCKS_2, adr);
 
 	udelay(100);
 
-	status = map_read32(map,adr);
-	printk("status=%08x\n",status);
+	status = map_read(map, adr);
+	printk("status=%08lx\n", status.x[0]);
 
 	for(i=0;i<1000;i++){
-		//map_write32(map,CMD_READ_STATUS,adr);
-		status = map_read32(map,adr);
-		if((status & SR_READY)==SR_READY)
+		//sharp_send_cmd(map, CMD_READ_STATUS, adr);
+		status = map_read(map, adr);
+		if((status.x[0] & SR_READY) == SR_READY)
 			break;
 		udelay(100);
 	}
@@ -538,14 +547,14 @@ static void sharp_unlock_oneblock(struct map_info *map, struct flchip *chip,
 		printk("sharp: timed out unlocking block\n");
 	}
 
-	if(!(status&SR_ERRORS)){
-		map_write32(map,CMD_RESET,adr);
+	if(!(status.x[0] & SR_ERRORS)){
+		sharp_send_cmd(map, CMD_RESET, adr);
 		chip->state = FL_READY;
 		return;
 	}
 
-	printk("sharp: error unlocking block at addr=%08lx status=%08x\n",adr,status);
-	map_write32(map,CMD_CLEAR_STATUS,adr);
+	printk("sharp: error unlocking block at addr=%08lx status=%08lx\n", adr, status.x[0]);
+	sharp_send_cmd(map, CMD_CLEAR_STATUS, adr);
 }
 #endif
 
