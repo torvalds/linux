@@ -1634,6 +1634,15 @@ L:	ldm-devel@lists.sourceforge.net
 W:	http://ldm.sourceforge.net
 S:	Maintained
 
+LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
+P:	Eric Moore
+M:	Eric.Moore@lsil.com
+M:	support@lsil.com
+L:	mpt_linux_developer@lsil.com
+L:	linux-scsi@vger.kernel.org
+W:	http://www.lsilogic.com/support
+S:	Supported
+
 LSILOGIC/SYMBIOS/NCR 53C8XX and 53C1010 PCI-SCSI drivers
 P:	Matthew Wilcox
 M:	matthew@wil.cx
