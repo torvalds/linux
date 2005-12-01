@@ -2757,6 +2757,15 @@ int journal_init(struct super_block *p_s_sb, const char *j_dev_name,
 	journal->j_cnode_used = 0;
 	journal->j_must_wait = 0;
 
+	if (journal->j_cnode_free == 0) {
+        	reiserfs_warning(p_s_sb, "journal-2004: Journal cnode memory "
+		                 "allocation failed (%ld bytes). Journal is "
+		                 "too large for available memory. Usually "
+		                 "this is due to a journal that is too large.",
+		                 sizeof (struct reiserfs_journal_cnode) * num_cnodes);
+        	goto free_and_return;
+	}
+
 	init_journal_hash(p_s_sb);
 	jl = journal->j_current_jl;
 	jl->j_list_bitmap = get_list_bitmap(p_s_sb, jl);

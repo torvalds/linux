@@ -59,7 +59,7 @@ MODULE_PARM_DESC(max_dcc_channels, "max number of expected DCC channels per IRC 
 module_param(dcc_timeout, int, 0400);
 MODULE_PARM_DESC(dcc_timeout, "timeout on for unestablished DCC channels");
 
-static char *dccprotos[] = { "SEND ", "CHAT ", "MOVE ", "TSEND ", "SCHAT " };
+static const char *dccprotos[] = { "SEND ", "CHAT ", "MOVE ", "TSEND ", "SCHAT " };
 #define MINMATCHLEN	5
 
 #if 0

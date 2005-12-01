@@ -988,7 +988,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				return i ? : -EFAULT;
 			}
 			if (pages) {
-				struct page *page = vm_normal_page(vma, start, *pte);
+				struct page *page = vm_normal_page(gate_vma, start, *pte);
 				pages[i] = page;
 				if (page)
 					get_page(page);
@@ -1146,6 +1146,129 @@ int zeromap_page_range(struct vm_area_struct *vma,
 	return err;
 }
 
+pte_t * fastcall get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl)
+{
+	pgd_t * pgd = pgd_offset(mm, addr);
+	pud_t * pud = pud_alloc(mm, pgd, addr);
+	if (pud) {
+		pmd_t * pmd = pmd_alloc(mm, pud, addr);
+		if (pmd)
+			return pte_alloc_map_lock(mm, pmd, addr, ptl);
+	}
+	return NULL;
+}
+
+/*
+ * This is the old fallback for page remapping.
+ *
+ * For historical reasons, it only allows reserved pages. Only
+ * old drivers should use this, and they needed to mark their
+ * pages reserved for the old functions anyway.
+ */
+static int insert_page(struct mm_struct *mm, unsigned long addr, struct page *page, pgprot_t prot)
+{
+	int retval;
+	pte_t *pte;
+	spinlock_t *ptl;  
+
+	retval = -EINVAL;
+	if (PageAnon(page))
+		goto out;
+	retval = -ENOMEM;
+	flush_dcache_page(page);
+	pte = get_locked_pte(mm, addr, &ptl);
+	if (!pte)
+		goto out;
+	retval = -EBUSY;
+	if (!pte_none(*pte))
+		goto out_unlock;
+
+	/* Ok, finally just insert the thing.. */
+	get_page(page);
+	inc_mm_counter(mm, file_rss);
+	page_add_file_rmap(page);
+	set_pte_at(mm, addr, pte, mk_pte(page, prot));
+
+	retval = 0;
+out_unlock:
+	pte_unmap_unlock(pte, ptl);
+out:
+	return retval;
+}
+
+/*
+ * This allows drivers to insert individual pages they've allocated
+ * into a user vma.
+ *
+ * The page has to be a nice clean _individual_ kernel allocation.
+ * If you allocate a compound page, you need to have marked it as
+ * such (__GFP_COMP), or manually just split the page up yourself
+ * (which is mainly an issue of doing "set_page_count(page, 1)" for
+ * each sub-page, and then freeing them one by one when you free
+ * them rather than freeing it as a compound page).
+ *
+ * NOTE! Traditionally this was done with "remap_pfn_range()" which
+ * took an arbitrary page protection parameter. This doesn't allow
+ * that. Your vma protection will have to be set up correctly, which
+ * means that if you want a shared writable mapping, you'd better
+ * ask for a shared writable mapping!
+ *
+ * The page does not need to be reserved.
+ */
+int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *page)
+{
+	if (addr < vma->vm_start || addr >= vma->vm_end)
+		return -EFAULT;
+	if (!page_count(page))
+		return -EINVAL;
+	return insert_page(vma->vm_mm, addr, page, vma->vm_page_prot);
+}
+EXPORT_SYMBOL_GPL(vm_insert_page);
+
+/*
+ * Somebody does a pfn remapping that doesn't actually work as a vma.
+ *
+ * Do it as individual pages instead, and warn about it. It's bad form,
+ * and very inefficient.
+ */
+static int incomplete_pfn_remap(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end,
+		unsigned long pfn, pgprot_t prot)
+{
+	static int warn = 10;
+	struct page *page;
+	int retval;
+
+	if (!(vma->vm_flags & VM_INCOMPLETE)) {
+		if (warn) {
+			warn--;
+			printk("%s does an incomplete pfn remapping", current->comm);
+			dump_stack();
+		}
+	}
+	vma->vm_flags |= VM_INCOMPLETE | VM_IO | VM_RESERVED;
+
+	if (start < vma->vm_start || end > vma->vm_end)
+		return -EINVAL;
+
+	if (!pfn_valid(pfn))
+		return -EINVAL;
+
+	page = pfn_to_page(pfn);
+	if (!PageReserved(page))
+		return -EINVAL;
+
+	retval = 0;
+	while (start < end) {
+		retval = insert_page(vma->vm_mm, start, page, prot);
+		if (retval < 0)
+			break;
+		start += PAGE_SIZE;
+		page++;
+	}
+	return retval;
+}
+
 /*
  * maps a range of physical memory into the requested pages. the old
  * mappings are removed. any references to nonexistent pages results
@@ -1219,6 +1342,9 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	unsigned long end = addr + PAGE_ALIGN(size);
 	struct mm_struct *mm = vma->vm_mm;
 	int err;
+
+	if (addr != vma->vm_start || end != vma->vm_end)
+		return incomplete_pfn_remap(vma, addr, end, pfn, prot);
 
 	/*
 	 * Physically remapped pages are special. Tell the
@@ -1300,8 +1426,15 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
 	 */
 	if (unlikely(!src)) {
 		void *kaddr = kmap_atomic(dst, KM_USER0);
-		unsigned long left = __copy_from_user_inatomic(kaddr, (void __user *)va, PAGE_SIZE);
-		if (left)
+		void __user *uaddr = (void __user *)(va & PAGE_MASK);
+
+		/*
+		 * This really shouldn't fail, because the page is there
+		 * in the page tables. But it might just be unreadable,
+		 * in which case we just give up and fill the result with
+		 * zeroes.
+		 */
+		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE))
 			memset(kaddr, 0, PAGE_SIZE);
 		kunmap_atomic(kaddr, KM_USER0);
 		return;
@@ -1332,12 +1465,11 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, pte_t *page_table, pmd_t *pmd,
 		spinlock_t *ptl, pte_t orig_pte)
 {
-	struct page *old_page, *src_page, *new_page;
+	struct page *old_page, *new_page;
 	pte_t entry;
 	int ret = VM_FAULT_MINOR;
 
 	old_page = vm_normal_page(vma, address, orig_pte);
-	src_page = old_page;
 	if (!old_page)
 		goto gotten;
 
@@ -1345,7 +1477,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		int reuse = can_share_swap_page(old_page);
 		unlock_page(old_page);
 		if (reuse) {
-			flush_cache_page(vma, address, pfn);
+			flush_cache_page(vma, address, pte_pfn(orig_pte));
 			entry = pte_mkyoung(orig_pte);
 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 			ptep_set_access_flags(vma, address, page_table, entry, 1);
@@ -1365,7 +1497,7 @@ gotten:
 
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
-	if (src_page == ZERO_PAGE(address)) {
+	if (old_page == ZERO_PAGE(address)) {
 		new_page = alloc_zeroed_user_highpage(vma, address);
 		if (!new_page)
 			goto oom;
@@ -1373,7 +1505,7 @@ gotten:
 		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
 		if (!new_page)
 			goto oom;
-		cow_user_page(new_page, src_page, address);
+		cow_user_page(new_page, old_page, address);
 	}
 
 	/*
@@ -1389,7 +1521,7 @@ gotten:
 			}
 		} else
 			inc_mm_counter(mm, anon_rss);
-		flush_cache_page(vma, address, pfn);
+		flush_cache_page(vma, address, pte_pfn(orig_pte));
 		entry = mk_pte(new_page, vma->vm_page_prot);
 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 		ptep_establish(vma, address, page_table, entry);
@@ -1909,6 +2041,8 @@ static int do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	int anon = 0;
 
 	pte_unmap(page_table);
+	BUG_ON(vma->vm_flags & VM_PFNMAP);
+
 	if (vma->vm_file) {
 		mapping = vma->vm_file->f_mapping;
 		sequence = mapping->truncate_count;
@@ -1941,7 +2075,7 @@ retry:
 		page = alloc_page_vma(GFP_HIGHUSER, vma, address);
 		if (!page)
 			goto oom;
-		cow_user_page(page, new_page, address);
+		copy_user_highpage(page, new_page, address);
 		page_cache_release(new_page);
 		new_page = page;
 		anon = 1;
