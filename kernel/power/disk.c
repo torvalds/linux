@@ -52,7 +52,7 @@ static void power_down(suspend_disk_method_t mode)
 
 	switch(mode) {
 	case PM_DISK_PLATFORM:
-		kernel_power_off_prepare();
+		kernel_shutdown_prepare(SYSTEM_SUSPEND_DISK);
 		error = pm_ops->enter(PM_SUSPEND_DISK);
 		break;
 	case PM_DISK_SHUTDOWN:
@@ -117,13 +117,6 @@ static int prepare_processes(void)
 	if (freeze_processes()) {
 		error = -EBUSY;
 		goto thaw;
-	}
-
-	if (pm_disk_mode == PM_DISK_PLATFORM) {
-		if (pm_ops && pm_ops->prepare) {
-			if ((error = pm_ops->prepare(PM_SUSPEND_DISK)))
-				goto thaw;
-		}
 	}
 
 	/* Free memory before shutting down devices. */
