@@ -771,7 +771,7 @@ static inline int todrop_entry(struct ip_vs_conn *cp)
 	 * The drop rate array needs tuning for real environments.
 	 * Called from timer bh only => no locking
 	 */
-	static char todrop_rate[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+	static const char todrop_rate[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
 	static char todrop_counter[9] = {0};
 	int i;
 

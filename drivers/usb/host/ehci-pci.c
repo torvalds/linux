@@ -121,8 +121,8 @@ static int ehci_pci_reinit(struct ehci_hcd *ehci, struct pci_dev *pdev)
 	return 0;
 }
 
-/* called by khubd or root hub (re)init threads; leaves HC in halt state */
-static int ehci_pci_reset(struct usb_hcd *hcd)
+/* called during probe() after chip reset completes */
+static int ehci_pci_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
@@ -141,6 +141,11 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
+	/* data structure init */
+	retval = ehci_init(hcd);
+	if (retval)
+		return retval;
+
 	/* NOTE:  only the parts below this line are PCI-specific */
 
 	switch (pdev->vendor) {
@@ -154,7 +159,8 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 		/* AMD8111 EHCI doesn't work, according to AMD errata */
 		if (pdev->device == 0x7463) {
 			ehci_info(ehci, "ignoring AMD8111 (errata)\n");
-			return -EIO;
+			retval = -EIO;
+			goto done;
 		}
 		break;
 	case PCI_VENDOR_ID_NVIDIA:
@@ -207,9 +213,8 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 	/* REVISIT:  per-port wake capability (PCI 0x62) currently unused */
 
 	retval = ehci_pci_reinit(ehci, pdev);
-
-	/* finish init */
-	return ehci_init(hcd);
+done:
+	return retval;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -228,14 +233,36 @@ static int ehci_pci_reset(struct usb_hcd *hcd)
 static int ehci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+	unsigned long		flags;
+	int			rc = 0;
 
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(10);
 
+	/* Root hub was already suspended. Disable irq emission and
+	 * mark HW unaccessible, bail out if RH has been resumed. Use
+	 * the spinlock to properly synchronize with possible pending
+	 * RH suspend or resume activity.
+	 *
+	 * This is still racy as hcd->state is manipulated outside of
+	 * any locks =P But that will be a different fix.
+	 */
+	spin_lock_irqsave (&ehci->lock, flags);
+	if (hcd->state != HC_STATE_SUSPENDED) {
+		rc = -EINVAL;
+		goto bail;
+	}
+	writel (0, &ehci->regs->intr_enable);
+	(void)readl(&ehci->regs->intr_enable);
+
+	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+ bail:
+	spin_unlock_irqrestore (&ehci->lock, flags);
+
 	// could save FLADJ in case of Vaux power loss
 	// ... we'd only use it to handle clock skew
 
-	return 0;
+	return rc;
 }
 
 static int ehci_pci_resume(struct usb_hcd *hcd)
@@ -250,6 +277,9 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 
 	if (time_before(jiffies, ehci->next_statechange))
 		msleep(100);
+
+	/* Mark hardware accessible again as we are out of D3 state by now */
+	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
 	/* If CF is clear, we lost PCI Vaux power and need to restart.  */
 	if (readl(&ehci->regs->configured_flag) != FLAG_CF)
@@ -319,7 +349,7 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset =		ehci_pci_reset,
+	.reset =		ehci_pci_setup,
 	.start =		ehci_run,
 #ifdef	CONFIG_PM
 	.suspend =		ehci_pci_suspend,
