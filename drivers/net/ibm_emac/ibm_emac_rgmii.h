@@ -31,7 +31,7 @@ struct rgmii_regs {
 
 /* RGMII device */
 struct ibm_ocp_rgmii {
-	struct rgmii_regs *base;
+	struct rgmii_regs __iomem *base;
 	int users;		/* number of EMACs using this RGMII bridge */
 };
 

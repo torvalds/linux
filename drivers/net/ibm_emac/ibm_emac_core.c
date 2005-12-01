@@ -204,7 +204,7 @@ static inline int emac_phy_gpcs(int phy_mode)
 
 static inline void emac_tx_enable(struct ocp_enet_private *dev)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	unsigned long flags;
 	u32 r;
 
@@ -220,7 +220,7 @@ static inline void emac_tx_enable(struct ocp_enet_private *dev)
 
 static void emac_tx_disable(struct ocp_enet_private *dev)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	unsigned long flags;
 	u32 r;
 
@@ -244,7 +244,7 @@ static void emac_tx_disable(struct ocp_enet_private *dev)
 
 static void emac_rx_enable(struct ocp_enet_private *dev)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	unsigned long flags;
 	u32 r;
 
@@ -275,7 +275,7 @@ static void emac_rx_enable(struct ocp_enet_private *dev)
 
 static void emac_rx_disable(struct ocp_enet_private *dev)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	unsigned long flags;
 	u32 r;
 
@@ -299,7 +299,7 @@ static void emac_rx_disable(struct ocp_enet_private *dev)
 
 static inline void emac_rx_disable_async(struct ocp_enet_private *dev)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	unsigned long flags;
 	u32 r;
 
@@ -315,7 +315,7 @@ static inline void emac_rx_disable_async(struct ocp_enet_private *dev)
 
 static int emac_reset(struct ocp_enet_private *dev)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	unsigned long flags;
 	int n = 20;
 
@@ -348,7 +348,7 @@ static int emac_reset(struct ocp_enet_private *dev)
 
 static void emac_hash_mc(struct ocp_enet_private *dev)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	u16 gaht[4] = { 0 };
 	struct dev_mc_list *dmi;
 
@@ -393,7 +393,7 @@ static inline int emac_opb_mhz(void)
 /* BHs disabled */
 static int emac_configure(struct ocp_enet_private *dev)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	struct net_device *ndev = dev->ndev;
 	int gige;
 	u32 r;
@@ -555,7 +555,7 @@ static void emac_full_tx_reset(struct net_device *ndev)
 
 static int __emac_mdio_read(struct ocp_enet_private *dev, u8 id, u8 reg)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	u32 r;
 	int n;
 
@@ -604,7 +604,7 @@ static int __emac_mdio_read(struct ocp_enet_private *dev, u8 id, u8 reg)
 static void __emac_mdio_write(struct ocp_enet_private *dev, u8 id, u8 reg,
 			      u16 val)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	int n;
 
 	DBG2("%d: mdio_write(%02x,%02x,%04x)" NL, dev->def->index, id, reg,
@@ -666,7 +666,7 @@ static void emac_mdio_write(struct net_device *ndev, int id, int reg, int val)
 static void emac_set_multicast_list(struct net_device *ndev)
 {
 	struct ocp_enet_private *dev = ndev->priv;
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	u32 rmr = emac_iff2rmr(ndev);
 
 	DBG("%d: multicast %08x" NL, dev->def->index, rmr);
@@ -825,7 +825,7 @@ static void emac_clean_rx_ring(struct ocp_enet_private *dev)
 }
 
 static inline int emac_alloc_rx_skb(struct ocp_enet_private *dev, int slot,
-				    int flags)
+				    gfp_t flags)
 {
 	struct sk_buff *skb = alloc_skb(dev->rx_skb_size, flags);
 	if (unlikely(!skb))
@@ -1047,7 +1047,7 @@ static inline u16 emac_tx_csum(struct ocp_enet_private *dev,
 
 static inline int emac_xmit_finish(struct ocp_enet_private *dev, int len)
 {
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	struct net_device *ndev = dev->ndev;
 
 	/* Send the packet out */
@@ -1519,7 +1519,7 @@ static void emac_rxde(void *param)
 static irqreturn_t emac_irq(int irq, void *dev_instance, struct pt_regs *regs)
 {
 	struct ocp_enet_private *dev = dev_instance;
-	struct emac_regs *p = dev->emacp;
+	struct emac_regs __iomem *p = dev->emacp;
 	struct ibm_emac_error_stats *st = &dev->estats;
 
 	u32 isr = in_be32(&p->isr);
@@ -1619,17 +1619,17 @@ static void emac_remove(struct ocp_device *ocpdev)
 
 	DBG("%d: remove" NL, dev->def->index);
 
-	ocp_set_drvdata(ocpdev, 0);
+	ocp_set_drvdata(ocpdev, NULL);
 	unregister_netdev(dev->ndev);
 
 	tah_fini(dev->tah_dev);
 	rgmii_fini(dev->rgmii_dev, dev->rgmii_input);
 	zmii_fini(dev->zmii_dev, dev->zmii_input);
 
-	emac_dbg_register(dev->def->index, 0);
+	emac_dbg_register(dev->def->index, NULL);
 
 	mal_unregister_commac(dev->mal, &dev->commac);
-	iounmap((void *)dev->emacp);
+	iounmap(dev->emacp);
 	kfree(dev->ndev);
 }
 
@@ -2048,9 +2048,7 @@ static int __init emac_probe(struct ocp_device *ocpdev)
 		goto out4;
 
 	/* Map EMAC regs */
-	dev->emacp =
-	    (struct emac_regs *)ioremap(dev->def->paddr,
-					sizeof(struct emac_regs));
+	dev->emacp = ioremap(dev->def->paddr, sizeof(struct emac_regs));
 	if (!dev->emacp) {
 		printk(KERN_ERR "emac%d: could not ioremap device registers!\n",
 		       dev->def->index);
@@ -2210,7 +2208,7 @@ static int __init emac_probe(struct ocp_device *ocpdev)
 
 	return 0;
       out6:
-	iounmap((void *)dev->emacp);
+	iounmap(dev->emacp);
       out5:
 	tah_fini(dev->tah_dev);
       out4:

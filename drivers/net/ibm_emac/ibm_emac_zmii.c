@@ -80,7 +80,7 @@ static inline u32 zmii_mode_mask(int mode, int input)
 static int __init zmii_init(struct ocp_device *ocpdev, int input, int *mode)
 {
 	struct ibm_ocp_zmii *dev = ocp_get_drvdata(ocpdev);
-	struct zmii_regs *p;
+	struct zmii_regs __iomem *p;
 
 	ZMII_DBG("%d: init(%d, %d)" NL, ocpdev->def->index, input, *mode);
 
@@ -94,8 +94,7 @@ static int __init zmii_init(struct ocp_device *ocpdev, int input, int *mode)
 		}
 		dev->mode = PHY_MODE_NA;
 
-		p = (struct zmii_regs *)ioremap(ocpdev->def->paddr,
-						sizeof(struct zmii_regs));
+		p = ioremap(ocpdev->def->paddr, sizeof(struct zmii_regs));
 		if (!p) {
 			printk(KERN_ERR
 			       "zmii%d: could not ioremap device registers!\n",
@@ -231,7 +230,7 @@ void __exit __zmii_fini(struct ocp_device *ocpdev, int input)
 	if (!--dev->users) {
 		/* Free everything if this is the last user */
 		ocp_set_drvdata(ocpdev, NULL);
-		iounmap((void *)dev->base);
+		iounmap(dev->base);
 		kfree(dev);
 	}
 }
