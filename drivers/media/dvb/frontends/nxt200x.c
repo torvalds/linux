@@ -44,6 +44,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #include "dvb_frontend.h"
 #include "dvb-pll.h"
