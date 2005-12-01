@@ -339,6 +339,7 @@ static int hasRadioTuner(int tunerType)
 		case 78: //PNPEnv_TUNER_TDA8275C1_8290_FM:
 		case 89: //PNPEnv_TUNER_TCL_MFPE05_2:
 		case 92: //PNPEnv_TUNER_PHILIPS_FQ1236A_MK4:
+		case 105:
 		return 1;
 	}
 	return 0;
@@ -596,6 +597,8 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 		t_name2 = "unknown";
 	}
 
+	tvee->tuner_hauppauge_model = tuner1;
+	tvee->tuner2_hauppauge_model = tuner2;
 	tvee->tuner_formats = 0;
 	tvee->tuner2_formats = 0;
 	for (i = j = 0; i < 8; i++) {

@@ -8,9 +8,11 @@ struct tveeprom {
 
 	u32 tuner_type;
 	u32 tuner_formats;
+	u32 tuner_hauppauge_model;
 
 	u32 tuner2_type;
 	u32 tuner2_formats;
+	u32 tuner2_hauppauge_model;
 
 	u32 digitizer;
 	u32 digitizer_formats;
