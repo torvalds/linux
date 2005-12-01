@@ -39,8 +39,6 @@
 #include "au88x0_wt.h"
 #endif
 
-#define	VORTEX_DMA_MASK	0xffffffff
-
 #define	hwread(x,y) readl((x)+((y)>>2))
 #define	hwwrite(x,y,z) writel((z),(x)+((y)>>2))
 

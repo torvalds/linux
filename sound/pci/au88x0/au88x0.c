@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
+#include <linux/dma-mapping.h>
 #include <sound/initval.h>
 
 // module parameters (see "Module Parameters")
@@ -150,11 +151,10 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	// check PCI availability (DMA).
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
-	if (!pci_dma_supported(pci, VORTEX_DMA_MASK)) {
+	if (pci_set_dma_mask(pci, DMA_32BIT_MASK)) {
 		printk(KERN_ERR "error to set DMA mask\n");
 		return -ENXIO;
 	}
-	pci_set_dma_mask(pci, VORTEX_DMA_MASK);
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
