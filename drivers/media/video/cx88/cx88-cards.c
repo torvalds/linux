@@ -1088,11 +1088,13 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	switch (tv.model)
 	{
 	case 90002: /* Nova-T-PCI (9002) */
+	case 92001: /* Nova-S-Plus (Video and IR) */
+	case 92002: /* Nova-S-Plus (Video and IR) */
+	case 90003: /* Nova-T-PCI (9002 No RF out) */
 	case 90500: /* Nova-T-PCI (oem) */
 	case 90501: /* Nova-T-PCI (oem/IR) */
 	case 92000: /* Nova-SE2 (OEM, No Video or IR) */
-	case 92001: /* Nova-S-Plus (Video and IR) */
-	case 92002: /* Nova-S-Plus (Video and IR) */
+
 		/* known */
 		break;
 	default:

@@ -382,14 +382,15 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 	memset(tvee, 0, sizeof(*tvee));
 	done = len = beenhere = 0;
 
-	/* Hack for processing eeprom for em28xx */
+	/* Hack for processing eeprom for em28xx and cx 2388x*/
 	if ((eeprom_data[0] == 0x1a) && (eeprom_data[1] == 0xeb) &&
-		(eeprom_data[2] == 0x67) && (eeprom_data[3] == 0x95))
-		start=0xa0;
-	else if ((eeprom_data[0] == 0x1f) && (eeprom_data[8] == 0x84))
-		start=8;
-	else if ((eeprom_data[0] == 0x17) && (eeprom_data[8] == 0x84))
-		start=8;
+			(eeprom_data[2] == 0x67) && (eeprom_data[3] == 0x95))
+		start=0xa0; /* Generic em28xx offset */
+	else if (((eeprom_data[0] & 0xf0) == 0x10) &&
+					(eeprom_data[1] == 0x00) &&
+					(eeprom_data[2] == 0x00) &&
+					(eeprom_data[8] == 0x84))
+		start=8; /* Generic cx2388x offset */
 	else
 		start=0;
 
