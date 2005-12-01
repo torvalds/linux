@@ -37,6 +37,7 @@
 #include <linux/string.h>
 #include <linux/i2c.h>
 
+#include "ttpci-eeprom.h"
 
 #if 1
 #define dprintk(x...) do { printk(x); } while (0)
