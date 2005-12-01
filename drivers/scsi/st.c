@@ -4509,6 +4509,7 @@ static int sgl_map_user_pages(struct scatterlist *sgl, const unsigned int max_pa
 	if (res > 0) {
 		for (j=0; j < res; j++)
 			page_cache_release(pages[j]);
+		res = 0;
 	}
 	kfree(pages);
 	return res;
