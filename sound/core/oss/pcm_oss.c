@@ -2269,6 +2269,7 @@ static int snd_pcm_oss_mmap(struct file *file, struct vm_area_struct *area)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 /*
  *  /proc interface
  */
@@ -2420,6 +2421,10 @@ static void snd_pcm_oss_proc_done(struct snd_pcm *pcm)
 		}
 	}
 }
+#else /* !CONFIG_PROC_FS */
+#define snd_pcm_oss_proc_init(pcm)
+#define snd_pcm_oss_proc_done(pcm)
+#endif /* CONFIG_PROC_FS */
 
 /*
  *  ENTRY functions

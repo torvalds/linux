@@ -2413,6 +2413,7 @@ int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table
 
 /*---------------------------------------------------------------------------*/
 
+#ifdef CONFIG_PROC_FS
 /*
  *  /proc interface
  */
@@ -2518,7 +2519,7 @@ void snd_seq_info_clients_read(struct snd_info_entry *entry,
 		snd_seq_client_unlock(client);
 	}
 }
-
+#endif /* CONFIG_PROC_FS */
 
 /*---------------------------------------------------------------------------*/
 

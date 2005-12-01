@@ -1053,6 +1053,7 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer, struct snd_mix
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 /*
  */
 #define MIXER_VOL(name) [SOUND_MIXER_##name] = #name
@@ -1200,6 +1201,10 @@ static void snd_mixer_oss_proc_done(struct snd_mixer_oss *mixer)
 		mixer->proc_entry = NULL;
 	}
 }
+#else /* !CONFIG_PROC_FS */
+#define snd_mixer_oss_proc_init(mix)
+#define snd_mixer_oss_proc_done(mix)
+#endif /* CONFIG_PROC_FS */
 
 static void snd_mixer_oss_build(struct snd_mixer_oss *mixer)
 {

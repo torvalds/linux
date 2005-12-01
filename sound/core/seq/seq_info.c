@@ -27,7 +27,7 @@
 #include "seq_clientmgr.h"
 #include "seq_timer.h"
 
-
+#ifdef CONFIG_PROC_FS
 static struct snd_info_entry *queues_entry;
 static struct snd_info_entry *clients_entry;
 static struct snd_info_entry *timer_entry;
@@ -52,7 +52,6 @@ create_info_entry(char *name, int size, void (*read)(struct snd_info_entry *,
 	return entry;
 }
 
-
 /* create all our /proc entries */
 int __init snd_seq_info_init(void)
 {
@@ -66,11 +65,9 @@ int __init snd_seq_info_init(void)
 
 int __exit snd_seq_info_done(void)
 {
-	if (queues_entry)
-		snd_info_unregister(queues_entry);
-	if (clients_entry)
-		snd_info_unregister(clients_entry);
-	if (timer_entry)
-		snd_info_unregister(timer_entry);
+	snd_info_unregister(queues_entry);
+	snd_info_unregister(clients_entry);
+	snd_info_unregister(timer_entry);
 	return 0;
 }
+#endif

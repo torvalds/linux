@@ -78,7 +78,9 @@ struct ops_list {
 static LIST_HEAD(opslist);
 static int num_ops;
 static DECLARE_MUTEX(ops_mutex);
+#ifdef CONFIG_PROC_FS
 static struct snd_info_entry *info_entry = NULL;
+#endif
 
 /*
  * prototypes
@@ -100,6 +102,7 @@ static void remove_drivers(void);
  * show all drivers and their status
  */
 
+#ifdef CONFIG_PROC_FS
 static void snd_seq_device_info(struct snd_info_entry *entry,
 				struct snd_info_buffer *buffer)
 {
@@ -117,6 +120,7 @@ static void snd_seq_device_info(struct snd_info_entry *entry,
 	}
 	up(&ops_mutex);	
 }
+#endif
  
 /*
  * load all registered drivers (called from seq_clientmgr.c)
@@ -544,6 +548,7 @@ static void unlock_driver(struct ops_list *ops)
 
 static int __init alsa_seq_device_init(void)
 {
+#ifdef CONFIG_PROC_FS
 	info_entry = snd_info_create_module_entry(THIS_MODULE, "drivers",
 						  snd_seq_root);
 	if (info_entry == NULL)
@@ -555,13 +560,16 @@ static int __init alsa_seq_device_init(void)
 		snd_info_free_entry(info_entry);
 		return -ENOMEM;
 	}
+#endif
 	return 0;
 }
 
 static void __exit alsa_seq_device_exit(void)
 {
 	remove_drivers();
+#ifdef CONFIG_PROC_FS
 	snd_info_unregister(info_entry);
+#endif
 	if (num_ops)
 		snd_printk(KERN_ERR "drivers not released (%d)\n", num_ops);
 }

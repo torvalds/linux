@@ -668,6 +668,7 @@ snd_seq_oss_midi_make_info(struct seq_oss_devinfo *dp, int dev, struct midi_info
 }
 
 
+#ifdef CONFIG_PROC_FS
 /*
  * proc interface
  */
@@ -707,4 +708,4 @@ snd_seq_oss_midi_info_read(struct snd_info_buffer *buf)
 		snd_use_lock_free(&mdev->use_lock);
 	}
 }
-
+#endif /* CONFIG_PROC_FS */

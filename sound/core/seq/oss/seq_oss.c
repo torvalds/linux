@@ -52,8 +52,13 @@ int seq_oss_debug = 0;
  */
 static int register_device(void);
 static void unregister_device(void);
+#ifdef CONFIG_PROC_FS
 static int register_proc(void);
 static void unregister_proc(void);
+#else
+static inline int register_proc(void) { return 0; }
+static inline void unregister_proc(void) {}
+#endif
 
 static int odev_open(struct inode *inode, struct file *file);
 static int odev_release(struct inode *inode, struct file *file);
@@ -61,9 +66,6 @@ static ssize_t odev_read(struct file *file, char __user *buf, size_t count, loff
 static ssize_t odev_write(struct file *file, const char __user *buf, size_t count, loff_t *offset);
 static long odev_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static unsigned int odev_poll(struct file *file, poll_table * wait);
-#ifdef CONFIG_PROC_FS
-static void info_read(struct snd_info_entry *entry, struct snd_info_buffer *buf);
-#endif
 
 
 /*
@@ -276,12 +278,10 @@ info_read(struct snd_info_entry *entry, struct snd_info_buffer *buf)
 	up(&register_mutex);
 }
 
-#endif /* CONFIG_PROC_FS */
 
 static int __init
 register_proc(void)
 {
-#ifdef CONFIG_PROC_FS
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, SNDRV_SEQ_OSS_PROCNAME, snd_seq_root);
@@ -297,16 +297,14 @@ register_proc(void)
 		return -ENOMEM;
 	}
 	info_entry = entry;
-#endif
 	return 0;
 }
 
 static void
 unregister_proc(void)
 {
-#ifdef CONFIG_PROC_FS
 	if (info_entry)
 		snd_info_unregister(info_entry);
 	info_entry = NULL;
-#endif
 }
+#endif /* CONFIG_PROC_FS */
