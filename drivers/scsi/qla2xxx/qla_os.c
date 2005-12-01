@@ -2611,7 +2611,9 @@ qla2xxx_remove_one(struct pci_dev *pdev)
 
 static struct pci_driver qla2xxx_pci_driver = {
 	.name		= "qla2xxx",
-	.owner		= THIS_MODULE,
+	.driver		= {
+		.owner		= THIS_MODULE,
+	},
 	.id_table	= qla2xxx_pci_tbl,
 	.probe		= qla2xxx_probe_one,
 	.remove		= __devexit_p(qla2xxx_remove_one),
