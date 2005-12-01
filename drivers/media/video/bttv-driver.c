@@ -2029,19 +2029,33 @@ static int bttv_switch_type(struct bttv_fh *fh, enum v4l2_buf_type type)
 	return 0;
 }
 
+static void
+pix_format_set_size     (struct v4l2_pix_format *       f,
+			 const struct bttv_format *     fmt,
+			 unsigned int                   width,
+			 unsigned int                   height)
+{
+	f->width = width;
+	f->height = height;
+
+	if (fmt->flags & FORMAT_FLAGS_PLANAR) {
+		f->bytesperline = width; /* Y plane */
+		f->sizeimage = (width * height * fmt->depth) >> 3;
+	} else {
+		f->bytesperline = (width * fmt->depth) >> 3;
+		f->sizeimage = height * f->bytesperline;
+	}
+}
+
 static int bttv_g_fmt(struct bttv_fh *fh, struct v4l2_format *f)
 {
 	switch (f->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		memset(&f->fmt.pix,0,sizeof(struct v4l2_pix_format));
-		f->fmt.pix.width        = fh->width;
-		f->fmt.pix.height       = fh->height;
+		pix_format_set_size (&f->fmt.pix, fh->fmt,
+				     fh->width, fh->height);
 		f->fmt.pix.field        = fh->cap.field;
 		f->fmt.pix.pixelformat  = fh->fmt->fourcc;
-		f->fmt.pix.bytesperline =
-			(f->fmt.pix.width * fh->fmt->depth) >> 3;
-		f->fmt.pix.sizeimage =
-			f->fmt.pix.height * f->fmt.pix.bytesperline;
 		return 0;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 		memset(&f->fmt.win,0,sizeof(struct v4l2_window));
@@ -2106,11 +2120,9 @@ static int bttv_try_fmt(struct bttv_fh *fh, struct bttv *btv,
 			f->fmt.pix.width = maxw;
 		if (f->fmt.pix.height > maxh)
 			f->fmt.pix.height = maxh;
-		f->fmt.pix.width &= ~0x03;
-		f->fmt.pix.bytesperline =
-			(f->fmt.pix.width * fmt->depth) >> 3;
-		f->fmt.pix.sizeimage =
-			f->fmt.pix.height * f->fmt.pix.bytesperline;
+		pix_format_set_size (&f->fmt.pix, fmt,
+				     f->fmt.pix.width & ~3,
+				     f->fmt.pix.height);
 
 		return 0;
 	}
