@@ -554,6 +554,17 @@ static void
 zfcp_fsf_link_down_info_eval(struct zfcp_adapter *adapter,
 			     struct fsf_link_down_info *link_down)
 {
+	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
+	                     &adapter->status))
+		return;
+
+	atomic_set_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED, &adapter->status);
+
+	if (link_down == NULL) {
+		zfcp_erp_adapter_reopen(adapter, 0);
+		return;
+	}
+
 	switch (link_down->error_code) {
 	case FSF_PSQ_LINK_NO_LIGHT:
 		ZFCP_LOG_NORMAL("The local link to adapter %s is down "
@@ -634,20 +645,15 @@ zfcp_fsf_link_down_info_eval(struct zfcp_adapter *adapter,
 				link_down->explanation_code,
 				link_down->vendor_specific_code);
 
-	if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
-			      &adapter->status)) {
-		atomic_set_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
-				&adapter->status);
-		switch (link_down->error_code) {
-		case FSF_PSQ_LINK_NO_LIGHT:
-		case FSF_PSQ_LINK_WRAP_PLUG:
-		case FSF_PSQ_LINK_NO_FCP:
-		case FSF_PSQ_LINK_FIRMWARE_UPDATE:
-			zfcp_erp_adapter_reopen(adapter, 0);
-			break;
-		default:
-			zfcp_erp_adapter_failed(adapter);
-		}
+	switch (link_down->error_code) {
+	case FSF_PSQ_LINK_NO_LIGHT:
+	case FSF_PSQ_LINK_WRAP_PLUG:
+	case FSF_PSQ_LINK_NO_FCP:
+	case FSF_PSQ_LINK_FIRMWARE_UPDATE:
+		zfcp_erp_adapter_reopen(adapter, 0);
+		break;
+	default:
+		zfcp_erp_adapter_failed(adapter);
 	}
 }
 
@@ -919,30 +925,36 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 		case FSF_STATUS_READ_SUB_NO_PHYSICAL_LINK:
 			ZFCP_LOG_INFO("Physical link to adapter %s is down\n",
 				      zfcp_get_busid_by_adapter(adapter));
+			zfcp_fsf_link_down_info_eval(adapter,
+				(struct fsf_link_down_info *)
+				&status_buffer->payload);
 			break;
 		case FSF_STATUS_READ_SUB_FDISC_FAILED:
 			ZFCP_LOG_INFO("Local link to adapter %s is down "
 				      "due to failed FDISC login\n",
-			      zfcp_get_busid_by_adapter(adapter));
+				      zfcp_get_busid_by_adapter(adapter));
+			zfcp_fsf_link_down_info_eval(adapter,
+				(struct fsf_link_down_info *)
+				&status_buffer->payload);
 			break;
 		case FSF_STATUS_READ_SUB_FIRMWARE_UPDATE:
 			ZFCP_LOG_INFO("Local link to adapter %s is down "
 				      "due to firmware update on adapter\n",
 				      zfcp_get_busid_by_adapter(adapter));
+			zfcp_fsf_link_down_info_eval(adapter, NULL);
 			break;
 		default:
 			ZFCP_LOG_INFO("Local link to adapter %s is down "
 				      "due to unknown reason\n",
 				      zfcp_get_busid_by_adapter(adapter));
+			zfcp_fsf_link_down_info_eval(adapter, NULL);
 		};
-		zfcp_fsf_link_down_info_eval(adapter,
-			(struct fsf_link_down_info *) &status_buffer->payload);
 		break;
 
 	case FSF_STATUS_READ_LINK_UP:
 		ZFCP_LOG_NORMAL("Local link to adapter %s was replugged. "
-			      "Restarting operations on this adapter\n",
-			      zfcp_get_busid_by_adapter(adapter));
+				"Restarting operations on this adapter\n",
+				zfcp_get_busid_by_adapter(adapter));
 		/* All ports should be marked as ready to run again */
 		zfcp_erp_modify_adapter_status(adapter,
 					       ZFCP_STATUS_COMMON_RUNNING,
