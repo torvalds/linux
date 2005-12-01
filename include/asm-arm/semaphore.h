@@ -47,11 +47,6 @@ static inline void init_MUTEX_LOCKED(struct semaphore *sem)
 	sema_init(sem, 0);
 }
 
-static inline int sema_count(struct semaphore *sem)
-{
-	return atomic_read(&sem->count);
-}
-
 /*
  * special register calling convention
  */
