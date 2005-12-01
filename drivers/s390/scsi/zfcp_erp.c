@@ -1071,11 +1071,6 @@ zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
 
-	rwlock_init(&adapter->erp_lock);
-	INIT_LIST_HEAD(&adapter->erp_ready_head);
-	INIT_LIST_HEAD(&adapter->erp_running_head);
-	sema_init(&adapter->erp_ready_sem, 0);
-
 	retval = kernel_thread(zfcp_erp_thread, adapter, SIGCHLD);
 	if (retval < 0) {
 		ZFCP_LOG_NORMAL("error: creation of erp thread failed for "
