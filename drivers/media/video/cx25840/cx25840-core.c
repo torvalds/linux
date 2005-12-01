@@ -714,7 +714,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 
 /* ----------------------------------------------------------------------- */
 
-struct i2c_driver i2c_driver_cx25840;
+static struct i2c_driver i2c_driver_cx25840;
 
 static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 				 int kind)
@@ -807,7 +807,7 @@ static int cx25840_detach_client(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-struct i2c_driver i2c_driver_cx25840 = {
+static struct i2c_driver i2c_driver_cx25840 = {
 	.name = "cx25840",
 
 	.id = I2C_DRIVERID_CX25840,
