@@ -1720,7 +1720,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		memset(i,0,sizeof(*i));
 		i->index    = n;
 		i->type     = V4L2_INPUT_TYPE_CAMERA;
-		i->audioset = 1;
+		i->audioset = 0;
 		if (i->index == bttv_tvcards[btv->c.type].tuner) {
 			sprintf(i->name, "Television");
 			i->type  = V4L2_INPUT_TYPE_TUNER;
@@ -1771,11 +1771,19 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		memset(t,0,sizeof(*t));
 		strcpy(t->name, "Television");
 		t->type       = V4L2_TUNER_ANALOG_TV;
-		t->rangehigh  = 0xffffffffUL;
 		t->capability = V4L2_TUNER_CAP_NORM;
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
 		if (btread(BT848_DSTATUS)&BT848_DSTATUS_HLOC)
 			t->signal = 0xffff;
+		{
+			struct video_tuner tuner;
+
+			memset(&tuner, 0, sizeof (tuner));
+			tuner.rangehigh = 0xffffffffUL;
+			bttv_call_i2c_clients(btv, VIDIOCGTUNER, &tuner);
+			t->rangelow = tuner.rangelow;
+			t->rangehigh = tuner.rangehigh;
+		}
 		{
 			/* Hmmm ... */
 			struct video_audio va;
@@ -2610,9 +2618,11 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 
 		if (0 == v4l2)
 			return -EINVAL;
-		strcpy(cap->driver,"bttv");
-		strlcpy(cap->card,btv->video_dev->name,sizeof(cap->card));
-		sprintf(cap->bus_info,"PCI:%s",pci_name(btv->c.pci));
+		memset(cap, 0, sizeof (*cap));
+		strlcpy(cap->driver, "bttv", sizeof (cap->driver));
+		strlcpy(cap->card, btv->video_dev->name, sizeof (cap->card));
+		snprintf(cap->bus_info, sizeof (cap->bus_info),
+			 "PCI:%s", pci_name(btv->c.pci));
 		cap->version = BTTV_VERSION_CODE;
 		cap->capabilities =
 			V4L2_CAP_VIDEO_CAPTURE |
