@@ -986,7 +986,6 @@ static int __init snd_pmac_detect(struct snd_pmac *chip)
 			chip->control_mask = MASK_IEPC | 0x11;/* disable IEE */
 			break;
 		case 0x3a:
-		case 0x40:
 			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
 			chip->model = PMAC_TOONIE;
 			chip->can_byte_swap = 0; /* FIXME: check this */
