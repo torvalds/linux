@@ -1413,6 +1413,24 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	return;
 }
 
+static int nodemgr_send_resume_packet(struct hpsb_host *host)
+{
+	struct hpsb_packet *packet;
+	int ret = 1;
+
+	packet = hpsb_make_phypacket(host,
+			0x003c0000 | NODEID_TO_NODE(host->node_id) << 24);
+	if (packet) {
+		packet->no_waiter = 1;
+		packet->generation = get_hpsb_generation(host);
+		ret = hpsb_send_packet(packet);
+	}
+	if (ret)
+		HPSB_WARN("fw-host%d: Failed to broadcast resume packet",
+			  host->id);
+	return ret;
+}
+
 /* Because we are a 1394a-2000 compliant IRM, we need to inform all the other
  * nodes of the broadcast channel.  (Really we're only setting the validity
  * bit). Other IRM responsibilities go in here as well. */
@@ -1462,6 +1480,13 @@ static int nodemgr_do_irm_duties(struct hpsb_host *host, int cycles)
 			return 0;
 		}
 	}
+
+	/* Some devices suspend their ports while being connected to an inactive
+	 * host adapter, i.e. if connected before the low-level driver is
+	 * loaded.  They become visible either when physically unplugged and
+	 * replugged, or when receiving a resume packet.  Send one once. */
+	if (!host->resume_packet_sent && !nodemgr_send_resume_packet(host))
+		host->resume_packet_sent = 1;
 
 	return 1;
 }
