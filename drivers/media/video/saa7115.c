@@ -771,17 +771,19 @@ static v4l2_std_id saa7115_get_v4lstd(struct i2c_client *client)
 
 static void saa7115_log_status(struct i2c_client *client)
 {
-	static const char * const audclk_freq_strs[] = {
-		"44.1 kHz",
-		"48 kHz",
-		"32 kHz"
-	};
 	struct saa7115_state *state = i2c_get_clientdata(client);
+	char *audfreq = "undefined";
 	int reg1e, reg1f;
 	int signalOk;
 	int vcr;
 
-	saa7115_info("Audio frequency: %s\n", audclk_freq_strs[state->audclk_freq]);
+	switch (state->audclk_freq) {
+		case V4L2_AUDCLK_32_KHZ:  audfreq = "32 kHz"; break;
+		case V4L2_AUDCLK_441_KHZ: audfreq = "44.1 kHz"; break;
+		case V4L2_AUDCLK_48_KHZ:  audfreq = "48 kHz"; break;
+	}
+
+	saa7115_info("Audio frequency: %s\n", audfreq);
 	if (client->name[6] == '4') {
 		/* status for the saa7114 */
 		reg1f = saa7115_read(client, 0x1f);
