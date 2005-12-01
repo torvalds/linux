@@ -1085,6 +1085,7 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	core->has_radio  = tv.has_radio;
 }
 
+/* fixme: This is bogus code... add new pnp code to parse or see tveeprom.ko */
 static int hauppauge_eeprom_dvb(struct cx88_core *core, u8 *ee)
 {
 	int model;
@@ -1093,9 +1094,11 @@ static int hauppauge_eeprom_dvb(struct cx88_core *core, u8 *ee)
 	/* Make sure we support the board model */
 	model = ee[0x1f] << 24 | ee[0x1e] << 16 | ee[0x1d] << 8 | ee[0x1c];
 	switch(model) {
-	case 90002:
-	case 90500:
-	case 90501:
+	case 90002: /* Nova-T-PCI (9002) */
+	case 90500: /* Nova-T-PCI (oem) */
+	case 90501: /* Nova-T-PCI (oem/IR) */
+	case 92000: /* Nova-S-Plus */
+	case 92002: /* Nova-SE2 */
 		/* known */
 		break;
 	default:
