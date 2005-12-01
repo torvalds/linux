@@ -192,7 +192,7 @@ config IPW_DEBUG
 
 config IPW2200
 	tristate "Intel PRO/Wireless 2200BG and 2915ABG Network Connection"
-	depends on IEEE80211 && PCI
+	depends on NET_RADIO && IEEE80211 && PCI
 	select FW_LOADER
 	---help---
           A driver for the Intel PRO/Wireless 2200BG and 2915ABG Network
