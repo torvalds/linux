@@ -1853,7 +1853,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 	}
 	case VIDIOC_LOG_STATUS:
 	{
-		bttv_call_i2c_clients(btv, VIDIOC_LOG_STATUS, 0);
+		bttv_call_i2c_clients(btv, VIDIOC_LOG_STATUS, NULL);
 		return 0;
 	}
 
