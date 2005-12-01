@@ -98,7 +98,7 @@ int i2c_isa_add_driver(struct i2c_driver *driver)
 	res = driver_register(&driver->driver);
 	if (res)
 		return res;
-	dev_dbg(&isa_adapter.dev, "Driver %s registered\n", driver->name);
+	dev_dbg(&isa_adapter.dev, "Driver %s registered\n", driver->driver.name);
 
 	/* Now look for clients */
 	driver->attach_adapter(&isa_adapter);
@@ -129,7 +129,7 @@ int i2c_isa_del_driver(struct i2c_driver *driver)
 
 	/* Get the driver off the core list */
 	driver_unregister(&driver->driver);
-	dev_dbg(&isa_adapter.dev, "Driver %s unregistered\n", driver->name);
+	dev_dbg(&isa_adapter.dev, "Driver %s unregistered\n", driver->driver.name);
 
 	return 0;
 }
@@ -174,7 +174,7 @@ static void __exit i2c_isa_exit(void)
 	list_for_each_safe(item, _n, &isa_adapter.clients) {
 		client = list_entry(item, struct i2c_client, list);
 		dev_err(&isa_adapter.dev, "Driver %s still has an active "
-			"ISA client at 0x%x\n", client->driver->name,
+			"ISA client at 0x%x\n", client->driver->driver.name,
 			client->addr);
 	}
 	if (client != NULL)
