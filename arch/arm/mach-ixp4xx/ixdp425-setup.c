@@ -85,7 +85,7 @@ static struct plat_serial8250_port ixdp425_uart_data[] = {
 	{
 		.mapbase	= IXP4XX_UART2_BASE_PHYS,
 		.membase	= (char *)IXP4XX_UART2_BASE_VIRT + REG_OFFSET,
-		.irq		= IRQ_IXP4XX_UART1,
+		.irq		= IRQ_IXP4XX_UART2,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
