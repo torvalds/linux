@@ -88,6 +88,9 @@ LIST_HEAD(saa7134_devlist);
 static LIST_HEAD(mops_list);
 static unsigned int saa7134_devcount;
 
+int (*dmasound_init)(struct saa7134_dev *dev);
+int (*dmasound_exit)(struct saa7134_dev *dev);
+
 #define dprintk(fmt, arg...)	if (core_debug) \
 	printk(KERN_DEBUG "%s/core: " fmt, dev->name , ## arg)
 
@@ -1017,6 +1020,10 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	/* check for signal */
 	saa7134_irq_video_intl(dev);
 
+	if (dmasound_init && !dev->dmasound.priv_data) {
+		dmasound_init(dev);
+	}
+
 	return 0;
 
  fail4:
@@ -1039,6 +1046,11 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
 	struct list_head *item;
 	struct saa7134_mpeg_ops *mops;
+
+	/* Release DMA sound modules if present */
+	if (dmasound_exit && dev->dmasound.priv_data) {
+		dmasound_exit(dev);
+	}
 
 	/* debugging ... */
 	if (irq_debug) {
@@ -1071,12 +1083,14 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	saa7134_i2c_unregister(dev);
 	saa7134_unregister_video(dev);
 
+
 	/* the DMA sound modules should be unloaded before reaching
 	   this, but just in case they are still present... */
 	if (dev->dmasound.priv_data != NULL) {
 		free_irq(pci_dev->irq, &dev->dmasound);
 		dev->dmasound.priv_data = NULL;
 	}
+
 
 	/* release resources */
 	free_irq(pci_dev->irq, dev);
@@ -1168,6 +1182,8 @@ EXPORT_SYMBOL(saa7134_boards);
 
 /* ----------------- for the DMA sound modules --------------- */
 
+EXPORT_SYMBOL(dmasound_init);
+EXPORT_SYMBOL(dmasound_exit);
 EXPORT_SYMBOL(saa7134_pgtable_free);
 EXPORT_SYMBOL(saa7134_pgtable_build);
 EXPORT_SYMBOL(saa7134_pgtable_alloc);
