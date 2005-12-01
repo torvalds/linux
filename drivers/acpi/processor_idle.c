@@ -278,8 +278,6 @@ static void acpi_processor_idle(void)
 		}
 	}
 
-	cx->usage++;
-
 #ifdef CONFIG_HOTPLUG_CPU
 	/*
 	 * Check for P_LVL2_UP flag before entering C2 and above on
@@ -287,9 +285,12 @@ static void acpi_processor_idle(void)
 	 * detection phase, to work cleanly with logical CPU hotplug.
 	 */
 	if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) && 
-	    !pr->flags.has_cst && acpi_fadt.plvl2_up)
-		cx->type = ACPI_STATE_C1;
+	    !pr->flags.has_cst && !acpi_fadt.plvl2_up)
+		cx = &pr->power.states[ACPI_STATE_C1];
 #endif
+
+	cx->usage++;
+
 	/*
 	 * Sleep:
 	 * ------
@@ -377,6 +378,15 @@ static void acpi_processor_idle(void)
 	}
 
 	next_state = pr->power.state;
+
+#ifdef CONFIG_HOTPLUG_CPU
+	/* Don't do promotion/demotion */
+	if ((cx->type == ACPI_STATE_C1) && (num_online_cpus() > 1) &&
+	    !pr->flags.has_cst && !acpi_fadt.plvl2_up) {
+		next_state = cx;
+		goto end;
+	}
+#endif
 
 	/*
 	 * Promotion?
@@ -549,7 +559,7 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * Check for P_LVL2_UP flag before entering C2 and above on
 	 * an SMP system. 
 	 */
-	if ((num_online_cpus() > 1) && acpi_fadt.plvl2_up)
+	if ((num_online_cpus() > 1) && !acpi_fadt.plvl2_up)
 		return_VALUE(-ENODEV);
 #endif
 
