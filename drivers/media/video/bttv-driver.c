@@ -2952,6 +2952,8 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 			fh->cap.read_buf->memory = V4L2_MEMORY_USERPTR;
 			field = videobuf_next_field(&fh->cap);
 			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,field)) {
+				kfree (fh->cap.read_buf);
+				fh->cap.read_buf = NULL;
 				up(&fh->cap.lock);
 				return POLLERR;
 			}
