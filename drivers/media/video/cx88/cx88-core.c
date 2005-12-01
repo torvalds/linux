@@ -877,9 +877,6 @@ static int set_tvaudio(struct cx88_core *core)
 	cx88_set_tvaudio(core);
 	/* cx88_set_stereo(dev,V4L2_TUNER_MODE_STEREO); */
 
-	cx_write(MO_AUDD_LNGTH,    128); /* fifo size */
-	cx_write(MO_AUDR_LNGTH,    128); /* fifo size */
-	cx_write(MO_AUD_DMACNTRL, 0x03); /* need audio fifo */
 	return 0;
 }
 
