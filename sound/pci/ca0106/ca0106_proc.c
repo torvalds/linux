@@ -77,6 +77,8 @@
 #include "ca0106.h"
 
 
+#ifdef CONFIG_PROC_FS
+
 struct snd_ca0106_category_str {
 	int val;
 	const char *name;
@@ -459,3 +461,4 @@ int __devinit snd_ca0106_proc_init(struct snd_ca0106 * emu)
 	return 0;
 }
 
+#endif /* CONFIG_PROC_FS */

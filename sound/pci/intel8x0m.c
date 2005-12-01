@@ -1066,6 +1066,7 @@ static int intel8x0m_resume(struct pci_dev *pci)
 }
 #endif /* CONFIG_PM */
 
+#ifdef CONFIG_PROC_FS
 static void snd_intel8x0m_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
 {
@@ -1093,6 +1094,10 @@ static void __devinit snd_intel8x0m_proc_init(struct intel8x0m * chip)
 	if (! snd_card_proc_new(chip->card, "intel8x0m", &entry))
 		snd_info_set_text_ops(entry, chip, 1024, snd_intel8x0m_proc_read);
 }
+#else /* !CONFIG_PROC_FS */
+#define snd_intel8x0m_proc_init(chip)
+#endif /* CONFIG_PROC_FS */
+
 
 static int snd_intel8x0_dev_free(struct snd_device *device)
 {

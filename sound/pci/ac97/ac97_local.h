@@ -57,7 +57,6 @@ struct ac97_enum {
   .private_value = (unsigned long)&xenum }
 
 /* ac97_codec.c */
-extern const char *snd_ac97_stereo_enhancements[];
 extern const struct snd_kcontrol_new snd_ac97_controls_3d[];
 extern const struct snd_kcontrol_new snd_ac97_controls_spdif[];
 struct snd_kcontrol *snd_ac97_cnew(const struct snd_kcontrol_new *_template, struct snd_ac97 * ac97);

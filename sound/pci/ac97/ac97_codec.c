@@ -184,42 +184,6 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0, 	      0,	  NULL,			NULL,		NULL }
 };
 
-const char *snd_ac97_stereo_enhancements[] =
-{
-  /*   0 */ "No 3D Stereo Enhancement",
-  /*   1 */ "Analog Devices Phat Stereo",
-  /*   2 */ "Creative Stereo Enhancement",
-  /*   3 */ "National Semi 3D Stereo Enhancement",
-  /*   4 */ "YAMAHA Ymersion",
-  /*   5 */ "BBE 3D Stereo Enhancement",
-  /*   6 */ "Crystal Semi 3D Stereo Enhancement",
-  /*   7 */ "Qsound QXpander",
-  /*   8 */ "Spatializer 3D Stereo Enhancement",
-  /*   9 */ "SRS 3D Stereo Enhancement",
-  /*  10 */ "Platform Tech 3D Stereo Enhancement",
-  /*  11 */ "AKM 3D Audio",
-  /*  12 */ "Aureal Stereo Enhancement",
-  /*  13 */ "Aztech 3D Enhancement",
-  /*  14 */ "Binaura 3D Audio Enhancement",
-  /*  15 */ "ESS Technology Stereo Enhancement",
-  /*  16 */ "Harman International VMAx",
-  /*  17 */ "Nvidea/IC Ensemble/KS Waves 3D Stereo Enhancement",
-  /*  18 */ "Philips Incredible Sound",
-  /*  19 */ "Texas Instruments 3D Stereo Enhancement",
-  /*  20 */ "VLSI Technology 3D Stereo Enhancement",
-  /*  21 */ "TriTech 3D Stereo Enhancement",
-  /*  22 */ "Realtek 3D Stereo Enhancement",
-  /*  23 */ "Samsung 3D Stereo Enhancement",
-  /*  24 */ "Wolfson Microelectronics 3D Enhancement",
-  /*  25 */ "Delta Integration 3D Enhancement",
-  /*  26 */ "SigmaTel 3D Enhancement",
-  /*  27 */ "IC Ensemble/KS Waves",
-  /*  28 */ "Rockwell 3D Stereo Enhancement",
-  /*  29 */ "Reserved 29",
-  /*  30 */ "Reserved 30",
-  /*  31 */ "Reserved 31"
-};
-
 
 /*
  *  I/O routines
@@ -1895,10 +1859,12 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 	init_MUTEX(&ac97->reg_mutex);
 	init_MUTEX(&ac97->page_mutex);
 
+#ifdef CONFIG_PCI
 	if (ac97->pci) {
 		pci_read_config_word(ac97->pci, PCI_SUBSYSTEM_VENDOR_ID, &ac97->subsystem_vendor);
 		pci_read_config_word(ac97->pci, PCI_SUBSYSTEM_ID, &ac97->subsystem_device);
 	}
+#endif
 	if (bus->ops->reset) {
 		bus->ops->reset(ac97);
 		goto __access_ok;

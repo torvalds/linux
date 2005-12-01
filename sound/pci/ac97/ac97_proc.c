@@ -68,6 +68,42 @@ static void snd_ac97_proc_read_functions(struct snd_ac97 *ac97, struct snd_info_
 	}
 }
 
+static const char *snd_ac97_stereo_enhancements[] =
+{
+  /*   0 */ "No 3D Stereo Enhancement",
+  /*   1 */ "Analog Devices Phat Stereo",
+  /*   2 */ "Creative Stereo Enhancement",
+  /*   3 */ "National Semi 3D Stereo Enhancement",
+  /*   4 */ "YAMAHA Ymersion",
+  /*   5 */ "BBE 3D Stereo Enhancement",
+  /*   6 */ "Crystal Semi 3D Stereo Enhancement",
+  /*   7 */ "Qsound QXpander",
+  /*   8 */ "Spatializer 3D Stereo Enhancement",
+  /*   9 */ "SRS 3D Stereo Enhancement",
+  /*  10 */ "Platform Tech 3D Stereo Enhancement",
+  /*  11 */ "AKM 3D Audio",
+  /*  12 */ "Aureal Stereo Enhancement",
+  /*  13 */ "Aztech 3D Enhancement",
+  /*  14 */ "Binaura 3D Audio Enhancement",
+  /*  15 */ "ESS Technology Stereo Enhancement",
+  /*  16 */ "Harman International VMAx",
+  /*  17 */ "Nvidea/IC Ensemble/KS Waves 3D Stereo Enhancement",
+  /*  18 */ "Philips Incredible Sound",
+  /*  19 */ "Texas Instruments 3D Stereo Enhancement",
+  /*  20 */ "VLSI Technology 3D Stereo Enhancement",
+  /*  21 */ "TriTech 3D Stereo Enhancement",
+  /*  22 */ "Realtek 3D Stereo Enhancement",
+  /*  23 */ "Samsung 3D Stereo Enhancement",
+  /*  24 */ "Wolfson Microelectronics 3D Enhancement",
+  /*  25 */ "Delta Integration 3D Enhancement",
+  /*  26 */ "SigmaTel 3D Enhancement",
+  /*  27 */ "IC Ensemble/KS Waves",
+  /*  28 */ "Rockwell 3D Stereo Enhancement",
+  /*  29 */ "Reserved 29",
+  /*  30 */ "Reserved 30",
+  /*  31 */ "Reserved 31"
+};
+
 static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffer *buffer, int subidx)
 {
 	char name[64];

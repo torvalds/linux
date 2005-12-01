@@ -88,8 +88,13 @@ void cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip);
 int cs46xx_dsp_load_module (struct snd_cs46xx * chip, struct dsp_module_desc * module);
 struct dsp_symbol_entry *cs46xx_dsp_lookup_symbol (struct snd_cs46xx * chip, char * symbol_name,
 						   int symbol_type);
+#ifdef CONFIG_PROC_FS
 int cs46xx_dsp_proc_init (struct snd_card *card, struct snd_cs46xx *chip);
 int cs46xx_dsp_proc_done (struct snd_cs46xx *chip);
+#else
+#define cs46xx_dsp_proc_init(card, chip)
+#define cs46xx_dsp_proc_done(chip)
+#endif
 int cs46xx_dsp_scb_and_task_init (struct snd_cs46xx *chip);
 int snd_cs46xx_download (struct snd_cs46xx *chip, u32 *src, unsigned long offset,
 			 unsigned long len);
@@ -106,9 +111,14 @@ int cs46xx_dsp_disable_adc_capture (struct snd_cs46xx *chip);
 int cs46xx_poke_via_dsp (struct snd_cs46xx *chip, u32 address, u32 data);
 struct dsp_scb_descriptor * cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name,
 						   u32 * scb_data, u32 dest);
+#ifdef CONFIG_PROC_FS
 void cs46xx_dsp_proc_free_scb_desc (struct dsp_scb_descriptor * scb);
 void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
 					struct dsp_scb_descriptor * scb);
+#else
+#define cs46xx_dsp_proc_free_scb_desc(scb)
+#define cs46xx_dsp_proc_register_scb_desc(chip, scb)
+#endif
 struct dsp_scb_descriptor * cs46xx_dsp_create_timing_master_scb (struct snd_cs46xx *chip);
 struct dsp_scb_descriptor *
 cs46xx_dsp_create_codec_out_scb(struct snd_cs46xx * chip,

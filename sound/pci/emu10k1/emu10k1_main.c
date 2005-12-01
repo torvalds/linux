@@ -1076,7 +1076,9 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, emu, &ops)) < 0)
 		goto error;
 
+#ifdef CONFIG_PROC_FS
 	snd_emu10k1_proc_init(emu);
+#endif
 
 	snd_card_set_dev(card, &pci->dev);
 	*remu = emu;

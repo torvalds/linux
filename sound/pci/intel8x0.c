@@ -2579,6 +2579,7 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	printk(KERN_INFO "intel8x0: clocking to %d\n", chip->ac97_bus->clock);
 }
 
+#ifdef CONFIG_PROC_FS
 static void snd_intel8x0_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
 {
@@ -2612,6 +2613,9 @@ static void __devinit snd_intel8x0_proc_init(struct intel8x0 * chip)
 	if (! snd_card_proc_new(chip->card, "intel8x0", &entry))
 		snd_info_set_text_ops(entry, chip, 1024, snd_intel8x0_proc_read);
 }
+#else
+#define snd_intel8x0_proc_init(x)
+#endif
 
 static int snd_intel8x0_dev_free(struct snd_device *device)
 {
