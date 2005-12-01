@@ -1739,6 +1739,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	unsigned int work_done = 0;
 	u16 hwidx;
 
+	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
 	BUG_ON(hwidx >= STATUS_RING_SIZE);
  	rmb();
