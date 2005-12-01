@@ -173,7 +173,7 @@ config IPW2100_MONITOR
 	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
 	  mode, no packets can be sent.
 
-config IPW_DEBUG
+config IPW2100_DEBUG
 	bool "Enable full debugging output in IPW2100 module."
 	depends on IPW2100
 	---help---
@@ -217,7 +217,7 @@ config IPW2200
           say M here and read <file:Documentation/modules.txt>.  The module
           will be called ipw2200.ko.
 
-config IPW_DEBUG
+config IPW2200_DEBUG
 	bool "Enable full debugging output in IPW2200 module."
 	depends on IPW2200
 	---help---

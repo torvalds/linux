@@ -462,7 +462,7 @@ static inline void ipw_disable_interrupts(struct ipw_priv *priv)
 	ipw_write32(priv, IPW_INTA_MASK_R, ~IPW_INTA_MASK_ALL);
 }
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 static char *ipw_error_desc(u32 val)
 {
 	switch (val) {
@@ -1235,7 +1235,7 @@ static ssize_t store_scan_age(struct device *d, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct ipw_priv *priv = dev_get_drvdata(d);
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 	struct net_device *dev = priv->net_dev;
 #endif
 	char buffer[] = "00000000";
@@ -1754,7 +1754,7 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 		IPW_ERROR("Firmware error detected.  Restarting.\n");
 		if (priv->error) {
 			IPW_ERROR("Sysfs 'error' log already exists.\n");
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 			if (ipw_debug_level & IPW_DL_FW_ERRORS) {
 				struct ipw_fw_error *error =
 				    ipw_alloc_error_log(priv);
@@ -1770,7 +1770,7 @@ static void ipw_irq_tasklet(struct ipw_priv *priv)
 			else
 				IPW_ERROR("Error allocating sysfs 'error' "
 					  "log.\n");
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 			if (ipw_debug_level & IPW_DL_FW_ERRORS)
 				ipw_dump_error_log(priv, priv->error);
 #endif
@@ -3778,7 +3778,7 @@ static const struct ipw_status_code ipw_status_codes[] = {
 	{0x2E, "Cipher suite is rejected per security policy"},
 };
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 static const char *ipw_get_status_code(u16 status)
 {
 	int i;
@@ -4250,7 +4250,7 @@ static inline void ipw_rx_notification(struct ipw_priv *priv,
 					if (priv->
 					    status & (STATUS_ASSOCIATED |
 						      STATUS_AUTH)) {
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 						struct notif_authenticate *auth
 						    = &notif->u.auth;
 						IPW_DEBUG(IPW_DL_NOTIF |
@@ -5827,7 +5827,7 @@ static void ipw_bg_adhoc_check(void *data)
 	up(&priv->sem);
 }
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 static void ipw_debug_config(struct ipw_priv *priv)
 {
 	IPW_DEBUG_INFO("Scan completed, no valid APs matched "
@@ -7814,7 +7814,7 @@ static void ipw_rx(struct ipw_priv *priv)
 
 	while (i != r) {
 		rxb = priv->rxq->queue[i];
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 		if (unlikely(rxb == NULL)) {
 			printk(KERN_CRIT "Queue not allocated!\n");
 			break;
@@ -10955,7 +10955,7 @@ static int ipw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	priv->net_dev = net_dev;
 	priv->pci_dev = pdev;
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 	ipw_debug_level = debug;
 #endif
 	spin_lock_init(&priv->lock);
