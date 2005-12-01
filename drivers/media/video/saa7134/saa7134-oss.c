@@ -899,7 +899,7 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status)
 	spin_unlock(&dev->slock);
 }
 
-int saa7134_dsp_create(struct saa7134_dev *dev)
+static int saa7134_dsp_create(struct saa7134_dev *dev)
 {
 	int err;
 
@@ -981,7 +981,7 @@ static int saa7134_oss_init(void)
 
 }
 
-void saa7134_oss_exit(void)
+static void saa7134_oss_exit(void)
 {
         struct saa7134_dev *dev = NULL;
         struct list_head *list;

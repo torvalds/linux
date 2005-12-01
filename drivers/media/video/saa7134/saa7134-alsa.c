@@ -138,7 +138,8 @@ static void saa7134_dma_start(struct saa7134_dev *dev)
  *
  */
 
-void saa7134_irq_alsa_done(struct saa7134_dev *dev, unsigned long status)
+static void saa7134_irq_alsa_done(struct saa7134_dev *dev,
+				  unsigned long status)
 {
 	int next_blk, reg = 0;
 
@@ -879,7 +880,7 @@ static void snd_saa7134_free(snd_card_t * card)
  *
  */
 
-int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
+static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 {
 
 	snd_card_t *card;
@@ -1009,7 +1010,7 @@ static int saa7134_alsa_init(void)
  * Module destructor
  */
 
-void saa7134_alsa_exit(void)
+static void saa7134_alsa_exit(void)
 {
 	int idx;
 
