@@ -256,10 +256,14 @@ static int check_selfids(struct hpsb_host *host)
 
         esid = (struct ext_selfid *)(sid - 1);
         while (esid->extended) {
-                if ((esid->porta == 0x2) || (esid->portb == 0x2)
-                    || (esid->portc == 0x2) || (esid->portd == 0x2)
-                    || (esid->porte == 0x2) || (esid->portf == 0x2)
-                    || (esid->portg == 0x2) || (esid->porth == 0x2)) {
+                if ((esid->porta == SELFID_PORT_PARENT) ||
+		    (esid->portb == SELFID_PORT_PARENT) ||
+		    (esid->portc == SELFID_PORT_PARENT) ||
+		    (esid->portd == SELFID_PORT_PARENT) ||
+		    (esid->porte == SELFID_PORT_PARENT) ||
+		    (esid->portf == SELFID_PORT_PARENT) ||
+		    (esid->portg == SELFID_PORT_PARENT) ||
+		    (esid->porth == SELFID_PORT_PARENT)) {
 			HPSB_INFO("SelfIDs failed root check on "
 				  "extended SelfID");
 			return 0;
@@ -268,7 +272,9 @@ static int check_selfids(struct hpsb_host *host)
         }
 
         sid = (struct selfid *)esid;
-        if ((sid->port0 == 0x2) || (sid->port1 == 0x2) || (sid->port2 == 0x2)) {
+	if ((sid->port0 == SELFID_PORT_PARENT) ||
+	    (sid->port1 == SELFID_PORT_PARENT) ||
+	    (sid->port2 == SELFID_PORT_PARENT)) {
 		HPSB_INFO("SelfIDs failed root check");
 		return 0;
         }
@@ -303,18 +309,18 @@ static void build_speed_map(struct hpsb_host *host, int nodecount)
                 if (sid->extended) {
                         esid = (struct ext_selfid *)sid;
 
-                        if (esid->porta == 0x3) cldcnt[n]++;
-                        if (esid->portb == 0x3) cldcnt[n]++;
-                        if (esid->portc == 0x3) cldcnt[n]++;
-                        if (esid->portd == 0x3) cldcnt[n]++;
-                        if (esid->porte == 0x3) cldcnt[n]++;
-                        if (esid->portf == 0x3) cldcnt[n]++;
-                        if (esid->portg == 0x3) cldcnt[n]++;
-                        if (esid->porth == 0x3) cldcnt[n]++;
+			if (esid->porta == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (esid->portb == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (esid->portc == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (esid->portd == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (esid->porte == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (esid->portf == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (esid->portg == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (esid->porth == SELFID_PORT_CHILD) cldcnt[n]++;
                 } else {
-                        if (sid->port0 == 0x3) cldcnt[n]++;
-                        if (sid->port1 == 0x3) cldcnt[n]++;
-                        if (sid->port2 == 0x3) cldcnt[n]++;
+			if (sid->port0 == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (sid->port1 == SELFID_PORT_CHILD) cldcnt[n]++;
+			if (sid->port2 == SELFID_PORT_CHILD) cldcnt[n]++;
 
                         speedcap[n] = sid->speed;
                         n--;

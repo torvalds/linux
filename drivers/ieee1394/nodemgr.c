@@ -1416,7 +1416,8 @@ static int nodemgr_send_resume_packet(struct hpsb_host *host)
 	int ret = 1;
 
 	packet = hpsb_make_phypacket(host,
-			0x003c0000 | NODEID_TO_NODE(host->node_id) << 24);
+			EXTPHYPACKET_TYPE_RESUME |
+			NODEID_TO_NODE(host->node_id) << PHYPACKET_PORT_SHIFT);
 	if (packet) {
 		packet->no_waiter = 1;
 		packet->generation = get_hpsb_generation(host);
