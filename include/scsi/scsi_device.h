@@ -79,9 +79,9 @@ struct scsi_device {
 	char inq_periph_qual;	/* PQ from INQUIRY data */	
 	unsigned char inquiry_len;	/* valid bytes in 'inquiry' */
 	unsigned char * inquiry;	/* INQUIRY response data */
-	char * vendor;		/* [back_compat] point into 'inquiry' ... */
-	char * model;		/* ... after scan; point to static string */
-	char * rev;		/* ... "nullnullnullnull" before scan */
+	const char * vendor;		/* [back_compat] point into 'inquiry' ... */
+	const char * model;		/* ... after scan; point to static string */
+	const char * rev;		/* ... "nullnullnullnull" before scan */
 	unsigned char current_tag;	/* current tag */
 	struct scsi_target      *sdev_target;   /* used only for single_lun */
 
