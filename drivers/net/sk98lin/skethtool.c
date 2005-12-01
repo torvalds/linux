@@ -549,4 +549,6 @@ struct ethtool_ops SkGeEthtoolOps = {
 	.phys_id		= locateDevice,
 	.get_pauseparam		= getPauseParams,
 	.set_pauseparam		= setPauseParams,
+	.get_link		= ethtool_op_get_link,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };

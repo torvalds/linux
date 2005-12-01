@@ -28,8 +28,8 @@
 
 #define DRV_MODULE_NAME		"b44"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.96"
-#define DRV_MODULE_RELDATE	"Nov 8, 2005"
+#define DRV_MODULE_VERSION	"0.97"
+#define DRV_MODULE_RELDATE	"Nov 30, 2005"
 
 #define B44_DEF_MSG_ENABLE	  \
 	(NETIF_MSG_DRV		| \
@@ -1417,6 +1417,7 @@ static int b44_open(struct net_device *dev)
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
+	netif_start_queue(dev);
 out:
 	return err;
 }
@@ -1837,12 +1838,15 @@ static int b44_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mii_ioctl_data *data = if_mii(ifr);
 	struct b44 *bp = netdev_priv(dev);
-	int err;
+	int err = -EINVAL;
+
+	if (!netif_running(dev))
+		goto out;
 
 	spin_lock_irq(&bp->lock);
 	err = generic_mii_ioctl(&bp->mii_if, data, cmd, NULL);
 	spin_unlock_irq(&bp->lock);
-
+out:
 	return err;
 }
 
@@ -2113,6 +2117,7 @@ static int b44_resume(struct pci_dev *pdev)
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
+	netif_wake_queue(dev);
 	return 0;
 }
 
