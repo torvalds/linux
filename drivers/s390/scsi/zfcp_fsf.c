@@ -2191,13 +2191,10 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action,
                 return -EOPNOTSUPP;
         }
 
-	timer = kmalloc(sizeof(struct timer_list), GFP_KERNEL);
-	if (!timer)
-		return -ENOMEM;
-
 	/* setup new FSF request */
 	retval = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_PORT_DATA,
-                                     0, 0, &lock_flags, &fsf_req);
+				     erp_action ? ZFCP_REQ_AUTO_CLEANUP : 0,
+				     0, &lock_flags, &fsf_req);
 	if (retval < 0) {
 		ZFCP_LOG_INFO("error: Out of resources. Could not create an "
                               "exchange port data request for"
@@ -2205,25 +2202,33 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action,
 			      zfcp_get_busid_by_adapter(adapter));
 		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
 					lock_flags);
-		goto out;
-	}
-
-	if (erp_action) {
-		erp_action->fsf_req = fsf_req;
-		fsf_req->erp_action = erp_action;
+		return retval;
 	}
 
 	if (data)
-	fsf_req->data = (unsigned long) data;
+		fsf_req->data = (unsigned long) data;
 
 	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
         sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
         sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
-	init_timer(timer);
-	timer->function = zfcp_fsf_request_timeout_handler;
-	timer->data = (unsigned long) adapter;
-	timer->expires = ZFCP_FSF_REQUEST_TIMEOUT;
+	if (erp_action) {
+		erp_action->fsf_req = fsf_req;
+		fsf_req->erp_action = erp_action;
+		timer = &erp_action->timer;
+	} else {
+		timer = kmalloc(sizeof(struct timer_list), GFP_ATOMIC);
+		if (!timer) {
+			write_unlock_irqrestore(&adapter->request_queue.queue_lock,
+						lock_flags);
+			zfcp_fsf_req_free(fsf_req);
+			return -ENOMEM;
+		}
+		init_timer(timer);
+		timer->function = zfcp_fsf_request_timeout_handler;
+		timer->data = (unsigned long) adapter;
+		timer->expires = ZFCP_FSF_REQUEST_TIMEOUT;
+	}
 
 	retval = zfcp_fsf_req_send(fsf_req, timer);
 	if (retval) {
@@ -2233,23 +2238,22 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action,
 		zfcp_fsf_req_free(fsf_req);
 		if (erp_action)
 			erp_action->fsf_req = NULL;
+		else
+			kfree(timer);
 		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
 					lock_flags);
-		goto out;
+		return retval;
 	}
 
-	ZFCP_LOG_DEBUG("Exchange Port Data request initiated (adapter %s)\n",
-		       zfcp_get_busid_by_adapter(adapter));
+	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
 
-	write_unlock_irqrestore(&adapter->request_queue.queue_lock,
-				lock_flags);
-
-	wait_event(fsf_req->completion_wq,
-		   fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
-	del_timer_sync(timer);
-	zfcp_fsf_req_free(fsf_req);
- out:
-	kfree(timer);
+	if (!erp_action) {
+		wait_event(fsf_req->completion_wq,
+			   fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+		del_timer_sync(timer);
+		zfcp_fsf_req_free(fsf_req);
+		kfree(timer);
+	}
 	return retval;
 }
 
