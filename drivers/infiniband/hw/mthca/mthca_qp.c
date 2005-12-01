@@ -871,7 +871,10 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 				       qp->ibqp.srq ? to_msrq(qp->ibqp.srq) : NULL);
 
 		mthca_wq_init(&qp->sq);
+		qp->sq.last = get_send_wqe(qp, qp->sq.max - 1);
+
 		mthca_wq_init(&qp->rq);
+		qp->rq.last = get_recv_wqe(qp, qp->rq.max - 1);
 
 		if (mthca_is_memfree(dev)) {
 			*qp->sq.db = 0;
@@ -1819,6 +1822,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 {
 	struct mthca_dev *dev = to_mdev(ibqp->device);
 	struct mthca_qp *qp = to_mqp(ibqp);
+	__be32 doorbell[2];
 	void *wqe;
 	void *prev_wqe;
 	unsigned long flags;
@@ -1838,6 +1842,34 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	ind = qp->sq.head & (qp->sq.max - 1);
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
+		if (unlikely(nreq == MTHCA_ARBEL_MAX_WQES_PER_SEND_DB)) {
+			nreq = 0;
+
+			doorbell[0] = cpu_to_be32((MTHCA_ARBEL_MAX_WQES_PER_SEND_DB << 24) |
+						  ((qp->sq.head & 0xffff) << 8) |
+						  f0 | op0);
+			doorbell[1] = cpu_to_be32((qp->qpn << 8) | size0);
+
+			qp->sq.head += MTHCA_ARBEL_MAX_WQES_PER_SEND_DB;
+			size0 = 0;
+
+			/*
+			 * Make sure that descriptors are written before
+			 * doorbell record.
+			 */
+			wmb();
+			*qp->sq.db = cpu_to_be32(qp->sq.head & 0xffff);
+
+			/*
+			 * Make sure doorbell record is written before we
+			 * write MMIO send doorbell.
+			 */
+			wmb();
+			mthca_write64(doorbell,
+				      dev->kar + MTHCA_SEND_DOORBELL,
+				      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
+		}
+
 		if (mthca_wq_overflow(&qp->sq, nreq, qp->ibqp.send_cq)) {
 			mthca_err(dev, "SQ %06x full (%u head, %u tail,"
 					" %d max, %d nreq)\n", qp->qpn,
@@ -2014,8 +2046,6 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 out:
 	if (likely(nreq)) {
-		__be32 doorbell[2];
-
 		doorbell[0] = cpu_to_be32((nreq << 24)                  |
 					  ((qp->sq.head & 0xffff) << 8) |
 					  f0 | op0);
