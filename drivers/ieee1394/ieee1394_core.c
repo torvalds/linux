@@ -463,6 +463,7 @@ void hpsb_packet_sent(struct hpsb_host *host, struct hpsb_packet *packet,
 int hpsb_send_phy_config(struct hpsb_host *host, int rootid, int gapcnt)
 {
 	struct hpsb_packet *packet;
+	quadlet_t d = 0;
 	int retval = 0;
 
 	if (rootid >= ALL_NODES || rootid < -1 || gapcnt > 0x3f || gapcnt < -1 ||
@@ -472,26 +473,16 @@ int hpsb_send_phy_config(struct hpsb_host *host, int rootid, int gapcnt)
 		return -EINVAL;
 	}
 
-	packet = hpsb_alloc_packet(0);
+	if (rootid != -1)
+		d |= PHYPACKET_PHYCONFIG_R | rootid << PHYPACKET_PORT_SHIFT;
+	if (gapcnt != -1)
+		d |= PHYPACKET_PHYCONFIG_T | gapcnt << PHYPACKET_GAPCOUNT_SHIFT;
+
+	packet = hpsb_make_phypacket(host, d);
 	if (!packet)
 		return -ENOMEM;
 
-	packet->host = host;
-	packet->header_size = 8;
-	packet->data_size = 0;
-	packet->expect_response = 0;
-	packet->no_waiter = 0;
-	packet->type = hpsb_raw;
-	packet->header[0] = 0;
-	if (rootid != -1)
-		packet->header[0] |= rootid << 24 | 1 << 23;
-	if (gapcnt != -1)
-		packet->header[0] |= gapcnt << 16 | 1 << 22;
-
-	packet->header[1] = ~packet->header[0];
-
 	packet->generation = get_hpsb_generation(host);
-
 	retval = hpsb_send_packet_and_wait(packet);
 	hpsb_free_packet(packet);
 
