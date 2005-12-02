@@ -97,25 +97,44 @@ static int __init arcrimi_probe(struct net_device *dev)
 		       "must specify the shmem and irq!\n");
 		return -ENODEV;
 	}
+	if (dev->dev_addr[0] == 0) {
+		BUGMSG(D_NORMAL, "You need to specify your card's station "
+		       "ID!\n");
+		return -ENODEV;
+	}
 	/*
-	 * Grab the memory region at mem_start for BUFFER_SIZE bytes.
+	 * Grab the memory region at mem_start for MIRROR_SIZE bytes.
 	 * Later in arcrimi_found() the real size will be determined
 	 * and this reserve will be released and the correct size
 	 * will be taken.
 	 */
-	if (!request_mem_region(dev->mem_start, BUFFER_SIZE, "arcnet (90xx)")) {
+	if (!request_mem_region(dev->mem_start, MIRROR_SIZE, "arcnet (90xx)")) {
 		BUGMSG(D_NORMAL, "Card memory already allocated\n");
-		return -ENODEV;
-	}
-	if (dev->dev_addr[0] == 0) {
-		release_mem_region(dev->mem_start, BUFFER_SIZE);
-		BUGMSG(D_NORMAL, "You need to specify your card's station "
-		       "ID!\n");
 		return -ENODEV;
 	}
 	return arcrimi_found(dev);
 }
 
+static int check_mirror(unsigned long addr, size_t size)
+{
+	void __iomem *p;
+	int res = -1;
+
+	if (!request_mem_region(addr, size, "arcnet (90xx)"))
+		return -1;
+
+	p = ioremap(addr, size);
+	if (p) {
+		if (readb(p) == TESTvalue)
+			res = 1;
+		else
+			res = 0;
+		iounmap(p);
+	}
+
+	release_mem_region(addr, size);
+	return res;
+}
 
 /*
  * Set up the struct net_device associated with this card.  Called after
@@ -125,19 +144,28 @@ static int __init arcrimi_found(struct net_device *dev)
 {
 	struct arcnet_local *lp;
 	unsigned long first_mirror, last_mirror, shmem;
+	void __iomem *p;
 	int mirror_size;
 	int err;
 
+	p = ioremap(dev->mem_start, MIRROR_SIZE);
+	if (!p) {
+		release_mem_region(dev->mem_start, MIRROR_SIZE);
+		BUGMSG(D_NORMAL, "Can't ioremap\n");
+		return -ENODEV;
+	}
+
 	/* reserve the irq */
 	if (request_irq(dev->irq, &arcnet_interrupt, 0, "arcnet (RIM I)", dev)) {
-		release_mem_region(dev->mem_start, BUFFER_SIZE);
+		iounmap(p);
+		release_mem_region(dev->mem_start, MIRROR_SIZE);
 		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", dev->irq);
 		return -ENODEV;
 	}
 
 	shmem = dev->mem_start;
-	isa_writeb(TESTvalue, shmem);
-	isa_writeb(dev->dev_addr[0], shmem + 1);	/* actually the node ID */
+	writeb(TESTvalue, p);
+	writeb(dev->dev_addr[0], p + 1);	/* actually the node ID */
 
 	/* find the real shared memory start/end points, including mirrors */
 
@@ -146,17 +174,18 @@ static int __init arcrimi_found(struct net_device *dev)
 	 * 2k (or there are no mirrors at all) but on some, it's 4k.
 	 */
 	mirror_size = MIRROR_SIZE;
-	if (isa_readb(shmem) == TESTvalue
-	    && isa_readb(shmem - mirror_size) != TESTvalue
-	    && isa_readb(shmem - 2 * mirror_size) == TESTvalue)
-		mirror_size *= 2;
+	if (readb(p) == TESTvalue
+	    && check_mirror(shmem - MIRROR_SIZE, MIRROR_SIZE) == 0
+	    && check_mirror(shmem - 2 * MIRROR_SIZE, MIRROR_SIZE) == 1)
+		mirror_size = 2 * MIRROR_SIZE;
 
-	first_mirror = last_mirror = shmem;
-	while (isa_readb(first_mirror) == TESTvalue)
+	first_mirror = shmem - mirror_size;
+	while (check_mirror(first_mirror, mirror_size) == 1)
 		first_mirror -= mirror_size;
 	first_mirror += mirror_size;
 
-	while (isa_readb(last_mirror) == TESTvalue)
+	last_mirror = shmem + mirror_size;
+	while (check_mirror(last_mirror, mirror_size) == 1)
 		last_mirror += mirror_size;
 	last_mirror -= mirror_size;
 
@@ -181,7 +210,8 @@ static int __init arcrimi_found(struct net_device *dev)
 	 * with the correct size.  There is a VERY slim chance this could
 	 * fail.
 	 */
-	release_mem_region(shmem, BUFFER_SIZE);
+	iounmap(p);
+	release_mem_region(shmem, MIRROR_SIZE);
 	if (!request_mem_region(dev->mem_start,
 				dev->mem_end - dev->mem_start + 1,
 				"arcnet (90xx)")) {
