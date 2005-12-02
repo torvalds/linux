@@ -82,6 +82,12 @@ struct smb_vol {
 	unsigned remap:1;   /* set to remap seven reserved chars in filenames */
 	unsigned posix_paths:1;   /* unset to not ask for posix pathnames. */
 	unsigned sfu_emul:1;
+	unsigned krb5:1;
+	unsigned ntlm:1;
+	unsigned ntlmv2:1;
+	unsigned nullauth:1; /* attempt to authenticate with null user */
+	unsigned sign:1;
+	unsigned seal:1;     /* encrypt */
 	unsigned nocase;     /* request case insensitive filenames */
 	unsigned nobrl;      /* disable sending byte range locks to srv */
 	unsigned int rsize;
@@ -777,7 +783,7 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
 	vol->rw = TRUE;
-
+	vol->ntlm = TRUE;
 	/* default is always to request posix paths. */
 	vol->posix_paths = 1;
 
@@ -903,6 +909,39 @@ cifs_parse_mount_options(char *options, const char *devname,struct smb_vol *vol)
 				printk(KERN_WARNING "CIFS: ip address too long\n");
 				return 1;
 			}
+                } else if (strnicmp(data, "sec", 3) == 0) { 
+                        if (!value || !*value) {
+				cERROR(1,("no security value specified"));
+                                continue;
+                        } else if (strnicmp(value, "krb5i", 5) == 0) {
+				vol->sign = 1;
+				vol->krb5 = 1;
+			} else if (strnicmp(value, "krb5p", 5) == 0) {
+				/* vol->seal = 1; 
+				   vol->krb5 = 1; */
+				cERROR(1,("Krb5 cifs privacy not supported"));
+				return 1;
+			} else if (strnicmp(value, "krb5", 4) == 0) {
+				vol->krb5 = 1;
+			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
+				vol->ntlmv2 = 1;
+				vol->sign = 1;
+			} else if (strnicmp(value, "ntlmv2", 6) == 0) {
+				vol->ntlmv2 = 1;
+			} else if (strnicmp(value, "ntlmi", 5) == 0) {
+				vol->ntlm = 1;
+				vol->sign = 1;
+			} else if (strnicmp(value, "ntlm", 4) == 0) {
+				/* ntlm is default so can be turned off too */
+				vol->ntlm = 1;
+			} else if (strnicmp(value, "nontlm", 6) == 0) {
+				vol->ntlm = 0;
+			} else if (strnicmp(value, "none", 4) == 0) {
+				vol->nullauth = 1; 
+                        } else {
+                                cERROR(1,("bad security option: %s", value));
+                                return 1;
+                        }
 		} else if ((strnicmp(data, "unc", 3) == 0)
 			   || (strnicmp(data, "target", 6) == 0)
 			   || (strnicmp(data, "path", 4) == 0)) {
@@ -1546,7 +1585,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cFYI(1, ("Username: %s ", volume_info.username));
 
 	} else {
-		cifserror("No username specified ");
+		cifserror("No username specified");
         /* In userspace mount helper we can get user name from alternate
            locations such as env variables and files on disk */
 		kfree(volume_info.UNC);
@@ -1587,7 +1626,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		return -EINVAL;
 	} else /* which servers DFS root would we conect to */ {
 		cERROR(1,
-		       ("CIFS mount error: No UNC path (e.g. -o unc=//192.168.1.100/public) specified  "));
+		       ("CIFS mount error: No UNC path (e.g. -o unc=//192.168.1.100/public) specified"));
 		kfree(volume_info.UNC);
 		kfree(volume_info.password);
 		FreeXid(xid);
@@ -1626,7 +1665,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 
 	if (srvTcp) {
-		cFYI(1, ("Existing tcp session with server found "));                
+		cFYI(1, ("Existing tcp session with server found"));                
 	} else {	/* create socket */
 		if(volume_info.port)
 			sin_server.sin_port = htons(volume_info.port);
@@ -1689,11 +1728,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	if (existingCifsSes) {
 		pSesInfo = existingCifsSes;
-		cFYI(1, ("Existing smb sess found "));
+		cFYI(1, ("Existing smb sess found"));
 		kfree(volume_info.password);
 		/* volume_info.UNC freed at end of function */
 	} else if (!rc) {
-		cFYI(1, ("Existing smb sess not found "));
+		cFYI(1, ("Existing smb sess not found"));
 		pSesInfo = sesInfoAlloc();
 		if (pSesInfo == NULL)
 			rc = -ENOMEM;
@@ -1777,7 +1816,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		    find_unc(sin_server.sin_addr.s_addr, volume_info.UNC,
 			     volume_info.username);
 		if (tcon) {
-			cFYI(1, ("Found match on UNC path "));
+			cFYI(1, ("Found match on UNC path"));
 			/* we can have only one retry value for a connection
 			   to a share so for resources mounted more than once
 			   to the same server share the last value passed in 
