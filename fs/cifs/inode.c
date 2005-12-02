@@ -750,8 +750,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 						    mode,
-						    (__u64)current->euid,
-						    (__u64)current->egid,
+						    (__u64)current->fsuid,
+						    (__u64)current->fsgid,
 						    0 /* dev_t */,
 						    cifs_sb->local_nls,
 						    cifs_sb->mnt_cifs_flags &

@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/misc.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2004
+ *   Copyright (C) International Business Machines  Corp., 2002,2005
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -348,12 +348,12 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		/*  BB Add support for establishing new tCon and SMB Session  */
 		/*      with userid/password pairs found on the smb session   */ 
 		/*	for other target tcp/ip addresses 		BB    */
-				if(current->uid != treeCon->ses->linux_uid) {
-					cFYI(1,("Multiuser mode and UID did not match tcon uid "));
+				if(current->fsuid != treeCon->ses->linux_uid) {
+					cFYI(1,("Multiuser mode and UID did not match tcon uid"));
 					read_lock(&GlobalSMBSeslock);
 					list_for_each(temp_item, &GlobalSMBSessionList) {
 						ses = list_entry(temp_item, struct cifsSesInfo, cifsSessionList);
-						if(ses->linux_uid == current->uid) {
+						if(ses->linux_uid == current->fsuid) {
 							if(ses->server == treeCon->ses->server) {
 								cFYI(1,("found matching uid substitute right smb_uid"));  
 								buffer->Uid = ses->Suid;
