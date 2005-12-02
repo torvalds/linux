@@ -698,7 +698,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	int enable;
 	struct pci_dn *pdn = PCI_DN(dn);
 
-	pdn->class_code = *class_code;
+	pdn->class_code = 0;
 	pdn->eeh_mode = 0;
 	pdn->eeh_check_count = 0;
 	pdn->eeh_freeze_count = 0;
@@ -715,6 +715,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 		pdn->eeh_mode |= EEH_MODE_NOCHECK;
 		return NULL;
 	}
+	pdn->class_code = *class_code;
 
 	/*
 	 * Now decide if we are going to "Disable" EEH checking
