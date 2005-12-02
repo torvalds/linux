@@ -154,7 +154,8 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 	struct pci_controller *phb = pdn->phb;
 	struct pci_dev *dev = NULL;
 
-	rpaphp_eeh_init_nodes(dn);
+	eeh_add_device_tree_early(dn);
+
 	/* Add EADS device to PHB bus, adding new entry to bus->devices */
 	dev = of_create_pci_dev(dn, phb->bus, pdn->devfn);
 	if (!dev) {
