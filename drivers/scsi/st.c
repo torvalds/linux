@@ -4525,8 +4525,6 @@ static int sgl_unmap_user_pages(struct scatterlist *sgl, const unsigned int nr_p
 	for (i=0; i < nr_pages; i++) {
 		struct page *page = sgl[i].page;
 
-		/* XXX: just for debug. Remove when PageReserved is removed */
-		BUG_ON(PageReserved(page));
 		if (dirtied)
 			SetPageDirty(page);
 		/* FIXME: cache flush missing for rw==READ
