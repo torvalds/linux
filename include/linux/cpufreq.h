@@ -256,6 +256,16 @@ int cpufreq_update_policy(unsigned int cpu);
 /* query the current CPU frequency (in kHz). If zero, cpufreq couldn't detect it */
 unsigned int cpufreq_get(unsigned int cpu);
 
+/* query the last known CPU freq (in kHz). If zero, cpufreq couldn't detect it */
+#ifdef CONFIG_CPU_FREQ
+unsigned int cpufreq_quick_get(unsigned int cpu);
+#else
+static inline unsigned int cpufreq_quick_get(unsigned int cpu)
+{
+	return 0;
+}
+#endif
+
 
 /*********************************************************************
  *                       CPUFREQ DEFAULT GOVERNOR                    *
