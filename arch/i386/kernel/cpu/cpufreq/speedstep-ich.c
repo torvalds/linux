@@ -315,10 +315,11 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	cpus_allowed = current->cpus_allowed;
 	set_cpus_allowed(current, policy->cpus);
 
-	/* detect low and high frequency */
+	/* detect low and high frequency and transition latency */
 	result = speedstep_get_freqs(speedstep_processor,
 				     &speedstep_freqs[SPEEDSTEP_LOW].frequency,
 				     &speedstep_freqs[SPEEDSTEP_HIGH].frequency,
+				     &policy->cpuinfo.transition_latency,
 				     &speedstep_set_state);
 	set_cpus_allowed(current, cpus_allowed);
 	if (result)
@@ -335,7 +336,6 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	/* cpuinfo and default policy values */
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	policy->cur = speed;
 
 	result = cpufreq_frequency_table_cpuinfo(policy, speedstep_freqs);
