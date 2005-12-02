@@ -206,7 +206,6 @@ smb_send(struct socket *ssocket, struct smb_hdr *smb_buffer,
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 static int
 smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 	  struct sockaddr *sin)
@@ -392,8 +391,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		return -ENOMEM;
 	}
 
-/* BB FIXME */
-/* 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number); */
+ 	rc = cifs_sign_smb2(iov, n_vec, ses->server, &midQ->sequence_number);
 
 	midQ->midState = MID_REQUEST_SUBMITTED;
 #ifdef CONFIG_CIFS_STATS2
@@ -492,11 +490,17 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 
 		if (midQ->resp_buf && 
 			(midQ->midState == MID_RESPONSE_RECEIVED)) {
+
 			in_buf->smb_buf_length = receive_len;
-			/* BB verify that length would not overrun small buf */
-			memcpy((char *)in_buf + 4,
-			       (char *)midQ->resp_buf + 4,
-			       receive_len);
+			if(receive_len > 500) {
+				/* use multiple buffers on way out */
+			} else { 
+				memcpy((char *)in_buf + 4,
+					(char *)midQ->resp_buf + 4,
+					receive_len);
+				iov[0].iov_len = receive_len + 4;
+				iov[1].iov_len = 0;
+			}
 
 			dump_smb(in_buf, 80);
 			/* convert the length into a more usable form */
@@ -549,7 +553,6 @@ out_unlock2:
 
 	return rc;
 }
-#endif /* CIFS_EXPERIMENTAL */
 
 int
 SendReceive(const unsigned int xid, struct cifsSesInfo *ses,

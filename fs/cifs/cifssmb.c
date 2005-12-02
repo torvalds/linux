@@ -1155,7 +1155,6 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 int
 CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	     const int netfid, const unsigned int count,
@@ -1223,7 +1222,7 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 		*nbytes = le16_to_cpu(pSMBr->CountHigh);
 		*nbytes = (*nbytes) << 16;
 		*nbytes += le16_to_cpu(pSMBr->Count);
-	}
+	} 
 
 	cifs_small_buf_release(pSMB);
 
@@ -1233,8 +1232,6 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	return rc;
 }
 
-
-#endif /* CIFS_EXPERIMENTAL */
 
 int
 CIFSSMBLock(const int xid, struct cifsTconInfo *tcon,

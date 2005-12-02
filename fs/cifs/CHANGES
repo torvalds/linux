@@ -1,6 +1,7 @@
 Version 1.40
 ------------
-Use fsuid (fsgid) more consistently instead of uid (gid).
+Use fsuid (fsgid) more consistently instead of uid (gid). Improve performance
+of readpages by eliminating one extra memcpy.
 
 Version 1.39
 ------------

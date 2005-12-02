@@ -48,7 +48,7 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct smb_hdr * /* out */ ,
 			int * /* bytes returned */ , const int long_op);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
-			struct kvec *, int /* nvec */,
+			struct kvec *, int /* nvec to send */, 
 			int * /* bytes returned */ , const int long_op);
 extern int checkSMBhdr(struct smb_hdr *smb, __u16 mid);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, int length);
@@ -237,12 +237,10 @@ extern int CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 			const __u64 lseek, unsigned int *nbytes,
 			const char *buf, const char __user *ubuf, 
 			const int long_op);
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 extern int CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, const unsigned int count,
 			const __u64 offset, unsigned int *nbytes, 
 			struct kvec *iov, const int nvec, const int long_op);
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
 extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 * inode_number,
 			const struct nls_table *nls_codepage, 
@@ -269,6 +267,8 @@ extern void tconInfoFree(struct cifsTconInfo *);
 extern int cifs_reconnect(struct TCP_Server_Info *server);
 
 extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *,__u32 *);
+extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
+			  __u32 *);
 extern int cifs_verify_signature(struct smb_hdr *, const char * mac_key,
 	__u32 expected_sequence_number);
 extern int cifs_calculate_mac_key(char * key,const char * rn,const char * pass);

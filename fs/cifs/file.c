@@ -870,7 +870,6 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 				if (rc != 0)
 					break;
 			}
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 			/* BB FIXME We can not sign across two buffers yet */
 			if((experimEnabled) && ((pTcon->ses->server->secMode & 
 			 (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) == 0)) {
@@ -889,7 +888,6 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 						iov, 1, long_op);
 			} else
 			/* BB FIXME fixup indentation of line below */
-#endif			
 			rc = CIFSSMBWrite(xid, pTcon,
 				 open_file->netfid,
 				 min_t(const int, cifs_sb->wsize, 
@@ -1026,7 +1024,6 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 static int cifs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
@@ -1229,7 +1226,6 @@ retry:
 
 	return rc;
 }
-#endif
 
 static int cifs_writepage(struct page* page, struct writeback_control *wbc)
 {
@@ -1875,9 +1871,7 @@ struct address_space_operations cifs_addr_ops = {
 	.readpage = cifs_readpage,
 	.readpages = cifs_readpages,
 	.writepage = cifs_writepage,
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 	.writepages = cifs_writepages,
-#endif
 	.prepare_write = cifs_prepare_write,
 	.commit_write = cifs_commit_write,
 	.set_page_dirty = __set_page_dirty_nobuffers,
