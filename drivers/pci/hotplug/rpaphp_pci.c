@@ -62,28 +62,6 @@ struct pci_bus *rpaphp_find_pci_bus(struct device_node *dn)
 }
 EXPORT_SYMBOL_GPL(rpaphp_find_pci_bus);
 
-int rpaphp_claim_resource(struct pci_dev *dev, int resource)
-{
-	struct resource *res = &dev->resource[resource];
-	struct resource *root = pci_find_parent_resource(dev, res);
-	char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
-	int err = -EINVAL;
-
-	if (root != NULL) {
-		err = request_resource(root, res);
-	}
-
-	if (err) {
-		err("PCI: %s region %d of %s %s [%lx:%lx]\n",
-		    root ? "Address space collision on" :
-		    "No parent found for",
-		    resource, dtype, pci_name(dev), res->start, res->end);
-	}
-	return err;
-}
-
-EXPORT_SYMBOL_GPL(rpaphp_claim_resource);
-
 static int rpaphp_get_sensor_state(struct slot *slot, int *state)
 {
 	int rc;
@@ -177,7 +155,7 @@ void rpaphp_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus)
 
 				if (r->parent || !r->start || !r->flags)
 					continue;
-				rpaphp_claim_resource(dev, i);
+				pci_claim_resource(dev, i);
 			}
 		}
 	}
