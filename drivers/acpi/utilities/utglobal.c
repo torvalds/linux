@@ -793,6 +793,11 @@ void acpi_ut_init_globals(void)
 		acpi_gbl_mutex_info[i].use_count = 0;
 	}
 
+	for (i = 0; i < ACPI_NUM_OWNERID_MASKS; i++) {
+		acpi_gbl_owner_id_mask[i] = 0;
+	}
+	acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS - 1] = 0x80000000;	/* Last ID is never valid */
+
 	/* GPE support */
 
 	acpi_gbl_gpe_xrupt_list_head = NULL;
@@ -830,8 +835,8 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_ns_lookup_count = 0;
 	acpi_gbl_ps_find_count = 0;
 	acpi_gbl_acpi_hardware_present = TRUE;
-	acpi_gbl_owner_id_mask = 0;
-	acpi_gbl_last_owner_id = 0;
+	acpi_gbl_last_owner_id_index = 0;
+	acpi_gbl_next_owner_id_offset = 0;
 	acpi_gbl_trace_method_name = 0;
 	acpi_gbl_trace_dbg_level = 0;
 	acpi_gbl_trace_dbg_layer = 0;

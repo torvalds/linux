@@ -63,7 +63,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20051117
+#define ACPI_CA_VERSION                 0x20051202
 
 /*
  * OS name, used for the _OS object.  The _OS object is essentially obsolete,
@@ -109,6 +109,10 @@
 /* Size of cached memory mapping for system memory operation region */
 
 #define ACPI_SYSMEM_REGION_WINDOW_SIZE  4096
+
+/* owner_id tracking. 8 entries allows for 255 owner_ids */
+
+#define ACPI_NUM_OWNERID_MASKS          8
 
 /******************************************************************************
  *

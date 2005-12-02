@@ -127,7 +127,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 	char *path;
 	u32 flags;
 
-	ACPI_FUNCTION_NAME("ds_load1_begin_op");
+	ACPI_FUNCTION_TRACE("ds_load1_begin_op");
 
 	op = walk_state->op;
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
@@ -138,14 +138,14 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 	if (op) {
 		if (!(walk_state->op_info->flags & AML_NAMED)) {
 			*out_op = op;
-			return (AE_OK);
+			return_ACPI_STATUS(AE_OK);
 		}
 
 		/* Check if this object has already been installed in the namespace */
 
 		if (op->common.node) {
 			*out_op = op;
-			return (AE_OK);
+			return_ACPI_STATUS(AE_OK);
 		}
 	}
 
@@ -188,7 +188,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 #endif
 		if (ACPI_FAILURE(status)) {
 			ACPI_REPORT_NSERROR(path, status);
-			return (status);
+			return_ACPI_STATUS(status);
 		}
 
 		/*
@@ -235,7 +235,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 
 			ACPI_REPORT_ERROR(("Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)\n", acpi_ut_get_type_name(node->type), path));
 
-			return (AE_AML_OPERAND_TYPE);
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 		break;
 
@@ -257,10 +257,21 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 		 *       buffer_field, or Package), the name of the object is already
 		 *       in the namespace.
 		 */
+
 		if (walk_state->deferred_node) {
 			/* This name is already in the namespace, get the node */
 
 			node = walk_state->deferred_node;
+			status = AE_OK;
+			break;
+		}
+
+		/*
+		 * If we are executing a method, do not create any namespace objects
+		 * during the load phase, only during execution.
+		 */
+		if (walk_state->method_node) {
+			node = NULL;
 			status = AE_OK;
 			break;
 		}
@@ -290,7 +301,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 				   &(node));
 		if (ACPI_FAILURE(status)) {
 			ACPI_REPORT_NSERROR(path, status);
-			return (status);
+			return_ACPI_STATUS(status);
 		}
 		break;
 	}
@@ -302,28 +313,29 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
 
 		op = acpi_ps_alloc_op(walk_state->opcode);
 		if (!op) {
-			return (AE_NO_MEMORY);
+			return_ACPI_STATUS(AE_NO_MEMORY);
 		}
 	}
 
-	/* Initialize */
-
-	op->named.name = node->name.integer;
+	/* Initialize the op */
 
 #if (defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY))
 	op->named.path = ACPI_CAST_PTR(u8, path);
 #endif
 
-	/*
-	 * Put the Node in the "op" object that the parser uses, so we
-	 * can get it again quickly when this scope is closed
-	 */
-	op->common.node = node;
+	if (node) {
+		/*
+		 * Put the Node in the "op" object that the parser uses, so we
+		 * can get it again quickly when this scope is closed
+		 */
+		op->common.node = node;
+		op->named.name = node->name.integer;
+	}
+
 	acpi_ps_append_arg(acpi_ps_get_parent_scope(&walk_state->parser_state),
 			   op);
-
 	*out_op = op;
-	return (status);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -339,13 +351,13 @@ acpi_ds_load1_begin_op(struct acpi_walk_state * walk_state,
  *
  ******************************************************************************/
 
-acpi_status acpi_ds_load1_end_op(struct acpi_walk_state * walk_state)
+acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 {
 	union acpi_parse_object *op;
 	acpi_object_type object_type;
 	acpi_status status = AE_OK;
 
-	ACPI_FUNCTION_NAME("ds_load1_end_op");
+	ACPI_FUNCTION_TRACE("ds_load1_end_op");
 
 	op = walk_state->op;
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "Op=%p State=%p\n", op,
@@ -354,7 +366,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state * walk_state)
 	/* We are only interested in opcodes that have an associated name */
 
 	if (!(walk_state->op_info->flags & (AML_NAMED | AML_FIELD))) {
-		return (AE_OK);
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* Get the object type to determine if we should pop the scope */
@@ -363,21 +375,37 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state * walk_state)
 
 #ifndef ACPI_NO_METHOD_EXECUTION
 	if (walk_state->op_info->flags & AML_FIELD) {
-		if (walk_state->opcode == AML_FIELD_OP ||
-		    walk_state->opcode == AML_BANK_FIELD_OP ||
-		    walk_state->opcode == AML_INDEX_FIELD_OP) {
-			status = acpi_ds_init_field_objects(op, walk_state);
+		/*
+		 * If we are executing a method, do not create any namespace objects
+		 * during the load phase, only during execution.
+		 */
+		if (!walk_state->method_node) {
+			if (walk_state->opcode == AML_FIELD_OP ||
+			    walk_state->opcode == AML_BANK_FIELD_OP ||
+			    walk_state->opcode == AML_INDEX_FIELD_OP) {
+				status =
+				    acpi_ds_init_field_objects(op, walk_state);
+			}
 		}
-		return (status);
+		return_ACPI_STATUS(status);
 	}
 
-	if (op->common.aml_opcode == AML_REGION_OP) {
-		status = acpi_ex_create_region(op->named.data, op->named.length,
-					       (acpi_adr_space_type)
-					       ((op->common.value.arg)->common.
-						value.integer), walk_state);
-		if (ACPI_FAILURE(status)) {
-			return (status);
+	/*
+	 * If we are executing a method, do not create any namespace objects
+	 * during the load phase, only during execution.
+	 */
+	if (!walk_state->method_node) {
+		if (op->common.aml_opcode == AML_REGION_OP) {
+			status =
+			    acpi_ex_create_region(op->named.data,
+						  op->named.length,
+						  (acpi_adr_space_type)
+						  ((op->common.value.arg)->
+						   common.value.integer),
+						  walk_state);
+			if (ACPI_FAILURE(status)) {
+				return_ACPI_STATUS(status);
+			}
 		}
 	}
 #endif
@@ -391,7 +419,12 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state * walk_state)
 							       common.
 							       aml_opcode))->
 			    object_type;
-			op->common.node->type = (u8) object_type;
+
+			/* Set node type if we have a namespace node */
+
+			if (op->common.node) {
+				op->common.node->type = (u8) object_type;
+			}
 		}
 	}
 
@@ -424,7 +457,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state * walk_state)
 			walk_state->num_operands = 0;
 
 			if (ACPI_FAILURE(status)) {
-				return (status);
+				return_ACPI_STATUS(status);
 			}
 		}
 	}
@@ -439,7 +472,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state * walk_state)
 		status = acpi_ds_scope_stack_pop(walk_state);
 	}
 
-	return (status);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -456,8 +489,8 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state * walk_state)
  ******************************************************************************/
 
 acpi_status
-acpi_ds_load2_begin_op(struct acpi_walk_state * walk_state,
-		       union acpi_parse_object ** out_op)
+acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
+		       union acpi_parse_object **out_op)
 {
 	union acpi_parse_object *op;
 	struct acpi_namespace_node *node;
@@ -840,6 +873,13 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 
 	case AML_TYPE_NAMED_FIELD:
 
+		/*
+		 * If we are executing a method, initialize the field
+		 */
+		if (walk_state->method_node) {
+			status = acpi_ds_init_field_objects(op, walk_state);
+		}
+
 		switch (op->common.aml_opcode) {
 		case AML_INDEX_FIELD_OP:
 
@@ -929,6 +969,24 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		switch (op->common.aml_opcode) {
 #ifndef ACPI_NO_METHOD_EXECUTION
 		case AML_REGION_OP:
+
+			/*
+			 * If we are executing a method, initialize the region
+			 */
+			if (walk_state->method_node) {
+				status =
+				    acpi_ex_create_region(op->named.data,
+							  op->named.length,
+							  (acpi_adr_space_type)
+							  ((op->common.value.
+							    arg)->common.value.
+							   integer),
+							  walk_state);
+				if (ACPI_FAILURE(status)) {
+					return (status);
+				}
+			}
+
 			/*
 			 * The op_region is not fully parsed at this time. Only valid
 			 * argument is the space_id. (We must save the address of the

@@ -212,7 +212,9 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	/*
 	 * Now we can print out the pertinent information
 	 */
-	acpi_os_printf(" %-12s %p ", acpi_ut_get_type_name(type), this_node);
+	acpi_os_printf(" %-12s %p %2.2X ",
+		       acpi_ut_get_type_name(type), this_node,
+		       this_node->owner_id);
 
 	dbg_level = acpi_dbg_level;
 	acpi_dbg_level = 0;

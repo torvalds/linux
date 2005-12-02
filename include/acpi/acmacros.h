@@ -332,6 +332,10 @@
 #define ACPI_MUL_16(a)                  _ACPI_MUL(a,4)
 #define ACPI_MOD_16(a)                  _ACPI_MOD(a,16)
 
+#define ACPI_DIV_32(a)                  _ACPI_DIV(a,5)
+#define ACPI_MUL_32(a)                  _ACPI_MUL(a,5)
+#define ACPI_MOD_32(a)                  _ACPI_MOD(a,32)
+
 /*
  * Rounding macros (Power of two boundaries only)
  */
