@@ -280,6 +280,14 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 			smBufAllocCount.counter,cifs_min_small);
 	length += item_length;
 	buf += item_length;
+#ifdef CONFIG_CIFS_STATS2
+        item_length = sprintf(buf, "Total Large %d Small %d Allocations\n",
+				atomic_read(&totBufAllocCount),
+		                atomic_read(&totSmBufAllocCount));
+	length += item_length;
+	buf += item_length;
+#endif /* CONFIG_CIFS_STATS2 */
+
 	item_length = 
 		sprintf(buf,"Operations (MIDs): %d\n",
 			midCount.counter);
