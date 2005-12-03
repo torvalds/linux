@@ -296,6 +296,7 @@ static void acpi_processor_idle(void)
 		smp_mb__after_clear_bit();
 		if (need_resched()) {
 			set_thread_flag(TIF_POLLING_NRFLAG);
+			local_irq_enable();
 			return;
 		}
 	}
