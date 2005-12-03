@@ -59,7 +59,6 @@ __rpc_purge_upcall(struct inode *inode, int err)
 	struct rpc_inode *rpci = RPC_I(inode);
 
 	__rpc_purge_list(rpci, &rpci->pipe, err);
-	__rpc_purge_list(rpci, &rpci->in_upcall, err);
 	rpci->pipelen = 0;
 	wake_up(&rpci->waitq);
 }
@@ -119,6 +118,7 @@ rpc_close_pipes(struct inode *inode)
 	down(&inode->i_sem);
 	if (rpci->ops != NULL) {
 		rpci->nreaders = 0;
+		__rpc_purge_list(rpci, &rpci->in_upcall, -EPIPE);
 		__rpc_purge_upcall(inode, -EPIPE);
 		rpci->nwriters = 0;
 		if (rpci->ops->release_pipe)
