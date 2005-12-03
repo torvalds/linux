@@ -161,6 +161,9 @@ cifs_buf_get(void)
 	if (ret_buf) {
 		memset(ret_buf, 0, sizeof(struct smb_hdr) + 3);
 		atomic_inc(&bufAllocCount);
+#ifdef CONFIG_CIFS_STATS2
+		atomic_inc(&totBufAllocCount);
+#endif /* CONFIG_CIFS_STATS2 */
 	}
 
 	return ret_buf;
@@ -195,6 +198,10 @@ cifs_small_buf_get(void)
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
 		atomic_inc(&smBufAllocCount);
+#ifdef CONFIG_CIFS_STATS2
+		atomic_inc(&totSmBufAllocCount);
+#endif /* CONFIG_CIFS_STATS2 */
+
 	}
 	return ret_buf;
 }

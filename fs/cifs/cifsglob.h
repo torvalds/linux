@@ -505,8 +505,12 @@ GLOBAL_EXTERN atomic_t tcpSesReconnectCount;
 GLOBAL_EXTERN atomic_t tconInfoReconnectCount;
 
 /* Various Debug counters to remove someday (BB) */
-GLOBAL_EXTERN atomic_t bufAllocCount;
-GLOBAL_EXTERN atomic_t smBufAllocCount;      
+GLOBAL_EXTERN atomic_t bufAllocCount;    /* current number allocated  */
+#ifdef CONFIG_CIFS_STATS2
+GLOBAL_EXTERN atomic_t totBufAllocCount; /* total allocated over all time */
+GLOBAL_EXTERN atomic_t totSmBufAllocCount;
+#endif
+GLOBAL_EXTERN atomic_t smBufAllocCount;
 GLOBAL_EXTERN atomic_t midCount;
 
 /* Misc globals */

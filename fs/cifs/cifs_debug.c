@@ -219,6 +219,10 @@ cifs_stats_write(struct file *file, const char __user *buffer,
 
         if (c == '1' || c == 'y' || c == 'Y' || c == '0') {
 		read_lock(&GlobalSMBSeslock);
+#ifdef CONFIG_CIFS_STATS2
+		atomic_set(&totBufAllocCount, 0);
+		atomic_set(&totSmBufAllocCount, 0);
+#endif /* CONFIG_CIFS_STATS2 */
 		list_for_each(tmp, &GlobalTreeConnectionList) {
 			tcon = list_entry(tmp, struct cifsTconInfo,
 					cifsConnectionList);
