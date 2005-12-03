@@ -92,10 +92,13 @@ static int inet6_create(struct socket *sock, int protocol)
 	struct proto *answer_prot;
 	unsigned char answer_flags;
 	char answer_no_check;
-	int rc;
+	int try_loading_module = 0;
+	int err;
 
 	/* Look for the requested type/protocol pair. */
 	answer = NULL;
+lookup_protocol:
+	err = -ESOCKTNOSUPPORT;
 	rcu_read_lock();
 	list_for_each_rcu(p, &inetsw6[sock->type]) {
 		answer = list_entry(p, struct inet_protosw, list);
@@ -113,21 +116,37 @@ static int inet6_create(struct socket *sock, int protocol)
 			if (IPPROTO_IP == answer->protocol)
 				break;
 		}
+		err = -EPROTONOSUPPORT;
 		answer = NULL;
 	}
 
-	rc = -ESOCKTNOSUPPORT;
-	if (!answer)
-		goto out_rcu_unlock;
-	rc = -EPERM;
+	if (!answer) {
+		if (try_loading_module < 2) {
+			rcu_read_unlock();
+			/*
+			 * Be more specific, e.g. net-pf-10-proto-132-type-1
+			 * (net-pf-PF_INET6-proto-IPPROTO_SCTP-type-SOCK_STREAM)
+			 */
+			if (++try_loading_module == 1)
+				request_module("net-pf-%d-proto-%d-type-%d",
+						PF_INET6, protocol, sock->type);
+			/*
+			 * Fall back to generic, e.g. net-pf-10-proto-132
+			 * (net-pf-PF_INET6-proto-IPPROTO_SCTP)
+			 */
+			else
+				request_module("net-pf-%d-proto-%d",
+						PF_INET6, protocol);
+			goto lookup_protocol;
+		} else
+			goto out_rcu_unlock;
+	}
+
+	err = -EPERM;
 	if (answer->capability > 0 && !capable(answer->capability))
-		goto out_rcu_unlock;
-	rc = -EPROTONOSUPPORT;
-	if (!protocol)
 		goto out_rcu_unlock;
 
 	sock->ops = answer->ops;
-
 	answer_prot = answer->prot;
 	answer_no_check = answer->no_check;
 	answer_flags = answer->flags;
@@ -135,14 +154,14 @@ static int inet6_create(struct socket *sock, int protocol)
 
 	BUG_TRAP(answer_prot->slab != NULL);
 
-	rc = -ENOBUFS;
+	err = -ENOBUFS;
 	sk = sk_alloc(PF_INET6, GFP_KERNEL, answer_prot, 1);
 	if (sk == NULL)
 		goto out;
 
 	sock_init_data(sock, sk);
 
-	rc = 0;
+	err = 0;
 	sk->sk_no_check = answer_no_check;
 	if (INET_PROTOSW_REUSE & answer_flags)
 		sk->sk_reuse = 1;
@@ -202,14 +221,14 @@ static int inet6_create(struct socket *sock, int protocol)
 		sk->sk_prot->hash(sk);
 	}
 	if (sk->sk_prot->init) {
-		rc = sk->sk_prot->init(sk);
-		if (rc) {
+		err = sk->sk_prot->init(sk);
+		if (err) {
 			sk_common_release(sk);
 			goto out;
 		}
 	}
 out:
-	return rc;
+	return err;
 out_rcu_unlock:
 	rcu_read_unlock();
 	goto out;
