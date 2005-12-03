@@ -94,7 +94,6 @@ static u32 rcon_tab[RC_LENGTH];
 
 u32 ft_tab[4][256];
 u32 fl_tab[4][256];
-static u32 ls_tab[4][256];
 static u32 im_tab[4][256];
 u32 il_tab[4][256];
 u32 it_tab[4][256];
@@ -144,15 +143,6 @@ static void gen_tabs(void)
 		fl_tab[1][i] = upr(w, 1);
 		fl_tab[2][i] = upr(w, 2);
 		fl_tab[3][i] = upr(w, 3);
-		
-		/*
-		 * table for key schedule if fl_tab above is
-		 * not of the required form
-		 */
-		ls_tab[0][i] = w;
-		ls_tab[1][i] = upr(w, 1);
-		ls_tab[2][i] = upr(w, 2);
-		ls_tab[3][i] = upr(w, 3);
 		
 		b = fi(inv_affine((u8)i));
 		w = bytes2word(fe(b), f9(b), fd(b), fb(b));
