@@ -35,7 +35,8 @@
  * 1400 - 1499 SE Linux use
  * 1500 - 1599 kernel LSPP events
  * 1600 - 1699 kernel crypto events
- * 1700 - 1999 future kernel use (maybe integrity labels and related events)
+ * 1700 - 1799 kernel anomaly records
+ * 1800 - 1999 future kernel use (maybe integrity labels and related events)
  * 2000 is for otherwise unclassified kernel audit messages (legacy)
  * 2001 - 2099 unused (kernel)
  * 2100 - 2199 user space anomaly records
@@ -89,6 +90,10 @@
 #define AUDIT_MAC_POLICY_LOAD	1403	/* Policy file load */
 #define AUDIT_MAC_STATUS	1404	/* Changed enforcing,permissive,off */
 #define AUDIT_MAC_CONFIG_CHANGE	1405	/* Changes to booleans */
+
+#define AUDIT_FIRST_KERN_ANOM_MSG   1700
+#define AUDIT_LAST_KERN_ANOM_MSG    1799
+#define AUDIT_ANOM_PROMISCUOUS      1700 /* Device changed promiscuous mode */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
