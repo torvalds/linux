@@ -542,17 +542,10 @@ static void scsi_requeue_command(struct request_queue *q, struct scsi_cmnd *cmd)
 
 void scsi_next_command(struct scsi_cmnd *cmd)
 {
-	struct scsi_device *sdev = cmd->device;
-	struct request_queue *q = sdev->request_queue;
-
-	/* need to hold a reference on the device before we let go of the cmd */
-	get_device(&sdev->sdev_gendev);
+	struct request_queue *q = cmd->device->request_queue;
 
 	scsi_put_command(cmd);
 	scsi_run_queue(q);
-
-	/* ok to remove device now */
-	put_device(&sdev->sdev_gendev);
 }
 
 void scsi_run_host_queues(struct Scsi_Host *shost)

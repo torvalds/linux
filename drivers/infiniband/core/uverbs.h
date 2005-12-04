@@ -105,10 +105,21 @@ struct ib_uverbs_event {
 	u32				       *counter;
 };
 
+struct ib_uverbs_mcast_entry {
+	struct list_head	list;
+	union ib_gid 		gid;
+	u16 			lid;
+};
+
 struct ib_uevent_object {
 	struct ib_uobject	uobject;
 	struct list_head	event_list;
 	u32			events_reported;
+};
+
+struct ib_uqp_object {
+	struct ib_uevent_object	uevent;
+	struct list_head 	mcast_list;
 };
 
 struct ib_ucq_object {

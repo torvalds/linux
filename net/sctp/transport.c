@@ -261,7 +261,8 @@ void sctp_transport_route(struct sctp_transport *transport,
 		 * association's active path for getsockname().
 		 */ 
 		if (asoc && (transport == asoc->peer.active_path))
-			af->to_sk_saddr(&transport->saddr, asoc->base.sk);
+			opt->pf->af->to_sk_saddr(&transport->saddr,
+						 asoc->base.sk);
 	} else
 		transport->pmtu = SCTP_DEFAULT_MAXSEGMENT;
 }

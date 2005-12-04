@@ -1231,6 +1231,11 @@ int igmp6_event_report(struct sk_buff *skb)
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		return 0;
 
+	/* send our report if the MC router may not have heard this report */
+	if (skb->pkt_type != PACKET_MULTICAST &&
+	    skb->pkt_type != PACKET_BROADCAST)
+		return 0;
+
 	if (!pskb_may_pull(skb, sizeof(struct in6_addr)))
 		return -EINVAL;
 

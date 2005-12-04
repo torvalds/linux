@@ -32,9 +32,6 @@ config VIDEO_BT848_DVB
 	---help---
 	  This adds support for DVB/ATSC cards based on the BT878 chip.
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called dvb-bt8xx.
-
 config VIDEO_SAA6588
 	tristate "SAA6588 Radio Chip RDS decoder support on BT848 cards"
 	depends on VIDEO_DEV && I2C && VIDEO_BT848

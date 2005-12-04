@@ -536,6 +536,7 @@ P:	Mauro Carvalho Chehab
 M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
+T:	quilt http://www.linuxtv.org/download/quilt/
 S:	Maintained
 
 BUSLOGIC SCSI DRIVER
@@ -833,6 +834,7 @@ P:	LinuxTV.org Project
 M: 	linux-dvb-maintainer@linuxtv.org
 L: 	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
+T:	quilt http://www.linuxtv.org/download/quilt/
 S:	Supported
 
 EATA-DMA SCSI DRIVER
@@ -1633,6 +1635,15 @@ M:	ldm@flatcap.org
 L:	ldm-devel@lists.sourceforge.net	
 W:	http://ldm.sourceforge.net
 S:	Maintained
+
+LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
+P:	Eric Moore
+M:	Eric.Moore@lsil.com
+M:	support@lsil.com
+L:	mpt_linux_developer@lsil.com
+L:	linux-scsi@vger.kernel.org
+W:	http://www.lsilogic.com/support
+S:	Supported
 
 LSILOGIC/SYMBIOS/NCR 53C8XX and 53C1010 PCI-SCSI drivers
 P:	Matthew Wilcox
@@ -2885,6 +2896,7 @@ P:	Mauro Carvalho Chehab
 M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
+T:	quilt http://www.linuxtv.org/download/quilt/
 S:	Maintained
 
 W1 DALLAS'S 1-WIRE BUS
