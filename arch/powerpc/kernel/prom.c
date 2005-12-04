@@ -37,6 +37,7 @@
 #include <asm/processor.h>
 #include <asm/irq.h>
 #include <asm/io.h>
+#include <asm/kdump.h>
 #include <asm/smp.h>
 #include <asm/system.h>
 #include <asm/mmu.h>
@@ -1335,11 +1336,14 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
-	lmb_reserve(0, __pa(klimit));
 
 	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
 
 	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
+	lmb_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
+#ifdef CONFIG_CRASH_DUMP
+	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
+#endif
 	early_reserve_mem();
 
 	DBG("Scanning CPUs ...\n");

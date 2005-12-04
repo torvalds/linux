@@ -34,6 +34,7 @@
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <asm/io.h>
+#include <asm/kdump.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -267,6 +268,10 @@ void __init early_setup(unsigned long dt_ptr)
 		for (;;);
 	}
 	ppc_md = **mach;
+
+#ifdef CONFIG_CRASH_DUMP
+	kdump_setup();
+#endif
 
 	DBG("Found, Initializing memory management...\n");
 

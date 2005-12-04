@@ -34,6 +34,7 @@ obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_IBMEBUS)           += ibmebus.o
 obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
 obj64-$(CONFIG_PPC_MULTIPLATFORM) += nvram_64.o
+obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
