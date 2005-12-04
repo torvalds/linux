@@ -42,6 +42,7 @@
 #include "p16v.h"
 #include "tina2.h"
 
+
 /*************************************************************************
  * EMU10K1 init / done
  *************************************************************************/
@@ -217,7 +218,9 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		outl(HCFG_LOCKTANKCACHE_MASK | HCFG_AUTOMUTE | HCFG_JOYENABLE, emu->port + HCFG);
 
 	if (enable_ir) {	/* enable IR for SB Live */
-		if (emu->audigy) {
+		if ( emu->card_capabilities->emu1212m) {
+			;  /* Disable all access to A_IOCFG for the emu1212m */
+		} else if (emu->audigy) {
 			unsigned int reg = inl(emu->port + A_IOCFG);
 			outl(reg | A_IOCFG_GPOUT2, emu->port + A_IOCFG);
 			udelay(500);
@@ -234,7 +237,9 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
  		}
 	}
 	
-	if (emu->audigy) {	/* enable analog output */
+	if ( emu->card_capabilities->emu1212m) {
+		;  /* Disable all access to A_IOCFG for the emu1212m */
+	} else if (emu->audigy) {	/* enable analog output */
 		unsigned int reg = inl(emu->port + A_IOCFG);
 		outl(reg | A_IOCFG_GPOUT0, emu->port + A_IOCFG);
 	}
@@ -250,7 +255,9 @@ static void snd_emu10k1_audio_enable(struct snd_emu10k1 *emu)
 	outl(inl(emu->port + HCFG) | HCFG_AUDIOENABLE, emu->port + HCFG);
 
 	/* Enable analog/digital outs on audigy */
-	if (emu->audigy) {
+	if ( emu->card_capabilities->emu1212m) {
+		;  /* Disable all access to A_IOCFG for the emu1212m */
+	} else if (emu->audigy) {
 		outl(inl(emu->port + A_IOCFG) & ~0x44, emu->port + A_IOCFG);
  
 		if (emu->card_capabilities->ca0151_chip) { /* audigy2 */
@@ -542,6 +549,136 @@ static int __devinit snd_emu10k1_cardbus_init(struct snd_emu10k1 * emu)
 	return 0;
 }
 
+static int snd_emu1212m_fpga_write(struct snd_emu10k1 * emu, int reg, int value)
+{
+	if (reg<0 || reg>0x3f)
+		return 1;
+	reg+=0x40; /* 0x40 upwards are registers. */
+	if (value<0 || value>0x3f) /* 0 to 0x3f are values */
+		return 1;
+	outl(reg, emu->port + A_IOCFG);
+	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	outl(value, emu->port + A_IOCFG);
+	outl(value | 0x80 , emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+
+	return 0;
+}
+
+static int snd_emu1212m_fpga_read(struct snd_emu10k1 * emu, int reg, int *value)
+{
+	if (reg<0 || reg>0x3f)
+		return 1;
+	reg+=0x40; /* 0x40 upwards are registers. */
+	outl(reg, emu->port + A_IOCFG);
+	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	*value = inl(emu->port + A_IOCFG);
+
+	return 0;
+}
+
+static int snd_emu1212m_fpga_netlist_write(struct snd_emu10k1 * emu, int reg, int value)
+{
+	snd_emu1212m_fpga_write(emu, 0x00, ((reg >> 8) & 0x3f) );
+	snd_emu1212m_fpga_write(emu, 0x01, (reg & 0x3f) );
+	snd_emu1212m_fpga_write(emu, 0x02, ((value >> 8) & 0x3f) );
+	snd_emu1212m_fpga_write(emu, 0x03, (value & 0x3f) );
+
+	return 0;
+}
+
+static int __devinit snd_emu10k1_emu1212m_init(struct snd_emu10k1 * emu)
+{
+	unsigned int i;
+	int tmp;
+
+	snd_printk(KERN_ERR "emu1212m: Special config.\n");
+	outl(0x0005a00c, emu->port + HCFG);
+	outl(0x0005a004, emu->port + HCFG);
+	outl(0x0005a000, emu->port + HCFG);
+	outl(0x0005a000, emu->port + HCFG);
+
+	snd_emu1212m_fpga_read(emu, 0x22, &tmp );
+	snd_emu1212m_fpga_read(emu, 0x23, &tmp );
+	snd_emu1212m_fpga_read(emu, 0x24, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x04, 0x01 );
+	snd_emu1212m_fpga_read(emu, 0x0b, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x0b, 0x01 );
+	snd_emu1212m_fpga_read(emu, 0x10, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x10, 0x00 );
+	snd_emu1212m_fpga_read(emu, 0x11, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x11, 0x30 );
+	snd_emu1212m_fpga_read(emu, 0x13, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x13, 0x0f );
+	snd_emu1212m_fpga_read(emu, 0x11, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x11, 0x30 );
+	snd_emu1212m_fpga_read(emu, 0x0a, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x0a, 0x10 );
+	snd_emu1212m_fpga_write(emu, 0x0c, 0x19 );
+	snd_emu1212m_fpga_write(emu, 0x12, 0x0c );
+	snd_emu1212m_fpga_write(emu, 0x09, 0x0f );
+	snd_emu1212m_fpga_write(emu, 0x06, 0x00 );
+	snd_emu1212m_fpga_write(emu, 0x05, 0x00 );
+	snd_emu1212m_fpga_write(emu, 0x0e, 0x12 );
+	snd_emu1212m_fpga_netlist_write(emu, 0x0000, 0x0200);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0001, 0x0201);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0002, 0x0500);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0003, 0x0501);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0004, 0x0400);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0005, 0x0401);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0006, 0x0402);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0007, 0x0403);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0008, 0x0404);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0009, 0x0405);
+	snd_emu1212m_fpga_netlist_write(emu, 0x000a, 0x0406);
+	snd_emu1212m_fpga_netlist_write(emu, 0x000b, 0x0407);
+	snd_emu1212m_fpga_netlist_write(emu, 0x000c, 0x0100);
+	snd_emu1212m_fpga_netlist_write(emu, 0x000d, 0x0104);
+	snd_emu1212m_fpga_netlist_write(emu, 0x000e, 0x0200);
+	snd_emu1212m_fpga_netlist_write(emu, 0x000f, 0x0201);
+	for (i=0;i < 0x20;i++) {
+		snd_emu1212m_fpga_netlist_write(emu, 0x0100+i, 0x0000);
+	}
+	for (i=0;i < 4;i++) {
+		snd_emu1212m_fpga_netlist_write(emu, 0x0200+i, 0x0000);
+	}
+	for (i=0;i < 7;i++) {
+		snd_emu1212m_fpga_netlist_write(emu, 0x0300+i, 0x0000);
+	}
+	for (i=0;i < 7;i++) {
+		snd_emu1212m_fpga_netlist_write(emu, 0x0400+i, 0x0000);
+	}
+	snd_emu1212m_fpga_netlist_write(emu, 0x0500, 0x0108);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0501, 0x010c);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0600, 0x0110);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0601, 0x0114);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0700, 0x0118);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0701, 0x011c);
+	snd_emu1212m_fpga_write(emu, 0x07, 0x01 );
+
+	snd_emu1212m_fpga_read(emu, 0x21, &tmp );
+
+	outl(0x0000a000, emu->port + HCFG);
+	outl(0x0000a001, emu->port + HCFG);
+	/* Initial boot complete. Now patches */
+
+	snd_emu1212m_fpga_read(emu, 0x21, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x0c, 0x19 );
+	snd_emu1212m_fpga_write(emu, 0x12, 0x0c );
+	snd_emu1212m_fpga_write(emu, 0x0c, 0x19 );
+	snd_emu1212m_fpga_write(emu, 0x12, 0x0c );
+	snd_emu1212m_fpga_read(emu, 0x0a, &tmp );
+	snd_emu1212m_fpga_write(emu, 0x0a, 0x10 );
+
+	snd_emu1212m_fpga_read(emu, 0x20, &tmp );
+	snd_emu1212m_fpga_read(emu, 0x21, &tmp );
+
+	snd_emu1212m_fpga_netlist_write(emu, 0x0300, 0x0312);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0301, 0x0313);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0200, 0x0302);
+	snd_emu1212m_fpga_netlist_write(emu, 0x0201, 0x0303);
+
+	return 0;
+}
 /*
  *  Create the EMU10K1 instance
  */
@@ -623,7 +760,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .id = "EMU1212m",
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
-	 .ecard = 1} ,
+	 .emu1212m = 1} ,
 	/* Tested by James@superbug.co.uk 3rd July 2005 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x20071102,
 	 .driver = "Audigy2", .name = "Audigy 4 PRO [SB0380]", 
@@ -1013,6 +1150,11 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	} else if (emu->card_capabilities->ca_cardbus_chip) {
 		if ((err = snd_emu10k1_cardbus_init(emu)) < 0)
 			goto error;
+ 	} else if (emu->card_capabilities->emu1212m) {
+ 		if ((err = snd_emu10k1_emu1212m_init(emu)) < 0) {
+ 			snd_emu10k1_free(emu);
+ 			return err;
+ 		}
 	} else {
 		/* 5.1: Enable the additional AC97 Slots. If the emu10k1 version
 			does not support this, it shouldn't do any harm */

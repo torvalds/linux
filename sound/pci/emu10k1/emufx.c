@@ -1102,6 +1102,14 @@ static int __devinit _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 	/* stop FX processor */
 	snd_emu10k1_ptr_write(emu, A_DBG, 0, (emu->fx8010.dbg = 0) | A_DBG_SINGLE_STEP);
 
+#if 0
+	/* FIX: jcd test */
+	for (z = 0; z < 80; z=z+2) {
+		A_OP(icode, &ptr, iACC3, A_EXTOUT(z), A_FXBUS(FXBUS_PCM_LEFT_FRONT), A_C_00000000, A_C_00000000); /* left */
+		A_OP(icode, &ptr, iACC3, A_EXTOUT(z+1), A_FXBUS(FXBUS_PCM_RIGHT_FRONT), A_C_00000000, A_C_00000000); /* right */
+	}
+#endif /* jcd test */
+#if 1
 	/* PCM front Playback Volume (independent from stereo mix) */
 	A_OP(icode, &ptr, iMAC0, A_GPR(playback), A_C_00000000, A_GPR(gpr), A_FXBUS(FXBUS_PCM_LEFT_FRONT));
 	A_OP(icode, &ptr, iMAC0, A_GPR(playback+1), A_C_00000000, A_GPR(gpr+1), A_FXBUS(FXBUS_PCM_RIGHT_FRONT));
@@ -1447,6 +1455,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 		A_OP(icode, &ptr, iACC3, A_FXBUS2(z), A_C_00000000, A_C_00000000, A_EXTIN(z));
 	}
 	
+#endif /* JCD test */
 	/*
 	 * ok, set up done..
 	 */

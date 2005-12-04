@@ -959,7 +959,9 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			return err;
 	}
 
-	if (emu->audigy) {
+	if ( emu->card_capabilities->emu1212m) {
+		;  /* Disable the snd_audigy_spdif_shared_spdif */
+	} else if (emu->audigy) {
 		if ((kctl = snd_ctl_new1(&snd_audigy_shared_spdif, emu)) == NULL)
 			return -ENOMEM;
 		if ((err = snd_ctl_add(card, kctl)))
