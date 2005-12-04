@@ -1013,7 +1013,7 @@ static long check_bp_loc(unsigned long addr)
 	unsigned int instr;
 
 	addr &= ~3;
-	if (addr < KERNELBASE) {
+	if (!is_kernel_addr(addr)) {
 		printf("Breakpoints may only be placed at kernel addresses\n");
 		return 0;
 	}
@@ -1064,7 +1064,7 @@ bpt_cmds(void)
 		dabr.address = 0;
 		dabr.enabled = 0;
 		if (scanhex(&dabr.address)) {
-			if (dabr.address < KERNELBASE) {
+			if (!is_kernel_addr(dabr.address)) {
 				printf(badaddr);
 				break;
 			}

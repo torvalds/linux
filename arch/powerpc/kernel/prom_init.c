@@ -1994,7 +1994,7 @@ static void __init prom_check_initrd(unsigned long r3, unsigned long r4)
 	if (r3 && r4 && r4 != 0xdeadbeef) {
 		unsigned long val;
 
-		RELOC(prom_initrd_start) = (r3 >= KERNELBASE) ? __pa(r3) : r3;
+		RELOC(prom_initrd_start) = is_kernel_addr(r3) ? __pa(r3) : r3;
 		RELOC(prom_initrd_end) = RELOC(prom_initrd_start) + r4;
 
 		val = RELOC(prom_initrd_start);

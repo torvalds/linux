@@ -86,6 +86,12 @@
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
 
+/*
+ * Don't compare things with KERNELBASE or PAGE_OFFSET to test for
+ * "kernelness", use is_kernel_addr() - it should do what you want.
+ */
+#define is_kernel_addr(x)	((x) >= PAGE_OFFSET)
+
 #ifndef __ASSEMBLY__
 
 #undef STRICT_MM_TYPECHECKS

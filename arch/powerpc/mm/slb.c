@@ -134,14 +134,14 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	else
 		unmapped_base = TASK_UNMAPPED_BASE_USER64;
 
-	if (pc >= KERNELBASE)
+	if (is_kernel_addr(pc))
 		return;
 	slb_allocate(pc);
 
 	if (GET_ESID(pc) == GET_ESID(stack))
 		return;
 
-	if (stack >= KERNELBASE)
+	if (is_kernel_addr(stack))
 		return;
 	slb_allocate(stack);
 
@@ -149,7 +149,7 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	    || (GET_ESID(stack) == GET_ESID(unmapped_base)))
 		return;
 
-	if (unmapped_base >= KERNELBASE)
+	if (is_kernel_addr(unmapped_base))
 		return;
 	slb_allocate(unmapped_base);
 }

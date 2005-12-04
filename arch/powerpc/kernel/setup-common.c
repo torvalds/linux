@@ -319,7 +319,7 @@ void __init check_for_initrd(void)
 	/* If we were passed an initrd, set the ROOT_DEV properly if the values
 	 * look sensible. If not, clear initrd reference.
 	 */
-	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
+	if (is_kernel_addr(initrd_start) && is_kernel_addr(initrd_end) &&
 	    initrd_end > initrd_start)
 		ROOT_DEV = Root_RAM0;
 	else

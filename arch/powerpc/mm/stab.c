@@ -122,7 +122,7 @@ static int __ste_allocate(unsigned long ea, struct mm_struct *mm)
 	unsigned long offset;
 
 	/* Kernel or user address? */
-	if (ea >= KERNELBASE) {
+	if (is_kernel_addr(ea)) {
 		vsid = get_kernel_vsid(ea);
 	} else {
 		if ((ea >= TASK_SIZE_USER64) || (! mm))
@@ -133,7 +133,7 @@ static int __ste_allocate(unsigned long ea, struct mm_struct *mm)
 
 	stab_entry = make_ste(get_paca()->stab_addr, GET_ESID(ea), vsid);
 
-	if (ea < KERNELBASE) {
+	if (!is_kernel_addr(ea)) {
 		offset = __get_cpu_var(stab_cache_ptr);
 		if (offset < NR_STAB_CACHE_ENTRIES)
 			__get_cpu_var(stab_cache[offset++]) = stab_entry;
@@ -190,7 +190,7 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 		     entry++, ste++) {
 			unsigned long ea;
 			ea = ste->esid_data & ESID_MASK;
-			if (ea < KERNELBASE) {
+			if (!is_kernel_addr(ea)) {
 				ste->esid_data = 0;
 			}
 		}
