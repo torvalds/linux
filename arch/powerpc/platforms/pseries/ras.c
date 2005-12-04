@@ -49,14 +49,12 @@
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/udbg.h>
+#include <asm/firmware.h>
 
 static unsigned char ras_log_buf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(ras_log_buf_lock);
 
-char mce_data_buf[RTAS_ERROR_LOG_MAX]
-;
-/* This is true if we are using the firmware NMI handler (typically LPAR) */
-extern int fwnmi_active;
+char mce_data_buf[RTAS_ERROR_LOG_MAX];
 
 static int ras_get_sensor_state_token;
 static int ras_check_exception_token;

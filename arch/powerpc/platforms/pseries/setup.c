@@ -77,8 +77,6 @@
 #endif
 
 extern void find_udbg_vterm(void);
-extern void system_reset_fwnmi(void);	/* from head.S */
-extern void machine_check_fwnmi(void);	/* from head.S */
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
@@ -104,18 +102,22 @@ void pSeries_show_cpuinfo(struct seq_file *m)
 
 /* Initialize firmware assisted non-maskable interrupts if
  * the firmware supports this feature.
- *
  */
 static void __init fwnmi_init(void)
 {
-	int ret;
+	unsigned long system_reset_addr, machine_check_addr;
+
 	int ibm_nmi_register = rtas_token("ibm,nmi-register");
 	if (ibm_nmi_register == RTAS_UNKNOWN_SERVICE)
 		return;
-	ret = rtas_call(ibm_nmi_register, 2, 1, NULL,
-			__pa((unsigned long)system_reset_fwnmi),
-			__pa((unsigned long)machine_check_fwnmi));
-	if (ret == 0)
+
+	/* If the kernel's not linked at zero we point the firmware at low
+	 * addresses anyway, and use a trampoline to get to the real code. */
+	system_reset_addr  = __pa(system_reset_fwnmi) - PHYSICAL_START;
+	machine_check_addr = __pa(machine_check_fwnmi) - PHYSICAL_START;
+
+	if (0 == rtas_call(ibm_nmi_register, 2, 1, NULL, system_reset_addr,
+				machine_check_addr))
 		fwnmi_active = 1;
 }
 

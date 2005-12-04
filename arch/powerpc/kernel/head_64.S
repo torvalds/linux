@@ -553,6 +553,7 @@ slb_miss_user_pseries:
  * Vectors for the FWNMI option.  Share common code.
  */
 	.globl system_reset_fwnmi
+      .align 7
 system_reset_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
@@ -560,6 +561,7 @@ system_reset_fwnmi:
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
 
 	.globl machine_check_fwnmi
+      .align 7
 machine_check_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
