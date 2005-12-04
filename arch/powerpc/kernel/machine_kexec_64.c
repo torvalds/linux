@@ -265,11 +265,18 @@ extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,
 /* too late to fail here */
 void default_machine_kexec(struct kimage *image)
 {
-
 	/* prepare control code if any */
 
-	/* shutdown other cpus into our wait loop and quiesce interrupts */
-	kexec_prepare_cpus();
+	/*
+        * If the kexec boot is the normal one, need to shutdown other cpus
+        * into our wait loop and quiesce interrupts.
+        * Otherwise, in the case of crashed mode (crashing_cpu >= 0),
+        * stopping other CPUs and collecting their pt_regs is done before
+        * using debugger IPI.
+        */
+
+       if (crashing_cpu == -1)
+               kexec_prepare_cpus();
 
 	/* switch to a staticly allocated stack.  Based on irq stack code.
 	 * XXX: the task struct will likely be invalid once we do the copy!

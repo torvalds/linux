@@ -75,6 +75,8 @@ void smp_call_function_interrupt(void);
 
 int smt_enabled_at_boot = 1;
 
+static void (*crash_ipi_function_ptr)(struct pt_regs *) = NULL;
+
 #ifdef CONFIG_MPIC
 int __init smp_mpic_probe(void)
 {
@@ -123,11 +125,16 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 		/* XXX Do we have to do this? */
 		set_need_resched();
 		break;
-#ifdef CONFIG_DEBUGGER
 	case PPC_MSG_DEBUGGER_BREAK:
+		if (crash_ipi_function_ptr) {
+			crash_ipi_function_ptr(regs);
+			break;
+		}
+#ifdef CONFIG_DEBUGGER
 		debugger_ipi(regs);
 		break;
-#endif
+#endif /* CONFIG_DEBUGGER */
+		/* FALLTHROUGH */
 	default:
 		printk("SMP %d: smp_message_recv(): unknown msg %d\n",
 		       smp_processor_id(), msg);
@@ -144,6 +151,17 @@ void smp_send_reschedule(int cpu)
 void smp_send_debugger_break(int cpu)
 {
 	smp_ops->message_pass(cpu, PPC_MSG_DEBUGGER_BREAK);
+}
+#endif
+
+#ifdef CONFIG_KEXEC
+void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
+{
+	crash_ipi_function_ptr = crash_ipi_callback;
+	if (crash_ipi_callback) {
+		mb();
+		smp_ops->message_pass(MSG_ALL_BUT_SELF, PPC_MSG_DEBUGGER_BREAK);
+	}
 }
 #endif
 

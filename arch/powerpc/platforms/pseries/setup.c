@@ -629,5 +629,6 @@ struct machdep_calls __initdata pSeries_md = {
 	.kexec_cpu_down		= pseries_kexec_cpu_down,
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,
+	.machine_crash_shutdown	= default_machine_crash_shutdown,
 #endif
 };

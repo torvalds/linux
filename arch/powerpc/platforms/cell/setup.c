@@ -217,5 +217,6 @@ struct machdep_calls __initdata cell_md = {
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,
+	.machine_crash_shutdown	= default_machine_crash_shutdown,
 #endif
 };

@@ -31,6 +31,7 @@
 #include <linux/prctl.h>
 #include <linux/delay.h>
 #include <linux/kprobes.h>
+#include <linux/kexec.h>
 
 #include <asm/kdebug.h>
 #include <asm/pgtable.h>
@@ -95,7 +96,7 @@ static DEFINE_SPINLOCK(die_lock);
 
 int die(const char *str, struct pt_regs *regs, long err)
 {
-	static int die_counter;
+	static int die_counter, crash_dump_start = 0;
 	int nl = 0;
 
 	if (debugger(regs))
@@ -156,7 +157,21 @@ int die(const char *str, struct pt_regs *regs, long err)
 	print_modules();
 	show_regs(regs);
 	bust_spinlocks(0);
+
+	if (!crash_dump_start && kexec_should_crash(current)) {
+		crash_dump_start = 1;
+		spin_unlock_irq(&die_lock);
+		crash_kexec(regs);
+		/* NOTREACHED */
+	}
 	spin_unlock_irq(&die_lock);
+	if (crash_dump_start)
+		/*
+		 * Only for soft-reset: Other CPUs will be responded to an IPI
+		 * sent by first kexec CPU.
+		 */
+		for(;;)
+			;
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");

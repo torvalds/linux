@@ -32,6 +32,8 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_KEXEC
+
 #define MAX_NOTE_BYTES 1024
 typedef u32 note_buf_t[MAX_NOTE_BYTES / sizeof(u32)];
 
@@ -41,11 +43,17 @@ extern note_buf_t crash_notes[];
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
 extern void __init kexec_setup(void);
-#endif
+extern int crashing_cpu;
+extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
+#endif /* __powerpc64 __ */
 
 struct kimage;
+struct pt_regs;
 extern void default_machine_kexec(struct kimage *image);
 extern int default_machine_kexec_prepare(struct kimage *image);
+extern void default_machine_crash_shutdown(struct pt_regs *regs);
+
+#endif /* !CONFIG_KEXEC */
 
 #endif /* ! __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_KEXEC_H */

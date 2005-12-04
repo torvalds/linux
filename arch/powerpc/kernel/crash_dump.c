@@ -11,6 +11,8 @@
 
 #undef DEBUG
 
+#include <linux/crash_dump.h>
+#include <linux/bootmem.h>
 #include <asm/kdump.h>
 #include <asm/lmb.h>
 #include <asm/firmware.h>
@@ -51,3 +53,21 @@ void __init kdump_setup(void)
 
 	DBG(" <- kdump_setup()\n");
 }
+
+static int __init parse_elfcorehdr(char *p)
+{
+	if (p)
+		elfcorehdr_addr = memparse(p, &p);
+
+	return 0;
+}
+__setup("elfcorehdr=", parse_elfcorehdr);
+
+static int __init parse_savemaxmem(char *p)
+{
+	if (p)
+		saved_max_pfn = (memparse(p, &p) >> PAGE_SHIFT) - 1;
+
+	return 0;
+}
+__setup("savemaxmem=", parse_savemaxmem);
