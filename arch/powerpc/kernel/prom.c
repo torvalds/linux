@@ -29,6 +29,7 @@
 #include <linux/initrd.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
+#include <linux/kexec.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -1197,6 +1198,16 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 		}
 	}
 #endif /* CONFIG_PPC_RTAS */
+
+#ifdef CONFIG_KEXEC
+       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
+       if (lprop)
+               crashk_res.start = *lprop;
+
+       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
+       if (lprop)
+               crashk_res.end = crashk_res.start + *lprop - 1;
+#endif
 
 	/* break now */
 	return 1;
