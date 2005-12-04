@@ -417,7 +417,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 	case PRID_IMP_R10000:
 		c->cputype = CPU_R10000;
 		c->isa_level = MIPS_CPU_ISA_IV;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
+		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
 		             MIPS_CPU_FPU | MIPS_CPU_32FPR |
 			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
 		             MIPS_CPU_LLSC;
@@ -426,7 +426,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 	case PRID_IMP_R12000:
 		c->cputype = CPU_R12000;
 		c->isa_level = MIPS_CPU_ISA_IV;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
+		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
 		             MIPS_CPU_FPU | MIPS_CPU_32FPR |
 			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
 		             MIPS_CPU_LLSC;

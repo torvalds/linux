@@ -2239,7 +2239,7 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 	struct scsi_cmnd *cmd = qc->scsicmd;
 
 	if ((tf->protocol = ata_scsi_map_proto(scsicmd[1])) == ATA_PROT_UNKNOWN)
-		return 1;
+		goto invalid_fld;
 
 	/*
 	 * 12 and 16 byte CDBs use different offsets to
@@ -2301,7 +2301,7 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 	 */
 	if ((tf->command == ATA_CMD_SET_FEATURES)
 	 && (tf->feature == SETFEATURES_XFER))
-		return 1;
+		goto invalid_fld;
 
 	/*
 	 * Set flags so that all registers will be written,
@@ -2322,6 +2322,11 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 	qc->nsect = cmd->bufflen / ATA_SECT_SIZE;
 
 	return 0;
+
+ invalid_fld:
+	ata_scsi_set_sense(qc->scsicmd, ILLEGAL_REQUEST, 0x24, 0x00);
+	/* "Invalid field in cdb" */
+	return 1;
 }
 
 /**

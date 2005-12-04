@@ -21,9 +21,9 @@ MODULE_LICENSE("GPL");
 int dibusb_streaming_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	if (d->priv != NULL) {
-		struct dib_fe_xfer_ops *ops = d->priv;
-		if (ops->fifo_ctrl != NULL)
-			if (ops->fifo_ctrl(d->fe,onoff)) {
+		struct dibusb_state *st = d->priv;
+		if (st->ops.fifo_ctrl != NULL)
+			if (st->ops.fifo_ctrl(d->fe,onoff)) {
 				err("error while controlling the fifo of the demod.");
 				return -ENODEV;
 			}
@@ -35,9 +35,9 @@ EXPORT_SYMBOL(dibusb_streaming_ctrl);
 int dibusb_pid_filter(struct dvb_usb_device *d, int index, u16 pid, int onoff)
 {
 	if (d->priv != NULL) {
-		struct dib_fe_xfer_ops *ops = d->priv;
-		if (d->pid_filtering && ops->pid_ctrl != NULL)
-			ops->pid_ctrl(d->fe,index,pid,onoff);
+		struct dibusb_state *st = d->priv;
+		if (st->ops.pid_ctrl != NULL)
+			st->ops.pid_ctrl(d->fe,index,pid,onoff);
 	}
 	return 0;
 }
@@ -46,9 +46,9 @@ EXPORT_SYMBOL(dibusb_pid_filter);
 int dibusb_pid_filter_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	if (d->priv != NULL) {
-		struct dib_fe_xfer_ops *ops = d->priv;
-		if (ops->pid_parse != NULL)
-			if (ops->pid_parse(d->fe,onoff) < 0)
+		struct dibusb_state *st = d->priv;
+		if (st->ops.pid_parse != NULL)
+			if (st->ops.pid_parse(d->fe,onoff) < 0)
 				err("could not handle pid_parser");
 	}
 	return 0;

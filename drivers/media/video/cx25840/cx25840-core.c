@@ -208,8 +208,11 @@ static void cx25840_initialize(struct i2c_client *client, int loadfw)
 
 static void input_change(struct i2c_client *client)
 {
+	struct cx25840_state *state = i2c_get_clientdata(client);
 	v4l2_std_id std = cx25840_get_v4lstd(client);
 
+	/* Note: perhaps V4L2_STD_PAL_M should be handled as V4L2_STD_NTSC
+	   instead of V4L2_STD_PAL. Someone needs to test this. */
 	if (std & V4L2_STD_PAL) {
 		/* Follow tuner change procedure for PAL */
 		cx25840_write(client, 0x808, 0xff);
@@ -220,7 +223,32 @@ static void input_change(struct i2c_client *client)
 		cx25840_write(client, 0x80b, 0x10);
 	} else if (std & V4L2_STD_NTSC) {
 		/* NTSC */
-		cx25840_write(client, 0x808, 0xf6);
+		if (state->cardtype == CARDTYPE_PVR150_WORKAROUND) {
+			/* Certain Hauppauge PVR150 models have a hardware bug
+			   that causes audio to drop out. For these models the
+			   audio standard must be set explicitly.
+			   To be precise: it affects cards with tuner models
+			   85, 99 and 112 (model numbers from tveeprom). */
+			if (std == V4L2_STD_NTSC_M_JP) {
+				/* Japan uses EIAJ audio standard */
+				cx25840_write(client, 0x808, 0x2f);
+			} else {
+				/* Others use the BTSC audio standard */
+				cx25840_write(client, 0x808, 0x1f);
+			}
+			/* South Korea uses the A2-M (aka Zweiton M) audio
+			   standard, and should set 0x808 to 0x3f, but I don't
+			   know how to detect this. */
+		} else if (std == V4L2_STD_NTSC_M_JP) {
+			/* Japan uses EIAJ audio standard */
+			cx25840_write(client, 0x808, 0xf7);
+		} else {
+			/* Others use the BTSC audio standard */
+			cx25840_write(client, 0x808, 0xf6);
+		}
+		/* South Korea uses the A2-M (aka Zweiton M) audio standard,
+		   and should set 0x808 to 0xf8, but I don't know how to
+		   detect this. */
 		cx25840_write(client, 0x80b, 0x00);
 	}
 
@@ -241,7 +269,8 @@ static int set_input(struct i2c_client *client, enum cx25840_input input)
 	case CX25840_TUNER:
 		cx25840_dbg("now setting Tuner input\n");
 
-		if (state->cardtype == CARDTYPE_PVR150) {
+		if (state->cardtype == CARDTYPE_PVR150 ||
+		    state->cardtype == CARDTYPE_PVR150_WORKAROUND) {
 			/* CH_SEL_ADC2=1 */
 			cx25840_and_or(client, 0x102, ~0x2, 0x02);
 		}
@@ -363,6 +392,7 @@ static int set_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 	case CX25840_CID_CARDTYPE:
 		switch (ctrl->value) {
 		case CARDTYPE_PVR150:
+		case CARDTYPE_PVR150_WORKAROUND:
 		case CARDTYPE_PG600:
 			state->cardtype = ctrl->value;
 			break;
@@ -714,7 +744,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 
 /* ----------------------------------------------------------------------- */
 
-struct i2c_driver i2c_driver_cx25840;
+static struct i2c_driver i2c_driver_cx25840;
 
 static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 				 int kind)
@@ -807,7 +837,7 @@ static int cx25840_detach_client(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-struct i2c_driver i2c_driver_cx25840 = {
+static struct i2c_driver i2c_driver_cx25840 = {
 	.name = "cx25840",
 
 	.id = I2C_DRIVERID_CX25840,

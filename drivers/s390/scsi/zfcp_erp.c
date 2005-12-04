@@ -1071,11 +1071,6 @@ zfcp_erp_thread_setup(struct zfcp_adapter *adapter)
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);
 
-	rwlock_init(&adapter->erp_lock);
-	INIT_LIST_HEAD(&adapter->erp_ready_head);
-	INIT_LIST_HEAD(&adapter->erp_running_head);
-	sema_init(&adapter->erp_ready_sem, 0);
-
 	retval = kernel_thread(zfcp_erp_thread, adapter, SIGCHLD);
 	if (retval < 0) {
 		ZFCP_LOG_NORMAL("error: creation of erp thread failed for "
@@ -2248,29 +2243,26 @@ zfcp_erp_adapter_strategy_close_qdio(struct zfcp_erp_action *erp_action)
 	return retval;
 }
 
-/*
- * function:    zfcp_fsf_init
- *
- * purpose:	initializes FSF operation for the specified adapter
- *
- * returns:	0 - succesful initialization of FSF operation
- *		!0 - failed to initialize FSF operation
- */
 static int
 zfcp_erp_adapter_strategy_open_fsf(struct zfcp_erp_action *erp_action)
 {
-	int xconfig, xport;
+	int retval;
 
-	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
-			     &erp_action->adapter->status)) {
+	if ((atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
+			      &erp_action->adapter->status)) &&
+	    (erp_action->adapter->adapter_features &
+	     FSF_FEATURE_HBAAPI_MANAGEMENT)) {
 		zfcp_erp_adapter_strategy_open_fsf_xport(erp_action);
 		atomic_set(&erp_action->adapter->erp_counter, 0);
 		return ZFCP_ERP_FAILED;
 	}
 
-	xconfig = zfcp_erp_adapter_strategy_open_fsf_xconfig(erp_action);
-	xport   = zfcp_erp_adapter_strategy_open_fsf_xport(erp_action);
-	if ((xconfig == ZFCP_ERP_FAILED) || (xport == ZFCP_ERP_FAILED))
+	retval = zfcp_erp_adapter_strategy_open_fsf_xconfig(erp_action);
+	if (retval == ZFCP_ERP_FAILED)
+		return ZFCP_ERP_FAILED;
+
+	retval = zfcp_erp_adapter_strategy_open_fsf_xport(erp_action);
+	if (retval == ZFCP_ERP_FAILED)
 		return ZFCP_ERP_FAILED;
 
 	return zfcp_erp_adapter_strategy_open_fsf_statusread(erp_action);
@@ -2359,41 +2351,29 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 static int
 zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 {
-	int retval = ZFCP_ERP_SUCCEEDED;
+	int ret;
 	int retries;
 	int sleep;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_XPORT_OK, &adapter->status);
 
-	for (retries = 0; ; retries++) {
-		ZFCP_LOG_DEBUG("Doing exchange port data\n");
+	retries = 0;
+	do {
+		write_lock(&adapter->erp_lock);
 		zfcp_erp_action_to_running(erp_action);
+		write_unlock(&adapter->erp_lock);
 		zfcp_erp_timeout_init(erp_action);
-		if (zfcp_fsf_exchange_port_data(erp_action, adapter, NULL)) {
-			retval = ZFCP_ERP_FAILED;
-			debug_text_event(adapter->erp_dbf, 5, "a_fstx_xf");
-			ZFCP_LOG_INFO("error: initiation of exchange of "
-				      "port data failed for adapter %s\n",
-				      zfcp_get_busid_by_adapter(adapter));
-			break;
+		ret = zfcp_fsf_exchange_port_data(erp_action, adapter, NULL);
+		if (ret == -EOPNOTSUPP) {
+			debug_text_event(adapter->erp_dbf, 3, "a_xport_notsupp");
+			return ZFCP_ERP_SUCCEEDED;
+		} else if (ret) {
+			debug_text_event(adapter->erp_dbf, 3, "a_xport_failed");
+			return ZFCP_ERP_FAILED;
 		}
-		debug_text_event(adapter->erp_dbf, 6, "a_fstx_xok");
-		ZFCP_LOG_DEBUG("Xchange underway\n");
+		debug_text_event(adapter->erp_dbf, 6, "a_xport_ok");
 
-		/*
-		 * Why this works:
-		 * Both the normal completion handler as well as the timeout
-		 * handler will do an 'up' when the 'exchange port data'
-		 * request completes or times out. Thus, the signal to go on
-		 * won't be lost utilizing this semaphore.
-		 * Furthermore, this 'adapter_reopen' action is
-		 * guaranteed to be the only action being there (highest action
-		 * which prevents other actions from being created).
-		 * Resulting from that, the wake signal recognized here
-		 * _must_ be the one belonging to the 'exchange port
-		 * data' request.
-		 */
 		down(&adapter->erp_ready_sem);
 		if (erp_action->status & ZFCP_STATUS_ERP_TIMEDOUT) {
 			ZFCP_LOG_INFO("error: exchange of port data "
@@ -2401,29 +2381,19 @@ zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 				      zfcp_get_busid_by_adapter(adapter));
 			break;
 		}
-
 		if (!atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
 				      &adapter->status))
 			break;
 
-		ZFCP_LOG_DEBUG("host connection still initialising... "
-			       "waiting and retrying...\n");
-		/* sleep a little bit before retry */
-		sleep = retries < ZFCP_EXCHANGE_PORT_DATA_SHORT_RETRIES ?
-				ZFCP_EXCHANGE_PORT_DATA_SHORT_SLEEP :
-				ZFCP_EXCHANGE_PORT_DATA_LONG_SLEEP;
-		msleep(jiffies_to_msecs(sleep));
-	}
+		if (retries < ZFCP_EXCHANGE_PORT_DATA_SHORT_RETRIES) {
+			sleep = ZFCP_EXCHANGE_PORT_DATA_SHORT_SLEEP;
+			retries++;
+		} else
+			sleep = ZFCP_EXCHANGE_PORT_DATA_LONG_SLEEP;
+		schedule_timeout(sleep);
+	} while (1);
 
-	if (atomic_test_mask(ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
-			     &adapter->status)) {
-		ZFCP_LOG_INFO("error: exchange of port data for "
-			      "adapter %s failed\n",
-			      zfcp_get_busid_by_adapter(adapter));
-		retval = ZFCP_ERP_FAILED;
-	}
-
-	return retval;
+	return ZFCP_ERP_SUCCEEDED;
 }
 
 /*
