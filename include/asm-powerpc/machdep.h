@@ -222,7 +222,7 @@ struct machdep_calls {
 	 * to run successfully.
 	 * XXX Should we move this one out of kexec scope?
 	 */
-	void (*machine_crash_shutdown)(void);
+	void (*machine_crash_shutdown)(struct pt_regs *regs);
 
 	/* Called to do what every setup is needed on image and the
 	 * reboot code buffer. Returns 0 on success.

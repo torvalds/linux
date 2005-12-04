@@ -23,7 +23,7 @@ note_buf_t crash_notes[NR_CPUS];
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 	if (ppc_md.machine_crash_shutdown)
-		ppc_md.machine_crash_shutdown();
+		ppc_md.machine_crash_shutdown(regs);
 }
 
 /*
