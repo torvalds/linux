@@ -51,8 +51,16 @@
  *
  * If you want to test if something's a kernel address, use is_kernel_addr().
  */
+
+#ifdef CONFIG_CRASH_DUMP
+/* Kdump kernel runs at 32 MB, change at your peril. */
+#define PHYSICAL_START	0x2000000
+#else
+#define PHYSICAL_START	0x0
+#endif
+
 #define PAGE_OFFSET     ASM_CONST(CONFIG_KERNEL_START)
-#define KERNELBASE      PAGE_OFFSET
+#define KERNELBASE      (PAGE_OFFSET + PHYSICAL_START)
 
 #ifdef CONFIG_DISCONTIGMEM
 #define page_to_pfn(page)	discontigmem_page_to_pfn(page)
