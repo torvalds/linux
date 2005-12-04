@@ -76,14 +76,14 @@ static void video_release(struct class_device *cd)
 }
 
 static struct class video_class = {
-        .name    = VIDEO_NAME,
+	.name    = VIDEO_NAME,
 	.release = video_release,
 };
 
 /*
- *	Active devices 
+ *	Active devices
  */
- 
+
 static struct video_device *video_device[VIDEO_NUM_DEVICES];
 static DECLARE_MUTEX(videodev_lock);
 
@@ -101,7 +101,7 @@ static int video_open(struct inode *inode, struct file *file)
 	int err = 0;
 	struct video_device *vfl;
 	struct file_operations *old_fops;
-	
+
 	if(minor>=VIDEO_NUM_DEVICES)
 		return -ENODEV;
 	down(&videodev_lock);
@@ -189,7 +189,7 @@ video_usercopy(struct inode *inode, struct file *file,
 				return -ENOMEM;
 			parg = mbuf;
 		}
-		
+
 		err = -EFAULT;
 		if (_IOC_DIR(cmd) & _IOC_WRITE)
 			if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
@@ -240,7 +240,7 @@ int video_exclusive_open(struct inode *inode, struct file *file)
 int video_exclusive_release(struct inode *inode, struct file *file)
 {
 	struct  video_device *vfl = video_devdata(file);
-	
+
 	vfl->users--;
 	return 0;
 }
@@ -253,7 +253,7 @@ static struct file_operations video_fops;
  *	@type: type of device to register
  *	@nr:   which device number (0 == /dev/video0, 1 == /dev/video1, ...
  *             -1 == first free)
- *	
+ *
  *	The registration code assigns minor numbers based on the type
  *	requested. -ENFILE is returned in all the device slots for this
  *	category are full. If not then the minor field is set and the
@@ -269,7 +269,7 @@ static struct file_operations video_fops;
  *
  *	%VFL_TYPE_VBI - Vertical blank data (undecoded)
  *
- *	%VFL_TYPE_RADIO - A radio card	
+ *	%VFL_TYPE_RADIO - A radio card
  */
 
 int video_register_device(struct video_device *vfd, int type, int nr)
@@ -278,7 +278,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	int base;
 	int end;
 	char *name_base;
-	
+
 	switch(type)
 	{
 		case VFL_TYPE_GRABBER:
@@ -293,7 +293,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 			break;
 		case VFL_TYPE_VBI:
 			base=224;
-			end=240;
+			end=256;
 			name_base = "vbi";
 			break;
 		case VFL_TYPE_RADIO:
@@ -334,7 +334,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	init_MUTEX(&vfd->lock);
 
 	/* sysfs class */
-        memset(&vfd->class_dev, 0x00, sizeof(vfd->class_dev));
+	memset(&vfd->class_dev, 0x00, sizeof(vfd->class_dev));
 	if (vfd->dev)
 		vfd->class_dev.dev = vfd->dev;
 	vfd->class_dev.class       = &video_class;
@@ -360,7 +360,7 @@ int video_register_device(struct video_device *vfd, int type, int nr)
  *	This unregisters the passed device and deassigns the minor
  *	number. Future open calls will be met with errors.
  */
- 
+
 void video_unregister_device(struct video_device *vfd)
 {
 	down(&videodev_lock);
@@ -384,7 +384,7 @@ static struct file_operations video_fops=
 /*
  *	Initialise video for linux
  */
- 
+
 static int __init videodev_init(void)
 {
 	int ret;

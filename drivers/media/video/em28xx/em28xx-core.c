@@ -32,7 +32,7 @@
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
-unsigned int core_debug;
+static unsigned int core_debug;
 module_param(core_debug,int,0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
@@ -41,7 +41,7 @@ MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __FUNCTION__ , ##arg); } while (0)
 
-unsigned int reg_debug;
+static unsigned int reg_debug;
 module_param(reg_debug,int,0644);
 MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
 
@@ -50,7 +50,7 @@ MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __FUNCTION__ , ##arg); } while (0)
 
-unsigned int isoc_debug;
+static unsigned int isoc_debug;
 module_param(isoc_debug,int,0644);
 MODULE_PARM_DESC(isoc_debug,"enable debug messages [isoc transfers]");
 

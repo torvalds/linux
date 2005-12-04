@@ -77,6 +77,8 @@ config MACH_AKITA
 	depends PXA_SHARPSL_27x
 	select PXA_SHARP_Cxx00
 	select MACH_SPITZ
+	select I2C
+	select I2C_PXA
 
 config MACH_SPITZ
 	bool "Enable Sharp Zaurus SL-3000 (Spitz) Support"

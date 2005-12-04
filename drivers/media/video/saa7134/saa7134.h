@@ -571,6 +571,10 @@ void saa7134_dma_free(struct saa7134_dev *dev,struct saa7134_buf *buf);
 
 int saa7134_set_dmabits(struct saa7134_dev *dev);
 
+extern int (*dmasound_init)(struct saa7134_dev *dev);
+extern int (*dmasound_exit)(struct saa7134_dev *dev);
+
+
 /* ----------------------------------------------------------- */
 /* saa7134-cards.c                                             */
 

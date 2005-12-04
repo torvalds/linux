@@ -45,13 +45,12 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-db1x00/db1x00.h>
 
-/* not correct for db1550 */
-static BCSR * const bcsr = (BCSR *)0xAE000000;
+static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 
 void board_reset (void)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
-	au_writel(0x00000000, 0xAE00001C);
+	bcsr->swreset = 0x0000;
 }
 
 void __init board_setup(void)
@@ -75,7 +74,7 @@ void __init board_setup(void)
 	bcsr->resets |= BCSR_RESETS_IRDA_MODE_OFF;
 	au_sync();
 #endif
-	au_writel(0, 0xAE000010); /* turn off pcmcia power */
+	bcsr->pcmcia = 0x0000; /* turn off PCMCIA power */
 
 #ifdef CONFIG_MIPS_MIRAGE
 	/* enable GPIO[31:0] inputs */

@@ -220,8 +220,6 @@ _sys_sigreturn(nabi_no_regargs struct pt_regs regs)
 	/*
 	 * Don't let your children do this ...
 	 */
-	if (current_thread_info()->flags & TIF_SYSCALL_TRACE)
-		do_syscall_trace(&regs, 1);
 	__asm__ __volatile__(
 		"move\t$29, %0\n\t"
 		"j\tsyscall_exit"

@@ -1287,6 +1287,7 @@ dentry->d_parent->d_name.name, dentry->d_name.name);
 		nfs_begin_data_update(dentry->d_inode);
 		error = NFS_PROTO(dir)->rename(dir, &dentry->d_name,
 				dir, &qsilly);
+		nfs_mark_for_revalidate(dentry->d_inode);
 		nfs_end_data_update(dentry->d_inode);
 	} else
 		error = NFS_PROTO(dir)->rename(dir, &dentry->d_name,
@@ -1334,6 +1335,7 @@ static int nfs_safe_remove(struct dentry *dentry)
 		/* The VFS may want to delete this inode */
 		if (error == 0)
 			inode->i_nlink--;
+		nfs_mark_for_revalidate(inode);
 		nfs_end_data_update(inode);
 	} else
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
@@ -1556,6 +1558,7 @@ go_ahead:
 	nfs_begin_data_update(old_inode);
 	error = NFS_PROTO(old_dir)->rename(old_dir, &old_dentry->d_name,
 					   new_dir, &new_dentry->d_name);
+	nfs_mark_for_revalidate(old_inode);
 	nfs_end_data_update(old_inode);
 	nfs_end_data_update(new_dir);
 	nfs_end_data_update(old_dir);
