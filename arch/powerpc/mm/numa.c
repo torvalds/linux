@@ -423,7 +423,12 @@ static int __init parse_numa_properties(void)
 		unsigned int *memcell_buf;
 		unsigned int len;
 
-		memcell_buf = (unsigned int *)get_property(memory, "reg", &len);
+		memcell_buf = (unsigned int *)get_property(memory,
+			"linux,usable-memory", &len);
+		if (!memcell_buf || len <= 0)
+			memcell_buf =
+				(unsigned int *)get_property(memory, "reg",
+					&len);
 		if (!memcell_buf || len <= 0)
 			continue;
 

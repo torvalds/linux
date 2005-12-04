@@ -567,7 +567,10 @@ static int __init interpret_root_props(struct device_node *np,
 	unsigned int *rp;
 	int rpsize = (naddrc + nsizec) * sizeof(unsigned int);
 
-	rp = (unsigned int *) get_property(np, "reg", &l);
+	rp = (unsigned int *) get_property(np, "linux,usable-memory", &l);
+	if (rp == NULL)
+		rp = (unsigned int *) get_property(np, "reg", &l);
+
 	if (rp != 0 && l >= rpsize) {
 		i = 0;
 		adr = (struct address_range *) (*mem_start);
@@ -1275,7 +1278,9 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
-	reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
+	reg = (cell_t *)of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	if (reg == NULL)
+		reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
 	if (reg == NULL)
 		return 0;
 
