@@ -30,6 +30,8 @@
 #define KEXEC_ARCH KEXEC_ARCH_PPC
 #endif
 
+#define HAVE_ARCH_COPY_OLDMEM_PAGE
+
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_KEXEC

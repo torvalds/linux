@@ -16,6 +16,7 @@
 #include <asm/kdump.h>
 #include <asm/lmb.h>
 #include <asm/firmware.h>
+#include <asm/uaccess.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -71,3 +72,38 @@ static int __init parse_savemaxmem(char *p)
 	return 0;
 }
 __setup("savemaxmem=", parse_savemaxmem);
+
+/*
+ * copy_oldmem_page - copy one page from "oldmem"
+ * @pfn: page frame number to be copied
+ * @buf: target memory address for the copy; this can be in kernel address
+ *      space or user address space (see @userbuf)
+ * @csize: number of bytes to copy
+ * @offset: offset in bytes into the page (based on pfn) to begin the copy
+ * @userbuf: if set, @buf is in user address space, use copy_to_user(),
+ *      otherwise @buf is in kernel address space, use memcpy().
+ *
+ * Copy a page from "oldmem". For this page, there is no pte mapped
+ * in the current kernel. We stitch up a pte, similar to kmap_atomic.
+ */
+ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
+			size_t csize, unsigned long offset, int userbuf)
+{
+	void  *vaddr;
+
+	if (!csize)
+		return 0;
+
+	vaddr = __ioremap(pfn << PAGE_SHIFT, PAGE_SIZE, 0);
+
+	if (userbuf) {
+		if (copy_to_user((char __user *)buf, (vaddr + offset), csize)) {
+			iounmap(vaddr);
+			return -EFAULT;
+		}
+	} else
+		memcpy(buf, (vaddr + offset), csize);
+
+	iounmap(vaddr);
+	return csize;
+}
