@@ -146,7 +146,7 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	union tce_entry tce, *tcep;
 	long l, limit;
 
-	if (npages == 1)
+	if (TCE_PAGE_FACTOR == 0 && npages == 1)
 		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 					   direction);
 
