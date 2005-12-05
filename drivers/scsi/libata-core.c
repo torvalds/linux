@@ -1053,9 +1053,9 @@ static int ata_qc_wait_err(struct ata_queued_cmd *qc,
 
 	if (wait_for_completion_timeout(wait, 30 * HZ) < 1) {
 		/* timeout handling */
-		unsigned int err_mask = ac_err_mask(ata_chk_status(qc->ap));
+		qc->err_mask |= ac_err_mask(ata_chk_status(qc->ap));
 
-		if (!err_mask) {
+		if (!qc->err_mask) {
 			printk(KERN_WARNING "ata%u: slow completion (cmd %x)\n",
 			       qc->ap->id, qc->tf.command);
 		} else {
@@ -1064,7 +1064,7 @@ static int ata_qc_wait_err(struct ata_queued_cmd *qc,
 			rc = -EIO;
 		}
 
-		ata_qc_complete(qc, err_mask);
+		ata_qc_complete(qc);
 	}
 
 	return rc;
@@ -1175,6 +1175,7 @@ retry:
 				qc->cursg_ofs = 0;
 				qc->cursect = 0;
 				qc->nsect = 1;
+				qc->err_mask = 0;
 				goto retry;
 			}
 		}
@@ -2777,7 +2778,7 @@ skip_map:
  *	None.  (grabs host lock)
  */
 
-void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
+void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned long flags;
@@ -2785,7 +2786,7 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	ap->flags &= ~ATA_FLAG_NOINTR;
 	ata_irq_on(ap);
-	ata_qc_complete(qc, err_mask);
+	ata_qc_complete(qc);
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
 
@@ -2885,7 +2886,8 @@ static int ata_pio_complete (struct ata_port *ap)
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	ata_poll_qc_complete(qc, 0);
+	assert(qc->err_mask == 0);
+	ata_poll_qc_complete(qc);
 
 	/* another command may start at this point */
 
@@ -3261,7 +3263,8 @@ static void ata_pio_error(struct ata_port *ap)
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	ata_poll_qc_complete(qc, AC_ERR_ATA_BUS);
+	qc->err_mask |= AC_ERR_ATA_BUS;
+	ata_poll_qc_complete(qc);
 }
 
 static void ata_pio_task(void *_data)
@@ -3363,7 +3366,8 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		       ap->id, qc->tf.command, drv_stat, host_stat);
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc, ac_err_mask(drv_stat));
+		qc->err_mask |= ac_err_mask(drv_stat);
+		ata_qc_complete(qc);
 		break;
 	}
 
@@ -3462,7 +3466,7 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 	return qc;
 }
 
-int ata_qc_complete_noop(struct ata_queued_cmd *qc, unsigned int err_mask)
+int ata_qc_complete_noop(struct ata_queued_cmd *qc)
 {
 	return 0;
 }
@@ -3521,7 +3525,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
+void ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	int rc;
 
@@ -3538,7 +3542,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 
 	/* call completion callback */
-	rc = qc->complete_fn(qc, err_mask);
+	rc = qc->complete_fn(qc);
 
 	/* if callback indicates not to complete command (non-zero),
 	 * return immediately
@@ -3976,7 +3980,8 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 		ap->ops->irq_clear(ap);
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc, ac_err_mask(status));
+		qc->err_mask |= ac_err_mask(status);
+		ata_qc_complete(qc);
 		break;
 
 	default:
@@ -4111,7 +4116,8 @@ static void atapi_packet_task(void *_data)
 err_out_status:
 	status = ata_chk_status(ap);
 err_out:
-	ata_poll_qc_complete(qc, __ac_err_mask(status));
+	qc->err_mask |= __ac_err_mask(status);
+	ata_poll_qc_complete(qc);
 }
 
 
