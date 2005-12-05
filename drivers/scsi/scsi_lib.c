@@ -462,6 +462,7 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 	req = blk_get_request(sdev->request_queue, write, gfp);
 	if (!req)
 		goto free_sense;
+	req->flags |= REQ_BLOCK_PC | REQ_QUIET;
 
 	if (use_sg)
 		err = scsi_req_map_sg(req, buffer, use_sg, bufflen, gfp);
@@ -477,7 +478,6 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 	req->sense_len = 0;
 	req->timeout = timeout;
 	req->retries = retries;
-	req->flags |= REQ_BLOCK_PC | REQ_QUIET;
 	req->end_io_data = sioc;
 
 	sioc->data = privdata;

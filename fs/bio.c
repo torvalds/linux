@@ -313,7 +313,8 @@ int bio_get_nr_vecs(struct block_device *bdev)
 }
 
 static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
-			  *page, unsigned int len, unsigned int offset)
+			  *page, unsigned int len, unsigned int offset,
+			  unsigned short max_sectors)
 {
 	int retried_segments = 0;
 	struct bio_vec *bvec;
@@ -327,7 +328,7 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 	if (bio->bi_vcnt >= bio->bi_max_vecs)
 		return 0;
 
-	if (((bio->bi_size + len) >> 9) > q->max_sectors)
+	if (((bio->bi_size + len) >> 9) > max_sectors)
 		return 0;
 
 	/*
@@ -401,7 +402,7 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 int bio_add_pc_page(request_queue_t *q, struct bio *bio, struct page *page,
 		    unsigned int len, unsigned int offset)
 {
-	return __bio_add_page(q, bio, page, len, offset);
+	return __bio_add_page(q, bio, page, len, offset, q->max_hw_sectors);
 }
 
 /**
@@ -420,8 +421,8 @@ int bio_add_pc_page(request_queue_t *q, struct bio *bio, struct page *page,
 int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
 		 unsigned int offset)
 {
-	return __bio_add_page(bdev_get_queue(bio->bi_bdev), bio, page,
-			      len, offset);
+	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+	return __bio_add_page(q, bio, page, len, offset, q->max_sectors);
 }
 
 struct bio_map_data {
@@ -533,7 +534,7 @@ struct bio *bio_copy_user(request_queue_t *q, unsigned long uaddr,
 			break;
 		}
 
-		if (__bio_add_page(q, bio, page, bytes, 0) < bytes) {
+		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes) {
 			ret = -EINVAL;
 			break;
 		}
@@ -647,7 +648,8 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 			/*
 			 * sorry...
 			 */
-			if (__bio_add_page(q, bio, pages[j], bytes, offset) < bytes)
+			if (bio_add_pc_page(q, bio, pages[j], bytes, offset) <
+					    bytes)
 				break;
 
 			len -= bytes;
@@ -820,8 +822,8 @@ static struct bio *__bio_map_kern(request_queue_t *q, void *data,
 		if (bytes > len)
 			bytes = len;
 
-		if (__bio_add_page(q, bio, virt_to_page(data), bytes,
-				   offset) < bytes)
+		if (bio_add_pc_page(q, bio, virt_to_page(data), bytes,
+				    offset) < bytes)
 			break;
 
 		data += bytes;
