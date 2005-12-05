@@ -37,6 +37,7 @@ EXPORT_SYMBOL(node_data);
 
 static bootmem_data_t __initdata plat_node_bdata[MAX_NUMNODES];
 static int min_common_depth;
+static int n_mem_addr_cells, n_mem_size_cells;
 
 /*
  * We need somewhere to store start/end/node for each region until we have
@@ -267,7 +268,7 @@ static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 	of_node_put(memory);
 }
 
-static unsigned long __init read_n_cells(int n, unsigned int **buf)
+static unsigned long __devinit read_n_cells(int n, unsigned int **buf)
 {
 	unsigned long result = 0;
 
@@ -374,7 +375,6 @@ static int __init parse_numa_properties(void)
 {
 	struct device_node *cpu = NULL;
 	struct device_node *memory = NULL;
-	int n_addr_cells, n_size_cells;
 	int max_domain;
 	unsigned long i;
 
@@ -413,7 +413,7 @@ static int __init parse_numa_properties(void)
 		}
 	}
 
-	get_n_mem_cells(&n_addr_cells, &n_size_cells);
+	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);
 	memory = NULL;
 	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
 		unsigned long start;
@@ -430,8 +430,8 @@ static int __init parse_numa_properties(void)
 		ranges = memory->n_addrs;
 new_range:
 		/* these are order-sensitive, and modify the buffer pointer */
-		start = read_n_cells(n_addr_cells, &memcell_buf);
-		size = read_n_cells(n_size_cells, &memcell_buf);
+		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
+		size = read_n_cells(n_mem_size_cells, &memcell_buf);
 
 		numa_domain = of_node_numa_domain(memory);
 
@@ -717,3 +717,50 @@ static int __init early_numa(char *p)
 	return 0;
 }
 early_param("numa", early_numa);
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+/*
+ * Find the node associated with a hot added memory section.  Section
+ * corresponds to a SPARSEMEM section, not an LMB.  It is assumed that
+ * sections are fully contained within a single LMB.
+ */
+int hot_add_scn_to_nid(unsigned long scn_addr)
+{
+	struct device_node *memory = NULL;
+
+	if (!numa_enabled || (min_common_depth < 0))
+		return 0;
+
+	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
+		unsigned long start, size;
+		int numa_domain, ranges;
+		unsigned int *memcell_buf;
+		unsigned int len;
+
+		memcell_buf = (unsigned int *)get_property(memory, "reg", &len);
+		if (!memcell_buf || len <= 0)
+			continue;
+
+		ranges = memory->n_addrs;	/* ranges in cell */
+ha_new_range:
+		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
+		size = read_n_cells(n_mem_size_cells, &memcell_buf);
+		numa_domain = of_node_numa_domain(memory);
+
+		/* Domains not present at boot default to 0 */
+		if (!node_online(numa_domain))
+			numa_domain = any_online_node(NODE_MASK_ALL);
+
+		if ((scn_addr >= start) && (scn_addr < (start + size))) {
+			of_node_put(memory);
+			return numa_domain;
+		}
+
+		if (--ranges)		/* process all ranges in cell */
+			goto ha_new_range;
+	}
+
+	BUG();	/* section address should be found above */
+	return 0;
+}
+#endif /* CONFIG_MEMORY_HOTPLUG */
