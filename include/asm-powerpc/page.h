@@ -37,6 +37,20 @@
  */
 #define PAGE_MASK      (~((1 << PAGE_SHIFT) - 1))
 
+/*
+ * KERNELBASE is the virtual address of the start of the kernel, it's often
+ * the same as PAGE_OFFSET, but _might not be_.
+ *
+ * The kdump dump kernel is one example where KERNELBASE != PAGE_OFFSET.
+ *
+ * To get a physical address from a virtual one you subtract PAGE_OFFSET,
+ * _not_ KERNELBASE.
+ *
+ * If you want to know something's offset from the start of the kernel you
+ * should subtract KERNELBASE.
+ *
+ * If you want to test if something's a kernel address, use is_kernel_addr().
+ */
 #define PAGE_OFFSET     ASM_CONST(CONFIG_KERNEL_START)
 #define KERNELBASE      PAGE_OFFSET
 
@@ -56,7 +70,7 @@
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
-#define __va(x) ((void *)((unsigned long)(x) + KERNELBASE))
+#define __va(x) ((void *)((unsigned long)(x) + PAGE_OFFSET))
 #define __pa(x) ((unsigned long)(x) - PAGE_OFFSET)
 
 /*

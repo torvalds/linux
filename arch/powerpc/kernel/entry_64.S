@@ -690,7 +690,7 @@ _GLOBAL(enter_rtas)
 
 	/* Setup our real return addr */	
 	SET_REG_TO_LABEL(r4,.rtas_return_loc)
-	SET_REG_TO_CONST(r9,KERNELBASE)
+	SET_REG_TO_CONST(r9,PAGE_OFFSET)
 	sub	r4,r4,r9
        	mtlr	r4
 
@@ -718,7 +718,7 @@ _GLOBAL(enter_rtas)
 _STATIC(rtas_return_loc)
 	/* relocation is off at this point */
 	mfspr	r4,SPRN_SPRG3	        /* Get PACA */
-	SET_REG_TO_CONST(r5, KERNELBASE)
+	SET_REG_TO_CONST(r5, PAGE_OFFSET)
         sub     r4,r4,r5                /* RELOC the PACA base pointer */
 
 	mfmsr   r6

@@ -40,7 +40,7 @@ static int make_ste(unsigned long stab, unsigned long esid, unsigned long vsid)
 	unsigned long entry, group, old_esid, castout_entry, i;
 	unsigned int global_entry;
 	struct stab_entry *ste, *castout_ste;
-	unsigned long kernel_segment = (esid << SID_SHIFT) >= KERNELBASE;
+	unsigned long kernel_segment = (esid << SID_SHIFT) >= PAGE_OFFSET;
 
 	vsid_data = vsid << STE_VSID_SHIFT;
 	esid_data = esid << SID_SHIFT | STE_ESID_KP | STE_ESID_V;
@@ -83,7 +83,7 @@ static int make_ste(unsigned long stab, unsigned long esid, unsigned long vsid)
 		}
 
 		/* Dont cast out the first kernel segment */
-		if ((castout_ste->esid_data & ESID_MASK) != KERNELBASE)
+		if ((castout_ste->esid_data & ESID_MASK) != PAGE_OFFSET)
 			break;
 
 		castout_entry = (castout_entry + 1) & 0xf;
@@ -251,7 +251,7 @@ void stabs_alloc(void)
 			panic("Unable to allocate segment table for CPU %d.\n",
 			      cpu);
 
-		newstab += KERNELBASE;
+		newstab = (unsigned long)__va(newstab);
 
 		memset((void *)newstab, 0, HW_PAGE_SIZE);
 
@@ -270,11 +270,11 @@ void stabs_alloc(void)
  */
 void stab_initialize(unsigned long stab)
 {
-	unsigned long vsid = get_kernel_vsid(KERNELBASE);
+	unsigned long vsid = get_kernel_vsid(PAGE_OFFSET);
 	unsigned long stabreal;
 
 	asm volatile("isync; slbia; isync":::"memory");
-	make_ste(stab, GET_ESID(KERNELBASE), vsid);
+	make_ste(stab, GET_ESID(PAGE_OFFSET), vsid);
 
 	/* Order update */
 	asm volatile("sync":::"memory");

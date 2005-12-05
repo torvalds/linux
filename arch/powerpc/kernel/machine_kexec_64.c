@@ -153,9 +153,8 @@ void kexec_copy_flush(struct kimage *image)
 	 * including ones that were in place on the original copy
 	 */
 	for (i = 0; i < nr_segments; i++)
-		flush_icache_range(ranges[i].mem + KERNELBASE,
-				ranges[i].mem + KERNELBASE +
-				ranges[i].memsz);
+		flush_icache_range((unsigned long)__va(ranges[i].mem),
+			(unsigned long)__va(ranges[i].mem + ranges[i].memsz));
 }
 
 #ifdef CONFIG_SMP

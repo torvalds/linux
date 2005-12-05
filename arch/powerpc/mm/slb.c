@@ -75,7 +75,7 @@ static void slb_flush_and_rebolt(void)
 	vflags = SLB_VSID_KERNEL | virtual_llp;
 
 	ksp_esid_data = mk_esid_data(get_paca()->kstack, 2);
-	if ((ksp_esid_data & ESID_MASK) == KERNELBASE)
+	if ((ksp_esid_data & ESID_MASK) == PAGE_OFFSET)
 		ksp_esid_data &= ~SLB_ESID_V;
 
 	/* We need to do this all in asm, so we're sure we don't touch
@@ -213,7 +213,7 @@ void slb_initialize(void)
 	asm volatile("isync":::"memory");
 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
-	create_slbe(KERNELBASE, lflags, 0);
+	create_slbe(PAGE_OFFSET, lflags, 0);
 
 	/* VMALLOC space has 4K pages always for now */
 	create_slbe(VMALLOCBASE, vflags, 1);

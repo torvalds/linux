@@ -456,7 +456,7 @@ void __init htab_initialize(void)
 
 	/* create bolted the linear mapping in the hash table */
 	for (i=0; i < lmb.memory.cnt; i++) {
-		base = lmb.memory.region[i].base + KERNELBASE;
+		base = (unsigned long)__va(lmb.memory.region[i].base);
 		size = lmb.memory.region[i].size;
 
 		DBG("creating mapping for region: %lx : %lx\n", base, size);
@@ -498,8 +498,8 @@ void __init htab_initialize(void)
 	 * for either 4K or 16MB pages.
 	 */
 	if (tce_alloc_start) {
-		tce_alloc_start += KERNELBASE;
-		tce_alloc_end += KERNELBASE;
+		tce_alloc_start = (unsigned long)__va(tce_alloc_start);
+		tce_alloc_end = (unsigned long)__va(tce_alloc_end);
 
 		if (base + size >= tce_alloc_start)
 			tce_alloc_start = base + size + 1;

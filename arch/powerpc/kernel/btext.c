@@ -60,7 +60,7 @@ int force_printk_to_btext = 0;
  *
  * The display is mapped to virtual address 0xD0000000, rather
  * than 1:1, because some some CHRP machines put the frame buffer
- * in the region starting at 0xC0000000 (KERNELBASE).
+ * in the region starting at 0xC0000000 (PAGE_OFFSET).
  * This mapping is temporary and will disappear as soon as the
  * setup done by MMU_Init() is applied.
  *
@@ -71,7 +71,7 @@ int force_printk_to_btext = 0;
  */
 void __init btext_prepare_BAT(void)
 {
-	unsigned long vaddr = KERNELBASE + 0x10000000;
+	unsigned long vaddr = PAGE_OFFSET + 0x10000000;
 	unsigned long addr;
 	unsigned long lowbits;
 
