@@ -2802,9 +2802,13 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 
 static unsigned long ata_pio_poll(struct ata_port *ap)
 {
+	struct ata_queued_cmd *qc;
 	u8 status;
 	unsigned int poll_state = HSM_ST_UNKNOWN;
 	unsigned int reg_state = HSM_ST_UNKNOWN;
+
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	assert(qc != NULL);
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -2870,14 +2874,14 @@ static int ata_pio_complete (struct ata_port *ap)
 		}
 	}
 
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	assert(qc != NULL);
+
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
 		ap->hsm_task_state = HSM_ST_ERR;
 		return 0;
 	}
-
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
