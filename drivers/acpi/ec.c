@@ -279,7 +279,7 @@ int acpi_ec_enter_burst_mode(union acpi_ec *ec)
 	atomic_set(&ec->intr.leaving_burst, 0);
 	return_VALUE(0);
       end:
-	printk("Error in acpi_ec_wait\n");
+	printk(KERN_WARNING PREFIX "Error in acpi_ec_wait\n");
 	return_VALUE(-1);
 }
 
@@ -300,7 +300,7 @@ int acpi_ec_leave_burst_mode(union acpi_ec *ec)
 	atomic_set(&ec->intr.leaving_burst, 1);
 	return_VALUE(0);
 end:
-	printk("leave burst_mode:error \n");
+	printk(KERN_WARNING PREFIX "leave burst_mode:error\n");
 	return_VALUE(-1);
 }
 #endif /* ACPI_FUTURE_USAGE */
@@ -437,20 +437,20 @@ static int acpi_ec_intr_read(union acpi_ec *ec, u8 address, u32 * data)
 
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status) {
-		printk("read EC, IB not empty\n");
+		printk(KERN_DEBUG PREFIX "read EC, IB not empty\n");
 		goto end;
 	}
 	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_READ,
 				&ec->common.command_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status) {
-		printk("read EC, IB not empty\n");
+		printk(KERN_DEBUG PREFIX "read EC, IB not empty\n");
 	}
 
 	acpi_hw_low_level_write(8, address, &ec->common.data_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
 	if (status) {
-		printk("read EC, OB not full\n");
+		printk(KERN_DEBUG PREFIX "read EC, OB not full\n");
 		goto end;
 	}
 	acpi_hw_low_level_read(8, data, &ec->common.data_addr);
@@ -487,19 +487,19 @@ static int acpi_ec_intr_write(union acpi_ec *ec, u8 address, u8 data)
 
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status) {
-		printk("write EC, IB not empty\n");
+		printk(KERN_DEBUG PREFIX "write EC, IB not empty\n");
 	}
 	acpi_hw_low_level_write(8, ACPI_EC_COMMAND_WRITE,
 				&ec->common.command_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status) {
-		printk("write EC, IB not empty\n");
+		printk(KERN_DEBUG PREFIX "write EC, IB not empty\n");
 	}
 
 	acpi_hw_low_level_write(8, address, &ec->common.data_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status) {
-		printk("write EC, IB not empty\n");
+		printk(KERN_DEBUG PREFIX "write EC, IB not empty\n");
 	}
 
 	acpi_hw_low_level_write(8, data, &ec->common.data_addr);
@@ -630,7 +630,7 @@ static int acpi_ec_intr_query(union acpi_ec *ec, u32 * data)
 
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBE);
 	if (status) {
-		printk("query EC, IB not empty\n");
+		printk(KERN_DEBUG PREFIX "query EC, IB not empty\n");
 		goto end;
 	}
 	/*
@@ -642,7 +642,7 @@ static int acpi_ec_intr_query(union acpi_ec *ec, u32 * data)
 				&ec->common.command_addr);
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF);
 	if (status) {
-		printk("query EC, OB not full\n");
+		printk(KERN_DEBUG PREFIX "query EC, OB not full\n");
 		goto end;
 	}
 
