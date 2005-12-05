@@ -1772,16 +1772,16 @@ static int __devinit zone_batchsize(struct zone *zone)
 		batch = 1;
 
 	/*
-	 * We will be trying to allcoate bigger chunks of contiguous
-	 * memory of the order of fls(batch).  This should result in
-	 * better cache coloring.
+	 * Clamp the batch to a 2^n - 1 value. Having a power
+	 * of 2 value was found to be more likely to have
+	 * suboptimal cache aliasing properties in some cases.
 	 *
-	 * A sanity check also to ensure that batch is still in limits.
+	 * For example if 2 tasks are alternately allocating
+	 * batches of pages, one task can end up with a lot
+	 * of pages of one half of the possible page colors
+	 * and the other with pages of the other colors.
 	 */
-	batch = (1 << fls(batch + batch/2));
-
-	if (fls(batch) >= (PAGE_SHIFT + MAX_ORDER - 2))
-		batch = PAGE_SHIFT + ((MAX_ORDER - 1 - PAGE_SHIFT)/2);
+	batch = (1 << (fls(batch + batch/2)-1)) - 1;
 
 	return batch;
 }

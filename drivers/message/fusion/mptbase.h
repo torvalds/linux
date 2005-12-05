@@ -611,6 +611,8 @@ typedef struct _MPT_ADAPTER
 	int			 DoneCtx;
 	int			 TaskCtx;
 	int			 InternalCtx;
+	spinlock_t		 initializing_hba_lock;
+	int 	 		 initializing_hba_lock_flag;
 	struct list_head	 list;
 	struct net_device	*netdev;
 	struct list_head	 sas_topology;
@@ -1001,6 +1003,7 @@ extern void	 mpt_free_fw_memory(MPT_ADAPTER *ioc);
 extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
 extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
+extern int	 mpt_alt_ioc_wait(MPT_ADAPTER *ioc);
 
 /*
  *  Public data decl's...
