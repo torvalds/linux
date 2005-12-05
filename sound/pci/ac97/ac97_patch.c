@@ -2116,7 +2116,7 @@ static const struct snd_kcontrol_new snd_ac97_spdif_controls_alc655[] = {
         /* AC97_PAGE_SINGLE("IEC958 Input Monitor", AC97_ALC650_MULTICH, 14, 1, 0, 0), */
 	{
 		.iface  = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name   = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Route",
+		.name   = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
 		.info   = alc655_iec958_route_info,
 		.get    = alc655_iec958_route_get,
 		.put    = alc655_iec958_route_put,

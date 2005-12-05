@@ -2411,6 +2411,8 @@ static int tune_alc_jack(struct snd_ac97 *ac97)
 	}
 	snd_ac97_update_bits(ac97, 0x7a, 0x20, 0x20); /* select jack detect function */
 	snd_ac97_update_bits(ac97, 0x7a, 0x01, 0x01); /* Line-out auto mute */
+	if (ac97->id == AC97_ID_ALC658D)
+		snd_ac97_update_bits(ac97, 0x74, 0x0800, 0x0800);
 	return snd_ctl_add(ac97->bus->card, snd_ac97_cnew(&snd_ac97_alc_jack_detect, ac97));
 }
 
