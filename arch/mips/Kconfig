@@ -6,8 +6,6 @@ config MIPS
 
 mainmenu "Linux/MIPS Kernel Configuration"
 
-source "init/Kconfig"
-
 menu "Machine selection"
 
 choice
@@ -1642,6 +1640,8 @@ endmenu
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
+
+source "init/Kconfig"
 
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 

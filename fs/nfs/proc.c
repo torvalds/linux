@@ -375,6 +375,7 @@ nfs_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 
 	dprintk("NFS call  link %s\n", name->name);
 	status = rpc_call(NFS_CLIENT(inode), NFSPROC_LINK, &arg, NULL, 0);
+	nfs_mark_for_revalidate(inode);
 	nfs_mark_for_revalidate(dir);
 	dprintk("NFS reply link: %d\n", status);
 	return status;

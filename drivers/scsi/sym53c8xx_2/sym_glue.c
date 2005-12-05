@@ -2086,6 +2086,7 @@ static void sym2_set_dt(struct scsi_target *starget, int dt)
 	tp->tgoal.check_nego = 1;
 }
 
+#if 0
 static void sym2_set_iu(struct scsi_target *starget, int iu)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
@@ -2111,7 +2112,7 @@ static void sym2_set_qas(struct scsi_target *starget, int qas)
 		tp->tgoal.qas = 0;
 	tp->tgoal.check_nego = 1;
 }
-
+#endif
 
 static struct spi_function_template sym2_transport_functions = {
 	.set_offset	= sym2_set_offset,
@@ -2122,10 +2123,12 @@ static struct spi_function_template sym2_transport_functions = {
 	.show_width	= 1,
 	.set_dt		= sym2_set_dt,
 	.show_dt	= 1,
+#if 0
 	.set_iu		= sym2_set_iu,
 	.show_iu	= 1,
 	.set_qas	= sym2_set_qas,
 	.show_qas	= 1,
+#endif
 	.get_signalling	= sym2_get_signalling,
 };
 

@@ -135,19 +135,13 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 	if (!mcast)
 		return NULL;
 
-	init_completion(&mcast->done);
-
 	mcast->dev = dev;
 	mcast->created = jiffies;
 	mcast->backoff = 1;
-	mcast->logcount = 0;
 
 	INIT_LIST_HEAD(&mcast->list);
 	INIT_LIST_HEAD(&mcast->neigh_list);
 	skb_queue_head_init(&mcast->pkt_queue);
-
-	mcast->ah    = NULL;
-	mcast->query = NULL;
 
 	return mcast;
 }
@@ -350,6 +344,8 @@ static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
 	rec.port_gid = priv->local_gid;
 	rec.pkey     = cpu_to_be16(priv->pkey);
 
+	init_completion(&mcast->done);
+
 	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec,
 				     IB_SA_MCMEMBER_REC_MGID		|
 				     IB_SA_MCMEMBER_REC_PORT_GID	|
@@ -468,6 +464,8 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		rec.flow_label	  = priv->broadcast->mcmember.flow_label;
 		rec.traffic_class = priv->broadcast->mcmember.traffic_class;
 	}
+
+	init_completion(&mcast->done);
 
 	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec, comp_mask,
 				     mcast->backoff * 1000, GFP_ATOMIC,

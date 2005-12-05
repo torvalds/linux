@@ -278,7 +278,9 @@ A partial list of the supported mount options follows:
 		(such as Windows), permissions can also be checked at the
 		client, and a crude form of client side permission checking 
 		can be enabled by specifying file_mode and dir_mode on 
-		the client
+		the client.  Note that the mount.cifs helper must be
+		at version 1.10 or higher to support specifying the uid
+		(or gid) in non-numberic form.
   gid		If CIFS Unix extensions are not supported by the server
 		this overrides the default gid for inodes.
   file_mode     If CIFS Unix extensions are not supported by the server
@@ -345,7 +347,10 @@ A partial list of the supported mount options follows:
 		client system. It is typically only needed when the server
 		supports the CIFS Unix Extensions but the UIDs/GIDs on the
 		client and server system do not match closely enough to allow
-		access by the user doing the mount.
+		access by the user doing the mount, but it may be useful with
+		non CIFS Unix Extension mounts for cases in which the default
+		mode is specified on the mount but is not to be enforced on the
+		client (e.g. perhaps when MultiUserMount is enabled)
 		Note that this does not affect the normal ACL check on the
 		target machine done by the server software (of the server
 		ACL against the user name provided at mount time).
@@ -368,15 +373,21 @@ A partial list of the supported mount options follows:
   setuids       If the CIFS Unix extensions are negotiated with the server
 		the client will attempt to set the effective uid and gid of
 		the local process on newly created files, directories, and
-		devices (create, mkdir, mknod).
+		devices (create, mkdir, mknod).  If the CIFS Unix Extensions
+		are not negotiated, for newly created files and directories
+		instead of using the default uid and gid specified on the
+		the mount, cache the new file's uid and gid locally which means
+		that the uid for the file can change when the inode is
+	        reloaded (or the user remounts the share).
   nosetuids     The client will not attempt to set the uid and gid on
 		on newly created files, directories, and devices (create, 
 		mkdir, mknod) which will result in the server setting the
 		uid and gid to the default (usually the server uid of the
 		user who mounted the share).  Letting the server (rather than
-		the client) set the uid and gid is the default. This
-		parameter has no effect if the CIFS Unix Extensions are not
-		negotiated.
+		the client) set the uid and gid is the default. If the CIFS
+		Unix Extensions are not negotiated then the uid and gid for
+		new files will appear to be the uid (gid) of the mounter or the
+		uid (gid) parameter specified on the mount.
   netbiosname   When mounting to servers via port 139, specifies the RFC1001
 		source name to use to represent the client netbios machine 
 		name when doing the RFC1001 netbios session initialize.
@@ -418,6 +429,13 @@ A partial list of the supported mount options follows:
 		byte range locks).
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
+ sfu            When the CIFS Unix Extensions are not negotiated, attempt to
+		create device files and fifos in a format compatible with
+		Services for Unix (SFU).  In addition retrieve bits 10-12
+		of the mode via the SETFILEBITS extended attribute (as
+		SFU does).  In the future the bottom 9 bits of the mode
+		mode also will be emulated using queries of the security
+		descriptor (ACL).
 		
 The mount.cifs mount helper also accepts a few mount options before -o
 including:

@@ -432,7 +432,10 @@ int drm_addctx(struct inode *inode, struct file *filp,
 
 	if (ctx.handle != DRM_KERNEL_CONTEXT) {
 		if (dev->driver->context_ctor)
-			dev->driver->context_ctor(dev, ctx.handle);
+			if (!dev->driver->context_ctor(dev, ctx.handle)) {
+				DRM_DEBUG( "Running out of ctxs or memory.\n");
+				return -ENOMEM;
+			}
 	}
 
 	ctx_entry = drm_alloc(sizeof(*ctx_entry), DRM_MEM_CTXLIST);
