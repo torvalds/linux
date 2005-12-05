@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <sound/core.h>
 #include <sound/emu10k1.h>

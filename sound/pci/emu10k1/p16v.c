@@ -93,6 +93,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/initval.h>
