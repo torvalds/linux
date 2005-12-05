@@ -919,28 +919,6 @@ static int storage_probe(struct usb_interface *intf,
 	 */
 	get_device_info(us, id);
 
-#ifdef CONFIG_USB_STORAGE_SDDR09
-	if (us->protocol == US_PR_EUSB_SDDR09 ||
-			us->protocol == US_PR_DPCM_USB) {
-		/* set the configuration -- STALL is an acceptable response here */
-		if (us->pusb_dev->actconfig->desc.bConfigurationValue != 1) {
-			US_DEBUGP("active config #%d != 1 ??\n", us->pusb_dev
-				->actconfig->desc.bConfigurationValue);
-			goto BadDevice;
-		}
-		result = usb_reset_configuration(us->pusb_dev);
-
-		US_DEBUGP("Result of usb_reset_configuration is %d\n", result);
-		if (result == -EPIPE) {
-			US_DEBUGP("-- stall on control interface\n");
-		} else if (result != 0) {
-			/* it's not a stall, but another error -- time to bail */
-			US_DEBUGP("-- Unknown error.  Rejecting device\n");
-			goto BadDevice;
-		}
-	}
-#endif
-
 	/* Get the transport, protocol, and pipe settings */
 	result = get_transport(us);
 	if (result)

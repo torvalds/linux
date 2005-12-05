@@ -214,6 +214,20 @@ static void nand_store_ecc(unsigned char *data, unsigned char *ecc) {
  * The actual driver starts here.
  */
 
+struct sddr09_card_info {
+	unsigned long	capacity;	/* Size of card in bytes */
+	int		pagesize;	/* Size of page in bytes */
+	int		pageshift;	/* log2 of pagesize */
+	int		blocksize;	/* Size of block in pages */
+	int		blockshift;	/* log2 of blocksize */
+	int		blockmask;	/* 2^blockshift - 1 */
+	int		*lba_to_pba;	/* logical to physical map */
+	int		*pba_to_lba;	/* physical to logical map */
+	int		lbact;		/* number of available pages */
+	int		flags;
+#define	SDDR09_WP	1		/* write protected */
+};
+
 /*
  * On my 16MB card, control blocks have size 64 (16 real control bytes,
  * and 48 junk bytes). In reality of course the card uses 16 control bytes,
@@ -1342,16 +1356,36 @@ sddr09_card_info_destructor(void *extra) {
 	kfree(info->pba_to_lba);
 }
 
-static void
-sddr09_init_card_info(struct us_data *us) {
-	if (!us->extra) {
-		us->extra = kmalloc(sizeof(struct sddr09_card_info), GFP_NOIO);
-		if (us->extra) {
-			memset(us->extra, 0, sizeof(struct sddr09_card_info));
-			us->extra_destructor = sddr09_card_info_destructor;
-		}
+static int
+sddr09_common_init(struct us_data *us) {
+	int result;
+
+	/* set the configuration -- STALL is an acceptable response here */
+	if (us->pusb_dev->actconfig->desc.bConfigurationValue != 1) {
+		US_DEBUGP("active config #%d != 1 ??\n", us->pusb_dev
+				->actconfig->desc.bConfigurationValue);
+		return -EINVAL;
 	}
+
+	result = usb_reset_configuration(us->pusb_dev);
+	US_DEBUGP("Result of usb_reset_configuration is %d\n", result);
+	if (result == -EPIPE) {
+		US_DEBUGP("-- stall on control interface\n");
+	} else if (result != 0) {
+		/* it's not a stall, but another error -- time to bail */
+		US_DEBUGP("-- Unknown error.  Rejecting device\n");
+		return -EINVAL;
+	}
+
+	us->extra = kzalloc(sizeof(struct sddr09_card_info), GFP_NOIO);
+	if (!us->extra)
+		return -ENOMEM;
+	us->extra_destructor = sddr09_card_info_destructor;
+
+	nand_init_ecc();
+	return 0;
 }
+
 
 /*
  * This is needed at a very early stage. If this is not listed in the
@@ -1359,9 +1393,13 @@ sddr09_init_card_info(struct us_data *us) {
  * is not recognized. But I do not know what precisely these calls do.
  */
 int
-sddr09_init(struct us_data *us) {
+usb_stor_sddr09_dpcm_init(struct us_data *us) {
 	int result;
 	unsigned char *data = us->iobuf;
+
+	result = sddr09_common_init(us);
+	if (result)
+		return result;
 
 	result = sddr09_send_command(us, 0x01, USB_DIR_IN, data, 2);
 	if (result != USB_STOR_TRANSPORT_GOOD) {
@@ -1398,7 +1436,7 @@ sddr09_init(struct us_data *us) {
 
 	// test unit ready
 
-	return USB_STOR_TRANSPORT_GOOD;		/* not result */
+	return 0;		/* not result */
 }
 
 /*
@@ -1427,13 +1465,6 @@ int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 	};
 
 	info = (struct sddr09_card_info *)us->extra;
-	if (!info) {
-		nand_init_ecc();
-		sddr09_init_card_info(us);
-		info = (struct sddr09_card_info *)us->extra;
-		if (!info)
-			return USB_STOR_TRANSPORT_ERROR;
-	}
 
 	if (srb->cmnd[0] == REQUEST_SENSE && havefakesense) {
 		/* for a faked command, we have to follow with a faked sense */
@@ -1606,3 +1637,10 @@ int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
+/*
+ * Initialization routine for the sddr09 subdriver
+ */
+int
+usb_stor_sddr09_init(struct us_data *us) {
+	return sddr09_common_init(us);
+}
