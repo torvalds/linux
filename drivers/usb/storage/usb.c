@@ -188,6 +188,8 @@ static int storage_suspend(struct usb_interface *iface, pm_message_t message)
 	down(&us->dev_semaphore);
 
 	US_DEBUGP("%s\n", __FUNCTION__);
+	if (us->suspend_resume_hook)
+		(us->suspend_resume_hook)(us, US_SUSPEND);
 	iface->dev.power.power_state.event = message.event;
 
 	/* When runtime PM is working, we'll set a flag to indicate
@@ -204,6 +206,8 @@ static int storage_resume(struct usb_interface *iface)
 	down(&us->dev_semaphore);
 
 	US_DEBUGP("%s\n", __FUNCTION__);
+	if (us->suspend_resume_hook)
+		(us->suspend_resume_hook)(us, US_RESUME);
 	iface->dev.power.power_state.event = PM_EVENT_ON;
 
 	up(&us->dev_semaphore);

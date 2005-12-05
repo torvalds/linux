@@ -93,7 +93,11 @@ struct us_unusual_dev {
 typedef int (*trans_cmnd)(struct scsi_cmnd *, struct us_data*);
 typedef int (*trans_reset)(struct us_data*);
 typedef void (*proto_cmnd)(struct scsi_cmnd*, struct us_data*);
-typedef void (*extra_data_destructor)(void *);	 /* extra data destructor   */
+typedef void (*extra_data_destructor)(void *);	/* extra data destructor */
+typedef void (*pm_hook)(struct us_data *, int);	/* power management hook */
+
+#define US_SUSPEND	0
+#define US_RESUME	1
 
 /* we allocate one of these for every device that we remember */
 struct us_data {
@@ -149,6 +153,9 @@ struct us_data {
 	/* subdriver information */
 	void			*extra;		 /* Any extra data          */
 	extra_data_destructor	extra_destructor;/* extra data destructor   */
+#ifdef CONFIG_PM
+	pm_hook			suspend_resume_hook;
+#endif
 };
 
 /* Convert between us_data and the corresponding Scsi_Host */
