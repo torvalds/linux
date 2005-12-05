@@ -73,7 +73,7 @@ static struct acpi_driver acpi_ec_driver = {
 	.class = ACPI_EC_CLASS,
 	.ids = ACPI_EC_HID,
 	.ops = {
-		.add = acpi_ec_poll_add,
+		.add = acpi_ec_intr_add,
 		.remove = acpi_ec_remove,
 		.start = acpi_ec_start,
 		.stop = acpi_ec_stop,
@@ -147,7 +147,7 @@ static union acpi_ec *ec_ecdt;
 
 /* External interfaces use first EC only, so remember */
 static struct acpi_device *first_ec;
-static int acpi_ec_poll_mode = EC_POLL;
+static int acpi_ec_poll_mode = EC_INTR;
 
 /* --------------------------------------------------------------------------
                              Transaction Management
@@ -1594,4 +1594,4 @@ static int __init acpi_ec_set_intr_mode(char *str)
 	return 0;
 }
 
-__setup("ec_burst=", acpi_ec_set_intr_mode);
+__setup("ec_intr=", acpi_ec_set_intr_mode);
