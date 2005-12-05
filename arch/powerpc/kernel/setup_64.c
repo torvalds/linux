@@ -322,6 +322,7 @@ void early_setup_secondary(void)
 void smp_release_cpus(void)
 {
 	extern unsigned long __secondary_hold_spinloop;
+	unsigned long *ptr;
 
 	DBG(" -> smp_release_cpus()\n");
 
@@ -332,7 +333,9 @@ void smp_release_cpus(void)
 	 * This is useless but harmless on iSeries, secondaries are already
 	 * waiting on their paca spinloops. */
 
-	__secondary_hold_spinloop = 1;
+	ptr  = (unsigned long *)((unsigned long)&__secondary_hold_spinloop
+			- PHYSICAL_START);
+	*ptr = 1;
 	mb();
 
 	DBG(" <- smp_release_cpus()\n");

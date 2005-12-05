@@ -33,7 +33,8 @@
 
 /* Location of cpu0's segment table */
 #define STAB0_PAGE	0x6
-#define STAB0_PHYS_ADDR	(STAB0_PAGE<<12)
+#define STAB0_OFFSET	(STAB0_PAGE << 12)
+#define STAB0_PHYS_ADDR	(STAB0_OFFSET + PHYSICAL_START)
 
 #ifndef __ASSEMBLY__
 extern char initial_stab[];

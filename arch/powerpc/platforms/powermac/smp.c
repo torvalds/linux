@@ -753,14 +753,15 @@ static int __init smp_core99_probe(void)
 static void __devinit smp_core99_kick_cpu(int nr)
 {
 	unsigned int save_vector;
-	unsigned long new_vector;
-	unsigned long flags;
+	unsigned long target, flags;
 	volatile unsigned int *vector
 		 = ((volatile unsigned int *)(KERNELBASE+0x100));
 
 	if (nr < 0 || nr > 3)
 		return;
-	if (ppc_md.progress) ppc_md.progress("smp_core99_kick_cpu", 0x346);
+
+	if (ppc_md.progress)
+		ppc_md.progress("smp_core99_kick_cpu", 0x346);
 
 	local_irq_save(flags);
 	local_irq_disable();
@@ -768,14 +769,11 @@ static void __devinit smp_core99_kick_cpu(int nr)
 	/* Save reset vector */
 	save_vector = *vector;
 
-	/* Setup fake reset vector that does	
+	/* Setup fake reset vector that does
 	 *   b __secondary_start_pmac_0 + nr*8 - KERNELBASE
 	 */
-	new_vector = (unsigned long) __secondary_start_pmac_0 + nr * 8;
-	*vector = 0x48000002 + new_vector - KERNELBASE;
-
-	/* flush data cache and inval instruction cache */
-	flush_icache_range((unsigned long) vector, (unsigned long) vector + 4);
+	target = (unsigned long) __secondary_start_pmac_0 + nr * 8;
+	create_branch((unsigned long)vector, target, BRANCH_SET_LINK);
 
 	/* Put some life in our friend */
 	pmac_call_feature(PMAC_FTR_RESET_CPU, NULL, nr, 0);
