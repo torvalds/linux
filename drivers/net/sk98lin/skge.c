@@ -101,7 +101,6 @@
  *		"h/skgeinit.h"
  *		"h/skaddr.h"
  *		"h/skgesirq.h"
- *		"h/skcsum.h"
  *		"h/skrlmt.h"
  *
  ******************************************************************************/
@@ -113,6 +112,7 @@
 #include	<linux/init.h>
 #include 	<linux/proc_fs.h>
 #include	<linux/dma-mapping.h>
+#include	<linux/ip.h>
 
 #include	"h/skdrv1st.h"
 #include	"h/skdrv2nd.h"
@@ -601,11 +601,6 @@ SK_BOOL	DualNet;
        		return(-EAGAIN);
 	}
 
-	SkCsSetReceiveFlags(pAC,
-		SKCS_PROTO_IP | SKCS_PROTO_TCP | SKCS_PROTO_UDP,
-		&pAC->CsOfs1, &pAC->CsOfs2, 0);
-	pAC->CsOfs = (pAC->CsOfs2 << 16) | pAC->CsOfs1;
-
 	BoardInitMem(pAC);
 	/* tschilling: New common function with minimum size check. */
 	DualNet = SK_FALSE;
@@ -823,7 +818,7 @@ uintptr_t VNextDescr;	/* the virtual bus address of the next descriptor */
 		/* set the pointers right */
 		pDescr->VNextRxd = VNextDescr & 0xffffffffULL;
 		pDescr->pNextRxd = pNextDescr;
-		pDescr->TcpSumStarts = pAC->CsOfs;
+		pDescr->TcpSumStarts = 0;
 
 		/* advance one step */
 		pPrevDescr = pDescr;
@@ -1505,8 +1500,6 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	TXD		*pOldTxd;
 	unsigned long	 Flags;
 	SK_U64		 PhysAddr;
-	int	 	 Protocol;
-	int		 IpHeaderLength;
 	int		 BytesSend = pMessage->len;
 
 	SK_DBG_MSG(NULL, SK_DBGMOD_DRV, SK_DBGCAT_DRV_TX_PROGRESS, ("X"));
@@ -1579,8 +1572,10 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	pTxd->pMBuf     = pMessage;
 
 	if (pMessage->ip_summed == CHECKSUM_HW) {
-		Protocol = ((SK_U8)pMessage->data[C_OFFSET_IPPROTO] & 0xff);
-		if ((Protocol == C_PROTO_ID_UDP) && 
+		u16 hdrlen = pMessage->h.raw - pMessage->data;
+		u16 offset = hdrlen + pMessage->csum;
+
+		if ((pMessage->h.ipiph->protocol == IPPROTO_UDP ) &&
 			(pAC->GIni.GIChipRev == 0) &&
 			(pAC->GIni.GIChipId == CHIP_ID_YUKON)) {
 			pTxd->TBControl = BMU_TCP_CHECK;
@@ -1588,14 +1583,9 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 			pTxd->TBControl = BMU_UDP_CHECK;
 		}
 
-		IpHeaderLength  = (SK_U8)pMessage->data[C_OFFSET_IPHEADER];
-		IpHeaderLength  = (IpHeaderLength & 0xf) * 4;
-		pTxd->TcpSumOfs = 0; /* PH-Checksum already calculated */
-		pTxd->TcpSumSt  = C_LEN_ETHERMAC_HEADER + IpHeaderLength + 
-							(Protocol == C_PROTO_ID_UDP ?
-							C_OFFSET_UDPHEADER_UDPCS : 
-							C_OFFSET_TCPHEADER_TCPCS);
-		pTxd->TcpSumWr  = C_LEN_ETHERMAC_HEADER + IpHeaderLength;
+		pTxd->TcpSumOfs = 0;
+		pTxd->TcpSumSt  = hdrlen;
+		pTxd->TcpSumWr  = offset;
 
 		pTxd->TBControl |= BMU_OWN | BMU_STF | 
 				   BMU_SW  | BMU_EOF |
@@ -1658,11 +1648,10 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	TXD		*pTxdLst;
 	int 	 	 CurrFrag;
 	int		 BytesSend;
-	int		 IpHeaderLength; 
-	int		 Protocol;
 	skb_frag_t	*sk_frag;
 	SK_U64		 PhysAddr;
 	unsigned long	 Flags;
+	SK_U32		 Control;
 
 	spin_lock_irqsave(&pTxPort->TxDesRingLock, Flags);
 #ifndef USE_TX_COMPLETE
@@ -1685,7 +1674,6 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	pTxdFst   = pTxd;
 	pTxdLst   = pTxd;
 	BytesSend = 0;
-	Protocol  = 0;
 
 	/* 
 	** Map the first fragment (header) into the DMA-space
@@ -1703,32 +1691,31 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 	** Does the HW need to evaluate checksum for TCP or UDP packets? 
 	*/
 	if (pMessage->ip_summed == CHECKSUM_HW) {
-		pTxd->TBControl = BMU_STF | BMU_STFWD | skb_headlen(pMessage);
+		u16 hdrlen = pMessage->h.raw - pMessage->data;
+		u16 offset = hdrlen + pMessage->csum;
+
+		Control = BMU_STFWD;
+
 		/* 
 		** We have to use the opcode for tcp here,  because the
 		** opcode for udp is not working in the hardware yet 
 		** (Revision 2.0)
 		*/
-		Protocol = ((SK_U8)pMessage->data[C_OFFSET_IPPROTO] & 0xff);
-		if ((Protocol == C_PROTO_ID_UDP) && 
+		if ((pMessage->h.ipiph->protocol == IPPROTO_UDP ) &&
 			(pAC->GIni.GIChipRev == 0) &&
 			(pAC->GIni.GIChipId == CHIP_ID_YUKON)) {
-			pTxd->TBControl |= BMU_TCP_CHECK;
+			Control |= BMU_TCP_CHECK;
 		} else {
-			pTxd->TBControl |= BMU_UDP_CHECK;
+			Control |= BMU_UDP_CHECK;
 		}
 
-		IpHeaderLength  = ((SK_U8)pMessage->data[C_OFFSET_IPHEADER] & 0xf)*4;
-		pTxd->TcpSumOfs = 0; /* PH-Checksum already claculated */
-		pTxd->TcpSumSt  = C_LEN_ETHERMAC_HEADER + IpHeaderLength +
-						(Protocol == C_PROTO_ID_UDP ?
-						C_OFFSET_UDPHEADER_UDPCS :
-						C_OFFSET_TCPHEADER_TCPCS);
-		pTxd->TcpSumWr  = C_LEN_ETHERMAC_HEADER + IpHeaderLength;
-	} else {
-		pTxd->TBControl = BMU_CHECK | BMU_SW | BMU_STF |
-					skb_headlen(pMessage);
-	}
+		pTxd->TcpSumOfs = 0;
+		pTxd->TcpSumSt  = hdrlen;
+		pTxd->TcpSumWr  = offset;
+	} else
+		Control = BMU_CHECK | BMU_SW;
+
+	pTxd->TBControl = BMU_STF | Control | skb_headlen(pMessage);
 
 	pTxd = pTxd->pNextTxd;
 	pTxPort->TxdRingFree--;
@@ -1752,40 +1739,18 @@ struct sk_buff	*pMessage)	/* pointer to send-message              */
 		pTxd->VDataHigh = (SK_U32) (PhysAddr >> 32);
 		pTxd->pMBuf     = pMessage;
 		
-		/* 
-		** Does the HW need to evaluate checksum for TCP or UDP packets? 
-		*/
-		if (pMessage->ip_summed == CHECKSUM_HW) {
-			pTxd->TBControl = BMU_OWN | BMU_SW | BMU_STFWD;
-			/* 
-			** We have to use the opcode for tcp here because the 
-			** opcode for udp is not working in the hardware yet 
-			** (revision 2.0)
-			*/
-			if ((Protocol == C_PROTO_ID_UDP) && 
-				(pAC->GIni.GIChipRev == 0) &&
-				(pAC->GIni.GIChipId == CHIP_ID_YUKON)) {
-				pTxd->TBControl |= BMU_TCP_CHECK;
-			} else {
-				pTxd->TBControl |= BMU_UDP_CHECK;
-			}
-		} else {
-			pTxd->TBControl = BMU_CHECK | BMU_SW | BMU_OWN;
-		}
+		pTxd->TBControl = Control | BMU_OWN | sk_frag->size;;
 
 		/* 
 		** Do we have the last fragment? 
 		*/
 		if( (CurrFrag+1) == skb_shinfo(pMessage)->nr_frags )  {
 #ifdef USE_TX_COMPLETE
-			pTxd->TBControl |= BMU_EOF | BMU_IRQ_EOF | sk_frag->size;
+			pTxd->TBControl |= BMU_EOF | BMU_IRQ_EOF;
 #else
-			pTxd->TBControl |= BMU_EOF | sk_frag->size;
+			pTxd->TBControl |= BMU_EOF;
 #endif
 			pTxdFst->TBControl |= BMU_OWN | BMU_SW;
-
-		} else {
-			pTxd->TBControl |= sk_frag->size;
 		}
 		pTxdLst = pTxd;
 		pTxd    = pTxd->pNextTxd;
@@ -2032,7 +1997,6 @@ SK_U32			Control;		/* control field of descriptor */
 struct sk_buff	*pMsg;			/* pointer to message holding frame */
 struct sk_buff	*pNewMsg;		/* pointer to a new message for copying frame */
 int				FrameLength;	/* total length of received frame */
-int				IpFrameLength;
 SK_MBUF			*pRlmtMbuf;		/* ptr to a buffer for giving a frame to rlmt */
 SK_EVPARA		EvPara;			/* an event parameter union */	
 unsigned long	Flags;			/* for spin lock */
@@ -2045,10 +2009,6 @@ SK_BOOL			IsMc;
 SK_BOOL  IsBadFrame; 			/* Bad frame */
 
 SK_U32			FrameStat;
-unsigned short	Csum1;
-unsigned short	Csum2;
-unsigned short	Type;
-int				Result;
 SK_U64			PhysAddr;
 
 rx_start:	
@@ -2177,8 +2137,8 @@ rx_start:
 						    (dma_addr_t) PhysAddr,
 						    FrameLength,
 						    PCI_DMA_FROMDEVICE);
-			eth_copy_and_sum(pNewMsg, pMsg->data,
-				FrameLength, 0);
+			memcpy(pNewMsg->data, pMsg, FrameLength);
+
 			pci_dma_sync_single_for_device(pAC->PciDev,
 						       (dma_addr_t) PhysAddr,
 						       FrameLength,
@@ -2206,69 +2166,16 @@ rx_start:
 
 			/* set length in message */
 			skb_put(pMsg, FrameLength);
-			/* hardware checksum */
-			Type = ntohs(*((short*)&pMsg->data[12]));
+		} /* frame > SK_COPY_TRESHOLD */
 
 #ifdef USE_SK_RX_CHECKSUM
-			if (Type == 0x800) {
-				Csum1=le16_to_cpu(pRxd->TcpSums & 0xffff);
-				Csum2=le16_to_cpu((pRxd->TcpSums >> 16) & 0xffff);
-				IpFrameLength = (int) ntohs((unsigned short)
-								((unsigned short *) pMsg->data)[8]);
-
-				/*
-				 * Test: If frame is padded, a check is not possible!
-				 * Frame not padded? Length difference must be 14 (0xe)!
-				 */
-				if ((FrameLength - IpFrameLength) != 0xe) {
-				/* Frame padded => TCP offload not possible! */
-					pMsg->ip_summed = CHECKSUM_NONE;
-				} else {
-				/* Frame not padded => TCP offload! */
-					if ((((Csum1 & 0xfffe) && (Csum2 & 0xfffe)) &&
-						(pAC->GIni.GIChipId == CHIP_ID_GENESIS)) ||
-						(pAC->ChipsetType)) {
-						Result = SkCsGetReceiveInfo(pAC,
-							&pMsg->data[14],
-							Csum1, Csum2, pRxPort->PortIndex);
-						if (Result ==
-							SKCS_STATUS_IP_FRAGMENT ||
-							Result ==
-							SKCS_STATUS_IP_CSUM_OK ||
-							Result ==
-							SKCS_STATUS_TCP_CSUM_OK ||
-							Result ==
-							SKCS_STATUS_UDP_CSUM_OK) {
-								pMsg->ip_summed =
-								CHECKSUM_UNNECESSARY;
-						}
-						else if (Result ==
-							SKCS_STATUS_TCP_CSUM_ERROR ||
-							Result ==
-							SKCS_STATUS_UDP_CSUM_ERROR ||
-							Result ==
-							SKCS_STATUS_IP_CSUM_ERROR_UDP ||
-							Result ==
-							SKCS_STATUS_IP_CSUM_ERROR_TCP ||
-							Result ==
-							SKCS_STATUS_IP_CSUM_ERROR ) {
-							/* HW Checksum error */
-							SK_DBG_MSG(NULL, SK_DBGMOD_DRV,
-							SK_DBGCAT_DRV_RX_PROGRESS,
-							("skge: CRC error. Frame dropped!\n"));
-							goto rx_failed;
-						} else {
-								pMsg->ip_summed =
-								CHECKSUM_NONE;
-						}
-					}/* checksumControl calculation valid */
-				} /* Frame length check */
-			} /* IP frame */
+		pMsg->csum = pRxd->TcpSums;
+		pMsg->ip_summed = CHECKSUM_HW;
 #else
-			pMsg->ip_summed = CHECKSUM_NONE;	
+		pMsg->ip_summed = CHECKSUM_NONE;
 #endif
-		} /* frame > SK_COPY_TRESHOLD */
-		
+
+
 		SK_DBG_MSG(NULL, SK_DBGMOD_DRV,	1,("V"));
 		ForRlmt = SK_RLMT_RX_PROTOCOL;
 #if 0
@@ -4946,7 +4853,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 	error = SkGeInitPCI(pAC);
 	if (error) {
-		printk("SKGE: PCI setup failed: %i\n", error);
+		printk(KERN_ERR "sk98lin: PCI setup failed: %i\n", error);
 		goto out_free_netdev;
 	}
 
@@ -4982,7 +4889,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 
 	/* Register net device */
 	if (register_netdev(dev)) {
-		printk(KERN_ERR "SKGE: Could not register device.\n");
+		printk(KERN_ERR "sk98lin: Could not register device.\n");
 		goto out_free_resources;
 	}
 
@@ -5001,8 +4908,8 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 
 	SkGeYellowLED(pAC, pAC->IoBase, 1);
 
-
 	memcpy(&dev->dev_addr, &pAC->Addr.Net[0].CurrentMacAddress, 6);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	SkGeProcCreate(dev);
 
@@ -5048,13 +4955,14 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 #endif
 
 		if (register_netdev(dev)) {
-			printk(KERN_ERR "SKGE: Could not register device.\n");
+			printk(KERN_ERR "sk98lin: Could not register device for seconf port.\n");
 			free_netdev(dev);
 			pAC->dev[1] = pAC->dev[0];
 		} else {
 			SkGeProcCreate(dev);
 			memcpy(&dev->dev_addr,
 					&pAC->Addr.Net[1].CurrentMacAddress, 6);
+			memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	
 			printk("%s: %s\n", dev->name, pAC->DeviceStr);
 			printk("      PrefPort:B  RlmtMode:Dual Check Link State\n");

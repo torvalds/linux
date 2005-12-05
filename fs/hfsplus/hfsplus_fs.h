@@ -151,6 +151,7 @@ struct hfsplus_sb_info {
 
 #define HFSPLUS_SB_WRITEBACKUP	0x0001
 #define HFSPLUS_SB_NODECOMPOSE	0x0002
+#define HFSPLUS_SB_FORCE	0x0004
 
 
 struct hfsplus_inode_info {

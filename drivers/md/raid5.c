@@ -1704,7 +1704,9 @@ static void raid5d (mddev_t *mddev)
 
 		if (conf->seq_flush - conf->seq_write > 0) {
 			int seq = conf->seq_flush;
+			spin_unlock_irq(&conf->device_lock);
 			bitmap_unplug(mddev->bitmap);
+			spin_lock_irq(&conf->device_lock);
 			conf->seq_write = seq;
 			activate_bit_delay(conf);
 		}

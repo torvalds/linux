@@ -226,7 +226,7 @@ static int em28xx_config(struct em28xx *dev)
  * em28xx_config_i2c()
  * configure i2c attached devices
  */
-void em28xx_config_i2c(struct em28xx *dev)
+static void em28xx_config_i2c(struct em28xx *dev)
 {
 	struct v4l2_frequency f;
 	struct video_decoder_init em28xx_vdi = {.data = NULL };

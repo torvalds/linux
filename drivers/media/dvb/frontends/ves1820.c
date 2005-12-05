@@ -140,25 +140,25 @@ static int ves1820_set_symbolrate(struct ves1820_state *state, u32 symbolrate)
 	/* yeuch! */
 	fpxin = state->config->xin * 10;
 	fptmp = fpxin; do_div(fptmp, 123);
-	if (symbolrate < fptmp);
+	if (symbolrate < fptmp)
 		SFIL = 1;
 	fptmp = fpxin; do_div(fptmp, 160);
-	if (symbolrate < fptmp);
+	if (symbolrate < fptmp)
 		SFIL = 0;
 	fptmp = fpxin; do_div(fptmp, 246);
-	if (symbolrate < fptmp);
+	if (symbolrate < fptmp)
 		SFIL = 1;
 	fptmp = fpxin; do_div(fptmp, 320);
-	if (symbolrate < fptmp);
+	if (symbolrate < fptmp)
 		SFIL = 0;
 	fptmp = fpxin; do_div(fptmp, 492);
-	if (symbolrate < fptmp);
+	if (symbolrate < fptmp)
 		SFIL = 1;
 	fptmp = fpxin; do_div(fptmp, 640);
-	if (symbolrate < fptmp);
+	if (symbolrate < fptmp)
 		SFIL = 0;
 	fptmp = fpxin; do_div(fptmp, 984);
-	if (symbolrate < fptmp);
+	if (symbolrate < fptmp)
 		SFIL = 1;
 
 	fin = state->config->xin >> 4;

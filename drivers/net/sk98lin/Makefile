@@ -27,8 +27,7 @@ sk98lin-objs    :=	\
 		sktimer.o	\
 		skvpd.o		\
 		skxmac2.o	\
-		skproc.o	\
-		skcsum.o
+		skproc.o
 
 # DBGDEF =  \
 # -DDEBUG
@@ -77,7 +76,7 @@ endif
 # SK_DBGCAT_DRV_INT_SRC         0x04000000      interrupts sources
 # SK_DBGCAT_DRV_EVENT           0x08000000      driver events
 
-EXTRA_CFLAGS += -Idrivers/net/sk98lin -DSK_DIAG_SUPPORT -DSK_USE_CSUM -DGENESIS -DYUKON $(DBGDEF) $(SKPARAM)
+EXTRA_CFLAGS += -Idrivers/net/sk98lin -DSK_DIAG_SUPPORT -DGENESIS -DYUKON $(DBGDEF) $(SKPARAM)
 
 clean:
 	rm -f core *.o *.a *.s

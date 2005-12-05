@@ -51,7 +51,7 @@ static int icmp_invert_tuple(struct ip_conntrack_tuple *tuple,
 			     const struct ip_conntrack_tuple *orig)
 {
 	/* Add 1; spaces filled with 0. */
-	static u_int8_t invmap[]
+	static const u_int8_t invmap[]
 		= { [ICMP_ECHO] = ICMP_ECHOREPLY + 1,
 		    [ICMP_ECHOREPLY] = ICMP_ECHO + 1,
 		    [ICMP_TIMESTAMP] = ICMP_TIMESTAMPREPLY + 1,
@@ -110,7 +110,7 @@ static int icmp_packet(struct ip_conntrack *ct,
 	return NF_ACCEPT;
 }
 
-static u_int8_t valid_new[] = { 
+static const u_int8_t valid_new[] = { 
 	[ICMP_ECHO] = 1,
 	[ICMP_TIMESTAMP] = 1,
 	[ICMP_INFO_REQUEST] = 1,

@@ -179,7 +179,7 @@ zfcp_scsi_slave_alloc(struct scsi_device *sdp)
 	struct zfcp_adapter *adapter;
 	struct zfcp_unit *unit;
 	unsigned long flags;
-	int retval = -ENODEV;
+	int retval = -ENXIO;
 
 	adapter = (struct zfcp_adapter *) sdp->host->hostdata[0];
 	if (!adapter)

@@ -295,7 +295,7 @@ int prepare_hugepage_range(unsigned long addr, unsigned long len)
 	if (addr < 0x100000000UL)
 		err = open_low_hpage_areas(current->mm,
 					  LOW_ESID_MASK(addr, len));
-	if ((addr + len) >= 0x100000000UL)
+	if ((addr + len) > 0x100000000UL)
 		err = open_high_hpage_areas(current->mm,
 					    HTLB_AREA_MASK(addr, len));
 	if (err) {

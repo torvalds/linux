@@ -1,11 +1,11 @@
 /*
  * arch/powerpc/sysdev/u3_iommu.c
  *
- * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
+ * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
  * Based on pSeries_iommu.c:
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen, IBM Corporation
- * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
+ * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
  * Dynamic DMA mapping support, Apple U3 & IBM CPC925 "DART" iommu.
  *

@@ -33,10 +33,10 @@
 /*
  * some bits needed for parts of the IDE subsystem to compile
  */
-#define __ide_mm_insw(port, addr, n)	insw(port, addr, n)
-#define __ide_mm_insl(port, addr, n)	insl(port, addr, n)
-#define __ide_mm_outsw(port, addr, n)	outsw(port, addr, n)
-#define __ide_mm_outsl(port, addr, n)	outsl(port, addr, n)
+#define __ide_mm_insw(port, addr, n)	insw((unsigned long) (port), addr, n)
+#define __ide_mm_insl(port, addr, n)	insl((unsigned long) (port), addr, n)
+#define __ide_mm_outsw(port, addr, n)	outsw((unsigned long) (port), addr, n)
+#define __ide_mm_outsl(port, addr, n)	outsl((unsigned long) (port), addr, n)
 
 
 #endif /* __KERNEL__ */

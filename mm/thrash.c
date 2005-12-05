@@ -57,14 +57,17 @@ void grab_swap_token(void)
 	/* We have the token. Let others know we still need it. */
 	if (has_swap_token(current->mm)) {
 		current->mm->recent_pagein = 1;
+		if (unlikely(!swap_token_default_timeout))
+			disable_swap_token();
 		return;
 	}
 
 	if (time_after(jiffies, swap_token_check)) {
 
-		/* Can't get swapout protection if we exceed our RSS limit. */
-		// if (current->mm->rss > current->mm->rlimit_rss)
-		//	return;
+		if (!swap_token_default_timeout) {
+			swap_token_check = jiffies + SWAP_TOKEN_CHECK_INTERVAL;
+			return;
+		}
 
 		/* ... or if we recently held the token. */
 		if (time_before(jiffies, current->mm->swap_token_time))
@@ -95,6 +98,7 @@ void __put_swap_token(struct mm_struct *mm)
 {
 	spin_lock(&swap_token_lock);
 	if (likely(mm == swap_token_mm)) {
+		mm->swap_token_time = jiffies + SWAP_TOKEN_CHECK_INTERVAL;
 		swap_token_mm = &init_mm;
 		swap_token_check = jiffies;
 	}

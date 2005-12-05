@@ -251,14 +251,26 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 		return 0;
 	if (!(*flags & MS_RDONLY)) {
 		struct hfsplus_vh *vhdr = HFSPLUS_SB(sb).s_vhdr;
+		struct hfsplus_sb_info sbi;
+
+		memset(&sbi, 0, sizeof(struct hfsplus_sb_info));
+		sbi.nls = HFSPLUS_SB(sb).nls;
+		if (!hfsplus_parse_options(data, &sbi))
+			return -EINVAL;
 
 		if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
 			printk("HFS+-fs warning: Filesystem was not cleanly unmounted, "
 			       "running fsck.hfsplus is recommended.  leaving read-only.\n");
 			sb->s_flags |= MS_RDONLY;
 			*flags |= MS_RDONLY;
+		} else if (sbi.flags & HFSPLUS_SB_FORCE) {
+			/* nothing */
 		} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 			printk("HFS+-fs: Filesystem is marked locked, leaving read-only.\n");
+			sb->s_flags |= MS_RDONLY;
+			*flags |= MS_RDONLY;
+		} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_JOURNALED)) {
+			printk("HFS+-fs: Filesystem is marked journaled, leaving read-only.\n");
 			sb->s_flags |= MS_RDONLY;
 			*flags |= MS_RDONLY;
 		}
@@ -352,11 +364,19 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 			printk("HFS+-fs warning: Filesystem was not cleanly unmounted, "
 			       "running fsck.hfsplus is recommended.  mounting read-only.\n");
 		sb->s_flags |= MS_RDONLY;
+	} else if (sbi->flags & HFSPLUS_SB_FORCE) {
+		/* nothing */
 	} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 		if (!silent)
 			printk("HFS+-fs: Filesystem is marked locked, mounting read-only.\n");
 		sb->s_flags |= MS_RDONLY;
+	} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_JOURNALED)) {
+		if (!silent)
+			printk("HFS+-fs: write access to a jounaled filesystem is not supported, "
+			       "use the force option at your own risk, mounting read-only.\n");
+		sb->s_flags |= MS_RDONLY;
 	}
+	sbi->flags &= ~HFSPLUS_SB_FORCE;
 
 	/* Load metadata objects (B*Trees) */
 	HFSPLUS_SB(sb).ext_tree = hfs_btree_open(sb, HFSPLUS_EXT_CNID);

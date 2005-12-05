@@ -91,9 +91,9 @@ static int mfcounter = 0;
  *  Public data...
  */
 int mpt_lan_index = -1;
-static int mpt_stm_index = -1;
+int mpt_stm_index = -1;
 
-static struct proc_dir_entry *mpt_proc_root_dir;
+struct proc_dir_entry *mpt_proc_root_dir;
 
 #define WHOINIT_UNKNOWN		0xAA
 
@@ -1118,6 +1118,65 @@ mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
 	return -1;
 }
 
+int
+mpt_alt_ioc_wait(MPT_ADAPTER *ioc)
+{
+	int loop_count = 30 * 4;  /* Wait 30 seconds */
+	int status = -1; /* -1 means failed to get board READY */
+
+	do {
+		spin_lock(&ioc->initializing_hba_lock);
+		if (ioc->initializing_hba_lock_flag == 0) {
+			ioc->initializing_hba_lock_flag=1;
+			spin_unlock(&ioc->initializing_hba_lock);
+			status = 0;
+			break;
+		}
+		spin_unlock(&ioc->initializing_hba_lock);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(HZ/4);
+	} while (--loop_count);
+
+	return status;
+}
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/*
+ *	mpt_bringup_adapter - This is a wrapper function for mpt_do_ioc_recovery
+ *	@ioc: Pointer to MPT adapter structure
+ *	@sleepFlag: Use schedule if CAN_SLEEP else use udelay.
+ *
+ *	This routine performs all the steps necessary to bring the IOC
+ *	to a OPERATIONAL state.
+ *
+ *      Special Note: This function was added with spin lock's so as to allow
+ *      the dv(domain validation) work thread to succeed on the other channel
+ *      that maybe occuring at the same time when this function is called.
+ *      Without this lock, the dv would fail when message frames were
+ *      requested during hba bringup on the alternate ioc.
+ */
+static int
+mpt_bringup_adapter(MPT_ADAPTER *ioc, int sleepFlag)
+{
+	int r;
+
+	if(ioc->alt_ioc) {
+		if((r=mpt_alt_ioc_wait(ioc->alt_ioc)!=0))
+			return r;
+	}
+
+	r = mpt_do_ioc_recovery(ioc, MPT_HOSTEVENT_IOC_BRINGUP,
+	    CAN_SLEEP);
+
+	if(ioc->alt_ioc) {
+		spin_lock(&ioc->alt_ioc->initializing_hba_lock);
+		ioc->alt_ioc->initializing_hba_lock_flag=0;
+		spin_unlock(&ioc->alt_ioc->initializing_hba_lock);
+	}
+
+return r;
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
  *	mpt_attach - Install a PCI intelligent MPT adapter.
@@ -1186,6 +1245,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->pcidev = pdev;
 	ioc->diagPending = 0;
 	spin_lock_init(&ioc->diagLock);
+	spin_lock_init(&ioc->initializing_hba_lock);
 
 	/* Initialize the event logging.
 	 */
@@ -1408,8 +1468,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	mpt_detect_bound_ports(ioc, pdev);
 
-	if ((r = mpt_do_ioc_recovery(ioc,
-	  MPT_HOSTEVENT_IOC_BRINGUP, CAN_SLEEP)) != 0) {
+	if ((r = mpt_bringup_adapter(ioc, CAN_SLEEP)) != 0){
 		printk(KERN_WARNING MYNAM
 		  ": WARNING - %s did not initialize properly! (%d)\n",
 		  ioc->name, r);
@@ -6271,6 +6330,7 @@ EXPORT_SYMBOL(mpt_resume);
 EXPORT_SYMBOL(mpt_suspend);
 #endif
 EXPORT_SYMBOL(ioc_list);
+EXPORT_SYMBOL(mpt_proc_root_dir);
 EXPORT_SYMBOL(mpt_register);
 EXPORT_SYMBOL(mpt_deregister);
 EXPORT_SYMBOL(mpt_event_register);
@@ -6288,6 +6348,7 @@ EXPORT_SYMBOL(mpt_verify_adapter);
 EXPORT_SYMBOL(mpt_GetIocState);
 EXPORT_SYMBOL(mpt_print_ioc_summary);
 EXPORT_SYMBOL(mpt_lan_index);
+EXPORT_SYMBOL(mpt_stm_index);
 EXPORT_SYMBOL(mpt_HardResetHandler);
 EXPORT_SYMBOL(mpt_config);
 EXPORT_SYMBOL(mpt_toolbox);
@@ -6296,6 +6357,7 @@ EXPORT_SYMBOL(mpt_read_ioc_pg_3);
 EXPORT_SYMBOL(mpt_alloc_fw_memory);
 EXPORT_SYMBOL(mpt_free_fw_memory);
 EXPORT_SYMBOL(mptbase_sas_persist_operation);
+EXPORT_SYMBOL(mpt_alt_ioc_wait);
 
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/

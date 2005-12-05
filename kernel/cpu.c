@@ -16,47 +16,76 @@
 #include <asm/semaphore.h>
 
 /* This protects CPUs going up and down... */
-DECLARE_MUTEX(cpucontrol);
-EXPORT_SYMBOL_GPL(cpucontrol);
+static DECLARE_MUTEX(cpucontrol);
 
 static struct notifier_block *cpu_chain;
 
-/*
- * Used to check by callers if they need to acquire the cpucontrol
- * or not to protect a cpu from being removed. Its sometimes required to
- * call these functions both for normal operations, and in response to
- * a cpu being added/removed. If the context of the call is in the same
- * thread context as a CPU hotplug thread, we dont need to take the lock
- * since its already protected
- * check drivers/cpufreq/cpufreq.c for its usage - Ashok Raj
- */
+#ifdef CONFIG_HOTPLUG_CPU
+static struct task_struct *lock_cpu_hotplug_owner;
+static int lock_cpu_hotplug_depth;
 
-int current_in_cpu_hotplug(void)
+static int __lock_cpu_hotplug(int interruptible)
 {
-	return (current->flags & PF_HOTPLUG_CPU);
+	int ret = 0;
+
+	if (lock_cpu_hotplug_owner != current) {
+		if (interruptible)
+			ret = down_interruptible(&cpucontrol);
+		else
+			down(&cpucontrol);
+	}
+
+	/*
+	 * Set only if we succeed in locking
+	 */
+	if (!ret) {
+		lock_cpu_hotplug_depth++;
+		lock_cpu_hotplug_owner = current;
+	}
+
+	return ret;
 }
 
-EXPORT_SYMBOL_GPL(current_in_cpu_hotplug);
+void lock_cpu_hotplug(void)
+{
+	__lock_cpu_hotplug(0);
+}
+EXPORT_SYMBOL_GPL(lock_cpu_hotplug);
 
+void unlock_cpu_hotplug(void)
+{
+	if (--lock_cpu_hotplug_depth == 0) {
+		lock_cpu_hotplug_owner = NULL;
+		up(&cpucontrol);
+	}
+}
+EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
+
+int lock_cpu_hotplug_interruptible(void)
+{
+	return __lock_cpu_hotplug(1);
+}
+EXPORT_SYMBOL_GPL(lock_cpu_hotplug_interruptible);
+#endif	/* CONFIG_HOTPLUG_CPU */
 
 /* Need to know about CPUs going up/down? */
 int register_cpu_notifier(struct notifier_block *nb)
 {
 	int ret;
 
-	if ((ret = down_interruptible(&cpucontrol)) != 0)
+	if ((ret = lock_cpu_hotplug_interruptible()) != 0)
 		return ret;
 	ret = notifier_chain_register(&cpu_chain, nb);
-	up(&cpucontrol);
+	unlock_cpu_hotplug();
 	return ret;
 }
 EXPORT_SYMBOL(register_cpu_notifier);
 
 void unregister_cpu_notifier(struct notifier_block *nb)
 {
-	down(&cpucontrol);
+	lock_cpu_hotplug();
 	notifier_chain_unregister(&cpu_chain, nb);
-	up(&cpucontrol);
+	unlock_cpu_hotplug();
 }
 EXPORT_SYMBOL(unregister_cpu_notifier);
 
@@ -112,13 +141,6 @@ int cpu_down(unsigned int cpu)
 		goto out;
 	}
 
-	/*
-	 * Leave a trace in current->flags indicating we are already in
-	 * process of performing CPU hotplug. Callers can check if cpucontrol
-	 * is already acquired by current thread, and if so not cause
-	 * a dead lock by not acquiring the lock
-	 */
-	current->flags |= PF_HOTPLUG_CPU;
 	err = notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
 						(void *)(long)cpu);
 	if (err == NOTIFY_BAD) {
@@ -171,7 +193,6 @@ out_thread:
 out_allowed:
 	set_cpus_allowed(current, old_allowed);
 out:
-	current->flags &= ~PF_HOTPLUG_CPU;
 	unlock_cpu_hotplug();
 	return err;
 }
@@ -182,7 +203,7 @@ int __devinit cpu_up(unsigned int cpu)
 	int ret;
 	void *hcpu = (void *)(long)cpu;
 
-	if ((ret = down_interruptible(&cpucontrol)) != 0)
+	if ((ret = lock_cpu_hotplug_interruptible()) != 0)
 		return ret;
 
 	if (cpu_online(cpu) || !cpu_present(cpu)) {
@@ -190,11 +211,6 @@ int __devinit cpu_up(unsigned int cpu)
 		goto out;
 	}
 
-	/*
-	 * Leave a trace in current->flags indicating we are already in
-	 * process of performing CPU hotplug.
-	 */
-	current->flags |= PF_HOTPLUG_CPU;
 	ret = notifier_call_chain(&cpu_chain, CPU_UP_PREPARE, hcpu);
 	if (ret == NOTIFY_BAD) {
 		printk("%s: attempt to bring up CPU %u failed\n",
@@ -217,7 +233,6 @@ out_notify:
 	if (ret != 0)
 		notifier_call_chain(&cpu_chain, CPU_UP_CANCELED, hcpu);
 out:
-	current->flags &= ~PF_HOTPLUG_CPU;
-	up(&cpucontrol);
+	unlock_cpu_hotplug();
 	return ret;
 }

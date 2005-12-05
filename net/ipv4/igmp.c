@@ -897,7 +897,10 @@ int igmp_rcv(struct sk_buff *skb)
 		/* Is it our report looped back? */
 		if (((struct rtable*)skb->dst)->fl.iif == 0)
 			break;
-		igmp_heard_report(in_dev, ih->group);
+		/* don't rely on MC router hearing unicast reports */
+		if (skb->pkt_type == PACKET_MULTICAST ||
+		    skb->pkt_type == PACKET_BROADCAST)
+			igmp_heard_report(in_dev, ih->group);
 		break;
 	case IGMP_PIM:
 #ifdef CONFIG_IP_PIMSM_V1

@@ -812,12 +812,10 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 	if (!scsi_device_sync(sdev) && !scsi_device_dt(sdev))
 		return;
 
-	/* see if the device has an echo buffer.  If it does we can
-	 * do the SPI pattern write tests */
-
-	len = 0;
-	if (scsi_device_dt(sdev))
-		len = spi_dv_device_get_echo_buffer(sdev, buffer);
+	/* len == -1 is the signal that we need to ascertain the
+	 * presence of an echo buffer before trying to use it.  len ==
+	 * 0 means we don't have an echo buffer */
+	len = -1;
 
  retry:
 
@@ -840,11 +838,23 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		if (spi_min_period(starget) == 8)
 			DV_SET(pcomp_en, 1);
 	}
+	/* Do the read only INQUIRY tests */
+	spi_dv_retrain(sdev, buffer, buffer + sdev->inquiry_len,
+		       spi_dv_device_compare_inquiry);
+	/* See if we actually managed to negotiate and sustain DT */
+	if (i->f->get_dt)
+		i->f->get_dt(starget);
 
-	if (len == 0) {
+	/* see if the device has an echo buffer.  If it does we can do
+	 * the SPI pattern write tests.  Because of some broken
+	 * devices, we *only* try this on a device that has actually
+	 * negotiated DT */
+
+	if (len == -1 && spi_dt(starget))
+		len = spi_dv_device_get_echo_buffer(sdev, buffer);
+
+	if (len <= 0) {
 		starget_printk(KERN_INFO, starget, "Domain Validation skipping write tests\n");
-		spi_dv_retrain(sdev, buffer, buffer + len,
-			       spi_dv_device_compare_inquiry);
 		return;
 	}
 

@@ -1779,7 +1779,7 @@ struct baud_rates {
 	unsigned int cflag;
 };
 
-static struct baud_rates baud_rates[] = {
+static const struct baud_rates baud_rates[] = {
 	{ 921600, B921600 },
 	{ 460800, B460800 },
 	{ 230400, B230400 },

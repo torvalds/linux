@@ -773,9 +773,12 @@ again:
 }
 
 #define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
-#define ALLOC_HARDER		0x02 /* try to alloc harder */
-#define ALLOC_HIGH		0x04 /* __GFP_HIGH set */
-#define ALLOC_CPUSET		0x08 /* check for correct cpuset */
+#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+#define ALLOC_HARDER		0x10 /* try to alloc harder */
+#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
 
 /*
  * Return 1 if free pages are above 'mark'. This takes into account the order
@@ -830,7 +833,14 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 			continue;
 
 		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
-			if (!zone_watermark_ok(*z, order, (*z)->pages_low,
+			unsigned long mark;
+			if (alloc_flags & ALLOC_WMARK_MIN)
+				mark = (*z)->pages_min;
+			else if (alloc_flags & ALLOC_WMARK_LOW)
+				mark = (*z)->pages_low;
+			else
+				mark = (*z)->pages_high;
+			if (!zone_watermark_ok(*z, order, mark,
 				    classzone_idx, alloc_flags))
 				continue;
 		}
@@ -871,7 +881,7 @@ restart:
 	}
 
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
-				zonelist, ALLOC_CPUSET);
+				zonelist, ALLOC_WMARK_LOW|ALLOC_CPUSET);
 	if (page)
 		goto got_pg;
 
@@ -888,7 +898,7 @@ restart:
 	 * cannot run direct reclaim, or if the caller has realtime scheduling
 	 * policy.
 	 */
-	alloc_flags = 0;
+	alloc_flags = ALLOC_WMARK_MIN;
 	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
 		alloc_flags |= ALLOC_HARDER;
 	if (gfp_mask & __GFP_HIGH)
@@ -959,7 +969,7 @@ rebalance:
 		 * under heavy pressure.
 		 */
 		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
-						zonelist, ALLOC_CPUSET);
+				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
 		if (page)
 			goto got_pg;
 
@@ -1762,16 +1772,16 @@ static int __devinit zone_batchsize(struct zone *zone)
 		batch = 1;
 
 	/*
-	 * We will be trying to allcoate bigger chunks of contiguous
-	 * memory of the order of fls(batch).  This should result in
-	 * better cache coloring.
+	 * Clamp the batch to a 2^n - 1 value. Having a power
+	 * of 2 value was found to be more likely to have
+	 * suboptimal cache aliasing properties in some cases.
 	 *
-	 * A sanity check also to ensure that batch is still in limits.
+	 * For example if 2 tasks are alternately allocating
+	 * batches of pages, one task can end up with a lot
+	 * of pages of one half of the possible page colors
+	 * and the other with pages of the other colors.
 	 */
-	batch = (1 << fls(batch + batch/2));
-
-	if (fls(batch) >= (PAGE_SHIFT + MAX_ORDER - 2))
-		batch = PAGE_SHIFT + ((MAX_ORDER - 1 - PAGE_SHIFT)/2);
+	batch = (1 << (fls(batch + batch/2)-1)) - 1;
 
 	return batch;
 }
