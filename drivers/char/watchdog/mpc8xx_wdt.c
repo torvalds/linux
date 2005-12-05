@@ -18,6 +18,7 @@
 #include <linux/watchdog.h>
 #include <asm/8xx_immap.h>
 #include <asm/uaccess.h>
+#include <asm/io.h>
 #include <syslib/m8xx_wdt.h>
 
 static unsigned long wdt_opened;
@@ -25,24 +26,26 @@ static int wdt_status;
 
 static void mpc8xx_wdt_handler_disable(void)
 {
-	volatile immap_t *imap = (volatile immap_t *)IMAP_ADDR;
+	volatile uint __iomem *piscr;
+	piscr = (uint *)&((immap_t*)IMAP_ADDR)->im_sit.sit_piscr;
 
 	if (!m8xx_has_internal_rtc)
 		m8xx_wdt_stop_timer();
 	else
-		out_be32(imap->im_sit.sit_piscr, in_be32(&imap->im_sit.sit_piscr) & ~(PISCR_PIE | PISCR_PTE));
+		out_be32(piscr, in_be32(piscr) & ~(PISCR_PIE | PISCR_PTE));
 
 	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler deactivated\n");
 }
 
 static void mpc8xx_wdt_handler_enable(void)
 {
-	volatile immap_t *imap = (volatile immap_t *)IMAP_ADDR;
+	volatile uint __iomem *piscr;
+	piscr = (uint *)&((immap_t*)IMAP_ADDR)->im_sit.sit_piscr;
 
 	if (!m8xx_has_internal_rtc)
 		m8xx_wdt_install_timer();
 	else
-		out_be32(&imap->im_sit.sit_piscr, in_be32(&imap->im_sit.sit_piscr) | PISCR_PIE | PISCR_PTE);
+		out_be32(piscr, in_be32(piscr) | PISCR_PIE | PISCR_PTE);
 
 	printk(KERN_NOTICE "mpc8xx_wdt: keep-alive handler activated\n");
 }
