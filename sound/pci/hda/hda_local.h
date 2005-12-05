@@ -213,7 +213,7 @@ enum {
 
 struct auto_pin_cfg {
 	int line_outs;
-	hda_nid_t line_out_pins[4]; /* sorted in the order of Front/Surr/CLFE/Side */
+	hda_nid_t line_out_pins[5]; /* sorted in the order of Front/Surr/CLFE/Side */
 	hda_nid_t speaker_pin;
 	hda_nid_t hp_pin;
 	hda_nid_t input_pins[AUTO_PIN_LAST];
@@ -227,7 +227,8 @@ struct auto_pin_cfg {
 #define get_defcfg_sequence(cfg) (cfg & AC_DEFCFG_SEQUENCE)
 #define get_defcfg_device(cfg) ((cfg & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT)
 
-int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *cfg);
+int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *cfg,
+				 hda_nid_t *ignore_nids);
 
 /* amp values */
 #define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))

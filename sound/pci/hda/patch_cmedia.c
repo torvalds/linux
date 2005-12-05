@@ -711,7 +711,7 @@ static int patch_cmi9880(struct hda_codec *codec)
 				spec->dig_in_nid = CMI_DIG_IN_NID;
 			spec->multiout.max_channels = 8;
 		}
-		snd_hda_parse_pin_def_config(codec, &cfg);
+		snd_hda_parse_pin_def_config(codec, &cfg, NULL);
 		if (cfg.line_outs) {
 			spec->multiout.max_channels = cfg.line_outs * 2;
 			cmi9880_fill_multi_dac_nids(codec, &cfg);

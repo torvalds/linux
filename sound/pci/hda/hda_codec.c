@@ -1926,8 +1926,18 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec, struct hda_multi_o
 /*
  * Helper for automatic ping configuration
  */
+
+static int is_in_nid_list(hda_nid_t nid, hda_nid_t *list)
+{
+	for (; *list; list++)
+		if (*list == nid)
+			return 1;
+	return 0;
+}
+
 /* parse all pin widgets and store the useful pin nids to cfg */
-int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *cfg)
+int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *cfg,
+				 hda_nid_t *ignore_nids)
 {
 	hda_nid_t nid, nid_start;
 	int i, j, nodes;
@@ -1948,6 +1958,10 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 		/* read all default configuration for pin complex */
 		if (wid_type != AC_WID_PIN)
 			continue;
+		/* ignore the given nids (e.g. pc-beep returns error) */
+		if (ignore_nids && is_in_nid_list(nid, ignore_nids))
+			continue;
+
 		def_conf = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_CONFIG_DEFAULT, 0);
 		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
 			continue;

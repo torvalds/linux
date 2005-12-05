@@ -1968,7 +1968,7 @@ static int ad1988_parse_auto_config(struct hda_codec *codec)
 	struct ad198x_spec *spec = codec->spec;
 	int err;
 
-	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg)) < 0)
+	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL)) < 0)
 		return err;
 	if ((err = ad1988_auto_fill_dac_nids(codec, &spec->autocfg)) < 0)
 		return err;
