@@ -2830,6 +2830,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if (status & ATA_BUSY) {
 		if (time_after(jiffies, ap->pio_task_timeout)) {
+			qc->err_mask |= AC_ERR_ATA_BUS;
 			ap->hsm_task_state = HSM_ST_TMOUT;
 			return 0;
 		}
@@ -2880,6 +2881,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
+		qc->err_mask |= __ac_err_mask(drv_stat);
 		ap->hsm_task_state = HSM_ST_ERR;
 		return 0;
 	}
@@ -3195,6 +3197,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 err_out:
 	printk(KERN_INFO "ata%u: dev %u: ATAPI check failed\n",
 	      ap->id, dev->devno);
+	qc->err_mask |= AC_ERR_ATA_BUS;
 	ap->hsm_task_state = HSM_ST_ERR;
 }
 
@@ -3244,6 +3247,7 @@ static void ata_pio_block(struct ata_port *ap)
 	} else {
 		/* handle BSY=0, DRQ=0 as error */
 		if ((status & ATA_DRQ) == 0) {
+			qc->err_mask |= AC_ERR_ATA_BUS;
 			ap->hsm_task_state = HSM_ST_ERR;
 			return;
 		}
@@ -3261,9 +3265,13 @@ static void ata_pio_error(struct ata_port *ap)
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 
+	/* make sure qc->err_mask is available to 
+	 * know what's wrong and recover
+	 */
+	assert(qc->err_mask);
+
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	qc->err_mask |= AC_ERR_ATA_BUS;
 	ata_poll_qc_complete(qc);
 }
 
