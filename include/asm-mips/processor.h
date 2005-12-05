@@ -103,7 +103,6 @@ typedef __u32 dspreg_t;
 struct mips_dsp_state {
 	dspreg_t        dspr[NUM_DSP_REGS];
 	unsigned int    dspcontrol;
-	unsigned short	used_dsp;
 };
 
 #define INIT_DSP {{0,},}

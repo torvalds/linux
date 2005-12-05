@@ -201,12 +201,8 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 				ret = -EIO;
 				goto out_tsk;
 			}
-			if (child->thread.dsp.used_dsp) {
-				dspreg_t *dregs = __get_dsp_regs(child);
-				tmp = (unsigned long) (dregs[addr - DSP_BASE]);
-			} else {
-				tmp = -1;	/* DSP registers yet used  */
-			}
+			dspreg_t *dregs = __get_dsp_regs(child);
+			tmp = (unsigned long) (dregs[addr - DSP_BASE]);
 			break;
 		case DSP_CONTROL:
 			if (!cpu_has_dsp) {
