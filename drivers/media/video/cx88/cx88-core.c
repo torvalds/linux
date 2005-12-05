@@ -837,6 +837,29 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 	return -1;
 }
 
+int cx88_start_audio_dma(struct cx88_core *core)
+{
+	/* setup fifo + format */
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], 128, 0);
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], 128, 0);
+
+	cx_write(MO_AUDD_LNGTH,    128); /* fifo bpl size */
+	cx_write(MO_AUDR_LNGTH,    128); /* fifo bpl size */
+
+	/* start dma */
+	cx_write(MO_AUD_DMACNTRL, 0x0003); /* Up and Down fifo enable */
+
+	return 0;
+}
+
+int cx88_stop_audio_dma(struct cx88_core *core)
+{
+	/* stop dma */
+	cx_write(MO_AUD_DMACNTRL, 0x0000);
+
+	return 0;
+}
+
 static int set_tvaudio(struct cx88_core *core)
 {
 	struct cx88_tvnorm *norm = core->tvnorm;
@@ -877,11 +900,15 @@ static int set_tvaudio(struct cx88_core *core)
 	cx88_set_tvaudio(core);
 	/* cx88_set_stereo(dev,V4L2_TUNER_MODE_STEREO); */
 
-	cx_write(MO_AUDD_LNGTH,    128); /* fifo size */
-	cx_write(MO_AUDR_LNGTH,    128); /* fifo size */
-	cx_write(MO_AUD_DMACNTRL, 0x03); /* need audio fifo */
+/*
+   This should be needed only on cx88-alsa. It seems that some cx88 chips have
+   bugs and does require DMA enabled for it to work.
+ */
+	cx88_start_audio_dma(core);
 	return 0;
 }
+
+
 
 int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 {
@@ -1204,6 +1231,8 @@ EXPORT_SYMBOL(cx88_set_scale);
 EXPORT_SYMBOL(cx88_vdev_init);
 EXPORT_SYMBOL(cx88_core_get);
 EXPORT_SYMBOL(cx88_core_put);
+EXPORT_SYMBOL(cx88_start_audio_dma);
+EXPORT_SYMBOL(cx88_stop_audio_dma);
 
 /*
  * Local variables:

@@ -248,7 +248,8 @@ pq2ads_setup_pci(struct pci_controller *hose)
 	pci_div = ( (sccr & SCCR_PCI_MODCK) ? 2 : 1) *
 			( ( (sccr & SCCR_PCIDF_MSK) >> SCCR_PCIDF_SHIFT) + 1);
 	freq = (uint)((2*binfo->bi_cpmfreq)/(pci_div));
-	time = (int)666666/freq;
+	time = (int)66666666/freq;
+
 	/* due to PCI Local Bus spec, some devices needs to wait such a long
 	time after RST 	deassertion. More specifically, 0.508s for 66MHz & twice more for 33 */
 	printk("%s: The PCI bus is %d Mhz.\nWaiting %s after deasserting RST...\n",__FILE__,freq,

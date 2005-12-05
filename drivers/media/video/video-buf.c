@@ -753,10 +753,9 @@ videobuf_read_zerocopy(struct videobuf_queue *q, char __user *data,
 	int retval;
 
 	/* setup stuff */
-	retval = -ENOMEM;
 	q->read_buf = videobuf_alloc(q->msize);
 	if (NULL == q->read_buf)
-		goto done;
+		return -ENOMEM;
 
 	q->read_buf->memory = V4L2_MEMORY_USERPTR;
 	q->read_buf->baddr  = (unsigned long)data;
@@ -817,10 +816,14 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 		if (NULL == q->read_buf)
 			goto done;
 		q->read_buf->memory = V4L2_MEMORY_USERPTR;
+		q->read_buf->bsize = count; /* preferred size */
 		field = videobuf_next_field(q);
 		retval = q->ops->buf_prepare(q,q->read_buf,field);
-		if (0 != retval)
+		if (0 != retval) {
+			kfree (q->read_buf);
+			q->read_buf = NULL;
 			goto done;
+		}
 		spin_lock_irqsave(q->irqlock,flags);
 		q->ops->buf_queue(q,q->read_buf);
 		spin_unlock_irqrestore(q->irqlock,flags);

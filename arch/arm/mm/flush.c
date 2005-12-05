@@ -155,14 +155,19 @@ static void __flush_dcache_aliases(struct address_space *mapping, struct page *p
  *  space mappings, we can be lazy and remember that we may have dirty
  *  kernel cache lines for later.  Otherwise, we assume we have
  *  aliasing mappings.
+ *
+ * Note that we disable the lazy flush for SMP.
  */
 void flush_dcache_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
+#ifndef CONFIG_SMP
 	if (mapping && !mapping_mapped(mapping))
 		set_bit(PG_dcache_dirty, &page->flags);
-	else {
+	else
+#endif
+	{
 		__flush_dcache_page(mapping, page);
 		if (mapping && cache_is_vivt())
 			__flush_dcache_aliases(mapping, page);

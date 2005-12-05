@@ -1506,10 +1506,15 @@ static int _nfs4_proc_write(struct nfs_write_data *wdata)
 	dprintk("NFS call  write %d @ %Ld\n", wdata->args.count,
 			(long long) wdata->args.offset);
 
+	wdata->args.bitmask = server->attr_bitmask;
+	wdata->res.server = server;
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(server->client, &msg, rpcflags);
 	dprintk("NFS reply write: %d\n", status);
-	return status;
+	if (status < 0)
+		return status;
+	nfs_post_op_update_inode(inode, fattr);
+	return wdata->res.count;
 }
 
 static int nfs4_proc_write(struct nfs_write_data *wdata)
@@ -1540,9 +1545,13 @@ static int _nfs4_proc_commit(struct nfs_write_data *cdata)
 	dprintk("NFS call  commit %d @ %Ld\n", cdata->args.count,
 			(long long) cdata->args.offset);
 
+	cdata->args.bitmask = server->attr_bitmask;
+	cdata->res.server = server;
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(server->client, &msg, 0);
 	dprintk("NFS reply commit: %d\n", status);
+	if (status >= 0)
+		nfs_post_op_update_inode(inode, fattr);
 	return status;
 }
 

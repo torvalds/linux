@@ -23,7 +23,7 @@ module_param_named(disable_rc_polling, dvb_usb_disable_rc_polling, int, 0644);
 MODULE_PARM_DESC(disable_rc_polling, "disable remote control polling (default: 0).");
 
 /* general initialization functions */
-int dvb_usb_exit(struct dvb_usb_device *d)
+static int dvb_usb_exit(struct dvb_usb_device *d)
 {
 	deb_info("state before exiting everything: %x\n",d->state);
 	dvb_usb_remote_exit(d);
