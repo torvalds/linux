@@ -102,6 +102,9 @@ enum { US_DO_ALL_FLAGS };
 #ifdef CONFIG_USB_STORAGE_JUMPSHOT
 #define US_PR_JUMPSHOT  0xf3		/* Lexar Jumpshot */
 #endif
+#ifdef CONFIG_USB_STORAGE_ALAUDA
+#define US_PR_ALAUDA    0xf4		/* Alauda chipsets */
+#endif
 
 #define US_PR_DEVICE	0xff		/* Use device's value */
 

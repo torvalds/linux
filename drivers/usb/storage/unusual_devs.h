@@ -535,6 +535,13 @@ UNUSUAL_DEV(  0x057b, 0x0022, 0x0000, 0x9999,
 		"Silicon Media R/W",
 		US_SC_DEVICE, US_PR_DEVICE, NULL, 0),
 
+#ifdef CONFIG_USB_STORAGE_ALAUDA
+UNUSUAL_DEV(  0x0584, 0x0008, 0x0102, 0x0102,
+		"Fujifilm",
+		"DPC-R1 (Alauda)",
+ 		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
+#endif
+
 /* Fabrizio Fellini <fello@libero.it> */
 UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Fujifilm",
@@ -782,6 +789,13 @@ UNUSUAL_DEV(  0x07af, 0x0006, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate (DPCM_USB)",
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
+#endif
+
+#ifdef CONFIG_USB_STORAGE_ALAUDA
+UNUSUAL_DEV(  0x07b4, 0x010a, 0x0102, 0x0102,
+		"Olympus",
+		"MAUSB-10 (Alauda)",
+ 		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
 #endif
 
 #ifdef CONFIG_USB_STORAGE_DATAFAB

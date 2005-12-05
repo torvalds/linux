@@ -94,6 +94,9 @@
 #ifdef CONFIG_USB_STORAGE_ONETOUCH
 #include "onetouch.h"
 #endif
+#ifdef CONFIG_USB_STORAGE_ALAUDA
+#include "alauda.h"
+#endif
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
@@ -641,6 +644,15 @@ static int get_protocol(struct us_data *us)
 	case US_SC_ISD200:
 		us->protocol_name = "ISD200 ATA/ATAPI";
 		us->proto_handler = isd200_ata_command;
+		break;
+#endif
+
+#ifdef CONFIG_USB_STORAGE_ALAUDA
+	case US_PR_ALAUDA:
+		us->transport_name  = "Alauda Control/Bulk";
+		us->transport = alauda_transport;
+		us->transport_reset = usb_stor_Bulk_reset;
+		us->max_lun = 1;
 		break;
 #endif
 
