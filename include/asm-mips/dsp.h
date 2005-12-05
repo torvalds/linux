@@ -48,6 +48,7 @@ do {									\
 	tsk->thread.dsp.dspr[3] = mflo2();				\
 	tsk->thread.dsp.dspr[4] = mfhi3();				\
 	tsk->thread.dsp.dspr[5] = mflo3();				\
+	tsk->thread.dsp.dspcontrol = rddsp(0x2ff);			\
 } while (0)
 
 #define save_dsp(tsk)							\
@@ -64,6 +65,7 @@ do {									\
 	mtlo2(tsk->thread.dsp.dspr[3]);					\
 	mthi3(tsk->thread.dsp.dspr[4]);					\
 	mtlo3(tsk->thread.dsp.dspr[5]);					\
+	wrdsp(tsk->thread.dsp.dspcontrol, 0x2ff);			\
 } while (0)
 
 #define restore_dsp(tsk)						\
