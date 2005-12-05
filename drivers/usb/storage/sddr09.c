@@ -274,8 +274,11 @@ sddr09_send_command(struct us_data *us,
 
 	rc = usb_stor_ctrl_transfer(us, pipe, request, requesttype,
 				   0, 0, xfer_data, xfer_len);
-	return (rc == USB_STOR_XFER_GOOD ? USB_STOR_TRANSPORT_GOOD :
-			USB_STOR_TRANSPORT_ERROR);
+	switch (rc) {
+		case USB_STOR_XFER_GOOD:	return 0;
+		case USB_STOR_XFER_STALLED:	return -EPIPE;
+		default:			return -EIO;
+	}
 }
 
 static int
@@ -322,20 +325,12 @@ sddr09_request_sense(struct us_data *us, unsigned char *sensebuf, int buflen) {
 	command[4] = buflen;
 
 	result = sddr09_send_scsi_command(us, command, 12);
-	if (result != USB_STOR_TRANSPORT_GOOD) {
-		US_DEBUGP("request sense failed\n");
+	if (result)
 		return result;
-	}
 
 	result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 			sensebuf, buflen, NULL);
-	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("request sense bulk in failed\n");
-		return USB_STOR_TRANSPORT_ERROR;
-	} else {
-		US_DEBUGP("request sense worked\n");
-		return USB_STOR_TRANSPORT_GOOD;
-	}
+	return (result == USB_STOR_XFER_GOOD ? 0 : -EIO);
 }
 
 /*
@@ -383,7 +378,7 @@ sddr09_readX(struct us_data *us, int x, unsigned long fromaddress,
 
 	result = sddr09_send_scsi_command(us, command, 12);
 
-	if (result != USB_STOR_TRANSPORT_GOOD) {
+	if (result) {
 		US_DEBUGP("Result for send_control in sddr09_read2%d %d\n",
 			  x, result);
 		return result;
@@ -395,9 +390,9 @@ sddr09_readX(struct us_data *us, int x, unsigned long fromaddress,
 	if (result != USB_STOR_XFER_GOOD) {
 		US_DEBUGP("Result for bulk_transfer in sddr09_read2%d %d\n",
 			  x, result);
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 	}
-	return USB_STOR_TRANSPORT_GOOD;
+	return 0;
 }
 
 /*
@@ -511,7 +506,7 @@ sddr09_erase(struct us_data *us, unsigned long Eaddress) {
 
 	result = sddr09_send_scsi_command(us, command, 12);
 
-	if (result != USB_STOR_TRANSPORT_GOOD)
+	if (result)
 		US_DEBUGP("Result for send_control in sddr09_erase %d\n",
 			  result);
 
@@ -569,7 +564,7 @@ sddr09_writeX(struct us_data *us,
 
 	result = sddr09_send_scsi_command(us, command, 12);
 
-	if (result != USB_STOR_TRANSPORT_GOOD) {
+	if (result) {
 		US_DEBUGP("Result for send_control in sddr09_writeX %d\n",
 			  result);
 		return result;
@@ -581,9 +576,9 @@ sddr09_writeX(struct us_data *us,
 	if (result != USB_STOR_XFER_GOOD) {
 		US_DEBUGP("Result for bulk_transfer in sddr09_writeX %d\n",
 			  result);
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 	}
-	return USB_STOR_TRANSPORT_GOOD;
+	return 0;
 }
 
 /* erase address, write same address */
@@ -647,7 +642,7 @@ sddr09_read_sg_test_only(struct us_data *us) {
 
 	result = sddr09_send_scsi_command(us, command, 4*nsg+3);
 
-	if (result != USB_STOR_TRANSPORT_GOOD) {
+	if (result) {
 		US_DEBUGP("Result for send_control in sddr09_read_sg %d\n",
 			  result);
 		return result;
@@ -655,7 +650,7 @@ sddr09_read_sg_test_only(struct us_data *us) {
 
 	buf = (unsigned char *) kmalloc(bulklen, GFP_NOIO);
 	if (!buf)
-		return USB_STOR_TRANSPORT_ERROR;
+		return -ENOMEM;
 
 	result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 				       buf, bulklen, NULL);
@@ -663,10 +658,10 @@ sddr09_read_sg_test_only(struct us_data *us) {
 	if (result != USB_STOR_XFER_GOOD) {
 		US_DEBUGP("Result for bulk_transfer in sddr09_read_sg %d\n",
 			  result);
-		return USB_STOR_TRANSPORT_ERROR;
+		return -EIO;
 	}
 
-	return USB_STOR_TRANSPORT_GOOD;
+	return 0;
 }
 #endif
 
@@ -695,14 +690,13 @@ sddr09_read_status(struct us_data *us, unsigned char *status) {
 	command[1] = LUNBITS;
 
 	result = sddr09_send_scsi_command(us, command, 12);
-	if (result != USB_STOR_TRANSPORT_GOOD)
+	if (result)
 		return result;
 
 	result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 				       data, 64, NULL);
 	*status = data[0];
-	return (result == USB_STOR_XFER_GOOD ?
-			USB_STOR_TRANSPORT_GOOD : USB_STOR_TRANSPORT_ERROR);
+	return (result == USB_STOR_XFER_GOOD ? 0 : -EIO);
 }
 
 static int
@@ -725,7 +719,7 @@ sddr09_read_data(struct us_data *us,
 	buffer = kmalloc(len, GFP_NOIO);
 	if (buffer == NULL) {
 		printk("sddr09_read_data: Out of memory\n");
-		return USB_STOR_TRANSPORT_ERROR;
+		return -ENOMEM;
 	}
 
 	// Figure out the initial LBA and page
@@ -736,7 +730,7 @@ sddr09_read_data(struct us_data *us,
 	// This could be made much more efficient by checking for
 	// contiguous LBA's. Another exercise left to the student.
 
-	result = USB_STOR_TRANSPORT_GOOD;
+	result = 0;
 	index = offset = 0;
 
 	while (sectors > 0) {
@@ -749,7 +743,7 @@ sddr09_read_data(struct us_data *us,
 		if (lba >= maxlba) {
 			US_DEBUGP("Error: Requested lba %u exceeds "
 				  "maximum %u\n", lba, maxlba);
-			result = USB_STOR_TRANSPORT_ERROR;
+			result = -EIO;
 			break;
 		}
 
@@ -763,7 +757,7 @@ sddr09_read_data(struct us_data *us,
 
 			/* This is not really an error. It just means
 			   that the block has never been written.
-			   Instead of returning USB_STOR_TRANSPORT_ERROR
+			   Instead of returning an error
 			   it is better to return all zero data. */
 
 			memset(buffer, 0, len);
@@ -778,7 +772,7 @@ sddr09_read_data(struct us_data *us,
 
 			result = sddr09_read20(us, address>>1,
 					pages, info->pageshift, buffer, 0);
-			if (result != USB_STOR_TRANSPORT_GOOD)
+			if (result)
 				break;
 		}
 
@@ -844,7 +838,7 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 		pba = sddr09_find_unused_pba(info, lba);
 		if (!pba) {
 			printk("sddr09_write_lba: Out of unused blocks\n");
-			return USB_STOR_TRANSPORT_ERROR;
+			return -ENOSPC;
 		}
 		info->pba_to_lba[pba] = lba;
 		info->lba_to_pba[lba] = pba;
@@ -855,7 +849,7 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 		/* Maybe it is impossible to write to PBA 1.
 		   Fake success, but don't do anything. */
 		printk("sddr09: avoid writing to pba 1\n");
-		return USB_STOR_TRANSPORT_GOOD;
+		return 0;
 	}
 
 	pagelen = (1 << info->pageshift) + (1 << CONTROL_SHIFT);
@@ -864,7 +858,7 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 	address = (pba << (info->pageshift + info->blockshift));
 	result = sddr09_read22(us, address>>1, info->blocksize,
 			       info->pageshift, blockbuffer, 0);
-	if (result != USB_STOR_TRANSPORT_GOOD)
+	if (result)
 		return result;
 
 	/* check old contents and fill lba */
@@ -911,7 +905,7 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 	{
 		unsigned char status = 0;
 		int result2 = sddr09_read_status(us, &status);
-		if (result2 != USB_STOR_TRANSPORT_GOOD)
+		if (result2)
 			US_DEBUGP("sddr09_write_inplace: cannot read status\n");
 		else if (status != 0xc0)
 			US_DEBUGP("sddr09_write_inplace: status after write: 0x%x\n",
@@ -952,7 +946,7 @@ sddr09_write_data(struct us_data *us,
 	blockbuffer = kmalloc(blocklen, GFP_NOIO);
 	if (!blockbuffer) {
 		printk("sddr09_write_data: Out of memory\n");
-		return USB_STOR_TRANSPORT_ERROR;
+		return -ENOMEM;
 	}
 
 	// Since we don't write the user data directly to the device,
@@ -964,14 +958,14 @@ sddr09_write_data(struct us_data *us,
 	if (buffer == NULL) {
 		printk("sddr09_write_data: Out of memory\n");
 		kfree(blockbuffer);
-		return USB_STOR_TRANSPORT_ERROR;
+		return -ENOMEM;
 	}
 
 	// Figure out the initial LBA and page
 	lba = address >> info->blockshift;
 	page = (address & info->blockmask);
 
-	result = USB_STOR_TRANSPORT_GOOD;
+	result = 0;
 	index = offset = 0;
 
 	while (sectors > 0) {
@@ -987,7 +981,7 @@ sddr09_write_data(struct us_data *us,
 
 		result = sddr09_write_lba(us, lba, page, pages,
 				buffer, blockbuffer);
-		if (result != USB_STOR_TRANSPORT_GOOD)
+		if (result)
 			break;
 
 		page = 0;
@@ -1036,7 +1030,7 @@ sddr09_read_deviceID(struct us_data *us, unsigned char *deviceID) {
 	command[1] = LUNBITS;
 
 	result = sddr09_send_scsi_command(us, command, 12);
-	if (result != USB_STOR_TRANSPORT_GOOD)
+	if (result)
 		return result;
 
 	result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
@@ -1045,8 +1039,7 @@ sddr09_read_deviceID(struct us_data *us, unsigned char *deviceID) {
 	for (i = 0; i < 4; i++)
 		deviceID[i] = content[i];
 
-	return (result == USB_STOR_XFER_GOOD ?
-			USB_STOR_TRANSPORT_GOOD : USB_STOR_TRANSPORT_ERROR);
+	return (result == USB_STOR_XFER_GOOD ? 0 : -EIO);
 }
 
 static int
@@ -1055,7 +1048,7 @@ sddr09_get_wp(struct us_data *us, struct sddr09_card_info *info) {
 	unsigned char status;
 
 	result = sddr09_read_status(us, &status);
-	if (result != USB_STOR_TRANSPORT_GOOD) {
+	if (result) {
 		US_DEBUGP("sddr09_get_wp: read_status fails\n");
 		return result;
 	}
@@ -1071,7 +1064,7 @@ sddr09_get_wp(struct us_data *us, struct sddr09_card_info *info) {
 	if (status & 0x1)
 		US_DEBUGP(" Error");
 	US_DEBUGP("\n");
-	return USB_STOR_TRANSPORT_GOOD;
+	return 0;
 }
 
 #if 0
@@ -1103,7 +1096,7 @@ sddr09_get_cardinfo(struct us_data *us, unsigned char flags) {
 
 	result = sddr09_read_deviceID(us, deviceID);
 
-	if (result != USB_STOR_TRANSPORT_GOOD) {
+	if (result) {
 		US_DEBUGP("Result of read_deviceID is %d\n", result);
 		printk("sddr09: could not read card info\n");
 		return NULL;
@@ -1214,7 +1207,7 @@ sddr09_read_map(struct us_data *us) {
 				us, address>>1,
 				min(alloc_blocks, numblocks - i),
 				buffer, 0);
-			if (result != USB_STOR_TRANSPORT_GOOD) {
+			if (result) {
 				result = -1;
 				goto done;
 			}
@@ -1402,7 +1395,7 @@ usb_stor_sddr09_dpcm_init(struct us_data *us) {
 		return result;
 
 	result = sddr09_send_command(us, 0x01, USB_DIR_IN, data, 2);
-	if (result != USB_STOR_TRANSPORT_GOOD) {
+	if (result) {
 		US_DEBUGP("sddr09_init: send_command fails\n");
 		return result;
 	}
@@ -1411,7 +1404,7 @@ usb_stor_sddr09_dpcm_init(struct us_data *us) {
 	// get 07 02
 
 	result = sddr09_send_command(us, 0x08, USB_DIR_IN, data, 2);
-	if (result != USB_STOR_TRANSPORT_GOOD) {
+	if (result) {
 		US_DEBUGP("sddr09_init: 2nd send_command fails\n");
 		return result;
 	}
@@ -1420,7 +1413,7 @@ usb_stor_sddr09_dpcm_init(struct us_data *us) {
 	// get 07 00
 
 	result = sddr09_request_sense(us, data, 18);
-	if (result == USB_STOR_TRANSPORT_GOOD && data[2] != 0) {
+	if (result == 0 && data[2] != 0) {
 		int j;
 		for (j=0; j<18; j++)
 			printk(" %02X", data[j]);
@@ -1567,7 +1560,9 @@ int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 		US_DEBUGP("READ_10: read page %d pagect %d\n",
 			  page, pages);
 
-		return sddr09_read_data(us, page, pages);
+		result = sddr09_read_data(us, page, pages);
+		return (result == 0 ? USB_STOR_TRANSPORT_GOOD :
+				USB_STOR_TRANSPORT_ERROR);
 	}
 
 	if (srb->cmnd[0] == WRITE_10) {
@@ -1580,7 +1575,9 @@ int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 		US_DEBUGP("WRITE_10: write page %d pagect %d\n",
 			  page, pages);
 
-		return sddr09_write_data(us, page, pages);
+		result = sddr09_write_data(us, page, pages);
+		return (result == 0 ? USB_STOR_TRANSPORT_GOOD :
+				USB_STOR_TRANSPORT_ERROR);
 	}
 
 	/* catch-all for all other commands, except
@@ -1606,10 +1603,10 @@ int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 	US_DEBUGP("SDDR09: Send control for command %s\n", ptr);
 
 	result = sddr09_send_scsi_command(us, srb->cmnd, 12);
-	if (result != USB_STOR_TRANSPORT_GOOD) {
+	if (result) {
 		US_DEBUGP("sddr09_transport: sddr09_send_scsi_command "
 			  "returns %d\n", result);
-		return result;
+		return USB_STOR_TRANSPORT_ERROR;
 	}
 
 	if (srb->request_bufflen == 0)
