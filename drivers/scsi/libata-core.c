@@ -4083,13 +4083,17 @@ static void atapi_packet_task(void *_data)
 
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
-	if (ata_busy_sleep(ap, ATA_TMOUT_CDB_QUICK, ATA_TMOUT_CDB))
-		goto err_out_status;
+	if (ata_busy_sleep(ap, ATA_TMOUT_CDB_QUICK, ATA_TMOUT_CDB)) {
+		qc->err_mask |= AC_ERR_ATA_BUS;
+		goto err_out;
+	}
 
 	/* make sure DRQ is set */
 	status = ata_chk_status(ap);
-	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)
+	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ) {
+		qc->err_mask |= AC_ERR_ATA_BUS;
 		goto err_out;
+	}
 
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
@@ -4121,10 +4125,7 @@ static void atapi_packet_task(void *_data)
 
 	return;
 
-err_out_status:
-	status = ata_chk_status(ap);
 err_out:
-	qc->err_mask |= __ac_err_mask(status);
 	ata_poll_qc_complete(qc);
 }
 
