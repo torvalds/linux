@@ -728,11 +728,9 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			return -ENOENT;
 		}
 	}	
-	if (del_timer(&ct->timeout)) {
-		ip_conntrack_put(ct);
+	if (del_timer(&ct->timeout))
 		ct->timeout.function((unsigned long)ct);
-		return 0;
-	}
+
 	ip_conntrack_put(ct);
 	DEBUGP("leaving\n");
 
