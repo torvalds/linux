@@ -264,8 +264,10 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 
 	if (base <= limit) {
 		res->flags = (io_base_lo & PCI_IO_RANGE_TYPE_MASK) | IORESOURCE_IO;
-		res->start = base;
-		res->end = limit + 0xfff;
+		if (!res->start)
+			res->start = base;
+		if (!res->end)
+			res->end = limit + 0xfff;
 	}
 
 	res = child->resource[1];
