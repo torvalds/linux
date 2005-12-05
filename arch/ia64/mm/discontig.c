@@ -50,8 +50,10 @@ static nodemask_t memory_less_mask __initdata;
  * To prevent cache aliasing effects, align per-node structures so that they
  * start at addresses that are strided by node number.
  */
+#define MAX_NODE_ALIGN_OFFSET	(32 * 1024 * 1024)
 #define NODEDATA_ALIGN(addr, node)						\
-	((((addr) + 1024*1024-1) & ~(1024*1024-1)) + (node)*PERCPU_PAGE_SIZE)
+	((((addr) + 1024*1024-1) & ~(1024*1024-1)) + 				\
+	     (((node)*PERCPU_PAGE_SIZE) & (MAX_NODE_ALIGN_OFFSET - 1)))
 
 /**
  * build_node_maps - callback to setup bootmem structs for each node
