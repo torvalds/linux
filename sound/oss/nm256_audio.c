@@ -1644,7 +1644,7 @@ module_param(force_load, bool, 0);
 static int __init do_init_nm256(void)
 {
     printk (KERN_INFO "NeoMagic 256AV/256ZX audio driver, version 1.1p\n");
-    return pci_module_init(&nm256_pci_driver);
+    return pci_register_driver(&nm256_pci_driver);
 }
 
 static void __exit cleanup_nm256 (void)

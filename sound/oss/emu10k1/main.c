@@ -1428,7 +1428,7 @@ static int __init emu10k1_init_module(void)
 {
 	printk(KERN_INFO "Creative EMU10K1 PCI Audio Driver, version " DRIVER_VERSION ", " __TIME__ " " __DATE__ "\n");
 
-	return pci_module_init(&emu10k1_pci_driver);
+	return pci_register_driver(&emu10k1_pci_driver);
 }
 
 static void __exit emu10k1_cleanup_module(void)

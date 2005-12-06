@@ -3624,7 +3624,7 @@ static int __init init_maestro(void)
 {
 	int rc;
 
-	rc = pci_module_init(&maestro_pci_driver);
+	rc = pci_register_driver(&maestro_pci_driver);
 	if (rc < 0)
 		return rc;
 
