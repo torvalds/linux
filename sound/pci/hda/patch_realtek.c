@@ -1259,6 +1259,8 @@ static int alc_build_pcms(struct hda_codec *codec)
 	codec->num_pcms = 1;
 	codec->pcm_info = info;
 
+	snd_assert(spec->stream_analog_playback, return -EINVAL);
+	snd_assert(spec->stream_analog_capture, return -EINVAL);
 	info->name = spec->stream_name_analog;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *(spec->stream_analog_playback);
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dac_nids[0];
@@ -1277,10 +1279,12 @@ static int alc_build_pcms(struct hda_codec *codec)
 		info++;
 		info->name = spec->stream_name_digital;
 		if (spec->multiout.dig_out_nid) {
+			snd_assert(spec->stream_digital_playback, return -EINVAL);
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *(spec->stream_digital_playback);
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dig_out_nid;
 		}
 		if (spec->dig_in_nid) {
+			snd_assert(spec->stream_digital_capture, return -EINVAL);
 			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_digital_capture);
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in_nid;
 		}
@@ -3508,9 +3512,10 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 
 	if (err < 0)
 		return err;
-	/* hack - override the init verbs */
-	spec->init_verbs[0] = alc882_auto_init_verbs;
-	return 0;
+	else if (err > 0)
+		/* hack - override the init verbs */
+		spec->init_verbs[0] = alc882_auto_init_verbs;
+	return err;
 }
 
 /* init callback for auto-configuration model -- overriding the default init */
@@ -3605,6 +3610,7 @@ static int patch_alc882(struct hda_codec *codec)
 #define alc262_adc_nids_alt	alc882_adc_nids_alt
 
 #define alc262_modes		alc260_modes
+#define alc262_capture_source	alc882_capture_source
 
 static struct snd_kcontrol_new alc262_base_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -3921,6 +3927,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.hp_nid = 0x03,
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
+		.input_mux = alc262_capture_source,
 	},
 };
 
