@@ -2155,8 +2155,8 @@ static void init_priv1(struct spu_state *csa)
 	    CLASS0_ENABLE_SPU_ERROR_INTR;
 	csa->priv1.int_mask_class1_RW = CLASS1_ENABLE_SEGMENT_FAULT_INTR |
 	    CLASS1_ENABLE_STORAGE_FAULT_INTR;
-	csa->priv1.int_mask_class2_RW = CLASS2_ENABLE_MAILBOX_INTR |
-	    CLASS2_ENABLE_SPU_STOP_INTR | CLASS2_ENABLE_SPU_HALT_INTR;
+	csa->priv1.int_mask_class2_RW = CLASS2_ENABLE_SPU_STOP_INTR |
+	    CLASS2_ENABLE_SPU_HALT_INTR;
 }
 
 static void init_priv2(struct spu_state *csa)

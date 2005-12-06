@@ -66,6 +66,8 @@ struct spu_context {
 struct spu_context_ops {
 	int (*mbox_read) (struct spu_context * ctx, u32 * data);
 	 u32(*mbox_stat_read) (struct spu_context * ctx);
+	unsigned int (*mbox_stat_poll)(struct spu_context *ctx,
+					unsigned int events);
 	int (*ibox_read) (struct spu_context * ctx, u32 * data);
 	int (*wbox_write) (struct spu_context * ctx, u32 data);
 	 u32(*signal1_read) (struct spu_context * ctx);

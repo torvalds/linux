@@ -389,20 +389,13 @@ static ssize_t spufs_ibox_read(struct file *file, char __user *buf,
 static unsigned int spufs_ibox_poll(struct file *file, poll_table *wait)
 {
 	struct spu_context *ctx = file->private_data;
-	u32 mbox_stat;
 	unsigned int mask;
-
-	spu_acquire(ctx);
-
-	mbox_stat = ctx->ops->mbox_stat_read(ctx);
-
-	spu_release(ctx);
 
 	poll_wait(file, &ctx->ibox_wq, wait);
 
-	mask = 0;
-	if (mbox_stat & 0xff0000)
-		mask |= POLLIN | POLLRDNORM;
+	spu_acquire(ctx);
+	mask = ctx->ops->mbox_stat_poll(ctx, POLLIN | POLLRDNORM);
+	spu_release(ctx);
 
 	return mask;
 }
@@ -494,18 +487,13 @@ static ssize_t spufs_wbox_write(struct file *file, const char __user *buf,
 static unsigned int spufs_wbox_poll(struct file *file, poll_table *wait)
 {
 	struct spu_context *ctx = file->private_data;
-	u32 mbox_stat;
 	unsigned int mask;
-
-	spu_acquire(ctx);
-	mbox_stat = ctx->ops->mbox_stat_read(ctx);
-	spu_release(ctx);
 
 	poll_wait(file, &ctx->wbox_wq, wait);
 
-	mask = 0;
-	if (mbox_stat & 0x00ff00)
-		mask = POLLOUT | POLLWRNORM;
+	spu_acquire(ctx);
+	mask = ctx->ops->mbox_stat_poll(ctx, POLLOUT | POLLWRNORM);
+	spu_release(ctx);
 
 	return mask;
 }

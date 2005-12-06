@@ -202,11 +202,14 @@ spu_irq_class_0(int irq, void *data, struct pt_regs *regs)
 int
 spu_irq_class_0_bottom(struct spu *spu)
 {
-	unsigned long stat;
+	unsigned long stat, mask;
 
 	spu->class_0_pending = 0;
 
+	mask = in_be64(&spu->priv1->int_mask_class0_RW);
 	stat = in_be64(&spu->priv1->int_stat_class0_RW);
+
+	stat &= mask;
 
 	if (stat & 1) /* invalid MFC DMA */
 		__spu_trap_invalid_dma(spu);
@@ -263,13 +266,15 @@ spu_irq_class_2(int irq, void *data, struct pt_regs *regs)
 {
 	struct spu *spu;
 	unsigned long stat;
+	unsigned long mask;
 
 	spu = data;
 	stat = in_be64(&spu->priv1->int_stat_class2_RW);
+	mask = in_be64(&spu->priv1->int_mask_class2_RW);
 
-	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat,
-		in_be64(&spu->priv1->int_mask_class2_RW));
+	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
 
+	stat &= mask;
 
 	if (stat & 1)  /* PPC core mailbox */
 		__spu_trap_mailbox(spu);

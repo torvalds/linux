@@ -24,7 +24,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/vmalloc.h>
+#include <linux/poll.h>
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/stddef.h>
@@ -56,6 +56,44 @@ static int spu_hw_mbox_read(struct spu_context *ctx, u32 * data)
 static u32 spu_hw_mbox_stat_read(struct spu_context *ctx)
 {
 	return in_be32(&ctx->spu->problem->mb_stat_R);
+}
+
+static unsigned int spu_hw_mbox_stat_poll(struct spu_context *ctx,
+					  unsigned int events)
+{
+	struct spu *spu = ctx->spu;
+	struct spu_priv1 __iomem *priv1 = spu->priv1;
+	int ret = 0;
+	u32 stat;
+
+	spin_lock_irq(&spu->register_lock);
+	stat = in_be32(&spu->problem->mb_stat_R);
+
+	/* if the requested event is there, return the poll
+	   mask, otherwise enable the interrupt to get notified,
+	   but first mark any pending interrupts as done so
+	   we don't get woken up unnecessarily */
+
+	if (events & (POLLIN | POLLRDNORM)) {
+		if (stat & 0xff0000)
+			ret |= POLLIN | POLLRDNORM;
+		else {
+			out_be64(&priv1->int_stat_class2_RW, 0x1);
+			out_be64(&priv1->int_mask_class2_RW,
+				 in_be64(&priv1->int_mask_class2_RW) | 0x1);
+		}
+	}
+	if (events & (POLLOUT | POLLWRNORM)) {
+		if (stat & 0x00ff00)
+			ret = POLLOUT | POLLWRNORM;
+		else {
+			out_be64(&priv1->int_stat_class2_RW, 0x10);
+			out_be64(&priv1->int_mask_class2_RW,
+				 in_be64(&priv1->int_mask_class2_RW) | 0x10);
+		}
+	}
+	spin_unlock_irq(&spu->register_lock);
+	return ret;
 }
 
 static int spu_hw_ibox_read(struct spu_context *ctx, u32 * data)
@@ -204,6 +242,7 @@ static void spu_hw_runcntl_stop(struct spu_context *ctx)
 struct spu_context_ops spu_hw_ops = {
 	.mbox_read = spu_hw_mbox_read,
 	.mbox_stat_read = spu_hw_mbox_stat_read,
+	.mbox_stat_poll = spu_hw_mbox_stat_poll,
 	.ibox_read = spu_hw_ibox_read,
 	.wbox_write = spu_hw_wbox_write,
 	.signal1_read = spu_hw_signal1_read,

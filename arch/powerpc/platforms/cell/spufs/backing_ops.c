@@ -32,6 +32,7 @@
 #include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
+#include <linux/poll.h>
 
 #include <asm/io.h>
 #include <asm/spu.h>
@@ -85,6 +86,41 @@ static int spu_backing_mbox_read(struct spu_context *ctx, u32 * data)
 static u32 spu_backing_mbox_stat_read(struct spu_context *ctx)
 {
 	return ctx->csa.prob.mb_stat_R;
+}
+
+static unsigned int spu_backing_mbox_stat_poll(struct spu_context *ctx,
+					  unsigned int events)
+{
+	int ret;
+	u32 stat;
+
+	ret = 0;
+	spin_lock_irq(&ctx->csa.register_lock);
+	stat = ctx->csa.prob.mb_stat_R;
+
+	/* if the requested event is there, return the poll
+	   mask, otherwise enable the interrupt to get notified,
+	   but first mark any pending interrupts as done so
+	   we don't get woken up unnecessarily */
+
+	if (events & (POLLIN | POLLRDNORM)) {
+		if (stat & 0xff0000)
+			ret |= POLLIN | POLLRDNORM;
+		else {
+			ctx->csa.priv1.int_stat_class0_RW &= ~0x1;
+			ctx->csa.priv1.int_mask_class2_RW |= 0x1;
+		}
+	}
+	if (events & (POLLOUT | POLLWRNORM)) {
+		if (stat & 0x00ff00)
+			ret = POLLOUT | POLLWRNORM;
+		else {
+			ctx->csa.priv1.int_stat_class0_RW &= ~0x10;
+			ctx->csa.priv1.int_mask_class2_RW |= 0x10;
+		}
+	}
+	spin_unlock_irq(&ctx->csa.register_lock);
+	return ret;
 }
 
 static int spu_backing_ibox_read(struct spu_context *ctx, u32 * data)
@@ -252,6 +288,7 @@ static void spu_backing_runcntl_stop(struct spu_context *ctx)
 struct spu_context_ops spu_backing_ops = {
 	.mbox_read = spu_backing_mbox_read,
 	.mbox_stat_read = spu_backing_mbox_stat_read,
+	.mbox_stat_poll = spu_backing_mbox_stat_poll,
 	.ibox_read = spu_backing_ibox_read,
 	.wbox_write = spu_backing_wbox_write,
 	.signal1_read = spu_backing_signal1_read,
