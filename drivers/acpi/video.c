@@ -812,7 +812,7 @@ acpi_video_device_write_brightness(struct file *file,
 
 	ACPI_FUNCTION_TRACE("acpi_video_device_write_brightness");
 
-	if (!dev || count + 1 > sizeof str)
+	if (!dev || !dev->brightness || count + 1 > sizeof str)
 		return_VALUE(-EINVAL);
 
 	if (copy_from_user(str, buffer, count))

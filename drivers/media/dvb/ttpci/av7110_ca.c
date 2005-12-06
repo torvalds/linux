@@ -40,6 +40,7 @@
 
 #include "av7110.h"
 #include "av7110_hw.h"
+#include "av7110_ca.h"
 
 
 void CI_handle(struct av7110 *av7110, u8 *data, u16 len)

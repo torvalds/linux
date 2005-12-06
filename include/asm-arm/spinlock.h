@@ -30,6 +30,9 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
+#ifdef CONFIG_CPU_32v6K
+"	wfene\n"
+#endif
 "	strexeq	%0, %2, [%1]\n"
 "	teqeq	%0, #0\n"
 "	bne	1b"
@@ -65,7 +68,11 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 	smp_mb();
 
 	__asm__ __volatile__(
-"	str	%1, [%0]"
+"	str	%1, [%0]\n"
+#ifdef CONFIG_CPU_32v6K
+"	mcr	p15, 0, %1, c7, c10, 4\n" /* DSB */
+"	sev"
+#endif
 	:
 	: "r" (&lock->lock), "r" (0)
 	: "cc");
@@ -87,6 +94,9 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	__asm__ __volatile__(
 "1:	ldrex	%0, [%1]\n"
 "	teq	%0, #0\n"
+#ifdef CONFIG_CPU_32v6K
+"	wfene\n"
+#endif
 "	strexeq	%0, %2, [%1]\n"
 "	teq	%0, #0\n"
 "	bne	1b"
@@ -122,7 +132,11 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 	smp_mb();
 
 	__asm__ __volatile__(
-	"str	%1, [%0]"
+	"str	%1, [%0]\n"
+#ifdef CONFIG_CPU_32v6K
+"	mcr	p15, 0, %1, c7, c10, 4\n" /* DSB */
+"	sev\n"
+#endif
 	:
 	: "r" (&rw->lock), "r" (0)
 	: "cc");
@@ -148,6 +162,9 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 "1:	ldrex	%0, [%2]\n"
 "	adds	%0, %0, #1\n"
 "	strexpl	%1, %0, [%2]\n"
+#ifdef CONFIG_CPU_32v6K
+"	wfemi\n"
+#endif
 "	rsbpls	%0, %1, #0\n"
 "	bmi	1b"
 	: "=&r" (tmp), "=&r" (tmp2)
@@ -169,6 +186,11 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 "	strex	%1, %0, [%2]\n"
 "	teq	%1, #0\n"
 "	bne	1b"
+#ifdef CONFIG_CPU_32v6K
+"\n	cmp	%0, #0\n"
+"	mcreq   p15, 0, %0, c7, c10, 4\n"
+"	seveq"
+#endif
 	: "=&r" (tmp), "=&r" (tmp2)
 	: "r" (&rw->lock)
 	: "cc");

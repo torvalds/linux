@@ -93,13 +93,15 @@ syscall_trace_entry:
 	li	a1, 0
 	jal	do_syscall_trace
 
+	move	t0, s0
+	RESTORE_STATIC
 	ld	a0, PT_R4(sp)		# Restore argument registers
 	ld	a1, PT_R5(sp)
 	ld	a2, PT_R6(sp)
 	ld	a3, PT_R7(sp)
 	ld	a4, PT_R8(sp)
 	ld	a5, PT_R9(sp)
-	jalr	s0
+	jalr	t0
 
 	li	t0, -EMAXERRNO - 1	# error?
 	sltu	t0, t0, v0
@@ -174,19 +176,7 @@ illegal_syscall:
 	sd	zero, PT_R7(sp)		# success
 	sd	v0, PT_R2(sp)		# result
 
-	/* Success, so skip usual error handling garbage.  */
-	li	t0, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
-	LONG_L	a2, TI_FLAGS($28)	# syscall tracing enabled?
-	and	t0, a2, t0
-	bnez	t0, 1f
-
-	j	n64_syscall_exit
-
-1:	SAVE_STATIC
-	move	a0, sp
-	li	a1, 1
-	jal	do_syscall_trace
-	j	syscall_exit
+	j	n64_syscall_exit	# continue like a normal syscall
 
 no_mem:	li	v0, -ENOMEM
 	jr	ra

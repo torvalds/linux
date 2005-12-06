@@ -40,9 +40,16 @@ extern int cx25840_debug;
 
 #define CX25840_CID_CARDTYPE (V4L2_CID_PRIVATE_BASE+0)
 
+/* The CARDTYPE_PVR150_WORKAROUND cardtype activates a workaround for a
+   hardware bug that is present in PVR150 (and possible PVR500) cards that
+   have certain NTSC tuners (tveeprom model numbers 85, 99 and 112). The
+   audio autodetect fails on some channels for these models and the workaround
+   is to select the audio standard explicitly. Many thanks to Hauppauge for
+   providing this information. */
 enum cx25840_cardtype {
 	CARDTYPE_PVR150,
-	CARDTYPE_PG600
+	CARDTYPE_PG600,
+	CARDTYPE_PVR150_WORKAROUND,
 };
 
 enum cx25840_input {

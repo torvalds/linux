@@ -58,8 +58,6 @@ static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 0};
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for SAA7134 capture interface(s).");
 
-int position;
-
 #define dprintk(fmt, arg...)    if (debug) \
         printk(KERN_DEBUG "%s/alsa: " fmt, dev->name , ## arg)
 
@@ -140,7 +138,8 @@ static void saa7134_dma_start(struct saa7134_dev *dev)
  *
  */
 
-void saa7134_irq_alsa_done(struct saa7134_dev *dev, unsigned long status)
+static void saa7134_irq_alsa_done(struct saa7134_dev *dev,
+				  unsigned long status)
 {
 	int next_blk, reg = 0;
 
@@ -881,7 +880,7 @@ static void snd_saa7134_free(snd_card_t * card)
  *
  */
 
-int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
+static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 {
 
 	snd_card_t *card;
@@ -945,6 +944,8 @@ int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	sprintf(card->longname, "%s at 0x%lx irq %d",
 		chip->dev->name, chip->iobase, chip->irq);
 
+	printk(KERN_INFO "%s/alsa: %s registered as card %d\n",dev->name,card->longname,index[devnum]);
+
 	if ((err = snd_card_register(card)) == 0) {
 		snd_saa7134_cards[devnum] = card;
 		return 0;
@@ -953,6 +954,22 @@ int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 __nodev:
 	snd_card_free(card);
 	return err;
+}
+
+
+static int alsa_device_init(struct saa7134_dev *dev)
+{
+	dev->dmasound.priv_data = dev;
+	alsa_card_saa7134_create(dev,dev->nr);
+	return 1;
+}
+
+static int alsa_device_exit(struct saa7134_dev *dev)
+{
+
+	snd_card_free(snd_saa7134_cards[dev->nr]);
+	snd_saa7134_cards[dev->nr] = NULL;
+	return 1;
 }
 
 /*
@@ -968,21 +985,20 @@ static int saa7134_alsa_init(void)
 	struct saa7134_dev *dev = NULL;
 	struct list_head *list;
 
-	position = 0;
-
         printk(KERN_INFO "saa7134 ALSA driver for DMA sound loaded\n");
 
 	list_for_each(list,&saa7134_devlist) {
 		dev = list_entry(list, struct saa7134_dev, devlist);
 		if (dev->dmasound.priv_data == NULL) {
-			dev->dmasound.priv_data = dev;
-			alsa_card_saa7134_create(dev,position);
-			position++;
+			alsa_device_init(dev);
 		} else {
 			printk(KERN_ERR "saa7134 ALSA: DMA sound is being handled by OSS. ignoring %s\n",dev->name);
 			return -EBUSY;
 		}
 	}
+
+	dmasound_init = alsa_device_init;
+	dmasound_exit = alsa_device_exit;
 
 	if (dev == NULL)
 		printk(KERN_INFO "saa7134 ALSA: no saa7134 cards found\n");
@@ -994,7 +1010,7 @@ static int saa7134_alsa_init(void)
  * Module destructor
  */
 
-void saa7134_alsa_exit(void)
+static void saa7134_alsa_exit(void)
 {
 	int idx;
 

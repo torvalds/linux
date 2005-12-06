@@ -2904,7 +2904,7 @@ void __devinit bttv_idcard(struct bttv *btv)
  */
 
 /* Some Modular Technology cards have an eeprom, but no subsystem ID */
-void identify_by_eeprom(struct bttv *btv, unsigned char eeprom_data[256])
+static void identify_by_eeprom(struct bttv *btv, unsigned char eeprom_data[256])
 {
 	int type = -1;
 
@@ -3879,7 +3879,7 @@ static void __devinit init_PXC200(struct bttv *btv)
  *                error. ERROR_CPLD_Check_Failed.
  */
 /* ----------------------------------------------------------------------- */
-void
+static void
 init_RTV24 (struct bttv *btv)
 {
 	uint32_t dataRead = 0;
@@ -4103,7 +4103,7 @@ void tea5757_set_freq(struct bttv *btv, unsigned short freq)
 /* ----------------------------------------------------------------------- */
 /* winview                                                                 */
 
-void winview_audio(struct bttv *btv, struct video_audio *v, int set)
+static void winview_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	/* PT2254A programming Jon Tombs, jon@gte.esi.us.es */
 	int bits_out, loops, vol, data;

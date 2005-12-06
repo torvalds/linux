@@ -2621,19 +2621,7 @@ e1000_transfer_dhcp_info(struct e1000_adapter *adapter, struct sk_buff *skb)
 			  E1000_MNG_DHCP_COOKIE_STATUS_VLAN_SUPPORT)) )
 			return 0;
 	}
-	if(htons(ETH_P_IP) == skb->protocol) {
-		const struct iphdr *ip = skb->nh.iph;
-		if(IPPROTO_UDP == ip->protocol) {
-			struct udphdr *udp = (struct udphdr *)(skb->h.uh);
-			if(ntohs(udp->dest) == 67) {
-				offset = (uint8_t *)udp + 8 - skb->data;
-				length = skb->len - offset;
-
-				return e1000_mng_write_dhcp_info(hw,
-						(uint8_t *)udp + 8, length);
-			}
-		}
-	} else if((skb->len > MINIMUM_DHCP_PACKET_SIZE) && (!skb->protocol)) {
+ 	if ((skb->len > MINIMUM_DHCP_PACKET_SIZE) && (!skb->protocol)) {
 		struct ethhdr *eth = (struct ethhdr *) skb->data;
 		if((htons(ETH_P_IP) == eth->h_proto)) {
 			const struct iphdr *ip = 

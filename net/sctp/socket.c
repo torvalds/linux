@@ -4743,11 +4743,6 @@ static struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 	struct sk_buff *skb;
 	long timeo;
 
-	/* Caller is allowed not to check sk->sk_err before calling.  */
-	error = sock_error(sk);
-	if (error)
-		goto no_packet;
-
 	timeo = sock_rcvtimeo(sk, noblock);
 
 	SCTP_DEBUG_PRINTK("Timeout: timeo: %ld, MAX: %ld.\n",
@@ -4773,6 +4768,11 @@ static struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 
 		if (skb)
 			return skb;
+
+		/* Caller is allowed not to check sk->sk_err before calling. */
+		error = sock_error(sk);
+		if (error)
+			goto no_packet;
 
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
