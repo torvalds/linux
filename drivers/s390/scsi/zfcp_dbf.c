@@ -926,7 +926,6 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	char dbf_name[DEBUG_MAX_NAME_LEN];
 
 	/* debug feature area which records recovery activity */
-	spin_lock_init(&adapter->erp_dbf_lock);
 	sprintf(dbf_name, "zfcp_%s_erp", zfcp_get_busid_by_adapter(adapter));
 	adapter->erp_dbf = debug_register(dbf_name, dbfsize, 2,
 					  sizeof(struct zfcp_erp_dbf_record));
@@ -936,7 +935,6 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	debug_set_level(adapter->erp_dbf, 3);
 
 	/* debug feature area which records HBA (FSF and QDIO) conditions */
-	spin_lock_init(&adapter->hba_dbf_lock);
 	sprintf(dbf_name, "zfcp_%s_hba", zfcp_get_busid_by_adapter(adapter));
 	adapter->hba_dbf = debug_register(dbf_name, dbfsize, 1,
 					  sizeof(struct zfcp_hba_dbf_record));
@@ -947,7 +945,6 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	debug_set_level(adapter->hba_dbf, 3);
 
 	/* debug feature area which records SAN command failures and recovery */
-	spin_lock_init(&adapter->san_dbf_lock);
 	sprintf(dbf_name, "zfcp_%s_san", zfcp_get_busid_by_adapter(adapter));
 	adapter->san_dbf = debug_register(dbf_name, dbfsize, 1,
 					  sizeof(struct zfcp_san_dbf_record));
@@ -958,7 +955,6 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	debug_set_level(adapter->san_dbf, 6);
 
 	/* debug feature area which records SCSI command failures and recovery */
-	spin_lock_init(&adapter->scsi_dbf_lock);
 	sprintf(dbf_name, "zfcp_%s_scsi", zfcp_get_busid_by_adapter(adapter));
 	adapter->scsi_dbf = debug_register(dbf_name, dbfsize, 1,
 					   sizeof(struct zfcp_scsi_dbf_record));

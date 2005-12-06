@@ -2755,8 +2755,8 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	SET_NETDEV_DEV(dev, dmdev);
 
 
-	if (test_bit(FLAG_MPI,&ai->flags))
-		reset_card (dev, 1);
+	reset_card (dev, 1);
+	msleep(400);
 
 	rc = request_irq( dev->irq, airo_interrupt, SA_SHIRQ, dev->name, dev );
 	if (rc) {

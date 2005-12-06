@@ -148,7 +148,7 @@ static struct dvb_usb_rc_key digitv_rc_keys[] = {
 };
 
 /* TODO is it really the NEC protocol ? */
-int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
+static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	u8 key[5];
 

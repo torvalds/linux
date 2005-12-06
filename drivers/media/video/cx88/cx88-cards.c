@@ -1083,41 +1083,28 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	tveeprom_hauppauge_analog(&core->i2c_client, &tv, eeprom_data);
 	core->tuner_type = tv.tuner_type;
 	core->has_radio  = tv.has_radio;
-}
-
-static int hauppauge_eeprom_dvb(struct cx88_core *core, u8 *ee)
-{
-	int model;
-	int tuner;
 
 	/* Make sure we support the board model */
-	model = ee[0x1f] << 24 | ee[0x1e] << 16 | ee[0x1d] << 8 | ee[0x1c];
-	switch(model) {
-	case 90002:
-	case 90500:
-	case 90501:
+	switch (tv.model)
+	{
+	case 90002: /* Nova-T-PCI (9002) */
+	case 92001: /* Nova-S-Plus (Video and IR) */
+	case 92002: /* Nova-S-Plus (Video and IR) */
+	case 90003: /* Nova-T-PCI (9002 No RF out) */
+	case 90500: /* Nova-T-PCI (oem) */
+	case 90501: /* Nova-T-PCI (oem/IR) */
+	case 92000: /* Nova-SE2 (OEM, No Video or IR) */
+
 		/* known */
 		break;
 	default:
 		printk("%s: warning: unknown hauppauge model #%d\n",
-		       core->name, model);
+		       core->name, tv.model);
 		break;
 	}
 
-	/* Make sure we support the tuner */
-	tuner = ee[0x2d];
-	switch(tuner) {
-	case 0x4B: /* dtt 7595 */
-	case 0x4C: /* dtt 7592 */
-		break;
-	default:
-		printk("%s: error: unknown hauppauge tuner 0x%02x\n",
-		       core->name, tuner);
-		return -ENODEV;
-	}
-	printk(KERN_INFO "%s: hauppauge eeprom: model=%d, tuner=%d\n",
-	       core->name, model, tuner);
-	return 0;
+	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n",
+			core->name, tv.model);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1201,7 +1188,7 @@ void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 
 void cx88_card_setup(struct cx88_core *core)
 {
-	static u8 eeprom[128];
+	static u8 eeprom[256];
 
 	if (0 == core->i2c_rc) {
 		core->i2c_client.addr = 0xa0 >> 1;
@@ -1224,7 +1211,7 @@ void cx88_card_setup(struct cx88_core *core)
 		break;
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		if (0 == core->i2c_rc)
-			hauppauge_eeprom_dvb(core,eeprom);
+			hauppauge_eeprom(core,eeprom);
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:

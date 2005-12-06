@@ -81,6 +81,7 @@ config DVB_BUDGET_CI
 	tristate "Budget cards with onboard CI connector"
 	depends on DVB_CORE && PCI
 	select VIDEO_SAA7146
+	select DVB_STV0297
 	select DVB_STV0299
 	select DVB_TDA1004X
 	help

@@ -131,10 +131,9 @@ typedef struct local_info_t {
     u_short tx_queue_len;
     cardtype_t cardtype;
     u_short sent;
-    u_char mc_filter[8];
 } local_info_t;
 
-#define MC_FILTERBREAK 8
+#define MC_FILTERBREAK 64
 
 /*====================================================================*/
 /* 
@@ -1005,15 +1004,8 @@ static void fjn_reset(struct net_device *dev)
     for (i = 0; i < 6; i++) 
         outb(dev->dev_addr[i], ioaddr + NODE_ID + i);
 
-    /* Switch to bank 1 */
-    if (lp->cardtype == MBH10302)
-	outb(BANK_1, ioaddr + CONFIG_1);
-    else
-	outb(BANK_1U, ioaddr + CONFIG_1);
-
-    /* set the multicast table to accept none. */
-    for (i = 0; i < 8; i++) 
-        outb(0x00, ioaddr + MAR_ADR + i);
+    /* (re)initialize the multicast table */
+    set_rx_mode(dev);
 
     /* Switch to bank 2 (runtime mode) */
     if (lp->cardtype == MBH10302)
@@ -1264,11 +1256,11 @@ static struct net_device_stats *fjn_get_stats(struct net_device *dev)
 static void set_rx_mode(struct net_device *dev)
 {
     kio_addr_t ioaddr = dev->base_addr;
-    struct local_info_t *lp = netdev_priv(dev);
     u_char mc_filter[8];		 /* Multicast hash filter */
     u_long flags;
     int i;
     
+    int saved_bank;
     int saved_config_0 = inb(ioaddr + CONFIG_0);
      
     local_irq_save(flags); 
@@ -1306,15 +1298,13 @@ static void set_rx_mode(struct net_device *dev)
 	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */
     }
 
-    if (memcmp(mc_filter, lp->mc_filter, sizeof(mc_filter))) {
-	int saved_bank = inb(ioaddr + CONFIG_1);
-	/* Switch to bank 1 and set the multicast table. */
-	outb(0xe4, ioaddr + CONFIG_1);
-	for (i = 0; i < 8; i++)
-	    outb(mc_filter[i], ioaddr + MAR_ADR + i);
-	memcpy(lp->mc_filter, mc_filter, sizeof(mc_filter));
-	outb(saved_bank, ioaddr + CONFIG_1);
-    }
+    /* Switch to bank 1 and set the multicast table. */
+    saved_bank = inb(ioaddr + CONFIG_1);
+    outb(0xe4, ioaddr + CONFIG_1);
+
+    for (i = 0; i < 8; i++)
+	outb(mc_filter[i], ioaddr + MAR_ADR + i);
+    outb(saved_bank, ioaddr + CONFIG_1);
 
     outb(saved_config_0, ioaddr + CONFIG_0);
 

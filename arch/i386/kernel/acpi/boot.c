@@ -638,6 +638,13 @@ static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 			return 0;
 
 		pmtmr_ioport = fadt->xpm_tmr_blk.address;
+		/*
+		 * "X" fields are optional extensions to the original V1.0
+		 * fields, so we must selectively expand V1.0 fields if the
+		 * corresponding X field is zero.
+	 	 */
+		if (!pmtmr_ioport)
+			pmtmr_ioport = fadt->V1_pm_tmr_blk;
 	} else {
 		/* FADT rev. 1 */
 		pmtmr_ioport = fadt->V1_pm_tmr_blk;

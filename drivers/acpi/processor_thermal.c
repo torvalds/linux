@@ -101,9 +101,7 @@ static unsigned int acpi_thermal_cpufreq_is_init = 0;
 static int cpu_has_cpufreq(unsigned int cpu)
 {
 	struct cpufreq_policy policy;
-	if (!acpi_thermal_cpufreq_is_init)
-		return -ENODEV;
-	if (!cpufreq_get_policy(&policy, cpu))
+	if (!acpi_thermal_cpufreq_is_init || cpufreq_get_policy(&policy, cpu))
 		return -ENODEV;
 	return 0;
 }
@@ -127,13 +125,13 @@ static int acpi_thermal_cpufreq_decrease(unsigned int cpu)
 	if (!cpu_has_cpufreq(cpu))
 		return -ENODEV;
 
-	if (cpufreq_thermal_reduction_pctg[cpu] >= 20) {
+	if (cpufreq_thermal_reduction_pctg[cpu] > 20)
 		cpufreq_thermal_reduction_pctg[cpu] -= 20;
-		cpufreq_update_policy(cpu);
-		return 0;
-	}
-
-	return -ERANGE;
+	else
+		cpufreq_thermal_reduction_pctg[cpu] = 0;
+	cpufreq_update_policy(cpu);
+	/* We reached max freq again and can leave passive mode */
+	return !cpufreq_thermal_reduction_pctg[cpu];
 }
 
 static int acpi_thermal_cpufreq_notifier(struct notifier_block *nb,
@@ -200,7 +198,7 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type)
 	int result = 0;
 	struct acpi_processor *pr = NULL;
 	struct acpi_device *device = NULL;
-	int tx = 0;
+	int tx = 0, max_tx_px = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_processor_set_thermal_limit");
 
@@ -259,19 +257,27 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type)
 		/* if going down: T-states first, P-states later */
 
 		if (pr->flags.throttling) {
-			if (tx == 0)
+			if (tx == 0) {
+				max_tx_px = 1;
 				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 						  "At minimum throttling state\n"));
-			else {
+			} else {
 				tx--;
 				goto end;
 			}
 		}
 
 		result = acpi_thermal_cpufreq_decrease(pr->id);
-		if (result == -ERANGE)
+		if (result) {
+			/*
+			 * We only could get -ERANGE, 1 or 0.
+			 * In the first two cases we reached max freq again.
+			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "At minimum performance state\n"));
+			max_tx_px = 1;
+		} else
+			max_tx_px = 0;
 
 		break;
 	}
@@ -290,8 +296,10 @@ int acpi_processor_set_thermal_limit(acpi_handle handle, int type)
 				  pr->limit.thermal.px, pr->limit.thermal.tx));
 	} else
 		result = 0;
-
-	return_VALUE(result);
+	if (max_tx_px)
+		return_VALUE(1);
+	else
+		return_VALUE(result);
 }
 
 int acpi_processor_get_limit_info(struct acpi_processor *pr)

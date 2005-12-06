@@ -223,7 +223,7 @@ static const struct i2c_reg_value saa7127_init_config_60hz[] = {
 };
 
 #define SAA7127_50HZ_DAC_CONTROL 0x02
-struct i2c_reg_value saa7127_init_config_50hz[] = {
+static struct i2c_reg_value saa7127_init_config_50hz[] = {
 	{ SAA7127_REG_BURST_START, 			0x21 },
 	/* BURST_END is also used as a chip ID in saa7127_detect_client */
 	{ SAA7127_REG_BURST_END, 			0x1d },
@@ -696,7 +696,7 @@ static int saa7127_command(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-struct i2c_driver i2c_driver_saa7127;
+static struct i2c_driver i2c_driver_saa7127;
 
 /* ----------------------------------------------------------------------- */
 
@@ -818,7 +818,7 @@ static int saa7127_detach(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-struct i2c_driver i2c_driver_saa7127 = {
+static struct i2c_driver i2c_driver_saa7127 = {
 	.name = "saa7127",
 	.id = I2C_DRIVERID_SAA7127,
 	.flags = I2C_DF_NOTIFY,

@@ -1,28 +1,8 @@
-//
-// <COPYRIGHT CLASS="1B" YEAR="2005">
-// Unpublished work (c) MIPS Technologies, Inc.  All rights reserved.
-// Unpublished rights reserved under the copyright laws of the U.S.A. and
-//  other countries.
-//
-// PROPRIETARY / SECRET CONFIDENTIAL INFORMATION OF MIPS TECHNOLOGIES, INC.
-// FOR INTERNAL USE ONLY.
-//
-// Under no circumstances (contract or otherwise) may this information be
-// disclosed to, or copied, modified or used by anyone other than employees
-// or contractors of MIPS Technologies having a need to know.
-// </COPYRIGHT>
-//
-//++
-// File: MIPS_Net.h
-//
-// Description:
-//   The definition of the emulated MIPSNET device's interface.
-//
-// Notes: This include file needs to work from a Linux device drivers.
-//
-//--
-//
-
+/*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ */
 #ifndef __MIPSNET_H
 #define __MIPSNET_H
 
