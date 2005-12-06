@@ -45,6 +45,8 @@
 #include <asm/spu_csa.h>
 #include "spufs.h"
 
+#define SPU_MIN_TIMESLICE 	(100 * HZ / 1000))
+
 #define SPU_BITMAP_SIZE (((MAX_PRIO+BITS_PER_LONG)/BITS_PER_LONG)+1)
 struct spu_prio_array {
 	atomic_t nr_blocked;
@@ -168,6 +170,7 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 		 spu->number);
 	spu->ctx = ctx;
 	spu->flags = 0;
+	ctx->flags = 0;
 	ctx->spu = spu;
 	ctx->ops = &spu_hw_ops;
 	spu->pid = current->pid;
@@ -180,6 +183,7 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 	mb();
 	spu_unmap_mappings(ctx);
 	spu_restore(&ctx->csa, spu);
+	spu->timestamp = jiffies;
 }
 
 static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
@@ -188,6 +192,7 @@ static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 		 spu->pid, spu->number);
 	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
+	spu->timestamp = jiffies;
 	ctx->state = SPU_STATE_SAVED;
 	spu->ibox_callback = NULL;
 	spu->wbox_callback = NULL;
@@ -197,38 +202,62 @@ static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->prio = MAX_PRIO;
 	ctx->ops = &spu_backing_ops;
 	ctx->spu = NULL;
+	ctx->flags = 0;
+	spu->flags = 0;
 	spu->ctx = NULL;
 }
 
-static struct spu *preempt_active(struct spu_runqueue *rq)
+static void spu_reaper(void *data)
+{
+	struct spu_context *ctx = data;
+	struct spu *spu;
+
+	down_write(&ctx->state_sema);
+	spu = ctx->spu;
+	if (spu && (ctx->flags & SPU_CONTEXT_PREEMPT)) {
+		if (atomic_read(&spu->rq->prio.nr_blocked)) {
+			pr_debug("%s: spu=%d\n", __func__, spu->number);
+			ctx->ops->runcntl_stop(ctx);
+			spu_deactivate(ctx);
+			wake_up_all(&ctx->stop_wq);
+		} else {
+			clear_bit(SPU_CONTEXT_PREEMPT_nr, &ctx->flags);
+		}
+	}
+	up_write(&ctx->state_sema);
+	put_spu_context(ctx);
+}
+
+static void schedule_spu_reaper(struct spu_runqueue *rq, struct spu *spu)
+{
+	struct spu_context *ctx = get_spu_context(spu->ctx);
+	unsigned long now = jiffies;
+	unsigned long expire = spu->timestamp + SPU_MIN_TIMESLICE;
+
+	set_bit(SPU_CONTEXT_PREEMPT_nr, &ctx->flags);
+	INIT_WORK(&ctx->reap_work, spu_reaper, ctx);
+	if (time_after(now, expire))
+		schedule_work(&ctx->reap_work);
+	else
+		schedule_delayed_work(&ctx->reap_work, expire - now);
+}
+
+static void check_preempt_active(struct spu_runqueue *rq)
 {
 	struct list_head *p;
-	struct spu *worst, *spu;
+	struct spu *worst = NULL;
 
-	worst = list_entry(rq->active_list.next, struct spu, sched_list);
 	list_for_each(p, &rq->active_list) {
-		spu = list_entry(p, struct spu, sched_list);
-		if (spu->prio > worst->prio) {
-			worst = spu;
+		struct spu *spu = list_entry(p, struct spu, sched_list);
+		struct spu_context *ctx = spu->ctx;
+		if (!(ctx->flags & SPU_CONTEXT_PREEMPT)) {
+			if (!worst || (spu->prio > worst->prio)) {
+				worst = spu;
+			}
 		}
 	}
-	if (current->prio < worst->prio) {
-		struct spu_context *ctx = worst->ctx;
-
-		spu = worst;
-		if (down_write_trylock(&ctx->state_sema)) {
-			pr_debug("%s: booting pid=%d from SPU %d\n",
-				 __FUNCTION__, spu->pid, spu->number);
-			del_active(rq, spu);
-			up(&rq->sem);
-			wake_up_all(&ctx->stop_wq);
-			ctx->ops->runcntl_stop(ctx);
-			unbind_context(spu, ctx);
-			up_write(&ctx->state_sema);
-			return spu;
-		}
-	}
-	return NULL;
+	if (worst && (current->prio < worst->prio))
+		schedule_spu_reaper(rq, worst);
 }
 
 static struct spu *get_idle_spu(struct spu_context *ctx, u64 flags)
@@ -256,10 +285,7 @@ static struct spu *get_idle_spu(struct spu_context *ctx, u64 flags)
 				continue;
 			}
 		} else {
-			if (is_best_prio(rq)) {
-				if ((spu = preempt_active(rq)) != NULL)
-					return spu;
-			}
+			check_preempt_active(rq);
 			prio_wait(rq, ctx, flags);
 			if (signal_pending(current)) {
 				prio_wakeup(rq);
@@ -361,6 +387,8 @@ void spu_yield(struct spu_context *ctx)
 		spu_deactivate(ctx);
 		ctx->state = SPU_STATE_SAVED;
 		need_yield = 1;
+	} else if (spu) {
+		spu->prio = MAX_PRIO;
 	}
 	up_write(&ctx->state_sema);
 	if (unlikely(need_yield))
@@ -399,6 +427,7 @@ int __init spu_sched_init(void)
 		pr_debug("%s: adding SPU[%d]\n", __FUNCTION__, spu->number);
 		add_idle(rq, spu);
 		spu->rq = rq;
+		spu->timestamp = jiffies;
 	}
 	if (!rq->nr_idle) {
 		printk(KERN_WARNING "%s: No available SPUs.\n", __FUNCTION__);

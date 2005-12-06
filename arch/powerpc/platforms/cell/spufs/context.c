@@ -116,8 +116,10 @@ int spu_acquire_runnable(struct spu_context *ctx)
 	int ret = 0;
 
 	down_read(&ctx->state_sema);
-	if (ctx->state == SPU_STATE_RUNNABLE)
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		ctx->spu->prio = current->prio;
 		return 0;
+	}
 	/* ctx is about to be freed, can't acquire any more */
 	if (!ctx->owner) {
 		ret = -EINVAL;

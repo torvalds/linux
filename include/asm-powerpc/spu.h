@@ -129,6 +129,7 @@ struct spu {
 	struct mm_struct *mm;
 	struct spu_context *ctx;
 	struct spu_runqueue *rq;
+	unsigned long long timestamp;
 	pid_t pid;
 	int prio;
 	int class_0_pending;

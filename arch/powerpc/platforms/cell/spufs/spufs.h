@@ -37,6 +37,9 @@ enum {
 
 struct spu_context_ops;
 
+#define SPU_CONTEXT_PREEMPT_nr          0UL
+#define SPU_CONTEXT_PREEMPT             (1UL << SPU_CONTEXT_PREEMPT_nr)
+
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
@@ -55,6 +58,8 @@ struct spu_context {
 	struct fasync_struct *ibox_fasync;
 	struct fasync_struct *wbox_fasync;
 	struct spu_context_ops *ops;
+	struct work_struct reap_work;
+	u64 flags;
 };
 
 /* SPU context query/set operations. */
