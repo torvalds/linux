@@ -1244,7 +1244,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				/* mark qc status appropriately */
 				if (!(qc->tf.flags & ATA_TFLAG_POLLING)) {
 					qc->err_mask |= err_mask;
-					ata_qc_complete(qc, err_mask);
+					ata_qc_complete(qc);
 				}
 			}
 		}

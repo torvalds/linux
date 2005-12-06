@@ -4336,7 +4336,8 @@ fsm_start:
 		       ap->id, status, host_stat);
 
 		ap->hsm_task_state = HSM_ST_IDLE;
-		ata_qc_complete(qc, status | ATA_ERR);
+		qc->err_mask |= __ac_err_mask(status);
+		ata_qc_complete(qc);
 		break;
 	default:
 		goto idle_irq;
