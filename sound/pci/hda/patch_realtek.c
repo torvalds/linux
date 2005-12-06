@@ -2678,6 +2678,9 @@ static struct hda_pcm_stream alc260_pcm_analog_capture = {
 	.channels_max = 2,
 };
 
+#define alc260_pcm_digital_playback	alc880_pcm_digital_playback
+#define alc260_pcm_digital_capture	alc880_pcm_digital_capture
+
 /*
  * for BIOS auto-configuration
  */
@@ -3040,6 +3043,10 @@ static int patch_alc260(struct hda_codec *codec)
 	spec->stream_name_analog = "ALC260 Analog";
 	spec->stream_analog_playback = &alc260_pcm_analog_playback;
 	spec->stream_analog_capture = &alc260_pcm_analog_capture;
+
+	spec->stream_name_digital = "ALC260 Digital";
+	spec->stream_digital_playback = &alc260_pcm_digital_playback;
+	spec->stream_digital_capture = &alc260_pcm_digital_capture;
 
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC260_AUTO)
@@ -3927,7 +3934,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.hp_nid = 0x03,
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
-		.input_mux = alc262_capture_source,
+		.input_mux = &alc262_capture_source,
 	},
 };
 
