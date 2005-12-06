@@ -541,6 +541,7 @@ enum {
 	AC97_TUNE_ALC_JACK,	/* for Realtek, enable JACK detection */
 	AC97_TUNE_INV_EAPD,	/* inverted EAPD implementation */
 	AC97_TUNE_MUTE_LED,	/* EAPD bit works as mute LED */
+	AC97_TUNE_HP_MUTE_LED,  /* EAPD bit works as mute LED, use headphone control as master */
 };
 
 struct ac97_quirk {

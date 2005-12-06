@@ -1353,6 +1353,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.name = "HP Pavilion ZV5030US",
 		.type = AC97_TUNE_MUTE_LED
 	},
+	{
+		.subvendor = 0x103c,
+		.subdevice = 0x308b,
+		.name = "HP nx6125",
+		.type = AC97_TUNE_MUTE_LED
+	},
 	{ } /* terminator */
 };
 

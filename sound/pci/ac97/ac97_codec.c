@@ -2457,6 +2457,41 @@ static int tune_mute_led(struct snd_ac97 *ac97)
 	return 0;
 }
 
+static int hp_master_mute_sw_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	int err = bind_hp_volsw_put(kcontrol, ucontrol);
+	if (err > 0) {
+		struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
+		int shift = (kcontrol->private_value >> 8) & 0x0f;
+		int rshift = (kcontrol->private_value >> 12) & 0x0f;
+		unsigned short mask;
+		if (shift != rshift)
+			mask = 0x8080;
+		else
+			mask = 0x8000;
+		snd_ac97_update_bits(ac97, AC97_POWERDOWN, 0x8000,
+				     (ac97->regs[AC97_MASTER] & mask) == mask ?
+				     0x8000 : 0);
+	}
+	return err;
+}
+
+static int tune_hp_mute_led(struct snd_ac97 *ac97)
+{
+	struct snd_kcontrol *msw = ctl_find(ac97, "Master Playback Switch", NULL);
+	struct snd_kcontrol *mvol = ctl_find(ac97, "Master Playback Volume", NULL);
+	if (! msw || ! mvol)
+		return -ENOENT;
+	msw->put = hp_master_mute_sw_put;
+	mvol->put = bind_hp_volsw_put;
+	snd_ac97_remove_ctl(ac97, "External Amplifier", NULL);
+	snd_ac97_remove_ctl(ac97, "Headphone Playback", "Switch");
+	snd_ac97_remove_ctl(ac97, "Headphone Playback", "Volume");
+	snd_ac97_update_bits(ac97, AC97_POWERDOWN, 0x8000, 0x8000); /* mute LED on */
+	return 0;
+}
+
 struct quirk_table {
 	const char *name;
 	int (*func)(struct snd_ac97 *);
@@ -2471,6 +2506,7 @@ static struct quirk_table applicable_quirks[] = {
 	{ "alc_jack", tune_alc_jack },
 	{ "inv_eapd", tune_inv_eapd },
 	{ "mute_led", tune_mute_led },
+	{ "hp_mute_led", tune_hp_mute_led },
 };
 
 /* apply the quirk with the given type */
