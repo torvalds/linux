@@ -24,7 +24,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#define DEBUG 1
+#undef DEBUG
+
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
