@@ -552,7 +552,7 @@ static void w1_slave_detach(struct w1_slave *sl)
 	kfree(sl);
 }
 
-static struct w1_master *w1_search_master(unsigned long data)
+static struct w1_master *w1_search_master(void *data)
 {
 	struct w1_master *dev;
 	int found = 0;
@@ -583,7 +583,7 @@ void w1_reconnect_slaves(struct w1_family *f)
 	spin_unlock_bh(&w1_mlock);
 }
 
-static void w1_slave_found(unsigned long data, u64 rn)
+static void w1_slave_found(void *data, u64 rn)
 {
 	int slave_count;
 	struct w1_slave *sl;
@@ -595,8 +595,8 @@ static void w1_slave_found(unsigned long data, u64 rn)
 
 	dev = w1_search_master(data);
 	if (!dev) {
-		printk(KERN_ERR "Failed to find w1 master device for data %08lx, it is impossible.\n",
-				data);
+		printk(KERN_ERR "Failed to find w1 master device for data %p, "
+		       "it is impossible.\n", data);
 		return;
 	}
 

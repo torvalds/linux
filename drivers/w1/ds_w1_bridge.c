@@ -29,10 +29,10 @@
 static struct ds_device *ds_dev;
 static struct w1_bus_master *ds_bus_master;
 
-static u8 ds9490r_touch_bit(unsigned long data, u8 bit)
+static u8 ds9490r_touch_bit(void *data, u8 bit)
 {
 	u8 ret;
-	struct ds_device *dev = (struct ds_device *)data;
+	struct ds_device *dev = data;
 
 	if (ds_touch_bit(dev, bit, &ret))
 		return 0;
@@ -40,23 +40,23 @@ static u8 ds9490r_touch_bit(unsigned long data, u8 bit)
 	return ret;
 }
 
-static void ds9490r_write_bit(unsigned long data, u8 bit)
+static void ds9490r_write_bit(void *data, u8 bit)
 {
-	struct ds_device *dev = (struct ds_device *)data;
+	struct ds_device *dev = data;
 
 	ds_write_bit(dev, bit);
 }
 
-static void ds9490r_write_byte(unsigned long data, u8 byte)
+static void ds9490r_write_byte(void *data, u8 byte)
 {
-	struct ds_device *dev = (struct ds_device *)data;
+	struct ds_device *dev = data;
 
 	ds_write_byte(dev, byte);
 }
 
-static u8 ds9490r_read_bit(unsigned long data)
+static u8 ds9490r_read_bit(void *data)
 {
-	struct ds_device *dev = (struct ds_device *)data;
+	struct ds_device *dev = data;
 	int err;
 	u8 bit = 0;
 
@@ -70,9 +70,9 @@ static u8 ds9490r_read_bit(unsigned long data)
 	return bit & 1;
 }
 
-static u8 ds9490r_read_byte(unsigned long data)
+static u8 ds9490r_read_byte(void *data)
 {
-	struct ds_device *dev = (struct ds_device *)data;
+	struct ds_device *dev = data;
 	int err;
 	u8 byte = 0;
 
@@ -83,16 +83,16 @@ static u8 ds9490r_read_byte(unsigned long data)
 	return byte;
 }
 
-static void ds9490r_write_block(unsigned long data, const u8 *buf, int len)
+static void ds9490r_write_block(void *data, const u8 *buf, int len)
 {
-	struct ds_device *dev = (struct ds_device *)data;
+	struct ds_device *dev = data;
 
 	ds_write_block(dev, (u8 *)buf, len);
 }
 
-static u8 ds9490r_read_block(unsigned long data, u8 *buf, int len)
+static u8 ds9490r_read_block(void *data, u8 *buf, int len)
 {
-	struct ds_device *dev = (struct ds_device *)data;
+	struct ds_device *dev = data;
 	int err;
 
 	err = ds_read_block(dev, buf, len);
@@ -102,9 +102,9 @@ static u8 ds9490r_read_block(unsigned long data, u8 *buf, int len)
 	return len;
 }
 
-static u8 ds9490r_reset(unsigned long data)
+static u8 ds9490r_reset(void *data)
 {
-	struct ds_device *dev = (struct ds_device *)data;
+	struct ds_device *dev = data;
 	struct ds_status st;
 	int err;
 
@@ -136,7 +136,7 @@ static int __devinit ds_w1_init(void)
 
 	memset(ds_bus_master, 0, sizeof(*ds_bus_master));
 
-	ds_bus_master->data		= (unsigned long)ds_dev;
+	ds_bus_master->data		= ds_dev;
 	ds_bus_master->touch_bit	= &ds9490r_touch_bit;
 	ds_bus_master->read_bit		= &ds9490r_read_bit;
 	ds_bus_master->write_bit	= &ds9490r_write_bit;

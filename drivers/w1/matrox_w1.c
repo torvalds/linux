@@ -90,8 +90,8 @@ struct matrox_device
 	struct w1_bus_master *bus_master;
 };
 
-static u8 matrox_w1_read_ddc_bit(unsigned long);
-static void matrox_w1_write_ddc_bit(unsigned long, u8);
+static u8 matrox_w1_read_ddc_bit(void *);
+static void matrox_w1_write_ddc_bit(void *, u8);
 
 /*
  * These functions read and write DDC Data bit.
@@ -122,10 +122,10 @@ static __inline__ void matrox_w1_write_reg(struct matrox_device *dev, u8 reg, u8
 	wmb();
 }
 
-static void matrox_w1_write_ddc_bit(unsigned long data, u8 bit)
+static void matrox_w1_write_ddc_bit(void *data, u8 bit)
 {
 	u8 ret;
-	struct matrox_device *dev = (struct matrox_device *) data;
+	struct matrox_device *dev = data;
 
 	if (bit)
 		bit = 0;
@@ -137,10 +137,10 @@ static void matrox_w1_write_ddc_bit(unsigned long data, u8 bit)
 	matrox_w1_write_reg(dev, MATROX_GET_DATA, 0x00);
 }
 
-static u8 matrox_w1_read_ddc_bit(unsigned long data)
+static u8 matrox_w1_read_ddc_bit(void *data)
 {
 	u8 ret;
-	struct matrox_device *dev = (struct matrox_device *) data;
+	struct matrox_device *dev = data;
 
 	ret = matrox_w1_read_reg(dev, MATROX_GET_DATA);
 
@@ -198,7 +198,7 @@ static int __devinit matrox_w1_probe(struct pci_dev *pdev, const struct pci_devi
 
 	matrox_w1_hw_init(dev);
 
-	dev->bus_master->data = (unsigned long) dev;
+	dev->bus_master->data = dev;
 	dev->bus_master->read_bit = &matrox_w1_read_ddc_bit;
 	dev->bus_master->write_bit = &matrox_w1_write_ddc_bit;
 
