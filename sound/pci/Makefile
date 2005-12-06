@@ -61,6 +61,7 @@ obj-$(CONFIG_SND) += \
 	korg1212/ \
 	mixart/ \
 	nm256/ \
+	pcxhr/ \
 	rme9652/ \
 	trident/ \
 	ymfpci/ \

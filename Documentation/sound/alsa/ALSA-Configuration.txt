@@ -1103,6 +1103,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports only one card, autoprobe and PnP.
 
+  Module snd-pcxhr
+  ----------------
+
+    Module for Digigram PCXHR boards
+
+    This module supports multiple cards.
+
   Module snd-powermac (on ppc only)
   ---------------------------------
 

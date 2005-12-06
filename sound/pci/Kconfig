@@ -455,6 +455,17 @@ config SND_NM256
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-nm256.
 
+config SND_PCXHR
+	tristate "Digigram PCXHR"
+	depends on SND
+	select SND_PCM
+	select SND_HWDEP
+	help
+	  Say Y here to include support for Digigram PCXHR boards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-pcxhr.
+
 config SND_RME32
 	tristate "RME Digi32, 32/8, 32 PRO"
 	depends on SND
