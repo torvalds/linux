@@ -158,7 +158,7 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.host_stop		= ata_pci_host_stop,
 };
 
-static struct ata_port_info pdc_port_info[] = {
+static const struct ata_port_info pdc_port_info[] = {
 	/* board_2037x */
 	{
 		.sht		= &pdc_ata_sht,
@@ -404,7 +404,8 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	case ATA_PROT_NODATA:
 		printk(KERN_ERR "ata%u: command timeout\n", ap->id);
 		drv_stat = ata_wait_idle(ap);
-		ata_qc_complete(qc, __ac_err_mask(drv_stat));
+		qc->err_mask |= __ac_err_mask(drv_stat);
+		ata_qc_complete(qc);
 		break;
 
 	default:
@@ -413,7 +414,8 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		printk(KERN_ERR "ata%u: unknown timeout, cmd 0x%x stat 0x%x\n",
 		       ap->id, qc->tf.command, drv_stat);
 
-		ata_qc_complete(qc, ac_err_mask(drv_stat));
+		qc->err_mask |= ac_err_mask(drv_stat);
+		ata_qc_complete(qc);
 		break;
 	}
 
@@ -425,21 +427,21 @@ out:
 static inline unsigned int pdc_host_intr( struct ata_port *ap,
                                           struct ata_queued_cmd *qc)
 {
-	unsigned int handled = 0, err_mask = 0;
+	unsigned int handled = 0;
 	u32 tmp;
 	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr + PDC_GLOBAL_CTL;
 
 	tmp = readl(mmio);
 	if (tmp & PDC_ERR_MASK) {
-		err_mask = AC_ERR_DEV;
+		qc->err_mask |= AC_ERR_DEV;
 		pdc_reset_port(ap);
 	}
 
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
-		err_mask |= ac_err_mask(ata_wait_idle(ap));
-		ata_qc_complete(qc, err_mask);
+		qc->err_mask |= ac_err_mask(ata_wait_idle(ap));
+		ata_qc_complete(qc);
 		handled = 1;
 		break;
 
@@ -706,7 +708,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		probe_ent->port[3].scr_addr = base + 0x700;
 		break;
 	case board_2037x:
-       		probe_ent->n_ports = 2;
+		probe_ent->n_ports = 2;
 		break;
 	case board_20619:
 		probe_ent->n_ports = 4;
@@ -716,7 +718,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 		probe_ent->port[2].scr_addr = base + 0x600;
 		probe_ent->port[3].scr_addr = base + 0x700;
-                break;
+		break;
 	default:
 		BUG();
 		break;

@@ -431,7 +431,7 @@ static const struct ata_port_operations mv6_ops = {
 	.host_stop		= mv_host_stop,
 };
 
-static struct ata_port_info mv_port_info[] = {
+static const struct ata_port_info mv_port_info[] = {
 	{  /* chip_504x */
 		.sht		= &mv_sht,
 		.host_flags	= MV_COMMON_FLAGS,
@@ -1242,8 +1242,10 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				VPRINTK("port %u IRQ found for qc, "
 					"ata_status 0x%x\n", port,ata_status);
 				/* mark qc status appropriately */
-				if (!(qc->tf.flags & ATA_TFLAG_POLLING))
+				if (!(qc->tf.flags & ATA_TFLAG_POLLING)) {
+					qc->err_mask |= err_mask;
 					ata_qc_complete(qc, err_mask);
+				}
 			}
 		}
 	}
@@ -1864,7 +1866,8 @@ static void mv_eng_timeout(struct ata_port *ap)
 	 	 */
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 		qc->scsidone = scsi_finish_command;
-		ata_qc_complete(qc, AC_ERR_OTHER);
+		qc->err_mask |= AC_ERR_OTHER;
+		ata_qc_complete(qc);
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	}
 }

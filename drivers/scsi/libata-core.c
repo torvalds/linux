@@ -606,7 +606,7 @@ void ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	tf->command = ata_rw_cmds[index + lba48 + write];
 }
 
-static const char * xfer_mode_str[] = {
+static const char * const xfer_mode_str[] = {
 	"UDMA/16",
 	"UDMA/25",
 	"UDMA/33",
@@ -1054,9 +1054,9 @@ static int ata_qc_wait_err(struct ata_queued_cmd *qc,
 
 	if (wait_for_completion_timeout(wait, 30 * HZ) < 1) {
 		/* timeout handling */
-		unsigned int err_mask = ac_err_mask(ata_chk_status(qc->ap));
+		qc->err_mask |= ac_err_mask(ata_chk_status(qc->ap));
 
-		if (!err_mask) {
+		if (!qc->err_mask) {
 			printk(KERN_WARNING "ata%u: slow completion (cmd %x)\n",
 			       qc->ap->id, qc->tf.command);
 		} else {
@@ -1065,7 +1065,7 @@ static int ata_qc_wait_err(struct ata_queued_cmd *qc,
 			rc = -EIO;
 		}
 
-		ata_qc_complete(qc, err_mask);
+		ata_qc_complete(qc);
 	}
 
 	return rc;
@@ -1176,6 +1176,7 @@ retry:
 				qc->cursg_ofs = 0;
 				qc->cursect = 0;
 				qc->nsect = 1;
+				qc->err_mask = 0;
 				goto retry;
 			}
 		}
@@ -2093,7 +2094,7 @@ static void ata_pr_blacklisted(const struct ata_port *ap,
 		ap->id, dev->devno);
 }
 
-static const char * ata_dma_blacklist [] = {
+static const char * const ata_dma_blacklist [] = {
 	"WDC AC11000H",
 	"WDC AC22100H",
 	"WDC AC32500H",
@@ -2787,14 +2788,14 @@ skip_map:
  *	None.  (grabs host lock)
  */
 
-void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
+void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	ata_irq_on(ap);
-	ata_qc_complete(qc, err_mask);
+	ata_qc_complete(qc);
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
 
@@ -2811,9 +2812,13 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 
 static unsigned long ata_pio_poll(struct ata_port *ap)
 {
+	struct ata_queued_cmd *qc;
 	u8 status;
 	unsigned int poll_state = HSM_ST_UNKNOWN;
 	unsigned int reg_state = HSM_ST_UNKNOWN;
+
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	assert(qc != NULL);
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -2834,6 +2839,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if (status & ATA_BUSY) {
 		if (time_after(jiffies, ap->pio_task_timeout)) {
+			qc->err_mask |= AC_ERR_ATA_BUS;
 			ap->hsm_task_state = HSM_ST_TMOUT;
 			return 0;
 		}
@@ -2869,29 +2875,31 @@ static int ata_pio_complete (struct ata_port *ap)
 	 * msecs, then chk-status again.  If still busy, fall back to
 	 * HSM_ST_LAST_POLL state.
 	 */
-	drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
-	if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
+	drv_stat = ata_busy_wait(ap, ATA_BUSY, 10);
+	if (drv_stat & ATA_BUSY) {
 		msleep(2);
-		drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
-		if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
+		drv_stat = ata_busy_wait(ap, ATA_BUSY, 10);
+		if (drv_stat & ATA_BUSY) {
 			ap->hsm_task_state = HSM_ST_LAST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
 			return 1;
 		}
 	}
 
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	assert(qc != NULL);
+
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
+		qc->err_mask |= __ac_err_mask(drv_stat);
 		ap->hsm_task_state = HSM_ST_ERR;
 		return 1;
 	}
 
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
-
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	ata_poll_qc_complete(qc, 0);
+	assert(qc->err_mask == 0);
+	ata_poll_qc_complete(qc);
 
 	/* another command may start at this point */
 
@@ -3363,6 +3371,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 err_out:
 	printk(KERN_INFO "ata%u: dev %u: ATAPI check failed\n",
 	      ap->id, dev->devno);
+	qc->err_mask |= AC_ERR_ATA_BUS;
 	ap->hsm_task_state = HSM_ST_ERR;
 }
 
@@ -3401,8 +3410,16 @@ static void ata_pio_block(struct ata_port *ap)
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 
+	/* check error */
+	if (status & (ATA_ERR | ATA_DF)) {
+		qc->err_mask |= AC_ERR_DEV;
+		ap->hsm_task_state = HSM_ST_ERR;
+		return;
+	}
+
+	/* transfer data if any */
 	if (is_atapi_taskfile(&qc->tf)) {
-		/* no more data to transfer or unsupported ATAPI command */
+		/* DRQ=0 means no more data to transfer */
 		if ((status & ATA_DRQ) == 0) {
 			ap->hsm_task_state = HSM_ST_LAST;
 			return;
@@ -3412,6 +3429,7 @@ static void ata_pio_block(struct ata_port *ap)
 	} else {
 		/* handle BSY=0, DRQ=0 as error */
 		if ((status & ATA_DRQ) == 0) {
+			qc->err_mask |= AC_ERR_ATA_BUS;
 			ap->hsm_task_state = HSM_ST_ERR;
 			return;
 		}
@@ -3431,9 +3449,14 @@ static void ata_pio_error(struct ata_port *ap)
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 
+	/* make sure qc->err_mask is available to 
+	 * know what's wrong and recover
+	 */
+	assert(qc->err_mask);
+
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	ata_poll_qc_complete(qc, AC_ERR_ATA_BUS);
+	ata_poll_qc_complete(qc);
 }
 
 static void ata_pio_task(void *_data)
@@ -3542,7 +3565,8 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		ap->hsm_task_state = HSM_ST_IDLE;
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc, ac_err_mask(drv_stat));
+		qc->err_mask |= ac_err_mask(drv_stat);
+		ata_qc_complete(qc);
 		break;
 	}
 
@@ -3641,7 +3665,7 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 	return qc;
 }
 
-int ata_qc_complete_noop(struct ata_queued_cmd *qc, unsigned int err_mask)
+int ata_qc_complete_noop(struct ata_queued_cmd *qc)
 {
 	return 0;
 }
@@ -3700,7 +3724,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
+void ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	int rc;
 
@@ -3717,7 +3741,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 
 	/* call completion callback */
-	rc = qc->complete_fn(qc, err_mask);
+	rc = qc->complete_fn(qc);
 
 	/* if callback indicates not to complete command (non-zero),
 	 * return immediately
@@ -4303,7 +4327,8 @@ fsm_start:
 		ap->hsm_task_state = HSM_ST_IDLE;
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc, ac_err_mask(status));
+		qc->err_mask |= ac_err_mask(status);
+		ata_qc_complete(qc);
 		break;
 
 	case HSM_ST_ERR:

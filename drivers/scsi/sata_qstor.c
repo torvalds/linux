@@ -170,7 +170,7 @@ static const struct ata_port_operations qs_ata_ops = {
 	.bmdma_status		= qs_bmdma_status,
 };
 
-static struct ata_port_info qs_port_info[] = {
+static const struct ata_port_info qs_port_info[] = {
 	/* board_2068_idx */
 	{
 		.sht		= &qs_ata_sht,
@@ -408,8 +408,8 @@ static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
 					case 3: /* device error */
 						pp->state = qs_state_idle;
 						qs_enter_reg_mode(qc->ap);
-						ata_qc_complete(qc,
-							ac_err_mask(sDST));
+						qc->err_mask |= ac_err_mask(sDST);
+						ata_qc_complete(qc);
 						break;
 					default:
 						break;
@@ -446,7 +446,8 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 
 				/* complete taskfile transaction */
 				pp->state = qs_state_idle;
-				ata_qc_complete(qc, ac_err_mask(status));
+				qc->err_mask |= ac_err_mask(status);
+				ata_qc_complete(qc);
 				handled = 1;
 			}
 		}
