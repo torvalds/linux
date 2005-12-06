@@ -186,6 +186,21 @@ static char *spu_hw_get_ls(struct spu_context *ctx)
 	return ctx->spu->local_store;
 }
 
+static void spu_hw_runcntl_write(struct spu_context *ctx, u32 val)
+{
+	eieio();
+	out_be32(&ctx->spu->problem->spu_runcntl_RW, val);
+}
+
+static void spu_hw_runcntl_stop(struct spu_context *ctx)
+{
+	spin_lock_irq(&ctx->spu->register_lock);
+	out_be32(&ctx->spu->problem->spu_runcntl_RW, SPU_RUNCNTL_STOP);
+	while (in_be32(&ctx->spu->problem->spu_status_R) & SPU_STATUS_RUNNING)
+		cpu_relax();
+	spin_unlock_irq(&ctx->spu->register_lock);
+}
+
 struct spu_context_ops spu_hw_ops = {
 	.mbox_read = spu_hw_mbox_read,
 	.mbox_stat_read = spu_hw_mbox_stat_read,
@@ -203,4 +218,6 @@ struct spu_context_ops spu_hw_ops = {
 	.npc_write = spu_hw_npc_write,
 	.status_read = spu_hw_status_read,
 	.get_ls = spu_hw_get_ls,
+	.runcntl_write = spu_hw_runcntl_write,
+	.runcntl_stop = spu_hw_runcntl_stop,
 };

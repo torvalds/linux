@@ -135,9 +135,9 @@ struct spu {
 	spinlock_t register_lock;
 
 	u32 stop_code;
-	wait_queue_head_t stop_wq;
 	void (* wbox_callback)(struct spu *spu);
 	void (* ibox_callback)(struct spu *spu);
+	void (* stop_callback)(struct spu *spu);
 
 	char irq_c0[8];
 	char irq_c1[8];
@@ -146,7 +146,8 @@ struct spu {
 
 struct spu *spu_alloc(void);
 void spu_free(struct spu *spu);
-int spu_run(struct spu *spu);
+int spu_irq_class_0_bottom(struct spu *spu);
+int spu_irq_class_1_bottom(struct spu *spu);
 
 extern struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,

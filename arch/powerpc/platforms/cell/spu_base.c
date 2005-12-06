@@ -130,7 +130,8 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	spu->dar = ea;
 	spu->dsisr = dsisr;
 	mb();
-	wake_up(&spu->stop_wq);
+	if (spu->stop_callback)
+		spu->stop_callback(spu);
 	return 0;
 }
 
@@ -151,7 +152,8 @@ static int __spu_trap_stop(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
 	spu->stop_code = in_be32(&spu->problem->spu_status_R);
-	wake_up(&spu->stop_wq);
+	if (spu->stop_callback)
+		spu->stop_callback(spu);
 	return 0;
 }
 
@@ -159,7 +161,8 @@ static int __spu_trap_halt(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
 	spu->stop_code = in_be32(&spu->problem->spu_status_R);
-	wake_up(&spu->stop_wq);
+	if (spu->stop_callback)
+		spu->stop_callback(spu);
 	return 0;
 }
 
@@ -190,12 +193,13 @@ spu_irq_class_0(int irq, void *data, struct pt_regs *regs)
 
 	spu = data;
 	spu->class_0_pending = 1;
-	wake_up(&spu->stop_wq);
+	if (spu->stop_callback)
+		spu->stop_callback(spu);
 
 	return IRQ_HANDLED;
 }
 
-static int
+int
 spu_irq_class_0_bottom(struct spu *spu)
 {
 	unsigned long stat;
@@ -214,8 +218,10 @@ spu_irq_class_0_bottom(struct spu *spu)
 		__spu_trap_error(spu);
 
 	out_be64(&spu->priv1->int_stat_class0_RW, stat);
-	return 0;
+
+	return (stat & 0x7) ? -EIO : 0;
 }
+EXPORT_SYMBOL_GPL(spu_irq_class_0_bottom);
 
 static irqreturn_t
 spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
@@ -250,6 +256,7 @@ spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
 
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
+EXPORT_SYMBOL_GPL(spu_irq_class_1_bottom);
 
 static irqreturn_t
 spu_irq_class_2(int irq, void *data, struct pt_regs *regs)
@@ -478,7 +485,7 @@ bad_area:
 	return -EFAULT;
 }
 
-static int spu_handle_pte_fault(struct spu *spu)
+int spu_irq_class_1_bottom(struct spu *spu)
 {
 	u64 ea, dsisr, access, error = 0UL;
 	int ret = 0;
@@ -507,76 +514,6 @@ static int spu_handle_pte_fault(struct spu *spu)
 	}
 	return ret;
 }
-
-static inline int spu_pending(struct spu *spu, u32 * stat)
-{
-	struct spu_problem __iomem *prob = spu->problem;
-	u64 pte_fault;
-
-	*stat = in_be32(&prob->spu_status_R);
-	pte_fault = spu->dsisr &
-		    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED);
-	return (!(*stat & 0x1) || pte_fault || spu->class_0_pending) ? 1 : 0;
-}
-
-int spu_run(struct spu *spu)
-{
-	struct spu_problem __iomem *prob;
-	struct spu_priv1 __iomem *priv1;
-	struct spu_priv2 __iomem *priv2;
-	u32 status;
-	int ret;
-
-	prob = spu->problem;
-	priv1 = spu->priv1;
-	priv2 = spu->priv2;
-
-	/* Let SPU run.  */
-	eieio();
-	out_be32(&prob->spu_runcntl_RW, SPU_RUNCNTL_RUNNABLE);
-
-	do {
-		ret = wait_event_interruptible(spu->stop_wq,
-					       spu_pending(spu, &status));
-
-		if (spu->dsisr &
-		    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED))
-			ret = spu_handle_pte_fault(spu);
-
-		if (spu->class_0_pending)
-			spu_irq_class_0_bottom(spu);
-
-		if (!ret && signal_pending(current))
-			ret = -ERESTARTSYS;
-
-	} while (!ret && !(status &
-			   (SPU_STATUS_STOPPED_BY_STOP |
-			    SPU_STATUS_STOPPED_BY_HALT)));
-
-	/* Ensure SPU is stopped.  */
-	out_be32(&prob->spu_runcntl_RW, SPU_RUNCNTL_STOP);
-	eieio();
-	while (in_be32(&prob->spu_status_R) & SPU_STATUS_RUNNING)
-		cpu_relax();
-
-	out_be64(&priv2->slb_invalidate_all_W, 0);
-	out_be64(&priv1->tlb_invalidate_entry_W, 0UL);
-	eieio();
-
-	/* Check for SPU breakpoint.  */
-	if (unlikely(current->ptrace & PT_PTRACED)) {
-		status = in_be32(&prob->spu_status_R);
-
-		if ((status & SPU_STATUS_STOPPED_BY_STOP)
-		    && status >> SPU_STOP_STATUS_SHIFT == 0x3fff) {
-			force_sig(SIGTRAP, current);
-			ret = -ERESTARTSYS;
-		}
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(spu_run);
 
 static void __iomem * __init map_spe_prop(struct device_node *n,
 						 const char *name)
@@ -693,9 +630,9 @@ static int __init create_spu(struct device_node *spe)
 	out_be64(&spu->priv1->mfc_sdr_RW, mfspr(SPRN_SDR1));
 	out_be64(&spu->priv1->mfc_sr1_RW, 0x33);
 
-	init_waitqueue_head(&spu->stop_wq);
 	spu->ibox_callback = NULL;
 	spu->wbox_callback = NULL;
+	spu->stop_callback = NULL;
 
 	down(&spu_mutex);
 	spu->number = number++;

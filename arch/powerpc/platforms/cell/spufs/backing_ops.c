@@ -232,6 +232,23 @@ static char *spu_backing_get_ls(struct spu_context *ctx)
 	return ctx->csa.lscsa->ls;
 }
 
+static void spu_backing_runcntl_write(struct spu_context *ctx, u32 val)
+{
+	spin_lock(&ctx->csa.register_lock);
+	ctx->csa.prob.spu_runcntl_RW = val;
+	if (val & SPU_RUNCNTL_RUNNABLE) {
+		ctx->csa.prob.spu_status_R |= SPU_STATUS_RUNNING;
+	} else {
+		ctx->csa.prob.spu_status_R &= ~SPU_STATUS_RUNNING;
+	}
+	spin_unlock(&ctx->csa.register_lock);
+}
+
+static void spu_backing_runcntl_stop(struct spu_context *ctx)
+{
+	spu_backing_runcntl_write(ctx, SPU_RUNCNTL_STOP);
+}
+
 struct spu_context_ops spu_backing_ops = {
 	.mbox_read = spu_backing_mbox_read,
 	.mbox_stat_read = spu_backing_mbox_stat_read,
@@ -249,4 +266,6 @@ struct spu_context_ops spu_backing_ops = {
 	.npc_write = spu_backing_npc_write,
 	.status_read = spu_backing_status_read,
 	.get_ls = spu_backing_get_ls,
+	.runcntl_write = spu_backing_runcntl_write,
+	.runcntl_stop = spu_backing_runcntl_stop,
 };

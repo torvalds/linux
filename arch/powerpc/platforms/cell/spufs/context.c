@@ -45,6 +45,7 @@ struct spu_context *alloc_spu_context(struct address_space *local_store)
 	init_rwsem(&ctx->state_sema);
 	init_waitqueue_head(&ctx->ibox_wq);
 	init_waitqueue_head(&ctx->wbox_wq);
+	init_waitqueue_head(&ctx->stop_wq);
 	ctx->ibox_fasync = NULL;
 	ctx->wbox_fasync = NULL;
 	ctx->state = SPU_STATE_SAVED;
@@ -105,7 +106,7 @@ void spu_release(struct spu_context *ctx)
 	up_read(&ctx->state_sema);
 }
 
-static void spu_unmap_mappings(struct spu_context *ctx)
+void spu_unmap_mappings(struct spu_context *ctx)
 {
 	unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
 }
@@ -126,7 +127,6 @@ int spu_acquire_runnable(struct spu_context *ctx)
 
 	down_write(&ctx->state_sema);
 	if (ctx->state == SPU_STATE_SAVED) {
-		spu_unmap_mappings(ctx);
 		ret = spu_activate(ctx, 0);
 		ctx->state = SPU_STATE_RUNNABLE;
 	}
@@ -154,7 +154,6 @@ void spu_acquire_saved(struct spu_context *ctx)
 	down_write(&ctx->state_sema);
 
 	if (ctx->state == SPU_STATE_RUNNABLE) {
-		spu_unmap_mappings(ctx);
 		spu_deactivate(ctx);
 		ctx->state = SPU_STATE_SAVED;
 	}

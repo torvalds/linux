@@ -51,6 +51,7 @@ struct spu_context {
 	struct kref kref;
 	wait_queue_head_t ibox_wq;
 	wait_queue_head_t wbox_wq;
+	wait_queue_head_t stop_wq;
 	struct fasync_struct *ibox_fasync;
 	struct fasync_struct *wbox_fasync;
 	struct spu_context_ops *ops;
@@ -74,6 +75,8 @@ struct spu_context_ops {
 	void (*npc_write) (struct spu_context * ctx, u32 data);
 	 u32(*status_read) (struct spu_context * ctx);
 	char*(*get_ls) (struct spu_context * ctx);
+	void (*runcntl_write) (struct spu_context * ctx, u32 data);
+	void (*runcntl_stop) (struct spu_context * ctx);
 };
 
 extern struct spu_context_ops spu_hw_ops;
@@ -99,6 +102,7 @@ struct spu_context * alloc_spu_context(struct address_space *local_store);
 void destroy_spu_context(struct kref *kref);
 struct spu_context * get_spu_context(struct spu_context *ctx);
 int put_spu_context(struct spu_context *ctx);
+void spu_unmap_mappings(struct spu_context *ctx);
 
 void spu_forget(struct spu_context *ctx);
 void spu_acquire(struct spu_context *ctx);
@@ -118,5 +122,6 @@ size_t spu_ibox_read(struct spu_context *ctx, u32 *data);
 /* irq callback funcs. */
 void spufs_ibox_callback(struct spu *spu);
 void spufs_wbox_callback(struct spu *spu);
+void spufs_stop_callback(struct spu *spu);
 
 #endif

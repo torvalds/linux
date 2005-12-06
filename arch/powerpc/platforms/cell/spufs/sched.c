@@ -119,7 +119,8 @@ static void prio_wakeup(struct spu_runqueue *rq)
 	}
 }
 
-static void prio_wait(struct spu_runqueue *rq, u64 flags)
+static void prio_wait(struct spu_runqueue *rq, struct spu_context *ctx,
+		      u64 flags)
 {
 	int prio = current->prio;
 	wait_queue_head_t *wq = &rq->prio.waitq[prio];
@@ -130,9 +131,11 @@ static void prio_wait(struct spu_runqueue *rq, u64 flags)
 	prepare_to_wait_exclusive(wq, &wait, TASK_INTERRUPTIBLE);
 	if (!signal_pending(current)) {
 		up(&rq->sem);
+		up_write(&ctx->state_sema);
 		pr_debug("%s: pid=%d prio=%d\n", __FUNCTION__,
 			 current->pid, current->prio);
 		schedule();
+		down_write(&ctx->state_sema);
 		down(&rq->sem);
 	}
 	finish_wait(wq, &wait);
@@ -173,7 +176,9 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 	mm_needs_global_tlbie(spu->mm);
 	spu->ibox_callback = spufs_ibox_callback;
 	spu->wbox_callback = spufs_wbox_callback;
+	spu->stop_callback = spufs_stop_callback;
 	mb();
+	spu_unmap_mappings(ctx);
 	spu_restore(&ctx->csa, spu);
 }
 
@@ -181,10 +186,12 @@ static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 {
 	pr_debug("%s: unbind pid=%d SPU=%d\n", __FUNCTION__,
 		 spu->pid, spu->number);
+	spu_unmap_mappings(ctx);
 	spu_save(&ctx->csa, spu);
 	ctx->state = SPU_STATE_SAVED;
 	spu->ibox_callback = NULL;
 	spu->wbox_callback = NULL;
+	spu->stop_callback = NULL;
 	spu->mm = NULL;
 	spu->pid = 0;
 	spu->prio = MAX_PRIO;
@@ -196,37 +203,35 @@ static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 static struct spu *preempt_active(struct spu_runqueue *rq)
 {
 	struct list_head *p;
-	struct spu_context *ctx;
-	struct spu *spu;
+	struct spu *worst, *spu;
 
-	/* Future: implement real preemption.  For now just
-	 * boot a lower priority ctx that is in "detached"
-	 * state, i.e. on a processor but not currently in
-	 * spu_run().
-	 */
+	worst = list_entry(rq->active_list.next, struct spu, sched_list);
 	list_for_each(p, &rq->active_list) {
 		spu = list_entry(p, struct spu, sched_list);
-		if (current->prio < spu->prio) {
-			ctx = spu->ctx;
-			if (down_write_trylock(&ctx->state_sema)) {
-				if (ctx->state != SPU_STATE_RUNNABLE) {
-					up_write(&ctx->state_sema);
-					continue;
-				}
-				pr_debug("%s: booting pid=%d from SPU %d\n",
-					 __FUNCTION__, spu->pid, spu->number);
-				del_active(rq, spu);
-				up(&rq->sem);
-				unbind_context(spu, ctx);
-				up_write(&ctx->state_sema);
-				return spu;
-			}
+		if (spu->prio > worst->prio) {
+			worst = spu;
+		}
+	}
+	if (current->prio < worst->prio) {
+		struct spu_context *ctx = worst->ctx;
+
+		spu = worst;
+		if (down_write_trylock(&ctx->state_sema)) {
+			pr_debug("%s: booting pid=%d from SPU %d\n",
+				 __FUNCTION__, spu->pid, spu->number);
+			del_active(rq, spu);
+			up(&rq->sem);
+			wake_up_all(&ctx->stop_wq);
+			ctx->ops->runcntl_stop(ctx);
+			unbind_context(spu, ctx);
+			up_write(&ctx->state_sema);
+			return spu;
 		}
 	}
 	return NULL;
 }
 
-static struct spu *get_idle_spu(u64 flags)
+static struct spu *get_idle_spu(struct spu_context *ctx, u64 flags)
 {
 	struct spu_runqueue *rq;
 	struct spu *spu = NULL;
@@ -255,7 +260,7 @@ static struct spu *get_idle_spu(u64 flags)
 				if ((spu = preempt_active(rq)) != NULL)
 					return spu;
 			}
-			prio_wait(rq, flags);
+			prio_wait(rq, ctx, flags);
 			if (signal_pending(current)) {
 				prio_wakeup(rq);
 				spu = NULL;
@@ -322,7 +327,7 @@ int spu_activate(struct spu_context *ctx, u64 flags)
 
 	if (ctx->spu)
 		return 0;
-	spu = get_idle_spu(flags);
+	spu = get_idle_spu(ctx, flags);
 	if (!spu)
 		return (signal_pending(current)) ? -ERESTARTSYS : -EAGAIN;
 	bind_context(spu, ctx);
@@ -347,17 +352,19 @@ void spu_deactivate(struct spu_context *ctx)
 void spu_yield(struct spu_context *ctx)
 {
 	struct spu *spu;
+	int need_yield = 0;
 
-	if (!down_write_trylock(&ctx->state_sema))
-		return;
+	down_write(&ctx->state_sema);
 	spu = ctx->spu;
-	if ((ctx->state == SPU_STATE_RUNNABLE) &&
-	    (sched_find_first_bit(spu->rq->prio.bitmap) <= current->prio)) {
+	if (spu && (sched_find_first_bit(spu->rq->prio.bitmap) < MAX_PRIO)) {
 		pr_debug("%s: yielding SPU %d\n", __FUNCTION__, spu->number);
 		spu_deactivate(ctx);
 		ctx->state = SPU_STATE_SAVED;
+		need_yield = 1;
 	}
 	up_write(&ctx->state_sema);
+	if (unlikely(need_yield))
+		yield();
 }
 
 int __init spu_sched_init(void)
