@@ -635,7 +635,7 @@ static int find_psb_table(struct powernow_k8_data *data)
 
 		dprintk("table vers: 0x%x\n", psb->tableversion);
 		if (psb->tableversion != PSB_VERSION_1_4) {
-			printk(KERN_INFO BFX "PSB table is not v1.4\n");
+			printk(KERN_ERR BFX "PSB table is not v1.4\n");
 			return -ENODEV;
 		}
 
@@ -693,7 +693,7 @@ static int find_psb_table(struct powernow_k8_data *data)
 	 * BIOS and Kernel Developer's Guide, which is available on
 	 * www.amd.com
 	 */
-	printk(KERN_INFO PFX "BIOS error - no PSB or ACPI _PSS objects\n");
+	printk(KERN_ERR PFX "BIOS error - no PSB or ACPI _PSS objects\n");
 	return -ENODEV;
 }
 
