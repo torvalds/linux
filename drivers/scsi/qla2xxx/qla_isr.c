@@ -909,6 +909,21 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			resid = resid_len;
 			cp->resid = resid;
 			CMD_RESID_LEN(cp) = resid;
+
+			if (!lscsi_status &&
+			    ((unsigned)(cp->request_bufflen - resid) <
+			     cp->underflow)) {
+				qla_printk(KERN_INFO, ha,
+				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
+				    "detected (%x of %x bytes)...returning "
+				    "error status.\n", ha->host_no,
+				    cp->device->channel, cp->device->id,
+				    cp->device->lun, resid,
+				    cp->request_bufflen);
+
+				cp->result = DID_ERROR << 16;
+				break;
+			}
 		}
 		cp->result = DID_OK << 16 | lscsi_status;
 
