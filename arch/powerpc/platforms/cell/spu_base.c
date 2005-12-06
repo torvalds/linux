@@ -399,7 +399,7 @@ struct spu *spu_alloc(void)
 
 	return spu;
 }
-EXPORT_SYMBOL(spu_alloc);
+EXPORT_SYMBOL_GPL(spu_alloc);
 
 void spu_free(struct spu *spu)
 {
@@ -407,7 +407,7 @@ void spu_free(struct spu *spu)
 	list_add_tail(&spu->list, &spu_list);
 	up(&spu_mutex);
 }
-EXPORT_SYMBOL(spu_free);
+EXPORT_SYMBOL_GPL(spu_free);
 
 static int spu_handle_mm_fault(struct spu *spu)
 {
@@ -576,7 +576,7 @@ int spu_run(struct spu *spu)
 
 	return ret;
 }
-EXPORT_SYMBOL(spu_run);
+EXPORT_SYMBOL_GPL(spu_run);
 
 static void __iomem * __init map_spe_prop(struct device_node *n,
 						 const char *name)
