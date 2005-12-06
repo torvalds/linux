@@ -1691,6 +1691,11 @@ static int cfi_intelext_writev (struct mtd_info *mtd, const struct kvec *vecs,
 			if (chipnum == cfi->numchips)
 				return 0;
 		}
+
+		/* Be nice and reschedule with the chip in a usable state for other
+		   processes. */
+		cond_resched();
+
 	} while (len);
 
 	return 0;
