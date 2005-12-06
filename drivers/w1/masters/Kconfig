@@ -34,5 +34,15 @@ config W1_MASTER_DS9490_BRIDGE
 	  This support is also available as a module.  If so, the module
 	  will be called ds_w1_bridge.ko.
 
+config W1_MASTER_DS2482
+	tristate "Maxim DS2482 I2C to 1-Wire bridge"
+	depends on I2C && W1 && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Maxim DS2482
+	  I2C to 1-Wire bridge.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds2482.
+
 endmenu
 
