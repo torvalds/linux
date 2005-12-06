@@ -27,10 +27,10 @@
 #include <linux/device.h>
 #include <linux/types.h>
 
-#include "w1.h"
-#include "w1_io.h"
-#include "w1_int.h"
-#include "w1_family.h"
+#include "../w1.h"
+#include "../w1_io.h"
+#include "../w1_int.h"
+#include "../w1_family.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
@@ -51,7 +51,7 @@ static int __init w1_smem_init(void)
 	err = w1_register_family(&w1_smem_family_01);
 	if (err)
 		return err;
-	
+
 	err = w1_register_family(&w1_smem_family_81);
 	if (err) {
 		w1_unregister_family(&w1_smem_family_01);

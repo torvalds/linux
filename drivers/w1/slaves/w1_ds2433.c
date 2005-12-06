@@ -21,10 +21,10 @@
 
 #endif
 
-#include "w1.h"
-#include "w1_io.h"
-#include "w1_int.h"
-#include "w1_family.h"
+#include "../w1.h"
+#include "../w1_io.h"
+#include "../w1_int.h"
+#include "../w1_family.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ben Gardner <bgardner@wabtec.com>");

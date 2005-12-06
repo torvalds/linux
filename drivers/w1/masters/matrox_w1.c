@@ -19,8 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <asm/atomic.h>
 #include <asm/types.h>
+#include <asm/atomic.h>
 #include <asm/io.h>
 
 #include <linux/delay.h>
@@ -35,9 +35,9 @@
 #include <linux/pci.h>
 #include <linux/timer.h>
 
-#include "w1.h"
-#include "w1_int.h"
-#include "w1_log.h"
+#include "../w1.h"
+#include "../w1_int.h"
+#include "../w1_log.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");

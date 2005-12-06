@@ -1,0 +1,38 @@
+#
+# 1-wire slaves configuration
+#
+
+menu "1-wire Slaves"
+	depends on W1
+
+config W1_SLAVE_THERM
+	tristate "Thermal family implementation"
+	depends on W1
+	help
+	  Say Y here if you want to connect 1-wire thermal sensors to you
+	  wire.
+
+config W1_SLAVE_SMEM
+	tristate "Simple 64bit memory family implementation"
+	depends on W1
+	help
+	  Say Y here if you want to connect 1-wire
+	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to you wire.
+
+config W1_SLAVE_DS2433
+	tristate "4kb EEPROM family support (DS2433)"
+	depends on W1
+	help
+	  Say Y here if you want to use a 1-wire
+	  4kb EEPROM family device (DS2433).
+
+config W1_SLAVE_DS2433_CRC
+	bool "Protect DS2433 data with a CRC16"
+	depends on W1_DS2433
+	select CRC16
+	help
+	  Say Y here to protect DS2433 data with a CRC16.
+	  Each block has 30 bytes of data and a two byte CRC16.
+	  Full block writes are only allowed if the CRC is valid.
+
+endmenu

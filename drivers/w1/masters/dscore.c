@@ -340,7 +340,7 @@ int ds_reset(struct ds_device *dev, struct ds_status *st)
 		return -EIO;
 	}
 #endif
-	
+
 	return 0;
 }
 
@@ -348,7 +348,7 @@ int ds_reset(struct ds_device *dev, struct ds_status *st)
 int ds_set_speed(struct ds_device *dev, int speed)
 {
 	int err;
-	
+
 	if (speed != SPEED_NORMAL && speed != SPEED_FLEXIBLE && speed != SPEED_OVERDRIVE)
 		return -EINVAL;
 

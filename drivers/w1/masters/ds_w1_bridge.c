@@ -22,8 +22,8 @@
 #include <linux/module.h>
 #include <linux/types.h>
 
-#include "../w1/w1.h"
-#include "../w1/w1_int.h"
+#include "../w1.h"
+#include "../w1_int.h"
 #include "dscore.h"
 
 static struct ds_device *ds_dev;

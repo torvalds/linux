@@ -28,10 +28,10 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 
-#include "w1.h"
-#include "w1_io.h"
-#include "w1_int.h"
-#include "w1_family.h"
+#include "../w1.h"
+#include "../w1_io.h"
+#include "../w1_int.h"
+#include "../w1_family.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
@@ -123,12 +123,12 @@ static inline int w1_DS18S20_convert_temp(u8 rom[9])
 
 	if (!rom[7])
 		return 0;
-	
+
 	if (rom[1] == 0)
 		t = ((s32)rom[0] >> 1)*1000;
 	else
 		t = 1000*(-1*(s32)(0x100-rom[0]) >> 1);
-	
+
 	t -= 250;
 	h = 1000*((s32)rom[7] - (s32)rom[6]);
 	h /= (s32)rom[7];
@@ -231,7 +231,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj, char *buf, loff_t off, si
 
 	for (i = 0; i < 9; ++i)
 		count += sprintf(buf + count, "%02x ", sl->rom[i]);
-	
+
 	count += sprintf(buf + count, "t=%d\n", w1_convert_temp(rom, sl->family->fid));
 out:
 	up(&dev->mutex);
