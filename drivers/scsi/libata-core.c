@@ -2865,11 +2865,11 @@ static int ata_pio_complete (struct ata_port *ap)
 	 * msecs, then chk-status again.  If still busy, fall back to
 	 * HSM_ST_POLL state.
 	 */
-	drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
-	if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
+	drv_stat = ata_busy_wait(ap, ATA_BUSY, 10);
+	if (drv_stat & ATA_BUSY) {
 		msleep(2);
-		drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
-		if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
+		drv_stat = ata_busy_wait(ap, ATA_BUSY, 10);
+		if (drv_stat & ATA_BUSY) {
 			ap->hsm_task_state = HSM_ST_LAST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
 			return 0;
@@ -3236,8 +3236,16 @@ static void ata_pio_block(struct ata_port *ap)
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 
+	/* check error */
+	if (status & (ATA_ERR | ATA_DF)) {
+		qc->err_mask |= AC_ERR_DEV;
+		ap->hsm_task_state = HSM_ST_ERR;
+		return;
+	}
+
+	/* transfer data if any */
 	if (is_atapi_taskfile(&qc->tf)) {
-		/* no more data to transfer or unsupported ATAPI command */
+		/* DRQ=0 means no more data to transfer */
 		if ((status & ATA_DRQ) == 0) {
 			ap->hsm_task_state = HSM_ST_LAST;
 			return;
