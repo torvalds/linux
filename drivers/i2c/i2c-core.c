@@ -287,7 +287,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
  * chips.
  */
 
-int i2c_add_driver(struct i2c_driver *driver)
+int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 {
 	struct list_head   *item;
 	struct i2c_adapter *adapter;
@@ -296,6 +296,7 @@ int i2c_add_driver(struct i2c_driver *driver)
 	down(&core_lists);
 
 	/* add the driver to the list of i2c drivers in the driver core */
+	driver->driver.owner = owner;
 	driver->driver.bus = &i2c_bus_type;
 	driver->driver.probe = i2c_device_probe;
 	driver->driver.remove = i2c_device_remove;
@@ -319,6 +320,7 @@ int i2c_add_driver(struct i2c_driver *driver)
 	up(&core_lists);
 	return res;
 }
+EXPORT_SYMBOL(i2c_register_driver);
 
 int i2c_del_driver(struct i2c_driver *driver)
 {
@@ -1132,7 +1134,6 @@ EXPORT_SYMBOL_GPL(i2c_bus_type);
 
 EXPORT_SYMBOL(i2c_add_adapter);
 EXPORT_SYMBOL(i2c_del_adapter);
-EXPORT_SYMBOL(i2c_add_driver);
 EXPORT_SYMBOL(i2c_del_driver);
 EXPORT_SYMBOL(i2c_attach_client);
 EXPORT_SYMBOL(i2c_detach_client);
