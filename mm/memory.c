@@ -1223,7 +1223,7 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *
 		return -EINVAL;
 	return insert_page(vma->vm_mm, addr, page, vma->vm_page_prot);
 }
-EXPORT_SYMBOL_GPL(vm_insert_page);
+EXPORT_SYMBOL(vm_insert_page);
 
 /*
  * Somebody does a pfn remapping that doesn't actually work as a vma.
