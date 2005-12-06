@@ -2994,8 +2994,7 @@ int rx_alloc_buffers(MGSLPC_INFO *info)
 
 void rx_free_buffers(MGSLPC_INFO *info)
 {
-	if (info->rx_buf)
-		kfree(info->rx_buf);
+	kfree(info->rx_buf);
 	info->rx_buf = NULL;
 }
 

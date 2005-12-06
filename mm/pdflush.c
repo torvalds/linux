@@ -20,6 +20,7 @@
 #include <linux/fs.h>		// Needed by writeback.h
 #include <linux/writeback.h>	// Prototypes pdflush_operation()
 #include <linux/kthread.h>
+#include <linux/cpuset.h>
 
 
 /*
@@ -170,12 +171,24 @@ static int __pdflush(struct pdflush_work *my_work)
 static int pdflush(void *dummy)
 {
 	struct pdflush_work my_work;
+	cpumask_t cpus_allowed;
 
 	/*
 	 * pdflush can spend a lot of time doing encryption via dm-crypt.  We
 	 * don't want to do that at keventd's priority.
 	 */
 	set_user_nice(current, 0);
+
+	/*
+	 * Some configs put our parent kthread in a limited cpuset,
+	 * which kthread() overrides, forcing cpus_allowed == CPU_MASK_ALL.
+	 * Our needs are more modest - cut back to our cpusets cpus_allowed.
+	 * This is needed as pdflush's are dynamically created and destroyed.
+	 * The boottime pdflush's are easily placed w/o these 2 lines.
+	 */
+	cpus_allowed = cpuset_cpus_allowed(current);
+	set_cpus_allowed(current, cpus_allowed);
+
 	return __pdflush(&my_work);
 }
 

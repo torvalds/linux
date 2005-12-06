@@ -47,7 +47,7 @@
 #include <asm/ide.h>
 
 
-unsigned char __res[sizeof(RESIDUAL)] __prepdata = {0,};
+unsigned char __res[sizeof(RESIDUAL)] = {0,};
 RESIDUAL *res = (RESIDUAL *)&__res;
 
 char * PnP_BASE_TYPES[] __initdata = {

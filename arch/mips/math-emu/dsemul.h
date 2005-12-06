@@ -1,11 +1,5 @@
-typedef long gpreg_t;
-typedef void *vaddr_t;
-
-#define REG_TO_VA (vaddr_t)
-#define VA_TO_REG (gpreg_t)
-
-int mips_dsemul(struct pt_regs *regs, mips_instruction ir, gpreg_t cpc);
-int do_dsemulret(struct pt_regs *xcp);
+extern int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc);
+extern int do_dsemulret(struct pt_regs *xcp);
 
 /* Instruction which will always cause an address error */
 #define AdELOAD 0x8c000001	/* lw $0,1($0) */

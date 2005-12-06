@@ -21,7 +21,6 @@
  * MIPS boards specific PCI support.
  *
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -49,34 +48,17 @@ static int msc_pcibios_config_access(unsigned char access_type,
 	struct pci_bus *bus, unsigned int devfn, int where, u32 * data)
 {
 	unsigned char busnum = bus->number;
-	unsigned char type;
 	u32 intr;
-
-#ifdef CONFIG_MIPS_BOARDS_GEN
-	if ((busnum == 0) && (PCI_SLOT(devfn) == 17)) {
-		/* MIPS Core boards have SOCit connected as device 17 */
-		return -1;
-	}
-#endif
 
 	/* Clear status register bits. */
 	MSC_WRITE(MSC01_PCI_INTSTAT,
 		  (MSC01_PCI_INTCFG_MA_BIT | MSC01_PCI_INTCFG_TA_BIT));
 
-	/* Setup address */
-	if (busnum == 0)
-		type = 0;	/* Type 0 */
-	else
-		type = 1;	/* Type 1 */
-
 	MSC_WRITE(MSC01_PCI_CFGADDR,
 		  ((busnum << MSC01_PCI_CFGADDR_BNUM_SHF) |
-		   (PCI_SLOT(devfn) << MSC01_PCI_CFGADDR_DNUM_SHF)
-		   | (PCI_FUNC(devfn) <<
-		      MSC01_PCI_CFGADDR_FNUM_SHF) | ((where /
-						      4) <<
-						     MSC01_PCI_CFGADDR_RNUM_SHF)
-		   | (type)));
+		   (PCI_SLOT(devfn) << MSC01_PCI_CFGADDR_DNUM_SHF) |
+		   (PCI_FUNC(devfn) << MSC01_PCI_CFGADDR_FNUM_SHF) |
+		   ((where / 4) << MSC01_PCI_CFGADDR_RNUM_SHF)));
 
 	/* Perform access */
 	if (access_type == PCI_ACCESS_WRITE)
@@ -86,15 +68,12 @@ static int msc_pcibios_config_access(unsigned char access_type,
 
 	/* Detect Master/Target abort */
 	MSC_READ(MSC01_PCI_INTSTAT, intr);
-	if (intr & (MSC01_PCI_INTCFG_MA_BIT |
-		    MSC01_PCI_INTCFG_TA_BIT)) {
+	if (intr & (MSC01_PCI_INTCFG_MA_BIT | MSC01_PCI_INTCFG_TA_BIT)) {
 		/* Error occurred */
 
 		/* Clear bits */
-		MSC_READ(MSC01_PCI_INTSTAT, intr);
 		MSC_WRITE(MSC01_PCI_INTSTAT,
-			  (MSC01_PCI_INTCFG_MA_BIT |
-			   MSC01_PCI_INTCFG_TA_BIT));
+			  (MSC01_PCI_INTCFG_MA_BIT | MSC01_PCI_INTCFG_TA_BIT));
 
 		return -1;
 	}

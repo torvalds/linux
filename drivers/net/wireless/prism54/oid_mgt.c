@@ -268,11 +268,10 @@ mgt_clean(islpci_private *priv)
 
 	if (!priv->mib)
 		return;
-	for (i = 0; i < OID_NUM_LAST; i++)
-		if (priv->mib[i]) {
-			kfree(priv->mib[i]);
-			priv->mib[i] = NULL;
-		}
+	for (i = 0; i < OID_NUM_LAST; i++) {
+		kfree(priv->mib[i]);
+		priv->mib[i] = NULL;
+	}
 	kfree(priv->mib);
 	priv->mib = NULL;
 }

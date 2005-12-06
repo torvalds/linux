@@ -87,37 +87,35 @@ extern void __flush_tlb_mm(unsigned long, unsigned long);
 static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, struct task_struct *tsk)
 {
 	unsigned long ctx_valid;
+	int cpu;
 
+	/* Note: page_table_lock is used here to serialize switch_mm
+	 * and activate_mm, and their calls to get_new_mmu_context.
+	 * This use of page_table_lock is unrelated to its other uses.
+	 */ 
 	spin_lock(&mm->page_table_lock);
-	if (CTX_VALID(mm->context))
-		ctx_valid = 1;
-        else
-		ctx_valid = 0;
+	ctx_valid = CTX_VALID(mm->context);
+	if (!ctx_valid)
+		get_new_mmu_context(mm);
+	spin_unlock(&mm->page_table_lock);
 
 	if (!ctx_valid || (old_mm != mm)) {
-		if (!ctx_valid)
-			get_new_mmu_context(mm);
-
 		load_secondary_context(mm);
 		reload_tlbmiss_state(tsk, mm);
 	}
 
-	{
-		int cpu = smp_processor_id();
-
-		/* Even if (mm == old_mm) we _must_ check
-		 * the cpu_vm_mask.  If we do not we could
-		 * corrupt the TLB state because of how
-		 * smp_flush_tlb_{page,range,mm} on sparc64
-		 * and lazy tlb switches work. -DaveM
-		 */
-		if (!ctx_valid || !cpu_isset(cpu, mm->cpu_vm_mask)) {
-			cpu_set(cpu, mm->cpu_vm_mask);
-			__flush_tlb_mm(CTX_HWBITS(mm->context),
-				       SECONDARY_CONTEXT);
-		}
+	/* Even if (mm == old_mm) we _must_ check
+	 * the cpu_vm_mask.  If we do not we could
+	 * corrupt the TLB state because of how
+	 * smp_flush_tlb_{page,range,mm} on sparc64
+	 * and lazy tlb switches work. -DaveM
+	 */
+	cpu = smp_processor_id();
+	if (!ctx_valid || !cpu_isset(cpu, mm->cpu_vm_mask)) {
+		cpu_set(cpu, mm->cpu_vm_mask);
+		__flush_tlb_mm(CTX_HWBITS(mm->context),
+			       SECONDARY_CONTEXT);
 	}
-	spin_unlock(&mm->page_table_lock);
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
@@ -127,6 +125,10 @@ static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm
 {
 	int cpu;
 
+	/* Note: page_table_lock is used here to serialize switch_mm
+	 * and activate_mm, and their calls to get_new_mmu_context.
+	 * This use of page_table_lock is unrelated to its other uses.
+	 */ 
 	spin_lock(&mm->page_table_lock);
 	if (!CTX_VALID(mm->context))
 		get_new_mmu_context(mm);

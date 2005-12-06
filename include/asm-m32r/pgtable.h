@@ -27,6 +27,9 @@
 #include <asm/bitops.h>
 #include <asm/page.h>
 
+struct mm_struct;
+struct vm_area_struct;
+
 extern pgd_t swapper_pg_dir[1024];
 extern void paging_init(void);
 
@@ -323,8 +326,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 	return pte;
 }
-
-#define page_pte(page)	page_pte_prot(page, __pgprot(0))
 
 /*
  * Conversion functions: convert a page and protection to a page entry,

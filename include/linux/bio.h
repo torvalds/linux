@@ -276,8 +276,8 @@ extern void bio_pair_release(struct bio_pair *dbio);
 extern struct bio_set *bioset_create(int, int, int);
 extern void bioset_free(struct bio_set *);
 
-extern struct bio *bio_alloc(unsigned int __nocast, int);
-extern struct bio *bio_alloc_bioset(unsigned int __nocast, int, struct bio_set *);
+extern struct bio *bio_alloc(gfp_t, int);
+extern struct bio *bio_alloc_bioset(gfp_t, int, struct bio_set *);
 extern void bio_put(struct bio *);
 extern void bio_free(struct bio *, struct bio_set *);
 
@@ -287,7 +287,7 @@ extern int bio_phys_segments(struct request_queue *, struct bio *);
 extern int bio_hw_segments(struct request_queue *, struct bio *);
 
 extern void __bio_clone(struct bio *, struct bio *);
-extern struct bio *bio_clone(struct bio *, unsigned int __nocast);
+extern struct bio *bio_clone(struct bio *, gfp_t);
 
 extern void bio_init(struct bio *);
 
@@ -301,7 +301,7 @@ extern struct bio *bio_map_user_iov(struct request_queue *,
 				    struct sg_iovec *, int, int);
 extern void bio_unmap_user(struct bio *);
 extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
-				unsigned int);
+				gfp_t);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
 extern struct bio *bio_copy_user(struct request_queue *, unsigned long, unsigned int, int);

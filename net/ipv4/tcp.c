@@ -1413,7 +1413,7 @@ recv_urg:
  *	closed.
  */
 
-static unsigned char new_state[16] = {
+static const unsigned char new_state[16] = {
   /* current state:        new state:      action:	*/
   /* (Invalid)		*/ TCP_CLOSE,
   /* TCP_ESTABLISHED	*/ TCP_FIN_WAIT1 | TCP_ACTION_FIN,
@@ -1640,7 +1640,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	} else if (tcp_need_reset(old_state) ||
 		   (tp->snd_nxt != tp->write_seq &&
 		    (1 << old_state) & (TCPF_CLOSING | TCPF_LAST_ACK))) {
-		/* The last check adjusts for discrepance of Linux wrt. RFC
+		/* The last check adjusts for discrepancy of Linux wrt. RFC
 		 * states
 		 */
 		tcp_send_active_reset(sk, gfp_any());
@@ -1669,6 +1669,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->packets_out = 0;
 	tp->snd_ssthresh = 0x7fffffff;
 	tp->snd_cwnd_cnt = 0;
+	tp->bytes_acked = 0;
 	tcp_set_ca_state(sk, TCP_CA_Open);
 	tcp_clear_retrans(tp);
 	inet_csk_delack_init(sk);
@@ -2064,8 +2065,7 @@ void __init tcp_init(void)
 					sizeof(struct inet_ehash_bucket),
 					thash_entries,
 					(num_physpages >= 128 * 1024) ?
-						(25 - PAGE_SHIFT) :
-						(27 - PAGE_SHIFT),
+					13 : 15,
 					HASH_HIGHMEM,
 					&tcp_hashinfo.ehash_size,
 					NULL,
@@ -2081,8 +2081,7 @@ void __init tcp_init(void)
 					sizeof(struct inet_bind_hashbucket),
 					tcp_hashinfo.ehash_size,
 					(num_physpages >= 128 * 1024) ?
-						(25 - PAGE_SHIFT) :
-						(27 - PAGE_SHIFT),
+					13 : 15,
 					HASH_HIGHMEM,
 					&tcp_hashinfo.bhash_size,
 					NULL,
@@ -2112,7 +2111,6 @@ void __init tcp_init(void)
 		sysctl_tcp_max_orphans >>= (3 - order);
 		sysctl_max_syn_backlog = 128;
 	}
-	tcp_hashinfo.port_rover = sysctl_local_port_range[0] - 1;
 
 	sysctl_tcp_mem[0] =  768 << order;
 	sysctl_tcp_mem[1] = 1024 << order;

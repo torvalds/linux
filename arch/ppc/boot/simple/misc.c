@@ -23,7 +23,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/bootinfo.h>
-#ifdef CONFIG_44x
+#ifdef CONFIG_4xx
 #include <asm/ibm4xx.h>
 #endif
 #include <asm/reg.h>
@@ -88,6 +88,14 @@ get_mem_size(void)
 	return 0;
 }
 
+#if defined(CONFIG_40x)
+#define PPC4xx_EMAC0_MR0	EMAC0_BASE
+#endif
+
+#if defined(CONFIG_44x) && defined(PPC44x_EMAC0_MR0)
+#define PPC4xx_EMAC0_MR0	PPC44x_EMAC0_MR0
+#endif
+
 struct bi_record *
 decompress_kernel(unsigned long load_addr, int num_words, unsigned long cksum)
 {
@@ -103,13 +111,13 @@ decompress_kernel(unsigned long load_addr, int num_words, unsigned long cksum)
 	com_port = serial_init(0, NULL);
 #endif
 
-#if defined(CONFIG_44x) && defined(PPC44x_EMAC0_MR0)
+#if defined(PPC4xx_EMAC0_MR0)
 	/* Reset MAL */
 	mtdcr(DCRN_MALCR(DCRN_MAL_BASE), MALCR_MMSR);
 	/* Wait for reset */
 	while (mfdcr(DCRN_MALCR(DCRN_MAL_BASE)) & MALCR_MMSR) {};
 	/* Reset EMAC */
-	*(volatile unsigned long *)PPC44x_EMAC0_MR0 = 0x20000000;
+	*(volatile unsigned long *)PPC4xx_EMAC0_MR0 = 0x20000000;
 	__asm__ __volatile__("eieio");
 #endif
 
@@ -164,7 +172,9 @@ decompress_kernel(unsigned long load_addr, int num_words, unsigned long cksum)
 		puts(" "); puthex((unsigned long)(&__ramdisk_end));puts("\n");
 	}
 
+#ifndef CONFIG_40x /* don't overwrite the 40x image located at 0x00400000! */
 	avail_ram = (char *)0x00400000;
+#endif
 	end_avail = (char *)0x00800000;
 	puts("avail ram:     "); puthex((unsigned long)avail_ram); puts(" ");
 	puthex((unsigned long)end_avail); puts("\n");

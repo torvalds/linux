@@ -15,14 +15,6 @@
 #include <asm/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
-
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/usb.h>
 #include "hcd.h"
 
@@ -106,7 +98,7 @@ void hcd_buffer_destroy (struct usb_hcd *hcd)
 void *hcd_buffer_alloc (
 	struct usb_bus 		*bus,
 	size_t			size,
-	unsigned		mem_flags,
+	gfp_t			mem_flags,
 	dma_addr_t		*dma
 )
 {

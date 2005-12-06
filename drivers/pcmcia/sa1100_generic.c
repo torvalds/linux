@@ -33,12 +33,17 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/config.h>
+#include <linux/platform_device.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 
+#include <asm/hardware/scoop.h>
+
 #include "sa1100_generic.h"
+
+int __init pcmcia_collie_init(struct device *dev);
 
 static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #ifdef CONFIG_SA1100_ASSABET
@@ -55,6 +60,9 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #endif
 #ifdef CONFIG_SA1100_SIMPAD
 	pcmcia_simpad_init,
+#endif
+#ifdef CONFIG_SA1100_COLLIE
+       pcmcia_collie_init,
 #endif
 };
 
@@ -74,29 +82,13 @@ static int sa11x0_drv_pcmcia_probe(struct device *dev)
 	return ret;
 }
 
-static int sa11x0_drv_pcmcia_suspend(struct device *dev, pm_message_t state, u32 level)
-{
-	int ret = 0;
-	if (level == SUSPEND_SAVE_STATE)
-		ret = pcmcia_socket_dev_suspend(dev, state);
-	return ret;
-}
-
-static int sa11x0_drv_pcmcia_resume(struct device *dev, u32 level)
-{
-	int ret = 0;
-	if (level == RESUME_RESTORE_STATE)
-		ret = pcmcia_socket_dev_resume(dev);
-	return ret;
-}
-
 static struct device_driver sa11x0_pcmcia_driver = {
 	.probe		= sa11x0_drv_pcmcia_probe,
 	.remove		= soc_common_drv_pcmcia_remove,
 	.name		= "sa11x0-pcmcia",
 	.bus		= &platform_bus_type,
-	.suspend 	= sa11x0_drv_pcmcia_suspend,
-	.resume 	= sa11x0_drv_pcmcia_resume,
+	.suspend 	= pcmcia_socket_dev_suspend,
+	.resume 	= pcmcia_socket_dev_resume,
 };
 
 /* sa11x0_pcmcia_init()

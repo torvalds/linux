@@ -149,7 +149,7 @@ typedef struct _drm_via_dma_init {
 	enum {
 		VIA_INIT_DMA = 0x01,
 		VIA_CLEANUP_DMA = 0x02,
-                VIA_DMA_INITIALIZED = 0x03
+		VIA_DMA_INITIALIZED = 0x03
 	} func;
 
 	unsigned long offset;
@@ -212,7 +212,7 @@ typedef enum {
 
 #define VIA_IRQ_FLAGS_MASK 0xF0000000
 
-struct drm_via_wait_irq_request{
+struct drm_via_wait_irq_request {
 	unsigned irq;
 	via_irq_seq_type_t type;
 	uint32_t sequence;

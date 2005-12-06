@@ -51,7 +51,7 @@
  */
 
 u32
-spkm3_make_token(struct spkm3_ctx *ctx, int qop_req,
+spkm3_make_token(struct spkm3_ctx *ctx,
 		   struct xdr_buf * text, struct xdr_netobj * token,
 		   int toktype)
 {
@@ -68,8 +68,6 @@ spkm3_make_token(struct spkm3_ctx *ctx, int qop_req,
 	dprintk("RPC: spkm3_make_token\n");
 
 	now = jiffies;
-	if (qop_req != 0)
-		goto out_err;
 
 	if (ctx->ctx_id.len != 16) {
 		dprintk("RPC: spkm3_make_token BAD ctx_id.len %d\n",
@@ -124,8 +122,7 @@ spkm3_make_token(struct spkm3_ctx *ctx, int qop_req,
 
 	return  GSS_S_COMPLETE;
 out_err:
-	if (md5cksum.data) 
-		kfree(md5cksum.data);
+	kfree(md5cksum.data);
 	token->data = NULL;
 	token->len = 0;
 	return GSS_S_FAILURE;

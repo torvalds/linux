@@ -17,7 +17,7 @@
 #ifdef CONFIG_CPU_MIPS32
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
-#define cpu_has_4ktlb		1
+#define cpu_has_4kcache		1
 /* #define cpu_has_fpu		? */
 /* #define cpu_has_32fpr	? */
 #define cpu_has_counter		1
@@ -37,12 +37,13 @@
 /* #define cpu_has_64bits	? */
 /* #define cpu_has_64bit_zero_reg ? */
 /* #define cpu_has_subset_pcaches ? */
+#define cpu_icache_snoops_remote_store 1
 #endif
 
 #ifdef CONFIG_CPU_MIPS64
 #define cpu_has_tlb		1
 #define cpu_has_4kex		1
-#define cpu_has_4ktlb		1
+#define cpu_has_4kcache		1
 /* #define cpu_has_fpu		? */
 /* #define cpu_has_32fpr	? */
 #define cpu_has_counter		1
@@ -62,6 +63,7 @@
 /* #define cpu_has_64bits	? */
 /* #define cpu_has_64bit_zero_reg ? */
 /* #define cpu_has_subset_pcaches ? */
+#define cpu_icache_snoops_remote_store 1
 #endif
 
 #endif /* __ASM_MACH_MIPS_CPU_FEATURE_OVERRIDES_H */

@@ -32,7 +32,6 @@
 #include <linux/string.h>
 #include <linux/smp_lock.h>
 #include <linux/inet.h>
-#include <linux/version.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
 #include <linux/idr.h>
@@ -53,30 +52,36 @@
 int v9fs_file_open(struct inode *inode, struct file *file)
 {
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-	struct v9fs_fid *v9fid = v9fs_fid_lookup(file->f_dentry, FID_WALK);
-	struct v9fs_fid *v9newfid = NULL;
+	struct v9fs_fid *v9fid, *fid;
 	struct v9fs_fcall *fcall = NULL;
 	int open_mode = 0;
 	unsigned int iounit = 0;
 	int newfid = -1;
 	long result = -1;
 
-	dprintk(DEBUG_VFS, "inode: %p file: %p v9fid= %p\n", inode, file,
-		v9fid);
+	dprintk(DEBUG_VFS, "inode: %p file: %p \n", inode, file);
+
+	v9fid = v9fs_fid_get_created(file->f_dentry);
+	if (!v9fid)
+		v9fid = v9fs_fid_lookup(file->f_dentry);
 
 	if (!v9fid) {
-		struct dentry *dentry = file->f_dentry;
 		dprintk(DEBUG_ERROR, "Couldn't resolve fid from dentry\n");
+		return -EBADF;
+	}
 
-		/* XXX - some duplication from lookup, generalize later */
-		/* basically vfs_lookup is too heavy weight */
-		v9fid = v9fs_fid_lookup(file->f_dentry, FID_OP);
-		if (!v9fid)
-			return -EBADF;
+	if (!v9fid->fidcreate) {
+		fid = kmalloc(sizeof(struct v9fs_fid), GFP_KERNEL);
+		if (fid == NULL) {
+			dprintk(DEBUG_ERROR, "Out of Memory\n");
+			return -ENOMEM;
+		}
 
-		v9fid = v9fs_fid_lookup(dentry->d_parent, FID_WALK);
-		if (!v9fid)
-			return -EBADF;
+		fid->fidopen = 0;
+		fid->fidcreate = 0;
+		fid->fidclunked = 0;
+		fid->iounit = 0;
+		fid->v9ses = v9ses;
 
 		newfid = v9fs_get_idpool(&v9ses->fidpool);
 		if (newfid < 0) {
@@ -85,58 +90,16 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		}
 
 		result =
-		    v9fs_t_walk(v9ses, v9fid->fid, newfid,
-				(char *)file->f_dentry->d_name.name, NULL);
+		    v9fs_t_walk(v9ses, v9fid->fid, newfid, NULL, NULL);
+
 		if (result < 0) {
 			v9fs_put_idpool(newfid, &v9ses->fidpool);
 			dprintk(DEBUG_ERROR, "rewalk didn't work\n");
 			return -EBADF;
 		}
 
-		v9fid = v9fs_fid_create(dentry);
-		if (v9fid == NULL) {
-			dprintk(DEBUG_ERROR, "couldn't insert\n");
-			return -ENOMEM;
-		}
-		v9fid->fid = newfid;
-	}
-
-	if (v9fid->fidcreate) {
-		/* create case */
-		newfid = v9fid->fid;
-		iounit = v9fid->iounit;
-		v9fid->fidcreate = 0;
-	} else {
-		if (!S_ISDIR(inode->i_mode))
-			newfid = v9fid->fid;
-		else {
-			newfid = v9fs_get_idpool(&v9ses->fidpool);
-			if (newfid < 0) {
-				eprintk(KERN_WARNING, "allocation failed\n");
-				return -ENOSPC;
-			}
-			/* This would be a somewhat critical clone */
-			result =
-			    v9fs_t_walk(v9ses, v9fid->fid, newfid, NULL,
-					&fcall);
-			if (result < 0) {
-				dprintk(DEBUG_ERROR, "clone error: %s\n",
-					FCALL_ERROR(fcall));
-				kfree(fcall);
-				return result;
-			}
-
-			v9newfid = v9fs_fid_create(file->f_dentry);
-			v9newfid->fid = newfid;
-			v9newfid->qid = v9fid->qid;
-			v9newfid->iounit = v9fid->iounit;
-			v9newfid->fidopen = 0;
-			v9newfid->fidclunked = 0;
-			v9newfid->v9ses = v9ses;
-			v9fid = v9newfid;
-			kfree(fcall);
-		}
-
+		fid->fid = newfid;
+		v9fid = fid;
 		/* TODO: do special things for O_EXCL, O_NOFOLLOW, O_SYNC */
 		/* translate open mode appropriately */
 		open_mode = file->f_flags & 0x3;
@@ -163,8 +126,12 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 		iounit = fcall->params.ropen.iounit;
 		kfree(fcall);
+	} else {
+		/* create case */
+		newfid = v9fid->fid;
+		iounit = v9fid->iounit;
+		v9fid->fidcreate = 0;
 	}
-
 
 	file->private_data = v9fid;
 
@@ -207,16 +174,16 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 }
 
 /**
- * v9fs_read - read from a file (internal)
+ * v9fs_file_read - read from a file
  * @filep: file pointer to read
  * @data: data buffer to read data into
  * @count: size of buffer
  * @offset: offset at which to read data
  *
  */
-
 static ssize_t
-v9fs_read(struct file *filp, char *buffer, size_t count, loff_t * offset)
+v9fs_file_read(struct file *filp, char __user * data, size_t count,
+	       loff_t * offset)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
@@ -226,6 +193,7 @@ v9fs_read(struct file *filp, char *buffer, size_t count, loff_t * offset)
 	int rsize = 0;
 	int result = 0;
 	int total = 0;
+	int n;
 
 	dprintk(DEBUG_VFS, "\n");
 
@@ -248,111 +216,21 @@ v9fs_read(struct file *filp, char *buffer, size_t count, loff_t * offset)
 		} else
 			*offset += result;
 
-		/* XXX - extra copy */
-		memcpy(buffer, fcall->params.rread.data, result);
+		n = copy_to_user(data, fcall->params.rread.data, result);
+		if (n) {
+			dprintk(DEBUG_ERROR, "Problem copying to user %d\n", n);
+			kfree(fcall);
+			return -EFAULT;
+		}
+
 		count -= result;
-		buffer += result;
+		data += result;
 		total += result;
 
 		kfree(fcall);
 
 		if (result < rsize)
 			break;
-	} while (count);
-
-	return total;
-}
-
-/**
- * v9fs_file_read - read from a file
- * @filep: file pointer to read
- * @data: data buffer to read data into
- * @count: size of buffer
- * @offset: offset at which to read data
- *
- */
-
-static ssize_t
-v9fs_file_read(struct file *filp, char __user * data, size_t count,
-	       loff_t * offset)
-{
-	int retval = -1;
-	int ret = 0;
-	char *buffer;
-
-	buffer = kmalloc(count, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
-	retval = v9fs_read(filp, buffer, count, offset);
-	if (retval > 0) {
-		if ((ret = copy_to_user(data, buffer, retval)) != 0) {
-			dprintk(DEBUG_ERROR, "Problem copying to user %d\n",
-				ret);
-			retval = ret;
-		}
-	}
-
-	kfree(buffer);
-
-	return retval;
-}
-
-/**
- * v9fs_write - write to a file
- * @filep: file pointer to write
- * @data: data buffer to write data from
- * @count: size of buffer
- * @offset: offset at which to write data
- *
- */
-
-static ssize_t
-v9fs_write(struct file *filp, char *buffer, size_t count, loff_t * offset)
-{
-	struct inode *inode = filp->f_dentry->d_inode;
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-	struct v9fs_fid *v9fid = filp->private_data;
-	struct v9fs_fcall *fcall;
-	int fid = v9fid->fid;
-	int result = -EIO;
-	int rsize = 0;
-	int total = 0;
-
-	dprintk(DEBUG_VFS, "data %p count %d offset %x\n", buffer, (int)count,
-		(int)*offset);
-	rsize = v9ses->maxdata - V9FS_IOHDRSZ;
-	if (v9fid->iounit != 0 && rsize > v9fid->iounit)
-		rsize = v9fid->iounit;
-
-	dump_data(buffer, count);
-
-	do {
-		if (count < rsize)
-			rsize = count;
-
-		result =
-		    v9fs_t_write(v9ses, fid, *offset, rsize, buffer, &fcall);
-		if (result < 0) {
-			eprintk(KERN_ERR, "error while writing: %s(%d)\n",
-				FCALL_ERROR(fcall), result);
-			kfree(fcall);
-			return result;
-		} else
-			*offset += result;
-
-		kfree(fcall);
-
-		if (result != rsize) {
-			eprintk(KERN_ERR,
-				"short write: v9fs_t_write returned %d\n",
-				result);
-			break;
-		}
-
-		count -= result;
-		buffer += result;
-		total += result;
 	} while (count);
 
 	return total;
@@ -371,24 +249,65 @@ static ssize_t
 v9fs_file_write(struct file *filp, const char __user * data,
 		size_t count, loff_t * offset)
 {
-	int ret = -1;
-	char *buffer;
+	struct inode *inode = filp->f_dentry->d_inode;
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
+	struct v9fs_fid *v9fid = filp->private_data;
+	struct v9fs_fcall *fcall;
+	int fid = v9fid->fid;
+	int result = -EIO;
+	int rsize = 0;
+	int total = 0;
+	char *buf;
 
-	buffer = kmalloc(count, GFP_KERNEL);
-	if (buffer == NULL)
+	dprintk(DEBUG_VFS, "data %p count %d offset %x\n", data, (int)count,
+		(int)*offset);
+	rsize = v9ses->maxdata - V9FS_IOHDRSZ;
+	if (v9fid->iounit != 0 && rsize > v9fid->iounit)
+		rsize = v9fid->iounit;
+
+	buf = kmalloc(v9ses->maxdata - V9FS_IOHDRSZ, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
 
-	ret = copy_from_user(buffer, data, count);
-	if (ret) {
-		dprintk(DEBUG_ERROR, "Problem copying from user\n");
-		ret = -EFAULT;
-	} else {
-		ret = v9fs_write(filp, buffer, count, offset);
-	}
+	do {
+		if (count < rsize)
+			rsize = count;
 
-	kfree(buffer);
+		result = copy_from_user(buf, data, rsize);
+		if (result) {
+			dprintk(DEBUG_ERROR, "Problem copying from user\n");
+			kfree(buf);
+			return -EFAULT;
+		}
 
-	return ret;
+		dump_data(buf, rsize);
+		result = v9fs_t_write(v9ses, fid, *offset, rsize, buf, &fcall);
+		if (result < 0) {
+			eprintk(KERN_ERR, "error while writing: %s(%d)\n",
+				FCALL_ERROR(fcall), result);
+			kfree(fcall);
+			kfree(buf);
+			return result;
+		} else
+			*offset += result;
+
+		kfree(fcall);
+		fcall = NULL;
+
+		if (result != rsize) {
+			eprintk(KERN_ERR,
+				"short write: v9fs_t_write returned %d\n",
+				result);
+			break;
+		}
+
+		count -= result;
+		data += result;
+		total += result;
+	} while (count);
+
+	kfree(buf);
+	return total;
 }
 
 struct file_operations v9fs_file_operations = {

@@ -1374,8 +1374,7 @@ static void reset_chip (struct fs_dev *dev)
 	}
 }
 
-static void __devinit *aligned_kmalloc (int size, unsigned int __nocast flags,
-					int alignment)
+static void __devinit *aligned_kmalloc (int size, gfp_t flags, int alignment)
 {
 	void  *t;
 
@@ -1466,7 +1465,7 @@ static inline int nr_buffers_in_freepool (struct fs_dev *dev, struct freepool *f
    working again after that...  -- REW */
 
 static void top_off_fp (struct fs_dev *dev, struct freepool *fp,
-			unsigned int __nocast gfp_flags)
+			gfp_t gfp_flags)
 {
 	struct FS_BPENTRY *qe, *ne;
 	struct sk_buff *skb;

@@ -249,8 +249,6 @@ struct tt_entry *sparc_ttable;
 
 struct pt_regs fake_swapper_regs;
 
-extern void paging_init(void);
-
 void __init setup_arch(char **cmdline_p)
 {
 	int i;

@@ -1459,8 +1459,10 @@ toshoboe_net_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
        */
       IRDA_DEBUG (1, "%s(BANDWIDTH), %s, (%X/%ld\n", __FUNCTION__
           ,dev->name, INB (OBOE_STATUS), irq->ifr_baudrate );
-      if (!in_interrupt () && !capable (CAP_NET_ADMIN))
-        return -EPERM;
+      if (!in_interrupt () && !capable (CAP_NET_ADMIN)) {
+	ret = -EPERM;
+	goto out;
+      }
 
       /* self->speed=irq->ifr_baudrate; */
       /* toshoboe_setbaud(self); */
@@ -1470,8 +1472,10 @@ toshoboe_net_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
     case SIOCSMEDIABUSY:       /* Set media busy */
       IRDA_DEBUG (1, "%s(MEDIABUSY), %s, (%X/%x)\n", __FUNCTION__
           ,dev->name, INB (OBOE_STATUS), capable (CAP_NET_ADMIN) );
-      if (!capable (CAP_NET_ADMIN))
-        return -EPERM;
+      if (!capable (CAP_NET_ADMIN)) {
+	ret = -EPERM;
+	goto out;
+      }
       irda_device_set_media_busy (self->netdev, TRUE);
       break;
     case SIOCGRECEIVING:       /* Check if we are receiving right now */
@@ -1483,7 +1487,7 @@ toshoboe_net_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
       IRDA_DEBUG (1, "%s(?), %s, (cmd=0x%X)\n", __FUNCTION__, dev->name, cmd);
       ret = -EOPNOTSUPP;
     }
-
+out:
   spin_unlock_irqrestore(&self->spinlock, flags);
   return ret;
 
@@ -1695,11 +1699,9 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
 
 freebufs:
   for (i = 0; i < TX_SLOTS; ++i)
-    if (self->tx_bufs[i])
-      kfree (self->tx_bufs[i]);
+    kfree (self->tx_bufs[i]);
   for (i = 0; i < RX_SLOTS; ++i)
-    if (self->rx_bufs[i])
-      kfree (self->rx_bufs[i]);
+    kfree (self->rx_bufs[i]);
   kfree(self->ringbuf);
 
 freeregion:

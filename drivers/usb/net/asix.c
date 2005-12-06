@@ -23,9 +23,6 @@
 // #define	VERBOSE			// more; success messages
 
 #include <linux/config.h>
-#ifdef	CONFIG_USB_DEBUG
-#   define DEBUG
-#endif
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/sched.h>
@@ -753,7 +750,7 @@ static int ax88772_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 }
 
 static struct sk_buff *ax88772_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
-					unsigned flags)
+					gfp_t flags)
 {
 	int padlen;
 	int headroom = skb_headroom(skb);

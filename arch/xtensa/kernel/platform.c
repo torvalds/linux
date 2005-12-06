@@ -18,6 +18,7 @@
 #include <linux/time.h>
 #include <asm/platform.h>
 #include <asm/timex.h>
+#include <asm/param.h>		/* HZ */
 
 #define _F(r,f,a,b)							\
 	r __platform_##f a b;                                   	\
@@ -39,7 +40,7 @@ _F(int,  pcibios_fixup, (void), { return 0; });
 _F(int, get_rtc_time, (time_t* t), { return 0; });
 _F(int, set_rtc_time, (time_t t), { return 0; });
 
-#if CONFIG_XTENSA_CALIBRATE_CCOUNT
+#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 _F(void, calibrate_ccount, (void),
 {
   printk ("ERROR: Cannot calibrate cpu frequency! Assuming 100MHz.\n");

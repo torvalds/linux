@@ -490,8 +490,7 @@ static void sirdev_free_buffers(struct sir_dev *dev)
 {
 	if (dev->rx_buff.skb)
 		kfree_skb(dev->rx_buff.skb);
-	if (dev->tx_buff.head)
-		kfree(dev->tx_buff.head);
+	kfree(dev->tx_buff.head);
 	dev->rx_buff.head = dev->tx_buff.head = NULL;
 	dev->rx_buff.skb = NULL;
 }

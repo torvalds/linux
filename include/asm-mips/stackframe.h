@@ -60,7 +60,6 @@
 		mfc0	k0, CP0_CONTEXT
 		lui	k1, %hi(kernelsp)
 		srl	k0, k0, 23
-		sll	k0, k0, 2
 		addu	k1, k0
 		LONG_L	k1, %lo(kernelsp)(k1)
 #endif
@@ -76,9 +75,14 @@
 #endif
 #if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
 		MFC0	k1, CP0_CONTEXT
+		lui	k0, %highest(kernelsp)
 		dsrl	k1, 23
-		dsll	k1, k1, 3
-		LONG_L	k1, kernelsp(k1)
+		daddiu	k0, %higher(kernelsp)
+		dsll	k0, k0, 16
+		daddiu	k0, %hi(kernelsp)
+		dsll	k0, k0, 16
+		daddu	k1, k1, k0
+		LONG_L	k1, %lo(kernelsp)(k1)
 #endif
 		.endm
 
@@ -86,25 +90,28 @@
 #ifdef CONFIG_32BIT
 		mfc0	\temp, CP0_CONTEXT
 		srl	\temp, 23
-		sll	\temp, 2
-		LONG_S	\stackp, kernelsp(\temp)
 #endif
 #if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
 		lw	\temp, TI_CPU(gp)
 		dsll	\temp, 3
-		lui	\temp2, %hi(kernelsp)
-		daddu	\temp, \temp2
-		LONG_S	\stackp, %lo(kernelsp)(\temp)
 #endif
 #if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
-		lw	\temp, TI_CPU(gp)
-		dsll	\temp, 3
-		LONG_S	\stackp, kernelsp(\temp)
+		MFC0	\temp, CP0_CONTEXT
+		dsrl	\temp, 23
 #endif
+		LONG_S	\stackp, kernelsp(\temp)
 		.endm
 #else
 		.macro	get_saved_sp	/* Uniprocessor variation */
+#if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
+		lui	k1, %highest(kernelsp)
+		daddiu	k1, %higher(kernelsp)
+		dsll	k1, k1, 16
+		daddiu	k1, %hi(kernelsp)
+		dsll	k1, k1, 16
+#else
 		lui	k1, %hi(kernelsp)
+#endif
 		LONG_L	k1, %lo(kernelsp)(k1)
 		.endm
 

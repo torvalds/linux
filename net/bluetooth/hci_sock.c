@@ -66,20 +66,20 @@ static struct hci_sec_filter hci_sec_filter = {
 	/* Packet types */
 	0x10,
 	/* Events */
-	{ 0x1000d9fe, 0x0000300c },
+	{ 0x1000d9fe, 0x0000b00c },
 	/* Commands */
 	{
 		{ 0x0 },
 		/* OGF_LINK_CTL */
-		{ 0xbe000006, 0x00000001, 0x0000, 0x00 },
+		{ 0xbe000006, 0x00000001, 0x000000, 0x00 },
 		/* OGF_LINK_POLICY */
-		{ 0x00005200, 0x00000000, 0x0000, 0x00 },
+		{ 0x00005200, 0x00000000, 0x000000, 0x00 },
 		/* OGF_HOST_CTL */
-		{ 0xaab00200, 0x2b402aaa, 0x0154, 0x00 },
+		{ 0xaab00200, 0x2b402aaa, 0x020154, 0x00 },
 		/* OGF_INFO_PARAM */
-		{ 0x000002be, 0x00000000, 0x0000, 0x00 },
+		{ 0x000002be, 0x00000000, 0x000000, 0x00 },
 		/* OGF_STATUS_PARAM */
-		{ 0x000000ea, 0x00000000, 0x0000, 0x00 }
+		{ 0x000000ea, 0x00000000, 0x000000, 0x00 }
 	}
 };
 
@@ -416,7 +416,7 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb->dev = (void *) hdev;
 
 	if (bt_cb(skb)->pkt_type == HCI_COMMAND_PKT) {
-		u16 opcode = __le16_to_cpu(get_unaligned((u16 *)skb->data));
+		u16 opcode = __le16_to_cpu(get_unaligned((__le16 *) skb->data));
 		u16 ogf = hci_opcode_ogf(opcode);
 		u16 ocf = hci_opcode_ocf(opcode);
 

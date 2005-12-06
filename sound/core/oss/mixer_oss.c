@@ -521,9 +521,13 @@ static void snd_mixer_oss_get_volume1_vol(snd_mixer_oss_file_t *fmixer,
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		goto __unalloc;
-	snd_runtime_check(!kctl->info(kctl, uinfo), goto __unalloc);
-	snd_runtime_check(!kctl->get(kctl, uctl), goto __unalloc);
-	snd_runtime_check(uinfo->type != SNDRV_CTL_ELEM_TYPE_BOOLEAN || uinfo->value.integer.min != 0 || uinfo->value.integer.max != 1, goto __unalloc);
+	if (kctl->info(kctl, uinfo))
+		goto __unalloc;
+	if (kctl->get(kctl, uctl))
+		goto __unalloc;
+	if (uinfo->type == SNDRV_CTL_ELEM_TYPE_BOOLEAN &&
+	    uinfo->value.integer.min == 0 && uinfo->value.integer.max == 1)
+		goto __unalloc;
 	*left = snd_mixer_oss_conv1(uctl->value.integer.value[0], uinfo->value.integer.min, uinfo->value.integer.max, &pslot->volume[0]);
 	if (uinfo->count > 1)
 		*right = snd_mixer_oss_conv1(uctl->value.integer.value[1], uinfo->value.integer.min, uinfo->value.integer.max, &pslot->volume[1]);
@@ -555,8 +559,10 @@ static void snd_mixer_oss_get_volume1_sw(snd_mixer_oss_file_t *fmixer,
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		goto __unalloc;
-	snd_runtime_check(!kctl->info(kctl, uinfo), goto __unalloc);
-	snd_runtime_check(!kctl->get(kctl, uctl), goto __unalloc);
+	if (kctl->info(kctl, uinfo))
+		goto __unalloc;
+	if (kctl->get(kctl, uctl))
+		goto __unalloc;
 	if (!uctl->value.integer.value[0]) {
 		*left = 0;
 		if (uinfo->count == 1)
@@ -616,12 +622,16 @@ static void snd_mixer_oss_put_volume1_vol(snd_mixer_oss_file_t *fmixer,
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		goto __unalloc;
-	snd_runtime_check(!kctl->info(kctl, uinfo), goto __unalloc);
-	snd_runtime_check(uinfo->type != SNDRV_CTL_ELEM_TYPE_BOOLEAN || uinfo->value.integer.min != 0 || uinfo->value.integer.max != 1, goto __unalloc);
+	if (kctl->info(kctl, uinfo))
+		goto __unalloc;
+	if (uinfo->type == SNDRV_CTL_ELEM_TYPE_BOOLEAN &&
+	    uinfo->value.integer.min == 0 && uinfo->value.integer.max == 1)
+		goto __unalloc;
 	uctl->value.integer.value[0] = snd_mixer_oss_conv2(left, uinfo->value.integer.min, uinfo->value.integer.max);
 	if (uinfo->count > 1)
 		uctl->value.integer.value[1] = snd_mixer_oss_conv2(right, uinfo->value.integer.min, uinfo->value.integer.max);
-	snd_runtime_check((res = kctl->put(kctl, uctl)) >= 0, goto __unalloc);
+	if ((res = kctl->put(kctl, uctl)) < 0)
+		goto __unalloc;
 	if (res > 0)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
       __unalloc:
@@ -653,7 +663,8 @@ static void snd_mixer_oss_put_volume1_sw(snd_mixer_oss_file_t *fmixer,
 	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (uinfo == NULL || uctl == NULL)
 		goto __unalloc;
-	snd_runtime_check(!kctl->info(kctl, uinfo), goto __unalloc);
+	if (kctl->info(kctl, uinfo))
+		goto __unalloc;
 	if (uinfo->count > 1) {
 		uctl->value.integer.value[0] = left > 0 ? 1 : 0;
 		uctl->value.integer.value[route ? 3 : 1] = right > 0 ? 1 : 0;
@@ -664,7 +675,8 @@ static void snd_mixer_oss_put_volume1_sw(snd_mixer_oss_file_t *fmixer,
 	} else {
 		uctl->value.integer.value[0] = (left > 0 || right > 0) ? 1 : 0;
 	}
-	snd_runtime_check((res = kctl->put(kctl, uctl)) >= 0, goto __unalloc);
+	if ((res = kctl->put(kctl, uctl)) < 0)
+		goto __unalloc;
 	if (res > 0)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
       __unalloc:
@@ -776,9 +788,14 @@ static int snd_mixer_oss_get_recsrc2(snd_mixer_oss_file_t *fmixer, unsigned int 
 	}
 	down_read(&card->controls_rwsem);
 	kctl = snd_mixer_oss_test_id(mixer, "Capture Source", 0);
-	snd_runtime_check(kctl != NULL, err = -ENOENT; goto __unlock);
-	snd_runtime_check(!(err = kctl->info(kctl, uinfo)), goto __unlock);
-	snd_runtime_check(!(err = kctl->get(kctl, uctl)), goto __unlock);
+	if (! kctl) {
+		err = -ENOENT;
+		goto __unlock;
+	}
+	if ((err = kctl->info(kctl, uinfo)) < 0)
+		goto __unlock;
+	if ((err = kctl->get(kctl, uctl)) < 0)
+		goto __unlock;
 	for (idx = 0; idx < 32; idx++) {
 		if (!(mixer->mask_recsrc & (1 << idx)))
 			continue;
@@ -821,8 +838,12 @@ static int snd_mixer_oss_put_recsrc2(snd_mixer_oss_file_t *fmixer, unsigned int 
 	}
 	down_read(&card->controls_rwsem);
 	kctl = snd_mixer_oss_test_id(mixer, "Capture Source", 0);
-	snd_runtime_check(kctl != NULL, err = -ENOENT; goto __unlock);
-	snd_runtime_check(!(err = kctl->info(kctl, uinfo)), goto __unlock);
+	if (! kctl) {
+		err = -ENOENT;
+		goto __unlock;
+	}
+	if ((err = kctl->info(kctl, uinfo)) < 0)
+		goto __unlock;
 	for (idx = 0; idx < 32; idx++) {
 		if (!(mixer->mask_recsrc & (1 << idx)))
 			continue;
@@ -836,10 +857,11 @@ static int snd_mixer_oss_put_recsrc2(snd_mixer_oss_file_t *fmixer, unsigned int 
 			break;
 		slot = NULL;
 	}
-	snd_runtime_check(slot != NULL, goto __unlock);
+	if (! slot)
+		goto __unlock;
 	for (idx = 0; idx < uinfo->count; idx++)
 		uctl->value.enumerated.item[idx] = slot->capture_item;
-	snd_runtime_check((err = kctl->put(kctl, uctl)) >= 0, );
+	err = kctl->put(kctl, uctl);
 	if (err > 0)
 		snd_ctl_notify(fmixer->card, SNDRV_CTL_EVENT_MASK_VALUE, &kctl->id);
 	err = 0;
@@ -1008,7 +1030,8 @@ static int snd_mixer_oss_build_input(snd_mixer_oss_t *mixer, struct snd_mixer_os
 	up_read(&mixer->card->controls_rwsem);
 	if (slot.present != 0) {
 		pslot = (struct slot *)kmalloc(sizeof(slot), GFP_KERNEL);
-		snd_runtime_check(pslot != NULL, return -ENOMEM);
+		if (! pslot)
+			return -ENOMEM;
 		*pslot = slot;
 		pslot->signature = SNDRV_MIXER_OSS_SIGNATURE;
 		pslot->assigned = ptr;
@@ -1271,7 +1294,8 @@ static int snd_mixer_oss_notify_handler(snd_card_t * card, int cmd)
 						   card, 0,
 						   &snd_mixer_oss_reg,
 						   name)) < 0) {
-			snd_printk("unable to register OSS mixer device %i:%i\n", card->number, 0);
+			snd_printk(KERN_ERR "unable to register OSS mixer device %i:%i\n",
+				   card->number, 0);
 			kfree(mixer);
 			return err;
 		}

@@ -70,6 +70,18 @@ void kthread_bind(struct task_struct *k, unsigned int cpu);
 int kthread_stop(struct task_struct *k);
 
 /**
+ * kthread_stop_sem: stop a thread created by kthread_create().
+ * @k: thread created by kthread_create().
+ * @s: semaphore that @k waits on while idle.
+ *
+ * Does essentially the same thing as kthread_stop() above, but wakes
+ * @k by calling up(@s).
+ *
+ * Returns the result of threadfn(), or -EINTR if wake_up_process()
+ * was never called. */
+int kthread_stop_sem(struct task_struct *k, struct semaphore *s);
+
+/**
  * kthread_should_stop: should this kthread return now?
  *
  * When someone calls kthread_stop on your kthread, it will be woken

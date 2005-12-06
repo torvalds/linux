@@ -60,7 +60,7 @@ __ioremap(unsigned long offset, unsigned long size, unsigned long flags);
  *	address.
  */
 
-static inline void * ioremap(unsigned long offset, unsigned long size)
+static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {
 	return __ioremap(offset, size, 0);
 }

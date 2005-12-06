@@ -28,7 +28,7 @@ MODULE_LICENSE("GPL");
 
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_connmark.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <net/netfilter/nf_conntrack_compat.h>
 
 static int
 match(const struct sk_buff *skb,
@@ -39,12 +39,12 @@ match(const struct sk_buff *skb,
       int *hotdrop)
 {
 	const struct ipt_connmark_info *info = matchinfo;
-	enum ip_conntrack_info ctinfo;
-	struct ip_conntrack *ct = ip_conntrack_get((struct sk_buff *)skb, &ctinfo);
-	if (!ct)
+	u_int32_t ctinfo;
+	const u_int32_t *ctmark = nf_ct_get_mark(skb, &ctinfo);
+	if (!ctmark)
 		return 0;
 
-	return ((ct->mark & info->mask) == info->mark) ^ info->invert;
+	return (((*ctmark) & info->mask) == info->mark) ^ info->invert;
 }
 
 static int

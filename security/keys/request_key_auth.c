@@ -7,6 +7,8 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
+ *
+ * See Documentation/keys-request-key.txt
  */
 
 #include <linux/module.h>
@@ -96,6 +98,7 @@ static void request_key_auth_destroy(struct key *key)
 	kenter("{%d}", key->serial);
 
 	key_put(rka->target_key);
+	kfree(rka);
 
 } /* end request_key_auth_destroy() */
 
@@ -126,7 +129,7 @@ struct key *request_key_auth_new(struct key *target, struct key **_rkakey)
 
 	rkakey = key_alloc(&key_type_request_key_auth, desc,
 			   current->fsuid, current->fsgid,
-			   KEY_USR_VIEW, 1);
+			   KEY_POS_VIEW | KEY_USR_VIEW, 1);
 	if (IS_ERR(rkakey)) {
 		key_put(keyring);
 		kleave("= %ld", PTR_ERR(rkakey));

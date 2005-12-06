@@ -425,7 +425,11 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 		rsp = (unsigned long) ka->sa.sa_restorer;
 	}
 
-	return (void __user *)((rsp - frame_size) & -8UL);
+	rsp -= frame_size;
+	/* Align the stack pointer according to the i386 ABI,
+	 * i.e. so that on function entry ((sp + 4) & 15) == 0. */
+	rsp = ((rsp + 4) & -16ul) - 4;
+	return (void __user *) rsp;
 }
 
 int ia32_setup_frame(int sig, struct k_sigaction *ka,

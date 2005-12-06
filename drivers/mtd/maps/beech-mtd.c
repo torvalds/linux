@@ -1,7 +1,7 @@
 /*
- * $Id: beech-mtd.c,v 1.10 2004/11/04 13:24:14 gleixner Exp $
- * 
- * drivers/mtd/maps/beech-mtd.c MTD mappings and partition tables for 
+ * $Id: beech-mtd.c,v 1.11 2005/11/07 11:14:26 gleixner Exp $
+ *
+ * drivers/mtd/maps/beech-mtd.c MTD mappings and partition tables for
  *                              IBM 405LP Beech boards.
  *
  * This program is free software; you can redistribute it and/or modify

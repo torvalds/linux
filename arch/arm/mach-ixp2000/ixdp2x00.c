@@ -20,7 +20,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/bitops.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
@@ -81,7 +81,7 @@ static void ixdp2x00_irq_mask(unsigned int irq)
 
 	dummy = *board_irq_mask;
 	dummy |=  IXP2000_BOARD_IRQ_MASK(irq);
-	ixp2000_reg_write(board_irq_mask, dummy);
+	ixp2000_reg_wrb(board_irq_mask, dummy);
 
 #ifdef CONFIG_ARCH_IXDP2400
 	if (machine_is_ixdp2400())
@@ -101,7 +101,7 @@ static void ixdp2x00_irq_unmask(unsigned int irq)
 
 	dummy = *board_irq_mask;
 	dummy &=  ~IXP2000_BOARD_IRQ_MASK(irq);
-	ixp2000_reg_write(board_irq_mask, dummy);
+	ixp2000_reg_wrb(board_irq_mask, dummy);
 
 	if (machine_is_ixdp2400()) 
 		ixp2000_release_slowport(&old_cfg);
@@ -176,7 +176,7 @@ void ixdp2x00_init_irq(volatile unsigned long *stat_reg, volatile unsigned long 
  *************************************************************************/
 static struct map_desc ixdp2x00_io_desc __initdata = {
 	.virtual	= IXDP2X00_VIRT_CPLD_BASE, 
-	.physical	= IXDP2X00_PHYS_CPLD_BASE,
+	.pfn		= __phys_to_pfn(IXDP2X00_PHYS_CPLD_BASE),
 	.length		= IXDP2X00_CPLD_SIZE,
 	.type		= MT_DEVICE
 };

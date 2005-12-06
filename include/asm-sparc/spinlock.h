@@ -17,7 +17,7 @@
 #define __raw_spin_unlock_wait(lock) \
 	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
 
-extern __inline__ void __raw_spin_lock(raw_spinlock_t *lock)
+static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__(
 	"\n1:\n\t"
@@ -37,7 +37,7 @@ extern __inline__ void __raw_spin_lock(raw_spinlock_t *lock)
 	: "g2", "memory", "cc");
 }
 
-extern __inline__ int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	unsigned int result;
 	__asm__ __volatile__("ldstub [%1], %0"
@@ -47,7 +47,7 @@ extern __inline__ int __raw_spin_trylock(raw_spinlock_t *lock)
 	return (result == 0);
 }
 
-extern __inline__ void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__("stb %%g0, [%0]" : : "r" (lock) : "memory");
 }
@@ -78,7 +78,7 @@ extern __inline__ void __raw_spin_unlock(raw_spinlock_t *lock)
  *
  * Unfortunately this scheme limits us to ~16,000,000 cpus.
  */
-extern __inline__ void __read_lock(raw_rwlock_t *rw)
+static inline void __read_lock(raw_rwlock_t *rw)
 {
 	register raw_rwlock_t *lp asm("g1");
 	lp = rw;
@@ -98,7 +98,7 @@ do {	unsigned long flags; \
 	local_irq_restore(flags); \
 } while(0)
 
-extern __inline__ void __read_unlock(raw_rwlock_t *rw)
+static inline void __read_unlock(raw_rwlock_t *rw)
 {
 	register raw_rwlock_t *lp asm("g1");
 	lp = rw;

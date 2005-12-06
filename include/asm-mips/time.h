@@ -20,6 +20,9 @@
 #include <linux/linkage.h>
 #include <linux/ptrace.h>
 #include <linux/rtc.h>
+#include <linux/spinlock.h>
+
+extern spinlock_t rtc_lock;
 
 /*
  * RTC ops.  By default, they point to no-RTC functions.

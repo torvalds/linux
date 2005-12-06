@@ -1,22 +1,18 @@
 /*
  * Copyright (c) 1995-2001,2004 Silicon Graphics, Inc.  All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2.1 of the GNU Lesser General Public License
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
- * Contact information: Silicon Graphics, Inc., 1500 Crittenden Lane,
- * Mountain View, CA 94043, USA, or: http://www.sgi.com
+ * You should have received a copy of the GNU Lesset General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef _LINUX_DQBLK_XFS_H
 #define _LINUX_DQBLK_XFS_H
@@ -32,7 +28,8 @@
 
 #define XQM_USRQUOTA	0	/* system call user quota type */
 #define XQM_GRPQUOTA	1	/* system call group quota type */
-#define XQM_MAXQUOTAS	2
+#define XQM_PRJQUOTA	2	/* system call project quota type */
+#define XQM_MAXQUOTAS	3
 
 #define Q_XQUOTAON	XQM_CMD(1)	/* enable accounting/enforcement */
 #define Q_XQUOTAOFF	XQM_CMD(2)	/* disable accounting/enforcement */
@@ -40,6 +37,7 @@
 #define Q_XSETQLIM	XQM_CMD(4)	/* set disk limits */
 #define Q_XGETQSTAT	XQM_CMD(5)	/* get quota subsystem status */
 #define Q_XQUOTARM	XQM_CMD(6)	/* free disk space used by dquots */
+#define Q_XQUOTASYNC	XQM_CMD(7)	/* delalloc flush, updates dquots */
 
 /*
  * fs_disk_quota structure:

@@ -720,10 +720,13 @@ static int __devexit hvcs_remove(struct vio_dev *dev)
 };
 
 static struct vio_driver hvcs_vio_driver = {
-	.name		= hvcs_driver_name,
 	.id_table	= hvcs_driver_table,
 	.probe		= hvcs_probe,
 	.remove		= hvcs_remove,
+	.driver		= {
+		.name	= hvcs_driver_name,
+		.owner	= THIS_MODULE,
+	}
 };
 
 /* Only called from hvcs_get_pi please */

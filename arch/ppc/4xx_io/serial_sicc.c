@@ -1145,8 +1145,8 @@ static int set_serial_info(struct SICC_info *info,
     info->flags = ((state->flags & ~ASYNC_INTERNAL_FLAGS) |
                (info->flags & ASYNC_INTERNAL_FLAGS));
     state->custom_divisor = new_serial.custom_divisor;
-    state->close_delay = new_serial.close_delay * HZ / 100;
-    state->closing_wait = new_serial.closing_wait * HZ / 100;
+    state->close_delay = msecs_to_jiffies(10 * new_serial.close_delay);
+    state->closing_wait = msecs_to_jiffies(10 * new_serial.closing_wait);
     info->tty->low_latency = (info->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
     port->fifosize = new_serial.xmit_fifo_size;
 
@@ -1465,10 +1465,8 @@ static void siccuart_close(struct tty_struct *tty, struct file *filp)
     info->event = 0;
     info->tty = NULL;
     if (info->blocked_open) {
-        if (info->state->close_delay) {
-            set_current_state(TASK_INTERRUPTIBLE);
-            schedule_timeout(info->state->close_delay);
-        }
+        if (info->state->close_delay)
+            schedule_timeout_interruptible(info->state->close_delay);
         wake_up_interruptible(&info->open_wait);
     }
     info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
@@ -1496,7 +1494,7 @@ static void siccuart_wait_until_sent(struct tty_struct *tty, int timeout)
      * Note: we have to use pretty tight timings here to satisfy
      * the NIST-PCTS.
      */
-    char_time = (info->timeout - HZ/50) / info->port->fifosize;
+    char_time = (info->timeout - msecs_to_jiffies(20)) / info->port->fifosize;
     char_time = char_time / 5;
     if (char_time == 0)
         char_time = 1;
@@ -1521,8 +1519,7 @@ static void siccuart_wait_until_sent(struct tty_struct *tty, int timeout)
            tty->index, jiffies,
            expire, char_time);
     while ((readb(info->port->uart_base + BL_SICC_LSR) & _LSR_TX_ALL) != _LSR_TX_ALL) {
-        set_current_state(TASK_INTERRUPTIBLE);
-        schedule_timeout(char_time);
+        schedule_timeout_interruptible(char_time);
         if (signal_pending(current))
             break;
         if (timeout && time_after(jiffies, expire))
@@ -1773,7 +1770,7 @@ int __init siccuart_init(void)
     for (i = 0; i < SERIAL_SICC_NR; i++) {
         struct SICC_state *state = sicc_state + i;
         state->line     = i;
-        state->close_delay  = 5 * HZ / 10;
+        state->close_delay  = msecs_to_jiffies(500);
         state->closing_wait = 30 * HZ;
 	spin_lock_init(&state->sicc_lock);
     }

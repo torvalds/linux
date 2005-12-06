@@ -1812,11 +1812,6 @@ it may overflow the messages buffer, but try to get as much of it as
 you can
 
 
-if you get an Oops, run ksymoops to decode it so that the
-names of the offending functions are provided. A non-decoded Oops is
-pretty useless
-
-
 send a copy of your devfsd configuration file(s)
 
 send the bug report to me first.

@@ -1,6 +1,10 @@
 #if (!defined(dprintk))
 # define dprintk(x)
 #endif
+/* eg: if (nblank(dprintk(x))) */
+#define _nblank(x) #x
+#define nblank(x) _nblank(x)[0]
+
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -15,7 +19,7 @@
 #define AAC_MAX_LUN		(8)
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
-#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)512)
+#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)256)
 
 /*
  * These macros convert from physical channels to virtual channels
@@ -302,7 +306,6 @@ enum aac_queue_types {
  */
 
 #define		FsaNormal	1
-#define		FsaHigh		2
 
 /*
  * Define the FIB. The FIB is the where all the requested data and
@@ -478,6 +481,7 @@ enum aac_log_level {
 #define FSAFS_NTC_FIB_CONTEXT			0x030c
 
 struct aac_dev;
+struct fib;
 
 struct adapter_ops
 {
@@ -486,6 +490,7 @@ struct adapter_ops
 	void (*adapter_disable_int)(struct aac_dev *dev);
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
+	int  (*adapter_send)(struct fib * fib);
 };
 
 /*
@@ -546,8 +551,6 @@ struct aac_queue {
                   /* This is only valid for adapter to host command queues. */ 
 	spinlock_t	 	*lock;		/* Spinlock for this queue must take this lock before accessing the lock */
 	spinlock_t		lockdata;	/* Actual lock (used only on one side of the lock) */
-	unsigned long		SavedIrql;     	/* Previous IRQL when the spin lock is taken */
-	u32			padding;	/* Padding - FIXME - can remove I believe */
 	struct list_head 	cmdq;	   	/* A queue of FIBs which need to be prcessed by the FS thread. This is */
                                 		/* only valid for command queues which receive entries from the adapter. */
 	struct list_head	pendingq;	/* A queue of outstanding fib's to the adapter. */
@@ -658,6 +661,10 @@ struct rx_mu_registers {
 						Status Register */
 	__le32	OIMR;	    /*	1334h  | 34h | Outbound Interrupt 
 						Mask Register */
+	__le32	reserved2;  /*	1338h  | 38h | Reserved */
+	__le32	reserved3;  /*	133Ch  | 3Ch | Reserved */
+	__le32	InboundQueue;/*	1340h  | 40h | Inbound Queue Port relative to firmware */
+	__le32	OutboundQueue;/*1344h  | 44h | Outbound Queue Port relative to firmware */
 			    /* * Must access through ATU Inbound 
 			     	 Translation Window */
 };
@@ -692,8 +699,8 @@ struct rx_inbound {
 #define OutboundDoorbellReg	MUnit.ODR
 
 struct rx_registers {
-	struct rx_mu_registers		MUnit;		/* 1300h - 1334h */
-	__le32				reserved1[6];	/* 1338h - 134ch */
+	struct rx_mu_registers		MUnit;		/* 1300h - 1344h */
+	__le32				reserved1[2];	/* 1348h - 134ch */
 	struct rx_inbound		IndexRegs;
 };
 
@@ -710,8 +717,8 @@ struct rx_registers {
 #define rkt_inbound rx_inbound
 
 struct rkt_registers {
-	struct rkt_mu_registers		MUnit;		 /* 1300h - 1334h */
-	__le32				reserved1[1010]; /* 1338h - 22fch */
+	struct rkt_mu_registers		MUnit;		 /* 1300h - 1344h */
+	__le32				reserved1[1006]; /* 1348h - 22fch */
 	struct rkt_inbound		IndexRegs;	 /* 2300h - */
 };
 
@@ -719,8 +726,6 @@ struct rkt_registers {
 #define rkt_readl(AEP, CSR)		readl(&((AEP)->regs.rkt->CSR))
 #define rkt_writeb(AEP, CSR, value)	writeb(value, &((AEP)->regs.rkt->CSR))
 #define rkt_writel(AEP, CSR, value)	writel(value, &((AEP)->regs.rkt->CSR))
-
-struct fib;
 
 typedef void (*fib_callback)(void *ctxt, struct fib *fibctx);
 
@@ -776,7 +781,9 @@ struct fsa_dev_info {
 	u64		last;
 	u64		size;
 	u32		type;
+	u32		config_waiting_on;
 	u16		queue_depth;
+	u8		config_needed;
 	u8		valid;
 	u8		ro;
 	u8		locked;
@@ -934,7 +941,6 @@ struct aac_dev
 	const char		*name;
 	int			id;
 
-	u16			irq_mask;
 	/*
 	 *	negotiated FIB settings
 	 */
@@ -969,6 +975,7 @@ struct aac_dev
 	struct adapter_ops	a_ops;
 	unsigned long		fsrev;		/* Main driver's revision number */
 	
+	unsigned		base_size;	/* Size of mapped in region */
 	struct aac_init		*init;		/* Holds initialization info to communicate with adapter */
 	dma_addr_t		init_pa; 	/* Holds physical address of the init struct */
 	
@@ -989,6 +996,9 @@ struct aac_dev
 	/*
 	 *	The following is the device specific extension.
 	 */
+#if (!defined(AAC_MIN_FOOTPRINT_SIZE))
+#	define AAC_MIN_FOOTPRINT_SIZE 8192
+#endif
 	union
 	{
 		struct sa_registers __iomem *sa;
@@ -1009,9 +1019,11 @@ struct aac_dev
 	u8			nondasd_support; 
 	u8			dac_support;
 	u8			raid_scsi_mode;
+	u8			new_comm_interface;
 	/* macro side-effects BEWARE */
 #	define			raw_io_interface \
 	  init->InitStructRevision==cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4)
+	u8			raw_io_64;
 	u8			printf_enabled;
 };
 
@@ -1030,6 +1042,8 @@ struct aac_dev
 #define aac_adapter_check_health(dev) \
 	(dev)->a_ops.adapter_check_health(dev)
 
+#define aac_adapter_send(fib) \
+	((fib)->dev)->a_ops.adapter_send(fib)
 
 #define FIB_CONTEXT_FLAG_TIMED_OUT		(0x00000001)
 
@@ -1362,8 +1376,10 @@ struct aac_srb_reply
 #define		VM_CtBlockVerify64	18
 #define		VM_CtHostRead64		19
 #define		VM_CtHostWrite64	20
+#define		VM_DrvErrTblLog		21
+#define		VM_NameServe64		22
 
-#define		MAX_VMCOMMAND_NUM	21	/* used for sizing stats array - leave last */
+#define		MAX_VMCOMMAND_NUM	23	/* used for sizing stats array - leave last */
 
 /*
  *	Descriptive information (eg, vital stats)
@@ -1472,6 +1488,7 @@ struct aac_mntent {
 						   manager (eg, filesystem) */
 	__le32			altoid;		/* != oid <==> snapshot or 
 						   broken mirror exists */
+	__le32			capacityhigh;
 };
 
 #define FSCS_NOTCLEAN	0x0001  /* fsck is neccessary before mounting */
@@ -1553,7 +1570,7 @@ struct fib_ioctl
 
 struct revision
 {
-	__le32 compat;
+	u32 compat;
 	__le32 version;
 	__le32 build;
 };
@@ -1707,6 +1724,7 @@ extern struct aac_common aac_config;
 #define		AifCmdJobProgress	2	/* Progress report */
 #define			AifJobCtrZero	101	/* Array Zero progress */
 #define			AifJobStsSuccess 1	/* Job completes */
+#define			AifJobStsRunning 102	/* Job running */
 #define		AifCmdAPIReport		3	/* Report from other user of API */
 #define		AifCmdDriverNotify	4	/* Notify host driver of event */
 #define			AifDenMorphComplete 200	/* A morph operation completed */
@@ -1771,12 +1789,14 @@ int aac_rkt_init(struct aac_dev *dev);
 int aac_sa_init(struct aac_dev *dev);
 unsigned int aac_response_normal(struct aac_queue * q);
 unsigned int aac_command_normal(struct aac_queue * q);
+unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index);
 int aac_command_thread(struct aac_dev * dev);
 int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context *fibctx);
 int fib_adapter_complete(struct fib * fibptr, unsigned short size);
 struct aac_driver_ident* aac_get_driver_ident(int devtype);
 int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
+int probe_container(struct aac_dev *dev, int cid);
 extern int numacb;
 extern int acbsize;
 extern char aac_driver_version[];

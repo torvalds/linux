@@ -20,6 +20,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/sizes.h>
 #include <asm/hardware/amba.h>
 
 #include <sound/driver.h>

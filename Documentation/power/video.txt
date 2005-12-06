@@ -11,9 +11,9 @@ boot video card. (Kernel usually does not even contain video card
 driver -- vesafb and vgacon are widely used).
 
 This is not problem for swsusp, because during swsusp resume, BIOS is
-run normally so video card is normally initialized. S3 has absolutely
-no chance of working with SMP/HT. Be sure it to turn it off before
-testing (swsusp should work ok, OTOH).
+run normally so video card is normally initialized. It should not be
+problem for S1 standby, because hardware should retain its state over
+that.
 
 There are a few types of systems where video works after S3 resume:
 
@@ -64,7 +64,7 @@ your video card (good luck getting docs :-(). Maybe suspending from X
 (proper X, knowing your hardware, not XF68_FBcon) might have better
 chance of working.
 
-Table of known working systems:
+Table of known working notebooks:
 
 Model                           hack (or "how to do it")
 ------------------------------------------------------------------------------
@@ -73,7 +73,7 @@ Acer TM 242FX			vbetool (6)
 Acer TM C110			video_post (8)
 Acer TM C300                    vga=normal (only suspend on console, not in X), vbetool (6) or video_post (8)
 Acer TM 4052LCi		        s3_bios (2)
-Acer TM 636Lci			s3_bios vga=normal (2)
+Acer TM 636Lci			s3_bios,s3_mode (4)
 Acer TM 650 (Radeon M7)		vga=normal plus boot-radeon (5) gets text console back
 Acer TM 660			??? (*)
 Acer TM 800			vga=normal, X patches, see webpage (5) or vbetool (6)
@@ -136,6 +136,13 @@ Toshiba Satellite 4090XCDT      ??? (*)
 Toshiba Satellite P10-554       s3_bios,s3_mode (4)(****)
 Toshiba M30                     (2) xor X with nvidia driver using internal AGP
 Uniwill 244IIO			??? (*)
+
+Known working desktop systems
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Mainboard	    Graphics card                 hack (or "how to do it")
+------------------------------------------------------------------------------
+Asus A7V8X	    nVidia RIVA TNT2 model 64	  s3_bios,s3_mode (4)
 
 
 (*) from http://www.ubuntulinux.org/wiki/HoaryPMResults, not sure

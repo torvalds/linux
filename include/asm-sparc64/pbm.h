@@ -27,23 +27,27 @@
  * PCI bus.
  */
 
-#define PBM_LOGCLUSTERS 3
-#define PBM_NCLUSTERS (1 << PBM_LOGCLUSTERS)
-
 struct pci_controller_info;
 
 /* This contains the software state necessary to drive a PCI
  * controller's IOMMU.
  */
+struct pci_iommu_arena {
+	unsigned long	*map;
+	unsigned int	hint;
+	unsigned int	limit;
+};
+
 struct pci_iommu {
 	/* This protects the controller's IOMMU and all
 	 * streaming buffers underneath.
 	 */
 	spinlock_t	lock;
 
+	struct pci_iommu_arena arena;
+
 	/* IOMMU page table, a linear array of ioptes. */
 	iopte_t		*page_table;		/* The page table itself. */
-	int		page_table_sz_bits;	/* log2 of ow many pages does it map? */
 
 	/* Base PCI memory space address where IOMMU mappings
 	 * begin.
@@ -62,28 +66,12 @@ struct pci_iommu {
 	 */
 	unsigned long	write_complete_reg;
 
-	/* The lowest used consistent mapping entry.  Since
-	 * we allocate consistent maps out of cluster 0 this
-	 * is relative to the beginning of closter 0.
-	 */
-	u32		lowest_consistent_map;
-
 	/* In order to deal with some buggy third-party PCI bridges that
 	 * do wrong prefetching, we never mark valid mappings as invalid.
 	 * Instead we point them at this dummy page.
 	 */
 	unsigned long	dummy_page;
 	unsigned long	dummy_page_pa;
-
-	/* If PBM_NCLUSTERS is ever decreased to 4 or lower,
-	 * or if largest supported page_table_sz * 8K goes above
-	 * 2GB, you must increase the size of the type of
-	 * these counters.  You have been duly warned. -DaveM
-	 */
-	struct {
-		u16	next;
-		u16	flush;
-	} alloc_info[PBM_NCLUSTERS];
 
 	/* CTX allocation. */
 	unsigned long ctx_lowest_free;
@@ -102,7 +90,7 @@ struct pci_iommu {
 	u32 dma_addr_mask;
 };
 
-extern void pci_iommu_table_init(struct pci_iommu *, int);
+extern void pci_iommu_table_init(struct pci_iommu *iommu, int tsbsize, u32 dma_offset, u32 dma_addr_mask);
 
 /* This describes a PCI bus module's streaming buffer. */
 struct pci_strbuf {

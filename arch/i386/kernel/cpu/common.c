@@ -30,8 +30,6 @@ static int disable_x86_serial_nr __devinitdata = 1;
 
 struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
 
-extern void mcheck_init(struct cpuinfo_x86 *c);
-
 extern int disable_pse;
 
 static void default_init(struct cpuinfo_x86 * c)
@@ -233,10 +231,10 @@ static void __init early_cpu_detect(void)
 		cpuid(0x00000001, &tfms, &misc, &junk, &cap0);
 		c->x86 = (tfms >> 8) & 15;
 		c->x86_model = (tfms >> 4) & 15;
-		if (c->x86 == 0xf) {
+		if (c->x86 == 0xf)
 			c->x86 += (tfms >> 20) & 0xff;
+		if (c->x86 >= 0x6)
 			c->x86_model += ((tfms >> 16) & 0xF) << 4;
-		}
 		c->x86_mask = tfms & 15;
 		if (cap0 & (1<<19))
 			c->x86_cache_alignment = ((misc >> 8) & 0xff) * 8;
@@ -335,7 +333,7 @@ void __devinit identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_model = c->x86_mask = 0;	/* So far unknown... */
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
-	c->x86_num_cores = 1;
+	c->x86_max_cores = 1;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
 	if (!have_cpuid_p()) {
@@ -429,9 +427,8 @@ void __devinit identify_cpu(struct cpuinfo_x86 *c)
 	}
 
 	/* Init Machine Check Exception if available. */
-#ifdef CONFIG_X86_MCE
 	mcheck_init(c);
-#endif
+
 	if (c == &boot_cpu_data)
 		sysenter_setup();
 	enable_sep_cpu();
@@ -446,52 +443,44 @@ void __devinit identify_cpu(struct cpuinfo_x86 *c)
 void __devinit detect_ht(struct cpuinfo_x86 *c)
 {
 	u32 	eax, ebx, ecx, edx;
-	int 	index_msb, tmp;
+	int 	index_msb, core_bits;
 	int 	cpu = smp_processor_id();
+
+	cpuid(1, &eax, &ebx, &ecx, &edx);
+
+	c->apicid = phys_pkg_id((ebx >> 24) & 0xFF, 0);
 
 	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		return;
 
-	cpuid(1, &eax, &ebx, &ecx, &edx);
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
 
 	if (smp_num_siblings == 1) {
 		printk(KERN_INFO  "CPU: Hyper-Threading is disabled\n");
 	} else if (smp_num_siblings > 1 ) {
-		index_msb = 31;
 
 		if (smp_num_siblings > NR_CPUS) {
 			printk(KERN_WARNING "CPU: Unsupported number of the siblings %d", smp_num_siblings);
 			smp_num_siblings = 1;
 			return;
 		}
-		tmp = smp_num_siblings;
-		while ((tmp & 0x80000000 ) == 0) {
-			tmp <<=1 ;
-			index_msb--;
-		}
-		if (smp_num_siblings & (smp_num_siblings - 1))
-			index_msb++;
+
+		index_msb = get_count_order(smp_num_siblings);
 		phys_proc_id[cpu] = phys_pkg_id((ebx >> 24) & 0xFF, index_msb);
 
 		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
 		       phys_proc_id[cpu]);
 
-		smp_num_siblings = smp_num_siblings / c->x86_num_cores;
+		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
-		tmp = smp_num_siblings;
-		index_msb = 31;
-		while ((tmp & 0x80000000) == 0) {
-			tmp <<=1 ;
-			index_msb--;
-		}
+		index_msb = get_count_order(smp_num_siblings) ;
 
-		if (smp_num_siblings & (smp_num_siblings - 1))
-			index_msb++;
+		core_bits = get_count_order(c->x86_max_cores);
 
-		cpu_core_id[cpu] = phys_pkg_id((ebx >> 24) & 0xFF, index_msb);
+		cpu_core_id[cpu] = phys_pkg_id((ebx >> 24) & 0xFF, index_msb) &
+					       ((1 << core_bits) - 1);
 
-		if (c->x86_num_cores > 1)
+		if (c->x86_max_cores > 1)
 			printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
 			       cpu_core_id[cpu]);
 	}
@@ -573,6 +562,7 @@ void __devinit cpu_init(void)
 	int cpu = smp_processor_id();
 	struct tss_struct * t = &per_cpu(init_tss, cpu);
 	struct thread_struct *thread = &current->thread;
+	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
 	__u32 stk16_off = (__u32)&per_cpu(cpu_16bit_stack, cpu);
 
 	if (cpu_test_and_set(cpu, cpu_initialized)) {
@@ -594,24 +584,16 @@ void __devinit cpu_init(void)
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
-	memcpy(&per_cpu(cpu_gdt_table, cpu), cpu_gdt_table,
-	       GDT_SIZE);
+ 	memcpy(gdt, cpu_gdt_table, GDT_SIZE);
 
 	/* Set up GDT entry for 16bit stack */
-	*(__u64 *)&(per_cpu(cpu_gdt_table, cpu)[GDT_ENTRY_ESPFIX_SS]) |=
+ 	*(__u64 *)(&gdt[GDT_ENTRY_ESPFIX_SS]) |=
 		((((__u64)stk16_off) << 16) & 0x000000ffffff0000ULL) |
 		((((__u64)stk16_off) << 32) & 0xff00000000000000ULL) |
 		(CPU_16BIT_STACK_SIZE - 1);
 
 	cpu_gdt_descr[cpu].size = GDT_SIZE - 1;
-	cpu_gdt_descr[cpu].address =
-	    (unsigned long)&per_cpu(cpu_gdt_table, cpu);
-
-	/*
-	 * Set up the per-thread TLS descriptor cache:
-	 */
-	memcpy(thread->tls_array, &per_cpu(cpu_gdt_table, cpu),
-		GDT_ENTRY_TLS_ENTRIES * 8);
+ 	cpu_gdt_descr[cpu].address = (unsigned long)gdt;
 
 	load_gdt(&cpu_gdt_descr[cpu]);
 	load_idt(&idt_descr);

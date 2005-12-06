@@ -11,16 +11,16 @@
 #include <asm/assembler.h>
 #include <asm/hardware.h>
 
-.insw_bad_alignment:
-		adr	r0, .insw_bad_align_msg
+.Linsw_bad_alignment:
+		adr	r0, .Linsw_bad_align_msg
 		mov	r2, lr
 		b	panic
-.insw_bad_align_msg:
+.Linsw_bad_align_msg:
 		.asciz	"insw: bad buffer alignment (0x%p, lr=0x%08lX)\n"
 		.align
 
-.insw_align:	tst	r1, #1
-		bne	.insw_bad_alignment
+.Linsw_align:	tst	r1, #1
+		bne	.Linsw_bad_alignment
 
 		ldr	r3, [r0]
 		strb	r3, [r1], #1
@@ -34,16 +34,16 @@ ENTRY(__raw_readsw)
 		teq	r2, #0		@ do we have to check for the zero len?
 		moveq	pc, lr
 		tst	r1, #3
-		bne	.insw_align
+		bne	.Linsw_align
 
-.insw_aligned:	mov	ip, #0xff
+.Linsw_aligned:	mov	ip, #0xff
 		orr	ip, ip, ip, lsl #8
 		stmfd	sp!, {r4, r5, r6, lr}
 
 		subs	r2, r2, #8
-		bmi	.no_insw_8
+		bmi	.Lno_insw_8
 
-.insw_8_lp:	ldr	r3, [r0]
+.Linsw_8_lp:	ldr	r3, [r0]
 		and	r3, r3, ip
 		ldr	r4, [r0]
 		orr	r3, r3, r4, lsl #16
@@ -66,13 +66,13 @@ ENTRY(__raw_readsw)
 		stmia	r1!, {r3 - r6}
 
 		subs	r2, r2, #8
-		bpl	.insw_8_lp
+		bpl	.Linsw_8_lp
 
 		tst	r2, #7
 		LOADREGS(eqfd, sp!, {r4, r5, r6, pc})
 
-.no_insw_8:	tst	r2, #4
-		beq	.no_insw_4
+.Lno_insw_8:	tst	r2, #4
+		beq	.Lno_insw_4
 
 		ldr	r3, [r0]
 		and	r3, r3, ip
@@ -86,8 +86,8 @@ ENTRY(__raw_readsw)
 
 		stmia	r1!, {r3, r4}
 
-.no_insw_4:	tst	r2, #2
-		beq	.no_insw_2
+.Lno_insw_4:	tst	r2, #2
+		beq	.Lno_insw_2
 
 		ldr	r3, [r0]
 		and	r3, r3, ip
@@ -96,7 +96,7 @@ ENTRY(__raw_readsw)
 
 		str	r3, [r1], #4
 
-.no_insw_2:	tst	r2, #1
+.Lno_insw_2:	tst	r2, #1
 		ldrne	r3, [r0]
 		strneb	r3, [r1], #1
 		movne	r3, r3, lsr #8

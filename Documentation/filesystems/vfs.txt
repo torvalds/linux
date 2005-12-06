@@ -3,7 +3,7 @@
 
 	Original author: Richard Gooch <rgooch@atnf.csiro.au>
 
-		  Last updated on August 25, 2005
+		  Last updated on October 28, 2005
 
   Copyright (C) 1999 Richard Gooch
   Copyright (C) 2005 Pekka Enberg
@@ -11,62 +11,61 @@
   This file is released under the GPLv2.
 
 
-What is it?
-===========
+Introduction
+============
 
-The Virtual File System (otherwise known as the Virtual Filesystem
-Switch) is the software layer in the kernel that provides the
-filesystem interface to userspace programs. It also provides an
-abstraction within the kernel which allows different filesystem
-implementations to coexist.
+The Virtual File System (also known as the Virtual Filesystem Switch)
+is the software layer in the kernel that provides the filesystem
+interface to userspace programs. It also provides an abstraction
+within the kernel which allows different filesystem implementations to
+coexist.
 
-
-A Quick Look At How It Works
-============================
-
-In this section I'll briefly describe how things work, before
-launching into the details. I'll start with describing what happens
-when user programs open and manipulate files, and then look from the
-other view which is how a filesystem is supported and subsequently
-mounted.
+VFS system calls open(2), stat(2), read(2), write(2), chmod(2) and so
+on are called from a process context. Filesystem locking is described
+in the document Documentation/filesystems/Locking.
 
 
-Opening a File
---------------
+Directory Entry Cache (dcache)
+------------------------------
 
-The VFS implements the open(2), stat(2), chmod(2) and similar system
-calls. The pathname argument is used by the VFS to search through the
-directory entry cache (dentry cache or "dcache"). This provides a very
-fast look-up mechanism to translate a pathname (filename) into a
-specific dentry.
+The VFS implements the open(2), stat(2), chmod(2), and similar system
+calls. The pathname argument that is passed to them is used by the VFS
+to search through the directory entry cache (also known as the dentry
+cache or dcache). This provides a very fast look-up mechanism to
+translate a pathname (filename) into a specific dentry. Dentries live
+in RAM and are never saved to disc: they exist only for performance.
 
-An individual dentry usually has a pointer to an inode. Inodes are the
-things that live on disc drives, and can be regular files (you know:
-those things that you write data into), directories, FIFOs and other
-beasts. Dentries live in RAM and are never saved to disc: they exist
-only for performance. Inodes live on disc and are copied into memory
-when required. Later any changes are written back to disc. The inode
-that lives in RAM is a VFS inode, and it is this which the dentry
-points to. A single inode can be pointed to by multiple dentries
-(think about hardlinks).
+The dentry cache is meant to be a view into your entire filespace. As
+most computers cannot fit all dentries in the RAM at the same time,
+some bits of the cache are missing. In order to resolve your pathname
+into a dentry, the VFS may have to resort to creating dentries along
+the way, and then loading the inode. This is done by looking up the
+inode.
 
-The dcache is meant to be a view into your entire filespace. Unlike
-Linus, most of us losers can't fit enough dentries into RAM to cover
-all of our filespace, so the dcache has bits missing. In order to
-resolve your pathname into a dentry, the VFS may have to resort to
-creating dentries along the way, and then loading the inode. This is
-done by looking up the inode.
 
-To look up an inode (usually read from disc) requires that the VFS
-calls the lookup() method of the parent directory inode. This method
-is installed by the specific filesystem implementation that the inode
-lives in. There will be more on this later.
+The Inode Object
+----------------
 
-Once the VFS has the required dentry (and hence the inode), we can do
-all those boring things like open(2) the file, or stat(2) it to peek
-at the inode data. The stat(2) operation is fairly simple: once the
-VFS has the dentry, it peeks at the inode data and passes some of it
-back to userspace.
+An individual dentry usually has a pointer to an inode. Inodes are
+filesystem objects such as regular files, directories, FIFOs and other
+beasts.  They live either on the disc (for block device filesystems)
+or in the memory (for pseudo filesystems). Inodes that live on the
+disc are copied into the memory when required and changes to the inode
+are written back to disc. A single inode can be pointed to by multiple
+dentries (hard links, for example, do this).
+
+To look up an inode requires that the VFS calls the lookup() method of
+the parent directory inode. This method is installed by the specific
+filesystem implementation that the inode lives in. Once the VFS has
+the required dentry (and hence the inode), we can do all those boring
+things like open(2) the file, or stat(2) it to peek at the inode
+data. The stat(2) operation is fairly simple: once the VFS has the
+dentry, it peeks at the inode data and passes some of it back to
+userspace.
+
+
+The File Object
+---------------
 
 Opening a file requires another operation: allocation of a file
 structure (this is the kernel-side implementation of file
@@ -74,51 +73,39 @@ descriptors). The freshly allocated file structure is initialized with
 a pointer to the dentry and a set of file operation member functions.
 These are taken from the inode data. The open() file method is then
 called so the specific filesystem implementation can do it's work. You
-can see that this is another switch performed by the VFS.
-
-The file structure is placed into the file descriptor table for the
-process.
+can see that this is another switch performed by the VFS. The file
+structure is placed into the file descriptor table for the process.
 
 Reading, writing and closing files (and other assorted VFS operations)
 is done by using the userspace file descriptor to grab the appropriate
-file structure, and then calling the required file structure method
-function to do whatever is required.
-
-For as long as the file is open, it keeps the dentry "open" (in use),
-which in turn means that the VFS inode is still in use.
-
-All VFS system calls (i.e. open(2), stat(2), read(2), write(2),
-chmod(2) and so on) are called from a process context. You should
-assume that these calls are made without any kernel locks being
-held. This means that the processes may be executing the same piece of
-filesystem or driver code at the same time, on different
-processors. You should ensure that access to shared resources is
-protected by appropriate locks.
+file structure, and then calling the required file structure method to
+do whatever is required. For as long as the file is open, it keeps the
+dentry in use, which in turn means that the VFS inode is still in use.
 
 
 Registering and Mounting a Filesystem
--------------------------------------
+=====================================
 
-If you want to support a new kind of filesystem in the kernel, all you
-need to do is call register_filesystem(). You pass a structure
-describing the filesystem implementation (struct file_system_type)
-which is then added to an internal table of supported filesystems. You
-can do:
+To register and unregister a filesystem, use the following API
+functions:
 
-% cat /proc/filesystems
+   #include <linux/fs.h>
 
-to see what filesystems are currently available on your system.
+   extern int register_filesystem(struct file_system_type *);
+   extern int unregister_filesystem(struct file_system_type *);
 
-When a request is made to mount a block device onto a directory in
-your filespace the VFS will call the appropriate method for the
-specific filesystem. The dentry for the mount point will then be
-updated to point to the root inode for the new filesystem.
+The passed struct file_system_type describes your filesystem. When a
+request is made to mount a device onto a directory in your filespace,
+the VFS will call the appropriate get_sb() method for the specific
+filesystem. The dentry for the mount point will then be updated to
+point to the root inode for the new filesystem.
 
-It's now time to look at things in more detail.
+You can see all filesystems that are registered to the kernel in the
+file /proc/filesystems.
 
 
 struct file_system_type
-=======================
+-----------------------
 
 This describes the filesystem. As of kernel 2.6.13, the following
 members are defined:
@@ -197,8 +184,14 @@ A fill_super() method implementation has the following arguments:
   int silent: whether or not to be silent on error
 
 
+The Superblock Object
+=====================
+
+A superblock object represents a mounted filesystem.
+
+
 struct super_operations
-=======================
+-----------------------
 
 This describes how the VFS can manipulate the superblock of your
 filesystem. As of kernel 2.6.13, the following members are defined:
@@ -286,9 +279,9 @@ or bottom half).
   	a superblock. The second parameter indicates whether the method
 	should wait until the write out has been completed. Optional.
 
-  write_super_lockfs: called when VFS is locking a filesystem and forcing
-  	it into a consistent state.  This function is currently used by the
-	Logical Volume Manager (LVM).
+  write_super_lockfs: called when VFS is locking a filesystem and
+  	forcing it into a consistent state.  This method is currently
+  	used by the Logical Volume Manager (LVM).
 
   unlockfs: called when VFS is unlocking a filesystem and making it writable
   	again.
@@ -317,8 +310,14 @@ field. This is a pointer to a "struct inode_operations" which
 describes the methods that can be performed on individual inodes.
 
 
+The Inode Object
+================
+
+An inode object represents an object within the filesystem.
+
+
 struct inode_operations
-=======================
+-----------------------
 
 This describes how the VFS can manipulate an inode in your
 filesystem. As of kernel 2.6.13, the following members are defined:
@@ -394,51 +393,62 @@ otherwise noted.
 	will probably need to call d_instantiate() just as you would
 	in the create() method
 
+  rename: called by the rename(2) system call to rename the object to
+	have the parent and name given by the second inode and dentry.
+
   readlink: called by the readlink(2) system call. Only required if
 	you want to support reading symbolic links
 
   follow_link: called by the VFS to follow a symbolic link to the
 	inode it points to.  Only required if you want to support
-	symbolic links.  This function returns a void pointer cookie
+	symbolic links.  This method returns a void pointer cookie
 	that is passed to put_link().
 
   put_link: called by the VFS to release resources allocated by
-  	follow_link().  The cookie returned by follow_link() is passed to
-	to this function as the last parameter.  It is used by filesystems
-	such as NFS where page cache is not stable (i.e. page that was
-	installed when the symbolic link walk started might not be in the
-	page cache at the end of the walk).
+  	follow_link().  The cookie returned by follow_link() is passed
+  	to to this method as the last parameter.  It is used by
+  	filesystems such as NFS where page cache is not stable
+  	(i.e. page that was installed when the symbolic link walk
+  	started might not be in the page cache at the end of the
+  	walk).
 
-  truncate: called by the VFS to change the size of a file.  The i_size
- 	field of the inode is set to the desired size by the VFS before
-	this function is called.  This function is called by the truncate(2)
-	system call and related functionality.
+  truncate: called by the VFS to change the size of a file.  The
+ 	i_size field of the inode is set to the desired size by the
+ 	VFS before this method is called.  This method is called by
+ 	the truncate(2) system call and related functionality.
 
   permission: called by the VFS to check for access rights on a POSIX-like
   	filesystem.
 
-  setattr: called by the VFS to set attributes for a file.  This function is
-  	called by chmod(2) and related system calls.
+  setattr: called by the VFS to set attributes for a file. This method
+  	is called by chmod(2) and related system calls.
 
-  getattr: called by the VFS to get attributes of a file.  This function is
-  	called by stat(2) and related system calls.
+  getattr: called by the VFS to get attributes of a file. This method
+  	is called by stat(2) and related system calls.
 
   setxattr: called by the VFS to set an extended attribute for a file.
-  	Extended attribute is a name:value pair associated with an inode. This
-	function is called by setxattr(2) system call.
+  	Extended attribute is a name:value pair associated with an
+  	inode. This method is called by setxattr(2) system call.
 
-  getxattr: called by the VFS to retrieve the value of an extended attribute
-  	name.  This function is called by getxattr(2) function call.
+  getxattr: called by the VFS to retrieve the value of an extended
+  	attribute name. This method is called by getxattr(2) function
+  	call.
 
-  listxattr: called by the VFS to list all extended attributes for a given
-  	file.  This function is called by listxattr(2) system call.
+  listxattr: called by the VFS to list all extended attributes for a
+  	given file. This method is called by listxattr(2) system call.
 
-  removexattr: called by the VFS to remove an extended attribute from a file.
-  	This function is called by removexattr(2) system call.
+  removexattr: called by the VFS to remove an extended attribute from
+  	a file. This method is called by removexattr(2) system call.
+
+
+The Address Space Object
+========================
+
+The address space object is used to identify pages in the page cache.
 
 
 struct address_space_operations
-===============================
+-------------------------------
 
 This describes how the VFS can manipulate mapping of a file to page cache in
 your filesystem. As of kernel 2.6.13, the following members are defined:
@@ -502,8 +512,14 @@ struct address_space_operations {
 	it.  An example implementation can be found in fs/ext2/xip.c.
 
 
+The File Object
+===============
+
+A file object represents a file opened by a process.
+
+
 struct file_operations
-======================
+----------------------
 
 This describes how the VFS can manipulate an open file. As of kernel
 2.6.13, the following members are defined:
@@ -661,7 +677,7 @@ of child dentries. Child dentries are basically like files in a
 directory.
 
 
-Directory Entry Cache APIs
+Directory Entry Cache API
 --------------------------
 
 There are a number of functions defined which permit a filesystem to
@@ -705,178 +721,24 @@ manipulate dentries:
 	and the dentry is returned. The caller must use d_put()
 	to free the dentry when it finishes using it.
 
-
-RCU-based dcache locking model
-------------------------------
-
-On many workloads, the most common operation on dcache is
-to look up a dentry, given a parent dentry and the name
-of the child. Typically, for every open(), stat() etc.,
-the dentry corresponding to the pathname will be looked
-up by walking the tree starting with the first component
-of the pathname and using that dentry along with the next
-component to look up the next level and so on. Since it
-is a frequent operation for workloads like multiuser
-environments and web servers, it is important to optimize
-this path.
-
-Prior to 2.5.10, dcache_lock was acquired in d_lookup and thus
-in every component during path look-up. Since 2.5.10 onwards,
-fast-walk algorithm changed this by holding the dcache_lock
-at the beginning and walking as many cached path component
-dentries as possible. This significantly decreases the number
-of acquisition of dcache_lock. However it also increases the
-lock hold time significantly and affects performance in large
-SMP machines. Since 2.5.62 kernel, dcache has been using
-a new locking model that uses RCU to make dcache look-up
-lock-free.
-
-The current dcache locking model is not very different from the existing
-dcache locking model. Prior to 2.5.62 kernel, dcache_lock
-protected the hash chain, d_child, d_alias, d_lru lists as well
-as d_inode and several other things like mount look-up. RCU-based
-changes affect only the way the hash chain is protected. For everything
-else the dcache_lock must be taken for both traversing as well as
-updating. The hash chain updates too take the dcache_lock.
-The significant change is the way d_lookup traverses the hash chain,
-it doesn't acquire the dcache_lock for this and rely on RCU to
-ensure that the dentry has not been *freed*.
+For further information on dentry locking, please refer to the document
+Documentation/filesystems/dentry-locking.txt.
 
 
-Dcache locking details
-----------------------
+Resources
+=========
 
-For many multi-user workloads, open() and stat() on files are
-very frequently occurring operations. Both involve walking
-of path names to find the dentry corresponding to the
-concerned file. In 2.4 kernel, dcache_lock was held
-during look-up of each path component. Contention and
-cache-line bouncing of this global lock caused significant
-scalability problems. With the introduction of RCU
-in Linux kernel, this was worked around by making
-the look-up of path components during path walking lock-free.
+(Note some of these resources are not up-to-date with the latest kernel
+ version.)
 
+Creating Linux virtual filesystems. 2002
+    <http://lwn.net/Articles/13325/>
 
-Safe lock-free look-up of dcache hash table
-===========================================
+The Linux Virtual File-system Layer by Neil Brown. 1999
+    <http://www.cse.unsw.edu.au/~neilb/oss/linux-commentary/vfs.html>
 
-Dcache is a complex data structure with the hash table entries
-also linked together in other lists. In 2.4 kernel, dcache_lock
-protected all the lists. We applied RCU only on hash chain
-walking. The rest of the lists are still protected by dcache_lock.
-Some of the important changes are :
+A tour of the Linux VFS by Michael K. Johnson. 1996
+    <http://www.tldp.org/LDP/khg/HyperNews/get/fs/vfstour.html>
 
-1. The deletion from hash chain is done using hlist_del_rcu() macro which
-   doesn't initialize next pointer of the deleted dentry and this
-   allows us to walk safely lock-free while a deletion is happening.
-
-2. Insertion of a dentry into the hash table is done using
-   hlist_add_head_rcu() which take care of ordering the writes -
-   the writes to the dentry must be visible before the dentry
-   is inserted. This works in conjunction with hlist_for_each_rcu()
-   while walking the hash chain. The only requirement is that
-   all initialization to the dentry must be done before hlist_add_head_rcu()
-   since we don't have dcache_lock protection while traversing
-   the hash chain. This isn't different from the existing code.
-
-3. The dentry looked up without holding dcache_lock by cannot be
-   returned for walking if it is unhashed. It then may have a NULL
-   d_inode or other bogosity since RCU doesn't protect the other
-   fields in the dentry. We therefore use a flag DCACHE_UNHASHED to
-   indicate unhashed  dentries and use this in conjunction with a
-   per-dentry lock (d_lock). Once looked up without the dcache_lock,
-   we acquire the per-dentry lock (d_lock) and check if the
-   dentry is unhashed. If so, the look-up is failed. If not, the
-   reference count of the dentry is increased and the dentry is returned.
-
-4. Once a dentry is looked up, it must be ensured during the path
-   walk for that component it doesn't go away. In pre-2.5.10 code,
-   this was done holding a reference to the dentry. dcache_rcu does
-   the same.  In some sense, dcache_rcu path walking looks like
-   the pre-2.5.10 version.
-
-5. All dentry hash chain updates must take the dcache_lock as well as
-   the per-dentry lock in that order. dput() does this to ensure
-   that a dentry that has just been looked up in another CPU
-   doesn't get deleted before dget() can be done on it.
-
-6. There are several ways to do reference counting of RCU protected
-   objects. One such example is in ipv4 route cache where
-   deferred freeing (using call_rcu()) is done as soon as
-   the reference count goes to zero. This cannot be done in
-   the case of dentries because tearing down of dentries
-   require blocking (dentry_iput()) which isn't supported from
-   RCU callbacks. Instead, tearing down of dentries happen
-   synchronously in dput(), but actual freeing happens later
-   when RCU grace period is over. This allows safe lock-free
-   walking of the hash chains, but a matched dentry may have
-   been partially torn down. The checking of DCACHE_UNHASHED
-   flag with d_lock held detects such dentries and prevents
-   them from being returned from look-up.
-
-
-Maintaining POSIX rename semantics
-==================================
-
-Since look-up of dentries is lock-free, it can race against
-a concurrent rename operation. For example, during rename
-of file A to B, look-up of either A or B must succeed.
-So, if look-up of B happens after A has been removed from the
-hash chain but not added to the new hash chain, it may fail.
-Also, a comparison while the name is being written concurrently
-by a rename may result in false positive matches violating
-rename semantics.  Issues related to race with rename are
-handled as described below :
-
-1. Look-up can be done in two ways - d_lookup() which is safe
-   from simultaneous renames and __d_lookup() which is not.
-   If __d_lookup() fails, it must be followed up by a d_lookup()
-   to correctly determine whether a dentry is in the hash table
-   or not. d_lookup() protects look-ups using a sequence
-   lock (rename_lock).
-
-2. The name associated with a dentry (d_name) may be changed if
-   a rename is allowed to happen simultaneously. To avoid memcmp()
-   in __d_lookup() go out of bounds due to a rename and false
-   positive comparison, the name comparison is done while holding the
-   per-dentry lock. This prevents concurrent renames during this
-   operation.
-
-3. Hash table walking during look-up may move to a different bucket as
-   the current dentry is moved to a different bucket due to rename.
-   But we use hlists in dcache hash table and they are null-terminated.
-   So, even if a dentry moves to a different bucket, hash chain
-   walk will terminate. [with a list_head list, it may not since
-   termination is when the list_head in the original bucket is reached].
-   Since we redo the d_parent check and compare name while holding
-   d_lock, lock-free look-up will not race against d_move().
-
-4. There can be a theoretical race when a dentry keeps coming back
-   to original bucket due to double moves. Due to this look-up may
-   consider that it has never moved and can end up in a infinite loop.
-   But this is not any worse that theoretical livelocks we already
-   have in the kernel.
-
-
-Important guidelines for filesystem developers related to dcache_rcu
-====================================================================
-
-1. Existing dcache interfaces (pre-2.5.62) exported to filesystem
-   don't change. Only dcache internal implementation changes. However
-   filesystems *must not* delete from the dentry hash chains directly
-   using the list macros like allowed earlier. They must use dcache
-   APIs like d_drop() or __d_drop() depending on the situation.
-
-2. d_flags is now protected by a per-dentry lock (d_lock). All
-   access to d_flags must be protected by it.
-
-3. For a hashed dentry, checking of d_count needs to be protected
-   by d_lock.
-
-
-Papers and other documentation on dcache locking
-================================================
-
-1. Scaling dcache with RCU (http://linuxjournal.com/article.php?sid=7124).
-
-2. http://lse.sourceforge.net/locking/dcache/dcache.html
+A small trail through the Linux kernel by Andries Brouwer. 2001
+    <http://www.win.tue.nl/~aeb/linux/vfs/trail.html>

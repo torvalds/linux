@@ -175,7 +175,7 @@ lasi_init_chip(struct parisc_device *dev)
 		return -ENOMEM;
 
 	lasi->name = "Lasi";
-	lasi->hpa = dev->hpa;
+	lasi->hpa = dev->hpa.start;
 
 	/* Check the 4-bit (yes, only 4) version register */
 	lasi->version = gsc_readl(lasi->hpa + LASI_VER) & 0xf;
@@ -233,7 +233,7 @@ static struct parisc_device_id lasi_tbl[] = {
 };
 
 struct parisc_driver lasi_driver = {
-	.name =		"Lasi",
+	.name =		"lasi",
 	.id_table =	lasi_tbl,
 	.probe =	lasi_init_chip,
 };

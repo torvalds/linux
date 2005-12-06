@@ -16,6 +16,7 @@
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
 #include <linux/hwmon.h>
+#include <linux/gfp.h>
 
 #define HWMON_ID_PREFIX "hwmon"
 #define HWMON_ID_FORMAT HWMON_ID_PREFIX "%d"
@@ -45,7 +46,7 @@ struct class_device *hwmon_device_register(struct device *dev)
 		return ERR_PTR(-ENOMEM);
 
 	id = id & MAX_ID_MASK;
-	cdev = class_device_create(hwmon_class, MKDEV(0,0), dev,
+	cdev = class_device_create(hwmon_class, NULL, MKDEV(0,0), dev,
 					HWMON_ID_FORMAT, id);
 
 	if (IS_ERR(cdev))

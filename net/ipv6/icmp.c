@@ -585,17 +585,16 @@ static int icmpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	daddr = &skb->nh.ipv6h->daddr;
 
 	/* Perform checksum. */
-	if (skb->ip_summed == CHECKSUM_HW) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		if (csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
-				    skb->csum)) {
-			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 hw checksum failed\n");
-			skb->ip_summed = CHECKSUM_NONE;
-		}
-	}
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		if (csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
-				    skb_checksum(skb, 0, skb->len, 0))) {
+	switch (skb->ip_summed) {
+	case CHECKSUM_HW:
+		if (!csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
+				     skb->csum))
+			break;
+		/* fall through */
+	case CHECKSUM_NONE:
+		skb->csum = ~csum_ipv6_magic(saddr, daddr, skb->len,
+					     IPPROTO_ICMPV6, 0);
+		if (__skb_checksum_complete(skb)) {
 			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 checksum failed [%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x > %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]\n",
 				       NIP6(*saddr), NIP6(*daddr));
 			goto discard_it;
@@ -700,10 +699,7 @@ int __init icmpv6_init(struct net_proto_family *ops)
 	struct sock *sk;
 	int err, i, j;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
-
+	for_each_cpu(i) {
 		err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6,
 				       &per_cpu(__icmpv6_socket, i));
 		if (err < 0) {
@@ -749,15 +745,13 @@ void icmpv6_cleanup(void)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
+	for_each_cpu(i) {
 		sock_release(per_cpu(__icmpv6_socket, i));
 	}
 	inet6_del_protocol(&icmpv6_protocol, IPPROTO_ICMPV6);
 }
 
-static struct icmp6_err {
+static const struct icmp6_err {
 	int err;
 	int fatal;
 } tab_unreach[] = {

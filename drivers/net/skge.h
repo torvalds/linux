@@ -6,6 +6,8 @@
 
 /* PCI config registers */
 #define PCI_DEV_REG1	0x40
+#define  PCI_PHY_COMA	0x8000000
+#define  PCI_VIO	0x2000000
 #define PCI_DEV_REG2	0x44
 #define  PCI_REV_DESC	 0x4
 
@@ -953,6 +955,7 @@ enum {
  */
 enum {
 	XMR_FS_LEN	= 0x3fff<<18,	/* Bit 31..18:	Rx Frame Length */
+	XMR_FS_LEN_SHIFT = 18,
 	XMR_FS_2L_VLAN	= 1<<17, /* Bit 17:	tagged wh 2Lev VLAN ID*/
 	XMR_FS_1_VLAN	= 1<<16, /* Bit 16:	tagged wh 1ev VLAN ID*/
 	XMR_FS_BC	= 1<<15, /* Bit 15:	Broadcast Frame */
@@ -1868,6 +1871,7 @@ enum {
 /* Receive Frame Status Encoding */
 enum {
 	GMR_FS_LEN	= 0xffff<<16, /* Bit 31..16:	Rx Frame Length */
+	GMR_FS_LEN_SHIFT = 16,
 	GMR_FS_VLAN	= 1<<13, /* Bit 13:	VLAN Packet */
 	GMR_FS_JABBER	= 1<<12, /* Bit 12:	Jabber Packet */
 	GMR_FS_UN_SIZE	= 1<<11, /* Bit 11:	Undersize Packet */

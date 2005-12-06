@@ -1,6 +1,6 @@
 /* key.c: basic authentication token and access key management
  *
- * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/security.h>
 #include <linux/workqueue.h>
 #include <linux/err.h>
 #include "internal.h"
@@ -114,8 +115,7 @@ struct key_user *key_user_lookup(uid_t uid)
  found:
 	atomic_inc(&user->usage);
 	spin_unlock(&key_user_lock);
-	if (candidate)
-		kfree(candidate);
+	kfree(candidate);
  out:
 	return user;
 
@@ -253,6 +253,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	struct key_user *user = NULL;
 	struct key *key;
 	size_t desclen, quotalen;
+	int ret;
 
 	key = ERR_PTR(-EINVAL);
 	if (!desc || !*desc)
@@ -305,6 +306,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	key->flags = 0;
 	key->expiry = 0;
 	key->payload.data = NULL;
+	key->security = NULL;
 
 	if (!not_in_quota)
 		key->flags |= 1 << KEY_FLAG_IN_QUOTA;
@@ -315,16 +317,21 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	key->magic = KEY_DEBUG_MAGIC;
 #endif
 
+	/* let the security module know about the key */
+	ret = security_key_alloc(key);
+	if (ret < 0)
+		goto security_error;
+
 	/* publish the key by giving it a serial number */
 	atomic_inc(&user->nkeys);
 	key_alloc_serial(key);
 
- error:
+error:
 	return key;
 
- no_memory_3:
+security_error:
+	kfree(key->description);
 	kmem_cache_free(key_jar, key);
- no_memory_2:
 	if (!not_in_quota) {
 		spin_lock(&user->lock);
 		user->qnkeys--;
@@ -332,11 +339,24 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 		spin_unlock(&user->lock);
 	}
 	key_user_put(user);
- no_memory_1:
+	key = ERR_PTR(ret);
+	goto error;
+
+no_memory_3:
+	kmem_cache_free(key_jar, key);
+no_memory_2:
+	if (!not_in_quota) {
+		spin_lock(&user->lock);
+		user->qnkeys--;
+		user->qnbytes -= quotalen;
+		spin_unlock(&user->lock);
+	}
+	key_user_put(user);
+no_memory_1:
 	key = ERR_PTR(-ENOMEM);
 	goto error;
 
- no_quota:
+no_quota:
 	spin_unlock(&user->lock);
 	key_user_put(user);
 	key = ERR_PTR(-EDQUOT);
@@ -556,6 +576,8 @@ static void key_cleanup(void *data)
 
 	key_check(key);
 
+	security_key_free(key);
+
 	/* deal with the user's key tracking and quota */
 	if (test_bit(KEY_FLAG_IN_QUOTA, &key->flags)) {
 		spin_lock(&key->user->lock);
@@ -693,14 +715,15 @@ void key_type_put(struct key_type *ktype)
  * - the key has an incremented refcount
  * - we need to put the key if we get an error
  */
-static inline struct key *__key_update(struct key *key, const void *payload,
-				       size_t plen)
+static inline key_ref_t __key_update(key_ref_t key_ref,
+				     const void *payload, size_t plen)
 {
+	struct key *key = key_ref_to_ptr(key_ref);
 	int ret;
 
 	/* need write permission on the key to update it */
-	ret = -EACCES;
-	if (!key_permission(key, KEY_WRITE))
+	ret = key_permission(key_ref, KEY_WRITE);
+	if (ret < 0)
 		goto error;
 
 	ret = -EEXIST;
@@ -710,7 +733,6 @@ static inline struct key *__key_update(struct key *key, const void *payload,
 	down_write(&key->sem);
 
 	ret = key->type->update(key, payload, plen);
-
 	if (ret == 0)
 		/* updating a negative key instantiates it */
 		clear_bit(KEY_FLAG_NEGATIVE, &key->flags);
@@ -719,12 +741,12 @@ static inline struct key *__key_update(struct key *key, const void *payload,
 
 	if (ret < 0)
 		goto error;
- out:
-	return key;
+out:
+	return key_ref;
 
- error:
+error:
 	key_put(key);
-	key = ERR_PTR(ret);
+	key_ref = ERR_PTR(ret);
 	goto out;
 
 } /* end __key_update() */
@@ -734,52 +756,58 @@ static inline struct key *__key_update(struct key *key, const void *payload,
  * search the specified keyring for a key of the same description; if one is
  * found, update it, otherwise add a new one
  */
-struct key *key_create_or_update(struct key *keyring,
-				 const char *type,
-				 const char *description,
-				 const void *payload,
-				 size_t plen,
-				 int not_in_quota)
+key_ref_t key_create_or_update(key_ref_t keyring_ref,
+			       const char *type,
+			       const char *description,
+			       const void *payload,
+			       size_t plen,
+			       int not_in_quota)
 {
 	struct key_type *ktype;
-	struct key *key = NULL;
+	struct key *keyring, *key = NULL;
 	key_perm_t perm;
+	key_ref_t key_ref;
 	int ret;
-
-	key_check(keyring);
 
 	/* look up the key type to see if it's one of the registered kernel
 	 * types */
 	ktype = key_type_lookup(type);
 	if (IS_ERR(ktype)) {
-		key = ERR_PTR(-ENODEV);
+		key_ref = ERR_PTR(-ENODEV);
 		goto error;
 	}
 
-	ret = -EINVAL;
+	key_ref = ERR_PTR(-EINVAL);
 	if (!ktype->match || !ktype->instantiate)
 		goto error_2;
+
+	keyring = key_ref_to_ptr(keyring_ref);
+
+	key_check(keyring);
+
+	down_write(&keyring->sem);
+
+	/* if we're going to allocate a new key, we're going to have
+	 * to modify the keyring */
+	ret = key_permission(keyring_ref, KEY_WRITE);
+	if (ret < 0) {
+		key_ref = ERR_PTR(ret);
+		goto error_3;
+	}
 
 	/* search for an existing key of the same type and description in the
 	 * destination keyring
 	 */
-	down_write(&keyring->sem);
-
-	key = __keyring_search_one(keyring, ktype, description, 0);
-	if (!IS_ERR(key))
+	key_ref = __keyring_search_one(keyring_ref, ktype, description, 0);
+	if (!IS_ERR(key_ref))
 		goto found_matching_key;
 
-	/* if we're going to allocate a new key, we're going to have to modify
-	 * the keyring */
-	ret = -EACCES;
-	if (!key_permission(keyring, KEY_WRITE))
-		goto error_3;
-
 	/* decide on the permissions we want */
-	perm = KEY_USR_VIEW | KEY_USR_SEARCH | KEY_USR_LINK;
+	perm = KEY_POS_VIEW | KEY_POS_SEARCH | KEY_POS_LINK | KEY_POS_SETATTR;
+	perm |= KEY_USR_VIEW | KEY_USR_SEARCH | KEY_USR_LINK | KEY_USR_SETATTR;
 
 	if (ktype->read)
-		perm |= KEY_USR_READ;
+		perm |= KEY_POS_READ | KEY_USR_READ;
 
 	if (ktype == &key_type_keyring || ktype->update)
 		perm |= KEY_USR_WRITE;
@@ -788,7 +816,7 @@ struct key *key_create_or_update(struct key *keyring,
 	key = key_alloc(ktype, description, current->fsuid, current->fsgid,
 			perm, not_in_quota);
 	if (IS_ERR(key)) {
-		ret = PTR_ERR(key);
+		key_ref = ERR_PTR(PTR_ERR(key));
 		goto error_3;
 	}
 
@@ -796,15 +824,18 @@ struct key *key_create_or_update(struct key *keyring,
 	ret = __key_instantiate_and_link(key, payload, plen, keyring, NULL);
 	if (ret < 0) {
 		key_put(key);
-		key = ERR_PTR(ret);
+		key_ref = ERR_PTR(ret);
+		goto error_3;
 	}
+
+	key_ref = make_key_ref(key, is_key_possessed(keyring_ref));
 
  error_3:
 	up_write(&keyring->sem);
  error_2:
 	key_type_put(ktype);
  error:
-	return key;
+	return key_ref;
 
  found_matching_key:
 	/* we found a matching key, so we're going to try to update it
@@ -813,7 +844,7 @@ struct key *key_create_or_update(struct key *keyring,
 	up_write(&keyring->sem);
 	key_type_put(ktype);
 
-	key = __key_update(key, payload, plen);
+	key_ref = __key_update(key_ref, payload, plen);
 	goto error;
 
 } /* end key_create_or_update() */
@@ -824,23 +855,24 @@ EXPORT_SYMBOL(key_create_or_update);
 /*
  * update a key
  */
-int key_update(struct key *key, const void *payload, size_t plen)
+int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 {
+	struct key *key = key_ref_to_ptr(key_ref);
 	int ret;
 
 	key_check(key);
 
 	/* the key must be writable */
-	ret = -EACCES;
-	if (!key_permission(key, KEY_WRITE))
+	ret = key_permission(key_ref, KEY_WRITE);
+	if (ret < 0)
 		goto error;
 
 	/* attempt to update it if supported */
 	ret = -EOPNOTSUPP;
 	if (key->type->update) {
 		down_write(&key->sem);
-		ret = key->type->update(key, payload, plen);
 
+		ret = key->type->update(key, payload, plen);
 		if (ret == 0)
 			/* updating a negative key instantiates it */
 			clear_bit(KEY_FLAG_NEGATIVE, &key->flags);

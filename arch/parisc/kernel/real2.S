@@ -7,8 +7,10 @@
  * Copyright (C) 2000 Hewlett Packard (Paul Bame bame@puffin.external.hp.com)
  *
  */
-#include <asm/assembly.h>
+#include <linux/config.h>
+
 #include <asm/psw.h>
+#include <asm/assembly.h>
 
 	.section	.bss
 	.export real_stack
@@ -20,7 +22,7 @@ real32_stack:
 real64_stack:
 	.block	8192
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 #  define REG_SZ 8
 #else
 #  define REG_SZ 4
@@ -50,7 +52,7 @@ save_cr_end:
 
 real32_call_asm:
 	STREG	%rp, -RP_OFFSET(%sp)	/* save RP */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	callee_save
 	ldo	2*REG_SZ(%sp), %sp	/* room for a couple more saves */
 	STREG	%r27, -1*REG_SZ(%sp)
@@ -77,7 +79,7 @@ real32_call_asm:
 	b,l	save_control_regs,%r2		/* modifies r1, r2, r28 */
 	nop
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	rsm	PSW_SM_W, %r0		/* go narrow */
 #endif
 
@@ -85,7 +87,7 @@ real32_call_asm:
 	bv	0(%r31)
 	nop
 ric_ret:
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ssm	PSW_SM_W, %r0		/* go wide */
 #endif
 	/* restore CRs before going virtual in case we page fault */
@@ -97,7 +99,7 @@ ric_ret:
 
 	tovirt_r1 %sp
 	LDREG	-REG_SZ(%sp), %sp	/* restore SP */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	LDREG	-1*REG_SZ(%sp), %r27
 	LDREG	-2*REG_SZ(%sp), %r29
 	ldo	-2*REG_SZ(%sp), %sp
@@ -143,24 +145,21 @@ restore_control_regs:
 /* rfi_virt2real() and rfi_real2virt() could perhaps be adapted for
  * more general-purpose use by the several places which need RFIs
  */
-	.align 128
 	.text
+	.align 128
 rfi_virt2real:
 	/* switch to real mode... */
-	ssm		0,0		/* See "relied upon translation" */
-	nop				/* PA 2.0 Arch. F-5 */
-	nop
-	nop
+	rsm		PSW_SM_I,%r0
+	load32		PA(rfi_v2r_1), %r1
 	nop
 	nop
 	nop
 	nop
 	nop
 	
-	rsm             (PSW_SM_Q|PSW_SM_I),%r0  /* disable Q & I bits to load iia queue */
+	rsm             PSW_SM_Q,%r0  /* disable Q & I bits to load iia queue */
 	mtctl		%r0, %cr17	/* Clear IIASQ tail */
 	mtctl		%r0, %cr17	/* Clear IIASQ head */
-	load32		PA(rfi_v2r_1), %r1
 	mtctl		%r1, %cr18	/* IIAOQ head */
 	ldo		4(%r1), %r1
 	mtctl		%r1, %cr18	/* IIAOQ tail */
@@ -184,10 +183,8 @@ rfi_v2r_1:
 	.text
 	.align 128
 rfi_real2virt:
-	ssm		0,0		/* See "relied upon translation" */
-	nop				/* PA 2.0 Arch. F-5 */
-	nop
-	nop
+	rsm		PSW_SM_I,%r0
+	load32		(rfi_r2v_1), %r1
 	nop
 	nop
 	nop
@@ -197,7 +194,6 @@ rfi_real2virt:
 	rsm             PSW_SM_Q,%r0    /* disable Q bit to load iia queue */
 	mtctl		%r0, %cr17	/* Clear IIASQ tail */
 	mtctl		%r0, %cr17	/* Clear IIASQ head */
-	load32		(rfi_r2v_1), %r1
 	mtctl		%r1, %cr18	/* IIAOQ head */
 	ldo		4(%r1), %r1
 	mtctl		%r1, %cr18	/* IIAOQ tail */
@@ -218,7 +214,7 @@ rfi_r2v_1:
 	bv	0(%r2)
 	nop
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 
 /************************ 64-bit real-mode calls ***********************/
 /* This is only usable in wide kernels right now and will probably stay so */
@@ -296,7 +292,7 @@ pc_in_user_space:
 	**	comparing function pointers.
 	*/
 __canonicalize_funcptr_for_compare:
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	bve (%r2)
 #else
 	bv %r0(%r2)

@@ -18,7 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 #include <asm/types.h>

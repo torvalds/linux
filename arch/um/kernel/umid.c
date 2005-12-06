@@ -31,6 +31,8 @@ static char *uml_dir = UML_DIR;
 /* Changed by set_umid */
 static int umid_is_random = 1;
 static int umid_inited = 0;
+/* Have we created the files? Should we remove them? */
+static int umid_owned = 0;
 
 static int make_umid(int (*printer)(const char *fmt, ...));
 
@@ -82,20 +84,21 @@ int __init umid_file_name(char *name, char *buf, int len)
 
 extern int tracing_pid;
 
-static int __init create_pid_file(void)
+static void __init create_pid_file(void)
 {
 	char file[strlen(uml_dir) + UMID_LEN + sizeof("/pid\0")];
 	char pid[sizeof("nnnnn\0")];
 	int fd, n;
 
-	if(umid_file_name("pid", file, sizeof(file))) return 0;
+	if(umid_file_name("pid", file, sizeof(file)))
+		return;
 
 	fd = os_open_file(file, of_create(of_excl(of_rdwr(OPENFLAGS()))), 
 			  0644);
 	if(fd < 0){
 		printf("Open of machine pid file \"%s\" failed: %s\n",
 		       file, strerror(-fd));
-		return 0;
+		return;
 	}
 
 	sprintf(pid, "%d\n", os_getpid());
@@ -103,7 +106,6 @@ static int __init create_pid_file(void)
 	if(n != strlen(pid))
 		printf("Write of pid file failed - err = %d\n", -n);
 	os_close_file(fd);
-	return 0;
 }
 
 static int actually_do_remove(char *dir)
@@ -147,7 +149,8 @@ static int actually_do_remove(char *dir)
 void remove_umid_dir(void)
 {
 	char dir[strlen(uml_dir) + UMID_LEN + 1];
-	if(!umid_inited) return;
+	if (!umid_owned)
+		return;
 
 	sprintf(dir, "%s%s", uml_dir, umid);
 	actually_do_remove(dir);
@@ -155,11 +158,12 @@ void remove_umid_dir(void)
 
 char *get_umid(int only_if_set)
 {
-	if(only_if_set && umid_is_random) return(NULL);
-	return(umid);
+	if(only_if_set && umid_is_random)
+		return NULL;
+	return umid;
 }
 
-int not_dead_yet(char *dir)
+static int not_dead_yet(char *dir)
 {
 	char file[strlen(uml_dir) + UMID_LEN + sizeof("/pid\0")];
 	char pid[sizeof("nnnnn\0")], *end;
@@ -193,7 +197,8 @@ int not_dead_yet(char *dir)
 		   (p == CHOOSE_MODE(tracing_pid, os_getpid())))
 			dead = 1;
 	}
-	if(!dead) return(1);
+	if(!dead)
+		return(1);
 	return(actually_do_remove(dir));
 }
 
@@ -232,16 +237,13 @@ static int __init make_uml_dir(void)
 		strlcpy(dir, home, sizeof(dir));
 		uml_dir++;
 	}
+	strlcat(dir, uml_dir, sizeof(dir));
 	len = strlen(dir);
-	strncat(dir, uml_dir, sizeof(dir) - len);
-	len = strlen(dir);
-	if((len > 0) && (len < sizeof(dir) - 1) && (dir[len - 1] != '/')){
-		dir[len] = '/';
-		dir[len + 1] = '\0';
-	}
+	if (len > 0 && dir[len - 1] != '/')
+		strlcat(dir, "/", sizeof(dir));
 
 	uml_dir = malloc(strlen(dir) + 1);
-	if(uml_dir == NULL){
+	if (uml_dir == NULL) {
 		printf("make_uml_dir : malloc failed, errno = %d\n", errno);
 		exit(1);
 	}
@@ -286,6 +288,7 @@ static int __init make_umid(int (*printer)(const char *fmt, ...))
 		if(errno == EEXIST){
 			if(not_dead_yet(tmp)){
 				(*printer)("umid '%s' is in use\n", umid);
+				umid_owned = 0;
 				return(-1);
 			}
 			err = mkdir(tmp, 0777);
@@ -296,7 +299,8 @@ static int __init make_umid(int (*printer)(const char *fmt, ...))
 		return(-1);
 	}
 
-	return(0);
+	umid_owned = 1;
+	return 0;
 }
 
 __uml_setup("uml_dir=", set_uml_dir,
@@ -309,7 +313,8 @@ static int __init make_umid_setup(void)
 	/* one function with the ordering we need ... */
 	make_uml_dir();
 	make_umid(printf);
-	return create_pid_file();
+	create_pid_file();
+	return 0;
 }
 __uml_postsetup(make_umid_setup);
 

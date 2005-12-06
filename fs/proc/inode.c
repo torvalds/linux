@@ -156,10 +156,13 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 
 	WARN_ON(de && de->deleted);
 
+	if (de != NULL && !try_module_get(de->owner))
+		goto out_mod;
+
 	inode = iget(sb, ino);
 	if (!inode)
-		goto out_fail;
-	
+		goto out_ino;
+
 	PROC_I(inode)->pde = de;
 	if (de) {
 		if (de->mode) {
@@ -171,20 +174,20 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 			inode->i_size = de->size;
 		if (de->nlink)
 			inode->i_nlink = de->nlink;
-		if (!try_module_get(de->owner))
-			goto out_fail;
 		if (de->proc_iops)
 			inode->i_op = de->proc_iops;
 		if (de->proc_fops)
 			inode->i_fop = de->proc_fops;
 	}
 
-out:
 	return inode;
 
-out_fail:
+out_ino:
+	if (de != NULL)
+		module_put(de->owner);
+out_mod:
 	de_put(de);
-	goto out;
+	return NULL;
 }			
 
 int proc_fill_super(struct super_block *s, void *data, int silent)

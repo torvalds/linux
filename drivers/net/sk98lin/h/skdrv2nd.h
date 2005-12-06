@@ -425,10 +425,6 @@ struct s_AC  {
 	TX_PORT		TxPort[SK_MAX_MACS][2];
 	RX_PORT		RxPort[SK_MAX_MACS];
 
-	unsigned int	CsOfs1;		/* for checksum calculation */
-	unsigned int	CsOfs2;		/* for checksum calculation */
-	SK_U32		CsOfs;		/* for checksum calculation */
-
 	SK_BOOL		CheckQueue;	/* check event queue soon */
 	SK_TIMER        DrvCleanupTimer;/* to check for pending descriptors */
 	DIM_INFO        DynIrqModInfo;  /* all data related to DIM */

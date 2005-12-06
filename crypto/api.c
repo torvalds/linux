@@ -215,7 +215,10 @@ int crypto_register_alg(struct crypto_alg *alg)
 	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
 		return -EINVAL;
 
-	if (alg->cra_alignmask > PAGE_SIZE)
+	if (alg->cra_alignmask & alg->cra_blocksize)
+		return -EINVAL;
+
+	if (alg->cra_blocksize > PAGE_SIZE)
 		return -EINVAL;
 	
 	down_write(&crypto_alg_sem);

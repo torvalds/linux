@@ -54,10 +54,10 @@ static int gdth_set_info(char *buffer,int length,struct Scsi_Host *host,
     int             ret_val = -EINVAL;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     Scsi_Request    *scp;
-    Scsi_Device     *sdev;
+    struct scsi_device     *sdev;
 #else
     Scsi_Cmnd       *scp;
-    Scsi_Device     *sdev;
+    struct scsi_device     *sdev;
 #endif
     TRACE2(("gdth_set_info() ha %d bus %d\n",hanum,busnum));
 
@@ -232,10 +232,10 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     gdth_evt_str *estr;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     Scsi_Request *scp;
-    Scsi_Device *sdev; 
+    struct scsi_device *sdev;
 #else
     Scsi_Cmnd *scp;
-    Scsi_Device *sdev;
+    struct scsi_device *sdev;
 #endif
     char hrec[161];
     struct timeval tv;
@@ -275,7 +275,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     scp->cmd_len = 12;
     scp->use_sg = 0;
 #else
-    memset(&sdev,0,sizeof(Scsi_Device));
+    memset(&sdev,0,sizeof(struct scsi_device));
     memset(&scp, 0,sizeof(Scsi_Cmnd));
     sdev.host = scp.host = host;
     sdev.id = scp.target = sdev.host->this_id;

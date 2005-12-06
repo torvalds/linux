@@ -117,9 +117,6 @@ int notify_change(struct dentry * dentry, struct iattr * attr)
 	struct timespec now;
 	unsigned int ia_valid = attr->ia_valid;
 
-	if (!inode)
-		BUG();
-
 	mode = inode->i_mode;
 	now = current_fs_time(inode->i_sb);
 

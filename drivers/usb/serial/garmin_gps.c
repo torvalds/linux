@@ -1468,16 +1468,13 @@ static void garmin_shutdown (struct usb_serial *serial)
 }
 
 
-
-
-
-
-
 /* All of the device info needed */
-static struct usb_serial_device_type garmin_device = {
-	.owner               = THIS_MODULE,
-	.name                = "Garmin GPS usb/tty",
-	.short_name          = "garmin_gps",
+static struct usb_serial_driver garmin_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"garmin_gps",
+	},
+	.description =		"Garmin GPS usb/tty",
 	.id_table            = id_table,
 	.num_interrupt_in    = 1,
 	.num_bulk_in         = 1,

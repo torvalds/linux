@@ -1334,7 +1334,7 @@ static void epic_rx_err(struct net_device *dev, struct epic_private *ep)
 static int epic_poll(struct net_device *dev, int *budget)
 {
 	struct epic_private *ep = dev->priv;
-	int work_done, orig_budget;
+	int work_done = 0, orig_budget;
 	long ioaddr = dev->base_addr;
 
 	orig_budget = (*budget > dev->quota) ? dev->quota : *budget;
@@ -1343,7 +1343,7 @@ rx_action:
 
 	epic_tx(dev, ep);
 
-	work_done = epic_rx(dev, *budget);
+	work_done += epic_rx(dev, *budget);
 
 	epic_rx_err(dev, ep);
 

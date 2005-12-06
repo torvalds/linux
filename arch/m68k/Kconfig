@@ -388,33 +388,11 @@ config AMIGA_PCMCIA
 	  Include support in the kernel for pcmcia on Amiga 1200 and Amiga
 	  600. If you intend to use pcmcia cards say Y; otherwise say N.
 
-config STRAM_SWAP
-	bool "Support for ST-RAM as swap space"
-	depends on ATARI && BROKEN
-	---help---
-	  Some Atari 68k machines (including the 520STF and 1020STE) divide
-	  their addressable memory into ST and TT sections.  The TT section
-	  (up to 512MB) is the main memory; the ST section (up to 4MB) is
-	  accessible to the built-in graphics board, runs slower, and is
-	  present mainly for backward compatibility with older machines.
-
-	  This enables support for using (parts of) ST-RAM as swap space,
-	  instead of as normal system memory. This can first enhance system
-	  performance if you have lots of alternate RAM (compared to the size
-	  of ST-RAM), because executable code always will reside in faster
-	  memory. ST-RAM will remain as ultra-fast swap space. On the other
-	  hand, it allows much improved dynamic allocations of ST-RAM buffers
-	  for device driver modules (e.g. floppy, ACSI, SLM printer, DMA
-	  sound). The probability that such allocations at module load time
-	  fail is drastically reduced.
-
 config STRAM_PROC
 	bool "ST-RAM statistics in /proc"
 	depends on ATARI
 	help
-	  Say Y here to report ST-RAM usage statistics in /proc/stram.  See
-	  the help for CONFIG_STRAM_SWAP for discussion of ST-RAM and its
-	  uses.
+	  Say Y here to report ST-RAM usage statistics in /proc/stram.
 
 config HEARTBEAT
 	bool "Use power LED as a heartbeat" if AMIGA || APOLLO || ATARI || MAC ||Q40

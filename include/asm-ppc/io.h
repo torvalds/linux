@@ -8,6 +8,7 @@
 
 #include <asm/page.h>
 #include <asm/byteorder.h>
+#include <asm/synch.h>
 #include <asm/mmu.h>
 
 #define SIO_CONFIG_RA	0x398
@@ -56,7 +57,7 @@ extern unsigned long pci_dram_offset;
  * is actually performed (i.e. the data has come back) before we start
  * executing any following instructions.
  */
-extern inline int in_8(volatile unsigned char __iomem *addr)
+extern inline int in_8(const volatile unsigned char __iomem *addr)
 {
 	int ret;
 
@@ -72,7 +73,7 @@ extern inline void out_8(volatile unsigned char __iomem *addr, int val)
 	__asm__ __volatile__("stb%U0%X0 %1,%0; eieio" : "=m" (*addr) : "r" (val));
 }
 
-extern inline int in_le16(volatile unsigned short __iomem *addr)
+extern inline int in_le16(const volatile unsigned short __iomem *addr)
 {
 	int ret;
 
@@ -83,7 +84,7 @@ extern inline int in_le16(volatile unsigned short __iomem *addr)
 	return ret;
 }
 
-extern inline int in_be16(volatile unsigned short __iomem *addr)
+extern inline int in_be16(const volatile unsigned short __iomem *addr)
 {
 	int ret;
 
@@ -104,7 +105,7 @@ extern inline void out_be16(volatile unsigned short __iomem *addr, int val)
 	__asm__ __volatile__("sth%U0%X0 %1,%0; eieio" : "=m" (*addr) : "r" (val));
 }
 
-extern inline unsigned in_le32(volatile unsigned __iomem *addr)
+extern inline unsigned in_le32(const volatile unsigned __iomem *addr)
 {
 	unsigned ret;
 
@@ -115,7 +116,7 @@ extern inline unsigned in_le32(volatile unsigned __iomem *addr)
 	return ret;
 }
 
-extern inline unsigned in_be32(volatile unsigned __iomem *addr)
+extern inline unsigned in_be32(const volatile unsigned __iomem *addr)
 {
 	unsigned ret;
 
@@ -139,7 +140,7 @@ extern inline void out_be32(volatile unsigned __iomem *addr, int val)
 #define readb(addr) in_8((volatile u8 *)(addr))
 #define writeb(b,addr) out_8((volatile u8 *)(addr), (b))
 #else
-static inline __u8 readb(volatile void __iomem *addr)
+static inline __u8 readb(const volatile void __iomem *addr)
 {
 	return in_8(addr);
 }
@@ -150,11 +151,11 @@ static inline void writeb(__u8 b, volatile void __iomem *addr)
 #endif
 
 #if defined(CONFIG_APUS)
-static inline __u16 readw(volatile void __iomem *addr)
+static inline __u16 readw(const volatile void __iomem *addr)
 {
 	return *(__force volatile __u16 *)(addr);
 }
-static inline __u32 readl(volatile void __iomem *addr)
+static inline __u32 readl(const volatile void __iomem *addr)
 {
 	return *(__force volatile __u32 *)(addr);
 }
@@ -173,11 +174,11 @@ static inline void writel(__u32 b, volatile void __iomem *addr)
 #define writew(b,addr) out_le16((volatile u16 *)(addr),(b))
 #define writel(b,addr) out_le32((volatile u32 *)(addr),(b))
 #else
-static inline __u16 readw(volatile void __iomem *addr)
+static inline __u16 readw(const volatile void __iomem *addr)
 {
 	return in_le16(addr);
 }
-static inline __u32 readl(volatile void __iomem *addr)
+static inline __u32 readl(const volatile void __iomem *addr)
 {
 	return in_le32(addr);
 }
@@ -236,9 +237,9 @@ static inline void __raw_writel(__u32 b, volatile void __iomem *addr)
 #define outsl(port, buf, nl)	_outsl_ns((port)+___IO_BASE, (buf), (nl))
 
 /*
- * On powermacs, we will get a machine check exception if we
- * try to read data from a non-existent I/O port.  Because the
- * machine check is an asynchronous exception, it isn't
+ * On powermacs and 8xx we will get a machine check exception 
+ * if we try to read data from a non-existent I/O port. Because
+ * the machine check is an asynchronous exception, it isn't
  * well-defined which instruction SRR0 will point to when the
  * exception occurs.
  * With the sequence below (twi; isync; nop), we have found that
@@ -257,7 +258,7 @@ extern __inline__ unsigned int name(unsigned int port)	\
 {							\
 	unsigned int x;					\
 	__asm__ __volatile__(				\
-			op "	%0,0,%1\n"		\
+		"0:"	op "	%0,0,%1\n"		\
 		"1:	twi	0,%0,0\n"		\
 		"2:	isync\n"			\
 		"3:	nop\n"				\
@@ -268,6 +269,7 @@ extern __inline__ unsigned int name(unsigned int port)	\
 		".previous\n"				\
 		".section __ex_table,\"a\"\n"		\
 		"	.align	2\n"			\
+		"	.long	0b,5b\n"		\
 		"	.long	1b,5b\n"		\
 		"	.long	2b,5b\n"		\
 		"	.long	3b,5b\n"		\
@@ -281,11 +283,12 @@ extern __inline__ unsigned int name(unsigned int port)	\
 extern __inline__ void name(unsigned int val, unsigned int port) \
 {							\
 	__asm__ __volatile__(				\
-		op " %0,0,%1\n"				\
+		"0:" op " %0,0,%1\n"			\
 		"1:	sync\n"				\
 		"2:\n"					\
 		".section __ex_table,\"a\"\n"		\
 		"	.align	2\n"			\
+		"	.long	0b,2b\n"		\
 		"	.long	1b,2b\n"		\
 		".previous"				\
 		: : "r" (val), "r" (port + ___IO_BASE));	\
@@ -440,16 +443,6 @@ extern inline void * phys_to_virt(unsigned long address)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 #define page_to_bus(page)	(page_to_phys(page) + PCI_DRAM_OFFSET)
 
-/*
- * Enforce In-order Execution of I/O:
- * Acts as a barrier to ensure all previous I/O accesses have
- * completed before any further ones are issued.
- */
-extern inline void eieio(void)
-{
-	__asm__ __volatile__ ("eieio" : : : "memory");
-}
-
 /* Enforce in-order execution of data I/O.
  * No distinction between read/write on PPC; use eieio for all three.
  */
@@ -550,6 +543,23 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
 #ifdef CONFIG_8260_PCI9
 #include <asm/mpc8260_pci9.h>
+#endif
+
+#ifdef CONFIG_NOT_COHERENT_CACHE
+
+#define dma_cache_inv(_start,_size) \
+	invalidate_dcache_range(_start, (_start + _size))
+#define dma_cache_wback(_start,_size) \
+	clean_dcache_range(_start, (_start + _size))
+#define dma_cache_wback_inv(_start,_size) \
+	flush_dcache_range(_start, (_start + _size))
+
+#else
+
+#define dma_cache_inv(_start,_size)		do { } while (0)
+#define dma_cache_wback(_start,_size)		do { } while (0)
+#define dma_cache_wback_inv(_start,_size)	do { } while (0)
+
 #endif
 
 /*

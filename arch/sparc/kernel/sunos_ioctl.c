@@ -23,7 +23,6 @@
 #include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
-#include <asm/kbio.h>
 
 #if 0
 extern char sunkbd_type;

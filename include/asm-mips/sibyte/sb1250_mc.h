@@ -8,8 +8,6 @@
     *
     *  SB1250 specification level:  User's manual 1/02/02
     *
-    *  Author:  Mitch Lichtenberg
-    *
     *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
@@ -323,6 +321,10 @@
 #define G_MC_tRFC(x)              _SB_GETVALUE(x,S_MC_tRFC,M_MC_tRFC)
 #define K_MC_tRFC_DEFAULT         12
 #define V_MC_tRFC_DEFAULT         V_MC_tRFC(K_MC_tRFC_DEFAULT)
+
+#if SIBYTE_HDR_FEATURE(1250, PASS3)
+#define M_MC_tRFC_PLUS16          _SB_MAKEMASK1(51)	/* 1250C3 and later.  */
+#endif
 
 #define S_MC_tCwCr                40
 #define M_MC_tCwCr                _SB_MAKEMASK(4,S_MC_tCwCr)

@@ -26,7 +26,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/fb.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/hardware.h>
@@ -926,7 +926,6 @@ static struct fb_ops acornfb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_mmap	= acornfb_mmap,
-	.fb_cursor	= soft_cursor,
 };
 
 /*
@@ -1280,7 +1279,7 @@ free_unused_pages(unsigned int virtual_start, unsigned int virtual_end)
 	printk("acornfb: freed %dK memory\n", mb_freed);
 }
 
-static int __init acornfb_probe(struct device *dev)
+static int __init acornfb_probe(struct platform_device *dev)
 {
 	unsigned long size;
 	u_int h_sync, v_sync;
@@ -1293,7 +1292,7 @@ static int __init acornfb_probe(struct device *dev)
 
 	acornfb_init_fbinfo();
 
-	current_par.dev = dev;
+	current_par.dev = &dev->dev;
 
 	if (current_par.montype == -1)
 		current_par.montype = acornfb_detect_monitortype();
@@ -1454,15 +1453,16 @@ static int __init acornfb_probe(struct device *dev)
 	return 0;
 }
 
-static struct device_driver acornfb_driver = {
-	.name	= "acornfb",
-	.bus	= &platform_bus_type,
+static struct platform_driver acornfb_driver = {
 	.probe	= acornfb_probe,
+	.driver	= {
+		.name	= "acornfb",
+	},
 };
 
 static int __init acornfb_init(void)
 {
-	return driver_register(&acornfb_driver);
+	return platform_driver_register(&acornfb_driver);
 }
 
 module_init(acornfb_init);

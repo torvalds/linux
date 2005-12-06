@@ -31,6 +31,7 @@
 #include <net/esp.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
 #include <linux/random.h>
 #include <net/icmp.h>
@@ -66,10 +67,10 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	alen = esp->auth.icv_trunc_len;
 	tfm = esp->conf.tfm;
-	blksize = (crypto_tfm_alg_blocksize(tfm) + 3) & ~3;
-	clen = (clen + 2 + blksize-1)&~(blksize-1);
+	blksize = ALIGN(crypto_tfm_alg_blocksize(tfm), 4);
+	clen = ALIGN(clen + 2, blksize);
 	if (esp->conf.padlen)
-		clen = (clen + esp->conf.padlen-1)&~(esp->conf.padlen-1);
+		clen = ALIGN(clen, esp->conf.padlen);
 
 	if ((nfrags = skb_cow_data(skb, clen-skb->len+alen, &trailer)) < 0) {
 		goto error;
@@ -133,7 +134,7 @@ static int esp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, stru
 	struct ipv6_esp_hdr *esph;
 	struct esp_data *esp = x->data;
 	struct sk_buff *trailer;
-	int blksize = crypto_tfm_alg_blocksize(esp->conf.tfm);
+	int blksize = ALIGN(crypto_tfm_alg_blocksize(esp->conf.tfm), 4);
 	int alen = esp->auth.icv_trunc_len;
 	int elen = skb->len - sizeof(struct ipv6_esp_hdr) - esp->conf.ivlen - alen;
 
@@ -235,16 +236,17 @@ out_nofree:
 static u32 esp6_get_max_size(struct xfrm_state *x, int mtu)
 {
 	struct esp_data *esp = x->data;
-	u32 blksize = crypto_tfm_alg_blocksize(esp->conf.tfm);
+	u32 blksize = ALIGN(crypto_tfm_alg_blocksize(esp->conf.tfm), 4);
 
 	if (x->props.mode) {
-		mtu = (mtu + 2 + blksize-1)&~(blksize-1);
+		mtu = ALIGN(mtu + 2, blksize);
 	} else {
 		/* The worst case. */
-		mtu += 2 + blksize;
+		u32 padsize = ((blksize - 1) & 7) + 1;
+		mtu = ALIGN(mtu + 2, padsize) + blksize - padsize;
 	}
 	if (esp->conf.padlen)
-		mtu = (mtu + esp->conf.padlen-1)&~(esp->conf.padlen-1);
+		mtu = ALIGN(mtu, esp->conf.padlen);
 
 	return mtu + x->props.header_len + esp->auth.icv_full_len;
 }

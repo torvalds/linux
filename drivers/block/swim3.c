@@ -28,6 +28,7 @@
 #include <linux/devfs_fs_kernel.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
 #include <asm/io.h>
 #include <asm/dbdma.h>
 #include <asm/prom.h>
@@ -176,6 +177,7 @@ struct swim3 {
 
 struct floppy_state {
 	enum swim_state	state;
+	spinlock_t lock;
 	struct swim3 __iomem *swim3;	/* hardware registers */
 	struct dbdma_regs __iomem *dma;	/* DMA controller registers */
 	int	swim3_intr;	/* interrupt number for SWIM3 */
@@ -304,7 +306,6 @@ static void do_fd_request(request_queue_t * q)
 #endif /* CONFIG_PMAC_MEDIABAY */
 		start_request(&floppy_states[i]);
 	}
-	sti();
 }
 
 static void start_request(struct floppy_state *fs)
@@ -370,7 +371,7 @@ static void set_timeout(struct floppy_state *fs, int nticks,
 {
 	unsigned long flags;
 
-	save_flags(flags); cli();
+	spin_lock_irqsave(&fs->lock, flags);
 	if (fs->timeout_pending)
 		del_timer(&fs->timeout);
 	fs->timeout.expires = jiffies + nticks;
@@ -378,7 +379,7 @@ static void set_timeout(struct floppy_state *fs, int nticks,
 	fs->timeout.data = (unsigned long) fs;
 	add_timer(&fs->timeout);
 	fs->timeout_pending = 1;
-	restore_flags(flags);
+	spin_unlock_irqrestore(&fs->lock, flags);
 }
 
 static inline void scan_track(struct floppy_state *fs)
@@ -790,14 +791,13 @@ static int grab_drive(struct floppy_state *fs, enum swim_state state,
 {
 	unsigned long flags;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&fs->lock, flags);
 	if (fs->state != idle) {
 		++fs->wanted;
 		while (fs->state != available) {
 			if (interruptible && signal_pending(current)) {
 				--fs->wanted;
-				restore_flags(flags);
+				spin_unlock_irqrestore(&fs->lock, flags);
 				return -EINTR;
 			}
 			interruptible_sleep_on(&fs->wait);
@@ -805,7 +805,7 @@ static int grab_drive(struct floppy_state *fs, enum swim_state state,
 		--fs->wanted;
 	}
 	fs->state = state;
-	restore_flags(flags);
+	spin_unlock_irqrestore(&fs->lock, flags);
 	return 0;
 }
 
@@ -813,11 +813,10 @@ static void release_drive(struct floppy_state *fs)
 {
 	unsigned long flags;
 
-	save_flags(flags);
-	cli();
+	spin_lock_irqsave(&fs->lock, flags);
 	fs->state = idle;
 	start_request(fs);
-	restore_flags(flags);
+	spin_unlock_irqrestore(&fs->lock, flags);
 }
 
 static int fd_eject(struct floppy_state *fs)
@@ -1109,6 +1108,7 @@ static int swim3_add_device(struct device_node *swim)
 		pmac_call_feature(PMAC_FTR_SWIM3_ENABLE, swim, 0, 1);
 	
 	memset(fs, 0, sizeof(*fs));
+	spin_lock_init(&fs->lock);
 	fs->state = idle;
 	fs->swim3 = (struct swim3 __iomem *)
 		ioremap(swim->addrs[0].address, 0x200);

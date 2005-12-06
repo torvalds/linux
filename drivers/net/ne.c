@@ -54,6 +54,10 @@ static const char version2[] =
 #include <asm/system.h>
 #include <asm/io.h>
 
+#if defined(CONFIG_TOSHIBA_RBTX4927) || defined(CONFIG_TOSHIBA_RBTX4938)
+#include <asm/tx4938/rbtx4938.h>
+#endif
+
 #include "8390.h"
 
 #define DRV_NAME "ne"
@@ -111,6 +115,9 @@ bad_clone_list[] __initdata = {
     {"E-LAN100", "E-LAN200", {0x00, 0x00, 0x5d}}, /* Broken ne1000 clones */
     {"PCM-4823", "PCM-4823", {0x00, 0xc0, 0x6c}}, /* Broken Advantech MoBo */
     {"REALTEK", "RTL8019", {0x00, 0x00, 0xe8}}, /* no-name with Realtek chip */
+#if defined(CONFIG_TOSHIBA_RBTX4927) || defined(CONFIG_TOSHIBA_RBTX4938)
+    {"RBHMA4X00-RTL8019", "RBHMA4X00/RTL8019", {0x00, 0x60, 0x0a}},  /* Toshiba built-in */
+#endif
     {"LCS-8834", "LCS-8836", {0x04, 0x04, 0x37}}, /* ShinyNet (SET) */
     {NULL,}
 };
@@ -226,6 +233,10 @@ struct net_device * __init ne_probe(int unit)
 	sprintf(dev->name, "eth%d", unit);
 	netdev_boot_setup_check(dev);
 
+#ifdef CONFIG_TOSHIBA_RBTX4938
+	dev->base_addr = 0x07f20280;
+	dev->irq = RBTX4938_RTL_8019_IRQ;
+#endif
 	err = do_ne_probe(dev);
 	if (err)
 		goto out;
@@ -506,6 +517,10 @@ static int __init ne_probe1(struct net_device *dev, int ioaddr)
 	ei_status.name = name;
 	ei_status.tx_start_page = start_page;
 	ei_status.stop_page = stop_page;
+#if defined(CONFIG_TOSHIBA_RBTX4927) || defined(CONFIG_TOSHIBA_RBTX4938)
+	wordlength = 1;
+#endif
+
 #ifdef CONFIG_PLAT_OAKS32R
 	ei_status.word16 = 0;
 #else

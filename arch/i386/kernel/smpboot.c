@@ -42,7 +42,6 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/smp_lock.h>
-#include <linux/irq.h>
 #include <linux/bootmem.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
@@ -69,15 +68,15 @@ EXPORT_SYMBOL(smp_num_siblings);
 
 /* Package ID of each logical CPU */
 int phys_proc_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
-EXPORT_SYMBOL(phys_proc_id);
 
 /* Core ID of each logical CPU */
 int cpu_core_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
-EXPORT_SYMBOL(cpu_core_id);
 
+/* representing HT siblings of each logical CPU */
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_sibling_map);
 
+/* representing HT and core siblings of each logical CPU */
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_core_map);
 
@@ -88,7 +87,11 @@ EXPORT_SYMBOL(cpu_online_map);
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
 EXPORT_SYMBOL(cpu_callout_map);
+#ifdef CONFIG_HOTPLUG_CPU
+cpumask_t cpu_possible_map = CPU_MASK_ALL;
+#else
 cpumask_t cpu_possible_map;
+#endif
 EXPORT_SYMBOL(cpu_possible_map);
 static cpumask_t smp_commenced_mask;
 
@@ -441,35 +444,60 @@ static void __devinit smp_callin(void)
 
 static int cpucount;
 
+/* representing cpus for which sibling maps can be computed */
+static cpumask_t cpu_sibling_setup_map;
+
 static inline void
 set_cpu_sibling_map(int cpu)
 {
 	int i;
+	struct cpuinfo_x86 *c = cpu_data;
+
+	cpu_set(cpu, cpu_sibling_setup_map);
 
 	if (smp_num_siblings > 1) {
-		for (i = 0; i < NR_CPUS; i++) {
-			if (!cpu_isset(i, cpu_callout_map))
-				continue;
-			if (cpu_core_id[cpu] == cpu_core_id[i]) {
+		for_each_cpu_mask(i, cpu_sibling_setup_map) {
+			if (phys_proc_id[cpu] == phys_proc_id[i] &&
+			    cpu_core_id[cpu] == cpu_core_id[i]) {
 				cpu_set(i, cpu_sibling_map[cpu]);
 				cpu_set(cpu, cpu_sibling_map[i]);
+				cpu_set(i, cpu_core_map[cpu]);
+				cpu_set(cpu, cpu_core_map[i]);
 			}
 		}
 	} else {
 		cpu_set(cpu, cpu_sibling_map[cpu]);
 	}
 
-	if (current_cpu_data.x86_num_cores > 1) {
-		for (i = 0; i < NR_CPUS; i++) {
-			if (!cpu_isset(i, cpu_callout_map))
-				continue;
-			if (phys_proc_id[cpu] == phys_proc_id[i]) {
-				cpu_set(i, cpu_core_map[cpu]);
-				cpu_set(cpu, cpu_core_map[i]);
-			}
-		}
-	} else {
+	if (current_cpu_data.x86_max_cores == 1) {
 		cpu_core_map[cpu] = cpu_sibling_map[cpu];
+		c[cpu].booted_cores = 1;
+		return;
+	}
+
+	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+		if (phys_proc_id[cpu] == phys_proc_id[i]) {
+			cpu_set(i, cpu_core_map[cpu]);
+			cpu_set(cpu, cpu_core_map[i]);
+			/*
+			 *  Does this new cpu bringup a new core?
+			 */
+			if (cpus_weight(cpu_sibling_map[cpu]) == 1) {
+				/*
+				 * for each core in package, increment
+				 * the booted_cores for this new cpu
+				 */
+				if (first_cpu(cpu_sibling_map[i]) == i)
+					c[cpu].booted_cores++;
+				/*
+				 * increment the core count for all
+				 * the other cpus in this package
+				 */
+				if (i != cpu)
+					c[i].booted_cores++;
+			} else if (i != cpu && !c[cpu].booted_cores)
+				c[cpu].booted_cores = c[i].booted_cores;
+		}
 	}
 }
 
@@ -484,6 +512,7 @@ static void __devinit start_secondary(void *unused)
 	 * things done here to the most necessary things.
 	 */
 	cpu_init();
+	preempt_disable();
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
 		rep_nop();
@@ -609,7 +638,7 @@ static inline void __inquire_remote_apic(int apicid)
 
 	printk("Inquiring remote APIC #%d...\n", apicid);
 
-	for (i = 0; i < sizeof(regs) / sizeof(*regs); i++) {
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		printk("... APIC #%d %s: ", apicid, names[i]);
 
 		/*
@@ -1093,11 +1122,8 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	current_thread_info()->cpu = 0;
 	smp_tune_scheduling();
-	cpus_clear(cpu_sibling_map[0]);
-	cpu_set(0, cpu_sibling_map[0]);
 
-	cpus_clear(cpu_core_map[0]);
-	cpu_set(0, cpu_core_map[0]);
+	set_cpu_sibling_map(0);
 
 	/*
 	 * If we couldn't find an SMP configuration at boot time,
@@ -1276,15 +1302,24 @@ static void
 remove_siblinginfo(int cpu)
 {
 	int sibling;
+	struct cpuinfo_x86 *c = cpu_data;
 
+	for_each_cpu_mask(sibling, cpu_core_map[cpu]) {
+		cpu_clear(cpu, cpu_core_map[sibling]);
+		/*
+		 * last thread sibling in this cpu core going down
+		 */
+		if (cpus_weight(cpu_sibling_map[cpu]) == 1)
+			c[sibling].booted_cores--;
+	}
+			
 	for_each_cpu_mask(sibling, cpu_sibling_map[cpu])
 		cpu_clear(cpu, cpu_sibling_map[sibling]);
-	for_each_cpu_mask(sibling, cpu_core_map[cpu])
-		cpu_clear(cpu, cpu_core_map[sibling]);
 	cpus_clear(cpu_sibling_map[cpu]);
 	cpus_clear(cpu_core_map[cpu]);
 	phys_proc_id[cpu] = BAD_APICID;
 	cpu_core_id[cpu] = BAD_APICID;
+	cpu_clear(cpu, cpu_sibling_setup_map);
 }
 
 int __cpu_disable(void)

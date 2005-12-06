@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <asm/dma.h>
 
 static struct sysdev_class dma_sysclass = {

@@ -145,7 +145,7 @@ int new_mm(int from, unsigned long stack)
 			       "err = %d\n", -n);
 	}
 
-	if(!ptrace_faultinfo)
+	if(skas_needs_stub)
 		map_stub_pages(fd, CONFIG_STUB_CODE, CONFIG_STUB_DATA, stack);
 
 	return(fd);

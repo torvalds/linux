@@ -740,7 +740,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		}
 
 	case 2:		/* Phase 2 - We are now talking to the scsi bus */
-		if (!ppa_select(dev, cmd->device->id)) {
+		if (!ppa_select(dev, scmd_id(cmd))) {
 			ppa_fail(dev, DID_NO_CONNECT);
 			return 0;
 		}

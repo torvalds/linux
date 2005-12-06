@@ -52,7 +52,7 @@ struct __large_pstruct { unsigned long buf[100]; };
 })
 
 #define __get_dbe_asm(insn)						\
-({									\
+{									\
 	__asm__ __volatile__(						\
 	"1:\t" insn "\t%1,%2\n\t"					\
 	"move\t%0,$0\n"							\
@@ -67,7 +67,7 @@ struct __large_pstruct { unsigned long buf[100]; };
 	".previous"							\
 	:"=r" (__gu_err), "=r" (__gu_val)				\
 	:"o" (__mp(__gu_addr)), "i" (-EFAULT));				\
-})
+}
 
 extern void __get_dbe_unknown(void);
 
@@ -90,7 +90,7 @@ extern void __get_dbe_unknown(void);
 })
 
 #define __put_dbe_asm(insn)						\
-({									\
+{									\
 	__asm__ __volatile__(						\
 	"1:\t" insn "\t%1,%2\n\t"					\
 	"move\t%0,$0\n"							\
@@ -104,7 +104,7 @@ extern void __get_dbe_unknown(void);
 	".previous"							\
 	: "=r" (__pu_err)						\
 	: "r" (__pu_val), "o" (__mp(__pu_addr)), "i" (-EFAULT));	\
-})
+}
 
 extern void __put_dbe_unknown(void);
 

@@ -696,8 +696,7 @@ static void ni65_free_buffer(struct priv *p)
 		return;
 
 	for(i=0;i<TMDNUM;i++) {
-		if(p->tmdbounce[i])
-			kfree(p->tmdbounce[i]);
+		kfree(p->tmdbounce[i]);
 #ifdef XMT_VIA_SKB
 		if(p->tmd_skb[i])
 			dev_kfree_skb(p->tmd_skb[i]);
@@ -710,12 +709,10 @@ static void ni65_free_buffer(struct priv *p)
 		if(p->recv_skb[i])
 			dev_kfree_skb(p->recv_skb[i]);
 #else
-		if(p->recvbounce[i])
-			kfree(p->recvbounce[i]);
+		kfree(p->recvbounce[i]);
 #endif
 	}
-	if(p->self)
-		kfree(p->self);
+	kfree(p->self);
 }
 
 

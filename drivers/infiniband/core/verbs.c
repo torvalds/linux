@@ -40,6 +40,7 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/string.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
@@ -324,16 +325,8 @@ EXPORT_SYMBOL(ib_destroy_cq);
 int ib_resize_cq(struct ib_cq *cq,
                  int           cqe)
 {
-	int ret;
-
-	if (!cq->device->resize_cq)
-		return -ENOSYS;
-
-	ret = cq->device->resize_cq(cq, &cqe);
-	if (!ret)
-		cq->cqe = cqe;
-
-	return ret;
+	return cq->device->resize_cq ?
+		cq->device->resize_cq(cq, cqe) : -ENOSYS;
 }
 EXPORT_SYMBOL(ib_resize_cq);
 
@@ -523,16 +516,22 @@ EXPORT_SYMBOL(ib_dealloc_fmr);
 
 int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 {
-	return qp->device->attach_mcast ?
-		qp->device->attach_mcast(qp, gid, lid) :
-		-ENOSYS;
+	if (!qp->device->attach_mcast)
+		return -ENOSYS;
+	if (gid->raw[0] != 0xff || qp->qp_type != IB_QPT_UD)
+		return -EINVAL;
+
+	return qp->device->attach_mcast(qp, gid, lid);
 }
 EXPORT_SYMBOL(ib_attach_mcast);
 
 int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 {
-	return qp->device->detach_mcast ?
-		qp->device->detach_mcast(qp, gid, lid) :
-		-ENOSYS;
+	if (!qp->device->detach_mcast)
+		return -ENOSYS;
+	if (gid->raw[0] != 0xff || qp->qp_type != IB_QPT_UD)
+		return -EINVAL;
+
+	return qp->device->detach_mcast(qp, gid, lid);
 }
 EXPORT_SYMBOL(ib_detach_mcast);

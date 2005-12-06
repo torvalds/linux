@@ -28,6 +28,14 @@
 #if !defined(__ASM_ARCH_OMAP_TIMEX_H)
 #define __ASM_ARCH_OMAP_TIMEX_H
 
+/*
+ * OMAP 32KHz timer updates time one jiffie at a time from a secondary timer,
+ * and that's why the CLOCK_TICK_RATE is not 32768.
+ */
+#ifdef CONFIG_OMAP_32K_TIMER
+#define CLOCK_TICK_RATE		(CONFIG_OMAP_32K_TIMER_HZ)
+#else
 #define CLOCK_TICK_RATE		(HZ * 100000UL)
+#endif
 
 #endif /* __ASM_ARCH_OMAP_TIMEX_H */

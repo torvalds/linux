@@ -127,11 +127,10 @@ static int lm75_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access lm75_{read,write}_value. */
-	if (!(data = kmalloc(sizeof(struct lm75_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct lm75_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct lm75_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

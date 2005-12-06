@@ -450,8 +450,7 @@ zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		kfree(sg_list);
 	}
 
-	if (sense_data != NULL)
-		kfree(sense_data);
+	kfree(sense_data);
 
 	return retval;
 }
@@ -833,7 +832,7 @@ zfcp_unit_dequeue(struct zfcp_unit *unit)
 }
 
 static void *
-zfcp_mempool_alloc(unsigned int __nocast gfp_mask, void *size)
+zfcp_mempool_alloc(gfp_t gfp_mask, void *size)
 {
 	return kmalloc((size_t) size, gfp_mask);
 }
@@ -996,6 +995,20 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	/* initialize list of fsf requests */
 	spin_lock_init(&adapter->fsf_req_list_lock);
 	INIT_LIST_HEAD(&adapter->fsf_req_list_head);
+
+	/* initialize debug locks */
+
+	spin_lock_init(&adapter->erp_dbf_lock);
+	spin_lock_init(&adapter->hba_dbf_lock);
+	spin_lock_init(&adapter->san_dbf_lock);
+	spin_lock_init(&adapter->scsi_dbf_lock);
+
+	/* initialize error recovery stuff */
+
+	rwlock_init(&adapter->erp_lock);
+	sema_init(&adapter->erp_ready_sem, 0);
+	INIT_LIST_HEAD(&adapter->erp_ready_head);
+	INIT_LIST_HEAD(&adapter->erp_running_head);
 
 	/* initialize abort lock */
 	rwlock_init(&adapter->abort_lock);

@@ -449,11 +449,9 @@ snd_seq_midisynth_unregister_port(snd_seq_device_t *dev)
 	client->ports_per_device[device] = 0;
 	msynth = client->ports[device];
 	client->ports[device] = NULL;
-	snd_runtime_check(msynth != NULL || ports <= 0, goto __skip);
 	for (p = 0; p < ports; p++)
 		snd_seq_midisynth_delete(&msynth[p]);
 	kfree(msynth);
-      __skip:
 	client->num_ports--;
 	if (client->num_ports <= 0) {
 		snd_seq_delete_kernel_client(client->seq_client);

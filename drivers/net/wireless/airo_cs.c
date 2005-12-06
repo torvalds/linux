@@ -42,6 +42,8 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
+#include "airo.h"
+
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
    you do not define PCMCIA_DEBUG at all, all the debug code will be
@@ -77,10 +79,6 @@ MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
    insertion and ejection events.  They are invoked from the airo_cs
    event handler. 
 */
-
-struct net_device *init_airo_card( int, int, int, struct device * );
-void stop_airo_card( struct net_device *, int );
-int reset_airo_card( struct net_device * );
 
 static void airo_config(dev_link_t *link);
 static void airo_release(dev_link_t *link);
@@ -172,12 +170,11 @@ static dev_link_t *airo_attach(void)
 	DEBUG(0, "airo_attach()\n");
 
 	/* Initialize the dev_link_t structure */
-	link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
+	link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 	if (!link) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
 		return NULL;
 	}
-	memset(link, 0, sizeof(struct dev_link_t));
 	
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -196,13 +193,12 @@ static dev_link_t *airo_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	
 	/* Allocate space for private device-specific data */
-	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
 		kfree (link);
 		return NULL;
 	}
-	memset(local, 0, sizeof(local_info_t));
 	link->priv = local;
 	
 	/* Register with Card Services */
@@ -258,9 +254,7 @@ static void airo_detach(dev_link_t *link)
 	
 	/* Unlink device structure, free pieces */
 	*linkp = link->next;
-	if (link->priv) {
-		kfree(link->priv);
-	}
+	kfree(link->priv);
 	kfree(link);
 	
 } /* airo_detach */

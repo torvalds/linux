@@ -165,6 +165,12 @@ EXPORT_SYMBOL(kthread_bind);
 
 int kthread_stop(struct task_struct *k)
 {
+	return kthread_stop_sem(k, NULL);
+}
+EXPORT_SYMBOL(kthread_stop);
+
+int kthread_stop_sem(struct task_struct *k, struct semaphore *s)
+{
 	int ret;
 
 	down(&kthread_stop_lock);
@@ -178,7 +184,10 @@ int kthread_stop(struct task_struct *k)
 
 	/* Now set kthread_should_stop() to true, and wake it up. */
 	kthread_stop_info.k = k;
-	wake_up_process(k);
+	if (s)
+		up(s);
+	else
+		wake_up_process(k);
 	put_task_struct(k);
 
 	/* Once it dies, reset stop ptr, gather result and we're done. */
@@ -189,7 +198,7 @@ int kthread_stop(struct task_struct *k)
 
 	return ret;
 }
-EXPORT_SYMBOL(kthread_stop);
+EXPORT_SYMBOL(kthread_stop_sem);
 
 static __init int helper_init(void)
 {

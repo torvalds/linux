@@ -35,4 +35,16 @@
 #define L1_BRICKTYPE_ATHENA	0x2b            /* + */
 #define L1_BRICKTYPE_DAYTONA	0x7a            /* z */
 
+/* board type response codes */
+#define L1_BOARDTYPE_IP69       0x0100          /* CA */
+#define L1_BOARDTYPE_IP63       0x0200          /* CB */
+#define L1_BOARDTYPE_BASEIO     0x0300          /* IB */
+#define L1_BOARDTYPE_PCIE2SLOT  0x0400          /* IC */
+#define L1_BOARDTYPE_PCIX3SLOT  0x0500          /* ID */
+#define L1_BOARDTYPE_PCIXPCIE4SLOT 0x0600       /* IE */
+#define L1_BOARDTYPE_ABACUS     0x0700          /* AB */
+#define L1_BOARDTYPE_DAYTONA    0x0800          /* AD */
+#define L1_BOARDTYPE_INVAL      (-1)            /* invalid brick type */
+
+
 #endif /* _ASM_IA64_SN_L1_H */

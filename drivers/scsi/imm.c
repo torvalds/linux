@@ -830,7 +830,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 
 		/* Phase 2 - We are now talking to the scsi bus */
 	case 2:
-		if (!imm_select(dev, cmd->device->id)) {
+		if (!imm_select(dev, scmd_id(cmd))) {
 			imm_fail(dev, DID_NO_CONNECT);
 			return 0;
 		}

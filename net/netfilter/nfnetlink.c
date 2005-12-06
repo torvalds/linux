@@ -128,18 +128,16 @@ void __nfa_fill(struct sk_buff *skb, int attrtype, int attrlen,
 	memset(NFA_DATA(nfa) + attrlen, 0, NFA_ALIGN(size) - size);
 }
 
-int nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
+void nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
 {
 	memset(tb, 0, sizeof(struct nfattr *) * maxattr);
 
 	while (NFA_OK(nfa, len)) {
-		unsigned flavor = nfa->nfa_type;
+		unsigned flavor = NFA_TYPE(nfa);
 		if (flavor && flavor <= maxattr)
 			tb[flavor-1] = nfa;
 		nfa = NFA_NEXT(nfa, len);
 	}
-
-	return 0;
 }
 
 /**
@@ -177,7 +175,7 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
 
 		while (NFA_OK(attr, attrlen)) {
-			unsigned flavor = attr->nfa_type;
+			unsigned flavor = NFA_TYPE(attr);
 			if (flavor) {
 				if (flavor > attr_count)
 					return -EINVAL;
@@ -195,7 +193,7 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 
 int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 {
-	int allocation = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
+	gfp_t allocation = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
 	int err = 0;
 
 	NETLINK_CB(skb).dst_group = group;
@@ -225,6 +223,12 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 		 NFNL_SUBSYS_ID(nlh->nlmsg_type),
 		 NFNL_MSG_TYPE(nlh->nlmsg_type));
 
+	if (!cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN)) {
+		DEBUGP("missing CAP_NET_ADMIN\n");
+		*errp = -EPERM;
+		return -1;
+	}
+
 	/* Only requests are handled by kernel now. */
 	if (!(nlh->nlmsg_flags & NLM_F_REQUEST)) {
 		DEBUGP("received non-request message\n");
@@ -250,20 +254,13 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 		ss = nfnetlink_get_subsys(type);
 		if (!ss)
 #endif
-		goto err_inval;
+			goto err_inval;
 	}
 
 	nc = nfnetlink_find_client(type, ss);
 	if (!nc) {
 		DEBUGP("unable to find client for type %d\n", type);
 		goto err_inval;
-	}
-
-	if (nc->cap_required && 
-	    !cap_raised(NETLINK_CB(skb).eff_cap, nc->cap_required)) {
-		DEBUGP("permission denied for type %d\n", type);
-		*errp = -EPERM;
-		return -1;
 	}
 
 	{

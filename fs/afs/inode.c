@@ -49,7 +49,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode)
 	case AFS_FTYPE_FILE:
 		inode->i_mode	= S_IFREG | vnode->status.mode;
 		inode->i_op	= &afs_file_inode_operations;
-		inode->i_fop	= &afs_file_file_operations;
+		inode->i_fop	= &generic_ro_fops;
 		break;
 	case AFS_FTYPE_DIR:
 		inode->i_mode	= S_IFDIR | vnode->status.mode;

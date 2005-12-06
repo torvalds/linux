@@ -4,21 +4,7 @@
 # 12 June 2000, Christoph Hellwig <hch@infradead.org>
 # Rewritten to use lists instead of if-statements.
 # 
-# Note : at this point, these files are compiled on all systems.
-# In the future, some of these should be built conditionally.
-#
 
-#
-# NOTE that ll_rw_blk.c must come early in linkage order - it starts the
-# kblockd threads
-#
-
-obj-y	:= elevator.o ll_rw_blk.o ioctl.o genhd.o scsi_ioctl.o
-
-obj-$(CONFIG_IOSCHED_NOOP)	+= noop-iosched.o
-obj-$(CONFIG_IOSCHED_AS)	+= as-iosched.o
-obj-$(CONFIG_IOSCHED_DEADLINE)	+= deadline-iosched.o
-obj-$(CONFIG_IOSCHED_CFQ)	+= cfq-iosched.o
 obj-$(CONFIG_MAC_FLOPPY)	+= swim3.o
 obj-$(CONFIG_BLK_DEV_FD)	+= floppy.o
 obj-$(CONFIG_BLK_DEV_FD98)	+= floppy98.o

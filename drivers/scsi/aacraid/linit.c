@@ -325,6 +325,8 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 	 *	translations ( 64/32, 128/32, 255/63 ).
 	 */
 	buf = scsi_bios_ptable(bdev);
+	if (!buf)
+		return 0;
 	if(*(__le16 *)(buf + 0x40) == cpu_to_le16(0xaa55)) {
 		struct partition *first = (struct partition * )buf;
 		struct partition *entry = first;
@@ -453,9 +455,9 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 		/*
 		 * We can exit If all the commands are complete
 		 */
+		spin_unlock_irq(host->host_lock);
 		if (active == 0)
 			return SUCCESS;
-		spin_unlock_irq(host->host_lock);
 		ssleep(1);
 		spin_lock_irq(host->host_lock);
 	}
@@ -748,11 +750,12 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 		unique_id++;
 	}
 
-	if (pci_enable_device(pdev))
+	error = pci_enable_device(pdev);
+	if (error)
 		goto out;
 
-	if (pci_set_dma_mask(pdev, 0xFFFFFFFFULL) || 
-			pci_set_consistent_dma_mask(pdev, 0xFFFFFFFFULL))
+	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) || 
+			pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))
 		goto out;
 	/*
 	 * If the quirk31 bit is set, the adapter needs adapter
@@ -772,6 +775,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	shost->irq = pdev->irq;
 	shost->base = pci_resource_start(pdev, 0);
 	shost->unique_id = unique_id;
+	shost->max_cmd_len = 16;
 
 	aac = (struct aac_dev *)shost->hostdata;
 	aac->scsi_host_ptr = shost;	
@@ -786,8 +790,29 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 		goto out_free_host;
 	spin_lock_init(&aac->fib_lock);
 
-	if ((*aac_drivers[index].init)(aac))
+	/*
+	 *	Map in the registers from the adapter.
+	 */
+	aac->base_size = AAC_MIN_FOOTPRINT_SIZE;
+	if ((aac->regs.sa = ioremap(
+	  (unsigned long)aac->scsi_host_ptr->base, AAC_MIN_FOOTPRINT_SIZE))
+	  == NULL) {	
+		printk(KERN_WARNING "%s: unable to map adapter.\n",
+		  AAC_DRIVERNAME);
 		goto out_free_fibs;
+	}
+	if ((*aac_drivers[index].init)(aac))
+		goto out_unmap;
+
+	/*
+	 *	Start any kernel threads needed
+	 */
+	aac->thread_pid = kernel_thread((int (*)(void *))aac_command_thread,
+	  aac, 0);
+	if (aac->thread_pid < 0) {
+		printk(KERN_ERR "aacraid: Unable to create command thread.\n");
+		goto out_deinit;
+	}
 
 	/*
 	 * If we had set a smaller DMA mask earlier, set it to 4gig
@@ -795,11 +820,13 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * address space.
 	 */
 	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT)
-		if (pci_set_dma_mask(pdev, 0xFFFFFFFFULL))
-			goto out_free_fibs;
-
+		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK))
+			goto out_deinit;
+ 
 	aac->maximum_num_channels = aac_drivers[index].channels;
-	aac_get_adapter_info(aac);
+	error = aac_get_adapter_info(aac);
+	if (error < 0)
+		goto out_deinit;
 
 	/*
  	 * Lets override negotiations and drop the maximum SG limit to 34
@@ -862,10 +889,11 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
+	free_irq(pdev->irq, aac);
+ out_unmap:
 	fib_map_free(aac);
 	pci_free_consistent(aac->pdev, aac->comm_size, aac->comm_addr, aac->comm_phys);
 	kfree(aac->queues);
-	free_irq(pdev->irq, aac);
 	iounmap(aac->regs.sa);
  out_free_fibs:
 	kfree(aac->fibs);
@@ -906,6 +934,7 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 	iounmap(aac->regs.sa);
 	
 	kfree(aac->fibs);
+	kfree(aac->fsa_dev);
 	
 	list_del(&aac->entry);
 	scsi_host_put(shost);
@@ -927,8 +956,8 @@ static int __init aac_init(void)
 	printk(KERN_INFO "Adaptec %s driver (%s)\n",
 	  AAC_DRIVERNAME, aac_driver_version);
 
-	error = pci_module_init(&aac_pci_driver);
-	if (error)
+	error = pci_register_driver(&aac_pci_driver);
+	if (error < 0)
 		return error;
 
 	aac_cfg_major = register_chrdev( 0, "aac", &aac_cfg_fops);

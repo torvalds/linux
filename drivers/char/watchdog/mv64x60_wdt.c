@@ -22,6 +22,8 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/watchdog.h>
+#include <linux/platform_device.h>
+
 #include <asm/mv64x60.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -87,6 +89,8 @@ static int mv64x60_wdt_open(struct inode *inode, struct file *file)
 	mv64x60_wdt_service();
 	mv64x60_wdt_handler_enable();
 
+	nonseekable_open(inode, file);
+
 	return 0;
 }
 
@@ -103,12 +107,9 @@ static int mv64x60_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t mv64x60_wdt_write(struct file *file, const char *data,
+static ssize_t mv64x60_wdt_write(struct file *file, const char __user *data,
 				 size_t len, loff_t * ppos)
 {
-	if (*ppos != file->f_pos)
-		return -ESPIPE;
-
 	if (len)
 		mv64x60_wdt_service();
 
@@ -119,6 +120,7 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 			     unsigned int cmd, unsigned long arg)
 {
 	int timeout;
+	void __user *argp = (void __user *)arg;
 	static struct watchdog_info info = {
 		.options = WDIOF_KEEPALIVEPING,
 		.firmware_version = 0,
@@ -127,13 +129,13 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user((void *)arg, &info, sizeof(info)))
+		if (copy_to_user(argp, &info, sizeof(info)))
 			return -EFAULT;
 		break;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
-		if (put_user(wdt_status, (int *)arg))
+		if (put_user(wdt_status, (int __user *)argp))
 			return -EFAULT;
 		wdt_status &= ~WDIOF_KEEPALIVEPING;
 		break;
@@ -154,7 +156,7 @@ static int mv64x60_wdt_ioctl(struct inode *inode, struct file *file,
 
 	case WDIOC_GETTIMEOUT:
 		timeout = mv64x60_wdt_timeout * HZ;
-		if (put_user(timeout, (int *)arg))
+		if (put_user(timeout, (int __user *)argp))
 			return -EFAULT;
 		break;
 
@@ -180,10 +182,9 @@ static struct miscdevice mv64x60_wdt_miscdev = {
 	.fops = &mv64x60_wdt_fops,
 };
 
-static int __devinit mv64x60_wdt_probe(struct device *dev)
+static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 {
-	struct platform_device *pd = to_platform_device(dev);
-	struct mv64x60_wdt_pdata *pdata = pd->dev.platform_data;
+	struct mv64x60_wdt_pdata *pdata = dev->dev.platform_data;
 	int bus_clk = 133;
 
 	mv64x60_wdt_timeout = 10;
@@ -200,7 +201,7 @@ static int __devinit mv64x60_wdt_probe(struct device *dev)
 	return misc_register(&mv64x60_wdt_miscdev);
 }
 
-static int __devexit mv64x60_wdt_remove(struct device *dev)
+static int __devexit mv64x60_wdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&mv64x60_wdt_miscdev);
 
@@ -210,11 +211,13 @@ static int __devexit mv64x60_wdt_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver mv64x60_wdt_driver = {
-	.name = MV64x60_WDT_NAME,
-	.bus = &platform_bus_type,
+static struct platform_driver mv64x60_wdt_driver = {
 	.probe = mv64x60_wdt_probe,
 	.remove = __devexit_p(mv64x60_wdt_remove),
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = MV64x60_WDT_NAME,
+	},
 };
 
 static struct platform_device *mv64x60_wdt_dev;
@@ -232,14 +235,14 @@ static int __init mv64x60_wdt_init(void)
 		goto out;
 	}
 
-	ret = driver_register(&mv64x60_wdt_driver);
+	ret = platform_driver_register(&mv64x60_wdt_driver);
       out:
 	return ret;
 }
 
 static void __exit mv64x60_wdt_exit(void)
 {
-	driver_unregister(&mv64x60_wdt_driver);
+	platform_driver_unregister(&mv64x60_wdt_driver);
 	platform_device_unregister(mv64x60_wdt_dev);
 }
 

@@ -60,12 +60,12 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <linux/version.h>
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/dm9000.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 
 #include <asm/delay.h>
 #include <asm/irq.h>
@@ -148,7 +148,7 @@ typedef struct board_info {
 } board_info_t;
 
 /* function declaration ------------------------------------- */
-static int dm9000_probe(struct device *);
+static int dm9000_probe(struct platform_device *);
 static int dm9000_open(struct net_device *);
 static int dm9000_start_xmit(struct sk_buff *, struct net_device *);
 static int dm9000_stop(struct net_device *);
@@ -378,9 +378,8 @@ dm9000_release_board(struct platform_device *pdev, struct board_info *db)
  * Search DM9000 board, allocate space and register it
  */
 static int
-dm9000_probe(struct device *dev)
+dm9000_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
 	struct board_info *db;	/* Point a board information structure */
 	struct net_device *ndev;
@@ -398,7 +397,7 @@ dm9000_probe(struct device *dev)
 	}
 
 	SET_MODULE_OWNER(ndev);
-	SET_NETDEV_DEV(ndev, dev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	PRINTK2("dm9000_probe()");
 
@@ -569,7 +568,7 @@ dm9000_probe(struct device *dev)
 		printk("%s: Invalid ethernet MAC address.  Please "
 		       "set using ifconfig\n", ndev->name);
 
-	dev_set_drvdata(dev, ndev);
+	platform_set_drvdata(pdev, ndev);
 	ret = register_netdev(ndev);
 
 	if (ret == 0) {
@@ -1140,11 +1139,11 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 }
 
 static int
-dm9000_drv_suspend(struct device *dev, pm_message_t state, u32 level)
+dm9000_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(dev);
 
-	if (ndev && level == SUSPEND_DISABLE) {
+	if (ndev) {
 		if (netif_running(ndev)) {
 			netif_device_detach(ndev);
 			dm9000_shutdown(ndev);
@@ -1154,12 +1153,12 @@ dm9000_drv_suspend(struct device *dev, pm_message_t state, u32 level)
 }
 
 static int
-dm9000_drv_resume(struct device *dev, u32 level)
+dm9000_drv_resume(struct platform_device *dev)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(dev);
 	board_info_t *db = (board_info_t *) ndev->priv;
 
-	if (ndev && level == RESUME_ENABLE) {
+	if (ndev) {
 
 		if (netif_running(ndev)) {
 			dm9000_reset(db);
@@ -1172,12 +1171,11 @@ dm9000_drv_resume(struct device *dev, u32 level)
 }
 
 static int
-dm9000_drv_remove(struct device *dev)
+dm9000_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
 	dm9000_release_board(pdev, (board_info_t *) ndev->priv);
@@ -1188,13 +1186,14 @@ dm9000_drv_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver dm9000_driver = {
-	.name    = "dm9000",
-	.bus     = &platform_bus_type,
+static struct platform_driver dm9000_driver = {
 	.probe   = dm9000_probe,
 	.remove  = dm9000_drv_remove,
 	.suspend = dm9000_drv_suspend,
 	.resume  = dm9000_drv_resume,
+	.driver	= {
+		.name	= "dm9000",
+	},
 };
 
 static int __init
@@ -1202,13 +1201,13 @@ dm9000_init(void)
 {
 	printk(KERN_INFO "%s Ethernet Driver\n", CARDNAME);
 
-	return driver_register(&dm9000_driver);	/* search board and register */
+	return platform_driver_register(&dm9000_driver);	/* search board and register */
 }
 
 static void __exit
 dm9000_cleanup(void)
 {
-	driver_unregister(&dm9000_driver);
+	platform_driver_unregister(&dm9000_driver);
 }
 
 module_init(dm9000_init);

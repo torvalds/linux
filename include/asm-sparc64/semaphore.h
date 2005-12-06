@@ -22,9 +22,6 @@ struct semaphore {
 	{ ATOMIC_INIT(count), \
 	  __WAIT_QUEUE_HEAD_INITIALIZER((name).wait) }
 
-#define __MUTEX_INITIALIZER(name) \
-	__SEMAPHORE_INITIALIZER(name, 1)
-
 #define __DECLARE_SEMAPHORE_GENERIC(name, count) \
 	struct semaphore name = __SEMAPHORE_INITIALIZER(name,count)
 

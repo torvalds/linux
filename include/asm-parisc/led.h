@@ -23,9 +23,6 @@
 
 #define LED_CMD_REG_NONE 0		/* NULL == no addr for the cmd register */
 
-/* led tasklet struct */
-extern struct tasklet_struct led_tasklet;
-
 /* register_led_driver() */
 int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long data_reg);
 

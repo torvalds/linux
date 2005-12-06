@@ -1450,7 +1450,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 
 static void pndisc_redo(struct sk_buff *skb)
 {
-	ndisc_rcv(skb);
+	ndisc_recv_ns(skb);
 	kfree_skb(skb);
 }
 

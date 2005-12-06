@@ -10,24 +10,15 @@
  *
  * Copyright (C) 1995,1996 by Paul M. Antoine, some code and definitions
  * are by courtesy of Chris Fraser.
- * Copyright (C) 2000, 2002, 2003  Maciej W. Rozycki
+ * Copyright (C) 2000, 2002, 2003, 2005  Maciej W. Rozycki
  */
 #ifndef __ASM_MIPS_DEC_KN03_H
 #define __ASM_MIPS_DEC_KN03_H
 
-#include <asm/addrspace.h>
 #include <asm/dec/ecc.h>
 #include <asm/dec/ioasic_addrs.h>
 
-#define KN03_SLOT_BASE	KSEG1ADDR(0x1f800000)
-
-/*
- * Some port addresses...
- */
-#define KN03_IOASIC_BASE	(KN03_SLOT_BASE + IOASIC_IOCTL)	/* I/O ASIC */
-#define KN03_RTC_BASE		(KN03_SLOT_BASE + IOASIC_TOY)	/* RTC */
-#define KN03_MCR_BASE		(KN03_SLOT_BASE + IOASIC_MCR)	/* MCR */
-
+#define KN03_SLOT_BASE		0x1f800000
 
 /*
  * CPU interrupt bits.

@@ -1,4 +1,7 @@
 #ifndef _PARISC_PSW_H
+
+#include <linux/config.h>
+
 #define	PSW_I	0x00000001
 #define	PSW_D	0x00000002
 #define	PSW_P	0x00000004
@@ -8,6 +11,16 @@
 #define	PSW_F	0x00000020
 #define	PSW_G	0x00000040	/* PA1.x only */
 #define PSW_O	0x00000080	/* PA2.0 only */
+
+/* ssm/rsm instructions number PSW_W and PSW_E differently */
+#define PSW_SM_I	PSW_I	/* Enable External Interrupts */
+#define PSW_SM_D	PSW_D
+#define PSW_SM_P	PSW_P
+#define PSW_SM_Q	PSW_Q	/* Enable Interrupt State Collection */
+#define PSW_SM_R	PSW_R	/* Enable Recover Counter Trap */
+#define PSW_SM_W	0x200	/* PA2.0 only : Enable Wide Mode */
+
+#define PSW_SM_QUIET	PSW_SM_R+PSW_SM_Q+PSW_SM_P+PSW_SM_D+PSW_SM_I
 
 #define PSW_CB	0x0000ff00
 
@@ -30,33 +43,21 @@
 #define	PSW_Z	0x40000000	/* PA1.x only */
 #define	PSW_Y	0x80000000	/* PA1.x only */
 
-#ifdef __LP64__
-#define PSW_HI_CB 0x000000ff    /* PA2.0 only */
+#ifdef CONFIG_64BIT
+#  define PSW_HI_CB 0x000000ff    /* PA2.0 only */
 #endif
 
-/* PSW bits to be used with ssm/rsm */
-#define PSW_SM_I        0x1
-#define PSW_SM_D        0x2
-#define PSW_SM_P        0x4
-#define PSW_SM_Q        0x8
-#define PSW_SM_R        0x10
-#define PSW_SM_F        0x20
-#define PSW_SM_G        0x40
-#define PSW_SM_O        0x80
-#define PSW_SM_E        0x100
-#define PSW_SM_W        0x200
-
-#ifdef __LP64__
-#  define USER_PSW      (PSW_C | PSW_Q | PSW_P | PSW_D | PSW_I)
-#  define KERNEL_PSW    (PSW_W | PSW_C | PSW_Q | PSW_P | PSW_D)
-#  define REAL_MODE_PSW (PSW_W | PSW_Q)
-#  define USER_PSW_MASK (PSW_W | PSW_T | PSW_N | PSW_X | PSW_B | PSW_V | PSW_CB)
-#  define USER_PSW_HI_MASK (PSW_HI_CB)
-#else
-#  define USER_PSW      (PSW_C | PSW_Q | PSW_P | PSW_D | PSW_I)
-#  define KERNEL_PSW    (PSW_C | PSW_Q | PSW_P | PSW_D)
-#  define REAL_MODE_PSW (PSW_Q)
-#  define USER_PSW_MASK (PSW_T | PSW_N | PSW_X | PSW_B | PSW_V | PSW_CB)
+#ifdef CONFIG_64BIT
+#  define USER_PSW_HI_MASK	PSW_HI_CB
+#  define WIDE_PSW		PSW_W
+#else 
+#  define WIDE_PSW		0
 #endif
+
+/* Used when setting up for rfi */
+#define KERNEL_PSW    (WIDE_PSW | PSW_C | PSW_Q | PSW_P | PSW_D)
+#define REAL_MODE_PSW (WIDE_PSW | PSW_Q)
+#define USER_PSW_MASK (WIDE_PSW | PSW_T | PSW_N | PSW_X | PSW_B | PSW_V | PSW_CB)
+#define USER_PSW      (PSW_C | PSW_Q | PSW_P | PSW_D | PSW_I)
 
 #endif

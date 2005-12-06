@@ -147,8 +147,7 @@ static int uart_startup(struct uart_state *state, int init_hw)
 	 * once we have successfully opened the port.  Also set
 	 * up the tty->alt_speed kludge
 	 */
-	if (info->tty)
-		set_bit(TTY_IO_ERROR, &info->tty->flags);
+	set_bit(TTY_IO_ERROR, &info->tty->flags);
 
 	if (port->type == PORT_UNKNOWN)
 		return 0;
@@ -210,33 +209,45 @@ static void uart_shutdown(struct uart_state *state)
 	struct uart_info *info = state->info;
 	struct uart_port *port = state->port;
 
-	if (!(info->flags & UIF_INITIALIZED))
-		return;
+	/*
+	 * Set the TTY IO error marker
+	 */
+	if (info->tty)
+		set_bit(TTY_IO_ERROR, &info->tty->flags);
+
+	if (info->flags & UIF_INITIALIZED) {
+		info->flags &= ~UIF_INITIALIZED;
+
+		/*
+		 * Turn off DTR and RTS early.
+		 */
+		if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
+			uart_clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
+
+		/*
+		 * clear delta_msr_wait queue to avoid mem leaks: we may free
+		 * the irq here so the queue might never be woken up.  Note
+		 * that we won't end up waiting on delta_msr_wait again since
+		 * any outstanding file descriptors should be pointing at
+		 * hung_up_tty_fops now.
+		 */
+		wake_up_interruptible(&info->delta_msr_wait);
+
+		/*
+		 * Free the IRQ and disable the port.
+		 */
+		port->ops->shutdown(port);
+
+		/*
+		 * Ensure that the IRQ handler isn't running on another CPU.
+		 */
+		synchronize_irq(port->irq);
+	}
 
 	/*
-	 * Turn off DTR and RTS early.
+	 * kill off our tasklet
 	 */
-	if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
-		uart_clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
-
-	/*
-	 * clear delta_msr_wait queue to avoid mem leaks: we may free
-	 * the irq here so the queue might never be woken up.  Note
-	 * that we won't end up waiting on delta_msr_wait again since
-	 * any outstanding file descriptors should be pointing at
-	 * hung_up_tty_fops now.
-	 */
-	wake_up_interruptible(&info->delta_msr_wait);
-
-	/*
-	 * Free the IRQ and disable the port.
-	 */
-	port->ops->shutdown(port);
-
-	/*
-	 * Ensure that the IRQ handler isn't running on another CPU.
-	 */
-	synchronize_irq(port->irq);
+	tasklet_kill(&info->tlet);
 
 	/*
 	 * Free the transmit buffer page.
@@ -245,15 +256,6 @@ static void uart_shutdown(struct uart_state *state)
 		free_page((unsigned long)info->xmit.buf);
 		info->xmit.buf = NULL;
 	}
-
-	/*
-	 * kill off our tasklet
-	 */
-	tasklet_kill(&info->tlet);
-	if (info->tty)
-		set_bit(TTY_IO_ERROR, &info->tty->flags);
-
-	info->flags &= ~UIF_INITIALIZED;
 }
 
 /**
@@ -1777,7 +1779,7 @@ struct baud_rates {
 	unsigned int cflag;
 };
 
-static struct baud_rates baud_rates[] = {
+static const struct baud_rates baud_rates[] = {
 	{ 921600, B921600 },
 	{ 460800, B460800 },
 	{ 230400, B230400 },
@@ -1929,14 +1931,25 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *port)
 
 	if (state->info && state->info->flags & UIF_INITIALIZED) {
 		struct uart_ops *ops = port->ops;
+		int ret;
 
 		ops->set_mctrl(port, 0);
-		ops->startup(port);
-		uart_change_speed(state, NULL);
-		spin_lock_irq(&port->lock);
-		ops->set_mctrl(port, port->mctrl);
-		ops->start_tx(port);
-		spin_unlock_irq(&port->lock);
+		ret = ops->startup(port);
+		if (ret == 0) {
+			uart_change_speed(state, NULL);
+			spin_lock_irq(&port->lock);
+			ops->set_mctrl(port, port->mctrl);
+			ops->start_tx(port);
+			spin_unlock_irq(&port->lock);
+		} else {
+			/*
+			 * Failed to resume - maybe hardware went away?
+			 * Clear the "initialized" flag so we won't try
+			 * to call the low level drivers shutdown method.
+			 */
+			state->info->flags &= ~UIF_INITIALIZED;
+			uart_shutdown(state);
+		}
 	}
 
 	up(&state->sem);
@@ -1960,6 +1973,7 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 		break;
 	case UPIO_MEM:
 	case UPIO_MEM32:
+	case UPIO_AU:
 		snprintf(address, sizeof(address),
 			 "MMIO 0x%lx", port->mapbase);
 		break;
@@ -1968,7 +1982,9 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 		break;
 	}
 
-	printk(KERN_INFO "%s%d at %s (irq = %d) is a %s\n",
+	printk(KERN_INFO "%s%s%s%d at %s (irq = %d) is a %s\n",
+	       port->dev ? port->dev->bus_id : "",
+	       port->dev ? ": " : "",
 	       drv->dev_name, port->line, address, port->irq, uart_type(port));
 }
 

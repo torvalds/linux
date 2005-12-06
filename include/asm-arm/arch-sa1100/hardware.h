@@ -22,13 +22,6 @@
 
 
 /*
- * We requires absolute addresses i.e. (PCMCIA_IO_0_BASE + 0x3f8) for 
- * in*()/out*() macros to be usable for all cases.
- */
-#define PCIO_BASE		0
-
-
-/*
  * SA1100 internal I/O mappings
  *
  * We have the following mapping:

@@ -83,15 +83,15 @@ static unsigned long pdc_result2[32] __attribute__ ((aligned (8)));
 int parisc_narrow_firmware = 1;
 #endif
 
-/* on all currently-supported platforms, IODC I/O calls are always
- * 32-bit calls, and MEM_PDC calls are always the same width as the OS.
- * This means Cxxx boxes can't run wide kernels right now. -PB
+/* On most currently-supported platforms, IODC I/O calls are 32-bit calls
+ * and MEM_PDC calls are always the same width as the OS.
+ * Some PAT boxes may have 64-bit IODC I/O.
  *
- * CONFIG_PDC_NARROW has been added to allow 64-bit kernels to run on
- * systems with 32-bit MEM_PDC calls. This will allow wide kernels to
- * run on Cxxx boxes now. -RB
- *
- * Note that some PAT boxes may have 64-bit IODC I/O...
+ * Ryan Bradetich added the now obsolete CONFIG_PDC_NARROW to allow
+ * 64-bit kernels to run on systems with 32-bit MEM_PDC calls.
+ * This allowed wide kernels to run on Cxxx boxes.
+ * We now detect 32-bit-only PDC and dynamically switch to 32-bit mode
+ * when running a 64-bit kernel on such boxes (e.g. C200 or C360).
  */
 
 #ifdef __LP64__

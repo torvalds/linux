@@ -1,4 +1,4 @@
-# $Id: Kconfig,v 1.7 2004/11/22 11:33:56 ijc Exp $
+# $Id: Kconfig,v 1.11 2005/11/07 11:14:19 gleixner Exp $
 
 menu "Memory Technology Devices (MTD)"
 
@@ -10,7 +10,7 @@ config MTD
 	  will provide the generic support for MTD drivers to register
 	  themselves with the kernel and for potential users of MTD devices
 	  to enumerate the devices which are present and obtain a handle on
-	  them. It will also allow you to select individual drivers for 
+	  them. It will also allow you to select individual drivers for
 	  particular hardware and users of MTD devices. If unsure, say N.
 
 config MTD_DEBUG
@@ -61,11 +61,11 @@ config MTD_REDBOOT_PARTS
 
 	  If you need code which can detect and parse this table, and register
 	  MTD 'partitions' corresponding to each image in the table, enable
-	  this option. 
+	  this option.
 
 	  You will still need the parsing functions to be called by the driver
-	  for your particular device. It won't happen automatically. The 
-	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for 
+	  for your particular device. It won't happen automatically. The
+	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for
 	  example.
 
 config MTD_REDBOOT_DIRECTORY_BLOCK
@@ -81,10 +81,10 @@ config MTD_REDBOOT_DIRECTORY_BLOCK
 	  partition table.  A zero or positive value gives an absolete
 	  erase block number. A negative value specifies a number of
 	  sectors before the end of the device.
-	  
+
 	  For example "2" means block number 2, "-1" means the last
 	  block and "-2" means the penultimate block.
-	  
+
 config MTD_REDBOOT_PARTS_UNALLOCATED
 	bool "  Include unallocated flash regions"
 	depends on MTD_REDBOOT_PARTS
@@ -105,11 +105,11 @@ config MTD_CMDLINE_PARTS
 	---help---
 	  Allow generic configuration of the MTD paritition tables via the kernel
 	  command line. Multiple flash resources are supported for hardware where
-	  different kinds of flash memory are available. 
+	  different kinds of flash memory are available.
 
 	  You will still need the parsing functions to be called by the driver
-	  for your particular device. It won't happen automatically. The 
-	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for 
+	  for your particular device. It won't happen automatically. The
+	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for
 	  example.
 
 	  The format for the command line is as follows:
@@ -118,12 +118,12 @@ config MTD_CMDLINE_PARTS
 	  <mtddef>  := <mtd-id>:<partdef>[,<partdef>]
 	  <partdef> := <size>[@offset][<name>][ro]
 	  <mtd-id>  := unique id used in mapping driver/device
-	  <size>    := standard linux memsize OR "-" to denote all 
+	  <size>    := standard linux memsize OR "-" to denote all
 	  remaining space
 	  <name>    := (NAME)
 
-	  Due to the way Linux handles the command line, no spaces are 
-	  allowed in the partition definition, including mtd id's and partition 
+	  Due to the way Linux handles the command line, no spaces are
+	  allowed in the partition definition, including mtd id's and partition
 	  names.
 
 	  Examples:
@@ -240,7 +240,7 @@ config INFTL
 	tristate "INFTL (Inverse NAND Flash Translation Layer) support"
 	depends on MTD
 	---help---
-	  This provides support for the Inverse NAND Flash Translation 
+	  This provides support for the Inverse NAND Flash Translation
 	  Layer which is used on M-Systems' newer DiskOnChip devices. It
 	  uses a kind of pseudo-file system on a flash device to emulate
 	  a block device with 512-byte sectors, on top of which you put
@@ -253,6 +253,16 @@ config INFTL
 	  permitted to copy, modify and distribute the code as you wish. Just
 	  not use it.
 
+config RFD_FTL
+        tristate "Resident Flash Disk (Flash Translation Layer) support"
+	depends on MTD
+	---help---
+	  This provides support for the flash translation layer known
+	  as the Resident Flash Disk (RFD), as used by the Embedded BIOS
+	  of General Software. There is a blurb at:
+
+		http://www.gensw.com/pages/prod/bios/rfd.htm
+
 source "drivers/mtd/chips/Kconfig"
 
 source "drivers/mtd/maps/Kconfig"
@@ -260,6 +270,8 @@ source "drivers/mtd/maps/Kconfig"
 source "drivers/mtd/devices/Kconfig"
 
 source "drivers/mtd/nand/Kconfig"
+
+source "drivers/mtd/onenand/Kconfig"
 
 endmenu
 

@@ -184,7 +184,9 @@ xmon_map_scc(void)
 		sccc = base + (addr & ~PAGE_MASK);
 		sccd = sccc + 0x10;
 
-	} else {
+	}
+#ifdef CONFIG_PPC_CHRP
+	else {
 		base = (volatile unsigned char *) isa_io_base;
 		if (_machine == _MACH_chrp)
 			base = (volatile unsigned char *)
@@ -200,6 +202,7 @@ xmon_map_scc(void)
 		RXRDY = 1;
 		DLAB = 0x80;
 	}
+#endif /* CONFIG_PPC_CHRP */
 #elif defined(CONFIG_GEMINI)
 	/* should already be mapped by the kernel boot */
 	sccc = (volatile unsigned char *) 0xffeffb0d;
@@ -478,8 +481,9 @@ void *xmon_stdout;
 void *xmon_stderr;
 
 void
-xmon_init(void)
+xmon_init(int arg)
 {
+	xmon_map_scc();
 }
 
 int

@@ -207,6 +207,20 @@ int mii_ethtool_sset(struct mii_if_info *mii, struct ethtool_cmd *ecmd)
 	return 0;
 }
 
+int mii_check_gmii_support(struct mii_if_info *mii)
+{
+	int reg;
+
+	reg = mii->mdio_read(mii->dev, mii->phy_id, MII_BMSR);
+	if (reg & BMSR_ESTATEN) {
+		reg = mii->mdio_read(mii->dev, mii->phy_id, MII_ESTATUS);
+		if (reg & (ESTATUS_1000_TFULL | ESTATUS_1000_THALF))
+			return 1;
+	}
+
+	return 0;
+}
+
 int mii_link_ok (struct mii_if_info *mii)
 {
 	/* first, a dummy read, needed to latch some MII phys */
@@ -394,5 +408,6 @@ EXPORT_SYMBOL(mii_ethtool_gset);
 EXPORT_SYMBOL(mii_ethtool_sset);
 EXPORT_SYMBOL(mii_check_link);
 EXPORT_SYMBOL(mii_check_media);
+EXPORT_SYMBOL(mii_check_gmii_support);
 EXPORT_SYMBOL(generic_mii_ioctl);
 

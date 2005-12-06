@@ -19,7 +19,7 @@
 /*
  * Physical DRAM offset.
  */
-#define PHYS_OFFSET	(0x00000000UL)
+#define PHYS_OFFSET	UL(0x00000000)
 
 /*
  * We keep this 1:1 so that we don't interfere

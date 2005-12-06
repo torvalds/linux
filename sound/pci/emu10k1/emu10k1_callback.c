@@ -241,7 +241,7 @@ lookup_voices(snd_emux_t *emu, emu10k1_t *hw, best_voice_t *best, int active_onl
 		else if (state == SNDRV_EMUX_ST_RELEASED ||
 			 state == SNDRV_EMUX_ST_PENDING) {
 			bp = best + V_RELEASED;
-#if 0
+#if 1
 			val = snd_emu10k1_ptr_read(hw, CVCF_CURRENTVOL, vp->ch);
 			if (! val)
 				bp = best + V_OFF;
@@ -349,7 +349,7 @@ start_voice(snd_emux_voice_t *vp)
 	}
 
 	/* channel to be silent and idle */
-	snd_emu10k1_ptr_write(hw, DCYSUSV, ch, 0x0080);
+	snd_emu10k1_ptr_write(hw, DCYSUSV, ch, 0x0000);
 	snd_emu10k1_ptr_write(hw, VTFT, ch, 0x0000FFFF);
 	snd_emu10k1_ptr_write(hw, CVCF, ch, 0x0000FFFF);
 	snd_emu10k1_ptr_write(hw, PTRX, ch, 0);

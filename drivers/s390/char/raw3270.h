@@ -21,6 +21,7 @@
 
 /* Local Channel Commands */
 #define TC_WRITE	0x01		/* Write */
+#define TC_RDBUF	0x02		/* Read Buffer */
 #define TC_EWRITE	0x05		/* Erase write */
 #define TC_READMOD	0x06		/* Read modified */
 #define TC_EWRITEA	0x0d		/* Erase write alternate */
@@ -76,7 +77,8 @@
 #define TW_KR		0xc2		/* Keyboard restore */
 #define TW_PLUSALARM	0x04		/* Add this bit for alarm */
 
-#define RAW3270_MAXDEVS	256
+#define RAW3270_FIRSTMINOR	1	/* First minor number */
+#define RAW3270_MAXDEVS		255	/* Max number of 3270 devices */
 
 /* For TUBGETMOD and TUBSETMOD. Should include. */
 struct raw3270_iocb {
@@ -166,7 +168,10 @@ void raw3270_del_view(struct raw3270_view *);
 void raw3270_deactivate_view(struct raw3270_view *);
 struct raw3270_view *raw3270_find_view(struct raw3270_fn *, int);
 int raw3270_start(struct raw3270_view *, struct raw3270_request *);
+int raw3270_start_locked(struct raw3270_view *, struct raw3270_request *);
 int raw3270_start_irq(struct raw3270_view *, struct raw3270_request *);
+int raw3270_reset(struct raw3270_view *);
+struct raw3270_view *raw3270_view(struct raw3270_view *);
 
 /* Reference count inliner for view structures. */
 static inline void

@@ -27,7 +27,7 @@ static volatile unsigned char __iomem *anslcd_ptr;
 
 #undef DEBUG
 
-static void __pmac
+static void
 anslcd_write_byte_ctrl ( unsigned char c )
 {
 #ifdef DEBUG
@@ -43,14 +43,14 @@ anslcd_write_byte_ctrl ( unsigned char c )
 	}
 }
 
-static void __pmac
+static void
 anslcd_write_byte_data ( unsigned char c )
 {
 	out_8(anslcd_ptr + ANSLCD_DATA_IX, c);
 	udelay(anslcd_short_delay);
 }
 
-static ssize_t __pmac
+static ssize_t
 anslcd_write( struct file * file, const char __user * buf, 
 				size_t count, loff_t *ppos )
 {
@@ -73,7 +73,7 @@ anslcd_write( struct file * file, const char __user * buf,
 	return p - buf;
 }
 
-static int __pmac
+static int
 anslcd_ioctl( struct inode * inode, struct file * file,
 				unsigned int cmd, unsigned long arg )
 {
@@ -115,7 +115,7 @@ anslcd_ioctl( struct inode * inode, struct file * file,
 	}
 }
 
-static int __pmac
+static int
 anslcd_open( struct inode * inode, struct file * file )
 {
 	return 0;

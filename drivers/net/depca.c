@@ -254,7 +254,7 @@
 #include <linux/unistd.h>
 #include <linux/ctype.h>
 #include <linux/moduleparam.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/bitops.h>
 
 #include <asm/uaccess.h>
@@ -398,13 +398,19 @@ static struct mca_driver depca_mca_driver = {
 };
 #endif
 
-static int depca_isa_probe (struct device *);
+static int depca_isa_probe (struct platform_device *);
 
-static struct device_driver depca_isa_driver = {
-	.name   = depca_string,
-	.bus    = &platform_bus_type,
+static int __devexit depca_isa_remove(struct platform_device *pdev)
+{
+	return depca_device_remove(&pdev->dev);
+}
+
+static struct platform_driver depca_isa_driver = {
 	.probe  = depca_isa_probe,
-	.remove = __devexit_p(depca_device_remove),
+	.remove = __devexit_p(depca_isa_remove),
+	.driver	= {
+		.name   = depca_string,
+	},
 };
 	
 /*
@@ -1470,15 +1476,6 @@ static int __init depca_mca_probe(struct device *device)
 ** ISA bus I/O device probe
 */
 
-static void depca_platform_release (struct device *device)
-{
-	struct platform_device *pldev;
-
-	/* free device */
-	pldev = to_platform_device (device);
-	kfree (pldev);
-}
-
 static void __init depca_platform_probe (void)
 {
 	int i;
@@ -1491,19 +1488,16 @@ static void __init depca_platform_probe (void)
 		 * line, use it (if valid) */
 		if (io && io != depca_io_ports[i].iobase)
 			continue;
-		
-		if (!(pldev = kmalloc (sizeof (*pldev), GFP_KERNEL)))
+
+		pldev = platform_device_alloc(depca_string, i);
+		if (!pldev)
 			continue;
 
-		memset (pldev, 0, sizeof (*pldev));
-		pldev->name = depca_string;
-		pldev->id   = i;
 		pldev->dev.platform_data = (void *) depca_io_ports[i].iobase;
-		pldev->dev.release       = depca_platform_release;
 		depca_io_ports[i].device = pldev;
 
-		if (platform_device_register (pldev)) {
-			kfree (pldev);
+		if (platform_device_add(pldev)) {
+			platform_device_put(pldev);
 			depca_io_ports[i].device = NULL;
 			continue;
 		}
@@ -1515,6 +1509,7 @@ static void __init depca_platform_probe (void)
 		 * allocated structure */
 			
 			depca_io_ports[i].device = NULL;
+			pldev->dev.platform_data = NULL;
 			platform_device_unregister (pldev);
 		}
 	}
@@ -1536,7 +1531,7 @@ static enum depca_type __init depca_shmem_probe (ulong *mem_start)
 	return adapter;
 }
 
-static int __init depca_isa_probe (struct device *device)
+static int __init depca_isa_probe (struct platform_device *device)
 {
 	struct net_device *dev;
 	struct depca_private *lp;
@@ -1544,7 +1539,7 @@ static int __init depca_isa_probe (struct device *device)
 	enum depca_type adapter = unknown;
 	int status = 0;
 
-	ioaddr = (u_long) device->platform_data;
+	ioaddr = (u_long) device->dev.platform_data;
 
 	if ((status = depca_common_init (ioaddr, &dev)))
 		goto out;
@@ -1564,7 +1559,7 @@ static int __init depca_isa_probe (struct device *device)
 	lp->adapter = adapter;
 	lp->mem_start = mem_start;
 	
-	if ((status = depca_hw_init(dev, device)))
+	if ((status = depca_hw_init(dev, &device->dev)))
 		goto out_free;
 	
 	return 0;
@@ -2093,7 +2088,7 @@ static int __init depca_module_init (void)
 #ifdef CONFIG_EISA
         err |= eisa_driver_register (&depca_eisa_driver);
 #endif
-	err |= driver_register (&depca_isa_driver);
+	err |= platform_driver_register (&depca_isa_driver);
 	depca_platform_probe ();
 	
         return err;
@@ -2108,10 +2103,11 @@ static void __exit depca_module_exit (void)
 #ifdef CONFIG_EISA
         eisa_driver_unregister (&depca_eisa_driver);
 #endif
-	driver_unregister (&depca_isa_driver);
+	platform_driver_unregister (&depca_isa_driver);
 
 	for (i = 0; depca_io_ports[i].iobase; i++) {
 		if (depca_io_ports[i].device) {
+			depca_io_ports[i].device->dev.platform_data = NULL;
 			platform_device_unregister (depca_io_ports[i].device);
 			depca_io_ports[i].device = NULL;
 		}

@@ -43,24 +43,27 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Atari, Amstrad, Commodore, Amiga, Sega, etc. joystick driver");
 MODULE_LICENSE("GPL");
 
-static int db9[] __initdata = { -1, 0 };
-static int db9_nargs __initdata = 0;
-module_param_array_named(dev, db9, int, &db9_nargs, 0);
+struct db9_config {
+	int args[2];
+	int nargs;
+};
+
+#define DB9_MAX_PORTS		3
+static struct db9_config db9[DB9_MAX_PORTS] __initdata;
+
+module_param_array_named(dev, db9[0].args, int, &db9[0].nargs, 0);
 MODULE_PARM_DESC(dev, "Describes first attached device (<parport#>,<type>)");
-
-static int db9_2[] __initdata = { -1, 0 };
-static int db9_nargs_2 __initdata = 0;
-module_param_array_named(dev2, db9_2, int, &db9_nargs_2, 0);
+module_param_array_named(dev2, db9[1].args, int, &db9[0].nargs, 0);
 MODULE_PARM_DESC(dev2, "Describes second attached device (<parport#>,<type>)");
-
-static int db9_3[] __initdata = { -1, 0 };
-static int db9_nargs_3 __initdata = 0;
-module_param_array_named(dev3, db9_3, int, &db9_nargs_3, 0);
+module_param_array_named(dev3, db9[2].args, int, &db9[2].nargs, 0);
 MODULE_PARM_DESC(dev3, "Describes third attached device (<parport#>,<type>)");
 
 __obsolete_setup("db9=");
 __obsolete_setup("db9_2=");
 __obsolete_setup("db9_3=");
+
+#define DB9_ARG_PARPORT		0
+#define DB9_ARG_MODE		1
 
 #define DB9_MULTI_STICK		0x01
 #define DB9_MULTI2_STICK	0x02
@@ -87,40 +90,53 @@ __obsolete_setup("db9_3=");
 #define DB9_NORMAL		0x0a
 #define DB9_NOSELECT		0x08
 
-#define DB9_MAX_DEVICES		2
-
 #define DB9_GENESIS6_DELAY	14
 #define DB9_REFRESH_TIME	HZ/100
 
+#define DB9_MAX_DEVICES		2
+
+struct db9_mode_data {
+	const char *name;
+	const short *buttons;
+	int n_buttons;
+	int n_pads;
+	int n_axis;
+	int bidirectional;
+	int reverse;
+};
+
 struct db9 {
-	struct input_dev dev[DB9_MAX_DEVICES];
+	struct input_dev *dev[DB9_MAX_DEVICES];
 	struct timer_list timer;
 	struct pardevice *pd;
 	int mode;
 	int used;
 	struct semaphore sem;
-	char phys[2][32];
+	char phys[DB9_MAX_DEVICES][32];
 };
 
 static struct db9 *db9_base[3];
 
-static short db9_multi_btn[] = { BTN_TRIGGER, BTN_THUMB };
-static short db9_genesis_btn[] = { BTN_START, BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z, BTN_MODE };
-static short db9_cd32_btn[] = { BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z, BTN_TL, BTN_TR, BTN_START };
-
-static char db9_buttons[DB9_MAX_PAD] = { 0, 1, 2, 4, 0, 6, 8, 9, 1, 1, 7, 9, 9 };
-static short *db9_btn[DB9_MAX_PAD] = { NULL, db9_multi_btn, db9_multi_btn, db9_genesis_btn, NULL, db9_genesis_btn,
-					db9_genesis_btn, db9_cd32_btn, db9_multi_btn, db9_multi_btn, db9_cd32_btn,
-					db9_cd32_btn, db9_cd32_btn };
-static char *db9_name[DB9_MAX_PAD] = { NULL, "Multisystem joystick", "Multisystem joystick (2 fire)", "Genesis pad",
-				      NULL, "Genesis 5 pad", "Genesis 6 pad", "Saturn pad", "Multisystem (0.8.0.2) joystick",
-				     "Multisystem (0.8.0.2-dual) joystick", "Amiga CD-32 pad", "Saturn dpp", "Saturn dpp dual" };
-
-static const int db9_max_pads[DB9_MAX_PAD] = { 0, 1, 1, 1, 0, 1, 1, 6, 1, 2, 1, 6, 12 };
-static const int db9_num_axis[DB9_MAX_PAD] = { 0, 2, 2, 2, 0, 2, 2, 7, 2, 2, 2 ,7, 7 };
+static const short db9_multi_btn[] = { BTN_TRIGGER, BTN_THUMB };
+static const short db9_genesis_btn[] = { BTN_START, BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z, BTN_MODE };
+static const short db9_cd32_btn[] = { BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z, BTN_TL, BTN_TR, BTN_START };
 static const short db9_abs[] = { ABS_X, ABS_Y, ABS_RX, ABS_RY, ABS_RZ, ABS_Z, ABS_HAT0X, ABS_HAT0Y, ABS_HAT1X, ABS_HAT1Y };
-static const int db9_bidirectional[DB9_MAX_PAD] = { 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0 };
-static const int db9_reverse[DB9_MAX_PAD] = { 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0 };
+
+static const struct db9_mode_data db9_modes[] = {
+	{ NULL,					 NULL,		  0,  0,  0,  0,  0 },
+	{ "Multisystem joystick",		 db9_multi_btn,	  1,  1,  2,  1,  1 },
+	{ "Multisystem joystick (2 fire)",	 db9_multi_btn,	  2,  1,  2,  1,  1 },
+	{ "Genesis pad",			 db9_genesis_btn, 4,  1,  2,  1,  1 },
+	{ NULL,					 NULL,		  0,  0,  0,  0,  0 },
+	{ "Genesis 5 pad",			 db9_genesis_btn, 6,  1,  2,  1,  1 },
+	{ "Genesis 6 pad",			 db9_genesis_btn, 8,  1,  2,  1,  1 },
+	{ "Saturn pad",				 db9_cd32_btn,	  9,  6,  7,  0,  1 },
+	{ "Multisystem (0.8.0.2) joystick",	 db9_multi_btn,	  1,  1,  2,  1,  1 },
+	{ "Multisystem (0.8.0.2-dual) joystick", db9_multi_btn,	  1,  2,  2,  1,  1 },
+	{ "Amiga CD-32 pad",			 db9_cd32_btn,	  7,  1,  2,  1,  1 },
+	{ "Saturn dpp",				 db9_cd32_btn,	  9,  6,  7,  0,  0 },
+	{ "Saturn dpp dual",			 db9_cd32_btn,	  9,  12, 7,  0,  0 },
+};
 
 /*
  * Saturn controllers
@@ -342,7 +358,7 @@ static int db9_saturn(int mode, struct parport *port, struct input_dev *dev)
 	default:
 		return -1;
 	}
-	max_pads = min(db9_max_pads[mode], DB9_MAX_DEVICES);
+	max_pads = min(db9_modes[mode].n_pads, DB9_MAX_DEVICES);
 	for (tmp = 0, i = 0; i < n; i++) {
 		id = db9_saturn_read_packet(port, data, type + i, 1);
 		tmp = db9_saturn_report(id, data, dev, tmp, max_pads);
@@ -354,17 +370,18 @@ static void db9_timer(unsigned long private)
 {
 	struct db9 *db9 = (void *) private;
 	struct parport *port = db9->pd->port;
-	struct input_dev *dev = db9->dev;
+	struct input_dev *dev = db9->dev[0];
+	struct input_dev *dev2 = db9->dev[1];
 	int data, i;
 
-	switch(db9->mode) {
+	switch (db9->mode) {
 		case DB9_MULTI_0802_2:
 
 			data = parport_read_data(port) >> 3;
 
-			input_report_abs(dev + 1, ABS_X, (data & DB9_RIGHT ? 0 : 1) - (data & DB9_LEFT ? 0 : 1));
-			input_report_abs(dev + 1, ABS_Y, (data & DB9_DOWN  ? 0 : 1) - (data & DB9_UP   ? 0 : 1));
-			input_report_key(dev + 1, BTN_TRIGGER, ~data & DB9_FIRE1);
+			input_report_abs(dev2, ABS_X, (data & DB9_RIGHT ? 0 : 1) - (data & DB9_LEFT ? 0 : 1));
+			input_report_abs(dev2, ABS_Y, (data & DB9_DOWN  ? 0 : 1) - (data & DB9_UP   ? 0 : 1));
+			input_report_key(dev2, BTN_TRIGGER, ~data & DB9_FIRE1);
 
 		case DB9_MULTI_0802:
 
@@ -405,7 +422,7 @@ static void db9_timer(unsigned long private)
 			input_report_key(dev, BTN_C, ~data & DB9_FIRE2);
 
 			parport_write_control(port, DB9_NORMAL);
-			data=parport_read_data(port);
+			data = parport_read_data(port);
 
 			input_report_key(dev, BTN_A,     ~data & DB9_FIRE1);
 			input_report_key(dev, BTN_START, ~data & DB9_FIRE2);
@@ -414,7 +431,7 @@ static void db9_timer(unsigned long private)
 		case DB9_GENESIS5_PAD:
 
 			parport_write_control(port, DB9_NOSELECT);
-			data=parport_read_data(port);
+			data = parport_read_data(port);
 
 			input_report_abs(dev, ABS_X, (data & DB9_RIGHT ? 0 : 1) - (data & DB9_LEFT ? 0 : 1));
 			input_report_abs(dev, ABS_Y, (data & DB9_DOWN  ? 0 : 1) - (data & DB9_UP   ? 0 : 1));
@@ -422,7 +439,7 @@ static void db9_timer(unsigned long private)
 			input_report_key(dev, BTN_C, ~data & DB9_FIRE2);
 
 			parport_write_control(port, DB9_NORMAL);
-			data=parport_read_data(port);
+			data = parport_read_data(port);
 
 			input_report_key(dev, BTN_A,     ~data & DB9_FIRE1);
 			input_report_key(dev, BTN_X,     ~data & DB9_FIRE2);
@@ -434,7 +451,7 @@ static void db9_timer(unsigned long private)
 
 			parport_write_control(port, DB9_NOSELECT); /* 1 */
 			udelay(DB9_GENESIS6_DELAY);
-			data=parport_read_data(port);
+			data = parport_read_data(port);
 
 			input_report_abs(dev, ABS_X, (data & DB9_RIGHT ? 0 : 1) - (data & DB9_LEFT ? 0 : 1));
 			input_report_abs(dev, ABS_Y, (data & DB9_DOWN  ? 0 : 1) - (data & DB9_UP   ? 0 : 1));
@@ -443,7 +460,7 @@ static void db9_timer(unsigned long private)
 
 			parport_write_control(port, DB9_NORMAL);
 			udelay(DB9_GENESIS6_DELAY);
-			data=parport_read_data(port);
+			data = parport_read_data(port);
 
 			input_report_key(dev, BTN_A, ~data & DB9_FIRE1);
 			input_report_key(dev, BTN_START, ~data & DB9_FIRE2);
@@ -477,7 +494,7 @@ static void db9_timer(unsigned long private)
 
 		case DB9_CD32_PAD:
 
-			data=parport_read_data(port);
+			data = parport_read_data(port);
 
 			input_report_abs(dev, ABS_X, (data & DB9_RIGHT ? 0 : 1) - (data & DB9_LEFT ? 0 : 1));
 			input_report_abs(dev, ABS_Y, (data & DB9_DOWN  ? 0 : 1) - (data & DB9_UP   ? 0 : 1));
@@ -489,7 +506,7 @@ static void db9_timer(unsigned long private)
 				parport_write_control(port, 0x02);
 				parport_write_control(port, 0x0a);
 				input_report_key(dev, db9_cd32_btn[i], ~data & DB9_FIRE2);
-				}
+			}
 
 			parport_write_control(port, 0x00);
 			break;
@@ -513,7 +530,7 @@ static int db9_open(struct input_dev *dev)
 	if (!db9->used++) {
 		parport_claim(db9->pd);
 		parport_write_data(port, 0xff);
-		if (db9_reverse[db9->mode]) {
+		if (db9_modes[db9->mode].reverse) {
 			parport_data_reverse(port);
 			parport_write_control(port, DB9_NORMAL);
 		}
@@ -539,117 +556,160 @@ static void db9_close(struct input_dev *dev)
 	up(&db9->sem);
 }
 
-static struct db9 __init *db9_probe(int *config, int nargs)
+static struct db9 __init *db9_probe(int parport, int mode)
 {
 	struct db9 *db9;
+	const struct db9_mode_data *db9_mode;
 	struct parport *pp;
+	struct pardevice *pd;
+	struct input_dev *input_dev;
 	int i, j;
+	int err;
 
-	if (config[0] < 0)
-		return NULL;
-
-	if (nargs < 2) {
-		printk(KERN_ERR "db9.c: Device type must be specified.\n");
-		return NULL;
+	if (mode < 1 || mode >= DB9_MAX_PAD || !db9_modes[mode].n_buttons) {
+		printk(KERN_ERR "db9.c: Bad device type %d\n", mode);
+		err = -EINVAL;
+		goto err_out;
 	}
 
-	if (config[1] < 1 || config[1] >= DB9_MAX_PAD || !db9_buttons[config[1]]) {
-		printk(KERN_ERR "db9.c: bad config\n");
-		return NULL;
-	}
+	db9_mode = &db9_modes[mode];
 
-	pp = parport_find_number(config[0]);
+	pp = parport_find_number(parport);
 	if (!pp) {
 		printk(KERN_ERR "db9.c: no such parport\n");
-		return NULL;
+		err = -ENODEV;
+		goto err_out;
 	}
 
-	if (db9_bidirectional[config[1]]) {
-		if (!(pp->modes & PARPORT_MODE_TRISTATE)) {
-			printk(KERN_ERR "db9.c: specified parport is not bidirectional\n");
-			parport_put_port(pp);
-			return NULL;
-		}
+	if (db9_mode[mode].bidirectional && !(pp->modes & PARPORT_MODE_TRISTATE)) {
+		printk(KERN_ERR "db9.c: specified parport is not bidirectional\n");
+		err = -EINVAL;
+		goto err_put_pp;
 	}
 
-	if (!(db9 = kzalloc(sizeof(struct db9), GFP_KERNEL))) {
-		parport_put_port(pp);
-		return NULL;
+	pd = parport_register_device(pp, "db9", NULL, NULL, NULL, PARPORT_DEV_EXCL, NULL);
+	if (!pd) {
+		printk(KERN_ERR "db9.c: parport busy already - lp.o loaded?\n");
+		err = -EBUSY;
+		goto err_put_pp;
+	}
+
+	db9 = kzalloc(sizeof(struct db9), GFP_KERNEL);
+	if (!db9) {
+		printk(KERN_ERR "db9.c: Not enough memory\n");
+		err = -ENOMEM;
+		goto err_unreg_pardev;
 	}
 
 	init_MUTEX(&db9->sem);
-	db9->mode = config[1];
+	db9->pd = pd;
+	db9->mode = mode;
 	init_timer(&db9->timer);
 	db9->timer.data = (long) db9;
 	db9->timer.function = db9_timer;
 
-	db9->pd = parport_register_device(pp, "db9", NULL, NULL, NULL, PARPORT_DEV_EXCL, NULL);
-	parport_put_port(pp);
+	for (i = 0; i < (min(db9_mode->n_pads, DB9_MAX_DEVICES)); i++) {
 
-	if (!db9->pd) {
-		printk(KERN_ERR "db9.c: parport busy already - lp.o loaded?\n");
-		kfree(db9);
-		return NULL;
-	}
-
-	for (i = 0; i < (min(db9_max_pads[db9->mode], DB9_MAX_DEVICES)); i++) {
+		db9->dev[i] = input_dev = input_allocate_device();
+		if (!input_dev) {
+			printk(KERN_ERR "db9.c: Not enough memory for input device\n");
+			err = -ENOMEM;
+			goto err_free_devs;
+		}
 
 		sprintf(db9->phys[i], "%s/input%d", db9->pd->port->name, i);
 
-		db9->dev[i].private = db9;
-		db9->dev[i].open = db9_open;
-		db9->dev[i].close = db9_close;
+		input_dev->name = db9_mode->name;
+		input_dev->phys = db9->phys[i];
+		input_dev->id.bustype = BUS_PARPORT;
+		input_dev->id.vendor = 0x0002;
+		input_dev->id.product = mode;
+		input_dev->id.version = 0x0100;
+		input_dev->private = db9;
 
-		db9->dev[i].name = db9_name[db9->mode];
-		db9->dev[i].phys = db9->phys[i];
-		db9->dev[i].id.bustype = BUS_PARPORT;
-		db9->dev[i].id.vendor = 0x0002;
-		db9->dev[i].id.product = config[1];
-		db9->dev[i].id.version = 0x0100;
+		input_dev->open = db9_open;
+		input_dev->close = db9_close;
 
-		db9->dev[i].evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-		for (j = 0; j < db9_buttons[db9->mode]; j++)
-			set_bit(db9_btn[db9->mode][j], db9->dev[i].keybit);
-		for (j = 0; j < db9_num_axis[db9->mode]; j++) {
-			set_bit(db9_abs[j], db9->dev[i].absbit);
-			if (j < 2) {
-				db9->dev[i].absmin[db9_abs[j]] = -1;
-				db9->dev[i].absmax[db9_abs[j]] = 1;
-			} else {
-				db9->dev[i].absmin[db9_abs[j]] = 1;
-				db9->dev[i].absmax[db9_abs[j]] = 255;
-				db9->dev[i].absflat[db9_abs[j]] = 0;
-			}
+		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		for (j = 0; j < db9_mode->n_buttons; j++)
+			set_bit(db9_mode->buttons[j], input_dev->keybit);
+		for (j = 0; j < db9_mode->n_axis; j++) {
+			if (j < 2)
+				input_set_abs_params(input_dev, db9_abs[j], -1, 1, 0, 0);
+			else
+				input_set_abs_params(input_dev, db9_abs[j], 1, 255, 0, 0);
 		}
-		input_register_device(db9->dev + i);
-		printk(KERN_INFO "input: %s on %s\n", db9->dev[i].name, db9->pd->port->name);
+
+		input_register_device(input_dev);
 	}
 
+	parport_put_port(pp);
 	return db9;
+
+ err_free_devs:
+	while (--i >= 0)
+		input_unregister_device(db9->dev[i]);
+	kfree(db9);
+ err_unreg_pardev:
+	parport_unregister_device(pd);
+ err_put_pp:
+	parport_put_port(pp);
+ err_out:
+	return ERR_PTR(err);
+}
+
+static void __exit db9_remove(struct db9 *db9)
+{
+	int i;
+
+	for (i = 0; i < min(db9_modes[db9->mode].n_pads, DB9_MAX_DEVICES); i++)
+		input_unregister_device(db9->dev[i]);
+	parport_unregister_device(db9->pd);
+	kfree(db9);
 }
 
 static int __init db9_init(void)
 {
-	db9_base[0] = db9_probe(db9, db9_nargs);
-	db9_base[1] = db9_probe(db9_2, db9_nargs_2);
-	db9_base[2] = db9_probe(db9_3, db9_nargs_3);
+	int i;
+	int have_dev = 0;
+	int err = 0;
 
-	if (db9_base[0] || db9_base[1] || db9_base[2])
-		return 0;
+	for (i = 0; i < DB9_MAX_PORTS; i++) {
+		if (db9[i].nargs == 0 || db9[i].args[DB9_ARG_PARPORT] < 0)
+			continue;
 
-	return -ENODEV;
+		if (db9[i].nargs < 2) {
+			printk(KERN_ERR "db9.c: Device type must be specified.\n");
+			err = -EINVAL;
+			break;
+		}
+
+		db9_base[i] = db9_probe(db9[i].args[DB9_ARG_PARPORT],
+					db9[i].args[DB9_ARG_MODE]);
+		if (IS_ERR(db9_base[i])) {
+			err = PTR_ERR(db9_base[i]);
+			break;
+		}
+
+		have_dev = 1;
+	}
+
+	if (err) {
+		while (--i >= 0)
+			db9_remove(db9_base[i]);
+		return err;
+	}
+
+	return have_dev ? 0 : -ENODEV;
 }
 
 static void __exit db9_exit(void)
 {
-	int i, j;
+	int i;
 
-	for (i = 0; i < 3; i++)
-		if (db9_base[i]) {
-			for (j = 0; j < min(db9_max_pads[db9_base[i]->mode], DB9_MAX_DEVICES); j++)
-				input_unregister_device(db9_base[i]->dev + j);
-		parport_unregister_device(db9_base[i]->pd);
-	}
+	for (i = 0; i < DB9_MAX_PORTS; i++)
+		if (db9_base[i])
+			db9_remove(db9_base[i]);
 }
 
 module_init(db9_init);

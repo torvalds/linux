@@ -41,20 +41,31 @@ struct sas_identify {
 	u8			phy_identifier;
 };
 
-/* The functions by which the transport class and the driver communicate */
-struct sas_function_template {
-};
-
 struct sas_phy {
 	struct device		dev;
 	int			number;
+
+	/* phy identification */
 	struct sas_identify	identify;
+
+	/* phy attributes */
 	enum sas_linkrate	negotiated_linkrate;
 	enum sas_linkrate	minimum_linkrate_hw;
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate_hw;
 	enum sas_linkrate	maximum_linkrate;
 	u8			port_identifier;
+
+	/* internal state */
+	unsigned int		local_attached : 1;
+
+	/* link error statistics */
+	u32			invalid_dword_count;
+	u32			running_disparity_error_count;
+	u32			loss_of_dword_sync_count;
+	u32			phy_reset_problem_count;
+
+	/* the other end of the link */
 	struct sas_rphy		*rphy;
 };
 
@@ -78,6 +89,14 @@ struct sas_rphy {
 	dev_to_rphy((cdev)->dev)
 #define rphy_to_shost(rphy) \
 	dev_to_shost((rphy)->dev.parent)
+
+
+/* The functions by which the transport class and the driver communicate */
+struct sas_function_template {
+	int (*get_linkerrors)(struct sas_phy *);
+	int (*phy_reset)(struct sas_phy *, int);
+};
+
 
 extern void sas_remove_host(struct Scsi_Host *);
 

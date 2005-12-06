@@ -645,11 +645,10 @@ ixgb_phys_id(struct net_device *netdev, uint32_t data)
 
 	mod_timer(&adapter->blink_timer, jiffies);
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	if(data)
-		schedule_timeout(data * HZ);
+	if (data)
+		schedule_timeout_interruptible(data * HZ);
 	else
-		schedule_timeout(MAX_SCHEDULE_TIMEOUT);
+		schedule_timeout_interruptible(MAX_SCHEDULE_TIMEOUT);
 
 	del_timer_sync(&adapter->blink_timer);
 	ixgb_led_off(&adapter->hw);
@@ -695,7 +694,7 @@ ixgb_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 	}
 }
 
-struct ethtool_ops ixgb_ethtool_ops = {
+static struct ethtool_ops ixgb_ethtool_ops = {
 	.get_settings = ixgb_get_settings,
 	.set_settings = ixgb_set_settings,
 	.get_drvinfo = ixgb_get_drvinfo,
@@ -723,6 +722,7 @@ struct ethtool_ops ixgb_ethtool_ops = {
 	.phys_id = ixgb_phys_id,
 	.get_stats_count = ixgb_get_stats_count,
 	.get_ethtool_stats = ixgb_get_ethtool_stats,
+	.get_perm_addr = ethtool_op_get_perm_addr,
 };
 
 void ixgb_set_ethtool_ops(struct net_device *netdev)

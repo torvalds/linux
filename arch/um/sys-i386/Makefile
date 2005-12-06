@@ -5,7 +5,7 @@ obj-y = bitops.o bugs.o checksum.o delay.o fault.o ksyms.o ldt.o ptrace.o \
 obj-$(CONFIG_HIGHMEM) += highmem.o
 obj-$(CONFIG_MODULES) += module.o
 
-USER_OBJS := bugs.o ptrace_user.o sigcontext.o fault.o
+USER_OBJS := bugs.o ptrace_user.o sigcontext.o fault.o stub_segv.o
 
 SYMLINKS = bitops.c semaphore.c highmem.c module.c
 
@@ -17,7 +17,5 @@ highmem.c-dir = mm
 module.c-dir = kernel
 
 $(obj)/stub_segv.o : _c_flags = $(call unprofile,$(CFLAGS))
-
-subdir- := util
 
 include arch/um/scripts/Makefile.unmap

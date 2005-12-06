@@ -2,6 +2,7 @@
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2002 MIPS Technologies, Inc.  All rights reserved.
  * Copyright (C) 2003 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2004  Maciej W. Rozycki
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -21,31 +22,18 @@
  */
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <linux/interrupt.h>
+
+#include <asm/irq_cpu.h>
+#include <asm/system.h>
 
 #include <asm/mips-boards/seadint.h>
 
 extern asmlinkage void mipsIRQ(void);
 
-asmlinkage void sead_hw0_irqdispatch(struct pt_regs *regs)
-{
-	do_IRQ(SEADINT_UART0, regs);
-}
-
-asmlinkage void sead_hw1_irqdispatch(struct pt_regs *regs)
-{
-	do_IRQ(SEADINT_UART1, regs);
-}
-
 void __init arch_init_irq(void)
 {
-        /*
-         * Mask out all interrupt
-	 */
-	clear_c0_status(0x0000ff00);
+	mips_cpu_irq_init(MIPSCPU_INT_BASE);
 
 	/* Now safe to set the exception vector. */
 	set_except_vector(0, mipsIRQ);
-
-	mips_cpu_irq_init(0);
 }

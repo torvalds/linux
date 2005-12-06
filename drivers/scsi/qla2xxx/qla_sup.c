@@ -1,22 +1,9 @@
-/******************************************************************************
- *                  QLOGIC LINUX SOFTWARE
+/*
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
  *
- * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2005 QLogic Corporation
- * (www.qlogic.com)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- ******************************************************************************/
-
+ * See LICENSE.qla2xxx for copyright and licensing details.
+ */
 #include "qla_def.h"
 
 #include <linux/delay.h>
@@ -139,6 +126,7 @@ qla2x00_write_nvram_word(scsi_qla_host_t *ha, uint32_t addr, uint16_t data)
 
 	/* Wait for NVRAM to become ready */
 	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
 	do {
 		NVRAM_DELAY();
 		word = RD_REG_WORD(&reg->nvram);
@@ -191,6 +179,7 @@ qla2x00_write_nvram_word_tmo(scsi_qla_host_t *ha, uint32_t addr, uint16_t data,
 
 	/* Wait for NVRAM to become ready */
 	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
 	do {
 		NVRAM_DELAY();
 		word = RD_REG_WORD(&reg->nvram);
@@ -248,6 +237,7 @@ qla2x00_nvram_request(scsi_qla_host_t *ha, uint32_t nv_cmd)
 	/* Read data from NVRAM. */
 	for (cnt = 0; cnt < 16; cnt++) {
 		WRT_REG_WORD(&reg->nvram, NVR_SELECT | NVR_CLOCK);
+		RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
 		NVRAM_DELAY();
 		data <<= 1;
 		reg_data = RD_REG_WORD(&reg->nvram);
@@ -350,6 +340,7 @@ qla2x00_clear_nvram_protection(scsi_qla_host_t *ha)
 
 		/* Wait for NVRAM to become ready. */
 		WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+		RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
 		do {
 			NVRAM_DELAY();
 			word = RD_REG_WORD(&reg->nvram);
@@ -401,6 +392,7 @@ qla2x00_set_nvram_protection(scsi_qla_host_t *ha, int stat)
 
 	/* Wait for NVRAM to become ready. */
 	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
 	do {
 		NVRAM_DELAY();
 		word = RD_REG_WORD(&reg->nvram);

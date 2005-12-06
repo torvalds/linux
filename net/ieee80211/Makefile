@@ -7,5 +7,6 @@ ieee80211-objs := \
 	ieee80211_module.o \
 	ieee80211_tx.o \
 	ieee80211_rx.o \
-	ieee80211_wx.o
+	ieee80211_wx.o \
+	ieee80211_geo.o
 

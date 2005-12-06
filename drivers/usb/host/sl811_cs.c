@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>

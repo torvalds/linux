@@ -46,6 +46,7 @@ atomic_t dccp_orphan_count = ATOMIC_INIT(0);
 static struct net_protocol dccp_protocol = {
 	.handler	= dccp_v4_rcv,
 	.err_handler	= dccp_v4_err,
+	.no_policy	= 1,
 };
 
 const char *dccp_packet_name(const int type)
@@ -238,8 +239,7 @@ static int dccp_setsockopt_service(struct sock *sk, const u32 service,
 	lock_sock(sk);
 	dp->dccps_service = service;
 
-	if (dp->dccps_service_list != NULL)
-		kfree(dp->dccps_service_list);
+	kfree(dp->dccps_service_list);
 
 	dp->dccps_service_list = sl;
 	release_sock(sk);
@@ -402,8 +402,6 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	 *     This bug was _quickly_ found & fixed by just looking at an OSTRA
 	 *     generated callgraph 8) -acme
 	 */
-	if (rc != 0)
-		goto out_discard;
 out_release:
 	release_sock(sk);
 	return rc ? : len;

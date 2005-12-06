@@ -135,8 +135,7 @@ static void __init
 snd_emu8000_read_wait(emu8000_t *emu)
 {
 	while ((EMU8000_SMALR_READ(emu) & 0x80000000) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		if (signal_pending(current))
 			break;
 	}
@@ -148,8 +147,7 @@ static void __init
 snd_emu8000_write_wait(emu8000_t *emu)
 {
 	while ((EMU8000_SMALW_READ(emu) & 0x80000000) != 0) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		if (signal_pending(current))
 			break;
 	}
@@ -437,8 +435,7 @@ size_dram(emu8000_t *emu)
 	for (i = 0; i < 10000; i++) {
 		if ((EMU8000_SMALW_READ(emu) & 0x80000000) == 0)
 			break;
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		if (signal_pending(current))
 			break;
 	}
@@ -1054,18 +1051,9 @@ __error:
  */
 static int snd_emu8000_free(emu8000_t *hw)
 {
-	if (hw->res_port1) {
-		release_resource(hw->res_port1);
-		kfree_nocheck(hw->res_port1);
-	}
-	if (hw->res_port2) {
-		release_resource(hw->res_port2);
-		kfree_nocheck(hw->res_port2);
-	}
-	if (hw->res_port3) {
-		release_resource(hw->res_port3);
-		kfree_nocheck(hw->res_port3);
-	}
+	release_and_free_resource(hw->res_port1);
+	release_and_free_resource(hw->res_port2);
+	release_and_free_resource(hw->res_port3);
 	kfree(hw);
 	return 0;
 }

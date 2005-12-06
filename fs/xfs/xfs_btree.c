@@ -1,45 +1,26 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-/*
- * This file contains common code for the space manager's btree implementations.
- */
-
 #include "xfs.h"
-
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -47,17 +28,16 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_bit.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_error.h"
 
 /*
@@ -110,11 +90,14 @@ xfs_btree_maxrecs(
 	switch (cur->bc_btnum) {
 	case XFS_BTNUM_BNO:
 	case XFS_BTNUM_CNT:
-		return (int)XFS_ALLOC_BLOCK_MAXRECS(INT_GET(block->bb_h.bb_level, ARCH_CONVERT), cur);
+		return (int)XFS_ALLOC_BLOCK_MAXRECS(
+				be16_to_cpu(block->bb_h.bb_level), cur);
 	case XFS_BTNUM_BMAP:
-		return (int)XFS_BMAP_BLOCK_IMAXRECS(INT_GET(block->bb_h.bb_level, ARCH_CONVERT), cur);
+		return (int)XFS_BMAP_BLOCK_IMAXRECS(
+				be16_to_cpu(block->bb_h.bb_level), cur);
 	case XFS_BTNUM_INO:
-		return (int)XFS_INOBT_BLOCK_MAXRECS(INT_GET(block->bb_h.bb_level, ARCH_CONVERT), cur);
+		return (int)XFS_INOBT_BLOCK_MAXRECS(
+				be16_to_cpu(block->bb_h.bb_level), cur);
 	default:
 		ASSERT(0);
 		return 0;
@@ -160,7 +143,7 @@ xfs_btree_check_key(
 
 		k1 = ak1;
 		k2 = ak2;
-		ASSERT(INT_GET(k1->ar_startblock, ARCH_CONVERT) < INT_GET(k2->ar_startblock, ARCH_CONVERT));
+		ASSERT(be32_to_cpu(k1->ar_startblock) < be32_to_cpu(k2->ar_startblock));
 		break;
 	    }
 	case XFS_BTNUM_CNT: {
@@ -169,9 +152,9 @@ xfs_btree_check_key(
 
 		k1 = ak1;
 		k2 = ak2;
-		ASSERT(INT_GET(k1->ar_blockcount, ARCH_CONVERT) < INT_GET(k2->ar_blockcount, ARCH_CONVERT) ||
-		       (INT_GET(k1->ar_blockcount, ARCH_CONVERT) == INT_GET(k2->ar_blockcount, ARCH_CONVERT) &&
-			INT_GET(k1->ar_startblock, ARCH_CONVERT) < INT_GET(k2->ar_startblock, ARCH_CONVERT)));
+		ASSERT(be32_to_cpu(k1->ar_blockcount) < be32_to_cpu(k2->ar_blockcount) ||
+		       (k1->ar_blockcount == k2->ar_blockcount &&
+			be32_to_cpu(k1->ar_startblock) < be32_to_cpu(k2->ar_startblock)));
 		break;
 	    }
 	case XFS_BTNUM_BMAP: {
@@ -214,16 +197,16 @@ xfs_btree_check_lblock(
 
 	mp = cur->bc_mp;
 	lblock_ok =
-		INT_GET(block->bb_magic, ARCH_CONVERT) == xfs_magics[cur->bc_btnum] &&
-		INT_GET(block->bb_level, ARCH_CONVERT) == level &&
-		INT_GET(block->bb_numrecs, ARCH_CONVERT) <=
+		be32_to_cpu(block->bb_magic) == xfs_magics[cur->bc_btnum] &&
+		be16_to_cpu(block->bb_level) == level &&
+		be16_to_cpu(block->bb_numrecs) <=
 			xfs_btree_maxrecs(cur, (xfs_btree_block_t *)block) &&
 		block->bb_leftsib &&
-		(INT_GET(block->bb_leftsib, ARCH_CONVERT) == NULLDFSBNO ||
-		 XFS_FSB_SANITY_CHECK(mp, INT_GET(block->bb_leftsib, ARCH_CONVERT))) &&
+		(be64_to_cpu(block->bb_leftsib) == NULLDFSBNO ||
+		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_leftsib))) &&
 		block->bb_rightsib &&
-		(INT_GET(block->bb_rightsib, ARCH_CONVERT) == NULLDFSBNO ||
-		 XFS_FSB_SANITY_CHECK(mp, INT_GET(block->bb_rightsib, ARCH_CONVERT)));
+		(be64_to_cpu(block->bb_rightsib) == NULLDFSBNO ||
+		 XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_rightsib)));
 	if (unlikely(XFS_TEST_ERROR(!lblock_ok, mp, XFS_ERRTAG_BTREE_CHECK_LBLOCK,
 			XFS_RANDOM_BTREE_CHECK_LBLOCK))) {
 		if (bp)
@@ -271,8 +254,9 @@ xfs_btree_check_rec(
 
 		r1 = ar1;
 		r2 = ar2;
-		ASSERT(INT_GET(r1->ar_startblock, ARCH_CONVERT) + INT_GET(r1->ar_blockcount, ARCH_CONVERT) <=
-		       INT_GET(r2->ar_startblock, ARCH_CONVERT));
+		ASSERT(be32_to_cpu(r1->ar_startblock) +
+		       be32_to_cpu(r1->ar_blockcount) <=
+		       be32_to_cpu(r2->ar_startblock));
 		break;
 	    }
 	case XFS_BTNUM_CNT: {
@@ -281,9 +265,9 @@ xfs_btree_check_rec(
 
 		r1 = ar1;
 		r2 = ar2;
-		ASSERT(INT_GET(r1->ar_blockcount, ARCH_CONVERT) < INT_GET(r2->ar_blockcount, ARCH_CONVERT) ||
-		       (INT_GET(r1->ar_blockcount, ARCH_CONVERT) == INT_GET(r2->ar_blockcount, ARCH_CONVERT) &&
-			INT_GET(r1->ar_startblock, ARCH_CONVERT) < INT_GET(r2->ar_startblock, ARCH_CONVERT)));
+		ASSERT(be32_to_cpu(r1->ar_blockcount) < be32_to_cpu(r2->ar_blockcount) ||
+		       (r1->ar_blockcount == r2->ar_blockcount &&
+			be32_to_cpu(r1->ar_startblock) < be32_to_cpu(r2->ar_startblock)));
 		break;
 	    }
 	case XFS_BTNUM_BMAP: {
@@ -331,17 +315,17 @@ xfs_btree_check_sblock(
 
 	agbp = cur->bc_private.a.agbp;
 	agf = XFS_BUF_TO_AGF(agbp);
-	agflen = INT_GET(agf->agf_length, ARCH_CONVERT);
+	agflen = be32_to_cpu(agf->agf_length);
 	sblock_ok =
-		INT_GET(block->bb_magic, ARCH_CONVERT) == xfs_magics[cur->bc_btnum] &&
-		INT_GET(block->bb_level, ARCH_CONVERT) == level &&
-		INT_GET(block->bb_numrecs, ARCH_CONVERT) <=
+		be32_to_cpu(block->bb_magic) == xfs_magics[cur->bc_btnum] &&
+		be16_to_cpu(block->bb_level) == level &&
+		be16_to_cpu(block->bb_numrecs) <=
 			xfs_btree_maxrecs(cur, (xfs_btree_block_t *)block) &&
-		(INT_GET(block->bb_leftsib, ARCH_CONVERT) == NULLAGBLOCK ||
-		 INT_GET(block->bb_leftsib, ARCH_CONVERT) < agflen) &&
+		(be32_to_cpu(block->bb_leftsib) == NULLAGBLOCK ||
+		 be32_to_cpu(block->bb_leftsib) < agflen) &&
 		block->bb_leftsib &&
-		(INT_GET(block->bb_rightsib, ARCH_CONVERT) == NULLAGBLOCK ||
-		 INT_GET(block->bb_rightsib, ARCH_CONVERT) < agflen) &&
+		(be32_to_cpu(block->bb_rightsib) == NULLAGBLOCK ||
+		 be32_to_cpu(block->bb_rightsib) < agflen) &&
 		block->bb_rightsib;
 	if (unlikely(XFS_TEST_ERROR(!sblock_ok, cur->bc_mp,
 			XFS_ERRTAG_BTREE_CHECK_SBLOCK,
@@ -372,7 +356,7 @@ xfs_btree_check_sptr(
 	XFS_WANT_CORRUPTED_RETURN(
 		level > 0 &&
 		ptr != NULLAGBLOCK && ptr != 0 &&
-		ptr < INT_GET(agf->agf_length, ARCH_CONVERT));
+		ptr < be32_to_cpu(agf->agf_length));
 	return 0;
 }
 
@@ -611,15 +595,15 @@ xfs_btree_init_cursor(
 	case XFS_BTNUM_BNO:
 	case XFS_BTNUM_CNT:
 		agf = XFS_BUF_TO_AGF(agbp);
-		nlevels = INT_GET(agf->agf_levels[btnum], ARCH_CONVERT);
+		nlevels = be32_to_cpu(agf->agf_levels[btnum]);
 		break;
 	case XFS_BTNUM_BMAP:
 		ifp = XFS_IFORK_PTR(ip, whichfork);
-		nlevels = INT_GET(ifp->if_broot->bb_level, ARCH_CONVERT) + 1;
+		nlevels = be16_to_cpu(ifp->if_broot->bb_level) + 1;
 		break;
 	case XFS_BTNUM_INO:
 		agi = XFS_BUF_TO_AGI(agbp);
-		nlevels = INT_GET(agi->agi_level, ARCH_CONVERT);
+		nlevels = be32_to_cpu(agi->agi_level);
 		break;
 	default:
 		ASSERT(0);
@@ -683,9 +667,9 @@ xfs_btree_islastblock(
 	block = xfs_btree_get_block(cur, level, &bp);
 	xfs_btree_check_block(cur, block, level, bp);
 	if (XFS_BTREE_LONG_PTRS(cur->bc_btnum))
-		return INT_GET(block->bb_u.l.bb_rightsib, ARCH_CONVERT) == NULLDFSBNO;
+		return be64_to_cpu(block->bb_u.l.bb_rightsib) == NULLDFSBNO;
 	else
-		return INT_GET(block->bb_u.s.bb_rightsib, ARCH_CONVERT) == NULLAGBLOCK;
+		return be32_to_cpu(block->bb_u.s.bb_rightsib) == NULLAGBLOCK;
 }
 
 /*
@@ -713,7 +697,7 @@ xfs_btree_lastrec(
 	/*
 	 * Set the ptr value to numrecs, that's the last record/key.
 	 */
-	cur->bc_ptrs[level] = INT_GET(block->bb_h.bb_numrecs, ARCH_CONVERT);
+	cur->bc_ptrs[level] = be16_to_cpu(block->bb_h.bb_numrecs);
 	return 1;
 }
 
@@ -883,38 +867,38 @@ xfs_btree_readahead_core(
 	case XFS_BTNUM_BNO:
 	case XFS_BTNUM_CNT:
 		a = XFS_BUF_TO_ALLOC_BLOCK(cur->bc_bufs[lev]);
-		if ((lr & XFS_BTCUR_LEFTRA) && INT_GET(a->bb_leftsib, ARCH_CONVERT) != NULLAGBLOCK) {
+		if ((lr & XFS_BTCUR_LEFTRA) && be32_to_cpu(a->bb_leftsib) != NULLAGBLOCK) {
 			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
-				INT_GET(a->bb_leftsib, ARCH_CONVERT), 1);
+				be32_to_cpu(a->bb_leftsib), 1);
 			rval++;
 		}
-		if ((lr & XFS_BTCUR_RIGHTRA) && INT_GET(a->bb_rightsib, ARCH_CONVERT) != NULLAGBLOCK) {
+		if ((lr & XFS_BTCUR_RIGHTRA) && be32_to_cpu(a->bb_rightsib) != NULLAGBLOCK) {
 			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
-				INT_GET(a->bb_rightsib, ARCH_CONVERT), 1);
+				be32_to_cpu(a->bb_rightsib), 1);
 			rval++;
 		}
 		break;
 	case XFS_BTNUM_BMAP:
 		b = XFS_BUF_TO_BMBT_BLOCK(cur->bc_bufs[lev]);
-		if ((lr & XFS_BTCUR_LEFTRA) && INT_GET(b->bb_leftsib, ARCH_CONVERT) != NULLDFSBNO) {
-			xfs_btree_reada_bufl(cur->bc_mp, INT_GET(b->bb_leftsib, ARCH_CONVERT), 1);
+		if ((lr & XFS_BTCUR_LEFTRA) && be64_to_cpu(b->bb_leftsib) != NULLDFSBNO) {
+			xfs_btree_reada_bufl(cur->bc_mp, be64_to_cpu(b->bb_leftsib), 1);
 			rval++;
 		}
-		if ((lr & XFS_BTCUR_RIGHTRA) && INT_GET(b->bb_rightsib, ARCH_CONVERT) != NULLDFSBNO) {
-			xfs_btree_reada_bufl(cur->bc_mp, INT_GET(b->bb_rightsib, ARCH_CONVERT), 1);
+		if ((lr & XFS_BTCUR_RIGHTRA) && be64_to_cpu(b->bb_rightsib) != NULLDFSBNO) {
+			xfs_btree_reada_bufl(cur->bc_mp, be64_to_cpu(b->bb_rightsib), 1);
 			rval++;
 		}
 		break;
 	case XFS_BTNUM_INO:
 		i = XFS_BUF_TO_INOBT_BLOCK(cur->bc_bufs[lev]);
-		if ((lr & XFS_BTCUR_LEFTRA) && INT_GET(i->bb_leftsib, ARCH_CONVERT) != NULLAGBLOCK) {
+		if ((lr & XFS_BTCUR_LEFTRA) && be32_to_cpu(i->bb_leftsib) != NULLAGBLOCK) {
 			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.i.agno,
-				INT_GET(i->bb_leftsib, ARCH_CONVERT), 1);
+				be32_to_cpu(i->bb_leftsib), 1);
 			rval++;
 		}
-		if ((lr & XFS_BTCUR_RIGHTRA) && INT_GET(i->bb_rightsib, ARCH_CONVERT) != NULLAGBLOCK) {
+		if ((lr & XFS_BTCUR_RIGHTRA) && be32_to_cpu(i->bb_rightsib) != NULLAGBLOCK) {
 			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.i.agno,
-				INT_GET(i->bb_rightsib, ARCH_CONVERT), 1);
+				be32_to_cpu(i->bb_rightsib), 1);
 			rval++;
 		}
 		break;
@@ -946,14 +930,14 @@ xfs_btree_setbuf(
 		return;
 	b = XFS_BUF_TO_BLOCK(bp);
 	if (XFS_BTREE_LONG_PTRS(cur->bc_btnum)) {
-		if (INT_GET(b->bb_u.l.bb_leftsib, ARCH_CONVERT) == NULLDFSBNO)
+		if (be64_to_cpu(b->bb_u.l.bb_leftsib) == NULLDFSBNO)
 			cur->bc_ra[lev] |= XFS_BTCUR_LEFTRA;
-		if (INT_GET(b->bb_u.l.bb_rightsib, ARCH_CONVERT) == NULLDFSBNO)
+		if (be64_to_cpu(b->bb_u.l.bb_rightsib) == NULLDFSBNO)
 			cur->bc_ra[lev] |= XFS_BTCUR_RIGHTRA;
 	} else {
-		if (INT_GET(b->bb_u.s.bb_leftsib, ARCH_CONVERT) == NULLAGBLOCK)
+		if (be32_to_cpu(b->bb_u.s.bb_leftsib) == NULLAGBLOCK)
 			cur->bc_ra[lev] |= XFS_BTCUR_LEFTRA;
-		if (INT_GET(b->bb_u.s.bb_rightsib, ARCH_CONVERT) == NULLAGBLOCK)
+		if (be32_to_cpu(b->bb_u.s.bb_rightsib) == NULLAGBLOCK)
 			cur->bc_ra[lev] |= XFS_BTCUR_RIGHTRA;
 	}
 }

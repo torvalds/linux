@@ -338,7 +338,8 @@ void cpu_init(void)
 		BUG();
 	}
 
-	dump_cpu_info(cpu);
+	if (system_state == SYSTEM_BOOTING)
+		dump_cpu_info(cpu);
 
 	/*
 	 * setup stacks for re-entrant exception handlers
@@ -838,7 +839,12 @@ static int c_show(struct seq_file *m, void *v)
 
 #if defined(CONFIG_SMP)
 	for_each_online_cpu(i) {
-		seq_printf(m, "Processor\t: %d\n", i);
+		/*
+		 * glibc reads /proc/cpuinfo to determine the number of
+		 * online processors, looking for lines beginning with
+		 * "processor".  Give glibc what it expects.
+		 */
+		seq_printf(m, "processor\t: %d\n", i);
 		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n\n",
 			   per_cpu(cpu_data, i).loops_per_jiffy / (500000UL/HZ),
 			   (per_cpu(cpu_data, i).loops_per_jiffy / (5000UL/HZ)) % 100);

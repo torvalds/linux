@@ -436,7 +436,7 @@ tipar_register(int nr, struct parport *port)
 		goto out;
 	}
 
-	class_device_create(tipar_class, MKDEV(TIPAR_MAJOR,
+	class_device_create(tipar_class, NULL, MKDEV(TIPAR_MAJOR,
 			TIPAR_MINOR + nr), NULL, "par%d", nr);
 	/* Use devfs, tree: /dev/ticables/par/[0..2] */
 	err = devfs_mk_cdev(MKDEV(TIPAR_MAJOR, TIPAR_MINOR + nr),

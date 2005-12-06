@@ -1854,7 +1854,7 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 #ifdef CONFIG_FB_I810_I2C
 	i810_create_i2c_busses(par);
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 4; i++) {
 		err = i810_probe_i2c_connector(info, &par->edid, i+1);
 		if (!err)
 			break;
@@ -1871,27 +1871,18 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 	fb_videomode_to_modelist(specs->modedb, specs->modedb_len,
 				 &info->modelist);
 	if (specs->modedb != NULL) {
-		if (xres && yres) {
-			struct fb_videomode *m;
+		struct fb_videomode *m;
 
+		if (xres && yres) {
 			if ((m = fb_find_best_mode(&var, &info->modelist))) {
 				mode = *m;
 				found  = 1;
 			}
 		}
 
-		if (!found && specs->misc & FB_MISC_1ST_DETAIL) {
-			for (i = 0; i < specs->modedb_len; i++) {
-				if (specs->modedb[i].flag & FB_MODE_IS_FIRST) {
-					mode = specs->modedb[i];
-					found = 1;
-					break;
-				}
-			}
-		}
-
 		if (!found) {
-			mode = specs->modedb[0];
+			m = fb_find_best_display(&info->monspecs, &info->modelist);
+			mode = *m;
 			found = 1;
 		}
 
@@ -2066,8 +2057,7 @@ static void i810fb_release_resource(struct fb_info *info,
 		iounmap(par->mmio_start_virtual);
 	if (par->aperture.virtual)
 		iounmap(par->aperture.virtual);
-	if (par->edid)
-		kfree(par->edid);
+	kfree(par->edid);
 	if (par->res_flags & FRAMEBUFFER_REQ)
 		release_mem_region(par->aperture.physical,
 				   par->aperture.size);

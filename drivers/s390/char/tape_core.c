@@ -682,8 +682,7 @@ tape_alloc_request(int cplength, int datasize)
 		request->cpdata = kmalloc(datasize, GFP_KERNEL | GFP_DMA);
 		if (request->cpdata == NULL) {
 			DBF_EXCEPTION(1, "cqra nomem\n");
-			if (request->cpaddr != NULL)
-				kfree(request->cpaddr);
+			kfree(request->cpaddr);
 			kfree(request);
 			return ERR_PTR(-ENOMEM);
 		}
@@ -706,10 +705,8 @@ tape_free_request (struct tape_request * request)
 	if (request->device != NULL) {
 		request->device = tape_put_device(request->device);
 	}
-	if (request->cpdata != NULL)
-		kfree(request->cpdata);
-	if (request->cpaddr != NULL)
-		kfree(request->cpaddr);
+	kfree(request->cpdata);
+	kfree(request->cpaddr);
 	kfree(request);
 }
 

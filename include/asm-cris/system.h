@@ -41,7 +41,7 @@ extern struct task_struct *resume(struct task_struct *prev, struct task_struct *
 void disable_hlt(void);
 void enable_hlt(void);
 
-extern inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
+static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
 {
   /* since Etrax doesn't have any atomic xchg instructions, we need to disable
      irq's (if enabled) and do it with move.d's */

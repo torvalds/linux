@@ -3,7 +3,7 @@
  *
  * MPC83xx Device descriptions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor Inc.
  *
@@ -21,23 +21,26 @@
 #include <asm/mpc83xx.h>
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>
+#include <asm/machdep.h>
 
 /* We use offsets for IORESOURCE_MEM since we do not know at compile time
  * what IMMRBAR is, will get fixed up by mach_mpc83xx_fixup
  */
 
+struct gianfar_mdio_data mpc83xx_mdio_pdata = {
+	.paddr = 0x24520,
+};
+
 static struct gianfar_platform_data mpc83xx_tsec1_pdata = {
 	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
 	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR,
-	.phy_reg_addr = 0x24000,
 };
 
 static struct gianfar_platform_data mpc83xx_tsec2_pdata = {
 	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
 	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR,
-	.phy_reg_addr = 0x24000,
 };
 
 static struct fsl_i2c_platform_data mpc83xx_fsl_i2c1_pdata = {
@@ -218,6 +221,12 @@ struct platform_device ppc_sys_platform_devices[] = {
 				.flags	= IORESOURCE_IRQ,
 			},
 		},
+	},
+	[MPC83xx_MDIO] = {
+		.name = "fsl-gianfar_mdio",
+		.id = 0,
+		.dev.platform_data = &mpc83xx_mdio_pdata,
+		.num_resources = 0,
 	},
 };
 

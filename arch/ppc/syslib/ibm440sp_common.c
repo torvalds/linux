@@ -1,7 +1,7 @@
 /*
  * arch/ppc/syslib/ibm440sp_common.c
  *
- * PPC440SP system library
+ * PPC440SP/PPC440SPe system library
  *
  * Matt Porter <mporter@kernel.crashing.org>
  * Copyright 2002-2005 MontaVista Software Inc.
@@ -35,7 +35,7 @@ unsigned long __init ibm440sp_find_end_of_memory(void)
 	u32 mem_size = 0;
 
 	/* Read two bank sizes and sum */
-	for (i=0; i<2; i++)
+	for (i=0; i< MQ0_NUM_BANKS; i++)
 		switch (mfdcr(DCRN_MQ0_BS0BAS + i) & MQ0_CONFIG_SIZE_MASK) {
 			case MQ0_CONFIG_SIZE_8M:
 				mem_size += PPC44x_MEM_SIZE_8M;

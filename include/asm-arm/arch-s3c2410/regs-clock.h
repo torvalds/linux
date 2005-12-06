@@ -18,7 +18,9 @@
  *    10-Feb-2005 Ben Dooks	    Fixed CAMDIVN address (Guillaume Gourat)
  *    10-Mar-2005 Lucas Villa Real  Changed S3C2410_VA to S3C24XX_VA
  *    27-Aug-2005 Ben Dooks	    Add clock-slow info
- */
+ *    20-Oct-2005 Ben Dooks	    Fixed overflow in PLL (Guillaume Gourat)
+ *    20-Oct-2005 Ben Dooks	    Add masks for DCLK (Guillaume Gourat)
+*/
 
 #ifndef __ASM_ARM_REGS_CLOCK
 #define __ASM_ARM_REGS_CLOCK "$Id: clock.h,v 1.4 2003/04/30 14:50:51 ben Exp $"
@@ -66,11 +68,16 @@
 #define S3C2410_DCLKCON_DCLK0_UCLK   (1<<1)
 #define S3C2410_DCLKCON_DCLK0_DIV(x) (((x) - 1 )<<4)
 #define S3C2410_DCLKCON_DCLK0_CMP(x) (((x) - 1 )<<8)
+#define S3C2410_DCLKCON_DCLK0_DIV_MASK ((0xf)<<4)
+#define S3C2410_DCLKCON_DCLK0_CMP_MASK ((0xf)<<8)
 
 #define S3C2410_DCLKCON_DCLK1EN	     (1<<16)
 #define S3C2410_DCLKCON_DCLK1_PCLK   (0<<17)
 #define S3C2410_DCLKCON_DCLK1_UCLK   (1<<17)
 #define S3C2410_DCLKCON_DCLK1_DIV(x) (((x) - 1) <<20)
+#define S3C2410_DCLKCON_DCLK1_CMP(x) (((x) - 1) <<24)
+#define S3C2410_DCLKCON_DCLK1_DIV_MASK ((0xf) <<20)
+#define S3C2410_DCLKCON_DCLK1_CMP_MASK ((0xf) <<24)
 
 #define S3C2410_CLKDIVN_PDIVN	     (1<<0)
 #define S3C2410_CLKDIVN_HDIVN	     (1<<1)
@@ -83,10 +90,13 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/div64.h>
+
 static inline unsigned int
-s3c2410_get_pll(int pllval, int baseclk)
+s3c2410_get_pll(unsigned int pllval, unsigned int baseclk)
 {
-	int mdiv, pdiv, sdiv;
+	unsigned int mdiv, pdiv, sdiv;
+	uint64_t fvco;
 
 	mdiv = pllval >> S3C2410_PLLCON_MDIVSHIFT;
 	pdiv = pllval >> S3C2410_PLLCON_PDIVSHIFT;
@@ -96,7 +106,10 @@ s3c2410_get_pll(int pllval, int baseclk)
 	pdiv &= S3C2410_PLLCON_PDIVMASK;
 	sdiv &= S3C2410_PLLCON_SDIVMASK;
 
-	return (baseclk * (mdiv + 8)) / ((pdiv + 2) << sdiv);
+	fvco = (uint64_t)baseclk * (mdiv + 8);
+	do_div(fvco, (pdiv + 2) << sdiv);
+
+	return (unsigned int)fvco;
 }
 
 #endif /* __ASSEMBLY__ */

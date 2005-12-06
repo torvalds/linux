@@ -106,7 +106,7 @@ struct snd_mem_list {
 
 static void *snd_dma_hack_alloc_coherent(struct device *dev, size_t size,
 					 dma_addr_t *dma_handle,
-					 unsigned int __nocast flags)
+					 gfp_t flags)
 {
 	void *ret;
 	u64 dma_mask, coherent_dma_mask;
@@ -190,13 +190,14 @@ static void unmark_pages(struct page *page, int order)
  *
  * Returns the pointer of the buffer, or NULL if no enoguh memory.
  */
-void *snd_malloc_pages(size_t size, unsigned int gfp_flags)
+void *snd_malloc_pages(size_t size, gfp_t gfp_flags)
 {
 	int pg;
 	void *res;
 
 	snd_assert(size > 0, return NULL);
 	snd_assert(gfp_flags != 0, return NULL);
+	gfp_flags |= __GFP_COMP;	/* compound page lets parts be mapped */
 	pg = get_order(size);
 	if ((res = (void *) __get_free_pages(gfp_flags, pg)) != NULL) {
 		mark_pages(virt_to_page(res), pg);
@@ -235,12 +236,13 @@ static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *d
 {
 	int pg;
 	void *res;
-	unsigned int gfp_flags;
+	gfp_t gfp_flags;
 
 	snd_assert(size > 0, return NULL);
 	snd_assert(dma != NULL, return NULL);
 	pg = get_order(size);
 	gfp_flags = GFP_KERNEL
+		| __GFP_COMP	/* compound page lets parts be mapped */
 		| __GFP_NORETRY /* don't trigger OOM-killer */
 		| __GFP_NOWARN; /* no stack trace print - this call is non-critical */
 	res = dma_alloc_coherent(dev, PAGE_SIZE << pg, dma, gfp_flags);

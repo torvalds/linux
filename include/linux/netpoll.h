@@ -86,7 +86,7 @@ static inline void netpoll_poll_unlock(void *have)
 
 #else
 #define netpoll_rx(a) 0
-#define netpoll_poll_lock(a) 0
+#define netpoll_poll_lock(a) NULL
 #define netpoll_poll_unlock(a)
 #endif
 

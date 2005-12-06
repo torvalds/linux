@@ -12,7 +12,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
@@ -359,8 +358,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 	} else if ((filep->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
 		/* read access -> output card info data */
 
-		if (filep->private_data)
-			kfree(filep->private_data);	/* release memory */
+		kfree(filep->private_data);	/* release memory */
 	}
 	unlock_kernel();
 	return (retval);
@@ -394,7 +392,7 @@ hysdn_procconf_init(void)
 	hysdn_card *card;
 	uchar conf_name[20];
 
-	hysdn_proc_entry = create_proc_entry(PROC_SUBDIR_NAME, S_IFDIR | S_IRUGO | S_IXUGO, proc_net);
+	hysdn_proc_entry = proc_mkdir(PROC_SUBDIR_NAME, proc_net);
 	if (!hysdn_proc_entry) {
 		printk(KERN_ERR "HYSDN: unable to create hysdn subdir\n");
 		return (-1);

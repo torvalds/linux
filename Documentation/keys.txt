@@ -195,8 +195,8 @@ KEY ACCESS PERMISSIONS
 ======================
 
 Keys have an owner user ID, a group access ID, and a permissions mask. The mask
-has up to eight bits each for user, group and other access. Only five of each
-set of eight bits are defined. These permissions granted are:
+has up to eight bits each for possessor, user, group and other access. Only
+six of each set of eight bits are defined. These permissions granted are:
 
  (*) View
 
@@ -224,6 +224,10 @@ set of eight bits are defined. These permissions granted are:
      keyring to a key, a process must have Write permission on the keyring and
      Link permission on the key.
 
+ (*) Set Attribute
+
+     This permits a key's UID, GID and permissions mask to be changed.
+
 For changing the ownership, group ID or permissions mask, being the owner of
 the key or having the sysadmin capability is sufficient.
 
@@ -241,16 +245,16 @@ about the status of the key service:
      type, description and permissions. The payload of the key is not available
      this way:
 
-	SERIAL   FLAGS  USAGE EXPY PERM   UID   GID   TYPE      DESCRIPTION: SUMMARY
-	00000001 I-----    39 perm 1f0000     0     0 keyring   _uid_ses.0: 1/4
-	00000002 I-----     2 perm 1f0000     0     0 keyring   _uid.0: empty
-	00000007 I-----     1 perm 1f0000     0     0 keyring   _pid.1: empty
-	0000018d I-----     1 perm 1f0000     0     0 keyring   _pid.412: empty
-	000004d2 I--Q--     1 perm 1f0000    32    -1 keyring   _uid.32: 1/4
-	000004d3 I--Q--     3 perm 1f0000    32    -1 keyring   _uid_ses.32: empty
-	00000892 I--QU-     1 perm 1f0000     0     0 user      metal:copper: 0
-	00000893 I--Q-N     1  35s 1f0000     0     0 user      metal:silver: 0
-	00000894 I--Q--     1  10h 1f0000     0     0 user      metal:gold: 0
+	SERIAL   FLAGS  USAGE EXPY PERM     UID   GID   TYPE      DESCRIPTION: SUMMARY
+	00000001 I-----    39 perm 1f3f0000     0     0 keyring   _uid_ses.0: 1/4
+	00000002 I-----     2 perm 1f3f0000     0     0 keyring   _uid.0: empty
+	00000007 I-----     1 perm 1f3f0000     0     0 keyring   _pid.1: empty
+	0000018d I-----     1 perm 1f3f0000     0     0 keyring   _pid.412: empty
+	000004d2 I--Q--     1 perm 1f3f0000    32    -1 keyring   _uid.32: 1/4
+	000004d3 I--Q--     3 perm 1f3f0000    32    -1 keyring   _uid_ses.32: empty
+	00000892 I--QU-     1 perm 1f000000     0     0 user      metal:copper: 0
+	00000893 I--Q-N     1  35s 1f3f0000     0     0 user      metal:silver: 0
+	00000894 I--Q--     1  10h 003f0000     0     0 user      metal:gold: 0
 
      The flags are:
 
@@ -360,6 +364,8 @@ The main syscalls are:
      If a key cannot be found, and if callout_info is not NULL, then
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
+
+     See also Documentation/keys-request-key.txt.
 
 
 The keyctl syscall functions are:
@@ -533,8 +539,8 @@ The keyctl syscall functions are:
 
  (*) Read the payload data from a key:
 
-	key_serial_t keyctl(KEYCTL_READ, key_serial_t keyring, char *buffer,
-			    size_t buflen);
+	long keyctl(KEYCTL_READ, key_serial_t keyring, char *buffer,
+		    size_t buflen);
 
      This function attempts to read the payload data from the specified key
      into the buffer. The process must have read permission on the key to
@@ -555,9 +561,9 @@ The keyctl syscall functions are:
 
  (*) Instantiate a partially constructed key.
 
-	key_serial_t keyctl(KEYCTL_INSTANTIATE, key_serial_t key,
-			    const void *payload, size_t plen,
-			    key_serial_t keyring);
+	long keyctl(KEYCTL_INSTANTIATE, key_serial_t key,
+		    const void *payload, size_t plen,
+		    key_serial_t keyring);
 
      If the kernel calls back to userspace to complete the instantiation of a
      key, userspace should use this call to supply data for the key before the
@@ -576,8 +582,8 @@ The keyctl syscall functions are:
 
  (*) Negatively instantiate a partially constructed key.
 
-	key_serial_t keyctl(KEYCTL_NEGATE, key_serial_t key,
-			    unsigned timeout, key_serial_t keyring);
+	long keyctl(KEYCTL_NEGATE, key_serial_t key,
+		    unsigned timeout, key_serial_t keyring);
 
      If the kernel calls back to userspace to complete the instantiation of a
      key, userspace should use this call mark the key as negative before the
@@ -637,6 +643,34 @@ call, and the key released upon close. How to deal with conflicting keys due to
 two different users opening the same file is left to the filesystem author to
 solve.
 
+Note that there are two different types of pointers to keys that may be
+encountered:
+
+ (*) struct key *
+
+     This simply points to the key structure itself. Key structures will be at
+     least four-byte aligned.
+
+ (*) key_ref_t
+
+     This is equivalent to a struct key *, but the least significant bit is set
+     if the caller "possesses" the key. By "possession" it is meant that the
+     calling processes has a searchable link to the key from one of its
+     keyrings. There are three functions for dealing with these:
+
+	key_ref_t make_key_ref(const struct key *key,
+			       unsigned long possession);
+
+	struct key *key_ref_to_ptr(const key_ref_t key_ref);
+
+	unsigned long is_key_possessed(const key_ref_t key_ref);
+
+     The first function constructs a key reference from a key pointer and
+     possession information (which must be 0 or 1 and not any other value).
+
+     The second function retrieves the key pointer from a reference and the
+     third retrieves the possession flag.
+
 When accessing a key's payload contents, certain precautions must be taken to
 prevent access vs modification races. See the section "Notes on accessing
 payload contents" for more information.
@@ -660,12 +694,18 @@ payload contents" for more information.
     If successful, the key will have been attached to the default keyring for
     implicitly obtained request-key keys, as set by KEYCTL_SET_REQKEY_KEYRING.
 
+    See also Documentation/keys-request-key.txt.
+
 
 (*) When it is no longer required, the key should be released using:
 
 	void key_put(struct key *key);
 
-    This can be called from interrupt context. If CONFIG_KEYS is not set then
+    Or:
+
+	void key_ref_put(key_ref_t key_ref);
+
+    These can be called from interrupt context. If CONFIG_KEYS is not set then
     the argument will not be parsed.
 
 
@@ -689,13 +729,17 @@ payload contents" for more information.
 
 (*) If a keyring was found in the search, this can be further searched by:
 
-	struct key *keyring_search(struct key *keyring,
-				   const struct key_type *type,
-				   const char *description)
+	key_ref_t keyring_search(key_ref_t keyring_ref,
+				 const struct key_type *type,
+				 const char *description)
 
     This searches the keyring tree specified for a matching key. Error ENOKEY
-    is returned upon failure. If successful, the returned key will need to be
-    released.
+    is returned upon failure (use IS_ERR/PTR_ERR to determine). If successful,
+    the returned key will need to be released.
+
+    The possession attribute from the keyring reference is used to control
+    access through the permissions mask and is propagated to the returned key
+    reference pointer if successful.
 
 
 (*) To check the validity of a key, this function can be called:
@@ -732,7 +776,7 @@ More complex payload contents must be allocated and a pointer to them set in
 key->payload.data. One of the following ways must be selected to access the
 data:
 
- (1) Unmodifyable key type.
+ (1) Unmodifiable key type.
 
      If the key type does not have a modify method, then the key's payload can
      be accessed without any form of locking, provided that it's known to be

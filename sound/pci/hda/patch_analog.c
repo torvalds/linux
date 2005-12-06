@@ -28,15 +28,38 @@
 #include "hda_local.h"
 
 struct ad198x_spec {
-	struct semaphore amp_mutex;	/* PCM volume/mute control mutex */
-	struct hda_multi_out multiout;	/* playback */
-	hda_nid_t adc_nid;
+	snd_kcontrol_new_t *mixers[5];
+	int num_mixers;
+
+	const struct hda_verb *init_verbs[3];	/* initialization verbs
+						 * don't forget NULL termination!
+						 */
+	unsigned int num_init_verbs;
+
+	/* playback */
+	struct hda_multi_out multiout;	/* playback set-up
+					 * max_channels, dacs must be set
+					 * dig_out_nid and hp_nid are optional
+					 */
+
+	/* capture */
+	unsigned int num_adc_nids;
+	hda_nid_t *adc_nids;
+	hda_nid_t dig_in_nid;		/* digital-in NID; optional */
+
+	/* capture source */
 	const struct hda_input_mux *input_mux;
-	unsigned int cur_mux;		/* capture source */
+	unsigned int cur_mux[3];
+
+	/* channel model */
+	const struct alc_channel_mode *channel_mode;
+	int num_channel_mode;
+
+	/* PCM information */
+	struct hda_pcm pcm_rec[2];	/* used in alc_build_pcms() */
+
+	struct semaphore amp_mutex;	/* PCM volume/mute control mutex */
 	unsigned int spdif_route;
-	snd_kcontrol_new_t *mixers;
-	const struct hda_verb *init_verbs;
-	struct hda_pcm pcm_rec[2];	/* PCM information */
 };
 
 /*
@@ -54,8 +77,9 @@ static int ad198x_mux_enum_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
+	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 
-	ucontrol->value.enumerated.item[0] = spec->cur_mux;
+	ucontrol->value.enumerated.item[0] = spec->cur_mux[adc_idx];
 	return 0;
 }
 
@@ -63,9 +87,10 @@ static int ad198x_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
+	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 
 	return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
-				     spec->adc_nid, &spec->cur_mux);
+				     spec->adc_nids[adc_idx], &spec->cur_mux[adc_idx]);
 }
 
 /*
@@ -74,22 +99,34 @@ static int ad198x_mux_enum_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *u
 static int ad198x_init(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
-	snd_hda_sequence_write(codec, spec->init_verbs);
+	int i;
+
+	for (i = 0; i < spec->num_init_verbs; i++)
+		snd_hda_sequence_write(codec, spec->init_verbs[i]);
 	return 0;
 }
 
 static int ad198x_build_controls(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	unsigned int i;
 	int err;
 
-	err = snd_hda_add_new_ctls(codec, spec->mixers);
-	if (err < 0)
-		return err;
-	if (spec->multiout.dig_out_nid)
+	for (i = 0; i < spec->num_mixers; i++) {
+		err = snd_hda_add_new_ctls(codec, spec->mixers[i]);
+		if (err < 0)
+			return err;
+	}
+	if (spec->multiout.dig_out_nid) {
 		err = snd_hda_create_spdif_out_ctls(codec, spec->multiout.dig_out_nid);
-	if (err < 0)
-		return err;
+		if (err < 0)
+			return err;
+	} 
+	if (spec->dig_in_nid) {
+		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
+		if (err < 0)
+			return err;
+	}
 	return 0;
 }
 
@@ -152,7 +189,8 @@ static int ad198x_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      snd_pcm_substream_t *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
-	snd_hda_codec_setup_stream(codec, spec->adc_nid, stream_tag, 0, format);
+	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
+				   stream_tag, 0, format);
 	return 0;
 }
 
@@ -161,7 +199,8 @@ static int ad198x_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      snd_pcm_substream_t *substream)
 {
 	struct ad198x_spec *spec = codec->spec;
-	snd_hda_codec_setup_stream(codec, spec->adc_nid, 0, 0, 0);
+	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
+				   0, 0, 0);
 	return 0;
 }
 
@@ -171,7 +210,7 @@ static int ad198x_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 static struct hda_pcm_stream ad198x_pcm_analog_playback = {
 	.substreams = 1,
 	.channels_min = 2,
-	.channels_max = 6,
+	.channels_max = 6, /* changed later */
 	.nid = 0, /* fill later */
 	.ops = {
 		.open = ad198x_playback_pcm_open,
@@ -181,7 +220,7 @@ static struct hda_pcm_stream ad198x_pcm_analog_playback = {
 };
 
 static struct hda_pcm_stream ad198x_pcm_analog_capture = {
-	.substreams = 2,
+	.substreams = 1,
 	.channels_min = 2,
 	.channels_max = 2,
 	.nid = 0, /* fill later */
@@ -202,6 +241,13 @@ static struct hda_pcm_stream ad198x_pcm_digital_playback = {
 	},
 };
 
+static struct hda_pcm_stream ad198x_pcm_digital_capture = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	/* NID is set in alc_build_pcms */
+};
+
 static int ad198x_build_pcms(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -215,7 +261,8 @@ static int ad198x_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = spec->multiout.max_channels;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dac_nids[0];
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ad198x_pcm_analog_capture;
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nid;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = spec->num_adc_nids;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
 
 	if (spec->multiout.dig_out_nid) {
 		info++;
@@ -223,6 +270,10 @@ static int ad198x_build_pcms(struct hda_codec *codec)
 		info->name = "AD198x Digital";
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = ad198x_pcm_digital_playback;
 		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dig_out_nid;
+		if (spec->dig_in_nid) {
+			info->stream[SNDRV_PCM_STREAM_CAPTURE] = ad198x_pcm_digital_capture;
+			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in_nid;
+		}
 	}
 
 	return 0;
@@ -237,10 +288,15 @@ static void ad198x_free(struct hda_codec *codec)
 static int ad198x_resume(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
+	int i;
 
 	ad198x_init(codec);
-	snd_hda_resume_ctls(codec, spec->mixers);
-	snd_hda_resume_spdif_out(codec);
+	for (i = 0; i < spec->num_mixers; i++)
+		snd_hda_resume_ctls(codec, spec->mixers[i]);
+	if (spec->multiout.dig_out_nid)
+		snd_hda_resume_spdif_out(codec);
+	if (spec->dig_in_nid)
+		snd_hda_resume_spdif_in(codec);
 	return 0;
 }
 #endif
@@ -269,6 +325,7 @@ static struct hda_codec_ops ad198x_patch_ops = {
 static hda_nid_t ad1986a_dac_nids[3] = {
 	AD1986A_FRONT_DAC, AD1986A_SURR_DAC, AD1986A_CLFE_DAC
 };
+static hda_nid_t ad1986a_adc_nids[1] = { AD1986A_ADC };
 
 static struct hda_input_mux ad1986a_capture_source = {
 	.num_items = 7,
@@ -476,10 +533,13 @@ static int patch_ad1986a(struct hda_codec *codec)
 	spec->multiout.num_dacs = ARRAY_SIZE(ad1986a_dac_nids);
 	spec->multiout.dac_nids = ad1986a_dac_nids;
 	spec->multiout.dig_out_nid = AD1986A_SPDIF_OUT;
-	spec->adc_nid = AD1986A_ADC;
+	spec->num_adc_nids = 1;
+	spec->adc_nids = ad1986a_adc_nids;
 	spec->input_mux = &ad1986a_capture_source;
-	spec->mixers = ad1986a_mixers;
-	spec->init_verbs = ad1986a_init_verbs;
+	spec->num_mixers = 1;
+	spec->mixers[0] = ad1986a_mixers;
+	spec->num_init_verbs = 1;
+	spec->init_verbs[0] = ad1986a_init_verbs;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -495,6 +555,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 #define AD1983_ADC		0x04
 
 static hda_nid_t ad1983_dac_nids[1] = { AD1983_DAC };
+static hda_nid_t ad1983_adc_nids[1] = { AD1983_ADC };
 
 static struct hda_input_mux ad1983_capture_source = {
 	.num_items = 4,
@@ -619,6 +680,7 @@ static struct hda_verb ad1983_init_verbs[] = {
 	{ } /* end */
 };
 
+
 static int patch_ad1983(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -634,10 +696,13 @@ static int patch_ad1983(struct hda_codec *codec)
 	spec->multiout.num_dacs = ARRAY_SIZE(ad1983_dac_nids);
 	spec->multiout.dac_nids = ad1983_dac_nids;
 	spec->multiout.dig_out_nid = AD1983_SPDIF_OUT;
-	spec->adc_nid = AD1983_ADC;
+	spec->num_adc_nids = 1;
+	spec->adc_nids = ad1983_adc_nids;
 	spec->input_mux = &ad1983_capture_source;
-	spec->mixers = ad1983_mixers;
-	spec->init_verbs = ad1983_init_verbs;
+	spec->num_mixers = 1;
+	spec->mixers[0] = ad1983_mixers;
+	spec->num_init_verbs = 1;
+	spec->init_verbs[0] = ad1983_init_verbs;
 	spec->spdif_route = 0;
 
 	codec->patch_ops = ad198x_patch_ops;
@@ -655,6 +720,7 @@ static int patch_ad1983(struct hda_codec *codec)
 #define AD1981_ADC		0x04
 
 static hda_nid_t ad1981_dac_nids[1] = { AD1981_DAC };
+static hda_nid_t ad1981_adc_nids[1] = { AD1981_ADC };
 
 /* 0x0c, 0x09, 0x0e, 0x0f, 0x19, 0x05, 0x18, 0x17 */
 static struct hda_input_mux ad1981_capture_source = {
@@ -775,10 +841,13 @@ static int patch_ad1981(struct hda_codec *codec)
 	spec->multiout.num_dacs = ARRAY_SIZE(ad1981_dac_nids);
 	spec->multiout.dac_nids = ad1981_dac_nids;
 	spec->multiout.dig_out_nid = AD1981_SPDIF_OUT;
-	spec->adc_nid = AD1981_ADC;
+	spec->num_adc_nids = 1;
+	spec->adc_nids = ad1981_adc_nids;
 	spec->input_mux = &ad1981_capture_source;
-	spec->mixers = ad1981_mixers;
-	spec->init_verbs = ad1981_init_verbs;
+	spec->num_mixers = 1;
+	spec->mixers[0] = ad1981_mixers;
+	spec->num_init_verbs = 1;
+	spec->init_verbs[0] = ad1981_init_verbs;
 	spec->spdif_route = 0;
 
 	codec->patch_ops = ad198x_patch_ops;

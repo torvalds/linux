@@ -74,7 +74,7 @@ struct ip6frag_skb_cb
 
 struct frag_queue
 {
-	struct frag_queue	*next;
+	struct hlist_node	list;
 	struct list_head lru_list;		/* lru list member	*/
 
 	__u32			id;		/* fragment id		*/
@@ -95,14 +95,13 @@ struct frag_queue
 #define FIRST_IN		2
 #define LAST_IN			1
 	__u16			nhoffset;
-	struct frag_queue	**pprev;
 };
 
 /* Hash table. */
 
 #define IP6Q_HASHSZ	64
 
-static struct frag_queue *ip6_frag_hash[IP6Q_HASHSZ];
+static struct hlist_head ip6_frag_hash[IP6Q_HASHSZ];
 static DEFINE_RWLOCK(ip6_frag_lock);
 static u32 ip6_frag_hash_rnd;
 static LIST_HEAD(ip6_frag_lru_list);
@@ -110,9 +109,7 @@ int ip6_frag_nqueues = 0;
 
 static __inline__ void __fq_unlink(struct frag_queue *fq)
 {
-	if(fq->next)
-		fq->next->pprev = fq->pprev;
-	*fq->pprev = fq->next;
+	hlist_del(&fq->list);
 	list_del(&fq->lru_list);
 	ip6_frag_nqueues--;
 }
@@ -163,28 +160,21 @@ static void ip6_frag_secret_rebuild(unsigned long dummy)
 	get_random_bytes(&ip6_frag_hash_rnd, sizeof(u32));
 	for (i = 0; i < IP6Q_HASHSZ; i++) {
 		struct frag_queue *q;
+		struct hlist_node *p, *n;
 
-		q = ip6_frag_hash[i];
-		while (q) {
-			struct frag_queue *next = q->next;
+		hlist_for_each_entry_safe(q, p, n, &ip6_frag_hash[i], list) {
 			unsigned int hval = ip6qhashfn(q->id,
 						       &q->saddr,
 						       &q->daddr);
 
 			if (hval != i) {
-				/* Unlink. */
-				if (q->next)
-					q->next->pprev = q->pprev;
-				*q->pprev = q->next;
+				hlist_del(&q->list);
 
 				/* Relink to new hash chain. */
-				if ((q->next = ip6_frag_hash[hval]) != NULL)
-					q->next->pprev = &q->next;
-				ip6_frag_hash[hval] = q;
-				q->pprev = &ip6_frag_hash[hval];
-			}
+				hlist_add_head(&q->list,
+					       &ip6_frag_hash[hval]);
 
-			q = next;
+			}
 		}
 	}
 	write_unlock(&ip6_frag_lock);
@@ -337,10 +327,13 @@ static struct frag_queue *ip6_frag_intern(unsigned int hash,
 					  struct frag_queue *fq_in)
 {
 	struct frag_queue *fq;
+#ifdef CONFIG_SMP
+	struct hlist_node *n;
+#endif
 
 	write_lock(&ip6_frag_lock);
 #ifdef CONFIG_SMP
-	for (fq = ip6_frag_hash[hash]; fq; fq = fq->next) {
+	hlist_for_each_entry(fq, n, &ip6_frag_hash[hash], list) {
 		if (fq->id == fq_in->id && 
 		    ipv6_addr_equal(&fq_in->saddr, &fq->saddr) &&
 		    ipv6_addr_equal(&fq_in->daddr, &fq->daddr)) {
@@ -358,10 +351,7 @@ static struct frag_queue *ip6_frag_intern(unsigned int hash,
 		atomic_inc(&fq->refcnt);
 
 	atomic_inc(&fq->refcnt);
-	if((fq->next = ip6_frag_hash[hash]) != NULL)
-		fq->next->pprev = &fq->next;
-	ip6_frag_hash[hash] = fq;
-	fq->pprev = &ip6_frag_hash[hash];
+	hlist_add_head(&fq->list, &ip6_frag_hash[hash]);
 	INIT_LIST_HEAD(&fq->lru_list);
 	list_add_tail(&fq->lru_list, &ip6_frag_lru_list);
 	ip6_frag_nqueues++;
@@ -401,10 +391,11 @@ static __inline__ struct frag_queue *
 fq_find(u32 id, struct in6_addr *src, struct in6_addr *dst)
 {
 	struct frag_queue *fq;
+	struct hlist_node *n;
 	unsigned int hash = ip6qhashfn(id, src, dst);
 
 	read_lock(&ip6_frag_lock);
-	for(fq = ip6_frag_hash[hash]; fq; fq = fq->next) {
+	hlist_for_each_entry(fq, n, &ip6_frag_hash[hash], list) {
 		if (fq->id == id && 
 		    ipv6_addr_equal(src, &fq->saddr) &&
 		    ipv6_addr_equal(dst, &fq->daddr)) {

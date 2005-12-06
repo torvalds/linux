@@ -28,14 +28,18 @@
 #include <linux/security.h>
 #include <linux/signal.h>
 
+#include <asm/byteorder.h>
 #include <asm/cpu.h>
+#include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/mipsregs.h>
+#include <asm/mipsmtregs.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
+#include <asm/reg.h>
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -47,50 +51,132 @@ void ptrace_disable(struct task_struct *child)
 	/* Nothing to do.. */
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+/*
+ * Read a general register set.  We always use the 64-bit format, even
+ * for 32-bit kernels and for 32-bit processes on a 64-bit kernel.
+ * Registers are sign extended to fill the available space.
+ */
+int ptrace_getregs (struct task_struct *child, __s64 __user *data)
 {
-	struct task_struct *child;
+	struct pt_regs *regs;
+	int i;
+
+	if (!access_ok(VERIFY_WRITE, data, 38 * 8))
+		return -EIO;
+
+	regs = (struct pt_regs *) ((unsigned long) child->thread_info +
+	       THREAD_SIZE - 32 - sizeof(struct pt_regs));
+
+	for (i = 0; i < 32; i++)
+		__put_user (regs->regs[i], data + i);
+	__put_user (regs->lo, data + EF_LO - EF_R0);
+	__put_user (regs->hi, data + EF_HI - EF_R0);
+	__put_user (regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
+	__put_user (regs->cp0_badvaddr, data + EF_CP0_BADVADDR - EF_R0);
+	__put_user (regs->cp0_status, data + EF_CP0_STATUS - EF_R0);
+	__put_user (regs->cp0_cause, data + EF_CP0_CAUSE - EF_R0);
+
+	return 0;
+}
+
+/*
+ * Write a general register set.  As for PTRACE_GETREGS, we always use
+ * the 64-bit format.  On a 32-bit kernel only the lower order half
+ * (according to endianness) will be used.
+ */
+int ptrace_setregs (struct task_struct *child, __s64 __user *data)
+{
+	struct pt_regs *regs;
+	int i;
+
+	if (!access_ok(VERIFY_READ, data, 38 * 8))
+		return -EIO;
+
+	regs = (struct pt_regs *) ((unsigned long) child->thread_info +
+	       THREAD_SIZE - 32 - sizeof(struct pt_regs));
+
+	for (i = 0; i < 32; i++)
+		__get_user (regs->regs[i], data + i);
+	__get_user (regs->lo, data + EF_LO - EF_R0);
+	__get_user (regs->hi, data + EF_HI - EF_R0);
+	__get_user (regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
+
+	/* badvaddr, status, and cause may not be written.  */
+
+	return 0;
+}
+
+int ptrace_getfpregs (struct task_struct *child, __u32 __user *data)
+{
+	int i;
+
+	if (!access_ok(VERIFY_WRITE, data, 33 * 8))
+		return -EIO;
+
+	if (tsk_used_math(child)) {
+		fpureg_t *fregs = get_fpu_regs(child);
+		for (i = 0; i < 32; i++)
+			__put_user (fregs[i], i + (__u64 __user *) data);
+	} else {
+		for (i = 0; i < 32; i++)
+			__put_user ((__u64) -1, i + (__u64 __user *) data);
+	}
+
+	if (cpu_has_fpu) {
+		unsigned int flags, tmp;
+
+		__put_user (child->thread.fpu.hard.fcr31, data + 64);
+
+		preempt_disable();
+		if (cpu_has_mipsmt) {
+			unsigned int vpflags = dvpe();
+			flags = read_c0_status();
+			__enable_fpu();
+			__asm__ __volatile__("cfc1\t%0,$0" : "=r" (tmp));
+			write_c0_status(flags);
+			evpe(vpflags);
+		} else {
+			flags = read_c0_status();
+			__enable_fpu();
+			__asm__ __volatile__("cfc1\t%0,$0" : "=r" (tmp));
+			write_c0_status(flags);
+		}
+		preempt_enable();
+		__put_user (tmp, data + 65);
+	} else {
+		__put_user (child->thread.fpu.soft.fcr31, data + 64);
+		__put_user ((__u32) 0, data + 65);
+	}
+
+	return 0;
+}
+
+int ptrace_setfpregs (struct task_struct *child, __u32 __user *data)
+{
+	fpureg_t *fregs;
+	int i;
+
+	if (!access_ok(VERIFY_READ, data, 33 * 8))
+		return -EIO;
+
+	fregs = get_fpu_regs(child);
+
+	for (i = 0; i < 32; i++)
+		__get_user (fregs[i], i + (__u64 __user *) data);
+
+	if (cpu_has_fpu)
+		__get_user (child->thread.fpu.hard.fcr31, data + 64);
+	else
+		__get_user (child->thread.fpu.soft.fcr31, data + 64);
+
+	/* FIR may not be written.  */
+
+	return 0;
+}
+
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+{
 	int ret;
-
-#if 0
-	printk("ptrace(r=%d,pid=%d,addr=%08lx,data=%08lx)\n",
-	       (int) request, (int) pid, (unsigned long) addr,
-	       (unsigned long) data);
-#endif
-	lock_kernel();
-	ret = -EPERM;
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		if ((ret = security_ptrace(current->parent, current)))
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
-		goto out;
-	}
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out_tsk;
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
@@ -103,7 +189,7 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		ret = -EIO;
 		if (copied != sizeof(tmp))
 			break;
-		ret = put_user(tmp,(unsigned long *) data);
+		ret = put_user(tmp,(unsigned long __user *) data);
 		break;
 	}
 
@@ -169,18 +255,53 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			if (!cpu_has_fpu)
 				break;
 
-			flags = read_c0_status();
-			__enable_fpu();
-			__asm__ __volatile__("cfc1\t%0,$0": "=r" (tmp));
-			write_c0_status(flags);
+			preempt_disable();
+			if (cpu_has_mipsmt) {
+				unsigned int vpflags = dvpe();
+				flags = read_c0_status();
+				__enable_fpu();
+				__asm__ __volatile__("cfc1\t%0,$0": "=r" (tmp));
+				write_c0_status(flags);
+				evpe(vpflags);
+			} else {
+				flags = read_c0_status();
+				__enable_fpu();
+				__asm__ __volatile__("cfc1\t%0,$0": "=r" (tmp));
+				write_c0_status(flags);
+			}
+			preempt_enable();
 			break;
 		}
+		case DSP_BASE ... DSP_BASE + 5: {
+			dspreg_t *dregs;
+
+			if (!cpu_has_dsp) {
+				tmp = 0;
+				ret = -EIO;
+				goto out;
+			}
+			if (child->thread.dsp.used_dsp) {
+				dregs = __get_dsp_regs(child);
+				tmp = (unsigned long) (dregs[addr - DSP_BASE]);
+			} else {
+				tmp = -1;	/* DSP registers yet used  */
+			}
+			break;
+		}
+		case DSP_CONTROL:
+			if (!cpu_has_dsp) {
+				tmp = 0;
+				ret = -EIO;
+				goto out;
+			}
+			tmp = child->thread.dsp.dspcontrol;
+			break;
 		default:
 			tmp = 0;
 			ret = -EIO;
-			goto out_tsk;
+			goto out;
 		}
-		ret = put_user(tmp, (unsigned long *) data);
+		ret = put_user(tmp, (unsigned long __user *) data);
 		break;
 	}
 
@@ -247,6 +368,25 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			else
 				child->thread.fpu.soft.fcr31 = data;
 			break;
+		case DSP_BASE ... DSP_BASE + 5: {
+			dspreg_t *dregs;
+
+			if (!cpu_has_dsp) {
+				ret = -EIO;
+				break;
+			}
+
+			dregs = __get_dsp_regs(child);
+			dregs[addr - DSP_BASE] = data;
+			break;
+		}
+		case DSP_CONTROL:
+			if (!cpu_has_dsp) {
+				ret = -EIO;
+				break;
+			}
+			child->thread.dsp.dspcontrol = data;
+			break;
 		default:
 			/* The rest are not allowed. */
 			ret = -EIO;
@@ -254,6 +394,22 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		}
 		break;
 		}
+
+	case PTRACE_GETREGS:
+		ret = ptrace_getregs (child, (__u64 __user *) data);
+		break;
+
+	case PTRACE_SETREGS:
+		ret = ptrace_setregs (child, (__u64 __user *) data);
+		break;
+
+	case PTRACE_GETFPREGS:
+		ret = ptrace_getfpregs (child, (__u32 __user *) data);
+		break;
+
+	case PTRACE_SETFPREGS:
+		ret = ptrace_setfpregs (child, (__u32 __user *) data);
+		break;
 
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
 	case PTRACE_CONT: { /* restart after signal. */
@@ -289,35 +445,29 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		ret = ptrace_detach(child, data);
 		break;
 
+	case PTRACE_GET_THREAD_AREA:
+		ret = put_user(child->thread_info->tp_value,
+				(unsigned long __user *) data);
+		break;
+
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
-
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
+ out:
 	return ret;
 }
 
 static inline int audit_arch(void)
 {
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	int arch = EM_MIPS;
 #ifdef CONFIG_64BIT
-	if (!(current->thread.mflags & MF_32BIT_REGS))
-		return AUDIT_ARCH_MIPSEL64;
-#endif /* MIPS64 */
-	return AUDIT_ARCH_MIPSEL;
-
-#else /* big endian... */
-#ifdef CONFIG_64BIT
-	if (!(current->thread.mflags & MF_32BIT_REGS))
-		return AUDIT_ARCH_MIPS64;
-#endif /* MIPS64 */
-	return AUDIT_ARCH_MIPS;
-
-#endif /* endian */
+	arch |=  __AUDIT_ARCH_64BIT;
+#endif
+#if defined(__LITTLE_ENDIAN)
+	arch |=  __AUDIT_ARCH_LE;
+#endif
+	return arch;
 }
 
 /*
@@ -327,11 +477,12 @@ static inline int audit_arch(void)
 asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	if (unlikely(current->audit_context) && entryexit)
-		audit_syscall_exit(current, AUDITSC_RESULT(regs->regs[2]), regs->regs[2]);
+		audit_syscall_exit(current, AUDITSC_RESULT(regs->regs[2]),
+		                   regs->regs[2]);
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		goto out;
 	if (!(current->ptrace & PT_PTRACED))
+		goto out;
+	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		goto out;
 
 	/* The 0x80 provides a way for the tracing parent to distinguish

@@ -559,7 +559,8 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 	return &state->frontend;
 
 error:
-	if (reg0x3e >= 0) l64781_writereg (state, 0x3e, reg0x3e);  /* restore reg 0x3e */
+	if (reg0x3e >= 0)
+		l64781_writereg (state, 0x3e, reg0x3e);  /* restore reg 0x3e */
 	kfree(state);
 	return NULL;
 }

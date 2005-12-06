@@ -50,7 +50,7 @@ SECTIONS
 	*(.bss.page_aligned)	
 	*(.bss)
 	}
-  __bss_end = .;
+  __bss_stop = .;
 
   . = ALIGN(PAGE_SIZE);
   . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);

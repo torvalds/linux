@@ -1,39 +1,25 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -43,18 +29,17 @@
 #include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
@@ -68,6 +53,137 @@
 
 #include <linux/xattr.h>
 #include <linux/namei.h>
+
+/*
+ * Change the requested timestamp in the given inode.
+ * We don't lock across timestamp updates, and we don't log them but
+ * we do record the fact that there is dirty information in core.
+ *
+ * NOTE -- callers MUST combine XFS_ICHGTIME_MOD or XFS_ICHGTIME_CHG
+ *		with XFS_ICHGTIME_ACC to be sure that access time
+ *		update will take.  Calling first with XFS_ICHGTIME_ACC
+ *		and then XFS_ICHGTIME_MOD may fail to modify the access
+ *		timestamp if the filesystem is mounted noacctm.
+ */
+void
+xfs_ichgtime(
+	xfs_inode_t	*ip,
+	int		flags)
+{
+	struct inode	*inode = LINVFS_GET_IP(XFS_ITOV(ip));
+	timespec_t	tv;
+
+	/*
+	 * We're not supposed to change timestamps in readonly-mounted
+	 * filesystems.  Throw it away if anyone asks us.
+	 */
+	if (unlikely(IS_RDONLY(inode)))
+		return;
+
+	/*
+	 * Don't update access timestamps on reads if mounted "noatime".
+	 * Throw it away if anyone asks us.
+	 */
+	if (unlikely(
+	    (ip->i_mount->m_flags & XFS_MOUNT_NOATIME || IS_NOATIME(inode)) &&
+	    (flags & (XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD|XFS_ICHGTIME_CHG)) ==
+			XFS_ICHGTIME_ACC))
+		return;
+
+	nanotime(&tv);
+	if (flags & XFS_ICHGTIME_MOD) {
+		inode->i_mtime = tv;
+		ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
+		ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
+	}
+	if (flags & XFS_ICHGTIME_ACC) {
+		inode->i_atime = tv;
+		ip->i_d.di_atime.t_sec = (__int32_t)tv.tv_sec;
+		ip->i_d.di_atime.t_nsec = (__int32_t)tv.tv_nsec;
+	}
+	if (flags & XFS_ICHGTIME_CHG) {
+		inode->i_ctime = tv;
+		ip->i_d.di_ctime.t_sec = (__int32_t)tv.tv_sec;
+		ip->i_d.di_ctime.t_nsec = (__int32_t)tv.tv_nsec;
+	}
+
+	/*
+	 * We update the i_update_core field _after_ changing
+	 * the timestamps in order to coordinate properly with
+	 * xfs_iflush() so that we don't lose timestamp updates.
+	 * This keeps us from having to hold the inode lock
+	 * while doing this.  We use the SYNCHRONIZE macro to
+	 * ensure that the compiler does not reorder the update
+	 * of i_update_core above the timestamp updates above.
+	 */
+	SYNCHRONIZE();
+	ip->i_update_core = 1;
+	if (!(inode->i_state & I_LOCK))
+		mark_inode_dirty_sync(inode);
+}
+
+/*
+ * Variant on the above which avoids querying the system clock
+ * in situations where we know the Linux inode timestamps have
+ * just been updated (and so we can update our inode cheaply).
+ * We also skip the readonly and noatime checks here, they are
+ * also catered for already.
+ */
+void
+xfs_ichgtime_fast(
+	xfs_inode_t	*ip,
+	struct inode	*inode,
+	int		flags)
+{
+	timespec_t	*tvp;
+
+	/*
+	 * We're not supposed to change timestamps in readonly-mounted
+	 * filesystems.  Throw it away if anyone asks us.
+	 */
+	if (unlikely(IS_RDONLY(inode)))
+		return;
+
+	/*
+	 * Don't update access timestamps on reads if mounted "noatime".
+	 * Throw it away if anyone asks us.
+	 */
+	if (unlikely(
+	    (ip->i_mount->m_flags & XFS_MOUNT_NOATIME || IS_NOATIME(inode)) &&
+	    ((flags & (XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD|XFS_ICHGTIME_CHG)) ==
+			XFS_ICHGTIME_ACC)))
+		return;
+
+	if (flags & XFS_ICHGTIME_MOD) {
+		tvp = &inode->i_mtime;
+		ip->i_d.di_mtime.t_sec = (__int32_t)tvp->tv_sec;
+		ip->i_d.di_mtime.t_nsec = (__int32_t)tvp->tv_nsec;
+	}
+	if (flags & XFS_ICHGTIME_ACC) {
+		tvp = &inode->i_atime;
+		ip->i_d.di_atime.t_sec = (__int32_t)tvp->tv_sec;
+		ip->i_d.di_atime.t_nsec = (__int32_t)tvp->tv_nsec;
+	}
+	if (flags & XFS_ICHGTIME_CHG) {
+		tvp = &inode->i_ctime;
+		ip->i_d.di_ctime.t_sec = (__int32_t)tvp->tv_sec;
+		ip->i_d.di_ctime.t_nsec = (__int32_t)tvp->tv_nsec;
+	}
+
+	/*
+	 * We update the i_update_core field _after_ changing
+	 * the timestamps in order to coordinate properly with
+	 * xfs_iflush() so that we don't lose timestamp updates.
+	 * This keeps us from having to hold the inode lock
+	 * while doing this.  We use the SYNCHRONIZE macro to
+	 * ensure that the compiler does not reorder the update
+	 * of i_update_core above the timestamp updates above.
+	 */
+	SYNCHRONIZE();
+	ip->i_update_core = 1;
+	if (!(inode->i_state & I_LOCK))
+		mark_inode_dirty_sync(inode);
+}
 
 
 /*

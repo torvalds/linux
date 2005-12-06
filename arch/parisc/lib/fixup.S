@@ -35,7 +35,7 @@
 	extrd,u \t2,63,32,\t2
 #endif
 	/* t2 = &__per_cpu_offset[smp_processor_id()]; */
-	LDREG,s \t2(\t1),\t2 
+	LDREGX \t2(\t1),\t2 
 	addil LT%per_cpu__exception_data,%r27
 	LDREG RT%per_cpu__exception_data(%r1),\t1
 	/* t1 = &__get_cpu_var(exception_data) */
@@ -52,6 +52,8 @@
 	LDREG EXCDATA_IP(\t2), \t1
 	.endm
 #endif
+
+	.level LEVEL
 
 	.text
 	.section .fixup, "ax"

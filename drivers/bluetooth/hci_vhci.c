@@ -261,11 +261,9 @@ static int vhci_open(struct inode *inode, struct file *file)
 	struct vhci_data *vhci;
 	struct hci_dev *hdev;
 
-	vhci = kmalloc(sizeof(struct vhci_data), GFP_KERNEL);
+	vhci = kzalloc(sizeof(struct vhci_data), GFP_KERNEL);
 	if (!vhci)
 		return -ENOMEM;
-
-	memset(vhci, 0, sizeof(struct vhci_data));
 
 	skb_queue_head_init(&vhci->readq);
 	init_waitqueue_head(&vhci->read_wait);

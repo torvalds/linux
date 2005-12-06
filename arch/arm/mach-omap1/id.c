@@ -18,6 +18,13 @@
 
 #include <asm/io.h>
 
+#define OMAP_DIE_ID_0		0xfffe1800
+#define OMAP_DIE_ID_1		0xfffe1804
+#define OMAP_PRODUCTION_ID_0	0xfffe2000
+#define OMAP_PRODUCTION_ID_1	0xfffe2004
+#define OMAP32_ID_0		0xfffed400
+#define OMAP32_ID_1		0xfffed404
+
 struct omap_id {
 	u16	jtag_id;	/* Used to determine OMAP type */
 	u8	die_rev;	/* Processor revision */
@@ -27,6 +34,7 @@ struct omap_id {
 
 /* Register values to detect the OMAP version */
 static struct omap_id omap_ids[] __initdata = {
+	{ .jtag_id = 0xb574, .die_rev = 0x2, .omap_id = 0x03310315, .type = 0x03100000},
 	{ .jtag_id = 0x355f, .die_rev = 0x0, .omap_id = 0x03320000, .type = 0x07300100},
 	{ .jtag_id = 0xb55f, .die_rev = 0x0, .omap_id = 0x03320000, .type = 0x07300300},
 	{ .jtag_id = 0xb470, .die_rev = 0x0, .omap_id = 0x03310100, .type = 0x15100000},
@@ -164,6 +172,7 @@ void __init omap_check_revision(void)
 	case 0x07:
 		system_rev |= 0x07;
 		break;
+	case 0x03:
 	case 0x15:
 		system_rev |= 0x15;
 		break;

@@ -7,6 +7,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/thread_info.h>
 #include <linux/linkage.h>
 
 #ifdef CONFIG_DEBUG_PREEMPT

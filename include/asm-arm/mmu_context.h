@@ -13,6 +13,8 @@
 #ifndef __ASM_ARM_MMU_CONTEXT_H
 #define __ASM_ARM_MMU_CONTEXT_H
 
+#include <linux/compiler.h>
+#include <asm/cacheflush.h>
 #include <asm/proc-fns.h>
 
 #if __LINUX_ARM_ARCH__ >= 6
@@ -86,7 +88,8 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		cpu_set(cpu, next->cpu_vm_mask);
 		check_context(next);
 		cpu_switch_mm(next->pgd, next);
-		cpu_clear(cpu, prev->cpu_vm_mask);
+		if (cache_is_vivt())
+			cpu_clear(cpu, prev->cpu_vm_mask);
 	}
 }
 

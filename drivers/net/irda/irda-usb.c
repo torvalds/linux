@@ -1168,10 +1168,8 @@ static inline void irda_usb_close(struct irda_usb_cb *self)
 	unregister_netdev(self->netdev);
 
 	/* Remove the speed buffer */
-	if (self->speed_buff != NULL) {
-		kfree(self->speed_buff);
-		self->speed_buff = NULL;
-	}
+	kfree(self->speed_buff);
+	self->speed_buff = NULL;
 }
 
 /********************** USB CONFIG SUBROUTINES **********************/

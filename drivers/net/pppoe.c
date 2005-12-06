@@ -1070,7 +1070,7 @@ static int __init pppoe_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("pppoe", S_IRUGO, proc_net);
+	p = create_proc_entry("net/pppoe", S_IRUGO, NULL);
 	if (!p)
 		return -ENOMEM;
 
@@ -1142,7 +1142,7 @@ static void __exit pppoe_exit(void)
 	dev_remove_pack(&pppoes_ptype);
 	dev_remove_pack(&pppoed_ptype);
 	unregister_netdevice_notifier(&pppoe_notifier);
-	remove_proc_entry("pppoe", proc_net);
+	remove_proc_entry("net/pppoe", NULL);
 	proto_unregister(&pppoe_sk_proto);
 }
 

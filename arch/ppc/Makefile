@@ -26,6 +26,10 @@ CPPFLAGS	+= -Iarch/$(ARCH) -Iarch/$(ARCH)/include
 AFLAGS		+= -Iarch/$(ARCH)
 CFLAGS		+= -Iarch/$(ARCH) -msoft-float -pipe \
 		-ffixed-r2 -mmultiple
+
+# No AltiVec instruction when building kernel
+CFLAGS		+= $(call cc-option, -mno-altivec)
+
 CPP		= $(CC) -E $(CFLAGS)
 # Temporary hack until we have migrated to asm-powerpc
 LINUXINCLUDE    += -Iarch/$(ARCH)/include
@@ -57,10 +61,13 @@ head-$(CONFIG_FSL_BOOKE)	:= arch/ppc/kernel/head_fsl_booke.o
 
 head-$(CONFIG_6xx)		+= arch/ppc/kernel/idle_6xx.o
 head-$(CONFIG_POWER4)		+= arch/ppc/kernel/idle_power4.o
-head-$(CONFIG_PPC_FPU)		+= arch/ppc/kernel/fpu.o
+head-$(CONFIG_PPC_FPU)		+= arch/powerpc/kernel/fpu.o
 
-core-y				+= arch/ppc/kernel/ arch/ppc/platforms/ \
-				   arch/ppc/mm/ arch/ppc/lib/ arch/ppc/syslib/
+core-y				+= arch/ppc/kernel/ arch/powerpc/kernel/ \
+				   arch/ppc/platforms/ \
+				   arch/ppc/mm/ arch/ppc/lib/ \
+				   arch/ppc/syslib/ arch/powerpc/sysdev/ \
+				   arch/powerpc/lib/
 core-$(CONFIG_4xx)		+= arch/ppc/platforms/4xx/
 core-$(CONFIG_83xx)		+= arch/ppc/platforms/83xx/
 core-$(CONFIG_85xx)		+= arch/ppc/platforms/85xx/
@@ -71,7 +78,7 @@ drivers-$(CONFIG_8xx)		+= arch/ppc/8xx_io/
 drivers-$(CONFIG_4xx)		+= arch/ppc/4xx_io/
 drivers-$(CONFIG_CPM2)		+= arch/ppc/8260_io/
 
-drivers-$(CONFIG_OPROFILE)	+= arch/ppc/oprofile/
+drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
 BOOT_TARGETS = zImage zImage.initrd znetboot znetboot.initrd vmlinux.sm
 

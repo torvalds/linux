@@ -48,7 +48,9 @@ static struct fb_ops p9100_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= p9100_mmap,
 	.fb_ioctl		= p9100_ioctl,
-	.fb_cursor		= soft_cursor,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 /* P9100 control registers */
@@ -288,6 +290,9 @@ static void p9100_init_one(struct sbus_dev *sdev)
 	all->par.physbase = sdev->reg_addrs[2].phys_addr;
 
 	sbusfb_fill_var(&all->info.var, sdev->prom_node, 8);
+	all->info.var.red.length = 8;
+	all->info.var.green.length = 8;
+	all->info.var.blue.length = 8;
 
 	linebytes = prom_getintdefault(sdev->prom_node, "linebytes",
 				       all->info.var.xres);
@@ -323,6 +328,7 @@ static void p9100_init_one(struct sbus_dev *sdev)
 		kfree(all);
 		return;
 	}
+	fb_set_cmap(&all->info.cmap, &all->info);
 
 	list_add(&all->list, &p9100_list);
 

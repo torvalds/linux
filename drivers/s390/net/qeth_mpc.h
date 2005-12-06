@@ -6,7 +6,7 @@
  * Copyright 2000,2003 IBM Corporation
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *            Thomas Spatzier <tspat@de.ibm.com>
- *            Frank Pavlic <pavlic@de.ibm.com>
+ *            Frank Pavlic <fpavlic@de.ibm.com>
  *
  */
 #ifndef __QETH_MPC_H__
@@ -14,7 +14,7 @@
 
 #include <asm/qeth.h>
 
-#define VERSION_QETH_MPC_H "$Revision: 1.43 $"
+#define VERSION_QETH_MPC_H "$Revision: 1.44 $"
 
 extern const char *VERSION_QETH_MPC_C;
 
@@ -46,13 +46,16 @@ extern unsigned char IPA_PDU_HEADER[];
 /* IP Assist related definitions                                             */
 /*****************************************************************************/
 #define IPA_CMD_INITIATOR_HOST  0x00
-#define IPA_CMD_INITIATOR_HYDRA 0x01
+#define IPA_CMD_INITIATOR_OSA   0x01
+#define IPA_CMD_INITIATOR_HOST_REPLY  0x80
+#define IPA_CMD_INITIATOR_OSA_REPLY   0x81
 #define IPA_CMD_PRIM_VERSION_NO 0x01
 
 enum qeth_card_types {
 	QETH_CARD_TYPE_UNKNOWN = 0,
 	QETH_CARD_TYPE_OSAE    = 10,
 	QETH_CARD_TYPE_IQD     = 1234,
+	QETH_CARD_TYPE_OSN     = 11,
 };
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
@@ -61,6 +64,7 @@ enum qeth_link_types {
 	QETH_LINK_TYPE_FAST_ETH     = 0x01,
 	QETH_LINK_TYPE_HSTR         = 0x02,
 	QETH_LINK_TYPE_GBIT_ETH     = 0x03,
+	QETH_LINK_TYPE_OSN          = 0x04,
 	QETH_LINK_TYPE_10GBIT_ETH   = 0x10,
 	QETH_LINK_TYPE_LANE_ETH100  = 0x81,
 	QETH_LINK_TYPE_LANE_TR      = 0x82,
@@ -111,6 +115,9 @@ enum qeth_ipa_cmds {
 	IPA_CMD_DELGMAC 	      = 0x24,
 	IPA_CMD_SETVLAN 	      = 0x25,
 	IPA_CMD_DELVLAN 	      = 0x26,
+	IPA_CMD_SETCCID               = 0x41,
+	IPA_CMD_DELCCID               = 0x42,
+	IPA_CMD_MODCCID               = 0x43,
 	IPA_CMD_SETIP                 = 0xb1,
 	IPA_CMD_DELIP                 = 0xb7,
 	IPA_CMD_QIPASSIST             = 0xb2,
@@ -210,7 +217,7 @@ enum qeth_ipa_setadp_cmd {
 	IPA_SETADP_SEND_OSA_MESSAGE 		= 0x0100,
 	IPA_SETADP_SET_SNMP_CONTROL 		= 0x0200,
 	IPA_SETADP_READ_SNMP_PARMS 		= 0x0400,
-	IPA_SETADP_WRITE_SNMP_PARMS 		= 0x0800,
+	IPA_SETADP_SET_PROMISC_MODE		= 0x0800,
 	IPA_SETADP_QUERY_CARD_INFO 		= 0x1000,
 };
 enum qeth_ipa_mac_ops {
@@ -225,9 +232,12 @@ enum qeth_ipa_addr_ops {
 	CHANGE_ADDR_ADD_ADDR 		= 1,
 	CHANGE_ADDR_DEL_ADDR 		= 2,
 	CHANGE_ADDR_FLUSH_ADDR_TABLE 	= 4,
-
-
 };
+enum qeth_ipa_promisc_modes {
+	SET_PROMISC_MODE_OFF		= 0,
+	SET_PROMISC_MODE_ON		= 1,
+};
+
 /* (SET)DELIP(M) IPA stuff ***************************************************/
 struct qeth_ipacmd_setdelip4 {
 	__u8   ip_addr[4];
@@ -437,8 +447,9 @@ enum qeth_ipa_arp_return_codes {
 #define QETH_ARP_DATA_SIZE 3968
 #define QETH_ARP_CMD_LEN (QETH_ARP_DATA_SIZE + 8)
 /* Helper functions */
-#define IS_IPA_REPLY(cmd) (cmd->hdr.initiator == IPA_CMD_INITIATOR_HOST)
-
+#define IS_IPA_REPLY(cmd) ((cmd->hdr.initiator == IPA_CMD_INITIATOR_HOST) || \
+			   (cmd->hdr.initiator == IPA_CMD_INITIATOR_OSA_REPLY))
+	
 /*****************************************************************************/
 /* END OF   IP Assist related definitions                                    */
 /*****************************************************************************/
@@ -483,6 +494,7 @@ extern unsigned char ULP_ENABLE[];
 /* Layer 2 defintions */
 #define QETH_PROT_LAYER2 0x08
 #define QETH_PROT_TCPIP  0x03
+#define QETH_PROT_OSN2   0x0a     
 #define QETH_ULP_ENABLE_PROT_TYPE(buffer) (buffer+0x50)
 #define QETH_IPA_CMD_PROT_TYPE(buffer) (buffer+0x19)
 

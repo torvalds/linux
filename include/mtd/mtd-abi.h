@@ -1,7 +1,7 @@
 /*
- * $Id: mtd-abi.h,v 1.11 2005/05/19 16:08:58 gleixner Exp $
+ * $Id: mtd-abi.h,v 1.13 2005/11/07 11:14:56 gleixner Exp $
  *
- * Portions of MTD ABI definition which are shared by kernel and user space 
+ * Portions of MTD ABI definition which are shared by kernel and user space
  */
 
 #ifndef __MTD_ABI_H__
@@ -42,6 +42,7 @@ struct mtd_oob_buf {
 #define MTD_OOB			64	// Out-of-band data (NAND flash)
 #define MTD_ECC			128	// Device capable of automatic ECC
 #define MTD_NO_VIRTBLOCKS	256	// Virtual blocks not allowed
+#define MTD_PROGRAM_REGIONS	512	// Configurable Programming Regions
 
 // Some common devices / combinations of capabilities
 #define MTD_CAP_ROM		0
@@ -80,7 +81,7 @@ struct mtd_info_user {
 };
 
 struct region_info_user {
-	uint32_t offset;		/* At which this region starts, 
+	uint32_t offset;		/* At which this region starts,
 					 * from the beginning of the MTD */
 	uint32_t erasesize;		/* For this region */
 	uint32_t numblocks;		/* Number of blocks in this region */

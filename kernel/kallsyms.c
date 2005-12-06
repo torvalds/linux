@@ -18,6 +18,7 @@
 #include <linux/fs.h>
 #include <linux/err.h>
 #include <linux/proc_fs.h>
+#include <linux/sched.h>	/* for cond_resched */
 #include <linux/mm.h>
 
 #include <asm/sections.h>

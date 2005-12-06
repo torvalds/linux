@@ -124,6 +124,8 @@ trace_a_syscall:
 	li	a1, 0
 	jal	do_syscall_trace
 
+	move	t0, s0
+	RESTORE_STATIC
 	ld	a0, PT_R4(sp)		# Restore argument registers
 	ld	a1, PT_R5(sp)
 	ld	a2, PT_R6(sp)
@@ -132,7 +134,7 @@ trace_a_syscall:
 	ld	a5, PT_R9(sp)
 	ld	a6, PT_R10(sp)
 	ld	a7, PT_R11(sp)		# For indirect syscalls
-	jalr	s0
+	jalr	t0
 
 	li	t0, -EMAXERRNO - 1	# error?
 	sltu	t0, t0, v0
@@ -316,13 +318,13 @@ sys_call_table:
 	PTR	sys_vhangup
 	PTR	sys_ni_syscall			/* was sys_idle	 */
 	PTR	sys_ni_syscall			/* sys_vm86 */
-	PTR	sys32_wait4
+	PTR	compat_sys_wait4
 	PTR	sys_swapoff			/* 4115 */
 	PTR	sys32_sysinfo
 	PTR	sys32_ipc
 	PTR	sys_fsync
 	PTR	sys32_sigreturn
-	PTR	sys_clone			/* 4120 */
+	PTR	sys32_clone			/* 4120 */
 	PTR	sys_setdomainname
 	PTR	sys32_newuname
 	PTR	sys_ni_syscall			/* sys_modify_ldt */
@@ -391,7 +393,7 @@ sys_call_table:
 	PTR	sys_getresuid
 	PTR	sys_ni_syscall			/* was query_module */
 	PTR	sys_poll
-	PTR	sys_nfsservctl
+	PTR	compat_sys_nfsservctl
 	PTR	sys_setresgid			/* 4190 */
 	PTR	sys_getresgid
 	PTR	sys_prctl
@@ -459,7 +461,7 @@ sys_call_table:
 	PTR	sys_fadvise64_64
 	PTR	compat_sys_statfs64		/* 4255 */
 	PTR	compat_sys_fstatfs64
-	PTR	sys_timer_create
+	PTR	sys32_timer_create
 	PTR	compat_sys_timer_settime
 	PTR	compat_sys_timer_gettime
 	PTR	sys_timer_getoverrun		/* 4260 */
@@ -480,9 +482,13 @@ sys_call_table:
 	PTR	compat_sys_mq_notify		/* 4275 */
 	PTR	compat_sys_mq_getsetattr
 	PTR	sys_ni_syscall			/* sys_vserver */
-	PTR	sys_waitid
+	PTR	sys32_waitid
 	PTR	sys_ni_syscall			/* available, was setaltroot */
 	PTR	sys_add_key			/* 4280 */
 	PTR	sys_request_key
 	PTR	sys_keyctl
+	PTR	sys_set_thread_area
+	PTR	sys_inotify_init
+	PTR	sys_inotify_add_watch		/* 4285 */
+	PTR	sys_inotify_rm_watch
 	.size	sys_call_table,.-sys_call_table

@@ -20,33 +20,28 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-static inline void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
+	struct page *page = NULL;
 
-	if (pte_none(pte))
-		return;
 	if (pte_present(pte)) {
-		unsigned long pfn = pte_pfn(pte);
-
-		flush_cache_page(vma, addr, pfn);
+		flush_cache_page(vma, addr, pte_pfn(pte));
 		pte = ptep_clear_flush(vma, addr, ptep);
-		if (pfn_valid(pfn)) {
-			struct page *page = pfn_to_page(pfn);
-			if (!PageReserved(page)) {
-				if (pte_dirty(pte))
-					set_page_dirty(page);
-				page_remove_rmap(page);
-				page_cache_release(page);
-				dec_mm_counter(mm, rss);
-			}
+		page = vm_normal_page(vma, addr, pte);
+		if (page) {
+			if (pte_dirty(pte))
+				set_page_dirty(page);
+			page_remove_rmap(page);
+			page_cache_release(page);
 		}
 	} else {
 		if (!pte_file(pte))
 			free_swap_and_cache(pte_to_swp_entry(pte));
 		pte_clear(mm, addr, ptep);
 	}
+	return !!page;
 }
 
 /*
@@ -60,25 +55,12 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pgoff_t size;
 	int err = -ENOMEM;
 	pte_t *pte;
-	pmd_t *pmd;
-	pud_t *pud;
-	pgd_t *pgd;
 	pte_t pte_val;
+	spinlock_t *ptl;
 
-	pgd = pgd_offset(mm, addr);
-	spin_lock(&mm->page_table_lock);
-	
-	pud = pud_alloc(mm, pgd, addr);
-	if (!pud)
-		goto err_unlock;
-
-	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
-		goto err_unlock;
-
-	pte = pte_alloc_map(mm, pmd, addr);
+	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
-		goto err_unlock;
+		goto out;
 
 	/*
 	 * This page may have been truncated. Tell the
@@ -88,25 +70,26 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	inode = vma->vm_file->f_mapping->host;
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (!page->mapping || page->index >= size)
-		goto err_unlock;
+		goto unlock;
+	err = -ENOMEM;
+	if (page_mapcount(page) > INT_MAX/2)
+		goto unlock;
 
-	zap_pte(mm, vma, addr, pte);
+	if (pte_none(*pte) || !zap_pte(mm, vma, addr, pte))
+		inc_mm_counter(mm, file_rss);
 
-	inc_mm_counter(mm,rss);
 	flush_icache_page(vma, page);
 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
 	page_add_file_rmap(page);
 	pte_val = *pte;
-	pte_unmap(pte);
 	update_mmu_cache(vma, addr, pte_val);
-
 	err = 0;
-err_unlock:
-	spin_unlock(&mm->page_table_lock);
+unlock:
+	pte_unmap_unlock(pte, ptl);
+out:
 	return err;
 }
 EXPORT_SYMBOL(install_page);
-
 
 /*
  * Install a file pte to a given virtual memory address, release any
@@ -117,40 +100,26 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	int err = -ENOMEM;
 	pte_t *pte;
-	pmd_t *pmd;
-	pud_t *pud;
-	pgd_t *pgd;
 	pte_t pte_val;
+	spinlock_t *ptl;
 
-	pgd = pgd_offset(mm, addr);
-	spin_lock(&mm->page_table_lock);
-	
-	pud = pud_alloc(mm, pgd, addr);
-	if (!pud)
-		goto err_unlock;
-
-	pmd = pmd_alloc(mm, pud, addr);
-	if (!pmd)
-		goto err_unlock;
-
-	pte = pte_alloc_map(mm, pmd, addr);
+	pte = get_locked_pte(mm, addr, &ptl);
 	if (!pte)
-		goto err_unlock;
+		goto out;
 
-	zap_pte(mm, vma, addr, pte);
+	if (!pte_none(*pte) && zap_pte(mm, vma, addr, pte)) {
+		update_hiwater_rss(mm);
+		dec_mm_counter(mm, file_rss);
+	}
 
 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
 	pte_val = *pte;
-	pte_unmap(pte);
 	update_mmu_cache(vma, addr, pte_val);
-	spin_unlock(&mm->page_table_lock);
-	return 0;
-
-err_unlock:
-	spin_unlock(&mm->page_table_lock);
+	pte_unmap_unlock(pte, ptl);
+	err = 0;
+out:
 	return err;
 }
-
 
 /***
  * sys_remap_file_pages - remap arbitrary pages of a shared backing store
@@ -207,12 +176,10 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 	 * Make sure the vma is shared, that it supports prefaulting,
 	 * and that the remapped range is valid and fully within
 	 * the single existing vma.  vm_private_data is used as a
-	 * swapout cursor in a VM_NONLINEAR vma (unless VM_RESERVED
-	 * or VM_LOCKED, but VM_LOCKED could be revoked later on).
+	 * swapout cursor in a VM_NONLINEAR vma.
 	 */
 	if (vma && (vma->vm_flags & VM_SHARED) &&
-		(!vma->vm_private_data ||
-			(vma->vm_flags & (VM_NONLINEAR|VM_RESERVED))) &&
+		(!vma->vm_private_data || (vma->vm_flags & VM_NONLINEAR)) &&
 		vma->vm_ops && vma->vm_ops->populate &&
 			end > start && start >= vma->vm_start &&
 				end <= vma->vm_end) {

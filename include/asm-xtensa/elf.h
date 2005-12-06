@@ -209,6 +209,8 @@ extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
 
 #define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)
 
+struct task_struct;
+
 extern void do_copy_regs (xtensa_gregset_t*, struct pt_regs*,
 			  struct task_struct*);
 extern void do_restore_regs (xtensa_gregset_t*, struct pt_regs*,

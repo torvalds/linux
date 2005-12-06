@@ -212,8 +212,16 @@ static int newseg (key_t key, int shmflg, size_t size)
 		file = hugetlb_zero_setup(size);
 		shp->mlock_user = current->user;
 	} else {
+		int acctflag = VM_ACCOUNT;
+		/*
+		 * Do not allow no accounting for OVERCOMMIT_NEVER, even
+	 	 * if it's asked for.
+		 */
+		if  ((shmflg & SHM_NORESERVE) &&
+				sysctl_overcommit_memory != OVERCOMMIT_NEVER)
+			acctflag = 0;
 		sprintf (name, "SYSV%08x", key);
-		file = shmem_file_setup(name, size, VM_ACCOUNT);
+		file = shmem_file_setup(name, size, acctflag);
 	}
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
@@ -233,10 +241,11 @@ static int newseg (key_t key, int shmflg, size_t size)
 	shp->id = shm_buildid(id,shp->shm_perm.seq);
 	shp->shm_file = file;
 	file->f_dentry->d_inode->i_ino = shp->id;
-	if (shmflg & SHM_HUGETLB)
-		set_file_hugepages(file);
-	else
+
+	/* Hugetlb ops would have already been assigned. */
+	if (!(shmflg & SHM_HUGETLB))
 		file->f_op = &shm_file_operations;
+
 	shm_tot += numpages;
 	shm_unlock(shp);
 	return shp->id;

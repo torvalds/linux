@@ -1371,7 +1371,7 @@ out:	kfree_skb(skb);
  *	are needed for AMPRnet AX.25 paths.
  */
 
-static unsigned short mtu_plateau[] =
+static const unsigned short mtu_plateau[] =
 {32000, 17914, 8166, 4352, 2002, 1492, 576, 296, 216, 128 };
 
 static __inline__ unsigned short guess_mtu(unsigned short old_mtu)
@@ -2128,7 +2128,7 @@ int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,
 		struct in_device *in_dev;
 
 		rcu_read_lock();
-		if ((in_dev = __in_dev_get(dev)) != NULL) {
+		if ((in_dev = __in_dev_get_rcu(dev)) != NULL) {
 			int our = ip_check_mc(in_dev, daddr, saddr,
 				skb->nh.iph->protocol);
 			if (our
@@ -2443,7 +2443,9 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 		err = -ENODEV;
 		if (dev_out == NULL)
 			goto out;
-		if (__in_dev_get(dev_out) == NULL) {
+
+		/* RACE: Check return value of inet_select_addr instead. */
+		if (__in_dev_get_rtnl(dev_out) == NULL) {
 			dev_put(dev_out);
 			goto out;	/* Wrong error code */
 		}
@@ -3147,8 +3149,7 @@ int __init ip_rt_init(void)
 					sizeof(struct rt_hash_bucket),
 					rhash_entries,
 					(num_physpages >= 128 * 1024) ?
-						(27 - PAGE_SHIFT) :
-						(29 - PAGE_SHIFT),
+					15 : 17,
 					HASH_HIGHMEM,
 					&rt_hash_log,
 					&rt_hash_mask,

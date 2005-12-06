@@ -44,7 +44,7 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 
 #include <asm/uaccess.h>
@@ -347,15 +347,14 @@ static irqreturn_t s3c2410wdt_irq(int irqno, void *param,
 }
 /* device interface */
 
-static int s3c2410wdt_probe(struct device *dev)
+static int s3c2410wdt_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
 	int started = 0;
 	int ret;
 	int size;
 
-	DBG("%s: probe=%p, device=%p\n", __FUNCTION__, pdev, dev);
+	DBG("%s: probe=%p\n", __FUNCTION__, pdev);
 
 	/* get the memory region for the watchdog timer */
 
@@ -386,13 +385,13 @@ static int s3c2410wdt_probe(struct device *dev)
 		return -ENOENT;
 	}
 
-	ret = request_irq(res->start, s3c2410wdt_irq, 0, pdev->name, dev);
+	ret = request_irq(res->start, s3c2410wdt_irq, 0, pdev->name, pdev);
 	if (ret != 0) {
 		printk(KERN_INFO PFX "failed to install irq (%d)\n", ret);
 		return ret;
 	}
 
-	wdt_clock = clk_get(dev, "watchdog");
+	wdt_clock = clk_get(&pdev->dev, "watchdog");
 	if (wdt_clock == NULL) {
 		printk(KERN_INFO PFX "failed to find watchdog clock source\n");
 		return -ENOENT;
@@ -430,7 +429,7 @@ static int s3c2410wdt_probe(struct device *dev)
 	return 0;
 }
 
-static int s3c2410wdt_remove(struct device *dev)
+static int s3c2410wdt_remove(struct platform_device *dev)
 {
 	if (wdt_mem != NULL) {
 		release_resource(wdt_mem);
@@ -454,7 +453,7 @@ static int s3c2410wdt_remove(struct device *dev)
 	return 0;
 }
 
-static void s3c2410wdt_shutdown(struct device *dev)
+static void s3c2410wdt_shutdown(struct platform_device *dev)
 {
 	s3c2410wdt_stop();	
 }
@@ -464,32 +463,28 @@ static void s3c2410wdt_shutdown(struct device *dev)
 static unsigned long wtcon_save;
 static unsigned long wtdat_save;
 
-static int s3c2410wdt_suspend(struct device *dev, pm_message_t state, u32 level)
+static int s3c2410wdt_suspend(struct platform_device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		/* Save watchdog state, and turn it off. */
-		wtcon_save = readl(wdt_base + S3C2410_WTCON);
-		wtdat_save = readl(wdt_base + S3C2410_WTDAT);
+	/* Save watchdog state, and turn it off. */
+	wtcon_save = readl(wdt_base + S3C2410_WTCON);
+	wtdat_save = readl(wdt_base + S3C2410_WTDAT);
 
-		/* Note that WTCNT doesn't need to be saved. */
-		s3c2410wdt_stop();
-	}
+	/* Note that WTCNT doesn't need to be saved. */
+	s3c2410wdt_stop();
 
 	return 0;
 }
 
-static int s3c2410wdt_resume(struct device *dev, u32 level)
+static int s3c2410wdt_resume(struct platform_device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		/* Restore watchdog state. */
+	/* Restore watchdog state. */
 
-		writel(wtdat_save, wdt_base + S3C2410_WTDAT);
-		writel(wtdat_save, wdt_base + S3C2410_WTCNT); /* Reset count */
-		writel(wtcon_save, wdt_base + S3C2410_WTCON);
+	writel(wtdat_save, wdt_base + S3C2410_WTDAT);
+	writel(wtdat_save, wdt_base + S3C2410_WTCNT); /* Reset count */
+	writel(wtcon_save, wdt_base + S3C2410_WTCON);
 
-		printk(KERN_INFO PFX "watchdog %sabled\n",
-		       (wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
-	}
+	printk(KERN_INFO PFX "watchdog %sabled\n",
+	       (wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
 
 	return 0;
 }
@@ -500,14 +495,16 @@ static int s3c2410wdt_resume(struct device *dev, u32 level)
 #endif /* CONFIG_PM */
 
 
-static struct device_driver s3c2410wdt_driver = {
-	.name		= "s3c2410-wdt",
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2410wdt_driver = {
 	.probe		= s3c2410wdt_probe,
 	.remove		= s3c2410wdt_remove,
 	.shutdown	= s3c2410wdt_shutdown,
 	.suspend	= s3c2410wdt_suspend,
 	.resume		= s3c2410wdt_resume,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "s3c2410-wdt",
+	},
 };
 
 
@@ -516,12 +513,12 @@ static char banner[] __initdata = KERN_INFO "S3C2410 Watchdog Timer, (c) 2004 Si
 static int __init watchdog_init(void)
 {
 	printk(banner);
-	return driver_register(&s3c2410wdt_driver);
+	return platform_driver_register(&s3c2410wdt_driver);
 }
 
 static void __exit watchdog_exit(void)
 {
-	driver_unregister(&s3c2410wdt_driver);
+	platform_driver_unregister(&s3c2410wdt_driver);
 }
 
 module_init(watchdog_init);

@@ -26,7 +26,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>

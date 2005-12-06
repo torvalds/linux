@@ -56,14 +56,14 @@
 #define DRIVER_PATCHLEVEL	0
 
 typedef struct drm_i810_buf_priv {
-   	u32 *in_use;
-   	int my_use_idx;
+	u32 *in_use;
+	int my_use_idx;
 	int currently_mapped;
 	void *virtual;
 	void *kernel_virtual;
 } drm_i810_buf_priv_t;
 
-typedef struct _drm_i810_ring_buffer{
+typedef struct _drm_i810_ring_buffer {
 	int tail_mask;
 	unsigned long Start;
 	unsigned long End;
@@ -79,15 +79,14 @@ typedef struct drm_i810_private {
 	drm_map_t *mmio_map;
 
 	drm_i810_sarea_t *sarea_priv;
-   	drm_i810_ring_buffer_t ring;
+	drm_i810_ring_buffer_t ring;
 
-      	void *hw_status_page;
-   	unsigned long counter;
+	void *hw_status_page;
+	unsigned long counter;
 
 	dma_addr_t dma_status_page;
 
 	drm_buf_t *mmap_buffer;
-
 
 	u32 front_di1, back_di1, zi1;
 
@@ -97,7 +96,7 @@ typedef struct drm_i810_private {
 	int overlay_physical;
 	int w, h;
 	int pitch;
-  	int back_pitch;
+	int back_pitch;
 	int depth_pitch;
 
 	int do_boxes;
@@ -107,20 +106,23 @@ typedef struct drm_i810_private {
 	int page_flipping;
 
 	wait_queue_head_t irq_queue;
-   	atomic_t irq_received;
-   	atomic_t irq_emitted;
-  
-        int front_offset;
+	atomic_t irq_received;
+	atomic_t irq_emitted;
+
+	int front_offset;
 } drm_i810_private_t;
 
 				/* i810_dma.c */
-extern void i810_reclaim_buffers(drm_device_t *dev, struct file *filp);
+extern void i810_reclaim_buffers(drm_device_t * dev, struct file *filp);
 
-extern int i810_driver_dma_quiescent(drm_device_t *dev);
-extern void i810_driver_release(drm_device_t *dev, struct file *filp);
-extern void i810_driver_pretakedown(drm_device_t *dev);
-extern void i810_driver_prerelease(drm_device_t *dev, DRMFILE filp);
+extern int i810_driver_dma_quiescent(drm_device_t * dev);
+extern void i810_driver_release(drm_device_t * dev, struct file *filp);
+extern void i810_driver_pretakedown(drm_device_t * dev);
+extern void i810_driver_prerelease(drm_device_t * dev, DRMFILE filp);
 extern int i810_driver_device_is_agp(drm_device_t * dev);
+
+extern drm_ioctl_desc_t i810_ioctls[];
+extern int i810_max_ioctl;
 
 #define I810_BASE(reg)		((unsigned long) \
 				dev_priv->mmio_map->handle)
@@ -169,7 +171,6 @@ extern int i810_driver_device_is_agp(drm_device_t * dev);
 #define INST_PARSER_CLIENT   0x00000000
 #define INST_OP_FLUSH        0x02000000
 #define INST_FLUSH_MAP_CACHE 0x00000001
-
 
 #define BB1_START_ADDR_MASK   (~0x7)
 #define BB1_PROTECTED         (1<<0)
@@ -229,8 +230,8 @@ extern int i810_driver_device_is_agp(drm_device_t * dev);
 #define BR00_OP_SRC_COPY_BLT 0x10C00000
 #define BR13_SOLID_PATTERN   0x80000000
 
-#define WAIT_FOR_PLANE_A_SCANLINES (1<<1) 
-#define WAIT_FOR_PLANE_A_FLIP      (1<<2) 
+#define WAIT_FOR_PLANE_A_SCANLINES (1<<1)
+#define WAIT_FOR_PLANE_A_FLIP      (1<<2)
 #define WAIT_FOR_VBLANK (1<<3)
 
 #endif

@@ -3,7 +3,7 @@
 /*
  *	pit.c -- Motorola ColdFire PIT timer. Currently this type of
  *	         hardware timer only exists in the Motorola ColdFire
- *		 5270/5271 and 5282 CPUs.
+ *		 5270/5271, 5282 and other CPUs.
  *
  *	Copyright (C) 1999-2004, Greg Ungerer (gerg@snapgear.com)
  *	Copyright (C) 2001-2004, SnapGear Inc. (www.snapgear.com)
@@ -47,10 +47,10 @@ void coldfire_pit_init(irqreturn_t (*handler)(int, void *, struct pt_regs *))
 
 	icrp = (volatile unsigned char *) (MCF_IPSBAR + MCFICM_INTC0 +
 		MCFINTC_ICR0 + MCFINT_PIT1);
-	*icrp = 0x2b; /* PIT1 with level 5, priority 3 */
+	*icrp = ICR_INTRCONF;
 
-	imrp = (volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH);
-	*imrp &= ~(1 << (MCFINT_PIT1 - 32));
+	imrp = (volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFPIT_IMR);
+	*imrp &= ~MCFPIT_IMR_IBIT;
 
 	/* Set up PIT timer 1 as poll clock */
 	tp = (volatile struct mcfpit *) (MCF_IPSBAR + MCFPIT_BASE1);
@@ -70,7 +70,7 @@ unsigned long coldfire_pit_offset(void)
 	unsigned long pmr, pcntr, offset;
 
 	tp = (volatile struct mcfpit *) (MCF_IPSBAR + MCFPIT_BASE1);
-	ipr = (volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IPRH);
+	ipr = (volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 + MCFPIT_IMR);
 
 	pmr = *(&tp->pmr);
 	pcntr = *(&tp->pcntr);
@@ -80,7 +80,7 @@ unsigned long coldfire_pit_offset(void)
 	 * timer interupt is pending, then add on a ticks worth of time.
 	 */
 	offset = ((pmr - pcntr) * (1000000 / HZ)) / pmr;
-	if ((offset < (1000000 / HZ / 2)) && (*ipr & (1 << (MCFINT_PIT1 - 32))))
+	if ((offset < (1000000 / HZ / 2)) && (*ipr & MCFPIT_IMR_IBIT))
 		offset += 1000000 / HZ;
 	return offset;	
 }

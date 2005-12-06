@@ -418,7 +418,7 @@ typedef struct list_info_hold {
 	void *list_virt_addr;
 } list_info_hold_t;
 
-/* Rx descriptor structure */
+/* Rx descriptor structure for 1 buffer mode */
 typedef struct _RxD_t {
 	u64 Host_Control;	/* reserved for host */
 	u64 Control_1;
@@ -439,49 +439,54 @@ typedef struct _RxD_t {
 #define	SET_RXD_MARKER		vBIT(THE_RXD_MARK, 0, 2)
 #define	GET_RXD_MARKER(ctrl)	((ctrl & SET_RXD_MARKER) >> 62)
 
-#ifndef CONFIG_2BUFF_MODE
-#define MASK_BUFFER0_SIZE       vBIT(0x3FFF,2,14)
-#define SET_BUFFER0_SIZE(val)   vBIT(val,2,14)
-#else
-#define MASK_BUFFER0_SIZE       vBIT(0xFF,2,14)
-#define MASK_BUFFER1_SIZE       vBIT(0xFFFF,16,16)
-#define MASK_BUFFER2_SIZE       vBIT(0xFFFF,32,16)
-#define SET_BUFFER0_SIZE(val)   vBIT(val,8,8)
-#define SET_BUFFER1_SIZE(val)   vBIT(val,16,16)
-#define SET_BUFFER2_SIZE(val)   vBIT(val,32,16)
-#endif
-
 #define MASK_VLAN_TAG           vBIT(0xFFFF,48,16)
 #define SET_VLAN_TAG(val)       vBIT(val,48,16)
 #define SET_NUM_TAG(val)       vBIT(val,16,32)
 
-#ifndef CONFIG_2BUFF_MODE
-#define RXD_GET_BUFFER0_SIZE(Control_2) (u64)((Control_2 & vBIT(0x3FFF,2,14)))
-#else
-#define RXD_GET_BUFFER0_SIZE(Control_2) (u8)((Control_2 & MASK_BUFFER0_SIZE) \
-							>> 48)
-#define RXD_GET_BUFFER1_SIZE(Control_2) (u16)((Control_2 & MASK_BUFFER1_SIZE) \
-							>> 32)
-#define RXD_GET_BUFFER2_SIZE(Control_2) (u16)((Control_2 & MASK_BUFFER2_SIZE) \
-							>> 16)
+
+} RxD_t;
+/* Rx descriptor structure for 1 buffer mode */
+typedef struct _RxD1_t {
+	struct _RxD_t h;
+
+#define MASK_BUFFER0_SIZE_1       vBIT(0x3FFF,2,14)
+#define SET_BUFFER0_SIZE_1(val)   vBIT(val,2,14)
+#define RXD_GET_BUFFER0_SIZE_1(_Control_2) \
+	(u16)((_Control_2 & MASK_BUFFER0_SIZE_1) >> 48)
+	u64 Buffer0_ptr;
+} RxD1_t;
+/* Rx descriptor structure for 3 or 2 buffer mode */
+
+typedef struct _RxD3_t {
+	struct _RxD_t h;
+
+#define MASK_BUFFER0_SIZE_3       vBIT(0xFF,2,14)
+#define MASK_BUFFER1_SIZE_3       vBIT(0xFFFF,16,16)
+#define MASK_BUFFER2_SIZE_3       vBIT(0xFFFF,32,16)
+#define SET_BUFFER0_SIZE_3(val)   vBIT(val,8,8)
+#define SET_BUFFER1_SIZE_3(val)   vBIT(val,16,16)
+#define SET_BUFFER2_SIZE_3(val)   vBIT(val,32,16)
+#define RXD_GET_BUFFER0_SIZE_3(Control_2) \
+	(u8)((Control_2 & MASK_BUFFER0_SIZE_3) >> 48)
+#define RXD_GET_BUFFER1_SIZE_3(Control_2) \
+	(u16)((Control_2 & MASK_BUFFER1_SIZE_3) >> 32)
+#define RXD_GET_BUFFER2_SIZE_3(Control_2) \
+	(u16)((Control_2 & MASK_BUFFER2_SIZE_3) >> 16)
 #define BUF0_LEN	40
 #define BUF1_LEN	1
-#endif
 
 	u64 Buffer0_ptr;
-#ifdef CONFIG_2BUFF_MODE
 	u64 Buffer1_ptr;
 	u64 Buffer2_ptr;
-#endif
-} RxD_t;
+} RxD3_t;
+
 
 /* Structure that represents the Rx descriptor block which contains
  * 128 Rx descriptors.
  */
-#ifndef CONFIG_2BUFF_MODE
 typedef struct _RxD_block {
-#define MAX_RXDS_PER_BLOCK             127
-	RxD_t rxd[MAX_RXDS_PER_BLOCK];
+#define MAX_RXDS_PER_BLOCK_1            127
+	RxD1_t rxd[MAX_RXDS_PER_BLOCK_1];
 
 	u64 reserved_0;
 #define END_OF_BLOCK    0xFEFFFFFFFFFFFFFFULL
@@ -492,17 +497,12 @@ typedef struct _RxD_block {
 					 * the upper 32 bits should
 					 * be 0 */
 } RxD_block_t;
-#else
-typedef struct _RxD_block {
-#define MAX_RXDS_PER_BLOCK             85
-	RxD_t rxd[MAX_RXDS_PER_BLOCK];
 
-#define END_OF_BLOCK    0xFEFFFFFFFFFFFFFFULL
-	u64 reserved_1;		/* 0xFEFFFFFFFFFFFFFF to mark last Rxd
-				 * in this blk */
-	u64 pNext_RxD_Blk_physical;	/* Phy ponter to next blk. */
-} RxD_block_t;
 #define SIZE_OF_BLOCK	4096
+
+#define RXD_MODE_1	0
+#define RXD_MODE_3A	1
+#define RXD_MODE_3B	2
 
 /* Structure to hold virtual addresses of Buf0 and Buf1 in
  * 2buf mode. */
@@ -512,7 +512,6 @@ typedef struct bufAdd {
 	void *ba_0;
 	void *ba_1;
 } buffAdd_t;
-#endif
 
 /* Structure which stores all the MAC control parameters */
 
@@ -539,10 +538,17 @@ typedef struct {
 
 typedef tx_curr_get_info_t tx_curr_put_info_t;
 
+
+typedef struct rxd_info {
+	void *virt_addr;
+	dma_addr_t dma_addr;
+}rxd_info_t;
+
 /* Structure that holds the Phy and virt addresses of the Blocks */
 typedef struct rx_block_info {
-	RxD_t *block_virt_addr;
+	void *block_virt_addr;
 	dma_addr_t block_dma_addr;
+	rxd_info_t *rxds;
 } rx_block_info_t;
 
 /* pre declaration of the nic structure */
@@ -578,10 +584,8 @@ typedef struct ring_info {
 	int put_pos;
 #endif
 
-#ifdef CONFIG_2BUFF_MODE
 	/* Buffer Address store. */
 	buffAdd_t **ba;
-#endif
 	nic_t *nic;
 } ring_info_t;
 
@@ -647,13 +651,36 @@ typedef struct {
 
 /* Default Tunable parameters of the NIC. */
 #define DEFAULT_FIFO_LEN 4096
-#define SMALL_RXD_CNT	30 * (MAX_RXDS_PER_BLOCK+1)
-#define LARGE_RXD_CNT	100 * (MAX_RXDS_PER_BLOCK+1)
 #define SMALL_BLK_CNT	30
 #define LARGE_BLK_CNT	100
 
+/*
+ * Structure to keep track of the MSI-X vectors and the corresponding
+ * argument registered against each vector
+ */
+#define MAX_REQUESTED_MSI_X	17
+struct s2io_msix_entry
+{
+	u16 vector;
+	u16 entry;
+	void *arg;
+
+	u8 type;
+#define	MSIX_FIFO_TYPE	1
+#define	MSIX_RING_TYPE	2
+
+	u8 in_use;
+#define MSIX_REGISTERED_SUCCESS	0xAA
+};
+
+struct msix_info_st {
+	u64 addr;
+	u64 data;
+};
+
 /* Structure representing one instance of the NIC */
 struct s2io_nic {
+	int rxd_mode;
 #ifdef CONFIG_S2IO_NAPI
 	/*
 	 * Count of packets to be processed in a given iteration, it will be indicated
@@ -719,13 +746,8 @@ struct s2io_nic {
 	 *  a schedule task that will set the correct Link state once the
 	 *  NIC's PHY has stabilized after a state change.
 	 */
-#ifdef INIT_TQUEUE
-	struct tq_struct rst_timer_task;
-	struct tq_struct set_link_task;
-#else
 	struct work_struct rst_timer_task;
 	struct work_struct set_link_task;
-#endif
 
 	/* Flag that can be used to turn on or turn off the Rx checksum
 	 * offload feature.
@@ -748,9 +770,22 @@ struct s2io_nic {
 	atomic_t card_state;
 	volatile unsigned long link_state;
 	struct vlan_group *vlgrp;
+#define MSIX_FLG                0xA5
+	struct msix_entry *entries;
+	struct s2io_msix_entry *s2io_entries;
+	char desc1[35];
+	char desc2[35];
+
+	struct msix_info_st msix_info[0x3f];
+
 #define XFRAME_I_DEVICE		1
 #define XFRAME_II_DEVICE	2
 	u8 device_type;
+
+#define INTA	0
+#define MSI	1
+#define MSI_X	2
+	u8 intr_type;
 
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
@@ -886,6 +921,13 @@ static int s2io_poll(struct net_device *dev, int *budget);
 static void s2io_init_pci(nic_t * sp);
 int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
 static void s2io_alarm_handle(unsigned long data);
+static int s2io_enable_msi(nic_t *nic);
+static irqreturn_t s2io_msi_handle(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t
+s2io_msix_ring_handle(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t
+s2io_msix_fifo_handle(int irq, void *dev_id, struct pt_regs *regs);
+int s2io_enable_msi_x(nic_t *nic);
 static irqreturn_t s2io_isr(int irq, void *dev_id, struct pt_regs *regs);
 static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag);
 static struct ethtool_ops netdev_ethtool_ops;
@@ -894,4 +936,5 @@ int s2io_set_swapper(nic_t * sp);
 static void s2io_card_down(nic_t *nic);
 static int s2io_card_up(nic_t *nic);
 int get_xena_rev_id(struct pci_dev *pdev);
+void restore_xmsi_data(nic_t *nic);
 #endif				/* _S2IO_H */

@@ -794,8 +794,7 @@ static int __devinit pontis_init(ice1712_t *ice)
 	/* initialize WM8776 codec */
 	for (i = 0; i < ARRAY_SIZE(wm_inits); i += 2)
 		wm_put(ice, wm_inits[i], wm_inits[i+1]);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(1);
+	schedule_timeout_uninterruptible(1);
 	for (i = 0; i < ARRAY_SIZE(wm_inits2); i += 2)
 		wm_put(ice, wm_inits2[i], wm_inits2[i+1]);
 

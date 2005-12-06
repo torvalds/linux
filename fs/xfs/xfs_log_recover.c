@@ -1,66 +1,51 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
-#include "xfs_ag.h"
-#include "xfs_sb.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
+#include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_attr_sf.h"
+#include "xfs_alloc_btree.h"
+#include "xfs_ialloc_btree.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
-#include "xfs_imap.h"
-#include "xfs_inode_item.h"
 #include "xfs_inode.h"
-#include "xfs_ialloc_btree.h"
+#include "xfs_inode_item.h"
+#include "xfs_imap.h"
+#include "xfs_alloc.h"
 #include "xfs_ialloc.h"
 #include "xfs_log_priv.h"
 #include "xfs_buf_item.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_log_recover.h"
 #include "xfs_extfree_item.h"
 #include "xfs_trans_priv.h"
-#include "xfs_bit.h"
 #include "xfs_quota.h"
 #include "xfs_rw.h"
 
@@ -2013,79 +1998,74 @@ xfs_qm_dqcheck(
 	 * This is all fine; things are still consistent, and we haven't lost
 	 * any quota information. Just don't complain about bad dquot blks.
 	 */
-	if (INT_GET(ddq->d_magic, ARCH_CONVERT) != XFS_DQUOT_MAGIC) {
+	if (be16_to_cpu(ddq->d_magic) != XFS_DQUOT_MAGIC) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
 			"%s : XFS dquot ID 0x%x, magic 0x%x != 0x%x",
-			str, id,
-			INT_GET(ddq->d_magic, ARCH_CONVERT), XFS_DQUOT_MAGIC);
+			str, id, be16_to_cpu(ddq->d_magic), XFS_DQUOT_MAGIC);
 		errs++;
 	}
-	if (INT_GET(ddq->d_version, ARCH_CONVERT) != XFS_DQUOT_VERSION) {
+	if (ddq->d_version != XFS_DQUOT_VERSION) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
 			"%s : XFS dquot ID 0x%x, version 0x%x != 0x%x",
-			str, id,
-			INT_GET(ddq->d_magic, ARCH_CONVERT), XFS_DQUOT_VERSION);
+			str, id, ddq->d_version, XFS_DQUOT_VERSION);
 		errs++;
 	}
 
-	if (INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_USER &&
-	    INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_PROJ &&
-	    INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_GROUP) {
+	if (ddq->d_flags != XFS_DQ_USER &&
+	    ddq->d_flags != XFS_DQ_PROJ &&
+	    ddq->d_flags != XFS_DQ_GROUP) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
 			"%s : XFS dquot ID 0x%x, unknown flags 0x%x",
-			str, id, INT_GET(ddq->d_flags, ARCH_CONVERT));
+			str, id, ddq->d_flags);
 		errs++;
 	}
 
-	if (id != -1 && id != INT_GET(ddq->d_id, ARCH_CONVERT)) {
+	if (id != -1 && id != be32_to_cpu(ddq->d_id)) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
 			"%s : ondisk-dquot 0x%p, ID mismatch: "
 			"0x%x expected, found id 0x%x",
-			str, ddq, id, INT_GET(ddq->d_id, ARCH_CONVERT));
+			str, ddq, id, be32_to_cpu(ddq->d_id));
 		errs++;
 	}
 
 	if (!errs && ddq->d_id) {
-		if (INT_GET(ddq->d_blk_softlimit, ARCH_CONVERT) &&
-		    INT_GET(ddq->d_bcount, ARCH_CONVERT) >=
-				INT_GET(ddq->d_blk_softlimit, ARCH_CONVERT)) {
+		if (ddq->d_blk_softlimit &&
+		    be64_to_cpu(ddq->d_bcount) >=
+				be64_to_cpu(ddq->d_blk_softlimit)) {
 			if (!ddq->d_btimer) {
 				if (flags & XFS_QMOPT_DOWARN)
 					cmn_err(CE_ALERT,
 					"%s : Dquot ID 0x%x (0x%p) "
 					"BLK TIMER NOT STARTED",
-					str, (int)
-					INT_GET(ddq->d_id, ARCH_CONVERT), ddq);
+					str, (int)be32_to_cpu(ddq->d_id), ddq);
 				errs++;
 			}
 		}
-		if (INT_GET(ddq->d_ino_softlimit, ARCH_CONVERT) &&
-		    INT_GET(ddq->d_icount, ARCH_CONVERT) >=
-				INT_GET(ddq->d_ino_softlimit, ARCH_CONVERT)) {
+		if (ddq->d_ino_softlimit &&
+		    be64_to_cpu(ddq->d_icount) >=
+				be64_to_cpu(ddq->d_ino_softlimit)) {
 			if (!ddq->d_itimer) {
 				if (flags & XFS_QMOPT_DOWARN)
 					cmn_err(CE_ALERT,
 					"%s : Dquot ID 0x%x (0x%p) "
 					"INODE TIMER NOT STARTED",
-					str, (int)
-					INT_GET(ddq->d_id, ARCH_CONVERT), ddq);
+					str, (int)be32_to_cpu(ddq->d_id), ddq);
 				errs++;
 			}
 		}
-		if (INT_GET(ddq->d_rtb_softlimit, ARCH_CONVERT) &&
-		    INT_GET(ddq->d_rtbcount, ARCH_CONVERT) >=
-				INT_GET(ddq->d_rtb_softlimit, ARCH_CONVERT)) {
+		if (ddq->d_rtb_softlimit &&
+		    be64_to_cpu(ddq->d_rtbcount) >=
+				be64_to_cpu(ddq->d_rtb_softlimit)) {
 			if (!ddq->d_rtbtimer) {
 				if (flags & XFS_QMOPT_DOWARN)
 					cmn_err(CE_ALERT,
 					"%s : Dquot ID 0x%x (0x%p) "
 					"RTBLK TIMER NOT STARTED",
-					str, (int)
-					INT_GET(ddq->d_id, ARCH_CONVERT), ddq);
+					str, (int)be32_to_cpu(ddq->d_id), ddq);
 				errs++;
 			}
 		}
@@ -2103,10 +2083,11 @@ xfs_qm_dqcheck(
 	ASSERT(id != -1);
 	ASSERT(flags & XFS_QMOPT_DQREPAIR);
 	memset(d, 0, sizeof(xfs_dqblk_t));
-	INT_SET(d->dd_diskdq.d_magic, ARCH_CONVERT, XFS_DQUOT_MAGIC);
-	INT_SET(d->dd_diskdq.d_version, ARCH_CONVERT, XFS_DQUOT_VERSION);
-	INT_SET(d->dd_diskdq.d_id, ARCH_CONVERT, id);
-	INT_SET(d->dd_diskdq.d_flags, ARCH_CONVERT, type);
+
+	d->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
+	d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
+	d->dd_diskdq.d_flags = type;
+	d->dd_diskdq.d_id = cpu_to_be32(id);
 
 	return errs;
 }
@@ -2226,8 +2207,9 @@ xlog_recover_do_buffer_trans(
 		break;
 	default:
 		xfs_fs_cmn_err(CE_ALERT, log->l_mp,
-			"xfs_log_recover: unknown buffer type 0x%x, dev %s",
-			buf_f->blf_type, XFS_BUFTARG_NAME(log->l_targ));
+			"xfs_log_recover: unknown buffer type 0x%x, logdev %s",
+			buf_f->blf_type, log->l_mp->m_logname ?
+			log->l_mp->m_logname : "internal");
 		XFS_ERROR_REPORT("xlog_recover_do_buffer_trans",
 				 XFS_ERRLEVEL_LOW, log->l_mp);
 		return XFS_ERROR(EFSCORRUPTED);
@@ -3178,13 +3160,12 @@ xlog_recover_clear_agi_bucket(
 	}
 
 	agi = XFS_BUF_TO_AGI(agibp);
-	if (INT_GET(agi->agi_magicnum, ARCH_CONVERT) != XFS_AGI_MAGIC) {
+	if (be32_to_cpu(agi->agi_magicnum) != XFS_AGI_MAGIC) {
 		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
 		return;
 	}
-	ASSERT(INT_GET(agi->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC);
 
-	INT_SET(agi->agi_unlinked[bucket], ARCH_CONVERT, NULLAGINO);
+	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		 (sizeof(xfs_agino_t) * bucket);
 	xfs_trans_log_buf(tp, agibp, offset,
@@ -3243,12 +3224,11 @@ xlog_recover_process_iunlinks(
 				XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)));
 		}
 		agi = XFS_BUF_TO_AGI(agibp);
-		ASSERT(XFS_AGI_MAGIC ==
-			INT_GET(agi->agi_magicnum, ARCH_CONVERT));
+		ASSERT(XFS_AGI_MAGIC == be32_to_cpu(agi->agi_magicnum));
 
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++) {
 
-			agino = INT_GET(agi->agi_unlinked[bucket], ARCH_CONVERT);
+			agino = be32_to_cpu(agi->agi_unlinked[bucket]);
 			while (agino != NULLAGINO) {
 
 				/*
@@ -3336,8 +3316,8 @@ xlog_recover_process_iunlinks(
 							XFS_AGI_DADDR(mp)));
 				}
 				agi = XFS_BUF_TO_AGI(agibp);
-				ASSERT(XFS_AGI_MAGIC == INT_GET(
-					agi->agi_magicnum, ARCH_CONVERT));
+				ASSERT(XFS_AGI_MAGIC == be32_to_cpu(
+					agi->agi_magicnum));
 			}
 		}
 
@@ -3938,8 +3918,9 @@ xlog_recover(
 		}
 
 		cmn_err(CE_NOTE,
-			"Starting XFS recovery on filesystem: %s (dev: %s)",
-			log->l_mp->m_fsname, XFS_BUFTARG_NAME(log->l_targ));
+			"Starting XFS recovery on filesystem: %s (logdev: %s)",
+			log->l_mp->m_fsname, log->l_mp->m_logname ?
+			log->l_mp->m_logname : "internal");
 
 		error = xlog_do_recover(log, head_blk, tail_blk);
 		log->l_flags |= XLOG_RECOVERY_NEEDED;
@@ -3987,8 +3968,9 @@ xlog_recover_finish(
 		xlog_recover_check_summary(log);
 
 		cmn_err(CE_NOTE,
-			"Ending XFS recovery on filesystem: %s (dev: %s)",
-			log->l_mp->m_fsname, XFS_BUFTARG_NAME(log->l_targ));
+			"Ending XFS recovery on filesystem: %s (logdev: %s)",
+			log->l_mp->m_fsname, log->l_mp->m_logname ?
+			log->l_mp->m_logname : "internal");
 		log->l_flags &= ~XLOG_RECOVERY_NEEDED;
 	} else {
 		cmn_err(CE_DEBUG,
@@ -4038,14 +4020,12 @@ xlog_recover_check_summary(
 						mp, agfbp, agfdaddr);
 		}
 		agfp = XFS_BUF_TO_AGF(agfbp);
-		ASSERT(XFS_AGF_MAGIC ==
-			INT_GET(agfp->agf_magicnum, ARCH_CONVERT));
-		ASSERT(XFS_AGF_GOOD_VERSION(
-			INT_GET(agfp->agf_versionnum, ARCH_CONVERT)));
-		ASSERT(INT_GET(agfp->agf_seqno, ARCH_CONVERT) == agno);
+		ASSERT(XFS_AGF_MAGIC == be32_to_cpu(agfp->agf_magicnum));
+		ASSERT(XFS_AGF_GOOD_VERSION(be32_to_cpu(agfp->agf_versionnum)));
+		ASSERT(be32_to_cpu(agfp->agf_seqno) == agno);
 
-		freeblks += INT_GET(agfp->agf_freeblks, ARCH_CONVERT) +
-			    INT_GET(agfp->agf_flcount, ARCH_CONVERT);
+		freeblks += be32_to_cpu(agfp->agf_freeblks) +
+			    be32_to_cpu(agfp->agf_flcount);
 		xfs_buf_relse(agfbp);
 
 		agidaddr = XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp));
@@ -4056,14 +4036,12 @@ xlog_recover_check_summary(
 					  mp, agibp, agidaddr);
 		}
 		agip = XFS_BUF_TO_AGI(agibp);
-		ASSERT(XFS_AGI_MAGIC ==
-			INT_GET(agip->agi_magicnum, ARCH_CONVERT));
-		ASSERT(XFS_AGI_GOOD_VERSION(
-			INT_GET(agip->agi_versionnum, ARCH_CONVERT)));
-		ASSERT(INT_GET(agip->agi_seqno, ARCH_CONVERT) == agno);
+		ASSERT(XFS_AGI_MAGIC == be32_to_cpu(agip->agi_magicnum));
+		ASSERT(XFS_AGI_GOOD_VERSION(be32_to_cpu(agip->agi_versionnum)));
+		ASSERT(be32_to_cpu(agip->agi_seqno) == agno);
 
-		itotal += INT_GET(agip->agi_count, ARCH_CONVERT);
-		ifree += INT_GET(agip->agi_freecount, ARCH_CONVERT);
+		itotal += be32_to_cpu(agip->agi_count);
+		ifree += be32_to_cpu(agip->agi_freecount);
 		xfs_buf_relse(agibp);
 	}
 

@@ -84,10 +84,8 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	cifsInode->time = 0;	/* will force revalidate to go get info when needed */
 
 cifs_hl_exit:
-	if (fromName)
-		kfree(fromName);
-	if (toName)
-		kfree(toName);
+	kfree(fromName);
+	kfree(toName);
 	FreeXid(xid);
 	return rc;
 }
@@ -198,13 +196,15 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 			     ("Create symlink worked but get_inode_info failed with rc = %d ",
 			      rc));
 		} else {
-			direntry->d_op = &cifs_dentry_ops;
+			if (pTcon->nocase)
+				direntry->d_op = &cifs_ci_dentry_ops;
+			else
+				direntry->d_op = &cifs_dentry_ops;
 			d_instantiate(direntry, newinode);
 		}
 	}
 
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
 	return rc;
 }
@@ -250,8 +250,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 		len = buflen;
 	tmpbuffer = kmalloc(len,GFP_KERNEL);   
 	if(tmpbuffer == NULL) {
-		if (full_path)
-			kfree(full_path);
+		kfree(full_path);
 		FreeXid(xid);
 		return -ENOMEM;
 	}
@@ -300,8 +299,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 							strncpy(tmpbuffer, referrals, len-1);                            
 						}
 					}
-					if(referrals)
-						kfree(referrals);
+					kfree(referrals);
 					kfree(tmp_path);
 }
 				/* BB add code like else decode referrals then memcpy to
@@ -320,12 +318,8 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 		      rc));
 	}
 
-	if (tmpbuffer) {
-		kfree(tmpbuffer);
-	}
-	if (full_path) {
-		kfree(full_path);
-	}
+	kfree(tmpbuffer);
+	kfree(full_path);
 	FreeXid(xid);
 	return rc;
 }

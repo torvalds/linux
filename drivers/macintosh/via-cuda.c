@@ -37,7 +37,6 @@ static DEFINE_SPINLOCK(cuda_lock);
 
 #ifdef CONFIG_MAC
 #define CUDA_IRQ IRQ_MAC_ADB
-#define __openfirmware
 #define eieio()
 #else
 #define CUDA_IRQ vias->intrs[0].line

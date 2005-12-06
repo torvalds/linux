@@ -18,8 +18,6 @@
  * CRIS semaphores, implemented in C-only so far. 
  */
 
-int printk(const char *fmt, ...);
-
 struct semaphore {
 	atomic_t count;
 	atomic_t waking;
@@ -33,26 +31,23 @@ struct semaphore {
 	.wait		= __WAIT_QUEUE_HEAD_INITIALIZER((name).wait)    \
 }
 
-#define __MUTEX_INITIALIZER(name) \
-        __SEMAPHORE_INITIALIZER(name,1)
-
 #define __DECLARE_SEMAPHORE_GENERIC(name,count) \
         struct semaphore name = __SEMAPHORE_INITIALIZER(name,count)
 
 #define DECLARE_MUTEX(name) __DECLARE_SEMAPHORE_GENERIC(name,1)
 #define DECLARE_MUTEX_LOCKED(name) __DECLARE_SEMAPHORE_GENERIC(name,0)
 
-extern inline void sema_init(struct semaphore *sem, int val)
+static inline void sema_init(struct semaphore *sem, int val)
 {
 	*sem = (struct semaphore)__SEMAPHORE_INITIALIZER((*sem),val);
 }
 
-extern inline void init_MUTEX (struct semaphore *sem)
+static inline void init_MUTEX (struct semaphore *sem)
 {
         sema_init(sem, 1);
 }
 
-extern inline void init_MUTEX_LOCKED (struct semaphore *sem)
+static inline void init_MUTEX_LOCKED (struct semaphore *sem)
 {
         sema_init(sem, 0);
 }
@@ -64,7 +59,7 @@ extern void __up(struct semaphore * sem);
 
 /* notice - we probably can do cli/sti here instead of saving */
 
-extern inline void down(struct semaphore * sem)
+static inline void down(struct semaphore * sem)
 {
 	unsigned long flags;
 	int failed;
@@ -86,7 +81,7 @@ extern inline void down(struct semaphore * sem)
  * returns negative for signalled and zero for semaphore acquired.
  */
 
-extern inline int down_interruptible(struct semaphore * sem)
+static inline int down_interruptible(struct semaphore * sem)
 {
 	unsigned long flags;
 	int failed;
@@ -102,7 +97,7 @@ extern inline int down_interruptible(struct semaphore * sem)
 	return(failed);
 }
 
-extern inline int down_trylock(struct semaphore * sem)
+static inline int down_trylock(struct semaphore * sem)
 {
 	unsigned long flags;
 	int failed;
@@ -122,7 +117,7 @@ extern inline int down_trylock(struct semaphore * sem)
  * The default case (no contention) will result in NO
  * jumps for both down() and up().
  */
-extern inline void up(struct semaphore * sem)
+static inline void up(struct semaphore * sem)
 {  
 	unsigned long flags;
 	int wakeup;

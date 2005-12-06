@@ -14,7 +14,6 @@
 #include "net_user.h"
 #include "slip.h"
 #include "slip_common.h"
-#include "helper.h"
 #include "os.h"
 
 void slip_user_init(void *data, void *dev)

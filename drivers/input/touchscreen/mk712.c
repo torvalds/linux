@@ -77,7 +77,7 @@ MODULE_PARM_DESC(irq, "IRQ of MK712 touchscreen controller");
 #define MK712_READ_ONE_POINT			0x20
 #define MK712_POWERUP				0x40
 
-static struct input_dev mk712_dev;
+static struct input_dev *mk712_dev;
 static DEFINE_SPINLOCK(mk712_lock);
 
 static irqreturn_t mk712_interrupt(int irq, void *dev_id, struct pt_regs *regs)
@@ -88,7 +88,7 @@ static irqreturn_t mk712_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	static unsigned short last_y;
 
 	spin_lock(&mk712_lock);
-	input_regs(&mk712_dev, regs);
+	input_regs(mk712_dev, regs);
 
 	status = inb(mk712_io + MK712_STATUS);
 
@@ -100,7 +100,7 @@ static irqreturn_t mk712_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (~status & MK712_STATUS_TOUCH)
 	{
 		debounce = 1;
-		input_report_key(&mk712_dev, BTN_TOUCH, 0);
+		input_report_key(mk712_dev, BTN_TOUCH, 0);
 		goto end;
 	}
 
@@ -110,15 +110,15 @@ static irqreturn_t mk712_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		goto end;
 	}
 
-	input_report_key(&mk712_dev, BTN_TOUCH, 1);
-	input_report_abs(&mk712_dev, ABS_X, last_x);
-	input_report_abs(&mk712_dev, ABS_Y, last_y);
+	input_report_key(mk712_dev, BTN_TOUCH, 1);
+	input_report_abs(mk712_dev, ABS_X, last_x);
+	input_report_abs(mk712_dev, ABS_Y, last_y);
 
 end:
 
 	last_x = inw(mk712_io + MK712_X) & 0x0fff;
 	last_y = inw(mk712_io + MK712_Y) & 0x0fff;
-	input_sync(&mk712_dev);
+	input_sync(mk712_dev);
 	spin_unlock(&mk712_lock);
 	return IRQ_HANDLED;
 }
@@ -154,30 +154,11 @@ static void mk712_close(struct input_dev *dev)
 	spin_unlock_irqrestore(&mk712_lock, flags);
 }
 
-static struct input_dev mk712_dev = {
-	.evbit   = { BIT(EV_KEY) | BIT(EV_ABS) },
-	.keybit  = { [LONG(BTN_TOUCH)] = BIT(BTN_TOUCH) },
-	.absbit  = { BIT(ABS_X) | BIT(ABS_Y) },
-	.open    = mk712_open,
-	.close   = mk712_close,
-	.name    = "ICS MicroClock MK712 TouchScreen",
-	.phys    = "isa0260/input0",
-	.absmin  = { [ABS_X] = 0, [ABS_Y] = 0 },
-	.absmax  = { [ABS_X] = 0xfff, [ABS_Y] = 0xfff },
-	.absfuzz = { [ABS_X] = 88, [ABS_Y] = 88 },
-	.id      = {
-		.bustype = BUS_ISA,
-		.vendor  = 0x0005,
-		.product = 0x0001,
-		.version = 0x0100,
-	},
-};
-
 int __init mk712_init(void)
 {
+	int err;
 
-	if(!request_region(mk712_io, 8, "mk712"))
-	{
+	if (!request_region(mk712_io, 8, "mk712")) {
 		printk(KERN_WARNING "mk712: unable to get IO region\n");
 		return -ENODEV;
 	}
@@ -188,28 +169,49 @@ int __init mk712_init(void)
 	    (inw(mk712_io + MK712_Y) & 0xf000) ||
 	    (inw(mk712_io + MK712_STATUS) & 0xf333)) {
 		printk(KERN_WARNING "mk712: device not present\n");
-		release_region(mk712_io, 8);
-		return -ENODEV;
+		err = -ENODEV;
+		goto fail;
 	}
 
-	if(request_irq(mk712_irq, mk712_interrupt, 0, "mk712", &mk712_dev))
-	{
+	if (!(mk712_dev = input_allocate_device())) {
+		printk(KERN_ERR "mk712: not enough memory\n");
+		err = -ENOMEM;
+		goto fail;
+	}
+
+	mk712_dev->name = "ICS MicroClock MK712 TouchScreen";
+	mk712_dev->phys = "isa0260/input0";
+	mk712_dev->id.bustype = BUS_ISA;
+	mk712_dev->id.vendor  = 0x0005;
+	mk712_dev->id.product = 0x0001;
+	mk712_dev->id.version = 0x0100;
+
+	mk712_dev->open    = mk712_open;
+	mk712_dev->close   = mk712_close;
+
+	mk712_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	mk712_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_set_abs_params(mk712_dev, ABS_X, 0, 0xfff, 88, 0);
+	input_set_abs_params(mk712_dev, ABS_Y, 0, 0xfff, 88, 0);
+
+	if (request_irq(mk712_irq, mk712_interrupt, 0, "mk712", mk712_dev)) {
 		printk(KERN_WARNING "mk712: unable to get IRQ\n");
-		release_region(mk712_io, 8);
-		return -EBUSY;
+		err = -EBUSY;
+		goto fail;
 	}
 
-	input_register_device(&mk712_dev);
-
-	printk(KERN_INFO "input: ICS MicroClock MK712 TouchScreen at %#x irq %d\n", mk712_io, mk712_irq);
-
+	input_register_device(mk712_dev);
 	return 0;
+
+ fail:	input_free_device(mk712_dev);
+	release_region(mk712_io, 8);
+	return err;
 }
 
 static void __exit mk712_exit(void)
 {
-	input_unregister_device(&mk712_dev);
-	free_irq(mk712_irq, &mk712_dev);
+	input_unregister_device(mk712_dev);
+	free_irq(mk712_irq, mk712_dev);
 	release_region(mk712_io, 8);
 }
 

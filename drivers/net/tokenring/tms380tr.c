@@ -1243,8 +1243,7 @@ void tms380tr_wait(unsigned long time)
 	
 	tmp = jiffies + time/(1000000/HZ);
 	do {
-  		current->state 		= TASK_INTERRUPTIBLE;
-		tmp = schedule_timeout(tmp);
+		tmp = schedule_timeout_interruptible(tmp);
 	} while(time_after(tmp, jiffies));
 #else
 	udelay(time);

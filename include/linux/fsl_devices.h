@@ -4,7 +4,7 @@
  * Definitions for any platform device related flags or structures for
  * Freescale processor devices
  *
- * Maintainer: Kumar Gala (kumar.gala@freescale.com)
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2004 Freescale Semiconductor, Inc
  *
@@ -47,14 +47,19 @@
 struct gianfar_platform_data {
 	/* device specific information */
 	u32 device_flags;
-	u32 phy_reg_addr;
 
 	/* board specific information */
 	u32 board_flags;
-	u32 phy_flags;
-	u32 phyid;
-	u32 interruptPHY;
+	const char *bus_id;
 	u8 mac_addr[6];
+};
+
+struct gianfar_mdio_data {
+	/* device specific information */
+	u32 paddr;
+
+	/* board specific information */
+	int irq[32];
 };
 
 /* Flags related to gianfar device features */

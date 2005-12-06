@@ -9,7 +9,7 @@
 #ifndef _SEAGATE_H
 #define SEAGATE_H
 
-static int seagate_st0x_detect(Scsi_Host_Template *);
+static int seagate_st0x_detect(struct scsi_host_template *);
 static int seagate_st0x_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 
 static int seagate_st0x_abort(Scsi_Cmnd *);

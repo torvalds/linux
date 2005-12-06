@@ -7,6 +7,8 @@ menu "Logo configuration"
 config LOGO
 	bool "Bootup logo"
 	depends on FB || SGI_NEWPORT_CONSOLE
+	help
+	  Enable and select frame buffer bootup logos.
 
 config LOGO_LINUX_MONO
 	bool "Standard black and white Linux logo"

@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_MMU_H
 #define __ASM_ARCH_MMU_H
 
-#define PHYS_OFFSET	(0x08000000UL)
+#define PHYS_OFFSET	UL(0x08000000)
 
 /*
  * Virtual view <-> DMA view memory address translations

@@ -26,10 +26,6 @@
 
 #include "mach.h"
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 #define TICK_SIZE	(tick_nsec / 1000)
 
 /*

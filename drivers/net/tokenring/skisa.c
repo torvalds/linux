@@ -36,6 +36,7 @@ static const char version[] = "skisa.c: v1.03 09/12/2002 by Jochen Friedrich\n";
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/trdevice.h>
+#include <linux/platform_device.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -353,9 +354,10 @@ module_param_array(dma, int, NULL, 0);
 
 static struct platform_device *sk_isa_dev[ISATR_MAX_ADAPTERS];
 
-static struct device_driver sk_isa_driver = {
-	.name		= "skisa",
-	.bus		= &platform_bus_type,
+static struct platform_driver sk_isa_driver = {
+	.driver		= {
+		.name	= "skisa",
+	},
 };
 
 static int __init sk_isa_init(void)
@@ -364,7 +366,7 @@ static int __init sk_isa_init(void)
 	struct platform_device *pdev;
 	int i, num = 0, err = 0;
 
-	err = driver_register(&sk_isa_driver);
+	err = platform_driver_register(&sk_isa_driver);
 	if (err)
 		return err;
 
@@ -381,7 +383,7 @@ static int __init sk_isa_init(void)
 		err = setup_card(dev, &pdev->dev);
 		if (!err) {
 			sk_isa_dev[i] = pdev;
-			dev_set_drvdata(&sk_isa_dev[i]->dev, dev);
+			platform_set_drvdata(sk_isa_dev[i], dev);
 			++num;
 		} else {
 			platform_device_unregister(pdev);
@@ -408,17 +410,17 @@ static void __exit sk_isa_cleanup(void)
 
 		if (!pdev)
 			continue;
-		dev = dev_get_drvdata(&pdev->dev);
+		dev = platform_get_drvdata(pdev);
 		unregister_netdev(dev);
 		release_region(dev->base_addr, SK_ISA_IO_EXTENT);
 		free_irq(dev->irq, dev);
 		free_dma(dev->dma);
 		tmsdev_term(dev);
 		free_netdev(dev);
-		dev_set_drvdata(&pdev->dev, NULL);
+		platform_set_drvdata(pdev, NULL);
 		platform_device_unregister(pdev);
 	}
-	driver_unregister(&sk_isa_driver);
+	platform_driver_unregister(&sk_isa_driver);
 }
 
 module_init(sk_isa_init);

@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/mca.h>
+#include <linux/string.h>
 
 /**
  *	mca_device_read_stored_pos - read POS register from stored data

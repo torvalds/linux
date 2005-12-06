@@ -129,14 +129,13 @@ void ll_cpci_irq(struct pt_regs *regs)
 #define shutdown_cpci_irq	disable_cpci_irq
 
 struct hw_interrupt_type cpci_irq_type = {
-	"CPCI/FPGA",
-	startup_cpci_irq,
-	shutdown_cpci_irq,
-	enable_cpci_irq,
-	disable_cpci_irq,
-	mask_and_ack_cpci_irq,
-	end_cpci_irq,
-	NULL
+	.typename = "CPCI/FPGA",
+	.startup = startup_cpci_irq,
+	.shutdown = shutdown_cpci_irq,
+	.enable = enable_cpci_irq,
+	.disable = disable_cpci_irq,
+	.ack = mask_and_ack_cpci_irq,
+	.end = end_cpci_irq,
 };
 
 void cpci_irq_init(void)

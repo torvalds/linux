@@ -691,16 +691,19 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 
 void __scsi_remove_device(struct scsi_device *sdev)
 {
+	struct device *dev = &sdev->sdev_gendev;
+
 	if (scsi_device_set_state(sdev, SDEV_CANCEL) != 0)
 		return;
 
 	class_device_unregister(&sdev->sdev_classdev);
-	device_del(&sdev->sdev_gendev);
+	transport_remove_device(dev);
+	device_del(dev);
 	scsi_device_set_state(sdev, SDEV_DEL);
 	if (sdev->host->hostt->slave_destroy)
 		sdev->host->hostt->slave_destroy(sdev);
-	transport_unregister_device(&sdev->sdev_gendev);
-	put_device(&sdev->sdev_gendev);
+	transport_destroy_device(dev);
+	put_device(dev);
 }
 
 /**

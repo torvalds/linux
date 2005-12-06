@@ -803,6 +803,7 @@ found:
 	hwif->irq = hw->irq;
 	hwif->noprobe = 0;
 	hwif->chipset = hw->chipset;
+	hwif->gendev.parent = hw->dev;
 
 	if (!initializing) {
 		probe_hwif_init_with_fixup(hwif, fixup);
@@ -864,9 +865,8 @@ static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int r
 	down(&ide_setting_sem);
 	while ((*p) && strcmp((*p)->name, name) < 0)
 		p = &((*p)->next);
-	if ((setting = kmalloc(sizeof(*setting), GFP_KERNEL)) == NULL)
+	if ((setting = kzalloc(sizeof(*setting), GFP_KERNEL)) == NULL)
 		goto abort;
-	memset(setting, 0, sizeof(*setting));
 	if ((setting->name = kmalloc(strlen(name) + 1, GFP_KERNEL)) == NULL)
 		goto abort;
 	strcpy(setting->name, name);
@@ -889,8 +889,7 @@ static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int r
 	return 0;
 abort:
 	up(&ide_setting_sem);
-	if (setting)
-		kfree(setting);
+	kfree(setting);
 	return -1;
 }
 

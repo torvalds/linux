@@ -17,7 +17,7 @@
 #include <linux/highmem.h>
 #include <asm/io.h>
 
-void *dma_alloc_coherent(struct device *hwdev, size_t size, dma_addr_t *dma_handle, int gfp)
+void *dma_alloc_coherent(struct device *hwdev, size_t size, dma_addr_t *dma_handle, gfp_t gfp)
 {
 	void *ret;
 

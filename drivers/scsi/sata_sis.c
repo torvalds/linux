@@ -38,7 +38,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include "scsi.h"
+#include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
@@ -67,7 +67,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static u32 sis_scr_read (struct ata_port *ap, unsigned int sc_reg);
 static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 
-static struct pci_device_id sis_pci_tbl[] = {
+static const struct pci_device_id sis_pci_tbl[] = {
 	{ PCI_VENDOR_ID_SI, 0x180, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
 	{ PCI_VENDOR_ID_SI, 0x181, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
 	{ PCI_VENDOR_ID_SI, 0x182, PCI_ANY_ID, PCI_ANY_ID, 0, 0, sis_180 },
@@ -82,7 +82,7 @@ static struct pci_driver sis_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static Scsi_Host_Template sis_sht = {
+static struct scsi_host_template sis_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -102,7 +102,7 @@ static Scsi_Host_Template sis_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations sis_ops = {
+static const struct ata_port_operations sis_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -237,6 +237,7 @@ static void sis_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 
 static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	static int printed_version;
 	struct ata_probe_ent *probe_ent = NULL;
 	int rc;
 	u32 genctl;
@@ -244,6 +245,9 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	int pci_dev_busy = 0;
 	u8 pmr;
 	u8 port2_start;
+
+	if (!printed_version++)
+		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)
@@ -263,7 +267,7 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_regions;
 
 	ppi = &sis_port_info;
-	probe_ent = ata_pci_init_native_mode(pdev, &ppi);
+	probe_ent = ata_pci_init_native_mode(pdev, &ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent) {
 		rc = -ENOMEM;
 		goto err_out_regions;
@@ -288,16 +292,18 @@ static int sis_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_read_config_byte(pdev, SIS_PMR, &pmr);
 	if (ent->device != 0x182) {
 		if ((pmr & SIS_PMR_COMBINED) == 0) {
-			printk(KERN_INFO "sata_sis: Detected SiS 180/181 chipset in SATA mode\n");
+			dev_printk(KERN_INFO, &pdev->dev,
+				   "Detected SiS 180/181 chipset in SATA mode\n");
 			port2_start = 64;
 		}
 		else {
-			printk(KERN_INFO "sata_sis: Detected SiS 180/181 chipset in combined mode\n");
+			dev_printk(KERN_INFO, &pdev->dev,
+				   "Detected SiS 180/181 chipset in combined mode\n");
 			port2_start=0;
 		}
 	}
 	else {
-		printk(KERN_INFO "sata_sis: Detected SiS 182 chipset\n");
+		dev_printk(KERN_INFO, &pdev->dev, "Detected SiS 182 chipset\n");
 		port2_start = 0x20;
 	}
 

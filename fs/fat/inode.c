@@ -846,7 +846,7 @@ static match_table_t vfat_tokens = {
 	{Opt_err, NULL}
 };
 
-static int parse_options(char *options, int is_vfat, int *debug,
+static int parse_options(char *options, int is_vfat, int silent, int *debug,
 			 struct fat_mount_options *opts)
 {
 	char *p;
@@ -1008,8 +1008,11 @@ static int parse_options(char *options, int is_vfat, int *debug,
 			break;
 		/* unknown option */
 		default:
-			printk(KERN_ERR "FAT: Unrecognized mount option \"%s\" "
-			       "or missing value\n", p);
+			if (!silent) {
+				printk(KERN_ERR
+				       "FAT: Unrecognized mount option \"%s\" "
+				       "or missing value\n", p);
+			}
 			return -EINVAL;
 		}
 	}
@@ -1091,7 +1094,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_export_op = &fat_export_ops;
 	sbi->dir_ops = fs_dir_inode_ops;
 
-	error = parse_options(data, isvfat, &debug, &sbi->options);
+	error = parse_options(data, isvfat, silent, &debug, &sbi->options);
 	if (error)
 		goto out_fail;
 

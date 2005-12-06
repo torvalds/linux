@@ -146,10 +146,10 @@ pmipal	Use the protected mode interface for palette changes.
 
 mtrr:n	setup memory type range registers for the vesafb framebuffer
 	where n:
-	      0 - disabled (equivalent to nomtrr)
+	      0 - disabled (equivalent to nomtrr) (default)
 	      1 - uncachable
 	      2 - write-back
-	      3 - write-combining (default)
+	      3 - write-combining
 	      4 - write-through
 
 	If you see the following in dmesg, choose the type that matches the

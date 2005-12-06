@@ -27,29 +27,25 @@
 #include <linux/config.h>
 #include <linux/acpi.h>
 #include <linux/efi.h>
-#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/dmi.h>
+#include <linux/irq.h>
 
 #include <asm/pgtable.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/mpspec.h>
 
 #ifdef	CONFIG_X86_64
 
-static inline void acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-{
-}
 extern void __init clustered_apic_check(void);
-static inline int ioapic_setup_disabled(void)
-{
-	return 0;
-}
 
+extern int gsi_irq_sharing(int gsi);
 #include <asm/proto.h>
+
+static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id) { return 0; }
+
 
 #else				/* X86 */
 
@@ -57,6 +53,8 @@ static inline int ioapic_setup_disabled(void)
 #include <mach_apic.h>
 #include <mach_mpparse.h>
 #endif				/* CONFIG_X86_LOCAL_APIC */
+
+static inline int gsi_irq_sharing(int gsi) { return gsi; }
 
 #endif				/* X86 */
 
@@ -250,9 +248,7 @@ acpi_parse_lapic(acpi_table_entry_header * header, const unsigned long end)
 
 	acpi_table_print_madt_entry(header);
 
-	/* no utility in registering a disabled processor */
-	if (processor->flags.enabled == 0)
-		return 0;
+	/* Register even disabled CPUs for cpu hotplug */
 
 	x86_acpiid_to_apicid[processor->acpi_id] = processor->id;
 
@@ -460,7 +456,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 		*irq = IO_APIC_VECTOR(gsi);
 	else
 #endif
-		*irq = gsi;
+		*irq = gsi_irq_sharing(gsi);
 	return 0;
 }
 
@@ -544,7 +540,7 @@ acpi_scan_rsdp(unsigned long start, unsigned long length)
 	 * RSDP signature.
 	 */
 	for (offset = 0; offset < length; offset += 16) {
-		if (strncmp((char *)(start + offset), "RSD PTR ", sig_len))
+		if (strncmp((char *)(phys_to_virt(start) + offset), "RSD PTR ", sig_len))
 			continue;
 		return (start + offset);
 	}
@@ -642,6 +638,13 @@ static int __init acpi_parse_fadt(unsigned long phys, unsigned long size)
 			return 0;
 
 		pmtmr_ioport = fadt->xpm_tmr_blk.address;
+		/*
+		 * "X" fields are optional extensions to the original V1.0
+		 * fields, so we must selectively expand V1.0 fields if the
+		 * corresponding X field is zero.
+	 	 */
+		if (!pmtmr_ioport)
+			pmtmr_ioport = fadt->V1_pm_tmr_blk;
 	} else {
 		/* FADT rev. 1 */
 		pmtmr_ioport = fadt->V1_pm_tmr_blk;

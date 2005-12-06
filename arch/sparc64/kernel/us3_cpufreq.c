@@ -208,7 +208,10 @@ static int __init us3_freq_init(void)
 	impl  = ((ver >> 32) & 0xffff);
 
 	if (manuf == CHEETAH_MANUF &&
-	    (impl == CHEETAH_IMPL || impl == CHEETAH_PLUS_IMPL)) {
+	    (impl == CHEETAH_IMPL ||
+	     impl == CHEETAH_PLUS_IMPL ||
+	     impl == JAGUAR_IMPL ||
+	     impl == PANTHER_IMPL)) {
 		struct cpufreq_driver *driver;
 
 		ret = -ENOMEM;
@@ -246,10 +249,8 @@ err_out:
 			kfree(driver);
 			cpufreq_us3_driver = NULL;
 		}
-		if (us3_freq_table) {
-			kfree(us3_freq_table);
-			us3_freq_table = NULL;
-		}
+		kfree(us3_freq_table);
+		us3_freq_table = NULL;
 		return ret;
 	}
 
@@ -260,7 +261,6 @@ static void __exit us3_freq_exit(void)
 {
 	if (cpufreq_us3_driver) {
 		cpufreq_unregister_driver(cpufreq_us3_driver);
-
 		kfree(cpufreq_us3_driver);
 		cpufreq_us3_driver = NULL;
 		kfree(us3_freq_table);

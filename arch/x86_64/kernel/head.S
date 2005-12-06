@@ -12,6 +12,7 @@
 
 #include <linux/linkage.h>
 #include <linux/threads.h>
+#include <linux/init.h>
 #include <asm/desc.h>
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -70,7 +71,7 @@ startup_32:
 	movl	%eax, %cr4
 
 	/* Setup early boot stage 4 level pagetables */
-	movl	$(init_level4_pgt - __START_KERNEL_map), %eax
+	movl	$(boot_level4_pgt - __START_KERNEL_map), %eax
 	movl	%eax, %cr3
 
 	/* Setup EFER (Extended Feature Enable Register) */
@@ -113,7 +114,7 @@ startup_64:
 	movq	%rax, %cr4
 
 	/* Setup early boot stage 4 level pagetables. */
-	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
+	movq	$(boot_level4_pgt - __START_KERNEL_map), %rax
 	movq	%rax, %cr3
 
 	/* Check if nx is implemented */
@@ -240,20 +241,10 @@ ljumpvector:
 ENTRY(stext)
 ENTRY(_stext)
 
-	/*
-	 * This default setting generates an ident mapping at address 0x100000
-	 * and a mapping for the kernel that precisely maps virtual address
-	 * 0xffffffff80000000 to physical address 0x000000. (always using
-	 * 2Mbyte large pages provided by PAE mode)
-	 */
 .org 0x1000
 ENTRY(init_level4_pgt)
-	.quad	0x0000000000002007 + __PHYSICAL_START	/* -> level3_ident_pgt */
-	.fill	255,8,0
-	.quad	0x000000000000a007 + __PHYSICAL_START
-	.fill	254,8,0
-	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
-	.quad	0x0000000000003007 + __PHYSICAL_START	/* -> level3_kernel_pgt */
+	/* This gets initialized in x86_64_start_kernel */
+	.fill	512,8,0
 
 .org 0x2000
 ENTRY(level3_ident_pgt)
@@ -270,26 +261,26 @@ ENTRY(level3_kernel_pgt)
 .org 0x4000
 ENTRY(level2_ident_pgt)
 	/* 40MB for bootup. 	*/
-	.quad	0x0000000000000183
-	.quad	0x0000000000200183
-	.quad	0x0000000000400183
-	.quad	0x0000000000600183
-	.quad	0x0000000000800183
-	.quad	0x0000000000A00183
-	.quad	0x0000000000C00183
-	.quad	0x0000000000E00183
-	.quad	0x0000000001000183
-	.quad	0x0000000001200183
-	.quad	0x0000000001400183
-	.quad	0x0000000001600183
-	.quad	0x0000000001800183
-	.quad	0x0000000001A00183
-	.quad	0x0000000001C00183
-	.quad	0x0000000001E00183
-	.quad	0x0000000002000183
-	.quad	0x0000000002200183
-	.quad	0x0000000002400183
-	.quad	0x0000000002600183
+	.quad	0x0000000000000083
+	.quad	0x0000000000200083
+	.quad	0x0000000000400083
+	.quad	0x0000000000600083
+	.quad	0x0000000000800083
+	.quad	0x0000000000A00083
+	.quad	0x0000000000C00083
+	.quad	0x0000000000E00083
+	.quad	0x0000000001000083
+	.quad	0x0000000001200083
+	.quad	0x0000000001400083
+	.quad	0x0000000001600083
+	.quad	0x0000000001800083
+	.quad	0x0000000001A00083
+	.quad	0x0000000001C00083
+	.quad	0x0000000001E00083
+	.quad	0x0000000002000083
+	.quad	0x0000000002200083
+	.quad	0x0000000002400083
+	.quad	0x0000000002600083
 	/* Temporary mappings for the super early allocator in arch/x86_64/mm/init.c */
 	.globl temp_boot_pmds
 temp_boot_pmds:
@@ -349,6 +340,24 @@ ENTRY(wakeup_level4_pgt)
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
 	.quad	0x0000000000003007 + __PHYSICAL_START	/* -> level3_kernel_pgt */
 #endif
+
+#ifndef CONFIG_HOTPLUG_CPU
+	__INITDATA
+#endif
+	/*
+	 * This default setting generates an ident mapping at address 0x100000
+	 * and a mapping for the kernel that precisely maps virtual address
+	 * 0xffffffff80000000 to physical address 0x000000. (always using
+	 * 2Mbyte large pages provided by PAE mode)
+	 */
+	.align PAGE_SIZE
+ENTRY(boot_level4_pgt)
+	.quad	0x0000000000002007 + __PHYSICAL_START	/* -> level3_ident_pgt */
+	.fill	255,8,0
+	.quad	0x000000000000a007 + __PHYSICAL_START
+	.fill	254,8,0
+	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+	.quad	0x0000000000003007 + __PHYSICAL_START	/* -> level3_kernel_pgt */
 
 	.data
 

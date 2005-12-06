@@ -315,7 +315,7 @@ static int __devinit eisa_probe(struct parisc_device *dev)
 	char *name = is_mongoose(dev) ? "Mongoose" : "Wax";
 
 	printk(KERN_INFO "%s EISA Adapter found at 0x%08lx\n", 
-		name, dev->hpa);
+		name, dev->hpa.start);
 
 	eisa_dev.hba.dev = dev;
 	eisa_dev.hba.iommu = ccio_get_iommu(dev);
@@ -397,7 +397,7 @@ static struct parisc_device_id eisa_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, eisa_tbl);
 
 static struct parisc_driver eisa_driver = {
-	.name =		"EISA Bus Adapter",
+	.name =		"eisa_ba",
 	.id_table =	eisa_tbl,
 	.probe =	eisa_probe,
 };

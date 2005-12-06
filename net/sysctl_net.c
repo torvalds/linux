@@ -16,6 +16,8 @@
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 
+#include <net/sock.h>
+
 #ifdef CONFIG_INET
 #include <net/ip.h>
 #endif

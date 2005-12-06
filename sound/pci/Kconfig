@@ -1,13 +1,5 @@
 # ALSA PCI drivers
 
-config SND_AC97_CODEC
-	tristate
-	select SND_PCM
-	select SND_AC97_BUS
-
-config SND_AC97_BUS
-	tristate
-
 menu "PCI devices"
 	depends on SND!=n && PCI
 
@@ -192,6 +184,7 @@ config SND_CA0106
 	tristate "SB Audigy LS / Live 24bit"
 	depends on SND
 	select SND_AC97_CODEC
+	select SND_RAWMIDI
 	help
 	  Say Y here to include support for the Sound Blaster Audigy LS
 	  and Live 24bit.

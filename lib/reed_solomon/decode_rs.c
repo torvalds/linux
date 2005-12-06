@@ -1,22 +1,22 @@
-/* 
+/*
  * lib/reed_solomon/decode_rs.c
  *
  * Overview:
  *   Generic Reed Solomon encoder / decoder library
- *   
+ *
  * Copyright 2002, Phil Karn, KA9Q
  * May be used under the terms of the GNU General Public License (GPL)
  *
  * Adaption to the kernel by Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: decode_rs.c,v 1.6 2004/10/22 15:41:47 gleixner Exp $
+ * $Id: decode_rs.c,v 1.7 2005/11/07 11:14:59 gleixner Exp $
  *
  */
 
-/* Generic data width independent code which is included by the 
+/* Generic data width independent code which is included by the
  * wrappers.
  */
-{ 
+{
 	int deg_lambda, el, deg_omega;
 	int i, j, r, k, pad;
 	int nn = rs->nn;
@@ -41,9 +41,9 @@
 	pad = nn - nroots - len;
 	if (pad < 0 || pad >= nn)
 		return -ERANGE;
-		
+
 	/* Does the caller provide the syndrome ? */
-	if (s != NULL) 
+	if (s != NULL)
 		goto decode;
 
 	/* form the syndromes; i.e., evaluate data(x) at roots of
@@ -54,11 +54,11 @@
 	for (j = 1; j < len; j++) {
 		for (i = 0; i < nroots; i++) {
 			if (syn[i] == 0) {
-				syn[i] = (((uint16_t) data[j]) ^ 
+				syn[i] = (((uint16_t) data[j]) ^
 					  invmsk) & msk;
 			} else {
 				syn[i] = ((((uint16_t) data[j]) ^
-					   invmsk) & msk) ^ 
+					   invmsk) & msk) ^
 					alpha_to[rs_modnn(rs, index_of[syn[i]] +
 						       (fcr + i) * prim)];
 			}
@@ -70,7 +70,7 @@
 			if (syn[i] == 0) {
 				syn[i] = ((uint16_t) par[j]) & msk;
 			} else {
-				syn[i] = (((uint16_t) par[j]) & msk) ^ 
+				syn[i] = (((uint16_t) par[j]) & msk) ^
 					alpha_to[rs_modnn(rs, index_of[syn[i]] +
 						       (fcr+i)*prim)];
 			}
@@ -99,14 +99,14 @@
 
 	if (no_eras > 0) {
 		/* Init lambda to be the erasure locator polynomial */
-		lambda[1] = alpha_to[rs_modnn(rs, 
+		lambda[1] = alpha_to[rs_modnn(rs,
 					      prim * (nn - 1 - eras_pos[0]))];
 		for (i = 1; i < no_eras; i++) {
 			u = rs_modnn(rs, prim * (nn - 1 - eras_pos[i]));
 			for (j = i + 1; j > 0; j--) {
 				tmp = index_of[lambda[j - 1]];
 				if (tmp != nn) {
-					lambda[j] ^= 
+					lambda[j] ^=
 						alpha_to[rs_modnn(rs, u + tmp)];
 				}
 			}
@@ -127,8 +127,8 @@
 		discr_r = 0;
 		for (i = 0; i < r; i++) {
 			if ((lambda[i] != 0) && (s[r - i - 1] != nn)) {
-				discr_r ^= 
-					alpha_to[rs_modnn(rs, 
+				discr_r ^=
+					alpha_to[rs_modnn(rs,
 							  index_of[lambda[i]] +
 							  s[r - i - 1])];
 			}
@@ -143,7 +143,7 @@
 			t[0] = lambda[0];
 			for (i = 0; i < nroots; i++) {
 				if (b[i] != nn) {
-					t[i + 1] = lambda[i + 1] ^ 
+					t[i + 1] = lambda[i + 1] ^
 						alpha_to[rs_modnn(rs, discr_r +
 								  b[i])];
 				} else
@@ -229,7 +229,7 @@
 		num1 = 0;
 		for (i = deg_omega; i >= 0; i--) {
 			if (omega[i] != nn)
-				num1 ^= alpha_to[rs_modnn(rs, omega[i] + 
+				num1 ^= alpha_to[rs_modnn(rs, omega[i] +
 							i * root[j])];
 		}
 		num2 = alpha_to[rs_modnn(rs, root[j] * (fcr - 1) + nn)];
@@ -239,13 +239,13 @@
 		 * lambda_pr of lambda[i] */
 		for (i = min(deg_lambda, nroots - 1) & ~1; i >= 0; i -= 2) {
 			if (lambda[i + 1] != nn) {
-				den ^= alpha_to[rs_modnn(rs, lambda[i + 1] + 
+				den ^= alpha_to[rs_modnn(rs, lambda[i + 1] +
 						       i * root[j])];
 			}
 		}
 		/* Apply error to data */
 		if (num1 != 0 && loc[j] >= pad) {
-			uint16_t cor = alpha_to[rs_modnn(rs,index_of[num1] + 
+			uint16_t cor = alpha_to[rs_modnn(rs,index_of[num1] +
 						       index_of[num2] +
 						       nn - index_of[den])];
 			/* Store the error correction pattern, if a

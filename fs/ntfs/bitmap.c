@@ -1,7 +1,7 @@
 /*
  * bitmap.c - NTFS kernel bitmap handling.  Part of the Linux-NTFS project.
  *
- * Copyright (c) 2004 Anton Altaparmakov
+ * Copyright (c) 2004-2005 Anton Altaparmakov
  *
  * This program/include file is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -90,7 +90,8 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 	/* If the first byte is partial, modify the appropriate bits in it. */
 	if (bit) {
 		u8 *byte = kaddr + pos;
-		while ((bit & 7) && cnt--) {
+		while ((bit & 7) && cnt) {
+			cnt--;
 			if (value)
 				*byte |= 1 << bit++;
 			else

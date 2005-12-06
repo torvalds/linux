@@ -32,6 +32,8 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <linux/delay.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "dvb_frontend.h"
 #include "sp8870.h"

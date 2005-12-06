@@ -555,8 +555,7 @@ insert:
 	goto insert;
 
 errout:
-	if (f)
-		kfree(f);
+	kfree(f);
 errout2:
 	tcf_exts_destroy(tp, &e);
 	return err;

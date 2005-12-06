@@ -17,12 +17,12 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
+#include <linux/pm.h>
 
 #include "power.h"
 
 
 extern suspend_disk_method_t pm_disk_mode;
-extern struct pm_ops * pm_ops;
 
 extern int swsusp_suspend(void);
 extern int swsusp_write(void);
@@ -30,7 +30,6 @@ extern int swsusp_check(void);
 extern int swsusp_read(void);
 extern void swsusp_close(void);
 extern int swsusp_resume(void);
-extern int swsusp_free(void);
 
 
 static int noresume = 0;
@@ -49,13 +48,11 @@ dev_t swsusp_resume_device;
 
 static void power_down(suspend_disk_method_t mode)
 {
-	unsigned long flags;
 	int error = 0;
 
-	local_irq_save(flags);
 	switch(mode) {
 	case PM_DISK_PLATFORM:
- 		device_shutdown();
+		kernel_power_off_prepare();
 		error = pm_ops->enter(PM_SUSPEND_DISK);
 		break;
 	case PM_DISK_SHUTDOWN:
@@ -95,10 +92,7 @@ static void free_some_memory(void)
 	printk("Freeing memory...  ");
 	while ((tmp = shrink_all_memory(10000))) {
 		pages += tmp;
-		printk("\b%c", p[i]);
-		i++;
-		if (i > 3)
-			i = 0;
+		printk("\b%c", p[i++ % 4]);
 	}
 	printk("\bdone (%li pages freed)\n", pages);
 }
@@ -180,13 +174,12 @@ int pm_suspend_disk(void)
 		goto Done;
 
 	if (in_suspend) {
+		device_resume();
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write();
 		if (!error)
 			power_down(pm_disk_mode);
 		else {
-		/* swsusp_write can not fail in device_resume,
-		   no need to do second device_resume */
 			swsusp_free();
 			unprepare_processes();
 			return error;
@@ -254,14 +247,17 @@ static int software_resume(void)
 
 	pr_debug("PM: Reading swsusp image.\n");
 
-	if ((error = swsusp_read()))
-		goto Cleanup;
+	if ((error = swsusp_read())) {
+		swsusp_free();
+		goto Thaw;
+	}
 
 	pr_debug("PM: Preparing devices for restore.\n");
 
 	if ((error = device_suspend(PMSG_FREEZE))) {
 		printk("Some devices failed to suspend\n");
-		goto Free;
+		swsusp_free();
+		goto Thaw;
 	}
 
 	mb();
@@ -270,9 +266,7 @@ static int software_resume(void)
 	swsusp_resume();
 	pr_debug("PM: Restore failed, recovering.n");
 	device_resume();
- Free:
-	swsusp_free();
- Cleanup:
+ Thaw:
 	unprepare_processes();
  Done:
 	/* For success case, the suspend path will release the lock */

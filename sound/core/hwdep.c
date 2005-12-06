@@ -81,20 +81,16 @@ static int snd_hwdep_open(struct inode *inode, struct file * file)
 	int err;
 	wait_queue_t wait;
 
-	switch (major) {
-	case CONFIG_SND_MAJOR:
+	if (major == snd_major) {
 		cardnum = SNDRV_MINOR_CARD(iminor(inode));
 		device = SNDRV_MINOR_DEVICE(iminor(inode)) - SNDRV_MINOR_HWDEP;
-		break;
 #ifdef CONFIG_SND_OSSEMUL
-	case SOUND_MAJOR:
+	} else if (major == SOUND_MAJOR) {
 		cardnum = SNDRV_MINOR_OSS_CARD(iminor(inode));
 		device = 0;
-		break;
 #endif
-	default:
+	} else
 		return -ENXIO;
-	}
 	cardnum %= SNDRV_CARDS;
 	device %= SNDRV_MINOR_HWDEPS;
 	hw = snd_hwdep_devices[(cardnum * SNDRV_MINOR_HWDEPS) + device];

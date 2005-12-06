@@ -54,6 +54,10 @@ INSTALLING the kernel:
 
 		gzip -cd linux-2.6.XX.tar.gz | tar xvf -
 
+   or
+		bzip2 -dc linux-2.6.XX.tar.bz2 | tar xvf -
+
+
    Replace "XX" with the version number of the latest kernel.
 
    Do NOT use the /usr/src/linux area! This area has a (usually
@@ -76,6 +80,11 @@ INSTALLING the kernel:
    the backup files (xxx~ or xxx.orig), and make sure that there are no
    failed patches (xxx# or xxx.rej). If there are, either you or me has
    made a mistake.
+
+   Unlike patches for the 2.6.x kernels, patches for the 2.6.x.y kernels
+   (also known as the -stable kernels) are not incremental but instead apply
+   directly to the base 2.6.x kernel.  Please read
+   Documentation/applying-patches.txt for more information.
 
    Alternatively, the script patch-kernel can be used to automate this
    process.  It determines the current kernel version and applies any
@@ -151,7 +160,7 @@ CONFIGURING the kernel:
 			   your existing ./.config file.
 	"make silentoldconfig"
 			   Like above, but avoids cluttering the screen
-			   with question already answered.
+			   with questions already answered.
    
 	NOTES on "make config":
 	- having unnecessary drivers will make the kernel bigger, and can
@@ -199,9 +208,9 @@ COMPILING the kernel:
    are installing a new kernel with the same version number as your
    working kernel, make a backup of your modules directory before you
    do a "make modules_install".
-   In alternative, before compiling, edit your Makefile and change the
-   "EXTRAVERSION" line - its content is appended to the regular kernel
-   version.
+   Alternatively, before compiling, use the kernel config option
+   "LOCALVERSION" to append a unique suffix to the regular kernel version.
+   LOCALVERSION can be set in the "General Setup" menu.
 
  - In order to boot your new kernel, you'll need to copy the kernel
    image (e.g. .../linux/arch/i386/boot/bzImage after compilation)

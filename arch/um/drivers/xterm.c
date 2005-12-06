@@ -14,7 +14,6 @@
 #include <sys/socket.h>
 #include "kern_util.h"
 #include "chan_user.h"
-#include "helper.h"
 #include "user_util.h"
 #include "user.h"
 #include "os.h"
@@ -195,13 +194,6 @@ static void xterm_free(void *d)
 	free(d);
 }
 
-static int xterm_console_write(int fd, const char *buf, int n, void *d)
-{
-	struct xterm_chan *data = d;
-
-	return(generic_console_write(fd, buf, n, &data->tt));
-}
-
 struct chan_ops xterm_ops = {
 	.type		= "xterm",
 	.init		= xterm_init,
@@ -209,7 +201,7 @@ struct chan_ops xterm_ops = {
 	.close		= xterm_close,
 	.read		= generic_read,
 	.write		= generic_write,
-	.console_write	= xterm_console_write,
+	.console_write	= generic_console_write,
 	.window_size	= generic_window_size,
 	.free		= xterm_free,
 	.winch		= 1,

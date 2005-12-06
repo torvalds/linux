@@ -1,10 +1,10 @@
 /*
- * $Id: impa7.c,v 1.13 2004/11/04 13:24:14 gleixner Exp $
+ * $Id: impa7.c,v 1.14 2005/11/07 11:14:27 gleixner Exp $
  *
  * Handle mapping of the NOR flash on implementa A7 boards
  *
  * Copyright 2002 SYSGO Real-Time Solutions GmbH
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -55,7 +55,7 @@ static struct map_info impa7_map[NUM_FLASHBANKS] = {
 #ifdef CONFIG_MTD_PARTITIONS
 
 /*
- * MTD partitioning stuff 
+ * MTD partitioning stuff
  */
 static struct mtd_partition static_partitions[] =
 {
@@ -108,9 +108,9 @@ int __init init_impa7(void)
 			impa7_mtd[i]->owner = THIS_MODULE;
 			devicesfound++;
 #ifdef CONFIG_MTD_PARTITIONS
-			mtd_parts_nb[i] = parse_mtd_partitions(impa7_mtd[i], 
+			mtd_parts_nb[i] = parse_mtd_partitions(impa7_mtd[i],
 							       probes,
-							       &mtd_parts[i], 
+							       &mtd_parts[i],
 							       0);
 			if (mtd_parts_nb[i] > 0) {
 				part_type = "command line";
@@ -121,16 +121,16 @@ int __init init_impa7(void)
 			}
 
 			printk(KERN_NOTICE MSG_PREFIX
-			       "using %s partition definition\n", 
+			       "using %s partition definition\n",
 			       part_type);
-			add_mtd_partitions(impa7_mtd[i], 
+			add_mtd_partitions(impa7_mtd[i],
 					   mtd_parts[i], mtd_parts_nb[i]);
 #else
 			add_mtd_device(impa7_mtd[i]);
 
 #endif
 		}
-		else 
+		else
 			iounmap((void *)impa7_map[i].virt);
 	}
 	return devicesfound == 0 ? -ENXIO : 0;

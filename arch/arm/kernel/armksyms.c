@@ -9,6 +9,7 @@
  */
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/cryptohash.h>
 #include <linux/delay.h>
 #include <linux/in6.h>
 #include <linux/syscalls.h>
@@ -45,8 +46,8 @@ extern void fp_enter(void);
 
 #define EXPORT_SYMBOL_ALIAS(sym,orig)		\
  EXPORT_CRC_ALIAS(sym)				\
- const struct kernel_symbol __ksymtab_##sym	\
-  __attribute__((section("__ksymtab"))) =	\
+ static const struct kernel_symbol __ksymtab_##sym	\
+  __attribute_used__ __attribute__((section("__ksymtab"))) =	\
     { (unsigned long)&orig, #sym };
 
 /*
@@ -119,12 +120,14 @@ EXPORT_SYMBOL(__arch_strncpy_from_user);
 EXPORT_SYMBOL(__get_user_1);
 EXPORT_SYMBOL(__get_user_2);
 EXPORT_SYMBOL(__get_user_4);
-EXPORT_SYMBOL(__get_user_8);
 
 EXPORT_SYMBOL(__put_user_1);
 EXPORT_SYMBOL(__put_user_2);
 EXPORT_SYMBOL(__put_user_4);
 EXPORT_SYMBOL(__put_user_8);
+
+	/* crypto hash */
+EXPORT_SYMBOL(sha_transform);
 
 	/* gcc lib functions */
 EXPORT_SYMBOL(__ashldi3);

@@ -173,7 +173,10 @@ static unsigned char divisor_to_rate_register(unsigned int divisor)
 	case 2117:	return 6;
 	case 2558:	return 7;
 	default:
-		snd_runtime_check(divisor >= 21 && divisor <= 192, return 192);
+		if (divisor < 21 || divisor > 192) {
+			snd_BUG();
+			return 192;
+		}
 		return divisor;
 	}
 }

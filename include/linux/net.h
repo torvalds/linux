@@ -71,6 +71,7 @@ typedef enum {
  * @SOCK_RAW: raw socket
  * @SOCK_RDM: reliably-delivered message
  * @SOCK_SEQPACKET: sequential packet socket
+ * @SOCK_DCCP: Datagram Congestion Control Protocol socket
  * @SOCK_PACKET: linux specific way of getting packets at the dev level.
  *		  For writing rarp and other similar things on the user level.
  *

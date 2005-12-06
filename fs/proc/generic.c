@@ -533,7 +533,7 @@ static void proc_kill_inodes(struct proc_dir_entry *de)
 	 */
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
-		struct file * filp = list_entry(p, struct file, f_list);
+		struct file * filp = list_entry(p, struct file, f_u.fu_list);
 		struct dentry * dentry = filp->f_dentry;
 		struct inode * inode;
 		struct file_operations *fops;

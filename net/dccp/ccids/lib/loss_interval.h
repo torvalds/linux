@@ -36,7 +36,7 @@ struct dccp_li_hist_entry {
 
 static inline struct dccp_li_hist_entry *
 		dccp_li_hist_entry_new(struct dccp_li_hist *hist,
-				       const unsigned int __nocast prio)
+				       const gfp_t prio)
 {
 	return kmem_cache_alloc(hist->dccplih_slab, prio);
 }

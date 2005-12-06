@@ -176,8 +176,6 @@ information (_most_ of which _is_ _essential_) includes:
  - Which client caused the problem ?
  - How much data was being transferred ?
  - Was the network congested ?
- - If there was a kernel panic, please run the output through ksymoops
-   before sending it to me, otherwise its _useless_.
  - How can the problem be reproduced ?
  - Can you use tcpdump to get a trace ? (N.B. Most (all?) versions of 
    tcpdump don't understand how to dump DECnet properly, so including

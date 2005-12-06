@@ -17,6 +17,8 @@
 #include <linux/pci_ids.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+
 #include <asm/machdep.h>
 #include <asm/macio.h>
 #include <asm/pmac_feature.h>

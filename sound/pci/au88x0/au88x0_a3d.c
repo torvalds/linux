@@ -488,7 +488,7 @@ static void a3dsrc_ZeroStateA3D(a3dsrc_t * a)
 	int i, var, var2;
 
 	if ((a->vortex) == NULL) {
-		printk("vortex: ZeroStateA3D: ERROR: a->vortex is NULL\n");
+		printk(KERN_ERR "vortex: ZeroStateA3D: ERROR: a->vortex is NULL\n");
 		return;
 	}
 

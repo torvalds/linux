@@ -19,19 +19,13 @@
 extern unsigned long end_vm;
 extern unsigned long uml_physmem;
 
-#define under_task_size(addr, size) \
-	(((unsigned long) (addr) < TASK_SIZE) && \
-         (((unsigned long) (addr) + (size)) < TASK_SIZE))
-
 #define is_stack(addr, size) \
 	(((unsigned long) (addr) < STACK_TOP) && \
 	 ((unsigned long) (addr) >= STACK_TOP - ABOVE_KMEM) && \
 	 (((unsigned long) (addr) + (size)) <= STACK_TOP))
 
 #define access_ok_tt(type, addr, size) \
-	((type == VERIFY_READ) || (segment_eq(get_fs(), KERNEL_DS)) || \
-         (((unsigned long) (addr) <= ((unsigned long) (addr) + (size))) && \
-          (under_task_size(addr, size) || is_stack(addr, size))))
+	(is_stack(addr, size))
 
 extern unsigned long get_fault_addr(void);
 

@@ -36,7 +36,7 @@
  * struct kfifo with kfree().
  */
 struct kfifo *kfifo_init(unsigned char *buffer, unsigned int size,
-			 unsigned int __nocast gfp_mask, spinlock_t *lock)
+			 gfp_t gfp_mask, spinlock_t *lock)
 {
 	struct kfifo *fifo;
 
@@ -64,7 +64,7 @@ EXPORT_SYMBOL(kfifo_init);
  *
  * The size will be rounded-up to a power of 2.
  */
-struct kfifo *kfifo_alloc(unsigned int size, unsigned int __nocast gfp_mask, spinlock_t *lock)
+struct kfifo *kfifo_alloc(unsigned int size, gfp_t gfp_mask, spinlock_t *lock)
 {
 	unsigned char *buffer;
 	struct kfifo *ret;

@@ -544,6 +544,9 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	list_add_tail(&p_dev->socket_device_list, &s->devices_list);
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
+	printk(KERN_NOTICE "pcmcia: registering new device %s\n",
+	       p_dev->devname);
+
 	pcmcia_device_query(p_dev);
 
 	if (device_register(&p_dev->dev)) {
@@ -1157,7 +1160,8 @@ static struct pcmcia_callback pcmcia_bus_callback = {
 	.requery = pcmcia_bus_rescan,
 };
 
-static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
+static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev,
+					   struct class_interface *class_intf)
 {
 	struct pcmcia_socket *socket = class_get_devdata(class_dev);
 	int ret;
@@ -1192,7 +1196,8 @@ static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev)
 	return 0;
 }
 
-static void pcmcia_bus_remove_socket(struct class_device *class_dev)
+static void pcmcia_bus_remove_socket(struct class_device *class_dev,
+				     struct class_interface *class_intf)
 {
 	struct pcmcia_socket *socket = class_get_devdata(class_dev);
 

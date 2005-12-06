@@ -1,0 +1,730 @@
+This is the contents of some of the drivers/usb/serial/ files that had  old
+changelog comments.  They were quite old, and out of date, and we don't keep
+them anymore, so I've put them here, away from the source files, in case
+people still care to see them.
+
+- Greg Kroah-Hartman <greg@kroah.com> October 20, 2005
+
+-----------------------------------------------------------------------
+usb-serial.h Change Log comments:
+
+ (03/26/2002) gkh
+	removed the port->tty check from port_paranoia_check() due to serial
+	consoles not having a tty device assigned to them.
+
+ (12/03/2001) gkh
+	removed active from the port structure.
+	added documentation to the usb_serial_device_type structure
+
+ (10/10/2001) gkh
+	added vendor and product to serial structure.  Needed to determine device
+	owner when the device is disconnected.
+
+ (05/30/2001) gkh
+	added sem to port structure and removed port_lock
+
+ (10/05/2000) gkh
+	Added interrupt_in_endpointAddress and bulk_in_endpointAddress to help
+	fix bug with urb->dev not being set properly, now that the usb core
+	needs it.
+
+ (09/11/2000) gkh
+	Added usb_serial_debug_data function to help get rid of #DEBUG in the
+	drivers.
+
+ (08/28/2000) gkh
+	Added port_lock to port structure.
+
+ (08/08/2000) gkh
+	Added open_count to port structure.
+
+ (07/23/2000) gkh
+	Added bulk_out_endpointAddress to port structure.
+
+ (07/19/2000) gkh, pberger, and borchers
+	Modifications to allow usb-serial drivers to be modules.
+
+-----------------------------------------------------------------------
+usb-serial.c Change Log comments:
+
+ (12/10/2002) gkh
+	Split the ports off into their own struct device, and added a
+	usb-serial bus driver.
+
+ (11/19/2002) gkh
+	removed a few #ifdefs for the generic code and cleaned up the failure
+	logic in initialization.
+
+ (10/02/2002) gkh
+	moved the console code to console.c and out of this file.
+
+ (06/05/2002) gkh
+	moved location of startup() call in serial_probe() until after all
+	of the port information and endpoints are initialized.  This makes
+	things easier for some drivers.
+
+ (04/10/2002) gkh
+	added serial_read_proc function which creates a
+	/proc/tty/driver/usb-serial file.
+
+ (03/27/2002) gkh
+	Got USB serial console code working properly and merged into the main
+	version of the tree.  Thanks to Randy Dunlap for the initial version
+	of this code, and for pushing me to finish it up.
+	The USB serial console works with any usb serial driver device.
+
+ (03/21/2002) gkh
+	Moved all manipulation of port->open_count into the core.  Now the
+	individual driver's open and close functions are called only when the
+	first open() and last close() is called.  Making the drivers a bit
+	smaller and simpler.
+	Fixed a bug if a driver didn't have the owner field set.
+
+ (02/26/2002) gkh
+	Moved all locking into the main serial_* functions, instead of having
+	the individual drivers have to grab the port semaphore.  This should
+	reduce races.
+	Reworked the MOD_INC logic a bit to always increment and decrement, even
+	if the generic driver is being used.
+
+ (10/10/2001) gkh
+	usb_serial_disconnect() now sets the serial->dev pointer is to NULL to
+	help prevent child drivers from accessing the device since it is now
+	gone.
+
+ (09/13/2001) gkh
+	Moved generic driver initialize after we have registered with the USB
+	core.  Thanks to Randy Dunlap for pointing this problem out.
+
+ (07/03/2001) gkh
+	Fixed module paramater size.  Thanks to John Brockmeyer for the pointer.
+	Fixed vendor and product getting defined through the MODULE_PARM macro
+	if the Generic driver wasn't compiled in.
+	Fixed problem with generic_shutdown() not being called for drivers that
+	don't have a shutdown() function.
+
+ (06/06/2001) gkh
+	added evil hack that is needed for the prolific pl2303 device due to the
+	crazy way its endpoints are set up.
+
+ (05/30/2001) gkh
+	switched from using spinlock to a semaphore, which fixes lots of problems.
+
+ (04/08/2001) gb
+	Identify version on module load.
+
+ 2001_02_05 gkh
+	Fixed buffer overflows bug with the generic serial driver.  Thanks to
+	Todd Squires <squirest@ct0.com> for fixing this.
+
+ (01/10/2001) gkh
+	Fixed bug where the generic serial adaptor grabbed _any_ device that was
+	offered to it.
+
+ (12/12/2000) gkh
+	Removed MOD_INC and MOD_DEC from poll and disconnect functions, and
+	moved them to the serial_open and serial_close functions.
+	Also fixed bug with there not being a MOD_DEC for the generic driver
+	(thanks to Gary Brubaker for finding this.)
+
+ (11/29/2000) gkh
+	Small NULL pointer initialization cleanup which saves a bit of disk image
+
+ (11/01/2000) Adam J. Richter
+	instead of using idVendor/idProduct pairs, usb serial drivers
+	now identify their hardware interest with usb_device_id tables,
+	which they usually have anyhow for use with MODULE_DEVICE_TABLE.
+
+ (10/05/2000) gkh
+	Fixed bug with urb->dev not being set properly, now that the usb
+	core needs it.
+
+ (09/11/2000) gkh
+	Removed DEBUG #ifdefs with call to usb_serial_debug_data
+
+ (08/28/2000) gkh
+	Added port_lock to port structure.
+	Added locks for SMP safeness to generic driver
+	Fixed the ability to open a generic device's port more than once.
+
+ (07/23/2000) gkh
+	Added bulk_out_endpointAddress to port structure.
+
+ (07/19/2000) gkh, pberger, and borchers
+	Modifications to allow usb-serial drivers to be modules.
+
+ (07/03/2000) gkh
+	Added more debugging to serial_ioctl call
+
+ (06/25/2000) gkh
+	Changed generic_write_bulk_callback to not call wake_up_interruptible
+	directly, but to have port_softint do it at a safer time.
+
+ (06/23/2000) gkh
+	Cleaned up debugging statements in a quest to find UHCI timeout bug.
+
+ (05/22/2000) gkh
+	Changed the makefile, enabling the big CONFIG_USB_SERIAL_SOMTHING to be
+	removed from the individual device source files.
+
+ (05/03/2000) gkh
+	Added the Digi Acceleport driver from Al Borchers and Peter Berger.
+
+ (05/02/2000) gkh
+	Changed devfs and tty register code to work properly now. This was based on
+	the ACM driver changes by Vojtech Pavlik.
+
+ (04/27/2000) Ryan VanderBijl
+ 	Put calls to *_paranoia_checks into one function.
+
+ (04/23/2000) gkh
+	Fixed bug that Randy Dunlap found for Generic devices with no bulk out ports.
+	Moved when the startup code printed out the devices that are supported.
+
+ (04/19/2000) gkh
+	Added driver for ZyXEL omni.net lcd plus ISDN TA
+	Made startup info message specify which drivers were compiled in.
+
+ (04/03/2000) gkh
+	Changed the probe process to remove the module unload races.
+	Changed where the tty layer gets initialized to have devfs work nicer.
+	Added initial devfs support.
+
+ (03/26/2000) gkh
+	Split driver up into device specific pieces.
+
+ (03/19/2000) gkh
+	Fixed oops that could happen when device was removed while a program
+	was talking to the device.
+	Removed the static urbs and now all urbs are created and destroyed
+	dynamically.
+	Reworked the internal interface. Now everything is based on the
+	usb_serial_port structure instead of the larger usb_serial structure.
+	This fixes the bug that a multiport device could not have more than
+	one port open at one time.
+
+ (03/17/2000) gkh
+	Added config option for debugging messages.
+	Added patch for keyspan pda from Brian Warner.
+
+ (03/06/2000) gkh
+	Added the keyspan pda code from Brian Warner <warner@lothar.com>
+	Moved a bunch of the port specific stuff into its own structure. This
+	is in anticipation of the true multiport devices (there's a bug if you
+	try to access more than one port of any multiport device right now)
+
+ (02/21/2000) gkh
+	Made it so that any serial devices only have to specify which functions
+	they want to overload from the generic function calls (great,
+	inheritance in C, in a driver, just what I wanted...)
+	Added support for set_termios and ioctl function calls. No drivers take
+	advantage of this yet.
+	Removed the #ifdef MODULE, now there is no module specific code.
+	Cleaned up a few comments in usb-serial.h that were wrong (thanks again
+	to Miles Lott).
+	Small fix to get_free_serial.
+
+ (02/14/2000) gkh
+	Removed the Belkin and Peracom functionality from the driver due to
+	the lack of support from the vendor, and me not wanting people to
+	accidenatly buy the device, expecting it to work with Linux.
+	Added read_bulk_callback and write_bulk_callback to the type structure
+	for the needs of the FTDI and WhiteHEAT driver.
+	Changed all reverences to FTDI to FTDI_SIO at the request of Bill
+	Ryder.
+	Changed the output urb size back to the max endpoint size to make
+	the ftdi_sio driver have it easier, and due to the fact that it didn't
+	really increase the speed any.
+
+ (02/11/2000) gkh
+	Added VISOR_FUNCTION_CONSOLE to the visor startup function. This was a
+	patch from Miles Lott (milos@insync.net).
+	Fixed bug with not restoring the minor range that a device grabs, if
+	the startup function fails (thanks Miles for finding this).
+
+ (02/05/2000) gkh
+	Added initial framework for the Keyspan PDA serial converter so that
+	Brian Warner has a place to put his code.
+	Made the ezusb specific functions generic enough that different
+	devices can use them (whiteheat and keyspan_pda both need them).
+	Split out a whole bunch of structure and other stuff to a separate
+	usb-serial.h file.
+	Made the Visor connection messages a little more understandable, now
+	that Miles Lott (milos@insync.net) has gotten the Generic channel to
+	work. Also made them always show up in the log file.
+
+ (01/25/2000) gkh
+	Added initial framework for FTDI serial converter so that Bill Ryder
+	has a place to put his code.
+	Added the vendor specific info from Handspring. Now we can print out
+	informational debug messages as well as understand what is happening.
+
+ (01/23/2000) gkh
+	Fixed problem of crash when trying to open a port that didn't have a
+	device assigned to it. Made the minor node finding a little smarter,
+	now it looks to find a continuous space for the new device.
+
+ (01/21/2000) gkh
+	Fixed bug in visor_startup with patch from Miles Lott (milos@insync.net)
+	Fixed get_serial_by_minor which was all messed up for multi port
+	devices. Fixed multi port problem for generic devices. Now the number
+	of ports is determined by the number of bulk out endpoints for the
+	generic device.
+
+ (01/19/2000) gkh
+	Removed lots of cruft that was around from the old (pre urb) driver
+	interface.
+	Made the serial_table dynamic. This should save lots of memory when
+	the number of minor nodes goes up to 256.
+	Added initial support for devices that have more than one port.
+	Added more debugging comments for the Visor, and added a needed
+	set_configuration call.
+
+ (01/17/2000) gkh
+	Fixed the WhiteHEAT firmware (my processing tool had a bug)
+	and added new debug loader firmware for it.
+	Removed the put_char function as it isn't really needed.
+	Added visor startup commands as found by the Win98 dump.
+
+ (01/13/2000) gkh
+	Fixed the vendor id for the generic driver to the one I meant it to be.
+
+ (01/12/2000) gkh
+	Forget the version numbering...that's pretty useless...
+	Made the driver able to be compiled so that the user can select which
+	converter they want to use. This allows people who only want the Visor
+	support to not pay the memory size price of the WhiteHEAT.
+	Fixed bug where the generic driver (idVendor=0000 and idProduct=0000)
+	grabbed the root hub. Not good.
+
+ version 0.4.0 (01/10/2000) gkh
+	Added whiteheat.h containing the firmware for the ConnectTech WhiteHEAT
+	device. Added startup function to allow firmware to be downloaded to
+	a device if it needs to be.
+	Added firmware download logic to the WhiteHEAT device.
+	Started to add #defines to split up the different drivers for potential
+	configuration option.
+
+ version 0.3.1 (12/30/99) gkh
+      Fixed problems with urb for bulk out.
+      Added initial support for multiple sets of endpoints. This enables
+      the Handspring Visor to be attached successfully. Only the first
+      bulk in / bulk out endpoint pair is being used right now.
+
+ version 0.3.0 (12/27/99) gkh
+	Added initial support for the Handspring Visor based on a patch from
+	Miles Lott (milos@sneety.insync.net)
+	Cleaned up the code a bunch and converted over to using urbs only.
+
+ version 0.2.3 (12/21/99) gkh
+	Added initial support for the Connect Tech WhiteHEAT converter.
+	Incremented the number of ports in expectation of getting the
+	WhiteHEAT to work properly (4 ports per connection).
+	Added notification on insertion and removal of what port the
+	device is/was connected to (and what kind of device it was).
+
+ version 0.2.2 (12/16/99) gkh
+	Changed major number to the new allocated number. We're legal now!
+
+ version 0.2.1 (12/14/99) gkh
+	Fixed bug that happens when device node is opened when there isn't a
+	device attached to it. Thanks to marek@webdesign.no for noticing this.
+
+ version 0.2.0 (11/10/99) gkh
+	Split up internals to make it easier to add different types of serial
+	converters to the code.
+	Added a "generic" driver that gets it's vendor and product id
+	from when the module is loaded. Thanks to David E. Nelson (dnelson@jump.net)
+	for the idea and sample code (from the usb scanner driver.)
+	Cleared up any licensing questions by releasing it under the GNU GPL.
+
+ version 0.1.2 (10/25/99) gkh
+ 	Fixed bug in detecting device.
+
+ version 0.1.1 (10/05/99) gkh
+ 	Changed the major number to not conflict with anything else.
+
+ version 0.1 (09/28/99) gkh
+ 	Can recognize the two different devices and start up a read from
+	device when asked to. Writes also work. No control signals yet, this
+	all is vendor specific data (i.e. no spec), also no control for
+	different baud rates or other bit settings.
+	Currently we are using the same devid as the acm driver. This needs
+	to change.
+
+-----------------------------------------------------------------------
+visor.c Change Log comments:
+
+ (06/03/2003) Judd Montgomery <judd at jpilot.org>
+     Added support for module parameter options for untested/unknown
+     devices.
+
+ (03/09/2003) gkh
+	Added support for the Sony Clie NZ90V device.  Thanks to Martin Brachtl
+	<brachtl@redgrep.cz> for the information.
+
+ (03/05/2003) gkh
+	Think Treo support is now working.
+
+ (04/03/2002) gkh
+	Added support for the Sony OS 4.1 devices.  Thanks to Hiroyuki ARAKI
+	<hiro@zob.ne.jp> for the information.
+
+ (03/27/2002) gkh
+	Removed assumptions that port->tty was always valid (is not true
+	for usb serial console devices.)
+
+ (03/23/2002) gkh
+	Added support for the Palm i705 device, thanks to Thomas Riemer
+	<tom@netmech.com> for the information.
+
+ (03/21/2002) gkh
+	Added support for the Palm m130 device, thanks to Udo Eisenbarth
+	<udo.eisenbarth@web.de> for the information.
+
+ (02/27/2002) gkh
+	Reworked the urb handling logic.  We have no more pool, but dynamically
+	allocate the urb and the transfer buffer on the fly.  In testing this
+	does not incure any measurable overhead.  This also relies on the fact
+	that we have proper reference counting logic for urbs.
+
+ (02/21/2002) SilaS
+  Added initial support for the Palm m515 devices.
+
+ (02/14/2002) gkh
+	Added support for the Clie S-360 device.
+
+ (12/18/2001) gkh
+	Added better Clie support for 3.5 devices.  Thanks to Geoffrey Levand
+	for the patch.
+
+ (11/11/2001) gkh
+	Added support for the m125 devices, and added check to prevent oopses
+	for Clié devices that lie about the number of ports they have.
+
+ (08/30/2001) gkh
+	Added support for the Clie devices, both the 3.5 and 4.0 os versions.
+	Many thanks to Daniel Burke, and Bryan Payne for helping with this.
+
+ (08/23/2001) gkh
+	fixed a few potential bugs pointed out by Oliver Neukum.
+
+ (05/30/2001) gkh
+	switched from using spinlock to a semaphore, which fixes lots of problems.
+
+ (05/28/2000) gkh
+	Added initial support for the Palm m500 and Palm m505 devices.
+
+ (04/08/2001) gb
+	Identify version on module load.
+
+ (01/21/2000) gkh
+	Added write_room and chars_in_buffer, as they were previously using the
+	generic driver versions which is all wrong now that we are using an urb
+	pool.  Thanks to Wolfgang Grandegger for pointing this out to me.
+	Removed count assignment in the write function, which was not needed anymore
+	either.  Thanks to Al Borchers for pointing this out.
+
+ (12/12/2000) gkh
+	Moved MOD_DEC to end of visor_close to be nicer, as the final write
+	message can sleep.
+
+ (11/12/2000) gkh
+	Fixed bug with data being dropped on the floor by forcing tty->low_latency
+	to be on.  Hopefully this fixes the OHCI issue!
+
+ (11/01/2000) Adam J. Richter
+	usb_device_id table support
+
+ (10/05/2000) gkh
+	Fixed bug with urb->dev not being set properly, now that the usb
+	core needs it.
+
+ (09/11/2000) gkh
+	Got rid of always calling kmalloc for every urb we wrote out to the
+	device.
+	Added visor_read_callback so we can keep track of bytes in and out for
+	those people who like to know the speed of their device.
+	Removed DEBUG #ifdefs with call to usb_serial_debug_data
+
+ (09/06/2000) gkh
+	Fixed oops in visor_exit.  Need to uncomment usb_unlink_urb call _after_
+	the host controller drivers set urb->dev = NULL when the urb is finished.
+
+ (08/28/2000) gkh
+	Added locks for SMP safeness.
+
+ (08/08/2000) gkh
+	Fixed endian problem in visor_startup.
+	Fixed MOD_INC and MOD_DEC logic and the ability to open a port more
+	than once.
+
+ (07/23/2000) gkh
+	Added pool of write urbs to speed up transfers to the visor.
+
+ (07/19/2000) gkh
+	Added module_init and module_exit functions to handle the fact that this
+	driver is a loadable module now.
+
+ (07/03/2000) gkh
+	Added visor_set_ioctl and visor_set_termios functions (they don't do much
+	of anything, but are good for debugging.)
+
+ (06/25/2000) gkh
+	Fixed bug in visor_unthrottle that should help with the disconnect in PPP
+	bug that people have been reporting.
+
+ (06/23/2000) gkh
+	Cleaned up debugging statements in a quest to find UHCI timeout bug.
+
+ (04/27/2000) Ryan VanderBijl
+ 	Fixed memory leak in visor_close
+
+ (03/26/2000) gkh
+	Split driver up into device specific pieces.
+
+-----------------------------------------------------------------------
+pl2303.c Change Log comments:
+
+ 2002_Mar_26 gkh
+	allowed driver to work properly if there is no tty assigned to a port
+	(this happens for serial console devices.)
+
+ 2001_Oct_06 gkh
+	Added RTS and DTR line control.  Thanks to joe@bndlg.de for parts of it.
+
+ 2001_Sep_19 gkh
+	Added break support.
+
+ 2001_Aug_30 gkh
+	fixed oops in write_bulk_callback.
+
+ 2001_Aug_28 gkh
+	reworked buffer logic to be like other usb-serial drivers.  Hopefully
+	removing some reported problems.
+
+ 2001_Jun_06 gkh
+	finished porting to 2.4 format.
+
+
+-----------------------------------------------------------------------
+io_edgeport.c Change Log comments:
+
+ 2003_04_03 al borchers
+  - fixed a bug (that shows up with dosemu) where the tty struct is
+    used in a callback after it has been freed
+
+ 2.3 2002_03_08 greg kroah-hartman
+	- fixed bug when multiple devices were attached at the same time.
+
+ 2.2 2001_11_14 greg kroah-hartman
+	- fixed bug in edge_close that kept the port from being used more
+	  than once.
+	- fixed memory leak on device removal.
+	- fixed potential double free of memory when command urb submitting
+	  failed.
+	- other small cleanups when the device is removed
+
+ 2.1 2001_07_09 greg kroah-hartman
+	- added support for TIOCMBIS and TIOCMBIC.
+
+     (04/08/2001) gb
+	- Identify version on module load.
+
+ 2.0 2001_03_05 greg kroah-hartman
+	- reworked entire driver to fit properly in with the other usb-serial
+	  drivers.  Occasional oopses still happen, but it's a good start.
+
+ 1.2.3 (02/23/2001) greg kroah-hartman
+	- changed device table to work properly for 2.4.x final format.
+	- fixed problem with dropping data at high data rates.
+
+ 1.2.2 (11/27/2000) greg kroah-hartman
+	- cleaned up more NTisms.
+	- Added device table for 2.4.0-test11
+
+ 1.2.1 (11/08/2000) greg kroah-hartman
+	- Started to clean up NTisms.
+	- Fixed problem with dev field of urb for kernels >= 2.4.0-test9
+
+ 1.2 (10/17/2000) David Iacovelli
+ 	Remove all EPIC code and GPL source
+  Fix RELEVANT_IFLAG macro to include flow control
+  changes port configuration changes.
+  Fix redefinition of SERIAL_MAGIC
+  Change all timeout values to 5 seconds
+  Tried to fix the UHCI multiple urb submission, but failed miserably.
+  it seems to work fine with OHCI.
+  ( Greg take a look at the #if 0 at end of WriteCmdUsb() we must
+    find a way to work arount this UHCI bug )
+
+ 1.1 (10/11/2000) David Iacovelli
+  Fix XON/XOFF flow control to support both IXON and IXOFF
+
+ 0.9.27 (06/30/2000) David Iacovelli
+  Added transmit queue and now allocate urb for command writes.
+
+ 0.9.26 (06/29/2000) David Iacovelli
+  Add support for 80251 based edgeport
+
+ 0.9.25 (06/27/2000) David Iacovelli
+  Do not close the port if it has multiple opens.
+
+ 0.9.24 (05/26/2000) David Iacovelli
+  Add IOCTLs to support RXTX and JAVA POS
+  and first cut at running BlackBox Demo
+
+ 0.9.23 (05/24/2000) David Iacovelli
+  Add IOCTLs to support RXTX and JAVA POS
+
+ 0.9.22 (05/23/2000) David Iacovelli
+  fixed bug in enumeration.  If epconfig turns on mapping by
+  path after a device is already plugged in, we now update
+  the mapping correctly
+
+ 0.9.21 (05/16/2000) David Iacovelli
+  Added BlockUntilChaseResp() to also wait for txcredits
+  Updated the way we allocate and handle write URBs
+	Add debug code to dump buffers
+
+ 0.9.20 (05/01/2000) David Iacovelli
+	change driver to use usb/tts/
+
+ 0.9.19 (05/01/2000) David Iacovelli
+  Update code to compile if DEBUG is off
+
+ 0.9.18 (04/28/2000) David Iacovelli
+  cleanup and test tty_register with devfs
+
+ 0.9.17 (04/27/2000) greg kroah-hartman
+ 	changed tty_register around to be like the way it
+ 	was before, but now it works properly with devfs.
+
+ 0.9.16 (04/26/2000) david iacovelli
+  Fixed bug in GetProductInfo()
+
+ 0.9.15 (04/25/2000) david iacovelli
+	Updated enumeration
+
+ 0.9.14 (04/24/2000) david iacovelli
+  Removed all config/status IOCTLS and
+  converted to using /proc/edgeport
+  still playing with devfs
+
+ 0.9.13 (04/24/2000) david iacovelli
+  Removed configuration based on ttyUSB0
+  Added support for configuration using /prod/edgeport
+  first attempt at using devfs (not working yet!)
+  Added IOCTL to GetProductInfo()
+  Added support for custom baud rates
+	Add support for random port numbers
+
+ 0.9.12 (04/18/2000) david iacovelli
+	added additional configuration IOCTLs
+  use ttyUSB0 for configuration
+
+ 0.9.11 (04/17/2000) greg kroah-hartman
+	fixed module initialization race conditions.
+	made all urbs dynamically allocated.
+	made driver devfs compatible. now it only registers the tty device
+	when the device is actually plugged in.
+
+ 0.9.10 (04/13/2000) greg kroah-hartman
+	added proc interface framework.
+
+ 0.9.9 (04/13/2000) david iacovelli
+	added enumeration code and ioctls to configure the device
+
+ 0.9.8 (04/12/2000) david iacovelli
+  Change interrupt read start when device is plugged in
+  and stop when device is removed
+	process interrupt reads when all ports are closed
+  (keep value of rxBytesAvail consistent with the edgeport)
+  set the USB_BULK_QUEUE flag so that we can shove a bunch
+  of urbs at once down the pipe
+
+ 0.9.7 (04/10/2000) david iacovelli
+ 	start to add enumeration code.
+  generate serial number for epic devices
+  add support for kdb
+
+ 0.9.6 (03/30/2000) david iacovelli
+  add IOCTL to get string, manufacture, and boot descriptors
+
+ 0.9.5 (03/14/2000) greg kroah-hartman
+	more error checking added to SerialOpen to try to fix UHCI open problem
+
+ 0.9.4 (03/09/2000) greg kroah-hartman
+	added more error checking to handle oops when data is hanging
+	around and tty is abruptly closed.
+
+ 0.9.3 (03/09/2000) david iacovelli
+	Add epic support for xon/xoff chars
+	play with performance
+
+ 0.9.2 (03/08/2000) greg kroah-hartman
+	changed most "info" calls to "dbg"
+	implemented flow control properly in the termios call
+
+ 0.9.1 (03/08/2000) david iacovelli
+	added EPIC support
+	enabled bootloader update
+
+ 0.9 (03/08/2000) greg kroah-hartman
+	Release to IO networks.
+	Integrated changes that David made
+  made getting urbs for writing SMP safe
+
+ 0.8 (03/07/2000) greg kroah-hartman
+	Release to IO networks.
+	Fixed problems that were seen in code by David.
+  Now both Edgeport/4 and Edgeport/2 works properly.
+  Changed most of the functions to use port instead of serial.
+
+ 0.7 (02/27/2000) greg kroah-hartman
+	Milestone 3 release.
+	Release to IO Networks
+	ioctl for waiting on line change implemented.
+	ioctl for getting statistics implemented.
+	multiport support working.
+	lsr and msr registers are now handled properly.
+	change break now hooked up and working.
+	support for all known Edgeport devices.
+
+ 0.6 (02/22/2000) greg kroah-hartman
+	Release to IO networks.
+	CHASE is implemented correctly when port is closed.
+	SerialOpen now blocks correctly until port is fully opened.
+
+ 0.5 (02/20/2000) greg kroah-hartman
+	Release to IO networks.
+	Known problems:
+		modem status register changes are not sent on to the user
+		CHASE is not implemented when the port is closed.
+
+ 0.4 (02/16/2000) greg kroah-hartman
+	Second cut at the CeBit demo.
+	Doesn't leak memory on every write to the port
+	Still small leaks on startup.
+	Added support for Edgeport/2 and Edgeport/8
+
+ 0.3 (02/15/2000) greg kroah-hartman
+	CeBit demo release.
+	Force the line settings to 4800, 8, 1, e for the demo.
+	Warning! This version leaks memory like crazy!
+
+ 0.2 (01/30/2000) greg kroah-hartman
+	Milestone 1 release.
+	Device is found by USB subsystem, enumerated, fimware is downloaded
+	and the descriptors are printed to the debug log, config is set, and
+	green light starts to blink. Open port works, and data can be sent
+	and received at the default settings of the UART. Loopback connector
+	and debug log confirms this.
+
+ 0.1 (01/23/2000) greg kroah-hartman
+	Initial release to help IO Networks try to set up their test system.
+	Edgeport4 is recognized, firmware is downloaded, config is set so
+	device blinks green light every 3 sec. Port is bound, but opening,
+	closing, and sending data do not work properly.
+
+

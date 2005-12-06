@@ -12,7 +12,6 @@
 #define ADFS_NDA_PUBLIC_READ	(1 << 5)
 #define ADFS_NDA_PUBLIC_WRITE	(1 << 6)
 
-#include <linux/version.h>
 #include "dir_f.h"
 
 struct buffer_head;

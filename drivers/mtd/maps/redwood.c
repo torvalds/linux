@@ -1,5 +1,5 @@
 /*
- * $Id: redwood.c,v 1.10 2004/11/04 13:24:15 gleixner Exp $
+ * $Id: redwood.c,v 1.11 2005/11/07 11:14:28 gleixner Exp $
  *
  * drivers/mtd/maps/redwood.c
  *
@@ -79,7 +79,7 @@ static struct mtd_partition redwood_flash_partitions[] = {
 
 #define RW_PART0_OF	0
 #define RW_PART0_SZ	0x400000	/* 4 MiB data */
-#define RW_PART1_OF	RW_PART0_OF + RW_PART0_SZ 
+#define RW_PART1_OF	RW_PART0_OF + RW_PART0_SZ
 #define RW_PART1_SZ	0x10000		/* 64K VPD */
 #define RW_PART2_OF	RW_PART1_OF + RW_PART1_SZ
 #define RW_PART2_SZ	0x400000 - (0x10000 + 0x20000)

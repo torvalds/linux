@@ -6,7 +6,13 @@
 #ifndef BITMAP_H
 #define BITMAP_H 1
 
-#define BITMAP_MAJOR 3
+#define BITMAP_MAJOR_LO 3
+/* version 4 insists the bitmap is in little-endian order
+ * with version 3, it is host-endian which is non-portable
+ */
+#define BITMAP_MAJOR_HI 4
+#define	BITMAP_MAJOR_HOSTENDIAN 3
+
 #define BITMAP_MINOR 39
 
 /*
@@ -133,7 +139,8 @@ typedef __u16 bitmap_counter_t;
 /* use these for bitmap->flags and bitmap->sb->state bit-fields */
 enum bitmap_state {
 	BITMAP_ACTIVE = 0x001, /* the bitmap is in use */
-	BITMAP_STALE  = 0x002  /* the bitmap file is out of date or had -EIO */
+	BITMAP_STALE  = 0x002,  /* the bitmap file is out of date or had -EIO */
+	BITMAP_HOSTENDIAN = 0x8000,
 };
 
 /* the superblock at the front of the bitmap file -- little endian */

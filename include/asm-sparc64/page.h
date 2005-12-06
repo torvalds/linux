@@ -140,23 +140,6 @@ extern unsigned long page_to_pfn(struct page *);
 #define virt_to_phys __pa
 #define phys_to_virt __va
 
-/* The following structure is used to hold the physical
- * memory configuration of the machine.  This is filled in
- * probe_memory() and is later used by mem_init() to set up
- * mem_map[].  We statically allocate SPARC_PHYS_BANKS of
- * these structs, this is arbitrary.  The entry after the
- * last valid one has num_bytes==0.
- */
-
-struct sparc_phys_banks {
-	unsigned long base_addr;
-	unsigned long num_bytes;
-};
-
-#define SPARC_PHYS_BANKS 32
-
-extern struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS];
-
 #endif /* !(__ASSEMBLY__) */
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \

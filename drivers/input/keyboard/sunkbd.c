@@ -76,13 +76,14 @@ static unsigned char sunkbd_keycode[128] = {
 
 struct sunkbd {
 	unsigned char keycode[128];
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 	struct work_struct tq;
 	wait_queue_head_t wait;
 	char name[64];
 	char phys[32];
 	char type;
+	unsigned char enabled;
 	volatile s8 reset;
 	volatile s8 layout;
 };
@@ -124,10 +125,13 @@ static irqreturn_t sunkbd_interrupt(struct serio *serio,
 			break;
 
 		default:
+			if (!sunkbd->enabled)
+				break;
+
 			if (sunkbd->keycode[data & SUNKBD_KEY]) {
-				input_regs(&sunkbd->dev, regs);
-                                input_report_key(&sunkbd->dev, sunkbd->keycode[data & SUNKBD_KEY], !(data & SUNKBD_RELEASE));
-				input_sync(&sunkbd->dev);
+				input_regs(sunkbd->dev, regs);
+                                input_report_key(sunkbd->dev, sunkbd->keycode[data & SUNKBD_KEY], !(data & SUNKBD_RELEASE));
+				input_sync(sunkbd->dev);
                         } else {
                                 printk(KERN_WARNING "sunkbd.c: Unknown key (scancode %#x) %s.\n",
                                         data & SUNKBD_KEY, data & SUNKBD_RELEASE ? "released" : "pressed");
@@ -184,7 +188,7 @@ static int sunkbd_initialize(struct sunkbd *sunkbd)
 	sunkbd->reset = -2;
 	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_RESET);
 	wait_event_interruptible_timeout(sunkbd->wait, sunkbd->reset >= 0, HZ);
-	if (sunkbd->reset <0)
+	if (sunkbd->reset < 0)
 		return -1;
 
 	sunkbd->type = sunkbd->reset;
@@ -213,10 +217,17 @@ static void sunkbd_reinit(void *data)
 
 	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_SETLED);
 	sunkbd->serio->write(sunkbd->serio,
-		(!!test_bit(LED_CAPSL, sunkbd->dev.led) << 3) | (!!test_bit(LED_SCROLLL, sunkbd->dev.led) << 2) |
-		(!!test_bit(LED_COMPOSE, sunkbd->dev.led) << 1) | !!test_bit(LED_NUML, sunkbd->dev.led));
-	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_NOCLICK - !!test_bit(SND_CLICK, sunkbd->dev.snd));
-	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_BELLOFF - !!test_bit(SND_BELL, sunkbd->dev.snd));
+		(!!test_bit(LED_CAPSL, sunkbd->dev->led) << 3) | (!!test_bit(LED_SCROLLL, sunkbd->dev->led) << 2) |
+		(!!test_bit(LED_COMPOSE, sunkbd->dev->led) << 1) | !!test_bit(LED_NUML, sunkbd->dev->led));
+	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_NOCLICK - !!test_bit(SND_CLICK, sunkbd->dev->snd));
+	sunkbd->serio->write(sunkbd->serio, SUNKBD_CMD_BELLOFF - !!test_bit(SND_BELL, sunkbd->dev->snd));
+}
+
+static void sunkbd_enable(struct sunkbd *sunkbd, int enable)
+{
+	serio_pause_rx(sunkbd->serio);
+	sunkbd->enabled = 1;
+	serio_continue_rx(sunkbd->serio);
 }
 
 /*
@@ -226,70 +237,64 @@ static void sunkbd_reinit(void *data)
 static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct sunkbd *sunkbd;
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
 	int i;
-	int err;
 
-	if (!(sunkbd = kmalloc(sizeof(struct sunkbd), GFP_KERNEL)))
-		return -ENOMEM;
-
-	memset(sunkbd, 0, sizeof(struct sunkbd));
-
-	init_input_dev(&sunkbd->dev);
-	init_waitqueue_head(&sunkbd->wait);
-
-	sunkbd->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_LED) | BIT(EV_SND) | BIT(EV_REP);
-	sunkbd->dev.ledbit[0] = BIT(LED_CAPSL) | BIT(LED_COMPOSE) | BIT(LED_SCROLLL) | BIT(LED_NUML);
-	sunkbd->dev.sndbit[0] = BIT(SND_CLICK) | BIT(SND_BELL);
+	sunkbd = kzalloc(sizeof(struct sunkbd), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!sunkbd || !input_dev)
+		goto fail;
 
 	sunkbd->serio = serio;
-
+	sunkbd->dev = input_dev;
+	init_waitqueue_head(&sunkbd->wait);
 	INIT_WORK(&sunkbd->tq, sunkbd_reinit, sunkbd);
-
-	sunkbd->dev.keycode = sunkbd->keycode;
-	sunkbd->dev.keycodesize = sizeof(unsigned char);
-	sunkbd->dev.keycodemax = ARRAY_SIZE(sunkbd_keycode);
-
-	sunkbd->dev.event = sunkbd_event;
-	sunkbd->dev.private = sunkbd;
+	snprintf(sunkbd->phys, sizeof(sunkbd->phys), "%s/input0", serio->phys);
 
 	serio_set_drvdata(serio, sunkbd);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(sunkbd);
-		return err;
-	}
+	if (err)
+		goto fail;
 
 	if (sunkbd_initialize(sunkbd) < 0) {
 		serio_close(serio);
-		serio_set_drvdata(serio, NULL);
-		kfree(sunkbd);
-		return -ENODEV;
+		goto fail;
 	}
 
 	sprintf(sunkbd->name, "Sun Type %d keyboard", sunkbd->type);
-
 	memcpy(sunkbd->keycode, sunkbd_keycode, sizeof(sunkbd->keycode));
+
+	input_dev->name = sunkbd->name;
+	input_dev->phys = sunkbd->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor  = SERIO_SUNKBD;
+	input_dev->id.product = sunkbd->type;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+	input_dev->private = sunkbd;
+	input_dev->event = sunkbd_event;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_LED) | BIT(EV_SND) | BIT(EV_REP);
+	input_dev->ledbit[0] = BIT(LED_CAPSL) | BIT(LED_COMPOSE) | BIT(LED_SCROLLL) | BIT(LED_NUML);
+	input_dev->sndbit[0] = BIT(SND_CLICK) | BIT(SND_BELL);
+
+	input_dev->keycode = sunkbd->keycode;
+	input_dev->keycodesize = sizeof(unsigned char);
+	input_dev->keycodemax = ARRAY_SIZE(sunkbd_keycode);
 	for (i = 0; i < 128; i++)
-		set_bit(sunkbd->keycode[i], sunkbd->dev.keybit);
-	clear_bit(0, sunkbd->dev.keybit);
+		set_bit(sunkbd->keycode[i], input_dev->keybit);
+	clear_bit(0, input_dev->keybit);
 
-	sprintf(sunkbd->phys, "%s/input0", serio->phys);
-
-	sunkbd->dev.name = sunkbd->name;
-	sunkbd->dev.phys = sunkbd->phys;
-	sunkbd->dev.id.bustype = BUS_RS232;
-	sunkbd->dev.id.vendor = SERIO_SUNKBD;
-	sunkbd->dev.id.product = sunkbd->type;
-	sunkbd->dev.id.version = 0x0100;
-	sunkbd->dev.dev = &serio->dev;
-
-	input_register_device(&sunkbd->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", sunkbd->name, serio->phys);
-
+	sunkbd_enable(sunkbd, 1);
+	input_register_device(sunkbd->dev);
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(sunkbd);
+	return err;
 }
 
 /*
@@ -299,7 +304,9 @@ static int sunkbd_connect(struct serio *serio, struct serio_driver *drv)
 static void sunkbd_disconnect(struct serio *serio)
 {
 	struct sunkbd *sunkbd = serio_get_drvdata(serio);
-	input_unregister_device(&sunkbd->dev);
+
+	sunkbd_enable(sunkbd, 0);
+	input_unregister_device(sunkbd->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
 	kfree(sunkbd);

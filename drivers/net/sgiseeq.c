@@ -32,8 +32,6 @@
 
 #include "sgiseeq.h"
 
-static char *version = "sgiseeq.c: David S. Miller (dm@engr.sgi.com)\n";
-
 static char *sgiseeqstr = "SGI Seeq8003";
 
 /*
@@ -113,9 +111,9 @@ static struct net_device *root_sgiseeq_dev;
 
 static inline void hpc3_eth_reset(struct hpc3_ethregs *hregs)
 {
-	hregs->rx_reset = HPC3_ERXRST_CRESET | HPC3_ERXRST_CLRIRQ;
+	hregs->reset = HPC3_ERST_CRESET | HPC3_ERST_CLRIRQ;
 	udelay(20);
-	hregs->rx_reset = 0;
+	hregs->reset = 0;
 }
 
 static inline void reset_hpc3_and_seeq(struct hpc3_ethregs *hregs,
@@ -252,7 +250,6 @@ void sgiseeq_dump_rings(void)
 
 #define TSTAT_INIT_SEEQ (SEEQ_TCMD_IPT|SEEQ_TCMD_I16|SEEQ_TCMD_IC|SEEQ_TCMD_IUF)
 #define TSTAT_INIT_EDLC ((TSTAT_INIT_SEEQ) | SEEQ_TCMD_RB2)
-#define RDMACFG_INIT    (HPC3_ERXDCFG_FRXDC | HPC3_ERXDCFG_FEOP | HPC3_ERXDCFG_FIRQ)
 
 static int init_seeq(struct net_device *dev, struct sgiseeq_private *sp,
 		     struct sgiseeq_regs *sregs)
@@ -273,8 +270,6 @@ static int init_seeq(struct net_device *dev, struct sgiseeq_private *sp,
 	} else {
 		sregs->tstat = TSTAT_INIT_SEEQ;
 	}
-
-	hregs->rx_dconfig |= RDMACFG_INIT;
 
 	hregs->rx_ndptr = CPHYSADDR(sp->rx_desc);
 	hregs->tx_ndptr = CPHYSADDR(sp->tx_desc);
@@ -446,7 +441,7 @@ static irqreturn_t sgiseeq_interrupt(int irq, void *dev_id, struct pt_regs *regs
 	spin_lock(&sp->tx_lock);
 
 	/* Ack the IRQ and set software state. */
-	hregs->rx_reset = HPC3_ERXRST_CLRIRQ;
+	hregs->reset = HPC3_ERST_CLRIRQ;
 
 	/* Always check for received packets. */
 	sgiseeq_rx(dev, sp, hregs, sregs);
@@ -493,11 +488,13 @@ static int sgiseeq_close(struct net_device *dev)
 {
 	struct sgiseeq_private *sp = netdev_priv(dev);
 	struct sgiseeq_regs *sregs = sp->sregs;
+	unsigned int irq = dev->irq;
 
 	netif_stop_queue(dev);
 
 	/* Shutdown the Seeq. */
 	reset_hpc3_and_seeq(sp->hregs, sregs);
+	free_irq(irq, dev);
 
 	return 0;
 }
@@ -644,7 +641,7 @@ static inline void setup_rx_ring(struct sgiseeq_rx_desc *buf, int nbufs)
 
 #define ALIGNED(x)  ((((unsigned long)(x)) + 0xf) & ~(0xf))
 
-static int sgiseeq_init(struct hpc3_regs* regs, int irq)
+static int sgiseeq_init(struct hpc3_regs* hpcregs, int irq)
 {
 	struct sgiseeq_init_block *sr;
 	struct sgiseeq_private *sp;
@@ -680,8 +677,8 @@ static int sgiseeq_init(struct hpc3_regs* regs, int irq)
 	gpriv = sp;
 	gdev = dev;
 #endif
-	sp->sregs = (struct sgiseeq_regs *) &hpc3c0->eth_ext[0];
-	sp->hregs = &hpc3c0->ethregs;
+	sp->sregs = (struct sgiseeq_regs *) &hpcregs->eth_ext[0];
+	sp->hregs = &hpcregs->ethregs;
 	sp->name = sgiseeqstr;
 	sp->mode = SEEQ_RCMD_RBCAST;
 
@@ -697,6 +694,11 @@ static int sgiseeq_init(struct hpc3_regs* regs, int irq)
 	/* A couple calculations now, saves many cycles later. */
 	setup_rx_ring(sp->rx_desc, SEEQ_RX_BUFFERS);
 	setup_tx_ring(sp->tx_desc, SEEQ_TX_BUFFERS);
+
+	/* Setup PIO and DMA transfer timing */
+	sp->hregs->pconfig = 0x161;
+	sp->hregs->dconfig = HPC3_EDCFG_FIRQ | HPC3_EDCFG_FEOP |
+			     HPC3_EDCFG_FRXDC | HPC3_EDCFG_PTO | 0x026;
 
 	/* Reset the chip. */
 	hpc3_eth_reset(sp->hregs);
@@ -724,7 +726,7 @@ static int sgiseeq_init(struct hpc3_regs* regs, int irq)
 		goto err_out_free_page;
 	}
 
-	printk(KERN_INFO "%s: SGI Seeq8003 ", dev->name);
+	printk(KERN_INFO "%s: %s ", dev->name, sgiseeqstr);
 	for (i = 0; i < 6; i++)
 		printk("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
 
@@ -734,7 +736,7 @@ static int sgiseeq_init(struct hpc3_regs* regs, int irq)
 	return 0;
 
 err_out_free_page:
-	free_page((unsigned long) sp);
+	free_page((unsigned long) sp->srings);
 err_out_free_dev:
 	kfree(dev);
 
@@ -744,8 +746,6 @@ err_out:
 
 static int __init sgiseeq_probe(void)
 {
-	printk(version);
-
 	/* On board adapter on 1st HPC is always present */
 	return sgiseeq_init(hpc3c0, SGI_ENET_IRQ);
 }
@@ -754,15 +754,12 @@ static void __exit sgiseeq_exit(void)
 {
 	struct net_device *next, *dev;
 	struct sgiseeq_private *sp;
-	int irq;
 
 	for (dev = root_sgiseeq_dev; dev; dev = next) {
 		sp = (struct sgiseeq_private *) netdev_priv(dev);
 		next = sp->next_module;
-		irq = dev->irq;
 		unregister_netdev(dev);
-		free_irq(irq, dev);
-		free_page((unsigned long) sp);
+		free_page((unsigned long) sp->srings);
 		free_netdev(dev);
 	}
 }
@@ -770,4 +767,6 @@ static void __exit sgiseeq_exit(void)
 module_init(sgiseeq_probe);
 module_exit(sgiseeq_exit);
 
+MODULE_DESCRIPTION("SGI Seeq 8003 driver");
+MODULE_AUTHOR("Linux/MIPS Mailing List <linux-mips@linux-mips.org>");
 MODULE_LICENSE("GPL");

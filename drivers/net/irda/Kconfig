@@ -400,5 +400,15 @@ config VIA_FIR
 	  To compile it as a module, choose M here: the module will be called
 	  via-ircc.
 
+config PXA_FICP
+	tristate "Intel PXA2xx Internal FICP"
+	depends on ARCH_PXA && IRDA
+	help
+	  Say Y or M here if you want to build support for the PXA2xx
+	  built-in IRDA interface which can support both SIR and FIR.
+	  This driver relies on platform specific helper routines so
+	  available capabilities may vary from one PXA2xx target to
+	  another.
+
 endmenu
 

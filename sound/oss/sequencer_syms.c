@@ -19,7 +19,6 @@ EXPORT_SYMBOL(sequencer_timer);
 EXPORT_SYMBOL(sound_timer_init);
 EXPORT_SYMBOL(sound_timer_interrupt);
 EXPORT_SYMBOL(sound_timer_syncinterval);
-EXPORT_SYMBOL(reprogram_timer);
 
 /* Tuning */
 

@@ -576,7 +576,6 @@ static struct fb_ops matroxfb_dh_ops = {
 	.fb_fillrect =	cfb_fillrect,
 	.fb_copyarea =	cfb_copyarea,
 	.fb_imageblit =	cfb_imageblit,
-	.fb_cursor =	soft_cursor,
 };
 
 static struct fb_var_screeninfo matroxfb_dh_defined = {

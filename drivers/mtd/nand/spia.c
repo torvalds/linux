@@ -8,7 +8,7 @@
  *			to controllines	(due to change in nand.c)
  *			page_cache added
  *
- * $Id: spia.c,v 1.24 2004/11/04 12:53:10 gleixner Exp $
+ * $Id: spia.c,v 1.25 2005/11/07 11:14:31 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -82,7 +82,7 @@ const static struct mtd_partition partition_info[] = {
 #define NUM_PARTITIONS 2
 
 
-/* 
+/*
  *	hardware specific access to control-lines
 */
 static void spia_hwcontrol(struct mtd_info *mtd, int cmd){
@@ -137,7 +137,7 @@ int __init spia_init (void)
 	/* Set address of hardware control function */
 	this->hwcontrol = spia_hwcontrol;
 	/* 15 us command delay time */
-	this->chip_delay = 15;		
+	this->chip_delay = 15;
 
 	/* Scan to find existence of the device */
 	if (nand_scan (spia_mtd, 1)) {

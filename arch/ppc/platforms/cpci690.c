@@ -21,6 +21,7 @@
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
 #include <linux/mv643xx.h>
+#include <linux/platform_device.h>
 #include <asm/bootinfo.h>
 #include <asm/machdep.h>
 #include <asm/todc.h>

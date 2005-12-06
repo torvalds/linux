@@ -71,7 +71,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 					  const struct sctp_endpoint *ep,
 					  const struct sock *sk,
 					  sctp_scope_t scope,
-					  unsigned int __nocast gfp)
+					  gfp_t gfp)
 {
 	struct sctp_sock *sp;
 	int i;
@@ -128,9 +128,29 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 */
 	asoc->max_burst = sctp_max_burst;
 
-	/* Copy things from the endpoint.  */
+	/* initialize association timers */
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_NONE] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T4_RTO] = 0;
+
+	/* sctpimpguide Section 2.12.2
+	 * If the 'T5-shutdown-guard' timer is used, it SHOULD be set to the
+	 * recommended value of 5 times 'RTO.Max'.
+	 */
+        asoc->timeouts[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]
+		= 5 * asoc->rto_max;
+
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] =
+		SCTP_DEFAULT_TIMEOUT_SACK;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
+		sp->autoclose * HZ;
+	
+	/* Initilizes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i) {
-		asoc->timeouts[i] = ep->timeouts[i];
 		init_timer(&asoc->timers[i]);
 		asoc->timers[i].function = sctp_timer_events[i];
 		asoc->timers[i].data = (unsigned long) asoc;
@@ -157,10 +177,10 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * RFC 6 - A SCTP receiver MUST be able to receive a minimum of
 	 * 1500 bytes in one SCTP packet.
 	 */
-	if (sk->sk_rcvbuf < SCTP_DEFAULT_MINWINDOW)
+	if ((sk->sk_rcvbuf/2) < SCTP_DEFAULT_MINWINDOW)
 		asoc->rwnd = SCTP_DEFAULT_MINWINDOW;
 	else
-		asoc->rwnd = sk->sk_rcvbuf;
+		asoc->rwnd = sk->sk_rcvbuf/2;
 
 	asoc->a_rwnd = asoc->rwnd;
 
@@ -171,6 +191,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Set the sndbuf size for transmit.  */
 	asoc->sndbuf_used = 0;
+
+	/* Initialize the receive memory counter */
+	atomic_set(&asoc->rmem_alloc, 0);
 
 	init_waitqueue_head(&asoc->wait);
 
@@ -273,7 +296,7 @@ fail_init:
 struct sctp_association *sctp_association_new(const struct sctp_endpoint *ep,
 					 const struct sock *sk,
 					 sctp_scope_t scope,
-					 unsigned int __nocast gfp)
+					 gfp_t gfp)
 {
 	struct sctp_association *asoc;
 
@@ -344,9 +367,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	}
 
 	/* Free peer's cached cookie. */
-	if (asoc->peer.cookie) {
-		kfree(asoc->peer.cookie);
-	}
+	kfree(asoc->peer.cookie);
 
 	/* Release the transport structures. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
@@ -381,6 +402,8 @@ static void sctp_association_destroy(struct sctp_association *asoc)
 		idr_remove(&sctp_assocs_id, asoc->assoc_id);
 		spin_unlock_bh(&sctp_assocs_id_lock);
 	}
+
+	BUG_TRAP(!atomic_read(&asoc->rmem_alloc));
 
 	if (asoc->base.malloced) {
 		kfree(asoc);
@@ -479,7 +502,7 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 /* Add a transport address to an association.  */
 struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 					   const union sctp_addr *addr,
-					   const unsigned int __nocast gfp,
+					   const gfp_t gfp,
 					   const int peer_state)
 {
 	struct sctp_transport *peer;
@@ -1231,7 +1254,7 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
  * local endpoint and the remote peer.
  */
 int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
-				     unsigned int __nocast gfp)
+				     gfp_t gfp)
 {
 	sctp_scope_t scope;
 	int flags;
@@ -1254,7 +1277,7 @@ int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
 /* Build the association's bind address list from the cookie.  */
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *asoc,
 					 struct sctp_cookie *cookie,
-					 unsigned int __nocast gfp)
+					 gfp_t gfp)
 {
 	int var_size2 = ntohs(cookie->peer_init->chunk_hdr.length);
 	int var_size3 = cookie->raw_addr_list_len;

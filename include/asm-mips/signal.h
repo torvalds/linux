@@ -98,12 +98,39 @@ typedef unsigned long old_sigset_t;		/* at least 32 bits */
 #define MINSIGSTKSZ    2048
 #define SIGSTKSZ       8192
 
+#ifdef __KERNEL__
+
+/*
+ * These values of sa_flags are used only by the kernel as part of the
+ * irq handling routines.
+ *
+ * SA_INTERRUPT is also used by the irq handling routines.
+ * SA_SHIRQ flag is for shared interrupt support on PCI and EISA.
+ */
+#define SA_SAMPLE_RANDOM	SA_RESTART
+
+#ifdef CONFIG_TRAD_SIGNALS
+#define sig_uses_siginfo(ka)	((ka)->sa.sa_flags & SA_SIGINFO)
+#else
+#define sig_uses_siginfo(ka)	(1)
+#endif
+
+#endif /* __KERNEL__ */
+
 #define SIG_BLOCK	1	/* for blocking signals */
 #define SIG_UNBLOCK	2	/* for unblocking signals */
 #define SIG_SETMASK	3	/* for setting the signal mask */
 #define SIG_SETMASK32	256	/* Goodie from SGI for BSD compatibility:
 				   set only the low 32 bit of the sigset.  */
-#include <asm-generic/signal.h>
+
+/* Type of a signal handler.  */
+typedef void __signalfn_t(int);
+typedef __signalfn_t __user *__sighandler_t;
+
+/* Fake signal functions */
+#define SIG_DFL	((__sighandler_t)0)	/* default signal handling */
+#define SIG_IGN	((__sighandler_t)1)	/* ignore signal */
+#define SIG_ERR	((__sighandler_t)-1)	/* error return from signal */
 
 struct sigaction {
 	unsigned int	sa_flags;
@@ -127,27 +154,6 @@ typedef struct sigaltstack {
 
 #ifdef __KERNEL__
 #include <asm/sigcontext.h>
-
-/*
- * The following break codes are or were in use for specific purposes in
- * other MIPS operating systems.  Linux/MIPS doesn't use all of them.  The
- * unused ones are here as placeholders; we might encounter them in
- * non-Linux/MIPS object files or make use of them in the future.
- */
-#define BRK_USERBP	0	/* User bp (used by debuggers) */
-#define BRK_KERNELBP	1	/* Break in the kernel */
-#define BRK_ABORT	2	/* Sometimes used by abort(3) to SIGIOT */
-#define BRK_BD_TAKEN	3	/* For bd slot emulation - not implemented */
-#define BRK_BD_NOTTAKEN	4	/* For bd slot emulation - not implemented */
-#define BRK_SSTEPBP	5	/* User bp (used by debuggers) */
-#define BRK_OVERFLOW	6	/* Overflow check */
-#define BRK_DIVZERO	7	/* Divide by zero check */
-#define BRK_RANGE	8	/* Range error check */
-#define BRK_STACKOVERFLOW 9	/* For Ada stackchecking */
-#define BRK_NORLD	10	/* No rld found - not used by Linux/MIPS */
-#define _BRK_THREADBP	11	/* For threads, user bp (used by debuggers) */
-#define BRK_MULOVF	1023	/* Multiply overflow */
-#define BRK_BUG		512	/* Used by BUG() */
 
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
 

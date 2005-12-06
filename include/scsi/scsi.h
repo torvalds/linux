@@ -116,6 +116,9 @@ extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
 /* values for service action in */
 #define	SAI_READ_CAPACITY_16  0x10
 
+/* Values for T10/04-262r7 */
+#define	ATA_16		      0x85	/* 16-byte pass-thru */
+#define	ATA_12		      0xa1	/* 12-byte pass-thru */
 
 /*
  *  SCSI Architecture Model (SAM) Status codes. Taken from SAM-3 draft

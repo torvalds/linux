@@ -32,6 +32,7 @@ struct cpu {
 };
 
 extern int register_cpu(struct cpu *, int, struct node *);
+extern struct sys_device *get_cpu_sysdev(int cpu);
 #ifdef CONFIG_HOTPLUG_CPU
 extern void unregister_cpu(struct cpu *, struct node *);
 #endif
@@ -41,6 +42,7 @@ struct notifier_block;
 /* Need to know about CPUs going up/down? */
 extern int register_cpu_notifier(struct notifier_block *nb);
 extern void unregister_cpu_notifier(struct notifier_block *nb);
+extern int current_in_cpu_hotplug(void);
 
 int cpu_up(unsigned int cpu);
 
@@ -53,16 +55,19 @@ static inline int register_cpu_notifier(struct notifier_block *nb)
 static inline void unregister_cpu_notifier(struct notifier_block *nb)
 {
 }
+static inline int current_in_cpu_hotplug(void)
+{
+	return 0;
+}
 
 #endif /* CONFIG_SMP */
 extern struct sysdev_class cpu_sysdev_class;
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* Stop CPUs going up and down. */
-extern struct semaphore cpucontrol;
-#define lock_cpu_hotplug()	down(&cpucontrol)
-#define unlock_cpu_hotplug()	up(&cpucontrol)
-#define lock_cpu_hotplug_interruptible() down_interruptible(&cpucontrol)
+extern void lock_cpu_hotplug(void);
+extern void unlock_cpu_hotplug(void);
+extern int lock_cpu_hotplug_interruptible(void);
 #define hotcpu_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
 		{ .notifier_call = fn, .priority = pri };	\

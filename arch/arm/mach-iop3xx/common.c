@@ -27,7 +27,6 @@ unsigned long iop3xx_pcibios_min_mem = 0;
 /*
  * Default power-off for EP80219
  */
-#include <asm/mach-types.h>
 
 static inline void ep80219_send_to_pic(__u8 c) {
 }

@@ -470,7 +470,8 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
 		/* Unbind so it can run.  Fall thru. */
-		kthread_bind(per_cpu(ksoftirqd, hotcpu), smp_processor_id());
+		kthread_bind(per_cpu(ksoftirqd, hotcpu),
+			     any_online_cpu(cpu_online_map));
 	case CPU_DEAD:
 		p = per_cpu(ksoftirqd, hotcpu);
 		per_cpu(ksoftirqd, hotcpu) = NULL;

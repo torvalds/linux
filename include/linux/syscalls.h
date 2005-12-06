@@ -491,6 +491,7 @@ asmlinkage long sys_nfsservctl(int cmd,
 asmlinkage long sys_syslog(int type, char __user *buf, int len);
 asmlinkage long sys_uselib(const char __user *library);
 asmlinkage long sys_ni_syscall(void);
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data);
 
 asmlinkage long sys_add_key(const char __user *_type,
 			    const char __user *_description,

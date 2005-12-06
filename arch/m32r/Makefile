@@ -24,7 +24,7 @@ aflags-$(CONFIG_ISA_M32R)	+= -DNO_FPU -Wa,-no-bitinst
 CFLAGS += $(cflags-y)
 AFLAGS += $(aflags-y)
 
-CHECKFLAGS	:= $(CHECK) -D__m32r__
+CHECKFLAGS	+= -D__m32r__ -D__BIG_ENDIAN__=1
 
 head-y	:= arch/m32r/kernel/head.o arch/m32r/kernel/init_task.o
 

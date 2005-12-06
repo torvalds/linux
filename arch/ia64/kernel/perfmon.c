@@ -2352,7 +2352,8 @@ pfm_smpl_buffer_alloc(struct task_struct *task, pfm_context_t *ctx, unsigned lon
 	insert_vm_struct(mm, vma);
 
 	mm->total_vm  += size >> PAGE_SHIFT;
-	vm_stat_account(vma);
+	vm_stat_account(vma->vm_mm, vma->vm_flags, vma->vm_file,
+							vma_pages(vma));
 	up_write(&task->mm->mmap_sem);
 
 	/*
@@ -4939,7 +4940,7 @@ abort_locked:
 	if (call_made && PFM_CMD_RW_ARG(cmd) && copy_to_user(arg, args_k, base_sz*count)) ret = -EFAULT;
 
 error_args:
-	if (args_k) kfree(args_k);
+	kfree(args_k);
 
 	DPRINT(("cmd=%s ret=%ld\n", PFM_CMD_NAME(cmd), ret));
 

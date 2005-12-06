@@ -116,8 +116,6 @@
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
 static unsigned long tmu_base, rtc_base;
 unsigned long cprc_base;
 
@@ -253,6 +251,7 @@ int do_settimeofday(struct timespec *tv)
 
 	return 0;
 }
+EXPORT_SYMBOL(do_settimeofday);
 
 static int set_rtc_time(unsigned long nowtime)
 {

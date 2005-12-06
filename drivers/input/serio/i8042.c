@@ -20,6 +20,7 @@
 #include <linux/serio.h>
 #include <linux/err.h>
 #include <linux/rcupdate.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 
@@ -911,12 +912,10 @@ static long i8042_panic_blink(long count)
  * Here we try to restore the original BIOS settings
  */
 
-static int i8042_suspend(struct device *dev, pm_message_t state, u32 level)
+static int i8042_suspend(struct platform_device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_DISABLE) {
-		del_timer_sync(&i8042_timer);
-		i8042_controller_reset();
-	}
+	del_timer_sync(&i8042_timer);
+	i8042_controller_reset();
 
 	return 0;
 }
@@ -926,12 +925,9 @@ static int i8042_suspend(struct device *dev, pm_message_t state, u32 level)
  * Here we try to reset everything back to a state in which suspended
  */
 
-static int i8042_resume(struct device *dev, u32 level)
+static int i8042_resume(struct platform_device *dev)
 {
 	int i;
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	if (i8042_ctl_test())
 		return -1;
@@ -968,17 +964,18 @@ static int i8042_resume(struct device *dev, u32 level)
  * because otherwise BIOSes will be confused.
  */
 
-static void i8042_shutdown(struct device *dev)
+static void i8042_shutdown(struct platform_device *dev)
 {
 	i8042_controller_cleanup();
 }
 
-static struct device_driver i8042_driver = {
-	.name		= "i8042",
-	.bus		= &platform_bus_type,
+static struct platform_driver i8042_driver = {
 	.suspend	= i8042_suspend,
 	.resume		= i8042_resume,
 	.shutdown	= i8042_shutdown,
+	.driver		= {
+		.name	= "i8042",
+	},
 };
 
 static int __init i8042_create_kbd_port(void)
@@ -1082,7 +1079,7 @@ static int __init i8042_init(void)
 		goto err_platform_exit;
 	}
 
-	err = driver_register(&i8042_driver);
+	err = platform_driver_register(&i8042_driver);
 	if (err)
 		goto err_controller_cleanup;
 
@@ -1130,7 +1127,7 @@ static int __init i8042_init(void)
  err_unregister_device:
 	platform_device_unregister(i8042_platform_device);
  err_unregister_driver:
-	driver_unregister(&i8042_driver);
+	platform_driver_unregister(&i8042_driver);
  err_controller_cleanup:
 	i8042_controller_cleanup();
  err_platform_exit:
@@ -1152,7 +1149,7 @@ static void __exit i8042_exit(void)
 	del_timer_sync(&i8042_timer);
 
 	platform_device_unregister(i8042_platform_device);
-	driver_unregister(&i8042_driver);
+	platform_driver_unregister(&i8042_driver);
 
 	i8042_platform_exit();
 

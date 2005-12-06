@@ -996,8 +996,6 @@ zoran_jpg_queue_frame (struct file          *file,
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&zr->spinlock, flags);
-
 	if (fh->jpg_buffers.active == ZORAN_FREE) {
 		if (zr->jpg_buffers.active == ZORAN_FREE) {
 			zr->jpg_buffers = fh->jpg_buffers;
@@ -1015,6 +1013,8 @@ zoran_jpg_queue_frame (struct file          *file,
 		/* Ok load up the jpeg codec */
 		zr36057_enable_jpg(zr, mode);
 	}
+
+	spin_lock_irqsave(&zr->spinlock, flags);
 
 	if (!res) {
 		switch (zr->jpg_buffers.buffer[num].state) {

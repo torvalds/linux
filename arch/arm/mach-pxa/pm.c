@@ -12,6 +12,7 @@
  */
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/errno.h>
 #include <linux/time.h>
@@ -19,6 +20,7 @@
 #include <asm/hardware.h>
 #include <asm/memory.h>
 #include <asm/system.h>
+#include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/lubbock.h>
 #include <asm/mach/time.h>
@@ -72,7 +74,7 @@ enum {	SLEEP_SAVE_START = 0,
 };
 
 
-static int pxa_pm_enter(suspend_state_t state)
+int pxa_pm_enter(suspend_state_t state)
 {
 	unsigned long sleep_save[SLEEP_SAVE_SIZE];
 	unsigned long checksum = 0;
@@ -191,6 +193,8 @@ static int pxa_pm_enter(suspend_state_t state)
 	return 0;
 }
 
+EXPORT_SYMBOL_GPL(pxa_pm_enter);
+
 unsigned long sleep_phys_sp(void *sp)
 {
 	return virt_to_phys(sp);
@@ -199,20 +203,24 @@ unsigned long sleep_phys_sp(void *sp)
 /*
  * Called after processes are frozen, but before we shut down devices.
  */
-static int pxa_pm_prepare(suspend_state_t state)
+int pxa_pm_prepare(suspend_state_t state)
 {
 	extern int pxa_cpu_pm_prepare(suspend_state_t state);
 
 	return pxa_cpu_pm_prepare(state);
 }
 
+EXPORT_SYMBOL_GPL(pxa_pm_prepare);
+
 /*
  * Called after devices are re-setup, but before processes are thawed.
  */
-static int pxa_pm_finish(suspend_state_t state)
+int pxa_pm_finish(suspend_state_t state)
 {
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(pxa_pm_finish);
 
 /*
  * Set to PM_DISK_FIRMWARE so we can quickly veto suspend-to-disk.
@@ -230,4 +238,4 @@ static int __init pxa_pm_init(void)
 	return 0;
 }
 
-late_initcall(pxa_pm_init);
+device_initcall(pxa_pm_init);

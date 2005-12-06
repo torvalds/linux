@@ -34,9 +34,6 @@
 // #define	VERBOSE			// more; success messages
 
 #include <linux/config.h>
-#ifdef	CONFIG_USB_DEBUG
-#   define DEBUG
-#endif
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -288,7 +285,7 @@ EXPORT_SYMBOL_GPL(usbnet_defer_kevent);
 
 static void rx_complete (struct urb *urb, struct pt_regs *regs);
 
-static void rx_submit (struct usbnet *dev, struct urb *urb, unsigned flags)
+static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 {
 	struct sk_buff		*skb;
 	struct skb_data		*entry;
@@ -1185,7 +1182,6 @@ int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 	netif_device_detach (dev->net);
 	(void) unlink_urbs (dev, &dev->rxq);
 	(void) unlink_urbs (dev, &dev->txq);
-	intf->dev.power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_suspend);
@@ -1194,7 +1190,6 @@ int usbnet_resume (struct usb_interface *intf)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
 
-	intf->dev.power.power_state = PMSG_ON;
 	netif_device_attach (dev->net);
 	tasklet_schedule (&dev->bh);
 	return 0;

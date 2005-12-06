@@ -22,7 +22,7 @@
 	pdev_to_baddr(to_pci_dev(dev), (addr))
 
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
-	dma_addr_t * dma_handle, int gfp)
+	dma_addr_t * dma_handle, gfp_t gfp)
 {
 	void *ret;
 
@@ -44,7 +44,7 @@ void *dma_alloc_noncoherent(struct device *dev, size_t size,
 EXPORT_SYMBOL(dma_alloc_noncoherent);
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
-	dma_addr_t * dma_handle, int gfp)
+	dma_addr_t * dma_handle, gfp_t gfp)
 	__attribute__((alias("dma_alloc_noncoherent")));
 
 EXPORT_SYMBOL(dma_alloc_coherent);

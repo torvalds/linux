@@ -229,7 +229,7 @@ static int pkt_grow_pktlist(struct pktcdvd_device *pd, int nr_packets)
 	return 1;
 }
 
-static void *pkt_rb_alloc(unsigned int __nocast gfp_mask, void *data)
+static void *pkt_rb_alloc(gfp_t gfp_mask, void *data)
 {
 	return kmalloc(sizeof(struct pkt_rb_node), gfp_mask);
 }
@@ -511,13 +511,10 @@ static void pkt_queue_bio(struct pktcdvd_device *pd, struct bio *bio)
  */
 static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 {
-	request_queue_t *q;
 
 	if (atomic_read(&pd->iosched.attention) == 0)
 		return;
 	atomic_set(&pd->iosched.attention, 0);
-
-	q = bdev_get_queue(pd->bdev);
 
 	for (;;) {
 		struct bio *bio;
@@ -1191,7 +1188,7 @@ static void pkt_count_states(struct pktcdvd_device *pd, int *states)
 	struct packet_data *pkt;
 	int i;
 
-	for (i = 0; i <= PACKET_NUM_STATES; i++)
+	for (i = 0; i < PACKET_NUM_STATES; i++)
 		states[i] = 0;
 
 	spin_lock(&pd->cdrw.active_list_lock);
@@ -2082,7 +2079,7 @@ static int pkt_close(struct inode *inode, struct file *file)
 }
 
 
-static void *psd_pool_alloc(unsigned int __nocast gfp_mask, void *data)
+static void *psd_pool_alloc(gfp_t gfp_mask, void *data)
 {
 	return kmalloc(sizeof(struct packet_stacked_data), gfp_mask);
 }

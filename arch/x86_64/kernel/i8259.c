@@ -492,9 +492,10 @@ void invalidate_interrupt5(void);
 void invalidate_interrupt6(void);
 void invalidate_interrupt7(void);
 void thermal_interrupt(void);
+void threshold_interrupt(void);
 void i8254_timer_resume(void);
 
-static void setup_timer(void)
+static void setup_timer_hardware(void)
 {
 	outb_p(0x34,0x43);		/* binary, mode 2, LSB/MSB, ch 0 */
 	udelay(10);
@@ -505,17 +506,17 @@ static void setup_timer(void)
 
 static int timer_resume(struct sys_device *dev)
 {
-	setup_timer();
+	setup_timer_hardware();
 	return 0;
 }
 
 void i8254_timer_resume(void)
 {
-	setup_timer();
+	setup_timer_hardware();
 }
 
 static struct sysdev_class timer_sysclass = {
-	set_kset_name("timer"),
+	set_kset_name("timer_pit"),
 	.resume		= timer_resume,
 };
 
@@ -580,6 +581,7 @@ void __init init_IRQ(void)
 	set_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
 #endif	
 	set_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
+	set_intr_gate(THRESHOLD_APIC_VECTOR, threshold_interrupt);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* self generated IPI for local APIC timer */
@@ -594,7 +596,7 @@ void __init init_IRQ(void)
 	 * Set the clock to HZ Hz, we already have a valid
 	 * vector now:
 	 */
-	setup_timer();
+	setup_timer_hardware();
 
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);

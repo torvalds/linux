@@ -334,10 +334,8 @@ void destroy_cis_cache(struct pcmcia_socket *s)
 	/*
 	 * If there was a fake CIS, destroy that as well.
 	 */
-	if (s->fake_cis) {
-		kfree(s->fake_cis);
-		s->fake_cis = NULL;
-	}
+	kfree(s->fake_cis);
+	s->fake_cis = NULL;
 }
 EXPORT_SYMBOL(destroy_cis_cache);
 
@@ -386,10 +384,8 @@ int verify_cis_cache(struct pcmcia_socket *s)
 
 int pcmcia_replace_cis(struct pcmcia_socket *s, cisdump_t *cis)
 {
-    if (s->fake_cis != NULL) {
-	kfree(s->fake_cis);
-	s->fake_cis = NULL;
-    }
+    kfree(s->fake_cis);
+    s->fake_cis = NULL;
     if (cis->Length > CISTPL_MAX_CIS_SIZE)
 	return CS_BAD_SIZE;
     s->fake_cis = kmalloc(cis->Length, GFP_KERNEL);

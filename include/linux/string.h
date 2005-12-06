@@ -88,7 +88,7 @@ extern int memcmp(const void *,const void *,__kernel_size_t);
 extern void * memchr(const void *,int,__kernel_size_t);
 #endif
 
-extern char *kstrdup(const char *s, unsigned int __nocast gfp);
+extern char *kstrdup(const char *s, gfp_t gfp);
 
 #ifdef __cplusplus
 }

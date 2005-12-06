@@ -71,14 +71,13 @@ static void end_lasat_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type lasat_irq_type = {
-	"Lasat",
-	startup_lasat_irq,
-	shutdown_lasat_irq,
-	enable_lasat_irq,
-	disable_lasat_irq,
-	mask_and_ack_lasat_irq,
-	end_lasat_irq,
-	NULL
+	.typename = "Lasat",
+	.startup = startup_lasat_irq,
+	.shutdown = shutdown_lasat_irq,
+	.enable = enable_lasat_irq,
+	.disable = disable_lasat_irq,
+	.ack = mask_and_ack_lasat_irq,
+	.end = end_lasat_irq,
 };
 
 static inline int ls1bit32(unsigned int x)

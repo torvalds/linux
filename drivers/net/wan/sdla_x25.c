@@ -957,7 +957,7 @@ static int new_if(struct wan_device* wandev, struct net_device* dev,
 		chan->hold_timeout = (conf->hold_timeout) ? 
 					conf->hold_timeout : 10;
 
-	}else if (is_digit(conf->addr[0])){	/* PVC */
+	}else if (isdigit(conf->addr[0])){	/* PVC */
 		int lcn = dec_to_uint(conf->addr, 0);
 
 		if ((lcn >= card->u.x.lo_pvc) && (lcn <= card->u.x.hi_pvc)){
@@ -3875,7 +3875,7 @@ static unsigned int dec_to_uint (unsigned char* str, int len)
 	if (!len) 
 		len = strlen(str);
 
-	for (val = 0; len && is_digit(*str); ++str, --len)
+	for (val = 0; len && isdigit(*str); ++str, --len)
 		val = (val * 10) + (*str - (unsigned)'0');
 	
 	return val;
@@ -3896,9 +3896,9 @@ static unsigned int hex_to_uint (unsigned char* str, int len)
 	for (val = 0; len; ++str, --len)
 	{
 		ch = *str;
-		if (is_digit(ch))
+		if (isdigit(ch))
 			val = (val << 4) + (ch - (unsigned)'0');
-		else if (is_hex_digit(ch))
+		else if (isxdigit(ch))
 			val = (val << 4) + ((ch & 0xDF) - (unsigned)'A' + 10);
 		else break;
 	}

@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <asm/delay.h>
 #include <asm/mv64x60.h>
+#include <asm/machdep.h>
 
 
 #if defined(CONFIG_SERIAL_TEXT_DEBUG)

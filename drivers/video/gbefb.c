@@ -11,7 +11,7 @@
 
 #include <linux/config.h>
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
@@ -1038,7 +1038,6 @@ static struct fb_ops gbefb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 /*
@@ -1106,12 +1105,11 @@ int __init gbefb_setup(char *options)
 	return 0;
 }
 
-static int __init gbefb_probe(struct device *dev)
+static int __init gbefb_probe(struct platform_device *p_dev)
 {
 	int i, ret = 0;
 	struct fb_info *info;
 	struct gbefb_par *par;
-	struct platform_device *p_dev = to_platform_device(dev);
 #ifndef MODULE
 	char *options = NULL;
 #endif
@@ -1126,7 +1124,7 @@ static int __init gbefb_probe(struct device *dev)
 	gbefb_setup(options);
 #endif
 
-	if (!request_mem_region(GBE_BASE, sizeof(struct sgi_gbe), "GBE")) {
+	if (!request_region(GBE_BASE, sizeof(struct sgi_gbe), "GBE")) {
 		printk(KERN_ERR "gbefb: couldn't reserve mmio region\n");
 		ret = -EBUSY;
 		goto out_release_framebuffer;
@@ -1152,24 +1150,30 @@ static int __init gbefb_probe(struct device *dev)
 	if (gbe_mem_phys) {
 		/* memory was allocated at boot time */
 		gbe_mem = ioremap_nocache(gbe_mem_phys, gbe_mem_size);
+		if (!gbe_mem) {
+			printk(KERN_ERR "gbefb: couldn't map framebuffer\n");
+			ret = -ENOMEM;
+			goto out_tiles_free;
+		}
+
 		gbe_dma_addr = 0;
 	} else {
 		/* try to allocate memory with the classical allocator
 		 * this has high chance to fail on low memory machines */
 		gbe_mem = dma_alloc_coherent(NULL, gbe_mem_size, &gbe_dma_addr,
 					     GFP_KERNEL);
+		if (!gbe_mem) {
+			printk(KERN_ERR "gbefb: couldn't allocate framebuffer memory\n");
+			ret = -ENOMEM;
+			goto out_tiles_free;
+		}
+
 		gbe_mem_phys = (unsigned long) gbe_dma_addr;
 	}
 
 #ifdef CONFIG_X86
 	mtrr_add(gbe_mem_phys, gbe_mem_size, MTRR_TYPE_WRCOMB, 1);
 #endif
-
-	if (!gbe_mem) {
-		printk(KERN_ERR "gbefb: couldn't map framebuffer\n");
-		ret = -ENXIO;
-		goto out_tiles_free;
-	}
 
 	/* map framebuffer memory into tiles table */
 	for (i = 0; i < (gbe_mem_size >> TILE_SHIFT); i++)
@@ -1199,8 +1203,8 @@ static int __init gbefb_probe(struct device *dev)
 		goto out_gbe_unmap;
 	}
 
-	dev_set_drvdata(&p_dev->dev, info);
-	gbefb_create_sysfs(dev);
+	platform_set_drvdata(p_dev, info);
+	gbefb_create_sysfs(&p_dev->dev);
 
 	printk(KERN_INFO "fb%d: %s rev %d @ 0x%08x using %dkB memory\n",
 	       info->node, info->fix.id, gbe_revision, (unsigned) GBE_BASE,
@@ -1226,10 +1230,9 @@ out_release_framebuffer:
 	return ret;
 }
 
-static int __devexit gbefb_remove(struct device* dev)
+static int __devexit gbefb_remove(struct platform_device* p_dev)
 {
-	struct platform_device *p_dev = to_platform_device(dev);
-	struct fb_info *info = dev_get_drvdata(&p_dev->dev);
+	struct fb_info *info = platform_get_drvdata(p_dev);
 
 	unregister_framebuffer(info);
 	gbe_turn_off();
@@ -1247,31 +1250,38 @@ static int __devexit gbefb_remove(struct device* dev)
 	return 0;
 }
 
-static struct device_driver gbefb_driver = {
-	.name = "gbefb",
-	.bus = &platform_bus_type,
+static struct platform_driver gbefb_driver = {
 	.probe = gbefb_probe,
 	.remove = __devexit_p(gbefb_remove),
+	.driver	= {
+		.name = "gbefb",
+	},
 };
 
-static struct platform_device gbefb_device = {
-	.name = "gbefb",
-};
+static struct platform_device *gbefb_device;
 
 int __init gbefb_init(void)
 {
-	int ret = driver_register(&gbefb_driver);
+	int ret = platform_driver_register(&gbefb_driver);
 	if (!ret) {
-		ret = platform_device_register(&gbefb_device);
-		if (ret)
-			driver_unregister(&gbefb_driver);
+		gbefb_device = platform_device_alloc("gbefb", 0);
+		if (gbefb_device) {
+			ret = platform_device_add(gbefb_device);
+		} else {
+			ret = -ENOMEM;
+		}
+		if (ret) {
+			platform_device_put(gbefb_device);
+			platform_driver_unregister(&gbefb_driver);
+		}
 	}
 	return ret;
 }
 
 void __exit gbefb_exit(void)
 {
-	 driver_unregister(&gbefb_driver);
+	platform_device_unregister(gbefb_device);
+	platform_driver_unregister(&gbefb_driver);
 }
 
 module_init(gbefb_init);

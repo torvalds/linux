@@ -24,7 +24,7 @@
  * PMAX/3MAX PROM entry points for DS2100/3100's and DS5000/2xx's.
  * Many of these will work for MIPSen as well!
  */
-#define VEC_RESET		(u64 *)KSEG1ADDR(0x1fc00000)
+#define VEC_RESET		(u64 *)CKSEG1ADDR(0x1fc00000)
 							/* Prom base address */
 
 #define PMAX_PROM_ENTRY(x)	(VEC_RESET + (x))	/* Prom jump table */
@@ -111,19 +111,21 @@ extern int (*__pmax_close)(int);
  * On MIPS64 we have to call PROM functions via a helper
  * dispatcher to accomodate ABI incompatibilities.
  */
-#define __DEC_PROM_O32 __attribute__((alias("call_o32")))
+#define __DEC_PROM_O32(fun, arg) fun arg __asm__(#fun); \
+				 __asm__(#fun " = call_o32")
 
-int _rex_bootinit(int (*)(void)) __DEC_PROM_O32;
-int _rex_bootread(int (*)(void)) __DEC_PROM_O32;
-int _rex_getbitmap(int (*)(memmap *), memmap *) __DEC_PROM_O32;
-unsigned long *_rex_slot_address(unsigned long *(*)(int), int) __DEC_PROM_O32;
-void *_rex_gettcinfo(void *(*)(void)) __DEC_PROM_O32;
-int _rex_getsysid(int (*)(void)) __DEC_PROM_O32;
-void _rex_clear_cache(void (*)(void)) __DEC_PROM_O32;
+int __DEC_PROM_O32(_rex_bootinit, (int (*)(void)));
+int __DEC_PROM_O32(_rex_bootread, (int (*)(void)));
+int __DEC_PROM_O32(_rex_getbitmap, (int (*)(memmap *), memmap *));
+unsigned long *__DEC_PROM_O32(_rex_slot_address,
+			     (unsigned long *(*)(int), int));
+void *__DEC_PROM_O32(_rex_gettcinfo, (void *(*)(void)));
+int __DEC_PROM_O32(_rex_getsysid, (int (*)(void)));
+void __DEC_PROM_O32(_rex_clear_cache, (void (*)(void)));
 
-int _prom_getchar(int (*)(void)) __DEC_PROM_O32;
-char *_prom_getenv(char *(*)(char *), char *) __DEC_PROM_O32;
-int _prom_printf(int (*)(char *, ...), char *, ...) __DEC_PROM_O32;
+int __DEC_PROM_O32(_prom_getchar, (int (*)(void)));
+char *__DEC_PROM_O32(_prom_getenv, (char *(*)(char *), char *));
+int __DEC_PROM_O32(_prom_printf, (int (*)(char *, ...), char *, ...));
 
 
 #define rex_bootinit()		_rex_bootinit(__rex_bootinit)

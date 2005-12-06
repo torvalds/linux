@@ -107,14 +107,15 @@ static LIST_HEAD(ymf_devs);
  */
 
 static struct pci_device_id ymf_id_tbl[] = {
-#define DEV(v, d, data) \
-  { PCI_VENDOR_ID_##v, PCI_DEVICE_ID_##v##_##d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (unsigned long)data }
-	DEV (YAMAHA, 724,  "YMF724"),
-	DEV (YAMAHA, 724F, "YMF724F"),
-	DEV (YAMAHA, 740,  "YMF740"),
-	DEV (YAMAHA, 740C, "YMF740C"),
-	DEV (YAMAHA, 744,  "YMF744"),
-	DEV (YAMAHA, 754,  "YMF754"),
+#define DEV(dev, data) \
+	{ PCI_VENDOR_ID_YAMAHA, dev, PCI_ANY_ID, PCI_ANY_ID, 0, 0, \
+		(unsigned long)data }
+	DEV (PCI_DEVICE_ID_YAMAHA_724,  "YMF724"),
+	DEV (PCI_DEVICE_ID_YAMAHA_724F, "YMF724F"),
+	DEV (PCI_DEVICE_ID_YAMAHA_740,  "YMF740"),
+	DEV (PCI_DEVICE_ID_YAMAHA_740C, "YMF740C"),
+	DEV (PCI_DEVICE_ID_YAMAHA_744,  "YMF744"),
+	DEV (PCI_DEVICE_ID_YAMAHA_754,  "YMF754"),
 #undef DEV
 	{ }
 };

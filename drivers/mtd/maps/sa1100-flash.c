@@ -1,9 +1,9 @@
 /*
  * Flash memory access on SA11x0 based devices
- * 
+ *
  * (C) 2000 Nicolas Pitre <nico@cam.org>
- * 
- * $Id: sa1100-flash.c,v 1.47 2004/11/01 13:44:36 rmk Exp $
+ *
+ * $Id: sa1100-flash.c,v 1.51 2005/11/07 11:14:28 gleixner Exp $
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/err.h>
 
 #include <linux/mtd/mtd.h>
@@ -21,7 +21,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/concat.h>
 
-#include <asm/mach-types.h>
+#include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
 #include <asm/mach/flash.h>
@@ -130,20 +130,21 @@ struct sa_subdev_info {
 	char name[16];
 	struct map_info map;
 	struct mtd_info *mtd;
-	struct flash_platform_data *data;
+	struct flash_platform_data *plat;
 };
 
 struct sa_info {
 	struct mtd_partition	*parts;
 	struct mtd_info		*mtd;
 	int			num_subdev;
+	unsigned int		nr_parts;
 	struct sa_subdev_info	subdev[0];
 };
 
 static void sa1100_set_vpp(struct map_info *map, int on)
 {
 	struct sa_subdev_info *subdev = container_of(map, struct sa_subdev_info, map);
-	subdev->data->set_vpp(on);
+	subdev->plat->set_vpp(on);
 }
 
 static void sa1100_destroy_subdev(struct sa_subdev_info *subdev)
@@ -187,7 +188,7 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 		goto out;
 	}
 
-	if (subdev->data->set_vpp)
+	if (subdev->plat->set_vpp)
 		subdev->map.set_vpp = sa1100_set_vpp;
 
 	subdev->map.phys = phys;
@@ -204,7 +205,7 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 	 * Now let's probe for the actual flash.  Do it here since
 	 * specific machine settings might have been set above.
 	 */
-	subdev->mtd = do_map_probe(subdev->data->map_name, &subdev->map);
+	subdev->mtd = do_map_probe(subdev->plat->map_name, &subdev->map);
 	if (subdev->mtd == NULL) {
 		ret = -ENXIO;
 		goto err;
@@ -223,29 +224,35 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 	return ret;
 }
 
-static void sa1100_destroy(struct sa_info *info)
+static void sa1100_destroy(struct sa_info *info, struct flash_platform_data *plat)
 {
 	int i;
 
 	if (info->mtd) {
-		del_mtd_partitions(info->mtd);
-
+		if (info->nr_parts == 0)
+			del_mtd_device(info->mtd);
+#ifdef CONFIG_MTD_PARTITIONS
+		else
+			del_mtd_partitions(info->mtd);
+#endif
 #ifdef CONFIG_MTD_CONCAT
 		if (info->mtd != info->subdev[0].mtd)
 			mtd_concat_destroy(info->mtd);
 #endif
 	}
 
-	if (info->parts)
-		kfree(info->parts);
+	kfree(info->parts);
 
 	for (i = info->num_subdev - 1; i >= 0; i--)
 		sa1100_destroy_subdev(&info->subdev[i]);
 	kfree(info);
+
+	if (plat->exit)
+		plat->exit();
 }
 
 static struct sa_info *__init
-sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *flash)
+sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 {
 	struct sa_info *info;
 	int nr, size, i, ret = 0;
@@ -275,6 +282,12 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *flash
 
 	memset(info, 0, size);
 
+	if (plat->init) {
+		ret = plat->init();
+		if (ret)
+			goto err;
+	}
+
 	/*
 	 * Claim and then map the memory regions.
 	 */
@@ -287,8 +300,8 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *flash
 			break;
 
 		subdev->map.name = subdev->name;
-		sprintf(subdev->name, "sa1100-%d", i);
-		subdev->data = flash;
+		sprintf(subdev->name, "%s-%d", plat->name, i);
+		subdev->plat = plat;
 
 		ret = sa1100_probe_subdev(subdev, res);
 		if (ret)
@@ -309,7 +322,7 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *flash
 	 * otherwise fail.  Either way, it'll be called "sa1100".
 	 */
 	if (info->num_subdev == 1) {
-		strcpy(info->subdev[0].name, "sa1100");
+		strcpy(info->subdev[0].name, plat->name);
 		info->mtd = info->subdev[0].mtd;
 		ret = 0;
 	} else if (info->num_subdev > 1) {
@@ -322,7 +335,7 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *flash
 			cdev[i] = info->subdev[i].mtd;
 
 		info->mtd = mtd_concat_create(cdev, info->num_subdev,
-					      "sa1100");
+					      plat->name);
 		if (info->mtd == NULL)
 			ret = -ENXIO;
 #else
@@ -336,26 +349,25 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *flash
 		return info;
 
  err:
-	sa1100_destroy(info);
+	sa1100_destroy(info, plat);
  out:
 	return ERR_PTR(ret);
 }
 
 static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
-static int __init sa1100_mtd_probe(struct device *dev)
+static int __init sa1100_mtd_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct flash_platform_data *flash = pdev->dev.platform_data;
+	struct flash_platform_data *plat = pdev->dev.platform_data;
 	struct mtd_partition *parts;
 	const char *part_type = NULL;
 	struct sa_info *info;
 	int err, nr_parts = 0;
 
-	if (!flash)
+	if (!plat)
 		return -ENODEV;
 
-	info = sa1100_setup_mtd(pdev, flash);
+	info = sa1100_setup_mtd(pdev, plat);
 	if (IS_ERR(info)) {
 		err = PTR_ERR(info);
 		goto out;
@@ -372,8 +384,8 @@ static int __init sa1100_mtd_probe(struct device *dev)
 	} else
 #endif
 	{
-		parts = flash->parts;
-		nr_parts = flash->nr_parts;
+		parts = plat->parts;
+		nr_parts = plat->nr_parts;
 		part_type = "static";
 	}
 
@@ -387,62 +399,77 @@ static int __init sa1100_mtd_probe(struct device *dev)
 		add_mtd_partitions(info->mtd, parts, nr_parts);
 	}
 
-	dev_set_drvdata(dev, info);
+	info->nr_parts = nr_parts;
+
+	platform_set_drvdata(pdev, info);
 	err = 0;
 
  out:
 	return err;
 }
 
-static int __exit sa1100_mtd_remove(struct device *dev)
+static int __exit sa1100_mtd_remove(struct platform_device *pdev)
 {
-	struct sa_info *info = dev_get_drvdata(dev);
-	dev_set_drvdata(dev, NULL);
-	sa1100_destroy(info);
+	struct sa_info *info = platform_get_drvdata(pdev);
+	struct flash_platform_data *plat = pdev->dev.platform_data;
+
+	platform_set_drvdata(pdev, NULL);
+	sa1100_destroy(info, plat);
+
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int sa1100_mtd_suspend(struct device *dev, pm_message_t state, u32 level)
+static int sa1100_mtd_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct sa_info *info = dev_get_drvdata(dev);
+	struct sa_info *info = platform_get_drvdata(dev);
 	int ret = 0;
 
-	if (info && level == SUSPEND_SAVE_STATE)
+	if (info)
 		ret = info->mtd->suspend(info->mtd);
 
 	return ret;
 }
 
-static int sa1100_mtd_resume(struct device *dev, u32 level)
+static int sa1100_mtd_resume(struct platform_device *dev)
 {
-	struct sa_info *info = dev_get_drvdata(dev);
-	if (info && level == RESUME_RESTORE_STATE)
+	struct sa_info *info = platform_get_drvdata(dev);
+	if (info)
 		info->mtd->resume(info->mtd);
 	return 0;
+}
+
+static void sa1100_mtd_shutdown(struct platform_device *dev)
+{
+	struct sa_info *info = platform_get_drvdata(dev);
+	if (info && info->mtd->suspend(info->mtd) == 0)
+		info->mtd->resume(info->mtd);
 }
 #else
 #define sa1100_mtd_suspend NULL
 #define sa1100_mtd_resume  NULL
+#define sa1100_mtd_shutdown NULL
 #endif
 
-static struct device_driver sa1100_mtd_driver = {
-	.name		= "flash",
-	.bus		= &platform_bus_type,
+static struct platform_driver sa1100_mtd_driver = {
 	.probe		= sa1100_mtd_probe,
 	.remove		= __exit_p(sa1100_mtd_remove),
 	.suspend	= sa1100_mtd_suspend,
 	.resume		= sa1100_mtd_resume,
+	.shutdown	= sa1100_mtd_shutdown,
+	.driver		= {
+		.name	= "flash",
+	},
 };
 
 static int __init sa1100_mtd_init(void)
 {
-	return driver_register(&sa1100_mtd_driver);
+	return platform_driver_register(&sa1100_mtd_driver);
 }
 
 static void __exit sa1100_mtd_exit(void)
 {
-	driver_unregister(&sa1100_mtd_driver);
+	platform_driver_unregister(&sa1100_mtd_driver);
 }
 
 module_init(sa1100_mtd_init);

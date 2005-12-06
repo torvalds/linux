@@ -118,6 +118,8 @@ static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
 	int err;
 
 	bh = sb_getblk(sb, blk);
+	if (!bh)
+		return ERR_PTR(-EIO);
 	if ((err = ext3_journal_get_write_access(handle, bh))) {
 		brelse(bh);
 		bh = ERR_PTR(err);
@@ -202,6 +204,10 @@ static int setup_new_group_blocks(struct super_block *sb,
 		ext3_debug("update backup group %#04lx (+%d)\n", block, bit);
 
 		gdb = sb_getblk(sb, block);
+		if (!gdb) {
+			err = -EIO;
+			goto exit_bh;
+		}
 		if ((err = ext3_journal_get_write_access(handle, gdb))) {
 			brelse(gdb);
 			goto exit_bh;
@@ -242,7 +248,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	     i < sbi->s_itb_per_group; i++, bit++, block++) {
 		struct buffer_head *it;
 
-		ext3_debug("clear inode block %#04x (+%ld)\n", block, bit);
+		ext3_debug("clear inode block %#04lx (+%d)\n", block, bit);
 		if (IS_ERR(it = bclean(handle, sb, block))) {
 			err = PTR_ERR(it);
 			goto exit_bh;
@@ -643,8 +649,12 @@ static void update_backups(struct super_block *sb,
 			break;
 
 		bh = sb_getblk(sb, group * bpg + blk_off);
-		ext3_debug(sb, __FUNCTION__, "update metadata backup %#04lx\n",
-			   bh->b_blocknr);
+		if (!bh) {
+			err = -EIO;
+			break;
+		}
+		ext3_debug("update metadata backup %#04lx\n",
+			  (unsigned long)bh->b_blocknr);
 		if ((err = ext3_journal_get_write_access(handle, bh)))
 			break;
 		lock_buffer(bh);
@@ -757,6 +767,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	if (input->group != EXT3_SB(sb)->s_groups_count) {
 		ext3_warning(sb, __FUNCTION__,
 			     "multiple resizers run on filesystem!\n");
+		err = -EBUSY;
 		goto exit_journal;
 	}
 

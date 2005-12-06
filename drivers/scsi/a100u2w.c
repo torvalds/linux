@@ -923,7 +923,7 @@ static int inia100_device_reset(struct scsi_cmnd * SCpnt)
 {				/* I need Host Control Block Information */
 	ORC_HCS *pHCB;
 	pHCB = (ORC_HCS *) SCpnt->device->host->hostdata;
-	return orc_device_reset(pHCB, SCpnt, SCpnt->device->id);
+	return orc_device_reset(pHCB, SCpnt, scmd_id(SCpnt));
 
 }
 

@@ -441,7 +441,7 @@ static irqreturn_t
 mmtimer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	int i;
-	mmtimer_t *base = timers + cpuid_to_cnodeid(smp_processor_id()) *
+	mmtimer_t *base = timers + cpu_to_node(smp_processor_id()) *
 						NUM_COMPARATORS;
 	unsigned long expires = 0;
 	int result = IRQ_NONE;
@@ -608,7 +608,7 @@ static int sgi_timer_set(struct k_itimer *timr, int flags,
 	 */
 	preempt_disable();
 
-	nodeid =  cpuid_to_cnodeid(smp_processor_id());
+	nodeid =  cpu_to_node(smp_processor_id());
 	base = timers + nodeid * NUM_COMPARATORS;
 retry:
 	/* Don't use an allocated timer, or a deleted one that's pending */

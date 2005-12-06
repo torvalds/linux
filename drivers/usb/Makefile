@@ -8,6 +8,7 @@ obj-$(CONFIG_USB)		+= core/
 
 obj-$(CONFIG_USB_MON)		+= mon/
 
+obj-$(CONFIG_PCI)		+= host/
 obj-$(CONFIG_USB_EHCI_HCD)	+= host/
 obj-$(CONFIG_USB_ISP116X_HCD)	+= host/
 obj-$(CONFIG_USB_OHCI_HCD)	+= host/
@@ -17,7 +18,6 @@ obj-$(CONFIG_ETRAX_USB_HOST)	+= host/
 
 obj-$(CONFIG_USB_ACM)		+= class/
 obj-$(CONFIG_USB_AUDIO)		+= class/
-obj-$(CONFIG_USB_BLUETOOTH_TTY)	+= class/
 obj-$(CONFIG_USB_MIDI)		+= class/
 obj-$(CONFIG_USB_PRINTER)	+= class/
 

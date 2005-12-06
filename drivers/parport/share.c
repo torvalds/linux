@@ -202,16 +202,11 @@ static void free_port (struct parport *port)
 	list_del(&port->full_list);
 	spin_unlock(&full_list_lock);
 	for (d = 0; d < 5; d++) {
-		if (port->probe_info[d].class_name)
-			kfree (port->probe_info[d].class_name);
-		if (port->probe_info[d].mfr)
-			kfree (port->probe_info[d].mfr);
-		if (port->probe_info[d].model)
-			kfree (port->probe_info[d].model);
-		if (port->probe_info[d].cmdset)
-			kfree (port->probe_info[d].cmdset);
-		if (port->probe_info[d].description)
-			kfree (port->probe_info[d].description);
+		kfree(port->probe_info[d].class_name);
+		kfree(port->probe_info[d].mfr);
+		kfree(port->probe_info[d].model);
+		kfree(port->probe_info[d].cmdset);
+		kfree(port->probe_info[d].description);
 	}
 
 	kfree(port->name);
@@ -618,9 +613,9 @@ parport_register_device(struct parport *port, const char *name,
 	return tmp;
 
  out_free_all:
-	kfree (tmp->state);
+	kfree(tmp->state);
  out_free_pardevice:
-	kfree (tmp);
+	kfree(tmp);
  out:
 	parport_put_port (port);
 	module_put(port->ops->owner);

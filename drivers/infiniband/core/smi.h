@@ -39,6 +39,8 @@
 #ifndef __SMI_H_
 #define __SMI_H_
 
+#include <rdma/ib_smi.h>
+
 int smi_handle_dr_smp_recv(struct ib_smp *smp,
 			   u8 node_type,
 			   int port_num,

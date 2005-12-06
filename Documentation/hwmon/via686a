@@ -18,8 +18,9 @@ Authors:
 Module Parameters
 -----------------
 
-force_addr=0xaddr       Set the I/O base address. Useful for Asus A7V boards
-                        that don't set the address in the BIOS. Does not do a
+force_addr=0xaddr       Set the I/O base address. Useful for boards that
+                        don't set the address in the BIOS. Look for a BIOS
+                        upgrade before resorting to this. Does not do a
                         PCI force; the via686a must still be present in lspci.
                         Don't use this unless the driver complains that the
                         base address is not set.
@@ -63,3 +64,15 @@ miss once-only alarms.
 
 The driver only updates its values each 1.5 seconds; reading it more often
 will do no harm, but will return 'old' values.
+
+Known Issues
+------------
+
+This driver handles sensors integrated in some VIA south bridges. It is
+possible that a motherboard maker used a VT82C686A/B chip as part of a
+product design but was not interested in its hardware monitoring features,
+in which case the sensor inputs will not be wired. This is the case of
+the Asus K7V, A7V and A7V133 motherboards, to name only a few of them.
+So, if you need the force_addr parameter, and end up with values which
+don't seem to make any sense, don't look any further: your chip is simply
+not wired for hardware monitoring.

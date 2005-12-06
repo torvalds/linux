@@ -48,25 +48,25 @@
 #define CYPRESS_NFAULT    0x00000002
 #define CYPRESS_MENABLE   0x00000001
 
-extern __inline__ void cypress_flush_page(unsigned long page)
+static inline void cypress_flush_page(unsigned long page)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
 			     "r" (page), "i" (ASI_M_FLUSH_PAGE));
 }
 
-extern __inline__ void cypress_flush_segment(unsigned long addr)
+static inline void cypress_flush_segment(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
 			     "r" (addr), "i" (ASI_M_FLUSH_SEG));
 }
 
-extern __inline__ void cypress_flush_region(unsigned long addr)
+static inline void cypress_flush_region(unsigned long addr)
 {
 	__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
 			     "r" (addr), "i" (ASI_M_FLUSH_REGION));
 }
 
-extern __inline__ void cypress_flush_context(void)
+static inline void cypress_flush_context(void)
 {
 	__asm__ __volatile__("sta %%g0, [%%g0] %0\n\t" : :
 			     "i" (ASI_M_FLUSH_CTX));

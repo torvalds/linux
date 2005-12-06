@@ -19,7 +19,7 @@
 			    : "=a" (a__), "=d" (b__) \
 			    : "c" (msr)); \
        val = a__ | (b__<<32); \
-} while(0); 
+} while(0)
 
 #define wrmsr(msr,val1,val2) \
      __asm__ __volatile__("wrmsr" \
@@ -56,7 +56,7 @@
                       ".section __ex_table,\"a\"\n"		\
                       " .align 8\n"				\
                       " .quad 1b,3b\n"				\
-                      ".previous":"=&bDS" (ret__), "=a"(a), "=d"(b)\
+                      ".previous":"=&bDS" (ret__), "=a"(*(a)), "=d"(*(b))\
                       :"c"(msr), "i"(-EIO), "0"(0));		\
 	  ret__; })		
 
@@ -234,6 +234,7 @@ static inline unsigned int cpuid_edx(unsigned int op)
 #define MSR_K8_TOP_MEM1		   0xC001001A
 #define MSR_K8_TOP_MEM2		   0xC001001D
 #define MSR_K8_SYSCFG		   0xC0010010
+#define MSR_K8_HWCR		   0xC0010015
 
 /* K6 MSRs */
 #define MSR_K6_EFER			0xC0000080

@@ -1,10 +1,10 @@
 
 /*
  * drivers/mtd/maps/svme182.c
- * 
+ *
  * Flash map driver for the Dy4 SVME182 board
- * 
- * $Id: dmv182.c,v 1.5 2004/11/04 13:24:14 gleixner Exp $
+ *
+ * $Id: dmv182.c,v 1.6 2005/11/07 11:14:26 gleixner Exp $
  *
  * Copyright 2003-2004, TimeSys Corporation
  *
@@ -104,7 +104,7 @@ static int __init init_svme182(void)
 	partitions = svme182_partitions;
 
 	svme182_map.virt = ioremap(FLASH_BASE_ADDR, svme182_map.size);
-		
+
 	if (svme182_map.virt == 0) {
 		printk("Failed to ioremap FLASH memory area.\n");
 		return -EIO;

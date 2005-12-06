@@ -49,7 +49,6 @@
 #define MPTBASE_H_INCLUDED
 /*{-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#include <linux/version.h>
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -77,8 +76,8 @@
 #define COPYRIGHT	"Copyright (c) 1999-2005 " MODULEAUTHOR
 #endif
 
-#define MPT_LINUX_VERSION_COMMON	"3.03.03"
-#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.03"
+#define MPT_LINUX_VERSION_COMMON	"3.03.04"
+#define MPT_LINUX_PACKAGE_NAME		"@(#)mptlinux-3.03.04"
 #define WHAT_MAGIC_STRING		"@" "(" "#" ")"
 
 #define show_mptmod_ver(s,ver)  \
@@ -421,6 +420,17 @@ typedef struct _MPT_IOCTL {
 	struct semaphore	 sem_ioc;
 } MPT_IOCTL;
 
+#define MPT_SAS_MGMT_STATUS_RF_VALID	0x02	/* The Reply Frame is VALID */
+#define MPT_SAS_MGMT_STATUS_COMMAND_GOOD	0x10	/* Command Status GOOD */
+#define MPT_SAS_MGMT_STATUS_TM_FAILED	0x40	/* User TM request failed */
+
+typedef struct _MPT_SAS_MGMT {
+	struct semaphore	 mutex;
+	struct completion	 done;
+	u8			 reply[MPT_DEFAULT_FRAME_SIZE]; /* reply frame data */
+	u8			 status;	/* current command status */
+}MPT_SAS_MGMT;
+
 /*
  *  Event Structure and define
  */
@@ -601,9 +611,12 @@ typedef struct _MPT_ADAPTER
 	int			 DoneCtx;
 	int			 TaskCtx;
 	int			 InternalCtx;
+	spinlock_t		 initializing_hba_lock;
+	int 	 		 initializing_hba_lock_flag;
 	struct list_head	 list;
 	struct net_device	*netdev;
 	struct list_head	 sas_topology;
+	MPT_SAS_MGMT		 sas_mgmt;
 } MPT_ADAPTER;
 
 /*
@@ -990,6 +1003,7 @@ extern void	 mpt_free_fw_memory(MPT_ADAPTER *ioc);
 extern int	 mpt_findImVolumes(MPT_ADAPTER *ioc);
 extern int	 mpt_read_ioc_pg_3(MPT_ADAPTER *ioc);
 extern int	 mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode);
+extern int	 mpt_alt_ioc_wait(MPT_ADAPTER *ioc);
 
 /*
  *  Public data decl's...

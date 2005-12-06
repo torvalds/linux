@@ -1,9 +1,9 @@
 void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 {
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u16 fc;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 
 	printk(KERN_DEBUG "%s: TX len=%d jiffies=%ld\n",
 	       name, skb->len, jiffies);
@@ -41,7 +41,7 @@ int hostap_data_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct hostap_interface *iface;
 	local_info_t *local;
 	int need_headroom, need_tailroom = 0;
-	struct ieee80211_hdr hdr;
+	struct ieee80211_hdr_4addr hdr;
 	u16 fc, ethertype = 0;
 	enum {
 		WDS_NO = 0, WDS_OWN_FRAME, WDS_COMPLIANT_FRAME
@@ -244,7 +244,7 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct hostap_interface *iface;
 	local_info_t *local;
 	struct hostap_skb_tx_data *meta;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u16 fc;
 
 	iface = netdev_priv(dev);
@@ -266,7 +266,7 @@ int hostap_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	meta->iface = iface;
 
 	if (skb->len >= IEEE80211_DATA_HDR3_LEN + sizeof(rfc1042_header) + 2) {
-		hdr = (struct ieee80211_hdr *) skb->data;
+		hdr = (struct ieee80211_hdr_4addr *) skb->data;
 		fc = le16_to_cpu(hdr->frame_ctl);
 		if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&
 		    WLAN_FC_GET_STYPE(fc) == IEEE80211_STYPE_DATA) {
@@ -289,7 +289,7 @@ struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u16 fc;
 	int hdr_len, res;
 
@@ -303,7 +303,7 @@ struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 
 	if (local->tkip_countermeasures &&
 	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		hdr = (struct ieee80211_hdr *) skb->data;
+		hdr = (struct ieee80211_hdr_4addr *) skb->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
 			       "TX packet to " MACSTR "\n",
@@ -317,15 +317,15 @@ struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 	if (skb == NULL)
 		return NULL;
 
-	if ((skb_headroom(skb) < crypt->ops->extra_prefix_len ||
-	     skb_tailroom(skb) < crypt->ops->extra_postfix_len) &&
-	    pskb_expand_head(skb, crypt->ops->extra_prefix_len,
-			     crypt->ops->extra_postfix_len, GFP_ATOMIC)) {
+	if ((skb_headroom(skb) < crypt->ops->extra_mpdu_prefix_len ||
+	     skb_tailroom(skb) < crypt->ops->extra_mpdu_postfix_len) &&
+	    pskb_expand_head(skb, crypt->ops->extra_mpdu_prefix_len,
+			     crypt->ops->extra_mpdu_postfix_len, GFP_ATOMIC)) {
 		kfree_skb(skb);
 		return NULL;
 	}
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
  	fc = le16_to_cpu(hdr->frame_ctl);
 	hdr_len = hostap_80211_get_hdrlen(fc);
 
@@ -360,7 +360,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	ap_tx_ret tx_ret;
 	struct hostap_skb_tx_data *meta;
 	int no_encrypt = 0;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
@@ -403,7 +403,7 @@ int hostap_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ret = hostap_handle_sta_tx(local, &tx);
 	skb = tx.skb;
 	meta = (struct hostap_skb_tx_data *) skb->cb;
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
  	fc = le16_to_cpu(hdr->frame_ctl);
 	switch (tx_ret) {
 	case AP_TX_CONTINUE:

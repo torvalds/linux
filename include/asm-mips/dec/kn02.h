@@ -8,21 +8,12 @@
  *
  * Copyright (C) 1995,1996 by Paul M. Antoine, some code and definitions
  * are by courtesy of Chris Fraser.
- * Copyright (C) 2002, 2003  Maciej W. Rozycki
+ * Copyright (C) 2002, 2003, 2005  Maciej W. Rozycki
  */
 #ifndef __ASM_MIPS_DEC_KN02_H
 #define __ASM_MIPS_DEC_KN02_H
 
-#ifndef __ASSEMBLY__
-#include <linux/spinlock.h>
-#include <linux/types.h>
-#endif
-
-#include <asm/addrspace.h>
-#include <asm/dec/ecc.h>
-
-
-#define KN02_SLOT_BASE	KSEG1ADDR(0x1fc00000)
+#define KN02_SLOT_BASE	0x1fc00000
 #define KN02_SLOT_SIZE	0x00080000
 
 /*
@@ -39,22 +30,14 @@
 
 
 /*
- * Some port addresses...
- */
-#define KN02_DZ11_BASE	(KN02_SLOT_BASE + KN02_DZ11)	/* DZ11 */
-#define KN02_RTC_BASE	(KN02_SLOT_BASE + KN02_RTC)	/* RTC */
-#define KN02_CSR_BASE	(KN02_SLOT_BASE + KN02_CSR)	/* CSR */
-
-
-/*
  * System Control & Status Register bits.
  */
 #define KN02_CSR_RES_28		(0xf<<28)	/* unused */
 #define KN02_CSR_PSU		(1<<27)		/* power supply unit warning */
 #define KN02_CSR_NVRAM		(1<<26)		/* ~NVRAM clear jumper */
 #define KN02_CSR_REFEVEN	(1<<25)		/* mem refresh bank toggle */
-#define KN03_CSR_NRMOD		(1<<24)		/* ~NRMOD manufact. jumper */
-#define KN03_CSR_IOINTEN	(0xff<<16)	/* IRQ mask bits */
+#define KN02_CSR_NRMOD		(1<<24)		/* ~NRMOD manufact. jumper */
+#define KN02_CSR_IOINTEN	(0xff<<16)	/* IRQ mask bits */
 #define KN02_CSR_DIAGCHK	(1<<15)		/* diagn/norml ECC reads */
 #define KN02_CSR_DIAGGEN	(1<<14)		/* diagn/norml ECC writes */
 #define KN02_CSR_CORRECT	(1<<13)		/* ECC correct/check */
@@ -63,8 +46,8 @@
 #define KN02_CSR_BNK32M		(1<<10)		/* 32M/8M stride */
 #define KN02_CSR_DIAGDN		(1<<9)		/* DIAGDN manufact. jumper */
 #define KN02_CSR_BAUD38		(1<<8)		/* DZ11 38/19kbps ext. rate */
-#define KN03_CSR_IOINT		(0xff<<0)	/* IRQ status bits (r/o) */
-#define KN03_CSR_LEDS		(0xff<<0)	/* ~diagnostic LEDs (w/o) */
+#define KN02_CSR_IOINT		(0xff<<0)	/* IRQ status bits (r/o) */
+#define KN02_CSR_LEDS		(0xff<<0)	/* ~diagnostic LEDs (w/o) */
 
 
 /*
@@ -98,6 +81,10 @@
 
 
 #ifndef __ASSEMBLY__
+
+#include <linux/spinlock.h>
+#include <linux/types.h>
+
 extern u32 cached_kn02_csr;
 extern spinlock_t kn02_lock;
 extern void init_kn02_irqs(int base);

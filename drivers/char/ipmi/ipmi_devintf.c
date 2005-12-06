@@ -798,7 +798,7 @@ static void ipmi_new_smi(int if_num)
 	devfs_mk_cdev(dev, S_IFCHR | S_IRUSR | S_IWUSR,
 		      "ipmidev/%d", if_num);
 
-	class_device_create(ipmi_class, dev, NULL, "ipmi%d", if_num);
+	class_device_create(ipmi_class, NULL, dev, NULL, "ipmi%d", if_num);
 }
 
 static void ipmi_smi_gone(int if_num)

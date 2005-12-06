@@ -31,16 +31,19 @@
 #include <linux/connector.h>
 #include <linux/delay.h>
 
-static void cn_queue_wrapper(void *data)
+void cn_queue_wrapper(void *data)
 {
-	struct cn_callback_entry *cbq = data;
+	struct cn_callback_data *d = data;
 
-	cbq->cb->callback(cbq->cb->priv);
-	cbq->destruct_data(cbq->ddata);
-	cbq->ddata = NULL;
+	d->callback(d->callback_priv);
+
+	d->destruct_data(d->ddata);
+	d->ddata = NULL;
+
+	kfree(d->free);
 }
 
-static struct cn_callback_entry *cn_queue_alloc_callback_entry(struct cn_callback *cb)
+static struct cn_callback_entry *cn_queue_alloc_callback_entry(char *name, struct cb_id *id, void (*callback)(void *))
 {
 	struct cn_callback_entry *cbq;
 
@@ -50,8 +53,11 @@ static struct cn_callback_entry *cn_queue_alloc_callback_entry(struct cn_callbac
 		return NULL;
 	}
 
-	cbq->cb = cb;
-	INIT_WORK(&cbq->work, &cn_queue_wrapper, cbq);
+	snprintf(cbq->id.name, sizeof(cbq->id.name), "%s", name);
+	memcpy(&cbq->id.id, id, sizeof(struct cb_id));
+	cbq->data.callback = callback;
+	
+	INIT_WORK(&cbq->work, &cn_queue_wrapper, &cbq->data);
 	return cbq;
 }
 
@@ -68,12 +74,12 @@ int cn_cb_equal(struct cb_id *i1, struct cb_id *i2)
 	return ((i1->idx == i2->idx) && (i1->val == i2->val));
 }
 
-int cn_queue_add_callback(struct cn_queue_dev *dev, struct cn_callback *cb)
+int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id, void (*callback)(void *))
 {
 	struct cn_callback_entry *cbq, *__cbq;
 	int found = 0;
 
-	cbq = cn_queue_alloc_callback_entry(cb);
+	cbq = cn_queue_alloc_callback_entry(name, id, callback);
 	if (!cbq)
 		return -ENOMEM;
 
@@ -82,7 +88,7 @@ int cn_queue_add_callback(struct cn_queue_dev *dev, struct cn_callback *cb)
 
 	spin_lock_bh(&dev->queue_lock);
 	list_for_each_entry(__cbq, &dev->queue_list, callback_entry) {
-		if (cn_cb_equal(&__cbq->cb->id, &cb->id)) {
+		if (cn_cb_equal(&__cbq->id.id, id)) {
 			found = 1;
 			break;
 		}
@@ -99,7 +105,7 @@ int cn_queue_add_callback(struct cn_queue_dev *dev, struct cn_callback *cb)
 
 	cbq->nls = dev->nls;
 	cbq->seq = 0;
-	cbq->group = cbq->cb->id.idx;
+	cbq->group = cbq->id.id.idx;
 
 	return 0;
 }
@@ -111,7 +117,7 @@ void cn_queue_del_callback(struct cn_queue_dev *dev, struct cb_id *id)
 
 	spin_lock_bh(&dev->queue_lock);
 	list_for_each_entry_safe(cbq, n, &dev->queue_list, callback_entry) {
-		if (cn_cb_equal(&cbq->cb->id, id)) {
+		if (cn_cb_equal(&cbq->id.id, id)) {
 			list_del(&cbq->callback_entry);
 			found = 1;
 			break;

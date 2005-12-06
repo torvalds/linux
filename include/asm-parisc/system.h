@@ -138,13 +138,7 @@ static inline void set_eiem(unsigned long val)
 #define set_wmb(var, value)		do { var = value; wmb(); } while (0)
 
 
-/* LDCW, the only atomic read-write operation PA-RISC has. *sigh*.  */
-#define __ldcw(a) ({ \
-	unsigned __ret; \
-	__asm__ __volatile__("ldcw 0(%1),%0" : "=r" (__ret) : "r" (a)); \
-	__ret; \
-})
-
+#ifndef CONFIG_PA20
 /* Because kmalloc only guarantees 8-byte alignment for kmalloc'd data,
    and GCC only guarantees 8-byte alignment for stack locals, we can't
    be assured of 16-byte alignment for atomic lock data even if we
@@ -152,11 +146,34 @@ static inline void set_eiem(unsigned long val)
    we use a struct containing an array of four ints for the atomic lock
    type and dynamically select the 16-byte aligned int from the array
    for the semaphore.  */
+
 #define __PA_LDCW_ALIGNMENT 16
 #define __ldcw_align(a) ({ \
   unsigned long __ret = (unsigned long) &(a)->lock[0];        		\
   __ret = (__ret + __PA_LDCW_ALIGNMENT - 1) & ~(__PA_LDCW_ALIGNMENT - 1); \
   (volatile unsigned int *) __ret;                                      \
+})
+#define LDCW	"ldcw"
+
+#else /*CONFIG_PA20*/
+/* From: "Jim Hull" <jim.hull of hp.com>
+   I've attached a summary of the change, but basically, for PA 2.0, as
+   long as the ",CO" (coherent operation) completer is specified, then the
+   16-byte alignment requirement for ldcw and ldcd is relaxed, and instead
+   they only require "natural" alignment (4-byte for ldcw, 8-byte for
+   ldcd). */
+
+#define __PA_LDCW_ALIGNMENT 4
+#define __ldcw_align(a) ((volatile unsigned int *)a)
+#define LDCW	"ldcw,co"
+
+#endif /*!CONFIG_PA20*/
+
+/* LDCW, the only atomic read-write operation PA-RISC has. *sigh*.  */
+#define __ldcw(a) ({ \
+	unsigned __ret; \
+	__asm__ __volatile__(LDCW " 0(%1),%0" : "=r" (__ret) : "r" (a)); \
+	__ret; \
 })
 
 #ifdef CONFIG_SMP
@@ -164,25 +181,6 @@ static inline void set_eiem(unsigned long val)
 #endif
 
 #define KERNEL_START (0x10100000 - 0x1000)
-
-/* This is for the serialisation of PxTLB broadcasts.  At least on the
- * N class systems, only one PxTLB inter processor broadcast can be
- * active at any one time on the Merced bus.  This tlb purge
- * synchronisation is fairly lightweight and harmless so we activate
- * it on all SMP systems not just the N class. */
-#ifdef CONFIG_SMP
-extern spinlock_t pa_tlb_lock;
-
-#define purge_tlb_start(x) spin_lock(&pa_tlb_lock)
-#define purge_tlb_end(x) spin_unlock(&pa_tlb_lock)
-
-#else
-
-#define purge_tlb_start(x) do { } while(0)
-#define purge_tlb_end(x) do { } while (0)
-
-#endif
-
 #define arch_align_stack(x) (x)
 
 #endif

@@ -233,8 +233,8 @@ SetInterlaceMode( spec.interlace );
 /* from web:
  Video Sampling
 Digital video is a sampled form of analog video. The most common sampling schemes in use today are:
-                  Pixel Clock   Horiz    Horiz    Vert
-                   Rate         Total    Active
+		  Pixel Clock   Horiz    Horiz    Vert
+		   Rate         Total    Active
 NTSC square pixel  12.27 MHz    780      640      525
 NTSC CCIR-601      13.5  MHz    858      720      525
 NTSC 4FSc          14.32 MHz    910      768      525

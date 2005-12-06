@@ -76,14 +76,13 @@ static void end_atlas_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type atlas_irq_type = {
-	"Atlas",
-	startup_atlas_irq,
-	shutdown_atlas_irq,
-	enable_atlas_irq,
-	disable_atlas_irq,
-	mask_and_ack_atlas_irq,
-	end_atlas_irq,
-	NULL
+	.typename = "Atlas",
+	.startup = startup_atlas_irq,
+	.shutdown = shutdown_atlas_irq,
+	.enable = enable_atlas_irq,
+	.disable = disable_atlas_irq,
+	.ack = mask_and_ack_atlas_irq,
+	.end = end_atlas_irq,
 };
 
 static inline int ls1bit32(unsigned int x)

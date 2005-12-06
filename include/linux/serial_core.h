@@ -117,7 +117,12 @@
 #define PORT_M32R_SIO	68
 
 /*Digi jsm */
-#define PORT_JSM        65
+#define PORT_JSM        69
+
+#define PORT_IP3106	70
+
+/* Hilscher netx */
+#define PORT_NETX	71
 
 #ifdef __KERNEL__
 
@@ -209,6 +214,7 @@ struct uart_port {
 #define UPIO_HUB6		(1)
 #define UPIO_MEM		(2)
 #define UPIO_MEM32		(3)
+#define UPIO_AU			(4)			/* Au1x00 type IO */
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */

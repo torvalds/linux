@@ -29,6 +29,20 @@
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
 
+#ifdef CONFIG_MIPS_ATLAS
+#include <asm/mips-boards/atlasint.h>
+#define CASCADE_IRQ		MIPSCPU_INT_ATLAS
+#define CASCADE_DISPATCH	atlas_hw0_irqdispatch
+#endif
+#ifdef CONFIG_MIPS_MALTA
+#include <asm/mips-boards/maltaint.h>
+#define CASCADE_IRQ		MIPSCPU_INT_I8259A
+#define CASCADE_DISPATCH	malta_hw0_irqdispatch
+#endif
+#ifdef CONFIG_MIPS_SEAD
+#include <asm/mips-boards/seadint.h>
+#endif
+
 /* A lot of complication here is taken away because:
  *
  * 1) We handle one interrupt and return, sitting in a loop and moving across
@@ -80,74 +94,62 @@
 
 	mfc0	s0, CP0_CAUSE		# get irq bits
 	mfc0	s1, CP0_STATUS		# get irq mask
+	andi	s0, ST0_IM		# CAUSE.CE may be non-zero!
 	and	s0, s1
 
-	/* First we check for r4k counter/timer IRQ. */
-	andi	a0, s0, CAUSEF_IP7
-	beq	a0, zero, 1f
-	 andi	a0, s0, CAUSEF_IP2	# delay slot, check hw0 interrupt
-
-	/* Wheee, a timer interrupt. */
-	move	a0, sp
-	jal	mips_timer_interrupt
-	 nop
-
-	j	ret_from_irq
-	 nop
-
-1:
-#if defined(CONFIG_MIPS_SEAD)
-	beq	a0, zero, 1f
-	 andi	a0, s0, CAUSEF_IP3	# delay slot, check hw1 interrupt
+#if defined(CONFIG_CPU_MIPS32) || defined(CONFIG_CPU_MIPS64)
+ 	.set	mips32
+	clz	a0, s0
+	.set	mips0
+	negu	a0
+	addu	a0, 31-CAUSEB_IP
+	bltz	a0, spurious
 #else
-	beq	a0, zero, 1f		# delay slot, check hw3 interrupt
- 	 andi	a0, s0, CAUSEF_IP5
+	beqz	s0, spurious
+	 li	a0, 7
+
+	and	t0, s0, 0xf000
+	sltiu	t0, t0, 1
+	sll	t0, 2
+	subu	a0, t0
+	sll	s0, t0
+
+	and	t0, s0, 0xc000
+	sltiu	t0, t0, 1
+	sll	t0, 1
+	subu	a0, t0
+	sll	s0, t0
+
+	and	t0, s0, 0x8000
+	sltiu	t0, t0, 1
+	# sll	t0, 0
+	subu	a0, t0
+	# sll	s0, t0
 #endif
 
-	/* Wheee, combined hardware level zero interrupt. */
-#if defined(CONFIG_MIPS_ATLAS)
-	jal	atlas_hw0_irqdispatch
-#elif defined(CONFIG_MIPS_MALTA)
-	jal	malta_hw0_irqdispatch
-#elif defined(CONFIG_MIPS_SEAD)
-	jal	sead_hw0_irqdispatch
+#ifdef CASCADE_IRQ
+	 li	a1, CASCADE_IRQ
+	bne	a0, a1, 1f
+	 addu	a0, MIPSCPU_INT_BASE
+
+	jal	CASCADE_DISPATCH
+	 move	 a0, sp
+
+	j	ret_from_irq
+	 nop
+1:
 #else
-#error "MIPS board not supported\n"
+	 addu	a0, MIPSCPU_INT_BASE
 #endif
-	 move	a0, sp			# delay slot
 
-	j	ret_from_irq
-	 nop				# delay slot
+	jal	do_IRQ
+	 move	a1, sp
 
-1:
-#if defined(CONFIG_MIPS_SEAD)
-	beq	a0, zero, 1f
-	 andi	a0, s0, CAUSEF_IP5	# delay slot, check hw3 interrupt
-	jal	sead_hw1_irqdispatch
-	 move	a0, sp			# delay slot
-	j	ret_from_irq
-	 nop				# delay slot
-1:
-#endif
-#if defined(CONFIG_MIPS_MALTA)
-	beq	a0, zero, 1f            # check hw3 (coreHI) interrupt
-	 nop
-	jal	corehi_irqdispatch
-	 move	a0, sp
 	j	ret_from_irq
 	 nop
-1:
-#endif
-	/*
-	 * Here by mistake?  This is possible, what can happen is that by the
-	 * time we take the exception the IRQ pin goes low, so just leave if
-	 * this is the case.
-	 */
-	move	a1,s0
-	PRINT("Got interrupt: c0_cause = %08x\n")
-	mfc0	a1, CP0_EPC
-	PRINT("c0_epc = %08x\n")
 
-	j	ret_from_irq
+
+spurious:
+	j	spurious_interrupt
 	 nop
 	END(mipsIRQ)

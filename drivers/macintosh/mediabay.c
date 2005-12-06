@@ -167,19 +167,19 @@ enum {
  * Functions for polling content of media bay
  */
  
-static u8 __pmac
+static u8
 ohare_mb_content(struct media_bay_info *bay)
 {
 	return (MB_IN32(bay, OHARE_MBCR) >> 12) & 7;
 }
 
-static u8 __pmac
+static u8
 heathrow_mb_content(struct media_bay_info *bay)
 {
 	return (MB_IN32(bay, HEATHROW_MBCR) >> 12) & 7;
 }
 
-static u8 __pmac
+static u8
 keylargo_mb_content(struct media_bay_info *bay)
 {
 	int new_gpio;
@@ -205,7 +205,7 @@ keylargo_mb_content(struct media_bay_info *bay)
  * into reset state as well
  */
 
-static void __pmac
+static void
 ohare_mb_power(struct media_bay_info* bay, int on_off)
 {
 	if (on_off) {
@@ -224,7 +224,7 @@ ohare_mb_power(struct media_bay_info* bay, int on_off)
 	MB_BIC(bay, OHARE_MBCR, 0x00000F00);
 }
 
-static void __pmac
+static void
 heathrow_mb_power(struct media_bay_info* bay, int on_off)
 {
 	if (on_off) {
@@ -243,7 +243,7 @@ heathrow_mb_power(struct media_bay_info* bay, int on_off)
 	MB_BIC(bay, HEATHROW_MBCR, 0x00000F00);
 }
 
-static void __pmac
+static void
 keylargo_mb_power(struct media_bay_info* bay, int on_off)
 {
 	if (on_off) {
@@ -267,7 +267,7 @@ keylargo_mb_power(struct media_bay_info* bay, int on_off)
  * enable the related busses
  */
 
-static int __pmac
+static int
 ohare_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
 {
 	switch(device_id) {
@@ -287,7 +287,7 @@ ohare_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
 	return -ENODEV;
 }
 
-static int __pmac
+static int
 heathrow_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
 {
 	switch(device_id) {
@@ -307,7 +307,7 @@ heathrow_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
 	return -ENODEV;
 }
 
-static int __pmac
+static int
 keylargo_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
 {
 	switch(device_id) {
@@ -330,43 +330,43 @@ keylargo_mb_setup_bus(struct media_bay_info* bay, u8 device_id)
  * Functions for tweaking resets
  */
 
-static void __pmac
+static void
 ohare_mb_un_reset(struct media_bay_info* bay)
 {
 	MB_BIS(bay, OHARE_FCR, OH_BAY_RESET_N);
 }
 
-static void __pmac keylargo_mb_init(struct media_bay_info *bay)
+static void keylargo_mb_init(struct media_bay_info *bay)
 {
 	MB_BIS(bay, KEYLARGO_MBCR, KL_MBCR_MB0_ENABLE);
 }
 
-static void __pmac heathrow_mb_un_reset(struct media_bay_info* bay)
+static void heathrow_mb_un_reset(struct media_bay_info* bay)
 {
 	MB_BIS(bay, HEATHROW_FCR, HRW_BAY_RESET_N);
 }
 
-static void __pmac keylargo_mb_un_reset(struct media_bay_info* bay)
+static void keylargo_mb_un_reset(struct media_bay_info* bay)
 {
 	MB_BIS(bay, KEYLARGO_MBCR, KL_MBCR_MB0_DEV_RESET);
 }
 
-static void __pmac ohare_mb_un_reset_ide(struct media_bay_info* bay)
+static void ohare_mb_un_reset_ide(struct media_bay_info* bay)
 {
 	MB_BIS(bay, OHARE_FCR, OH_IDE1_RESET_N);
 }
 
-static void __pmac heathrow_mb_un_reset_ide(struct media_bay_info* bay)
+static void heathrow_mb_un_reset_ide(struct media_bay_info* bay)
 {
 	MB_BIS(bay, HEATHROW_FCR, HRW_IDE1_RESET_N);
 }
 
-static void __pmac keylargo_mb_un_reset_ide(struct media_bay_info* bay)
+static void keylargo_mb_un_reset_ide(struct media_bay_info* bay)
 {
 	MB_BIS(bay, KEYLARGO_FCR1, KL1_EIDE0_RESET_N);
 }
 
-static inline void __pmac set_mb_power(struct media_bay_info* bay, int onoff)
+static inline void set_mb_power(struct media_bay_info* bay, int onoff)
 {
 	/* Power up up and assert the bay reset line */
 	if (onoff) {
@@ -382,7 +382,7 @@ static inline void __pmac set_mb_power(struct media_bay_info* bay, int onoff)
 	bay->timer = msecs_to_jiffies(MB_POWER_DELAY);
 }
 
-static void __pmac poll_media_bay(struct media_bay_info* bay)
+static void poll_media_bay(struct media_bay_info* bay)
 {
 	int id = bay->ops->content(bay);
 
@@ -415,7 +415,7 @@ static void __pmac poll_media_bay(struct media_bay_info* bay)
 	}
 }
 
-int __pmac check_media_bay(struct device_node *which_bay, int what)
+int check_media_bay(struct device_node *which_bay, int what)
 {
 #ifdef CONFIG_BLK_DEV_IDE
 	int	i;
@@ -432,7 +432,7 @@ int __pmac check_media_bay(struct device_node *which_bay, int what)
 }
 EXPORT_SYMBOL(check_media_bay);
 
-int __pmac check_media_bay_by_base(unsigned long base, int what)
+int check_media_bay_by_base(unsigned long base, int what)
 {
 #ifdef CONFIG_BLK_DEV_IDE
 	int	i;
@@ -449,7 +449,7 @@ int __pmac check_media_bay_by_base(unsigned long base, int what)
 	return -ENODEV;
 }
 
-int __pmac media_bay_set_ide_infos(struct device_node* which_bay, unsigned long base,
+int media_bay_set_ide_infos(struct device_node* which_bay, unsigned long base,
 	int irq, int index)
 {
 #ifdef CONFIG_BLK_DEV_IDE
@@ -489,7 +489,7 @@ int __pmac media_bay_set_ide_infos(struct device_node* which_bay, unsigned long 
 	return -ENODEV;
 }
 
-static void __pmac media_bay_step(int i)
+static void media_bay_step(int i)
 {
 	struct media_bay_info* bay = &media_bays[i];
 
@@ -619,7 +619,7 @@ static void __pmac media_bay_step(int i)
  * with the IDE driver.  It needs to be a thread because
  * ide_register can't be called from interrupt context.
  */
-static int __pmac media_bay_task(void *x)
+static int media_bay_task(void *x)
 {
 	int	i;
 
@@ -704,7 +704,7 @@ static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_de
 
 }
 
-static int __pmac media_bay_suspend(struct macio_dev *mdev, pm_message_t state)
+static int media_bay_suspend(struct macio_dev *mdev, pm_message_t state)
 {
 	struct media_bay_info	*bay = macio_get_drvdata(mdev);
 
@@ -719,7 +719,7 @@ static int __pmac media_bay_suspend(struct macio_dev *mdev, pm_message_t state)
 	return 0;
 }
 
-static int __pmac media_bay_resume(struct macio_dev *mdev)
+static int media_bay_resume(struct macio_dev *mdev)
 {
 	struct media_bay_info	*bay = macio_get_drvdata(mdev);
 
@@ -760,7 +760,7 @@ static int __pmac media_bay_resume(struct macio_dev *mdev)
 
 /* Definitions of "ops" structures.
  */
-static struct mb_ops ohare_mb_ops __pmacdata = {
+static struct mb_ops ohare_mb_ops = {
 	.name		= "Ohare",
 	.content	= ohare_mb_content,
 	.power		= ohare_mb_power,
@@ -769,7 +769,7 @@ static struct mb_ops ohare_mb_ops __pmacdata = {
 	.un_reset_ide	= ohare_mb_un_reset_ide,
 };
 
-static struct mb_ops heathrow_mb_ops __pmacdata = {
+static struct mb_ops heathrow_mb_ops = {
 	.name		= "Heathrow",
 	.content	= heathrow_mb_content,
 	.power		= heathrow_mb_power,
@@ -778,7 +778,7 @@ static struct mb_ops heathrow_mb_ops __pmacdata = {
 	.un_reset_ide	= heathrow_mb_un_reset_ide,
 };
 
-static struct mb_ops keylargo_mb_ops __pmacdata = {
+static struct mb_ops keylargo_mb_ops = {
 	.name		= "KeyLargo",
 	.init		= keylargo_mb_init,
 	.content	= keylargo_mb_content,

@@ -409,16 +409,6 @@ config BLK_DEV_INITRD
 	  for details.
 
 
-#XXX - it makes sense to enable this only for 32-bit subarch's, not for x86_64
-#for instance.
-config LBD
-	bool "Support for Large Block Devices"
-	depends on X86 || (MIPS && 32BIT) || PPC32 || ARCH_S390_31 || SUPERH || UML
-	help
-	  Say Y here if you want to attach large (bigger than 2TB) discs to
-	  your machine, or if you want to have a raid or loopback device
-	  bigger than 2TB.  Otherwise say N.
-
 config CDROM_PKTCDVD
 	tristate "Packet writing on CD/DVD media"
 	depends on !UML
@@ -454,8 +444,6 @@ config CDROM_PKTCDVD_WCACHE
 	  don't do deferred write error handling yet.
 
 source "drivers/s390/block/Kconfig"
-
-source "drivers/block/Kconfig.iosched"
 
 config ATA_OVER_ETH
 	tristate "ATA over Ethernet support"

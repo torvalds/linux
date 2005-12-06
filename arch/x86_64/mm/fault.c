@@ -308,18 +308,6 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	unsigned long flags;
 	siginfo_t info;
 
-#ifdef CONFIG_CHECKING
-	{ 
-		unsigned long gs; 
-		struct x8664_pda *pda = cpu_pda + stack_smp_processor_id(); 
-		rdmsrl(MSR_GS_BASE, gs); 
-		if (gs != (unsigned long)pda) { 
-			wrmsrl(MSR_GS_BASE, pda); 
-			printk("page_fault: wrong gs %lx expected %p\n", gs, pda);
-		}
-	}
-#endif
-
 	/* get the address */
 	__asm__("movq %%cr2,%0":"=r" (address));
 	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, error_code, 14,
@@ -571,3 +559,10 @@ do_sigbus:
 	force_sig_info(SIGBUS, &info, tsk);
 	return;
 }
+
+static int __init enable_pagefaulttrace(char *str)
+{
+	page_fault_trace = 1;
+	return 0;
+}
+__setup("pagefaulttrace", enable_pagefaulttrace);

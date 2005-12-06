@@ -3,7 +3,7 @@
  *
  * MPC83XX common board code
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor Inc.
  *
@@ -40,6 +40,7 @@
 #include <asm/ppc_sys.h>
 #include <asm/kgdb.h>
 #include <asm/delay.h>
+#include <asm/machdep.h>
 
 #include <syslib/ppc83xx_setup.h>
 #if defined(CONFIG_PCI)

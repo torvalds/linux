@@ -29,24 +29,10 @@ static int afs_file_release(struct inode *inode, struct file *file);
 
 static int afs_file_readpage(struct file *file, struct page *page);
 static int afs_file_invalidatepage(struct page *page, unsigned long offset);
-static int afs_file_releasepage(struct page *page, int gfp_flags);
-
-static ssize_t afs_file_write(struct file *file, const char __user *buf,
-			      size_t size, loff_t *off);
+static int afs_file_releasepage(struct page *page, gfp_t gfp_flags);
 
 struct inode_operations afs_file_inode_operations = {
 	.getattr	= afs_inode_getattr,
-};
-
-struct file_operations afs_file_file_operations = {
-	.read		= generic_file_read,
-	.write		= afs_file_write,
-	.mmap		= generic_file_mmap,
-#if 0
-	.open		= afs_file_open,
-	.release	= afs_file_release,
-	.fsync		= afs_file_fsync,
-#endif
 };
 
 struct address_space_operations afs_fs_aops = {
@@ -56,22 +42,6 @@ struct address_space_operations afs_fs_aops = {
 	.releasepage	= afs_file_releasepage,
 	.invalidatepage	= afs_file_invalidatepage,
 };
-
-/*****************************************************************************/
-/*
- * AFS file write
- */
-static ssize_t afs_file_write(struct file *file, const char __user *buf,
-			      size_t size, loff_t *off)
-{
-	struct afs_vnode *vnode;
-
-	vnode = AFS_FS_I(file->f_dentry->d_inode);
-	if (vnode->flags & AFS_VNODE_DELETED)
-		return -ESTALE;
-
-	return -EIO;
-} /* end afs_file_write() */
 
 /*****************************************************************************/
 /*
@@ -279,7 +249,7 @@ static int afs_file_invalidatepage(struct page *page, unsigned long offset)
 /*
  * release a page and cleanup its private data
  */
-static int afs_file_releasepage(struct page *page, int gfp_flags)
+static int afs_file_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	struct cachefs_page *pageio;
 
@@ -291,12 +261,11 @@ static int afs_file_releasepage(struct page *page, int gfp_flags)
 		cachefs_uncache_page(vnode->cache, page);
 #endif
 
-		pageio = (struct cachefs_page *) page->private;
-		page->private = 0;
+		pageio = (struct cachefs_page *) page_private(page);
+		set_page_private(page, 0);
 		ClearPagePrivate(page);
 
-		if (pageio)
-			kfree(pageio);
+		kfree(pageio);
 	}
 
 	_leave(" = 0");

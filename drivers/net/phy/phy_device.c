@@ -30,7 +30,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
@@ -101,7 +100,6 @@ struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 	return dev;
 }
 
-#ifdef CONFIG_PHYCONTROL
 /* phy_prepare_link:
  *
  * description: Tells the PHY infrastructure to handle the
@@ -159,8 +157,6 @@ void phy_disconnect(struct phy_device *phydev)
 	phy_detach(phydev);
 }
 EXPORT_SYMBOL(phy_disconnect);
-
-#endif /* CONFIG_PHYCONTROL */
 
 /* phy_attach:
  *

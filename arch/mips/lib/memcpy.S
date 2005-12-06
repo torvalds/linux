@@ -13,6 +13,21 @@
  * Mnemonic names for arguments to memcpy/__copy_user
  */
 #include <linux/config.h>
+
+/*
+ * Hack to resolve longstanding prefetch issue
+ *
+ * Prefetching may be fatal on some systems if we're prefetching beyond the
+ * end of memory on some systems.  It's also a seriously bad idea on non
+ * dma-coherent systems.
+ */
+#if !defined(CONFIG_DMA_COHERENT) || !defined(CONFIG_DMA_IP27)
+#undef CONFIG_CPU_HAS_PREFETCH
+#endif
+#ifdef CONFIG_MIPS_MALTA
+#undef CONFIG_CPU_HAS_PREFETCH
+#endif
+
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/regdef.h>

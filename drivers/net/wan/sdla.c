@@ -182,7 +182,7 @@ static char sdla_byte(struct net_device *dev, int addr)
 	return(byte);
 }
 
-void sdla_stop(struct net_device *dev)
+static void sdla_stop(struct net_device *dev)
 {
 	struct frad_local *flp;
 
@@ -209,7 +209,7 @@ void sdla_stop(struct net_device *dev)
 	}
 }
 
-void sdla_start(struct net_device *dev)
+static void sdla_start(struct net_device *dev)
 {
 	struct frad_local *flp;
 
@@ -247,7 +247,7 @@ void sdla_start(struct net_device *dev)
  *
  ***************************************************/
 
-int sdla_z80_poll(struct net_device *dev, int z80_addr, int jiffs, char resp1, char resp2)
+static int sdla_z80_poll(struct net_device *dev, int z80_addr, int jiffs, char resp1, char resp2)
 {
 	unsigned long start, done, now;
 	char          resp, *temp;
@@ -505,7 +505,7 @@ static int sdla_cmd(struct net_device *dev, int cmd, short dlci, short flags,
 
 static int sdla_reconfig(struct net_device *dev);
 
-int sdla_activate(struct net_device *slave, struct net_device *master)
+static int sdla_activate(struct net_device *slave, struct net_device *master)
 {
 	struct frad_local *flp;
 	int i;
@@ -527,7 +527,7 @@ int sdla_activate(struct net_device *slave, struct net_device *master)
 	return(0);
 }
 
-int sdla_deactivate(struct net_device *slave, struct net_device *master)
+static int sdla_deactivate(struct net_device *slave, struct net_device *master)
 {
 	struct frad_local *flp;
 	int               i;
@@ -549,7 +549,7 @@ int sdla_deactivate(struct net_device *slave, struct net_device *master)
 	return(0);
 }
 
-int sdla_assoc(struct net_device *slave, struct net_device *master)
+static int sdla_assoc(struct net_device *slave, struct net_device *master)
 {
 	struct frad_local *flp;
 	int               i;
@@ -585,7 +585,7 @@ int sdla_assoc(struct net_device *slave, struct net_device *master)
 	return(0);
 }
 
-int sdla_deassoc(struct net_device *slave, struct net_device *master)
+static int sdla_deassoc(struct net_device *slave, struct net_device *master)
 {
 	struct frad_local *flp;
 	int               i;
@@ -613,7 +613,7 @@ int sdla_deassoc(struct net_device *slave, struct net_device *master)
 	return(0);
 }
 
-int sdla_dlci_conf(struct net_device *slave, struct net_device *master, int get)
+static int sdla_dlci_conf(struct net_device *slave, struct net_device *master, int get)
 {
 	struct frad_local *flp;
 	struct dlci_local *dlp;
@@ -1324,7 +1324,7 @@ NOTE:  This is rather a useless action right now, as the
 	return(0);
 }
 
-int sdla_change_mtu(struct net_device *dev, int new_mtu)
+static int sdla_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct frad_local *flp;
 
@@ -1337,7 +1337,7 @@ int sdla_change_mtu(struct net_device *dev, int new_mtu)
 	return(-EOPNOTSUPP);
 }
 
-int sdla_set_config(struct net_device *dev, struct ifmap *map)
+static int sdla_set_config(struct net_device *dev, struct ifmap *map)
 {
 	struct frad_local *flp;
 	int               i;

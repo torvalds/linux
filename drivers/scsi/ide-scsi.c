@@ -184,13 +184,16 @@ static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigne
 			unsigned long flags;
 
 			local_irq_save(flags);
-			buf = kmap_atomic(pc->sg->page, KM_IRQ0) + pc->sg->offset;
-			drive->hwif->atapi_input_bytes(drive, buf + pc->b_count, count);
+			buf = kmap_atomic(pc->sg->page, KM_IRQ0) +
+					pc->sg->offset;
+			drive->hwif->atapi_input_bytes(drive,
+						buf + pc->b_count, count);
 			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
 			local_irq_restore(flags);
 		} else {
 			buf = page_address(pc->sg->page) + pc->sg->offset;
-			drive->hwif->atapi_input_bytes(drive, buf + pc->b_count, count);
+			drive->hwif->atapi_input_bytes(drive,
+						buf + pc->b_count, count);
 		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
@@ -216,13 +219,16 @@ static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsign
 			unsigned long flags;
 
 			local_irq_save(flags);
-			buf = kmap_atomic(pc->sg->page, KM_IRQ0) + pc->sg->offset;
-			drive->hwif->atapi_output_bytes(drive, buf + pc->b_count, count);
+			buf = kmap_atomic(pc->sg->page, KM_IRQ0) +
+						pc->sg->offset;
+			drive->hwif->atapi_output_bytes(drive,
+						buf + pc->b_count, count);
 			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
 			local_irq_restore(flags);
 		} else {
 			buf = page_address(pc->sg->page) + pc->sg->offset;
-			drive->hwif->atapi_output_bytes(drive, buf + pc->b_count, count);
+			drive->hwif->atapi_output_bytes(drive,
+						buf + pc->b_count, count);
 		}
 		bcount -= count; pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
@@ -325,9 +331,9 @@ static int idescsi_check_condition(ide_drive_t *drive, struct request *failed_co
 	rq = kmalloc (sizeof (struct request), GFP_ATOMIC);
 	buf = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_ATOMIC);
 	if (pc == NULL || rq == NULL || buf == NULL) {
-		if (pc) kfree(pc);
-		if (rq) kfree(rq);
-		if (buf) kfree(buf);
+		kfree(buf);
+		kfree(rq);
+		kfree(pc);
 		return -ENOMEM;
 	}
 	memset (pc, 0, sizeof (idescsi_pc_t));
@@ -389,6 +395,7 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	int log = test_bit(IDESCSI_LOG_CMD, &scsi->log);
 	struct Scsi_Host *host;
 	u8 *scsi_buf;
+	int errors = rq->errors;
 	unsigned long flags;
 
 	if (!(rq->flags & (REQ_SPECIAL|REQ_SENSE))) {
@@ -415,11 +422,11 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 			printk (KERN_WARNING "ide-scsi: %s: timed out for %lu\n",
 					drive->name, pc->scsi_cmd->serial_number);
 		pc->scsi_cmd->result = DID_TIME_OUT << 16;
-	} else if (rq->errors >= ERROR_MAX) {
+	} else if (errors >= ERROR_MAX) {
 		pc->scsi_cmd->result = DID_ERROR << 16;
 		if (log)
 			printk ("ide-scsi: %s: I/O error for %lu\n", drive->name, pc->scsi_cmd->serial_number);
-	} else if (rq->errors) {
+	} else if (errors) {
 		if (log)
 			printk ("ide-scsi: %s: check condition for %lu\n", drive->name, pc->scsi_cmd->serial_number);
 		if (!idescsi_check_condition(drive, rq))
@@ -777,8 +784,8 @@ static ide_proc_entry_t idescsi_proc[] = {
 #endif
 
 static ide_driver_t idescsi_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-scsi",
 		.bus		= &ide_bus_type,
 		.probe		= ide_scsi_probe,
@@ -875,7 +882,7 @@ static inline int should_transform(ide_drive_t *drive, struct scsi_cmnd *cmd)
 	struct gendisk *disk = cmd->request->rq_disk;
 
 	if (disk) {
-		struct Scsi_Device_Template **p = disk->private_data;
+		struct struct scsi_device_Template **p = disk->private_data;
 		if (strcmp((*p)->scsi_driverfs_driver.name, "sg") == 0)
 			return test_bit(IDESCSI_SG_TRANSFORM, &scsi->transform);
 	}
@@ -893,7 +900,7 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	idescsi_pc_t *pc = NULL;
 
 	if (!drive) {
-		printk (KERN_ERR "ide-scsi: drive id %d not present\n", cmd->device->id);
+		scmd_printk (KERN_ERR, cmd, "drive not present\n");
 		goto abort;
 	}
 	scsi = drive_to_idescsi(drive);
@@ -943,8 +950,8 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	spin_lock_irq(host->host_lock);
 	return 0;
 abort:
-	if (pc) kfree (pc);
-	if (rq) kfree (rq);
+	kfree (pc);
+	kfree (rq);
 	cmd->result = DID_ERROR << 16;
 	done(cmd);
 	return 0;

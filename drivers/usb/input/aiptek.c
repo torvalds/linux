@@ -317,7 +317,7 @@ struct aiptek_settings {
 };
 
 struct aiptek {
-	struct input_dev inputdev;		/* input device struct           */
+	struct input_dev *inputdev;		/* input device struct           */
 	struct usb_device *usbdev;		/* usb device struct             */
 	struct urb *urb;			/* urb for incoming reports      */
 	dma_addr_t data_dma;			/* our dma stuffage              */
@@ -402,7 +402,7 @@ static void aiptek_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct aiptek *aiptek = urb->context;
 	unsigned char *data = aiptek->data;
-	struct input_dev *inputdev = &aiptek->inputdev;
+	struct input_dev *inputdev = aiptek->inputdev;
 	int jitterable = 0;
 	int retval, macro, x, y, z, left, right, middle, p, dv, tip, bs, pck;
 
@@ -955,20 +955,20 @@ static int aiptek_program_tablet(struct aiptek *aiptek)
 	/* Query getXextension */
 	if ((ret = aiptek_query(aiptek, 0x01, 0x00)) < 0)
 		return ret;
-	aiptek->inputdev.absmin[ABS_X] = 0;
-	aiptek->inputdev.absmax[ABS_X] = ret - 1;
+	aiptek->inputdev->absmin[ABS_X] = 0;
+	aiptek->inputdev->absmax[ABS_X] = ret - 1;
 
 	/* Query getYextension */
 	if ((ret = aiptek_query(aiptek, 0x01, 0x01)) < 0)
 		return ret;
-	aiptek->inputdev.absmin[ABS_Y] = 0;
-	aiptek->inputdev.absmax[ABS_Y] = ret - 1;
+	aiptek->inputdev->absmin[ABS_Y] = 0;
+	aiptek->inputdev->absmax[ABS_Y] = ret - 1;
 
 	/* Query getPressureLevels */
 	if ((ret = aiptek_query(aiptek, 0x08, 0x00)) < 0)
 		return ret;
-	aiptek->inputdev.absmin[ABS_PRESSURE] = 0;
-	aiptek->inputdev.absmax[ABS_PRESSURE] = ret - 1;
+	aiptek->inputdev->absmin[ABS_PRESSURE] = 0;
+	aiptek->inputdev->absmax[ABS_PRESSURE] = ret - 1;
 
 	/* Depending on whether we are in absolute or relative mode, we will
 	 * do a switchToTablet(absolute) or switchToMouse(relative) command.
@@ -1025,8 +1025,8 @@ static ssize_t show_tabletSize(struct device *dev, struct device_attribute *attr
 		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "%dx%d\n",
-			aiptek->inputdev.absmax[ABS_X] + 1,
-			aiptek->inputdev.absmax[ABS_Y] + 1);
+			aiptek->inputdev->absmax[ABS_X] + 1,
+			aiptek->inputdev->absmax[ABS_Y] + 1);
 }
 
 /* These structs define the sysfs files, param #1 is the name of the
@@ -1048,7 +1048,7 @@ static ssize_t show_tabletProductId(struct device *dev, struct device_attribute 
 		return 0;
 
 	return snprintf(buf, PAGE_SIZE, "0x%04x\n",
-			aiptek->inputdev.id.product);
+			aiptek->inputdev->id.product);
 }
 
 static DEVICE_ATTR(product_id, S_IRUGO, show_tabletProductId, NULL);
@@ -1063,7 +1063,7 @@ static ssize_t show_tabletVendorId(struct device *dev, struct device_attribute *
 	if (aiptek == NULL)
 		return 0;
 
-	return snprintf(buf, PAGE_SIZE, "0x%04x\n", aiptek->inputdev.id.vendor);
+	return snprintf(buf, PAGE_SIZE, "0x%04x\n", aiptek->inputdev->id.vendor);
 }
 
 static DEVICE_ATTR(vendor_id, S_IRUGO, show_tabletVendorId, NULL);
@@ -1977,7 +1977,6 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct input_dev *inputdev;
 	struct input_handle *inputhandle;
 	struct list_head *node, *next;
-	char path[64 + 1];
 	int i;
 	int speeds[] = { 0,
 		AIPTEK_PROGRAMMABLE_DELAY_50,
@@ -1996,24 +1995,26 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 */
 	speeds[0] = programmableDelay;
 
-	if ((aiptek = kmalloc(sizeof(struct aiptek), GFP_KERNEL)) == NULL)
-		return -ENOMEM;
-	memset(aiptek, 0, sizeof(struct aiptek));
+	aiptek = kzalloc(sizeof(struct aiptek), GFP_KERNEL);
+	inputdev = input_allocate_device();
+	if (!aiptek || !inputdev)
+		goto fail1;
 
 	aiptek->data = usb_buffer_alloc(usbdev, AIPTEK_PACKET_LENGTH,
 					SLAB_ATOMIC, &aiptek->data_dma);
-	if (aiptek->data == NULL) {
-		kfree(aiptek);
-		return -ENOMEM;
-	}
+	if (!aiptek->data)
+		goto fail1;
 
 	aiptek->urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (aiptek->urb == NULL) {
-		usb_buffer_free(usbdev, AIPTEK_PACKET_LENGTH, aiptek->data,
-				aiptek->data_dma);
-		kfree(aiptek);
-		return -ENOMEM;
-	}
+	if (!aiptek->urb)
+		goto fail2;
+
+	aiptek->inputdev = inputdev;
+	aiptek->usbdev = usbdev;
+	aiptek->ifnum = intf->altsetting[0].desc.bInterfaceNumber;
+	aiptek->inDelay = 0;
+	aiptek->endDelay = 0;
+	aiptek->previousJitterable = 0;
 
 	/* Set up the curSettings struct. Said struct contains the current
 	 * programmable parameters. The newSetting struct contains changes
@@ -2036,31 +2037,48 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* Both structs should have equivalent settings
 	 */
-	memcpy(&aiptek->newSetting, &aiptek->curSetting,
-	       sizeof(struct aiptek_settings));
+	aiptek->newSetting = aiptek->curSetting;
+
+	/* Determine the usb devices' physical path.
+	 * Asketh not why we always pretend we're using "../input0",
+	 * but I suspect this will have to be refactored one
+	 * day if a single USB device can be a keyboard & a mouse
+	 * & a tablet, and the inputX number actually will tell
+	 * us something...
+	 */
+	usb_make_path(usbdev, aiptek->features.usbPath,
+			sizeof(aiptek->features.usbPath));
+	strlcat(aiptek->features.usbPath, "/input0",
+		sizeof(aiptek->features.usbPath));
+
+	/* Set up client data, pointers to open and close routines
+	 * for the input device.
+	 */
+	inputdev->name = "Aiptek";
+	inputdev->phys = aiptek->features.usbPath;
+	usb_to_input_id(usbdev, &inputdev->id);
+	inputdev->cdev.dev = &intf->dev;
+	inputdev->private = aiptek;
+	inputdev->open = aiptek_open;
+	inputdev->close = aiptek_close;
 
 	/* Now program the capacities of the tablet, in terms of being
 	 * an input device.
 	 */
-	aiptek->inputdev.evbit[0] |= BIT(EV_KEY)
+	inputdev->evbit[0] |= BIT(EV_KEY)
 	    | BIT(EV_ABS)
 	    | BIT(EV_REL)
 	    | BIT(EV_MSC);
 
-	aiptek->inputdev.absbit[0] |=
-	    (BIT(ABS_X) |
-	     BIT(ABS_Y) |
-	     BIT(ABS_PRESSURE) |
-	     BIT(ABS_TILT_X) |
-	     BIT(ABS_TILT_Y) | BIT(ABS_WHEEL) | BIT(ABS_MISC));
+	inputdev->absbit[0] |= BIT(ABS_MISC);
 
-	aiptek->inputdev.relbit[0] |=
+	inputdev->relbit[0] |=
 	    (BIT(REL_X) | BIT(REL_Y) | BIT(REL_WHEEL) | BIT(REL_MISC));
 
-	aiptek->inputdev.keybit[LONG(BTN_LEFT)] |=
+	inputdev->keybit[LONG(BTN_LEFT)] |=
 	    (BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE));
 
-	aiptek->inputdev.keybit[LONG(BTN_DIGI)] |=
+	inputdev->keybit[LONG(BTN_DIGI)] |=
 	    (BIT(BTN_TOOL_PEN) |
 	     BIT(BTN_TOOL_RUBBER) |
 	     BIT(BTN_TOOL_PENCIL) |
@@ -2070,70 +2088,26 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	     BIT(BTN_TOOL_LENS) |
 	     BIT(BTN_TOUCH) | BIT(BTN_STYLUS) | BIT(BTN_STYLUS2));
 
-	aiptek->inputdev.mscbit[0] = BIT(MSC_SERIAL);
+	inputdev->mscbit[0] = BIT(MSC_SERIAL);
 
 	/* Programming the tablet macro keys needs to be done with a for loop
 	 * as the keycodes are discontiguous.
 	 */
 	for (i = 0; i < sizeof(macroKeyEvents) / sizeof(macroKeyEvents[0]); ++i)
-		set_bit(macroKeyEvents[i], aiptek->inputdev.keybit);
+		set_bit(macroKeyEvents[i], inputdev->keybit);
 
-	/* Set up client data, pointers to open and close routines
-	 * for the input device.
-	 */
-	aiptek->inputdev.private = aiptek;
-	aiptek->inputdev.open = aiptek_open;
-	aiptek->inputdev.close = aiptek_close;
-
-	/* Determine the usb devices' physical path.
-	 * Asketh not why we always pretend we're using "../input0",
-	 * but I suspect this will have to be refactored one
-	 * day if a single USB device can be a keyboard & a mouse
-	 * & a tablet, and the inputX number actually will tell
-	 * us something...
-	 */
-	if (usb_make_path(usbdev, path, 64) > 0)
-		sprintf(aiptek->features.usbPath, "%s/input0", path);
-
-	/* Program the input device coordinate capacities. We do not yet
+	/*
+	 * Program the input device coordinate capacities. We do not yet
 	 * know what maximum X, Y, and Z values are, so we're putting fake
 	 * values in. Later, we'll ask the tablet to put in the correct
 	 * values.
 	 */
-	aiptek->inputdev.absmin[ABS_X] = 0;
-	aiptek->inputdev.absmax[ABS_X] = 2999;
-	aiptek->inputdev.absmin[ABS_Y] = 0;
-	aiptek->inputdev.absmax[ABS_Y] = 2249;
-	aiptek->inputdev.absmin[ABS_PRESSURE] = 0;
-	aiptek->inputdev.absmax[ABS_PRESSURE] = 511;
-	aiptek->inputdev.absmin[ABS_TILT_X] = AIPTEK_TILT_MIN;
-	aiptek->inputdev.absmax[ABS_TILT_X] = AIPTEK_TILT_MAX;
-	aiptek->inputdev.absmin[ABS_TILT_Y] = AIPTEK_TILT_MIN;
-	aiptek->inputdev.absmax[ABS_TILT_Y] = AIPTEK_TILT_MAX;
-	aiptek->inputdev.absmin[ABS_WHEEL] = AIPTEK_WHEEL_MIN;
-	aiptek->inputdev.absmax[ABS_WHEEL] = AIPTEK_WHEEL_MAX - 1;
-	aiptek->inputdev.absfuzz[ABS_X] = 0;
-	aiptek->inputdev.absfuzz[ABS_Y] = 0;
-	aiptek->inputdev.absfuzz[ABS_PRESSURE] = 0;
-	aiptek->inputdev.absfuzz[ABS_TILT_X] = 0;
-	aiptek->inputdev.absfuzz[ABS_TILT_Y] = 0;
-	aiptek->inputdev.absfuzz[ABS_WHEEL] = 0;
-	aiptek->inputdev.absflat[ABS_X] = 0;
-	aiptek->inputdev.absflat[ABS_Y] = 0;
-	aiptek->inputdev.absflat[ABS_PRESSURE] = 0;
-	aiptek->inputdev.absflat[ABS_TILT_X] = 0;
-	aiptek->inputdev.absflat[ABS_TILT_Y] = 0;
-	aiptek->inputdev.absflat[ABS_WHEEL] = 0;
-	aiptek->inputdev.name = "Aiptek";
-	aiptek->inputdev.phys = aiptek->features.usbPath;
-	usb_to_input_id(usbdev, &aiptek->inputdev.id);
-	aiptek->inputdev.dev = &intf->dev;
-
-	aiptek->usbdev = usbdev;
-	aiptek->ifnum = intf->altsetting[0].desc.bInterfaceNumber;
-	aiptek->inDelay = 0;
-	aiptek->endDelay = 0;
-	aiptek->previousJitterable = 0;
+	input_set_abs_params(inputdev, ABS_X, 0, 2999, 0, 0);
+	input_set_abs_params(inputdev, ABS_X, 0, 2249, 0, 0);
+	input_set_abs_params(inputdev, ABS_PRESSURE, 0, 511, 0, 0);
+	input_set_abs_params(inputdev, ABS_TILT_X, AIPTEK_TILT_MIN, AIPTEK_TILT_MAX, 0, 0);
+	input_set_abs_params(inputdev, ABS_TILT_Y, AIPTEK_TILT_MIN, AIPTEK_TILT_MAX, 0, 0);
+	input_set_abs_params(inputdev, ABS_WHEEL, AIPTEK_WHEEL_MIN, AIPTEK_WHEEL_MAX - 1, 0, 0);
 
 	endpoint = &intf->altsetting[0].endpoint[0].desc;
 
@@ -2150,28 +2124,6 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	aiptek->urb->transfer_dma = aiptek->data_dma;
 	aiptek->urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	/* Register the tablet as an Input Device
-	 */
-	input_register_device(&aiptek->inputdev);
-
-	/* We now will look for the evdev device which is mapped to
-	 * the tablet. The partial name is kept in the link list of
-	 * input_handles associated with this input device.
-	 * What identifies an evdev input_handler is that it begins
-	 * with 'event', continues with a digit, and that in turn
-	 * is mapped to /{devfs}/input/eventN.
-	 */
-	inputdev = &aiptek->inputdev;
-	list_for_each_safe(node, next, &inputdev->h_list) {
-		inputhandle = to_handle(node);
-		if (strncmp(inputhandle->name, "event", 5) == 0) {
-			strcpy(aiptek->features.inputPath, inputhandle->name);
-			break;
-		}
-	}
-
-	info("input: Aiptek on %s (%s)\n", path, aiptek->features.inputPath);
-
 	/* Program the tablet. This sets the tablet up in the mode
 	 * specified in newSetting, and also queries the tablet's
 	 * physical capacities.
@@ -2186,9 +2138,28 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	for (i = 0; i < sizeof(speeds) / sizeof(speeds[0]); ++i) {
 		aiptek->curSetting.programmableDelay = speeds[i];
 		(void)aiptek_program_tablet(aiptek);
-		if (aiptek->inputdev.absmax[ABS_X] > 0) {
+		if (aiptek->inputdev->absmax[ABS_X] > 0) {
 			info("input: Aiptek using %d ms programming speed\n",
 			     aiptek->curSetting.programmableDelay);
+			break;
+		}
+	}
+
+	/* Register the tablet as an Input Device
+	 */
+	input_register_device(aiptek->inputdev);
+
+	/* We now will look for the evdev device which is mapped to
+	 * the tablet. The partial name is kept in the link list of
+	 * input_handles associated with this input device.
+	 * What identifies an evdev input_handler is that it begins
+	 * with 'event', continues with a digit, and that in turn
+	 * is mapped to input/eventN.
+	 */
+	list_for_each_safe(node, next, &inputdev->h_list) {
+		inputhandle = to_handle(node);
+		if (strncmp(inputhandle->name, "event", 5) == 0) {
+			strcpy(aiptek->features.inputPath, inputhandle->name);
 			break;
 		}
 	}
@@ -2207,6 +2178,12 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		info("aiptek: error loading 'evdev' module");
 
 	return 0;
+
+fail2:	usb_buffer_free(usbdev, AIPTEK_PACKET_LENGTH, aiptek->data,
+			aiptek->data_dma);
+fail1:	input_free_device(inputdev);
+	kfree(aiptek);
+	return -ENOMEM;
 }
 
 /* Forward declaration */
@@ -2234,7 +2211,7 @@ static void aiptek_disconnect(struct usb_interface *intf)
 		/* Free & unhook everything from the system.
 		 */
 		usb_kill_urb(aiptek->urb);
-		input_unregister_device(&aiptek->inputdev);
+		input_unregister_device(aiptek->inputdev);
 		aiptek_delete_files(&intf->dev);
 		usb_free_urb(aiptek->urb);
 		usb_buffer_free(interface_to_usbdev(intf),

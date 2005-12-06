@@ -1,5 +1,5 @@
 # drivers/mtd/chips/Kconfig
-# $Id: Kconfig,v 1.15 2005/06/06 23:04:35 tpoynor Exp $
+# $Id: Kconfig,v 1.18 2005/11/07 11:14:22 gleixner Exp $
 
 menu "RAM/ROM/Flash chip drivers"
 	depends on MTD!=n
@@ -39,7 +39,7 @@ config MTD_CFI_ADV_OPTIONS
 	  If you need to specify a specific endianness for access to flash
 	  chips, or if you wish to reduce the size of the kernel by including
 	  support for only specific arrangements of flash chips, say 'Y'. This
-	  option does not directly affect the code, but will enable other 
+	  option does not directly affect the code, but will enable other
 	  configuration options which allow you to do so.
 
 	  If unsure, say 'N'.
@@ -56,7 +56,7 @@ config MTD_CFI_NOSWAP
 	  data bits when writing the 'magic' commands to the chips. Saying
 	  'NO', which is the default when CONFIG_MTD_CFI_ADV_OPTIONS isn't
 	  enabled, means that the CPU will not do any swapping; the chips
-	  are expected to be wired to the CPU in 'host-endian' form. 
+	  are expected to be wired to the CPU in 'host-endian' form.
 	  Specific arrangements are possible with the BIG_ENDIAN_BYTE and
 	  LITTLE_ENDIAN_BYTE, if the bytes are reversed.
 
@@ -79,10 +79,10 @@ config MTD_CFI_GEOMETRY
 	bool "Specific CFI Flash geometry selection"
 	depends on MTD_CFI_ADV_OPTIONS
 	help
-	  This option does not affect the code directly, but will enable 
+	  This option does not affect the code directly, but will enable
 	  some other configuration options which would allow you to reduce
-	  the size of the kernel by including support for only certain 
-	  arrangements of CFI chips. If unsure, say 'N' and all options 
+	  the size of the kernel by including support for only certain
+	  arrangements of CFI chips. If unsure, say 'N' and all options
 	  which are supported by the current code will be enabled.
 
 config MTD_MAP_BANK_WIDTH_1
@@ -197,7 +197,7 @@ config MTD_CFI_AMDSTD
 	help
 	  The Common Flash Interface defines a number of different command
 	  sets which a CFI-compliant chip may claim to implement. This code
-	  provides support for one of those command sets, used on chips 
+	  provides support for one of those command sets, used on chips
 	  including the AMD Am29LV320.
 
 config MTD_CFI_AMDSTD_RETRY
@@ -237,14 +237,14 @@ config MTD_RAM
 	tristate "Support for RAM chips in bus mapping"
 	depends on MTD
 	help
-	  This option enables basic support for RAM chips accessed through 
+	  This option enables basic support for RAM chips accessed through
 	  a bus mapping driver.
 
 config MTD_ROM
 	tristate "Support for ROM chips in bus mapping"
 	depends on MTD
 	help
-	  This option enables basic support for ROM chips accessed through 
+	  This option enables basic support for ROM chips accessed through
 	  a bus mapping driver.
 
 config MTD_ABSENT
@@ -275,7 +275,7 @@ config MTD_AMDSTD
 	depends on MTD && MTD_OBSOLETE_CHIPS
 	help
 	  This option enables support for flash chips using AMD-compatible
-	  commands, including some which are not CFI-compatible and hence 
+	  commands, including some which are not CFI-compatible and hence
 	  cannot be used with the CONFIG_MTD_CFI_AMDSTD option.
 
 	  It also works on AMD compatible chips that do conform to CFI.
@@ -285,7 +285,7 @@ config MTD_SHARP
 	depends on MTD && MTD_OBSOLETE_CHIPS
 	help
 	  This option enables support for flash chips using Sharp-compatible
-	  commands, including some which are not CFI-compatible and hence 
+	  commands, including some which are not CFI-compatible and hence
 	  cannot be used with the CONFIG_MTD_CFI_INTELxxx options.
 
 config MTD_JEDEC

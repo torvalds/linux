@@ -56,12 +56,12 @@ static void __init per_hub_init(cnodeid_t cnode)
 {
 	struct hub_data *hub = hub_data(cnode);
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
+	int i;
 
 	cpu_set(smp_processor_id(), hub->h_cpus);
 
 	if (test_and_set_bit(cnode, hub_init_mask))
 		return;
-
 	/*
 	 * Set CRB timeout at 5ms, (< PI timeout of 10ms)
 	 */
@@ -88,6 +88,24 @@ static void __init per_hub_init(cnodeid_t cnode)
 		__flush_cache_all();
 	}
 #endif
+
+	/*
+	 * Some interrupts are reserved by hardware or by software convention.
+	 * Mark these as reserved right away so they won't be used accidently
+	 * later.
+	 */
+	for (i = 0; i <= BASE_PCI_IRQ; i++) {
+		__set_bit(i, hub->irq_alloc_mask);
+		LOCAL_HUB_CLR_INTR(INT_PEND0_BASELVL + i);
+	}
+
+	__set_bit(IP_PEND0_6_63, hub->irq_alloc_mask);
+	LOCAL_HUB_S(PI_INT_PEND_MOD, IP_PEND0_6_63);
+
+	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++) {
+		__set_bit(i, hub->irq_alloc_mask);
+		LOCAL_HUB_CLR_INTR(INT_PEND1_BASELVL + i);
+	}
 }
 
 void __init per_cpu_init(void)
@@ -104,28 +122,10 @@ void __init per_cpu_init(void)
 
 	clear_c0_status(ST0_IM);
 
+	per_hub_init(cnode);
+
 	for (i = 0; i < LEVELS_PER_SLICE; i++)
 		si->level_to_irq[i] = -1;
-
-	/*
-	 * Some interrupts are reserved by hardware or by software convention.
-	 * Mark these as reserved right away so they won't be used accidently
-	 * later.
-	 */
-	for (i = 0; i <= BASE_PCI_IRQ; i++) {
-		__set_bit(i, si->irq_alloc_mask);
-		LOCAL_HUB_S(PI_INT_PEND_MOD, i);
-	}
-
-	__set_bit(IP_PEND0_6_63, si->irq_alloc_mask);
-	LOCAL_HUB_S(PI_INT_PEND_MOD, IP_PEND0_6_63);
-
-	for (i = NI_BRDCAST_ERR_A; i <= MSC_PANIC_INTR; i++) {
-		__set_bit(i, si->irq_alloc_mask + 1);
-		LOCAL_HUB_S(PI_INT_PEND_MOD, i);
-	}
-
-	LOCAL_HUB_L(PI_INT_PEND0);
 
 	/*
 	 * We use this so we can find the local hub's data as fast as only
@@ -140,8 +140,6 @@ void __init per_cpu_init(void)
 	install_cpu_nmi_handler(cputoslice(cpu));
 
 	set_c0_status(SRB_DEV0 | SRB_DEV1);
-
-	per_hub_init(cnode);
 }
 
 /*
@@ -198,7 +196,7 @@ extern void ip27_setup_console(void);
 extern void ip27_time_init(void);
 extern void ip27_reboot_setup(void);
 
-static int __init ip27_setup(void)
+void __init plat_setup(void)
 {
 	hubreg_t p, e, n_mode;
 	nasid_t nid;
@@ -245,8 +243,4 @@ static int __init ip27_setup(void)
 	set_io_port_base(IO_BASE);
 
 	board_time_init = ip27_time_init;
-
-	return 0;
 }
-
-early_initcall(ip27_setup);

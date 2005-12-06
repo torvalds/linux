@@ -66,7 +66,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/reboot.h>
-
+#include <linux/sched.h>	/* TASK_INTERRUPTIBLE, set_current_state() and friends */
 #include <asm/uaccess.h>
 #include <asm/io.h>
 

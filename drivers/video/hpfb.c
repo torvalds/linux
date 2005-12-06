@@ -193,7 +193,6 @@ static struct fb_ops hpfb_ops = {
 	.fb_fillrect	= hpfb_fillrect,
 	.fb_copyarea	= hpfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 	.fb_sync	= hpfb_sync,
 };
 

@@ -136,11 +136,10 @@ instance_create(u_int16_t queue_num, int pid)
 		goto out_unlock;
 	}
 
-	inst = kmalloc(sizeof(*inst), GFP_ATOMIC);
+	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
 	if (!inst)
 		goto out_unlock;
 
-	memset(inst, 0, sizeof(*inst));
 	inst->queue_num = queue_num;
 	inst->peer_pid = pid;
 	inst->queue_maxlen = NFQNL_QMAX_DEFAULT;
@@ -492,8 +491,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (entry->skb->tstamp.off_sec) {
 		struct nfqnl_msg_packet_timestamp ts;
 
-		ts.sec = cpu_to_be64(skb_tv_base.tv_sec + entry->skb->tstamp.off_sec);
-		ts.usec = cpu_to_be64(skb_tv_base.tv_usec + entry->skb->tstamp.off_usec);
+		ts.sec = cpu_to_be64(entry->skb->tstamp.off_sec);
+		ts.usec = cpu_to_be64(entry->skb->tstamp.off_usec);
 
 		NFA_PUT(skb, NFQA_TIMESTAMP, sizeof(ts), &ts);
 	}
@@ -932,14 +931,11 @@ out_put:
 
 static struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
 	[NFQNL_MSG_PACKET]	= { .call = nfqnl_recv_unsupp,
-				    .attr_count = NFQA_MAX,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFQA_MAX, },
 	[NFQNL_MSG_VERDICT]	= { .call = nfqnl_recv_verdict,
-				    .attr_count = NFQA_MAX,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFQA_MAX, },
 	[NFQNL_MSG_CONFIG]	= { .call = nfqnl_recv_config,
-				    .attr_count = NFQA_CFG_MAX,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFQA_CFG_MAX, },
 };
 
 static struct nfnetlink_subsystem nfqnl_subsys = {
@@ -1036,10 +1032,9 @@ static int nfqnl_open(struct inode *inode, struct file *file)
 	struct iter_state *is;
 	int ret;
 
-	is = kmalloc(sizeof(*is), GFP_KERNEL);
+	is = kzalloc(sizeof(*is), GFP_KERNEL);
 	if (!is)
 		return -ENOMEM;
-	memset(is, 0, sizeof(*is));
 	ret = seq_open(file, &nfqnl_seq_ops);
 	if (ret < 0)
 		goto out_free;

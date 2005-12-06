@@ -110,8 +110,9 @@ enum protocolEnum {
  */
 
 struct TCP_Server_Info {
-	char server_Name[SERVER_NAME_LEN_WITH_NULL];	/* 15 chars + X'20'in 16th */
-	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];	/* Unicode version of server_Name */
+	/* 15 character server name + 0x20 16th byte indicating type = srv */
+	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
+	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
 	struct socket *ssocket;
 	union {
 		struct sockaddr_in sockAddr;
@@ -122,13 +123,17 @@ struct TCP_Server_Info {
 	struct list_head pending_mid_q;
 	void *Server_NlsInfo;	/* BB - placeholder for future NLS info  */
 	unsigned short server_codepage;	/* codepage for the server    */
-	unsigned long ip_address;	/* IP addr for the server if known     */
+	unsigned long ip_address;	/* IP addr for the server if known */
 	enum protocolEnum protocolType;	
 	char versionMajor;
 	char versionMinor;
 	unsigned svlocal:1;	/* local server or remote */
 	atomic_t socketUseCount; /* number of open cifs sessions on socket */
 	atomic_t inFlight;  /* number of requests on the wire to server */
+#ifdef CONFIG_CIFS_STATS2
+	atomic_t inSend; /* requests trying to send */
+	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
+#endif
 	enum statusEnum tcpStatus; /* what we think the status is */
 	struct semaphore tcpSem;
 	struct task_struct *tsk;
@@ -147,8 +152,10 @@ struct TCP_Server_Info {
 	/* (returned on Negotiate */
 	int capabilities; /* allow selective disabling of caps by smb sess */
 	__u16 timeZone;
+	__u16 CurrentMid;         /* multiplex id - rotating counter */
 	char cryptKey[CIFS_CRYPTO_KEY_SIZE];
-	char workstation_RFC1001_name[16]; /* 16th byte is always zero */
+	/* 16th byte of RFC1001 workstation name is always null */
+	char workstation_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	__u32 sequence_number; /* needed for CIFS PDU signature */
 	char mac_signing_key[CIFS_SESSION_KEY_SIZE + 16]; 
 };
@@ -214,19 +221,41 @@ struct cifsTconInfo {
 	atomic_t num_reads;
 	atomic_t num_oplock_brks;
 	atomic_t num_opens;
+	atomic_t num_closes;
 	atomic_t num_deletes;
 	atomic_t num_mkdirs;
 	atomic_t num_rmdirs;
 	atomic_t num_renames;
 	atomic_t num_t2renames;
+	atomic_t num_ffirst;
+	atomic_t num_fnext;
+	atomic_t num_fclose;
+	atomic_t num_hardlinks;
+	atomic_t num_symlinks;
+	atomic_t num_locks;
+#ifdef CONFIG_CIFS_STATS2
+	unsigned long long time_writes;
+	unsigned long long time_reads;
+	unsigned long long time_opens;
+	unsigned long long time_deletes;
+	unsigned long long time_closes;
+	unsigned long long time_mkdirs;
+	unsigned long long time_rmdirs;
+	unsigned long long time_renames;
+	unsigned long long time_t2renames;
+	unsigned long long time_ffirst;
+	unsigned long long time_fnext;
+	unsigned long long time_fclose;
+#endif /* CONFIG_CIFS_STATS2 */
 	__u64    bytes_read;
 	__u64    bytes_written;
 	spinlock_t stat_lock;
-#endif
+#endif /* CONFIG_CIFS_STATS */
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
 	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo;	/* ok if file system name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
 	unsigned retry:1;
+	unsigned nocase:1;
 	/* BB add field for back pointer to sb struct? */
 };
 
@@ -270,6 +299,7 @@ struct cifsFileInfo {
 	struct inode * pInode; /* needed for oplock break */
 	unsigned closePend:1;	/* file is marked to close */
 	unsigned invalidHandle:1;  /* file closed via session abend */
+	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
 	char * search_resume_name; /* BB removeme BB */
 	unsigned int resume_name_length; /* BB removeme - field renamed and moved BB */
@@ -306,6 +336,41 @@ CIFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
+static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
+{
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)
+		return '/';
+	else
+		return '\\';
+}
+
+#ifdef CONFIG_CIFS_STATS
+#define cifs_stats_inc atomic_inc
+
+static inline void cifs_stats_bytes_written(struct cifsTconInfo *tcon,
+					    unsigned int bytes)
+{
+	if (bytes) {
+		spin_lock(&tcon->stat_lock);
+		tcon->bytes_written += bytes;
+		spin_unlock(&tcon->stat_lock);
+	}
+}
+
+static inline void cifs_stats_bytes_read(struct cifsTconInfo *tcon,
+					 unsigned int bytes)
+{
+	spin_lock(&tcon->stat_lock);
+	tcon->bytes_read += bytes;
+	spin_unlock(&tcon->stat_lock);
+}
+#else
+
+#define  cifs_stats_inc(field) do {} while(0)
+#define  cifs_stats_bytes_written(tcon, bytes) do {} while(0)
+#define  cifs_stats_bytes_read(tcon, bytes) do {} while(0)
+
+#endif
 
 /* one of these for every pending CIFS request to the server */
 struct mid_q_entry {
@@ -313,7 +378,11 @@ struct mid_q_entry {
 	__u16 mid;		/* multiplex id */
 	__u16 pid;		/* process id */
 	__u32 sequence_number;  /* for CIFS signing */
-	struct timeval when_sent;	/* time when smb sent */
+	unsigned long when_alloc;  /* when mid was created */
+#ifdef CONFIG_CIFS_STATS2
+	unsigned long when_sent; /* time when smb send finished */
+	unsigned long when_received; /* when demux complete (taken off wire) */
+#endif
 	struct cifsSesInfo *ses;	/* smb was sent to this server */
 	struct task_struct *tsk;	/* task waiting for response */
 	struct smb_hdr *resp_buf;	/* response buffer */
@@ -329,6 +398,20 @@ struct oplock_q_entry {
 	struct inode * pinode;
 	struct cifsTconInfo * tcon; 
 	__u16 netfid;
+};
+
+/* for pending dnotify requests */
+struct dir_notify_req {
+       struct list_head lhead;
+       __le16 Pid;
+       __le16 PidHigh;
+       __u16 Mid;
+       __u16 Tid;
+       __u16 Uid;
+       __u16 netfid;
+       __u32 filter; /* CompletionFilter (for multishot) */
+       int multishot;
+       struct file * pfile;
 };
 
 #define   MID_FREE 0
@@ -398,6 +481,9 @@ GLOBAL_EXTERN struct list_head GlobalTreeConnectionList;
 GLOBAL_EXTERN rwlock_t GlobalSMBSeslock;  /* protects list inserts on 3 above */
 
 GLOBAL_EXTERN struct list_head GlobalOplock_Q;
+
+GLOBAL_EXTERN struct list_head GlobalDnotifyReqList; /* Outstanding dir notify requests */
+GLOBAL_EXTERN struct list_head GlobalDnotifyRsp_Q; /* Dir notify response queue */
 
 /*
  * Global transaction id (XID) information

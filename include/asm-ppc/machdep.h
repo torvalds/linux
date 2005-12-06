@@ -98,7 +98,7 @@ struct machdep_calls {
 
 	/* Get access protection for /dev/mem */
 	pgprot_t	(*phys_mem_access_prot)(struct file *file,
-						unsigned long offset,
+						unsigned long pfn,
 						unsigned long size,
 						pgprot_t vma_prot);
 
@@ -167,7 +167,7 @@ extern sys_ctrler_t sys_ctrler;
 
 #ifdef CONFIG_SMP
 struct smp_ops_t {
-	void  (*message_pass)(int target, int msg, unsigned long data, int wait);
+	void  (*message_pass)(int target, int msg);
 	int   (*probe)(void);
 	void  (*kick_cpu)(int nr);
 	void  (*setup_cpu)(int nr);

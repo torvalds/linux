@@ -448,7 +448,8 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 		vgacon_scrolldelta(c, 0);
 	switch (mode) {
 	case CM_ERASE:
-		write_vga(14, (vga_vram_end - vga_vram_base - 1) / 2);
+		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
+		vgacon_set_cursor_size(c->vc_x, 31, 30);
 		break;
 
 	case CM_MOVE:
@@ -565,7 +566,11 @@ static int vgacon_switch(struct vc_data *c)
 		scr_memcpyw((u16 *) c->vc_origin, (u16 *) c->vc_screenbuf,
 			    c->vc_screenbuf_size > vga_vram_size ?
 				vga_vram_size : c->vc_screenbuf_size);
-		vgacon_doresize(c, c->vc_cols, c->vc_rows);
+		if (!(vga_video_num_columns % 2) &&
+		    vga_video_num_columns <= ORIG_VIDEO_COLS &&
+		    vga_video_num_lines <= (ORIG_VIDEO_LINES *
+			vga_default_font_height) / c->vc_font.height)
+			vgacon_doresize(c, c->vc_cols, c->vc_rows);
 	}
 
 	return 0;		/* Redrawing not needed */
@@ -575,6 +580,7 @@ static void vga_set_palette(struct vc_data *vc, unsigned char *table)
 {
 	int i, j;
 
+	vga_w(state.vgabase, VGA_PEL_MSK, 0xff);
 	for (i = j = 0; i < 16; i++) {
 		vga_w(state.vgabase, VGA_PEL_IW, table[i]);
 		vga_w(state.vgabase, VGA_PEL_D, vc->vc_palette[j++] >> 2);
@@ -717,6 +723,7 @@ static void vga_pal_blank(struct vgastate *state)
 {
 	int i;
 
+	vga_w(state->vgabase, VGA_PEL_MSK, 0xff);
 	for (i = 0; i < 16; i++) {
 		vga_w(state->vgabase, VGA_PEL_IW, i);
 		vga_w(state->vgabase, VGA_PEL_D, 0);
@@ -959,6 +966,7 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 	outb_p(0x12, vga_video_port_reg);	/* Vertical display limit */
 	outb_p(vde, vga_video_port_val);
 	spin_unlock_irq(&vga_lock);
+	vga_video_font_height = fontheight;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		struct vc_data *c = vc_cons[i].d;
@@ -1023,7 +1031,8 @@ static int vgacon_resize(struct vc_data *c, unsigned int width,
 	if (width % 2 || width > ORIG_VIDEO_COLS ||
 	    height > (ORIG_VIDEO_LINES * vga_default_font_height)/
 	    c->vc_font.height)
-		return -EINVAL;
+		/* let svgatextmode tinker with video timings */
+		return 0;
 
 	if (CON_IS_VISIBLE(c) && !vga_is_gfx) /* who knows */
 		vgacon_doresize(c, width, height);

@@ -6,7 +6,7 @@
  *  Derived from drivers/mtd/nand/autcpu12.c
  *       Copyright (c) 2001 Thomas Gleixner (gleixner@autronix.de)
  *
- * $Id: edb7312.c,v 1.11 2004/11/04 12:53:10 gleixner Exp $
+ * $Id: edb7312.c,v 1.12 2005/11/07 11:14:30 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -71,27 +71,27 @@ static struct mtd_partition partition_info[] = {
 #endif
 
 
-/* 
+/*
  *	hardware specific access to control-lines
  */
-static void ep7312_hwcontrol(struct mtd_info *mtd, int cmd) 
+static void ep7312_hwcontrol(struct mtd_info *mtd, int cmd)
 {
 	switch(cmd) {
-		
-	case NAND_CTL_SETCLE: 
-		clps_writeb(clps_readb(ep7312_pxdr) | 0x10, ep7312_pxdr); 
+
+	case NAND_CTL_SETCLE:
+		clps_writeb(clps_readb(ep7312_pxdr) | 0x10, ep7312_pxdr);
 		break;
-	case NAND_CTL_CLRCLE: 
+	case NAND_CTL_CLRCLE:
 		clps_writeb(clps_readb(ep7312_pxdr) & ~0x10, ep7312_pxdr);
 		break;
-		
+
 	case NAND_CTL_SETALE:
 		clps_writeb(clps_readb(ep7312_pxdr) | 0x20, ep7312_pxdr);
 		break;
 	case NAND_CTL_CLRALE:
 		clps_writeb(clps_readb(ep7312_pxdr) & ~0x20, ep7312_pxdr);
 		break;
-		
+
 	case NAND_CTL_SETNCE:
 		clps_writeb((clps_readb(ep7312_pxdr) | 0x80) & ~0x40, ep7312_pxdr);
 		break;
@@ -122,16 +122,16 @@ static int __init ep7312_init (void)
 	int mtd_parts_nb = 0;
 	struct mtd_partition *mtd_parts = 0;
 	void __iomem * ep7312_fio_base;
-	
+
 	/* Allocate memory for MTD device structure and private data */
-	ep7312_mtd = kmalloc(sizeof(struct mtd_info) + 
+	ep7312_mtd = kmalloc(sizeof(struct mtd_info) +
 			     sizeof(struct nand_chip),
 			     GFP_KERNEL);
 	if (!ep7312_mtd) {
 		printk("Unable to allocate EDB7312 NAND MTD device structure.\n");
 		return -ENOMEM;
 	}
-	
+
 	/* map physical adress */
 	ep7312_fio_base = ioremap(ep7312_fio_pbase, SZ_1K);
 	if(!ep7312_fio_base) {
@@ -139,23 +139,23 @@ static int __init ep7312_init (void)
 		kfree(ep7312_mtd);
 		return -EIO;
 	}
-	
+
 	/* Get pointer to private data */
 	this = (struct nand_chip *) (&ep7312_mtd[1]);
-	
+
 	/* Initialize structures */
 	memset((char *) ep7312_mtd, 0, sizeof(struct mtd_info));
 	memset((char *) this, 0, sizeof(struct nand_chip));
-	
+
 	/* Link the private data with the MTD structure */
 	ep7312_mtd->priv = this;
-	
+
 	/*
 	 * Set GPIO Port B control register so that the pins are configured
 	 * to be outputs for controlling the NAND flash.
 	 */
 	clps_writeb(0xf0, ep7312_pxddr);
-	
+
 	/* insert callbacks */
 	this->IO_ADDR_R = ep7312_fio_base;
 	this->IO_ADDR_W = ep7312_fio_base;
@@ -163,14 +163,14 @@ static int __init ep7312_init (void)
 	this->dev_ready = ep7312_device_ready;
 	/* 15 us command delay time */
 	this->chip_delay = 15;
-	
+
 	/* Scan to find existence of the device */
 	if (nand_scan (ep7312_mtd, 1)) {
 		iounmap((void *)ep7312_fio_base);
 		kfree (ep7312_mtd);
 		return -ENXIO;
 	}
-	
+
 #ifdef CONFIG_MTD_PARTITIONS
 	ep7312_mtd->name = "edb7312-nand";
 	mtd_parts_nb = parse_mtd_partitions(ep7312_mtd, part_probes,
@@ -185,11 +185,11 @@ static int __init ep7312_init (void)
 		mtd_parts_nb = NUM_PARTITIONS;
 		part_type = "static";
 	}
-	
+
 	/* Register the partitions */
 	printk(KERN_NOTICE "Using %s partition definition\n", part_type);
 	add_mtd_partitions(ep7312_mtd, mtd_parts, mtd_parts_nb);
-	
+
 	/* Return happy */
 	return 0;
 }
@@ -201,13 +201,13 @@ module_init(ep7312_init);
 static void __exit ep7312_cleanup (void)
 {
 	struct nand_chip *this = (struct nand_chip *) &ep7312_mtd[1];
-	
+
 	/* Release resources, unregister device */
 	nand_release (ap7312_mtd);
-	
+
 	/* Free internal data buffer */
 	kfree (this->data_buf);
-	
+
 	/* Free the MTD device structure */
 	kfree (ep7312_mtd);
 }

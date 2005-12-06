@@ -58,10 +58,6 @@ extern rwlock_t ip_nat_lock;
 struct ip_nat_info
 {
 	struct list_head bysource;
-
-	/* Helper (NULL if none). */
-	struct ip_nat_helper *helper;
-
 	struct ip_nat_seq seq[IP_CT_DIR_MAX];
 };
 

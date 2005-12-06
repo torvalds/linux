@@ -2,7 +2,7 @@
 #define _ASM_CRIS_ARCH_THREAD_INFO_H
 
 /* Return a thread_info struct. */
-extern inline struct thread_info *current_thread_info(void)
+static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
 

@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/cpumask.h>
+#include <linux/sched.h>	/* for current / set_cpus_allowed() */
 
 #include <asm/msr.h>
 #include <asm/io.h>
@@ -44,7 +45,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 1.50.3"
+#define VERSION "version 1.50.4"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -111,8 +112,8 @@ static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 	u32 i = 0;
 
 	do {
-		if (i++ > 0x1000000) {
-			printk(KERN_ERR PFX "detected change pending stuck\n");
+		if (i++ > 10000) {
+			dprintk("detected change pending stuck\n");
 			return 1;
 		}
 		rdmsr(MSR_FIDVID_STATUS, lo, hi);
@@ -159,6 +160,7 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 {
 	u32 lo;
 	u32 savevid = data->currvid;
+	u32 i = 0;
 
 	if ((fid & INVALID_FID_MASK) || (data->currvid & INVALID_VID_MASK)) {
 		printk(KERN_ERR PFX "internal error - overflow on fid write\n");
@@ -170,10 +172,13 @@ static int write_new_fid(struct powernow_k8_data *data, u32 fid)
 	dprintk("writing fid 0x%x, lo 0x%x, hi 0x%x\n",
 		fid, lo, data->plllock * PLL_LOCK_CONVERSION);
 
-	wrmsr(MSR_FIDVID_CTL, lo, data->plllock * PLL_LOCK_CONVERSION);
-
-	if (query_current_values_with_pending_wait(data))
-		return 1;
+	do {
+		wrmsr(MSR_FIDVID_CTL, lo, data->plllock * PLL_LOCK_CONVERSION);
+		if (i++ > 100) {
+			printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
+			return 1;
+		}			
+	} while (query_current_values_with_pending_wait(data));
 
 	count_off_irt(data);
 
@@ -197,6 +202,7 @@ static int write_new_vid(struct powernow_k8_data *data, u32 vid)
 {
 	u32 lo;
 	u32 savefid = data->currfid;
+	int i = 0;
 
 	if ((data->currfid & INVALID_FID_MASK) || (vid & INVALID_VID_MASK)) {
 		printk(KERN_ERR PFX "internal error - overflow on vid write\n");
@@ -208,10 +214,13 @@ static int write_new_vid(struct powernow_k8_data *data, u32 vid)
 	dprintk("writing vid 0x%x, lo 0x%x, hi 0x%x\n",
 		vid, lo, STOP_GRANT_5NS);
 
-	wrmsr(MSR_FIDVID_CTL, lo, STOP_GRANT_5NS);
-
-	if (query_current_values_with_pending_wait(data))
-		return 1;
+	do {
+		wrmsr(MSR_FIDVID_CTL, lo, STOP_GRANT_5NS);
+                if (i++ > 100) {
+                        printk(KERN_ERR PFX "internal error - pending bit very stuck - no further pstate changes possible\n");
+                        return 1;
+                }
+	} while (query_current_values_with_pending_wait(data));
 
 	if (savefid != data->currfid) {
 		printk(KERN_ERR PFX "fid changed on vid trans, old 0x%x new 0x%x\n",
@@ -453,7 +462,6 @@ static int check_supported_cpu(unsigned int cpu)
 
 	oldmask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
-	schedule();
 
 	if (smp_processor_id() != cpu) {
 		printk(KERN_ERR "limiting to cpu %u failed\n", cpu);
@@ -488,9 +496,7 @@ static int check_supported_cpu(unsigned int cpu)
 
 out:
 	set_cpus_allowed(current, oldmask);
-	schedule();
 	return rc;
-
 }
 
 static int check_pst_table(struct powernow_k8_data *data, struct pst_s *pst, u8 maxvid)
@@ -904,7 +910,6 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	/* only run on specific CPU from here on */
 	oldmask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
-	schedule();
 
 	if (smp_processor_id() != pol->cpu) {
 		printk(KERN_ERR "limiting to cpu %u failed\n", pol->cpu);
@@ -959,8 +964,6 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 
 err_out:
 	set_cpus_allowed(current, oldmask);
-	schedule();
-
 	return ret;
 }
 
@@ -982,12 +985,11 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 	if (!check_supported_cpu(pol->cpu))
 		return -ENODEV;
 
-	data = kmalloc(sizeof(struct powernow_k8_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct powernow_k8_data), GFP_KERNEL);
 	if (!data) {
 		printk(KERN_ERR PFX "unable to alloc powernow_k8_data");
 		return -ENOMEM;
 	}
-	memset(data,0,sizeof(struct powernow_k8_data));
 
 	data->cpu = pol->cpu;
 
@@ -1017,7 +1019,6 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 	/* only run on specific CPU from here on */
 	oldmask = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(pol->cpu));
-	schedule();
 
 	if (smp_processor_id() != pol->cpu) {
 		printk(KERN_ERR "limiting to cpu %u failed\n", pol->cpu);
@@ -1036,7 +1037,6 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	/* run on any CPU again */
 	set_cpus_allowed(current, oldmask);
-	schedule();
 
 	pol->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	pol->cpus = cpu_core_map[pol->cpu];
@@ -1071,7 +1071,6 @@ static int __init powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 err_out:
 	set_cpus_allowed(current, oldmask);
-	schedule();
 	powernow_k8_cpu_exit_acpi(data);
 
 	kfree(data);
@@ -1107,17 +1106,14 @@ static unsigned int powernowk8_get (unsigned int cpu)
 		set_cpus_allowed(current, oldmask);
 		return 0;
 	}
-	preempt_disable();
-	
+
 	if (query_current_values_with_pending_wait(data))
 		goto out;
 
 	khz = find_khz_freq_from_fid(data->currfid);
 
- out:
-	preempt_enable_no_resched();
+out:
 	set_cpus_allowed(current, oldmask);
-
 	return khz;
 }
 

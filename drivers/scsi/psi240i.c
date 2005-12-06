@@ -538,7 +538,7 @@ static void ReadChipMemory (void *pdata, USHORT base, USHORT length, USHORT port
  *	Returns:		Number of adapters found.
  *
  ****************************************************************/
-static int Psi240i_Detect (Scsi_Host_Template *tpnt)
+static int Psi240i_Detect (struct scsi_host_template *tpnt)
 	{
 	int					board;
 	int					count = 0;
@@ -659,7 +659,7 @@ static int Psi240i_BiosParam (struct scsi_device *sdev, struct block_device *dev
 	{
 	POUR_DEVICE	pdev;
 
-	pdev = &(HOSTDATA(sdev->host)->device[sdev->id]);
+	pdev = &(HOSTDATA(sdev->host)->device[sdev_id(sdev)]);
 
 	geom[0] = pdev->heads;
 	geom[1] = pdev->sectors;
@@ -669,7 +669,7 @@ static int Psi240i_BiosParam (struct scsi_device *sdev, struct block_device *dev
 
 MODULE_LICENSE("GPL");
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "psi240i", 
 	.name			= "PSI-240I EIDE Disk Controller",
 	.detect			= Psi240i_Detect,

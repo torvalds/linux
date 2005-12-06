@@ -40,6 +40,9 @@
  */
 void device_bind_driver(struct device * dev)
 {
+	if (klist_node_attached(&dev->knode_driver))
+		return;
+
 	pr_debug("bound device '%s' to driver '%s'\n",
 		 dev->bus_id, dev->driver->name);
 	klist_add_tail(&dev->knode_driver, &dev->driver->klist_devices);
@@ -58,7 +61,6 @@ void device_bind_driver(struct device * dev)
  *	device IDs of the device. Note we don't do this ourselves
  *	because we don't know the format of the ID structures, nor what
  *	is to be considered a match and what is not.
- *
  *
  *	This function returns 1 if a match is found, an error if one
  *	occurs (that is not -ENODEV or -ENXIO), and 0 otherwise.
@@ -155,7 +157,6 @@ static int __driver_attach(struct device * dev, void * data)
 		driver_probe_device(drv, dev);
 	up(&dev->sem);
 
-
 	return 0;
 }
 
@@ -222,15 +223,15 @@ void driver_detach(struct device_driver * drv)
 	struct device * dev;
 
 	for (;;) {
-		spin_lock_irq(&drv->klist_devices.k_lock);
+		spin_lock(&drv->klist_devices.k_lock);
 		if (list_empty(&drv->klist_devices.k_list)) {
-			spin_unlock_irq(&drv->klist_devices.k_lock);
+			spin_unlock(&drv->klist_devices.k_lock);
 			break;
 		}
 		dev = list_entry(drv->klist_devices.k_list.prev,
 				struct device, knode_driver.n_node);
 		get_device(dev);
-		spin_unlock_irq(&drv->klist_devices.k_lock);
+		spin_unlock(&drv->klist_devices.k_lock);
 
 		down(&dev->sem);
 		if (dev->driver == drv)

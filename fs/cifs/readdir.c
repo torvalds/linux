@@ -91,7 +91,10 @@ static int construct_dentry(struct qstr *qstring, struct file *file,
 		}
 
 		*ptmp_inode = new_inode(file->f_dentry->d_sb);
-		tmp_dentry->d_op = &cifs_dentry_ops;
+		if (pTcon->nocase)
+			tmp_dentry->d_op = &cifs_ci_dentry_ops;
+		else
+			tmp_dentry->d_op = &cifs_dentry_ops;
 		if(*ptmp_inode == NULL)
 			return rc;
 		rc = 1;
@@ -139,6 +142,11 @@ static void fill_in_inode(struct inode *tmp_inode,
 		tmp_inode->i_gid = cifs_sb->mnt_gid;
 		/* set default mode. will override for dirs below */
 		tmp_inode->i_mode = cifs_sb->mnt_file_mode;
+	} else {
+		/* mask off the type bits since it gets set
+		below and we do not want to get two type
+		bits set */
+		tmp_inode->i_mode &= ~S_IFMT;
 	}
 
 	if (attr & ATTR_DIRECTORY) {
@@ -148,6 +156,19 @@ static void fill_in_inode(struct inode *tmp_inode,
 			tmp_inode->i_mode = cifs_sb->mnt_dir_mode;
 		}
 		tmp_inode->i_mode |= S_IFDIR;
+	} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) && 
+		   (attr & ATTR_SYSTEM)) {
+		if (end_of_file == 0)  {
+			*pobject_type = DT_FIFO;
+			tmp_inode->i_mode |= S_IFIFO;
+		} else {
+			/* rather than get the type here, we mark the
+			inode as needing revalidate and get the real type
+			(blk vs chr vs. symlink) later ie in lookup */
+			*pobject_type = DT_REG;
+			tmp_inode->i_mode |= S_IFREG; 
+			cifsInfo->time = 0;	
+		}
 /* we no longer mark these because we could not follow them */
 /*        } else if (attr & ATTR_REPARSE) {
                 *pobject_type = DT_LNK;
@@ -183,15 +204,27 @@ static void fill_in_inode(struct inode *tmp_inode,
 	if (S_ISREG(tmp_inode->i_mode)) {
 		cFYI(1, ("File inode"));
 		tmp_inode->i_op = &cifs_file_inode_ops;
-		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
-			tmp_inode->i_fop = &cifs_file_direct_ops;
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
+			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
+			else
+				tmp_inode->i_fop = &cifs_file_direct_ops;
+		
+		} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			tmp_inode->i_fop = &cifs_file_nobrl_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			tmp_inode->i_fop->lock = NULL;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
-
+		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
+		   (cifs_sb->tcon->ses->server->maxBuf <
+			4096 + MAX_CIFS_HDR_SIZE))
+			tmp_inode->i_data.a_ops->readpages = NULL;
 		if(isNewInode)
-			return; /* No sense invalidating pages for new inode since we
-					   have not started caching readahead file data yet */
+			return; /* No sense invalidating pages for new inode
+				   since have not started caching readahead file
+				   data yet */
 
 		if (timespec_equal(&tmp_inode->i_mtime, &local_mtime) &&
 			(local_size == tmp_inode->i_size)) {
@@ -242,6 +275,9 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	    cifs_NTtimeToUnix(le64_to_cpu(pfindData->LastStatusChange));
 
 	tmp_inode->i_mode = le64_to_cpu(pfindData->Permissions);
+	/* since we set the inode type below we need to mask off type
+           to avoid strange results if bits above were corrupt */
+        tmp_inode->i_mode &= ~S_IFMT;
 	if (type == UNIX_FILE) {
 		*pobject_type = DT_REG;
 		tmp_inode->i_mode |= S_IFREG;
@@ -267,6 +303,11 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	} else if (type == UNIX_SOCKET) {
 		*pobject_type = DT_SOCK;
 		tmp_inode->i_mode |= S_IFSOCK;
+	} else {
+		/* safest to just call it a file */
+		*pobject_type = DT_REG;
+		tmp_inode->i_mode |= S_IFREG;
+		cFYI(1,("unknown inode type %d",type)); 
 	}
 
 	tmp_inode->i_uid = le64_to_cpu(pfindData->Uid);
@@ -290,7 +331,13 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 			tmp_inode->i_fop = &cifs_file_direct_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			tmp_inode->i_fop->lock = NULL;
 		tmp_inode->i_data.a_ops = &cifs_addr_ops;
+		if((cifs_sb->tcon) && (cifs_sb->tcon->ses) &&
+		   (cifs_sb->tcon->ses->server->maxBuf < 
+			4096 + MAX_CIFS_HDR_SIZE))
+			tmp_inode->i_data.a_ops->readpages = NULL;
 
 		if(isNewInode)
 			return; /* No sense invalidating pages for new inode since we
@@ -374,7 +421,8 @@ ffirst_retry:
 
 	rc = CIFSFindFirst(xid, pTcon,full_path,cifs_sb->local_nls,
 		&cifsFile->netfid, &cifsFile->srch_inf,
-		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+		cifs_sb->mnt_cifs_flags & 
+			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
 	if(rc == 0)
 		cifsFile->invalidHandle = FALSE;
 	if((rc == -EOPNOTSUPP) && 
@@ -491,6 +539,30 @@ static int cifs_entry_is_dot(char *current_entry, struct cifsFileInfo *cfile)
 	return rc;
 }
 
+/* Check if directory that we are searching has changed so we can decide
+   whether we can use the cached search results from the previous search */
+static int is_dir_changed(struct file * file)
+{
+	struct inode * inode;
+	struct cifsInodeInfo *cifsInfo;
+
+	if(file->f_dentry == NULL)
+		return 0;
+
+	inode = file->f_dentry->d_inode;
+
+	if(inode == NULL)
+		return 0;
+
+	cifsInfo = CIFS_I(inode);
+
+	if(cifsInfo->time == 0)
+		return 1; /* directory was changed, perhaps due to unlink */
+	else
+		return 0;
+
+}
+
 /* find the corresponding entry in the search */
 /* Note that the SMB server returns search entries for . and .. which
    complicates logic here if we choose to parse for them and we do not
@@ -507,7 +579,8 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	struct cifsFileInfo * cifsFile = file->private_data;
 	/* check if index in the buffer */
 	
-	if((cifsFile == NULL) || (ppCurrentEntry == NULL) || (num_to_ret == NULL))
+	if((cifsFile == NULL) || (ppCurrentEntry == NULL) || 
+	   (num_to_ret == NULL))
 		return -ENOENT;
 	
 	*ppCurrentEntry = NULL;
@@ -515,7 +588,9 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		cifsFile->srch_inf.index_of_last_entry - 
 			cifsFile->srch_inf.entries_in_buffer;
 /*	dump_cifs_file_struct(file, "In fce ");*/
-	if(index_to_find < first_entry_in_buffer) {
+	if(((index_to_find < cifsFile->srch_inf.index_of_last_entry) && 
+	     is_dir_changed(file)) || 
+	   (index_to_find < first_entry_in_buffer)) {
 		/* close and restart search */
 		cFYI(1,("search backing up - close and restart search"));
 		cifsFile->invalidHandle = TRUE;
@@ -536,7 +611,8 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	while((index_to_find >= cifsFile->srch_inf.index_of_last_entry) && 
 	      (rc == 0) && (cifsFile->srch_inf.endOfSearch == FALSE)){
 	 	cFYI(1,("calling findnext2"));
-		rc = CIFSFindNext(xid,pTcon,cifsFile->netfid, &cifsFile->srch_inf);
+		rc = CIFSFindNext(xid,pTcon,cifsFile->netfid, 
+				  &cifsFile->srch_inf);
 		if(rc)
 			return -ENOENT;
 	}
@@ -548,14 +624,13 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 		char * end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + 
 			smbCalcSize((struct smb_hdr *)
 				cifsFile->srch_inf.ntwrk_buf_start);
-/*	dump_cifs_file_struct(file,"found entry in fce "); */
 		first_entry_in_buffer = cifsFile->srch_inf.index_of_last_entry
 					- cifsFile->srch_inf.entries_in_buffer;
 		pos_in_buf = index_to_find - first_entry_in_buffer;
 		cFYI(1,("found entry - pos_in_buf %d",pos_in_buf)); 
 		current_entry = cifsFile->srch_inf.srch_entries_start;
 		for(i=0;(i<(pos_in_buf)) && (current_entry != NULL);i++) {
-			/* go entry to next entry figuring out which we need to start with */
+			/* go entry by entry figuring out which is first */
 			/* if( . or ..)
 				skip */
 			rc = cifs_entry_is_dot(current_entry,cifsFile);
@@ -582,11 +657,10 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 	}
 
 	if(pos_in_buf >= cifsFile->srch_inf.entries_in_buffer) {
-		cFYI(1,("can not return entries when pos_in_buf beyond last entry"));
+		cFYI(1,("can not return entries pos_in_buf beyond last entry"));
 		*num_to_ret = 0;
 	} else
 		*num_to_ret = cifsFile->srch_inf.entries_in_buffer - pos_in_buf;
-/*	dump_cifs_file_struct(file, "end fce ");*/
 
 	return rc;
 }
@@ -650,7 +724,7 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 					(__le16 *)filename, len/2, nlt);
 		else
 			pqst->len = cifs_strfromUCS_le((char *)pqst->name,
-					(wchar_t *)filename,len/2,nlt);
+					(__le16 *)filename,len/2,nlt);
 	} else {
 		pqst->name = filename;
 		pqst->len = len;
@@ -721,7 +795,8 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 			      (FILE_DIRECTORY_INFO *)pfindEntry,&obj_type, rc);
 	}
 	
-	rc = filldir(direntry,qstring.name,qstring.len,file->f_pos,tmp_inode->i_ino,obj_type);
+	rc = filldir(direntry,qstring.name,qstring.len,file->f_pos,
+		     tmp_inode->i_ino,obj_type);
 	if(rc) {
 		cFYI(1,("filldir rc = %d",rc));
 	}
@@ -805,14 +880,11 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		FreeXid(xid);
 		return -EIO;
 	}
-/*	dump_cifs_file_struct(file, "Begin rdir "); */
 
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 	if(pTcon == NULL)
 		return -EINVAL;
-
-/*	cFYI(1,("readdir2 pos: %lld",file->f_pos)); */
 
 	switch ((int) file->f_pos) {
 	case 0:
@@ -866,7 +938,6 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		cifsFile->search_resume_name = NULL; */
 
 		/* BB account for . and .. in f_pos as special case */
-		/* dump_cifs_file_struct(file, "rdir after default ");*/
 
 		rc = find_cifs_entry(xid,pTcon, file,
 				&current_entry,&num_to_fill);
@@ -906,14 +977,14 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 				cifs_save_resume_key(current_entry,cifsFile);
 				break;
 			} else 
-				current_entry = nxt_dir_entry(current_entry,end_of_smb);
+				current_entry = nxt_dir_entry(current_entry,
+							      end_of_smb);
 		}
 		kfree(tmp_buf);
 		break;
 	} /* end switch */
 
 rddir2_exit:
-	/* dump_cifs_file_struct(file, "end rdir ");  */
 	FreeXid(xid);
 	return rc;
 }

@@ -81,7 +81,7 @@ static inline int irqs_disabled (void)
   ((__typeof__ (*(ptr)))__xchg ((unsigned long)(with), (ptr), sizeof (*(ptr))))
 #define tas(ptr) (xchg ((ptr), 1))
 
-extern inline unsigned long __xchg (unsigned long with,
+static inline unsigned long __xchg (unsigned long with,
 				    __volatile__ void *ptr, int size)
 {
 	unsigned long tmp, flags;

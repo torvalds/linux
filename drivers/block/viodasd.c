@@ -45,10 +45,10 @@
 
 #include <asm/uaccess.h>
 #include <asm/vio.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/vio.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/vio.h>
 
 MODULE_DESCRIPTION("iSeries Virtual DASD");
 MODULE_AUTHOR("Dave Boutcher");
@@ -778,13 +778,16 @@ static struct vio_device_id viodasd_device_table[] __devinitdata = {
 	{ "viodasd", "" },
 	{ "", "" }
 };
-
 MODULE_DEVICE_TABLE(vio, viodasd_device_table);
+
 static struct vio_driver viodasd_driver = {
-	.name = "viodasd",
 	.id_table = viodasd_device_table,
 	.probe = viodasd_probe,
-	.remove = viodasd_remove
+	.remove = viodasd_remove,
+	.driver = {
+		.name = "viodasd",
+		.owner = THIS_MODULE,
+	}
 };
 
 /*

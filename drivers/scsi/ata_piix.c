@@ -45,12 +45,12 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
-#include "scsi.h"
+#include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
 #define DRV_NAME	"ata_piix"
-#define DRV_VERSION	"1.04"
+#define DRV_VERSION	"1.05"
 
 enum {
 	PIIX_IOCFG		= 0x54, /* IDE I/O configuration register */
@@ -95,7 +95,7 @@ static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev);
 
 static unsigned int in_module_init = 1;
 
-static struct pci_device_id piix_pci_tbl[] = {
+static const struct pci_device_id piix_pci_tbl[] = {
 #ifdef ATA_ENABLE_PATA
 	{ 0x8086, 0x7111, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix4_pata },
 	{ 0x8086, 0x24db, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_pata },
@@ -127,7 +127,7 @@ static struct pci_driver piix_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static Scsi_Host_Template piix_sht = {
+static struct scsi_host_template piix_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -147,7 +147,7 @@ static Scsi_Host_Template piix_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations piix_pata_ops = {
+static const struct ata_port_operations piix_pata_ops = {
 	.port_disable		= ata_port_disable,
 	.set_piomode		= piix_set_piomode,
 	.set_dmamode		= piix_set_dmamode,
@@ -177,7 +177,7 @@ static struct ata_port_operations piix_pata_ops = {
 	.host_stop		= ata_host_stop,
 };
 
-static struct ata_port_operations piix_sata_ops = {
+static const struct ata_port_operations piix_sata_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,
@@ -442,7 +442,6 @@ static void piix_sata_phy_reset(struct ata_port *ap)
  *	piix_set_piomode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
  *	@adev: um
- *	@pio: PIO mode, 0 - 4
  *
  *	Set PIO mode for device, in host controller PCI config space.
  *
@@ -622,18 +621,19 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	struct ata_port_info *port_info[2];
-	unsigned int combined = 0, n_ports = 1;
+	unsigned int combined = 0;
 	unsigned int pata_chan = 0, sata_chan = 0;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev,
+			   "version " DRV_VERSION "\n");
 
 	/* no hotplugging support (FIXME) */
 	if (!in_module_init)
 		return -ENODEV;
 
 	port_info[0] = &piix_port_info[ent->driver_data];
-	port_info[1] = NULL;
+	port_info[1] = &piix_port_info[ent->driver_data];
 
 	if (port_info[0]->host_flags & PIIX_FLAG_AHCI) {
 		u8 tmp;
@@ -671,12 +671,13 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		port_info[sata_chan] = &piix_port_info[ent->driver_data];
 		port_info[sata_chan]->host_flags |= ATA_FLAG_SLAVE_POSS;
 		port_info[pata_chan] = &piix_port_info[ich5_pata];
-		n_ports++;
 
-		printk(KERN_WARNING DRV_NAME ": combined mode detected\n");
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "combined mode detected (p=%u, s=%u)\n",
+			   pata_chan, sata_chan);
 	}
 
-	return ata_pci_init_one(pdev, port_info, n_ports);
+	return ata_pci_init_one(pdev, port_info, 2);
 }
 
 static int __init piix_init(void)

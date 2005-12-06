@@ -313,8 +313,7 @@ acpi_status acpi_os_remove_interrupt_handler(u32 irq, acpi_osd_handler handler)
 
 void acpi_os_sleep(acpi_integer ms)
 {
-	current->state = TASK_INTERRUPTIBLE;
-	schedule_timeout(((signed long)ms * HZ) / 1000);
+	schedule_timeout_interruptible(msecs_to_jiffies(ms));
 }
 
 EXPORT_SYMBOL(acpi_os_sleep);
@@ -838,8 +837,7 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 
 			ret = down_trylock(sem);
 			for (i = timeout; (i > 0 && ret < 0); i -= quantum_ms) {
-				current->state = TASK_INTERRUPTIBLE;
-				schedule_timeout(1);
+				schedule_timeout_interruptible(1);
 				ret = down_trylock(sem);
 			}
 

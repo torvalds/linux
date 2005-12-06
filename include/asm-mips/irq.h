@@ -24,11 +24,9 @@ static inline int irq_canonicalize(int irq)
 
 struct pt_regs;
 
-#ifdef CONFIG_PREEMPT
-
 extern asmlinkage unsigned int do_IRQ(unsigned int irq, struct pt_regs *regs);
 
-#else
+#ifdef CONFIG_PREEMPT
 
 /*
  * do_IRQ handles all normal device IRQ's (the special

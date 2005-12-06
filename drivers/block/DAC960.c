@@ -417,14 +417,12 @@ static void DAC960_DestroyAuxiliaryStructures(DAC960_Controller_T *Controller)
             * Remember the beginning of the group, but don't free it
 	    * until we've reached the beginning of the next group.
 	    */
-	   if (CommandGroup != NULL)
-		kfree(CommandGroup);
-	    CommandGroup = Command;
+	   kfree(CommandGroup);
+	   CommandGroup = Command;
       }
       Controller->Commands[i] = NULL;
     }
-  if (CommandGroup != NULL)
-      kfree(CommandGroup);
+  kfree(CommandGroup);
 
   if (Controller->CombinedStatusBuffer != NULL)
     {
@@ -435,30 +433,23 @@ static void DAC960_DestroyAuxiliaryStructures(DAC960_Controller_T *Controller)
 
   if (ScatterGatherPool != NULL)
   	pci_pool_destroy(ScatterGatherPool);
-  if (Controller->FirmwareType == DAC960_V1_Controller) return;
+  if (Controller->FirmwareType == DAC960_V1_Controller)
+  	return;
 
   if (RequestSensePool != NULL)
 	pci_pool_destroy(RequestSensePool);
 
-  for (i = 0; i < DAC960_MaxLogicalDrives; i++)
-    if (Controller->V2.LogicalDeviceInformation[i] != NULL)
-      {
+  for (i = 0; i < DAC960_MaxLogicalDrives; i++) {
 	kfree(Controller->V2.LogicalDeviceInformation[i]);
 	Controller->V2.LogicalDeviceInformation[i] = NULL;
-      }
+  }
 
   for (i = 0; i < DAC960_V2_MaxPhysicalDevices; i++)
     {
-      if (Controller->V2.PhysicalDeviceInformation[i] != NULL)
-	{
-	  kfree(Controller->V2.PhysicalDeviceInformation[i]);
-	  Controller->V2.PhysicalDeviceInformation[i] = NULL;
-	}
-      if (Controller->V2.InquiryUnitSerialNumber[i] != NULL)
-	{
-	  kfree(Controller->V2.InquiryUnitSerialNumber[i]);
-	  Controller->V2.InquiryUnitSerialNumber[i] = NULL;
-	}
+      kfree(Controller->V2.PhysicalDeviceInformation[i]);
+      Controller->V2.PhysicalDeviceInformation[i] = NULL;
+      kfree(Controller->V2.InquiryUnitSerialNumber[i]);
+      Controller->V2.InquiryUnitSerialNumber[i] = NULL;
     }
 }
 

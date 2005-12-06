@@ -17,20 +17,6 @@
 #include <linux/videodev.h>
 #include <linux/i2c.h>
 
-/* Remove these once they are officially defined */
-#ifndef I2C_DRIVERID_OVCAMCHIP
-	#define I2C_DRIVERID_OVCAMCHIP	0xf00f
-#endif
-#ifndef I2C_HW_SMBUS_OV511
-	#define I2C_HW_SMBUS_OV511	0xfe
-#endif
-#ifndef I2C_HW_SMBUS_OV518
-	#define I2C_HW_SMBUS_OV518	0xff
-#endif
-#ifndef I2C_HW_SMBUS_OVFX2
-	#define I2C_HW_SMBUS_OVFX2	0xfd
-#endif
-
 /* --------------------------------- */
 /*           ENUMERATIONS            */
 /* --------------------------------- */

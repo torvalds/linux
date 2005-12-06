@@ -752,7 +752,7 @@ static struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	class_device_create(ppdev_class, MKDEV(PP_MAJOR, port->number),
+	class_device_create(ppdev_class, NULL, MKDEV(PP_MAJOR, port->number),
 			NULL, "parport%d", port->number);
 }
 

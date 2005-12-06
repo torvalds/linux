@@ -1,3 +1,6 @@
+menu "Core Netfilter Configuration"
+	depends on NET && NETFILTER
+
 config NETFILTER_NETLINK
        tristate "Netfilter netlink interface"
        help
@@ -22,3 +25,74 @@ config NETFILTER_NETLINK_LOG
 	  and is also scheduled to replace the old syslog-based ipt_LOG
 	  and ip6t_LOG modules.
 
+config NF_CONNTRACK
+	tristate "Layer 3 Independent Connection tracking (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && IP_NF_CONNTRACK=n
+	default n
+	---help---
+	  Connection tracking keeps a record of what packets have passed
+	  through your machine, in order to figure out how they are related
+	  into connections.
+
+	  Layer 3 independent connection tracking is experimental scheme
+	  which generalize ip_conntrack to support other layer 3 protocols.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NF_CT_ACCT
+	bool "Connection tracking flow accounting"
+	depends on NF_CONNTRACK
+	help
+	  If this option is enabled, the connection tracking code will
+	  keep per-flow packet and byte counters.
+
+	  Those counters can be used for flow-based accounting or the
+	  `connbytes' match.
+
+	  If unsure, say `N'.
+
+config NF_CONNTRACK_MARK
+	bool  'Connection mark tracking support'
+	depends on NF_CONNTRACK
+	help
+	  This option enables support for connection marks, used by the
+	  `CONNMARK' target and `connmark' match. Similar to the mark value
+	  of packets, but this mark value is kept in the conntrack session
+	  instead of the individual packets.
+
+config NF_CONNTRACK_EVENTS
+	bool "Connection tracking events"
+	depends on NF_CONNTRACK
+	help
+	  If this option is enabled, the connection tracking code will
+	  provide a notifier chain that can be used by other kernel code
+	  to get notified aboutchanges in the connection tracking state.
+
+	  If unsure, say `N'.
+
+config NF_CT_PROTO_SCTP
+	tristate 'SCTP protocol on new connection tracking support (EXPERIMENTAL)'
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	default n
+	help
+	  With this option enabled, the layer 3 independent connection
+	  tracking code will be able to do state tracking on SCTP connections.
+
+	  If you want to compile it as a module, say M here and read
+	  Documentation/modules.txt.  If unsure, say `N'.
+
+config NF_CONNTRACK_FTP
+	tristate "FTP support on new connection tracking (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	help
+	  Tracking FTP connections is problematic: special helpers are
+	  required for tracking them, and doing masquerading and other forms
+	  of Network Address Translation on them.
+
+	  This is FTP support on Layer 3 independent connection tracking.
+	  Layer 3 independent connection tracking is experimental scheme
+	  which generalize ip_conntrack to support other layer 3 protocols.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+endmenu

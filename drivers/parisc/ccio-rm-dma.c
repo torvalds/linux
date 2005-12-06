@@ -167,7 +167,7 @@ ccio_probe(struct parisc_device *dev)
 {
 	printk(KERN_INFO "%s found %s at 0x%lx\n", MODULE_NAME,
 			dev->id.hversion == U2_BC_GSC ? "U2" : "UTurn",
-			dev->hpa);
+			dev->hpa.start);
 
 /*
 ** FIXME - should check U2 registers to verify it's really running

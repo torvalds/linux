@@ -41,7 +41,7 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		orig_status = status;
 		handled = 1;
 		if (status & IPR_PCIERROR) {
-			snd_printk("interrupt: PCI error\n");
+			snd_printk(KERN_ERR "interrupt: PCI error\n");
 			snd_emu10k1_intr_disable(emu, INTE_PCIERRORENABLE);
 			status &= ~IPR_PCIERROR;
 		}

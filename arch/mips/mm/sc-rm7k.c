@@ -15,6 +15,7 @@
 #include <asm/cacheops.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
+#include <asm/cacheflush.h> /* for run_uncached() */
 
 /* Primary cache parameters. */
 #define sc_lsize	32
@@ -96,25 +97,13 @@ static void rm7k_sc_inv(unsigned long addr, unsigned long size)
 }
 
 /*
- * This function is executed in the uncached segment CKSEG1.
- * It must not touch the stack, because the stack pointer still points
- * into CKSEG0.
- *
- * Three options:
- *	- Write it in assembly and guarantee that we don't use the stack.
- *	- Disable caching for CKSEG0 before calling it.
- *	- Pray that GCC doesn't randomly start using the stack.
- *
- * This being Linux, we obviously take the least sane of those options -
- * following DaveM's lead in c-r4k.c
- *
- * It seems we get our kicks from relying on unguaranteed behaviour in GCC
+ * This function is executed in uncached address space.
  */
 static __init void __rm7k_sc_enable(void)
 {
 	int i;
 
-	set_c0_config(1 << 3);				/* CONF_SE */
+	set_c0_config(RM7K_CONF_SE);
 
 	write_c0_taglo(0);
 	write_c0_taghi(0);
@@ -127,24 +116,22 @@ static __init void __rm7k_sc_enable(void)
 		      ".set mips0\n\t"
 		      ".set reorder"
 		      :
-		      : "r" (KSEG0ADDR(i)), "i" (Index_Store_Tag_SD));
+		      : "r" (CKSEG0ADDR(i)), "i" (Index_Store_Tag_SD));
 	}
 }
 
 static __init void rm7k_sc_enable(void)
 {
-	void (*func)(void) = (void *) KSEG1ADDR(&__rm7k_sc_enable);
-
-	if (read_c0_config() & 0x08)			/* CONF_SE */
+	if (read_c0_config() & RM7K_CONF_SE)
 		return;
 
-	printk(KERN_INFO "Enabling secondary cache...");
-	func();
+	printk(KERN_INFO "Enabling secondary cache...\n");
+	run_uncached(__rm7k_sc_enable);
 }
 
 static void rm7k_sc_disable(void)
 {
-	clear_c0_config(1<<3);				/* CONF_SE */
+	clear_c0_config(RM7K_CONF_SE);
 }
 
 struct bcache_ops rm7k_sc_ops = {
@@ -158,19 +145,19 @@ void __init rm7k_sc_init(void)
 {
 	unsigned int config = read_c0_config();
 
-	if ((config >> 31) & 1)		/* Bit 31 set -> no S-Cache */
+	if ((config & RM7K_CONF_SC))
 		return;
 
 	printk(KERN_INFO "Secondary cache size %dK, linesize %d bytes.\n",
 	       (scache_size >> 10), sc_lsize);
 
-	if (!((config >> 3) & 1))	/* CONF_SE */
+	if (!(config & RM7K_CONF_SE))
 		rm7k_sc_enable();
 
 	/*
 	 * While we're at it let's deal with the tertiary cache.
 	 */
-	if (!((config >> 17) & 1)) {
+	if (!(config & RM7K_CONF_TC)) {
 
 		/*
 		 * We can't enable the L3 cache yet. There may be board-specific
@@ -183,9 +170,9 @@ void __init rm7k_sc_init(void)
 		 * to probe it.
 		 */
 		printk(KERN_INFO "Tertiary cache present, %s enabled\n",
-		       config&(1<<12) ? "already" : "not (yet)");
+		       (config & RM7K_CONF_TE) ? "already" : "not (yet)");
 
-		if ((config >> 12) & 1)
+		if ((config & RM7K_CONF_TE))
 			rm7k_tcache_enabled = 1;
 	}
 

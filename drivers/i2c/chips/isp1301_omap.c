@@ -27,7 +27,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
 #include <linux/usb.h>
@@ -873,25 +873,27 @@ static int otg_init(struct isp1301 *isp)
 	return 0;
 }
 
-static int otg_probe(struct device *dev)
+static int otg_probe(struct platform_device *dev)
 {
 	// struct omap_usb_config *config = dev->platform_data;
 
-	otg_dev = to_platform_device(dev);
+	otg_dev = dev;
 	return 0;
 }
 
-static int otg_remove(struct device *dev)
+static int otg_remove(struct platform_device *dev)
 {
 	otg_dev = 0;
 	return 0;
 }
 
-struct device_driver omap_otg_driver = {
-	.name		= "omap_otg",
-	.bus		= &platform_bus_type,
+struct platform_driver omap_otg_driver = {
 	.probe		= otg_probe,
-	.remove		= otg_remove,	
+	.remove		= otg_remove,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "omap_otg",
+	},
 };
 
 static int otg_bind(struct isp1301 *isp)
@@ -901,7 +903,7 @@ static int otg_bind(struct isp1301 *isp)
 	if (otg_dev)
 		return -EBUSY;
 
-	status = driver_register(&omap_otg_driver);
+	status = platform_driver_register(&omap_otg_driver);
 	if (status < 0)
 		return status;
 
@@ -912,7 +914,7 @@ static int otg_bind(struct isp1301 *isp)
 		status = -ENODEV;
 
 	if (status < 0)
-		driver_unregister(&omap_otg_driver);
+		platform_driver_unregister(&omap_otg_driver);
 	return status;
 }
 

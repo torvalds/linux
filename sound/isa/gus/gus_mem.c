@@ -198,7 +198,7 @@ snd_gf1_mem_block_t *snd_gf1_mem_alloc(snd_gf1_mem_t * alloc, int owner,
 		if (nblock != NULL) {
 			if (size != (int)nblock->size) {
 				/* TODO: remove in the future */
-				snd_printk("snd_gf1_mem_alloc - share: sizes differ\n");
+				snd_printk(KERN_ERR "snd_gf1_mem_alloc - share: sizes differ\n");
 				goto __std;
 			}
 			nblock->share++;

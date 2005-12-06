@@ -536,7 +536,7 @@ pdcs_info_read(struct subsystem *entry, char *buf)
 
 	out += sprintf(out, "Memory tested: ");
 	if ((result & 0x0F) < 0x0E)
-		out += sprintf(out, "%.3f MB", 0.256*(1<<(result & 0x0F)));
+		out += sprintf(out, "%d kB", (1<<(result & 0x0F))*256);
 	else
 		out += sprintf(out, "All");
 	out += sprintf(out, "\n");

@@ -139,6 +139,7 @@
 /*          - Remove 3 unused "inline" functions                             */
 /* 7.12.xx  - Use STATIC functions whereever possible                        */
 /*          - Clean up deprecated MODULE_PARM calls                          */
+/* 7.12.05  - Remove Version Matching per IBM request                        */
 /*****************************************************************************/
 
 /*
@@ -210,7 +211,7 @@ module_param(ips, charp, 0);
  * DRIVER_VER
  */
 #define IPS_VERSION_HIGH        "7.12"
-#define IPS_VERSION_LOW         ".02 "
+#define IPS_VERSION_LOW         ".05 "
 
 #if !defined(__i386__) && !defined(__ia64__) && !defined(__x86_64__)
 #warning "This driver has only been tested on the x86/ia64/x86_64 platforms"
@@ -219,15 +220,12 @@ module_param(ips, charp, 0);
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,0)
 #include <linux/blk.h>
 #include "sd.h"
-#define IPS_SG_ADDRESS(sg)       ((sg)->address)
 #define IPS_LOCK_SAVE(lock,flags) spin_lock_irqsave(&io_request_lock,flags)
 #define IPS_UNLOCK_RESTORE(lock,flags) spin_unlock_irqrestore(&io_request_lock,flags)
 #ifndef __devexit_p
 #define __devexit_p(x) x
 #endif
 #else
-#define IPS_SG_ADDRESS(sg)      (page_address((sg)->page) ? \
-                                   page_address((sg)->page)+(sg)->offset : NULL)
 #define IPS_LOCK_SAVE(lock,flags) do{spin_lock(lock);(void)flags;}while(0)
 #define IPS_UNLOCK_RESTORE(lock,flags) do{spin_unlock(lock);(void)flags;}while(0)
 #endif
@@ -250,7 +248,7 @@ module_param(ips, charp, 0);
 /*
  * Function prototypes
  */
-static int ips_detect(Scsi_Host_Template *);
+static int ips_detect(struct scsi_host_template *);
 static int ips_release(struct Scsi_Host *);
 static int ips_eh_abort(Scsi_Cmnd *);
 static int ips_eh_reset(Scsi_Cmnd *);
@@ -350,13 +348,14 @@ static int ips_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
 static int ips_host_info(ips_ha_t *, char *, off_t, int);
 static void copy_mem_info(IPS_INFOSTR *, char *, int);
 static int copy_info(IPS_INFOSTR *, char *, ...);
-static int ips_get_version_info(ips_ha_t * ha, dma_addr_t, int intr);
-static void ips_version_check(ips_ha_t * ha, int intr);
 static int ips_abort_init(ips_ha_t * ha, int index);
 static int ips_init_phase2(int index);
 
 static int ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr);
 static int ips_register_scsi(int index);
+
+static int  ips_poll_for_flush_complete(ips_ha_t * ha);
+static void ips_flush_and_reset(ips_ha_t *ha);
 
 /*
  * global variables
@@ -378,7 +377,7 @@ static char *ips_FlashData = NULL;	/* CD Boot - Flash Data Buffer      */
 static dma_addr_t ips_flashbusaddr;
 static long ips_FlashDataInUse;		/* CD Boot - Flash Data In Use Flag */
 static uint32_t MaxLiteCmds = 32;	/* Max Active Cmds for a Lite Adapter */
-static Scsi_Host_Template ips_driver_template = {
+static struct scsi_host_template ips_driver_template = {
 	.detect			= ips_detect,
 	.release		= ips_release,
 	.info			= ips_info,
@@ -405,8 +404,6 @@ static Scsi_Host_Template ips_driver_template = {
     .highmem_io          = 1,   
 #endif
 };
-
-static IPS_DEFINE_COMPAT_TABLE( Compatable );	/* Version Compatability Table      */
 
 
 /* This table describes all ServeRAID Adapters */
@@ -590,7 +587,7 @@ __setup("ips=", ips_setup);
 /*                                                                          */
 /****************************************************************************/
 static int
-ips_detect(Scsi_Host_Template * SHT)
+ips_detect(struct scsi_host_template * SHT)
 {
 	int i;
 
@@ -1125,8 +1122,8 @@ ips_queue(Scsi_Cmnd * SC, void (*done) (Scsi_Cmnd *))
 		  SC->device->channel, SC->device->id, SC->device->lun);
 
 	/* Check for command to initiator IDs */
-	if ((SC->device->channel > 0)
-	    && (SC->device->id == ha->ha_id[SC->device->channel])) {
+	if ((scmd_channel(SC) > 0)
+	    && (scmd_id(SC) == ha->ha_id[scmd_channel(SC)])) {
 		SC->result = DID_NO_CONNECT << 16;
 		done(SC);
 
@@ -1265,9 +1262,9 @@ ips_proc24_info(char *buffer, char **start, off_t offset, int length,
 /*                                                                          */
 /****************************************************************************/
 static void
-ips_select_queue_depth(struct Scsi_Host *host, Scsi_Device * scsi_devs)
+ips_select_queue_depth(struct Scsi_Host *host, struct scsi_device * scsi_devs)
 {
-	Scsi_Device *device;
+	struct scsi_device *device;
 	ips_ha_t *ha;
 	int count = 0;
 	int min;
@@ -1310,7 +1307,7 @@ ips_select_queue_depth(struct Scsi_Host *host, Scsi_Device * scsi_devs)
 /*                                                                          */
 /****************************************************************************/
 static int
-ips_slave_configure(Scsi_Device * SDptr)
+ips_slave_configure(struct scsi_device * SDptr)
 {
 	ips_ha_t *ha;
 	int min;
@@ -1605,6 +1602,8 @@ ips_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
 static int
 ips_is_passthru(Scsi_Cmnd * SC)
 {
+	unsigned long flags;
+
 	METHOD_TRACE("ips_is_passthru", 1);
 
 	if (!SC)
@@ -1622,10 +1621,20 @@ ips_is_passthru(Scsi_Cmnd * SC)
 			return 1;
 		else if (SC->use_sg) {
 			struct scatterlist *sg = SC->request_buffer;
-			char *buffer = IPS_SG_ADDRESS(sg);
+			char  *buffer; 
+
+			/* kmap_atomic() ensures addressability of the user buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg->page, KM_IRQ0) + sg->offset; 
 			if (buffer && buffer[0] == 'C' && buffer[1] == 'O' &&
-			    buffer[2] == 'P' && buffer[3] == 'P')
+			    buffer[2] == 'P' && buffer[3] == 'P') {
+				kunmap_atomic(buffer - sg->offset, KM_IRQ0);
+				local_irq_restore(flags);
 				return 1;
+			}
+			kunmap_atomic(buffer - sg->offset, KM_IRQ0);
+			local_irq_restore(flags);
 		}
 	}
 	return 0;
@@ -2830,10 +2839,10 @@ ips_next(ips_ha_t * ha, int intr)
 
 	p = ha->scb_waitlist.head;
 	while ((p) && (scb = ips_getscb(ha))) {
-		if ((p->device->channel > 0)
+		if ((scmd_channel(p) > 0)
 		    && (ha->
-			dcdb_active[p->device->channel -
-				    1] & (1 << p->device->id))) {
+			dcdb_active[scmd_channel(p) -
+				    1] & (1 << scmd_id(p)))) {
 			ips_freescb(ha, scb);
 			p = (Scsi_Cmnd *) p->host_scribble;
 			continue;
@@ -3656,14 +3665,21 @@ ips_scmd_buf_write(Scsi_Cmnd * scmd, void *data, unsigned
 		int i;
 		unsigned int min_cnt, xfer_cnt;
 		char *cdata = (char *) data;
+		unsigned char *buffer;
+		unsigned long flags;
 		struct scatterlist *sg = scmd->request_buffer;
 		for (i = 0, xfer_cnt = 0;
 		     (i < scmd->use_sg) && (xfer_cnt < count); i++) {
-			if (!IPS_SG_ADDRESS(&sg[i]))
-				return;
 			min_cnt = min(count - xfer_cnt, sg[i].length);
-			memcpy(IPS_SG_ADDRESS(&sg[i]), &cdata[xfer_cnt],
-			       min_cnt);
+
+			/* kmap_atomic() ensures addressability of the data buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg[i].page, KM_IRQ0) + sg[i].offset;
+			memcpy(buffer, &cdata[xfer_cnt], min_cnt);
+			kunmap_atomic(buffer - sg[i].offset, KM_IRQ0);
+			local_irq_restore(flags);
+
 			xfer_cnt += min_cnt;
 		}
 
@@ -3688,14 +3704,21 @@ ips_scmd_buf_read(Scsi_Cmnd * scmd, void *data, unsigned
 		int i;
 		unsigned int min_cnt, xfer_cnt;
 		char *cdata = (char *) data;
+		unsigned char *buffer;
+		unsigned long flags;
 		struct scatterlist *sg = scmd->request_buffer;
 		for (i = 0, xfer_cnt = 0;
 		     (i < scmd->use_sg) && (xfer_cnt < count); i++) {
-			if (!IPS_SG_ADDRESS(&sg[i]))
-				return;
 			min_cnt = min(count - xfer_cnt, sg[i].length);
-			memcpy(&cdata[xfer_cnt], IPS_SG_ADDRESS(&sg[i]),
-			       min_cnt);
+
+			/* kmap_atomic() ensures addressability of the data buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg[i].page, KM_IRQ0) + sg[i].offset;
+			memcpy(&cdata[xfer_cnt], buffer, min_cnt);
+			kunmap_atomic(buffer - sg[i].offset, KM_IRQ0);
+			local_irq_restore(flags);
+
 			xfer_cnt += min_cnt;
 		}
 
@@ -4491,10 +4514,8 @@ ips_free(ips_ha_t * ha)
 			ha->enq = NULL;
 		}
 
-		if (ha->conf) {
-			kfree(ha->conf);
-			ha->conf = NULL;
-		}
+		kfree(ha->conf);
+		ha->conf = NULL;
 
 		if (ha->adapt) {
 			pci_free_consistent(ha->pcidev,
@@ -4512,15 +4533,11 @@ ips_free(ips_ha_t * ha)
 			ha->logical_drive_info = NULL;
 		}
 
-		if (ha->nvram) {
-			kfree(ha->nvram);
-			ha->nvram = NULL;
-		}
+		kfree(ha->nvram);
+		ha->nvram = NULL;
 
-		if (ha->subsys) {
-			kfree(ha->subsys);
-			ha->subsys = NULL;
-		}
+		kfree(ha->subsys);
+		ha->subsys = NULL;
 
 		if (ha->ioctl_data) {
 			pci_free_consistent(ha->pcidev, ha->ioctl_len,
@@ -4807,6 +4824,9 @@ ips_isinit_morpheus(ips_ha_t * ha)
 	uint32_t bits;
 
 	METHOD_TRACE("ips_is_init_morpheus", 1);
+   
+	if (ips_isintr_morpheus(ha)) 
+	    ips_flush_and_reset(ha);
 
 	post = readl(ha->mem_ptr + IPS_REG_I960_MSG0);
 	bits = readl(ha->mem_ptr + IPS_REG_I2O_HIR);
@@ -4817,6 +4837,94 @@ ips_isinit_morpheus(ips_ha_t * ha)
 		return (0);
 	else
 		return (1);
+}
+
+/****************************************************************************/
+/*                                                                          */
+/* Routine Name: ips_flush_and_reset                                        */
+/*                                                                          */
+/* Routine Description:                                                     */
+/*                                                                          */
+/*   Perform cleanup ( FLUSH and RESET ) when the adapter is in an unknown  */
+/*   state ( was trying to INIT and an interrupt was already pending ) ...  */
+/*                                                                          */
+/****************************************************************************/
+static void 
+ips_flush_and_reset(ips_ha_t *ha)
+{
+	ips_scb_t *scb;
+	int  ret;
+ 	int  time;
+	int  done;
+	dma_addr_t command_dma;
+
+	/* Create a usuable SCB */
+	scb = pci_alloc_consistent(ha->pcidev, sizeof(ips_scb_t), &command_dma);
+	if (scb) {
+	    memset(scb, 0, sizeof(ips_scb_t));
+	    ips_init_scb(ha, scb);
+	    scb->scb_busaddr = command_dma;
+
+	    scb->timeout = ips_cmd_timeout;
+	    scb->cdb[0] = IPS_CMD_FLUSH;
+
+	    scb->cmd.flush_cache.op_code = IPS_CMD_FLUSH;
+	    scb->cmd.flush_cache.command_id = IPS_MAX_CMDS;   /* Use an ID that would otherwise not exist */
+	    scb->cmd.flush_cache.state = IPS_NORM_STATE;
+	    scb->cmd.flush_cache.reserved = 0;
+	    scb->cmd.flush_cache.reserved2 = 0;
+	    scb->cmd.flush_cache.reserved3 = 0;
+	    scb->cmd.flush_cache.reserved4 = 0;
+
+	    ret = ips_send_cmd(ha, scb);                      /* Send the Flush Command */
+
+	    if (ret == IPS_SUCCESS) {
+	        time = 60 * IPS_ONE_SEC;	              /* Max Wait time is 60 seconds */
+	        done = 0;
+	            
+	        while ((time > 0) && (!done)) {
+	           done = ips_poll_for_flush_complete(ha); 	   
+	           /* This may look evil, but it's only done during extremely rare start-up conditions ! */
+	           udelay(1000);
+	           time--;
+	        }
+        }
+	}
+
+	/* Now RESET and INIT the adapter */
+	(*ha->func.reset) (ha);
+
+	pci_free_consistent(ha->pcidev, sizeof(ips_scb_t), scb, command_dma);
+	return;
+}
+
+/****************************************************************************/
+/*                                                                          */
+/* Routine Name: ips_poll_for_flush_complete                                */
+/*                                                                          */
+/* Routine Description:                                                     */
+/*                                                                          */
+/*   Poll for the Flush Command issued by ips_flush_and_reset() to complete */
+/*   All other responses are just taken off the queue and ignored           */
+/*                                                                          */
+/****************************************************************************/
+static int
+ips_poll_for_flush_complete(ips_ha_t * ha)
+{
+	IPS_STATUS cstatus;
+    
+	while (TRUE) {
+	    cstatus.value = (*ha->func.statupd) (ha);
+
+	    if (cstatus.value == 0xffffffff)      /* If No Interrupt to process */
+			break;
+            
+	    /* Success is when we see the Flush Command ID */
+	    if (cstatus.fields.command_id == IPS_MAX_CMDS ) 
+	        return 1;
+	 }	
+
+	return 0;
 }
 
 /****************************************************************************/
@@ -5819,7 +5927,7 @@ ips_write_driver_status(ips_ha_t * ha, int intr)
 	strncpy((char *) ha->nvram->bios_high, ha->bios_version, 4);
 	strncpy((char *) ha->nvram->bios_low, ha->bios_version + 4, 4);
 
-	ips_version_check(ha, intr);	/* Check BIOS/FW/Driver Versions */
+	ha->nvram->versioning = 0;	/* Indicate the Driver Does Not Support Versioning */
 
 	/* now update the page */
 	if (!ips_readwrite_page5(ha, TRUE, intr)) {
@@ -6734,135 +6842,6 @@ ips_verify_bios_memio(ips_ha_t * ha, char *buffer, uint32_t buffersize,
 	else
 		/* success */
 		return (0);
-}
-
-/*---------------------------------------------------------------------------*/
-/*   Routine Name: ips_version_check                                         */
-/*                                                                           */
-/*   Dependencies:                                                           */
-/*     Assumes that ips_read_adapter_status() is called first filling in     */
-/*     the data for SubSystem Parameters.                                    */
-/*     Called from ips_write_driver_status() so it also assumes NVRAM Page 5 */
-/*     Data is available.                                                    */
-/*                                                                           */
-/*---------------------------------------------------------------------------*/
-static void
-ips_version_check(ips_ha_t * ha, int intr)
-{
-	IPS_VERSION_DATA *VersionInfo;
-	uint8_t FirmwareVersion[IPS_COMPAT_ID_LENGTH + 1];
-	uint8_t BiosVersion[IPS_COMPAT_ID_LENGTH + 1];
-	int MatchError;
-	int rc;
-	char BiosString[10];
-	char FirmwareString[10];
-
-	METHOD_TRACE("ips_version_check", 1);
-
-	VersionInfo = ( IPS_VERSION_DATA * ) ha->ioctl_data;
-
-	memset(FirmwareVersion, 0, IPS_COMPAT_ID_LENGTH + 1);
-	memset(BiosVersion, 0, IPS_COMPAT_ID_LENGTH + 1);
-
-	/* Get the Compatible BIOS Version from NVRAM Page 5 */
-	memcpy(BiosVersion, ha->nvram->BiosCompatibilityID,
-	       IPS_COMPAT_ID_LENGTH);
-
-	rc = IPS_FAILURE;
-	if (ha->subsys->param[4] & IPS_GET_VERSION_SUPPORT) {	/* If Versioning is Supported */
-		/* Get the Version Info with a Get Version Command */
-		memset( VersionInfo, 0, sizeof (IPS_VERSION_DATA));
-		rc = ips_get_version_info(ha, ha->ioctl_busaddr, intr);
-		if (rc == IPS_SUCCESS)
-			memcpy(FirmwareVersion, VersionInfo->compatibilityId,
-			       IPS_COMPAT_ID_LENGTH);
-	}
-
-	if (rc != IPS_SUCCESS) {	/* If Data Not Obtainable from a GetVersion Command */
-		/* Get the Firmware Version from Enquiry Data */
-		memcpy(FirmwareVersion, ha->enq->CodeBlkVersion,
-		       IPS_COMPAT_ID_LENGTH);
-	}
-
-	/* printk(KERN_WARNING "Adapter's BIOS Version  = %s\n", BiosVersion);          */
-	/* printk(KERN_WARNING "BIOS Compatible Version = %s\n", IPS_COMPAT_BIOS);      */
-	/* printk(KERN_WARNING "Adapter's Firmware Version  = %s\n", FirmwareVersion);  */
-	/* printk(KERN_WARNING "Firmware Compatible Version = %s \n", Compatable[ ha->nvram->adapter_type ]); */
-
-	MatchError = 0;
-
-	if (strncmp
-	    (FirmwareVersion, Compatable[ha->nvram->adapter_type],
-	     IPS_COMPAT_ID_LENGTH) != 0)
-		MatchError = 1;
-
-	if (strncmp(BiosVersion, IPS_COMPAT_BIOS, IPS_COMPAT_ID_LENGTH) != 0)
-		MatchError = 1;
-
-	ha->nvram->versioning = 1;	/* Indicate the Driver Supports Versioning */
-
-	if (MatchError) {
-		ha->nvram->version_mismatch = 1;
-		if (ips_cd_boot == 0) {
-			strncpy(&BiosString[0], ha->nvram->bios_high, 4);
-			strncpy(&BiosString[4], ha->nvram->bios_low, 4);
-			BiosString[8] = 0;
-
-			strncpy(&FirmwareString[0], ha->enq->CodeBlkVersion, 8);
-			FirmwareString[8] = 0;
-
-			IPS_PRINTK(KERN_WARNING, ha->pcidev,
-				   "Warning ! ! ! ServeRAID Version Mismatch\n");
-			IPS_PRINTK(KERN_WARNING, ha->pcidev,
-				   "Bios = %s, Firmware = %s, Device Driver = %s%s\n",
-				   BiosString, FirmwareString, IPS_VERSION_HIGH,
-				   IPS_VERSION_LOW);
-			IPS_PRINTK(KERN_WARNING, ha->pcidev,
-				   "These levels should match to avoid possible compatibility problems.\n");
-		}
-	} else {
-		ha->nvram->version_mismatch = 0;
-	}
-
-	return;
-}
-
-/*---------------------------------------------------------------------------*/
-/*   Routine Name: ips_get_version_info                                      */
-/*                                                                           */
-/*   Routine Description:                                                    */
-/*     Issue an internal GETVERSION Command                                  */
-/*                                                                           */
-/*   Return Value:                                                           */
-/*     0 if Successful, else non-zero                                        */
-/*---------------------------------------------------------------------------*/
-static int
-ips_get_version_info(ips_ha_t * ha, dma_addr_t Buffer, int intr)
-{
-	ips_scb_t *scb;
-	int rc;
-
-	METHOD_TRACE("ips_get_version_info", 1);
-
-	scb = &ha->scbs[ha->max_cmds - 1];
-
-	ips_init_scb(ha, scb);
-
-	scb->timeout = ips_cmd_timeout;
-	scb->cdb[0] = IPS_CMD_GET_VERSION_INFO;
-	scb->cmd.version_info.op_code = IPS_CMD_GET_VERSION_INFO;
-	scb->cmd.version_info.command_id = IPS_COMMAND_ID(ha, scb);
-	scb->cmd.version_info.reserved = 0;
-	scb->cmd.version_info.count = sizeof (IPS_VERSION_DATA);
-	scb->cmd.version_info.reserved2 = 0;
-	scb->data_len = sizeof (IPS_VERSION_DATA);
-	scb->data_busaddr = Buffer;
-	scb->cmd.version_info.buffer_addr = Buffer;
-	scb->flags = 0;
-
-	/* issue command */
-	rc = ips_send_wait(ha, scb, ips_cmd_timeout, intr);
-	return (rc);
 }
 
 /****************************************************************************/

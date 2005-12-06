@@ -111,7 +111,7 @@ size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id);
 int snd_dma_reserve_buf(struct snd_dma_buffer *dmab, unsigned int id);
 
 /* basic memory allocation functions */
-void *snd_malloc_pages(size_t size, unsigned int gfp_flags);
+void *snd_malloc_pages(size_t size, gfp_t gfp_flags);
 void snd_free_pages(void *ptr, size_t size);
 
 #endif /* __SOUND_MEMALLOC_H */

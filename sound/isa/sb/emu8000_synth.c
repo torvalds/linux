@@ -56,7 +56,7 @@ static int snd_emu8000_new_device(snd_seq_device_t *dev)
 	emu->num_ports = hw->seq_ports;
 
 	if (hw->memhdr) {
-		snd_printk("memhdr is already initialized!?\n");
+		snd_printk(KERN_ERR "memhdr is already initialized!?\n");
 		snd_util_memhdr_free(hw->memhdr);
 	}
 	hw->memhdr = snd_util_memhdr_new(hw->mem_size);

@@ -272,8 +272,12 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"SUP1421",		0	},
 	/* SupraExpress 33.6 Data/Fax PnP modem */
 	{	"SUP1590",		0	},
+	/* SupraExpress 336i Sp ASVD */
+	{	"SUP1620",		0	},
 	/* SupraExpress 33.6 Data/Fax PnP modem */
 	{	"SUP1760",		0	},
+	/* SupraExpress 56i Sp Intl */
+	{	"SUP2171",		0	},
 	/* Phoebe Micro */
 	/* Phoebe Micro 33.6 Data Fax 1433VQH Plug & Play */
 	{	"TEX0011",		0	},
@@ -319,6 +323,8 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"USR9180",		0	},
 	/* U.S. Robotics 56K Voice INT PnP*/
 	{	"USR9190",		0	},
+	/* HP Compaq Tablet PC tc1100 Wacom tablet */
+	{	"WACF005",		0	},
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
 	{	"WCI0003",		0	},
 	/* Unkown PnP modems */

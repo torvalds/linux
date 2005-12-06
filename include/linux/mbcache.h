@@ -22,7 +22,7 @@ struct mb_cache_entry {
 };
 
 struct mb_cache_op {
-	int (*free)(struct mb_cache_entry *, int);
+	int (*free)(struct mb_cache_entry *, gfp_t);
 };
 
 /* Functions on caches */

@@ -10,7 +10,7 @@
 #ifndef _ASM_ARCH_GPTIMERS_H
 #define _ASM_ARCH_GPTIMERS_H
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 
 /*
  * Layout of L7200 general purpose timer registers

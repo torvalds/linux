@@ -13,7 +13,7 @@
 #include <asm/uaccess.h>
 
 unsigned long
-__generic_copy_to_user(void *to, const void *from, unsigned long n)
+__generic_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	prefetch(from);
 	if (access_ok(VERIFY_WRITE, to, n))
@@ -22,7 +22,7 @@ __generic_copy_to_user(void *to, const void *from, unsigned long n)
 }
 
 unsigned long
-__generic_copy_from_user(void *to, const void *from, unsigned long n)
+__generic_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	prefetchw(to);
 	if (access_ok(VERIFY_READ, from, n))
@@ -111,7 +111,7 @@ do {									\
 #endif /* CONFIG_ISA_DUAL_ISSUE */
 
 long
-__strncpy_from_user(char *dst, const char *src, long count)
+__strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	long res;
 	__do_strncpy_from_user(dst, src, count, res);
@@ -119,7 +119,7 @@ __strncpy_from_user(char *dst, const char *src, long count)
 }
 
 long
-strncpy_from_user(char *dst, const char *src, long count)
+strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	long res = -EFAULT;
 	if (access_ok(VERIFY_READ, src, 1))
@@ -222,7 +222,7 @@ do {									\
 #endif /* not CONFIG_ISA_DUAL_ISSUE */
 
 unsigned long
-clear_user(void *to, unsigned long n)
+clear_user(void __user *to, unsigned long n)
 {
 	if (access_ok(VERIFY_WRITE, to, n))
 		__do_clear_user(to, n);
@@ -230,7 +230,7 @@ clear_user(void *to, unsigned long n)
 }
 
 unsigned long
-__clear_user(void *to, unsigned long n)
+__clear_user(void __user *to, unsigned long n)
 {
 	__do_clear_user(to, n);
 	return n;
@@ -244,7 +244,7 @@ __clear_user(void *to, unsigned long n)
 
 #ifdef CONFIG_ISA_DUAL_ISSUE
 
-long strnlen_user(const char *s, long n)
+long strnlen_user(const char __user *s, long n)
 {
 	unsigned long mask = -__addr_ok(s);
 	unsigned long res;
@@ -313,7 +313,7 @@ long strnlen_user(const char *s, long n)
 
 #else /* not CONFIG_ISA_DUAL_ISSUE */
 
-long strnlen_user(const char *s, long n)
+long strnlen_user(const char __user *s, long n)
 {
 	unsigned long mask = -__addr_ok(s);
 	unsigned long res;

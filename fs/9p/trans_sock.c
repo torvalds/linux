@@ -269,8 +269,7 @@ static void v9fs_sock_close(struct v9fs_transport *trans)
 		dprintk(DEBUG_TRANS, "socket closed\n");
 	}
 
-	if (ts)
-		kfree(ts);
+	kfree(ts);
 
 	trans->priv = NULL;
 }

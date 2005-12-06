@@ -296,8 +296,7 @@ reiserfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 		}
 	}
 
-	if (value)
-		kfree(value);
+	kfree(value);
 
 	if (!error) {
 		/* Release the old one */

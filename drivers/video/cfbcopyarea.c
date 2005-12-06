@@ -349,44 +349,8 @@ void cfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 	unsigned long __iomem *dst = NULL, *src = NULL;
 	int bits = BITS_PER_LONG, bytes = bits >> 3;
 	int dst_idx = 0, src_idx = 0, rev_copy = 0;
-	int x2, y2, vxres, vyres;
 
 	if (p->state != FBINFO_STATE_RUNNING)
-		return;
-
-	/* We want rotation but lack hardware to do it for us. */
-	if (!p->fbops->fb_rotate && p->var.rotate) {
-	}
-
-	vxres = p->var.xres_virtual;
-	vyres = p->var.yres_virtual;
-
-	if (area->dx > vxres || area->sx > vxres ||
-	    area->dy > vyres || area->sy > vyres)
-		return;
-
-	/* clip the destination
-	 * We could use hardware clipping but on many cards you get around
-	 * hardware clipping by writing to framebuffer directly.
-	 */
-	x2 = area->dx + area->width;
-	y2 = area->dy + area->height;
-	dx = area->dx > 0 ? area->dx : 0;
-	dy = area->dy > 0 ? area->dy : 0;
-	x2 = x2 < vxres ? x2 : vxres;
-	y2 = y2 < vyres ? y2 : vyres;
-	width = x2 - dx;
-	height = y2 - dy;
-
-	if ((width==0) ||(height==0))
-		return;
-
-	/* update sx1,sy1 */
-	sx += (dx - area->dx);
-	sy += (dy - area->dy);
-
-	/* the source must be completely inside the virtual screen */
-	if (sx < 0 || sy < 0 || (sx + width) > vxres || (sy + height) > vyres)
 		return;
 
 	/* if the beginning of the target area might overlap with the end of

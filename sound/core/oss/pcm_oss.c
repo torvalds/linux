@@ -1821,6 +1821,17 @@ static int snd_pcm_oss_open_file(struct file *file,
 }
 
 
+static int snd_task_name(struct task_struct *task, char *name, size_t size)
+{
+	unsigned int idx;
+
+	snd_assert(task != NULL && name != NULL && size >= 2, return -EINVAL);
+	for (idx = 0; idx < sizeof(task->comm) && idx + 1 < size; idx++)
+		name[idx] = task->comm[idx];
+	name[idx] = '\0';
+	return 0;
+}
+
 static int snd_pcm_oss_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
@@ -2446,7 +2457,8 @@ static void register_oss_dsp(snd_pcm_t *pcm, int index)
 	if (snd_register_oss_device(SNDRV_OSS_DEVICE_TYPE_PCM,
 				    pcm->card, index, &snd_pcm_oss_reg,
 				    name) < 0) {
-		snd_printk("unable to register OSS PCM device %i:%i\n", pcm->card->number, pcm->device);
+		snd_printk(KERN_ERR "unable to register OSS PCM device %i:%i\n",
+			   pcm->card->number, pcm->device);
 	}
 }
 
@@ -2528,11 +2540,13 @@ static int __init alsa_pcm_oss_init(void)
 	/* check device map table */
 	for (i = 0; i < SNDRV_CARDS; i++) {
 		if (dsp_map[i] < 0 || dsp_map[i] >= SNDRV_PCM_DEVICES) {
-			snd_printk("invalid dsp_map[%d] = %d\n", i, dsp_map[i]);
+			snd_printk(KERN_ERR "invalid dsp_map[%d] = %d\n",
+				   i, dsp_map[i]);
 			dsp_map[i] = 0;
 		}
 		if (adsp_map[i] < 0 || adsp_map[i] >= SNDRV_PCM_DEVICES) {
-			snd_printk("invalid adsp_map[%d] = %d\n", i, adsp_map[i]);
+			snd_printk(KERN_ERR "invalid adsp_map[%d] = %d\n",
+				   i, adsp_map[i]);
 			adsp_map[i] = 1;
 		}
 	}

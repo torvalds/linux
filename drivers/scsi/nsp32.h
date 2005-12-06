@@ -16,6 +16,7 @@
 #ifndef _NSP32_H
 #define _NSP32_H
 
+#include <linux/version.h>
 //#define NSP32_DEBUG 9
 
 /*

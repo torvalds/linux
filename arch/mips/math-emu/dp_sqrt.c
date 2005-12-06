@@ -37,7 +37,7 @@ static const unsigned table[] = {
 
 ieee754dp ieee754dp_sqrt(ieee754dp x)
 {
-	struct ieee754_csr oldcsr;
+	struct _ieee754_csr oldcsr;
 	ieee754dp y, z, t;
 	unsigned scalx, yh;
 	COMPXDP;

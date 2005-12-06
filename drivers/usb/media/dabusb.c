@@ -707,9 +707,8 @@ static struct file_operations dabusb_fops =
 };
 
 static struct usb_class_driver dabusb_class = {
-	.name =		"usb/dabusb%d",
+	.name =		"dabusb%d",
 	.fops =		&dabusb_fops,
-	.mode =		S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
 	.minor_base =	DABUSB_MINOR,
 };
 

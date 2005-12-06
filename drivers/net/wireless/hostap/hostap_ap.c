@@ -591,14 +591,14 @@ static void hostap_ap_tx_cb(struct sk_buff *skb, int ok, void *data)
 {
 	struct ap_data *ap = data;
 	u16 fc;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
 	if (!ap->local->hostapd || !ap->local->apdev) {
 		dev_kfree_skb(skb);
 		return;
 	}
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	/* Pass the TX callback frame to the hostapd; use 802.11 header version
@@ -623,7 +623,7 @@ static void hostap_ap_tx_cb_auth(struct sk_buff *skb, int ok, void *data)
 {
 	struct ap_data *ap = data;
 	struct net_device *dev = ap->local->dev;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u16 fc, *pos, auth_alg, auth_transaction, status;
 	struct sta_info *sta = NULL;
 	char *txt = NULL;
@@ -633,7 +633,7 @@ static void hostap_ap_tx_cb_auth(struct sk_buff *skb, int ok, void *data)
 		return;
 	}
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 	if (WLAN_FC_GET_TYPE(fc) != IEEE80211_FTYPE_MGMT ||
 	    WLAN_FC_GET_STYPE(fc) != IEEE80211_STYPE_AUTH ||
@@ -692,7 +692,7 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 {
 	struct ap_data *ap = data;
 	struct net_device *dev = ap->local->dev;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u16 fc, *pos, status;
 	struct sta_info *sta = NULL;
 	char *txt = NULL;
@@ -702,7 +702,7 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 		return;
 	}
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 	if (WLAN_FC_GET_TYPE(fc) != IEEE80211_FTYPE_MGMT ||
 	    (WLAN_FC_GET_STYPE(fc) != IEEE80211_STYPE_ASSOC_RESP &&
@@ -757,12 +757,12 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 static void hostap_ap_tx_cb_poll(struct sk_buff *skb, int ok, void *data)
 {
 	struct ap_data *ap = data;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	struct sta_info *sta;
 
 	if (skb->len < 24)
 		goto fail;
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	if (ok) {
 		spin_lock(&ap->sta_table_lock);
 		sta = ap_get_sta(ap, hdr->addr1);
@@ -918,7 +918,7 @@ static void prism2_send_mgmt(struct net_device *dev,
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u16 fc;
 	struct sk_buff *skb;
 	struct hostap_skb_tx_data *meta;
@@ -944,7 +944,7 @@ static void prism2_send_mgmt(struct net_device *dev,
 
 	fc = type_subtype;
 	hdrlen = hostap_80211_get_hdrlen(fc);
-	hdr = (struct ieee80211_hdr *) skb_put(skb, hdrlen);
+	hdr = (struct ieee80211_hdr_4addr *) skb_put(skb, hdrlen);
 	if (body)
 		memcpy(skb_put(skb, body_len), body, body_len);
 
@@ -1256,14 +1256,14 @@ static char * ap_auth_make_challenge(struct ap_data *ap)
 	}
 
 	skb = dev_alloc_skb(WLAN_AUTH_CHALLENGE_LEN +
-			    ap->crypt->extra_prefix_len +
-			    ap->crypt->extra_postfix_len);
+			    ap->crypt->extra_mpdu_prefix_len +
+			    ap->crypt->extra_mpdu_postfix_len);
 	if (skb == NULL) {
 		kfree(tmpbuf);
 		return NULL;
 	}
 
-	skb_reserve(skb, ap->crypt->extra_prefix_len);
+	skb_reserve(skb, ap->crypt->extra_mpdu_prefix_len);
 	memset(skb_put(skb, WLAN_AUTH_CHALLENGE_LEN), 0,
 	       WLAN_AUTH_CHALLENGE_LEN);
 	if (ap->crypt->encrypt_mpdu(skb, 0, ap->crypt_priv)) {
@@ -1272,7 +1272,7 @@ static char * ap_auth_make_challenge(struct ap_data *ap)
 		return NULL;
 	}
 
-	memcpy(tmpbuf, skb->data + ap->crypt->extra_prefix_len,
+	memcpy(tmpbuf, skb->data + ap->crypt->extra_mpdu_prefix_len,
 	       WLAN_AUTH_CHALLENGE_LEN);
 	dev_kfree_skb(skb);
 
@@ -1285,7 +1285,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 			  struct hostap_80211_rx_status *rx_stats)
 {
 	struct net_device *dev = local->dev;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	size_t hdrlen;
 	struct ap_data *ap = local->ap;
 	char body[8 + WLAN_AUTH_CHALLENGE_LEN], *challenge = NULL;
@@ -1498,7 +1498,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 			 struct hostap_80211_rx_status *rx_stats, int reassoc)
 {
 	struct net_device *dev = local->dev;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	char body[12], *p, *lpos;
 	int len, left;
 	u16 *pos;
@@ -1705,7 +1705,7 @@ static void handle_deauth(local_info_t *local, struct sk_buff *skb,
 			  struct hostap_80211_rx_status *rx_stats)
 {
 	struct net_device *dev = local->dev;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	char *body = (char *) (skb->data + IEEE80211_MGMT_HDR_LEN);
 	int len;
 	u16 reason_code, *pos;
@@ -1746,7 +1746,7 @@ static void handle_disassoc(local_info_t *local, struct sk_buff *skb,
 			    struct hostap_80211_rx_status *rx_stats)
 {
 	struct net_device *dev = local->dev;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	char *body = skb->data + IEEE80211_MGMT_HDR_LEN;
 	int len;
 	u16 reason_code, *pos;
@@ -1784,7 +1784,7 @@ static void handle_disassoc(local_info_t *local, struct sk_buff *skb,
 
 /* Called only as a scheduled task for pending AP frames. */
 static void ap_handle_data_nullfunc(local_info_t *local,
-				    struct ieee80211_hdr *hdr)
+				    struct ieee80211_hdr_4addr *hdr)
 {
 	struct net_device *dev = local->dev;
 
@@ -1801,7 +1801,7 @@ static void ap_handle_data_nullfunc(local_info_t *local,
 
 /* Called only as a scheduled task for pending AP frames. */
 static void ap_handle_dropped_data(local_info_t *local,
-				   struct ieee80211_hdr *hdr)
+				   struct ieee80211_hdr_4addr *hdr)
 {
 	struct net_device *dev = local->dev;
 	struct sta_info *sta;
@@ -1860,7 +1860,7 @@ static void pspoll_send_buffered(local_info_t *local, struct sta_info *sta,
 
 /* Called only as a scheduled task for pending AP frames. */
 static void handle_pspoll(local_info_t *local,
-			  struct ieee80211_hdr *hdr,
+			  struct ieee80211_hdr_4addr *hdr,
 			  struct hostap_80211_rx_status *rx_stats)
 {
 	struct net_device *dev = local->dev;
@@ -1979,7 +1979,7 @@ static void handle_wds_oper_queue(void *data)
 static void handle_beacon(local_info_t *local, struct sk_buff *skb,
 			  struct hostap_80211_rx_status *rx_stats)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	char *body = skb->data + IEEE80211_MGMT_HDR_LEN;
 	int len, left;
 	u16 *pos, beacon_int, capability;
@@ -2137,11 +2137,11 @@ static void handle_ap_item(local_info_t *local, struct sk_buff *skb,
 	struct net_device *dev = local->dev;
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 	u16 fc, type, stype;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
 	/* FIX: should give skb->len to handler functions and check that the
 	 * buffer is long enough */
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 	type = WLAN_FC_GET_TYPE(fc);
 	stype = WLAN_FC_GET_STYPE(fc);
@@ -2258,7 +2258,7 @@ void hostap_rx(struct net_device *dev, struct sk_buff *skb,
 	struct hostap_interface *iface;
 	local_info_t *local;
 	u16 fc;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
@@ -2268,7 +2268,7 @@ void hostap_rx(struct net_device *dev, struct sk_buff *skb,
 
 	local->stats.rx_packets++;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
 	if (local->ap->ap_policy == AP_OTHER_AP_SKIP_ALL &&
@@ -2289,7 +2289,7 @@ void hostap_rx(struct net_device *dev, struct sk_buff *skb,
 static void schedule_packet_send(local_info_t *local, struct sta_info *sta)
 {
 	struct sk_buff *skb;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	struct hostap_80211_rx_status rx_stats;
 
 	if (skb_queue_empty(&sta->tx_buf))
@@ -2302,7 +2302,7 @@ static void schedule_packet_send(local_info_t *local, struct sta_info *sta)
 		return;
 	}
 
-	hdr = (struct ieee80211_hdr *) skb_put(skb, 16);
+	hdr = (struct ieee80211_hdr_4addr *) skb_put(skb, 16);
 
 	/* Generate a fake pspoll frame to start packet delivery */
 	hdr->frame_ctl = __constant_cpu_to_le16(
@@ -2349,7 +2349,7 @@ static int prism2_ap_get_sta_qual(local_info_t *local, struct sockaddr addr[],
 		qual[count].noise = HFA384X_LEVEL_TO_dBm(sta->last_rx_silence);
 		qual[count].updated = sta->last_rx_updated;
 
-		sta->last_rx_updated = 0;
+		sta->last_rx_updated = IW_QUAL_DBM;
 
 		count++;
 		if (count >= buf_size)
@@ -2467,7 +2467,7 @@ static int prism2_ap_translate_scan(struct net_device *dev, char *buffer)
 		}
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
-		sta->last_rx_updated = 0;
+		sta->last_rx_updated = IW_QUAL_DBM;
 
 		/* To be continued, we should make good use of IWEVCUSTOM */
 	}
@@ -2685,7 +2685,7 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 	struct sta_info *sta = NULL;
 	struct sk_buff *skb = tx->skb;
 	int set_tim, ret;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	struct hostap_skb_tx_data *meta;
 
 	meta = (struct hostap_skb_tx_data *) skb->cb;
@@ -2694,7 +2694,7 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 	    meta->iface->type == HOSTAP_INTERFACE_STA)
 		goto out;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 
 	if (hdr->addr1[0] & 0x01) {
 		/* broadcast/multicast frame - no AP related processing */
@@ -2821,10 +2821,10 @@ void hostap_handle_sta_release(void *ptr)
 void hostap_handle_sta_tx_exc(local_info_t *local, struct sk_buff *skb)
 {
 	struct sta_info *sta;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	struct hostap_skb_tx_data *meta;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	meta = (struct hostap_skb_tx_data *) skb->cb;
 
 	spin_lock(&local->ap->sta_table_lock);
@@ -2892,7 +2892,7 @@ static void hostap_update_sta_ps2(local_info_t *local, struct sta_info *sta,
 
 /* Called only as a tasklet (software IRQ). Called for each RX frame to update
  * STA power saving state. pwrmgt is a flag from 802.11 frame_ctl field. */
-int hostap_update_sta_ps(local_info_t *local, struct ieee80211_hdr *hdr)
+int hostap_update_sta_ps(local_info_t *local, struct ieee80211_hdr_4addr *hdr)
 {
 	struct sta_info *sta;
 	u16 fc;
@@ -2925,12 +2925,12 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 	int ret;
 	struct sta_info *sta;
 	u16 fc, type, stype;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 
 	if (local->ap == NULL)
 		return AP_RX_CONTINUE;
 
-	hdr = (struct ieee80211_hdr *) skb->data;
+	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 
 	fc = le16_to_cpu(hdr->frame_ctl);
 	type = WLAN_FC_GET_TYPE(fc);
@@ -3058,7 +3058,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 
 /* Called only as a tasklet (software IRQ) */
 int hostap_handle_sta_crypto(local_info_t *local,
-			     struct ieee80211_hdr *hdr,
+			     struct ieee80211_hdr_4addr *hdr,
 			     struct ieee80211_crypt_data **crypt,
 			     void **sta_ptr)
 {
@@ -3160,7 +3160,7 @@ int hostap_add_sta(struct ap_data *ap, u8 *sta_addr)
 
 /* Called only as a tasklet (software IRQ) */
 int hostap_update_rx_stats(struct ap_data *ap,
-			   struct ieee80211_hdr *hdr,
+			   struct ieee80211_hdr_4addr *hdr,
 			   struct hostap_80211_rx_status *rx_stats)
 {
 	struct sta_info *sta;
@@ -3174,7 +3174,7 @@ int hostap_update_rx_stats(struct ap_data *ap,
 		sta->last_rx_silence = rx_stats->noise;
 		sta->last_rx_signal = rx_stats->signal;
 		sta->last_rx_rate = rx_stats->rate;
-		sta->last_rx_updated = 7;
+		sta->last_rx_updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		if (rx_stats->rate == 10)
 			sta->rx_count[0]++;
 		else if (rx_stats->rate == 20)

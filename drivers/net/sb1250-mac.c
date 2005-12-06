@@ -10,7 +10,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -118,8 +118,6 @@ MODULE_PARM_DESC(int_timeout, "Timeout value");
  ********************************************************************* */
 
 
-typedef unsigned long sbmac_port_t;
-
 typedef enum { sbmac_speed_auto, sbmac_speed_10,
 	       sbmac_speed_100, sbmac_speed_1000 } sbmac_speed_t;
 
@@ -129,7 +127,7 @@ typedef enum { sbmac_duplex_auto, sbmac_duplex_half,
 typedef enum { sbmac_fc_auto, sbmac_fc_disabled, sbmac_fc_frame,
 	       sbmac_fc_collision, sbmac_fc_carrier } sbmac_fc_t;
 
-typedef enum { sbmac_state_uninit, sbmac_state_off, sbmac_state_on, 
+typedef enum { sbmac_state_uninit, sbmac_state_off, sbmac_state_on,
 	       sbmac_state_broken } sbmac_state_t;
 
 
@@ -144,17 +142,13 @@ typedef enum { sbmac_state_uninit, sbmac_state_off, sbmac_state_on,
 
 #define NUMCACHEBLKS(x) (((x)+SMP_CACHE_BYTES-1)/SMP_CACHE_BYTES)
 
-#define SBMAC_READCSR(t)	__raw_readq((unsigned long)t)
-#define SBMAC_WRITECSR(t,v)	__raw_writeq(v, (unsigned long)t)
- 
-
 #define SBMAC_MAX_TXDESCR	32
 #define SBMAC_MAX_RXDESCR	32
 
 #define ETHER_ALIGN	2
 #define ETHER_ADDR_LEN	6
-#define ENET_PACKET_SIZE	1518 
-/*#define ENET_PACKET_SIZE	9216 */ 
+#define ENET_PACKET_SIZE	1518
+/*#define ENET_PACKET_SIZE	9216 */
 
 /**********************************************************************
  *  DMA Descriptor structure
@@ -172,12 +166,12 @@ typedef unsigned long paddr_t;
  ********************************************************************* */
 
 typedef struct sbmacdma_s {
-	
-	/* 
+
+	/*
 	 * This stuff is used to identify the channel and the registers
 	 * associated with it.
 	 */
-	
+
 	struct sbmac_softc *sbdma_eth;	        /* back pointer to associated MAC */
 	int              sbdma_channel;	/* channel number */
 	int		 sbdma_txdir;       /* direction (1=transmit) */
@@ -187,21 +181,21 @@ typedef struct sbmacdma_s {
 	int		 sbdma_int_timeout; /* # usec rx/tx interrupt */
 #endif
 
-	sbmac_port_t     sbdma_config0;	/* DMA config register 0 */
-	sbmac_port_t     sbdma_config1;	/* DMA config register 1 */
-	sbmac_port_t     sbdma_dscrbase;	/* Descriptor base address */
-	sbmac_port_t     sbdma_dscrcnt;     /* Descriptor count register */
-	sbmac_port_t     sbdma_curdscr;	/* current descriptor address */
-	
+	volatile void __iomem *sbdma_config0;	/* DMA config register 0 */
+	volatile void __iomem *sbdma_config1;	/* DMA config register 1 */
+	volatile void __iomem *sbdma_dscrbase;	/* Descriptor base address */
+	volatile void __iomem *sbdma_dscrcnt;     /* Descriptor count register */
+	volatile void __iomem *sbdma_curdscr;	/* current descriptor address */
+
 	/*
 	 * This stuff is for maintenance of the ring
 	 */
-	
+
 	sbdmadscr_t     *sbdma_dscrtable;	/* base of descriptor table */
 	sbdmadscr_t     *sbdma_dscrtable_end; /* end of descriptor table */
-	
+
 	struct sk_buff **sbdma_ctxtable;    /* context table, one per descr */
-	
+
 	paddr_t          sbdma_dscrtable_phys; /* and also the phys addr */
 	sbdmadscr_t     *sbdma_addptr;	/* next dscr for sw to add */
 	sbdmadscr_t     *sbdma_remptr;	/* next dscr for sw to remove */
@@ -213,15 +207,15 @@ typedef struct sbmacdma_s {
  ********************************************************************* */
 
 struct sbmac_softc {
-	
+
 	/*
 	 * Linux-specific things
 	 */
-	
+
 	struct net_device *sbm_dev;		/* pointer to linux device */
 	spinlock_t sbm_lock;		/* spin lock */
 	struct timer_list sbm_timer;     	/* for monitoring MII */
-	struct net_device_stats sbm_stats; 
+	struct net_device_stats sbm_stats;
 	int sbm_devflags;			/* current device flags */
 
 	int	     sbm_phy_oldbmsr;
@@ -229,31 +223,31 @@ struct sbmac_softc {
 	int	     sbm_phy_oldk1stsr;
 	int	     sbm_phy_oldlinkstat;
 	int sbm_buffersize;
-	
+
 	unsigned char sbm_phys[2];
-	
+
 	/*
 	 * Controller-specific things
 	 */
-	
-	unsigned long	sbm_base;          /* MAC's base address */
+
+	volatile void __iomem *sbm_base;          /* MAC's base address */
 	sbmac_state_t    sbm_state;         /* current state */
-	
-	sbmac_port_t     sbm_macenable;	/* MAC Enable Register */
-	sbmac_port_t     sbm_maccfg;	/* MAC Configuration Register */
-	sbmac_port_t     sbm_fifocfg;	/* FIFO configuration register */
-	sbmac_port_t     sbm_framecfg;	/* Frame configuration register */
-	sbmac_port_t     sbm_rxfilter;	/* receive filter register */
-	sbmac_port_t     sbm_isr;		/* Interrupt status register */
-	sbmac_port_t     sbm_imr;		/* Interrupt mask register */
-	sbmac_port_t     sbm_mdio;		/* MDIO register */
-	
+
+	volatile void __iomem	*sbm_macenable;	/* MAC Enable Register */
+	volatile void __iomem	*sbm_maccfg;	/* MAC Configuration Register */
+	volatile void __iomem	*sbm_fifocfg;	/* FIFO configuration register */
+	volatile void __iomem	*sbm_framecfg;	/* Frame configuration register */
+	volatile void __iomem	*sbm_rxfilter;	/* receive filter register */
+	volatile void __iomem	*sbm_isr;	/* Interrupt status register */
+	volatile void __iomem	*sbm_imr;	/* Interrupt mask register */
+	volatile void __iomem	*sbm_mdio;	/* MDIO register */
+
 	sbmac_speed_t    sbm_speed;		/* current speed */
 	sbmac_duplex_t   sbm_duplex;	/* current duplex */
 	sbmac_fc_t       sbm_fc;		/* current flow control setting */
-	
+
 	unsigned char    sbm_hwaddr[ETHER_ADDR_LEN];
-	
+
 	sbmacdma_t       sbm_txdma;		/* for now, only use channel 0 */
 	sbmacdma_t       sbm_rxdma;
 	int              rx_hw_checksum;
@@ -302,6 +296,7 @@ static void sbmac_set_rx_mode(struct net_device *dev);
 static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int sbmac_close(struct net_device *dev);
 static int sbmac_mii_poll(struct sbmac_softc *s,int noisy);
+static int sbmac_mii_probe(struct net_device *dev);
 
 static void sbmac_mii_sync(struct sbmac_softc *s);
 static void sbmac_mii_senddata(struct sbmac_softc *s,unsigned int data, int bitcnt);
@@ -439,6 +434,9 @@ static uint64_t sbmac_orig_hwaddr[MAX_UNITS];
 
 #define	MII_BMCR	0x00 	/* Basic mode control register (rw) */
 #define	MII_BMSR	0x01	/* Basic mode status register (ro) */
+#define	MII_PHYIDR1	0x02
+#define	MII_PHYIDR2	0x03
+
 #define MII_K1STSR	0x0A	/* 1K Status Register (ro) */
 #define	MII_ANLPAR	0x05	/* Autonegotiation lnk partner abilities (rw) */
 
@@ -450,13 +448,13 @@ static uint64_t sbmac_orig_hwaddr[MAX_UNITS];
 
 /**********************************************************************
  *  SBMAC_MII_SYNC(s)
- *  
+ *
  *  Synchronize with the MII - send a pattern of bits to the MII
  *  that will guarantee that it is ready to accept a command.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac structure
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -467,25 +465,25 @@ static void sbmac_mii_sync(struct sbmac_softc *s)
 	uint64_t bits;
 	int mac_mdio_genc;
 
-	mac_mdio_genc = SBMAC_READCSR(s->sbm_mdio) & M_MAC_GENC;
-	
+	mac_mdio_genc = __raw_readq(s->sbm_mdio) & M_MAC_GENC;
+
 	bits = M_MAC_MDIO_DIR_OUTPUT | M_MAC_MDIO_OUT;
-	
-	SBMAC_WRITECSR(s->sbm_mdio,bits | mac_mdio_genc);
-	
+
+	__raw_writeq(bits | mac_mdio_genc, s->sbm_mdio);
+
 	for (cnt = 0; cnt < 32; cnt++) {
-		SBMAC_WRITECSR(s->sbm_mdio,bits | M_MAC_MDC | mac_mdio_genc);
-		SBMAC_WRITECSR(s->sbm_mdio,bits | mac_mdio_genc);
+		__raw_writeq(bits | M_MAC_MDC | mac_mdio_genc, s->sbm_mdio);
+		__raw_writeq(bits | mac_mdio_genc, s->sbm_mdio);
 	}
 }
 
 /**********************************************************************
  *  SBMAC_MII_SENDDATA(s,data,bitcnt)
- *  
+ *
  *  Send some bits to the MII.  The bits to be sent are right-
  *  justified in the 'data' parameter.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac structure
  *  	   data - data to send
  *  	   bitcnt - number of bits to send
@@ -498,20 +496,20 @@ static void sbmac_mii_senddata(struct sbmac_softc *s,unsigned int data, int bitc
 	unsigned int curmask;
 	int mac_mdio_genc;
 
-	mac_mdio_genc = SBMAC_READCSR(s->sbm_mdio) & M_MAC_GENC;
-	
+	mac_mdio_genc = __raw_readq(s->sbm_mdio) & M_MAC_GENC;
+
 	bits = M_MAC_MDIO_DIR_OUTPUT;
-	SBMAC_WRITECSR(s->sbm_mdio,bits | mac_mdio_genc);
-	
+	__raw_writeq(bits | mac_mdio_genc, s->sbm_mdio);
+
 	curmask = 1 << (bitcnt - 1);
-	
+
 	for (i = 0; i < bitcnt; i++) {
 		if (data & curmask)
 			bits |= M_MAC_MDIO_OUT;
 		else bits &= ~M_MAC_MDIO_OUT;
-		SBMAC_WRITECSR(s->sbm_mdio,bits | mac_mdio_genc);
-		SBMAC_WRITECSR(s->sbm_mdio,bits | M_MAC_MDC | mac_mdio_genc);
-		SBMAC_WRITECSR(s->sbm_mdio,bits | mac_mdio_genc);
+		__raw_writeq(bits | mac_mdio_genc, s->sbm_mdio);
+		__raw_writeq(bits | M_MAC_MDC | mac_mdio_genc, s->sbm_mdio);
+		__raw_writeq(bits | mac_mdio_genc, s->sbm_mdio);
 		curmask >>= 1;
 	}
 }
@@ -520,14 +518,14 @@ static void sbmac_mii_senddata(struct sbmac_softc *s,unsigned int data, int bitc
 
 /**********************************************************************
  *  SBMAC_MII_READ(s,phyaddr,regidx)
- *  
+ *
  *  Read a PHY register.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac structure
  *  	   phyaddr - PHY's address
  *  	   regidx = index of register to read
- *  	   
+ *
  *  Return value:
  *  	   value read, or 0 if an error occurred.
  ********************************************************************* */
@@ -543,9 +541,9 @@ static unsigned int sbmac_mii_read(struct sbmac_softc *s,int phyaddr,int regidx)
 	 * Synchronize ourselves so that the PHY knows the next
 	 * thing coming down is a command
 	 */
-	
+
 	sbmac_mii_sync(s);
-	
+
 	/*
 	 * Send the data to the PHY.  The sequence is
 	 * a "start" command (2 bits)
@@ -553,59 +551,55 @@ static unsigned int sbmac_mii_read(struct sbmac_softc *s,int phyaddr,int regidx)
 	 * the PHY addr (5 bits)
 	 * the register index (5 bits)
 	 */
-	
+
 	sbmac_mii_senddata(s,MII_COMMAND_START, 2);
 	sbmac_mii_senddata(s,MII_COMMAND_READ, 2);
 	sbmac_mii_senddata(s,phyaddr, 5);
 	sbmac_mii_senddata(s,regidx, 5);
-	
-	mac_mdio_genc = SBMAC_READCSR(s->sbm_mdio) & M_MAC_GENC;
-	
-	/* 
+
+	mac_mdio_genc = __raw_readq(s->sbm_mdio) & M_MAC_GENC;
+
+	/*
 	 * Switch the port around without a clock transition.
 	 */
-	SBMAC_WRITECSR(s->sbm_mdio,M_MAC_MDIO_DIR_INPUT | mac_mdio_genc);
-	
+	__raw_writeq(M_MAC_MDIO_DIR_INPUT | mac_mdio_genc, s->sbm_mdio);
+
 	/*
 	 * Send out a clock pulse to signal we want the status
 	 */
-	
-	SBMAC_WRITECSR(s->sbm_mdio,
-		       M_MAC_MDIO_DIR_INPUT | M_MAC_MDC | mac_mdio_genc);
-	SBMAC_WRITECSR(s->sbm_mdio,M_MAC_MDIO_DIR_INPUT | mac_mdio_genc);
-	
-	/* 
+
+	__raw_writeq(M_MAC_MDIO_DIR_INPUT | M_MAC_MDC | mac_mdio_genc, s->sbm_mdio);
+	__raw_writeq(M_MAC_MDIO_DIR_INPUT | mac_mdio_genc, s->sbm_mdio);
+
+	/*
 	 * If an error occurred, the PHY will signal '1' back
 	 */
-	error = SBMAC_READCSR(s->sbm_mdio) & M_MAC_MDIO_IN;
-	
-	/* 
+	error = __raw_readq(s->sbm_mdio) & M_MAC_MDIO_IN;
+
+	/*
 	 * Issue an 'idle' clock pulse, but keep the direction
 	 * the same.
 	 */
-	SBMAC_WRITECSR(s->sbm_mdio,
-		       M_MAC_MDIO_DIR_INPUT | M_MAC_MDC | mac_mdio_genc);
-	SBMAC_WRITECSR(s->sbm_mdio,M_MAC_MDIO_DIR_INPUT | mac_mdio_genc);
-	
+	__raw_writeq(M_MAC_MDIO_DIR_INPUT | M_MAC_MDC | mac_mdio_genc, s->sbm_mdio);
+	__raw_writeq(M_MAC_MDIO_DIR_INPUT | mac_mdio_genc, s->sbm_mdio);
+
 	regval = 0;
-	
+
 	for (idx = 0; idx < 16; idx++) {
 		regval <<= 1;
-		
+
 		if (error == 0) {
-			if (SBMAC_READCSR(s->sbm_mdio) & M_MAC_MDIO_IN)
+			if (__raw_readq(s->sbm_mdio) & M_MAC_MDIO_IN)
 				regval |= 1;
 		}
-		
-		SBMAC_WRITECSR(s->sbm_mdio,
-			       M_MAC_MDIO_DIR_INPUT|M_MAC_MDC | mac_mdio_genc);
-		SBMAC_WRITECSR(s->sbm_mdio,
-			       M_MAC_MDIO_DIR_INPUT | mac_mdio_genc);
+
+		__raw_writeq(M_MAC_MDIO_DIR_INPUT|M_MAC_MDC | mac_mdio_genc, s->sbm_mdio);
+		__raw_writeq(M_MAC_MDIO_DIR_INPUT | mac_mdio_genc, s->sbm_mdio);
 	}
-	
+
 	/* Switch back to output */
-	SBMAC_WRITECSR(s->sbm_mdio,M_MAC_MDIO_DIR_OUTPUT | mac_mdio_genc);
-	
+	__raw_writeq(M_MAC_MDIO_DIR_OUTPUT | mac_mdio_genc, s->sbm_mdio);
+
 	if (error == 0)
 		return regval;
 	return 0;
@@ -614,15 +608,15 @@ static unsigned int sbmac_mii_read(struct sbmac_softc *s,int phyaddr,int regidx)
 
 /**********************************************************************
  *  SBMAC_MII_WRITE(s,phyaddr,regidx,regval)
- *  
+ *
  *  Write a value to a PHY register.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac structure
  *  	   phyaddr - PHY to use
  *  	   regidx - register within the PHY
  *  	   regval - data to write to register
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -633,7 +627,7 @@ static void sbmac_mii_write(struct sbmac_softc *s,int phyaddr,int regidx,
 	int mac_mdio_genc;
 
 	sbmac_mii_sync(s);
-	
+
 	sbmac_mii_senddata(s,MII_COMMAND_START,2);
 	sbmac_mii_senddata(s,MII_COMMAND_WRITE,2);
 	sbmac_mii_senddata(s,phyaddr, 5);
@@ -641,27 +635,27 @@ static void sbmac_mii_write(struct sbmac_softc *s,int phyaddr,int regidx,
 	sbmac_mii_senddata(s,MII_COMMAND_ACK,2);
 	sbmac_mii_senddata(s,regval,16);
 
-	mac_mdio_genc = SBMAC_READCSR(s->sbm_mdio) & M_MAC_GENC;
+	mac_mdio_genc = __raw_readq(s->sbm_mdio) & M_MAC_GENC;
 
-	SBMAC_WRITECSR(s->sbm_mdio,M_MAC_MDIO_DIR_OUTPUT | mac_mdio_genc);
+	__raw_writeq(M_MAC_MDIO_DIR_OUTPUT | mac_mdio_genc, s->sbm_mdio);
 }
 
 
 
 /**********************************************************************
  *  SBDMA_INITCTX(d,s,chan,txrx,maxdescr)
- *  
+ *
  *  Initialize a DMA channel context.  Since there are potentially
  *  eight DMA channels per MAC, it's nice to do this in a standard
- *  way.  
- *  
- *  Input parameters: 
+ *  way.
+ *
+ *  Input parameters:
  *  	   d - sbmacdma_t structure (DMA channel context)
  *  	   s - sbmac_softc structure (pointer to a MAC)
  *  	   chan - channel number (0..1 right now)
  *  	   txrx - Identifies DMA_TX or DMA_RX for channel direction
  *      maxdescr - number of descriptors
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -672,101 +666,87 @@ static void sbdma_initctx(sbmacdma_t *d,
 			  int txrx,
 			  int maxdescr)
 {
-	/* 
-	 * Save away interesting stuff in the structure 
+	/*
+	 * Save away interesting stuff in the structure
 	 */
-	
+
 	d->sbdma_eth       = s;
 	d->sbdma_channel   = chan;
 	d->sbdma_txdir     = txrx;
-	
+
 #if 0
 	/* RMON clearing */
 	s->sbe_idx =(s->sbm_base - A_MAC_BASE_0)/MAC_SPACING;
 #endif
 
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_BYTES)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_COLLISIONS)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_LATE_COL)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_EX_COL)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_FCS_ERROR)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_ABORT)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_BAD)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_GOOD)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_RUNT)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_OVERSIZE)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_BYTES)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_MCAST)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_BCAST)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_BAD)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_GOOD)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_RUNT)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_OVERSIZE)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_FCS_ERROR)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_LENGTH_ERROR)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_CODE_ERROR)), 0);
-	SBMAC_WRITECSR(IOADDR(
-	A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_ALIGN_ERROR)), 0);
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_BYTES)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_COLLISIONS)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_LATE_COL)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_EX_COL)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_FCS_ERROR)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_ABORT)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_BAD)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_GOOD)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_RUNT)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_TX_OVERSIZE)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_BYTES)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_MCAST)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_BCAST)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_BAD)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_GOOD)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_RUNT)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_OVERSIZE)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_FCS_ERROR)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_LENGTH_ERROR)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_CODE_ERROR)));
+	__raw_writeq(0, IOADDR(A_MAC_REGISTER(s->sbe_idx, R_MAC_RMON_RX_ALIGN_ERROR)));
 
-	/* 
-	 * initialize register pointers 
+	/*
+	 * initialize register pointers
 	 */
-	
-	d->sbdma_config0 = 
+
+	d->sbdma_config0 =
 		s->sbm_base + R_MAC_DMA_REGISTER(txrx,chan,R_MAC_DMA_CONFIG0);
-	d->sbdma_config1 = 
+	d->sbdma_config1 =
 		s->sbm_base + R_MAC_DMA_REGISTER(txrx,chan,R_MAC_DMA_CONFIG1);
-	d->sbdma_dscrbase = 
+	d->sbdma_dscrbase =
 		s->sbm_base + R_MAC_DMA_REGISTER(txrx,chan,R_MAC_DMA_DSCR_BASE);
-	d->sbdma_dscrcnt = 
+	d->sbdma_dscrcnt =
 		s->sbm_base + R_MAC_DMA_REGISTER(txrx,chan,R_MAC_DMA_DSCR_CNT);
-	d->sbdma_curdscr = 	
+	d->sbdma_curdscr =
 		s->sbm_base + R_MAC_DMA_REGISTER(txrx,chan,R_MAC_DMA_CUR_DSCRADDR);
-	
+
 	/*
 	 * Allocate memory for the ring
 	 */
-	
+
 	d->sbdma_maxdescr = maxdescr;
-	
-	d->sbdma_dscrtable = (sbdmadscr_t *) 
-		kmalloc(d->sbdma_maxdescr*sizeof(sbdmadscr_t), GFP_KERNEL);
-	
+
+	d->sbdma_dscrtable = (sbdmadscr_t *)
+		kmalloc((d->sbdma_maxdescr+1)*sizeof(sbdmadscr_t), GFP_KERNEL);
+
+	/*
+	 * The descriptor table must be aligned to at least 16 bytes or the
+	 * MAC will corrupt it.
+	 */
+	d->sbdma_dscrtable = (sbdmadscr_t *)
+		ALIGN((unsigned long)d->sbdma_dscrtable, sizeof(sbdmadscr_t));
+
 	memset(d->sbdma_dscrtable,0,d->sbdma_maxdescr*sizeof(sbdmadscr_t));
-	
+
 	d->sbdma_dscrtable_end = d->sbdma_dscrtable + d->sbdma_maxdescr;
-	
+
 	d->sbdma_dscrtable_phys = virt_to_phys(d->sbdma_dscrtable);
-	
+
 	/*
 	 * And context table
 	 */
-	
-	d->sbdma_ctxtable = (struct sk_buff **) 
+
+	d->sbdma_ctxtable = (struct sk_buff **)
 		kmalloc(d->sbdma_maxdescr*sizeof(struct sk_buff *), GFP_KERNEL);
-	
+
 	memset(d->sbdma_ctxtable,0,d->sbdma_maxdescr*sizeof(struct sk_buff *));
-	
+
 #ifdef CONFIG_SBMAC_COALESCE
 	/*
 	 * Setup Rx/Tx DMA coalescing defaults
@@ -777,7 +757,7 @@ static void sbdma_initctx(sbmacdma_t *d,
 	} else {
 		d->sbdma_int_pktcnt = 1;
 	}
-	
+
 	if ( int_timeout ) {
 		d->sbdma_int_timeout = int_timeout;
 	} else {
@@ -789,13 +769,13 @@ static void sbdma_initctx(sbmacdma_t *d,
 
 /**********************************************************************
  *  SBDMA_CHANNEL_START(d)
- *  
+ *
  *  Initialize the hardware registers for a DMA channel.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   d - DMA channel to init (context must be previously init'd
  *         rxtx - DMA_RX or DMA_TX depending on what type of channel
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -805,24 +785,21 @@ static void sbdma_channel_start(sbmacdma_t *d, int rxtx )
 	/*
 	 * Turn on the DMA channel
 	 */
-	
+
 #ifdef CONFIG_SBMAC_COALESCE
-	SBMAC_WRITECSR(d->sbdma_config1,
-		       V_DMA_INT_TIMEOUT(d->sbdma_int_timeout) |
-		       0);
-	SBMAC_WRITECSR(d->sbdma_config0,
-		       M_DMA_EOP_INT_EN |
+	__raw_writeq(V_DMA_INT_TIMEOUT(d->sbdma_int_timeout) |
+		       0, d->sbdma_config1);
+	__raw_writeq(M_DMA_EOP_INT_EN |
 		       V_DMA_RINGSZ(d->sbdma_maxdescr) |
 		       V_DMA_INT_PKTCNT(d->sbdma_int_pktcnt) |
-		       0);
+		       0, d->sbdma_config0);
 #else
-	SBMAC_WRITECSR(d->sbdma_config1,0);
-	SBMAC_WRITECSR(d->sbdma_config0,
-		       V_DMA_RINGSZ(d->sbdma_maxdescr) |
-		       0);
+	__raw_writeq(0, d->sbdma_config1);
+	__raw_writeq(V_DMA_RINGSZ(d->sbdma_maxdescr) |
+		       0, d->sbdma_config0);
 #endif
 
-	SBMAC_WRITECSR(d->sbdma_dscrbase,d->sbdma_dscrtable_phys);
+	__raw_writeq(d->sbdma_dscrtable_phys, d->sbdma_dscrbase);
 
 	/*
 	 * Initialize ring pointers
@@ -834,12 +811,12 @@ static void sbdma_channel_start(sbmacdma_t *d, int rxtx )
 
 /**********************************************************************
  *  SBDMA_CHANNEL_STOP(d)
- *  
+ *
  *  Initialize the hardware registers for a DMA channel.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   d - DMA channel to init (context must be previously init'd
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -849,44 +826,44 @@ static void sbdma_channel_stop(sbmacdma_t *d)
 	/*
 	 * Turn off the DMA channel
 	 */
-	
-	SBMAC_WRITECSR(d->sbdma_config1,0);
-	
-	SBMAC_WRITECSR(d->sbdma_dscrbase,0);
-	
-	SBMAC_WRITECSR(d->sbdma_config0,0);
-	
+
+	__raw_writeq(0, d->sbdma_config1);
+
+	__raw_writeq(0, d->sbdma_dscrbase);
+
+	__raw_writeq(0, d->sbdma_config0);
+
 	/*
 	 * Zero ring pointers
 	 */
-	
-	d->sbdma_addptr = 0;
-	d->sbdma_remptr = 0;
+
+	d->sbdma_addptr = NULL;
+	d->sbdma_remptr = NULL;
 }
 
 static void sbdma_align_skb(struct sk_buff *skb,int power2,int offset)
 {
 	unsigned long addr;
 	unsigned long newaddr;
-	
+
 	addr = (unsigned long) skb->data;
-	
+
 	newaddr = (addr + power2 - 1) & ~(power2 - 1);
-	
+
 	skb_reserve(skb,newaddr-addr+offset);
 }
 
 
 /**********************************************************************
  *  SBDMA_ADD_RCVBUFFER(d,sb)
- *  
+ *
  *  Add a buffer to the specified DMA channel.   For receive channels,
  *  this queues a buffer for inbound packets.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   d - DMA channel descriptor
  * 	   sb - sk_buff to add, or NULL if we should allocate one
- *  	   
+ *
  *  Return value:
  *  	   0 if buffer could not be added (ring is full)
  *  	   1 if buffer added successfully
@@ -899,24 +876,24 @@ static int sbdma_add_rcvbuffer(sbmacdma_t *d,struct sk_buff *sb)
 	sbdmadscr_t *nextdsc;
 	struct sk_buff *sb_new = NULL;
 	int pktsize = ENET_PACKET_SIZE;
-	
+
 	/* get pointer to our current place in the ring */
-	
+
 	dsc = d->sbdma_addptr;
 	nextdsc = SBDMA_NEXTBUF(d,sbdma_addptr);
-	
+
 	/*
 	 * figure out if the ring is full - if the next descriptor
 	 * is the same as the one that we're going to remove from
 	 * the ring, the ring is full
 	 */
-	
+
 	if (nextdsc == d->sbdma_remptr) {
 		return -ENOSPC;
 	}
 
-	/* 
-	 * Allocate a sk_buff if we don't already have one.  
+	/*
+	 * Allocate a sk_buff if we don't already have one.
 	 * If we do have an sk_buff, reset it so that it's empty.
 	 *
 	 * Note: sk_buffs don't seem to be guaranteed to have any sort
@@ -925,7 +902,7 @@ static int sbdma_add_rcvbuffer(sbmacdma_t *d,struct sk_buff *sb)
 	 *
 	 *    1. the data does not start in the middle of a cache line.
 	 *    2. The data does not end in the middle of a cache line
-	 *    3. The buffer can be aligned such that the IP addresses are 
+	 *    3. The buffer can be aligned such that the IP addresses are
 	 *       naturally aligned.
 	 *
 	 *  Remember, the SOCs MAC writes whole cache lines at a time,
@@ -933,7 +910,7 @@ static int sbdma_add_rcvbuffer(sbmacdma_t *d,struct sk_buff *sb)
 	 *  data portion starts in the middle of a cache line, the SOC
 	 *  DMA will trash the beginning (and ending) portions.
 	 */
-	
+
 	if (sb == NULL) {
 		sb_new = dev_alloc_skb(ENET_PACKET_SIZE + SMP_CACHE_BYTES * 2 + ETHER_ALIGN);
 		if (sb_new == NULL) {
@@ -949,23 +926,22 @@ static int sbdma_add_rcvbuffer(sbmacdma_t *d,struct sk_buff *sb)
 	}
 	else {
 		sb_new = sb;
-		/* 
+		/*
 		 * nothing special to reinit buffer, it's already aligned
 		 * and sb->data already points to a good place.
 		 */
 	}
-	
+
 	/*
-	 * fill in the descriptor 
+	 * fill in the descriptor
 	 */
-	
+
 #ifdef CONFIG_SBMAC_COALESCE
 	/*
 	 * Do not interrupt per DMA transfer.
 	 */
 	dsc->dscr_a = virt_to_phys(sb_new->data) |
-		V_DMA_DSCRA_A_SIZE(NUMCACHEBLKS(pktsize+ETHER_ALIGN)) |
-		0;
+		V_DMA_DSCRA_A_SIZE(NUMCACHEBLKS(pktsize+ETHER_ALIGN)) | 0;
 #else
 	dsc->dscr_a = virt_to_phys(sb_new->data) |
 		V_DMA_DSCRA_A_SIZE(NUMCACHEBLKS(pktsize+ETHER_ALIGN)) |
@@ -974,38 +950,38 @@ static int sbdma_add_rcvbuffer(sbmacdma_t *d,struct sk_buff *sb)
 
 	/* receiving: no options */
 	dsc->dscr_b = 0;
-	
+
 	/*
-	 * fill in the context 
+	 * fill in the context
 	 */
-	
+
 	d->sbdma_ctxtable[dsc-d->sbdma_dscrtable] = sb_new;
-	
-	/* 
-	 * point at next packet 
+
+	/*
+	 * point at next packet
 	 */
-	
+
 	d->sbdma_addptr = nextdsc;
-	
-	/* 
+
+	/*
 	 * Give the buffer to the DMA engine.
 	 */
-	
-	SBMAC_WRITECSR(d->sbdma_dscrcnt,1);
-	
+
+	__raw_writeq(1, d->sbdma_dscrcnt);
+
 	return 0;					/* we did it */
 }
 
 /**********************************************************************
  *  SBDMA_ADD_TXBUFFER(d,sb)
- *  
+ *
  *  Add a transmit buffer to the specified DMA channel, causing a
  *  transmit to start.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   d - DMA channel descriptor
  * 	   sb - sk_buff to add
- *  	   
+ *
  *  Return value:
  *  	   0 transmit queued successfully
  *  	   otherwise error code
@@ -1019,70 +995,70 @@ static int sbdma_add_txbuffer(sbmacdma_t *d,struct sk_buff *sb)
 	uint64_t phys;
 	uint64_t ncb;
 	int length;
-	
+
 	/* get pointer to our current place in the ring */
-	
+
 	dsc = d->sbdma_addptr;
 	nextdsc = SBDMA_NEXTBUF(d,sbdma_addptr);
-	
+
 	/*
 	 * figure out if the ring is full - if the next descriptor
 	 * is the same as the one that we're going to remove from
 	 * the ring, the ring is full
 	 */
-	
+
 	if (nextdsc == d->sbdma_remptr) {
 		return -ENOSPC;
 	}
-	
+
 	/*
 	 * Under Linux, it's not necessary to copy/coalesce buffers
 	 * like it is on NetBSD.  We think they're all contiguous,
 	 * but that may not be true for GBE.
 	 */
-	
+
 	length = sb->len;
-	
+
 	/*
 	 * fill in the descriptor.  Note that the number of cache
 	 * blocks in the descriptor is the number of blocks
 	 * *spanned*, so we need to add in the offset (if any)
 	 * while doing the calculation.
 	 */
-	
+
 	phys = virt_to_phys(sb->data);
 	ncb = NUMCACHEBLKS(length+(phys & (SMP_CACHE_BYTES - 1)));
 
-	dsc->dscr_a = phys | 
+	dsc->dscr_a = phys |
 		V_DMA_DSCRA_A_SIZE(ncb) |
 #ifndef CONFIG_SBMAC_COALESCE
 		M_DMA_DSCRA_INTERRUPT |
 #endif
 		M_DMA_ETHTX_SOP;
-	
+
 	/* transmitting: set outbound options and length */
 
 	dsc->dscr_b = V_DMA_DSCRB_OPTIONS(K_DMA_ETHTX_APPENDCRC_APPENDPAD) |
 		V_DMA_DSCRB_PKT_SIZE(length);
-	
+
 	/*
-	 * fill in the context 
+	 * fill in the context
 	 */
-	
+
 	d->sbdma_ctxtable[dsc-d->sbdma_dscrtable] = sb;
-	
-	/* 
-	 * point at next packet 
+
+	/*
+	 * point at next packet
 	 */
-	
+
 	d->sbdma_addptr = nextdsc;
-	
-	/* 
+
+	/*
 	 * Give the buffer to the DMA engine.
 	 */
-	
-	SBMAC_WRITECSR(d->sbdma_dscrcnt,1);
-	
+
+	__raw_writeq(1, d->sbdma_dscrcnt);
+
 	return 0;					/* we did it */
 }
 
@@ -1091,12 +1067,12 @@ static int sbdma_add_txbuffer(sbmacdma_t *d,struct sk_buff *sb)
 
 /**********************************************************************
  *  SBDMA_EMPTYRING(d)
- *  
+ *
  *  Free all allocated sk_buffs on the specified DMA channel;
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   d  - DMA channel
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -1105,7 +1081,7 @@ static void sbdma_emptyring(sbmacdma_t *d)
 {
 	int idx;
 	struct sk_buff *sb;
-	
+
 	for (idx = 0; idx < d->sbdma_maxdescr; idx++) {
 		sb = d->sbdma_ctxtable[idx];
 		if (sb) {
@@ -1118,13 +1094,13 @@ static void sbdma_emptyring(sbmacdma_t *d)
 
 /**********************************************************************
  *  SBDMA_FILLRING(d)
- *  
+ *
  *  Fill the specified DMA channel (must be receive channel)
  *  with sk_buffs
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   d - DMA channel
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -1132,7 +1108,7 @@ static void sbdma_emptyring(sbmacdma_t *d)
 static void sbdma_fillring(sbmacdma_t *d)
 {
 	int idx;
-	
+
 	for (idx = 0; idx < SBMAC_MAX_RXDESCR-1; idx++) {
 		if (sbdma_add_rcvbuffer(d,NULL) != 0)
 			break;
@@ -1142,16 +1118,16 @@ static void sbdma_fillring(sbmacdma_t *d)
 
 /**********************************************************************
  *  SBDMA_RX_PROCESS(sc,d)
- *  
- *  Process "completed" receive buffers on the specified DMA channel.  
- *  Note that this isn't really ideal for priority channels, since
- *  it processes all of the packets on a given channel before 
- *  returning. 
  *
- *  Input parameters: 
+ *  Process "completed" receive buffers on the specified DMA channel.
+ *  Note that this isn't really ideal for priority channels, since
+ *  it processes all of the packets on a given channel before
+ *  returning.
+ *
+ *  Input parameters:
  *	   sc - softc structure
  *  	   d - DMA channel context
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -1163,56 +1139,56 @@ static void sbdma_rx_process(struct sbmac_softc *sc,sbmacdma_t *d)
 	sbdmadscr_t *dsc;
 	struct sk_buff *sb;
 	int len;
-	
+
 	for (;;) {
-		/* 
+		/*
 		 * figure out where we are (as an index) and where
 		 * the hardware is (also as an index)
 		 *
-		 * This could be done faster if (for example) the 
+		 * This could be done faster if (for example) the
 		 * descriptor table was page-aligned and contiguous in
 		 * both virtual and physical memory -- you could then
 		 * just compare the low-order bits of the virtual address
 		 * (sbdma_remptr) and the physical address (sbdma_curdscr CSR)
 		 */
-		
+
 		curidx = d->sbdma_remptr - d->sbdma_dscrtable;
-		hwidx = (int) (((SBMAC_READCSR(d->sbdma_curdscr) & M_DMA_CURDSCR_ADDR) -
+		hwidx = (int) (((__raw_readq(d->sbdma_curdscr) & M_DMA_CURDSCR_ADDR) -
 				d->sbdma_dscrtable_phys) / sizeof(sbdmadscr_t));
-		
+
 		/*
 		 * If they're the same, that means we've processed all
 		 * of the descriptors up to (but not including) the one that
 		 * the hardware is working on right now.
 		 */
-		
+
 		if (curidx == hwidx)
 			break;
-		
+
 		/*
 		 * Otherwise, get the packet's sk_buff ptr back
 		 */
-		
+
 		dsc = &(d->sbdma_dscrtable[curidx]);
 		sb = d->sbdma_ctxtable[curidx];
 		d->sbdma_ctxtable[curidx] = NULL;
-		
+
 		len = (int)G_DMA_DSCRB_PKT_SIZE(dsc->dscr_b) - 4;
-		
+
 		/*
 		 * Check packet status.  If good, process it.
 		 * If not, silently drop it and put it back on the
 		 * receive ring.
 		 */
-		
+
 		if (!(dsc->dscr_a & M_DMA_ETHRX_BAD)) {
-			
+
 			/*
 			 * Add a new buffer to replace the old one.  If we fail
 			 * to allocate a buffer, we're going to drop this
 			 * packet and put it right back on the receive ring.
 			 */
-			
+
 			if (sbdma_add_rcvbuffer(d,NULL) == -ENOBUFS) {
 				sc->sbm_stats.rx_dropped++;
 				sbdma_add_rcvbuffer(d,sb); /* re-add old buffer */
@@ -1221,7 +1197,7 @@ static void sbdma_rx_process(struct sbmac_softc *sc,sbmacdma_t *d)
 				 * Set length into the packet
 				 */
 				skb_put(sb,len);
-				
+
 				/*
 				 * Buffer has been replaced on the
 				 * receive ring.  Pass the buffer to
@@ -1240,7 +1216,7 @@ static void sbdma_rx_process(struct sbmac_softc *sc,sbmacdma_t *d)
 						sb->ip_summed = CHECKSUM_NONE;
 					}
 				}
-				
+
 				netif_rx(sb);
 			}
 		} else {
@@ -1251,14 +1227,14 @@ static void sbdma_rx_process(struct sbmac_softc *sc,sbmacdma_t *d)
 			sc->sbm_stats.rx_errors++;
 			sbdma_add_rcvbuffer(d,sb);
 		}
-		
-		
-		/* 
+
+
+		/*
 		 * .. and advance to the next buffer.
 		 */
-		
+
 		d->sbdma_remptr = SBDMA_NEXTBUF(d,sbdma_remptr);
-		
+
 	}
 }
 
@@ -1266,17 +1242,17 @@ static void sbdma_rx_process(struct sbmac_softc *sc,sbmacdma_t *d)
 
 /**********************************************************************
  *  SBDMA_TX_PROCESS(sc,d)
- *  
- *  Process "completed" transmit buffers on the specified DMA channel.  
+ *
+ *  Process "completed" transmit buffers on the specified DMA channel.
  *  This is normally called within the interrupt service routine.
  *  Note that this isn't really ideal for priority channels, since
- *  it processes all of the packets on a given channel before 
- *  returning. 
+ *  it processes all of the packets on a given channel before
+ *  returning.
  *
- *  Input parameters: 
+ *  Input parameters:
  *      sc - softc structure
  *  	   d - DMA channel context
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -1290,21 +1266,21 @@ static void sbdma_tx_process(struct sbmac_softc *sc,sbmacdma_t *d)
 	unsigned long flags;
 
 	spin_lock_irqsave(&(sc->sbm_lock), flags);
-	
+
 	for (;;) {
-		/* 
+		/*
 		 * figure out where we are (as an index) and where
 		 * the hardware is (also as an index)
 		 *
-		 * This could be done faster if (for example) the 
+		 * This could be done faster if (for example) the
 		 * descriptor table was page-aligned and contiguous in
 		 * both virtual and physical memory -- you could then
 		 * just compare the low-order bits of the virtual address
 		 * (sbdma_remptr) and the physical address (sbdma_curdscr CSR)
 		 */
-		
+
 		curidx = d->sbdma_remptr - d->sbdma_dscrtable;
-		hwidx = (int) (((SBMAC_READCSR(d->sbdma_curdscr) & M_DMA_CURDSCR_ADDR) -
+		hwidx = (int) (((__raw_readq(d->sbdma_curdscr) & M_DMA_CURDSCR_ADDR) -
 				d->sbdma_dscrtable_phys) / sizeof(sbdmadscr_t));
 
 		/*
@@ -1312,75 +1288,75 @@ static void sbdma_tx_process(struct sbmac_softc *sc,sbmacdma_t *d)
 		 * of the descriptors up to (but not including) the one that
 		 * the hardware is working on right now.
 		 */
-		
+
 		if (curidx == hwidx)
 			break;
-		
+
 		/*
 		 * Otherwise, get the packet's sk_buff ptr back
 		 */
-		
+
 		dsc = &(d->sbdma_dscrtable[curidx]);
 		sb = d->sbdma_ctxtable[curidx];
 		d->sbdma_ctxtable[curidx] = NULL;
-		
+
 		/*
 		 * Stats
 		 */
-		
+
 		sc->sbm_stats.tx_bytes += sb->len;
 		sc->sbm_stats.tx_packets++;
-		
+
 		/*
 		 * for transmits, we just free buffers.
 		 */
-		
+
 		dev_kfree_skb_irq(sb);
-		
-		/* 
+
+		/*
 		 * .. and advance to the next buffer.
 		 */
 
 		d->sbdma_remptr = SBDMA_NEXTBUF(d,sbdma_remptr);
-		
+
 	}
-	
+
 	/*
 	 * Decide if we should wake up the protocol or not.
 	 * Other drivers seem to do this when we reach a low
 	 * watermark on the transmit queue.
 	 */
-	
+
 	netif_wake_queue(d->sbdma_eth->sbm_dev);
-	
+
 	spin_unlock_irqrestore(&(sc->sbm_lock), flags);
-	
+
 }
 
 
 
 /**********************************************************************
  *  SBMAC_INITCTX(s)
- *  
+ *
  *  Initialize an Ethernet context structure - this is called
  *  once per MAC on the 1250.  Memory is allocated here, so don't
  *  call it again from inside the ioctl routines that bring the
  *  interface up/down
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac context structure
- *  	   
+ *
  *  Return value:
  *  	   0
  ********************************************************************* */
 
 static int sbmac_initctx(struct sbmac_softc *s)
 {
-	
-	/* 
-	 * figure out the addresses of some ports 
+
+	/*
+	 * figure out the addresses of some ports
 	 */
-	
+
 	s->sbm_macenable = s->sbm_base + R_MAC_ENABLE;
 	s->sbm_maccfg    = s->sbm_base + R_MAC_CFG;
 	s->sbm_fifocfg   = s->sbm_base + R_MAC_THRSH_CFG;
@@ -1397,29 +1373,29 @@ static int sbmac_initctx(struct sbmac_softc *s)
 	s->sbm_phy_oldanlpar = 0;
 	s->sbm_phy_oldk1stsr = 0;
 	s->sbm_phy_oldlinkstat = 0;
-	
+
 	/*
 	 * Initialize the DMA channels.  Right now, only one per MAC is used
 	 * Note: Only do this _once_, as it allocates memory from the kernel!
 	 */
-	
+
 	sbdma_initctx(&(s->sbm_txdma),s,0,DMA_TX,SBMAC_MAX_TXDESCR);
 	sbdma_initctx(&(s->sbm_rxdma),s,0,DMA_RX,SBMAC_MAX_RXDESCR);
-	
+
 	/*
 	 * initial state is OFF
 	 */
-	
+
 	s->sbm_state = sbmac_state_off;
-	
+
 	/*
 	 * Initial speed is (XXX TEMP) 10MBit/s HDX no FC
 	 */
-	
+
 	s->sbm_speed = sbmac_speed_10;
 	s->sbm_duplex = sbmac_duplex_half;
 	s->sbm_fc = sbmac_fc_disabled;
-	
+
 	return 0;
 }
 
@@ -1430,7 +1406,7 @@ static void sbdma_uninitctx(struct sbmacdma_s *d)
 		kfree(d->sbdma_dscrtable);
 		d->sbdma_dscrtable = NULL;
 	}
-	
+
 	if (d->sbdma_ctxtable) {
 		kfree(d->sbdma_ctxtable);
 		d->sbdma_ctxtable = NULL;
@@ -1447,12 +1423,12 @@ static void sbmac_uninitctx(struct sbmac_softc *sc)
 
 /**********************************************************************
  *  SBMAC_CHANNEL_START(s)
- *  
+ *
  *  Start packet processing on this MAC.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac structure
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -1460,49 +1436,49 @@ static void sbmac_uninitctx(struct sbmac_softc *sc)
 static void sbmac_channel_start(struct sbmac_softc *s)
 {
 	uint64_t reg;
-	sbmac_port_t port;
+	volatile void __iomem *port;
 	uint64_t cfg,fifo,framecfg;
 	int idx, th_value;
-	
+
 	/*
 	 * Don't do this if running
 	 */
 
 	if (s->sbm_state == sbmac_state_on)
 		return;
-	
+
 	/*
 	 * Bring the controller out of reset, but leave it off.
 	 */
-	
-	SBMAC_WRITECSR(s->sbm_macenable,0);
-	
+
+	__raw_writeq(0, s->sbm_macenable);
+
 	/*
 	 * Ignore all received packets
 	 */
-	
-	SBMAC_WRITECSR(s->sbm_rxfilter,0);
-	
-	/* 
+
+	__raw_writeq(0, s->sbm_rxfilter);
+
+	/*
 	 * Calculate values for various control registers.
 	 */
-	
+
 	cfg = M_MAC_RETRY_EN |
-		M_MAC_TX_HOLD_SOP_EN | 
+		M_MAC_TX_HOLD_SOP_EN |
 		V_MAC_TX_PAUSE_CNT_16K |
 		M_MAC_AP_STAT_EN |
 		M_MAC_FAST_SYNC |
 		M_MAC_SS_EN |
 		0;
-	
-	/* 
+
+	/*
 	 * Be sure that RD_THRSH+WR_THRSH <= 32 for pass1 pars
 	 * and make sure that RD_THRSH + WR_THRSH <=128 for pass2 and above
 	 * Use a larger RD_THRSH for gigabit
 	 */
-	if (periph_rev >= 2) 
+	if (periph_rev >= 2)
 		th_value = 64;
-	else 
+	else
 		th_value = 28;
 
 	fifo = V_MAC_TX_WR_THRSH(4) |	/* Must be '4' or '8' */
@@ -1520,51 +1496,51 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 		V_MAC_BACKOFF_SEL(1);
 
 	/*
-	 * Clear out the hash address map 
+	 * Clear out the hash address map
 	 */
-	
+
 	port = s->sbm_base + R_MAC_HASH_BASE;
 	for (idx = 0; idx < MAC_HASH_COUNT; idx++) {
-		SBMAC_WRITECSR(port,0);
+		__raw_writeq(0, port);
 		port += sizeof(uint64_t);
 	}
-	
+
 	/*
 	 * Clear out the exact-match table
 	 */
-	
+
 	port = s->sbm_base + R_MAC_ADDR_BASE;
 	for (idx = 0; idx < MAC_ADDR_COUNT; idx++) {
-		SBMAC_WRITECSR(port,0);
+		__raw_writeq(0, port);
 		port += sizeof(uint64_t);
 	}
-	
+
 	/*
 	 * Clear out the DMA Channel mapping table registers
 	 */
-	
+
 	port = s->sbm_base + R_MAC_CHUP0_BASE;
 	for (idx = 0; idx < MAC_CHMAP_COUNT; idx++) {
-		SBMAC_WRITECSR(port,0);
+		__raw_writeq(0, port);
 		port += sizeof(uint64_t);
 	}
 
 
 	port = s->sbm_base + R_MAC_CHLO0_BASE;
 	for (idx = 0; idx < MAC_CHMAP_COUNT; idx++) {
-		SBMAC_WRITECSR(port,0);
+		__raw_writeq(0, port);
 		port += sizeof(uint64_t);
 	}
-	
+
 	/*
 	 * Program the hardware address.  It goes into the hardware-address
 	 * register as well as the first filter register.
 	 */
-	
+
 	reg = sbmac_addr2reg(s->sbm_hwaddr);
-	
+
 	port = s->sbm_base + R_MAC_ADDR_BASE;
-	SBMAC_WRITECSR(port,reg);
+	__raw_writeq(reg, port);
 	port = s->sbm_base + R_MAC_ETHERNET_ADDR;
 
 #ifdef CONFIG_SB1_PASS_1_WORKAROUNDS
@@ -1573,108 +1549,105 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	 * destination address in the R_MAC_ETHERNET_ADDR register.
 	 * Set the value to zero.
 	 */
-	SBMAC_WRITECSR(port,0);
+	__raw_writeq(0, port);
 #else
-	SBMAC_WRITECSR(port,reg);
+	__raw_writeq(reg, port);
 #endif
-	
+
 	/*
 	 * Set the receive filter for no packets, and write values
 	 * to the various config registers
 	 */
-	
-	SBMAC_WRITECSR(s->sbm_rxfilter,0);
-	SBMAC_WRITECSR(s->sbm_imr,0);
-	SBMAC_WRITECSR(s->sbm_framecfg,framecfg);
-	SBMAC_WRITECSR(s->sbm_fifocfg,fifo);
-	SBMAC_WRITECSR(s->sbm_maccfg,cfg);
-	
+
+	__raw_writeq(0, s->sbm_rxfilter);
+	__raw_writeq(0, s->sbm_imr);
+	__raw_writeq(framecfg, s->sbm_framecfg);
+	__raw_writeq(fifo, s->sbm_fifocfg);
+	__raw_writeq(cfg, s->sbm_maccfg);
+
 	/*
 	 * Initialize DMA channels (rings should be ok now)
 	 */
-	
+
 	sbdma_channel_start(&(s->sbm_rxdma), DMA_RX);
 	sbdma_channel_start(&(s->sbm_txdma), DMA_TX);
-	
+
 	/*
 	 * Configure the speed, duplex, and flow control
 	 */
 
 	sbmac_set_speed(s,s->sbm_speed);
 	sbmac_set_duplex(s,s->sbm_duplex,s->sbm_fc);
-	
+
 	/*
 	 * Fill the receive ring
 	 */
-	
+
 	sbdma_fillring(&(s->sbm_rxdma));
-	
-	/* 
+
+	/*
 	 * Turn on the rest of the bits in the enable register
-	 */      
-	
-	SBMAC_WRITECSR(s->sbm_macenable,
-		       M_MAC_RXDMA_EN0 |
+	 */
+
+	__raw_writeq(M_MAC_RXDMA_EN0 |
 		       M_MAC_TXDMA_EN0 |
 		       M_MAC_RX_ENABLE |
-		       M_MAC_TX_ENABLE);
-	
-	
+		       M_MAC_TX_ENABLE, s->sbm_macenable);
+
+
 
 
 #ifdef CONFIG_SBMAC_COALESCE
 	/*
 	 * Accept any TX interrupt and EOP count/timer RX interrupts on ch 0
 	 */
-	SBMAC_WRITECSR(s->sbm_imr,
-		       ((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_TX_CH0) |
-		       ((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_RX_CH0));
+	__raw_writeq(((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_TX_CH0) |
+		       ((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_RX_CH0), s->sbm_imr);
 #else
 	/*
 	 * Accept any kind of interrupt on TX and RX DMA channel 0
 	 */
-	SBMAC_WRITECSR(s->sbm_imr,
-		       (M_MAC_INT_CHANNEL << S_MAC_TX_CH0) |
-		       (M_MAC_INT_CHANNEL << S_MAC_RX_CH0));
+	__raw_writeq((M_MAC_INT_CHANNEL << S_MAC_TX_CH0) |
+		       (M_MAC_INT_CHANNEL << S_MAC_RX_CH0), s->sbm_imr);
 #endif
-	
-	/* 
-	 * Enable receiving unicasts and broadcasts 
-	 */
-	
-	SBMAC_WRITECSR(s->sbm_rxfilter,M_MAC_UCAST_EN | M_MAC_BCAST_EN);
-	
+
 	/*
-	 * we're running now. 
+	 * Enable receiving unicasts and broadcasts
 	 */
-	
+
+	__raw_writeq(M_MAC_UCAST_EN | M_MAC_BCAST_EN, s->sbm_rxfilter);
+
+	/*
+	 * we're running now.
+	 */
+
 	s->sbm_state = sbmac_state_on;
-	
-	/* 
-	 * Program multicast addresses 
+
+	/*
+	 * Program multicast addresses
 	 */
-	
+
 	sbmac_setmulti(s);
-	
-	/* 
-	 * If channel was in promiscuous mode before, turn that on 
+
+	/*
+	 * If channel was in promiscuous mode before, turn that on
 	 */
-	
+
 	if (s->sbm_devflags & IFF_PROMISC) {
 		sbmac_promiscuous_mode(s,1);
 	}
-	
+
 }
 
 
 /**********************************************************************
  *  SBMAC_CHANNEL_STOP(s)
- *  
+ *
  *  Stop packet processing on this MAC.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac structure
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -1682,49 +1655,49 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 static void sbmac_channel_stop(struct sbmac_softc *s)
 {
 	/* don't do this if already stopped */
-	
+
 	if (s->sbm_state == sbmac_state_off)
 		return;
-	
+
 	/* don't accept any packets, disable all interrupts */
-	
-	SBMAC_WRITECSR(s->sbm_rxfilter,0);
-	SBMAC_WRITECSR(s->sbm_imr,0);
-	
+
+	__raw_writeq(0, s->sbm_rxfilter);
+	__raw_writeq(0, s->sbm_imr);
+
 	/* Turn off ticker */
-	
+
 	/* XXX */
-	
+
 	/* turn off receiver and transmitter */
-	
-	SBMAC_WRITECSR(s->sbm_macenable,0);
-	
+
+	__raw_writeq(0, s->sbm_macenable);
+
 	/* We're stopped now. */
-	
+
 	s->sbm_state = sbmac_state_off;
-	
+
 	/*
 	 * Stop DMA channels (rings should be ok now)
 	 */
-	
+
 	sbdma_channel_stop(&(s->sbm_rxdma));
 	sbdma_channel_stop(&(s->sbm_txdma));
-	
+
 	/* Empty the receive and transmit rings */
-	
+
 	sbdma_emptyring(&(s->sbm_rxdma));
 	sbdma_emptyring(&(s->sbm_txdma));
-	
+
 }
 
 /**********************************************************************
  *  SBMAC_SET_CHANNEL_STATE(state)
- *  
+ *
  *  Set the channel's state ON or OFF
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   state - new state
- *  	   
+ *
  *  Return value:
  *  	   old state
  ********************************************************************* */
@@ -1732,43 +1705,43 @@ static sbmac_state_t sbmac_set_channel_state(struct sbmac_softc *sc,
 					     sbmac_state_t state)
 {
 	sbmac_state_t oldstate = sc->sbm_state;
-	
+
 	/*
 	 * If same as previous state, return
 	 */
-	
+
 	if (state == oldstate) {
 		return oldstate;
 	}
-	
+
 	/*
-	 * If new state is ON, turn channel on 
+	 * If new state is ON, turn channel on
 	 */
-	
+
 	if (state == sbmac_state_on) {
 		sbmac_channel_start(sc);
 	}
 	else {
 		sbmac_channel_stop(sc);
 	}
-	
+
 	/*
 	 * Return previous state
 	 */
-	
+
 	return oldstate;
 }
 
 
 /**********************************************************************
  *  SBMAC_PROMISCUOUS_MODE(sc,onoff)
- *  
+ *
  *  Turn on or off promiscuous mode
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   sc - softc
  *      onoff - 1 to turn on, 0 to turn off
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -1776,30 +1749,30 @@ static sbmac_state_t sbmac_set_channel_state(struct sbmac_softc *sc,
 static void sbmac_promiscuous_mode(struct sbmac_softc *sc,int onoff)
 {
 	uint64_t reg;
-	
+
 	if (sc->sbm_state != sbmac_state_on)
 		return;
-	
+
 	if (onoff) {
-		reg = SBMAC_READCSR(sc->sbm_rxfilter);
+		reg = __raw_readq(sc->sbm_rxfilter);
 		reg |= M_MAC_ALLPKT_EN;
-		SBMAC_WRITECSR(sc->sbm_rxfilter,reg);
-	}	
+		__raw_writeq(reg, sc->sbm_rxfilter);
+	}
 	else {
-		reg = SBMAC_READCSR(sc->sbm_rxfilter);
+		reg = __raw_readq(sc->sbm_rxfilter);
 		reg &= ~M_MAC_ALLPKT_EN;
-		SBMAC_WRITECSR(sc->sbm_rxfilter,reg);
+		__raw_writeq(reg, sc->sbm_rxfilter);
 	}
 }
 
 /**********************************************************************
  *  SBMAC_SETIPHDR_OFFSET(sc,onoff)
- *  
+ *
  *  Set the iphdr offset as 15 assuming ethernet encapsulation
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   sc - softc
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -1807,12 +1780,12 @@ static void sbmac_promiscuous_mode(struct sbmac_softc *sc,int onoff)
 static void sbmac_set_iphdr_offset(struct sbmac_softc *sc)
 {
 	uint64_t reg;
-	
+
 	/* Hard code the off set to 15 for now */
-	reg = SBMAC_READCSR(sc->sbm_rxfilter);
+	reg = __raw_readq(sc->sbm_rxfilter);
 	reg &= ~M_MAC_IPHDR_OFFSET | V_MAC_IPHDR_OFFSET(15);
-	SBMAC_WRITECSR(sc->sbm_rxfilter,reg);
-	
+	__raw_writeq(reg, sc->sbm_rxfilter);
+
 	/* read system identification to determine revision */
 	if (periph_rev >= 2) {
 		sc->rx_hw_checksum = ENABLE;
@@ -1824,13 +1797,13 @@ static void sbmac_set_iphdr_offset(struct sbmac_softc *sc)
 
 /**********************************************************************
  *  SBMAC_ADDR2REG(ptr)
- *  
+ *
  *  Convert six bytes into the 64-bit register value that
  *  we typically write into the SBMAC's address/mcast registers
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   ptr - pointer to 6 bytes
- *  	   
+ *
  *  Return value:
  *  	   register value
  ********************************************************************* */
@@ -1838,35 +1811,35 @@ static void sbmac_set_iphdr_offset(struct sbmac_softc *sc)
 static uint64_t sbmac_addr2reg(unsigned char *ptr)
 {
 	uint64_t reg = 0;
-	
+
 	ptr += 6;
-	
-	reg |= (uint64_t) *(--ptr); 
+
+	reg |= (uint64_t) *(--ptr);
 	reg <<= 8;
-	reg |= (uint64_t) *(--ptr); 
+	reg |= (uint64_t) *(--ptr);
 	reg <<= 8;
-	reg |= (uint64_t) *(--ptr); 
+	reg |= (uint64_t) *(--ptr);
 	reg <<= 8;
-	reg |= (uint64_t) *(--ptr); 
+	reg |= (uint64_t) *(--ptr);
 	reg <<= 8;
-	reg |= (uint64_t) *(--ptr); 
+	reg |= (uint64_t) *(--ptr);
 	reg <<= 8;
-	reg |= (uint64_t) *(--ptr); 
-	
+	reg |= (uint64_t) *(--ptr);
+
 	return reg;
 }
 
 
 /**********************************************************************
  *  SBMAC_SET_SPEED(s,speed)
- *  
+ *
  *  Configure LAN speed for the specified MAC.
  *  Warning: must be called when MAC is off!
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac structure
  *  	   speed - speed to set MAC to (see sbmac_speed_t enum)
- *  	   
+ *
  *  Return value:
  *  	   1 if successful
  *      0 indicates invalid parameters
@@ -1880,31 +1853,31 @@ static int sbmac_set_speed(struct sbmac_softc *s,sbmac_speed_t speed)
 	/*
 	 * Save new current values
 	 */
-	
+
 	s->sbm_speed = speed;
-	
+
 	if (s->sbm_state == sbmac_state_on)
 		return 0;	/* save for next restart */
 
 	/*
-	 * Read current register values 
+	 * Read current register values
 	 */
-	
-	cfg = SBMAC_READCSR(s->sbm_maccfg);
-	framecfg = SBMAC_READCSR(s->sbm_framecfg);
-	
+
+	cfg = __raw_readq(s->sbm_maccfg);
+	framecfg = __raw_readq(s->sbm_framecfg);
+
 	/*
 	 * Mask out the stuff we want to change
 	 */
-	
+
 	cfg &= ~(M_MAC_BURST_EN | M_MAC_SPEED_SEL);
 	framecfg &= ~(M_MAC_IFG_RX | M_MAC_IFG_TX | M_MAC_IFG_THRSH |
 		      M_MAC_SLOT_SIZE);
-	
+
 	/*
 	 * Now add in the new bits
 	 */
-	
+
 	switch (speed) {
 	case sbmac_speed_10:
 		framecfg |= V_MAC_IFG_RX_10 |
@@ -1913,7 +1886,7 @@ static int sbmac_set_speed(struct sbmac_softc *s,sbmac_speed_t speed)
 			V_MAC_SLOT_SIZE_10;
 		cfg |= V_MAC_SPEED_SEL_10MBPS;
 		break;
-		
+
 	case sbmac_speed_100:
 		framecfg |= V_MAC_IFG_RX_100 |
 			V_MAC_IFG_TX_100 |
@@ -1921,7 +1894,7 @@ static int sbmac_set_speed(struct sbmac_softc *s,sbmac_speed_t speed)
 			V_MAC_SLOT_SIZE_100;
 		cfg |= V_MAC_SPEED_SEL_100MBPS ;
 		break;
-		
+
 	case sbmac_speed_1000:
 		framecfg |= V_MAC_IFG_RX_1000 |
 			V_MAC_IFG_TX_1000 |
@@ -1929,34 +1902,34 @@ static int sbmac_set_speed(struct sbmac_softc *s,sbmac_speed_t speed)
 			V_MAC_SLOT_SIZE_1000;
 		cfg |= V_MAC_SPEED_SEL_1000MBPS | M_MAC_BURST_EN;
 		break;
-		
+
 	case sbmac_speed_auto:		/* XXX not implemented */
 		/* fall through */
 	default:
 		return 0;
 	}
-	
+
 	/*
-	 * Send the bits back to the hardware 
+	 * Send the bits back to the hardware
 	 */
-	
-	SBMAC_WRITECSR(s->sbm_framecfg,framecfg);
-	SBMAC_WRITECSR(s->sbm_maccfg,cfg);
-	
+
+	__raw_writeq(framecfg, s->sbm_framecfg);
+	__raw_writeq(cfg, s->sbm_maccfg);
+
 	return 1;
 }
 
 /**********************************************************************
  *  SBMAC_SET_DUPLEX(s,duplex,fc)
- *  
+ *
  *  Set Ethernet duplex and flow control options for this MAC
  *  Warning: must be called when MAC is off!
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   s - sbmac structure
  *  	   duplex - duplex setting (see sbmac_duplex_t)
  *  	   fc - flow control setting (see sbmac_fc_t)
- *  	   
+ *
  *  Return value:
  *  	   1 if ok
  *  	   0 if an invalid parameter combination was specified
@@ -1965,67 +1938,67 @@ static int sbmac_set_speed(struct sbmac_softc *s,sbmac_speed_t speed)
 static int sbmac_set_duplex(struct sbmac_softc *s,sbmac_duplex_t duplex,sbmac_fc_t fc)
 {
 	uint64_t cfg;
-	
+
 	/*
 	 * Save new current values
 	 */
-	
+
 	s->sbm_duplex = duplex;
 	s->sbm_fc = fc;
-	
+
 	if (s->sbm_state == sbmac_state_on)
 		return 0;	/* save for next restart */
-	
+
 	/*
-	 * Read current register values 
+	 * Read current register values
 	 */
-	
-	cfg = SBMAC_READCSR(s->sbm_maccfg);
-	
+
+	cfg = __raw_readq(s->sbm_maccfg);
+
 	/*
 	 * Mask off the stuff we're about to change
 	 */
-	
+
 	cfg &= ~(M_MAC_FC_SEL | M_MAC_FC_CMD | M_MAC_HDX_EN);
-	
-	
+
+
 	switch (duplex) {
 	case sbmac_duplex_half:
 		switch (fc) {
 		case sbmac_fc_disabled:
 			cfg |= M_MAC_HDX_EN | V_MAC_FC_CMD_DISABLED;
 			break;
-			
+
 		case sbmac_fc_collision:
 			cfg |= M_MAC_HDX_EN | V_MAC_FC_CMD_ENABLED;
 			break;
-			
+
 		case sbmac_fc_carrier:
 			cfg |= M_MAC_HDX_EN | V_MAC_FC_CMD_ENAB_FALSECARR;
 			break;
-			
+
 		case sbmac_fc_auto:		/* XXX not implemented */
-			/* fall through */					   
+			/* fall through */
 		case sbmac_fc_frame:		/* not valid in half duplex */
 		default:			/* invalid selection */
 			return 0;
 		}
 		break;
-		
+
 	case sbmac_duplex_full:
 		switch (fc) {
 		case sbmac_fc_disabled:
 			cfg |= V_MAC_FC_CMD_DISABLED;
 			break;
-			
+
 		case sbmac_fc_frame:
 			cfg |= V_MAC_FC_CMD_ENABLED;
 			break;
-			
+
 		case sbmac_fc_collision:	/* not valid in full duplex */
 		case sbmac_fc_carrier:		/* not valid in full duplex */
 		case sbmac_fc_auto:		/* XXX not implemented */
-			/* fall through */					   
+			/* fall through */
 		default:
 			return 0;
 		}
@@ -2034,13 +2007,13 @@ static int sbmac_set_duplex(struct sbmac_softc *s,sbmac_duplex_t duplex,sbmac_fc
 		/* XXX not implemented */
 		break;
 	}
-	
+
 	/*
-	 * Send the bits back to the hardware 
+	 * Send the bits back to the hardware
 	 */
-	
-	SBMAC_WRITECSR(s->sbm_maccfg,cfg);
-	
+
+	__raw_writeq(cfg, s->sbm_maccfg);
+
 	return 1;
 }
 
@@ -2049,12 +2022,12 @@ static int sbmac_set_duplex(struct sbmac_softc *s,sbmac_duplex_t duplex,sbmac_fc
 
 /**********************************************************************
  *  SBMAC_INTR()
- *  
+ *
  *  Interrupt handler for MAC interrupts
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   MAC structure
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -2066,27 +2039,27 @@ static irqreturn_t sbmac_intr(int irq,void *dev_instance,struct pt_regs *rgs)
 	int handled = 0;
 
 	for (;;) {
-		
+
 		/*
 		 * Read the ISR (this clears the bits in the real
 		 * register, except for counter addr)
 		 */
-		
-		isr = SBMAC_READCSR(sc->sbm_isr) & ~M_MAC_COUNTER_ADDR;
-		
+
+		isr = __raw_readq(sc->sbm_isr) & ~M_MAC_COUNTER_ADDR;
+
 		if (isr == 0)
 			break;
 
 		handled = 1;
-		
+
 		/*
 		 * Transmits on channel 0
 		 */
-		
+
 		if (isr & (M_MAC_INT_CHANNEL << S_MAC_TX_CH0)) {
 			sbdma_tx_process(sc,&(sc->sbm_txdma));
 		}
-		
+
 		/*
 		 * Receives on channel 0
 		 */
@@ -2106,8 +2079,8 @@ static irqreturn_t sbmac_intr(int irq,void *dev_instance,struct pt_regs *rgs)
 		 * EOP_SEEN here takes care of this case.
 		 * (EOP_SEEN is part of M_MAC_INT_CHANNEL << S_MAC_RX_CH0)
 		 */
-		 
-		
+
+
 		if (isr & (M_MAC_INT_CHANNEL << S_MAC_RX_CH0)) {
 			sbdma_rx_process(sc,&(sc->sbm_rxdma));
 		}
@@ -2118,29 +2091,29 @@ static irqreturn_t sbmac_intr(int irq,void *dev_instance,struct pt_regs *rgs)
 
 /**********************************************************************
  *  SBMAC_START_TX(skb,dev)
- *  
- *  Start output on the specified interface.  Basically, we 
+ *
+ *  Start output on the specified interface.  Basically, we
  *  queue as many buffers as we can until the ring fills up, or
  *  we run off the end of the queue, whichever comes first.
- *  
- *  Input parameters: 
- *  	   
- *  	   
+ *
+ *  Input parameters:
+ *
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
 static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
-	
+
 	/* lock eth irq */
 	spin_lock_irq (&sc->sbm_lock);
-	
+
 	/*
-	 * Put the buffer on the transmit ring.  If we 
+	 * Put the buffer on the transmit ring.  If we
 	 * don't have room, stop the queue.
 	 */
-	
+
 	if (sbdma_add_txbuffer(&(sc->sbm_txdma),skb)) {
 		/* XXX save skb that we could not send */
 		netif_stop_queue(dev);
@@ -2148,24 +2121,24 @@ static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 
 		return 1;
 	}
-	
+
 	dev->trans_start = jiffies;
-	
+
 	spin_unlock_irq (&sc->sbm_lock);
-	
+
 	return 0;
 }
 
 /**********************************************************************
  *  SBMAC_SETMULTI(sc)
- *  
+ *
  *  Reprogram the multicast table into the hardware, given
  *  the list of multicasts associated with the interface
  *  structure.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   sc - softc
- *  	   
+ *
  *  Return value:
  *  	   nothing
  ********************************************************************* */
@@ -2173,75 +2146,75 @@ static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 static void sbmac_setmulti(struct sbmac_softc *sc)
 {
 	uint64_t reg;
-	sbmac_port_t port;
+	volatile void __iomem *port;
 	int idx;
 	struct dev_mc_list *mclist;
 	struct net_device *dev = sc->sbm_dev;
-	
-	/* 
+
+	/*
 	 * Clear out entire multicast table.  We do this by nuking
 	 * the entire hash table and all the direct matches except
-	 * the first one, which is used for our station address 
+	 * the first one, which is used for our station address
 	 */
-	
+
 	for (idx = 1; idx < MAC_ADDR_COUNT; idx++) {
 		port = sc->sbm_base + R_MAC_ADDR_BASE+(idx*sizeof(uint64_t));
-		SBMAC_WRITECSR(port,0);	
+		__raw_writeq(0, port);
 	}
-	
+
 	for (idx = 0; idx < MAC_HASH_COUNT; idx++) {
 		port = sc->sbm_base + R_MAC_HASH_BASE+(idx*sizeof(uint64_t));
-		SBMAC_WRITECSR(port,0);	
+		__raw_writeq(0, port);
 	}
-	
+
 	/*
 	 * Clear the filter to say we don't want any multicasts.
 	 */
-	
-	reg = SBMAC_READCSR(sc->sbm_rxfilter);
+
+	reg = __raw_readq(sc->sbm_rxfilter);
 	reg &= ~(M_MAC_MCAST_INV | M_MAC_MCAST_EN);
-	SBMAC_WRITECSR(sc->sbm_rxfilter,reg);
-	
+	__raw_writeq(reg, sc->sbm_rxfilter);
+
 	if (dev->flags & IFF_ALLMULTI) {
-		/* 
-		 * Enable ALL multicasts.  Do this by inverting the 
-		 * multicast enable bit. 
+		/*
+		 * Enable ALL multicasts.  Do this by inverting the
+		 * multicast enable bit.
 		 */
-		reg = SBMAC_READCSR(sc->sbm_rxfilter);
+		reg = __raw_readq(sc->sbm_rxfilter);
 		reg |= (M_MAC_MCAST_INV | M_MAC_MCAST_EN);
-		SBMAC_WRITECSR(sc->sbm_rxfilter,reg);
+		__raw_writeq(reg, sc->sbm_rxfilter);
 		return;
 	}
-	
 
-	/* 
+
+	/*
 	 * Progam new multicast entries.  For now, only use the
 	 * perfect filter.  In the future we'll need to use the
 	 * hash filter if the perfect filter overflows
 	 */
-	
+
 	/* XXX only using perfect filter for now, need to use hash
 	 * XXX if the table overflows */
-	
+
 	idx = 1;		/* skip station address */
 	mclist = dev->mc_list;
 	while (mclist && (idx < MAC_ADDR_COUNT)) {
 		reg = sbmac_addr2reg(mclist->dmi_addr);
 		port = sc->sbm_base + R_MAC_ADDR_BASE+(idx * sizeof(uint64_t));
-		SBMAC_WRITECSR(port,reg);
+		__raw_writeq(reg, port);
 		idx++;
 		mclist = mclist->next;
 	}
-	
-	/*	
+
+	/*
 	 * Enable the "accept multicast bits" if we programmed at least one
-	 * multicast. 
+	 * multicast.
 	 */
-	
+
 	if (idx > 1) {
-		reg = SBMAC_READCSR(sc->sbm_rxfilter);
+		reg = __raw_readq(sc->sbm_rxfilter);
 		reg |= M_MAC_MCAST_EN;
-		SBMAC_WRITECSR(sc->sbm_rxfilter,reg);
+		__raw_writeq(reg, sc->sbm_rxfilter);
 	}
 }
 
@@ -2250,12 +2223,12 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 #if defined(SBMAC_ETH0_HWADDR) || defined(SBMAC_ETH1_HWADDR) || defined(SBMAC_ETH2_HWADDR)
 /**********************************************************************
  *  SBMAC_PARSE_XDIGIT(str)
- *  
+ *
  *  Parse a hex digit, returning its value
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   str - character
- *  	   
+ *
  *  Return value:
  *  	   hex value, or -1 if invalid
  ********************************************************************* */
@@ -2263,7 +2236,7 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 static int sbmac_parse_xdigit(char str)
 {
 	int digit;
-	
+
 	if ((str >= '0') && (str <= '9'))
 		digit = str - '0';
 	else if ((str >= 'a') && (str <= 'f'))
@@ -2272,20 +2245,20 @@ static int sbmac_parse_xdigit(char str)
 		digit = str - 'A' + 10;
 	else
 		return -1;
-	
+
 	return digit;
 }
 
 /**********************************************************************
  *  SBMAC_PARSE_HWADDR(str,hwaddr)
- *  
+ *
  *  Convert a string in the form xx:xx:xx:xx:xx:xx into a 6-byte
  *  Ethernet address.
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   str - string
  *  	   hwaddr - pointer to hardware address
- *  	   
+ *
  *  Return value:
  *  	   0 if ok, else -1
  ********************************************************************* */
@@ -2294,7 +2267,7 @@ static int sbmac_parse_hwaddr(char *str, unsigned char *hwaddr)
 {
 	int digit1,digit2;
 	int idx = 6;
-	
+
 	while (*str && (idx > 0)) {
 		digit1 = sbmac_parse_xdigit(*str);
 		if (digit1 < 0)
@@ -2302,7 +2275,7 @@ static int sbmac_parse_hwaddr(char *str, unsigned char *hwaddr)
 		str++;
 		if (!*str)
 			return -1;
-		
+
 		if ((*str == ':') || (*str == '-')) {
 			digit2 = digit1;
 			digit1 = 0;
@@ -2313,10 +2286,10 @@ static int sbmac_parse_hwaddr(char *str, unsigned char *hwaddr)
 				return -1;
 			str++;
 		}
-		
+
 		*hwaddr++ = (digit1 << 4) | digit2;
 		idx--;
-		
+
 		if (*str == '-')
 			str++;
 		if (*str == ':')
@@ -2337,12 +2310,12 @@ static int sb1250_change_mtu(struct net_device *_dev, int new_mtu)
 
 /**********************************************************************
  *  SBMAC_INIT(dev)
- *  
+ *
  *  Attach routine - init hardware and hook ourselves into linux
- *  
- *  Input parameters: 
+ *
+ *  Input parameters:
  *  	   dev - net_device structure
- *  	   
+ *
  *  Return value:
  *  	   status
  ********************************************************************* */
@@ -2354,53 +2327,53 @@ static int sbmac_init(struct net_device *dev, int idx)
 	uint64_t ea_reg;
 	int i;
 	int err;
-	
+
 	sc = netdev_priv(dev);
-	
+
 	/* Determine controller base address */
-	
+
 	sc->sbm_base = IOADDR(dev->base_addr);
 	sc->sbm_dev = dev;
 	sc->sbe_idx = idx;
-	
+
 	eaddr = sc->sbm_hwaddr;
-	
-	/* 
+
+	/*
 	 * Read the ethernet address.  The firwmare left this programmed
 	 * for us in the ethernet address register for each mac.
 	 */
-	
-	ea_reg = SBMAC_READCSR(sc->sbm_base + R_MAC_ETHERNET_ADDR);
-	SBMAC_WRITECSR(sc->sbm_base + R_MAC_ETHERNET_ADDR, 0);
+
+	ea_reg = __raw_readq(sc->sbm_base + R_MAC_ETHERNET_ADDR);
+	__raw_writeq(0, sc->sbm_base + R_MAC_ETHERNET_ADDR);
 	for (i = 0; i < 6; i++) {
 		eaddr[i] = (uint8_t) (ea_reg & 0xFF);
 		ea_reg >>= 8;
 	}
-	
+
 	for (i = 0; i < 6; i++) {
 		dev->dev_addr[i] = eaddr[i];
 	}
-	
-	
+
+
 	/*
-	 * Init packet size 
+	 * Init packet size
 	 */
-	
+
 	sc->sbm_buffersize = ENET_PACKET_SIZE + SMP_CACHE_BYTES * 2 + ETHER_ALIGN;
 
-	/* 
+	/*
 	 * Initialize context (get pointers to registers and stuff), then
 	 * allocate the memory for the descriptor tables.
 	 */
-	
+
 	sbmac_initctx(sc);
-	
+
 	/*
 	 * Set up Linux device callins
 	 */
-	
+
 	spin_lock_init(&(sc->sbm_lock));
-	
+
 	dev->open               = sbmac_open;
 	dev->hard_start_xmit    = sbmac_start_tx;
 	dev->stop               = sbmac_close;
@@ -2419,7 +2392,7 @@ static int sbmac_init(struct net_device *dev, int idx)
 	if (err)
 		goto out_uninit;
 
-	if (periph_rev >= 2) {
+	if (sc->rx_hw_checksum == ENABLE) {
 		printk(KERN_INFO "%s: enabling TCP rcv checksum\n",
 			sc->sbm_dev->name);
 	}
@@ -2430,10 +2403,10 @@ static int sbmac_init(struct net_device *dev, int idx)
 	 * was being displayed)
 	 */
 	printk(KERN_INFO
-	       "%s: SiByte Ethernet at 0x%08lX, address: %02X:%02X:%02X:%02X:%02X:%02X\n", 
+	       "%s: SiByte Ethernet at 0x%08lX, address: %02X:%02X:%02X:%02X:%02X:%02X\n",
 	       dev->name, dev->base_addr,
 	       eaddr[0],eaddr[1],eaddr[2],eaddr[3],eaddr[4],eaddr[5]);
-	
+
 
 	return 0;
 
@@ -2447,54 +2420,86 @@ out_uninit:
 static int sbmac_open(struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
-	
+
 	if (debug > 1) {
 		printk(KERN_DEBUG "%s: sbmac_open() irq %d.\n", dev->name, dev->irq);
 	}
-	
-	/* 
+
+	/*
 	 * map/route interrupt (clear status first, in case something
 	 * weird is pending; we haven't initialized the mac registers
 	 * yet)
 	 */
 
-	SBMAC_READCSR(sc->sbm_isr);
+	__raw_readq(sc->sbm_isr);
 	if (request_irq(dev->irq, &sbmac_intr, SA_SHIRQ, dev->name, dev))
 		return -EBUSY;
 
 	/*
-	 * Configure default speed 
+	 * Probe phy address
+	 */
+
+	if(sbmac_mii_probe(dev) == -1) {
+		printk("%s: failed to probe PHY.\n", dev->name);
+		return -EINVAL;
+	}
+
+	/*
+	 * Configure default speed
 	 */
 
 	sbmac_mii_poll(sc,noisy_mii);
-	
+
 	/*
 	 * Turn on the channel
 	 */
 
 	sbmac_set_channel_state(sc,sbmac_state_on);
-	
+
 	/*
 	 * XXX Station address is in dev->dev_addr
 	 */
-	
+
 	if (dev->if_port == 0)
-		dev->if_port = 0; 
-	
+		dev->if_port = 0;
+
 	netif_start_queue(dev);
-	
+
 	sbmac_set_rx_mode(dev);
-	
+
 	/* Set the timer to check for link beat. */
 	init_timer(&sc->sbm_timer);
 	sc->sbm_timer.expires = jiffies + 2 * HZ/100;
 	sc->sbm_timer.data = (unsigned long)dev;
 	sc->sbm_timer.function = &sbmac_timer;
 	add_timer(&sc->sbm_timer);
-	
+
 	return 0;
 }
 
+static int sbmac_mii_probe(struct net_device *dev)
+{
+	int i;
+	struct sbmac_softc *s = netdev_priv(dev);
+	u16 bmsr, id1, id2;
+	u32 vendor, device;
+
+	for (i=1; i<31; i++) {
+	bmsr = sbmac_mii_read(s, i, MII_BMSR);
+		if (bmsr != 0) {
+			s->sbm_phys[0] = i;
+			id1 = sbmac_mii_read(s, i, MII_PHYIDR1);
+			id2 = sbmac_mii_read(s, i, MII_PHYIDR2);
+			vendor = ((u32)id1 << 6) | ((id2 >> 10) & 0x3f);
+			device = (id2 >> 4) & 0x3f;
+
+			printk(KERN_INFO "%s: found phy %d, vendor %06x part %02x\n",
+				dev->name, i, vendor, device);
+			return i;
+		}
+	}
+	return -1;
+}
 
 
 static int sbmac_mii_poll(struct sbmac_softc *s,int noisy)
@@ -2609,20 +2614,20 @@ static void sbmac_timer(unsigned long data)
 	int mii_status;
 
 	spin_lock_irq (&sc->sbm_lock);
-	
+
 	/* make IFF_RUNNING follow the MII status bit "Link established" */
 	mii_status = sbmac_mii_read(sc, sc->sbm_phys[0], MII_BMSR);
-	
+
 	if ( (mii_status & BMSR_LINKSTAT) != (sc->sbm_phy_oldlinkstat) ) {
     	        sc->sbm_phy_oldlinkstat = mii_status & BMSR_LINKSTAT;
 		if (mii_status & BMSR_LINKSTAT) {
 			netif_carrier_on(dev);
 		}
 		else {
-			netif_carrier_off(dev);	
+			netif_carrier_off(dev);
 		}
 	}
-	
+
 	/*
 	 * Poll the PHY to see what speed we should be running at
 	 */
@@ -2640,9 +2645,9 @@ static void sbmac_timer(unsigned long data)
 			sbmac_channel_start(sc);
 		}
 	}
-	
+
 	spin_unlock_irq (&sc->sbm_lock);
-	
+
 	sc->sbm_timer.expires = jiffies + next_tick;
 	add_timer(&sc->sbm_timer);
 }
@@ -2651,13 +2656,13 @@ static void sbmac_timer(unsigned long data)
 static void sbmac_tx_timeout (struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
-	
+
 	spin_lock_irq (&sc->sbm_lock);
-	
-	
+
+
 	dev->trans_start = jiffies;
 	sc->sbm_stats.tx_errors++;
-	
+
 	spin_unlock_irq (&sc->sbm_lock);
 
 	printk (KERN_WARNING "%s: Transmit timed out\n",dev->name);
@@ -2670,13 +2675,13 @@ static struct net_device_stats *sbmac_get_stats(struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
 	unsigned long flags;
-	
+
 	spin_lock_irqsave(&sc->sbm_lock, flags);
-	
+
 	/* XXX update other stats here */
-	
+
 	spin_unlock_irqrestore(&sc->sbm_lock, flags);
-	
+
 	return &sc->sbm_stats;
 }
 
@@ -2693,8 +2698,8 @@ static void sbmac_set_rx_mode(struct net_device *dev)
 		/*
 		 * Promiscuous changed.
 		 */
-		
-		if (dev->flags & IFF_PROMISC) {	
+
+		if (dev->flags & IFF_PROMISC) {
 			/* Unconditionally log net taps. */
 			msg_flag = 1;
 			sbmac_promiscuous_mode(sc,1);
@@ -2705,18 +2710,18 @@ static void sbmac_set_rx_mode(struct net_device *dev)
 		}
 	}
 	spin_unlock_irqrestore(&sc->sbm_lock, flags);
-	
+
 	if (msg_flag) {
 		printk(KERN_NOTICE "%s: Promiscuous mode %sabled.\n",
 		       dev->name,(msg_flag==1)?"en":"dis");
 	}
-	
+
 	/*
 	 * Program the multicasts.  Do this every time.
 	 */
-	
+
 	sbmac_setmulti(sc);
-	
+
 }
 
 static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -2725,10 +2730,10 @@ static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	u16 *data = (u16 *)&rq->ifr_ifru;
 	unsigned long flags;
 	int retval;
-	
+
 	spin_lock_irqsave(&sc->sbm_lock, flags);
 	retval = 0;
-	
+
 	switch(cmd) {
 	case SIOCDEVPRIVATE:		/* Get the address of the PHY in use. */
 		data[0] = sc->sbm_phys[0] & 0x1f;
@@ -2750,7 +2755,7 @@ static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	default:
 		retval = -EOPNOTSUPP;
 	}
-	
+
 	spin_unlock_irqrestore(&sc->sbm_lock, flags);
 	return retval;
 }
@@ -2781,7 +2786,7 @@ static int sbmac_close(struct net_device *dev)
 
 	sbdma_emptyring(&(sc->sbm_txdma));
 	sbdma_emptyring(&(sc->sbm_rxdma));
-	
+
 	return 0;
 }
 
@@ -2793,13 +2798,13 @@ sbmac_setup_hwaddr(int chan,char *addr)
 {
 	uint8_t eaddr[6];
 	uint64_t val;
-	sbmac_port_t port;
+	unsigned long port;
 
 	port = A_MAC_CHANNEL_BASE(chan);
 	sbmac_parse_hwaddr(addr,eaddr);
 	val = sbmac_addr2reg(eaddr);
-	SBMAC_WRITECSR(IOADDR(port+R_MAC_ETHERNET_ADDR),val);
-	val = SBMAC_READCSR(IOADDR(port+R_MAC_ETHERNET_ADDR));
+	__raw_writeq(val, IOADDR(port+R_MAC_ETHERNET_ADDR));
+	val = __raw_readq(IOADDR(port+R_MAC_ETHERNET_ADDR));
 }
 #endif
 
@@ -2810,9 +2815,9 @@ sbmac_init_module(void)
 {
 	int idx;
 	struct net_device *dev;
-	sbmac_port_t port;
+	unsigned long port;
 	int chip_max_units;
-	
+
 	/*
 	 * For bringup when not using the firmware, we can pre-fill
 	 * the MAC addresses using the environment variables
@@ -2858,13 +2863,13 @@ sbmac_init_module(void)
 
 	        port = A_MAC_CHANNEL_BASE(idx);
 
-		/*	
+		/*
 		 * The R_MAC_ETHERNET_ADDR register will be set to some nonzero
 		 * value for us by the firmware if we're going to use this MAC.
 		 * If we find a zero, skip this MAC.
 		 */
 
-		sbmac_orig_hwaddr[idx] = SBMAC_READCSR(IOADDR(port+R_MAC_ETHERNET_ADDR));
+		sbmac_orig_hwaddr[idx] = __raw_readq(IOADDR(port+R_MAC_ETHERNET_ADDR));
 		if (sbmac_orig_hwaddr[idx] == 0) {
 			printk(KERN_DEBUG "sbmac: not configuring MAC at "
 			       "%lx\n", port);
@@ -2876,7 +2881,7 @@ sbmac_init_module(void)
 		 */
 
 		dev = alloc_etherdev(sizeof(struct sbmac_softc));
-		if (!dev) 
+		if (!dev)
 			return -ENOMEM;	/* return ENOMEM */
 
 		printk(KERN_DEBUG "sbmac: configuring MAC at %lx\n", port);
@@ -2886,8 +2891,7 @@ sbmac_init_module(void)
 		dev->mem_end = 0;
 		if (sbmac_init(dev, idx)) {
 			port = A_MAC_CHANNEL_BASE(idx);
-			SBMAC_WRITECSR(IOADDR(port+R_MAC_ETHERNET_ADDR),
-				       sbmac_orig_hwaddr[idx]);
+			__raw_writeq(sbmac_orig_hwaddr[idx], IOADDR(port+R_MAC_ETHERNET_ADDR));
 			free_netdev(dev);
 			continue;
 		}

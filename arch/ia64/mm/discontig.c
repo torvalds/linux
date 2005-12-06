@@ -350,14 +350,12 @@ static void __init initialize_pernode_data(void)
  *	for best.
  * @nid: node id
  * @pernodesize: size of this node's pernode data
- * @align: alignment to use for this node's pernode data
  */
-static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize,
-	unsigned long align)
+static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 {
 	void *ptr = NULL;
 	u8 best = 0xff;
-	int bestnode = -1, node;
+	int bestnode = -1, node, anynode = 0;
 
 	for_each_online_node(node) {
 		if (node_isset(node, memory_less_mask))
@@ -366,13 +364,15 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize,
 			best = node_distance(nid, node);
 			bestnode = node;
 		}
+		anynode = node;
 	}
 
-	ptr = __alloc_bootmem_node(mem_data[bestnode].pgdat,
-		pernodesize, align, __pa(MAX_DMA_ADDRESS));
+	if (bestnode == -1)
+		bestnode = anynode;
 
-	if (!ptr)
-		panic("NO memory for memory less node\n");
+	ptr = __alloc_bootmem_node(mem_data[bestnode].pgdat, pernodesize,
+		PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+
 	return ptr;
 }
 
@@ -413,13 +413,43 @@ static void __init memory_less_nodes(void)
 
 	for_each_node_mask(node, memory_less_mask) {
 		pernodesize = compute_pernodesize(node);
-		pernode = memory_less_node_alloc(node, pernodesize,
-			(node) ? (node * PERCPU_PAGE_SIZE) : (1024*1024));
+		pernode = memory_less_node_alloc(node, pernodesize);
 		fill_pernode(node, __pa(pernode), pernodesize);
 	}
 
 	return;
 }
+
+#ifdef CONFIG_SPARSEMEM
+/**
+ * register_sparse_mem - notify SPARSEMEM that this memory range exists.
+ * @start: physical start of range
+ * @end: physical end of range
+ * @arg: unused
+ *
+ * Simply calls SPARSEMEM to register memory section(s).
+ */
+static int __init register_sparse_mem(unsigned long start, unsigned long end,
+	void *arg)
+{
+	int nid;
+
+	start = __pa(start) >> PAGE_SHIFT;
+	end = __pa(end) >> PAGE_SHIFT;
+	nid = early_pfn_to_nid(start);
+	memory_present(nid, start, end);
+
+	return 0;
+}
+
+static void __init arch_sparse_init(void)
+{
+	efi_memmap_walk(register_sparse_mem, NULL);
+	sparse_init();
+}
+#else
+#define arch_sparse_init() do {} while (0)
+#endif
 
 /**
  * find_memory - walk the EFI memory map and setup the bootmem allocator
@@ -524,12 +554,18 @@ void show_mem(void)
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
-		unsigned long present = pgdat->node_present_pages;
+		unsigned long present;
+		unsigned long flags;
 		int shared = 0, cached = 0, reserved = 0;
+
 		printk("Node ID: %d\n", pgdat->node_id);
+		pgdat_resize_lock(pgdat, &flags);
+		present = pgdat->node_present_pages;
 		for(i = 0; i < pgdat->node_spanned_pages; i++) {
-			struct page *page = pgdat_page_nr(pgdat, i);
-			if (!ia64_pfn_valid(pgdat->node_start_pfn+i))
+			struct page *page;
+			if (pfn_valid(pgdat->node_start_pfn + i))
+				page = pfn_to_page(pgdat->node_start_pfn + i);
+			else
 				continue;
 			if (PageReserved(page))
 				reserved++;
@@ -538,6 +574,7 @@ void show_mem(void)
 			else if (page_count(page))
 				shared += page_count(page)-1;
 		}
+		pgdat_resize_unlock(pgdat, &flags);
 		total_present += present;
 		total_reserved += reserved;
 		total_cached += cached;
@@ -648,12 +685,16 @@ void __init paging_init(void)
 
 	max_dma = virt_to_phys((void *) MAX_DMA_ADDRESS) >> PAGE_SHIFT;
 
+	arch_sparse_init();
+
 	efi_memmap_walk(filter_rsvd_memory, count_node_pages);
 
+#ifdef CONFIG_VIRTUAL_MEM_MAP
 	vmalloc_end -= PAGE_ALIGN(max_low_pfn * sizeof(struct page));
 	vmem_map = (struct page *) vmalloc_end;
 	efi_memmap_walk(create_mem_map_page_table, NULL);
 	printk("Virtual mem_map starts at 0x%p\n", vmem_map);
+#endif
 
 	for_each_online_node(node) {
 		memset(zones_size, 0, sizeof(zones_size));
@@ -690,7 +731,9 @@ void __init paging_init(void)
 
 		pfn_offset = mem_data[node].min_pfn;
 
+#ifdef CONFIG_VIRTUAL_MEM_MAP
 		NODE_DATA(node)->node_mem_map = vmem_map + pfn_offset;
+#endif
 		free_area_init_node(node, NODE_DATA(node), zones_size,
 				    pfn_offset, zholes_size);
 	}

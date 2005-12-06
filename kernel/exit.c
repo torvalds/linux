@@ -28,6 +28,7 @@
 #include <linux/cpuset.h>
 #include <linux/syscalls.h>
 #include <linux/signal.h>
+#include <linux/cn_proc.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -547,7 +548,7 @@ static inline void reparent_thread(task_t *p, task_t *father, int traced)
 
 	if (p->pdeath_signal)
 		/* We already hold the tasklist_lock here.  */
-		group_send_sig_info(p->pdeath_signal, (void *) 0, p);
+		group_send_sig_info(p->pdeath_signal, SEND_SIG_NOINFO, p);
 
 	/* Move the child from its dying parent to the new one.  */
 	if (unlikely(traced)) {
@@ -591,8 +592,8 @@ static inline void reparent_thread(task_t *p, task_t *father, int traced)
 		int pgrp = process_group(p);
 
 		if (will_become_orphaned_pgrp(pgrp, NULL) && has_stopped_jobs(pgrp)) {
-			__kill_pg_info(SIGHUP, (void *)1, pgrp);
-			__kill_pg_info(SIGCONT, (void *)1, pgrp);
+			__kill_pg_info(SIGHUP, SEND_SIG_PRIV, pgrp);
+			__kill_pg_info(SIGCONT, SEND_SIG_PRIV, pgrp);
 		}
 	}
 }
@@ -727,8 +728,8 @@ static void exit_notify(struct task_struct *tsk)
 	    (t->signal->session == tsk->signal->session) &&
 	    will_become_orphaned_pgrp(process_group(tsk), tsk) &&
 	    has_stopped_jobs(process_group(tsk))) {
-		__kill_pg_info(SIGHUP, (void *)1, process_group(tsk));
-		__kill_pg_info(SIGCONT, (void *)1, process_group(tsk));
+		__kill_pg_info(SIGHUP, SEND_SIG_PRIV, process_group(tsk));
+		__kill_pg_info(SIGCONT, SEND_SIG_PRIV, process_group(tsk));
 	}
 
 	/* Let father know we died 
@@ -783,10 +784,6 @@ static void exit_notify(struct task_struct *tsk)
 	/* If the process is dead, release it - nobody will wait for it */
 	if (state == EXIT_DEAD)
 		release_task(tsk);
-
-	/* PF_DEAD causes final put_task_struct after we schedule. */
-	preempt_disable();
-	tsk->flags |= PF_DEAD;
 }
 
 fastcall NORET_TYPE void do_exit(long code)
@@ -839,10 +836,14 @@ fastcall NORET_TYPE void do_exit(long code)
 				preempt_count());
 
 	acct_update_integrals(tsk);
-	update_mem_hiwater(tsk);
+	if (tsk->mm) {
+		update_hiwater_rss(tsk->mm);
+		update_hiwater_vm(tsk->mm);
+	}
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
  		del_timer_sync(&tsk->signal->real_timer);
+		exit_itimers(tsk->signal);
 		acct_process(code);
 	}
 	exit_mm(tsk);
@@ -858,18 +859,23 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (group_dead && tsk->signal->leader)
 		disassociate_ctty(1);
 
-	module_put(tsk->thread_info->exec_domain->module);
+	module_put(task_thread_info(tsk)->exec_domain->module);
 	if (tsk->binfmt)
 		module_put(tsk->binfmt->module);
 
 	tsk->exit_code = code;
+	proc_exit_connector(tsk);
 	exit_notify(tsk);
 #ifdef CONFIG_NUMA
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
 
-	BUG_ON(!(current->flags & PF_DEAD));
+	/* PF_DEAD causes final put_task_struct after we schedule. */
+	preempt_disable();
+	BUG_ON(tsk->flags & PF_DEAD);
+	tsk->flags |= PF_DEAD;
+
 	schedule();
 	BUG();
 	/* Avoid "noreturn function does return".  */
@@ -1203,7 +1209,7 @@ static int wait_task_stopped(task_t *p, int delayed_group_leader, int noreap,
 
 		exit_code = p->exit_code;
 		if (unlikely(!exit_code) ||
-		    unlikely(p->state > TASK_STOPPED))
+		    unlikely(p->state & TASK_TRACED))
 			goto bail_ref;
 		return wait_noreap_copyout(p, pid, uid,
 					   why, (exit_code << 8) | 0x7f,
@@ -1379,6 +1385,15 @@ repeat:
 
 			switch (p->state) {
 			case TASK_TRACED:
+				/*
+				 * When we hit the race with PTRACE_ATTACH,
+				 * we will not report this child.  But the
+				 * race means it has not yet been moved to
+				 * our ptrace_children list, so we need to
+				 * set the flag here to avoid a spurious ECHILD
+				 * when the race happens with the only child.
+				 */
+				flag = 1;
 				if (!my_ptrace_child(p))
 					continue;
 				/*FALLTHROUGH*/

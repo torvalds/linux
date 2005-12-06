@@ -803,7 +803,7 @@ static void audit_log_task_info(struct audit_buffer *ab)
 	up_read(&mm->mmap_sem);
 }
 
-static void audit_log_exit(struct audit_context *context, unsigned int gfp_mask)
+static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 {
 	int i;
 	struct audit_buffer *ab;

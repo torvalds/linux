@@ -92,6 +92,13 @@ extern unsigned int s3c2410_gpio_getpin(unsigned int pin);
 
 extern unsigned int s3c2410_modify_misccr(unsigned int clr, unsigned int chg);
 
+#ifdef CONFIG_CPU_S3C2440
+
+extern int s3c2440_set_dsc(unsigned int pin, unsigned int value);
+
+#endif /* CONFIG_CPU_S3C2440 */
+
+
 #endif /* __ASSEMBLY__ */
 
 #include <asm/sizes.h>

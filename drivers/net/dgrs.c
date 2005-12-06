@@ -1458,6 +1458,8 @@ static struct pci_driver dgrs_pci_driver = {
 	.probe = dgrs_pci_probe,
 	.remove = __devexit_p(dgrs_pci_remove),
 };
+#else
+static struct pci_driver dgrs_pci_driver = {};
 #endif
 
 
@@ -1549,7 +1551,7 @@ MODULE_PARM_DESC(nicmode, "Digi RightSwitch operating mode (1: switch, 2: multi-
 static int __init dgrs_init_module (void)
 {
 	int	i;
-	int eisacount = 0, pcicount = 0;
+	int	cardcount = 0;
 
 	/*
 	 *	Command line variable overrides
@@ -1591,15 +1593,13 @@ static int __init dgrs_init_module (void)
 	 *	Find and configure all the cards
 	 */
 #ifdef CONFIG_EISA
-	eisacount = eisa_driver_register(&dgrs_eisa_driver);
-	if (eisacount < 0)
-		return eisacount;
+	cardcount = eisa_driver_register(&dgrs_eisa_driver);
+	if (cardcount < 0)
+		return cardcount;
 #endif
-#ifdef CONFIG_PCI
-	pcicount = pci_register_driver(&dgrs_pci_driver);
-	if (pcicount)
-		return pcicount;
-#endif
+	cardcount = pci_register_driver(&dgrs_pci_driver);
+	if (cardcount)
+		return cardcount;
 	return 0;
 }
 

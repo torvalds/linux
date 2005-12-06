@@ -844,9 +844,8 @@ static struct file_operations usblp_fops = {
 };
 
 static struct usb_class_driver usblp_class = {
-	.name =		"usb/lp%d",
+	.name =		"lp%d",
 	.fops =		&usblp_fops,
-	.mode =		S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
 	.minor_base =	USBLP_MINOR_BASE,
 };
 

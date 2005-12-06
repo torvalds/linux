@@ -30,6 +30,7 @@
 #include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include "dvb_frontend.h"
 #include "tda8083.h"
 

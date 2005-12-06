@@ -5,19 +5,23 @@
 #undef find_first_bit
 #undef find_next_bit
 
-/**
- * find_first_zero_bit - find the first zero bit in a memory region
- * @addr: The address to start the search at
- * @size: The maximum size to search
- *
- * Returns the bit-number of the first zero bit, not the number of the byte
- * containing a bit.
- */
-inline long find_first_zero_bit(const unsigned long * addr, unsigned long size)
+static inline long
+__find_first_zero_bit(const unsigned long * addr, unsigned long size)
 {
 	long d0, d1, d2;
 	long res;
 
+	/*
+	 * We must test the size in words, not in bits, because
+	 * otherwise incoming sizes in the range -63..-1 will not run
+	 * any scasq instructions, and then the flags used by the je
+	 * instruction will have whatever random value was in place
+	 * before.  Nobody should call us like that, but
+	 * find_next_zero_bit() does when offset and size are at the
+	 * same word and it fails to find a zero itself.
+	 */
+	size += 63;
+	size >>= 6;
 	if (!size)
 		return 0;
 	asm volatile(
@@ -30,9 +34,27 @@ inline long find_first_zero_bit(const unsigned long * addr, unsigned long size)
 		"  shlq $3,%%rdi\n"
 		"  addq %%rdi,%%rdx"
 		:"=d" (res), "=&c" (d0), "=&D" (d1), "=&a" (d2)
-		:"0" (0ULL), "1" ((size + 63) >> 6), "2" (addr), "3" (-1ULL),
-		 [addr] "r" (addr) : "memory");
+		:"0" (0ULL), "1" (size), "2" (addr), "3" (-1ULL),
+		 [addr] "S" (addr) : "memory");
+	/*
+	 * Any register would do for [addr] above, but GCC tends to
+	 * prefer rbx over rsi, even though rsi is readily available
+	 * and doesn't have to be saved.
+	 */
 	return res;
+}
+
+/**
+ * find_first_zero_bit - find the first zero bit in a memory region
+ * @addr: The address to start the search at
+ * @size: The maximum size to search
+ *
+ * Returns the bit-number of the first zero bit, not the number of the byte
+ * containing a bit.
+ */
+long find_first_zero_bit(const unsigned long * addr, unsigned long size)
+{
+	return __find_first_zero_bit (addr, size);
 }
 
 /**
@@ -43,7 +65,7 @@ inline long find_first_zero_bit(const unsigned long * addr, unsigned long size)
  */
 long find_next_zero_bit (const unsigned long * addr, long size, long offset)
 {
-	unsigned long * p = ((unsigned long *) addr) + (offset >> 6);
+	const unsigned long * p = addr + (offset >> 6);
 	unsigned long set = 0;
 	unsigned long res, bit = offset&63;
 
@@ -63,8 +85,8 @@ long find_next_zero_bit (const unsigned long * addr, long size, long offset)
 	/*
 	 * No zero yet, search remaining full words for a zero
 	 */
-	res = find_first_zero_bit ((const unsigned long *)p,
-				   size - 64 * (p - (unsigned long *) addr));
+	res = __find_first_zero_bit (p, size - 64 * (p - addr));
+
 	return (offset + set + res);
 }
 
@@ -74,6 +96,19 @@ __find_first_bit(const unsigned long * addr, unsigned long size)
 	long d0, d1;
 	long res;
 
+	/*
+	 * We must test the size in words, not in bits, because
+	 * otherwise incoming sizes in the range -63..-1 will not run
+	 * any scasq instructions, and then the flags used by the jz
+	 * instruction will have whatever random value was in place
+	 * before.  Nobody should call us like that, but
+	 * find_next_bit() does when offset and size are at the same
+	 * word and it fails to find a one itself.
+	 */
+	size += 63;
+	size >>= 6;
+	if (!size)
+		return 0;
 	asm volatile(
 		"   repe; scasq\n"
 		"   jz 1f\n"
@@ -83,8 +118,7 @@ __find_first_bit(const unsigned long * addr, unsigned long size)
 		"   shlq $3,%%rdi\n"
 		"   addq %%rdi,%%rax"
 		:"=a" (res), "=&c" (d0), "=&D" (d1)
-		:"0" (0ULL),
-		 "1" ((size + 63) >> 6), "2" (addr),
+		:"0" (0ULL), "1" (size), "2" (addr),
 		 [addr] "r" (addr) : "memory");
 	return res;
 }

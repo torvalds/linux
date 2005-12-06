@@ -17,7 +17,7 @@ config MOUSE_PS2
 	default y
 	select SERIO
 	select SERIO_LIBPS2
-	select SERIO_I8042 if PC
+	select SERIO_I8042 if X86_PC
 	select SERIO_GSCPS2 if GSC
 	---help---
 	  Say Y here if you have a PS/2 mouse connected to your system. This

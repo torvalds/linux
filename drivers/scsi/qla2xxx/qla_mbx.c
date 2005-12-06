@@ -1,20 +1,8 @@
 /*
- *                  QLOGIC LINUX SOFTWARE
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
  *
- * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2005 QLogic Corporation
- * (www.qlogic.com)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
+ * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 
@@ -880,10 +868,6 @@ qla2x00_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 	DEBUG11(printk("qla2x00_abort_command(%ld): entered.\n", ha->host_no);)
 
 	fcport = sp->fcport;
-	if (atomic_read(&ha->loop_state) == LOOP_DOWN ||
-	    atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
-		return 1;
-	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
@@ -1020,6 +1004,8 @@ qla2x00_get_adapter_id(scsi_qla_host_t *ha, uint16_t *id, uint8_t *al_pa,
 	mcp->tov = 30;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(ha, mcp);
+	if (mcp->mb[0] == MBS_COMMAND_ERROR)
+		rval = QLA_COMMAND_ERROR;
 
 	/* Return data. */
 	*id = mcp->mb[1];
@@ -2191,10 +2177,6 @@ qla24xx_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no);)
 
 	fcport = sp->fcport;
-	if (atomic_read(&ha->loop_state) == LOOP_DOWN ||
-	    atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
-		return QLA_FUNCTION_FAILED;
-	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {

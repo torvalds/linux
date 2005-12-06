@@ -5,7 +5,7 @@
  *
  * This code is GPL
  *
- * $Id: pnc2000.c,v 1.17 2004/11/16 18:29:02 dwmw2 Exp $
+ * $Id: pnc2000.c,v 1.18 2005/11/07 11:14:28 gleixner Exp $
  */
 
 #include <linux/module.h>
@@ -21,7 +21,7 @@
 #define WINDOW_ADDR 0xbf000000
 #define WINDOW_SIZE 0x00400000
 
-/* 
+/*
  * MAP DRIVER STUFF
  */
 
@@ -36,7 +36,7 @@ static struct map_info pnc_map = {
 
 
 /*
- * MTD 'PARTITIONING' STUFF 
+ * MTD 'PARTITIONING' STUFF
  */
 static struct mtd_partition pnc_partitions[3] = {
 	{
@@ -56,7 +56,7 @@ static struct mtd_partition pnc_partitions[3] = {
 	}
 };
 
-/* 
+/*
  * This is the master MTD device for which all the others are just
  * auto-relocating aliases.
  */

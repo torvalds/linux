@@ -37,8 +37,6 @@
 #include "hid.h"
 #include "pid.h"
 
-#define DEBUG
-
 #define CHECK_OWNERSHIP(i, hid_pid)	\
 	((i) < FF_EFFECTS_MAX && i >= 0 && \
 	test_bit(FF_PID_FLAGS_USED, &hid_pid->effects[(i)].flags) && \
@@ -198,7 +196,7 @@ static int hid_pid_upload_effect(struct input_dev *dev,
 		}
 
 		effect->id = id;
-		dev_dbg(&pid_private->hid->dev->dev, "effect ID is %d\n.", id);
+		dev_dbg(&pid_private->hid->dev->dev, "effect ID is %d.\n", id);
 		pid_private->effects[id].owner = current->pid;
 		pid_private->effects[id].flags = (1 << FF_PID_FLAGS_USED);
 		spin_unlock_irqrestore(&pid_private->lock, flags);
@@ -262,6 +260,7 @@ int hid_pid_init(struct hid_device *hid)
 {
 	struct hid_ff_pid *private;
 	struct hid_input *hidinput = list_entry(&hid->inputs, struct hid_input, list);
+	struct input_dev *input_dev = hidinput->input;
 
 	private = hid->ff_private = kzalloc(sizeof(struct hid_ff_pid), GFP_KERNEL);
 	if (!private)
@@ -281,11 +280,12 @@ int hid_pid_init(struct hid_device *hid)
 	usb_fill_control_urb(private->urbffout, hid->dev, 0,
 			     (void *)&private->ffcr, private->ctrl_buffer, 8,
 			     hid_pid_ctrl_out, hid);
-	hidinput->input.upload_effect = hid_pid_upload_effect;
-	hidinput->input.flush = hid_pid_flush;
-	hidinput->input.ff_effects_max = 8;	// A random default
-	set_bit(EV_FF, hidinput->input.evbit);
-	set_bit(EV_FF_STATUS, hidinput->input.evbit);
+
+	input_dev->upload_effect = hid_pid_upload_effect;
+	input_dev->flush = hid_pid_flush;
+	input_dev->ff_effects_max = 8;	// A random default
+	set_bit(EV_FF, input_dev->evbit);
+	set_bit(EV_FF_STATUS, input_dev->evbit);
 
 	spin_lock_init(&private->lock);
 

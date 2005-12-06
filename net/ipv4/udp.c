@@ -761,7 +761,7 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 
 static __inline__ int __udp_checksum_complete(struct sk_buff *skb)
 {
-	return (unsigned short)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
+	return __skb_checksum_complete(skb);
 }
 
 static __inline__ int udp_checksum_complete(struct sk_buff *skb)
@@ -1100,11 +1100,8 @@ static int udp_checksum_init(struct sk_buff *skb, struct udphdr *uh,
 	if (uh->check == 0) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else if (skb->ip_summed == CHECKSUM_HW) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (!udp_check(uh, ulen, saddr, daddr, skb->csum))
-			return 0;
-		LIMIT_NETDEBUG(KERN_DEBUG "udp v4 hw csum failure.\n");
-		skb->ip_summed = CHECKSUM_NONE;
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 	if (skb->ip_summed != CHECKSUM_UNNECESSARY)
 		skb->csum = csum_tcpudp_nofold(saddr, daddr, ulen, IPPROTO_UDP, 0);

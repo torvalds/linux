@@ -8,25 +8,8 @@
  */
 
 #include <linux/config.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/poll.h>
-#include <linux/delay.h>
-#include <linux/sysrq.h>
-#include <linux/proc_fs.h>
-#include <linux/irq.h>
-#include <linux/pm.h>
-#include <linux/device.h>
 #include <linux/suspend.h>
-#include <linux/acpi.h>
-
-#include <asm/uaccess.h>
-#include <asm/acpi.h>
-#include <asm/tlbflush.h>
-#include <asm/processor.h>
 
 static struct saved_context saved_context;
 
@@ -68,15 +51,13 @@ void save_processor_state(void)
 	__save_processor_state(&saved_context);
 }
 
-static void
-do_fpu_end(void)
+static void do_fpu_end(void)
 {
-        /* restore FPU regs if necessary */
-	/* Do it out of line so that gcc does not move cr0 load to some stupid place */
-        kernel_fpu_end();
-	mxcsr_feature_mask_init();
+	/*
+	 * Restore FPU regs if necessary.
+	 */
+	kernel_fpu_end();
 }
-
 
 static void fix_processor_context(void)
 {
@@ -137,6 +118,7 @@ void __restore_processor_state(struct saved_context *ctxt)
 	fix_processor_context();
 	do_fpu_end();
 	mtrr_ap_init();
+	mcheck_init(&boot_cpu_data);
 }
 
 void restore_processor_state(void)

@@ -304,7 +304,7 @@ void __init setup_arch(char **cmdline_p)
 # endif
 #endif
 
-#if CONFIG_PCI
+#ifdef CONFIG_PCI
 	platform_pcibios_init();
 #endif
 }

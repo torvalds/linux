@@ -77,14 +77,14 @@
 struct bttv_tvnorm {
 	int   v4l2_id;
 	char  *name;
-        u32   Fsc;
-        u16   swidth, sheight; /* scaled standard width, height */
+	u32   Fsc;
+	u16   swidth, sheight; /* scaled standard width, height */
 	u16   totalwidth;
 	u8    adelay, bdelay, iform;
 	u32   scaledtwidth;
 	u16   hdelayx1, hactivex1;
 	u16   vdelay;
-        u8    vbipack;
+	u8    vbipack;
 	u16   vtotal;
 	int   sram;
 };
@@ -208,6 +208,7 @@ extern struct bus_type bttv_sub_bus_type;
 int bttv_sub_add_device(struct bttv_core *core, char *name);
 int bttv_sub_del_devices(struct bttv_core *core);
 void bttv_gpio_irq(struct bttv_core *core);
+int bttv_any_irq(struct bttv_core *core);
 
 
 /* ---------------------------------------------------------- */
@@ -221,7 +222,7 @@ extern void bttv_gpio_tracking(struct bttv *btv, char *comment);
 extern int init_bttv_i2c(struct bttv *btv);
 extern int fini_bttv_i2c(struct bttv *btv);
 
-#define vprintk  if (bttv_verbose) printk
+#define bttv_printk if (bttv_verbose) printk
 #define dprintk  if (bttv_debug >= 1) printk
 #define d2printk if (bttv_debug >= 2) printk
 
@@ -240,7 +241,7 @@ struct bttv_pll_info {
 
 /* for gpio-connected remote control */
 struct bttv_input {
-	struct input_dev      dev;
+	struct input_dev      *dev;
 	struct ir_input_state ir;
 	char                  name[32];
 	char                  phys[32];
@@ -267,12 +268,13 @@ struct bttv {
 
 	/* card configuration info */
 	unsigned int cardid;   /* pci subsystem id (bt878 based ones) */
-        unsigned int tuner_type;  /* tuner chip type */
-        unsigned int pinnacle_id;
+	unsigned int tuner_type;  /* tuner chip type */
+	unsigned int pinnacle_id;
 	unsigned int svhs;
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
+	int any_irq;
 	int use_i2c_hw;
 
 	/* old gpio interface */
@@ -301,9 +303,9 @@ struct bttv {
 
 	/* locking */
 	spinlock_t s_lock;
-        struct semaphore lock;
+	struct semaphore lock;
 	int resources;
-        struct semaphore reslock;
+	struct semaphore reslock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state prio;
 #endif

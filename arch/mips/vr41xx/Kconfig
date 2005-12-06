@@ -1,0 +1,88 @@
+config CASIO_E55
+	bool "Support for CASIO CASSIOPEIA E-10/15/55/65"
+	depends on MACH_VR41XX
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select ISA
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config IBM_WORKPAD
+	bool "Support for IBM WorkPad z50"
+	depends on MACH_VR41XX
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select ISA
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config NEC_CMBVR4133
+	bool "Support for NEC CMB-VR4133"
+	depends on MACH_VR41XX
+	select CPU_VR41XX
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select HW_HAS_PCI
+
+config ROCKHOPPER
+	bool "Support for Rockhopper baseboard"
+	depends on NEC_CMBVR4133
+	select I8259
+	select HAVE_STD_PC_SERIAL_PORT
+
+config TANBAC_TB022X
+	bool "Support for TANBAC VR4131 multichip module and TANBAC VR4131DIMM"
+	depends on MACH_VR41XX
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	help
+	  The TANBAC VR4131 multichip module(TB0225) and
+	  the TANBAC VR4131DIMM(TB0229) are MIPS-based platforms
+	  manufactured by TANBAC.
+	  Please refer to <http://www.tanbac.co.jp/>
+	  about VR4131 multichip module and VR4131DIMM.
+
+config TANBAC_TB0226
+	bool "Support for TANBAC Mbase(TB0226)"
+	depends on TANBAC_TB022X
+	select GPIO_VR41XX
+	help
+	  The TANBAC Mbase(TB0226) is a MIPS-based platform
+	  manufactured by TANBAC.
+	  Please refer to <http://www.tanbac.co.jp/> about Mbase.
+
+config TANBAC_TB0287
+	bool "Support for TANBAC Mini-ITX DIMM base(TB0287)"
+	depends on TANBAC_TB022X
+	help
+	  The TANBAC Mini-ITX DIMM base(TB0287) is a MIPS-based platform
+	  manufactured by TANBAC.
+	  Please refer to <http://www.tanbac.co.jp/> about Mini-ITX DIMM base.
+
+config VICTOR_MPC30X
+	bool "Support for Victor MP-C303/304"
+	depends on MACH_VR41XX
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config ZAO_CAPCELLA
+	bool "Support for ZAO Networks Capcella"
+	depends on MACH_VR41XX
+	select DMA_NONCOHERENT
+	select HW_HAS_PCI
+	select IRQ_CPU
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+
+config PCI_VR41XX
+	bool "Add PCI control unit support of NEC VR4100 series"
+	depends on MACH_VR41XX && HW_HAS_PCI
+	default y
+	select PCI
+
+config VRC4173
+	tristate "Add NEC VRC4173 companion chip support"
+	depends on MACH_VR41XX && PCI_VR41XX
+	help
+	  The NEC VRC4173 is a companion chip for NEC VR4122/VR4131.

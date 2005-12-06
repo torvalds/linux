@@ -6,13 +6,6 @@
 
 	.text
 
-kernel_unaligned_trap_fault:
-	call	kernel_mna_trap_fault
-	 nop
-	retl
-	 nop
-	.size	kern_unaligned_trap_fault, .-kern_unaligned_trap_fault
-
 	.globl	__do_int_store
 __do_int_store:
 	rd	%asi, %o4
@@ -51,24 +44,24 @@ __do_int_store:
 0:
 	wr	%o4, 0x0, %asi
 	retl
-	 nop
+	 mov	0, %o0
 	.size	__do_int_store, .-__do_int_store
 
 	.section	__ex_table
-	.word		4b, kernel_unaligned_trap_fault
-	.word		5b, kernel_unaligned_trap_fault
-	.word		6b, kernel_unaligned_trap_fault
-	.word		7b, kernel_unaligned_trap_fault
-	.word		8b, kernel_unaligned_trap_fault
-	.word		9b, kernel_unaligned_trap_fault
-	.word		10b, kernel_unaligned_trap_fault
-	.word		11b, kernel_unaligned_trap_fault
-	.word		12b, kernel_unaligned_trap_fault
-	.word		13b, kernel_unaligned_trap_fault
-	.word		14b, kernel_unaligned_trap_fault
-	.word		15b, kernel_unaligned_trap_fault
-	.word		16b, kernel_unaligned_trap_fault
-	.word		17b, kernel_unaligned_trap_fault
+	.word		4b, __retl_efault
+	.word		5b, __retl_efault
+	.word		6b, __retl_efault
+	.word		7b, __retl_efault
+	.word		8b, __retl_efault
+	.word		9b, __retl_efault
+	.word		10b, __retl_efault
+	.word		11b, __retl_efault
+	.word		12b, __retl_efault
+	.word		13b, __retl_efault
+	.word		14b, __retl_efault
+	.word		15b, __retl_efault
+	.word		16b, __retl_efault
+	.word		17b, __retl_efault
 	.previous
 
 	.globl	do_int_load
@@ -133,21 +126,21 @@ do_int_load:
 0:
 	wr	%o5, 0x0, %asi
 	retl
-	 nop
+	 mov	0, %o0
 	.size	__do_int_load, .-__do_int_load
 
 	.section	__ex_table
-	.word		4b, kernel_unaligned_trap_fault
-	.word		5b, kernel_unaligned_trap_fault
-	.word		6b, kernel_unaligned_trap_fault
-	.word		7b, kernel_unaligned_trap_fault
-	.word		8b, kernel_unaligned_trap_fault
-	.word		9b, kernel_unaligned_trap_fault
-	.word		10b, kernel_unaligned_trap_fault
-	.word		11b, kernel_unaligned_trap_fault
-	.word		12b, kernel_unaligned_trap_fault
-	.word		13b, kernel_unaligned_trap_fault
-	.word		14b, kernel_unaligned_trap_fault
-	.word		15b, kernel_unaligned_trap_fault
-	.word		16b, kernel_unaligned_trap_fault
+	.word		4b, __retl_efault
+	.word		5b, __retl_efault
+	.word		6b, __retl_efault
+	.word		7b, __retl_efault
+	.word		8b, __retl_efault
+	.word		9b, __retl_efault
+	.word		10b, __retl_efault
+	.word		11b, __retl_efault
+	.word		12b, __retl_efault
+	.word		13b, __retl_efault
+	.word		14b, __retl_efault
+	.word		15b, __retl_efault
+	.word		16b, __retl_efault
 	.previous

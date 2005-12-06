@@ -36,9 +36,12 @@
 #include <linux/namei.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
+
 #include <asm/uaccess.h>
+
 #include "xattr.h"
 #include "acl.h"
+#include "namei.h"
 
 static int ext3_load_journal(struct super_block *, struct ext3_super_block *);
 static int ext3_create_journal(struct super_block *, struct ext3_super_block *,
@@ -510,20 +513,11 @@ static void ext3_clear_inode(struct inode *inode)
 	kfree(rsv);
 }
 
-static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static inline void ext3_show_quota_options(struct seq_file *seq, struct super_block *sb)
 {
-	struct ext3_sb_info *sbi = EXT3_SB(vfs->mnt_sb);
-
-	if (sbi->s_mount_opt & EXT3_MOUNT_JOURNAL_DATA)
-		seq_puts(seq, ",data=journal");
-
-	if (sbi->s_mount_opt & EXT3_MOUNT_ORDERED_DATA)
-		seq_puts(seq, ",data=ordered");
-
-	if (sbi->s_mount_opt & EXT3_MOUNT_WRITEBACK_DATA)
-		seq_puts(seq, ",data=writeback");
-
 #if defined(CONFIG_QUOTA)
+	struct ext3_sb_info *sbi = EXT3_SB(sb);
+
 	if (sbi->s_jquota_fmt)
 		seq_printf(seq, ",jqfmt=%s",
 		(sbi->s_jquota_fmt == QFMT_VFS_OLD) ? "vfsold": "vfsv0");
@@ -540,6 +534,20 @@ static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (sbi->s_mount_opt & EXT3_MOUNT_GRPQUOTA)
 		seq_puts(seq, ",grpquota");
 #endif
+}
+
+static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct super_block *sb = vfs->mnt_sb;
+
+	if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA)
+		seq_puts(seq, ",data=journal");
+	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA)
+		seq_puts(seq, ",data=ordered");
+	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)
+		seq_puts(seq, ",data=writeback");
+
+	ext3_show_quota_options(seq, sb);
 
 	return 0;
 }
@@ -610,7 +618,6 @@ static struct super_operations ext3_sops = {
 #endif
 };
 
-struct dentry *ext3_get_parent(struct dentry *child);
 static struct export_operations ext3_export_ops = {
 	.get_parent = ext3_get_parent,
 };
@@ -618,7 +625,7 @@ static struct export_operations ext3_export_ops = {
 enum {
 	Opt_bsd_df, Opt_minix_df, Opt_grpid, Opt_nogrpid,
 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_nouid32, Opt_check, Opt_nocheck, Opt_debug, Opt_oldalloc, Opt_orlov,
+	Opt_nouid32, Opt_nocheck, Opt_debug, Opt_oldalloc, Opt_orlov,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh,
 	Opt_commit, Opt_journal_update, Opt_journal_inum,
@@ -645,7 +652,6 @@ static match_table_t tokens = {
 	{Opt_nouid32, "nouid32"},
 	{Opt_nocheck, "nocheck"},
 	{Opt_nocheck, "check=none"},
-	{Opt_check, "check"},
 	{Opt_debug, "debug"},
 	{Opt_oldalloc, "oldalloc"},
 	{Opt_orlov, "orlov"},
@@ -765,14 +771,6 @@ static int parse_options (char * options, struct super_block *sb,
 			break;
 		case Opt_nouid32:
 			set_opt (sbi->s_mount_opt, NO_UID32);
-			break;
-		case Opt_check:
-#ifdef CONFIG_EXT3_CHECK
-			set_opt (sbi->s_mount_opt, CHECK);
-#else
-			printk(KERN_ERR
-			       "EXT3 Check option not supported\n");
-#endif
 			break;
 		case Opt_nocheck:
 			clear_opt (sbi->s_mount_opt, CHECK);
@@ -1108,12 +1106,6 @@ static int ext3_setup_super(struct super_block *sb, struct ext3_super_block *es,
 	} else {
 		printk("internal journal\n");
 	}
-#ifdef CONFIG_EXT3_CHECK
-	if (test_opt (sb, CHECK)) {
-		ext3_check_blocks_bitmap (sb);
-		ext3_check_inodes_bitmap (sb);
-	}
-#endif
 	return res;
 }
 

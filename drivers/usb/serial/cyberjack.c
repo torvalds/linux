@@ -83,10 +83,12 @@ static struct usb_driver cyberjack_driver = {
 	.id_table =	id_table,
 };
 
-static struct usb_serial_device_type cyberjack_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Reiner SCT Cyberjack USB card reader",
-	.short_name =		"cyberjack",
+static struct usb_serial_driver cyberjack_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"cyberjack",
+	},
+	.description =		"Reiner SCT Cyberjack USB card reader",
 	.id_table =		id_table,
 	.num_interrupt_in =	1,
 	.num_bulk_in =		1,

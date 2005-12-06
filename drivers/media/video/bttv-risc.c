@@ -74,27 +74,27 @@ bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 		}
 		if (bpl <= sg_dma_len(sg)-offset) {
 			/* fits into current chunk */
-                        *(rp++)=cpu_to_le32(BT848_RISC_WRITE|BT848_RISC_SOL|
+			*(rp++)=cpu_to_le32(BT848_RISC_WRITE|BT848_RISC_SOL|
 					    BT848_RISC_EOL|bpl);
-                        *(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
-                        offset+=bpl;
+			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
+			offset+=bpl;
 		} else {
 			/* scanline needs to be splitted */
-                        todo = bpl;
-                        *(rp++)=cpu_to_le32(BT848_RISC_WRITE|BT848_RISC_SOL|
+			todo = bpl;
+			*(rp++)=cpu_to_le32(BT848_RISC_WRITE|BT848_RISC_SOL|
 					    (sg_dma_len(sg)-offset));
-                        *(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
-                        todo -= (sg_dma_len(sg)-offset);
-                        offset = 0;
-                        sg++;
-                        while (todo > sg_dma_len(sg)) {
-                                *(rp++)=cpu_to_le32(BT848_RISC_WRITE|
+			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
+			todo -= (sg_dma_len(sg)-offset);
+			offset = 0;
+			sg++;
+			while (todo > sg_dma_len(sg)) {
+				*(rp++)=cpu_to_le32(BT848_RISC_WRITE|
 						    sg_dma_len(sg));
-                                *(rp++)=cpu_to_le32(sg_dma_address(sg));
+				*(rp++)=cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
 				sg++;
 			}
-                        *(rp++)=cpu_to_le32(BT848_RISC_WRITE|BT848_RISC_EOL|
+			*(rp++)=cpu_to_le32(BT848_RISC_WRITE|BT848_RISC_EOL|
 					    todo);
 			*(rp++)=cpu_to_le32(sg_dma_address(sg));
 			offset += todo;
@@ -201,8 +201,8 @@ bttv_risc_planar(struct bttv *btv, struct btcx_riscmem *risc,
 				ri |= BT848_RISC_EOL;
 
 			/* write risc instruction */
-                        *(rp++)=cpu_to_le32(ri | ylen);
-                        *(rp++)=cpu_to_le32(((ylen >> hshift) << 16) |
+			*(rp++)=cpu_to_le32(ri | ylen);
+			*(rp++)=cpu_to_le32(((ylen >> hshift) << 16) |
 					    (ylen >> hshift));
 			*(rp++)=cpu_to_le32(sg_dma_address(ysg)+yoffset);
 			yoffset += ylen;
@@ -319,7 +319,7 @@ bttv_calc_geo(struct bttv *btv, struct bttv_geometry *geo,
 	      int width, int height, int interleaved, int norm)
 {
 	const struct bttv_tvnorm *tvnorm = &bttv_tvnorms[norm];
-        u32 xsf, sr;
+	u32 xsf, sr;
 	int vdelay;
 
 	int swidth       = tvnorm->swidth;
@@ -334,52 +334,52 @@ bttv_calc_geo(struct bttv *btv, struct bttv_geometry *geo,
 
 	vdelay = tvnorm->vdelay;
 
-        xsf = (width*scaledtwidth)/swidth;
-        geo->hscale =  ((totalwidth*4096UL)/xsf-4096);
-        geo->hdelay =  tvnorm->hdelayx1;
-        geo->hdelay =  (geo->hdelay*width)/swidth;
-        geo->hdelay &= 0x3fe;
-        sr = ((tvnorm->sheight >> (interleaved?0:1))*512)/height - 512;
-        geo->vscale =  (0x10000UL-sr) & 0x1fff;
-        geo->crop   =  ((width>>8)&0x03) | ((geo->hdelay>>6)&0x0c) |
-                ((tvnorm->sheight>>4)&0x30) | ((vdelay>>2)&0xc0);
-        geo->vscale |= interleaved ? (BT848_VSCALE_INT<<8) : 0;
-        geo->vdelay  =  vdelay;
-        geo->width   =  width;
-        geo->sheight =  tvnorm->sheight;
+	xsf = (width*scaledtwidth)/swidth;
+	geo->hscale =  ((totalwidth*4096UL)/xsf-4096);
+	geo->hdelay =  tvnorm->hdelayx1;
+	geo->hdelay =  (geo->hdelay*width)/swidth;
+	geo->hdelay &= 0x3fe;
+	sr = ((tvnorm->sheight >> (interleaved?0:1))*512)/height - 512;
+	geo->vscale =  (0x10000UL-sr) & 0x1fff;
+	geo->crop   =  ((width>>8)&0x03) | ((geo->hdelay>>6)&0x0c) |
+		((tvnorm->sheight>>4)&0x30) | ((vdelay>>2)&0xc0);
+	geo->vscale |= interleaved ? (BT848_VSCALE_INT<<8) : 0;
+	geo->vdelay  =  vdelay;
+	geo->width   =  width;
+	geo->sheight =  tvnorm->sheight;
 	geo->vtotal  =  tvnorm->vtotal;
 
-        if (btv->opt_combfilter) {
-                geo->vtc  = (width < 193) ? 2 : ((width < 385) ? 1 : 0);
-                geo->comb = (width < 769) ? 1 : 0;
-        } else {
-                geo->vtc  = 0;
-                geo->comb = 0;
-        }
+	if (btv->opt_combfilter) {
+		geo->vtc  = (width < 193) ? 2 : ((width < 385) ? 1 : 0);
+		geo->comb = (width < 769) ? 1 : 0;
+	} else {
+		geo->vtc  = 0;
+		geo->comb = 0;
+	}
 }
 
 static void
 bttv_apply_geo(struct bttv *btv, struct bttv_geometry *geo, int odd)
 {
-        int off = odd ? 0x80 : 0x00;
+	int off = odd ? 0x80 : 0x00;
 
 	if (geo->comb)
 		btor(BT848_VSCALE_COMB, BT848_E_VSCALE_HI+off);
 	else
 		btand(~BT848_VSCALE_COMB, BT848_E_VSCALE_HI+off);
 
-        btwrite(geo->vtc,             BT848_E_VTC+off);
-        btwrite(geo->hscale >> 8,     BT848_E_HSCALE_HI+off);
-        btwrite(geo->hscale & 0xff,   BT848_E_HSCALE_LO+off);
-        btaor((geo->vscale>>8), 0xe0, BT848_E_VSCALE_HI+off);
-        btwrite(geo->vscale & 0xff,   BT848_E_VSCALE_LO+off);
-        btwrite(geo->width & 0xff,    BT848_E_HACTIVE_LO+off);
-        btwrite(geo->hdelay & 0xff,   BT848_E_HDELAY_LO+off);
-        btwrite(geo->sheight & 0xff,  BT848_E_VACTIVE_LO+off);
-        btwrite(geo->vdelay & 0xff,   BT848_E_VDELAY_LO+off);
-        btwrite(geo->crop,            BT848_E_CROP+off);
+	btwrite(geo->vtc,             BT848_E_VTC+off);
+	btwrite(geo->hscale >> 8,     BT848_E_HSCALE_HI+off);
+	btwrite(geo->hscale & 0xff,   BT848_E_HSCALE_LO+off);
+	btaor((geo->vscale>>8), 0xe0, BT848_E_VSCALE_HI+off);
+	btwrite(geo->vscale & 0xff,   BT848_E_VSCALE_LO+off);
+	btwrite(geo->width & 0xff,    BT848_E_HACTIVE_LO+off);
+	btwrite(geo->hdelay & 0xff,   BT848_E_HDELAY_LO+off);
+	btwrite(geo->sheight & 0xff,  BT848_E_VACTIVE_LO+off);
+	btwrite(geo->vdelay & 0xff,   BT848_E_VDELAY_LO+off);
+	btwrite(geo->crop,            BT848_E_CROP+off);
 	btwrite(geo->vtotal>>8,       BT848_VTOTAL_HI);
-        btwrite(geo->vtotal & 0xff,   BT848_VTOTAL_LO);
+	btwrite(geo->vtotal & 0xff,   BT848_VTOTAL_LO);
 }
 
 /* ---------------------------------------------------------- */
@@ -420,7 +420,7 @@ bttv_set_dma(struct bttv *btv, int override)
 	} else {
 		del_timer(&btv->timeout);
 	}
-        btv->main.cpu[RISC_SLOT_LOOP] = cpu_to_le32(cmd);
+	btv->main.cpu[RISC_SLOT_LOOP] = cpu_to_le32(cmd);
 
 	btaor(capctl, ~0x0f, BT848_CAP_CTL);
 	if (capctl) {
@@ -432,7 +432,7 @@ bttv_set_dma(struct bttv *btv, int override)
 	} else {
 		if (!btv->dma_on)
 			return;
-                btand(~3, BT848_GPIO_DMA_CTL);
+		btand(~3, BT848_GPIO_DMA_CTL);
 		btv->dma_on = 0;
 	}
 	return;
@@ -460,19 +460,19 @@ bttv_risc_init_main(struct bttv *btv)
 	btv->main.cpu[6] = cpu_to_le32(BT848_RISC_JUMP);
 	btv->main.cpu[7] = cpu_to_le32(btv->main.dma + (8<<2));
 
-        btv->main.cpu[8] = cpu_to_le32(BT848_RISC_SYNC | BT848_RISC_RESYNC |
+	btv->main.cpu[8] = cpu_to_le32(BT848_RISC_SYNC | BT848_RISC_RESYNC |
 				       BT848_FIFO_STATUS_VRO);
-        btv->main.cpu[9] = cpu_to_le32(0);
+	btv->main.cpu[9] = cpu_to_le32(0);
 
 	/* bottom field */
-        btv->main.cpu[10] = cpu_to_le32(BT848_RISC_JUMP);
+	btv->main.cpu[10] = cpu_to_le32(BT848_RISC_JUMP);
 	btv->main.cpu[11] = cpu_to_le32(btv->main.dma + (12<<2));
-        btv->main.cpu[12] = cpu_to_le32(BT848_RISC_JUMP);
+	btv->main.cpu[12] = cpu_to_le32(BT848_RISC_JUMP);
 	btv->main.cpu[13] = cpu_to_le32(btv->main.dma + (14<<2));
 
 	/* jump back to top field */
 	btv->main.cpu[14] = cpu_to_le32(BT848_RISC_JUMP);
-        btv->main.cpu[15] = cpu_to_le32(btv->main.dma + (0<<2));
+	btv->main.cpu[15] = cpu_to_le32(btv->main.dma + (0<<2));
 
 	return 0;
 }

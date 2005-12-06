@@ -269,14 +269,20 @@ static struct serio_event *serio_get_event(void)
 	return event;
 }
 
-static void serio_handle_events(void)
+static void serio_handle_event(void)
 {
 	struct serio_event *event;
 	struct serio_driver *serio_drv;
 
 	down(&serio_sem);
 
-	while ((event = serio_get_event())) {
+	/*
+	 * Note that we handle only one event here to give swsusp
+	 * a chance to freeze kseriod thread. Serio events should
+	 * be pretty rare so we are not concerned about taking
+	 * performance hit.
+	 */
+	if ((event = serio_get_event())) {
 
 		switch (event->type) {
 			case SERIO_REGISTER_PORT:
@@ -368,7 +374,7 @@ static struct serio *serio_get_pending_child(struct serio *parent)
 static int serio_thread(void *nothing)
 {
 	do {
-		serio_handle_events();
+		serio_handle_event();
 		wait_event_interruptible(serio_wait,
 			kthread_should_stop() || !list_empty(&serio_event_list));
 		try_to_freeze();

@@ -430,7 +430,6 @@ static void fee_read(unsigned long ioaddr,	/* I/O port of the card */
 	}
 }
 
-#ifdef WIRELESS_EXT		/* if the wireless extension exists in the kernel */
 
 /*------------------------------------------------------------------*/
 /*
@@ -514,7 +513,6 @@ static void fee_write(unsigned long ioaddr,	/* I/O port of the card */
 	fee_wait(ioaddr, 10, 100);
 #endif				/* EEPROM_IS_PROTECTED */
 }
-#endif				/* WIRELESS_EXT */
 
 /************************ I82586 SUBROUTINES *************************/
 /*
@@ -973,11 +971,9 @@ static void wv_mmc_show(struct net_device * dev)
 	mmc_read(ioaddr, 0, (u8 *) & m, sizeof(m));
 	mmc_out(ioaddr, mmwoff(0, mmw_freeze), 0);
 
-#ifdef WIRELESS_EXT		/* if wireless extension exists in the kernel */
 	/* Don't forget to update statistics */
 	lp->wstats.discard.nwid +=
 	    (m.mmr_wrong_nwid_h << 8) | m.mmr_wrong_nwid_l;
-#endif				/* WIRELESS_EXT */
 
 	printk(KERN_DEBUG "##### WaveLAN modem status registers: #####\n");
 #ifdef DEBUG_SHOW_UNUSED
@@ -1499,7 +1495,6 @@ static int wavelan_set_mac_address(struct net_device * dev, void *addr)
 }
 #endif				/* SET_MAC_ADDRESS */
 
-#ifdef WIRELESS_EXT		/* if wireless extensions exist in the kernel */
 
 /*------------------------------------------------------------------*/
 /*
@@ -2473,7 +2468,6 @@ static iw_stats *wavelan_get_wireless_stats(struct net_device * dev)
 #endif
 	return &lp->wstats;
 }
-#endif				/* WIRELESS_EXT */
 
 /************************* PACKET RECEPTION *************************/
 /*
@@ -4194,11 +4188,9 @@ static int __init wavelan_config(struct net_device *dev, unsigned short ioaddr)
 	dev->set_mac_address = &wavelan_set_mac_address;
 #endif				/* SET_MAC_ADDRESS */
 
-#ifdef WIRELESS_EXT		/* if wireless extension exists in the kernel */
 	dev->wireless_handlers = &wavelan_handler_def;
 	lp->wireless_data.spy_data = &lp->spy_data;
 	dev->wireless_data = &lp->wireless_data;
-#endif
 
 	dev->mtu = WAVELAN_MTU;
 

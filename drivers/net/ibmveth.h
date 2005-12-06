@@ -49,6 +49,7 @@
 #define H_SEND_LOGICAL_LAN       0x120
 #define H_MULTICAST_CTRL         0x130
 #define H_CHANGE_LOGICAL_LAN_MAC 0x14C
+#define H_FREE_LOGICAL_LAN_BUFFER 0x1D4
 
 /* hcall macros */
 #define h_register_logical_lan(ua, buflst, rxq, fltlst, mac) \
@@ -69,13 +70,15 @@
 #define h_change_logical_lan_mac(ua, mac) \
   plpar_hcall_norets(H_CHANGE_LOGICAL_LAN_MAC, ua, mac)
 
-#define IbmVethNumBufferPools 3
-#define IbmVethPool0DftSize (1024 * 2)
-#define IbmVethPool1DftSize (1024 * 4)
-#define IbmVethPool2DftSize (1024 * 10)
-#define IbmVethPool0DftCnt  256
-#define IbmVethPool1DftCnt  256
-#define IbmVethPool2DftCnt  256
+#define h_free_logical_lan_buffer(ua, bufsize) \
+  plpar_hcall_norets(H_FREE_LOGICAL_LAN_BUFFER, ua, bufsize)
+
+#define IbmVethNumBufferPools 5
+#define IBMVETH_BUFF_OH 22 /* Overhead: 14 ethernet header + 8 opaque handle */
+
+/* pool_size should be sorted */
+static int pool_size[] = { 512, 1024 * 2, 1024 * 16, 1024 * 32, 1024 * 64 };
+static int pool_count[] = { 256, 768, 256, 256, 256 };
 
 #define IBM_VETH_INVALID_MAP ((u16)0xffff)
 
@@ -90,6 +93,7 @@ struct ibmveth_buff_pool {
     u16 *free_map;
     dma_addr_t *dma_addr;
     struct sk_buff **skbuff;
+    int active;
 };
 
 struct ibmveth_rx_q {
@@ -114,10 +118,6 @@ struct ibmveth_adapter {
     dma_addr_t filter_list_dma;
     struct ibmveth_buff_pool rx_buff_pool[IbmVethNumBufferPools];
     struct ibmveth_rx_q rx_queue;
-    atomic_t not_replenishing;
-
-    /* helper tasks */
-    struct work_struct replenish_task;
 
     /* adapter specific stats */
     u64 replenish_task_cycles;
@@ -131,6 +131,7 @@ struct ibmveth_adapter {
     u64 tx_linearize_failed;
     u64 tx_map_failed;
     u64 tx_send_failed;
+    spinlock_t stats_lock;
 };
 
 struct ibmveth_buf_desc_fields {	

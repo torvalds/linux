@@ -264,7 +264,6 @@ static void matroxfb_disable_irq(WPMINFO2) {
 }
 
 int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc) {
-	wait_queue_t __wait;
 	struct matrox_vsync *vs;
 	unsigned int cnt;
 	int ret;
@@ -286,7 +285,6 @@ int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc) {
 	if (ret) {
 		return ret;
 	}
-        init_waitqueue_entry(&__wait, current);
 
 	cnt = vs->cnt;
 	ret = wait_event_interruptible_timeout(vs->wait, cnt != vs->cnt, HZ/10);
@@ -499,10 +497,6 @@ static int matroxfb_pitch_adjust(CPMINFO int xres, int bpp) {
 		xres_new = *width;
 	} else {
 		xres_new = matroxfb_test_and_set_rounding(PMINFO xres, bpp);
-	}
-	if (!xres_new) return 0;
-	if (xres != xres_new) {
-		printk(KERN_INFO "matroxfb: cannot set xres to %d, rounded up to %d\n", xres, xres_new);
 	}
 	return xres_new;
 }
@@ -1285,7 +1279,7 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	vaddr_t vm;
 	unsigned int offs;
 	unsigned int offs2;
-	unsigned char store, orig;
+	unsigned char orig;
 	unsigned char bytes[32];
 	unsigned char* tmp;
 
@@ -1301,16 +1295,12 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	orig = mga_inb(M_EXTVGA_DATA);
 	mga_outb(M_EXTVGA_DATA, orig | 0x80);
 
-	store = mga_readb(vm, 0x1234);
 	tmp = bytes;
 	for (offs = 0x100000; offs < maxSize; offs += 0x200000)
 		*tmp++ = mga_readb(vm, offs);
 	for (offs = 0x100000; offs < maxSize; offs += 0x200000)
 		mga_writeb(vm, offs, 0x02);
-	if (ACCESS_FBINFO(features.accel.has_cacheflush))
-		mga_outb(M_CACHEFLUSH, 0x00);
-	else
-		mga_writeb(vm, 0x1234, 0x99);
+	mga_outb(M_CACHEFLUSH, 0x00);
 	for (offs = 0x100000; offs < maxSize; offs += 0x200000) {
 		if (mga_readb(vm, offs) != 0x02)
 			break;
@@ -1321,7 +1311,6 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	tmp = bytes;
 	for (offs2 = 0x100000; offs2 < maxSize; offs2 += 0x200000)
 		mga_writeb(vm, offs2, *tmp++);
-	mga_writeb(vm, 0x1234, store);
 
 	mga_outb(M_EXTVGA_INDEX, 0x03);
 	mga_outb(M_EXTVGA_DATA, orig);
@@ -1430,6 +1419,20 @@ static struct board {
 		MGA_1164,
 		&vbMystique,
 		"Mystique 220 (PCI)"},
+	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_MYS_AGP,	0x02,
+		0,			0,
+		DEVF_VIDEO64BIT | DEVF_CROSS4MB,
+		180000,
+		MGA_1064,
+		&vbMystique,
+		"Mystique (AGP)"},
+	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_MYS_AGP,	0xFF,
+		0,			0,
+		DEVF_VIDEO64BIT | DEVF_SWAPS | DEVF_CROSS4MB,
+		220000,
+		MGA_1164,
+		&vbMystique,
+		"Mystique 220 (AGP)"},
 #endif
 #ifdef CONFIG_FB_MATROX_G
 	{PCI_VENDOR_ID_MATROX,	PCI_DEVICE_ID_MATROX_G100_MM,	0xFF,

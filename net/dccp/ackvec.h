@@ -74,7 +74,7 @@ struct sk_buff;
 
 #ifdef CONFIG_IP_DCCP_ACKVEC
 extern struct dccp_ackvec *dccp_ackvec_alloc(unsigned int len,
-					  const unsigned int __nocast priority);
+					  const gfp_t priority);
 extern void dccp_ackvec_free(struct dccp_ackvec *av);
 
 extern int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
@@ -93,7 +93,7 @@ static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
 }
 #else /* CONFIG_IP_DCCP_ACKVEC */
 static inline struct dccp_ackvec *dccp_ackvec_alloc(unsigned int len,
-					   const unsigned int __nocast priority)
+					   const gfp_t priority)
 {
 	return NULL;
 }

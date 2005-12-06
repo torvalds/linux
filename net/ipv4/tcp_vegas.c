@@ -236,8 +236,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 			/* We don't have enough RTT samples to do the Vegas
 			 * calculation, so we'll behave like Reno.
 			 */
-			if (tp->snd_cwnd > tp->snd_ssthresh)
-				tp->snd_cwnd++;
+			tcp_reno_cong_avoid(sk, ack, seq_rtt, in_flight, flag);
 		} else {
 			u32 rtt, target_cwnd, diff;
 
@@ -275,7 +274,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 			 */
 			diff = (old_wnd << V_PARAM_SHIFT) - target_cwnd;
 
-			if (tp->snd_cwnd < tp->snd_ssthresh) {
+			if (tp->snd_cwnd <= tp->snd_ssthresh) {
 				/* Slow start.  */
 				if (diff > gamma) {
 					/* Going too fast. Time to slow down
@@ -295,6 +294,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 							    V_PARAM_SHIFT)+1);
 
 				}
+				tcp_slow_start(tp);
 			} else {
 				/* Congestion avoidance. */
 				u32 next_snd_cwnd;
@@ -327,37 +327,17 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 				else if (next_snd_cwnd < tp->snd_cwnd)
 					tp->snd_cwnd--;
 			}
-		}
 
-		/* Wipe the slate clean for the next RTT. */
-		vegas->cntRTT = 0;
-		vegas->minRTT = 0x7fffffff;
+			if (tp->snd_cwnd < 2)
+				tp->snd_cwnd = 2;
+			else if (tp->snd_cwnd > tp->snd_cwnd_clamp)
+				tp->snd_cwnd = tp->snd_cwnd_clamp;
+		}
 	}
 
-	/* The following code is executed for every ack we receive,
-	 * except for conditions checked in should_advance_cwnd()
-	 * before the call to tcp_cong_avoid(). Mainly this means that
-	 * we only execute this code if the ack actually acked some
-	 * data.
-	 */
-
-	/* If we are in slow start, increase our cwnd in response to this ACK.
-	 * (If we are not in slow start then we are in congestion avoidance,
-	 * and adjust our congestion window only once per RTT. See the code
-	 * above.)
-	 */
-	if (tp->snd_cwnd <= tp->snd_ssthresh)
-		tp->snd_cwnd++;
-
-	/* to keep cwnd from growing without bound */
-	tp->snd_cwnd = min_t(u32, tp->snd_cwnd, tp->snd_cwnd_clamp);
-
-	/* Make sure that we are never so timid as to reduce our cwnd below
-	 * 2 MSS.
-	 *
-	 * Going below 2 MSS would risk huge delayed ACKs from our receiver.
-	 */
-	tp->snd_cwnd = max(tp->snd_cwnd, 2U);
+	/* Wipe the slate clean for the next RTT. */
+	vegas->cntRTT = 0;
+	vegas->minRTT = 0x7fffffff;
 }
 
 /* Extract info for Tcp socket info provided via netlink. */

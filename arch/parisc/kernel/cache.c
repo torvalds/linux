@@ -27,6 +27,7 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
+#include <asm/sections.h>
 
 int split_tlb;
 int dcache_stride;
@@ -207,6 +208,9 @@ parisc_cache_init(void)
 
 	/* "New and Improved" version from Jim Hull 
 	 *	(1 << (cc_block-1)) * (cc_line << (4 + cnf.cc_shift))
+	 * The following CAFL_STRIDE is an optimized version, see
+	 * http://lists.parisc-linux.org/pipermail/parisc-linux/2004-June/023625.html
+	 * http://lists.parisc-linux.org/pipermail/parisc-linux/2004-June/023671.html
 	 */
 #define CAFL_STRIDE(cnf) (cnf.cc_line << (3 + cnf.cc_block + cnf.cc_shift))
 	dcache_stride = CAFL_STRIDE(cache_info.dc_conf);
@@ -266,7 +270,6 @@ void flush_dcache_page(struct page *page)
 	unsigned long offset;
 	unsigned long addr;
 	pgoff_t pgoff;
-	pte_t *pte;
 	unsigned long pfn = page_to_pfn(page);
 
 
@@ -297,21 +300,16 @@ void flush_dcache_page(struct page *page)
 		 * taking a page fault if the pte doesn't exist.
 		 * This is just for speed.  If the page translation
 		 * isn't there, there's no point exciting the
-		 * nadtlb handler into a nullification frenzy */
-
-
-  		if(!(pte = translation_exists(mpnt, addr)))
-			continue;
-
-		/* make sure we really have this page: the private
+		 * nadtlb handler into a nullification frenzy.
+		 *
+		 * Make sure we really have this page: the private
 		 * mappings may cover this area but have COW'd this
-		 * particular page */
-		if(pte_pfn(*pte) != pfn)
-  			continue;
-
-		__flush_cache_page(mpnt, addr);
-
-		break;
+		 * particular page.
+		 */
+  		if (translation_exists(mpnt, addr, pfn)) {
+			__flush_cache_page(mpnt, addr);
+			break;
+		}
 	}
 	flush_dcache_mmap_unlock(mapping);
 }
@@ -339,17 +337,15 @@ int parisc_cache_flush_threshold = FLUSH_THRESHOLD;
 void parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
-	extern char _text;	/* start of kernel code, defined by linker */
-	extern char _end;	/* end of BSS, defined by linker */
 	unsigned long size;
 
 	alltime = mfctl(16);
 	flush_data_cache();
 	alltime = mfctl(16) - alltime;
 
-	size = (unsigned long)(&_end - _text);
+	size = (unsigned long)(_end - _text);
 	rangetime = mfctl(16);
-	flush_kernel_dcache_range((unsigned long)&_text, size);
+	flush_kernel_dcache_range((unsigned long)_text, size);
 	rangetime = mfctl(16) - rangetime;
 
 	printk(KERN_DEBUG "Whole cache flush %lu cycles, flushing %lu bytes %lu cycles\n",

@@ -31,7 +31,7 @@
  * Devices. That chip is similar to the LM90, with a few differences
  * that are not handled by this driver. Complete datasheet can be
  * obtained from Analog's website at:
- *   http://products.analog.com/products/info.asp?product=ADM1032
+ *   http://www.analog.com/en/prod/0,2877,ADM1032,00.html
  * Among others, it has a higher accuracy than the LM90, much like the
  * LM86 does.
  *
@@ -49,7 +49,7 @@
  * register values are decoded differently) it is ignored by this
  * driver. Complete datasheet can be obtained from Analog's website
  * at:
- *   http://products.analog.com/products/info.asp?product=ADT7461
+ *   http://www.analog.com/en/prod/0,2877,ADT7461,00.html
  *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
@@ -83,10 +83,10 @@
  * Addresses to scan
  * Address is fully defined internally and cannot be changed except for
  * MAX6659.
- * LM86, LM89, LM90, LM99, ADM1032, MAX6657 and MAX6658 have address 0x4c.
- * LM89-1, and LM99-1 have address 0x4d.
+ * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, MAX6657 and MAX6658
+ * have address 0x4c.
+ * ADM1032-2, ADT7461-2, LM89-1, and LM99-1 have address 0x4d.
  * MAX6659 can have address 0x4c, 0x4d or 0x4e (unsupported).
- * ADT7461 always has address 0x4c.
  */
 
 static unsigned short normal_i2c[] = { 0x4c, 0x4d, I2C_CLIENT_END };
@@ -345,9 +345,73 @@ static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IWUSR | S_IRUGO, show_temphyst,
 static SENSOR_DEVICE_ATTR(temp2_crit_hyst, S_IRUGO, show_temphyst, NULL, 4);
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
+/* pec used for ADM1032 only */
+static ssize_t show_pec(struct device *dev, struct device_attribute *dummy,
+			char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	return sprintf(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
+}
+
+static ssize_t set_pec(struct device *dev, struct device_attribute *dummy,
+		       const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	long val = simple_strtol(buf, NULL, 10);
+
+	switch (val) {
+	case 0:
+		client->flags &= ~I2C_CLIENT_PEC;
+		break;
+	case 1:
+		client->flags |= I2C_CLIENT_PEC;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(pec, S_IWUSR | S_IRUGO, show_pec, set_pec);
+
 /*
  * Real code
  */
+
+/* The ADM1032 supports PEC but not on write byte transactions, so we need
+   to explicitely ask for a transaction without PEC. */
+static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
+{
+	return i2c_smbus_xfer(client->adapter, client->addr,
+			      client->flags & ~I2C_CLIENT_PEC,
+			      I2C_SMBUS_WRITE, value, I2C_SMBUS_BYTE, NULL);
+}
+
+/* It is assumed that client->update_lock is held (unless we are in
+   detection or initialization steps). This matters when PEC is enabled,
+   because we don't want the address pointer to change between the write
+   byte and the read byte transactions. */
+static int lm90_read_reg(struct i2c_client* client, u8 reg, u8 *value)
+{
+	int err;
+
+ 	if (client->flags & I2C_CLIENT_PEC) {
+ 		err = adm1032_write_byte(client, reg);
+ 		if (err >= 0)
+ 			err = i2c_smbus_read_byte(client);
+ 	} else
+ 		err = i2c_smbus_read_byte_data(client, reg);
+
+	if (err < 0) {
+		dev_warn(&client->dev, "Register %#02x read failed (%d)\n",
+			 reg, err);
+		return err;
+	}
+	*value = err;
+
+	return 0;
+}
 
 static int lm90_attach_adapter(struct i2c_adapter *adapter)
 {
@@ -370,11 +434,10 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct lm90_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct lm90_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct lm90_data));
 
 	/* The common I2C client data is placed right before the
 	   LM90-specific data. */
@@ -403,20 +466,22 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (kind < 0) { /* detection and identification */
 		u8 man_id, chip_id, reg_config1, reg_convrate;
 
-		man_id = i2c_smbus_read_byte_data(new_client,
-			 LM90_REG_R_MAN_ID);
-		chip_id = i2c_smbus_read_byte_data(new_client,
-			  LM90_REG_R_CHIP_ID);
-		reg_config1 = i2c_smbus_read_byte_data(new_client,
-			      LM90_REG_R_CONFIG1);
-		reg_convrate = i2c_smbus_read_byte_data(new_client,
-			       LM90_REG_R_CONVRATE);
+		if (lm90_read_reg(new_client, LM90_REG_R_MAN_ID,
+				  &man_id) < 0
+		 || lm90_read_reg(new_client, LM90_REG_R_CHIP_ID,
+		 		  &chip_id) < 0
+		 || lm90_read_reg(new_client, LM90_REG_R_CONFIG1,
+		 		  &reg_config1) < 0
+		 || lm90_read_reg(new_client, LM90_REG_R_CONVRATE,
+		 		  &reg_convrate) < 0)
+			goto exit_free;
 		
 		if (man_id == 0x01) { /* National Semiconductor */
 			u8 reg_config2;
 
-			reg_config2 = i2c_smbus_read_byte_data(new_client,
-				      LM90_REG_R_CONFIG2);
+			if (lm90_read_reg(new_client, LM90_REG_R_CONFIG2,
+					  &reg_config2) < 0)
+				goto exit_free;
 
 			if ((reg_config1 & 0x2A) == 0x00
 			 && (reg_config2 & 0xF8) == 0x00
@@ -435,14 +500,12 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 			}
 		} else
 		if (man_id == 0x41) { /* Analog Devices */
-			if (address == 0x4C
-			 && (chip_id & 0xF0) == 0x40 /* ADM1032 */
+			if ((chip_id & 0xF0) == 0x40 /* ADM1032 */
 			 && (reg_config1 & 0x3F) == 0x00
 			 && reg_convrate <= 0x0A) {
 				kind = adm1032;
 			} else
-			if (address == 0x4c
-			 && chip_id == 0x51 /* ADT7461 */
+			if (chip_id == 0x51 /* ADT7461 */
 			 && (reg_config1 & 0x1F) == 0x00 /* check compat mode */
 			 && reg_convrate <= 0x0A) {
 				kind = adt7461;
@@ -477,6 +540,10 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 		name = "lm90";
 	} else if (kind == adm1032) {
 		name = "adm1032";
+		/* The ADM1032 supports PEC, but only if combined
+		   transactions are not used. */
+		if (i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
+			new_client->flags |= I2C_CLIENT_PEC;
 	} else if (kind == lm99) {
 		name = "lm99";
 	} else if (kind == lm86) {
@@ -529,6 +596,9 @@ static int lm90_detect(struct i2c_adapter *adapter, int address, int kind)
 			   &sensor_dev_attr_temp2_crit_hyst.dev_attr);
 	device_create_file(&new_client->dev, &dev_attr_alarms);
 
+	if (new_client->flags & I2C_CLIENT_PEC)
+		device_create_file(&new_client->dev, &dev_attr_pec);
+
 	return 0;
 
 exit_detach:
@@ -548,7 +618,10 @@ static void lm90_init_client(struct i2c_client *client)
 	 */
 	i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE,
 				  5); /* 2 Hz */
-	config = i2c_smbus_read_byte_data(client, LM90_REG_R_CONFIG1);
+	if (lm90_read_reg(client, LM90_REG_R_CONFIG1, &config) < 0) {
+		dev_warn(&client->dev, "Initialization failed!\n");
+		return;
+	}
 	if (config & 0x40)
 		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
 					  config & 0xBF); /* run */
@@ -576,21 +649,15 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 	down(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
-		u8 oldh, newh;
+		u8 oldh, newh, l;
 
 		dev_dbg(&client->dev, "Updating lm90 data.\n");
-		data->temp8[0] = i2c_smbus_read_byte_data(client,
-				 LM90_REG_R_LOCAL_TEMP);
-		data->temp8[1] = i2c_smbus_read_byte_data(client,
-				 LM90_REG_R_LOCAL_LOW);
-		data->temp8[2] = i2c_smbus_read_byte_data(client,
-				 LM90_REG_R_LOCAL_HIGH);
-		data->temp8[3] = i2c_smbus_read_byte_data(client,
-				 LM90_REG_R_LOCAL_CRIT);
-		data->temp8[4] = i2c_smbus_read_byte_data(client,
-				 LM90_REG_R_REMOTE_CRIT);
-		data->temp_hyst = i2c_smbus_read_byte_data(client,
-				  LM90_REG_R_TCRIT_HYST);
+		lm90_read_reg(client, LM90_REG_R_LOCAL_TEMP, &data->temp8[0]);
+		lm90_read_reg(client, LM90_REG_R_LOCAL_LOW, &data->temp8[1]);
+		lm90_read_reg(client, LM90_REG_R_LOCAL_HIGH, &data->temp8[2]);
+		lm90_read_reg(client, LM90_REG_R_LOCAL_CRIT, &data->temp8[3]);
+		lm90_read_reg(client, LM90_REG_R_REMOTE_CRIT, &data->temp8[4]);
+		lm90_read_reg(client, LM90_REG_R_TCRIT_HYST, &data->temp_hyst);
 
 		/*
 		 * There is a trick here. We have to read two registers to
@@ -606,36 +673,20 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 		 * then we have a valid reading. Else we have to read the low
 		 * byte again, and now we believe we have a correct reading.
 		 */
-		oldh = i2c_smbus_read_byte_data(client,
-		       LM90_REG_R_REMOTE_TEMPH);
-		data->temp11[0] = i2c_smbus_read_byte_data(client,
-				  LM90_REG_R_REMOTE_TEMPL);
-		newh = i2c_smbus_read_byte_data(client,
-		       LM90_REG_R_REMOTE_TEMPH);
-		if (newh != oldh) {
-			data->temp11[0] = i2c_smbus_read_byte_data(client,
-					  LM90_REG_R_REMOTE_TEMPL);
-#ifdef DEBUG
-			oldh = i2c_smbus_read_byte_data(client,
-			       LM90_REG_R_REMOTE_TEMPH);
-			/* oldh is actually newer */
-			if (newh != oldh)
-				dev_warn(&client->dev, "Remote temperature may be "
-					 "wrong.\n");
-#endif
-		}
-		data->temp11[0] |= (newh << 8);
+		if (lm90_read_reg(client, LM90_REG_R_REMOTE_TEMPH, &oldh) == 0
+		 && lm90_read_reg(client, LM90_REG_R_REMOTE_TEMPL, &l) == 0
+		 && lm90_read_reg(client, LM90_REG_R_REMOTE_TEMPH, &newh) == 0
+		 && (newh == oldh
+		  || lm90_read_reg(client, LM90_REG_R_REMOTE_TEMPL, &l) == 0))
+			data->temp11[0] = (newh << 8) | l;
 
-		data->temp11[1] = (i2c_smbus_read_byte_data(client,
-				   LM90_REG_R_REMOTE_LOWH) << 8) +
-				   i2c_smbus_read_byte_data(client,
-				   LM90_REG_R_REMOTE_LOWL);
-		data->temp11[2] = (i2c_smbus_read_byte_data(client,
-				   LM90_REG_R_REMOTE_HIGHH) << 8) +
-				   i2c_smbus_read_byte_data(client,
-				   LM90_REG_R_REMOTE_HIGHL);
-		data->alarms = i2c_smbus_read_byte_data(client,
-			       LM90_REG_R_STATUS);
+		if (lm90_read_reg(client, LM90_REG_R_REMOTE_LOWH, &newh) == 0
+		 && lm90_read_reg(client, LM90_REG_R_REMOTE_LOWL, &l) == 0)
+			data->temp11[1] = (newh << 8) | l;
+		if (lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHH, &newh) == 0
+		 && lm90_read_reg(client, LM90_REG_R_REMOTE_HIGHL, &l) == 0)
+			data->temp11[2] = (newh << 8) | l;
+		lm90_read_reg(client, LM90_REG_R_STATUS, &data->alarms);
 
 		data->last_updated = jiffies;
 		data->valid = 1;

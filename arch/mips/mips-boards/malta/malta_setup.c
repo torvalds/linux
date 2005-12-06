@@ -111,9 +111,11 @@ void __init fd_activate(void)
 }
 #endif
 
-static int __init malta_setup(void)
+void __init plat_setup(void)
 {
 	unsigned int i;
+
+	mips_pcibios_init();
 
 	/* Request I/O space for devices used on the Malta board. */
 	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
@@ -224,8 +226,4 @@ static int __init malta_setup(void)
 	board_time_init = mips_time_init;
 	board_timer_setup = mips_timer_setup;
 	rtc_get_time = mips_rtc_get_time;
-
-	return 0;
 }
-
-early_initcall(malta_setup);

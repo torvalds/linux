@@ -1138,10 +1138,8 @@ static int ax25_connect(struct socket *sock, struct sockaddr *uaddr,
 	sk->sk_state   = TCP_CLOSE;
 	sock->state = SS_UNCONNECTED;
 
-	if (ax25->digipeat != NULL) {
-		kfree(ax25->digipeat);
-		ax25->digipeat = NULL;
-	}
+	kfree(ax25->digipeat);
+	ax25->digipeat = NULL;
 
 	/*
 	 *	Handle digi-peaters to be used.

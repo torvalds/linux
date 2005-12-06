@@ -335,5 +335,5 @@ this on the whole.
 PCI Local Bus Specification 
 PCI Bus Power Management Interface Specification
 
-  http://pcisig.org
+  http://www.pcisig.com
 

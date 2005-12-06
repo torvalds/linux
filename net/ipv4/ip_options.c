@@ -510,8 +510,7 @@ static int ip_options_get_finish(struct ip_options **optp,
 		kfree(opt);
 		return -EINVAL;
 	}
-	if (*optp)
-		kfree(*optp);
+	kfree(*optp);
 	*optp = opt;
 	return 0;
 }

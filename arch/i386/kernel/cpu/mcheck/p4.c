@@ -6,7 +6,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/config.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
 
@@ -78,7 +77,7 @@ fastcall void smp_thermal_interrupt(struct pt_regs *regs)
 }
 
 /* P4/Xeon Thermal regulation detect and init */
-static void __devinit intel_init_thermal(struct cpuinfo_x86 *c)
+static void intel_init_thermal(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	unsigned int cpu = smp_processor_id();
@@ -232,7 +231,7 @@ static fastcall void intel_machine_check(struct pt_regs * regs, long error_code)
 }
 
 
-void __devinit intel_p4_mcheck_init(struct cpuinfo_x86 *c)
+void intel_p4_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	int i;

@@ -25,8 +25,8 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __ASM_ARCH_OMAP1510_H
-#define __ASM_ARCH_OMAP1510_H
+#ifndef __ASM_ARCH_OMAP15XX_H
+#define __ASM_ARCH_OMAP15XX_H
 
 /*
  * ----------------------------------------------------------------------------
@@ -44,5 +44,5 @@
 #define OMAP1510_DSPREG_SIZE	SZ_128K
 #define OMAP1510_DSPREG_START	0xE1000000
 
-#endif /*  __ASM_ARCH_OMAP1510_H */
+#endif /*  __ASM_ARCH_OMAP15XX_H */
 

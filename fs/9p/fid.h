@@ -25,6 +25,7 @@
 
 #define FID_OP   0
 #define FID_WALK 1
+#define FID_CREATE 2
 
 struct v9fs_fid {
 	struct list_head list;	 /* list of fids associated with a dentry */
@@ -52,6 +53,8 @@ struct v9fs_fid {
 	struct v9fs_session_info *v9ses;	/* session info for this FID */
 };
 
-struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry, int type);
+struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry);
+struct v9fs_fid *v9fs_fid_get_created(struct dentry *);
 void v9fs_fid_destroy(struct v9fs_fid *fid);
-struct v9fs_fid *v9fs_fid_create(struct dentry *);
+struct v9fs_fid *v9fs_fid_create(struct dentry *,
+	struct v9fs_session_info *v9ses, int fid, int create);

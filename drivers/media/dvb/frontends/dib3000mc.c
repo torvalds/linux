@@ -26,6 +26,8 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "dib3000-common.h"
 #include "dib3000mc_priv.h"

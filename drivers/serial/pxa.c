@@ -39,7 +39,7 @@
 #include <linux/circ_buf.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
@@ -358,6 +358,9 @@ static int serial_pxa_startup(struct uart_port *port)
 	unsigned long flags;
 	int retval;
 
+	if (port->line == 3) /* HWUART */
+		up->mcr |= UART_MCR_AFE;
+	else
 	up->mcr = 0;
 
 	/*
@@ -481,8 +484,10 @@ serial_pxa_set_termios(struct uart_port *port, struct termios *termios,
 
 	if ((up->port.uartclk / quot) < (2400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR1;
-	else
+	else if ((up->port.uartclk / quot) < (230400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR8;
+	else
+		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR32;
 
 	/*
 	 * Ok, we're now changing the port state.  Do it with
@@ -499,7 +504,7 @@ serial_pxa_set_termios(struct uart_port *port, struct termios *termios,
 	/*
 	 * Update the per-port timeout.
 	 */
-	uart_update_timeout(port, termios->c_cflag, quot);
+	uart_update_timeout(port, termios->c_cflag, baud);
 
 	up->port.read_status_mask = UART_LSR_OE | UART_LSR_THRE | UART_LSR_DR;
 	if (termios->c_iflag & INPCK)
@@ -772,6 +777,20 @@ static struct uart_pxa_port serial_pxa_ports[] = {
 		.ops		= &serial_pxa_pops,
 		.line		= 2,
 	},
+  }, {  /* HWUART */
+	.name	= "HWUART",
+	.cken	= CKEN4_HWUART,
+	.port = {
+		.type		= PORT_PXA,
+		.iotype		= UPIO_MEM,
+		.membase	= (void *)&HWUART,
+		.mapbase	= __PREG(HWUART),
+		.irq		= IRQ_HWUART,
+		.uartclk	= 921600 * 16,
+		.fifosize	= 64,
+		.ops		= &serial_pxa_pops,
+		.line		= 3,
+	},
   }
 };
 
@@ -786,41 +805,39 @@ static struct uart_driver serial_pxa_reg = {
 	.cons		= PXA_CONSOLE,
 };
 
-static int serial_pxa_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int serial_pxa_suspend(struct platform_device *dev, pm_message_t state)
 {
-        struct uart_pxa_port *sport = dev_get_drvdata(_dev);
+        struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
-        if (sport && level == SUSPEND_DISABLE)
+        if (sport)
                 uart_suspend_port(&serial_pxa_reg, &sport->port);
 
         return 0;
 }
 
-static int serial_pxa_resume(struct device *_dev, u32 level)
+static int serial_pxa_resume(struct platform_device *dev)
 {
-        struct uart_pxa_port *sport = dev_get_drvdata(_dev);
+        struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
-        if (sport && level == RESUME_ENABLE)
+        if (sport)
                 uart_resume_port(&serial_pxa_reg, &sport->port);
 
         return 0;
 }
 
-static int serial_pxa_probe(struct device *_dev)
+static int serial_pxa_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(_dev);
-
-	serial_pxa_ports[dev->id].port.dev = _dev;
+	serial_pxa_ports[dev->id].port.dev = &dev->dev;
 	uart_add_one_port(&serial_pxa_reg, &serial_pxa_ports[dev->id].port);
-	dev_set_drvdata(_dev, &serial_pxa_ports[dev->id]);
+	platform_set_drvdata(dev, &serial_pxa_ports[dev->id]);
 	return 0;
 }
 
-static int serial_pxa_remove(struct device *_dev)
+static int serial_pxa_remove(struct platform_device *dev)
 {
-	struct uart_pxa_port *sport = dev_get_drvdata(_dev);
+	struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
-	dev_set_drvdata(_dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	if (sport)
 		uart_remove_one_port(&serial_pxa_reg, &sport->port);
@@ -828,14 +845,15 @@ static int serial_pxa_remove(struct device *_dev)
 	return 0;
 }
 
-static struct device_driver serial_pxa_driver = {
-        .name           = "pxa2xx-uart",
-        .bus            = &platform_bus_type,
+static struct platform_driver serial_pxa_driver = {
         .probe          = serial_pxa_probe,
         .remove         = serial_pxa_remove,
 
 	.suspend	= serial_pxa_suspend,
 	.resume		= serial_pxa_resume,
+	.driver		= {
+	        .name	= "pxa2xx-uart",
+	},
 };
 
 int __init serial_pxa_init(void)
@@ -846,7 +864,7 @@ int __init serial_pxa_init(void)
 	if (ret != 0)
 		return ret;
 
-	ret = driver_register(&serial_pxa_driver);
+	ret = platform_driver_register(&serial_pxa_driver);
 	if (ret != 0)
 		uart_unregister_driver(&serial_pxa_reg);
 
@@ -855,7 +873,7 @@ int __init serial_pxa_init(void)
 
 void __exit serial_pxa_exit(void)
 {
-        driver_unregister(&serial_pxa_driver);
+	platform_driver_unregister(&serial_pxa_driver);
 	uart_unregister_driver(&serial_pxa_reg);
 }
 

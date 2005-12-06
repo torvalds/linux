@@ -156,7 +156,7 @@ dma_pool_create (const char *name, struct device *dev,
 
 
 static struct dma_page *
-pool_alloc_page (struct dma_pool *pool, unsigned int __nocast mem_flags)
+pool_alloc_page (struct dma_pool *pool, gfp_t mem_flags)
 {
 	struct dma_page	*page;
 	int		mapsize;
@@ -262,8 +262,7 @@ dma_pool_destroy (struct dma_pool *pool)
  * If such a memory block can't be allocated, null is returned.
  */
 void *
-dma_pool_alloc (struct dma_pool *pool, unsigned int __nocast mem_flags,
-		dma_addr_t *handle)
+dma_pool_alloc (struct dma_pool *pool, gfp_t mem_flags, dma_addr_t *handle)
 {
 	unsigned long		flags;
 	struct dma_page		*page;

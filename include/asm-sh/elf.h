@@ -111,6 +111,7 @@ typedef struct user_fpu_struct elf_fpregset_t;
 
 #ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)
+struct task_struct;
 extern int dump_task_regs (struct task_struct *, elf_gregset_t *);
 extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
 

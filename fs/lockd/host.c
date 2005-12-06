@@ -173,11 +173,10 @@ nlm_bind_host(struct nlm_host *host)
 
 	/* If we've already created an RPC client, check whether
 	 * RPC rebind is required
-	 * Note: why keep rebinding if we're on a tcp connection?
 	 */
 	if ((clnt = host->h_rpcclnt) != NULL) {
 		xprt = clnt->cl_xprt;
-		if (!xprt->stream && time_after_eq(jiffies, host->h_nextrebind)) {
+		if (time_after_eq(jiffies, host->h_nextrebind)) {
 			clnt->cl_port = 0;
 			host->h_nextrebind = jiffies + NLM_HOST_REBIND;
 			dprintk("lockd: next rebind in %ld jiffies\n",
@@ -189,7 +188,6 @@ nlm_bind_host(struct nlm_host *host)
 			goto forgetit;
 
 		xprt_set_timeout(&xprt->timeout, 5, nlmsvc_timeout);
-		xprt->nocong = 1;	/* No congestion control for NLM */
 		xprt->resvport = 1;	/* NLM requires a reserved port */
 
 		/* Existing NLM servers accept AUTH_UNIX only */

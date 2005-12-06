@@ -100,8 +100,8 @@ static u8 tda10021_readreg (struct tda10021_state* state, u8 reg)
 
 	ret = i2c_transfer (state->i2c, msg, 2);
 	if (ret != 2)
-		printk("DVB: TDA10021(%d): %s: readreg error (ret == %i)\n",
-				state->frontend.dvb->num, __FUNCTION__, ret);
+		printk("DVB: TDA10021: %s: readreg error (ret == %i)\n",
+				__FUNCTION__, ret);
 	return b1[0];
 }
 

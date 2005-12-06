@@ -5,29 +5,31 @@
 #include <asm/processor.h>
 #include <asm/spinlock_types.h>
 
-/* Note that PA-RISC has to use `1' to mean unlocked and `0' to mean locked
- * since it only has load-and-zero. Moreover, at least on some PA processors,
- * the semaphore address has to be 16-byte aligned.
- */
-
 static inline int __raw_spin_is_locked(raw_spinlock_t *x)
 {
 	volatile unsigned int *a = __ldcw_align(x);
 	return *a == 0;
 }
 
-#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+#define __raw_spin_lock(lock) __raw_spin_lock_flags(lock, 0)
 #define __raw_spin_unlock_wait(x) \
 		do { cpu_relax(); } while (__raw_spin_is_locked(x))
 
-static inline void __raw_spin_lock(raw_spinlock_t *x)
+static inline void __raw_spin_lock_flags(raw_spinlock_t *x,
+					 unsigned long flags)
 {
 	volatile unsigned int *a;
 
 	mb();
 	a = __ldcw_align(x);
 	while (__ldcw(a) == 0)
-		while (*a == 0);
+		while (*a == 0)
+			if (flags & PSW_SM_I) {
+				local_irq_enable();
+				cpu_relax();
+				local_irq_disable();
+			} else
+				cpu_relax();
 	mb();
 }
 
@@ -65,26 +67,20 @@ static inline int __raw_spin_trylock(raw_spinlock_t *x)
 
 static  __inline__ void __raw_read_lock(raw_rwlock_t *rw)
 {
-	unsigned long flags;
-	local_irq_save(flags);
 	__raw_spin_lock(&rw->lock);
 
 	rw->counter++;
 
 	__raw_spin_unlock(&rw->lock);
-	local_irq_restore(flags);
 }
 
 static  __inline__ void __raw_read_unlock(raw_rwlock_t *rw)
 {
-	unsigned long flags;
-	local_irq_save(flags);
 	__raw_spin_lock(&rw->lock);
 
 	rw->counter--;
 
 	__raw_spin_unlock(&rw->lock);
-	local_irq_restore(flags);
 }
 
 /* write_lock is less trivial.  We optimistically grab the lock and check

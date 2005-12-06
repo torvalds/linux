@@ -91,7 +91,6 @@ static struct fb_ops chipsfb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 static int chipsfb_check_var(struct fb_var_screeninfo *var,

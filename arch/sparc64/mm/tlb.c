@@ -18,8 +18,7 @@
 
 /* Heavily inspired by the ppc64 code.  */
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers) =
-	{ NULL, 0, 0, 0, 0, 0, { 0 }, { NULL }, };
+DEFINE_PER_CPU(struct mmu_gather, mmu_gathers) = { 0, };
 
 void flush_tlb_pending(void)
 {
@@ -72,7 +71,7 @@ void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr, pte_t *ptep, pte_t
 
 no_cache_flush:
 
-	if (mp->tlb_frozen)
+	if (mp->fullmm)
 		return;
 
 	nr = mp->tlb_nr;
@@ -97,7 +96,7 @@ void flush_tlb_pgtables(struct mm_struct *mm, unsigned long start, unsigned long
 	unsigned long nr = mp->tlb_nr;
 	long s = start, e = end, vpte_base;
 
-	if (mp->tlb_frozen)
+	if (mp->fullmm)
 		return;
 
 	/* If start is greater than end, that is a real problem.  */

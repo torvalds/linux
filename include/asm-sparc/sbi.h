@@ -65,7 +65,7 @@ struct sbi_regs {
 
 #ifndef __ASSEMBLY__
 
-extern __inline__ int acquire_sbi(int devid, int mask)
+static inline int acquire_sbi(int devid, int mask)
 {
 	__asm__ __volatile__ ("swapa [%2] %3, %0" :
 			      "=r" (mask) :
@@ -75,7 +75,7 @@ extern __inline__ int acquire_sbi(int devid, int mask)
 	return mask;
 }
 
-extern __inline__ void release_sbi(int devid, int mask)
+static inline void release_sbi(int devid, int mask)
 {
 	__asm__ __volatile__ ("sta %0, [%1] %2" : :
 			      "r" (mask),
@@ -83,7 +83,7 @@ extern __inline__ void release_sbi(int devid, int mask)
 			      "i" (ASI_M_CTL));
 }
 
-extern __inline__ void set_sbi_tid(int devid, int targetid)
+static inline void set_sbi_tid(int devid, int targetid)
 {
 	__asm__ __volatile__ ("sta %0, [%1] %2" : :
 			      "r" (targetid),
@@ -91,7 +91,7 @@ extern __inline__ void set_sbi_tid(int devid, int targetid)
 			      "i" (ASI_M_CTL));
 }
 
-extern __inline__ int get_sbi_ctl(int devid, int cfgno)
+static inline int get_sbi_ctl(int devid, int cfgno)
 {
 	int cfg;
 	
@@ -102,7 +102,7 @@ extern __inline__ int get_sbi_ctl(int devid, int cfgno)
 	return cfg;
 }
 
-extern __inline__ void set_sbi_ctl(int devid, int cfgno, int cfg)
+static inline void set_sbi_ctl(int devid, int cfgno, int cfg)
 {
 	__asm__ __volatile__ ("sta %0, [%1] %2" : :
 			      "r" (cfg),

@@ -27,28 +27,36 @@
  * for mixer controls
  */
 #define HDA_COMPOSE_AMP_VAL(nid,chs,idx,dir) ((nid) | ((chs)<<16) | ((dir)<<18) | ((idx)<<19))
+/* mono volume with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
 	  .info = snd_hda_mixer_amp_volume_info, \
 	  .get = snd_hda_mixer_amp_volume_get, \
 	  .put = snd_hda_mixer_amp_volume_put, \
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
+/* stereo volume with index */
 #define HDA_CODEC_VOLUME_IDX(xname, xcidx, nid, xindex, direction) \
 	HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, 3, xindex, direction)
+/* mono volume */
 #define HDA_CODEC_VOLUME_MONO(xname, nid, channel, xindex, direction) \
 	HDA_CODEC_VOLUME_MONO_IDX(xname, 0, nid, channel, xindex, direction)
+/* stereo volume */
 #define HDA_CODEC_VOLUME(xname, nid, xindex, direction) \
 	HDA_CODEC_VOLUME_MONO(xname, nid, 3, xindex, direction)
+/* mono mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
 	  .info = snd_hda_mixer_amp_switch_info, \
 	  .get = snd_hda_mixer_amp_switch_get, \
 	  .put = snd_hda_mixer_amp_switch_put, \
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
+/* stereo mute switch with index */
 #define HDA_CODEC_MUTE_IDX(xname, xcidx, nid, xindex, direction) \
 	HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, 3, xindex, direction)
+/* mono mute switch */
 #define HDA_CODEC_MUTE_MONO(xname, nid, channel, xindex, direction) \
 	HDA_CODEC_MUTE_MONO_IDX(xname, 0, nid, channel, xindex, direction)
+/* stereo mute switch */
 #define HDA_CODEC_MUTE(xname, nid, xindex, direction) \
 	HDA_CODEC_MUTE_MONO(xname, nid, 3, xindex, direction)
 
@@ -58,6 +66,20 @@ int snd_hda_mixer_amp_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t 
 int snd_hda_mixer_amp_switch_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo);
 int snd_hda_mixer_amp_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol);
 int snd_hda_mixer_amp_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol);
+
+/* mono switch binding multiple inputs */
+#define HDA_BIND_MUTE_MONO(xname, nid, channel, indices, direction) \
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
+	  .info = snd_hda_mixer_amp_switch_info, \
+	  .get = snd_hda_mixer_bind_switch_get, \
+	  .put = snd_hda_mixer_bind_switch_put, \
+	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, indices, direction) }
+
+/* stereo switch binding multiple inputs */
+#define HDA_BIND_MUTE(xname,nid,indices,dir) HDA_BIND_MUTE_MONO(xname,nid,3,indices,dir)
+
+int snd_hda_mixer_bind_switch_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol);
+int snd_hda_mixer_bind_switch_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol);
 
 int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid);

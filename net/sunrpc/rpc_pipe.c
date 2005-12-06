@@ -39,23 +39,26 @@ static kmem_cache_t *rpc_inode_cachep __read_mostly;
 #define RPC_UPCALL_TIMEOUT (30*HZ)
 
 static void
+__rpc_purge_list(struct rpc_inode *rpci, struct list_head *head, int err)
+{
+	struct rpc_pipe_msg *msg;
+	void (*destroy_msg)(struct rpc_pipe_msg *);
+
+	destroy_msg = rpci->ops->destroy_msg;
+	while (!list_empty(head)) {
+		msg = list_entry(head->next, struct rpc_pipe_msg, list);
+		list_del_init(&msg->list);
+		msg->errno = err;
+		destroy_msg(msg);
+	}
+}
+
+static void
 __rpc_purge_upcall(struct inode *inode, int err)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
-	struct rpc_pipe_msg *msg;
 
-	while (!list_empty(&rpci->pipe)) {
-		msg = list_entry(rpci->pipe.next, struct rpc_pipe_msg, list);
-		list_del_init(&msg->list);
-		msg->errno = err;
-		rpci->ops->destroy_msg(msg);
-	}
-	while (!list_empty(&rpci->in_upcall)) {
-		msg = list_entry(rpci->pipe.next, struct rpc_pipe_msg, list);
-		list_del_init(&msg->list);
-		msg->errno = err;
-		rpci->ops->destroy_msg(msg);
-	}
+	__rpc_purge_list(rpci, &rpci->pipe, err);
 	rpci->pipelen = 0;
 	wake_up(&rpci->waitq);
 }
@@ -76,23 +79,33 @@ int
 rpc_queue_upcall(struct inode *inode, struct rpc_pipe_msg *msg)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
-	int res = 0;
+	int res = -EPIPE;
 
 	down(&inode->i_sem);
+	if (rpci->ops == NULL)
+		goto out;
 	if (rpci->nreaders) {
 		list_add_tail(&msg->list, &rpci->pipe);
 		rpci->pipelen += msg->len;
+		res = 0;
 	} else if (rpci->flags & RPC_PIPE_WAIT_FOR_OPEN) {
 		if (list_empty(&rpci->pipe))
 			schedule_delayed_work(&rpci->queue_timeout,
 					RPC_UPCALL_TIMEOUT);
 		list_add_tail(&msg->list, &rpci->pipe);
 		rpci->pipelen += msg->len;
-	} else
-		res = -EPIPE;
+		res = 0;
+	}
+out:
 	up(&inode->i_sem);
 	wake_up(&rpci->waitq);
 	return res;
+}
+
+static inline void
+rpc_inode_setowner(struct inode *inode, void *private)
+{
+	RPC_I(inode)->private = private;
 }
 
 static void
@@ -105,19 +118,15 @@ rpc_close_pipes(struct inode *inode)
 	down(&inode->i_sem);
 	if (rpci->ops != NULL) {
 		rpci->nreaders = 0;
+		__rpc_purge_list(rpci, &rpci->in_upcall, -EPIPE);
 		__rpc_purge_upcall(inode, -EPIPE);
 		rpci->nwriters = 0;
 		if (rpci->ops->release_pipe)
 			rpci->ops->release_pipe(inode);
 		rpci->ops = NULL;
 	}
+	rpc_inode_setowner(inode, NULL);
 	up(&inode->i_sem);
-}
-
-static inline void
-rpc_inode_setowner(struct inode *inode, void *private)
-{
-	RPC_I(inode)->private = private;
 }
 
 static struct inode *
@@ -501,7 +510,6 @@ repeat:
 			dentry = dvec[--n];
 			if (dentry->d_inode) {
 				rpc_close_pipes(dentry->d_inode);
-				rpc_inode_setowner(dentry->d_inode, NULL);
 				simple_unlink(dir, dentry);
 			}
 			dput(dentry);
@@ -576,10 +584,8 @@ __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	int error;
 
 	shrink_dcache_parent(dentry);
-	if (dentry->d_inode) {
+	if (dentry->d_inode)
 		rpc_close_pipes(dentry->d_inode);
-		rpc_inode_setowner(dentry->d_inode, NULL);
-	}
 	if ((error = simple_rmdir(dir, dentry)) != 0)
 		return error;
 	if (!error) {
@@ -601,7 +607,7 @@ rpc_lookup_negative(char *path, struct nameidata *nd)
 		return ERR_PTR(error);
 	dir = nd->dentry->d_inode;
 	down(&dir->i_sem);
-	dentry = lookup_hash(&nd->last, nd->dentry);
+	dentry = lookup_hash(nd);
 	if (IS_ERR(dentry))
 		goto out_err;
 	if (dentry->d_inode) {
@@ -663,7 +669,7 @@ rpc_rmdir(char *path)
 		return error;
 	dir = nd.dentry->d_inode;
 	down(&dir->i_sem);
-	dentry = lookup_hash(&nd.last, nd.dentry);
+	dentry = lookup_hash(&nd);
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
 		goto out_release;
@@ -724,7 +730,7 @@ rpc_unlink(char *path)
 		return error;
 	dir = nd.dentry->d_inode;
 	down(&dir->i_sem);
-	dentry = lookup_hash(&nd.last, nd.dentry);
+	dentry = lookup_hash(&nd);
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
 		goto out_release;
@@ -732,7 +738,6 @@ rpc_unlink(char *path)
 	d_drop(dentry);
 	if (dentry->d_inode) {
 		rpc_close_pipes(dentry->d_inode);
-		rpc_inode_setowner(dentry->d_inode, NULL);
 		error = simple_unlink(dir, dentry);
 	}
 	dput(dentry);

@@ -947,8 +947,8 @@ void
 percpu_modcopy (void *pcpudst, const void *src, unsigned long size)
 {
 	unsigned int i;
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_possible(i))
-			memcpy(pcpudst + __per_cpu_offset[i], src, size);
+	for_each_cpu(i) {
+		memcpy(pcpudst + __per_cpu_offset[i], src, size);
+	}
 }
 #endif /* CONFIG_SMP */

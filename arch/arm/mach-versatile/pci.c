@@ -29,7 +29,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/mach/pci.h>
-#include <asm/mach-types.h>
 
 /*
  * these spaces are mapped using the following base registers:

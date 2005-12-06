@@ -9,6 +9,7 @@
 #include <linux/preempt.h>
 #include <linux/cpumask.h>
 #include <linux/hardirq.h>
+#include <linux/sched.h>
 #include <asm/atomic.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>

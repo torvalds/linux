@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/timer.h>
+#include <linux/jiffies.h>
 
 #include "csr1212.h"
 #include "ieee1394.h"
@@ -217,7 +218,7 @@ int hpsb_update_config_rom_image(struct hpsb_host *host)
 
 	/* IEEE 1394a-2000 prohibits using the same generation number
 	 * twice in a 60 second period. */
-	if (jiffies - host->csr.gen_timestamp[next_gen] < 60 * HZ)
+	if (time_before(jiffies, host->csr.gen_timestamp[next_gen] + 60 * HZ))
 		/* Wait 60 seconds from the last time this generation number was
 		 * used. */
 		reset_delay = (60 * HZ) + host->csr.gen_timestamp[next_gen] - jiffies;

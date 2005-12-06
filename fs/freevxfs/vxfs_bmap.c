@@ -36,6 +36,7 @@
 
 #include "vxfs.h"
 #include "vxfs_inode.h"
+#include "vxfs_extern.h"
 
 
 #ifdef DIAGNOSTIC

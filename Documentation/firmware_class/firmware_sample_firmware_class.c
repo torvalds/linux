@@ -14,6 +14,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/firmware.h>
 
 

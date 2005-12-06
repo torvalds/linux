@@ -457,11 +457,8 @@ void xxxfb_imageblit(struct fb_info *p, const struct fb_image *image)
 }
 
 /**
- *	xxxfb_cursor - 	REQUIRED function. If your hardware lacks support
- *			for a cursor you can use the default cursor whose
- *			function is called soft_cursor. It will always 
- *			work since it uses xxxfb_imageblit function which 
- *			is required. 	  	 
+ *	xxxfb_cursor - 	OPTIONAL. If your hardware lacks support
+ *			for a cursor, leave this field NULL.
  *
  *      @info: frame buffer structure that represents a single frame buffer
  *	@cursor: structure defining the cursor to draw.
@@ -663,7 +660,7 @@ static struct fb_ops xxxfb_ops = {
 	.fb_fillrect	= xxxfb_fillrect, 	/* Needed !!! */ 
 	.fb_copyarea	= xxxfb_copyarea,	/* Needed !!! */ 
 	.fb_imageblit	= xxxfb_imageblit,	/* Needed !!! */
-	.fb_cursor	= xxxfb_cursor,		/* Needed !!! */
+	.fb_cursor	= xxxfb_cursor,		/* Optional !!! */
 	.fb_rotate	= xxxfb_rotate,
 	.fb_poll	= xxxfb_poll,
 	.fb_sync	= xxxfb_sync,

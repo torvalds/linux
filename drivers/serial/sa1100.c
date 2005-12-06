@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
@@ -156,19 +156,16 @@ static void sa1100_stop_tx(struct uart_port *port)
 }
 
 /*
- * interrupts may not be disabled on entry
+ * port locked and interrupts disabled
  */
 static void sa1100_start_tx(struct uart_port *port)
 {
 	struct sa1100_port *sport = (struct sa1100_port *)port;
-	unsigned long flags;
 	u32 utcr3;
 
-	spin_lock_irqsave(&sport->port.lock, flags);
 	utcr3 = UART_GET_UTCR3(sport);
 	sport->port.read_status_mask |= UTSR0_TO_SM(UTSR0_TFS);
 	UART_PUT_UTCR3(sport, utcr3 | UTCR3_TIE);
-	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
 /*
@@ -834,29 +831,28 @@ static struct uart_driver sa1100_reg = {
 	.cons			= SA1100_CONSOLE,
 };
 
-static int sa1100_serial_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int sa1100_serial_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct sa1100_port *sport = dev_get_drvdata(_dev);
+	struct sa1100_port *sport = platform_get_drvdata(dev);
 
-	if (sport && level == SUSPEND_DISABLE)
+	if (sport)
 		uart_suspend_port(&sa1100_reg, &sport->port);
 
 	return 0;
 }
 
-static int sa1100_serial_resume(struct device *_dev, u32 level)
+static int sa1100_serial_resume(struct platform_device *dev)
 {
-	struct sa1100_port *sport = dev_get_drvdata(_dev);
+	struct sa1100_port *sport = platform_get_drvdata(dev);
 
-	if (sport && level == RESUME_ENABLE)
+	if (sport)
 		uart_resume_port(&sa1100_reg, &sport->port);
 
 	return 0;
 }
 
-static int sa1100_serial_probe(struct device *_dev)
+static int sa1100_serial_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(_dev);
 	struct resource *res = dev->resource;
 	int i;
 
@@ -869,9 +865,9 @@ static int sa1100_serial_probe(struct device *_dev)
 			if (sa1100_ports[i].port.mapbase != res->start)
 				continue;
 
-			sa1100_ports[i].port.dev = _dev;
+			sa1100_ports[i].port.dev = &dev->dev;
 			uart_add_one_port(&sa1100_reg, &sa1100_ports[i].port);
-			dev_set_drvdata(_dev, &sa1100_ports[i]);
+			platform_set_drvdata(dev, &sa1100_ports[i]);
 			break;
 		}
 	}
@@ -879,11 +875,11 @@ static int sa1100_serial_probe(struct device *_dev)
 	return 0;
 }
 
-static int sa1100_serial_remove(struct device *_dev)
+static int sa1100_serial_remove(struct platform_device *pdev)
 {
-	struct sa1100_port *sport = dev_get_drvdata(_dev);
+	struct sa1100_port *sport = platform_get_drvdata(pdev);
 
-	dev_set_drvdata(_dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	if (sport)
 		uart_remove_one_port(&sa1100_reg, &sport->port);
@@ -891,13 +887,14 @@ static int sa1100_serial_remove(struct device *_dev)
 	return 0;
 }
 
-static struct device_driver sa11x0_serial_driver = {
-	.name		= "sa11x0-uart",
-	.bus		= &platform_bus_type,
+static struct platform_driver sa11x0_serial_driver = {
 	.probe		= sa1100_serial_probe,
 	.remove		= sa1100_serial_remove,
 	.suspend	= sa1100_serial_suspend,
 	.resume		= sa1100_serial_resume,
+	.driver		= {
+		.name	= "sa11x0-uart",
+	},
 };
 
 static int __init sa1100_serial_init(void)
@@ -910,7 +907,7 @@ static int __init sa1100_serial_init(void)
 
 	ret = uart_register_driver(&sa1100_reg);
 	if (ret == 0) {
-		ret = driver_register(&sa11x0_serial_driver);
+		ret = platform_driver_register(&sa11x0_serial_driver);
 		if (ret)
 			uart_unregister_driver(&sa1100_reg);
 	}
@@ -919,7 +916,7 @@ static int __init sa1100_serial_init(void)
 
 static void __exit sa1100_serial_exit(void)
 {
-	driver_unregister(&sa11x0_serial_driver);
+	platform_driver_unregister(&sa11x0_serial_driver);
 	uart_unregister_driver(&sa1100_reg);
 }
 

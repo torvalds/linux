@@ -199,7 +199,7 @@ static void sn9c102_release_buffers(struct sn9c102_device* cam)
 {
 	if (cam->nbuffers) {
 		rvfree(cam->frame[0].bufmem,
-		       cam->nbuffers * cam->frame[0].buf.length);
+		       cam->nbuffers * PAGE_ALIGN(cam->frame[0].buf.length));
 		cam->nbuffers = 0;
 	}
 }

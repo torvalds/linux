@@ -468,6 +468,8 @@ struct user_regs_struct
 };
 
 #ifdef __KERNEL__
+#define __ARCH_SYS_PTRACE	1
+
 #define user_mode(regs) (((regs)->psw.mask & PSW_MASK_PSTATE) != 0)
 #define instruction_pointer(regs) ((regs)->psw.addr & PSW_ADDR_INSN)
 #define profile_pc(regs) instruction_pointer(regs)

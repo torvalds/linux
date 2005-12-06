@@ -144,7 +144,7 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect)
 	int is_update;
 
 /* Check this effect type is supported by this device */
-	if (!test_bit(effect->type, iforce->dev.ffbit))
+	if (!test_bit(effect->type, iforce->dev->ffbit))
 		return -EINVAL;
 
 /*
@@ -152,30 +152,31 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect)
  */
 	if (effect->id == -1) {
 
-		for (id=0; id < FF_EFFECTS_MAX; ++id)
-			if (!test_and_set_bit(FF_CORE_IS_USED, iforce->core_effects[id].flags)) break;
+		for (id = 0; id < FF_EFFECTS_MAX; ++id)
+			if (!test_and_set_bit(FF_CORE_IS_USED, iforce->core_effects[id].flags))
+				break;
 
-		if ( id == FF_EFFECTS_MAX || id >= iforce->dev.ff_effects_max)
+		if (id == FF_EFFECTS_MAX || id >= iforce->dev->ff_effects_max)
 			return -ENOMEM;
 
 		effect->id = id;
 		iforce->core_effects[id].owner = current->pid;
-		iforce->core_effects[id].flags[0] = (1<<FF_CORE_IS_USED);	/* Only IS_USED bit must be set */
+		iforce->core_effects[id].flags[0] = (1 << FF_CORE_IS_USED);	/* Only IS_USED bit must be set */
 
 		is_update = FALSE;
 	}
 	else {
 		/* We want to update an effect */
-		if (!CHECK_OWNERSHIP(effect->id, iforce)) return -EACCES;
+		if (!CHECK_OWNERSHIP(effect->id, iforce))
+			return -EACCES;
 
 		/* Parameter type cannot be updated */
 		if (effect->type != iforce->core_effects[effect->id].effect.type)
 			return -EINVAL;
 
 		/* Check the effect is not already being updated */
-		if (test_bit(FF_CORE_UPDATE, iforce->core_effects[effect->id].flags)) {
+		if (test_bit(FF_CORE_UPDATE, iforce->core_effects[effect->id].flags))
 			return -EAGAIN;
-		}
 
 		is_update = TRUE;
 	}
@@ -339,15 +340,19 @@ void iforce_delete_device(struct iforce *iforce)
 
 int iforce_init_device(struct iforce *iforce)
 {
+	struct input_dev *input_dev;
 	unsigned char c[] = "CEOV";
 	int i;
+
+	input_dev = input_allocate_device();
+	if (input_dev)
+		return -ENOMEM;
 
 	init_waitqueue_head(&iforce->wait);
 	spin_lock_init(&iforce->xmit_lock);
 	init_MUTEX(&iforce->mem_mutex);
 	iforce->xmit.buf = iforce->xmit_data;
-
-	iforce->dev.ff_effects_max = 10;
+	iforce->dev = input_dev;
 
 /*
  * Input device fields.
@@ -356,26 +361,27 @@ int iforce_init_device(struct iforce *iforce)
 	switch (iforce->bus) {
 #ifdef CONFIG_JOYSTICK_IFORCE_USB
 	case IFORCE_USB:
-		iforce->dev.id.bustype = BUS_USB;
-		iforce->dev.dev = &iforce->usbdev->dev;
+		input_dev->id.bustype = BUS_USB;
+		input_dev->cdev.dev = &iforce->usbdev->dev;
 		break;
 #endif
 #ifdef CONFIG_JOYSTICK_IFORCE_232
 	case IFORCE_232:
-		iforce->dev.id.bustype = BUS_RS232;
-		iforce->dev.dev = &iforce->serio->dev;
+		input_dev->id.bustype = BUS_RS232;
+		input_dev->cdev.dev = &iforce->serio->dev;
 		break;
 #endif
 	}
 
-	iforce->dev.private = iforce;
-	iforce->dev.name = "Unknown I-Force device";
-	iforce->dev.open = iforce_open;
-	iforce->dev.close = iforce_release;
-	iforce->dev.flush = iforce_flush;
-	iforce->dev.event = iforce_input_event;
-	iforce->dev.upload_effect = iforce_upload_effect;
-	iforce->dev.erase_effect = iforce_erase_effect;
+	input_dev->private = iforce;
+	input_dev->name = "Unknown I-Force device";
+	input_dev->open = iforce_open;
+	input_dev->close = iforce_release;
+	input_dev->flush = iforce_flush;
+	input_dev->event = iforce_input_event;
+	input_dev->upload_effect = iforce_upload_effect;
+	input_dev->erase_effect = iforce_erase_effect;
+	input_dev->ff_effects_max = 10;
 
 /*
  * On-device memory allocation.
@@ -399,7 +405,8 @@ int iforce_init_device(struct iforce *iforce)
 
 	if (i == 20) { /* 5 seconds */
 		printk(KERN_ERR "iforce-main.c: Timeout waiting for response from device.\n");
-		return -1;
+		input_free_device(input_dev);
+		return -ENODEV;
 	}
 
 /*
@@ -407,12 +414,12 @@ int iforce_init_device(struct iforce *iforce)
  */
 
 	if (!iforce_get_id_packet(iforce, "M"))
-		iforce->dev.id.vendor = (iforce->edata[2] << 8) | iforce->edata[1];
+		input_dev->id.vendor = (iforce->edata[2] << 8) | iforce->edata[1];
 	else
 		printk(KERN_WARNING "iforce-main.c: Device does not respond to id packet M\n");
 
 	if (!iforce_get_id_packet(iforce, "P"))
-		iforce->dev.id.product = (iforce->edata[2] << 8) | iforce->edata[1];
+		input_dev->id.product = (iforce->edata[2] << 8) | iforce->edata[1];
 	else
 		printk(KERN_WARNING "iforce-main.c: Device does not respond to id packet P\n");
 
@@ -422,15 +429,15 @@ int iforce_init_device(struct iforce *iforce)
 		printk(KERN_WARNING "iforce-main.c: Device does not respond to id packet B\n");
 
 	if (!iforce_get_id_packet(iforce, "N"))
-		iforce->dev.ff_effects_max = iforce->edata[1];
+		iforce->dev->ff_effects_max = iforce->edata[1];
 	else
 		printk(KERN_WARNING "iforce-main.c: Device does not respond to id packet N\n");
 
 	/* Check if the device can store more effects than the driver can really handle */
-	if (iforce->dev.ff_effects_max > FF_EFFECTS_MAX) {
+	if (iforce->dev->ff_effects_max > FF_EFFECTS_MAX) {
 		printk(KERN_WARNING "input??: Device can handle %d effects, but N_EFFECTS_MAX is set to %d in iforce.h\n",
-			iforce->dev.ff_effects_max, FF_EFFECTS_MAX);
-		iforce->dev.ff_effects_max = FF_EFFECTS_MAX;
+			iforce->dev->ff_effects_max, FF_EFFECTS_MAX);
+		iforce->dev->ff_effects_max = FF_EFFECTS_MAX;
 	}
 
 /*
@@ -453,29 +460,28 @@ int iforce_init_device(struct iforce *iforce)
  */
 
 	for (i = 0; iforce_device[i].idvendor; i++)
-		if (iforce_device[i].idvendor == iforce->dev.id.vendor &&
-		    iforce_device[i].idproduct == iforce->dev.id.product)
+		if (iforce_device[i].idvendor == input_dev->id.vendor &&
+		    iforce_device[i].idproduct == input_dev->id.product)
 			break;
 
 	iforce->type = iforce_device + i;
-	iforce->dev.name = iforce->type->name;
+	input_dev->name = iforce->type->name;
 
 /*
  * Set input device bitfields and ranges.
  */
 
-	iforce->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_FF) | BIT(EV_FF_STATUS);
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_FF) | BIT(EV_FF_STATUS);
 
 	for (i = 0; iforce->type->btn[i] >= 0; i++) {
 		signed short t = iforce->type->btn[i];
-		set_bit(t, iforce->dev.keybit);
+		set_bit(t, input_dev->keybit);
 	}
-	set_bit(BTN_DEAD, iforce->dev.keybit);
+	set_bit(BTN_DEAD, input_dev->keybit);
 
 	for (i = 0; iforce->type->abs[i] >= 0; i++) {
 
 		signed short t = iforce->type->abs[i];
-		set_bit(t, iforce->dev.absbit);
 
 		switch (t) {
 
@@ -483,52 +489,42 @@ int iforce_init_device(struct iforce *iforce)
 			case ABS_Y:
 			case ABS_WHEEL:
 
-				iforce->dev.absmax[t] =  1920;
-				iforce->dev.absmin[t] = -1920;
-				iforce->dev.absflat[t] = 128;
-				iforce->dev.absfuzz[t] = 16;
-
-				set_bit(t, iforce->dev.ffbit);
+				input_set_abs_params(input_dev, t, -1920, 1920, 16, 128);
+				set_bit(t, input_dev->ffbit);
 				break;
 
 			case ABS_THROTTLE:
 			case ABS_GAS:
 			case ABS_BRAKE:
 
-				iforce->dev.absmax[t] = 255;
-				iforce->dev.absmin[t] = 0;
+				input_set_abs_params(input_dev, t, 0, 255, 0, 0);
 				break;
 
 			case ABS_RUDDER:
 
-				iforce->dev.absmax[t] = 127;
-				iforce->dev.absmin[t] = -128;
+				input_set_abs_params(input_dev, t, -128, 127, 0, 0);
 				break;
 
 			case ABS_HAT0X:
 			case ABS_HAT0Y:
 		        case ABS_HAT1X:
 		        case ABS_HAT1Y:
-				iforce->dev.absmax[t] =  1;
-				iforce->dev.absmin[t] = -1;
+
+				input_set_abs_params(input_dev, t, -1, 1, 0, 0);
 				break;
 		}
 	}
 
 	for (i = 0; iforce->type->ff[i] >= 0; i++)
-		set_bit(iforce->type->ff[i], iforce->dev.ffbit);
+		set_bit(iforce->type->ff[i], input_dev->ffbit);
 
 /*
  * Register input device.
  */
 
-	input_register_device(&iforce->dev);
+	input_register_device(iforce->dev);
 
-	printk(KERN_DEBUG "iforce->dev.open = %p\n", iforce->dev.open);
-
-	printk(KERN_INFO "input: %s [%d effects, %ld bytes memory]\n",
-		iforce->dev.name, iforce->dev.ff_effects_max,
-		iforce->device_memory.end);
+	printk(KERN_DEBUG "iforce->dev->open = %p\n", iforce->dev->open);
 
 	return 0;
 }

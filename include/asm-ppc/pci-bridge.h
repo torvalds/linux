@@ -79,6 +79,11 @@ struct pci_controller {
 	struct resource mem_space;
 };
 
+static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
+{
+	return bus->sysdata;
+}
+
 /* These are used for config access before all the PCI probing
    has been done. */
 int early_read_config_byte(struct pci_controller *hose, int bus, int dev_fn,

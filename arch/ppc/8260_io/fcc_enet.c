@@ -1309,8 +1309,7 @@ static void mii_dm9161_wait(uint mii_reg, struct net_device *dev)
 
 	/* Davicom takes a bit to come up after a reset,
 	 * so wait here for a bit */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(timeout);
+	schedule_timeout_uninterruptible(timeout);
 }
 
 static phy_info_t phy_info_dm9161 = {

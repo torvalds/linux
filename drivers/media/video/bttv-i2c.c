@@ -5,7 +5,7 @@
     bttv - Bt848 frame grabber driver
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
-                           & Marcus Metzler (mocm@thp.uni-koeln.de)
+			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
 
     This program is free software; you can redistribute it and/or modify
@@ -237,7 +237,7 @@ bttv_i2c_readbytes(struct bttv *btv, const struct i2c_msg *msg, int last)
  err:
 	if (i2c_debug)
 		printk(" ERR: %d\n",retval);
-       	return retval;
+	return retval;
 }
 
 static int bttv_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
@@ -290,7 +290,13 @@ static struct i2c_adapter bttv_i2c_adap_hw_template = {
 
 static int attach_inform(struct i2c_client *client)
 {
-        struct bttv *btv = i2c_get_adapdata(client->adapter);
+	struct bttv *btv = i2c_get_adapdata(client->adapter);
+	int addr=ADDR_UNSET;
+
+
+	if (ADDR_UNSET != bttv_tvcards[btv->c.type].tuner_addr)
+		addr = bttv_tvcards[btv->c.type].tuner_addr;
+
 
 	if (bttv_debug)
 		printk(KERN_DEBUG "bttv%d: %s i2c attach [addr=0x%x,client=%s]\n",
@@ -300,19 +306,20 @@ static int attach_inform(struct i2c_client *client)
 		return 0;
 
 	if (btv->tuner_type != UNSET) {
-	        struct tuner_setup tun_setup;
+		struct tuner_setup tun_setup;
 
-	        tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
-		tun_setup.type = btv->tuner_type;
-		tun_setup.addr = ADDR_UNSET;
+		if ((addr==ADDR_UNSET) ||
+				(addr==client->addr)) {
 
-		client->driver->command (client, TUNER_SET_TYPE_ADDR, &tun_setup);
+			tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV | T_RADIO;
+			tun_setup.type = btv->tuner_type;
+			tun_setup.addr = addr;
+			bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
+		}
+
 	}
 
-	if (btv->pinnacle_id != UNSET)
-		client->driver->command(client,AUDC_CONFIG_PINNACLE,
-				      &btv->pinnacle_id);
-        return 0;
+	return 0;
 }
 
 void bttv_call_i2c_clients(struct bttv *btv, unsigned int cmd, void *arg)
@@ -330,43 +337,43 @@ static struct i2c_client bttv_i2c_client_template = {
 /* read I2C */
 int bttv_I2CRead(struct bttv *btv, unsigned char addr, char *probe_for)
 {
-        unsigned char buffer = 0;
+	unsigned char buffer = 0;
 
 	if (0 != btv->i2c_rc)
 		return -1;
 	if (bttv_verbose && NULL != probe_for)
 		printk(KERN_INFO "bttv%d: i2c: checking for %s @ 0x%02x... ",
 		       btv->c.nr,probe_for,addr);
-        btv->i2c_client.addr = addr >> 1;
-        if (1 != i2c_master_recv(&btv->i2c_client, &buffer, 1)) {
+	btv->i2c_client.addr = addr >> 1;
+	if (1 != i2c_master_recv(&btv->i2c_client, &buffer, 1)) {
 		if (NULL != probe_for) {
 			if (bttv_verbose)
 				printk("not found\n");
 		} else
 			printk(KERN_WARNING "bttv%d: i2c read 0x%x: error\n",
 			       btv->c.nr,addr);
-                return -1;
+		return -1;
 	}
 	if (bttv_verbose && NULL != probe_for)
 		printk("found\n");
-        return buffer;
+	return buffer;
 }
 
 /* write I2C */
 int bttv_I2CWrite(struct bttv *btv, unsigned char addr, unsigned char b1,
-                    unsigned char b2, int both)
+		    unsigned char b2, int both)
 {
-        unsigned char buffer[2];
-        int bytes = both ? 2 : 1;
+	unsigned char buffer[2];
+	int bytes = both ? 2 : 1;
 
 	if (0 != btv->i2c_rc)
 		return -1;
-        btv->i2c_client.addr = addr >> 1;
-        buffer[0] = b1;
-        buffer[1] = b2;
-        if (bytes != i2c_master_send(&btv->i2c_client, buffer, bytes))
+	btv->i2c_client.addr = addr >> 1;
+	buffer[0] = b1;
+	buffer[1] = b2;
+	if (bytes != i2c_master_send(&btv->i2c_client, buffer, bytes))
 		return -1;
-        return 0;
+	return 0;
 }
 
 /* read EEPROM content */
@@ -431,8 +438,8 @@ int __devinit init_bttv_i2c(struct bttv *btv)
 		 "bt%d #%d [%s]", btv->id, btv->c.nr,
 		 btv->use_i2c_hw ? "hw" : "sw");
 
-        i2c_set_adapdata(&btv->c.i2c_adap, btv);
-        btv->i2c_client.adapter = &btv->c.i2c_adap;
+	i2c_set_adapdata(&btv->c.i2c_adap, btv);
+	btv->i2c_client.adapter = &btv->c.i2c_adap;
 
 #ifdef I2C_CLASS_TV_ANALOG
 	if (bttv_tvcards[btv->c.type].no_video)

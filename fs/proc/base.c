@@ -70,6 +70,7 @@
 #include <linux/seccomp.h>
 #include <linux/cpuset.h>
 #include <linux/audit.h>
+#include <linux/poll.h>
 #include "internal.h"
 
 /*
@@ -103,7 +104,9 @@ enum pid_directory_inos {
 	PROC_TGID_NUMA_MAPS,
 	PROC_TGID_MOUNTS,
 	PROC_TGID_WCHAN,
+#ifdef CONFIG_MMU
 	PROC_TGID_SMAPS,
+#endif
 #ifdef CONFIG_SCHEDSTATS
 	PROC_TGID_SCHEDSTAT,
 #endif
@@ -141,7 +144,9 @@ enum pid_directory_inos {
 	PROC_TID_NUMA_MAPS,
 	PROC_TID_MOUNTS,
 	PROC_TID_WCHAN,
+#ifdef CONFIG_MMU
 	PROC_TID_SMAPS,
+#endif
 #ifdef CONFIG_SCHEDSTATS
 	PROC_TID_SCHEDSTAT,
 #endif
@@ -195,7 +200,9 @@ static struct pid_entry tgid_base_stuff[] = {
 	E(PROC_TGID_ROOT,      "root",    S_IFLNK|S_IRWXUGO),
 	E(PROC_TGID_EXE,       "exe",     S_IFLNK|S_IRWXUGO),
 	E(PROC_TGID_MOUNTS,    "mounts",  S_IFREG|S_IRUGO),
+#ifdef CONFIG_MMU
 	E(PROC_TGID_SMAPS,     "smaps",   S_IFREG|S_IRUGO),
+#endif
 #ifdef CONFIG_SECURITY
 	E(PROC_TGID_ATTR,      "attr",    S_IFDIR|S_IRUGO|S_IXUGO),
 #endif
@@ -235,7 +242,9 @@ static struct pid_entry tid_base_stuff[] = {
 	E(PROC_TID_ROOT,       "root",    S_IFLNK|S_IRWXUGO),
 	E(PROC_TID_EXE,        "exe",     S_IFLNK|S_IRWXUGO),
 	E(PROC_TID_MOUNTS,     "mounts",  S_IFREG|S_IRUGO),
+#ifdef CONFIG_MMU
 	E(PROC_TID_SMAPS,      "smaps",   S_IFREG|S_IRUGO),
+#endif
 #ifdef CONFIG_SECURITY
 	E(PROC_TID_ATTR,       "attr",    S_IFDIR|S_IRUGO|S_IXUGO),
 #endif
@@ -343,7 +352,8 @@ static int proc_root_link(struct inode *inode, struct dentry **dentry, struct vf
 
 /* Same as proc_root_link, but this addionally tries to get fs from other
  * threads in the group */
-static int proc_task_root_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
+static int proc_task_root_link(struct inode *inode, struct dentry **dentry,
+				struct vfsmount **mnt)
 {
 	struct fs_struct *fs;
 	int result = -ENOENT;
@@ -357,9 +367,10 @@ static int proc_task_root_link(struct inode *inode, struct dentry **dentry, stru
 	} else {
 		/* Try to get fs from other threads */
 		task_unlock(leader);
-		struct task_struct *task = leader;
 		read_lock(&tasklist_lock);
-		if (pid_alive(task)) {
+		if (pid_alive(leader)) {
+			struct task_struct *task = leader;
+
 			while ((task = next_thread(task)) != leader) {
 				task_lock(task);
 				fs = task->fs;
@@ -628,6 +639,7 @@ static struct file_operations proc_numa_maps_operations = {
 };
 #endif
 
+#ifdef CONFIG_MMU
 extern struct seq_operations proc_pid_smaps_op;
 static int smaps_open(struct inode *inode, struct file *file)
 {
@@ -646,28 +658,41 @@ static struct file_operations proc_smaps_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+#endif
 
 extern struct seq_operations mounts_op;
+struct proc_mounts {
+	struct seq_file m;
+	int event;
+};
+
 static int mounts_open(struct inode *inode, struct file *file)
 {
 	struct task_struct *task = proc_task(inode);
-	int ret = seq_open(file, &mounts_op);
+	struct namespace *namespace;
+	struct proc_mounts *p;
+	int ret = -EINVAL;
 
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		struct namespace *namespace;
-		task_lock(task);
-		namespace = task->namespace;
-		if (namespace)
-			get_namespace(namespace);
-		task_unlock(task);
+	task_lock(task);
+	namespace = task->namespace;
+	if (namespace)
+		get_namespace(namespace);
+	task_unlock(task);
 
-		if (namespace)
-			m->private = namespace;
-		else {
-			seq_release(inode, file);
-			ret = -EINVAL;
+	if (namespace) {
+		ret = -ENOMEM;
+		p = kmalloc(sizeof(struct proc_mounts), GFP_KERNEL);
+		if (p) {
+			file->private_data = &p->m;
+			ret = seq_open(file, &mounts_op);
+			if (!ret) {
+				p->m.private = namespace;
+				p->event = namespace->event;
+				return 0;
+			}
+			kfree(p);
 		}
+		put_namespace(namespace);
 	}
 	return ret;
 }
@@ -680,11 +705,30 @@ static int mounts_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
+static unsigned mounts_poll(struct file *file, poll_table *wait)
+{
+	struct proc_mounts *p = file->private_data;
+	struct namespace *ns = p->m.private;
+	unsigned res = 0;
+
+	poll_wait(file, &ns->poll, wait);
+
+	spin_lock(&vfsmount_lock);
+	if (p->event != ns->event) {
+		p->event = ns->event;
+		res = POLLERR;
+	}
+	spin_unlock(&vfsmount_lock);
+
+	return res;
+}
+
 static struct file_operations proc_mounts_operations = {
 	.open		= mounts_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= mounts_release,
+	.poll		= mounts_poll,
 };
 
 #define PROC_BLOCK_SIZE	(3*1024)		/* 4K page size but our output routines use some slack for overruns */
@@ -1679,10 +1723,12 @@ static struct dentry *proc_pident_lookup(struct inode *dir,
 		case PROC_TGID_MOUNTS:
 			inode->i_fop = &proc_mounts_operations;
 			break;
+#ifdef CONFIG_MMU
 		case PROC_TID_SMAPS:
 		case PROC_TGID_SMAPS:
 			inode->i_fop = &proc_smaps_operations;
 			break;
+#endif
 #ifdef CONFIG_SECURITY
 		case PROC_TID_ATTR:
 			inode->i_nlink = 2;

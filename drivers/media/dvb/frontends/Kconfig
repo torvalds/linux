@@ -164,6 +164,14 @@ config DVB_NXT2002
 	help
 	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
 
+config DVB_NXT200X
+	tristate "Nextwave NXT2002/NXT2004 based"
+	depends on DVB_CORE
+	select FW_LOADER
+	help
+	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
+	  to support this frontend.
+
 config DVB_OR51211
 	tristate "or51211 based (pcHDTV HD2000 card)"
 	depends on DVB_CORE

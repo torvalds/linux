@@ -101,6 +101,10 @@
 /* Maximum number of poll wake up nests we are allowing */
 #define EP_MAX_POLLWAKE_NESTS 4
 
+/* Maximum msec timeout value storeable in a long int */
+#define EP_MAX_MSTIMEO min(1000ULL * MAX_SCHEDULE_TIMEOUT / HZ, (LONG_MAX - 999ULL) / HZ)
+
+
 struct epoll_filefd {
 	struct file *file;
 	int fd;
@@ -1506,8 +1510,8 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 	 * and the overflow condition. The passed timeout is in milliseconds,
 	 * that why (t * HZ) / 1000.
 	 */
-	jtimeout = timeout == -1 || timeout > (MAX_SCHEDULE_TIMEOUT - 1000) / HZ ?
-		MAX_SCHEDULE_TIMEOUT: (timeout * HZ + 999) / 1000;
+	jtimeout = (timeout < 0 || timeout >= EP_MAX_MSTIMEO) ?
+		MAX_SCHEDULE_TIMEOUT : (timeout * HZ + 999) / 1000;
 
 retry:
 	write_lock_irqsave(&ep->lock, flags);

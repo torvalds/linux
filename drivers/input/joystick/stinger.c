@@ -48,14 +48,12 @@ MODULE_LICENSE("GPL");
 
 #define STINGER_MAX_LENGTH 8
 
-static char *stinger_name = "Gravis Stinger";
-
 /*
  * Per-Stinger data.
  */
 
 struct stinger {
-	struct input_dev dev;
+	struct input_dev *dev;
 	int idx;
 	unsigned char data[STINGER_MAX_LENGTH];
 	char phys[32];
@@ -68,7 +66,7 @@ struct stinger {
 
 static void stinger_process_packet(struct stinger *stinger, struct pt_regs *regs)
 {
-	struct input_dev *dev = &stinger->dev;
+	struct input_dev *dev = stinger->dev;
 	unsigned char *data = stinger->data;
 
 	if (!stinger->idx) return;
@@ -126,9 +124,9 @@ static void stinger_disconnect(struct serio *serio)
 {
 	struct stinger *stinger = serio_get_drvdata(serio);
 
-	input_unregister_device(&stinger->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_unregister_device(stinger->dev);
 	kfree(stinger);
 }
 
@@ -141,53 +139,46 @@ static void stinger_disconnect(struct serio *serio)
 static int stinger_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct stinger *stinger;
-	int i;
-	int err;
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
 
-	if (!(stinger = kmalloc(sizeof(struct stinger), GFP_KERNEL)))
-		return -ENOMEM;
+	stinger = kmalloc(sizeof(struct stinger), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!stinger || !input_dev)
+		goto fail;
 
-	memset(stinger, 0, sizeof(struct stinger));
-
-	stinger->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	stinger->dev.keybit[LONG(BTN_A)] = BIT(BTN_A) | BIT(BTN_B) | BIT(BTN_C) | BIT(BTN_X) | \
-					   BIT(BTN_Y) | BIT(BTN_Z) | BIT(BTN_TL) | BIT(BTN_TR) | \
-					   BIT(BTN_START) | BIT(BTN_SELECT);
-	stinger->dev.absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
-
+	stinger->dev = input_dev;
 	sprintf(stinger->phys, "%s/serio0", serio->phys);
 
-	init_input_dev(&stinger->dev);
-	stinger->dev.name = stinger_name;
-	stinger->dev.phys = stinger->phys;
-	stinger->dev.id.bustype = BUS_RS232;
-	stinger->dev.id.vendor = SERIO_STINGER;
-	stinger->dev.id.product = 0x0001;
-	stinger->dev.id.version = 0x0100;
-	stinger->dev.dev = &serio->dev;
+	input_dev->name = "Gravis Stinger";
+	input_dev->phys = stinger->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_STINGER;
+	input_dev->id.product = 0x0001;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+	input_dev->private = stinger;
 
-	for (i = 0; i < 2; i++) {
-		stinger->dev.absmax[ABS_X+i] =  64;
-		stinger->dev.absmin[ABS_X+i] = -64;
-		stinger->dev.absflat[ABS_X+i] = 4;
-	}
-
-	stinger->dev.private = stinger;
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->keybit[LONG(BTN_A)] = BIT(BTN_A) | BIT(BTN_B) | BIT(BTN_C) | BIT(BTN_X) |
+					 BIT(BTN_Y) | BIT(BTN_Z) | BIT(BTN_TL) | BIT(BTN_TR) |
+					 BIT(BTN_START) | BIT(BTN_SELECT);
+	input_set_abs_params(input_dev, ABS_X, -64, 64, 0, 4);
+	input_set_abs_params(input_dev, ABS_Y, -64, 64, 0, 4);
 
 	serio_set_drvdata(serio, stinger);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(stinger);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	input_register_device(&stinger->dev);
-
-	printk(KERN_INFO "input: %s on %s\n",  stinger_name, serio->phys);
-
+	input_register_device(stinger->dev);
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(stinger);
+	return err;
 }
 
 /*

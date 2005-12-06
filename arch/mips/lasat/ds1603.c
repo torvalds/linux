@@ -8,6 +8,7 @@
 #include <asm/lasat/lasat.h>
 #include <linux/delay.h>
 #include <asm/lasat/ds1603.h>
+#include <asm/time.h>
 
 #include "ds1603.h"
 
@@ -138,19 +139,27 @@ static void rtc_end_op(void)
 unsigned long ds1603_read(void)
 {
 	unsigned long word;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
 	rtc_init_op();
 	rtc_write_byte(READ_TIME_CMD);
 	word = rtc_read_word();
 	rtc_end_op();
+	spin_unlock_irqrestore(&rtc_lock, flags);
 	return word;
 }
 
 int ds1603_set(unsigned long time)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
 	rtc_init_op();
 	rtc_write_byte(SET_TIME_CMD);
 	rtc_write_word(time);
 	rtc_end_op();
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }

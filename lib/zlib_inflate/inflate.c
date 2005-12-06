@@ -3,7 +3,6 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-#include <linux/module.h>
 #include <linux/zutil.h>
 #include "infblock.h"
 #include "infutil.h"

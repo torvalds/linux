@@ -37,9 +37,9 @@
  * Physical DRAM offset.
  */
 #if defined(CONFIG_ARCH_OMAP1)
-#define PHYS_OFFSET		(0x10000000UL)
+#define PHYS_OFFSET		UL(0x10000000)
 #elif defined(CONFIG_ARCH_OMAP2)
-#define PHYS_OFFSET		(0x80000000UL)
+#define PHYS_OFFSET		UL(0x80000000)
 #endif
 
 /*
@@ -61,12 +61,12 @@
  * Note that the is_lbus_device() test is not very efficient on 1510
  * because of the strncmp().
  */
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 
 /*
  * OMAP-1510 Local Bus address offset
  */
-#define OMAP1510_LB_OFFSET	(0x30000000UL)
+#define OMAP1510_LB_OFFSET	UL(0x30000000)
 
 #define virt_to_lbus(x)		((x) - PAGE_OFFSET + OMAP1510_LB_OFFSET)
 #define lbus_to_virt(x)		((x) - OMAP1510_LB_OFFSET + PAGE_OFFSET)
@@ -84,7 +84,7 @@
 					virt_to_lbus(addr) : \
 					__virt_to_bus(addr);})
 
-#endif	/* CONFIG_ARCH_OMAP1510 */
+#endif	/* CONFIG_ARCH_OMAP15XX */
 
 #endif
 

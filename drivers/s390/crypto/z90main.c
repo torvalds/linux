@@ -37,7 +37,6 @@
 #include <linux/kobject_uevent.h>
 #include <linux/proc_fs.h>
 #include <linux/syscalls.h>
-#include <linux/version.h>
 #include "z90crypt.h"
 #include "z90common.h"
 
@@ -3051,8 +3050,7 @@ destroy_crypto_device(int index)
 	if (dev_ptr) {
 		disabledFlag = dev_ptr->disabled;
 		t = dev_ptr->dev_type;
-		if (dev_ptr->dev_resp_p)
-			kfree(dev_ptr->dev_resp_p);
+		kfree(dev_ptr->dev_resp_p);
 		kfree(dev_ptr);
 	} else {
 		disabledFlag = 0;
@@ -3080,11 +3078,11 @@ static void
 destroy_z90crypt(void)
 {
 	int i;
+
 	for (i = 0; i < z90crypt.max_count; i++)
 		if (z90crypt.device_p[i])
 			destroy_crypto_device(i);
-	if (z90crypt.hdware_info)
-		kfree((void *)z90crypt.hdware_info);
+	kfree(z90crypt.hdware_info);
 	memset((void *)&z90crypt, 0, sizeof(z90crypt));
 }
 

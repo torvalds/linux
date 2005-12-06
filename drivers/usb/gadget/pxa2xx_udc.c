@@ -32,7 +32,6 @@
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -43,7 +42,7 @@
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/byteorder.h>
@@ -332,7 +331,7 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
  * 	pxa2xx_ep_alloc_request - allocate a request data structure
  */
 static struct usb_request *
-pxa2xx_ep_alloc_request (struct usb_ep *_ep, unsigned gfp_flags)
+pxa2xx_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct pxa2xx_request *req;
 
@@ -367,7 +366,7 @@ pxa2xx_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
  */
 static void *
 pxa2xx_ep_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-	dma_addr_t *dma, unsigned gfp_flags)
+	dma_addr_t *dma, gfp_t gfp_flags)
 {
 	char			*retval;
 
@@ -874,7 +873,7 @@ done:
 /*-------------------------------------------------------------------------*/
 
 static int
-pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, unsigned gfp_flags)
+pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 {
 	struct pxa2xx_request	*req;
 	struct pxa2xx_ep	*ep;
@@ -2433,7 +2432,7 @@ static struct pxa2xx_udc memory = {
 /*
  * 	probe - binds to the platform device
  */
-static int __init pxa2xx_udc_probe(struct device *_dev)
+static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 {
 	struct pxa2xx_udc *dev = &memory;
 	int retval, out_dma = 1;
@@ -2496,19 +2495,19 @@ static int __init pxa2xx_udc_probe(struct device *_dev)
 #endif
 
 	/* other non-static parts of init */
-	dev->dev = _dev;
-	dev->mach = _dev->platform_data;
+	dev->dev = &pdev->dev;
+	dev->mach = pdev->dev.platform_data;
 
 	init_timer(&dev->timer);
 	dev->timer.function = udc_watchdog;
 	dev->timer.data = (unsigned long) dev;
 
 	device_initialize(&dev->gadget.dev);
-	dev->gadget.dev.parent = _dev;
-	dev->gadget.dev.dma_mask = _dev->dma_mask;
+	dev->gadget.dev.parent = &pdev->dev;
+	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
 
 	the_controller = dev;
-	dev_set_drvdata(_dev, dev);
+	platform_set_drvdata(pdev, dev);
 
 	udc_disable(dev);
 	udc_reinit(dev);
@@ -2560,14 +2559,14 @@ lubbock_fail0:
 	return 0;
 }
 
-static void pxa2xx_udc_shutdown(struct device *_dev)
+static void pxa2xx_udc_shutdown(struct platform_device *_dev)
 {
 	pullup_off();
 }
 
-static int __exit pxa2xx_udc_remove(struct device *_dev)
+static int __exit pxa2xx_udc_remove(struct platform_device *pdev)
 {
-	struct pxa2xx_udc *dev = dev_get_drvdata(_dev);
+	struct pxa2xx_udc *dev = platform_get_drvdata(pdev);
 
 	udc_disable(dev);
 	remove_proc_files();
@@ -2581,7 +2580,7 @@ static int __exit pxa2xx_udc_remove(struct device *_dev)
 		free_irq(LUBBOCK_USB_DISC_IRQ, dev);
 		free_irq(LUBBOCK_USB_IRQ, dev);
 	}
-	dev_set_drvdata(_dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;
 	return 0;
 }
@@ -2602,24 +2601,23 @@ static int __exit pxa2xx_udc_remove(struct device *_dev)
  * VBUS IRQs should probably be ignored so that the PXA device just acts
  * "dead" to USB hosts until system resume.
  */
-static int pxa2xx_udc_suspend(struct device *dev, u32 state, u32 level)
+static int pxa2xx_udc_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
+	struct pxa2xx_udc	*udc = platform_get_drvdata(dev);
 
-	if (level == SUSPEND_POWER_DOWN) {
-		if (!udc->mach->udc_command)
-			WARN("USB host won't detect disconnect!\n");
-		pullup(udc, 0);
-	}
+	if (!udc->mach->udc_command)
+		WARN("USB host won't detect disconnect!\n");
+	pullup(udc, 0);
+
 	return 0;
 }
 
-static int pxa2xx_udc_resume(struct device *dev, u32 level)
+static int pxa2xx_udc_resume(struct platform_device *dev)
 {
-	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
+	struct pxa2xx_udc	*udc = platform_get_drvdata(dev);
 
-	if (level == RESUME_POWER_ON)
-		pullup(udc, 1);
+	pullup(udc, 1);
+
 	return 0;
 }
 
@@ -2630,26 +2628,28 @@ static int pxa2xx_udc_resume(struct device *dev, u32 level)
 
 /*-------------------------------------------------------------------------*/
 
-static struct device_driver udc_driver = {
-	.name		= "pxa2xx-udc",
-	.bus		= &platform_bus_type,
+static struct platform_driver udc_driver = {
 	.probe		= pxa2xx_udc_probe,
 	.shutdown	= pxa2xx_udc_shutdown,
 	.remove		= __exit_p(pxa2xx_udc_remove),
 	.suspend	= pxa2xx_udc_suspend,
 	.resume		= pxa2xx_udc_resume,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "pxa2xx-udc",
+	},
 };
 
 static int __init udc_init(void)
 {
 	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);
-	return driver_register(&udc_driver);
+	return platform_driver_register(&udc_driver);
 }
 module_init(udc_init);
 
 static void __exit udc_exit(void)
 {
-	driver_unregister(&udc_driver);
+	platform_driver_unregister(&udc_driver);
 }
 module_exit(udc_exit);
 

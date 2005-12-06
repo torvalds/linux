@@ -175,6 +175,8 @@ init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	return 0;
 }
 
+static DEFINE_SPINLOCK(mmu_context_lock);
+
 /* Called in schedule() just before actually doing the switch_to. */
 void
 switch_mm(struct mm_struct *prev, struct mm_struct *next,
@@ -183,10 +185,10 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	int cpu = smp_processor_id();
 
 	/* Make sure there is a MMU context. */
-	spin_lock(&next->page_table_lock);
+	spin_lock(&mmu_context_lock);
 	get_mmu_context(next);
 	cpu_set(cpu, next->cpu_vm_mask);
-	spin_unlock(&next->page_table_lock);
+	spin_unlock(&mmu_context_lock);
 
 	/*
 	 * Remember the pgd for the fault handlers. Keep a seperate copy of it

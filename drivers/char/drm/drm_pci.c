@@ -77,7 +77,7 @@ drm_dma_handle_t *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
 	dmah = kmalloc(sizeof(drm_dma_handle_t), GFP_KERNEL);
 	if (!dmah)
 		return NULL;
-	
+
 	dmah->size = size;
 	dmah->vaddr = pci_alloc_consistent(dev->pdev, size, &dmah->busaddr);
 
@@ -106,6 +106,7 @@ drm_dma_handle_t *drm_pci_alloc(drm_device_t * dev, size_t size, size_t align,
 
 	return dmah;
 }
+
 EXPORT_SYMBOL(drm_pci_alloc);
 
 /**
@@ -113,8 +114,7 @@ EXPORT_SYMBOL(drm_pci_alloc);
  *
  * This function is for internal use in the Linux-specific DRM core code.
  */
-void
-__drm_pci_free(drm_device_t * dev, drm_dma_handle_t *dmah)
+void __drm_pci_free(drm_device_t * dev, drm_dma_handle_t * dmah)
 {
 #ifdef DRM_DEBUG_MEMORY
 	int area = DRM_MEM_DMA;
@@ -150,12 +150,12 @@ __drm_pci_free(drm_device_t * dev, drm_dma_handle_t *dmah)
 /**
  * \brief Free a PCI consistent memory block
  */
-void
-drm_pci_free(drm_device_t *dev, drm_dma_handle_t *dmah)
+void drm_pci_free(drm_device_t * dev, drm_dma_handle_t * dmah)
 {
 	__drm_pci_free(dev, dmah);
 	kfree(dmah);
 }
+
 EXPORT_SYMBOL(drm_pci_free);
 
 /*@}*/

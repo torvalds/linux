@@ -209,14 +209,13 @@ static void nile4_irq_end(unsigned int irq) {
 #define nile4_irq_shutdown nile4_disable_irq
 
 static hw_irq_controller nile4_irq_controller = {
-    "nile4",
-    nile4_irq_startup,
-    nile4_irq_shutdown,
-    nile4_enable_irq,
-    nile4_disable_irq,
-    nile4_ack_irq,
-    nile4_irq_end,
-    NULL
+	.typename = "nile4",
+	.startup = nile4_irq_startup,
+	.shutdown = nile4_irq_shutdown,
+	.enable = nile4_enable_irq,
+	.disable = nile4_disable_irq,
+	.ack = nile4_ack_irq,
+	.end = nile4_irq_end,
 };
 
 void nile4_irq_setup(u32 base) {

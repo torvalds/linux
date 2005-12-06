@@ -26,12 +26,9 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/proc_fs.h>
-#include <linux/workqueue.h>
 #include <linux/pci.h>
 #include "shpchp.h"
 
@@ -40,104 +37,60 @@
 
 static ssize_t show_ctrl (struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct pci_dev *pci_dev;
-	struct controller *ctrl;
+	struct pci_dev *pdev;
 	char * out = buf;
-	int index;
-	struct pci_resource *res;
+	int index, busnr;
+	struct resource *res;
+	struct pci_bus *bus;
 
-	pci_dev = container_of (dev, struct pci_dev, dev);
-	ctrl = pci_get_drvdata(pci_dev);
+	pdev = container_of (dev, struct pci_dev, dev);
+	bus = pdev->subordinate;
 
 	out += sprintf(buf, "Free resources: memory\n");
-	index = 11;
-	res = ctrl->mem_head;
-	while (res && index--) {
-		out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
-		res = res->next;
+	for (index = 0; index < PCI_BUS_NUM_RESOURCES; index++) {
+		res = bus->resource[index];
+		if (res && (res->flags & IORESOURCE_MEM) &&
+				!(res->flags & IORESOURCE_PREFETCH)) {
+			out += sprintf(out, "start = %8.8lx, length = %8.8lx\n",
+					res->start, (res->end - res->start));
+		}
 	}
 	out += sprintf(out, "Free resources: prefetchable memory\n");
-	index = 11;
-	res = ctrl->p_mem_head;
-	while (res && index--) {
-		out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
-		res = res->next;
+	for (index = 0; index < PCI_BUS_NUM_RESOURCES; index++) {
+		res = bus->resource[index];
+		if (res && (res->flags & IORESOURCE_MEM) &&
+			       (res->flags & IORESOURCE_PREFETCH)) {
+			out += sprintf(out, "start = %8.8lx, length = %8.8lx\n",
+					res->start, (res->end - res->start));
+		}
 	}
 	out += sprintf(out, "Free resources: IO\n");
-	index = 11;
-	res = ctrl->io_head;
-	while (res && index--) {
-		out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
-		res = res->next;
+	for (index = 0; index < PCI_BUS_NUM_RESOURCES; index++) {
+		res = bus->resource[index];
+		if (res && (res->flags & IORESOURCE_IO)) {
+			out += sprintf(out, "start = %8.8lx, length = %8.8lx\n",
+					res->start, (res->end - res->start));
+		}
 	}
 	out += sprintf(out, "Free resources: bus numbers\n");
-	index = 11;
-	res = ctrl->bus_head;
-	while (res && index--) {
-		out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
-		res = res->next;
+	for (busnr = bus->secondary; busnr <= bus->subordinate; busnr++) {
+		if (!pci_find_bus(pci_domain_nr(bus), busnr))
+			break;
 	}
+	if (busnr < bus->subordinate)
+		out += sprintf(out, "start = %8.8x, length = %8.8x\n",
+				busnr, (bus->subordinate - busnr));
 
 	return out - buf;
 }
 static DEVICE_ATTR (ctrl, S_IRUGO, show_ctrl, NULL);
 
-static ssize_t show_dev (struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct pci_dev *pci_dev;
-	struct controller *ctrl;
-	char * out = buf;
-	int index;
-	struct pci_resource *res;
-	struct pci_func *new_slot;
-	struct slot *slot;
-
-	pci_dev = container_of (dev, struct pci_dev, dev);
-	ctrl = pci_get_drvdata(pci_dev);
-
-	slot=ctrl->slot;
-
-	while (slot) {
-		new_slot = shpchp_slot_find(slot->bus, slot->device, 0);
-		if (!new_slot)
-			break;
-		out += sprintf(out, "assigned resources: memory\n");
-		index = 11;
-		res = new_slot->mem_head;
-		while (res && index--) {
-			out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
-			res = res->next;
-		}
-		out += sprintf(out, "assigned resources: prefetchable memory\n");
-		index = 11;
-		res = new_slot->p_mem_head;
-		while (res && index--) {
-			out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
-			res = res->next;
-		}
-		out += sprintf(out, "assigned resources: IO\n");
-		index = 11;
-		res = new_slot->io_head;
-		while (res && index--) {
-			out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
-			res = res->next;
-		}
-		out += sprintf(out, "assigned resources: bus numbers\n");
-		index = 11;
-		res = new_slot->bus_head;
-		while (res && index--) {
-			out += sprintf(out, "start = %8.8x, length = %8.8x\n", res->base, res->length);
-			res = res->next;
-		}
-		slot=slot->next;
-	}
-
-	return out - buf;
-}
-static DEVICE_ATTR (dev, S_IRUGO, show_dev, NULL);
-
 void shpchp_create_ctrl_files (struct controller *ctrl)
 {
 	device_create_file (&ctrl->pci_dev->dev, &dev_attr_ctrl);
-	device_create_file (&ctrl->pci_dev->dev, &dev_attr_dev);
+}
+
+void shpchp_remove_ctrl_files(struct controller *ctrl)
+{
+	device_remove_file(&ctrl->pci_dev->dev, &dev_attr_ctrl);
 }

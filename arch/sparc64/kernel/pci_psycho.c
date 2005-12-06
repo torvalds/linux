@@ -1207,12 +1207,8 @@ static void psycho_scan_bus(struct pci_controller_info *p)
 static void psycho_iommu_init(struct pci_controller_info *p)
 {
 	struct pci_iommu *iommu = p->pbm_A.iommu;
-	unsigned long tsbbase, i;
+	unsigned long i;
 	u64 control;
-
-	/* Setup initial software IOMMU state. */
-	spin_lock_init(&iommu->lock);
-	iommu->ctx_lowest_free = 1;
 
 	/* Register addresses. */
 	iommu->iommu_control  = p->pbm_A.controller_regs + PSYCHO_IOMMU_CONTROL;
@@ -1240,40 +1236,10 @@ static void psycho_iommu_init(struct pci_controller_info *p)
 	/* Leave diag mode enabled for full-flushing done
 	 * in pci_iommu.c
 	 */
+	pci_iommu_table_init(iommu, IO_TSB_SIZE, 0xc0000000, 0xffffffff);
 
-	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
-	if (!iommu->dummy_page) {
-		prom_printf("PSYCHO_IOMMU: Error, gfp(dummy_page) failed.\n");
-		prom_halt();
-	}
-	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
-	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
-
-	/* Using assumed page size 8K with 128K entries we need 1MB iommu page
-	 * table (128K ioptes * 8 bytes per iopte).  This is
-	 * page order 7 on UltraSparc.
-	 */
-	tsbbase = __get_free_pages(GFP_KERNEL, get_order(IO_TSB_SIZE));
-	if (!tsbbase) {
-		prom_printf("PSYCHO_IOMMU: Error, gfp(tsb) failed.\n");
-		prom_halt();
-	}
-	iommu->page_table = (iopte_t *)tsbbase;
-	iommu->page_table_sz_bits = 17;
-	iommu->page_table_map_base = 0xc0000000;
-	iommu->dma_addr_mask = 0xffffffff;
-	pci_iommu_table_init(iommu, IO_TSB_SIZE);
-
-	/* We start with no consistent mappings. */
-	iommu->lowest_consistent_map =
-		1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS);
-
-	for (i = 0; i < PBM_NCLUSTERS; i++) {
-		iommu->alloc_info[i].flush = 0;
-		iommu->alloc_info[i].next = 0;
-	}
-
-	psycho_write(p->pbm_A.controller_regs + PSYCHO_IOMMU_TSBBASE, __pa(tsbbase));
+	psycho_write(p->pbm_A.controller_regs + PSYCHO_IOMMU_TSBBASE,
+		     __pa(iommu->page_table));
 
 	control = psycho_read(p->pbm_A.controller_regs + PSYCHO_IOMMU_CONTROL);
 	control &= ~(PSYCHO_IOMMU_CTRL_TSBSZ | PSYCHO_IOMMU_CTRL_TBWSZ);
@@ -1281,7 +1247,7 @@ static void psycho_iommu_init(struct pci_controller_info *p)
 	psycho_write(p->pbm_A.controller_regs + PSYCHO_IOMMU_CONTROL, control);
 
 	/* If necessary, hook us up for starfire IRQ translations. */
-	if(this_is_starfire)
+	if (this_is_starfire)
 		p->starfire_cookie = starfire_hookup(p->pbm_A.portid);
 	else
 		p->starfire_cookie = NULL;

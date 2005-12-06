@@ -9,8 +9,6 @@ struct i2c_algo_pca_data {
 	int  (*wait_for_interrupt)	(struct i2c_algo_pca_data *adap);
 };
 
-#define I2C_PCA_ADAP_MAX	16
-
 int i2c_pca_add_bus(struct i2c_adapter *);
 int i2c_pca_del_bus(struct i2c_adapter *);
 

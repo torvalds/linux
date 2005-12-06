@@ -100,7 +100,7 @@ void sctp_ulpq_free(struct sctp_ulpq *ulpq)
 
 /* Process an incoming DATA chunk.  */
 int sctp_ulpq_tail_data(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
-			unsigned int __nocast gfp)
+			gfp_t gfp)
 {
 	struct sk_buff_head temp;
 	sctp_data_chunk_t *hdr;
@@ -792,7 +792,7 @@ static __u16 sctp_ulpq_renege_frags(struct sctp_ulpq *ulpq, __u16 needed)
 /* Partial deliver the first message as there is pressure on rwnd. */
 void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 				struct sctp_chunk *chunk,
-				unsigned int __nocast gfp)
+				gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_association *asoc;
@@ -816,7 +816,7 @@ void sctp_ulpq_partial_delivery(struct sctp_ulpq *ulpq,
 
 /* Renege some packets to make room for an incoming chunk.  */
 void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
-		      unsigned int __nocast gfp)
+		      gfp_t gfp)
 {
 	struct sctp_association *asoc;
 	__u16 needed, freed;
@@ -855,7 +855,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 /* Notify the application if an association is aborted and in
  * partial delivery mode.  Send up any pending received messages.
  */
-void sctp_ulpq_abort_pd(struct sctp_ulpq *ulpq, unsigned int __nocast gfp)
+void sctp_ulpq_abort_pd(struct sctp_ulpq *ulpq, gfp_t gfp)
 {
 	struct sctp_ulpevent *ev = NULL;
 	struct sock *sk;

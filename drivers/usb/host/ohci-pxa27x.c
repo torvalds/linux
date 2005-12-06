@@ -20,6 +20,9 @@
  */
 
 #include <linux/device.h>
+#include <linux/signal.h>
+#include <linux/platform_device.h>
+
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
@@ -278,17 +281,17 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef  CONFIG_USB_SUSPEND
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef  CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
+	.start_port_reset =	ohci_start_port_reset,
 };
 
 /*-------------------------------------------------------------------------*/
 
-static int ohci_hcd_pxa27x_drv_probe(struct device *dev)
+static int ohci_hcd_pxa27x_drv_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
 	pr_debug ("In ohci_hcd_pxa27x_drv_probe");
@@ -300,41 +303,39 @@ static int ohci_hcd_pxa27x_drv_probe(struct device *dev)
 	return ret;
 }
 
-static int ohci_hcd_pxa27x_drv_remove(struct device *dev)
+static int ohci_hcd_pxa27x_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_pxa27x_remove(hcd, pdev);
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state, u32 level)
+static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
-//	struct platform_device *pdev = to_platform_device(dev);
-//	struct usb_hcd *hcd = dev_get_drvdata(dev);
+//	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	printk("%s: not implemented yet\n", __FUNCTION__);
 
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_resume(struct device *dev, u32 level)
+static int ohci_hcd_pxa27x_drv_resume(struct platform_device *dev)
 {
-//	struct platform_device *pdev = to_platform_device(dev);
-//	struct usb_hcd *hcd = dev_get_drvdata(dev);
+//	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	printk("%s: not implemented yet\n", __FUNCTION__);
 
 	return 0;
 }
 
 
-static struct device_driver ohci_hcd_pxa27x_driver = {
-	.name		= "pxa27x-ohci",
-	.bus		= &platform_bus_type,
+static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_drv_probe,
 	.remove		= ohci_hcd_pxa27x_drv_remove,
 	.suspend	= ohci_hcd_pxa27x_drv_suspend, 
-	.resume		= ohci_hcd_pxa27x_drv_resume, 
+	.resume		= ohci_hcd_pxa27x_drv_resume,
+	.driver		= {
+		.name	= "pxa27x-ohci",
+	},
 };
 
 static int __init ohci_hcd_pxa27x_init (void)
@@ -343,12 +344,12 @@ static int __init ohci_hcd_pxa27x_init (void)
 	pr_debug ("block sizes: ed %d td %d\n",
 		sizeof (struct ed), sizeof (struct td));
 
-	return driver_register(&ohci_hcd_pxa27x_driver);
+	return platform_driver_register(&ohci_hcd_pxa27x_driver);
 }
 
 static void __exit ohci_hcd_pxa27x_cleanup (void)
 {
-	driver_unregister(&ohci_hcd_pxa27x_driver);
+	platform_driver_unregister(&ohci_hcd_pxa27x_driver);
 }
 
 module_init (ohci_hcd_pxa27x_init);

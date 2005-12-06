@@ -20,6 +20,7 @@
 #include "linux/ctype.h"
 #include "linux/bootmem.h"
 #include "linux/ethtool.h"
+#include "linux/platform_device.h"
 #include "asm/uaccess.h"
 #include "user_util.h"
 #include "kern_util.h"
@@ -95,7 +96,6 @@ irqreturn_t uml_net_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static int uml_net_open(struct net_device *dev)
 {
 	struct uml_net_private *lp = dev->priv;
-	char addr[sizeof("255.255.255.255\0")];
 	int err;
 
 	spin_lock(&lp->lock);
@@ -106,7 +106,7 @@ static int uml_net_open(struct net_device *dev)
 	}
 
 	if(!lp->have_mac){
- 		dev_ip_addr(dev, addr, &lp->mac[2]);
+ 		dev_ip_addr(dev, &lp->mac[2]);
  		set_ether_mac(dev, lp->mac);
 	}
 
@@ -243,33 +243,17 @@ static int uml_net_change_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
-static int uml_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static void uml_net_get_drvinfo(struct net_device *dev,
+				struct ethtool_drvinfo *info)
 {
-	static const struct ethtool_drvinfo info = {
-		.cmd     = ETHTOOL_GDRVINFO,
-		.driver  = DRIVER_NAME,
-		.version = "42",
-	};
-	void *useraddr;
-	u32 ethcmd;
-
-	switch (cmd) {
-	case SIOCETHTOOL:
-		useraddr = ifr->ifr_data;
-		if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
-			return -EFAULT;
-		switch (ethcmd) {
-		case ETHTOOL_GDRVINFO:
-			if (copy_to_user(useraddr, &info, sizeof(info)))
-				return -EFAULT;
-			return 0;
-		default:
-			return -EOPNOTSUPP;
-		}
-	default:
-		return -EINVAL;
-	}
+	strcpy(info->driver, DRIVER_NAME);
+	strcpy(info->version, "42");
 }
+
+static struct ethtool_ops uml_net_ethtool_ops = {
+	.get_drvinfo	= uml_net_get_drvinfo,
+	.get_link	= ethtool_op_get_link,
+};
 
 void uml_net_user_timer_expire(unsigned long _conn)
 {
@@ -284,9 +268,10 @@ void uml_net_user_timer_expire(unsigned long _conn)
 static DEFINE_SPINLOCK(devices_lock);
 static struct list_head devices = LIST_HEAD_INIT(devices);
 
-static struct device_driver uml_net_driver = {
-	.name  = DRIVER_NAME,
-	.bus   = &platform_bus_type,
+static struct platform_driver uml_net_driver = {
+	.driver = {
+		.name  = DRIVER_NAME,
+	},
 };
 static int driver_registered;
 
@@ -333,7 +318,7 @@ static int eth_configure(int n, void *init, char *mac,
 
 	/* sysfs register */
 	if (!driver_registered) {
-		driver_register(&uml_net_driver);
+		platform_driver_register(&uml_net_driver);
 		driver_registered = 1;
 	}
 	device->pdev.id = n;
@@ -359,7 +344,7 @@ static int eth_configure(int n, void *init, char *mac,
 	dev->tx_timeout = uml_net_tx_timeout;
 	dev->set_mac_address = uml_net_set_mac;
 	dev->change_mtu = uml_net_change_mtu;
-	dev->do_ioctl = uml_net_ioctl;
+	dev->ethtool_ops = &uml_net_ethtool_ops;
 	dev->watchdog_timeo = (HZ >> 1);
 	dev->irq = UM_ETH_IRQ;
 
@@ -663,8 +648,6 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 			      void *ptr)
 {
 	struct in_ifaddr *ifa = ptr;
-	u32 addr = ifa->ifa_address;
-	u32 netmask = ifa->ifa_mask;
 	struct net_device *dev = ifa->ifa_dev->dev;
 	struct uml_net_private *lp;
 	void (*proc)(unsigned char *, unsigned char *, void *);
@@ -684,14 +667,8 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 		break;
 	}
 	if(proc != NULL){
-		addr_buf[0] = addr & 0xff;
-		addr_buf[1] = (addr >> 8) & 0xff;
-		addr_buf[2] = (addr >> 16) & 0xff;
-		addr_buf[3] = addr >> 24;
-		netmask_buf[0] = netmask & 0xff;
-		netmask_buf[1] = (netmask >> 8) & 0xff;
-		netmask_buf[2] = (netmask >> 16) & 0xff;
-		netmask_buf[3] = netmask >> 24;
+		memcpy(addr_buf, &ifa->ifa_address, sizeof(addr_buf));
+		memcpy(netmask_buf, &ifa->ifa_mask, sizeof(netmask_buf));
 		(*proc)(addr_buf, netmask_buf, &lp->user);
 	}
 	return(NOTIFY_DONE);
@@ -773,27 +750,18 @@ int setup_etheraddr(char *str, unsigned char *addr)
 	return(1);
 }
 
-void dev_ip_addr(void *d, char *buf, char *bin_buf)
+void dev_ip_addr(void *d, unsigned char *bin_buf)
 {
 	struct net_device *dev = d;
 	struct in_device *ip = dev->ip_ptr;
 	struct in_ifaddr *in;
-	u32 addr;
 
 	if((ip == NULL) || ((in = ip->ifa_list) == NULL)){
 		printk(KERN_WARNING "dev_ip_addr - device not assigned an "
 		       "IP address\n");
 		return;
 	}
-	addr = in->ifa_address;
-	sprintf(buf, "%d.%d.%d.%d", addr & 0xff, (addr >> 8) & 0xff, 
-		(addr >> 16) & 0xff, addr >> 24);
-	if(bin_buf){
-		bin_buf[0] = addr & 0xff;
-		bin_buf[1] = (addr >> 8) & 0xff;
-		bin_buf[2] = (addr >> 16) & 0xff;
-		bin_buf[3] = addr >> 24;
-	}
+	memcpy(bin_buf, &in->ifa_address, sizeof(in->ifa_address));
 }
 
 void set_ether_mac(void *d, unsigned char *addr)
@@ -828,14 +796,8 @@ void iter_addresses(void *d, void (*cb)(unsigned char *, unsigned char *,
 	if(ip == NULL) return;
 	in = ip->ifa_list;
 	while(in != NULL){
-		address[0] = in->ifa_address & 0xff;
-		address[1] = (in->ifa_address >> 8) & 0xff;
-		address[2] = (in->ifa_address >> 16) & 0xff;
-		address[3] = in->ifa_address >> 24;
-		netmask[0] = in->ifa_mask & 0xff;
-		netmask[1] = (in->ifa_mask >> 8) & 0xff;
-		netmask[2] = (in->ifa_mask >> 16) & 0xff;
-		netmask[3] = in->ifa_mask >> 24;
+		memcpy(address, &in->ifa_address, sizeof(address));
+		memcpy(netmask, &in->ifa_mask, sizeof(netmask));
 		(*cb)(address, netmask, arg);
 		in = in->ifa_next;
 	}

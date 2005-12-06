@@ -123,7 +123,7 @@ int ax25_rx_iframe(ax25_cb *ax25, struct sk_buff *skb)
 		}
 
 		skb_pull(skb, 1);	/* Remove PID */
-		skb->h.raw    = skb->data;
+		skb->mac.raw  = skb->nh.raw;
 		skb->nh.raw   = skb->data;
 		skb->dev      = ax25->ax25_dev->dev;
 		skb->pkt_type = PACKET_HOST;
@@ -401,10 +401,8 @@ static int ax25_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if (dp.ndigi == 0) {
-		if (ax25->digipeat != NULL) {
-			kfree(ax25->digipeat);
-			ax25->digipeat = NULL;
-		}
+		kfree(ax25->digipeat);
+		ax25->digipeat = NULL;
 	} else {
 		/* Reverse the source SABM's path */
 		memcpy(ax25->digipeat, &reverse_dp, sizeof(ax25_digi));

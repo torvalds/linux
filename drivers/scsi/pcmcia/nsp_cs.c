@@ -81,7 +81,7 @@ module_param(free_ports, bool, 0);
 MODULE_PARM_DESC(free_ports, "Release IO ports after configuration? (default: 0 (=no))");
 
 /* /usr/src/linux/drivers/scsi/hosts.h */
-static Scsi_Host_Template nsp_driver_template = {
+static struct scsi_host_template nsp_driver_template = {
 	.proc_name	         = "nsp_cs",
 	.proc_info		 = nsp_proc_info,
 	.name			 = "WorkBit NinjaSCSI-3/32Bi(16bit)",
@@ -201,7 +201,7 @@ static int nsp_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 #ifdef NSP_DEBUG
 	/*unsigned int host_id = SCpnt->device->host->this_id;*/
 	/*unsigned int base    = SCpnt->device->host->io_port;*/
-	unsigned char target = SCpnt->device->id;
+	unsigned char target = scmd_id(SCpnt);
 #endif
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 
@@ -373,7 +373,7 @@ static int nsphw_start_selection(Scsi_Cmnd *SCpnt)
 {
 	unsigned int  host_id	 = SCpnt->device->host->this_id;
 	unsigned int  base	 = SCpnt->device->host->io_port;
-	unsigned char target	 = SCpnt->device->id;
+	unsigned char target	 = scmd_id(SCpnt);
 	nsp_hw_data  *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 	int	      time_out;
 	unsigned char phase, arbit;
@@ -452,7 +452,7 @@ static struct nsp_sync_table nsp_sync_table_20M[] = {
  */
 static int nsp_analyze_sdtr(Scsi_Cmnd *SCpnt)
 {
-	unsigned char	       target = SCpnt->device->id;
+	unsigned char	       target = scmd_id(SCpnt);
 //	unsigned char	       lun    = SCpnt->device->lun;
 	nsp_hw_data           *data   = (nsp_hw_data *)SCpnt->device->host->hostdata;
 	sync_data	      *sync   = &(data->Sync[target]);
@@ -677,7 +677,7 @@ static int nsp_reselected(Scsi_Cmnd *SCpnt)
 		target++;
 	}
 
-	if (SCpnt->device->id != target) {
+	if (scmd_id(SCpnt) != target) {
 		nsp_msg(KERN_ERR, "XXX: reselect ID must be %d in this implementation.", target);
 	}
 
@@ -912,7 +912,7 @@ static void nsp_pio_write(Scsi_Cmnd *SCpnt)
 static int nsp_nexus(Scsi_Cmnd *SCpnt)
 {
 	unsigned int   base   = SCpnt->device->host->io_port;
-	unsigned char  target = SCpnt->device->id;
+	unsigned char  target = scmd_id(SCpnt);
 //	unsigned char  lun    = SCpnt->device->lun;
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 	sync_data     *sync   = &(data->Sync[target]);
@@ -1310,7 +1310,7 @@ timer_out:
 /*----------------------------------------------------------------*/
 /* look for ninja3 card and init if found			  */
 /*----------------------------------------------------------------*/
-static struct Scsi_Host *nsp_detect(Scsi_Host_Template *sht)
+static struct Scsi_Host *nsp_detect(struct scsi_host_template *sht)
 {
 	struct Scsi_Host *host;	/* registered host structure */
 	nsp_hw_data *data_b = &nsp_data_base, *data;
@@ -1358,7 +1358,7 @@ static struct Scsi_Host *nsp_detect(Scsi_Host_Template *sht)
 }
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-static int nsp_detect_old(Scsi_Host_Template *sht)
+static int nsp_detect_old(struct scsi_host_template *sht)
 {
 	if (nsp_detect(sht) == NULL) {
 		return 0;
@@ -1717,7 +1717,7 @@ static void nsp_cs_config(dev_link_t *link)
 	struct Scsi_Host *host;
 	nsp_hw_data      *data = &nsp_data_base;
 #if !(LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,74))
-	Scsi_Device	 *dev;
+	struct scsi_device	 *dev;
 	dev_node_t	**tail, *node;
 #endif
 

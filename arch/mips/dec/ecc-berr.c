@@ -6,7 +6,7 @@
  *	5000/240 (KN03), 5000/260 (KN05) and DECsystem 5900 (KN03),
  *	5900/260 (KN05) systems.
  *
- *	Copyright (c) 2003  Maciej W. Rozycki
+ *	Copyright (c) 2003, 2005  Maciej W. Rozycki
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -15,6 +15,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -57,7 +58,7 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 
 	const char *kind, *agent, *cycle, *event;
 	const char *status = "", *xbit = "", *fmt = "";
-	dma_addr_t address;
+	unsigned long address;
 	u16 syn = 0, sngl;
 
 	int i = 0;
@@ -66,7 +67,7 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 	u32 chksyn = *kn0x_chksyn;
 	int action = MIPS_BE_FATAL;
 
-	/* For non-ECC ack ASAP, so any subsequent errors get caught. */
+	/* For non-ECC ack ASAP, so that any subsequent errors get caught. */
 	if ((erraddr & (KN0X_EAR_VALID | KN0X_EAR_ECCERR)) == KN0X_EAR_VALID)
 		dec_ecc_be_ack();
 
@@ -74,7 +75,7 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 
 	if (!(erraddr & KN0X_EAR_VALID)) {
 		/* No idea what happened. */
-		printk(KERN_ALERT "Unidentified bus error %s.\n", kind);
+		printk(KERN_ALERT "Unidentified bus error %s\n", kind);
 		return action;
 	}
 
@@ -126,7 +127,7 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 			/* Ack now, no rewrite will happen. */
 			dec_ecc_be_ack();
 
-			fmt = KERN_ALERT "%s" "invalid.\n";
+			fmt = KERN_ALERT "%s" "invalid\n";
 		} else {
 			sngl = syn & KN0X_ESR_SNGLO;
 			syn &= KN0X_ESR_SYNLO;
@@ -144,7 +145,8 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 			} else if (!sngl) {
 				status = dbestr;
 			} else {
-				volatile u32 *ptr = (void *)KSEG1ADDR(address);
+				volatile u32 *ptr =
+					(void *)CKSEG1ADDR(address);
 
 				*ptr = *ptr;		/* Rewrite. */
 				iob();
@@ -160,12 +162,12 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 				if (syn == 0x01) {
 					fmt = KERN_ALERT "%s"
 					      "%#04x -- %s bit error "
-					      "at check bit C%s.\n";
+					      "at check bit C%s\n";
 					xbit = "X";
 				} else {
 					fmt = KERN_ALERT "%s"
 					      "%#04x -- %s bit error "
-					      "at check bit C%s%u.\n";
+					      "at check bit C%s%u\n";
 				}
 				i = syn >> 2;
 			} else {
@@ -175,16 +177,16 @@ static int dec_ecc_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
 				if (i < 32)
 					fmt = KERN_ALERT "%s"
 					      "%#04x -- %s bit error "
-					      "at data bit D%s%u.\n";
+					      "at data bit D%s%u\n";
 				else
 					fmt = KERN_ALERT "%s"
-					      "%#04x -- %s bit error.\n";
+					      "%#04x -- %s bit error\n";
 			}
 		}
 	}
 
 	if (action != MIPS_BE_FIXUP)
-		printk(KERN_ALERT "Bus error %s: %s %s %s at %#010lx.\n",
+		printk(KERN_ALERT "Bus error %s: %s %s %s at %#010lx\n",
 			kind, agent, cycle, event, address);
 
 	if (action != MIPS_BE_FIXUP && erraddr & KN0X_EAR_ECCERR)
@@ -203,11 +205,11 @@ irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	int action = dec_ecc_be_backend(regs, 0, 1);
 
 	if (action == MIPS_BE_DISCARD)
-		return IRQ_NONE;
+		return IRQ_HANDLED;
 
 	/*
-	 * FIXME: Find affected processes and kill them, otherwise we
-	 * must die.
+	 * FIXME: Find the affected processes and kill them, otherwise
+	 * we must die.
 	 *
 	 * The interrupt is asynchronously delivered thus EPC and RA
 	 * may be irrelevant, but are printed for a reference.
@@ -225,16 +227,16 @@ irqreturn_t dec_ecc_be_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  */
 static inline void dec_kn02_be_init(void)
 {
-	volatile u32 *csr = (void *)KN02_CSR_BASE;
+	volatile u32 *csr = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_CSR);
 	unsigned long flags;
 
-	kn0x_erraddr = (void *)(KN02_SLOT_BASE + KN02_ERRADDR);
-	kn0x_chksyn = (void *)(KN02_SLOT_BASE + KN02_CHKSYN);
+	kn0x_erraddr = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_ERRADDR);
+	kn0x_chksyn = (void *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_CHKSYN);
 
 	spin_lock_irqsave(&kn02_lock, flags);
 
 	/* Preset write-only bits of the Control Register cache. */
-	cached_kn02_csr = *csr | KN03_CSR_LEDS;
+	cached_kn02_csr = *csr | KN02_CSR_LEDS;
 
 	/* Set normal ECC detection and generation. */
 	cached_kn02_csr &= ~(KN02_CSR_DIAGCHK | KN02_CSR_DIAGGEN);
@@ -248,11 +250,11 @@ static inline void dec_kn02_be_init(void)
 
 static inline void dec_kn03_be_init(void)
 {
-	volatile u32 *mcr = (void *)(KN03_SLOT_BASE + IOASIC_MCR);
-	volatile u32 *mbcs = (void *)(KN03_SLOT_BASE + KN05_MB_CSR);
+	volatile u32 *mcr = (void *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_MCR);
+	volatile u32 *mbcs = (void *)CKSEG1ADDR(KN4K_SLOT_BASE + KN4K_MB_CSR);
 
-	kn0x_erraddr = (void *)(KN03_SLOT_BASE + IOASIC_ERRADDR);
-	kn0x_chksyn = (void *)(KN03_SLOT_BASE + IOASIC_CHKSYN);
+	kn0x_erraddr = (void *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_ERRADDR);
+	kn0x_chksyn = (void *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_CHKSYN);
 
 	/*
 	 * Set normal ECC detection and generation, enable ECC correction.
@@ -264,7 +266,7 @@ static inline void dec_kn03_be_init(void)
 	*mcr = (*mcr & ~(KN03_MCR_DIAGCHK | KN03_MCR_DIAGGEN)) |
 	       KN03_MCR_CORRECT;
 	if (current_cpu_data.cputype == CPU_R4400SC)
-		*mbcs |= KN05_MB_CSR_EE;
+		*mbcs |= KN4K_MB_CSR_EE;
 	fast_iob();
 }
 

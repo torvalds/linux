@@ -28,6 +28,7 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/cpumask.h>
+#include <linux/sched.h>	/* current / set_cpus_allowed() */
 
 #include <asm/processor.h> 
 #include <asm/msr.h>

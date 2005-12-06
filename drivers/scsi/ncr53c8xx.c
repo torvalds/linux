@@ -3481,8 +3481,8 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 	**----------------------------------------------------
 	*/
 	if (np->settle_time && cmd->timeout_per_command >= HZ) {
-		u_long tlimit = ktime_get(cmd->timeout_per_command - HZ);
-		if (ktime_dif(np->settle_time, tlimit) > 0)
+		u_long tlimit = jiffies + cmd->timeout_per_command - HZ;
+		if (time_after(np->settle_time, tlimit))
 			np->settle_time = tlimit;
 	}
 
@@ -3516,7 +3516,7 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 		**	Force ordered tag if necessary to avoid timeouts 
 		**	and to preserve interactivity.
 		*/
-		if (lp && ktime_exp(lp->tags_stime)) {
+		if (lp && time_after(jiffies, lp->tags_stime)) {
 			if (lp->tags_smap) {
 				order = M_ORDERED_TAG;
 				if ((DEBUG_FLAGS & DEBUG_TAGS)||bootverbose>2){ 
@@ -3524,7 +3524,7 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 						"ordered tag forced.\n");
 				}
 			}
-			lp->tags_stime = ktime_get(3*HZ);
+			lp->tags_stime = jiffies + 3*HZ;
 			lp->tags_smap = lp->tags_umap;
 		}
 
@@ -3669,7 +3669,7 @@ static int ncr_queue_command (struct ncb *np, struct scsi_cmnd *cmd)
 	/*
 	**	select
 	*/
-	cp->phys.select.sel_id		= sdev->id;
+	cp->phys.select.sel_id		= sdev_id(sdev);
 	cp->phys.select.sel_scntl3	= tp->wval;
 	cp->phys.select.sel_sxfer	= tp->sval;
 	/*
@@ -3792,7 +3792,7 @@ static int ncr_reset_scsi_bus(struct ncb *np, int enab_int, int settle_delay)
 	u32 term;
 	int retv = 0;
 
-	np->settle_time	= ktime_get(settle_delay * HZ);
+	np->settle_time	= jiffies + settle_delay * HZ;
 
 	if (bootverbose > 1)
 		printk("%s: resetting, "
@@ -4820,7 +4820,7 @@ static void ncr_set_sync_wide_status (struct ncb *np, u_char target)
 	*/
 	for (cp = np->ccb; cp; cp = cp->link_ccb) {
 		if (!cp->cmd) continue;
-		if (cp->cmd->device->id != target) continue;
+		if (scmd_id(cp->cmd) != target) continue;
 #if 0
 		cp->sync_status = tp->sval;
 		cp->wide_status = tp->wval;
@@ -4844,7 +4844,7 @@ static void ncr_setsync (struct ncb *np, struct ccb *cp, u_char scntl3, u_char s
 	u_char target = INB (nc_sdid) & 0x0f;
 	u_char idiv;
 
-	BUG_ON(target != (cmd->device->id & 0xf));
+	BUG_ON(target != (scmd_id(cmd) & 0xf));
 
 	tp = &np->target[target];
 
@@ -4902,7 +4902,7 @@ static void ncr_setwide (struct ncb *np, struct ccb *cp, u_char wide, u_char ack
 	u_char	scntl3;
 	u_char	sxfer;
 
-	BUG_ON(target != (cmd->device->id & 0xf));
+	BUG_ON(target != (scmd_id(cmd) & 0xf));
 
 	tp = &np->target[target];
 	tp->widedone  =  wide+1;
@@ -5044,7 +5044,7 @@ static void ncr_setup_tags (struct ncb *np, struct scsi_device *sdev)
 
 static void ncr_timeout (struct ncb *np)
 {
-	u_long	thistime = ktime_get(0);
+	u_long	thistime = jiffies;
 
 	/*
 	**	If release process in progress, let's go
@@ -5057,7 +5057,7 @@ static void ncr_timeout (struct ncb *np)
 		return;
 	}
 
-	np->timer.expires = ktime_get(SCSI_NCR_TIMER_INTERVAL);
+	np->timer.expires = jiffies + SCSI_NCR_TIMER_INTERVAL;
 	add_timer(&np->timer);
 
 	/*
@@ -5336,8 +5336,8 @@ void ncr_exception (struct ncb *np)
 	**=========================================================
 	*/
 
-	if (ktime_exp(np->regtime)) {
-		np->regtime = ktime_get(10*HZ);
+	if (time_after(jiffies, np->regtime)) {
+		np->regtime = jiffies + 10*HZ;
 		for (i = 0; i<sizeof(np->regdump); i++)
 			((char*)&np->regdump)[i] = INB_OFF(i);
 		np->regdump.nc_dstat = dstat;
@@ -5453,7 +5453,7 @@ static int ncr_int_sbmc (struct ncb *np)
 		**	Suspend command processing for 1 second and 
 		**	reinitialize all except the chip.
 		*/
-		np->settle_time	= ktime_get(1*HZ);
+		np->settle_time	= jiffies + HZ;
 		ncr_init (np, 0, bootverbose ? "scsi mode change" : NULL, HS_RESET);
 		return 1;
 	}
@@ -6923,7 +6923,7 @@ static struct lcb *ncr_setup_lcb (struct ncb *np, struct scsi_device *sdev)
 		for (i = 0 ; i < MAX_TAGS ; i++)
 			lp->cb_tags[i] = i;
 		lp->maxnxs = MAX_TAGS;
-		lp->tags_stime = ktime_get(3*HZ);
+		lp->tags_stime = jiffies + 3*HZ;
 		ncr_setup_tags (np, sdev);
 	}
 

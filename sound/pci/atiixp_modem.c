@@ -39,19 +39,20 @@ MODULE_DESCRIPTION("ATI IXP MC97 controller");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ATI,IXP150/200/250}}");
 
-static int index[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -2}; /* Exclude the first card */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int ac97_clock[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 48000};
+static int index = -2; /* Exclude the first card */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+static int ac97_clock = 48000;
 
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for ATI IXP controller.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for ATI IXP controller.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable audio part of ATI IXP controller.");
-module_param_array(ac97_clock, int, NULL, 0444);
+module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (default 48000Hz).");
+
+/* just for backward compatibility */
+static int enable;
+module_param(enable, bool, 0444);
 
 
 /*
@@ -306,8 +307,7 @@ static int snd_atiixp_update_bits(atiixp_t *chip, unsigned int reg,
 
 /* delay for one tick */
 #define do_delay() do { \
-	set_current_state(TASK_UNINTERRUPTIBLE); \
-	schedule_timeout(1); \
+	schedule_timeout_uninterruptible(1); \
 } while (0)
 
 
@@ -405,7 +405,7 @@ static int snd_atiixp_acquire_codec(atiixp_t *chip)
 
 	while (atiixp_read(chip, PHYS_OUT_ADDR) & ATI_REG_PHYS_OUT_ADDR_EN) {
 		if (! timeout--) {
-			snd_printk(KERN_WARNING "atiixp: codec acquire timeout\n");
+			snd_printk(KERN_WARNING "atiixp-modem: codec acquire timeout\n");
 			return -EBUSY;
 		}
 		udelay(1);
@@ -436,7 +436,7 @@ static unsigned short snd_atiixp_codec_read(atiixp_t *chip, unsigned short codec
 	} while (--timeout);
 	/* time out may happen during reset */
 	if (reg < 0x7c)
-		snd_printk(KERN_WARNING "atiixp: codec read timeout (reg %x)\n", reg);
+		snd_printk(KERN_WARNING "atiixp-modem: codec read timeout (reg %x)\n", reg);
 	return 0xffff;
 }
 
@@ -498,7 +498,7 @@ static int snd_atiixp_aclink_reset(atiixp_t *chip)
 		do_delay();
 		atiixp_update(chip, CMD, ATI_REG_CMD_AC_RESET, ATI_REG_CMD_AC_RESET);
 		if (--timeout) {
-			snd_printk(KERN_ERR "atiixp: codec reset timeout\n");
+			snd_printk(KERN_ERR "atiixp-modem: codec reset timeout\n");
 			break;
 		}
 	}
@@ -552,7 +552,7 @@ static int snd_atiixp_codec_detect(atiixp_t *chip)
 	atiixp_write(chip, IER, 0); /* disable irqs */
 
 	if ((chip->codec_not_ready_bits & ALL_CODEC_NOT_READY) == ALL_CODEC_NOT_READY) {
-		snd_printk(KERN_ERR "atiixp: no codec detected!\n");
+		snd_printk(KERN_ERR "atiixp-modem: no codec detected!\n");
 		return -ENXIO;
 	}
 	return 0;
@@ -635,7 +635,7 @@ static void snd_atiixp_xrun_dma(atiixp_t *chip, atiixp_dma_t *dma)
 {
 	if (! dma->substream || ! dma->running)
 		return;
-	snd_printdd("atiixp: XRUN detected (DMA %d)\n", dma->ops->type);
+	snd_printdd("atiixp-modem: XRUN detected (DMA %d)\n", dma->ops->type);
 	snd_pcm_stop(dma->substream, SNDRV_PCM_STATE_XRUN);
 }
 
@@ -989,6 +989,7 @@ static int __devinit snd_atiixp_pcm_new(atiixp_t *chip)
 		return err;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_atiixp_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_atiixp_capture_ops);
+	pcm->dev_class = SNDRV_PCM_CLASS_MODEM;
 	pcm->private_data = chip;
 	strcpy(pcm->name, "ATI IXP MC97");
 	chip->pcmdevs[ATI_PCMDEV_ANALOG] = pcm;
@@ -1067,7 +1068,6 @@ static int __devinit snd_atiixp_mixer_new(atiixp_t *chip, int clock)
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus)) < 0)
 		return err;
 	pbus->clock = clock;
-	pbus->shared_type = AC97_SHARED_TYPE_ATIIXP;	/* shared with audio driver */
 	chip->ac97_bus = pbus;
 
 	codec_count = 0;
@@ -1081,14 +1081,14 @@ static int __devinit snd_atiixp_mixer_new(atiixp_t *chip, int clock)
 		ac97.scaps = AC97_SCAP_SKIP_AUDIO;
 		if ((err = snd_ac97_mixer(pbus, &ac97, &chip->ac97[i])) < 0) {
 			chip->ac97[i] = NULL; /* to be sure */
-			snd_printdd("atiixp: codec %d not available for modem\n", i);
+			snd_printdd("atiixp-modem: codec %d not available for modem\n", i);
 			continue;
 		}
 		codec_count++;
 	}
 
 	if (! codec_count) {
-		snd_printk(KERN_ERR "atiixp: no codec available\n");
+		snd_printk(KERN_ERR "atiixp-modem: no codec available\n");
 		return -ENODEV;
 	}
 
@@ -1159,7 +1159,7 @@ static void __devinit snd_atiixp_proc_init(atiixp_t *chip)
 {
 	snd_info_entry_t *entry;
 
-	if (! snd_card_proc_new(chip->card, "atiixp", &entry))
+	if (! snd_card_proc_new(chip->card, "atiixp-modem", &entry))
 		snd_info_set_text_ops(entry, chip, 1024, snd_atiixp_proc_read);
 }
 
@@ -1256,20 +1256,12 @@ static int __devinit snd_atiixp_create(snd_card_t *card,
 static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 				      const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	atiixp_t *chip;
 	unsigned char revision;
 	int err;
 
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -1283,7 +1275,7 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 	if ((err = snd_atiixp_aclink_reset(chip)) < 0)
 		goto __error;
 
-	if ((err = snd_atiixp_mixer_new(chip, ac97_clock[dev])) < 0)
+	if ((err = snd_atiixp_mixer_new(chip, ac97_clock)) < 0)
 		goto __error;
 
 	if ((err = snd_atiixp_pcm_new(chip)) < 0)
@@ -1302,7 +1294,6 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 		goto __error;
 
 	pci_set_drvdata(pci, card);
-	dev++;
 	return 0;
 
  __error:
@@ -1318,7 +1309,6 @@ static void __devexit snd_atiixp_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ATI IXP MC97 controller",
-	.owner = THIS_MODULE,
 	.id_table = snd_atiixp_ids,
 	.probe = snd_atiixp_probe,
 	.remove = __devexit_p(snd_atiixp_remove),

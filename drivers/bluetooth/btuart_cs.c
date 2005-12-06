@@ -590,10 +590,9 @@ static dev_link_t *btuart_attach(void)
 	int ret;
 
 	/* Create new info device */
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return NULL;
-	memset(info, 0, sizeof(*info));
 
 	link = &info->link;
 	link->priv = info;

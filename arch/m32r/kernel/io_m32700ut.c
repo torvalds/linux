@@ -64,11 +64,11 @@ static inline void *__port2addr_ata(unsigned long port)
  * from 0x10000000 to 0x13ffffff on physical address.
  * The base address of LAN controller(LAN91C111) is 0x300.
  */
-#define LAN_IOSTART	0x300
-#define LAN_IOEND	0x320
+#define LAN_IOSTART	0xa0000300
+#define LAN_IOEND	0xa0000320
 static inline void *_port2addr_ne(unsigned long port)
 {
-	return (void *)(port + NONCACHE_OFFSET + 0x10000000);
+	return (void *)(port + 0x10000000);
 }
 static inline void *_port2addr_usb(unsigned long port)
 {

@@ -12,9 +12,9 @@
  * Physical DRAM offset.
  */
 #ifndef CONFIG_ARCH_IOP331
-#define PHYS_OFFSET	(0xa0000000UL)
+#define PHYS_OFFSET	UL(0xa0000000)
 #else
-#define PHYS_OFFSET	(0x00000000UL)
+#define PHYS_OFFSET	UL(0x00000000)
 #endif
 
 /*

@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/proc_fs.h>
 
 #include "isdn_divert.h"

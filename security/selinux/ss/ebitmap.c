@@ -39,12 +39,11 @@ int ebitmap_cpy(struct ebitmap *dst, struct ebitmap *src)
 	n = src->node;
 	prev = NULL;
 	while (n) {
-		new = kmalloc(sizeof(*new), GFP_ATOMIC);
+		new = kzalloc(sizeof(*new), GFP_ATOMIC);
 		if (!new) {
 			ebitmap_destroy(dst);
 			return -ENOMEM;
 		}
-		memset(new, 0, sizeof(*new));
 		new->startbit = n->startbit;
 		new->map = n->map;
 		new->next = NULL;
@@ -150,10 +149,9 @@ int ebitmap_set_bit(struct ebitmap *e, unsigned long bit, int value)
 	if (!value)
 		return 0;
 
-	new = kmalloc(sizeof(*new), GFP_ATOMIC);
+	new = kzalloc(sizeof(*new), GFP_ATOMIC);
 	if (!new)
 		return -ENOMEM;
-	memset(new, 0, sizeof(*new));
 
 	new->startbit = bit & ~(MAPSIZE - 1);
 	new->map = (MAPBIT << (bit - new->startbit));
@@ -232,13 +230,12 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 			printk(KERN_ERR "security: ebitmap: truncated map\n");
 			goto bad;
 		}
-		n = kmalloc(sizeof(*n), GFP_KERNEL);
+		n = kzalloc(sizeof(*n), GFP_KERNEL);
 		if (!n) {
 			printk(KERN_ERR "security: ebitmap: out of memory\n");
 			rc = -ENOMEM;
 			goto bad;
 		}
-		memset(n, 0, sizeof(*n));
 
 		n->startbit = le32_to_cpu(buf[0]);
 

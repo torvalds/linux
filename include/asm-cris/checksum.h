@@ -34,7 +34,7 @@ unsigned int csum_partial_copy_nocheck(const char *src, char *dst,
  *	Fold a partial checksum into a word
  */
 
-extern inline unsigned int csum_fold(unsigned int sum)
+static inline unsigned int csum_fold(unsigned int sum)
 {
 	/* the while loop is unnecessary really, it's always enough with two
 	   iterations */
@@ -55,7 +55,7 @@ extern unsigned int csum_partial_copy_from_user(const char *src, char *dst,
  *
  */
 
-extern inline unsigned short ip_fast_csum(unsigned char * iph,
+static inline unsigned short ip_fast_csum(unsigned char * iph,
 					  unsigned int ihl)
 {
 	return csum_fold(csum_partial(iph, ihl * 4, 0));
@@ -66,7 +66,7 @@ extern inline unsigned short ip_fast_csum(unsigned char * iph,
  * returns a 16-bit checksum, already complemented
  */
 
-extern inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
+static inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
 						   unsigned long daddr,
 						   unsigned short len,
 						   unsigned short proto,
@@ -80,7 +80,7 @@ extern inline unsigned short int csum_tcpudp_magic(unsigned long saddr,
  * in icmp.c
  */
 
-extern inline unsigned short ip_compute_csum(unsigned char * buff, int len) {
+static inline unsigned short ip_compute_csum(unsigned char * buff, int len) {
 	return csum_fold (csum_partial(buff, len, 0));
 }
 

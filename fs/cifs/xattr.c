@@ -87,8 +87,7 @@ int cifs_removexattr(struct dentry * direntry, const char * ea_name)
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 remove_ea_exit:
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
 #endif
 	return rc;
@@ -132,8 +131,7 @@ int cifs_setxattr(struct dentry * direntry, const char * ea_name,
 		returns as xattrs */
 	if(value_size > MAX_EA_VALUE_SIZE) {
 		cFYI(1,("size of EA value too large"));
-		if(full_path)
-			kfree(full_path);
+		kfree(full_path);
 		FreeXid(xid);
 		return -EOPNOTSUPP;
 	}
@@ -195,8 +193,7 @@ int cifs_setxattr(struct dentry * direntry, const char * ea_name,
 	}
 
 set_ea_exit:
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
 #endif
 	return rc;
@@ -298,8 +295,7 @@ ssize_t cifs_getxattr(struct dentry * direntry, const char * ea_name,
 		rc = -EOPNOTSUPP; 
 
 get_ea_exit:
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
 #endif
 	return rc;
@@ -345,8 +341,7 @@ ssize_t cifs_listxattr(struct dentry * direntry, char * data, size_t buf_size)
 				cifs_sb->mnt_cifs_flags & 
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 
-	if (full_path)
-		kfree(full_path);
+	kfree(full_path);
 	FreeXid(xid);
 #endif
 	return rc;

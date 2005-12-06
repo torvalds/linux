@@ -36,14 +36,12 @@ MODULE_LICENSE("GPL");
 
 #define	ELO_MAX_LENGTH	10
 
-static char *elo_name = "Elo Serial TouchScreen";
-
 /*
  * Per-touchscreen data.
  */
 
 struct elo {
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 	int id;
 	int idx;
@@ -54,7 +52,7 @@ struct elo {
 
 static void elo_process_data_10(struct elo* elo, unsigned char data, struct pt_regs *regs)
 {
-	struct input_dev *dev = &elo->dev;
+	struct input_dev *dev = elo->dev;
 
 	elo->csum += elo->data[elo->idx] = data;
 
@@ -80,7 +78,7 @@ static void elo_process_data_10(struct elo* elo, unsigned char data, struct pt_r
 				input_report_abs(dev, ABS_X, (elo->data[4] << 8) | elo->data[3]);
 				input_report_abs(dev, ABS_Y, (elo->data[6] << 8) | elo->data[5]);
 				input_report_abs(dev, ABS_PRESSURE, (elo->data[8] << 8) | elo->data[7]);
-				input_report_key(dev, BTN_TOUCH, elo->data[2] & 3);
+				input_report_key(dev, BTN_TOUCH, elo->data[8] || elo->data[7]);
 				input_sync(dev);
 			}
 			elo->idx = 0;
@@ -91,7 +89,7 @@ static void elo_process_data_10(struct elo* elo, unsigned char data, struct pt_r
 
 static void elo_process_data_6(struct elo* elo, unsigned char data, struct pt_regs *regs)
 {
-	struct input_dev *dev = &elo->dev;
+	struct input_dev *dev = elo->dev;
 
 	elo->data[elo->idx] = data;
 
@@ -129,7 +127,7 @@ static void elo_process_data_6(struct elo* elo, unsigned char data, struct pt_re
 		case 5:
 			if ((data & 0xf0) == 0) {
 				input_report_abs(dev, ABS_PRESSURE, elo->data[5]);
-				input_report_key(dev, BTN_TOUCH, elo->data[5]);
+				input_report_key(dev, BTN_TOUCH, !!elo->data[5]);
 			}
 			input_sync(dev);
 			elo->idx = 0;
@@ -139,7 +137,7 @@ static void elo_process_data_6(struct elo* elo, unsigned char data, struct pt_re
 
 static void elo_process_data_3(struct elo* elo, unsigned char data, struct pt_regs *regs)
 {
-	struct input_dev *dev = &elo->dev;
+	struct input_dev *dev = elo->dev;
 
 	elo->data[elo->idx] = data;
 
@@ -191,7 +189,7 @@ static void elo_disconnect(struct serio *serio)
 {
 	struct elo* elo = serio_get_drvdata(serio);
 
-	input_unregister_device(&elo->dev);
+	input_unregister_device(elo->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
 	kfree(elo);
@@ -206,67 +204,68 @@ static void elo_disconnect(struct serio *serio)
 static int elo_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct elo *elo;
+	struct input_dev *input_dev;
 	int err;
 
-	if (!(elo = kmalloc(sizeof(struct elo), GFP_KERNEL)))
-		return -ENOMEM;
+	elo = kzalloc(sizeof(struct elo), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!elo || !input_dev) {
+		err = -ENOMEM;
+		goto fail;
+	}
 
-	memset(elo, 0, sizeof(struct elo));
-
-	init_input_dev(&elo->dev);
-	elo->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	elo->dev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
-
+	elo->serio = serio;
 	elo->id = serio->id.id;
+	elo->dev = input_dev;
+	snprintf(elo->phys, sizeof(elo->phys), "%s/input0", serio->phys);
+
+	input_dev->private = elo;
+	input_dev->name = "Elo Serial TouchScreen";
+	input_dev->phys = elo->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_ELO;
+	input_dev->id.product = elo->id;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
 
 	switch (elo->id) {
 
 		case 0: /* 10-byte protocol */
-			input_set_abs_params(&elo->dev, ABS_X, 96, 4000, 0, 0);
-			input_set_abs_params(&elo->dev, ABS_Y, 96, 4000, 0, 0);
-			input_set_abs_params(&elo->dev, ABS_PRESSURE, 0, 255, 0, 0);
+			input_set_abs_params(input_dev, ABS_X, 96, 4000, 0, 0);
+			input_set_abs_params(input_dev, ABS_Y, 96, 4000, 0, 0);
+			input_set_abs_params(input_dev, ABS_PRESSURE, 0, 255, 0, 0);
 			break;
 
 		case 1: /* 6-byte protocol */
-			input_set_abs_params(&elo->dev, ABS_PRESSURE, 0, 15, 0, 0);
+			input_set_abs_params(input_dev, ABS_PRESSURE, 0, 15, 0, 0);
 
 		case 2: /* 4-byte protocol */
-			input_set_abs_params(&elo->dev, ABS_X, 96, 4000, 0, 0);
-			input_set_abs_params(&elo->dev, ABS_Y, 96, 4000, 0, 0);
+			input_set_abs_params(input_dev, ABS_X, 96, 4000, 0, 0);
+			input_set_abs_params(input_dev, ABS_Y, 96, 4000, 0, 0);
 			break;
 
 		case 3: /* 3-byte protocol */
-			input_set_abs_params(&elo->dev, ABS_X, 0, 255, 0, 0);
-			input_set_abs_params(&elo->dev, ABS_Y, 0, 255, 0, 0);
+			input_set_abs_params(input_dev, ABS_X, 0, 255, 0, 0);
+			input_set_abs_params(input_dev, ABS_Y, 0, 255, 0, 0);
 			break;
 	}
-
-	elo->serio = serio;
-
-	sprintf(elo->phys, "%s/input0", serio->phys);
-
-	elo->dev.private = elo;
-	elo->dev.name = elo_name;
-	elo->dev.phys = elo->phys;
-	elo->dev.id.bustype = BUS_RS232;
-	elo->dev.id.vendor = SERIO_ELO;
-	elo->dev.id.product = elo->id;
-	elo->dev.id.version = 0x0100;
 
 	serio_set_drvdata(serio, elo);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(elo);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	input_register_device(&elo->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", elo_name, serio->phys);
-
+	input_register_device(elo->dev);
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(elo);
+	return err;
 }
 
 /*

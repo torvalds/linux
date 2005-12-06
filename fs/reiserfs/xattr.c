@@ -453,7 +453,7 @@ static struct page *reiserfs_get_page(struct inode *dir, unsigned long n)
 	struct page *page;
 	/* We can deadlock if we try to free dentries,
 	   and an unlink/rmdir has just occured - GFP_NOFS avoids this */
-	mapping->flags = (mapping->flags & ~__GFP_BITS_MASK) | GFP_NOFS;
+	mapping_set_gfp_mask(mapping, GFP_NOFS);
 	page = read_cache_page(mapping, n,
 			       (filler_t *) mapping->a_ops->readpage, NULL);
 	if (!IS_ERR(page)) {

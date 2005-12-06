@@ -1,11 +1,10 @@
 /****************************************************************************/
 
 /*
- *	fec.h  --  Fast Ethernet Controller for Motorola ColdFire 5230,
- *		   5231, 5232, 5234, 5235, 5270, 5271, 5272, 5274, 5275,
- *		   5280 and 5282.
+ *	fec.h  --  Fast Ethernet Controller for Motorola ColdFire SoC
+ *		   processors.
  *
- *	(C) Copyright 2000-2003, Greg Ungerer (gerg@snapgear.com)
+ *	(C) Copyright 2000-2005, Greg Ungerer (gerg@snapgear.com)
  *	(C) Copyright 2000-2001, Lineo (www.lineo.com)
  */
 
@@ -14,7 +13,8 @@
 #define	FEC_H
 /****************************************************************************/
 
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+    defined(CONFIG_M520x)
 /*
  *	Just figures, Motorola would have to change the offsets for
  *	registers in the same peripheral device on different models

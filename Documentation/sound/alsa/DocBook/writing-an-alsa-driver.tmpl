@@ -18,8 +18,8 @@
       </affiliation>
      </author>
 
-     <date>March 6, 2005</date>
-     <edition>0.3.4</edition>
+     <date>October 6, 2005</date>
+     <edition>0.3.5</edition>
 
     <abstract>
       <para>
@@ -30,7 +30,7 @@
 
     <legalnotice>
     <para>
-    Copyright (c) 2002-2004  Takashi Iwai <email>tiwai@suse.de</email>
+    Copyright (c) 2002-2005  Takashi Iwai <email>tiwai@suse.de</email>
     </para>
 
     <para>
@@ -1433,25 +1433,10 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  if (chip->res_port) {
-          release_resource(chip->res_port);
-          kfree_nocheck(chip->res_port);
-  }
+  release_and_free_resource(chip->res_port);
 ]]>
           </programlisting>
         </informalexample>
-
-      As you can see, the resource pointer is also to be freed
-      via <function>kfree_nocheck()</function> after
-      <function>release_resource()</function> is called. You
-      cannot use <function>kfree()</function> here, because on ALSA,
-      <function>kfree()</function> may be a wrapper to its own
-      allocator with the memory debugging. Since the resource pointer
-      is allocated externally outside the ALSA, it must be released
-      via the native
-      <function>kfree()</function>.
-      <function>kfree_nocheck()</function> is used for that; it calls
-      the native <function>kfree()</function> without wrapper. 
       </para>
 
       <para>
@@ -2190,8 +2175,7 @@ struct _snd_pcm_runtime {
 	unsigned int rate_den;
 
 	/* -- SW params -- */
-	int tstamp_timespec;		/* use timeval (0) or timespec (1) */
-	snd_pcm_tstamp_t tstamp_mode;	/* mmap timestamp is updated */
+	struct timespec tstamp_mode;	/* mmap timestamp is updated */
   	unsigned int period_step;
 	unsigned int sleep_min;		/* min ticks to sleep */
 	snd_pcm_uframes_t xfer_align;	/* xfer size need to be a multiple */
@@ -3709,8 +3693,7 @@ struct _snd_pcm_runtime {
         <para>
           Here, the chip instance is retrieved via
         <function>snd_kcontrol_chip()</function> macro.  This macro
-        converts from kcontrol-&gt;private_data to the type defined by
-        <type>chip_t</type>. The
+        just accesses to kcontrol-&gt;private_data. The
         kcontrol-&gt;private_data field is 
         given as the argument of <function>snd_ctl_new()</function>
         (see the later subsection
@@ -5998,32 +5981,23 @@ struct _snd_pcm_runtime {
         The first argument is the expression to evaluate, and the
       second argument is the action if it fails. When
       <constant>CONFIG_SND_DEBUG</constant>, is set, it will show an
-      error message such as <computeroutput>BUG? (xxx) (called from
-      yyy)</computeroutput>. When no debug flag is set, this is
-      ignored. 
+      error message such as <computeroutput>BUG? (xxx)</computeroutput>
+      together with stack trace.
       </para>
-    </section>
-
-    <section id="useful-functions-snd-runtime-check">
-      <title><function>snd_runtime_check()</function></title>
       <para>
-        This macro is quite similar with
-      <function>snd_assert()</function>. Unlike
-      <function>snd_assert()</function>, the expression is always
-      evaluated regardless of
-      <constant>CONFIG_SND_DEBUG</constant>. When
-      <constant>CONFIG_SND_DEBUG</constant> is set, the macro will
-      show a message like <computeroutput>ERROR (xx) (called from
-      yyy)</computeroutput>. 
+	 When no debug flag is set, this macro is ignored. 
       </para>
     </section>
 
     <section id="useful-functions-snd-bug">
       <title><function>snd_BUG()</function></title>
       <para>
-        It calls <function>snd_assert(0,)</function> -- that is, just
-      prints the error message at the point. It's useful to show that
-      a fatal error happens there. 
+        It shows <computeroutput>BUG?</computeroutput> message and
+      stack trace as well as <function>snd_assert</function> at the point.
+      It's useful to show that a fatal error happens there. 
+      </para>
+      <para>
+	 When no debug flag is set, this macro is ignored. 
       </para>
     </section>
   </chapter>

@@ -26,14 +26,13 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/usb_otg.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 
 #include <asm/arch/mux.h>
 #include <asm/arch/usb.h>
@@ -91,6 +90,8 @@ EXPORT_SYMBOL(otg_set_transceiver);
 #endif
 
 /*-------------------------------------------------------------------------*/
+
+#if defined(CONFIG_ARCH_OMAP_OTG) || defined(CONFIG_ARCH_OMAP15XX)
 
 static u32 __init omap_usb0_init(unsigned nwires, unsigned is_device)
 {
@@ -271,6 +272,8 @@ static u32 __init omap_usb2_init(unsigned nwires, unsigned alt_pingroup)
 	}
 	return syscon1 << 24;
 }
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -495,7 +498,7 @@ static inline void omap_otg_init(struct omap_usb_config *config) {}
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_ARCH_OMAP1510
+#ifdef	CONFIG_ARCH_OMAP15XX
 
 #define ULPD_DPLL_CTRL_REG	__REG16(ULPD_DPLL_CTRL)
 #define DPLL_IOB		(1 << 13)
@@ -508,7 +511,6 @@ static inline void omap_otg_init(struct omap_usb_config *config) {}
 
 static void __init omap_1510_usb_init(struct omap_usb_config *config)
 {
-	int status;
 	unsigned int val;
 
 	omap_usb0_init(config->pins[0], is_usb0_device(config));
@@ -540,6 +542,8 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 
 #ifdef	CONFIG_USB_GADGET_OMAP
 	if (config->register_dev) {
+		int status;
+
 		udc_device.dev.platform_data = config;
 		status = platform_device_register(&udc_device);
 		if (status)
@@ -550,6 +554,8 @@ static void __init omap_1510_usb_init(struct omap_usb_config *config)
 
 #if	defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	if (config->register_host) {
+		int status;
+
 		ohci_device.dev.platform_data = config;
 		status = platform_device_register(&ohci_device);
 		if (status)

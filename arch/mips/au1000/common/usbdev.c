@@ -348,7 +348,7 @@ endpoint_stall(endpoint_t * ep)
 {
 	u32 cs;
 
-	warn(__FUNCTION__);
+	warn("%s", __FUNCTION__);
 
 	cs = au_readl(ep->reg->ctrl_stat) | USBDEV_CS_STALL;
 	au_writel(cs, ep->reg->ctrl_stat);
@@ -360,7 +360,7 @@ endpoint_unstall(endpoint_t * ep)
 {
 	u32 cs;
 
-	warn(__FUNCTION__);
+	warn("%s", __FUNCTION__);
 
 	cs = au_readl(ep->reg->ctrl_stat) & ~USBDEV_CS_STALL;
 	au_writel(cs, ep->reg->ctrl_stat);
@@ -1005,11 +1005,11 @@ process_ep0_receive (struct usb_dev* dev)
 #endif
 		dev->ep0_stage = SETUP_STAGE;
 		break;
-		}
+	}
 
 	spin_unlock(&ep0->lock);
-		// we're done processing the packet, free it
-		kfree(pkt);
+	// we're done processing the packet, free it
+	kfree(pkt);
 }
 
 
@@ -1072,8 +1072,7 @@ dma_done_ep0_intr(int irq, void *dev_id, struct pt_regs *regs)
 			clear_dma_done1(ep0->indma);
 
 		pkt = send_packet_complete(ep0);
-		if (pkt)
-			kfree(pkt);
+		kfree(pkt);
 	}
 
 	/*
@@ -1302,8 +1301,7 @@ usbdev_exit(void)
 		endpoint_flush(ep);
 	}
 
-	if (usbdev.full_conf_desc)
-		kfree(usbdev.full_conf_desc);
+	kfree(usbdev.full_conf_desc);
 }
 
 int

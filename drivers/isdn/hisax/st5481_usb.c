@@ -335,14 +335,12 @@ void st5481_release_usb(struct st5481_adapter *adapter)
 
 	// Stop and free Control and Interrupt URBs
 	usb_kill_urb(ctrl->urb);
-	if (ctrl->urb->transfer_buffer)
-		kfree(ctrl->urb->transfer_buffer);
+	kfree(ctrl->urb->transfer_buffer);
 	usb_free_urb(ctrl->urb);
 	ctrl->urb = NULL;
 
 	usb_kill_urb(intr->urb);
-	if (intr->urb->transfer_buffer)
-		kfree(intr->urb->transfer_buffer);
+	kfree(intr->urb->transfer_buffer);
 	usb_free_urb(intr->urb);
 	ctrl->urb = NULL;
 }
@@ -457,8 +455,7 @@ st5481_setup_isocpipes(struct urb* urb[2], struct usb_device *dev,
  err:
 	for (j = 0; j < 2; j++) {
 		if (urb[j]) {
-			if (urb[j]->transfer_buffer)
-				kfree(urb[j]->transfer_buffer);
+			kfree(urb[j]->transfer_buffer);
 			urb[j]->transfer_buffer = NULL;
 			usb_free_urb(urb[j]);
 			urb[j] = NULL;
@@ -473,8 +470,7 @@ void st5481_release_isocpipes(struct urb* urb[2])
 
 	for (j = 0; j < 2; j++) {
 		usb_kill_urb(urb[j]);
-		if (urb[j]->transfer_buffer)
-			kfree(urb[j]->transfer_buffer);			
+		kfree(urb[j]->transfer_buffer);
 		usb_free_urb(urb[j]);
 		urb[j] = NULL;
 	}
@@ -645,9 +641,7 @@ void st5481_in_mode(struct st5481_in *in, int mode)
 
 	in->mode = mode;
 
-	in->urb[0]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(in->urb[0]);
-	in->urb[1]->transfer_flags |= URB_ASYNC_UNLINK;
 	usb_unlink_urb(in->urb[1]);
 
 	if (in->mode != L1_MODE_NULL) {

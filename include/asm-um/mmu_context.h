@@ -29,7 +29,8 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	 * possible.
 	 */
 	if (old != new && (current->flags & PF_BORROWED_MM))
-		force_flush_all();
+		CHOOSE_MODE(force_flush_all(),
+			    switch_mm_skas(&new->context.skas.id));
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 

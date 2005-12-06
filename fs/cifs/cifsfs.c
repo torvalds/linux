@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/vfs.h>
 #include <linux/mempool.h>
+#include <linux/delay.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -59,6 +60,8 @@ unsigned int ntlmv2_support = 0;
 unsigned int sign_CIFS_PDUs = 1;
 extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
+extern struct task_struct * dnotifyThread; /* remove sparse warning */
+struct task_struct * dnotifyThread = NULL;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
 MODULE_PARM_DESC(CIFSMaxBufSize,"Network buffer size (not including header). Default: 16384 Range: 8192 to 130048");
@@ -73,6 +76,7 @@ module_param(cifs_max_pending, int, 0);
 MODULE_PARM_DESC(cifs_max_pending,"Simultaneous requests to server. Default: 50 Range: 2 to 256");
 
 static DECLARE_COMPLETION(cifs_oplock_exited);
+static DECLARE_COMPLETION(cifs_dnotify_exited);
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -202,6 +206,10 @@ cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 #endif /* CIFS_EXPERIMENTAL */
 	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
 
+	/* Old Windows servers do not support level 103, retry with level 
+	   one if old server failed the previous call */ 
+	if(rc)
+		rc = SMBOldQFSInfo(xid, pTcon, buf);
 	/*     
 	   int f_type;
 	   __fsid_t f_fsid;
@@ -253,7 +261,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->clientCanCacheAll = FALSE;
 	cifs_inode->vfs_inode.i_blksize = CIFS_MAX_MSGSIZE;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
-
+	cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME;
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
 	return &cifs_inode->vfs_inode;
 }
@@ -398,6 +406,42 @@ static struct quotactl_ops cifs_quotactl_ops = {
 };
 #endif
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+static void cifs_umount_begin(struct super_block * sblock)
+{
+	struct cifs_sb_info *cifs_sb;
+	struct cifsTconInfo * tcon;
+
+	cifs_sb = CIFS_SB(sblock);
+	if(cifs_sb == NULL)
+		return;
+
+	tcon = cifs_sb->tcon;
+	if(tcon == NULL)
+		return;
+	down(&tcon->tconSem);
+	if (atomic_read(&tcon->useCount) == 1)
+		tcon->tidStatus = CifsExiting;
+	up(&tcon->tconSem);
+
+	/* cancel_brl_requests(tcon); */
+	/* cancel_notify_requests(tcon); */
+	if(tcon->ses && tcon->ses->server)
+	{
+		cFYI(1,("wake up tasks now - umount begin not complete"));
+		wake_up_all(&tcon->ses->server->request_q);
+		wake_up_all(&tcon->ses->server->response_q);
+		msleep(1); /* yield */
+		/* we have to kick the requests once more */
+		wake_up_all(&tcon->ses->server->response_q);
+		msleep(1);
+	}
+/* BB FIXME - finish add checks for tidStatus BB */
+
+	return;
+}
+#endif	
+
 static int cifs_remount(struct super_block *sb, int *flags, char *data)
 {
 	*flags |= MS_NODIRATIME;
@@ -415,7 +459,9 @@ struct super_operations cifs_super_ops = {
    unless later we add lazy close of inodes or unless the kernel forgets to call
    us with the same number of releases (closes) as opens */
 	.show_options = cifs_show_options,
-/*    .umount_begin   = cifs_umount_begin, *//* consider adding in the future */
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.umount_begin   = cifs_umount_begin,
+#endif
 	.remount_fs = cifs_remount,
 };
 
@@ -443,56 +489,29 @@ cifs_get_sb(struct file_system_type *fs_type,
 	return sb;
 }
 
-static ssize_t
-cifs_read_wrapper(struct file * file, char __user *read_data, size_t read_size,
-          loff_t * poffset)
+static ssize_t cifs_file_writev(struct file *file, const struct iovec *iov,
+				unsigned long nr_segs, loff_t *ppos)
 {
-	if(file->f_dentry == NULL)
-		return -EIO;
-	else if(file->f_dentry->d_inode == NULL)
-		return -EIO;
-
-	cFYI(1,("In read_wrapper size %zd at %lld",read_size,*poffset));
-
-	if(CIFS_I(file->f_dentry->d_inode)->clientCanCacheRead) {
-		return generic_file_read(file,read_data,read_size,poffset);
-	} else {
-		/* BB do we need to lock inode from here until after invalidate? */
-/*		if(file->f_dentry->d_inode->i_mapping) {
-			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
-			filemap_fdatawait(file->f_dentry->d_inode->i_mapping);
-		}*/
-/*		cifs_revalidate(file->f_dentry);*/ /* BB fixme */
-
-		/* BB we should make timer configurable - perhaps 
-		   by simply calling cifs_revalidate here */
-		/* invalidate_remote_inode(file->f_dentry->d_inode);*/
-		return generic_file_read(file,read_data,read_size,poffset);
-	}
-}
-
-static ssize_t
-cifs_write_wrapper(struct file * file, const char __user *write_data,
-           size_t write_size, loff_t * poffset) 
-{
+	struct inode *inode = file->f_dentry->d_inode;
 	ssize_t written;
 
-	if(file->f_dentry == NULL)
-		return -EIO;
-	else if(file->f_dentry->d_inode == NULL)
-		return -EIO;
-
-	cFYI(1,("In write_wrapper size %zd at %lld",write_size,*poffset));
-
-	written = generic_file_write(file,write_data,write_size,poffset);
-	if(!CIFS_I(file->f_dentry->d_inode)->clientCanCacheAll)  {
-		if(file->f_dentry->d_inode->i_mapping) {
-			filemap_fdatawrite(file->f_dentry->d_inode->i_mapping);
-		}
-	}
+	written = generic_file_writev(file, iov, nr_segs, ppos);
+	if (!CIFS_I(inode)->clientCanCacheAll)
+		filemap_fdatawrite(inode->i_mapping);
 	return written;
 }
 
+static ssize_t cifs_file_aio_write(struct kiocb *iocb, const char __user *buf,
+				   size_t count, loff_t pos)
+{
+	struct inode *inode = iocb->ki_filp->f_dentry->d_inode;
+	ssize_t written;
+
+	written = generic_file_aio_write(iocb, buf, count, pos);
+	if (!CIFS_I(inode)->clientCanCacheAll)
+		filemap_fdatawrite(inode->i_mapping);
+	return written;
+}
 
 static struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
@@ -554,8 +573,12 @@ struct inode_operations cifs_symlink_inode_ops = {
 };
 
 struct file_operations cifs_file_ops = {
-	.read = cifs_read_wrapper,
-	.write = cifs_write_wrapper, 
+	.read = do_sync_read,
+	.write = do_sync_write,
+	.readv = generic_file_readv,
+	.writev = cifs_file_writev,
+	.aio_read = generic_file_aio_read,
+	.aio_write = cifs_file_aio_write,
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
@@ -568,10 +591,6 @@ struct file_operations cifs_file_ops = {
 #endif /* CONFIG_CIFS_POSIX */
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-	.readv = generic_file_readv,
-	.writev = generic_file_writev,
-	.aio_read = generic_file_aio_read,
-	.aio_write = generic_file_aio_write,
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
@@ -584,6 +603,46 @@ struct file_operations cifs_file_direct_ops = {
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
+	.fsync = cifs_fsync,
+	.flush = cifs_flush,
+	.sendfile = generic_file_sendfile, /* BB removeme BB */
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
+struct file_operations cifs_file_nobrl_ops = {
+	.read = do_sync_read,
+	.write = do_sync_write,
+	.readv = generic_file_readv,
+	.writev = cifs_file_writev,
+	.aio_read = generic_file_aio_read,
+	.aio_write = cifs_file_aio_write,
+	.open = cifs_open,
+	.release = cifs_close,
+	.fsync = cifs_fsync,
+	.flush = cifs_flush,
+	.mmap  = cifs_file_mmap,
+	.sendfile = generic_file_sendfile,
+#ifdef CONFIG_CIFS_POSIX
+	.ioctl	= cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
+
+struct file_operations cifs_file_direct_nobrl_ops = {
+	/* no mmap, no aio, no readv - 
+	   BB reevaluate whether they can be done with directio, no cache */
+	.read = cifs_user_read,
+	.write = cifs_user_write,
+	.open = cifs_open,
+	.release = cifs_close,
 	.fsync = cifs_fsync,
 	.flush = cifs_flush,
 	.sendfile = generic_file_sendfile, /* BB removeme BB */
@@ -781,9 +840,9 @@ static int cifs_oplock_thread(void * dummyarg)
 
 	oplockThread = current;
 	do {
-		set_current_state(TASK_INTERRUPTIBLE);
+		if (try_to_freeze()) 
+			continue;
 		
-		schedule_timeout(1*HZ);  
 		spin_lock(&GlobalMid_Lock);
 		if(list_empty(&GlobalOplock_Q)) {
 			spin_unlock(&GlobalMid_Lock);
@@ -832,10 +891,42 @@ static int cifs_oplock_thread(void * dummyarg)
 				}
 			} else
 				spin_unlock(&GlobalMid_Lock);
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(1);  /* yield in case q were corrupt */
 		}
 	} while(!signal_pending(current));
-	complete_and_exit (&cifs_oplock_exited, 0);
 	oplockThread = NULL;
+	complete_and_exit (&cifs_oplock_exited, 0);
+}
+
+static int cifs_dnotify_thread(void * dummyarg)
+{
+	struct list_head *tmp;
+	struct cifsSesInfo *ses;
+
+	daemonize("cifsdnotifyd");
+	allow_signal(SIGTERM);
+
+	dnotifyThread = current;
+	do {
+		if(try_to_freeze())
+			continue;
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(15*HZ);
+		read_lock(&GlobalSMBSeslock);
+		/* check if any stuck requests that need
+		   to be woken up and wakeq so the
+		   thread can wake up and error out */
+		list_for_each(tmp, &GlobalSMBSessionList) {
+			ses = list_entry(tmp, struct cifsSesInfo, 
+				cifsSessionList);
+			if(ses && ses->server && 
+			     atomic_read(&ses->server->inFlight))
+				wake_up_all(&ses->server->response_q);
+		}
+		read_unlock(&GlobalSMBSeslock);
+	} while(!signal_pending(current));
+	complete_and_exit (&cifs_dnotify_exited, 0);
 }
 
 static int __init
@@ -849,6 +940,10 @@ init_cifs(void)
 	INIT_LIST_HEAD(&GlobalSMBSessionList);
 	INIT_LIST_HEAD(&GlobalTreeConnectionList);
 	INIT_LIST_HEAD(&GlobalOplock_Q);
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	INIT_LIST_HEAD(&GlobalDnotifyReqList);
+	INIT_LIST_HEAD(&GlobalDnotifyRsp_Q);
+#endif	
 /*
  *  Initialize Global counters
  */
@@ -884,10 +979,16 @@ init_cifs(void)
 				if (!rc) {                
 					rc = (int)kernel_thread(cifs_oplock_thread, NULL, 
 						CLONE_FS | CLONE_FILES | CLONE_VM);
-					if(rc > 0)
-						return 0;
-					else 
+					if(rc > 0) {
+						rc = (int)kernel_thread(cifs_dnotify_thread, NULL,
+							CLONE_FS | CLONE_FILES | CLONE_VM);
+						if(rc > 0)
+							return 0;
+						else
+							cERROR(1,("error %d create dnotify thread", rc));
+					} else {
 						cERROR(1,("error %d create oplock thread",rc));
+					}
 				}
 				cifs_destroy_request_bufs();
 			}
@@ -915,6 +1016,10 @@ exit_cifs(void)
 	if(oplockThread) {
 		send_sig(SIGTERM, oplockThread, 1);
 		wait_for_completion(&cifs_oplock_exited);
+	}
+	if(dnotifyThread) {
+		send_sig(SIGTERM, dnotifyThread, 1);
+		wait_for_completion(&cifs_dnotify_exited);
 	}
 }
 

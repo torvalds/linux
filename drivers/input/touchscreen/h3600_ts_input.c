@@ -39,7 +39,6 @@
 #include <linux/serio.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/pm.h>
 
 /* SA1100 serial defines */
 #include <asm/arch/hardware.h>
@@ -93,16 +92,12 @@ MODULE_LICENSE("GPL");
 #define H3600_SCANCODE_LEFT	8	 /* 8 -> left */
 #define H3600_SCANCODE_DOWN	9	 /* 9 -> down */
 
-static char *h3600_name = "H3600 TouchScreen";
-
 /*
  * Per-touchscreen data.
  */
 struct h3600_dev {
-	struct input_dev dev;
-	struct pm_dev *pm_dev;
+	struct input_dev *dev;
 	struct serio *serio;
-	struct pm_dev *pm_dev;
 	unsigned char event;	/* event ID from packet */
 	unsigned char chksum;
 	unsigned char len;
@@ -163,33 +158,6 @@ unsigned int h3600_flite_power(struct input_dev *dev, enum flite_pwr pwr)
 	return 0;
 }
 
-static int suspended = 0;
-static int h3600ts_pm_callback(struct pm_dev *pm_dev, pm_request_t req,
-				void *data)
-{
-	struct input_dev *dev = (struct input_dev *) data;
-
-	switch (req) {
-	case PM_SUSPEND: /* enter D1-D3 */
-		suspended = 1;
-		h3600_flite_power(dev, FLITE_PWR_OFF);
-		break;
-	case PM_BLANK:
-		if (!suspended)
-			h3600_flite_power(dev, FLITE_PWR_OFF);
-		break;
-	case PM_RESUME:  /* enter D0 */
-		/* same as unblank */
-	case PM_UNBLANK:
-		if (suspended) {
-			//initSerial();
-			suspended = 0;
-		}
-		h3600_flite_power(dev, FLITE_PWR_ON);
-		break;
-	}
-	return 0;
-}
 #endif
 
 /*
@@ -199,7 +167,7 @@ static int h3600ts_pm_callback(struct pm_dev *pm_dev, pm_request_t req,
  */
 static void h3600ts_process_packet(struct h3600_dev *ts, struct pt_regs *regs)
 {
-	struct input_dev *dev = &ts->dev;
+	struct input_dev *dev = ts->dev;
 	static int touched = 0;
 	int key, down = 0;
 
@@ -295,6 +263,7 @@ static void h3600ts_process_packet(struct h3600_dev *ts, struct pt_regs *regs)
 static int h3600ts_event(struct input_dev *dev, unsigned int type,
 			 unsigned int code, int value)
 {
+#if 0
 	struct h3600_dev *ts = dev->private;
 
 	switch (type) {
@@ -304,6 +273,8 @@ static int h3600ts_event(struct input_dev *dev, unsigned int type,
 		}
 	}
 	return -1;
+#endif
+	return 0;
 }
 
 /*
@@ -380,14 +351,48 @@ static irqreturn_t h3600ts_interrupt(struct serio *serio, unsigned char data,
 static int h3600ts_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct h3600_dev *ts;
+	struct input_dev *input_dev;
 	int err;
 
-	if (!(ts = kmalloc(sizeof(struct h3600_dev), GFP_KERNEL)))
-		return -ENOMEM;
+	ts = kzalloc(sizeof(struct h3600_dev), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ts || !input_dev) {
+		err = -ENOMEM;
+		goto fail1;
+	}
 
-	memset(ts, 0, sizeof(struct h3600_dev));
+	ts->serio = serio;
+	ts->dev = input_dev;
+	sprintf(ts->phys, "%s/input0", serio->phys);
 
-	init_input_dev(&ts->dev);
+	input_dev->name = "H3600 TouchScreen";
+	input_dev->phys = ts->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_H3600;
+	input_dev->id.product = 0x0666;  /* FIXME !!! We can ask the hardware */
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+	input_dev->private = ts;
+
+	input_dev->event = h3600ts_event;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_LED) | BIT(EV_PWR);
+	input_dev->ledbit[0] = BIT(LED_SLEEP);
+	input_set_abs_params(input_dev, ABS_X, 60, 985, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 35, 1024, 0, 0);
+
+	set_bit(KEY_RECORD, input_dev->keybit);
+	set_bit(KEY_Q, input_dev->keybit);
+	set_bit(KEY_PROG1, input_dev->keybit);
+	set_bit(KEY_PROG2, input_dev->keybit);
+	set_bit(KEY_PROG3, input_dev->keybit);
+	set_bit(KEY_UP, input_dev->keybit);
+	set_bit(KEY_RIGHT, input_dev->keybit);
+	set_bit(KEY_LEFT, input_dev->keybit);
+	set_bit(KEY_DOWN, input_dev->keybit);
+	set_bit(KEY_ENTER, input_dev->keybit);
+	set_bit(KEY_SUSPEND, input_dev->keybit);
+	set_bit(BTN_TOUCH, input_dev->keybit);
 
 	/* Device specific stuff */
 	set_GPIO_IRQ_edge(GPIO_BITSY_ACTION_BUTTON, GPIO_BOTH_EDGES);
@@ -397,73 +402,35 @@ static int h3600ts_connect(struct serio *serio, struct serio_driver *drv)
 			SA_SHIRQ | SA_INTERRUPT | SA_SAMPLE_RANDOM,
 			"h3600_action", &ts->dev)) {
 		printk(KERN_ERR "h3600ts.c: Could not allocate Action Button IRQ!\n");
-		kfree(ts);
-		return -EBUSY;
+		err = -EBUSY;
+		goto fail2;
 	}
 
 	if (request_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, npower_button_handler,
 			SA_SHIRQ | SA_INTERRUPT | SA_SAMPLE_RANDOM,
 			"h3600_suspend", &ts->dev)) {
-		free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, &ts->dev);
 		printk(KERN_ERR "h3600ts.c: Could not allocate Power Button IRQ!\n");
-		kfree(ts);
-		return -EBUSY;
+		err = -EBUSY;
+		goto fail3;
 	}
-
-	/* Now we have things going we setup our input device */
-	ts->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_LED) | BIT(EV_PWR);
-	ts->dev.ledbit[0] = BIT(LED_SLEEP);
-	input_set_abs_params(&ts->dev, ABS_X, 60, 985, 0, 0);
-	input_set_abs_params(&ts->dev, ABS_Y, 35, 1024, 0, 0);
-
-	set_bit(KEY_RECORD, ts->dev.keybit);
-	set_bit(KEY_Q, ts->dev.keybit);
-	set_bit(KEY_PROG1, ts->dev.keybit);
-	set_bit(KEY_PROG2, ts->dev.keybit);
-	set_bit(KEY_PROG3, ts->dev.keybit);
-	set_bit(KEY_UP, ts->dev.keybit);
-	set_bit(KEY_RIGHT, ts->dev.keybit);
-	set_bit(KEY_LEFT, ts->dev.keybit);
-	set_bit(KEY_DOWN, ts->dev.keybit);
-	set_bit(KEY_ENTER, ts->dev.keybit);
-	ts->dev.keybit[LONG(BTN_TOUCH)] |= BIT(BTN_TOUCH);
-	ts->dev.keybit[LONG(KEY_SUSPEND)] |= BIT(KEY_SUSPEND);
-
-	ts->serio = serio;
-
-	sprintf(ts->phys, "%s/input0", serio->phys);
-
-	ts->dev.event = h3600ts_event;
-	ts->dev.private = ts;
-	ts->dev.name = h3600_name;
-	ts->dev.phys = ts->phys;
-	ts->dev.id.bustype = BUS_RS232;
-	ts->dev.id.vendor = SERIO_H3600;
-	ts->dev.id.product = 0x0666;  /* FIXME !!! We can ask the hardware */
-	ts->dev.id.version = 0x0100;
 
 	serio_set_drvdata(serio, ts);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, ts);
-		free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, ts);
-		serio_set_drvdata(serio, NULL);
-		kfree(ts);
+	if (err)
 		return err;
-	}
 
 	//h3600_flite_control(1, 25);     /* default brightness */
-#ifdef CONFIG_PM
-	ts->pm_dev = pm_register(PM_ILLUMINATION_DEV, PM_SYS_LIGHT,
-				h3600ts_pm_callback);
-	printk("registered pm callback\n");
-#endif
-	input_register_device(&ts->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", h3600_name, serio->phys);
+	input_register_device(ts->dev);
 
 	return 0;
+
+fail3:	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, ts->dev);
+fail2:	free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, ts->dev);
+fail1:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(ts);
+	return err;
 }
 
 /*
@@ -476,9 +443,11 @@ static void h3600ts_disconnect(struct serio *serio)
 
 	free_irq(IRQ_GPIO_BITSY_ACTION_BUTTON, &ts->dev);
 	free_irq(IRQ_GPIO_BITSY_NPOWER_BUTTON, &ts->dev);
-	input_unregister_device(&ts->dev);
+	input_get_device(ts->dev);
+	input_unregister_device(ts->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_put_device(ts->dev);
 	kfree(ts);
 }
 

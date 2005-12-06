@@ -1064,7 +1064,6 @@ static struct fb_ops cyber2000fb_ops = {
 	.fb_fillrect	= cyber2000fb_fillrect,
 	.fb_copyarea	= cyber2000fb_copyarea,
 	.fb_imageblit	= cyber2000fb_imageblit,
-	.fb_cursor	= soft_cursor,
 	.fb_sync	= cyber2000fb_sync,
 };
 

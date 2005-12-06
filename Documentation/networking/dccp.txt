@@ -1,0 +1,56 @@
+DCCP protocol
+============
+
+Last updated: 10 November 2005
+
+Contents
+========
+
+- Introduction
+- Missing features
+- Socket options
+- Notes
+
+Introduction
+============
+
+Datagram Congestion Control Protocol (DCCP) is an unreliable, connection
+based protocol designed to solve issues present in UDP and TCP particularly
+for real time and multimedia traffic.
+
+It has a base protocol and pluggable congestion control IDs (CCIDs).
+
+It is at draft RFC status and the homepage for DCCP as a protocol is at:
+	http://www.icir.org/kohler/dcp/
+
+Missing features
+================
+
+The DCCP implementation does not currently have all the features that are in
+the draft RFC.
+
+In particular the following are missing:
+- CCID2 support
+- feature negotiation
+
+When testing against other implementations it appears that elapsed time
+options are not coded compliant to the specification.
+
+Socket options
+==============
+
+DCCP_SOCKOPT_PACKET_SIZE is used for CCID3 to set default packet size for
+calculations.
+
+DCCP_SOCKOPT_SERVICE sets the service. This is compulsory as per the
+specification. If you don't set it you will get EPROTO.
+
+Notes
+=====
+
+SELinux does not yet have support for DCCP. You will need to turn it off or
+else you will get EACCES.
+
+DCCP does not travel through NAT successfully at present. This is because
+the checksum covers the psuedo-header as per TCP and UDP. It should be
+relatively trivial to add Linux NAT support for DCCP.

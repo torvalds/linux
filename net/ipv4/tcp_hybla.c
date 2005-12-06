@@ -100,11 +100,11 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 		ca->minrtt = tp->srtt;
 	}
 
+	if (!tcp_is_cwnd_limited(sk, in_flight))
+		return;
+
 	if (!ca->hybla_en)
 		return tcp_reno_cong_avoid(sk, ack, rtt, in_flight, flag);
-
-	if (in_flight < tp->snd_cwnd)
-		return;
 
 	if (ca->rho == 0)
 		hybla_recalc_param(sk);

@@ -191,7 +191,8 @@ asn1_header_decode(struct asn1_ctx *ctx,
 		   unsigned char **eoc,
 		   unsigned int *cls, unsigned int *con, unsigned int *tag)
 {
-	unsigned int def, len;
+	unsigned int def = 0; 
+	unsigned int len = 0;
 
 	if (!asn1_id_decode(ctx, cls, con, tag))
 		return 0;
@@ -552,8 +553,7 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 					   *(oid + 3)));
 					rc = compare_oid(oid, oidlen, NTLMSSP_OID,
 						 NTLMSSP_OID_LEN);
-					if(oid)
-						kfree(oid);
+					kfree(oid);
 					if (rc)
 						use_ntlmssp = TRUE;
 				}

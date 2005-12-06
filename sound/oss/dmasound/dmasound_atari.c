@@ -114,7 +114,7 @@ static ssize_t ata_ctx_u16le(const u_char *userPtr, size_t userCount,
 /*** Low level stuff *********************************************************/
 
 
-static void *AtaAlloc(unsigned int size, int flags);
+static void *AtaAlloc(unsigned int size, gfp_t flags);
 static void AtaFree(void *, unsigned int size);
 static int AtaIrqInit(void);
 #ifdef MODULE
@@ -810,7 +810,7 @@ static TRANS transFalconExpanding = {
  * Atari (TT/Falcon)
  */
 
-static void *AtaAlloc(unsigned int size, int flags)
+static void *AtaAlloc(unsigned int size, gfp_t flags)
 {
 	return atari_stram_alloc(size, "dmasound");
 }

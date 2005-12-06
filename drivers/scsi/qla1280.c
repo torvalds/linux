@@ -465,7 +465,7 @@ scsi_adjust_queue_depth(struct scsi_device *device, int tag, int depth)
 	}
 	device->queue_depth = depth;
 }
-static inline struct Scsi_Host *scsi_host_alloc(Scsi_Host_Template *t, size_t s)
+static inline struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *t, size_t s)
 {
 	return scsi_register(t, s);
 }
@@ -639,10 +639,8 @@ struct qla_boards {
 static struct pci_device_id qla1280_pci_tbl[] = {
 	{PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP12160,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-#ifdef CONFIG_SCSI_QLOGIC_1280_1040
 	{PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP1020,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-#endif
 	{PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP1080,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
 	{PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP1240,
@@ -1177,7 +1175,7 @@ qla1280_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 
 #if LINUX_VERSION_CODE < 0x020600
 static int
-qla1280_detect(Scsi_Host_Template *template)
+qla1280_detect(struct scsi_host_template *template)
 {
 	struct pci_device_id *id = &qla1280_pci_tbl[0];
 	struct pci_dev *pdev = NULL;
@@ -4507,7 +4505,7 @@ static struct scsi_host_template qla1280_driver_template = {
 	.use_clustering		= ENABLE_CLUSTERING,
 };
 #else
-static Scsi_Host_Template qla1280_driver_template = {
+static struct scsi_host_template qla1280_driver_template = {
 	.proc_name		= "qla1280",
 	.name			= "Qlogic ISP 1280/12160",
 	.detect			= qla1280_detect,

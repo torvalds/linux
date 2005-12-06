@@ -332,6 +332,7 @@ static floatx80 commonNaNToFloatx80( commonNaNT a )
 
     z.low = LIT64( 0xC000000000000000 ) | ( a.high>>1 );
     z.high = ( ( (bits16) a.sign )<<15 ) | 0x7FFF;
+    z.__padding = 0;
     return z;
 
 }

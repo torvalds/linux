@@ -111,7 +111,7 @@ proc_alignment_read(char *page, char **start, off_t off, int count, int *eof,
 }
 
 static int proc_alignment_write(struct file *file, const char __user *buffer,
-			       unsigned long count, void *data)
+				unsigned long count, void *data)
 {
 	char mode;
 
@@ -119,7 +119,7 @@ static int proc_alignment_write(struct file *file, const char __user *buffer,
 		if (get_user(mode, buffer))
 			return -EFAULT;
 		if (mode >= '0' && mode <= '5')
-			   ai_usermode = mode - '0';
+			ai_usermode = mode - '0';
 	}
 	return count;
 }
@@ -262,7 +262,7 @@ union offset_union {
 			goto fault;				\
 	} while (0)
 
-#define put32_unaligned_check(val,addr)	 \
+#define put32_unaligned_check(val,addr) \
 	__put32_unaligned_check("strb", val, addr)
 
 #define put32t_unaligned_check(val,addr) \
@@ -306,19 +306,19 @@ do_alignment_ldrhstrh(unsigned long addr, unsigned long instr, struct pt_regs *r
 	return TYPE_LDST;
 
  user:
- 	if (LDST_L_BIT(instr)) {
- 		unsigned long val;
- 		get16t_unaligned_check(val, addr);
+	if (LDST_L_BIT(instr)) {
+		unsigned long val;
+		get16t_unaligned_check(val, addr);
 
- 		/* signed half-word? */
- 		if (instr & 0x40)
- 			val = (signed long)((signed short) val);
+		/* signed half-word? */
+		if (instr & 0x40)
+			val = (signed long)((signed short) val);
 
- 		regs->uregs[rd] = val;
- 	} else
- 		put16t_unaligned_check(regs->uregs[rd], addr);
+		regs->uregs[rd] = val;
+	} else
+		put16t_unaligned_check(regs->uregs[rd], addr);
 
- 	return TYPE_LDST;
+	return TYPE_LDST;
 
  fault:
 	return TYPE_FAULT;
@@ -330,6 +330,9 @@ do_alignment_ldrdstrd(unsigned long addr, unsigned long instr,
 {
 	unsigned int rd = RD_BITS(instr);
 
+	if (((rd & 1) == 1) || (rd == 14))
+		goto bad;
+
 	ai_dword += 1;
 
 	if (user_mode(regs))
@@ -339,11 +342,11 @@ do_alignment_ldrdstrd(unsigned long addr, unsigned long instr,
 		unsigned long val;
 		get32_unaligned_check(val, addr);
 		regs->uregs[rd] = val;
-		get32_unaligned_check(val, addr+4);
-		regs->uregs[rd+1] = val;
+		get32_unaligned_check(val, addr + 4);
+		regs->uregs[rd + 1] = val;
 	} else {
 		put32_unaligned_check(regs->uregs[rd], addr);
-		put32_unaligned_check(regs->uregs[rd+1], addr+4);
+		put32_unaligned_check(regs->uregs[rd + 1], addr + 4);
 	}
 
 	return TYPE_LDST;
@@ -353,15 +356,16 @@ do_alignment_ldrdstrd(unsigned long addr, unsigned long instr,
 		unsigned long val;
 		get32t_unaligned_check(val, addr);
 		regs->uregs[rd] = val;
-		get32t_unaligned_check(val, addr+4);
-		regs->uregs[rd+1] = val;
+		get32t_unaligned_check(val, addr + 4);
+		regs->uregs[rd + 1] = val;
 	} else {
 		put32t_unaligned_check(regs->uregs[rd], addr);
-		put32t_unaligned_check(regs->uregs[rd+1], addr+4);
+		put32t_unaligned_check(regs->uregs[rd + 1], addr + 4);
 	}
 
 	return TYPE_LDST;
-
+ bad:
+	return TYPE_ERROR;
  fault:
 	return TYPE_FAULT;
 }
@@ -439,7 +443,7 @@ do_alignment_ldmstm(unsigned long addr, unsigned long instr, struct pt_regs *reg
 	if (LDST_P_EQ_U(instr))	/* U = P */
 		eaddr += 4;
 
-	/* 
+	/*
 	 * For alignment faults on the ARM922T/ARM920T the MMU  makes
 	 * the FSR (and hence addr) equal to the updated base address
 	 * of the multiple access rather than the restored value.
@@ -566,7 +570,7 @@ thumb2arm(u16 tinstr)
 	/* 6.5.1 Format 3: */
 	case 0x4800 >> 11:				/* 7.1.28 LDR(3) */
 		/* NOTE: This case is not technically possible. We're
-		 * 	 loading 32-bit memory data via PC relative
+		 *	 loading 32-bit memory data via PC relative
 		 *	 addressing mode. So we can and should eliminate
 		 *	 this case. But I'll leave it here for now.
 		 */
@@ -638,7 +642,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	if (fault) {
 		type = TYPE_FAULT;
- 		goto bad_or_fault;
+		goto bad_or_fault;
 	}
 
 	if (user_mode(regs))
@@ -663,6 +667,8 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		else if ((instr & 0x001000f0) == 0x000000d0 || /* LDRD */
 			 (instr & 0x001000f0) == 0x000000f0)   /* STRD */
 			handler = do_alignment_ldrdstrd;
+		else if ((instr & 0x01f00ff0) == 0x01000090) /* SWP */
+			goto swp;
 		else
 			goto bad;
 		break;
@@ -732,6 +738,9 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	 */
 	do_bad_area(current, current->mm, addr, fsr, regs);
 	return 0;
+
+ swp:
+	printk(KERN_ERR "Alignment trap: not handling swp instruction\n");
 
  bad:
 	/*

@@ -138,14 +138,13 @@ static void end_ite_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type it8172_irq_type = {
-	"ITE8172",
-	startup_ite_irq,
-	shutdown_ite_irq,
-	enable_it8172_irq,
-	disable_it8172_irq,
-	mask_and_ack_ite_irq,
-	end_ite_irq,
-	NULL
+	.typename = "ITE8172",
+	.startup = startup_ite_irq,
+	.shutdown = shutdown_ite_irq,
+	.enable = enable_it8172_irq,
+	.disable = disable_it8172_irq,
+	.ack = mask_and_ack_ite_irq,
+	.end = end_ite_irq,
 };
 
 
@@ -159,13 +158,13 @@ static void ack_none(unsigned int irq) { }
 #define end_none	enable_none
 
 static struct hw_interrupt_type cp0_irq_type = {
-	"CP0 Count",
-	startup_none,
-	shutdown_none,
-	enable_none,
-	disable_none,
-	ack_none,
-	end_none
+	.typename = "CP0 Count",
+	.startup = startup_none,
+	.shutdown = shutdown_none,
+	.enable = enable_none,
+	.disable = disable_none,
+	.ack = ack_none,
+	.end = end_none
 };
 
 void enable_cpu_timer(void)
@@ -182,7 +181,6 @@ void __init arch_init_irq(void)
 	int i;
         unsigned long flags;
 
-        memset(irq_desc, 0, sizeof(irq_desc));
         set_except_vector(0, it8172_IRQ);
 
 	/* mask all interrupts */

@@ -122,7 +122,26 @@ struct thread_struct {
 }; 
 
 /* Thread struct flags. */
+#define PARISC_UAC_NOPRINT	(1UL << 0)	/* see prctl and unaligned.c */
+#define PARISC_UAC_SIGBUS	(1UL << 1)
 #define PARISC_KERNEL_DEATH	(1UL << 31)	/* see die_if_kernel()... */
+
+#define PARISC_UAC_SHIFT	0
+#define PARISC_UAC_MASK		(PARISC_UAC_NOPRINT|PARISC_UAC_SIGBUS)
+
+#define SET_UNALIGN_CTL(task,value)                                       \
+        ({                                                                \
+        (task)->thread.flags = (((task)->thread.flags & ~PARISC_UAC_MASK) \
+                                | (((value) << PARISC_UAC_SHIFT) &        \
+                                   PARISC_UAC_MASK));                     \
+        0;                                                                \
+        })
+
+#define GET_UNALIGN_CTL(task,addr)                                        \
+        ({                                                                \
+        put_user(((task)->thread.flags & PARISC_UAC_MASK)                 \
+                 >> PARISC_UAC_SHIFT, (int __user *) (addr));             \
+        })
 
 #define INIT_THREAD { \
 	regs:	{	gr: { 0, }, \

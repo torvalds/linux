@@ -218,7 +218,7 @@ typedef enum {	ide_unknown,	ide_generic,	ide_pci,
 		ide_rz1000,	ide_trm290,
 		ide_cmd646,	ide_cy82c693,	ide_4drives,
 		ide_pmac,	ide_etrax100,	ide_acorn,
-		ide_forced
+		ide_au1xxx, ide_forced
 } hwif_chipset_t;
 
 /*
@@ -230,6 +230,7 @@ typedef struct hw_regs_s {
 	int		dma;			/* our dma entry */
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	hwif_chipset_t  chipset;
+	struct device	*dev;
 } hw_regs_t;
 
 /*
@@ -265,6 +266,10 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 }
 
 #include <asm/ide.h>
+
+#ifndef MAX_HWIFS
+#define MAX_HWIFS	CONFIG_IDE_MAX_HWIFS
+#endif
 
 /* needed on alpha, x86/x86_64, ia64, mips, ppc32 and sh */
 #ifndef IDE_ARCH_OBSOLETE_DEFAULTS
@@ -1084,9 +1089,11 @@ enum {
 
 /*
  * Subdrivers support.
+ *
+ * The gendriver.owner field should be set to the module owner of this driver.
+ * The gendriver.name field should be set to the name of this driver
  */
 typedef struct ide_driver_s {
-	struct module			*owner;
 	const char			*version;
 	u8				media;
 	unsigned supports_dsc_overlap	: 1;
@@ -1194,37 +1201,11 @@ extern u64 ide_get_error_location(ide_drive_t *, char *);
  */
 typedef enum {
 	ide_wait,	/* insert rq at end of list, and wait for it */
-	ide_next,	/* insert rq immediately after current request */
 	ide_preempt,	/* insert rq in front of current request */
 	ide_head_wait,	/* insert rq in front of current request and wait for it */
 	ide_end		/* insert rq at end of list, but don't wait for it */
 } ide_action_t;
 
-/*
- * This function issues a special IDE device request
- * onto the request queue.
- *
- * If action is ide_wait, then the rq is queued at the end of the
- * request queue, and the function sleeps until it has been processed.
- * This is for use when invoked from an ioctl handler.
- *
- * If action is ide_preempt, then the rq is queued at the head of
- * the request queue, displacing the currently-being-processed
- * request and this function returns immediately without waiting
- * for the new rq to be completed.  This is VERY DANGEROUS, and is
- * intended for careful use by the ATAPI tape/cdrom driver code.
- *
- * If action is ide_next, then the rq is queued immediately after
- * the currently-being-processed-request (if any), and the function
- * returns without waiting for the new rq to be completed.  As above,
- * This is VERY DANGEROUS, and is intended for careful use by the
- * ATAPI tape/cdrom driver code.
- *
- * If action is ide_end, then the rq is queued at the end of the
- * request queue, and the function returns immediately without waiting
- * for the new rq to be completed. This is again intended for careful
- * use by the ATAPI tape/cdrom driver code.
- */
 extern int ide_do_drive_cmd(ide_drive_t *, struct request *, ide_action_t);
 
 /*
@@ -1324,7 +1305,8 @@ void ide_init_disk(struct gendisk *, ide_drive_t *);
 extern int ideprobe_init(void);
 
 extern void ide_scan_pcibus(int scan_direction) __init;
-extern int ide_pci_register_driver(struct pci_driver *driver);
+extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *owner);
+#define ide_pci_register_driver(d) __ide_pci_register_driver(d, THIS_MODULE)
 extern void ide_pci_unregister_driver(struct pci_driver *driver);
 void ide_pci_setup_ports(struct pci_dev *, struct ide_pci_device_s *, int, ata_index_t *);
 extern void ide_setup_pci_noise (struct pci_dev *dev, struct ide_pci_device_s *d);

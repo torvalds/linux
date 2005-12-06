@@ -556,10 +556,9 @@ static inline void soc_init(struct sbus_dev *sdev, int no)
 	int size, i;
 	int irq;
 	
-	s = kmalloc (sizeof (struct soc), GFP_KERNEL);
+	s = kzalloc (sizeof (struct soc), GFP_KERNEL);
 	if (s == NULL)
 		return;
-	memset (s, 0, sizeof(struct soc));
 	spin_lock_init(&s->lock);
 	s->soc_no = no;
 

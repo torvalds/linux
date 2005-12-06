@@ -24,7 +24,7 @@ struct dma_coherent_mem {
 };
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, unsigned int __nocast gfp)
+			   dma_addr_t *dma_handle, gfp_t gfp)
 {
 	void *ret;
 	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;

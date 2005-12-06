@@ -88,12 +88,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
 })
 
-#define local_mapnr(kvaddr)						\
-({									\
-	unsigned long __pfn = __pa(kvaddr) >> PAGE_SHIFT;		\
-	(__pfn - node_start_pfn(pfn_to_nid(__pfn)));			\
-})
-
 /* XXX: FIXME -- wli */
 #define kern_addr_valid(kaddr)	(0)
 

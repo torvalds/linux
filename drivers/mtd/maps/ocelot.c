@@ -1,5 +1,5 @@
 /*
- * $Id: ocelot.c,v 1.16 2005/01/05 18:05:13 dwmw2 Exp $
+ * $Id: ocelot.c,v 1.17 2005/11/07 11:14:27 gleixner Exp $
  *
  * Flash on Momenco Ocelot
  */
@@ -31,7 +31,7 @@ static void ocelot_ram_write(struct mtd_info *mtd, loff_t to, size_t len, size_t
         struct map_info *map = mtd->priv;
 	size_t done = 0;
 
-	/* If we use memcpy, it does word-wide writes. Even though we told the 
+	/* If we use memcpy, it does word-wide writes. Even though we told the
 	   GT64120A that it's an 8-bit wide region, word-wide writes don't work.
 	   We end up just writing the first byte of the four to all four bytes.
 	   So we have this loop instead */
@@ -68,7 +68,7 @@ static int __init init_ocelot_maps(void)
 	int nr_parts;
 	unsigned char brd_status;
 
-       	printk(KERN_INFO "Momenco Ocelot MTD mappings: Flash 0x%x at 0x%x, NVRAM 0x%x at 0x%x\n", 
+       	printk(KERN_INFO "Momenco Ocelot MTD mappings: Flash 0x%x at 0x%x, NVRAM 0x%x at 0x%x\n",
 	       FLASH_WINDOW_SIZE, FLASH_WINDOW_ADDR, NVRAM_WINDOW_SIZE, NVRAM_WINDOW_ADDR);
 
 	/* First check whether the flash jumper is present */
@@ -138,8 +138,8 @@ static int __init init_ocelot_maps(void)
 		add_mtd_device(flash_mtd);
 
 	return 0;
-	
- fail3:	
+
+ fail3:
 	iounmap((void *)ocelot_flash_map.virt);
 	if (ocelot_flash_map.cached)
 			iounmap((void *)ocelot_flash_map.cached);

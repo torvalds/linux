@@ -39,13 +39,13 @@
 #include <linux/usbdevice_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/parser.h>
+#include <linux/notifier.h>
 #include <asm/byteorder.h>
 #include "usb.h"
 #include "hcd.h"
 
 static struct super_operations usbfs_ops;
 static struct file_operations default_file_operations;
-static struct inode_operations usbfs_dir_inode_operations;
 static struct vfsmount *usbfs_mount;
 static int usbfs_mount_count;	/* = 0 */
 static int ignore_mount = 0;
@@ -261,7 +261,7 @@ static struct inode *usbfs_get_inode (struct super_block *sb, int mode, dev_t de
 			inode->i_fop = &default_file_operations;
 			break;
 		case S_IFDIR:
-			inode->i_op = &usbfs_dir_inode_operations;
+			inode->i_op = &simple_dir_inode_operations;
 			inode->i_fop = &simple_dir_operations;
 
 			/* directory inodes start off with i_nlink == 2 (for "." entry) */
@@ -414,10 +414,6 @@ static struct file_operations default_file_operations = {
 	.write =	default_write_file,
 	.open =		default_open,
 	.llseek =	default_file_lseek,
-};
-
-static struct inode_operations usbfs_dir_inode_operations = {
-	.lookup =	simple_lookup,
 };
 
 static struct super_operations usbfs_ops = {
@@ -619,7 +615,7 @@ void usbfs_update_special (void)
 	}
 }
 
-void usbfs_add_bus(struct usb_bus *bus)
+static void usbfs_add_bus(struct usb_bus *bus)
 {
 	struct dentry *parent;
 	char name[8];
@@ -642,12 +638,9 @@ void usbfs_add_bus(struct usb_bus *bus)
 		err ("error creating usbfs bus entry");
 		return;
 	}
-
-	usbfs_update_special();
-	usbfs_conn_disc_event();
 }
 
-void usbfs_remove_bus(struct usb_bus *bus)
+static void usbfs_remove_bus(struct usb_bus *bus)
 {
 	if (bus->usbfs_dentry) {
 		fs_remove_file (bus->usbfs_dentry);
@@ -659,12 +652,9 @@ void usbfs_remove_bus(struct usb_bus *bus)
 		remove_special_files();
 		num_buses = 0;
 	}
-
-	usbfs_update_special();
-	usbfs_conn_disc_event();
 }
 
-void usbfs_add_device(struct usb_device *dev)
+static void usbfs_add_device(struct usb_device *dev)
 {
 	char name[8];
 	int i;
@@ -690,12 +680,9 @@ void usbfs_add_device(struct usb_device *dev)
 	}
 	if (dev->usbfs_dentry->d_inode)
 		dev->usbfs_dentry->d_inode->i_size = i_size;
-
-	usbfs_update_special();
-	usbfs_conn_disc_event();
 }
 
-void usbfs_remove_device(struct usb_device *dev)
+static void usbfs_remove_device(struct usb_device *dev)
 {
 	struct dev_state *ds;
 	struct siginfo sinfo;
@@ -713,12 +700,35 @@ void usbfs_remove_device(struct usb_device *dev)
 			sinfo.si_errno = EPIPE;
 			sinfo.si_code = SI_ASYNCIO;
 			sinfo.si_addr = ds->disccontext;
-			send_sig_info(ds->discsignr, &sinfo, ds->disctask);
+			kill_proc_info_as_uid(ds->discsignr, &sinfo, ds->disc_pid, ds->disc_uid, ds->disc_euid);
 		}
 	}
+}
+
+static int usbfs_notify(struct notifier_block *self, unsigned long action, void *dev)
+{
+	switch (action) {
+	case USB_DEVICE_ADD:
+		usbfs_add_device(dev);
+		break;
+	case USB_DEVICE_REMOVE:
+		usbfs_remove_device(dev);
+		break;
+	case USB_BUS_ADD:
+		usbfs_add_bus(dev);
+		break;
+	case USB_BUS_REMOVE:
+		usbfs_remove_bus(dev);
+	}
+
 	usbfs_update_special();
 	usbfs_conn_disc_event();
+	return NOTIFY_OK;
 }
+
+static struct notifier_block usbfs_nb = {
+	.notifier_call = 	usbfs_notify,
+};
 
 /* --------------------------------------------------------------------- */
 
@@ -732,6 +742,8 @@ int __init usbfs_init(void)
 	if (retval)
 		return retval;
 
+	usb_register_notify(&usbfs_nb);
+
 	/* create mount point for usbfs */
 	usbdir = proc_mkdir("usb", proc_bus);
 
@@ -740,6 +752,7 @@ int __init usbfs_init(void)
 
 void usbfs_cleanup(void)
 {
+	usb_unregister_notify(&usbfs_nb);
 	unregister_filesystem(&usb_fs_type);
 	if (usbdir)
 		remove_proc_entry("usb", proc_bus);

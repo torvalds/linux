@@ -45,7 +45,8 @@
 
 
 /*
- * Offsets for I/O ASIC registers (relative to (system_base + IOASIC_IOCTL)).
+ * Offsets for I/O ASIC registers
+ * (relative to (dec_kn_slot_base + IOASIC_IOCTL)).
  */
 					/* all systems */
 #define IO_REG_SCSI_DMA_P	0x00	/* SCSI DMA Pointer */

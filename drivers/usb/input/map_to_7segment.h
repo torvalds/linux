@@ -79,7 +79,7 @@ struct seg7_conversion_map {
 
 static inline int map_to_seg7(struct seg7_conversion_map *map, int c)
 {
-	return c & 0x7f ? map->table[c] : -EINVAL;
+	return c >= 0 && c < sizeof(map->table) ? map->table[c] : -EINVAL;
 }
 
 #define SEG7_CONVERSION_MAP(_name, _map)	\

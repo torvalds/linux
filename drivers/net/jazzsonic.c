@@ -33,7 +33,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/bootinfo.h>
@@ -194,7 +194,7 @@ out:
  * Probe for a SONIC ethernet controller on a Mips Jazz board.
  * Actually probing is superfluous but we're paranoid.
  */
-static int __init jazz_sonic_probe(struct device *device)
+static int __init jazz_sonic_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
@@ -212,8 +212,8 @@ static int __init jazz_sonic_probe(struct device *device)
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
-	lp->device = device;
-	SET_NETDEV_DEV(dev, device);
+	lp->device = &pdev->dev;
+	SET_NETDEV_DEV(dev, &pdev->dev);
  	SET_MODULE_OWNER(dev);
 
 	netdev_boot_setup_check(dev);
@@ -264,9 +264,9 @@ MODULE_PARM_DESC(sonic_debug, "jazzsonic debug level (1-4)");
 
 #include "sonic.c"
 
-static int __devexit jazz_sonic_device_remove (struct device *device)
+static int __devexit jazz_sonic_device_remove (struct platform_device *pdev)
 {
-	struct net_device *dev = device->driver_data;
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sonic_local* lp = netdev_priv(dev);
 
 	unregister_netdev (dev);
@@ -278,60 +278,43 @@ static int __devexit jazz_sonic_device_remove (struct device *device)
 	return 0;
 }
 
-static struct device_driver jazz_sonic_driver = {
-	.name	= jazz_sonic_string,
-	.bus	= &platform_bus_type,
+static struct platform_driver jazz_sonic_driver = {
 	.probe	= jazz_sonic_probe,
 	.remove	= __devexit_p(jazz_sonic_device_remove),
+	.driver	= {
+		.name	= jazz_sonic_string,
+	},
 };
-
-static void jazz_sonic_platform_release (struct device *device)
-{
-	struct platform_device *pldev;
-
-	/* free device */
-	pldev = to_platform_device (device);
-	kfree (pldev);
-}
 
 static int __init jazz_sonic_init_module(void)
 {
-	struct platform_device *pldev;
 	int err;
 
-	if ((err = driver_register(&jazz_sonic_driver))) {
+	if ((err = platform_driver_register(&jazz_sonic_driver))) {
 		printk(KERN_ERR "Driver registration failed\n");
 		return err;
 	}
 
-	jazz_sonic_device = NULL;
-
-	if (!(pldev = kmalloc (sizeof (*pldev), GFP_KERNEL))) {
+	jazz_sonic_device = platform_device_alloc(jazz_sonic_string, 0);
+	if (!jazz_sonic_device)
 		goto out_unregister;
-	}
 
-	memset(pldev, 0, sizeof (*pldev));
-	pldev->name		= jazz_sonic_string;
-	pldev->id		= 0;
-	pldev->dev.release	= jazz_sonic_platform_release;
-	jazz_sonic_device	= pldev;
-
-	if (platform_device_register (pldev)) {
-		kfree(pldev);
+	if (platform_device_add(jazz_sonic_device)) {
+		platform_device_put(jazz_sonic_device);
 		jazz_sonic_device = NULL;
 	}
 
 	return 0;
 
 out_unregister:
-	platform_device_unregister(pldev);
+	platform_driver_unregister(&jazz_sonic_driver);
 
 	return -ENOMEM;
 }
 
 static void __exit jazz_sonic_cleanup_module(void)
 {
-	driver_unregister(&jazz_sonic_driver);
+	platform_driver_unregister(&jazz_sonic_driver);
 
 	if (jazz_sonic_device) {
 		platform_device_unregister(jazz_sonic_device);

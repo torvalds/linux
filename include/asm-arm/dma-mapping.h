@@ -70,7 +70,7 @@ static inline int dma_mapping_error(dma_addr_t dma_addr)
  * device-viewed address.
  */
 extern void *
-dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, int gfp);
+dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp);
 
 /**
  * dma_free_coherent - free memory allocated by dma_alloc_coherent
@@ -117,7 +117,7 @@ int dma_mmap_coherent(struct device *dev, struct vm_area_struct *vma,
  * device-viewed address.
  */
 extern void *
-dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, int gfp);
+dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp);
 
 #define dma_free_writecombine(dev,size,cpu_addr,handle) \
 	dma_free_coherent(dev,size,cpu_addr,handle)

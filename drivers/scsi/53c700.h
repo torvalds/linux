@@ -22,8 +22,14 @@
 
 #ifdef NCR_700_DEBUG
 #define DEBUG(x)	printk x
+#define DDEBUG(prefix, sdev, fmt, a...) \
+	sdev_printk(prefix, sdev, fmt, ##a)
+#define CDEBUG(prefix, scmd, fmt, a...) \
+	scmd_printk(prefix, scmd, fmt, ##a)
 #else
-#define DEBUG(x)
+#define DEBUG(x)	do {} while (0)
+#define DDEBUG(prefix, scmd, fmt, a...) do {} while (0)
+#define CDEBUG(prefix, scmd, fmt, a...) do {} while (0)
 #endif
 
 /* The number of available command slots */

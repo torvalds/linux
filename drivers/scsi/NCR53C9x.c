@@ -529,7 +529,7 @@ void esp_bootup_reset(struct NCR_ESP *esp, struct ESP_regs *eregs)
 /* Allocate structure and insert basic data such as SCSI chip frequency
  * data and a pointer to the device
  */
-struct NCR_ESP* esp_allocate(Scsi_Host_Template *tpnt, void *esp_dev)
+struct NCR_ESP* esp_allocate(struct scsi_host_template *tpnt, void *esp_dev)
 {
 	struct NCR_ESP *esp, *elink;
 	struct Scsi_Host *esp_host;
@@ -936,7 +936,7 @@ static void esp_release_dmabufs(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 
 static void esp_restore_pointers(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 {
-	struct esp_pointers *ep = &esp->data_pointers[sp->device->id];
+	struct esp_pointers *ep = &esp->data_pointers[scmd_id(sp)];
 
 	sp->SCp.ptr = ep->saved_ptr;
 	sp->SCp.buffer = ep->saved_buffer;
@@ -946,7 +946,7 @@ static void esp_restore_pointers(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 
 static void esp_save_pointers(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 {
-	struct esp_pointers *ep = &esp->data_pointers[sp->device->id];
+	struct esp_pointers *ep = &esp->data_pointers[scmd_id(sp)];
 
 	ep->saved_ptr = sp->SCp.ptr;
 	ep->saved_buffer = sp->SCp.buffer;
@@ -1006,7 +1006,7 @@ static void esp_exec_cmd(struct NCR_ESP *esp)
 	struct ESP_regs *eregs = esp->eregs;
 	struct esp_device *esp_dev;
 	Scsi_Cmnd *SCptr;
-	Scsi_Device *SDptr;
+	struct scsi_device *SDptr;
 	volatile unchar *cmdp = esp->esp_command;
 	unsigned char the_esp_command;
 	int lun, target;
@@ -1687,19 +1687,19 @@ static inline int reconnect_lun(struct NCR_ESP *esp, struct ESP_regs *eregs)
 static inline void esp_connect(struct NCR_ESP *esp, struct ESP_regs *eregs,
 			       Scsi_Cmnd *sp)
 {
-	Scsi_Device *dp = sp->device;
+	struct scsi_device *dp = sp->device;
 	struct esp_device *esp_dev = dp->hostdata;
 
 	if(esp->prev_soff  != esp_dev->sync_max_offset ||
 	   esp->prev_stp   != esp_dev->sync_min_period ||
 	   (esp->erev > esp100a &&
-	    esp->prev_cfg3 != esp->config3[sp->device->id])) {
+	    esp->prev_cfg3 != esp->config3[scmd_id(sp)])) {
 		esp->prev_soff = esp_dev->sync_max_offset;
 		esp_write(eregs->esp_soff, esp->prev_soff);
 		esp->prev_stp = esp_dev->sync_min_period;
 		esp_write(eregs->esp_stp, esp->prev_stp);
 		if(esp->erev > esp100a) {
-			esp->prev_cfg3 = esp->config3[sp->device->id];
+			esp->prev_cfg3 = esp->config3[scmd_id(sp)];
 			esp_write(eregs->esp_cfg3, esp->prev_cfg3);
 		} 
 	}
@@ -2205,7 +2205,7 @@ static int esp_do_freebus(struct NCR_ESP *esp, struct ESP_regs *eregs)
 
 		if(SCptr->SCp.Status != GOOD &&
 		   SCptr->SCp.Status != CONDITION_GOOD &&
-		   ((1<<SCptr->device->id) & esp->targets_present) &&
+		   ((1<<scmd_id(SCptr)) & esp->targets_present) &&
 		   esp_dev->sync && esp_dev->sync_max_offset) {
 			/* SCSI standard says that the synchronous capabilities
 			 * should be renegotiated at this point.  Most likely
@@ -2597,7 +2597,7 @@ static int esp_select_complete(struct NCR_ESP *esp, struct ESP_regs *eregs)
 	 */
 	if(esp->ireg == (ESP_INTR_FDONE | ESP_INTR_BSERV)) {
 		/* target speaks... */
-		esp->targets_present |= (1<<SCptr->device->id);
+		esp->targets_present |= (1<<scmd_id(SCptr));
 
 		/* What if the target ignores the sdtr? */
 		if(esp->snip)
@@ -3064,7 +3064,7 @@ static int check_multibyte_msg(struct NCR_ESP *esp,
 			ESPSDTR(("soff=%2x stp=%2x cfg3=%2x\n",
 				esp_dev->sync_max_offset,
 				esp_dev->sync_min_period,
-				esp->config3[SCptr->device->id]));
+				esp->config3[scmd_id(SCptr)]));
 
 			esp->snip = 0;
 		} else if(esp_dev->sync_max_offset) {
@@ -3605,7 +3605,7 @@ out:
 }
 #endif
 
-int esp_slave_alloc(Scsi_Device *SDptr)
+int esp_slave_alloc(struct scsi_device *SDptr)
 {
 	struct esp_device *esp_dev =
 		kmalloc(sizeof(struct esp_device), GFP_ATOMIC);
@@ -3617,11 +3617,11 @@ int esp_slave_alloc(Scsi_Device *SDptr)
 	return 0;
 }
 
-void esp_slave_destroy(Scsi_Device *SDptr)
+void esp_slave_destroy(struct scsi_device *SDptr)
 {
 	struct NCR_ESP *esp = (struct NCR_ESP *) SDptr->host->hostdata;
 
-	esp->targets_present &= ~(1 << SDptr->id);
+	esp->targets_present &= ~(1 << sdev_id(SDptr));
 	kfree(SDptr->hostdata);
 	SDptr->hostdata = NULL;
 }

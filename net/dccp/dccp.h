@@ -118,7 +118,6 @@ DECLARE_SNMP_STAT(struct dccp_mib, dccp_statistics);
 #define DCCP_ADD_STATS_USER(field, val)	\
 			SNMP_ADD_STATS_USER(dccp_statistics, field, val)
 
-extern int  dccp_transmit_skb(struct sock *sk, struct sk_buff *skb);
 extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
 
 extern int dccp_send_response(struct sock *sk);

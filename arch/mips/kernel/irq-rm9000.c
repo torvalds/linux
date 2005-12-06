@@ -106,23 +106,23 @@ static void rm9k_cpu_irq_end(unsigned int irq)
 }
 
 static hw_irq_controller rm9k_irq_controller = {
-	"RM9000",
-	rm9k_cpu_irq_startup,
-	rm9k_cpu_irq_shutdown,
-	rm9k_cpu_irq_enable,
-	rm9k_cpu_irq_disable,
-	rm9k_cpu_irq_ack,
-	rm9k_cpu_irq_end,
+	.typename = "RM9000",
+	.startup = rm9k_cpu_irq_startup,
+	.shutdown = rm9k_cpu_irq_shutdown,
+	.enable = rm9k_cpu_irq_enable,
+	.disable = rm9k_cpu_irq_disable,
+	.ack = rm9k_cpu_irq_ack,
+	.end = rm9k_cpu_irq_end,
 };
 
 static hw_irq_controller rm9k_perfcounter_irq = {
-	"RM9000",
-	rm9k_perfcounter_irq_startup,
-	rm9k_perfcounter_irq_shutdown,
-	rm9k_cpu_irq_enable,
-	rm9k_cpu_irq_disable,
-	rm9k_cpu_irq_ack,
-	rm9k_cpu_irq_end,
+	.typename = "RM9000",
+	.startup = rm9k_perfcounter_irq_startup,
+	.shutdown = rm9k_perfcounter_irq_shutdown,
+	.enable = rm9k_cpu_irq_enable,
+	.disable = rm9k_cpu_irq_disable,
+	.ack = rm9k_cpu_irq_ack,
+	.end = rm9k_cpu_irq_end,
 };
 
 unsigned int rm9000_perfcount_irq;

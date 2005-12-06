@@ -74,7 +74,10 @@ void show_regs(struct pt_regs *regs)
 	char *level;
 	unsigned long cr30;
 	unsigned long cr31;
-
+	/* carlos says that gcc understands better memory in a struct,
+	 * and it makes our life easier with fpregs -- T-Bone */
+	struct { u32 sw[2]; } s;
+	
 	level = user_mode(regs) ? KERN_DEBUG : KERN_CRIT;
 
 	printk("%s\n", level); /* don't want to have that pretty register dump messed up */
@@ -103,11 +106,33 @@ void show_regs(struct pt_regs *regs)
 		printk("%s\n", buf);
 	}
 
-#if RIDICULOUSLY_VERBOSE
-	for (i = 0; i < 32; i += 2)
-		printk("%sFR%02d : %016lx  FR%2d : %016lx", level, i,
-				regs->fr[i], i+1, regs->fr[i+1]);
-#endif
+	/* FR are 64bit everywhere. Need to use asm to get the content
+	 * of fpsr/fper1, and we assume that we won't have a FP Identify
+	 * in our way, otherwise we're screwed.
+	 * The fldd is used to restore the T-bit if there was one, as the
+	 * store clears it anyway.
+	 * BTW, PA2.0 book says "thou shall not use fstw on FPSR/FPERs". */ 
+	__asm__ (
+		"fstd %%fr0,0(%1)	\n\t"
+		"fldd 0(%1),%%fr0	\n\t"
+		: "=m" (s) : "r" (&s) : "%r0"
+		);
+
+	printk("%s\n", level);
+	printk("%s      VZOUICununcqcqcqcqcqcrmunTDVZOUI\n", level);
+	printbinary(buf, s.sw[0], 32);
+	printk("%sFPSR: %s\n", level, buf);
+	printk("%sFPER1: %08x\n", level, s.sw[1]);
+
+	/* here we'll print fr0 again, tho it'll be meaningless */
+	for (i = 0; i < 32; i += 4) {
+		int j;
+		p = buf;
+		p += sprintf(p, "%sfr%02d-%02d ", level, i, i + 3);
+		for (j = 0; j < 4; j++)
+			p += sprintf(p, " %016llx", (i+j) == 0 ? 0 : regs->fr[i+j]);
+		printk("%s\n", buf);
+	}
 
 	cr30 = mfctl(30);
 	cr31 = mfctl(31);

@@ -83,9 +83,9 @@ static struct sh_machine_vector* __init get_mv_byname(const char* name);
 /* ... */
 #define COMMAND_LINE ((char *) (PARAM+0x100))
 
-#define RAMDISK_IMAGE_START_MASK  	0x07FF
+#define RAMDISK_IMAGE_START_MASK	0x07FF
 #define RAMDISK_PROMPT_FLAG		0x8000
-#define RAMDISK_LOAD_FLAG		0x4000	
+#define RAMDISK_LOAD_FLAG		0x4000
 
 static char command_line[COMMAND_LINE_SIZE] = { 0, };
 
@@ -284,18 +284,6 @@ void __init setup_arch(char **cmdline_p)
 #define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
 #define PFN_PHYS(x)	((x) << PAGE_SHIFT)
 
-#ifdef CONFIG_DISCONTIGMEM
-	NODE_DATA(0)->bdata = &discontig_node_bdata[0];
-	NODE_DATA(1)->bdata = &discontig_node_bdata[1];
-
-	bootmap_size = init_bootmem_node(NODE_DATA(1), 
-					 PFN_UP(__MEMORY_START_2ND),
-					 PFN_UP(__MEMORY_START_2ND),
-					 PFN_DOWN(__MEMORY_START_2ND+__MEMORY_SIZE_2ND));
-	free_bootmem_node(NODE_DATA(1), __MEMORY_START_2ND, __MEMORY_SIZE_2ND);
-	reserve_bootmem_node(NODE_DATA(1), __MEMORY_START_2ND, bootmap_size);
-#endif
-
 	/*
 	 * Find the highest page frame number we have available
 	 */
@@ -306,10 +294,10 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	max_low_pfn = max_pfn;
 
- 	/*
+	/*
 	 * Partially used pages are not usable - thus
 	 * we are rounding upwards:
- 	 */
+	 */
 	start_pfn = PFN_UP(__pa(_end));
 
 	/*
@@ -360,12 +348,12 @@ void __init setup_arch(char **cmdline_p)
 	reserve_bootmem_node(NODE_DATA(0), __MEMORY_START, PAGE_SIZE);
 
 #ifdef CONFIG_BLK_DEV_INITRD
- 	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
- 	if (&__rd_start != &__rd_end) {
+	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
+	if (&__rd_start != &__rd_end) {
 		LOADER_TYPE = 1;
 		INITRD_START = PHYSADDR((unsigned long)&__rd_start) - __MEMORY_START;
 		INITRD_SIZE = (unsigned long)&__rd_end - (unsigned long)&__rd_start;
- 	}
+	}
 
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {

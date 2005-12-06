@@ -9,7 +9,7 @@
 extern struct bus_type pci_bus_type;
 
 /* arch/sh/mm/consistent.c */
-extern void *consistent_alloc(int gfp, size_t size, dma_addr_t *handle);
+extern void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *handle);
 extern void consistent_free(void *vaddr, size_t size);
 extern void consistent_sync(void *vaddr, size_t size, int direction);
 
@@ -26,7 +26,7 @@ static inline int dma_set_mask(struct device *dev, u64 mask)
 }
 
 static inline void *dma_alloc_coherent(struct device *dev, size_t size,
-			 dma_addr_t *dma_handle, int flag)
+			 dma_addr_t *dma_handle, gfp_t flag)
 {
 	if (sh_mv.mv_consistent_alloc) {
 		void *ret;

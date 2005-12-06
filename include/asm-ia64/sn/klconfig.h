@@ -208,19 +208,6 @@ typedef struct lboard_s {
 	klconf_off_t	brd_next_same;    /* Next BOARD with same nasid */
 } lboard_t;
 
-#define KLCF_NUM_COMPS(_brd)	((_brd)->brd_numcompts)
-#define NODE_OFFSET_TO_KLINFO(n,off)    ((klinfo_t*) TO_NODE_CAC(n,off))
-#define KLCF_NEXT(_brd)         \
-        ((_brd)->brd_next_same ?     \
-         (NODE_OFFSET_TO_LBOARD((_brd)->brd_next_same_host, (_brd)->brd_next_same)): NULL)
-#define KLCF_NEXT_ANY(_brd)         \
-        ((_brd)->brd_next_any ?     \
-         (NODE_OFFSET_TO_LBOARD(NASID_GET(_brd), (_brd)->brd_next_any)): NULL)
-#define KLCF_COMP(_brd, _ndx)   \
-                ((((_brd)->brd_compts[(_ndx)]) == 0) ? 0 : \
-			(NODE_OFFSET_TO_KLINFO(NASID_GET(_brd), (_brd)->brd_compts[(_ndx)])))
-
-
 /*
  * Generic info structure. This stores common info about a 
  * component.
@@ -249,24 +236,11 @@ typedef struct klinfo_s {                  /* Generic info */
 } klinfo_t ;
 
 
-static inline lboard_t *find_lboard_any(lboard_t * start, unsigned char brd_type)
+static inline lboard_t *find_lboard_next(lboard_t * brd)
 {
-        /* Search all boards stored on this node. */
-
-        while (start) {
-                if (start->brd_type == brd_type)
-                        return start;
-                start = KLCF_NEXT_ANY(start);
-        }
-        /* Didn't find it. */
-        return (lboard_t *) NULL;
+	if (brd && brd->brd_next_any)
+		return NODE_OFFSET_TO_LBOARD(NASID_GET(brd), brd->brd_next_any);
+        return NULL;
 }
-
-
-/* external declarations of Linux kernel functions. */
-
-extern lboard_t *root_lboard[];
-extern klinfo_t *find_component(lboard_t *brd, klinfo_t *kli, unsigned char type);
-extern klinfo_t *find_first_component(lboard_t *brd, unsigned char type);
 
 #endif /* _ASM_IA64_SN_KLCONFIG_H */

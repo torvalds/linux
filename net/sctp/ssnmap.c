@@ -58,7 +58,7 @@ static inline size_t sctp_ssnmap_size(__u16 in, __u16 out)
  * Allocate room to store at least 'len' contiguous TSNs.
  */
 struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
-				    unsigned int __nocast gfp)
+				    gfp_t gfp)
 {
 	struct sctp_ssnmap *retval;
 	int size;

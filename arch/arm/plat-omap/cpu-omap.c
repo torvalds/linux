@@ -21,7 +21,6 @@
 #include <linux/err.h>
 
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/io.h>
 #include <asm/system.h>
 

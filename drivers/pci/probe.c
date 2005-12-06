@@ -165,7 +165,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 		if (l == 0xffffffff)
 			l = 0;
 		if ((l & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_MEMORY) {
-			sz = pci_size(l, sz, PCI_BASE_ADDRESS_MEM_MASK);
+			sz = pci_size(l, sz, (u32)PCI_BASE_ADDRESS_MEM_MASK);
 			if (!sz)
 				continue;
 			res->start = l & PCI_BASE_ADDRESS_MEM_MASK;
@@ -215,7 +215,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 		if (l == 0xffffffff)
 			l = 0;
 		if (sz && sz != 0xffffffff) {
-			sz = pci_size(l, sz, PCI_ROM_ADDRESS_MASK);
+			sz = pci_size(l, sz, (u32)PCI_ROM_ADDRESS_MASK);
 			if (sz) {
 				res->flags = (l & IORESOURCE_ROM_ENABLE) |
 				  IORESOURCE_MEM | IORESOURCE_PREFETCH |
@@ -402,6 +402,12 @@ static void pci_enable_crs(struct pci_dev *dev)
 static void __devinit pci_fixup_parent_subordinate_busnr(struct pci_bus *child, int max)
 {
 	struct pci_bus *parent = child->parent;
+
+	/* Attempts to fix that up are really dangerous unless
+	   we're going to re-assign all bus numbers. */
+	if (!pcibios_assign_all_busses())
+		return;
+
 	while (parent->parent && parent->subordinate < max) {
 		parent->subordinate = max;
 		pci_write_config_byte(parent->self, PCI_SUBORDINATE_BUS, max);
@@ -478,8 +484,18 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 		 * We need to assign a number to this bus which we always
 		 * do in the second pass.
 		 */
-		if (!pass)
+		if (!pass) {
+			if (pcibios_assign_all_busses())
+				/* Temporarily disable forwarding of the
+				   configuration cycles on all bridges in
+				   this bus segment to avoid possible
+				   conflicts in the second pass between two
+				   bridges programmed with overlapping
+				   bus ranges. */
+				pci_write_config_dword(dev, PCI_PRIMARY_BUS,
+						       buses & ~0xffffff);
 			return max;
+		}
 
 		/* Clear errors */
 		pci_write_config_word(dev, PCI_STATUS, 0xffff);
@@ -653,6 +669,7 @@ static void pci_release_dev(struct device *dev)
 
 /**
  * pci_cfg_space_size - get the configuration space size of the PCI device.
+ * @dev: PCI device
  *
  * Regular PCI devices have 256 bytes, but PCI-X 2 and PCI Express devices
  * have 4096 bytes.  Even if the device is capable, that doesn't mean we can

@@ -7,7 +7,6 @@ int pci_hotplug (struct device *dev, char **envp, int num_envp,
 		 char *buffer, int buffer_size)
 {
 	struct pci_dev *pdev;
-	char *scratch;
 	int i = 0;
 	int length = 0;
 
@@ -17,9 +16,6 @@ int pci_hotplug (struct device *dev, char **envp, int num_envp,
 	pdev = to_pci_dev(dev);
 	if (!pdev)
 		return -ENODEV;
-
-	scratch = buffer;
-
 
 	if (add_hotplug_env_var(envp, num_envp, &i,
 				buffer, buffer_size, &length,

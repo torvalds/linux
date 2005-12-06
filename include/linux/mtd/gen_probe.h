@@ -1,14 +1,14 @@
 /*
  * (C) 2001, 2001 Red Hat, Inc.
  * GPL'd
- * $Id: gen_probe.h,v 1.3 2004/10/20 22:10:33 dwmw2 Exp $
+ * $Id: gen_probe.h,v 1.4 2005/11/07 11:14:54 gleixner Exp $
  */
 
 #ifndef __LINUX_MTD_GEN_PROBE_H__
 #define __LINUX_MTD_GEN_PROBE_H__
 
 #include <linux/mtd/flashchip.h>
-#include <linux/mtd/map.h> 
+#include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
 #include <linux/bitops.h>
 

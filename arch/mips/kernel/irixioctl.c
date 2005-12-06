@@ -59,7 +59,7 @@ asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 {
 	struct tty_struct *tp, *rtp;
 	mm_segment_t old_fs;
-	int error = 0;
+	int i, error = 0;
 
 #ifdef DEBUG_IOCTLS
 	printk("[%s:%d] irix_ioctl(%d, ", current->comm, current->pid, fd);
@@ -74,12 +74,13 @@ asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 
 	case 0x0000540d: {
 		struct termios kt;
-		struct irix_termios *it = (struct irix_termios *) arg;
+		struct irix_termios __user *it =
+			(struct irix_termios __user *) arg;
 
 #ifdef DEBUG_IOCTLS
 		printk("TCGETS, %08lx) ", arg);
 #endif
-		if(!access_ok(VERIFY_WRITE, it, sizeof(*it))) {
+		if (!access_ok(VERIFY_WRITE, it, sizeof(*it))) {
 			error = -EFAULT;
 			break;
 		}
@@ -88,13 +89,14 @@ asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 		set_fs(old_fs);
 		if (error)
 			break;
-		__put_user(kt.c_iflag, &it->c_iflag);
-		__put_user(kt.c_oflag, &it->c_oflag);
-		__put_user(kt.c_cflag, &it->c_cflag);
-		__put_user(kt.c_lflag, &it->c_lflag);
-		for(error = 0; error < NCCS; error++)
-			__put_user(kt.c_cc[error], &it->c_cc[error]);
-		error = 0;
+
+		error = __put_user(kt.c_iflag, &it->c_iflag);
+		error |= __put_user(kt.c_oflag, &it->c_oflag);
+		error |= __put_user(kt.c_cflag, &it->c_cflag);
+		error |= __put_user(kt.c_lflag, &it->c_lflag);
+
+		for (i = 0; i < NCCS; i++)
+			error |= __put_user(kt.c_cc[i], &it->c_cc[i]);
 		break;
 	}
 
@@ -112,14 +114,19 @@ asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 		old_fs = get_fs(); set_fs(get_ds());
 		error = sys_ioctl(fd, TCGETS, (unsigned long) &kt);
 		set_fs(old_fs);
-		if(error)
+		if (error)
 			break;
-		__get_user(kt.c_iflag, &it->c_iflag);
-		__get_user(kt.c_oflag, &it->c_oflag);
-		__get_user(kt.c_cflag, &it->c_cflag);
-		__get_user(kt.c_lflag, &it->c_lflag);
-		for(error = 0; error < NCCS; error++)
-			__get_user(kt.c_cc[error], &it->c_cc[error]);
+
+		error = __get_user(kt.c_iflag, &it->c_iflag);
+		error |= __get_user(kt.c_oflag, &it->c_oflag);
+		error |= __get_user(kt.c_cflag, &it->c_cflag);
+		error |= __get_user(kt.c_lflag, &it->c_lflag);
+
+		for (i = 0; i < NCCS; i++)
+			error |= __get_user(kt.c_cc[i], &it->c_cc[i]);
+
+		if (error)
+			break;
 		old_fs = get_fs(); set_fs(get_ds());
 		error = sys_ioctl(fd, TCSETS, (unsigned long) &kt);
 		set_fs(old_fs);
@@ -153,7 +160,7 @@ asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 #ifdef DEBUG_IOCTLS
 		printk("rtp->session=%d ", rtp->session);
 #endif
-		error = put_user(rtp->session, (unsigned long *) arg);
+		error = put_user(rtp->session, (unsigned long __user *) arg);
 		break;
 
 	case 0x746e:
@@ -195,50 +202,32 @@ asmlinkage int irix_ioctl(int fd, unsigned long cmd, unsigned long arg)
 		break;
 
 	case 0x8004667e:
-#ifdef DEBUG_IOCTLS
-		printk("FIONBIO, %08lx) arg=%d ", arg, *(int *)arg);
-#endif
 		error = sys_ioctl(fd, FIONBIO, arg);
 		break;
 
 	case 0x80047476:
-#ifdef DEBUG_IOCTLS
-		printk("TIOCSPGRP, %08lx) arg=%d ", arg, *(int *)arg);
-#endif
 		error = sys_ioctl(fd, TIOCSPGRP, arg);
 		break;
 
 	case 0x8020690c:
-#ifdef DEBUG_IOCTLS
-		printk("SIOCSIFADDR, %08lx) arg=%d ", arg, *(int *)arg);
-#endif
 		error = sys_ioctl(fd, SIOCSIFADDR, arg);
 		break;
 
 	case 0x80206910:
-#ifdef DEBUG_IOCTLS
-		printk("SIOCSIFFLAGS, %08lx) arg=%d ", arg, *(int *)arg);
-#endif
 		error = sys_ioctl(fd, SIOCSIFFLAGS, arg);
 		break;
 
 	case 0xc0206911:
-#ifdef DEBUG_IOCTLS
-		printk("SIOCGIFFLAGS, %08lx) arg=%d ", arg, *(int *)arg);
-#endif
 		error = sys_ioctl(fd, SIOCGIFFLAGS, arg);
 		break;
 
 	case 0xc020691b:
-#ifdef DEBUG_IOCTLS
-		printk("SIOCGIFMETRIC, %08lx) arg=%d ", arg, *(int *)arg);
-#endif
 		error = sys_ioctl(fd, SIOCGIFMETRIC, arg);
 		break;
 
 	default: {
 #ifdef DEBUG_MISSING_IOCTL
-		char *msg = "Unimplemented IOCTL cmd tell linux@engr.sgi.com\n";
+		char *msg = "Unimplemented IOCTL cmd tell linux-mips@linux-mips.org\n";
 
 #ifdef DEBUG_IOCTLS
 		printk("UNIMP_IOCTL, %08lx)\n", arg);

@@ -52,16 +52,6 @@
 #define JAZZ_SERIAL_PORT_DEFNS
 #endif
 
-#ifdef CONFIG_MIPS_COBALT
-#include <asm/cobalt/cobalt.h>
-#define COBALT_BASE_BAUD  (18432000 / 16)
-#define COBALT_SERIAL_PORT_DEFNS		\
-	/* UART CLK   PORT  IRQ  FLAGS    */ 		\
-	{ 0, COBALT_BASE_BAUD, 0xc800000, COBALT_SERIAL_IRQ, STD_COM_FLAGS },   /* ttyS0 */
-#else
-#define COBALT_SERIAL_PORT_DEFNS
-#endif
-
 /*
  * Both Galileo boards have the same UART mappings.
  */
@@ -111,17 +101,6 @@
       .irq = IT8172_SCR1_IRQ, .flags = STD_COM_FLAGS, .type = 0x3 },
 #else
 #define IVR_SERIAL_PORT_DEFNS
-#endif
-
-#ifdef CONFIG_TOSHIBA_JMR3927
-#include <asm/jmr3927/jmr3927.h>
-#define TXX927_SERIAL_PORT_DEFNS                              \
-    { .baud_base = JMR3927_BASE_BAUD, .port = UART0_ADDR, .irq = UART0_INT,  \
-      .flags = UART0_FLAGS, .type = 1 },                        \
-    { .baud_base = JMR3927_BASE_BAUD, .port = UART1_ADDR, .irq = UART1_INT,  \
-      .flags = UART1_FLAGS, .type = 1 },
-#else
-#define TXX927_SERIAL_PORT_DEFNS
 #endif
 
 #ifdef CONFIG_SERIAL_AU1X00
@@ -227,9 +206,9 @@
 #define JAGUAR_ATX_SERIAL1_BASE	0xfd000023L
 
 #define _JAGUAR_ATX_SERIAL_INIT(int, base)				\
-	{ baud_base: JAGUAR_ATX_BASE_BAUD, irq: int,			\
-	  flags: (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST),		\
-	  iomem_base: (u8 *) base, iomem_reg_shift: 2,			\
+	{ .baud_base = JAGUAR_ATX_BASE_BAUD, irq: int,			\
+	  .flags = (ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST),		\
+	  .iomem_base = (u8 *) base, iomem_reg_shift: 2,			\
 	  io_type: SERIAL_IO_MEM }
 #define MOMENCO_JAGUAR_ATX_SERIAL_PORT_DEFNS				\
 	_JAGUAR_ATX_SERIAL_INIT(JAGUAR_ATX_SERIAL1_IRQ, JAGUAR_ATX_SERIAL1_BASE)
@@ -243,9 +222,9 @@
 #define OCELOT_3_SERIAL_BASE	(signed)0xfd000020
 
 #define _OCELOT_3_SERIAL_INIT(int, base)				\
-	{ baud_base: OCELOT_3_BASE_BAUD, irq: int, 			\
-	  flags: STD_COM_FLAGS,						\
-	  iomem_base: (u8 *) base, iomem_reg_shift: 2,			\
+	{ .baud_base = OCELOT_3_BASE_BAUD, irq: int, 			\
+	  .flags = STD_COM_FLAGS,						\
+	  .iomem_base = (u8 *) base, iomem_reg_shift: 2,			\
 	  io_type: SERIAL_IO_MEM }
 
 #define MOMENCO_OCELOT_3_SERIAL_PORT_DEFNS				\
@@ -342,7 +321,6 @@
 #endif /* CONFIG_SGI_IP32 */
 
 #define SERIAL_PORT_DFNS				\
-	COBALT_SERIAL_PORT_DEFNS			\
 	DDB5477_SERIAL_PORT_DEFNS			\
 	EV96100_SERIAL_PORT_DEFNS			\
 	IP32_SERIAL_PORT_DEFNS                          \
@@ -354,7 +332,6 @@
 	MOMENCO_OCELOT_C_SERIAL_PORT_DEFNS		\
 	MOMENCO_OCELOT_SERIAL_PORT_DEFNS		\
 	MOMENCO_OCELOT_3_SERIAL_PORT_DEFNS		\
-	TXX927_SERIAL_PORT_DEFNS                        \
 	AU1000_SERIAL_PORT_DEFNS
 
 #endif /* _ASM_SERIAL_H */

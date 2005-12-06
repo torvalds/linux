@@ -794,12 +794,21 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 rc;
 	struct controller *ctrl;
 	struct pci_func *func;
+	int err;
+
+	err = pci_enable_device(pdev);
+	if (err) {
+		printk(KERN_ERR MY_NAME ": cannot enable PCI device %s (%d)\n",
+			pci_name(pdev), err);
+		return err;
+	}
 
 	// Need to read VID early b/c it's used to differentiate CPQ and INTC discovery
 	rc = pci_read_config_word(pdev, PCI_VENDOR_ID, &vendor_id);
 	if (rc || ((vendor_id != PCI_VENDOR_ID_COMPAQ) && (vendor_id != PCI_VENDOR_ID_INTEL))) {
 		err(msg_HPC_non_compaq_or_intel);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err_disable_device;
 	}
 	dbg("Vendor ID: %x\n", vendor_id);
 
@@ -807,7 +816,8 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dbg("revision: %d\n", rev);
 	if (rc || ((vendor_id == PCI_VENDOR_ID_COMPAQ) && (!rev))) {
 		err(msg_HPC_rev_error);
-		return -ENODEV;
+		rc = -ENODEV;
+		goto err_disable_device;
 	}
 
 	/* Check for the proper subsytem ID's
@@ -820,18 +830,20 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = pci_read_config_word(pdev, PCI_SUBSYSTEM_VENDOR_ID, &subsystem_vid);
 		if (rc) {
 			err("%s : pci_read_config_word failed\n", __FUNCTION__);
-			return rc;
+			goto err_disable_device;
 		}
 		dbg("Subsystem Vendor ID: %x\n", subsystem_vid);
 		if ((subsystem_vid != PCI_VENDOR_ID_COMPAQ) && (subsystem_vid != PCI_VENDOR_ID_INTEL)) {
 			err(msg_HPC_non_compaq_or_intel);
-			return -ENODEV;
+			rc = -ENODEV;
+			goto err_disable_device;
 		}
 
 		ctrl = (struct controller *) kmalloc(sizeof(struct controller), GFP_KERNEL);
 		if (!ctrl) {
 			err("%s : out of memory\n", __FUNCTION__);
-			return -ENOMEM;
+			rc = -ENOMEM;
+			goto err_disable_device;
 		}
 		memset(ctrl, 0, sizeof(struct controller));
 
@@ -1264,6 +1276,8 @@ err_free_bus:
 	kfree(ctrl->pci_bus);
 err_free_ctrl:
 	kfree(ctrl);
+err_disable_device:
+	pci_disable_device(pdev);
 	return rc;
 }
 

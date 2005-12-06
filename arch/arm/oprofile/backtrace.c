@@ -49,42 +49,22 @@ static struct frame_tail* kernel_backtrace(struct frame_tail *tail)
 
 static struct frame_tail* user_backtrace(struct frame_tail *tail)
 {
-	struct frame_tail buftail;
+	struct frame_tail buftail[2];
 
-	/* hardware pte might not be valid due to dirty/accessed bit emulation
-	 * so we use copy_from_user and benefit from exception fixups */
-	if (copy_from_user(&buftail, tail, sizeof(struct frame_tail)))
+	/* Also check accessibility of one struct frame_tail beyond */
+	if (!access_ok(VERIFY_READ, tail, sizeof(buftail)))
+		return NULL;
+	if (__copy_from_user_inatomic(buftail, tail, sizeof(buftail)))
 		return NULL;
 
-	oprofile_add_trace(buftail.lr);
+	oprofile_add_trace(buftail[0].lr);
 
 	/* frame pointers should strictly progress back up the stack
 	 * (towards higher addresses) */
-	if (tail >= buftail.fp)
+	if (tail >= buftail[0].fp)
 		return NULL;
 
-	return buftail.fp-1;
-}
-
-/* Compare two addresses and see if they're on the same page */
-#define CMP_ADDR_EQUAL(x,y,offset) ((((unsigned long) x) >> PAGE_SHIFT) \
-	== ((((unsigned long) y) + offset) >> PAGE_SHIFT))
-
-/* check that the page(s) containing the frame tail are present */
-static int pages_present(struct frame_tail *tail)
-{
-	struct mm_struct * mm = current->mm;
-
-	if (!check_user_page_readable(mm, (unsigned long)tail))
-		return 0;
-
-	if (CMP_ADDR_EQUAL(tail, tail, 8))
-		return 1;
-
-	if (!check_user_page_readable(mm, ((unsigned long)tail) + 8))
-		return 0;
-
-	return 1;
+	return buftail[0].fp-1;
 }
 
 /*
@@ -118,7 +98,6 @@ static int valid_kernel_stack(struct frame_tail *tail, struct pt_regs *regs)
 void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
 	struct frame_tail *tail;
-	unsigned long last_address = 0;
 
 	tail = ((struct frame_tail *) regs->ARM_fp) - 1;
 
@@ -132,13 +111,6 @@ void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 		return;
 	}
 
-	while (depth-- && tail && !((unsigned long) tail & 3)) {
-		if ((!CMP_ADDR_EQUAL(last_address, tail, 0)
-			|| !CMP_ADDR_EQUAL(last_address, tail, 8))
-				&& !pages_present(tail))
-			return;
-		last_address = (unsigned long) tail;
+	while (depth-- && tail && !((unsigned long) tail & 3))
 		tail = user_backtrace(tail);
-	}
 }
-

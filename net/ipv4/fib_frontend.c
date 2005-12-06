@@ -173,7 +173,7 @@ int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
 
 	no_addr = rpf = 0;
 	rcu_read_lock();
-	in_dev = __in_dev_get(dev);
+	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
 		no_addr = in_dev->ifa_list == NULL;
 		rpf = IN_DEV_RPFILTER(in_dev);
@@ -266,8 +266,7 @@ int ip_rt_ioctl(unsigned int cmd, void __user *arg)
 				if (tb)
 					err = tb->tb_insert(tb, &req.rtm, &rta, &req.nlh, NULL);
 			}
-			if (rta.rta_mx)
-				kfree(rta.rta_mx);
+			kfree(rta.rta_mx);
 		}
 		rtnl_unlock();
 		return err;
@@ -408,7 +407,7 @@ static void fib_magic(int cmd, int type, u32 dst, int dst_len, struct in_ifaddr 
 		tb->tb_delete(tb, &req.rtm, &rta, &req.nlh, NULL);
 }
 
-static void fib_add_ifaddr(struct in_ifaddr *ifa)
+void fib_add_ifaddr(struct in_ifaddr *ifa)
 {
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct net_device *dev = in_dev->dev;
@@ -545,12 +544,16 @@ static void nl_fib_input(struct sock *sk, int len)
 	struct sk_buff *skb = NULL;
         struct nlmsghdr *nlh = NULL;
 	struct fib_result_nl *frn;
-	int err;
 	u32 pid;     
 	struct fib_table *tb;
 	
-	skb = skb_recv_datagram(sk, 0, 0, &err);
+	skb = skb_dequeue(&sk->sk_receive_queue);
 	nlh = (struct nlmsghdr *)skb->data;
+	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
+	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn))) {
+		kfree_skb(skb);
+		return;
+	}
 	
 	frn = (struct fib_result_nl *) NLMSG_DATA(nlh);
 	tb = fib_get_table(frn->tb_id_in);
@@ -591,7 +594,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 		break;
 	case NETDEV_DOWN:
 		fib_del_ifaddr(ifa);
-		if (ifa->ifa_dev && ifa->ifa_dev->ifa_list == NULL) {
+		if (ifa->ifa_dev->ifa_list == NULL) {
 			/* Last address was deleted from this interface.
 			   Disable IP.
 			 */
@@ -607,7 +610,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct in_device *in_dev = __in_dev_get(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
 	if (event == NETDEV_UNREGISTER) {
 		fib_disable_ip(dev, 2);

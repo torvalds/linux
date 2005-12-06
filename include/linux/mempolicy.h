@@ -27,10 +27,10 @@
 
 #include <linux/config.h>
 #include <linux/mmzone.h>
-#include <linux/bitmap.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
+#include <linux/nodemask.h>
 
 struct vm_area_struct;
 
@@ -47,8 +47,7 @@ struct vm_area_struct;
  * Locking policy for interlave:
  * In process context there is no locking because only the process accesses
  * its own state. All vma manipulation is somewhat protected by a down_read on
- * mmap_sem. For allocating in the interleave policy the page_table_lock
- * must be also aquired to protect il_next.
+ * mmap_sem.
  *
  * Freeing policy:
  * When policy is MPOL_BIND v.zonelist is kmalloc'ed and must be kfree'd.
@@ -63,7 +62,7 @@ struct mempolicy {
 	union {
 		struct zonelist  *zonelist;	/* bind */
 		short 		 preferred_node; /* preferred */
-		DECLARE_BITMAP(nodes, MAX_NUMNODES); /* interleave */
+		nodemask_t	 nodes;		/* interleave */
 		/* undefined for default */
 	} v;
 };
@@ -155,6 +154,7 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
+extern void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new);
 extern struct mempolicy default_policy;
 
 #else
@@ -224,6 +224,11 @@ static inline void numa_policy_init(void)
 }
 
 static inline void numa_default_policy(void)
+{
+}
+
+static inline void numa_policy_rebind(const nodemask_t *old,
+					const nodemask_t *new)
 {
 }
 

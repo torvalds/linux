@@ -18,6 +18,32 @@
 #include <asm/sn/sn_cpuid.h>
 
 /*
+ * This is the maximum number of NUMALINK nodes that can be part of a single
+ * SSI kernel. This number includes C-brick, M-bricks, and TIOs. Nodes in
+ * remote partitions are NOT included in this number.
+ * The number of compact nodes cannot exceed size of a coherency domain.
+ * The purpose of this define is to specify a node count that includes
+ * all C/M/TIO nodes in an SSI system.
+ *
+ * SGI system can currently support up to 256 C/M nodes plus additional TIO nodes.
+ *
+ * 	Note: ACPI20 has an architectural limit of 256 nodes. When we upgrade
+ * 	to ACPI3.0, this limit will be removed. The notion of "compact nodes"
+ * 	should be deleted and TIOs should be included in MAX_NUMNODES.
+ */
+#define MAX_COMPACT_NODES	512
+
+/*
+ * Maximum number of nodes in all partitions and in all coherency domains.
+ * This is the total number of nodes accessible in the numalink fabric. It
+ * includes all C & M bricks, plus all TIOs.
+ *
+ * This value is also the value of the maximum number of NASIDs in the numalink
+ * fabric.
+ */
+#define MAX_NUMALINK_NODES	16384
+
+/*
  * The following defines attributes of the HUB chip. These attributes are
  * frequently referenced. They are kept in the per-cpu data areas of each cpu.
  * They are kept together in a struct to minimize cache misses.
@@ -41,21 +67,11 @@ DECLARE_PER_CPU(struct sn_hub_info_s, __sn_hub_info);
 
 
 /*
- * This is the maximum number of nodes that can be part of a kernel.
- * Effectively, it's the maximum number of compact node ids (cnodeid_t).
- * This is not necessarily the same as MAX_NASIDS.
- */
-#define MAX_COMPACT_NODES	2048
-#define CPUS_PER_NODE		4
-
-
-/*
  * Compact node ID to nasid mappings kept in the per-cpu data areas of each
  * cpu.
  */
 DECLARE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_NUMNODES]);
 #define sn_cnodeid_to_nasid	(&__get_cpu_var(__sn_cnodeid_to_nasid[0]))
-
 
 
 extern u8 sn_partition_id;

@@ -70,6 +70,7 @@
 #define HVSYNC                0x05000 
 #define GPIOA                 0x05010
 #define GPIOB                 0x05014 
+#define GPIOC                 0x0501C
 
 /* Clock Control and Power Management Registers (06000h 06FFFh) */
 #define DCLK_0D               0x06000

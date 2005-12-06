@@ -127,15 +127,20 @@ static int __init pcibios_init(void)
 		if (!hose->iommu)
 			PCI_DMA_BUS_IS_PHYS = 1;
 
+		if (hose->get_busno && pci_probe_only)
+			next_busno = (*hose->get_busno)();
+
 		bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
 		hose->bus = bus;
 		hose->need_domain_info = need_domain_info;
-		next_busno = bus->subordinate + 1;
-		/* Don't allow 8-bit bus number overflow inside the hose -
-		   reserve some space for bridges. */
-		if (next_busno > 224) {
-			next_busno = 0;
-			need_domain_info = 1;
+		if (bus) {
+			next_busno = bus->subordinate + 1;
+			/* Don't allow 8-bit bus number overflow inside the hose -
+			   reserve some space for bridges. */
+			if (next_busno > 224) {
+				next_busno = 0;
+				need_domain_info = 1;
+			}
 		}
 		continue;
 
@@ -164,7 +169,7 @@ static int pcibios_enable_resources(struct pci_dev *dev, int mask)
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	old_cmd = cmd;
-	for(idx=0; idx<6; idx++) {
+	for (idx=0; idx < PCI_NUM_RESOURCES; idx++) {
 		/* Only set up the requested stuff */
 		if (!(mask & (1<<idx)))
 			continue;

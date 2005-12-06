@@ -1,6 +1,9 @@
 #ifndef _IP_CONNTRACK_TUPLE_H
 #define _IP_CONNTRACK_TUPLE_H
 
+#include <linux/types.h>
+#include <linux/netfilter/nf_conntrack_tuple_common.h>
+
 /* A `tuple' is a structure containing the information to uniquely
   identify a connection.  ie. if two packets have the same tuple, they
   are in the same connection; if not, they are not.
@@ -17,7 +20,7 @@ union ip_conntrack_manip_proto
 	u_int16_t all;
 
 	struct {
-		u_int16_t port;
+		__be16 port;
 	} tcp;
 	struct {
 		u_int16_t port;
@@ -29,7 +32,7 @@ union ip_conntrack_manip_proto
 		u_int16_t port;
 	} sctp;
 	struct {
-		u_int16_t key;	/* key is 32bit, pptp only uses 16 */
+		__be16 key;	/* key is 32bit, pptp only uses 16 */
 	} gre;
 };
 
@@ -65,7 +68,7 @@ struct ip_conntrack_tuple
 				u_int16_t port;
 			} sctp;
 			struct {
-				u_int16_t key;	/* key is 32bit, 
+				__be16 key;	/* key is 32bit, 
 						 * pptp only uses 16 */
 			} gre;
 		} u;
@@ -86,13 +89,6 @@ struct ip_conntrack_tuple
 		(tuple)->dst.u.all = 0;				\
 	} while (0)
 
-enum ip_conntrack_dir
-{
-	IP_CT_DIR_ORIGINAL,
-	IP_CT_DIR_REPLY,
-	IP_CT_DIR_MAX
-};
-
 #ifdef __KERNEL__
 
 #define DUMP_TUPLE(tp)						\
@@ -100,8 +96,6 @@ DEBUGP("tuple %p: %u %u.%u.%u.%u:%hu -> %u.%u.%u.%u:%hu\n",	\
        (tp), (tp)->dst.protonum,				\
        NIPQUAD((tp)->src.ip), ntohs((tp)->src.u.all),		\
        NIPQUAD((tp)->dst.ip), ntohs((tp)->dst.u.all))
-
-#define CTINFO2DIR(ctinfo) ((ctinfo) >= IP_CT_IS_REPLY ? IP_CT_DIR_REPLY : IP_CT_DIR_ORIGINAL)
 
 /* If we're the first tuple, it's the original dir. */
 #define DIRECTION(h) ((enum ip_conntrack_dir)(h)->tuple.dst.dir)

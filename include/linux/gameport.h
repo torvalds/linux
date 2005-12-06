@@ -12,6 +12,7 @@
 #include <asm/io.h>
 #include <linux/list.h>
 #include <linux/device.h>
+#include <linux/timer.h>
 
 struct gameport {
 

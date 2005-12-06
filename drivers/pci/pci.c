@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -62,11 +63,38 @@ pci_max_busnr(void)
 	return max;
 }
 
+static int __pci_find_next_cap(struct pci_bus *bus, unsigned int devfn, u8 pos, int cap)
+{
+	u8 id;
+	int ttl = 48;
+
+	while (ttl--) {
+		pci_bus_read_config_byte(bus, devfn, pos, &pos);
+		if (pos < 0x40)
+			break;
+		pos &= ~3;
+		pci_bus_read_config_byte(bus, devfn, pos + PCI_CAP_LIST_ID,
+					 &id);
+		if (id == 0xff)
+			break;
+		if (id == cap)
+			return pos;
+		pos += PCI_CAP_LIST_NEXT;
+	}
+	return 0;
+}
+
+int pci_find_next_capability(struct pci_dev *dev, u8 pos, int cap)
+{
+	return __pci_find_next_cap(dev->bus, dev->devfn,
+				   pos + PCI_CAP_LIST_NEXT, cap);
+}
+EXPORT_SYMBOL_GPL(pci_find_next_capability);
+
 static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_type, int cap)
 {
 	u16 status;
-	u8 pos, id;
-	int ttl = 48;
+	u8 pos;
 
 	pci_bus_read_config_word(bus, devfn, PCI_STATUS, &status);
 	if (!(status & PCI_STATUS_CAP_LIST))
@@ -75,24 +103,15 @@ static int __pci_bus_find_cap(struct pci_bus *bus, unsigned int devfn, u8 hdr_ty
 	switch (hdr_type) {
 	case PCI_HEADER_TYPE_NORMAL:
 	case PCI_HEADER_TYPE_BRIDGE:
-		pci_bus_read_config_byte(bus, devfn, PCI_CAPABILITY_LIST, &pos);
+		pos = PCI_CAPABILITY_LIST;
 		break;
 	case PCI_HEADER_TYPE_CARDBUS:
-		pci_bus_read_config_byte(bus, devfn, PCI_CB_CAPABILITY_LIST, &pos);
+		pos = PCI_CB_CAPABILITY_LIST;
 		break;
 	default:
 		return 0;
 	}
-	while (ttl-- && pos >= 0x40) {
-		pos &= ~3;
-		pci_bus_read_config_byte(bus, devfn, pos + PCI_CAP_LIST_ID, &id);
-		if (id == 0xff)
-			break;
-		if (id == cap)
-			return pos;
-		pci_bus_read_config_byte(bus, devfn, pos + PCI_CAP_LIST_NEXT, &pos);
-	}
-	return 0;
+	return __pci_find_next_cap(bus, devfn, pos, cap);
 }
 
 /**
@@ -252,6 +271,8 @@ pci_restore_bars(struct pci_dev *dev)
 		pci_update_resource(dev, &dev->resource[i], i);
 }
 
+int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t);
+
 /**
  * pci_set_power_state - Set the power state of a PCI device
  * @dev: PCI device to be suspended
@@ -266,7 +287,6 @@ pci_restore_bars(struct pci_dev *dev)
  * -EIO if device does not support PCI PM.
  * 0 if we can successfully change the power state.
  */
-int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t t);
 int
 pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 {
@@ -314,19 +334,19 @@ pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	 * sets PowerState to 0.
 	 */
 	switch (dev->current_state) {
+	case PCI_D0:
+	case PCI_D1:
+	case PCI_D2:
+		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+		pmcsr |= state;
+		break;
 	case PCI_UNKNOWN: /* Boot-up */
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) == PCI_D3hot
 		 && !(pmcsr & PCI_PM_CTRL_NO_SOFT_RESET))
 			need_restore = 1;
 		/* Fall-through: force to D0 */
-	case PCI_D3hot:
-	case PCI_D3cold:
-	case PCI_POWER_ERROR:
-		pmcsr = 0;
-		break;
 	default:
-		pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-		pmcsr |= state;
+		pmcsr = 0;
 		break;
 	}
 
@@ -808,8 +828,8 @@ pci_clear_mwi(struct pci_dev *dev)
 
 /**
  * pci_intx - enables/disables PCI INTx for device dev
- * @dev: the PCI device to operate on
- * @enable: boolean
+ * @pdev: the PCI device to operate on
+ * @enable: boolean: whether to enable or disable PCI INTx
  *
  * Enables/disables PCI INTx for device dev
  */

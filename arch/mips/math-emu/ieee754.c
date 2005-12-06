@@ -31,6 +31,8 @@
 
 
 #include "ieee754int.h"
+#include "ieee754sp.h"
+#include "ieee754dp.h"
 
 #define DP_EBIAS	1023
 #define DP_EMIN		(-1022)
@@ -39,20 +41,6 @@
 #define SP_EBIAS	127
 #define SP_EMIN		(-126)
 #define SP_EMAX		127
-
-/* indexed by class */
-const char *const ieee754_cname[] = {
-	"Normal",
-	"Zero",
-	"Denormal",
-	"Infinity",
-	"QNaN",
-	"SNaN",
-};
-
-/* the control status register
-*/
-struct ieee754_csr ieee754_csr;
 
 /* special constants
 */

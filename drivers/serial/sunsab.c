@@ -274,7 +274,6 @@ static void transmit_chars(struct uart_sunsab_port *up,
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
 		up->interrupt_mask1 |= SAB82532_IMR1_XPR;
 		writeb(up->interrupt_mask1, &up->regs->w.imr1);
-		uart_write_wakeup(&up->port);
 		return;
 	}
 

@@ -23,17 +23,15 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/ioport.h>
 #include <sound/core.h>
 
-int snd_task_name(struct task_struct *task, char *name, size_t size)
+void release_and_free_resource(struct resource *res)
 {
-	unsigned int idx;
-
-	snd_assert(task != NULL && name != NULL && size >= 2, return -EINVAL);
-	for (idx = 0; idx < sizeof(task->comm) && idx + 1 < size; idx++)
-		name[idx] = task->comm[idx];
-	name[idx] = '\0';
-	return 0;
+	if (res) {
+		release_resource(res);
+		kfree(res);
+	}
 }
 
 #ifdef CONFIG_SND_VERBOSE_PRINTK

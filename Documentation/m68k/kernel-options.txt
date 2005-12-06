@@ -626,7 +626,7 @@ ignored (others aren't affected).
     can be performed in optimal order. Not all SCSI devices support
     tagged queuing (:-().
 
-4.6 switches=
+4.5 switches=
 -------------
 
 Syntax: switches=<list of switches>
@@ -660,28 +660,6 @@ correctly.
   If you give an option both, with and without the "ov_" prefix, the
 earlier initialization ("ov_"-less) takes precedence. But the
 switching-off on reset still happens in this case.
-
-4.5) stram_swap=
-----------------
-
-Syntax: stram_swap=<do_swap>[,<max_swap>]
-
-  This option is available only if the kernel has been compiled with
-CONFIG_STRAM_SWAP enabled. Normally, the kernel then determines
-dynamically whether to actually use ST-RAM as swap space. (Currently,
-the fraction of ST-RAM must be less or equal 1/3 of total memory to
-enable this swapping.) You can override the kernel's decision by
-specifying this option. 1 for <do_swap> means always enable the swap,
-even if you have less alternate RAM. 0 stands for never swap to
-ST-RAM, even if it's small enough compared to the rest of memory.
-
-  If ST-RAM swapping is enabled, the kernel usually uses all free
-ST-RAM as swap "device". If the kernel resides in ST-RAM, the region
-allocated by it is obviously never used for swapping :-) You can also
-limit this amount by specifying the second parameter, <max_swap>, if
-you want to use parts of ST-RAM as normal system memory. <max_swap> is
-in kBytes and the number should be a multiple of 4 (otherwise: rounded
-down).
 
 5) Options for Amiga Only:
 ==========================

@@ -947,8 +947,7 @@ icn_loadproto(u_char __user * buffer, icn_card * card)
 				icn_maprelease_channel(card, 0);
 				return -EIO;
 			}
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(10);
+			schedule_timeout_interruptible(10);
 		}
 	}
 	writeb(0x20, &sbuf_n);

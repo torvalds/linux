@@ -333,8 +333,7 @@ static int snd_gf1_pcm_poke_block(snd_gus_card_t *gus, unsigned char *buf,
 			}
 		}
 		if (count > 0 && !in_interrupt()) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_interruptible(1);
 			if (signal_pending(current))
 				return -EAGAIN;
 		}
@@ -698,7 +697,7 @@ static int snd_gf1_pcm_playback_close(snd_pcm_substream_t * substream)
 	gus_pcm_private_t *pcmp = runtime->private_data;
 	
 	if (!wait_event_timeout(pcmp->sleep, (atomic_read(&pcmp->dma_count) <= 0), 2*HZ))
-		snd_printk("gf1 pcm - serious DMA problem\n");
+		snd_printk(KERN_ERR "gf1 pcm - serious DMA problem\n");
 
 	snd_gf1_dma_done(gus);	
 	return 0;

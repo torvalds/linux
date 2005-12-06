@@ -6062,7 +6062,7 @@ static int awe_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id
 	io1 = pnp_port_start(dev,0);
 	io2 = pnp_port_start(dev,1);
 	io3 = pnp_port_start(dev,2);
-	printk(KERN_INFO "AWE32: A PnP Wave Table was detected at IO's %#x,%#x,%#x\n.",
+	printk(KERN_INFO "AWE32: A PnP Wave Table was detected at IO's %#x,%#x,%#x.\n",
 	       io1, io2, io3);
 	setup_ports(io1, io2, io3);
 

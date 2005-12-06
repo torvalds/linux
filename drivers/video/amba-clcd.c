@@ -22,6 +22,7 @@
 #include <linux/ioport.h>
 #include <linux/list.h>
 
+#include <asm/sizes.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/clock.h>
 
@@ -332,7 +333,6 @@ static struct fb_ops clcdfb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 	.fb_mmap	= clcdfb_mmap,
 };
 
@@ -504,21 +504,21 @@ static int clcdfb_remove(struct amba_device *dev)
 static struct amba_id clcdfb_id_table[] = {
 	{
 		.id	= 0x00041110,
-		.mask	= 0x000fffff,
+		.mask	= 0x000ffffe,
 	},
 	{ 0, 0 },
 };
 
 static struct amba_driver clcd_driver = {
 	.drv 		= {
-		.name	= "clcd-pl110",
+		.name	= "clcd-pl11x",
 	},
 	.probe		= clcdfb_probe,
 	.remove		= clcdfb_remove,
 	.id_table	= clcdfb_id_table,
 };
 
-int __init amba_clcdfb_init(void)
+static int __init amba_clcdfb_init(void)
 {
 	if (fb_get_options("ambafb", NULL))
 		return -ENODEV;

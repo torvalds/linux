@@ -13,7 +13,7 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#define PHYS_OFFSET	(0x00000000UL)
+#define PHYS_OFFSET	UL(0x00000000)
 
 /*
  * Virtual view <-> DMA view memory address translations

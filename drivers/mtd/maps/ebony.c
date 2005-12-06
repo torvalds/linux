@@ -1,6 +1,6 @@
 /*
- * $Id: ebony.c,v 1.15 2004/12/09 18:39:54 holindho Exp $
- * 
+ * $Id: ebony.c,v 1.16 2005/11/07 11:14:26 gleixner Exp $
+ *
  * Mapping for Ebony user flash
  *
  * Matt Porter <mporter@kernel.crashing.org>
@@ -21,7 +21,6 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 #include <linux/config.h>
-#include <linux/version.h>
 #include <asm/io.h>
 #include <asm/ibm44x.h>
 #include <platforms/4xx/ebony.h>
@@ -85,7 +84,7 @@ int __init init_ebony(void)
 		small_flash_base = EBONY_SMALL_FLASH_LOW2;
 	else
 		small_flash_base = EBONY_SMALL_FLASH_LOW1;
-			
+
 	if (EBONY_BOOT_SMALL_FLASH(fpga0_reg) &&
 			!EBONY_ONBRD_FLASH_EN(fpga0_reg))
 		large_flash_base = EBONY_LARGE_FLASH_LOW;

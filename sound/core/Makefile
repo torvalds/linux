@@ -3,8 +3,7 @@
 # Copyright (c) 1999,2001 by Jaroslav Kysela <perex@suse.cz>
 #
 
-snd-objs     := sound.o init.o memory.o info.o control.o misc.o \
-                device.o wrappers.o
+snd-objs     := sound.o init.o memory.o info.o control.o misc.o device.o
 ifeq ($(CONFIG_ISA_DMA_API),y)
 snd-objs     += isadma.o
 endif

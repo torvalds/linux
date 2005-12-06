@@ -16,8 +16,8 @@
 #include <linux/module.h>
 
 
-static struct input_dev emumousebtn;
-static void emumousebtn_input_register(void);
+static struct input_dev *emumousebtn;
+static int emumousebtn_input_register(void);
 static int mouse_emulate_buttons = 0;
 static int mouse_button2_keycode = KEY_RIGHTCTRL;	/* right control key */
 static int mouse_button3_keycode = KEY_RIGHTALT;	/* right option key */
@@ -90,10 +90,10 @@ int mac_hid_mouse_emulate_buttons(int caller, unsigned int keycode, int down)
 		    && (keycode == mouse_button2_keycode
 			|| keycode == mouse_button3_keycode)) {
 			if (mouse_emulate_buttons == 1) {
-			 	input_report_key(&emumousebtn,
+				input_report_key(emumousebtn,
 						 keycode == mouse_button2_keycode ? BTN_MIDDLE : BTN_RIGHT,
 						 down);
-				input_sync(&emumousebtn);
+				input_sync(emumousebtn);
 				return 1;
 			}
 			mouse_last_keycode = down ? keycode : 0;
@@ -105,30 +105,34 @@ int mac_hid_mouse_emulate_buttons(int caller, unsigned int keycode, int down)
 
 EXPORT_SYMBOL(mac_hid_mouse_emulate_buttons);
 
-static void emumousebtn_input_register(void)
+static int emumousebtn_input_register(void)
 {
-	emumousebtn.name = "Macintosh mouse button emulation";
+	emumousebtn = input_allocate_device();
+	if (!emumousebtn)
+		return -ENOMEM;
 
-	init_input_dev(&emumousebtn);
+	emumousebtn->name = "Macintosh mouse button emulation";
+	emumousebtn->id.bustype = BUS_ADB;
+	emumousebtn->id.vendor = 0x0001;
+	emumousebtn->id.product = 0x0001;
+	emumousebtn->id.version = 0x0100;
 
-	emumousebtn.evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	emumousebtn.keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
-	emumousebtn.relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	emumousebtn->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
+	emumousebtn->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	emumousebtn->relbit[0] = BIT(REL_X) | BIT(REL_Y);
 
-	emumousebtn.id.bustype = BUS_ADB;
-	emumousebtn.id.vendor = 0x0001;
-	emumousebtn.id.product = 0x0001;
-	emumousebtn.id.version = 0x0100;
+	input_register_device(emumousebtn);
 
-	input_register_device(&emumousebtn);
-
-	printk(KERN_INFO "input: Macintosh mouse button emulation\n");
+	return 0;
 }
 
 int __init mac_hid_init(void)
 {
+	int err;
 
-	emumousebtn_input_register();
+	err = emumousebtn_input_register();
+	if (err)
+		return err;
 
 #if defined(CONFIG_SYSCTL)
 	mac_hid_sysctl_header = register_sysctl_table(mac_hid_root_dir, 1);

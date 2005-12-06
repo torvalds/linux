@@ -140,6 +140,7 @@ void dump_tlb_nonwired(void)
 void dump_list_process(struct task_struct *t, void *address)
 {
 	pgd_t	*page_dir, *pgd;
+	pud_t	*pud;
 	pmd_t	*pmd;
 	pte_t	*pte, page;
 	unsigned long addr, val;
@@ -155,7 +156,10 @@ void dump_list_process(struct task_struct *t, void *address)
 	pgd = pgd_offset(t->mm, addr);
 	printk("pgd == %016lx\n", (unsigned long) pgd);
 
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	printk("pud == %016lx\n", (unsigned long) pud);
+
+	pmd = pmd_offset(pud, addr);
 	printk("pmd == %016lx\n", (unsigned long) pmd);
 
 	pte = pte_offset(pmd, addr);
@@ -184,13 +188,15 @@ void dump_list_current(void *address)
 unsigned int vtop(void *address)
 {
 	pgd_t	*pgd;
+	pud_t	*pud;
 	pmd_t	*pmd;
 	pte_t	*pte;
 	unsigned int addr, paddr;
 
 	addr = (unsigned long) address;
 	pgd = pgd_offset(current->mm, addr);
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	pmd = pmd_offset(pud, addr);
 	pte = pte_offset(pmd, addr);
 	paddr = (CKSEG1 | (unsigned int) pte_val(*pte)) & PAGE_MASK;
 	paddr |= (addr & ~PAGE_MASK);

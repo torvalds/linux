@@ -53,7 +53,6 @@
 #include <linux/random.h>
 #include <linux/time.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 
 #ifndef CONFIG_INPUT_TSDEV_SCREEN_X
 #define CONFIG_INPUT_TSDEV_SCREEN_X	240
@@ -369,6 +368,7 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 					  struct input_device_id *id)
 {
 	struct tsdev *tsdev;
+	struct class_device *cdev;
 	int minor, delta;
 
 	for (minor = 0; minor < TSDEV_MINORS/2 && tsdev_table[minor];
@@ -410,13 +410,13 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 
 	tsdev_table[minor] = tsdev;
 
-	devfs_mk_cdev(MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
-			S_IFCHR|S_IRUGO|S_IWUSR, "input/ts%d", minor);
-	devfs_mk_cdev(MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor + TSDEV_MINORS/2),
-			S_IFCHR|S_IRUGO|S_IWUSR, "input/tsraw%d", minor);
-	class_device_create(input_class,
+	cdev = class_device_create(&input_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
-			dev->dev, "ts%d", minor);
+			dev->cdev.dev, tsdev->name);
+
+	/* temporary symlink to keep userspace happy */
+	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+			  tsdev->name);
 
 	return &tsdev->handle;
 }
@@ -426,10 +426,9 @@ static void tsdev_disconnect(struct input_handle *handle)
 	struct tsdev *tsdev = handle->private;
 	struct tsdev_list *list;
 
-	class_device_destroy(input_class,
+	sysfs_remove_link(&input_class.subsys.kset.kobj, tsdev->name);
+	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
-	devfs_remove("input/ts%d", tsdev->minor);
-	devfs_remove("input/tsraw%d", tsdev->minor);
 	tsdev->exist = 0;
 
 	if (tsdev->open) {

@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <asm/reg.h>
 #include <asm/xmon.h>
-#include <asm/perfmon.h>
+#include <asm/pmc.h>
 
 static inline u32 get_pmlca(int ctr);
 static inline void set_pmlca(int ctr, u32 pmlca);

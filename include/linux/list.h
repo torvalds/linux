@@ -442,12 +442,14 @@ static inline void list_splice_init(struct list_head *list,
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define list_for_each_rcu(pos, head) \
-	for (pos = (head)->next; prefetch(pos->next), pos != (head); \
-        	pos = rcu_dereference(pos->next))
+	for (pos = (head)->next; \
+		prefetch(rcu_dereference(pos)->next), pos != (head); \
+        	pos = pos->next)
 
 #define __list_for_each_rcu(pos, head) \
-	for (pos = (head)->next; pos != (head); \
-        	pos = rcu_dereference(pos->next))
+	for (pos = (head)->next; \
+		rcu_dereference(pos) != (head); \
+        	pos = pos->next)
 
 /**
  * list_for_each_safe_rcu	-	iterate over an rcu-protected list safe
@@ -461,8 +463,9 @@ static inline void list_splice_init(struct list_head *list,
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define list_for_each_safe_rcu(pos, n, head) \
-	for (pos = (head)->next, n = pos->next; pos != (head); \
-		pos = rcu_dereference(n), n = pos->next)
+	for (pos = (head)->next; \
+		n = rcu_dereference(pos)->next, pos != (head); \
+		pos = n)
 
 /**
  * list_for_each_entry_rcu	-	iterate over rcu list of given type
@@ -474,11 +477,11 @@ static inline void list_splice_init(struct list_head *list,
  * the _rcu list-mutation primitives such as list_add_rcu()
  * as long as the traversal is guarded by rcu_read_lock().
  */
-#define list_for_each_entry_rcu(pos, head, member)			\
-	for (pos = list_entry((head)->next, typeof(*pos), member);	\
-	     prefetch(pos->member.next), &pos->member != (head); 	\
-	     pos = rcu_dereference(list_entry(pos->member.next, 	\
-					typeof(*pos), member)))
+#define list_for_each_entry_rcu(pos, head, member) \
+	for (pos = list_entry((head)->next, typeof(*pos), member); \
+		prefetch(rcu_dereference(pos)->member.next), \
+			&pos->member != (head); \
+		pos = list_entry(pos->member.next, typeof(*pos), member))
 
 
 /**
@@ -492,8 +495,9 @@ static inline void list_splice_init(struct list_head *list,
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define list_for_each_continue_rcu(pos, head) \
-	for ((pos) = (pos)->next; prefetch((pos)->next), (pos) != (head); \
-        	(pos) = rcu_dereference((pos)->next))
+	for ((pos) = (pos)->next; \
+		prefetch(rcu_dereference((pos))->next), (pos) != (head); \
+        	(pos) = (pos)->next)
 
 /*
  * Double linked lists with a single pointer list head.
@@ -597,7 +601,7 @@ static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
  * or hlist_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
- * hlist_for_each_rcu(), used to prevent memory-consistency
+ * hlist_for_each_entry_rcu(), used to prevent memory-consistency
  * problems on Alpha CPUs.  Regardless of the type of CPU, the
  * list-traversal primitive must be guarded by rcu_read_lock().
  */
@@ -646,7 +650,7 @@ static inline void hlist_add_after(struct hlist_node *n,
  * or hlist_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
- * hlist_for_each_rcu(), used to prevent memory-consistency
+ * hlist_for_each_entry_rcu(), used to prevent memory-consistency
  * problems on Alpha CPUs.
  */
 static inline void hlist_add_before_rcu(struct hlist_node *n,
@@ -671,7 +675,7 @@ static inline void hlist_add_before_rcu(struct hlist_node *n,
  * or hlist_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
- * hlist_for_each_rcu(), used to prevent memory-consistency
+ * hlist_for_each_entry_rcu(), used to prevent memory-consistency
  * problems on Alpha CPUs.
  */
 static inline void hlist_add_after_rcu(struct hlist_node *prev,
@@ -694,10 +698,6 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 #define hlist_for_each_safe(pos, n, head) \
 	for (pos = (head)->first; pos && ({ n = pos->next; 1; }); \
 	     pos = n)
-
-#define hlist_for_each_rcu(pos, head) \
-	for ((pos) = (head)->first; pos && ({ prefetch((pos)->next); 1; }); \
-		(pos) = rcu_dereference((pos)->next))
 
 /**
  * hlist_for_each_entry	- iterate over list of given type
@@ -751,7 +751,7 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 
 /**
  * hlist_for_each_entry_rcu - iterate over rcu list of given type
- * @pos:	the type * to use as a loop counter.
+ * @tpos:	the type * to use as a loop counter.
  * @pos:	the &struct hlist_node to use as a loop counter.
  * @head:	the head for your list.
  * @member:	the name of the hlist_node within the struct.
@@ -762,9 +762,9 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
  */
 #define hlist_for_each_entry_rcu(tpos, pos, head, member)		 \
 	for (pos = (head)->first;					 \
-	     pos && ({ prefetch(pos->next); 1;}) &&			 \
+	     rcu_dereference(pos) && ({ prefetch(pos->next); 1;}) &&	 \
 		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1;}); \
-	     pos = rcu_dereference(pos->next))
+	     pos = pos->next)
 
 #else
 #warning "don't include kernel headers in userspace"

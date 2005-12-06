@@ -76,8 +76,11 @@ activates the GRAB bit. A few ms later the VSYNC (re-)rises and
 the zoran starts to work on a new and freshly broadcasted frame....
 
 For pointers I used the specs of both chips. Below are the URLs:
-	http://www.zoran.com/ftp/download/devices/pci/ZR36120/36120data.pdf
-	http://www-us.semiconductor.philips.com/acrobat/datasheets/SAA_7110_A_1.pdf
+  http://www.zoran.com/ftp/download/devices/pci/ZR36120/36120data.pdf
+  http://www-us.semiconductor.philips.com/acrobat/datasheets/SAA_7110_A_1.pdf
+Some alternatives for the Philips SAA 7110 datasheet are:
+  http://www.datasheetcatalog.com/datasheets_pdf/S/A/A/7/SAA7110.shtml
+  http://www.datasheetarchive.com/search.php?search=SAA7110&sType=part
 
 The documentation has very little on absolute numbers or timings
 needed for the various modes/resolutions, but there are other

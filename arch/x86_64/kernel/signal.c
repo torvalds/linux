@@ -110,6 +110,15 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 	COPY(r14);
 	COPY(r15);
 
+	/* Kernel saves and restores only the CS segment register on signals,
+	 * which is the bare minimum needed to allow mixed 32/64-bit code.
+	 * App's signal handler can save/restore other segments if needed. */
+	{
+		unsigned cs;
+		err |= __get_user(cs, &sc->cs);
+		regs->cs = cs | 3;	/* Force into user mode */
+	}
+
 	{
 		unsigned int tmpflags;
 		err |= __get_user(tmpflags, &sc->eflags);
@@ -187,6 +196,7 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned lo
 {
 	int err = 0;
 
+	err |= __put_user(regs->cs, &sc->cs);
 	err |= __put_user(0, &sc->gs);
 	err |= __put_user(0, &sc->fs);
 
@@ -318,7 +328,14 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	regs->rsp = (unsigned long)frame;
 
+	/* Set up the CS register to run signal handlers in 64-bit mode,
+	   even if the handler happens to be interrupting 32-bit code. */
+	regs->cs = __USER_CS;
+
+	/* This, by contrast, has nothing to do with segment registers -
+	   see include/asm-x86_64/uaccess.h for details. */
 	set_fs(USER_DS);
+
 	regs->eflags &= ~TF_MASK;
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);

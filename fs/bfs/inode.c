@@ -357,28 +357,46 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	}
 
 	info->si_blocks = (le32_to_cpu(bfs_sb->s_end) + 1)>>BFS_BSIZE_BITS; /* for statfs(2) */
-	info->si_freeb = (le32_to_cpu(bfs_sb->s_end) + 1 -  cpu_to_le32(bfs_sb->s_start))>>BFS_BSIZE_BITS;
+	info->si_freeb = (le32_to_cpu(bfs_sb->s_end) + 1 -  le32_to_cpu(bfs_sb->s_start))>>BFS_BSIZE_BITS;
 	info->si_freei = 0;
 	info->si_lf_eblk = 0;
 	info->si_lf_sblk = 0;
 	info->si_lf_ioff = 0;
+	bh = NULL;
 	for (i=BFS_ROOT_INO; i<=info->si_lasti; i++) {
-		inode = iget(s,i);
-		if (BFS_I(inode)->i_dsk_ino == 0)
-			info->si_freei++;
-		else {
-			set_bit(i, info->si_imap);
-			info->si_freeb -= inode->i_blocks;
-			if (BFS_I(inode)->i_eblock > info->si_lf_eblk) {
-				info->si_lf_eblk = BFS_I(inode)->i_eblock;
-				info->si_lf_sblk = BFS_I(inode)->i_sblock;
-				info->si_lf_ioff = BFS_INO2OFF(i);
-			}
+		struct bfs_inode *di;
+		int block = (i - BFS_ROOT_INO)/BFS_INODES_PER_BLOCK + 1;
+		int off = (i - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
+		unsigned long sblock, eblock;
+
+		if (!off) {
+			brelse(bh);
+			bh = sb_bread(s, block);
 		}
-		iput(inode);
+
+		if (!bh)
+			continue;
+
+		di = (struct bfs_inode *)bh->b_data + off;
+
+		if (!di->i_ino) {
+			info->si_freei++;
+			continue;
+		}
+		set_bit(i, info->si_imap);
+		info->si_freeb -= BFS_FILEBLOCKS(di);
+
+		sblock =  le32_to_cpu(di->i_sblock);
+		eblock =  le32_to_cpu(di->i_eblock);
+		if (eblock > info->si_lf_eblk) {
+			info->si_lf_eblk = eblock;
+			info->si_lf_sblk = sblock;
+			info->si_lf_ioff = BFS_INO2OFF(i);
+		}
 	}
+	brelse(bh);
 	if (!(s->s_flags & MS_RDONLY)) {
-		mark_buffer_dirty(bh);
+		mark_buffer_dirty(info->si_sbh);
 		s->s_dirt = 1;
 	} 
 	dump_imap("read_super", s);

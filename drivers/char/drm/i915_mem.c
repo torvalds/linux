@@ -86,7 +86,7 @@ static void mark_block(drm_device_t * dev, struct mem_block *p, int in_use)
 }
 
 /* Very simple allocator for agp memory, working on a static range
- * already mapped into each client's address space.  
+ * already mapped into each client's address space.
  */
 
 static struct mem_block *split_block(struct mem_block *p, int start, int size,
@@ -94,7 +94,8 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 {
 	/* Maybe cut off the start of an existing block */
 	if (start > p->start) {
-		struct mem_block *newblock = drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
+		struct mem_block *newblock =
+		    drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
 		if (!newblock)
 			goto out;
 		newblock->start = start;
@@ -110,7 +111,8 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 
 	/* Maybe cut off the end of an existing block */
 	if (size < p->size) {
-		struct mem_block *newblock = drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
+		struct mem_block *newblock =
+		    drm_alloc(sizeof(*newblock), DRM_MEM_BUFLISTS);
 		if (!newblock)
 			goto out;
 		newblock->start = start + size;

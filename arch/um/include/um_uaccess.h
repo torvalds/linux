@@ -17,8 +17,25 @@
 #include "uaccess-skas.h"
 #endif
 
+#define __under_task_size(addr, size) \
+	(((unsigned long) (addr) < TASK_SIZE) && \
+         (((unsigned long) (addr) + (size)) < TASK_SIZE))
+
+#define __access_ok_vsyscall(type, addr, size) \
+	 ((type == VERIFY_READ) && \
+	  ((unsigned long) (addr) >= FIXADDR_USER_START) && \
+	  ((unsigned long) (addr) + (size) <= FIXADDR_USER_END) && \
+	  ((unsigned long) (addr) + (size) >= (unsigned long)(addr)))
+
+#define __addr_range_nowrap(addr, size) \
+	((unsigned long) (addr) <= ((unsigned long) (addr) + (size)))
+
 #define access_ok(type, addr, size) \
-	CHOOSE_MODE_PROC(access_ok_tt, access_ok_skas, type, addr, size)
+	(__addr_range_nowrap(addr, size) && \
+	 (__under_task_size(addr, size) || \
+	  __access_ok_vsyscall(type, addr, size) || \
+	  segment_eq(get_fs(), KERNEL_DS) || \
+	  CHOOSE_MODE_PROC(access_ok_tt, access_ok_skas, type, addr, size)))
 
 static inline int copy_from_user(void *to, const void __user *from, int n)
 {

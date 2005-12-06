@@ -146,11 +146,10 @@ instance_create(u_int16_t group_num, int pid)
 		goto out_unlock;
 	}
 
-	inst = kmalloc(sizeof(*inst), GFP_ATOMIC);
+	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
 	if (!inst)
 		goto out_unlock;
 
-	memset(inst, 0, sizeof(*inst));
 	INIT_HLIST_NODE(&inst->hlist);
 	inst->lock = SPIN_LOCK_UNLOCKED;
 	/* needs to be two, since we _put() after creation */
@@ -494,8 +493,8 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (skb->tstamp.off_sec) {
 		struct nfulnl_msg_packet_timestamp ts;
 
-		ts.sec = cpu_to_be64(skb_tv_base.tv_sec + skb->tstamp.off_sec);
-		ts.usec = cpu_to_be64(skb_tv_base.tv_usec + skb->tstamp.off_usec);
+		ts.sec = cpu_to_be64(skb->tstamp.off_sec);
+		ts.usec = cpu_to_be64(skb->tstamp.off_usec);
 
 		NFA_PUT(inst->skb, NFULA_TIMESTAMP, sizeof(ts), &ts);
 	}
@@ -863,11 +862,9 @@ out_put:
 
 static struct nfnl_callback nfulnl_cb[NFULNL_MSG_MAX] = {
 	[NFULNL_MSG_PACKET]	= { .call = nfulnl_recv_unsupp,
-				    .attr_count = NFULA_MAX,
-				    .cap_required = CAP_NET_ADMIN, },
+				    .attr_count = NFULA_MAX, },
 	[NFULNL_MSG_CONFIG]	= { .call = nfulnl_recv_config,
-				    .attr_count = NFULA_CFG_MAX,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFULA_CFG_MAX, },
 };
 
 static struct nfnetlink_subsystem nfulnl_subsys = {
@@ -962,10 +959,9 @@ static int nful_open(struct inode *inode, struct file *file)
 	struct iter_state *is;
 	int ret;
 
-	is = kmalloc(sizeof(*is), GFP_KERNEL);
+	is = kzalloc(sizeof(*is), GFP_KERNEL);
 	if (!is)
 		return -ENOMEM;
-	memset(is, 0, sizeof(*is));
 	ret = seq_open(file, &nful_seq_ops);
 	if (ret < 0)
 		goto out_free;

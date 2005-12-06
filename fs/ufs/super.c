@@ -472,13 +472,14 @@ static int ufs_read_cylinder_structures (struct super_block *sb) {
 	return 1;
 
 failed:
-	if (base) kfree (base);
+	kfree (base);
 	if (sbi->s_ucg) {
 		for (i = 0; i < uspi->s_ncg; i++)
-			if (sbi->s_ucg[i]) brelse (sbi->s_ucg[i]);
+			if (sbi->s_ucg[i])
+				brelse (sbi->s_ucg[i]);
 		kfree (sbi->s_ucg);
 		for (i = 0; i < UFS_MAX_GROUP_LOADED; i++)
-			if (sbi->s_ucpi[i]) kfree (sbi->s_ucpi[i]);
+			kfree (sbi->s_ucpi[i]);
 	}
 	UFSD(("EXIT (FAILED)\n"))
 	return 0;
@@ -981,9 +982,10 @@ magic_found:
 dalloc_failed:
 	iput(inode);
 failed:
-	if (ubh) ubh_brelse_uspi (uspi);
-	if (uspi) kfree (uspi);
-	if (sbi) kfree(sbi);
+	if (ubh)
+		ubh_brelse_uspi (uspi);
+	kfree (uspi);
+	kfree(sbi);
 	sb->s_fs_info = NULL;
 	UFSD(("EXIT (FAILED)\n"))
 	return -EINVAL;

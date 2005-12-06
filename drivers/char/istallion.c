@@ -860,10 +860,9 @@ static void __exit istallion_module_exit(void)
 	if ((i = unregister_chrdev(STL_SIOMEMMAJOR, "staliomem")))
 		printk("STALLION: failed to un-register serial memory device, "
 			"errno=%d\n", -i);
-	if (stli_tmpwritebuf != (char *) NULL)
-		kfree(stli_tmpwritebuf);
-	if (stli_txcookbuf != (char *) NULL)
-		kfree(stli_txcookbuf);
+
+	kfree(stli_tmpwritebuf);
+	kfree(stli_txcookbuf);
 
 	for (i = 0; (i < stli_nrbrds); i++) {
 		if ((brdp = stli_brds[i]) == (stlibrd_t *) NULL)
@@ -5246,7 +5245,8 @@ int __init stli_init(void)
 		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
 			       S_IFCHR | S_IRUSR | S_IWUSR,
 			       "staliomem/%d", i);
-		class_device_create(istallion_class, MKDEV(STL_SIOMEMMAJOR, i),
+		class_device_create(istallion_class, NULL,
+				MKDEV(STL_SIOMEMMAJOR, i),
 				NULL, "staliomem%d", i);
 	}
 

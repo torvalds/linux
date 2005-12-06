@@ -10,7 +10,7 @@
 #include <linux/config.h>
 #include <asm/cputable.h>
 
-#define CLOCK_TICK_RATE	1193180 /* Underlying HZ */
+#define CLOCK_TICK_RATE	1024000 /* Underlying HZ */
 
 typedef unsigned long cycles_t;
 

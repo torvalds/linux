@@ -208,7 +208,8 @@ extern void __get_user_4(void);
  * On error, the variable @x is set to zero.
  */
 #define get_user(x,ptr)							\
-({	int __ret_gu,__val_gu;						\
+({	int __ret_gu;							\
+	unsigned long __val_gu;						\
 	__chk_user_ptr(ptr);						\
 	switch(sizeof (*(ptr))) {					\
 	case 1:  __get_user_x(1,__ret_gu,__val_gu,ptr); break;		\
@@ -403,7 +404,8 @@ struct __large_struct { unsigned long buf[100]; };
 
 #define __get_user_nocheck(x,ptr,size)					\
 ({									\
-	long __gu_err, __gu_val;					\
+	long __gu_err;							\
+	unsigned long __gu_val;						\
 	__get_user_size(__gu_val,(ptr),(size),__gu_err);		\
 	(x) = (__typeof__(*(ptr)))__gu_val;				\
 	__gu_err;							\
@@ -594,8 +596,8 @@ static inline unsigned long __generic_copy_to_user_nocheck(void __user *to,
 	return n;
 }
 
-unsigned long __generic_copy_to_user(void *, const void *, unsigned long);
-unsigned long __generic_copy_from_user(void *, const void *, unsigned long);
+unsigned long __generic_copy_to_user(void __user *, const void *, unsigned long);
+unsigned long __generic_copy_from_user(void *, const void __user *, unsigned long);
 
 /**
  * __copy_to_user: - Copy a block of data into user space, with less checking.

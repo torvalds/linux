@@ -68,9 +68,7 @@ X!Iinclude/linux/kobject.h
 
      <sect1><title>Kernel utility functions</title>
 !Iinclude/linux/kernel.h
-<!-- This needs to clean up to make kernel-doc happy
-X!Ekernel/printk.c
- -->
+!Ekernel/printk.c
 !Ekernel/panic.c
 !Ekernel/sys.c
 !Ekernel/rcupdate.c
@@ -118,7 +116,7 @@ X!Ilib/string.c
      </sect1>
      <sect1><title>User Space Memory Access</title>
 !Iinclude/asm-i386/uaccess.h
-!Iarch/i386/lib/usercopy.c
+!Earch/i386/lib/usercopy.c
      </sect1>
      <sect1><title>More Memory Management Functions</title>
 !Iinclude/linux/rmap.h
@@ -174,7 +172,6 @@ X!Ilib/string.c
      <title>The Linux VFS</title>
      <sect1><title>The Filesystem types</title>
 !Iinclude/linux/fs.h
-!Einclude/linux/fs.h
      </sect1>
      <sect1><title>The Directory Cache</title>
 !Efs/dcache.c
@@ -239,9 +236,11 @@ X!Ilib/string.c
      <title>Network device support</title>
      <sect1><title>Driver Support</title>
 !Enet/core/dev.c
-     </sect1>
-     <sect1><title>8390 Based Network Cards</title>
-!Edrivers/net/8390.c
+!Enet/ethernet/eth.c
+!Iinclude/linux/etherdevice.h
+<!-- FIXME: Removed for now since no structured comments in source
+X!Enet/core/wireless.c
+-->
      </sect1>
      <sect1><title>Synchronous PPP</title>
 !Edrivers/net/wan/syncppp.c
@@ -266,7 +265,7 @@ X!Ekernel/module.c
   <chapter id="hardware">
      <title>Hardware Interfaces</title>
      <sect1><title>Interrupt Handling</title>
-!Ikernel/irq/manage.c
+!Ekernel/irq/manage.c
      </sect1>
 
      <sect1><title>Resources Management</title>
@@ -286,7 +285,9 @@ X!Edrivers/pci/search.c
  -->
 !Edrivers/pci/msi.c
 !Edrivers/pci/bus.c
-!Edrivers/pci/hotplug.c
+<!-- FIXME: Removed for now since no structured comments in source
+X!Edrivers/pci/hotplug.c
+-->
 !Edrivers/pci/probe.c
 !Edrivers/pci/rom.c
      </sect1>
@@ -387,7 +388,7 @@ X!Edrivers/pnp/system.c
 
   <chapter id="blkdev">
      <title>Block Devices</title>
-!Edrivers/block/ll_rw_blk.c
+!Eblock/ll_rw_blk.c
   </chapter>
 
   <chapter id="miscdev">
@@ -499,7 +500,7 @@ KAO -->
 !Edrivers/video/modedb.c
      </sect1>
      <sect1><title>Frame Buffer Macintosh Video Mode Database</title>
-!Idrivers/video/macmodes.c
+!Edrivers/video/macmodes.c
      </sect1>
      <sect1><title>Frame Buffer Fonts</title>
         <para>

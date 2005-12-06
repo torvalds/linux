@@ -327,7 +327,7 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, size_t size, dma_addr_t *dvma
 	order = get_order(size);
 	if (order >= 10)
 		return NULL;
-	first_page = __get_free_pages(GFP_KERNEL, order);
+	first_page = __get_free_pages(GFP_KERNEL|__GFP_COMP, order);
 	if (first_page == 0UL)
 		return NULL;
 	memset((char *)first_page, 0, PAGE_SIZE << order);
@@ -790,7 +790,7 @@ static unsigned long sysio_irq_offsets[] = {
 
 #undef bogon
 
-#define NUM_SYSIO_OFFSETS (sizeof(sysio_irq_offsets) / sizeof(sysio_irq_offsets[0]))
+#define NUM_SYSIO_OFFSETS ARRAY_SIZE(sysio_irq_offsets)
 
 /* Convert Interrupt Mapping register pointer to associated
  * Interrupt Clear register pointer, SYSIO specific version.

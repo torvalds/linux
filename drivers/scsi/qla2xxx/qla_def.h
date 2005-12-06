@@ -1,22 +1,9 @@
-/********************************************************************************
-*                  QLOGIC LINUX SOFTWARE
-*
-* QLogic ISP2x00 device driver for Linux 2.6.x
-* Copyright (C) 2003-2005 QLogic Corporation
-* (www.qlogic.com)
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2, or (at your option) any
-* later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-**
-******************************************************************************/
-
+/*
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
+ *
+ * See LICENSE.qla2xxx for copyright and licensing details.
+ */
 #ifndef __QLA_DEF_H
 #define __QLA_DEF_H
 
@@ -34,6 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 #include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
@@ -822,6 +810,11 @@ typedef struct {
 #define PD_STATE_PORT_LOGOUT			10
 #define PD_STATE_WAIT_PORT_LOGOUT_ACK		11
 
+
+#define QLA_ZIO_MODE_5		(BIT_2 | BIT_0)
+#define QLA_ZIO_MODE_6		(BIT_2 | BIT_1)
+#define QLA_ZIO_DISABLED	0
+#define QLA_ZIO_DEFAULT_TIMER	2
 
 /*
  * ISP Initialization Control Block.
@@ -1673,6 +1666,8 @@ typedef struct fc_port {
 
 	struct fc_rport *rport;
 	u32 supported_classes;
+	struct work_struct rport_add_work;
+	struct work_struct rport_del_work;
 } fc_port_t;
 
 /*
@@ -2470,6 +2465,9 @@ typedef struct scsi_qla_host {
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;
 	uint16_t	beacon_green_on;
+
+	uint16_t	zio_mode;
+	uint16_t	zio_timer;
 } scsi_qla_host_t;
 
 

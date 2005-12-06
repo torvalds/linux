@@ -127,12 +127,6 @@ config SND_DEBUG
 	help
 	  Say Y here to enable ALSA debug code.
 
-config SND_DEBUG_MEMORY
-	bool "Debug memory"
-	depends on SND_DEBUG
-	help
-	  Say Y here to enable debugging of memory allocations.
-
 config SND_DEBUG_DETECT
 	bool "Debug detection"
 	depends on SND_DEBUG

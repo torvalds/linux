@@ -31,6 +31,8 @@
 
 #include <asm/mach/arch.h>
 
+#include <asm/memory.h>
+
 #include "common.h"
 
 struct meminfo memmap = {

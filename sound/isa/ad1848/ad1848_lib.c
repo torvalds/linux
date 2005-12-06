@@ -109,7 +109,7 @@ void snd_ad1848_out(ad1848_t *chip,
 		udelay(100);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
-		snd_printk("auto calibration time out - reg = 0x%x, value = 0x%x\n", reg, value);
+		snd_printk(KERN_WARNING "auto calibration time out - reg = 0x%x, value = 0x%x\n", reg, value);
 #endif
 	outb(chip->mce_bit | reg, AD1848P(chip, REGSEL));
 	outb(chip->image[reg] = value, AD1848P(chip, REG));
@@ -139,7 +139,7 @@ static unsigned char snd_ad1848_in(ad1848_t *chip, unsigned char reg)
 		udelay(100);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
-		snd_printk("auto calibration time out - reg = 0x%x\n", reg);
+		snd_printk(KERN_WARNING "auto calibration time out - reg = 0x%x\n", reg);
 #endif
 	outb(chip->mce_bit | reg, AD1848P(chip, REGSEL));
 	mb();
@@ -185,13 +185,13 @@ static void snd_ad1848_mce_up(ad1848_t *chip)
 		udelay(100);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
-		snd_printk("mce_up - auto calibration time out (0)\n");
+		snd_printk(KERN_WARNING "mce_up - auto calibration time out (0)\n");
 #endif
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	chip->mce_bit |= AD1848_MCE;
 	timeout = inb(AD1848P(chip, REGSEL));
 	if (timeout == 0x80)
-		snd_printk("mce_up [0x%lx]: serious init problem - codec still busy\n", chip->port);
+		snd_printk(KERN_WARNING "mce_up [0x%lx]: serious init problem - codec still busy\n", chip->port);
 	if (!(timeout & AD1848_MCE))
 		outb(chip->mce_bit | (timeout & 0x1f), AD1848P(chip, REGSEL));
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -214,13 +214,13 @@ static void snd_ad1848_mce_down(ad1848_t *chip)
 #endif
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
-		snd_printk("mce_down [0x%lx] - auto calibration time out (0)\n", AD1848P(chip, REGSEL));
+		snd_printk(KERN_WARNING "mce_down [0x%lx] - auto calibration time out (0)\n", AD1848P(chip, REGSEL));
 #endif
 	chip->mce_bit &= ~AD1848_MCE;
 	timeout = inb(AD1848P(chip, REGSEL));
 	outb(chip->mce_bit | (timeout & 0x1f), AD1848P(chip, REGSEL));
 	if (timeout == 0x80)
-		snd_printk("mce_down [0x%lx]: serious init problem - codec still busy\n", chip->port);
+		snd_printk(KERN_WARNING "mce_down [0x%lx]: serious init problem - codec still busy\n", chip->port);
 	if ((timeout & AD1848_MCE) == 0) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		return;
@@ -240,11 +240,10 @@ static void snd_ad1848_mce_down(ad1848_t *chip)
 	while (snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		if (time <= 0) {
-			snd_printk("mce_down - auto calibration time out (2)\n");
+			snd_printk(KERN_ERR "mce_down - auto calibration time out (2)\n");
 			return;
 		}
-		set_current_state(TASK_INTERRUPTIBLE);
-		time = schedule_timeout(time);
+		time = schedule_timeout_interruptible(time);
 		spin_lock_irqsave(&chip->reg_lock, flags);
 	}
 #if 0
@@ -254,11 +253,10 @@ static void snd_ad1848_mce_down(ad1848_t *chip)
 	while (inb(AD1848P(chip, REGSEL)) & AD1848_INIT) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		if (time <= 0) {
-			snd_printk("mce_down - auto calibration time out (3)\n");
+			snd_printk(KERN_ERR "mce_down - auto calibration time out (3)\n");
 			return;
 		}
-		set_current_state(TASK_INTERRUPTIBLE);
-		time = schedule_timeout(time);
+		time = schedule_timeout_interruptible(time);
 		spin_lock_irqsave(&chip->reg_lock, flags);
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -846,10 +844,7 @@ static int snd_ad1848_capture_close(snd_pcm_substream_t * substream)
 
 static int snd_ad1848_free(ad1848_t *chip)
 {
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
+	release_and_free_resource(chip->res_port);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *) chip);
 	if (chip->dma >= 0) {

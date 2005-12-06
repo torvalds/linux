@@ -9,7 +9,7 @@ extern void (*mips_hpt_init)(unsigned int);
 
 #define LAUNCHSTACK_SIZE 256
 
-static spinlock_t launch_lock __initdata;
+static __initdata DEFINE_SPINLOCK(launch_lock);
 
 static unsigned long secondary_sp __initdata;
 static unsigned long secondary_gp __initdata;

@@ -201,23 +201,6 @@ static int get_futex_key(unsigned long uaddr, union futex_key *key)
 	 * from swap.  But that's a lot of code to duplicate here
 	 * for a rare case, so we simply fetch the page.
 	 */
-
-	/*
-	 * Do a quick atomic lookup first - this is the fastpath.
-	 */
-	spin_lock(&current->mm->page_table_lock);
-	page = follow_page(mm, uaddr, 0);
-	if (likely(page != NULL)) {
-		key->shared.pgoff =
-			page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-		spin_unlock(&current->mm->page_table_lock);
-		return 0;
-	}
-	spin_unlock(&current->mm->page_table_lock);
-
-	/*
-	 * Do it the general way.
-	 */
 	err = get_user_pages(current, mm, uaddr, 1, 0, 0, &page, NULL);
 	if (err >= 0) {
 		key->shared.pgoff =
@@ -366,6 +349,11 @@ retry:
 		spin_unlock(&bh1->lock);
 		if (bh1 != bh2)
 			spin_unlock(&bh2->lock);
+
+		if (unlikely(op_ret != -EFAULT)) {
+			ret = op_ret;
+			goto out;
+		}
 
 		/* futex_atomic_op_inuser needs to both read and write
 		 * *(int __user *)uaddr2, but we can't modify it

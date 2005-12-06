@@ -285,7 +285,7 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	if (phba->SerialNumber[0] == 0) {
 		uint8_t *outptr;
 
-		outptr = (uint8_t *) & phba->fc_nodename.IEEE[0];
+		outptr = &phba->fc_nodename.u.s.IEEE[0];
 		for (i = 0; i < 12; i++) {
 			status = *outptr++;
 			j = ((status & 0xf0) >> 4);
@@ -537,12 +537,6 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 
 		lpfc_offline(phba);
 
-		/*
-		 * Restart all traffic to this host.  Since the fc_transport
-		 * block functions (future) were not called in lpfc_offline,
-		 * don't call them here.
-		 */
-		scsi_unblock_requests(phba->host);
 	}
 }
 
@@ -772,10 +766,12 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 {
 	lpfc_vpd_t *vp;
 	uint32_t id;
+	uint8_t hdrtype;
 	char str[16];
 
 	vp = &phba->vpd;
 	pci_read_config_dword(phba->pcidev, PCI_VENDOR_ID, &id);
+	pci_read_config_byte(phba->pcidev, PCI_HEADER_TYPE, &hdrtype);
 
 	switch ((id >> 16) & 0xffff) {
 	case PCI_DEVICE_ID_FIREFLY:
@@ -803,7 +799,10 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		strcpy(str, "LP9802 2");
 		break;
 	case PCI_DEVICE_ID_THOR:
-		strcpy(str, "LP10000 2");
+		if (hdrtype == 0x80)
+			strcpy(str, "LP10000DC 2");
+		else
+			strcpy(str, "LP10000 2");
 		break;
 	case PCI_DEVICE_ID_VIPER:
 		strcpy(str, "LPX1000 10");
@@ -812,10 +811,16 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		strcpy(str, "LP982 2");
 		break;
 	case PCI_DEVICE_ID_TFLY:
-		strcpy(str, "LP1050 2");
+		if (hdrtype == 0x80)
+			strcpy(str, "LP1050DC 2");
+		else
+			strcpy(str, "LP1050 2");
 		break;
 	case PCI_DEVICE_ID_HELIOS:
-		strcpy(str, "LP11000 4");
+		if (hdrtype == 0x80)
+			strcpy(str, "LP11002 4");
+		else
+			strcpy(str, "LP11000 4");
 		break;
 	case PCI_DEVICE_ID_BMID:
 		strcpy(str, "LP1150 4");
@@ -824,13 +829,16 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		strcpy(str, "LP111 4");
 		break;
 	case PCI_DEVICE_ID_ZEPHYR:
-		strcpy(str, "LP11000e 4");
+		if (hdrtype == 0x80)
+			strcpy(str, "LPe11002 4");
+		else
+			strcpy(str, "LPe11000 4");
 		break;
 	case PCI_DEVICE_ID_ZMID:
-		strcpy(str, "LP1150e 4");
+		strcpy(str, "LPe1150 4");
 		break;
 	case PCI_DEVICE_ID_ZSMB:
-		strcpy(str, "LP111e 4");
+		strcpy(str, "LPe111 4");
 		break;
 	case PCI_DEVICE_ID_LP101:
 		strcpy(str, "LP101 2");
@@ -862,8 +870,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 		 int type)
 {
 	IOCB_t *icmd;
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
-	struct lpfc_iocbq *iocb = NULL;
+	struct lpfc_iocbq *iocb;
 	struct lpfc_dmabuf *mp1, *mp2;
 
 	cnt += pring->missbufcnt;
@@ -872,13 +879,12 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 	while (cnt > 0) {
 		/* Allocate buffer for  command iocb */
 		spin_lock_irq(phba->host->host_lock);
-		list_remove_head(lpfc_iocb_list, iocb, struct lpfc_iocbq, list);
+		iocb = lpfc_sli_get_iocbq(phba);
 		spin_unlock_irq(phba->host->host_lock);
 		if (iocb == NULL) {
 			pring->missbufcnt = cnt;
 			return cnt;
 		}
-		memset(iocb, 0, sizeof (struct lpfc_iocbq));
 		icmd = &iocb->iocb;
 
 		/* 2 buffers can be posted per command */
@@ -888,10 +894,9 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 		    mp1->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 						&mp1->phys);
 		if (mp1 == 0 || mp1->virt == 0) {
-			if (mp1)
-				kfree(mp1);
+			kfree(mp1);
 			spin_lock_irq(phba->host->host_lock);
-			list_add_tail(&iocb->list, lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, iocb);
 			spin_unlock_irq(phba->host->host_lock);
 			pring->missbufcnt = cnt;
 			return cnt;
@@ -905,12 +910,11 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 				mp2->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 							    &mp2->phys);
 			if (mp2 == 0 || mp2->virt == 0) {
-				if (mp2)
-					kfree(mp2);
+				kfree(mp2);
 				lpfc_mbuf_free(phba, mp1->virt, mp1->phys);
 				kfree(mp1);
 				spin_lock_irq(phba->host->host_lock);
-				list_add_tail(&iocb->list, lpfc_iocb_list);
+				lpfc_sli_release_iocbq(phba, iocb);
 				spin_unlock_irq(phba->host->host_lock);
 				pring->missbufcnt = cnt;
 				return cnt;
@@ -947,7 +951,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 				kfree(mp2);
 				cnt++;
 			}
-			list_add_tail(&iocb->list, lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, iocb);
 			pring->missbufcnt = cnt;
 			spin_unlock_irq(phba->host->host_lock);
 			return cnt;
@@ -1226,12 +1230,6 @@ lpfc_online(struct lpfc_hba * phba)
 	phba->fc_flag &= ~FC_OFFLINE_MODE;
 	spin_unlock_irq(phba->host->host_lock);
 
-	/*
-	 * Restart all traffic to this host.  Since the fc_transport block
-	 * functions (future) were not called in lpfc_offline, don't call them
-	 * here.
-	 */
-	scsi_unblock_requests(phba->host);
 	return 0;
 }
 
@@ -1249,13 +1247,6 @@ lpfc_offline(struct lpfc_hba * phba)
 	if (phba->fc_flag & FC_OFFLINE_MODE)
 		return 0;
 
-	/*
-	 * Don't call the fc_transport block api (future).  The device is
-	 * going offline and causing a timer to fire in the midlayer is
-	 * unproductive.  Just block all new requests until the driver
-	 * comes back online.
-	 */
-	scsi_block_requests(phba->host);
 	psli = &phba->sli;
 	pring = &psli->ring[psli->fcp_ring];
 
@@ -1333,6 +1324,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	unsigned long bar0map_len, bar2map_len;
 	int error = -ENODEV, retval;
 	int i;
+	uint16_t iotag;
 
 	if (pci_enable_device(pdev))
 		goto out;
@@ -1434,6 +1426,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (!phba->slim2p)
 		goto out_iounmap;
 
+	memset(phba->slim2p, 0, SLI2_SLIM_SIZE);
 
 	/* Initialize the SLI Layer to run with lpfc HBAs. */
 	lpfc_sli_setup(phba);
@@ -1456,6 +1449,15 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		}
 
 		memset(iocbq_entry, 0, sizeof(struct lpfc_iocbq));
+		iotag = lpfc_sli_next_iotag(phba, iocbq_entry);
+		if (iotag == 0) {
+			kfree (iocbq_entry);
+			printk(KERN_ERR "%s: failed to allocate IOTAG. "
+			       "Unloading driver.\n",
+				__FUNCTION__);
+			error = -ENOMEM;
+			goto out_free_iocbq;
+		}
 		spin_lock_irq(phba->host->host_lock);
 		list_add(&iocbq_entry->list, &phba->lpfc_iocb_list);
 		phba->total_iocbq_bufs++;
@@ -1523,8 +1525,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	 * Must done after lpfc_sli_hba_setup()
 	 */
 
-	fc_host_node_name(host) = wwn_to_u64(phba->fc_nodename.wwn);
-	fc_host_port_name(host) = wwn_to_u64(phba->fc_portname.wwn);
+	fc_host_node_name(host) = wwn_to_u64(phba->fc_nodename.u.wwn);
+	fc_host_port_name(host) = wwn_to_u64(phba->fc_portname.u.wwn);
 	fc_host_supported_classes(host) = FC_COS_CLASS3;
 
 	memset(fc_host_supported_fc4s(host), 0,

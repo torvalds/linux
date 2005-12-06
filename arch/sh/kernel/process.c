@@ -51,26 +51,22 @@ void enable_hlt(void)
 
 EXPORT_SYMBOL(enable_hlt);
 
-void default_idle(void)
+void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
 		if (hlt_counter) {
-			while (1)
-				if (need_resched())
-					break;
+			while (!need_resched())
+				cpu_relax();
 		} else {
 			while (!need_resched())
 				cpu_sleep();
 		}
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
-}
-
-void cpu_idle(void)
-{
-	default_idle();
 }
 
 void machine_restart(char * __unused)

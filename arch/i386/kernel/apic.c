@@ -18,7 +18,6 @@
 #include <linux/init.h>
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/smp_lock.h>
@@ -560,14 +559,20 @@ void __devinit setup_local_APIC(void)
  * If Linux enabled the LAPIC against the BIOS default
  * disable it down before re-entering the BIOS on shutdown.
  * Otherwise the BIOS may get confused and not power-off.
+ * Additionally clear all LVT entries before disable_local_APIC
+ * for the case where Linux didn't enable the LAPIC.
  */
 void lapic_shutdown(void)
 {
-	if (!cpu_has_apic || !enabled_via_apicbase)
+	if (!cpu_has_apic)
 		return;
 
 	local_irq_disable();
-	disable_local_APIC();
+	clear_local_APIC();
+
+	if (enabled_via_apicbase)
+		disable_local_APIC();
+
 	local_irq_enable();
 }
 
@@ -1047,10 +1052,11 @@ static unsigned int calibration_result;
 
 void __init setup_boot_APIC_clock(void)
 {
+	unsigned long flags;
 	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n");
 	using_apic_timer = 1;
 
-	local_irq_disable();
+	local_irq_save(flags);
 
 	calibration_result = calibrate_APIC_clock();
 	/*
@@ -1058,7 +1064,7 @@ void __init setup_boot_APIC_clock(void)
 	 */
 	setup_APIC_timer(calibration_result);
 
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 void __devinit setup_secondary_APIC_clock(void)

@@ -32,10 +32,6 @@
 
 #define	TICK_SIZE (tick_nsec / 1000)
 
-u64 jiffies_64;
-
-EXPORT_SYMBOL(jiffies_64);
-
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick

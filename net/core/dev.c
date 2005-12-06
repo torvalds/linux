@@ -574,6 +574,8 @@ struct net_device *dev_getbyhwaddr(unsigned short type, char *ha)
 	return dev;
 }
 
+EXPORT_SYMBOL(dev_getbyhwaddr);
+
 struct net_device *dev_getfirstbyhwtype(unsigned short type)
 {
 	struct net_device *dev;
@@ -1106,6 +1108,18 @@ out:
 	return ret;
 }
 
+/* Take action when hardware reception checksum errors are detected. */
+#ifdef CONFIG_BUG
+void netdev_rx_csum_fault(struct net_device *dev)
+{
+	if (net_ratelimit()) {
+		printk(KERN_ERR "%s: hw csum failure.\n", dev->name);
+		dump_stack();
+	}
+}
+EXPORT_SYMBOL(netdev_rx_csum_fault);
+#endif
+
 #ifdef CONFIG_HIGHMEM
 /* Actually, we should eliminate this check as soon as we know, that:
  * 1. IOMMU is present and allows to map all the memory.
@@ -1130,7 +1144,7 @@ static inline int illegal_highdma(struct net_device *dev, struct sk_buff *skb)
 #endif
 
 /* Keep head the same: replace data */
-int __skb_linearize(struct sk_buff *skb, unsigned int __nocast gfp_mask)
+int __skb_linearize(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	unsigned int size;
 	u8 *data;
@@ -1256,6 +1270,8 @@ int dev_queue_xmit(struct sk_buff *skb)
 	      skb->protocol != htons(ETH_P_IP))))
 	      	if (skb_checksum_help(skb, 0))
 	      		goto out_kfree_skb;
+
+	spin_lock_prefetch(&dev->queue_lock);
 
 	/* Disable soft irqs for various locks below. Also 
 	 * stops preemption for RCU. 
@@ -2712,6 +2728,20 @@ int register_netdevice(struct net_device *dev)
 		printk("%s: Dropping NETIF_F_TSO since no SG feature.\n",
 		       dev->name);
 		dev->features &= ~NETIF_F_TSO;
+	}
+	if (dev->features & NETIF_F_UFO) {
+		if (!(dev->features & NETIF_F_HW_CSUM)) {
+			printk(KERN_ERR "%s: Dropping NETIF_F_UFO since no "
+					"NETIF_F_HW_CSUM feature.\n",
+							dev->name);
+			dev->features &= ~NETIF_F_UFO;
+		}
+		if (!(dev->features & NETIF_F_SG)) {
+			printk(KERN_ERR "%s: Dropping NETIF_F_UFO since no "
+					"NETIF_F_SG feature.\n",
+					dev->name);
+			dev->features &= ~NETIF_F_UFO;
+		}
 	}
 
 	/*

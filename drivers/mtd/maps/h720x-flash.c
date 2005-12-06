@@ -1,11 +1,11 @@
 /*
- * Flash memory access on Hynix GMS30C7201/HMS30C7202 based 
+ * Flash memory access on Hynix GMS30C7201/HMS30C7202 based
  * evaluation boards
- * 
- * $Id: h720x-flash.c,v 1.11 2004/11/04 13:24:14 gleixner Exp $
+ *
+ * $Id: h720x-flash.c,v 1.12 2005/11/07 11:14:27 gleixner Exp $
  *
  * (C) 2002 Jungjun Kim <jungjun.kim@hynix.com>
- *     2003 Thomas Gleixner <tglx@linutronix.de>	
+ *     2003 Thomas Gleixner <tglx@linutronix.de>
  */
 
 #include <linux/config.h>
@@ -72,7 +72,7 @@ int __init h720x_mtd_init(void)
 {
 
 	char	*part_type = NULL;
-	
+
 	h720x_map.virt = ioremap(FLASH_PHYS, FLASH_SIZE);
 
 	if (!h720x_map.virt) {
@@ -91,7 +91,7 @@ int __init h720x_mtd_init(void)
 	    h720x_map.bankwidth = 2;
 	    mymtd = do_map_probe("cfi_probe", &h720x_map);
 	}
-	    
+
 	if (mymtd) {
 		mymtd->owner = THIS_MODULE;
 
@@ -124,11 +124,11 @@ static void __exit h720x_mtd_cleanup(void)
 		del_mtd_partitions(mymtd);
 		map_destroy(mymtd);
 	}
-	
+
 	/* Free partition info, if commandline partition was used */
 	if (mtd_parts && (mtd_parts != h720x_partitions))
 		kfree (mtd_parts);
-	
+
 	if (h720x_map.virt) {
 		iounmap((void *)h720x_map.virt);
 		h720x_map.virt = 0;

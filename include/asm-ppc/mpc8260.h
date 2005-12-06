@@ -92,6 +92,10 @@ enum ppc_sys_devices {
 extern unsigned char __res[];
 #endif
 
+#ifndef BOARD_CHIP_NAME
+#define BOARD_CHIP_NAME ""
+#endif
+
 #endif /* CONFIG_8260 */
 #endif /* !__ASM_PPC_MPC8260_H__ */
 #endif /* __KERNEL__ */

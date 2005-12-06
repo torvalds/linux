@@ -19,6 +19,8 @@
 #include <linux/list.h>
 #include <linux/module.h>
 
+#include "base.h"
+
 /* This is a private structure used to tie the classdev and the
  * container .. it should never be visible outside this file */
 struct internal_container {

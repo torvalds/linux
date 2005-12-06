@@ -15,9 +15,10 @@
 
 #include <asm/mach/map.h>
 #include <asm/io.h>
+#include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
 
-extern int clk_init(void);
+extern int omap1_clk_init(void);
 extern void omap_check_revision(void);
 extern void omap_sram_init(void);
 
@@ -26,27 +27,59 @@ extern void omap_sram_init(void);
  * default mapping provided here.
  */
 static struct map_desc omap_io_desc[] __initdata = {
- { IO_VIRT,      	IO_PHYS,             IO_SIZE,        	   MT_DEVICE },
+	{
+		.virtual	= IO_VIRT,
+		.pfn		= __phys_to_pfn(IO_PHYS),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 #ifdef CONFIG_ARCH_OMAP730
 static struct map_desc omap730_io_desc[] __initdata = {
- { OMAP730_DSP_BASE,    OMAP730_DSP_START,    OMAP730_DSP_SIZE,    MT_DEVICE },
- { OMAP730_DSPREG_BASE, OMAP730_DSPREG_START, OMAP730_DSPREG_SIZE, MT_DEVICE },
+	{
+		.virtual	= OMAP730_DSP_BASE,
+		.pfn		= __phys_to_pfn(OMAP730_DSP_START),
+		.length		= OMAP730_DSP_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= OMAP730_DSPREG_BASE,
+		.pfn		= __phys_to_pfn(OMAP730_DSPREG_START),
+		.length		= OMAP730_DSPREG_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 #endif
 
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 static struct map_desc omap1510_io_desc[] __initdata = {
- { OMAP1510_DSP_BASE,    OMAP1510_DSP_START,    OMAP1510_DSP_SIZE,    MT_DEVICE },
- { OMAP1510_DSPREG_BASE, OMAP1510_DSPREG_START, OMAP1510_DSPREG_SIZE, MT_DEVICE },
+	{
+		.virtual	= OMAP1510_DSP_BASE,
+		.pfn		= __phys_to_pfn(OMAP1510_DSP_START),
+		.length		= OMAP1510_DSP_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= OMAP1510_DSPREG_BASE,
+		.pfn		= __phys_to_pfn(OMAP1510_DSPREG_START),
+		.length		= OMAP1510_DSPREG_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 #endif
 
 #if defined(CONFIG_ARCH_OMAP16XX)
 static struct map_desc omap16xx_io_desc[] __initdata = {
- { OMAP16XX_DSP_BASE,    OMAP16XX_DSP_START,    OMAP16XX_DSP_SIZE,    MT_DEVICE },
- { OMAP16XX_DSPREG_BASE, OMAP16XX_DSPREG_START, OMAP16XX_DSPREG_SIZE, MT_DEVICE },
+	{
+		.virtual	= OMAP16XX_DSP_BASE,
+		.pfn		= __phys_to_pfn(OMAP16XX_DSP_START),
+		.length		= OMAP16XX_DSP_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= OMAP16XX_DSPREG_BASE,
+		.pfn		= __phys_to_pfn(OMAP16XX_DSPREG_START),
+		.length		= OMAP16XX_DSPREG_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 #endif
 
@@ -66,7 +99,7 @@ static void __init _omap_map_io(void)
 		iotable_init(omap730_io_desc, ARRAY_SIZE(omap730_io_desc));
 	}
 #endif
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		iotable_init(omap1510_io_desc, ARRAY_SIZE(omap1510_io_desc));
 	}
@@ -87,7 +120,7 @@ static void __init _omap_map_io(void)
 
 	/* Must init clocks early to assure that timer interrupt works
 	 */
-	clk_init();
+	omap1_clk_init();
 }
 
 /*
@@ -95,7 +128,9 @@ static void __init _omap_map_io(void)
  */
 void __init omap_map_common_io(void)
 {
-	if (!initialized)
+	if (!initialized) {
 		_omap_map_io();
+		omap1_mux_init();
+	}
 }
 

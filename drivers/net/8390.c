@@ -1094,7 +1094,7 @@ static void NS8390_trigger_send(struct net_device *dev, unsigned int length,
    
 	outb_p(E8390_NODMA+E8390_PAGE0, e8390_base+E8390_CMD);
     
-	if (inb_p(e8390_base) & E8390_TRANS) 
+	if (inb_p(e8390_base + E8390_CMD) & E8390_TRANS) 
 	{
 		printk(KERN_WARNING "%s: trigger_send() called with the transmitter busy.\n",
 			dev->name);

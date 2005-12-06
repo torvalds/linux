@@ -476,26 +476,20 @@ ahc_linux_queue(struct scsi_cmnd * cmd, void (*scsi_done) (struct scsi_cmnd *))
 {
 	struct	 ahc_softc *ahc;
 	struct	 ahc_linux_device *dev = scsi_transport_device_data(cmd->device);
+	int rtn = SCSI_MLQUEUE_HOST_BUSY;
+	unsigned long flags;
 
 	ahc = *(struct ahc_softc **)cmd->device->host->hostdata;
 
-	/*
-	 * Save the callback on completion function.
-	 */
-	cmd->scsi_done = scsi_done;
+	ahc_lock(ahc, &flags);
+	if (ahc->platform_data->qfrozen == 0) {
+		cmd->scsi_done = scsi_done;
+		cmd->result = CAM_REQ_INPROG << 16;
+		rtn = ahc_linux_run_command(ahc, dev, cmd);
+	}
+	ahc_unlock(ahc, &flags);
 
-	/*
-	 * Close the race of a command that was in the process of
-	 * being queued to us just as our simq was frozen.  Let
-	 * DV commands through so long as we are only frozen to
-	 * perform DV.
-	 */
-	if (ahc->platform_data->qfrozen != 0)
-		return SCSI_MLQUEUE_HOST_BUSY;
-
-	cmd->result = CAM_REQ_INPROG << 16;
-
-	return ahc_linux_run_command(ahc, dev, cmd);
+	return rtn;
 }
 
 static inline struct scsi_target **
@@ -641,7 +635,7 @@ ahc_linux_slave_configure(struct scsi_device *sdev)
 	ahc = *((struct ahc_softc **)sdev->host->hostdata);
 
 	if (bootverbose)
-		printf("%s: Slave Configure %d\n", ahc_name(ahc), sdev->id);
+		sdev_printk(KERN_INFO, sdev, "Slave Configure\n");
 
 	ahc_linux_device_queue_depth(sdev);
 
@@ -686,7 +680,7 @@ ahc_linux_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 	u_int	 channel;
 
 	ahc = *((struct ahc_softc **)sdev->host->hostdata);
-	channel = sdev->channel;
+	channel = sdev_channel(sdev);
 
 	bh = scsi_bios_ptable(bdev);
 	if (bh) {
@@ -759,7 +753,7 @@ ahc_linux_bus_reset(struct scsi_cmnd *cmd)
 	ahc = *(struct ahc_softc **)cmd->device->host->hostdata;
 
 	ahc_lock(ahc, &flags);
-	found = ahc_reset_channel(ahc, cmd->device->channel + 'A',
+	found = ahc_reset_channel(ahc, scmd_channel(cmd) + 'A',
 				  /*initiate reset*/TRUE);
 	ahc_unlock(ahc, &flags);
 
@@ -1079,7 +1073,6 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 
 	*((struct ahc_softc **)host->hostdata) = ahc;
 	ahc_lock(ahc, &s);
-	scsi_assign_lock(host, &ahc->platform_data->spin_lock);
 	ahc->platform_data->host = host;
 	host->can_queue = AHC_MAX_QUEUE;
 	host->cmd_per_lun = 2;
@@ -1209,11 +1202,6 @@ ahc_platform_free(struct ahc_softc *ahc)
 	int i, j;
 
 	if (ahc->platform_data != NULL) {
-		if (ahc->platform_data->host != NULL) {
-			scsi_remove_host(ahc->platform_data->host);
-			scsi_host_put(ahc->platform_data->host);
-		}
-
 		/* destroy all of the device and target objects */
 		for (i = 0; i < AHC_NUM_TARGETS; i++) {
 			starget = ahc->platform_data->starget[i];
@@ -1241,6 +1229,9 @@ ahc_platform_free(struct ahc_softc *ahc)
 			release_mem_region(ahc->platform_data->mem_busaddr,
 					   0x1000);
 		}
+
+		if (ahc->platform_data->host)
+			scsi_host_put(ahc->platform_data->host);
 
 		free(ahc->platform_data, M_DEVBUF);
 	}
@@ -2113,15 +2104,14 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	int    paused;
 	int    wait;
 	int    disconnected;
+	unsigned long flags;
 
 	pending_scb = NULL;
 	paused = FALSE;
 	wait = FALSE;
 	ahc = *(struct ahc_softc **)cmd->device->host->hostdata;
 
-	printf("%s:%d:%d:%d: Attempting to queue a%s message\n",
-	       ahc_name(ahc), cmd->device->channel,
-	       cmd->device->id, cmd->device->lun,
+	scmd_printk(KERN_INFO, cmd, "Attempting to queue a%s message\n",
 	       flag == SCB_ABORT ? "n ABORT" : " TARGET RESET");
 
 	printf("CDB:");
@@ -2129,7 +2119,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		printf(" 0x%x", cmd->cmnd[cdb_byte]);
 	printf("\n");
 
-	spin_lock_irq(&ahc->platform_data->spin_lock);
+	ahc_lock(ahc, &flags);
 
 	/*
 	 * First determine if we currently own this command.
@@ -2176,18 +2166,16 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 
 		/* Any SCB for this device will do for a target reset */
 		LIST_FOREACH(pending_scb, &ahc->pending_scbs, pending_links) {
-		  	if (ahc_match_scb(ahc, pending_scb, cmd->device->id,
-					  cmd->device->channel + 'A',
+		  	if (ahc_match_scb(ahc, pending_scb, scmd_id(cmd),
+					  scmd_channel(cmd) + 'A',
 					  CAM_LUN_WILDCARD,
-					  SCB_LIST_NULL, ROLE_INITIATOR) == 0)
+					  SCB_LIST_NULL, ROLE_INITIATOR))
 				break;
 		}
 	}
 
 	if (pending_scb == NULL) {
-		printf("%s:%d:%d:%d: Command not found\n",
-		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Command not found\n");
 		goto no_cmd;
 	}
 
@@ -2209,9 +2197,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	paused = TRUE;
 
 	if ((pending_scb->flags & SCB_ACTIVE) == 0) {
-		printf("%s:%d:%d:%d: Command already completed\n",
-		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Command already completed\n");
 		goto no_cmd;
 	}
 
@@ -2268,7 +2254,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	if (last_phase != P_BUSFREE
 	 && (pending_scb->hscb->tag == active_scb_index
 	  || (flag == SCB_DEVICE_RESET
-	   && SCSIID_TARGET(ahc, saved_scsiid) == cmd->device->id))) {
+	   && SCSIID_TARGET(ahc, saved_scsiid) == scmd_id(cmd)))) {
 
 		/*
 		 * We're active on the bus, so assert ATN
@@ -2278,9 +2264,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		pending_scb->flags |= SCB_RECOVERY_SCB|flag;
 		ahc_outb(ahc, MSG_OUT, HOST_MSG);
 		ahc_outb(ahc, SCSISIGO, last_phase|ATNO);
-		printf("%s:%d:%d:%d: Device is active, asserting ATN\n",
-		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Device is active, asserting ATN\n");
 		wait = TRUE;
 	} else if (disconnected) {
 
@@ -2346,9 +2330,7 @@ ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		printf("Device is disconnected, re-queuing SCB\n");
 		wait = TRUE;
 	} else {
-		printf("%s:%d:%d:%d: Unable to deliver message\n",
-		       ahc_name(ahc), cmd->device->channel, cmd->device->id,
-		       cmd->device->lun);
+		scmd_printk(KERN_INFO, cmd, "Unable to deliver message\n");
 		retval = FAILED;
 		goto done;
 	}
@@ -2369,7 +2351,8 @@ done:
 		int ret;
 
 		ahc->platform_data->flags |= AHC_UP_EH_SEMAPHORE;
-		spin_unlock_irq(&ahc->platform_data->spin_lock);
+		ahc_unlock(ahc, &flags);
+
 		init_timer(&timer);
 		timer.data = (u_long)ahc;
 		timer.expires = jiffies + (5 * HZ);
@@ -2383,10 +2366,8 @@ done:
 			printf("Timer Expired\n");
 			retval = FAILED;
 		}
-		spin_lock_irq(&ahc->platform_data->spin_lock);
-	}
-
-	spin_unlock_irq(&ahc->platform_data->spin_lock);
+	} else
+		ahc_unlock(ahc, &flags);
 	return (retval);
 }
 

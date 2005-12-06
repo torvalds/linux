@@ -12,7 +12,7 @@
 #include "init.h"
 #include "elf_user.h"
 #include "mem_user.h"
-#include <kernel-offsets.h>
+#include <kern_constants.h>
 
 /* Use the one from the kernel - the host may miss it, if having old headers. */
 #if UM_ELF_CLASS == UM_ELFCLASS32

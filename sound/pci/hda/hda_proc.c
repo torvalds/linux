@@ -281,6 +281,11 @@ static void print_codec_info(snd_info_entry_t *entry, snd_info_buffer_t *buffer)
 			print_pcm_caps(buffer, codec, nid);
 		}
 
+		if (wid_caps & AC_WCAP_POWER)
+			snd_iprintf(buffer, "  Power: 0x%x\n",
+				    snd_hda_codec_read(codec, nid, 0,
+						       AC_VERB_GET_POWER_STATE, 0));
+
 		if (wid_caps & AC_WCAP_CONN_LIST) {
 			int c, curr = -1;
 			if (conn_len > 1 && wid_type != AC_WID_AUD_MIX)

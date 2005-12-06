@@ -234,7 +234,10 @@ static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 			 int destroy)
 {
 	struct in_ifaddr *promote = NULL;
-	struct in_ifaddr *ifa1 = *ifap;
+	struct in_ifaddr *ifa, *ifa1 = *ifap;
+	struct in_ifaddr *last_prim = in_dev->ifa_list;
+	struct in_ifaddr *prev_prom = NULL;
+	int do_promote = IN_DEV_PROMOTE_SECONDARIES(in_dev);
 
 	ASSERT_RTNL();
 
@@ -243,18 +246,22 @@ static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 	 **/
 
 	if (!(ifa1->ifa_flags & IFA_F_SECONDARY)) {
-		struct in_ifaddr *ifa;
 		struct in_ifaddr **ifap1 = &ifa1->ifa_next;
 
 		while ((ifa = *ifap1) != NULL) {
+			if (!(ifa->ifa_flags & IFA_F_SECONDARY) && 
+			    ifa1->ifa_scope <= ifa->ifa_scope)
+				last_prim = ifa;
+
 			if (!(ifa->ifa_flags & IFA_F_SECONDARY) ||
 			    ifa1->ifa_mask != ifa->ifa_mask ||
 			    !inet_ifa_match(ifa1->ifa_address, ifa)) {
 				ifap1 = &ifa->ifa_next;
+				prev_prom = ifa;
 				continue;
 			}
 
-			if (!IN_DEV_PROMOTE_SECONDARIES(in_dev)) {
+			if (!do_promote) {
 				*ifap1 = ifa->ifa_next;
 
 				rtmsg_ifa(RTM_DELADDR, ifa);
@@ -283,18 +290,31 @@ static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 	 */
 	rtmsg_ifa(RTM_DELADDR, ifa1);
 	notifier_call_chain(&inetaddr_chain, NETDEV_DOWN, ifa1);
+
+	if (promote) {
+
+		if (prev_prom) {
+			prev_prom->ifa_next = promote->ifa_next;
+			promote->ifa_next = last_prim->ifa_next;
+			last_prim->ifa_next = promote;
+		}
+
+		promote->ifa_flags &= ~IFA_F_SECONDARY;
+		rtmsg_ifa(RTM_NEWADDR, promote);
+		notifier_call_chain(&inetaddr_chain, NETDEV_UP, promote);
+		for (ifa = promote->ifa_next; ifa; ifa = ifa->ifa_next) {
+			if (ifa1->ifa_mask != ifa->ifa_mask ||
+			    !inet_ifa_match(ifa1->ifa_address, ifa))
+					continue;
+			fib_add_ifaddr(ifa);
+		}
+
+	}
 	if (destroy) {
 		inet_free_ifa(ifa1);
 
 		if (!in_dev->ifa_list)
 			inetdev_destroy(in_dev);
-	}
-
-	if (promote && IN_DEV_PROMOTE_SECONDARIES(in_dev)) {
-		/* not sure if we should send a delete notify first? */
-		promote->ifa_flags &= ~IFA_F_SECONDARY;
-		rtmsg_ifa(RTM_NEWADDR, promote);
-		notifier_call_chain(&inetaddr_chain, NETDEV_UP, promote);
 	}
 }
 
@@ -351,7 +371,7 @@ static int inet_insert_ifa(struct in_ifaddr *ifa)
 
 static int inet_set_ifa(struct net_device *dev, struct in_ifaddr *ifa)
 {
-	struct in_device *in_dev = __in_dev_get(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
 	ASSERT_RTNL();
 
@@ -449,7 +469,7 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 		goto out;
 
 	rc = -ENOBUFS;
-	if ((in_dev = __in_dev_get(dev)) == NULL) {
+	if ((in_dev = __in_dev_get_rtnl(dev)) == NULL) {
 		in_dev = inetdev_init(dev);
 		if (!in_dev)
 			goto out;
@@ -584,7 +604,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 	if (colon)
 		*colon = ':';
 
-	if ((in_dev = __in_dev_get(dev)) != NULL) {
+	if ((in_dev = __in_dev_get_rtnl(dev)) != NULL) {
 		if (tryaddrmatch) {
 			/* Matthias Andree */
 			/* compare label and address (4.4BSD style) */
@@ -715,6 +735,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 			break;
 		ret = 0;
 		if (ifa->ifa_mask != sin->sin_addr.s_addr) {
+			u32 old_mask = ifa->ifa_mask;
 			inet_del_ifa(in_dev, ifap, 0);
 			ifa->ifa_mask = sin->sin_addr.s_addr;
 			ifa->ifa_prefixlen = inet_mask_len(ifa->ifa_mask);
@@ -728,7 +749,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 			if ((dev->flags & IFF_BROADCAST) &&
 			    (ifa->ifa_prefixlen < 31) &&
 			    (ifa->ifa_broadcast ==
-			     (ifa->ifa_local|~ifa->ifa_mask))) {
+			     (ifa->ifa_local|~old_mask))) {
 				ifa->ifa_broadcast = (ifa->ifa_local |
 						      ~sin->sin_addr.s_addr);
 			}
@@ -748,7 +769,7 @@ rarok:
 
 static int inet_gifconf(struct net_device *dev, char __user *buf, int len)
 {
-	struct in_device *in_dev = __in_dev_get(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 	struct in_ifaddr *ifa;
 	struct ifreq ifr;
 	int done = 0;
@@ -791,7 +812,7 @@ u32 inet_select_addr(const struct net_device *dev, u32 dst, int scope)
 	struct in_device *in_dev;
 
 	rcu_read_lock();
-	in_dev = __in_dev_get(dev);
+	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev)
 		goto no_in_dev;
 
@@ -818,7 +839,7 @@ no_in_dev:
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
 	for (dev = dev_base; dev; dev = dev->next) {
-		if ((in_dev = __in_dev_get(dev)) == NULL)
+		if ((in_dev = __in_dev_get_rcu(dev)) == NULL)
 			continue;
 
 		for_primary_ifa(in_dev) {
@@ -887,7 +908,7 @@ u32 inet_confirm_addr(const struct net_device *dev, u32 dst, u32 local, int scop
 
 	if (dev) {
 		rcu_read_lock();
-		if ((in_dev = __in_dev_get(dev)))
+		if ((in_dev = __in_dev_get_rcu(dev)))
 			addr = confirm_addr_indev(in_dev, dst, local, scope);
 		rcu_read_unlock();
 
@@ -897,7 +918,7 @@ u32 inet_confirm_addr(const struct net_device *dev, u32 dst, u32 local, int scop
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
 	for (dev = dev_base; dev; dev = dev->next) {
-		if ((in_dev = __in_dev_get(dev))) {
+		if ((in_dev = __in_dev_get_rcu(dev))) {
 			addr = confirm_addr_indev(in_dev, dst, local, scope);
 			if (addr)
 				break;
@@ -957,7 +978,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 			 void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct in_device *in_dev = __in_dev_get(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
 	ASSERT_RTNL();
 
@@ -1078,7 +1099,7 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 		if (idx > s_idx)
 			s_ip_idx = 0;
 		rcu_read_lock();
-		if ((in_dev = __in_dev_get(dev)) == NULL) {
+		if ((in_dev = __in_dev_get_rcu(dev)) == NULL) {
 			rcu_read_unlock();
 			continue;
 		}
@@ -1149,7 +1170,7 @@ void inet_forward_change(void)
 	for (dev = dev_base; dev; dev = dev->next) {
 		struct in_device *in_dev;
 		rcu_read_lock();
-		in_dev = __in_dev_get(dev);
+		in_dev = __in_dev_get_rcu(dev);
 		if (in_dev)
 			in_dev->cnf.forwarding = on;
 		rcu_read_unlock();

@@ -499,7 +499,7 @@ static u8 typhoon_cinergy1200s_inittab[] = {
 	0x0e, 0x23,		/* alpha_tmg = 2, beta_tmg = 3 */
 	0x10, 0x3f,		// AGC2  0x3d
 	0x11, 0x84,
-	0x12, 0xb5,		// Lock detect: -64  Carrier freq detect:on
+	0x12, 0xb9,
 	0x15, 0xc9,		// lock detector threshold
 	0x16, 0x00,
 	0x17, 0x00,
@@ -531,7 +531,6 @@ static struct stv0299_config typhoon_config = {
 	.inittab = typhoon_cinergy1200s_inittab,
 	.mclk = 88000000UL,
 	.invert = 0,
-	.enhanced_tuning = 0,
 	.skip_reinit = 0,
 	.lock_output = STV0229_LOCKOUTPUT_1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
@@ -546,7 +545,6 @@ static struct stv0299_config cinergy_1200s_config = {
 	.inittab = typhoon_cinergy1200s_inittab,
 	.mclk = 88000000UL,
 	.invert = 0,
-	.enhanced_tuning = 0,
 	.skip_reinit = 0,
 	.lock_output = STV0229_LOCKOUTPUT_0,
 	.volt13_op0_op1 = STV0299_VOLT13_OP0,
@@ -1022,6 +1020,8 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 
 static struct saa7146_extension budget_extension = {
 	.name = "budget_av",
+	.flags = SAA7146_I2C_SHORT_DELAY,
+
 	.pci_tbl = pci_tbl,
 
 	.module = THIS_MODULE,

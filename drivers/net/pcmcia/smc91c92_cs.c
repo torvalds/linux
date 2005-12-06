@@ -1832,7 +1832,7 @@ static void fill_multicast_tbl(int count, struct dev_mc_list *addrs,
 {
     struct dev_mc_list	*mc_addr;
 
-    for (mc_addr = addrs;  mc_addr && --count > 0;  mc_addr = mc_addr->next) {
+    for (mc_addr = addrs;  mc_addr && count-- > 0;  mc_addr = mc_addr->next) {
 	u_int position = ether_crc(6, mc_addr->dmi_addr);
 #ifndef final_version		/* Verify multicast address. */
 	if ((mc_addr->dmi_addr[0] & 1) == 0)

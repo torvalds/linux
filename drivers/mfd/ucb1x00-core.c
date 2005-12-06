@@ -457,6 +457,17 @@ static int ucb1x00_detect_irq(struct ucb1x00 *ucb)
 	return probe_irq_off(mask);
 }
 
+static void ucb1x00_release(struct class_device *dev)
+{
+	struct ucb1x00 *ucb = classdev_to_ucb1x00(dev);
+	kfree(ucb);
+}
+
+static struct class ucb1x00_class = {
+	.name		= "ucb1x00",
+	.release	= ucb1x00_release,
+};
+
 static int ucb1x00_probe(struct mcp *mcp)
 {
 	struct ucb1x00 *ucb;
@@ -546,17 +557,6 @@ static void ucb1x00_remove(struct mcp *mcp)
 	class_device_unregister(&ucb->cdev);
 }
 
-static void ucb1x00_release(struct class_device *dev)
-{
-	struct ucb1x00 *ucb = classdev_to_ucb1x00(dev);
-	kfree(ucb);
-}
-
-static struct class ucb1x00_class = {
-	.name		= "ucb1x00",
-	.release	= ucb1x00_release,
-};
-
 int ucb1x00_register_driver(struct ucb1x00_driver *drv)
 {
 	struct ucb1x00 *ucb;
@@ -641,8 +641,6 @@ static void __exit ucb1x00_exit(void)
 
 module_init(ucb1x00_init);
 module_exit(ucb1x00_exit);
-
-EXPORT_SYMBOL(ucb1x00_class);
 
 EXPORT_SYMBOL(ucb1x00_io_set_dir);
 EXPORT_SYMBOL(ucb1x00_io_write);

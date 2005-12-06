@@ -57,7 +57,6 @@ int sysctl_userprocess_debug = 0;
 
 extern pgm_check_handler_t do_protection_exception;
 extern pgm_check_handler_t do_dat_exception;
-extern pgm_check_handler_t do_pseudo_page_fault;
 #ifdef CONFIG_PFAULT
 extern int pfault_init(void);
 extern void pfault_fini(void);
@@ -676,20 +675,6 @@ asmlinkage void kernel_stack_overflow(struct pt_regs * regs)
 	panic("Corrupt kernel stack, can't continue.");
 }
 
-#ifndef CONFIG_ARCH_S390X
-static int
-pagex_reboot_event(struct notifier_block *this, unsigned long event, void *ptr)
-{
-	if (MACHINE_IS_VM)
-		cpcmd("SET PAGEX OFF", NULL, 0, NULL);
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block pagex_reboot_notifier = {
-	.notifier_call = &pagex_reboot_event,
-};
-#endif
-
 /* init is done in lowcore.S and head.S */
 
 void __init trap_init(void)
@@ -717,9 +702,7 @@ void __init trap_init(void)
         pgm_check_table[0x11] = &do_dat_exception;
         pgm_check_table[0x12] = &translation_exception;
         pgm_check_table[0x13] = &special_op_exception;
-#ifndef CONFIG_ARCH_S390X
- 	pgm_check_table[0x14] = &do_pseudo_page_fault;
-#else /* CONFIG_ARCH_S390X */
+#ifdef CONFIG_ARCH_S390X
         pgm_check_table[0x38] = &do_dat_exception;
 	pgm_check_table[0x39] = &do_dat_exception;
 	pgm_check_table[0x3A] = &do_dat_exception;
@@ -731,12 +714,10 @@ void __init trap_init(void)
 	pgm_check_table[0x40] = &do_monitor_call;
 
 	if (MACHINE_IS_VM) {
-		/*
-		 * First try to get pfault pseudo page faults going.
-		 * If this isn't available turn on pagex page faults.
-		 */
 #ifdef CONFIG_PFAULT
-		/* request the 0x2603 external interrupt */
+		/*
+		 * Try to get pfault pseudo page faults going.
+		 */
 		if (register_early_external_interrupt(0x2603, pfault_interrupt,
 						      &ext_int_pfault) != 0)
 			panic("Couldn't request external interrupt 0x2603");
@@ -747,10 +728,6 @@ void __init trap_init(void)
 		/* Tough luck, no pfault. */
 		unregister_early_external_interrupt(0x2603, pfault_interrupt,
 						    &ext_int_pfault);
-#endif
-#ifndef CONFIG_ARCH_S390X
-		register_reboot_notifier(&pagex_reboot_notifier);
-		cpcmd("SET PAGEX ON", NULL, 0, NULL);
 #endif
 	}
 }

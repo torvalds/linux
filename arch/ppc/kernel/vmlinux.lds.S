@@ -149,32 +149,6 @@ SECTIONS
 
   . = ALIGN(4096);
   _sextratext = .;
-  __pmac_begin = .;
-  .pmac.text : { *(.pmac.text) }
-  .pmac.data : { *(.pmac.data) }
-  . = ALIGN(4096);
-  __pmac_end = .;
-
-  . = ALIGN(4096);
-  __prep_begin = .;
-  .prep.text : { *(.prep.text) }
-  .prep.data : { *(.prep.data) }
-  . = ALIGN(4096);
-  __prep_end = .;
-
-  . = ALIGN(4096);
-  __chrp_begin = .;
-  .chrp.text : { *(.chrp.text) }
-  .chrp.data : { *(.chrp.data) }
-  . = ALIGN(4096);
-  __chrp_end = .;
-
-  . = ALIGN(4096);
-  __openfirmware_begin = .;
-  .openfirmware.text : { *(.openfirmware.text) }
-  .openfirmware.data : { *(.openfirmware.data) }
-  . = ALIGN(4096);
-  __openfirmware_end = .;
   _eextratext = .;
 
   __bss_start = .;

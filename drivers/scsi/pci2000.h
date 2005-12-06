@@ -26,9 +26,6 @@
 #ifndef	PSI_EIDE_SCSIOP
 #define	PSI_EIDE_SCSIOP	1
 
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif 
 #define	LINUXVERSION(v,p,s)    (((v)<<16) + ((p)<<8) + (s))
 
 /************************************************/
@@ -187,7 +184,7 @@ typedef struct _INQUIRYDATA
 #endif
 
 // function prototypes
-int Pci2000_Detect			(Scsi_Host_Template *tpnt);
+int Pci2000_Detect			(struct scsi_host_template *tpnt);
 int Pci2000_Command			(Scsi_Cmnd *SCpnt);
 int Pci2000_QueueCommand	(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *));
 int Pci2000_Abort			(Scsi_Cmnd *SCpnt);

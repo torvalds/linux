@@ -24,7 +24,8 @@ extern spinlock_t key_serial_lock;
 #define	KEY_WRITE	0x04	/* require permission to update / modify */
 #define	KEY_SEARCH	0x08	/* require permission to search (keyring) or find (key) */
 #define	KEY_LINK	0x10	/* require permission to link */
-#define	KEY_ALL		0x1f	/* all the above permissions */
+#define	KEY_SETATTR	0x20	/* require permission to change attributes */
+#define	KEY_ALL		0x3f	/* all the above permissions */
 
 /*
  * the keyring payload contains a list of the keys to which the keyring is
@@ -38,92 +39,21 @@ struct keyring_list {
 	struct key	*keys[0];
 };
 
-
 /*
  * check to see whether permission is granted to use a key in the desired way
  */
-static inline int key_permission(const struct key *key, key_perm_t perm)
+extern int key_task_permission(const key_ref_t key_ref,
+			       struct task_struct *context,
+			       key_perm_t perm);
+
+static inline int key_permission(const key_ref_t key_ref, key_perm_t perm)
 {
-	key_perm_t kperm;
-
-	if (key->uid == current->fsuid)
-		kperm = key->perm >> 16;
-	else if (key->gid != -1 &&
-		 key->perm & KEY_GRP_ALL &&
-		 in_group_p(key->gid)
-		 )
-		kperm = key->perm >> 8;
-	else
-		kperm = key->perm;
-
-	kperm = kperm & perm & KEY_ALL;
-
-	return kperm == perm;
+	return key_task_permission(key_ref, current, perm);
 }
 
-/*
- * check to see whether permission is granted to use a key in at least one of
- * the desired ways
- */
-static inline int key_any_permission(const struct key *key, key_perm_t perm)
-{
-	key_perm_t kperm;
-
-	if (key->uid == current->fsuid)
-		kperm = key->perm >> 16;
-	else if (key->gid != -1 &&
-		 key->perm & KEY_GRP_ALL &&
-		 in_group_p(key->gid)
-		 )
-		kperm = key->perm >> 8;
-	else
-		kperm = key->perm;
-
-	kperm = kperm & perm & KEY_ALL;
-
-	return kperm != 0;
-}
-
-static inline int key_task_groups_search(struct task_struct *tsk, gid_t gid)
-{
-	int ret;
-
-	task_lock(tsk);
-	ret = groups_search(tsk->group_info, gid);
-	task_unlock(tsk);
-	return ret;
-}
-
-static inline int key_task_permission(const struct key *key,
-				      struct task_struct *context,
-				      key_perm_t perm)
-{
-	key_perm_t kperm;
-
-	if (key->uid == context->fsuid) {
-		kperm = key->perm >> 16;
-	}
-	else if (key->gid != -1 &&
-		 key->perm & KEY_GRP_ALL && (
-			 key->gid == context->fsgid ||
-			 key_task_groups_search(context, key->gid)
-			 )
-		 ) {
-		kperm = key->perm >> 8;
-	}
-	else {
-		kperm = key->perm;
-	}
-
-	kperm = kperm & perm & KEY_ALL;
-
-	return kperm == perm;
-
-}
-
-extern struct key *lookup_user_key(struct task_struct *context,
-				   key_serial_t id, int create, int partial,
-				   key_perm_t perm);
+extern key_ref_t lookup_user_key(struct task_struct *context,
+				 key_serial_t id, int create, int partial,
+				 key_perm_t perm);
 
 extern long join_session_keyring(const char *name);
 

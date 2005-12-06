@@ -525,8 +525,7 @@ reinsert:
 	return 0;
 
 errout:
-	if (f)
-		kfree(f);
+	kfree(f);
 	return err;
 }
 

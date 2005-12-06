@@ -12,20 +12,18 @@
  */
 
 #include <linux/device.h>
+#include <linux/string.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/hardware/scoop.h>
 
 #define SCOOP_REG(d,adr) (*(volatile unsigned short*)(d +(adr)))
 
-/* PCMCIA to Scoop linkage structures for pxa2xx_sharpsl.c
-   There is no easy way to link multiple scoop devices into one
-   single entity for the pxa2xx_pcmcia device */
-int scoop_num;
-struct scoop_pcmcia_dev *scoop_devs;
-
 struct  scoop_dev {
 	void  *base;
 	spinlock_t scoop_lock;
+	unsigned short suspend_clr;
+	unsigned short suspend_set;
 	u32 scoop_gpwr;
 };
 
@@ -90,25 +88,34 @@ EXPORT_SYMBOL(reset_scoop);
 EXPORT_SYMBOL(read_scoop_reg);
 EXPORT_SYMBOL(write_scoop_reg);
 
-#ifdef CONFIG_PM
-static int scoop_suspend(struct device *dev, pm_message_t state, uint32_t level)
+static void check_scoop_reg(struct scoop_dev *sdev)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		struct scoop_dev *sdev = dev_get_drvdata(dev);
+	unsigned short mcr;
 
-		sdev->scoop_gpwr = SCOOP_REG(sdev->base,SCOOP_GPWR);
-		SCOOP_REG(sdev->base,SCOOP_GPWR) = 0;
-	}
+	mcr = SCOOP_REG(sdev->base, SCOOP_MCR);
+	if ((mcr & 0x100) == 0)
+		SCOOP_REG(sdev->base, SCOOP_MCR) = 0x0101;
+}
+
+#ifdef CONFIG_PM
+static int scoop_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct scoop_dev *sdev = platform_get_drvdata(dev);
+
+	check_scoop_reg(sdev);
+	sdev->scoop_gpwr = SCOOP_REG(sdev->base, SCOOP_GPWR);
+	SCOOP_REG(sdev->base, SCOOP_GPWR) = (sdev->scoop_gpwr & ~sdev->suspend_clr) | sdev->suspend_set;
+
 	return 0;
 }
 
-static int scoop_resume(struct device *dev, uint32_t level)
+static int scoop_resume(struct platform_device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		struct scoop_dev *sdev = dev_get_drvdata(dev);
+	struct scoop_dev *sdev = platform_get_drvdata(dev);
 
-		SCOOP_REG(sdev->base,SCOOP_GPWR) = sdev->scoop_gpwr;
-	}
+	check_scoop_reg(sdev);
+	SCOOP_REG(sdev->base,SCOOP_GPWR) = sdev->scoop_gpwr;
+
 	return 0;
 }
 #else
@@ -116,11 +123,10 @@ static int scoop_resume(struct device *dev, uint32_t level)
 #define scoop_resume	NULL
 #endif
 
-int __init scoop_probe(struct device *dev)
+int __init scoop_probe(struct platform_device *pdev)
 {
 	struct scoop_dev *devptr;
 	struct scoop_config *inf;
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	if (!mem)
@@ -134,7 +140,7 @@ int __init scoop_probe(struct device *dev)
 	memset(devptr, 0, sizeof(struct scoop_dev));
 	spin_lock_init(&devptr->scoop_lock);
 
-	inf = dev->platform_data;
+	inf = pdev->dev.platform_data;
 	devptr->base = ioremap(mem->start, mem->end - mem->start + 1);
 
 	if (!devptr->base) {
@@ -142,41 +148,45 @@ int __init scoop_probe(struct device *dev)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(dev, devptr);
+	platform_set_drvdata(pdev, devptr);
 
 	printk("Sharp Scoop Device found at 0x%08x -> 0x%08x\n",(unsigned int)mem->start,(unsigned int)devptr->base);
 
 	SCOOP_REG(devptr->base, SCOOP_MCR) = 0x0140;
-	reset_scoop(dev);
+	reset_scoop(&pdev->dev);
 	SCOOP_REG(devptr->base, SCOOP_GPCR) = inf->io_dir & 0xffff;
 	SCOOP_REG(devptr->base, SCOOP_GPWR) = inf->io_out & 0xffff;
+
+	devptr->suspend_clr = inf->suspend_clr;
+	devptr->suspend_set = inf->suspend_set;
 
 	return 0;
 }
 
-static int scoop_remove(struct device *dev)
+static int scoop_remove(struct platform_device *pdev)
 {
-	struct scoop_dev *sdev = dev_get_drvdata(dev);
+	struct scoop_dev *sdev = platform_get_drvdata(pdev);
 	if (sdev) {
 		iounmap(sdev->base);
 		kfree(sdev);
-		dev_set_drvdata(dev, NULL);
+		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }
 
-static struct device_driver scoop_driver = {
-	.name		= "sharp-scoop",
-	.bus		= &platform_bus_type,
+static struct platform_driver scoop_driver = {
 	.probe		= scoop_probe,
 	.remove 	= scoop_remove,
 	.suspend	= scoop_suspend,
 	.resume		= scoop_resume,
+	.driver		= {
+		.name	= "sharp-scoop",
+	},
 };
 
 int __init scoop_init(void)
 {
-	return driver_register(&scoop_driver);
+	return platform_driver_register(&scoop_driver);
 }
 
 subsys_initcall(scoop_init);

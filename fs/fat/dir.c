@@ -222,6 +222,80 @@ fat_shortname2uni(struct nls_table *nls, unsigned char *buf, int buf_size,
 	return len;
 }
 
+enum { PARSE_INVALID = 1, PARSE_NOT_LONGNAME, PARSE_EOF, };
+
+/**
+ * fat_parse_long - Parse extended directory entry.
+ *
+ * This function returns zero on success, negative value on error, or one of
+ * the following:
+ *
+ * %PARSE_INVALID - Directory entry is invalid.
+ * %PARSE_NOT_LONGNAME - Directory entry does not contain longname.
+ * %PARSE_EOF - Directory has no more entries.
+ */
+static int fat_parse_long(struct inode *dir, loff_t *pos,
+			  struct buffer_head **bh, struct msdos_dir_entry **de,
+			  wchar_t **unicode, unsigned char *nr_slots)
+{
+	struct msdos_dir_slot *ds;
+	unsigned char id, slot, slots, alias_checksum;
+
+	if (!*unicode) {
+		*unicode = (wchar_t *)__get_free_page(GFP_KERNEL);
+		if (!*unicode) {
+			brelse(*bh);
+			return -ENOMEM;
+		}
+	}
+parse_long:
+	slots = 0;
+	ds = (struct msdos_dir_slot *)*de;
+	id = ds->id;
+	if (!(id & 0x40))
+		return PARSE_INVALID;
+	slots = id & ~0x40;
+	if (slots > 20 || !slots)	/* ceil(256 * 2 / 26) */
+		return PARSE_INVALID;
+	*nr_slots = slots;
+	alias_checksum = ds->alias_checksum;
+
+	slot = slots;
+	while (1) {
+		int offset;
+
+		slot--;
+		offset = slot * 13;
+		fat16_towchar(*unicode + offset, ds->name0_4, 5);
+		fat16_towchar(*unicode + offset + 5, ds->name5_10, 6);
+		fat16_towchar(*unicode + offset + 11, ds->name11_12, 2);
+
+		if (ds->id & 0x40)
+			(*unicode)[offset + 13] = 0;
+		if (fat_get_entry(dir, pos, bh, de) < 0)
+			return PARSE_EOF;
+		if (slot == 0)
+			break;
+		ds = (struct msdos_dir_slot *)*de;
+		if (ds->attr != ATTR_EXT)
+			return PARSE_NOT_LONGNAME;
+		if ((ds->id & ~0x40) != slot)
+			goto parse_long;
+		if (ds->alias_checksum != alias_checksum)
+			goto parse_long;
+	}
+	if ((*de)->name[0] == DELETED_FLAG)
+		return PARSE_INVALID;
+	if ((*de)->attr == ATTR_EXT)
+		goto parse_long;
+	if (IS_FREE((*de)->name) || ((*de)->attr & ATTR_VOLUME))
+		return PARSE_INVALID;
+	if (fat_checksum((*de)->name) != alias_checksum)
+		*nr_slots = 0;
+
+	return 0;
+}
+
 /*
  * Return values: negative -> error, 0 -> not found, positive -> found,
  * value is the total amount of slots, including the shortname entry.
@@ -259,68 +333,16 @@ parse_record:
 		if (de->attr != ATTR_EXT && IS_FREE(de->name))
 			continue;
 		if (de->attr == ATTR_EXT) {
-			struct msdos_dir_slot *ds;
-			unsigned char id;
-			unsigned char slot;
-			unsigned char slots;
-			unsigned char sum;
-			unsigned char alias_checksum;
-
-			if (!unicode) {
-				unicode = (wchar_t *)
-					__get_free_page(GFP_KERNEL);
-				if (!unicode) {
-					brelse(bh);
-					return -ENOMEM;
-				}
-			}
-parse_long:
-			slots = 0;
-			ds = (struct msdos_dir_slot *) de;
-			id = ds->id;
-			if (!(id & 0x40))
+			int status = fat_parse_long(inode, &cpos, &bh, &de,
+						    &unicode, &nr_slots);
+			if (status < 0)
+				return status;
+			else if (status == PARSE_INVALID)
 				continue;
-			slots = id & ~0x40;
-			if (slots > 20 || !slots)	/* ceil(256 * 2 / 26) */
-				continue;
-			nr_slots = slots;
-			alias_checksum = ds->alias_checksum;
-
-			slot = slots;
-			while (1) {
-				int offset;
-
-				slot--;
-				offset = slot * 13;
-				fat16_towchar(unicode + offset, ds->name0_4, 5);
-				fat16_towchar(unicode + offset + 5, ds->name5_10, 6);
-				fat16_towchar(unicode + offset + 11, ds->name11_12, 2);
-
-				if (ds->id & 0x40) {
-					unicode[offset + 13] = 0;
-				}
-				if (fat_get_entry(inode, &cpos, &bh, &de) < 0)
-					goto EODir;
-				if (slot == 0)
-					break;
-				ds = (struct msdos_dir_slot *) de;
-				if (ds->attr !=  ATTR_EXT)
-					goto parse_record;
-				if ((ds->id & ~0x40) != slot)
-					goto parse_long;
-				if (ds->alias_checksum != alias_checksum)
-					goto parse_long;
-			}
-			if (de->name[0] == DELETED_FLAG)
-				continue;
-			if (de->attr ==  ATTR_EXT)
-				goto parse_long;
-			if (IS_FREE(de->name) || (de->attr & ATTR_VOLUME))
-				continue;
-			for (sum = 0, i = 0; i < 11; i++)
-				sum = (((sum&1)<<7)|((sum&0xfe)>>1)) + de->name[i];
-			if (sum != alias_checksum)
-				nr_slots = 0;
+			else if (status == PARSE_NOT_LONGNAME)
+				goto parse_record;
+			else if (status == PARSE_EOF)
+				goto EODir;
 		}
 
 		memcpy(work, de->name, sizeof(de->name));
@@ -408,8 +430,8 @@ struct fat_ioctl_filldir_callback {
 	int short_len;
 };
 
-static int fat_readdirx(struct inode *inode, struct file *filp, void *dirent,
-			filldir_t filldir, int short_only, int both)
+static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
+			 filldir_t filldir, int short_only, int both)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
@@ -458,9 +480,10 @@ static int fat_readdirx(struct inode *inode, struct file *filp, void *dirent,
 
 	bh = NULL;
 GetNew:
-	long_slots = 0;
 	if (fat_get_entry(inode, &cpos, &bh, &de) == -1)
 		goto EODir;
+parse_record:
+	long_slots = 0;
 	/* Check for long filename entry */
 	if (isvfat) {
 		if (de->name[0] == DELETED_FLAG)
@@ -475,69 +498,18 @@ GetNew:
 	}
 
 	if (isvfat && de->attr == ATTR_EXT) {
-		struct msdos_dir_slot *ds;
-		unsigned char id;
-		unsigned char slot;
-		unsigned char slots;
-		unsigned char sum;
-		unsigned char alias_checksum;
-
-		if (!unicode) {
-			unicode = (wchar_t *)__get_free_page(GFP_KERNEL);
-			if (!unicode) {
-				filp->f_pos = cpos;
-				brelse(bh);
-				ret = -ENOMEM;
-				goto out;
-			}
-		}
-ParseLong:
-		slots = 0;
-		ds = (struct msdos_dir_slot *) de;
-		id = ds->id;
-		if (!(id & 0x40))
+		int status = fat_parse_long(inode, &cpos, &bh, &de,
+					    &unicode, &long_slots);
+		if (status < 0) {
+			filp->f_pos = cpos;
+			ret = status;
+			goto out;
+		} else if (status == PARSE_INVALID)
 			goto RecEnd;
-		slots = id & ~0x40;
-		if (slots > 20 || !slots)	/* ceil(256 * 2 / 26) */
-			goto RecEnd;
-		long_slots = slots;
-		alias_checksum = ds->alias_checksum;
-
-		slot = slots;
-		while (1) {
-			int offset;
-
-			slot--;
-			offset = slot * 13;
-			fat16_towchar(unicode + offset, ds->name0_4, 5);
-			fat16_towchar(unicode + offset + 5, ds->name5_10, 6);
-			fat16_towchar(unicode + offset + 11, ds->name11_12, 2);
-
-			if (ds->id & 0x40) {
-				unicode[offset + 13] = 0;
-			}
-			if (fat_get_entry(inode, &cpos, &bh, &de) == -1)
-				goto EODir;
-			if (slot == 0)
-				break;
-			ds = (struct msdos_dir_slot *) de;
-			if (ds->attr !=  ATTR_EXT)
-				goto RecEnd;	/* XXX */
-			if ((ds->id & ~0x40) != slot)
-				goto ParseLong;
-			if (ds->alias_checksum != alias_checksum)
-				goto ParseLong;
-		}
-		if (de->name[0] == DELETED_FLAG)
-			goto RecEnd;
-		if (de->attr ==  ATTR_EXT)
-			goto ParseLong;
-		if (IS_FREE(de->name) || (de->attr & ATTR_VOLUME))
-			goto RecEnd;
-		for (sum = 0, i = 0; i < 11; i++)
-			sum = (((sum&1)<<7)|((sum&0xfe)>>1)) + de->name[i];
-		if (sum != alias_checksum)
-			long_slots = 0;
+		else if (status == PARSE_NOT_LONGNAME)
+			goto parse_record;
+		else if (status == PARSE_EOF)
+			goto EODir;
 	}
 
 	if (sbi->options.dotsOK) {
@@ -671,7 +643,7 @@ out:
 static int fat_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
-	return fat_readdirx(inode, filp, dirent, filldir, 0, 0);
+	return __fat_readdir(inode, filp, dirent, filldir, 0, 0);
 }
 
 static int fat_ioctl_filldir(void *__buf, const char *name, int name_len,
@@ -760,8 +732,8 @@ static int fat_dir_ioctl(struct inode * inode, struct file * filp,
 	down(&inode->i_sem);
 	ret = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
-		ret = fat_readdirx(inode, filp, &buf, fat_ioctl_filldir,
-				   short_only, both);
+		ret = __fat_readdir(inode, filp, &buf, fat_ioctl_filldir,
+				    short_only, both);
 	}
 	up(&inode->i_sem);
 	if (ret >= 0)

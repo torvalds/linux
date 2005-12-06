@@ -62,10 +62,6 @@ void lpfc_disc_timeout(unsigned long);
 void lpfc_scan_timeout(unsigned long);
 
 struct lpfc_nodelist *lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi);
-struct lpfc_nodelist *lpfc_findnode_remove_rpi(struct lpfc_hba * phba,
-					       uint16_t rpi);
-void lpfc_addnode_rpi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
-		      uint16_t rpi);
 
 int lpfc_workq_post_event(struct lpfc_hba *, void *, void *, uint32_t);
 int lpfc_do_work(void *);
@@ -147,6 +143,9 @@ LPFC_MBOXQ_t *lpfc_mbox_get(struct lpfc_hba *);
 int lpfc_mem_alloc(struct lpfc_hba *);
 void lpfc_mem_free(struct lpfc_hba *);
 
+struct lpfc_iocbq * lpfc_sli_get_iocbq(struct lpfc_hba *);
+void lpfc_sli_release_iocbq(struct lpfc_hba * phba, struct lpfc_iocbq * iocb);
+uint16_t lpfc_sli_next_iotag(struct lpfc_hba * phba, struct lpfc_iocbq * iocb);
 int lpfc_sli_hba_setup(struct lpfc_hba *);
 int lpfc_sli_hba_down(struct lpfc_hba *);
 int lpfc_sli_issue_mbox(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
@@ -182,15 +181,11 @@ struct lpfc_nodelist *lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order,
 int lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 			 uint32_t timeout);
 
-int lpfc_sli_issue_iocb_wait_high_priority(struct lpfc_hba * phba,
-					   struct lpfc_sli_ring * pring,
-					   struct lpfc_iocbq * piocb,
-					   uint32_t flag,
-					   struct lpfc_iocbq * prspiocbq,
-					   uint32_t timeout);
-void lpfc_sli_wake_iocb_high_priority(struct lpfc_hba * phba,
-				      struct lpfc_iocbq * queue1,
-				      struct lpfc_iocbq * queue2);
+int lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
+			     struct lpfc_sli_ring * pring,
+			     struct lpfc_iocbq * piocb,
+			     struct lpfc_iocbq * prspiocbq,
+			     uint32_t timeout);
 void lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba,
 			     struct lpfc_iocbq * cmdiocb,
 			     struct lpfc_iocbq * rspiocb);

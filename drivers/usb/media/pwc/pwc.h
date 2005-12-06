@@ -25,8 +25,6 @@
 #ifndef PWC_H
 #define PWC_H
 
-#include <linux/version.h>
-
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/usb.h>

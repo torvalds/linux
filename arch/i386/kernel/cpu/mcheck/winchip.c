@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 
 #include <asm/processor.h> 
@@ -23,7 +22,7 @@ static fastcall void winchip_machine_check(struct pt_regs * regs, long error_cod
 }
 
 /* Set up machine check reporting on the Winchip C6 series */
-void __devinit winchip_mcheck_init(struct cpuinfo_x86 *c)
+void winchip_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 lo, hi;
 	machine_check_vector = winchip_machine_check;

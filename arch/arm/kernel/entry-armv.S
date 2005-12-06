@@ -15,6 +15,7 @@
  */
 #include <linux/config.h>
 
+#include <asm/memory.h>
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
 #include <asm/hardware.h>		/* should be moved into entry-macro.S */
@@ -46,6 +47,13 @@
 	movne	r0, sp
 	adrne	lr, 1b
 	bne	do_IPI
+
+#ifdef CONFIG_LOCAL_TIMERS
+	test_for_ltirq r0, r6, r5, lr
+	movne	r0, sp
+	adrne	lr, 1b
+	bne	do_local_timer
+#endif
 #endif
 
 	.endm
@@ -310,7 +318,7 @@ __pabt_svc:
 
 #if __LINUX_ARM_ARCH__ < 6 && !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
 	@ make sure our user space atomic helper is aborted
-	cmp	r2, #VIRT_OFFSET
+	cmp	r2, #TASK_SIZE
 	bichs	r3, r3, #PSR_Z_BIT
 #endif
 
@@ -537,7 +545,7 @@ ENTRY(__switch_to)
 #ifdef CONFIG_CPU_MPCORE
 	clrex
 #else
-	strex	r3, r4, [ip]			@ Clear exclusive monitor
+	strex	r5, r4, [ip]			@ Clear exclusive monitor
 #endif
 #endif
 #if defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_IWMMXT)
@@ -784,7 +792,7 @@ __kuser_helper_end:
  * SP points to a minimal amount of processor-private memory, the address
  * of which is copied into r0 for the mode specific abort handler.
  */
-	.macro	vector_stub, name, correction=0
+	.macro	vector_stub, name, mode, correction=0
 	.align	5
 
 vector_\name:
@@ -804,15 +812,14 @@ vector_\name:
 	@ Prepare for SVC32 mode.  IRQs remain disabled.
 	@
 	mrs	r0, cpsr
-	bic	r0, r0, #MODE_MASK
-	orr	r0, r0, #SVC_MODE
+	eor	r0, r0, #(\mode ^ SVC_MODE)
 	msr	spsr_cxsf, r0
 
 	@
 	@ the branch table must immediately follow this code
 	@
-	mov	r0, sp
 	and	lr, lr, #0x0f
+	mov	r0, sp
 	ldr	lr, [pc, lr, lsl #2]
 	movs	pc, lr			@ branch to handler in SVC mode
 	.endm
@@ -822,7 +829,7 @@ __stubs_start:
 /*
  * Interrupt dispatcher
  */
-	vector_stub	irq, 4
+	vector_stub	irq, IRQ_MODE, 4
 
 	.long	__irq_usr			@  0  (USR_26 / USR_32)
 	.long	__irq_invalid			@  1  (FIQ_26 / FIQ_32)
@@ -845,7 +852,7 @@ __stubs_start:
  * Data abort dispatcher
  * Enter in ABT mode, spsr = USR CPSR, lr = USR PC
  */
-	vector_stub	dabt, 8
+	vector_stub	dabt, ABT_MODE, 8
 
 	.long	__dabt_usr			@  0  (USR_26 / USR_32)
 	.long	__dabt_invalid			@  1  (FIQ_26 / FIQ_32)
@@ -868,7 +875,7 @@ __stubs_start:
  * Prefetch abort dispatcher
  * Enter in ABT mode, spsr = USR CPSR, lr = USR PC
  */
-	vector_stub	pabt, 4
+	vector_stub	pabt, ABT_MODE, 4
 
 	.long	__pabt_usr			@  0 (USR_26 / USR_32)
 	.long	__pabt_invalid			@  1 (FIQ_26 / FIQ_32)
@@ -891,7 +898,7 @@ __stubs_start:
  * Undef instr entry dispatcher
  * Enter in UND mode, spsr = SVC/USR CPSR, lr = SVC/USR PC
  */
-	vector_stub	und
+	vector_stub	und, UND_MODE
 
 	.long	__und_usr			@  0 (USR_26 / USR_32)
 	.long	__und_invalid			@  1 (FIQ_26 / FIQ_32)

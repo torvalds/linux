@@ -158,13 +158,14 @@ void __pnp_remove_device(struct pnp_dev *dev)
  *
  * this function will free all mem used by dev
  */
-
+#if 0
 void pnp_remove_device(struct pnp_dev *dev)
 {
 	if (!dev || dev->card)
 		return;
 	__pnp_remove_device(dev);
 }
+#endif  /*  0  */
 
 static int __init pnp_init(void)
 {
@@ -174,7 +175,9 @@ static int __init pnp_init(void)
 
 subsys_initcall(pnp_init);
 
+#if 0
 EXPORT_SYMBOL(pnp_register_protocol);
 EXPORT_SYMBOL(pnp_unregister_protocol);
 EXPORT_SYMBOL(pnp_add_device);
 EXPORT_SYMBOL(pnp_remove_device);
+#endif  /*  0  */

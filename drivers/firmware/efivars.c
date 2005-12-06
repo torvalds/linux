@@ -614,16 +614,14 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	char *short_name;
 	struct efivar_entry *new_efivar;
 
-	short_name = kmalloc(short_name_size + 1, GFP_KERNEL);
-	new_efivar = kmalloc(sizeof(struct efivar_entry), GFP_KERNEL);
+	short_name = kzalloc(short_name_size + 1, GFP_KERNEL);
+	new_efivar = kzalloc(sizeof(struct efivar_entry), GFP_KERNEL);
 
 	if (!short_name || !new_efivar)  {
 		kfree(short_name);
 		kfree(new_efivar);
 		return 1;
 	}
-	memset(short_name, 0, short_name_size+1);
-	memset(new_efivar, 0, sizeof(struct efivar_entry));
 
 	memcpy(new_efivar->var.VariableName, variable_name,
 		variable_name_size);
@@ -674,13 +672,11 @@ efivars_init(void)
 	if (!efi_enabled)
 		return -ENODEV;
 
-	variable_name = kmalloc(variable_name_size, GFP_KERNEL);
+	variable_name = kzalloc(variable_name_size, GFP_KERNEL);
 	if (!variable_name) {
 		printk(KERN_ERR "efivars: Memory allocation failed.\n");
 		return -ENOMEM;
 	}
-
-	memset(variable_name, 0, variable_name_size);
 
 	printk(KERN_INFO "EFI Variables Facility v%s %s\n", EFIVARS_VERSION,
 	       EFIVARS_DATE);

@@ -518,11 +518,7 @@ static void sunsu_change_mouse_baud(struct uart_sunsu_port *up)
 
 	quot = up->port.uartclk / (16 * new_baud);
 
-	spin_unlock(&up->port.lock);
-
 	sunsu_change_speed(&up->port, up->cflag, 0, quot);
-
-	spin_lock(&up->port.lock);
 }
 
 static void receive_kbd_ms_chars(struct uart_sunsu_port *up, struct pt_regs *regs, int is_break)
@@ -1445,7 +1441,7 @@ static void sunsu_console_write(struct console *co, const char *s,
  *	- initialize the serial port
  *	Return non-zero if we didn't find a serial port.
  */
-static int __init sunsu_console_setup(struct console *co, char *options)
+static int sunsu_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	int baud = 9600;

@@ -8,7 +8,7 @@
 
 #include <asm/arch/irq.h>
 
-extern __inline__ int irq_canonicalize(int irq)
+static inline int irq_canonicalize(int irq)
 {  
   return irq; 
 }

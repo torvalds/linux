@@ -70,6 +70,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb_isp116x.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -326,7 +327,8 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 					usb_settoggle(udev, ep->epnum,
 						      ep->nextpid ==
 						      USB_PID_OUT,
-						      PTD_GET_TOGGLE(ptd) ^ 1);
+						      PTD_GET_TOGGLE(ptd));
+				urb->actual_length += PTD_GET_COUNT(ptd);
 				urb->status = cc_to_error[TD_DATAUNDERRUN];
 				spin_unlock(&urb->lock);
 				continue;
@@ -637,7 +639,7 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 				  + msecs_to_jiffies(20) + 1);
 		if (intstat & HCINT_RD) {
 			DBG("---- remote wakeup\n");
-			schedule_work(&isp116x->rh_resume);
+			usb_hcd_resume_root_hub(hcd);
 			ret = IRQ_HANDLED;
 		}
 		irqstat &= ~HCuPINT_OPR;
@@ -693,7 +695,7 @@ static int balance(struct isp116x *isp116x, u16 period, u16 load)
 
 static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 			       struct usb_host_endpoint *hep, struct urb *urb,
-			       unsigned mem_flags)
+			       gfp_t mem_flags)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	struct usb_device *udev = urb->dev;
@@ -1159,7 +1161,7 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 
 #ifdef	CONFIG_PM
 
-static int isp116x_hub_suspend(struct usb_hcd *hcd)
+static int isp116x_bus_suspend(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	unsigned long flags;
@@ -1199,7 +1201,7 @@ static int isp116x_hub_suspend(struct usb_hcd *hcd)
 	return ret;
 }
 
-static int isp116x_hub_resume(struct usb_hcd *hcd)
+static int isp116x_bus_resume(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	u32 val;
@@ -1262,21 +1264,11 @@ static int isp116x_hub_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
-static void isp116x_rh_resume(void *_hcd)
-{
-	struct usb_hcd *hcd = _hcd;
-
-	usb_resume_device(hcd->self.root_hub);
-}
 
 #else
 
-#define	isp116x_hub_suspend	NULL
-#define	isp116x_hub_resume	NULL
-
-static void isp116x_rh_resume(void *_hcd)
-{
-}
+#define	isp116x_bus_suspend	NULL
+#define	isp116x_bus_resume	NULL
 
 #endif
 
@@ -1635,23 +1627,21 @@ static struct hc_driver isp116x_hc_driver = {
 
 	.hub_status_data = isp116x_hub_status_data,
 	.hub_control = isp116x_hub_control,
-	.hub_suspend = isp116x_hub_suspend,
-	.hub_resume = isp116x_hub_resume,
+	.bus_suspend = isp116x_bus_suspend,
+	.bus_resume = isp116x_bus_resume,
 };
 
 /*----------------------------------------------------------------*/
 
-static int __init_or_module isp116x_remove(struct device *dev)
+static int __init_or_module isp116x_remove(struct platform_device *pdev)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct isp116x *isp116x;
-	struct platform_device *pdev;
 	struct resource *res;
 
 	if (!hcd)
 		return 0;
 	isp116x = hcd_to_isp116x(hcd);
-	pdev = container_of(dev, struct platform_device, dev);
 	remove_debug_file(isp116x);
 	usb_remove_hcd(hcd);
 
@@ -1668,18 +1658,16 @@ static int __init_or_module isp116x_remove(struct device *dev)
 
 #define resource_len(r) (((r)->end - (r)->start) + 1)
 
-static int __init isp116x_probe(struct device *dev)
+static int __init isp116x_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct isp116x *isp116x;
-	struct platform_device *pdev;
 	struct resource *addr, *data;
 	void __iomem *addr_reg;
 	void __iomem *data_reg;
 	int irq;
 	int ret = 0;
 
-	pdev = container_of(dev, struct platform_device, dev);
 	if (pdev->num_resources < 3) {
 		ret = -ENODEV;
 		goto err1;
@@ -1693,7 +1681,7 @@ static int __init isp116x_probe(struct device *dev)
 		goto err1;
 	}
 
-	if (dev->dma_mask) {
+	if (pdev->dev.dma_mask) {
 		DBG("DMA not supported\n");
 		ret = -EINVAL;
 		goto err1;
@@ -1719,7 +1707,7 @@ static int __init isp116x_probe(struct device *dev)
 	}
 
 	/* allocate and initialize hcd */
-	hcd = usb_create_hcd(&isp116x_hc_driver, dev, dev->bus_id);
+	hcd = usb_create_hcd(&isp116x_hc_driver, &pdev->dev, pdev->dev.bus_id);
 	if (!hcd) {
 		ret = -ENOMEM;
 		goto err5;
@@ -1731,8 +1719,7 @@ static int __init isp116x_probe(struct device *dev)
 	isp116x->addr_reg = addr_reg;
 	spin_lock_init(&isp116x->lock);
 	INIT_LIST_HEAD(&isp116x->async);
-	INIT_WORK(&isp116x->rh_resume, isp116x_rh_resume, hcd);
-	isp116x->board = dev->platform_data;
+	isp116x->board = pdev->dev.platform_data;
 
 	if (!isp116x->board) {
 		ERR("Platform data structure not initialized\n");
@@ -1773,22 +1760,13 @@ static int __init isp116x_probe(struct device *dev)
 /*
   Suspend of platform device
 */
-static int isp116x_suspend(struct device *dev, pm_message_t state, u32 phase)
+static int isp116x_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int ret = 0;
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
-	VDBG("%s: state %x, phase %x\n", __func__, state, phase);
+	VDBG("%s: state %x\n", __func__, state);
 
-	if (phase != SUSPEND_DISABLE && phase != SUSPEND_POWER_DOWN)
-		return 0;
-
-	ret = usb_suspend_device(hcd->self.root_hub, state);
-	if (!ret) {
-		dev->power.power_state = state;
-		INFO("%s suspended\n", hcd_name);
-	} else
-		ERR("%s suspend failed\n", hcd_name);
+	dev->dev.power.power_state = state;
 
 	return ret;
 }
@@ -1796,21 +1774,14 @@ static int isp116x_suspend(struct device *dev, pm_message_t state, u32 phase)
 /*
   Resume platform device
 */
-static int isp116x_resume(struct device *dev, u32 phase)
+static int isp116x_resume(struct platform_device *dev)
 {
 	int ret = 0;
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
-	VDBG("%s:  state %x, phase %x\n", __func__, dev->power.power_state,
-	     phase);
-	if (phase != RESUME_POWER_ON)
-		return 0;
+	VDBG("%s:  state %x\n", __func__, dev->dev.power.power_state);
 
-	ret = usb_resume_device(hcd->self.root_hub);
-	if (!ret) {
-		dev->power.power_state = PMSG_ON;
-		VDBG("%s resumed\n", (char *)hcd_name);
-	}
+	dev->dev.power.power_state = PMSG_ON;
+
 	return ret;
 }
 
@@ -1821,13 +1792,14 @@ static int isp116x_resume(struct device *dev, u32 phase)
 
 #endif
 
-static struct device_driver isp116x_driver = {
-	.name = (char *)hcd_name,
-	.bus = &platform_bus_type,
+static struct platform_driver isp116x_driver = {
 	.probe = isp116x_probe,
 	.remove = isp116x_remove,
 	.suspend = isp116x_suspend,
 	.resume = isp116x_resume,
+	.driver	= {
+		.name = (char *)hcd_name,
+	},
 };
 
 /*-----------------------------------------------------------------*/
@@ -1838,14 +1810,14 @@ static int __init isp116x_init(void)
 		return -ENODEV;
 
 	INFO("driver %s, %s\n", hcd_name, DRIVER_VERSION);
-	return driver_register(&isp116x_driver);
+	return platform_driver_register(&isp116x_driver);
 }
 
 module_init(isp116x_init);
 
 static void __exit isp116x_cleanup(void)
 {
-	driver_unregister(&isp116x_driver);
+	platform_driver_unregister(&isp116x_driver);
 }
 
 module_exit(isp116x_cleanup);

@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: compr.c,v 1.42 2004/08/07 21:56:08 dwmw2 Exp $
+ * $Id: compr.c,v 1.46 2005/11/07 11:14:38 gleixner Exp $
  *
  */
 
@@ -36,16 +36,16 @@ static uint32_t none_stat_compr_blocks=0,none_stat_decompr_blocks=0,none_stat_co
  *	data.
  *
  * Returns: Lower byte to be stored with data indicating compression type used.
- * Zero is used to show that the data could not be compressed - the 
+ * Zero is used to show that the data could not be compressed - the
  * compressed version was actually larger than the original.
  * Upper byte will be used later. (soon)
  *
  * If the cdata buffer isn't large enough to hold all the uncompressed data,
- * jffs2_compress should compress as much as will fit, and should set 
+ * jffs2_compress should compress as much as will fit, and should set
  * *datalen accordingly to show the amount of data which were compressed.
  */
 uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
-			     unsigned char *data_in, unsigned char **cpage_out, 
+			     unsigned char *data_in, unsigned char **cpage_out,
 			     uint32_t *datalen, uint32_t *cdatalen)
 {
 	int ret = JFFS2_COMPR_NONE;
@@ -164,7 +164,7 @@ uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 }
 
 int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
-		     uint16_t comprtype, unsigned char *cdata_in, 
+		     uint16_t comprtype, unsigned char *cdata_in,
 		     unsigned char *data_out, uint32_t cdatalen, uint32_t datalen)
 {
         struct jffs2_compressor *this;
@@ -298,7 +298,7 @@ char *jffs2_stats(void)
 
         act_buf += sprintf(act_buf,"JFFS2 compressor statistics:\n");
         act_buf += sprintf(act_buf,"%10s   ","none");
-        act_buf += sprintf(act_buf,"compr: %d blocks (%d)  decompr: %d blocks\n", none_stat_compr_blocks, 
+        act_buf += sprintf(act_buf,"compr: %d blocks (%d)  decompr: %d blocks\n", none_stat_compr_blocks,
                            none_stat_compr_size, none_stat_decompr_blocks);
         spin_lock(&jffs2_compressor_list_lock);
         list_for_each_entry(this, &jffs2_compressor_list, list) {
@@ -307,8 +307,8 @@ char *jffs2_stats(void)
                         act_buf += sprintf(act_buf,"- ");
                 else
                         act_buf += sprintf(act_buf,"+ ");
-                act_buf += sprintf(act_buf,"compr: %d blocks (%d/%d)  decompr: %d blocks ", this->stat_compr_blocks, 
-                                   this->stat_compr_new_size, this->stat_compr_orig_size, 
+                act_buf += sprintf(act_buf,"compr: %d blocks (%d/%d)  decompr: %d blocks ", this->stat_compr_blocks,
+                                   this->stat_compr_new_size, this->stat_compr_orig_size,
                                    this->stat_decompr_blocks);
                 act_buf += sprintf(act_buf,"\n");
         }
@@ -317,7 +317,7 @@ char *jffs2_stats(void)
         return buf;
 }
 
-char *jffs2_get_compression_mode_name(void) 
+char *jffs2_get_compression_mode_name(void)
 {
         switch (jffs2_compression_mode) {
         case JFFS2_COMPR_MODE_NONE:
@@ -330,7 +330,7 @@ char *jffs2_get_compression_mode_name(void)
         return "unkown";
 }
 
-int jffs2_set_compression_mode_name(const char *name) 
+int jffs2_set_compression_mode_name(const char *name)
 {
         if (!strcmp("none",name)) {
                 jffs2_compression_mode = JFFS2_COMPR_MODE_NONE;
@@ -355,7 +355,7 @@ static int jffs2_compressor_Xable(const char *name, int disabled)
                 if (!strcmp(this->name, name)) {
                         this->disabled = disabled;
                         spin_unlock(&jffs2_compressor_list_lock);
-                        return 0;                        
+                        return 0;
                 }
         }
         spin_unlock(&jffs2_compressor_list_lock);
@@ -385,7 +385,7 @@ int jffs2_set_compressor_priority(const char *name, int priority)
                 }
         }
         spin_unlock(&jffs2_compressor_list_lock);
-        printk(KERN_WARNING "JFFS2: compressor %s not found.\n",name);        
+        printk(KERN_WARNING "JFFS2: compressor %s not found.\n",name);
         return 1;
 reinsert:
         /* list is sorted in the order of priority, so if
@@ -412,7 +412,7 @@ void jffs2_free_comprbuf(unsigned char *comprbuf, unsigned char *orig)
                 kfree(comprbuf);
 }
 
-int jffs2_compressors_init(void) 
+int jffs2_compressors_init(void)
 {
 /* Registering compressors */
 #ifdef CONFIG_JFFS2_ZLIB
@@ -424,12 +424,6 @@ int jffs2_compressors_init(void)
 #ifdef CONFIG_JFFS2_RUBIN
         jffs2_rubinmips_init();
         jffs2_dynrubin_init();
-#endif
-#ifdef CONFIG_JFFS2_LZARI
-        jffs2_lzari_init();
-#endif
-#ifdef CONFIG_JFFS2_LZO
-        jffs2_lzo_init();
 #endif
 /* Setting default compression mode */
 #ifdef CONFIG_JFFS2_CMODE_NONE
@@ -446,15 +440,9 @@ int jffs2_compressors_init(void)
         return 0;
 }
 
-int jffs2_compressors_exit(void) 
+int jffs2_compressors_exit(void)
 {
 /* Unregistering compressors */
-#ifdef CONFIG_JFFS2_LZO
-        jffs2_lzo_exit();
-#endif
-#ifdef CONFIG_JFFS2_LZARI
-        jffs2_lzari_exit();
-#endif
 #ifdef CONFIG_JFFS2_RUBIN
         jffs2_dynrubin_exit();
         jffs2_rubinmips_exit();

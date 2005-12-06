@@ -22,7 +22,7 @@
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <linux/init.h>
-#include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/hil.h>
 #include <linux/spinlock.h>
 
@@ -278,11 +278,11 @@ static int __init
 hil_init_chip(struct parisc_device *dev)
 {
 	if (!dev->irq) {
-		printk(KERN_WARNING "HIL: IRQ not found for HIL bus at 0x%08lx\n", dev->hpa);
+		printk(KERN_WARNING "HIL: IRQ not found for HIL bus at 0x%08lx\n", dev->hpa.start);
 		return -ENODEV;
 	}
 
-	hil_base = dev->hpa;
+	hil_base = dev->hpa.start;
 	hil_irq  = dev->irq;
 	hil_dev.dev_id = dev;
 	
@@ -299,7 +299,7 @@ static struct parisc_device_id hil_tbl[] = {
 MODULE_DEVICE_TABLE(parisc, hil_tbl);
 
 static struct parisc_driver hil_driver = {
-	.name =		"HIL",
+	.name =		"hil",
 	.id_table =	hil_tbl,
 	.probe =	hil_init_chip,
 };

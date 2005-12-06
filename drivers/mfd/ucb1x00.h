@@ -106,8 +106,6 @@ struct ucb1x00_irq {
 	void (*fn)(int, void *);
 };
 
-extern struct class ucb1x00_class;
-
 struct ucb1x00 {
 	spinlock_t		lock;
 	struct mcp		*mcp;

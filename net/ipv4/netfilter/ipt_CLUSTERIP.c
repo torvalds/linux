@@ -29,7 +29,7 @@
 
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_CLUSTERIP.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <net/netfilter/nf_conntrack_compat.h>
 
 #define CLUSTERIP_VERSION "0.8"
 
@@ -316,14 +316,14 @@ target(struct sk_buff **pskb,
 {
 	const struct ipt_clusterip_tgt_info *cipinfo = targinfo;
 	enum ip_conntrack_info ctinfo;
-	struct ip_conntrack *ct = ip_conntrack_get((*pskb), &ctinfo);
-	u_int32_t hash;
+	u_int32_t *mark, hash;
 
 	/* don't need to clusterip_config_get() here, since refcount
 	 * is only decremented by destroy() - and ip_tables guarantees
 	 * that the ->target() function isn't called after ->destroy() */
 
-	if (!ct) {
+	mark = nf_ct_get_mark((*pskb), &ctinfo);
+	if (mark == NULL) {
 		printk(KERN_ERR "CLUSTERIP: no conntrack!\n");
 			/* FIXME: need to drop invalid ones, since replies
 			 * to outgoing connections of other nodes will be 
@@ -346,7 +346,7 @@ target(struct sk_buff **pskb,
 
 	switch (ctinfo) {
 		case IP_CT_NEW:
-			ct->mark = hash;
+			*mark = hash;
 			break;
 		case IP_CT_RELATED:
 		case IP_CT_RELATED+IP_CT_IS_REPLY:
@@ -363,7 +363,7 @@ target(struct sk_buff **pskb,
 #ifdef DEBUG_CLUSTERP
 	DUMP_TUPLE(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 #endif
-	DEBUGP("hash=%u ct_hash=%u ", hash, ct->mark);
+	DEBUGP("hash=%u ct_hash=%u ", hash, *mark);
 	if (!clusterip_responsible(cipinfo->config, hash)) {
 		DEBUGP("not responsible\n");
 		return NF_DROP;

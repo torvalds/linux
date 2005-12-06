@@ -20,6 +20,7 @@
 #define IO_BASE			0x9200000000000000
 #define MSPEC_BASE		0x9400000000000000
 #define UNCAC_BASE		0x9600000000000000
+#define MAP_BASE		0xc000000000000000
 
 #define TO_PHYS(x)		(             ((x) & TO_PHYS_MASK))
 #define TO_CAC(x)		(CAC_BASE   | ((x) & TO_PHYS_MASK))

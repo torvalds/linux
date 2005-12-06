@@ -11,6 +11,9 @@
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/device.h>
+
+#include "base.h"
 
 static decl_subsys(firmware, NULL, NULL);
 

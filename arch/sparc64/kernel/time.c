@@ -55,25 +55,10 @@ unsigned long ds1287_regs = 0UL;
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 static void __iomem *mstk48t08_regs;
 static void __iomem *mstk48t59_regs;
 
 static int set_rtc_mmss(unsigned long);
-
-static __init unsigned long dummy_get_tick(void)
-{
-	return 0;
-}
-
-static __initdata struct sparc64_tick_ops dummy_tick_ops = {
-	.get_tick	= dummy_get_tick,
-};
-
-struct sparc64_tick_ops *tick_ops __read_mostly = &dummy_tick_ops;
 
 #define TICK_PRIV_BIT	(1UL << 63)
 
@@ -203,6 +188,8 @@ static struct sparc64_tick_ops tick_operations __read_mostly = {
 	.add_compare	=	tick_add_compare,
 	.softint_mask	=	1UL << 0,
 };
+
+struct sparc64_tick_ops *tick_ops __read_mostly = &tick_operations;
 
 static void stick_init_tick(unsigned long offset)
 {

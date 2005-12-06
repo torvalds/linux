@@ -605,27 +605,28 @@ got:
 	insert_inode_hash(inode);
 
 	if (DQUOT_ALLOC_INODE(inode)) {
-		DQUOT_DROP(inode);
 		err = -ENOSPC;
-		goto fail2;
+		goto fail_drop;
 	}
+
 	err = ext2_init_acl(inode, dir);
-	if (err) {
-		DQUOT_FREE_INODE(inode);
-		DQUOT_DROP(inode);
-		goto fail2;
-	}
+	if (err)
+		goto fail_free_drop;
+
 	err = ext2_init_security(inode,dir);
-	if (err) {
-		DQUOT_FREE_INODE(inode);
-		goto fail2;
-	}
+	if (err)
+		goto fail_free_drop;
+
 	mark_inode_dirty(inode);
 	ext2_debug("allocating inode %lu\n", inode->i_ino);
 	ext2_preread_inode(inode);
 	return inode;
 
-fail2:
+fail_free_drop:
+	DQUOT_FREE_INODE(inode);
+
+fail_drop:
+	DQUOT_DROP(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
 	iput(inode);
@@ -699,43 +700,3 @@ unsigned long ext2_count_dirs (struct super_block * sb)
 	return count;
 }
 
-#ifdef CONFIG_EXT2_CHECK
-/* Called at mount-time, super-block is locked */
-void ext2_check_inodes_bitmap (struct super_block * sb)
-{
-	struct ext2_super_block * es = EXT2_SB(sb)->s_es;
-	unsigned long desc_count = 0, bitmap_count = 0;
-	struct buffer_head *bitmap_bh = NULL;
-	int i;
-
-	for (i = 0; i < EXT2_SB(sb)->s_groups_count; i++) {
-		struct ext2_group_desc *desc;
-		unsigned x;
-
-		desc = ext2_get_group_desc(sb, i, NULL);
-		if (!desc)
-			continue;
-		desc_count += le16_to_cpu(desc->bg_free_inodes_count);
-		brelse(bitmap_bh);
-		bitmap_bh = read_inode_bitmap(sb, i);
-		if (!bitmap_bh)
-			continue;
-		
-		x = ext2_count_free(bitmap_bh, EXT2_INODES_PER_GROUP(sb) / 8);
-		if (le16_to_cpu(desc->bg_free_inodes_count) != x)
-			ext2_error (sb, "ext2_check_inodes_bitmap",
-				    "Wrong free inodes count in group %d, "
-				    "stored = %d, counted = %lu", i,
-				    le16_to_cpu(desc->bg_free_inodes_count), x);
-		bitmap_count += x;
-	}
-	brelse(bitmap_bh);
-	if (percpu_counter_read(&EXT2_SB(sb)->s_freeinodes_counter) !=
-				bitmap_count)
-		ext2_error(sb, "ext2_check_inodes_bitmap",
-			    "Wrong free inodes count in super block, "
-			    "stored = %lu, counted = %lu",
-			    (unsigned long)le32_to_cpu(es->s_free_inodes_count),
-			    bitmap_count);
-}
-#endif

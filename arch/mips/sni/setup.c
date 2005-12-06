@@ -167,7 +167,7 @@ static inline void sni_pcimt_time_init(void)
 	rtc_set_time = mc146818_set_rtc_mmss;
 }
 
-static int __init sni_rm200_pci_setup(void)
+void __init plat_setup(void)
 {
 	sni_pcimt_detect();
 	sni_pcimt_sc_init();
@@ -196,8 +196,4 @@ static int __init sni_rm200_pci_setup(void)
 #ifdef CONFIG_PCI
 	register_pci_controller(&sni_controller);
 #endif
-
-	return 0;
 }
-
-early_initcall(sni_rm200_pci_setup);

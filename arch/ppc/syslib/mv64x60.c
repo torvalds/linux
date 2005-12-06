@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/mv643xx.h>
+#include <linux/platform_device.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -34,7 +35,7 @@ u8 mv64x60_pci_exclude_bridge = 1;
 DEFINE_SPINLOCK(mv64x60_lock);
 
 static phys_addr_t 	mv64x60_bridge_pbase;
-static void 		*mv64x60_bridge_vbase;
+static void 		__iomem *mv64x60_bridge_vbase;
 static u32		mv64x60_bridge_type = MV64x60_TYPE_INVALID;
 static u32		mv64x60_bridge_rev;
 #if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
@@ -938,7 +939,7 @@ mv64x60_setup_for_chip(struct mv64x60_handle *bh)
  *
  * Return the virtual address of the bridge's registers.
  */
-void *
+void __iomem *
 mv64x60_get_bridge_vbase(void)
 {
 	return mv64x60_bridge_vbase;
@@ -1304,7 +1305,7 @@ mv64x60_config_pci_params(struct pci_controller *hose,
 	early_write_config_word(hose, 0, devfn, PCI_COMMAND, u16_val);
 
 	/* Set latency timer, cache line size, clear BIST */
-	u16_val = (pi->latency_timer << 8) | (L1_CACHE_LINE_SIZE >> 2);
+	u16_val = (pi->latency_timer << 8) | (L1_CACHE_BYTES >> 2);
 	early_write_config_word(hose, 0, devfn, PCI_CACHE_LINE_SIZE, u16_val);
 
 	mv64x60_pci_exclude_bridge = save_exclude;

@@ -447,7 +447,7 @@ static __inline__ int NCR53c406a_pio_write(unsigned char *request, unsigned int 
 }
 #endif				/* USE_PIO */
 
-static int __init NCR53c406a_detect(Scsi_Host_Template * tpnt)
+static int __init NCR53c406a_detect(struct scsi_host_template * tpnt)
 {
 	int present = 0;
 	struct Scsi_Host *shpnt = NULL;
@@ -710,7 +710,7 @@ static int NCR53c406a_queue(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 
 	/* We are locked here already by the mid layer */
 	REG0;
-	outb(SCpnt->device->id, DEST_ID);	/* set destination */
+	outb(scmd_id(SCpnt), DEST_ID);	/* set destination */
 	outb(FLUSH_FIFO, CMD_REG);	/* reset the fifos */
 
 	for (i = 0; i < SCpnt->cmd_len; i++) {
@@ -1057,7 +1057,7 @@ MODULE_LICENSE("GPL");
  * Use SG_NONE if DMA mode is enabled!
  */
 
-static Scsi_Host_Template driver_template = 
+static struct scsi_host_template driver_template =
 {
      .proc_name         	= "NCR53c406a"		/* proc_name */,        
      .name              	= "NCR53c406a"		/* name */,             

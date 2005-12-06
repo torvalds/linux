@@ -18,10 +18,10 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/string.h>
 
 #include <net/checksum.h>
 #include <asm/byteorder.h>
-#include <asm/string.h>
 #include <asm/uaccess.h>
 
 /*

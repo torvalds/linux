@@ -2,7 +2,6 @@
 #include <linux/mm.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 
@@ -170,7 +169,7 @@ static void dma_stop (struct Scsi_Host *instance, Scsi_Cmnd *SCpnt,
 
 #define CHECK_WD33C93
 
-int __init gvp11_detect(Scsi_Host_Template *tpnt)
+int __init gvp11_detect(struct scsi_host_template *tpnt)
 {
     static unsigned char called = 0;
     struct Scsi_Host *instance;
@@ -362,7 +361,7 @@ static int gvp11_bus_reset(Scsi_Cmnd *cmd)
 
 #include "gvp11.h"
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "GVP11",
 	.name			= "GVP Series II SCSI",
 	.detect			= gvp11_detect,

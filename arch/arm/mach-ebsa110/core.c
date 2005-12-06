@@ -76,16 +76,42 @@ static struct map_desc ebsa110_io_desc[] __initdata = {
 	/*
 	 * sparse external-decode ISAIO space
 	 */
-	{ IRQ_STAT,    TRICK4_PHYS, PGDIR_SIZE,  MT_DEVICE }, /* IRQ_STAT/IRQ_MCLR */
-	{ IRQ_MASK,    TRICK3_PHYS, PGDIR_SIZE,  MT_DEVICE }, /* IRQ_MASK/IRQ_MSET */
-	{ SOFT_BASE,   TRICK1_PHYS, PGDIR_SIZE,  MT_DEVICE }, /* SOFT_BASE */
-	{ PIT_BASE,    TRICK0_PHYS, PGDIR_SIZE,  MT_DEVICE }, /* PIT_BASE */
+	{	/* IRQ_STAT/IRQ_MCLR */
+		.virtual	= IRQ_STAT,
+		.pfn		= __phys_to_pfn(TRICK4_PHYS),
+		.length		= PGDIR_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* IRQ_MASK/IRQ_MSET */
+		.virtual	= IRQ_MASK,
+		.pfn		= __phys_to_pfn(TRICK3_PHYS),
+		.length		= PGDIR_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* SOFT_BASE */
+		.virtual	= SOFT_BASE,
+		.pfn		= __phys_to_pfn(TRICK1_PHYS),
+		.length		= PGDIR_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* PIT_BASE */
+		.virtual	= PIT_BASE,
+		.pfn		= __phys_to_pfn(TRICK0_PHYS),
+		.length		= PGDIR_SIZE,
+		.type		= MT_DEVICE
+	},
 
 	/*
 	 * self-decode ISAIO space
 	 */
-	{ ISAIO_BASE,  ISAIO_PHYS,  ISAIO_SIZE,  MT_DEVICE },
-	{ ISAMEM_BASE, ISAMEM_PHYS, ISAMEM_SIZE, MT_DEVICE }
+	{
+		.virtual	= ISAIO_BASE,
+		.pfn		= __phys_to_pfn(ISAIO_PHYS),
+		.length		= ISAIO_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= ISAMEM_BASE,
+		.pfn		= __phys_to_pfn(ISAMEM_PHYS),
+		.length		= ISAMEM_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init ebsa110_map_io(void)
@@ -225,9 +251,33 @@ static struct platform_device serial_device = {
 	},
 };
 
+static struct resource am79c961_resources[] = {
+	{
+		.start		= 0x220,
+		.end		= 0x238,
+		.flags		= IORESOURCE_IO,
+	}, {
+		.start		= IRQ_EBSA110_ETHERNET,
+		.end		= IRQ_EBSA110_ETHERNET,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device am79c961_device = {
+	.name			= "am79c961",
+	.id			= -1,
+	.num_resources		= ARRAY_SIZE(am79c961_resources),
+	.resource		= am79c961_resources,
+};
+
+static struct platform_device *ebsa110_devices[] = {
+	&serial_device,
+	&am79c961_device,
+};
+
 static int __init ebsa110_init(void)
 {
-	return platform_device_register(&serial_device);
+	return platform_add_devices(ebsa110_devices, ARRAY_SIZE(ebsa110_devices));
 }
 
 arch_initcall(ebsa110_init);

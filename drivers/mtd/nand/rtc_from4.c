@@ -2,11 +2,11 @@
  *  drivers/mtd/nand/rtc_from4.c
  *
  *  Copyright (C) 2004  Red Hat, Inc.
- * 
+ *
  *  Derived from drivers/mtd/nand/spia.c
  *       Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
  *
- * $Id: rtc_from4.c,v 1.9 2005/01/24 20:40:11 dmarlin Exp $
+ * $Id: rtc_from4.c,v 1.10 2005/11/07 11:14:31 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,8 +14,8 @@
  *
  * Overview:
  *   This is a device driver for the AG-AND flash device found on the
- *   Renesas Technology Corp. Flash ROM 4-slot interface board (FROM_BOARD4), 
- *   which utilizes the Renesas HN29V1G91T-30 part. 
+ *   Renesas Technology Corp. Flash ROM 4-slot interface board (FROM_BOARD4),
+ *   which utilizes the Renesas HN29V1G91T-30 part.
  *   This chip is a 1 GBibit (128MiB x 8 bits) AG-AND flash device.
  */
 
@@ -105,9 +105,9 @@ const static struct mtd_partition partition_info[] = {
 };
 #define NUM_PARTITIONS 1
 
-/* 
+/*
  *	hardware specific flash bbt decriptors
- *	Note: this is to allow debugging by disabling 
+ *	Note: this is to allow debugging by disabling
  *		NAND_BBT_CREATE and/or NAND_BBT_WRITE
  *
  */
@@ -141,7 +141,7 @@ static struct nand_bbt_descr rtc_from4_bbt_mirror_descr = {
 /* the Reed Solomon control structure */
 static struct rs_control *rs_decoder;
 
-/* 
+/*
  *      hardware specific Out Of Band information
  */
 static struct nand_oobinfo rtc_from4_nand_oobinfo = {
@@ -200,38 +200,38 @@ static uint8_t revbits[256] = {
 
 
 
-/* 
+/*
  * rtc_from4_hwcontrol - hardware specific access to control-lines
  * @mtd:	MTD device structure
  * @cmd:	hardware control command
  *
- * Address lines (A5 and A4) are used to control Command and Address Latch 
+ * Address lines (A5 and A4) are used to control Command and Address Latch
  * Enable on this board, so set the read/write address appropriately.
  *
- * Chip Enable is also controlled by the Chip Select (CS5) and 
+ * Chip Enable is also controlled by the Chip Select (CS5) and
  * Address lines (A24-A22), so no action is required here.
  *
  */
 static void rtc_from4_hwcontrol(struct mtd_info *mtd, int cmd)
 {
 	struct nand_chip* this = (struct nand_chip *) (mtd->priv);
-	
+
 	switch(cmd) {
-		
-	case NAND_CTL_SETCLE: 
+
+	case NAND_CTL_SETCLE:
 		this->IO_ADDR_W = (void __iomem *)((unsigned long)this->IO_ADDR_W | RTC_FROM4_CLE);
 		break;
-	case NAND_CTL_CLRCLE: 
+	case NAND_CTL_CLRCLE:
 		this->IO_ADDR_W = (void __iomem *)((unsigned long)this->IO_ADDR_W & ~RTC_FROM4_CLE);
 		break;
-		
+
 	case NAND_CTL_SETALE:
 		this->IO_ADDR_W = (void __iomem *)((unsigned long)this->IO_ADDR_W | RTC_FROM4_ALE);
 		break;
 	case NAND_CTL_CLRALE:
 		this->IO_ADDR_W = (void __iomem *)((unsigned long)this->IO_ADDR_W & ~RTC_FROM4_ALE);
 		break;
-		
+
 	case NAND_CTL_SETNCE:
 		break;
 	case NAND_CTL_CLRNCE:
@@ -296,7 +296,7 @@ static int rtc_from4_nand_device_ready(struct mtd_info *mtd)
  * @mtd:	MTD device structure
  * @chip:	Chip to select (0 == slot 3, 1 == slot 4)
  *
- * If there was a sudden loss of power during an erase operation, a 
+ * If there was a sudden loss of power during an erase operation, a
  * "device recovery" operation must be performed when power is restored
  * to ensure correct operation.  This routine performs the required steps
  * for the requested chip.
@@ -312,7 +312,7 @@ static void deplete(struct mtd_info *mtd, int chip)
         while (!this->dev_ready(mtd));
 
 	this->select_chip(mtd, chip);
-                                                                                                                                              
+
 	/* Send the commands for device recovery, phase 1 */
 	this->cmdfunc (mtd, NAND_CMD_DEPLETE1, 0x0000, 0x0000);
 	this->cmdfunc (mtd, NAND_CMD_DEPLETE2, -1, -1);
@@ -330,7 +330,7 @@ static void deplete(struct mtd_info *mtd, int chip)
  * @mtd:	MTD device structure
  * @mode:	I/O mode; read or write
  *
- * enable hardware ECC for data read or write 
+ * enable hardware ECC for data read or write
  *
  */
 static void rtc_from4_enable_hwecc(struct mtd_info *mtd, int mode)
@@ -340,7 +340,7 @@ static void rtc_from4_enable_hwecc(struct mtd_info *mtd, int mode)
 
 	switch (mode) {
 	    case NAND_ECC_READ :
-		status =  RTC_FROM4_RS_ECC_CTL_CLR 
+		status =  RTC_FROM4_RS_ECC_CTL_CLR
 			| RTC_FROM4_RS_ECC_CTL_FD_E;
 
 		*rs_ecc_ctl = status;
@@ -353,8 +353,8 @@ static void rtc_from4_enable_hwecc(struct mtd_info *mtd, int mode)
 		break;
 
 	    case NAND_ECC_WRITE :
-		status =  RTC_FROM4_RS_ECC_CTL_CLR 
-			| RTC_FROM4_RS_ECC_CTL_GEN 
+		status =  RTC_FROM4_RS_ECC_CTL_CLR
+			| RTC_FROM4_RS_ECC_CTL_GEN
 			| RTC_FROM4_RS_ECC_CTL_FD_E;
 
 		*rs_ecc_ctl = status;
@@ -411,7 +411,7 @@ static void rtc_from4_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_c
 static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_char *ecc1, u_char *ecc2)
 {
 	int i, j, res;
-	unsigned short status; 
+	unsigned short status;
 	uint16_t par[6], syn[6];
 	uint8_t ecc[8];
         volatile unsigned short *rs_ecc;
@@ -430,7 +430,7 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
         }
 
 	/* convert into 6 10bit syndrome fields */
-	par[5] = rs_decoder->index_of[(((uint16_t)ecc[0] >> 0) & 0x0ff) | 
+	par[5] = rs_decoder->index_of[(((uint16_t)ecc[0] >> 0) & 0x0ff) |
 				      (((uint16_t)ecc[1] << 8) & 0x300)];
 	par[4] = rs_decoder->index_of[(((uint16_t)ecc[1] >> 2) & 0x03f) |
 				      (((uint16_t)ecc[2] << 6) & 0x3c0)];
@@ -456,7 +456,7 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
 	/* Let the library code do its magic.*/
 	res = decode_rs8(rs_decoder, (uint8_t *)buf, par, 512, syn, 0, NULL, 0xff, NULL);
 	if (res > 0) {
-		DEBUG (MTD_DEBUG_LEVEL0, "rtc_from4_correct_data: " 
+		DEBUG (MTD_DEBUG_LEVEL0, "rtc_from4_correct_data: "
 			"ECC corrected %d errors on read\n", res);
 	}
 	return res;
@@ -470,9 +470,9 @@ static int rtc_from4_correct_data(struct mtd_info *mtd, const u_char *buf, u_cha
  * @state:	state or the operation
  * @status:	status code returned from read status
  * @page:	startpage inside the chip, must be called with (page & this->pagemask)
- * 
- * Perform additional error status checks on erase and write failures 
- * to determine if errors are correctable.  For this device, correctable 
+ *
+ * Perform additional error status checks on erase and write failures
+ * to determine if errors are correctable.  For this device, correctable
  * 1-bit errors on erase and write are considered acceptable.
  *
  * note: see pages 34..37 of data sheet for details.
@@ -633,7 +633,7 @@ int __init rtc_from4_init (void)
 
 #ifdef RTC_FROM4_HWECC
 	/* We could create the decoder on demand, if memory is a concern.
-	 * This way we have it handy, if an error happens 
+	 * This way we have it handy, if an error happens
 	 *
 	 * Symbolsize is 10 (bits)
 	 * Primitve polynomial is x^10+x^3+1

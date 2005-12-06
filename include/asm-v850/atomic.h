@@ -31,7 +31,7 @@ typedef struct { int counter; } atomic_t;
 #define atomic_read(v)		((v)->counter)
 #define atomic_set(v,i)		(((v)->counter) = (i))
 
-extern __inline__ int atomic_add_return (int i, volatile atomic_t *v)
+static inline int atomic_add_return (int i, volatile atomic_t *v)
 {
 	unsigned long flags;
 	int res;
@@ -89,6 +89,36 @@ static __inline__ void atomic_clear_mask (unsigned long mask, unsigned long *add
 #define atomic_sub_and_test(i,v)	(atomic_sub_return ((i), (v)) == 0)
 #define atomic_dec_and_test(v)		(atomic_sub_return (1, (v)) == 0)
 #define atomic_add_negative(i,v)	(atomic_add_return ((i), (v)) < 0)
+
+static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	int ret;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ret = v->counter;
+	if (likely(ret == old))
+		v->counter = new;
+	local_irq_restore(flags);
+
+	return ret;
+}
+
+static inline int atomic_add_unless(atomic_t *v, int a, int u)
+{
+	int ret;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ret = v->counter;
+	if (ret != u)
+		v->counter += a;
+	local_irq_restore(flags);
+
+	return ret != u;
+}
+
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 /* Atomic operations are already serializing on ARM */
 #define smp_mb__before_atomic_dec()	barrier()

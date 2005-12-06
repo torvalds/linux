@@ -10,7 +10,8 @@
 #include "sysdep/ptrace.h"
 
 extern int userspace_pid[];
-extern int proc_mm, ptrace_faultinfo;
+extern int proc_mm, ptrace_faultinfo, ptrace_ldt;
+extern int skas_needs_stub;
 
 extern void switch_threads(void *me, void *next);
 extern void thread_wait(void *sw, void *fb);

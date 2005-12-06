@@ -9,17 +9,7 @@
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 
-#if PAGE_SHIFT == 13
-#define SZ_BITS		_PAGE_SZ8K
-#elif PAGE_SHIFT == 16
-#define SZ_BITS		_PAGE_SZ64K
-#elif PAGE_SHIFT == 19
-#define SZ_BITS		_PAGE_SZ512K
-#elif PAGE_SHIFT == 22
-#define SZ_BITS		_PAGE_SZ4MB
-#endif
-
-#define VALID_SZ_BITS	(_PAGE_VALID | SZ_BITS)
+#define VALID_SZ_BITS	(_PAGE_VALID | _PAGE_SZBITS)
 
 #define VPTE_BITS		(_PAGE_CP | _PAGE_CV | _PAGE_P )
 #define VPTE_SHIFT		(PAGE_SHIFT - 3)
@@ -163,7 +153,6 @@ sparc64_vpte_continue:
 	stxa		%g4, [%g1 + %g1] ASI_DMMU	! Restore previous TAG_ACCESS
 	retry						! Load PTE once again
 
-#undef SZ_BITS
 #undef VALID_SZ_BITS
 #undef VPTE_SHIFT
 #undef VPTE_BITS

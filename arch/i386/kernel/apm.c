@@ -218,6 +218,7 @@
 #include <linux/time.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>
@@ -447,8 +448,7 @@ static char *	apm_event_name[] = {
 	"system standby resume",
 	"capabilities change"
 };
-#define NR_APM_EVENT_NAME	\
-		(sizeof(apm_event_name) / sizeof(apm_event_name[0]))
+#define NR_APM_EVENT_NAME ARRAY_SIZE(apm_event_name)
 
 typedef struct lookup_t {
 	int	key;
@@ -479,7 +479,7 @@ static const lookup_t error_table[] = {
 	{ APM_NO_ERROR,		"BIOS did not set a return code" },
 	{ APM_NOT_PRESENT,	"No APM present" }
 };
-#define ERROR_COUNT	(sizeof(error_table)/sizeof(lookup_t))
+#define ERROR_COUNT	ARRAY_SIZE(error_table)
 
 /**
  *	apm_error	-	display an APM error
@@ -597,12 +597,14 @@ static u8 apm_bios_call(u32 func, u32 ebx_in, u32 ecx_in,
 	cpumask_t		cpus;
 	int			cpu;
 	struct desc_struct	save_desc_40;
+	struct desc_struct	*gdt;
 
 	cpus = apm_save_cpus();
 	
 	cpu = get_cpu();
-	save_desc_40 = per_cpu(cpu_gdt_table, cpu)[0x40 / 8];
-	per_cpu(cpu_gdt_table, cpu)[0x40 / 8] = bad_bios_desc;
+	gdt = get_cpu_gdt_table(cpu);
+	save_desc_40 = gdt[0x40 / 8];
+	gdt[0x40 / 8] = bad_bios_desc;
 
 	local_save_flags(flags);
 	APM_DO_CLI;
@@ -610,7 +612,7 @@ static u8 apm_bios_call(u32 func, u32 ebx_in, u32 ecx_in,
 	apm_bios_call_asm(func, ebx_in, ecx_in, eax, ebx, ecx, edx, esi);
 	APM_DO_RESTORE_SEGS;
 	local_irq_restore(flags);
-	per_cpu(cpu_gdt_table, cpu)[0x40 / 8] = save_desc_40;
+	gdt[0x40 / 8] = save_desc_40;
 	put_cpu();
 	apm_restore_cpus(cpus);
 	
@@ -639,13 +641,14 @@ static u8 apm_bios_call_simple(u32 func, u32 ebx_in, u32 ecx_in, u32 *eax)
 	cpumask_t		cpus;
 	int			cpu;
 	struct desc_struct	save_desc_40;
-
+	struct desc_struct	*gdt;
 
 	cpus = apm_save_cpus();
 	
 	cpu = get_cpu();
-	save_desc_40 = per_cpu(cpu_gdt_table, cpu)[0x40 / 8];
-	per_cpu(cpu_gdt_table, cpu)[0x40 / 8] = bad_bios_desc;
+	gdt = get_cpu_gdt_table(cpu);
+	save_desc_40 = gdt[0x40 / 8];
+	gdt[0x40 / 8] = bad_bios_desc;
 
 	local_save_flags(flags);
 	APM_DO_CLI;
@@ -653,7 +656,7 @@ static u8 apm_bios_call_simple(u32 func, u32 ebx_in, u32 ecx_in, u32 *eax)
 	error = apm_bios_call_simple_asm(func, ebx_in, ecx_in, eax);
 	APM_DO_RESTORE_SEGS;
 	local_irq_restore(flags);
-	__get_cpu_var(cpu_gdt_table)[0x40 / 8] = save_desc_40;
+	gdt[0x40 / 8] = save_desc_40;
 	put_cpu();
 	apm_restore_cpus(cpus);
 	return error;
@@ -767,8 +770,26 @@ static int set_system_power_state(u_short state)
 static int apm_do_idle(void)
 {
 	u32	eax;
+	u8	ret = 0;
+	int	idled = 0;
+	int	polling;
 
-	if (apm_bios_call_simple(APM_FUNC_IDLE, 0, 0, &eax)) {
+	polling = test_thread_flag(TIF_POLLING_NRFLAG);
+	if (polling) {
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+		smp_mb__after_clear_bit();
+	}
+	if (!need_resched()) {
+		idled = 1;
+		ret = apm_bios_call_simple(APM_FUNC_IDLE, 0, 0, &eax);
+	}
+	if (polling)
+		set_thread_flag(TIF_POLLING_NRFLAG);
+
+	if (!idled)
+		return 0;
+
+	if (ret) {
 		static unsigned long t;
 
 		/* This always fails on some SMP boards running UP kernels.
@@ -2295,35 +2316,36 @@ static int __init apm_init(void)
 	apm_bios_entry.segment = APM_CS;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		set_base(per_cpu(cpu_gdt_table, i)[APM_CS >> 3],
+		struct desc_struct *gdt = get_cpu_gdt_table(i);
+		set_base(gdt[APM_CS >> 3],
 			 __va((unsigned long)apm_info.bios.cseg << 4));
-		set_base(per_cpu(cpu_gdt_table, i)[APM_CS_16 >> 3],
+		set_base(gdt[APM_CS_16 >> 3],
 			 __va((unsigned long)apm_info.bios.cseg_16 << 4));
-		set_base(per_cpu(cpu_gdt_table, i)[APM_DS >> 3],
+		set_base(gdt[APM_DS >> 3],
 			 __va((unsigned long)apm_info.bios.dseg << 4));
 #ifndef APM_RELAX_SEGMENTS
 		if (apm_info.bios.version == 0x100) {
 #endif
 			/* For ASUS motherboard, Award BIOS rev 110 (and others?) */
-			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS >> 3], 64 * 1024 - 1);
+			_set_limit((char *)&gdt[APM_CS >> 3], 64 * 1024 - 1);
 			/* For some unknown machine. */
-			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS_16 >> 3], 64 * 1024 - 1);
+			_set_limit((char *)&gdt[APM_CS_16 >> 3], 64 * 1024 - 1);
 			/* For the DEC Hinote Ultra CT475 (and others?) */
-			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_DS >> 3], 64 * 1024 - 1);
+			_set_limit((char *)&gdt[APM_DS >> 3], 64 * 1024 - 1);
 #ifndef APM_RELAX_SEGMENTS
 		} else {
-			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS >> 3],
+			_set_limit((char *)&gdt[APM_CS >> 3],
 				(apm_info.bios.cseg_len - 1) & 0xffff);
-			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS_16 >> 3],
+			_set_limit((char *)&gdt[APM_CS_16 >> 3],
 				(apm_info.bios.cseg_16_len - 1) & 0xffff);
-			_set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_DS >> 3],
+			_set_limit((char *)&gdt[APM_DS >> 3],
 				(apm_info.bios.dseg_len - 1) & 0xffff);
 		      /* workaround for broken BIOSes */
 	                if (apm_info.bios.cseg_len <= apm_info.bios.offset)
-        	                _set_limit((char *)&per_cpu(cpu_gdt_table, i)[APM_CS >> 3], 64 * 1024 -1);
+        	                _set_limit((char *)&gdt[APM_CS >> 3], 64 * 1024 -1);
                        if (apm_info.bios.dseg_len <= 0x40) { /* 0x40 * 4kB == 64kB */
                         	/* for the BIOS that assumes granularity = 1 */
-                        	per_cpu(cpu_gdt_table, i)[APM_DS >> 3].b |= 0x800000;
+                        	gdt[APM_DS >> 3].b |= 0x800000;
                         	printk(KERN_NOTICE "apm: we set the granularity of dseg.\n");
         	        }
 		}

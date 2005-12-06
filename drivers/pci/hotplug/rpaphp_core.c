@@ -426,8 +426,11 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 
 	dbg("DISABLING SLOT %s\n", slot->name);
 	down(&rpaphp_sem);
-	retval = rpaphp_unconfig_pci_adapter(slot);
+	retval = rpaphp_unconfig_pci_adapter(slot->bus);
 	up(&rpaphp_sem);
+	slot->state = NOT_CONFIGURED;
+	info("%s: devices in slot[%s] unconfigured.\n", __FUNCTION__,
+	     slot->name);
 exit:
 	dbg("%s - Exit: rc[%d]\n", __FUNCTION__, retval);
 	return retval;

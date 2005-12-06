@@ -50,7 +50,6 @@
 
 #include "bttv.h"
 #include <media/audiochip.h>
-#include <media/id.h>
 
 #ifndef VIDEO_AUDIO_BALANCE
 # define VIDEO_AUDIO_BALANCE 32
@@ -310,9 +309,9 @@ static int tda7432_attach(struct i2c_adapter *adap, int addr, int kind)
 	memset(t,0,sizeof *t);
 
 	client = &t->c;
-        memcpy(client,&client_template,sizeof(struct i2c_client));
-        client->adapter = adap;
-        client->addr = addr;
+	memcpy(client,&client_template,sizeof(struct i2c_client));
+	client->adapter = adap;
+	client->addr = addr;
 	i2c_set_clientdata(client, t);
 
 	do_tda7432_init(client);
@@ -472,7 +471,7 @@ static int tda7432_command(struct i2c_client *client,
 		}
 		}
 
-	 	t->muted=(va->flags & VIDEO_AUDIO_MUTE);
+		t->muted=(va->flags & VIDEO_AUDIO_MUTE);
 		if (t->muted)
 		{
 			/* Mute & update balance*/
@@ -503,12 +502,12 @@ static int tda7432_command(struct i2c_client *client,
 
 static struct i2c_driver driver = {
 	.owner           = THIS_MODULE,
-        .name            = "i2c tda7432 driver",
+	.name            = "i2c tda7432 driver",
 	.id              = I2C_DRIVERID_TDA7432,
-        .flags           = I2C_DF_NOTIFY,
+	.flags           = I2C_DF_NOTIFY,
 	.attach_adapter  = tda7432_probe,
-        .detach_client   = tda7432_detach,
-        .command         = tda7432_command,
+	.detach_client   = tda7432_detach,
+	.command         = tda7432_command,
 };
 
 static struct i2c_client client_template =

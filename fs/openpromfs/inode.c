@@ -1088,8 +1088,7 @@ static void __exit exit_openprom_fs(void)
 	unregister_filesystem(&openprom_fs_type);
 	free_pages ((unsigned long)nodes, alloced);
 	for (i = 0; i < aliases_nodes; i++)
-		if (alias_names [i])
-			kfree (alias_names [i]);
+		kfree (alias_names [i]);
 	nodes = NULL;
 }
 

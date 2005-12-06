@@ -8,7 +8,7 @@
  * to split all of those into 16-bit components, then add.
  */
 
-extern inline unsigned int
+static inline unsigned int
 csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr, unsigned short len,
 		   unsigned short proto, unsigned int sum)
 {

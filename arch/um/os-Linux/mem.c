@@ -88,7 +88,7 @@ int make_tempfile(const char *template, char **out_tempname, int do_unlink)
  * This proc is used in start_up.c
  * So it isn't 'static'.
  */
-int create_tmp_file(unsigned long len)
+int create_tmp_file(unsigned long long len)
 {
 	int fd, err;
 	char zero;
@@ -121,7 +121,7 @@ int create_tmp_file(unsigned long len)
 	return(fd);
 }
 
-static int create_anon_file(unsigned long len)
+static int create_anon_file(unsigned long long len)
 {
 	void *addr;
 	int fd;
@@ -144,7 +144,7 @@ static int create_anon_file(unsigned long len)
 
 extern int have_devanon;
 
-int create_mem_file(unsigned long len)
+int create_mem_file(unsigned long long len)
 {
 	int err, fd;
 

@@ -256,10 +256,7 @@ struct ipmi_recv_msg
 };
 
 /* Allocate and free the receive message. */
-static inline void ipmi_free_recv_msg(struct ipmi_recv_msg *msg)
-{
-	msg->done(msg);
-}
+void ipmi_free_recv_msg(struct ipmi_recv_msg *msg);
 
 struct ipmi_user_hndl
 {

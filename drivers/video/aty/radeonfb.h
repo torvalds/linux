@@ -10,9 +10,10 @@
 #include <linux/fb.h>
 
 
+#ifdef CONFIG_FB_RADEON_I2C
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
+#endif
 
 #include <asm/io.h>
 
@@ -395,6 +396,8 @@ static inline void _radeon_msleep(struct radeonfb_info *rinfo, unsigned long ms)
 
 #define INREG8(addr)		readb((rinfo->mmio_base)+addr)
 #define OUTREG8(addr,val)	writeb(val, (rinfo->mmio_base)+addr)
+#define INREG16(addr)		readw((rinfo->mmio_base)+addr)
+#define OUTREG16(addr,val)	writew(val, (rinfo->mmio_base)+addr)
 #define INREG(addr)		readl((rinfo->mmio_base)+addr)
 #define OUTREG(addr,val)	writel(val, (rinfo->mmio_base)+addr)
 

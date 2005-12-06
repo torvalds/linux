@@ -1,23 +1,9 @@
-
-/********************************************************************************
-*                  QLOGIC LINUX SOFTWARE
-*
-* QLogic ISP2x00 device driver for Linux 2.6.x
-* Copyright (C) 2003-2005 QLogic Corporation
-* (www.qlogic.com)
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2, or (at your option) any
-* later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-**
-******************************************************************************/
-
+/*
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
+ *
+ * See LICENSE.qla2xxx for copyright and licensing details.
+ */
 #ifndef __QLA_FW_H
 #define __QLA_FW_H
 
@@ -394,7 +380,7 @@ struct cmd_type_6 {
 
 	uint16_t fcp_rsp_dsd_len;	/* FCP_RSP DSD length. */
 
-	uint8_t lun[8];			/* FCP LUN (BE). */
+	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	uint16_t control_flags;		/* Control flags. */
 #define CF_DATA_SEG_DESCR_ENABLE	BIT_2
@@ -432,7 +418,7 @@ struct cmd_type_7 {
 	uint16_t dseg_count;		/* Data segment count. */
 	uint16_t reserved_1;
 
-	uint8_t lun[8];			/* FCP LUN (BE). */
+	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	uint16_t task_mgmt_flags;	/* Task management flags. */
 #define TMF_CLEAR_ACA		BIT_14

@@ -629,19 +629,17 @@ static int asb100_detect_subclients(struct i2c_adapter *adapter, int address,
 	int i, id, err;
 	struct asb100_data *data = i2c_get_clientdata(new_client);
 
-	data->lm75[0] = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	data->lm75[0] = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (!(data->lm75[0])) {
 		err = -ENOMEM;
 		goto ERROR_SC_0;
 	}
-	memset(data->lm75[0], 0x00, sizeof(struct i2c_client));
 
-	data->lm75[1] = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	data->lm75[1] = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (!(data->lm75[1])) {
 		err = -ENOMEM;
 		goto ERROR_SC_1;
 	}
-	memset(data->lm75[1], 0x00, sizeof(struct i2c_client));
 
 	id = i2c_adapter_id(adapter);
 
@@ -724,12 +722,11 @@ static int asb100_detect(struct i2c_adapter *adapter, int address, int kind)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access asb100_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct asb100_data), GFP_KERNEL))) {
-		pr_debug("asb100.o: detect failed, kmalloc failed!\n");
+	if (!(data = kzalloc(sizeof(struct asb100_data), GFP_KERNEL))) {
+		pr_debug("asb100.o: detect failed, kzalloc failed!\n");
 		err = -ENOMEM;
 		goto ERROR0;
 	}
-	memset(data, 0, sizeof(struct asb100_data));
 
 	new_client = &data->client;
 	init_MUTEX(&data->lock);

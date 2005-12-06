@@ -21,7 +21,7 @@
 #include <asm/ptrace.h>
 #include <asm/current.h>
 
-extern inline unsigned long rdusp(void)
+static inline unsigned long rdusp(void)
 {
 #ifdef CONFIG_COLDFIRE
 	extern unsigned int sw_usp;
@@ -33,7 +33,7 @@ extern inline unsigned long rdusp(void)
 #endif
 }
 
-extern inline void wrusp(unsigned long usp)
+static inline void wrusp(unsigned long usp)
 {
 #ifdef CONFIG_COLDFIRE
 	extern unsigned int sw_usp;

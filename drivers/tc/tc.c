@@ -8,32 +8,30 @@
  * for more details.
  *
  * Copyright (c) Harald Koerfgen, 1998
- * Copyright (c) 2001, 2003  Maciej W. Rozycki
+ * Copyright (c) 2001, 2003, 2005  Maciej W. Rozycki
  */
-#include <linux/string.h>
 #include <linux/init.h>
-#include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
 #include <asm/addrspace.h>
+#include <asm/bug.h>
 #include <asm/errno.h>
+#include <asm/io.h>
+#include <asm/paccess.h>
+
 #include <asm/dec/machtype.h>
 #include <asm/dec/prom.h>
 #include <asm/dec/tcinfo.h>
 #include <asm/dec/tcmodule.h>
 #include <asm/dec/interrupts.h>
-#include <asm/paccess.h>
-#include <asm/ptrace.h>
-
-#define TC_DEBUG
 
 MODULE_LICENSE("GPL");
 slot_info tc_bus[MAX_SLOT];
 static int num_tcslots;
 static tcinfo *info;
-
-unsigned long system_base;
 
 /*
  * Interface to the world. Read comment in include/asm-mips/tc.h.
@@ -97,13 +95,16 @@ unsigned long get_tc_speed(void)
 static void __init tc_probe(unsigned long startaddr, unsigned long size,
 			    int slots)
 {
+	unsigned long slotaddr;
 	int i, slot, err;
 	long offset;
-	unsigned char pattern[4];
-	unsigned char *module;
+	u8 pattern[4];
+	volatile u8 *module;
 
 	for (slot = 0; slot < slots; slot++) {
-		module = (char *)(startaddr + slot * size);
+		slotaddr = startaddr + slot * size;
+		module = ioremap_nocache(slotaddr, size);
+		BUG_ON(!module);
 
 		offset = OLDCARD;
 
@@ -112,8 +113,10 @@ static void __init tc_probe(unsigned long startaddr, unsigned long size,
 		err |= get_dbe(pattern[1], module + OLDCARD + TC_PATTERN1);
 		err |= get_dbe(pattern[2], module + OLDCARD + TC_PATTERN2);
 		err |= get_dbe(pattern[3], module + OLDCARD + TC_PATTERN3);
-		if (err)
+		if (err) {
+			iounmap(module);
 			continue;
+		}
 
 		if (pattern[0] != 0x55 || pattern[1] != 0x00 ||
 		    pattern[2] != 0xaa || pattern[3] != 0xff) {
@@ -124,16 +127,20 @@ static void __init tc_probe(unsigned long startaddr, unsigned long size,
 			err |= get_dbe(pattern[1], module + TC_PATTERN1);
 			err |= get_dbe(pattern[2], module + TC_PATTERN2);
 			err |= get_dbe(pattern[3], module + TC_PATTERN3);
-			if (err)
+			if (err) {
+				iounmap(module);
 				continue;
+			}
 		}
 
 		if (pattern[0] != 0x55 || pattern[1] != 0x00 ||
-		    pattern[2] != 0xaa || pattern[3] != 0xff)
+		    pattern[2] != 0xaa || pattern[3] != 0xff) {
+			iounmap(module);
 			continue;
+		}
 
-		tc_bus[slot].base_addr = (unsigned long)module;
-		for(i = 0; i < 8; i++) {
+		tc_bus[slot].base_addr = slotaddr;
+		for (i = 0; i < 8; i++) {
 			tc_bus[slot].firmware[i] =
 				module[TC_FIRM_VER + offset + 4 * i];
 			tc_bus[slot].vendor[i] =
@@ -171,13 +178,15 @@ static void __init tc_probe(unsigned long startaddr, unsigned long size,
 			tc_bus[slot].interrupt = -1;
 			break;
 		}
+
+		iounmap(module);
 	}
 }
 
 /*
  * the main entry
  */
-void __init tc_init(void)
+static int __init tc_init(void)
 {
 	int tc_clock;
 	int i;
@@ -185,7 +194,7 @@ void __init tc_init(void)
 	unsigned long slot_size;
 
 	if (!TURBOCHANNEL)
-		return;
+		return 0;
 
 	for (i = 0; i < MAX_SLOT; i++) {
 		tc_bus[i].base_addr = 0;
@@ -196,8 +205,8 @@ void __init tc_init(void)
 		tc_bus[i].flags = FREE;
 	}
 
-	info = (tcinfo *) rex_gettcinfo();
-	slot0addr = (unsigned long)KSEG1ADDR(rex_slot_address(0));
+	info = rex_gettcinfo();
+	slot0addr = CPHYSADDR((long)rex_slot_address(0));
 
 	switch (mips_machtype) {
 	case MACH_DS5000_200:
@@ -216,37 +225,24 @@ void __init tc_init(void)
 
 	tc_clock = 10000 / info->clk_period;
 
-	if (TURBOCHANNEL && info->slot_size && slot0addr) {
-		printk("TURBOchannel rev. %1d at %2d.%1d MHz ", info->revision,
-			tc_clock / 10, tc_clock % 10);
-		printk("(with%s parity)\n", info->parity ? "" : "out");
+	if (info->slot_size && slot0addr) {
+		pr_info("TURBOchannel rev. %d at %d.%d MHz (with%s parity)\n",
+			info->revision, tc_clock / 10, tc_clock % 10,
+			info->parity ? "" : "out");
 
 		slot_size = info->slot_size << 20;
 
 		tc_probe(slot0addr, slot_size, num_tcslots);
 
-  		/*
-  		 * All TURBOchannel DECstations have the onboard devices
- 		 * where the (num_tcslots + 0 or 1 on DS5k/xx) Option Module
- 		 * would be.
- 		 */
- 		if(mips_machtype == MACH_DS5000_XX)
- 			i = 1;
-		else
- 			i = 0;
-
- 	        system_base = slot0addr + slot_size * (num_tcslots + i);
-
-#ifdef TC_DEBUG
-		for (i = 0; i < num_tcslots; i++)
-			if (tc_bus[i].base_addr) {
-				printk("    slot %d: ", i);
-				printk("%s %s %s\n", tc_bus[i].vendor,
-					tc_bus[i].name, tc_bus[i].firmware);
-			}
-#endif
-		ioport_resource.end = KSEG2 - 1;
+		for (i = 0; i < num_tcslots; i++) {
+			if (!tc_bus[i].base_addr)
+				continue;
+			pr_info("    slot %d: %s %s %s\n", i, tc_bus[i].vendor,
+				tc_bus[i].name, tc_bus[i].firmware);
+		}
 	}
+
+	return 0;
 }
 
 subsys_initcall(tc_init);
@@ -257,4 +253,3 @@ EXPORT_SYMBOL(release_tc_card);
 EXPORT_SYMBOL(get_tc_base_addr);
 EXPORT_SYMBOL(get_tc_irq_nr);
 EXPORT_SYMBOL(get_tc_speed);
-EXPORT_SYMBOL(system_base);

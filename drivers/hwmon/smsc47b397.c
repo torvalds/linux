@@ -244,11 +244,10 @@ static int smsc47b397_detect(struct i2c_adapter *adapter)
 		return -EBUSY;
 	}
 
-	if (!(data = kmalloc(sizeof(struct smsc47b397_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct smsc47b397_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto error_release;
 	}
-	memset(data, 0x00, sizeof(struct smsc47b397_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
@@ -299,7 +298,7 @@ static int __init smsc47b397_find(unsigned short *addr)
 	superio_enter();
 	id = superio_inb(SUPERIO_REG_DEVID);
 
-	if (id != 0x6f) {
+	if ((id != 0x6f) && (id != 0x81)) {
 		superio_exit();
 		return -ENODEV;
 	}
@@ -310,8 +309,9 @@ static int __init smsc47b397_find(unsigned short *addr)
 	*addr = (superio_inb(SUPERIO_REG_BASE_MSB) << 8)
 		 |  superio_inb(SUPERIO_REG_BASE_LSB);
 
-	printk(KERN_INFO "smsc47b397: found SMSC LPC47B397-NC "
-		"(base address 0x%04x, revision %u)\n", *addr, rev);
+	printk(KERN_INFO "smsc47b397: found SMSC %s "
+		"(base address 0x%04x, revision %u)\n",
+		id == 0x81 ? "SCH5307-NS" : "LPC47B397-NC", *addr, rev);
 
 	superio_exit();
 	return 0;

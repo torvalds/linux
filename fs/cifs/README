@@ -278,7 +278,9 @@ A partial list of the supported mount options follows:
 		(such as Windows), permissions can also be checked at the
 		client, and a crude form of client side permission checking 
 		can be enabled by specifying file_mode and dir_mode on 
-		the client
+		the client.  Note that the mount.cifs helper must be
+		at version 1.10 or higher to support specifying the uid
+		(or gid) in non-numberic form.
   gid		If CIFS Unix extensions are not supported by the server
 		this overrides the default gid for inodes.
   file_mode     If CIFS Unix extensions are not supported by the server
@@ -294,8 +296,10 @@ A partial list of the supported mount options follows:
 		during the local client kernel build will be used.
 		If server does not support Unicode, this parameter is
 		unused.
-  rsize		default read size
-  wsize		default write size
+  rsize		default read size (usually 16K)
+  wsize		default write size (usually 16K, 32K is often better over GigE)
+		maximum wsize currently allowed by CIFS is 57344 (14 4096 byte
+		pages)
   rw		mount the network share read-write (note that the
 		server may still consider the share read-only)
   ro		mount network share read-only
@@ -343,7 +347,10 @@ A partial list of the supported mount options follows:
 		client system. It is typically only needed when the server
 		supports the CIFS Unix Extensions but the UIDs/GIDs on the
 		client and server system do not match closely enough to allow
-		access by the user doing the mount.
+		access by the user doing the mount, but it may be useful with
+		non CIFS Unix Extension mounts for cases in which the default
+		mode is specified on the mount but is not to be enforced on the
+		client (e.g. perhaps when MultiUserMount is enabled)
 		Note that this does not affect the normal ACL check on the
 		target machine done by the server software (of the server
 		ACL against the user name provided at mount time).
@@ -366,15 +373,21 @@ A partial list of the supported mount options follows:
   setuids       If the CIFS Unix extensions are negotiated with the server
 		the client will attempt to set the effective uid and gid of
 		the local process on newly created files, directories, and
-		devices (create, mkdir, mknod).
+		devices (create, mkdir, mknod).  If the CIFS Unix Extensions
+		are not negotiated, for newly created files and directories
+		instead of using the default uid and gid specified on the
+		the mount, cache the new file's uid and gid locally which means
+		that the uid for the file can change when the inode is
+	        reloaded (or the user remounts the share).
   nosetuids     The client will not attempt to set the uid and gid on
 		on newly created files, directories, and devices (create, 
 		mkdir, mknod) which will result in the server setting the
 		uid and gid to the default (usually the server uid of the
 		user who mounted the share).  Letting the server (rather than
-		the client) set the uid and gid is the default. This
-		parameter has no effect if the CIFS Unix Extensions are not
-		negotiated.
+		the client) set the uid and gid is the default. If the CIFS
+		Unix Extensions are not negotiated then the uid and gid for
+		new files will appear to be the uid (gid) of the mounter or the
+		uid (gid) parameter specified on the mount.
   netbiosname   When mounting to servers via port 139, specifies the RFC1001
 		source name to use to represent the client netbios machine 
 		name when doing the RFC1001 netbios session initialize.
@@ -407,8 +420,22 @@ A partial list of the supported mount options follows:
 		This has no effect if the server does not support
 		Unicode on the wire.
  nomapchars     Do not translate any of these seven characters (default).
+ nocase         Request case insensitive path name matching (case
+		sensitive is the default if the server suports it).
+ nobrl          Do not send byte range lock requests to the server.
+		This is necessary for certain applications that break
+		with cifs style mandatory byte range locks (and most
+		cifs servers do not yet support requesting advisory
+		byte range locks).
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
+ sfu            When the CIFS Unix Extensions are not negotiated, attempt to
+		create device files and fifos in a format compatible with
+		Services for Unix (SFU).  In addition retrieve bits 10-12
+		of the mode via the SETFILEBITS extended attribute (as
+		SFU does).  In the future the bottom 9 bits of the mode
+		mode also will be emulated using queries of the security
+		descriptor (ACL).
 		
 The mount.cifs mount helper also accepts a few mount options before -o
 including:
@@ -473,9 +500,16 @@ These experimental features and tracing can be enabled by changing flags in
 kernel, e.g.  insmod cifs).  To enable a feature set it to 1 e.g.  to enable 
 tracing to the kernel message log type: 
 
-	echo 1 > /proc/fs/cifs/cifsFYI
+	echo 7 > /proc/fs/cifs/cifsFYI
 	
-and for more extensive tracing including the start of smb requests and responses
+cifsFYI functions as a bit mask. Setting it to 1 enables additional kernel
+logging of various informational messages.  2 enables logging of non-zero
+SMB return codes while 4 enables logging of requests that take longer
+than one second to complete (except for byte range lock requests). 
+Setting it to 4 requires defining CONFIG_CIFS_STATS2 manually in the
+source code (typically by setting it in the beginning of cifsglob.h),
+and setting it to seven enables all three.  Finally, tracing
+the start of smb requests and responses can be enabled via:
 
 	echo 1 > /proc/fs/cifs/traceSMB
 

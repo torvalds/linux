@@ -571,14 +571,10 @@ setstack_icc(struct PStack *st, struct IsdnCardState *cs)
 
 static void
 DC_Close_icc(struct IsdnCardState *cs) {
-	if (cs->dc.icc.mon_rx) {
-		kfree(cs->dc.icc.mon_rx);
-		cs->dc.icc.mon_rx = NULL;
-	}
-	if (cs->dc.icc.mon_tx) {
-		kfree(cs->dc.icc.mon_tx);
-		cs->dc.icc.mon_tx = NULL;
-	}
+	kfree(cs->dc.icc.mon_rx);
+	cs->dc.icc.mon_rx = NULL;
+	kfree(cs->dc.icc.mon_tx);
+	cs->dc.icc.mon_tx = NULL;
 }
 
 static void

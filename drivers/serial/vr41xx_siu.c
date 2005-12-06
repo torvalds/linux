@@ -26,7 +26,7 @@
 #endif
 
 #include <linux/console.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -924,7 +924,7 @@ static struct uart_driver siu_uart_driver = {
 	.cons		= SERIAL_VR41XX_CONSOLE,
 };
 
-static int siu_probe(struct device *dev)
+static int siu_probe(struct platform_device *dev)
 {
 	struct uart_port *port;
 	int num, i, retval;
@@ -941,7 +941,7 @@ static int siu_probe(struct device *dev)
 	for (i = 0; i < num; i++) {
 		port = &siu_uart_ports[i];
 		port->ops = &siu_uart_ops;
-		port->dev = dev;
+		port->dev = &dev->dev;
 
 		retval = uart_add_one_port(&siu_uart_driver, port);
 		if (retval < 0) {
@@ -958,14 +958,14 @@ static int siu_probe(struct device *dev)
 	return 0;
 }
 
-static int siu_remove(struct device *dev)
+static int siu_remove(struct platform_device *dev)
 {
 	struct uart_port *port;
 	int i;
 
 	for (i = 0; i < siu_uart_driver.nr; i++) {
 		port = &siu_uart_ports[i];
-		if (port->dev == dev) {
+		if (port->dev == &dev->dev) {
 			uart_remove_one_port(&siu_uart_driver, port);
 			port->dev = NULL;
 		}
@@ -976,18 +976,15 @@ static int siu_remove(struct device *dev)
 	return 0;
 }
 
-static int siu_suspend(struct device *dev, pm_message_t state, u32 level)
+static int siu_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct uart_port *port;
 	int i;
 
-	if (level != SUSPEND_DISABLE)
-		return 0;
-
 	for (i = 0; i < siu_uart_driver.nr; i++) {
 		port = &siu_uart_ports[i];
 		if ((port->type == PORT_VR41XX_SIU ||
-		     port->type == PORT_VR41XX_DSIU) && port->dev == dev)
+		     port->type == PORT_VR41XX_DSIU) && port->dev == &dev->dev)
 			uart_suspend_port(&siu_uart_driver, port);
 
 	}
@@ -995,18 +992,15 @@ static int siu_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-static int siu_resume(struct device *dev, u32 level)
+static int siu_resume(struct platform_device *dev)
 {
 	struct uart_port *port;
 	int i;
 
-	if (level != RESUME_ENABLE)
-		return 0;
-
 	for (i = 0; i < siu_uart_driver.nr; i++) {
 		port = &siu_uart_ports[i];
 		if ((port->type == PORT_VR41XX_SIU ||
-		     port->type == PORT_VR41XX_DSIU) && port->dev == dev)
+		     port->type == PORT_VR41XX_DSIU) && port->dev == &dev->dev)
 			uart_resume_port(&siu_uart_driver, port);
 	}
 
@@ -1015,13 +1009,14 @@ static int siu_resume(struct device *dev, u32 level)
 
 static struct platform_device *siu_platform_device;
 
-static struct device_driver siu_device_driver = {
-	.name		= "SIU",
-	.bus		= &platform_bus_type,
+static struct platform_driver siu_device_driver = {
 	.probe		= siu_probe,
 	.remove		= siu_remove,
 	.suspend	= siu_suspend,
 	.resume		= siu_resume,
+	.driver		= {
+		.name	= "SIU",
+	},
 };
 
 static int __devinit vr41xx_siu_init(void)
@@ -1032,7 +1027,7 @@ static int __devinit vr41xx_siu_init(void)
 	if (IS_ERR(siu_platform_device))
 		return PTR_ERR(siu_platform_device);
 
-	retval = driver_register(&siu_device_driver);
+	retval = platform_driver_register(&siu_device_driver);
 	if (retval < 0)
 		platform_device_unregister(siu_platform_device);
 
@@ -1041,7 +1036,7 @@ static int __devinit vr41xx_siu_init(void)
 
 static void __devexit vr41xx_siu_exit(void)
 {
-	driver_unregister(&siu_device_driver);
+	platform_driver_unregister(&siu_device_driver);
 
 	platform_device_unregister(siu_platform_device);
 }

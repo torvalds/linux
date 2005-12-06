@@ -22,20 +22,23 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
+
 #include <asm/arch/imxfb.h>
 #include <asm/hardware.h>
+#include <asm/arch/imx-regs.h>
 
 #include <asm/mach/map.h>
 
 void imx_gpio_mode(int gpio_mode)
 {
 	unsigned int pin = gpio_mode & GPIO_PIN_MASK;
-	unsigned int port = (gpio_mode & GPIO_PORT_MASK) >> 5;
-	unsigned int ocr = (gpio_mode & GPIO_OCR_MASK) >> 10;
+	unsigned int port = (gpio_mode & GPIO_PORT_MASK) >> GPIO_PORT_SHIFT;
+	unsigned int ocr = (gpio_mode & GPIO_OCR_MASK) >> GPIO_OCR_SHIFT;
 	unsigned int tmp;
 
 	/* Pullup enable */
@@ -57,7 +60,7 @@ void imx_gpio_mode(int gpio_mode)
 		GPR(port) &= ~(1<<pin);
 
 	/* use as gpio? */
-	if( ocr == 3 )
+	if(gpio_mode &  GPIO_GIUS)
 		GIUS(port) |= (1<<pin);
 	else
 		GIUS(port) &= ~(1<<pin);
@@ -72,20 +75,20 @@ void imx_gpio_mode(int gpio_mode)
 		tmp |= (ocr << (pin*2));
 		OCR1(port) = tmp;
 
-		if( gpio_mode &	GPIO_AOUT )
-			ICONFA1(port) &= ~( 3<<(pin*2));
-		if( gpio_mode &	GPIO_BOUT )
-			ICONFB1(port) &= ~( 3<<(pin*2));
+		ICONFA1(port) &= ~( 3<<(pin*2));
+		ICONFA1(port) |= ((gpio_mode >> GPIO_AOUT_SHIFT) & 3) << (pin * 2);
+		ICONFB1(port) &= ~( 3<<(pin*2));
+		ICONFB1(port) |= ((gpio_mode >> GPIO_BOUT_SHIFT) & 3) << (pin * 2);
 	} else {
 		tmp = OCR2(port);
 		tmp &= ~( 3<<((pin-16)*2));
 		tmp |= (ocr << ((pin-16)*2));
 		OCR2(port) = tmp;
 
-		if( gpio_mode &	GPIO_AOUT )
-			ICONFA2(port) &= ~( 3<<((pin-16)*2));
-		if( gpio_mode &	GPIO_BOUT )
-			ICONFB2(port) &= ~( 3<<((pin-16)*2));
+		ICONFA2(port) &= ~( 3<<((pin-16)*2));
+		ICONFA2(port) |= ((gpio_mode >> GPIO_AOUT_SHIFT) & 3) << ((pin-16) * 2);
+		ICONFB2(port) &= ~( 3<<((pin-16)*2));
+		ICONFB2(port) |= ((gpio_mode >> GPIO_BOUT_SHIFT) & 3) << ((pin-16) * 2);
 	}
 }
 
@@ -272,8 +275,12 @@ static struct platform_device *devices[] __initdata = {
 };
 
 static struct map_desc imx_io_desc[] __initdata = {
-	/* virtual     physical    length      type */
-	{IMX_IO_BASE, IMX_IO_PHYS, IMX_IO_SIZE, MT_DEVICE},
+	{
+		.virtual	= IMX_IO_BASE,
+		.pfn		= __phys_to_pfn(IMX_IO_PHYS),
+		.length		= IMX_IO_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init

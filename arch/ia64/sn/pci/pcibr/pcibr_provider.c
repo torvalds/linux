@@ -212,13 +212,13 @@ void pcibr_target_interrupt(struct sn_irq_info *sn_irq_info)
 		    pdi_pcibus_info;
 
 		/* Disable the device's IRQ   */
-		pcireg_intr_enable_bit_clr(pcibus_info, bit);
+		pcireg_intr_enable_bit_clr(pcibus_info, (1 << bit));
 
 		/* Change the device's IRQ    */
 		pcireg_intr_addr_addr_set(pcibus_info, bit, xtalk_addr);
 
 		/* Re-enable the device's IRQ */
-		pcireg_intr_enable_bit_set(pcibus_info, bit);
+		pcireg_intr_enable_bit_set(pcibus_info, (1 << bit));
 
 		pcibr_force_interrupt(sn_irq_info);
 	}

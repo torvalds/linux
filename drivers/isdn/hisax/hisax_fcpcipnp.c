@@ -23,7 +23,6 @@
  * o tx_skb at PH_DEACTIVATE time
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>

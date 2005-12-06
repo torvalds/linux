@@ -231,6 +231,7 @@
 #include <asm/uaccess.h>
 
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 static int maestro_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *d);
 
 #include "maestro.h"

@@ -637,7 +637,7 @@ lenout:
  *	@prot: struct proto associated with this new sock instance
  *	@zero_it: if we should zero the newly allocated sock
  */
-struct sock *sk_alloc(int family, unsigned int __nocast priority,
+struct sock *sk_alloc(int family, gfp_t priority,
 		      struct proto *prot, int zero_it)
 {
 	struct sock *sk = NULL;
@@ -660,16 +660,20 @@ struct sock *sk_alloc(int family, unsigned int __nocast priority,
 			sock_lock_init(sk);
 		}
 		
-		if (security_sk_alloc(sk, family, priority)) {
-			if (slab != NULL)
-				kmem_cache_free(slab, sk);
-			else
-				kfree(sk);
-			sk = NULL;
-		} else
-			__module_get(prot->owner);
+		if (security_sk_alloc(sk, family, priority))
+			goto out_free;
+
+		if (!try_module_get(prot->owner))
+			goto out_free;
 	}
 	return sk;
+
+out_free:
+	if (slab != NULL)
+		kmem_cache_free(slab, sk);
+	else
+		kfree(sk);
+	return NULL;
 }
 
 void sk_free(struct sock *sk)
@@ -700,7 +704,7 @@ void sk_free(struct sock *sk)
 	module_put(owner);
 }
 
-struct sock *sk_clone(const struct sock *sk, const unsigned int __nocast priority)
+struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 {
 	struct sock *newsk = sk_alloc(sk->sk_family, priority, sk->sk_prot, 0);
 
@@ -841,7 +845,7 @@ unsigned long sock_i_ino(struct sock *sk)
  * Allocate a skb from the socket's send buffer.
  */
 struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force,
-			     unsigned int __nocast priority)
+			     gfp_t priority)
 {
 	if (force || atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf) {
 		struct sk_buff * skb = alloc_skb(size, priority);
@@ -857,7 +861,7 @@ struct sk_buff *sock_wmalloc(struct sock *sk, unsigned long size, int force,
  * Allocate a skb from the socket's receive buffer.
  */ 
 struct sk_buff *sock_rmalloc(struct sock *sk, unsigned long size, int force,
-			     unsigned int __nocast priority)
+			     gfp_t priority)
 {
 	if (force || atomic_read(&sk->sk_rmem_alloc) < sk->sk_rcvbuf) {
 		struct sk_buff *skb = alloc_skb(size, priority);
@@ -872,7 +876,7 @@ struct sk_buff *sock_rmalloc(struct sock *sk, unsigned long size, int force,
 /* 
  * Allocate a memory block from the socket's option memory buffer.
  */ 
-void *sock_kmalloc(struct sock *sk, int size, unsigned int __nocast priority)
+void *sock_kmalloc(struct sock *sk, int size, gfp_t priority)
 {
 	if ((unsigned)size <= sysctl_optmem_max &&
 	    atomic_read(&sk->sk_omem_alloc) + size < sysctl_optmem_max) {
@@ -936,7 +940,7 @@ static struct sk_buff *sock_alloc_send_pskb(struct sock *sk,
 					    int noblock, int *errcode)
 {
 	struct sk_buff *skb;
-	unsigned int gfp_mask;
+	gfp_t gfp_mask;
 	long timeo;
 	int err;
 
@@ -1238,8 +1242,7 @@ static void sock_def_write_space(struct sock *sk)
 
 static void sock_def_destruct(struct sock *sk)
 {
-	if (sk->sk_protinfo)
-		kfree(sk->sk_protinfo);
+	kfree(sk->sk_protinfo);
 }
 
 void sk_send_sigurg(struct sock *sk)

@@ -621,8 +621,7 @@ static int vfat_build_slots(struct inode *dir, const unsigned char *name,
 	}
 
 	/* build the entry of long file name */
-	for (cksum = i = 0; i < 11; i++)
-		cksum = (((cksum&1)<<7)|((cksum&0xfe)>>1)) + msdos_name[i];
+	cksum = fat_checksum(msdos_name);
 
 	*nr_slots = usize / 13;
 	for (ps = slots, i = *nr_slots; i > 0; i--, ps++) {
@@ -888,10 +887,10 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 {
 	struct buffer_head *dotdot_bh;
 	struct msdos_dir_entry *dotdot_de;
-	loff_t dotdot_i_pos;
 	struct inode *old_inode, *new_inode;
 	struct fat_slot_info old_sinfo, sinfo;
 	struct timespec ts;
+	loff_t dotdot_i_pos, new_i_pos;
 	int err, is_dir, update_dotdot, corrupt = 0;
 
 	old_sinfo.bh = sinfo.bh = dotdot_bh = NULL;
@@ -914,31 +913,24 @@ static int vfat_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	ts = CURRENT_TIME_SEC;
 	if (new_inode) {
-		err = vfat_find(new_dir, &new_dentry->d_name, &sinfo);
-		if (err)
-			goto out;
-		if (MSDOS_I(new_inode)->i_pos != sinfo.i_pos) {
-			/* WTF??? Cry and fail. */
-			printk(KERN_WARNING "vfat_rename: fs corrupted\n");
-			goto out;
-		}
-
 		if (is_dir) {
 			err = fat_dir_empty(new_inode);
 			if (err)
 				goto out;
 		}
+		new_i_pos = MSDOS_I(new_inode)->i_pos;
 		fat_detach(new_inode);
 	} else {
 		err = vfat_add_entry(new_dir, &new_dentry->d_name, is_dir, 0,
 				     &ts, &sinfo);
 		if (err)
 			goto out;
+		new_i_pos = sinfo.i_pos;
 	}
 	new_dir->i_version++;
 
 	fat_detach(old_inode);
-	fat_attach(old_inode, sinfo.i_pos);
+	fat_attach(old_inode, new_i_pos);
 	if (IS_DIRSYNC(new_dir)) {
 		err = fat_sync_inode(old_inode);
 		if (err)
@@ -1002,7 +994,7 @@ error_inode:
 	fat_detach(old_inode);
 	fat_attach(old_inode, old_sinfo.i_pos);
 	if (new_inode) {
-		fat_attach(new_inode, sinfo.i_pos);
+		fat_attach(new_inode, new_i_pos);
 		if (corrupt)
 			corrupt |= fat_sync_inode(new_inode);
 	} else {

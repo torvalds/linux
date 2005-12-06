@@ -1034,7 +1034,6 @@ static struct fb_ops pm2fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 /*
@@ -1120,6 +1119,22 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 	DPRINTK("MemControl 0x%x BootAddress 0x%x MemConfig 0x%x\n",
 		default_par->mem_control, default_par->boot_address,
 		default_par->mem_config);
+
+	if(default_par->mem_control == 0 &&
+		default_par->boot_address == 0x31 &&
+		default_par->mem_config == 0x259fffff &&
+		pdev->subsystem_vendor == 0x1048 &&
+		pdev->subsystem_device == 0x0a31) {
+		DPRINTK("subsystem_vendor: %04x, subsystem_device: %04x\n",
+			pdev->subsystem_vendor, pdev->subsystem_device);
+		DPRINTK("We have not been initialized by VGA BIOS "
+			"and are running on an Elsa Winner 2000 Office\n");
+		DPRINTK("Initializing card timings manually...\n");
+		default_par->mem_control=0;
+		default_par->boot_address=0x20;
+		default_par->mem_config=0xe6002021;
+		default_par->memclock=100000;
+	}
 
 	/* Now work out how big lfb is going to be. */
 	switch(default_par->mem_config & PM2F_MEM_CONFIG_RAM_MASK) {

@@ -10,21 +10,21 @@
  *  Commonly used scsi driver functions.
  */
 
+#include <linux/scatterlist.h>
+
 #define BELT_AND_BRACES
 
 /*
  * The scatter-gather list handling.  This contains all
  * the yucky stuff that needs to be fixed properly.
  */
-static inline int copy_SCp_to_sg(struct scatterlist *sg, Scsi_Pointer *SCp, int max)
+static inline int copy_SCp_to_sg(struct scatterlist *sg, struct scsi_pointer *SCp, int max)
 {
 	int bufs = SCp->buffers_residual;
 
 	BUG_ON(bufs + 1 > max);
 
-	sg->page   = virt_to_page(SCp->ptr);
-	sg->offset = offset_in_page(SCp->ptr);
-	sg->length = SCp->this_residual;
+	sg_set_buf(sg, SCp->ptr, SCp->this_residual);
 
 	if (bufs)
 		memcpy(sg + 1, SCp->buffer + 1,
@@ -32,7 +32,7 @@ static inline int copy_SCp_to_sg(struct scatterlist *sg, Scsi_Pointer *SCp, int 
 	return bufs + 1;
 }
 
-static inline int next_SCp(Scsi_Pointer *SCp)
+static inline int next_SCp(struct scsi_pointer *SCp)
 {
 	int ret = SCp->buffers_residual;
 	if (ret) {
@@ -49,7 +49,7 @@ static inline int next_SCp(Scsi_Pointer *SCp)
 	return ret;
 }
 
-static inline unsigned char get_next_SCp_byte(Scsi_Pointer *SCp)
+static inline unsigned char get_next_SCp_byte(struct scsi_pointer *SCp)
 {
 	char c = *SCp->ptr;
 
@@ -59,7 +59,7 @@ static inline unsigned char get_next_SCp_byte(Scsi_Pointer *SCp)
 	return c;
 }
 
-static inline void put_next_SCp_byte(Scsi_Pointer *SCp, unsigned char c)
+static inline void put_next_SCp_byte(struct scsi_pointer *SCp, unsigned char c)
 {
 	*SCp->ptr = c;
 	SCp->ptr += 1;

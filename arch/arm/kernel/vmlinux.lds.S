@@ -6,14 +6,23 @@
 #include <asm-generic/vmlinux.lds.h>
 #include <linux/config.h>
 #include <asm/thread_info.h>
+#include <asm/memory.h>
 	
 OUTPUT_ARCH(arm)
 ENTRY(stext)
+
 #ifndef __ARMEB__
 jiffies = jiffies_64;
 #else
 jiffies = jiffies_64 + 4;
 #endif
+
+#ifdef CONFIG_XIP_KERNEL
+#define TEXTADDR  XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
+#else
+#define TEXTADDR  KERNEL_RAM_ADDR
+#endif
+
 SECTIONS
 {
 	. = TEXTADDR;
@@ -89,20 +98,13 @@ SECTIONS
 		*(.got)			/* Global offset table		*/
 	}
 
-	. = ALIGN(16);
-	__ex_table : {			/* Exception table		*/
-		__start___ex_table = .;
-			*(__ex_table)
-		__stop___ex_table = .;
-	}
-
 	RODATA
 
 	_etext = .;			/* End of text and rodata section */
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */
-	. = DATAADDR;
+	. = KERNEL_RAM_ADDR;
 #else
 	. = ALIGN(THREAD_SIZE);
 	__data_loc = .;
@@ -138,6 +140,14 @@ SECTIONS
 		*(.data.cacheline_aligned)
 
 		/*
+		 * The exception fixup table (might need resorting at runtime)
+		 */
+		. = ALIGN(32);
+		__start___ex_table = .;
+		*(__ex_table)
+		__stop___ex_table = .;
+
+		/*
 		 * and the usual data section
 		 */
 		*(.data)
@@ -162,6 +172,10 @@ SECTIONS
 	.comment 0 : { *(.comment) }
 }
 
-/* those must never be empty */
+/*
+ * These must never be empty
+ * If you have to comment these two assert statements out, your
+ * binutils is too old (for other reasons as well)
+ */
 ASSERT((__proc_info_end - __proc_info_begin), "missing CPU support")
 ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")

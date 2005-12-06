@@ -178,6 +178,8 @@ static int dino_cfg_read(struct pci_bus *bus, unsigned int devfn, int where,
 	void __iomem *base_addr = d->hba.base_addr;
 	unsigned long flags;
 
+	DBG("%s: %p, %d, %d, %d\n", __FUNCTION__, base_addr, devfn, where,
+									size);
 	spin_lock_irqsave(&d->dinosaur_pen, flags);
 
 	/* tell HW which CFG address */
@@ -211,6 +213,8 @@ static int dino_cfg_write(struct pci_bus *bus, unsigned int devfn, int where,
 	void __iomem *base_addr = d->hba.base_addr;
 	unsigned long flags;
 
+	DBG("%s: %p, %d, %d, %d\n", __FUNCTION__, base_addr, devfn, where,
+									size);
 	spin_lock_irqsave(&d->dinosaur_pen, flags);
 
 	/* avoid address stepping feature */
@@ -295,7 +299,7 @@ static void dino_disable_irq(unsigned int irq)
 	struct dino_device *dino_dev = irq_desc[irq].handler_data;
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, irq);
 
-	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, irq_dev, irq);
+	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
 
 	/* Clear the matching bit in the IMR register */
 	dino_dev->imr &= ~(DINO_MASK_IRQ(local_irq));
@@ -308,7 +312,7 @@ static void dino_enable_irq(unsigned int irq)
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, irq);
 	u32 tmp;
 
-	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, irq_dev, irq);
+	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
 
 	/*
 	** clear pending IRQ bits
@@ -490,7 +494,7 @@ dino_card_setup(struct pci_bus *bus, void __iomem *base_addr)
 		if (res->start == F_EXTEND(0xf0000000UL | (i * _8MB)))
 			break;
 	}
-	DBG("DINO GSC WRITE i=%d, start=%lx, dino addr = %lx\n",
+	DBG("DINO GSC WRITE i=%d, start=%lx, dino addr = %p\n",
 	    i, res->start, base_addr + DINO_IO_ADDR_EN);
 	__raw_writel(1 << i, base_addr + DINO_IO_ADDR_EN);
 }
@@ -683,6 +687,14 @@ static void __init
 dino_card_init(struct dino_device *dino_dev)
 {
 	u32 brdg_feat = 0x00784e05;
+	unsigned long status;
+
+	status = __raw_readl(dino_dev->hba.base_addr+DINO_IO_STATUS);
+	if (status & 0x0000ff80) {
+		__raw_writel(0x00000005,
+				dino_dev->hba.base_addr+DINO_IO_COMMAND);
+		udelay(1);
+	}
 
 	__raw_writel(0x00000000, dino_dev->hba.base_addr+DINO_GMASK);
 	__raw_writel(0x00000001, dino_dev->hba.base_addr+DINO_IO_FBB_EN);
@@ -902,15 +914,15 @@ void ccio_cujo20_fixup(struct parisc_device *dev, u32 iovp);
 ** If so, initialize the chip appropriately (card-mode vs bridge mode).
 ** Much of the initialization is common though.
 */
-static int __init
-dino_driver_callback(struct parisc_device *dev)
+static int __init dino_probe(struct parisc_device *dev)
 {
 	struct dino_device *dino_dev;	// Dino specific control struct
 	const char *version = "unknown";
 	char *name;
 	int is_cujo = 0;
 	struct pci_bus *bus;
-	
+	unsigned long hpa = dev->hpa.start;
+
 	name = "Dino";
 	if (is_card_dino(&dev->id)) {
 		version = "3.x (card mode)";
@@ -928,11 +940,11 @@ dino_driver_callback(struct parisc_device *dev)
 		}
 	}
 
-	printk("%s version %s found at 0x%lx\n", name, version, dev->hpa);
+	printk("%s version %s found at 0x%lx\n", name, version, hpa);
 
-	if (!request_mem_region(dev->hpa, PAGE_SIZE, name)) {
+	if (!request_mem_region(hpa, PAGE_SIZE, name)) {
 		printk(KERN_ERR "DINO: Hey! Someone took my MMIO space (0x%ld)!\n",
-			dev->hpa);
+			hpa);
 		return 1;
 	}
 
@@ -940,12 +952,12 @@ dino_driver_callback(struct parisc_device *dev)
 	if (is_cujo && dev->id.hversion_rev == 1) {
 #ifdef CONFIG_IOMMU_CCIO
 		printk(KERN_WARNING "Enabling Cujo 2.0 bug workaround\n");
-		if (dev->hpa == (unsigned long)CUJO_RAVEN_ADDR) {
+		if (hpa == (unsigned long)CUJO_RAVEN_ADDR) {
 			ccio_cujo20_fixup(dev, CUJO_RAVEN_BADPAGE);
-		} else if (dev->hpa == (unsigned long)CUJO_FIREHAWK_ADDR) {
+		} else if (hpa == (unsigned long)CUJO_FIREHAWK_ADDR) {
 			ccio_cujo20_fixup(dev, CUJO_FIREHAWK_BADPAGE);
 		} else {
-			printk("Don't recognise Cujo at address 0x%lx, not enabling workaround\n", dev->hpa);
+			printk("Don't recognise Cujo at address 0x%lx, not enabling workaround\n", hpa);
 		}
 #endif
 	} else if (!is_cujo && !is_card_dino(&dev->id) &&
@@ -970,7 +982,7 @@ dino_driver_callback(struct parisc_device *dev)
 	memset(dino_dev, 0, sizeof(struct dino_device));
 
 	dino_dev->hba.dev = dev;
-	dino_dev->hba.base_addr = ioremap(dev->hpa, 4096); /* faster access */
+	dino_dev->hba.base_addr = ioremap(hpa, 4096);
 	dino_dev->hba.lmmio_space_offset = 0;	/* CPU addrs == bus addrs */
 	spin_lock_init(&dino_dev->dinosaur_pen);
 	dino_dev->hba.iommu = ccio_get_iommu(dev);
@@ -1027,9 +1039,9 @@ static struct parisc_device_id dino_tbl[] = {
 };
 
 static struct parisc_driver dino_driver = {
-	.name =		"Dino",
+	.name =		"dino",
 	.id_table =	dino_tbl,
-	.probe =	dino_driver_callback,
+	.probe =	dino_probe,
 };
 
 /*

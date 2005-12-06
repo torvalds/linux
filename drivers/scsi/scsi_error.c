@@ -241,11 +241,10 @@ static inline void scsi_eh_prt_fail_stats(struct Scsi_Host *shost,
 
 		if (cmd_cancel || cmd_failed) {
 			SCSI_LOG_ERROR_RECOVERY(3,
-				printk("%s: %d:%d:%d:%d cmds failed: %d,"
-				       " cancel: %d\n",
-				       __FUNCTION__, shost->host_no,
-				       sdev->channel, sdev->id, sdev->lun,
-				       cmd_failed, cmd_cancel));
+				sdev_printk(KERN_INFO, sdev,
+					    "%s: cmds failed: %d, cancel: %d\n",
+					    __FUNCTION__, cmd_failed,
+					    cmd_cancel));
 			cmd_cancel = 0;
 			cmd_failed = 0;
 			++devices_failed;
@@ -418,43 +417,15 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
 }
 
 /**
- * scsi_eh_times_out - timeout function for error handling.
- * @scmd:	Cmd that is timing out.
- *
- * Notes:
- *    During error handling, the kernel thread will be sleeping waiting
- *    for some action to complete on the device.  our only job is to
- *    record that it timed out, and to wake up the thread.
- **/
-static void scsi_eh_times_out(struct scsi_cmnd *scmd)
-{
-	scmd->eh_eflags |= SCSI_EH_REC_TIMEOUT;
-	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: scmd:%p\n", __FUNCTION__,
-					  scmd));
-
-	up(scmd->device->host->eh_action);
-}
-
-/**
  * scsi_eh_done - Completion function for error handling.
  * @scmd:	Cmd that is done.
  **/
 static void scsi_eh_done(struct scsi_cmnd *scmd)
 {
-	/*
-	 * if the timeout handler is already running, then just set the
-	 * flag which says we finished late, and return.  we have no
-	 * way of stopping the timeout handler from running, so we must
-	 * always defer to it.
-	 */
-	if (del_timer(&scmd->eh_timeout)) {
-		scmd->request->rq_status = RQ_SCSI_DONE;
-
-		SCSI_LOG_ERROR_RECOVERY(3, printk("%s scmd: %p result: %x\n",
-					   __FUNCTION__, scmd, scmd->result));
-
-		up(scmd->device->host->eh_action);
-	}
+	SCSI_LOG_ERROR_RECOVERY(3,
+		printk("%s scmd: %p result: %x\n",
+			__FUNCTION__, scmd, scmd->result));
+	complete(scmd->device->host->eh_action);
 }
 
 /**
@@ -462,10 +433,6 @@ static void scsi_eh_done(struct scsi_cmnd *scmd)
  * @scmd:	SCSI Cmd to send.
  * @timeout:	Timeout for cmd.
  *
- * Notes:
- *    The initialization of the structures is quite a bit different in
- *    this case, and furthermore, there is a different completion handler
- *    vs scsi_dispatch_cmd.
  * Return value:
  *    SUCCESS or FAILED or NEEDS_RETRY
  **/
@@ -473,24 +440,16 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 {
 	struct scsi_device *sdev = scmd->device;
 	struct Scsi_Host *shost = sdev->host;
-	DECLARE_MUTEX_LOCKED(sem);
+	DECLARE_COMPLETION(done);
+	unsigned long timeleft;
 	unsigned long flags;
-	int rtn = SUCCESS;
+	int rtn;
 
-	/*
-	 * we will use a queued command if possible, otherwise we will
-	 * emulate the queuing and calling of completion function ourselves.
-	 */
 	if (sdev->scsi_level <= SCSI_2)
 		scmd->cmnd[1] = (scmd->cmnd[1] & 0x1f) |
 			(sdev->lun << 5 & 0xe0);
 
-	scsi_add_timer(scmd, timeout, scsi_eh_times_out);
-
-	/*
-	 * set up the semaphore so we wait for the command to complete.
-	 */
-	shost->eh_action = &sem;
+	shost->eh_action = &done;
 	scmd->request->rq_status = RQ_SCSI_BUSY;
 
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -498,47 +457,29 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 	shost->hostt->queuecommand(scmd, scsi_eh_done);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	down(&sem);
-	scsi_log_completion(scmd, SUCCESS);
+	timeleft = wait_for_completion_timeout(&done, timeout);
 
+	scmd->request->rq_status = RQ_SCSI_DONE;
 	shost->eh_action = NULL;
 
-	/*
-	 * see if timeout.  if so, tell the host to forget about it.
-	 * in other words, we don't want a callback any more.
-	 */
-	if (scmd->eh_eflags & SCSI_EH_REC_TIMEOUT) {
-		scmd->eh_eflags &= ~SCSI_EH_REC_TIMEOUT;
+	scsi_log_completion(scmd, SUCCESS);
 
-		/*
-		 * as far as the low level driver is
-		 * concerned, this command is still active, so
-		 * we must give the low level driver a chance
-		 * to abort it. (db) 
-		 *
-		 * FIXME(eric) - we are not tracking whether we could
-		 * abort a timed out command or not.  not sure how
-		 * we should treat them differently anyways.
-		 */
-		if (shost->hostt->eh_abort_handler)
-			shost->hostt->eh_abort_handler(scmd);
-			
-		scmd->request->rq_status = RQ_SCSI_DONE;
-		rtn = FAILED;
-	}
-
-	SCSI_LOG_ERROR_RECOVERY(3, printk("%s: scmd: %p, rtn:%x\n",
-					  __FUNCTION__, scmd, rtn));
+	SCSI_LOG_ERROR_RECOVERY(3,
+		printk("%s: scmd: %p, timeleft: %ld\n",
+			__FUNCTION__, scmd, timeleft));
 
 	/*
-	 * now examine the actual status codes to see whether the command
-	 * actually did complete normally.
+	 * If there is time left scsi_eh_done got called, and we will
+	 * examine the actual status codes to see whether the command
+	 * actually did complete normally, else tell the host to forget
+	 * about this command.
 	 */
-	if (rtn == SUCCESS) {
+	if (timeleft) {
 		rtn = scsi_eh_completed_normally(scmd);
 		SCSI_LOG_ERROR_RECOVERY(3,
 			printk("%s: scsi_eh_completed_normally %x\n",
 			       __FUNCTION__, rtn));
+
 		switch (rtn) {
 		case SUCCESS:
 		case NEEDS_RETRY:
@@ -548,6 +489,15 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, int timeout)
 			rtn = FAILED;
 			break;
 		}
+	} else {
+		/*
+		 * FIXME(eric) - we are not tracking whether we could
+		 * abort a timed out command or not.  not sure how
+		 * we should treat them differently anyways.
+		 */
+		if (shost->hostt->eh_abort_handler)
+			shost->hostt->eh_abort_handler(scmd);
+		rtn = FAILED;
 	}
 
 	return rtn;
@@ -674,10 +624,9 @@ static int scsi_eh_get_sense(struct list_head *work_q,
 		    SCSI_SENSE_VALID(scmd))
 			continue;
 
-		SCSI_LOG_ERROR_RECOVERY(2, printk("%s: requesting sense"
-						  " for id: %d\n",
-						  current->comm,
-						  scmd->device->id));
+		SCSI_LOG_ERROR_RECOVERY(2, scmd_printk(KERN_INFO, scmd,
+						  "%s: requesting sense\n",
+						  current->comm));
 		rtn = scsi_request_sense(scmd);
 		if (rtn != SUCCESS)
 			continue;
@@ -1035,7 +984,8 @@ static int scsi_try_bus_reset(struct scsi_cmnd *scmd)
 		if (!scmd->device->host->hostt->skip_settle_delay)
 			ssleep(BUS_RESET_SETTLE_TIME);
 		spin_lock_irqsave(scmd->device->host->host_lock, flags);
-		scsi_report_bus_reset(scmd->device->host, scmd->device->channel);
+		scsi_report_bus_reset(scmd->device->host,
+				      scmd_channel(scmd));
 		spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
 	}
 
@@ -1063,7 +1013,8 @@ static int scsi_try_host_reset(struct scsi_cmnd *scmd)
 		if (!scmd->device->host->hostt->skip_settle_delay)
 			ssleep(HOST_RESET_SETTLE_TIME);
 		spin_lock_irqsave(scmd->device->host->host_lock, flags);
-		scsi_report_bus_reset(scmd->device->host, scmd->device->channel);
+		scsi_report_bus_reset(scmd->device->host,
+				      scmd_channel(scmd));
 		spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
 	}
 
@@ -1093,7 +1044,7 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 	for (channel = 0; channel <= shost->max_channel; channel++) {
 		chan_scmd = NULL;
 		list_for_each_entry(scmd, work_q, eh_entry) {
-			if (channel == scmd->device->channel) {
+			if (channel == scmd_channel(scmd)) {
 				chan_scmd = scmd;
 				break;
 				/*
@@ -1111,7 +1062,7 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 		rtn = scsi_try_bus_reset(chan_scmd);
 		if (rtn == SUCCESS) {
 			list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
-				if (channel == scmd->device->channel)
+				if (channel == scmd_channel(scmd))
 					if (!scsi_device_online(scmd->device) ||
 					    !scsi_eh_tur(scmd))
 						scsi_eh_finish_cmd(scmd,
@@ -1174,13 +1125,9 @@ static void scsi_eh_offline_sdevs(struct list_head *work_q,
 	struct scsi_cmnd *scmd, *next;
 
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
-		printk(KERN_INFO "scsi: Device offlined - not"
-		       		" ready after error recovery: host"
-				" %d channel %d id %d lun %d\n",
-				scmd->device->host->host_no,
-				scmd->device->channel,
-				scmd->device->id,
-				scmd->device->lun);
+		sdev_printk(KERN_INFO, scmd->device,
+			    "scsi: Device offlined - not"
+			    " ready after error recovery\n");
 		scsi_device_set_state(scmd->device, SDEV_OFFLINE);
 		if (scmd->eh_eflags & SCSI_EH_CANCEL_CMD) {
 			/*
@@ -1342,10 +1289,8 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		return SUCCESS;
 
 	case RESERVATION_CONFLICT:
-		printk(KERN_INFO "scsi: reservation conflict: host"
-                                " %d channel %d id %d lun %d\n",
-		       scmd->device->host->host_no, scmd->device->channel,
-		       scmd->device->id, scmd->device->lun);
+		sdev_printk(KERN_INFO, scmd->device,
+			    "reservation conflict\n");
 		return SUCCESS; /* causes immediate i/o error */
 	default:
 		return FAILED;
@@ -1577,50 +1522,41 @@ static void scsi_unjam_host(struct Scsi_Host *shost)
 }
 
 /**
- * scsi_error_handler - Handle errors/timeouts of SCSI cmds.
+ * scsi_error_handler - SCSI error handler thread
  * @data:	Host for which we are running.
  *
  * Notes:
- *    This is always run in the context of a kernel thread.  The idea is
- *    that we start this thing up when the kernel starts up (one per host
- *    that we detect), and it immediately goes to sleep and waits for some
- *    event (i.e. failure).  When this takes place, we have the job of
- *    trying to unjam the bus and restarting things.
+ *    This is the main error handling loop.  This is run as a kernel thread
+ *    for every SCSI host and handles all error handling activity.
  **/
 int scsi_error_handler(void *data)
 {
-	struct Scsi_Host *shost = (struct Scsi_Host *) data;
-	int rtn;
+	struct Scsi_Host *shost = data;
 
 	current->flags |= PF_NOFREEZE;
 
-	
 	/*
-	 * Note - we always use TASK_INTERRUPTIBLE even if the module
-	 * was loaded as part of the kernel.  The reason is that
-	 * UNINTERRUPTIBLE would cause this thread to be counted in
-	 * the load average as a running process, and an interruptible
-	 * wait doesn't.
+	 * We use TASK_INTERRUPTIBLE so that the thread is not
+	 * counted against the load average as a running process.
+	 * We never actually get interrupted because kthread_run
+	 * disables singal delivery for the created thread.
 	 */
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {
 		if (shost->host_failed == 0 ||
 		    shost->host_failed != shost->host_busy) {
-			SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler"
-							  " scsi_eh_%d"
-							  " sleeping\n",
-							  shost->host_no));
+			SCSI_LOG_ERROR_RECOVERY(1,
+				printk("Error handler scsi_eh_%d sleeping\n",
+					shost->host_no));
 			schedule();
 			set_current_state(TASK_INTERRUPTIBLE);
 			continue;
 		}
 
 		__set_current_state(TASK_RUNNING);
-		SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler"
-						  " scsi_eh_%d waking"
-						  " up\n",shost->host_no));
-
-		shost->eh_active = 1;
+		SCSI_LOG_ERROR_RECOVERY(1,
+			printk("Error handler scsi_eh_%d waking up\n",
+				shost->host_no));
 
 		/*
 		 * We have a host that is failing for some reason.  Figure out
@@ -1628,11 +1564,9 @@ int scsi_error_handler(void *data)
 		 * If we fail, we end up taking the thing offline.
 		 */
 		if (shost->hostt->eh_strategy_handler) 
-			rtn = shost->hostt->eh_strategy_handler(shost);
+			shost->hostt->eh_strategy_handler(shost);
 		else
 			scsi_unjam_host(shost);
-
-		shost->eh_active = 0;
 
 		/*
 		 * Note - if the above fails completely, the action is to take
@@ -1644,13 +1578,10 @@ int scsi_error_handler(void *data)
 		scsi_restart_operations(shost);
 		set_current_state(TASK_INTERRUPTIBLE);
 	}
+	__set_current_state(TASK_RUNNING);
 
-	SCSI_LOG_ERROR_RECOVERY(1, printk("Error handler scsi_eh_%d"
-					  " exiting\n",shost->host_no));
-
-	/*
-	 * Make sure that nobody tries to wake us up again.
-	 */
+	SCSI_LOG_ERROR_RECOVERY(1,
+		printk("Error handler scsi_eh_%d exiting\n", shost->host_no));
 	shost->ehandler = NULL;
 	return 0;
 }
@@ -1681,7 +1612,7 @@ void scsi_report_bus_reset(struct Scsi_Host *shost, int channel)
 	struct scsi_device *sdev;
 
 	__shost_for_each_device(sdev, shost) {
-		if (channel == sdev->channel) {
+		if (channel == sdev_channel(sdev)) {
 			sdev->was_reset = 1;
 			sdev->expecting_cc_ua = 1;
 		}
@@ -1716,8 +1647,8 @@ void scsi_report_device_reset(struct Scsi_Host *shost, int channel, int target)
 	struct scsi_device *sdev;
 
 	__shost_for_each_device(sdev, shost) {
-		if (channel == sdev->channel &&
-		    target == sdev->id) {
+		if (channel == sdev_channel(sdev) &&
+		    target == sdev_id(sdev)) {
 			sdev->was_reset = 1;
 			sdev->expecting_cc_ua = 1;
 		}

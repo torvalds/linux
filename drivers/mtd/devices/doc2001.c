@@ -4,7 +4,7 @@
  * (c) 1999 Machine Vision Holdings, Inc.
  * (c) 1999, 2000 David Woodhouse <dwmw2@infradead.org>
  *
- * $Id: doc2001.c,v 1.48 2005/01/05 18:05:12 dwmw2 Exp $
+ * $Id: doc2001.c,v 1.49 2005/11/07 11:14:24 gleixner Exp $
  */
 
 #include <linux/kernel.h>
@@ -196,10 +196,10 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 	DoC_Command(doc->virtadr, NAND_CMD_RESET, CDSN_CTRL_WP);
 	DoC_WaitReady(doc->virtadr);
 
-	/* Read the NAND chip ID: 1. Send ReadID command */ 
+	/* Read the NAND chip ID: 1. Send ReadID command */
 	DoC_Command(doc->virtadr, NAND_CMD_READID, CDSN_CTRL_WP);
 
-	/* Read the NAND chip ID: 2. Send address byte zero */ 
+	/* Read the NAND chip ID: 2. Send address byte zero */
 	DoC_Address(doc->virtadr, 1, 0x00, CDSN_CTRL_WP, 0x00);
 
 	/* Read the manufacturer and device id codes of the flash device through
@@ -223,7 +223,7 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 			for (j = 0; nand_manuf_ids[j].id != 0x0; j++) {
 				if (nand_manuf_ids[j].id == mfr)
 					break;
-			}	
+			}
 			printk(KERN_INFO "Flash chip found: Manufacturer ID: %2.2X, "
 			       "Chip ID: %2.2X (%s:%s)\n",
 			       mfr, id, nand_manuf_ids[j].name, nand_flash_ids[i].name);
@@ -275,7 +275,7 @@ static void DoC_ScanChips(struct DiskOnChip *this)
 		return;
 	}
 
-	/* Fill out the chip array with {floor, chipno} for each 
+	/* Fill out the chip array with {floor, chipno} for each
 	 * detected chip in the device. */
 	for (floor = 0, ret = 0; floor < MAX_FLOORS_MIL; floor++) {
 		for (chip = 0 ; chip < numchips[floor] ; chip++) {
@@ -309,7 +309,7 @@ static int DoCMil_is_alias(struct DiskOnChip *doc1, struct DiskOnChip *doc2)
 	tmp2 = ReadDOC(doc2->virtadr, AliasResolution);
 	if (tmp1 != tmp2)
 		return 0;
-	
+
 	WriteDOC((tmp1+1) % 0xff, doc1->virtadr, AliasResolution);
 	tmp2 = ReadDOC(doc2->virtadr, AliasResolution);
 	if (tmp2 == (tmp1+1) % 0xff)
@@ -425,7 +425,7 @@ static int doc_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 		return -EINVAL;
 
 	/* Don't allow a single read to cross a 512-byte block boundary */
-	if (from + len > ((from | 0x1ff) + 1)) 
+	if (from + len > ((from | 0x1ff) + 1))
 		len = ((from | 0x1ff) + 1) - from;
 
 	/* Find the chip which is to be used and select it */
@@ -552,7 +552,7 @@ static int doc_write_ecc (struct mtd_info *mtd, loff_t to, size_t len,
 
 #if 0
 	/* Don't allow a single write to cross a 512-byte block boundary */
-	if (to + len > ( (to | 0x1ff) + 1)) 
+	if (to + len > ( (to | 0x1ff) + 1))
 		len = ((to | 0x1ff) + 1) - to;
 #else
 	/* Don't allow writes which aren't exactly one block */
@@ -632,7 +632,7 @@ static int doc_write_ecc (struct mtd_info *mtd, loff_t to, size_t len,
 
 		/* write the block status BLOCK_USED (0x5555) at the end of ECC data
 		   FIXME: this is only a hack for programming the IPL area for LinuxBIOS
-		   and should be replace with proper codes in user space utilities */ 
+		   and should be replace with proper codes in user space utilities */
 		WriteDOC(0x55, docptr, Mil_CDSN_IO);
 		WriteDOC(0x55, docptr, Mil_CDSN_IO + 1);
 
@@ -802,7 +802,7 @@ int doc_erase (struct mtd_info *mtd, struct erase_info *instr)
 	void __iomem *docptr = this->virtadr;
 	struct Nand *mychip = &this->chips[ofs >> this->chipshift];
 
-	if (len != mtd->erasesize) 
+	if (len != mtd->erasesize)
 		printk(KERN_WARNING "Erase not right size (%x != %x)n",
 		       len, mtd->erasesize);
 
@@ -870,9 +870,9 @@ static void __exit cleanup_doc2001(void)
 	while ((mtd=docmillist)) {
 		this = mtd->priv;
 		docmillist = this->nextdoc;
-			
+
 		del_mtd_device(mtd);
-			
+
 		iounmap(this->virtadr);
 		kfree(this->chips);
 		kfree(mtd);

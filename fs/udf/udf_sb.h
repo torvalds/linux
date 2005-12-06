@@ -39,8 +39,7 @@ static inline struct udf_sb_info *UDF_SB(struct super_block *sb)
 {\
 	if (UDF_SB(X))\
 	{\
-		if (UDF_SB_PARTMAPS(X))\
-			kfree(UDF_SB_PARTMAPS(X));\
+		kfree(UDF_SB_PARTMAPS(X));\
 		UDF_SB_PARTMAPS(X) = NULL;\
 	}\
 }

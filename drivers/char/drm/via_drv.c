@@ -93,18 +93,18 @@ static struct drm_driver driver = {
 	.ioctls = ioctls,
 	.num_ioctls = DRM_ARRAY_SIZE(ioctls),
 	.fops = {
-		.owner = THIS_MODULE,
-		.open = drm_open,
-		.release = drm_release,
-		.ioctl = drm_ioctl,
-		.mmap = drm_mmap,
-		.poll = drm_poll,
-		.fasync = drm_fasync,
-		},
+		 .owner = THIS_MODULE,
+		 .open = drm_open,
+		 .release = drm_release,
+		 .ioctl = drm_ioctl,
+		 .mmap = drm_mmap,
+		 .poll = drm_poll,
+		 .fasync = drm_fasync,
+		 },
 	.pci_driver = {
-		.name = DRIVER_NAME,
-		.id_table = pciidlist,
-	}
+		       .name = DRIVER_NAME,
+		       .id_table = pciidlist,
+		       }
 };
 
 static int __init via_init(void)

@@ -26,6 +26,9 @@
 void cifs_dump_mem(char *label, void *data, int length);
 extern int traceSMB;		/* flag which enables the function below */
 void dump_smb(struct smb_hdr *, int);
+#define CIFS_INFO	0x01
+#define CIFS_RC  	0x02
+#define CIFS_TIMER	0x04
 
 /*
  *	debug ON
@@ -36,7 +39,7 @@ void dump_smb(struct smb_hdr *, int);
 
 /* information message: e.g., configuration, major event */
 extern int cifsFYI;
-#define cifsfyi(format,arg...) if (cifsFYI) printk(KERN_DEBUG " " __FILE__ ": " format "\n" "" , ## arg)
+#define cifsfyi(format,arg...) if (cifsFYI & CIFS_INFO) printk(KERN_DEBUG " " __FILE__ ": " format "\n" "" , ## arg)
 
 #define cFYI(button,prspec) if (button) cifsfyi prspec
 

@@ -149,7 +149,7 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 		if (err == 0 && (dev = __dev_get_by_name(p.name)) != NULL) {
 			dev->flags |= IFF_MULTICAST;
 
-			in_dev = __in_dev_get(dev);
+			in_dev = __in_dev_get_rtnl(dev);
 			if (in_dev == NULL && (in_dev = inetdev_init(dev)) == NULL)
 				goto failure;
 			in_dev->cnf.rp_filter = 0;
@@ -278,7 +278,7 @@ static int vif_delete(int vifi)
 
 	dev_set_allmulti(dev, -1);
 
-	if ((in_dev = __in_dev_get(dev)) != NULL) {
+	if ((in_dev = __in_dev_get_rtnl(dev)) != NULL) {
 		in_dev->cnf.mc_forwarding--;
 		ip_rt_multicast_event(in_dev);
 	}
@@ -421,7 +421,7 @@ static int vif_add(struct vifctl *vifc, int mrtsock)
 		return -EINVAL;
 	}
 
-	if ((in_dev = __in_dev_get(dev)) == NULL)
+	if ((in_dev = __in_dev_get_rtnl(dev)) == NULL)
 		return -EADDRNOTAVAIL;
 	in_dev->cnf.mc_forwarding++;
 	dev_set_allmulti(dev, +1);

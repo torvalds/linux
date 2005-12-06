@@ -7,22 +7,22 @@
  * Copyright (C) 2000-2004 Steven J. Hill (sjhill@realitydiluted.com)
  *                         Toshiba America Electronics Components, Inc.
  *
- * $Id: nand_ecc.c,v 1.14 2004/06/16 15:34:37 gleixner Exp $
+ * $Id: nand_ecc.c,v 1.15 2005/11/07 11:14:30 gleixner Exp $
  *
  * This file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 or (at your option) any
  * later version.
- * 
+ *
  * This file is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this file; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
- * 
+ *
  * As a special exception, if other files instantiate templates or use
  * macros or inline functions from these files, or you compile these
  * files and link them with other works to produce a work based on these
@@ -30,7 +30,7 @@
  * covered by the GNU General Public License. However the source code for
  * these files must still be made available in accordance with section (3)
  * of the GNU General Public License.
- * 
+ *
  * This exception does not invalidate any other reasons why a work based on
  * this file might be covered by the GNU General Public License.
  */
@@ -67,7 +67,7 @@ static const u_char nand_ecc_precalc_table[] = {
  * nand_trans_result - [GENERIC] create non-inverted ECC
  * @reg2:	line parity reg 2
  * @reg3:	line parity reg 3
- * @ecc_code:	ecc 
+ * @ecc_code:	ecc
  *
  * Creates non-inverted ECC code from line parity
  */
@@ -75,11 +75,11 @@ static void nand_trans_result(u_char reg2, u_char reg3,
 	u_char *ecc_code)
 {
 	u_char a, b, i, tmp1, tmp2;
-	
+
 	/* Initialize variables */
 	a = b = 0x80;
 	tmp1 = tmp2 = 0;
-	
+
 	/* Calculate first ECC byte */
 	for (i = 0; i < 4; i++) {
 		if (reg3 & a)		/* LP15,13,11,9 --> ecc_code[0] */
@@ -90,7 +90,7 @@ static void nand_trans_result(u_char reg2, u_char reg3,
 		b >>= 1;
 		a >>= 1;
 	}
-	
+
 	/* Calculate second ECC byte */
 	b = 0x80;
 	for (i = 0; i < 4; i++) {
@@ -102,7 +102,7 @@ static void nand_trans_result(u_char reg2, u_char reg3,
 		b >>= 1;
 		a >>= 1;
 	}
-	
+
 	/* Store two of the ECC bytes */
 	ecc_code[0] = tmp1;
 	ecc_code[1] = tmp2;
@@ -118,28 +118,28 @@ int nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code
 {
 	u_char idx, reg1, reg2, reg3;
 	int j;
-	
+
 	/* Initialize variables */
 	reg1 = reg2 = reg3 = 0;
 	ecc_code[0] = ecc_code[1] = ecc_code[2] = 0;
-	
-	/* Build up column parity */ 
+
+	/* Build up column parity */
 	for(j = 0; j < 256; j++) {
-		
+
 		/* Get CP0 - CP5 from table */
 		idx = nand_ecc_precalc_table[dat[j]];
 		reg1 ^= (idx & 0x3f);
-		
+
 		/* All bit XOR = 1 ? */
 		if (idx & 0x40) {
 			reg3 ^= (u_char) j;
 			reg2 ^= ~((u_char) j);
 		}
 	}
-	
+
 	/* Create non-inverted ECC code from line parity */
 	nand_trans_result(reg2, reg3, ecc_code);
-	
+
 	/* Calculate final ECC code */
 	ecc_code[0] = ~ecc_code[0];
 	ecc_code[1] = ~ecc_code[1];
@@ -159,12 +159,12 @@ int nand_calculate_ecc(struct mtd_info *mtd, const u_char *dat, u_char *ecc_code
 int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_char *calc_ecc)
 {
 	u_char a, b, c, d1, d2, d3, add, bit, i;
-	
-	/* Do error detection */ 
+
+	/* Do error detection */
 	d1 = calc_ecc[0] ^ read_ecc[0];
 	d2 = calc_ecc[1] ^ read_ecc[1];
 	d3 = calc_ecc[2] ^ read_ecc[2];
-	
+
 	if ((d1 | d2 | d3) == 0) {
 		/* No errors */
 		return 0;
@@ -173,7 +173,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_cha
 		a = (d1 ^ (d1 >> 1)) & 0x55;
 		b = (d2 ^ (d2 >> 1)) & 0x55;
 		c = (d3 ^ (d3 >> 1)) & 0x54;
-		
+
 		/* Found and will correct single bit error in the data */
 		if ((a == 0x55) && (b == 0x55) && (c == 0x54)) {
 			c = 0x80;
@@ -237,7 +237,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat, u_char *read_ecc, u_cha
 			}
 		}
 	}
-	
+
 	/* Should never happen */
 	return -1;
 }

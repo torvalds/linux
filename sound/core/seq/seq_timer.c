@@ -34,10 +34,15 @@ extern int seq_default_timer_device;
 extern int seq_default_timer_subdevice;
 extern int seq_default_timer_resolution;
 
+/* allowed sequencer timer frequencies, in Hz */
+#define MIN_FREQUENCY		10
+#define MAX_FREQUENCY		6250
+#define DEFAULT_FREQUENCY	1000
+
 #define SKEW_BASE	0x10000	/* 16bit shift */
 
 static void snd_seq_timer_set_tick_resolution(seq_timer_tick_t *tick,
-					      int tempo, int ppq, int nticks)
+					      int tempo, int ppq)
 {
 	if (tempo < 1000000)
 		tick->resolution = (tempo * 1000) / ppq;
@@ -51,7 +56,6 @@ static void snd_seq_timer_set_tick_resolution(seq_timer_tick_t *tick,
 	}
 	if (tick->resolution <= 0)
 		tick->resolution = 1;
-	tick->resolution *= nticks;
 	snd_seq_timer_update_tick(tick, 0);
 }
 
@@ -100,7 +104,7 @@ void snd_seq_timer_defaults(seq_timer_t * tmr)
 	/* setup defaults */
 	tmr->ppq = 96;		/* 96 PPQ */
 	tmr->tempo = 500000;	/* 120 BPM */
-	snd_seq_timer_set_tick_resolution(&tmr->tick, tmr->tempo, tmr->ppq, 1);
+	snd_seq_timer_set_tick_resolution(&tmr->tick, tmr->tempo, tmr->ppq);
 	tmr->running = 0;
 
 	tmr->type = SNDRV_SEQ_TIMER_ALSA;
@@ -183,7 +187,7 @@ int snd_seq_timer_set_tempo(seq_timer_t * tmr, int tempo)
 	spin_lock_irqsave(&tmr->lock, flags);
 	if ((unsigned int)tempo != tmr->tempo) {
 		tmr->tempo = tempo;
-		snd_seq_timer_set_tick_resolution(&tmr->tick, tmr->tempo, tmr->ppq, 1);
+		snd_seq_timer_set_tick_resolution(&tmr->tick, tmr->tempo, tmr->ppq);
 	}
 	spin_unlock_irqrestore(&tmr->lock, flags);
 	return 0;
@@ -207,7 +211,7 @@ int snd_seq_timer_set_ppq(seq_timer_t * tmr, int ppq)
 	}
 
 	tmr->ppq = ppq;
-	snd_seq_timer_set_tick_resolution(&tmr->tick, tmr->tempo, tmr->ppq, 1);
+	snd_seq_timer_set_tick_resolution(&tmr->tick, tmr->tempo, tmr->ppq);
 	spin_unlock_irqrestore(&tmr->lock, flags);
 	return 0;
 }
@@ -326,17 +330,26 @@ int snd_seq_timer_stop(seq_timer_t * tmr)
 static int initialize_timer(seq_timer_t *tmr)
 {
 	snd_timer_t *t;
+	unsigned long freq;
+
 	t = tmr->timeri->timer;
 	snd_assert(t, return -EINVAL);
 
+	freq = tmr->preferred_resolution;
+	if (!freq)
+		freq = DEFAULT_FREQUENCY;
+	else if (freq < MIN_FREQUENCY)
+		freq = MIN_FREQUENCY;
+	else if (freq > MAX_FREQUENCY)
+		freq = MAX_FREQUENCY;
+
 	tmr->ticks = 1;
-	if (tmr->preferred_resolution &&
-	    ! (t->hw.flags & SNDRV_TIMER_HW_SLAVE)) {
+	if (!(t->hw.flags & SNDRV_TIMER_HW_SLAVE)) {
 		unsigned long r = t->hw.resolution;
 		if (! r && t->hw.c_resolution)
 			r = t->hw.c_resolution(t);
 		if (r) {
-			tmr->ticks = (unsigned int)(1000000000uL / (r * tmr->preferred_resolution));
+			tmr->ticks = (unsigned int)(1000000000uL / (r * freq));
 			if (! tmr->ticks)
 				tmr->ticks = 1;
 		}

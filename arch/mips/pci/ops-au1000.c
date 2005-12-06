@@ -50,11 +50,6 @@
 
 int (*board_pci_idsel)(unsigned int devsel, int assert);
 
-/* CP0 hazard avoidance. */
-#define BARRIER __asm__ __volatile__(".set noreorder\n\t" \
-				     "nop; nop; nop; nop;\t" \
-				     ".set reorder\n\t")
-
 void mod_wired_entry(int entry, unsigned long entrylo0,
 		unsigned long entrylo1, unsigned long entryhi,
 		unsigned long pagemask)
@@ -66,16 +61,12 @@ void mod_wired_entry(int entry, unsigned long entrylo0,
 	old_ctx = read_c0_entryhi() & 0xff;
 	old_pagemask = read_c0_pagemask();
 	write_c0_index(entry);
-	BARRIER;
 	write_c0_pagemask(pagemask);
 	write_c0_entryhi(entryhi);
 	write_c0_entrylo0(entrylo0);
 	write_c0_entrylo1(entrylo1);
-	BARRIER;
 	tlb_write_indexed();
-	BARRIER;
 	write_c0_entryhi(old_ctx);
-	BARRIER;
 	write_c0_pagemask(old_pagemask);
 }
 
@@ -128,9 +119,8 @@ static int config_access(unsigned char access_type, struct pci_bus *bus,
 		last_entryLo0  = last_entryLo1 = 0xffffffff;
 	}
 
-	/* Since the Au1xxx doesn't do the idsel timing exactly to spec,
-	 * many board vendors implement their own off-chip idsel, so call
-	 * it now.  If it doesn't succeed, may as well bail out at this point.
+	/* Allow board vendors to implement their own off-chip idsel.
+	 * If it doesn't succeed, may as well bail out at this point.
 	 */
 	if (board_pci_idsel) {
 		if (board_pci_idsel(device, 1) == 0) {

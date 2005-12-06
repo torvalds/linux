@@ -1925,8 +1925,8 @@ static ide_proc_entry_t idefloppy_proc[] = {
 static int ide_floppy_probe(struct device *);
 
 static ide_driver_t idefloppy_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-floppy",
 		.bus		= &ide_bus_type,
 		.probe		= ide_floppy_probe,
@@ -2038,11 +2038,9 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 	struct ide_floppy_obj *floppy = ide_floppy_g(bdev->bd_disk);
 	ide_drive_t *drive = floppy->drive;
 	void __user *argp = (void __user *)arg;
-	int err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
+	int err;
 	int prevent = (arg) ? 1 : 0;
 	idefloppy_pc_t pc;
-	if (err != -EINVAL)
-		return err;
 
 	switch (cmd) {
 	case CDROMEJECT:
@@ -2094,7 +2092,7 @@ static int idefloppy_ioctl(struct inode *inode, struct file *file,
 	case IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS:
 		return idefloppy_get_format_progress(drive, argp);
 	}
- 	return -EINVAL;
+	return generic_ide_ioctl(drive, file, bdev, cmd, arg);
 }
 
 static int idefloppy_media_changed(struct gendisk *disk)
@@ -2146,7 +2144,7 @@ static int ide_floppy_probe(struct device *dev)
 		printk("ide-floppy: passing drive %s to ide-scsi emulation.\n", drive->name);
 		goto failed;
 	}
-	if ((floppy = (idefloppy_floppy_t *) kmalloc (sizeof (idefloppy_floppy_t), GFP_KERNEL)) == NULL) {
+	if ((floppy = (idefloppy_floppy_t *) kzalloc (sizeof (idefloppy_floppy_t), GFP_KERNEL)) == NULL) {
 		printk (KERN_ERR "ide-floppy: %s: Can't allocate a floppy structure\n", drive->name);
 		goto failed;
 	}
@@ -2158,8 +2156,6 @@ static int ide_floppy_probe(struct device *dev)
 	ide_init_disk(g, drive);
 
 	ide_register_subdriver(drive, &idefloppy_driver);
-
-	memset(floppy, 0, sizeof(*floppy));
 
 	kref_init(&floppy->kref);
 
@@ -2195,10 +2191,7 @@ static void __exit idefloppy_exit (void)
 	driver_unregister(&idefloppy_driver.gen_driver);
 }
 
-/*
- *	idefloppy_init will register the driver for each floppy.
- */
-static int idefloppy_init (void)
+static int __init idefloppy_init(void)
 {
 	printk("ide-floppy driver " IDEFLOPPY_VERSION "\n");
 	return driver_register(&idefloppy_driver.gen_driver);

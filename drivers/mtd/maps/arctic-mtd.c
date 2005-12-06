@@ -1,7 +1,7 @@
 /*
- * $Id: arctic-mtd.c,v 1.13 2004/11/04 13:24:14 gleixner Exp $
- * 
- * drivers/mtd/maps/arctic-mtd.c MTD mappings and partition tables for 
+ * $Id: arctic-mtd.c,v 1.14 2005/11/07 11:14:26 gleixner Exp $
+ *
+ * drivers/mtd/maps/arctic-mtd.c MTD mappings and partition tables for
  *                              IBM 405LP Arctic boards.
  *
  * This program is free software; you can redistribute it and/or modify

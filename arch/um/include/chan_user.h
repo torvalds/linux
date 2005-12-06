@@ -25,7 +25,7 @@ struct chan_ops {
 	void (*close)(int, void *);
 	int (*read)(int, char *, void *);
 	int (*write)(int, const char *, int, void *);
-	int (*console_write)(int, const char *, int, void *);
+	int (*console_write)(int, const char *, int);
 	int (*window_size)(int, void *, unsigned short *, unsigned short *);
 	void (*free)(void *);
 	int winch;
@@ -37,7 +37,7 @@ extern struct chan_ops fd_ops, null_ops, port_ops, pts_ops, pty_ops, tty_ops,
 extern void generic_close(int fd, void *unused);
 extern int generic_read(int fd, char *c_out, void *unused);
 extern int generic_write(int fd, const char *buf, int n, void *unused);
-extern int generic_console_write(int fd, const char *buf, int n, void *state);
+extern int generic_console_write(int fd, const char *buf, int n);
 extern int generic_window_size(int fd, void *unused, unsigned short *rows_out,
 			       unsigned short *cols_out);
 extern void generic_free(void *data);

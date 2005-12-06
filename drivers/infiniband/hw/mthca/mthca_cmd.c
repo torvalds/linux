@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Cisco Systems. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -524,7 +525,7 @@ void mthca_cmd_use_polling(struct mthca_dev *dev)
 }
 
 struct mthca_mailbox *mthca_alloc_mailbox(struct mthca_dev *dev,
-					  unsigned int gfp_mask)
+					  gfp_t gfp_mask)
 {
 	struct mthca_mailbox *mailbox;
 
@@ -605,7 +606,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 			err = -EINVAL;
 			goto out;
 		}
-		for (i = 0; i < mthca_icm_size(&iter) / (1 << lg); ++i, ++nent) {
+		for (i = 0; i < mthca_icm_size(&iter) / (1 << lg); ++i) {
 			if (virt != -1) {
 				pages[nent * 2] = cpu_to_be64(virt);
 				virt += 1 << lg;
@@ -616,7 +617,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 			ts += 1 << (lg - 10);
 			++tc;
 
-			if (nent == MTHCA_MAILBOX_SIZE / 16) {
+			if (++nent == MTHCA_MAILBOX_SIZE / 16) {
 				err = mthca_cmd(dev, mailbox->dma, nent, 0, op,
 						CMD_TIME_CLASS_B, status);
 				if (err || *status)
@@ -706,9 +707,13 @@ int mthca_QUERY_FW(struct mthca_dev *dev, u8 *status)
 
 	MTHCA_GET(lg, outbox, QUERY_FW_MAX_CMD_OFFSET);
 	dev->cmd.max_cmds = 1 << lg;
+	MTHCA_GET(dev->catas_err.addr, outbox, QUERY_FW_ERR_START_OFFSET);
+	MTHCA_GET(dev->catas_err.size, outbox, QUERY_FW_ERR_SIZE_OFFSET);
 
 	mthca_dbg(dev, "FW version %012llx, max commands %d\n",
 		  (unsigned long long) dev->fw_ver, dev->cmd.max_cmds);
+	mthca_dbg(dev, "Catastrophic error buffer at 0x%llx, size 0x%x\n",
+		  (unsigned long long) dev->catas_err.addr, dev->catas_err.size);
 
 	if (mthca_is_memfree(dev)) {
 		MTHCA_GET(dev->fw.arbel.fw_pages,       outbox, QUERY_FW_SIZE_OFFSET);
@@ -933,9 +938,9 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 		goto out;
 
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SRQ_SZ_OFFSET);
-	dev_lim->max_srq_sz = 1 << field;
+	dev_lim->max_srq_sz = (1 << field) - 1;
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_QP_SZ_OFFSET);
-	dev_lim->max_qp_sz = 1 << field;
+	dev_lim->max_qp_sz = (1 << field) - 1;
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_RSVD_QP_OFFSET);
 	dev_lim->reserved_qps = 1 << (field & 0xf);
 	MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_QP_OFFSET);
@@ -1045,6 +1050,8 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 		  dev_lim->max_pds, dev_lim->reserved_pds, dev_lim->reserved_uars);
 	mthca_dbg(dev, "Max QP/MCG: %d, reserved MGMs: %d\n",
 		  dev_lim->max_pds, dev_lim->reserved_mgms);
+	mthca_dbg(dev, "Max CQEs: %d, max WQEs: %d, max SRQ WQEs: %d\n",
+		  dev_lim->max_cq_sz, dev_lim->max_qp_sz, dev_lim->max_srq_sz);
 
 	mthca_dbg(dev, "Flags: %08x\n", dev_lim->flags);
 
@@ -1053,6 +1060,8 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 		dev_lim->hca.arbel.resize_srq = field & 1;
 		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SG_RQ_OFFSET);
 		dev_lim->max_sg = min_t(int, field, dev_lim->max_sg);
+		MTHCA_GET(size, outbox, QUERY_DEV_LIM_MAX_DESC_SZ_RQ_OFFSET);
+		dev_lim->max_desc_sz = min_t(int, size, dev_lim->max_desc_sz);
 		MTHCA_GET(size, outbox, QUERY_DEV_LIM_MPT_ENTRY_SZ_OFFSET);
 		dev_lim->mpt_entry_sz = size;
 		MTHCA_GET(field, outbox, QUERY_DEV_LIM_PBL_SZ_OFFSET);

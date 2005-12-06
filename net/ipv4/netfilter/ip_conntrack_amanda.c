@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL");
 module_param(master_timeout, int, 0600);
 MODULE_PARM_DESC(master_timeout, "timeout for the master connection");
 
-static char *conns[] = { "DATA ", "MESG ", "INDEX " };
+static const char *conns[] = { "DATA ", "MESG ", "INDEX " };
 
 /* This is slow, but it's simple. --RR */
 static char *amanda_buffer;
@@ -65,7 +65,7 @@ static int help(struct sk_buff **pskb,
 
 	/* increase the UDP timeout of the master connection as replies from
 	 * Amanda clients to the server can be quite delayed */
-	ip_ct_refresh_acct(ct, ctinfo, NULL, master_timeout * HZ);
+	ip_ct_refresh(ct, *pskb, master_timeout * HZ);
 
 	/* No data? */
 	dataoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct udphdr);

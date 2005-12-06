@@ -51,14 +51,12 @@ MODULE_LICENSE("GPL");
 #define MTOUCH_GET_YC(data) (((data[4])<<7) | data[3])
 #define MTOUCH_GET_TOUCHED(data) (MTOUCH_FORMAT_TABLET_TOUCH_BIT & data[0])
 
-static char *mtouch_name = "MicroTouch Serial TouchScreen";
-
 /*
  * Per-touchscreen data.
  */
 
 struct mtouch {
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 	int idx;
 	unsigned char data[MTOUCH_MAX_LENGTH];
@@ -67,7 +65,7 @@ struct mtouch {
 
 static void mtouch_process_format_tablet(struct mtouch *mtouch, struct pt_regs *regs)
 {
-	struct input_dev *dev = &mtouch->dev;
+	struct input_dev *dev = mtouch->dev;
 
 	if (MTOUCH_FORMAT_TABLET_LENGTH == ++mtouch->idx) {
 		input_regs(dev, regs);
@@ -116,9 +114,11 @@ static void mtouch_disconnect(struct serio *serio)
 {
 	struct mtouch* mtouch = serio_get_drvdata(serio);
 
-	input_unregister_device(&mtouch->dev);
+	input_get_device(mtouch->dev);
+	input_unregister_device(mtouch->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_put_device(mtouch->dev);
 	kfree(mtouch);
 }
 
@@ -131,46 +131,46 @@ static void mtouch_disconnect(struct serio *serio)
 static int mtouch_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct mtouch *mtouch;
+	struct input_dev *input_dev;
 	int err;
 
-	if (!(mtouch = kmalloc(sizeof(*mtouch), GFP_KERNEL)))
-		return -ENOMEM;
-
-	memset(mtouch, 0, sizeof(*mtouch));
-
-	init_input_dev(&mtouch->dev);
-	mtouch->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	mtouch->dev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
-
-	input_set_abs_params(&mtouch->dev, ABS_X, MTOUCH_MIN_XC, MTOUCH_MAX_XC, 0, 0);
-	input_set_abs_params(&mtouch->dev, ABS_Y, MTOUCH_MIN_YC, MTOUCH_MAX_YC, 0, 0);
+	mtouch = kzalloc(sizeof(struct mtouch), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!mtouch || !input_dev) {
+		err = -ENOMEM;
+		goto fail;
+	}
 
 	mtouch->serio = serio;
-
+	mtouch->dev = input_dev;
 	sprintf(mtouch->phys, "%s/input0", serio->phys);
 
-	mtouch->dev.private = mtouch;
-	mtouch->dev.name = mtouch_name;
-	mtouch->dev.phys = mtouch->phys;
-	mtouch->dev.id.bustype = BUS_RS232;
-	mtouch->dev.id.vendor = SERIO_MICROTOUCH;
-	mtouch->dev.id.product = 0;
-	mtouch->dev.id.version = 0x0100;
+	input_dev->private = mtouch;
+	input_dev->name = "MicroTouch Serial TouchScreen";
+	input_dev->phys = mtouch->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_MICROTOUCH;
+	input_dev->id.product = 0;
+	input_dev->id.version = 0x0100;
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_set_abs_params(mtouch->dev, ABS_X, MTOUCH_MIN_XC, MTOUCH_MAX_XC, 0, 0);
+	input_set_abs_params(mtouch->dev, ABS_Y, MTOUCH_MIN_YC, MTOUCH_MAX_YC, 0, 0);
 
 	serio_set_drvdata(serio, mtouch);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(mtouch);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	input_register_device(&mtouch->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", mtouch->dev.name, serio->phys);
+	input_register_device(mtouch->dev);
 
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(mtouch);
+	return err;
 }
 
 /*

@@ -807,10 +807,6 @@ static int pf_next_buf(void)
 		return 1;
 	spin_lock_irqsave(&pf_spin_lock, saved_flags);
 	pf_end_request(1);
-	if (pf_req) {
-		pf_count = pf_req->current_nr_sectors;
-		pf_buf = pf_req->buffer;
-	}
 	spin_unlock_irqrestore(&pf_spin_lock, saved_flags);
 	return 1;
 }

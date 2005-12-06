@@ -5,7 +5,7 @@
 
 struct task_struct;
 
-extern inline struct task_struct * get_current(void)
+static inline struct task_struct * get_current(void)
 {
         return current_thread_info()->task;
 }

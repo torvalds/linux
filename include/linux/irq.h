@@ -10,6 +10,7 @@
  */
 
 #include <linux/config.h>
+#include <asm/smp.h>		/* cpu_online_map */
 
 #if !defined(CONFIG_ARCH_S390)
 

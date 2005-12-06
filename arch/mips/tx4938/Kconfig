@@ -1,0 +1,24 @@
+if TOSHIBA_RBTX4938
+
+comment "Multiplex Pin Select"
+choice
+	prompt "PIO[58:61]"
+	default TOSHIBA_RBTX4938_MPLEX_PIO58_61
+
+config TOSHIBA_RBTX4938_MPLEX_PIO58_61
+	bool "PIO"
+config TOSHIBA_RBTX4938_MPLEX_NAND
+	bool "NAND"
+config TOSHIBA_RBTX4938_MPLEX_ATA
+	bool "ATA"
+
+endchoice
+
+config TX4938_NAND_BOOT
+	depends on EXPERIMENTAL && TOSHIBA_RBTX4938_MPLEX_NAND
+	bool "NAND Boot Support (EXPERIMENTAL)"
+	help
+	  This is only for Toshiba RBTX4938 reference board, which has NAND IPL.
+	  Select this option if you need to use NAND boot.
+
+endif

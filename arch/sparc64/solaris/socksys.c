@@ -49,7 +49,7 @@ IPPROTO_EGP, IPPROTO_PUP, IPPROTO_UDP, IPPROTO_IDP, IPPROTO_RAW,
 
 #else
 
-extern void * mykmalloc(size_t s, int gfp);
+extern void * mykmalloc(size_t s, gfp_t gfp);
 extern void mykfree(void *);
 
 #endif

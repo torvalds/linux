@@ -6,6 +6,6 @@ DRIVER_OBJS = $(addprefix ../../../drivers/oprofile/, \
 		oprofilefs.o oprofile_stats.o \
 		timer_int.o )
 
-oprofile-y				:= $(DRIVER_OBJS) init.o backtrace.o
-oprofile-$(CONFIG_CPU_XSCALE)		+= common.o op_model_xscale.o
+oprofile-y				:= $(DRIVER_OBJS) common.o backtrace.o
+oprofile-$(CONFIG_CPU_XSCALE)		+= op_model_xscale.o
 

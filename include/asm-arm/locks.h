@@ -103,7 +103,7 @@
 	({					\
 	smp_mb();				\
 	__asm__ __volatile__(			\
-	"@ up_op_read\n"			\
+	"@ up_op_write\n"			\
 "1:	ldrex	lr, [%0]\n"			\
 "	adds	lr, lr, %1\n"			\
 "	strex	ip, lr, [%0]\n"			\
@@ -231,7 +231,7 @@
 #define __up_op_write(ptr,wake)			\
 	({					\
 	__asm__ __volatile__(			\
-	"@ up_op_read\n"			\
+	"@ up_op_write\n"			\
 "	mrs	ip, cpsr\n"			\
 "	orr	lr, ip, #128\n"			\
 "	msr	cpsr_c, lr\n"			\

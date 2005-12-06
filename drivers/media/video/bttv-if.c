@@ -1,13 +1,13 @@
 /*
 
     bttv-if.c  --  old gpio interface to other kernel modules
-                   don't use in new code, will go away in 2.7
+		   don't use in new code, will go away in 2.7
 		   have a look at bttv-gpio.c instead.
 
     bttv - Bt848 frame grabber driver
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
-                           & Marcus Metzler (mocm@thp.uni-koeln.de)
+			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
 
     This program is free software; you can redistribute it and/or modify

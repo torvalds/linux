@@ -85,7 +85,7 @@ struct multi_id {
 	int multi;		/* 1 = multifunction, > 1 = # ports */
 };
 
-static struct multi_id multi_id[] = {
+static const struct multi_id multi_id[] = {
 	{ MANFID_OMEGA,   PRODID_OMEGA_QSP_100,         4 },
 	{ MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232,    2 },
 	{ MANFID_QUATECH, PRODID_QUATECH_DUAL_RS232_D1, 2 },
@@ -354,8 +354,8 @@ next_tuple(client_handle_t handle, tuple_t * tuple, cisparse_t * parse)
 
 static int simple_config(dev_link_t *link)
 {
-	static kio_addr_t base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
-	static int size_table[2] = { 8, 16 };
+	static const kio_addr_t base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
+	static const int size_table[2] = { 8, 16 };
 	client_handle_t handle = link->handle;
 	struct serial_info *info = link->priv;
 	struct serial_cfg_mem *cfg_mem;
@@ -859,6 +859,7 @@ static struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(1, 0x0175, 0x0000, "DP83903.cis"),
 	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(1, 0x0101, 0x0035, "3CXEM556.cis"),
 	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(1, 0x0101, 0x003d, "3CXEM556.cis"),
+	PCMCIA_DEVICE_CIS_MANF_CARD(0x0192, 0x0710, "SW_7xx_SER.cis"),	/* Sierra Wireless AC710/AC750 GPRS Network Adapter R1 */
 	PCMCIA_DEVICE_CIS_PROD_ID12("MultiTech", "PCMCIA 56K DataFax", 0x842047ee, 0xc2efcf03, "MT5634ZLX.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID12("ADVANTECH", "COMpad-32/85B-4", 0x96913a85, 0xcec8f102, "COMpad4.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID123("ADVANTECH", "COMpad-32/85", "1.0", 0x96913a85, 0x8fbe92ae, 0x0877b627, "COMpad2.cis"),

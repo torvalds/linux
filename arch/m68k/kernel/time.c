@@ -27,10 +27,6 @@
 #include <linux/timex.h>
 #include <linux/profile.h>
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
   if (mach_set_clock_mmss)

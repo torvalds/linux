@@ -128,7 +128,7 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 			dest = eth_hdr(skb)->h_dest;
 		}
 
-		if (!memcmp(p->br->dev->dev_addr, dest, ETH_ALEN))
+		if (!compare_ether_addr(p->br->dev->dev_addr, dest))
 			skb->pkt_type = PACKET_HOST;
 
 		NF_HOOK(PF_BRIDGE, NF_BR_PRE_ROUTING, skb, skb->dev, NULL,

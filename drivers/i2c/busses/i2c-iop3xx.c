@@ -11,7 +11,7 @@
  *
  * Copyright (C) 1995-1997 Simon G. Vogl, 1998-2000 Hans Berglund
  *  
- * And which acknowledged Kyösti Mälkki <kmalkki@cc.hut.fi>,
+ * And which acknowledged KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>,
  * Frodo Looijaard <frodol@dds.nl>, Martin Bailey<mbailey@littlefeet-inc.com>
  *
  * Major cleanup by Deepak Saxena <dsaxena@plexity.net>, 01/2005:
@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/i2c.h>
 
 #include <asm/io.h>
@@ -43,7 +43,7 @@
 #include "i2c-iop3xx.h"
 
 /* global unit counter */
-static int i2c_id = 0;
+static int i2c_id;
 
 static inline unsigned char 
 iic_cook_addr(struct i2c_msg *msg) 
@@ -184,7 +184,7 @@ iop3xx_i2c_wait_event(struct i2c_algo_iop3xx_data *iop3xx_adap,
 	do {
 		interrupted = wait_event_interruptible_timeout (
 			iop3xx_adap->waitq,
-			(done = compare( sr = iop3xx_i2c_get_srstat(iop3xx_adap)					,flags )),
+			(done = compare( sr = iop3xx_i2c_get_srstat(iop3xx_adap) ,flags )),
 			1 * HZ;
 			);
 		if ((rc = iop3xx_i2c_error(sr)) < 0) {
@@ -405,10 +405,9 @@ static struct i2c_algorithm iop3xx_i2c_algo = {
 };
 
 static int 
-iop3xx_i2c_remove(struct device *device)
+iop3xx_i2c_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(device);
-	struct i2c_adapter *padapter = dev_get_drvdata(&pdev->dev);
+	struct i2c_adapter *padapter = platform_get_drvdata(pdev);
 	struct i2c_algo_iop3xx_data *adapter_data = 
 		(struct i2c_algo_iop3xx_data *)padapter->algo_data;
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -426,33 +425,30 @@ iop3xx_i2c_remove(struct device *device)
 	kfree(adapter_data);
 	kfree(padapter);
 
-	dev_set_drvdata(&pdev->dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
 static int 
-iop3xx_i2c_probe(struct device *dev)
+iop3xx_i2c_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
 	int ret;
 	struct i2c_adapter *new_adapter;
 	struct i2c_algo_iop3xx_data *adapter_data;
 
-	new_adapter = kmalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
+	new_adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (!new_adapter) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset((void*)new_adapter, 0, sizeof(*new_adapter));
 
-	adapter_data = kmalloc(sizeof(struct i2c_algo_iop3xx_data), GFP_KERNEL);
+	adapter_data = kzalloc(sizeof(struct i2c_algo_iop3xx_data), GFP_KERNEL);
 	if (!adapter_data) {
 		ret = -ENOMEM;
 		goto free_adapter;
 	}
-	memset((void*)adapter_data, 0, sizeof(*adapter_data));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -474,9 +470,10 @@ iop3xx_i2c_probe(struct device *dev)
 		goto release_region;
 	}
 
-	res = request_irq(platform_get_irq(pdev, 0), iop3xx_i2c_irq_handler, 0, 
+	ret = request_irq(platform_get_irq(pdev, 0), iop3xx_i2c_irq_handler, 0,
 				pdev->name, adapter_data);
-	if (res) {
+
+	if (ret) {
 		ret = -EIO;
 		goto unmap;
 	}
@@ -500,7 +497,7 @@ iop3xx_i2c_probe(struct device *dev)
 	iop3xx_i2c_set_slave_addr(adapter_data);
 	iop3xx_i2c_enable(adapter_data);
 
-	dev_set_drvdata(&pdev->dev, new_adapter);
+	platform_set_drvdata(pdev, new_adapter);
 	new_adapter->algo_data = adapter_data;
 
 	i2c_add_adapter(new_adapter);
@@ -524,23 +521,25 @@ out:
 }
 
 
-static struct device_driver iop3xx_i2c_driver = {
-	.name		= "IOP3xx-I2C",
-	.bus		= &platform_bus_type,
+static struct platform_driver iop3xx_i2c_driver = {
 	.probe		= iop3xx_i2c_probe,
-	.remove		= iop3xx_i2c_remove
+	.remove		= iop3xx_i2c_remove,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "IOP3xx-I2C",
+	},
 };
 
 static int __init 
 i2c_iop3xx_init (void)
 {
-	return driver_register(&iop3xx_i2c_driver);
+	return platform_driver_register(&iop3xx_i2c_driver);
 }
 
 static void __exit 
 i2c_iop3xx_exit (void)
 {
-	driver_unregister(&iop3xx_i2c_driver);
+	platform_driver_unregister(&iop3xx_i2c_driver);
 	return;
 }
 

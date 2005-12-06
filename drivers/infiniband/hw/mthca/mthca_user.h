@@ -38,6 +38,12 @@
 #include <linux/types.h>
 
 /*
+ * Increment this value if any changes that break userspace ABI
+ * compatibility are made.
+ */
+#define MTHCA_UVERBS_ABI_VERSION	1
+
+/*
  * Make sure that all structs defined in this file remain laid out so
  * that they pack the same way on 32-bit and 64-bit architectures (to
  * avoid incompatibility between 32-bit userspace and 64-bit kernels).

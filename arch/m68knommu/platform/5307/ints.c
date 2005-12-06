@@ -26,6 +26,7 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
+#include <asm/irqnode.h>
 #include <asm/traps.h>
 #include <asm/page.h>
 #include <asm/machdep.h>

@@ -1,39 +1,25 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.	 Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_clnt.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
@@ -44,21 +30,20 @@
 #include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_bmap.h"
-#include "xfs_bit.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
+#include "xfs_itable.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
+#include "xfs_bmap.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
 #include "xfs_cap.h"
@@ -67,7 +52,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
 #include "xfs_utils.h"
-
 #include "xfs_qm.h"
 
 /*
@@ -76,8 +60,9 @@
  * quota functionality, including maintaining the freelist and hash
  * tables of dquots.
  */
-mutex_t xfs_Gqm_lock;
+mutex_t		xfs_Gqm_lock;
 struct xfs_qm	*xfs_Gqm;
+uint		ndquot;
 
 kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
@@ -107,10 +92,10 @@ extern mutex_t	qcheck_lock;
 	for (dqp = (l)->qh_next; dqp != NULL; dqp = dqp->NXT) { \
 		cmn_err(CE_DEBUG, "   %d.  \"%d (%s)\"   " \
 				  "bcnt = %d, icnt = %d, refs = %d", \
-			++i, (int) INT_GET(dqp->q_core.d_id, ARCH_CONVERT), \
+			++i, (int) be32_to_cpu(dqp->q_core.d_id), \
 			DQFLAGTO_TYPESTR(dqp),	     \
-			(int) INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT), \
-			(int) INT_GET(dqp->q_core.d_icount, ARCH_CONVERT), \
+			(int) be64_to_cpu(dqp->q_core.d_bcount), \
+			(int) be64_to_cpu(dqp->q_core.d_icount), \
 			(int) dqp->q_nrefs);  } \
 }
 #else
@@ -124,25 +109,25 @@ extern mutex_t	qcheck_lock;
 STATIC struct xfs_qm *
 xfs_Gqm_init(void)
 {
-	xfs_qm_t		*xqm;
-	int			hsize, i;
-
-	xqm = kmem_zalloc(sizeof(xfs_qm_t), KM_SLEEP);
-	ASSERT(xqm);
+	xfs_dqhash_t	*udqhash, *gdqhash;
+	xfs_qm_t	*xqm;
+	uint		i, hsize, flags = KM_SLEEP | KM_MAYFAIL;
 
 	/*
 	 * Initialize the dquot hash tables.
 	 */
-	hsize = (DQUOT_HASH_HEURISTIC < XFS_QM_NCSIZE_THRESHOLD) ?
-		XFS_QM_HASHSIZE_LOW : XFS_QM_HASHSIZE_HIGH;
-	xqm->qm_dqhashmask = hsize - 1;
+	hsize = XFS_QM_HASHSIZE_HIGH;
+	while (!(udqhash = kmem_zalloc(hsize * sizeof(xfs_dqhash_t), flags))) {
+		if ((hsize >>= 1) <= XFS_QM_HASHSIZE_LOW)
+			flags = KM_SLEEP;
+	}
+	gdqhash = kmem_zalloc(hsize * sizeof(xfs_dqhash_t), KM_SLEEP);
+	ndquot = hsize << 8;
 
-	xqm->qm_usr_dqhtable = (xfs_dqhash_t *)kmem_zalloc(hsize *
-						      sizeof(xfs_dqhash_t),
-						      KM_SLEEP);
-	xqm->qm_grp_dqhtable = (xfs_dqhash_t *)kmem_zalloc(hsize *
-						      sizeof(xfs_dqhash_t),
-						      KM_SLEEP);
+	xqm = kmem_zalloc(sizeof(xfs_qm_t), KM_SLEEP);
+	xqm->qm_dqhashmask = hsize - 1;
+	xqm->qm_usr_dqhtable = udqhash;
+	xqm->qm_grp_dqhtable = gdqhash;
 	ASSERT(xqm->qm_usr_dqhtable != NULL);
 	ASSERT(xqm->qm_grp_dqhtable != NULL);
 
@@ -743,7 +728,7 @@ xfs_qm_dqattach_one(
 	 */
 	if (udqhint &&
 	    (dqp = udqhint->q_gdquot) &&
-	    (INT_GET(dqp->q_core.d_id, ARCH_CONVERT) == id)) {
+	    (be32_to_cpu(dqp->q_core.d_id) == id)) {
 		ASSERT(XFS_DQ_IS_LOCKED(udqhint));
 		xfs_dqlock(dqp);
 		XFS_DQHOLD(dqp);
@@ -1213,42 +1198,24 @@ xfs_qm_init_quotainfo(
 		 * a user or group before he or she can not perform any
 		 * more writing. If it is zero, a default is used.
 		 */
-		qinf->qi_btimelimit =
-				INT_GET(ddqp->d_btimer, ARCH_CONVERT) ?
-				INT_GET(ddqp->d_btimer, ARCH_CONVERT) :
-				XFS_QM_BTIMELIMIT;
-		qinf->qi_itimelimit =
-				INT_GET(ddqp->d_itimer, ARCH_CONVERT) ?
-				INT_GET(ddqp->d_itimer, ARCH_CONVERT) :
-				XFS_QM_ITIMELIMIT;
-		qinf->qi_rtbtimelimit =
-				INT_GET(ddqp->d_rtbtimer, ARCH_CONVERT) ?
-				INT_GET(ddqp->d_rtbtimer, ARCH_CONVERT) :
-				XFS_QM_RTBTIMELIMIT;
-		qinf->qi_bwarnlimit =
-				INT_GET(ddqp->d_bwarns, ARCH_CONVERT) ?
-				INT_GET(ddqp->d_bwarns, ARCH_CONVERT) :
-				XFS_QM_BWARNLIMIT;
-		qinf->qi_iwarnlimit =
-				INT_GET(ddqp->d_iwarns, ARCH_CONVERT) ?
-				INT_GET(ddqp->d_iwarns, ARCH_CONVERT) :
-				XFS_QM_IWARNLIMIT;
-		qinf->qi_rtbwarnlimit =
-				INT_GET(ddqp->d_rtbwarns, ARCH_CONVERT) ?
-				INT_GET(ddqp->d_rtbwarns, ARCH_CONVERT) :
-				XFS_QM_RTBWARNLIMIT;
-		qinf->qi_bhardlimit =
-				INT_GET(ddqp->d_blk_hardlimit, ARCH_CONVERT);
-		qinf->qi_bsoftlimit =
-				INT_GET(ddqp->d_blk_softlimit, ARCH_CONVERT);
-		qinf->qi_ihardlimit =
-				INT_GET(ddqp->d_ino_hardlimit, ARCH_CONVERT);
-		qinf->qi_isoftlimit =
-				INT_GET(ddqp->d_ino_softlimit, ARCH_CONVERT);
-		qinf->qi_rtbhardlimit =
-				INT_GET(ddqp->d_rtb_hardlimit, ARCH_CONVERT);
-		qinf->qi_rtbsoftlimit =
-				INT_GET(ddqp->d_rtb_softlimit, ARCH_CONVERT);
+		qinf->qi_btimelimit = ddqp->d_btimer ?
+			be32_to_cpu(ddqp->d_btimer) : XFS_QM_BTIMELIMIT;
+		qinf->qi_itimelimit = ddqp->d_itimer ?
+			be32_to_cpu(ddqp->d_itimer) : XFS_QM_ITIMELIMIT;
+		qinf->qi_rtbtimelimit = ddqp->d_rtbtimer ?
+			be32_to_cpu(ddqp->d_rtbtimer) : XFS_QM_RTBTIMELIMIT;
+		qinf->qi_bwarnlimit = ddqp->d_bwarns ?
+			be16_to_cpu(ddqp->d_bwarns) : XFS_QM_BWARNLIMIT;
+		qinf->qi_iwarnlimit = ddqp->d_iwarns ?
+			be16_to_cpu(ddqp->d_iwarns) : XFS_QM_IWARNLIMIT;
+		qinf->qi_rtbwarnlimit = ddqp->d_rtbwarns ?
+			be16_to_cpu(ddqp->d_rtbwarns) : XFS_QM_RTBWARNLIMIT;
+		qinf->qi_bhardlimit = be64_to_cpu(ddqp->d_blk_hardlimit);
+		qinf->qi_bsoftlimit = be64_to_cpu(ddqp->d_blk_softlimit);
+		qinf->qi_ihardlimit = be64_to_cpu(ddqp->d_ino_hardlimit);
+		qinf->qi_isoftlimit = be64_to_cpu(ddqp->d_ino_softlimit);
+		qinf->qi_rtbhardlimit = be64_to_cpu(ddqp->d_rtb_hardlimit);
+		qinf->qi_rtbsoftlimit = be64_to_cpu(ddqp->d_rtb_softlimit);
  
 		/*
 		 * We sent the XFS_QMOPT_DQSUSER flag to dqget because
@@ -1527,15 +1494,15 @@ xfs_qm_reset_dqcounts(
 		 */
 		(void) xfs_qm_dqcheck(ddq, id+j, type, XFS_QMOPT_DQREPAIR,
 				      "xfs_quotacheck");
-		INT_SET(ddq->d_bcount, ARCH_CONVERT, 0ULL);
-		INT_SET(ddq->d_icount, ARCH_CONVERT, 0ULL);
-		INT_SET(ddq->d_rtbcount, ARCH_CONVERT, 0ULL);
-		INT_SET(ddq->d_btimer, ARCH_CONVERT, (time_t)0);
-		INT_SET(ddq->d_itimer, ARCH_CONVERT, (time_t)0);
-		INT_SET(ddq->d_rtbtimer, ARCH_CONVERT, (time_t)0);
-		INT_SET(ddq->d_bwarns, ARCH_CONVERT, 0UL);
-		INT_SET(ddq->d_iwarns, ARCH_CONVERT, 0UL);
-		INT_SET(ddq->d_rtbwarns, ARCH_CONVERT, 0UL);
+		ddq->d_bcount = 0;
+		ddq->d_icount = 0;
+		ddq->d_rtbcount = 0;
+		ddq->d_btimer = 0;
+		ddq->d_itimer = 0;
+		ddq->d_rtbtimer = 0;
+		ddq->d_bwarns = 0;
+		ddq->d_iwarns = 0;
+		ddq->d_rtbwarns = 0;
 		ddq = (xfs_disk_dquot_t *) ((xfs_dqblk_t *)ddq + 1);
 	}
 
@@ -1708,14 +1675,14 @@ xfs_qm_quotacheck_dqadjust(
 	 * Adjust the inode count and the block count to reflect this inode's
 	 * resource usage.
 	 */
-	INT_MOD(dqp->q_core.d_icount, ARCH_CONVERT, +1);
+	be64_add(&dqp->q_core.d_icount, 1);
 	dqp->q_res_icount++;
 	if (nblks) {
-		INT_MOD(dqp->q_core.d_bcount, ARCH_CONVERT, nblks);
+		be64_add(&dqp->q_core.d_bcount, nblks);
 		dqp->q_res_bcount += nblks;
 	}
 	if (rtblks) {
-		INT_MOD(dqp->q_core.d_rtbcount, ARCH_CONVERT, rtblks);
+		be64_add(&dqp->q_core.d_rtbcount, rtblks);
 		dqp->q_res_rtbcount += rtblks;
 	}
 
@@ -2202,7 +2169,7 @@ xfs_qm_shake_freelist(
 		xfs_dqtrace_entry(dqp, "DQSHAKE: UNLINKING");
 #ifdef QUOTADEBUG
 		cmn_err(CE_DEBUG, "Shake 0x%p, ID 0x%x\n",
-			dqp, INT_GET(dqp->q_core.d_id, ARCH_CONVERT));
+			dqp, be32_to_cpu(dqp->q_core.d_id));
 #endif
 		ASSERT(dqp->q_nrefs == 0);
 		nextdqp = dqp->dq_flnext;
@@ -2670,7 +2637,7 @@ xfs_qm_vop_chown_reserve(
 			XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS;
 
 	if (XFS_IS_UQUOTA_ON(mp) && udqp &&
-	    ip->i_d.di_uid != (uid_t)INT_GET(udqp->q_core.d_id, ARCH_CONVERT)) {
+	    ip->i_d.di_uid != (uid_t)be32_to_cpu(udqp->q_core.d_id)) {
 		delblksudq = udqp;
 		/*
 		 * If there are delayed allocation blocks, then we have to
@@ -2683,10 +2650,10 @@ xfs_qm_vop_chown_reserve(
 		}
 	}
 	if (XFS_IS_OQUOTA_ON(ip->i_mount) && gdqp) {
-		if ((XFS_IS_GQUOTA_ON(ip->i_mount) && ip->i_d.di_gid !=
-				INT_GET(gdqp->q_core.d_id, ARCH_CONVERT)) ||
-		    (XFS_IS_PQUOTA_ON(ip->i_mount) && ip->i_d.di_projid !=
-				INT_GET(gdqp->q_core.d_id, ARCH_CONVERT))) {
+		if ((XFS_IS_GQUOTA_ON(ip->i_mount) &&
+		     ip->i_d.di_gid != be32_to_cpu(gdqp->q_core.d_id)) ||
+		    (XFS_IS_PQUOTA_ON(ip->i_mount) &&
+		     ip->i_d.di_projid != be32_to_cpu(gdqp->q_core.d_id))) {
 			delblksgdq = gdqp;
 			if (delblks) {
 				ASSERT(ip->i_gdquot);
@@ -2776,7 +2743,7 @@ xfs_qm_vop_dqattach_and_dqmod_newinode(
 		xfs_dqunlock(udqp);
 		ASSERT(ip->i_udquot == NULL);
 		ip->i_udquot = udqp;
-		ASSERT(ip->i_d.di_uid == INT_GET(udqp->q_core.d_id, ARCH_CONVERT));
+		ASSERT(ip->i_d.di_uid == be32_to_cpu(udqp->q_core.d_id));
 		xfs_trans_mod_dquot(tp, udqp, XFS_TRANS_DQ_ICOUNT, 1);
 	}
 	if (gdqp) {
@@ -2785,7 +2752,7 @@ xfs_qm_vop_dqattach_and_dqmod_newinode(
 		xfs_dqunlock(gdqp);
 		ASSERT(ip->i_gdquot == NULL);
 		ip->i_gdquot = gdqp;
-		ASSERT(ip->i_d.di_gid == INT_GET(gdqp->q_core.d_id, ARCH_CONVERT));
+		ASSERT(ip->i_d.di_gid == be32_to_cpu(gdqp->q_core.d_id));
 		xfs_trans_mod_dquot(tp, gdqp, XFS_TRANS_DQ_ICOUNT, 1);
 	}
 }

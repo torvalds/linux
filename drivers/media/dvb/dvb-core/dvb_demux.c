@@ -246,7 +246,7 @@ static int dvb_dmx_swfilter_section_copy_dump(struct dvb_demux_feed *feed,
 
 	for (n = 0; sec->secbufp + 2 < limit; n++) {
 		seclen = section_length(sec->secbuf);
-		if (seclen <= 0 || seclen > DMX_MAX_SECFEED_SIZE
+		if (seclen <= 0 || seclen > DMX_MAX_SECTION_SIZE
 		    || seclen + sec->secbufp > limit)
 			return 0;
 		sec->seclen = seclen;

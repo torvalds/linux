@@ -1,0 +1,352 @@
+config FADS
+	bool
+
+choice
+	prompt "8xx Machine Type"
+	depends on 8xx
+	default RPXLITE
+
+config RPXLITE
+	bool "RPX-Lite"
+	---help---
+	  Single-board computers based around the PowerPC MPC8xx chips and
+	  intended for embedded applications.  The following types are
+	  supported:
+
+	  RPX-Lite:
+	  Embedded Planet RPX Lite. PC104 form-factor SBC based on the MPC823.
+
+	  RPX-Classic:
+	  Embedded Planet RPX Classic Low-fat. Credit-card-size SBC based on
+	  the MPC 860
+
+	  BSE-IP:
+	  Bright Star Engineering ip-Engine.
+
+	  TQM823L:
+	  TQM850L:
+	  TQM855L:
+	  TQM860L:
+	  MPC8xx based family of mini modules, half credit card size,
+	  up to 64 MB of RAM, 8 MB Flash, (Fast) Ethernet, 2 x serial ports,
+	  2 x CAN bus interface, ...
+	  Manufacturer: TQ Components, www.tq-group.de
+	  Date of Release: October (?) 1999
+	  End of Life: not yet :-)
+	  URL:
+	  - module: <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>
+	  - starter kit: <http://www.denx.de/PDF/STK8xxLHWM201.pdf>
+	  - images: <http://www.denx.de/embedded-ppc-en.html>
+
+	  FPS850L:
+	  FingerPrint Sensor System (based on TQM850L)
+	  Manufacturer: IKENDI AG, <http://www.ikendi.com/>
+	  Date of Release: November 1999
+	  End of life: end 2000 ?
+	  URL: see TQM850L
+
+	  IVMS8:
+	  MPC860 based board used in the "Integrated Voice Mail System",
+	  Small Version (8 voice channels)
+	  Manufacturer: Speech Design, <http://www.speech-design.de/>
+	  Date of Release: December 2000 (?)
+	  End of life: -
+	  URL: <http://www.speech-design.de/>
+
+	  IVML24:
+	  MPC860 based board used in the "Integrated Voice Mail System",
+	  Large Version (24 voice channels)
+	  Manufacturer: Speech Design, <http://www.speech-design.de/>
+	  Date of Release: March 2001  (?)
+	  End of life: -
+	  URL: <http://www.speech-design.de/>
+
+	  HERMES:
+	  Hermes-Pro ISDN/LAN router with integrated 8 x hub
+	  Manufacturer: Multidata Gesellschaft fur Datentechnik und Informatik
+	  <http://www.multidata.de/>
+	  Date of Release: 2000 (?)
+	  End of life: -
+	  URL: <http://www.multidata.de/english/products/hpro.htm>
+
+	  IP860:
+	  VMEBus IP (Industry Pack) carrier board with MPC860
+	  Manufacturer: MicroSys GmbH, <http://www.microsys.de/>
+	  Date of Release: ?
+	  End of life: -
+	  URL: <http://www.microsys.de/html/ip860.html>
+
+	  PCU_E:
+	  PCU = Peripheral Controller Unit, Extended
+	  Manufacturer: Siemens AG, ICN (Information and Communication Networks)
+	  	<http://www.siemens.de/page/1,3771,224315-1-999_2_226207-0,00.html>
+	  Date of Release: April 2001
+	  End of life: August 2001
+	  URL: n. a.
+
+config RPXCLASSIC
+	bool "RPX-Classic"
+	help
+	  The RPX-Classic is a single-board computer based on the Motorola
+	  MPC860.  It features 16MB of DRAM and a variable amount of flash,
+	  I2C EEPROM, thermal monitoring, a PCMCIA slot, a DIP switch and two
+	  LEDs.  Variants with Ethernet ports exist.  Say Y here to support it
+	  directly.
+
+config BSEIP
+	bool "BSE-IP"
+	help
+	  Say Y here to support the Bright Star Engineering ipEngine SBC.
+	  This is a credit-card-sized device featuring a MPC823 processor,
+	  26MB DRAM, 4MB flash, Ethernet, a 16K-gate FPGA, USB, an LCD/video
+	  controller, and two RS232 ports.
+
+config MPC8XXFADS
+	bool "FADS"
+	select FADS
+
+config MPC86XADS
+	bool "MPC86XADS"
+	help
+	  MPC86x Application Development System by Freescale Semiconductor.
+	  The MPC86xADS is meant to serve as a platform for s/w and h/w
+	  development around the MPC86X processor families.
+	select FADS
+
+config MPC885ADS
+	bool "MPC885ADS"
+	help
+	  Freescale Semiconductor MPC885 Application Development System (ADS).
+	  Also known as DUET.
+	  The MPC885ADS is meant to serve as a platform for s/w and h/w
+	  development around the MPC885 processor family.
+
+config TQM823L
+	bool "TQM823L"
+	help
+	  Say Y here to support the TQM823L, one of an MPC8xx-based family of
+	  mini SBCs (half credit-card size) from TQ Components first released
+	  in late 1999.  Technical references are at
+	  <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>, and
+	  <http://www.denx.de/PDF/STK8xxLHWM201.pdf>, and an image at
+	  <http://www.denx.de/embedded-ppc-en.html>.
+
+config TQM850L
+	bool "TQM850L"
+	help
+	  Say Y here to support the TQM850L, one of an MPC8xx-based family of
+	  mini SBCs (half credit-card size) from TQ Components first released
+	  in late 1999.  Technical references are at
+	  <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>, and
+	  <http://www.denx.de/PDF/STK8xxLHWM201.pdf>, and an image at
+	  <http://www.denx.de/embedded-ppc-en.html>.
+
+config TQM855L
+	bool "TQM855L"
+	help
+	  Say Y here to support the TQM855L, one of an MPC8xx-based family of
+	  mini SBCs (half credit-card size) from TQ Components first released
+	  in late 1999.  Technical references are at
+	  <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>, and
+	  <http://www.denx.de/PDF/STK8xxLHWM201.pdf>, and an image at
+	  <http://www.denx.de/embedded-ppc-en.html>.
+
+config TQM860L
+	bool "TQM860L"
+	help
+	  Say Y here to support the TQM860L, one of an MPC8xx-based family of
+	  mini SBCs (half credit-card size) from TQ Components first released
+	  in late 1999.  Technical references are at
+	  <http://www.denx.de/PDF/TQM8xxLHWM201.pdf>, and
+	  <http://www.denx.de/PDF/STK8xxLHWM201.pdf>, and an image at
+	  <http://www.denx.de/embedded-ppc-en.html>.
+
+config FPS850L
+	bool "FPS850L"
+
+config IVMS8
+	bool "IVMS8"
+	help
+	  Say Y here to support the Integrated Voice-Mail Small 8-channel SBC
+	  from Speech Design, released March 2001.  The manufacturer's website
+	  is at <http://www.speech-design.de/>.
+
+config IVML24
+	bool "IVML24"
+	help
+	  Say Y here to support the Integrated Voice-Mail Large 24-channel SBC
+	  from Speech Design, released March 2001.  The manufacturer's website
+	  is at <http://www.speech-design.de/>.
+
+config HERMES_PRO
+	bool "HERMES"
+
+config IP860
+	bool "IP860"
+
+config LWMON
+	bool "LWMON"
+
+config PCU_E
+	bool "PCU_E"
+
+config CCM
+	bool "CCM"
+
+config LANTEC
+	bool "LANTEC"
+
+config MBX
+	bool "MBX"
+	help
+	  MBX is a line of Motorola single-board computer based around the
+	  MPC821 and MPC860 processors, and intended for embedded-controller
+	  applications.  Say Y here to support these boards directly.
+
+config WINCEPT
+	bool "WinCept"
+	help
+	  The Wincept 100/110 is a Motorola single-board computer based on the
+	  MPC821 PowerPC, introduced in 1998 and designed to be used in
+	  thin-client machines.  Say Y to support it directly.
+
+endchoice
+
+#
+# MPC8xx Communication options
+#
+
+menu "MPC8xx CPM Options"
+	depends on 8xx
+
+config SCC_ENET
+	bool "CPM SCC Ethernet"
+	depends on NET_ETHERNET
+	help
+	  Enable Ethernet support via the Motorola MPC8xx serial
+	  communications controller.
+
+choice
+	prompt "SCC used for Ethernet"
+	depends on SCC_ENET
+	default SCC1_ENET
+
+config SCC1_ENET
+	bool "SCC1"
+	help
+	  Use MPC8xx serial communications controller 1 to drive Ethernet
+	  (default).
+
+config SCC2_ENET
+	bool "SCC2"
+	help
+	  Use MPC8xx serial communications controller 2 to drive Ethernet.
+
+config SCC3_ENET
+	bool "SCC3"
+	help
+	  Use MPC8xx serial communications controller 3 to drive Ethernet.
+
+endchoice
+
+config FEC_ENET
+	bool "860T FEC Ethernet"
+	depends on NET_ETHERNET
+	help
+	  Enable Ethernet support via the Fast Ethernet Controller (FCC) on
+	  the Motorola MPC8260.
+
+config USE_MDIO
+	bool "Use MDIO for PHY configuration"
+	depends on FEC_ENET
+	help
+	  On some boards the hardware configuration of the ethernet PHY can be
+	  used without any software interaction over the MDIO interface, so
+	  all MII code can be omitted. Say N here if unsure or if you don't
+	  need link status reports.
+
+config  FEC_AM79C874
+	bool "Support AMD79C874 PHY"
+	depends on USE_MDIO
+
+config FEC_LXT970
+	bool "Support LXT970 PHY"
+	depends on USE_MDIO
+
+config FEC_LXT971
+	bool "Support LXT971 PHY"
+	depends on USE_MDIO
+	
+config FEC_QS6612
+	bool "Support QS6612 PHY"
+	depends on USE_MDIO
+	
+config ENET_BIG_BUFFERS
+	bool "Use Big CPM Ethernet Buffers"
+	depends on SCC_ENET || FEC_ENET
+	help
+	  Allocate large buffers for MPC8xx Ethernet. Increases throughput
+	  and decreases the likelihood of dropped packets, but costs memory.
+
+config HTDMSOUND
+	bool "Embedded Planet HIOX Audio"
+	depends on SOUND=y
+
+# This doesn't really belong here, but it is convenient to ask
+# 8xx specific questions.
+comment "Generic MPC8xx Options"
+
+config 8xx_COPYBACK
+	bool "Copy-Back Data Cache (else Writethrough)"
+	help
+	  Saying Y here will cause the cache on an MPC8xx processor to be used
+	  in Copy-Back mode.  If you say N here, it is used in Writethrough
+	  mode.
+
+	  If in doubt, say Y here.
+
+config 8xx_CPU6
+	bool "CPU6 Silicon Errata (860 Pre Rev. C)"
+	help
+	  MPC860 CPUs, prior to Rev C have some bugs in the silicon, which
+	  require workarounds for Linux (and most other OSes to work).  If you
+	  get a BUG() very early in boot, this might fix the problem.  For
+	  more details read the document entitled "MPC860 Family Device Errata
+	  Reference" on Motorola's website.  This option also incurs a
+	  performance hit.
+
+	  If in doubt, say N here.
+
+choice
+	prompt "Microcode patch selection"
+	default NO_UCODE_PATCH
+	help
+	  Help not implemented yet, coming soon.
+
+config NO_UCODE_PATCH
+	bool "None"
+
+config USB_SOF_UCODE_PATCH
+	bool "USB SOF patch"
+	help
+	  Help not implemented yet, coming soon.
+
+config I2C_SPI_UCODE_PATCH
+	bool "I2C/SPI relocation patch"
+	help
+	  Help not implemented yet, coming soon.
+
+config I2C_SPI_SMC1_UCODE_PATCH
+	bool "I2C/SPI/SMC1 relocation patch"
+	help
+	  Help not implemented yet, coming soon.
+
+endchoice
+
+config UCODE_PATCH
+	bool
+	default y
+	depends on !NO_UCODE_PATCH
+
+endmenu
+

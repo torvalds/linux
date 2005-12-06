@@ -1,5 +1,11 @@
-$Id: TODO,v 1.10 2002/09/09 16:31:21 dwmw2 Exp $
+$Id: TODO,v 1.18 2005/09/22 11:24:56 dedekind Exp $
 
+ - support asynchronous operation -- add a per-fs 'reserved_space' count,
+   let each outstanding write reserve the _maximum_ amount of physical
+   space it could take. Let GC flush the outstanding writes because the
+   reservations will necessarily be pessimistic. With this we could even
+   do shared writable mmap, if we can have a fs hook for do_wp_page() to
+   make the reservation.
  - disable compression in commit_write()?
  - fine-tune the allocation / GC thresholds
  - chattr support - turning on/off and tuning compression per-inode
@@ -11,26 +17,15 @@ $Id: TODO,v 1.10 2002/09/09 16:31:21 dwmw2 Exp $
  - test, test, test
 
  - NAND flash support:
-	- flush_wbuf using GC to fill it, don't just pad.
-	- Deal with write errors. Data don't get lost - we just have to write 
-	  the affected node(s) out again somewhere else.
-	- make fsync flush only if actually required
-	- make sys_sync() work.
-	- reboot notifier
-	- timed flush of old wbuf
-	- fix magical second arg of jffs2_flush_wbuf(). Split into two or more functions instead.
-
+	- almost done :)
+	- use bad block check instead of the hardwired byte check
 
  - Optimisations:
-   - Stop GC from decompressing and immediately recompressing nodes which could
-     just be copied intact. (We now keep track of REF_PRISTINE flag. Easy now.)
-   - Furthermore, in the case where it could be copied intact we don't even need
-     to call iget() for it -- if we use (raw_node_raw->flash_offset & 2) as a flag
-     to show a node can be copied intact and it's _not_ in icache, we could just do
-     it, fix up the next_in_ino list and move on. We would need a way to find out
-     _whether_ it's in icache though -- if it's in icache we also need to do the 
-     fragment lists, etc. P'raps a flag or pointer in the jffs2_inode_cache could
-     help. (We have half of this now.)
+   - Split writes so they go to two separate blocks rather than just c->nextblock.
+	By writing _new_ nodes to one block, and garbage-collected REF_PRISTINE
+	nodes to a different one, we can separate clean nodes from those which
+	are likely to become dirty, and end up with blocks which are each far
+	closer to 100% or 0% clean, hence speeding up later GC progress dramatically.
    - Stop keeping name in-core with struct jffs2_full_dirent. If we keep the hash in 
      the full dirent, we only need to go to the flash in lookup() when we think we've
      got a match, and in readdir(). 
@@ -38,3 +33,8 @@ $Id: TODO,v 1.10 2002/09/09 16:31:21 dwmw2 Exp $
    - Remove totlen from jffs2_raw_node_ref? Need to have totlen passed into
 	jffs2_mark_node_obsolete(). Can all callers work it out?
    - Remove size from jffs2_raw_node_frag. 
+
+dedekind:
+1. __jffs2_flush_wbuf() has a strange 'pad' parameter. Eliminate.
+2. get_sb()->build_fs()->scan() path... Why get_sb() removes scan()'s crap in
+   case of failure? scan() does not clean everything. Fix.

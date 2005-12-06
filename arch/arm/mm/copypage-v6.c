@@ -22,9 +22,7 @@
 #endif
 
 #define from_address	(0xffff8000)
-#define from_pgprot	PAGE_KERNEL
 #define to_address	(0xffffc000)
-#define to_pgprot	PAGE_KERNEL
 
 #define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
 
@@ -34,7 +32,7 @@ static DEFINE_SPINLOCK(v6_lock);
  * Copy the user page.  No aliasing to deal with so we can just
  * attack the kernel's existing mapping of these pages.
  */
-void v6_copy_user_page_nonaliasing(void *kto, const void *kfrom, unsigned long vaddr)
+static void v6_copy_user_page_nonaliasing(void *kto, const void *kfrom, unsigned long vaddr)
 {
 	copy_page(kto, kfrom);
 }
@@ -43,7 +41,7 @@ void v6_copy_user_page_nonaliasing(void *kto, const void *kfrom, unsigned long v
  * Clear the user page.  No aliasing to deal with so we can just
  * attack the kernel's existing mapping of this page.
  */
-void v6_clear_user_page_nonaliasing(void *kaddr, unsigned long vaddr)
+static void v6_clear_user_page_nonaliasing(void *kaddr, unsigned long vaddr)
 {
 	clear_page(kaddr);
 }
@@ -51,7 +49,7 @@ void v6_clear_user_page_nonaliasing(void *kaddr, unsigned long vaddr)
 /*
  * Copy the page, taking account of the cache colour.
  */
-void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned long vaddr)
+static void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned long vaddr)
 {
 	unsigned int offset = CACHE_COLOUR(vaddr);
 	unsigned long from, to;
@@ -72,8 +70,8 @@ void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned long vadd
 	 */
 	spin_lock(&v6_lock);
 
-	set_pte(TOP_PTE(from_address) + offset, pfn_pte(__pa(kfrom) >> PAGE_SHIFT, from_pgprot));
-	set_pte(TOP_PTE(to_address) + offset, pfn_pte(__pa(kto) >> PAGE_SHIFT, to_pgprot));
+	set_pte(TOP_PTE(from_address) + offset, pfn_pte(__pa(kfrom) >> PAGE_SHIFT, PAGE_KERNEL));
+	set_pte(TOP_PTE(to_address) + offset, pfn_pte(__pa(kto) >> PAGE_SHIFT, PAGE_KERNEL));
 
 	from = from_address + (offset << PAGE_SHIFT);
 	to   = to_address + (offset << PAGE_SHIFT);
@@ -91,7 +89,7 @@ void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned long vadd
  * so remap the kernel page into the same cache colour as the user
  * page.
  */
-void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
+static void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
 {
 	unsigned int offset = CACHE_COLOUR(vaddr);
 	unsigned long to = to_address + (offset << PAGE_SHIFT);
@@ -112,7 +110,7 @@ void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
 	 */
 	spin_lock(&v6_lock);
 
-	set_pte(TOP_PTE(to_address) + offset, pfn_pte(__pa(kaddr) >> PAGE_SHIFT, to_pgprot));
+	set_pte(TOP_PTE(to_address) + offset, pfn_pte(__pa(kaddr) >> PAGE_SHIFT, PAGE_KERNEL));
 	flush_tlb_kernel_page(to);
 	clear_page((void *)to);
 

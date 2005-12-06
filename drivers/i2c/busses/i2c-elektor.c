@@ -22,7 +22,7 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even
    Frodo Looijaard <frodol@dds.nl> */
 
-/* Partialy rewriten by Oleg I. Vdovikin for mmapped support of 
+/* Partialy rewriten by Oleg I. Vdovikin for mmapped support of
    for Alpha Processor Inc. UP-2000(+) boards */
 
 #include <linux/kernel.h>
@@ -46,12 +46,14 @@
 #define DEFAULT_BASE 0x330
 
 static int base;
+static u8 __iomem *base_iomem;
+
 static int irq;
 static int clock  = 0x1c;
 static int own    = 0x55;
 static int mmapped;
 
-/* vdovikin: removed static struct i2c_pcf_isa gpi; code - 
+/* vdovikin: removed static struct i2c_pcf_isa gpi; code -
   this module in real supports only one device, due to missing arguments
   in some functions, called from the algo-pcf module. Sometimes it's
   need to be rewriten - but for now just remove this for simpler reading */
@@ -60,40 +62,33 @@ static wait_queue_head_t pcf_wait;
 static int pcf_pending;
 static spinlock_t lock;
 
+static struct i2c_adapter pcf_isa_ops;
+
 /* ----- local functions ----------------------------------------------	*/
 
 static void pcf_isa_setbyte(void *data, int ctl, int val)
 {
-	int address = ctl ? (base + 1) : base;
+	u8 __iomem *address = ctl ? (base_iomem + 1) : base_iomem;
 
 	/* enable irq if any specified for serial operation */
 	if (ctl && irq && (val & I2C_PCF_ESO)) {
 		val |= I2C_PCF_ENI;
 	}
 
-	pr_debug("i2c-elektor: Write 0x%X 0x%02X\n", address, val & 255);
-
-	switch (mmapped) {
-	case 0: /* regular I/O */
-		outb(val, address);
-		break;
-	case 2: /* double mapped I/O needed for UP2000 board,
-                   I don't know why this... */
-		writeb(val, (void *)address);
-		/* fall */
-	case 1: /* memory mapped I/O */
-		writeb(val, (void *)address);
-		break;
-	}
+	pr_debug("%s: Write %p 0x%02X\n", pcf_isa_ops.name, address, val);
+	iowrite8(val, address);
+#ifdef __alpha__
+	/* API UP2000 needs some hardware fudging to make the write stick */
+	iowrite8(val, address);
+#endif
 }
 
 static int pcf_isa_getbyte(void *data, int ctl)
 {
-	int address = ctl ? (base + 1) : base;
-	int val = mmapped ? readb((void *)address) : inb(address);
+	u8 __iomem *address = ctl ? (base_iomem + 1) : base_iomem;
+	int val = ioread8(address);
 
-	pr_debug("i2c-elektor: Read 0x%X 0x%02X\n", address, val);
-
+	pr_debug("%s: Read %p 0x%02X\n", pcf_isa_ops.name, address, val);
 	return (val);
 }
 
@@ -149,16 +144,40 @@ static int pcf_isa_init(void)
 {
 	spin_lock_init(&lock);
 	if (!mmapped) {
-		if (!request_region(base, 2, "i2c (isa bus adapter)")) {
-			printk(KERN_ERR
-			       "i2c-elektor: requested I/O region (0x%X:2) "
-			       "is in use.\n", base);
+		if (!request_region(base, 2, pcf_isa_ops.name)) {
+			printk(KERN_ERR "%s: requested I/O region (%#x:2) is "
+			       "in use\n", pcf_isa_ops.name, base);
+			return -ENODEV;
+		}
+		base_iomem = ioport_map(base, 2);
+		if (!base_iomem) {
+			printk(KERN_ERR "%s: remap of I/O region %#x failed\n",
+			       pcf_isa_ops.name, base);
+			release_region(base, 2);
+			return -ENODEV;
+		}
+	} else {
+		if (!request_mem_region(base, 2, pcf_isa_ops.name)) {
+			printk(KERN_ERR "%s: requested memory region (%#x:2) "
+			       "is in use\n", pcf_isa_ops.name, base);
+			return -ENODEV;
+		}
+		base_iomem = ioremap(base, 2);
+		if (base_iomem == NULL) {
+			printk(KERN_ERR "%s: remap of memory region %#x "
+			       "failed\n", pcf_isa_ops.name, base);
+			release_mem_region(base, 2);
 			return -ENODEV;
 		}
 	}
+	pr_debug("%s: registers %#x remapped to %p\n", pcf_isa_ops.name, base,
+		 base_iomem);
+
 	if (irq > 0) {
-		if (request_irq(irq, pcf_isa_handler, 0, "PCF8584", NULL) < 0) {
-			printk(KERN_ERR "i2c-elektor: Request irq%d failed\n", irq);
+		if (request_irq(irq, pcf_isa_handler, 0, pcf_isa_ops.name,
+				NULL) < 0) {
+			printk(KERN_ERR "%s: Request irq%d failed\n",
+			       pcf_isa_ops.name, irq);
 			irq = 0;
 		} else
 			enable_irq(irq);
@@ -186,47 +205,49 @@ static struct i2c_adapter pcf_isa_ops = {
 	.class		= I2C_CLASS_HWMON,
 	.id		= I2C_HW_P_ELEK,
 	.algo_data	= &pcf_isa_data,
-	.name		= "PCF8584 ISA adapter",
+	.name		= "i2c-elektor",
 };
 
-static int __init i2c_pcfisa_init(void) 
+static int __init i2c_pcfisa_init(void)
 {
 #ifdef __alpha__
-	/* check to see we have memory mapped PCF8584 connected to the 
+	/* check to see we have memory mapped PCF8584 connected to the
 	Cypress cy82c693 PCI-ISA bridge as on UP2000 board */
 	if (base == 0) {
 		struct pci_dev *cy693_dev;
-		
-		cy693_dev = pci_get_device(PCI_VENDOR_ID_CONTAQ, 
+
+		cy693_dev = pci_get_device(PCI_VENDOR_ID_CONTAQ,
 					   PCI_DEVICE_ID_CONTAQ_82C693, NULL);
 		if (cy693_dev) {
-			char config;
+			unsigned char config;
 			/* yeap, we've found cypress, let's check config */
 			if (!pci_read_config_byte(cy693_dev, 0x47, &config)) {
-				
-				pr_debug("i2c-elektor: found cy82c693, config register 0x47 = 0x%02x.\n", config);
+
+				pr_debug("%s: found cy82c693, config "
+					 "register 0x47 = 0x%02x\n",
+					 pcf_isa_ops.name, config);
 
 				/* UP2000 board has this register set to 0xe1,
-                                   but the most significant bit as seems can be 
+				   but the most significant bit as seems can be
 				   reset during the proper initialisation
-                                   sequence if guys from API decides to do that
-                                   (so, we can even enable Tsunami Pchip
-                                   window for the upper 1 Gb) */
+				   sequence if guys from API decides to do that
+				   (so, we can even enable Tsunami Pchip
+				   window for the upper 1 Gb) */
 
 				/* so just check for ROMCS at 0xe0000,
-                                   ROMCS enabled for writes
+				   ROMCS enabled for writes
 				   and external XD Bus buffer in use. */
 				if ((config & 0x7f) == 0x61) {
 					/* seems to be UP2000 like board */
 					base = 0xe0000;
-                                        /* I don't know why we need to
-                                           write twice */
-					mmapped = 2;
-                                        /* UP2000 drives ISA with
+					mmapped = 1;
+					/* UP2000 drives ISA with
 					   8.25 MHz (PCI/4) clock
 					   (this can be read from cypress) */
 					clock = I2C_PCF_CLK | I2C_PCF_TRNS90;
-					printk(KERN_INFO "i2c-elektor: found API UP2000 like board, will probe PCF8584 later.\n");
+					pr_info("%s: found API UP2000 like "
+						"board, will probe PCF8584 "
+						"later\n", pcf_isa_ops.name);
 				}
 			}
 			pci_dev_put(cy693_dev);
@@ -236,11 +257,10 @@ static int __init i2c_pcfisa_init(void)
 
 	/* sanity checks for mmapped I/O */
 	if (mmapped && base < 0xc8000) {
-		printk(KERN_ERR "i2c-elektor: incorrect base address (0x%0X) specified for mmapped I/O.\n", base);
+		printk(KERN_ERR "%s: incorrect base address (%#x) specified "
+		       "for mmapped I/O\n", pcf_isa_ops.name, base);
 		return -ENODEV;
 	}
-
-	printk(KERN_INFO "i2c-elektor: i2c pcf8584-isa adapter driver\n");
 
 	if (base == 0) {
 		base = DEFAULT_BASE;
@@ -251,8 +271,8 @@ static int __init i2c_pcfisa_init(void)
 		return -ENODEV;
 	if (i2c_pcf_add_bus(&pcf_isa_ops) < 0)
 		goto fail;
-	
-	printk(KERN_ERR "i2c-elektor: found device at %#x.\n", base);
+
+	dev_info(&pcf_isa_ops.dev, "found device at %#x\n", base);
 
 	return 0;
 
@@ -262,8 +282,13 @@ static int __init i2c_pcfisa_init(void)
 		free_irq(irq, NULL);
 	}
 
-	if (!mmapped)
-		release_region(base , 2);
+	if (!mmapped) {
+		ioport_unmap(base_iomem);
+		release_region(base, 2);
+	} else {
+		iounmap(base_iomem);
+		release_mem_region(base, 2);
+	}
 	return -ENODEV;
 }
 
@@ -276,8 +301,13 @@ static void i2c_pcfisa_exit(void)
 		free_irq(irq, NULL);
 	}
 
-	if (!mmapped)
-		release_region(base , 2);
+	if (!mmapped) {
+		ioport_unmap(base_iomem);
+		release_region(base, 2);
+	} else {
+		iounmap(base_iomem);
+		release_mem_region(base, 2);
+	}
 }
 
 MODULE_AUTHOR("Hans Berglund <hb@spacetec.no>");

@@ -26,6 +26,8 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+struct mm_struct;
+struct vm_area_struct;
 #endif
 
 #ifndef __ASSEMBLY__
@@ -435,8 +437,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	pte.pte |= pgprot_val(newprot);
 	return pte;
 }
-
-#define page_pte(page)	page_pte_prot((page), __pgprot(0))
 
 /* to find an entry in a page-table-directory. */
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))

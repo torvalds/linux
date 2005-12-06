@@ -1087,6 +1087,11 @@ typedef struct im_idma {
 #define SCCR_PCIDF_MSK	0x00000078	/* PCI division factor	*/
 #define SCCR_PCIDF_SHIFT 3
 
+#ifndef CPM_IMMR_OFFSET
+#define CPM_IMMR_OFFSET	0x101a8
+#endif
+
+#define FCC_PSMR_RMII	((uint)0x00020000)	/* Use RMII interface */
 
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */

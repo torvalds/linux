@@ -22,8 +22,6 @@
 #include "xtalk/hubdev.h"
 #include "xtalk/xwidgetdev.h"
 
-nasid_t master_nasid = INVALID_NASID;	/* Partition Master */
-
 static struct list_head sn_sysdata_list;
 
 /* sysdata list struct */
@@ -165,7 +163,7 @@ static void sn_fixup_ionodes(void)
 	 * Get SGI Specific HUB chipset information.
 	 * Inform Prom that this kernel can support domain bus numbering.
 	 */
-	for (i = 0; i < numionodes; i++) {
+	for (i = 0; i < num_cnodes; i++) {
 		hubdev = (struct hubdev_info *)(NODEPDA(i)->pdinfo);
 		nasid = cnodeid_to_nasid(i);
 		hubdev->max_segment_number = 0xffffffff;
@@ -351,7 +349,7 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 		return;		/*bus # does not exist */
 	prom_bussoft_ptr = __va(prom_bussoft_ptr);
 
- 	controller = kcalloc(1,sizeof(struct pci_controller), GFP_KERNEL);
+ 	controller = kzalloc(sizeof(struct pci_controller), GFP_KERNEL);
 	controller->segment = segment;
  	if (!controller)
  		BUG();

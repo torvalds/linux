@@ -30,7 +30,7 @@ unsigned int __machine_arch_type;
 #define putstr icedcc_putstr
 #define putc icedcc_putc
 
-extern void idedcc_putc(int ch);
+extern void icedcc_putc(int ch);
 
 static void
 icedcc_putstr(const char *ptr)
@@ -283,8 +283,14 @@ void flush_window(void)
 	putstr(".");
 }
 
+#ifndef arch_error
+#define arch_error(x)
+#endif
+
 static void error(char *x)
 {
+	arch_error(x);
+
 	putstr("\n\n");
 	putstr(x);
 	putstr("\n\n -- System halted");

@@ -35,8 +35,7 @@ affs_put_super(struct super_block *sb)
 		mark_buffer_dirty(sbi->s_root_bh);
 	}
 
-	if (sbi->s_prefix)
-		kfree(sbi->s_prefix);
+	kfree(sbi->s_prefix);
 	affs_free_bitmap(sb);
 	affs_brelse(sbi->s_root_bh);
 	kfree(sbi);
@@ -198,10 +197,9 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 			*mount_opts |= SF_MUFS;
 			break;
 		case Opt_prefix:
-			if (*prefix) {		/* Free any previous prefix */
-				kfree(*prefix);
-				*prefix = NULL;
-			}
+			/* Free any previous prefix */
+			kfree(*prefix);
+			*prefix = NULL;
 			*prefix = match_strdup(&args[0]);
 			if (!*prefix)
 				return 0;
@@ -462,11 +460,9 @@ got_root:
 out_error:
 	if (root_inode)
 		iput(root_inode);
-	if (sbi->s_bitmap)
-		kfree(sbi->s_bitmap);
+	kfree(sbi->s_bitmap);
 	affs_brelse(root_bh);
-	if (sbi->s_prefix)
-		kfree(sbi->s_prefix);
+	kfree(sbi->s_prefix);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 	return -EINVAL;

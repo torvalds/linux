@@ -472,6 +472,9 @@ config FUSE_FS
 	  utilities is available from the FUSE homepage:
 	  <http://fuse.sourceforge.net/>
 
+	  See <file:Documentation/filesystems/fuse.txt> for more information.
+	  See <file:Documentation/Changes> for needed library/utility version.
+
 	  If you want to develop a userspace FS, or if you want to use
 	  a filesystem based on FUSE, answer Y or M.
 
@@ -807,7 +810,7 @@ config TMPFS
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
-	depends X86 || IA64 || PPC64 || SPARC64 || SUPERH || X86_64 || BROKEN
+	depends X86 || IA64 || PPC64 || SPARC64 || SUPERH || BROKEN
 
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
@@ -895,6 +898,7 @@ config AFFS_FS
 config HFS_FS
 	tristate "Apple Macintosh file system support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	select NLS
 	help
 	  If you say Y here, you will be able to mount Macintosh-formatted
 	  floppy disks and hard drive partitions with full read-write access.
@@ -1047,6 +1051,19 @@ config JFFS2_FS_WRITEBUFFER
 	    - NOR flash with transparent ECC
 	    - DataFlash
 
+config JFFS2_SUMMARY
+	bool "JFFS2 summary support (EXPERIMENTAL)"
+	depends on JFFS2_FS && EXPERIMENTAL
+	default n
+	help
+	  This feature makes it possible to use summary information
+	  for faster filesystem mount.
+
+	  The summary information can be inserted into a filesystem image
+	  by the utility 'sumtool'.
+
+	  If unsure, say 'N'.
+
 config JFFS2_COMPRESSION_OPTIONS
 	bool "Advanced compression options for JFFS2"
 	depends on JFFS2_FS
@@ -1068,10 +1085,10 @@ config JFFS2_ZLIB
 	default y
         help
           Zlib is designed to be a free, general-purpose, legally unencumbered,
-          lossless data-compression library for use on virtually any computer 
+          lossless data-compression library for use on virtually any computer
           hardware and operating system. See <http://www.gzip.org/zlib/> for
           further information.
-          
+
           Say 'Y' if unsure.
 
 config JFFS2_RTIME
@@ -1093,7 +1110,7 @@ choice
         default JFFS2_CMODE_PRIORITY
         depends on JFFS2_FS
         help
-          You can set here the default compression mode of JFFS2 from 
+          You can set here the default compression mode of JFFS2 from
           the available compression modes. Don't touch if unsure.
 
 config JFFS2_CMODE_NONE
@@ -1104,13 +1121,13 @@ config JFFS2_CMODE_NONE
 config JFFS2_CMODE_PRIORITY
         bool "priority"
         help
-          Tries the compressors in a predefinied order and chooses the first 
+          Tries the compressors in a predefinied order and chooses the first
           successful one.
 
 config JFFS2_CMODE_SIZE
         bool "size (EXPERIMENTAL)"
         help
-          Tries all compressors and chooses the one which has the smallest 
+          Tries all compressors and chooses the one which has the smallest
           result.
 
 endchoice
@@ -1584,9 +1601,10 @@ config CIFS
 	  PC operating systems.  The CIFS protocol is fully supported by 
 	  file servers such as Windows 2000 (including Windows 2003, NT 4  
 	  and Windows XP) as well by Samba (which provides excellent CIFS
-	  server support for Linux and many other operating systems). Currently
-	  you must use the smbfs client filesystem to access older SMB servers
-	  such as Windows 9x and OS/2.
+	  server support for Linux and many other operating systems). Limited
+	  support for Windows ME and similar servers is provided as well. 
+	  You must use the smbfs client filesystem to access older SMB servers
+	  such as OS/2 and DOS.
 
 	  The intent of the cifs module is to provide an advanced
 	  network file system client for mounting to CIFS compliant servers, 
@@ -1597,7 +1615,7 @@ config CIFS
 	  cifs if running only a (Samba) server. It is possible to enable both
 	  smbfs and cifs (e.g. if you are using CIFS for accessing Windows 2003
 	  and Samba 3 servers, and smbfs for accessing old servers). If you need 
-	  to mount to Samba or Windows 2003 servers from this machine, say Y.
+	  to mount to Samba or Windows from this machine, say Y.
 
 config CIFS_STATS
         bool "CIFS statistics"
@@ -1606,8 +1624,22 @@ config CIFS_STATS
           Enabling this option will cause statistics for each server share
 	  mounted by the cifs client to be displayed in /proc/fs/cifs/Stats
 
+config CIFS_STATS2
+	bool "CIFS extended statistics"
+	depends on CIFS_STATS
+	help
+	  Enabling this option will allow more detailed statistics on SMB
+	  request timing to be displayed in /proc/fs/cifs/DebugData and also
+	  allow optional logging of slow responses to dmesg (depending on the
+	  value of /proc/fs/cifs/cifsFYI, see fs/cifs/README for more details).
+	  These additional statistics may have a minor effect on performance
+	  and memory utilization.
+
+	  Unless you are a developer or are doing network performance analysis
+	  or tuning, say N.
+
 config CIFS_XATTR
-        bool "CIFS extended attributes (EXPERIMENTAL)"
+        bool "CIFS extended attributes"
         depends on CIFS
         help
           Extended attributes are name:value pairs associated with inodes by
@@ -1619,11 +1651,11 @@ config CIFS_XATTR
           prefaced by the user namespace prefix. The system namespace
           (used by some filesystems to store ACLs) is not supported at
           this time.
-                                                                                                    
+
           If unsure, say N.
 
 config CIFS_POSIX
-        bool "CIFS POSIX Extensions (EXPERIMENTAL)"
+        bool "CIFS POSIX Extensions"
         depends on CIFS_XATTR
         help
           Enabling this option will cause the cifs client to attempt to
@@ -1636,10 +1668,28 @@ config CIFS_POSIX
 
 config CIFS_EXPERIMENTAL
 	  bool "CIFS Experimental Features (EXPERIMENTAL)"
-	  depends on CIFS
+	  depends on CIFS && EXPERIMENTAL
 	  help
-	    Enables cifs features under testing. These features
-	    are highly experimental.  If unsure, say N.
+	    Enables cifs features under testing. These features are
+	    experimental and currently include support for writepages
+	    (multipage writebehind performance improvements) and directory
+	    change notification ie fcntl(F_DNOTIFY) as well as some security
+	    improvements.  Some also depend on setting at runtime the
+	    pseudo-file /proc/fs/cifs/Experimental (which is disabled by
+	    default). See the file fs/cifs/README for more details.
+
+	    If unsure, say N.
+
+config CIFS_UPCALL
+	  bool "CIFS Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
+	  depends on CIFS_EXPERIMENTAL
+	  select CONNECTOR
+	  help
+	    Enables an upcall mechanism for CIFS which will be used to contact
+	    userspace helper utilities to provide SPNEGO packaged Kerberos
+	    tickets which are needed to mount to certain secure servers
+	    (for which more secure Kerberos authentication is required). If
+	    unsure, say N.
 
 config NCP_FS
 	tristate "NCP file system support (to mount NetWare volumes)"

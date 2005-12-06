@@ -47,10 +47,10 @@ config PM
 
 config ISA_DMA_API
 	bool
-	default y
 
 config ARCH_MAY_HAVE_PC_FDC
 	bool
+	depends on BROKEN
 	default y
 
 source "init/Kconfig"
@@ -154,13 +154,14 @@ config HOTPLUG_CPU
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool "Discontiguous memory support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on 64BIT && EXPERIMENTAL
 	help
 	  Say Y to support efficient handling of discontiguous physical memory,
 	  for architectures which are either NUMA (Non-Uniform Memory Access)
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
 
+source "kernel/Kconfig.hz"
 source "mm/Kconfig"
 
 config PREEMPT

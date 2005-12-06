@@ -350,7 +350,7 @@ When a driver is registered, the bus's list of devices is iterated
 over. bus->match() is called for each device that is not already
 claimed by a driver. 
 
-When a device is successfully bound to a device, device->driver is
+When a device is successfully bound to a driver, device->driver is
 set, the device is added to a per-driver list of devices, and a
 symlink is created in the driver's sysfs directory that points to the
 device's physical directory:

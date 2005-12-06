@@ -61,7 +61,7 @@ typedef struct
 struct sigcontext
 {
 	unsigned long	oldmask[_SIGCONTEXT_NSIG_WORDS];
-	_sigregs        *sregs;
+	_sigregs        __user *sregs;
 };
 
 

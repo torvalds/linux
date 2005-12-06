@@ -665,9 +665,8 @@ static inline void socal_init(struct sbus_dev *sdev, int no)
 	int size, i;
 	int irq, node;
 	
-	s = kmalloc (sizeof (struct socal), GFP_KERNEL);
+	s = kzalloc (sizeof (struct socal), GFP_KERNEL);
 	if (!s) return;
-	memset (s, 0, sizeof(struct socal));
 	spin_lock_init(&s->lock);
 	s->socal_no = no;
 

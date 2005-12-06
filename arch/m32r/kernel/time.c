@@ -39,10 +39,6 @@ extern void send_IPI_allbutself(int, int);
 extern void smp_local_timer_interrupt(struct pt_regs *);
 #endif
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 extern unsigned long wall_jiffies;
 #define TICK_SIZE	(tick_nsec / 1000)
 

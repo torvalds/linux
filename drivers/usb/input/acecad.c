@@ -53,7 +53,7 @@ struct usb_acecad {
 	char name[128];
 	char phys[64];
 	struct usb_device *usbdev;
-	struct input_dev dev;
+	struct input_dev *input;
 	struct urb *irq;
 
 	signed char *data;
@@ -64,7 +64,7 @@ static void usb_acecad_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct usb_acecad *acecad = urb->context;
 	unsigned char *data = acecad->data;
-	struct input_dev *dev = &acecad->dev;
+	struct input_dev *dev = acecad->input;
 	int prox, status;
 
 	switch (urb->status) {
@@ -135,8 +135,8 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	struct usb_host_interface *interface = intf->cur_altsetting;
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_acecad *acecad;
+	struct input_dev *input_dev;
 	int pipe, maxp;
-	char path[64];
 
 	if (interface->desc.bNumEndpoints != 1)
 		return -ENODEV;
@@ -153,8 +153,9 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 
 	acecad = kzalloc(sizeof(struct usb_acecad), GFP_KERNEL);
-	if (!acecad)
-		return -ENOMEM;
+	input_dev = input_allocate_device();
+	if (!acecad || !input_dev)
+		goto fail1;
 
 	acecad->data = usb_buffer_alloc(dev, 8, SLAB_KERNEL, &acecad->data_dma);
 	if (!acecad->data)
@@ -163,6 +164,9 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	acecad->irq = usb_alloc_urb(0, GFP_KERNEL);
 	if (!acecad->irq)
 		goto fail2;
+
+	acecad->usbdev = dev;
+	acecad->input = input_dev;
 
 	if (dev->manufacturer)
 		strlcpy(acecad->name, dev->manufacturer, sizeof(acecad->name));
@@ -173,48 +177,48 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 		strlcat(acecad->name, dev->product, sizeof(acecad->name));
 	}
 
-	usb_make_path(dev, path, sizeof(path));
-	snprintf(acecad->phys, sizeof(acecad->phys), "%s/input0", path);
+	usb_make_path(dev, acecad->phys, sizeof(acecad->phys));
+	strlcat(acecad->phys, "/input0", sizeof(acecad->phys));
 
-	acecad->usbdev = dev;
+	input_dev->name = acecad->name;
+	input_dev->phys = acecad->phys;
+	usb_to_input_id(dev, &input_dev->id);
+	input_dev->cdev.dev = &intf->dev;
+	input_dev->private = acecad;
 
-	acecad->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	acecad->dev.absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
-	acecad->dev.keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
-	acecad->dev.keybit[LONG(BTN_DIGI)] = BIT(BTN_TOOL_PEN) |BIT(BTN_TOUCH) | BIT(BTN_STYLUS) | BIT(BTN_STYLUS2);
+	input_dev->open = usb_acecad_open;
+	input_dev->close = usb_acecad_close;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
+	input_dev->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
+	input_dev->keybit[LONG(BTN_DIGI)] = BIT(BTN_TOOL_PEN) |BIT(BTN_TOUCH) | BIT(BTN_STYLUS) | BIT(BTN_STYLUS2);
 
 	switch (id->driver_info) {
 		case 0:
-			acecad->dev.absmax[ABS_X] = 5000;
-			acecad->dev.absmax[ABS_Y] = 3750;
-			acecad->dev.absmax[ABS_PRESSURE] = 512;
+			input_dev->absmax[ABS_X] = 5000;
+			input_dev->absmax[ABS_Y] = 3750;
+			input_dev->absmax[ABS_PRESSURE] = 512;
 			if (!strlen(acecad->name))
 				snprintf(acecad->name, sizeof(acecad->name),
 					"USB Acecad Flair Tablet %04x:%04x",
-					dev->descriptor.idVendor, dev->descriptor.idProduct);
+					le16_to_cpu(dev->descriptor.idVendor),
+					le16_to_cpu(dev->descriptor.idProduct));
 			break;
 		case 1:
-			acecad->dev.absmax[ABS_X] = 3000;
-			acecad->dev.absmax[ABS_Y] = 2250;
-			acecad->dev.absmax[ABS_PRESSURE] = 1024;
+			input_dev->absmax[ABS_X] = 3000;
+			input_dev->absmax[ABS_Y] = 2250;
+			input_dev->absmax[ABS_PRESSURE] = 1024;
 			if (!strlen(acecad->name))
 				snprintf(acecad->name, sizeof(acecad->name),
 					"USB Acecad 302 Tablet %04x:%04x",
-					dev->descriptor.idVendor, dev->descriptor.idProduct);
+					le16_to_cpu(dev->descriptor.idVendor),
+					le16_to_cpu(dev->descriptor.idProduct));
 			break;
 	}
 
-	acecad->dev.absfuzz[ABS_X] = 4;
-	acecad->dev.absfuzz[ABS_Y] = 4;
-
-	acecad->dev.private = acecad;
-	acecad->dev.open = usb_acecad_open;
-	acecad->dev.close = usb_acecad_close;
-
-	acecad->dev.name = acecad->name;
-	acecad->dev.phys = acecad->phys;
-	usb_to_input_id(dev, &acecad->dev.id);
-	acecad->dev.dev = &intf->dev;
+	input_dev->absfuzz[ABS_X] = 4;
+	input_dev->absfuzz[ABS_Y] = 4;
 
 	usb_fill_int_urb(acecad->irq, dev, pipe,
 			acecad->data, maxp > 8 ? 8 : maxp,
@@ -222,17 +226,15 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	acecad->irq->transfer_dma = acecad->data_dma;
 	acecad->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(&acecad->dev);
-
-	printk(KERN_INFO "input: %s with packet size %d on %s\n",
-		acecad->name, maxp, path);
+	input_register_device(acecad->input);
 
 	usb_set_intfdata(intf, acecad);
 
 	return 0;
 
  fail2:	usb_buffer_free(dev, 8, acecad->data, acecad->data_dma);
- fail1:	kfree(acecad);
+ fail1: input_free_device(input_dev);
+	kfree(acecad);
 	return -ENOMEM;
 }
 
@@ -243,7 +245,7 @@ static void usb_acecad_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	if (acecad) {
 		usb_kill_urb(acecad->irq);
-		input_unregister_device(&acecad->dev);
+		input_unregister_device(acecad->input);
 		usb_free_urb(acecad->irq);
 		usb_buffer_free(interface_to_usbdev(intf), 10, acecad->data, acecad->data_dma);
 		kfree(acecad);

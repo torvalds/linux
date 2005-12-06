@@ -756,7 +756,7 @@ do_ptrace(long request, struct task_struct *child, long addr, long data)
 	return ret;
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	int ret;

@@ -31,6 +31,6 @@ struct sys_timer;
 
 extern void omap_map_common_io(void);
 extern struct sys_timer omap_timer;
-extern void omap_serial_init(int ports[]);
+extern void omap_serial_init(void);
 
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */

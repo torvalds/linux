@@ -149,11 +149,11 @@ Lifeview Flyvideo Series:
   2) There is a print on the PCB:
       LR25       = Flyvideo (Zoran ZR36120, SAA7110A)
       LR26 Rev.N = Flyvideo II (Bt848)
-           Rev.O = Flyvideo II (Bt878)
+	   Rev.O = Flyvideo II (Bt878)
       LR37 Rev.C = Flyvideo EZ (Capture only, ZR36120 + SAA7110)
       LR38 Rev.A1= Flyvideo II EZ (Bt848 capture only)
       LR50 Rev.Q = Flyvideo 98 (w/eeprom and PCI subsystem ID)
-           Rev.W = Flyvideo 98 (no eeprom)
+	   Rev.W = Flyvideo 98 (no eeprom)
       LR51 Rev.E = Flyvideo 98 EZ (capture only)
       LR90       = Flyvideo 2000 (Bt878)
 		   Flyvideo 2000S (Bt878) w/Stereo TV (Package incl. LR91 daughterboard)
@@ -163,7 +163,7 @@ Lifeview Flyvideo Series:
       LR136	 = Flyvideo 2100/3100 (Low profile, SAA7130/SAA7134)
       LR137      = Flyvideo DV2000/DV3000 (SAA7130/SAA7134 + IEEE1394)
       LR138 Rev.C= Flyvideo 2000 (SAA7130)
-	        or Flyvideo 3000 (SAA7134) w/Stereo TV
+		or Flyvideo 3000 (SAA7134) w/Stereo TV
 		   These exist in variations w/FM and w/Remote sometimes denoted
 		   by suffixes "FM" and "R".
   3) You have a laptop (miniPCI card):
@@ -197,7 +197,7 @@ Typhoon TV card series:
   50680 "TV Tuner Pal BG" (blue package)= Pixelview PV-BT878P+ (Rev 9B)
   50681 "TV Tuner PCI Pal I" (variant of 50680)
   50682 "TView TV/FM Tuner Pal BG"       = Flyvideo 98FM (LR50 Rev.Q)
-         Note: The package has a picture of CPH05x (which would be a real TView)
+	 Note: The package has a picture of CPH05x (which would be a real TView)
   50683 "TV Tuner PCI SECAM" (variant of 50680)
   50684 "TV Tuner Pal BG"                = Pixelview 878TV(Rev.3D)
   50686 "TV Tuner"                       = KNC1 TV Station
@@ -418,9 +418,9 @@ Lifetec/Medion/Tevion/Aldi
 --------------------------
    LT9306/MD9306 = CPH061
    LT9415/MD9415 = LR90 Rev.F or Rev.G
-          MD9592 = Avermedia TVphone98 (PCI_ID=1461:0003), PCB-Rev=M168II-B (w/TDA9873H)
-          MD9717 = KNC One (Rev D4, saa7134, FM1216 MK2 tuner)
-          MD5044 = KNC One (Rev D4, saa7134, FM1216ME MK3 tuner)
+	  MD9592 = Avermedia TVphone98 (PCI_ID=1461:0003), PCB-Rev=M168II-B (w/TDA9873H)
+	  MD9717 = KNC One (Rev D4, saa7134, FM1216 MK2 tuner)
+	  MD5044 = KNC One (Rev D4, saa7134, FM1216ME MK3 tuner)
 
 Modular Technologies (www.modulartech.com) UK
 ---------------------------------------------
@@ -453,10 +453,10 @@ Technisat
    Discos ADR PC-Karte ISA (no TV!)
    Discos ADR PC-Karte PCI (probably no TV?)
    Techni-PC-Sat (Sat. analog)
-         Rev 1.2 (zr36120, vpx3220, stv0030, saa5246, BSJE3-494A)
+	 Rev 1.2 (zr36120, vpx3220, stv0030, saa5246, BSJE3-494A)
    Mediafocus I (zr36120/zr36125, drp3510, Sat. analog + ADR Radio)
    Mediafocus II (saa7146, Sat. analog)
-         SatADR Rev 2.1 (saa7146a, saa7113h, stv0056a, msp3400c, drp3510a, BSKE3-307A)
+	 SatADR Rev 2.1 (saa7146a, saa7113h, stv0056a, msp3400c, drp3510a, BSKE3-307A)
    SkyStar 1 DVB  (AV7110) = Technotrend Premium
    SkyStar 2 DVB  (B2C2) (=Sky2PC)
 

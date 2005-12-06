@@ -2,7 +2,7 @@
  * tsunami_flash.c
  *
  * flash chip on alpha ds10...
- * $Id: tsunami_flash.c,v 1.9 2004/07/14 09:52:55 dwmw2 Exp $
+ * $Id: tsunami_flash.c,v 1.10 2005/11/07 11:14:29 gleixner Exp $
  */
 #include <asm/io.h>
 #include <asm/core_tsunami.h>
@@ -41,7 +41,7 @@ static void tsunami_flash_copy_from(
 }
 
 static void tsunami_flash_copy_to(
-	struct map_info *map, unsigned long offset, 
+	struct map_info *map, unsigned long offset,
 	const void *addr, ssize_t len)
 {
 	const unsigned char *src;
@@ -90,7 +90,7 @@ static int __init init_tsunami_flash(void)
 	char **type;
 
 	tsunami_tig_writeb(FLASH_ENABLE_BYTE, FLASH_ENABLE_PORT);
-	
+
 	tsunami_flash_mtd = 0;
 	type = rom_probe_types;
 	for(; !tsunami_flash_mtd && *type; type++) {

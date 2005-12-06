@@ -50,10 +50,10 @@ extern int iommu_setup(char *opt);
  * address space.  The networking and block device layers use
  * this boolean for bounce buffer decisions
  *
- * On x86-64 it mostly equals, but we set it to zero to tell some subsystems
- * that an hard or soft IOMMU is available.
+ * On AMD64 it mostly equals, but we set it to zero to tell some subsystems
+ * that an IOMMU is available.
  */
-#define PCI_DMA_BUS_IS_PHYS 0
+#define PCI_DMA_BUS_IS_PHYS	(no_iommu ? 1 : 0)
 
 /*
  * x86-64 always supports DAC, but sometimes it is useful to force

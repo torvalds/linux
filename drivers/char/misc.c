@@ -234,7 +234,7 @@ int misc_register(struct miscdevice * misc)
 	}
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
-	misc->class = class_device_create(misc_class, dev, misc->dev,
+	misc->class = class_device_create(misc_class, NULL, dev, misc->dev,
 					  "%s", misc->name);
 	if (IS_ERR(misc->class)) {
 		err = PTR_ERR(misc->class);

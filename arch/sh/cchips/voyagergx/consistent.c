@@ -31,7 +31,7 @@ static LIST_HEAD(voya_alloc_list);
 #define OHCI_SRAM_SIZE	0x10000
 
 void *voyagergx_consistent_alloc(struct device *dev, size_t size,
-				 dma_addr_t *handle, int flag)
+				 dma_addr_t *handle, gfp_t flag)
 {
 	struct list_head *list = &voya_alloc_list;
 	struct voya_alloc_entry *entry;

@@ -30,6 +30,7 @@
  *	04-Oct-2004  BJD  Added irq filter controls for GPIO
  *	05-Nov-2004  BJD  EXPORT_SYMBOL() added for all code
  *	13-Mar-2005  BJD  Updates for __iomem
+ *	26-Oct-2005  BJD  Added generic configuration types
  */
 
 
@@ -57,6 +58,27 @@ void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function)
 	} else {
 		mask = 3 << S3C2410_GPIO_OFFSET(pin)*2;
 	}
+
+	switch (function) {
+	case S3C2410_GPIO_LEAVE:
+		mask = 0;
+		function = 0;
+		break;
+
+	case S3C2410_GPIO_INPUT:
+	case S3C2410_GPIO_OUTPUT:
+	case S3C2410_GPIO_SFN2:
+	case S3C2410_GPIO_SFN3:
+		if (pin < S3C2410_GPIO_BANKB) {
+			function &= 1;
+			function <<= S3C2410_GPIO_OFFSET(pin);
+		} else {
+			function &= 3;
+			function <<= S3C2410_GPIO_OFFSET(pin)*2;
+		}
+	}
+
+	/* modify the specified register wwith IRQs off */
 
 	local_irq_save(flags);
 

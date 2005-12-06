@@ -7,7 +7,6 @@
 //
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/wait.h>
 

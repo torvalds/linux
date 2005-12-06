@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2004, 2005 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
  * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
@@ -109,7 +109,6 @@ struct ib_cm_id;
 
 struct ib_cm_req_event_param {
 	struct ib_cm_id		*listen_id;
-	struct ib_device	*device;
 	u8			port;
 
 	struct ib_sa_path_rec	*primary_path;
@@ -220,7 +219,6 @@ struct ib_cm_apr_event_param {
 
 struct ib_cm_sidr_req_event_param {
 	struct ib_cm_id		*listen_id;
-	struct ib_device	*device;
 	u8			port;
 	u16			pkey;
 };
@@ -284,6 +282,7 @@ typedef int (*ib_cm_handler)(struct ib_cm_id *cm_id,
 struct ib_cm_id {
 	ib_cm_handler		cm_handler;
 	void			*context;
+	struct ib_device	*device;
 	__be64			service_id;
 	__be64			service_mask;
 	enum ib_cm_state	state;		/* internal CM/debug use */
@@ -295,6 +294,8 @@ struct ib_cm_id {
 
 /**
  * ib_create_cm_id - Allocate a communication identifier.
+ * @device: Device associated with the cm_id.  All related communication will
+ * be associated with the specified device.
  * @cm_handler: Callback invoked to notify the user of CM events.
  * @context: User specified context associated with the communication
  *   identifier.
@@ -302,7 +303,8 @@ struct ib_cm_id {
  * Communication identifiers are used to track connection states, service
  * ID resolution requests, and listen requests.
  */
-struct ib_cm_id *ib_create_cm_id(ib_cm_handler cm_handler,
+struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
+				 ib_cm_handler cm_handler,
 				 void *context);
 
 /**

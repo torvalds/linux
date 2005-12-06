@@ -1,0 +1,106 @@
+/*
+ *  linux/include/asm-arm/arch-realview/irqs.h
+ *
+ *  Copyright (C) 2003 ARM Limited
+ *  Copyright (C) 2000 Deep Blue Solutions Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#include <asm/arch/platform.h>
+
+#define IRQ_LOCALTIMER			29
+#define IRQ_LOCALWDOG			30
+
+/* 
+ *  IRQ interrupts definitions are the same the INT definitions
+ *  held within platform.h
+ */
+#define IRQ_GIC_START		32
+#define IRQ_WDOGINT		(IRQ_GIC_START + INT_WDOGINT)
+#define IRQ_SOFTINT		(IRQ_GIC_START + INT_SOFTINT)
+#define IRQ_COMMRx		(IRQ_GIC_START + INT_COMMRx)
+#define IRQ_COMMTx		(IRQ_GIC_START + INT_COMMTx)
+#define IRQ_TIMERINT0_1		(IRQ_GIC_START + INT_TIMERINT0_1)
+#define IRQ_TIMERINT2_3		(IRQ_GIC_START + INT_TIMERINT2_3)
+#define IRQ_GPIOINT0		(IRQ_GIC_START + INT_GPIOINT0)
+#define IRQ_GPIOINT1		(IRQ_GIC_START + INT_GPIOINT1)
+#define IRQ_GPIOINT2		(IRQ_GIC_START + INT_GPIOINT2)
+#define IRQ_GPIOINT3		(IRQ_GIC_START + INT_GPIOINT3)
+#define IRQ_RTCINT		(IRQ_GIC_START + INT_RTCINT)
+#define IRQ_SSPINT		(IRQ_GIC_START + INT_SSPINT)
+#define IRQ_UARTINT0		(IRQ_GIC_START + INT_UARTINT0)
+#define IRQ_UARTINT1		(IRQ_GIC_START + INT_UARTINT1)
+#define IRQ_UARTINT2		(IRQ_GIC_START + INT_UARTINT2)
+#define IRQ_UART3		(IRQ_GIC_START + INT_UARTINT3)
+#define IRQ_SCIINT		(IRQ_GIC_START + INT_SCIINT)
+#define IRQ_CLCDINT		(IRQ_GIC_START + INT_CLCDINT)
+#define IRQ_DMAINT		(IRQ_GIC_START + INT_DMAINT)
+#define IRQ_PWRFAILINT 		(IRQ_GIC_START + INT_PWRFAILINT)
+#define IRQ_MBXINT		(IRQ_GIC_START + INT_MBXINT)
+#define IRQ_GNDINT		(IRQ_GIC_START + INT_GNDINT)
+#define IRQ_MMCI0B 		(IRQ_GIC_START + INT_MMCI0B)
+#define IRQ_MMCI1B 		(IRQ_GIC_START + INT_MMCI1B)
+#define IRQ_KMI0		(IRQ_GIC_START + INT_KMI0)
+#define IRQ_KMI1		(IRQ_GIC_START + INT_KMI1)
+#define IRQ_SCI3		(IRQ_GIC_START + INT_SCI3)
+#define IRQ_CLCD		(IRQ_GIC_START + INT_CLCD)
+#define IRQ_TOUCH		(IRQ_GIC_START + INT_TOUCH)
+#define IRQ_KEYPAD 		(IRQ_GIC_START + INT_KEYPAD)
+#define IRQ_DoC			(IRQ_GIC_START + INT_DoC)
+#define IRQ_MMCI0A 		(IRQ_GIC_START + INT_MMCI0A)
+#define IRQ_MMCI1A 		(IRQ_GIC_START + INT_MMCI1A)
+#define IRQ_AACI		(IRQ_GIC_START + INT_AACI)
+#define IRQ_ETH			(IRQ_GIC_START + INT_ETH)
+#define IRQ_USB			(IRQ_GIC_START + INT_USB)
+
+#define IRQMASK_WDOGINT		INTMASK_WDOGINT
+#define IRQMASK_SOFTINT		INTMASK_SOFTINT
+#define IRQMASK_COMMRx 		INTMASK_COMMRx
+#define IRQMASK_COMMTx 		INTMASK_COMMTx
+#define IRQMASK_TIMERINT0_1	INTMASK_TIMERINT0_1
+#define IRQMASK_TIMERINT2_3	INTMASK_TIMERINT2_3
+#define IRQMASK_GPIOINT0	INTMASK_GPIOINT0
+#define IRQMASK_GPIOINT1	INTMASK_GPIOINT1
+#define IRQMASK_GPIOINT2	INTMASK_GPIOINT2
+#define IRQMASK_GPIOINT3	INTMASK_GPIOINT3
+#define IRQMASK_RTCINT 		INTMASK_RTCINT
+#define IRQMASK_SSPINT 		INTMASK_SSPINT
+#define IRQMASK_UARTINT0	INTMASK_UARTINT0
+#define IRQMASK_UARTINT1	INTMASK_UARTINT1
+#define IRQMASK_UARTINT2	INTMASK_UARTINT2
+#define IRQMASK_SCIINT 		INTMASK_SCIINT
+#define IRQMASK_CLCDINT		INTMASK_CLCDINT
+#define IRQMASK_DMAINT 		INTMASK_DMAINT
+#define IRQMASK_PWRFAILINT	INTMASK_PWRFAILINT
+#define IRQMASK_MBXINT 		INTMASK_MBXINT
+#define IRQMASK_GNDINT 		INTMASK_GNDINT
+#define IRQMASK_MMCI0B		INTMASK_MMCI0B
+#define IRQMASK_MMCI1B		INTMASK_MMCI1B
+#define IRQMASK_KMI0		INTMASK_KMI0
+#define IRQMASK_KMI1		INTMASK_KMI1
+#define IRQMASK_SCI3		INTMASK_SCI3
+#define IRQMASK_UART3		INTMASK_UART3
+#define IRQMASK_CLCD		INTMASK_CLCD
+#define IRQMASK_TOUCH		INTMASK_TOUCH
+#define IRQMASK_KEYPAD		INTMASK_KEYPAD
+#define IRQMASK_DoC		INTMASK_DoC
+#define IRQMASK_MMCI0A		INTMASK_MMCI0A
+#define IRQMASK_MMCI1A		INTMASK_MMCI1A
+#define IRQMASK_AACI		INTMASK_AACI
+#define IRQMASK_ETH		INTMASK_ETH
+#define IRQMASK_USB		INTMASK_USB
+
+#define NR_IRQS			(IRQ_GIC_START + 64)

@@ -9,7 +9,8 @@ struct namespace {
 	atomic_t		count;
 	struct vfsmount *	root;
 	struct list_head	list;
-	struct rw_semaphore	sem;
+	wait_queue_head_t poll;
+	int event;
 };
 
 extern int copy_namespace(int, struct task_struct *);

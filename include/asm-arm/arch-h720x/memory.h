@@ -11,7 +11,7 @@
  * Page offset:
  *    ( 0xc0000000UL )
  */
-#define PHYS_OFFSET	(0x40000000UL)
+#define PHYS_OFFSET	UL(0x40000000)
 
 /*
  * Virtual view <-> DMA view memory address translations

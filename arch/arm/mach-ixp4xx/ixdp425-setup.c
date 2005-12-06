@@ -85,7 +85,7 @@ static struct plat_serial8250_port ixdp425_uart_data[] = {
 	{
 		.mapbase	= IXP4XX_UART2_BASE_PHYS,
 		.membase	= (char *)IXP4XX_UART2_BASE_VIRT + REG_OFFSET,
-		.irq		= IRQ_IXP4XX_UART1,
+		.irq		= IRQ_IXP4XX_UART2,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
@@ -123,7 +123,7 @@ static void __init ixdp425_init(void)
 	platform_add_devices(ixdp425_devices, ARRAY_SIZE(ixdp425_devices));
 }
 
-#ifdef CONFIG_ARCH_IXDP465
+#ifdef CONFIG_ARCH_IXDP425
 MACHINE_START(IXDP425, "Intel IXDP425 Development Platform")
 	/* Maintainer: MontaVista Software, Inc. */
 	.phys_ram	= PHYS_OFFSET,

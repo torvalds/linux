@@ -98,7 +98,7 @@ int llc_build_and_send_ui_pkt(struct llc_sap *sap, struct sk_buff *skb,
 			    dsap, LLC_PDU_CMD);
 	llc_pdu_init_as_ui_cmd(skb);
 	rc = llc_mac_hdr_init(skb, skb->dev->dev_addr, dmac);
-	if (!rc)
+	if (likely(!rc))
 		rc = dev_queue_xmit(skb);
 	return rc;
 }

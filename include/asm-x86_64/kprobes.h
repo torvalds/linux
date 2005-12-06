@@ -25,6 +25,7 @@
  */
 #include <linux/types.h>
 #include <linux/ptrace.h>
+#include <linux/percpu.h>
 
 struct pt_regs;
 
@@ -46,6 +47,24 @@ void kretprobe_trampoline(void);
 struct arch_specific_insn {
 	/* copy of the original instruction */
 	kprobe_opcode_t *insn;
+};
+
+struct prev_kprobe {
+	struct kprobe *kp;
+	unsigned long status;
+	unsigned long old_rflags;
+	unsigned long saved_rflags;
+};
+
+/* per-cpu kprobe control block */
+struct kprobe_ctlblk {
+	unsigned long kprobe_status;
+	unsigned long kprobe_old_rflags;
+	unsigned long kprobe_saved_rflags;
+	long *jprobe_saved_rsp;
+	struct pt_regs jprobe_saved_regs;
+	kprobe_opcode_t jprobes_stack[MAX_STACK_SIZE];
+	struct prev_kprobe prev_kprobe;
 };
 
 /* trap3/1 are intr gates for kprobes.  So, restore the status of IF,

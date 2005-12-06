@@ -106,9 +106,7 @@ iiEllisInit(void)
 static void
 iiEllisCleanup(void)
 {
-	if ( pDelayTimer != NULL ) {
-		kfree ( pDelayTimer );
-	}
+	kfree(pDelayTimer);
 }
 
 //******************************************************************************

@@ -255,7 +255,7 @@
  */
 
 static struct Scsi_Host *first_instance = NULL;
-static Scsi_Host_Template *the_template = NULL;
+static struct scsi_host_template *the_template = NULL;
 
 /* Macros ease life... :-) */
 #define	SETUP_HOSTDATA(in)				\

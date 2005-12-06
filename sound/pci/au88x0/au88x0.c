@@ -303,7 +303,7 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	if (snd_seq_device_new(card, 1, SNDRV_SEQ_DEV_ID_VORTEX_SYNTH,
 			       sizeof(snd_vortex_synth_arg_t), &wave) < 0
 	    || wave == NULL) {
-		snd_printk("Can't initialize Aureal wavetable synth\n");
+		snd_printk(KERN_ERR "Can't initialize Aureal wavetable synth\n");
 	} else {
 		snd_vortex_synth_arg_t *arg;
 
@@ -373,7 +373,6 @@ static void __devexit snd_vortex_remove(struct pci_dev *pci)
 // pci_driver definition
 static struct pci_driver driver = {
 	.name = CARD_NAME_SHORT,
-	.owner = THIS_MODULE,
 	.id_table = snd_vortex_ids,
 	.probe = snd_vortex_probe,
 	.remove = __devexit_p(snd_vortex_remove),

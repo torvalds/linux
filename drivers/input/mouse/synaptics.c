@@ -342,7 +342,7 @@ static void synaptics_parse_hw_state(unsigned char buf[], struct synaptics_data 
  */
 static void synaptics_process_packet(struct psmouse *psmouse)
 {
-	struct input_dev *dev = &psmouse->dev;
+	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
 	struct synaptics_hw_state hw;
 	int num_fingers;
@@ -473,7 +473,7 @@ static unsigned char synaptics_detect_pkt_type(struct psmouse *psmouse)
 
 static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
 {
-	struct input_dev *dev = &psmouse->dev;
+	struct input_dev *dev = psmouse->dev;
 	struct synaptics_data *priv = psmouse->private;
 
 	input_regs(dev, regs);
@@ -645,7 +645,7 @@ int synaptics_init(struct psmouse *psmouse)
 		SYN_ID_MAJOR(priv->identity), SYN_ID_MINOR(priv->identity),
 		priv->model_id, priv->capabilities, priv->ext_cap);
 
-	set_input_params(&psmouse->dev, priv);
+	set_input_params(psmouse->dev, priv);
 
 	psmouse->protocol_handler = synaptics_process_byte;
 	psmouse->set_rate = synaptics_set_rate;

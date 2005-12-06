@@ -298,7 +298,7 @@ enum {OLD_LANCE = 0, PCNET_ISA=1, PCNET_ISAP=2, PCNET_PCI=3, PCNET_VLB=4, PCNET_
 static unsigned char lance_need_isa_bounce_buffers = 1;
 
 static int lance_open(struct net_device *dev);
-static void lance_init_ring(struct net_device *dev, int mode);
+static void lance_init_ring(struct net_device *dev, gfp_t mode);
 static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int lance_rx(struct net_device *dev);
 static irqreturn_t lance_interrupt(int irq, void *dev_id, struct pt_regs *regs);
@@ -846,7 +846,7 @@ lance_purge_ring(struct net_device *dev)
 
 /* Initialize the LANCE Rx and Tx rings. */
 static void
-lance_init_ring(struct net_device *dev, int gfp)
+lance_init_ring(struct net_device *dev, gfp_t gfp)
 {
 	struct lance_private *lp = dev->priv;
 	int i;

@@ -108,8 +108,8 @@ ip_nat_fn(unsigned int hooknum,
 	case IP_CT_RELATED:
 	case IP_CT_RELATED+IP_CT_IS_REPLY:
 		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
-			if (!icmp_reply_translation(pskb, ct, maniptype,
-						    CTINFO2DIR(ctinfo)))
+			if (!ip_nat_icmp_reply_translation(pskb, ct, maniptype,
+							   CTINFO2DIR(ctinfo)))
 				return NF_DROP;
 			else
 				return NF_ACCEPT;
@@ -152,7 +152,7 @@ ip_nat_fn(unsigned int hooknum,
 	}
 
 	IP_NF_ASSERT(info);
-	return nat_packet(ct, ctinfo, hooknum, pskb);
+	return ip_nat_packet(ct, ctinfo, hooknum, pskb);
 }
 
 static unsigned int
@@ -325,15 +325,10 @@ static int init_or_cleanup(int init)
 		printk("ip_nat_init: can't setup rules.\n");
 		goto cleanup_nothing;
 	}
-	ret = ip_nat_init();
-	if (ret < 0) {
-		printk("ip_nat_init: can't setup rules.\n");
-		goto cleanup_rule_init;
-	}
 	ret = nf_register_hook(&ip_nat_in_ops);
 	if (ret < 0) {
 		printk("ip_nat_init: can't register in hook.\n");
-		goto cleanup_nat;
+		goto cleanup_rule_init;
 	}
 	ret = nf_register_hook(&ip_nat_out_ops);
 	if (ret < 0) {
@@ -374,8 +369,6 @@ static int init_or_cleanup(int init)
 	nf_unregister_hook(&ip_nat_out_ops);
  cleanup_inops:
 	nf_unregister_hook(&ip_nat_in_ops);
- cleanup_nat:
-	ip_nat_cleanup();
  cleanup_rule_init:
 	ip_nat_rule_cleanup();
  cleanup_nothing:
@@ -395,14 +388,4 @@ static void __exit fini(void)
 module_init(init);
 module_exit(fini);
 
-EXPORT_SYMBOL(ip_nat_setup_info);
-EXPORT_SYMBOL(ip_nat_protocol_register);
-EXPORT_SYMBOL(ip_nat_protocol_unregister);
-EXPORT_SYMBOL_GPL(ip_nat_proto_find_get);
-EXPORT_SYMBOL_GPL(ip_nat_proto_put);
-EXPORT_SYMBOL(ip_nat_cheat_check);
-EXPORT_SYMBOL(ip_nat_mangle_tcp_packet);
-EXPORT_SYMBOL(ip_nat_mangle_udp_packet);
-EXPORT_SYMBOL(ip_nat_used_tuple);
-EXPORT_SYMBOL(ip_nat_follow_master);
 MODULE_LICENSE("GPL");

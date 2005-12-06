@@ -298,8 +298,7 @@ static int fw_change(struct tcf_proto *tp, unsigned long base,
 	return 0;
 
 errout:
-	if (f)
-		kfree(f);
+	kfree(f);
 	return err;
 }
 

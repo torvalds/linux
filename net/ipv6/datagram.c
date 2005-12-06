@@ -437,7 +437,7 @@ int datagram_recv_ctl(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 				break;
 			case IPPROTO_AH:
 				nexthdr = ptr[0];
-				len = (ptr[1] + 1) << 2;
+				len = (ptr[1] + 2) << 2;
 				break;
 			default:
 				nexthdr = ptr[0];

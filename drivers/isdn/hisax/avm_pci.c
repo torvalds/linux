@@ -552,14 +552,10 @@ close_hdlcstate(struct BCState *bcs)
 {
 	modehdlc(bcs, 0, 0);
 	if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-		if (bcs->hw.hdlc.rcvbuf) {
-			kfree(bcs->hw.hdlc.rcvbuf);
-			bcs->hw.hdlc.rcvbuf = NULL;
-		}
-		if (bcs->blog) {
-			kfree(bcs->blog);
-			bcs->blog = NULL;
-		}
+		kfree(bcs->hw.hdlc.rcvbuf);
+		bcs->hw.hdlc.rcvbuf = NULL;
+		kfree(bcs->blog);
+		bcs->blog = NULL;
 		skb_queue_purge(&bcs->rqueue);
 		skb_queue_purge(&bcs->squeue);
 		if (bcs->tx_skb) {

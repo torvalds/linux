@@ -1,5 +1,5 @@
 /*
- * $Id: blkmtd.c,v 1.24 2004/11/16 18:29:01 dwmw2 Exp $
+ * $Id: blkmtd.c,v 1.27 2005/11/07 11:14:24 gleixner Exp $
  *
  * blkmtd.c - use a block device as a fake MTD
  *
@@ -39,7 +39,7 @@
 
 /* Default erase size in K, always make it a multiple of PAGE_SIZE */
 #define CONFIG_MTD_BLKDEV_ERASESIZE (128 << 10)	/* 128KiB */
-#define VERSION "$Revision: 1.24 $"
+#define VERSION "$Revision: 1.27 $"
 
 /* Info for the block device */
 struct blkmtd_dev {
@@ -117,7 +117,7 @@ static int bi_write_complete(struct bio *bio, unsigned int bytes_done, int error
 		unlock_page(page);
 		page_cache_release(page);
 	} while (bvec >= bio->bi_io_vec);
-	
+
 	complete((struct completion*)bio->bi_private);
 	return 0;
 }
@@ -135,7 +135,7 @@ static int blkmtd_readpage(struct blkmtd_dev *dev, struct page *page)
 		unlock_page(page);
 		return 0;
 	}
-	
+
 	ClearPageUptodate(page);
 	ClearPageError(page);
 
@@ -539,11 +539,8 @@ static void free_device(struct blkmtd_dev *dev)
 {
 	DEBUG(2, "blkmtd: free_device() dev = %p\n", dev);
 	if(dev) {
-		if(dev->mtd_info.eraseregions)
-			kfree(dev->mtd_info.eraseregions);
-		if(dev->mtd_info.name)
-			kfree(dev->mtd_info.name);
-
+		kfree(dev->mtd_info.eraseregions);
+		kfree(dev->mtd_info.name);
 		if(dev->blkdev) {
 			invalidate_inode_pages(dev->blkdev->bd_inode->i_mapping);
 			close_bdev_excl(dev->blkdev);
@@ -710,7 +707,7 @@ static struct blkmtd_dev *add_device(char *devname, int readonly, int erase_size
 		     dev->mtd_info.erasesize >> 10,
 		     readonly ? "(read-only)" : "");
 	}
-	
+
 	return dev;
 
  devinit_err:

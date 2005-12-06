@@ -35,7 +35,7 @@ EXPORT_SYMBOL(posix_acl_permission);
  * Allocate a new ACL with the specified number of entries.
  */
 struct posix_acl *
-posix_acl_alloc(int count, unsigned int __nocast flags)
+posix_acl_alloc(int count, gfp_t flags)
 {
 	const size_t size = sizeof(struct posix_acl) +
 	                    count * sizeof(struct posix_acl_entry);
@@ -51,7 +51,7 @@ posix_acl_alloc(int count, unsigned int __nocast flags)
  * Clone an ACL.
  */
 struct posix_acl *
-posix_acl_clone(const struct posix_acl *acl, unsigned int __nocast flags)
+posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 {
 	struct posix_acl *clone = NULL;
 
@@ -185,7 +185,7 @@ posix_acl_equiv_mode(const struct posix_acl *acl, mode_t *mode_p)
  * Create an ACL representing the file mode permission bits of an inode.
  */
 struct posix_acl *
-posix_acl_from_mode(mode_t mode, unsigned int __nocast flags)
+posix_acl_from_mode(mode_t mode, gfp_t flags)
 {
 	struct posix_acl *acl = posix_acl_alloc(3, flags);
 	if (!acl)

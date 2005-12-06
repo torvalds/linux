@@ -29,7 +29,7 @@
  * cyl-cyl-head-head structure
  */
 static inline int
-cchh2blk (cchh_t *ptr, struct hd_geometry *geo) {
+cchh2blk (struct vtoc_cchh *ptr, struct hd_geometry *geo) {
         return ptr->cc * geo->heads * geo->sectors +
 	       ptr->hh * geo->sectors;
 }
@@ -40,7 +40,7 @@ cchh2blk (cchh_t *ptr, struct hd_geometry *geo) {
  * cyl-cyl-head-head-block structure
  */
 static inline int
-cchhb2blk (cchhb_t *ptr, struct hd_geometry *geo) {
+cchhb2blk (struct vtoc_cchhb *ptr, struct hd_geometry *geo) {
         return ptr->cc * geo->heads * geo->sectors +
 		ptr->hh * geo->sectors +
 		ptr->b;
@@ -56,7 +56,7 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 	struct hd_geometry *geo;
 	char type[5] = {0,};
 	char name[7] = {0,};
-	volume_label_t *vlabel;
+	struct vtoc_volume_label *vlabel;
 	unsigned char *data;
 	Sector sect;
 
@@ -64,7 +64,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 		goto out_noinfo;
 	if ((geo = kmalloc(sizeof(struct hd_geometry), GFP_KERNEL)) == NULL)
 		goto out_nogeo;
-	if ((vlabel = kmalloc(sizeof(volume_label_t), GFP_KERNEL)) == NULL)
+	if ((vlabel = kmalloc(sizeof(struct vtoc_volume_label),
+			      GFP_KERNEL)) == NULL)
 		goto out_novlab;
 	
 	if (ioctl_by_bdev(bdev, BIODASDINFO, (unsigned long)info) != 0 ||
@@ -86,7 +87,7 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 		strncpy(name, data + 8, 6);
 	else
 		strncpy(name, data + 4, 6);
-	memcpy (vlabel, data, sizeof(volume_label_t));
+	memcpy (vlabel, data, sizeof(struct vtoc_volume_label));
 	put_dev_sector(sect);
 
 	EBCASC(type, 4);
@@ -129,9 +130,9 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 		counter = 0;
 		while ((data = read_dev_sector(bdev, blk*(blocksize/512),
 					       &sect)) != NULL) {
-			format1_label_t f1;
+			struct vtoc_format1_label f1;
 
-			memcpy(&f1, data, sizeof(format1_label_t));
+			memcpy(&f1, data, sizeof(struct vtoc_format1_label));
 			put_dev_sector(sect);
 
 			/* skip FMT4 / FMT5 / FMT7 labels */

@@ -1678,10 +1678,9 @@ static int main_control_loop(void *x)
 		}
 
 		// FIXME: Deal with signals
-		set_current_state(TASK_INTERRUPTIBLE);
 		elapsed = jiffies - start;
 		if (elapsed < HZ)
-			schedule_timeout(HZ - elapsed);
+			schedule_timeout_interruptible(HZ - elapsed);
 	}
 
  out:
@@ -2051,7 +2050,7 @@ static int __init therm_pm72_init(void)
 			    return -ENODEV;
 		}
 	}
-	of_dev = of_platform_device_create(np, "temperature");
+	of_dev = of_platform_device_create(np, "temperature", NULL);
 	if (of_dev == NULL) {
 		printk(KERN_ERR "Can't register FCU platform device !\n");
 		return -ENODEV;

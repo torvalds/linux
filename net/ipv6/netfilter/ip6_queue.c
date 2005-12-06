@@ -238,8 +238,8 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 
 	pmsg->packet_id       = (unsigned long )entry;
 	pmsg->data_len        = data_len;
-	pmsg->timestamp_sec   = skb_tv_base.tv_sec + entry->skb->tstamp.off_sec;
-	pmsg->timestamp_usec  = skb_tv_base.tv_usec + entry->skb->tstamp.off_usec;
+	pmsg->timestamp_sec   = entry->skb->tstamp.off_sec;
+	pmsg->timestamp_usec  = entry->skb->tstamp.off_usec;
 	pmsg->mark            = entry->skb->nfmark;
 	pmsg->hook            = entry->info->hook;
 	pmsg->hw_protocol     = entry->skb->protocol;

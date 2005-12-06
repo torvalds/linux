@@ -838,7 +838,7 @@ EXPORT_SYMBOL(acpi_unmap_lsapic);
 #endif				/* CONFIG_ACPI_HOTPLUG_CPU */
 
 #ifdef CONFIG_ACPI_NUMA
-acpi_status __devinit
+static acpi_status __devinit
 acpi_map_iosapic(acpi_handle handle, u32 depth, void *context, void **ret)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -890,7 +890,16 @@ acpi_map_iosapic(acpi_handle handle, u32 depth, void *context, void **ret)
 	map_iosapic_to_node(gsi_base, node);
 	return AE_OK;
 }
-#endif				/* CONFIG_NUMA */
+
+static int __init
+acpi_map_iosapics (void)
+{
+	acpi_get_devices(NULL, acpi_map_iosapic, NULL, NULL);
+	return 0;
+}
+
+fs_initcall(acpi_map_iosapics);
+#endif				/* CONFIG_ACPI_NUMA */
 
 int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base)
 {

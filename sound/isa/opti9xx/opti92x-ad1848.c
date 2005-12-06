@@ -299,10 +299,8 @@ static char * snd_opti9xx_names[] = {
 static long snd_legacy_find_free_ioport(long *port_table, long size)
 {
 	while (*port_table != -1) {
-		struct resource *res;
-		if ((res = request_region(*port_table, size, "ALSA test")) != NULL) {
-			release_resource(res);
-			kfree_nocheck(res);
+		if (request_region(*port_table, size, "ALSA test")) {
+			release_region(*port_table, size);
 			return *port_table;
 		}
 		port_table++;
@@ -1227,10 +1225,7 @@ static int snd_opti93x_probe(opti93x_t *chip)
 
 static int snd_opti93x_free(opti93x_t *chip)
 {
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
+	release_and_free_resource(chip->res_port);
 	if (chip->dma1 >= 0) {
 		disable_dma(chip->dma1);
 		free_dma(chip->dma1);
@@ -1656,8 +1651,7 @@ static int __devinit snd_card_opti9xx_detect(snd_card_t *card, opti9xx_t *chip)
 			if (value == snd_opti9xx_read(chip, OPTi9XX_MC_REG(1)))
 				return 1;
 
-		release_resource(chip->res_mc_base);
-		kfree_nocheck(chip->res_mc_base);
+		release_and_free_resource(chip->res_mc_base);
 		chip->res_mc_base = NULL;
 
 	}
@@ -1683,8 +1677,7 @@ static int __devinit snd_card_opti9xx_detect(snd_card_t *card, opti9xx_t *chip)
 		if (snd_opti9xx_read(chip, OPTi9XX_MC_REG(7)) == 0xff - value)
 			return 1;
 
-		release_resource(chip->res_mc_base);
-		kfree_nocheck(chip->res_mc_base);
+		release_and_free_resource(chip->res_mc_base);
 		chip->res_mc_base = NULL;
 	}
 #endif	/* OPTi93X */
@@ -1886,12 +1879,8 @@ static void snd_card_opti9xx_free(snd_card_t *card)
 {
 	opti9xx_t *chip = (opti9xx_t *)card->private_data;
         
-	if (chip) {
-		if (chip->res_mc_base) {
-			release_resource(chip->res_mc_base);
-			kfree_nocheck(chip->res_mc_base);
-		}
-	}
+	if (chip)
+		release_and_free_resource(chip->res_mc_base);
 }
 
 static int snd_card_opti9xx_probe(struct pnp_card_link *pcard,

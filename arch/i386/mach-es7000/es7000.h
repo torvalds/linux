@@ -24,6 +24,15 @@
  * http://www.unisys.com
  */
 
+/*
+ * ES7000 chipsets
+ */
+
+#define NON_UNISYS		0
+#define ES7000_CLASSIC		1
+#define ES7000_ZORRO		2
+
+
 #define	MIP_REG			1
 #define	MIP_PSAI_REG		4
 
@@ -106,6 +115,6 @@ struct mip_reg {
 
 extern int parse_unisys_oem (char *oemptr);
 extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
-extern void setup_unisys ();
+extern void setup_unisys(void);
 extern int es7000_start_cpu(int cpu, unsigned long eip);
 extern void es7000_sw_apic(void);

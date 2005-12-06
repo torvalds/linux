@@ -73,9 +73,6 @@ struct stv0299_config
 	/* does the inversion require inversion? */
 	u8 invert:1;
 
-	/* Should the enhanced tuning code be used? */
-	u8 enhanced_tuning:1;
-
 	/* Skip reinitialisation? */
 	u8 skip_reinit:1;
 

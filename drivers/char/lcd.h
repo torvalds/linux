@@ -22,7 +22,7 @@ static int timeout(volatile unsigned long);
 #define MAX_IDLE_TIME 120
 
 struct lcd_display {
-        unsigned long buttons;
+        unsigned buttons;
         int size1;
         int size2;
         unsigned char line1[LCD_CHARS_PER_LINE];

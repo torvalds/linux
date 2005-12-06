@@ -245,12 +245,12 @@ label:
 /*
  * 0x0100 - Critical Interrupt Exception
  */
-	CRITICAL_EXCEPTION(0x0100, CriticalInterrupt, UnknownException)
+	CRITICAL_EXCEPTION(0x0100, CriticalInterrupt, unknown_exception)
 
 /*
  * 0x0200 - Machine Check Exception
  */
-	CRITICAL_EXCEPTION(0x0200, MachineCheck, MachineCheckException)
+	CRITICAL_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
 
 /*
  * 0x0300 - Data Storage Exception
@@ -405,7 +405,7 @@ label:
 	mfspr	r4,SPRN_DEAR		/* Grab the DEAR and save it */
 	stw	r4,_DEAR(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_EE(0x600, AlignmentException)
+	EXC_XFER_EE(0x600, alignment_exception)
 
 /* 0x0700 - Program Exception */
 	START_EXCEPTION(0x0700, ProgramCheck)
@@ -413,21 +413,21 @@ label:
 	mfspr	r4,SPRN_ESR		/* Grab the ESR and save it */
 	stw	r4,_ESR(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	EXC_XFER_STD(0x700, ProgramCheckException)
+	EXC_XFER_STD(0x700, program_check_exception)
 
-	EXCEPTION(0x0800, Trap_08, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x0900, Trap_09, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x0A00, Trap_0A, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x0B00, Trap_0B, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x0800, Trap_08, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0900, Trap_09, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0A00, Trap_0A, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0B00, Trap_0B, unknown_exception, EXC_XFER_EE)
 
 /* 0x0C00 - System Call Exception */
 	START_EXCEPTION(0x0C00,	SystemCall)
 	NORMAL_EXCEPTION_PROLOG
 	EXC_XFER_EE_LITE(0xc00, DoSyscall)
 
-	EXCEPTION(0x0D00, Trap_0D, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x0E00, Trap_0E, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x0F00, Trap_0F, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x0D00, Trap_0D, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0E00, Trap_0E, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x0F00, Trap_0F, unknown_exception, EXC_XFER_EE)
 
 /* 0x1000 - Programmable Interval Timer (PIT) Exception */
 	START_EXCEPTION(0x1000, Decrementer)
@@ -444,14 +444,14 @@ label:
 
 /* 0x1010 - Fixed Interval Timer (FIT) Exception
 */
-	STND_EXCEPTION(0x1010,	FITException,		UnknownException)
+	STND_EXCEPTION(0x1010,	FITException,		unknown_exception)
 
 /* 0x1020 - Watchdog Timer (WDT) Exception
 */
 #ifdef CONFIG_BOOKE_WDT
 	CRITICAL_EXCEPTION(0x1020, WDTException, WatchdogException)
 #else
-	CRITICAL_EXCEPTION(0x1020, WDTException, UnknownException)
+	CRITICAL_EXCEPTION(0x1020, WDTException, unknown_exception)
 #endif
 #endif
 
@@ -656,25 +656,25 @@ label:
 	mfspr	r10, SPRN_SPRG0
 	b	InstructionAccess
 
-	EXCEPTION(0x1300, Trap_13, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1400, Trap_14, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1500, Trap_15, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1600, Trap_16, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x1300, Trap_13, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1400, Trap_14, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_EE)
 #ifdef CONFIG_IBM405_ERR51
 	/* 405GP errata 51 */
 	START_EXCEPTION(0x1700, Trap_17)
 	b DTLBMiss
 #else
-	EXCEPTION(0x1700, Trap_17, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x1700, Trap_17, unknown_exception, EXC_XFER_EE)
 #endif
-	EXCEPTION(0x1800, Trap_18, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1900, Trap_19, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1A00, Trap_1A, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1B00, Trap_1B, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1C00, Trap_1C, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1D00, Trap_1D, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1E00, Trap_1E, UnknownException, EXC_XFER_EE)
-	EXCEPTION(0x1F00, Trap_1F, UnknownException, EXC_XFER_EE)
+	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1A00, Trap_1A, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1B00, Trap_1B, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1C00, Trap_1C, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1D00, Trap_1D, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1E00, Trap_1E, unknown_exception, EXC_XFER_EE)
+	EXCEPTION(0x1F00, Trap_1F, unknown_exception, EXC_XFER_EE)
 
 /* Check for a single step debug exception while in an exception
  * handler before state has been saved.  This is to catch the case
@@ -988,10 +988,14 @@ _GLOBAL(set_context)
  * goes at the beginning of the data segment, which is page-aligned.
  */
 	.data
-_GLOBAL(sdata)
-_GLOBAL(empty_zero_page)
+	.align	12
+	.globl	sdata
+sdata:
+	.globl	empty_zero_page
+empty_zero_page:
 	.space	4096
-_GLOBAL(swapper_pg_dir)
+	.globl	swapper_pg_dir
+swapper_pg_dir:
 	.space	4096
 
 
@@ -1001,12 +1005,14 @@ _GLOBAL(swapper_pg_dir)
 exception_stack_bottom:
 	.space	4096
 critical_stack_top:
-_GLOBAL(exception_stack_top)
+	.globl	exception_stack_top
+exception_stack_top:
 
 /* This space gets a copy of optional info passed to us by the bootstrap
  * which is used to pass parameters into the kernel like root=/dev/sda1, etc.
  */
-_GLOBAL(cmd_line)
+	.globl	cmd_line
+cmd_line:
 	.space	512
 
 /* Room for two PTE pointers, usually the kernel and current user pointers

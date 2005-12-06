@@ -122,6 +122,7 @@ extern struct tlock *TxLock;	/* transaction lock table */
 #define tlckLOG			0x0800
 /* updateMap state */
 #define	tlckUPDATEMAP		0x0080
+#define	tlckDIRECTORY		0x0040
 /* freeLock state */
 #define tlckFREELOCK		0x0008
 #define tlckWRITEPAGE		0x0004

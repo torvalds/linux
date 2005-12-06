@@ -546,7 +546,7 @@ static int __devinit snd_ice1712_delta_init(ice1712_t *ice)
 	case ICE1712_SUBDEVICE_DELTA1010LT:
 	case ICE1712_SUBDEVICE_VX442:
 		if ((err = snd_i2c_bus_create(ice->card, "ICE1712 GPIO 1", NULL, &ice->i2c)) < 0) {
-			snd_printk("unable to create I2C bus\n");
+			snd_printk(KERN_ERR "unable to create I2C bus\n");
 			return err;
 		}
 		ice->i2c->private_data = ice;

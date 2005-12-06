@@ -483,7 +483,7 @@ restart:
 		goto out;
 	}
 
-	rt = rt6_device_match(rt, skb->dev->ifindex, 0);
+	rt = rt6_device_match(rt, skb->dev->ifindex, strict);
 	BACKTRACK();
 
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {
@@ -1701,16 +1701,14 @@ static void fib6_dump_end(struct netlink_callback *cb)
 		fib6_walker_unlink(w);
 		kfree(w);
 	}
-	if (cb->args[1]) {
-		cb->done = (void*)cb->args[1];
-		cb->args[1] = 0;
-	}
+	cb->done = (void*)cb->args[1];
+	cb->args[1] = 0;
 }
 
 static int fib6_dump_done(struct netlink_callback *cb)
 {
 	fib6_dump_end(cb);
-	return cb->done(cb);
+	return cb->done ? cb->done(cb) : 0;
 }
 
 int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)

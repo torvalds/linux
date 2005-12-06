@@ -11,7 +11,8 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <linux/config.h>
+#include <asm/sizes.h>
+#include <asm/arch/aaec2000.h>
 
 /* The kernel is loaded at physical address 0xf8000000.
  * We map the IO space a bit after

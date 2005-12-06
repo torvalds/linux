@@ -125,7 +125,7 @@
  */
 extern struct sock *sctp_get_ctl_sock(void);
 extern int sctp_copy_local_addr_list(struct sctp_bind_addr *,
-				     sctp_scope_t, unsigned int __nocast gfp,
+				     sctp_scope_t, gfp_t gfp,
 				     int flags);
 extern struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 extern int sctp_register_pf(struct sctp_pf *, sa_family_t);

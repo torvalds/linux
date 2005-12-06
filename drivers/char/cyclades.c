@@ -281,7 +281,7 @@ static char rcsid[] =
  * make sure "cyc" appears in all kernel messages; all soft interrupts
  * handled by same routine; recognize out-of-band reception; comment
  * out some diagnostic messages; leave RTS/CTS flow control to hardware;
- * fix race condition in -Z buffer management; only -Y needs to explictly
+ * fix race condition in -Z buffer management; only -Y needs to explicitly
  * flush chars; tidy up some startup messages;
  *
  * Revision 1.36.4.18  1996/07/25 18:57:31  bentson

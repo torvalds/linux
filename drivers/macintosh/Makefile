@@ -26,3 +26,12 @@ obj-$(CONFIG_ADB_MACIO)		+= macio-adb.o
 obj-$(CONFIG_THERM_PM72)	+= therm_pm72.o
 obj-$(CONFIG_THERM_WINDTUNNEL)	+= therm_windtunnel.o
 obj-$(CONFIG_THERM_ADT746X)	+= therm_adt746x.o
+obj-$(CONFIG_WINDFARM)	        += windfarm_core.o
+obj-$(CONFIG_WINDFARM_PM81)     += windfarm_smu_controls.o \
+				   windfarm_smu_sensors.o \
+				   windfarm_lm75_sensor.o windfarm_pid.o \
+				   windfarm_cpufreq_clamp.o windfarm_pm81.o
+obj-$(CONFIG_WINDFARM_PM91)     += windfarm_smu_controls.o \
+				   windfarm_smu_sensors.o \
+				   windfarm_lm75_sensor.o windfarm_pid.o \
+				   windfarm_cpufreq_clamp.o windfarm_pm91.o

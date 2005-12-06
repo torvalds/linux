@@ -629,12 +629,4 @@ void __init proc_misc_init(void)
 	if (entry)
 		entry->proc_fops = &proc_sysrq_trigger_operations;
 #endif
-#ifdef CONFIG_PPC32
-	{
-		extern struct file_operations ppc_htab_operations;
-		entry = create_proc_entry("ppc_htab", S_IRUGO|S_IWUSR, NULL);
-		if (entry)
-			entry->proc_fops = &ppc_htab_operations;
-	}
-#endif
 }

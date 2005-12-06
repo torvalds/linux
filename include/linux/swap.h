@@ -147,7 +147,7 @@ struct swap_list_t {
 #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
 
 /* linux/mm/oom_kill.c */
-extern void out_of_memory(unsigned int __nocast gfp_mask, int order);
+extern void out_of_memory(gfp_t gfp_mask, int order);
 
 /* linux/mm/memory.c */
 extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *);
@@ -171,8 +171,8 @@ extern int rotate_reclaimable_page(struct page *page);
 extern void swap_setup(void);
 
 /* linux/mm/vmscan.c */
-extern int try_to_free_pages(struct zone **, unsigned int);
-extern int zone_reclaim(struct zone *, unsigned int, unsigned int);
+extern int try_to_free_pages(struct zone **, gfp_t);
+extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 extern int shrink_all_memory(int);
 extern int vm_swappiness;
 
@@ -239,6 +239,11 @@ static inline void put_swap_token(struct mm_struct *mm)
 		__put_swap_token(mm);
 }
 
+static inline void disable_swap_token(void)
+{
+	put_swap_token(swap_token_mm);
+}
+
 #else /* CONFIG_SWAP */
 
 #define total_swap_pages			0
@@ -283,6 +288,7 @@ static inline swp_entry_t get_swap_page(void)
 #define put_swap_token(x) do { } while(0)
 #define grab_swap_token()  do { } while(0)
 #define has_swap_token(x) 0
+#define disable_swap_token() do { } while(0)
 
 #endif /* CONFIG_SWAP */
 #endif /* __KERNEL__*/

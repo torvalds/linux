@@ -239,7 +239,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 	unsigned char data;
 	int addr,rc,i,byte;
 
-  	status = i2c_get_status(dev);
+	status = i2c_get_status(dev);
 	if (!i2c_is_idle(status))
 		if (!i2c_reset(dev))
 			return -EIO;
@@ -296,7 +296,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 	rc = -EIO;
 	if (!i2c_is_busy_wait(dev))
 		goto err;
-  	status = i2c_get_status(dev);
+	status = i2c_get_status(dev);
 	if (i2c_is_error(status))
 		goto err;
 	/* ensure that the bus is idle for at least one bit slot */
@@ -335,6 +335,20 @@ static int attach_inform(struct i2c_client *client)
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
 		 client->driver->name, client->addr, client->name);
 
+	/* Am I an i2c remote control? */
+
+	switch (client->addr) {
+		case 0x7a:
+		case 0x47:
+		{
+			struct IR_i2c *ir = i2c_get_clientdata(client);
+			d1printk("%s i2c IR detected (%s).\n",
+				 client->driver->name,ir->phys);
+			saa7134_set_i2c_ir(dev,ir);
+			break;
+		}
+	}
+
 	if (!client->driver->command)
 		return 0;
 
@@ -348,12 +362,12 @@ static int attach_inform(struct i2c_client *client)
 
 			client->driver->command(client, TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
-        }
+	}
 
 	if (tuner != UNSET) {
 
-	        tun_setup.type = tuner;
-	        tun_setup.addr = saa7134_boards[dev->board].tuner_addr;
+		tun_setup.type = tuner;
+		tun_setup.addr = saa7134_boards[dev->board].tuner_addr;
 
 		if ((tun_setup.addr == ADDR_UNSET)||(tun_setup.addr == client->addr)) {
 
@@ -361,11 +375,11 @@ static int attach_inform(struct i2c_client *client)
 
 			client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
-        }
+	}
 
 	client->driver->command(client, TDA9887_SET_CONFIG, &conf);
 
-        return 0;
+	return 0;
 }
 
 static struct i2c_algorithm saa7134_algo = {

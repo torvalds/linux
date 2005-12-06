@@ -54,6 +54,7 @@ struct __wait_queue_head {
 };
 typedef struct __wait_queue_head wait_queue_head_t;
 
+struct task_struct;
 
 /*
  * Macros for declaration and initialisaton of the datatypes

@@ -187,7 +187,7 @@ static void flush_gart(struct device *dev)
 
 /* Allocate DMA memory on node near device */
 noinline
-static void *dma_alloc_pages(struct device *dev, unsigned gfp, unsigned order)
+static void *dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
 {
 	struct page *page;
 	int node;
@@ -204,7 +204,7 @@ static void *dma_alloc_pages(struct device *dev, unsigned gfp, unsigned order)
  */
 void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		   unsigned gfp)
+		   gfp_t gfp)
 {
 	void *memory;
 	unsigned long dma_mask = 0;
@@ -219,6 +219,12 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	/* Kludge to make it bug-to-bug compatible with i386. i386
 	   uses the normal dma_mask for alloc_coherent. */
 	dma_mask &= *dev->dma_mask;
+
+	/* Why <=? Even when the mask is smaller than 4GB it is often larger 
+	   than 16MB and in this case we have a chance of finding fitting memory 
+	   in the next higher zone first. If not retry with true GFP_DMA. -AK */
+	if (dma_mask <= 0xffffffff)
+		gfp |= GFP_DMA32;
 
  again:
 	memory = dma_alloc_pages(dev, gfp, get_order(size));
@@ -245,7 +251,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 				}
 
 				if (!(gfp & GFP_DMA)) { 
-					gfp |= GFP_DMA; 
+					gfp = (gfp & ~GFP_DMA32) | GFP_DMA;
 					goto again;
 				}
 				return NULL;

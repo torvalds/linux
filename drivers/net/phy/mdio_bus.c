@@ -29,7 +29,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/phy.h>
@@ -60,6 +59,9 @@ int mdiobus_register(struct mii_bus *bus)
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		struct phy_device *phydev;
+
+		if (bus->phy_mask & (1 << i))
+			continue;
 
 		phydev = get_phy_device(bus, i);
 
@@ -133,13 +135,9 @@ static int mdio_bus_suspend(struct device * dev, pm_message_t state)
 	int ret = 0;
 	struct device_driver *drv = dev->driver;
 
-	if (drv && drv->suspend) {
-		ret = drv->suspend(dev, state, SUSPEND_DISABLE);
-		if (ret == 0)
-			ret = drv->suspend(dev, state, SUSPEND_SAVE_STATE);
-		if (ret == 0)
-			ret = drv->suspend(dev, state, SUSPEND_POWER_DOWN);
-	}
+	if (drv && drv->suspend)
+		ret = drv->suspend(dev, state);
+
 	return ret;
 }
 
@@ -148,13 +146,9 @@ static int mdio_bus_resume(struct device * dev)
 	int ret = 0;
 	struct device_driver *drv = dev->driver;
 
-	if (drv && drv->resume) {
-		ret = drv->resume(dev, RESUME_POWER_ON);
-		if (ret == 0)
-			ret = drv->resume(dev, RESUME_RESTORE_STATE);
-		if (ret == 0)
-			ret = drv->resume(dev, RESUME_ENABLE);
-	}
+	if (drv && drv->resume)
+		ret = drv->resume(dev);
+
 	return ret;
 }
 

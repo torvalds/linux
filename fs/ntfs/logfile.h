@@ -113,7 +113,7 @@ typedef struct {
  */
 enum {
 	RESTART_VOLUME_IS_CLEAN	= const_cpu_to_le16(0x0002),
-	RESTART_SPACE_FILLER	= 0xffff, /* gcc: Force enum bit width to 16. */
+	RESTART_SPACE_FILLER	= const_cpu_to_le16(0xffff), /* gcc: Force enum bit width to 16. */
 } __attribute__ ((__packed__));
 
 typedef le16 RESTART_AREA_FLAGS;

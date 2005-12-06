@@ -171,7 +171,6 @@ snd_emux_note_off(void *p, int note, int vel, snd_midi_channel_t *chan)
 		vp = &emu->voices[ch];
 		if (STATE_IS_PLAYING(vp->state) &&
 		    vp->chan == chan && vp->key == note) {
-			vp->time = emu->use_time++;
 			vp->state = SNDRV_EMUX_ST_RELEASED;
 			if (vp->ontime == jiffies) {
 				/* if note-off is sent too shortly after

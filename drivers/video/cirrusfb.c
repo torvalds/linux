@@ -275,20 +275,20 @@ static const struct cirrusfb_board_info_rec {
 
 #ifdef CONFIG_PCI
 #define CHIP(id, btype) \
-	{ PCI_VENDOR_ID_CIRRUS, PCI_DEVICE_ID_##id, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (btype) }
+	{ PCI_VENDOR_ID_CIRRUS, id, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (btype) }
 
 static struct pci_device_id cirrusfb_pci_table[] = {
-	CHIP( CIRRUS_5436,	BT_ALPINE ),
-	CHIP( CIRRUS_5434_8,	BT_ALPINE ),
-	CHIP( CIRRUS_5434_4,	BT_ALPINE ),
-	CHIP( CIRRUS_5430,	BT_ALPINE ), /* GD-5440 has identical id */
-	CHIP( CIRRUS_7543,	BT_ALPINE ),
-	CHIP( CIRRUS_7548,	BT_ALPINE ),
-	CHIP( CIRRUS_5480,	BT_GD5480 ), /* MacPicasso probably */
-	CHIP( CIRRUS_5446,	BT_PICASSO4 ), /* Picasso 4 is a GD5446 */
-	CHIP( CIRRUS_5462,	BT_LAGUNA ), /* CL Laguna */
-	CHIP( CIRRUS_5464,	BT_LAGUNA ), /* CL Laguna 3D */
-	CHIP( CIRRUS_5465,	BT_LAGUNA ), /* CL Laguna 3DA*/
+	CHIP( PCI_DEVICE_ID_CIRRUS_5436, BT_ALPINE ),
+	CHIP( PCI_DEVICE_ID_CIRRUS_5434_8, BT_ALPINE ),
+	CHIP( PCI_DEVICE_ID_CIRRUS_5434_4, BT_ALPINE ),
+	CHIP( PCI_DEVICE_ID_CIRRUS_5430, BT_ALPINE ), /* GD-5440 is same id */
+	CHIP( PCI_DEVICE_ID_CIRRUS_7543, BT_ALPINE ),
+	CHIP( PCI_DEVICE_ID_CIRRUS_7548, BT_ALPINE ),
+	CHIP( PCI_DEVICE_ID_CIRRUS_5480, BT_GD5480 ), /* MacPicasso likely */
+	CHIP( PCI_DEVICE_ID_CIRRUS_5446, BT_PICASSO4 ), /* Picasso 4 is 5446 */
+	CHIP( PCI_DEVICE_ID_CIRRUS_5462, BT_LAGUNA ), /* CL Laguna */
+	CHIP( PCI_DEVICE_ID_CIRRUS_5464, BT_LAGUNA ), /* CL Laguna 3D */
+	CHIP( PCI_DEVICE_ID_CIRRUS_5465, BT_LAGUNA ), /* CL Laguna 3DA*/
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, cirrusfb_pci_table);
@@ -404,7 +404,7 @@ struct cirrusfb_info {
 	struct cirrusfb_regs currentmode;
 	int blank_mode;
 
-	u32	pseudo_palette[17];
+	u32	pseudo_palette[16];
 	struct { u8 red, green, blue, pad; } palette[256];
 
 #ifdef CONFIG_ZORRO
@@ -548,7 +548,6 @@ static struct fb_ops cirrusfb_ops = {
 	.fb_fillrect	= cirrusfb_fillrect,
 	.fb_copyarea	= cirrusfb_copyarea,
 	.fb_imageblit	= cirrusfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 /*--- Hardware Specific Routines -------------------------------------------*/
@@ -1604,14 +1603,14 @@ static int cirrusfb_setcolreg (unsigned regno, unsigned red, unsigned green,
 
 		switch (info->var.bits_per_pixel) {
 			case 8:
-				((u8*)(info->pseudo_palette))[regno] = v;
+				cinfo->pseudo_palette[regno] = v;
 				break;
 			case 16:
-				((u16*)(info->pseudo_palette))[regno] = v;
+				cinfo->pseudo_palette[regno] = v;
 				break;
 			case 24:
 			case 32:
-				((u32*)(info->pseudo_palette))[regno] = v;
+				cinfo->pseudo_palette[regno] = v;
 				break;
 		}
 		return 0;
@@ -2021,18 +2020,21 @@ static void cirrusfb_prim_fillrect(struct cirrusfb_info *cinfo,
 				   const struct fb_fillrect *region)
 {
 	int m; /* bytes per pixel */
+	u32 color = (cinfo->info->fix.visual == FB_VISUAL_TRUECOLOR) ?
+		cinfo->pseudo_palette[region->color] : region->color;
+
 	if(cinfo->info->var.bits_per_pixel == 1) {
 		cirrusfb_RectFill(cinfo->regbase, cinfo->info->var.bits_per_pixel,
 				  region->dx / 8, region->dy,
 				  region->width / 8, region->height,
-				  region->color,
+				  color,
 				  cinfo->currentmode.line_length);
 	} else {
 		m = ( cinfo->info->var.bits_per_pixel + 7 ) / 8;
 		cirrusfb_RectFill(cinfo->regbase, cinfo->info->var.bits_per_pixel,
 				  region->dx * m, region->dy,
 				  region->width * m, region->height,
-				  region->color,
+				  color,
 				  cinfo->currentmode.line_length);
 	}
 	return;

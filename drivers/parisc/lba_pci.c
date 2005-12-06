@@ -1288,7 +1288,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 		** Adjust "window" for this rope.
 		*/
 		rsize /= ROPES_PER_IOC;
-		r->start += (rsize + 1) * LBA_NUM(pa_dev->hpa);
+		r->start += (rsize + 1) * LBA_NUM(pa_dev->hpa.start);
 		r->end = r->start + rsize;
 	} else {
 		r->end = r->start = 0;	/* Not enabled. */
@@ -1458,7 +1458,7 @@ lba_driver_probe(struct parisc_device *dev)
 	u32 func_class;
 	void *tmp_obj;
 	char *version;
-	void __iomem *addr = ioremap(dev->hpa, 4096);
+	void __iomem *addr = ioremap(dev->hpa.start, 4096);
 
 	/* Read HW Rev First */
 	func_class = READ_REG32(addr + LBA_FCLASS);
@@ -1476,7 +1476,7 @@ lba_driver_probe(struct parisc_device *dev)
 		}
 
 		printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
-			MODULE_NAME, version, func_class & 0xf, dev->hpa);
+			MODULE_NAME, version, func_class & 0xf, dev->hpa.start);
 
 		if (func_class < 2) {
 			printk(KERN_WARNING "Can't support LBA older than "
@@ -1503,17 +1503,17 @@ lba_driver_probe(struct parisc_device *dev)
                  * but for the mask for func_class.
                  */ 
 		printk(KERN_INFO "%s version %s (0x%x) found at 0x%lx\n",
-			MODULE_NAME, version, func_class & 0xff, dev->hpa);
+		       MODULE_NAME, version, func_class & 0xff, dev->hpa.start);
 		cfg_ops = &mercury_cfg_ops;
 	} else {
-		printk(KERN_ERR "Unknown LBA found at 0x%lx\n", dev->hpa);
+		printk(KERN_ERR "Unknown LBA found at 0x%lx\n", dev->hpa.start);
 		return -ENODEV;
 	}
 
 	/*
 	** Tell I/O SAPIC driver we have a IRQ handler/region.
 	*/
-	tmp_obj = iosapic_register(dev->hpa + LBA_IOSAPIC_BASE);
+	tmp_obj = iosapic_register(dev->hpa.start + LBA_IOSAPIC_BASE);
 
 	/* NOTE: PCI devices (e.g. 103c:1005 graphics card) which don't
 	**	have an IRT entry will get NULL back from iosapic code.
@@ -1635,7 +1635,7 @@ void __init lba_init(void)
 */
 void lba_set_iregs(struct parisc_device *lba, u32 ibase, u32 imask)
 {
-	void __iomem * base_addr = ioremap(lba->hpa, 4096);
+	void __iomem * base_addr = ioremap(lba->hpa.start, 4096);
 
 	imask <<= 2;	/* adjust for hints - 2 more bits */
 

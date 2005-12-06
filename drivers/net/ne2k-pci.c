@@ -372,6 +372,7 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 		printk("%2.2X%s", SA_prom[i], i == 5 ? ".\n": ":");
 		dev->dev_addr[i] = SA_prom[i];
 	}
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	return 0;
 
@@ -637,6 +638,7 @@ static struct ethtool_ops ne2k_pci_ethtool_ops = {
 	.get_drvinfo		= ne2k_pci_get_drvinfo,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.get_sg			= ethtool_op_get_sg,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static void __devexit ne2k_pci_remove_one (struct pci_dev *pdev)
@@ -673,7 +675,6 @@ static int ne2k_pci_resume (struct pci_dev *pdev)
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
 	pci_enable_device(pdev);
-	pci_set_master(pdev);
 	NS8390_init(dev, 1);
 	netif_device_attach(dev);
 

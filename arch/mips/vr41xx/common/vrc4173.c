@@ -81,8 +81,8 @@ EXPORT_SYMBOL(vrc4173_io_offset);
 static int vrc4173_initialized;
 static uint16_t vrc4173_cmuclkmsk;
 static uint16_t vrc4173_selectreg;
-static spinlock_t vrc4173_cmu_lock;
-static spinlock_t vrc4173_giu_lock;
+static DEFINE_SPINLOCK(vrc4173_cmu_lock);
+static DEFINE_SPINLOCK(vrc4173_giu_lock);
 
 static inline void set_cmusrst(uint16_t val)
 {

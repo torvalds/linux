@@ -79,7 +79,7 @@ struct thread_struct {
 extern unsigned long thread_saved_pc(struct task_struct *t);
 
 /* Do necessary setup to start up a newly executed thread. */
-extern __inline__ void start_thread(struct pt_regs * regs, unsigned long pc,
+static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 				    unsigned long sp)
 {
 	register unsigned long zero asm("g1");

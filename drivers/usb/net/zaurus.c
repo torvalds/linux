@@ -21,9 +21,6 @@
 // #define	VERBOSE			// more; success messages
 
 #include <linux/config.h>
-#ifdef	CONFIG_USB_DEBUG
-#   define DEBUG
-#endif
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>
@@ -62,7 +59,7 @@
  */
 
 static struct sk_buff *
-zaurus_tx_fixup(struct usbnet *dev, struct sk_buff *skb, unsigned flags)
+zaurus_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 {
 	int			padlen;
 	struct sk_buff		*skb2;

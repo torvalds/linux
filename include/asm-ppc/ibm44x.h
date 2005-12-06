@@ -34,12 +34,20 @@
 /* Lowest TLB slot consumed by the default pinned TLBs */
 #define PPC44x_LOW_SLOT		63
 
-/* LS 32-bits of UART0 physical address location for early serial text debug */
+/*
+ * Least significant 32-bits and extended real page number (ERPN) of
+ * UART0 physical address location for early serial text debug
+ */
 #if defined(CONFIG_440SP)
+#define UART0_PHYS_ERPN		1
+#define UART0_PHYS_IO_BASE	0xf0000200
+#elif defined(CONFIG_440SPE)
+#define UART0_PHYS_ERPN		4
 #define UART0_PHYS_IO_BASE	0xf0000200
 #elif defined(CONFIG_440EP)
 #define UART0_PHYS_IO_BASE	0xe0000000
 #else
+#define UART0_PHYS_ERPN		1
 #define UART0_PHYS_IO_BASE	0x40000200
 #endif
 
@@ -56,6 +64,11 @@
 #define	PPC44x_PCICFG_PAGE	0x0000000900000000ULL
 #define	PPC44x_PCIIO_PAGE	PPC44x_PCICFG_PAGE
 #define	PPC44x_PCIMEM_PAGE	0x0000000a00000000ULL
+#elif defined(CONFIG_440SPE)
+#define	PPC44x_IO_PAGE		0x0000000400000000ULL
+#define	PPC44x_PCICFG_PAGE	0x0000000c00000000ULL
+#define	PPC44x_PCIIO_PAGE	PPC44x_PCICFG_PAGE
+#define	PPC44x_PCIMEM_PAGE	0x0000000d00000000ULL
 #elif defined(CONFIG_440EP)
 #define PPC44x_IO_PAGE		0x0000000000000000ULL
 #define PPC44x_PCICFG_PAGE	0x0000000000000000ULL
@@ -71,7 +84,7 @@
 /*
  * 36-bit trap ranges
  */
-#if defined(CONFIG_440SP)
+#if defined(CONFIG_440SP) || defined(CONFIG_440SPE)
 #define PPC44x_IO_LO		0xf0000000UL
 #define PPC44x_IO_HI		0xf0000fffUL
 #define PPC44x_PCI0CFG_LO	0x0ec00000UL
@@ -109,7 +122,7 @@
  */
 
 
-/* CPRs (440GX and 440SP) */
+/* CPRs (440GX and 440SP/440SPe) */
 #define DCRN_CPR_CONFIG_ADDR	0xc
 #define DCRN_CPR_CONFIG_DATA	0xd
 
@@ -130,7 +143,7 @@
 	mtdcr(DCRN_CPR_CONFIG_ADDR, offset); \
 	mtdcr(DCRN_CPR_CONFIG_DATA, data);})
 
-/* SDRs (440GX and 440SP) */
+/* SDRs (440GX and 440SP/440SPe) */
 #define DCRN_SDR_CONFIG_ADDR 	0xe
 #define DCRN_SDR_CONFIG_DATA	0xf
 #define DCRN_SDR_PFC0		0x4100
@@ -180,7 +193,7 @@
 	mtdcr(DCRN_SDR_CONFIG_ADDR, offset); \
 	mtdcr(DCRN_SDR_CONFIG_DATA,data);})
 
-/* DMA (excluding 440SP) */
+/* DMA (excluding 440SP/440SPe) */
 #define DCRN_DMA0_BASE		0x100
 #define DCRN_DMA1_BASE		0x108
 #define DCRN_DMA2_BASE		0x110
@@ -200,12 +213,20 @@
 /* UIC */
 #define DCRN_UIC0_BASE	0xc0
 #define DCRN_UIC1_BASE	0xd0
-#define DCRN_UIC2_BASE	0x210
-#define DCRN_UICB_BASE	0x200
 #define UIC0		DCRN_UIC0_BASE
 #define UIC1		DCRN_UIC1_BASE
+
+#ifdef CONFIG_440SPE
+#define DCRN_UIC2_BASE	0xe0
+#define DCRN_UIC3_BASE	0xf0
+#define UIC2		DCRN_UIC2_BASE
+#define UIC3		DCRN_UIC3_BASE
+#else
+#define DCRN_UIC2_BASE	0x210
+#define DCRN_UICB_BASE	0x200
 #define UIC2		DCRN_UIC2_BASE
 #define UICB		DCRN_UICB_BASE
+#endif
 
 #define DCRN_UIC_SR(base)       (base + 0x0)
 #define DCRN_UIC_ER(base)       (base + 0x2)
@@ -217,6 +238,12 @@
 #define DCRN_UIC_VCR(base)      (base + 0x8)
 
 #define UIC0_UIC1NC      	0x00000002
+
+#ifdef CONFIG_440SPE
+#define UIC0_UIC1NC      0x00000002
+#define UIC0_UIC2NC      0x00200000
+#define UIC0_UIC3NC      0x00008000
+#endif
 
 #define UICB_UIC0NC		0x40000000
 #define UICB_UIC1NC		0x10000000
@@ -297,6 +324,23 @@
 #define MALOBISR_CH0		0x80000000	/* EOB channel 1 bit */
 #define MALOBISR_CH2		0x40000000	/* EOB channel 2 bit */
 
+#if defined(CONFIG_440SP) || defined(CONFIG_440SPE)
+/* 440SP/440SPe PLB Arbiter DCRs */
+#define DCRN_PLB_REVID	       0x080		/* PLB Revision ID */
+#define DCRN_PLB_CCR	       0x088		/* PLB Crossbar Control */
+
+#define DCRN_PLB0_ACR	       0x081		/* PLB Arbiter Control */
+#define DCRN_PLB0_BESRL	       0x082		/* PLB Error Status */
+#define DCRN_PLB0_BESRH	       0x083		/* PLB Error Status */
+#define DCRN_PLB0_BEARL	       0x084		/* PLB Error Address Low */
+#define DCRN_PLB0_BEARH	       0x085		/* PLB Error Address High */
+
+#define DCRN_PLB1_ACR		0x089		/* PLB Arbiter Control */
+#define DCRN_PLB1_BESRL		0x08a		/* PLB Error Status */
+#define DCRN_PLB1_BESRH		0x08b		/* PLB Error Status */
+#define DCRN_PLB1_BEARL		0x08c		/* PLB Error Address Low */
+#define DCRN_PLB1_BEARH		0x08d		/* PLB Error Address High */
+#else
 /* 440GP/GX PLB Arbiter DCRs */
 #define DCRN_PLB0_REVID		0x082		/* PLB Arbiter Revision ID */
 #define DCRN_PLB0_ACR		0x083		/* PLB Arbiter Control */
@@ -304,6 +348,7 @@
 #define DCRN_PLB0_BEARL		0x086		/* PLB Error Address Low */
 #define DCRN_PLB0_BEAR		DCRN_PLB0_BEARL	/* 40x compatibility */
 #define DCRN_PLB0_BEARH		0x087		/* PLB Error Address High */
+#endif
 
 /* 440GP/GX PLB to OPB bridge DCRs */
 #define DCRN_POB0_BESR0		0x090
@@ -407,9 +452,13 @@
 #define PPC44x_MEM_SIZE_1G		0x40000000
 #define PPC44x_MEM_SIZE_2G		0x80000000
 
-/* 440SP memory controller DCRs */
+/* 440SP/440SPe memory controller DCRs */
 #define DCRN_MQ0_BS0BAS			0x40
-#define DCRN_MQ0_BS1BAS			0x41
+#if defined(CONFIG_440SP)
+#define MQ0_NUM_BANKS			2
+#elif defined(CONFIG_440SPE)
+#define MQ0_NUM_BANKS			4
+#endif
 
 #define MQ0_CONFIG_SIZE_MASK		0x0000fff0
 #define MQ0_CONFIG_SIZE_8M		0x0000ffc0
@@ -421,8 +470,9 @@
 #define MQ0_CONFIG_SIZE_512M		0x0000f000
 #define MQ0_CONFIG_SIZE_1G		0x0000e000
 #define MQ0_CONFIG_SIZE_2G		0x0000c000
+#define MQ0_CONFIG_SIZE_4G		0x00008000
 
-/* Internal SRAM Controller 440GX/440SP */
+/* Internal SRAM Controller 440GX/440SP/440SPe */
 #define DCRN_SRAM0_BASE		0x000
 
 #define DCRN_SRAM0_SB0CR	(DCRN_SRAM0_BASE + 0x020)
@@ -446,7 +496,7 @@
 #define DCRN_SRAM0_DPC		(DCRN_SRAM0_BASE + 0x02a)
 #define  SRAM_DPC_ENABLE	0x80000000
 
-/* L2 Cache Controller 440GX/440SP */
+/* L2 Cache Controller 440GX/440SP/440SPe */
 #define DCRN_L2C0_CFG		0x030
 #define  L2C_CFG_L2M		0x80000000
 #define  L2C_CFG_ICU		0x40000000
@@ -610,8 +660,10 @@
 #define IIC_CLOCK		50
 
 #undef NR_UICS
-#ifdef CONFIG_440GX
+#if defined(CONFIG_440GX)
 #define NR_UICS 3
+#elif defined(CONFIG_440SPE)
+#define NR_UICS 4
 #else
 #define NR_UICS 2
 #endif

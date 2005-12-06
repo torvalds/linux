@@ -39,7 +39,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/auth.h>
-#include <linux/in.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/crypto.h>
@@ -191,43 +190,12 @@ gss_delete_sec_context_kerberos(void *internal_ctx) {
 	kfree(kctx);
 }
 
-static u32
-gss_verify_mic_kerberos(struct gss_ctx		*ctx,
-			struct xdr_buf		*message,
-			struct xdr_netobj	*mic_token,
-			u32			*qstate) {
-	u32 maj_stat = 0;
-	int qop_state;
-	struct krb5_ctx *kctx = ctx->internal_ctx_id;
-
-	maj_stat = krb5_read_token(kctx, mic_token, message, &qop_state,
-				   KG_TOK_MIC_MSG);
-	if (!maj_stat && qop_state)
-	    *qstate = qop_state;
-
-	dprintk("RPC:      gss_verify_mic_kerberos returning %d\n", maj_stat);
-	return maj_stat;
-}
-
-static u32
-gss_get_mic_kerberos(struct gss_ctx	*ctx,
-		     u32		qop,
-		     struct xdr_buf 	*message,
-		     struct xdr_netobj	*mic_token) {
-	u32 err = 0;
-	struct krb5_ctx *kctx = ctx->internal_ctx_id;
-
-	err = krb5_make_token(kctx, qop, message, mic_token, KG_TOK_MIC_MSG);
-
-	dprintk("RPC:      gss_get_mic_kerberos returning %d\n",err);
-
-	return err;
-}
-
 static struct gss_api_ops gss_kerberos_ops = {
 	.gss_import_sec_context	= gss_import_sec_context_kerberos,
 	.gss_get_mic		= gss_get_mic_kerberos,
 	.gss_verify_mic		= gss_verify_mic_kerberos,
+	.gss_wrap		= gss_wrap_kerberos,
+	.gss_unwrap		= gss_unwrap_kerberos,
 	.gss_delete_sec_context	= gss_delete_sec_context_kerberos,
 };
 
@@ -241,6 +209,11 @@ static struct pf_desc gss_kerberos_pfs[] = {
 		.pseudoflavor = RPC_AUTH_GSS_KRB5I,
 		.service = RPC_GSS_SVC_INTEGRITY,
 		.name = "krb5i",
+	},
+	[2] = {
+		.pseudoflavor = RPC_AUTH_GSS_KRB5P,
+		.service = RPC_GSS_SVC_PRIVACY,
+		.name = "krb5p",
 	},
 };
 

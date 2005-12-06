@@ -644,7 +644,7 @@ void shrink_dcache_parent(struct dentry * parent)
  *
  * Prune the dentries that are anonymous
  *
- * parsing d_hash list does not hlist_for_each_rcu() as it
+ * parsing d_hash list does not hlist_for_each_entry_rcu() as it
  * done under dcache_lock.
  *
  */
@@ -689,7 +689,7 @@ void shrink_dcache_anon(struct hlist_head *head)
  *
  * In this case we return -1 to tell the caller that we baled.
  */
-static int shrink_dcache_memory(int nr, unsigned int gfp_mask)
+static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))
@@ -1043,14 +1043,12 @@ struct dentry * __d_lookup(struct dentry * parent, struct qstr * name)
 	struct hlist_head *head = d_hash(parent,hash);
 	struct dentry *found = NULL;
 	struct hlist_node *node;
+	struct dentry *dentry;
 
 	rcu_read_lock();
 	
-	hlist_for_each_rcu(node, head) {
-		struct dentry *dentry; 
+	hlist_for_each_entry_rcu(dentry, node, head, d_hash) {
 		struct qstr *qstr;
-
-		dentry = hlist_entry(node, struct dentry, d_hash);
 
 		if (dentry->d_name.hash != hash)
 			continue;
@@ -1123,7 +1121,7 @@ int d_validate(struct dentry *dentry, struct dentry *dparent)
 	spin_lock(&dcache_lock);
 	base = d_hash(dparent, dentry->d_name.hash);
 	hlist_for_each(lhp,base) { 
-		/* hlist_for_each_rcu() not required for d_hash list
+		/* hlist_for_each_entry_rcu() not required for d_hash list
 		 * as it is parsed under dcache_lock
 		 */
 		if (dentry == hlist_entry(lhp, struct dentry, d_hash)) {

@@ -88,7 +88,7 @@ zalon_probe(struct parisc_device *dev)
 	struct gsc_irq gsc_irq;
 	u32 zalon_vers;
 	int error = -ENODEV;
-	void __iomem *zalon = ioremap(dev->hpa, 4096);
+	void __iomem *zalon = ioremap(dev->hpa.start, 4096);
 	void __iomem *io_port = zalon + GSC_SCSI_ZALON_OFFSET;
 	static int unit = 0;
 	struct Scsi_Host *host;
@@ -127,7 +127,7 @@ zalon_probe(struct parisc_device *dev)
 	device.chip		= zalon720_chip;
 	device.host_id		= 7;
 	device.dev		= &dev->dev;
-	device.slot.base	= dev->hpa + GSC_SCSI_ZALON_OFFSET;
+	device.slot.base	= dev->hpa.start + GSC_SCSI_ZALON_OFFSET;
 	device.slot.base_v	= io_port;
 	device.slot.irq		= dev->irq;
 	device.differential	= 2;

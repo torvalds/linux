@@ -161,6 +161,13 @@ extern struct sctp_globals {
 	 */
 	int sndbuf_policy;
 
+	/*
+	 * Policy for preforming sctp/socket accounting
+	 * 0   - do socket level accounting, all assocs share sk_rcvbuf
+	 * 1   - do sctp accounting, each asoc may use sk_rcvbuf bytes
+	 */
+	int rcvbuf_policy;
+
 	/* Delayed SACK timeout  200ms default*/
 	int sack_timeout;
 
@@ -218,6 +225,7 @@ extern struct sctp_globals {
 #define sctp_cookie_preserve_enable	(sctp_globals.cookie_preserve_enable)
 #define sctp_max_retrans_association	(sctp_globals.max_retrans_association)
 #define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
+#define sctp_rcvbuf_policy	 	(sctp_globals.rcvbuf_policy)
 #define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
 #define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
 #define sctp_sack_timeout		(sctp_globals.sack_timeout)
@@ -446,7 +454,7 @@ struct sctp_ssnmap {
 };
 
 struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
-				    unsigned int __nocast gfp);
+				    gfp_t gfp);
 void sctp_ssnmap_free(struct sctp_ssnmap *map);
 void sctp_ssnmap_clear(struct sctp_ssnmap *map);
 
@@ -947,7 +955,7 @@ struct sctp_transport {
 };
 
 struct sctp_transport *sctp_transport_new(const union sctp_addr *,
-					  unsigned int __nocast);
+					  gfp_t);
 void sctp_transport_set_owner(struct sctp_transport *,
 			      struct sctp_association *);
 void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
@@ -1095,10 +1103,10 @@ void sctp_bind_addr_init(struct sctp_bind_addr *, __u16 port);
 void sctp_bind_addr_free(struct sctp_bind_addr *);
 int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
-			sctp_scope_t scope, unsigned int __nocast gfp,
+			sctp_scope_t scope, gfp_t gfp,
 			int flags);
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
-		       unsigned int __nocast gfp);
+		       gfp_t gfp);
 int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
@@ -1108,9 +1116,9 @@ union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
 					struct sctp_sock	*opt);
 union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
 					 int *addrs_len,
-					 unsigned int __nocast gfp);
+					 gfp_t gfp);
 int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw, int len,
-			   __u16 port, unsigned int __nocast gfp);
+			   __u16 port, gfp_t gfp);
 
 sctp_scope_t sctp_scope(const union sctp_addr *);
 int sctp_in_scope(const union sctp_addr *addr, const sctp_scope_t scope);
@@ -1222,11 +1230,11 @@ struct sctp_endpoint {
 	int last_key;
 	int key_changed_at;
 
-	/* Default timeouts.  */
-	int timeouts[SCTP_NUM_TIMEOUT_TYPES];
-
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
+
+	/* rcvbuf acct. policy.	*/
+	__u32 rcvbuf_policy;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1239,7 +1247,7 @@ static inline struct sctp_endpoint *sctp_ep(struct sctp_ep_common *base)
 }
 
 /* These are function signatures for manipulating endpoints.  */
-struct sctp_endpoint *sctp_endpoint_new(struct sock *, unsigned int __nocast);
+struct sctp_endpoint *sctp_endpoint_new(struct sock *, gfp_t);
 void sctp_endpoint_free(struct sctp_endpoint *);
 void sctp_endpoint_put(struct sctp_endpoint *);
 void sctp_endpoint_hold(struct sctp_endpoint *);
@@ -1260,7 +1268,7 @@ int sctp_verify_init(const struct sctp_association *asoc, sctp_cid_t,
 		     struct sctp_chunk **err_chunk);
 int sctp_process_init(struct sctp_association *, sctp_cid_t cid,
 		      const union sctp_addr *peer,
-		      sctp_init_chunk_t *init, unsigned int __nocast gfp);
+		      sctp_init_chunk_t *init, gfp_t gfp);
 __u32 sctp_generate_tag(const struct sctp_endpoint *);
 __u32 sctp_generate_tsn(const struct sctp_endpoint *);
 
@@ -1553,6 +1561,11 @@ struct sctp_association {
 	 */
 	int sndbuf_used;
 
+	/* This is the amount of memory that this association has allocated
+	 * in the receive path at any given time.
+	 */
+	atomic_t rmem_alloc;
+
 	/* This is the wait queue head for send requests waiting on
 	 * the association sndbuf space.
 	 */
@@ -1723,7 +1736,7 @@ static inline struct sctp_association *sctp_assoc(struct sctp_ep_common *base)
 
 struct sctp_association *
 sctp_association_new(const struct sctp_endpoint *, const struct sock *,
-		     sctp_scope_t scope, unsigned int __nocast gfp);
+		     sctp_scope_t scope, gfp_t gfp);
 void sctp_association_free(struct sctp_association *);
 void sctp_association_put(struct sctp_association *);
 void sctp_association_hold(struct sctp_association *);
@@ -1739,7 +1752,7 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 			    const union sctp_addr *laddr);
 struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *,
 				     const union sctp_addr *address,
-				     const unsigned int __nocast gfp,
+				     const gfp_t gfp,
 				     const int peer_state);
 void sctp_assoc_del_peer(struct sctp_association *asoc,
 			 const union sctp_addr *addr);
@@ -1764,10 +1777,10 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned);
 void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
 int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *,
-				     unsigned int __nocast);
+				     gfp_t);
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
 					 struct sctp_cookie*,
-					 unsigned int __nocast gfp);
+					 gfp_t gfp);
 
 int sctp_cmp_addr_exact(const union sctp_addr *ss1,
 			const union sctp_addr *ss2);

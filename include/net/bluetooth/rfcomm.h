@@ -230,7 +230,7 @@ int rfcomm_send_rpn(struct rfcomm_session *s, int cr, u8 dlci,
 			u8 xon_char, u8 xoff_char, u16 param_mask);
 
 /* ---- RFCOMM DLCs (channels) ---- */
-struct rfcomm_dlc *rfcomm_dlc_alloc(unsigned int __nocast prio);
+struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio);
 void rfcomm_dlc_free(struct rfcomm_dlc *d);
 int  rfcomm_dlc_open(struct rfcomm_dlc *d, bdaddr_t *src, bdaddr_t *dst, u8 channel);
 int  rfcomm_dlc_close(struct rfcomm_dlc *d, int reason);
@@ -274,9 +274,6 @@ static inline void rfcomm_session_hold(struct rfcomm_session *s)
 {
 	atomic_inc(&s->refcnt);
 }
-
-/* ---- RFCOMM chechsum ---- */
-extern u8 rfcomm_crc_table[];
 
 /* ---- RFCOMM sockets ---- */
 struct sockaddr_rc {
@@ -353,7 +350,5 @@ struct rfcomm_dev_list_req {
 int  rfcomm_dev_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
 int  rfcomm_init_ttys(void);
 void rfcomm_cleanup_ttys(void);
-
-extern struct proc_dir_entry *proc_bt_rfcomm;
 
 #endif /* __RFCOMM_H */

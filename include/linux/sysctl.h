@@ -20,10 +20,10 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/list.h>
 #include <linux/compiler.h>
 
 struct file;
+struct completion;
 
 #define CTL_MAXNAME 10		/* how many path components do we allow in a
 				   call to sysctl?   In other words, what is
@@ -202,7 +202,9 @@ enum
 	NET_TR=14,
 	NET_DECNET=15,
 	NET_ECONET=16,
-	NET_SCTP=17, 
+	NET_SCTP=17,
+	NET_LLC=18,
+	NET_NETFILTER=19,
 };
 
 /* /proc/sys/kernel/random */
@@ -266,6 +268,42 @@ enum
 	NET_UNIX_DESTROY_DELAY=1,
 	NET_UNIX_DELETE_DELAY=2,
 	NET_UNIX_MAX_DGRAM_QLEN=3,
+};
+
+/* /proc/sys/net/netfilter */
+enum
+{
+	NET_NF_CONNTRACK_MAX=1,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_SENT=2,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_SYN_RECV=3,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_ESTABLISHED=4,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_FIN_WAIT=5,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_CLOSE_WAIT=6,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_LAST_ACK=7,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_TIME_WAIT=8,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_CLOSE=9,
+	NET_NF_CONNTRACK_UDP_TIMEOUT=10,
+	NET_NF_CONNTRACK_UDP_TIMEOUT_STREAM=11,
+	NET_NF_CONNTRACK_ICMP_TIMEOUT=12,
+	NET_NF_CONNTRACK_GENERIC_TIMEOUT=13,
+	NET_NF_CONNTRACK_BUCKETS=14,
+	NET_NF_CONNTRACK_LOG_INVALID=15,
+	NET_NF_CONNTRACK_TCP_TIMEOUT_MAX_RETRANS=16,
+	NET_NF_CONNTRACK_TCP_LOOSE=17,
+	NET_NF_CONNTRACK_TCP_BE_LIBERAL=18,
+	NET_NF_CONNTRACK_TCP_MAX_RETRANS=19,
+	NET_NF_CONNTRACK_SCTP_TIMEOUT_CLOSED=20,
+	NET_NF_CONNTRACK_SCTP_TIMEOUT_COOKIE_WAIT=21,
+	NET_NF_CONNTRACK_SCTP_TIMEOUT_COOKIE_ECHOED=22,
+	NET_NF_CONNTRACK_SCTP_TIMEOUT_ESTABLISHED=23,
+	NET_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_SENT=24,
+	NET_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_RECD=25,
+	NET_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_ACK_SENT=26,
+	NET_NF_CONNTRACK_COUNT=27,
+	NET_NF_CONNTRACK_ICMPV6_TIMEOUT=28,
+	NET_NF_CONNTRACK_FRAG6_TIMEOUT=29,
+	NET_NF_CONNTRACK_FRAG6_LOW_THRESH=30,
+	NET_NF_CONNTRACK_FRAG6_HIGH_THRESH=31,
 };
 
 /* /proc/sys/net/ipv4 */
@@ -351,6 +389,7 @@ enum
 	NET_TCP_BIC_BETA=108,
 	NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR=109,
 	NET_TCP_CONG_CONTROL=110,
+	NET_TCP_ABC=111,
 };
 
 enum {
@@ -522,6 +561,29 @@ enum {
 	NET_IPX_FORWARDING=2
 };
 
+/* /proc/sys/net/llc */
+enum {
+	NET_LLC2=1,
+	NET_LLC_STATION=2,
+};
+
+/* /proc/sys/net/llc/llc2 */
+enum {
+	NET_LLC2_TIMEOUT=1,
+};
+
+/* /proc/sys/net/llc/station */
+enum {
+	NET_LLC_STATION_ACK_TIMEOUT=1,
+};
+
+/* /proc/sys/net/llc/llc2/timeout */
+enum {
+	NET_LLC2_ACK_TIMEOUT=1,
+	NET_LLC2_P_TIMEOUT=2,
+	NET_LLC2_REJ_TIMEOUT=3,
+	NET_LLC2_BUSY_TIMEOUT=4,
+};
 
 /* /proc/sys/net/appletalk */
 enum {
@@ -652,6 +714,7 @@ enum {
 	NET_SCTP_PRSCTP_ENABLE		 = 14,
 	NET_SCTP_SNDBUF_POLICY		 = 15,
 	NET_SCTP_SACK_TIMEOUT		 = 16,
+	NET_SCTP_RCVBUF_POLICY		 = 17,
 };
 
 /* /proc/sys/net/bridge */
@@ -795,6 +858,7 @@ enum
 };
 
 #ifdef __KERNEL__
+#include <linux/list.h>
 
 extern void sysctl_init(void);
 
@@ -901,6 +965,8 @@ struct ctl_table_header
 {
 	ctl_table *ctl_table;
 	struct list_head ctl_entry;
+	int used;
+	struct completion *unregistering;
 };
 
 struct ctl_table_header * register_sysctl_table(ctl_table * table, 

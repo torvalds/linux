@@ -22,7 +22,7 @@ struct tt_entry {
 /* We set this to _start in system setup. */
 extern struct tt_entry *sparc_ttable;
 
-extern __inline__ unsigned long get_tbr(void)
+static inline unsigned long get_tbr(void)
 {
 	unsigned long tbr;
 

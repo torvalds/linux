@@ -222,10 +222,9 @@ static int __devinit cs5520_init_one(struct pci_dev *dev, const struct pci_devic
 
 	/* We must not grab the entire device, it has 'ISA' space in its
 	   BARS too and we will freak out other bits of the kernel */
-	if(pci_enable_device_bars(dev, 1<<2))
-	{
+	if (pci_enable_device_bars(dev, 1<<2)) {
 		printk(KERN_WARNING "%s: Unable to enable 55x0.\n", d->name);
-		return 1;
+		return -ENODEV;
 	}
 	pci_set_master(dev);
 	if (pci_set_dma_mask(dev, DMA_32BIT_MASK)) {

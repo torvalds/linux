@@ -1,7 +1,7 @@
 #include <linux/suspend.h>
 #include <linux/utsname.h>
 
-/* With SUSPEND_CONSOLE defined, it suspend looks *really* cool, but
+/* With SUSPEND_CONSOLE defined suspend looks *really* cool, but
    we probably do not take enough locks for switching consoles, etc,
    so bad things might happen.
 */
@@ -9,6 +9,9 @@
 #define SUSPEND_CONSOLE	(MAX_NR_CONSOLES-1)
 #endif
 
+#define MAX_PBES	((PAGE_SIZE - sizeof(struct new_utsname) \
+			- 4 - 3*sizeof(unsigned long) - sizeof(int) \
+			- sizeof(void *)) / sizeof(swp_entry_t))
 
 struct swsusp_info {
 	struct new_utsname	uts;
@@ -18,7 +21,7 @@ struct swsusp_info {
 	unsigned long		image_pages;
 	unsigned long		pagedir_pages;
 	suspend_pagedir_t	* suspend_pagedir;
-	swp_entry_t		pagedir[768];
+	swp_entry_t		pagedir[MAX_PBES];
 } __attribute__((aligned(PAGE_SIZE)));
 
 
@@ -50,3 +53,20 @@ extern void thaw_processes(void);
 
 extern int pm_prepare_console(void);
 extern void pm_restore_console(void);
+
+
+/* References to section boundaries */
+extern const void __nosave_begin, __nosave_end;
+
+extern unsigned int nr_copy_pages;
+extern suspend_pagedir_t *pagedir_nosave;
+extern suspend_pagedir_t *pagedir_save;
+
+extern asmlinkage int swsusp_arch_suspend(void);
+extern asmlinkage int swsusp_arch_resume(void);
+
+extern void free_pagedir(struct pbe *pblist);
+extern struct pbe *alloc_pagedir(unsigned nr_pages, gfp_t gfp_mask, int safe_needed);
+extern void create_pbe_list(struct pbe *pblist, unsigned nr_pages);
+extern void swsusp_free(void);
+extern int alloc_data_pages(struct pbe *pblist, gfp_t gfp_mask, int safe_needed);

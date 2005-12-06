@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <linux/crypto.h>
 #include <linux/highmem.h>
@@ -86,7 +86,6 @@ static void hexdump(unsigned char *buf, unsigned int len)
 static void test_hash(char *algo, struct hash_testvec *template,
 		      unsigned int tcount)
 {
-	char *p;
 	unsigned int i, j, k, temp;
 	struct scatterlist sg[8];
 	char result[64];
@@ -116,10 +115,7 @@ static void test_hash(char *algo, struct hash_testvec *template,
 		printk("test %u:\n", i + 1);
 		memset(result, 0, 64);
 
-		p = hash_tv[i].plaintext;
-		sg[0].page = virt_to_page(p);
-		sg[0].offset = offset_in_page(p);
-		sg[0].length = hash_tv[i].psize;
+		sg_set_buf(&sg[0], hash_tv[i].plaintext, hash_tv[i].psize);
 
 		crypto_digest_init(tfm);
 		if (tfm->crt_u.digest.dit_setkey) {
@@ -154,10 +150,8 @@ static void test_hash(char *algo, struct hash_testvec *template,
 				       hash_tv[i].plaintext + temp,
 				       hash_tv[i].tap[k]);
 				temp += hash_tv[i].tap[k];
-				p = &xbuf[IDX[k]];
-				sg[k].page = virt_to_page(p);
-				sg[k].offset = offset_in_page(p);
-				sg[k].length = hash_tv[i].tap[k];
+				sg_set_buf(&sg[k], &xbuf[IDX[k]],
+					    hash_tv[i].tap[k]);
 			}
 
 			crypto_digest_digest(tfm, sg, hash_tv[i].np, result);
@@ -179,7 +173,6 @@ static void test_hash(char *algo, struct hash_testvec *template,
 static void test_hmac(char *algo, struct hmac_testvec *template,
 		      unsigned int tcount)
 {
-	char *p;
 	unsigned int i, j, k, temp;
 	struct scatterlist sg[8];
 	char result[64];
@@ -210,11 +203,8 @@ static void test_hmac(char *algo, struct hmac_testvec *template,
 		printk("test %u:\n", i + 1);
 		memset(result, 0, sizeof (result));
 
-		p = hmac_tv[i].plaintext;
 		klen = hmac_tv[i].ksize;
-		sg[0].page = virt_to_page(p);
-		sg[0].offset = offset_in_page(p);
-		sg[0].length = hmac_tv[i].psize;
+		sg_set_buf(&sg[0], hmac_tv[i].plaintext, hmac_tv[i].psize);
 
 		crypto_hmac(tfm, hmac_tv[i].key, &klen, sg, 1, result);
 
@@ -243,10 +233,8 @@ static void test_hmac(char *algo, struct hmac_testvec *template,
 				       hmac_tv[i].plaintext + temp,
 				       hmac_tv[i].tap[k]);
 				temp += hmac_tv[i].tap[k];
-				p = &xbuf[IDX[k]];
-				sg[k].page = virt_to_page(p);
-				sg[k].offset = offset_in_page(p);
-				sg[k].length = hmac_tv[i].tap[k];
+				sg_set_buf(&sg[k], &xbuf[IDX[k]],
+					    hmac_tv[i].tap[k]);
 			}
 
 			crypto_hmac(tfm, hmac_tv[i].key, &klen, sg,
@@ -270,7 +258,7 @@ static void test_cipher(char *algo, int mode, int enc,
 {
 	unsigned int ret, i, j, k, temp;
 	unsigned int tsize;
-	char *p, *q;
+	char *q;
 	struct crypto_tfm *tfm;
 	char *key;
 	struct cipher_testvec *cipher_tv;
@@ -330,10 +318,8 @@ static void test_cipher(char *algo, int mode, int enc,
 					goto out;
 			}
 
-			p = cipher_tv[i].input;
-			sg[0].page = virt_to_page(p);
-			sg[0].offset = offset_in_page(p);
-			sg[0].length = cipher_tv[i].ilen;
+			sg_set_buf(&sg[0], cipher_tv[i].input,
+				   cipher_tv[i].ilen);
 
 			if (!mode) {
 				crypto_cipher_set_iv(tfm, cipher_tv[i].iv,
@@ -389,10 +375,8 @@ static void test_cipher(char *algo, int mode, int enc,
 				       cipher_tv[i].input + temp,
 				       cipher_tv[i].tap[k]);
 				temp += cipher_tv[i].tap[k];
-				p = &xbuf[IDX[k]];
-				sg[k].page = virt_to_page(p);
-				sg[k].offset = offset_in_page(p);
-				sg[k].length = cipher_tv[i].tap[k];
+				sg_set_buf(&sg[k], &xbuf[IDX[k]],
+					   cipher_tv[i].tap[k]);
 			}
 
 			if (!mode) {
@@ -431,14 +415,12 @@ out:
 static int test_cipher_jiffies(struct crypto_tfm *tfm, int enc, char *p,
 			       int blen, int sec)
 {
-	struct scatterlist sg[8];
+	struct scatterlist sg[1];
 	unsigned long start, end;
 	int bcount;
 	int ret;
 
-	sg[0].page = virt_to_page(p);
-	sg[0].offset = offset_in_page(p);
-	sg[0].length = blen;
+	sg_set_buf(sg, p, blen);
 
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
@@ -459,14 +441,12 @@ static int test_cipher_jiffies(struct crypto_tfm *tfm, int enc, char *p,
 static int test_cipher_cycles(struct crypto_tfm *tfm, int enc, char *p,
 			      int blen)
 {
-	struct scatterlist sg[8];
+	struct scatterlist sg[1];
 	unsigned long cycles = 0;
 	int ret = 0;
 	int i;
 
-	sg[0].page = virt_to_page(p);
-	sg[0].offset = offset_in_page(p);
-	sg[0].length = blen;
+	sg_set_buf(sg, p, blen);
 
 	local_bh_disable();
 	local_irq_disable();
@@ -709,9 +689,7 @@ static void test_crc32c(void)
 	for (i = 0; i < NUMVEC; i++) {
 		for (j = 0; j < VECSIZE; j++)
 			test_vec[i][j] = ++b;
-		sg[i].page = virt_to_page(test_vec[i]);
-		sg[i].offset = offset_in_page(test_vec[i]);
-		sg[i].length = VECSIZE;
+		sg_set_buf(&sg[i], test_vec[i], VECSIZE);
 	}
 
 	seed = SEEDTESTVAL;

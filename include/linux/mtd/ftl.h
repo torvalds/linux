@@ -1,6 +1,6 @@
 /*
- * $Id: ftl.h,v 1.6 2003/01/24 13:20:04 dwmw2 Exp $
- * 
+ * $Id: ftl.h,v 1.7 2005/11/07 11:14:54 gleixner Exp $
+ *
  * Derived from (and probably identical to):
  * ftl.h 1.7 1999/10/25 20:23:17
  *
@@ -12,7 +12,7 @@
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
  * the License for the specific language governing rights and
- * limitations under the License. 
+ * limitations under the License.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds

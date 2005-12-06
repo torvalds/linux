@@ -236,9 +236,9 @@ void __init ibm440gx_l2c_setup(struct ibm44x_clocks* p)
 	/* Disable L2C on rev.A, rev.B and 800MHz version of rev.C,
 	   enable it on all other revisions
 	 */
-	if (strcmp(cur_cpu_spec[0]->cpu_name, "440GX Rev. A") == 0 ||
-			strcmp(cur_cpu_spec[0]->cpu_name, "440GX Rev. B") == 0
-			|| (strcmp(cur_cpu_spec[0]->cpu_name, "440GX Rev. C")
+	if (strcmp(cur_cpu_spec->cpu_name, "440GX Rev. A") == 0 ||
+			strcmp(cur_cpu_spec->cpu_name, "440GX Rev. B") == 0
+			|| (strcmp(cur_cpu_spec->cpu_name, "440GX Rev. C")
 				== 0 && p->cpu > 667000000))
 		ibm440gx_l2c_disable();
 	else

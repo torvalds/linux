@@ -11,6 +11,8 @@
 #include <linux/smp.h>
 #include <linux/suspend.h>
 #include <asm/proto.h>
+#include <asm/page.h>
+#include <asm/pgtable.h>
 
 struct saved_context saved_context;
 
@@ -61,13 +63,12 @@ void save_processor_state(void)
 	__save_processor_state(&saved_context);
 }
 
-static void
-do_fpu_end(void)
+static void do_fpu_end(void)
 {
-        /* restore FPU regs if necessary */
-	/* Do it out of line so that gcc does not move cr0 load to some stupid place */
-        kernel_fpu_end();
-	mxcsr_feature_mask_init();
+	/*
+	 * Restore FPU regs if necessary
+	 */
+	kernel_fpu_end();
 }
 
 void __restore_processor_state(struct saved_context *ctxt)
@@ -140,4 +141,83 @@ void fix_processor_context(void)
 
 }
 
+#ifdef CONFIG_SOFTWARE_SUSPEND
+/* Defined in arch/x86_64/kernel/suspend_asm.S */
+extern int restore_image(void);
 
+pgd_t *temp_level4_pgt;
+
+static int res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long end)
+{
+	long i, j;
+
+	i = pud_index(address);
+	pud = pud + i;
+	for (; i < PTRS_PER_PUD; pud++, i++) {
+		unsigned long paddr;
+		pmd_t *pmd;
+
+		paddr = address + i*PUD_SIZE;
+		if (paddr >= end)
+			break;
+
+		pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);
+		if (!pmd)
+			return -ENOMEM;
+		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
+		for (j = 0; j < PTRS_PER_PMD; pmd++, j++, paddr += PMD_SIZE) {
+			unsigned long pe;
+
+			if (paddr >= end)
+				break;
+			pe = _PAGE_NX | _PAGE_PSE | _KERNPG_TABLE | paddr;
+			pe &= __supported_pte_mask;
+			set_pmd(pmd, __pmd(pe));
+		}
+	}
+	return 0;
+}
+
+static int set_up_temporary_mappings(void)
+{
+	unsigned long start, end, next;
+	int error;
+
+	temp_level4_pgt = (pgd_t *)get_safe_page(GFP_ATOMIC);
+	if (!temp_level4_pgt)
+		return -ENOMEM;
+
+	/* It is safe to reuse the original kernel mapping */
+	set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
+		init_level4_pgt[pgd_index(__START_KERNEL_map)]);
+
+	/* Set up the direct mapping from scratch */
+	start = (unsigned long)pfn_to_kaddr(0);
+	end = (unsigned long)pfn_to_kaddr(end_pfn);
+
+	for (; start < end; start = next) {
+		pud_t *pud = (pud_t *)get_safe_page(GFP_ATOMIC);
+		if (!pud)
+			return -ENOMEM;
+		next = start + PGDIR_SIZE;
+		if (next > end)
+			next = end;
+		if ((error = res_phys_pud_init(pud, __pa(start), __pa(next))))
+			return error;
+		set_pgd(temp_level4_pgt + pgd_index(start),
+			mk_kernel_pgd(__pa(pud)));
+	}
+	return 0;
+}
+
+int swsusp_arch_resume(void)
+{
+	int error;
+
+	/* We have got enough memory and from now on we cannot recover */
+	if ((error = set_up_temporary_mappings()))
+		return error;
+	restore_image();
+	return 0;
+}
+#endif /* CONFIG_SOFTWARE_SUSPEND */

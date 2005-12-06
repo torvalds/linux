@@ -65,7 +65,7 @@ o  isdn4k-utils           3.1pre1                 # isdnctrl 2>&1|grep version
 o  nfs-utils              1.0.5                   # showmount --version
 o  procps                 3.2.0                   # ps --version
 o  oprofile               0.9                     # oprofiled --version
-o  udev                   058                     # udevinfo -V
+o  udev                   071                     # udevinfo -V
 
 Kernel compilation
 ==================
@@ -139,9 +139,14 @@ You'll probably want to upgrade.
 Ksymoops
 --------
 
-If the unthinkable happens and your kernel oopses, you'll need a 2.4
-version of ksymoops to decode the report; see REPORTING-BUGS in the
-root of the Linux source for more information.
+If the unthinkable happens and your kernel oopses, you may need the
+ksymoops tool to decode it, but in most cases you don't.
+In the 2.6 kernel it is generally preferred to build the kernel with
+CONFIG_KALLSYMS so that it produces readable dumps that can be used as-is
+(this also produces better output than ksymoops).
+If for some reason your kernel is not build with CONFIG_KALLSYMS and
+you have no way to rebuild and reproduce the Oops with that option, then
+you can still decode that Oops with ksymoops.
 
 Module-Init-Tools
 -----------------
@@ -236,6 +241,12 @@ udev
 ----
 udev is a userspace application for populating /dev dynamically with
 only entries for devices actually present. udev replaces devfs.
+
+FUSE
+----
+
+Needs libfuse 2.4.0 or later.  Absolute minimum is 2.3.0 but mount
+options 'direct_io' and 'kernel_cache' won't work.
 
 Networking
 ==========
@@ -389,6 +400,10 @@ o  <http://powertweak.sourceforge.net/>
 udev
 ----
 o <http://www.kernel.org/pub/linux/utils/kernel/hotplug/udev.html>
+
+FUSE
+----
+o <http://sourceforge.net/projects/fuse>
 
 Networking
 **********

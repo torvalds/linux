@@ -371,7 +371,7 @@ struct hid_control_fifo {
 struct hid_input {
 	struct list_head list;
 	struct hid_report *report;
-	struct input_dev input;
+	struct input_dev *input;
 };
 
 struct hid_device {							/* device report descriptor */

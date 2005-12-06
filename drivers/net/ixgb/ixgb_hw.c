@@ -47,9 +47,22 @@ static void ixgb_optics_reset(struct ixgb_hw *hw);
 
 static ixgb_phy_type ixgb_identify_phy(struct ixgb_hw *hw);
 
-uint32_t ixgb_mac_reset(struct ixgb_hw *hw);
+static void ixgb_clear_hw_cntrs(struct ixgb_hw *hw);
 
-uint32_t ixgb_mac_reset(struct ixgb_hw *hw)
+static void ixgb_clear_vfta(struct ixgb_hw *hw);
+
+static void ixgb_init_rx_addrs(struct ixgb_hw *hw);
+
+static uint16_t ixgb_read_phy_reg(struct ixgb_hw *hw,
+				  uint32_t reg_address,
+				  uint32_t phy_address,
+				  uint32_t device_type);
+
+static boolean_t ixgb_setup_fc(struct ixgb_hw *hw);
+
+static boolean_t mac_addr_valid(uint8_t *mac_addr);
+
+static uint32_t ixgb_mac_reset(struct ixgb_hw *hw)
 {
 	uint32_t ctrl_reg;
 
@@ -335,7 +348,7 @@ ixgb_init_hw(struct ixgb_hw *hw)
  * of the receive addresss registers. Clears the multicast table. Assumes
  * the receiver is in reset when the routine is called.
  *****************************************************************************/
-void
+static void
 ixgb_init_rx_addrs(struct ixgb_hw *hw)
 {
 	uint32_t i;
@@ -604,7 +617,7 @@ ixgb_write_vfta(struct ixgb_hw *hw,
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-void
+static void
 ixgb_clear_vfta(struct ixgb_hw *hw)
 {
 	uint32_t offset;
@@ -620,7 +633,7 @@ ixgb_clear_vfta(struct ixgb_hw *hw)
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
 
-boolean_t
+static boolean_t
 ixgb_setup_fc(struct ixgb_hw *hw)
 {
 	uint32_t ctrl_reg;
@@ -722,7 +735,7 @@ ixgb_setup_fc(struct ixgb_hw *hw)
  * This requires that first an address cycle command is sent, followed by a
  * read command.
  *****************************************************************************/
-uint16_t
+static uint16_t
 ixgb_read_phy_reg(struct ixgb_hw *hw,
 		uint32_t reg_address,
 		uint32_t phy_address,
@@ -815,7 +828,7 @@ ixgb_read_phy_reg(struct ixgb_hw *hw,
  * This requires that first an address cycle command is sent, followed by a
  * write command.
  *****************************************************************************/
-void
+static void
 ixgb_write_phy_reg(struct ixgb_hw *hw,
 			uint32_t reg_address,
 			uint32_t phy_address,
@@ -959,7 +972,7 @@ boolean_t ixgb_check_for_bad_link(struct ixgb_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-void
+static void
 ixgb_clear_hw_cntrs(struct ixgb_hw *hw)
 {
 	volatile uint32_t temp_reg;
@@ -1114,7 +1127,7 @@ ixgb_get_bus_info(struct ixgb_hw *hw)
  * mac_addr - pointer to MAC address.
  *
  *****************************************************************************/
-boolean_t
+static boolean_t
 mac_addr_valid(uint8_t *mac_addr)
 {
 	boolean_t is_valid = TRUE;

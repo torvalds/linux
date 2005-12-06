@@ -5,7 +5,7 @@
  *
  *	(C) Copyright 2002, Greg Ungerer (gerg@snapgear.com)
  *
- * 	$Id: uclinux.c,v 1.10 2005/01/05 18:05:13 dwmw2 Exp $
+ * 	$Id: uclinux.c,v 1.12 2005/11/07 11:14:29 gleixner Exp $
  */
 
 /****************************************************************************/
@@ -82,7 +82,7 @@ int __init uclinux_mtd_init(void)
 		iounmap(mapp->virt);
 		return(-ENXIO);
 	}
-		
+
 	mtd->owner = THIS_MODULE;
 	mtd->point = uclinux_point;
 	mtd->priv = mapp;

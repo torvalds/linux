@@ -49,6 +49,39 @@ static int property_read_proc(char *page, char **start, off_t off,
  */
 
 /*
+ * Add a property to a node
+ */
+static struct proc_dir_entry *
+__proc_device_tree_add_prop(struct proc_dir_entry *de, struct property *pp)
+{
+	struct proc_dir_entry *ent;
+
+	/*
+	 * Unfortunately proc_register puts each new entry
+	 * at the beginning of the list.  So we rearrange them.
+	 */
+	ent = create_proc_read_entry(pp->name,
+				     strncmp(pp->name, "security-", 9)
+				     ? S_IRUGO : S_IRUSR, de,
+				     property_read_proc, pp);
+	if (ent == NULL)
+		return NULL;
+
+	if (!strncmp(pp->name, "security-", 9))
+		ent->size = 0; /* don't leak number of password chars */
+	else
+		ent->size = pp->length;
+
+	return ent;
+}
+
+
+void proc_device_tree_add_prop(struct proc_dir_entry *pde, struct property *prop)
+{
+	__proc_device_tree_add_prop(pde, prop);
+}
+
+/*
  * Process a node, adding entries for its children and its properties.
  */
 void proc_device_tree_add_node(struct device_node *np,
@@ -57,11 +90,9 @@ void proc_device_tree_add_node(struct device_node *np,
 	struct property *pp;
 	struct proc_dir_entry *ent;
 	struct device_node *child;
-	struct proc_dir_entry *list = NULL, **lastp;
 	const char *p;
 
 	set_node_proc_entry(np, de);
-	lastp = &list;
 	for (child = NULL; (child = of_get_next_child(np, child));) {
 		p = strrchr(child->full_name, '/');
 		if (!p)
@@ -71,9 +102,6 @@ void proc_device_tree_add_node(struct device_node *np,
 		ent = proc_mkdir(p, de);
 		if (ent == 0)
 			break;
-		*lastp = ent;
-		ent->next = NULL;
-		lastp = &ent->next;
 		proc_device_tree_add_node(child, ent);
 	}
 	of_node_put(child);
@@ -84,7 +112,7 @@ void proc_device_tree_add_node(struct device_node *np,
 		 * properties are quite unimportant for us though, thus we
 		 * simply "skip" them here, but we do have to check.
 		 */
-		for (ent = list; ent != NULL; ent = ent->next)
+		for (ent = de->subdir; ent != NULL; ent = ent->next)
 			if (!strcmp(ent->name, pp->name))
 				break;
 		if (ent != NULL) {
@@ -94,25 +122,10 @@ void proc_device_tree_add_node(struct device_node *np,
 			continue;
 		}
 
-		/*
-		 * Unfortunately proc_register puts each new entry
-		 * at the beginning of the list.  So we rearrange them.
-		 */
-		ent = create_proc_read_entry(pp->name,
-					     strncmp(pp->name, "security-", 9)
-					     ? S_IRUGO : S_IRUSR, de,
-					     property_read_proc, pp);
+		ent = __proc_device_tree_add_prop(de, pp);
 		if (ent == 0)
 			break;
-		if (!strncmp(pp->name, "security-", 9))
-		     ent->size = 0; /* don't leak number of password chars */
-		else
-		     ent->size = pp->length;
-		ent->next = NULL;
-		*lastp = ent;
-		lastp = &ent->next;
 	}
-	de->subdir = list;
 }
 
 /*

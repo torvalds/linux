@@ -82,19 +82,19 @@ extern int __bug_unaligned_x(void *ptr);
 	})
 
 
-extern inline void __put_unaligned_2(__u32 __v, register __u8 *__p)
+static inline void __put_unaligned_2(__u32 __v, register __u8 *__p)
 {
 	*__p++ = __v;
 	*__p++ = __v >> 8;
 }
 
-extern inline void __put_unaligned_4(__u32 __v, register __u8 *__p)
+static inline void __put_unaligned_4(__u32 __v, register __u8 *__p)
 {
 	__put_unaligned_2(__v >> 16, __p + 2);
 	__put_unaligned_2(__v, __p);
 }
 
-extern inline void __put_unaligned_8(const unsigned long long __v, register __u8 *__p)
+static inline void __put_unaligned_8(const unsigned long long __v, register __u8 *__p)
 {
 	/*
 	 * tradeoff: 8 bytes of stack for all unaligned puts (2

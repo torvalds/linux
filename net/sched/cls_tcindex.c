@@ -194,8 +194,7 @@ found:
 	}
 	tcf_unbind_filter(tp, &r->res);
 	tcf_exts_destroy(tp, &r->exts);
-	if (f)
-		kfree(f);
+	kfree(f);
 	return 0;
 }
 
@@ -442,10 +441,8 @@ static void tcindex_destroy(struct tcf_proto *tp)
 	walker.skip = 0;
 	walker.fn = &tcindex_destroy_element;
 	tcindex_walk(tp,&walker);
-	if (p->perfect)
-		kfree(p->perfect);
-	if (p->h)
-		kfree(p->h);
+	kfree(p->perfect);
+	kfree(p->h);
 	kfree(p);
 	tp->root = NULL;
 }

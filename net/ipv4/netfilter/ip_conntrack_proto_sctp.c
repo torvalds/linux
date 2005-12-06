@@ -65,7 +65,7 @@ static unsigned long ip_ct_sctp_timeout_shutdown_sent     = 300 SECS / 1000;
 static unsigned long ip_ct_sctp_timeout_shutdown_recd     = 300 SECS / 1000;
 static unsigned long ip_ct_sctp_timeout_shutdown_ack_sent =   3 SECS;
 
-static unsigned long * sctp_timeouts[]
+static const unsigned long * sctp_timeouts[]
 = { NULL,                                  /* SCTP_CONNTRACK_NONE  */
     &ip_ct_sctp_timeout_closed,	           /* SCTP_CONNTRACK_CLOSED */
     &ip_ct_sctp_timeout_cookie_wait,       /* SCTP_CONNTRACK_COOKIE_WAIT */
@@ -118,7 +118,7 @@ cookie echoed to closed.
 */
 
 /* SCTP conntrack state transitions */
-static enum sctp_conntrack sctp_conntracks[2][9][SCTP_CONNTRACK_MAX] = {
+static const enum sctp_conntrack sctp_conntracks[2][9][SCTP_CONNTRACK_MAX] = {
 	{
 /*	ORIGINAL	*/
 /*                  sNO, sCL, sCW, sCE, sES, sSS, sSR, sSA */
@@ -416,6 +416,7 @@ static int sctp_packet(struct ip_conntrack *conntrack,
 		&& newconntrack == SCTP_CONNTRACK_ESTABLISHED) {
 		DEBUGP("Setting assured bit\n");
 		set_bit(IPS_ASSURED_BIT, &conntrack->status);
+		ip_conntrack_event_cache(IPCT_STATUS, skb);
 	}
 
 	return NF_ACCEPT;

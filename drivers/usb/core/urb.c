@@ -4,12 +4,6 @@
 #include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
 #include <linux/usb.h>
 #include "hcd.h"
 
@@ -60,7 +54,7 @@ void usb_init_urb(struct urb *urb)
  *
  * The driver must call usb_free_urb() when it is finished with the urb.
  */
-struct urb *usb_alloc_urb(int iso_packets, unsigned mem_flags)
+struct urb *usb_alloc_urb(int iso_packets, gfp_t mem_flags)
 {
 	struct urb *urb;
 
@@ -224,7 +218,7 @@ struct urb * usb_get_urb(struct urb *urb)
  *      GFP_NOIO, unless b) or c) apply
  *
  */
-int usb_submit_urb(struct urb *urb, unsigned mem_flags)
+int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
 	int			pipe, temp, max;
 	struct usb_device	*dev;
@@ -237,7 +231,8 @@ int usb_submit_urb(struct urb *urb, unsigned mem_flags)
 	    (dev->state < USB_STATE_DEFAULT) ||
 	    (!dev->bus) || (dev->devnum <= 0))
 		return -ENODEV;
-	if (dev->state == USB_STATE_SUSPENDED)
+	if (dev->bus->controller->power.power_state.event != PM_EVENT_ON
+			|| dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
 	if (!(op = dev->bus->op) || !op->submit_urb)
 		return -ENODEV;

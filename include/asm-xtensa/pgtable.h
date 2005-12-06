@@ -278,6 +278,8 @@ static inline void update_pte(pte_t *ptep, pte_t pteval)
 #endif
 }
 
+struct mm_struct;
+
 static inline void
 set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pteval)
 {
@@ -294,6 +296,7 @@ set_pmd(pmd_t *pmdp, pmd_t pmdval)
 #endif
 }
 
+struct vm_area_struct;
 
 static inline int
 ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr,

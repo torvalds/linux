@@ -17,6 +17,24 @@
 
 #ifdef CONFIG_CPU_CACHE_VIPT
 
+#define ALIAS_FLUSH_START	0xffff4000
+
+#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
+
+static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
+{
+	unsigned long to = ALIAS_FLUSH_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
+
+	set_pte(TOP_PTE(to), pfn_pte(pfn, PAGE_KERNEL));
+	flush_tlb_kernel_page(to);
+
+	asm(	"mcrr	p15, 0, %1, %0, c14\n"
+	"	mcrr	p15, 0, %1, %0, c5\n"
+	    :
+	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES)
+	    : "cc");
+}
+
 void flush_cache_mm(struct mm_struct *mm)
 {
 	if (cache_is_vivt()) {
@@ -66,24 +84,6 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 
 	if (cache_is_vipt_aliasing())
 		flush_pfn_alias(pfn, user_addr);
-}
-
-#define ALIAS_FLUSH_START	0xffff4000
-
-#define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
-
-static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
-{
-	unsigned long to = ALIAS_FLUSH_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
-
-	set_pte(TOP_PTE(to), pfn_pte(pfn, PAGE_KERNEL));
-	flush_tlb_kernel_page(to);
-
-	asm(	"mcrr	p15, 0, %1, %0, c14\n"
-	"	mcrr	p15, 0, %1, %0, c5\n"
-	    :
-	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES)
-	    : "cc");
 }
 #else
 #define flush_pfn_alias(pfn,vaddr)	do { } while (0)
@@ -155,14 +155,19 @@ static void __flush_dcache_aliases(struct address_space *mapping, struct page *p
  *  space mappings, we can be lazy and remember that we may have dirty
  *  kernel cache lines for later.  Otherwise, we assume we have
  *  aliasing mappings.
+ *
+ * Note that we disable the lazy flush for SMP.
  */
 void flush_dcache_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 
+#ifndef CONFIG_SMP
 	if (mapping && !mapping_mapped(mapping))
 		set_bit(PG_dcache_dirty, &page->flags);
-	else {
+	else
+#endif
+	{
 		__flush_dcache_page(mapping, page);
 		if (mapping && cache_is_vivt())
 			__flush_dcache_aliases(mapping, page);

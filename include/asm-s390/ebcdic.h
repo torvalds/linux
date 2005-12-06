@@ -21,7 +21,7 @@ extern __u8 _ebcasc[];   /* EBCDIC -> ASCII conversion table */
 extern __u8 _ebc_tolower[]; /* EBCDIC -> lowercase */
 extern __u8 _ebc_toupper[]; /* EBCDIC -> uppercase */
 
-extern __inline__ void
+static inline void
 codepage_convert(const __u8 *codepage, volatile __u8 * addr, unsigned long nr)
 {
 	if (nr-- <= 0)

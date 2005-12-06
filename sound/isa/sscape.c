@@ -338,22 +338,8 @@ static inline void activate_ad1845_unsafe(unsigned io_base)
 static void soundscape_free(snd_card_t * c)
 {
 	register struct soundscape *sscape = get_card_soundscape(c);
-	release_resource(sscape->io_res);
-	kfree_nocheck(sscape->io_res);
+	release_and_free_resource(sscape->io_res);
 	free_dma(sscape->chip->dma1);
-}
-
-/*
- * Put this process into an idle wait-state for a certain number
- * of "jiffies". The process can almost certainly be rescheduled
- * while we're waiting, and so we must NOT be holding any spinlocks
- * when we call this function. If we are then we risk DEADLOCK in
- * SMP (Ha!) or pre-emptible kernels.
- */
-static inline void sleep(long jiffs, int state)
-{
-	set_current_state(state);
-	schedule_timeout(jiffs);
 }
 
 /*
@@ -393,7 +379,7 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 		unsigned long flags;
 		unsigned char x;
 
-		sleep(1, TASK_INTERRUPTIBLE);
+		schedule_timeout_interruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));
@@ -420,7 +406,7 @@ static int host_startup_ack(struct soundscape *s, unsigned timeout)
 		unsigned long flags;
 		unsigned char x;
 
-		sleep(1, TASK_INTERRUPTIBLE);
+		schedule_timeout_interruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));
@@ -1288,8 +1274,7 @@ static int __devinit create_sscape(const struct params *params, snd_card_t **rca
 	free_dma(params->dma1);
 
 	_release_region:
-	release_resource(io_res);
-	kfree_nocheck(io_res);
+	release_and_free_resource(io_res);
 
 	return err;
 }

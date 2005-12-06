@@ -505,7 +505,9 @@ void show_mem(void)
 
 		for (j = node_start_pfn(i); j < node_end_pfn(i); j++) {
 			struct page *p;
+			unsigned long flags;
 
+			pgdat_resize_lock(NODE_DATA(i), &flags);
 			p = nid_page_nr(i, j) - node_start_pfn(i);
 
 			total++;
@@ -517,6 +519,7 @@ void show_mem(void)
 				free++;
 			else
 				shared += page_count(p) - 1;
+			pgdat_resize_unlock(NODE_DATA(i), &flags);
         	}
 	}
 #endif

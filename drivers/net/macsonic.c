@@ -47,7 +47,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/bootinfo.h>
@@ -525,7 +525,7 @@ int __init mac_nubus_sonic_probe(struct net_device* dev)
 	return macsonic_init(dev);
 }
 
-static int __init mac_sonic_probe(struct device *device)
+static int __init mac_sonic_probe(struct platform_device *device)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
@@ -537,8 +537,8 @@ static int __init mac_sonic_probe(struct device *device)
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
-	lp->device = device;
-	SET_NETDEV_DEV(dev, device);
+	lp->device = &device->dev;
+	SET_NETDEV_DEV(dev, &device->dev);
  	SET_MODULE_OWNER(dev);
 
 	/* This will catch fatal stuff like -ENOMEM as well as success */
@@ -579,9 +579,9 @@ MODULE_PARM_DESC(sonic_debug, "macsonic debug level (1-4)");
 
 #include "sonic.c"
 
-static int __devexit mac_sonic_device_remove (struct device *device)
+static int __devexit mac_sonic_device_remove (struct platform_device *device)
 {
-	struct net_device *dev = device->driver_data;
+	struct net_device *dev = platform_get_drvdata(device);
 	struct sonic_local* lp = netdev_priv(dev);
 
 	unregister_netdev (dev);
@@ -592,60 +592,44 @@ static int __devexit mac_sonic_device_remove (struct device *device)
 	return 0;
 }
 
-static struct device_driver mac_sonic_driver = {
-	.name   = mac_sonic_string,
-	.bus    = &platform_bus_type,
+static struct platform_driver mac_sonic_driver = {
 	.probe  = mac_sonic_probe,
 	.remove = __devexit_p(mac_sonic_device_remove),
+	.driver	= {
+		.name = mac_sonic_string,
+	},
 };
-
-static void mac_sonic_platform_release(struct device *device)
-{
-	struct platform_device *pldev;
-
-	/* free device */
-	pldev = to_platform_device (device);
-	kfree (pldev);
-}
 
 static int __init mac_sonic_init_module(void)
 {
-	struct platform_device *pldev;
 	int err;
 
-	if ((err = driver_register(&mac_sonic_driver))) {
+	if ((err = platform_driver_register(&mac_sonic_driver))) {
 		printk(KERN_ERR "Driver registration failed\n");
 		return err;
 	}
 
-	mac_sonic_device = NULL;
-
-	if (!(pldev = kmalloc (sizeof (*pldev), GFP_KERNEL))) {
+	mac_sonic_device = platform_device_alloc(mac_sonic_string, 0);
+	if (!mac_sonic_device) {
 		goto out_unregister;
 	}
 
-	memset(pldev, 0, sizeof (*pldev));
-	pldev->name		= mac_sonic_string;
-	pldev->id		= 0;
-	pldev->dev.release	= mac_sonic_platform_release;
-	mac_sonic_device	= pldev;
-
-	if (platform_device_register (pldev)) {
-		kfree(pldev);
+	if (platform_device_add(mac_sonic_device)) {
+		platform_device_put(mac_sonic_device);
 		mac_sonic_device = NULL;
 	}
 
 	return 0;
 
 out_unregister:
-	platform_device_unregister(pldev);
+	driver_unregister(&mac_sonic_driver);
 
 	return -ENOMEM;
 }
 
 static void __exit mac_sonic_cleanup_module(void)
 {
-	driver_unregister(&mac_sonic_driver);
+	platform_driver_unregister(&mac_sonic_driver);
 
 	if (mac_sonic_device) {
 		platform_device_unregister(mac_sonic_device);

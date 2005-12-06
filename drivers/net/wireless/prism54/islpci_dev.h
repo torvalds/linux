@@ -23,7 +23,6 @@
 #ifndef _ISLPCI_DEV_H
 #define _ISLPCI_DEV_H
 
-#include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
@@ -100,9 +99,7 @@ typedef struct {
 
 	struct iw_spy_data spy_data; /* iwspy support */
 
-#if WIRELESS_EXT > 16
 	struct iw_public_data wireless_data;
-#endif /* WIRELESS_EXT > 16 */
 
 	int monitor_type; /* ARPHRD_IEEE80211 or ARPHRD_IEEE80211_PRISM */
 

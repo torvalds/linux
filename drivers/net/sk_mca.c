@@ -93,7 +93,6 @@ History:
 #include <linux/mca-legacy.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>

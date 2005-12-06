@@ -109,7 +109,7 @@ static long cycx_2x_irq_options[]  = { 7, 3, 5, 9, 10, 11, 12, 15 };
  *		< 0	error.
  * Context:	process */
 
-int __init cycx_drv_init(void)
+static int __init cycx_drv_init(void)
 {
 	printk(KERN_INFO "%s v%u.%u %s\n", fullname, MOD_VERSION, MOD_RELEASE,
 			 copyright);
@@ -119,7 +119,7 @@ int __init cycx_drv_init(void)
 
 /* Module 'remove' entry point.
  * o release all remaining system resources */
-void cycx_drv_cleanup(void)
+static void cycx_drv_cleanup(void)
 {
 }
 
@@ -184,8 +184,7 @@ int cycx_down(struct cycx_hw *hw)
 }
 
 /* Enable interrupt generation.  */
-EXPORT_SYMBOL(cycx_inten);
-void cycx_inten(struct cycx_hw *hw)
+static void cycx_inten(struct cycx_hw *hw)
 {
 	writeb(0, hw->dpmbase);
 }

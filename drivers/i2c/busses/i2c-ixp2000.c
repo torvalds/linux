@@ -28,7 +28,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -84,12 +84,11 @@ struct ixp2000_i2c_data {
 	struct i2c_algo_bit_data algo_data;
 };
 
-static int ixp2000_i2c_remove(struct device *dev)
+static int ixp2000_i2c_remove(struct platform_device *plat_dev)
 {
-	struct platform_device *plat_dev = to_platform_device(dev);
-	struct ixp2000_i2c_data *drv_data = dev_get_drvdata(&plat_dev->dev);
+	struct ixp2000_i2c_data *drv_data = platform_get_drvdata(plat_dev);
 
-	dev_set_drvdata(&plat_dev->dev, NULL);
+	platform_set_drvdata(plat_dev, NULL);
 
 	i2c_bit_del_bus(&drv_data->adapter);
 
@@ -98,17 +97,15 @@ static int ixp2000_i2c_remove(struct device *dev)
 	return 0;
 }
 
-static int ixp2000_i2c_probe(struct device *dev)
+static int ixp2000_i2c_probe(struct platform_device *plat_dev)
 {
 	int err;
-	struct platform_device *plat_dev = to_platform_device(dev);
 	struct ixp2000_i2c_pins *gpio = plat_dev->dev.platform_data;
 	struct ixp2000_i2c_data *drv_data = 
-		kmalloc(sizeof(struct ixp2000_i2c_data), GFP_KERNEL);
+		kzalloc(sizeof(struct ixp2000_i2c_data), GFP_KERNEL);
 
 	if (!drv_data)
 		return -ENOMEM;
-	memzero(drv_data, sizeof(*drv_data));
 	drv_data->gpio_pins = gpio;
 
 	drv_data->algo_data.data = gpio;
@@ -121,6 +118,8 @@ static int ixp2000_i2c_probe(struct device *dev)
 	drv_data->algo_data.timeout = 100;
 
 	drv_data->adapter.id = I2C_HW_B_IXP2000,
+	strlcpy(drv_data->adapter.name, plat_dev->dev.driver->name,
+		I2C_NAME_SIZE);
 	drv_data->adapter.algo_data = &drv_data->algo_data,
 
 	drv_data->adapter.dev.parent = &plat_dev->dev;
@@ -131,31 +130,33 @@ static int ixp2000_i2c_probe(struct device *dev)
 	gpio_line_set(gpio->sda_pin, 0);
 
 	if ((err = i2c_bit_add_bus(&drv_data->adapter)) != 0) {
-		dev_err(dev, "Could not install, error %d\n", err);
+		dev_err(&plat_dev->dev, "Could not install, error %d\n", err);
 		kfree(drv_data);
 		return err;
 	} 
 
-	dev_set_drvdata(&plat_dev->dev, drv_data);
+	platform_set_drvdata(plat_dev, drv_data);
 
 	return 0;
 }
 
-static struct device_driver ixp2000_i2c_driver = {
-	.name		= "IXP2000-I2C",
-	.bus		= &platform_bus_type,
+static struct platform_driver ixp2000_i2c_driver = {
 	.probe		= ixp2000_i2c_probe,
 	.remove		= ixp2000_i2c_remove,
+	.driver		= {
+		.name	= "IXP2000-I2C",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init ixp2000_i2c_init(void)
 {
-	return driver_register(&ixp2000_i2c_driver);
+	return platform_driver_register(&ixp2000_i2c_driver);
 }
 
 static void __exit ixp2000_i2c_exit(void)
 {
-	driver_unregister(&ixp2000_i2c_driver);
+	platform_driver_unregister(&ixp2000_i2c_driver);
 }
 
 module_init(ixp2000_i2c_init);

@@ -81,7 +81,8 @@ int via_agp_init(DRM_IOCTL_ARGS)
 
 	AgpHeap = via_mmInit(agp.offset, agp.size);
 
-	DRM_DEBUG("offset = %lu, size = %lu", (unsigned long)agp.offset, (unsigned long)agp.size);
+	DRM_DEBUG("offset = %lu, size = %lu", (unsigned long)agp.offset,
+		  (unsigned long)agp.size);
 
 	return 0;
 }
@@ -97,7 +98,8 @@ int via_fb_init(DRM_IOCTL_ARGS)
 
 	FBHeap = via_mmInit(fb.offset, fb.size);
 
-	DRM_DEBUG("offset = %lu, size = %lu", (unsigned long)fb.offset, (unsigned long)fb.size);
+	DRM_DEBUG("offset = %lu, size = %lu", (unsigned long)fb.offset,
+		  (unsigned long)fb.size);
 
 	return 0;
 }
@@ -134,8 +136,8 @@ int via_init_context(struct drm_device *dev, int context)
 }
 
 int via_final_context(struct drm_device *dev, int context)
-{	
-        int i;
+{
+	int i;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
 
 	for (i = 0; i < MAX_CONTEXT; i++)
@@ -171,14 +173,13 @@ int via_final_context(struct drm_device *dev, int context)
 		via_setDestroy(set);
 		global_ppriv[i].used = 0;
 	}
-	via_release_futex(dev_priv, context); 
-	
-			
+	via_release_futex(dev_priv, context);
+
 #if defined(__linux__)
 	/* Linux specific until context tracking code gets ported to BSD */
 	/* Last context, perform cleanup */
 	if (dev->ctx_count == 1 && dev->dev_private) {
-	        DRM_DEBUG("Last Context\n");
+		DRM_DEBUG("Last Context\n");
 		if (dev->irq)
 			drm_irq_uninstall(dev);
 

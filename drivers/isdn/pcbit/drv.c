@@ -561,10 +561,8 @@ void pcbit_l3_receive(struct pcbit_dev * dev, ulong msg,
 		else
 			pcbit_fsm_event(dev, chan, EV_USR_RELEASE_REQ, NULL);
 
-		if (cbdata.data.setup.CalledPN)
-			kfree(cbdata.data.setup.CalledPN);
-		if (cbdata.data.setup.CallingPN)
-			kfree(cbdata.data.setup.CallingPN);
+		kfree(cbdata.data.setup.CalledPN);
+		kfree(cbdata.data.setup.CallingPN);
 		break;
     
 	case MSG_CONN_CONF:

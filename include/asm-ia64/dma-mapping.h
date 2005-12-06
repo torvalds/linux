@@ -48,12 +48,7 @@ dma_set_mask (struct device *dev, u64 mask)
 	return 0;
 }
 
-static inline int
-dma_get_cache_alignment (void)
-{
-	extern int ia64_max_cacheline_size;
-	return ia64_max_cacheline_size;
-}
+extern int dma_get_cache_alignment(void);
 
 static inline void
 dma_cache_sync (void *vaddr, size_t size, enum dma_data_direction dir)

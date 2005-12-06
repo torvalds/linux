@@ -1,19 +1,19 @@
-// $Id: vmax301.c,v 1.30 2004/07/12 22:38:29 dwmw2 Exp $
+// $Id: vmax301.c,v 1.32 2005/11/07 11:14:29 gleixner Exp $
 /* ######################################################################
 
    Tempustech VMAX SBC301 MTD Driver.
-  
+
    The VMAx 301 is a SBC based on . It
    comes with three builtin AMD 29F016B flash chips and a socket for SRAM or
-   more flash. Each unit has it's own 8k mapping into a settable region 
+   more flash. Each unit has it's own 8k mapping into a settable region
    (0xD8000). There are two 8k mappings for each MTD, the first is always set
    to the lower 8k of the device the second is paged. Writing a 16 bit page
    value to anywhere in the first 8k will cause the second 8k to page around.
 
-   To boot the device a bios extension must be installed into the first 8k 
-   of flash that is smart enough to copy itself down, page in the rest of 
+   To boot the device a bios extension must be installed into the first 8k
+   of flash that is smart enough to copy itself down, page in the rest of
    itself and begin executing.
-   
+
    ##################################################################### */
 
 #include <linux/module.h>
@@ -35,7 +35,7 @@
 /* Actually we could use two spinlocks, but we'd have to have
    more private space in the struct map_info. We lose a little
    performance like this, but we'd probably lose more by having
-   the extra indirection from having one of the map->map_priv 
+   the extra indirection from having one of the map->map_priv
    fields pointing to yet another private struct.
 */
 static DEFINE_SPINLOCK(vmax301_spin);
@@ -98,7 +98,7 @@ static void vmax301_copy_to(struct map_info *map, unsigned long to, const void *
 		spin_lock(&vmax301_spin);
 		vmax301_page(map, to);
 		memcpy_toio(map->map_priv_2 + to, from, thislen);
-		spin_unlock(&vmax301_spin);		
+		spin_unlock(&vmax301_spin);
 		to += thislen;
 		from += thislen;
 		len -= thislen;
@@ -137,7 +137,7 @@ static struct mtd_info *vmax_mtd[2] = {NULL, NULL};
 static void __exit cleanup_vmax301(void)
 {
 	int i;
-	
+
 	for (i=0; i<2; i++) {
 		if (vmax_mtd[i]) {
 			del_mtd_device(vmax_mtd[i]);
@@ -161,13 +161,13 @@ int __init init_vmax301(void)
 		return -EIO;
 	}
 	/* Put the address in the map's private data area.
-	   We store the actual MTD IO address rather than the 
+	   We store the actual MTD IO address rather than the
 	   address of the first half, because it's used more
-	   often. 
+	   often.
 	*/
 	vmax_map[0].map_priv_2 = iomapadr + WINDOW_START;
 	vmax_map[1].map_priv_2 = iomapadr + (3*WINDOW_START);
-	
+
 	for (i=0; i<2; i++) {
 		vmax_mtd[i] = do_map_probe("cfi_probe", &vmax_map[i]);
 		if (!vmax_mtd[i])

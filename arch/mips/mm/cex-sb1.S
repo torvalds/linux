@@ -64,6 +64,10 @@ LEAF(except_vec2_sb1)
 	sd	k0,0x170($0)
 	sd	k1,0x178($0)
 
+#if CONFIG_SB1_CEX_ALWAYS_FATAL
+	j	handle_vec2_sb1
+	 nop
+#else
 	/*
 	 * M_ERRCTL_RECOVERABLE is bit 31, which makes it easy to tell
 	 * if we can fast-path out of here for a h/w-recovered error.
@@ -134,6 +138,7 @@ unrecoverable:
 	/* Unrecoverable Icache or Dcache error; log it and/or fail */
 	j	handle_vec2_sb1
 	 nop
+#endif
 
 END(except_vec2_sb1)
 

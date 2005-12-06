@@ -88,9 +88,7 @@ void show_trace(struct task_struct* task, unsigned long * stack)
 		task = current;
 
 	if (task != current) {
-		//ebp = (unsigned long) KSTK_EBP(task);
-		/* Which one? No actual difference - just coding style.*/
-		ebp = (unsigned long) PT_REGS_EBP(&task->thread.regs);
+		ebp = (unsigned long) KSTK_EBP(task);
 	} else {
 		asm ("movl %%ebp, %0" : "=r" (ebp) : );
 	}
@@ -99,15 +97,6 @@ void show_trace(struct task_struct* task, unsigned long * stack)
 		((unsigned long)stack & (~(THREAD_SIZE - 1)));
 	print_context_stack(context, stack, ebp);
 
-	/*while (((long) stack & (THREAD_SIZE-1)) != 0) {
-		addr = *stack;
-		if (__kernel_text_address(addr)) {
-			printk("%08lx:	[<%08lx>]", (unsigned long) stack, addr);
-			print_symbol(" %s", addr);
-			printk("\n");
-		}
-		stack++;
-	}*/
 	printk("\n");
 }
 

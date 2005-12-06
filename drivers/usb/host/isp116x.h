@@ -253,7 +253,6 @@ static const int cc_to_error[16] = {
 
 struct isp116x {
 	spinlock_t lock;
-	struct work_struct rh_resume;
 
 	void __iomem *addr_reg;
 	void __iomem *data_reg;

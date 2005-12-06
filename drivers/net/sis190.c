@@ -842,7 +842,7 @@ static void sis190_set_rx_mode(struct net_device *dev)
 		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
 		     i++, mclist = mclist->next) {
 			int bit_nr =
-				ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
+				ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3f;
 			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
 			rx_mode |= AcceptMulticast;
 		}

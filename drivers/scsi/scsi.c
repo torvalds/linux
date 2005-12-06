@@ -130,7 +130,7 @@ EXPORT_SYMBOL(scsi_device_types);
  * Returns:     Pointer to request block.
  */
 struct scsi_request *scsi_allocate_request(struct scsi_device *sdev,
-					   int gfp_mask)
+					   gfp_t gfp_mask)
 {
 	const int offset = ALIGN(sizeof(struct scsi_request), 4);
 	const int size = offset + sizeof(struct request);
@@ -196,7 +196,7 @@ struct scsi_host_cmd_pool {
 	unsigned int	users;
 	char		*name;
 	unsigned int	slab_flags;
-	unsigned int	gfp_mask;
+	gfp_t		gfp_mask;
 };
 
 static struct scsi_host_cmd_pool scsi_cmd_pool = {
@@ -213,7 +213,7 @@ static struct scsi_host_cmd_pool scsi_cmd_dma_pool = {
 static DECLARE_MUTEX(host_cmd_pool_mutex);
 
 static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
-					    int gfp_mask)
+					    gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd;
 
@@ -245,7 +245,7 @@ static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
  *
  * Returns:	The allocated scsi command structure.
  */
-struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
+struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd;
 
@@ -265,10 +265,10 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
 		spin_lock_irqsave(&dev->list_lock, flags);
 		list_add_tail(&cmd->list, &dev->cmd_list);
 		spin_unlock_irqrestore(&dev->list_lock, flags);
+		cmd->jiffies_at_alloc = jiffies;
 	} else
 		put_device(&dev->sdev_gendev);
 
-	cmd->jiffies_at_alloc = jiffies;
 	return cmd;
 }				
 EXPORT_SYMBOL(scsi_get_command);
@@ -410,9 +410,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 				       SCSI_LOG_MLQUEUE_BITS);
 		if (level > 1) {
 			sdev = cmd->device;
-			printk(KERN_INFO "scsi <%d:%d:%d:%d> send ",
-			       sdev->host->host_no, sdev->channel, sdev->id,
-			       sdev->lun);
+			sdev_printk(KERN_INFO, sdev, "send ");
 			if (level > 2)
 				printk("0x%p ", cmd);
 			/*
@@ -456,9 +454,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 		if (((level > 0) && (cmd->result || disposition != SUCCESS)) ||
 		    (level > 1)) {
 			sdev = cmd->device;
-			printk(KERN_INFO "scsi <%d:%d:%d:%d> done ",
-			       sdev->host->host_no, sdev->channel, sdev->id,
-			       sdev->lun);
+			sdev_printk(KERN_INFO, sdev, "done ");
 			if (level > 2)
 				printk("0x%p ", cmd);
 			/*
@@ -810,9 +806,9 @@ static void scsi_softirq(struct softirq_action *h)
 		disposition = scsi_decide_disposition(cmd);
 		if (disposition != SUCCESS &&
 		    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
-			dev_printk(KERN_ERR, &cmd->device->sdev_gendev, 
-				   "timing out command, waited %lus\n",
-				   wait_for/HZ);
+			sdev_printk(KERN_ERR, cmd->device,
+				    "timing out command, waited %lus\n",
+				    wait_for/HZ);
 			disposition = SUCCESS;
 		}
 			
@@ -893,8 +889,9 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	if (SCSI_SENSE_VALID(cmd))
 		cmd->result |= (DRIVER_SENSE << 24);
 
-	SCSI_LOG_MLCOMPLETE(4, printk("Notifying upper driver of completion "
-				"for device %d %x\n", sdev->id, cmd->result));
+	SCSI_LOG_MLCOMPLETE(4, sdev_printk(KERN_INFO, sdev,
+				"Notifying upper driver of completion "
+				"(result %x)\n", cmd->result));
 
 	/*
 	 * We can get here with use_sg=0, causing a panic in the upper level
@@ -970,10 +967,9 @@ void scsi_adjust_queue_depth(struct scsi_device *sdev, int tagged, int tags)
 			sdev->simple_tags = 1;
 			break;
 		default:
-			printk(KERN_WARNING "(scsi%d:%d:%d:%d) "
-				"scsi_adjust_queue_depth, bad queue type, "
-				"disabled\n", sdev->host->host_no,
-				sdev->channel, sdev->id, sdev->lun); 
+			sdev_printk(KERN_WARNING, sdev,
+				    "scsi_adjust_queue_depth, bad queue type, "
+				    "disabled\n");
 		case 0:
 			sdev->ordered_tags = sdev->simple_tags = 0;
 			sdev->queue_depth = tags;

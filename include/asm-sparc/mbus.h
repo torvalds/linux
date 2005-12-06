@@ -83,7 +83,7 @@ extern unsigned int hwbug_bitmask;
  */
 #define TBR_ID_SHIFT            20
 
-extern __inline__ int get_cpuid(void)
+static inline int get_cpuid(void)
 {
 	register int retval;
 	__asm__ __volatile__("rd %%tbr, %0\n\t"
@@ -93,7 +93,7 @@ extern __inline__ int get_cpuid(void)
 	return (retval & 3);
 }
 
-extern __inline__ int get_modid(void)
+static inline int get_modid(void)
 {
 	return (get_cpuid() | 0x8);
 }

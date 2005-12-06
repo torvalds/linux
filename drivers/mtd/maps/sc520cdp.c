@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  *
- * $Id: sc520cdp.c,v 1.21 2004/12/13 10:27:08 dedekind Exp $
+ * $Id: sc520cdp.c,v 1.23 2005/11/17 08:20:27 dwmw2 Exp $
  *
  *
  * The SC520CDP is an evaluation board for the Elan SC520 processor available
@@ -164,7 +164,7 @@ struct sc520_par_table
 	unsigned long default_address;
 };
 
-static struct sc520_par_table par_table[NUM_FLASH_BANKS] =
+static const struct sc520_par_table par_table[NUM_FLASH_BANKS] =
 {
 	{	/* Flash Bank #0: selected by ROMCS0 */
 		SC520_PAR_ROMCS0,
@@ -231,7 +231,7 @@ static void sc520cdp_setup_par(void)
 static int __init init_sc520cdp(void)
 {
 	int i, devices_found = 0;
-	
+
 #ifdef REPROGRAM_PAR
 	/* reprogram PAR registers so flash appears at the desired addresses */
 	sc520cdp_setup_par();
@@ -278,7 +278,7 @@ static int __init init_sc520cdp(void)
 static void __exit cleanup_sc520cdp(void)
 {
 	int i;
-	
+
 	if (merged_mtd) {
 		del_mtd_device(merged_mtd);
 		mtd_concat_destroy(merged_mtd);

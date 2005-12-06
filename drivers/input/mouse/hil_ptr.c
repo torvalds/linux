@@ -196,7 +196,7 @@ static irqreturn_t hil_ptr_interrupt(struct serio *serio,
 	hil_packet packet;
 	int idx;
 
-	ptr = (struct hil_ptr *)serio->private;
+	ptr = serio_get_drvdata(serio);
 	if (ptr == NULL) {
 		BUG();
 		return IRQ_HANDLED;
@@ -227,7 +227,7 @@ static void hil_ptr_disconnect(struct serio *serio)
 {
 	struct hil_ptr *ptr;
 
-	ptr = (struct hil_ptr *)serio->private;
+	ptr = serio_get_drvdata(serio);
 	if (ptr == NULL) {
 		BUG();
 		return;
@@ -238,21 +238,19 @@ static void hil_ptr_disconnect(struct serio *serio)
 	kfree(ptr);
 }
 
-static void hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
+static int hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 {
 	struct hil_ptr	*ptr;
 	char		*txt;
 	unsigned int	i, naxsets, btntype;
 	uint8_t		did, *idd;
 
-	if (serio->type != (SERIO_HIL_MLC | SERIO_HIL)) return;
-
-	if (!(ptr = kmalloc(sizeof(struct hil_ptr), GFP_KERNEL))) return;
+	if (!(ptr = kmalloc(sizeof(struct hil_ptr), GFP_KERNEL))) return -ENOMEM;
 	memset(ptr, 0, sizeof(struct hil_ptr));
 
 	if (serio_open(serio, driver)) goto bail0;
 
-	serio->private = ptr;
+	serio_set_drvdata(serio, ptr);
 	ptr->serio = serio;
 	ptr->dev.private = ptr;
 
@@ -380,23 +378,34 @@ static void hil_ptr_connect(struct serio *serio, struct serio_driver *driver)
 		(btntype == BTN_MOUSE) ? "HIL mouse":"HIL tablet or touchpad",
 		did);
 
-	return;
+	return 0;
  bail1:
 	serio_close(serio);
  bail0:
 	kfree(ptr);
-	return;
+	serio_set_drvdata(serio, NULL);
+	return -ENODEV;
 }
 
+static struct serio_device_id hil_ptr_ids[] = {
+	{
+		.type = SERIO_HIL_MLC,
+		.proto = SERIO_HIL,
+		.id = SERIO_ANY,
+		.extra = SERIO_ANY,
+	},
+	{ 0 }
+};
 
 static struct serio_driver hil_ptr_serio_driver = {
 	.driver		= {
 		.name	= "hil_ptr",
 	},
 	.description	= "HP HIL mouse/tablet driver",
-	.connect =	hil_ptr_connect,
-	.disconnect =	hil_ptr_disconnect,
-	.interrupt =	hil_ptr_interrupt
+	.id_table	= hil_ptr_ids,
+	.connect	= hil_ptr_connect,
+	.disconnect	= hil_ptr_disconnect,
+	.interrupt	= hil_ptr_interrupt
 };
 
 static int __init hil_ptr_init(void)

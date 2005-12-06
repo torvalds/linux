@@ -517,10 +517,9 @@ static void sunzilog_transmit_chars(struct uart_sunzilog_port *up,
 	if (up->port.info == NULL)
 		goto ack_tx_int;
 	xmit = &up->port.info->xmit;
-	if (uart_circ_empty(xmit)) {
-		uart_write_wakeup(&up->port);
+	if (uart_circ_empty(xmit))
 		goto ack_tx_int;
-	}
+
 	if (uart_tx_stopped(&up->port))
 		goto ack_tx_int;
 

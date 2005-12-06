@@ -118,6 +118,18 @@ static void tile_cursor(struct vc_data *vc, struct fb_info *info,
 	info->tileops->fb_tilecursor(info, &cursor);
 }
 
+static int tile_update_start(struct fb_info *info)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+	int err;
+
+	err = fb_pan_display(info, &ops->var);
+	ops->var.xoffset = info->var.xoffset;
+	ops->var.yoffset = info->var.yoffset;
+	ops->var.vmode = info->var.vmode;
+	return err;
+}
+
 void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info,
 		       struct display *p, struct fbcon_ops *ops)
 {
@@ -128,6 +140,7 @@ void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info,
 	ops->putcs = tile_putcs;
 	ops->clear_margins = tile_clear_margins;
 	ops->cursor = tile_cursor;
+	ops->update_start = tile_update_start;
 
 	if (p) {
 		map.width = vc->vc_font.width;

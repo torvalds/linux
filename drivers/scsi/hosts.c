@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/transport_class.h>
+#include <linux/platform_device.h>
 
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
@@ -139,11 +140,11 @@ int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 
  illegal:
 	SCSI_LOG_ERROR_RECOVERY(1,
-				dev_printk(KERN_ERR, &shost->shost_gendev,
-					   "Illegal host state transition"
-					   "%s->%s\n",
-					   scsi_host_state_name(oldstate),
-					   scsi_host_state_name(state)));
+				shost_printk(KERN_ERR, shost,
+					     "Illegal host state transition"
+					     "%s->%s\n",
+					     scsi_host_state_name(oldstate),
+					     scsi_host_state_name(state)));
 	return -EINVAL;
 }
 EXPORT_SYMBOL(scsi_host_set_state);
@@ -176,6 +177,7 @@ void scsi_remove_host(struct Scsi_Host *shost)
 	transport_unregister_device(&shost->shost_gendev);
 	class_device_unregister(&shost->shost_classdev);
 	device_del(&shost->shost_gendev);
+	scsi_proc_hostdir_rm(shost->hostt);
 }
 EXPORT_SYMBOL(scsi_remove_host);
 
@@ -262,7 +264,6 @@ static void scsi_host_dev_release(struct device *dev)
 	if (shost->work_q)
 		destroy_workqueue(shost->work_q);
 
-	scsi_proc_hostdir_rm(shost->hostt);
 	scsi_destroy_command_freelist(shost);
 	kfree(shost->shost_data);
 
@@ -287,7 +288,8 @@ static void scsi_host_dev_release(struct device *dev)
 struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 {
 	struct Scsi_Host *shost;
-	int gfp_mask = GFP_KERNEL, rval;
+	gfp_t gfp_mask = GFP_KERNEL;
+	int rval;
 
 	if (sht->unchecked_isa_dma && privsize)
 		gfp_mask |= __GFP_DMA;

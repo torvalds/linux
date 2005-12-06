@@ -194,10 +194,13 @@ asmlinkage int __do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 			       unsigned long address)
 {
 	unsigned long addrmax = P4SEG;
-	pgd_t *dir;
+	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
+	struct mm_struct *mm;
+	spinlock_t *ptl;
+	int ret = 1;
 
 #ifdef CONFIG_SH_KGDB
 	if (kgdb_nofault && kgdb_bus_err_hook)
@@ -208,28 +211,28 @@ asmlinkage int __do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	addrmax = P4SEG_STORE_QUE + 0x04000000;
 #endif
 
-	if (address >= P3SEG && address < addrmax)
-		dir = pgd_offset_k(address);
-	else if (address >= TASK_SIZE)
+	if (address >= P3SEG && address < addrmax) {
+		pgd = pgd_offset_k(address);
+		mm = NULL;
+	} else if (address >= TASK_SIZE)
 		return 1;
-	else if (!current->mm)
+	else if (!(mm = current->mm))
 		return 1;
 	else
-		dir = pgd_offset(current->mm, address);
+		pgd = pgd_offset(mm, address);
 
-	pmd = pmd_offset(dir, address);
-	if (pmd_none(*pmd))
+	pmd = pmd_offset(pgd, address);
+	if (pmd_none_or_clear_bad(pmd))
 		return 1;
-	if (pmd_bad(*pmd)) {
-		pmd_ERROR(*pmd);
-		pmd_clear(pmd);
-		return 1;
-	}
-	pte = pte_offset_kernel(pmd, address);
+	if (mm)
+		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+	else
+		pte = pte_offset_kernel(pmd, address);
+
 	entry = *pte;
 	if (pte_none(entry) || pte_not_present(entry)
 	    || (writeaccess && !pte_write(entry)))
-		return 1;
+		goto unlock;
 
 	if (writeaccess)
 		entry = pte_mkdirty(entry);
@@ -251,8 +254,11 @@ asmlinkage int __do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 
 	set_pte(pte, entry);
 	update_mmu_cache(NULL, address, entry);
-
-	return 0;
+	ret = 0;
+unlock:
+	if (mm)
+		pte_unmap_unlock(pte, ptl);
+	return ret;
 }
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)

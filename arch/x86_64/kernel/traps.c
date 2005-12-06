@@ -428,19 +428,6 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 {
 	conditional_sti(regs);
 
-#ifdef CONFIG_CHECKING
-       { 
-               unsigned long gs; 
-               struct x8664_pda *pda = cpu_pda + safe_smp_processor_id(); 
-               rdmsrl(MSR_GS_BASE, gs); 
-               if (gs != (unsigned long)pda) { 
-                       wrmsrl(MSR_GS_BASE, pda); 
-                       printk("%s: wrong gs %lx expected %p rip %lx\n", str, gs, pda,
-			      regs->rip);
-               }
-       }
-#endif
-
 	if (user_mode(regs)) {
 		struct task_struct *tsk = current;
 
@@ -512,20 +499,6 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 						long error_code)
 {
 	conditional_sti(regs);
-
-#ifdef CONFIG_CHECKING
-       { 
-               unsigned long gs; 
-               struct x8664_pda *pda = cpu_pda + safe_smp_processor_id(); 
-               rdmsrl(MSR_GS_BASE, gs); 
-               if (gs != (unsigned long)pda) { 
-                       wrmsrl(MSR_GS_BASE, pda); 
-		       oops_in_progress++;
-                       printk("general protection handler: wrong gs %lx expected %p\n", gs, pda);
-		       oops_in_progress--;
-               }
-       }
-#endif
 
 	if (user_mode(regs)) {
 		struct task_struct *tsk = current;
@@ -664,19 +637,6 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 	unsigned long condition;
 	struct task_struct *tsk = current;
 	siginfo_t info;
-
-#ifdef CONFIG_CHECKING
-       { 
-	       /* RED-PEN interaction with debugger - could destroy gs */
-               unsigned long gs; 
-               struct x8664_pda *pda = cpu_pda + safe_smp_processor_id(); 
-               rdmsrl(MSR_GS_BASE, gs); 
-               if (gs != (unsigned long)pda) { 
-                       wrmsrl(MSR_GS_BASE, pda); 
-                       printk("debug handler: wrong gs %lx expected %p\n", gs, pda);
-               }
-       }
-#endif
 
 	get_debugreg(condition, 6);
 
@@ -885,6 +845,10 @@ asmlinkage void do_spurious_interrupt_bug(struct pt_regs * regs)
 }
 
 asmlinkage void __attribute__((weak)) smp_thermal_interrupt(void)
+{
+}
+
+asmlinkage void __attribute__((weak)) mce_threshold_interrupt(void)
 {
 }
 

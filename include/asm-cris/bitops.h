@@ -89,7 +89,7 @@ struct __dummy { unsigned long a[100]; };
  * It also implies a memory barrier.
  */
 
-extern inline int test_and_set_bit(int nr, volatile unsigned long *addr)
+static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned long flags;
@@ -105,7 +105,7 @@ extern inline int test_and_set_bit(int nr, volatile unsigned long *addr)
 	return retval;
 }
 
-extern inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned int *adr = (unsigned int *)addr;
@@ -132,7 +132,7 @@ extern inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
  * It also implies a memory barrier.
  */
 
-extern inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
+static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned long flags;
@@ -157,7 +157,7 @@ extern inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
  * but actually fail.  You must protect multiple accesses with a lock.
  */
 
-extern inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned int *adr = (unsigned int *)addr;
@@ -177,7 +177,7 @@ extern inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
  * It also implies a memory barrier.
  */
 
-extern inline int test_and_change_bit(int nr, volatile unsigned long *addr)
+static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned long flags;
@@ -193,7 +193,7 @@ extern inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 
 /* WARNING: non atomic and it can be reordered! */
 
-extern inline int __test_and_change_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_change_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned int mask, retval;
 	unsigned int *adr = (unsigned int *)addr;
@@ -214,7 +214,7 @@ extern inline int __test_and_change_bit(int nr, volatile unsigned long *addr)
  * This routine doesn't need to be atomic.
  */
 
-extern inline int test_bit(int nr, const volatile unsigned long *addr)
+static inline int test_bit(int nr, const volatile unsigned long *addr)
 {
 	unsigned int mask;
 	unsigned int *adr = (unsigned int *)addr;
@@ -258,7 +258,7 @@ extern inline int test_bit(int nr, const volatile unsigned long *addr)
  * @offset: The bitnumber to start searching at
  * @size: The maximum size to search
  */
-extern inline int find_next_zero_bit (const unsigned long * addr, int size, int offset)
+static inline int find_next_zero_bit (const unsigned long * addr, int size, int offset)
 {
 	unsigned long *p = ((unsigned long *) addr) + (offset >> 5);
 	unsigned long result = offset & ~31UL;
@@ -366,7 +366,7 @@ found_middle:
 #define minix_test_bit(nr,addr) test_bit(nr,addr)
 #define minix_find_first_zero_bit(addr,size) find_first_zero_bit(addr,size)
 
-extern inline int sched_find_first_bit(const unsigned long *b)
+static inline int sched_find_first_bit(const unsigned long *b)
 {
 	if (unlikely(b[0]))
 		return __ffs(b[0]);

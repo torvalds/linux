@@ -4,7 +4,7 @@
  *	DECstation 5000/200 (KN02) Control and Status Register
  *	interrupts.
  *
- *	Copyright (c) 2002, 2003  Maciej W. Rozycki
+ *	Copyright (c) 2002, 2003, 2005  Maciej W. Rozycki
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -37,7 +37,8 @@ static int kn02_irq_base;
 
 static inline void unmask_kn02_irq(unsigned int irq)
 {
-	volatile u32 *csr = (volatile u32 *)KN02_CSR_BASE;
+	volatile u32 *csr = (volatile u32 *)CKSEG1ADDR(KN02_SLOT_BASE +
+						       KN02_CSR);
 
 	cached_kn02_csr |= (1 << (irq - kn02_irq_base + 16));
 	*csr = cached_kn02_csr;
@@ -45,7 +46,8 @@ static inline void unmask_kn02_irq(unsigned int irq)
 
 static inline void mask_kn02_irq(unsigned int irq)
 {
-	volatile u32 *csr = (volatile u32 *)KN02_CSR_BASE;
+	volatile u32 *csr = (volatile u32 *)CKSEG1ADDR(KN02_SLOT_BASE +
+						       KN02_CSR);
 
 	cached_kn02_csr &= ~(1 << (irq - kn02_irq_base + 16));
 	*csr = cached_kn02_csr;
@@ -105,13 +107,14 @@ static struct hw_interrupt_type kn02_irq_type = {
 
 void __init init_kn02_irqs(int base)
 {
-	volatile u32 *csr = (volatile u32 *)KN02_CSR_BASE;
+	volatile u32 *csr = (volatile u32 *)CKSEG1ADDR(KN02_SLOT_BASE +
+						       KN02_CSR);
 	unsigned long flags;
 	int i;
 
 	/* Mask interrupts. */
 	spin_lock_irqsave(&kn02_lock, flags);
-	cached_kn02_csr &= ~KN03_CSR_IOINTEN;
+	cached_kn02_csr &= ~KN02_CSR_IOINTEN;
 	*csr = cached_kn02_csr;
 	iob();
 	spin_unlock_irqrestore(&kn02_lock, flags);

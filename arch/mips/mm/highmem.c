@@ -83,6 +83,25 @@ void __kunmap_atomic(void *kvaddr, enum km_type type)
 	preempt_check_resched();
 }
 
+/*
+ * This is the same as kmap_atomic() but can map memory that doesn't
+ * have a struct page associated with it.
+ */
+void *kmap_atomic_pfn(unsigned long pfn, enum km_type type)
+{
+	enum fixed_addresses idx;
+	unsigned long vaddr;
+
+	inc_preempt_count();
+
+	idx = type + KM_TYPE_NR*smp_processor_id();
+	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+	set_pte(kmap_pte-idx, pfn_pte(pfn, kmap_prot));
+	flush_tlb_one(vaddr);
+
+	return (void*) vaddr;
+}
+
 struct page *__kmap_atomic_to_page(void *ptr)
 {
 	unsigned long idx, vaddr = (unsigned long)ptr;

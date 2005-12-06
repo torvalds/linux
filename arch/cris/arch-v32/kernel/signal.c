@@ -513,7 +513,7 @@ give_sigsegv:
 }
 
 /* Invoke a singal handler to, well, handle the signal. */
-extern inline void
+static inline void
 handle_signal(int canrestart, unsigned long sig,
 	      siginfo_t *info, struct k_sigaction *ka,
               sigset_t *oldset, struct pt_regs * regs)

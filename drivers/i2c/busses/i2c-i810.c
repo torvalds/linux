@@ -32,6 +32,7 @@
    i810AB		7123           
    i810E		7125           
    i815			1132           
+   i845G		2562
 */
 
 #include <linux/kernel.h>

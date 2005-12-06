@@ -24,7 +24,6 @@
 #include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
-#include <asm/kbio.h>
 
 #define SUNOS_NR_OPEN	256
 

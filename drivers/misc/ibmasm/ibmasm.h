@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/input.h>

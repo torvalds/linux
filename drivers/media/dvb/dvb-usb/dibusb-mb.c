@@ -82,13 +82,15 @@ static int dibusb_tuner_probe_and_attach(struct dvb_usb_device *d)
 static struct dvb_usb_properties dibusb1_1_properties;
 static struct dvb_usb_properties dibusb1_1_an2235_properties;
 static struct dvb_usb_properties dibusb2_0b_properties;
+static struct dvb_usb_properties artec_t1_usb2_properties;
 
 static int dibusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	if (dvb_usb_device_init(intf,&dibusb1_1_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&dibusb1_1_an2235_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&dibusb2_0b_properties,THIS_MODULE,NULL) == 0)
+		dvb_usb_device_init(intf,&dibusb2_0b_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&artec_t1_usb2_properties,THIS_MODULE,NULL) == 0)
 		return 0;
 
 	return -EINVAL;
@@ -128,10 +130,13 @@ static struct usb_device_id dibusb_dib3000mb_table [] = {
 
 /* 27 */	{ USB_DEVICE(USB_VID_KWORLD,		USB_PID_KWORLD_VSTREAM_COLD) },
 
+/* 28 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,		USB_PID_ULTIMA_TVBOX_USB2_COLD) },
+/* 29 */	{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC,		USB_PID_ULTIMA_TVBOX_USB2_WARM) },
+
 // #define DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
 
 #ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
-/* 28 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
+/* 30 */	{ USB_DEVICE(USB_VID_ANCHOR,		USB_PID_ULTIMA_TVBOX_ANCHOR_COLD) },
 #endif
 			{ }		/* Terminating entry */
 };
@@ -264,7 +269,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 		},
 #ifdef DVB_USB_DIBUSB_MB_FAULTY_USB_IDs
 		{	"Artec T1 USB1.1 TVBOX with AN2235 (faulty USB IDs)",
-			{ &dibusb_dib3000mb_table[28], NULL },
+			{ &dibusb_dib3000mb_table[30], NULL },
 			{ NULL },
 		},
 #endif
@@ -273,7 +278,7 @@ static struct dvb_usb_properties dibusb1_1_an2235_properties = {
 
 static struct dvb_usb_properties dibusb2_0b_properties = {
 	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
-	.pid_filter_count = 32,
+	.pid_filter_count = 16,
 
 	.usb_ctrl = CYPRESS_FX2,
 
@@ -317,6 +322,52 @@ static struct dvb_usb_properties dibusb2_0b_properties = {
 		{	"KWorld Xpert DVB-T USB2.0",
 			{ &dibusb_dib3000mb_table[27], NULL },
 			{ NULL }
+		},
+	}
+};
+
+static struct dvb_usb_properties artec_t1_usb2_properties = {
+	.caps = DVB_USB_HAS_PID_FILTER | DVB_USB_PID_FILTER_CAN_BE_TURNED_OFF | DVB_USB_IS_AN_I2C_ADAPTER,
+	.pid_filter_count = 16,
+
+	.usb_ctrl = CYPRESS_FX2,
+
+	.firmware = "dvb-usb-dibusb-6.0.0.8.fw",
+
+	.size_of_priv     = sizeof(struct dibusb_state),
+
+	.streaming_ctrl   = dibusb2_0_streaming_ctrl,
+	.pid_filter       = dibusb_pid_filter,
+	.pid_filter_ctrl  = dibusb_pid_filter_ctrl,
+	.power_ctrl       = dibusb2_0_power_ctrl,
+	.frontend_attach  = dibusb_dib3000mb_frontend_attach,
+	.tuner_attach     = dibusb_tuner_probe_and_attach,
+
+	.rc_interval      = DEFAULT_RC_INTERVAL,
+	.rc_key_map       = dibusb_rc_keys,
+	.rc_key_map_size  = 63, /* wow, that is ugly ... I want to load it to the driver dynamically */
+	.rc_query         = dibusb_rc_query,
+
+	.i2c_algo         = &dibusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+	/* parameter for the MPEG2-data transfer */
+	.urb = {
+		.type = DVB_USB_BULK,
+		.count = 7,
+		.endpoint = 0x06,
+		.u = {
+			.bulk = {
+				.buffersize = 4096,
+			}
+		}
+	},
+
+	.num_device_descs = 1,
+	.devices = {
+		{	"Artec T1 USB2.0",
+			{ &dibusb_dib3000mb_table[28], NULL },
+			{ &dibusb_dib3000mb_table[29], NULL },
 		},
 	}
 };

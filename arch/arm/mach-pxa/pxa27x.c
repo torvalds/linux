@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/pm.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -157,7 +157,7 @@ void pxa_cpu_pm_enter(suspend_state_t state)
 	case PM_SUSPEND_MEM:
 		/* set resume return address */
 		PSPR = virt_to_phys(pxa_cpu_resume);
-		pxa_cpu_suspend(3);
+		pxa_cpu_suspend(PWRMODE_SLEEP);
 		break;
 	}
 }

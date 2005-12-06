@@ -68,15 +68,15 @@
 #define DRM_IOCTL_WAIT_VBLANK32		DRM_IOWR(0x3a, drm_wait_vblank32_t)
 
 typedef struct drm_version_32 {
-	int	version_major;	  /**< Major version */
-	int	version_minor;	  /**< Minor version */
-	int	version_patchlevel;/**< Patch level */
-	u32	name_len;	  /**< Length of name buffer */
-	u32	name;		  /**< Name of driver */
-	u32	date_len;	  /**< Length of date buffer */
-	u32	date;		  /**< User-space buffer to hold date */
-	u32	desc_len;	  /**< Length of desc buffer */
-	u32	desc;		  /**< User-space buffer to hold desc */
+	int version_major;	  /**< Major version */
+	int version_minor;	  /**< Minor version */
+	int version_patchlevel;	   /**< Patch level */
+	u32 name_len;		  /**< Length of name buffer */
+	u32 name;		  /**< Name of driver */
+	u32 date_len;		  /**< Length of date buffer */
+	u32 date;		  /**< User-space buffer to hold date */
+	u32 desc_len;		  /**< Length of desc buffer */
+	u32 desc;		  /**< User-space buffer to hold desc */
 } drm_version32_t;
 
 static int compat_drm_version(struct file *file, unsigned int cmd,
@@ -86,7 +86,7 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 	drm_version_t __user *version;
 	int err;
 
-	if (copy_from_user(&v32, (void __user *) arg, sizeof(v32)))
+	if (copy_from_user(&v32, (void __user *)arg, sizeof(v32)))
 		return -EFAULT;
 
 	version = compat_alloc_user_space(sizeof(*version));
@@ -104,7 +104,7 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_VERSION, (unsigned long) version);
+			DRM_IOCTL_VERSION, (unsigned long)version);
 	if (err)
 		return err;
 
@@ -116,7 +116,7 @@ static int compat_drm_version(struct file *file, unsigned int cmd,
 	    || __get_user(v32.desc_len, &version->desc_len))
 		return -EFAULT;
 
-	if (copy_to_user((void __user *) arg, &v32, sizeof(v32)))
+	if (copy_to_user((void __user *)arg, &v32, sizeof(v32)))
 		return -EFAULT;
 	return 0;
 }
@@ -133,25 +133,25 @@ static int compat_drm_getunique(struct file *file, unsigned int cmd,
 	drm_unique_t __user *u;
 	int err;
 
-	if (copy_from_user(&uq32, (void __user *) arg, sizeof(uq32)))
+	if (copy_from_user(&uq32, (void __user *)arg, sizeof(uq32)))
 		return -EFAULT;
 
 	u = compat_alloc_user_space(sizeof(*u));
 	if (!access_ok(VERIFY_WRITE, u, sizeof(*u)))
 		return -EFAULT;
 	if (__put_user(uq32.unique_len, &u->unique_len)
-	    || __put_user((void __user *)(unsigned long) uq32.unique,
+	    || __put_user((void __user *)(unsigned long)uq32.unique,
 			  &u->unique))
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_GET_UNIQUE, (unsigned long) u);
+			DRM_IOCTL_GET_UNIQUE, (unsigned long)u);
 	if (err)
 		return err;
 
 	if (__get_user(uq32.unique_len, &u->unique_len))
 		return -EFAULT;
-	if (copy_to_user((void __user *) arg, &uq32, sizeof(uq32)))
+	if (copy_to_user((void __user *)arg, &uq32, sizeof(uq32)))
 		return -EFAULT;
 	return 0;
 }
@@ -162,28 +162,28 @@ static int compat_drm_setunique(struct file *file, unsigned int cmd,
 	drm_unique32_t uq32;
 	drm_unique_t __user *u;
 
-	if (copy_from_user(&uq32, (void __user *) arg, sizeof(uq32)))
+	if (copy_from_user(&uq32, (void __user *)arg, sizeof(uq32)))
 		return -EFAULT;
 
 	u = compat_alloc_user_space(sizeof(*u));
 	if (!access_ok(VERIFY_WRITE, u, sizeof(*u)))
 		return -EFAULT;
 	if (__put_user(uq32.unique_len, &u->unique_len)
-	    || __put_user((void __user *)(unsigned long) uq32.unique,
+	    || __put_user((void __user *)(unsigned long)uq32.unique,
 			  &u->unique))
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_SET_UNIQUE, (unsigned long) u);
+			 DRM_IOCTL_SET_UNIQUE, (unsigned long)u);
 }
 
 typedef struct drm_map32 {
-	u32	offset;	 	/**< Requested physical address (0 for SAREA)*/
-	u32	size;	 	/**< Requested physical size (bytes) */
-	drm_map_type_t	type;	/**< Type of memory to map */
+	u32 offset;		/**< Requested physical address (0 for SAREA)*/
+	u32 size;		/**< Requested physical size (bytes) */
+	drm_map_type_t type;	/**< Type of memory to map */
 	drm_map_flags_t flags;	/**< Flags */
-	u32	handle;		/**< User-space: "Handle" to pass to mmap() */
-	int	mtrr;		/**< MTRR slot used */
+	u32 handle;		/**< User-space: "Handle" to pass to mmap() */
+	int mtrr;		/**< MTRR slot used */
 } drm_map32_t;
 
 static int compat_drm_getmap(struct file *file, unsigned int cmd,
@@ -205,7 +205,7 @@ static int compat_drm_getmap(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_GET_MAP, (unsigned long) map);
+			DRM_IOCTL_GET_MAP, (unsigned long)map);
 	if (err)
 		return err;
 
@@ -217,7 +217,7 @@ static int compat_drm_getmap(struct file *file, unsigned int cmd,
 	    || __get_user(m32.mtrr, &map->mtrr))
 		return -EFAULT;
 
-	m32.handle = (unsigned long) handle;
+	m32.handle = (unsigned long)handle;
 	if (copy_to_user(argp, &m32, sizeof(m32)))
 		return -EFAULT;
 	return 0;
@@ -246,7 +246,7 @@ static int compat_drm_addmap(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_ADD_MAP, (unsigned long) map);
+			DRM_IOCTL_ADD_MAP, (unsigned long)map);
 	if (err)
 		return err;
 
@@ -255,8 +255,8 @@ static int compat_drm_addmap(struct file *file, unsigned int cmd,
 	    || __get_user(handle, &map->handle))
 		return -EFAULT;
 
-	m32.handle = (unsigned long) handle;
-	if (m32.handle != (unsigned long) handle && printk_ratelimit())
+	m32.handle = (unsigned long)handle;
+	if (m32.handle != (unsigned long)handle && printk_ratelimit())
 		printk(KERN_ERR "compat_drm_addmap truncated handle"
 		       " %p for type %d offset %x\n",
 		       handle, m32.type, m32.offset);
@@ -280,20 +280,20 @@ static int compat_drm_rmmap(struct file *file, unsigned int cmd,
 	map = compat_alloc_user_space(sizeof(*map));
 	if (!access_ok(VERIFY_WRITE, map, sizeof(*map)))
 		return -EFAULT;
-	if (__put_user((void *)(unsigned long) handle, &map->handle))
+	if (__put_user((void *)(unsigned long)handle, &map->handle))
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RM_MAP, (unsigned long) map);
+			 DRM_IOCTL_RM_MAP, (unsigned long)map);
 }
 
 typedef struct drm_client32 {
-	int	idx;	/**< Which client desired? */
-	int	auth;	/**< Is client authenticated? */
-	u32	pid;	/**< Process ID */
-	u32	uid;	/**< User ID */
-	u32	magic;	/**< Magic */
-	u32	iocs;	/**< Ioctl count */
+	int idx;	/**< Which client desired? */
+	int auth;	/**< Is client authenticated? */
+	u32 pid;	/**< Process ID */
+	u32 uid;	/**< User ID */
+	u32 magic;	/**< Magic */
+	u32 iocs;	/**< Ioctl count */
 } drm_client32_t;
 
 static int compat_drm_getclient(struct file *file, unsigned int cmd,
@@ -314,7 +314,7 @@ static int compat_drm_getclient(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_GET_CLIENT, (unsigned long) client);
+			DRM_IOCTL_GET_CLIENT, (unsigned long)client);
 	if (err)
 		return err;
 
@@ -351,7 +351,7 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_GET_STATS, (unsigned long) stats);
+			DRM_IOCTL_GET_STATS, (unsigned long)stats);
 	if (err)
 		return err;
 
@@ -368,12 +368,12 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 }
 
 typedef struct drm_buf_desc32 {
-	int	      count;	 /**< Number of buffers of this size */
-	int	      size;	 /**< Size in bytes */
-	int	      low_mark;	 /**< Low water mark */
-	int	      high_mark; /**< High water mark */
-	int	      flags;
-	u32	      agp_start; /**< Start address in the AGP aperture */
+	int count;		 /**< Number of buffers of this size */
+	int size;		 /**< Size in bytes */
+	int low_mark;		 /**< Low water mark */
+	int high_mark;		 /**< High water mark */
+	int flags;
+	u32 agp_start;		 /**< Start address in the AGP aperture */
 } drm_buf_desc32_t;
 
 static int compat_drm_addbufs(struct file *file, unsigned int cmd,
@@ -395,7 +395,7 @@ static int compat_drm_addbufs(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_ADD_BUFS, (unsigned long) buf);
+			DRM_IOCTL_ADD_BUFS, (unsigned long)buf);
 	if (err)
 		return err;
 
@@ -427,12 +427,12 @@ static int compat_drm_markbufs(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_MARK_BUFS, (unsigned long) buf);
+			 DRM_IOCTL_MARK_BUFS, (unsigned long)buf);
 }
 
 typedef struct drm_buf_info32 {
-	int	       count;	/**< Entries in list */
-	u32	       list;
+	int count;		/**< Entries in list */
+	u32 list;
 } drm_buf_info32_t;
 
 static int compat_drm_infobufs(struct file *file, unsigned int cmd,
@@ -451,7 +451,7 @@ static int compat_drm_infobufs(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	count = req32.count;
-	to = (drm_buf_desc32_t __user *)(unsigned long) req32.list;
+	to = (drm_buf_desc32_t __user *) (unsigned long)req32.list;
 	if (count < 0)
 		count = 0;
 	if (count > 0
@@ -469,7 +469,7 @@ static int compat_drm_infobufs(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_INFO_BUFS, (unsigned long) request);
+			DRM_IOCTL_INFO_BUFS, (unsigned long)request);
 	if (err)
 		return err;
 
@@ -488,16 +488,16 @@ static int compat_drm_infobufs(struct file *file, unsigned int cmd,
 }
 
 typedef struct drm_buf_pub32 {
-	int	idx;		/**< Index into the master buffer list */
-	int	total;		/**< Buffer size */
-	int	used;		/**< Amount of buffer in use (for DMA) */
-	u32	address;	/**< Address of buffer */
+	int idx;		/**< Index into the master buffer list */
+	int total;		/**< Buffer size */
+	int used;		/**< Amount of buffer in use (for DMA) */
+	u32 address;		/**< Address of buffer */
 } drm_buf_pub32_t;
 
 typedef struct drm_buf_map32 {
-	int	count;		/**< Length of the buffer list */
-	u32	virtual;	/**< Mmap'd area in user-virtual */
-	u32	list;		/**< Buffer information */
+	int count;		/**< Length of the buffer list */
+	u32 virtual;		/**< Mmap'd area in user-virtual */
+	u32 list;		/**< Buffer information */
 } drm_buf_map32_t;
 
 static int compat_drm_mapbufs(struct file *file, unsigned int cmd,
@@ -531,7 +531,7 @@ static int compat_drm_mapbufs(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_MAP_BUFS, (unsigned long) request);
+			DRM_IOCTL_MAP_BUFS, (unsigned long)request);
 	if (err)
 		return err;
 
@@ -542,21 +542,21 @@ static int compat_drm_mapbufs(struct file *file, unsigned int cmd,
 			if (__copy_in_user(&list32[i], &list[i],
 					   offsetof(drm_buf_pub_t, address))
 			    || __get_user(addr, &list[i].address)
-			    || __put_user((unsigned long) addr,
+			    || __put_user((unsigned long)addr,
 					  &list32[i].address))
 				return -EFAULT;
 
 	if (__put_user(actual, &argp->count)
 	    || __get_user(addr, &request->virtual)
-	    || __put_user((unsigned long) addr, &argp->virtual))
+	    || __put_user((unsigned long)addr, &argp->virtual))
 		return -EFAULT;
 
 	return 0;
 }
 
 typedef struct drm_buf_free32 {
-	int	count;
-	u32	list;
+	int count;
+	u32 list;
 } drm_buf_free32_t;
 
 static int compat_drm_freebufs(struct file *file, unsigned int cmd,
@@ -573,17 +573,17 @@ static int compat_drm_freebufs(struct file *file, unsigned int cmd,
 	if (!access_ok(VERIFY_WRITE, request, sizeof(*request)))
 		return -EFAULT;
 	if (__put_user(req32.count, &request->count)
-	    || __put_user((int __user *)(unsigned long) req32.list,
+	    || __put_user((int __user *)(unsigned long)req32.list,
 			  &request->list))
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_FREE_BUFS, (unsigned long) request);
+			 DRM_IOCTL_FREE_BUFS, (unsigned long)request);
 }
 
 typedef struct drm_ctx_priv_map32 {
-	unsigned int	ctx_id;  /**< Context requesting private mapping */
-	u32		handle; /**< Handle of map */
+	unsigned int ctx_id;	 /**< Context requesting private mapping */
+	u32 handle;		/**< Handle of map */
 } drm_ctx_priv_map32_t;
 
 static int compat_drm_setsareactx(struct file *file, unsigned int cmd,
@@ -600,12 +600,12 @@ static int compat_drm_setsareactx(struct file *file, unsigned int cmd,
 	if (!access_ok(VERIFY_WRITE, request, sizeof(*request)))
 		return -EFAULT;
 	if (__put_user(req32.ctx_id, &request->ctx_id)
-	    || __put_user((void *)(unsigned long) req32.handle,
+	    || __put_user((void *)(unsigned long)req32.handle,
 			  &request->handle))
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_SET_SAREA_CTX, (unsigned long) request);
+			 DRM_IOCTL_SET_SAREA_CTX, (unsigned long)request);
 }
 
 static int compat_drm_getsareactx(struct file *file, unsigned int cmd,
@@ -628,20 +628,20 @@ static int compat_drm_getsareactx(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_GET_SAREA_CTX, (unsigned long) request);
+			DRM_IOCTL_GET_SAREA_CTX, (unsigned long)request);
 	if (err)
 		return err;
 
 	if (__get_user(handle, &request->handle)
-	    || __put_user((unsigned long) handle, &argp->handle))
+	    || __put_user((unsigned long)handle, &argp->handle))
 		return -EFAULT;
 
 	return 0;
 }
 
 typedef struct drm_ctx_res32 {
-	int	count;
-	u32	contexts;
+	int count;
+	u32 contexts;
 } drm_ctx_res32_t;
 
 static int compat_drm_resctx(struct file *file, unsigned int cmd,
@@ -659,12 +659,12 @@ static int compat_drm_resctx(struct file *file, unsigned int cmd,
 	if (!access_ok(VERIFY_WRITE, res, sizeof(*res)))
 		return -EFAULT;
 	if (__put_user(res32.count, &res->count)
-	    || __put_user((drm_ctx_t __user *)(unsigned long) res32.contexts,
+	    || __put_user((drm_ctx_t __user *) (unsigned long)res32.contexts,
 			  &res->contexts))
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_RES_CTX, (unsigned long) res);
+			DRM_IOCTL_RES_CTX, (unsigned long)res);
 	if (err)
 		return err;
 
@@ -676,23 +676,23 @@ static int compat_drm_resctx(struct file *file, unsigned int cmd,
 }
 
 typedef struct drm_dma32 {
-	int	context;	  /**< Context handle */
-	int	send_count;	  /**< Number of buffers to send */
-	u32	send_indices;	  /**< List of handles to buffers */
-	u32	send_sizes;	  /**< Lengths of data to send */
+	int context;		  /**< Context handle */
+	int send_count;		  /**< Number of buffers to send */
+	u32 send_indices;	  /**< List of handles to buffers */
+	u32 send_sizes;		  /**< Lengths of data to send */
 	drm_dma_flags_t flags;		  /**< Flags */
-	int	request_count;	  /**< Number of buffers requested */
-	int	request_size;	  /**< Desired size for buffers */
-	u32	request_indices;  /**< Buffer information */
-	u32	request_sizes;
-	int	granted_count;	  /**< Number of buffers granted */
+	int request_count;	  /**< Number of buffers requested */
+	int request_size;	  /**< Desired size for buffers */
+	u32 request_indices;	  /**< Buffer information */
+	u32 request_sizes;
+	int granted_count;	  /**< Number of buffers granted */
 } drm_dma32_t;
 
 static int compat_drm_dma(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
 	drm_dma32_t d32;
-	drm_dma32_t __user *argp = (void __user *) arg;
+	drm_dma32_t __user *argp = (void __user *)arg;
 	drm_dma_t __user *d;
 	int err;
 
@@ -705,20 +705,20 @@ static int compat_drm_dma(struct file *file, unsigned int cmd,
 
 	if (__put_user(d32.context, &d->context)
 	    || __put_user(d32.send_count, &d->send_count)
-	    || __put_user((int __user *)(unsigned long) d32.send_indices,
+	    || __put_user((int __user *)(unsigned long)d32.send_indices,
 			  &d->send_indices)
-	    || __put_user((int __user *)(unsigned long) d32.send_sizes,
+	    || __put_user((int __user *)(unsigned long)d32.send_sizes,
 			  &d->send_sizes)
 	    || __put_user(d32.flags, &d->flags)
 	    || __put_user(d32.request_count, &d->request_count)
-	    || __put_user((int __user *)(unsigned long) d32.request_indices,
+	    || __put_user((int __user *)(unsigned long)d32.request_indices,
 			  &d->request_indices)
-	    || __put_user((int __user *)(unsigned long) d32.request_sizes,
+	    || __put_user((int __user *)(unsigned long)d32.request_sizes,
 			  &d->request_sizes))
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_DMA, (unsigned long) d);
+			DRM_IOCTL_DMA, (unsigned long)d);
 	if (err)
 		return err;
 
@@ -751,19 +751,19 @@ static int compat_drm_agp_enable(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_AGP_ENABLE, (unsigned long) mode);
+			 DRM_IOCTL_AGP_ENABLE, (unsigned long)mode);
 }
 
 typedef struct drm_agp_info32 {
-	int       agp_version_major;
-	int       agp_version_minor;
-	u32	  mode;
-	u32	  aperture_base;  /* physical address */
-	u32	  aperture_size;  /* bytes */
-	u32	  memory_allowed; /* bytes */
-	u32	  memory_used;
+	int agp_version_major;
+	int agp_version_minor;
+	u32 mode;
+	u32 aperture_base;	/* physical address */
+	u32 aperture_size;	/* bytes */
+	u32 memory_allowed;	/* bytes */
+	u32 memory_used;
 
-				/* PCI information */
+	/* PCI information */
 	unsigned short id_vendor;
 	unsigned short id_device;
 } drm_agp_info32_t;
@@ -781,7 +781,7 @@ static int compat_drm_agp_info(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_AGP_INFO, (unsigned long) info);
+			DRM_IOCTL_AGP_INFO, (unsigned long)info);
 	if (err)
 		return err;
 
@@ -806,7 +806,7 @@ typedef struct drm_agp_buffer32 {
 	u32 size;	/**< In bytes -- will round to page boundary */
 	u32 handle;	/**< Used for binding / unbinding */
 	u32 type;	/**< Type of memory to allocate */
-        u32 physical;	/**< Physical used by i810 */
+	u32 physical;	/**< Physical used by i810 */
 } drm_agp_buffer32_t;
 
 static int compat_drm_agp_alloc(struct file *file, unsigned int cmd,
@@ -827,7 +827,7 @@ static int compat_drm_agp_alloc(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_AGP_ALLOC, (unsigned long) request);
+			DRM_IOCTL_AGP_ALLOC, (unsigned long)request);
 	if (err)
 		return err;
 
@@ -835,7 +835,7 @@ static int compat_drm_agp_alloc(struct file *file, unsigned int cmd,
 	    || __get_user(req32.physical, &request->physical)
 	    || copy_to_user(argp, &req32, sizeof(req32))) {
 		drm_ioctl(file->f_dentry->d_inode, file,
-			  DRM_IOCTL_AGP_FREE, (unsigned long) request);
+			  DRM_IOCTL_AGP_FREE, (unsigned long)request);
 		return -EFAULT;
 	}
 
@@ -856,7 +856,7 @@ static int compat_drm_agp_free(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_AGP_FREE, (unsigned long) request);
+			 DRM_IOCTL_AGP_FREE, (unsigned long)request);
 }
 
 typedef struct drm_agp_binding32 {
@@ -881,7 +881,7 @@ static int compat_drm_agp_bind(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_AGP_BIND, (unsigned long) request);
+			 DRM_IOCTL_AGP_BIND, (unsigned long)request);
 }
 
 static int compat_drm_agp_unbind(struct file *file, unsigned int cmd,
@@ -898,9 +898,9 @@ static int compat_drm_agp_unbind(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_AGP_UNBIND, (unsigned long) request);
+			 DRM_IOCTL_AGP_UNBIND, (unsigned long)request);
 }
-#endif /* __OS_HAS_AGP */
+#endif				/* __OS_HAS_AGP */
 
 typedef struct drm_scatter_gather32 {
 	u32 size;	/**< In bytes -- will round to page boundary */
@@ -923,7 +923,7 @@ static int compat_drm_sg_alloc(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_SG_ALLOC, (unsigned long) request);
+			DRM_IOCTL_SG_ALLOC, (unsigned long)request);
 	if (err)
 		return err;
 
@@ -950,7 +950,7 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_SG_FREE, (unsigned long) request);
+			 DRM_IOCTL_SG_FREE, (unsigned long)request);
 }
 
 struct drm_wait_vblank_request32 {
@@ -990,7 +990,7 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	err = drm_ioctl(file->f_dentry->d_inode, file,
-			DRM_IOCTL_WAIT_VBLANK, (unsigned long) request);
+			DRM_IOCTL_WAIT_VBLANK, (unsigned long)request);
 	if (err)
 		return err;
 
@@ -1059,11 +1059,12 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	lock_kernel();		/* XXX for now */
 	if (fn != NULL)
-		ret = (*fn)(filp, cmd, arg);
+		ret = (*fn) (filp, cmd, arg);
 	else
 		ret = drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
 	unlock_kernel();
 
 	return ret;
 }
+
 EXPORT_SYMBOL(drm_compat_ioctl);

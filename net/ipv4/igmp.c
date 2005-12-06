@@ -872,11 +872,18 @@ int igmp_rcv(struct sk_buff *skb)
 		return 0;
 	}
 
-	if (!pskb_may_pull(skb, sizeof(struct igmphdr)) || 
-	    (u16)csum_fold(skb_checksum(skb, 0, len, 0))) {
-		in_dev_put(in_dev);
-		kfree_skb(skb);
-		return 0;
+	if (!pskb_may_pull(skb, sizeof(struct igmphdr)))
+		goto drop;
+
+	switch (skb->ip_summed) {
+	case CHECKSUM_HW:
+		if (!(u16)csum_fold(skb->csum))
+			break;
+		/* fall through */
+	case CHECKSUM_NONE:
+		skb->csum = 0;
+		if (__skb_checksum_complete(skb))
+			goto drop;
 	}
 
 	ih = skb->h.igmph;
@@ -890,7 +897,10 @@ int igmp_rcv(struct sk_buff *skb)
 		/* Is it our report looped back? */
 		if (((struct rtable*)skb->dst)->fl.iif == 0)
 			break;
-		igmp_heard_report(in_dev, ih->group);
+		/* don't rely on MC router hearing unicast reports */
+		if (skb->pkt_type == PACKET_MULTICAST ||
+		    skb->pkt_type == PACKET_BROADCAST)
+			igmp_heard_report(in_dev, ih->group);
 		break;
 	case IGMP_PIM:
 #ifdef CONFIG_IP_PIMSM_V1
@@ -906,6 +916,8 @@ int igmp_rcv(struct sk_buff *skb)
 	default:
 		NETDEBUG(KERN_DEBUG "New IGMP type=%d, why we do not know about it?\n", ih->type);
 	}
+
+drop:
 	in_dev_put(in_dev);
 	kfree_skb(skb);
 	return 0;
@@ -1323,7 +1335,7 @@ static struct in_device * ip_mc_find_dev(struct ip_mreqn *imr)
 	}
 	if (dev) {
 		imr->imr_ifindex = dev->ifindex;
-		idev = __in_dev_get(dev);
+		idev = __in_dev_get_rtnl(dev);
 	}
 	return idev;
 }
@@ -1908,8 +1920,11 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 			sock_kfree_s(sk, newpsl, IP_SFLSIZE(newpsl->sl_max));
 			goto done;
 		}
-	} else
+	} else {
 		newpsl = NULL;
+		(void) ip_mc_add_src(in_dev, &msf->imsf_multiaddr,
+				     msf->imsf_fmode, 0, NULL, 0);
+	}
 	psl = pmc->sflist;
 	if (psl) {
 		(void) ip_mc_del_src(in_dev, &msf->imsf_multiaddr, pmc->sfmode,

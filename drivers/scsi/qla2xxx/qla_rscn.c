@@ -1,22 +1,12 @@
 /*
- *                  QLOGIC LINUX SOFTWARE
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
  *
- * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2005 QLogic Corporation
- * (www.qlogic.com)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
+ * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
+
+#include <scsi/scsi_transport_fc.h>
 
 /**
  * IO descriptor handle definitions.
@@ -330,6 +320,7 @@ qla2x00_update_login_fcport(scsi_qla_host_t *ha, struct mbx_entry *mbxstat,
 	fcport->flags &= ~FCF_FAILOVER_NEEDED;
 	fcport->iodesc_idx_sent = IODESC_INVALID_INDEX;
 	atomic_set(&fcport->state, FCS_ONLINE);
+	schedule_work(&fcport->rport_add_work);
 }
 
 
@@ -1064,7 +1055,7 @@ qla2x00_send_login_iocb_cb(scsi_qla_host_t *ha, struct io_descriptor *iodesc,
  * Returns a pointer to the allocated RSCN fcport, or NULL, if none available.
  */
 fc_port_t *
-qla2x00_alloc_rscn_fcport(scsi_qla_host_t *ha, int flags)
+qla2x00_alloc_rscn_fcport(scsi_qla_host_t *ha, gfp_t flags)
 {
 	fc_port_t *fcport;
 

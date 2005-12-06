@@ -22,8 +22,8 @@ WHAT YOU NEED:
   http://www.ovt.com/omniusbp.html
 
 - A Video4Linux compatible frame grabber program (I recommend vidcat and xawtv)
-    vidcat is part of the w3cam package:  http://www.hdk-berlin.de/~rasca/w3cam/
-    xawtv is available at:  http://www.in-berlin.de/User/kraxel/xawtv.html
+    vidcat is part of the w3cam package:  http://mpx.freeshell.net/
+    xawtv is available at:  http://linux.bytesex.org/xawtv/
 
 HOW TO USE IT:
 

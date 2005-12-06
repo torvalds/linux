@@ -283,7 +283,7 @@ sysc_sigpending:
 	jo	sysc_restart
 	tm	__TI_flags+7(%r9),_TIF_SINGLE_STEP
 	jo	sysc_singlestep
-	j	sysc_leave        # out of here, do NOT recheck
+	j	sysc_work_loop
 
 #
 # _TIF_RESTART_SVC is set, set up registers and restart svc
@@ -684,7 +684,7 @@ io_sigpending:
 	slgr    %r3,%r3			# clear *oldset
 	brasl	%r14,do_signal		# call do_signal
 	stnsm   __SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
-	j	sysc_leave		# out of here, do NOT recheck
+	j	io_work_loop
 
 /*
  * External interrupt handler routine

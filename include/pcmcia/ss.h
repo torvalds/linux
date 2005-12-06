@@ -17,10 +17,14 @@
 
 #include <linux/config.h>
 #include <linux/device.h>
+#include <linux/sched.h>	/* task_struct, completion */
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/bulkmem.h>
+#ifdef CONFIG_CARDBUS
+#include <linux/pci.h>
+#endif
 
 /* Definitions for card status flags for GetStatus */
 #define SS_WRPROT	0x0001
@@ -233,7 +237,11 @@ struct pcmcia_socket {
 
 	/* so is power hook */
 	int (*power_hook)(struct pcmcia_socket *sock, int operation);
-                           
+#ifdef CONFIG_CARDBUS
+	/* allows tuning the CB bridge before loading driver for the CB card */
+	void (*tune_bridge)(struct pcmcia_socket *sock, struct pci_bus *bus);
+#endif
+
 	/* state thread */
 	struct semaphore		skt_sem;	/* protects socket h/w state */
 

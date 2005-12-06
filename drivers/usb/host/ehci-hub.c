@@ -30,7 +30,7 @@
 
 #ifdef	CONFIG_PM
 
-static int ehci_hub_suspend (struct usb_hcd *hcd)
+static int ehci_bus_suspend (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	int			port;
@@ -83,7 +83,7 @@ static int ehci_hub_suspend (struct usb_hcd *hcd)
 
 
 /* caller has locked the root hub, and should reset/reinit on error */
-static int ehci_hub_resume (struct usb_hcd *hcd)
+static int ehci_bus_resume (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			temp;
@@ -93,6 +93,13 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 	spin_lock_irq (&ehci->lock);
+
+	/* Ideally and we've got a real resume here, and no port's power
+	 * was lost.  (For PCI, that means Vaux was maintained.)  But we
+	 * could instead be restoring a swsusp snapshot -- so that BIOS was
+	 * the last user of the controller, not reset/pm hardware keeping
+	 * state we gave to it.
+	 */
 
 	/* re-init operational registers in case we lost power */
 	if (readl (&ehci->regs->intr_enable) == 0) {
@@ -159,8 +166,8 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 
 #else
 
-#define ehci_hub_suspend	NULL
-#define ehci_hub_resume		NULL
+#define ehci_bus_suspend	NULL
+#define ehci_bus_resume		NULL
 
 #endif	/* CONFIG_PM */
 

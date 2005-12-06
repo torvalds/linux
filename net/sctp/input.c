@@ -100,21 +100,6 @@ static inline int sctp_rcv_checksum(struct sk_buff *skb)
 	return 0;
 }
 
-/* The free routine for skbuffs that sctp receives */
-static void sctp_rfree(struct sk_buff *skb)
-{
-	atomic_sub(sizeof(struct sctp_chunk),&skb->sk->sk_rmem_alloc);
-	sock_rfree(skb);
-}
-
-/* The ownership wrapper routine to do receive buffer accounting */
-static void sctp_rcv_set_owner_r(struct sk_buff *skb, struct sock *sk)
-{
-	skb_set_owner_r(skb,sk);
-	skb->destructor = sctp_rfree;
-	atomic_add(sizeof(struct sctp_chunk),&sk->sk_rmem_alloc);
-}
-
 struct sctp_input_cb {
 	union {
 		struct inet_skb_parm	h4;
@@ -217,9 +202,6 @@ int sctp_rcv(struct sk_buff *skb)
 		rcvr = &ep->base;
 	}
 
-	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
-		goto discard_release;
-
 	/*
 	 * RFC 2960, 8.4 - Handle "Out of the blue" Packets.
 	 * An SCTP packet is called an "out of the blue" (OOTB)
@@ -255,8 +237,6 @@ int sctp_rcv(struct sk_buff *skb)
 		goto discard_release;
 	}
 	SCTP_INPUT_CB(skb)->chunk = chunk;
-
-	sctp_rcv_set_owner_r(skb,sk);
 
 	/* Remember what endpoint is to handle this packet. */
 	chunk->rcvr = rcvr;

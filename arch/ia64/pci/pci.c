@@ -95,7 +95,7 @@ pci_sal_write (unsigned int seg, unsigned int bus, unsigned int devfn,
 }
 
 static struct pci_raw_ops pci_sal_ops = {
-	.read = 	pci_sal_read,
+	.read =		pci_sal_read,
 	.write =	pci_sal_write
 };
 
@@ -120,29 +120,6 @@ struct pci_ops pci_root_ops = {
 	.write = pci_write,
 };
 
-#ifdef CONFIG_NUMA
-extern acpi_status acpi_map_iosapic(acpi_handle, u32, void *, void **);
-static void acpi_map_iosapics(void)
-{
-	acpi_get_devices(NULL, acpi_map_iosapic, NULL, NULL);
-}
-#else
-static void acpi_map_iosapics(void)
-{
-	return;
-}
-#endif /* CONFIG_NUMA */
-
-static int __init
-pci_acpi_init (void)
-{
-	acpi_map_iosapics();
-
-	return 0;
-}
-
-subsys_initcall(pci_acpi_init);
-
 /* Called by ACPI when it finds a new root bus.  */
 
 static struct pci_controller * __devinit
@@ -160,35 +137,121 @@ alloc_pci_controller (int seg)
 	return controller;
 }
 
-static u64 __devinit
-add_io_space (struct acpi_resource_address64 *addr)
+struct pci_root_info {
+	struct pci_controller *controller;
+	char *name;
+};
+
+static unsigned int
+new_space (u64 phys_base, int sparse)
 {
-	u64 offset;
-	int sparse = 0;
+	u64 mmio_base;
 	int i;
 
-	if (addr->address_translation_offset == 0)
-		return IO_SPACE_BASE(0);	/* part of legacy IO space */
+	if (phys_base == 0)
+		return 0;	/* legacy I/O port space */
 
-	if (addr->attribute.io.translation_attribute == ACPI_SPARSE_TRANSLATION)
-		sparse = 1;
-
-	offset = (u64) ioremap(addr->address_translation_offset, 0);
+	mmio_base = (u64) ioremap(phys_base, 0);
 	for (i = 0; i < num_io_spaces; i++)
-		if (io_space[i].mmio_base == offset &&
+		if (io_space[i].mmio_base == mmio_base &&
 		    io_space[i].sparse == sparse)
-			return IO_SPACE_BASE(i);
+			return i;
 
 	if (num_io_spaces == MAX_IO_SPACES) {
-		printk("Too many IO port spaces\n");
+		printk(KERN_ERR "PCI: Too many IO port spaces "
+			"(MAX_IO_SPACES=%lu)\n", MAX_IO_SPACES);
 		return ~0;
 	}
 
 	i = num_io_spaces++;
-	io_space[i].mmio_base = offset;
+	io_space[i].mmio_base = mmio_base;
 	io_space[i].sparse = sparse;
 
-	return IO_SPACE_BASE(i);
+	return i;
+}
+
+static u64 __devinit
+add_io_space (struct pci_root_info *info, struct acpi_resource_address64 *addr)
+{
+	struct resource *resource;
+	char *name;
+	u64 base, min, max, base_port;
+	unsigned int sparse = 0, space_nr, len;
+
+	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
+	if (!resource) {
+		printk(KERN_ERR "PCI: No memory for %s I/O port space\n",
+			info->name);
+		goto out;
+	}
+
+	len = strlen(info->name) + 32;
+	name = kzalloc(len, GFP_KERNEL);
+	if (!name) {
+		printk(KERN_ERR "PCI: No memory for %s I/O port space name\n",
+			info->name);
+		goto free_resource;
+	}
+
+	min = addr->min_address_range;
+	max = min + addr->address_length - 1;
+	if (addr->attribute.io.translation_attribute == ACPI_SPARSE_TRANSLATION)
+		sparse = 1;
+
+	space_nr = new_space(addr->address_translation_offset, sparse);
+	if (space_nr == ~0)
+		goto free_name;
+
+	base = __pa(io_space[space_nr].mmio_base);
+	base_port = IO_SPACE_BASE(space_nr);
+	snprintf(name, len, "%s I/O Ports %08lx-%08lx", info->name,
+		base_port + min, base_port + max);
+
+	/*
+	 * The SDM guarantees the legacy 0-64K space is sparse, but if the
+	 * mapping is done by the processor (not the bridge), ACPI may not
+	 * mark it as sparse.
+	 */
+	if (space_nr == 0)
+		sparse = 1;
+
+	resource->name  = name;
+	resource->flags = IORESOURCE_MEM;
+	resource->start = base + (sparse ? IO_SPACE_SPARSE_ENCODING(min) : min);
+	resource->end   = base + (sparse ? IO_SPACE_SPARSE_ENCODING(max) : max);
+	insert_resource(&iomem_resource, resource);
+
+	return base_port;
+
+free_name:
+	kfree(name);
+free_resource:
+	kfree(resource);
+out:
+	return ~0;
+}
+
+static acpi_status __devinit resource_to_window(struct acpi_resource *resource,
+	struct acpi_resource_address64 *addr)
+{
+	acpi_status status;
+
+	/*
+	 * We're only interested in _CRS descriptors that are
+	 *	- address space descriptors for memory or I/O space
+	 *	- non-zero size
+	 *	- producers, i.e., the address space is routed downstream,
+	 *	  not consumed by the bridge itself
+	 */
+	status = acpi_resource_to_address64(resource, addr);
+	if (ACPI_SUCCESS(status) &&
+	    (addr->resource_type == ACPI_MEMORY_RANGE ||
+	     addr->resource_type == ACPI_IO_RANGE) &&
+	    addr->address_length &&
+	    addr->producer_consumer == ACPI_PRODUCER)
+		return AE_OK;
+
+	return AE_ERROR;
 }
 
 static acpi_status __devinit
@@ -198,19 +261,12 @@ count_window (struct acpi_resource *resource, void *data)
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 
-	status = acpi_resource_to_address64(resource, &addr);
+	status = resource_to_window(resource, &addr);
 	if (ACPI_SUCCESS(status))
-		if (addr.resource_type == ACPI_MEMORY_RANGE ||
-		    addr.resource_type == ACPI_IO_RANGE)
-			(*windows)++;
+		(*windows)++;
 
 	return AE_OK;
 }
-
-struct pci_root_info {
-	struct pci_controller *controller;
-	char *name;
-};
 
 static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 {
@@ -221,11 +277,9 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	unsigned long flags, offset = 0;
 	struct resource *root;
 
-	status = acpi_resource_to_address64(res, &addr);
+	/* Return AE_OK for non-window resources to keep scanning for more */
+	status = resource_to_window(res, &addr);
 	if (!ACPI_SUCCESS(status))
-		return AE_OK;
-
-	if (!addr.address_length)
 		return AE_OK;
 
 	if (addr.resource_type == ACPI_MEMORY_RANGE) {
@@ -235,7 +289,7 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	} else if (addr.resource_type == ACPI_IO_RANGE) {
 		flags = IORESOURCE_IO;
 		root = &ioport_resource;
-		offset = add_io_space(&addr);
+		offset = add_io_space(info, &addr);
 		if (offset == ~0)
 			return AE_OK;
 	} else
@@ -245,7 +299,7 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	window->resource.name = info->name;
 	window->resource.flags = flags;
 	window->resource.start = addr.min_address_range + offset;
-	window->resource.end = addr.max_address_range + offset;
+	window->resource.end = window->resource.start + addr.address_length - 1;
 	window->resource.child = NULL;
 	window->offset = offset;
 
@@ -743,7 +797,7 @@ int pci_vector_resources(int last, int nr_released)
 {
 	int count = nr_released;
 
- 	count += (IA64_LAST_DEVICE_VECTOR - last);
+	count += (IA64_LAST_DEVICE_VECTOR - last);
 
 	return count;
 }

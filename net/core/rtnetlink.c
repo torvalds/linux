@@ -49,6 +49,7 @@
 #include <net/udp.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
+#include <net/netlink.h>
 
 DECLARE_MUTEX(rtnl_sem);
 
@@ -462,11 +463,6 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 	netlink_broadcast(rtnl, skb, 0, RTNLGRP_LINK, GFP_KERNEL);
 }
 
-static int rtnetlink_done(struct netlink_callback *cb)
-{
-	return 0;
-}
-
 /* Protected by RTNL sempahore.  */
 static struct rtattr **rta_buf;
 static int rtattr_max;
@@ -524,8 +520,6 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 	}
 
 	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {
-		u32 rlen;
-
 		if (link->dumpit == NULL)
 			link = &(rtnetlink_links[PF_UNSPEC][type]);
 
@@ -533,14 +527,11 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 			goto err_inval;
 
 		if ((*errp = netlink_dump_start(rtnl, skb, nlh,
-						link->dumpit,
-						rtnetlink_done)) != 0) {
+						link->dumpit, NULL)) != 0) {
 			return -1;
 		}
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		skb_pull(skb, rlen);
+
+		netlink_queue_skip(nlh, skb);
 		return -1;
 	}
 
@@ -579,75 +570,13 @@ err_inval:
 	return -1;
 }
 
-/* 
- * Process one packet of messages.
- * Malformed skbs with wrong lengths of messages are discarded silently.
- */
-
-static inline int rtnetlink_rcv_skb(struct sk_buff *skb)
-{
-	int err;
-	struct nlmsghdr * nlh;
-
-	while (skb->len >= NLMSG_SPACE(0)) {
-		u32 rlen;
-
-		nlh = (struct nlmsghdr *)skb->data;
-		if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
-			return 0;
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		if (rtnetlink_rcv_msg(skb, nlh, &err)) {
-			/* Not error, but we must interrupt processing here:
-			 *   Note, that in this case we do not pull message
-			 *   from skb, it will be processed later.
-			 */
-			if (err == 0)
-				return -1;
-			netlink_ack(skb, nlh, err);
-		} else if (nlh->nlmsg_flags&NLM_F_ACK)
-			netlink_ack(skb, nlh, 0);
-		skb_pull(skb, rlen);
-	}
-
-	return 0;
-}
-
-/*
- *  rtnetlink input queue processing routine:
- *	- process as much as there was in the queue upon entry.
- *	- feed skbs to rtnetlink_rcv_skb, until it refuse a message,
- *	  that will occur, when a dump started.
- */
-
 static void rtnetlink_rcv(struct sock *sk, int len)
 {
-	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
+	unsigned int qlen = 0;
 
 	do {
-		struct sk_buff *skb;
-
 		rtnl_lock();
-
-		if (qlen > skb_queue_len(&sk->sk_receive_queue))
-			qlen = skb_queue_len(&sk->sk_receive_queue);
-
-		for (; qlen; qlen--) {
-			skb = skb_dequeue(&sk->sk_receive_queue);
-			if (rtnetlink_rcv_skb(skb)) {
-				if (skb->len)
-					skb_queue_head(&sk->sk_receive_queue,
-						       skb);
-				else {
-					kfree_skb(skb);
-					qlen--;
-				}
-				break;
-			}
-			kfree_skb(skb);
-		}
-
+		netlink_run_queue(sk, &qlen, &rtnetlink_rcv_msg);
 		up(&rtnl_sem);
 
 		netdev_run_todo();

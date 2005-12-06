@@ -65,5 +65,4 @@ void __init prom_init(void)
 		memsize = simple_strtol(memsize_str, NULL, 0);
 	}
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
-	return 0;
 }

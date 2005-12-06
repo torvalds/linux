@@ -122,8 +122,7 @@ static void __irias_delete_attrib(struct ias_attrib *attrib)
 	IRDA_ASSERT(attrib != NULL, return;);
 	IRDA_ASSERT(attrib->magic == IAS_ATTRIB_MAGIC, return;);
 
-	if (attrib->name)
-		kfree(attrib->name);
+	kfree(attrib->name);
 
 	irias_delete_value(attrib->value);
 	attrib->magic = ~IAS_ATTRIB_MAGIC;
@@ -136,8 +135,7 @@ void __irias_delete_object(struct ias_object *obj)
 	IRDA_ASSERT(obj != NULL, return;);
 	IRDA_ASSERT(obj->magic == IAS_OBJECT_MAGIC, return;);
 
-	if (obj->name)
-		kfree(obj->name);
+	kfree(obj->name);
 
 	hashbin_delete(obj->attribs, (FREE_FUNC) __irias_delete_attrib);
 
@@ -562,14 +560,12 @@ void irias_delete_value(struct ias_value *value)
 		/* No need to deallocate */
 		break;
 	case IAS_STRING:
-		/* If string, deallocate string */
-		if (value->t.string != NULL)
-			kfree(value->t.string);
+		/* Deallocate string */
+		kfree(value->t.string);
 		break;
 	case IAS_OCT_SEQ:
-		/* If byte stream, deallocate byte stream */
-		 if (value->t.oct_seq != NULL)
-			 kfree(value->t.oct_seq);
+		/* Deallocate byte stream */
+		 kfree(value->t.oct_seq);
 		 break;
 	default:
 		IRDA_DEBUG(0, "%s(), Unknown value type!\n", __FUNCTION__);

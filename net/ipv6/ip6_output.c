@@ -147,7 +147,8 @@ static int ip6_output2(struct sk_buff *skb)
 
 int ip6_output(struct sk_buff *skb)
 {
-	if (skb->len > dst_mtu(skb->dst) || dst_allfrag(skb->dst))
+	if ((skb->len > dst_mtu(skb->dst) && !skb_shinfo(skb)->ufo_size) ||
+				dst_allfrag(skb->dst))
 		return ip6_fragment(skb, ip6_output2);
 	else
 		return ip6_output2(skb);
@@ -440,9 +441,15 @@ static void ip6_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 #ifdef CONFIG_NETFILTER
 	to->nfmark = from->nfmark;
 	/* Connection association is same as pre-frag packet */
+	nf_conntrack_put(to->nfct);
 	to->nfct = from->nfct;
 	nf_conntrack_get(to->nfct);
 	to->nfctinfo = from->nfctinfo;
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_conntrack_put_reasm(to->nfct_reasm);
+	to->nfct_reasm = from->nfct_reasm;
+	nf_conntrack_get_reasm(to->nfct_reasm);
+#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	nf_bridge_put(to->nf_bridge);
 	to->nf_bridge = from->nf_bridge;
@@ -586,8 +593,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			skb->next = NULL;
 		}
 
-		if (tmp_hdr)
-			kfree(tmp_hdr);
+		kfree(tmp_hdr);
 
 		if (err == 0) {
 			IP6_INC_STATS(IPSTATS_MIB_FRAGOKS);
@@ -666,7 +672,7 @@ slow_path:
 		 */
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
-		if (frag_id) {
+		if (!frag_id) {
 			ipv6_select_ident(skb, fh);
 			frag_id = fh->identification;
 		} else
@@ -769,6 +775,66 @@ out_err_release:
 	return err;
 }
 
+static inline int ip6_ufo_append_data(struct sock *sk,
+			int getfrag(void *from, char *to, int offset, int len,
+			int odd, struct sk_buff *skb),
+			void *from, int length, int hh_len, int fragheaderlen,
+			int transhdrlen, int mtu,unsigned int flags)
+
+{
+	struct sk_buff *skb;
+	int err;
+
+	/* There is support for UDP large send offload by network
+	 * device, so create one single skb packet containing complete
+	 * udp datagram
+	 */
+	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL) {
+		skb = sock_alloc_send_skb(sk,
+			hh_len + fragheaderlen + transhdrlen + 20,
+			(flags & MSG_DONTWAIT), &err);
+		if (skb == NULL)
+			return -ENOMEM;
+
+		/* reserve space for Hardware header */
+		skb_reserve(skb, hh_len);
+
+		/* create space for UDP/IP header */
+		skb_put(skb,fragheaderlen + transhdrlen);
+
+		/* initialize network header pointer */
+		skb->nh.raw = skb->data;
+
+		/* initialize protocol header pointer */
+		skb->h.raw = skb->data + fragheaderlen;
+
+		skb->ip_summed = CHECKSUM_HW;
+		skb->csum = 0;
+		sk->sk_sndmsg_off = 0;
+	}
+
+	err = skb_append_datato_frags(sk,skb, getfrag, from,
+				      (length - transhdrlen));
+	if (!err) {
+		struct frag_hdr fhdr;
+
+		/* specify the length of each IP datagram fragment*/
+		skb_shinfo(skb)->ufo_size = (mtu - fragheaderlen) - 
+						sizeof(struct frag_hdr);
+		ipv6_select_ident(skb, &fhdr);
+		skb_shinfo(skb)->ip6_frag_id = fhdr.identification;
+		__skb_queue_tail(&sk->sk_write_queue, skb);
+
+		return 0;
+	}
+	/* There is not enough support do UPD LSO,
+	 * so follow normal path
+	 */
+	kfree_skb(skb);
+
+	return err;
+}
+
 int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	int offset, int len, int odd, struct sk_buff *skb),
 	void *from, int length, int transhdrlen,
@@ -860,6 +926,15 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	 */
 
 	inet->cork.length += length;
+	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
+	    (rt->u.dst.dev->features & NETIF_F_UFO)) {
+
+		if(ip6_ufo_append_data(sk, getfrag, from, length, hh_len,
+				fragheaderlen, transhdrlen, mtu, flags))
+			goto error;
+
+		return 0;
+	}
 
 	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL)
 		goto alloc_new_skb;
@@ -1117,10 +1192,8 @@ int ip6_push_pending_frames(struct sock *sk)
 
 out:
 	inet->cork.flags &= ~IPCORK_OPT;
-	if (np->cork.opt) {
-		kfree(np->cork.opt);
-		np->cork.opt = NULL;
-	}
+	kfree(np->cork.opt);
+	np->cork.opt = NULL;
 	if (np->cork.rt) {
 		dst_release(&np->cork.rt->u.dst);
 		np->cork.rt = NULL;
@@ -1145,10 +1218,8 @@ void ip6_flush_pending_frames(struct sock *sk)
 
 	inet->cork.flags &= ~IPCORK_OPT;
 
-	if (np->cork.opt) {
-		kfree(np->cork.opt);
-		np->cork.opt = NULL;
-	}
+	kfree(np->cork.opt);
+	np->cork.opt = NULL;
 	if (np->cork.rt) {
 		dst_release(&np->cork.rt->u.dst);
 		np->cork.rt = NULL;

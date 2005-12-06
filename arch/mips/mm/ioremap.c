@@ -55,7 +55,7 @@ static inline int remap_area_pmd(pmd_t * pmd, unsigned long address,
 	if (address >= end)
 		BUG();
 	do {
-		pte_t * pte = pte_alloc_kernel(&init_mm, pmd, address);
+		pte_t * pte = pte_alloc_kernel(pmd, address);
 		if (!pte)
 			return -ENOMEM;
 		remap_area_pte(pte, address, end - address, address + phys_addr, flags);
@@ -77,11 +77,15 @@ static int remap_area_pages(unsigned long address, phys_t phys_addr,
 	flush_cache_all();
 	if (address >= end)
 		BUG();
-	spin_lock(&init_mm.page_table_lock);
 	do {
+		pud_t *pud;
 		pmd_t *pmd;
-		pmd = pmd_alloc(&init_mm, dir, address);
+
 		error = -ENOMEM;
+		pud = pud_alloc(&init_mm, dir, address);
+		if (!pud)
+			break;
+		pmd = pmd_alloc(&init_mm, pud, address);
 		if (!pmd)
 			break;
 		if (remap_area_pmd(pmd, address, end - address,
@@ -91,18 +95,8 @@ static int remap_area_pages(unsigned long address, phys_t phys_addr,
 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
 		dir++;
 	} while (address && (address < end));
-	spin_unlock(&init_mm.page_table_lock);
 	flush_tlb_all();
 	return error;
-}
-
-/*
- * Allow physical addresses to be fixed up to help 36 bit peripherals.
- */
-phys_t __attribute__ ((weak))
-fixup_bigphys_addr(phys_t phys_addr, phys_t size)
-{
-	return phys_addr;
 }
 
 /*
@@ -121,7 +115,7 @@ fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 
 #define IS_LOW512(addr) (!((phys_t)(addr) & (phys_t) ~0x1fffffffULL))
 
-void * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
+void __iomem * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
 {
 	struct vm_struct * area;
 	unsigned long offset;
@@ -141,7 +135,7 @@ void * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
 	 */
 	if (IS_LOW512(phys_addr) && IS_LOW512(last_addr) &&
 	    flags == _CACHE_UNCACHED)
-		return (void *) KSEG1ADDR(phys_addr);
+		return (void __iomem *) CKSEG1ADDR(phys_addr);
 
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
@@ -177,10 +171,10 @@ void * __ioremap(phys_t phys_addr, phys_t size, unsigned long flags)
 		return NULL;
 	}
 
-	return (void *) (offset + (char *)addr);
+	return (void __iomem *) (offset + (char *)addr);
 }
 
-#define IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == KSEG1)
+#define IS_KSEG1(addr) (((unsigned long)(addr) & ~0x1fffffffUL) == CKSEG1)
 
 void __iounmap(volatile void __iomem *addr)
 {
@@ -190,10 +184,8 @@ void __iounmap(volatile void __iomem *addr)
 		return;
 
 	p = remove_vm_area((void *) (PAGE_MASK & (unsigned long __force) addr));
-	if (!p) {
+	if (!p)
 		printk(KERN_ERR "iounmap: bad address %p\n", addr);
-		return;
-	}
 
         kfree(p);
 }

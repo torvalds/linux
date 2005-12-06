@@ -3,7 +3,6 @@
  * OS abstraction macros.
  */
 
-
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/delay.h>
 
@@ -47,25 +46,25 @@
 #else
 /* define some dummy types for non AGP supporting kernels */
 struct no_agp_kern {
-  unsigned long aper_base;
-  unsigned long aper_size;
+	unsigned long aper_base;
+	unsigned long aper_size;
 };
 #define DRM_AGP_MEM             int
 #define DRM_AGP_KERN            struct no_agp_kern
 #endif
 
 #if !(__OS_HAS_MTRR)
-static __inline__ int mtrr_add (unsigned long base, unsigned long size,
-                                unsigned int type, char increment)
+static __inline__ int mtrr_add(unsigned long base, unsigned long size,
+			       unsigned int type, char increment)
 {
 	return -ENODEV;
 }
 
-static __inline__ int mtrr_del (int reg, unsigned long base,
-                                unsigned long size)
+static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
 {
 	return -ENODEV;
 }
+
 #define MTRR_TYPE_WRCOMB     1
 
 #endif
@@ -99,7 +98,7 @@ static __inline__ int mtrr_del (int reg, unsigned long base,
 
 #define DRM_GET_PRIV_WITH_RETURN(_priv, _filp) _priv = _filp->private_data
 
-/** 
+/**
  * Get the pointer to the SAREA.
  *
  * Searches the SAREA on the mapping lists and points drm_device::sarea to it.
@@ -143,7 +142,5 @@ do {								\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
 
-
 #define DRM_WAKEUP( queue ) wake_up_interruptible( queue )
 #define DRM_INIT_WAITQUEUE( queue ) init_waitqueue_head( queue )
- 

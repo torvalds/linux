@@ -78,17 +78,15 @@ static void parse_data(struct parport *port, int device, char *str)
 				u++;
 			}
 			if (!strcmp(p, "MFG") || !strcmp(p, "MANUFACTURER")) {
-				if (info->mfr)
-					kfree (info->mfr);
+				kfree(info->mfr);
 				info->mfr = kstrdup(sep, GFP_KERNEL);
 			} else if (!strcmp(p, "MDL") || !strcmp(p, "MODEL")) {
-				if (info->model)
-					kfree (info->model);
+				kfree(info->model);
 				info->model = kstrdup(sep, GFP_KERNEL);
 			} else if (!strcmp(p, "CLS") || !strcmp(p, "CLASS")) {
 				int i;
-				if (info->class_name)
-					kfree (info->class_name);
+
+				kfree(info->class_name);
 				info->class_name = kstrdup(sep, GFP_KERNEL);
 				for (u = sep; *u; u++)
 					*u = toupper(*u);
@@ -102,21 +100,22 @@ static void parse_data(struct parport *port, int device, char *str)
 				info->class = PARPORT_CLASS_OTHER;
 			} else if (!strcmp(p, "CMD") ||
 				   !strcmp(p, "COMMAND SET")) {
-				if (info->cmdset)
-					kfree (info->cmdset);
+				kfree(info->cmdset);
 				info->cmdset = kstrdup(sep, GFP_KERNEL);
 				/* if it speaks printer language, it's
 				   probably a printer */
 				if (strstr(sep, "PJL") || strstr(sep, "PCL"))
 					guessed_class = PARPORT_CLASS_PRINTER;
 			} else if (!strcmp(p, "DES") || !strcmp(p, "DESCRIPTION")) {
-				if (info->description)
-					kfree (info->description);
+				kfree(info->description);
 				info->description = kstrdup(sep, GFP_KERNEL);
 			}
 		}
 	rock_on:
-		if (q) p = q+1; else p=NULL;
+		if (q)
+			p = q + 1;
+		else
+			p = NULL;
 	}
 
 	/* If the device didn't tell us its class, maybe we have managed to

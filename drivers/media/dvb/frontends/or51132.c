@@ -36,6 +36,8 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 #include "dvb_frontend.h"
@@ -466,6 +468,7 @@ static int or51132_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	unsigned char snd_buf[2];
 	u8 rcvr_stat;
 	u16 snr_equ;
+	u32 signal_strength;
 	int usK;
 
 	snd_buf[0]=0x04;
@@ -501,7 +504,11 @@ static int or51132_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	usK = (rcvr_stat & 0x10) ? 3 : 0;
 
         /* The value reported back from the frontend will be FFFF=100% 0000=0% */
-	*strength = (((8952 - i20Log10(snr_equ) - usK*100)/3+5)*65535)/1000;
+	signal_strength = (((8952 - i20Log10(snr_equ) - usK*100)/3+5)*65535)/1000;
+	if (signal_strength > 0xffff)
+		*strength = 0xffff;
+	else
+		*strength = signal_strength;
 	dprintk("read_signal_strength %i\n",*strength);
 
 	return 0;
@@ -575,8 +582,7 @@ struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 	return &state->frontend;
 
 error:
-	if (state)
-		kfree(state);
+	kfree(state);
 	return NULL;
 }
 

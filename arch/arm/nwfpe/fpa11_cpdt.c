@@ -59,8 +59,13 @@ static inline void loadExtended(const unsigned int Fn, const unsigned int __user
 	p = (unsigned int *) &fpa11->fpreg[Fn].fExtended;
 	fpa11->fType[Fn] = typeExtended;
 	get_user(p[0], &pMem[0]);	/* sign & exponent */
+#ifdef __ARMEB__
+	get_user(p[1], &pMem[1]);	/* ms bits */
+	get_user(p[2], &pMem[2]);	/* ls bits */
+#else
 	get_user(p[1], &pMem[2]);	/* ls bits */
 	get_user(p[2], &pMem[1]);	/* ms bits */
+#endif
 }
 #endif
 
@@ -177,8 +182,13 @@ static inline void storeExtended(const unsigned int Fn, unsigned int __user *pMe
 	}
 
 	put_user(val.i[0], &pMem[0]);	/* sign & exp */
+#ifdef __ARMEB__
+	put_user(val.i[1], &pMem[1]);	/* msw */
+	put_user(val.i[2], &pMem[2]);
+#else
 	put_user(val.i[1], &pMem[2]);
 	put_user(val.i[2], &pMem[1]);	/* msw */
+#endif
 }
 #endif
 

@@ -653,8 +653,6 @@ ENTRY(rie_handler)
 	SAVE_ALL
 	mvfc	r0, bpc
 	ld	r1, @r0
-	seth	r0, #0xa0f0
-	st	r1, @r0
 	ldi	r1, #0x20			; error_code
 	mv	r0, sp				; pt_regs
 	bl	do_rie_handler
@@ -679,6 +677,15 @@ ENTRY(debug_trap)
 	ldi	r1, #0				; error_code
 	mv	r0, sp				; pt_regs
 	bl	do_debug_trap
+	bra	error_code
+
+ENTRY(ill_trap)
+	/* void ill_trap(void) */
+	SWITCH_TO_KERNEL_STACK
+	SAVE_ALL
+	ldi	r1, #0				; error_code ; FIXME
+	mv	r0, sp				; pt_regs
+	bl	do_ill_trap
 	bra	error_code
 
 

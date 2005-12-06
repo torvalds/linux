@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/config.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
 
@@ -69,7 +68,7 @@ static fastcall void k7_machine_check(struct pt_regs * regs, long error_code)
 
 
 /* AMD K7 machine check is Intel like */
-void __devinit amd_mcheck_init(struct cpuinfo_x86 *c)
+void amd_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	int i;

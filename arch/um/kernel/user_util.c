@@ -27,7 +27,6 @@
 #include "user.h"
 #include "mem_user.h"
 #include "init.h"
-#include "helper.h"
 #include "ptrace_user.h"
 #include "uml-config.h"
 

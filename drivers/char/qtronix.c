@@ -591,6 +591,11 @@ static int __init psaux_init(void)
 		return retval;
 
 	queue = (struct aux_queue *) kmalloc(sizeof(*queue), GFP_KERNEL);
+	if (!queue) {
+		misc_deregister(&psaux_mouse);
+		return -ENOMEM;
+	}
+		
 	memset(queue, 0, sizeof(*queue));
 	queue->head = queue->tail = 0;
 	init_waitqueue_head(&queue->proc_list);

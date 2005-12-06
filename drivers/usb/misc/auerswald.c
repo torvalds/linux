@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/wait.h>
-#undef DEBUG   		/* include debug macros until it's done	*/
 #include <linux/usb.h>
 
 /*-------------------------------------------------------------------*/
@@ -1873,9 +1872,8 @@ static struct file_operations auerswald_fops =
 };
 
 static struct usb_class_driver auerswald_class = {
-	.name =		"usb/auer%d",
+	.name =		"auer%d",
 	.fops =		&auerswald_fops,
-	.mode =		S_IFCHR | S_IRUGO | S_IWUGO,
 	.minor_base =	AUER_MINOR_BASE,
 };
 

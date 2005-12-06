@@ -20,6 +20,7 @@
 #include <linux/serial.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
+#include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/bootmem.h>
 #include <linux/interrupt.h>
@@ -44,24 +45,24 @@
 static struct map_desc ixp4xx_io_desc[] __initdata = {
 	{	/* UART, Interrupt ctrl, GPIO, timers, NPEs, MACs, USB .... */
 		.virtual	= IXP4XX_PERIPHERAL_BASE_VIRT,
-		.physical	= IXP4XX_PERIPHERAL_BASE_PHYS,
+		.pfn		= __phys_to_pfn(IXP4XX_PERIPHERAL_BASE_PHYS),
 		.length		= IXP4XX_PERIPHERAL_REGION_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* Expansion Bus Config Registers */
 		.virtual	= IXP4XX_EXP_CFG_BASE_VIRT,
-		.physical	= IXP4XX_EXP_CFG_BASE_PHYS,
+		.pfn		= __phys_to_pfn(IXP4XX_EXP_CFG_BASE_PHYS),
 		.length		= IXP4XX_EXP_CFG_REGION_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* PCI Registers */
 		.virtual	= IXP4XX_PCI_CFG_BASE_VIRT,
-		.physical	= IXP4XX_PCI_CFG_BASE_PHYS,
+		.pfn		= __phys_to_pfn(IXP4XX_PCI_CFG_BASE_PHYS),
 		.length		= IXP4XX_PCI_CFG_REGION_SIZE,
 		.type		= MT_DEVICE
 	},
 #ifdef CONFIG_DEBUG_LL
 	{	/* Debug UART mapping */
 		.virtual	= IXP4XX_DEBUG_UART_BASE_VIRT,
-		.physical	= IXP4XX_DEBUG_UART_BASE_PHYS,
+		.pfn		= __phys_to_pfn(IXP4XX_DEBUG_UART_BASE_PHYS),
 		.length		= IXP4XX_DEBUG_UART_REGION_SIZE,
 		.type		= MT_DEVICE
 	}
@@ -125,7 +126,8 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 	} else if (type & IRQT_LOW) {
 		int_style = IXP4XX_GPIO_STYLE_ACTIVE_LOW;
 		irq_type = IXP4XX_IRQ_LEVEL;
-	}
+	} else
+		return -EINVAL;
 
 	ixp4xx_config_irq(irq, irq_type);
 
@@ -142,6 +144,8 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 
 	/* Set the new style */
 	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
+
+	return 0;
 }
 
 static void ixp4xx_irq_mask(unsigned int irq)

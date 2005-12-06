@@ -240,8 +240,7 @@ static void rose_remove_neigh(struct rose_neigh *rose_neigh)
 	if ((s = rose_neigh_list) == rose_neigh) {
 		rose_neigh_list = rose_neigh->next;
 		spin_unlock_bh(&rose_neigh_list_lock);
-		if (rose_neigh->digipeat != NULL)
-			kfree(rose_neigh->digipeat);
+		kfree(rose_neigh->digipeat);
 		kfree(rose_neigh);
 		return;
 	}
@@ -250,8 +249,7 @@ static void rose_remove_neigh(struct rose_neigh *rose_neigh)
 		if (s->next == rose_neigh) {
 			s->next = rose_neigh->next;
 			spin_unlock_bh(&rose_neigh_list_lock);
-			if (rose_neigh->digipeat != NULL)
-				kfree(rose_neigh->digipeat);
+			kfree(rose_neigh->digipeat);
 			kfree(rose_neigh);
 			return;
 		}
@@ -727,7 +725,7 @@ int rose_rt_ioctl(unsigned int cmd, void __user *arg)
 		}
 		if (rose_route.mask > 10) /* Mask can't be more than 10 digits */
 			return -EINVAL;
-		if (rose_route.ndigis > 8) /* No more than 8 digipeats */
+		if (rose_route.ndigis > AX25_MAX_DIGIS)
 			return -EINVAL;
 		err = rose_add_node(&rose_route, dev);
 		dev_put(dev);

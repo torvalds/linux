@@ -94,7 +94,7 @@ unsigned long unaligned_instructions;
 #endif
 
 static inline int emulate_load_store_insn(struct pt_regs *regs,
-	void *addr, unsigned long pc,
+	void __user *addr, unsigned int __user *pc,
 	unsigned long **regptr, unsigned long *newvalue)
 {
 	union mips_instruction insn;
@@ -107,7 +107,7 @@ static inline int emulate_load_store_insn(struct pt_regs *regs,
 	/*
 	 * This load never faults.
 	 */
-	__get_user(insn.word, (unsigned int *)pc);
+	__get_user(insn.word, pc);
 
 	switch (insn.i_format.opcode) {
 	/*
@@ -494,8 +494,8 @@ asmlinkage void do_ade(struct pt_regs *regs)
 {
 	unsigned long *regptr, newval;
 	extern int do_dsemulret(struct pt_regs *);
+	unsigned int __user *pc;
 	mm_segment_t seg;
-	unsigned long pc;
 
 	/*
 	 * Address errors may be deliberately induced by the FPU emulator to
@@ -515,7 +515,7 @@ asmlinkage void do_ade(struct pt_regs *regs)
 	if ((regs->cp0_badvaddr == regs->cp0_epc) || (regs->cp0_epc & 0x1))
 		goto sigbus;
 
-	pc = exception_epc(regs);
+	pc = (unsigned int __user *) exception_epc(regs);
 	if ((current->thread.mflags & MF_FIXADE) == 0)
 		goto sigbus;
 
@@ -526,7 +526,7 @@ asmlinkage void do_ade(struct pt_regs *regs)
 	seg = get_fs();
 	if (!user_mode(regs))
 		set_fs(KERNEL_DS);
-	if (!emulate_load_store_insn(regs, (void *)regs->cp0_badvaddr, pc,
+	if (!emulate_load_store_insn(regs, (void __user *)regs->cp0_badvaddr, pc,
 	                             &regptr, &newval)) {
 		compute_return_epc(regs);
 		/*

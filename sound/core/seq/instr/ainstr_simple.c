@@ -57,7 +57,8 @@ static int snd_seq_simple_put(void *private_data, snd_seq_kinstr_t *instr,
 	snd_simple_ops_t *ops = (snd_simple_ops_t *)private_data;
 	simple_instrument_t *ip;
 	simple_xinstrument_t ix;
-	int err, gfp_mask;
+	int err;
+	gfp_t gfp_mask;
 	unsigned int real_size;
 
 	if (cmd != SNDRV_SEQ_INSTR_PUT_CMD_CREATE)

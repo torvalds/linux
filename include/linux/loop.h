@@ -52,7 +52,7 @@ struct loop_device {
 	unsigned	lo_blocksize;
 	void		*key_data; 
 
-	int		old_gfp_mask;
+	gfp_t		old_gfp_mask;
 
 	spinlock_t		lo_lock;
 	struct bio 		*lo_bio;

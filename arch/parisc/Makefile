@@ -20,7 +20,8 @@ NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
 
 ifdef CONFIG_64BIT
-CROSS_COMPILE	:= hppa64-linux-
+CROSS_COMPILE	:= $(shell if [ -x /usr/bin/hppa64-linux-gnu-gcc ]; then \
+			echo hppa64-linux-gnu-; else echo hppa64-linux-; fi)
 UTS_MACHINE	:= parisc64
 CHECKFLAGS	+= -D__LP64__=1 -m64
 else
@@ -34,6 +35,14 @@ FINAL_LD=$(CROSS_COMPILE)ld --warn-common --warn-section-align
 
 OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
 
+GCC_VERSION     := $(call cc-version)
+ifneq ($(shell if [ -z $(GCC_VERSION) ] ; then echo "bad"; fi ;),)
+$(error Sorry, couldn't find ($(cc-version)).)
+endif
+ifneq ($(shell if [ $(GCC_VERSION) -lt 0303 ] ; then echo "bad"; fi ;),)
+$(error Sorry, your compiler is too old ($(GCC_VERSION)).  GCC v3.3 or above is required.)
+endif
+
 cflags-y	:= -pipe
 
 # These flags should be implied by an hppa-linux configuration, but they
@@ -43,7 +52,7 @@ cflags-y	+= -mno-space-regs -mfast-indirect-calls
 # Currently we save and restore fpregs on all kernel entry/interruption paths.
 # If that gets optimized, we might need to disable the use of fpregs in the
 # kernel.
-#cflags-y	+= -mdisable-fpregs
+cflags-y	+= -mdisable-fpregs
 
 # Without this, "ld -r" results in .text sections that are too big
 # (> 0x40000) for branches to reach stubs.

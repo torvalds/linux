@@ -3,9 +3,9 @@
     cx88x-hw.h - CX2388x register offsets
 
     Copyright (C) 1996,97,98 Ralph Metzler (rjkm@thp.uni-koeln.de)
-                  2001 Michael Eskin
-                  2002 Yurij Sysoev <yurij@naturesoft.net>
-                  2003 Gerd Knorr <kraxel@bytesex.org>
+		  2001 Michael Eskin
+		  2002 Yurij Sysoev <yurij@naturesoft.net>
+		  2003 Gerd Knorr <kraxel@bytesex.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -728,13 +728,13 @@
 #define ColorFormatGamma         0x1000
 
 #define Interlaced		 0x1
-#define NonInterlaced	 	 0x0
+#define NonInterlaced		 0x0
 
 #define FieldEven		 0x1
 #define FieldOdd		 0x0
 
-#define TGReadWriteMode	 	 0x0
-#define TGEnableMode	 	 0x1
+#define TGReadWriteMode		 0x0
+#define TGEnableMode		 0x1
 
 #define DV_CbAlign		 0x0
 #define DV_Y0Align		 0x1

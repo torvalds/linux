@@ -60,7 +60,7 @@ typedef int (*nfsd_dirop_t)(struct inode *, struct dentry *, int, int);
 extern struct svc_program	nfsd_program;
 extern struct svc_version	nfsd_version2, nfsd_version3,
 				nfsd_version4;
-
+extern struct svc_serv		*nfsd_serv;
 /*
  * Function prototypes.
  */

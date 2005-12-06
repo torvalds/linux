@@ -117,6 +117,20 @@
 .endm
 #endif /* CONFIG_M5407 */
 
+#if defined(CONFIG_M520x)
+.macro CACHE_ENABLE
+	move.l	#0x01000000,%d0		/* invalidate whole cache */
+	movec	%d0,%CACR
+	nop
+	move.l	#0x0000c000,%d0		/* set SDRAM cached (write-thru) */
+	movec	%d0,%ACR0
+	move.l	#0x00000000,%d0		/* no other regions cached */
+	movec	%d0,%ACR1
+	move.l	#0x80400000,%d0		/* enable 8K instruction cache */
+	movec	%d0,%CACR
+	nop
+.endm
+#endif /* CONFIG_M520x */
 
 /****************************************************************************/
 #endif	/* __M68KNOMMU_MCFCACHE_H */

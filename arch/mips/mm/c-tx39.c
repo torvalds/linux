@@ -167,15 +167,16 @@ static void tx39_flush_cache_mm(struct mm_struct *mm)
 static void tx39_flush_cache_range(struct vm_area_struct *vma,
 	unsigned long start, unsigned long end)
 {
-	struct mm_struct *mm = vma->vm_mm;
+	int exec;
 
-	if (!cpu_has_dc_aliases)
+	if (!(cpu_context(smp_processor_id(), vma->vm_mm)))
 		return;
 
-	if (cpu_context(smp_processor_id(), mm) != 0) {
+	exec = vma->vm_flags & VM_EXEC;
+	if (cpu_has_dc_aliases || exec)
 		tx39_blast_dcache();
+	if (exec)
 		tx39_blast_icache();
-	}
 }
 
 static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page, unsigned long pfn)
@@ -183,6 +184,7 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgdp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
@@ -195,7 +197,8 @@ static void tx39_flush_cache_page(struct vm_area_struct *vma, unsigned long page
 
 	page &= PAGE_MASK;
 	pgdp = pgd_offset(mm, page);
-	pmdp = pmd_offset(pgdp, page);
+	pudp = pud_offset(pgdp, page);
+	pmdp = pmd_offset(pudp, page);
 	ptep = pte_offset(pmdp, page);
 
 	/*
@@ -407,7 +410,7 @@ static __init void tx39_probe_cache(void)
 	}
 }
 
-void __init ld_mmu_tx39(void)
+void __init tx39_cache_init(void)
 {
 	extern void build_clear_page(void);
 	extern void build_copy_page(void);
@@ -490,4 +493,5 @@ void __init ld_mmu_tx39(void)
 
 	build_clear_page();
 	build_copy_page();
+	tx39h_flush_icache_all();
 }

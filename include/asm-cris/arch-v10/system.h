@@ -5,7 +5,7 @@
 
 /* read the CPU version register */
 
-extern inline unsigned long rdvr(void) { 
+static inline unsigned long rdvr(void) {
 	unsigned char vr;
 	__asm__ volatile ("move $vr,%0" : "=rm" (vr));
 	return vr;
@@ -15,7 +15,7 @@ extern inline unsigned long rdvr(void) {
 
 /* read/write the user-mode stackpointer */
 
-extern inline unsigned long rdusp(void) {
+static inline unsigned long rdusp(void) {
 	unsigned long usp;
 	__asm__ __volatile__("move $usp,%0" : "=rm" (usp));
 	return usp;
@@ -26,13 +26,13 @@ extern inline unsigned long rdusp(void) {
 
 /* read the current stackpointer */
 
-extern inline unsigned long rdsp(void) {
+static inline unsigned long rdsp(void) {
 	unsigned long sp;
 	__asm__ __volatile__("move.d $sp,%0" : "=rm" (sp));
 	return sp;
 }
 
-extern inline unsigned long _get_base(char * addr)
+static inline unsigned long _get_base(char * addr)
 {
   return 0;
 }

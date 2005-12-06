@@ -13,7 +13,6 @@
 #include "net_user.h"
 #include "slirp.h"
 #include "slip_common.h"
-#include "helper.h"
 #include "os.h"
 
 void slirp_user_init(void *data, void *dev)

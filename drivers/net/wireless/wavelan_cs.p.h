@@ -472,11 +472,9 @@
 #define MULTICAST_AVOID		/* Avoid extra multicast (I'm sceptical) */
 #undef SET_MAC_ADDRESS		/* Experimental */
 
-#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
 /* Warning : these stuff will slow down the driver... */
 #define WIRELESS_SPY		/* Enable spying addresses */
 #undef HISTOGRAM		/* Enable histogram of sig level... */
-#endif
 
 /****************************** DEBUG ******************************/
 
@@ -624,12 +622,10 @@ struct net_local
   int   	rfp;		/* Last DMA machine receive pointer */
   int		overrunning;	/* Receiver overrun flag */
 
-#ifdef WIRELESS_EXT
   iw_stats	wstats;		/* Wireless specific stats */
 
   struct iw_spy_data	spy_data;
   struct iw_public_data	wireless_data;
-#endif
 
 #ifdef HISTOGRAM
   int		his_number;		/* Number of intervals */

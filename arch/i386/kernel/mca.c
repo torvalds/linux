@@ -132,7 +132,7 @@ static struct resource mca_standard_resources[] = {
 	{ .start = 0x100, .end = 0x107, .name = "POS (MCA)" }
 };
 
-#define MCA_STANDARD_RESOURCES	(sizeof(mca_standard_resources)/sizeof(struct resource))
+#define MCA_STANDARD_RESOURCES	ARRAY_SIZE(mca_standard_resources)
 
 /**
  *	mca_read_and_store_pos - read the POS registers into a memory buffer

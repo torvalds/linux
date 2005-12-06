@@ -154,6 +154,13 @@ static struct kset_hotplug_ops device_hotplug_ops = {
 	.hotplug =	dev_hotplug,
 };
 
+static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	kobject_hotplug(&dev->kobj, KOBJ_ADD);
+	return count;
+}
+
 /**
  *	device_subsys - structure to be registered with kobject core.
  */
@@ -225,6 +232,7 @@ void device_initialize(struct device *dev)
 		   klist_children_put);
 	INIT_LIST_HEAD(&dev->dma_pools);
 	init_MUTEX(&dev->sem);
+	device_init_wakeup(dev, 0);
 }
 
 /**
@@ -258,6 +266,14 @@ int device_add(struct device *dev)
 
 	if ((error = kobject_add(&dev->kobj)))
 		goto Error;
+
+	dev->uevent_attr.attr.name = "uevent";
+	dev->uevent_attr.attr.mode = S_IWUSR;
+	if (dev->driver)
+		dev->uevent_attr.attr.owner = dev->driver->owner;
+	dev->uevent_attr.store = store_uevent;
+	device_create_file(dev, &dev->uevent_attr);
+
 	kobject_hotplug(&dev->kobj, KOBJ_ADD);
 	if ((error = device_pm_add(dev)))
 		goto PMError;
@@ -349,6 +365,7 @@ void device_del(struct device * dev)
 
 	if (parent)
 		klist_del(&dev->knode_parent);
+	device_remove_file(dev, &dev->uevent_attr);
 
 	/* Notify the platform of the removal, in case they
 	 * need to do anything...
@@ -390,11 +407,11 @@ static struct device * next_device(struct klist_iter * i)
 
 /**
  *	device_for_each_child - device child iterator.
- *	@dev:	parent struct device.
+ *	@parent: parent struct device.
  *	@data:	data for the callback.
  *	@fn:	function to be called for each device.
  *
- *	Iterate over @dev's child devices, and call @fn for each,
+ *	Iterate over @parent's child devices, and call @fn for each,
  *	passing it @data.
  *
  *	We check the return of @fn each time. If it returns anything

@@ -19,6 +19,7 @@
 #include "server.h"
 #include "vnode.h"
 #include "internal.h"
+#include "cmservice.h"
 
 /*****************************************************************************/
 /*

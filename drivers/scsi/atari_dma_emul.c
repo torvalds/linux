@@ -19,6 +19,8 @@
  * this code.
  */
 
+#include <linux/compiler.h>
+#include <asm/thread_info.h>
 #include <asm/uaccess.h>
 
 #define hades_dma_ctrl		(*(unsigned char *) 0xffff8717)

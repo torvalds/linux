@@ -1,27 +1,82 @@
 
-===========================
-Intel(R) PRO/Wireless 2100 Network Connection Driver for Linux
+Intel(R) PRO/Wireless 2100 Driver for Linux in support of:
+
+Intel(R) PRO/Wireless 2100 Network Connection
+
+Copyright (C) 2003-2005, Intel Corporation
+
 README.ipw2100
 
-March 14, 2005
+Version: 1.1.3
+Date   : October 17, 2005
 
-===========================
 Index
----------------------------
-0. Introduction
-1. Release 1.1.0 Current Features
-2. Command Line Parameters
-3. Sysfs Helper Files
-4. Radio Kill Switch
-5. Dynamic Firmware
-6. Power Management
-7. Support
-8. License
+-----------------------------------------------
+0. IMPORTANT INFORMATION BEFORE USING THIS DRIVER
+1. Introduction
+2. Release 1.1.3 Current Features
+3. Command Line Parameters
+4. Sysfs Helper Files
+5. Radio Kill Switch
+6. Dynamic Firmware
+7. Power Management
+8. Support
+9. License
 
 
-===========================
-0. Introduction
------------- -----   -----       ----       ---       --         -     
+0.   IMPORTANT INFORMATION BEFORE USING THIS DRIVER
+-----------------------------------------------
+
+Important Notice FOR ALL USERS OR DISTRIBUTORS!!!!
+
+Intel wireless LAN adapters are engineered, manufactured, tested, and
+quality checked to ensure that they meet all necessary local and
+governmental regulatory agency requirements for the regions that they
+are designated and/or marked to ship into. Since wireless LANs are
+generally unlicensed devices that share spectrum with radars,
+satellites, and other licensed and unlicensed devices, it is sometimes
+necessary to dynamically detect, avoid, and limit usage to avoid
+interference with these devices. In many instances Intel is required to
+provide test data to prove regional and local compliance to regional and
+governmental regulations before certification or approval to use the
+product is granted. Intel's wireless LAN's EEPROM, firmware, and
+software driver are designed to carefully control parameters that affect
+radio operation and to ensure electromagnetic compliance (EMC). These
+parameters include, without limitation, RF power, spectrum usage,
+channel scanning, and human exposure.
+
+For these reasons Intel cannot permit any manipulation by third parties
+of the software provided in binary format with the wireless WLAN
+adapters (e.g., the EEPROM and firmware). Furthermore, if you use any
+patches, utilities, or code with the Intel wireless LAN adapters that
+have been manipulated by an unauthorized party (i.e., patches,
+utilities, or code (including open source code modifications) which have
+not been validated by Intel), (i) you will be solely responsible for
+ensuring the regulatory compliance of the products, (ii) Intel will bear
+no liability, under any theory of liability for any issues associated
+with the modified products, including without limitation, claims under
+the warranty and/or issues arising from regulatory non-compliance, and
+(iii) Intel will not provide or be required to assist in providing
+support to any third parties for such modified products.
+
+Note: Many regulatory agencies consider Wireless LAN adapters to be
+modules, and accordingly, condition system-level regulatory approval
+upon receipt and review of test data documenting that the antennas and
+system configuration do not cause the EMC and radio operation to be
+non-compliant.
+
+The drivers available for download from SourceForge are provided as a
+part of a development project.  Conformance to local regulatory
+requirements is the responsibility of the individual developer.  As
+such, if you are interested in deploying or shipping a driver as part of
+solution intended to be used for purposes other than development, please
+obtain a tested driver from Intel Customer Support at:
+
+http://support.intel.com/support/notebook/sb/CS-006408.htm
+
+
+1. Introduction
+-----------------------------------------------
 
 This document provides a brief overview of the features supported by the 
 IPW2100 driver project.  The main project website, where the latest 
@@ -34,9 +89,8 @@ potential fixes and patches, as well as links to the development mailing list
 for the driver project.
 
 
-===========================
-1. Release 1.1.0 Current Supported Features
----------------------------     
+2. Release 1.1.3 Current Supported Features
+-----------------------------------------------
 - Managed (BSS) and Ad-Hoc (IBSS)
 - WEP (shared key and open)
 - Wireless Tools support 
@@ -51,9 +105,8 @@ on the amount of validation and interoperability testing that has been
 performed on a given feature.
 
 
-===========================
-2. Command Line Parameters
----------------------------     
+3. Command Line Parameters
+-----------------------------------------------
 
 If the driver is built as a module, the following optional parameters are used
 by entering them on the command line with the modprobe command using this
@@ -75,9 +128,9 @@ associate	boolean		associate=0 /* Do NOT auto associate */
 disable		boolean		disable=1 /* Do not power the HW */
 
 
-===========================
-3. Sysfs Helper Files
+4. Sysfs Helper Files
 ---------------------------     
+-----------------------------------------------
 
 There are several ways to control the behavior of the driver.  Many of the 
 general capabilities are exposed through the Wireless Tools (iwconfig).  There
@@ -120,9 +173,8 @@ For the device level files, see /sys/bus/pci/drivers/ipw2100:
   	based RF kill from ON -> OFF -> ON, the radio will NOT come back on
 
 
-===========================
-4. Radio Kill Switch
----------------------------
+5. Radio Kill Switch
+-----------------------------------------------
 Most laptops provide the ability for the user to physically disable the radio.
 Some vendors have implemented this as a physical switch that requires no
 software to turn the radio off and on.  On other laptops, however, the switch
@@ -134,9 +186,8 @@ See the Sysfs helper file 'rf_kill' for determining the state of the RF switch
 on your system.
 
 
-===========================
-5. Dynamic Firmware
----------------------------     
+6. Dynamic Firmware
+-----------------------------------------------
 As the firmware is licensed under a restricted use license, it can not be 
 included within the kernel sources.  To enable the IPW2100 you will need a 
 firmware image to load into the wireless NIC's processors.
@@ -146,9 +197,8 @@ You can obtain these images from <http://ipw2100.sf.net/firmware.php>.
 See INSTALL for instructions on installing the firmware.
 
 
-===========================
-6. Power Management
----------------------------     
+7. Power Management
+-----------------------------------------------
 The IPW2100 supports the configuration of the Power Save Protocol 
 through a private wireless extension interface.  The IPW2100 supports 
 the following different modes:
@@ -200,9 +250,8 @@ xxxx/yyyy will be replaced with 'off' -- the level reported will be the active
 level if `iwconfig eth1 power on` is invoked.
 
 
-===========================
-7. Support
----------------------------     
+8. Support
+-----------------------------------------------
 
 For general development information and support,
 go to:
@@ -218,9 +267,8 @@ For installation support on the ipw2100 1.1.0 driver on Linux kernels
 
     http://supportmail.intel.com
 
-===========================
-8. License
----------------------------     
+9. License
+-----------------------------------------------
 
   Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
 

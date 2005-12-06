@@ -24,14 +24,14 @@ Supported chips:
                http://www.national.com/pf/LM/LM86.html
   * Analog Devices ADM1032
     Prefix: 'adm1032'
-    Addresses scanned: I2C 0x4c
+    Addresses scanned: I2C 0x4c and 0x4d
     Datasheet: Publicly available at the Analog Devices website
-               http://products.analog.com/products/info.asp?product=ADM1032
+               http://www.analog.com/en/prod/0,2877,ADM1032,00.html
   * Analog Devices ADT7461
     Prefix: 'adt7461'
-    Addresses scanned: I2C 0x4c
+    Addresses scanned: I2C 0x4c and 0x4d
     Datasheet: Publicly available at the Analog Devices website
-               http://products.analog.com/products/info.asp?product=ADT7461
+               http://www.analog.com/en/prod/0,2877,ADT7461,00.html
     Note: Only if in ADM1032 compatibility mode
   * Maxim MAX6657
     Prefix: 'max6657'
@@ -71,8 +71,8 @@ increased resolution of the remote temperature measurement.
 
 The different chipsets of the family are not strictly identical, although
 very similar. This driver doesn't handle any specific feature for now,
-but could if there ever was a need for it. For reference, here comes a
-non-exhaustive list of specific features:
+with the exception of SMBus PEC. For reference, here comes a non-exhaustive
+list of specific features:
 
 LM90:
   * Filter and alert configuration register at 0xBF.
@@ -91,6 +91,7 @@ ADM1032:
   * Conversion averaging.
   * Up to 64 conversions/s.
   * ALERT is triggered by open remote sensor.
+  * SMBus PEC support for Write Byte and Receive Byte transactions.
 
 ADT7461
   * Extended temperature range (breaks compatibility)
@@ -119,3 +120,37 @@ The lm90 driver will not update its values more frequently than every
 other second; reading them more often will do no harm, but will return
 'old' values.
 
+PEC Support
+-----------
+
+The ADM1032 is the only chip of the family which supports PEC. It does
+not support PEC on all transactions though, so some care must be taken.
+
+When reading a register value, the PEC byte is computed and sent by the
+ADM1032 chip. However, in the case of a combined transaction (SMBus Read
+Byte), the ADM1032 computes the CRC value over only the second half of
+the message rather than its entirety, because it thinks the first half
+of the message belongs to a different transaction. As a result, the CRC
+value differs from what the SMBus master expects, and all reads fail.
+
+For this reason, the lm90 driver will enable PEC for the ADM1032 only if
+the bus supports the SMBus Send Byte and Receive Byte transaction types.
+These transactions will be used to read register values, instead of
+SMBus Read Byte, and PEC will work properly.
+
+Additionally, the ADM1032 doesn't support SMBus Send Byte with PEC.
+Instead, it will try to write the PEC value to the register (because the
+SMBus Send Byte transaction with PEC is similar to a Write Byte transaction
+without PEC), which is not what we want. Thus, PEC is explicitely disabled
+on SMBus Send Byte transactions in the lm90 driver.
+
+PEC on byte data transactions represents a significant increase in bandwidth
+usage (+33% for writes, +25% for reads) in normal conditions. With the need
+to use two SMBus transaction for reads, this overhead jumps to +50%. Worse,
+two transactions will typically mean twice as much delay waiting for
+transaction completion, effectively doubling the register cache refresh time.
+I guess reliability comes at a price, but it's quite expensive this time.
+
+So, as not everyone might enjoy the slowdown, PEC can be disabled through
+sysfs. Just write 0 to the "pec" file and PEC will be disabled. Write 1
+to that file to enable PEC again.

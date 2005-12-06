@@ -331,10 +331,8 @@ static void shutdown_socket(struct pcmcia_socket *s)
 	cb_free(s);
 #endif
 	s->functions = 0;
-	if (s->config) {
-		kfree(s->config);
-		s->config = NULL;
-	}
+	kfree(s->config);
+	s->config = NULL;
 
 	{
 		int status;
@@ -515,6 +513,11 @@ static int socket_insert(struct pcmcia_socket *skt)
 	ret = socket_setup(skt, setup_delay);
 	if (ret == CS_SUCCESS) {
 		skt->state |= SOCKET_PRESENT;
+
+		printk(KERN_NOTICE "pccard: %s card inserted into slot %d\n",
+		       (skt->state & SOCKET_CARDBUS) ? "CardBus" : "PCMCIA",
+		       skt->sock);
+
 #ifdef CONFIG_CARDBUS
 		if (skt->state & SOCKET_CARDBUS) {
 			cb_alloc(skt);
@@ -600,6 +603,7 @@ static int socket_resume(struct pcmcia_socket *skt)
 
 static void socket_remove(struct pcmcia_socket *skt)
 {
+	printk(KERN_NOTICE "pccard: card ejected from slot %d\n", skt->sock);
 	socket_shutdown(skt);
 	cs_socket_put(skt);
 }
@@ -689,6 +693,9 @@ static int pccardd(void *__skt)
 		schedule();
 		try_to_freeze();
 	}
+	/* make sure we are running before we exit */
+	set_current_state(TASK_RUNNING);
+
 	remove_wait_queue(&skt->thread_wait, &wait);
 
 	/* remove from the device core */

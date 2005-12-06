@@ -20,6 +20,8 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 
+#include "bitmap.h"
+
 /*
  * balloc.c contains the blocks allocation and deallocation routines
  */
@@ -1010,7 +1012,7 @@ retry:
  * allocation within the reservation window.
  *
  * This will avoid keeping on searching the reservation list again and
- * again when someboday is looking for a free block (without
+ * again when somebody is looking for a free block (without
  * reservation), and there are lots of free blocks, but they are all
  * being reserved.
  *
@@ -1410,18 +1412,19 @@ unsigned long ext3_count_free_blocks(struct super_block *sb)
 	unsigned long desc_count;
 	struct ext3_group_desc *gdp;
 	int i;
-	unsigned long ngroups;
+	unsigned long ngroups = EXT3_SB(sb)->s_groups_count;
 #ifdef EXT3FS_DEBUG
 	struct ext3_super_block *es;
 	unsigned long bitmap_count, x;
 	struct buffer_head *bitmap_bh = NULL;
 
-	lock_super(sb);
 	es = EXT3_SB(sb)->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
 	gdp = NULL;
-	for (i = 0; i < EXT3_SB(sb)->s_groups_count; i++) {
+
+	smp_rmb();
+	for (i = 0; i < ngroups; i++) {
 		gdp = ext3_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
@@ -1439,11 +1442,9 @@ unsigned long ext3_count_free_blocks(struct super_block *sb)
 	brelse(bitmap_bh);
 	printk("ext3_count_free_blocks: stored = %u, computed = %lu, %lu\n",
 	       le32_to_cpu(es->s_free_blocks_count), desc_count, bitmap_count);
-	unlock_super(sb);
 	return bitmap_count;
 #else
 	desc_count = 0;
-	ngroups = EXT3_SB(sb)->s_groups_count;
 	smp_rmb();
 	for (i = 0; i < ngroups; i++) {
 		gdp = ext3_get_group_desc(sb, i, NULL);
@@ -1516,76 +1517,3 @@ unsigned long ext3_bg_num_gdb(struct super_block *sb, int group)
 	return EXT3_SB(sb)->s_gdb_count;
 }
 
-#ifdef CONFIG_EXT3_CHECK
-/* Called at mount-time, super-block is locked */
-void ext3_check_blocks_bitmap (struct super_block * sb)
-{
-	struct ext3_super_block *es;
-	unsigned long desc_count, bitmap_count, x, j;
-	unsigned long desc_blocks;
-	struct buffer_head *bitmap_bh = NULL;
-	struct ext3_group_desc *gdp;
-	int i;
-
-	es = EXT3_SB(sb)->s_es;
-	desc_count = 0;
-	bitmap_count = 0;
-	gdp = NULL;
-	for (i = 0; i < EXT3_SB(sb)->s_groups_count; i++) {
-		gdp = ext3_get_group_desc (sb, i, NULL);
-		if (!gdp)
-			continue;
-		desc_count += le16_to_cpu(gdp->bg_free_blocks_count);
-		brelse(bitmap_bh);
-		bitmap_bh = read_block_bitmap(sb, i);
-		if (bitmap_bh == NULL)
-			continue;
-
-		if (ext3_bg_has_super(sb, i) &&
-				!ext3_test_bit(0, bitmap_bh->b_data))
-			ext3_error(sb, __FUNCTION__,
-				   "Superblock in group %d is marked free", i);
-
-		desc_blocks = ext3_bg_num_gdb(sb, i);
-		for (j = 0; j < desc_blocks; j++)
-			if (!ext3_test_bit(j + 1, bitmap_bh->b_data))
-				ext3_error(sb, __FUNCTION__,
-					   "Descriptor block #%ld in group "
-					   "%d is marked free", j, i);
-
-		if (!block_in_use (le32_to_cpu(gdp->bg_block_bitmap),
-						sb, bitmap_bh->b_data))
-			ext3_error (sb, "ext3_check_blocks_bitmap",
-				    "Block bitmap for group %d is marked free",
-				    i);
-
-		if (!block_in_use (le32_to_cpu(gdp->bg_inode_bitmap),
-						sb, bitmap_bh->b_data))
-			ext3_error (sb, "ext3_check_blocks_bitmap",
-				    "Inode bitmap for group %d is marked free",
-				    i);
-
-		for (j = 0; j < EXT3_SB(sb)->s_itb_per_group; j++)
-			if (!block_in_use (le32_to_cpu(gdp->bg_inode_table) + j,
-							sb, bitmap_bh->b_data))
-				ext3_error (sb, "ext3_check_blocks_bitmap",
-					    "Block #%d of the inode table in "
-					    "group %d is marked free", j, i);
-
-		x = ext3_count_free(bitmap_bh, sb->s_blocksize);
-		if (le16_to_cpu(gdp->bg_free_blocks_count) != x)
-			ext3_error (sb, "ext3_check_blocks_bitmap",
-				    "Wrong free blocks count for group %d, "
-				    "stored = %d, counted = %lu", i,
-				    le16_to_cpu(gdp->bg_free_blocks_count), x);
-		bitmap_count += x;
-	}
-	brelse(bitmap_bh);
-	if (le32_to_cpu(es->s_free_blocks_count) != bitmap_count)
-		ext3_error (sb, "ext3_check_blocks_bitmap",
-			"Wrong free blocks count in super block, "
-			"stored = %lu, counted = %lu",
-			(unsigned long)le32_to_cpu(es->s_free_blocks_count),
-			bitmap_count);
-}
-#endif

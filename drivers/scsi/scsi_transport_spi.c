@@ -33,8 +33,6 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_spi.h>
 
-#define SPI_PRINTK(x, l, f, a...)	dev_printk(l, &(x)->dev, f , ##a)
-
 #define SPI_NUM_ATTRS 14	/* increase this if you add attributes */
 #define SPI_OTHER_ATTRS 1	/* Increase this if you add "always
 				 * on" attributes */
@@ -618,7 +616,7 @@ spi_dv_device_echo_buffer(struct scsi_device *sdev, u8 *buffer,
 				return SPI_COMPARE_SKIP_TEST;
 
 
-			SPI_PRINTK(sdev->sdev_target, KERN_ERR, "Write Buffer failure %x\n", result);
+			sdev_printk(KERN_ERR, sdev, "Write Buffer failure %x\n", result);
 			return SPI_COMPARE_FAILURE;
 		}
 
@@ -702,10 +700,10 @@ spi_dv_retrain(struct scsi_device *sdev, u8 *buffer, u8 *ptr,
 		 * IU, then QAS (if we can control them), then finally
 		 * fall down the periods */
 		if (i->f->set_iu && spi_iu(starget)) {
-			SPI_PRINTK(starget, KERN_ERR, "Domain Validation Disabing Information Units\n");
+			starget_printk(KERN_ERR, starget, "Domain Validation Disabing Information Units\n");
 			DV_SET(iu, 0);
 		} else if (i->f->set_qas && spi_qas(starget)) {
-			SPI_PRINTK(starget, KERN_ERR, "Domain Validation Disabing Quick Arbitration and Selection\n");
+			starget_printk(KERN_ERR, starget, "Domain Validation Disabing Quick Arbitration and Selection\n");
 			DV_SET(qas, 0);
 		} else {
 			newperiod = spi_period(starget);
@@ -717,11 +715,11 @@ spi_dv_retrain(struct scsi_device *sdev, u8 *buffer, u8 *ptr,
 
 			if (unlikely(period > 0xff || period == prevperiod)) {
 				/* Total failure; set to async and return */
-				SPI_PRINTK(starget, KERN_ERR, "Domain Validation Failure, dropping back to Asynchronous\n");
+				starget_printk(KERN_ERR, starget, "Domain Validation Failure, dropping back to Asynchronous\n");
 				DV_SET(offset, 0);
 				return SPI_COMPARE_FAILURE;
 			}
-			SPI_PRINTK(starget, KERN_ERR, "Domain Validation detected failure, dropping back\n");
+			starget_printk(KERN_ERR, starget, "Domain Validation detected failure, dropping back\n");
 			DV_SET(period, period);
 			prevperiod = period;
 		}
@@ -788,7 +786,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 	
 	if (spi_dv_device_compare_inquiry(sdev, buffer, buffer, DV_LOOPS)
 	    != SPI_COMPARE_SUCCESS) {
-		SPI_PRINTK(starget, KERN_ERR, "Domain Validation Initial Inquiry Failed\n");
+		starget_printk(KERN_ERR, starget, "Domain Validation Initial Inquiry Failed\n");
 		/* FIXME: should probably offline the device here? */
 		return;
 	}
@@ -802,7 +800,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 						   buffer + len,
 						   DV_LOOPS)
 		    != SPI_COMPARE_SUCCESS) {
-			SPI_PRINTK(starget, KERN_ERR, "Wide Transfers Fail\n");
+			starget_printk(KERN_ERR, starget, "Wide Transfers Fail\n");
 			i->f->set_width(starget, 0);
 		}
 	}
@@ -814,12 +812,10 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 	if (!scsi_device_sync(sdev) && !scsi_device_dt(sdev))
 		return;
 
-	/* see if the device has an echo buffer.  If it does we can
-	 * do the SPI pattern write tests */
-
-	len = 0;
-	if (scsi_device_dt(sdev))
-		len = spi_dv_device_get_echo_buffer(sdev, buffer);
+	/* len == -1 is the signal that we need to ascertain the
+	 * presence of an echo buffer before trying to use it.  len ==
+	 * 0 means we don't have an echo buffer */
+	len = -1;
 
  retry:
 
@@ -842,16 +838,28 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		if (spi_min_period(starget) == 8)
 			DV_SET(pcomp_en, 1);
 	}
+	/* Do the read only INQUIRY tests */
+	spi_dv_retrain(sdev, buffer, buffer + sdev->inquiry_len,
+		       spi_dv_device_compare_inquiry);
+	/* See if we actually managed to negotiate and sustain DT */
+	if (i->f->get_dt)
+		i->f->get_dt(starget);
 
-	if (len == 0) {
-		SPI_PRINTK(starget, KERN_INFO, "Domain Validation skipping write tests\n");
-		spi_dv_retrain(sdev, buffer, buffer + len,
-			       spi_dv_device_compare_inquiry);
+	/* see if the device has an echo buffer.  If it does we can do
+	 * the SPI pattern write tests.  Because of some broken
+	 * devices, we *only* try this on a device that has actually
+	 * negotiated DT */
+
+	if (len == -1 && spi_dt(starget))
+		len = spi_dv_device_get_echo_buffer(sdev, buffer);
+
+	if (len <= 0) {
+		starget_printk(KERN_INFO, starget, "Domain Validation skipping write tests\n");
 		return;
 	}
 
 	if (len > SPI_MAX_ECHO_BUFFER_SIZE) {
-		SPI_PRINTK(starget, KERN_WARNING, "Echo buffer size %d is too big, trimming to %d\n", len, SPI_MAX_ECHO_BUFFER_SIZE);
+		starget_printk(KERN_WARNING, starget, "Echo buffer size %d is too big, trimming to %d\n", len, SPI_MAX_ECHO_BUFFER_SIZE);
 		len = SPI_MAX_ECHO_BUFFER_SIZE;
 	}
 
@@ -902,11 +910,11 @@ spi_dv_device(struct scsi_device *sdev)
 	spi_dv_pending(starget) = 1;
 	down(&spi_dv_sem(starget));
 
-	SPI_PRINTK(starget, KERN_INFO, "Beginning Domain Validation\n");
+	starget_printk(KERN_INFO, starget, "Beginning Domain Validation\n");
 
 	spi_dv_device_internal(sdev, buffer);
 
-	SPI_PRINTK(starget, KERN_INFO, "Ending Domain Validation\n");
+	starget_printk(KERN_INFO, starget, "Ending Domain Validation\n");
 
 	up(&spi_dv_sem(starget));
 	spi_dv_pending(starget) = 0;

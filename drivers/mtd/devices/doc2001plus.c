@@ -6,7 +6,7 @@
  * (c) 1999 Machine Vision Holdings, Inc.
  * (c) 1999, 2000 David Woodhouse <dwmw2@infradead.org>
  *
- * $Id: doc2001plus.c,v 1.13 2005/01/05 18:05:12 dwmw2 Exp $
+ * $Id: doc2001plus.c,v 1.14 2005/11/07 11:14:24 gleixner Exp $
  *
  * Released under GPL
  */
@@ -293,10 +293,10 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 	DoC_Command(docptr, NAND_CMD_RESET, 0);
 	DoC_WaitReady(docptr);
 
-	/* Read the NAND chip ID: 1. Send ReadID command */ 
+	/* Read the NAND chip ID: 1. Send ReadID command */
 	DoC_Command(docptr, NAND_CMD_READID, 0);
 
-	/* Read the NAND chip ID: 2. Send address byte zero */ 
+	/* Read the NAND chip ID: 2. Send address byte zero */
 	DoC_Address(doc, 1, 0x00, 0, 0x00);
 
 	WriteDOC(0, docptr, Mplus_FlashControl);
@@ -365,7 +365,7 @@ static void DoC_ScanChips(struct DiskOnChip *this)
 		this->interleave = 1;
 
 	/* Check the ASIC agrees */
-	if ( (this->interleave << 2) != 
+	if ( (this->interleave << 2) !=
 	     (ReadDOC(this->virtadr, Mplus_Configuration) & 4)) {
 		u_char conf = ReadDOC(this->virtadr, Mplus_Configuration);
 		printk(KERN_NOTICE "Setting DiskOnChip Millennium Plus interleave to %s\n",
@@ -398,7 +398,7 @@ static void DoC_ScanChips(struct DiskOnChip *this)
 		return;
 	}
 
-	/* Fill out the chip array with {floor, chipno} for each 
+	/* Fill out the chip array with {floor, chipno} for each
 	 * detected chip in the device. */
 	for (floor = 0, ret = 0; floor < MAX_FLOORS_MPLUS; floor++) {
 		for (chip = 0 ; chip < numchips[floor] ; chip++) {
@@ -432,7 +432,7 @@ static int DoCMilPlus_is_alias(struct DiskOnChip *doc1, struct DiskOnChip *doc2)
 	tmp2 = ReadDOC(doc2->virtadr, Mplus_AliasResolution);
 	if (tmp1 != tmp2)
 		return 0;
-	
+
 	WriteDOC((tmp1+1) % 0xff, doc1->virtadr, Mplus_AliasResolution);
 	tmp2 = ReadDOC(doc2->virtadr, Mplus_AliasResolution);
 	if (tmp2 == (tmp1+1) % 0xff)
@@ -624,7 +624,7 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 		return -EINVAL;
 
 	/* Don't allow a single read to cross a 512-byte block boundary */
-	if (from + len > ((from | 0x1ff) + 1)) 
+	if (from + len > ((from | 0x1ff) + 1))
 		len = ((from | 0x1ff) + 1) - from;
 
 	DoC_CheckASIC(docptr);
@@ -1066,7 +1066,7 @@ int doc_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	DoC_CheckASIC(docptr);
 
-	if (len != mtd->erasesize) 
+	if (len != mtd->erasesize)
 		printk(KERN_WARNING "MTD: Erase not right size (%x != %x)n",
 		       len, mtd->erasesize);
 
@@ -1136,9 +1136,9 @@ static void __exit cleanup_doc2001plus(void)
 	while ((mtd=docmilpluslist)) {
 		this = mtd->priv;
 		docmilpluslist = this->nextdoc;
-			
+
 		del_mtd_device(mtd);
-			
+
 		iounmap(this->virtadr);
 		kfree(this->chips);
 		kfree(mtd);

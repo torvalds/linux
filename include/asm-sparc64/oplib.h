@@ -38,6 +38,20 @@ extern int prom_stdin, prom_stdout;
  */
 extern int prom_chosen_node;
 
+/* Helper values and strings in arch/sparc64/kernel/head.S */
+extern const char prom_finddev_name[];
+extern const char prom_chosen_path[];
+extern const char prom_getprop_name[];
+extern const char prom_mmu_name[];
+extern const char prom_callmethod_name[];
+extern const char prom_translate_name[];
+extern const char prom_map_name[];
+extern const char prom_unmap_name[];
+extern int prom_mmu_ihandle_cache;
+extern unsigned int prom_boot_mapped_pc;
+extern unsigned int prom_boot_mapping_mode;
+extern unsigned long prom_boot_mapping_phys_high, prom_boot_mapping_phys_low;
+
 struct linux_mlist_p1275 {
 	struct linux_mlist_p1275 *theres_more;
 	unsigned long start_adr;
@@ -68,7 +82,7 @@ extern char *prom_getbootargs(void);
  * of the string is different on V0 vs. V2->higher proms.  The caller must
  * know what he/she is doing!  Returns the device descriptor, an int.
  */
-extern int prom_devopen(char *device_string);
+extern int prom_devopen(const char *device_string);
 
 /* Close a previously opened device described by the passed integer
  * descriptor.
@@ -81,27 +95,13 @@ extern int prom_devclose(int device_handle);
 extern void prom_seek(int device_handle, unsigned int seek_hival,
 		      unsigned int seek_lowval);
 
-/* Machine memory configuration routine. */
-
-/* This function returns a V0 format memory descriptor table, it has three
- * entries.  One for the total amount of physical ram on the machine, one
- * for the amount of physical ram available, and one describing the virtual
- * areas which are allocated by the prom.  So, in a sense the physical
- * available is a calculation of the total physical minus the physical mapped
- * by the prom with virtual mappings.
- *
- * These lists are returned pre-sorted, this should make your life easier
- * since the prom itself is way too lazy to do such nice things.
- */
-extern struct linux_mem_p1275 *prom_meminfo(void);
-
 /* Miscellaneous routines, don't really fit in any category per se. */
 
 /* Reboot the machine with the command line passed. */
-extern void prom_reboot(char *boot_command);
+extern void prom_reboot(const char *boot_command);
 
 /* Evaluate the forth string passed. */
-extern void prom_feval(char *forth_string);
+extern void prom_feval(const char *forth_string);
 
 /* Enter the prom, with possibility of continuation with the 'go'
  * command in newer proms.
@@ -154,7 +154,7 @@ extern char prom_getchar(void);
 extern void prom_putchar(char character);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
-extern void prom_printf(char *fmt, ...);
+extern void prom_printf(const char *fmt, ...);
 extern void prom_write(const char *buf, unsigned int len);
 
 /* Query for input device type */
@@ -215,7 +215,7 @@ extern int prom_getunumber(int syndrome_code,
 			   char *buf, int buflen);
 
 /* Retain physical memory to the caller across soft resets. */
-extern unsigned long prom_retain(char *name,
+extern unsigned long prom_retain(const char *name,
 				 unsigned long pa_low, unsigned long pa_high,
 				 long size, long align);
 
@@ -269,28 +269,28 @@ extern int prom_getsibling(int node);
 /* Get the length, at the passed node, of the given property type.
  * Returns -1 on error (ie. no such property at this node).
  */
-extern int prom_getproplen(int thisnode, char *property);
+extern int prom_getproplen(int thisnode, const char *property);
 
 /* Fetch the requested property using the given buffer.  Returns
  * the number of bytes the prom put into your buffer or -1 on error.
  */
-extern int prom_getproperty(int thisnode, char *property,
+extern int prom_getproperty(int thisnode, const char *property,
 			    char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
-extern int prom_getint(int node, char *property);
+extern int prom_getint(int node, const char *property);
 
 /* Acquire an integer property, with a default value. */
-extern int prom_getintdefault(int node, char *property, int defval);
+extern int prom_getintdefault(int node, const char *property, int defval);
 
 /* Acquire a boolean property, 0=FALSE 1=TRUE. */
-extern int prom_getbool(int node, char *prop);
+extern int prom_getbool(int node, const char *prop);
 
 /* Acquire a string property, null string on error. */
-extern void prom_getstring(int node, char *prop, char *buf, int bufsize);
+extern void prom_getstring(int node, const char *prop, char *buf, int bufsize);
 
 /* Does the passed node have the given "name"? YES=1 NO=0 */
-extern int prom_nodematch(int thisnode, char *name);
+extern int prom_nodematch(int thisnode, const char *name);
 
 /* Puts in buffer a prom name in the form name@x,y or name (x for which_io 
  * and y for first regs phys address
@@ -300,7 +300,7 @@ extern int prom_getname(int node, char *buf, int buflen);
 /* Search all siblings starting at the passed node for "name" matching
  * the given string.  Returns the node on success, zero on failure.
  */
-extern int prom_searchsiblings(int node_start, char *name);
+extern int prom_searchsiblings(int node_start, const char *name);
 
 /* Return the first property type, as a string, for the given node.
  * Returns a null string on error. Buffer should be at least 32B long.
@@ -310,21 +310,21 @@ extern char *prom_firstprop(int node, char *buffer);
 /* Returns the next property after the passed property for the given
  * node.  Returns null string on failure. Buffer should be at least 32B long.
  */
-extern char *prom_nextprop(int node, char *prev_property, char *buffer);
+extern char *prom_nextprop(int node, const char *prev_property, char *buffer);
 
 /* Returns 1 if the specified node has given property. */
-extern int prom_node_has_property(int node, char *property);
+extern int prom_node_has_property(int node, const char *property);
 
 /* Returns phandle of the path specified */
-extern int prom_finddevice(char *name);
+extern int prom_finddevice(const char *name);
 
 /* Set the indicated property at the given node with the passed value.
  * Returns the number of bytes of your value that the prom took.
  */
-extern int prom_setprop(int node, char *prop_name, char *prop_value,
+extern int prom_setprop(int node, const char *prop_name, char *prop_value,
 			int value_size);
 			
-extern int prom_pathtoinode(char *path);
+extern int prom_pathtoinode(const char *path);
 extern int prom_inst2pkg(int);
 
 /* CPU probing helpers.  */
@@ -334,7 +334,7 @@ int cpu_find_by_mid(int mid, int *prom_node);
 /* Client interface level routines. */
 extern void prom_set_trap_table(unsigned long tba);
 
-extern long p1275_cmd (char *, long, ...);
+extern long p1275_cmd(const char *, long, ...);
 				   
 
 #if 0

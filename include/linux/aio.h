@@ -24,7 +24,12 @@ struct kioctx;
 #define KIOCB_SYNC_KEY		(~0U)
 
 /* ki_flags bits */
-#define KIF_LOCKED		0
+/*
+ * This may be used for cancel/retry serialization in the future, but
+ * for now it's unused and we probably don't want modules to even
+ * think they can use it.
+ */
+/* #define KIF_LOCKED		0 */
 #define KIF_KICKED		1
 #define KIF_CANCELLED		2
 
@@ -43,6 +48,40 @@ struct kioctx;
 #define kiocbIsKicked(iocb)	test_bit(KIF_KICKED, &(iocb)->ki_flags)
 #define kiocbIsCancelled(iocb)	test_bit(KIF_CANCELLED, &(iocb)->ki_flags)
 
+/* is there a better place to document function pointer methods? */
+/**
+ * ki_retry	-	iocb forward progress callback
+ * @kiocb:	The kiocb struct to advance by performing an operation.
+ *
+ * This callback is called when the AIO core wants a given AIO operation
+ * to make forward progress.  The kiocb argument describes the operation
+ * that is to be performed.  As the operation proceeds, perhaps partially,
+ * ki_retry is expected to update the kiocb with progress made.  Typically
+ * ki_retry is set in the AIO core and it itself calls file_operations
+ * helpers.
+ *
+ * ki_retry's return value determines when the AIO operation is completed
+ * and an event is generated in the AIO event ring.  Except the special
+ * return values described below, the value that is returned from ki_retry
+ * is transferred directly into the completion ring as the operation's
+ * resulting status.  Once this has happened ki_retry *MUST NOT* reference
+ * the kiocb pointer again.
+ *
+ * If ki_retry returns -EIOCBQUEUED it has made a promise that aio_complete()
+ * will be called on the kiocb pointer in the future.  The AIO core will
+ * not ask the method again -- ki_retry must ensure forward progress.
+ * aio_complete() must be called once and only once in the future, multiple
+ * calls may result in undefined behaviour.
+ *
+ * If ki_retry returns -EIOCBRETRY it has made a promise that kick_iocb()
+ * will be called on the kiocb pointer in the future.  This may happen
+ * through generic helpers that associate kiocb->ki_wait with a wait
+ * queue head that ki_retry uses via current->io_wait.  It can also happen
+ * with custom tracking and manual calls to kick_iocb(), though that is
+ * discouraged.  In either case, kick_iocb() must be called once and only
+ * once.  ki_retry must ensure forward progress, the AIO core will wait
+ * indefinitely for kick_iocb() to be called.
+ */
 struct kiocb {
 	struct list_head	ki_run_list;
 	long			ki_flags;
@@ -85,7 +124,7 @@ struct kiocb {
 		(x)->ki_users = 1;			\
 		(x)->ki_key = KIOCB_SYNC_KEY;		\
 		(x)->ki_filp = (filp);			\
-		(x)->ki_ctx = &tsk->active_mm->default_kioctx;	\
+		(x)->ki_ctx = NULL;			\
 		(x)->ki_cancel = NULL;			\
 		(x)->ki_dtor = NULL;			\
 		(x)->ki_obj.tsk = tsk;			\
@@ -144,6 +183,7 @@ struct kioctx {
 	struct list_head	active_reqs;	/* used for cancellation */
 	struct list_head	run_list;	/* used for kicked reqs */
 
+	/* sys_io_setup currently limits this to an unsigned int */
 	unsigned		max_reqs;
 
 	struct aio_ring_info	ring_info;
@@ -170,8 +210,15 @@ struct kioctx *lookup_ioctx(unsigned long ctx_id);
 int FASTCALL(io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 				  struct iocb *iocb));
 
-#define get_ioctx(kioctx)	do { if (unlikely(atomic_read(&(kioctx)->users) <= 0)) BUG(); atomic_inc(&(kioctx)->users); } while (0)
-#define put_ioctx(kioctx)	do { if (unlikely(atomic_dec_and_test(&(kioctx)->users))) __put_ioctx(kioctx); else if (unlikely(atomic_read(&(kioctx)->users) < 0)) BUG(); } while (0)
+#define get_ioctx(kioctx) do {						\
+	BUG_ON(unlikely(atomic_read(&(kioctx)->users) <= 0));		\
+	atomic_inc(&(kioctx)->users);					\
+} while (0)
+#define put_ioctx(kioctx) do {						\
+	BUG_ON(unlikely(atomic_read(&(kioctx)->users) <= 0));		\
+	if (unlikely(atomic_dec_and_test(&(kioctx)->users))) 		\
+		__put_ioctx(kioctx);					\
+} while (0)
 
 #define in_aio() !is_sync_wait(current->io_wait)
 /* may be used for debugging */
@@ -195,7 +242,7 @@ static inline struct kiocb *list_kiocb(struct list_head *h)
 }
 
 /* for sysctl: */
-extern atomic_t aio_nr;
-extern unsigned aio_max_nr;
+extern unsigned long aio_nr;
+extern unsigned long aio_max_nr;
 
 #endif /* __LINUX__AIO_H */

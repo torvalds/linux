@@ -1,9 +1,0 @@
-OUTPUT_ARCH(sh)
-SECTIONS
-{
-  .initrd :
-  {
-       *(.data)
-  }
-}
-

@@ -24,8 +24,8 @@
 #define PPC44x_EMAC0_MR0	0xE0000800
 
 /* Where to find the MAC info */
-#define EBONY_OPENBIOS_MAC_BASE   0xfffffe0c
-#define EBONY_OPENBIOS_MAC_OFFSET 0x0c
+#define OPENBIOS_MAC_BASE	0xfffffe0c
+#define OPENBIOS_MAC_OFFSET	0x0c
 
 /* Default clock rates for Rev. B and Rev. C silicon */
 #define EBONY_440GP_RB_SYSCLK	33000000

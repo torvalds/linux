@@ -22,10 +22,6 @@
 #include "mode.h"
 #include "os.h"
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 int hz(void)
 {
 	return(HZ);

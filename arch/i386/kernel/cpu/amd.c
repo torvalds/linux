@@ -28,6 +28,22 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	int mbytes = num_physpages >> (20-PAGE_SHIFT);
 	int r;
 
+#ifdef CONFIG_SMP
+	unsigned long long value;
+
+	/* Disable TLB flush filter by setting HWCR.FFDIS on K8
+	 * bit 6 of msr C001_0015
+	 *
+	 * Errata 63 for SH-B3 steppings
+	 * Errata 122 for all steppings (F+ have it disabled by default)
+	 */
+	if (c->x86 == 15) {
+		rdmsrl(MSR_K7_HWCR, value);
+		value |= 1 << 6;
+		wrmsrl(MSR_K7_HWCR, value);
+	}
+#endif
+
 	/*
 	 *	FIXME: We should handle the K5 here. Set up the write
 	 *	range and also turn on MSR 83 bits 4 and 31 (write alloc,
@@ -190,9 +206,9 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	display_cacheinfo(c);
 
 	if (cpuid_eax(0x80000000) >= 0x80000008) {
-		c->x86_num_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
-		if (c->x86_num_cores & (c->x86_num_cores - 1))
-			c->x86_num_cores = 1;
+		c->x86_max_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
+		if (c->x86_max_cores & (c->x86_max_cores - 1))
+			c->x86_max_cores = 1;
 	}
 
 #ifdef CONFIG_X86_HT
@@ -201,15 +217,15 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 	 * distingush the cores.  Assumes number of cores is a power
 	 * of two.
 	 */
-	if (c->x86_num_cores > 1) {
+	if (c->x86_max_cores > 1) {
 		int cpu = smp_processor_id();
 		unsigned bits = 0;
-		while ((1 << bits) < c->x86_num_cores)
+		while ((1 << bits) < c->x86_max_cores)
 			bits++;
 		cpu_core_id[cpu] = phys_proc_id[cpu] & ((1<<bits)-1);
 		phys_proc_id[cpu] >>= bits;
 		printk(KERN_INFO "CPU %d(%d) -> Core %d\n",
-		       cpu, c->x86_num_cores, cpu_core_id[cpu]);
+		       cpu, c->x86_max_cores, cpu_core_id[cpu]);
 	}
 #endif
 }

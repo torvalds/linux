@@ -109,7 +109,7 @@ static inline void singlestep_disable(struct task_struct *child)
 {
 	unsigned long tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
 	put_reg(child, PT_SR, tmp);
-	child->thread.work.delayed_trace = 0;
+	clear_tsk_thread_flag(child, TIF_DELAYED_TRACE);
 }
 
 /*
@@ -118,50 +118,13 @@ static inline void singlestep_disable(struct task_struct *child)
 void ptrace_disable(struct task_struct *child)
 {
 	singlestep_disable(child);
-	child->thread.work.syscall_trace = 0;
+	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct task_struct *child;
 	unsigned long tmp;
 	int i, ret = 0;
-
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED) {
-			ret = -EPERM;
-			goto out;
-		}
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		goto out;
-	}
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (unlikely(!child)) {
-		ret = -ESRCH;
-		goto out;
-	}
-
-	/* you may not mess with init */
-	if (unlikely(pid == 1)) {
-		ret = -EPERM;
-		goto out_tsk;
-	}
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret)
-		goto out_tsk;
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
@@ -235,9 +198,9 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 			goto out_eio;
 
 		if (request == PTRACE_SYSCALL)
-			child->thread.work.syscall_trace = ~0;
+			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		else
-			child->thread.work.syscall_trace = 0;
+			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		child->exit_code = data;
 		singlestep_disable(child);
 		wake_up_process(child);
@@ -260,10 +223,10 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		if (!valid_signal(data))
 			goto out_eio;
 
-		child->thread.work.syscall_trace = 0;
+		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		tmp = get_reg(child, PT_SR) | (TRACE_BITS << 16);
 		put_reg(child, PT_SR, tmp);
-		child->thread.work.delayed_trace = 1;
+		set_tsk_thread_flag(child, TIF_DELAYED_TRACE);
 
 		child->exit_code = data;
 		/* give it a chance to run. */
@@ -317,21 +280,14 @@ asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
+
 	return ret;
 out_eio:
-	ret = -EIO;
-	goto out_tsk;
+	return -EIO;
 }
 
 asmlinkage void syscall_trace(void)
 {
-	if (!current->thread.work.delayed_trace &&
-	    !current->thread.work.syscall_trace)
-		return;
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
 				 ? 0x80 : 0));
 	/*

@@ -239,7 +239,7 @@ void __init mem_init(void)
 	high_memory = (void *) __va(max_mapnr << PAGE_SHIFT);
 	highmemsize = 0;
 
-#if CONFIG_HIGHMEM
+#ifdef CONFIG_HIGHMEM
 #error HIGHGMEM not implemented in init.c
 #endif
 

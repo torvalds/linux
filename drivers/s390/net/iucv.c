@@ -447,14 +447,10 @@ static void
 iucv_exit(void)
 {
 	iucv_retrieve_buffer();
-      	if (iucv_external_int_buffer) {
-		kfree(iucv_external_int_buffer);
-		iucv_external_int_buffer = NULL;
-	}
-	if (iucv_param_pool) {
-		kfree(iucv_param_pool);
-		iucv_param_pool = NULL;
-	}
+	kfree(iucv_external_int_buffer);
+	iucv_external_int_buffer = NULL;
+	kfree(iucv_param_pool);
+	iucv_param_pool = NULL;
 	s390_root_dev_unregister(iucv_root);
 	bus_unregister(&iucv_bus);
 	printk(KERN_INFO "IUCV lowlevel driver unloaded\n");

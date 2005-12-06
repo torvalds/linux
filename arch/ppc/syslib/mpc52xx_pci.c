@@ -21,6 +21,7 @@
 #include "mpc52xx_pci.h"
 
 #include <asm/delay.h>
+#include <asm/machdep.h>
 
 
 static int
@@ -181,7 +182,7 @@ mpc52xx_find_bridges(void)
 	struct mpc52xx_pci __iomem *pci_regs;
 	struct pci_controller *hose;
 
-	pci_assign_all_busses = 1;
+	pci_assign_all_buses = 1;
 
 	pci_regs = ioremap(MPC52xx_PA(MPC52xx_PCI_OFFSET), MPC52xx_PCI_SIZE);
 	if (!pci_regs)

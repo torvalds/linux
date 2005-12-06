@@ -22,7 +22,7 @@
 
 extern unsigned long get_ns_in_jiffie(void);
 
-extern inline unsigned long get_us_in_jiffie_highres(void)
+static inline unsigned long get_us_in_jiffie_highres(void)
 {
 	return get_ns_in_jiffie() / 1000;
 }

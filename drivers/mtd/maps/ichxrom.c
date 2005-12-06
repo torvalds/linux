@@ -2,7 +2,7 @@
  * ichxrom.c
  *
  * Normal mappings of chips in physical memory
- * $Id: ichxrom.c,v 1.18 2005/07/07 10:26:20 dwmw2 Exp $
+ * $Id: ichxrom.c,v 1.19 2005/11/07 11:14:27 gleixner Exp $
  */
 
 #include <linux/module.h>
@@ -101,7 +101,7 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 	 * you can only really attach a FWH to an ICHX there
 	 * a number of simplifications you can make.
 	 *
-	 * Also you can page firmware hubs if an 8MB window isn't enough 
+	 * Also you can page firmware hubs if an 8MB window isn't enough
 	 * but don't currently handle that case either.
 	 */
 	window->pdev = pdev;
@@ -144,7 +144,7 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 		window->phys = 0xfff00000;
 	}
 	else if ((byte & 0x80) == 0x80) {
-		window->phys = 0xfff80000; 
+		window->phys = 0xfff80000;
 	}
 
 	if (window->phys == 0) {
@@ -233,7 +233,7 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 		 * in a factory setting.  So in-place programming
 		 * needs to use a different method.
 		 */
-		for(map->map.bankwidth = 32; map->map.bankwidth; 
+		for(map->map.bankwidth = 32; map->map.bankwidth;
 			map->map.bankwidth >>= 1)
 		{
 			char **probe_type;
@@ -286,7 +286,7 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 		for(i = 0; i < cfi->numchips; i++) {
 			cfi->chips[i].start += offset;
 		}
-		
+
 		/* Now that the mtd devices is complete claim and export it */
 		map->mtd->owner = THIS_MODULE;
 		if (add_mtd_device(map->mtd)) {
@@ -306,9 +306,8 @@ static int __devinit ichxrom_init_one (struct pci_dev *pdev,
 
  out:
 	/* Free any left over map structures */
-	if (map) {
-		kfree(map);
-	}
+	kfree(map);
+
 	/* See if I have any map structures */
 	if (list_empty(&window->maps)) {
 		ichxrom_cleanup(window);
@@ -325,11 +324,11 @@ static void __devexit ichxrom_remove_one (struct pci_dev *pdev)
 }
 
 static struct pci_device_id ichxrom_pci_tbl[] __devinitdata = {
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_0, 
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_0,
 	  PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_0, 
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_0,
 	  PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0, 
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0,
 	  PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0,
 	  PCI_ANY_ID, PCI_ANY_ID, },

@@ -26,7 +26,6 @@
 #include <linux/initrd.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/ide.h>

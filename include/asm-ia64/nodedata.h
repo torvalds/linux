@@ -17,7 +17,7 @@
 #include <asm/percpu.h>
 #include <asm/mmzone.h>
 
-#ifdef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_NUMA
 
 /*
  * Node Data. One of these structures is located on each node of a NUMA system.
@@ -47,6 +47,6 @@ struct ia64_node_data {
  */
 #define NODE_DATA(nid)		(local_node_data->pg_data_ptrs[nid])
 
-#endif /* CONFIG_DISCONTIGMEM */
+#endif /* CONFIG_NUMA */
 
 #endif /* _ASM_IA64_NODEDATA_H */

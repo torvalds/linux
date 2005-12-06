@@ -1606,7 +1606,7 @@ int journal_blocks_per_page(struct inode *inode)
  * Simple support for retrying memory allocations.  Introduced to help to
  * debug different VM deadlock avoidance strategies. 
  */
-void * __jbd_kmalloc (const char *where, size_t size, int flags, int retry)
+void * __jbd_kmalloc (const char *where, size_t size, gfp_t flags, int retry)
 {
 	return kmalloc(size, flags | (retry ? __GFP_NOFAIL : 0));
 }

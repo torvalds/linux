@@ -70,8 +70,15 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
  */
 void prom_init_secondary(void)
 {
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	extern void bcm1480_smp_init(void);
+	bcm1480_smp_init();
+#elif defined(CONFIG_SIBYTE_SB1250)
 	extern void sb1250_smp_init(void);
 	sb1250_smp_init();
+#else
+#error invalid SMP configuration
+#endif
 }
 
 /*
@@ -80,8 +87,15 @@ void prom_init_secondary(void)
  */
 void prom_smp_finish(void)
 {
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	extern void bcm1480_smp_finish(void);
+	bcm1480_smp_finish();
+#elif defined(CONFIG_SIBYTE_SB1250)
 	extern void sb1250_smp_finish(void);
 	sb1250_smp_finish();
+#else
+#error invalid SMP configuration
+#endif
 }
 
 /*

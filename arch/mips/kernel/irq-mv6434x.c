@@ -135,14 +135,13 @@ void ll_mv64340_irq(struct pt_regs *regs)
 #define shutdown_mv64340_irq	disable_mv64340_irq
 
 struct hw_interrupt_type mv64340_irq_type = {
-	"MV-64340",
-	startup_mv64340_irq,
-	shutdown_mv64340_irq,
-	enable_mv64340_irq,
-	disable_mv64340_irq,
-	mask_and_ack_mv64340_irq,
-	end_mv64340_irq,
-	NULL
+	.typename = "MV-64340",
+	.startup = startup_mv64340_irq,
+	.shutdown = shutdown_mv64340_irq,
+	.enable = enable_mv64340_irq,
+	.disable = disable_mv64340_irq,
+	.ack = mask_and_ack_mv64340_irq,
+	.end = end_mv64340_irq,
 };
 
 void __init mv64340_irq_init(unsigned int base)

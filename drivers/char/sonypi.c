@@ -48,6 +48,7 @@
 #include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/kfifo.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -424,10 +425,6 @@ static struct sonypi_eventtypes {
 
 #define SONYPI_BUF_SIZE	128
 
-/* The name of the devices for the input device drivers */
-#define SONYPI_JOG_INPUTNAME	"Sony Vaio Jogdial"
-#define SONYPI_KEY_INPUTNAME	"Sony Vaio Keys"
-
 /* Correspondance table between sonypi events and input layer events */
 static struct {
 	int sonypiev;
@@ -490,8 +487,8 @@ static struct sonypi_device {
 	struct fasync_struct *fifo_async;
 	int open_count;
 	int model;
-	struct input_dev input_jog_dev;
-	struct input_dev input_key_dev;
+	struct input_dev *input_jog_dev;
+	struct input_dev *input_key_dev;
 	struct work_struct input_work;
 	struct kfifo *input_fifo;
 	spinlock_t input_fifo_lock;
@@ -779,8 +776,8 @@ static void input_keyrelease(void *data)
 
 static void sonypi_report_input_event(u8 event)
 {
-	struct input_dev *jog_dev = &sonypi_device.input_jog_dev;
-	struct input_dev *key_dev = &sonypi_device.input_key_dev;
+	struct input_dev *jog_dev = sonypi_device.input_jog_dev;
+	struct input_dev *key_dev = sonypi_device.input_key_dev;
 	struct sonypi_keypress kp = { NULL };
 	int i;
 
@@ -1171,37 +1168,77 @@ static int sonypi_disable(void)
 #ifdef CONFIG_PM
 static int old_camera_power;
 
-static int sonypi_suspend(struct device *dev, pm_message_t state, u32 level)
+static int sonypi_suspend(struct platform_device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_DISABLE) {
-		old_camera_power = sonypi_device.camera_power;
-		sonypi_disable();
-	}
+	old_camera_power = sonypi_device.camera_power;
+	sonypi_disable();
+
 	return 0;
 }
 
-static int sonypi_resume(struct device *dev, u32 level)
+static int sonypi_resume(struct platform_device *dev)
 {
-	if (level == RESUME_ENABLE)
-		sonypi_enable(old_camera_power);
+	sonypi_enable(old_camera_power);
 	return 0;
 }
 #endif
 
-static void sonypi_shutdown(struct device *dev)
+static void sonypi_shutdown(struct platform_device *dev)
 {
 	sonypi_disable();
 }
 
-static struct device_driver sonypi_driver = {
-	.name		= "sonypi",
-	.bus		= &platform_bus_type,
+static struct platform_driver sonypi_driver = {
 #ifdef CONFIG_PM
 	.suspend	= sonypi_suspend,
 	.resume		= sonypi_resume,
 #endif
 	.shutdown	= sonypi_shutdown,
+	.driver		= {
+		.name	= "sonypi",
+	},
 };
+
+static int __devinit sonypi_create_input_devices(void)
+{
+	struct input_dev *jog_dev;
+	struct input_dev *key_dev;
+	int i;
+
+	sonypi_device.input_jog_dev = jog_dev = input_allocate_device();
+	if (!jog_dev)
+		return -ENOMEM;
+
+	jog_dev->name = "Sony Vaio Jogdial";
+	jog_dev->id.bustype = BUS_ISA;
+	jog_dev->id.vendor = PCI_VENDOR_ID_SONY;
+
+	jog_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
+	jog_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_MIDDLE);
+	jog_dev->relbit[0] = BIT(REL_WHEEL);
+
+	sonypi_device.input_key_dev = key_dev = input_allocate_device();
+	if (!key_dev) {
+		input_free_device(jog_dev);
+		sonypi_device.input_jog_dev = NULL;
+		return -ENOMEM;
+	}
+
+	key_dev->name = "Sony Vaio Keys";
+	key_dev->id.bustype = BUS_ISA;
+	key_dev->id.vendor = PCI_VENDOR_ID_SONY;
+
+	/* Initialize the Input Drivers: special keys */
+	key_dev->evbit[0] = BIT(EV_KEY);
+	for (i = 0; sonypi_inputkeys[i].sonypiev; i++)
+		if (sonypi_inputkeys[i].inputev)
+			set_bit(sonypi_inputkeys[i].inputev, key_dev->keybit);
+
+	input_register_device(jog_dev);
+	input_register_device(key_dev);
+
+	return 0;
+}
 
 static int __devinit sonypi_probe(void)
 {
@@ -1298,34 +1335,10 @@ static int __devinit sonypi_probe(void)
 	}
 
 	if (useinput) {
-		/* Initialize the Input Drivers: jogdial */
-		int i;
-		sonypi_device.input_jog_dev.evbit[0] =
-			BIT(EV_KEY) | BIT(EV_REL);
-		sonypi_device.input_jog_dev.keybit[LONG(BTN_MOUSE)] =
-			BIT(BTN_MIDDLE);
-		sonypi_device.input_jog_dev.relbit[0] = BIT(REL_WHEEL);
-		sonypi_device.input_jog_dev.name = SONYPI_JOG_INPUTNAME;
-		sonypi_device.input_jog_dev.id.bustype = BUS_ISA;
-		sonypi_device.input_jog_dev.id.vendor = PCI_VENDOR_ID_SONY;
 
-		input_register_device(&sonypi_device.input_jog_dev);
-		printk(KERN_INFO "%s input method installed.\n",
-		       sonypi_device.input_jog_dev.name);
-
-		/* Initialize the Input Drivers: special keys */
-		sonypi_device.input_key_dev.evbit[0] = BIT(EV_KEY);
-		for (i = 0; sonypi_inputkeys[i].sonypiev; i++)
-			if (sonypi_inputkeys[i].inputev)
-				set_bit(sonypi_inputkeys[i].inputev,
-					sonypi_device.input_key_dev.keybit);
-		sonypi_device.input_key_dev.name = SONYPI_KEY_INPUTNAME;
-		sonypi_device.input_key_dev.id.bustype = BUS_ISA;
-		sonypi_device.input_key_dev.id.vendor = PCI_VENDOR_ID_SONY;
-
-		input_register_device(&sonypi_device.input_key_dev);
-		printk(KERN_INFO "%s input method installed.\n",
-		       sonypi_device.input_key_dev.name);
+		ret = sonypi_create_input_devices();
+		if (ret)
+			goto out_inputdevices;
 
 		spin_lock_init(&sonypi_device.input_fifo_lock);
 		sonypi_device.input_fifo =
@@ -1375,8 +1388,9 @@ static int __devinit sonypi_probe(void)
 out_platformdev:
 	kfifo_free(sonypi_device.input_fifo);
 out_infifo:
-	input_unregister_device(&sonypi_device.input_key_dev);
-	input_unregister_device(&sonypi_device.input_jog_dev);
+	input_unregister_device(sonypi_device.input_key_dev);
+	input_unregister_device(sonypi_device.input_jog_dev);
+out_inputdevices:
 	free_irq(sonypi_device.irq, sonypi_irq);
 out_reqirq:
 	release_region(sonypi_device.ioport1, sonypi_device.region_size);
@@ -1402,8 +1416,8 @@ static void __devexit sonypi_remove(void)
 	platform_device_unregister(sonypi_device.pdev);
 
 	if (useinput) {
-		input_unregister_device(&sonypi_device.input_key_dev);
-		input_unregister_device(&sonypi_device.input_jog_dev);
+		input_unregister_device(sonypi_device.input_key_dev);
+		input_unregister_device(sonypi_device.input_jog_dev);
 		kfifo_free(sonypi_device.input_fifo);
 	}
 
@@ -1442,20 +1456,20 @@ static int __init sonypi_init(void)
 	if (!dmi_check_system(sonypi_dmi_table))
 		return -ENODEV;
 
-	ret = driver_register(&sonypi_driver);
+	ret = platform_driver_register(&sonypi_driver);
 	if (ret)
 		return ret;
 
 	ret = sonypi_probe();
 	if (ret)
-		driver_unregister(&sonypi_driver);
+		platform_driver_unregister(&sonypi_driver);
 
 	return ret;
 }
 
 static void __exit sonypi_exit(void)
 {
-	driver_unregister(&sonypi_driver);
+	platform_driver_unregister(&sonypi_driver);
 	sonypi_remove();
 }
 

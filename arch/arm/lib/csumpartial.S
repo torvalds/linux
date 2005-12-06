@@ -26,7 +26,7 @@ td1	.req	r4	@ save before use
 td2	.req	r5	@ save before use
 td3	.req	lr
 
-.zero:		mov	r0, sum
+.Lzero:		mov	r0, sum
 		add	sp, sp, #4
 		ldr	pc, [sp], #4
 
@@ -34,21 +34,22 @@ td3	.req	lr
 		 * Handle 0 to 7 bytes, with any alignment of source and
 		 * destination pointers.  Note that when we get here, C = 0
 		 */
-.less8:		teq	len, #0			@ check for zero count
-		beq	.zero
+.Lless8:		teq	len, #0			@ check for zero count
+		beq	.Lzero
 
 		/* we must have at least one byte. */
 		tst	buf, #1			@ odd address?
+		movne	sum, sum, ror #8
 		ldrneb	td0, [buf], #1
 		subne	len, len, #1
 		adcnes	sum, sum, td0, put_byte_1
 
-.less4:		tst	len, #6
-		beq	.less8_byte
+.Lless4:		tst	len, #6
+		beq	.Lless8_byte
 
 		/* we are now half-word aligned */
 
-.less8_wordlp:
+.Lless8_wordlp:
 #if __LINUX_ARM_ARCH__ >= 4
 		ldrh	td0, [buf], #2
 		sub	len, len, #2
@@ -64,19 +65,19 @@ td3	.req	lr
 #endif
 		adcs	sum, sum, td0
 		tst	len, #6
-		bne	.less8_wordlp
+		bne	.Lless8_wordlp
 
-.less8_byte:	tst	len, #1			@ odd number of bytes
+.Lless8_byte:	tst	len, #1			@ odd number of bytes
 		ldrneb	td0, [buf], #1		@ include last byte
 		adcnes	sum, sum, td0, put_byte_0	@ update checksum
 
-.done:		adc	r0, sum, #0		@ collect up the last carry
+.Ldone:		adc	r0, sum, #0		@ collect up the last carry
 		ldr	td0, [sp], #4
 		tst	td0, #1			@ check buffer alignment
 		movne	r0, r0, ror #8		@ rotate checksum by 8 bits
 		ldr	pc, [sp], #4		@ return
 
-.not_aligned:	tst	buf, #1			@ odd address
+.Lnot_aligned:	tst	buf, #1			@ odd address
 		ldrneb	td0, [buf], #1		@ make even
 		subne	len, len, #1
 		adcnes	sum, sum, td0, put_byte_1	@ update checksum
@@ -101,11 +102,14 @@ td3	.req	lr
 ENTRY(csum_partial)
 		stmfd	sp!, {buf, lr}
 		cmp	len, #8			@ Ensure that we have at least
-		blo	.less8			@ 8 bytes to copy.
+		blo	.Lless8			@ 8 bytes to copy.
+
+		tst	buf, #1
+		movne	sum, sum, ror #8
 
 		adds	sum, sum, #0		@ C = 0
 		tst	buf, #3			@ Test destination alignment
-		blne	.not_aligned		@ aligh destination, return here
+		blne	.Lnot_aligned		@ align destination, return here
 
 1:		bics	ip, len, #31
 		beq	3f
@@ -127,11 +131,11 @@ ENTRY(csum_partial)
 		ldmfd	sp!, {r4 - r5}
 
 3:		tst	len, #0x1c		@ should not change C
-		beq	.less4
+		beq	.Lless4
 
 4:		ldr	td0, [buf], #4
 		sub	len, len, #4
 		adcs	sum, sum, td0
 		tst	len, #0x1c
 		bne	4b
-		b	.less4
+		b	.Lless4

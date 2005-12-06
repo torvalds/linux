@@ -130,8 +130,7 @@ static int ipcomp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, s
 out_put_cpu:
 	put_cpu();
 out:
-	if (tmp_hdr)
-		kfree(tmp_hdr);
+	kfree(tmp_hdr);
 	if (err)
 		goto error_out;
 	return nexthdr;

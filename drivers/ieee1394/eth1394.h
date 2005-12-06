@@ -44,6 +44,12 @@
 
 #define ETHER1394_GASP_BUFFERS 16
 
+/* rawiso buffer size - due to a limitation in rawiso, we must limit each
+ * GASP buffer to be less than PAGE_SIZE. */
+#define ETHER1394_ISO_BUF_SIZE	ETHER1394_GASP_BUFFERS *                        \
+				   min((unsigned int)PAGE_SIZE,                 \
+				       2 * (1U << (priv->host->csr.max_rec + 1)))
+
 /* Node set == 64 */
 #define NODE_SET			(ALL_NODES + 1)
 

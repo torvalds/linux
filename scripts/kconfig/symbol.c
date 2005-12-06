@@ -141,6 +141,55 @@ struct property *sym_get_range_prop(struct symbol *sym)
 	return NULL;
 }
 
+static int sym_get_range_val(struct symbol *sym, int base)
+{
+	sym_calc_value(sym);
+	switch (sym->type) {
+	case S_INT:
+		base = 10;
+		break;
+	case S_HEX:
+		base = 16;
+		break;
+	default:
+		break;
+	}
+	return strtol(sym->curr.val, NULL, base);
+}
+
+static void sym_validate_range(struct symbol *sym)
+{
+	struct property *prop;
+	int base, val, val2;
+	char str[64];
+
+	switch (sym->type) {
+	case S_INT:
+		base = 10;
+		break;
+	case S_HEX:
+		base = 16;
+		break;
+	default:
+		return;
+	}
+	prop = sym_get_range_prop(sym);
+	if (!prop)
+		return;
+	val = strtol(sym->curr.val, NULL, base);
+	val2 = sym_get_range_val(prop->expr->left.sym, base);
+	if (val >= val2) {
+		val2 = sym_get_range_val(prop->expr->right.sym, base);
+		if (val <= val2)
+			return;
+	}
+	if (sym->type == S_INT)
+		sprintf(str, "%d", val2);
+	else
+		sprintf(str, "0x%x", val2);
+	sym->curr.val = strdup(str);
+}
+
 static void sym_calc_visibility(struct symbol *sym)
 {
 	struct property *prop;
@@ -301,6 +350,7 @@ void sym_calc_value(struct symbol *sym)
 	sym->curr = newval;
 	if (sym_is_choice(sym) && newval.tri == yes)
 		sym->curr.val = sym_calc_choice(sym);
+	sym_validate_range(sym);
 
 	if (memcmp(&oldval, &sym->curr, sizeof(oldval)))
 		sym_set_changed(sym);
@@ -380,11 +430,22 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 		sym->flags &= ~SYMBOL_NEW;
 		sym_set_changed(sym);
 	}
+	/*
+	 * setting a choice value also resets the new flag of the choice
+	 * symbol and all other choice values.
+	 */
 	if (sym_is_choice_value(sym) && val == yes) {
 		struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
+		struct property *prop;
+		struct expr *e;
 
 		cs->user.val = sym;
 		cs->flags &= ~SYMBOL_NEW;
+		prop = sym_get_choice_prop(cs);
+		for (e = prop->expr; e; e = e->left.expr) {
+			if (e->right.sym->visible != no)
+				e->right.sym->flags &= ~SYMBOL_NEW;
+		}
 	}
 
 	sym->user.tri = val;
@@ -478,8 +539,8 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 		if (!prop)
 			return true;
 		val = strtol(str, NULL, 10);
-		return val >= strtol(prop->expr->left.sym->name, NULL, 10) &&
-		       val <= strtol(prop->expr->right.sym->name, NULL, 10);
+		return val >= sym_get_range_val(prop->expr->left.sym, 10) &&
+		       val <= sym_get_range_val(prop->expr->right.sym, 10);
 	case S_HEX:
 		if (!sym_string_valid(sym, str))
 			return false;
@@ -487,8 +548,8 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 		if (!prop)
 			return true;
 		val = strtol(str, NULL, 16);
-		return val >= strtol(prop->expr->left.sym->name, NULL, 16) &&
-		       val <= strtol(prop->expr->right.sym->name, NULL, 16);
+		return val >= sym_get_range_val(prop->expr->left.sym, 16) &&
+		       val <= sym_get_range_val(prop->expr->right.sym, 16);
 	case S_BOOLEAN:
 	case S_TRISTATE:
 		switch (str[0]) {
@@ -731,12 +792,12 @@ struct symbol *sym_check_deps(struct symbol *sym)
 	struct symbol *sym2;
 	struct property *prop;
 
-	if (sym->flags & SYMBOL_CHECK_DONE)
-		return NULL;
 	if (sym->flags & SYMBOL_CHECK) {
 		printf("Warning! Found recursive dependency: %s", sym->name);
 		return sym;
 	}
+	if (sym->flags & SYMBOL_CHECKED)
+		return NULL;
 
 	sym->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
 	sym2 = sym_check_expr_deps(sym->rev_dep.expr);
@@ -756,8 +817,13 @@ struct symbol *sym_check_deps(struct symbol *sym)
 			goto out;
 	}
 out:
-	if (sym2)
+	if (sym2) {
 		printf(" %s", sym->name);
+		if (sym2 == sym) {
+			printf("\n");
+			sym2 = NULL;
+		}
+	}
 	sym->flags &= ~SYMBOL_CHECK;
 	return sym2;
 }

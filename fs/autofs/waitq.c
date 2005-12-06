@@ -150,10 +150,8 @@ int autofs_wait(struct autofs_sb_info *sbi, struct qstr *name)
 	if ( sbi->catatonic ) {
 		/* We might have slept, so check again for catatonic mode */
 		wq->status = -ENOENT;
-		if ( wq->name ) {
-			kfree(wq->name);
-			wq->name = NULL;
-		}
+		kfree(wq->name);
+		wq->name = NULL;
 	}
 
 	if ( wq->name ) {

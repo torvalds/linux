@@ -967,7 +967,7 @@ static int sci_startup(struct uart_port *port)
 #endif
 
 	sci_request_irq(s);
-	sci_start_tx(port, 1);
+	sci_start_tx(port);
 	sci_start_rx(port, 1);
 
 	return 0;

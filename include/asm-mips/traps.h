@@ -21,4 +21,7 @@
 extern void (*board_be_init)(void);
 extern int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
 
+extern void (*board_nmi_handler_setup)(void);
+extern void (*board_ejtag_handler_setup)(void);
+
 #endif /* _ASM_TRAPS_H */

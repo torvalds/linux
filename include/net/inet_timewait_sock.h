@@ -19,6 +19,7 @@
 
 #include <linux/ip.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -112,6 +113,7 @@ struct inet_timewait_sock {
 #define tw_node			__tw_common.skc_node
 #define tw_bind_node		__tw_common.skc_bind_node
 #define tw_refcnt		__tw_common.skc_refcnt
+#define tw_hash			__tw_common.skc_hash
 #define tw_prot			__tw_common.skc_prot
 	volatile unsigned char	tw_substate;
 	/* 3 bits hole, try to pack */
@@ -126,7 +128,6 @@ struct inet_timewait_sock {
 	/* And these are ours. */
 	__u8			tw_ipv6only:1;
 	/* 31 bits hole, try to pack */
-	int			tw_hashent;
 	int			tw_timeout;
 	unsigned long		tw_ttd;
 	struct inet_bind_bucket	*tw_tb;
@@ -193,11 +194,13 @@ static inline u32 inet_rcv_saddr(const struct sock *sk)
 static inline void inet_twsk_put(struct inet_timewait_sock *tw)
 {
 	if (atomic_dec_and_test(&tw->tw_refcnt)) {
+		struct module *owner = tw->tw_prot->owner;
 #ifdef SOCK_REFCNT_DEBUG
 		printk(KERN_DEBUG "%s timewait_sock %p released\n",
 		       tw->tw_prot->name, tw);
 #endif
 		kmem_cache_free(tw->tw_prot->twsk_slab, tw);
+		module_put(owner);
 	}
 }
 

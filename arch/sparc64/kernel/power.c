@@ -17,6 +17,7 @@
 
 #include <asm/system.h>
 #include <asm/ebus.h>
+#include <asm/isa.h>
 #include <asm/auxio.h>
 
 #include <linux/unistd.h>
@@ -100,46 +101,83 @@ again:
 	return 0;
 }
 
-static int __init has_button_interrupt(struct linux_ebus_device *edev)
+static int __init has_button_interrupt(unsigned int irq, int prom_node)
 {
-	if (edev->irqs[0] == PCI_IRQ_NONE)
+	if (irq == PCI_IRQ_NONE)
 		return 0;
-	if (!prom_node_has_property(edev->prom_node, "button"))
+	if (!prom_node_has_property(prom_node, "button"))
 		return 0;
 
 	return 1;
 }
 
-void __init power_init(void)
+static int __init power_probe_ebus(struct resource **resp, unsigned int *irq_p, int *prom_node_p)
 {
 	struct linux_ebus *ebus;
 	struct linux_ebus_device *edev;
+
+	for_each_ebus(ebus) {
+		for_each_ebusdev(edev, ebus) {
+			if (!strcmp(edev->prom_name, "power")) {
+				*resp = &edev->resource[0];
+				*irq_p = edev->irqs[0];
+				*prom_node_p = edev->prom_node;
+				return 0;
+			}
+		}
+	}
+	return -ENODEV;
+}
+
+static int __init power_probe_isa(struct resource **resp, unsigned int *irq_p, int *prom_node_p)
+{
+	struct sparc_isa_bridge *isa_bus;
+	struct sparc_isa_device *isa_dev;
+
+	for_each_isa(isa_bus) {
+		for_each_isadev(isa_dev, isa_bus) {
+			if (!strcmp(isa_dev->prom_name, "power")) {
+				*resp = &isa_dev->resource;
+				*irq_p = isa_dev->irq;
+				*prom_node_p = isa_dev->prom_node;
+				return 0;
+			}
+		}
+	}
+	return -ENODEV;
+}
+
+void __init power_init(void)
+{
+	struct resource *res = NULL;
+	unsigned int irq;
+	int prom_node;
 	static int invoked;
 
 	if (invoked)
 		return;
 	invoked = 1;
 
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->prom_name, "power"))
-				goto found;
-		}
-	}
+	if (!power_probe_ebus(&res, &irq, &prom_node))
+		goto found;
+
+	if (!power_probe_isa(&res, &irq, &prom_node))
+		goto found;
+
 	return;
 
 found:
-	power_reg = ioremap(edev->resource[0].start, 0x4);
+	power_reg = ioremap(res->start, 0x4);
 	printk("power: Control reg at %p ... ", power_reg);
 	poweroff_method = machine_halt;  /* able to use the standard halt */
-	if (has_button_interrupt(edev)) {
+	if (has_button_interrupt(irq, prom_node)) {
 		if (kernel_thread(powerd, NULL, CLONE_FS) < 0) {
 			printk("Failed to start power daemon.\n");
 			return;
 		}
 		printk("powerd running.\n");
 
-		if (request_irq(edev->irqs[0],
+		if (request_irq(irq,
 				power_handler, SA_SHIRQ, "power", NULL) < 0)
 			printk("power: Error, cannot register IRQ handler.\n");
 	} else {

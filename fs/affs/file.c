@@ -22,14 +22,13 @@ static int affs_grow_extcache(struct inode *inode, u32 lc_idx);
 static struct buffer_head *affs_alloc_extblock(struct inode *inode, struct buffer_head *bh, u32 ext);
 static inline struct buffer_head *affs_get_extblock(struct inode *inode, u32 ext);
 static struct buffer_head *affs_get_extblock_slow(struct inode *inode, u32 ext);
-static ssize_t affs_file_write(struct file *filp, const char __user *buf, size_t count, loff_t *ppos);
 static int affs_file_open(struct inode *inode, struct file *filp);
 static int affs_file_release(struct inode *inode, struct file *filp);
 
 struct file_operations affs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,
-	.write		= affs_file_write,
+	.write		= generic_file_write,
 	.mmap		= generic_file_mmap,
 	.open		= affs_file_open,
 	.release	= affs_file_release,
@@ -471,21 +470,6 @@ affs_getemptyblk_ino(struct inode *inode, int block)
 		err = -EIO;
 	}
 	return ERR_PTR(err);
-}
-
-static ssize_t
-affs_file_write(struct file *file, const char __user *buf,
-		size_t count, loff_t *ppos)
-{
-	ssize_t retval;
-
-	retval = generic_file_write (file, buf, count, ppos);
-	if (retval >0) {
-		struct inode *inode = file->f_dentry->d_inode;
-		inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
-		mark_inode_dirty(inode);
-	}
-	return retval;
 }
 
 static int

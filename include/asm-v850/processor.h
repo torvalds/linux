@@ -59,7 +59,7 @@ struct thread_struct {
 
 
 /* Do necessary setup to start up a newly executed thread.  */
-extern inline void start_thread (struct pt_regs *regs,
+static inline void start_thread (struct pt_regs *regs,
 				 unsigned long pc, unsigned long usp)
 {
 	regs->pc = pc;
@@ -68,7 +68,7 @@ extern inline void start_thread (struct pt_regs *regs,
 }
 
 /* Free all resources held by a thread. */
-extern inline void release_thread (struct task_struct *dead_task)
+static inline void release_thread (struct task_struct *dead_task)
 {
 }
 

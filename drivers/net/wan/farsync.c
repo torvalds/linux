@@ -74,11 +74,11 @@ MODULE_LICENSE("GPL");
 /*
  * Modules parameters and associated varaibles
  */
-int fst_txq_low = FST_LOW_WATER_MARK;
-int fst_txq_high = FST_HIGH_WATER_MARK;
-int fst_max_reads = 7;
-int fst_excluded_cards = 0;
-int fst_excluded_list[FST_MAX_CARDS];
+static int fst_txq_low = FST_LOW_WATER_MARK;
+static int fst_txq_high = FST_HIGH_WATER_MARK;
+static int fst_max_reads = 7;
+static int fst_excluded_cards = 0;
+static int fst_excluded_list[FST_MAX_CARDS];
 
 module_param(fst_txq_low, int, 0);
 module_param(fst_txq_high, int, 0);
@@ -572,13 +572,13 @@ static void do_bottom_half_rx(struct fst_card_info *card);
 static void fst_process_tx_work_q(unsigned long work_q);
 static void fst_process_int_work_q(unsigned long work_q);
 
-DECLARE_TASKLET(fst_tx_task, fst_process_tx_work_q, 0);
-DECLARE_TASKLET(fst_int_task, fst_process_int_work_q, 0);
+static DECLARE_TASKLET(fst_tx_task, fst_process_tx_work_q, 0);
+static DECLARE_TASKLET(fst_int_task, fst_process_int_work_q, 0);
 
-struct fst_card_info *fst_card_array[FST_MAX_CARDS];
-spinlock_t fst_work_q_lock;
-u64 fst_work_txq;
-u64 fst_work_intq;
+static struct fst_card_info *fst_card_array[FST_MAX_CARDS];
+static spinlock_t fst_work_q_lock;
+static u64 fst_work_txq;
+static u64 fst_work_intq;
 
 static void
 fst_q_work_item(u64 * queue, int card_index)
@@ -980,8 +980,7 @@ fst_issue_cmd(struct fst_port_info *port, unsigned short cmd)
 	/* Wait for any previous command to complete */
 	while (mbval > NAK) {
 		spin_unlock_irqrestore(&card->card_lock, flags);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 		spin_lock_irqsave(&card->card_lock, flags);
 
 		if (++safety > 2000) {
@@ -1498,7 +1497,7 @@ do_bottom_half_rx(struct fst_card_info *card)
  *      The interrupt service routine
  *      Dev_id is our fst_card_info pointer
  */
-irqreturn_t
+static irqreturn_t
 fst_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct fst_card_info *card;

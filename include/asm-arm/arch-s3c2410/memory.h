@@ -28,9 +28,9 @@
  * and at 0x0C000000 for S3C2400
  */
 #ifdef CONFIG_CPU_S3C2400
-#define PHYS_OFFSET	(0x0C000000UL)
+#define PHYS_OFFSET	UL(0x0C000000)
 #else
-#define PHYS_OFFSET	(0x30000000UL)
+#define PHYS_OFFSET	UL(0x30000000)
 #endif
 
 /*

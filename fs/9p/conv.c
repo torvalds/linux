@@ -3,6 +3,7 @@
  *
  * 9P protocol conversion functions
  *
+ *  Copyright (C) 2004, 2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
@@ -55,66 +56,70 @@ static inline int buf_check_overflow(struct cbuf *buf)
 	return buf->p > buf->ep;
 }
 
-static inline void buf_check_size(struct cbuf *buf, int len)
+static inline int buf_check_size(struct cbuf *buf, int len)
 {
 	if (buf->p+len > buf->ep) {
 		if (buf->p < buf->ep) {
 			eprintk(KERN_ERR, "buffer overflow\n");
 			buf->p = buf->ep + 1;
+			return 0;
 		}
 	}
+
+	return 1;
 }
 
 static inline void *buf_alloc(struct cbuf *buf, int len)
 {
 	void *ret = NULL;
 
-	buf_check_size(buf, len);
-	ret = buf->p;
-	buf->p += len;
+	if (buf_check_size(buf, len)) {
+		ret = buf->p;
+		buf->p += len;
+	}
 
 	return ret;
 }
 
 static inline void buf_put_int8(struct cbuf *buf, u8 val)
 {
-	buf_check_size(buf, 1);
-
-	buf->p[0] = val;
-	buf->p++;
+	if (buf_check_size(buf, 1)) {
+		buf->p[0] = val;
+		buf->p++;
+	}
 }
 
 static inline void buf_put_int16(struct cbuf *buf, u16 val)
 {
-	buf_check_size(buf, 2);
-
-	*(__le16 *) buf->p = cpu_to_le16(val);
-	buf->p += 2;
+	if (buf_check_size(buf, 2)) {
+		*(__le16 *) buf->p = cpu_to_le16(val);
+		buf->p += 2;
+	}
 }
 
 static inline void buf_put_int32(struct cbuf *buf, u32 val)
 {
-	buf_check_size(buf, 4);
-
-	*(__le32 *)buf->p = cpu_to_le32(val);
-	buf->p += 4;
+	if (buf_check_size(buf, 4)) {
+		*(__le32 *)buf->p = cpu_to_le32(val);
+		buf->p += 4;
+	}
 }
 
 static inline void buf_put_int64(struct cbuf *buf, u64 val)
 {
-	buf_check_size(buf, 8);
-
-	*(__le64 *)buf->p = cpu_to_le64(val);
-	buf->p += 8;
+	if (buf_check_size(buf, 8)) {
+		*(__le64 *)buf->p = cpu_to_le64(val);
+		buf->p += 8;
+	}
 }
 
 static inline void buf_put_stringn(struct cbuf *buf, const char *s, u16 slen)
 {
-	buf_check_size(buf, slen + 2);
-
-	buf_put_int16(buf, slen);
-	memcpy(buf->p, s, slen);
-	buf->p += slen;
+	if (buf_check_size(buf, slen + 2)) {
+		buf_put_int16(buf, slen);
+		memcpy(buf->p, s, slen);
+		buf->p += slen;
+	}
 }
 
 static inline void buf_put_string(struct cbuf *buf, const char *s)
@@ -124,20 +129,20 @@ static inline void buf_put_string(struct cbuf *buf, const char *s)
 
 static inline void buf_put_data(struct cbuf *buf, void *data, u32 datalen)
 {
-	buf_check_size(buf, datalen);
-
-	memcpy(buf->p, data, datalen);
-	buf->p += datalen;
+	if (buf_check_size(buf, datalen)) {
+		memcpy(buf->p, data, datalen);
+		buf->p += datalen;
+	}
 }
 
 static inline u8 buf_get_int8(struct cbuf *buf)
 {
 	u8 ret = 0;
 
-	buf_check_size(buf, 1);
-	ret = buf->p[0];
-
-	buf->p++;
+	if (buf_check_size(buf, 1)) {
+		ret = buf->p[0];
+		buf->p++;
+	}
 
 	return ret;
 }
@@ -146,10 +151,10 @@ static inline u16 buf_get_int16(struct cbuf *buf)
 {
 	u16 ret = 0;
 
-	buf_check_size(buf, 2);
-	ret = le16_to_cpu(*(__le16 *)buf->p);
-
-	buf->p += 2;
+	if (buf_check_size(buf, 2)) {
+		ret = le16_to_cpu(*(__le16 *)buf->p);
+		buf->p += 2;
+	}
 
 	return ret;
 }
@@ -158,10 +163,10 @@ static inline u32 buf_get_int32(struct cbuf *buf)
 {
 	u32 ret = 0;
 
-	buf_check_size(buf, 4);
-	ret = le32_to_cpu(*(__le32 *)buf->p);
-
-	buf->p += 4;
+	if (buf_check_size(buf, 4)) {
+		ret = le32_to_cpu(*(__le32 *)buf->p);
+		buf->p += 4;
+	}
 
 	return ret;
 }
@@ -170,10 +175,10 @@ static inline u64 buf_get_int64(struct cbuf *buf)
 {
 	u64 ret = 0;
 
-	buf_check_size(buf, 8);
-	ret = le64_to_cpu(*(__le64 *)buf->p);
-
-	buf->p += 8;
+	if (buf_check_size(buf, 8)) {
+		ret = le64_to_cpu(*(__le64 *)buf->p);
+		buf->p += 8;
+	}
 
 	return ret;
 }
@@ -181,27 +186,35 @@ static inline u64 buf_get_int64(struct cbuf *buf)
 static inline int
 buf_get_string(struct cbuf *buf, char *data, unsigned int datalen)
 {
+	u16 len = 0;
 
-	u16 len = buf_get_int16(buf);
-	buf_check_size(buf, len);
-	if (len + 1 > datalen)
-		return 0;
+	len = buf_get_int16(buf);
+	if (!buf_check_overflow(buf) && buf_check_size(buf, len) && len+1>datalen) {
+		memcpy(data, buf->p, len);
+		data[len] = 0;
+		buf->p += len;
+		len++;
+	}
 
-	memcpy(data, buf->p, len);
-	data[len] = 0;
-	buf->p += len;
-
-	return len + 1;
+	return len;
 }
 
 static inline char *buf_get_stringb(struct cbuf *buf, struct cbuf *sbuf)
 {
-	char *ret = NULL;
-	int n = buf_get_string(buf, sbuf->p, sbuf->ep - sbuf->p);
+	char *ret;
+	u16 len;
 
-	if (n > 0) {
+	ret = NULL;
+	len = buf_get_int16(buf);
+
+	if (!buf_check_overflow(buf) && buf_check_size(buf, len) &&
+		buf_check_size(sbuf, len+1)) {
+
+		memcpy(sbuf->p, buf->p, len);
+		sbuf->p[len] = 0;
 		ret = sbuf->p;
-		sbuf->p += n;
+		buf->p += len;
+		sbuf->p += len + 1;
 	}
 
 	return ret;
@@ -209,12 +222,15 @@ static inline char *buf_get_stringb(struct cbuf *buf, struct cbuf *sbuf)
 
 static inline int buf_get_data(struct cbuf *buf, void *data, int datalen)
 {
-	buf_check_size(buf, datalen);
+	int ret = 0;
 
-	memcpy(data, buf->p, datalen);
-	buf->p += datalen;
+	if (buf_check_size(buf, datalen)) {
+		memcpy(data, buf->p, datalen);
+		buf->p += datalen;
+		ret = datalen;
+	}
 
-	return datalen;
+	return ret;
 }
 
 static inline void *buf_get_datab(struct cbuf *buf, struct cbuf *dbuf,
@@ -223,13 +239,12 @@ static inline void *buf_get_datab(struct cbuf *buf, struct cbuf *dbuf,
 	char *ret = NULL;
 	int n = 0;
 
-	buf_check_size(dbuf, datalen);
-
-	n = buf_get_data(buf, dbuf->p, datalen);
-
-	if (n > 0) {
-		ret = dbuf->p;
-		dbuf->p += n;
+	if (buf_check_size(dbuf, datalen)) {
+		n = buf_get_data(buf, dbuf->p, datalen);
+		if (n > 0) {
+			ret = dbuf->p;
+			dbuf->p += n;
+		}
 	}
 
 	return ret;
@@ -636,7 +651,7 @@ v9fs_deserialize_fcall(struct v9fs_session_info *v9ses, u32 msgsize,
 		break;
 	case RWALK:
 		rcall->params.rwalk.nwqid = buf_get_int16(bufp);
-		rcall->params.rwalk.wqids = buf_alloc(bufp,
+		rcall->params.rwalk.wqids = buf_alloc(dbufp,
 		      rcall->params.rwalk.nwqid * sizeof(struct v9fs_qid));
 		if (rcall->params.rwalk.wqids)
 			for (i = 0; i < rcall->params.rwalk.nwqid; i++) {

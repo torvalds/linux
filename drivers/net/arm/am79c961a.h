@@ -143,6 +143,4 @@ struct dev_priv {
     struct timer_list	timer;
 };
 
-extern int	am79c961_probe (struct net_device *dev);
-
 #endif

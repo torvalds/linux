@@ -81,7 +81,7 @@ wax_init_chip(struct parisc_device *dev)
 		return -ENOMEM;
 
 	wax->name = "wax";
-	wax->hpa = dev->hpa;
+	wax->hpa = dev->hpa.start;
 
 	wax->version = 0;   /* gsc_readb(wax->hpa+WAX_VER); */
 	printk(KERN_INFO "%s at 0x%lx found.\n", wax->name, wax->hpa);

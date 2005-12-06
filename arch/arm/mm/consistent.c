@@ -66,6 +66,7 @@ struct vm_region {
 	unsigned long		vm_start;
 	unsigned long		vm_end;
 	struct page		*vm_pages;
+	int			vm_active;
 };
 
 static struct vm_region consistent_head = {
@@ -75,7 +76,7 @@ static struct vm_region consistent_head = {
 };
 
 static struct vm_region *
-vm_region_alloc(struct vm_region *head, size_t size, int gfp)
+vm_region_alloc(struct vm_region *head, size_t size, gfp_t gfp)
 {
 	unsigned long addr = head->vm_start, end = head->vm_end - size;
 	unsigned long flags;
@@ -104,6 +105,7 @@ vm_region_alloc(struct vm_region *head, size_t size, int gfp)
 	list_add_tail(&new->vm_list, &c->vm_list);
 	new->vm_start = addr;
 	new->vm_end = addr + size;
+	new->vm_active = 1;
 
 	spin_unlock_irqrestore(&consistent_lock, flags);
 	return new;
@@ -120,7 +122,7 @@ static struct vm_region *vm_region_find(struct vm_region *head, unsigned long ad
 	struct vm_region *c;
 	
 	list_for_each_entry(c, &head->vm_list, vm_list) {
-		if (c->vm_start == addr)
+		if (c->vm_active && c->vm_start == addr)
 			goto out;
 	}
 	c = NULL;
@@ -133,7 +135,7 @@ static struct vm_region *vm_region_find(struct vm_region *head, unsigned long ad
 #endif
 
 static void *
-__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, int gfp,
+__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	    pgprot_t prot)
 {
 	struct page *page;
@@ -251,7 +253,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, int gfp,
  * virtual and bus address for that space.
  */
 void *
-dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, int gfp)
+dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	return __dma_alloc(dev, size, handle, gfp,
 			   pgprot_noncached(pgprot_kernel));
@@ -263,7 +265,7 @@ EXPORT_SYMBOL(dma_alloc_coherent);
  * dma_alloc_coherent above.
  */
 void *
-dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, int gfp)
+dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	return __dma_alloc(dev, size, handle, gfp,
 			   pgprot_writecombine(pgprot_kernel));
@@ -319,6 +321,7 @@ EXPORT_SYMBOL(dma_mmap_writecombine);
 
 /*
  * free a page as defined by the above mapping.
+ * Must not be called with IRQs disabled.
  */
 void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
 {
@@ -326,13 +329,17 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	unsigned long flags, addr;
 	pte_t *ptep;
 
+	WARN_ON(irqs_disabled());
+
 	size = PAGE_ALIGN(size);
 
 	spin_lock_irqsave(&consistent_lock, flags);
-
 	c = vm_region_find(&consistent_head, (unsigned long)cpu_addr);
 	if (!c)
 		goto no_area;
+
+	c->vm_active = 0;
+	spin_unlock_irqrestore(&consistent_lock, flags);
 
 	if ((c->vm_end - c->vm_start) != size) {
 		printk(KERN_ERR "%s: freeing wrong coherent size (%ld != %d)\n",
@@ -372,8 +379,8 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 
 	flush_tlb_kernel_range(c->vm_start, c->vm_end);
 
+	spin_lock_irqsave(&consistent_lock, flags);
 	list_del(&c->vm_list);
-
 	spin_unlock_irqrestore(&consistent_lock, flags);
 
 	kfree(c);
@@ -397,8 +404,6 @@ static int __init consistent_init(void)
 	pte_t *pte;
 	int ret = 0;
 
-	spin_lock(&init_mm.page_table_lock);
-
 	do {
 		pgd = pgd_offset(&init_mm, CONSISTENT_BASE);
 		pmd = pmd_alloc(&init_mm, pgd, CONSISTENT_BASE);
@@ -409,7 +414,7 @@ static int __init consistent_init(void)
 		}
 		WARN_ON(!pmd_none(*pmd));
 
-		pte = pte_alloc_kernel(&init_mm, pmd, CONSISTENT_BASE);
+		pte = pte_alloc_kernel(pmd, CONSISTENT_BASE);
 		if (!pte) {
 			printk(KERN_ERR "%s: no pte tables\n", __func__);
 			ret = -ENOMEM;
@@ -418,8 +423,6 @@ static int __init consistent_init(void)
 
 		consistent_pte = pte;
 	} while (0);
-
-	spin_unlock(&init_mm.page_table_lock);
 
 	return ret;
 }

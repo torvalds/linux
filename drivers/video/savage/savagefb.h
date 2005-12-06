@@ -169,6 +169,7 @@ struct savagefb_par {
 	struct savagefb_i2c_chan chan;
 	unsigned char   *edid;
 	u32 pseudo_palette[16];
+	int paletteEnabled;
 	int pm_state;
 	int display_type;
 	int dvi;
@@ -244,105 +245,150 @@ struct savagefb_par {
 
 
 /* IO functions */
-
-#define  vga_in8(addr)         (inb (addr))
-#define vga_in16(addr)         (inw (addr))
-#define vga_in32(addr)         (inl (addr))
-
-#define  vga_out8(addr,val)    (outb ((val), (addr)))
-#define vga_out16(addr,val)    (outw ((val), (addr)))
-#define vga_out32(addr,val)    (outl ((val), (addr)))
-
-#define savage_in16(addr)      readw(par->mmio.vbase + (addr))
-#define savage_in32(addr)      readl(par->mmio.vbase + (addr))
-
-#define savage_out16(addr,val) writew((val), par->mmio.vbase + (addr))
-#define savage_out32(addr,val) writel((val), par->mmio.vbase + (addr))
-
-static inline u8 VGArCR (u8 index)
+static inline u8 savage_in8(u32 addr, struct savagefb_par *par)
 {
-  outb (index, 0x3d4);
-  return inb (0x3d5);
+	return readb(par->mmio.vbase + addr);
 }
 
-static inline u8 VGArGR (u8 index)
+static inline u16 savage_in16(u32 addr, struct savagefb_par *par)
 {
-  outb (index, 0x3ce);
-  return inb (0x3cf);
+	return readw(par->mmio.vbase + addr);
 }
 
-static inline u8 VGArSEQ (u8 index)
+static inline u32 savage_in32(u32 addr, struct savagefb_par *par)
 {
-  outb (index, 0x3c4);
-  return inb (0x3c5);
+	return readl(par->mmio.vbase + addr);
 }
 
-#define VGAwCR(index, val) \
-do {                       \
-  vga_out8 (0x3d4, index); \
-  vga_out8 (0x3d5, val);   \
-} while (0)
+static inline void savage_out8(u32 addr, u8 val, struct savagefb_par *par)
+{
+	writeb(val, par->mmio.vbase + addr);
+}
 
-#define VGAwGR(index, val) \
-do {                       \
-  vga_out8 (0x3ce, index); \
-  vga_out8 (0x3cf, val);   \
-} while (0)
+static inline void savage_out16(u32 addr, u16 val, struct savagefb_par *par)
+{
+	writew(val, par->mmio.vbase + addr);
+}
 
-#define VGAwSEQ(index, val) \
-do {                        \
-  vga_out8 (0x3c4, index);  \
-  vga_out8 (0x3c5, val);    \
-} while (0)
+static inline void savage_out32(u32 addr, u32 val, struct savagefb_par *par)
+{
+	writel(val, par->mmio.vbase + addr);
+}
 
-#define VGAenablePalette() \
-do {                       \
-  u8 tmp;                  \
-                           \
-  tmp = vga_in8 (0x3da);   \
-  vga_out8 (0x3c0, 0x00);  \
-  paletteEnabled = 1;      \
-} while (0)
+static inline u8 vga_in8(int addr, struct savagefb_par *par)
+{
+	return savage_in8(0x8000 + addr, par);
+}
 
-#define VGAdisablePalette() \
-do {                        \
-  u8 tmp;                   \
-                            \
-  tmp = vga_in8 (0x3da);    \
-  vga_out8 (0x3c0, 0x20);   \
-  paletteEnabled = 0;       \
-} while (0)
+static inline u16 vga_in16(int addr, struct savagefb_par *par)
+{
+	return savage_in16(0x8000 + addr, par);
+}
 
-#define VGAwATTR(index, value) \
-do {                           \
-  u8 tmp;                      \
-                               \
-  if (paletteEnabled)          \
-    index &= ~0x20;            \
-  else                         \
-    index |= 0x20;             \
-                               \
-  tmp = vga_in8 (0x3da);       \
-  vga_out8 (0x3c0, index);     \
-  vga_out8 (0x3c0, value);     \
-} while (0)
+static inline u8 vga_in32(int addr, struct savagefb_par *par)
+{
+	return savage_in32(0x8000 + addr, par);
+}
 
-#define VGAwMISC(value)    \
-do {                       \
-  vga_out8 (0x3c2, value); \
-} while (0)
+static inline void vga_out8(int addr, u8 val, struct savagefb_par *par)
+{
+	savage_out8(0x8000 + addr, val, par);
+}
+
+static inline void vga_out16(int addr, u16 val, struct savagefb_par *par)
+{
+	savage_out16(0x8000 + addr, val, par);
+}
+
+static inline void vga_out32(int addr, u32 val, struct savagefb_par *par)
+{
+	savage_out32(0x8000 + addr, val, par);
+}
+
+static inline u8 VGArCR (u8 index, struct savagefb_par *par)
+{
+	vga_out8(0x3d4, index,  par);
+	return vga_in8(0x3d5, par);
+}
+
+static inline u8 VGArGR (u8 index, struct savagefb_par *par)
+{
+	vga_out8(0x3ce, index, par);
+	return vga_in8(0x3cf, par);
+}
+
+static inline u8 VGArSEQ (u8 index, struct savagefb_par *par)
+{
+	vga_out8(0x3c4, index, par);
+	return vga_in8(0x3c5, par);
+}
+
+static inline void VGAwCR(u8 index, u8 val, struct savagefb_par *par)
+{
+	vga_out8(0x3d4, index, par);
+	vga_out8(0x3d5, val, par);
+}
+
+static inline void VGAwGR(u8 index, u8 val, struct savagefb_par *par)
+{
+	vga_out8(0x3ce, index, par);
+	vga_out8(0x3cf, val, par);
+}
+
+static inline void VGAwSEQ(u8 index, u8 val, struct savagefb_par *par)
+{
+	vga_out8(0x3c4, index, par);
+	vga_out8 (0x3c5, val, par);
+}
+
+static inline void VGAenablePalette(struct savagefb_par *par)
+{
+	u8 tmp;
+
+	tmp = vga_in8(0x3da, par);
+	vga_out8(0x3c0, 0x00, par);
+	par->paletteEnabled = 1;
+}
+
+static inline void VGAdisablePalette(struct savagefb_par *par)
+{
+	u8 tmp;
+
+	tmp = vga_in8(0x3da, par);
+	vga_out8(0x3c0, 0x20, par);
+	par->paletteEnabled = 0;
+}
+
+static inline void VGAwATTR(u8 index, u8 value, struct savagefb_par *par)
+{
+	u8 tmp;
+
+	if (par->paletteEnabled)
+		index &= ~0x20;
+	else
+		index |= 0x20;
+
+	tmp = vga_in8(0x3da, par);
+	vga_out8(0x3c0, index, par);
+	vga_out8 (0x3c0, value, par);
+}
+
+static inline void VGAwMISC(u8 value, struct savagefb_par *par)
+{
+	vga_out8(0x3c2, value, par);
+}
 
 #ifndef CONFIG_FB_SAVAGE_ACCEL
 #define savagefb_set_clip(x)
 #endif
 
-#define VerticalRetraceWait() \
-{ \
-	vga_out8 (0x3d4, 0x17); \
-	if (vga_in8 (0x3d5) & 0x80) { \
-		while ((vga_in8(0x3da) & 0x08) == 0x08) ; \
-		while ((vga_in8(0x3da) & 0x08) == 0x00) ; \
-	} \
+static inline void VerticalRetraceWait(struct savagefb_par *par)
+{
+	vga_out8(0x3d4, 0x17, par);
+	if (vga_in8(0x3d5, par) & 0x80) {
+		while ((vga_in8(0x3da, par) & 0x08) == 0x08);
+		while ((vga_in8(0x3da, par) & 0x08) == 0x00);
+	}
 }
 
 extern int savagefb_probe_i2c_connector(struct fb_info *info,

@@ -102,15 +102,15 @@ static struct {
 } mirage_ts_cal =
 {
 #if 0
-	xscale:   84,
-	xtrans: -157,
-	yscale:   66,
-	ytrans: -150,
+	.xscale   = 84,
+	.xtrans = -157,
+	.yscale   = 66,
+	.ytrans = -150,
 #else
-	xscale:   84,
-	xtrans: -150,
-	yscale:   66,
-	ytrans: -146,
+	.xscale   = 84,
+	.xtrans = -150,
+	.yscale   = 66,
+	.ytrans = -146,
 #endif
 };
 

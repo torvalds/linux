@@ -131,3 +131,47 @@ Netlink itself is not reliable protocol, that means that messages can
 be lost due to memory pressure or process' receiving queue overflowed,
 so caller is warned must be prepared. That is why struct cn_msg [main
 connector's message header] contains u32 seq and u32 ack fields.
+
+/*****************************************/
+Userspace usage.
+/*****************************************/
+2.6.14 has a new netlink socket implementation, which by default does not
+allow to send data to netlink groups other than 1.
+So, if to use netlink socket (for example using connector) 
+with different group number userspace application must subscribe to 
+that group. It can be achieved by following pseudocode:
+
+s = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
+
+l_local.nl_family = AF_NETLINK;
+l_local.nl_groups = 12345;
+l_local.nl_pid = 0;
+
+if (bind(s, (struct sockaddr *)&l_local, sizeof(struct sockaddr_nl)) == -1) {
+	perror("bind");
+	close(s);
+	return -1;
+}
+
+{
+	int on = l_local.nl_groups;
+	setsockopt(s, 270, 1, &on, sizeof(on));
+}
+
+Where 270 above is SOL_NETLINK, and 1 is a NETLINK_ADD_MEMBERSHIP socket
+option. To drop multicast subscription one should call above socket option
+with NETLINK_DROP_MEMBERSHIP parameter which is defined as 0.
+
+2.6.14 netlink code only allows to select a group which is less or equal to
+the maximum group number, which is used at netlink_kernel_create() time.
+In case of connector it is CN_NETLINK_USERS + 0xf, so if you want to use
+group number 12345, you must increment CN_NETLINK_USERS to that number.
+Additional 0xf numbers are allocated to be used by non-in-kernel users.
+
+Due to this limitation, group 0xffffffff does not work now, so one can
+not use add/remove connector's group notifications, but as far as I know, 
+only cn_test.c test module used it.
+
+Some work in netlink area is still being done, so things can be changed in
+2.6.15 timeframe, if it will happen, documentation will be updated for that
+kernel.

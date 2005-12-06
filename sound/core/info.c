@@ -566,7 +566,6 @@ int __init snd_info_init(void)
 	}
 #endif
 	snd_info_version_init();
-	snd_memory_info_init();
 	snd_minor_info_init();
 	snd_minor_info_oss_init();
 	snd_card_info_init();
@@ -578,7 +577,6 @@ int __exit snd_info_done(void)
 	snd_card_info_done();
 	snd_minor_info_oss_done();
 	snd_minor_info_done();
-	snd_memory_info_done();
 	snd_info_version_done();
 	if (snd_proc_root) {
 #if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)

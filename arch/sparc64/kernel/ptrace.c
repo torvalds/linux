@@ -31,6 +31,7 @@
 #include <asm/visasm.h>
 #include <asm/spitfire.h>
 #include <asm/page.h>
+#include <asm/cpudata.h>
 
 /* Returning from ptrace is a bit tricky because the syscall return
  * low level code assumes any value returned which is negative and
@@ -132,12 +133,16 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 	if ((uaddr ^ (unsigned long) kaddr) & (1UL << 13)) {
 		unsigned long start = __pa(kaddr);
 		unsigned long end = start + len;
+		unsigned long dcache_line_size;
+
+		dcache_line_size = local_cpu_data().dcache_line_size;
 
 		if (tlb_type == spitfire) {
-			for (; start < end; start += 32)
+			for (; start < end; start += dcache_line_size)
 				spitfire_put_dcache_tag(start & 0x3fe0, 0x0);
 		} else {
-			for (; start < end; start += 32)
+			start &= ~(dcache_line_size - 1);
+			for (; start < end; start += dcache_line_size)
 				__asm__ __volatile__(
 					"stxa %%g0, [%0] %1\n\t"
 					"membar #Sync"
@@ -150,8 +155,11 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 	if (write && tlb_type == spitfire) {
 		unsigned long start = (unsigned long) kaddr;
 		unsigned long end = start + len;
+		unsigned long icache_line_size;
 
-		for (; start < end; start += 32)
+		icache_line_size = local_cpu_data().icache_line_size;
+
+		for (; start < end; start += icache_line_size)
 			flushi(start);
 	}
 }

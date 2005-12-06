@@ -1,4 +1,4 @@
-/* $Id: jffs2_fs_sb.h,v 1.52 2005/05/19 16:12:17 gleixner Exp $ */
+/* $Id: jffs2_fs_sb.h,v 1.54 2005/09/21 13:37:34 dedekind Exp $ */
 
 #ifndef _JFFS2_FS_SB
 #define _JFFS2_FS_SB
@@ -20,7 +20,7 @@
 struct jffs2_inodirty;
 
 /* A struct for the overall file system control.  Pointers to
-   jffs2_sb_info structs are named `c' in the source code.  
+   jffs2_sb_info structs are named `c' in the source code.
    Nee jffs_control
 */
 struct jffs2_sb_info {
@@ -35,7 +35,7 @@ struct jffs2_sb_info {
 	struct completion gc_thread_start; /* GC thread start completion */
 	struct completion gc_thread_exit; /* GC thread exit completion port */
 
-	struct semaphore alloc_sem;	/* Used to protect all the following 
+	struct semaphore alloc_sem;	/* Used to protect all the following
 					   fields, and also to protect against
 					   out-of-order writing of nodes. And GC. */
 	uint32_t cleanmarker_size;	/* Size of an _inline_ CLEANMARKER
@@ -64,7 +64,7 @@ struct jffs2_sb_info {
 	uint32_t nospc_dirty_size;
 
 	uint32_t nr_blocks;
-	struct jffs2_eraseblock *blocks;	/* The whole array of blocks. Used for getting blocks 
+	struct jffs2_eraseblock *blocks;	/* The whole array of blocks. Used for getting blocks
 						 * from the offset (blocks[ofs / sector_size]) */
 	struct jffs2_eraseblock *nextblock;	/* The block we're currently filling */
 
@@ -82,25 +82,26 @@ struct jffs2_sb_info {
 	struct list_head bad_list;		/* Bad blocks. */
 	struct list_head bad_used_list;		/* Bad blocks with valid data in. */
 
-	spinlock_t erase_completion_lock;	/* Protect free_list and erasing_list 
+	spinlock_t erase_completion_lock;	/* Protect free_list and erasing_list
 						   against erase completion handler */
 	wait_queue_head_t erase_wait;		/* For waiting for erases to complete */
 
 	wait_queue_head_t inocache_wq;
 	struct jffs2_inode_cache **inocache_list;
 	spinlock_t inocache_lock;
-	
+
 	/* Sem to allow jffs2_garbage_collect_deletion_dirent to
-	   drop the erase_completion_lock while it's holding a pointer 
+	   drop the erase_completion_lock while it's holding a pointer
 	   to an obsoleted node. I don't like this. Alternatives welcomed. */
 	struct semaphore erase_free_sem;
+
+	uint32_t wbuf_pagesize; /* 0 for NOR and other flashes with no wbuf */
 
 #ifdef CONFIG_JFFS2_FS_WRITEBUFFER
 	/* Write-behind buffer for NAND flash */
 	unsigned char *wbuf;
 	uint32_t wbuf_ofs;
 	uint32_t wbuf_len;
-	uint32_t wbuf_pagesize;
 	struct jffs2_inodirty *wbuf_inodes;
 
 	struct rw_semaphore wbuf_sem;	/* Protects the write buffer */
@@ -111,6 +112,8 @@ struct jffs2_sb_info {
 	uint32_t fsdata_pos;
 	uint32_t fsdata_len;
 #endif
+
+	struct jffs2_summary *summary;		/* Summary information */
 
 	/* OS-private pointer for getting back to master superblock info */
 	void *os_priv;

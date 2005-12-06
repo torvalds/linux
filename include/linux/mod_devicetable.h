@@ -183,7 +183,7 @@ struct of_device_id
 	char	name[32];
 	char	type[32];
 	char	compatible[128];
-#if __KERNEL__
+#ifdef __KERNEL__
 	void	*data;
 #else
 	kernel_ulong_t data;
@@ -209,10 +209,11 @@ struct pcmcia_device_id {
 	/* for real multi-function devices */
 	__u8  		function;
 
-	/* for pseude multi-function devices */
+	/* for pseudo multi-function devices */
 	__u8  		device_no;
 
-	__u32 		prod_id_hash[4];
+	__u32 		prod_id_hash[4]
+		__attribute__((aligned(sizeof(__u32))));
 
 	/* not matched against in kernelspace*/
 #ifdef __KERNEL__
@@ -242,5 +243,10 @@ struct pcmcia_device_id {
 #define PCMCIA_DEV_ID_MATCH_DEVICE_NO	0x0100
 #define PCMCIA_DEV_ID_MATCH_FAKE_CIS	0x0200
 #define PCMCIA_DEV_ID_MATCH_ANONYMOUS	0x0400
+
+/* I2C */
+struct i2c_device_id {
+	__u16 id;
+};
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

@@ -8,7 +8,6 @@
 
 #include <linux/stddef.h>
 #include <linux/fs.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -294,8 +293,7 @@ static void hostfs_delete_inode(struct inode *inode)
 
 static void hostfs_destroy_inode(struct inode *inode)
 {
-	if(HOSTFS_I(inode)->host_filename)
-		kfree(HOSTFS_I(inode)->host_filename);
+	kfree(HOSTFS_I(inode)->host_filename);
 
 	/*XXX: This should not happen, probably. The check is here for
 	 * additional safety.*/
@@ -793,11 +791,6 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 	return(err);
 }
 
-void hostfs_truncate(struct inode *ino)
-{
-	not_implemented();
-}
-
 int hostfs_permission(struct inode *ino, int desired, struct nameidata *nd)
 {
 	char *name;
@@ -894,7 +887,6 @@ static struct inode_operations hostfs_iops = {
 	.rmdir		= hostfs_rmdir,
 	.mknod		= hostfs_mknod,
 	.rename		= hostfs_rename,
-	.truncate	= hostfs_truncate,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 	.getattr	= hostfs_getattr,
@@ -910,7 +902,6 @@ static struct inode_operations hostfs_dir_iops = {
 	.rmdir		= hostfs_rmdir,
 	.mknod		= hostfs_mknod,
 	.rename		= hostfs_rename,
-	.truncate	= hostfs_truncate,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 	.getattr	= hostfs_getattr,

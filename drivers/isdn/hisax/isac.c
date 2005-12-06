@@ -570,15 +570,12 @@ setstack_isac(struct PStack *st, struct IsdnCardState *cs)
 }
 
 static void
-DC_Close_isac(struct IsdnCardState *cs) {
-	if (cs->dc.isac.mon_rx) {
-		kfree(cs->dc.isac.mon_rx);
-		cs->dc.isac.mon_rx = NULL;
-	}
-	if (cs->dc.isac.mon_tx) {
-		kfree(cs->dc.isac.mon_tx);
-		cs->dc.isac.mon_tx = NULL;
-	}
+DC_Close_isac(struct IsdnCardState *cs)
+{
+	kfree(cs->dc.isac.mon_rx);
+	cs->dc.isac.mon_rx = NULL;
+	kfree(cs->dc.isac.mon_tx);
+	cs->dc.isac.mon_tx = NULL;
 }
 
 static void

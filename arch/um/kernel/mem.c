@@ -234,8 +234,8 @@ void paging_init(void)
 	empty_bad_page = (unsigned long *) alloc_bootmem_low_pages(PAGE_SIZE);
 	for(i=0;i<sizeof(zones_size)/sizeof(zones_size[0]);i++) 
 		zones_size[i] = 0;
-	zones_size[0] = (end_iomem >> PAGE_SHIFT) - (uml_physmem >> PAGE_SHIFT);
-	zones_size[2] = highmem >> PAGE_SHIFT;
+	zones_size[ZONE_DMA] = (end_iomem >> PAGE_SHIFT) - (uml_physmem >> PAGE_SHIFT);
+	zones_size[ZONE_HIGHMEM] = highmem >> PAGE_SHIFT;
 	free_area_init(zones_size);
 
 	/*
@@ -252,7 +252,7 @@ void paging_init(void)
 #endif
 }
 
-struct page *arch_validate(struct page *page, int mask, int order)
+struct page *arch_validate(struct page *page, gfp_t mask, int order)
 {
 	unsigned long addr, zero = 0;
 	int i;

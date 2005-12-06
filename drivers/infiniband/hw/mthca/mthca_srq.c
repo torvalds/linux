@@ -32,6 +32,9 @@
  * $Id: mthca_srq.c 3047 2005-08-10 03:59:35Z roland $
  */
 
+#include <linux/slab.h>
+#include <linux/string.h>
+
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
 #include "mthca_memfree.h"
@@ -75,15 +78,16 @@ static void *get_wqe(struct mthca_srq *srq, int n)
 
 /*
  * Return a pointer to the location within a WQE that we're using as a
- * link when the WQE is in the free list.  We use an offset of 4
- * because in the Tavor case, posting a WQE may overwrite the first
- * four bytes of the previous WQE.  The offset avoids corrupting our
- * free list if the WQE has already completed and been put on the free
- * list when we post the next WQE.
+ * link when the WQE is in the free list.  We use the imm field
+ * because in the Tavor case, posting a WQE may overwrite the next
+ * segment of the previous WQE, but a receive WQE will never touch the
+ * imm field.  This avoids corrupting our free list if the previous
+ * WQE has already completed and been put on the free list when we
+ * post the next WQE.
  */
 static inline int *wqe_to_link(void *wqe)
 {
-	return (int *) (wqe + 4);
+	return (int *) (wqe + offsetof(struct mthca_next_seg, imm));
 }
 
 static void mthca_tavor_init_srq_context(struct mthca_dev *dev,
@@ -186,7 +190,8 @@ int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
 	int err;
 
 	/* Sanity check SRQ size before proceeding */
-	if (attr->max_wr > 16 << 20 || attr->max_sge > 64)
+	if (attr->max_wr  > dev->limits.max_srq_wqes ||
+	    attr->max_sge > dev->limits.max_sg)
 		return -EINVAL;
 
 	srq->max      = attr->max_wr;
@@ -332,6 +337,29 @@ void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq)
 	mthca_free_mailbox(dev, mailbox);
 }
 
+int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
+		     enum ib_srq_attr_mask attr_mask)
+{	
+	struct mthca_dev *dev = to_mdev(ibsrq->device);
+	struct mthca_srq *srq = to_msrq(ibsrq);
+	int ret;
+	u8 status;
+
+	/* We don't support resizing SRQs (yet?) */
+	if (attr_mask & IB_SRQ_MAX_WR)
+		return -EINVAL;
+
+	if (attr_mask & IB_SRQ_LIMIT) {
+		ret = mthca_ARM_SRQ(dev, srq->srqn, attr->srq_limit, &status);
+		if (ret)
+			return ret;
+		if (status)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type)
 {
@@ -354,7 +382,7 @@ void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 
 	event.device      = &dev->ib_dev;
 	event.event       = event_type;
-	event.element.srq  = &srq->ibsrq;
+	event.element.srq = &srq->ibsrq;
 	srq->ibsrq.event_handler(&event, srq->ibsrq.srq_context);
 
 out:
@@ -389,6 +417,7 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 {
 	struct mthca_dev *dev = to_mdev(ibsrq->device);
 	struct mthca_srq *srq = to_msrq(ibsrq);
+	__be32 doorbell[2];
 	unsigned long flags;
 	int err = 0;
 	int first_ind;
@@ -404,6 +433,25 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	first_ind = srq->first_free;
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
+		if (unlikely(nreq == MTHCA_TAVOR_MAX_WQES_PER_RECV_DB)) {
+			nreq = 0;
+
+			doorbell[0] = cpu_to_be32(first_ind << srq->wqe_shift);
+			doorbell[1] = cpu_to_be32(srq->srqn << 8);
+
+			/*
+			 * Make sure that descriptors are written
+			 * before doorbell is rung.
+			 */
+			wmb();
+
+			mthca_write64(doorbell,
+				      dev->kar + MTHCA_RECEIVE_DOORBELL,
+				      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
+
+			first_ind = srq->first_free;
+		}
+
 		ind = srq->first_free;
 
 		if (ind < 0) {
@@ -415,6 +463,14 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 		wqe       = get_wqe(srq, ind);
 		next_ind  = *wqe_to_link(wqe);
+
+		if (next_ind < 0) {
+			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
+			err = -ENOMEM;
+			*bad_wr = wr;
+			break;
+		}
+
 		prev_wqe  = srq->last;
 		srq->last = wqe;
 
@@ -458,8 +514,6 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	}
 
 	if (likely(nreq)) {
-		__be32 doorbell[2];
-
 		doorbell[0] = cpu_to_be32(first_ind << srq->wqe_shift);
 		doorbell[1] = cpu_to_be32((srq->srqn << 8) | nreq);
 
@@ -505,6 +559,13 @@ int mthca_arbel_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 		wqe       = get_wqe(srq, ind);
 		next_ind  = *wqe_to_link(wqe);
+
+		if (next_ind < 0) {
+			mthca_err(dev, "SRQ %06x full\n", srq->srqn);
+			err = -ENOMEM;
+			*bad_wr = wr;
+			break;
+		}
 
 		((struct mthca_next_seg *) wqe)->nda_op =
 			cpu_to_be32((next_ind << srq->wqe_shift) | 1);

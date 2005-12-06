@@ -6,10 +6,12 @@ config DVB_BT8XX
 	select DVB_NXT6000
 	select DVB_CX24110
 	select DVB_OR51211
+	select DVB_LGDT330X
 	help
 	  Support for PCI cards based on the Bt8xx PCI bridge. Examples are
 	  the Nebula cards, the Pinnacle PCTV cards, the Twinhan DST cards,
-	  the pcHDTV HD2000 cards, and certain AVerMedia cards.
+	  the pcHDTV HD2000 cards, the DViCO FusionHDTV Lite cards, and
+	  some AVerMedia cards.
 
 	  Since these cards have no MPEG decoder onboard, they transmit
 	  only compressed MPEG data over the PCI bus, so you need

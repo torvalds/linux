@@ -151,8 +151,7 @@ static u32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
 	if (nbytes <= sizeof(argp->tmp))
 		p = argp->tmp;
 	else {
-		if (argp->tmpp)
-			kfree(argp->tmpp);
+		kfree(argp->tmpp);
 		p = argp->tmpp = kmalloc(nbytes, GFP_KERNEL);
 		if (!p)
 			return NULL;
@@ -2476,10 +2475,8 @@ void nfsd4_release_compoundargs(struct nfsd4_compoundargs *args)
 		kfree(args->ops);
 		args->ops = args->iops;
 	}
-	if (args->tmpp) {
-		kfree(args->tmpp);
-		args->tmpp = NULL;
-	}
+	kfree(args->tmpp);
+	args->tmpp = NULL;
 	while (args->to_free) {
 		struct tmpbuf *tb = args->to_free;
 		args->to_free = tb->next;

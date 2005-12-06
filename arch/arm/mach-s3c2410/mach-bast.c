@@ -32,6 +32,7 @@
  *     25-Jul-2005 BJD  Removed ASIX static mappings
  *     27-Jul-2005 BJD  Ensure maximum frequency of i2c bus
  *     20-Sep-2005 BJD  Added static to non-exported items
+ *     26-Oct-2005 BJD  Added FB platform data
 */
 
 #include <linux/kernel.h>
@@ -40,7 +41,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dm9000.h>
 
 #include <asm/mach/arch.h>
@@ -61,8 +62,10 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
+
 #include <asm/arch/nand.h>
 #include <asm/arch/iic.h>
+#include <asm/arch/fb.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -86,32 +89,63 @@
 
 /* macros to modify the physical addresses for io space */
 
-#define PA_CS2(item) ((item) + S3C2410_CS2)
-#define PA_CS3(item) ((item) + S3C2410_CS3)
-#define PA_CS4(item) ((item) + S3C2410_CS4)
-#define PA_CS5(item) ((item) + S3C2410_CS5)
+#define PA_CS2(item) (__phys_to_pfn((item) + S3C2410_CS2))
+#define PA_CS3(item) (__phys_to_pfn((item) + S3C2410_CS3))
+#define PA_CS4(item) (__phys_to_pfn((item) + S3C2410_CS4))
+#define PA_CS5(item) (__phys_to_pfn((item) + S3C2410_CS5))
 
 static struct map_desc bast_iodesc[] __initdata = {
   /* ISA IO areas */
-
-  { (u32)S3C24XX_VA_ISA_BYTE, PA_CS2(BAST_PA_ISAIO),   SZ_16M, MT_DEVICE },
-  { (u32)S3C24XX_VA_ISA_WORD, PA_CS3(BAST_PA_ISAIO),   SZ_16M, MT_DEVICE },
-
-  /* we could possibly compress the next set down into a set of smaller tables
-   * pagetables, but that would mean using an L2 section, and it still means
-   * we cannot actually feed the same register to an LDR due to 16K spacing
-   */
-
+  {
+	  .virtual	= (u32)S3C24XX_VA_ISA_BYTE,
+	  .pfn		= PA_CS2(BAST_PA_ISAIO),
+	  .length	= SZ_16M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)S3C24XX_VA_ISA_WORD,
+	  .pfn		= PA_CS3(BAST_PA_ISAIO),
+	  .length	= SZ_16M,
+	  .type		= MT_DEVICE,
+  },
   /* bast CPLD control registers, and external interrupt controls */
-  { (u32)BAST_VA_CTRL1, BAST_PA_CTRL1,		   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_CTRL2, BAST_PA_CTRL2,		   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_CTRL3, BAST_PA_CTRL3,		   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_CTRL4, BAST_PA_CTRL4,		   SZ_1M, MT_DEVICE },
-
+  {
+	  .virtual	= (u32)BAST_VA_CTRL1,
+	  .pfn		= __phys_to_pfn(BAST_PA_CTRL1),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_CTRL2,
+	  .pfn		= __phys_to_pfn(BAST_PA_CTRL2),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_CTRL3,
+	  .pfn		= __phys_to_pfn(BAST_PA_CTRL3),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_CTRL4,
+	  .pfn		= __phys_to_pfn(BAST_PA_CTRL4),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  },
   /* PC104 IRQ mux */
-  { (u32)BAST_VA_PC104_IRQREQ,  BAST_PA_PC104_IRQREQ,   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_PC104_IRQRAW,  BAST_PA_PC104_IRQRAW,   SZ_1M, MT_DEVICE },
-  { (u32)BAST_VA_PC104_IRQMASK, BAST_PA_PC104_IRQMASK,  SZ_1M, MT_DEVICE },
+  {
+	  .virtual	= (u32)BAST_VA_PC104_IRQREQ,
+	  .pfn		= __phys_to_pfn(BAST_PA_PC104_IRQREQ),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_PC104_IRQRAW,
+	  .pfn		= __phys_to_pfn(BAST_PA_PC104_IRQRAW),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)BAST_VA_PC104_IRQMASK,
+	  .pfn		= __phys_to_pfn(BAST_PA_PC104_IRQMASK),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  },
 
   /* peripheral space... one for each of fast/slow/byte/16bit */
   /* note, ide is only decoded in word space, even though some registers
@@ -169,7 +203,7 @@ static struct s3c24xx_uart_clksrc bast_serial_clocks[] = {
 		.name		= "pclk",
 		.divisor	= 1,
 		.min_baud	= 0,
-		.max_baud	= 0.
+		.max_baud	= 0,
 	}
 };
 
@@ -182,7 +216,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	},
 	[1] = {
 		.hwport	     = 1,
@@ -191,7 +225,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	},
 	/* port 2 is not actually used */
 	[2] = {
@@ -201,7 +235,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 		.clocks	     = bast_serial_clocks,
-		.clocks_size = ARRAY_SIZE(bast_serial_clocks)
+		.clocks_size = ARRAY_SIZE(bast_serial_clocks),
 	}
 };
 
@@ -230,11 +264,11 @@ static int chip0_map[] = { 1 };
 static int chip1_map[] = { 2 };
 static int chip2_map[] = { 3 };
 
-struct mtd_partition bast_default_nand_part[] = {
+static struct mtd_partition bast_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
-		.offset	= 0
+		.offset	= 0,
 	},
 	[1] = {
 		.name	= "/boot",
@@ -262,28 +296,28 @@ static struct s3c2410_nand_set bast_nand_sets[] = {
 		.nr_chips	= 1,
 		.nr_map		= smartmedia_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[1] = {
 		.name		= "chip0",
 		.nr_chips	= 1,
 		.nr_map		= chip0_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[2] = {
 		.name		= "chip1",
 		.nr_chips	= 1,
 		.nr_map		= chip1_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	},
 	[3] = {
 		.name		= "chip2",
 		.nr_chips	= 1,
 		.nr_map		= chip2_map,
 		.nr_partitions	= ARRAY_SIZE(bast_default_nand_part),
-		.partitions	= bast_default_nand_part
+		.partitions	= bast_default_nand_part,
 	}
 };
 
@@ -307,9 +341,9 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 }
 
 static struct s3c2410_platform_nand bast_nand_info = {
-	.tacls		= 40,
-	.twrph0		= 80,
-	.twrph1		= 80,
+	.tacls		= 30,
+	.twrph0		= 60,
+	.twrph1		= 60,
 	.nr_sets	= ARRAY_SIZE(bast_nand_sets),
 	.sets		= bast_nand_sets,
 	.select_chip	= bast_nand_select,
@@ -321,17 +355,17 @@ static struct resource bast_dm9k_resource[] = {
 	[0] = {
 		.start = S3C2410_CS5 + BAST_PA_DM9000,
 		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 3,
-		.flags = IORESOURCE_MEM
+		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
 		.start = S3C2410_CS5 + BAST_PA_DM9000 + 0x40,
 		.end   = S3C2410_CS5 + BAST_PA_DM9000 + 0x40 + 0x3f,
-		.flags = IORESOURCE_MEM
+		.flags = IORESOURCE_MEM,
 	},
 	[2] = {
 		.start = IRQ_DM9000,
 		.end   = IRQ_DM9000,
-		.flags = IORESOURCE_IRQ
+		.flags = IORESOURCE_IRQ,
 	}
 
 };
@@ -340,8 +374,8 @@ static struct resource bast_dm9k_resource[] = {
  * better IO routines can be written and tested
 */
 
-struct dm9000_plat_data bast_dm9k_platdata = {
-	.flags		= DM9000_PLATF_16BITONLY
+static struct dm9000_plat_data bast_dm9k_platdata = {
+	.flags		= DM9000_PLATF_16BITONLY,
 };
 
 static struct platform_device bast_device_dm9k = {
@@ -399,6 +433,38 @@ static struct s3c2410_platform_i2c bast_i2c_info = {
 	.max_freq	= 130*1000,
 };
 
+
+static struct s3c2410fb_mach_info __initdata bast_lcd_info = {
+	.width		= 640,
+	.height		= 480,
+
+	.xres		= {
+		.min		= 320,
+		.max		= 1024,
+		.defval		= 640,
+	},
+
+	.yres		= {
+		.min		= 240,
+		.max	        = 600,
+		.defval		= 480,
+	},
+
+	.bpp		= {
+		.min		= 4,
+		.max		= 16,
+		.defval		= 8,
+	},
+
+	.regs		= {
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon3	= 0x013a7f13,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
+	}
+};
+
 /* Standard BAST devices */
 
 static struct platform_device *bast_devices[] __initdata = {
@@ -426,7 +492,7 @@ static struct s3c24xx_board bast_board __initdata = {
 	.devices       = bast_devices,
 	.devices_count = ARRAY_SIZE(bast_devices),
 	.clocks	       = bast_clocks,
-	.clocks_count  = ARRAY_SIZE(bast_clocks)
+	.clocks_count  = ARRAY_SIZE(bast_clocks),
 };
 
 static void __init bast_map_io(void)
@@ -454,6 +520,10 @@ static void __init bast_map_io(void)
 	usb_simtec_init();
 }
 
+static void __init bast_init(void)
+{
+	s3c24xx_fb_set_platdata(&bast_lcd_info);
+}
 
 MACHINE_START(BAST, "Simtec-BAST")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
@@ -463,5 +533,6 @@ MACHINE_START(BAST, "Simtec-BAST")
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= bast_map_io,
 	.init_irq	= s3c24xx_init_irq,
+	.init_machine	= bast_init,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

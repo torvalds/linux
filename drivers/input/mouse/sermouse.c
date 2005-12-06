@@ -48,7 +48,7 @@ static char *sermouse_protocols[] = { "None", "Mouse Systems Mouse", "Sun Mouse"
 					"Logitech MZ++ Mouse"};
 
 struct sermouse {
-	struct input_dev dev;
+	struct input_dev *dev;
 	signed char buf[8];
 	unsigned char count;
 	unsigned char type;
@@ -64,7 +64,7 @@ struct sermouse {
 
 static void sermouse_process_msc(struct sermouse *sermouse, signed char data, struct pt_regs *regs)
 {
-	struct input_dev *dev = &sermouse->dev;
+	struct input_dev *dev = sermouse->dev;
 	signed char *buf = sermouse->buf;
 
 	input_regs(dev, regs);
@@ -107,7 +107,7 @@ static void sermouse_process_msc(struct sermouse *sermouse, signed char data, st
 
 static void sermouse_process_ms(struct sermouse *sermouse, signed char data, struct pt_regs *regs)
 {
-	struct input_dev *dev = &sermouse->dev;
+	struct input_dev *dev = sermouse->dev;
 	signed char *buf = sermouse->buf;
 
 	if (data & 0x40) sermouse->count = 0;
@@ -230,9 +230,9 @@ static void sermouse_disconnect(struct serio *serio)
 {
 	struct sermouse *sermouse = serio_get_drvdata(serio);
 
-	input_unregister_device(&sermouse->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_unregister_device(sermouse->dev);
 	kfree(sermouse);
 }
 
@@ -244,56 +244,52 @@ static void sermouse_disconnect(struct serio *serio)
 static int sermouse_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct sermouse *sermouse;
-	unsigned char c;
-	int err;
+	struct input_dev *input_dev;
+	unsigned char c = serio->id.extra;
+	int err = -ENOMEM;
 
-	if (!serio->id.proto || serio->id.proto > SERIO_MZPP)
-		return -ENODEV;
+	sermouse = kzalloc(sizeof(struct sermouse), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!sermouse || !input_dev)
+		goto fail;
 
-	if (!(sermouse = kmalloc(sizeof(struct sermouse), GFP_KERNEL)))
-		return -ENOMEM;
-
-	memset(sermouse, 0, sizeof(struct sermouse));
-
-	init_input_dev(&sermouse->dev);
-	sermouse->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	sermouse->dev.keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT);
-	sermouse->dev.relbit[0] = BIT(REL_X) | BIT(REL_Y);
-	sermouse->dev.private = sermouse;
-
-	sermouse->type = serio->id.proto;
-	c = serio->id.extra;
-
-	if (c & 0x01) set_bit(BTN_MIDDLE, sermouse->dev.keybit);
-	if (c & 0x02) set_bit(BTN_SIDE, sermouse->dev.keybit);
-	if (c & 0x04) set_bit(BTN_EXTRA, sermouse->dev.keybit);
-	if (c & 0x10) set_bit(REL_WHEEL, sermouse->dev.relbit);
-	if (c & 0x20) set_bit(REL_HWHEEL, sermouse->dev.relbit);
-
+	sermouse->dev = input_dev;
 	sprintf(sermouse->phys, "%s/input0", serio->phys);
+	sermouse->type = serio->id.proto;
 
-	sermouse->dev.name = sermouse_protocols[sermouse->type];
-	sermouse->dev.phys = sermouse->phys;
-	sermouse->dev.id.bustype = BUS_RS232;
-	sermouse->dev.id.vendor = sermouse->type;
-	sermouse->dev.id.product = c;
-	sermouse->dev.id.version = 0x0100;
-	sermouse->dev.dev = &serio->dev;
+	input_dev->name = sermouse_protocols[sermouse->type];
+	input_dev->phys = sermouse->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor  = sermouse->type;
+	input_dev->id.product = c;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
+	input_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT);
+	input_dev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	input_dev->private = sermouse;
+
+	if (c & 0x01) set_bit(BTN_MIDDLE, input_dev->keybit);
+	if (c & 0x02) set_bit(BTN_SIDE, input_dev->keybit);
+	if (c & 0x04) set_bit(BTN_EXTRA, input_dev->keybit);
+	if (c & 0x10) set_bit(REL_WHEEL, input_dev->relbit);
+	if (c & 0x20) set_bit(REL_HWHEEL, input_dev->relbit);
 
 	serio_set_drvdata(serio, sermouse);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(sermouse);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	input_register_device(&sermouse->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", sermouse_protocols[sermouse->type], serio->phys);
+	input_register_device(sermouse->dev);
 
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(sermouse);
+	return err;
 }
 
 static struct serio_device_id sermouse_serio_ids[] = {

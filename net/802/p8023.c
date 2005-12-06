@@ -54,8 +54,7 @@ struct datalink_proto *make_8023_client(void)
  */
 void destroy_8023_client(struct datalink_proto *dl)
 {
-	if (dl)
-		kfree(dl);
+	kfree(dl);
 }
 
 EXPORT_SYMBOL(destroy_8023_client);

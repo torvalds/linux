@@ -472,24 +472,8 @@ enum pc300_loopback_cmds {
 
 #ifdef __KERNEL__
 /* Function Prototypes */
-int dma_buf_write(pc300_t *, int, ucchar *, int);
-int dma_buf_read(pc300_t *, int, struct sk_buff *);
 void tx_dma_start(pc300_t *, int);
-void rx_dma_start(pc300_t *, int);
-void tx_dma_stop(pc300_t *, int);
-void rx_dma_stop(pc300_t *, int);
-int cpc_queue_xmit(struct sk_buff *, struct net_device *);
-void cpc_net_rx(struct net_device *);
-void cpc_sca_status(pc300_t *, int);
-int cpc_change_mtu(struct net_device *, int);
-int cpc_ioctl(struct net_device *, struct ifreq *, int);
-int ch_config(pc300dev_t *);
-int rx_config(pc300dev_t *);
-int tx_config(pc300dev_t *);
-void cpc_opench(pc300dev_t *);
-void cpc_closech(pc300dev_t *);
 int cpc_open(struct net_device *dev);
-int cpc_close(struct net_device *dev);
 int cpc_set_media(hdlc_device *, int);
 #endif /* __KERNEL__ */
 

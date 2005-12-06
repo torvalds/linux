@@ -58,6 +58,7 @@
 
 #include <net/sock.h>
 #include <net/scm.h>
+#include <net/netlink.h>
 
 #define Nprintk(a...)
 #define NLGRPSZ(x)	(ALIGN(x, sizeof(unsigned long) * 8) / 8)
@@ -427,7 +428,8 @@ static int netlink_release(struct socket *sock)
 
 	spin_lock(&nlk->cb_lock);
 	if (nlk->cb) {
-		nlk->cb->done(nlk->cb);
+		if (nlk->cb->done)
+			nlk->cb->done(nlk->cb);
 		netlink_destroy_callback(nlk->cb);
 		nlk->cb = NULL;
 	}
@@ -474,7 +476,7 @@ static int netlink_autobind(struct socket *sock)
 	struct hlist_head *head;
 	struct sock *osk;
 	struct hlist_node *node;
-	s32 pid = current->pid;
+	s32 pid = current->tgid;
 	int err;
 	static s32 rover = -4097;
 
@@ -740,10 +742,7 @@ int netlink_attachskb(struct sock *sk, struct sk_buff *skb, int nonblock, long t
 
 int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol)
 {
-	struct netlink_sock *nlk;
 	int len = skb->len;
-
-	nlk = nlk_sk(sk);
 
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, len);
@@ -758,7 +757,7 @@ void netlink_detachskb(struct sock *sk, struct sk_buff *skb)
 }
 
 static inline struct sk_buff *netlink_trim(struct sk_buff *skb,
-					   unsigned int __nocast allocation)
+					   gfp_t allocation)
 {
 	int delta;
 
@@ -827,7 +826,7 @@ struct netlink_broadcast_data {
 	int failure;
 	int congested;
 	int delivered;
-	unsigned int allocation;
+	gfp_t allocation;
 	struct sk_buff *skb, *skb2;
 };
 
@@ -880,7 +879,7 @@ out:
 }
 
 int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
-		      u32 group, unsigned int __nocast allocation)
+		      u32 group, gfp_t allocation)
 {
 	struct netlink_broadcast_data info;
 	struct hlist_node *node;
@@ -1325,7 +1324,8 @@ static int netlink_dump(struct sock *sk)
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, skb->len);
 
-	cb->done(cb);
+	if (cb->done)
+		cb->done(cb);
 	nlk->cb = NULL;
 	spin_unlock(&nlk->cb_lock);
 
@@ -1412,6 +1412,94 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	netlink_unicast(in_skb->sk, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
 }
 
+static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
+						     struct nlmsghdr *, int *))
+{
+	unsigned int total_len;
+	struct nlmsghdr *nlh;
+	int err;
+
+	while (skb->len >= nlmsg_total_size(0)) {
+		nlh = (struct nlmsghdr *) skb->data;
+
+		if (skb->len < nlh->nlmsg_len)
+			return 0;
+
+		total_len = min(NLMSG_ALIGN(nlh->nlmsg_len), skb->len);
+
+		if (cb(skb, nlh, &err) < 0) {
+			/* Not an error, but we have to interrupt processing
+			 * here. Note: that in this case we do not pull
+			 * message from skb, it will be processed later.
+			 */
+			if (err == 0)
+				return -1;
+			netlink_ack(skb, nlh, err);
+		} else if (nlh->nlmsg_flags & NLM_F_ACK)
+			netlink_ack(skb, nlh, 0);
+
+		skb_pull(skb, total_len);
+	}
+
+	return 0;
+}
+
+/**
+ * nelink_run_queue - Process netlink receive queue.
+ * @sk: Netlink socket containing the queue
+ * @qlen: Place to store queue length upon entry
+ * @cb: Callback function invoked for each netlink message found
+ *
+ * Processes as much as there was in the queue upon entry and invokes
+ * a callback function for each netlink message found. The callback
+ * function may refuse a message by returning a negative error code
+ * but setting the error pointer to 0 in which case this function
+ * returns with a qlen != 0.
+ *
+ * qlen must be initialized to 0 before the initial entry, afterwards
+ * the function may be called repeatedly until qlen reaches 0.
+ */
+void netlink_run_queue(struct sock *sk, unsigned int *qlen,
+		       int (*cb)(struct sk_buff *, struct nlmsghdr *, int *))
+{
+	struct sk_buff *skb;
+
+	if (!*qlen || *qlen > skb_queue_len(&sk->sk_receive_queue))
+		*qlen = skb_queue_len(&sk->sk_receive_queue);
+
+	for (; *qlen; (*qlen)--) {
+		skb = skb_dequeue(&sk->sk_receive_queue);
+		if (netlink_rcv_skb(skb, cb)) {
+			if (skb->len)
+				skb_queue_head(&sk->sk_receive_queue, skb);
+			else {
+				kfree_skb(skb);
+				(*qlen)--;
+			}
+			break;
+		}
+
+		kfree_skb(skb);
+	}
+}
+
+/**
+ * netlink_queue_skip - Skip netlink message while processing queue.
+ * @nlh: Netlink message to be skipped
+ * @skb: Socket buffer containing the netlink messages.
+ *
+ * Pulls the given netlink message off the socket buffer so the next
+ * call to netlink_queue_run() will not reconsider the message.
+ */
+void netlink_queue_skip(struct nlmsghdr *nlh, struct sk_buff *skb)
+{
+	int msglen = NLMSG_ALIGN(nlh->nlmsg_len);
+
+	if (msglen > skb->len)
+		msglen = skb->len;
+
+	skb_pull(skb, msglen);
+}
 
 #ifdef CONFIG_PROC_FS
 struct nl_seq_iter {
@@ -1660,6 +1748,8 @@ out:
 core_initcall(netlink_proto_init);
 
 EXPORT_SYMBOL(netlink_ack);
+EXPORT_SYMBOL(netlink_run_queue);
+EXPORT_SYMBOL(netlink_queue_skip);
 EXPORT_SYMBOL(netlink_broadcast);
 EXPORT_SYMBOL(netlink_dump_start);
 EXPORT_SYMBOL(netlink_kernel_create);

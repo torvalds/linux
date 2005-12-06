@@ -492,42 +492,10 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 }
 
 
-static int prism2_pccard_dev_open(local_info_t *local)
-{
-	struct hostap_cs_priv *hw_priv = local->hw_priv;
-	hw_priv->link->open++;
-	return 0;
-}
-
-
-static int prism2_pccard_dev_close(local_info_t *local)
-{
-	struct hostap_cs_priv *hw_priv;
-
-	if (local == NULL || local->hw_priv == NULL)
-		return 1;
-	hw_priv = local->hw_priv;
-	if (hw_priv->link == NULL)
-		return 1;
-
-	if (!hw_priv->link->open) {
-		printk(KERN_WARNING "%s: prism2_pccard_dev_close(): "
-		       "link not open?!\n", local->dev->name);
-		return 1;
-	}
-
-	hw_priv->link->open--;
-
-	return 0;
-}
-
-
 static struct prism2_helper_functions prism2_pccard_funcs =
 {
 	.card_present	= prism2_pccard_card_present,
 	.cor_sreset	= prism2_pccard_cor_sreset,
-	.dev_open	= prism2_pccard_dev_open,
-	.dev_close	= prism2_pccard_dev_close,
 	.genesis_reset	= prism2_pccard_genesis_reset,
 	.hw_type	= HOSTAP_HW_PCCARD,
 };
@@ -597,13 +565,14 @@ static void prism2_detach(dev_link_t *link)
 	*linkp = link->next;
 	/* release net devices */
 	if (link->priv) {
+		struct hostap_cs_priv *hw_priv;
 		struct net_device *dev;
 		struct hostap_interface *iface;
 		dev = link->priv;
 		iface = netdev_priv(dev);
-		kfree(iface->local->hw_priv);
-		iface->local->hw_priv = NULL;
+		hw_priv = iface->local->hw_priv;
 		prism2_free_local_data(dev);
+		kfree(hw_priv);
 	}
 	kfree(link);
 }
@@ -883,6 +852,13 @@ static int prism2_event(event_t event, int priority,
 {
 	dev_link_t *link = args->client_data;
 	struct net_device *dev = (struct net_device *) link->priv;
+	int dev_open = 0;
+
+	if (link->state & DEV_CONFIG) {
+		struct hostap_interface *iface = netdev_priv(dev);
+		if (iface && iface->local)
+			dev_open = iface->local->num_dev_open > 0;
+	}
 
 	switch (event) {
 	case CS_EVENT_CARD_INSERTION:
@@ -911,7 +887,7 @@ static int prism2_event(event_t event, int priority,
 	case CS_EVENT_RESET_PHYSICAL:
 		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_RESET_PHYSICAL\n", dev_info);
 		if (link->state & DEV_CONFIG) {
-			if (link->open) {
+			if (dev_open) {
 				netif_stop_queue(dev);
 				netif_device_detach(dev);
 			}
@@ -931,8 +907,8 @@ static int prism2_event(event_t event, int priority,
 			pcmcia_request_configuration(link->handle,
 						     &link->conf);
 			prism2_hw_shutdown(dev, 1);
-			prism2_hw_config(dev, link->open ? 0 : 1);
-			if (link->open) {
+			prism2_hw_config(dev, dev_open ? 0 : 1);
+			if (dev_open) {
 				netif_device_attach(dev);
 				netif_start_queue(dev);
 			}

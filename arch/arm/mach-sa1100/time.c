@@ -124,11 +124,13 @@ static void __init sa1100_timer_init(void)
 	tv.tv_sec = sa1100_get_rtc_time();
 	do_settimeofday(&tv);
 
-	OSMR0 = 0;		/* set initial match at 0 */
+	OIER = 0;		/* disable any timer interrupts */
+	OSCR = LATCH*2;		/* push OSCR out of the way */
+	OSMR0 = LATCH;		/* set initial match */
 	OSSR = 0xf;		/* clear status on all timers */
 	setup_irq(IRQ_OST0, &sa1100_timer_irq);
-	OIER |= OIER_E0;	/* enable match on timer 0 to cause interrupts */
-	OSCR = 0;		/* initialize free-running timer, force first match */
+	OIER = OIER_E0;		/* enable match on timer 0 to cause interrupts */
+	OSCR = 0;		/* initialize free-running timer */
 }
 
 #ifdef CONFIG_NO_IDLE_HZ

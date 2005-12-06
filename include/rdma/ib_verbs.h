@@ -595,11 +595,8 @@ struct ib_send_wr {
 		} atomic;
 		struct {
 			struct ib_ah *ah;
-			struct ib_mad_hdr *mad_hdr;
 			u32	remote_qpn;
 			u32	remote_qkey;
-			int	timeout_ms; /* valid for MADs only */
-			int	retries;    /* valid for MADs only */
 			u16	pkey_index; /* valid for GSI only */
 			u8	port_num;   /* valid for DR SMPs on switch only */
 		} ud;
@@ -665,7 +662,6 @@ struct ib_ucontext {
 	struct list_head	qp_list;
 	struct list_head	srq_list;
 	struct list_head	ah_list;
-	spinlock_t              lock;
 };
 
 struct ib_uobject {
@@ -885,7 +881,7 @@ struct ib_device {
 						struct ib_ucontext *context,
 						struct ib_udata *udata);
 	int                        (*destroy_cq)(struct ib_cq *cq);
-	int                        (*resize_cq)(struct ib_cq *cq, int *cqe);
+	int                        (*resize_cq)(struct ib_cq *cq, int cqe);
 	int                        (*poll_cq)(struct ib_cq *cq, int num_entries,
 					      struct ib_wc *wc);
 	int                        (*peek_cq)(struct ib_cq *cq, int wc_cnt);
@@ -951,6 +947,9 @@ struct ib_device {
 		IB_DEV_REGISTERED,
 		IB_DEV_UNREGISTERED
 	}                            reg_state;
+
+	u64			     uverbs_cmd_mask;
+	int			     uverbs_abi_ver;
 
 	u8                           node_type;
 	u8                           phys_port_cnt;

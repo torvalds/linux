@@ -71,9 +71,13 @@ static int v9fs_fid_insert(struct v9fs_fid *fid, struct dentry *dentry)
  *
  */
 
-struct v9fs_fid *v9fs_fid_create(struct dentry *dentry)
+struct v9fs_fid *v9fs_fid_create(struct dentry *dentry,
+	struct v9fs_session_info *v9ses, int fid, int create)
 {
 	struct v9fs_fid *new;
+
+	dprintk(DEBUG_9P, "fid create dentry %p, fid %d, create %d\n",
+		dentry, fid, create);
 
 	new = kmalloc(sizeof(struct v9fs_fid), GFP_KERNEL);
 	if (new == NULL) {
@@ -81,11 +85,14 @@ struct v9fs_fid *v9fs_fid_create(struct dentry *dentry)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	new->fid = -1;
+	new->fid = fid;
+	new->v9ses = v9ses;
 	new->fidopen = 0;
-	new->fidcreate = 0;
+	new->fidcreate = create;
 	new->fidclunked = 0;
 	new->iounit = 0;
+	new->rdir_pos = 0;
+	new->rdir_fcall = NULL;
 
 	if (v9fs_fid_insert(new, dentry) == 0)
 		return new;
@@ -109,6 +116,59 @@ void v9fs_fid_destroy(struct v9fs_fid *fid)
 }
 
 /**
+ * v9fs_fid_walk_up - walks from the process current directory
+ * 	up to the specified dentry.
+ */
+static struct v9fs_fid *v9fs_fid_walk_up(struct dentry *dentry)
+{
+	int fidnum, cfidnum, err;
+	struct v9fs_fid *cfid;
+	struct dentry *cde;
+	struct v9fs_session_info *v9ses;
+
+	v9ses = v9fs_inode2v9ses(current->fs->pwd->d_inode);
+	cfid = v9fs_fid_lookup(current->fs->pwd);
+	if (cfid == NULL) {
+		dprintk(DEBUG_ERROR, "process cwd doesn't have a fid\n");
+		return ERR_PTR(-ENOENT);
+	}
+
+	cfidnum = cfid->fid;
+	cde = current->fs->pwd;
+	/* TODO: take advantage of multiwalk */
+
+	fidnum = v9fs_get_idpool(&v9ses->fidpool);
+	if (fidnum < 0) {
+		dprintk(DEBUG_ERROR, "could not get a new fid num\n");
+		err = -ENOENT;
+		goto clunk_fid;
+	}
+
+	while (cde != dentry) {
+		if (cde == cde->d_parent) {
+			dprintk(DEBUG_ERROR, "can't find dentry\n");
+			err = -ENOENT;
+			goto clunk_fid;
+		}
+
+		err = v9fs_t_walk(v9ses, cfidnum, fidnum, "..", NULL);
+		if (err < 0) {
+			dprintk(DEBUG_ERROR, "problem walking to parent\n");
+			goto clunk_fid;
+		}
+
+		cfidnum = fidnum;
+		cde = cde->d_parent;
+	}
+
+	return v9fs_fid_create(dentry, v9ses, fidnum, 0);
+
+clunk_fid:
+	v9fs_t_clunk(v9ses, fidnum, NULL);
+	return ERR_PTR(err);
+}
+
+/**
  * v9fs_fid_lookup - retrieve the right fid from a  particular dentry
  * @dentry: dentry to look for fid in
  * @type: intent of lookup (operation or traversal)
@@ -119,49 +179,25 @@ void v9fs_fid_destroy(struct v9fs_fid *fid)
  *
  */
 
-struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry, int type)
+struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry)
 {
 	struct list_head *fid_list = (struct list_head *)dentry->d_fsdata;
 	struct v9fs_fid *current_fid = NULL;
 	struct v9fs_fid *temp = NULL;
 	struct v9fs_fid *return_fid = NULL;
-	int found_parent = 0;
-	int found_user = 0;
 
-	dprintk(DEBUG_9P, " dentry: %s (%p) type %d\n", dentry->d_iname, dentry,
-		type);
+	dprintk(DEBUG_9P, " dentry: %s (%p)\n", dentry->d_iname, dentry);
 
-	if (fid_list && !list_empty(fid_list)) {
+	if (fid_list) {
 		list_for_each_entry_safe(current_fid, temp, fid_list, list) {
-			if (current_fid->uid == current->uid) {
-				if (return_fid == NULL) {
-					if ((type == FID_OP)
-					    || (!current_fid->fidopen)) {
-						return_fid = current_fid;
-						found_user = 1;
-					}
-				}
-			}
-			if (current_fid->pid == current->real_parent->pid) {
-				if ((return_fid == NULL) || (found_parent)
-				    || (found_user)) {
-					if ((type == FID_OP)
-					    || (!current_fid->fidopen)) {
-						return_fid = current_fid;
-						found_parent = 1;
-						found_user = 0;
-					}
-				}
-			}
-			if (current_fid->pid == current->pid) {
-				if ((type == FID_OP) ||
-				    (!current_fid->fidopen)) {
-					return_fid = current_fid;
-					found_parent = 0;
-					found_user = 0;
-				}
+			if (!current_fid->fidcreate) {
+				return_fid = current_fid;
+				break;
 			}
 		}
+
+		if (!return_fid)
+			return_fid = current_fid;
 	}
 
 	/* we are at the root but didn't match */
@@ -187,55 +223,33 @@ struct v9fs_fid *v9fs_fid_lookup(struct dentry *dentry, int type)
 
 /* XXX - there may be some duplication we can get rid of */
 		if (par == dentry) {
-			/* we need to fid_lookup the starting point */
-			int fidnum = -1;
-			int oldfid = -1;
-			int result = -1;
-			struct v9fs_session_info *v9ses =
-			    v9fs_inode2v9ses(current->fs->pwd->d_inode);
-
-			current_fid =
-			    v9fs_fid_lookup(current->fs->pwd, FID_WALK);
-			if (current_fid == NULL) {
-				dprintk(DEBUG_ERROR,
-					"process cwd doesn't have a fid\n");
-				return return_fid;
-			}
-			oldfid = current_fid->fid;
-			par = current->fs->pwd;
-			/* TODO: take advantage of multiwalk */
-
-			fidnum = v9fs_get_idpool(&v9ses->fidpool);
-			if (fidnum < 0) {
-				dprintk(DEBUG_ERROR,
-					"could not get a new fid num\n");
-				return return_fid;
-			}
-
-			while (par != dentry) {
-				result =
-				    v9fs_t_walk(v9ses, oldfid, fidnum, "..",
-						NULL);
-				if (result < 0) {
-					dprintk(DEBUG_ERROR,
-						"problem walking to parent\n");
-
-					break;
-				}
-				oldfid = fidnum;
-				if (par == par->d_parent) {
-					dprintk(DEBUG_ERROR,
-						"can't find dentry\n");
-					break;
-				}
-				par = par->d_parent;
-			}
-			if (par == dentry) {
-				return_fid = v9fs_fid_create(dentry);
-				return_fid->fid = fidnum;
-			}
+			return_fid = v9fs_fid_walk_up(dentry);
+			if (IS_ERR(return_fid))
+				return_fid = NULL;
 		}
 	}
 
 	return return_fid;
+}
+
+struct v9fs_fid *v9fs_fid_get_created(struct dentry *dentry)
+{
+	struct list_head *fid_list;
+	struct v9fs_fid *fid, *ftmp, *ret;
+
+	dprintk(DEBUG_9P, " dentry: %s (%p)\n", dentry->d_iname, dentry);
+	fid_list = (struct list_head *)dentry->d_fsdata;
+	ret = NULL;
+	if (fid_list) {
+		list_for_each_entry_safe(fid, ftmp, fid_list, list) {
+			if (fid->fidcreate && fid->pid == current->pid) {
+				list_del(&fid->list);
+				ret = fid;
+				break;
+			}
+		}
+	}
+
+	dprintk(DEBUG_9P, "return %p\n", ret);
+	return ret;
 }

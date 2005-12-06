@@ -8,8 +8,6 @@
     *
     *  SB1250 specification level:  User's manual 1/02/02
     *
-    *  Author:  Mitch Lichtenberg
-    *
     *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
@@ -51,26 +49,70 @@
 #define V_SYS_REVISION(x)           _SB_MAKEVALUE(x,S_SYS_REVISION)
 #define G_SYS_REVISION(x)           _SB_GETVALUE(x,S_SYS_REVISION,M_SYS_REVISION)
 
-#if SIBYTE_HDR_FEATURE_CHIP(1250)
-#define K_SYS_REVISION_BCM1250_PASS1	1
-#define K_SYS_REVISION_BCM1250_PASS2	3
-#define K_SYS_REVISION_BCM1250_A10	11
-#define K_SYS_REVISION_BCM1250_PASS2_2	16
-#define K_SYS_REVISION_BCM1250_B2	17
-#define K_SYS_REVISION_BCM1250_PASS3	32
-#define K_SYS_REVISION_BCM1250_C1	33
+#define K_SYS_REVISION_BCM1250_PASS1	0x01
 
+#define K_SYS_REVISION_BCM1250_PASS2	0x03
+#define K_SYS_REVISION_BCM1250_A1	0x03	/* Pass 2.0 WB */
+#define K_SYS_REVISION_BCM1250_A2	0x04	/* Pass 2.0 FC */
+#define K_SYS_REVISION_BCM1250_A3	0x05	/* Pass 2.1 FC */
+#define K_SYS_REVISION_BCM1250_A4	0x06	/* Pass 2.1 WB */
+#define K_SYS_REVISION_BCM1250_A6	0x07	/* OR 0x04 (A2) w/WID != 0 */
+#define K_SYS_REVISION_BCM1250_A8	0x0b	/* A8/A10 */
+#define K_SYS_REVISION_BCM1250_A9	0x08
+#define K_SYS_REVISION_BCM1250_A10	K_SYS_REVISION_BCM1250_A8
+
+#define K_SYS_REVISION_BCM1250_PASS2_2	0x10
+#define K_SYS_REVISION_BCM1250_B0	K_SYS_REVISION_BCM1250_B1
+#define K_SYS_REVISION_BCM1250_B1	0x10
+#define K_SYS_REVISION_BCM1250_B2	0x11
+
+#define K_SYS_REVISION_BCM1250_C0	0x20
+#define K_SYS_REVISION_BCM1250_C1	0x21
+#define K_SYS_REVISION_BCM1250_C2	0x22
+#define K_SYS_REVISION_BCM1250_C3	0x23
+
+#if SIBYTE_HDR_FEATURE_CHIP(1250)
 /* XXX: discourage people from using these constants.  */
 #define K_SYS_REVISION_PASS1	    K_SYS_REVISION_BCM1250_PASS1
 #define K_SYS_REVISION_PASS2	    K_SYS_REVISION_BCM1250_PASS2
 #define K_SYS_REVISION_PASS2_2	    K_SYS_REVISION_BCM1250_PASS2_2
 #define K_SYS_REVISION_PASS3	    K_SYS_REVISION_BCM1250_PASS3
+#define K_SYS_REVISION_BCM1250_PASS3	K_SYS_REVISION_BCM1250_C0
 #endif /* 1250 */
 
-#if SIBYTE_HDR_FEATURE_CHIP(112x)
-#define K_SYS_REVISION_BCM112x_A1	32
-#define K_SYS_REVISION_BCM112x_A2	33
-#endif /* 112x */
+#define K_SYS_REVISION_BCM112x_A1	0x20
+#define K_SYS_REVISION_BCM112x_A2	0x21
+#define K_SYS_REVISION_BCM112x_A3	0x22
+#define K_SYS_REVISION_BCM112x_A4	0x23
+
+#define K_SYS_REVISION_BCM1480_S0	0x01
+#define K_SYS_REVISION_BCM1480_A1	0x02
+#define K_SYS_REVISION_BCM1480_A2	0x03
+#define K_SYS_REVISION_BCM1480_A3	0x04
+#define K_SYS_REVISION_BCM1480_B0	0x11
+
+/*Cache size - 23:20  of revision register*/
+#define S_SYS_L2C_SIZE            _SB_MAKE64(20)
+#define M_SYS_L2C_SIZE            _SB_MAKEMASK(4,S_SYS_L2C_SIZE)
+#define V_SYS_L2C_SIZE(x)         _SB_MAKEVALUE(x,S_SYS_L2C_SIZE)
+#define G_SYS_L2C_SIZE(x)         _SB_GETVALUE(x,S_SYS_L2C_SIZE,M_SYS_L2C_SIZE)
+
+#define K_SYS_L2C_SIZE_1MB	0
+#define K_SYS_L2C_SIZE_512KB	5
+#define K_SYS_L2C_SIZE_256KB	2
+#define K_SYS_L2C_SIZE_128KB	1
+
+#define K_SYS_L2C_SIZE_BCM1250	K_SYS_L2C_SIZE_512KB
+#define K_SYS_L2C_SIZE_BCM1125	K_SYS_L2C_SIZE_256KB
+#define K_SYS_L2C_SIZE_BCM1122	K_SYS_L2C_SIZE_128KB
+
+
+/* Number of CPU cores, bits 27:24  of revision register*/
+#define S_SYS_NUM_CPUS            _SB_MAKE64(24)
+#define M_SYS_NUM_CPUS            _SB_MAKEMASK(4,S_SYS_NUM_CPUS)
+#define V_SYS_NUM_CPUS(x)         _SB_MAKEVALUE(x,S_SYS_NUM_CPUS)
+#define G_SYS_NUM_CPUS(x)         _SB_GETVALUE(x,S_SYS_NUM_CPUS,M_SYS_NUM_CPUS)
+
 
 /* XXX: discourage people from using these constants.  */
 #define S_SYS_PART                  _SB_MAKE64(16)
@@ -83,6 +125,8 @@
 #define K_SYS_PART_BCM1120          0x1121
 #define K_SYS_PART_BCM1125          0x1123
 #define K_SYS_PART_BCM1125H         0x1124
+#define K_SYS_PART_BCM1122          0x1113
+
 
 /* The "peripheral set" (SOC type) is the low 4 bits of the "part" field.  */
 #define S_SYS_SOC_TYPE              _SB_MAKE64(16)
@@ -96,6 +140,8 @@
 #define K_SYS_SOC_TYPE_BCM1125      0x3
 #define K_SYS_SOC_TYPE_BCM1125H     0x4
 #define K_SYS_SOC_TYPE_BCM1250_ALT2 0x5		/* 1250pass2 w/ 1/2 L2.  */
+#define K_SYS_SOC_TYPE_BCM1x80      0x6
+#define K_SYS_SOC_TYPE_BCM1x55      0x7
 
 /*
  * Calculate correct SOC type given a copy of system revision register.
@@ -127,10 +173,12 @@
 #define V_SYS_WID(x)                _SB_MAKEVALUE(x,S_SYS_WID)
 #define G_SYS_WID(x)                _SB_GETVALUE(x,S_SYS_WID,M_SYS_WID)
 
-/* System Manufacturing Register
-* Register: SCD_SYSTEM_MANUF
-*/
+/*
+ * System Manufacturing Register
+ * Register: SCD_SYSTEM_MANUF
+ */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 /* Wafer ID: bits 31:0 */
 #define S_SYS_WAFERID1_200        _SB_MAKE64(0)
 #define M_SYS_WAFERID1_200        _SB_MAKEMASK(32,S_SYS_WAFERID1_200)
@@ -139,8 +187,8 @@
 
 #define S_SYS_BIN                 _SB_MAKE64(32)
 #define M_SYS_BIN                 _SB_MAKEMASK(4,S_SYS_BIN)
-#define V_SYS_BIN                 _SB_MAKEVALUE(x,S_SYS_BIN)
-#define G_SYS_BIN                 _SB_GETVALUE(x,S_SYS_BIN,M_SYS_BIN)
+#define V_SYS_BIN(x)              _SB_MAKEVALUE(x,S_SYS_BIN)
+#define G_SYS_BIN(x)              _SB_GETVALUE(x,S_SYS_BIN,M_SYS_BIN)
 
 /* Wafer ID: bits 39:36 */
 #define S_SYS_WAFERID2_200        _SB_MAKE64(36)
@@ -163,12 +211,14 @@
 #define M_SYS_YPOS                _SB_MAKEMASK(6,S_SYS_YPOS)
 #define V_SYS_YPOS(x)             _SB_MAKEVALUE(x,S_SYS_YPOS)
 #define G_SYS_YPOS(x)             _SB_GETVALUE(x,S_SYS_YPOS,M_SYS_YPOS)
+#endif
 
 /*
  * System Config Register (Table 4-2)
  * Register: SCD_SYSTEM_CFG
  */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define M_SYS_LDT_PLL_BYP           _SB_MAKEMASK1(3)
 #define M_SYS_PCI_SYNC_TEST_MODE    _SB_MAKEMASK1(4)
 #define M_SYS_IOB0_DIV              _SB_MAKEMASK1(5)
@@ -253,6 +303,8 @@
 #define M_SYS_SW_FLAG		    _SB_MAKEMASK1(63)
 #endif /* 1250 PASS2 || 112x PASS1 */
 
+#endif
+
 
 /*
  * Mailbox Registers (Table 4-3)
@@ -326,6 +378,7 @@
  * System Performance Counters
  */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define S_SPC_CFG_SRC0            0
 #define M_SPC_CFG_SRC0            _SB_MAKEMASK(8,S_SPC_CFG_SRC0)
 #define V_SPC_CFG_SRC0(x)         _SB_MAKEVALUE(x,S_SPC_CFG_SRC0)
@@ -348,6 +401,7 @@
 
 #define M_SPC_CFG_CLEAR		_SB_MAKEMASK1(32)
 #define M_SPC_CFG_ENABLE	_SB_MAKEMASK1(33)
+#endif
 
 
 /*
@@ -412,6 +466,7 @@
  * Address Trap Registers
  */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define M_ATRAP_INDEX		  _SB_MAKEMASK(4,0)
 #define M_ATRAP_ADDRESS		  _SB_MAKEMASK(40,0)
 
@@ -436,7 +491,6 @@
 #define K_BUS_AGENT_IOB0	2
 #define K_BUS_AGENT_IOB1	3
 #define K_BUS_AGENT_SCD	4
-#define K_BUS_AGENT_RESERVED	5
 #define K_BUS_AGENT_L2C	6
 #define K_BUS_AGENT_MC	7
 
@@ -454,9 +508,13 @@
 #define K_ATRAP_CFG_CATTR_NOTNONCOH	6
 #define K_ATRAP_CFG_CATTR_NOTCOHERENT   7
 
+#endif	/* 1250/112x */
+
 /*
  * Trace Buffer Config register
  */
+
+#if SIBYTE_HDR_FEATURE_1250_112x
 
 #define M_SCD_TRACE_CFG_RESET           _SB_MAKEMASK1(0)
 #define M_SCD_TRACE_CFG_START_READ      _SB_MAKEMASK1(1)
@@ -474,6 +532,8 @@
 #define M_SCD_TRACE_CFG_CUR_ADDR        _SB_MAKEMASK(8,S_SCD_TRACE_CFG_CUR_ADDR)
 #define V_SCD_TRACE_CFG_CUR_ADDR(x)     _SB_MAKEVALUE(x,S_SCD_TRACE_CFG_CUR_ADDR)
 #define G_SCD_TRACE_CFG_CUR_ADDR(x)     _SB_GETVALUE(x,S_SCD_TRACE_CFG_CUR_ADDR,M_SCD_TRACE_CFG_CUR_ADDR)
+
+#endif	/* 1250/112x */
 
 /*
  * Trace Event registers
@@ -578,5 +638,7 @@
 #define M_SCD_TRSEQ_DEBUGPIN            _SB_MAKEMASK1(20)
 #define M_SCD_TRSEQ_DEBUGCPU            _SB_MAKEMASK1(21)
 #define M_SCD_TRSEQ_CLEARUSE            _SB_MAKEMASK1(22)
+#define M_SCD_TRSEQ_ALLD_A              _SB_MAKEMASK1(23)
+#define M_SCD_TRSEQ_ALL_A               _SB_MAKEMASK1(24)
 
 #endif

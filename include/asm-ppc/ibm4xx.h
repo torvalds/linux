@@ -97,6 +97,10 @@ void ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #include <platforms/4xx/luan.h>
 #endif
 
+#if defined(CONFIG_YUCCA)
+#include <platforms/4xx/yucca.h>
+#endif
+
 #if defined(CONFIG_OCOTEA)
 #include <platforms/4xx/ocotea.h>
 #endif

@@ -377,7 +377,7 @@ scdrv_init(void)
 	dev_t first_dev, dev;
 	nasid_t event_nasid = ia64_sn_get_console_nasid();
 
-	if (alloc_chrdev_region(&first_dev, 0, numionodes,
+	if (alloc_chrdev_region(&first_dev, 0, num_cnodes,
 				SYSCTL_BASENAME) < 0) {
 		printk("%s: failed to register SN system controller device\n",
 		       __FUNCTION__);
@@ -385,7 +385,7 @@ scdrv_init(void)
 	}
 	snsc_class = class_create(THIS_MODULE, SYSCTL_BASENAME);
 
-	for (cnode = 0; cnode < numionodes; cnode++) {
+	for (cnode = 0; cnode < num_cnodes; cnode++) {
 			geoid = cnodeid_get_geoid(cnode);
 			devnamep = devname;
 			format_module_id(devnamep, geo_module(geoid),
@@ -437,7 +437,7 @@ scdrv_init(void)
 				continue;
 			}
 
-			class_device_create(snsc_class, dev, NULL,
+			class_device_create(snsc_class, NULL, dev, NULL,
 						"%s", devname);
 
 			ia64_sn_irtr_intr_enable(scd->scd_nasid,

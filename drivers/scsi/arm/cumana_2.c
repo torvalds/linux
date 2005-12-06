@@ -157,7 +157,7 @@ cumanascsi_2_intr(int irq, void *dev_id, struct pt_regs *regs)
  * Returns  : type of transfer to be performed
  */
 static fasdmatype_t
-cumanascsi_2_dma_setup(struct Scsi_Host *host, Scsi_Pointer *SCp,
+cumanascsi_2_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 		       fasdmadir_t direction, fasdmatype_t min_type)
 {
 	struct cumanascsi2_info *info = (struct cumanascsi2_info *)host->hostdata;
@@ -209,7 +209,7 @@ cumanascsi_2_dma_setup(struct Scsi_Host *host, Scsi_Pointer *SCp,
  *	      transfer  - minimum number of bytes we expect to transfer
  */
 static void
-cumanascsi_2_dma_pseudo(struct Scsi_Host *host, Scsi_Pointer *SCp,
+cumanascsi_2_dma_pseudo(struct Scsi_Host *host, struct scsi_pointer *SCp,
 			fasdmadir_t direction, int transfer)
 {
 	struct cumanascsi2_info *info = (struct cumanascsi2_info *)host->hostdata;
@@ -283,7 +283,7 @@ cumanascsi_2_dma_pseudo(struct Scsi_Host *host, Scsi_Pointer *SCp,
  *	      SCpnt - command
  */
 static void
-cumanascsi_2_dma_stop(struct Scsi_Host *host, Scsi_Pointer *SCp)
+cumanascsi_2_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
 {
 	struct cumanascsi2_info *info = (struct cumanascsi2_info *)host->hostdata;
 	if (info->info.scsi.dma != NO_DMA) {
@@ -381,7 +381,7 @@ int cumanascsi_2_proc_info (struct Scsi_Host *host, char *buffer, char **start, 
 	return pos;
 }
 
-static Scsi_Host_Template cumanascsi2_template = {
+static struct scsi_host_template cumanascsi2_template = {
 	.module				= THIS_MODULE,
 	.proc_info			= cumanascsi_2_proc_info,
 	.name				= "Cumana SCSI II",

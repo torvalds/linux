@@ -777,7 +777,7 @@ doing so is the same as described in the "Configuring Multiple Bonds
 Manually" section, below.
 
 	NOTE: It has been observed that some Red Hat supplied kernels
-are apparently unable to rename modules at load time (the "-obonding1"
+are apparently unable to rename modules at load time (the "-o bond1"
 part).  Attempts to pass that option to modprobe will produce an
 "Operation not permitted" error.  This has been reported on some
 Fedora Core kernels, and has been seen on RHEL 4 as well.  On kernels
@@ -883,7 +883,8 @@ the above does not work, and the second bonding instance never sees
 its options.  In that case, the second options line can be substituted
 as follows:
 
-install bonding1 /sbin/modprobe bonding -obond1 mode=balance-alb miimon=50
+install bond1 /sbin/modprobe --ignore-install bonding -o bond1 \
+	mode=balance-alb miimon=50
 
 	This may be repeated any number of times, specifying a new and
 unique name in place of bond1 for each subsequent instance.

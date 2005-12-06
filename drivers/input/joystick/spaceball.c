@@ -70,8 +70,7 @@ static char *spaceball_names[] = {
  */
 
 struct spaceball {
-	struct input_dev dev;
-	struct serio *serio;
+	struct input_dev *dev;
 	int idx;
 	int escape;
 	unsigned char data[SPACEBALL_MAX_LENGTH];
@@ -85,7 +84,7 @@ struct spaceball {
 
 static void spaceball_process_packet(struct spaceball* spaceball, struct pt_regs *regs)
 {
-	struct input_dev *dev = &spaceball->dev;
+	struct input_dev *dev = spaceball->dev;
 	unsigned char *data = spaceball->data;
 	int i;
 
@@ -193,9 +192,9 @@ static void spaceball_disconnect(struct serio *serio)
 {
 	struct spaceball* spaceball = serio_get_drvdata(serio);
 
-	input_unregister_device(&spaceball->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_unregister_device(spaceball->dev);
 	kfree(spaceball);
 }
 
@@ -208,69 +207,62 @@ static void spaceball_disconnect(struct serio *serio)
 static int spaceball_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct spaceball *spaceball;
-	int i, t, id;
-	int err;
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
+	int i, id;
 
 	if ((id = serio->id.id) > SPACEBALL_MAX_ID)
 		return -ENODEV;
 
-	if (!(spaceball = kmalloc(sizeof(struct spaceball), GFP_KERNEL)))
-		return - ENOMEM;
+	spaceball = kmalloc(sizeof(struct spaceball), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!spaceball || !input_dev)
+		goto fail;
 
-	memset(spaceball, 0, sizeof(struct spaceball));
+	spaceball->dev = input_dev;
+	sprintf(spaceball->phys, "%s/input0", serio->phys);
 
-	spaceball->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->name = spaceball_names[id];
+	input_dev->phys = spaceball->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_SPACEBALL;
+	input_dev->id.product = id;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+	input_dev->private = spaceball;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 	switch (id) {
 		case SPACEBALL_4000FLX:
 		case SPACEBALL_4000FLX_L:
-			spaceball->dev.keybit[LONG(BTN_0)] |= BIT(BTN_9);
-			spaceball->dev.keybit[LONG(BTN_A)] |= BIT(BTN_A) | BIT(BTN_B) | BIT(BTN_C) | BIT(BTN_MODE);
+			input_dev->keybit[LONG(BTN_0)] |= BIT(BTN_9);
+			input_dev->keybit[LONG(BTN_A)] |= BIT(BTN_A) | BIT(BTN_B) | BIT(BTN_C) | BIT(BTN_MODE);
 		default:
-			spaceball->dev.keybit[LONG(BTN_0)] |= BIT(BTN_2) | BIT(BTN_3) | BIT(BTN_4)
+			input_dev->keybit[LONG(BTN_0)] |= BIT(BTN_2) | BIT(BTN_3) | BIT(BTN_4)
 				| BIT(BTN_5) | BIT(BTN_6) | BIT(BTN_7) | BIT(BTN_8);
 		case SPACEBALL_3003C:
-			spaceball->dev.keybit[LONG(BTN_0)] |= BIT(BTN_1) | BIT(BTN_8);
+			input_dev->keybit[LONG(BTN_0)] |= BIT(BTN_1) | BIT(BTN_8);
 	}
 
-	for (i = 0; i < 6; i++) {
-		t = spaceball_axes[i];
-		set_bit(t, spaceball->dev.absbit);
-		spaceball->dev.absmin[t] = i < 3 ? -8000 : -1600;
-		spaceball->dev.absmax[t] = i < 3 ?  8000 :  1600;
-		spaceball->dev.absflat[t] = i < 3 ? 40 : 8;
-		spaceball->dev.absfuzz[t] = i < 3 ? 8 : 2;
+	for (i = 0; i < 3; i++) {
+		input_set_abs_params(input_dev, ABS_X + i, -8000, 8000, 8, 40);
+		input_set_abs_params(input_dev, ABS_RX + i, -1600, 1600, 2, 8);
 	}
-
-	spaceball->serio = serio;
-	spaceball->dev.private = spaceball;
-
-	sprintf(spaceball->phys, "%s/input0", serio->phys);
-
-	init_input_dev(&spaceball->dev);
-	spaceball->dev.name = spaceball_names[id];
-	spaceball->dev.phys = spaceball->phys;
-	spaceball->dev.id.bustype = BUS_RS232;
-	spaceball->dev.id.vendor = SERIO_SPACEBALL;
-	spaceball->dev.id.product = id;
-	spaceball->dev.id.version = 0x0100;
-	spaceball->dev.dev = &serio->dev;
 
 	serio_set_drvdata(serio, spaceball);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(spaceball);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	input_register_device(&spaceball->dev);
-
-	printk(KERN_INFO "input: %s on serio%s\n",
-		spaceball_names[id], serio->phys);
-
+	input_register_device(spaceball->dev);
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(spaceball);
+	return err;
 }
 
 /*

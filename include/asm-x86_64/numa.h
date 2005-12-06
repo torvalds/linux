@@ -17,6 +17,8 @@ extern void numa_add_cpu(int cpu);
 extern void numa_init_array(void);
 extern int numa_off;
 
+extern void numa_set_node(int cpu, int node);
+
 extern unsigned char apicid_to_node[256];
 
 #define NUMA_NO_NODE 0xff

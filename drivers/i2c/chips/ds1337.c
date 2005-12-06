@@ -164,9 +164,9 @@ static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 	buf[1] = BIN2BCD(dt->tm_sec);
 	buf[2] = BIN2BCD(dt->tm_min);
 	buf[3] = BIN2BCD(dt->tm_hour);
-	buf[4] = BIN2BCD(dt->tm_wday) + 1;
+	buf[4] = BIN2BCD(dt->tm_wday + 1);
 	buf[5] = BIN2BCD(dt->tm_mday);
-	buf[6] = BIN2BCD(dt->tm_mon) + 1;
+	buf[6] = BIN2BCD(dt->tm_mon + 1);
 	val = dt->tm_year;
 	if (val >= 100) {
 		val -= 100;
@@ -243,11 +243,10 @@ static int ds1337_detect(struct i2c_adapter *adapter, int address, int kind)
 				     I2C_FUNC_I2C))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct ds1337_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct ds1337_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct ds1337_data));
 	INIT_LIST_HEAD(&data->list);
 
 	/* The common I2C client data is placed right before the

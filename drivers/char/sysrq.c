@@ -354,7 +354,7 @@ struct sysrq_key_op *__sysrq_get_key_op (int key) {
         return op_p;
 }
 
-void __sysrq_put_key_op (int key, struct sysrq_key_op *op_p) {
+static void __sysrq_put_key_op (int key, struct sysrq_key_op *op_p) {
         int i;
 
 	i = sysrq_key_table_key2index(key);
@@ -419,7 +419,7 @@ void handle_sysrq(int key, struct pt_regs *pt_regs, struct tty_struct *tty)
 	__handle_sysrq(key, pt_regs, tty, 1);
 }
 
-int __sysrq_swap_key_ops(int key, struct sysrq_key_op *insert_op_p,
+static int __sysrq_swap_key_ops(int key, struct sysrq_key_op *insert_op_p,
                                 struct sysrq_key_op *remove_op_p) {
 
 	int retval;

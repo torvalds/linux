@@ -1,7 +1,7 @@
 /*
  * USB Serial Converter driver
  *
- * Copyright (C) 1999 - 2004 Greg Kroah-Hartman (greg@kroah.com)
+ * Copyright (C) 1999 - 2005 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2000 Peter Berger (pberger@brimson.com)
  * Copyright (C) 2000 Al Borchers (borchers@steinerpoint.com)
  *
@@ -9,316 +9,11 @@
  *	modify it under the terms of the GNU General Public License version
  *	2 as published by the Free Software Foundation.
  *
- * This driver was originally based on the ACM driver by Armin Fuerst (which was 
+ * This driver was originally based on the ACM driver by Armin Fuerst (which was
  * based on a driver by Brad Keryan)
  *
  * See Documentation/usb/usb-serial.txt for more information on using this driver
  *
- * (12/10/2002) gkh
- *	Split the ports off into their own struct device, and added a
- *	usb-serial bus driver.
- *
- * (11/19/2002) gkh
- *	removed a few #ifdefs for the generic code and cleaned up the failure
- *	logic in initialization.
- *
- * (10/02/2002) gkh
- *	moved the console code to console.c and out of this file.
- *
- * (06/05/2002) gkh
- *	moved location of startup() call in serial_probe() until after all
- *	of the port information and endpoints are initialized.  This makes
- *	things easier for some drivers.
- *
- * (04/10/2002) gkh
- *	added serial_read_proc function which creates a
- *	/proc/tty/driver/usb-serial file.
- *
- * (03/27/2002) gkh
- *	Got USB serial console code working properly and merged into the main
- *	version of the tree.  Thanks to Randy Dunlap for the initial version
- *	of this code, and for pushing me to finish it up.
- *	The USB serial console works with any usb serial driver device.
- *
- * (03/21/2002) gkh
- *	Moved all manipulation of port->open_count into the core.  Now the
- *	individual driver's open and close functions are called only when the
- *	first open() and last close() is called.  Making the drivers a bit
- *	smaller and simpler.
- *	Fixed a bug if a driver didn't have the owner field set.
- *
- * (02/26/2002) gkh
- *	Moved all locking into the main serial_* functions, instead of having 
- *	the individual drivers have to grab the port semaphore.  This should
- *	reduce races.
- *	Reworked the MOD_INC logic a bit to always increment and decrement, even
- *	if the generic driver is being used.
- *
- * (10/10/2001) gkh
- *	usb_serial_disconnect() now sets the serial->dev pointer is to NULL to
- *	help prevent child drivers from accessing the device since it is now
- *	gone.
- *
- * (09/13/2001) gkh
- *	Moved generic driver initialize after we have registered with the USB
- *	core.  Thanks to Randy Dunlap for pointing this problem out.
- *
- * (07/03/2001) gkh
- *	Fixed module paramater size.  Thanks to John Brockmeyer for the pointer.
- *	Fixed vendor and product getting defined through the MODULE_PARM macro
- *	if the Generic driver wasn't compiled in.
- *	Fixed problem with generic_shutdown() not being called for drivers that
- *	don't have a shutdown() function.
- *
- * (06/06/2001) gkh
- *	added evil hack that is needed for the prolific pl2303 device due to the
- *	crazy way its endpoints are set up.
- *
- * (05/30/2001) gkh
- *	switched from using spinlock to a semaphore, which fixes lots of problems.
- *
- * (04/08/2001) gb
- *	Identify version on module load.
- *
- * 2001_02_05 gkh
- *	Fixed buffer overflows bug with the generic serial driver.  Thanks to
- *	Todd Squires <squirest@ct0.com> for fixing this.
- *
- * (01/10/2001) gkh
- *	Fixed bug where the generic serial adaptor grabbed _any_ device that was
- *	offered to it.
- *
- * (12/12/2000) gkh
- *	Removed MOD_INC and MOD_DEC from poll and disconnect functions, and
- *	moved them to the serial_open and serial_close functions.
- *	Also fixed bug with there not being a MOD_DEC for the generic driver
- *	(thanks to Gary Brubaker for finding this.)
- *
- * (11/29/2000) gkh
- *	Small NULL pointer initialization cleanup which saves a bit of disk image
- *
- * (11/01/2000) Adam J. Richter
- *	instead of using idVendor/idProduct pairs, usb serial drivers
- *	now identify their hardware interest with usb_device_id tables,
- *	which they usually have anyhow for use with MODULE_DEVICE_TABLE.
- *
- * (10/05/2000) gkh
- *	Fixed bug with urb->dev not being set properly, now that the usb
- *	core needs it.
- * 
- * (09/11/2000) gkh
- *	Removed DEBUG #ifdefs with call to usb_serial_debug_data
- *
- * (08/28/2000) gkh
- *	Added port_lock to port structure.
- *	Added locks for SMP safeness to generic driver
- *	Fixed the ability to open a generic device's port more than once.
- *
- * (07/23/2000) gkh
- *	Added bulk_out_endpointAddress to port structure.
- *
- * (07/19/2000) gkh, pberger, and borchers
- *	Modifications to allow usb-serial drivers to be modules.
- *
- * (07/03/2000) gkh
- *	Added more debugging to serial_ioctl call
- * 
- * (06/25/2000) gkh
- *	Changed generic_write_bulk_callback to not call wake_up_interruptible
- *	directly, but to have port_softint do it at a safer time.
- *
- * (06/23/2000) gkh
- *	Cleaned up debugging statements in a quest to find UHCI timeout bug.
- *
- * (05/22/2000) gkh
- *	Changed the makefile, enabling the big CONFIG_USB_SERIAL_SOMTHING to be 
- *	removed from the individual device source files.
- *
- * (05/03/2000) gkh
- *	Added the Digi Acceleport driver from Al Borchers and Peter Berger.
- * 
- * (05/02/2000) gkh
- *	Changed devfs and tty register code to work properly now. This was based on
- *	the ACM driver changes by Vojtech Pavlik.
- *
- * (04/27/2000) Ryan VanderBijl
- * 	Put calls to *_paranoia_checks into one function.
- * 
- * (04/23/2000) gkh
- *	Fixed bug that Randy Dunlap found for Generic devices with no bulk out ports.
- *	Moved when the startup code printed out the devices that are supported.
- *
- * (04/19/2000) gkh
- *	Added driver for ZyXEL omni.net lcd plus ISDN TA
- *	Made startup info message specify which drivers were compiled in.
- *
- * (04/03/2000) gkh
- *	Changed the probe process to remove the module unload races.
- *	Changed where the tty layer gets initialized to have devfs work nicer.
- *	Added initial devfs support.
- *
- * (03/26/2000) gkh
- *	Split driver up into device specific pieces.
- * 
- * (03/19/2000) gkh
- *	Fixed oops that could happen when device was removed while a program
- *	was talking to the device.
- *	Removed the static urbs and now all urbs are created and destroyed
- *	dynamically.
- *	Reworked the internal interface. Now everything is based on the 
- *	usb_serial_port structure instead of the larger usb_serial structure.
- *	This fixes the bug that a multiport device could not have more than
- *	one port open at one time.
- *
- * (03/17/2000) gkh
- *	Added config option for debugging messages.
- *	Added patch for keyspan pda from Brian Warner.
- *
- * (03/06/2000) gkh
- *	Added the keyspan pda code from Brian Warner <warner@lothar.com>
- *	Moved a bunch of the port specific stuff into its own structure. This
- *	is in anticipation of the true multiport devices (there's a bug if you
- *	try to access more than one port of any multiport device right now)
- *
- * (02/21/2000) gkh
- *	Made it so that any serial devices only have to specify which functions
- *	they want to overload from the generic function calls (great, 
- *	inheritance in C, in a driver, just what I wanted...)
- *	Added support for set_termios and ioctl function calls. No drivers take
- *	advantage of this yet.
- *	Removed the #ifdef MODULE, now there is no module specific code.
- *	Cleaned up a few comments in usb-serial.h that were wrong (thanks again
- *	to Miles Lott).
- *	Small fix to get_free_serial.
- *
- * (02/14/2000) gkh
- *	Removed the Belkin and Peracom functionality from the driver due to
- *	the lack of support from the vendor, and me not wanting people to 
- *	accidenatly buy the device, expecting it to work with Linux.
- *	Added read_bulk_callback and write_bulk_callback to the type structure
- *	for the needs of the FTDI and WhiteHEAT driver.
- *	Changed all reverences to FTDI to FTDI_SIO at the request of Bill
- *	Ryder.
- *	Changed the output urb size back to the max endpoint size to make
- *	the ftdi_sio driver have it easier, and due to the fact that it didn't
- *	really increase the speed any.
- *
- * (02/11/2000) gkh
- *	Added VISOR_FUNCTION_CONSOLE to the visor startup function. This was a
- *	patch from Miles Lott (milos@insync.net).
- *	Fixed bug with not restoring the minor range that a device grabs, if
- *	the startup function fails (thanks Miles for finding this).
- *
- * (02/05/2000) gkh
- *	Added initial framework for the Keyspan PDA serial converter so that
- *	Brian Warner has a place to put his code.
- *	Made the ezusb specific functions generic enough that different
- *	devices can use them (whiteheat and keyspan_pda both need them).
- *	Split out a whole bunch of structure and other stuff to a separate
- *	usb-serial.h file.
- *	Made the Visor connection messages a little more understandable, now
- *	that Miles Lott (milos@insync.net) has gotten the Generic channel to
- *	work. Also made them always show up in the log file.
- * 
- * (01/25/2000) gkh
- *	Added initial framework for FTDI serial converter so that Bill Ryder
- *	has a place to put his code.
- *	Added the vendor specific info from Handspring. Now we can print out
- *	informational debug messages as well as understand what is happening.
- *
- * (01/23/2000) gkh
- *	Fixed problem of crash when trying to open a port that didn't have a
- *	device assigned to it. Made the minor node finding a little smarter,
- *	now it looks to find a continuous space for the new device.
- *
- * (01/21/2000) gkh
- *	Fixed bug in visor_startup with patch from Miles Lott (milos@insync.net)
- *	Fixed get_serial_by_minor which was all messed up for multi port 
- *	devices. Fixed multi port problem for generic devices. Now the number
- *	of ports is determined by the number of bulk out endpoints for the
- *	generic device.
- *
- * (01/19/2000) gkh
- *	Removed lots of cruft that was around from the old (pre urb) driver 
- *	interface.
- *	Made the serial_table dynamic. This should save lots of memory when
- *	the number of minor nodes goes up to 256.
- *	Added initial support for devices that have more than one port. 
- *	Added more debugging comments for the Visor, and added a needed 
- *	set_configuration call.
- *
- * (01/17/2000) gkh
- *	Fixed the WhiteHEAT firmware (my processing tool had a bug)
- *	and added new debug loader firmware for it.
- *	Removed the put_char function as it isn't really needed.
- *	Added visor startup commands as found by the Win98 dump.
- * 
- * (01/13/2000) gkh
- *	Fixed the vendor id for the generic driver to the one I meant it to be.
- *
- * (01/12/2000) gkh
- *	Forget the version numbering...that's pretty useless...
- *	Made the driver able to be compiled so that the user can select which
- *	converter they want to use. This allows people who only want the Visor
- *	support to not pay the memory size price of the WhiteHEAT.
- *	Fixed bug where the generic driver (idVendor=0000 and idProduct=0000)
- *	grabbed the root hub. Not good.
- * 
- * version 0.4.0 (01/10/2000) gkh
- *	Added whiteheat.h containing the firmware for the ConnectTech WhiteHEAT
- *	device. Added startup function to allow firmware to be downloaded to
- *	a device if it needs to be.
- *	Added firmware download logic to the WhiteHEAT device.
- *	Started to add #defines to split up the different drivers for potential
- *	configuration option.
- *	
- * version 0.3.1 (12/30/99) gkh
- *      Fixed problems with urb for bulk out.
- *      Added initial support for multiple sets of endpoints. This enables
- *      the Handspring Visor to be attached successfully. Only the first
- *      bulk in / bulk out endpoint pair is being used right now.
- *
- * version 0.3.0 (12/27/99) gkh
- *	Added initial support for the Handspring Visor based on a patch from
- *	Miles Lott (milos@sneety.insync.net)
- *	Cleaned up the code a bunch and converted over to using urbs only.
- *
- * version 0.2.3 (12/21/99) gkh
- *	Added initial support for the Connect Tech WhiteHEAT converter.
- *	Incremented the number of ports in expectation of getting the
- *	WhiteHEAT to work properly (4 ports per connection).
- *	Added notification on insertion and removal of what port the
- *	device is/was connected to (and what kind of device it was).
- *
- * version 0.2.2 (12/16/99) gkh
- *	Changed major number to the new allocated number. We're legal now!
- *
- * version 0.2.1 (12/14/99) gkh
- *	Fixed bug that happens when device node is opened when there isn't a
- *	device attached to it. Thanks to marek@webdesign.no for noticing this.
- *
- * version 0.2.0 (11/10/99) gkh
- *	Split up internals to make it easier to add different types of serial 
- *	converters to the code.
- *	Added a "generic" driver that gets it's vendor and product id
- *	from when the module is loaded. Thanks to David E. Nelson (dnelson@jump.net)
- *	for the idea and sample code (from the usb scanner driver.)
- *	Cleared up any licensing questions by releasing it under the GNU GPL.
- *
- * version 0.1.2 (10/25/99) gkh
- * 	Fixed bug in detecting device.
- *
- * version 0.1.1 (10/05/99) gkh
- * 	Changed the major number to not conflict with anything else.
- *
- * version 0.1 (09/28/99) gkh
- * 	Can recognize the two different devices and start up a read from
- *	device when asked to. Writes also work. No control signals yet, this
- *	all is vendor specific data (i.e. no spec), also no control for
- *	different baud rates or other bit settings.
- *	Currently we are using the same devid as the acm driver. This needs
- *	to change.
- * 
  */
 
 #include <linux/config.h>
@@ -342,7 +37,6 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v2.0"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman, greg@kroah.com, http://www.kroah.com/linux/"
 #define DRIVER_DESC "USB Serial Driver core"
 
@@ -427,7 +121,7 @@ static void destroy_serial(struct kref *kref)
 
 	serial = to_usb_serial(kref);
 
-	dbg ("%s - %s", __FUNCTION__, serial->type->name);
+	dbg("%s - %s", __FUNCTION__, serial->type->description);
 
 	serial->type->shutdown(serial);
 
@@ -507,7 +201,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 		/* lock this module before we call it
 		 * this may fail, which means we must bail out,
 		 * safe because we are called with BKL held */
-		if (!try_module_get(serial->type->owner)) {
+		if (!try_module_get(serial->type->driver.owner)) {
 			retval = -ENODEV;
 			goto bailout_kref_put;
 		}
@@ -522,7 +216,7 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 	return 0;
 
 bailout_module_put:
-	module_put(serial->type->owner);
+	module_put(serial->type->driver.owner);
 bailout_kref_put:
 	kref_put(&serial->kref, destroy_serial);
 	port->open_count = 0;
@@ -553,7 +247,7 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 			port->tty = NULL;
 		}
 
-		module_put(port->serial->type->owner);
+		module_put(port->serial->type->driver.owner);
 	}
 
 	kref_put(&port->serial->kref, destroy_serial);
@@ -711,16 +405,16 @@ static int serial_read_proc (char *page, char **start, off_t off, int count, int
 	char tmp[40];
 
 	dbg("%s", __FUNCTION__);
-	length += sprintf (page, "usbserinfo:1.0 driver:%s\n", DRIVER_VERSION);
+	length += sprintf (page, "usbserinfo:1.0 driver:2.0\n");
 	for (i = 0; i < SERIAL_TTY_MINORS && length < PAGE_SIZE; ++i) {
 		serial = usb_serial_get_by_index(i);
 		if (serial == NULL)
 			continue;
 
 		length += sprintf (page+length, "%d:", i);
-		if (serial->type->owner)
-			length += sprintf (page+length, " module:%s", module_name(serial->type->owner));
-		length += sprintf (page+length, " name:\"%s\"", serial->type->name);
+		if (serial->type->driver.owner)
+			length += sprintf (page+length, " module:%s", module_name(serial->type->driver.owner));
+		length += sprintf (page+length, " name:\"%s\"", serial->type->description);
 		length += sprintf (page+length, " vendor:%04x product:%04x", 
 				   le16_to_cpu(serial->dev->descriptor.idVendor), 
 				   le16_to_cpu(serial->dev->descriptor.idProduct));
@@ -823,7 +517,7 @@ static void port_release(struct device *dev)
 
 static struct usb_serial * create_serial (struct usb_device *dev, 
 					  struct usb_interface *interface,
-					  struct usb_serial_device_type *type)
+					  struct usb_serial_driver *driver)
 {
 	struct usb_serial *serial;
 
@@ -834,22 +528,22 @@ static struct usb_serial * create_serial (struct usb_device *dev,
 	}
 	memset (serial, 0, sizeof(*serial));
 	serial->dev = usb_get_dev(dev);
-	serial->type = type;
+	serial->type = driver;
 	serial->interface = interface;
 	kref_init(&serial->kref);
 
 	return serial;
 }
 
-static struct usb_serial_device_type *search_serial_device(struct usb_interface *iface)
+static struct usb_serial_driver *search_serial_device(struct usb_interface *iface)
 {
 	struct list_head *p;
 	const struct usb_device_id *id;
-	struct usb_serial_device_type *t;
+	struct usb_serial_driver *t;
 
 	/* List trough know devices and see if the usb id matches */
 	list_for_each(p, &usb_serial_driver_list) {
-		t = list_entry(p, struct usb_serial_device_type, driver_list);
+		t = list_entry(p, struct usb_serial_driver, driver_list);
 		id = usb_match_id(iface, t->id_table);
 		if (id != NULL) {
 			dbg("descriptor matches");
@@ -872,7 +566,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	struct usb_endpoint_descriptor *interrupt_out_endpoint[MAX_NUM_PORTS];
 	struct usb_endpoint_descriptor *bulk_in_endpoint[MAX_NUM_PORTS];
 	struct usb_endpoint_descriptor *bulk_out_endpoint[MAX_NUM_PORTS];
-	struct usb_serial_device_type *type = NULL;
+	struct usb_serial_driver *type = NULL;
 	int retval;
 	int minor;
 	int buffer_size;
@@ -900,7 +594,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	if (type->probe) {
 		const struct usb_device_id *id;
 
-		if (!try_module_get(type->owner)) {
+		if (!try_module_get(type->driver.owner)) {
 			dev_err(&interface->dev, "module get failed, exiting\n");
 			kfree (serial);
 			return -EIO;
@@ -908,7 +602,7 @@ int usb_serial_probe(struct usb_interface *interface,
 
 		id = usb_match_id(interface, type->id_table);
 		retval = type->probe(serial, id);
-		module_put(type->owner);
+		module_put(type->driver.owner);
 
 		if (retval) {
 			dbg ("sub driver rejected device");
@@ -992,7 +686,7 @@ int usb_serial_probe(struct usb_interface *interface,
 #endif
 
 	/* found all that we need */
-	dev_info(&interface->dev, "%s converter detected\n", type->name);
+	dev_info(&interface->dev, "%s converter detected\n", type->description);
 
 #ifdef CONFIG_USB_SERIAL_GENERIC
 	if (type == &usb_serial_generic_device) {
@@ -1007,13 +701,13 @@ int usb_serial_probe(struct usb_interface *interface,
 	if (!num_ports) {
 		/* if this device type has a calc_num_ports function, call it */
 		if (type->calc_num_ports) {
-			if (!try_module_get(type->owner)) {
+			if (!try_module_get(type->driver.owner)) {
 				dev_err(&interface->dev, "module get failed, exiting\n");
 				kfree (serial);
 				return -EIO;
 			}
 			num_ports = type->calc_num_ports (serial);
-			module_put(type->owner);
+			module_put(type->driver.owner);
 		}
 		if (!num_ports)
 			num_ports = type->num_ports;
@@ -1158,12 +852,12 @@ int usb_serial_probe(struct usb_interface *interface,
 	
 	/* if this device type has an attach function, call it */
 	if (type->attach) {
-		if (!try_module_get(type->owner)) {
+		if (!try_module_get(type->driver.owner)) {
 			dev_err(&interface->dev, "module get failed, exiting\n");
 			goto probe_error;
 		}
 		retval = type->attach (serial);
-		module_put(type->owner);
+		module_put(type->driver.owner);
 		if (retval < 0)
 			goto probe_error;
 		if (retval > 0) {
@@ -1330,7 +1024,7 @@ static int __init usb_serial_init(void)
 		goto exit_generic;
 	}
 
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	info(DRIVER_DESC);
 
 	return result;
 
@@ -1375,7 +1069,7 @@ module_exit(usb_serial_exit);
 			}						\
 	} while (0)
 
-static void fixup_generic(struct usb_serial_device_type *device)
+static void fixup_generic(struct usb_serial_driver *device)
 {
 	set_to_generic_if_null(device, open);
 	set_to_generic_if_null(device, write);
@@ -1387,30 +1081,33 @@ static void fixup_generic(struct usb_serial_device_type *device)
 	set_to_generic_if_null(device, shutdown);
 }
 
-int usb_serial_register(struct usb_serial_device_type *new_device)
+int usb_serial_register(struct usb_serial_driver *driver)
 {
 	int retval;
 
-	fixup_generic(new_device);
+	fixup_generic(driver);
+
+	if (!driver->description)
+		driver->description = driver->driver.name;
 
 	/* Add this device to our list of devices */
-	list_add(&new_device->driver_list, &usb_serial_driver_list);
+	list_add(&driver->driver_list, &usb_serial_driver_list);
 
-	retval = usb_serial_bus_register(new_device);
+	retval = usb_serial_bus_register(driver);
 	if (retval) {
-		err("problem %d when registering driver %s", retval, new_device->name);
-		list_del(&new_device->driver_list);
+		err("problem %d when registering driver %s", retval, driver->description);
+		list_del(&driver->driver_list);
 	}
 	else
-		info("USB Serial support registered for %s", new_device->name);
+		info("USB Serial support registered for %s", driver->description);
 
 	return retval;
 }
 
 
-void usb_serial_deregister(struct usb_serial_device_type *device)
+void usb_serial_deregister(struct usb_serial_driver *device)
 {
-	info("USB Serial deregistering driver %s", device->name);
+	info("USB Serial deregistering driver %s", device->description);
 	list_del(&device->driver_list);
 	usb_serial_bus_deregister(device);
 }
@@ -1429,7 +1126,6 @@ EXPORT_SYMBOL_GPL(usb_serial_port_softint);
 /* Module information */
 MODULE_AUTHOR( DRIVER_AUTHOR );
 MODULE_DESCRIPTION( DRIVER_DESC );
-MODULE_VERSION( DRIVER_VERSION );
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);

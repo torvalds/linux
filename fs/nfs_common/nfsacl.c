@@ -48,43 +48,26 @@ xdr_nfsace_encode(struct xdr_array2_desc *desc, void *elem)
 		(struct nfsacl_encode_desc *) desc;
 	u32 *p = (u32 *) elem;
 
-	if (nfsacl_desc->count < nfsacl_desc->acl->a_count) {
-		struct posix_acl_entry *entry =
-			&nfsacl_desc->acl->a_entries[nfsacl_desc->count++];
+	struct posix_acl_entry *entry =
+		&nfsacl_desc->acl->a_entries[nfsacl_desc->count++];
 
-		*p++ = htonl(entry->e_tag | nfsacl_desc->typeflag);
-		switch(entry->e_tag) {
-			case ACL_USER_OBJ:
-				*p++ = htonl(nfsacl_desc->uid);
-				break;
-			case ACL_GROUP_OBJ:
-				*p++ = htonl(nfsacl_desc->gid);
-				break;
-			case ACL_USER:
-			case ACL_GROUP:
-				*p++ = htonl(entry->e_id);
-				break;
-			default:  /* Solaris depends on that! */
-				*p++ = 0;
-				break;
-		}
-		*p++ = htonl(entry->e_perm & S_IRWXO);
-	} else {
-		const struct posix_acl_entry *pa, *pe;
-		int group_obj_perm = ACL_READ|ACL_WRITE|ACL_EXECUTE;
-
-		FOREACH_ACL_ENTRY(pa, nfsacl_desc->acl, pe) {
-			if (pa->e_tag == ACL_GROUP_OBJ) {
-				group_obj_perm = pa->e_perm & S_IRWXO;
-				break;
-			}
-		}
-		/* fake up ACL_MASK entry */
-		*p++ = htonl(ACL_MASK | nfsacl_desc->typeflag);
-		*p++ = htonl(0);
-		*p++ = htonl(group_obj_perm);
+	*p++ = htonl(entry->e_tag | nfsacl_desc->typeflag);
+	switch(entry->e_tag) {
+		case ACL_USER_OBJ:
+			*p++ = htonl(nfsacl_desc->uid);
+			break;
+		case ACL_GROUP_OBJ:
+			*p++ = htonl(nfsacl_desc->gid);
+			break;
+		case ACL_USER:
+		case ACL_GROUP:
+			*p++ = htonl(entry->e_id);
+			break;
+		default:  /* Solaris depends on that! */
+			*p++ = 0;
+			break;
 	}
-
+	*p++ = htonl(entry->e_perm & S_IRWXO);
 	return 0;
 }
 
@@ -105,11 +88,28 @@ nfsacl_encode(struct xdr_buf *buf, unsigned int base, struct inode *inode,
 		.gid = inode->i_gid,
 	};
 	int err;
+	struct posix_acl *acl2 = NULL;
 
 	if (entries > NFS_ACL_MAX_ENTRIES ||
 	    xdr_encode_word(buf, base, entries))
 		return -EINVAL;
+	if (encode_entries && acl && acl->a_count == 3) {
+		/* Fake up an ACL_MASK entry. */
+		acl2 = posix_acl_alloc(4, GFP_KERNEL);
+		if (!acl2)
+			return -ENOMEM;
+		/* Insert entries in canonical order: other orders seem
+		 to confuse Solaris VxFS. */
+		acl2->a_entries[0] = acl->a_entries[0];  /* ACL_USER_OBJ */
+		acl2->a_entries[1] = acl->a_entries[1];  /* ACL_GROUP_OBJ */
+		acl2->a_entries[2] = acl->a_entries[1];  /* ACL_MASK */
+		acl2->a_entries[2].e_tag = ACL_MASK;
+		acl2->a_entries[3] = acl->a_entries[2];  /* ACL_OTHER */
+		nfsacl_desc.acl = acl2;
+	}
 	err = xdr_encode_array2(buf, base + 4, &nfsacl_desc.desc);
+	if (acl2)
+		posix_acl_release(acl2);
 	if (!err)
 		err = 8 + nfsacl_desc.desc.elem_size *
 			  nfsacl_desc.desc.array_len;

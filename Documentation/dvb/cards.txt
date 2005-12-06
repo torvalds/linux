@@ -41,6 +41,12 @@ o Frontends drivers:
    - dib3000mb	: DiBcom 3000-MB demodulator
   DVB-S/C/T:
    - dst		: TwinHan DST Frontend
+  ATSC:
+   - nxt200x		: Nxtwave NXT2002 & NXT2004
+   - or51211		: or51211 based (pcHDTV HD2000 card)
+   - or51132		: or51132 based (pcHDTV HD3000 card)
+   - bcm3510		: Broadcom BCM3510
+   - lgdt330x		: LG Electronics DT3302 & DT3303
 
 
 o Cards based on the Phillips saa7146 multimedia PCI bridge chip:
@@ -62,6 +68,10 @@ o Cards based on the Conexant Bt8xx PCI bridge:
   - Nebula Electronics DigiTV
   - TwinHan DST
   - Avermedia DVB-T
+  - ChainTech digitop DST-1000 DVB-S
+  - pcHDTV HD-2000 TV
+  - DViCO FusionHDTV DVB-T Lite
+  - DViCO FusionHDTV5 Lite
 
 o Technotrend / Hauppauge DVB USB devices:
   - Nova USB
@@ -83,3 +93,30 @@ o DiBcom DVB-T USB based devices:
   - DiBcom USB2.0 DVB-T reference device (non-public)
 
 o Experimental support for the analog module of the Siemens DVB-C PCI card
+
+o Cards based on the Conexant cx2388x PCI bridge:
+  - ADS Tech Instant TV DVB-T PCI
+  - ATI HDTV Wonder
+  - digitalnow DNTV Live! DVB-T
+  - DViCO FusionHDTV DVB-T1
+  - DViCO FusionHDTV DVB-T Plus
+  - DViCO FusionHDTV3 Gold-Q
+  - DViCO FusionHDTV3 Gold-T
+  - DViCO FusionHDTV5 Gold
+  - Hauppauge Nova-T DVB-T
+  - KWorld/VStream XPert DVB-T
+  - pcHDTV HD3000 HDTV
+  - TerraTec Cinergy 1400 DVB-T
+  - WinFast DTV1000-T
+
+o Cards based on the Phillips saa7134 PCI bridge:
+  - Medion 7134
+  - Pinnacle PCTV 300i DVB-T + PAL
+  - LifeView FlyDVB-T DUO
+  - Typhoon DVB-T Duo Digital/Analog Cardbus
+  - Philips TOUGH DVB-T reference design
+  - Philips EUROPA V3 reference design
+  - Compro Videomate DVB-T300
+  - Compro Videomate DVB-T200
+  - AVerMedia AVerTVHD MCE A180
+

@@ -10,6 +10,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

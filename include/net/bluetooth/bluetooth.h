@@ -57,8 +57,6 @@
 #define BT_DBG(fmt, arg...)  printk(KERN_INFO "%s: " fmt "\n" , __FUNCTION__ , ## arg)
 #define BT_ERR(fmt, arg...)  printk(KERN_ERR  "%s: " fmt "\n" , __FUNCTION__ , ## arg)
 
-extern struct proc_dir_entry *proc_bt;
-
 /* Connection and socket states */
 enum {
 	BT_CONNECTED = 1, /* Equal to TCP_ESTABLISHED to make net code happy */
@@ -136,7 +134,7 @@ struct bt_skb_cb {
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)(skb->cb)) 
 
-static inline struct sk_buff *bt_skb_alloc(unsigned int len, unsigned int __nocast how)
+static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 {
 	struct sk_buff *skb;
 
@@ -170,5 +168,13 @@ static inline int skb_frags_no(struct sk_buff *skb)
 }
 
 int bt_err(__u16 code);
+
+extern int hci_sock_init(void);
+extern int hci_sock_cleanup(void);
+
+extern int bt_sysfs_init(void);
+extern void bt_sysfs_cleanup(void);
+
+extern struct class bt_class;
 
 #endif /* __BLUETOOTH_H */

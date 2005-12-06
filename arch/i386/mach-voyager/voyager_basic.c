@@ -27,7 +27,6 @@
 #include <asm/voyager.h>
 #include <asm/vic.h>
 #include <linux/pm.h>
-#include <linux/irq.h>
 #include <asm/tlbflush.h>
 #include <asm/arch_hooks.h>
 #include <asm/i8253.h>

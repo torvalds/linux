@@ -333,10 +333,10 @@ static int core_ctr(struct dirty_log *log, struct dm_target *ti,
 	lc->sync = sync;
 
 	/*
-	 * Work out how many words we need to hold the bitset.
+	 * Work out how many "unsigned long"s we need to hold the bitset.
 	 */
 	bitset_size = dm_round_up(region_count,
-				  sizeof(*lc->clean_bits) << BYTE_SHIFT);
+				  sizeof(unsigned long) << BYTE_SHIFT);
 	bitset_size >>= BYTE_SHIFT;
 
 	lc->bitset_uint32_count = bitset_size / 4;

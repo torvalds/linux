@@ -25,6 +25,9 @@
   2005-06-20  v0.4.1 add missing braces :-/
                      killed end-of-line whitespace
   2005-07-15  v0.4.2 rename WLAN product to FUSION, add FUSION2
+  2005-09-10  v0.4.3 added HUAWEI E600 card and Audiovox AirCard
+  2005-09-20  v0.4.4 increased recv buffer size: the card sometimes
+                     wants to send >2000 bytes.
 
   Work sponsored by: Sigos GmbH, Germany <info@sigos.de>
 
@@ -71,15 +74,21 @@ static int  option_send_setup(struct usb_serial_port *port);
 
 /* Vendor and product IDs */
 #define OPTION_VENDOR_ID			0x0AF0
+#define HUAWEI_VENDOR_ID			0x12D1
+#define AUDIOVOX_VENDOR_ID			0x0F3D
 
 #define OPTION_PRODUCT_OLD		0x5000
 #define OPTION_PRODUCT_FUSION	0x6000
 #define OPTION_PRODUCT_FUSION2	0x6300
+#define HUAWEI_PRODUCT_E600     0x1001
+#define AUDIOVOX_PRODUCT_AIRCARD 0x0112
 
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_OLD) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_FUSION2) },
+	{ USB_DEVICE(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600) },
+	{ USB_DEVICE(AUDIOVOX_VENDOR_ID, AUDIOVOX_PRODUCT_AIRCARD) },
 	{ } /* Terminating entry */
 };
 
@@ -96,10 +105,12 @@ static struct usb_driver option_driver = {
 /* The card has three separate interfaces, wich the serial driver
  * recognizes separately, thus num_port=1.
  */
-static struct usb_serial_device_type option_3port_device = {
-	.owner             = THIS_MODULE,
-	.name              = "Option 3G data card",
-	.short_name        = "option",
+static struct usb_serial_driver option_3port_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"option",
+	},
+	.description       = "Option 3G data card",
 	.id_table          = option_ids,
 	.num_interrupt_in  = NUM_DONT_CARE,
 	.num_bulk_in       = NUM_DONT_CARE,
@@ -132,7 +143,7 @@ static int debug;
 
 #define N_IN_URB 4
 #define N_OUT_URB 1
-#define IN_BUFLEN 1024
+#define IN_BUFLEN 4096
 #define OUT_BUFLEN 128
 
 struct option_port_private {

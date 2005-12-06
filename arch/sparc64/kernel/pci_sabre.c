@@ -1267,12 +1267,8 @@ static void sabre_iommu_init(struct pci_controller_info *p,
 			     u32 dma_mask)
 {
 	struct pci_iommu *iommu = p->pbm_A.iommu;
-	unsigned long tsbbase, i, order;
+	unsigned long i;
 	u64 control;
-
-	/* Setup initial software IOMMU state. */
-	spin_lock_init(&iommu->lock);
-	iommu->ctx_lowest_free = 1;
 
 	/* Register addresses. */
 	iommu->iommu_control  = p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL;
@@ -1295,26 +1291,10 @@ static void sabre_iommu_init(struct pci_controller_info *p,
 	/* Leave diag mode enabled for full-flushing done
 	 * in pci_iommu.c
 	 */
+	pci_iommu_table_init(iommu, tsbsize * 1024 * 8, dvma_offset, dma_mask);
 
-	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
-	if (!iommu->dummy_page) {
-		prom_printf("PSYCHO_IOMMU: Error, gfp(dummy_page) failed.\n");
-		prom_halt();
-	}
-	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
-	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
-
-	tsbbase = __get_free_pages(GFP_KERNEL, order = get_order(tsbsize * 1024 * 8));
-	if (!tsbbase) {
-		prom_printf("SABRE_IOMMU: Error, gfp(tsb) failed.\n");
-		prom_halt();
-	}
-	iommu->page_table = (iopte_t *)tsbbase;
-	iommu->page_table_map_base = dvma_offset;
-	iommu->dma_addr_mask = dma_mask;
-	pci_iommu_table_init(iommu, PAGE_SIZE << order);
-
-	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_TSBBASE, __pa(tsbbase));
+	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_TSBBASE,
+		    __pa(iommu->page_table));
 
 	control = sabre_read(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL);
 	control &= ~(SABRE_IOMMUCTRL_TSBSZ | SABRE_IOMMUCTRL_TBWSZ);
@@ -1322,11 +1302,9 @@ static void sabre_iommu_init(struct pci_controller_info *p,
 	switch(tsbsize) {
 	case 64:
 		control |= SABRE_IOMMU_TSBSZ_64K;
-		iommu->page_table_sz_bits = 16;
 		break;
 	case 128:
 		control |= SABRE_IOMMU_TSBSZ_128K;
-		iommu->page_table_sz_bits = 17;
 		break;
 	default:
 		prom_printf("iommu_init: Illegal TSB size %d\n", tsbsize);
@@ -1334,15 +1312,6 @@ static void sabre_iommu_init(struct pci_controller_info *p,
 		break;
 	}
 	sabre_write(p->pbm_A.controller_regs + SABRE_IOMMU_CONTROL, control);
-
-	/* We start with no consistent mappings. */
-	iommu->lowest_consistent_map =
-		1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS);
-
-	for (i = 0; i < PBM_NCLUSTERS; i++) {
-		iommu->alloc_info[i].flush = 0;
-		iommu->alloc_info[i].next = 0;
-	}
 }
 
 static void pbm_register_toplevel_resources(struct pci_controller_info *p,

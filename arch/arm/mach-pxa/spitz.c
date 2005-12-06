@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/major.h>
 #include <linux/fs.h>
@@ -34,9 +34,9 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/irq.h>
+#include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
-#include <asm/arch/ohci.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/akita.h>
 #include <asm/arch/spitz.h>
@@ -104,6 +104,66 @@ struct platform_device spitzscoop2_device = {
 	.resource	= spitz_scoop2_resources,
 };
 
+#define SPITZ_PWR_SD 0x01
+#define SPITZ_PWR_CF 0x02
+
+/* Power control is shared with between one of the CF slots and SD */
+static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
+{
+	unsigned short cpr = read_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR);
+
+	if (new_cpr & 0x0007) {
+	        set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+		if (!(cpr & 0x0002) && !(cpr & 0x0004))
+		        mdelay(5);
+		if (device == SPITZ_PWR_CF)
+		        cpr |= 0x0002;
+		if (device == SPITZ_PWR_SD)
+		        cpr |= 0x0004;
+	        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
+	} else {
+		if (device == SPITZ_PWR_CF)
+		        cpr &= ~0x0002;
+		if (device == SPITZ_PWR_SD)
+		        cpr &= ~0x0004;
+	        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
+		if (!(cpr & 0x0002) && !(cpr & 0x0004)) {
+		        mdelay(1);
+		        reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+		}
+	}
+}
+
+static void spitz_pcmcia_init(void)
+{
+	/* Setup default state of GPIO outputs
+	   before we enable them as outputs. */
+	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
+		GPIO_bit(GPIO49_nPWE) |	GPIO_bit(GPIO50_nPIOR) |
+		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO54_nPCE_2);
+	GPSR(GPIO85_nPCE_1) = GPIO_bit(GPIO85_nPCE_1);
+
+	pxa_gpio_mode(GPIO48_nPOE_MD);
+	pxa_gpio_mode(GPIO49_nPWE_MD);
+	pxa_gpio_mode(GPIO50_nPIOR_MD);
+	pxa_gpio_mode(GPIO51_nPIOW_MD);
+	pxa_gpio_mode(GPIO55_nPREG_MD);
+	pxa_gpio_mode(GPIO56_nPWAIT_MD);
+	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+	pxa_gpio_mode(GPIO85_nPCE_1_MD);
+	pxa_gpio_mode(GPIO54_nPCE_2_MD);
+	pxa_gpio_mode(GPIO104_pSKTSEL_MD);
+}
+
+static void spitz_pcmcia_pwr(struct device *scoop, unsigned short cpr, int nr)
+{
+	/* Only need to override behaviour for slot 0 */
+	if (nr == 0)
+		spitz_card_pwr_ctrl(SPITZ_PWR_CF, cpr);
+	else
+		write_scoop_reg(scoop, SCOOP_CPR, cpr);
+}
+
 static struct scoop_pcmcia_dev spitz_pcmcia_scoop[] = {
 {
 	.dev        = &spitzscoop_device.dev,
@@ -116,6 +176,16 @@ static struct scoop_pcmcia_dev spitz_pcmcia_scoop[] = {
 	.cd_irq     = -1,
 },
 };
+
+static struct scoop_pcmcia_config spitz_pcmcia_config = {
+	.devs         = &spitz_pcmcia_scoop[0],
+	.num_devs     = 2,
+	.pcmcia_init  = spitz_pcmcia_init,
+	.power_ctrl   = spitz_pcmcia_pwr,
+};
+
+EXPORT_SYMBOL(spitzscoop_device);
+EXPORT_SYMBOL(spitzscoop2_device);
 
 
 /*
@@ -235,27 +305,14 @@ static int spitz_mci_init(struct device *dev, irqreturn_t (*spitz_detect_int)(in
 	return 0;
 }
 
-/* Power control is shared with one of the CF slots so we have a mess */
 static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
-	unsigned short cpr = read_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR);
-
-	if (( 1 << vdd) & p_d->ocr_mask) {
-		/* printk(KERN_DEBUG "%s: on\n", __FUNCTION__); */
-		set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
-		mdelay(2);
-		write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | 0x04);
-	} else {
-		/* printk(KERN_DEBUG "%s: off\n", __FUNCTION__); */
-		write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr & ~0x04);
-
-		if (!(cpr | 0x02)) {
-			mdelay(1);
-			reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
-		}
-	}
+	if (( 1 << vdd) & p_d->ocr_mask)
+		spitz_card_pwr_ctrl(SPITZ_PWR_SD, 0x0004);
+	else
+		spitz_card_pwr_ctrl(SPITZ_PWR_SD, 0x0000);
 }
 
 static int spitz_mci_get_ro(struct device *dev)
@@ -274,6 +331,33 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 	.get_ro		= spitz_mci_get_ro,
 	.setpower 	= spitz_mci_setpower,
 	.exit		= spitz_mci_exit,
+};
+
+
+/*
+ * Irda
+ */
+static void spitz_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF)
+		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
+	else
+		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
+}
+
+#ifdef CONFIG_MACH_AKITA
+static void akita_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF)
+		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
+	else
+		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
+}
+#endif
+
+static struct pxaficp_platform_data spitz_ficp_platform_data = {
+	.transceiver_cap  = IR_SIRMODE | IR_OFF,
+	.transceiver_mode = spitz_irda_transceiver_mode,
 };
 
 
@@ -304,7 +388,6 @@ static struct platform_device *devices[] __initdata = {
 	&spitzkbd_device,
 	&spitzts_device,
 	&spitzbl_device,
-	&spitzbattery_device,
 };
 
 static void __init common_init(void)
@@ -328,20 +411,47 @@ static void __init common_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_mci_info(&spitz_mci_platform_data);
-	pxafb_device.dev.parent = &spitzssp_device.dev;
+	pxa_set_ficp_info(&spitz_ficp_platform_data);
+	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
 }
 
 static void __init spitz_init(void)
 {
-	scoop_num = 2;
-	scoop_devs = &spitz_pcmcia_scoop[0];
+	platform_scoop_config = &spitz_pcmcia_config;
+
 	spitz_bl_machinfo.set_bl_intensity = spitz_bl_set_intensity;
 
 	common_init();
 
 	platform_device_register(&spitzscoop2_device);
 }
+
+#ifdef CONFIG_MACH_AKITA
+/*
+ * Akita IO Expander
+ */
+struct platform_device akitaioexp_device = {
+	.name		= "akita-ioexp",
+	.id		= -1,
+};
+
+static void __init akita_init(void)
+{
+	spitz_ficp_platform_data.transceiver_mode = akita_irda_transceiver_mode;
+
+	/* We just pretend the second element of the array doesn't exist */
+	spitz_pcmcia_config.num_devs = 1;
+	platform_scoop_config = &spitz_pcmcia_config;
+	spitz_bl_machinfo.set_bl_intensity = akita_bl_set_intensity;
+
+	platform_device_register(&akitaioexp_device);
+
+	spitzscoop_device.dev.parent = &akitaioexp_device.dev;
+	common_init();
+}
+#endif
+
 
 static void __init fixup_spitz(struct machine_desc *desc,
 		struct tag *tags, char **cmdline, struct meminfo *mi)
@@ -375,6 +485,19 @@ MACHINE_START(BORZOI, "SHARP Borzoi")
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa_init_irq,
 	.init_machine	= spitz_init,
+	.timer		= &pxa_timer,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_MACH_AKITA
+MACHINE_START(AKITA, "SHARP Akita")
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.fixup		= fixup_spitz,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa_init_irq,
+	.init_machine	= akita_init,
 	.timer		= &pxa_timer,
 MACHINE_END
 #endif

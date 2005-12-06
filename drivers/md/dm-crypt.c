@@ -15,7 +15,7 @@
 #include <linux/crypto.h>
 #include <linux/workqueue.h>
 #include <asm/atomic.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm/page.h>
 
 #include "dm.h"
@@ -96,7 +96,7 @@ static kmem_cache_t *_crypt_io_pool;
 /*
  * Mempool alloc and free functions for the page
  */
-static void *mempool_alloc_page(unsigned int __nocast gfp_mask, void *data)
+static void *mempool_alloc_page(gfp_t gfp_mask, void *data)
 {
 	return alloc_page(gfp_mask);
 }
@@ -164,9 +164,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 		return -ENOMEM;
 	}
 
-	sg.page = virt_to_page(cc->key);
-	sg.offset = offset_in_page(cc->key);
-	sg.length = cc->key_size;
+	sg_set_buf(&sg, cc->key, cc->key_size);
 	crypto_digest_digest(hash_tfm, &sg, 1, salt);
 	crypto_free_tfm(hash_tfm);
 
@@ -207,14 +205,12 @@ static void crypt_iv_essiv_dtr(struct crypt_config *cc)
 
 static int crypt_iv_essiv_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 {
-	struct scatterlist sg = { NULL, };
+	struct scatterlist sg;
 
 	memset(iv, 0, cc->iv_size);
 	*(u64 *)iv = cpu_to_le64(sector);
 
-	sg.page = virt_to_page(iv);
-	sg.offset = offset_in_page(iv);
-	sg.length = cc->iv_size;
+	sg_set_buf(&sg, iv, cc->iv_size);
 	crypto_cipher_encrypt((struct crypto_tfm *)cc->iv_gen_private,
 	                      &sg, &sg, cc->iv_size);
 
@@ -331,7 +327,7 @@ crypt_alloc_buffer(struct crypt_config *cc, unsigned int size,
 {
 	struct bio *bio;
 	unsigned int nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	int gfp_mask = GFP_NOIO | __GFP_HIGHMEM;
+	gfp_t gfp_mask = GFP_NOIO | __GFP_HIGHMEM;
 	unsigned int i;
 
 	/*

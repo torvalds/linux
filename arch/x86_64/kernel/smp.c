@@ -28,8 +28,6 @@
 #include <asm/proto.h>
 #include <asm/apicdef.h>
 
-#define __cpuinit __init
-
 /*
  *	Smarter SMP flushing macros. 
  *		c/o Linus Torvalds.
@@ -452,13 +450,14 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 
 void smp_stop_cpu(void)
 {
+	unsigned long flags;
 	/*
 	 * Remove this CPU:
 	 */
 	cpu_clear(smp_processor_id(), cpu_online_map);
-	local_irq_disable();
+	local_irq_save(flags);
 	disable_local_APIC();
-	local_irq_enable(); 
+	local_irq_restore(flags);
 }
 
 static void smp_really_stop_cpu(void *dummy)

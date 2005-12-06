@@ -30,7 +30,6 @@
 #include <linux/blkdev.h>
 #include <linux/console.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/root_dev.h>
 #include <linux/seq_file.h>
 #include <linux/serial.h>
@@ -38,6 +37,7 @@
 #include <linux/module.h>
 #include <linux/fsl_devices.h>
 #include <linux/interrupt.h>
+#include <linux/rio.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -58,6 +58,7 @@
 
 #include <syslib/cpm2_pic.h>
 #include <syslib/ppc85xx_common.h>
+#include <syslib/ppc85xx_rio.h>
 
 
 unsigned char __res[sizeof(bd_t)];
@@ -92,6 +93,9 @@ static u8 gp3_openpic_initsenses[] __initdata = {
 	0x0,				/* External 11: */
 };
 
+static const char *GFAR_PHY_2 = "phy0:2";
+static const char *GFAR_PHY_4 = "phy0:4";
+
 /*
  * Setup the architecture
  */
@@ -101,6 +105,7 @@ gp3_setup_arch(void)
 	bd_t *binfo = (bd_t *) __res;
 	unsigned int freq;
 	struct gianfar_platform_data *pdata;
+	struct gianfar_mdio_data *mdata;
 
 	cpm2_reset();
 
@@ -119,23 +124,26 @@ gp3_setup_arch(void)
 	mpc85xx_setup_hose();
 #endif
 
+	/* setup the board related info for the MDIO bus */
+	mdata = (struct gianfar_mdio_data *) ppc_sys_get_pdata(MPC85xx_MDIO);
+
+	mdata->irq[2] = MPC85xx_IRQ_EXT5;
+	mdata->irq[4] = MPC85xx_IRQ_EXT5;
+	mdata->irq[31] = -1;
+	mdata->paddr += binfo->bi_immr_base;
+
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
 	if (pdata) {
 	/*	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR; */
-		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-		pdata->phyid = 2;
-		pdata->phy_reg_addr += binfo->bi_immr_base;
+		pdata->bus_id = GFAR_PHY_2;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
 	if (pdata) {
 	/*	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR; */
-		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-		pdata->phyid = 4;
-		/* fixup phy address */
-		pdata->phy_reg_addr += binfo->bi_immr_base;
+		pdata->bus_id = GFAR_PHY_4;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 
@@ -266,6 +274,18 @@ int mpc85xx_exclude_device(u_char bus, u_char devfn)
 		return PCIBIOS_SUCCESSFUL;
 }
 #endif /* CONFIG_PCI */
+
+#ifdef CONFIG_RAPIDIO
+void
+platform_rio_init(void)
+{
+	/*
+	 * The STx firmware configures the RapidIO Local Access Window
+	 * at 0xc0000000 with a size of 512MB.
+	 */
+	mpc85xx_rio_setup(0xc0000000, 0x20000000);
+}
+#endif /* CONFIG_RAPIDIO */
 
 void __init
 platform_init(unsigned long r3, unsigned long r4, unsigned long r5,

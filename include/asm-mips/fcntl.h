@@ -3,10 +3,12 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1995, 96, 97, 98, 99, 2003 Ralf Baechle
+ * Copyright (C) 1995, 96, 97, 98, 99, 2003, 05 Ralf Baechle
  */
 #ifndef _ASM_FCNTL_H
 #define _ASM_FCNTL_H
+
+#include <linux/config.h>
 
 #define O_APPEND	0x0008
 #define O_SYNC		0x0010
@@ -40,13 +42,13 @@
  * contain all the same fields as struct flock.
  */
 
-#ifndef __mips64
+#ifdef CONFIG_32BIT
 
 struct flock {
 	short	l_type;
 	short	l_whence;
-	__kernel_off_t l_start;
-	__kernel_off_t l_len;
+	off_t	l_start;
+	off_t	l_len;
 	long	l_sysid;
 	__kernel_pid_t l_pid;
 	long	pad[4];
@@ -54,13 +56,8 @@ struct flock {
 
 #define HAVE_ARCH_STRUCT_FLOCK
 
-#endif
+#endif /* CONFIG_32BIT */
 
 #include <asm-generic/fcntl.h>
-
-typedef struct flock flock_t;
-#ifndef __mips64
-typedef struct flock64 flock64_t;
-#endif
 
 #endif /* _ASM_FCNTL_H */

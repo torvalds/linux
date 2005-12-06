@@ -184,14 +184,13 @@ static void nfs_readpage_release(struct nfs_page *req)
 {
 	unlock_page(req->wb_page);
 
-	nfs_clear_request(req);
-	nfs_release_request(req);
-
 	dprintk("NFS: read done (%s/%Ld %d@%Ld)\n",
 			req->wb_context->dentry->d_inode->i_sb->s_id,
 			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
+	nfs_clear_request(req);
+	nfs_release_request(req);
 }
 
 /*
@@ -216,6 +215,7 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->res.fattr   = &data->fattr;
 	data->res.count   = count;
 	data->res.eof     = 0;
+	nfs_fattr_init(&data->fattr);
 
 	NFS_PROTO(inode)->read_setup(data);
 
@@ -507,7 +507,7 @@ int nfs_readpage(struct file *file, struct page *page)
 		goto out_error;
 
 	if (file == NULL) {
-		ctx = nfs_find_open_context(inode, FMODE_READ);
+		ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
 		if (ctx == NULL)
 			return -EBADF;
 	} else
@@ -576,7 +576,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 			nr_pages);
 
 	if (filp == NULL) {
-		desc.ctx = nfs_find_open_context(inode, FMODE_READ);
+		desc.ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
 		if (desc.ctx == NULL)
 			return -EBADF;
 	} else

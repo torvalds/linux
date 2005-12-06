@@ -63,7 +63,6 @@ static struct fb_ops tgafb_ops = {
 	.fb_fillrect		= tgafb_fillrect,
 	.fb_copyarea		= tgafb_copyarea,
 	.fb_imageblit		= tgafb_imageblit,
-	.fb_cursor		= soft_cursor,
 };
 
 

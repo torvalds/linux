@@ -28,6 +28,8 @@
 #define SCSI_TRANSPORT_FC_H
 
 #include <linux/config.h>
+#include <linux/sched.h>
+#include <scsi/scsi.h>
 
 struct scsi_transport_template;
 
@@ -384,6 +386,8 @@ struct fc_function_template {
 	struct fc_host_statistics * (*get_fc_host_stats)(struct Scsi_Host *);
 	void	(*reset_fc_host_stats)(struct Scsi_Host *);
 
+	int	(*issue_fc_host_lip)(struct Scsi_Host *);
+
 	/* allocation lengths for host-specific data */
 	u32	 			dd_fcrport_size;
 
@@ -427,6 +431,34 @@ struct fc_function_template {
 };
 
 
+/**
+ * fc_remote_port_chkready - called to validate the remote port state
+ *   prior to initiating io to the port.
+ *
+ * Returns a scsi result code that can be returned by the LLDD.
+ *
+ * @rport:	remote port to be checked
+ **/
+static inline int
+fc_remote_port_chkready(struct fc_rport *rport)
+{
+	int result;
+
+	switch (rport->port_state) {
+	case FC_PORTSTATE_ONLINE:
+		result = 0;
+		break;
+	case FC_PORTSTATE_BLOCKED:
+		result = DID_BUS_BUSY << 16;
+		break;
+	default:
+		result = DID_NO_CONNECT << 16;
+		break;
+	}
+	return result;
+}
+
+
 struct scsi_transport_template *fc_attach_transport(
 			struct fc_function_template *);
 void fc_release_transport(struct scsi_transport_template *);
@@ -435,8 +467,6 @@ struct fc_rport *fc_remote_port_add(struct Scsi_Host *shost,
 			int channel, struct fc_rport_identifiers  *ids);
 void fc_remote_port_delete(struct fc_rport  *rport);
 void fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles);
-int fc_remote_port_block(struct fc_rport *rport);
-void fc_remote_port_unblock(struct fc_rport *rport);
 int scsi_is_fc_rport(const struct device *);
 
 static inline u64 wwn_to_u64(u8 *wwn)

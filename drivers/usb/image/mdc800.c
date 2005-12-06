@@ -425,9 +425,8 @@ static void mdc800_usb_download_notify (struct urb *urb, struct pt_regs *res)
 static struct usb_driver mdc800_usb_driver;
 static struct file_operations mdc800_device_ops;
 static struct usb_class_driver mdc800_class = {
-	.name =		"usb/mdc800%d",
+	.name =		"mdc800%d",
 	.fops =		&mdc800_device_ops,
-	.mode =		S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
 	.minor_base =	MDC800_DEVICE_MINOR_BASE,
 };
 
@@ -976,13 +975,13 @@ static struct usb_driver mdc800_usb_driver =
 	Init and Cleanup this driver (Main Functions)
 *************************************************************************/
 
-#define try(A)           if (!(A)) goto cleanup_on_fail;
-
 static int __init usb_mdc800_init (void)
 {
 	int retval = -ENODEV;
 	/* Allocate Memory */
-	try (mdc800=kmalloc (sizeof (struct mdc800_data), GFP_KERNEL));
+	mdc800=kmalloc (sizeof (struct mdc800_data), GFP_KERNEL);
+	if (!mdc800)
+		goto cleanup_on_fail;
 
 	memset(mdc800, 0, sizeof(struct mdc800_data));
 	mdc800->dev = NULL;
@@ -998,13 +997,25 @@ static int __init usb_mdc800_init (void)
 	mdc800->downloaded = 0;
 	mdc800->written = 0;
 
-	try (mdc800->irq_urb_buffer=kmalloc (8, GFP_KERNEL));
-	try (mdc800->write_urb_buffer=kmalloc (8, GFP_KERNEL));
-	try (mdc800->download_urb_buffer=kmalloc (64, GFP_KERNEL));
+	mdc800->irq_urb_buffer=kmalloc (8, GFP_KERNEL);
+	if (!mdc800->irq_urb_buffer)
+		goto cleanup_on_fail;
+	mdc800->write_urb_buffer=kmalloc (8, GFP_KERNEL);
+	if (!mdc800->write_urb_buffer)
+		goto cleanup_on_fail;
+	mdc800->download_urb_buffer=kmalloc (64, GFP_KERNEL);
+	if (!mdc800->download_urb_buffer)
+		goto cleanup_on_fail;
 
-	try (mdc800->irq_urb=usb_alloc_urb (0, GFP_KERNEL));
-	try (mdc800->download_urb=usb_alloc_urb (0, GFP_KERNEL));
-	try (mdc800->write_urb=usb_alloc_urb (0, GFP_KERNEL));
+	mdc800->irq_urb=usb_alloc_urb (0, GFP_KERNEL);
+	if (!mdc800->irq_urb)
+		goto cleanup_on_fail;
+	mdc800->download_urb=usb_alloc_urb (0, GFP_KERNEL);
+	if (!mdc800->download_urb)
+		goto cleanup_on_fail;
+	mdc800->write_urb=usb_alloc_urb (0, GFP_KERNEL);
+	if (!mdc800->write_urb)
+		goto cleanup_on_fail;
 
 	/* Register the driver */
 	retval = usb_register(&mdc800_usb_driver);

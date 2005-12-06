@@ -151,9 +151,9 @@ void fuse_release_background(struct fuse_req *req)
 /*
  * This function is called when a request is finished.  Either a reply
  * has arrived or it was interrupted (and not yet sent) or some error
- * occured during communication with userspace, or the device file was
- * closed.  It decreases the referece count for the request.  In case
- * of a background request the referece to the stored objects are
+ * occurred during communication with userspace, or the device file was
+ * closed.  It decreases the reference count for the request.  In case
+ * of a background request the reference to the stored objects are
  * released.  The requester thread is woken up (if still waiting), and
  * finally the request is either freed or put on the unused_list
  *
@@ -184,6 +184,13 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		   fuse_putback_request() */
 		for (i = 1; i < FUSE_MAX_OUTSTANDING; i++)
 			up(&fc->outstanding_sem);
+	} else if (req->in.h.opcode == FUSE_RELEASE && req->inode == NULL) {
+		/* Special case for failed iget in CREATE */
+		u64 nodeid = req->in.h.nodeid;
+		__fuse_get_request(req);
+		fuse_reset_request(req);
+		fuse_send_forget(fc, req, nodeid, 1);
+		putback = 0;
 	}
 	if (putback)
 		fuse_putback_request(fc, req);

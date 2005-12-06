@@ -210,7 +210,7 @@ do {									\
 } while (0)
 
 /**
- * int journal_recover(journal_t *journal) - recovers a on-disk journal
+ * journal_recover - recovers a on-disk journal
  * @journal: the journal to recover
  * 
  * The primary function for recovering the log contents when mounting a
@@ -266,7 +266,7 @@ int journal_recover(journal_t *journal)
 }
 
 /**
- * int journal_skip_recovery() - Start journal and wipe exiting records 
+ * journal_skip_recovery - Start journal and wipe exiting records
  * @journal: journal to startup
  * 
  * Locate any valid recovery information from the journal and set up the

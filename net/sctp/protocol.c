@@ -147,7 +147,7 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 	struct sctp_sockaddr_entry *addr;
 
 	rcu_read_lock();
-	if ((in_dev = __in_dev_get(dev)) == NULL) {
+	if ((in_dev = __in_dev_get_rcu(dev)) == NULL) {
 		rcu_read_unlock();
 		return;
 	}
@@ -219,7 +219,7 @@ static void sctp_free_local_addr_list(void)
 
 /* Copy the local addresses which are valid for 'scope' into 'bp'.  */
 int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
-			      unsigned int __nocast gfp, int copy_flags)
+			      gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
 	int error = 0;
@@ -529,6 +529,9 @@ static void sctp_v4_get_saddr(struct sctp_association *asoc,
 			      union sctp_addr *saddr)
 {
 	struct rtable *rt = (struct rtable *)dst;
+
+	if (!asoc)
+		return;
 
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
@@ -1046,6 +1049,9 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Sendbuffer growth	    - do per-socket accounting */
 	sctp_sndbuf_policy		= 0;
+
+	/* Rcvbuffer growth	    - do per-socket accounting */
+	sctp_rcvbuf_policy		= 0;
 
 	/* HB.interval              - 30 seconds */
 	sctp_hb_interval		= SCTP_DEFAULT_TIMEOUT_HEARTBEAT;

@@ -11,8 +11,7 @@ Qlogic boards:
 	* IQ-PCI-10
 	* IQ-PCI-D
 
-is provided by the qlogicisp.c driver.  Check README.qlogicisp for
-details.
+is provided by the qla1280 driver.
 
 Nor does it support the PCI-Basic, which is supported by the
 'am53c974' driver.

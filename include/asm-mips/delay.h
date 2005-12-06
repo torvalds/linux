@@ -12,10 +12,8 @@
 
 #include <linux/config.h>
 #include <linux/param.h>
-
+#include <linux/smp.h>
 #include <asm/compiler.h>
-
-extern unsigned long loops_per_jiffy;
 
 static inline void __delay(unsigned long loops)
 {
@@ -82,12 +80,17 @@ static inline void __udelay(unsigned long usecs, unsigned long lpj)
 	__delay(usecs);
 }
 
-#ifdef CONFIG_SMP
 #define __udelay_val cpu_data[smp_processor_id()].udelay_val
-#else
-#define __udelay_val loops_per_jiffy
-#endif
 
 #define udelay(usecs) __udelay((usecs),__udelay_val)
+
+/* make sure "usecs *= ..." in udelay do not overflow. */
+#if HZ >= 1000
+#define MAX_UDELAY_MS	1
+#elif HZ <= 200
+#define MAX_UDELAY_MS	5
+#else
+#define MAX_UDELAY_MS	(1000 / HZ)
+#endif
 
 #endif /* _ASM_DELAY_H */

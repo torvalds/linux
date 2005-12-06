@@ -51,7 +51,7 @@ static int snd_seq_gf1_copy_wave_from_stream(snd_gf1_ops_t *ops,
 	gf1_wave_t *wp, *prev;
 	gf1_xwave_t xp;
 	int err;
-	unsigned int gfp_mask;
+	gfp_t gfp_mask;
 	unsigned int real_size;
 	
 	gfp_mask = atomic ? GFP_ATOMIC : GFP_KERNEL;
@@ -144,7 +144,8 @@ static int snd_seq_gf1_put(void *private_data, snd_seq_kinstr_t *instr,
 	snd_gf1_ops_t *ops = (snd_gf1_ops_t *)private_data;
 	gf1_instrument_t *ip;
 	gf1_xinstrument_t ix;
-	int err, gfp_mask;
+	int err;
+	gfp_t gfp_mask;
 
 	if (cmd != SNDRV_SEQ_INSTR_PUT_CMD_CREATE)
 		return -EINVAL;

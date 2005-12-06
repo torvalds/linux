@@ -49,9 +49,6 @@ changes occur:
 	page table operations such as what happens during
 	fork, and exec.
 
-	Platform developers note that generic code will always
-	invoke this interface without mm->page_table_lock held.
-
 3) void flush_tlb_range(struct vm_area_struct *vma,
 			unsigned long start, unsigned long end)
 
@@ -72,9 +69,6 @@ changes occur:
 	call flush_tlb_page (see below) for each entry which may be
 	modified.
 
-	Platform developers note that generic code will always
-	invoke this interface with mm->page_table_lock held.
-
 4) void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 
 	This time we need to remove the PAGE_SIZE sized translation
@@ -92,9 +86,6 @@ changes occur:
 	'vma->vm_mm' for virtual address 'addr'.
 
 	This is used primarily during fault processing.
-
-	Platform developers note that generic code will always
-	invoke this interface with mm->page_table_lock held.
 
 5) void flush_tlb_pgtables(struct mm_struct *mm,
 			   unsigned long start, unsigned long end)

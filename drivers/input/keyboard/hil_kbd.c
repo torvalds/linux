@@ -204,7 +204,7 @@ static irqreturn_t hil_kbd_interrupt(struct serio *serio,
 	hil_packet packet;
 	int idx;
 
-	kbd = (struct hil_kbd *)serio->private;
+	kbd = serio_get_drvdata(serio);
 	if (kbd == NULL) {
 		BUG();
 		return IRQ_HANDLED;
@@ -234,7 +234,7 @@ static void hil_kbd_disconnect(struct serio *serio)
 {
 	struct hil_kbd *kbd;
 
-	kbd = (struct hil_kbd *)serio->private;
+	kbd = serio_get_drvdata(serio);
 	if (kbd == NULL) {
 		BUG();
 		return;
@@ -245,20 +245,20 @@ static void hil_kbd_disconnect(struct serio *serio)
 	kfree(kbd);
 }
 
-static void hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
+static int hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct hil_kbd	*kbd;
 	uint8_t		did, *idd;
 	int		i;
 	
-	if (serio->type != (SERIO_HIL_MLC | SERIO_HIL)) return;
-
-	if (!(kbd = kmalloc(sizeof(struct hil_kbd), GFP_KERNEL))) return;
+	kbd = kmalloc(sizeof(*kbd), GFP_KERNEL);
+	if (!kbd)
+		return -ENOMEM;
 	memset(kbd, 0, sizeof(struct hil_kbd));
 
 	if (serio_open(serio, drv)) goto bail0;
 
-	serio->private = kbd;
+	serio_set_drvdata(serio, kbd);
 	kbd->serio = serio;
 	kbd->dev.private = kbd;
 
@@ -342,19 +342,31 @@ static void hil_kbd_connect(struct serio *serio, struct serio_driver *drv)
 	down(&(kbd->sem));
 	up(&(kbd->sem));
 
-	return;
+	return 0;
  bail1:
 	serio_close(serio);
  bail0:
 	kfree(kbd);
+	serio_set_drvdata(serio, NULL);
+	return -EIO;
 }
 
+static struct serio_device_id hil_kbd_ids[] = {
+	{
+		.type = SERIO_HIL_MLC,
+		.proto = SERIO_HIL,
+		.id = SERIO_ANY,
+		.extra = SERIO_ANY,
+	},
+	{ 0 }
+};
 
 struct serio_driver hil_kbd_serio_drv = {
 	.driver		= {
 		.name	= "hil_kbd",
 	},
 	.description	= "HP HIL keyboard driver",
+	.id_table	= hil_kbd_ids,
 	.connect 	= hil_kbd_connect,
 	.disconnect 	= hil_kbd_disconnect,
 	.interrupt 	= hil_kbd_interrupt

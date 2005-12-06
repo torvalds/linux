@@ -74,11 +74,6 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
  */
 static inline void pud_clear (pud_t * pud) { }
 
-#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
-
-#define pmd_page_kernel(pmd) \
-((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-
 #define pud_page(pud) \
 ((struct page *) __va(pud_val(pud) & PAGE_MASK))
 

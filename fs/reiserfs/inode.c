@@ -2194,7 +2194,7 @@ static int map_block_for_writepage(struct inode *inode,
 	INITIALIZE_PATH(path);
 	int pos_in_item;
 	int jbegin_count = JOURNAL_PER_BALANCE_CNT;
-	loff_t byte_offset = (block << inode->i_sb->s_blocksize_bits) + 1;
+	loff_t byte_offset = ((loff_t)block << inode->i_sb->s_blocksize_bits)+1;
 	int retval;
 	int use_get_block = 0;
 	int bytes_copied = 0;
@@ -2842,7 +2842,7 @@ static int reiserfs_set_page_dirty(struct page *page)
  * even in -o notail mode, we can't be sure an old mount without -o notail
  * didn't create files with tails.
  */
-static int reiserfs_releasepage(struct page *page, int unused_gfp_flags)
+static int reiserfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
 {
 	struct inode *inode = page->mapping->host;
 	struct reiserfs_journal *j = SB_JOURNAL(inode->i_sb);

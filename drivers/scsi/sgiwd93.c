@@ -15,7 +15,6 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/blkdev.h>
-#include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
@@ -33,7 +32,6 @@
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "wd33c93.h"
-#include "sgiwd93.h"
 
 #include <linux/stat.h>
 
@@ -219,7 +217,7 @@ static inline void init_hpc_chain(struct hpc_data *hd)
 }
 
 static struct Scsi_Host * __init sgiwd93_setup_scsi(
-	Scsi_Host_Template *SGIblows, int unit, int irq,
+	struct scsi_host_template *SGIblows, int unit, int irq,
 	struct hpc3_scsiregs *hregs, unsigned char *wdregs)
 {
 	struct ip22_hostdata *hdata;
@@ -267,7 +265,7 @@ out_unregister:
 	return NULL;
 }
 
-int __init sgiwd93_detect(Scsi_Host_Template *SGIblows)
+int __init sgiwd93_detect(struct scsi_host_template *SGIblows)
 {
 	int found = 0;
 
@@ -326,7 +324,7 @@ static int sgiwd93_bus_reset(Scsi_Cmnd *cmd)
  * arguments not with pointers.  So this is going to blow up beautyfully
  * on 64-bit systems with memory outside the compat address spaces.
  */
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "SGIWD93",
 	.name			= "SGI WD93",
 	.detect			= sgiwd93_detect,
@@ -335,10 +333,10 @@ static Scsi_Host_Template driver_template = {
 	.eh_abort_handler	= wd33c93_abort,
 	.eh_bus_reset_handler	= sgiwd93_bus_reset,
 	.eh_host_reset_handler	= wd33c93_host_reset,
-	.can_queue		= CAN_QUEUE,
+	.can_queue		= 16,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
-	.cmd_per_lun		= CMD_PER_LUN,
+	.cmd_per_lun		= 8,
 	.use_clustering		= DISABLE_CLUSTERING,
 };
 #include "scsi_module.c"

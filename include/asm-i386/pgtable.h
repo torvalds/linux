@@ -25,6 +25,9 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+struct mm_struct;
+struct vm_area_struct;
+
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
@@ -203,7 +206,8 @@ extern unsigned long pg0[];
 #define pte_present(x)	((x).pte_low & (_PAGE_PRESENT | _PAGE_PROTNONE))
 #define pte_clear(mm,addr,xp)	do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
 
-#define pmd_none(x)	(!pmd_val(x))
+/* To avoid harmful races, pmd_none(x) should check only the lower when PAE */
+#define pmd_none(x)	(!(unsigned long)pmd_val(x))
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
 #define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
 #define	pmd_bad(x)	((pmd_val(x) & (~PAGE_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
@@ -322,8 +326,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	return pte;
 }
 
-#define page_pte(page) page_pte_prot(page, __pgprot(0))
-
 #define pmd_large(pmd) \
 ((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
 
@@ -367,6 +369,11 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) \
 	((pte_t *) pmd_page_kernel(*(dir)) +  pte_index(address))
+
+#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
+
+#define pmd_page_kernel(pmd) \
+		((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 /*
  * Helper function that returns the kernel pagetable entry controlling

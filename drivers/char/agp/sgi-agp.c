@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/agp_backend.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/io.h>
 #include <asm/sn/pcidev.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/tioca_provider.h>
@@ -288,6 +289,8 @@ static int __devinit agp_sgi_init(void)
 	j = 0;
 	list_for_each_entry(info, &tioca_list, ca_list) {
 		struct list_head *tmp;
+		if (list_empty(info->ca_devices))
+			continue;
 		list_for_each(tmp, info->ca_devices) {
 			u8 cap_ptr;
 			pdev = pci_dev_b(tmp);

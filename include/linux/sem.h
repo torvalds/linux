@@ -79,6 +79,8 @@ struct  seminfo {
 
 #ifdef __KERNEL__
 
+struct task_struct;
+
 /* One semaphore structure for each semaphore in the system. */
 struct sem {
 	int	semval;		/* current value */

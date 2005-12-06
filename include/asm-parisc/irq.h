@@ -8,6 +8,7 @@
 #define _ASM_PARISC_IRQ_H
 
 #include <linux/config.h>
+#include <linux/cpumask.h>
 #include <asm/types.h>
 
 #define NO_IRQ		(-1)
@@ -49,10 +50,10 @@ extern int txn_alloc_irq(unsigned int nbits);
 extern int txn_claim_irq(int);
 extern unsigned int txn_alloc_data(unsigned int);
 extern unsigned long txn_alloc_addr(unsigned int);
+extern unsigned long txn_affinity_addr(unsigned int irq, int cpu);
 
 extern int cpu_claim_irq(unsigned int irq, struct hw_interrupt_type *, void *);
-
-extern int cpu_claim_irq(unsigned int irq, struct hw_interrupt_type *, void *);
+extern int cpu_check_affinity(unsigned int irq, cpumask_t *dest);
 
 /* soft power switch support (power.c) */
 extern struct tasklet_struct power_tasklet;

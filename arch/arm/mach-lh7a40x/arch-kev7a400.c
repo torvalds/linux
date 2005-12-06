@@ -26,8 +26,17 @@
       /* This function calls the board specific IRQ initialization function. */
 
 static struct map_desc kev7a400_io_desc[] __initdata = {
-	{ IO_VIRT,    IO_PHYS,    IO_SIZE,    MT_DEVICE },
-	{ CPLD_VIRT,  CPLD_PHYS,  CPLD_SIZE,  MT_DEVICE },
+	{
+		.virtual	= IO_VIRT,
+		.pfn		= __phys_to_pfn(IO_PHYS),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= CPLD_VIRT,
+		.pfn		= __phys_to_pfn(CPLD_PHYS),
+		.length		= CPLD_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init kev7a400_map_io(void)

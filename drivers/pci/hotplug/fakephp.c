@@ -37,6 +37,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include "pci_hotplug.h"
 #include "../pci.h"
 

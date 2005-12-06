@@ -56,10 +56,6 @@ extern unsigned long wall_jiffies;
 #define TICK_SIZE (tick_nsec / 1000)
 DEFINE_SPINLOCK(tmu0_lock);
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 /* XXX: Can we initialize this in a routine somewhere?  Dreamcast doesn't want
  * these routines anywhere... */
 #ifdef CONFIG_SH_RTC

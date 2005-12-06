@@ -14,7 +14,7 @@ typedef void ATTRIB_NORET (* noret_func_t)(void);
 
 static inline void ATTRIB_NORET back_to_prom(void)
 {
-	noret_func_t func = (void *) KSEG1ADDR(0x1fc00000);
+	noret_func_t func = (void *)CKSEG1ADDR(0x1fc00000);
 
 	func();
 }

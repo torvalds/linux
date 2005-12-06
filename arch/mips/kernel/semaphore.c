@@ -42,24 +42,28 @@ static inline int __sem_update_count(struct semaphore *sem, int incr)
 
 	if (cpu_has_llsc && R10000_LLSC_WAR) {
 		__asm__ __volatile__(
-		"1:	ll	%0, %2					\n"
+		"	.set	mips3					\n"
+		"1:	ll	%0, %2		# __sem_update_count	\n"
 		"	sra	%1, %0, 31				\n"
 		"	not	%1					\n"
 		"	and	%1, %0, %1				\n"
-		"	add	%1, %1, %3				\n"
+		"	addu	%1, %1, %3				\n"
 		"	sc	%1, %2					\n"
 		"	beqzl	%1, 1b					\n"
+		"	.set	mips0					\n"
 		: "=&r" (old_count), "=&r" (tmp), "=m" (sem->count)
 		: "r" (incr), "m" (sem->count));
 	} else if (cpu_has_llsc) {
 		__asm__ __volatile__(
-		"1:	ll	%0, %2					\n"
+		"	.set	mips3					\n"
+		"1:	ll	%0, %2		# __sem_update_count	\n"
 		"	sra	%1, %0, 31				\n"
 		"	not	%1					\n"
 		"	and	%1, %0, %1				\n"
-		"	add	%1, %1, %3				\n"
+		"	addu	%1, %1, %3				\n"
 		"	sc	%1, %2					\n"
 		"	beqz	%1, 1b					\n"
+		"	.set	mips0					\n"
 		: "=&r" (old_count), "=&r" (tmp), "=m" (sem->count)
 		: "r" (incr), "m" (sem->count));
 	} else {

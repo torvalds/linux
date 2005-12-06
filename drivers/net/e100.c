@@ -156,7 +156,7 @@
 
 #define DRV_NAME		"e100"
 #define DRV_EXT		"-NAPI"
-#define DRV_VERSION		"3.4.14-k2"DRV_EXT
+#define DRV_VERSION		"3.4.14-k4"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
 #define DRV_COPYRIGHT		"Copyright(c) 1999-2005 Intel Corporation"
 #define PFX			DRV_NAME ": "
@@ -1179,40 +1179,91 @@ static void e100_load_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 	}, *opts;
 /* *INDENT-ON* */
 
-#define BUNDLESMALL 1
-#define BUNDLEMAX 50
-#define INTDELAY 15000
+/*************************************************************************
+*  CPUSaver parameters
+*
+*  All CPUSaver parameters are 16-bit literals that are part of a
+*  "move immediate value" instruction.  By changing the value of
+*  the literal in the instruction before the code is loaded, the
+*  driver can change the algorithm.
+*
+*  INTDELAY - This loads the dead-man timer with its inital value.
+*    When this timer expires the interrupt is asserted, and the 
+*    timer is reset each time a new packet is received.  (see
+*    BUNDLEMAX below to set the limit on number of chained packets)
+*    The current default is 0x600 or 1536.  Experiments show that
+*    the value should probably stay within the 0x200 - 0x1000.
+*
+*  BUNDLEMAX - 
+*    This sets the maximum number of frames that will be bundled.  In
+*    some situations, such as the TCP windowing algorithm, it may be
+*    better to limit the growth of the bundle size than let it go as
+*    high as it can, because that could cause too much added latency.
+*    The default is six, because this is the number of packets in the
+*    default TCP window size.  A value of 1 would make CPUSaver indicate
+*    an interrupt for every frame received.  If you do not want to put
+*    a limit on the bundle size, set this value to xFFFF.
+*
+*  BUNDLESMALL - 
+*    This contains a bit-mask describing the minimum size frame that
+*    will be bundled.  The default masks the lower 7 bits, which means
+*    that any frame less than 128 bytes in length will not be bundled,
+*    but will instead immediately generate an interrupt.  This does
+*    not affect the current bundle in any way.  Any frame that is 128
+*    bytes or large will be bundled normally.  This feature is meant
+*    to provide immediate indication of ACK frames in a TCP environment.
+*    Customers were seeing poor performance when a machine with CPUSaver
+*    enabled was sending but not receiving.  The delay introduced when
+*    the ACKs were received was enough to reduce total throughput, because
+*    the sender would sit idle until the ACK was finally seen.
+*
+*    The current default is 0xFF80, which masks out the lower 7 bits.
+*    This means that any frame which is x7F (127) bytes or smaller
+*    will cause an immediate interrupt.  Because this value must be a 
+*    bit mask, there are only a few valid values that can be used.  To
+*    turn this feature off, the driver can write the value xFFFF to the
+*    lower word of this instruction (in the same way that the other
+*    parameters are used).  Likewise, a value of 0xF800 (2047) would
+*    cause an interrupt to be generated for every frame, because all
+*    standard Ethernet frames are <= 2047 bytes in length.
+*************************************************************************/
 
-	opts = ucode_opts;
+/* if you wish to disable the ucode functionality, while maintaining the 
+ * workarounds it provides, set the following defines to:
+ * BUNDLESMALL 0
+ * BUNDLEMAX 1
+ * INTDELAY 1
+ */
+#define BUNDLESMALL 1
+#define BUNDLEMAX (u16)6
+#define INTDELAY (u16)1536 /* 0x600 */
 
 	/* do not load u-code for ICH devices */
 	if (nic->flags & ich)
-		return;
+		goto noloaducode;
 
 	/* Search for ucode match against h/w rev_id */
-	while (opts->mac) {
-		if (nic->mac == opts->mac) {
-			int i;
-			u32 *ucode = opts->ucode;
+	for (opts = ucode_opts; opts->mac; opts++) {
+		int i;
+		u32 *ucode = opts->ucode;
+		if (nic->mac != opts->mac)
+			continue;
 
-			/* Insert user-tunable settings */
-			ucode[opts->timer_dword] &= 0xFFFF0000;
-			ucode[opts->timer_dword] |=
-				(u16) INTDELAY;
-			ucode[opts->bundle_dword] &= 0xFFFF0000;
-			ucode[opts->bundle_dword] |= (u16) BUNDLEMAX;
-			ucode[opts->min_size_dword] &= 0xFFFF0000;
-			ucode[opts->min_size_dword] |=
-				(BUNDLESMALL) ?  0xFFFF : 0xFF80;
+		/* Insert user-tunable settings */
+		ucode[opts->timer_dword] &= 0xFFFF0000;
+		ucode[opts->timer_dword] |= INTDELAY;
+		ucode[opts->bundle_dword] &= 0xFFFF0000;
+		ucode[opts->bundle_dword] |= BUNDLEMAX;
+		ucode[opts->min_size_dword] &= 0xFFFF0000;
+		ucode[opts->min_size_dword] |= (BUNDLESMALL) ? 0xFFFF : 0xFF80;
 
-			for(i = 0; i < UCODE_SIZE; i++)
-				cb->u.ucode[i] = cpu_to_le32(ucode[i]);
-			cb->command = cpu_to_le16(cb_ucode);
-			return;
-		}
-		opts++;
+		for (i = 0; i < UCODE_SIZE; i++)
+			cb->u.ucode[i] = cpu_to_le32(ucode[i]);
+		cb->command = cpu_to_le16(cb_ucode);
+		return;
 	}
 
+noloaducode:
 	cb->command = cpu_to_le16(cb_nop);
 }
 
@@ -1666,7 +1717,7 @@ static inline int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 
 	if(pci_dma_mapping_error(rx->dma_addr)) {
 		dev_kfree_skb_any(rx->skb);
-		rx->skb = 0;
+		rx->skb = NULL;
 		rx->dma_addr = 0;
 		return -ENOMEM;
 	}
@@ -1952,7 +2003,7 @@ static int e100_up(struct nic *nic)
 	if((err = e100_hw_init(nic)))
 		goto err_clean_cbs;
 	e100_set_multicast_list(nic->netdev);
-	e100_start_receiver(nic, 0);
+	e100_start_receiver(nic, NULL);
 	mod_timer(&nic->watchdog, jiffies);
 	if((err = request_irq(nic->pdev->irq, e100_intr, SA_SHIRQ,
 		nic->netdev->name, nic->netdev)))
@@ -2032,7 +2083,7 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 		mdio_write(nic->netdev, nic->mii.phy_id, MII_BMCR,
 			BMCR_LOOPBACK);
 
-	e100_start_receiver(nic, 0);
+	e100_start_receiver(nic, NULL);
 
 	if(!(skb = dev_alloc_skb(ETH_DATA_LEN))) {
 		err = -ENOMEM;
@@ -2389,6 +2440,7 @@ static struct ethtool_ops e100_ethtool_ops = {
 	.phys_id		= e100_phys_id,
 	.get_stats_count	= e100_get_stats_count,
 	.get_ethtool_stats	= e100_get_ethtool_stats,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int e100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
@@ -2539,7 +2591,8 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	e100_phy_init(nic);
 
 	memcpy(netdev->dev_addr, nic->eeprom, ETH_ALEN);
-	if(!is_valid_ether_addr(netdev->dev_addr)) {
+	memcpy(netdev->perm_addr, nic->eeprom, ETH_ALEN);
+	if(!is_valid_ether_addr(netdev->perm_addr)) {
 		DPRINTK(PROBE, ERR, "Invalid MAC address from "
 			"EEPROM, aborting.\n");
 		err = -EAGAIN;

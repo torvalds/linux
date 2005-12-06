@@ -77,7 +77,7 @@ pmac_time_init(void)
 #endif
 }
 
-unsigned long __pmac
+unsigned long
 pmac_get_rtc_time(void)
 {
 #if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU)
@@ -118,7 +118,7 @@ pmac_get_rtc_time(void)
 	return 0;
 }
 
-int __pmac
+int
 pmac_set_rtc_time(unsigned long nowtime)
 {
 #if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU)
@@ -195,7 +195,7 @@ via_calibrate_decr(void)
 		;
 	dend = get_dec();
 
-	tb_ticks_per_jiffy = (dstart - dend) / (6 * (HZ/100));
+	tb_ticks_per_jiffy = (dstart - dend) / ((6 * HZ)/100);
 	tb_to_us = mulhwu_scale_factor(dstart - dend, 60000);
 
 	printk(KERN_INFO "via_calibrate_decr: ticks per jiffy = %u (%u ticks)\n",
@@ -210,7 +210,7 @@ via_calibrate_decr(void)
 /*
  * Reset the time after a sleep.
  */
-static int __pmac
+static int
 time_sleep_notify(struct pmu_sleep_notifier *self, int when)
 {
 	static unsigned long time_diff;
@@ -235,7 +235,7 @@ time_sleep_notify(struct pmu_sleep_notifier *self, int when)
 	return PBOOK_SLEEP_OK;
 }
 
-static struct pmu_sleep_notifier time_sleep_notifier __pmacdata = {
+static struct pmu_sleep_notifier time_sleep_notifier = {
 	time_sleep_notify, SLEEP_LEVEL_MISC,
 };
 #endif /* CONFIG_PM */

@@ -1965,10 +1965,9 @@ static dev_link_t *wl3501_attach(void)
 	int ret;
 
 	/* Initialize the dev_link_t structure */
-	link = kmalloc(sizeof(*link), GFP_KERNEL);
+	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
 		goto out;
-	memset(link, 0, sizeof(struct dev_link_t));
 
 	/* The io structure describes IO port mapping */
 	link->io.NumPorts1	= 16;

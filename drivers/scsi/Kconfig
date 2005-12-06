@@ -229,7 +229,7 @@ config SCSI_FC_ATTRS
 
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
-	depends on SCSI
+	depends on SCSI && NET
 	help
 	  If you wish to export transport-specific information about
 	  each attached iSCSI device to sysfs, say Y.
@@ -246,6 +246,30 @@ endmenu
 
 menu "SCSI low-level drivers"
 	depends on SCSI!=n
+
+config ISCSI_TCP
+	tristate "iSCSI Initiator over TCP/IP"
+	depends on SCSI && INET
+	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_CRC32C
+	select SCSI_ISCSI_ATTRS
+	help
+	 The iSCSI Driver provides a host with the ability to access storage
+	 through an IP network. The driver uses the iSCSI protocol to transport
+	 SCSI requests and responses over a TCP/IP network between the host
+	 (the "initiator") and "targets".  Architecturally, the iSCSI driver
+	 combines with the host's TCP/IP stack, network drivers, and Network
+	 Interface Card (NIC) to provide the same functions as a SCSI or a
+	 Fibre Channel (FC) adapter driver with a Host Bus Adapter (HBA).
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called iscsi_tcp.
+
+	 The userspace component needed to initialize the driver, documentation,
+	 and sample configuration files can be found here:
+
+	 http://linux-iscsi.sf.net
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
@@ -473,7 +497,7 @@ config SCSI_ATA_PIIX
 	  If unsure, say N.
 
 config SCSI_SATA_MV
-	tristate "Marvell SATA support"
+	tristate "Marvell SATA support (HIGHLY EXPERIMENTAL)"
 	depends on SCSI_SATA && PCI && EXPERIMENTAL
 	help
 	  This option enables support for the Marvell Serial ATA family.
@@ -489,11 +513,11 @@ config SCSI_SATA_NV
 
 	  If unsure, say N.
 
-config SCSI_SATA_PROMISE
-	tristate "Promise SATA TX2/TX4 support"
+config SCSI_PDC_ADMA
+	tristate "Pacific Digital ADMA support"
 	depends on SCSI_SATA && PCI
 	help
-	  This option enables support for Promise Serial ATA TX2/TX4.
+	  This option enables support for Pacific Digital ADMA controllers
 
 	  If unsure, say N.
 
@@ -502,6 +526,14 @@ config SCSI_SATA_QSTOR
 	depends on SCSI_SATA && PCI
 	help
 	  This option enables support for Pacific Digital Serial ATA QStor.
+
+	  If unsure, say N.
+
+config SCSI_SATA_PROMISE
+	tristate "Promise SATA TX2/TX4 support"
+	depends on SCSI_SATA && PCI
+	help
+	  This option enables support for Promise Serial ATA TX2/TX4.
 
 	  If unsure, say N.
 
@@ -518,6 +550,14 @@ config SCSI_SATA_SIL
 	depends on SCSI_SATA && PCI && EXPERIMENTAL
 	help
 	  This option enables support for Silicon Image Serial ATA.
+
+	  If unsure, say N.
+
+config SCSI_SATA_SIL24
+	tristate "Silicon Image 3124/3132 SATA support"
+	depends on SCSI_SATA && PCI && EXPERIMENTAL
+	help
+	  This option enables support for Silicon Image 3124/3132 Serial ATA.
 
 	  If unsure, say N.
 
@@ -553,6 +593,11 @@ config SCSI_SATA_VITESSE
 
 	  If unsure, say N.
 
+config SCSI_SATA_INTEL_COMBINED
+	bool
+	depends on IDE=y && !BLK_DEV_IDE_SATA && (SCSI_SATA_AHCI || SCSI_ATA_PIIX)
+	default y
+
 config SCSI_BUSLOGIC
 	tristate "BusLogic SCSI support"
 	depends on (PCI || ISA || MCA) && SCSI && ISA_DMA_API
@@ -574,19 +619,6 @@ config SCSI_OMIT_FLASHPOINT
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
 	  substantial, so users of MultiMaster Host Adapters may wish to omit
 	  it.
-
-#
-# This is marked broken because it uses over 4kB of stack in
-# just two routines:
-#     2076  CpqTsProcessIMQEntry
-#     2052  PeekIMQEntry
-#
-config SCSI_CPQFCTS
-	tristate "Compaq Fibre Channel 64-bit/66Mhz HBA support"
-	depends on PCI && SCSI && BROKEN
-	help
-	  Say Y here to compile in support for the Compaq StorageWorks Fibre
-	  Channel 64-bit/66Mhz Host Bus Adapter.
 
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
@@ -1263,27 +1295,6 @@ config SCSI_QLOGIC_FAS
 	  To compile this driver as a module, choose M here: the
 	  module will be called qlogicfas.
 
-config SCSI_QLOGIC_ISP
-	tristate "Qlogic ISP SCSI support (old driver)"
-	depends on PCI && SCSI && BROKEN
-	---help---
-	  This driver works for all QLogic PCI SCSI host adapters (IQ-PCI,
-	  IQ-PCI-10, IQ_PCI-D) except for the PCI-basic card.  (This latter
-	  card is supported by the "AM53/79C974 PCI SCSI" driver.)
-
-	  If you say Y here, make sure to choose "BIOS" at the question "PCI
-	  access mode".
-
-	  Please read the file <file:Documentation/scsi/qlogicisp.txt>.  You
-	  should also read the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called qlogicisp.
-
-	  These days the hardware is also supported by the more modern qla1280
-	  driver.  In doubt use that one instead of qlogicisp.
-
 config SCSI_QLOGIC_FC
 	tristate "Qlogic ISP FC SCSI support"
 	depends on PCI && SCSI
@@ -1309,14 +1320,6 @@ config SCSI_QLOGIC_1280
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called qla1280.
-
-config SCSI_QLOGIC_1280_1040
-	bool "Qlogic QLA 1020/1040 SCSI support"
-	depends on SCSI_QLOGIC_1280 && SCSI_QLOGIC_ISP!=y
-	help
-	  Say Y here if you have a QLogic ISP1020/1040 SCSI host adapter and
-	  do not want to use the old driver.  This option enables support in
-	  the qla1280 driver for those host adapters.
 
 config SCSI_QLOGICPTI
 	tristate "PTI Qlogic, ISP Driver"

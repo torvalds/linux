@@ -610,7 +610,7 @@ SYM53C500_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	/* We are locked here already by the mid layer */
 	REG0(port_base);
-	outb(SCpnt->device->id, port_base + DEST_ID);	/* set destination */
+	outb(scmd_id(SCpnt), port_base + DEST_ID);	/* set destination */
 	outb(FLUSH_FIFO, port_base + CMD_REG);	/* reset the fifos */
 
 	for (i = 0; i < SCpnt->cmd_len; i++) {

@@ -26,7 +26,7 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -42,7 +42,7 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.4"
+#define DRIVER_VERSION "1.5"
 
 #ifdef CONFIG_MMC_DEBUG
 #define DBG(x...) \
@@ -201,7 +201,7 @@ static void wbsd_reset(struct wbsd_host* host)
 {
 	u8 setup;
 
-	printk(KERN_ERR DRIVER_NAME ": Resetting chip\n");
+	printk(KERN_ERR "%s: Resetting chip\n", mmc_hostname(host->mmc));
 
 	/*
 	 * Soft reset of chip (SD/MMC part).
@@ -880,8 +880,9 @@ static void wbsd_finish_data(struct wbsd_host* host, struct mmc_data* data)
 		 */
 		if (count)
 		{
-			printk(KERN_ERR DRIVER_NAME ": Incomplete DMA "
-				"transfer. %d bytes left.\n", count);
+			printk(KERN_ERR "%s: Incomplete DMA transfer. "
+				"%d bytes left.\n",
+				mmc_hostname(host->mmc), count);
 
 			data->error = MMC_ERR_FAILED;
 		}
@@ -1033,13 +1034,16 @@ static void wbsd_set_ios(struct mmc_host* mmc, struct mmc_ios* ios)
 	}
 	else
 	{
-		setup &= ~WBSD_DAT3_H;
+		if (setup & WBSD_DAT3_H)
+		{
+			setup &= ~WBSD_DAT3_H;
 
-		/*
-		 * We cannot resume card detection immediatly
-		 * because of capacitance and delays in the chip.
-		 */
-		mod_timer(&host->ignore_timer, jiffies + HZ/100);
+			/*
+			 * We cannot resume card detection immediatly
+			 * because of capacitance and delays in the chip.
+			 */
+			mod_timer(&host->ignore_timer, jiffies + HZ/100);
+		}
 	}
 	wbsd_write_index(host, WBSD_IDX_SETUP, setup);
 
@@ -1166,8 +1170,8 @@ static void wbsd_tasklet_card(unsigned long param)
 
 		if (host->mrq)
 		{
-			printk(KERN_ERR DRIVER_NAME
-				": Card removed during transfer!\n");
+			printk(KERN_ERR "%s: Card removed during transfer!\n",
+				mmc_hostname(host->mmc));
 			wbsd_reset(host);
 
 			host->mrq->cmd->error = MMC_ERR_FAILED;
@@ -1461,8 +1465,10 @@ static int __devinit wbsd_scan(struct wbsd_host* host)
 		{
 			id = 0xFFFF;
 
-			outb(unlock_codes[j], config_ports[i]);
-			outb(unlock_codes[j], config_ports[i]);
+			host->config = config_ports[i];
+			host->unlock_code = unlock_codes[j];
+
+			wbsd_unlock_config(host);
 
 			outb(WBSD_CONF_ID_HI, config_ports[i]);
 			id = inb(config_ports[i] + 1) << 8;
@@ -1470,13 +1476,13 @@ static int __devinit wbsd_scan(struct wbsd_host* host)
 			outb(WBSD_CONF_ID_LO, config_ports[i]);
 			id |= inb(config_ports[i] + 1);
 
+			wbsd_lock_config(host);
+
 			for (k = 0;k < sizeof(valid_ids)/sizeof(int);k++)
 			{
 				if (id == valid_ids[k])
 				{
 					host->chip_id = id;
-					host->config = config_ports[i];
-					host->unlock_code = unlock_codes[i];
 
 					return 0;
 				}
@@ -1487,12 +1493,13 @@ static int __devinit wbsd_scan(struct wbsd_host* host)
 				DBG("Unknown hardware (id %x) found at %x\n",
 					id, config_ports[i]);
 			}
-
-			outb(LOCK_CODE, config_ports[i]);
 		}
 
 		release_region(config_ports[i], 2);
 	}
+
+	host->config = 0;
+	host->unlock_code = 0;
 
 	return -ENODEV;
 }
@@ -1595,8 +1602,7 @@ static void __devexit wbsd_release_dma(struct wbsd_host* host)
 	if (host->dma_addr)
 		dma_unmap_single(host->mmc->dev, host->dma_addr, WBSD_DMA_SIZE,
 			DMA_BIDIRECTIONAL);
-	if (host->dma_buffer)
-		kfree(host->dma_buffer);
+	kfree(host->dma_buffer);
 	if (host->dma >= 0)
 		free_dma(host->dma);
 
@@ -1699,8 +1705,10 @@ static void __devexit wbsd_release_resources(struct wbsd_host* host)
  * Configure the resources the chip should use.
  */
 
-static void __devinit wbsd_chip_config(struct wbsd_host* host)
+static void wbsd_chip_config(struct wbsd_host* host)
 {
+	wbsd_unlock_config(host);
+
 	/*
 	 * Reset the chip.
 	 */
@@ -1733,15 +1741,19 @@ static void __devinit wbsd_chip_config(struct wbsd_host* host)
 	 */
 	wbsd_write_config(host, WBSD_CONF_ENABLE, 1);
 	wbsd_write_config(host, WBSD_CONF_POWER, 0x20);
+
+	wbsd_lock_config(host);
 }
 
 /*
  * Check that configured resources are correct.
  */
 
-static int __devinit wbsd_chip_validate(struct wbsd_host* host)
+static int wbsd_chip_validate(struct wbsd_host* host)
 {
 	int base, irq, dma;
+
+	wbsd_unlock_config(host);
 
 	/*
 	 * Select SD/MMC function.
@@ -1758,6 +1770,8 @@ static int __devinit wbsd_chip_validate(struct wbsd_host* host)
 
 	dma = wbsd_read_config(host, WBSD_CONF_DRQ);
 
+	wbsd_lock_config(host);
+
 	/*
 	 * Validate against given configuration.
 	 */
@@ -1769,6 +1783,20 @@ static int __devinit wbsd_chip_validate(struct wbsd_host* host)
 		return 0;
 
 	return 1;
+}
+
+/*
+ * Powers down the SD function
+ */
+
+static void wbsd_chip_poweroff(struct wbsd_host* host)
+{
+	wbsd_unlock_config(host);
+
+	wbsd_write_config(host, WBSD_CONF_DEVICE, DEVICE_SD);
+	wbsd_write_config(host, WBSD_CONF_ENABLE, 0);
+
+	wbsd_lock_config(host);
 }
 
 /*****************************************************************************\
@@ -1824,9 +1852,9 @@ static int __devinit wbsd_init(struct device* dev, int base, int irq, int dma,
 	/*
 	 * See if chip needs to be configured.
 	 */
-	if (pnp && (host->config != 0))
+	if (pnp)
 	{
-		if (!wbsd_chip_validate(host))
+		if ((host->config != 0) && !wbsd_chip_validate(host))
 		{
 			printk(KERN_WARNING DRIVER_NAME
 				": PnP active but chip not configured! "
@@ -1844,7 +1872,11 @@ static int __devinit wbsd_init(struct device* dev, int base, int irq, int dma,
 	 */
 #ifdef CONFIG_PM
 	if (host->config)
+	{
+		wbsd_unlock_config(host);
 		wbsd_write_config(host, WBSD_CONF_PME, 0xA0);
+		wbsd_lock_config(host);
+	}
 #endif
 	/*
 	 * Allow device to initialise itself properly.
@@ -1885,16 +1917,11 @@ static void __devexit wbsd_shutdown(struct device* dev, int pnp)
 
 	mmc_remove_host(mmc);
 
+	/*
+	 * Power down the SD/MMC function.
+	 */
 	if (!pnp)
-	{
-		/*
-		 * Power down the SD/MMC function.
-		 */
-		wbsd_unlock_config(host);
-		wbsd_write_config(host, WBSD_CONF_DEVICE, DEVICE_SD);
-		wbsd_write_config(host, WBSD_CONF_ENABLE, 0);
-		wbsd_lock_config(host);
-	}
+		wbsd_chip_poweroff(host);
 
 	wbsd_release_resources(host);
 
@@ -1905,14 +1932,14 @@ static void __devexit wbsd_shutdown(struct device* dev, int pnp)
  * Non-PnP
  */
 
-static int __devinit wbsd_probe(struct device* dev)
+static int __devinit wbsd_probe(struct platform_device* dev)
 {
-	return wbsd_init(dev, io, irq, dma, 0);
+	return wbsd_init(&dev->dev, io, irq, dma, 0);
 }
 
-static int __devexit wbsd_remove(struct device* dev)
+static int __devexit wbsd_remove(struct platform_device* dev)
 {
-	wbsd_shutdown(dev, 0);
+	wbsd_shutdown(&dev->dev, 0);
 
 	return 0;
 }
@@ -1955,34 +1982,71 @@ static void __devexit wbsd_pnp_remove(struct pnp_dev * dev)
  */
 
 #ifdef CONFIG_PM
-static int wbsd_suspend(struct device *dev, pm_message_t state, u32 level)
+
+static int wbsd_suspend(struct platform_device *dev, pm_message_t state)
 {
-	DBGF("Not yet supported\n");
+	struct mmc_host *mmc = platform_get_drvdata(dev);
+	struct wbsd_host *host;
+	int ret;
+
+	if (!mmc)
+		return 0;
+
+	DBG("Suspending...\n");
+
+	ret = mmc_suspend_host(mmc, state);
+	if (!ret)
+		return ret;
+
+	host = mmc_priv(mmc);
+
+	wbsd_chip_poweroff(host);
 
 	return 0;
 }
 
-static int wbsd_resume(struct device *dev, u32 level)
+static int wbsd_resume(struct platform_device *dev)
 {
-	DBGF("Not yet supported\n");
+	struct mmc_host *mmc = platform_get_drvdata(dev);
+	struct wbsd_host *host;
 
-	return 0;
+	if (!mmc)
+		return 0;
+
+	DBG("Resuming...\n");
+
+	host = mmc_priv(mmc);
+
+	wbsd_chip_config(host);
+
+	/*
+	 * Allow device to initialise itself properly.
+	 */
+	mdelay(5);
+
+	wbsd_init_device(host);
+
+	return mmc_resume_host(mmc);
 }
-#else
+
+#else /* CONFIG_PM */
+
 #define wbsd_suspend NULL
 #define wbsd_resume NULL
-#endif
+
+#endif /* CONFIG_PM */
 
 static struct platform_device *wbsd_device;
 
-static struct device_driver wbsd_driver = {
-	.name		= DRIVER_NAME,
-	.bus		= &platform_bus_type,
+static struct platform_driver wbsd_driver = {
 	.probe		= wbsd_probe,
-	.remove		= wbsd_remove,
+	.remove		= __devexit_p(wbsd_remove),
 
 	.suspend	= wbsd_suspend,
 	.resume		= wbsd_resume,
+	.driver		= {
+		.name	= DRIVER_NAME,
+	},
 };
 
 #ifdef CONFIG_PNP
@@ -1991,7 +2055,7 @@ static struct pnp_driver wbsd_pnp_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= pnp_dev_table,
 	.probe		= wbsd_pnp_probe,
-	.remove		= wbsd_pnp_remove,
+	.remove		= __devexit_p(wbsd_pnp_remove),
 };
 
 #endif /* CONFIG_PNP */
@@ -2022,7 +2086,7 @@ static int __init wbsd_drv_init(void)
 
 	if (nopnp)
 	{
-		result = driver_register(&wbsd_driver);
+		result = platform_driver_register(&wbsd_driver);
 		if (result < 0)
 			return result;
 
@@ -2048,7 +2112,7 @@ static void __exit wbsd_drv_exit(void)
 	{
 		platform_device_unregister(wbsd_device);
 
-		driver_unregister(&wbsd_driver);
+		platform_driver_unregister(&wbsd_driver);
 	}
 
 	DBG("unloaded\n");
@@ -2064,6 +2128,7 @@ module_param(irq, uint, 0444);
 module_param(dma, int, 0444);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Winbond W83L51xD SD/MMC card interface driver");
 MODULE_VERSION(DRIVER_VERSION);
 

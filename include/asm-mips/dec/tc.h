@@ -7,10 +7,8 @@
  *
  * Copyright (c) 1998 Harald Koerfgen
  */
-#ifndef ASM_TC_H
-#define ASM_TC_H
-
-extern unsigned long system_base;
+#ifndef __ASM_DEC_TC_H
+#define __ASM_DEC_TC_H
 
 /*
  * Search for a TURBOchannel Option Module
@@ -36,8 +34,8 @@ extern unsigned long get_tc_base_addr(int);
  */
 extern unsigned long get_tc_irq_nr(int);
 /*
- * Return TURBOchannel clock frequency in hz
+ * Return TURBOchannel clock frequency in Hz
  */
 extern unsigned long get_tc_speed(void);
 
-#endif
+#endif /* __ASM_DEC_TC_H */

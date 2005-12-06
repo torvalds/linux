@@ -30,6 +30,36 @@
 static struct nlm_file *	nlm_files[FILE_NRHASH];
 static DECLARE_MUTEX(nlm_file_sema);
 
+#ifdef NFSD_DEBUG
+static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
+{
+	u32 *fhp = (u32*)f->data;
+
+	/* print the first 32 bytes of the fh */
+	dprintk("lockd: %s (%08x %08x %08x %08x %08x %08x %08x %08x)\n",
+		msg, fhp[0], fhp[1], fhp[2], fhp[3],
+		fhp[4], fhp[5], fhp[6], fhp[7]);
+}
+
+static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
+{
+	struct inode *inode = file->f_file->f_dentry->d_inode;
+
+	dprintk("lockd: %s %s/%ld\n",
+		msg, inode->i_sb->s_id, inode->i_ino);
+}
+#else
+static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
+{
+	return;
+}
+
+static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
+{
+	return;
+}
+#endif
+
 static inline unsigned int file_hash(struct nfs_fh *f)
 {
 	unsigned int tmp=0;
@@ -55,11 +85,8 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	struct nlm_file	*file;
 	unsigned int	hash;
 	u32		nfserr;
-	u32		*fhp = (u32*)f->data;
 
-	dprintk("lockd: nlm_file_lookup(%08x %08x %08x %08x %08x %08x)\n",
-		fhp[0], fhp[1], fhp[2], fhp[3], fhp[4], fhp[5]);
-
+	nlm_debug_print_fh("nlm_file_lookup", f);
 
 	hash = file_hash(f);
 
@@ -70,8 +97,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 		if (!nfs_compare_fh(&file->f_handle, f))
 			goto found;
 
-	dprintk("lockd: creating file for (%08x %08x %08x %08x %08x %08x)\n",
-		fhp[0], fhp[1], fhp[2], fhp[3], fhp[4], fhp[5]);
+	nlm_debug_print_fh("creating file for", f);
 
 	nfserr = nlm_lck_denied_nolocks;
 	file = (struct nlm_file *) kmalloc(sizeof(*file), GFP_KERNEL);
@@ -124,11 +150,10 @@ out_free:
 static inline void
 nlm_delete_file(struct nlm_file *file)
 {
-	struct inode *inode = file->f_file->f_dentry->d_inode;
 	struct nlm_file	**fp, *f;
 
-	dprintk("lockd: closing file %s/%ld\n",
-		inode->i_sb->s_id, inode->i_ino);
+	nlm_debug_print_file("closing file", file);
+
 	fp = nlm_files + file->f_hash;
 	while ((f = *fp) != NULL) {
 		if (f == file) {

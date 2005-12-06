@@ -103,13 +103,15 @@ static void bt_release(struct class_device *cdev)
 	kfree(hdev);
 }
 
-static struct class bt_class = {
+struct class bt_class = {
 	.name		= "bluetooth",
 	.release	= bt_release,
 #ifdef CONFIG_HOTPLUG
 	.hotplug	= bt_hotplug,
 #endif
 };
+
+EXPORT_SYMBOL_GPL(bt_class);
 
 int hci_register_sysfs(struct hci_dev *hdev)
 {

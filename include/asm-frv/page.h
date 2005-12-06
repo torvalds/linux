@@ -47,8 +47,8 @@ typedef struct { unsigned long	pgprot;	} pgprot_t;
 
 #define devmem_is_allowed(pfn)	1
 
-#define __pa(vaddr)		virt_to_phys((void *) vaddr)
-#define __va(paddr)		phys_to_virt((unsigned long) paddr)
+#define __pa(vaddr)		virt_to_phys((void *) (unsigned long) (vaddr))
+#define __va(paddr)		phys_to_virt((unsigned long) (paddr))
 
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 

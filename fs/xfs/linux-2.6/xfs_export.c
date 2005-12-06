@@ -1,35 +1,20 @@
 /*
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
 #include "xfs_types.h"
 #include "xfs_dmapi.h"
@@ -41,7 +26,7 @@
 #include "xfs_export.h"
 
 /*
- * XFS encode and decodes the fileid portion of NFS filehandles
+ * XFS encodes and decodes the fileid portion of NFS filehandles
  * itself instead of letting the generic NFS code do it.  This
  * allows filesystems with 64 bit inode numbers to be exported.
  *
@@ -50,7 +35,6 @@
  * however a malicious client could send us such data, the check
  * remains in that code.
  */
-
 
 STATIC struct dentry *
 linvfs_decode_fh(
@@ -92,7 +76,7 @@ linvfs_decode_fh(
 		p = xfs_fileid_decode_fid2(p, &pfid, is64);
 		parent = &pfid;
 	}
-	
+
 	fh = (__u32 *)&ifid;
 	return find_exported_dentry(sb, fh, parent, acceptable, context);
 }
@@ -112,9 +96,8 @@ linvfs_encode_fh(
 	int			is64 = 0;
 #if XFS_BIG_INUMS
 	vfs_t			*vfs = LINVFS_GET_VFS(inode->i_sb);
-	xfs_mount_t		*mp = XFS_VFSTOM(vfs);
-	
-	if (!(mp->m_flags & XFS_MOUNT_32BITINOOPT)) {
+
+	if (!(vfs->vfs_flag & VFS_32BITINODES)) {
 		/* filesystem may contain 64bit inode numbers */
 		is64 = XFS_FILEID_TYPE_64FLAG;
 	}

@@ -366,7 +366,8 @@ nfs3svc_decode_writeargs(struct svc_rqst *rqstp, u32 *p,
 	len = args->len = ntohl(*p++);
 
 	hdr = (void*)p - rqstp->rq_arg.head[0].iov_base;
-	if (rqstp->rq_arg.len < len + hdr)
+	if (rqstp->rq_arg.len < hdr ||
+	    rqstp->rq_arg.len - hdr < len)
 		return 0;
 
 	args->vec[0].iov_base = (void*)p;

@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/serial.h>
 #include <linux/module.h>
+#include <linux/initrd.h>
 
 #include <asm/ibm44x.h>
 #include <asm/mmu.h>
@@ -27,8 +28,13 @@
 #include <asm/time.h>
 #include <asm/ppc4xx_pic.h>
 #include <asm/param.h>
+#include <asm/bootinfo.h>
+#include <asm/ppcboot.h>
 
 #include <syslib/gen550.h>
+
+/* Global Variables */
+bd_t __res;
 
 phys_addr_t fixup_bigphys_addr(phys_addr_t addr, phys_addr_t size)
 {
@@ -150,8 +156,36 @@ static unsigned long __init ibm44x_find_end_of_memory(void)
 	return mem_size;
 }
 
-void __init ibm44x_platform_init(void)
+void __init ibm44x_platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
+				 unsigned long r6, unsigned long r7)
 {
+	parse_bootinfo(find_bootinfo());
+
+	/*
+	 * If we were passed in a board information, copy it into the
+	 * residual data area.
+	 */
+	if (r3)
+		__res = *(bd_t *)(r3 + KERNELBASE);
+
+#if defined(CONFIG_BLK_DEV_INITRD)
+	/*
+	 * If the init RAM disk has been configured in, and there's a valid
+	 * starting address for it, set it up.
+	 */
+	if (r4) {
+		initrd_start = r4 + KERNELBASE;
+		initrd_end = r5 + KERNELBASE;
+	}
+#endif  /* CONFIG_BLK_DEV_INITRD */
+
+	/* Copy the kernel command line arguments to a safe place. */
+
+	if (r6) {
+		*(char *) (r7 + KERNELBASE) = 0;
+		strcpy(cmd_line, (char *) (r6 + KERNELBASE));
+	}
+
 	ppc_md.init_IRQ = ppc4xx_pic_init;
 	ppc_md.find_end_of_memory = ibm44x_find_end_of_memory;
 	ppc_md.restart = ibm44x_restart;
@@ -178,12 +212,23 @@ void __init ibm44x_platform_init(void)
 #endif
 }
 
-/* Called from MachineCheckException */
+/* Called from machine_check_exception */
 void platform_machine_check(struct pt_regs *regs)
 {
+#if defined(CONFIG_440SP) || defined(CONFIG_440SPE)
+	printk("PLB0: BEAR=0x%08x%08x ACR=  0x%08x BESR= 0x%08x%08x\n",
+	       mfdcr(DCRN_PLB0_BEARH), mfdcr(DCRN_PLB0_BEARL),
+	       mfdcr(DCRN_PLB0_ACR), mfdcr(DCRN_PLB0_BESRH),
+	       mfdcr(DCRN_PLB0_BESRL));
+	printk("PLB1: BEAR=0x%08x%08x ACR=  0x%08x BESR= 0x%08x%08x\n",
+	       mfdcr(DCRN_PLB1_BEARH), mfdcr(DCRN_PLB1_BEARL),
+	       mfdcr(DCRN_PLB1_ACR), mfdcr(DCRN_PLB1_BESRH),
+	       mfdcr(DCRN_PLB1_BESRL));
+#else
     	printk("PLB0: BEAR=0x%08x%08x ACR=  0x%08x BESR= 0x%08x\n",
 		mfdcr(DCRN_PLB0_BEARH), mfdcr(DCRN_PLB0_BEARL),
 		mfdcr(DCRN_PLB0_ACR),  mfdcr(DCRN_PLB0_BESR));
+#endif
 	printk("POB0: BEAR=0x%08x%08x BESR0=0x%08x BESR1=0x%08x\n",
 		mfdcr(DCRN_POB0_BEARH), mfdcr(DCRN_POB0_BEARL),
 		mfdcr(DCRN_POB0_BESR0), mfdcr(DCRN_POB0_BESR1));

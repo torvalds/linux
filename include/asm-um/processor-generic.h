@@ -13,6 +13,7 @@ struct task_struct;
 #include "linux/config.h"
 #include "asm/ptrace.h"
 #include "choose-mode.h"
+#include "registers.h"
 
 struct mm_struct;
 
@@ -136,19 +137,15 @@ extern struct cpuinfo_um cpu_data[];
 #define current_cpu_data boot_cpu_data
 #endif
 
-#define KSTK_EIP(tsk) (PT_REGS_IP(&tsk->thread.regs))
-#define KSTK_ESP(tsk) (PT_REGS_SP(&tsk->thread.regs))
+
+#ifdef CONFIG_MODE_SKAS
+#define KSTK_REG(tsk, reg) \
+	({ union uml_pt_regs regs; \
+	   get_thread_regs(&regs, tsk->thread.mode.skas.switch_buf); \
+	   UPT_REG(&regs, reg); })
+#else
+#define KSTK_REG(tsk, reg) (0xbadbabe)
+#endif
 #define get_wchan(p) (0)
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

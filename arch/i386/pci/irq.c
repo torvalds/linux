@@ -11,12 +11,11 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/dmi.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/io_apic.h>
-#include <asm/hw_irq.h>
+#include <linux/irq.h>
 #include <linux/acpi.h>
 
 #include "pci.h"
@@ -548,31 +547,48 @@ static __init int intel_router_probe(struct irq_router *r, struct pci_dev *route
 	return 0;
 }
 
-static __init int via_router_probe(struct irq_router *r, struct pci_dev *router, u16 device)
+static __init int via_router_probe(struct irq_router *r,
+				struct pci_dev *router, u16 device)
 {
 	/* FIXME: We should move some of the quirk fixup stuff here */
 
-	if (router->device == PCI_DEVICE_ID_VIA_82C686 &&
-			device == PCI_DEVICE_ID_VIA_82C586_0) {
-		/* Asus k7m bios wrongly reports 82C686A as 586-compatible */
-		device = PCI_DEVICE_ID_VIA_82C686;
+	/*
+	 * work arounds for some buggy BIOSes
+	 */
+	if (device == PCI_DEVICE_ID_VIA_82C586_0) {
+		switch(router->device) {
+		case PCI_DEVICE_ID_VIA_82C686:
+			/*
+			 * Asus k7m bios wrongly reports 82C686A
+			 * as 586-compatible
+			 */
+			device = PCI_DEVICE_ID_VIA_82C686;
+			break;
+		case PCI_DEVICE_ID_VIA_8235:
+			/**
+			 * Asus a7v-x bios wrongly reports 8235
+			 * as 586-compatible
+			 */
+			device = PCI_DEVICE_ID_VIA_8235;
+			break;
+		}
 	}
 
-	switch(device)
-	{
-		case PCI_DEVICE_ID_VIA_82C586_0:
-			r->name = "VIA";
-			r->get = pirq_via586_get;
-			r->set = pirq_via586_set;
-			return 1;
-		case PCI_DEVICE_ID_VIA_82C596:
-		case PCI_DEVICE_ID_VIA_82C686:
-		case PCI_DEVICE_ID_VIA_8231:
+	switch(device) {
+	case PCI_DEVICE_ID_VIA_82C586_0:
+		r->name = "VIA";
+		r->get = pirq_via586_get;
+		r->set = pirq_via586_set;
+		return 1;
+	case PCI_DEVICE_ID_VIA_82C596:
+	case PCI_DEVICE_ID_VIA_82C686:
+	case PCI_DEVICE_ID_VIA_8231:
+	case PCI_DEVICE_ID_VIA_8235:
 		/* FIXME: add new ones for 8233/5 */
-			r->name = "VIA";
-			r->get = pirq_via_get;
-			r->set = pirq_via_set;
-			return 1;
+		r->name = "VIA";
+		r->get = pirq_via_get;
+		r->set = pirq_via_set;
+		return 1;
 	}
 	return 0;
 }

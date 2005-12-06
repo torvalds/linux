@@ -375,6 +375,9 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 	case DCCP_PKT_RESET:
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 		break;
+	case DCCP_PKT_DATA:
+		if (sk->sk_state == DCCP_RESPOND)
+			break;
 	case DCCP_PKT_DATAACK:
 	case DCCP_PKT_ACK:
 		/*
@@ -393,7 +396,8 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 		dccp_sk(sk)->dccps_osr = DCCP_SKB_CB(skb)->dccpd_seq;
 		dccp_set_state(sk, DCCP_OPEN);
 
-		if (dh->dccph_type == DCCP_PKT_DATAACK) {
+		if (dh->dccph_type == DCCP_PKT_DATAACK ||
+		    dh->dccph_type == DCCP_PKT_DATA) {
 			dccp_rcv_established(sk, skb, dh, len);
 			queued = 1; /* packet was queued
 				       (by dccp_rcv_established) */

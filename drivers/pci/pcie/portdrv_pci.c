@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/pm.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/pcieport_if.h>
 
 #include "portdrv.h"

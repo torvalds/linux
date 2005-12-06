@@ -27,6 +27,14 @@
 #define CN_IDX_CONNECTOR		0xffffffff
 #define CN_VAL_CONNECTOR		0xffffffff
 
+/*
+ * Process Events connector unique ids -- used for message routing
+ */
+#define CN_IDX_PROC			0x1
+#define CN_VAL_PROC			0x1
+#define CN_IDX_CIFS			0x2
+#define CN_VAL_CIFS                     0x1
+
 #define CN_NETLINK_USERS		1
 
 /*
@@ -104,12 +112,19 @@ struct cn_queue_dev {
 	struct sock *nls;
 };
 
-struct cn_callback {
+struct cn_callback_id {
 	unsigned char name[CN_CBQ_NAMELEN];
-
 	struct cb_id id;
+};
+
+struct cn_callback_data {
+	void (*destruct_data) (void *);
+	void *ddata;
+	
+	void *callback_priv;
 	void (*callback) (void *);
-	void *priv;
+
+	void *free;
 };
 
 struct cn_callback_entry {
@@ -118,8 +133,8 @@ struct cn_callback_entry {
 	struct work_struct work;
 	struct cn_queue_dev *pdev;
 
-	void (*destruct_data) (void *);
-	void *ddata;
+	struct cn_callback_id id;
+	struct cn_callback_data data;
 
 	int seq, group;
 	struct sock *nls;
@@ -142,15 +157,17 @@ struct cn_dev {
 
 int cn_add_callback(struct cb_id *, char *, void (*callback) (void *));
 void cn_del_callback(struct cb_id *);
-int cn_netlink_send(struct cn_msg *, u32, int);
+int cn_netlink_send(struct cn_msg *, u32, gfp_t);
 
-int cn_queue_add_callback(struct cn_queue_dev *dev, struct cn_callback *cb);
+int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id, void (*callback)(void *));
 void cn_queue_del_callback(struct cn_queue_dev *dev, struct cb_id *id);
 
 struct cn_queue_dev *cn_queue_alloc_dev(char *name, struct sock *);
 void cn_queue_free_dev(struct cn_queue_dev *dev);
 
 int cn_cb_equal(struct cb_id *, struct cb_id *);
+
+void cn_queue_wrapper(void *data);
 
 extern int cn_already_initialized;
 

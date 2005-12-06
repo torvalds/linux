@@ -113,6 +113,10 @@ enum ppc_sys_devices {
 	MPC8xx_CPM_USB,
 };
 
+#ifndef BOARD_CHIP_NAME
+#define BOARD_CHIP_NAME ""
+#endif
+
 #endif /* !__ASSEMBLY__ */
 #endif /* CONFIG_8xx */
 #endif /* __CONFIG_8xx_DEFS */

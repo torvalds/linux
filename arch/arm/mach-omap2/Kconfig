@@ -1,0 +1,22 @@
+comment "OMAP Core Type"
+	depends on ARCH_OMAP2
+
+config ARCH_OMAP24XX
+	bool "OMAP24xx Based System"
+	depends on ARCH_OMAP2
+
+config ARCH_OMAP2420
+	bool "OMAP2420 support"
+	depends on ARCH_OMAP24XX
+
+comment "OMAP Board Type"
+	depends on ARCH_OMAP2
+
+config MACH_OMAP_GENERIC
+	bool "Generic OMAP board"
+	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+
+config MACH_OMAP_H4
+	bool "OMAP 2420 H4 board"
+	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+

@@ -1099,7 +1099,7 @@ static void release_driver(struct sock *sk)
 	sock_reset_flag(sk, SOCK_ZAPPED);
 	wp = wp_sk(sk);
 
-	if (wp && wp->mbox) {
+	if (wp) {
 		kfree(wp->mbox);
 		wp->mbox = NULL;
 	}
@@ -1186,10 +1186,8 @@ static void wanpipe_kill_sock_timer (unsigned long data)
 		return;
 	}
 
-	if (wp_sk(sk)) {
-		kfree(wp_sk(sk));
-		wp_sk(sk) = NULL;
-	}
+	kfree(wp_sk(sk));
+	wp_sk(sk) = NULL;
 
 	if (atomic_read(&sk->sk_refcnt) != 1) {
 		atomic_set(&sk->sk_refcnt, 1);
@@ -1219,10 +1217,8 @@ static void wanpipe_kill_sock_accept (struct sock *sk)
 	sk->sk_socket = NULL;
 
 
-	if (wp_sk(sk)) {
-		kfree(wp_sk(sk));
-		wp_sk(sk) = NULL;
-	}
+	kfree(wp_sk(sk));
+	wp_sk(sk) = NULL;
 
 	if (atomic_read(&sk->sk_refcnt) != 1) {
 		atomic_set(&sk->sk_refcnt, 1);
@@ -1243,10 +1239,8 @@ static void wanpipe_kill_sock_irq (struct sock *sk)
 
 	sk->sk_socket = NULL;
 
-	if (wp_sk(sk)) {
-		kfree(wp_sk(sk));
-		wp_sk(sk) = NULL;
-	}
+	kfree(wp_sk(sk));
+	wp_sk(sk) = NULL;
 
 	if (atomic_read(&sk->sk_refcnt) != 1) {
 		atomic_set(&sk->sk_refcnt, 1);

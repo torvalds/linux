@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -35,8 +35,6 @@
 #include <asm/arch/tc.h>
 #include <asm/arch/usb.h>
 #include <asm/arch/common.h>
-
-static int __initdata innovator_serial_ports[OMAP_MAX_NR_PORTS] = {1, 1, 1};
 
 static struct mtd_partition innovator_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -99,12 +97,16 @@ static struct platform_device innovator_flash_device = {
 	.resource	= &innovator_flash_resource,
 };
 
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc innovator1510_io_desc[] __initdata = {
-{ OMAP1510_FPGA_BASE, OMAP1510_FPGA_START, OMAP1510_FPGA_SIZE,
-	MT_DEVICE },
+	{
+		.virtual	= OMAP1510_FPGA_BASE,
+		.pfn		= __phys_to_pfn(OMAP1510_FPGA_START),
+		.length		= OMAP1510_FPGA_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static struct resource innovator1510_smc91x_resources[] = {
@@ -132,7 +134,7 @@ static struct platform_device *innovator1510_devices[] __initdata = {
 	&innovator1510_smc91x_device,
 };
 
-#endif /* CONFIG_ARCH_OMAP1510 */
+#endif /* CONFIG_ARCH_OMAP15XX */
 
 #ifdef CONFIG_ARCH_OMAP16XX
 
@@ -181,7 +183,7 @@ void innovator_init_irq(void)
 {
 	omap_init_irq();
 	omap_gpio_init();
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		omap1510_fpga_init_irq();
 	}
@@ -189,7 +191,7 @@ void innovator_init_irq(void)
 	innovator_init_smc91x();
 }
 
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 static struct omap_usb_config innovator1510_usb_config __initdata = {
 	/* for bundled non-standard host and peripheral cables */
 	.hmc_mode	= 4,
@@ -200,6 +202,11 @@ static struct omap_usb_config innovator1510_usb_config __initdata = {
 
 	.register_dev	= 1,
 	.pins[0]	= 2,
+};
+
+static struct omap_lcd_config innovator1510_lcd_config __initdata = {
+	.panel_name	= "inn1510",
+	.ctrl_name	= "internal",
 };
 #endif
 
@@ -218,6 +225,11 @@ static struct omap_usb_config h2_usb_config __initdata = {
 
 	.pins[1]	= 3,
 };
+
+static struct omap_lcd_config innovator1610_lcd_config __initdata = {
+	.panel_name	= "inn1610",
+	.ctrl_name	= "internal",
+};
 #endif
 
 static struct omap_mmc_config innovator_mmc_config __initdata = {
@@ -230,14 +242,20 @@ static struct omap_mmc_config innovator_mmc_config __initdata = {
 	},
 };
 
+static struct omap_uart_config innovator_uart_config __initdata = {
+	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
+};
+
 static struct omap_board_config_kernel innovator_config[] = {
 	{ OMAP_TAG_USB,         NULL },
+	{ OMAP_TAG_LCD,		NULL },
 	{ OMAP_TAG_MMC,		&innovator_mmc_config },
+	{ OMAP_TAG_UART,	&innovator_uart_config },
 };
 
 static void __init innovator_init(void)
 {
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		platform_add_devices(innovator1510_devices, ARRAY_SIZE(innovator1510_devices));
 	}
@@ -248,23 +266,28 @@ static void __init innovator_init(void)
 	}
 #endif
 
-#ifdef CONFIG_ARCH_OMAP1510
-	if (cpu_is_omap1510())
+#ifdef CONFIG_ARCH_OMAP15XX
+	if (cpu_is_omap1510()) {
 		innovator_config[0].data = &innovator1510_usb_config;
+		innovator_config[1].data = &innovator1510_lcd_config;
+	}
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
-	if (cpu_is_omap1610())
+	if (cpu_is_omap1610()) {
 		innovator_config[0].data = &h2_usb_config;
+		innovator_config[1].data = &innovator1610_lcd_config;
+	}
 #endif
 	omap_board_config = innovator_config;
 	omap_board_config_size = ARRAY_SIZE(innovator_config);
+	omap_serial_init();
 }
 
 static void __init innovator_map_io(void)
 {
 	omap_map_common_io();
 
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		iotable_init(innovator1510_io_desc, ARRAY_SIZE(innovator1510_io_desc));
 		udelay(10);	/* Delay needed for FPGA */
@@ -276,7 +299,6 @@ static void __init innovator_map_io(void)
 		       fpga_read(OMAP1510_FPGA_BOARD_REV));
 	}
 #endif
-	omap_serial_init(innovator_serial_ports);
 }
 
 MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")

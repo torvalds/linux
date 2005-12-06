@@ -11,11 +11,7 @@ obj-y		+= cpu-probe.o branch.o entry.o genex.o irq.o process.o \
 binfmt_irix-objs	:= irixelf.o irixinv.o irixioctl.o irixsig.o	\
 			   irix5sys.o sysirix.o
 
-ifdef CONFIG_MODULES
-obj-y				+= mips_ksyms.o module.o
-obj-$(CONFIG_32BIT)		+= module-elf32.o
-obj-$(CONFIG_64BIT)		+= module-elf64.o
-endif
+obj-$(CONFIG_MODULES)		+= mips_ksyms.o module.o
 
 obj-$(CONFIG_CPU_R3000)		+= r2300_fpu.o r2300_switch.o
 obj-$(CONFIG_CPU_TX39XX)	+= r2300_fpu.o r2300_switch.o
@@ -38,12 +34,18 @@ obj-$(CONFIG_CPU_R6000)		+= r6000_fpu.o r4k_switch.o
 
 obj-$(CONFIG_SMP)		+= smp.o
 
+obj-$(CONFIG_MIPS_MT_SMP)	+= smp_mt.o
+
+obj-$(CONFIG_MIPS_VPE_LOADER)	+= vpe.o
+obj-$(CONFIG_MIPS_VPE_APSP_API)	+= rtlx.o
+
 obj-$(CONFIG_NO_ISA)		+= dma-no-isa.o
 obj-$(CONFIG_I8259)		+= i8259.o
 obj-$(CONFIG_IRQ_CPU)		+= irq_cpu.o
 obj-$(CONFIG_IRQ_CPU_RM7K)	+= irq-rm7000.o
 obj-$(CONFIG_IRQ_CPU_RM9K)	+= irq-rm9000.o
 obj-$(CONFIG_IRQ_MV64340)	+= irq-mv6434x.o
+obj-$(CONFIG_MIPS_BOARDS_GEN)	+= irq-msc01.o
 
 obj-$(CONFIG_32BIT)		+= scall32-o32.o
 obj-$(CONFIG_64BIT)		+= scall64-64.o
@@ -56,8 +58,6 @@ obj-$(CONFIG_KGDB)		+= gdb-low.o gdb-stub.o
 obj-$(CONFIG_PROC_FS)		+= proc.o
 
 obj-$(CONFIG_64BIT)		+= cpu-bugs64.o
-
-obj-$(CONFIG_GEN_RTC)		+= genrtc.o
 
 CFLAGS_cpu-bugs64.o	= $(shell if $(CC) $(CFLAGS) -Wa,-mdaddi -c -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-DHAVE_AS_SET_DADDI"; fi)
 CFLAGS_ioctl32.o	+= -Ifs/

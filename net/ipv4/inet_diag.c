@@ -724,12 +724,6 @@ done:
 	return skb->len;
 }
 
-static int inet_diag_dump_done(struct netlink_callback *cb)
-{
-	return 0;
-}
-
-
 static __inline__ int
 inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
@@ -760,8 +754,7 @@ inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				goto err_inval;
 		}
 		return netlink_dump_start(idiagnl, skb, nlh,
-					  inet_diag_dump,
-					  inet_diag_dump_done);
+					  inet_diag_dump, NULL);
 	} else {
 		return inet_diag_get_exact(skb, nlh);
 	}

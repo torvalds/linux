@@ -154,7 +154,7 @@ pci_dma_supported(struct pci_dev *hwdev, dma_addr_t mask)
 
 void *
 dma_alloc_coherent(struct device *dev, size_t size,
-		   dma_addr_t *dma_handle, int gfp)
+		   dma_addr_t *dma_handle, gfp_t gfp)
 {
 	void *ret;
 

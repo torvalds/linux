@@ -171,23 +171,42 @@ extern int __lockfunc generic__raw_read_trylock(raw_rwlock_t *lock);
 #define write_lock_irq(lock)		_write_lock_irq(lock)
 #define write_lock_bh(lock)		_write_lock_bh(lock)
 
-#define spin_unlock(lock)		_spin_unlock(lock)
-#define write_unlock(lock)		_write_unlock(lock)
-#define read_unlock(lock)		_read_unlock(lock)
+/*
+ * We inline the unlock functions in the nondebug case:
+ */
+#if defined(CONFIG_DEBUG_SPINLOCK) || defined(CONFIG_PREEMPT) || !defined(CONFIG_SMP)
+# define spin_unlock(lock)		_spin_unlock(lock)
+# define read_unlock(lock)		_read_unlock(lock)
+# define write_unlock(lock)		_write_unlock(lock)
+#else
+# define spin_unlock(lock)		__raw_spin_unlock(&(lock)->raw_lock)
+# define read_unlock(lock)		__raw_read_unlock(&(lock)->raw_lock)
+# define write_unlock(lock)		__raw_write_unlock(&(lock)->raw_lock)
+#endif
+
+#if defined(CONFIG_DEBUG_SPINLOCK) || defined(CONFIG_PREEMPT) || !defined(CONFIG_SMP)
+# define spin_unlock_irq(lock)		_spin_unlock_irq(lock)
+# define read_unlock_irq(lock)		_read_unlock_irq(lock)
+# define write_unlock_irq(lock)		_write_unlock_irq(lock)
+#else
+# define spin_unlock_irq(lock) \
+    do { __raw_spin_unlock(&(lock)->raw_lock); local_irq_enable(); } while (0)
+# define read_unlock_irq(lock) \
+    do { __raw_read_unlock(&(lock)->raw_lock); local_irq_enable(); } while (0)
+# define write_unlock_irq(lock) \
+    do { __raw_write_unlock(&(lock)->raw_lock); local_irq_enable(); } while (0)
+#endif
 
 #define spin_unlock_irqrestore(lock, flags) \
 					_spin_unlock_irqrestore(lock, flags)
-#define spin_unlock_irq(lock)		_spin_unlock_irq(lock)
 #define spin_unlock_bh(lock)		_spin_unlock_bh(lock)
 
 #define read_unlock_irqrestore(lock, flags) \
 					_read_unlock_irqrestore(lock, flags)
-#define read_unlock_irq(lock)		_read_unlock_irq(lock)
 #define read_unlock_bh(lock)		_read_unlock_bh(lock)
 
 #define write_unlock_irqrestore(lock, flags) \
 					_write_unlock_irqrestore(lock, flags)
-#define write_unlock_irq(lock)		_write_unlock_irq(lock)
 #define write_unlock_bh(lock)		_write_unlock_bh(lock)
 
 #define spin_trylock_bh(lock)		__cond_lock(_spin_trylock_bh(lock))

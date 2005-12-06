@@ -31,7 +31,6 @@
 #include <linux/smp_lock.h>
 
 #include <media/audiochip.h>
-#include <media/id.h>
 
 #include "tvaudio.h"
 
@@ -458,8 +457,8 @@ static void tda9840_setmode(struct CHIPSTATE *chip, int mode)
 #define TDA9855_LOUD	1<<5 /* Loudness, 1==off */
 #define TDA9855_SUR	1<<3 /* Surround / Subwoofer 1==.5(L-R) 0==.5(L+R) */
 			     /* Bits 0 to 3 select various combinations
-                              * of line in and line out, only the
-                              * interesting ones are defined */
+			      * of line in and line out, only the
+			      * interesting ones are defined */
 #define TDA9855_EXT	1<<2 /* Selects inputs LIR and LIL.  Pins 41 & 12 */
 #define TDA9855_INT	0    /* Selects inputs LOR and LOL.  (internal) */
 
@@ -1028,7 +1027,7 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 #define TEA6300_TR         0x03  /* treble */
 #define TEA6300_FA         0x04  /* fader control */
 #define TEA6300_S          0x05  /* switch register */
-                                 /* values for those registers: */
+				 /* values for those registers: */
 #define TEA6300_S_SA       0x01  /* stereo A input */
 #define TEA6300_S_SB       0x02  /* stereo B */
 #define TEA6300_S_SC       0x04  /* stereo C */
@@ -1042,7 +1041,7 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 #define TEA6320_BA         0x05  /* bass (0-4) */
 #define TEA6320_TR         0x06  /* treble (0-4) */
 #define TEA6320_S          0x07  /* switch register */
-                                 /* values for those registers: */
+				 /* values for those registers: */
 #define TEA6320_S_SA       0x07  /* stereo A input */
 #define TEA6320_S_SB       0x06  /* stereo B */
 #define TEA6320_S_SC       0x05  /* stereo C */
@@ -1082,7 +1081,7 @@ static int tea6320_initialize(struct CHIPSTATE * chip)
 #define TDA8425_BA         0x02  /* bass */
 #define TDA8425_TR         0x03  /* treble */
 #define TDA8425_S1         0x08  /* switch functions */
-                                 /* values for those registers: */
+				 /* values for those registers: */
 #define TDA8425_S1_OFF     0xEE  /* audio off (mute on) */
 #define TDA8425_S1_CH1     0xCE  /* audio channel 1 (mute off) - "linear stereo" mode */
 #define TDA8425_S1_CH2     0xCF  /* audio channel 2 (mute off) - "linear stereo" mode */
@@ -1148,7 +1147,7 @@ static void tda8425_setmode(struct CHIPSTATE *chip, int mode)
 
 /* bit definition of the RESET register, I2C data. */
 #define PIC16C54_MISC_RESET_REMOTE_CTL 0x01 /* bit 0, Reset to receive the key */
-                                            /*        code of remote controller */
+					    /*        code of remote controller */
 #define PIC16C54_MISC_MTS_MAIN         0x02 /* bit 1 */
 #define PIC16C54_MISC_MTS_SAP          0x04 /* bit 2 */
 #define PIC16C54_MISC_MTS_BOTH         0x08 /* bit 3 */
@@ -1281,7 +1280,7 @@ static struct CHIPDESC chiplist[] = {
 		.setmode    = tda9840_setmode,
 		.checkmode  = generic_checkmode,
 
-	        .init       = { 2, { TDA9840_TEST, TDA9840_TEST_INT1SN
+		.init       = { 2, { TDA9840_TEST, TDA9840_TEST_INT1SN
 				/* ,TDA9840_SW, TDA9840_MONO */} }
 	},
 	{
@@ -1438,7 +1437,7 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "pic16c54 (PV951)",
-		.id         = I2C_DRIVERID_PIC16C54_PV951,
+		.id         = I2C_DRIVERID_PIC16C54_PV9,
 		.insmodopt  = &pic16c54,
 		.addr_lo    = I2C_PIC16C54 >> 1,
 		.addr_hi    = I2C_PIC16C54>> 1,
@@ -1467,7 +1466,7 @@ static struct CHIPDESC chiplist[] = {
 		.setmode    = ta8874z_setmode,
 		.checkmode  = generic_checkmode,
 
-	        .init       = {2, { TA8874Z_MONO_SET, TA8874Z_SEPARATION_DEFAULT}},
+		.init       = {2, { TA8874Z_MONO_SET, TA8874Z_SEPARATION_DEFAULT}},
 	},
 	{ .name = NULL } /* EOF */
 };
@@ -1486,8 +1485,8 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 		return -ENOMEM;
 	memset(chip,0,sizeof(*chip));
 	memcpy(&chip->c,&client_template,sizeof(struct i2c_client));
-        chip->c.adapter = adap;
-        chip->c.addr = addr;
+	chip->c.adapter = adap;
+	chip->c.addr = addr;
 	i2c_set_clientdata(&chip->c, chip);
 
 	/* find description for the chip */

@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/sched.h>	/* current, TASK_*, schedule_timeout() */
 #include <linux/delay.h>
 #include <asm/uaccess.h>
 #include "miropcm20-rds-core.h"

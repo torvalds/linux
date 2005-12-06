@@ -29,9 +29,6 @@
 
 extern volatile unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-EXPORT_SYMBOL(jiffies_64);
-
 spinlock_t rtc_lock = SPIN_LOCK_UNLOCKED;
 EXPORT_SYMBOL(rtc_lock);
 
@@ -68,7 +65,7 @@ void __init time_init(void)
 	 * speed for the CALIBRATE.
 	 */
 
-#if CONFIG_XTENSA_CALIBRATE_CCOUNT
+#ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 	printk("Calibrating CPU frequency ");
 	platform_calibrate_ccount();
 	printk("%d.%02d MHz\n", (int)ccount_per_jiffy/(1000000/HZ),

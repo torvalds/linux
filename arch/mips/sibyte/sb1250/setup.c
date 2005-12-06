@@ -153,7 +153,7 @@ void sb1250_setup(void)
 	int bad_config = 0;
 
 	sb1_pass = read_c0_prid() & 0xff;
-	sys_rev = bus_readq(IOADDR(A_SCD_SYSTEM_REVISION));
+	sys_rev = __raw_readq(IOADDR(A_SCD_SYSTEM_REVISION));
 	soc_type = SYS_SOC_TYPE(sys_rev);
 	soc_pass = G_SYS_REVISION(sys_rev);
 
@@ -162,7 +162,7 @@ void sb1250_setup(void)
 		machine_restart(NULL);
 	}
 
-	plldiv = G_SYS_PLL_DIV(bus_readq(IOADDR(A_SCD_SYSTEM_CFG)));
+	plldiv = G_SYS_PLL_DIV(__raw_readq(IOADDR(A_SCD_SYSTEM_CFG)));
 	zbbus_mhz = ((plldiv >> 1) * 50) + ((plldiv & 1) * 25);
 
 	prom_printf("Broadcom SiByte %s %s @ %d MHz (SB1 rev %d)\n",

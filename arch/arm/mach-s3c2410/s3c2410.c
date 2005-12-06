@@ -27,7 +27,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -124,9 +124,6 @@ static struct platform_device *uart_devices[] __initdata = {
 	&s3c_uart1,
 	&s3c_uart2
 };
-
-/* store our uart devices for the serial driver console */
-struct platform_device *s3c2410_uart_devices[3];
 
 static int s3c2410_uart_count = 0;
 

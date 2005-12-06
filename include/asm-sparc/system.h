@@ -204,7 +204,7 @@ static inline unsigned long getipl(void)
 BTFIXUPDEF_CALL(void, ___xchg32, void)
 #endif
 
-extern __inline__ unsigned long xchg_u32(__volatile__ unsigned long *m, unsigned long val)
+static inline unsigned long xchg_u32(__volatile__ unsigned long *m, unsigned long val)
 {
 #ifdef CONFIG_SMP
 	__asm__ __volatile__("swap [%2], %0"

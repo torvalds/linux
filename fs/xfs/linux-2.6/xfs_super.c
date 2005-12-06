@@ -1,60 +1,45 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_clnt.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
@@ -189,7 +174,7 @@ xfs_revalidate_inode(
 		break;
 	}
 
-	inode->i_blksize = PAGE_CACHE_SIZE;
+	inode->i_blksize = xfs_preferred_iosize(mp);
 	inode->i_generation = ip->i_d.di_gen;
 	i_size_write(inode, ip->i_d.di_size);
 	inode->i_blocks =
@@ -278,6 +263,72 @@ xfs_blkdev_put(
 		close_bdev_excl(bdev);
 }
 
+/*
+ * Try to write out the superblock using barriers.
+ */
+STATIC int
+xfs_barrier_test(
+	xfs_mount_t	*mp)
+{
+	xfs_buf_t	*sbp = xfs_getsb(mp, 0);
+	int		error;
+
+	XFS_BUF_UNDONE(sbp);
+	XFS_BUF_UNREAD(sbp);
+	XFS_BUF_UNDELAYWRITE(sbp);
+	XFS_BUF_WRITE(sbp);
+	XFS_BUF_UNASYNC(sbp);
+	XFS_BUF_ORDERED(sbp);
+
+	xfsbdstrat(mp, sbp);
+	error = xfs_iowait(sbp);
+
+	/*
+	 * Clear all the flags we set and possible error state in the
+	 * buffer.  We only did the write to try out whether barriers
+	 * worked and shouldn't leave any traces in the superblock
+	 * buffer.
+	 */
+	XFS_BUF_DONE(sbp);
+	XFS_BUF_ERROR(sbp, 0);
+	XFS_BUF_UNORDERED(sbp);
+
+	xfs_buf_relse(sbp);
+	return error;
+}
+
+void
+xfs_mountfs_check_barriers(xfs_mount_t *mp)
+{
+	int error;
+
+	if (mp->m_logdev_targp != mp->m_ddev_targp) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, not supported with external log device");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+
+	if (mp->m_ddev_targp->pbr_bdev->bd_disk->queue->ordered ==
+					QUEUE_ORDERED_NONE) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, not supported by the underlying device");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+
+	error = xfs_barrier_test(mp);
+	if (error) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, trial barrier write failed");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+}
+
+void
+xfs_blkdev_issue_flush(
+	xfs_buftarg_t		*buftarg)
+{
+	blkdev_issue_flush(buftarg->pbr_bdev, NULL);
+}
 
 STATIC struct inode *
 linvfs_alloc_inode(
@@ -701,6 +752,18 @@ linvfs_show_options(
 }
 
 STATIC int
+linvfs_quotasync(
+	struct super_block	*sb,
+	int			type)
+{
+	struct vfs		*vfsp = LINVFS_GET_VFS(sb);
+	int			error;
+
+	VFS_QUOTACTL(vfsp, Q_XQUOTASYNC, 0, (caddr_t)NULL, error);
+	return -error;
+}
+
+STATIC int
 linvfs_getxstate(
 	struct super_block	*sb,
 	struct fs_quota_stat	*fqs)
@@ -868,6 +931,7 @@ STATIC struct super_operations linvfs_sops = {
 };
 
 STATIC struct quotactl_ops linvfs_qops = {
+	.quota_sync		= linvfs_quotasync,
 	.get_xstate		= linvfs_getxstate,
 	.set_xstate		= linvfs_setxstate,
 	.get_xquota		= linvfs_getxquota,

@@ -1447,7 +1447,7 @@ not_enabled:
 	if (unlikely(i_size_read(tmp_ino) < sizeof(USN_HEADER))) {
 		ntfs_error(vol->sb, "Found corrupt $UsnJrnl/$DATA/$Max "
 				"attribute (size is 0x%llx but should be at "
-				"least 0x%x bytes).", i_size_read(tmp_ino),
+				"least 0x%zx bytes).", i_size_read(tmp_ino),
 				sizeof(USN_HEADER));
 		return FALSE;
 	}

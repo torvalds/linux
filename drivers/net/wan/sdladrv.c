@@ -642,9 +642,7 @@ int sdla_mapmem (sdlahw_t* hw, unsigned long addr)
  * Enable interrupt generation.
  */
 
-EXPORT_SYMBOL(sdla_inten);
-
-int sdla_inten (sdlahw_t* hw)
+static int sdla_inten (sdlahw_t* hw)
 {
 	unsigned port = hw->port;
 	int tmp, i;
@@ -698,8 +696,7 @@ int sdla_inten (sdlahw_t* hw)
  * Disable interrupt generation.
  */
 
-EXPORT_SYMBOL(sdla_intde);
-
+#if 0
 int sdla_intde (sdlahw_t* hw)
 {
 	unsigned port = hw->port;
@@ -748,14 +745,13 @@ int sdla_intde (sdlahw_t* hw)
 	}
 	return 0;
 }
+#endif  /*  0  */
 
 /*============================================================================
  * Acknowledge SDLA hardware interrupt.
  */
 
-EXPORT_SYMBOL(sdla_intack);
-
-int sdla_intack (sdlahw_t* hw)
+static int sdla_intack (sdlahw_t* hw)
 {
 	unsigned port = hw->port;
 	int tmp;
@@ -827,8 +823,7 @@ void read_S514_int_stat (sdlahw_t* hw, u32* int_status)
  * Generate an interrupt to adapter's CPU.
  */
 
-EXPORT_SYMBOL(sdla_intr);
-
+#if 0
 int sdla_intr (sdlahw_t* hw)
 {
 	unsigned port = hw->port;
@@ -863,6 +858,7 @@ int sdla_intr (sdlahw_t* hw)
 	}
 	return 0;
 }
+#endif  /*  0  */
 
 /*============================================================================
  * Execute Adapter Command.
@@ -1998,7 +1994,7 @@ static int detect_s514 (sdlahw_t* hw)
 		modname, hw->irq);
 
 	/* map the physical PCI memory to virtual memory */
-	(void *)hw->dpmbase = ioremap((unsigned long)S514_mem_base_addr,
+	hw->dpmbase = ioremap((unsigned long)S514_mem_base_addr,
 		(unsigned long)MAX_SIZEOF_S514_MEMORY);
     	/* map the physical control register memory to virtual memory */
 	hw->vector = (unsigned long)ioremap(

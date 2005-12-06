@@ -300,18 +300,18 @@ static int gs_build_config_buf(u8 *buf, enum usb_device_speed speed,
 		u8 type, unsigned int index, int is_otg);
 
 static struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned int len,
-	unsigned kmalloc_flags);
+	gfp_t kmalloc_flags);
 static void gs_free_req(struct usb_ep *ep, struct usb_request *req);
 
 static struct gs_req_entry *gs_alloc_req_entry(struct usb_ep *ep, unsigned len,
-	unsigned kmalloc_flags);
+	gfp_t kmalloc_flags);
 static void gs_free_req_entry(struct usb_ep *ep, struct gs_req_entry *req);
 
-static int gs_alloc_ports(struct gs_dev *dev, unsigned kmalloc_flags);
+static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags);
 static void gs_free_ports(struct gs_dev *dev);
 
 /* circular buffer */
-static struct gs_buf *gs_buf_alloc(unsigned int size, unsigned kmalloc_flags);
+static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags);
 static void gs_buf_free(struct gs_buf *gb);
 static void gs_buf_clear(struct gs_buf *gb);
 static unsigned int gs_buf_data_avail(struct gs_buf *gb);
@@ -2091,7 +2091,7 @@ static int gs_build_config_buf(u8 *buf, enum usb_device_speed speed,
  * usb_request or NULL if there is an error.
  */
 static struct usb_request *
-gs_alloc_req(struct usb_ep *ep, unsigned int len, unsigned kmalloc_flags)
+gs_alloc_req(struct usb_ep *ep, unsigned int len, gfp_t kmalloc_flags)
 {
 	struct usb_request *req;
 
@@ -2132,7 +2132,7 @@ static void gs_free_req(struct usb_ep *ep, struct usb_request *req)
  * endpoint, buffer len, and kmalloc flags.
  */
 static struct gs_req_entry *
-gs_alloc_req_entry(struct usb_ep *ep, unsigned len, unsigned kmalloc_flags)
+gs_alloc_req_entry(struct usb_ep *ep, unsigned len, gfp_t kmalloc_flags)
 {
 	struct gs_req_entry	*req;
 
@@ -2173,7 +2173,7 @@ static void gs_free_req_entry(struct usb_ep *ep, struct gs_req_entry *req)
  *
  * The device lock is normally held when calling this function.
  */
-static int gs_alloc_ports(struct gs_dev *dev, unsigned kmalloc_flags)
+static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags)
 {
 	int i;
 	struct gs_port *port;
@@ -2255,7 +2255,7 @@ static void gs_free_ports(struct gs_dev *dev)
  *
  * Allocate a circular buffer and all associated memory.
  */
-static struct gs_buf *gs_buf_alloc(unsigned int size, unsigned kmalloc_flags)
+static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags)
 {
 	struct gs_buf *gb;
 

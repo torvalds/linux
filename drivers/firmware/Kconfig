@@ -60,6 +60,7 @@ config EFI_PCDP
 
 config DELL_RBU
 	tristate "BIOS update support for DELL systems via sysfs"
+	depends on X86
 	select FW_LOADER
 	help
 	 Say m if you want to have the option of updating the BIOS for your
@@ -70,8 +71,7 @@ config DELL_RBU
 
 config DCDBAS
 	tristate "Dell Systems Management Base Driver"
-	depends on X86 || X86_64
-	default m
+	depends on X86
 	help
 	  The Dell Systems Management Base Driver provides a sysfs interface
 	  for systems management software to perform System Management

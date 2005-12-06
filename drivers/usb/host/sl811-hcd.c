@@ -54,6 +54,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb_sl811.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -782,6 +783,9 @@ retry:
 /* usb 1.1 says max 90% of a frame is available for periodic transfers.
  * this driver doesn't promise that much since it's got to handle an
  * IRQ per packet; irq handling latencies also use up that time.
+ *
+ * NOTE:  the periodic schedule is a sparse tree, with the load for
+ * each branch minimized.  see fig 3.5 in the OHCI spec for example.
  */
 #define	MAX_PERIODIC_LOAD	500	/* out of 1000 usec */
 
@@ -815,7 +819,7 @@ static int sl811h_urb_enqueue(
 	struct usb_hcd		*hcd,
 	struct usb_host_endpoint *hep,
 	struct urb		*urb,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 ) {
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
 	struct usb_device	*udev = urb->dev;
@@ -843,6 +847,7 @@ static int sl811h_urb_enqueue(
 	if (!(sl811->port1 & (1 << USB_PORT_FEAT_ENABLE))
 			|| !HC_IS_RUNNING(hcd->state)) {
 		retval = -ENODEV;
+		kfree(ep);
 		goto fail;
 	}
 
@@ -911,8 +916,16 @@ static int sl811h_urb_enqueue(
 	case PIPE_ISOCHRONOUS:
 	case PIPE_INTERRUPT:
 		urb->interval = ep->period;
-		if (ep->branch < PERIODIC_SIZE)
+		if (ep->branch < PERIODIC_SIZE) {
+			/* NOTE:  the phase is correct here, but the value
+			 * needs offsetting by the transfer queue depth.
+			 * All current drivers ignore start_frame, so this
+			 * is unlikely to ever matter...
+			 */
+			urb->start_frame = (sl811->frame & (PERIODIC_SIZE - 1))
+						+ ep->branch;
 			break;
+		}
 
 		retval = balance(sl811, ep->period, ep->load);
 		if (retval < 0)
@@ -1122,7 +1135,7 @@ sl811h_hub_descriptor (
 	desc->wHubCharacteristics = (__force __u16)cpu_to_le16(temp);
 
 	/* two bitmaps:  ports removable, and legacy PortPwrCtrlMask */
-	desc->bitmap[0] = 1 << 1;
+	desc->bitmap[0] = 0 << 1;
 	desc->bitmap[1] = ~0;
 }
 
@@ -1351,7 +1364,7 @@ error:
 #ifdef	CONFIG_PM
 
 static int
-sl811h_hub_suspend(struct usb_hcd *hcd)
+sl811h_bus_suspend(struct usb_hcd *hcd)
 {
 	// SOFs off
 	DBG("%s\n", __FUNCTION__);
@@ -1359,7 +1372,7 @@ sl811h_hub_suspend(struct usb_hcd *hcd)
 }
 
 static int
-sl811h_hub_resume(struct usb_hcd *hcd)
+sl811h_bus_resume(struct usb_hcd *hcd)
 {
 	// SOFs on
 	DBG("%s\n", __FUNCTION__);
@@ -1368,8 +1381,8 @@ sl811h_hub_resume(struct usb_hcd *hcd)
 
 #else
 
-#define	sl811h_hub_suspend	NULL
-#define	sl811h_hub_resume	NULL
+#define	sl811h_bus_suspend	NULL
+#define	sl811h_bus_resume	NULL
 
 #endif
 
@@ -1611,31 +1624,28 @@ static struct hc_driver sl811h_hc_driver = {
 	 */
 	.hub_status_data =	sl811h_hub_status_data,
 	.hub_control =		sl811h_hub_control,
-	.hub_suspend =		sl811h_hub_suspend,
-	.hub_resume =		sl811h_hub_resume,
+	.bus_suspend =		sl811h_bus_suspend,
+	.bus_resume =		sl811h_bus_resume,
 };
 
 /*-------------------------------------------------------------------------*/
 
 static int __devexit
-sl811h_remove(struct device *dev)
+sl811h_remove(struct platform_device *dev)
 {
-	struct usb_hcd		*hcd = dev_get_drvdata(dev);
+	struct usb_hcd		*hcd = platform_get_drvdata(dev);
 	struct sl811		*sl811 = hcd_to_sl811(hcd);
-	struct platform_device	*pdev;
 	struct resource		*res;
-
-	pdev = container_of(dev, struct platform_device, dev);
 
 	remove_debug_file(sl811);
 	usb_remove_hcd(hcd);
 
 	/* some platforms may use IORESOURCE_IO */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	res = platform_get_resource(dev, IORESOURCE_MEM, 1);
 	if (res)
 		iounmap(sl811->data_reg);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res)
 		iounmap(sl811->addr_reg);
 
@@ -1644,11 +1654,10 @@ sl811h_remove(struct device *dev)
 }
 
 static int __devinit
-sl811h_probe(struct device *dev)
+sl811h_probe(struct platform_device *dev)
 {
 	struct usb_hcd		*hcd;
 	struct sl811		*sl811;
-	struct platform_device	*pdev;
 	struct resource		*addr, *data;
 	int			irq;
 	void __iomem		*addr_reg;
@@ -1661,24 +1670,23 @@ sl811h_probe(struct device *dev)
 	 * specific platform_data.  we don't probe for IRQs, and do only
 	 * minimal sanity checking.
 	 */
-	pdev = container_of(dev, struct platform_device, dev);
-	irq = platform_get_irq(pdev, 0);
-	if (pdev->num_resources < 3 || irq < 0)
+	irq = platform_get_irq(dev, 0);
+	if (dev->num_resources < 3 || irq < 0)
 		return -ENODEV;
 
 	/* refuse to confuse usbcore */
-	if (dev->dma_mask) {
+	if (dev->dev.dma_mask) {
 		DBG("no we won't dma\n");
 		return -EINVAL;
 	}
 
 	/* the chip may be wired for either kind of addressing */
-	addr = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	addr = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	data = platform_get_resource(dev, IORESOURCE_MEM, 1);
 	retval = -EBUSY;
 	if (!addr || !data) {
-		addr = platform_get_resource(pdev, IORESOURCE_IO, 0);
-		data = platform_get_resource(pdev, IORESOURCE_IO, 1);
+		addr = platform_get_resource(dev, IORESOURCE_IO, 0);
+		data = platform_get_resource(dev, IORESOURCE_IO, 1);
 		if (!addr || !data)
 			return -ENODEV;
 		ioaddr = 1;
@@ -1700,7 +1708,7 @@ sl811h_probe(struct device *dev)
 	}
 
 	/* allocate and initialize hcd */
-	hcd = usb_create_hcd(&sl811h_hc_driver, dev, dev->bus_id);
+	hcd = usb_create_hcd(&sl811h_hc_driver, &dev->dev, dev->dev.bus_id);
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err5;
@@ -1710,7 +1718,7 @@ sl811h_probe(struct device *dev)
 
 	spin_lock_init(&sl811->lock);
 	INIT_LIST_HEAD(&sl811->async);
-	sl811->board = dev->platform_data;
+	sl811->board = dev->dev.platform_data;
 	init_timer(&sl811->timer);
 	sl811->timer.function = sl811h_timer;
 	sl811->timer.data = (unsigned long) sl811;
@@ -1772,45 +1780,39 @@ sl811h_probe(struct device *dev)
  */
 
 static int
-sl811h_suspend(struct device *dev, pm_message_t state, u32 phase)
+sl811h_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct usb_hcd	*hcd = dev_get_drvdata(dev);
+	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
 	int		retval = 0;
 
-	if (phase != SUSPEND_POWER_DOWN)
-		return retval;
-
 	if (state.event == PM_EVENT_FREEZE)
-		retval = sl811h_hub_suspend(hcd);
+		retval = sl811h_bus_suspend(hcd);
 	else if (state.event == PM_EVENT_SUSPEND)
 		port_power(sl811, 0);
 	if (retval == 0)
-		dev->power.power_state = state;
+		dev->dev.power.power_state = state;
 	return retval;
 }
 
 static int
-sl811h_resume(struct device *dev, u32 phase)
+sl811h_resume(struct platform_device *dev)
 {
-	struct usb_hcd	*hcd = dev_get_drvdata(dev);
+	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
-
-	if (phase != RESUME_POWER_ON)
-		return 0;
 
 	/* with no "check to see if VBUS is still powered" board hook,
 	 * let's assume it'd only be powered to enable remote wakeup.
 	 */
-	if (dev->power.power_state.event == PM_EVENT_SUSPEND
+	if (dev->dev.power.power_state.event == PM_EVENT_SUSPEND
 			|| !hcd->can_wakeup) {
 		sl811->port1 = 0;
 		port_power(sl811, 1);
 		return 0;
 	}
 
-	dev->power.power_state = PMSG_ON;
-	return sl811h_hub_resume(hcd);
+	dev->dev.power.power_state = PMSG_ON;
+	return sl811h_bus_resume(hcd);
 }
 
 #else
@@ -1822,15 +1824,16 @@ sl811h_resume(struct device *dev, u32 phase)
 
 
 /* this driver is exported so sl811_cs can depend on it */
-struct device_driver sl811h_driver = {
-	.name =		(char *) hcd_name,
-	.bus =		&platform_bus_type,
-
+struct platform_driver sl811h_driver = {
 	.probe =	sl811h_probe,
 	.remove =	__devexit_p(sl811h_remove),
 
 	.suspend =	sl811h_suspend,
 	.resume =	sl811h_resume,
+	.driver = {
+		.name =	(char *) hcd_name,
+		.owner = THIS_MODULE,
+	},
 };
 EXPORT_SYMBOL(sl811h_driver);
 
@@ -1842,12 +1845,12 @@ static int __init sl811h_init(void)
 		return -ENODEV;
 
 	INFO("driver %s, %s\n", hcd_name, DRIVER_VERSION);
-	return driver_register(&sl811h_driver);
+	return platform_driver_register(&sl811h_driver);
 }
 module_init(sl811h_init);
 
 static void __exit sl811h_cleanup(void)
 {
-	driver_unregister(&sl811h_driver);
+	platform_driver_unregister(&sl811h_driver);
 }
 module_exit(sl811h_cleanup);

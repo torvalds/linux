@@ -1688,10 +1688,8 @@ close_isarstate(struct BCState *bcs)
 {
 	modeisar(bcs, 0, bcs->channel);
 	if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-		if (bcs->hw.isar.rcvbuf) {
-			kfree(bcs->hw.isar.rcvbuf);
-			bcs->hw.isar.rcvbuf = NULL;
-		}
+		kfree(bcs->hw.isar.rcvbuf);
+		bcs->hw.isar.rcvbuf = NULL;
 		skb_queue_purge(&bcs->rqueue);
 		skb_queue_purge(&bcs->squeue);
 		if (bcs->tx_skb) {

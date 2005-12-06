@@ -43,21 +43,17 @@
 #include "proto.h"
 #include "pci_impl.h"
 
-void default_idle(void)
-{
-	barrier();
-}
-
 void
 cpu_idle(void)
 {
+	set_thread_flag(TIF_POLLING_NRFLAG);
+
 	while (1) {
-		void (*idle)(void) = default_idle;
 		/* FIXME -- EV6 and LCA45 know how to power down
 		   the CPU.  */
 
 		while (!need_resched())
-			idle();
+			cpu_relax();
 		schedule();
 	}
 }
@@ -127,6 +123,10 @@ common_shutdown_1(void *generic_ptr)
 	/* If booted from SRM, reset some of the original environment. */
 	if (alpha_using_srm) {
 #ifdef CONFIG_DUMMY_CONSOLE
+		/* If we've gotten here after SysRq-b, leave interrupt
+		   context before taking over the console. */
+		if (in_interrupt())
+			irq_exit();
 		/* This has the effect of resetting the VGA video origin.  */
 		take_over_console(&dummy_con, 0, MAX_NR_CONSOLES-1, 1);
 #endif

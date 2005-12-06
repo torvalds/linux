@@ -12,7 +12,7 @@ This release has been validated against the SoftFloat-2b library by
 John R. Hauser using the TestFloat-2a test suite.  Details of this
 library and test suite can be found at:
 
-   http://www.cs.berkeley.edu/~jhauser/arithmetic/SoftFloat.html
+   http://www.jhauser.us/arithmetic/SoftFloat.html
 
 The operations which have been tested with this package are:
 

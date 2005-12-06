@@ -13,7 +13,6 @@
  */
 
 #include <linux/config.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -716,9 +715,6 @@ static int prism2_close(struct net_device *dev)
 		hostap_deauth_all_stas(dev, local->ap, 1);
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
-	if (local->func->dev_close && local->func->dev_close(local))
-		return 0;
-
 	if (dev == local->dev) {
 		local->func->hw_shutdown(dev, HOSTAP_HW_ENABLE_CMDCOMPL);
 	}
@@ -765,9 +761,6 @@ static int prism2_open(struct net_device *dev)
 	if ((local->func->card_present && !local->func->card_present(local)) ||
 	    local->hw_downloading)
 		return -ENODEV;
-
-	if (local->func->dev_open && local->func->dev_open(local))
-		return 1;
 
 	if (!try_module_get(local->hw_module))
 		return -ENODEV;

@@ -81,7 +81,8 @@ Adding New Machines
 
   Any large scale modifications, or new drivers should be discussed
   on the ARM kernel mailing list (linux-arm-kernel) before being
-  attempted.
+  attempted. See http://www.arm.linux.org.uk/mailinglists/ for the
+  mailing list information.
 
 
 NAND
@@ -120,6 +121,43 @@ Clock Management
   various clock units
 
 
+Platform Data
+-------------
+
+  Whenever a device has platform specific data that is specified
+  on a per-machine basis, care should be taken to ensure the
+  following:
+
+    1) that default data is not left in the device to confuse the
+       driver if a machine does not set it at startup
+
+    2) the data should (if possible) be marked as __initdata,
+       to ensure that the data is thrown away if the machine is
+       not the one currently in use.
+
+       The best way of doing this is to make a function that
+       kmalloc()s an area of memory, and copies the __initdata
+       and then sets the relevant device's platform data. Making
+       the function `__init` takes care of ensuring it is discarded
+       with the rest of the initialisation code
+
+       static __init void s3c24xx_xxx_set_platdata(struct xxx_data *pd)
+       {
+           struct s3c2410_xxx_mach_info *npd;
+
+	   npd = kmalloc(sizeof(struct s3c2410_xxx_mach_info), GFP_KERNEL);
+	   if (npd) {
+	      memcpy(npd, pd, sizeof(struct s3c2410_xxx_mach_info));
+	      s3c_device_xxx.dev.platform_data = npd;
+	   } else {
+              printk(KERN_ERR "no memory for xxx platform data\n");
+	   }
+	}
+
+	Note, since the code is marked as __init, it should not be
+	exported outside arch/arm/mach-s3c2410/, or exported to
+	modules via EXPORT_SYMBOL() and related functions.
+
 Port Contributors
 -----------------
 
@@ -149,6 +187,7 @@ Document Changes
   06 Mar 2005 - BJD - Added Christer Weinigel
   08 Mar 2005 - BJD - Added LCVR to list of people, updated introduction
   08 Mar 2005 - BJD - Added section on adding machines
+  09 Sep 2005 - BJD - Added section on platform data
 
 Document Author
 ---------------

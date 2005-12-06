@@ -6,6 +6,7 @@
  * Synthesize TLB refill handlers at runtime.
  *
  * Copyright (C) 2004,2005 by Thiemo Seufer
+ * Copyright (C) 2005  Maciej W. Rozycki
  */
 
 #include <stdarg.h>
@@ -91,7 +92,7 @@ enum opcode {
 	insn_addu, insn_addiu, insn_and, insn_andi, insn_beq,
 	insn_beql, insn_bgez, insn_bgezl, insn_bltz, insn_bltzl,
 	insn_bne, insn_daddu, insn_daddiu, insn_dmfc0, insn_dmtc0,
-	insn_dsll, insn_dsll32, insn_dsra, insn_dsrl, insn_dsrl32,
+	insn_dsll, insn_dsll32, insn_dsra, insn_dsrl,
 	insn_dsubu, insn_eret, insn_j, insn_jal, insn_jr, insn_ld,
 	insn_ll, insn_lld, insn_lui, insn_lw, insn_mfc0, insn_mtc0,
 	insn_ori, insn_rfe, insn_sc, insn_scd, insn_sd, insn_sll,
@@ -134,7 +135,6 @@ static __initdata struct insn insn_table[] = {
 	{ insn_dsll32, M(spec_op,0,0,0,0,dsll32_op), RT | RD | RE },
 	{ insn_dsra, M(spec_op,0,0,0,0,dsra_op), RT | RD | RE },
 	{ insn_dsrl, M(spec_op,0,0,0,0,dsrl_op), RT | RD | RE },
-	{ insn_dsrl32, M(spec_op,0,0,0,0,dsrl32_op), RT | RD | RE },
 	{ insn_dsubu, M(spec_op,0,0,0,0,dsubu_op), RS | RT | RD },
 	{ insn_eret, M(cop0_op,cop_op,0,0,0,eret_op), 0 },
 	{ insn_j, M(j_op,0,0,0,0,0), JIMM },
@@ -366,7 +366,6 @@ I_u2u1u3(_dsll);
 I_u2u1u3(_dsll32);
 I_u2u1u3(_dsra);
 I_u2u1u3(_dsrl);
-I_u2u1u3(_dsrl32);
 I_u3u1u2(_dsubu);
 I_0(_eret);
 I_u1(_j);
@@ -412,7 +411,6 @@ enum label_id {
 	label_nopage_tlbm,
 	label_smp_pgtable_change,
 	label_r3000_write_probe_fail,
-	label_r3000_write_probe_ok
 };
 
 struct label {
@@ -445,7 +443,6 @@ L_LA(_nopage_tlbs)
 L_LA(_nopage_tlbm)
 L_LA(_smp_pgtable_change)
 L_LA(_r3000_write_probe_fail)
-L_LA(_r3000_write_probe_ok)
 
 /* convenience macros for instructions */
 #ifdef CONFIG_64BIT
@@ -490,7 +487,7 @@ L_LA(_r3000_write_probe_ok)
 static __init int __attribute__((unused)) in_compat_space_p(long addr)
 {
 	/* Is this address in 32bit compat space? */
-	return (((addr) & 0xffffffff00000000) == 0xffffffff00000000);
+	return (((addr) & 0xffffffff00000000L) == 0xffffffff00000000L);
 }
 
 static __init int __attribute__((unused)) rel_highest(long val)
@@ -734,7 +731,7 @@ static void __init build_r3000_tlb_refill_handler(void)
 	if (p > tlb_handler + 32)
 		panic("TLB refill handler space exceeded");
 
-	printk("Synthesized TLB handler (%u instructions).\n",
+	printk("Synthesized TLB refill handler (%u instructions).\n",
 	       (unsigned int)(p - tlb_handler));
 #ifdef DEBUG_TLB
 	{
@@ -746,7 +743,6 @@ static void __init build_r3000_tlb_refill_handler(void)
 #endif
 
 	memcpy((void *)CAC_BASE, tlb_handler, 0x80);
-	flush_icache_range(CAC_BASE, CAC_BASE + 0x80);
 }
 
 /*
@@ -783,6 +779,8 @@ static __initdata u32 final_handler[64];
 static __init void __attribute__((unused)) build_tlb_probe_entry(u32 **p)
 {
 	switch (current_cpu_data.cputype) {
+	/* Found by experiment: R4600 v2.0 needs this, too.  */
+	case CPU_R4600:
 	case CPU_R5000:
 	case CPU_R5000A:
 	case CPU_NEVADA:
@@ -834,12 +832,20 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	case CPU_R4700:
 	case CPU_R5000:
 	case CPU_R5000A:
+		i_nop(p);
+		tlbw(p);
+		i_nop(p);
+		break;
+
+	case CPU_R4300:
 	case CPU_5KC:
 	case CPU_TX49XX:
 	case CPU_AU1000:
 	case CPU_AU1100:
 	case CPU_AU1500:
 	case CPU_AU1550:
+	case CPU_AU1200:
+	case CPU_PR4450:
 		i_nop(p);
 		tlbw(p);
 		break;
@@ -848,6 +854,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	case CPU_R12000:
 	case CPU_4KC:
 	case CPU_SB1:
+	case CPU_SB1A:
 	case CPU_4KSC:
 	case CPU_20KC:
 	case CPU_25KF:
@@ -875,6 +882,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 
 	case CPU_4KEC:
 	case CPU_24K:
+	case CPU_34K:
 		i_ehb(p);
 		tlbw(p);
 		break;
@@ -911,6 +919,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 
 	case CPU_VR4131:
 	case CPU_VR4133:
+	case CPU_R5432:
 		i_nop(p);
 		i_nop(p);
 		tlbw(p);
@@ -942,34 +951,29 @@ build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
 	/* No i_nop needed here, since the next insn doesn't touch TMP. */
 
 #ifdef CONFIG_SMP
+# ifdef CONFIG_BUILD_ELF64
 	/*
-	 * 64 bit SMP has the lower part of &pgd_current[smp_processor_id()]
+	 * 64 bit SMP running in XKPHYS has smp_processor_id() << 3
 	 * stored in CONTEXT.
 	 */
-	if (in_compat_space_p(pgdc)) {
-		i_dmfc0(p, ptr, C0_CONTEXT);
-		i_dsra(p, ptr, ptr, 23);
-		i_ld(p, ptr, 0, ptr);
-	} else {
-#ifdef CONFIG_BUILD_ELF64
-		i_dmfc0(p, ptr, C0_CONTEXT);
-		i_dsrl(p, ptr, ptr, 23);
-		i_dsll(p, ptr, ptr, 3);
-		i_LA_mostly(p, tmp, pgdc);
-		i_daddu(p, ptr, ptr, tmp);
-		i_dmfc0(p, tmp, C0_BADVADDR);
-		i_ld(p, ptr, rel_lo(pgdc), ptr);
-#else
-		i_dmfc0(p, ptr, C0_CONTEXT);
-		i_lui(p, tmp, rel_highest(pgdc));
-		i_dsll(p, ptr, ptr, 9);
-		i_daddiu(p, tmp, tmp, rel_higher(pgdc));
-		i_dsrl32(p, ptr, ptr, 0);
-		i_and(p, ptr, ptr, tmp);
-		i_dmfc0(p, tmp, C0_BADVADDR);
-		i_ld(p, ptr, 0, ptr);
-#endif
-	}
+	i_dmfc0(p, ptr, C0_CONTEXT);
+	i_dsrl(p, ptr, ptr, 23);
+	i_LA_mostly(p, tmp, pgdc);
+	i_daddu(p, ptr, ptr, tmp);
+	i_dmfc0(p, tmp, C0_BADVADDR);
+	i_ld(p, ptr, rel_lo(pgdc), ptr);
+# else
+	/*
+	 * 64 bit SMP running in compat space has the lower part of
+	 * &pgd_current[smp_processor_id()] stored in CONTEXT.
+	 */
+	if (!in_compat_space_p(pgdc))
+		panic("Invalid page directory address!");
+
+	i_dmfc0(p, ptr, C0_CONTEXT);
+	i_dsra(p, ptr, ptr, 23);
+	i_ld(p, ptr, 0, ptr);
+# endif
 #else
 	i_LA_mostly(p, ptr, pgdc);
 	i_ld(p, ptr, rel_lo(pgdc), ptr);
@@ -1026,7 +1030,6 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 	i_mfc0(p, ptr, C0_CONTEXT);
 	i_LA_mostly(p, tmp, pgdc);
 	i_srl(p, ptr, ptr, 23);
-	i_sll(p, ptr, ptr, 2);
 	i_addu(p, ptr, tmp, ptr);
 #else
 	i_LA_mostly(p, ptr, pgdc);
@@ -1245,13 +1248,19 @@ static void __init build_r4000_tlb_refill_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < 64; i++)
-			printk("%08x\n", final_handler[i]);
+		f = final_handler;
+#ifdef CONFIG_64BIT
+		if (final_len > 32)
+			final_len = 64;
+		else
+			f = final_handler + 32;
+#endif /* CONFIG_64BIT */
+		for (i = 0; i < final_len; i++)
+			printk("%08x\n", f[i]);
 	}
 #endif
 
 	memcpy((void *)CAC_BASE, final_handler, 0x100);
-	flush_icache_range(CAC_BASE, CAC_BASE + 0x100);
 }
 
 /*
@@ -1277,37 +1286,41 @@ u32 __tlb_handler_align handle_tlbs[FASTPATH_SIZE];
 u32 __tlb_handler_align handle_tlbm[FASTPATH_SIZE];
 
 static void __init
-iPTE_LW(u32 **p, struct label **l, unsigned int pte, int offset,
-	unsigned int ptr)
+iPTE_LW(u32 **p, struct label **l, unsigned int pte, unsigned int ptr)
 {
 #ifdef CONFIG_SMP
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (cpu_has_64bits)
-		i_lld(p, pte, offset, ptr);
+		i_lld(p, pte, 0, ptr);
 	else
 # endif
-		i_LL(p, pte, offset, ptr);
+		i_LL(p, pte, 0, ptr);
 #else
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (cpu_has_64bits)
-		i_ld(p, pte, offset, ptr);
+		i_ld(p, pte, 0, ptr);
 	else
 # endif
-		i_LW(p, pte, offset, ptr);
+		i_LW(p, pte, 0, ptr);
 #endif
 }
 
 static void __init
-iPTE_SW(u32 **p, struct reloc **r, unsigned int pte, int offset,
-	unsigned int ptr)
+iPTE_SW(u32 **p, struct reloc **r, unsigned int pte, unsigned int ptr,
+	unsigned int mode)
 {
+#ifdef CONFIG_64BIT_PHYS_ADDR
+	unsigned int hwmode = mode & (_PAGE_VALID | _PAGE_DIRTY);
+#endif
+
+	i_ori(p, pte, pte, mode);
 #ifdef CONFIG_SMP
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (cpu_has_64bits)
-		i_scd(p, pte, offset, ptr);
+		i_scd(p, pte, 0, ptr);
 	else
 # endif
-		i_SC(p, pte, offset, ptr);
+		i_SC(p, pte, 0, ptr);
 
 	if (r10000_llsc_war())
 		il_beqzl(p, r, pte, label_smp_pgtable_change);
@@ -1318,7 +1331,7 @@ iPTE_SW(u32 **p, struct reloc **r, unsigned int pte, int offset,
 	if (!cpu_has_64bits) {
 		/* no i_nop needed */
 		i_ll(p, pte, sizeof(pte_t) / 2, ptr);
-		i_ori(p, pte, pte, _PAGE_VALID);
+		i_ori(p, pte, pte, hwmode);
 		i_sc(p, pte, sizeof(pte_t) / 2, ptr);
 		il_beqz(p, r, pte, label_smp_pgtable_change);
 		/* no i_nop needed */
@@ -1331,15 +1344,15 @@ iPTE_SW(u32 **p, struct reloc **r, unsigned int pte, int offset,
 #else
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (cpu_has_64bits)
-		i_sd(p, pte, offset, ptr);
+		i_sd(p, pte, 0, ptr);
 	else
 # endif
-		i_SW(p, pte, offset, ptr);
+		i_SW(p, pte, 0, ptr);
 
 # ifdef CONFIG_64BIT_PHYS_ADDR
 	if (!cpu_has_64bits) {
 		i_lw(p, pte, sizeof(pte_t) / 2, ptr);
-		i_ori(p, pte, pte, _PAGE_VALID);
+		i_ori(p, pte, pte, hwmode);
 		i_sw(p, pte, sizeof(pte_t) / 2, ptr);
 		i_lw(p, pte, 0, ptr);
 	}
@@ -1359,7 +1372,7 @@ build_pte_present(u32 **p, struct label **l, struct reloc **r,
 	i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_READ);
 	i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_READ);
 	il_bnez(p, r, pte, lid);
-	iPTE_LW(p, l, pte, 0, ptr);
+	iPTE_LW(p, l, pte, ptr);
 }
 
 /* Make PTE valid, store result in PTR. */
@@ -1367,8 +1380,9 @@ static void __init
 build_make_valid(u32 **p, struct reloc **r, unsigned int pte,
 		 unsigned int ptr)
 {
-	i_ori(p, pte, pte, _PAGE_VALID | _PAGE_ACCESSED);
-	iPTE_SW(p, r, pte, 0, ptr);
+	unsigned int mode = _PAGE_VALID | _PAGE_ACCESSED;
+
+	iPTE_SW(p, r, pte, ptr, mode);
 }
 
 /*
@@ -1382,7 +1396,7 @@ build_pte_writable(u32 **p, struct label **l, struct reloc **r,
 	i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
 	i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
 	il_bnez(p, r, pte, lid);
-	iPTE_LW(p, l, pte, 0, ptr);
+	iPTE_LW(p, l, pte, ptr);
 }
 
 /* Make PTE writable, update software status bits as well, then store
@@ -1392,9 +1406,10 @@ static void __init
 build_make_write(u32 **p, struct reloc **r, unsigned int pte,
 		 unsigned int ptr)
 {
-	i_ori(p, pte, pte,
-	      _PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID | _PAGE_DIRTY);
-	iPTE_SW(p, r, pte, 0, ptr);
+	unsigned int mode = (_PAGE_ACCESSED | _PAGE_MODIFIED | _PAGE_VALID
+			     | _PAGE_DIRTY);
+
+	iPTE_SW(p, r, pte, ptr, mode);
 }
 
 /*
@@ -1407,41 +1422,48 @@ build_pte_modifiable(u32 **p, struct label **l, struct reloc **r,
 {
 	i_andi(p, pte, pte, _PAGE_WRITE);
 	il_beqz(p, r, pte, lid);
-	iPTE_LW(p, l, pte, 0, ptr);
+	iPTE_LW(p, l, pte, ptr);
 }
 
 /*
  * R3000 style TLB load/store/modify handlers.
  */
 
-/* This places the pte in the page table at PTR into ENTRYLO0. */
+/*
+ * This places the pte into ENTRYLO0 and writes it with tlbwi.
+ * Then it returns.
+ */
 static void __init
-build_r3000_pte_reload(u32 **p, unsigned int ptr)
+build_r3000_pte_reload_tlbwi(u32 **p, unsigned int pte, unsigned int tmp)
 {
-	i_lw(p, ptr, 0, ptr);
-	i_nop(p); /* load delay */
-	i_mtc0(p, ptr, C0_ENTRYLO0);
-	i_nop(p); /* cp0 delay */
+	i_mtc0(p, pte, C0_ENTRYLO0); /* cp0 delay */
+	i_mfc0(p, tmp, C0_EPC); /* cp0 delay */
+	i_tlbwi(p);
+	i_jr(p, tmp);
+	i_rfe(p); /* branch delay */
 }
 
 /*
- * The index register may have the probe fail bit set,
- * because we would trap on access kseg2, i.e. without refill.
+ * This places the pte into ENTRYLO0 and writes it with tlbwi
+ * or tlbwr as appropriate.  This is because the index register
+ * may have the probe fail bit set as a result of a trap on a
+ * kseg2 access, i.e. without refill.  Then it returns.
  */
 static void __init
-build_r3000_tlb_write(u32 **p, struct label **l, struct reloc **r,
-		      unsigned int tmp)
+build_r3000_tlb_reload_write(u32 **p, struct label **l, struct reloc **r,
+			     unsigned int pte, unsigned int tmp)
 {
 	i_mfc0(p, tmp, C0_INDEX);
-	i_nop(p); /* cp0 delay */
-	il_bltz(p, r, tmp, label_r3000_write_probe_fail);
-	i_nop(p); /* branch delay */
-	i_tlbwi(p);
-	il_b(p, r, label_r3000_write_probe_ok);
-	i_nop(p); /* branch delay */
+	i_mtc0(p, pte, C0_ENTRYLO0); /* cp0 delay */
+	il_bltz(p, r, tmp, label_r3000_write_probe_fail); /* cp0 delay */
+	i_mfc0(p, tmp, C0_EPC); /* branch delay */
+	i_tlbwi(p); /* cp0 delay */
+	i_jr(p, tmp);
+	i_rfe(p); /* branch delay */
 	l_r3000_write_probe_fail(l, *p);
-	i_tlbwr(p);
-	l_r3000_write_probe_ok(l, *p);
+	i_tlbwr(p); /* cp0 delay */
+	i_jr(p, tmp);
+	i_rfe(p); /* branch delay */
 }
 
 static void __init
@@ -1461,17 +1483,7 @@ build_r3000_tlbchange_handler_head(u32 **p, unsigned int pte,
 	i_andi(p, pte, pte, 0xffc); /* load delay */
 	i_addu(p, ptr, ptr, pte);
 	i_lw(p, pte, 0, ptr);
-	i_nop(p); /* load delay */
-	i_tlbp(p);
-}
-
-static void __init
-build_r3000_tlbchange_handler_tail(u32 **p, unsigned int tmp)
-{
-	i_mfc0(p, tmp, C0_EPC);
-	i_nop(p); /* cp0 delay */
-	i_jr(p, tmp);
-	i_rfe(p); /* branch delay */
+	i_tlbp(p); /* load delay */
 }
 
 static void __init build_r3000_tlb_load_handler(void)
@@ -1486,10 +1498,9 @@ static void __init build_r3000_tlb_load_handler(void)
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
 	build_pte_present(&p, &l, &r, K0, K1, label_nopage_tlbl);
+	i_nop(&p); /* load delay */
 	build_make_valid(&p, &r, K0, K1);
-	build_r3000_pte_reload(&p, K1);
-	build_r3000_tlb_write(&p, &l, &r, K0);
-	build_r3000_tlbchange_handler_tail(&p, K0);
+	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
 
 	l_nopage_tlbl(&l, p);
 	i_j(&p, (unsigned long)tlb_do_page_fault_0 & 0x0fffffff);
@@ -1506,13 +1517,10 @@ static void __init build_r3000_tlb_load_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbl); i++)
 			printk("%08x\n", handle_tlbl[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbl,
-			   (unsigned long)handle_tlbl + FASTPATH_SIZE * sizeof(u32));
 }
 
 static void __init build_r3000_tlb_store_handler(void)
@@ -1527,10 +1535,9 @@ static void __init build_r3000_tlb_store_handler(void)
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
 	build_pte_writable(&p, &l, &r, K0, K1, label_nopage_tlbs);
+	i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
-	build_r3000_pte_reload(&p, K1);
-	build_r3000_tlb_write(&p, &l, &r, K0);
-	build_r3000_tlbchange_handler_tail(&p, K0);
+	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
 
 	l_nopage_tlbs(&l, p);
 	i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
@@ -1547,13 +1554,10 @@ static void __init build_r3000_tlb_store_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbs); i++)
 			printk("%08x\n", handle_tlbs[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbs,
-			   (unsigned long)handle_tlbs + FASTPATH_SIZE * sizeof(u32));
 }
 
 static void __init build_r3000_tlb_modify_handler(void)
@@ -1568,10 +1572,9 @@ static void __init build_r3000_tlb_modify_handler(void)
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
 	build_pte_modifiable(&p, &l, &r, K0, K1, label_nopage_tlbm);
+	i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
-	build_r3000_pte_reload(&p, K1);
-	i_tlbwi(&p);
-	build_r3000_tlbchange_handler_tail(&p, K0);
+	build_r3000_pte_reload_tlbwi(&p, K0, K1);
 
 	l_nopage_tlbm(&l, p);
 	i_j(&p, (unsigned long)tlb_do_page_fault_1 & 0x0fffffff);
@@ -1588,13 +1591,10 @@ static void __init build_r3000_tlb_modify_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbm); i++)
 			printk("%08x\n", handle_tlbm[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbm,
-			   (unsigned long)handle_tlbm + FASTPATH_SIZE * sizeof(u32));
 }
 
 /*
@@ -1620,7 +1620,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct label **l,
 #ifdef CONFIG_SMP
 	l_smp_pgtable_change(l, *p);
 # endif
-	iPTE_LW(p, l, pte, 0, ptr); /* get even pte */
+	iPTE_LW(p, l, pte, ptr); /* get even pte */
 	build_tlb_probe_entry(p);
 }
 
@@ -1680,13 +1680,10 @@ static void __init build_r4000_tlb_load_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbl); i++)
 			printk("%08x\n", handle_tlbl[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbl,
-			   (unsigned long)handle_tlbl + FASTPATH_SIZE * sizeof(u32));
 }
 
 static void __init build_r4000_tlb_store_handler(void)
@@ -1719,13 +1716,10 @@ static void __init build_r4000_tlb_store_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbs); i++)
 			printk("%08x\n", handle_tlbs[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbs,
-			   (unsigned long)handle_tlbs + FASTPATH_SIZE * sizeof(u32));
 }
 
 static void __init build_r4000_tlb_modify_handler(void)
@@ -1759,13 +1753,10 @@ static void __init build_r4000_tlb_modify_handler(void)
 	{
 		int i;
 
-		for (i = 0; i < FASTPATH_SIZE; i++)
+		for (i = 0; i < (p - handle_tlbm); i++)
 			printk("%08x\n", handle_tlbm[i]);
 	}
 #endif
-
-	flush_icache_range((unsigned long)handle_tlbm,
-			   (unsigned long)handle_tlbm + FASTPATH_SIZE * sizeof(u32));
 }
 
 void __init build_tlb_refill_handler(void)
@@ -1812,4 +1803,14 @@ void __init build_tlb_refill_handler(void)
 			run_once++;
 		}
 	}
+}
+
+void __init flush_tlb_handlers(void)
+{
+	flush_icache_range((unsigned long)handle_tlbl,
+			   (unsigned long)handle_tlbl + sizeof(handle_tlbl));
+	flush_icache_range((unsigned long)handle_tlbs,
+			   (unsigned long)handle_tlbs + sizeof(handle_tlbs));
+	flush_icache_range((unsigned long)handle_tlbm,
+			   (unsigned long)handle_tlbm + sizeof(handle_tlbm));
 }

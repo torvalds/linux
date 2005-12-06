@@ -114,16 +114,9 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 		int low = sysctl_local_port_range[0];
 		int high = sysctl_local_port_range[1];
 		int remaining = (high - low) + 1;
-		int rover;
+		int rover = net_random() % (high - low) + low;
 
-		spin_lock(&tcp_hashinfo.portalloc_lock);
-		if (tcp_hashinfo.port_rover < low)
-			rover = low;
-		else
-			rover = tcp_hashinfo.port_rover;
-		do {	rover++;
-			if (rover > high)
-				rover = low;
+		do {
 			head = &tcp_hashinfo.bhash[inet_bhashfn(rover, tcp_hashinfo.bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
@@ -132,9 +125,9 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 			break;
 		next:
 			spin_unlock(&head->lock);
+			if (++rover > high)
+				rover = low;
 		} while (--remaining > 0);
-		tcp_hashinfo.port_rover = rover;
-		spin_unlock(&tcp_hashinfo.portalloc_lock);
 
 		/* Exhausted local port range during search?  It is not
 		 * possible for us to be holding one of the bind hash
@@ -209,9 +202,11 @@ static __inline__ void __tcp_v6_hash(struct sock *sk)
 		lock = &tcp_hashinfo.lhash_lock;
 		inet_listen_wlock(&tcp_hashinfo);
 	} else {
-		sk->sk_hashent = inet6_sk_ehashfn(sk, tcp_hashinfo.ehash_size);
-		list = &tcp_hashinfo.ehash[sk->sk_hashent].chain;
-		lock = &tcp_hashinfo.ehash[sk->sk_hashent].lock;
+		unsigned int hash;
+		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
+		hash &= (tcp_hashinfo.ehash_size - 1);
+		list = &tcp_hashinfo.ehash[hash].chain;
+		lock = &tcp_hashinfo.ehash[hash].lock;
 		write_lock(lock);
 	}
 
@@ -322,13 +317,13 @@ static int __tcp_v6_check_established(struct sock *sk, const __u16 lport,
 	const struct in6_addr *saddr = &np->daddr;
 	const int dif = sk->sk_bound_dev_if;
 	const u32 ports = INET_COMBINED_PORTS(inet->dport, lport);
-	const int hash = inet6_ehashfn(daddr, inet->num, saddr, inet->dport,
-				       tcp_hashinfo.ehash_size);
-	struct inet_ehash_bucket *head = &tcp_hashinfo.ehash[hash];
+	unsigned int hash = inet6_ehashfn(daddr, inet->num, saddr, inet->dport);
+	struct inet_ehash_bucket *head = inet_ehash_bucket(&tcp_hashinfo, hash);
 	struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
 
+	prefetch(head->chain.first);
 	write_lock(&head->lock);
 
 	/* Check TIME-WAIT sockets first. */
@@ -365,14 +360,14 @@ static int __tcp_v6_check_established(struct sock *sk, const __u16 lport,
 
 	/* And established part... */
 	sk_for_each(sk2, node, &head->chain) {
-		if (INET6_MATCH(sk2, saddr, daddr, ports, dif))
+		if (INET6_MATCH(sk2, hash, saddr, daddr, ports, dif))
 			goto not_unique;
 	}
 
 unique:
 	BUG_TRAP(sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
-	sk->sk_hashent = hash;
+	sk->sk_hash = hash;
 	sock_prot_inc_use(sk->sk_prot);
 	write_unlock(&head->lock);
 
@@ -1406,20 +1401,18 @@ out:
 static int tcp_v6_checksum_init(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_HW) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (!tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-				  &skb->nh.ipv6h->daddr,skb->csum))
+				  &skb->nh.ipv6h->daddr,skb->csum)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			return 0;
-		LIMIT_NETDEBUG(KERN_DEBUG "hw tcp v6 csum failed\n");
+		}
 	}
+
+	skb->csum = ~tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
+				  &skb->nh.ipv6h->daddr, 0);
+
 	if (skb->len <= 76) {
-		if (tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-				 &skb->nh.ipv6h->daddr,skb_checksum(skb, 0, skb->len, 0)))
-			return -1;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else {
-		skb->csum = ~tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-					  &skb->nh.ipv6h->daddr,0);
+		return __skb_checksum_complete(skb);
 	}
 	return 0;
 }
@@ -1580,7 +1573,7 @@ static int tcp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 		goto discard_it;
 
 	if ((skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	     tcp_v6_checksum_init(skb) < 0))
+	     tcp_v6_checksum_init(skb)))
 		goto bad_packet;
 
 	th = skb->h.th;

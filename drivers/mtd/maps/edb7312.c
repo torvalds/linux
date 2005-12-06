@@ -1,10 +1,10 @@
 /*
- * $Id: edb7312.c,v 1.13 2004/11/04 13:24:14 gleixner Exp $
+ * $Id: edb7312.c,v 1.14 2005/11/07 11:14:27 gleixner Exp $
  *
  * Handle mapping of the NOR flash on Cogent EDB7312 boards
  *
  * Copyright 2002 SYSGO Real-Time Solutions GmbH
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -46,7 +46,7 @@ struct map_info edb7312nor_map = {
 #ifdef CONFIG_MTD_PARTITIONS
 
 /*
- * MTD partitioning stuff 
+ * MTD partitioning stuff
  */
 static struct mtd_partition static_partitions[3] =
 {
@@ -80,7 +80,7 @@ int __init init_edb7312nor(void)
 	const char **type;
 	const char *part_type = 0;
 
-       	printk(KERN_NOTICE MSG_PREFIX "0x%08x at 0x%08x\n", 
+       	printk(KERN_NOTICE MSG_PREFIX "0x%08x at 0x%08x\n",
 	       WINDOW_SIZE, WINDOW_ADDR);
 	edb7312nor_map.virt = ioremap(WINDOW_ADDR, WINDOW_SIZE);
 
@@ -88,7 +88,7 @@ int __init init_edb7312nor(void)
 		printk(MSG_PREFIX "failed to ioremap\n");
 		return -EIO;
 	}
-	
+
 	simple_map_init(&edb7312nor_map);
 
 	mymtd = 0;

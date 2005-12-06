@@ -152,7 +152,8 @@ struct ttusb_dec {
 	struct list_head	filter_info_list;
 	spinlock_t		filter_info_list_lock;
 
-	struct input_dev	rc_input_dev;
+	struct input_dev	*rc_input_dev;
+	char			rc_phys[64];
 
 	int			active; /* Loaded successfully */
 };
@@ -235,9 +236,9 @@ static void ttusb_dec_handle_irq( struct urb *urb, struct pt_regs *regs)
 		 * this should/could be added later ...
 		 * for now lets report each signal as a key down and up*/
 		dprintk("%s:rc signal:%d\n", __FUNCTION__, buffer[4]);
-		input_report_key(&dec->rc_input_dev,rc_keys[buffer[4]-1],1);
-		input_report_key(&dec->rc_input_dev,rc_keys[buffer[4]-1],0);
-		input_sync(&dec->rc_input_dev);
+		input_report_key(dec->rc_input_dev, rc_keys[buffer[4] - 1], 1);
+		input_report_key(dec->rc_input_dev, rc_keys[buffer[4] - 1], 0);
+		input_sync(dec->rc_input_dev);
 	}
 
 exit:	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -1181,29 +1182,38 @@ static void ttusb_dec_init_tasklet(struct ttusb_dec *dec)
 		     (unsigned long)dec);
 }
 
-static void ttusb_init_rc( struct ttusb_dec *dec)
+static int ttusb_init_rc(struct ttusb_dec *dec)
 {
+	struct input_dev *input_dev;
 	u8 b[] = { 0x00, 0x01 };
 	int i;
 
-	init_input_dev(&dec->rc_input_dev);
+	usb_make_path(dec->udev, dec->rc_phys, sizeof(dec->rc_phys));
+	strlcpy(dec->rc_phys, "/input0", sizeof(dec->rc_phys));
 
-	dec->rc_input_dev.name = "ttusb_dec remote control";
-	dec->rc_input_dev.evbit[0] = BIT(EV_KEY);
-	dec->rc_input_dev.keycodesize = sizeof(u16);
-	dec->rc_input_dev.keycodemax = 0x1a;
-	dec->rc_input_dev.keycode = rc_keys;
+	dec->rc_input_dev = input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
 
-	 for (i = 0; i < sizeof(rc_keys)/sizeof(rc_keys[0]); i++)
-                set_bit(rc_keys[i], dec->rc_input_dev.keybit);
+	input_dev->name = "ttusb_dec remote control";
+	input_dev->phys = dec->rc_phys;
+	input_dev->evbit[0] = BIT(EV_KEY);
+	input_dev->keycodesize = sizeof(u16);
+	input_dev->keycodemax = 0x1a;
+	input_dev->keycode = rc_keys;
 
-	input_register_device(&dec->rc_input_dev);
+	for (i = 0; i < ARRAY_SIZE(rc_keys); i++)
+                set_bit(rc_keys[i], input_dev->keybit);
 
-	if(usb_submit_urb(dec->irq_urb,GFP_KERNEL)) {
+	input_register_device(input_dev);
+
+	if (usb_submit_urb(dec->irq_urb, GFP_KERNEL))
 		printk("%s: usb_submit_urb failed\n",__FUNCTION__);
-	}
+
 	/* enable irq pipe */
 	ttusb_dec_send_command(dec,0xb0,sizeof(b),b,NULL,NULL);
+
+	return 0;
 }
 
 static void ttusb_dec_init_v_pes(struct ttusb_dec *dec)
@@ -1513,7 +1523,7 @@ static void ttusb_dec_exit_rc(struct ttusb_dec *dec)
 	  * As the irq is submitted after the interface is changed,
 	  * this is the best method i figured out.
 	  * Any others?*/
-	if(dec->interface == TTUSB_DEC_INTERFACE_IN)
+	if (dec->interface == TTUSB_DEC_INTERFACE_IN)
 		usb_kill_urb(dec->irq_urb);
 
 	usb_free_urb(dec->irq_urb);
@@ -1521,7 +1531,10 @@ static void ttusb_dec_exit_rc(struct ttusb_dec *dec)
 	usb_buffer_free(dec->udev,IRQ_PACKET_SIZE,
 		           dec->irq_buffer, dec->irq_dma_handle);
 
-	input_unregister_device(&dec->rc_input_dev);
+	if (dec->rc_input_dev) {
+		input_unregister_device(dec->rc_input_dev);
+		dec->rc_input_dev = NULL;
+	}
 }
 
 
@@ -1659,7 +1672,7 @@ static int ttusb_dec_probe(struct usb_interface *intf,
 
 	ttusb_dec_set_interface(dec, TTUSB_DEC_INTERFACE_IN);
 
-	if(enable_rc)
+	if (enable_rc)
 		ttusb_init_rc(dec);
 
 	return 0;

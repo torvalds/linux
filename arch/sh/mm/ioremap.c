@@ -57,7 +57,7 @@ static inline int remap_area_pmd(pmd_t * pmd, unsigned long address,
 	if (address >= end)
 		BUG();
 	do {
-		pte_t * pte = pte_alloc_kernel(&init_mm, pmd, address);
+		pte_t * pte = pte_alloc_kernel(pmd, address);
 		if (!pte)
 			return -ENOMEM;
 		remap_area_pte(pte, address, end - address, address + phys_addr, flags);
@@ -79,7 +79,6 @@ int remap_area_pages(unsigned long address, unsigned long phys_addr,
 	flush_cache_all();
 	if (address >= end)
 		BUG();
-	spin_lock(&init_mm.page_table_lock);
 	do {
 		pmd_t *pmd;
 		pmd = pmd_alloc(&init_mm, dir, address);
@@ -93,7 +92,6 @@ int remap_area_pages(unsigned long address, unsigned long phys_addr,
 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
 		dir++;
 	} while (address && (address < end));
-	spin_unlock(&init_mm.page_table_lock);
 	flush_tlb_all();
 	return error;
 }

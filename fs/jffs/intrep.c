@@ -462,7 +462,7 @@ jffs_checksum_flash(struct mtd_info *mtd, loff_t start, int size, __u32 *result)
 	}
 
 	/* Free read buffer */
-	kfree (read_buf);
+	kfree(read_buf);
 
 	/* Return result */
 	D3(printk("checksum result: 0x%08x\n", sum));
@@ -1011,12 +1011,12 @@ jffs_scan_flash(struct jffs_control *c)
 						       offset , fmc->sector_size);
 
 						flash_safe_release(fmc->mtd);
-						kfree (read_buf);
+						kfree(read_buf);
 						return -1; /* bad, bad, bad! */
 
 					}
 					flash_safe_release(fmc->mtd);
-					kfree (read_buf);
+					kfree(read_buf);
 
 					return -EAGAIN; /* erased offending sector. Try mount one more time please. */
 				}
@@ -1112,7 +1112,7 @@ jffs_scan_flash(struct jffs_control *c)
 		if (!node) {
 			if (!(node = jffs_alloc_node())) {
 				/* Free read buffer */
-				kfree (read_buf);
+				kfree(read_buf);
 
 				/* Release the flash device */
 				flash_safe_release(fmc->mtd);
@@ -1269,7 +1269,7 @@ jffs_scan_flash(struct jffs_control *c)
 				DJM(no_jffs_node--);
 
 				/* Free read buffer */
-				kfree (read_buf);
+				kfree(read_buf);
 
 				/* Release the flash device */
 				flash_safe_release(fmc->mtd);
@@ -1296,7 +1296,7 @@ jffs_scan_flash(struct jffs_control *c)
 					flash_safe_release(fmc->flash_part);
 
 					/* Free read buffer */
-					kfree (read_buf);
+					kfree(read_buf);
 
 					return -ENOMEM;
 				}
@@ -1324,7 +1324,7 @@ jffs_scan_flash(struct jffs_control *c)
 	jffs_build_end(fmc);
 
 	/* Free read buffer */
-	kfree (read_buf);
+	kfree(read_buf);
 
 	if(!num_free_space){
 	        printk(KERN_WARNING "jffs_scan_flash(): Did not find even a single "
@@ -1747,9 +1747,7 @@ jffs_find_child(struct jffs_file *dir, const char *name, int len)
 		}
 		printk("jffs_find_child(): Didn't find the file \"%s\".\n",
 		       (copy ? copy : ""));
-		if (copy) {
-			kfree(copy);
-		}
+		kfree(copy);
 	});
 
 	return f;

@@ -37,12 +37,13 @@
 
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
+#include <asm/cache.h>
 #include <asm/cpu.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/system.h>
 
-struct cpuinfo_mips cpu_data[NR_CPUS];
+struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(cpu_data);
 
@@ -62,8 +63,8 @@ EXPORT_SYMBOL(PCI_DMA_BUS_IS_PHYS);
  *
  * These are initialized so they are in the .data section
  */
-unsigned long mips_machtype = MACH_UNKNOWN;
-unsigned long mips_machgroup = MACH_GROUP_UNKNOWN;
+unsigned long mips_machtype __read_mostly = MACH_UNKNOWN;
+unsigned long mips_machgroup __read_mostly = MACH_GROUP_UNKNOWN;
 
 EXPORT_SYMBOL(mips_machtype);
 EXPORT_SYMBOL(mips_machgroup);
@@ -77,7 +78,7 @@ static char command_line[CL_SIZE];
  * mips_io_port_base is the begin of the address space to which x86 style
  * I/O ports are mapped.
  */
-const unsigned long mips_io_port_base = -1;
+const unsigned long mips_io_port_base __read_mostly = -1;
 EXPORT_SYMBOL(mips_io_port_base);
 
 /*
@@ -510,31 +511,7 @@ static inline void resource_init(void)
 #undef MAXMEM
 #undef MAXMEM_PFN
 
-static int __initdata earlyinit_debug;
-
-static int __init earlyinit_debug_setup(char *str)
-{
-	earlyinit_debug = 1;
-	return 1;
-}
-__setup("earlyinit_debug", earlyinit_debug_setup);
-
-extern initcall_t __earlyinitcall_start, __earlyinitcall_end;
-
-static void __init do_earlyinitcalls(void)
-{
-	initcall_t *call, *start, *end;
-
-	start = &__earlyinitcall_start;
-	end = &__earlyinitcall_end;
-
-	for (call = start; call < end; call++) {
-		if (earlyinit_debug)
-			printk("calling earlyinitcall 0x%p\n", *call);
-
-		(*call)();
-	}
-}
+extern void plat_setup(void);
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -551,7 +528,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/* call board setup routine */
-	do_earlyinitcalls();
+	plat_setup();
 
 	strlcpy(command_line, arcs_cmdline, sizeof(command_line));
 	strlcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
@@ -573,3 +550,12 @@ int __init fpu_disable(char *s)
 }
 
 __setup("nofpu", fpu_disable);
+
+int __init dsp_disable(char *s)
+{
+	cpu_data[0].ases &= ~MIPS_ASE_DSP;
+
+	return 1;
+}
+
+__setup("nodsp", dsp_disable);

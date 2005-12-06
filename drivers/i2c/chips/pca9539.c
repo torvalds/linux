@@ -122,11 +122,10 @@ static int pca9539_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet. */
-	if (!(data = kmalloc(sizeof(struct pca9539_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct pca9539_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct pca9539_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

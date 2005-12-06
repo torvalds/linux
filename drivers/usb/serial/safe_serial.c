@@ -92,7 +92,7 @@ MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
 #if defined(CONFIG_USBD_SAFE_SERIAL_VENDOR) && !defined(CONFIG_USBD_SAFE_SERIAL_PRODUCT)
-#abort "SAFE_SERIAL_VENDOR defined without SAFE_SERIAL_PRODUCT"
+#error "SAFE_SERIAL_VENDOR defined without SAFE_SERIAL_PRODUCT"
 #endif
 
 #if ! defined(CONFIG_USBD_SAFE_SERIAL_VENDOR)
@@ -397,9 +397,11 @@ static int safe_startup (struct usb_serial *serial)
 	return 0;
 }
 
-static struct usb_serial_device_type safe_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Safe",
+static struct usb_serial_driver safe_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"safe_serial",
+	},
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,

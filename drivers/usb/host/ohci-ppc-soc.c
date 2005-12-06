@@ -14,6 +14,8 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/platform_device.h>
+
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
 
@@ -163,16 +165,15 @@ static const struct hc_driver ohci_ppc_soc_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef	CONFIG_USB_SUSPEND
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef	CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
 	.start_port_reset =	ohci_start_port_reset,
 };
 
-static int ohci_hcd_ppc_soc_drv_probe(struct device *dev)
+static int ohci_hcd_ppc_soc_drv_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
 	if (usb_disabled())
@@ -182,24 +183,25 @@ static int ohci_hcd_ppc_soc_drv_probe(struct device *dev)
 	return ret;
 }
 
-static int ohci_hcd_ppc_soc_drv_remove(struct device *dev)
+static int ohci_hcd_ppc_soc_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_ppc_soc_remove(hcd, pdev);
 	return 0;
 }
 
-static struct device_driver ohci_hcd_ppc_soc_driver = {
-	.name		= "ppc-soc-ohci",
-	.bus		= &platform_bus_type,
+static struct platform_driver ohci_hcd_ppc_soc_driver = {
 	.probe		= ohci_hcd_ppc_soc_drv_probe,
 	.remove		= ohci_hcd_ppc_soc_drv_remove,
-#if	defined(CONFIG_USB_SUSPEND) || defined(CONFIG_PM)
+#ifdef	CONFIG_PM
 	/*.suspend	= ohci_hcd_ppc_soc_drv_suspend,*/
 	/*.resume	= ohci_hcd_ppc_soc_drv_resume,*/
 #endif
+	.driver		= {
+		.name	= "ppc-soc-ohci",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init ohci_hcd_ppc_soc_init(void)
@@ -208,12 +210,12 @@ static int __init ohci_hcd_ppc_soc_init(void)
 	pr_debug("block sizes: ed %d td %d\n", sizeof(struct ed),
 							sizeof(struct td));
 
-	return driver_register(&ohci_hcd_ppc_soc_driver);
+	return platform_driver_register(&ohci_hcd_ppc_soc_driver);
 }
 
 static void __exit ohci_hcd_ppc_soc_cleanup(void)
 {
-	driver_unregister(&ohci_hcd_ppc_soc_driver);
+	platform_driver_unregister(&ohci_hcd_ppc_soc_driver);
 }
 
 module_init(ohci_hcd_ppc_soc_init);

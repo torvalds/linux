@@ -63,8 +63,6 @@ _GLOBAL(__970_cpu_preinit)
 	isync
 	blr
 
-_GLOBAL(__setup_cpu_power4)
-	blr
 _GLOBAL(__setup_cpu_ppc970)
 	mfspr	r0,SPRN_HID0
 	li	r11,5			/* clear DOZE and SLEEP */
@@ -88,10 +86,10 @@ _GLOBAL(__setup_cpu_ppc970)
 #define CS_SIZE		32
 
 	.data
-	.balign	L1_CACHE_LINE_SIZE
+	.balign	L1_CACHE_BYTES
 cpu_state_storage:	
 	.space	CS_SIZE
-	.balign	L1_CACHE_LINE_SIZE,0
+	.balign	L1_CACHE_BYTES,0
 	.text
 	
 /* Called in normal context to backup CPU 0 state. This

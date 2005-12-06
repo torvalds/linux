@@ -1,7 +1,6 @@
 #ifndef __MV643XX_ETH_H__
 #define __MV643XX_ETH_H__
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>

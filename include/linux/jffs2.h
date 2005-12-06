@@ -5,10 +5,10 @@
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
- * For licensing information, see the file 'LICENCE' in the 
+ * For licensing information, see the file 'LICENCE' in the
  * jffs2 directory.
  *
- * $Id: jffs2.h,v 1.34 2004/11/16 20:36:14 dwmw2 Exp $
+ * $Id: jffs2.h,v 1.38 2005/09/26 11:37:23 havasi Exp $
  *
  */
 
@@ -28,6 +28,9 @@
 #define JFFS2_EMPTY_BITMASK 0xffff
 #define JFFS2_DIRTY_BITMASK 0x0000
 
+/* Summary node MAGIC marker */
+#define JFFS2_SUM_MAGIC	0x02851885
+
 /* We only allow a single char for length, and 0xFF is empty flash so
    we don't want it confused with a real length. Hence max 254.
 */
@@ -43,8 +46,6 @@
 #define JFFS2_COMPR_COPY	0x04
 #define JFFS2_COMPR_DYNRUBIN	0x05
 #define JFFS2_COMPR_ZLIB	0x06
-#define JFFS2_COMPR_LZO         0x07
-#define JFFS2_COMPR_LZARI       0x08
 /* Compatibility flags. */
 #define JFFS2_COMPAT_MASK 0xc000      /* What do to if an unknown nodetype is found */
 #define JFFS2_NODE_ACCURATE 0x2000
@@ -62,15 +63,17 @@
 #define JFFS2_NODETYPE_CLEANMARKER (JFFS2_FEATURE_RWCOMPAT_DELETE | JFFS2_NODE_ACCURATE | 3)
 #define JFFS2_NODETYPE_PADDING (JFFS2_FEATURE_RWCOMPAT_DELETE | JFFS2_NODE_ACCURATE | 4)
 
+#define JFFS2_NODETYPE_SUMMARY (JFFS2_FEATURE_RWCOMPAT_DELETE | JFFS2_NODE_ACCURATE | 6)
+
 // Maybe later...
 //#define JFFS2_NODETYPE_CHECKPOINT (JFFS2_FEATURE_RWCOMPAT_DELETE | JFFS2_NODE_ACCURATE | 3)
 //#define JFFS2_NODETYPE_OPTIONS (JFFS2_FEATURE_RWCOMPAT_COPY | JFFS2_NODE_ACCURATE | 4)
 
 
-#define JFFS2_INO_FLAG_PREREAD	  1	/* Do read_inode() for this one at 
-					   mount time, don't wait for it to 
+#define JFFS2_INO_FLAG_PREREAD	  1	/* Do read_inode() for this one at
+					   mount time, don't wait for it to
 					   happen later */
-#define JFFS2_INO_FLAG_USERCOMPR  2	/* User has requested a specific 
+#define JFFS2_INO_FLAG_USERCOMPR  2	/* User has requested a specific
 					   compression type */
 
 
@@ -101,7 +104,7 @@ struct jffs2_unknown_node
 struct jffs2_raw_dirent
 {
 	jint16_t magic;
-	jint16_t nodetype;	/* == JFFS_NODETYPE_DIRENT */
+	jint16_t nodetype;	/* == JFFS2_NODETYPE_DIRENT */
 	jint32_t totlen;
 	jint32_t hdr_crc;
 	jint32_t pino;
@@ -117,7 +120,7 @@ struct jffs2_raw_dirent
 } __attribute__((packed));
 
 /* The JFFS2 raw inode structure: Used for storage on physical media.  */
-/* The uid, gid, atime, mtime and ctime members could be longer, but 
+/* The uid, gid, atime, mtime and ctime members could be longer, but
    are left like this for space efficiency. If and when people decide
    they really need them extended, it's simple enough to add support for
    a new type of raw node.
@@ -125,7 +128,7 @@ struct jffs2_raw_dirent
 struct jffs2_raw_inode
 {
 	jint16_t magic;      /* A constant magic number.  */
-	jint16_t nodetype;   /* == JFFS_NODETYPE_INODE */
+	jint16_t nodetype;   /* == JFFS2_NODETYPE_INODE */
 	jint32_t totlen;     /* Total length of this node (inc data, etc.) */
 	jint32_t hdr_crc;
 	jint32_t ino;        /* Inode number.  */
@@ -148,9 +151,25 @@ struct jffs2_raw_inode
 	uint8_t data[0];
 } __attribute__((packed));
 
-union jffs2_node_union {
+struct jffs2_raw_summary
+{
+	jint16_t magic;
+	jint16_t nodetype; 	/* = JFFS2_NODETYPE_SUMMARY */
+	jint32_t totlen;
+	jint32_t hdr_crc;
+	jint32_t sum_num;	/* number of sum entries*/
+	jint32_t cln_mkr;	/* clean marker size, 0 = no cleanmarker */
+	jint32_t padded;	/* sum of the size of padding nodes */
+	jint32_t sum_crc;	/* summary information crc */
+	jint32_t node_crc; 	/* node crc */
+	jint32_t sum[0]; 	/* inode summary info */
+} __attribute__((packed));
+
+union jffs2_node_union
+{
 	struct jffs2_raw_inode i;
 	struct jffs2_raw_dirent d;
+	struct jffs2_raw_summary s;
 	struct jffs2_unknown_node u;
 };
 

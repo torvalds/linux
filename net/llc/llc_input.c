@@ -99,15 +99,19 @@ out:
 static inline int llc_fixup_skb(struct sk_buff *skb)
 {
 	u8 llc_len = 2;
-	struct llc_pdu_sn *pdu;
+	struct llc_pdu_un *pdu;
 
-	if (!pskb_may_pull(skb, sizeof(*pdu)))
+	if (unlikely(!pskb_may_pull(skb, sizeof(*pdu))))
 		return 0;
 
-	pdu = (struct llc_pdu_sn *)skb->data;
+	pdu = (struct llc_pdu_un *)skb->data;
 	if ((pdu->ctrl_1 & LLC_PDU_TYPE_MASK) == LLC_PDU_TYPE_U)
 		llc_len = 1;
 	llc_len += 2;
+
+	if (unlikely(!pskb_may_pull(skb, llc_len)))
+		return 0;
+
 	skb->h.raw += llc_len;
 	skb_pull(skb, llc_len);
 	if (skb->protocol == htons(ETH_P_802_2)) {
@@ -166,17 +170,22 @@ int llc_rcv(struct sk_buff *skb, struct net_device *dev,
 	 */
 	if (sap->rcv_func) {
 		sap->rcv_func(skb, dev, pt, orig_dev);
-		goto out;
+		goto out_put;
 	}
 	dest = llc_pdu_type(skb);
 	if (unlikely(!dest || !llc_type_handlers[dest - 1]))
-		goto drop;
+		goto drop_put;
 	llc_type_handlers[dest - 1](sap, skb);
+out_put:
+	llc_sap_put(sap);
 out:
 	return 0;
 drop:
 	kfree_skb(skb);
 	goto out;
+drop_put:
+	kfree_skb(skb);
+	goto out_put;
 handle_station:
 	if (!llc_station_handler)
 		goto drop;

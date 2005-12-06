@@ -10,7 +10,7 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h> 
 #include <linux/pm.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
@@ -60,11 +60,17 @@ EXPORT_SYMBOL(set_cs3_bit);
 EXPORT_SYMBOL(clear_cs3_bit);
 
 static struct map_desc simpad_io_desc[] __initdata = {
-        /* virtual	physical    length	type */
-	/* MQ200 */
-	{ 0xf2800000, 0x4b800000, 0x00800000, MT_DEVICE },
-	/* Paules CS3, write only */
-	{ 0xf1000000, 0x18000000, 0x00100000, MT_DEVICE },
+	{	/* MQ200 */
+		.virtual	=  0xf2800000,
+		.pfn		= __phys_to_pfn(0x4b800000),
+		.length		= 0x00800000,
+		.type		= MT_DEVICE
+	}, {	/* Paules CS3, write only */
+		.virtual	=  0xf1000000,
+		.pfn		= __phys_to_pfn(0x18000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	},
 };
 
 

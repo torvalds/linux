@@ -68,6 +68,7 @@ static void gic_unmask_irq(unsigned int irq)
 	writel(mask, gic_dist_base + GIC_DIST_ENABLE_SET + (irq / 32) * 4);
 }
 
+#ifdef CONFIG_SMP
 static void gic_set_cpu(struct irqdesc *desc, unsigned int irq, unsigned int cpu)
 {
 	void __iomem *reg = gic_dist_base + GIC_DIST_TARGET + (irq & ~3);
@@ -78,6 +79,7 @@ static void gic_set_cpu(struct irqdesc *desc, unsigned int irq, unsigned int cpu
 	val |= 1 << (cpu + shift);
 	writel(val, reg);
 }
+#endif
 
 static struct irqchip gic_chip = {
 	.ack		= gic_ack_irq,

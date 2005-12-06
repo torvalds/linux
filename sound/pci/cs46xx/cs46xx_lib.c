@@ -163,7 +163,7 @@ static unsigned short snd_cs46xx_codec_read(cs46xx_t *chip,
 			goto ok1;
 	}
 
-	snd_printk("AC'97 read problem (ACCTL_DCV), reg = 0x%x\n", reg);
+	snd_printk(KERN_ERR "AC'97 read problem (ACCTL_DCV), reg = 0x%x\n", reg);
 	result = 0xffff;
 	goto end;
 	
@@ -182,7 +182,7 @@ static unsigned short snd_cs46xx_codec_read(cs46xx_t *chip,
 		udelay(10);
 	}
 	
-	snd_printk("AC'97 read problem (ACSTS_VSTS), codec_index %d, reg = 0x%x\n", codec_index, reg);
+	snd_printk(KERN_ERR "AC'97 read problem (ACSTS_VSTS), codec_index %d, reg = 0x%x\n", codec_index, reg);
 	result = 0xffff;
 	goto end;
 
@@ -281,7 +281,7 @@ static void snd_cs46xx_codec_write(cs46xx_t *chip,
 			goto end;
 		}
 	}
-	snd_printk("AC'97 write problem, codec_index = %d, reg = 0x%x, val = 0x%x\n", codec_index, reg, val);
+	snd_printk(KERN_ERR "AC'97 write problem, codec_index = %d, reg = 0x%x, val = 0x%x\n", codec_index, reg, val);
  end:
 	chip->active_ctrl(chip, -1);
 }
@@ -510,7 +510,7 @@ static void snd_cs46xx_proc_start(cs46xx_t *chip)
 	}
 
 	if (snd_cs46xx_peek(chip, BA1_SPCR) & SPCR_RUNFR)
-		snd_printk("SPCR_RUNFR never reset\n");
+		snd_printk(KERN_ERR "SPCR_RUNFR never reset\n");
 }
 
 static void snd_cs46xx_proc_stop(cs46xx_t *chip)
@@ -2403,7 +2403,7 @@ static void snd_cs46xx_codec_reset (ac97_t * ac97)
 		msleep(10);
 	} while (time_after_eq(end_time, jiffies));
 
-	snd_printk("CS46xx secondary codec dont respond!\n");  
+	snd_printk(KERN_ERR "CS46xx secondary codec doesn't respond!\n");  
 }
 #endif
 
@@ -2906,10 +2906,7 @@ static int snd_cs46xx_free(cs46xx_t *chip)
 		snd_cs46xx_region_t *region = &chip->region.idx[idx];
 		if (region->remap_addr)
 			iounmap(region->remap_addr);
-		if (region->resource) {
-			release_resource(region->resource);
-			kfree_nocheck(region->resource);
-		}
+		release_and_free_resource(region->resource);
 	}
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
@@ -3075,8 +3072,8 @@ static int snd_cs46xx_chip_init(cs46xx_t *chip)
 	}
 
 
-	snd_printk("create - never read codec ready from AC'97\n");
-	snd_printk("it is not probably bug, try to use CS4236 driver\n");
+	snd_printk(KERN_ERR "create - never read codec ready from AC'97\n");
+	snd_printk(KERN_ERR "it is not probably bug, try to use CS4236 driver\n");
 	return -EIO;
  ok1:
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
@@ -3124,17 +3121,17 @@ static int snd_cs46xx_chip_init(cs46xx_t *chip)
 	}
 
 #ifndef CONFIG_SND_CS46XX_NEW_DSP
-	snd_printk("create - never read ISV3 & ISV4 from AC'97\n");
+	snd_printk(KERN_ERR "create - never read ISV3 & ISV4 from AC'97\n");
 	return -EIO;
 #else
 	/* This may happen on a cold boot with a Terratec SiXPack 5.1.
 	   Reloading the driver may help, if there's other soundcards 
 	   with the same problem I would like to know. (Benny) */
 
-	snd_printk("ERROR: snd-cs46xx: never read ISV3 & ISV4 from AC'97\n");
-	snd_printk("       Try reloading the ALSA driver, if you find something\n");
-        snd_printk("       broken or not working on your soundcard upon\n");
-	snd_printk("       this message please report to alsa-devel@lists.sourceforge.net\n");
+	snd_printk(KERN_ERR "ERROR: snd-cs46xx: never read ISV3 & ISV4 from AC'97\n");
+	snd_printk(KERN_ERR "       Try reloading the ALSA driver, if you find something\n");
+        snd_printk(KERN_ERR "       broken or not working on your soundcard upon\n");
+	snd_printk(KERN_ERR "       this message please report to alsa-devel@lists.sourceforge.net\n");
 
 	return -EIO;
 #endif
@@ -3215,7 +3212,7 @@ int __devinit snd_cs46xx_start_dsp(cs46xx_t *chip)
 #else
 	/* old image */
 	if (snd_cs46xx_download_image(chip) < 0) {
-		snd_printk("image download error\n");
+		snd_printk(KERN_ERR "image download error\n");
 		return -EIO;
 	}
 
@@ -3790,7 +3787,7 @@ int __devinit snd_cs46xx_create(snd_card_t * card,
 	chip->ba1_addr = pci_resource_start(pci, 1);
 	if (chip->ba0_addr == 0 || chip->ba0_addr == (unsigned long)~0 ||
 	    chip->ba1_addr == 0 || chip->ba1_addr == (unsigned long)~0) {
-	    	snd_printk("wrong address(es) - ba0 = 0x%lx, ba1 = 0x%lx\n", chip->ba0_addr, chip->ba1_addr);
+	    	snd_printk(KERN_ERR "wrong address(es) - ba0 = 0x%lx, ba1 = 0x%lx\n", chip->ba0_addr, chip->ba1_addr);
 	    	snd_cs46xx_free(chip);
 	    	return -ENOMEM;
 	}
@@ -3839,12 +3836,12 @@ int __devinit snd_cs46xx_create(snd_card_t * card,
 	}
 
 	if (external_amp) {
-		snd_printk("Crystal EAPD support forced on.\n");
+		snd_printk(KERN_INFO "Crystal EAPD support forced on.\n");
 		chip->amplifier_ctrl = amp_voyetra;
 	}
 
 	if (thinkpad) {
-		snd_printk("Activating CLKRUN hack for Thinkpad.\n");
+		snd_printk(KERN_INFO "Activating CLKRUN hack for Thinkpad.\n");
 		chip->active_ctrl = clkrun_hack;
 		clkrun_init(chip);
 	}
@@ -3861,20 +3858,20 @@ int __devinit snd_cs46xx_create(snd_card_t * card,
 	for (idx = 0; idx < 5; idx++) {
 		region = &chip->region.idx[idx];
 		if ((region->resource = request_mem_region(region->base, region->size, region->name)) == NULL) {
-			snd_printk("unable to request memory region 0x%lx-0x%lx\n", region->base, region->base + region->size - 1);
+			snd_printk(KERN_ERR "unable to request memory region 0x%lx-0x%lx\n", region->base, region->base + region->size - 1);
 			snd_cs46xx_free(chip);
 			return -EBUSY;
 		}
 		region->remap_addr = ioremap_nocache(region->base, region->size);
 		if (region->remap_addr == NULL) {
-			snd_printk("%s ioremap problem\n", region->name);
+			snd_printk(KERN_ERR "%s ioremap problem\n", region->name);
 			snd_cs46xx_free(chip);
 			return -ENOMEM;
 		}
 	}
 
 	if (request_irq(pci->irq, snd_cs46xx_interrupt, SA_INTERRUPT|SA_SHIRQ, "CS46XX", (void *) chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cs46xx_free(chip);
 		return -EBUSY;
 	}

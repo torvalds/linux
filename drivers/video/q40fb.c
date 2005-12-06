@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/setup.h>
@@ -83,12 +84,10 @@ static struct fb_ops q40fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
-static int __init q40fb_probe(struct device *device)
+static int __init q40fb_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(device);
 	struct fb_info *info;
 
 	if (!MACH_IS_Q40)
@@ -128,10 +127,11 @@ static int __init q40fb_probe(struct device *device)
 	return 0;
 }
 
-static struct device_driver q40fb_driver = {
-	.name	= "q40fb",
-	.bus	= &platform_bus_type,
+static struct platform_driver q40fb_driver = {
 	.probe	= q40fb_probe,
+	.driver	= {
+		.name	= "q40fb",
+	},
 };
 
 static struct platform_device q40fb_device = {
@@ -145,12 +145,12 @@ int __init q40fb_init(void)
 	if (fb_get_options("q40fb", NULL))
 		return -ENODEV;
 
-	ret = driver_register(&q40fb_driver);
+	ret = platform_driver_register(&q40fb_driver);
 
 	if (!ret) {
 		ret = platform_device_register(&q40fb_device);
 		if (ret)
-			driver_unregister(&q40fb_driver);
+			platform_driver_unregister(&q40fb_driver);
 	}
 	return ret;
 }

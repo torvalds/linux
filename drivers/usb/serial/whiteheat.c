@@ -156,10 +156,12 @@ static void whiteheat_unthrottle	(struct usb_serial_port *port);
 static void whiteheat_read_callback	(struct urb *urb, struct pt_regs *regs);
 static void whiteheat_write_callback	(struct urb *urb, struct pt_regs *regs);
 
-static struct usb_serial_device_type whiteheat_fake_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Connect Tech - WhiteHEAT - (prerenumeration)",
-	.short_name =		"whiteheatnofirm",
+static struct usb_serial_driver whiteheat_fake_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"whiteheatnofirm",
+	},
+	.description =		"Connect Tech - WhiteHEAT - (prerenumeration)",
 	.id_table =		id_table_prerenumeration,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -169,10 +171,12 @@ static struct usb_serial_device_type whiteheat_fake_device = {
 	.attach =		whiteheat_firmware_attach,
 };
 
-static struct usb_serial_device_type whiteheat_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Connect Tech - WhiteHEAT",
-	.short_name =		"whiteheat",
+static struct usb_serial_driver whiteheat_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"whiteheat",
+	},
+	.description =		"Connect Tech - WhiteHEAT",
 	.id_table =		id_table_std,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,
@@ -382,10 +386,10 @@ static int whiteheat_attach (struct usb_serial *serial)
 	usb_clear_halt(serial->dev, pipe);
 	ret = usb_bulk_msg (serial->dev, pipe, command, 2, &alen, COMMAND_TIMEOUT_MS);
 	if (ret) {
-		err("%s: Couldn't send command [%d]", serial->type->name, ret);
+		err("%s: Couldn't send command [%d]", serial->type->description, ret);
 		goto no_firmware;
 	} else if (alen != sizeof(command)) {
-		err("%s: Send command incomplete [%d]", serial->type->name, alen);
+		err("%s: Send command incomplete [%d]", serial->type->description, alen);
 		goto no_firmware;
 	}
 
@@ -394,19 +398,19 @@ static int whiteheat_attach (struct usb_serial *serial)
 	usb_clear_halt(serial->dev, pipe);
 	ret = usb_bulk_msg (serial->dev, pipe, result, sizeof(*hw_info) + 1, &alen, COMMAND_TIMEOUT_MS);
 	if (ret) {
-		err("%s: Couldn't get results [%d]", serial->type->name, ret);
+		err("%s: Couldn't get results [%d]", serial->type->description, ret);
 		goto no_firmware;
 	} else if (alen != sizeof(result)) {
-		err("%s: Get results incomplete [%d]", serial->type->name, alen);
+		err("%s: Get results incomplete [%d]", serial->type->description, alen);
 		goto no_firmware;
 	} else if (result[0] != command[0]) {
-		err("%s: Command failed [%d]", serial->type->name, result[0]);
+		err("%s: Command failed [%d]", serial->type->description, result[0]);
 		goto no_firmware;
 	}
 
 	hw_info = (struct whiteheat_hw_info *)&result[1];
 
-	info("%s: Driver %s: Firmware v%d.%02d", serial->type->name,
+	info("%s: Driver %s: Firmware v%d.%02d", serial->type->description,
 	     DRIVER_VERSION, hw_info->sw_major_rev, hw_info->sw_minor_rev);
 
 	for (i = 0; i < serial->num_ports; i++) {
@@ -414,7 +418,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 
 		info = (struct whiteheat_private *)kmalloc(sizeof(struct whiteheat_private), GFP_KERNEL);
 		if (info == NULL) {
-			err("%s: Out of memory for port structures\n", serial->type->name);
+			err("%s: Out of memory for port structures\n", serial->type->description);
 			goto no_private;
 		}
 
@@ -484,7 +488,7 @@ static int whiteheat_attach (struct usb_serial *serial)
 
 	command_info = (struct whiteheat_command_private *)kmalloc(sizeof(struct whiteheat_command_private), GFP_KERNEL);
 	if (command_info == NULL) {
-		err("%s: Out of memory for port structures\n", serial->type->name);
+		err("%s: Out of memory for port structures\n", serial->type->description);
 		goto no_command_private;
 	}
 
@@ -501,9 +505,9 @@ static int whiteheat_attach (struct usb_serial *serial)
 
 no_firmware:
 	/* Firmware likely not running */
-	err("%s: Unable to retrieve firmware version, try replugging\n", serial->type->name);
-	err("%s: If the firmware is not running (status led not blinking)\n", serial->type->name);
-	err("%s: please contact support@connecttech.com\n", serial->type->name);
+	err("%s: Unable to retrieve firmware version, try replugging\n", serial->type->description);
+	err("%s: If the firmware is not running (status led not blinking)\n", serial->type->description);
+	err("%s: please contact support@connecttech.com\n", serial->type->description);
 	return -ENODEV;
 
 no_command_private:

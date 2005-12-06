@@ -248,7 +248,7 @@ void mthca_cmd_event(struct mthca_dev *dev, u16 token,
 		     u8  status, u64 out_param);
 
 struct mthca_mailbox *mthca_alloc_mailbox(struct mthca_dev *dev,
-					  unsigned int gfp_mask);
+					  gfp_t gfp_mask);
 void mthca_free_mailbox(struct mthca_dev *dev, struct mthca_mailbox *mailbox);
 
 int mthca_SYS_EN(struct mthca_dev *dev, u8 *status);

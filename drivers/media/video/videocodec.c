@@ -353,8 +353,7 @@ videocodec_build_table (void)
 	dprintk(3, "videocodec_build table: %d entries, %d bytes\n", i,
 		size);
 
-	if (videocodec_buf)
-		kfree(videocodec_buf);
+	kfree(videocodec_buf);
 	videocodec_buf = (char *) kmalloc(size, GFP_KERNEL);
 
 	i = 0;
@@ -471,8 +470,7 @@ videocodec_exit (void)
 {
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("videocodecs", NULL);
-	if (videocodec_buf)
-		kfree(videocodec_buf);
+	kfree(videocodec_buf);
 #endif
 }
 

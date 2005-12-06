@@ -195,14 +195,10 @@ close_jadestate(struct BCState *bcs)
 {
     modejade(bcs, 0, bcs->channel);
     if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-	if (bcs->hw.hscx.rcvbuf) {
-		kfree(bcs->hw.hscx.rcvbuf);
-		bcs->hw.hscx.rcvbuf = NULL;
-	}
-	if (bcs->blog) {
-		kfree(bcs->blog);
-		bcs->blog = NULL;
-	}
+	kfree(bcs->hw.hscx.rcvbuf);
+	bcs->hw.hscx.rcvbuf = NULL;
+	kfree(bcs->blog);
+	bcs->blog = NULL;
 	skb_queue_purge(&bcs->rqueue);
 	skb_queue_purge(&bcs->squeue);
 	if (bcs->tx_skb) {

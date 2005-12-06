@@ -52,19 +52,6 @@ static void sctp_ulpevent_receive_data(struct sctp_ulpevent *event,
 				       struct sctp_association *asoc);
 static void sctp_ulpevent_release_data(struct sctp_ulpevent *event);
 
-/* Stub skb destructor.  */
-static void sctp_stub_rfree(struct sk_buff *skb)
-{
-/* WARNING:  This function is just a warning not to use the
- * skb destructor.  If the skb is shared, we may get the destructor
- * callback on some processor that does not own the sock_lock.  This
- * was occuring with PACKET socket applications that were monitoring
- * our skbs.   We can't take the sock_lock, because we can't risk
- * recursing if we do really own the sock lock.  Instead, do all
- * of our rwnd manipulation while we own the sock_lock outright.
- */
-}
-
 /* Initialize an ULP event from an given skb.  */
 SCTP_STATIC void sctp_ulpevent_init(struct sctp_ulpevent *event, int msg_flags)
 {
@@ -74,7 +61,7 @@ SCTP_STATIC void sctp_ulpevent_init(struct sctp_ulpevent *event, int msg_flags)
 
 /* Create a new sctp_ulpevent.  */
 SCTP_STATIC struct sctp_ulpevent *sctp_ulpevent_new(int size, int msg_flags,
-						    unsigned int __nocast gfp)
+						    gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sk_buff *skb;
@@ -111,15 +98,19 @@ static inline void sctp_ulpevent_set_owner(struct sctp_ulpevent *event,
 	 */
 	sctp_association_hold((struct sctp_association *)asoc);
 	skb = sctp_event2skb(event);
-	skb->sk = asoc->base.sk;
 	event->asoc = (struct sctp_association *)asoc;
-	skb->destructor = sctp_stub_rfree;
+	atomic_add(skb->truesize, &event->asoc->rmem_alloc);
+	skb_set_owner_r(skb, asoc->base.sk);
 }
 
 /* A simple destructor to give up the reference to the association. */
 static inline void sctp_ulpevent_release_owner(struct sctp_ulpevent *event)
 {
-	sctp_association_put(event->asoc);
+	struct sctp_association *asoc = event->asoc;
+	struct sk_buff *skb = sctp_event2skb(event);
+
+	atomic_sub(skb->truesize, &asoc->rmem_alloc);
+	sctp_association_put(asoc);
 }
 
 /* Create and initialize an SCTP_ASSOC_CHANGE event.
@@ -136,7 +127,7 @@ static inline void sctp_ulpevent_release_owner(struct sctp_ulpevent *event)
 struct sctp_ulpevent  *sctp_ulpevent_make_assoc_change(
 	const struct sctp_association *asoc,
 	__u16 flags, __u16 state, __u16 error, __u16 outbound,
-	__u16 inbound, unsigned int __nocast gfp)
+	__u16 inbound, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_assoc_change *sac;
@@ -237,7 +228,7 @@ fail:
 struct sctp_ulpevent *sctp_ulpevent_make_peer_addr_change(
 	const struct sctp_association *asoc,
 	const struct sockaddr_storage *aaddr,
-	int flags, int state, int error, unsigned int __nocast gfp)
+	int flags, int state, int error, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_paddr_change  *spc;
@@ -350,7 +341,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_remote_error(
 	const struct sctp_association *asoc, struct sctp_chunk *chunk,
-	__u16 flags, unsigned int __nocast gfp)
+	__u16 flags, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_remote_error *sre;
@@ -448,7 +439,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
 	const struct sctp_association *asoc, struct sctp_chunk *chunk,
-	__u16 flags, __u32 error, unsigned int __nocast gfp)
+	__u16 flags, __u32 error, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_send_failed *ssf;
@@ -557,7 +548,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_shutdown_event(
 	const struct sctp_association *asoc,
-	__u16 flags, unsigned int __nocast gfp)
+	__u16 flags, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_shutdown_event *sse;
@@ -620,7 +611,7 @@ fail:
  * 5.3.1.6 SCTP_ADAPTION_INDICATION
  */
 struct sctp_ulpevent *sctp_ulpevent_make_adaption_indication(
-	const struct sctp_association *asoc, unsigned int __nocast gfp)
+	const struct sctp_association *asoc, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_adaption_event *sai;
@@ -657,7 +648,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 						struct sctp_chunk *chunk,
-						unsigned int __nocast gfp)
+						gfp_t gfp)
 {
 	struct sctp_ulpevent *event = NULL;
 	struct sk_buff *skb;
@@ -698,7 +689,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	event->ssn = ntohs(chunk->subh.data_hdr->ssn);
 	event->ppid = chunk->subh.data_hdr->ppid;
 	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
-		event->flags |= MSG_UNORDERED;
+		event->flags |= SCTP_UNORDERED;
 		event->cumtsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
 	}
 	event->tsn = ntohl(chunk->subh.data_hdr->tsn);
@@ -719,7 +710,7 @@ fail:
  */
 struct sctp_ulpevent *sctp_ulpevent_make_pdapi(
 	const struct sctp_association *asoc, __u32 indication,
-	unsigned int __nocast gfp)
+	gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_pdapi_event *pd;
@@ -824,7 +815,7 @@ void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 	 *
 	 * recvmsg() flags:
 	 *
-	 * MSG_UNORDERED - This flag is present when the message was sent
+	 * SCTP_UNORDERED - This flag is present when the message was sent
 	 *                 non-ordered.
 	 */
 	sinfo.sinfo_flags = event->flags;
@@ -839,7 +830,7 @@ void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 	 * This field will hold the current cumulative TSN as
 	 * known by the underlying SCTP layer.  Note this field is
 	 * ignored when sending and only valid for a receive
-	 * operation when sinfo_flags are set to MSG_UNORDERED.
+	 * operation when sinfo_flags are set to SCTP_UNORDERED.
 	 */
 	sinfo.sinfo_cumtsn = event->cumtsn;
 	/* sinfo_assoc_id: sizeof (sctp_assoc_t)
@@ -922,7 +913,6 @@ done:
 /* Free a ulpevent that has an owner.  It includes releasing the reference
  * to the owner, updating the rwnd in case of a DATA event and freeing the
  * skb.
- * See comments in sctp_stub_rfree().
  */
 void sctp_ulpevent_free(struct sctp_ulpevent *event)
 {

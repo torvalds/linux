@@ -14,6 +14,7 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <platforms/4xx/ibm440ep.h>
 #include <asm/ocp.h>
 #include <asm/ppc4xx_pic.h>

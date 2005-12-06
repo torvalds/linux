@@ -9,17 +9,16 @@
 #ifndef _ASM_SPINLOCK_H
 #define _ASM_SPINLOCK_H
 
-#include <linux/config.h>
 #include <asm/war.h>
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
  */
 
-#define __raw_spin_is_locked(x)	((x)->lock != 0)
+#define __raw_spin_is_locked(x)       ((x)->lock != 0)
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 #define __raw_spin_unlock_wait(x) \
-		do { cpu_relax(); } while ((x)->lock)
+	do { cpu_relax(); } while ((x)->lock)
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
@@ -119,6 +118,18 @@ static inline unsigned int __raw_spin_trylock(raw_spinlock_t *lock)
  * read-locks.
  */
 
+/*
+ * read_can_lock - would read_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
+#define __raw_read_can_lock(rw)	((rw)->lock >= 0)
+
+/*
+ * write_can_lock - would write_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
+#define __raw_write_can_lock(rw)	(!(rw)->lock)
+
 static inline void __raw_read_lock(raw_rwlock_t *rw)
 {
 	unsigned int tmp;
@@ -197,8 +208,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 		"	 lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
-		"	 nop						\n"
-		"	sync						\n"
+		"	 sync						\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
@@ -211,8 +221,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 		"	 lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
 		"	beqz	%1, 1b					\n"
-		"	 nop						\n"
-		"	sync						\n"
+		"	 sync						\n"
 		"	.set	reorder					\n"
 		: "=m" (rw->lock), "=&r" (tmp)
 		: "m" (rw->lock)
@@ -246,8 +255,7 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 		"	 lui	%1, 0x8000				\n"
 		"	sc	%1, %0					\n"
 		"	beqzl	%1, 1b					\n"
-		"	 nop						\n"
-		"	sync						\n"
+		"	 sync						\n"
 		"	li	%2, 1					\n"
 		"	.set	reorder					\n"
 		"2:							\n"

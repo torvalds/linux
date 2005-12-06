@@ -39,7 +39,6 @@
 #define TIMEOUT       0xffffff
 #define SLOW_DOWN
 
-static const char digits[16] = "0123456789abcdef";
 static volatile unsigned long * const com1 = (unsigned long *)SERIAL_BASE;
 
 
@@ -54,7 +53,7 @@ static inline void slow_down(void)
 #endif
 
 void
-putch(const unsigned char c)
+prom_putchar(const unsigned char c)
 {
     unsigned char ch;
     int i = 0;
@@ -68,78 +67,4 @@ putch(const unsigned char c)
         }
     } while (0 == (ch & TX_BUSY));
     com1[SER_DATA] = c;
-}
-
-void
-puts(unsigned char *cp)
-{
-    unsigned char ch;
-    int i = 0;
-
-    while (*cp) {
-        do {
-             ch = com1[SER_CMD];
-            slow_down();
-            i++;
-            if (i>TIMEOUT) {
-                break;
-            }
-        } while (0 == (ch & TX_BUSY));
-        com1[SER_DATA] = *cp++;
-    }
-    putch('\r');
-    putch('\n');
-}
-
-void
-fputs(const char *cp)
-{
-    unsigned char ch;
-    int i = 0;
-
-    while (*cp) {
-
-        do {
-             ch = com1[SER_CMD];
-             slow_down();
-            i++;
-            if (i>TIMEOUT) {
-                break;
-            }
-        } while (0 == (ch & TX_BUSY));
-        com1[SER_DATA] = *cp++;
-    }
-}
-
-
-void
-put64(uint64_t ul)
-{
-    int cnt;
-    unsigned ch;
-
-    cnt = 16;            /* 16 nibbles in a 64 bit long */
-    putch('0');
-    putch('x');
-    do {
-        cnt--;
-        ch = (unsigned char)(ul >> cnt * 4) & 0x0F;
-                putch(digits[ch]);
-    } while (cnt > 0);
-}
-
-void
-put32(unsigned u)
-{
-    int cnt;
-    unsigned ch;
-
-    cnt = 8;            /* 8 nibbles in a 32 bit long */
-    putch('0');
-    putch('x');
-    do {
-        cnt--;
-        ch = (unsigned char)(u >> cnt * 4) & 0x0F;
-                putch(digits[ch]);
-    } while (cnt > 0);
 }

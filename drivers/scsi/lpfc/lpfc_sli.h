@@ -33,13 +33,15 @@ typedef enum _lpfc_ctx_cmd {
 struct lpfc_iocbq {
 	/* lpfc_iocbqs are used in double linked lists */
 	struct list_head list;
+	uint16_t iotag;         /* pre-assigned IO tag */
+	uint16_t rsvd1;
+
 	IOCB_t iocb;		/* IOCB cmd */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint8_t iocb_flag;
-#define LPFC_IO_POLL	1	/* Polling mode iocb */
-#define LPFC_IO_LIBDFC	2	/* libdfc iocb */
-#define LPFC_IO_WAIT	4
-#define LPFC_IO_HIPRI	8	/* High Priority Queue signal flag */
+#define LPFC_IO_LIBDFC	1	/* libdfc iocb */
+#define LPFC_IO_WAKE	2	/* High Priority Queue signal flag */
+#define LPFC_IO_FCP	4	/* FCP command -- iocbq in scsi_buf */
 
 	uint8_t abort_count;
 	uint8_t rsvd2;
@@ -48,8 +50,7 @@ struct lpfc_iocbq {
 	void *context2;		/* caller context information */
 	void *context3;		/* caller context information */
 	union {
-		wait_queue_head_t *hipri_wait_queue; /* High Priority Queue wait
-							queue */
+		wait_queue_head_t  *wait_queue;
 		struct lpfc_iocbq  *rsp_iocb;
 		struct lpfcMboxq   *mbox;
 	} context_un;
@@ -125,10 +126,10 @@ struct lpfc_sli_ring {
 
 	uint32_t local_getidx;   /* last available cmd index (from cmdGetInx) */
 	uint32_t next_cmdidx;    /* next_cmd index */
+	uint32_t rspidx;	/* current index in response ring */
+	uint32_t cmdidx;	/* current index in command ring */
 	uint8_t rsvd;
 	uint8_t ringno;		/* ring number */
-	uint8_t rspidx;		/* current index in response ring */
-	uint8_t cmdidx;		/* current index in command ring */
 	uint16_t numCiocb;	/* number of command iocb's per ring */
 	uint16_t numRiocb;	/* number of rsp iocb's per ring */
 
@@ -200,6 +201,11 @@ struct lpfc_sli {
 					   cmd */
 
 	uint32_t *MBhostaddr;	/* virtual address for mbox cmds */
+
+#define LPFC_IOCBQ_LOOKUP_INCREMENT  1024
+	struct lpfc_iocbq ** iocbq_lookup; /* array to lookup IOCB by IOTAG */
+	size_t iocbq_lookup_len;           /* current lengs of the array */
+	uint16_t  last_iotag;              /* last allocated IOTAG */
 };
 
 /* Given a pointer to the start of the ring, and the slot number of

@@ -24,9 +24,7 @@ MODULE_AUTHOR("Richard Zidlicky <rz@linux-m68k.org>");
 MODULE_DESCRIPTION("m68k beeper driver");
 MODULE_LICENSE("GPL");
 
-static char m68kspkr_name[] = "m68k beeper";
-static char m68kspkr_phys[] = "m68k/generic";
-static struct input_dev m68kspkr_dev;
+static struct input_dev *m68kspkr_dev;
 
 static int m68kspkr_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
 {
@@ -51,32 +49,34 @@ static int m68kspkr_event(struct input_dev *dev, unsigned int type, unsigned int
 
 static int __init m68kspkr_init(void)
 {
-        if (!mach_beep){
-		printk("%s: no lowlevel beep support\n", m68kspkr_name);
-		return -1;
+        if (!mach_beep) {
+		printk(KERN_INFO "m68kspkr: no lowlevel beep support\n");
+		return -ENODEV;
         }
 
-	m68kspkr_dev.evbit[0] = BIT(EV_SND);
-	m68kspkr_dev.sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
-	m68kspkr_dev.event = m68kspkr_event;
+	m68kspkr_dev = input_allocate_device();
+	if (!m68kspkr_dev)
+		return -ENOMEM;
 
-	m68kspkr_dev.name = m68kspkr_name;
-	m68kspkr_dev.phys = m68kspkr_phys;
-	m68kspkr_dev.id.bustype = BUS_HOST;
-	m68kspkr_dev.id.vendor = 0x001f;
-	m68kspkr_dev.id.product = 0x0001;
-	m68kspkr_dev.id.version = 0x0100;
+	m68kspkr_dev->name = "m68k beeper";
+	m68kspkr_dev->phys = "m68k/generic";
+	m68kspkr_dev->id.bustype = BUS_HOST;
+	m68kspkr_dev->id.vendor = 0x001f;
+	m68kspkr_dev->id.product = 0x0001;
+	m68kspkr_dev->id.version = 0x0100;
 
-	input_register_device(&m68kspkr_dev);
+	m68kspkr_dev->evbit[0] = BIT(EV_SND);
+	m68kspkr_dev->sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
+	m68kspkr_dev->event = m68kspkr_event;
 
-        printk(KERN_INFO "input: %s\n", m68kspkr_name);
+	input_register_device(m68kspkr_dev);
 
 	return 0;
 }
 
 static void __exit m68kspkr_exit(void)
 {
-        input_unregister_device(&m68kspkr_dev);
+        input_unregister_device(m68kspkr_dev);
 }
 
 module_init(m68kspkr_init);

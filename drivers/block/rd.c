@@ -348,7 +348,7 @@ static int rd_open(struct inode *inode, struct file *filp)
 		struct block_device *bdev = inode->i_bdev;
 		struct address_space *mapping;
 		unsigned bsize;
-		int gfp_mask;
+		gfp_t gfp_mask;
 
 		inode = igrab(bdev->bd_inode);
 		rd_bdev[unit] = bdev;

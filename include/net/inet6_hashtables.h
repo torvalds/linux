@@ -26,19 +26,18 @@
 struct inet_hashinfo;
 
 /* I have no idea if this is a good hash for v6 or not. -DaveM */
-static inline int inet6_ehashfn(const struct in6_addr *laddr, const u16 lport,
-				const struct in6_addr *faddr, const u16 fport,
-				const int ehash_size)
+static inline unsigned int inet6_ehashfn(const struct in6_addr *laddr, const u16 lport,
+				const struct in6_addr *faddr, const u16 fport)
 {
-	int hashent = (lport ^ fport);
+	unsigned int hashent = (lport ^ fport);
 
 	hashent ^= (laddr->s6_addr32[3] ^ faddr->s6_addr32[3]);
 	hashent ^= hashent >> 16;
 	hashent ^= hashent >> 8;
-	return (hashent & (ehash_size - 1));
+	return hashent;
 }
 
-static inline int inet6_sk_ehashfn(const struct sock *sk, const int ehash_size)
+static inline int inet6_sk_ehashfn(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	const struct ipv6_pinfo *np = inet6_sk(sk);
@@ -46,7 +45,7 @@ static inline int inet6_sk_ehashfn(const struct sock *sk, const int ehash_size)
 	const struct in6_addr *faddr = &np->daddr;
 	const __u16 lport = inet->num;
 	const __u16 fport = inet->dport;
-	return inet6_ehashfn(laddr, lport, faddr, fport, ehash_size);
+	return inet6_ehashfn(laddr, lport, faddr, fport);
 }
 
 /*
@@ -69,14 +68,14 @@ static inline struct sock *
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
 	 */
-	const int hash = inet6_ehashfn(daddr, hnum, saddr, sport,
-				       hashinfo->ehash_size);
-	struct inet_ehash_bucket *head = &hashinfo->ehash[hash];
+	unsigned int hash = inet6_ehashfn(daddr, hnum, saddr, sport);
+	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
 
+	prefetch(head->chain.first);
 	read_lock(&head->lock);
 	sk_for_each(sk, node, &head->chain) {
 		/* For IPV6 do the cheaper port and family tests first. */
-		if (INET6_MATCH(sk, saddr, daddr, ports, dif))
+		if (INET6_MATCH(sk, hash, saddr, daddr, ports, dif))
 			goto hit; /* You sunk my battleship! */
 	}
 	/* Must check for a TIME_WAIT'er before going to listener hash. */

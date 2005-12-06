@@ -31,10 +31,7 @@
 #include <linux/timex.h>
 #include <linux/init.h>
 #include <linux/profile.h>
-
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
+#include <linux/sched.h>	/* just for sched_clock() - funny that */
 
 int have_rtc;  /* used to remember if we have an RTC or not */;
 

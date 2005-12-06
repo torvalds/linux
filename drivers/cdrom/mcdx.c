@@ -1085,7 +1085,7 @@ static int __init mcdx_init_drive(int drive)
 
 	xtrace(INIT, "kmalloc space for stuffpt's\n");
 	xtrace(MALLOC, "init() malloc %d bytes\n", size);
-	if (!(stuffp = kmalloc(size, GFP_KERNEL))) {
+	if (!(stuffp = kzalloc(size, GFP_KERNEL))) {
 		xwarn("init() malloc failed\n");
 		return 1;
 	}
@@ -1101,8 +1101,6 @@ static int __init mcdx_init_drive(int drive)
 	       sizeof(*stuffp), stuffp);
 
 	/* set default values */
-	memset(stuffp, 0, sizeof(*stuffp));
-
 	stuffp->present = 0;	/* this should be 0 already */
 	stuffp->toc = NULL;	/* this should be NULL already */
 

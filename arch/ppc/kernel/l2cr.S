@@ -203,7 +203,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	 * L1 icache
 	 */
 	b	20f
-	.balign	L1_CACHE_LINE_SIZE
+	.balign	L1_CACHE_BYTES
 22:
 	sync
 	mtspr	SPRN_L2CR,r3

@@ -249,14 +249,6 @@ void snd_usbmidi_disconnect(struct list_head *p);
 #define get_cfg_desc(cfg)	(&(cfg)->desc)
 #endif
 
-#ifndef usb_pipe_needs_resubmit
-#define usb_pipe_needs_resubmit(pipe) 1
-#endif
-
-#ifndef snd_usb_complete_callback
-#define snd_usb_complete_callback(x) (x)
-#endif
-
 #ifndef snd_usb_get_speed
 #define snd_usb_get_speed(dev) ((dev)->speed)
 #endif

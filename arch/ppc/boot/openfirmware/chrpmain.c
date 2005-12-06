@@ -78,7 +78,7 @@ boot(int a1, int a2, void *prom)
 	begin_avail = avail_high = avail_ram;
 	end_avail = scratch + sizeof(scratch);
 	printf("gunzipping (0x%p <- 0x%p:0x%p)...", dst, im, im+len);
-	gunzip(dst, 0x400000, im, &len);
+	gunzip(dst, PROG_SIZE - PROG_START, im, &len);
 	printf("done %u bytes\n\r", len);
 	printf("%u bytes of heap consumed, max in use %u\n\r",
 	       avail_high - begin_avail, heap_max);

@@ -48,7 +48,6 @@
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
-#include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/bitops.h>
@@ -123,7 +122,7 @@ extern struct smp_ops_t psurge_smp_ops;
 extern struct smp_ops_t core99_smp_ops;
 #endif /* CONFIG_SMP */
 
-static int __pmac
+static int
 pmac_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *np;
@@ -227,7 +226,7 @@ pmac_show_cpuinfo(struct seq_file *m)
 	return 0;
 }
 
-static int __openfirmware
+static int
 pmac_show_percpuinfo(struct seq_file *m, int i)
 {
 #ifdef CONFIG_CPU_FREQ_PMAC
@@ -331,9 +330,9 @@ pmac_setup_arch(void)
 #ifdef CONFIG_SMP
 	/* Check for Core99 */
 	if (find_devices("uni-n") || find_devices("u3"))
-		ppc_md.smp_ops = &core99_smp_ops;
+		smp_ops = &core99_smp_ops;
 	else
-		ppc_md.smp_ops = &psurge_smp_ops;
+		smp_ops = &psurge_smp_ops;
 #endif /* CONFIG_SMP */
 
 	pci_create_OF_bus_map();
@@ -448,7 +447,7 @@ static int pmac_pm_enter(suspend_state_t state)
 	enable_kernel_fp();
 
 #ifdef CONFIG_ALTIVEC
-	if (cur_cpu_spec[0]->cpu_features & CPU_FTR_ALTIVEC)
+	if (cur_cpu_spec->cpu_features & CPU_FTR_ALTIVEC)
 		enable_kernel_altivec();
 #endif /* CONFIG_ALTIVEC */
 
@@ -486,7 +485,7 @@ static int pmac_late_init(void)
 late_initcall(pmac_late_init);
 
 /* can't be __init - can be called whenever a disk is first accessed */
-void __pmac
+void
 note_bootable_part(dev_t dev, int part, int goodness)
 {
 	static int found_boot = 0;
@@ -512,7 +511,7 @@ note_bootable_part(dev_t dev, int part, int goodness)
 	}
 }
 
-static void __pmac
+static void
 pmac_restart(char *cmd)
 {
 #ifdef CONFIG_ADB_CUDA
@@ -537,7 +536,7 @@ pmac_restart(char *cmd)
 	}
 }
 
-static void __pmac
+static void
 pmac_power_off(void)
 {
 #ifdef CONFIG_ADB_CUDA
@@ -562,7 +561,7 @@ pmac_power_off(void)
 	}
 }
 
-static void __pmac
+static void
 pmac_halt(void)
 {
    pmac_power_off();
@@ -662,7 +661,6 @@ pmac_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.setup_arch     = pmac_setup_arch;
 	ppc_md.show_cpuinfo   = pmac_show_cpuinfo;
 	ppc_md.show_percpuinfo = pmac_show_percpuinfo;
-	ppc_md.irq_canonicalize = NULL;
 	ppc_md.init_IRQ       = pmac_pic_init;
 	ppc_md.get_irq        = pmac_get_irq; /* Changed later on ... */
 
@@ -719,7 +717,8 @@ pmac_declare_of_platform_devices(void)
 	if (np) {
 		for (np = np->child; np != NULL; np = np->sibling)
 			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "uni-n-i2c");
+				of_platform_device_create(np, "uni-n-i2c",
+							  NULL);
 				break;
 			}
 	}
@@ -727,17 +726,18 @@ pmac_declare_of_platform_devices(void)
 	if (np) {
 		for (np = np->child; np != NULL; np = np->sibling)
 			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "u3-i2c");
+				of_platform_device_create(np, "u3-i2c",
+							  NULL);
 				break;
 			}
 	}
 
 	np = find_devices("valkyrie");
 	if (np)
-		of_platform_device_create(np, "valkyrie");
+		of_platform_device_create(np, "valkyrie", NULL);
 	np = find_devices("platinum");
 	if (np)
-		of_platform_device_create(np, "platinum");
+		of_platform_device_create(np, "platinum", NULL);
 
 	return 0;
 }

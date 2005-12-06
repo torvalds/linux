@@ -128,6 +128,13 @@
 #define SEALEVEL_2803_8_PID	0X2883 	/* SeaLINK+8 (2803) Port 8 */
 
 /*
+ * The following are the values for two KOBIL chipcard terminals.
+ */
+#define KOBIL_VID		0x0d46	/* KOBIL Vendor ID */
+#define KOBIL_CONV_B1_PID	0x2020	/* KOBIL Konverter for B1 */
+#define KOBIL_CONV_KAAN_PID	0x2021	/* KOBIL_Konverter for KAAN */
+
+/*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
  
@@ -197,6 +204,19 @@
 
 /* an infrared receiver for user access control with IR tags */
 #define FTDI_PIEGROUP_PID	0xF208	/* Product Id */
+
+/*
+ * Definitions for Artemis astronomical USB based cameras
+ * Check it at http://www.artemisccd.co.uk/
+ */
+#define FTDI_ARTEMIS_PID	0xDF28	/* All Artemis Cameras */
+
+/*
+ * Definitions for ATIK Instruments astronomical USB based cameras
+ * Check it at http://www.atik-instruments.com/
+ */
+#define FTDI_ATIK_ATK16_PID	0xDF30	/* ATIK ATK-16 Camera */
+#define FTDI_ATIK_ATK16HR_PID	0xDF31	/* ATIK ATK-16HR Camera */
 
 /*
  * Protego product ids
@@ -328,6 +348,9 @@
  */
 #define EVOLUTION_VID		0xDEEE	/* Vendor ID */
 #define EVOLUTION_ER1_PID	0x0300	/* ER1 Control Module */
+
+/* Pyramid Computer GmbH */
+#define FTDI_PYRAMID_PID	0xE6C8	/* Pyramid Appliance Display */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

@@ -18,6 +18,8 @@
 #include <asm/dasd.h>
 #include <asm/cmb.h>
 #include <asm/tape390.h>
+#include <asm/ccwdev.h>
+#include "../../../drivers/s390/char/raw3270.h"
 
 static int do_ioctl32_pointer(unsigned int fd, unsigned int cmd,
 				unsigned long arg, struct file *f)
@@ -61,6 +63,13 @@ COMPATIBLE_IOCTL(BIODASDSATTR)
 COMPATIBLE_IOCTL(BIODASDCMFENABLE)
 COMPATIBLE_IOCTL(BIODASDCMFDISABLE)
 COMPATIBLE_IOCTL(BIODASDREADALLCMB)
+
+COMPATIBLE_IOCTL(TUBICMD)
+COMPATIBLE_IOCTL(TUBOCMD)
+COMPATIBLE_IOCTL(TUBGETI)
+COMPATIBLE_IOCTL(TUBGETO)
+COMPATIBLE_IOCTL(TUBSETMOD)
+COMPATIBLE_IOCTL(TUBGETMOD)
 
 COMPATIBLE_IOCTL(TAPE390_DISPLAY)
 

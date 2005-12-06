@@ -189,8 +189,7 @@ static int sa_sync_cmd(struct aac_dev *dev, u32 command,
 			ok = 1;
 			break;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	if (ok != 1)
@@ -237,29 +236,16 @@ static void aac_sa_interrupt_adapter (struct aac_dev *dev)
 
 static void aac_sa_start_adapter(struct aac_dev *dev)
 {
-	u32 ret;
 	struct aac_init *init;
 	/*
 	 * Fill in the remaining pieces of the init.
 	 */
 	init = dev->init;
 	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
-
-	/*
-	 * Tell the adapter we are back and up and running so it will scan its command
-	 * queues and enable our interrupts
-	 */
-	dev->irq_mask =	(PrintfReady | DOORBELL_1 | DOORBELL_2 | DOORBELL_3 | DOORBELL_4);
-	/*
-	 *	First clear out all interrupts.  Then enable the one's that 
-	 *	we can handle.
-	 */
-	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
-	sa_writew(dev, SaDbCSR.PRICLEARIRQMASK, (PrintfReady | DOORBELL_1 | DOORBELL_2 | DOORBELL_3 | DOORBELL_4));
 	/* We can only use a 32 bit address here */
 	sa_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, 
 			(u32)(ulong)dev->init_pa, 0, 0, 0, 0, 0,
-			&ret, NULL, NULL, NULL, NULL);
+			NULL, NULL, NULL, NULL, NULL);
 }
 
 /**
@@ -314,15 +300,6 @@ int aac_sa_init(struct aac_dev *dev)
 	name     = dev->name;
 
 	/*
-	 *	Map in the registers from the adapter.
-	 */
-
-	if((dev->regs.sa = ioremap((unsigned long)dev->scsi_host_ptr->base, 8192))==NULL)
-	{	
-		printk(KERN_WARNING "aacraid: unable to map ARM.\n" );
-		goto error_iounmap;
-	}
-	/*
 	 *	Check to see if the board failed any self tests.
 	 */
 	if (sa_readl(dev, Mailbox7) & SELF_TEST_FAILED) {
@@ -347,8 +324,7 @@ int aac_sa_init(struct aac_dev *dev)
 					name, instance, status);
 			goto error_iounmap;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	if (request_irq(dev->scsi_host_ptr->irq, aac_sa_intr, SA_SHIRQ|SA_INTERRUPT, "aacraid", (void *)dev ) < 0) {
@@ -378,31 +354,17 @@ int aac_sa_init(struct aac_dev *dev)
 		goto error_irq;
 
 	/*
-	 *	Start any kernel threads needed
-	 */
-	dev->thread_pid = kernel_thread((int (*)(void *))aac_command_thread, dev, 0);
-	if (dev->thread_pid < 0) {
-		printk(KERN_ERR "aacraid: Unable to create command thread.\n");
-		goto error_kfree;
-	}
-
-	/*
 	 *	Tell the adapter that all is configure, and it can start 
 	 *	accepting requests
 	 */
 	aac_sa_start_adapter(dev);
 	return 0;
 
-
-error_kfree:
-	kfree(dev->queues);
-
 error_irq:
 	sa_writew(dev, SaDbCSR.PRISETIRQMASK, 0xffff);
 	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
 
 error_iounmap:
-	iounmap(dev->regs.sa);
 
 	return -1;
 }

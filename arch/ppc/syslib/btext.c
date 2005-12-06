@@ -53,8 +53,8 @@ extern char *klimit;
  * chrp only uses it during early boot.
  */
 #ifdef CONFIG_XMON
-#define BTEXT	__pmac
-#define BTDATA	__pmacdata
+#define BTEXT
+#define BTDATA
 #else
 #define BTEXT	__init
 #define BTDATA	__initdata
@@ -187,7 +187,7 @@ btext_setup_display(int width, int height, int depth, int pitch,
  *    changes.
  */
 
-void __openfirmware
+void
 map_boot_text(void)
 {
 	unsigned long base, offset, size;

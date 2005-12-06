@@ -265,7 +265,7 @@ QDIO_PRINT_##importance(header "%02x %02x %02x %02x  %02x %02x %02x %02x  " \
 /*
  * Some instructions as assembly
  */
-extern __inline__ int 
+static inline int
 do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
 {
 	int cc;
@@ -300,7 +300,7 @@ do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
 	return cc;
 }
 
-extern __inline__ int
+static inline int
 do_siga_input(unsigned int irq, unsigned int mask)
 {
 	int cc;
@@ -334,7 +334,7 @@ do_siga_input(unsigned int irq, unsigned int mask)
 	return cc;
 }
 
-extern __inline__ int
+static inline int
 do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb)
 {
 	int cc;
@@ -401,7 +401,7 @@ do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb)
 	return cc;
 }
 
-extern __inline__ unsigned long
+static inline unsigned long
 do_clear_global_summary(void)
 {
 

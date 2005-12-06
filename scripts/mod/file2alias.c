@@ -295,11 +295,13 @@ static int do_pcmcia_entry(const char *filename,
 {
 	unsigned int i;
 
+	id->match_flags = TO_NATIVE(id->match_flags);
 	id->manf_id = TO_NATIVE(id->manf_id);
 	id->card_id = TO_NATIVE(id->card_id);
 	id->func_id = TO_NATIVE(id->func_id);
 	id->function = TO_NATIVE(id->function);
 	id->device_no = TO_NATIVE(id->device_no);
+
 	for (i=0; i<4; i++) {
 		id->prod_id_hash[i] = TO_NATIVE(id->prod_id_hash[i]);
        }
@@ -354,6 +356,13 @@ static int do_vio_entry(const char *filename, struct vio_device_id *vio,
 		if (isspace (*tmp))
 			*tmp = '_';
 
+	return 1;
+}
+
+static int do_i2c_entry(const char *filename, struct i2c_device_id *i2c, char *alias)
+{
+	strcpy(alias, "i2c:");
+	ADD(alias, "id", 1, i2c->id);
 	return 1;
 }
 
@@ -441,6 +450,9 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
         else if (sym_is(symname, "__mod_vio_device_table"))
 		do_table(symval, sym->st_size, sizeof(struct vio_device_id),
 			 do_vio_entry, mod);
+	else if (sym_is(symname, "__mod_i2c_device_table"))
+		do_table(symval, sym->st_size, sizeof(struct i2c_device_id),
+			 do_i2c_entry, mod);
 
 }
 

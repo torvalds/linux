@@ -430,8 +430,8 @@ static int apm_emu_get_info(char *buf, char **start, off_t fpos, int length)
 	      -1: Unknown
 	   8) min = minutes; sec = seconds */
 
-	unsigned short  ac_line_status = 0xff;
-	unsigned short  battery_status = 0xff;
+	unsigned short  ac_line_status;
+	unsigned short  battery_status = 0;
 	unsigned short  battery_flag   = 0xff;
 	int		percentage     = -1;
 	int             time_units     = -1;
@@ -446,6 +446,7 @@ static int apm_emu_get_info(char *buf, char **start, off_t fpos, int length)
 	ac_line_status = ((pmu_power_flags & PMU_PWR_AC_PRESENT) != 0);
 	for (i=0; i<pmu_battery_count; i++) {
 		if (pmu_batteries[i].flags & PMU_BATT_PRESENT) {
+			battery_status++;
 			if (percentage < 0)
 				percentage = 0;
 			if (charge < 0)
@@ -461,6 +462,9 @@ static int apm_emu_get_info(char *buf, char **start, off_t fpos, int length)
 				charging++;
 		}
 	}
+	if (0 == battery_status)
+		ac_line_status = 1;
+	battery_status = 0xff;
 	if (real_count) {
 		if (amperage < 0) {
 			if (btype == PMU_BATT_TYPE_SMART)

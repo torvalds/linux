@@ -678,10 +678,9 @@ static void turnaround_delay(const struct stir_cb *stir, long us)
 		return;
 
 	ticks = us / (1000000 / HZ);
-	if (ticks > 0) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1 + ticks);
-	} else
+	if (ticks > 0)
+		schedule_timeout_interruptible(1 + ticks);
+	else
 		udelay(us);
 }
 

@@ -163,14 +163,13 @@ static void end_cpu_irq(unsigned int irq)
 #define mask_and_ack_cpu_irq disable_cpu_irq
 
 static struct hw_interrupt_type ip32_cpu_interrupt = {
-	"IP32 CPU",
-	startup_cpu_irq,
-	shutdown_cpu_irq,
-	enable_cpu_irq,
-	disable_cpu_irq,
-	mask_and_ack_cpu_irq,
-	end_cpu_irq,
-	NULL
+	.typename = "IP32 CPU",
+	.startup = startup_cpu_irq,
+	.shutdown = shutdown_cpu_irq,
+	.enable = enable_cpu_irq,
+	.disable = disable_cpu_irq,
+	.ack = mask_and_ack_cpu_irq,
+	.end = end_cpu_irq,
 };
 
 /*
@@ -234,14 +233,13 @@ static void end_crime_irq(unsigned int irq)
 #define shutdown_crime_irq disable_crime_irq
 
 static struct hw_interrupt_type ip32_crime_interrupt = {
-	"IP32 CRIME",
-	startup_crime_irq,
-	shutdown_crime_irq,
-	enable_crime_irq,
-	disable_crime_irq,
-	mask_and_ack_crime_irq,
-	end_crime_irq,
-	NULL
+	.typename = "IP32 CRIME",
+	.startup = startup_crime_irq,
+	.shutdown = shutdown_crime_irq,
+	.enable = enable_crime_irq,
+	.disable = disable_crime_irq,
+	.ack = mask_and_ack_crime_irq,
+	.end = end_crime_irq,
 };
 
 /*
@@ -294,14 +292,13 @@ static void end_macepci_irq(unsigned int irq)
 #define mask_and_ack_macepci_irq disable_macepci_irq
 
 static struct hw_interrupt_type ip32_macepci_interrupt = {
-	"IP32 MACE PCI",
-	startup_macepci_irq,
-	shutdown_macepci_irq,
-	enable_macepci_irq,
-	disable_macepci_irq,
-	mask_and_ack_macepci_irq,
-	end_macepci_irq,
-	NULL
+	.typename = "IP32 MACE PCI",
+	.startup = startup_macepci_irq,
+	.shutdown = shutdown_macepci_irq,
+	.enable = enable_macepci_irq,
+	.disable = disable_macepci_irq,
+	.ack = mask_and_ack_macepci_irq,
+	.end = end_macepci_irq,
 };
 
 /* This is used for MACE ISA interrupts.  That means bits 4-6 in the
@@ -425,14 +422,13 @@ static void end_maceisa_irq(unsigned irq)
 #define shutdown_maceisa_irq disable_maceisa_irq
 
 static struct hw_interrupt_type ip32_maceisa_interrupt = {
-	"IP32 MACE ISA",
-	startup_maceisa_irq,
-	shutdown_maceisa_irq,
-	enable_maceisa_irq,
-	disable_maceisa_irq,
-	mask_and_ack_maceisa_irq,
-	end_maceisa_irq,
-	NULL
+	.typename = "IP32 MACE ISA",
+	.startup = startup_maceisa_irq,
+	.shutdown = shutdown_maceisa_irq,
+	.enable = enable_maceisa_irq,
+	.disable = disable_maceisa_irq,
+	.ack = mask_and_ack_maceisa_irq,
+	.end = end_maceisa_irq,
 };
 
 /* This is used for regular non-ISA, non-PCI MACE interrupts.  That means
@@ -476,14 +472,13 @@ static void end_mace_irq(unsigned int irq)
 #define mask_and_ack_mace_irq disable_mace_irq
 
 static struct hw_interrupt_type ip32_mace_interrupt = {
-	"IP32 MACE",
-	startup_mace_irq,
-	shutdown_mace_irq,
-	enable_mace_irq,
-	disable_mace_irq,
-	mask_and_ack_mace_irq,
-	end_mace_irq,
-	NULL
+	.typename = "IP32 MACE",
+	.startup = startup_mace_irq,
+	.shutdown = shutdown_mace_irq,
+	.enable = enable_mace_irq,
+	.disable = disable_mace_irq,
+	.ack = mask_and_ack_mace_irq,
+	.end = end_mace_irq,
 };
 
 static void ip32_unknown_interrupt(struct pt_regs *regs)

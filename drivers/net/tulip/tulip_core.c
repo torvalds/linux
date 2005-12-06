@@ -1727,8 +1727,7 @@ err_out_free_ring:
 			     tp->rx_ring, tp->rx_ring_dma);
 
 err_out_mtable:
-	if (tp->mtable)
-		kfree (tp->mtable);
+	kfree (tp->mtable);
 	pci_iounmap(pdev, ioaddr);
 
 err_out_free_res:
@@ -1806,8 +1805,7 @@ static void __devexit tulip_remove_one (struct pci_dev *pdev)
 			     sizeof (struct tulip_rx_desc) * RX_RING_SIZE +
 			     sizeof (struct tulip_tx_desc) * TX_RING_SIZE,
 			     tp->rx_ring, tp->rx_ring_dma);
-	if (tp->mtable)
-		kfree (tp->mtable);
+	kfree (tp->mtable);
 	pci_iounmap(pdev, tp->base_addr);
 	free_netdev (dev);
 	pci_release_regions (pdev);

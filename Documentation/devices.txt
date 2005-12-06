@@ -2903,14 +2903,14 @@ Your cooperation is appreciated.
 		196 = /dev/dvb/adapter3/video0    first video decoder of fourth card
 
 
-216 char	USB BlueTooth devices
-		  0 = /dev/ttyUB0		First USB BlueTooth device
-		  1 = /dev/ttyUB1		Second USB BlueTooth device
+216 char	Bluetooth RFCOMM TTY devices
+		  0 = /dev/rfcomm0		First Bluetooth RFCOMM TTY device
+		  1 = /dev/rfcomm1		Second Bluetooth RFCOMM TTY device
 		    ...
 
-217 char	USB BlueTooth devices (alternate devices)
-		  0 = /dev/cuub0		Callout device for ttyUB0
-		  1 = /dev/cuub1		Callout device for ttyUB1
+217 char	Bluetooth RFCOMM TTY devices (alternate devices)
+		  0 = /dev/curf0		Callout device for rfcomm0
+		  1 = /dev/curf1		Callout device for rfcomm1
 		    ...
 
 218 char	The Logical Company bus Unibus/Qbus adapters

@@ -61,5 +61,10 @@ extern void FASTCALL(__up_read(struct rw_semaphore *sem));
 extern void FASTCALL(__up_write(struct rw_semaphore *sem));
 extern void FASTCALL(__downgrade_write(struct rw_semaphore *sem));
 
+static inline int rwsem_is_locked(struct rw_semaphore *sem)
+{
+	return (sem->activity != 0);
+}
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_RWSEM_SPINLOCK_H */

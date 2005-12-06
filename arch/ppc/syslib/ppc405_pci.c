@@ -89,13 +89,6 @@ ppc4xx_find_bridges(void)
 	isa_mem_base = 0;
 	pci_dram_offset = 0;
 
-#if  (PSR_PCI_ARBIT_EN > 1)
-	/* Check if running in slave mode */
-	if ((mfdcr(DCRN_CHPSR) & PSR_PCI_ARBIT_EN) == 0) {
-		printk("Running as PCI slave, kernel PCI disabled !\n");
-		return;
-	}
-#endif
 	/* Setup PCI32 hose */
 	hose_a = pcibios_alloc_controller();
 	if (!hose_a)

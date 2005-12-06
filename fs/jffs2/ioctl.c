@@ -7,17 +7,17 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: ioctl.c,v 1.9 2004/11/16 20:36:11 dwmw2 Exp $
+ * $Id: ioctl.c,v 1.10 2005/11/07 11:14:40 gleixner Exp $
  *
  */
 
 #include <linux/fs.h>
 
-int jffs2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
+int jffs2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		unsigned long arg)
 {
 	/* Later, this will provide for lsattr.jffs2 and chattr.jffs2, which
 	   will include compression support etc. */
 	return -ENOTTY;
 }
-	
+

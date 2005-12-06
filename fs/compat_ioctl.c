@@ -49,6 +49,8 @@
 #include <linux/vt_kern.h>
 #include <linux/fb.h>
 #include <linux/ext2_fs.h>
+#include <linux/ext3_jbd.h>
+#include <linux/ext3_fs.h>
 #include <linux/videodev.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
@@ -121,6 +123,11 @@
 
 #include <linux/hiddev.h>
 
+#include <linux/dvb/audio.h>
+#include <linux/dvb/dmx.h>
+#include <linux/dvb/frontend.h>
+#include <linux/dvb/video.h>
+
 #undef INCLUDES
 #endif
 
@@ -129,6 +136,15 @@
 /* Aiee. Someone does not find a difference between int and long */
 #define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
 #define EXT2_IOC32_SETFLAGS               _IOW('f', 2, int)
+#define EXT3_IOC32_GETVERSION             _IOR('f', 3, int)
+#define EXT3_IOC32_SETVERSION             _IOW('f', 4, int)
+#define EXT3_IOC32_GETRSVSZ               _IOR('f', 5, int)
+#define EXT3_IOC32_SETRSVSZ               _IOW('f', 6, int)
+#define EXT3_IOC32_GROUP_EXTEND           _IOW('f', 7, unsigned int)
+#ifdef CONFIG_JBD_DEBUG
+#define EXT3_IOC32_WAIT_FOR_READONLY      _IOR('f', 99, int)
+#endif
+
 #define EXT2_IOC32_GETVERSION             _IOR('v', 1, int)
 #define EXT2_IOC32_SETVERSION             _IOW('v', 2, int)
 
@@ -171,6 +187,22 @@ static int do_ext2_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 	case EXT2_IOC32_SETFLAGS: cmd = EXT2_IOC_SETFLAGS; break;
 	case EXT2_IOC32_GETVERSION: cmd = EXT2_IOC_GETVERSION; break;
 	case EXT2_IOC32_SETVERSION: cmd = EXT2_IOC_SETVERSION; break;
+	}
+	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
+}
+
+static int do_ext3_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	/* These are just misnamed, they actually get/put from/to user an int */
+	switch (cmd) {
+	case EXT3_IOC32_GETVERSION: cmd = EXT3_IOC_GETVERSION; break;
+	case EXT3_IOC32_SETVERSION: cmd = EXT3_IOC_SETVERSION; break;
+	case EXT3_IOC32_GETRSVSZ: cmd = EXT3_IOC_GETRSVSZ; break;
+	case EXT3_IOC32_SETRSVSZ: cmd = EXT3_IOC_SETRSVSZ; break;
+	case EXT3_IOC32_GROUP_EXTEND: cmd = EXT3_IOC_GROUP_EXTEND; break;
+#ifdef CONFIG_JBD_DEBUG
+	case EXT3_IOC32_WAIT_FOR_READONLY: cmd = EXT3_IOC_WAIT_FOR_READONLY; break;
+#endif
 	}
 	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
 }
@@ -413,6 +445,128 @@ out:
 	return err;
 }
 
+struct compat_dmx_event {
+	dmx_event_t	event;
+	compat_time_t	timeStamp;
+	union
+	{
+		dmx_scrambling_status_t scrambling;
+	} u;
+};
+
+static int do_dmx_get_event(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct dmx_event kevent;
+	mm_segment_t old_fs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sys_ioctl(fd, cmd, (unsigned long) &kevent);
+	set_fs(old_fs);
+
+	if (!err) {
+		struct compat_dmx_event __user *up = compat_ptr(arg);
+
+		err  = put_user(kevent.event, &up->event);
+		err |= put_user(kevent.timeStamp, &up->timeStamp);
+		err |= put_user(kevent.u.scrambling, &up->u.scrambling);
+		if (err)
+			err = -EFAULT;
+	}
+
+	return err;
+}
+
+struct compat_video_event {
+	int32_t		type;
+	compat_time_t	timestamp;
+	union {
+	        video_size_t size;
+		unsigned int frame_rate;
+	} u;
+};
+
+static int do_video_get_event(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct video_event kevent;
+	mm_segment_t old_fs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sys_ioctl(fd, cmd, (unsigned long) &kevent);
+	set_fs(old_fs);
+
+	if (!err) {
+		struct compat_video_event __user *up = compat_ptr(arg);
+
+		err  = put_user(kevent.type, &up->type);
+		err |= put_user(kevent.timestamp, &up->timestamp);
+		err |= put_user(kevent.u.size.w, &up->u.size.w);
+		err |= put_user(kevent.u.size.h, &up->u.size.h);
+		err |= put_user(kevent.u.size.aspect_ratio,
+				&up->u.size.aspect_ratio);
+		if (err)
+			err = -EFAULT;
+	}
+
+	return err;
+}
+
+struct compat_video_still_picture {
+        compat_uptr_t iFrame;
+        int32_t size;
+};
+
+static int do_video_stillpicture(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_video_still_picture __user *up;
+	struct video_still_picture __user *up_native;
+	compat_uptr_t fp;
+	int32_t size;
+	int err;
+
+	up = (struct compat_video_still_picture __user *) arg;
+	err  = get_user(fp, &up->iFrame);
+	err |= get_user(size, &up->size);
+	if (err)
+		return -EFAULT;
+
+	up_native =
+		compat_alloc_user_space(sizeof(struct video_still_picture));
+
+	put_user(compat_ptr(fp), &up_native->iFrame);
+	put_user(size, &up_native->size);
+
+	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
+
+	return err;
+}
+
+struct compat_video_spu_palette {
+	int length;
+	compat_uptr_t palette;
+};
+
+static int do_video_set_spu_palette(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_video_spu_palette __user *up;
+	struct video_spu_palette __user *up_native;
+	compat_uptr_t palp;
+	int length, err;
+
+	up = (struct compat_video_spu_palette __user *) arg;
+	err  = get_user(palp, &up->palette);
+	err |= get_user(length, &up->length);
+
+	up_native = compat_alloc_user_space(sizeof(struct video_spu_palette));
+	put_user(compat_ptr(palp), &up_native->palette);
+	put_user(length, &up_native->length);
+
+	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
+
+	return err;
+}
+
 #ifdef CONFIG_NET
 static int do_siocgstamp(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
@@ -532,7 +686,8 @@ static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)
 
 	ifr = ifc.ifc_req;
 	ifr32 = compat_ptr(ifc32.ifcbuf);
-	for (i = 0, j = 0; i < ifc32.ifc_len && j < ifc.ifc_len;
+	for (i = 0, j = 0;
+             i + sizeof (struct ifreq32) < ifc32.ifc_len && j < ifc.ifc_len;
 	     i += sizeof (struct ifreq32), j += sizeof (struct ifreq)) {
 		if (copy_in_user(ifr32, ifr, sizeof (struct ifreq32)))
 			return -EFAULT;
@@ -548,10 +703,7 @@ static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)
 		i = ((i / sizeof(struct ifreq)) * sizeof(struct ifreq32));
 		ifc32.ifc_len = i;
 	} else {
-		if (i <= ifc32.ifc_len)
-			ifc32.ifc_len = i;
-		else
-			ifc32.ifc_len = i - sizeof (struct ifreq32);
+		ifc32.ifc_len = i;
 	}
 	if (copy_to_user(compat_ptr(arg), &ifc32, sizeof(struct ifconf32)))
 		return -EFAULT;
@@ -838,146 +990,6 @@ static int hdio_getgeo(unsigned int fd, unsigned int cmd, unsigned long arg)
 		err |= __put_user (geo.start, &ugeo->start);
 	}
 	return err ? -EFAULT : 0;
-}
-
-struct fb_fix_screeninfo32 {
-	char			id[16];
-        compat_caddr_t	smem_start;
-	u32			smem_len;
-	u32			type;
-	u32			type_aux;
-	u32			visual;
-	u16			xpanstep;
-	u16			ypanstep;
-	u16			ywrapstep;
-	u32			line_length;
-        compat_caddr_t	mmio_start;
-	u32			mmio_len;
-	u32			accel;
-	u16			reserved[3];
-};
-
-struct fb_cmap32 {
-	u32			start;
-	u32			len;
-	compat_caddr_t	red;
-	compat_caddr_t	green;
-	compat_caddr_t	blue;
-	compat_caddr_t	transp;
-};
-
-static int fb_getput_cmap(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct fb_cmap_user __user *cmap;
-	struct fb_cmap32 __user *cmap32;
-	__u32 data;
-	int err;
-
-	cmap = compat_alloc_user_space(sizeof(*cmap));
-	cmap32 = compat_ptr(arg);
-
-	if (copy_in_user(&cmap->start, &cmap32->start, 2 * sizeof(__u32)))
-		return -EFAULT;
-
-	if (get_user(data, &cmap32->red) ||
-	    put_user(compat_ptr(data), &cmap->red) ||
-	    get_user(data, &cmap32->green) ||
-	    put_user(compat_ptr(data), &cmap->green) ||
-	    get_user(data, &cmap32->blue) ||
-	    put_user(compat_ptr(data), &cmap->blue) ||
-	    get_user(data, &cmap32->transp) ||
-	    put_user(compat_ptr(data), &cmap->transp))
-		return -EFAULT;
-
-	err = sys_ioctl(fd, cmd, (unsigned long) cmap);
-
-	if (!err) {
-		if (copy_in_user(&cmap32->start,
-				 &cmap->start,
-				 2 * sizeof(__u32)))
-			err = -EFAULT;
-	}
-	return err;
-}
-
-static int do_fscreeninfo_to_user(struct fb_fix_screeninfo *fix,
-				  struct fb_fix_screeninfo32 __user *fix32)
-{
-	__u32 data;
-	int err;
-
-	err = copy_to_user(&fix32->id, &fix->id, sizeof(fix32->id));
-
-	data = (__u32) (unsigned long) fix->smem_start;
-	err |= put_user(data, &fix32->smem_start);
-
-	err |= put_user(fix->smem_len, &fix32->smem_len);
-	err |= put_user(fix->type, &fix32->type);
-	err |= put_user(fix->type_aux, &fix32->type_aux);
-	err |= put_user(fix->visual, &fix32->visual);
-	err |= put_user(fix->xpanstep, &fix32->xpanstep);
-	err |= put_user(fix->ypanstep, &fix32->ypanstep);
-	err |= put_user(fix->ywrapstep, &fix32->ywrapstep);
-	err |= put_user(fix->line_length, &fix32->line_length);
-
-	data = (__u32) (unsigned long) fix->mmio_start;
-	err |= put_user(data, &fix32->mmio_start);
-
-	err |= put_user(fix->mmio_len, &fix32->mmio_len);
-	err |= put_user(fix->accel, &fix32->accel);
-	err |= copy_to_user(fix32->reserved, fix->reserved,
-			    sizeof(fix->reserved));
-
-	return err;
-}
-
-static int fb_get_fscreeninfo(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	mm_segment_t old_fs;
-	struct fb_fix_screeninfo fix;
-	struct fb_fix_screeninfo32 __user *fix32;
-	int err;
-
-	fix32 = compat_ptr(arg);
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = sys_ioctl(fd, cmd, (unsigned long) &fix);
-	set_fs(old_fs);
-
-	if (!err)
-		err = do_fscreeninfo_to_user(&fix, fix32);
-
-	return err;
-}
-
-static int fb_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	int err;
-
-	switch (cmd) {
-	case FBIOGET_FSCREENINFO:
-		err = fb_get_fscreeninfo(fd,cmd, arg);
-		break;
-
-  	case FBIOGETCMAP:
-	case FBIOPUTCMAP:
-		err = fb_getput_cmap(fd, cmd, arg);
-		break;
-
-	default:
-		do {
-			static int count;
-			if (++count <= 20)
-				printk("%s: Unknown fb ioctl cmd fd(%d) "
-				       "cmd(%08x) arg(%08lx)\n",
-				       __FUNCTION__, fd, cmd, arg);
-		} while(0);
-		err = -ENOSYS;
-		break;
-	};
-
-	return err;
 }
 
 static int hdio_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
@@ -2235,7 +2247,8 @@ static int fd_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (err)
 		err = -EFAULT;
 
-out:	if (karg) kfree(karg);
+out:
+	kfree(karg);
 	return err;
 }
 
@@ -2952,10 +2965,7 @@ HANDLE_IOCTL(BLKGETSIZE, w_long)
 HANDLE_IOCTL(0x1260, broken_blkgetsize)
 HANDLE_IOCTL(BLKFRAGET, w_long)
 HANDLE_IOCTL(BLKSECTGET, w_long)
-HANDLE_IOCTL(FBIOGET_FSCREENINFO, fb_ioctl_trans)
 HANDLE_IOCTL(BLKPG, blkpg_ioctl_trans)
-HANDLE_IOCTL(FBIOGETCMAP, fb_ioctl_trans)
-HANDLE_IOCTL(FBIOPUTCMAP, fb_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_KEEPSETTINGS, hdio_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_UNMASKINTR, hdio_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_DMA, hdio_ioctl_trans)
@@ -2996,6 +3006,15 @@ HANDLE_IOCTL(EXT2_IOC32_GETFLAGS, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_SETFLAGS, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_GETVERSION, do_ext2_ioctl)
 HANDLE_IOCTL(EXT2_IOC32_SETVERSION, do_ext2_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GETVERSION, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_SETVERSION, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GETRSVSZ, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_SETRSVSZ, do_ext3_ioctl)
+HANDLE_IOCTL(EXT3_IOC32_GROUP_EXTEND, do_ext3_ioctl)
+COMPATIBLE_IOCTL(EXT3_IOC_GROUP_ADD)
+#ifdef CONFIG_JBD_DEBUG
+HANDLE_IOCTL(EXT3_IOC32_WAIT_FOR_READONLY, do_ext3_ioctl)
+#endif
 HANDLE_IOCTL(VIDIOCGTUNER32, do_video_ioctl)
 HANDLE_IOCTL(VIDIOCSTUNER32, do_video_ioctl)
 HANDLE_IOCTL(VIDIOCGWIN32, do_video_ioctl)
@@ -3046,10 +3065,25 @@ HANDLE_IOCTL(RAW_GETBIND, raw_ioctl)
 /* Serial */
 HANDLE_IOCTL(TIOCGSERIAL, serial_struct_ioctl)
 HANDLE_IOCTL(TIOCSSERIAL, serial_struct_ioctl)
+#ifdef TIOCGLTC
+COMPATIBLE_IOCTL(TIOCGLTC)
+COMPATIBLE_IOCTL(TIOCSLTC)
+#endif
+#ifdef TIOCSTART
+/*
+ * For these two we have defintions in ioctls.h and/or termios.h on
+ * some architectures but no actual implemention.  Some applications
+ * like bash call them if they are defined in the headers, so we provide
+ * entries here to avoid syslog message spew.
+ */
+COMPATIBLE_IOCTL(TIOCSTART)
+COMPATIBLE_IOCTL(TIOCSTOP)
+#endif
 /* Usbdevfs */
 HANDLE_IOCTL(USBDEVFS_CONTROL32, do_usbdevfs_control)
 HANDLE_IOCTL(USBDEVFS_BULK32, do_usbdevfs_bulk)
 HANDLE_IOCTL(USBDEVFS_DISCSIGNAL32, do_usbdevfs_discsignal)
+COMPATIBLE_IOCTL(USBDEVFS_IOCTL32)
 /* i2c */
 HANDLE_IOCTL(I2C_FUNCS, w_long)
 HANDLE_IOCTL(I2C_RDWR, do_i2c_rdwr_ioctl)
@@ -3080,6 +3114,12 @@ HANDLE_IOCTL(NCP_IOC_SETOBJECTNAME_32, do_ncp_setobjectname)
 HANDLE_IOCTL(NCP_IOC_GETPRIVATEDATA_32, do_ncp_getprivatedata)
 HANDLE_IOCTL(NCP_IOC_SETPRIVATEDATA_32, do_ncp_setprivatedata)
 #endif
+
+/* dvb */
+HANDLE_IOCTL(DMX_GET_EVENT, do_dmx_get_event)
+HANDLE_IOCTL(VIDEO_GET_EVENT, do_video_get_event)
+HANDLE_IOCTL(VIDEO_STILLPICTURE, do_video_stillpicture)
+HANDLE_IOCTL(VIDEO_SET_SPU_PALETTE, do_video_set_spu_palette)
 
 #undef DECLARES
 #endif

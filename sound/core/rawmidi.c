@@ -378,24 +378,20 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	struct list_head *list;
 	snd_ctl_file_t *kctl;
 
-	switch (maj) {
-	case CONFIG_SND_MAJOR:
+	if (maj == snd_major) {
 		cardnum = SNDRV_MINOR_CARD(iminor(inode));
 		cardnum %= SNDRV_CARDS;
 		device = SNDRV_MINOR_DEVICE(iminor(inode)) - SNDRV_MINOR_RAWMIDI;
 		device %= SNDRV_MINOR_RAWMIDIS;
-		break;
 #ifdef CONFIG_SND_OSSEMUL
-	case SOUND_MAJOR:
+	} else if (maj == SOUND_MAJOR) {
 		cardnum = SNDRV_MINOR_OSS_CARD(iminor(inode));
 		cardnum %= SNDRV_CARDS;
 		device = SNDRV_MINOR_OSS_DEVICE(iminor(inode)) == SNDRV_MINOR_OSS_MIDI ?
 			midi_map[cardnum] : amidi_map[cardnum];
-		break;
 #endif
-	default:
+	} else
 		return -ENXIO;
-	}
 
 	rmidi = snd_rawmidi_devices[(cardnum * SNDRV_RAWMIDI_DEVICES) + device];
 	if (rmidi == NULL)
@@ -411,7 +407,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	if (err < 0)
 		return -ENODEV;
 	fflags = snd_rawmidi_file_flags(file);
-	if ((file->f_flags & O_APPEND) || maj != CONFIG_SND_MAJOR) /* OSS emul? */
+	if ((file->f_flags & O_APPEND) || maj == SOUND_MAJOR) /* OSS emul? */
 		fflags |= SNDRV_RAWMIDI_LFLG_APPEND;
 	fflags |= SNDRV_RAWMIDI_LFLG_NOOPENLOCK;
 	rawmidi_file = kmalloc(sizeof(*rawmidi_file), GFP_KERNEL);

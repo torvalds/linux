@@ -542,10 +542,7 @@ static int snd_ad1816a_probe(ad1816a_t *chip)
 
 static int snd_ad1816a_free(ad1816a_t *chip)
 {
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
+	release_and_free_resource(chip->res_port);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *) chip);
 	if (chip->dma1 >= 0) {

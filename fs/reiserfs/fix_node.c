@@ -2022,7 +2022,7 @@ static int get_neighbors(struct tree_balance *p_s_tb, int n_h)
 }
 
 #ifdef CONFIG_REISERFS_CHECK
-void *reiserfs_kmalloc(size_t size, int flags, struct super_block *s)
+void *reiserfs_kmalloc(size_t size, gfp_t flags, struct super_block *s)
 {
 	void *vp;
 	static size_t malloced;

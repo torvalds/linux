@@ -22,6 +22,7 @@
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
+#include <linux/pci.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -36,16 +37,13 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 #include <asm/smp.h>
+#include <asm/sections.h>
 
 #ifndef Dprintk
 #define Dprintk(x...)
 #endif
 
-#ifdef CONFIG_GART_IOMMU
-extern int swiotlb;
-#endif
-
-extern char _stext[];
+static unsigned long dma_reserve __initdata;
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
@@ -85,9 +83,6 @@ void show_mem(void)
 }
 
 /* References to section boundaries */
-
-extern char _text, _etext, _edata, __bss_start, _end[];
-extern char __init_begin, __init_end;
 
 int after_bootmem;
 
@@ -308,42 +303,81 @@ void __init init_memory_mapping(unsigned long start, unsigned long end)
 	       table_end<<PAGE_SHIFT);
 }
 
-extern struct x8664_pda cpu_pda[NR_CPUS];
-
-/* Assumes all CPUs still execute in init_mm */
-void zap_low_mappings(void)
+void __cpuinit zap_low_mappings(int cpu)
 {
-	pgd_t *pgd = pgd_offset_k(0UL);
-	pgd_clear(pgd);
-	flush_tlb_all();
+	if (cpu == 0) {
+		pgd_t *pgd = pgd_offset_k(0UL);
+		pgd_clear(pgd);
+	} else {
+		/*
+		 * For AP's, zap the low identity mappings by changing the cr3
+		 * to init_level4_pgt and doing local flush tlb all
+		 */
+		asm volatile("movq %0,%%cr3" :: "r" (__pa_symbol(&init_level4_pgt)));
+	}
+	__flush_tlb_all();
+}
+
+/* Compute zone sizes for the DMA and DMA32 zones in a node. */
+__init void
+size_zones(unsigned long *z, unsigned long *h,
+	   unsigned long start_pfn, unsigned long end_pfn)
+{
+ 	int i;
+ 	unsigned long w;
+
+ 	for (i = 0; i < MAX_NR_ZONES; i++)
+ 		z[i] = 0;
+
+ 	if (start_pfn < MAX_DMA_PFN)
+ 		z[ZONE_DMA] = MAX_DMA_PFN - start_pfn;
+ 	if (start_pfn < MAX_DMA32_PFN) {
+ 		unsigned long dma32_pfn = MAX_DMA32_PFN;
+ 		if (dma32_pfn > end_pfn)
+ 			dma32_pfn = end_pfn;
+ 		z[ZONE_DMA32] = dma32_pfn - start_pfn;
+ 	}
+ 	z[ZONE_NORMAL] = end_pfn - start_pfn;
+
+ 	/* Remove lower zones from higher ones. */
+ 	w = 0;
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		if (z[i])
+ 			z[i] -= w;
+ 	        w += z[i];
+	}
+
+	/* Compute holes */
+	w = 0;
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		unsigned long s = w;
+		w += z[i];
+		h[i] = e820_hole_size(s, w);
+	}
+
+	/* Add the space pace needed for mem_map to the holes too. */
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		h[i] += (z[i] * sizeof(struct page)) / PAGE_SIZE;
+
+	/* The 16MB DMA zone has the kernel and other misc mappings.
+ 	   Account them too */
+	if (h[ZONE_DMA]) {
+		h[ZONE_DMA] += dma_reserve;
+		if (h[ZONE_DMA] >= z[ZONE_DMA]) {
+			printk(KERN_WARNING
+				"Kernel too large and filling up ZONE_DMA?\n");
+			h[ZONE_DMA] = z[ZONE_DMA];
+		}
+	}
 }
 
 #ifndef CONFIG_NUMA
 void __init paging_init(void)
 {
-	{
-		unsigned long zones_size[MAX_NR_ZONES];
-		unsigned long holes[MAX_NR_ZONES];
-		unsigned int max_dma;
-
-		memset(zones_size, 0, sizeof(zones_size));
-		memset(holes, 0, sizeof(holes));
-
-		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-
-		if (end_pfn < max_dma) {
-			zones_size[ZONE_DMA] = end_pfn;
-			holes[ZONE_DMA] = e820_hole_size(0, end_pfn);
-		} else {
-			zones_size[ZONE_DMA] = max_dma;
-			holes[ZONE_DMA] = e820_hole_size(0, max_dma);
-			zones_size[ZONE_NORMAL] = end_pfn - max_dma;
-			holes[ZONE_NORMAL] = e820_hole_size(max_dma, end_pfn);
-		}
-		free_area_init_node(0, NODE_DATA(0), zones_size,
-                        __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
-	}
-	return;
+	unsigned long zones[MAX_NR_ZONES], holes[MAX_NR_ZONES];
+	size_zones(zones, holes, 0, end_pfn);
+	free_area_init_node(0, NODE_DATA(0), zones,
+			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
 }
 #endif
 
@@ -438,18 +472,15 @@ void __init mem_init(void)
 		datasize >> 10,
 		initsize >> 10);
 
+#ifdef CONFIG_SMP
 	/*
-	 * Subtle. SMP is doing its boot stuff late (because it has to
-	 * fork idle threads) - but it also needs low mappings for the
-	 * protected-mode entry to work. We zap these entries only after
-	 * the WP-bit has been tested.
+	 * Sync boot_level4_pgt mappings with the init_level4_pgt
+	 * except for the low identity mappings which are already zapped
+	 * in init_level4_pgt. This sync-up is essential for AP's bringup
 	 */
-#ifndef CONFIG_SMP
-	zap_low_mappings();
+	memcpy(boot_level4_pgt+1, init_level4_pgt+1, (PTRS_PER_PGD-1)*sizeof(pgd_t));
 #endif
 }
-
-extern char __initdata_begin[], __initdata_end[];
 
 void free_initmem(void)
 {
@@ -464,7 +495,7 @@ void free_initmem(void)
 		totalram_pages++;
 	}
 	memset(__initdata_begin, 0xba, __initdata_end - __initdata_begin);
-	printk ("Freeing unused kernel memory: %luk freed\n", (&__init_end - &__init_begin) >> 10);
+	printk ("Freeing unused kernel memory: %luk freed\n", (__init_end - __init_begin) >> 10);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -491,6 +522,8 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 #else       		
 	reserve_bootmem(phys, len);    
 #endif
+	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE)
+		dma_reserve += len / PAGE_SIZE;
 }
 
 int kern_addr_valid(unsigned long addr) 
@@ -532,10 +565,6 @@ extern int exception_trace, page_fault_trace;
 static ctl_table debug_table2[] = {
 	{ 99, "exception-trace", &exception_trace, sizeof(int), 0644, NULL,
 	  proc_dointvec },
-#ifdef CONFIG_CHECKING
-	{ 100, "page-fault-trace", &page_fault_trace, sizeof(int), 0644, NULL,
-	  proc_dointvec },
-#endif
 	{ 0, }
 }; 
 

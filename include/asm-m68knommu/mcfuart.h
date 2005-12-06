@@ -41,6 +41,10 @@
 #define MCFUART_BASE1		0x1c0           /* Base address of UART1 */
 #define MCFUART_BASE2		0x200           /* Base address of UART2 */
 #endif
+#elif defined(CONFIG_M520x)
+#define MCFUART_BASE1		0x60000		/* Base address of UART1 */
+#define MCFUART_BASE2		0x64000		/* Base address of UART2 */
+#define MCFUART_BASE3		0x68000		/* Base address of UART2 */
 #endif
 
 

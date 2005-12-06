@@ -269,7 +269,7 @@ static int goku_ep_disable(struct usb_ep *_ep)
 /*-------------------------------------------------------------------------*/
 
 static struct usb_request *
-goku_alloc_request(struct usb_ep *_ep, unsigned gfp_flags)
+goku_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct goku_request	*req;
 
@@ -327,7 +327,7 @@ goku_free_request(struct usb_ep *_ep, struct usb_request *_req)
  */
 static void *
 goku_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-			dma_addr_t *dma, unsigned gfp_flags)
+			dma_addr_t *dma, gfp_t gfp_flags)
 {
 	void		*retval;
 	struct goku_ep	*ep;
@@ -789,7 +789,7 @@ finished:
 /*-------------------------------------------------------------------------*/
 
 static int
-goku_queue(struct usb_ep *_ep, struct usb_request *_req, unsigned gfp_flags)
+goku_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 {
 	struct goku_request	*req;
 	struct goku_ep		*ep;

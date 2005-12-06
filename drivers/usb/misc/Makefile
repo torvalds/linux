@@ -19,3 +19,7 @@ obj-$(CONFIG_USB_TEST)		+= usbtest.o
 obj-$(CONFIG_USB_USS720)	+= uss720.o
 
 obj-$(CONFIG_USB_SISUSBVGA)	+= sisusbvga/
+
+ifeq ($(CONFIG_USB_DEBUG),y)
+EXTRA_CFLAGS += -DDEBUG
+endif

@@ -1397,7 +1397,7 @@ static void destroy_proc_cpia_cam(struct cam_data *cam)
 
 static void proc_cpia_create(void)
 {
-	cpia_proc_root = create_proc_entry("cpia", S_IFDIR, NULL);
+	cpia_proc_root = proc_mkdir("cpia", NULL);
 
 	if (cpia_proc_root)
 		cpia_proc_root->owner = THIS_MODULE;

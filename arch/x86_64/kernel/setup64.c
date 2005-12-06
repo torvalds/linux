@@ -87,6 +87,10 @@ void __init setup_per_cpu_areas(void)
 	int i;
 	unsigned long size;
 
+#ifdef CONFIG_HOTPLUG_CPU
+	prefill_possible_map();
+#endif
+
 	/* Copy section for each CPU (we discard the original) */
 	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
 #ifdef CONFIG_MODULES
@@ -137,7 +141,6 @@ void pda_init(int cpu)
 			panic("cannot allocate irqstack for cpu %d", cpu); 
 	}
 
-	asm volatile("movq %0,%%cr3" :: "r" (__pa_symbol(&init_level4_pgt)));
 
 	pda->irqstackptr += IRQSTACKSIZE-64;
 } 
@@ -193,6 +196,7 @@ void __cpuinit cpu_init (void)
 	/* CPU 0 is initialised in head64.c */
 	if (cpu != 0) {
 		pda_init(cpu);
+		zap_low_mappings(cpu);
 	} else 
 		estacks = boot_exception_stacks; 
 

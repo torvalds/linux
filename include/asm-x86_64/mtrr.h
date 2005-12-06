@@ -25,6 +25,7 @@
 
 #include <linux/config.h>
 #include <linux/ioctl.h>
+#include <linux/compat.h>
 
 #define	MTRR_IOCTL_BASE	'M'
 
@@ -104,5 +105,37 @@ static __inline__ int mtrr_del_page (int reg, unsigned long base,
 #  endif
 
 #endif
+
+#ifdef CONFIG_COMPAT
+
+struct mtrr_sentry32
+{
+    compat_ulong_t base;    /*  Base address     */
+    compat_uint_t size;    /*  Size of region   */
+    compat_uint_t type;     /*  Type of region   */
+};
+
+struct mtrr_gentry32
+{
+    compat_ulong_t regnum;   /*  Register number  */
+    compat_uint_t base;    /*  Base address     */
+    compat_uint_t size;    /*  Size of region   */
+    compat_uint_t type;     /*  Type of region   */
+};
+
+#define MTRR_IOCTL_BASE 'M'
+
+#define MTRRIOC32_ADD_ENTRY        _IOW(MTRR_IOCTL_BASE,  0, struct mtrr_sentry32)
+#define MTRRIOC32_SET_ENTRY        _IOW(MTRR_IOCTL_BASE,  1, struct mtrr_sentry32)
+#define MTRRIOC32_DEL_ENTRY        _IOW(MTRR_IOCTL_BASE,  2, struct mtrr_sentry32)
+#define MTRRIOC32_GET_ENTRY        _IOWR(MTRR_IOCTL_BASE, 3, struct mtrr_gentry32)
+#define MTRRIOC32_KILL_ENTRY       _IOW(MTRR_IOCTL_BASE,  4, struct mtrr_sentry32)
+#define MTRRIOC32_ADD_PAGE_ENTRY   _IOW(MTRR_IOCTL_BASE,  5, struct mtrr_sentry32)
+#define MTRRIOC32_SET_PAGE_ENTRY   _IOW(MTRR_IOCTL_BASE,  6, struct mtrr_sentry32)
+#define MTRRIOC32_DEL_PAGE_ENTRY   _IOW(MTRR_IOCTL_BASE,  7, struct mtrr_sentry32)
+#define MTRRIOC32_GET_PAGE_ENTRY   _IOWR(MTRR_IOCTL_BASE, 8, struct mtrr_gentry32)
+#define MTRRIOC32_KILL_PAGE_ENTRY  _IOW(MTRR_IOCTL_BASE,  9, struct mtrr_sentry32)
+
+#endif /* CONFIG_COMPAT */
 
 #endif  /*  _LINUX_MTRR_H  */

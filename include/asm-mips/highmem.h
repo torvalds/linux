@@ -75,6 +75,7 @@ static inline void *kmap_atomic(struct page *page, enum km_type type)
 }
 
 static inline void kunmap_atomic(void *kvaddr, enum km_type type) { }
+#define kmap_atomic_pfn(pfn, idx)	page_address(pfn_to_page(pfn))
 
 #define kmap_atomic_to_page(ptr) virt_to_page(ptr)
 
@@ -86,6 +87,7 @@ extern void *__kmap(struct page *page);
 extern void __kunmap(struct page *page);
 extern void *__kmap_atomic(struct page *page, enum km_type type);
 extern void __kunmap_atomic(void *kvaddr, enum km_type type);
+extern void *kmap_atomic_pfn(unsigned long pfn, enum km_type type);
 extern struct page *__kmap_atomic_to_page(void *ptr);
 
 #define kmap			__kmap

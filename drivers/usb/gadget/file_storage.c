@@ -224,6 +224,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/limits.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -669,7 +670,6 @@ struct fsg_dev {
 	wait_queue_head_t	thread_wqh;
 	int			thread_wakeup_needed;
 	struct completion	thread_notifier;
-	int			thread_pid;
 	struct task_struct	*thread_task;
 	sigset_t		thread_signal_mask;
 
@@ -1084,7 +1084,6 @@ static void wakeup_thread(struct fsg_dev *fsg)
 static void raise_exception(struct fsg_dev *fsg, enum fsg_state new_state)
 {
 	unsigned long		flags;
-	struct task_struct	*thread_task;
 
 	/* Do nothing if a higher-priority exception is already in progress.
 	 * If a lower-or-equal priority exception is in progress, preempt it
@@ -1093,9 +1092,9 @@ static void raise_exception(struct fsg_dev *fsg, enum fsg_state new_state)
 	if (fsg->state <= new_state) {
 		fsg->exception_req_tag = fsg->ep0_req_tag;
 		fsg->state = new_state;
-		thread_task = fsg->thread_task;
-		if (thread_task)
-			send_sig_info(SIGUSR1, SEND_SIG_FORCED, thread_task);
+		if (fsg->thread_task)
+			send_sig_info(SIGUSR1, SEND_SIG_FORCED,
+					fsg->thread_task);
 	}
 	spin_unlock_irqrestore(&fsg->lock, flags);
 }
@@ -3383,11 +3382,6 @@ static int fsg_main_thread(void *fsg_)
 {
 	struct fsg_dev		*fsg = (struct fsg_dev *) fsg_;
 
-	fsg->thread_task = current;
-
-	/* Release all our userspace resources */
-	daemonize("file-storage-gadget");
-
 	/* Allow the thread to be killed by a signal, but set the signal mask
 	 * to block everything but INT, TERM, KILL, and USR1. */
 	siginitsetinv(&fsg->thread_signal_mask, sigmask(SIGINT) |
@@ -3399,9 +3393,6 @@ static int fsg_main_thread(void *fsg_)
 	 * pointers.  That way we can pass a kernel pointer to a routine
 	 * that expects a __user pointer and it will work okay. */
 	set_fs(get_ds());
-
-	/* Wait for the gadget registration to finish up */
-	wait_for_completion(&fsg->thread_notifier);
 
 	/* The main loop */
 	while (fsg->state != FSG_STATE_TERMINATED) {
@@ -3440,8 +3431,9 @@ static int fsg_main_thread(void *fsg_)
 		spin_unlock_irq(&fsg->lock);
 		}
 
+	spin_lock_irq(&fsg->lock);
 	fsg->thread_task = NULL;
-	flush_signals(current);
+	spin_unlock_irq(&fsg->lock);
 
 	/* In case we are exiting because of a signal, unregister the
 	 * gadget driver and close the backing file. */
@@ -3831,12 +3823,11 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 
 	/* Create the LUNs, open their backing files, and register the
 	 * LUN devices in sysfs. */
-	fsg->luns = kmalloc(i * sizeof(struct lun), GFP_KERNEL);
+	fsg->luns = kzalloc(i * sizeof(struct lun), GFP_KERNEL);
 	if (!fsg->luns) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(fsg->luns, 0, i * sizeof(struct lun));
 	fsg->nluns = i;
 
 	for (i = 0; i < fsg->nluns; ++i) {
@@ -3959,10 +3950,12 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 		sprintf(&serial[i], "%02X", c);
 	}
 
-	if ((rc = kernel_thread(fsg_main_thread, fsg, (CLONE_VM | CLONE_FS |
-			CLONE_FILES))) < 0)
+	fsg->thread_task = kthread_create(fsg_main_thread, fsg,
+			"file-storage-gadget");
+	if (IS_ERR(fsg->thread_task)) {
+		rc = PTR_ERR(fsg->thread_task);
 		goto out;
-	fsg->thread_pid = rc;
+	}
 
 	INFO(fsg, DRIVER_DESC ", version: " DRIVER_VERSION "\n");
 	INFO(fsg, "Number of LUNs=%d\n", fsg->nluns);
@@ -3994,7 +3987,12 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 	DBG(fsg, "removable=%d, stall=%d, buflen=%u\n",
 			mod_data.removable, mod_data.can_stall,
 			mod_data.buflen);
-	DBG(fsg, "I/O thread pid: %d\n", fsg->thread_pid);
+	DBG(fsg, "I/O thread pid: %d\n", fsg->thread_task->pid);
+
+	set_bit(REGISTERED, &fsg->atomic_bitflags);
+
+	/* Tell the thread to start working */
+	wake_up_process(fsg->thread_task);
 	return 0;
 
 autoconf_fail:
@@ -4046,6 +4044,7 @@ static struct usb_gadget_driver		fsg_driver = {
 
 	.driver		= {
 		.name		= (char *) shortname,
+		.owner		= THIS_MODULE,
 		// .release = ...
 		// .suspend = ...
 		// .resume = ...
@@ -4057,10 +4056,9 @@ static int __init fsg_alloc(void)
 {
 	struct fsg_dev		*fsg;
 
-	fsg = kmalloc(sizeof *fsg, GFP_KERNEL);
+	fsg = kzalloc(sizeof *fsg, GFP_KERNEL);
 	if (!fsg)
 		return -ENOMEM;
-	memset(fsg, 0, sizeof *fsg);
 	spin_lock_init(&fsg->lock);
 	init_rwsem(&fsg->filesem);
 	init_waitqueue_head(&fsg->thread_wqh);
@@ -4086,15 +4084,9 @@ static int __init fsg_init(void)
 	if ((rc = fsg_alloc()) != 0)
 		return rc;
 	fsg = the_fsg;
-	if ((rc = usb_gadget_register_driver(&fsg_driver)) != 0) {
+	if ((rc = usb_gadget_register_driver(&fsg_driver)) != 0)
 		fsg_free(fsg);
-		return rc;
-	}
-	set_bit(REGISTERED, &fsg->atomic_bitflags);
-
-	/* Tell the thread to start working */
-	complete(&fsg->thread_notifier);
-	return 0;
+	return rc;
 }
 module_init(fsg_init);
 

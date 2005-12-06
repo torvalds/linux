@@ -120,12 +120,8 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	if (mcast->ah)
 		ipoib_put_ah(mcast->ah);
 
-	while (!skb_queue_empty(&mcast->pkt_queue)) {
-		struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
-
-		skb->dev = dev;
-		dev_kfree_skb_any(skb);
-	}
+	while (!skb_queue_empty(&mcast->pkt_queue))
+		dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 
 	kfree(mcast);
 }
@@ -135,25 +131,17 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 {
 	struct ipoib_mcast *mcast;
 
-	mcast = kmalloc(sizeof (*mcast), can_sleep ? GFP_KERNEL : GFP_ATOMIC);
+	mcast = kzalloc(sizeof *mcast, can_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!mcast)
 		return NULL;
-
-	memset(mcast, 0, sizeof (*mcast));
-
-	init_completion(&mcast->done);
 
 	mcast->dev = dev;
 	mcast->created = jiffies;
 	mcast->backoff = 1;
-	mcast->logcount = 0;
 
 	INIT_LIST_HEAD(&mcast->list);
 	INIT_LIST_HEAD(&mcast->neigh_list);
 	skb_queue_head_init(&mcast->pkt_queue);
-
-	mcast->ah    = NULL;
-	mcast->query = NULL;
 
 	return mcast;
 }
@@ -319,13 +307,8 @@ ipoib_mcast_sendonly_join_complete(int status,
 					IPOIB_GID_ARG(mcast->mcmember.mgid), status);
 
 		/* Flush out any queued packets */
-		while (!skb_queue_empty(&mcast->pkt_queue)) {
-			struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
-
-			skb->dev = dev;
-
-			dev_kfree_skb_any(skb);
-		}
+		while (!skb_queue_empty(&mcast->pkt_queue))
+			dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 
 		/* Clear the busy flag so we try again */
 		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
@@ -360,6 +343,8 @@ static int ipoib_mcast_sendonly_join(struct ipoib_mcast *mcast)
 	rec.mgid     = mcast->mcmember.mgid;
 	rec.port_gid = priv->local_gid;
 	rec.pkey     = cpu_to_be16(priv->pkey);
+
+	init_completion(&mcast->done);
 
 	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec,
 				     IB_SA_MCMEMBER_REC_MGID		|
@@ -479,6 +464,8 @@ static void ipoib_mcast_join(struct net_device *dev, struct ipoib_mcast *mcast,
 		rec.flow_label	  = priv->broadcast->mcmember.flow_label;
 		rec.traffic_class = priv->broadcast->mcmember.traffic_class;
 	}
+
+	init_completion(&mcast->done);
 
 	ret = ib_sa_mcmember_rec_set(priv->ca, priv->port, &rec, comp_mask,
 				     mcast->backoff * 1000, GFP_ATOMIC,
@@ -919,6 +906,8 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 		ipoib_mcast_start_thread(dev);
 }
 
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 {
 	struct ipoib_mcast_iter *iter;
@@ -928,19 +917,14 @@ struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 		return NULL;
 
 	iter->dev = dev;
-	memset(iter->mgid.raw, 0, sizeof iter->mgid);
+	memset(iter->mgid.raw, 0, 16);
 
 	if (ipoib_mcast_iter_next(iter)) {
-		ipoib_mcast_iter_free(iter);
+		kfree(iter);
 		return NULL;
 	}
 
 	return iter;
-}
-
-void ipoib_mcast_iter_free(struct ipoib_mcast_iter *iter)
-{
-	kfree(iter);
 }
 
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter)
@@ -991,3 +975,5 @@ void ipoib_mcast_iter_read(struct ipoib_mcast_iter *iter,
 	*complete  = iter->complete;
 	*send_only = iter->send_only;
 }
+
+#endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */

@@ -653,18 +653,12 @@ tty3270_activate(struct raw3270_view *view)
 	tp->update_flags = TTY_UPDATE_ALL;
 	tty3270_set_timer(tp, 1);
 	spin_unlock_irqrestore(&tp->view.lock, flags);
-	start_tty(tp->tty);
 	return 0;
 }
 
 static void
 tty3270_deactivate(struct raw3270_view *view)
 {
-	struct tty3270 *tp;
-
-	tp = (struct tty3270 *) view;
-	if (tp && tp->tty)
-		stop_tty(tp->tty);
 }
 
 static int
@@ -716,13 +710,13 @@ tty3270_alloc_view(void)
 				  tp->freemem_pages[pages], PAGE_SIZE);
 	}
 	tp->write = raw3270_request_alloc(TTY3270_OUTPUT_BUFFER_SIZE);
-	if (!tp->write)
+	if (IS_ERR(tp->write))
 		goto out_pages;
 	tp->read = raw3270_request_alloc(0);
-	if (!tp->read)
+	if (IS_ERR(tp->read))
 		goto out_write;
 	tp->kreset = raw3270_request_alloc(1);
-	if (!tp->kreset)
+	if (IS_ERR(tp->kreset))
 		goto out_read;
 	tp->kbd = kbd_alloc();
 	if (!tp->kbd)
@@ -845,7 +839,8 @@ tty3270_del_views(void)
 	int i;
 
 	for (i = 0; i < tty3270_max_index; i++) {
-		tp = (struct tty3270 *) raw3270_find_view(&tty3270_fn, i);
+		tp = (struct tty3270 *)
+			raw3270_find_view(&tty3270_fn, i + RAW3270_FIRSTMINOR);
 		if (!IS_ERR(tp))
 			raw3270_del_view(&tp->view);
 	}
@@ -871,7 +866,9 @@ tty3270_open(struct tty_struct *tty, struct file * filp)
 	if (tty->count > 1)
 		return 0;
 	/* Check if the tty3270 is already there. */
-	tp = (struct tty3270 *) raw3270_find_view(&tty3270_fn, tty->index);
+	tp = (struct tty3270 *)
+		raw3270_find_view(&tty3270_fn,
+				  tty->index + RAW3270_FIRSTMINOR);
 	if (!IS_ERR(tp)) {
 		tty->driver_data = tp;
 		tty->winsize.ws_row = tp->view.rows - 2;
@@ -903,7 +900,8 @@ tty3270_open(struct tty_struct *tty, struct file * filp)
 		     (void (*)(unsigned long)) tty3270_read_tasklet,
 		     (unsigned long) tp->read);
 
-	rc = raw3270_add_view(&tp->view, &tty3270_fn, tty->index);
+	rc = raw3270_add_view(&tp->view, &tty3270_fn,
+			      tty->index + RAW3270_FIRSTMINOR);
 	if (rc) {
 		tty3270_free_view(tp);
 		return rc;
@@ -911,8 +909,8 @@ tty3270_open(struct tty_struct *tty, struct file * filp)
 
 	rc = tty3270_alloc_screen(tp);
 	if (rc) {
-		raw3270_del_view(&tp->view);
 		raw3270_put_view(&tp->view);
+		raw3270_del_view(&tp->view);
 		return rc;
 	}
 
@@ -1780,7 +1778,7 @@ tty3270_init(void)
 	struct tty_driver *driver;
 	int ret;
 
-	driver = alloc_tty_driver(256);
+	driver = alloc_tty_driver(RAW3270_MAXDEVS);
 	if (!driver)
 		return -ENOMEM;
 
@@ -1794,6 +1792,7 @@ tty3270_init(void)
 	driver->driver_name = "ttyTUB";
 	driver->name = "ttyTUB";
 	driver->major = IBM_TTY3270_MAJOR;
+	driver->minor_start = RAW3270_FIRSTMINOR;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;

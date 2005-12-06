@@ -28,6 +28,7 @@
 #include <asm/io.h>
 #include <asm/todc.h>
 #include <asm/bootinfo.h>
+#include <asm/machdep.h>
 
 #include <syslib/cpc700.h>
 

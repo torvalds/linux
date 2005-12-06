@@ -91,8 +91,7 @@ void queue_free (Queue_t *queue)
 {
 	if (!list_empty(&queue->head))
 		printk(KERN_WARNING "freeing non-empty queue %p\n", queue);
-	if (queue->alloc)
-		kfree(queue->alloc);
+	kfree(queue->alloc);
 }
      
 

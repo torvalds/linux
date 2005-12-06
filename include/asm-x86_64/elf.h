@@ -149,6 +149,8 @@ extern void set_personality_64bit(void);
  */
 #define elf_read_implies_exec(ex, executable_stack)	(executable_stack != EXSTACK_DISABLE_X)
 
+struct task_struct;
+
 extern int dump_task_regs (struct task_struct *, elf_gregset_t *);
 extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
 

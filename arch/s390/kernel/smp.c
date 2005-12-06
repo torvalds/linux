@@ -533,6 +533,7 @@ int __devinit start_secondary(void *cpuvoid)
 {
         /* Setup the cpu */
         cpu_init();
+	preempt_disable();
         /* init per CPU timer */
         init_cpu_timer();
 #ifdef CONFIG_VIRT_TIMER

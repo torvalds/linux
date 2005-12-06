@@ -36,9 +36,6 @@ extern void __exit i2o_pci_exit(void);
 extern void i2o_device_remove(struct i2o_device *);
 extern int i2o_device_parse_lct(struct i2o_controller *);
 
-extern int i2o_device_init(void);
-extern void i2o_device_exit(void);
-
 /* IOP */
 extern struct i2o_controller *i2o_iop_alloc(void);
 extern void i2o_iop_free(struct i2o_controller *);

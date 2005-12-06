@@ -109,7 +109,7 @@ static void *relay_alloc_buf(struct rchan_buf *buf, unsigned long size)
 		if (unlikely(!buf->page_array[i]))
 			goto depopulate;
 	}
-	mem = vmap(buf->page_array, n_pages, GFP_KERNEL, PAGE_KERNEL);
+	mem = vmap(buf->page_array, n_pages, VM_MAP, PAGE_KERNEL);
 	if (!mem)
 		goto depopulate;
 

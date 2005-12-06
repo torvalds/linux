@@ -17,8 +17,6 @@
 #ifndef _WANPIPE_SOCK_DRIVER_COMMON_H
 #define _WANPIPE_SOCK_DRIVER_COMMON_H
 
-#include <linux/version.h>
-
 typedef struct {
 	struct net_device *slave;
 	atomic_t packet_sent;

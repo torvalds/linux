@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 #include <linux/ioport.h>
@@ -89,7 +88,7 @@ extern char cmd_line[512];	/* XXX */
 extern boot_infos_t *boot_infos;
 unsigned long dev_tree_size;
 
-void __openfirmware
+void
 phys_call_rtas(int service, int nargs, int nret, ...)
 {
 	va_list list;
@@ -862,7 +861,7 @@ find_type_devices(const char *type)
 /*
  * Returns all nodes linked together
  */
-struct device_node * __openfirmware
+struct device_node *
 find_all_nodes(void)
 {
 	struct device_node *head, **prevp, *np;
@@ -1165,7 +1164,7 @@ get_property(struct device_node *np, const char *name, int *lenp)
 /*
  * Add a property to a node
  */
-void __openfirmware
+int
 prom_add_property(struct device_node* np, struct property* prop)
 {
 	struct property **next = &np->properties;
@@ -1174,10 +1173,12 @@ prom_add_property(struct device_node* np, struct property* prop)
 	while (*next)
 		next = &(*next)->next;
 	*next = prop;
+
+	return 0;
 }
 
 /* I quickly hacked that one, check against spec ! */
-static inline unsigned long __openfirmware
+static inline unsigned long
 bus_space_to_resource_flags(unsigned int bus_space)
 {
 	u8 space = (bus_space >> 24) & 0xf;
@@ -1194,7 +1195,7 @@ bus_space_to_resource_flags(unsigned int bus_space)
 	}
 }
 
-static struct resource* __openfirmware
+static struct resource*
 find_parent_pci_resource(struct pci_dev* pdev, struct address_range *range)
 {
 	unsigned long mask;
@@ -1224,7 +1225,7 @@ find_parent_pci_resource(struct pci_dev* pdev, struct address_range *range)
  * or other nodes attached to the root node. Ultimately, put some
  * link to resources in the OF node.
  */
-struct resource* __openfirmware
+struct resource*
 request_OF_resource(struct device_node* node, int index, const char* name_postfix)
 {
 	struct pci_dev* pcidev;
@@ -1280,7 +1281,7 @@ fail:
 	return NULL;
 }
 
-int __openfirmware
+int
 release_OF_resource(struct device_node* node, int index)
 {
 	struct pci_dev* pcidev;
@@ -1335,10 +1336,8 @@ release_OF_resource(struct device_node* node, int index)
 	if (!res)
 		return -ENODEV;
 
-	if (res->name) {
-		kfree(res->name);
-		res->name = NULL;
-	}
+	kfree(res->name);
+	res->name = NULL;
 	release_resource(res);
 	kfree(res);
 
@@ -1346,7 +1345,7 @@ release_OF_resource(struct device_node* node, int index)
 }
 
 #if 0
-void __openfirmware
+void
 print_properties(struct device_node *np)
 {
 	struct property *pp;
@@ -1400,7 +1399,7 @@ print_properties(struct device_node *np)
 static DEFINE_SPINLOCK(rtas_lock);
 
 /* this can be called after setup -- Cort */
-int __openfirmware
+int
 call_rtas(const char *service, int nargs, int nret,
 	  unsigned long *outputs, ...)
 {

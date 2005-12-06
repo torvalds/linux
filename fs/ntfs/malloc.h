@@ -39,8 +39,7 @@
  * If there was insufficient memory to complete the request, return NULL.
  * Depending on @gfp_mask the allocation may be guaranteed to succeed.
  */
-static inline void *__ntfs_malloc(unsigned long size,
-		unsigned int __nocast gfp_mask)
+static inline void *__ntfs_malloc(unsigned long size, gfp_t gfp_mask)
 {
 	if (likely(size <= PAGE_SIZE)) {
 		BUG_ON(!size);

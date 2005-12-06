@@ -1016,6 +1016,7 @@ static struct of_device_id mace_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE (of, mace_match);
 
 static struct macio_driver mace_driver = 
 {
@@ -1035,10 +1036,8 @@ static void __exit mace_cleanup(void)
 {
 	macio_unregister_driver(&mace_driver);
 
-	if (dummy_buf) {
-		kfree(dummy_buf);
-		dummy_buf = NULL;
-	}
+	kfree(dummy_buf);
+	dummy_buf = NULL;
 }
 
 MODULE_AUTHOR("Paul Mackerras");

@@ -13,12 +13,13 @@ This optimization is more critical now as bigger and bigger physical memories
 Users can use the huge page support in Linux kernel by either using the mmap
 system call or standard SYSv shared memory system calls (shmget, shmat).
 
-First the Linux kernel needs to be built with CONFIG_HUGETLB_PAGE (present
-under Processor types and feature)  and CONFIG_HUGETLBFS (present under file
-system option on config menu) config options.
+First the Linux kernel needs to be built with the CONFIG_HUGETLBFS
+(present under "File systems") and CONFIG_HUGETLB_PAGE (selected
+automatically when CONFIG_HUGETLBFS is selected) configuration
+options.
 
 The kernel built with hugepage support should show the number of configured
-hugepages in the system by running the "cat /proc/meminfo" command.  
+hugepages in the system by running the "cat /proc/meminfo" command.
 
 /proc/meminfo also provides information about the total number of hugetlb
 pages configured in the kernel.  It also displays information about the
@@ -38,19 +39,19 @@ in the kernel.
 
 /proc/sys/vm/nr_hugepages indicates the current number of configured hugetlb
 pages in the kernel.  Super user can dynamically request more (or free some
-pre-configured) hugepages. 
-The allocation( or deallocation) of hugetlb pages is posible only if there are
+pre-configured) hugepages.
+The allocation (or deallocation) of hugetlb pages is possible only if there are
 enough physically contiguous free pages in system (freeing of hugepages is
-possible only if there are enough hugetlb pages free that can be transfered 
+possible only if there are enough hugetlb pages free that can be transfered
 back to regular memory pool).
 
 Pages that are used as hugetlb pages are reserved inside the kernel and can
-not be used for other purposes. 
+not be used for other purposes.
 
 Once the kernel with Hugetlb page support is built and running, a user can
 use either the mmap system call or shared memory system calls to start using
 the huge pages.  It is required that the system administrator preallocate
-enough memory for huge page purposes.  
+enough memory for huge page purposes.
 
 Use the following command to dynamically allocate/deallocate hugepages:
 
@@ -80,9 +81,9 @@ memory (huge pages) allowed for that filesystem (/mnt/huge). The size is
 rounded down to HPAGE_SIZE.  The option nr_inode sets the maximum number of
 inodes that /mnt/huge can use.  If the size or nr_inode options are not
 provided on command line then no limits are set.  For size and nr_inodes
-options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For 
-example, size=2K has the same meaning as size=2048. An example is given at 
-the end of this document. 
+options, you can use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo. For
+example, size=2K has the same meaning as size=2048. An example is given at
+the end of this document.
 
 read and write system calls are not supported on files that reside on hugetlb
 file systems.

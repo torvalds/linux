@@ -15,40 +15,40 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- * The IXP2400 B0 silicon contains an erratum (#66) that causes writes
- * to on-chip I/O register to not complete fully. What this means is
- * that if you have a write to on-chip I/O followed by a back-to-back
- * read or write, the first write will happen twice. OR...if it's
- * not a back-to-back transaction, the read or write will generate
- * incorrect data.
- *
- * The official work around for this is to set the on-chip I/O regions
- * as XCB=101 and then force a read-back from the register.
- *
- */
-#if defined(CONFIG_ARCH_ENP2611) || defined(CONFIG_ARCH_IXDP2400) || defined(CONFIG_ARCH_IXDP2401)
-
-#include <asm/system.h>		/* Pickup local_irq_ functions */
+static inline unsigned long ixp2000_reg_read(volatile void *reg)
+{
+	return *((volatile unsigned long *)reg);
+}
 
 static inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
+{
+	*((volatile unsigned long *)reg) = val;
+}
+
+/*
+ * On the IXP2400, we can't use XCB=000 due to chip bugs.  We use
+ * XCB=101 instead, but that makes all I/O accesses bufferable.  This
+ * is not a problem in general, but we do have to be slightly more
+ * careful because I/O writes are no longer automatically flushed out
+ * of the write buffer.
+ *
+ * In cases where we want to make sure that a write has been flushed
+ * out of the write buffer before we proceed, for example when masking
+ * a device interrupt before re-enabling IRQs in CPSR, we can use this
+ * function, ixp2000_reg_wrb, which performs a write, a readback, and
+ * issues a dummy instruction dependent on the value of the readback
+ * (mov rX, rX) to make sure that the readback has completed before we
+ * continue.
+ */
+static inline void ixp2000_reg_wrb(volatile void *reg, unsigned long val)
 {
 	unsigned long dummy;
-	unsigned long flags;
 
-	local_irq_save(flags);
 	*((volatile unsigned long *)reg) = val;
-	barrier();
+
 	dummy = *((volatile unsigned long *)reg);
-	local_irq_restore(flags);
+	__asm__ __volatile__("mov %0, %0" : "+r" (dummy));
 }
-#else
-static inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
-{
-	*((volatile unsigned long *)reg) = val;
-}
-#endif	/* IXDP2400 || IXDP2401 */
-#define ixp2000_reg_read(reg)	(*((volatile unsigned long *)reg))
 
 /*
  * Boards may multiplex different devices on the 2nd channel of 

@@ -50,7 +50,7 @@
 #define US_PR_CB	0x01		/* Control/Bulk w/o interrupt */
 #define US_PR_BULK	0x50		/* bulk only */
 #ifdef CONFIG_USB_STORAGE_USBAT
-#define US_PR_SCM_ATAPI	0x80		/* SCM-ATAPI bridge */
+#define US_PR_USBAT	0x80		/* SCM-ATAPI bridge */
 #endif
 #ifdef CONFIG_USB_STORAGE_SDDR09
 #define US_PR_EUSB_SDDR09	0x81	/* SCM-SCSI bridge for SDDR-09 */

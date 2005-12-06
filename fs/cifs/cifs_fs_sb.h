@@ -24,6 +24,9 @@
 #define CIFS_MOUNT_DIRECT_IO    8 /* do not write nor read through page cache */
 #define CIFS_MOUNT_NO_XATTR  0x10 /* if set - disable xattr support */
 #define CIFS_MOUNT_MAP_SPECIAL_CHR 0x20 /* remap illegal chars in filenames */
+#define CIFS_MOUNT_POSIX_PATHS 0x40 /* Negotiate posix pathnames if possible. */
+#define CIFS_MOUNT_UNX_EMUL    0x80 /* Network compat with SFUnix emulation */
+#define CIFS_MOUNT_NO_BRL	0x100 /* No sending byte range locks to srv */
 
 struct cifs_sb_info {
 	struct cifsTconInfo *tcon;	/* primary mount */

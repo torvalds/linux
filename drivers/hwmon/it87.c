@@ -2,7 +2,7 @@
     it87.c - Part of lm_sensors, Linux kernel modules for hardware
              monitoring.
 
-    Supports: IT8705F  Super I/O chip w/LPC interface & SMBus
+    Supports: IT8705F  Super I/O chip w/LPC interface
               IT8712F  Super I/O chip w/LPC interface & SMBus
               Sis950   A clone of the IT8705F
 
@@ -47,7 +47,7 @@
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 					0x2e, 0x2f, I2C_CLIENT_END };
-static unsigned short isa_address = 0x290;
+static unsigned short isa_address;
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_2(it87, it8712);
@@ -522,8 +522,15 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct it87_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
+	u8 reg = it87_read_value(client, IT87_REG_FAN_DIV);
 
 	down(&data->update_lock);
+	switch (nr) {
+	case 0: data->fan_div[nr] = reg & 0x07; break;
+	case 1: data->fan_div[nr] = (reg >> 3) & 0x07; break;
+	case 2: data->fan_div[nr] = (reg & 0x40) ? 3 : 1; break;
+	}
+
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
 	it87_write_value(client, IT87_REG_FAN_MIN(nr), data->fan_min[nr]);
 	up(&data->update_lock);
@@ -706,7 +713,7 @@ static int it87_isa_attach_adapter(struct i2c_adapter *adapter)
 }
 
 /* SuperIO detection - will change isa_address if a chip is found */
-static int __init it87_find(int *address)
+static int __init it87_find(unsigned short *address)
 {
 	int err = -ENODEV;
 
@@ -738,7 +745,7 @@ exit:
 }
 
 /* This function is called by i2c_probe */
-int it87_detect(struct i2c_adapter *adapter, int address, int kind)
+static int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i;
 	struct i2c_client *new_client;
@@ -757,42 +764,14 @@ int it87_detect(struct i2c_adapter *adapter, int address, int kind)
 		if (!request_region(address, IT87_EXTENT, it87_isa_driver.name))
 			goto ERROR0;
 
-	/* Probe whether there is anything available on this address. Already
-	   done for SMBus and Super-I/O clients */
-	if (kind < 0) {
-		if (is_isa && !chip_type) {
-#define REALLY_SLOW_IO
-			/* We need the timeouts for at least some IT87-like chips. But only
-			   if we read 'undefined' registers. */
-			i = inb_p(address + 1);
-			if (inb_p(address + 2) != i
-			 || inb_p(address + 3) != i
-			 || inb_p(address + 7) != i) {
-		 		err = -ENODEV;
-				goto ERROR1;
-			}
-#undef REALLY_SLOW_IO
-
-			/* Let's just hope nothing breaks here */
-			i = inb_p(address + 5) & 0x7f;
-			outb_p(~i & 0x7f, address + 5);
-			if ((inb_p(address + 5) & 0x7f) != (~i & 0x7f)) {
-				outb_p(i, address + 5);
-				err = -ENODEV;
-				goto ERROR1;
-			}
-		}
-	}
-
-	/* OK. For now, we presume we have a valid client. We now create the
+	/* For now, we presume we have a valid client. We create the
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access it87_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct it87_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct it87_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR1;
 	}
-	memset(data, 0, sizeof(struct it87_data));
 
 	new_client = &data->client;
 	if (is_isa)
@@ -1182,20 +1161,18 @@ static struct it87_data *it87_update_device(struct device *dev)
 
 static int __init sm_it87_init(void)
 {
-	int addr, res;
-
-	if (!it87_find(&addr)) {
-		isa_address = addr;
-	}
+	int res;
 
 	res = i2c_add_driver(&it87_driver);
 	if (res)
 		return res;
 
-	res = i2c_isa_add_driver(&it87_isa_driver);
-	if (res) {
-		i2c_del_driver(&it87_driver);
-		return res;
+	if (!it87_find(&isa_address)) {
+		res = i2c_isa_add_driver(&it87_isa_driver);
+		if (res) {
+			i2c_del_driver(&it87_driver);
+			return res;
+		}
 	}
 
 	return 0;

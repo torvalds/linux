@@ -13,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysdev.h>
 #include <linux/errno.h>
@@ -24,6 +23,7 @@
 #include <asm/sections.h>
 #include <asm/open_pic.h>
 #include <asm/i8259.h>
+#include <asm/machdep.h>
 
 #include "open_pic_defs.h"
 
@@ -890,7 +890,7 @@ openpic_get_irq(struct pt_regs *regs)
 
 #ifdef CONFIG_SMP
 void
-smp_openpic_message_pass(int target, int msg, unsigned long data, int wait)
+smp_openpic_message_pass(int target, int msg)
 {
 	cpumask_t mask = CPU_MASK_ALL;
 	/* make sure we're sending something that translates to an IPI */

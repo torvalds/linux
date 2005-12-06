@@ -814,6 +814,17 @@ typedef struct _XENA_dev_config {
 	u64 rxgxs_ber_0;	/* CHANGED */
 	u64 rxgxs_ber_1;	/* CHANGED */
 
+	u64 spi_control;
+#define SPI_CONTROL_KEY(key)		vBIT(key,0,4)
+#define SPI_CONTROL_BYTECNT(cnt)	vBIT(cnt,29,3)
+#define SPI_CONTROL_CMD(cmd)		vBIT(cmd,32,8)
+#define SPI_CONTROL_ADDR(addr)		vBIT(addr,40,24)
+#define SPI_CONTROL_SEL1		BIT(4)
+#define SPI_CONTROL_REQ			BIT(7)
+#define SPI_CONTROL_NACK		BIT(5)
+#define SPI_CONTROL_DONE		BIT(6)
+	u64 spi_data;
+#define SPI_DATA_WRITE(data,len)	vBIT(data,0,len)
 } XENA_dev_config_t;
 
 #define XENA_REG_SPACE	sizeof(XENA_dev_config_t)

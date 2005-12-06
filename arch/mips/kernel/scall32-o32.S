@@ -94,11 +94,13 @@ syscall_trace_entry:
 	li	a1, 0
 	jal	do_syscall_trace
 
+	move	t0, s0
+	RESTORE_STATIC
 	lw	a0, PT_R4(sp)		# Restore argument registers
 	lw	a1, PT_R5(sp)
 	lw	a2, PT_R6(sp)
 	lw	a3, PT_R7(sp)
-	jalr	s0
+	jalr	t0
 
 	li	t0, -EMAXERRNO - 1	# error?
 	sltu	t0, t0, v0
@@ -241,19 +243,7 @@ illegal_syscall:
 	sw	zero, PT_R7(sp)		# success
 	sw	v0, PT_R2(sp)		# result
 
-	/* Success, so skip usual error handling garbage.  */
-	lw	a2, TI_FLAGS($28)	# syscall tracing enabled?
-	li	t0, _TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT
-	and	t0, a2, t0
-	bnez	t0, 1f
-
-	j	o32_syscall_exit
-
-1:	SAVE_STATIC
-	move	a0, sp
-	li	a1, 1
-	jal	do_syscall_trace
-	j	syscall_exit
+	j	o32_syscall_exit	# continue like a normal syscall
 
 no_mem:	li	v0, -ENOMEM
 	jr	ra
@@ -578,7 +568,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_fremovexattr	2	/* 4235 */
 	sys	sys_tkill		2
 	sys	sys_sendfile64		5
-	sys	sys_futex		2
+	sys	sys_futex		6
 	sys	sys_sched_setaffinity	3
 	sys	sys_sched_getaffinity	3	/* 4240 */
 	sys	sys_io_setup		2
@@ -587,7 +577,7 @@ einval:	li	v0, -EINVAL
 	sys	sys_io_submit		3
 	sys	sys_io_cancel		3	/* 4245 */
 	sys	sys_exit_group		1
-	sys	sys_lookup_dcookie	3
+	sys	sys_lookup_dcookie	4
 	sys	sys_epoll_create	1
 	sys	sys_epoll_ctl		4
 	sys	sys_epoll_wait		3	/* 4250 */
@@ -618,12 +608,15 @@ einval:	li	v0, -EINVAL
 	sys	sys_mq_notify		2	/* 4275 */
 	sys	sys_mq_getsetattr	3
 	sys	sys_ni_syscall		0	/* sys_vserver */
-	sys	sys_waitid		4
+	sys	sys_waitid		5
 	sys	sys_ni_syscall		0	/* available, was setaltroot */
-	sys	sys_add_key		5
+	sys	sys_add_key		5	/* 4280 */
 	sys	sys_request_key		4
 	sys	sys_keyctl		5
-
+	sys	sys_set_thread_area	1
+	sys	sys_inotify_init	0
+	sys	sys_inotify_add_watch	3	/* 4285 */
+	sys	sys_inotify_rm_watch	2
 	.endm
 
 	/* We pre-compute the number of _instruction_ bytes needed to

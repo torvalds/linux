@@ -1,14 +1,14 @@
-/* 
+/*
  * inftlmount.c -- INFTL mount code with extensive checks.
  *
  * Author: Greg Ungerer (gerg@snapgear.com)
  * (C) Copyright 2002-2003, Greg Ungerer (gerg@snapgear.com)
  *
  * Based heavily on the nftlmount.c code which is:
- * Author: Fabrice Bellard (fabrice.bellard@netgem.com) 
+ * Author: Fabrice Bellard (fabrice.bellard@netgem.com)
  * Copyright (C) 2000 Netgem S.A.
  *
- * $Id: inftlmount.c,v 1.16 2004/11/22 13:50:53 kalev Exp $
+ * $Id: inftlmount.c,v 1.18 2005/11/07 11:14:20 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #include <linux/mtd/inftl.h>
 #include <linux/mtd/compatmac.h>
 
-char inftlmountrev[]="$Revision: 1.16 $";
+char inftlmountrev[]="$Revision: 1.18 $";
 
 /*
  * find_boot_record: Find the INFTL Media Header and its Spare copy which
@@ -273,7 +273,7 @@ static int find_boot_record(struct INFTLrecord *inftl)
 				inftl->nb_boot_blocks);
 			return -1;
 		}
-		
+
 		inftl->mbd.size  = inftl->numvunits *
 			(inftl->EraseSize / SECTORSIZE);
 
@@ -302,7 +302,7 @@ static int find_boot_record(struct INFTLrecord *inftl)
 				inftl->nb_blocks * sizeof(u16));
 			return -ENOMEM;
 		}
-		
+
 		/* Mark the blocks before INFTL MediaHeader as reserved */
 		for (i = 0; i < inftl->nb_boot_blocks; i++)
 			inftl->PUtable[i] = BLOCK_RESERVED;
@@ -380,7 +380,7 @@ static int check_free_sectors(struct INFTLrecord *inftl, unsigned int address,
  *
  * Return: 0 when succeed, -1 on error.
  *
- * ToDo: 1. Is it neceressary to check_free_sector after erasing ?? 
+ * ToDo: 1. Is it neceressary to check_free_sector after erasing ??
  */
 int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 {
@@ -563,7 +563,7 @@ int INFTL_mount(struct INFTLrecord *s)
 	/* Search for INFTL MediaHeader and Spare INFTL Media Header */
 	if (find_boot_record(s) < 0) {
 		printk(KERN_WARNING "INFTL: could not find valid boot record?\n");
-		return -1;
+		return -ENXIO;
 	}
 
 	/* Init the logical to physical table */
@@ -574,6 +574,12 @@ int INFTL_mount(struct INFTLrecord *s)
 
 	/* Temporary buffer to store ANAC numbers. */
 	ANACtable = kmalloc(s->nb_blocks * sizeof(u8), GFP_KERNEL);
+	if (!ANACtable) {
+		printk(KERN_WARNING "INFTL: allocation of ANACtable "
+				"failed (%zd bytes)\n",
+				s->nb_blocks * sizeof(u8));
+		return -ENOMEM;
+	}
 	memset(ANACtable, 0, s->nb_blocks);
 
 	/*
@@ -595,7 +601,7 @@ int INFTL_mount(struct INFTLrecord *s)
 
 		for (chain_length = 0; ; chain_length++) {
 
-			if ((chain_length == 0) && 
+			if ((chain_length == 0) &&
 			    (s->PUtable[block] != BLOCK_NOTEXPLORED)) {
 				/* Nothing to do here, onto next block */
 				break;
@@ -742,7 +748,7 @@ int INFTL_mount(struct INFTLrecord *s)
 					"in virtual chain %d\n",
 					s->PUtable[block], logical_block);
 				s->PUtable[block] = BLOCK_NIL;
-					
+
 			}
 			if (ANACtable[block] != ANAC) {
 				/*

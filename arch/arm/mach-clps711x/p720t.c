@@ -29,6 +29,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/setup.h>
+#include <asm/sizes.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -42,8 +43,17 @@
  * We map both here.
  */
 static struct map_desc p720t_io_desc[] __initdata = {
-	{ SYSPLD_VIRT_BASE,	SYSPLD_PHYS_BASE, 1048576, MT_DEVICE },
-	{ 0xfe400000,		0x10400000,	  1048576, MT_DEVICE }
+	{
+		.virtual	= SYSPLD_VIRT_BASE,
+		.pfn		= __phys_to_pfn(SYSPLD_PHYS_BASE),
+		.length		= SZ_1M,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= 0xfe400000,
+		.pfn		= __phys_to_pfn(0x10400000),
+		.length		= SZ_1M,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init

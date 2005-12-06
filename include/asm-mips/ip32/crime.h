@@ -154,7 +154,7 @@ struct sgi_crime {
 #define CRIME_MEM_ERROR_ECC_REPL_MASK	0xffffffff
 };
 
-extern struct sgi_crime *crime;
+extern struct sgi_crime __iomem *crime;
 
 #define CRIME_HI_MEM_BASE	0x40000000	/* this is where whole 1G of RAM is mapped */
 

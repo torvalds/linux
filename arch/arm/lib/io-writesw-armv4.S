@@ -22,8 +22,8 @@
 #endif
 		.endm
 
-.outsw_align:	movs	ip, r1, lsl #31
-		bne	.outsw_noalign
+.Loutsw_align:	movs	ip, r1, lsl #31
+		bne	.Loutsw_noalign
 
 		ldrh	r3, [r1], #2
 		sub	r2, r2, #1
@@ -33,35 +33,35 @@ ENTRY(__raw_writesw)
 		teq	r2, #0
 		moveq	pc, lr
 		ands	r3, r1, #3
-		bne	.outsw_align
+		bne	.Loutsw_align
 
 		stmfd	sp!, {r4, r5, lr}
 
 		subs	r2, r2, #8
-		bmi	.no_outsw_8
+		bmi	.Lno_outsw_8
 
-.outsw_8_lp:	ldmia	r1!, {r3, r4, r5, ip}
+.Loutsw_8_lp:	ldmia	r1!, {r3, r4, r5, ip}
 		subs	r2, r2, #8
 		outword	r3
 		outword	r4
 		outword	r5
 		outword	ip
-		bpl	.outsw_8_lp
+		bpl	.Loutsw_8_lp
 
-.no_outsw_8:	tst	r2, #4
-		beq	.no_outsw_4
+.Lno_outsw_8:	tst	r2, #4
+		beq	.Lno_outsw_4
 
 		ldmia	r1!, {r3, ip}
 		outword	r3
 		outword	ip
 
-.no_outsw_4:	movs	r2, r2, lsl #31
-		bcc	.no_outsw_2
+.Lno_outsw_4:	movs	r2, r2, lsl #31
+		bcc	.Lno_outsw_2
 
 		ldr	r3, [r1], #4
 		outword	r3
 
-.no_outsw_2:	ldrneh	r3, [r1]
+.Lno_outsw_2:	ldrneh	r3, [r1]
 		strneh	r3, [r0]
 
 		ldmfd	sp!, {r4, r5, pc}
@@ -74,7 +74,8 @@ ENTRY(__raw_writesw)
 #define push_hbyte1	lsl #8
 #endif
 
-.outsw_noalign:	ldr	r3, [r1, -r3]!
+.Loutsw_noalign:
+		ldr	r3, [r1, -r3]!
 		subcs	r2, r2, #1
 		bcs	2f
 		subs	r2, r2, #2

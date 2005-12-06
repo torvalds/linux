@@ -272,3 +272,6 @@ beep_mask	Bitmask for beep.
 
 eeprom		Raw EEPROM data in binary form.
 		Read only.
+
+pec		Enable or disable PEC (SMBus only)
+		Read/Write

@@ -4,9 +4,9 @@
  * Copyright (C) 2005 Robert Love <rml@novell.com>
  * Copyright (C) 2005 Jesper Juhl <jesper.juhl@gmail.com>
  *
- * The HardDisk Active Protection System (hdaps) is present in the IBM ThinkPad
- * T41, T42, T43, R50, R50p, R51, and X40, at least.  It provides a basic
- * two-axis accelerometer and other data, such as the device's temperature.
+ * The HardDisk Active Protection System (hdaps) is present in IBM ThinkPads
+ * starting with the R40, T41, and X40.  It provides a basic two-axis
+ * accelerometer and other data, such as the device's temperature.
  *
  * This driver is based on the document by Mark A. Smith available at
  * http://www.almaden.ibm.com/cs/people/marksmith/tpaps.html and a lot of trial
@@ -27,7 +27,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -60,9 +60,11 @@
 
 #define HDAPS_POLL_PERIOD	(HZ/20)	/* poll for input every 1/20s */
 #define HDAPS_INPUT_FUZZ	4	/* input event threshold */
+#define HDAPS_INPUT_FLAT	4
 
 static struct timer_list hdaps_timer;
 static struct platform_device *pdev;
+static struct input_dev *hdaps_idev;
 static unsigned int hdaps_invert;
 static u8 km_activity;
 static int rest_x;
@@ -284,7 +286,7 @@ out:
 
 /* Device model stuff */
 
-static int hdaps_probe(struct device *dev)
+static int hdaps_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -296,31 +298,18 @@ static int hdaps_probe(struct device *dev)
 	return 0;
 }
 
-static int hdaps_resume(struct device *dev, u32 level)
+static int hdaps_resume(struct platform_device *dev)
 {
-	if (level == RESUME_ENABLE)
-		return hdaps_device_init();
-	return 0;
+	return hdaps_device_init();
 }
 
-static struct device_driver hdaps_driver = {
-	.name = "hdaps",
-	.bus = &platform_bus_type,
-	.owner = THIS_MODULE,
+static struct platform_driver hdaps_driver = {
 	.probe = hdaps_probe,
-	.resume = hdaps_resume
-};
-
-/* Input class stuff */
-
-static struct input_dev hdaps_idev = {
-	.name = "hdaps",
-	.evbit = { BIT(EV_ABS) },
-	.absbit = { BIT(ABS_X) | BIT(ABS_Y) },
-	.absmin  = { [ABS_X] = -256, [ABS_Y] = -256 },
-	.absmax  = { [ABS_X] = 256, [ABS_Y] = 256 },
-	.absfuzz = { [ABS_X] = HDAPS_INPUT_FUZZ, [ABS_Y] = HDAPS_INPUT_FUZZ },
-	.absflat = { [ABS_X] = HDAPS_INPUT_FUZZ, [ABS_Y] = HDAPS_INPUT_FUZZ },
+	.resume = hdaps_resume,
+	.driver	= {
+		.name = "hdaps",
+		.owner = THIS_MODULE,
+	},
 };
 
 /*
@@ -344,9 +333,9 @@ static void hdaps_mousedev_poll(unsigned long unused)
 	if (__hdaps_read_pair(HDAPS_PORT_XPOS, HDAPS_PORT_YPOS, &x, &y))
 		goto out;
 
-	input_report_abs(&hdaps_idev, ABS_X, x - rest_x);
-	input_report_abs(&hdaps_idev, ABS_Y, y - rest_y);
-	input_sync(&hdaps_idev);
+	input_report_abs(hdaps_idev, ABS_X, x - rest_x);
+	input_report_abs(hdaps_idev, ABS_Y, y - rest_y);
+	input_sync(hdaps_idev);
 
 	mod_timer(&hdaps_timer, jiffies + HDAPS_POLL_PERIOD);
 
@@ -487,24 +476,19 @@ static struct attribute_group hdaps_attribute_group = {
 
 /* Module stuff */
 
-/*
- * XXX: We should be able to return nonzero and halt the detection process.
- * But there is a bug in dmi_check_system() where a nonzero return from the
- * first match will result in a return of failure from dmi_check_system().
- * I fixed this; the patch is 2.6-git.  Once in a released tree, we can make
- * hdaps_dmi_match_invert() return hdaps_dmi_match(), which in turn returns 1.
- */
+/* hdaps_dmi_match - found a match.  return one, short-circuiting the hunt. */
 static int hdaps_dmi_match(struct dmi_system_id *id)
 {
 	printk(KERN_INFO "hdaps: %s detected.\n", id->ident);
-	return 0;
+	return 1;
 }
 
+/* hdaps_dmi_match_invert - found an inverted match. */
 static int hdaps_dmi_match_invert(struct dmi_system_id *id)
 {
 	hdaps_invert = 1;
 	printk(KERN_INFO "hdaps: inverting axis readings.\n");
-	return 0;
+	return hdaps_dmi_match(id);
 }
 
 #define HDAPS_DMI_MATCH_NORMAL(model)	{		\
@@ -534,6 +518,7 @@ static int __init hdaps_init(void)
 		HDAPS_DMI_MATCH_INVERT("ThinkPad R50p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R50"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad R51"),
+		HDAPS_DMI_MATCH_NORMAL("ThinkPad R52"),
 		HDAPS_DMI_MATCH_INVERT("ThinkPad T41p"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T41"),
 		HDAPS_DMI_MATCH_INVERT("ThinkPad T42p"),
@@ -541,6 +526,7 @@ static int __init hdaps_init(void)
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad T43"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X40"),
 		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41 Tablet"),
+		HDAPS_DMI_MATCH_NORMAL("ThinkPad X41"),
 		{ .ident = NULL }
 	};
 
@@ -555,7 +541,7 @@ static int __init hdaps_init(void)
 		goto out;
 	}
 
-	ret = driver_register(&hdaps_driver);
+	ret = platform_driver_register(&hdaps_driver);
 	if (ret)
 		goto out_region;
 
@@ -569,12 +555,25 @@ static int __init hdaps_init(void)
 	if (ret)
 		goto out_device;
 
+	hdaps_idev = input_allocate_device();
+	if (!hdaps_idev) {
+		ret = -ENOMEM;
+		goto out_group;
+	}
+
 	/* initial calibrate for the input device */
 	hdaps_calibrate();
 
 	/* initialize the input class */
-	hdaps_idev.dev = &pdev->dev;
-	input_register_device(&hdaps_idev);
+	hdaps_idev->name = "hdaps";
+	hdaps_idev->cdev.dev = &pdev->dev;
+	hdaps_idev->evbit[0] = BIT(EV_ABS);
+	input_set_abs_params(hdaps_idev, ABS_X,
+			-256, 256, HDAPS_INPUT_FUZZ, HDAPS_INPUT_FLAT);
+	input_set_abs_params(hdaps_idev, ABS_Y,
+			-256, 256, HDAPS_INPUT_FUZZ, HDAPS_INPUT_FLAT);
+
+	input_register_device(hdaps_idev);
 
 	/* start up our timer for the input device */
 	init_timer(&hdaps_timer);
@@ -585,10 +584,12 @@ static int __init hdaps_init(void)
 	printk(KERN_INFO "hdaps: driver successfully loaded.\n");
 	return 0;
 
+out_group:
+	sysfs_remove_group(&pdev->dev.kobj, &hdaps_attribute_group);
 out_device:
 	platform_device_unregister(pdev);
 out_driver:
-	driver_unregister(&hdaps_driver);
+	platform_driver_unregister(&hdaps_driver);
 out_region:
 	release_region(HDAPS_LOW_PORT, HDAPS_NR_PORTS);
 out:
@@ -599,10 +600,10 @@ out:
 static void __exit hdaps_exit(void)
 {
 	del_timer_sync(&hdaps_timer);
-	input_unregister_device(&hdaps_idev);
+	input_unregister_device(hdaps_idev);
 	sysfs_remove_group(&pdev->dev.kobj, &hdaps_attribute_group);
 	platform_device_unregister(pdev);
-	driver_unregister(&hdaps_driver);
+	platform_driver_unregister(&hdaps_driver);
 	release_region(HDAPS_LOW_PORT, HDAPS_NR_PORTS);
 
 	printk(KERN_INFO "hdaps: driver unloaded.\n");

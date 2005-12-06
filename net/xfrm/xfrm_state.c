@@ -62,14 +62,10 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
 	if (del_timer(&x->timer))
 		BUG();
-	if (x->aalg)
-		kfree(x->aalg);
-	if (x->ealg)
-		kfree(x->ealg);
-	if (x->calg)
-		kfree(x->calg);
-	if (x->encap)
-		kfree(x->encap);
+	kfree(x->aalg);
+	kfree(x->ealg);
+	kfree(x->calg);
+	kfree(x->encap);
 	if (x->type) {
 		x->type->destructor(x);
 		xfrm_put_type(x->type);
@@ -1026,6 +1022,12 @@ void xfrm_state_delete_tunnel(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_delete_tunnel);
 
+/*
+ * This function is NOT optimal.  For example, with ESP it will give an
+ * MTU that's usually two bytes short of being optimal.  However, it will
+ * usually give an answer that's a multiple of 4 provided the input is
+ * also a multiple of 4.
+ */
 int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 {
 	int res = mtu;

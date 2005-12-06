@@ -19,8 +19,9 @@
  * This file is licenced under the GPL.
 */
 
+#include <linux/platform_device.h>
+
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/hardware/clock.h>
 #include <asm/arch/usb-control.h>
 
@@ -449,47 +450,47 @@ static const struct hc_driver ohci_s3c2410_hc_driver = {
 	 */
 	.hub_status_data =	ohci_s3c2410_hub_status_data,
 	.hub_control =		ohci_s3c2410_hub_control,
-
-#if defined(CONFIG_USB_SUSPEND) && 0
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef	CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
+	.start_port_reset =	ohci_start_port_reset,
 };
 
 /* device driver */
 
-static int ohci_hcd_s3c2410_drv_probe(struct device *dev)
+static int ohci_hcd_s3c2410_drv_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	return usb_hcd_s3c2410_probe(&ohci_s3c2410_hc_driver, pdev);
 }
 
-static int ohci_hcd_s3c2410_drv_remove(struct device *dev)
+static int ohci_hcd_s3c2410_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_s3c2410_remove(hcd, pdev);
 	return 0;
 }
 
-static struct device_driver ohci_hcd_s3c2410_driver = {
-	.name		= "s3c2410-ohci",
-	.bus		= &platform_bus_type,
+static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.probe		= ohci_hcd_s3c2410_drv_probe,
 	.remove		= ohci_hcd_s3c2410_drv_remove,
 	/*.suspend	= ohci_hcd_s3c2410_drv_suspend, */
 	/*.resume	= ohci_hcd_s3c2410_drv_resume, */
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "s3c2410-ohci",
+	},
 };
 
 static int __init ohci_hcd_s3c2410_init (void)
 {
-	return driver_register(&ohci_hcd_s3c2410_driver);
+	return platform_driver_register(&ohci_hcd_s3c2410_driver);
 }
 
 static void __exit ohci_hcd_s3c2410_cleanup (void)
 {
-	driver_unregister(&ohci_hcd_s3c2410_driver);
+	platform_driver_unregister(&ohci_hcd_s3c2410_driver);
 }
 
 module_init (ohci_hcd_s3c2410_init);

@@ -39,7 +39,7 @@
 #define APPLE_VENDOR_ID		0x05AC
 
 #define ATP_DEVICE(prod)					\
-	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |   		\
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE |		\
 		       USB_DEVICE_ID_MATCH_INT_CLASS |		\
 		       USB_DEVICE_ID_MATCH_INT_PROTOCOL,	\
 	.idVendor = APPLE_VENDOR_ID,				\
@@ -78,9 +78,9 @@ MODULE_DEVICE_TABLE (usb, atp_table);
  * We try to keep the touchpad aspect ratio while still doing only simple
  * arithmetics.
  * The factors below give coordinates like:
- * 	0 <= x <  960 on 12" and 15" Powerbooks
- * 	0 <= x < 1600 on 17" Powerbooks
- * 	0 <= y <  646
+ *	0 <= x <  960 on 12" and 15" Powerbooks
+ *	0 <= x < 1600 on 17" Powerbooks
+ *	0 <= y <  646
  */
 #define ATP_XFACT	64
 #define ATP_YFACT	43
@@ -93,11 +93,12 @@ MODULE_DEVICE_TABLE (usb, atp_table);
 
 /* Structure to hold all of our device specific stuff */
 struct atp {
+	char			phys[64];
 	struct usb_device *	udev;		/* usb device */
 	struct urb *		urb;		/* usb request block */
 	signed char *		data;		/* transferred data */
 	int			open;		/* non-zero if opened */
-	struct input_dev	input;		/* input dev */
+	struct input_dev	*input;		/* input dev */
 	int			valid;		/* are the sensors valid ? */
 	int			x_old;		/* last reported x/y, */
 	int			y_old;		/* used for smoothing */
@@ -114,11 +115,11 @@ struct atp {
 		int i;							\
 		printk("appletouch: %s %lld", msg, (long long)jiffies); \
 		for (i = 0; i < ATP_XSENSORS + ATP_YSENSORS; i++)	\
-			printk(" %02x", tab[i]); 			\
-		printk("\n"); 						\
+			printk(" %02x", tab[i]);			\
+		printk("\n");						\
 	}
 
-#define dprintk(format, a...) 						\
+#define dprintk(format, a...)						\
 	do {								\
 		if (debug) printk(format, ##a);				\
 	} while (0)
@@ -219,8 +220,8 @@ static void atp_complete(struct urb* urb, struct pt_regs* regs)
 		for (i = 16; i < ATP_XSENSORS; i++)
 			if (dev->xy_cur[i]) {
 				printk("appletouch: 17\" model detected.\n");
-				input_set_abs_params(&dev->input, ABS_X, 0,
-				     		     (ATP_XSENSORS - 1) *
+				input_set_abs_params(dev->input, ABS_X, 0,
+						     (ATP_XSENSORS - 1) *
 						     ATP_XFACT - 1,
 						     ATP_FUZZ, 0);
 				break;
@@ -260,12 +261,12 @@ static void atp_complete(struct urb* urb, struct pt_regs* regs)
 				       "Xz: %3d Yz: %3d\n",
 				       x, y, x_z, y_z);
 
-			input_report_key(&dev->input, BTN_TOUCH, 1);
-			input_report_abs(&dev->input, ABS_X, x);
-			input_report_abs(&dev->input, ABS_Y, y);
-			input_report_abs(&dev->input, ABS_PRESSURE,
+			input_report_key(dev->input, BTN_TOUCH, 1);
+			input_report_abs(dev->input, ABS_X, x);
+			input_report_abs(dev->input, ABS_Y, y);
+			input_report_abs(dev->input, ABS_PRESSURE,
 					 min(ATP_PRESSURE, x_z + y_z));
-			atp_report_fingers(&dev->input, max(x_f, y_f));
+			atp_report_fingers(dev->input, max(x_f, y_f));
 		}
 		dev->x_old = x;
 		dev->y_old = y;
@@ -273,17 +274,17 @@ static void atp_complete(struct urb* urb, struct pt_regs* regs)
 	else if (!x && !y) {
 
 		dev->x_old = dev->y_old = -1;
-		input_report_key(&dev->input, BTN_TOUCH, 0);
-		input_report_abs(&dev->input, ABS_PRESSURE, 0);
-		atp_report_fingers(&dev->input, 0);
+		input_report_key(dev->input, BTN_TOUCH, 0);
+		input_report_abs(dev->input, ABS_PRESSURE, 0);
+		atp_report_fingers(dev->input, 0);
 
 		/* reset the accumulator on release */
 		memset(dev->xy_acc, 0, sizeof(dev->xy_acc));
 	}
 
-	input_report_key(&dev->input, BTN_LEFT, !!dev->data[80]);
+	input_report_key(dev->input, BTN_LEFT, !!dev->data[80]);
 
-	input_sync(&dev->input);
+	input_sync(dev->input);
 
 exit:
 	retval = usb_submit_urb(dev->urb, GFP_ATOMIC);
@@ -314,21 +315,14 @@ static void atp_close(struct input_dev *input)
 
 static int atp_probe(struct usb_interface *iface, const struct usb_device_id *id)
 {
-	struct atp *dev = NULL;
+	struct atp *dev;
+	struct input_dev *input_dev;
+	struct usb_device *udev = interface_to_usbdev(iface);
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int int_in_endpointAddr = 0;
 	int i, retval = -ENOMEM;
 
-	/* allocate memory for our device state and initialize it */
-	dev = kmalloc(sizeof(struct atp), GFP_KERNEL);
-	if (dev == NULL) {
-		err("Out of memory");
-		goto err_kmalloc;
-	}
-	memset(dev, 0, sizeof(struct atp));
-
-	dev->udev = interface_to_usbdev(iface);
 
 	/* set up the endpoint information */
 	/* use only the first interrupt-in endpoint */
@@ -345,70 +339,82 @@ static int atp_probe(struct usb_interface *iface, const struct usb_device_id *id
 		}
 	}
 	if (!int_in_endpointAddr) {
-		retval = -EIO;
 		err("Could not find int-in endpoint");
-		goto err_endpoint;
+		return -EIO;
 	}
 
-	/* save our data pointer in this interface device */
-	usb_set_intfdata(iface, dev);
+	/* allocate memory for our device state and initialize it */
+	dev = kzalloc(sizeof(struct atp), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!dev || !input_dev) {
+		err("Out of memory");
+		goto err_free_devs;
+	}
+
+	dev->udev = udev;
+	dev->input = input_dev;
 
 	dev->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->urb) {
 		retval = -ENOMEM;
-		goto err_usballoc;
+		goto err_free_devs;
 	}
+
 	dev->data = usb_buffer_alloc(dev->udev, ATP_DATASIZE, GFP_KERNEL,
 				     &dev->urb->transfer_dma);
 	if (!dev->data) {
 		retval = -ENOMEM;
-		goto err_usbbufalloc;
+		goto err_free_urb;
 	}
-	usb_fill_int_urb(dev->urb, dev->udev,
-			 usb_rcvintpipe(dev->udev, int_in_endpointAddr),
+
+	usb_fill_int_urb(dev->urb, udev,
+			 usb_rcvintpipe(udev, int_in_endpointAddr),
 			 dev->data, ATP_DATASIZE, atp_complete, dev, 1);
 
-	init_input_dev(&dev->input);
-	dev->input.name = "appletouch";
-	dev->input.dev = &iface->dev;
-	dev->input.private = dev;
-	dev->input.open = atp_open;
-	dev->input.close = atp_close;
+	usb_make_path(udev, dev->phys, sizeof(dev->phys));
+	strlcat(dev->phys, "/input0", sizeof(dev->phys));
 
-	usb_to_input_id(dev->udev, &dev->input.id);
+	input_dev->name = "appletouch";
+	input_dev->phys = dev->phys;
+	usb_to_input_id(dev->udev, &input_dev->id);
+	input_dev->cdev.dev = &iface->dev;
 
-	set_bit(EV_ABS, dev->input.evbit);
+	input_dev->private = dev;
+	input_dev->open = atp_open;
+	input_dev->close = atp_close;
+
+	set_bit(EV_ABS, input_dev->evbit);
 
 	/*
 	 * 12" and 15" Powerbooks only have 16 x sensors,
 	 * 17" models are detected later.
 	 */
-	input_set_abs_params(&dev->input, ABS_X, 0,
+	input_set_abs_params(input_dev, ABS_X, 0,
 			     (16 - 1) * ATP_XFACT - 1, ATP_FUZZ, 0);
-	input_set_abs_params(&dev->input, ABS_Y, 0,
+	input_set_abs_params(input_dev, ABS_Y, 0,
 			     (ATP_YSENSORS - 1) * ATP_YFACT - 1, ATP_FUZZ, 0);
-	input_set_abs_params(&dev->input, ABS_PRESSURE, 0, ATP_PRESSURE, 0, 0);
+	input_set_abs_params(input_dev, ABS_PRESSURE, 0, ATP_PRESSURE, 0, 0);
 
-	set_bit(EV_KEY, dev->input.evbit);
-	set_bit(BTN_TOUCH, dev->input.keybit);
-	set_bit(BTN_TOOL_FINGER, dev->input.keybit);
-	set_bit(BTN_TOOL_DOUBLETAP, dev->input.keybit);
-	set_bit(BTN_TOOL_TRIPLETAP, dev->input.keybit);
-	set_bit(BTN_LEFT, dev->input.keybit);
+	set_bit(EV_KEY, input_dev->evbit);
+	set_bit(BTN_TOUCH, input_dev->keybit);
+	set_bit(BTN_TOOL_FINGER, input_dev->keybit);
+	set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
+	set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
+	set_bit(BTN_LEFT, input_dev->keybit);
 
-	input_register_device(&dev->input);
+	input_register_device(dev->input);
 
-	printk(KERN_INFO "input: appletouch connected\n");
+	/* save our data pointer in this interface device */
+	usb_set_intfdata(iface, dev);
 
 	return 0;
 
-err_usbbufalloc:
+ err_free_urb:
 	usb_free_urb(dev->urb);
-err_usballoc:
+ err_free_devs:
 	usb_set_intfdata(iface, NULL);
-err_endpoint:
 	kfree(dev);
-err_kmalloc:
+	input_free_device(input_dev);
 	return retval;
 }
 
@@ -419,7 +425,7 @@ static void atp_disconnect(struct usb_interface *iface)
 	usb_set_intfdata(iface, NULL);
 	if (dev) {
 		usb_kill_urb(dev->urb);
-		input_unregister_device(&dev->input);
+		input_unregister_device(dev->input);
 		usb_free_urb(dev->urb);
 		usb_buffer_free(dev->udev, ATP_DATASIZE,
 				dev->data, dev->urb->transfer_dma);

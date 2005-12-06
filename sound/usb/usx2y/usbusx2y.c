@@ -251,9 +251,8 @@ static void i_usX2Y_In04Int(struct urb* urb, struct pt_regs *regs)
 			}
 		}
 
-	if (err) {
-		snd_printk("In04Int() usb_submit_urb err=%i\n", err);
-	}
+	if (err)
+		snd_printk(KERN_ERR "In04Int() usb_submit_urb err=%i\n", err);
 
 	urb->dev = usX2Y->chip.dev;
 	usb_submit_urb(urb, GFP_ATOMIC);

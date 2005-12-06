@@ -18,7 +18,6 @@
 #include "kern_util.h"
 #include "user_util.h"
 #include "sigio.h"
-#include "helper.h"
 #include "os.h"
 
 /* Changed during early boot */
@@ -225,7 +224,7 @@ static int need_poll(int n)
 		next_poll.used = n;
 		return(0);
 	}
-	if(next_poll.poll != NULL) kfree(next_poll.poll);
+	kfree(next_poll.poll);
 	next_poll.poll = um_kmalloc_atomic(n * sizeof(struct pollfd));
 	if(next_poll.poll == NULL){
 		printk("need_poll : failed to allocate new pollfds\n");
@@ -340,7 +339,7 @@ static int setup_initial_poll(int fd)
 {
 	struct pollfd *p;
 
-	p = um_kmalloc(sizeof(struct pollfd));
+	p = um_kmalloc_atomic(sizeof(struct pollfd));
 	if(p == NULL){
 		printk("setup_initial_poll : failed to allocate poll\n");
 		return(-1);

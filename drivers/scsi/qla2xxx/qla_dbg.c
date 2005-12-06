@@ -1,20 +1,8 @@
 /*
- *                  QLOGIC LINUX SOFTWARE
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
  *
- * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2005 QLogic Corporation
- * (www.qlogic.com)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
+ * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 
@@ -982,7 +970,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	int		rval;
 	uint32_t	cnt, timer;
 	uint32_t	risc_address;
-	uint16_t	mb[4];
+	uint16_t	mb[4], wd;
 
 	uint32_t	stat;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
@@ -1526,10 +1514,10 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 
 		WRT_REG_DWORD(&reg->ctrl_status,
 		    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
-		RD_REG_DWORD(&reg->ctrl_status);
+		pci_read_config_word(ha->pdev, PCI_COMMAND, &wd);
 
+		udelay(100);
 		/* Wait for firmware to complete NVRAM accesses. */
-		udelay(5);
 		mb[0] = (uint32_t) RD_REG_WORD(&reg->mailbox0);
 		for (cnt = 10000 ; cnt && mb[0]; cnt--) {
 			udelay(5);
@@ -1537,7 +1525,7 @@ qla24xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 			barrier();
 		}
 
-		udelay(20);
+		/* Wait for soft-reset to complete. */
 		for (cnt = 0; cnt < 30000; cnt++) {
 			if ((RD_REG_DWORD(&reg->ctrl_status) &
 			    CSRX_ISP_SOFT_RESET) == 0)

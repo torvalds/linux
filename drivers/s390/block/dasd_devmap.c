@@ -387,8 +387,7 @@ dasd_add_busid(char *bus_id, int features)
 		new = 0;
 	}
 	spin_unlock(&dasd_devmap_lock);
-	if (new)
-		kfree(new);
+	kfree(new);
 	return devmap;
 }
 

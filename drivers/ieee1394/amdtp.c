@@ -320,8 +320,7 @@ static void ohci1394_stop_it_ctx(struct ti_ohci *ohci, int ctx, int synchronous)
 			if ((control & OHCI1394_CONTEXT_ACTIVE) == 0)
 				break;
 
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_interruptible(1);
 		}
 	}
 }
@@ -1297,4 +1296,3 @@ static void __exit amdtp_exit_module (void)
 
 module_init(amdtp_init_module);
 module_exit(amdtp_exit_module);
-MODULE_ALIAS_CHARDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_AMDTP * 16);

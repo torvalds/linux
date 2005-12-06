@@ -344,7 +344,8 @@ bitfill_unaligned_rev(unsigned long __iomem *dst, int dst_idx, unsigned long pat
 
 void cfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 {
-	unsigned long x2, y2, vxres, vyres, height, width, pat, fg;
+	unsigned long pat, fg;
+	unsigned long width = rect->width, height = rect->height;
 	int bits = BITS_PER_LONG, bytes = bits >> 3;
 	u32 bpp = p->var.bits_per_pixel;
 	unsigned long __iomem *dst;
@@ -352,27 +353,6 @@ void cfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
 
 	if (p->state != FBINFO_STATE_RUNNING)
 		return;
-
-	/* We want rotation but lack hardware to do it for us. */
-	if (!p->fbops->fb_rotate && p->var.rotate) {
-	}
-
-	vxres = p->var.xres_virtual;
-	vyres = p->var.yres_virtual;
-
-	if (!rect->width || !rect->height ||
-	    rect->dx > vxres || rect->dy > vyres)
-		return;
-
-	/* We could use hardware clipping but on many cards you get around
-	 * hardware clipping by writing to framebuffer directly. */
-
-	x2 = rect->dx + rect->width;
-	y2 = rect->dy + rect->height;
-	x2 = x2 < vxres ? x2 : vxres;
-	y2 = y2 < vyres ? y2 : vyres;
-	width = x2 - rect->dx;
-	height = y2 - rect->dy;
 
 	if (p->fix.visual == FB_VISUAL_TRUECOLOR ||
 	    p->fix.visual == FB_VISUAL_DIRECTCOLOR )

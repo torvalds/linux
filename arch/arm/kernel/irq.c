@@ -264,6 +264,7 @@ unlock:
 #endif
 #ifdef CONFIG_SMP
 		show_ipi_list(p);
+		show_local_irqs(p);
 #endif
 		seq_printf(p, "Err: %10lu\n", irq_err_count);
 	}
@@ -995,7 +996,7 @@ void __init init_irq_proc(void)
 	struct proc_dir_entry *dir;
 	int irq;
 
-	dir = proc_mkdir("irq", 0);
+	dir = proc_mkdir("irq", NULL);
 	if (!dir)
 		return;
 
@@ -1050,3 +1051,34 @@ static int __init noirqdebug_setup(char *str)
 }
 
 __setup("noirqdebug", noirqdebug_setup);
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * The CPU has been marked offline.  Migrate IRQs off this CPU.  If
+ * the affinity settings do not allow other CPUs, force them onto any
+ * available CPU.
+ */
+void migrate_irqs(void)
+{
+	unsigned int i, cpu = smp_processor_id();
+
+	for (i = 0; i < NR_IRQS; i++) {
+		struct irqdesc *desc = irq_desc + i;
+
+		if (desc->cpu == cpu) {
+			unsigned int newcpu = any_online_cpu(desc->affinity);
+
+			if (newcpu == NR_CPUS) {
+				if (printk_ratelimit())
+					printk(KERN_INFO "IRQ%u no longer affine to CPU%u\n",
+					       i, cpu);
+
+				cpus_setall(desc->affinity);
+				newcpu = any_online_cpu(desc->affinity);
+			}
+
+			route_irq(desc, i, newcpu);
+		}
+	}
+}
+#endif /* CONFIG_HOTPLUG_CPU */

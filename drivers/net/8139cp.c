@@ -1027,8 +1027,7 @@ static void cp_reset_hw (struct cp_private *cp)
 		if (!(cpr8(Cmd) & CmdReset))
 			return;
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(10);
+		schedule_timeout_uninterruptible(10);
 	}
 
 	printk(KERN_ERR "%s: hardware reset timeout\n", cp->dev->name);
@@ -1575,6 +1574,7 @@ static struct ethtool_ops cp_ethtool_ops = {
 	.set_wol		= cp_set_wol,
 	.get_strings		= cp_get_strings,
 	.get_ethtool_stats	= cp_get_ethtool_stats,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int cp_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
@@ -1773,6 +1773,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < 3; i++)
 		((u16 *) (dev->dev_addr))[i] =
 		    le16_to_cpu (read_eeprom (regs, i + 7, addr_len));
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	dev->open = cp_open;
 	dev->stop = cp_close;

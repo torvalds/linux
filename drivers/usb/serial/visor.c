@@ -7,139 +7,10 @@
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
+ *	the Free Software Foundation; either version 2 of the License.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this driver
  *
- * (06/03/2003) Judd Montgomery <judd at jpilot.org>
- *     Added support for module parameter options for untested/unknown
- *     devices.
- *
- * (03/09/2003) gkh
- *	Added support for the Sony Clie NZ90V device.  Thanks to Martin Brachtl
- *	<brachtl@redgrep.cz> for the information.
- *
- * (03/05/2003) gkh
- *	Think Treo support is now working.
- *
- * (04/03/2002) gkh
- *	Added support for the Sony OS 4.1 devices.  Thanks to Hiroyuki ARAKI
- *	<hiro@zob.ne.jp> for the information.
- *
- * (03/27/2002) gkh
- *	Removed assumptions that port->tty was always valid (is not true
- *	for usb serial console devices.)
- *
- * (03/23/2002) gkh
- *	Added support for the Palm i705 device, thanks to Thomas Riemer
- *	<tom@netmech.com> for the information.
- *
- * (03/21/2002) gkh
- *	Added support for the Palm m130 device, thanks to Udo Eisenbarth
- *	<udo.eisenbarth@web.de> for the information.
- *
- * (02/27/2002) gkh
- *	Reworked the urb handling logic.  We have no more pool, but dynamically
- *	allocate the urb and the transfer buffer on the fly.  In testing this
- *	does not incure any measurable overhead.  This also relies on the fact
- *	that we have proper reference counting logic for urbs.
- *
- * (02/21/2002) SilaS
- *  Added initial support for the Palm m515 devices.
- *
- * (02/14/2002) gkh
- *	Added support for the Clie S-360 device.
- *
- * (12/18/2001) gkh
- *	Added better Clie support for 3.5 devices.  Thanks to Geoffrey Levand
- *	for the patch.
- *
- * (11/11/2001) gkh
- *	Added support for the m125 devices, and added check to prevent oopses
- *	for Clié devices that lie about the number of ports they have.
- *
- * (08/30/2001) gkh
- *	Added support for the Clie devices, both the 3.5 and 4.0 os versions.
- *	Many thanks to Daniel Burke, and Bryan Payne for helping with this.
- *
- * (08/23/2001) gkh
- *	fixed a few potential bugs pointed out by Oliver Neukum.
- *
- * (05/30/2001) gkh
- *	switched from using spinlock to a semaphore, which fixes lots of problems.
- *
- * (05/28/2000) gkh
- *	Added initial support for the Palm m500 and Palm m505 devices.
- *
- * (04/08/2001) gb
- *	Identify version on module load.
- *
- * (01/21/2000) gkh
- *	Added write_room and chars_in_buffer, as they were previously using the
- *	generic driver versions which is all wrong now that we are using an urb
- *	pool.  Thanks to Wolfgang Grandegger for pointing this out to me.
- *	Removed count assignment in the write function, which was not needed anymore
- *	either.  Thanks to Al Borchers for pointing this out.
- *
- * (12/12/2000) gkh
- *	Moved MOD_DEC to end of visor_close to be nicer, as the final write 
- *	message can sleep.
- * 
- * (11/12/2000) gkh
- *	Fixed bug with data being dropped on the floor by forcing tty->low_latency
- *	to be on.  Hopefully this fixes the OHCI issue!
- *
- * (11/01/2000) Adam J. Richter
- *	usb_device_id table support
- * 
- * (10/05/2000) gkh
- *	Fixed bug with urb->dev not being set properly, now that the usb
- *	core needs it.
- * 
- * (09/11/2000) gkh
- *	Got rid of always calling kmalloc for every urb we wrote out to the
- *	device.
- *	Added visor_read_callback so we can keep track of bytes in and out for
- *	those people who like to know the speed of their device.
- *	Removed DEBUG #ifdefs with call to usb_serial_debug_data
- *
- * (09/06/2000) gkh
- *	Fixed oops in visor_exit.  Need to uncomment usb_unlink_urb call _after_
- *	the host controller drivers set urb->dev = NULL when the urb is finished.
- *
- * (08/28/2000) gkh
- *	Added locks for SMP safeness.
- *
- * (08/08/2000) gkh
- *	Fixed endian problem in visor_startup.
- *	Fixed MOD_INC and MOD_DEC logic and the ability to open a port more 
- *	than once.
- * 
- * (07/23/2000) gkh
- *	Added pool of write urbs to speed up transfers to the visor.
- * 
- * (07/19/2000) gkh
- *	Added module_init and module_exit functions to handle the fact that this
- *	driver is a loadable module now.
- *
- * (07/03/2000) gkh
- *	Added visor_set_ioctl and visor_set_termios functions (they don't do much
- *	of anything, but are good for debugging.)
- * 
- * (06/25/2000) gkh
- *	Fixed bug in visor_unthrottle that should help with the disconnect in PPP
- *	bug that people have been reporting.
- *
- * (06/23/2000) gkh
- *	Cleaned up debugging statements in a quest to find UHCI timeout bug.
- *
- * (04/27/2000) Ryan VanderBijl
- * 	Fixed memory leak in visor_close
- *
- * (03/26/2000) gkh
- *	Split driver up into device specific pieces.
- * 
  */
 
 #include <linux/config.h>
@@ -161,7 +32,6 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v2.1"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>"
 #define DRIVER_DESC "USB HandSpring Visor / Palm OS driver"
 
@@ -311,10 +181,12 @@ static struct usb_driver visor_driver = {
 };
 
 /* All of the device info needed for the Handspring Visor, and Palm 4.0 devices */
-static struct usb_serial_device_type handspring_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Handspring Visor / Palm OS",
-	.short_name =		"visor",
+static struct usb_serial_driver handspring_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"visor",
+	},
+	.description =		"Handspring Visor / Palm OS",
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		2,
@@ -339,10 +211,12 @@ static struct usb_serial_device_type handspring_device = {
 };
 
 /* All of the device info needed for the Clie UX50, TH55 Palm 5.0 devices */
-static struct usb_serial_device_type clie_5_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Sony Clie 5.0",
-	.short_name =		"clie_5",
+static struct usb_serial_driver clie_5_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"clie_5",
+	},
+	.description =		"Sony Clie 5.0",
 	.id_table =		clie_id_5_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		2,
@@ -367,10 +241,12 @@ static struct usb_serial_device_type clie_5_device = {
 };
 
 /* device info for the Sony Clie OS version 3.5 */
-static struct usb_serial_device_type clie_3_5_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Sony Clie 3.5",
-	.short_name =		"clie_3.5",
+static struct usb_serial_driver clie_3_5_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"clie_3.5",
+	},
+	.description =		"Sony Clie 3.5",
 	.id_table =		clie_id_3_5_table,
 	.num_interrupt_in =	0,
 	.num_bulk_in =		1,
@@ -782,7 +658,7 @@ static int palm_os_3_probe (struct usb_serial *serial, const struct usb_device_i
 					break;
 			}
 			dev_info(dev, "%s: port %d, is for %s use\n",
-				serial->type->name,
+				serial->type->description,
 				connection_info->connections[i].port, string);
 		}
 	}
@@ -791,11 +667,11 @@ static int palm_os_3_probe (struct usb_serial *serial, const struct usb_device_i
 	*/
 	if (num_ports == 0 || num_ports > 2) {
 		dev_warn (dev, "%s: No valid connect info available\n",
-			serial->type->name);
+			serial->type->description);
 		num_ports = 2;
 	}
   
-	dev_info(dev, "%s: Number of ports: %d\n", serial->type->name,
+	dev_info(dev, "%s: Number of ports: %d\n", serial->type->description,
 		num_ports);
 
 	/*
@@ -1125,7 +1001,7 @@ static int __init visor_init (void)
 	retval = usb_register(&visor_driver);
 	if (retval) 
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	info(DRIVER_DESC);
 
 	return 0;
 failed_usb_register:

@@ -201,7 +201,7 @@ static int __init pci_sanity_check(struct pci_raw_ops *o)
 			return 1;
 	}
 
-	DBG("PCI: Sanity check failed\n");
+	DBG(KERN_WARNING "PCI: Sanity check failed\n");
 	return 0;
 }
 

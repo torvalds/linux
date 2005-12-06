@@ -9,6 +9,7 @@
  *
  *  Driver for PCF8583 RTC & RAM chip
  */
+#include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -32,7 +33,8 @@ static struct i2c_client_address_data addr_data = {
 	.forces			= forces,
 };
 
-#define DAT(x) ((unsigned int)(x->dev.driver_data))
+#define set_ctrl(x, v) i2c_set_clientdata(x, (void *)(unsigned int)(v))
+#define get_ctrl(x)    ((unsigned int)i2c_get_clientdata(x))
 
 static int
 pcf8583_attach(struct i2c_adapter *adap, int addr, int kind)
@@ -40,8 +42,17 @@ pcf8583_attach(struct i2c_adapter *adap, int addr, int kind)
 	struct i2c_client *c;
 	unsigned char buf[1], ad[1] = { 0 };
 	struct i2c_msg msgs[2] = {
-		{ addr, 0,        1, ad  },
-		{ addr, I2C_M_RD, 1, buf }
+		{
+			.addr = addr,
+			.flags = 0,
+			.len = 1,
+			.buf = ad,
+		}, {
+			.addr = addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = buf,
+		}
 	};
 
 	c = kmalloc(sizeof(*c), GFP_KERNEL);
@@ -54,7 +65,7 @@ pcf8583_attach(struct i2c_adapter *adap, int addr, int kind)
 	c->driver	= &pcf8583_driver;
 
 	if (i2c_transfer(c->adapter, msgs, 2) == 2)
-		DAT(c) = buf[0];
+		set_ctrl(c, buf[0]);
 
 	return i2c_attach_client(c);
 }
@@ -78,8 +89,17 @@ pcf8583_get_datetime(struct i2c_client *client, struct rtc_tm *dt)
 {
 	unsigned char buf[8], addr[1] = { 1 };
 	struct i2c_msg msgs[2] = {
-		{ client->addr, 0,        1, addr },
-		{ client->addr, I2C_M_RD, 6, buf  }
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = addr,
+		}, {
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 6,
+			.buf = buf,
+		}
 	};
 	int ret = -EIO;
 
@@ -113,7 +133,7 @@ pcf8583_set_datetime(struct i2c_client *client, struct rtc_tm *dt, int datetoo)
 	int ret, len = 6;
 
 	buf[0] = 0;
-	buf[1] = DAT(client) | 0x80;
+	buf[1] = get_ctrl(client) | 0x80;
 	buf[2] = BIN_TO_BCD(dt->cs);
 	buf[3] = BIN_TO_BCD(dt->secs);
 	buf[4] = BIN_TO_BCD(dt->mins);
@@ -129,7 +149,7 @@ pcf8583_set_datetime(struct i2c_client *client, struct rtc_tm *dt, int datetoo)
 	if (ret == len)
 		ret = 0;
 
-	buf[1] = DAT(client);
+	buf[1] = get_ctrl(client);
 	i2c_master_send(client, (char *)buf, 2);
 
 	return ret;
@@ -138,7 +158,7 @@ pcf8583_set_datetime(struct i2c_client *client, struct rtc_tm *dt, int datetoo)
 static int
 pcf8583_get_ctrl(struct i2c_client *client, unsigned char *ctrl)
 {
-	*ctrl = DAT(client);
+	*ctrl = get_ctrl(client);
 	return 0;
 }
 
@@ -149,7 +169,7 @@ pcf8583_set_ctrl(struct i2c_client *client, unsigned char *ctrl)
 
 	buf[0] = 0;
 	buf[1] = *ctrl;
-	DAT(client) = *ctrl;
+	set_ctrl(client, *ctrl);
 
 	return i2c_master_send(client, (char *)buf, 2);
 }
@@ -159,15 +179,23 @@ pcf8583_read_mem(struct i2c_client *client, struct mem *mem)
 {
 	unsigned char addr[1];
 	struct i2c_msg msgs[2] = {
-		{ client->addr, 0,        1, addr },
-		{ client->addr, I2C_M_RD, 0, mem->data }
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = addr,
+		}, {
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = mem->nr,
+			.buf = mem->data,
+		}
 	};
 
 	if (mem->loc < 8)
 		return -EINVAL;
 
 	addr[0] = mem->loc;
-	msgs[1].len = mem->nr;
 
 	return i2c_transfer(client->adapter, msgs, 2) == 2 ? 0 : -EIO;
 }
@@ -177,15 +205,23 @@ pcf8583_write_mem(struct i2c_client *client, struct mem *mem)
 {
 	unsigned char addr[1];
 	struct i2c_msg msgs[2] = {
-		{ client->addr, 0, 1, addr },
-		{ client->addr, 0, 0, mem->data }
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 1,
+			.buf = addr,
+		}, {
+			.addr = client->addr,
+			.flags = I2C_M_NOSTART,
+			.len = mem->nr,
+			.buf = mem->data,
+		}
 	};
 
 	if (mem->loc < 8)
 		return -EINVAL;
 
 	addr[0] = mem->loc;
-	msgs[1].len = mem->nr;
 
 	return i2c_transfer(client->adapter, msgs, 2) == 2 ? 0 : -EIO;
 }
@@ -234,4 +270,14 @@ static __init int pcf8583_init(void)
 	return i2c_add_driver(&pcf8583_driver);
 }
 
-__initcall(pcf8583_init);
+static __exit void pcf8583_exit(void)
+{
+	i2c_del_driver(&pcf8583_driver);
+}
+
+module_init(pcf8583_init);
+module_exit(pcf8583_exit);
+
+MODULE_AUTHOR("Russell King");
+MODULE_DESCRIPTION("PCF8583 I2C RTC driver");
+MODULE_LICENSE("GPL");

@@ -6,6 +6,7 @@
 #include <linux/signal.h>
 #include <linux/interrupt.h>
 #include <asm/irq.h>
+#include <asm/io.h>
 #include <asm/8xx_immap.h>
 #include <asm/mpc8xx.h>
 #include "ppc8xx_pic.h"
@@ -29,8 +30,7 @@ static void m8xx_mask_irq(unsigned int irq_nr)
 	word = irq_nr >> 5;
 
 	ppc_cached_irq_mask[word] &= ~(1 << (31-bit));
-	((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask =
-						ppc_cached_irq_mask[word];
+	out_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask, ppc_cached_irq_mask[word]);
 }
 
 static void m8xx_unmask_irq(unsigned int irq_nr)
@@ -41,8 +41,7 @@ static void m8xx_unmask_irq(unsigned int irq_nr)
 	word = irq_nr >> 5;
 
 	ppc_cached_irq_mask[word] |= (1 << (31-bit));
-	((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask =
-						ppc_cached_irq_mask[word];
+	out_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask, ppc_cached_irq_mask[word]);
 }
 
 static void m8xx_end_irq(unsigned int irq_nr)
@@ -55,8 +54,7 @@ static void m8xx_end_irq(unsigned int irq_nr)
 		word = irq_nr >> 5;
 
 		ppc_cached_irq_mask[word] |= (1 << (31-bit));
-		((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask =
-			ppc_cached_irq_mask[word];
+		out_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask, ppc_cached_irq_mask[word]);
 	}
 }
 
@@ -69,9 +67,8 @@ static void m8xx_mask_and_ack(unsigned int irq_nr)
 	word = irq_nr >> 5;
 
 	ppc_cached_irq_mask[word] &= ~(1 << (31-bit));
-	((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask =
-						ppc_cached_irq_mask[word];
-	((immap_t *)IMAP_ADDR)->im_siu_conf.sc_sipend = 1 << (31-bit);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_simask, ppc_cached_irq_mask[word]);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_sipend, 1 << (31-bit));
 }
 
 struct hw_interrupt_type ppc8xx_pic = {
@@ -93,7 +90,7 @@ m8xx_get_irq(struct pt_regs *regs)
 	/* For MPC8xx, read the SIVEC register and shift the bits down
 	 * to get the irq number.
 	 */
-	irq = ((immap_t *)IMAP_ADDR)->im_siu_conf.sc_sivec >> 26;
+	irq = in_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_sivec) >> 26;
 
 	/*
 	 * When we read the sivec without an interrupt to process, we will

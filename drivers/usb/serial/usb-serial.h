@@ -1,53 +1,13 @@
 /*
  * USB Serial Converter driver
  *
- *	Copyright (C) 1999 - 2004
+ *	Copyright (C) 1999 - 2005
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
+ *	the Free Software Foundation; either version 2 of the License.
  *
- * See Documentation/usb/usb-serial.txt for more information on using this driver
- *
- * (03/26/2002) gkh
- *	removed the port->tty check from port_paranoia_check() due to serial
- *	consoles not having a tty device assigned to them.
- *
- * (12/03/2001) gkh
- *	removed active from the port structure.
- *	added documentation to the usb_serial_device_type structure
- *
- * (10/10/2001) gkh
- *	added vendor and product to serial structure.  Needed to determine device
- *	owner when the device is disconnected.
- *
- * (05/30/2001) gkh
- *	added sem to port structure and removed port_lock
- *
- * (10/05/2000) gkh
- *	Added interrupt_in_endpointAddress and bulk_in_endpointAddress to help
- *	fix bug with urb->dev not being set properly, now that the usb core
- *	needs it.
- * 
- * (09/11/2000) gkh
- *	Added usb_serial_debug_data function to help get rid of #DEBUG in the
- *	drivers.
- *
- * (08/28/2000) gkh
- *	Added port_lock to port structure.
- *
- * (08/08/2000) gkh
- *	Added open_count to port structure.
- *
- * (07/23/2000) gkh
- *	Added bulk_out_endpointAddress to port structure.
- *
- * (07/19/2000) gkh, pberger, and borchers
- *	Modifications to allow usb-serial drivers to be modules.
- *
- * 
  */
 
 
@@ -143,7 +103,7 @@ static inline void usb_set_serial_port_data (struct usb_serial_port *port, void 
 /**
  * usb_serial - structure used by the usb-serial core for a device
  * @dev: pointer to the struct usb_device for this device
- * @type: pointer to the struct usb_serial_device_type for this device
+ * @type: pointer to the struct usb_serial_driver for this device
  * @interface: pointer to the struct usb_interface for this device
  * @minor: the starting minor number for this device
  * @num_ports: the number of ports this device has
@@ -159,7 +119,7 @@ static inline void usb_set_serial_port_data (struct usb_serial_port *port, void 
  */
 struct usb_serial {
 	struct usb_device *		dev;
-	struct usb_serial_device_type *	type;
+	struct usb_serial_driver *	type;
 	struct usb_interface *		interface;
 	unsigned char			minor;
 	unsigned char			num_ports;
@@ -188,13 +148,9 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
 }
 
 /**
- * usb_serial_device_type - a structure that defines a usb serial device
- * @owner: pointer to the module that owns this device.
- * @name: pointer to a string that describes this device.  This string used
+ * usb_serial_driver - describes a usb serial driver
+ * @description: pointer to a string that describes this driver.  This string used
  *	in the syslog messages when a device is inserted or removed.
- * @short_name: a pointer to a string that describes this device in
- *	KOBJ_NAME_LEN characters or less.  This is used for the sysfs interface
- *	to describe the driver.
  * @id_table: pointer to a list of usb_device_id structures that define all
  *	of the devices this structure can support.
  * @num_interrupt_in: the number of interrupt in endpoints this device will
@@ -221,16 +177,19 @@ static inline void usb_set_serial_data (struct usb_serial *serial, void *data)
  * @shutdown: pointer to the driver's shutdown function.  This will be
  *	called when the device is removed from the system.
  *
- * This structure is defines a USB Serial device.  It provides all of
+ * This structure is defines a USB Serial driver.  It provides all of
  * the information that the USB serial core code needs.  If the function
  * pointers are defined, then the USB serial core code will call them when
  * the corresponding tty port functions are called.  If they are not
  * called, the generic serial function will be used instead.
+ *
+ * The driver.owner field should be set to the module owner of this driver.
+ * The driver.name field should be set to the name of this driver (remember
+ * it will show up in sysfs, so it needs to be short and to the point.
+ * Useing the module name is a good idea.)
  */
-struct usb_serial_device_type {
-	struct module *owner;
-	char	*name;
-	char	*short_name;
+struct usb_serial_driver {
+	const char *description;
 	const struct usb_device_id *id_table;
 	char	num_interrupt_in;
 	char	num_interrupt_out;
@@ -269,10 +228,10 @@ struct usb_serial_device_type {
 	void (*read_bulk_callback)(struct urb *urb, struct pt_regs *regs);
 	void (*write_bulk_callback)(struct urb *urb, struct pt_regs *regs);
 };
-#define to_usb_serial_driver(d) container_of(d, struct usb_serial_device_type, driver)
+#define to_usb_serial_driver(d) container_of(d, struct usb_serial_driver, driver)
 
-extern int  usb_serial_register(struct usb_serial_device_type *new_device);
-extern void usb_serial_deregister(struct usb_serial_device_type *device);
+extern int  usb_serial_register(struct usb_serial_driver *driver);
+extern void usb_serial_deregister(struct usb_serial_driver *driver);
 extern void usb_serial_port_softint(void *private);
 
 extern int usb_serial_probe(struct usb_interface *iface, const struct usb_device_id *id);
@@ -303,10 +262,10 @@ extern void usb_serial_generic_shutdown (struct usb_serial *serial);
 extern int usb_serial_generic_register (int debug);
 extern void usb_serial_generic_deregister (void);
 
-extern int usb_serial_bus_register (struct usb_serial_device_type *device);
-extern void usb_serial_bus_deregister (struct usb_serial_device_type *device);
+extern int usb_serial_bus_register (struct usb_serial_driver *device);
+extern void usb_serial_bus_deregister (struct usb_serial_driver *device);
 
-extern struct usb_serial_device_type usb_serial_generic_device;
+extern struct usb_serial_driver usb_serial_generic_device;
 extern struct bus_type usb_serial_bus_type;
 extern struct tty_driver *usb_serial_tty_driver;
 

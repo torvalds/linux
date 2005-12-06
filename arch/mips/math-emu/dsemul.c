@@ -28,9 +28,6 @@
 #endif
 #define __mips 4
 
-extern struct mips_fpu_emulator_private fpuemuprivate;
-
-
 /*
  * Emulate the arbritrary instruction ir at xcp->cp0_epc.  Required when
  * we have to emulate the instruction in a COP1 branch delay slot.  Do
@@ -52,10 +49,10 @@ struct emuframe {
 	mips_instruction	emul;
 	mips_instruction	badinst;
 	mips_instruction	cookie;
-	gpreg_t			epc;
+	unsigned long		epc;
 };
 
-int mips_dsemul(struct pt_regs *regs, mips_instruction ir, gpreg_t cpc)
+int mips_dsemul(struct pt_regs *regs, mips_instruction ir, unsigned long cpc)
 {
 	extern asmlinkage void handle_dsemulret(void);
 	mips_instruction *dsemul_insns;
@@ -91,7 +88,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, gpreg_t cpc)
 	 */
 
 	/* Ensure that the two instructions are in the same cache line */
-	dsemul_insns = (mips_instruction *) REG_TO_VA ((regs->regs[29] - sizeof(struct emuframe)) & ~0x7);
+	dsemul_insns = (mips_instruction *) ((regs->regs[29] - sizeof(struct emuframe)) & ~0x7);
 	fr = (struct emuframe *) dsemul_insns;
 
 	/* Verify that the stack pointer is not competely insane */
@@ -104,11 +101,11 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, gpreg_t cpc)
 	err |= __put_user(cpc, &fr->epc);
 
 	if (unlikely(err)) {
-		fpuemuprivate.stats.errors++;
+		fpuemustats.errors++;
 		return SIGBUS;
 	}
 
-	regs->cp0_epc = VA_TO_REG & fr->emul;
+	regs->cp0_epc = (unsigned long) &fr->emul;
 
 	flush_cache_sigtramp((unsigned long)&fr->badinst);
 
@@ -118,7 +115,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir, gpreg_t cpc)
 int do_dsemulret(struct pt_regs *xcp)
 {
 	struct emuframe *fr;
-	gpreg_t epc;
+	unsigned long epc;
 	u32 insn, cookie;
 	int err = 0;
 
@@ -141,7 +138,7 @@ int do_dsemulret(struct pt_regs *xcp)
 	err |= __get_user(cookie, &fr->cookie);
 
 	if (unlikely(err || (insn != BADINST) || (cookie != BD_COOKIE))) {
-		fpuemuprivate.stats.errors++;
+		fpuemustats.errors++;
 		return 0;
 	}
 

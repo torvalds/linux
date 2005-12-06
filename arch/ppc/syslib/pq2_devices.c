@@ -3,7 +3,7 @@
  *
  * PQ2 Device descriptions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -13,11 +13,12 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/ioport.h>
 #include <asm/cpm2.h>
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>
+#include <asm/machdep.h>
 
 struct platform_device ppc_sys_platform_devices[] = {
 	[MPC82xx_CPM_FCC1] = {

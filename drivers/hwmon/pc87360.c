@@ -754,9 +754,8 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 	const char *name = "pc87360";
 	int use_thermistors = 0;
 
-	if (!(data = kmalloc(sizeof(struct pc87360_data), GFP_KERNEL)))
+	if (!(data = kzalloc(sizeof(struct pc87360_data), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(data, 0x00, sizeof(struct pc87360_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

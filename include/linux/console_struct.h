@@ -9,6 +9,8 @@
  * to achieve effects such as fast scrolling by changing the origin.
  */
 
+#include <linux/vt.h>
+
 struct vt_struct;
 
 #define NPAR 16

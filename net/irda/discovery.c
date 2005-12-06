@@ -194,8 +194,7 @@ void irlmp_expire_discoveries(hashbin_t *log, __u32 saddr, int force)
 
 			/* Remove it from the log */
 			curr = hashbin_remove_this(log, (irda_queue_t *) curr);
-			if (curr)
-				kfree(curr);
+			kfree(curr);
 		}
 	}
 

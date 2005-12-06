@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
@@ -29,7 +29,6 @@
 
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/scatterlist.h>
 #include <asm/sizes.h>
 
@@ -429,9 +428,8 @@ static irqreturn_t pxamci_detect_irq(int irq, void *devid, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
-static int pxamci_probe(struct device *dev)
+static int pxamci_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct mmc_host *mmc;
 	struct pxamci_host *host = NULL;
 	struct resource *r;
@@ -446,7 +444,7 @@ static int pxamci_probe(struct device *dev)
 	if (!r)
 		return -EBUSY;
 
-	mmc = mmc_alloc_host(sizeof(struct pxamci_host), dev);
+	mmc = mmc_alloc_host(sizeof(struct pxamci_host), &pdev->dev);
 	if (!mmc) {
 		ret = -ENOMEM;
 		goto out;
@@ -475,7 +473,7 @@ static int pxamci_probe(struct device *dev)
 			 host->pdata->ocr_mask :
 			 MMC_VDD_32_33|MMC_VDD_33_34;
 
-	host->sg_cpu = dma_alloc_coherent(dev, PAGE_SIZE, &host->sg_dma, GFP_KERNEL);
+	host->sg_cpu = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, &host->sg_dma, GFP_KERNEL);
 	if (!host->sg_cpu) {
 		ret = -ENOMEM;
 		goto out;
@@ -512,10 +510,10 @@ static int pxamci_probe(struct device *dev)
 	if (ret)
 		goto out;
 
-	dev_set_drvdata(dev, mmc);
+	platform_set_drvdata(pdev, mmc);
 
 	if (host->pdata && host->pdata->init)
-		host->pdata->init(dev, pxamci_detect_irq, mmc);
+		host->pdata->init(&pdev->dev, pxamci_detect_irq, mmc);
 
 	mmc_add_host(mmc);
 
@@ -528,7 +526,7 @@ static int pxamci_probe(struct device *dev)
 		if (host->base)
 			iounmap(host->base);
 		if (host->sg_cpu)
-			dma_free_coherent(dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
+			dma_free_coherent(&pdev->dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
 	}
 	if (mmc)
 		mmc_free_host(mmc);
@@ -536,17 +534,17 @@ static int pxamci_probe(struct device *dev)
 	return ret;
 }
 
-static int pxamci_remove(struct device *dev)
+static int pxamci_remove(struct platform_device *pdev)
 {
-	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	if (mmc) {
 		struct pxamci_host *host = mmc_priv(mmc);
 
 		if (host->pdata && host->pdata->exit)
-			host->pdata->exit(dev, mmc);
+			host->pdata->exit(&pdev->dev, mmc);
 
 		mmc_remove_host(mmc);
 
@@ -561,7 +559,7 @@ static int pxamci_remove(struct device *dev)
 		free_irq(host->irq, host);
 		pxa_free_dma(host->dma);
 		iounmap(host->base);
-		dma_free_coherent(dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
+		dma_free_coherent(&pdev->dev, PAGE_SIZE, host->sg_cpu, host->sg_dma);
 
 		release_resource(host->res);
 
@@ -571,23 +569,23 @@ static int pxamci_remove(struct device *dev)
 }
 
 #ifdef CONFIG_PM
-static int pxamci_suspend(struct device *dev, pm_message_t state, u32 level)
+static int pxamci_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret = 0;
 
-	if (mmc && level == SUSPEND_DISABLE)
+	if (mmc)
 		ret = mmc_suspend_host(mmc, state);
 
 	return ret;
 }
 
-static int pxamci_resume(struct device *dev, u32 level)
+static int pxamci_resume(struct platform_device *dev)
 {
-	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret = 0;
 
-	if (mmc && level == RESUME_ENABLE)
+	if (mmc)
 		ret = mmc_resume_host(mmc);
 
 	return ret;
@@ -597,23 +595,24 @@ static int pxamci_resume(struct device *dev, u32 level)
 #define pxamci_resume	NULL
 #endif
 
-static struct device_driver pxamci_driver = {
-	.name		= DRIVER_NAME,
-	.bus		= &platform_bus_type,
+static struct platform_driver pxamci_driver = {
 	.probe		= pxamci_probe,
 	.remove		= pxamci_remove,
 	.suspend	= pxamci_suspend,
 	.resume		= pxamci_resume,
+	.driver		= {
+		.name	= DRIVER_NAME,
+	},
 };
 
 static int __init pxamci_init(void)
 {
-	return driver_register(&pxamci_driver);
+	return platform_driver_register(&pxamci_driver);
 }
 
 static void __exit pxamci_exit(void)
 {
-	driver_unregister(&pxamci_driver);
+	platform_driver_unregister(&pxamci_driver);
 }
 
 module_init(pxamci_init);

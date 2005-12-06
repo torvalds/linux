@@ -785,8 +785,7 @@ static void __exit stallion_module_exit(void)
 			"errno=%d\n", -i);
 	class_destroy(stallion_class);
 
-	if (stl_tmpwritebuf != (char *) NULL)
-		kfree(stl_tmpwritebuf);
+	kfree(stl_tmpwritebuf);
 
 	for (i = 0; (i < stl_nrbrds); i++) {
 		if ((brdp = stl_brds[i]) == (stlbrd_t *) NULL)
@@ -804,8 +803,7 @@ static void __exit stallion_module_exit(void)
 					continue;
 				if (portp->tty != (struct tty_struct *) NULL)
 					stl_hangup(portp->tty);
-				if (portp->tx.buf != (char *) NULL)
-					kfree(portp->tx.buf);
+				kfree(portp->tx.buf);
 				kfree(portp);
 			}
 			kfree(panelp);
@@ -3095,7 +3093,9 @@ static int __init stl_init(void)
 		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
 				S_IFCHR|S_IRUSR|S_IWUSR,
 				"staliomem/%d", i);
-		class_device_create(stallion_class, MKDEV(STL_SIOMEMMAJOR, i), NULL, "staliomem%d", i);
+		class_device_create(stallion_class, NULL,
+				    MKDEV(STL_SIOMEMMAJOR, i), NULL,
+				    "staliomem%d", i);
 	}
 
 	stl_serial->owner = THIS_MODULE;

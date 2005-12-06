@@ -251,12 +251,12 @@ static int reiserfs_allocate_blocks_for_region(struct reiserfs_transaction_handl
 						       blocks_to_allocate,
 						       blocks_to_allocate);
 			if (res != CARRY_ON) {
-				res = -ENOSPC;
+				res = res == QUOTA_EXCEEDED ? -EDQUOT : -ENOSPC;
 				pathrelse(&path);
 				goto error_exit;
 			}
 		} else {
-			res = -ENOSPC;
+			res = res == QUOTA_EXCEEDED ? -EDQUOT : -ENOSPC;
 			pathrelse(&path);
 			goto error_exit;
 		}

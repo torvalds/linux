@@ -90,14 +90,13 @@ vrc5477_irq_end(unsigned int irq)
 }
 
 hw_irq_controller vrc5477_irq_controller = {
-	"vrc5477_irq",
-	vrc5477_irq_startup,
-	vrc5477_irq_shutdown,
-	vrc5477_irq_enable,
-	vrc5477_irq_disable,
-	vrc5477_irq_ack,
-	vrc5477_irq_end,
-	NULL			/* no affinity stuff for UP */
+	.typename = "vrc5477_irq",
+	.startup = vrc5477_irq_startup,
+	.shutdown = vrc5477_irq_shutdown,
+	.enable = vrc5477_irq_enable,
+	.disable = vrc5477_irq_disable,
+	.ack = vrc5477_irq_ack,
+	.end = vrc5477_irq_end
 };
 
 void __init vrc5477_irq_init(u32 irq_base)

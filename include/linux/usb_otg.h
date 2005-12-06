@@ -63,6 +63,10 @@ struct otg_transceiver {
 	int	(*set_power)(struct otg_transceiver *otg,
 				unsigned mA);
 
+	/* for non-OTG B devices: set transceiver into suspend mode */
+	int	(*set_suspend)(struct otg_transceiver *otg,
+				int suspend);
+
 	/* for B devices only:  start session with A-Host */
 	int	(*start_srp)(struct otg_transceiver *otg);
 
@@ -105,6 +109,15 @@ static inline int
 otg_set_power(struct otg_transceiver *otg, unsigned mA)
 {
 	return otg->set_power(otg, mA);
+}
+
+static inline int
+otg_set_suspend(struct otg_transceiver *otg, int suspend)
+{
+	if (otg->set_suspend != NULL)
+		return otg->set_suspend(otg, suspend);
+	else
+		return 0;
 }
 
 static inline int

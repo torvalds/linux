@@ -38,6 +38,7 @@
 #include <asm/hardware/clock.h>
 
 #include "clock.h"
+#include "cpu.h"
 
 static unsigned long timer_startval;
 static unsigned long timer_usec_ticks;

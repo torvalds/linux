@@ -1,13 +1,10 @@
-/**************************************************************************
- *             Copyright (C) 2005, Silicon Graphics, Inc.                 *
- *									  *
- *  These coded instructions, statements, and computer programs	 contain  *
- *  unpublished	 proprietary  information of Silicon Graphics, Inc., and  *
- *  are protected by Federal copyright law.  They  may	not be disclosed  *
- *  to	third  parties	or copied or duplicated in any form, in whole or  *
- *  in part, without the prior written consent of Silicon Graphics, Inc.  *
- *									  *
- **************************************************************************/
+/*
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
+ *
+ * Copyright (c) 2003-2005 Silicon Graphics, Inc. All rights reserved.
+ */
 
 #ifndef _ASM_IA64_SN_CE_PROVIDER_H
 #define _ASM_IA64_SN_CE_PROVIDER_H

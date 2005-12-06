@@ -759,10 +759,8 @@ static int snd_emu10k1x_free(emu10k1x_t *chip)
 	outl(HCFG_LOCKSOUNDCACHE, chip->port + HCFG);
 
 	// release the i/o port
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
+	release_and_free_resource(chip->res_port);
+
 	// release the irq
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
@@ -1615,7 +1613,6 @@ MODULE_DEVICE_TABLE(pci, snd_emu10k1x_ids);
 // pci_driver definition
 static struct pci_driver driver = {
 	.name = "EMU10K1X",
-	.owner = THIS_MODULE,
 	.id_table = snd_emu10k1x_ids,
 	.probe = snd_emu10k1x_probe,
 	.remove = __devexit_p(snd_emu10k1x_remove),

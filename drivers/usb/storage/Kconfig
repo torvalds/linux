@@ -2,7 +2,8 @@
 # USB Storage driver configuration
 #
 
-comment "NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support' may also be needed; see USB_STORAGE Help for more information"
+comment "NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'"
+comment "may also be needed; see USB_STORAGE Help for more information"
 	depends on USB
 
 config USB_STORAGE
@@ -114,7 +115,7 @@ config USB_STORAGE_JUMPSHOT
 
 config USB_STORAGE_ONETOUCH
 	bool "Support OneTouch Button on Maxtor Hard Drives (EXPERIMENTAL)"
-	depends on USB_STORAGE && INPUT_EVDEV && EXPERIMENTAL
+	depends on USB_STORAGE && INPUT_EVDEV && EXPERIMENTAL && !PM
 	help
 	  Say Y here to include additional code to support the Maxtor OneTouch
 	  USB hard drive's onetouch button.

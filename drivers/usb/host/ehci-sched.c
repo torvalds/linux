@@ -589,7 +589,7 @@ static int intr_submit (
 	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 ) {
 	unsigned		epnum;
 	unsigned long		flags;
@@ -601,6 +601,12 @@ static int intr_submit (
 	epnum = ep->desc.bEndpointAddress;
 
 	spin_lock_irqsave (&ehci->lock, flags);
+
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
+			       &ehci_to_hcd(ehci)->flags))) {
+		status = -ESHUTDOWN;
+		goto done;
+	}
 
 	/* get qh and force any scheduling errors */
 	INIT_LIST_HEAD (&empty);
@@ -634,7 +640,7 @@ done:
 /* ehci_iso_stream ops work with both ITD and SITD */
 
 static struct ehci_iso_stream *
-iso_stream_alloc (unsigned mem_flags)
+iso_stream_alloc (gfp_t mem_flags)
 {
 	struct ehci_iso_stream *stream;
 
@@ -851,7 +857,7 @@ iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 /* ehci_iso_sched ops can be ITD-only or SITD-only */
 
 static struct ehci_iso_sched *
-iso_sched_alloc (unsigned packets, unsigned mem_flags)
+iso_sched_alloc (unsigned packets, gfp_t mem_flags)
 {
 	struct ehci_iso_sched	*iso_sched;
 	int			size = sizeof *iso_sched;
@@ -924,7 +930,7 @@ itd_urb_transaction (
 	struct ehci_iso_stream	*stream,
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 )
 {
 	struct ehci_itd		*itd;
@@ -1418,7 +1424,7 @@ itd_complete (
 /*-------------------------------------------------------------------------*/
 
 static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
-	unsigned mem_flags)
+	gfp_t mem_flags)
 {
 	int			status = -EINVAL;
 	unsigned long		flags;
@@ -1456,7 +1462,11 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 
 	/* schedule ... need to lock */
 	spin_lock_irqsave (&ehci->lock, flags);
-	status = iso_stream_schedule (ehci, urb, stream);
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
+			       &ehci_to_hcd(ehci)->flags)))
+		status = -ESHUTDOWN;
+	else
+		status = iso_stream_schedule (ehci, urb, stream);
  	if (likely (status == 0))
 		itd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
 	spin_unlock_irqrestore (&ehci->lock, flags);
@@ -1529,7 +1539,7 @@ sitd_urb_transaction (
 	struct ehci_iso_stream	*stream,
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 )
 {
 	struct ehci_sitd	*sitd;
@@ -1779,7 +1789,7 @@ sitd_complete (
 
 
 static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
-	unsigned mem_flags)
+	gfp_t mem_flags)
 {
 	int			status = -EINVAL;
 	unsigned long		flags;
@@ -1815,7 +1825,11 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 
 	/* schedule ... need to lock */
 	spin_lock_irqsave (&ehci->lock, flags);
-	status = iso_stream_schedule (ehci, urb, stream);
+	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
+			       &ehci_to_hcd(ehci)->flags)))
+		status = -ESHUTDOWN;
+	else
+		status = iso_stream_schedule (ehci, urb, stream);
  	if (status == 0)
 		sitd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
 	spin_unlock_irqrestore (&ehci->lock, flags);

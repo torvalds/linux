@@ -128,17 +128,6 @@ static struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static unsigned int rates[] = {
-	32000, 44100, 48000, 64000, 88200, 96000,
-	176400, 192000,
-};
-
-static snd_pcm_hw_constraint_list_t revo_rates = {
-	.count = ARRAY_SIZE(rates),
-	.list = rates,
-	.mask = 0,
-};
-
 static int __devinit revo_init(ice1712_t *ice)
 {
 	akm4xxx_t *ak;
@@ -172,8 +161,6 @@ static int __devinit revo_init(ice1712_t *ice)
 		snd_ice1712_gpio_write_bits(ice, VT1724_REVO_MUTE, VT1724_REVO_MUTE);
 		break;
 	}
-
-	ice->hw_rates = &revo_rates; /* AK codecs don't support lower than 32k */
 
 	return 0;
 }

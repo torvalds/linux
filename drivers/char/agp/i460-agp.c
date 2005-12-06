@@ -10,6 +10,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/agp_backend.h>
 
 #include "agp.h"
@@ -109,8 +111,10 @@ static int i460_fetch_size (void)
 
 	if (i460.io_page_shift != I460_IO_PAGE_SHIFT) {
 		printk(KERN_ERR PFX
-		       "I/O (GART) page-size %ZuKB doesn't match expected size %ZuKB\n",
-		       1UL << (i460.io_page_shift - 10), 1UL << (I460_IO_PAGE_SHIFT));
+			"I/O (GART) page-size %luKB doesn't match expected "
+				"size %luKB\n",
+			1UL << (i460.io_page_shift - 10),
+			1UL << (I460_IO_PAGE_SHIFT));
 		return 0;
 	}
 
@@ -225,10 +229,9 @@ static int i460_configure (void)
 	 */
 	if (I460_IO_PAGE_SHIFT > PAGE_SHIFT) {
 		size = current_size->num_entries * sizeof(i460.lp_desc[0]);
-		i460.lp_desc = kmalloc(size, GFP_KERNEL);
+		i460.lp_desc = kzalloc(size, GFP_KERNEL);
 		if (!i460.lp_desc)
 			return -ENOMEM;
-		memset(i460.lp_desc, 0, size);
 	}
 	return 0;
 }
@@ -364,13 +367,12 @@ static int i460_alloc_large_page (struct lp_desc *lp)
 	}
 
 	map_size = ((I460_KPAGES_PER_IOPAGE + BITS_PER_LONG - 1) & -BITS_PER_LONG)/8;
-	lp->alloced_map = kmalloc(map_size, GFP_KERNEL);
+	lp->alloced_map = kzalloc(map_size, GFP_KERNEL);
 	if (!lp->alloced_map) {
 		free_pages((unsigned long) lpage, order);
 		printk(KERN_ERR PFX "Out of memory, we're in trouble...\n");
 		return -ENOMEM;
 	}
-	memset(lp->alloced_map, 0, map_size);
 
 	lp->paddr = virt_to_gart(lpage);
 	lp->refcount = 0;
@@ -514,9 +516,10 @@ static void *i460_alloc_page (struct agp_bridge_data *bridge)
 {
 	void *page;
 
-	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT)
+	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT) {
 		page = agp_generic_alloc_page(agp_bridge);
-	else
+		global_flush_tlb();
+	} else
 		/* Returning NULL would cause problems */
 		/* AK: really dubious code. */
 		page = (void *)~0UL;
@@ -525,8 +528,10 @@ static void *i460_alloc_page (struct agp_bridge_data *bridge)
 
 static void i460_destroy_page (void *page)
 {
-	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT)
+	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT) {
 		agp_generic_destroy_page(page);
+		global_flush_tlb();
+	}
 }
 
 #endif /* I460_LARGE_IO_PAGES */
@@ -536,7 +541,7 @@ static unsigned long i460_mask_memory (struct agp_bridge_data *bridge,
 {
 	/* Make sure the returned address is a valid GATT entry */
 	return bridge->driver->masks[0].mask
-		| (((addr & ~((1 << I460_IO_PAGE_SHIFT) - 1)) & 0xffffff000) >> 12);
+		| (((addr & ~((1 << I460_IO_PAGE_SHIFT) - 1)) & 0xfffff000) >> 12);
 }
 
 struct agp_bridge_driver intel_i460_driver = {

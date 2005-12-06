@@ -44,10 +44,6 @@ int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
 int heap_stack_gap = 0;
 
 EXPORT_SYMBOL(mem_map);
-EXPORT_SYMBOL(sysctl_max_map_count);
-EXPORT_SYMBOL(sysctl_overcommit_memory);
-EXPORT_SYMBOL(sysctl_overcommit_ratio);
-EXPORT_SYMBOL(vm_committed_space);
 EXPORT_SYMBOL(__vm_enough_memory);
 
 /* list of shareable VMAs */
@@ -157,8 +153,7 @@ void vfree(void *addr)
 	kfree(addr);
 }
 
-void *__vmalloc(unsigned long size, unsigned int __nocast gfp_mask,
-			pgprot_t prot)
+void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 {
 	/*
 	 * kmalloc doesn't like __GFP_HIGHMEM for some reason
@@ -932,6 +927,8 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 	realalloc -= kobjsize(vml);
 	askedalloc -= sizeof(*vml);
 	kfree(vml);
+
+	update_hiwater_vm(mm);
 	mm->total_vm -= len >> PAGE_SHIFT;
 
 #ifdef DEBUG
@@ -1048,7 +1045,8 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 
 EXPORT_SYMBOL(find_vma);
 
-struct page * follow_page(struct mm_struct *mm, unsigned long addr, int write)
+struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+			unsigned int foll_flags)
 {
 	return NULL;
 }
@@ -1077,19 +1075,6 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 
 void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
 {
-}
-
-void update_mem_hiwater(struct task_struct *tsk)
-{
-	unsigned long rss;
-
-	if (likely(tsk->mm)) {
-		rss = get_mm_counter(tsk->mm, rss);
-		if (tsk->mm->hiwater_rss < rss)
-			tsk->mm->hiwater_rss = rss;
-		if (tsk->mm->hiwater_vm < tsk->mm->total_vm)
-			tsk->mm->hiwater_vm = tsk->mm->total_vm;
-	}
 }
 
 void unmap_mapping_range(struct address_space *mapping,

@@ -303,9 +303,9 @@ static void        nsp_cs_config (dev_link_t *link);
 static int         nsp_cs_event  (event_t event, int priority, event_callback_args_t *args);
 
 /* Linux SCSI subsystem specific functions */
-static struct Scsi_Host *nsp_detect     (Scsi_Host_Template *sht);
+static struct Scsi_Host *nsp_detect     (struct scsi_host_template *sht);
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-static        int        nsp_detect_old (Scsi_Host_Template *sht);
+static        int        nsp_detect_old (struct scsi_host_template *sht);
 static        int        nsp_release_old(struct Scsi_Host *shpnt);
 #endif
 static const  char      *nsp_info       (struct Scsi_Host *shpnt);
@@ -345,7 +345,7 @@ static int  nsp_expect_signal    (Scsi_Cmnd *SCpnt, unsigned char current_phase,
 static int  nsp_xfer             (Scsi_Cmnd *SCpnt, int phase);
 static int  nsp_dataphase_bypass (Scsi_Cmnd *SCpnt);
 static int  nsp_reselected       (Scsi_Cmnd *SCpnt);
-static struct Scsi_Host *nsp_detect(Scsi_Host_Template *sht);
+static struct Scsi_Host *nsp_detect(struct scsi_host_template *sht);
 
 /* Interrupt handler */
 //static irqreturn_t nspintr(int irq, void *dev_id, struct pt_regs *regs);

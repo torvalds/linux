@@ -1161,8 +1161,7 @@ static int snmp_parse_mangle(unsigned char *msg,
 		
 		if (!snmp_object_decode(&ctx, obj)) {
 			if (*obj) {
-				if ((*obj)->id)
-					kfree((*obj)->id);
+				kfree((*obj)->id);
 				kfree(*obj);
 			}	
 			kfree(obj);

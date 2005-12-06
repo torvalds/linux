@@ -110,8 +110,7 @@ ip_vs_app_inc_new(struct ip_vs_app *app, __u16 proto, __u16 port)
 	return 0;
 
   out:
-	if (inc->timeout_table)
-		kfree(inc->timeout_table);
+	kfree(inc->timeout_table);
 	kfree(inc);
 	return ret;
 }
@@ -136,8 +135,7 @@ ip_vs_app_inc_release(struct ip_vs_app *inc)
 
 	list_del(&inc->a_list);
 
-	if (inc->timeout_table != NULL)
-		kfree(inc->timeout_table);
+	kfree(inc->timeout_table);
 	kfree(inc);
 }
 
@@ -604,7 +602,7 @@ static struct file_operations ip_vs_app_fops = {
 /*
  *	Replace a segment of data with a new segment
  */
-int ip_vs_skb_replace(struct sk_buff *skb, int pri,
+int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 		      char *o_buf, int o_len, char *n_buf, int n_len)
 {
 	struct iphdr *iph;

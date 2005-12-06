@@ -15,7 +15,7 @@
 
 static int av_cnt;
 static struct av7110 *av_list[4];
-static struct input_dev input_dev;
+static struct input_dev *input_dev;
 
 static u16 key_map [256] = {
 	KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7,
@@ -43,10 +43,10 @@ static u16 key_map [256] = {
 
 static void av7110_emit_keyup(unsigned long data)
 {
-	if (!data || !test_bit(data, input_dev.key))
+	if (!data || !test_bit(data, input_dev->key))
 		return;
 
-	input_event(&input_dev, EV_KEY, data, !!0);
+	input_event(input_dev, EV_KEY, data, !!0);
 }
 
 
@@ -112,13 +112,13 @@ static void av7110_emit_key(unsigned long parm)
 	if (timer_pending(&keyup_timer)) {
 		del_timer(&keyup_timer);
 		if (keyup_timer.data != keycode || new_toggle != old_toggle) {
-			input_event(&input_dev, EV_KEY, keyup_timer.data, !!0);
-			input_event(&input_dev, EV_KEY, keycode, !0);
+			input_event(input_dev, EV_KEY, keyup_timer.data, !!0);
+			input_event(input_dev, EV_KEY, keycode, !0);
 		} else
-			input_event(&input_dev, EV_KEY, keycode, 2);
+			input_event(input_dev, EV_KEY, keycode, 2);
 
 	} else
-		input_event(&input_dev, EV_KEY, keycode, !0);
+		input_event(input_dev, EV_KEY, keycode, !0);
 
 	keyup_timer.expires = jiffies + UP_TIMEOUT;
 	keyup_timer.data = keycode;
@@ -132,13 +132,13 @@ static void input_register_keys(void)
 {
 	int i;
 
-	memset(input_dev.keybit, 0, sizeof(input_dev.keybit));
+	memset(input_dev->keybit, 0, sizeof(input_dev->keybit));
 
-	for (i = 0; i < sizeof(key_map) / sizeof(key_map[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(key_map); i++) {
 		if (key_map[i] > KEY_MAX)
 			key_map[i] = 0;
 		else if (key_map[i] > KEY_RESERVED)
-			set_bit(key_map[i], input_dev.keybit);
+			set_bit(key_map[i], input_dev->keybit);
 	}
 }
 
@@ -216,12 +216,17 @@ int __init av7110_ir_init(struct av7110 *av7110)
 		init_timer(&keyup_timer);
 		keyup_timer.data = 0;
 
-		input_dev.name = "DVB on-card IR receiver";
-		set_bit(EV_KEY, input_dev.evbit);
-		set_bit(EV_REP, input_dev.evbit);
+		input_dev = input_allocate_device();
+		if (!input_dev)
+			return -ENOMEM;
+
+		input_dev->name = "DVB on-card IR receiver";
+
+		set_bit(EV_KEY, input_dev->evbit);
+		set_bit(EV_REP, input_dev->evbit);
 		input_register_keys();
-		input_register_device(&input_dev);
-		input_dev.timer.function = input_repeat_key;
+		input_register_device(input_dev);
+		input_dev->timer.function = input_repeat_key;
 
 		e = create_proc_entry("av7110_ir", S_IFREG | S_IRUGO | S_IWUSR, NULL);
 		if (e) {
@@ -256,7 +261,7 @@ void __exit av7110_ir_exit(struct av7110 *av7110)
 	if (av_cnt == 1) {
 		del_timer_sync(&keyup_timer);
 		remove_proc_entry("av7110_ir", NULL);
-		input_unregister_device(&input_dev);
+		input_unregister_device(input_dev);
 	}
 
 	av_cnt--;

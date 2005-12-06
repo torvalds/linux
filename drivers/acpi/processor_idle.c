@@ -37,6 +37,7 @@
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
+#include <linux/sched.h>	/* need_resched() */
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -166,6 +167,15 @@ acpi_processor_power_activate(struct acpi_processor *pr,
 	return;
 }
 
+static void acpi_safe_halt(void)
+{
+	clear_thread_flag(TIF_POLLING_NRFLAG);
+	smp_mb__after_clear_bit();
+	if (!need_resched())
+		safe_halt();
+	set_thread_flag(TIF_POLLING_NRFLAG);
+}
+
 static atomic_t c3_cpu_count;
 
 static void acpi_processor_idle(void)
@@ -176,7 +186,7 @@ static void acpi_processor_idle(void)
 	int sleep_ticks = 0;
 	u32 t1, t2 = 0;
 
-	pr = processors[raw_smp_processor_id()];
+	pr = processors[smp_processor_id()];
 	if (!pr)
 		return;
 
@@ -196,8 +206,13 @@ static void acpi_processor_idle(void)
 	}
 
 	cx = pr->power.state;
-	if (!cx)
-		goto easy_out;
+	if (!cx) {
+		if (pm_idle_save)
+			pm_idle_save();
+		else
+			acpi_safe_halt();
+		return;
+	}
 
 	/*
 	 * Check BM Activity
@@ -259,6 +274,17 @@ static void acpi_processor_idle(void)
 		}
 	}
 
+#ifdef CONFIG_HOTPLUG_CPU
+	/*
+	 * Check for P_LVL2_UP flag before entering C2 and above on
+	 * an SMP system. We do it here instead of doing it at _CST/P_LVL
+	 * detection phase, to work cleanly with logical CPU hotplug.
+	 */
+	if ((cx->type != ACPI_STATE_C1) && (num_online_cpus() > 1) && 
+	    !pr->flags.has_cst && !acpi_fadt.plvl2_up)
+		cx = &pr->power.states[ACPI_STATE_C1];
+#endif
+
 	cx->usage++;
 
 	/*
@@ -266,6 +292,16 @@ static void acpi_processor_idle(void)
 	 * ------
 	 * Invoke the current Cx state to put the processor to sleep.
 	 */
+	if (cx->type == ACPI_STATE_C2 || cx->type == ACPI_STATE_C3) {
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+		smp_mb__after_clear_bit();
+		if (need_resched()) {
+			set_thread_flag(TIF_POLLING_NRFLAG);
+			local_irq_enable();
+			return;
+		}
+	}
+
 	switch (cx->type) {
 
 	case ACPI_STATE_C1:
@@ -277,7 +313,8 @@ static void acpi_processor_idle(void)
 		if (pm_idle_save)
 			pm_idle_save();
 		else
-			safe_halt();
+			acpi_safe_halt();
+
 		/*
 		 * TBD: Can't get time duration while in C1, as resumes
 		 *      go to an ISR rather than here.  Need to instrument
@@ -297,6 +334,7 @@ static void acpi_processor_idle(void)
 		t2 = inl(acpi_fadt.xpm_tmr_blk.address);
 		/* Re-enable interrupts */
 		local_irq_enable();
+		set_thread_flag(TIF_POLLING_NRFLAG);
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks =
 		    ticks_elapsed(t1, t2) - cx->latency_ticks - C2_OVERHEAD;
@@ -336,6 +374,7 @@ static void acpi_processor_idle(void)
 
 		/* Re-enable interrupts */
 		local_irq_enable();
+		set_thread_flag(TIF_POLLING_NRFLAG);
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks =
 		    ticks_elapsed(t1, t2) - cx->latency_ticks - C3_OVERHEAD;
@@ -347,6 +386,15 @@ static void acpi_processor_idle(void)
 	}
 
 	next_state = pr->power.state;
+
+#ifdef CONFIG_HOTPLUG_CPU
+	/* Don't do promotion/demotion */
+	if ((cx->type == ACPI_STATE_C1) && (num_online_cpus() > 1) &&
+	    !pr->flags.has_cst && !acpi_fadt.plvl2_up) {
+		next_state = cx;
+		goto end;
+	}
+#endif
 
 	/*
 	 * Promotion?
@@ -413,16 +461,6 @@ static void acpi_processor_idle(void)
 	 */
 	if (next_state != pr->power.state)
 		acpi_processor_power_activate(pr, next_state);
-
-	return;
-
-      easy_out:
-	/* do C1 instead of busy loop */
-	if (pm_idle_save)
-		pm_idle_save();
-	else
-		safe_halt();
-	return;
 }
 
 static int acpi_processor_set_power_policy(struct acpi_processor *pr)
@@ -504,8 +542,6 @@ static int acpi_processor_set_power_policy(struct acpi_processor *pr)
 
 static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 {
-	int i;
-
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_fadt");
 
 	if (!pr)
@@ -514,8 +550,7 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	if (!pr->pblk)
 		return_VALUE(-ENODEV);
 
-	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(pr->power.states, 0, sizeof(struct acpi_processor_cx));
+	memset(pr->power.states, 0, sizeof(pr->power.states));
 
 	/* if info is obtained from pblk/fadt, type equals state */
 	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
@@ -526,6 +561,15 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	 * and all processors need to support C1 */
 	pr->power.states[ACPI_STATE_C0].valid = 1;
 	pr->power.states[ACPI_STATE_C1].valid = 1;
+
+#ifndef CONFIG_HOTPLUG_CPU
+	/*
+	 * Check for P_LVL2_UP flag before entering C2 and above on
+	 * an SMP system. 
+	 */
+	if ((num_online_cpus() > 1) && !acpi_fadt.plvl2_up)
+		return_VALUE(-ENODEV);
+#endif
 
 	/* determine C2 and C3 address from pblk */
 	pr->power.states[ACPI_STATE_C2].address = pr->pblk + 4;
@@ -545,13 +589,9 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 
 static int acpi_processor_get_power_info_default_c1(struct acpi_processor *pr)
 {
-	int i;
-
 	ACPI_FUNCTION_TRACE("acpi_processor_get_power_info_default_c1");
 
-	for (i = 0; i < ACPI_PROCESSOR_MAX_POWER; i++)
-		memset(&(pr->power.states[i]), 0,
-		       sizeof(struct acpi_processor_cx));
+	memset(pr->power.states, 0, sizeof(pr->power.states));
 
 	/* if info is obtained from pblk/fadt, type equals state */
 	pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
@@ -687,7 +727,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* Validate number of power states discovered */
 	if (pr->power.count < 2)
-		status = -ENODEV;
+		status = -EFAULT;
 
       end:
 	acpi_os_free(buffer.pointer);
@@ -838,11 +878,11 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	 * this function */
 
 	result = acpi_processor_get_power_info_cst(pr);
-	if ((result) || (acpi_processor_power_verify(pr) < 2)) {
+	if (result == -ENODEV)
 		result = acpi_processor_get_power_info_fadt(pr);
-		if ((result) || (acpi_processor_power_verify(pr) < 2))
-			result = acpi_processor_get_power_info_default_c1(pr);
-	}
+
+	if ((result) || (acpi_processor_power_verify(pr) < 2))
+		result = acpi_processor_get_power_info_default_c1(pr);
 
 	/*
 	 * Set Default Policy
@@ -863,7 +903,8 @@ static int acpi_processor_get_power_info(struct acpi_processor *pr)
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
 		if (pr->power.states[i].valid) {
 			pr->power.count = i;
-			pr->flags.power = 1;
+			if (pr->power.states[i].type >= ACPI_STATE_C2)
+				pr->flags.power = 1;
 		}
 	}
 

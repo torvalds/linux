@@ -224,11 +224,10 @@ static int __init dio_init(void)
 		set_fs(fs);
 
                 /* Found a board, allocate it an entry in the list */
-		dev = kmalloc(sizeof(struct dio_dev), GFP_KERNEL);
+		dev = kzalloc(sizeof(struct dio_dev), GFP_KERNEL);
 		if (!dev)
 			return 0;
 
-		memset(dev, 0, sizeof(struct dio_dev));
 		dev->bus = &dio_bus;
 		dev->dev.parent = &dio_bus.dev;
 		dev->dev.bus = &dio_bus_type;

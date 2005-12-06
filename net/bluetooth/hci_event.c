@@ -242,7 +242,7 @@ static void hci_cc_host_ctl(struct hci_dev *hdev, __u16 ocf, struct sk_buff *skb
 			break;
 
 		status = *((__u8 *) skb->data);
-		setting = __le16_to_cpu(get_unaligned((__u16 *) sent));
+		setting = __le16_to_cpu(get_unaligned((__le16 *) sent));
 
 		if (!status && hdev->voice_setting != setting) {
 			hdev->voice_setting = setting;
@@ -728,7 +728,7 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_num_comp_pkts *ev = (struct hci_ev_num_comp_pkts *) skb->data;
-	__u16 *ptr;
+	__le16 *ptr;
 	int i;
 
 	skb_pull(skb, sizeof(*ev));
@@ -742,7 +742,7 @@ static inline void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *s
 
 	tasklet_disable(&hdev->tx_task);
 
-	for (i = 0, ptr = (__u16 *) skb->data; i < ev->num_hndl; i++) {
+	for (i = 0, ptr = (__le16 *) skb->data; i < ev->num_hndl; i++) {
 		struct hci_conn *conn;
 		__u16  handle, count;
 

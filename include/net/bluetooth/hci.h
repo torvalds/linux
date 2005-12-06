@@ -184,10 +184,10 @@ enum {
 struct hci_rp_read_loc_version {
 	__u8     status;
 	__u8     hci_ver;
-	__u16    hci_rev;
+	__le16   hci_rev;
 	__u8     lmp_ver;
-	__u16    manufacturer;
-	__u16    lmp_subver;
+	__le16   manufacturer;
+	__le16   lmp_subver;
 } __attribute__ ((packed));
 
 #define OCF_READ_LOCAL_FEATURES	0x0003
@@ -199,10 +199,10 @@ struct hci_rp_read_loc_features {
 #define OCF_READ_BUFFER_SIZE	0x0005
 struct hci_rp_read_buffer_size {
 	__u8     status;
-	__u16    acl_mtu;
+	__le16   acl_mtu;
 	__u8     sco_mtu;
-	__u16    acl_max_pkt;
-	__u16    sco_max_pkt;
+	__le16   acl_max_pkt;
+	__le16   sco_max_pkt;
 } __attribute__ ((packed));
 
 #define OCF_READ_BD_ADDR	0x0009
@@ -267,21 +267,21 @@ struct hci_cp_write_dev_class {
 
 #define OCF_READ_VOICE_SETTING	0x0025
 struct hci_rp_read_voice_setting {
-	__u8	status;
-	__u16	voice_setting;
+	__u8     status;
+	__le16   voice_setting;
 } __attribute__ ((packed));
 
 #define OCF_WRITE_VOICE_SETTING	0x0026
 struct hci_cp_write_voice_setting {
-	__u16	voice_setting;
+	__le16   voice_setting;
 } __attribute__ ((packed));
 
 #define OCF_HOST_BUFFER_SIZE	0x0033
 struct hci_cp_host_buffer_size {
-	__u16    acl_mtu;
+	__le16   acl_mtu;
 	__u8     sco_mtu;
-	__u16    acl_max_pkt;
-	__u16    sco_max_pkt;
+	__le16   acl_max_pkt;
+	__le16   sco_max_pkt;
 } __attribute__ ((packed));
 
 /* Link Control */
@@ -289,10 +289,10 @@ struct hci_cp_host_buffer_size {
 #define OCF_CREATE_CONN		0x0005
 struct hci_cp_create_conn {
 	bdaddr_t bdaddr;
-	__u16    pkt_type;
+	__le16   pkt_type;
 	__u8     pscan_rep_mode;
 	__u8     pscan_mode;
-	__u16    clock_offset;
+	__le16   clock_offset;
 	__u8     role_switch;
 } __attribute__ ((packed));
 
@@ -310,14 +310,14 @@ struct hci_cp_reject_conn_req {
 
 #define OCF_DISCONNECT	0x0006
 struct hci_cp_disconnect {
-	__u16    handle;
+	__le16   handle;
 	__u8     reason;
 } __attribute__ ((packed));
 
 #define OCF_ADD_SCO	0x0007
 struct hci_cp_add_sco {
-	__u16    handle;
-	__u16    pkt_type;
+	__le16   handle;
+	__le16   pkt_type;
 } __attribute__ ((packed));
 
 #define OCF_INQUIRY		0x0001
@@ -354,56 +354,56 @@ struct hci_cp_pin_code_neg_reply {
 
 #define OCF_CHANGE_CONN_PTYPE	0x000F
 struct hci_cp_change_conn_ptype {
-	__u16    handle;
-	__u16    pkt_type;
+	__le16   handle;
+	__le16   pkt_type;
 } __attribute__ ((packed));
 
 #define OCF_AUTH_REQUESTED	0x0011
 struct hci_cp_auth_requested {
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 
 #define OCF_SET_CONN_ENCRYPT	0x0013
 struct hci_cp_set_conn_encrypt {
-	__u16    handle;
+	__le16   handle;
 	__u8     encrypt;
 } __attribute__ ((packed));
 
 #define OCF_CHANGE_CONN_LINK_KEY 0x0015
 struct hci_cp_change_conn_link_key {
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 
 #define OCF_READ_REMOTE_FEATURES 0x001B
 struct hci_cp_read_rmt_features {
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 
 #define OCF_READ_REMOTE_VERSION 0x001D
 struct hci_cp_read_rmt_version {
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 
 /* Link Policy */
 #define OGF_LINK_POLICY	 0x02   
 #define OCF_ROLE_DISCOVERY	0x0009
 struct hci_cp_role_discovery {
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 struct hci_rp_role_discovery {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 	__u8     role;
 } __attribute__ ((packed));
 
 #define OCF_READ_LINK_POLICY	0x000C
 struct hci_cp_read_link_policy {
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 struct hci_rp_read_link_policy {
 	__u8     status;
-	__u16    handle;
-	__u16    policy;
+	__le16   handle;
+	__le16   policy;
 } __attribute__ ((packed));
 
 #define OCF_SWITCH_ROLE	0x000B
@@ -414,12 +414,12 @@ struct hci_cp_switch_role {
 
 #define OCF_WRITE_LINK_POLICY	0x000D
 struct hci_cp_write_link_policy {
-	__u16    handle;
-	__u16    policy;
+	__le16   handle;
+	__le16   policy;
 } __attribute__ ((packed));
 struct hci_rp_write_link_policy {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 
 /* Status params */
@@ -441,7 +441,7 @@ struct inquiry_info {
 	__u8     pscan_period_mode;
 	__u8     pscan_mode;
 	__u8     dev_class[3];
-	__u16    clock_offset;
+	__le16   clock_offset;
 } __attribute__ ((packed));
 
 #define HCI_EV_INQUIRY_RESULT_WITH_RSSI	0x22
@@ -450,7 +450,7 @@ struct inquiry_info_with_rssi {
 	__u8     pscan_rep_mode;
 	__u8     pscan_period_mode;
 	__u8     dev_class[3];
-	__u16    clock_offset;
+	__le16   clock_offset;
 	__s8     rssi;
 } __attribute__ ((packed));
 struct inquiry_info_with_rssi_and_pscan_mode {
@@ -459,7 +459,7 @@ struct inquiry_info_with_rssi_and_pscan_mode {
 	__u8     pscan_period_mode;
 	__u8     pscan_mode;
 	__u8     dev_class[3];
-	__u16    clock_offset;
+	__le16   clock_offset;
 	__s8     rssi;
 } __attribute__ ((packed));
 
@@ -469,7 +469,7 @@ struct extended_inquiry_info {
 	__u8     pscan_rep_mode;
 	__u8     pscan_period_mode;
 	__u8     dev_class[3];
-	__u16    clock_offset;
+	__le16   clock_offset;
 	__s8     rssi;
 	__u8     data[240];
 } __attribute__ ((packed));
@@ -477,7 +477,7 @@ struct extended_inquiry_info {
 #define HCI_EV_CONN_COMPLETE 	0x03
 struct hci_ev_conn_complete {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 	bdaddr_t bdaddr;
 	__u8     link_type;
 	__u8     encr_mode;
@@ -493,27 +493,27 @@ struct hci_ev_conn_request {
 #define HCI_EV_DISCONN_COMPLETE	0x05
 struct hci_ev_disconn_complete {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 	__u8     reason;
 } __attribute__ ((packed));
 
 #define HCI_EV_AUTH_COMPLETE	0x06
 struct hci_ev_auth_complete {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 
 #define HCI_EV_ENCRYPT_CHANGE	0x08
 struct hci_ev_encrypt_change {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 	__u8     encrypt;
 } __attribute__ ((packed));
 
 #define HCI_EV_CHANGE_CONN_LINK_KEY_COMPLETE	0x09
 struct hci_ev_change_conn_link_key_complete {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 } __attribute__ ((packed));
 
 #define HCI_EV_QOS_SETUP_COMPLETE	0x0D
@@ -526,21 +526,21 @@ struct hci_qos {
 } __attribute__ ((packed));
 struct hci_ev_qos_setup_complete {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 	struct   hci_qos qos;
 } __attribute__ ((packed));
 
 #define HCI_EV_CMD_COMPLETE 	0x0E
 struct hci_ev_cmd_complete {
 	__u8     ncmd;
-	__u16    opcode;
+	__le16   opcode;
 } __attribute__ ((packed));
 
 #define HCI_EV_CMD_STATUS 	0x0F
 struct hci_ev_cmd_status {
 	__u8     status;
 	__u8     ncmd;
-	__u16    opcode;
+	__le16   opcode;
 } __attribute__ ((packed));
 
 #define HCI_EV_NUM_COMP_PKTS	0x13
@@ -559,9 +559,9 @@ struct hci_ev_role_change {
 #define HCI_EV_MODE_CHANGE	0x14
 struct hci_ev_mode_change {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 	__u8     mode;
-	__u16    interval;
+	__le16   interval;
 } __attribute__ ((packed));
 
 #define HCI_EV_PIN_CODE_REQ	0x16
@@ -584,24 +584,24 @@ struct hci_ev_link_key_notify {
 #define HCI_EV_RMT_FEATURES	0x0B
 struct hci_ev_rmt_features {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 	__u8     features[8];
 } __attribute__ ((packed));
 
 #define HCI_EV_RMT_VERSION	0x0C
 struct hci_ev_rmt_version {
 	__u8     status;
-	__u16    handle;
+	__le16   handle;
 	__u8     lmp_ver;
-	__u16    manufacturer;
-	__u16    lmp_subver;
+	__le16   manufacturer;
+	__le16   lmp_subver;
 } __attribute__ ((packed));
 
 #define HCI_EV_CLOCK_OFFSET	0x01C
 struct hci_ev_clock_offset {
 	__u8     status;
-	__u16    handle;
-	__u16    clock_offset;
+	__le16   handle;
+	__le16   clock_offset;
 } __attribute__ ((packed));
 
 #define HCI_EV_PSCAN_REP_MODE	0x20
@@ -638,7 +638,7 @@ struct hci_ev_si_security {
 #define HCI_SCO_HDR_SIZE     3
 
 struct hci_command_hdr {
-	__u16 	opcode;		/* OCF & OGF */
+	__le16 	opcode;		/* OCF & OGF */
 	__u8 	plen;
 } __attribute__ ((packed));
 
@@ -648,22 +648,22 @@ struct hci_event_hdr {
 } __attribute__ ((packed));
 
 struct hci_acl_hdr {
-	__u16 	handle;		/* Handle & Flags(PB, BC) */
-	__u16 	dlen;
+	__le16 	handle;		/* Handle & Flags(PB, BC) */
+	__le16 	dlen;
 } __attribute__ ((packed));
 
 struct hci_sco_hdr {
-	__u16 	handle;
+	__le16 	handle;
 	__u8 	dlen;
 } __attribute__ ((packed));
 
 /* Command opcode pack/unpack */
-#define hci_opcode_pack(ogf, ocf)	(__u16)((ocf & 0x03ff)|(ogf << 10))
+#define hci_opcode_pack(ogf, ocf)	(__u16) ((ocf & 0x03ff)|(ogf << 10))
 #define hci_opcode_ogf(op)		(op >> 10)
 #define hci_opcode_ocf(op)		(op & 0x03ff)
 
 /* ACL handle and flags pack/unpack */
-#define hci_handle_pack(h, f)	(__u16)((h & 0x0fff)|(f << 12))
+#define hci_handle_pack(h, f)	(__u16) ((h & 0x0fff)|(f << 12))
 #define hci_handle(h)		(h & 0x0fff)
 #define hci_flags(h)		(h >> 12)
 

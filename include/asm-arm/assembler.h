@@ -83,10 +83,13 @@
  * Save the current IRQ state and disable IRQs.  Note that this macro
  * assumes FIQs are enabled, and that the processor is in SVC mode.
  */
-	.macro	save_and_disable_irqs, oldcpsr, temp
+	.macro	save_and_disable_irqs, oldcpsr
 	mrs	\oldcpsr, cpsr
-	mov	\temp, #PSR_I_BIT | MODE_SVC
-	msr	cpsr_c, \temp
+#if __LINUX_ARM_ARCH__ >= 6
+	cpsid	i
+#else
+	msr	cpsr_c, #PSR_I_BIT | MODE_SVC
+#endif
 	.endm
 
 /*

@@ -13,7 +13,7 @@
 
 extern unsigned long loops_per_usec; /* arch/cris/mm/init.c */
 
-extern __inline__ void udelay(unsigned long usecs)
+static inline void udelay(unsigned long usecs)
 {
 	__delay(usecs * loops_per_usec);
 }

@@ -17,9 +17,9 @@ audio
 	- The chip specs for the on-chip TV sound decoder are next
 	  to useless :-/
 	- Neverless the builtin TV sound decoder starts working now,
-          at least for PAL-BG.  Other TV norms need other code ...
-          FOR ANY REPORTS ON THIS PLEASE MENTION THE TV NORM YOU ARE
-          USING.
+	  at least for PAL-BG.  Other TV norms need other code ...
+	  FOR ANY REPORTS ON THIS PLEASE MENTION THE TV NORM YOU ARE
+	  USING.
 	- Most tuner chips do provide mono sound, which may or may not
 	  be useable depending on the board design.  With the Hauppauge
 	  cards it works, so there is mono sound available as fallback.
@@ -65,5 +65,5 @@ Have fun,
 
   Gerd
 
--- 
+--
 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]

@@ -30,10 +30,10 @@ void add_to_inventory (int class, int type, int controller, int unit, int state)
 	inventory_items++;
 }
 
-int dump_inventory_to_user (void *userbuf, int size)
+int dump_inventory_to_user (void __user *userbuf, int size)
 {
 	inventory_t *inv  = &inventory [0];
-	inventory_t *user = userbuf;
+	inventory_t __user *user = userbuf;
 	int v;
 
 	if (!access_ok(VERIFY_WRITE, userbuf, size))
@@ -41,7 +41,8 @@ int dump_inventory_to_user (void *userbuf, int size)
 
 	for (v = 0; v < inventory_items; v++){
 		inv = &inventory [v];
-		copy_to_user (user, inv, sizeof (inventory_t));
+		if (copy_to_user (user, inv, sizeof (inventory_t)))
+			return -EFAULT;
 		user++;
 	}
 	return inventory_items * sizeof (inventory_t);

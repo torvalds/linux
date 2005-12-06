@@ -554,7 +554,9 @@ static inline void MODULE_PARM_(void) { }
 #ifdef MODULE
 /* DEPRECATED: Do not use. */
 #define MODULE_PARM(var,type)						    \
-struct obsolete_modparm __parm_##var __attribute__((section("__obsparm"))) = \
+extern struct obsolete_modparm __parm_##var \
+__attribute__((section("__obsparm"))); \
+struct obsolete_modparm __parm_##var = \
 { __stringify(var), type, &MODULE_PARM_ }; \
 __MODULE_PARM_TYPE(var, type);
 #else
