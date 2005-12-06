@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <linux/module.h>
+#include <linux/pagemap.h>
 #include <linux/poll.h>
 
 #include <asm/io.h>
@@ -106,6 +107,7 @@ spufs_mem_mmap_nopage(struct vm_area_struct *vma,
 	if (type)
 		*type = VM_FAULT_MINOR;
 
+	page_cache_get(page);
 	return page;
 }
 
@@ -120,7 +122,6 @@ spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	/* FIXME: */
-	vma->vm_flags |= VM_RESERVED;
 	vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
 				     | _PAGE_NO_CACHE);
 
