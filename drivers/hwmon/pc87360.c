@@ -237,7 +237,6 @@ static struct pc87360_data *pc87360_update_device(struct device *dev);
 
 static struct i2c_driver pc87360_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "pc87360",
 	},
 	.attach_adapter	= pc87360_detect,

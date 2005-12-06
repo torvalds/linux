@@ -233,7 +233,6 @@ static int ds1374_detach(struct i2c_client *client)
 
 static struct i2c_driver ds1374_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= DS1374_DRV_NAME,
 	},
 	.id = I2C_DRIVERID_DS1374,

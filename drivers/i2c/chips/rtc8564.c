@@ -359,7 +359,6 @@ rtc8564_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 static struct i2c_driver rtc8564_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "RTC8564",
 	},
 	.id		= I2C_DRIVERID_RTC8564,

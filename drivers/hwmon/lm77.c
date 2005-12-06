@@ -75,7 +75,6 @@ static struct lm77_data *lm77_update_device(struct device *dev);
 /* This is the driver that will be inserted */
 static struct i2c_driver lm77_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "lm77",
 	},
 	.attach_adapter = lm77_attach_adapter,

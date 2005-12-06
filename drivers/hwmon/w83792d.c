@@ -318,7 +318,6 @@ static void w83792d_init_client(struct i2c_client *client);
 
 static struct i2c_driver w83792d_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "w83792d",
 	},
 	.attach_adapter = w83792d_attach_adapter,

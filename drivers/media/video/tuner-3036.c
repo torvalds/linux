@@ -176,7 +176,6 @@ static struct i2c_driver
 i2c_driver_tuner = 
 {
 	.driver = {
-		.owner	=	THIS_MODULE,
 		.name	=	"sab3036",
 	},
 	.id		=	I2C_DRIVERID_SAB3036,

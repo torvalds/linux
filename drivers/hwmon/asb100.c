@@ -218,7 +218,6 @@ static void asb100_init_client(struct i2c_client *client);
 
 static struct i2c_driver asb100_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "asb100",
 	},
 	.id		= I2C_DRIVERID_ASB100,

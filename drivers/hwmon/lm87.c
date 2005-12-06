@@ -162,7 +162,6 @@ static struct lm87_data *lm87_update_device(struct device *dev);
 
 static struct i2c_driver lm87_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "lm87",
 	},
 	.id		= I2C_DRIVERID_LM87,

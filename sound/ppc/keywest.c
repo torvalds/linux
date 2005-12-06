@@ -42,7 +42,6 @@ static int keywest_detach_client(struct i2c_client *client);
 
 struct i2c_driver keywest_driver = {  
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "PMac Keywest Audio",
 	},
 	.id = I2C_DRIVERID_KEYWEST,

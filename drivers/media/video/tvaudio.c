@@ -1703,7 +1703,6 @@ static int chip_command(struct i2c_client *client,
 
 static struct i2c_driver driver = {
 	.driver = {
-		.owner   = THIS_MODULE,
 		.name    = "generic i2c audio driver",
 	},
 	.id              = I2C_DRIVERID_TVAUDIO,

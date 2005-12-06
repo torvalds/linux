@@ -747,7 +747,6 @@ static struct i2c_driver driver = {
 	.detach_client = tuner_detach,
 	.command = tuner_command,
 	.driver = {
-		   .owner = THIS_MODULE,
 		   .name = "tuner",
 		   .suspend = tuner_suspend,
 		   .resume = tuner_resume,

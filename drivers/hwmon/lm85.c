@@ -381,7 +381,6 @@ static void lm85_init_client(struct i2c_client *client);
 
 static struct i2c_driver lm85_driver = {
 	.driver = {
-		.owner  = THIS_MODULE,
 		.name   = "lm85",
 	},
 	.id             = I2C_DRIVERID_LM85,

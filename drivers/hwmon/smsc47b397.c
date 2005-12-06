@@ -227,7 +227,6 @@ static int smsc47b397_detect(struct i2c_adapter *adapter);
 
 static struct i2c_driver smsc47b397_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "smsc47b397",
 	},
 	.attach_adapter	= smsc47b397_detect,

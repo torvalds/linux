@@ -53,7 +53,6 @@ static int ds1337_command(struct i2c_client *client, unsigned int cmd,
  */
 static struct i2c_driver ds1337_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "ds1337",
 	},
 	.attach_adapter	= ds1337_attach_adapter,

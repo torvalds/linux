@@ -125,7 +125,6 @@ static int max7310_detach_client(struct i2c_client *client)
 
 static struct i2c_driver max7310_i2c_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "akita-max7310",
 	},
 	.id		= I2C_DRIVERID_AKITAIOEXP,

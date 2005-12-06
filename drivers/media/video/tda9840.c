@@ -222,7 +222,6 @@ static int detach(struct i2c_client *client)
 
 static struct i2c_driver driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "tda9840",
 	},
 	.id	= I2C_DRIVERID_TDA9840,

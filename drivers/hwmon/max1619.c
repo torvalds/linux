@@ -91,7 +91,6 @@ static struct max1619_data *max1619_update_device(struct device *dev);
 
 static struct i2c_driver max1619_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "max1619",
 	},
 	.attach_adapter	= max1619_attach_adapter,

@@ -355,7 +355,6 @@ do_detach( struct i2c_client *client )
 
 static struct i2c_driver g4fan_driver = {  
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "therm_windtunnel",
 	},
 	.id		= I2C_DRIVERID_G4FAN,

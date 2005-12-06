@@ -1204,7 +1204,6 @@ saa7114_detach_client (struct i2c_client *client)
 
 static struct i2c_driver i2c_driver_saa7114 = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "saa7114",
 	},
 

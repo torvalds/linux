@@ -237,7 +237,6 @@ static int saa5249_command(struct i2c_client *device,
 static struct i2c_driver i2c_driver_videotext = 
 {
 	.driver = {
-		.owner 	= THIS_MODULE,
 		.name 	= IF_NAME,		/* name */
 	},
 	.id 		= I2C_DRIVERID_SAA5249, /* in i2c.h */

@@ -165,7 +165,6 @@ static void lm78_init_client(struct i2c_client *client);
 
 static struct i2c_driver lm78_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "lm78",
 	},
 	.id		= I2C_DRIVERID_LM78,
@@ -175,7 +174,6 @@ static struct i2c_driver lm78_driver = {
 
 static struct i2c_driver lm78_isa_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "lm78-isa",
 	},
 	.attach_adapter	= lm78_isa_attach_adapter,

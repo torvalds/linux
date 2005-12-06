@@ -106,7 +106,6 @@ static int x1205_command(struct i2c_client *client, unsigned int cmd,
 
 static struct i2c_driver x1205_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "x1205",
 	},
 	.attach_adapter = &x1205_attach,

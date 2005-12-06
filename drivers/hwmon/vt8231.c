@@ -586,7 +586,6 @@ static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 static struct i2c_driver vt8231_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "vt8231",
 	},
 	.attach_adapter	= vt8231_detect,

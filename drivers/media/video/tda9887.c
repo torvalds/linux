@@ -824,7 +824,6 @@ static struct i2c_driver driver = {
 	.detach_client  = tda9887_detach,
 	.command        = tda9887_command,
 	.driver = {
-		.owner   = THIS_MODULE,
 		.name    = "i2c tda9887 driver",
 		.suspend = tda9887_suspend,
 		.resume  = tda9887_resume,

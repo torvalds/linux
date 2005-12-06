@@ -1633,7 +1633,6 @@ static int isp1301_scan_bus(struct i2c_adapter *bus)
 
 static struct i2c_driver isp1301_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "isp1301_omap",
 	},
 	.id		= 1301,		/* FIXME "official", i2c-ids.h */

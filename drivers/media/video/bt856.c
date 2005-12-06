@@ -405,7 +405,6 @@ bt856_detach_client (struct i2c_client *client)
 
 static struct i2c_driver i2c_driver_bt856 = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "bt856",
 	},
 

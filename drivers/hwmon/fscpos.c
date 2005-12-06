@@ -101,7 +101,6 @@ static void reset_fan_alarm(struct i2c_client *client, int nr);
  */
 static struct i2c_driver fscpos_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "fscpos",
 	},
 	.id		= I2C_DRIVERID_FSCPOS,

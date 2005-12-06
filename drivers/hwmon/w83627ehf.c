@@ -786,7 +786,6 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 
 static struct i2c_driver w83627ehf_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "w83627ehf",
 	},
 	.attach_adapter	= w83627ehf_detect,

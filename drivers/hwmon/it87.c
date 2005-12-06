@@ -235,7 +235,6 @@ static void it87_init_client(struct i2c_client *client, struct it87_data *data);
 
 static struct i2c_driver it87_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "it87",
 	},
 	.id		= I2C_DRIVERID_IT87,
@@ -245,7 +244,6 @@ static struct i2c_driver it87_driver = {
 
 static struct i2c_driver it87_isa_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "it87-isa",
 	},
 	.attach_adapter	= it87_isa_attach_adapter,

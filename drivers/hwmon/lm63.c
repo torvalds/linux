@@ -140,7 +140,6 @@ static void lm63_init_client(struct i2c_client *client);
 
 static struct i2c_driver lm63_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "lm63",
 	},
 	.attach_adapter	= lm63_attach_adapter,

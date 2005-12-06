@@ -69,7 +69,6 @@ static int eeprom_detach_client(struct i2c_client *client);
 /* This is the driver that will be inserted */
 static struct i2c_driver eeprom_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "eeprom",
 	},
 	.id		= I2C_DRIVERID_EEPROM,

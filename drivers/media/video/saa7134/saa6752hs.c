@@ -598,7 +598,6 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 static struct i2c_driver driver = {
 	.driver = {
-		.owner  = THIS_MODULE,
 		.name   = "i2c saa6752hs MPEG encoder",
 	},
 	.id             = I2C_DRIVERID_SAA6752HS,

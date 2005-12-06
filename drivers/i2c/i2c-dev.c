@@ -482,7 +482,6 @@ static int i2cdev_command(struct i2c_client *client, unsigned int cmd,
 
 static struct i2c_driver i2cdev_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "dev_driver",
 	},
 	.id		= I2C_DRIVERID_I2CDEV,

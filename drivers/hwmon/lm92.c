@@ -411,7 +411,6 @@ static int lm92_detach_client(struct i2c_client *client)
 
 static struct i2c_driver lm92_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "lm92",
 	},
 	.id		= I2C_DRIVERID_LM92,

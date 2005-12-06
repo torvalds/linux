@@ -51,7 +51,6 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind);
 
 static struct i2c_driver atxp1_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "atxp1",
 	},
 	.attach_adapter = atxp1_attach_adapter,

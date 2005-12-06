@@ -66,7 +66,6 @@ static void pcf8574_init_client(struct i2c_client *client);
 /* This is the driver that will be inserted */
 static struct i2c_driver pcf8574_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "pcf8574",
 	},
 	.id		= I2C_DRIVERID_PCF8574,

@@ -502,7 +502,6 @@ static int tda7432_command(struct i2c_client *client,
 
 static struct i2c_driver driver = {
 	.driver = {
-		.owner   = THIS_MODULE,
 		.name    = "i2c tda7432 driver",
 	},
 	.id              = I2C_DRIVERID_TDA7432,

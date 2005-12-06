@@ -1294,7 +1294,6 @@ static int maven_command(struct i2c_client* client, unsigned int cmd, void* arg)
 
 static struct i2c_driver maven_driver={
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "maven",
 	},
 	.id		= I2C_DRIVERID_MGATVO,

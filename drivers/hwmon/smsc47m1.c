@@ -127,7 +127,6 @@ static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 
 static struct i2c_driver smsc47m1_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "smsc47m1",
 	},
 	.attach_adapter	= smsc47m1_detect,

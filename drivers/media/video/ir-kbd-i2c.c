@@ -279,7 +279,6 @@ static int ir_probe(struct i2c_adapter *adap);
 
 static struct i2c_driver driver = {
 	.driver = {
-		.owner  = THIS_MODULE,
 		.name   = "ir remote kbd driver",
 	},
 	.id             = I2C_DRIVERID_INFRARED,

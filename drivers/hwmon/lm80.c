@@ -144,7 +144,6 @@ static int lm80_write_value(struct i2c_client *client, u8 reg, u8 value);
 
 static struct i2c_driver lm80_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "lm80",
 	},
 	.id		= I2C_DRIVERID_LM80,

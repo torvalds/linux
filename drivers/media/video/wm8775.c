@@ -233,7 +233,6 @@ static int wm8775_detach(struct i2c_client *client)
 /* i2c implementation */
 static struct i2c_driver i2c_driver = {
 	.driver = {
-		.owner = THIS_MODULE,
 		.name = "wm8775",
 	},
 

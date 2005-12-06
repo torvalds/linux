@@ -42,7 +42,6 @@ static int daca_detach_client(struct i2c_client *client);
 
 struct i2c_driver daca_driver = {  
 	.driver = {
-		.owner		= THIS_MODULE,
 		.name		= "DAC3550A driver  V " DACA_VERSION,
 	},
 	.id			= I2C_DRIVERID_DACA,
