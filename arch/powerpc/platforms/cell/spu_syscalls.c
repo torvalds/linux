@@ -37,11 +37,12 @@ asmlinkage long sys_spu_create(const char __user *name,
 		unsigned int flags, mode_t mode)
 {
 	long ret;
+	struct module *owner = spufs_calls.owner;
 
 	ret = -ENOSYS;
-	if (try_module_get(spufs_calls.owner)) {
+	if (owner && try_module_get(spufs_calls.owner)) {
 		ret = spufs_calls.create_thread(name, flags, mode);
-		module_put(spufs_calls.owner);
+		module_put(owner);
 	}
 	return ret;
 }
@@ -51,16 +52,17 @@ asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
 	long ret;
 	struct file *filp;
 	int fput_needed;
+	struct module *owner = spufs_calls.owner;
 
 	ret = -ENOSYS;
-	if (try_module_get(spufs_calls.owner)) {
+	if (owner && try_module_get(owner)) {
 		ret = -EBADF;
 		filp = fget_light(fd, &fput_needed);
 		if (filp) {
 			ret = spufs_calls.spu_run(filp, unpc, ustatus);
 			fput_light(filp, fput_needed);
 		}
-		module_put(spufs_calls.owner);
+		module_put(owner);
 	}
 	return ret;
 }
