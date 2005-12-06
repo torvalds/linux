@@ -326,7 +326,7 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 	else
 		busdn = hose->arch_data;
 	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->data && PCI_DN(dn)->devfn == devfn)
+		if (PCI_DN(dn) && PCI_DN(dn)->devfn == devfn)
 			break;
 	if (dn == NULL)
 		return -1;
