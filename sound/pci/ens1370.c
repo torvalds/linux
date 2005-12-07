@@ -86,11 +86,13 @@ static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable switches */
 #ifdef SUPPORT_JOYSTICK
 #ifdef CHIP1371
 static int joystick_port[SNDRV_CARDS];
-static int spdif[SNDRV_CARDS];
-static int lineio[SNDRV_CARDS];
 #else
 static int joystick[SNDRV_CARDS];
 #endif
+#endif
+#ifdef CHIP1371
+static int spdif[SNDRV_CARDS];
+static int lineio[SNDRV_CARDS];
 #endif
 
 module_param_array(index, int, NULL, 0444);
@@ -103,15 +105,17 @@ MODULE_PARM_DESC(enable, "Enable Ensoniq AudioPCI soundcard.");
 #ifdef CHIP1371
 module_param_array(joystick_port, int, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port address.");
-module_param_array(spdif, int, NULL, 0444);
-MODULE_PARM_DESC(spdif, "S/PDIF output (-1 = none, 0 = auto, 1 = force).");
-module_param_array(lineio, int, NULL, 0444);
-MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
 #else
 module_param_array(joystick, bool, NULL, 0444);
 MODULE_PARM_DESC(joystick, "Enable joystick.");
 #endif
 #endif /* SUPPORT_JOYSTICK */
+#ifdef CHIP1371
+module_param_array(spdif, int, NULL, 0444);
+MODULE_PARM_DESC(spdif, "S/PDIF output (-1 = none, 0 = auto, 1 = force).");
+module_param_array(lineio, int, NULL, 0444);
+MODULE_PARM_DESC(lineio, "Line In to Rear Out (0 = auto, 1 = force).");
+#endif
 
 /* ES1371 chip ID */
 /* This is a little confusing because all ES1371 compatible chips have the
