@@ -46,6 +46,8 @@ MODULE_PARM_DESC(id, "ID string for " CHIP_NAME " soundchip.");
 module_param(enable_beep, bool, 0444);
 MODULE_PARM_DESC(enable_beep, "Enable beep using PCM.");
 
+static struct platform_device *device;
+
 
 /*
  */
@@ -182,7 +184,6 @@ static struct platform_driver snd_pmac_driver = {
 static int __init alsa_card_pmac_init(void)
 {
 	int err;
-	struct platform_device *device;
 
 	if ((err = platform_driver_register(&snd_pmac_driver)) < 0)
 		return err;
@@ -197,6 +198,7 @@ static int __init alsa_card_pmac_init(void)
 
 static void __exit alsa_card_pmac_exit(void)
 {
+	platform_device_unregister(device);
 	platform_driver_unregister(&snd_pmac_driver);
 }
 

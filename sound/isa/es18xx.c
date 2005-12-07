@@ -1877,6 +1877,9 @@ MODULE_PARM_DESC(dma1, "DMA 1 # for ES18xx driver.");
 module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA 2 # for ES18xx driver.");
 
+static struct platform_device *platform_devices[SNDRV_CARDS];
+static int pnp_registered;
+
 #ifdef CONFIG_PNP
 
 static struct pnp_card_device_id snd_audiodrive_pnpids[] = {
@@ -2202,6 +2205,17 @@ static struct pnp_card_driver es18xx_pnpc_driver = {
 };
 #endif /* CONFIG_PNP */
 
+static void __init_or_module snd_es18xx_unregister_all(void)
+{
+	int i;
+
+	if (pnp_registered)
+		pnp_unregister_card_driver(&es18xx_pnpc_driver);
+	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
+		platform_device_unregister(platform_devices[i]);
+	platform_driver_unregister(&snd_es18xx_nonpnp_driver);
+}
+
 static int __init alsa_card_es18xx_init(void)
 {
 	int i, err, cards = 0;
@@ -2217,31 +2231,35 @@ static int __init alsa_card_es18xx_init(void)
 							 i, NULL, 0);
 		if (IS_ERR(device)) {
 			err = PTR_ERR(device);
-			platform_driver_unregister(&snd_es18xx_nonpnp_driver);
-			return err;
+			goto errout;
 		}
+		platform_devices[i] = device;
 		cards++;
 	}
 
 	i = pnp_register_card_driver(&es18xx_pnpc_driver);
-	if (i > 0)
+	if (i >= 0) {
+		pnp_registered = 1;
 		cards += i;
+	}
 
 	if(!cards) {
-		pnp_unregister_card_driver(&es18xx_pnpc_driver);
-		platform_driver_unregister(&snd_es18xx_nonpnp_driver);
 #ifdef MODULE
 		snd_printk(KERN_ERR "ESS AudioDrive ES18xx soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_es18xx_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_es18xx_exit(void)
 {
-	pnp_unregister_card_driver(&es18xx_pnpc_driver);
-	platform_driver_unregister(&snd_es18xx_nonpnp_driver);
+	snd_es18xx_unregister_all();
 }
 
 module_init(alsa_card_es18xx_init)

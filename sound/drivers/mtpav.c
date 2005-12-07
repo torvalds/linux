@@ -95,6 +95,8 @@ MODULE_PARM_DESC(irq, "Parallel IRQ # for MotuMTPAV MIDI.");
 module_param(hwports, int, 0444);
 MODULE_PARM_DESC(hwports, "Hardware ports # for MotuMTPAV MIDI.");
 
+static struct platform_device *device;
+
 /*
  *      defines
  */
@@ -763,7 +765,6 @@ static struct platform_driver snd_mtpav_driver = {
 static int __init alsa_card_mtpav_init(void)
 {
 	int err;
-	struct platform_device *device;
 
 	if ((err = platform_driver_register(&snd_mtpav_driver)) < 0)
 		return err;
@@ -778,6 +779,7 @@ static int __init alsa_card_mtpav_init(void)
 
 static void __exit alsa_card_mtpav_exit(void)
 {
+	platform_device_unregister(device);
 	platform_driver_unregister(&snd_mtpav_driver);
 }
 

@@ -108,6 +108,9 @@ MODULE_PARM_DESC(wssirq, "IRQ # for CMI8330 WSS driver.");
 module_param_array(wssdma, int, NULL, 0444);
 MODULE_PARM_DESC(wssdma, "DMA for CMI8330 WSS driver.");
 
+static struct platform_device *platform_devices[SNDRV_CARDS];
+static int pnp_registered;
+
 #define CMI8330_RMUX3D    16
 #define CMI8330_MUTEMUX   17
 #define CMI8330_OUTPUTVOL 18
@@ -665,6 +668,17 @@ static struct pnp_card_driver cmi8330_pnpc_driver = {
 };
 #endif /* CONFIG_PNP */
 
+static void __init_or_module snd_cmi8330_unregister_all(void)
+{
+	int i;
+
+	if (pnp_registered)
+		pnp_unregister_card_driver(&cmi8330_pnpc_driver);
+	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
+		platform_device_unregister(platform_devices[i]);
+	platform_driver_unregister(&snd_cmi8330_driver);
+}
+
 static int __init alsa_card_cmi8330_init(void)
 {
 	int i, err, cards = 0;
@@ -680,31 +694,35 @@ static int __init alsa_card_cmi8330_init(void)
 							 i, NULL, 0);
 		if (IS_ERR(device)) {
 			err = PTR_ERR(device);
-			platform_driver_unregister(&snd_cmi8330_driver);
-			return err;
+			goto errout;
 		}
+		platform_devices[i] = device;
 		cards++;
 	}
 
 	err = pnp_register_card_driver(&cmi8330_pnpc_driver);
-	if (err > 0)
+	if (err >= 0) {
+		pnp_registered = 1;
 		cards += err;
+	}
 
 	if (!cards) {
-		pnp_unregister_card_driver(&cmi8330_pnpc_driver);
-		platform_driver_unregister(&snd_cmi8330_driver);
 #ifdef MODULE
 		snd_printk(KERN_ERR "CMI8330 not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_cmi8330_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_cmi8330_exit(void)
 {
-	pnp_unregister_card_driver(&cmi8330_pnpc_driver);
-	platform_driver_unregister(&snd_cmi8330_driver);
+	snd_cmi8330_unregister_all();
 }
 
 module_init(alsa_card_cmi8330_init)

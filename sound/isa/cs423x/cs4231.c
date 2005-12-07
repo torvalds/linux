@@ -66,6 +66,8 @@ MODULE_PARM_DESC(dma1, "DMA1 # for CS4231 driver.");
 module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for CS4231 driver.");
 
+static struct platform_device *devices[SNDRV_CARDS];
+
 
 static int __init snd_cs4231_probe(struct platform_device *pdev)
 {
@@ -183,6 +185,15 @@ static struct platform_driver snd_cs4231_driver = {
 	},
 };
 
+static void __init_or_module snd_cs4231_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_cs4231_driver);
+}
+
 static int __init alsa_card_cs4231_init(void)
 {
 	int i, cards, err;
@@ -200,6 +211,7 @@ static int __init alsa_card_cs4231_init(void)
 			err = PTR_ERR(device);
 			goto errout;
 		}
+		devices[i] = device;
 		cards++;
 	}
 	if (!cards) {
@@ -212,13 +224,13 @@ static int __init alsa_card_cs4231_init(void)
 	return 0;
 
  errout:
-	platform_driver_unregister(&snd_cs4231_driver);
+	snd_cs4231_unregister_all();
 	return err;
 }
 
 static void __exit alsa_card_cs4231_exit(void)
 {
-	platform_driver_unregister(&snd_cs4231_driver);
+	snd_cs4231_unregister_all();
 }
 
 module_init(alsa_card_cs4231_init)

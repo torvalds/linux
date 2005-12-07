@@ -115,6 +115,9 @@ MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for InterWave driver.");
 module_param_array(effect, int, NULL, 0444);
 MODULE_PARM_DESC(effect, "Effects enable for InterWave driver.");
 
+static struct platform_device *platform_devices[SNDRV_CARDS];
+static int pnp_registered;
+
 struct snd_interwave {
 	int irq;
 	struct snd_card *card;
@@ -914,6 +917,17 @@ static struct pnp_card_driver interwave_pnpc_driver = {
 
 #endif /* CONFIG_PNP */
 
+static void __init_or_module snd_interwave_unregister_all(void)
+{
+	int i;
+
+	if (pnp_registered)
+		pnp_unregister_card_driver(&interwave_pnpc_driver);
+	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
+		platform_device_unregister(platform_devices[i]);
+	platform_driver_unregister(&snd_interwave_driver);
+}
+
 static int __init alsa_card_interwave_init(void)
 {
 	int i, err, cards = 0;
@@ -931,32 +945,36 @@ static int __init alsa_card_interwave_init(void)
 							 i, NULL, 0);
 		if (IS_ERR(device)) {
 			err = PTR_ERR(device);
-			platform_driver_unregister(&snd_interwave_driver);
-			return err;
+			goto errout;
 		}
+		platform_devices[i] = device;
 		cards++;
 	}
 
 	/* ISA PnP cards */
 	i = pnp_register_card_driver(&interwave_pnpc_driver);
-	if (i > 0)
+	if (i >= 0) {
+		pnp_registered = 1;
 		cards += i;
+	}
 
 	if (!cards) {
-		pnp_unregister_card_driver(&interwave_pnpc_driver);
-		platform_driver_unregister(&snd_interwave_driver);
 #ifdef MODULE
 		printk(KERN_ERR "InterWave soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_interwave_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_interwave_exit(void)
 {
-	pnp_unregister_card_driver(&interwave_pnpc_driver);
-	platform_driver_unregister(&snd_interwave_driver);
+	snd_interwave_unregister_all();
 }
 
 module_init(alsa_card_interwave_init)

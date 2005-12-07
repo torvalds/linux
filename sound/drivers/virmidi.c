@@ -82,6 +82,8 @@ struct snd_card_virmidi {
 	struct snd_rawmidi *midi[MAX_MIDI_DEVICES];
 };
 
+static struct platform_device *devices[SNDRV_CARDS];
+
 
 static int __init snd_virmidi_probe(struct platform_device *devptr)
 {
@@ -144,6 +146,15 @@ static struct platform_driver snd_virmidi_driver = {
 	},
 };
 
+static void __init_or_module snd_virmidi_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_virmidi_driver);
+}
+
 static int __init alsa_card_virmidi_init(void)
 {
 	int i, cards, err;
@@ -160,6 +171,7 @@ static int __init alsa_card_virmidi_init(void)
 			err = PTR_ERR(device);
 			goto errout;
 		}
+		devices[i] = device;
 		cards++;
 	}
 	if (!cards) {
@@ -172,13 +184,13 @@ static int __init alsa_card_virmidi_init(void)
 	return 0;
 
  errout:
-	platform_driver_unregister(&snd_virmidi_driver);
+	snd_virmidi_unregister_all();
 	return err;
 }
 
 static void __exit alsa_card_virmidi_exit(void)
 {
-	platform_driver_unregister(&snd_virmidi_driver);
+	snd_virmidi_unregister_all();
 }
 
 module_init(alsa_card_virmidi_init)

@@ -67,6 +67,9 @@ MODULE_PARM_DESC(mpu_irq, "MPU401 IRQ # for SoundScape driver.");
 
 module_param_array(dma, int, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
+
+static struct platform_device *platform_devices[SNDRV_CARDS];
+static int pnp_registered;
   
 #ifdef CONFIG_PNP
 static struct pnp_card_device_id sscape_pnpids[] = {
@@ -1384,6 +1387,17 @@ static struct pnp_card_driver sscape_pnpc_driver = {
 
 #endif /* CONFIG_PNP */
 
+static void __init_or_module sscape_unregister_all(void)
+{
+	int i;
+
+	if (pnp_registered)
+		pnp_unregister_card_driver(&sscape_pnpc_driver);
+	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
+		platform_device_unregister(platform_devices[i]);
+	platform_driver_unregister(&snd_sscape_driver);
+}
+
 static int __init sscape_manual_probe(void)
 {
 	struct platform_device *device;
@@ -1411,8 +1425,8 @@ static int __init sscape_manual_probe(void)
 		    dma[i] == SNDRV_AUTO_DMA) {
 			printk(KERN_INFO
 			       "sscape: insufficient parameters, need IO, IRQ, MPU-IRQ and DMA\n");
-			platform_driver_unregister(&snd_sscape_driver);
-			return -ENXIO;
+			ret = -ENXIO;
+			goto errout;
 		}
 
 		/*
@@ -1421,17 +1435,21 @@ static int __init sscape_manual_probe(void)
 		device = platform_device_register_simple(SSCAPE_DRIVER,
 							 i, NULL, 0);
 		if (IS_ERR(device)) {
-			platform_driver_unregister(&snd_sscape_driver);
-			return PTR_ERR(device);
+			ret = PTR_ERR(device);
+			goto errout;
 		}
+		platform_devices[i] = device;
 	}
 	return 0;
+
+ errout:
+	sscape_unregister_all();
+	return ret;
 }
 
 static void sscape_exit(void)
 {
-	pnp_unregister_card_driver(&sscape_pnpc_driver);
-	platform_driver_unregister(&snd_sscape_driver);
+	sscape_unregister_all();
 }
 
 
@@ -1448,7 +1466,8 @@ static int __init sscape_init(void)
 	ret = sscape_manual_probe();
 	if (ret < 0)
 		return ret;
-	pnp_register_card_driver(&sscape_pnpc_driver);
+	if (pnp_register_card_driver(&sscape_pnpc_driver) >= 0)
+		pnp_registered = 1;
 	return 0;
 }
 

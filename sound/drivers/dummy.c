@@ -144,6 +144,8 @@ MODULE_PARM_DESC(pcm_substreams, "PCM substreams # (1-16) for dummy driver.");
 //module_param_array(midi_devs, int, NULL, 0444);
 //MODULE_PARM_DESC(midi_devs, "MIDI devices # (0-2) for dummy driver.");
 
+static struct platform_device *devices[SNDRV_CARDS];
+
 #define MIXER_ADDR_MASTER	0
 #define MIXER_ADDR_LINE		1
 #define MIXER_ADDR_MIC		2
@@ -634,6 +636,15 @@ static struct platform_driver snd_dummy_driver = {
 	},
 };
 
+static void __init_or_module snd_dummy_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_dummy_driver);
+}
+
 static int __init alsa_card_dummy_init(void)
 {
 	int i, cards, err;
@@ -650,6 +661,7 @@ static int __init alsa_card_dummy_init(void)
 			err = PTR_ERR(device);
 			goto errout;
 		}
+		devices[i] = device;
 		cards++;
 	}
 	if (!cards) {
@@ -662,13 +674,13 @@ static int __init alsa_card_dummy_init(void)
 	return 0;
 
  errout:
-	platform_driver_unregister(&snd_dummy_driver);
+	snd_dummy_unregister_all();
 	return err;
 }
 
 static void __exit alsa_card_dummy_exit(void)
 {
-	platform_driver_unregister(&snd_dummy_driver);
+	snd_dummy_unregister_all();
 }
 
 module_init(alsa_card_dummy_init)

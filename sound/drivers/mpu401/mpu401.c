@@ -58,6 +58,7 @@ MODULE_PARM_DESC(port, "Port # for MPU-401 device.");
 module_param_array(irq, int, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for MPU-401 device.");
 
+static struct platform_device *platform_devices[SNDRV_CARDS];
 static int pnp_registered = 0;
 
 static int snd_mpu401_create(int dev, struct snd_card **rcard)
@@ -220,6 +221,17 @@ static struct pnp_driver snd_mpu401_pnp_driver = {
 static struct pnp_driver snd_mpu401_pnp_driver;
 #endif
 
+static void __init_or_module snd_mpu401_unregister_all(void)
+{
+	int i;
+
+	if (pnp_registered)
+		pnp_unregister_driver(&snd_mpu401_pnp_driver);
+	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
+		platform_device_unregister(platform_devices[i]);
+	platform_driver_unregister(&snd_mpu401_driver);
+}
+
 static int __init alsa_card_mpu401_init(void)
 {
 	int i, err, devices;
@@ -240,6 +252,7 @@ static int __init alsa_card_mpu401_init(void)
 			err = PTR_ERR(device);
 			goto errout;
 		}
+		platform_devices[i] = device;
 		devices++;
 	}
 	if ((err = pnp_register_driver(&snd_mpu401_pnp_driver)) >= 0) {
@@ -257,17 +270,13 @@ static int __init alsa_card_mpu401_init(void)
 	return 0;
 
  errout:
-	if (pnp_registered)
-		pnp_unregister_driver(&snd_mpu401_pnp_driver);
-	platform_driver_unregister(&snd_mpu401_driver);
+	snd_mpu401_unregister_all();
 	return err;
 }
 
 static void __exit alsa_card_mpu401_exit(void)
 {
-	if (pnp_registered)
-		pnp_unregister_driver(&snd_mpu401_pnp_driver);
-	platform_driver_unregister(&snd_mpu401_driver);
+	snd_mpu401_unregister_all();
 }
 
 module_init(alsa_card_mpu401_init)

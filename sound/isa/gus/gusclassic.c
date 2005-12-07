@@ -71,6 +71,8 @@ MODULE_PARM_DESC(channels, "GF1 channels for GUS Classic driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Classic driver.");
 
+static struct platform_device *devices[SNDRV_CARDS];
+
 
 #define PFX	"gusclassic: "
 
@@ -227,6 +229,15 @@ static struct platform_driver snd_gusclassic_driver = {
 	},
 };
 
+static void __init_or_module snd_gusclassic_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_gusclassic_driver);
+}
+
 static int __init alsa_card_gusclassic_init(void)
 {
 	int i, cards, err;
@@ -244,6 +255,7 @@ static int __init alsa_card_gusclassic_init(void)
 			err = PTR_ERR(device);
 			goto errout;
 		}
+		devices[i] = device;
 		cards++;
 	}
 	if (!cards) {
@@ -256,13 +268,13 @@ static int __init alsa_card_gusclassic_init(void)
 	return 0;
 
  errout:
-	platform_driver_unregister(&snd_gusclassic_driver);
+	snd_gusclassic_unregister_all();
 	return err;
 }
 
 static void __exit alsa_card_gusclassic_exit(void)
 {
-	platform_driver_unregister(&snd_gusclassic_driver);
+	snd_gusclassic_unregister_all();
 }
 
 module_init(alsa_card_gusclassic_init)

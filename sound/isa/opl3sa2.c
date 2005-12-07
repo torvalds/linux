@@ -90,6 +90,10 @@ MODULE_PARM_DESC(dma2, "DMA2 # for OPL3-SA driver.");
 module_param_array(opl3sa3_ymode, int, NULL, 0444);
 MODULE_PARM_DESC(opl3sa3_ymode, "Speaker size selection for 3D Enhancement mode: Desktop/Large Notebook/Small Notebook/HiFi.");
 
+static struct platform_device *platform_devices[SNDRV_CARDS];
+static int pnp_registered;
+static int pnpc_registered;
+
 /* control ports */
 #define OPL3SA2_PM_CTRL		0x01
 #define OPL3SA2_SYS_CTRL		0x02
@@ -921,6 +925,19 @@ static struct platform_driver snd_opl3sa2_nonpnp_driver = {
 	},
 };
 
+static void __init_or_module snd_opl3sa2_unregister_all(void)
+{
+	int i;
+
+	if (pnpc_registered)
+		pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
+	if (pnp_registered)
+		pnp_unregister_driver(&opl3sa2_pnp_driver);
+	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
+		platform_device_unregister(platform_devices[i]);
+	platform_driver_unregister(&snd_opl3sa2_nonpnp_driver);
+}
+
 static int __init alsa_card_opl3sa2_init(void)
 {
 	int i, err, cards = 0;
@@ -938,36 +955,40 @@ static int __init alsa_card_opl3sa2_init(void)
 							 i, NULL, 0);
 		if (IS_ERR(device)) {
 			err = PTR_ERR(device);
-			platform_driver_unregister(&snd_opl3sa2_nonpnp_driver);
-			return err;
+			goto errout;
 		}
+		platform_devices[i] = device;
 		cards++;
 	}
 
 	err = pnp_register_driver(&opl3sa2_pnp_driver);
-	if (err > 0)
+	if (err >= 0) {
+		pnp_registered = 1;
 		cards += err;
+	}
 	err = pnp_register_card_driver(&opl3sa2_pnpc_driver);
-	if (err > 0)
+	if (err >= 0) {
+		pnpc_registered = 1;
 		cards += err;
+	}
 
 	if (!cards) {
 #ifdef MODULE
 		snd_printk(KERN_ERR "Yamaha OPL3-SA soundcard not found or device busy\n");
 #endif
-		pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
-		pnp_unregister_driver(&opl3sa2_pnp_driver);
-		platform_driver_unregister(&snd_opl3sa2_nonpnp_driver);
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_opl3sa2_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_opl3sa2_exit(void)
 {
-	pnp_unregister_card_driver(&opl3sa2_pnpc_driver);
-	pnp_unregister_driver(&opl3sa2_pnp_driver);
-	platform_driver_unregister(&snd_opl3sa2_nonpnp_driver);
+	snd_opl3sa2_unregister_all();
 }
 
 module_init(alsa_card_opl3sa2_init)

@@ -128,6 +128,11 @@ module_param_array(seq_ports, int, NULL, 0444);
 MODULE_PARM_DESC(seq_ports, "Number of sequencer ports for WaveTable synth.");
 #endif
 
+static struct platform_device *platform_devices[SNDRV_CARDS];
+#ifdef CONFIG_PNP
+static int pnp_registered;
+#endif
+
 struct snd_card_sb16 {
 	struct resource *fm_res;	/* used to block FM i/o region for legacy cards */
 	struct snd_sb *chip;
@@ -687,6 +692,19 @@ static struct pnp_card_driver sb16_pnpc_driver = {
 
 #endif /* CONFIG_PNP */
 
+static void __init_or_module snd_sb16_unregister_all(void)
+{
+	int i;
+
+#ifdef CONFIG_PNP
+	if (pnp_registered)
+		pnp_unregister_card_driver(&sb16_pnpc_driver);
+#endif
+	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
+		platform_device_unregister(platform_devices[i]);
+	platform_driver_unregister(&snd_sb16_nonpnp_driver);
+}
+
 static int __init alsa_card_sb16_init(void)
 {
 	int i, err, cards = 0;
@@ -702,23 +720,21 @@ static int __init alsa_card_sb16_init(void)
 							 i, NULL, 0);
 		if (IS_ERR(device)) {
 			err = PTR_ERR(device);
-			platform_driver_unregister(&snd_sb16_nonpnp_driver);
-			return err;
+			goto errout;
 		}
+		platform_devices[i] = device;
 		cards++;
 	}
 #ifdef CONFIG_PNP
 	/* PnP cards at last */
 	i = pnp_register_card_driver(&sb16_pnpc_driver);
-	if (i > 0)
+	if (i >= 0) {
+		pnp_registered = 1;
 		cards += i;
+	}
 #endif
 
 	if (!cards) {
-#ifdef CONFIG_PNP
-		pnp_unregister_card_driver(&sb16_pnpc_driver);
-#endif
-		platform_driver_unregister(&snd_sb16_nonpnp_driver);
 #ifdef MODULE
 		snd_printk(KERN_ERR "Sound Blaster 16 soundcard not found or device busy\n");
 #ifdef SNDRV_SBAWE_EMU8000
@@ -727,17 +743,19 @@ static int __init alsa_card_sb16_init(void)
 		snd_printk(KERN_ERR "In case, if you have AWE card, try snd-sbawe module\n");
 #endif
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_sb16_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_sb16_exit(void)
 {
-#ifdef CONFIG_PNP
-	pnp_unregister_card_driver(&sb16_pnpc_driver);
-#endif
-	platform_driver_unregister(&snd_sb16_nonpnp_driver);
+	snd_sb16_unregister_all();
 }
 
 module_init(alsa_card_sb16_init)

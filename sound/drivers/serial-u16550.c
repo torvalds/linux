@@ -168,6 +168,8 @@ typedef struct _snd_uart16550 {
 
 } snd_uart16550_t;
 
+static struct platform_device *devices[SNDRV_CARDS];
+
 static inline void snd_uart16550_add_timer(snd_uart16550_t *uart)
 {
 	if (! uart->timer_running) {
@@ -970,6 +972,15 @@ static struct platform_driver snd_serial_driver = {
 	},
 };
 
+static void __init_or_module snd_serial_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_serial_driver);
+}
+
 static int __init alsa_card_serial_init(void)
 {
 	int i, cards, err;
@@ -986,6 +997,7 @@ static int __init alsa_card_serial_init(void)
 			err = PTR_ERR(device);
 			goto errout;
 		}
+		devices[i] = device;
 		cards++;
 	}
 	if (! cards) {
@@ -998,13 +1010,13 @@ static int __init alsa_card_serial_init(void)
 	return 0;
 
  errout:
-	platform_driver_unregister(&snd_serial_driver);
+	snd_serial_unregister_all();
 	return err;
 }
 
 static void __exit alsa_card_serial_exit(void)
 {
-	platform_driver_unregister(&snd_serial_driver);
+	snd_serial_unregister_all();
 }
 
 module_init(alsa_card_serial_init)

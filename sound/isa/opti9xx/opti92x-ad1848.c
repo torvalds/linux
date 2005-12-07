@@ -259,6 +259,7 @@ struct snd_opti9xx {
 };
 
 static int snd_opti9xx_pnp_is_probed;
+static struct platform_device *snd_opti9xx_platform_device;
 
 #ifdef CONFIG_PNP
 
@@ -2095,8 +2096,10 @@ static int __init alsa_card_opti9xx_init(void)
 		if (error < 0)
 			return error;
 		device = platform_device_register_simple(DRIVER_NAME, -1, NULL, 0);
-		if (! IS_ERR(device))
+		if (!IS_ERR(device)) {
+			snd_opti9xx_platform_device = device;
 			return 0;
+		}
 		platform_driver_unregister(&snd_opti9xx_driver);
 	}
 	pnp_unregister_card_driver(&opti9xx_pnpc_driver);
@@ -2108,8 +2111,10 @@ static int __init alsa_card_opti9xx_init(void)
 
 static void __exit alsa_card_opti9xx_exit(void)
 {
-	if (! snd_opti9xx_pnp_is_probed)
+	if (!snd_opti9xx_pnp_is_probed) {
+		platform_device_unregister(snd_opti9xx_platform_device);
 		platform_driver_unregister(&snd_opti9xx_driver);
+	}
 	pnp_unregister_card_driver(&opti9xx_pnpc_driver);
 }
 

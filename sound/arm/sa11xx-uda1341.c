@@ -21,7 +21,7 @@
  *                              merged HAL layer (patches from Brian)
  */
 
-/* $Id: sa11xx-uda1341.c,v 1.26 2005/11/17 17:19:50 tiwai Exp $ */
+/* $Id: sa11xx-uda1341.c,v 1.27 2005/12/07 09:13:42 cladisch Exp $ */
 
 /***************************************************************************************************
 *
@@ -154,6 +154,8 @@ static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.list	= rates,
 	.mask	= 0,
 };
+
+static struct platform_device *device;
 
 /* }}} */
 
@@ -976,7 +978,6 @@ static struct platform_driver sa11xx_uda1341_driver = {
 static int __init sa11xx_uda1341_init(void)
 {
 	int err;
-	struct platform_device *device;
 
 	if (!machine_is_h3xxx())
 		return -ENODEV;
@@ -992,6 +993,7 @@ static int __init sa11xx_uda1341_init(void)
 
 static void __exit sa11xx_uda1341_exit(void)
 {
+	platform_device_unregister(device);
 	platform_driver_unregister(&sa11xx_uda1341_driver);
 }
 

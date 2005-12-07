@@ -56,6 +56,8 @@ MODULE_PARM_DESC(irq, "IRQ # for SB8 driver.");
 module_param_array(dma8, int, NULL, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for SB8 driver.");
 
+static struct platform_device *devices[SNDRV_CARDS];
+
 struct snd_sb8 {
 	struct resource *fm_res;	/* used to block FM i/o region for legacy cards */
 	struct snd_sb *chip;
@@ -238,6 +240,15 @@ static struct platform_driver snd_sb8_driver = {
 	},
 };
 
+static void __init_or_module snd_sb8_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_sb8_driver);
+}
+
 static int __init alsa_card_sb8_init(void)
 {
 	int i, cards, err;
@@ -255,6 +266,7 @@ static int __init alsa_card_sb8_init(void)
 			err = PTR_ERR(device);
 			goto errout;
 		}
+		devices[i] = device;
 		cards++;
 	}
 	if (!cards) {
@@ -267,13 +279,13 @@ static int __init alsa_card_sb8_init(void)
 	return 0;
 
  errout:
-	platform_driver_unregister(&snd_sb8_driver);
+	snd_sb8_unregister_all();
 	return err;
 }
 
 static void __exit alsa_card_sb8_exit(void)
 {
-	platform_driver_unregister(&snd_sb8_driver);
+	snd_sb8_unregister_all();
 }
 
 module_init(alsa_card_sb8_init)
