@@ -56,9 +56,8 @@ void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_ufram
 				runtime->silence_filled = 0;
 			runtime->silence_start = runtime->control->appl_ptr;
 		}
-		if (runtime->silence_filled == runtime->buffer_size)
+		if (runtime->silence_filled >= runtime->buffer_size)
 			return;
-		snd_assert(runtime->silence_filled <= runtime->buffer_size, return);
 		noise_dist = snd_pcm_playback_hw_avail(runtime) + runtime->silence_filled;
 		if (noise_dist >= (snd_pcm_sframes_t) runtime->silence_threshold)
 			return;
@@ -2006,8 +2005,8 @@ void snd_pcm_tick_prepare(struct snd_pcm_substream *substream)
 			   runtime->silence_filled < runtime->buffer_size) {
 			snd_pcm_sframes_t noise_dist;
 			noise_dist = snd_pcm_playback_hw_avail(runtime) + runtime->silence_filled;
-			snd_assert(noise_dist <= (snd_pcm_sframes_t)runtime->silence_threshold, );
-			frames = noise_dist - runtime->silence_threshold;
+			if (noise_dist > (snd_pcm_sframes_t)runtime->silence_threshold)
+				frames = noise_dist - runtime->silence_threshold;
 		}
 		avail = snd_pcm_playback_avail(runtime);
 	} else {
