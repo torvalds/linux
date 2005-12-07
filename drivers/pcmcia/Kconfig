@@ -182,7 +182,7 @@ config TCIC
 config PCMCIA_M8XX
         tristate "MPC8xx PCMCIA support"
         depends on PCMCIA && PPC && 8xx 
-        select PCCARD_NONSTATIC
+        select PCCARD_IODYN
         help
         Say Y here to include support for PowerPC 8xx series PCMCIA
         controller.
@@ -265,6 +265,9 @@ config OMAP_CF
 
 config PCCARD_NONSTATIC
 	tristate
+
+config PCCARD_IODYN
+	bool
 
 endif	# PCCARD
 
