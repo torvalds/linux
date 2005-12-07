@@ -528,10 +528,49 @@ INPUT_DEV_STRING_ATTR_SHOW(name);
 INPUT_DEV_STRING_ATTR_SHOW(phys);
 INPUT_DEV_STRING_ATTR_SHOW(uniq);
 
+static int print_modalias_bits(char *buf, char prefix, unsigned long *arr,
+			       unsigned int min, unsigned int max)
+{
+	int len, i;
+
+	len = sprintf(buf, "%c", prefix);
+	for (i = min; i < max; i++)
+		if (arr[LONG(i)] & BIT(i))
+			len += sprintf(buf+len, "%X,", i);
+	return len;
+}
+
+static ssize_t input_dev_show_modalias(struct class_device *dev, char *buf)
+{
+	struct input_dev *id = to_input_dev(dev);
+	ssize_t len = 0;
+
+	len += sprintf(buf+len, "input:b%04Xv%04Xp%04Xe%04X-",
+		       id->id.bustype,
+		       id->id.vendor,
+		       id->id.product,
+		       id->id.version);
+
+	len += print_modalias_bits(buf+len, 'e', id->evbit, 0, EV_MAX);
+	len += print_modalias_bits(buf+len, 'k', id->keybit,
+				   KEY_MIN_INTERESTING, KEY_MAX);
+	len += print_modalias_bits(buf+len, 'r', id->relbit, 0, REL_MAX);
+	len += print_modalias_bits(buf+len, 'a', id->absbit, 0, ABS_MAX);
+	len += print_modalias_bits(buf+len, 'm', id->mscbit, 0, MSC_MAX);
+	len += print_modalias_bits(buf+len, 'l', id->ledbit, 0, LED_MAX);
+	len += print_modalias_bits(buf+len, 's', id->sndbit, 0, SND_MAX);
+	len += print_modalias_bits(buf+len, 'f', id->ffbit, 0, FF_MAX);
+	len += print_modalias_bits(buf+len, 'w', id->swbit, 0, SW_MAX);
+	len += sprintf(buf+len, "\n");
+	return len;
+}
+static CLASS_DEVICE_ATTR(modalias, S_IRUGO, input_dev_show_modalias, NULL);
+
 static struct attribute *input_dev_attrs[] = {
 	&class_device_attr_name.attr,
 	&class_device_attr_phys.attr,
 	&class_device_attr_uniq.attr,
+	&class_device_attr_modalias.attr,
 	NULL
 };
 
