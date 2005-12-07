@@ -46,8 +46,9 @@ USB-specific:
 
 -EMSGSIZE	(a) endpoint maxpacket size is zero; it is not usable
 		    in the current interface altsetting.
-		(b) ISO packet is biger than endpoint maxpacket
-		(c) requested data transfer size is invalid (negative)
+		(b) ISO packet is larger than the endpoint maxpacket.
+		(c) requested data transfer length is invalid: negative
+		    or too large for the host controller.
 
 -ENOSPC		This request would overcommit the usb bandwidth reserved
 		for periodic transfers (interrupt, isochronous).

@@ -1892,7 +1892,7 @@ static int ipt_get_matches(char *buffer, char **start, off_t offset, int length)
 	return pos;
 }
 
-static struct { char *name; get_info_t *get_info; } ipt_proc_entry[] =
+static const struct { char *name; get_info_t *get_info; } ipt_proc_entry[] =
 { { "ip_tables_names", ipt_get_tables },
   { "ip_tables_targets", ipt_get_targets },
   { "ip_tables_matches", ipt_get_matches },

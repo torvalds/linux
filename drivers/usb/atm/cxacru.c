@@ -787,6 +787,9 @@ static const struct usb_device_id cxacru_usb_ids[] = {
 	{ /* V = Conexant			P = ADSL modem (Hasbani project)	*/
 		USB_DEVICE(0x0572, 0xcb00),	.driver_info = (unsigned long) &cxacru_cb00
 	},
+	{ /* V = Conexant             P = ADSL modem (Well PTI-800 */
+		USB_DEVICE(0x0572, 0xcb02),	.driver_info = (unsigned long) &cxacru_cb00
+	},
 	{ /* V = Conexant			P = ADSL modem				*/
 		USB_DEVICE(0x0572, 0xcb01),	.driver_info = (unsigned long) &cxacru_cb00
 	},

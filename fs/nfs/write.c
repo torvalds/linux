@@ -189,6 +189,7 @@ static int nfs_writepage_sync(struct nfs_open_context *ctx, struct inode *inode,
 		(long long)NFS_FILEID(inode),
 		count, (long long)(page_offset(page) + offset));
 
+	set_page_writeback(page);
 	nfs_begin_data_update(inode);
 	do {
 		if (count < wsize)
@@ -221,6 +222,7 @@ static int nfs_writepage_sync(struct nfs_open_context *ctx, struct inode *inode,
 
 io_error:
 	nfs_end_data_update(inode);
+	end_page_writeback(page);
 	nfs_writedata_free(wdata);
 	return written ? written : result;
 }
@@ -929,7 +931,7 @@ static int nfs_flush_multi(struct list_head *head, struct inode *inode, int how)
 	atomic_set(&req->wb_complete, requests);
 
 	ClearPageError(page);
-	SetPageWriteback(page);
+	set_page_writeback(page);
 	offset = 0;
 	nbytes = req->wb_bytes;
 	do {
@@ -992,7 +994,7 @@ static int nfs_flush_one(struct list_head *head, struct inode *inode, int how)
 		nfs_list_remove_request(req);
 		nfs_list_add_request(req, &data->pages);
 		ClearPageError(req->wb_page);
-		SetPageWriteback(req->wb_page);
+		set_page_writeback(req->wb_page);
 		*pages++ = req->wb_page;
 		count += req->wb_bytes;
 	}

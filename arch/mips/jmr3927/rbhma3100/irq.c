@@ -113,7 +113,8 @@ static void jmr3927_irq_ack(unsigned int irq)
 
 static void jmr3927_irq_end(unsigned int irq)
 {
-	jmr3927_irq_enable(irq);
+	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
+		jmr3927_irq_enable(irq);
 }
 
 static void jmr3927_irq_disable(unsigned int irq_nr)
@@ -121,7 +122,7 @@ static void jmr3927_irq_disable(unsigned int irq_nr)
 	struct tb_irq_space* sp;
 	unsigned long flags;
 
-	spinlock_irqsave(&jmr3927_irq_lock, flags);
+	spin_lock_irqsave(&jmr3927_irq_lock, flags);
 	for (sp = tb_irq_spaces; sp; sp = sp->next) {
 		if (sp->start_irqno <= irq_nr &&
 		    irq_nr < sp->start_irqno + sp->nr_irqs) {
@@ -131,7 +132,7 @@ static void jmr3927_irq_disable(unsigned int irq_nr)
 			break;
 		}
 	}
-	spinlock_irqrestore(&jmr3927_irq_lock, flags);
+	spin_unlock_irqrestore(&jmr3927_irq_lock, flags);
 }
 
 static void jmr3927_irq_enable(unsigned int irq_nr)
@@ -139,7 +140,7 @@ static void jmr3927_irq_enable(unsigned int irq_nr)
 	struct tb_irq_space* sp;
 	unsigned long flags;
 
-	spinlock_irqsave(&jmr3927_irq_lock, flags);
+	spin_lock_irqsave(&jmr3927_irq_lock, flags);
 	for (sp = tb_irq_spaces; sp; sp = sp->next) {
 		if (sp->start_irqno <= irq_nr &&
 		    irq_nr < sp->start_irqno + sp->nr_irqs) {
@@ -149,7 +150,7 @@ static void jmr3927_irq_enable(unsigned int irq_nr)
 			break;
 		}
 	}
-	spinlock_irqrestore(&jmr3927_irq_lock, flags);
+	spin_unlock_irqrestore(&jmr3927_irq_lock, flags);
 }
 
 /*
@@ -205,7 +206,10 @@ static void mask_irq_irc(int irq_nr, int space_id)
 	/* update IRCSR */
 	tx3927_ircptr->imr = 0;
 	tx3927_ircptr->imr = irc_elevel;
+	/* flush write buffer */
+	(void)tx3927_ircptr->ssr;
 }
+
 static void unmask_irq_irc(int irq_nr, int space_id)
 {
 	volatile unsigned long *ilrp = &tx3927_ircptr->ilr[irq_nr / 2];
@@ -276,7 +280,7 @@ void jmr3927_irc_irqdispatch(struct pt_regs *regs)
 	do_IRQ(irq + JMR3927_IRQ_IRC, regs);
 }
 
-static void jmr3927_ioc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t jmr3927_ioc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned char istat = jmr3927_ioc_reg_in(JMR3927_IOC_INTS2_ADDR);
 	int i;
@@ -287,13 +291,14 @@ static void jmr3927_ioc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			do_IRQ(irq, regs);
 		}
 	}
+	return IRQ_HANDLED;
 }
 
 static struct irqaction ioc_action = {
 	jmr3927_ioc_interrupt, 0, CPU_MASK_NONE, "IOC", NULL, NULL,
 };
 
-static void jmr3927_isac_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t jmr3927_isac_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned char istat = jmr3927_isac_reg_in(JMR3927_ISAC_INTS2_ADDR);
 	int i;
@@ -304,6 +309,7 @@ static void jmr3927_isac_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			do_IRQ(irq, regs);
 		}
 	}
+	return IRQ_HANDLED;
 }
 
 static struct irqaction isac_action = {
@@ -311,19 +317,23 @@ static struct irqaction isac_action = {
 };
 
 
-static void jmr3927_isaerr_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t jmr3927_isaerr_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 {
 	printk(KERN_WARNING "ISA error interrupt (irq 0x%x).\n", irq);
+
+	return IRQ_HANDLED;
 }
 static struct irqaction isaerr_action = {
 	jmr3927_isaerr_interrupt, 0, CPU_MASK_NONE, "ISA error", NULL, NULL,
 };
 
-static void jmr3927_pcierr_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t jmr3927_pcierr_interrupt(int irq, void * dev_id, struct pt_regs * regs)
 {
 	printk(KERN_WARNING "PCI error interrupt (irq 0x%x).\n", irq);
 	printk(KERN_WARNING "pcistat:%02x, lbstat:%04lx\n",
 	       tx3927_pcicptr->pcistat, tx3927_pcicptr->lbstat);
+
+	return IRQ_HANDLED;
 }
 static struct irqaction pcierr_action = {
 	jmr3927_pcierr_interrupt, 0, CPU_MASK_NONE, "PCI error", NULL, NULL,

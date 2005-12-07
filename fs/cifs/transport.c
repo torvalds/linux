@@ -515,6 +515,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 			*pbytes_returned = in_buf->smb_buf_length;
 
 			/* BB special case reconnect tid and uid here? */
+			/* BB special case Errbadpassword and pwdexpired here */
 			rc = map_smb_to_linux_error(in_buf);
 
 			/* convert ByteCount if necessary */

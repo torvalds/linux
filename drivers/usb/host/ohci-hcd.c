@@ -115,7 +115,7 @@
 
 /*-------------------------------------------------------------------------*/
 
-// #define OHCI_VERBOSE_DEBUG	/* not always helpful */
+#undef OHCI_VERBOSE_DEBUG	/* not always helpful */
 
 /* For initializing controller (mask in an HCFS mode too) */
 #define	OHCI_CONTROL_INIT 	OHCI_CTRL_CBSR
@@ -253,6 +253,10 @@ static int ohci_urb_enqueue (
 	spin_lock_irqsave (&ohci->lock, flags);
 
 	/* don't submit to a dead HC */
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+		retval = -ENODEV;
+		goto fail;
+	}
 	if (!HC_IS_RUNNING(hcd->state)) {
 		retval = -ENODEV;
 		goto fail;

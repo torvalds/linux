@@ -404,7 +404,7 @@ struct cirrusfb_info {
 	struct cirrusfb_regs currentmode;
 	int blank_mode;
 
-	u32	pseudo_palette[17];
+	u32	pseudo_palette[16];
 	struct { u8 red, green, blue, pad; } palette[256];
 
 #ifdef CONFIG_ZORRO
@@ -1603,14 +1603,14 @@ static int cirrusfb_setcolreg (unsigned regno, unsigned red, unsigned green,
 
 		switch (info->var.bits_per_pixel) {
 			case 8:
-				((u8*)(info->pseudo_palette))[regno] = v;
+				cinfo->pseudo_palette[regno] = v;
 				break;
 			case 16:
-				((u16*)(info->pseudo_palette))[regno] = v;
+				cinfo->pseudo_palette[regno] = v;
 				break;
 			case 24:
 			case 32:
-				((u32*)(info->pseudo_palette))[regno] = v;
+				cinfo->pseudo_palette[regno] = v;
 				break;
 		}
 		return 0;
@@ -2020,18 +2020,21 @@ static void cirrusfb_prim_fillrect(struct cirrusfb_info *cinfo,
 				   const struct fb_fillrect *region)
 {
 	int m; /* bytes per pixel */
+	u32 color = (cinfo->info->fix.visual == FB_VISUAL_TRUECOLOR) ?
+		cinfo->pseudo_palette[region->color] : region->color;
+
 	if(cinfo->info->var.bits_per_pixel == 1) {
 		cirrusfb_RectFill(cinfo->regbase, cinfo->info->var.bits_per_pixel,
 				  region->dx / 8, region->dy,
 				  region->width / 8, region->height,
-				  region->color,
+				  color,
 				  cinfo->currentmode.line_length);
 	} else {
 		m = ( cinfo->info->var.bits_per_pixel + 7 ) / 8;
 		cirrusfb_RectFill(cinfo->regbase, cinfo->info->var.bits_per_pixel,
 				  region->dx * m, region->dy,
 				  region->width * m, region->height,
-				  region->color,
+				  color,
 				  cinfo->currentmode.line_length);
 	}
 	return;

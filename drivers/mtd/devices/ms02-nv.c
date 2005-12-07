@@ -6,7 +6,7 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  *
- *	$Id: ms02-nv.c,v 1.10 2005/06/20 12:24:41 macro Exp $
+ *	$Id: ms02-nv.c,v 1.11 2005/11/14 13:41:47 macro Exp $
  */
 
 #include <linux/init.h>
@@ -293,13 +293,13 @@ static int __init ms02nv_init(void)
 
 	switch (mips_machtype) {
 	case MACH_DS5000_200:
-		csr = (volatile u32 *)KN02_CSR_BASE;
+		csr = (volatile u32 *)CKSEG1ADDR(KN02_SLOT_BASE + KN02_CSR);
 		if (*csr & KN02_CSR_BNK32M)
 			stride = 2;
 		break;
 	case MACH_DS5000_2X0:
 	case MACH_DS5900:
-		csr = (volatile u32 *)KN03_MCR_BASE;
+		csr = (volatile u32 *)CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_MCR);
 		if (*csr & KN03_MCR_BNK32M)
 			stride = 2;
 		break;

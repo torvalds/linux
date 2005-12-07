@@ -2300,14 +2300,12 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	td->dma_hi = map >> 32;
 
 	if (skb->ip_summed == CHECKSUM_HW) {
-		const struct iphdr *ip
-			= (const struct iphdr *) (skb->data + ETH_HLEN);
 		int offset = skb->h.raw - skb->data;
 
 		/* This seems backwards, but it is what the sk98lin
 		 * does.  Looks like hardware is wrong?
 		 */
-		if (ip->protocol == IPPROTO_UDP
+		if (skb->h.ipiph->protocol == IPPROTO_UDP
 	            && hw->chip_rev == 0 && hw->chip_id == CHIP_ID_YUKON)
 			control = BMU_TCP_CHECK;
 		else
