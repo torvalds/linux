@@ -1850,18 +1850,16 @@ static int new_analog_input(struct ad198x_spec *spec, hda_nid_t pin,
 static int ad1988_auto_create_analog_input_ctls(struct ad198x_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[AUTO_PIN_LAST] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux"
-	};
 	struct hda_input_mux *imux = &spec->private_imux;
 	int i, err;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		err = new_analog_input(spec, cfg->input_pins[i], labels[i],
+		err = new_analog_input(spec, cfg->input_pins[i],
+				       auto_pin_cfg_labels[i],
 				       i <= AUTO_PIN_FRONT_MIC);
 		if (err < 0)
 			return err;
-		imux->items[imux->num_items].label = labels[i];
+		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 		imux->items[imux->num_items].index = ad1988_pin_to_adc_idx(cfg->input_pins[i]);
 		imux->num_items++;
 	}

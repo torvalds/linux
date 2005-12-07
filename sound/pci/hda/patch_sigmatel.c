@@ -702,9 +702,6 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec, struct auto_pin
 static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const struct auto_pin_cfg *cfg)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	static char *labels[AUTO_PIN_LAST] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux"
-	};
 	struct hda_input_mux *imux = &spec->private_imux;
 	hda_nid_t con_lst[HDA_MAX_NUM_INPUTS];
 	int i, j, k;
@@ -715,7 +712,7 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 			/* Enable active pin widget as an input */
 			stac92xx_auto_set_pinctl(codec, cfg->input_pins[i], AC_PINCTL_IN_EN);
 
-			imux->items[imux->num_items].label = labels[i];
+			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 
 			for (j=0; j<spec->num_muxes; j++) {
 				int num_cons = snd_hda_get_connections(codec, spec->mux_nids[j], con_lst, HDA_MAX_NUM_INPUTS);

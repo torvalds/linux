@@ -211,6 +211,8 @@ enum {
 	AUTO_PIN_LAST
 };
 
+extern const char *auto_pin_cfg_labels[AUTO_PIN_LAST];
+
 struct auto_pin_cfg {
 	int line_outs;
 	hda_nid_t line_out_pins[5]; /* sorted in the order of Front/Surr/CLFE/Side */

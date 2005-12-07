@@ -1259,18 +1259,24 @@ static int alc_build_pcms(struct hda_codec *codec)
 	codec->num_pcms = 1;
 	codec->pcm_info = info;
 
-	snd_assert(spec->stream_analog_playback, return -EINVAL);
-	snd_assert(spec->stream_analog_capture, return -EINVAL);
 	info->name = spec->stream_name_analog;
-	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *(spec->stream_analog_playback);
-	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dac_nids[0];
-	info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_analog_capture);
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
+	if (spec->stream_analog_playback) {
+		snd_assert(spec->multiout.dac_nids, return -EINVAL);
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *(spec->stream_analog_playback);
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dac_nids[0];
+	}
+	if (spec->stream_analog_capture) {
+		snd_assert(spec->adc_nids, return -EINVAL);
+		info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_analog_capture);
+		info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
+	}
 
-	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = 0;
-	for (i = 0; i < spec->num_channel_mode; i++) {
-		if (spec->channel_mode[i].channels > info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max) {
-		    info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = spec->channel_mode[i].channels;
+	if (spec->channel_mode) {
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = 0;
+		for (i = 0; i < spec->num_channel_mode; i++) {
+			if (spec->channel_mode[i].channels > info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max) {
+				info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = spec->channel_mode[i].channels;
+			}
 		}
 	}
 
@@ -1278,13 +1284,13 @@ static int alc_build_pcms(struct hda_codec *codec)
 		codec->num_pcms++;
 		info++;
 		info->name = spec->stream_name_digital;
-		if (spec->multiout.dig_out_nid) {
-			snd_assert(spec->stream_digital_playback, return -EINVAL);
+		if (spec->multiout.dig_out_nid &&
+		    spec->stream_digital_playback) {
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *(spec->stream_digital_playback);
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dig_out_nid;
 		}
-		if (spec->dig_in_nid) {
-			snd_assert(spec->stream_digital_capture, return -EINVAL);
+		if (spec->dig_in_nid &&
+		    spec->stream_digital_capture) {
 			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_digital_capture);
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in_nid;
 		}
@@ -2091,20 +2097,18 @@ static int new_analog_input(struct alc_spec *spec, hda_nid_t pin, const char *ct
 static int alc880_auto_create_analog_input_ctls(struct alc_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[AUTO_PIN_LAST] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux"
-	};
 	struct hda_input_mux *imux = &spec->private_imux;
 	int i, err, idx;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		if (alc880_is_input_pin(cfg->input_pins[i])) {
 			idx = alc880_input_pin_idx(cfg->input_pins[i]);
-			err = new_analog_input(spec, cfg->input_pins[i], labels[i],
+			err = new_analog_input(spec, cfg->input_pins[i],
+					       auto_pin_cfg_labels[i],
 					       idx, 0x0b);
 			if (err < 0)
 				return err;
-			imux->items[imux->num_items].label = labels[i];
+			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 			imux->items[imux->num_items].index = alc880_input_pin_idx(cfg->input_pins[i]);
 			imux->num_items++;
 		}
@@ -2664,6 +2668,8 @@ static struct hda_verb alc260_fujitsu_init_verbs[] = {
         {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(5)}, /* Beep-gen pin */
         {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(6)}, /* Line-out pin */
         {0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(7)}, /* HP-pin pin */
+
+	{ }
 };
 
 static struct hda_pcm_stream alc260_pcm_analog_playback = {
@@ -2755,28 +2761,27 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 static int alc260_auto_create_analog_input_ctls(struct alc_spec *spec,
 						const struct auto_pin_cfg *cfg)
 {
-	static char *labels[AUTO_PIN_LAST] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux"
-	};
 	struct hda_input_mux *imux = &spec->private_imux;
 	int i, err, idx;
 
 	for (i = 0; i < AUTO_PIN_LAST; i++) {
 		if (cfg->input_pins[i] >= 0x12) {
 			idx = cfg->input_pins[i] - 0x12;
-			err = new_analog_input(spec, cfg->input_pins[i], labels[i], idx, 0x07);
+			err = new_analog_input(spec, cfg->input_pins[i],
+					       auto_pin_cfg_labels[i], idx, 0x07);
 			if (err < 0)
 				return err;
-			imux->items[imux->num_items].label = labels[i];
+			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 			imux->items[imux->num_items].index = idx;
 			imux->num_items++;
 		}
 		if ((cfg->input_pins[i] >= 0x0f) && (cfg->input_pins[i] <= 0x10)){
 			idx = cfg->input_pins[i] - 0x09;
-			err = new_analog_input(spec, cfg->input_pins[i], labels[i], idx, 0x07);
+			err = new_analog_input(spec, cfg->input_pins[i],
+					       auto_pin_cfg_labels[i], idx, 0x07);
 			if (err < 0)
 				return err;
-			imux->items[imux->num_items].label = labels[i];
+			imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 			imux->items[imux->num_items].index = idx;
 			imux->num_items++;
 		}
@@ -2889,11 +2894,11 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	if ((err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
 						alc260_ignore)) < 0)
 		return err;
-	if (! spec->autocfg.line_outs && ! spec->autocfg.speaker_pin &&
-	    ! spec->autocfg.hp_pin)
+	if ((err = alc260_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0)
+		return err;
+	if (! spec->kctl_alloc)
 		return 0; /* can't find valid BIOS pin config */
-	if ((err = alc260_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
-	    (err = alc260_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
+	if ((err = alc260_auto_create_analog_input_ctls(spec, &spec->autocfg)) < 0)
 		return err;
 
 	spec->multiout.max_channels = 2;
@@ -2908,19 +2913,18 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux;
 
 	/* check whether NID 0x04 is valid */
-	wcap = snd_hda_param_read(codec, alc260_adc_nids[0], AC_PAR_AUDIO_WIDGET_CAP);
+	wcap = get_wcaps(codec, 0x04);
 	wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT; /* get type */
 	if (wcap != AC_WID_AUD_IN) {
 		spec->adc_nids = alc260_adc_nids_alt;
 		spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids_alt);
 		spec->mixers[spec->num_mixers] = alc260_capture_alt_mixer;
-		spec->num_mixers++;
 	} else {
 		spec->adc_nids = alc260_adc_nids;
 		spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids);
 		spec->mixers[spec->num_mixers] = alc260_capture_mixer;
-		spec->num_mixers++;
 	}
+	spec->num_mixers++;
 
 	return 1;
 }
@@ -3582,8 +3586,7 @@ static int patch_alc882(struct hda_codec *codec)
 
 	if (! spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
-		unsigned int wcap = snd_hda_param_read(codec, 0x07,
-						       AC_PAR_AUDIO_WIDGET_CAP);
+		unsigned int wcap = get_wcaps(codec, 0x07);
 		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT; /* get type */
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc882_adc_nids_alt;
@@ -3991,8 +3994,8 @@ static int patch_alc262(struct hda_codec *codec)
 
 	if (! spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
-		unsigned int wcap = snd_hda_param_read(codec, 0x07,
-						       AC_PAR_AUDIO_WIDGET_CAP);
+		unsigned int wcap = get_wcaps(codec, 0x07);
+
 		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT; /* get type */
 		if (wcap != AC_WID_AUD_IN) {
 			spec->adc_nids = alc262_adc_nids_alt;
@@ -4423,9 +4426,6 @@ static int alc861_auto_create_hp_ctls(struct alc_spec *spec, hda_nid_t pin)
 /* create playback/capture controls for input pins */
 static int alc861_auto_create_analog_input_ctls(struct alc_spec *spec, const struct auto_pin_cfg *cfg)
 {
-	static char *labels[AUTO_PIN_LAST] = {
-		"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux"
-	};
 	struct hda_input_mux *imux = &spec->private_imux;
 	int i, err, idx, idx1;
 
@@ -4455,11 +4455,12 @@ static int alc861_auto_create_analog_input_ctls(struct alc_spec *spec, const str
 			continue;
 		}
 
-		err = new_analog_input(spec, cfg->input_pins[i], labels[i], idx, 0x15);
+		err = new_analog_input(spec, cfg->input_pins[i],
+				       auto_pin_cfg_labels[i], idx, 0x15);
 		if (err < 0)
 			return err;
 
-		imux->items[imux->num_items].label = labels[i];
+		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
 		imux->items[imux->num_items].index = idx1;
 		imux->num_items++;	
 	}

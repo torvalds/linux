@@ -2051,6 +2051,12 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec, struct auto_pin_cfg *c
 	return 0;
 }
 
+/* labels for input pins */
+const char *auto_pin_cfg_labels[AUTO_PIN_LAST] = {
+	"Mic", "Front Mic", "Line", "Front Line", "CD", "Aux"
+};
+
+
 #ifdef CONFIG_PM
 /*
  * power management
