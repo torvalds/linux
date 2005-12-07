@@ -193,7 +193,7 @@ int snd_device_register_all(struct snd_card *card)
 	int err;
 	
 	snd_assert(card != NULL, return -ENXIO);
-	list_for_each(list, &card->devices) {
+	list_for_each_prev(list, &card->devices) {
 		dev = snd_device(list);
 		if (dev->state == SNDRV_DEV_BUILD && dev->ops->dev_register) {
 			if ((err = dev->ops->dev_register(dev)) < 0)

@@ -245,6 +245,7 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	int minor;
 	struct snd_minor *preg;
 	struct device *device = NULL;
+	struct class_device *class_device = NULL;
 
 	snd_assert(name, return -EINVAL);
 	preg = kmalloc(sizeof(struct snd_minor) + strlen(name) + 1, GFP_KERNEL);
@@ -272,9 +273,15 @@ int snd_register_device(int type, struct snd_card *card, int dev,
 	snd_minors[minor] = preg;
 	if (type != SNDRV_DEVICE_TYPE_CONTROL || preg->card >= cards_limit)
 		devfs_mk_cdev(MKDEV(major, minor), S_IFCHR | device_mode, "snd/%s", name);
-	if (card)
+	if (card) {
 		device = card->dev;
-	class_device_create(sound_class, NULL, MKDEV(major, minor), device, "%s", name);
+		class_device = card->parent_device;
+	}
+	class_device = class_device_create(sound_class, class_device,
+					   MKDEV(major, minor), device,
+					   "%s", name);
+	if (type == SNDRV_DEVICE_TYPE_CONTROL)
+		card->parent_device = class_device;
 
 	up(&sound_mutex);
 	return 0;
