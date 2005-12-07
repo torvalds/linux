@@ -26,7 +26,6 @@ address.
 
 static struct i2c_driver foo_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name	= "foo",
 	},
 	.attach_adapter	= &foo_attach_adapter,
