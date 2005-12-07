@@ -727,7 +727,7 @@ decrementer_iSeries_masked:
 	li	r11,1
 	stb	r11,PACALPPACA+LPPACADECRINT(r13)
 	LOADBASE(r12,tb_ticks_per_jiffy)
-	lwz	r12,OFF(tb_ticks_per_jiffy)(r13)
+	lwz	r12,OFF(tb_ticks_per_jiffy)(r12)
 	mtspr	SPRN_DEC,r12
 	/* fall through */
 
