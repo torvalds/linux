@@ -703,7 +703,8 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += (old_pte & _PAGE_F_GIX) >> 12;
 
-		if (ppc_md.hpte_updatepp(slot, rflags, va, 1, local) == -1)
+		if (ppc_md.hpte_updatepp(slot, rflags, va, mmu_huge_psize,
+					 local) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 
