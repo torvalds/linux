@@ -620,6 +620,40 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 }
 
 /**
+ *	piix_check_450nx_errata	-	Check for problem 450NX setup
+ *	
+ *	Check for the present of 450NX errata #19 and errata #25. If
+ *	they are found return an error code so we can turn off DMA
+ */
+
+static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
+{
+	struct pci_dev *pdev = NULL;
+	u16 cfg;
+	u8 rev;
+	int no_piix_dma = 0;
+	
+	while((pdev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev)) != NULL)
+	{
+		/* Look for 450NX PXB. Check for problem configurations
+		   A PCI quirk checks bit 6 already */
+		pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
+		pci_read_config_word(pdev, 0x41, &cfg);
+		/* Only on the original revision: IDE DMA can hang */
+		if(rev == 0x00)
+			no_piix_dma = 1;
+		/* On all revisions below 5 PXB bus lock must be disabled for IDE */
+		else if(cfg & (1<<14) && rev < 5)
+			no_piix_dma = 2;
+	}
+	if(no_piix_dma)
+		dev_printk(KERN_WARNING, &ata_dev->dev, "450NX errata present, disabling IDE DMA.\n");
+	if(no_piix_dma == 2)
+		dev_printk(KERN_WARNING, &ata_dev->dev, "A BIOS update may resolve this.\n");
+	return no_piix_dma;
+}		
+
+/**
  *	piix_init_one - Register PIIX ATA PCI device with kernel services
  *	@pdev: PCI device to register
  *	@ent: Entry in piix_pci_tbl matching with @pdev
@@ -693,7 +727,15 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			   "combined mode detected (p=%u, s=%u)\n",
 			   pata_chan, sata_chan);
 	}
-
+	if (piix_check_450nx_errata(pdev)) {
+		/* This writes into the master table but it does not
+		   really matter for this errata as we will apply it to
+		   all the PIIX devices on the board */
+		port_info[0]->mwdma_mask = 0;
+		port_info[0]->udma_mask = 0;
+		port_info[1]->mwdma_mask = 0;
+		port_info[1]->udma_mask = 0;
+	}
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
