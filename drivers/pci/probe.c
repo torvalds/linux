@@ -433,7 +433,7 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 {
 	struct pci_bus *child;
 	int is_cardbus = (dev->hdr_type == PCI_HEADER_TYPE_CARDBUS);
-	u32 buses, i;
+	u32 buses, i, j = 0;
 	u16 bctl;
 
 	pci_read_config_dword(dev, PCI_PRIMARY_BUS, &buses);
@@ -543,10 +543,29 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 			 * as cards with a PCI-to-PCI bridge can be
 			 * inserted later.
 			 */
-			for (i=0; i<CARDBUS_RESERVE_BUSNR; i++)
+			for (i=0; i<CARDBUS_RESERVE_BUSNR; i++) {
+				struct pci_bus *parent = bus;
 				if (pci_find_bus(pci_domain_nr(bus),
 							max+i+1))
 					break;
+				while (parent->parent) {
+					if ((!pcibios_assign_all_busses()) &&
+					    (parent->subordinate > max) &&
+					    (parent->subordinate <= max+i)) {
+						j = 1;
+					}
+					parent = parent->parent;
+				}
+				if (j) {
+					/*
+					 * Often, there are two cardbus bridges
+					 * -- try to leave one valid bus number
+					 * for each one.
+					 */
+					i /= 2;
+					break;
+				}
+			}
 			max += i;
 			pci_fixup_parent_subordinate_busnr(child, max);
 		}
@@ -560,6 +579,22 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, bctl);
 
 	sprintf(child->name, (is_cardbus ? "PCI CardBus #%02x" : "PCI Bus #%02x"), child->number);
+
+	while (bus->parent) {
+		if ((child->subordinate > bus->subordinate) ||
+		    (child->number > bus->subordinate) ||
+		    (child->number < bus->number) ||
+		    (child->subordinate < bus->number)) {
+			printk(KERN_WARNING "PCI: Bus #%02x (-#%02x) may be "
+			       "hidden behind%s bridge #%02x (-#%02x)%s\n",
+			       child->number, child->subordinate,
+			       bus->self->transparent ? " transparent" : " ",
+			       bus->number, bus->subordinate,
+			       pcibios_assign_all_busses() ? " " :
+			       " (try 'pci=assign-busses')");
+		}
+		bus = bus->parent;
+	}
 
 	return max;
 }
