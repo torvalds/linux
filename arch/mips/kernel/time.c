@@ -628,9 +628,9 @@ void __init time_init(void)
 			mips_hpt_init = c0_hpt_init;
 		}
 
-		if ((current_cpu_data.isa_level == MIPS_CPU_ISA_M32R1) ||
-			 (current_cpu_data.isa_level == MIPS_CPU_ISA_I) ||
-			 (current_cpu_data.isa_level == MIPS_CPU_ISA_II))
+		if (cpu_has_mips32r1 || cpu_has_mips32r2 ||
+		    (current_cpu_data.isa_level == MIPS_CPU_ISA_I) ||
+		    (current_cpu_data.isa_level == MIPS_CPU_ISA_II))
 			/*
 			 * We need to calibrate the counter but we don't have
 			 * 64-bit division.

@@ -37,4 +37,9 @@
 #define cpu_icache_line_size()	64
 #define cpu_scache_line_size()	128
 
+#define cpu_has_mips32r1	0
+#define cpu_has_mips32r2	0
+#define cpu_has_mips64r1	0
+#define cpu_has_mips64r2	0
+
 #endif /* __ASM_MACH_IP27_CPU_FEATURE_OVERRIDES_H */

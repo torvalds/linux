@@ -144,6 +144,18 @@
 # ifndef cpu_has_64bit_addresses
 # define cpu_has_64bit_addresses	0
 # endif
+# ifndef cpu_has_mips32r1
+# define cpu_has_mips32r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R1)
+# endif
+# ifndef cpu_has_mips32r2
+# define cpu_has_mips32r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R2)
+# endif
+# ifndef cpu_has_mips64r1
+# define cpu_has_mips64r1	0
+# endif
+# ifndef cpu_has_mips64r2
+# define cpu_has_mips64r2	0
+# endif
 #endif
 
 #ifdef CONFIG_64BIT
@@ -161,6 +173,18 @@
 # endif
 # ifndef cpu_has_64bit_addresses
 # define cpu_has_64bit_addresses	1
+# endif
+# ifndef cpu_has_mips32r1
+# define cpu_has_mips32r1	0
+# endif
+# ifndef cpu_has_mips32r2
+# define cpu_has_mips32r2	0
+# endif
+# ifndef cpu_has_mips64r1
+# define cpu_has_mips64r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R1)
+# endif
+# ifndef cpu_has_mips64r2
+# define cpu_has_mips64r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R2)
 # endif
 #endif
 
