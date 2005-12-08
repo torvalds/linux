@@ -1012,8 +1012,7 @@ static int m8xx_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *io)
 		if(io->flags & MAP_WRPROT)
 			reg |= M8XX_PCMCIA_POR_WRPROT;
 
-		/*if(io->flags & (MAP_16BIT | MAP_AUTOSZ))*/
-		if(io->flags & MAP_16BIT)
+		if(io->flags & (MAP_16BIT | MAP_AUTOSZ))
 			reg |= M8XX_PCMCIA_POR_16BIT;
 
 		if(io->flags & MAP_ACTIVE)
