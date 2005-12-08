@@ -628,7 +628,7 @@ void __init time_init(void)
 			mips_hpt_init = c0_hpt_init;
 		}
 
-		if ((current_cpu_data.isa_level == MIPS_CPU_ISA_M32) ||
+		if ((current_cpu_data.isa_level == MIPS_CPU_ISA_M32R1) ||
 			 (current_cpu_data.isa_level == MIPS_CPU_ISA_I) ||
 			 (current_cpu_data.isa_level == MIPS_CPU_ISA_II))
 			/*
