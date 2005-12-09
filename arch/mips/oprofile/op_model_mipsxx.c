@@ -180,8 +180,10 @@ static int __init mipsxx_init(void)
 	int counters;
 
 	counters = n_counters();
-	if (counters == 0)
+	if (counters == 0) {
+		printk(KERN_ERR "Oprofile: CPU has no performance counters\n");
 		return -ENODEV;
+	}
 
 	reset_counters(counters);
 
