@@ -639,8 +639,36 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	return -ENOMEM;
 }
 
+/*
+ * Called by asm hashtable.S for doing lazy icache flush
+ */
+static unsigned int hash_huge_page_do_lazy_icache(unsigned long rflags,
+						  pte_t pte, int trap)
+{
+	struct page *page;
+	int i;
+
+	if (!pfn_valid(pte_pfn(pte)))
+		return rflags;
+
+	page = pte_page(pte);
+
+	/* page is dirty */
+	if (!test_bit(PG_arch_1, &page->flags) && !PageReserved(page)) {
+		if (trap == 0x400) {
+			for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++)
+				__flush_dcache_icache(page_address(page+i));
+			set_bit(PG_arch_1, &page->flags);
+		} else {
+			rflags |= HPTE_R_N;
+		}
+	}
+	return rflags;
+}
+
 int hash_huge_page(struct mm_struct *mm, unsigned long access,
-		   unsigned long ea, unsigned long vsid, int local)
+		   unsigned long ea, unsigned long vsid, int local,
+		   unsigned long trap)
 {
 	pte_t *ptep;
 	unsigned long old_pte, new_pte;
@@ -691,6 +719,11 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 	rflags = 0x2 | (!(new_pte & _PAGE_RW));
  	/* _PAGE_EXEC -> HW_NO_EXEC since it's inverted */
 	rflags |= ((new_pte & _PAGE_EXEC) ? 0 : HPTE_R_N);
+	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
+		/* No CPU has hugepages but lacks no execute, so we
+		 * don't need to worry about that case */
+		rflags = hash_huge_page_do_lazy_icache(rflags, __pte(old_pte),
+						       trap);
 
 	/* Check if pte already has an hpte (case 2) */
 	if (unlikely(old_pte & _PAGE_HASHPTE)) {
