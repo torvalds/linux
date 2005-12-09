@@ -197,8 +197,8 @@ static void send_handler(struct ib_mad_agent *agent,
 		memcpy(timeout->mad.data, packet->mad.data,
 		       sizeof (struct ib_mad_hdr));
 
-		if (!queue_packet(file, agent, timeout))
-				return;
+		if (queue_packet(file, agent, timeout))
+			kfree(timeout);
 	}
 out:
 	kfree(packet);
