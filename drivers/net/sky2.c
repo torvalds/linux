@@ -1039,7 +1039,7 @@ err_out:
 /* Modular subtraction in ring */
 static inline int tx_dist(unsigned tail, unsigned head)
 {
-	return (head >= tail ? head : head + TX_RING_SIZE) - tail;
+	return (head - tail) % TX_RING_SIZE;
 }
 
 /* Number of list elements available for next tx */
