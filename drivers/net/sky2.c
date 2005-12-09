@@ -868,15 +868,14 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	u16 port = sky2->port;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sky2->tx_lock, flags);
+	spin_lock(&sky2->tx_lock);
 
 	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_ON);
 	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_ON);
 	sky2->vlgrp = grp;
 
-	spin_unlock_irqrestore(&sky2->tx_lock, flags);
+	spin_unlock(&sky2->tx_lock);
 }
 
 static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
@@ -884,16 +883,15 @@ static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	u16 port = sky2->port;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sky2->tx_lock, flags);
+	spin_lock(&sky2->tx_lock);
 
 	sky2_write32(hw, SK_REG(port, RX_GMF_CTRL_T), RX_VLAN_STRIP_OFF);
 	sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_VLAN_TAG_OFF);
 	if (sky2->vlgrp)
 		sky2->vlgrp->vlan_devices[vid] = NULL;
 
-	spin_unlock_irqrestore(&sky2->tx_lock, flags);
+	spin_unlock(&sky2->tx_lock);
 }
 #endif
 
@@ -1072,6 +1070,8 @@ static inline unsigned tx_le_req(const struct sk_buff *skb)
  * A single packet can generate multiple list elements, and
  * the number of ring elements will probably be less than the number
  * of list elements used.
+ *
+ * No BH disabling for tx_lock here (like tg3)
  */
 static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 {
@@ -1079,22 +1079,18 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_hw *hw = sky2->hw;
 	struct sky2_tx_le *le = NULL;
 	struct ring_info *re;
-	unsigned long flags;
 	unsigned i, len;
 	dma_addr_t mapping;
 	u32 addr64;
 	u16 mss;
 	u8 ctrl;
 
-	local_irq_save(flags);
-	if (!spin_trylock(&sky2->tx_lock)) {
-		local_irq_restore(flags);
+	if (!spin_trylock(&sky2->tx_lock))
 		return NETDEV_TX_LOCKED;
-	}
 
 	if (unlikely(tx_avail(sky2) < tx_le_req(skb))) {
 		netif_stop_queue(dev);
-		spin_unlock_irqrestore(&sky2->tx_lock, flags);
+		spin_unlock(&sky2->tx_lock);
 
 		printk(KERN_WARNING PFX "%s: ring full when queue awake!\n",
 		       dev->name);
@@ -1226,7 +1222,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 out_unlock:
 	mmiowb();
-	spin_unlock_irqrestore(&sky2->tx_lock, flags);
+	spin_unlock(&sky2->tx_lock);
 
 	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
