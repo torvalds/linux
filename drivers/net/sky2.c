@@ -1274,7 +1274,7 @@ out:
 }
 
 /* Cleanup all untransmitted buffers, assume transmitter not running */
-static inline void sky2_tx_clean(struct sky2_port *sky2)
+static void sky2_tx_clean(struct sky2_port *sky2)
 {
 	sky2_tx_complete(sky2, sky2->tx_prod);
 }
@@ -1714,14 +1714,16 @@ error:
 /*
  * Check for transmit complete
  */
-static inline void sky2_tx_check(struct sky2_hw *hw, int port)
-{
-	struct net_device *dev = hw->dev[port];
+#define TX_NO_STATUS	0xffff
 
-	if (dev && netif_running(dev)) {
-		sky2_tx_complete(netdev_priv(dev),
-				 sky2_read16(hw, port == 0
-					     ? STAT_TXA1_RIDX : STAT_TXA2_RIDX));
+static inline void sky2_tx_check(struct sky2_hw *hw, int port, u16 last)
+{
+	if (last != TX_NO_STATUS) {
+		struct net_device *dev = hw->dev[port];
+		if (dev && netif_running(dev)) {
+			struct sky2_port *sky2 = netdev_priv(dev);
+			sky2_tx_complete(sky2, last);
+		}
 	}
 }
 
@@ -1735,6 +1737,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	unsigned int to_do = min(dev0->quota, *budget);
 	unsigned int work_done = 0;
 	u16 hwidx;
+	u16 tx_done[2] = { TX_NO_STATUS, TX_NO_STATUS };
 
 	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
@@ -1806,7 +1809,10 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 			break;
 
 		case OP_TXINDEXLE:
-			/* pick up transmit status later */
+			/* TX index reports status for both ports */
+			tx_done[0] = status & 0xffff;
+			tx_done[1] = ((status >> 24) & 0xff)
+				| (u16)(length & 0xf) << 8;
 			break;
 
 		default:
@@ -1818,16 +1824,13 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	}
 
 exit_loop:
- 	sky2_tx_check(hw, 0);
- 	sky2_tx_check(hw, 1);
-
 	mmiowb();
 
+	sky2_tx_check(hw, 0, tx_done[0]);
+	sky2_tx_check(hw, 1, tx_done[1]);
+
 	if (work_done < to_do) {
-		/*
-		 * Another chip workaround, need to restart TX timer if status
-		 * LE was handled. WA_DEV_43_418
-		 */
+		/* need to restart TX timer */
 		if (is_ec_a1(hw)) {
 			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
 			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
