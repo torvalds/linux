@@ -148,43 +148,63 @@ int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
 	return 0;
 }
 
+struct slb_flush_info {
+	struct mm_struct *mm;
+	u16 newareas;
+};
+
 static void flush_low_segments(void *parm)
 {
-	u16 areas = (unsigned long) parm;
+	struct slb_flush_info *fi = parm;
 	unsigned long i;
 
+	BUILD_BUG_ON((sizeof(fi->newareas)*8) != NUM_LOW_AREAS);
+
+	if (current->active_mm != fi->mm)
+		return;
+
+	/* Only need to do anything if this CPU is working in the same
+	 * mm as the one which has changed */
+
+	/* update the paca copy of the context struct */
+	get_paca()->context = current->active_mm->context;
+
 	asm volatile("isync" : : : "memory");
-
-	BUILD_BUG_ON((sizeof(areas)*8) != NUM_LOW_AREAS);
-
 	for (i = 0; i < NUM_LOW_AREAS; i++) {
-		if (! (areas & (1U << i)))
+		if (! (fi->newareas & (1U << i)))
 			continue;
 		asm volatile("slbie %0"
 			     : : "r" ((i << SID_SHIFT) | SLBIE_C));
 	}
-
 	asm volatile("isync" : : : "memory");
 }
 
 static void flush_high_segments(void *parm)
 {
-	u16 areas = (unsigned long) parm;
+	struct slb_flush_info *fi = parm;
 	unsigned long i, j;
 
+
+	BUILD_BUG_ON((sizeof(fi->newareas)*8) != NUM_HIGH_AREAS);
+
+	if (current->active_mm != fi->mm)
+		return;
+
+	/* Only need to do anything if this CPU is working in the same
+	 * mm as the one which has changed */
+
+	/* update the paca copy of the context struct */
+	get_paca()->context = current->active_mm->context;
+
 	asm volatile("isync" : : : "memory");
-
-	BUILD_BUG_ON((sizeof(areas)*8) != NUM_HIGH_AREAS);
-
 	for (i = 0; i < NUM_HIGH_AREAS; i++) {
-		if (! (areas & (1U << i)))
+		if (! (fi->newareas & (1U << i)))
 			continue;
 		for (j = 0; j < (1UL << (HTLB_AREA_SHIFT-SID_SHIFT)); j++)
 			asm volatile("slbie %0"
 				     :: "r" (((i << HTLB_AREA_SHIFT)
-					     + (j << SID_SHIFT)) | SLBIE_C));
+					      + (j << SID_SHIFT)) | SLBIE_C));
 	}
-
 	asm volatile("isync" : : : "memory");
 }
 
@@ -229,6 +249,7 @@ static int prepare_high_area_for_htlb(struct mm_struct *mm, unsigned long area)
 static int open_low_hpage_areas(struct mm_struct *mm, u16 newareas)
 {
 	unsigned long i;
+	struct slb_flush_info fi;
 
 	BUILD_BUG_ON((sizeof(newareas)*8) != NUM_LOW_AREAS);
 	BUILD_BUG_ON((sizeof(mm->context.low_htlb_areas)*8) != NUM_LOW_AREAS);
@@ -244,19 +265,20 @@ static int open_low_hpage_areas(struct mm_struct *mm, u16 newareas)
 
 	mm->context.low_htlb_areas |= newareas;
 
-	/* update the paca copy of the context struct */
-	get_paca()->context = mm->context;
-
 	/* the context change must make it to memory before the flush,
 	 * so that further SLB misses do the right thing. */
 	mb();
-	on_each_cpu(flush_low_segments, (void *)(unsigned long)newareas, 0, 1);
+
+	fi.mm = mm;
+	fi.newareas = newareas;
+	on_each_cpu(flush_low_segments, &fi, 0, 1);
 
 	return 0;
 }
 
 static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 {
+	struct slb_flush_info fi;
 	unsigned long i;
 
 	BUILD_BUG_ON((sizeof(newareas)*8) != NUM_HIGH_AREAS);
@@ -280,7 +302,10 @@ static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 	/* the context change must make it to memory before the flush,
 	 * so that further SLB misses do the right thing. */
 	mb();
-	on_each_cpu(flush_high_segments, (void *)(unsigned long)newareas, 0, 1);
+
+	fi.mm = mm;
+	fi.newareas = newareas;
+	on_each_cpu(flush_high_segments, &fi, 0, 1);
 
 	return 0;
 }
