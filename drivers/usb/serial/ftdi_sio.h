@@ -352,6 +352,12 @@
 /* Pyramid Computer GmbH */
 #define FTDI_PYRAMID_PID	0xE6C8	/* Pyramid Appliance Display */
 
+/*
+ * Posiflex inc retail equipment (http://www.posiflex.com.tw)
+ */
+#define POSIFLEX_VID		0x0d3a  /* Vendor ID */
+#define POSIFLEX_PP7000_PID	0x0300  /* PP-7000II thermal printer */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
