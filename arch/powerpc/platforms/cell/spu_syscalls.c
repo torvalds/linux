@@ -40,7 +40,7 @@ asmlinkage long sys_spu_create(const char __user *name,
 	struct module *owner = spufs_calls.owner;
 
 	ret = -ENOSYS;
-	if (owner && try_module_get(spufs_calls.owner)) {
+	if (owner && try_module_get(owner)) {
 		ret = spufs_calls.create_thread(name, flags, mode);
 		module_put(owner);
 	}
