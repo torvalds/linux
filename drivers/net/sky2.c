@@ -45,6 +45,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
+#include <linux/prefetch.h>
 #include <linux/mii.h>
 
 #include <asm/irq.h>
@@ -1248,6 +1249,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 
   		nxt = re->idx;
 		BUG_ON(nxt >= TX_RING_SIZE);
+		prefetch(sky2->tx_ring + nxt);
 
 		/* Check for partial status */
 		if (tx_dist(put, done) < tx_dist(put, nxt))
@@ -1659,6 +1661,7 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 		       sky2->netdev->name, sky2->rx_next, status, length);
 
 	sky2->rx_next = (sky2->rx_next + 1) % sky2->rx_pending;
+	prefetch(sky2->rx_ring + sky2->rx_next);
 
 	if (status & GMR_FS_ANY_ERR)
 		goto error;
