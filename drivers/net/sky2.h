@@ -1823,8 +1823,10 @@ struct sky2_port {
 	u8		     rx_csum;
 	u8		     wol;
 
-	struct tasklet_struct phy_task;
 	struct net_device_stats net_stats;
+
+	struct work_struct   phy_task;
+	struct semaphore     phy_sema;
 };
 
 struct sky2_hw {
@@ -1842,8 +1844,6 @@ struct sky2_hw {
 	struct sky2_status_le *st_le;
 	u32		     st_idx;
 	dma_addr_t   	     st_dma;
-
-	spinlock_t	     phy_lock;
 };
 
 /* Register accessor for memory mapped device */

@@ -43,6 +43,7 @@
 #include <linux/tcp.h>
 #include <linux/in.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
 #include <linux/if_vlan.h>
 #include <linux/mii.h>
 
@@ -535,9 +536,9 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	sky2_read16(hw, SK_REG(port, GMAC_IRQ_SRC));
 
-	spin_lock_bh(&hw->phy_lock);
+	down(&sky2->phy_sema);
 	sky2_phy_init(hw, port);
-	spin_unlock_bh(&hw->phy_lock);
+	up(&sky2->phy_sema);
 
 	/* MIB clear */
 	reg = gma_read16(hw, port, GM_PHY_ADDR);
@@ -839,9 +840,11 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		/* fallthru */
 	case SIOCGMIIREG: {
 		u16 val = 0;
-		spin_lock_bh(&hw->phy_lock);
+
+		down(&sky2->phy_sema);
 		err = __gm_phy_read(hw, sky2->port, data->reg_num & 0x1f, &val);
-		spin_unlock_bh(&hw->phy_lock);
+		up(&sky2->phy_sema);
+
 		data->val_out = val;
 		break;
 	}
@@ -850,10 +853,10 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
 
-		spin_lock_bh(&hw->phy_lock);
+		down(&sky2->phy_sema);
 		err = gm_phy_write(hw, sky2->port, data->reg_num & 0x1f,
 				   data->val_in);
-		spin_unlock_bh(&hw->phy_lock);
+		up(&sky2->phy_sema);
 		break;
 	}
 	return err;
@@ -1308,6 +1311,7 @@ static int sky2_down(struct net_device *dev)
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
 	local_irq_enable();
 
+	flush_scheduled_work();
 
 	sky2_phy_reset(hw, port);
 
@@ -1520,17 +1524,17 @@ static int sky2_autoneg_done(struct sky2_port *sky2, u16 aux)
 }
 
 /*
- * Interrupt from PHY are handled in tasklet (soft irq)
+ * Interrupt from PHY are handled outside of interrupt context
  * because accessing phy registers requires spin wait which might
  * cause excess interrupt latency.
  */
-static void sky2_phy_task(unsigned long data)
+static void sky2_phy_task(void *arg)
 {
-	struct sky2_port *sky2 = (struct sky2_port *)data;
+	struct sky2_port *sky2 = arg;
 	struct sky2_hw *hw = sky2->hw;
 	u16 istatus, phystat;
 
-	spin_lock(&hw->phy_lock);
+	down(&sky2->phy_sema);
 	istatus = gm_phy_read(hw, sky2->port, PHY_MARV_INT_STAT);
 	phystat = gm_phy_read(hw, sky2->port, PHY_MARV_PHY_STAT);
 
@@ -1558,7 +1562,7 @@ static void sky2_phy_task(unsigned long data)
 			sky2_link_down(sky2);
 	}
 out:
-	spin_unlock(&hw->phy_lock);
+	up(&sky2->phy_sema);
 
 	local_irq_disable();
 	hw->intr_mask |= (sky2->port == 0) ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2;
@@ -1960,7 +1964,7 @@ static void sky2_phy_intr(struct sky2_hw *hw, unsigned port)
 
 	hw->intr_mask &= ~(port == 0 ? Y2_IS_IRQ_PHY1 : Y2_IS_IRQ_PHY2);
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
-	tasklet_schedule(&sky2->phy_task);
+	schedule_work(&sky2->phy_task);
 }
 
 static irqreturn_t sky2_intr(int irq, void *dev_id, struct pt_regs *regs)
@@ -2150,10 +2154,8 @@ static int sky2_reset(struct sky2_hw *hw)
 
 	sky2_write32(hw, B0_HWE_IMSK, Y2_HWE_ALL_MASK);
 
-	spin_lock_bh(&hw->phy_lock);
 	for (i = 0; i < hw->ports; i++)
 		sky2_phy_reset(hw, i);
-	spin_unlock_bh(&hw->phy_lock);
 
 	memset(hw->st_le, 0, STATUS_LE_BYTES);
 	hw->st_idx = 0;
@@ -2386,10 +2388,10 @@ static int sky2_nway_reset(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	spin_lock_irq(&hw->phy_lock);
+	down(&sky2->phy_sema);
 	sky2_phy_reset(hw, sky2->port);
 	sky2_phy_init(hw, sky2->port);
-	spin_unlock_irq(&hw->phy_lock);
+	up(&sky2->phy_sema);
 
 	return 0;
 }
@@ -2528,11 +2530,10 @@ static void sky2_set_multicast(struct net_device *dev)
 /* Can have one global because blinking is controlled by
  * ethtool and that is always under RTNL mutex
  */
-static inline void sky2_led(struct sky2_hw *hw, unsigned port, int on)
+static void sky2_led(struct sky2_hw *hw, unsigned port, int on)
 {
 	u16 pg;
 
-	spin_lock_bh(&hw->phy_lock);
 	switch (hw->chip_id) {
 	case CHIP_ID_YUKON_XL:
 		pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
@@ -2562,7 +2563,6 @@ static inline void sky2_led(struct sky2_hw *hw, unsigned port, int on)
 			     PHY_M_LED_MO_RX(MO_LED_OFF));
 
 	}
-	spin_unlock_bh(&hw->phy_lock);
 }
 
 /* blink LED's for finding board */
@@ -2573,6 +2573,7 @@ static int sky2_phys_id(struct net_device *dev, u32 data)
 	unsigned port = sky2->port;
 	u16 ledctrl, ledover = 0;
 	long ms;
+	int interrupted;
 	int onoff = 1;
 
 	if (!data || data > (u32) (MAX_SCHEDULE_TIMEOUT / HZ))
@@ -2581,7 +2582,7 @@ static int sky2_phys_id(struct net_device *dev, u32 data)
 		ms = data * 1000;
 
 	/* save initial values */
-	spin_lock_bh(&hw->phy_lock);
+	down(&sky2->phy_sema);
 	if (hw->chip_id == CHIP_ID_YUKON_XL) {
 		u16 pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 3);
@@ -2591,19 +2592,20 @@ static int sky2_phys_id(struct net_device *dev, u32 data)
 		ledctrl = gm_phy_read(hw, port, PHY_MARV_LED_CTRL);
 		ledover = gm_phy_read(hw, port, PHY_MARV_LED_OVER);
 	}
-	spin_unlock_bh(&hw->phy_lock);
 
-	while (ms > 0) {
+	interrupted = 0;
+	while (!interrupted && ms > 0) {
 		sky2_led(hw, port, onoff);
 		onoff = !onoff;
 
-		if (msleep_interruptible(250))
-			break;	/* interrupted */
+		up(&sky2->phy_sema);
+		interrupted = msleep_interruptible(250);
+		down(&sky2->phy_sema);
+
 		ms -= 250;
 	}
 
 	/* resume regularly scheduled programming */
-	spin_lock_bh(&hw->phy_lock);
 	if (hw->chip_id == CHIP_ID_YUKON_XL) {
 		u16 pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
 		gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 3);
@@ -2613,7 +2615,7 @@ static int sky2_phys_id(struct net_device *dev, u32 data)
 		gm_phy_write(hw, port, PHY_MARV_LED_CTRL, ledctrl);
 		gm_phy_write(hw, port, PHY_MARV_LED_OVER, ledover);
 	}
-	spin_unlock_bh(&hw->phy_lock);
+	up(&sky2->phy_sema);
 
 	return 0;
 }
@@ -2917,7 +2919,8 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	sky2->speed = -1;
 	sky2->advertising = sky2_supported_modes(hw);
 	sky2->rx_csum = 1;
-	tasklet_init(&sky2->phy_task, sky2_phy_task, (unsigned long)sky2);
+	INIT_WORK(&sky2->phy_task, sky2_phy_task, sky2);
+	init_MUTEX(&sky2->phy_sema);
 	sky2->tx_pending = TX_DEF_PENDING;
 	sky2->rx_pending = is_ec_a1(hw) ? 8 : RX_DEF_PENDING;
 
@@ -3027,7 +3030,6 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	memset(hw, 0, sizeof(*hw));
 	hw->pdev = pdev;
-	spin_lock_init(&hw->phy_lock);
 
 	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {
