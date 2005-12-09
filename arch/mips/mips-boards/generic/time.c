@@ -77,7 +77,6 @@ static void mips_timer_dispatch (struct pt_regs *regs)
 
 irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-#ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
 
 	if (cpu == 0) {
@@ -85,10 +84,9 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		 * CPU 0 handles the global timer interrupt job and process accounting
 		 * resets count/compare registers to trigger next timer int.
 		 */
-		(void) timer_interrupt(irq, dev_id, regs);
+		timer_interrupt(irq, dev_id, regs);
 		scroll_display_message();
-	}
-	else {
+	} else {
 		/* Everyone else needs to reset the timer int here as
 		   ll_local_timer_interrupt doesn't */
 		/*
@@ -104,15 +102,6 @@ irqreturn_t mips_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 
 	return IRQ_HANDLED;
-#else
-	irqreturn_t r;
-
-	r = timer_interrupt(irq, dev_id, regs);
-
-	scroll_display_message();
-
-	return r;
-#endif
 }
 
 /*
