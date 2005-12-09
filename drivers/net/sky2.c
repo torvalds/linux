@@ -24,9 +24,6 @@
  */
 
 /*
- * TODO
- *	- coalescing setting?
- *
  * TOTEST
  *	- speed setting
  *	- suspend/resume
@@ -2019,28 +2016,29 @@ static void sky2_netpoll(struct net_device *dev)
 #endif
 
 /* Chip internal frequency for clock calculations */
-static inline u32 sky2_khz(const struct sky2_hw *hw)
+static inline u32 sky2_mhz(const struct sky2_hw *hw)
 {
 	switch (hw->chip_id) {
 	case CHIP_ID_YUKON_EC:
 	case CHIP_ID_YUKON_EC_U:
-		return 125000;	/* 125 Mhz */
+		return 125;	/* 125 Mhz */
 	case CHIP_ID_YUKON_FE:
-		return 100000;	/* 100 Mhz */
+		return 100;	/* 100 Mhz */
 	default:		/* YUKON_XL */
-		return 156000;	/* 156 Mhz */
+		return 156;	/* 156 Mhz */
 	}
-}
-
-static inline u32 sky2_ms2clk(const struct sky2_hw *hw, u32 ms)
-{
-	return sky2_khz(hw) * ms;
 }
 
 static inline u32 sky2_us2clk(const struct sky2_hw *hw, u32 us)
 {
-	return (sky2_khz(hw) * us) / 1000;
+	return sky2_mhz(hw) * us;
 }
+
+static inline u32 sky2_clk2us(const struct sky2_hw *hw, u32 clk)
+{
+	return clk / sky2_mhz(hw);
+}
+
 
 static int sky2_reset(struct sky2_hw *hw)
 {
@@ -2169,7 +2167,7 @@ static int sky2_reset(struct sky2_hw *hw)
 	/* Set the list last index */
 	sky2_write16(hw, STAT_LAST_IDX, STATUS_RING_SIZE - 1);
 
-	sky2_write32(hw, STAT_TX_TIMER_INI, sky2_ms2clk(hw, 10));
+	sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 1000));
 
 	/* These status setup values are copied from SysKonnect's driver */
 	if (is_ec_a1(hw)) {
@@ -2680,6 +2678,97 @@ static int sky2_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 #endif
 
+static int sky2_get_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *ecmd)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+
+	if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_STOP)
+		ecmd->tx_coalesce_usecs = 0;
+	else {
+		u32 clks = sky2_read32(hw, STAT_TX_TIMER_INI);
+		ecmd->tx_coalesce_usecs = sky2_clk2us(hw, clks);
+	}
+	ecmd->tx_max_coalesced_frames = sky2_read16(hw, STAT_TX_IDX_TH);
+
+	if (sky2_read8(hw, STAT_LEV_TIMER_CTRL) == TIM_STOP)
+		ecmd->rx_coalesce_usecs = 0;
+	else {
+		u32 clks = sky2_read32(hw, STAT_LEV_TIMER_INI);
+		ecmd->rx_coalesce_usecs = sky2_clk2us(hw, clks);
+	}
+	ecmd->rx_max_coalesced_frames = sky2_read8(hw, STAT_FIFO_WM);
+
+	if (sky2_read8(hw, STAT_ISR_TIMER_CTRL) == TIM_STOP)
+		ecmd->rx_coalesce_usecs_irq = 0;
+	else {
+		u32 clks = sky2_read32(hw, STAT_ISR_TIMER_INI);
+		ecmd->rx_coalesce_usecs_irq = sky2_clk2us(hw, clks);
+	}
+
+	ecmd->rx_max_coalesced_frames_irq = sky2_read8(hw, STAT_FIFO_ISR_WM);
+
+	return 0;
+}
+
+/* Note: this affect both ports */
+static int sky2_set_coalesce(struct net_device *dev,
+			     struct ethtool_coalesce *ecmd)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	const u32 tmin = sky2_clk2us(hw, 1);
+	const u32 tmax = 5000;
+
+	if (ecmd->tx_coalesce_usecs != 0 &&
+	    (ecmd->tx_coalesce_usecs < tmin || ecmd->tx_coalesce_usecs > tmax))
+		return -EINVAL;
+
+	if (ecmd->rx_coalesce_usecs != 0 &&
+	    (ecmd->rx_coalesce_usecs < tmin || ecmd->rx_coalesce_usecs > tmax))
+		return -EINVAL;
+
+	if (ecmd->rx_coalesce_usecs_irq != 0 &&
+	    (ecmd->rx_coalesce_usecs_irq < tmin || ecmd->rx_coalesce_usecs_irq > tmax))
+		return -EINVAL;
+
+	if (ecmd->tx_max_coalesced_frames > 0xffff)
+		return -EINVAL;
+	if (ecmd->rx_max_coalesced_frames > 0xff)
+		return -EINVAL;
+	if (ecmd->rx_max_coalesced_frames_irq > 0xff)
+		return -EINVAL;
+
+	if (ecmd->tx_coalesce_usecs == 0)
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
+	else {
+		sky2_write32(hw, STAT_TX_TIMER_INI,
+			     sky2_us2clk(hw, ecmd->tx_coalesce_usecs));
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
+	}
+	sky2_write16(hw, STAT_TX_IDX_TH, ecmd->tx_max_coalesced_frames);
+
+	if (ecmd->rx_coalesce_usecs == 0)
+		sky2_write8(hw, STAT_LEV_TIMER_CTRL, TIM_STOP);
+	else {
+		sky2_write32(hw, STAT_LEV_TIMER_INI,
+			     sky2_us2clk(hw, ecmd->rx_coalesce_usecs));
+		sky2_write8(hw, STAT_LEV_TIMER_CTRL, TIM_START);
+	}
+	sky2_write8(hw, STAT_FIFO_WM, ecmd->rx_max_coalesced_frames);
+
+	if (ecmd->rx_coalesce_usecs_irq == 0)
+		sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_STOP);
+	else {
+		sky2_write32(hw, STAT_TX_TIMER_INI,
+			     sky2_us2clk(hw, ecmd->rx_coalesce_usecs_irq));
+		sky2_write8(hw, STAT_ISR_TIMER_CTRL, TIM_START);
+	}
+	sky2_write8(hw, STAT_FIFO_ISR_WM, ecmd->rx_max_coalesced_frames_irq);
+	return 0;
+}
+
 static void sky2_get_ringparam(struct net_device *dev,
 			       struct ethtool_ringparam *ering)
 {
@@ -2765,6 +2854,8 @@ static struct ethtool_ops sky2_ethtool_ops = {
 	.get_rx_csum = sky2_get_rx_csum,
 	.set_rx_csum = sky2_set_rx_csum,
 	.get_strings = sky2_get_strings,
+	.get_coalesce = sky2_get_coalesce,
+	.set_coalesce = sky2_set_coalesce,
 	.get_ringparam = sky2_get_ringparam,
 	.set_ringparam = sky2_set_ringparam,
 	.get_pauseparam = sky2_get_pauseparam,
