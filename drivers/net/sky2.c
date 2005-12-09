@@ -1081,11 +1081,16 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_LOCKED;
 
 	if (unlikely(tx_avail(sky2) < tx_le_req(skb))) {
-		netif_stop_queue(dev);
+		/* There is a known but harmless race with lockless tx
+		 * and netif_stop_queue.
+		 */
+		if (!netif_queue_stopped(dev)) {
+			netif_stop_queue(dev);
+			printk(KERN_WARNING PFX "%s: ring full when queue awake!\n",
+			       dev->name);
+		}
 		spin_unlock(&sky2->tx_lock);
 
-		printk(KERN_WARNING PFX "%s: ring full when queue awake!\n",
-		       dev->name);
 		return NETDEV_TX_BUSY;
 	}
 
