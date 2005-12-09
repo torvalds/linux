@@ -240,7 +240,8 @@ spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
 	stat  = in_be64(&spu->priv1->int_stat_class1_RW) & mask;
 	dar   = in_be64(&spu->priv1->mfc_dar_RW);
 	dsisr = in_be64(&spu->priv1->mfc_dsisr_RW);
-	out_be64(&spu->priv1->mfc_dsisr_RW, 0UL);
+	if (stat & 2) /* mapping fault */
+		out_be64(&spu->priv1->mfc_dsisr_RW, 0UL);
 	out_be64(&spu->priv1->int_stat_class1_RW, stat);
 	spin_unlock(&spu->register_lock);
 
