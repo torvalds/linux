@@ -1051,7 +1051,7 @@ static inline unsigned tx_le_req(const struct sk_buff *skb)
 	if (skb_shinfo(skb)->tso_size)
 		++count;
 
-	if (skb->ip_summed)
+	if (skb->ip_summed == CHECKSUM_HW)
 		++count;
 
 	return count;
@@ -1207,7 +1207,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod,
 		     &sky2->tx_last_put, TX_RING_SIZE);
 
-	if (tx_avail(sky2) < MAX_SKB_TX_LE + 1)
+	if (tx_avail(sky2) <= MAX_SKB_TX_LE)
 		netif_stop_queue(dev);
 
 out_unlock:
@@ -1229,8 +1229,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	struct net_device *dev = sky2->netdev;
 	unsigned i;
 
-	if (done == sky2->tx_cons)
-		return;
+	BUG_ON(done >= TX_RING_SIZE);
 
 	if (unlikely(netif_msg_tx_done(sky2)))
 		printk(KERN_DEBUG "%s: tx done, up to %u\n",
