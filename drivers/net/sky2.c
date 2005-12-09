@@ -128,16 +128,14 @@ MODULE_DEVICE_TABLE(pci, sky2_id_table);
 static const unsigned txqaddr[] = { Q_XA1, Q_XA2 };
 static const unsigned rxqaddr[] = { Q_R1, Q_R2 };
 
-static const char *yukon_name[] = {
-	[CHIP_ID_YUKON_LITE - CHIP_ID_YUKON] = "Lite",	/* 0xb0 */
-	[CHIP_ID_YUKON_LP - CHIP_ID_YUKON] = "LP",	/* 0xb2 */
-	[CHIP_ID_YUKON_XL - CHIP_ID_YUKON] = "XL",	/* 0xb3 */
-	[CHIP_ID_YUKON_EC_U - CHIP_ID_YUKON] = "EC Ultra", /* 0xb4 */
-
-	[CHIP_ID_YUKON_EC - CHIP_ID_YUKON] = "EC",	/* 0xb6 */
-	[CHIP_ID_YUKON_FE - CHIP_ID_YUKON] = "FE",	/* 0xb7 */
+/* This driver supports yukon2 chipset only */
+static const char *yukon2_name[] = {
+	"XL",		/* 0xb3 */
+	"EC Ultra", 	/* 0xb4 */
+	"UNKNOWN",	/* 0xb5 */
+	"EC",		/* 0xb6 */
+	"FE",		/* 0xb7 */
 };
-
 
 /* Access to external PHY */
 static int gm_phy_write(struct sky2_hw *hw, unsigned port, u16 reg, u16 val)
@@ -2951,7 +2949,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	printk(KERN_INFO PFX "v%s addr 0x%lx irq %d Yukon-%s (0x%x) rev %d\n",
 	       DRV_VERSION, pci_resource_start(pdev, 0), pdev->irq,
-	       yukon_name[hw->chip_id - CHIP_ID_YUKON],
+	       yukon2_name[hw->chip_id - CHIP_ID_YUKON_XL],
 	       hw->chip_id, hw->chip_rev);
 
 	dev = sky2_init_netdev(hw, 0, using_dac);
