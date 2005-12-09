@@ -1509,9 +1509,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 */
 	if (sdkp->media_present) {
 		sd_read_capacity(sdkp, disk->disk_name, buffer);
-		if (sdp->removable)
-			sd_read_write_protect_flag(sdkp, disk->disk_name,
-						   buffer);
+		sd_read_write_protect_flag(sdkp, disk->disk_name, buffer);
 		sd_read_cache_type(sdkp, disk->disk_name, buffer);
 	}
 		
