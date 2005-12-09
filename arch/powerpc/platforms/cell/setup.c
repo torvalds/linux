@@ -201,6 +201,15 @@ static int __init cell_probe(int platform)
 	return 1;
 }
 
+/*
+ * Cell has no legacy IO; anything calling this function has to
+ * fail or bad things will happen
+ */
+static int cell_check_legacy_ioport(unsigned int baseport)
+{
+	return -ENODEV;
+}
+
 struct machdep_calls __initdata cell_md = {
 	.probe			= cell_probe,
 	.setup_arch		= cell_setup_arch,
@@ -213,6 +222,7 @@ struct machdep_calls __initdata cell_md = {
 	.get_rtc_time		= rtas_get_rtc_time,
 	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
+	.check_legacy_ioport	= cell_check_legacy_ioport,
 	.progress		= cell_progress,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
