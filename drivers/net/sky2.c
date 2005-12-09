@@ -2926,7 +2926,13 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	sky2->duplex = -1;
 	sky2->speed = -1;
 	sky2->advertising = sky2_supported_modes(hw);
-	sky2->rx_csum = 1;
+
+ 	/* Receive checksum disabled for Yukon XL
+	 * because of observed problems with incorrect
+	 * values when multiple packets are received in one interrupt
+	 */
+	sky2->rx_csum = (hw->chip_id != CHIP_ID_YUKON_XL);
+
 	INIT_WORK(&sky2->phy_task, sky2_phy_task, sky2);
 	init_MUTEX(&sky2->phy_sema);
 	sky2->tx_pending = TX_DEF_PENDING;
