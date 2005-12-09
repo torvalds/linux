@@ -45,7 +45,7 @@
 #include <asm/spu_csa.h>
 #include "spufs.h"
 
-#define SPU_MIN_TIMESLICE 	(100 * HZ / 1000))
+#define SPU_MIN_TIMESLICE 	(100 * HZ / 1000)
 
 #define SPU_BITMAP_SIZE (((MAX_PRIO+BITS_PER_LONG)/BITS_PER_LONG)+1)
 struct spu_prio_array {
