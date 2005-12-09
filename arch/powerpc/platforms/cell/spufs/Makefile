@@ -46,7 +46,7 @@ cmd_hexdump   = ( \
 		echo " * Do not edit!" ; \
 		echo " */" ; \
 		echo "static unsigned int $*_code[] __page_aligned = {" ; \
-		hexdump -v -e '4/4 "0x%08x, " "\n"' $< ; \
+		hexdump -v -e '"0x" 4/1 "%02x" "," "\n"' $< ; \
 		echo "};" ; \
 		) > $@
 quiet_cmd_hexdump = HEXDUMP $@
