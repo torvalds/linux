@@ -1227,6 +1227,8 @@ out_unlock:
 static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 {
 	struct net_device *dev = sky2->netdev;
+	struct pci_dev *pdev = sky2->hw->pdev;
+	u16 nxt, put;
 	unsigned i;
 
 	BUG_ON(done >= TX_RING_SIZE);
@@ -1235,39 +1237,34 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 		printk(KERN_DEBUG "%s: tx done, up to %u\n",
 		       dev->name, done);
 
-	spin_lock(&sky2->tx_lock);
+	for (put = sky2->tx_cons; put != done; put = nxt) {
+		struct tx_ring_info *re = sky2->tx_ring + put;
+		struct sk_buff *skb = re->skb;
 
-	while (sky2->tx_cons != done) {
-		struct tx_ring_info *re = sky2->tx_ring + sky2->tx_cons;
-		struct sk_buff *skb;
+  		nxt = re->idx;
+		BUG_ON(nxt >= TX_RING_SIZE);
 
 		/* Check for partial status */
-		if (tx_dist(sky2->tx_cons, done)
-		    < tx_dist(sky2->tx_cons, re->idx))
-			goto out;
+		if (tx_dist(put, done) < tx_dist(put, nxt))
+			break;
 
 		skb = re->skb;
-		pci_unmap_single(sky2->hw->pdev,
-				 pci_unmap_addr(re, mapaddr),
+		pci_unmap_single(pdev, pci_unmap_addr(re, mapaddr),
 				 skb_headlen(skb), PCI_DMA_TODEVICE);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			struct tx_ring_info *fre;
-			fre =
-			    sky2->tx_ring + (sky2->tx_cons + i +
-					     1) % TX_RING_SIZE;
-			pci_unmap_page(sky2->hw->pdev,
-				       pci_unmap_addr(fre, mapaddr),
-				       skb_shinfo(skb)->frags[i].size,
+			fre = sky2->tx_ring + (put + i + 1) % TX_RING_SIZE;
+			pci_unmap_page(pdev, pci_unmap_addr(fre, mapaddr),
+  				       skb_shinfo(skb)->frags[i].size,
 				       PCI_DMA_TODEVICE);
 		}
 
 		dev_kfree_skb_any(skb);
-
-		sky2->tx_cons = re->idx;
 	}
-out:
 
+	spin_lock(&sky2->tx_lock);
+	sky2->tx_cons = put;
 	if (netif_queue_stopped(dev) && tx_avail(sky2) > MAX_SKB_TX_LE)
 		netif_wake_queue(dev);
 	spin_unlock(&sky2->tx_lock);
@@ -1742,7 +1739,7 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
 	hwidx = sky2_read16(hw, STAT_PUT_IDX);
 	BUG_ON(hwidx >= STATUS_RING_SIZE);
- 	rmb();
+	rmb();
 
 	while (hwidx != hw->st_idx) {
 		struct sky2_status_le *le  = hw->st_le + hw->st_idx;
