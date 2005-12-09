@@ -791,7 +791,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 #endif
 
 	if (vptr->flags & VELOCITY_FLAGS_TX_CSUM) {
-		dev->features |= NETIF_F_HW_CSUM;
+		dev->features |= NETIF_F_IP_CSUM;
 	}
 
 	ret = register_netdev(dev);
