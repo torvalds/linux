@@ -2921,7 +2921,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	spin_lock_init(&sky2->tx_lock);
 	/* Auto speed and flow control */
 	sky2->autoneg = AUTONEG_ENABLE;
-	sky2->tx_pause = 0;
+	sky2->tx_pause = 1;
 	sky2->rx_pause = 1;
 	sky2->duplex = -1;
 	sky2->speed = -1;
