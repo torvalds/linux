@@ -1790,17 +1790,17 @@ struct sky2_port {
 	unsigned	     port;
 	u32		     msg_enable;
 
-	struct ring_info  *tx_ring;
+	spinlock_t	     tx_lock  ____cacheline_aligned_in_smp;
+	struct ring_info     *tx_ring;
 	struct sky2_tx_le    *tx_le;
-	spinlock_t	     tx_lock;
-	u32		     tx_addr64;
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */
+	u32		     tx_addr64;
 	u16		     tx_pending;
 	u16		     tx_last_put;
 	u16		     tx_last_mss;
 
-	struct ring_info  *rx_ring;
+	struct ring_info     *rx_ring ____cacheline_aligned_in_smp;
 	struct sky2_rx_le    *rx_le;
 	u32		     rx_addr64;
 	u16		     rx_next;		/* next re to check */
