@@ -1777,10 +1777,15 @@ struct sky2_status_le {
 	u8	opcode;
 } __attribute((packed));
 
+struct tx_ring_info {
+	struct sk_buff	*skb;
+	DECLARE_PCI_UNMAP_ADDR(mapaddr);
+	u16		idx;
+};
+
 struct ring_info {
 	struct sk_buff	*skb;
 	dma_addr_t	mapaddr;
-	u16		idx;
 };
 
 struct sky2_port {
@@ -1790,7 +1795,7 @@ struct sky2_port {
 	u32		     msg_enable;
 
 	spinlock_t	     tx_lock  ____cacheline_aligned_in_smp;
-	struct ring_info     *tx_ring;
+	struct tx_ring_info  *tx_ring;
 	struct sky2_tx_le    *tx_le;
 	u16		     tx_cons;		/* next le to check */
 	u16		     tx_prod;		/* next le to use */

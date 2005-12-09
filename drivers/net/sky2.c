@@ -958,7 +958,7 @@ static int sky2_up(struct net_device *dev)
 	if (!sky2->tx_le)
 		goto err_out;
 
-	sky2->tx_ring = kzalloc(TX_RING_SIZE * sizeof(struct ring_info),
+	sky2->tx_ring = kcalloc(TX_RING_SIZE, sizeof(struct tx_ring_info),
 				GFP_KERNEL);
 	if (!sky2->tx_ring)
 		goto err_out;
@@ -970,7 +970,7 @@ static int sky2_up(struct net_device *dev)
 		goto err_out;
 	memset(sky2->rx_le, 0, RX_LE_BYTES);
 
-	sky2->rx_ring = kzalloc(sky2->rx_pending * sizeof(struct ring_info),
+	sky2->rx_ring = kcalloc(sky2->rx_pending, sizeof(struct ring_info),
 				GFP_KERNEL);
 	if (!sky2->rx_ring)
 		goto err_out;
@@ -1070,7 +1070,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	struct sky2_tx_le *le = NULL;
-	struct ring_info *re;
+	struct tx_ring_info *re;
 	unsigned i, len;
 	dma_addr_t mapping;
 	u32 addr64;
@@ -1173,11 +1173,11 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 	/* Record the transmit mapping info */
 	re->skb = skb;
-	re->mapaddr = mapping;
+	pci_unmap_addr_set(re, mapaddr, mapping);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		struct ring_info *fre;
+		struct tx_ring_info *fre;
 
 		mapping = pci_map_page(hw->pdev, frag->page, frag->page_offset,
 				       frag->size, PCI_DMA_TODEVICE);
@@ -1198,9 +1198,9 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 
 		fre = sky2->tx_ring
 		    + ((re - sky2->tx_ring) + i + 1) % TX_RING_SIZE;
-		fre->skb = NULL;
-		fre->mapaddr = mapping;
+		pci_unmap_addr_set(fre, mapaddr, mapping);
 	}
+
 	re->idx = sky2->tx_prod;
 	le->ctrl |= EOP;
 
@@ -1239,7 +1239,7 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 	spin_lock(&sky2->tx_lock);
 
 	while (sky2->tx_cons != done) {
-		struct ring_info *re = sky2->tx_ring + sky2->tx_cons;
+		struct tx_ring_info *re = sky2->tx_ring + sky2->tx_cons;
 		struct sk_buff *skb;
 
 		/* Check for partial status */
@@ -1248,15 +1248,17 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			goto out;
 
 		skb = re->skb;
-		pci_unmap_single(sky2->hw->pdev, re->mapaddr,
+		pci_unmap_single(sky2->hw->pdev,
+				 pci_unmap_addr(re, mapaddr),
 				 skb_headlen(skb), PCI_DMA_TODEVICE);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-			struct ring_info *fre;
+			struct tx_ring_info *fre;
 			fre =
 			    sky2->tx_ring + (sky2->tx_cons + i +
 					     1) % TX_RING_SIZE;
-			pci_unmap_page(sky2->hw->pdev, fre->mapaddr,
+			pci_unmap_page(sky2->hw->pdev,
+				       pci_unmap_addr(fre, mapaddr),
 				       skb_shinfo(skb)->frags[i].size,
 				       PCI_DMA_TODEVICE);
 		}
