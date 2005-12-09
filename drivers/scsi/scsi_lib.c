@@ -1215,12 +1215,12 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		} else {
 			memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
 			cmd->cmd_len = req->cmd_len;
-			if (rq_data_dir(req) == WRITE)
-				cmd->sc_data_direction = DMA_TO_DEVICE;
-			else if (req->data_len)
-				cmd->sc_data_direction = DMA_FROM_DEVICE;
-			else
+			if (!req->data_len)
 				cmd->sc_data_direction = DMA_NONE;
+			else if (rq_data_dir(req) == WRITE)
+				cmd->sc_data_direction = DMA_TO_DEVICE;
+			else
+				cmd->sc_data_direction = DMA_FROM_DEVICE;
 			
 			cmd->transfersize = req->data_len;
 			cmd->allowed = 3;
