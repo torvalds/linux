@@ -2115,9 +2115,8 @@ static int sky2_reset(struct sky2_hw *hw)
 
 	sky2_write8(hw, B0_Y2LED, LED_STAT_ON);
 
-	/* Turn on descriptor polling (every 75us) */
-	sky2_write32(hw, B28_DPT_INI, sky2_us2clk(hw, 75));
-	sky2_write8(hw, B28_DPT_CTRL, DPT_START);
+	/* Turn off descriptor polling */
+	sky2_write32(hw, B28_DPT_CTRL, DPT_STOP);
 
 	/* Turn off receive timestamp */
 	sky2_write8(hw, GMAC_TI_ST_CTRL, GMT_ST_STOP);
@@ -2162,8 +2161,6 @@ static int sky2_reset(struct sky2_hw *hw)
 	/* Set the list last index */
 	sky2_write16(hw, STAT_LAST_IDX, STATUS_RING_SIZE - 1);
 
-	sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 1000));
-
 	/* These status setup values are copied from SysKonnect's driver */
 	if (is_ec_a1(hw)) {
 		/* WA for dev. #4.3 */
@@ -2174,21 +2171,20 @@ static int sky2_reset(struct sky2_hw *hw)
 
 		/* set Status-FIFO ISR watermark */
 		sky2_write8(hw, STAT_FIFO_ISR_WM, 0x07);	/* WA for dev. #4.18 */
-
+		sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 10000));
 	} else {
-		sky2_write16(hw, STAT_TX_IDX_TH, 0x000a);
-
-		/* set Status-FIFO watermark */
-		sky2_write8(hw, STAT_FIFO_WM, 0x10);
+		sky2_write16(hw, STAT_TX_IDX_TH, 10);
+		sky2_write8(hw, STAT_FIFO_WM, 16);
 
 		/* set Status-FIFO ISR watermark */
 		if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev == 0)
-			sky2_write8(hw, STAT_FIFO_ISR_WM, 0x10);
+			sky2_write8(hw, STAT_FIFO_ISR_WM, 4);
+		else
+			sky2_write8(hw, STAT_FIFO_ISR_WM, 16);
 
-		else		/* WA dev 4.109 */
-			sky2_write8(hw, STAT_FIFO_ISR_WM, 0x04);
-
-		sky2_write32(hw, STAT_ISR_TIMER_INI, 0x0190);
+		sky2_write32(hw, STAT_TX_TIMER_INI, sky2_us2clk(hw, 1000));
+		sky2_write32(hw, STAT_LEV_TIMER_INI, sky2_us2clk(hw, 100));
+		sky2_write32(hw, STAT_ISR_TIMER_INI, sky2_us2clk(hw, 20));
 	}
 
 	/* enable status unit */
