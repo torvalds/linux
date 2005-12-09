@@ -76,7 +76,6 @@
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
 #define RX_MAX_PENDING		(RX_LE_SIZE/2 - 2)
 #define RX_DEF_PENDING		RX_MAX_PENDING
-#define RX_COPY_THRESHOLD	256
 
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
@@ -98,6 +97,10 @@ static const u32 default_msg =
 static int debug = -1;		/* defaults above */
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+
+static int copybreak __read_mostly = 256;
+module_param(copybreak, int, 0);
+MODULE_PARM_DESC(copybreak, "Receive copy threshold");
 
 static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) },
@@ -1653,7 +1656,7 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
-	if (length < RX_COPY_THRESHOLD) {
+	if (length < copybreak) {
 		skb = alloc_skb(length + 2, GFP_ATOMIC);
 		if (!skb)
 			goto resubmit;
