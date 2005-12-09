@@ -114,11 +114,12 @@ static void mipsxx_cpu_stop(void *args)
 	}
 }
 
-static void mipsxx_perfcount_handler(struct pt_regs *regs)
+static int mipsxx_perfcount_handler(struct pt_regs *regs)
 {
 	unsigned int counters = op_model_mipsxx.num_counters;
 	unsigned int control;
 	unsigned int counter;
+	int handled = 0;
 
 	switch (counters) {
 #define HANDLE_COUNTER(n)						\
@@ -129,12 +130,15 @@ static void mipsxx_perfcount_handler(struct pt_regs *regs)
 		    (counter & M_COUNTER_OVERFLOW)) {			\
 			oprofile_add_sample(regs, n);			\
 			write_c0_perfcntr ## n(reg.counter[n]);		\
+			handled = 1;					\
 		}
 	HANDLE_COUNTER(3)
 	HANDLE_COUNTER(2)
 	HANDLE_COUNTER(1)
 	HANDLE_COUNTER(0)
 	}
+
+	return handled;
 }
 
 #define M_CONFIG1_PC	(1 << 4)
