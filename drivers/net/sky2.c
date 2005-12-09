@@ -661,7 +661,7 @@ static void sky2_qset(struct sky2_hw *hw, u16 q)
 /* Setup prefetch unit registers. This is the interface between
  * hardware and driver list elements
  */
-static inline void sky2_prefetch_init(struct sky2_hw *hw, u32 qaddr,
+static void sky2_prefetch_init(struct sky2_hw *hw, u32 qaddr,
 				      u64 addr, u32 last)
 {
 	sky2_write32(hw, Y2_QADDR(qaddr, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
@@ -1558,14 +1558,25 @@ out:
 static void sky2_tx_timeout(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	unsigned txq = txqaddr[sky2->port];
 
 	if (netif_msg_timer(sky2))
 		printk(KERN_ERR PFX "%s: tx timeout\n", dev->name);
 
-	sky2_write32(sky2->hw, Q_ADDR(txqaddr[sky2->port], Q_CSR), BMU_STOP);
-	sky2_read32(sky2->hw, Q_ADDR(txqaddr[sky2->port], Q_CSR));
+	netif_stop_queue(dev);
+
+	sky2_write32(hw, Q_ADDR(txq, Q_CSR), BMU_STOP);
+	sky2_read32(hw, Q_ADDR(txq, Q_CSR));
+
+	sky2_write32(hw, Y2_QADDR(txq, PREF_UNIT_CTRL), PREF_UNIT_RST_SET);
 
 	sky2_tx_clean(sky2);
+
+	sky2_qset(hw, txq);
+	sky2_prefetch_init(hw, txq, sky2->tx_le_map, TX_RING_SIZE - 1);
+
+	netif_wake_queue(dev);
 }
 
 
