@@ -1780,7 +1780,6 @@ struct sky2_status_le {
 struct ring_info {
 	struct sk_buff	*skb;
 	dma_addr_t	mapaddr;
-	u16		maplen;
 	u16		idx;
 };
 
@@ -1807,6 +1806,7 @@ struct sky2_port {
 	u16		     rx_put;		/* next le index to use */
 	u16		     rx_pending;
 	u16		     rx_last_put;
+	u16		     rx_bufsize;
 #ifdef SKY2_VLAN_TAG_USED
 	u16		     rx_tag;
 	struct vlan_group    *vlgrp;

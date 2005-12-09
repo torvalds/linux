@@ -729,23 +729,23 @@ static inline u32 high32(dma_addr_t a)
 }
 
 /* Build description to hardware about buffer */
-static inline void sky2_rx_add(struct sky2_port *sky2, struct ring_info *re)
+static inline void sky2_rx_add(struct sky2_port *sky2, dma_addr_t map)
 {
 	struct sky2_rx_le *le;
-	u32 hi = high32(re->mapaddr);
+	u32 hi = high32(map);
+	u16 len = sky2->rx_bufsize;
 
-	re->idx = sky2->rx_put;
 	if (sky2->rx_addr64 != hi) {
 		le = sky2_next_rx(sky2);
 		le->addr = cpu_to_le32(hi);
 		le->ctrl = 0;
 		le->opcode = OP_ADDR64 | HW_OWNER;
-		sky2->rx_addr64 = high32(re->mapaddr + re->maplen);
+		sky2->rx_addr64 = high32(map + len);
 	}
 
 	le = sky2_next_rx(sky2);
-	le->addr = cpu_to_le32((u32) re->mapaddr);
-	le->length = cpu_to_le16(re->maplen);
+	le->addr = cpu_to_le32((u32) map);
+	le->length = cpu_to_le16(len);
 	le->ctrl = 0;
 	le->opcode = OP_PACKET | HW_OWNER;
 }
@@ -814,7 +814,7 @@ static void sky2_rx_clean(struct sky2_port *sky2)
 
 		if (re->skb) {
 			pci_unmap_single(sky2->hw->pdev,
-					 re->mapaddr, re->maplen,
+					 re->mapaddr, sky2->rx_bufsize,
 					 PCI_DMA_FROMDEVICE);
 			kfree_skb(re->skb);
 			re->skb = NULL;
@@ -895,12 +895,6 @@ static void sky2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 }
 #endif
 
-#define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
-static inline unsigned rx_size(const struct sky2_port *sky2)
-{
-	return roundup(sky2->netdev->mtu + ETH_HLEN + 4, 8);
-}
-
 /*
  * Allocate and setup receiver buffer pool.
  * In case of 64 bit dma, there are 2X as many list elements
@@ -915,7 +909,6 @@ static inline unsigned rx_size(const struct sky2_port *sky2)
 static int sky2_rx_start(struct sky2_port *sky2)
 {
 	struct sky2_hw *hw = sky2->hw;
-	unsigned size = rx_size(sky2);
 	unsigned rxq = rxqaddr[sky2->port];
 	int i;
 
@@ -927,14 +920,13 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	for (i = 0; i < sky2->rx_pending; i++) {
 		struct ring_info *re = sky2->rx_ring + i;
 
-		re->skb = dev_alloc_skb(size);
+		re->skb = dev_alloc_skb(sky2->rx_bufsize);
 		if (!re->skb)
 			goto nomem;
 
 		re->mapaddr = pci_map_single(hw->pdev, re->skb->data,
-					     size, PCI_DMA_FROMDEVICE);
-		re->maplen = size;
-		sky2_rx_add(sky2, re);
+					     sky2->rx_bufsize, PCI_DMA_FROMDEVICE);
+		sky2_rx_add(sky2, re->mapaddr);
 	}
 
 	/* Tell chip about available buffers */
@@ -1182,7 +1174,6 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	/* Record the transmit mapping info */
 	re->skb = skb;
 	re->mapaddr = mapping;
-	re->maplen = len;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -1209,7 +1200,6 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		    + ((re - sky2->tx_ring) + i + 1) % TX_RING_SIZE;
 		fre->skb = NULL;
 		fre->mapaddr = mapping;
-		fre->maplen = frag->size;
 	}
 	re->idx = sky2->tx_prod;
 	le->ctrl |= EOP;
@@ -1258,8 +1248,8 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			goto out;
 
 		skb = re->skb;
-		pci_unmap_single(sky2->hw->pdev,
-				 re->mapaddr, re->maplen, PCI_DMA_TODEVICE);
+		pci_unmap_single(sky2->hw->pdev, re->mapaddr,
+				 skb_headlen(skb), PCI_DMA_TODEVICE);
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			struct ring_info *fre;
@@ -1267,7 +1257,8 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			    sky2->tx_ring + (sky2->tx_cons + i +
 					     1) % TX_RING_SIZE;
 			pci_unmap_page(sky2->hw->pdev, fre->mapaddr,
-				       fre->maplen, PCI_DMA_TODEVICE);
+				       skb_shinfo(skb)->frags[i].size,
+				       PCI_DMA_TODEVICE);
 		}
 
 		dev_kfree_skb_any(skb);
@@ -1579,6 +1570,14 @@ static void sky2_tx_timeout(struct net_device *dev)
 	sky2_tx_clean(sky2);
 }
 
+
+#define roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
+/* Want receive buffer size to be multiple of 64 bits, and incl room for vlan */
+static inline unsigned sky2_buf_size(int mtu)
+{
+	return roundup(mtu + ETH_HLEN + 4, 8);
+}
+
 static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
@@ -1609,6 +1608,7 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	sky2_rx_clean(sky2);
 
 	dev->mtu = new_mtu;
+	sky2->rx_bufsize = sky2_buf_size(new_mtu);
 	mode = DATA_BLIND_VAL(DATA_BLIND_DEF) |
 		GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
 
@@ -1639,7 +1639,6 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 {
 	struct ring_info *re = sky2->rx_ring + sky2->rx_next;
 	struct sk_buff *skb = NULL;
-	const unsigned int bufsize = rx_size(sky2);
 
 	if (unlikely(netif_msg_rx_status(sky2)))
 		printk(KERN_DEBUG PFX "%s: rx slot %u status 0x%x len %d\n",
@@ -1669,25 +1668,24 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 	} else {
 		struct sk_buff *nskb;
 
-		nskb = dev_alloc_skb(bufsize);
+		nskb = dev_alloc_skb(sky2->rx_bufsize);
 		if (!nskb)
 			goto resubmit;
 
 		skb = re->skb;
 		re->skb = nskb;
 		pci_unmap_single(sky2->hw->pdev, re->mapaddr,
-				 re->maplen, PCI_DMA_FROMDEVICE);
+				 sky2->rx_bufsize, PCI_DMA_FROMDEVICE);
 		prefetch(skb->data);
 
 		re->mapaddr = pci_map_single(sky2->hw->pdev, nskb->data,
-					     bufsize, PCI_DMA_FROMDEVICE);
-		re->maplen = bufsize;
+					     sky2->rx_bufsize, PCI_DMA_FROMDEVICE);
 	}
 
 	skb_put(skb, length);
 resubmit:
 	re->skb->ip_summed = CHECKSUM_NONE;
-	sky2_rx_add(sky2, re);
+	sky2_rx_add(sky2, re->mapaddr);
 
 	/* Tell receiver about new buffers. */
 	sky2_put_idx(sky2->hw, rxqaddr[sky2->port], sky2->rx_put,
@@ -2919,6 +2917,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	init_MUTEX(&sky2->phy_sema);
 	sky2->tx_pending = TX_DEF_PENDING;
 	sky2->rx_pending = is_ec_a1(hw) ? 8 : RX_DEF_PENDING;
+	sky2->rx_bufsize = sky2_buf_size(ETH_DATA_LEN);
 
 	hw->dev[port] = dev;
 
