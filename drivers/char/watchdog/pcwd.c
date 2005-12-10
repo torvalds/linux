@@ -49,27 +49,30 @@
  *	More info available at http://www.berkprod.com/ or http://www.pcwatchdog.com/
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/timer.h>
-#include <linux/jiffies.h>
-#include <linux/config.h>
-#include <linux/wait.h>
-#include <linux/slab.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/fs.h>
-#include <linux/miscdevice.h>
-#include <linux/watchdog.h>
-#include <linux/notifier.h>
-#include <linux/init.h>
-#include <linux/spinlock.h>
-#include <linux/reboot.h>
+#include <linux/config.h>	/* For CONFIG_WATCHDOG_NOWAYOUT/... */
+#include <linux/module.h>	/* For module specific items */
+#include <linux/moduleparam.h>	/* For new moduleparam's */
+#include <linux/types.h>	/* For standard types (like size_t) */
+#include <linux/errno.h>	/* For the -ENODEV/... values */
+#include <linux/kernel.h>	/* For printk/panic/... */
+#include <linux/delay.h>	/* For mdelay function */
+#include <linux/timer.h>	/* For timer related operations */
+#include <linux/jiffies.h>	/* For jiffies stuff */
+#include <linux/miscdevice.h>	/* For MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR) */
+#include <linux/watchdog.h>	/* For the watchdog specific items */
+#include <linux/notifier.h>	/* For notifier support */
+#include <linux/reboot.h>	/* For reboot_notifier stuff */
+#include <linux/init.h>		/* For __init/__exit/... */
+#include <linux/fs.h>		/* For file operations */
+#include <linux/ioport.h>	/* For io-port access */
+#include <linux/spinlock.h>	/* For spin_lock/spin_unlock/... */
 #include <linux/sched.h>	/* TASK_INTERRUPTIBLE, set_current_state() and friends */
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/slab.h>		/* For kmalloc */
 
+#include <asm/uaccess.h>	/* For copy_to_user/put_user/... */
+#include <asm/io.h>		/* For inb/outb/... */
+
+/* Module and version information */
 #define WD_VER                  "1.16 (06/12/2004)"
 #define PFX			"pcwd: "
 
@@ -84,7 +87,7 @@
 #define	PCWD_REVISION_C		2
 
 /*
- * These are the defines that describe the control status bits for the
+ * These are the defines that describe the control status #1 bits for the
  * PC Watchdog card, revision A.
  */
 #define WD_WDRST                0x01	/* Previously reset state */
@@ -94,7 +97,7 @@
 #define WD_SRLY2                0x80	/* Software external relay triggered */
 
 /*
- * These are the defines that describe the control status bits for the
+ * These are the defines that describe the control status #1 bits for the
  * PC Watchdog card, revision C.
  */
 #define WD_REVC_WTRP            0x01	/* Watchdog Trip status */
@@ -106,15 +109,15 @@
 #define ISA_COMMAND_TIMEOUT     1000
 
 /* Watchdog's internal commands */
-#define CMD_ISA_IDLE                    0x00
-#define CMD_ISA_VERSION_INTEGER         0x01
-#define CMD_ISA_VERSION_TENTH           0x02
-#define CMD_ISA_VERSION_HUNDRETH        0x03
-#define CMD_ISA_VERSION_MINOR           0x04
-#define CMD_ISA_SWITCH_SETTINGS         0x05
-#define CMD_ISA_DELAY_TIME_2SECS        0x0A
-#define CMD_ISA_DELAY_TIME_4SECS        0x0B
-#define CMD_ISA_DELAY_TIME_8SECS        0x0C
+#define CMD_ISA_IDLE			0x00
+#define CMD_ISA_VERSION_INTEGER		0x01
+#define CMD_ISA_VERSION_TENTH		0x02
+#define CMD_ISA_VERSION_HUNDRETH	0x03
+#define CMD_ISA_VERSION_MINOR		0x04
+#define CMD_ISA_SWITCH_SETTINGS		0x05
+#define CMD_ISA_DELAY_TIME_2SECS	0x0A
+#define CMD_ISA_DELAY_TIME_4SECS	0x0B
+#define CMD_ISA_DELAY_TIME_8SECS	0x0C
 
 /*
  * We are using an kernel timer to do the pinging of the watchdog
@@ -767,10 +770,10 @@ static int __devinit pcwatchdog_init(int base_addr)
 		printk(KERN_INFO PFX "No previous trip detected - Cold boot or reset\n");
 
 	/* Check that the heartbeat value is within it's range ; if not reset to the default */
-        if (pcwd_set_heartbeat(heartbeat)) {
-                pcwd_set_heartbeat(WATCHDOG_HEARTBEAT);
-                printk(KERN_INFO PFX "heartbeat value must be 2<=heartbeat<=7200, using %d\n",
-                        WATCHDOG_HEARTBEAT);
+	if (pcwd_set_heartbeat(heartbeat)) {
+		pcwd_set_heartbeat(WATCHDOG_HEARTBEAT);
+		printk(KERN_INFO PFX "heartbeat value must be 2<=heartbeat<=7200, using %d\n",
+			WATCHDOG_HEARTBEAT);
 	}
 
 	ret = register_reboot_notifier(&pcwd_notifier);
