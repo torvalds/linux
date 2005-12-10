@@ -13,12 +13,12 @@
 #include <linux/time.h>
 #include <linux/list.h>
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 #else
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <asm/types.h>
 #endif
-#include <linux/mod_devicetable.h>
 
 /*
  * The event structure itself
