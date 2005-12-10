@@ -828,6 +828,7 @@ static void __devexit pcwatchdog_exit(void)
 	unregister_reboot_notifier(&pcwd_notifier);
 	release_region(current_readport, (revision == PCWD_REVISION_A) ? 2 : 4);
 	current_readport = 0x0000;
+	cards_found--;
 }
 
 /*
