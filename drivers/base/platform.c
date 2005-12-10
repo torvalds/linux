@@ -168,7 +168,7 @@ struct platform_device *platform_device_alloc(const char *name, unsigned int id)
 		pa->pdev.dev.release = platform_device_release;
 	}
 
-	return pa ? &pa->pdev : NULL;	
+	return pa ? &pa->pdev : NULL;
 }
 EXPORT_SYMBOL_GPL(platform_device_alloc);
 
@@ -282,6 +282,29 @@ int platform_device_add(struct platform_device *pdev)
 EXPORT_SYMBOL_GPL(platform_device_add);
 
 /**
+ *	platform_device_del - remove a platform-level device
+ *	@pdev:	platform device we're removing
+ *
+ *	Note that this function will also release all memory- and port-based
+ *	resources owned by the device (@dev->resource).
+ */
+void platform_device_del(struct platform_device *pdev)
+{
+	int i;
+
+	if (pdev) {
+		for (i = 0; i < pdev->num_resources; i++) {
+			struct resource *r = &pdev->resource[i];
+			if (r->flags & (IORESOURCE_MEM|IORESOURCE_IO))
+				release_resource(r);
+		}
+
+		device_del(&pdev->dev);
+	}
+}
+EXPORT_SYMBOL_GPL(platform_device_del);
+
+/**
  *	platform_device_register - add a platform-level device
  *	@pdev:	platform device we're adding
  *
@@ -293,25 +316,17 @@ int platform_device_register(struct platform_device * pdev)
 }
 
 /**
- *	platform_device_unregister - remove a platform-level device
- *	@pdev:	platform device we're removing
+ *	platform_device_unregister - unregister a platform-level device
+ *	@pdev:	platform device we're unregistering
  *
- *	Note that this function will also release all memory- and port-based
- *	resources owned by the device (@dev->resource).
+ *	Unregistration is done in 2 steps. Fisrt we release all resources
+ *	and remove it from the sybsystem, then we drop reference count by
+ *	calling platform_device_put().
  */
 void platform_device_unregister(struct platform_device * pdev)
 {
-	int i;
-
-	if (pdev) {
-		for (i = 0; i < pdev->num_resources; i++) {
-			struct resource *r = &pdev->resource[i];
-			if (r->flags & (IORESOURCE_MEM|IORESOURCE_IO))
-				release_resource(r);
-		}
-
-		device_unregister(&pdev->dev);
-	}
+	platform_device_del(pdev);
+	platform_device_put(pdev);
 }
 
 /**
