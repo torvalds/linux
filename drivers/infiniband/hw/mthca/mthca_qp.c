@@ -764,8 +764,6 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RWE |
 							MTHCA_QP_OPTPAR_RRE |
 							MTHCA_QP_OPTPAR_RAE);
-
-		qp->atomic_rd_en = attr->qp_access_flags;
 	}
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
@@ -801,8 +799,6 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 				cpu_to_be32(fls(attr->max_dest_rd_atomic - 1) << 21);
 
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRA_MAX);
-
-		qp->resp_depth = attr->max_dest_rd_atomic;
 	}
 
 	qp_context->params2 |= cpu_to_be32(MTHCA_QP_BIT_RSC);
@@ -844,8 +840,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		err = -EINVAL;
 	}
 
-	if (!err)
+	if (!err) {
 		qp->state = new_state;
+		if (attr_mask & IB_QP_ACCESS_FLAGS)
+			qp->atomic_rd_en = attr->qp_access_flags;
+		if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+			qp->resp_depth = attr->max_dest_rd_atomic;
+	}
 
 	mthca_free_mailbox(dev, mailbox);
 
