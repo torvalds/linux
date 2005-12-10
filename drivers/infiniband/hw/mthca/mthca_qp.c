@@ -591,6 +591,20 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		return -EINVAL;
 	}
 
+	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC &&
+	    attr->max_rd_atomic > dev->limits.max_qp_init_rdma) {
+		mthca_dbg(dev, "Max rdma_atomic as initiator %u too large (max is %d)\n",
+			  attr->max_rd_atomic, dev->limits.max_qp_init_rdma);
+		return -EINVAL;
+	}
+
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC &&
+	    attr->max_dest_rd_atomic > 1 << dev->qp_table.rdb_shift) {
+		mthca_dbg(dev, "Max rdma_atomic as responder %u too large (max %d)\n",
+			  attr->max_dest_rd_atomic, 1 << dev->qp_table.rdb_shift);
+		return -EINVAL;
+	}
+
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
