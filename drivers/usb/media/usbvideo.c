@@ -725,7 +725,7 @@ int usbvideo_register(
 		/* Allocate user_data separately because of kmalloc's limits */
 		if (num_extra > 0) {
 			up->user_size = num_cams * num_extra;
-			up->user_data = (char *) kmalloc(up->user_size, GFP_KERNEL);
+			up->user_data = kmalloc(up->user_size, GFP_KERNEL);
 			if (up->user_data == NULL) {
 				err("%s: Failed to allocate user_data (%d. bytes)",
 				    __FUNCTION__, up->user_size);

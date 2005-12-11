@@ -465,14 +465,14 @@ static int probe_rio(struct usb_interface *intf,
 
 	rio->rio_dev = dev;
 
-	if (!(rio->obuf = (char *) kmalloc(OBUF_SIZE, GFP_KERNEL))) {
+	if (!(rio->obuf = kmalloc(OBUF_SIZE, GFP_KERNEL))) {
 		err("probe_rio: Not enough memory for the output buffer");
 		usb_deregister_dev(intf, &usb_rio_class);
 		return -ENOMEM;
 	}
 	dbg("probe_rio: obuf address:%p", rio->obuf);
 
-	if (!(rio->ibuf = (char *) kmalloc(IBUF_SIZE, GFP_KERNEL))) {
+	if (!(rio->ibuf = kmalloc(IBUF_SIZE, GFP_KERNEL))) {
 		err("probe_rio: Not enough memory for the input buffer");
 		usb_deregister_dev(intf, &usb_rio_class);
 		kfree(rio->obuf);

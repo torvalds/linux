@@ -3554,7 +3554,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 
 	/* Allocate 2 bytes of memory for camera control USB transfers */
-	if (!(cam->control_buffer = (u16*)kmalloc(2, GFP_KERNEL))) {
+	if (!(cam->control_buffer = kmalloc(2, GFP_KERNEL))) {
 		DBG(1,"Couldn't allocate memory for camera control transfers")
 		err = -ENOMEM;
 		goto fail;
@@ -3562,7 +3562,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	memset(cam->control_buffer, 0, 2);
 
 	/* Allocate 8 bytes of memory for USB data transfers to the FSB */
-	if (!(cam->data_buffer = (u16*)kmalloc(8, GFP_KERNEL))) {
+	if (!(cam->data_buffer = kmalloc(8, GFP_KERNEL))) {
 		DBG(1, "Couldn't allocate memory for data "
 		       "transfers to the FSB")
 		err = -ENOMEM;
