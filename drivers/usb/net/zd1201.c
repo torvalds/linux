@@ -1722,7 +1722,7 @@ static const struct iw_priv_args zd1201_private_args[] = {
 	    IW_PRIV_TYPE_NONE, "sethostauth" },
 	{ ZD1201GIWHOSTAUTH, IW_PRIV_TYPE_NONE,
 	    IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "gethostauth" },
-	{ ZD1201SIWAUTHSTA, IW_PRIV_TYPE_ADDR | IW_PRIV_SIZE_FIXED | 1, 
+	{ ZD1201SIWAUTHSTA, IW_PRIV_TYPE_ADDR | IW_PRIV_SIZE_FIXED | 1,
 	    IW_PRIV_TYPE_NONE, "authstation" },
 	{ ZD1201SIWMAXASSOC, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	    IW_PRIV_TYPE_NONE, "setmaxassoc" },
@@ -1731,9 +1731,9 @@ static const struct iw_priv_args zd1201_private_args[] = {
 };
 
 static const struct iw_handler_def zd1201_iw_handlers = {
-	.num_standard 		= sizeof(zd1201_iw_handler)/sizeof(iw_handler),
-	.num_private 		= sizeof(zd1201_private_handler)/sizeof(iw_handler),
-	.num_private_args 	= sizeof(zd1201_private_args)/sizeof(struct iw_priv_args),
+	.num_standard 		= ARRAY_SIZE(zd1201_iw_handler),
+	.num_private 		= ARRAY_SIZE(zd1201_private_handler),
+	.num_private_args 	= ARRAY_SIZE(zd1201_private_args),
 	.standard 		= (iw_handler *)zd1201_iw_handler,
 	.private 		= (iw_handler *)zd1201_private_handler,
 	.private_args 		= (struct iw_priv_args *) zd1201_private_args,

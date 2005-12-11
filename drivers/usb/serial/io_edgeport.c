@@ -2353,7 +2353,7 @@ static int calc_baud_rate_divisor (int baudrate, int *divisor)
 
 	dbg("%s - %d", __FUNCTION__, baudrate);
 
-	for (i = 0; i < NUM_ENTRIES(divisor_table); i++) {
+	for (i = 0; i < ARRAY_SIZE(divisor_table); i++) {
 		if ( divisor_table[i].BaudRate == baudrate ) {
 			*divisor = divisor_table[i].Divisor;
 			return 0;

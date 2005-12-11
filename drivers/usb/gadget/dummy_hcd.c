@@ -138,7 +138,7 @@ static const char *const ep_name [] = {
 	/* or like sa1100: two fixed function endpoints */
 	"ep1out-bulk", "ep2in-bulk",
 };
-#define DUMMY_ENDPOINTS	(sizeof(ep_name)/sizeof(char *))
+#define DUMMY_ENDPOINTS	ARRAY_SIZE(ep_name)
 
 /*-------------------------------------------------------------------------*/
 

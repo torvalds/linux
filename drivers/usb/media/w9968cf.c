@@ -2958,7 +2958,7 @@ static int w9968cf_v4l_ioctl(struct inode* inode, struct file* filp,
 	};
 
 	#define V4L1_IOCTL(cmd) \
-	        ((_IOC_NR((cmd)) < sizeof(v4l1_ioctls)/sizeof(char*)) ? \
+	        ((_IOC_NR((cmd)) < ARRAY_SIZE(v4l1_ioctls)) ? \
 	        v4l1_ioctls[_IOC_NR((cmd))] : "?")
 
 	cam = (struct w9968cf_device*)video_get_drvdata(video_devdata(filp));

@@ -351,17 +351,14 @@ static int __init ti_init(void)
 	int i,j;
 	int ret;
 
-
 	/* insert extra vendor and product ids */
-	j = sizeof(ti_id_table_3410)/sizeof(struct usb_device_id)
-		- TI_EXTRA_VID_PID_COUNT - 1;
+	j = ARRAY_SIZE(ti_id_table_3410) - TI_EXTRA_VID_PID_COUNT - 1;
 	for (i=0; i<min(vendor_3410_count,product_3410_count); i++,j++) {
 		ti_id_table_3410[j].idVendor = vendor_3410[i];
 		ti_id_table_3410[j].idProduct = product_3410[i];
 		ti_id_table_3410[j].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
 	}
-	j = sizeof(ti_id_table_5052)/sizeof(struct usb_device_id)
-		- TI_EXTRA_VID_PID_COUNT - 1;
+	j = ARRAY_SIZE(ti_id_table_5052) - TI_EXTRA_VID_PID_COUNT - 1;
 	for (i=0; i<min(vendor_5052_count,product_5052_count); i++,j++) {
 		ti_id_table_5052[j].idVendor = vendor_5052[i];
 		ti_id_table_5052[j].idProduct = product_5052[i];

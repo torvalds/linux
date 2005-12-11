@@ -2093,7 +2093,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Programming the tablet macro keys needs to be done with a for loop
 	 * as the keycodes are discontiguous.
 	 */
-	for (i = 0; i < sizeof(macroKeyEvents) / sizeof(macroKeyEvents[0]); ++i)
+	for (i = 0; i < ARRAY_SIZE(macroKeyEvents); ++i)
 		set_bit(macroKeyEvents[i], inputdev->keybit);
 
 	/*
@@ -2135,7 +2135,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * not an error :-)
 	 */
 
-	for (i = 0; i < sizeof(speeds) / sizeof(speeds[0]); ++i) {
+	for (i = 0; i < ARRAY_SIZE(speeds); ++i) {
 		aiptek->curSetting.programmableDelay = speeds[i];
 		(void)aiptek_program_tablet(aiptek);
 		if (aiptek->inputdev->absmax[ABS_X] > 0) {

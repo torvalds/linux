@@ -425,7 +425,7 @@ static int __init safe_init (void)
 	if (vendor || product) {
 		info ("vendor: %x product: %x\n", vendor, product);
 
-		for (i = 0; i < (sizeof (id_table) / sizeof (struct usb_device_id)); i++) {
+		for (i = 0; i < ARRAY_SIZE(id_table); i++) {
 			if (!id_table[i].idVendor && !id_table[i].idProduct) {
 				id_table[i].idVendor = vendor;
 				id_table[i].idProduct = product;

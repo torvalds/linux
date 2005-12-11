@@ -133,13 +133,11 @@ static struct nand_flash_dev nand_flash_ids[] = {
 	{ 0,}
 };
 
-#define SIZE(a)	(sizeof(a)/sizeof((a)[0]))
-
 static struct nand_flash_dev *
 nand_find_id(unsigned char id) {
 	int i;
 
-	for (i = 0; i < SIZE(nand_flash_ids); i++)
+	for (i = 0; i < ARRAY_SIZE(nand_flash_ids); i++)
 		if (nand_flash_ids[i].model_id == id)
 			return &(nand_flash_ids[i]);
 	return NULL;
