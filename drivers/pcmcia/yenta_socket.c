@@ -1019,10 +1019,9 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 		return -ENODEV;
 	}
 
-	socket = kmalloc(sizeof(struct yenta_socket), GFP_KERNEL);
+	socket = kzalloc(sizeof(struct yenta_socket), GFP_KERNEL);
 	if (!socket)
 		return -ENOMEM;
-	memset(socket, 0, sizeof(*socket));
 
 	/* prepare pcmcia_socket */
 	socket->socket.ops = &yenta_socket_operations;

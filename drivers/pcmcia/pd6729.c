@@ -634,12 +634,10 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	char configbyte;
 	struct pd6729_socket *socket;
 
-	socket = kmalloc(sizeof(struct pd6729_socket) * MAX_SOCKETS,
+	socket = kzalloc(sizeof(struct pd6729_socket) * MAX_SOCKETS,
 			 GFP_KERNEL);
 	if (!socket)
 		return -ENOMEM;
-
-	memset(socket, 0, sizeof(struct pd6729_socket) * MAX_SOCKETS);
 
 	if ((ret = pci_enable_device(dev)))
 		goto err_out_free_mem;

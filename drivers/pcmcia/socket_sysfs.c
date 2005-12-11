@@ -285,10 +285,9 @@ static ssize_t pccard_store_cis(struct kobject *kobj, char *buf, loff_t off, siz
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
 
-	cis = kmalloc(sizeof(cisdump_t), GFP_KERNEL);
+	cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
 	if (!cis)
 		return -ENOMEM;
-	memset(cis, 0, sizeof(cisdump_t));
 
 	cis->Length = count + 1;
 	memcpy(cis->Data, buf, count);

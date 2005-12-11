@@ -354,13 +354,12 @@ int au1x00_pcmcia_socket_probe(struct device *dev, struct pcmcia_low_level *ops,
 	struct skt_dev_info *sinfo;
 	int ret, i;
 
-	sinfo = kmalloc(sizeof(struct skt_dev_info), GFP_KERNEL);
+	sinfo = kzalloc(sizeof(struct skt_dev_info), GFP_KERNEL);
 	if (!sinfo) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memset(sinfo, 0, sizeof(struct skt_dev_info));
 	sinfo->nskt = nr;
 
 	/*

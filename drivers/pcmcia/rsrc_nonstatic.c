@@ -75,10 +75,9 @@ static DECLARE_MUTEX(rsrc_sem);
 static struct resource *
 make_resource(unsigned long b, unsigned long n, int flags, char *name)
 {
-	struct resource *res = kmalloc(sizeof(*res), GFP_KERNEL);
+	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
 	if (res) {
-		memset(res, 0, sizeof(*res));
 		res->name = name;
 		res->start = b;
 		res->end = b + n - 1;
@@ -200,12 +199,11 @@ static void do_io_probe(struct pcmcia_socket *s, kio_addr_t base, kio_addr_t num
 	   base, base+num-1);
 
     /* First, what does a floating port look like? */
-    b = kmalloc(256, GFP_KERNEL);
+    b = kzalloc(256, GFP_KERNEL);
     if (!b) {
             printk(KERN_ERR "do_io_probe: unable to kmalloc 256 bytes");
             return;
     }
-    memset(b, 0, 256);
     for (i = base, most = 0; i < base+num; i += 8) {
 	res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA IO probe");
 	if (!res)
@@ -850,10 +848,9 @@ static int nonstatic_init(struct pcmcia_socket *s)
 {
 	struct socket_data *data;
 
-	data = kmalloc(sizeof(struct socket_data), GFP_KERNEL);
+	data = kzalloc(sizeof(struct socket_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	memset(data, 0, sizeof(struct socket_data));
 
 	data->mem_db.next = &data->mem_db;
 	data->io_db.next = &data->io_db;

@@ -645,13 +645,12 @@ int soc_common_drv_pcmcia_probe(struct device *dev, struct pcmcia_low_level *ops
 
 	down(&soc_pcmcia_sockets_lock);
 
-	sinfo = kmalloc(SKT_DEV_INFO_SIZE(nr), GFP_KERNEL);
+	sinfo = kzalloc(SKT_DEV_INFO_SIZE(nr), GFP_KERNEL);
 	if (!sinfo) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memset(sinfo, 0, SKT_DEV_INFO_SIZE(nr));
 	sinfo->nskt = nr;
 
 	/*

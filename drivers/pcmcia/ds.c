@@ -264,11 +264,9 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 		if (fw->size >= CISTPL_MAX_CIS_SIZE)
 			goto release;
 
-		cis = kmalloc(sizeof(cisdump_t), GFP_KERNEL);
+		cis = kzalloc(sizeof(cisdump_t), GFP_KERNEL);
 		if (!cis)
 			goto release;
-
-		memset(cis, 0, sizeof(cisdump_t));
 
 		cis->Length = fw->size + 1;
 		memcpy(cis->Data, fw->data, fw->size);
@@ -387,13 +385,12 @@ static int pcmcia_device_probe(struct device * dev)
 			s->functions = mfc.nfn;
 		else
 			s->functions = 1;
-		s->config = kmalloc(sizeof(config_t) * s->functions,
+		s->config = kzalloc(sizeof(config_t) * s->functions,
 				    GFP_KERNEL);
 		if (!s->config) {
 			ret = -ENOMEM;
 			goto put_module;
 		}
-		memset(s->config, 0, sizeof(config_t) * s->functions);
 	}
 
 	ret = p_drv->probe(p_dev);
@@ -572,10 +569,9 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	if (s->device_count == 2)
 		goto err_put;
 
-	p_dev = kmalloc(sizeof(struct pcmcia_device), GFP_KERNEL);
+	p_dev = kzalloc(sizeof(struct pcmcia_device), GFP_KERNEL);
 	if (!p_dev)
 		goto err_put;
-	memset(p_dev, 0, sizeof(struct pcmcia_device));
 
 	p_dev->socket = s;
 	p_dev->device_no = (s->device_count++);
