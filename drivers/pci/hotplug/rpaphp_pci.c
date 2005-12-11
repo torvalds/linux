@@ -336,13 +336,14 @@ EXPORT_SYMBOL_GPL(rpaphp_unconfig_pci_adapter);
 
 static int setup_pci_hotplug_slot_info(struct slot *slot)
 {
+	struct hotplug_slot_info *hotplug_slot_info = slot->hotplug_slot->info;
+
 	dbg("%s Initilize the PCI slot's hotplug->info structure ...\n",
 	    __FUNCTION__);
-	rpaphp_get_power_status(slot, &slot->hotplug_slot->info->power_status);
+	rpaphp_get_power_status(slot, &hotplug_slot_info->power_status);
 	rpaphp_get_pci_adapter_status(slot, 1,
-				      &slot->hotplug_slot->info->
-				      adapter_status);
-	if (slot->hotplug_slot->info->adapter_status == NOT_VALID) {
+				      &hotplug_slot_info->adapter_status);
+	if (hotplug_slot_info->adapter_status == NOT_VALID) {
 		err("%s: NOT_VALID: skip dn->full_name=%s\n",
 		    __FUNCTION__, slot->dn->full_name);
 		return -EINVAL;
