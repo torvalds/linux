@@ -2247,9 +2247,6 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	client->accept_input = callback->allow_output;
 	client->accept_output = callback->allow_input;
 		
-	/* fill client data */
-	client->data.kernel.card = card;
-	client->data.kernel.private_data = callback->private_data;
 	sprintf(client->name, "Client-%d", client->number);
 
 	client->type = KERNEL_CLIENT;

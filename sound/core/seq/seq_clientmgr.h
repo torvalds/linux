@@ -40,9 +40,6 @@ struct snd_seq_user_client {
 };
 
 struct snd_seq_kernel_client {
-	struct snd_card *card;
-	/* pointer to client functions */
-	void *private_data;			/* private data for client */
 	/* ... */
 };
 
