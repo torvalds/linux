@@ -98,7 +98,7 @@ static inline void __release_stripe(raid5_conf_t *conf, struct stripe_head *sh)
 			list_add_tail(&sh->lru, &conf->inactive_list);
 			atomic_dec(&conf->active_stripes);
 			if (!conf->inactive_blocked ||
-			    atomic_read(&conf->active_stripes) < (NR_STRIPES*3/4))
+			    atomic_read(&conf->active_stripes) < (conf->max_nr_stripes*3/4))
 				wake_up(&conf->wait_for_stripe);
 		}
 	}
@@ -264,7 +264,8 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 				conf->inactive_blocked = 1;
 				wait_event_lock_irq(conf->wait_for_stripe,
 						    !list_empty(&conf->inactive_list) &&
-						    (atomic_read(&conf->active_stripes) < (NR_STRIPES *3/4)
+						    (atomic_read(&conf->active_stripes)
+						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
 						    conf->device_lock,
 						    unplug_slaves(conf->mddev);
@@ -1917,7 +1918,7 @@ static int run(mddev_t *mddev)
 			goto abort;
 		}
 	}
-memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
+	memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
 		 conf->raid_disks * ((sizeof(struct bio) + PAGE_SIZE))) / 1024;
 	if (grow_stripes(conf, conf->max_nr_stripes)) {
 		printk(KERN_ERR 
