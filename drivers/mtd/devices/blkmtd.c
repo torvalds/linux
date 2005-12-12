@@ -113,7 +113,7 @@ static int bi_write_complete(struct bio *bio, unsigned int bytes_done, int error
 			ClearPageUptodate(page);
 			SetPageError(page);
 		}
-		ClearPageDirty(page);
+		clear_page_dirty(page);
 		unlock_page(page);
 		page_cache_release(page);
 	} while (bvec >= bio->bi_io_vec);
@@ -289,7 +289,7 @@ static int write_pages(struct blkmtd_dev *dev, const u_char *buf, loff_t to,
 			BUG();
 		}
 		memcpy(page_address(page)+offset, buf, start_len);
-		SetPageDirty(page);
+		set_page_dirty(page);
 		SetPageUptodate(page);
 		buf += start_len;
 		thislen = start_len;
@@ -336,7 +336,7 @@ static int write_pages(struct blkmtd_dev *dev, const u_char *buf, loff_t to,
 			}
 			pagenr++;
 			pagecnt--;
-			SetPageDirty(page);
+			set_page_dirty(page);
 			SetPageUptodate(page);
 			pagesc--;
 			thislen += PAGE_SIZE;
@@ -357,7 +357,7 @@ static int write_pages(struct blkmtd_dev *dev, const u_char *buf, loff_t to,
 			BUG();
 		}
 		memcpy(page_address(page), buf, end_len);
-		SetPageDirty(page);
+		set_page_dirty(page);
 		SetPageUptodate(page);
 		DEBUG(3, "blkmtd: write: writing out partial end\n");
 		thislen += end_len;

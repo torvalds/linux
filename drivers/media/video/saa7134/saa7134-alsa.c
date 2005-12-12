@@ -51,6 +51,7 @@ MODULE_PARM_DESC(debug,"enable debug messages [alsa]");
 #define MIXER_ADDR_LINE2	2
 #define MIXER_ADDR_LAST		2
 
+
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 0};
@@ -59,11 +60,14 @@ module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for SAA7134 capture interface(s).");
 
 #define dprintk(fmt, arg...)    if (debug) \
-        printk(KERN_DEBUG "%s/alsa: " fmt, dev->name , ## arg)
+	printk(KERN_DEBUG "%s/alsa: " fmt, dev->name, ## arg)
+
+
 
 /*
  * Main chip structure
  */
+
 typedef struct snd_card_saa7134 {
 	snd_card_t *card;
 	spinlock_t mixer_lock;
@@ -208,8 +212,8 @@ static void saa7134_irq_alsa_done(struct saa7134_dev *dev,
 
 static irqreturn_t saa7134_alsa_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
-        struct saa7134_dmasound *dmasound = dev_id;
-        struct saa7134_dev *dev = dmasound->priv_data;
+	struct saa7134_dmasound *dmasound = dev_id;
+	struct saa7134_dev *dev = dmasound->priv_data;
 
 	unsigned long report, status;
 	int loop, handled = 0;
@@ -985,7 +989,7 @@ static int saa7134_alsa_init(void)
 	struct saa7134_dev *dev = NULL;
 	struct list_head *list;
 
-        printk(KERN_INFO "saa7134 ALSA driver for DMA sound loaded\n");
+	printk(KERN_INFO "saa7134 ALSA driver for DMA sound loaded\n");
 
 	list_for_each(list,&saa7134_devlist) {
 		dev = list_entry(list, struct saa7134_dev, devlist);
@@ -1004,6 +1008,7 @@ static int saa7134_alsa_init(void)
 		printk(KERN_INFO "saa7134 ALSA: no saa7134 cards found\n");
 
 	return 0;
+
 }
 
 /*
@@ -1027,3 +1032,6 @@ module_init(saa7134_alsa_init);
 module_exit(saa7134_alsa_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ricardo Cerqueira");
+
+
+

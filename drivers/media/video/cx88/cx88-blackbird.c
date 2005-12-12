@@ -616,6 +616,8 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 
 	retval = request_firmware(&firmware, BLACKBIRD_FIRM_ENC_FILENAME,
 				  &dev->pci->dev);
+
+
 	if (retval != 0) {
 		dprintk(0, "ERROR: Hotplug firmware request failed (%s).\n",
 			BLACKBIRD_FIRM_ENC_FILENAME);

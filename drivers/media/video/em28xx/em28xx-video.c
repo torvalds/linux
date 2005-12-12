@@ -45,7 +45,7 @@
 #define em28xx_videodbg(fmt, arg...) do {\
 	if (video_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
-			 dev->name, __FUNCTION__ , ##arg); } while (0)
+			 dev->name, __FUNCTION__, ##arg); } while (0)
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -188,16 +188,6 @@ static DECLARE_MUTEX(em28xx_sysfs_lock);
 static DECLARE_RWSEM(em28xx_disconnect);
 
 /*********************  v4l2 interface  ******************************************/
-
-static inline unsigned long kvirt_to_pa(unsigned long adr)
-{
-	unsigned long kva, ret;
-
-	kva = (unsigned long)page_address(vmalloc_to_page((void *)adr));
-	kva |= adr & (PAGE_SIZE - 1);
-	ret = __pa(kva);
-	return ret;
-}
 
 /*
  * em28xx_config()
@@ -616,7 +606,8 @@ static struct vm_operations_struct em28xx_vm_ops = {
 static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	unsigned long size = vma->vm_end - vma->vm_start,
-	    start = vma->vm_start, pos, page;
+	    start = vma->vm_start;
+	void *pos;
 	u32 i;
 
 	struct em28xx *dev = filp->private_data;
@@ -657,12 +648,10 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO;
 	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
 
-	pos = (unsigned long)dev->frame[i].bufmem;
+	pos = dev->frame[i].bufmem;
 	while (size > 0) {	/* size is page-aligned */
-		page = vmalloc_to_pfn((void *)pos);
-		if (remap_pfn_range(vma, start, page, PAGE_SIZE,
-				    vma->vm_page_prot)) {
-			em28xx_videodbg("mmap: rename page map failed\n");
+		if (vm_insert_page(vma, start, vmalloc_to_page(pos))) {
+			em28xx_videodbg("mmap: vm_insert_page failed\n");
 			up(&dev->fileop_lock);
 			return -EAGAIN;
 		}

@@ -68,8 +68,8 @@ static int icmpv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 		[ICMPV6_NI_REPLY - 128]		= ICMPV6_NI_REPLY +1
 	};
 
-	__u8 type = orig->dst.u.icmp.type - 128;
-	if (type >= sizeof(invmap) || !invmap[type])
+	int type = orig->dst.u.icmp.type - 128;
+	if (type < 0 || type >= sizeof(invmap) || !invmap[type])
 		return 0;
 
 	tuple->src.u.icmp.id   = orig->src.u.icmp.id;
@@ -129,12 +129,12 @@ static int icmpv6_new(struct nf_conn *conntrack,
 		[ICMPV6_ECHO_REQUEST - 128] = 1,
 		[ICMPV6_NI_QUERY - 128] = 1
 	};
+	int type = conntrack->tuplehash[0].tuple.dst.u.icmp.type - 128;
 
-	if (conntrack->tuplehash[0].tuple.dst.u.icmp.type - 128 >= sizeof(valid_new)
-	    || !valid_new[conntrack->tuplehash[0].tuple.dst.u.icmp.type - 128]) {
+	if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
 		/* Can't create a new ICMPv6 `conn' with this. */
-		DEBUGP("icmp: can't create new conn with type %u\n",
-		       conntrack->tuplehash[0].tuple.dst.u.icmp.type);
+		DEBUGP("icmpv6: can't create new conn with type %u\n",
+		       type + 128);
 		NF_CT_DUMP_TUPLE(&conntrack->tuplehash[0].tuple);
 		return 0;
 	}

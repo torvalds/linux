@@ -262,122 +262,139 @@ static __inline__ u16 tcp_select_window(struct sock *sk)
  * We are working here with either a clone of the original
  * SKB, or a fresh unique copy made by the retransmit engine.
  */
-static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb)
+static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, gfp_t gfp_mask)
 {
-	if (skb != NULL) {
-		const struct inet_connection_sock *icsk = inet_csk(sk);
-		struct inet_sock *inet = inet_sk(sk);
-		struct tcp_sock *tp = tcp_sk(sk);
-		struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
-		int tcp_header_size = tp->tcp_header_len;
-		struct tcphdr *th;
-		int sysctl_flags;
-		int err;
+	const struct inet_connection_sock *icsk = inet_csk(sk);
+	struct inet_sock *inet;
+	struct tcp_sock *tp;
+	struct tcp_skb_cb *tcb;
+	int tcp_header_size;
+	struct tcphdr *th;
+	int sysctl_flags;
+	int err;
 
-		BUG_ON(!tcp_skb_pcount(skb));
+	BUG_ON(!skb || !tcp_skb_pcount(skb));
+
+	/* If congestion control is doing timestamping, we must
+	 * take such a timestamp before we potentially clone/copy.
+	 */
+	if (icsk->icsk_ca_ops->rtt_sample)
+		__net_timestamp(skb);
+
+	if (likely(clone_it)) {
+		if (unlikely(skb_cloned(skb)))
+			skb = pskb_copy(skb, gfp_mask);
+		else
+			skb = skb_clone(skb, gfp_mask);
+		if (unlikely(!skb))
+			return -ENOBUFS;
+	}
+
+	inet = inet_sk(sk);
+	tp = tcp_sk(sk);
+	tcb = TCP_SKB_CB(skb);
+	tcp_header_size = tp->tcp_header_len;
 
 #define SYSCTL_FLAG_TSTAMPS	0x1
 #define SYSCTL_FLAG_WSCALE	0x2
 #define SYSCTL_FLAG_SACK	0x4
 
-		/* If congestion control is doing timestamping */
-		if (icsk->icsk_ca_ops->rtt_sample)
-			__net_timestamp(skb);
-
-		sysctl_flags = 0;
-		if (tcb->flags & TCPCB_FLAG_SYN) {
-			tcp_header_size = sizeof(struct tcphdr) + TCPOLEN_MSS;
-			if(sysctl_tcp_timestamps) {
-				tcp_header_size += TCPOLEN_TSTAMP_ALIGNED;
-				sysctl_flags |= SYSCTL_FLAG_TSTAMPS;
-			}
-			if(sysctl_tcp_window_scaling) {
-				tcp_header_size += TCPOLEN_WSCALE_ALIGNED;
-				sysctl_flags |= SYSCTL_FLAG_WSCALE;
-			}
-			if(sysctl_tcp_sack) {
-				sysctl_flags |= SYSCTL_FLAG_SACK;
-				if(!(sysctl_flags & SYSCTL_FLAG_TSTAMPS))
-					tcp_header_size += TCPOLEN_SACKPERM_ALIGNED;
-			}
-		} else if (tp->rx_opt.eff_sacks) {
-			/* A SACK is 2 pad bytes, a 2 byte header, plus
-			 * 2 32-bit sequence numbers for each SACK block.
-			 */
-			tcp_header_size += (TCPOLEN_SACK_BASE_ALIGNED +
-					    (tp->rx_opt.eff_sacks * TCPOLEN_SACK_PERBLOCK));
+	sysctl_flags = 0;
+	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
+		tcp_header_size = sizeof(struct tcphdr) + TCPOLEN_MSS;
+		if(sysctl_tcp_timestamps) {
+			tcp_header_size += TCPOLEN_TSTAMP_ALIGNED;
+			sysctl_flags |= SYSCTL_FLAG_TSTAMPS;
 		}
-		
-		if (tcp_packets_in_flight(tp) == 0)
-			tcp_ca_event(sk, CA_EVENT_TX_START);
-
-		th = (struct tcphdr *) skb_push(skb, tcp_header_size);
-		skb->h.th = th;
-		skb_set_owner_w(skb, sk);
-
-		/* Build TCP header and checksum it. */
-		th->source		= inet->sport;
-		th->dest		= inet->dport;
-		th->seq			= htonl(tcb->seq);
-		th->ack_seq		= htonl(tp->rcv_nxt);
-		*(((__u16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) | tcb->flags);
-		if (tcb->flags & TCPCB_FLAG_SYN) {
-			/* RFC1323: The window in SYN & SYN/ACK segments
-			 * is never scaled.
-			 */
-			th->window	= htons(tp->rcv_wnd);
-		} else {
-			th->window	= htons(tcp_select_window(sk));
+		if (sysctl_tcp_window_scaling) {
+			tcp_header_size += TCPOLEN_WSCALE_ALIGNED;
+			sysctl_flags |= SYSCTL_FLAG_WSCALE;
 		}
-		th->check		= 0;
-		th->urg_ptr		= 0;
-
-		if (tp->urg_mode &&
-		    between(tp->snd_up, tcb->seq+1, tcb->seq+0xFFFF)) {
-			th->urg_ptr		= htons(tp->snd_up-tcb->seq);
-			th->urg			= 1;
+		if (sysctl_tcp_sack) {
+			sysctl_flags |= SYSCTL_FLAG_SACK;
+			if (!(sysctl_flags & SYSCTL_FLAG_TSTAMPS))
+				tcp_header_size += TCPOLEN_SACKPERM_ALIGNED;
 		}
-
-		if (tcb->flags & TCPCB_FLAG_SYN) {
-			tcp_syn_build_options((__u32 *)(th + 1),
-					      tcp_advertise_mss(sk),
-					      (sysctl_flags & SYSCTL_FLAG_TSTAMPS),
-					      (sysctl_flags & SYSCTL_FLAG_SACK),
-					      (sysctl_flags & SYSCTL_FLAG_WSCALE),
-					      tp->rx_opt.rcv_wscale,
-					      tcb->when,
-		      			      tp->rx_opt.ts_recent);
-		} else {
-			tcp_build_and_update_options((__u32 *)(th + 1),
-						     tp, tcb->when);
-
-			TCP_ECN_send(sk, tp, skb, tcp_header_size);
-		}
-		tp->af_specific->send_check(sk, th, skb->len, skb);
-
-		if (tcb->flags & TCPCB_FLAG_ACK)
-			tcp_event_ack_sent(sk, tcp_skb_pcount(skb));
-
-		if (skb->len != tcp_header_size)
-			tcp_event_data_sent(tp, skb, sk);
-
-		TCP_INC_STATS(TCP_MIB_OUTSEGS);
-
-		err = tp->af_specific->queue_xmit(skb, 0);
-		if (err <= 0)
-			return err;
-
-		tcp_enter_cwr(sk);
-
-		/* NET_XMIT_CN is special. It does not guarantee,
-		 * that this packet is lost. It tells that device
-		 * is about to start to drop packets or already
-		 * drops some packets of the same priority and
-		 * invokes us to send less aggressively.
+	} else if (unlikely(tp->rx_opt.eff_sacks)) {
+		/* A SACK is 2 pad bytes, a 2 byte header, plus
+		 * 2 32-bit sequence numbers for each SACK block.
 		 */
-		return err == NET_XMIT_CN ? 0 : err;
+		tcp_header_size += (TCPOLEN_SACK_BASE_ALIGNED +
+				    (tp->rx_opt.eff_sacks *
+				     TCPOLEN_SACK_PERBLOCK));
 	}
-	return -ENOBUFS;
+		
+	if (tcp_packets_in_flight(tp) == 0)
+		tcp_ca_event(sk, CA_EVENT_TX_START);
+
+	th = (struct tcphdr *) skb_push(skb, tcp_header_size);
+	skb->h.th = th;
+	skb_set_owner_w(skb, sk);
+
+	/* Build TCP header and checksum it. */
+	th->source		= inet->sport;
+	th->dest		= inet->dport;
+	th->seq			= htonl(tcb->seq);
+	th->ack_seq		= htonl(tp->rcv_nxt);
+	*(((__u16 *)th) + 6)	= htons(((tcp_header_size >> 2) << 12) |
+					tcb->flags);
+
+	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
+		/* RFC1323: The window in SYN & SYN/ACK segments
+		 * is never scaled.
+		 */
+		th->window	= htons(tp->rcv_wnd);
+	} else {
+		th->window	= htons(tcp_select_window(sk));
+	}
+	th->check		= 0;
+	th->urg_ptr		= 0;
+
+	if (unlikely(tp->urg_mode &&
+		     between(tp->snd_up, tcb->seq+1, tcb->seq+0xFFFF))) {
+		th->urg_ptr		= htons(tp->snd_up-tcb->seq);
+		th->urg			= 1;
+	}
+
+	if (unlikely(tcb->flags & TCPCB_FLAG_SYN)) {
+		tcp_syn_build_options((__u32 *)(th + 1),
+				      tcp_advertise_mss(sk),
+				      (sysctl_flags & SYSCTL_FLAG_TSTAMPS),
+				      (sysctl_flags & SYSCTL_FLAG_SACK),
+				      (sysctl_flags & SYSCTL_FLAG_WSCALE),
+				      tp->rx_opt.rcv_wscale,
+				      tcb->when,
+				      tp->rx_opt.ts_recent);
+	} else {
+		tcp_build_and_update_options((__u32 *)(th + 1),
+					     tp, tcb->when);
+		TCP_ECN_send(sk, tp, skb, tcp_header_size);
+	}
+
+	tp->af_specific->send_check(sk, th, skb->len, skb);
+
+	if (likely(tcb->flags & TCPCB_FLAG_ACK))
+		tcp_event_ack_sent(sk, tcp_skb_pcount(skb));
+
+	if (skb->len != tcp_header_size)
+		tcp_event_data_sent(tp, skb, sk);
+
+	TCP_INC_STATS(TCP_MIB_OUTSEGS);
+
+	err = tp->af_specific->queue_xmit(skb, 0);
+	if (unlikely(err <= 0))
+		return err;
+
+	tcp_enter_cwr(sk);
+
+	/* NET_XMIT_CN is special. It does not guarantee,
+	 * that this packet is lost. It tells that device
+	 * is about to start to drop packets or already
+	 * drops some packets of the same priority and
+	 * invokes us to send less aggressively.
+	 */
+	return err == NET_XMIT_CN ? 0 : err;
+
 #undef SYSCTL_FLAG_TSTAMPS
 #undef SYSCTL_FLAG_WSCALE
 #undef SYSCTL_FLAG_SACK
@@ -1036,7 +1053,7 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
 
-		if (unlikely(tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC))))
+		if (unlikely(tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC)))
 			break;
 
 		/* Advance the send_head.  This one is sent out.
@@ -1109,7 +1126,7 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 		/* Send it out now. */
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
 
-		if (likely(!tcp_transmit_skb(sk, skb_clone(skb, sk->sk_allocation)))) {
+		if (likely(!tcp_transmit_skb(sk, skb, 1, sk->sk_allocation))) {
 			update_send_head(sk, tp, skb);
 			tcp_cwnd_validate(sk, tp);
 			return;
@@ -1429,9 +1446,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	 */
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 
-	err = tcp_transmit_skb(sk, (skb_cloned(skb) ?
-				    pskb_copy(skb, GFP_ATOMIC):
-				    skb_clone(skb, GFP_ATOMIC)));
+	err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 
 	if (err == 0) {
 		/* Update global TCP statistics. */
@@ -1665,7 +1680,7 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 	TCP_SKB_CB(skb)->seq = tcp_acceptable_seq(sk, tp);
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq;
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
-	if (tcp_transmit_skb(sk, skb))
+	if (tcp_transmit_skb(sk, skb, 0, priority))
 		NET_INC_STATS(LINUX_MIB_TCPABORTFAILED);
 }
 
@@ -1700,7 +1715,7 @@ int tcp_send_synack(struct sock *sk)
 		TCP_ECN_send_synack(tcp_sk(sk), skb);
 	}
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
-	return tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC));
+	return tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 }
 
 /*
@@ -1861,7 +1876,7 @@ int tcp_connect(struct sock *sk)
 	__skb_queue_tail(&sk->sk_write_queue, buff);
 	sk_charge_skb(sk, buff);
 	tp->packets_out += tcp_skb_pcount(buff);
-	tcp_transmit_skb(sk, skb_clone(buff, GFP_KERNEL));
+	tcp_transmit_skb(sk, buff, 1, GFP_KERNEL);
 	TCP_INC_STATS(TCP_MIB_ACTIVEOPENS);
 
 	/* Timer for repeating the SYN until an answer. */
@@ -1957,7 +1972,7 @@ void tcp_send_ack(struct sock *sk)
 		/* Send it off, this clears delayed acks for us. */
 		TCP_SKB_CB(buff)->seq = TCP_SKB_CB(buff)->end_seq = tcp_acceptable_seq(sk, tp);
 		TCP_SKB_CB(buff)->when = tcp_time_stamp;
-		tcp_transmit_skb(sk, buff);
+		tcp_transmit_skb(sk, buff, 0, GFP_ATOMIC);
 	}
 }
 
@@ -1997,7 +2012,7 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 	TCP_SKB_CB(skb)->seq = urgent ? tp->snd_una : tp->snd_una - 1;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq;
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
-	return tcp_transmit_skb(sk, skb);
+	return tcp_transmit_skb(sk, skb, 0, GFP_ATOMIC);
 }
 
 int tcp_write_wakeup(struct sock *sk)
@@ -2030,7 +2045,7 @@ int tcp_write_wakeup(struct sock *sk)
 
 			TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
 			TCP_SKB_CB(skb)->when = tcp_time_stamp;
-			err = tcp_transmit_skb(sk, skb_clone(skb, GFP_ATOMIC));
+			err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 			if (!err) {
 				update_send_head(sk, tp, skb);
 			}

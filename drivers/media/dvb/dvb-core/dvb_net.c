@@ -713,7 +713,7 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 	if (buffer1_len > 32768)
 		printk(KERN_WARNING "length > 32k: %zu.\n", buffer1_len);
 	/* printk("TS callback: %u bytes, %u TS cells @ %p.\n",
-	          buffer1_len, buffer1_len / TS_SZ, buffer1); */
+		  buffer1_len, buffer1_len / TS_SZ, buffer1); */
 	dvb_net_ule(dev, buffer1, buffer1_len);
 	return 0;
 }
@@ -721,8 +721,8 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 
 static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 {
-        u8 *eth;
-        struct sk_buff *skb;
+	u8 *eth;
+	struct sk_buff *skb;
 	struct net_device_stats *stats = &(((struct dvb_net_priv *) dev->priv)->stats);
 	int snap = 0;
 
@@ -754,7 +754,7 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 			return;
 		}
 		snap = 8;
-        }
+	}
 	if (pkt[7]) {
 		/* FIXME: assemble datagram from multiple sections */
 		stats->rx_errors++;
@@ -778,14 +778,14 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 	memcpy(eth + 14, pkt + 12 + snap, pkt_len - 12 - 4 - snap);
 
 	/* create ethernet header: */
-        eth[0]=pkt[0x0b];
-        eth[1]=pkt[0x0a];
-        eth[2]=pkt[0x09];
-        eth[3]=pkt[0x08];
-        eth[4]=pkt[0x04];
-        eth[5]=pkt[0x03];
+	eth[0]=pkt[0x0b];
+	eth[1]=pkt[0x0a];
+	eth[2]=pkt[0x09];
+	eth[3]=pkt[0x08];
+	eth[4]=pkt[0x04];
+	eth[5]=pkt[0x03];
 
-        eth[6]=eth[7]=eth[8]=eth[9]=eth[10]=eth[11]=0;
+	eth[6]=eth[7]=eth[8]=eth[9]=eth[10]=eth[11]=0;
 
 	if (snap) {
 		eth[12] = pkt[18];
@@ -807,7 +807,7 @@ static void dvb_net_sec(struct net_device *dev, u8 *pkt, int pkt_len)
 
 	stats->rx_packets++;
 	stats->rx_bytes+=skb->len;
-        netif_rx(skb);
+	netif_rx(skb);
 }
 
 static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
@@ -815,7 +815,7 @@ static int dvb_net_sec_callback(const u8 *buffer1, size_t buffer1_len,
 		 struct dmx_section_filter *filter,
 		 enum dmx_success success)
 {
-        struct net_device *dev = filter->priv;
+	struct net_device *dev = filter->priv;
 
 	/**
 	 * we rely on the DVB API definition where exactly one complete
@@ -885,8 +885,8 @@ static int dvb_net_feed_start(struct net_device *dev)
 {
 	int ret = 0, i;
 	struct dvb_net_priv *priv = dev->priv;
-        struct dmx_demux *demux = priv->demux;
-        unsigned char *mac = (unsigned char *) dev->dev_addr;
+	struct dmx_demux *demux = priv->demux;
+	unsigned char *mac = (unsigned char *) dev->dev_addr;
 
 	dprintk("%s: rx_mode %i\n", __FUNCTION__, priv->rx_mode);
 	down(&priv->mutex);
@@ -1129,12 +1129,12 @@ static int dvb_net_stop(struct net_device *dev)
 	struct dvb_net_priv *priv = dev->priv;
 
 	priv->in_use--;
-        return dvb_net_feed_stop(dev);
+	return dvb_net_feed_stop(dev);
 }
 
 static struct net_device_stats * dvb_net_get_stats(struct net_device *dev)
 {
-        return &((struct dvb_net_priv*) dev->priv)->stats;
+	return &((struct dvb_net_priv*) dev->priv)->stats;
 }
 
 static void dvb_net_setup(struct net_device *dev)
@@ -1360,10 +1360,10 @@ static struct file_operations dvb_net_fops = {
 };
 
 static struct dvb_device dvbdev_net = {
-        .priv = NULL,
-        .users = 1,
-        .writers = 1,
-        .fops = &dvb_net_fops,
+	.priv = NULL,
+	.users = 1,
+	.writers = 1,
+	.fops = &dvb_net_fops,
 };
 
 
