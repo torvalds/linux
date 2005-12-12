@@ -257,15 +257,23 @@ static void rcu_start_batch(struct rcu_ctrlblk *rcp, struct rcu_state *rsp,
 
 	if (rcp->next_pending &&
 			rcp->completed == rcp->cur) {
-		/* Can't change, since spin lock held. */
-		cpus_andnot(rsp->cpumask, cpu_online_map, nohz_cpu_mask);
-
 		rcp->next_pending = 0;
-		/* next_pending == 0 must be visible in __rcu_process_callbacks()
-		 * before it can see new value of cur.
+		/*
+		 * next_pending == 0 must be visible in
+		 * __rcu_process_callbacks() before it can see new value of cur.
 		 */
 		smp_wmb();
 		rcp->cur++;
+
+		/*
+		 * Accessing nohz_cpu_mask before incrementing rcp->cur needs a
+		 * Barrier  Otherwise it can cause tickless idle CPUs to be
+		 * included in rsp->cpumask, which will extend graceperiods
+		 * unnecessarily.
+		 */
+		smp_mb();
+		cpus_andnot(rsp->cpumask, cpu_online_map, nohz_cpu_mask);
+
 	}
 }
 
