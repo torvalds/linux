@@ -116,48 +116,6 @@ void em28xx_print_ioctl(char *name, unsigned int cmd)
 	}
 }
 
-static void *rvmalloc(size_t size)
-{
-	void *mem;
-	unsigned long adr;
-
-	size = PAGE_ALIGN(size);
-
-	mem = vmalloc_32((unsigned long)size);
-	if (!mem)
-		return NULL;
-
-	memset(mem, 0, size);
-
-	adr = (unsigned long)mem;
-	while (size > 0) {
-		SetPageReserved(vmalloc_to_page((void *)adr));
-		adr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-
-	return mem;
-}
-
-static void rvfree(void *mem, size_t size)
-{
-	unsigned long adr;
-
-	if (!mem)
-		return;
-
-	size = PAGE_ALIGN(size);
-
-	adr = (unsigned long)mem;
-	while (size > 0) {
-		ClearPageReserved(vmalloc_to_page((void *)adr));
-		adr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-
-	vfree(mem);
-}
-
 
 /*
  * em28xx_request_buffers()
@@ -174,8 +132,10 @@ u32 em28xx_request_buffers(struct em28xx *dev, u32 count)
 
 	dev->num_frames = count;
 	while (dev->num_frames > 0) {
-		if ((buff = rvmalloc(dev->num_frames * imagesize)))
+		if ((buff = vmalloc_32(dev->num_frames * imagesize))) {
+			memset(buff, 0, dev->num_frames * imagesize);
 			break;
+		}
 		dev->num_frames--;
 	}
 
@@ -218,8 +178,7 @@ void em28xx_queue_unusedframes(struct em28xx *dev)
 void em28xx_release_buffers(struct em28xx *dev)
 {
 	if (dev->num_frames) {
-		rvfree(dev->frame[0].bufmem,
-		       dev->num_frames * PAGE_ALIGN(dev->frame[0].buf.length));
+		vfree(dev->frame[0].bufmem);
 		dev->num_frames = 0;
 	}
 }
