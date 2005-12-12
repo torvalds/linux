@@ -1867,7 +1867,7 @@ _STATIC(start_here_multiplatform)
 	mulli	r13,r27,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r24		/* for this processor.		 */
 	add	r13,r13,r26		/* convert to physical addr	 */
-	mtspr	SPRN_SPRG3,r13		/* PPPBBB: Temp... -Peter */
+	mtspr	SPRN_SPRG3,r13
 	
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
