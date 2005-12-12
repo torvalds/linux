@@ -37,39 +37,47 @@ static DECLARE_MUTEX(car_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
 static volatile long gsr_bits;
 
+/*
+ * Beware PXA27x bugs:
+ *
+ *   o Slot 12 read from modem space will hang controller.
+ *   o CDONE, SDONE interrupt fails after any slot 12 IO.
+ *
+ * We therefore have an hybrid approach for waiting on SDONE (interrupt or
+ * 1 jiffy timeout if interrupt never comes).
+ */ 
+
 static unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	unsigned short val = -1;
 	volatile u32 *reg_addr;
 
 	down(&car_mutex);
-	if (CAR & CAR_CAIP) {
-		printk(KERN_CRIT"%s: CAR_CAIP already set\n", __FUNCTION__);
-		goto out;
-	}
 
 	/* set up primary or secondary codec space */
 	reg_addr = (ac97->num & 1) ? &SAC_REG_BASE : &PAC_REG_BASE;
 	reg_addr += (reg >> 1);
 
 	/* start read access across the ac97 link */
+	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	val = *reg_addr;
 	if (reg == AC97_GPIO_STATUS)
 		goto out;
-	wait_event_timeout(gsr_wq, gsr_bits & GSR_SDONE, 1);
-	if (!gsr_bits & GSR_SDONE) {
+	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1) <= 0 &&
+	    !((GSR | gsr_bits) & GSR_SDONE)) {
 		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n",
-				__FUNCTION__, reg, gsr_bits);
+				__FUNCTION__, reg, GSR | gsr_bits);
 		val = -1;
 		goto out;
 	}
 
 	/* valid data now */
+	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	val = *reg_addr;			
 	/* but we've just started another cycle... */
-	wait_event_timeout(gsr_wq, gsr_bits & GSR_SDONE, 1);
+	wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1);
 
 out:	up(&car_mutex);
 	return val;
@@ -81,22 +89,19 @@ static void pxa2xx_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigne
 
 	down(&car_mutex);
 
-	if (CAR & CAR_CAIP) {
-		printk(KERN_CRIT "%s: CAR_CAIP already set\n", __FUNCTION__);
-		goto out;
-	}
-
 	/* set up primary or secondary codec space */
 	reg_addr = (ac97->num & 1) ? &SAC_REG_BASE : &PAC_REG_BASE;
 	reg_addr += (reg >> 1);
+
+	GSR = GSR_CDONE | GSR_SDONE;
 	gsr_bits = 0;
 	*reg_addr = val;
-	wait_event_timeout(gsr_wq, gsr_bits & GSR_CDONE, 1);
-	if (!gsr_bits & GSR_SDONE)
+	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_CDONE, 1) <= 0 &&
+	    !((GSR | gsr_bits) & GSR_CDONE))
 		printk(KERN_ERR "%s: write error (ac97_reg=%d GSR=%#lx)\n",
-				__FUNCTION__, reg, gsr_bits);
+				__FUNCTION__, reg, GSR | gsr_bits);
 
-out:	up(&car_mutex);
+	up(&car_mutex);
 }
 
 static void pxa2xx_ac97_reset(struct snd_ac97 *ac97)
