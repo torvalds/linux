@@ -1,10 +1,10 @@
 /*
     TDA10021  - Single Chip Cable Channel Receiver driver module
-               used on the the Siemens DVB-C cards
+	       used on the the Siemens DVB-C cards
 
     Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
     Copyright (C) 2004 Markus Schulz <msc@antzsystem.de>
-                   Support for TDA10021
+		   Support for TDA10021
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

@@ -1203,7 +1203,7 @@ static int ttusb_init_rc(struct ttusb_dec *dec)
 	input_dev->keycode = rc_keys;
 
 	for (i = 0; i < ARRAY_SIZE(rc_keys); i++)
-                set_bit(rc_keys[i], input_dev->keybit);
+		set_bit(rc_keys[i], input_dev->keybit);
 
 	input_register_device(input_dev);
 
@@ -1529,7 +1529,7 @@ static void ttusb_dec_exit_rc(struct ttusb_dec *dec)
 	usb_free_urb(dec->irq_urb);
 
 	usb_buffer_free(dec->udev,IRQ_PACKET_SIZE,
-		           dec->irq_buffer, dec->irq_dma_handle);
+			   dec->irq_buffer, dec->irq_dma_handle);
 
 	if (dec->rc_input_dev) {
 		input_unregister_device(dec->rc_input_dev);
