@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 
+#ifdef CONFIG_KPROBES
 #include <asm/kprobes.h>
 
 /* kprobe_status settings */
@@ -147,7 +148,6 @@ struct kretprobe_instance {
 	struct task_struct *task;
 };
 
-#ifdef CONFIG_KPROBES
 extern spinlock_t kretprobe_lock;
 extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_copy_kprobe(struct kprobe *p);
@@ -195,6 +195,11 @@ void add_rp_inst(struct kretprobe_instance *ri);
 void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri);
 #else /* CONFIG_KPROBES */
+
+#define __kprobes	/**/
+struct jprobe;
+struct kretprobe;
+
 static inline struct kprobe *kprobe_running(void)
 {
 	return NULL;

@@ -32,6 +32,7 @@
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
+#include <linux/kprobes.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -168,7 +169,7 @@ EXPORT_SYMBOL(notifier_chain_unregister);
  *	of the last notifier function called.
  */
  
-int notifier_call_chain(struct notifier_block **n, unsigned long val, void *v)
+int __kprobes notifier_call_chain(struct notifier_block **n, unsigned long val, void *v)
 {
 	int ret=NOTIFY_DONE;
 	struct notifier_block *nb = *n;
