@@ -125,7 +125,6 @@ struct tcx_par {
 	int			lowdepth;
 
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 /* Reset control plane so that WID is 8-bit plane. */
