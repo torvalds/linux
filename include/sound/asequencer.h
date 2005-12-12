@@ -502,8 +502,9 @@ struct snd_seq_running_info {
 
 	/* known client numbers */
 #define SNDRV_SEQ_CLIENT_SYSTEM		0
-#define SNDRV_SEQ_CLIENT_DUMMY		62	/* dummy ports */
-#define SNDRV_SEQ_CLIENT_OSS		63	/* oss sequencer emulator */
+	/* internal client numbers */
+#define SNDRV_SEQ_CLIENT_DUMMY		14	/* midi through */
+#define SNDRV_SEQ_CLIENT_OSS		15	/* oss sequencer emulator */
 
 
 	/* client types */

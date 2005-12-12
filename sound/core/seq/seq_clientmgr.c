@@ -47,9 +47,20 @@
  * 
  */
 
-/* range for dynamically allocated client numbers of kernel drivers */
-#define SNDRV_SEQ_DYNAMIC_CLIENT_BEGIN	16
-#define SNDRV_SEQ_DYNAMIC_CLIENT_END	48
+/*
+ * There are four ranges of client numbers (last two shared):
+ * 0..15: global clients
+ * 16..127: statically allocated client numbers for cards 0..27
+ * 128..191: dynamically allocated client numbers for cards 28..31
+ * 128..191: dynamically allocated client numbers for applications
+ */
+
+/* number of kernel non-card clients */
+#define SNDRV_SEQ_GLOBAL_CLIENTS	16
+/* clients per cards, for static clients */
+#define SNDRV_SEQ_CLIENTS_PER_CARD	4
+/* dynamically allocated client numbers (both kernel drivers and user space) */
+#define SNDRV_SEQ_DYNAMIC_CLIENTS_BEGIN	128
 
 #define SNDRV_SEQ_LFLG_INPUT	0x0001
 #define SNDRV_SEQ_LFLG_OUTPUT	0x0002
@@ -143,14 +154,14 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 	spin_unlock_irqrestore(&clients_lock, flags);
 #ifdef CONFIG_KMOD
 	if (!in_interrupt() && current->fs->root) {
-		static char client_requested[64];
+		static char client_requested[SNDRV_SEQ_GLOBAL_CLIENTS];
 		static char card_requested[SNDRV_CARDS];
-		if (clientid < 64) {
+		if (clientid < SNDRV_SEQ_GLOBAL_CLIENTS) {
 			int idx;
 			
 			if (! client_requested[clientid] && current->fs->root) {
 				client_requested[clientid] = 1;
-				for (idx = 0; idx < 64; idx++) {
+				for (idx = 0; idx < 15; idx++) {
 					if (seq_client_load[idx] < 0)
 						break;
 					if (seq_client_load[idx] == clientid) {
@@ -160,8 +171,9 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 					}
 				}
 			}
-		} else if (clientid >= 64 && clientid < 128) {
-			int card = (clientid - 64) / 4;
+		} else if (clientid < SNDRV_SEQ_DYNAMIC_CLIENTS_BEGIN) {
+			int card = (clientid - SNDRV_SEQ_GLOBAL_CLIENTS) /
+				SNDRV_SEQ_CLIENTS_PER_CARD;
 			if (card < snd_ecards_limit) {
 				if (! card_requested[card]) {
 					card_requested[card] = 1;
@@ -207,8 +219,7 @@ int __init client_init_data(void)
 }
 
 
-static struct snd_seq_client *seq_create_client1(int client_index, int poolsize,
-						 int kernel_client)
+static struct snd_seq_client *seq_create_client1(int client_index, int poolsize)
 {
 	unsigned long flags;
 	int c;
@@ -232,15 +243,9 @@ static struct snd_seq_client *seq_create_client1(int client_index, int poolsize,
 	/* find free slot in the client table */
 	spin_lock_irqsave(&clients_lock, flags);
 	if (client_index < 0) {
-		int cmin, cmax;
-		if (kernel_client) {
-			cmin = SNDRV_SEQ_DYNAMIC_CLIENT_BEGIN;
-			cmax = SNDRV_SEQ_DYNAMIC_CLIENT_END;
-		} else {
-			cmin = 128;
-			cmax = SNDRV_SEQ_MAX_CLIENTS;
-		}
-		for (c = cmin; c < cmax; c++) {
+		for (c = SNDRV_SEQ_DYNAMIC_CLIENTS_BEGIN;
+		     c < SNDRV_SEQ_MAX_CLIENTS;
+		     c++) {
 			if (clienttab[c] || clienttablock[c])
 				continue;
 			clienttab[client->number = c] = client;
@@ -319,7 +324,7 @@ static int snd_seq_open(struct inode *inode, struct file *file)
 
 	if (down_interruptible(&register_mutex))
 		return -ERESTARTSYS;
-	client = seq_create_client1(-1, SNDRV_SEQ_DEFAULT_EVENTS, 0);
+	client = seq_create_client1(-1, SNDRV_SEQ_DEFAULT_EVENTS);
 	if (client == NULL) {
 		up(&register_mutex);
 		return -ENOMEM;	/* failure code */
@@ -2220,23 +2225,23 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 
 	snd_assert(! in_interrupt(), return -EBUSY);
 
-	if (card && client_index > 3)
+	if (card && client_index >= SNDRV_SEQ_CLIENTS_PER_CARD)
 		return -EINVAL;
-	if (card == NULL && client_index > 63)
+	if (card == NULL && client_index >= SNDRV_SEQ_GLOBAL_CLIENTS)
 		return -EINVAL;
 
 	if (down_interruptible(&register_mutex))
 		return -ERESTARTSYS;
 
 	if (card) {
-		if (card->number < 16)
-			client_index += 64 + (card->number << 2);
-		else
+		client_index += SNDRV_SEQ_GLOBAL_CLIENTS
+			+ card->number * SNDRV_SEQ_CLIENTS_PER_CARD;
+		if (client_index >= SNDRV_SEQ_DYNAMIC_CLIENTS_BEGIN)
 			client_index = -1;
 	}
 
 	/* empty write queue as default */
-	client = seq_create_client1(client_index, 0, 1);
+	client = seq_create_client1(client_index, 0);
 	if (client == NULL) {
 		up(&register_mutex);
 		return -EBUSY;	/* failure code */
