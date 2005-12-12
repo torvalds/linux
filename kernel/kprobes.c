@@ -462,9 +462,16 @@ int __kprobes register_kprobe(struct kprobe *p)
 	int ret = 0;
 	unsigned long flags = 0;
 	struct kprobe *old_p;
+	struct module *mod;
 
-	if ((ret = in_kprobes_functions((unsigned long) p->addr)) != 0)
-		return ret;
+	if ((!kernel_text_address((unsigned long) p->addr)) ||
+		in_kprobes_functions((unsigned long) p->addr))
+		return -EINVAL;
+
+	if ((mod = module_text_address((unsigned long) p->addr)) &&
+			(unlikely(!try_module_get(mod))))
+		return -EINVAL;
+
 	if ((ret = arch_prepare_kprobe(p)) != 0)
 		goto rm_kprobe;
 
@@ -488,6 +495,8 @@ out:
 rm_kprobe:
 	if (ret == -EEXIST)
 		arch_remove_kprobe(p);
+	if (ret && mod)
+		module_put(mod);
 	return ret;
 }
 
@@ -495,6 +504,7 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 {
 	unsigned long flags;
 	struct kprobe *old_p;
+	struct module *mod;
 
 	spin_lock_irqsave(&kprobe_lock, flags);
 	old_p = get_kprobe(p->addr);
@@ -506,6 +516,10 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 			cleanup_kprobe(p, flags);
 
 		synchronize_sched();
+
+		if ((mod = module_text_address((unsigned long)p->addr)))
+			module_put(mod);
+
 		if (old_p->pre_handler == aggr_pre_handler &&
 				list_empty(&old_p->list))
 			kfree(old_p);
