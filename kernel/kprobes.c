@@ -246,6 +246,19 @@ static int __kprobes aggr_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return ret;
 }
 
+/* Walks the list and increments nmissed count for multiprobe case */
+void __kprobes kprobes_inc_nmissed_count(struct kprobe *p)
+{
+	struct kprobe *kp;
+	if (p->pre_handler != aggr_pre_handler) {
+		p->nmissed++;
+	} else {
+		list_for_each_entry_rcu(kp, &p->list, list)
+			kp->nmissed++;
+	}
+	return;
+}
+
 /* Called with kretprobe_lock held */
 struct kretprobe_instance __kprobes *get_free_rp_inst(struct kretprobe *rp)
 {

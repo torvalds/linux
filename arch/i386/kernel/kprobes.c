@@ -191,7 +191,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			 */
 			save_previous_kprobe(kcb);
 			set_current_kprobe(p, regs, kcb);
-			p->nmissed++;
+			kprobes_inc_nmissed_count(p);
 			prepare_singlestep(p, regs);
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
