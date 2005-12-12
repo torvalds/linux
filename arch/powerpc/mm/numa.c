@@ -489,7 +489,41 @@ static void __init setup_nonnuma(void)
 	node_set_online(0);
 }
 
-static void __init dump_numa_topology(void)
+void __init dump_numa_cpu_topology(void)
+{
+	unsigned int node;
+	unsigned int cpu, count;
+
+	if (min_common_depth == -1 || !numa_enabled)
+		return;
+
+	for_each_online_node(node) {
+		printk(KERN_INFO "Node %d CPUs:", node);
+
+		count = 0;
+		/*
+		 * If we used a CPU iterator here we would miss printing
+		 * the holes in the cpumap.
+		 */
+		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+			if (cpu_isset(cpu, numa_cpumask_lookup_table[node])) {
+				if (count == 0)
+					printk(" %u", cpu);
+				++count;
+			} else {
+				if (count > 1)
+					printk("-%u", cpu - 1);
+				count = 0;
+			}
+		}
+
+		if (count > 1)
+			printk("-%u", NR_CPUS - 1);
+		printk("\n");
+	}
+}
+
+static void __init dump_numa_memory_topology(void)
 {
 	unsigned int node;
 	unsigned int count;
@@ -521,7 +555,6 @@ static void __init dump_numa_topology(void)
 			printk("-0x%lx", i);
 		printk("\n");
 	}
-	return;
 }
 
 /*
@@ -583,7 +616,7 @@ void __init do_init_bootmem(void)
 	if (parse_numa_properties())
 		setup_nonnuma();
 	else
-		dump_numa_topology();
+		dump_numa_memory_topology();
 
 	register_cpu_notifier(&ppc64_numa_nb);
 
