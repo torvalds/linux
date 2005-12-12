@@ -443,7 +443,7 @@ static void tcx_init_one(struct sbus_dev *sdev)
 
 	tcx_reset(&all->info);
 
-	tcx_blank(0, &all->info);
+	tcx_blank(FB_BLANK_UNBLANK, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
 		printk(KERN_ERR "tcx: Could not allocate color map.\n");
