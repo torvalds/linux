@@ -111,19 +111,19 @@ typedef
 struct video_highlight {
 	int     active;      /*    1=show highlight, 0=hide highlight */
 	uint8_t contrast1;   /*    7- 4  Pattern pixel contrast */
-		             /*    3- 0  Background pixel contrast */
+			     /*    3- 0  Background pixel contrast */
 	uint8_t contrast2;   /*    7- 4  Emphasis pixel-2 contrast */
-		             /*    3- 0  Emphasis pixel-1 contrast */
+			     /*    3- 0  Emphasis pixel-1 contrast */
 	uint8_t color1;      /*    7- 4  Pattern pixel color */
-		             /*    3- 0  Background pixel color */
+			     /*    3- 0  Background pixel color */
 	uint8_t color2;      /*    7- 4  Emphasis pixel-2 color */
-		             /*    3- 0  Emphasis pixel-1 color */
+			     /*    3- 0  Emphasis pixel-1 color */
 	uint32_t ypos;       /*   23-22  auto action mode */
-		             /*   21-12  start y */
-		             /*    9- 0  end y */
+			     /*   21-12  start y */
+			     /*    9- 0  end y */
 	uint32_t xpos;       /*   23-22  button color number */
-		             /*   21-12  start x */
-		             /*    9- 0  end x */
+			     /*   21-12  start x */
+			     /*    9- 0  end x */
 } video_highlight_t;
 
 

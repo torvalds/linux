@@ -134,7 +134,7 @@ struct msp3400c {
 	int rxsubchans;
 
 	int muted;
-	int left, right;        /* volume */
+	int left, right;	/* volume */
 	int bass, treble;
 
 	/* shadow register set */
@@ -882,12 +882,14 @@ static void watch_stereo(struct i2c_client *client)
 		msp->watch_stereo = 0;
 }
 
+
 static int msp3400c_thread(void *data)
 {
 	struct i2c_client *client = data;
 	struct msp3400c *msp = i2c_get_clientdata(client);
 	struct CARRIER_DETECT *cd;
 	int count, max1,max2,val1,val2, val,this;
+
 
 	msp3400_info("msp3400 daemon started\n");
 	for (;;) {
@@ -1162,6 +1164,7 @@ static int msp3410d_thread(void *data)
 	int mode,val,i,std;
 
 	msp3400_info("msp3410 daemon started\n");
+
 	for (;;) {
 		msp3400_dbg_mediumvol("msp3410 thread: sleep\n");
 		msp34xx_sleep(msp,-1);
@@ -1384,6 +1387,7 @@ static int msp34xxg_thread(void *data)
 	int val, std, i;
 
 	msp3400_info("msp34xxg daemon started\n");
+
 	msp->source = 1; /* default */
 	for (;;) {
 		msp3400_dbg_mediumvol("msp34xxg thread: sleep\n");

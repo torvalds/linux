@@ -1,6 +1,6 @@
 
 HOWTO: Get An Avermedia DVB-T working under Linux
-           ______________________________________________
+	   ______________________________________________
 
    Table of Contents
    Assumptions and Introduction

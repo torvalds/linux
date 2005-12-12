@@ -291,13 +291,12 @@ struct IR {
 	u32                     mask_keycode;
 	u32                     mask_keydown;
 	u32                     mask_keyup;
-	u32			polling;
+	u32                     polling;
 	u32                     last_gpio;
 	struct work_struct      work;
 	struct timer_list       timer;
 
 	/* RC5 gpio */
-
 	u32 rc5_gpio;
 	struct timer_list timer_end;	/* timer_end for code completion */
 	struct timer_list timer_keyup;	/* timer_end for key release */
@@ -647,7 +646,7 @@ static int ir_probe(struct device *dev)
 		driver.any_irq = ir_rc5_irq;
 		driver.gpio_irq = NULL;
 		ir->rc5_gpio = 1;
-		 break;
+		break;
 	}
 	if (NULL == ir_codes) {
 		kfree(ir);
@@ -657,7 +656,7 @@ static int ir_probe(struct device *dev)
 
 	if (ir->rc5_gpio) {
 		u32 gpio;
-		/* enable remote irq */
+	    	/* enable remote irq */
 		bttv_gpio_inout(sub->core, (1 << 4), 1 << 4);
 		gpio = bttv_gpio_read(sub->core);
 		bttv_gpio_write(sub->core, gpio & ~(1 << 4));
@@ -726,6 +725,7 @@ static int ir_remove(struct device *dev)
 		del_timer(&ir->timer);
 		flush_scheduled_work();
 	}
+
 	if (ir->rc5_gpio) {
 		u32 gpio;
 

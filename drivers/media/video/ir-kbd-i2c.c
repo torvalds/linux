@@ -40,6 +40,7 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 #include <asm/semaphore.h>
+
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 
@@ -299,7 +300,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	struct IR_i2c *ir;
 	struct input_dev *input_dev;
 
-	ir = kzalloc(sizeof(struct IR_i2c), GFP_KERNEL);
+	ir = kzalloc(sizeof(struct IR_i2c),GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ir || !input_dev) {
 		kfree(ir);
@@ -360,7 +361,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	/* register i2c device
 	 * At device register, IR codes may be changed to be
 	 * board dependent.
-	*/
+	 */
 	i2c_attach_client(&ir->c);
 
 	/* If IR not supported or disabled, unregisters driver */

@@ -792,11 +792,11 @@ static irqreturn_t saa7134_oss_irq(int irq, void *dev_id, struct pt_regs *regs)
 		status = saa_readl(SAA7134_IRQ_STATUS);
 
 		if (report & SAA7134_IRQ_REPORT_DONE_RA3) {
-		        handled = 1;
-		        saa_writel(SAA7134_IRQ_REPORT,report);
-		        saa7134_irq_oss_done(dev, status);
+			handled = 1;
+			saa_writel(SAA7134_IRQ_REPORT,report);
+			saa7134_irq_oss_done(dev, status);
 		} else {
-		        goto out;
+			goto out;
 		}
 	}
 
@@ -811,7 +811,7 @@ int saa7134_oss_init1(struct saa7134_dev *dev)
 {
 
 	if ((request_irq(dev->pci->irq, saa7134_oss_irq,
-		         SA_SHIRQ | SA_INTERRUPT, dev->name,
+			 SA_SHIRQ | SA_INTERRUPT, dev->name,
 			(void*) &dev->dmasound)) < 0)
 		return -1;
 
@@ -905,20 +905,20 @@ static int saa7134_dsp_create(struct saa7134_dev *dev)
 
 	err = dev->dmasound.minor_dsp =
 		register_sound_dsp(&saa7134_dsp_fops,
-					dsp_nr[dev->nr]);
+				   dsp_nr[dev->nr]);
 	if (err < 0) {
 		goto fail;
 	}
 	printk(KERN_INFO "%s: registered device dsp%d\n",
-		dev->name,dev->dmasound.minor_dsp >> 4);
+	       dev->name,dev->dmasound.minor_dsp >> 4);
 
 	err = dev->dmasound.minor_mixer =
 		register_sound_mixer(&saa7134_mixer_fops,
-					mixer_nr[dev->nr]);
+				     mixer_nr[dev->nr]);
 	if (err < 0)
 		goto fail;
 	printk(KERN_INFO "%s: registered device mixer%d\n",
-		dev->name,dev->dmasound.minor_mixer >> 4);
+	       dev->name,dev->dmasound.minor_mixer >> 4);
 
 	return 0;
 
@@ -994,6 +994,7 @@ static void saa7134_oss_exit(void)
 			continue;
 
 		oss_device_exit(dev);
+
 	}
 
 	printk(KERN_INFO "saa7134 OSS driver for DMA sound unloaded\n");

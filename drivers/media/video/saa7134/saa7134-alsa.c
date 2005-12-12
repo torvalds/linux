@@ -51,6 +51,7 @@ MODULE_PARM_DESC(debug,"enable debug messages [alsa]");
 #define MIXER_ADDR_LINE2	2
 #define MIXER_ADDR_LAST		2
 
+
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 0};
@@ -59,11 +60,14 @@ module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for SAA7134 capture interface(s).");
 
 #define dprintk(fmt, arg...)    if (debug) \
-	printk(KERN_DEBUG "%s/alsa: " fmt, dev->name , ## arg)
+	printk(KERN_DEBUG "%s/alsa: " fmt, dev->name, ## arg)
+
+
 
 /*
  * Main chip structure
  */
+
 typedef struct snd_card_saa7134 {
 	snd_card_t *card;
 	spinlock_t mixer_lock;
@@ -1004,6 +1008,7 @@ static int saa7134_alsa_init(void)
 		printk(KERN_INFO "saa7134 ALSA: no saa7134 cards found\n");
 
 	return 0;
+
 }
 
 /*
@@ -1027,3 +1032,6 @@ module_init(saa7134_alsa_init);
 module_exit(saa7134_alsa_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ricardo Cerqueira");
+
+
+

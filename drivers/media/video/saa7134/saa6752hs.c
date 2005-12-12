@@ -524,6 +524,7 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 
 	i2c_set_clientdata(&h->client, h);
 	i2c_attach_client(&h->client);
+
 	return 0;
 }
 

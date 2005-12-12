@@ -762,9 +762,9 @@ static void set_pll(struct bttv *btv)
 	if (btv->pll.pll_ifreq == btv->pll.pll_ofreq) {
 		/* no PLL needed */
 		if (btv->pll.pll_current == 0)
-		        return;
+			return;
 		bttv_printk(KERN_INFO "bttv%d: PLL can sleep, using XTAL (%d).\n",
-		           btv->c.nr,btv->pll.pll_ifreq);
+			btv->c.nr,btv->pll.pll_ifreq);
 		btwrite(0x00,BT848_TGCTRL);
 		btwrite(0x00,BT848_PLL_XCI);
 		btv->pll.pll_current = 0;
@@ -772,7 +772,7 @@ static void set_pll(struct bttv *btv)
 	}
 
 	bttv_printk(KERN_INFO "bttv%d: PLL: %d => %d ",btv->c.nr,
-		   btv->pll.pll_ifreq, btv->pll.pll_ofreq);
+		btv->pll.pll_ifreq, btv->pll.pll_ofreq);
 	set_pll_freq(btv, btv->pll.pll_ifreq, btv->pll.pll_ofreq);
 
 	for (i=0; i<10; i++) {
@@ -783,10 +783,10 @@ static void set_pll(struct bttv *btv)
 		if (btread(BT848_DSTATUS) & BT848_DSTATUS_PLOCK) {
 			btwrite(0,BT848_DSTATUS);
 		} else {
-		        btwrite(0x08,BT848_TGCTRL);
-		        btv->pll.pll_current = btv->pll.pll_ofreq;
+			btwrite(0x08,BT848_TGCTRL);
+			btv->pll.pll_current = btv->pll.pll_ofreq;
 			bttv_printk(" ok\n");
-		        return;
+			return;
 		}
 	}
 	btv->pll.pll_current = -1;
@@ -1964,7 +1964,7 @@ static int setup_window(struct bttv_fh *fh, struct bttv *btv,
 	}
 
 	down(&fh->cap.lock);
-	kfree(fh->ov.clips);
+		kfree(fh->ov.clips);
 	fh->ov.clips    = clips;
 	fh->ov.nclips   = n;
 
@@ -2758,7 +2758,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			fh->ov.w.height = fb->fmt.height;
 			btv->init.ov.w.width  = fb->fmt.width;
 			btv->init.ov.w.height = fb->fmt.height;
-			kfree(fh->ov.clips);
+				kfree(fh->ov.clips);
 			fh->ov.clips = NULL;
 			fh->ov.nclips = 0;
 
