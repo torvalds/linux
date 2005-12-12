@@ -296,7 +296,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	char *name;
 	int ir_type;
-        struct IR_i2c *ir;
+	struct IR_i2c *ir;
 	struct input_dev *input_dev;
 
 	ir = kzalloc(sizeof(struct IR_i2c), GFP_KERNEL);
@@ -304,7 +304,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	if (!ir || !input_dev) {
 		kfree(ir);
 		input_free_device(input_dev);
-                return -ENOMEM;
+		return -ENOMEM;
 	}
 
 	ir->c = client_template;

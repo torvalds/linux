@@ -727,71 +727,71 @@ void free_btres(struct bttv *btv, struct bttv_fh *fh, int bits)
 
 static void set_pll_freq(struct bttv *btv, unsigned int fin, unsigned int fout)
 {
-        unsigned char fl, fh, fi;
+	unsigned char fl, fh, fi;
 
-        /* prevent overflows */
-        fin/=4;
-        fout/=4;
+	/* prevent overflows */
+	fin/=4;
+	fout/=4;
 
-        fout*=12;
-        fi=fout/fin;
+	fout*=12;
+	fi=fout/fin;
 
-        fout=(fout%fin)*256;
-        fh=fout/fin;
+	fout=(fout%fin)*256;
+	fh=fout/fin;
 
-        fout=(fout%fin)*256;
-        fl=fout/fin;
+	fout=(fout%fin)*256;
+	fl=fout/fin;
 
-        btwrite(fl, BT848_PLL_F_LO);
-        btwrite(fh, BT848_PLL_F_HI);
-        btwrite(fi|BT848_PLL_X, BT848_PLL_XCI);
+	btwrite(fl, BT848_PLL_F_LO);
+	btwrite(fh, BT848_PLL_F_HI);
+	btwrite(fi|BT848_PLL_X, BT848_PLL_XCI);
 }
 
 static void set_pll(struct bttv *btv)
 {
-        int i;
+	int i;
 
-        if (!btv->pll.pll_crystal)
-                return;
+	if (!btv->pll.pll_crystal)
+		return;
 
 	if (btv->pll.pll_ofreq == btv->pll.pll_current) {
 		dprintk("bttv%d: PLL: no change required\n",btv->c.nr);
-                return;
-        }
+		return;
+	}
 
-        if (btv->pll.pll_ifreq == btv->pll.pll_ofreq) {
-                /* no PLL needed */
-                if (btv->pll.pll_current == 0)
-                        return;
+	if (btv->pll.pll_ifreq == btv->pll.pll_ofreq) {
+		/* no PLL needed */
+		if (btv->pll.pll_current == 0)
+		        return;
 		bttv_printk(KERN_INFO "bttv%d: PLL can sleep, using XTAL (%d).\n",
-                           btv->c.nr,btv->pll.pll_ifreq);
-                btwrite(0x00,BT848_TGCTRL);
-                btwrite(0x00,BT848_PLL_XCI);
-                btv->pll.pll_current = 0;
-                return;
-        }
+		           btv->c.nr,btv->pll.pll_ifreq);
+		btwrite(0x00,BT848_TGCTRL);
+		btwrite(0x00,BT848_PLL_XCI);
+		btv->pll.pll_current = 0;
+		return;
+	}
 
 	bttv_printk(KERN_INFO "bttv%d: PLL: %d => %d ",btv->c.nr,
-                   btv->pll.pll_ifreq, btv->pll.pll_ofreq);
+		   btv->pll.pll_ifreq, btv->pll.pll_ofreq);
 	set_pll_freq(btv, btv->pll.pll_ifreq, btv->pll.pll_ofreq);
 
-        for (i=0; i<10; i++) {
+	for (i=0; i<10; i++) {
 		/*  Let other people run while the PLL stabilizes */
 		bttv_printk(".");
 		msleep(10);
 
-                if (btread(BT848_DSTATUS) & BT848_DSTATUS_PLOCK) {
+		if (btread(BT848_DSTATUS) & BT848_DSTATUS_PLOCK) {
 			btwrite(0,BT848_DSTATUS);
-                } else {
-                        btwrite(0x08,BT848_TGCTRL);
-                        btv->pll.pll_current = btv->pll.pll_ofreq;
+		} else {
+		        btwrite(0x08,BT848_TGCTRL);
+		        btv->pll.pll_current = btv->pll.pll_ofreq;
 			bttv_printk(" ok\n");
-                        return;
-                }
-        }
-        btv->pll.pll_current = -1;
+		        return;
+		}
+	}
+	btv->pll.pll_current = -1;
 	bttv_printk("failed\n");
-        return;
+	return;
 }
 
 /* used to switch between the bt848's analog/digital video capture modes */

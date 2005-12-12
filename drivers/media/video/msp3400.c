@@ -1559,11 +1559,11 @@ static void msp_wake_thread(struct i2c_client *client);
 static struct i2c_driver driver = {
 	.owner          = THIS_MODULE,
 	.name           = "msp3400",
-        .id             = I2C_DRIVERID_MSP3400,
-        .flags          = I2C_DF_NOTIFY,
-        .attach_adapter = msp_probe,
-        .detach_client  = msp_detach,
-        .command        = msp_command,
+	.id             = I2C_DRIVERID_MSP3400,
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = msp_probe,
+	.detach_client  = msp_detach,
+	.command        = msp_command,
 	.driver = {
 		.suspend = msp_suspend,
 		.resume  = msp_resume,
@@ -1574,7 +1574,7 @@ static struct i2c_client client_template =
 {
 	.name      = "(unset)",
 	.flags     = I2C_CLIENT_ALLOW_USE,
-        .driver    = &driver,
+	.driver    = &driver,
 };
 
 static int msp_attach(struct i2c_adapter *adap, int addr, int kind)

@@ -1506,18 +1506,18 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 		return -EIO;
 	}
 	tvaudio_info("%s found @ 0x%x (%s)\n", desc->name, addr<<1, adap->name);
-        if (desc->flags) {
-                tvaudio_dbg("matches:%s%s%s.\n",
-                        (desc->flags & CHIP_HAS_VOLUME)     ? " volume"      : "",
-                        (desc->flags & CHIP_HAS_BASSTREBLE) ? " bass/treble" : "",
-                        (desc->flags & CHIP_HAS_INPUTSEL)   ? " audiomux"    : "");
-        }
+	if (desc->flags) {
+		tvaudio_dbg("matches:%s%s%s.\n",
+		        (desc->flags & CHIP_HAS_VOLUME)     ? " volume"      : "",
+		        (desc->flags & CHIP_HAS_BASSTREBLE) ? " bass/treble" : "",
+		        (desc->flags & CHIP_HAS_INPUTSEL)   ? " audiomux"    : "");
+	}
 
 	/* fill required data structures */
 	strcpy(chip->c.name,desc->name);
 	chip->type = desc-chiplist;
 	chip->shadow.count = desc->registers+1;
-        chip->prevmode = -1;
+	chip->prevmode = -1;
 	/* register */
 	i2c_attach_client(&chip->c);
 

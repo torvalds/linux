@@ -59,7 +59,7 @@ module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for SAA7134 capture interface(s).");
 
 #define dprintk(fmt, arg...)    if (debug) \
-        printk(KERN_DEBUG "%s/alsa: " fmt, dev->name , ## arg)
+	printk(KERN_DEBUG "%s/alsa: " fmt, dev->name , ## arg)
 
 /*
  * Main chip structure
@@ -208,8 +208,8 @@ static void saa7134_irq_alsa_done(struct saa7134_dev *dev,
 
 static irqreturn_t saa7134_alsa_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
-        struct saa7134_dmasound *dmasound = dev_id;
-        struct saa7134_dev *dev = dmasound->priv_data;
+	struct saa7134_dmasound *dmasound = dev_id;
+	struct saa7134_dev *dev = dmasound->priv_data;
 
 	unsigned long report, status;
 	int loop, handled = 0;
@@ -985,7 +985,7 @@ static int saa7134_alsa_init(void)
 	struct saa7134_dev *dev = NULL;
 	struct list_head *list;
 
-        printk(KERN_INFO "saa7134 ALSA driver for DMA sound loaded\n");
+	printk(KERN_INFO "saa7134 ALSA driver for DMA sound loaded\n");
 
 	list_for_each(list,&saa7134_devlist) {
 		dev = list_entry(list, struct saa7134_dev, devlist);
