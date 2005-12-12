@@ -295,7 +295,6 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 	struct snd_rawmidi_info *info;
 	int newclient = 0;
 	unsigned int p, ports;
-	struct snd_seq_client_callback callbacks;
 	struct snd_seq_port_callback pcallbacks;
 	struct snd_card *card = dev->card;
 	int device = dev->device;
@@ -334,10 +333,7 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 			kfree(info);
 			return -ENOMEM;
 		}
-		memset(&callbacks, 0, sizeof(callbacks));
-		callbacks.private_data = client;
-		callbacks.allow_input = callbacks.allow_output = 1;
-		client->seq_client = snd_seq_create_kernel_client(card, 0, &callbacks);
+		client->seq_client = snd_seq_create_kernel_client(card, 0);
 		if (client->seq_client < 0) {
 			kfree(client);
 			up(&register_mutex);

@@ -219,7 +219,6 @@ static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 {
 	struct snd_opl3 *opl3;
 	int client;
-	struct snd_seq_client_callback callbacks;
 	struct snd_seq_client_info cinfo;
 	int opl_ver;
 
@@ -232,11 +231,8 @@ static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 	opl3->seq_client = -1;
 
 	/* allocate new client */
-	memset(&callbacks, 0, sizeof(callbacks));
-	callbacks.private_data = opl3;
-	callbacks.allow_output = callbacks.allow_input = 1;
 	client = opl3->seq_client =
-	    snd_seq_create_kernel_client(opl3->card, opl3->seq_dev_num, &callbacks);
+		snd_seq_create_kernel_client(opl3->card, opl3->seq_dev_num);
 	if (client < 0)
 		return client;
 

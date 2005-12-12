@@ -60,15 +60,6 @@ typedef union snd_seq_timestamp snd_seq_timestamp_t;
 /* max size of event size */
 #define SNDRV_SEQ_MAX_EVENT_LEN		0x3fffffff
 
-/* call-backs for kernel client */
-
-struct snd_seq_client_callback {
-	void *private_data;
-	unsigned allow_input: 1,
-		 allow_output: 1;
-	/*...*/
-};
-
 /* call-backs for kernel port */
 struct snd_seq_port_callback {
 	struct module *owner;
@@ -84,8 +75,7 @@ struct snd_seq_port_callback {
 };
 
 /* interface for kernel client */
-int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
-				 struct snd_seq_client_callback *callback);
+int snd_seq_create_kernel_client(struct snd_card *card, int client_index);
 int snd_seq_delete_kernel_client(int client);
 int snd_seq_kernel_client_enqueue(int client, struct snd_seq_event *ev, int atomic, int hop);
 int snd_seq_kernel_client_dispatch(int client, struct snd_seq_event *ev, int atomic, int hop);

@@ -91,8 +91,6 @@ struct snd_seq_client *snd_seq_client_use_ptr(int clientid);
 int snd_seq_dispatch_event(struct snd_seq_event_cell *cell, int atomic, int hop);
 
 /* exported to other modules */
-int snd_seq_register_kernel_client(struct snd_seq_client_callback *callback, void *private_data);
-int snd_seq_unregister_kernel_client(int client);
 int snd_seq_kernel_client_enqueue(int client, struct snd_seq_event *ev, int atomic, int hop);
 int snd_seq_kernel_client_enqueue_blocking(int client, struct snd_seq_event * ev,
 					   struct file *file, int atomic, int hop);

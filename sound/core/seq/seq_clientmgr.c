@@ -2212,15 +2212,12 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 
 
 /* exported to kernel modules */
-int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
-				 struct snd_seq_client_callback *callback)
+int snd_seq_create_kernel_client(struct snd_card *card, int client_index)
 {
 	struct snd_seq_client *client;
 
 	snd_assert(! in_interrupt(), return -EBUSY);
 
-	if (callback == NULL)
-		return -EINVAL;
 	if (card && client_index > 3)
 		return -EINVAL;
 	if (card == NULL && client_index > 63)
@@ -2244,8 +2241,8 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	}
 	usage_alloc(&client_usage, 1);
 
-	client->accept_input = callback->allow_output;
-	client->accept_output = callback->allow_input;
+	client->accept_input = 1;
+	client->accept_output = 1;
 		
 	sprintf(client->name, "Client-%d", client->number);
 

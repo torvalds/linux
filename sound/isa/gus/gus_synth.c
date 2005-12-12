@@ -214,7 +214,6 @@ static int snd_gus_synth_new_device(struct snd_seq_device *dev)
 {
 	struct snd_gus_card *gus;
 	int client, i;
-	struct snd_seq_client_callback callbacks;
 	struct snd_seq_client_info *cinfo;
 	struct snd_seq_port_subscribe sub;
 	struct snd_iwffff_ops *iwops;
@@ -233,11 +232,8 @@ static int snd_gus_synth_new_device(struct snd_seq_device *dev)
 		return -ENOMEM;
 
 	/* allocate new client */
-	memset(&callbacks, 0, sizeof(callbacks));
-	callbacks.private_data = gus;
-	callbacks.allow_output = callbacks.allow_input = 1;
 	client = gus->gf1.seq_client =
-			snd_seq_create_kernel_client(gus->card, 1, &callbacks);
+		snd_seq_create_kernel_client(gus->card, 1);
 	if (client < 0) {
 		kfree(cinfo);
 		return client;

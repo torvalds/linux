@@ -347,17 +347,11 @@ snd_emux_unuse(void *private_data, struct snd_seq_port_subscribe *info)
 static int
 get_client(struct snd_card *card, int index, char *name)
 {
-	struct snd_seq_client_callback callbacks;
 	struct snd_seq_client_info cinfo;
 	int client;
 
-	memset(&callbacks, 0, sizeof(callbacks));
-	callbacks.private_data = NULL;
-	callbacks.allow_input = 1;
-	callbacks.allow_output = 1;
-
 	/* Find a free client, start from 1 as the MPU expects to use 0 */
-	client = snd_seq_create_kernel_client(card, index, &callbacks);
+	client = snd_seq_create_kernel_client(card, index);
 	if (client < 0)
 		return client;
 

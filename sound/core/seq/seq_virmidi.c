@@ -359,7 +359,6 @@ static struct snd_rawmidi_ops snd_virmidi_output_ops = {
 static int snd_virmidi_dev_attach_seq(struct snd_virmidi_dev *rdev)
 {
 	int client;
-	struct snd_seq_client_callback callbacks;
 	struct snd_seq_port_callback pcallbacks;
 	struct snd_seq_client_info *info;
 	struct snd_seq_port_info *pinfo;
@@ -375,11 +374,7 @@ static int snd_virmidi_dev_attach_seq(struct snd_virmidi_dev *rdev)
 		goto __error;
 	}
 
-	memset(&callbacks, 0, sizeof(callbacks));
-	callbacks.private_data = rdev;
-	callbacks.allow_input = 1;
-	callbacks.allow_output = 1;
-	client = snd_seq_create_kernel_client(rdev->card, rdev->device, &callbacks);
+	client = snd_seq_create_kernel_client(rdev->card, rdev->device);
 	if (client < 0) {
 		err = client;
 		goto __error;

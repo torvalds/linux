@@ -934,7 +934,6 @@ static int snd_trident_synth_new_device(struct snd_seq_device *dev)
 {
 	struct snd_trident *trident;
 	int client, i;
-	struct snd_seq_client_callback callbacks;
 	struct snd_seq_client_info cinfo;
 	struct snd_seq_port_subscribe sub;
 	struct snd_simple_ops *simpleops;
@@ -947,11 +946,8 @@ static int snd_trident_synth_new_device(struct snd_seq_device *dev)
 	trident->synth.seq_client = -1;
 
 	/* allocate new client */
-	memset(&callbacks, 0, sizeof(callbacks));
-	callbacks.private_data = trident;
-	callbacks.allow_output = callbacks.allow_input = 1;
 	client = trident->synth.seq_client =
-	    snd_seq_create_kernel_client(trident->card, 1, &callbacks);
+		snd_seq_create_kernel_client(trident->card, 1);
 	if (client < 0)
 		return client;
 

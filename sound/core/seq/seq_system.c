@@ -120,8 +120,6 @@ static int event_input_timer(struct snd_seq_event * ev, int direct, void *privat
 /* register our internal client */
 int __init snd_seq_system_client_init(void)
 {
-
-	struct snd_seq_client_callback callbacks;
 	struct snd_seq_port_callback pcallbacks;
 	struct snd_seq_client_info *inf;
 	struct snd_seq_port_info *port;
@@ -134,14 +132,12 @@ int __init snd_seq_system_client_init(void)
 		return -ENOMEM;
 	}
 
-	memset(&callbacks, 0, sizeof(callbacks));
 	memset(&pcallbacks, 0, sizeof(pcallbacks));
 	pcallbacks.owner = THIS_MODULE;
 	pcallbacks.event_input = event_input_timer;
 
 	/* register client */
-	callbacks.allow_input = callbacks.allow_output = 1;
-	sysclient = snd_seq_create_kernel_client(NULL, 0, &callbacks);
+	sysclient = snd_seq_create_kernel_client(NULL, 0);
 
 	/* set our name */
 	inf->client = 0;

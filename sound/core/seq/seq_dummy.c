@@ -193,7 +193,6 @@ create_port(int idx, int type)
 static int __init
 register_client(void)
 {
-	struct snd_seq_client_callback cb;
 	struct snd_seq_client_info cinfo;
 	struct snd_seq_dummy_port *rec1, *rec2;
 	int i;
@@ -204,10 +203,7 @@ register_client(void)
 	}
 
 	/* create client */
-	memset(&cb, 0, sizeof(cb));
-	cb.allow_input = 1;
-	cb.allow_output = 1;
-	my_client = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_DUMMY, &cb);
+	my_client = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_DUMMY);
 	if (my_client < 0)
 		return my_client;
 

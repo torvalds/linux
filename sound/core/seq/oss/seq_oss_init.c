@@ -65,7 +65,6 @@ int __init
 snd_seq_oss_create_client(void)
 {
 	int rc;
-	struct snd_seq_client_callback callback;
 	struct snd_seq_client_info *info;
 	struct snd_seq_port_info *port;
 	struct snd_seq_port_callback port_callback;
@@ -78,13 +77,7 @@ snd_seq_oss_create_client(void)
 	}
 
 	/* create ALSA client */
-	memset(&callback, 0, sizeof(callback));
-
-	callback.private_data = NULL;
-	callback.allow_input = 1;
-	callback.allow_output = 1;
-
-	rc = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_OSS, &callback);
+	rc = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_OSS);
 	if (rc < 0)
 		goto __error;
 

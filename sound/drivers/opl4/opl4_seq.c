@@ -127,7 +127,6 @@ static int snd_opl4_seq_new_device(struct snd_seq_device *dev)
 {
 	struct snd_opl4 *opl4;
 	int client;
-	struct snd_seq_client_callback callbacks;
 	struct snd_seq_client_info cinfo;
 	struct snd_seq_port_callback pcallbacks;
 
@@ -144,10 +143,7 @@ static int snd_opl4_seq_new_device(struct snd_seq_device *dev)
 	opl4->chset->private_data = opl4;
 
 	/* allocate new client */
-	memset(&callbacks, 0, sizeof(callbacks));
-	callbacks.private_data = opl4;
-	callbacks.allow_output = callbacks.allow_input = 1;
-	client = snd_seq_create_kernel_client(opl4->card, opl4->seq_dev_num, &callbacks);
+	client = snd_seq_create_kernel_client(opl4->card, opl4->seq_dev_num);
 	if (client < 0) {
 		snd_midi_channel_free_set(opl4->chset);
 		return client;
