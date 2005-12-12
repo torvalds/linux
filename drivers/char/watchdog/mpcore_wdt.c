@@ -180,10 +180,6 @@ static ssize_t mpcore_wdt_write(struct file *file, const char *data, size_t len,
 {
 	struct mpcore_wdt *wdt = file->private_data;
 
-	/*  Can't seek (pwrite) on this device  */
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
-
 	/*
 	 *	Refresh the timer.
 	 */
