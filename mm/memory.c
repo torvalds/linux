@@ -1228,50 +1228,6 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *
 EXPORT_SYMBOL(vm_insert_page);
 
 /*
- * Somebody does a pfn remapping that doesn't actually work as a vma.
- *
- * Do it as individual pages instead, and warn about it. It's bad form,
- * and very inefficient.
- */
-static int incomplete_pfn_remap(struct vm_area_struct *vma,
-		unsigned long start, unsigned long end,
-		unsigned long pfn, pgprot_t prot)
-{
-	static int warn = 10;
-	struct page *page;
-	int retval;
-
-	if (!(vma->vm_flags & VM_INCOMPLETE)) {
-		if (warn) {
-			warn--;
-			printk("%s does an incomplete pfn remapping", current->comm);
-			dump_stack();
-		}
-	}
-	vma->vm_flags |= VM_INCOMPLETE | VM_IO | VM_RESERVED;
-
-	if (start < vma->vm_start || end > vma->vm_end)
-		return -EINVAL;
-
-	if (!pfn_valid(pfn))
-		return -EINVAL;
-
-	page = pfn_to_page(pfn);
-	if (!PageReserved(page))
-		return -EINVAL;
-
-	retval = 0;
-	while (start < end) {
-		retval = insert_page(vma->vm_mm, start, page, prot);
-		if (retval < 0)
-			break;
-		start += PAGE_SIZE;
-		page++;
-	}
-	return retval;
-}
-
-/*
  * maps a range of physical memory into the requested pages. the old
  * mappings are removed. any references to nonexistent pages results
  * in null mappings (currently treated as "copy-on-access")
@@ -1365,7 +1321,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 */
 	if (!(vma->vm_flags & VM_SHARED)) {
 		if (addr != vma->vm_start || end != vma->vm_end)
-			return incomplete_pfn_remap(vma, addr, end, pfn, prot);
+			return -EINVAL;
 		vma->vm_pgoff = pfn;
 	}
 
