@@ -349,6 +349,11 @@ void print_bad_pte(struct vm_area_struct *vma, pte_t pte, unsigned long vaddr)
 	dump_stack();
 }
 
+static inline int is_cow_mapping(unsigned int flags)
+{
+	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+}
+
 /*
  * This function gets the "struct page" associated with a pte.
  *
@@ -377,7 +382,7 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 		unsigned long off = (addr - vma->vm_start) >> PAGE_SHIFT;
 		if (pfn == vma->vm_pgoff + off)
 			return NULL;
-		if (vma->vm_flags & VM_SHARED)
+		if (!is_cow_mapping(vma->vm_flags))
 			return NULL;
 	}
 
@@ -439,7 +444,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * If it's a COW mapping, write protect it both
 	 * in the parent and the child
 	 */
-	if ((vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE) {
+	if (is_cow_mapping(vm_flags)) {
 		ptep_set_wrprotect(src_mm, addr, src_pte);
 		pte = *src_pte;
 	}
@@ -1319,7 +1324,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 * behaviour that some programs depend on. We mark the "original"
 	 * un-COW'ed pages by matching them up with "vma->vm_pgoff".
 	 */
-	if (!(vma->vm_flags & VM_SHARED)) {
+	if (is_cow_mapping(vma->vm_flags)) {
 		if (addr != vma->vm_start || end != vma->vm_end)
 			return -EINVAL;
 		vma->vm_pgoff = pfn;
