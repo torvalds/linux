@@ -2212,9 +2212,11 @@ static long snd_seq_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 
 
 /* exported to kernel modules */
-int snd_seq_create_kernel_client(struct snd_card *card, int client_index)
+int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
+				 const char *name_fmt, ...)
 {
 	struct snd_seq_client *client;
+	va_list args;
 
 	snd_assert(! in_interrupt(), return -EBUSY);
 
@@ -2244,7 +2246,9 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index)
 	client->accept_input = 1;
 	client->accept_output = 1;
 		
-	sprintf(client->name, "Client-%d", client->number);
+	va_start(args, name_fmt);
+	vsnprintf(client->name, sizeof(client->name), name_fmt, args);
+	va_end(args);
 
 	client->type = KERNEL_CLIENT;
 	up(&register_mutex);

@@ -270,21 +270,6 @@ static void snd_seq_midisynth_delete(struct seq_midisynth *msynth)
 		snd_midi_event_free(msynth->parser);
 }
 
-/* set our client name */
-static int set_client_name(struct seq_midisynth_client *client, struct snd_card *card,
-			   struct snd_rawmidi_info *rmidi)
-{
-	struct snd_seq_client_info cinfo;
-	const char *name;
-
-	memset(&cinfo, 0, sizeof(cinfo));
-	cinfo.client = client->seq_client;
-	cinfo.type = KERNEL_CLIENT;
-	name = rmidi->name[0] ? (const char *)rmidi->name : "External MIDI";
-	strlcpy(cinfo.name, name, sizeof(cinfo.name));
-	return snd_seq_kernel_client_ctl(client->seq_client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &cinfo);
-}
-
 /* register new midi synth port */
 static int
 snd_seq_midisynth_register_port(struct snd_seq_device *dev)
@@ -333,16 +318,17 @@ snd_seq_midisynth_register_port(struct snd_seq_device *dev)
 			kfree(info);
 			return -ENOMEM;
 		}
-		client->seq_client = snd_seq_create_kernel_client(card, 0);
+		client->seq_client =
+			snd_seq_create_kernel_client(
+				card, 0, "%s", info->name[0] ?
+				(const char *)info->name : "External MIDI");
 		if (client->seq_client < 0) {
 			kfree(client);
 			up(&register_mutex);
 			kfree(info);
 			return -ENOMEM;
 		}
-		set_client_name(client, card, info);
-	} else if (device == 0)
-		set_client_name(client, card, info); /* use the first device's name */
+	}
 
 	msynth = kcalloc(ports, sizeof(struct seq_midisynth), GFP_KERNEL);
 	port = kmalloc(sizeof(*port), GFP_KERNEL);

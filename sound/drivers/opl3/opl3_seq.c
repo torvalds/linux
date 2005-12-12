@@ -219,7 +219,7 @@ static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 {
 	struct snd_opl3 *opl3;
 	int client;
-	struct snd_seq_client_info cinfo;
+	char name[32];
 	int opl_ver;
 
 	opl3 = *(struct snd_opl3 **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
@@ -231,18 +231,13 @@ static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 	opl3->seq_client = -1;
 
 	/* allocate new client */
+	opl_ver = (opl3->hardware & OPL3_HW_MASK) >> 8;
+	sprintf(name, "OPL%i FM synth", opl_ver);
 	client = opl3->seq_client =
-		snd_seq_create_kernel_client(opl3->card, opl3->seq_dev_num);
+		snd_seq_create_kernel_client(opl3->card, opl3->seq_dev_num,
+					     name);
 	if (client < 0)
 		return client;
-
-	/* change name of client */
-	memset(&cinfo, 0, sizeof(cinfo));
-	cinfo.client = client;
-	cinfo.type = KERNEL_CLIENT;
-	opl_ver = (opl3->hardware & OPL3_HW_MASK) >> 8;
-	sprintf(cinfo.name, "OPL%i FM synth", opl_ver);
-	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &cinfo);
 
 	snd_opl3_synth_create_port(opl3);
 
@@ -264,7 +259,7 @@ static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 	opl3->sys_timer_status = 0;
 
 #ifdef CONFIG_SND_SEQUENCER_OSS
-	snd_opl3_init_seq_oss(opl3, cinfo.name);
+	snd_opl3_init_seq_oss(opl3, name);
 #endif
 	return 0;
 }

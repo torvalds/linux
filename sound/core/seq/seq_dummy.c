@@ -193,7 +193,6 @@ create_port(int idx, int type)
 static int __init
 register_client(void)
 {
-	struct snd_seq_client_info cinfo;
 	struct snd_seq_dummy_port *rec1, *rec2;
 	int i;
 
@@ -203,16 +202,10 @@ register_client(void)
 	}
 
 	/* create client */
-	my_client = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_DUMMY);
+	my_client = snd_seq_create_kernel_client(NULL, SNDRV_SEQ_CLIENT_DUMMY,
+						 "Midi Through");
 	if (my_client < 0)
 		return my_client;
-
-	/* set client name */
-	memset(&cinfo, 0, sizeof(cinfo));
-	cinfo.client = my_client;
-	cinfo.type = KERNEL_CLIENT;
-	strcpy(cinfo.name, "Midi Through");
-	snd_seq_kernel_client_ctl(my_client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &cinfo);
 
 	/* create ports */
 	for (i = 0; i < ports; i++) {

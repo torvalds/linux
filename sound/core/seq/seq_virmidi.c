@@ -360,33 +360,27 @@ static int snd_virmidi_dev_attach_seq(struct snd_virmidi_dev *rdev)
 {
 	int client;
 	struct snd_seq_port_callback pcallbacks;
-	struct snd_seq_client_info *info;
 	struct snd_seq_port_info *pinfo;
 	int err;
 
 	if (rdev->client >= 0)
 		return 0;
 
-	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	pinfo = kmalloc(sizeof(*pinfo), GFP_KERNEL);
-	if (! info || ! pinfo) {
+	if (!pinfo) {
 		err = -ENOMEM;
 		goto __error;
 	}
 
-	client = snd_seq_create_kernel_client(rdev->card, rdev->device);
+	client = snd_seq_create_kernel_client(rdev->card, rdev->device,
+					      "%s %d-%d", rdev->rmidi->name,
+					      rdev->card->number,
+					      rdev->device);
 	if (client < 0) {
 		err = client;
 		goto __error;
 	}
 	rdev->client = client;
-
-	/* set client name */
-	memset(info, 0, sizeof(*info));
-	info->client = client;
-	info->type = KERNEL_CLIENT;
-	sprintf(info->name, "%s %d-%d", rdev->rmidi->name, rdev->card->number, rdev->device);
-	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, info);
 
 	/* create a port */
 	memset(pinfo, 0, sizeof(*pinfo));
@@ -418,7 +412,6 @@ static int snd_virmidi_dev_attach_seq(struct snd_virmidi_dev *rdev)
 	err = 0; /* success */
 
  __error:
-	kfree(info);
 	kfree(pinfo);
 	return err;
 }

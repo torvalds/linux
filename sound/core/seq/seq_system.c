@@ -121,29 +121,18 @@ static int event_input_timer(struct snd_seq_event * ev, int direct, void *privat
 int __init snd_seq_system_client_init(void)
 {
 	struct snd_seq_port_callback pcallbacks;
-	struct snd_seq_client_info *inf;
 	struct snd_seq_port_info *port;
 
-	inf = kzalloc(sizeof(*inf), GFP_KERNEL);
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
-	if (! inf || ! port) {
-		kfree(inf);
-		kfree(port);
+	if (!port)
 		return -ENOMEM;
-	}
 
 	memset(&pcallbacks, 0, sizeof(pcallbacks));
 	pcallbacks.owner = THIS_MODULE;
 	pcallbacks.event_input = event_input_timer;
 
 	/* register client */
-	sysclient = snd_seq_create_kernel_client(NULL, 0);
-
-	/* set our name */
-	inf->client = 0;
-	inf->type = KERNEL_CLIENT;
-	strcpy(inf->name, "System");
-	snd_seq_kernel_client_ctl(sysclient, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, inf);
+	sysclient = snd_seq_create_kernel_client(NULL, 0, "System");
 
 	/* register timer */
 	strcpy(port->name, "Timer");
@@ -167,7 +156,6 @@ int __init snd_seq_system_client_init(void)
 	snd_seq_kernel_client_ctl(sysclient, SNDRV_SEQ_IOCTL_CREATE_PORT, port);
 	announce_port = port->addr.port;
 
-	kfree(inf);
 	kfree(port);
 	return 0;
 }

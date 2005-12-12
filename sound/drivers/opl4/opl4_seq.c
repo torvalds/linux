@@ -127,7 +127,6 @@ static int snd_opl4_seq_new_device(struct snd_seq_device *dev)
 {
 	struct snd_opl4 *opl4;
 	int client;
-	struct snd_seq_client_info cinfo;
 	struct snd_seq_port_callback pcallbacks;
 
 	opl4 = *(struct snd_opl4 **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
@@ -143,20 +142,14 @@ static int snd_opl4_seq_new_device(struct snd_seq_device *dev)
 	opl4->chset->private_data = opl4;
 
 	/* allocate new client */
-	client = snd_seq_create_kernel_client(opl4->card, opl4->seq_dev_num);
+	client = snd_seq_create_kernel_client(opl4->card, opl4->seq_dev_num,
+					      "OPL4 Wavetable");
 	if (client < 0) {
 		snd_midi_channel_free_set(opl4->chset);
 		return client;
 	}
 	opl4->seq_client = client;
 	opl4->chset->client = client;
-
-	/* change name of client */
-	memset(&cinfo, 0, sizeof(cinfo));
-	cinfo.client = client;
-	cinfo.type = KERNEL_CLIENT;
-	strcpy(cinfo.name, "OPL4 Wavetable");
-	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &cinfo);
 
 	/* create new port */
 	memset(&pcallbacks, 0, sizeof(pcallbacks));

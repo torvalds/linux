@@ -28,7 +28,6 @@ static void free_port(void *private);
 static void snd_emux_init_port(struct snd_emux_port *p);
 static int snd_emux_use(void *private_data, struct snd_seq_port_subscribe *info);
 static int snd_emux_unuse(void *private_data, struct snd_seq_port_subscribe *info);
-static int get_client(struct snd_card *card, int index, char *name);
 
 /*
  * MIDI emulation operators
@@ -71,8 +70,8 @@ snd_emux_init_seq(struct snd_emux *emu, struct snd_card *card, int index)
 	struct snd_seq_port_callback pinfo;
 	char tmpname[64];
 
-	sprintf(tmpname, "%s WaveTable", emu->name);
-	emu->client = get_client(card, index, tmpname);
+	emu->client = snd_seq_create_kernel_client(card, index,
+						   "%s WaveTable", emu->name);
 	if (emu->client < 0) {
 		snd_printk("can't create client\n");
 		return -ENODEV;
@@ -338,30 +337,6 @@ snd_emux_unuse(void *private_data, struct snd_seq_port_subscribe *info)
 	snd_emux_dec_count(emu);
 	up(&emu->register_mutex);
 	return 0;
-}
-
-
-/*
- * Create a sequencer client
- */
-static int
-get_client(struct snd_card *card, int index, char *name)
-{
-	struct snd_seq_client_info cinfo;
-	int client;
-
-	/* Find a free client, start from 1 as the MPU expects to use 0 */
-	client = snd_seq_create_kernel_client(card, index);
-	if (client < 0)
-		return client;
-
-	memset(&cinfo, 0, sizeof(cinfo));
-	cinfo.client = client;
-	cinfo.type = KERNEL_CLIENT;
-	strcpy(cinfo.name, name);
-	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &cinfo);
-
-	return client;
 }
 
 

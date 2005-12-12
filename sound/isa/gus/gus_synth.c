@@ -214,7 +214,6 @@ static int snd_gus_synth_new_device(struct snd_seq_device *dev)
 {
 	struct snd_gus_card *gus;
 	int client, i;
-	struct snd_seq_client_info *cinfo;
 	struct snd_seq_port_subscribe sub;
 	struct snd_iwffff_ops *iwops;
 	struct snd_gf1_ops *gf1ops;
@@ -227,25 +226,12 @@ static int snd_gus_synth_new_device(struct snd_seq_device *dev)
 	init_MUTEX(&gus->register_mutex);
 	gus->gf1.seq_client = -1;
 	
-	cinfo = kmalloc(sizeof(*cinfo), GFP_KERNEL);
-	if (! cinfo)
-		return -ENOMEM;
-
 	/* allocate new client */
 	client = gus->gf1.seq_client =
-		snd_seq_create_kernel_client(gus->card, 1);
-	if (client < 0) {
-		kfree(cinfo);
+		snd_seq_create_kernel_client(gus->card, 1, gus->interwave ?
+					     "AMD InterWave" : "GF1");
+	if (client < 0)
 		return client;
-	}
-
-	/* change name of client */
-	memset(cinfo, 0, sizeof(*cinfo));
-	cinfo->client = client;
-	cinfo->type = KERNEL_CLIENT;
-	sprintf(cinfo->name, gus->interwave ? "AMD InterWave" : "GF1");
-	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, cinfo);
-	kfree(cinfo);
 
 	for (i = 0; i < 4; i++)
 		snd_gus_synth_create_port(gus, i);
