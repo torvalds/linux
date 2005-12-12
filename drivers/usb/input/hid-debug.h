@@ -681,6 +681,7 @@ static char *keys[KEY_MAX + 1] = {
 	[KEY_SEND] = "Send",			[KEY_REPLY] = "Reply",
 	[KEY_FORWARDMAIL] = "ForwardMail",	[KEY_SAVE] = "Save",
 	[KEY_DOCUMENTS] = "Documents",
+	[KEY_FN] = "Fn",
 };
 
 static char *relatives[REL_MAX + 1] = {
