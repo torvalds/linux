@@ -206,7 +206,6 @@ struct cg14_par {
 	int			mode;
 	int			ramsize;
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 static void __cg14_reset(struct cg14_par *par)
