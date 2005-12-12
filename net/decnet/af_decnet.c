@@ -153,6 +153,7 @@ static struct proto_ops dn_proto_ops;
 static DEFINE_RWLOCK(dn_hash_lock);
 static struct hlist_head dn_sk_hash[DN_SK_HASH_SIZE];
 static struct hlist_head dn_wild_sk;
+static atomic_t decnet_memory_allocated;
 
 static int __dn_setsockopt(struct socket *sock, int level, int optname, char __user *optval, int optlen, int flags);
 static int __dn_getsockopt(struct socket *sock, int level, int optname, char __user *optval, int __user *optlen, int flags);
@@ -446,10 +447,26 @@ static void dn_destruct(struct sock *sk)
 	dst_release(xchg(&sk->sk_dst_cache, NULL));
 }
 
+static int dn_memory_pressure;
+
+static void dn_enter_memory_pressure(void)
+{
+	if (!dn_memory_pressure) {
+		dn_memory_pressure = 1;
+	}
+}
+
 static struct proto dn_proto = {
-	.name	  = "DECNET",
-	.owner	  = THIS_MODULE,
-	.obj_size = sizeof(struct dn_sock),
+	.name			= "NSP",
+	.owner			= THIS_MODULE,
+	.enter_memory_pressure	= dn_enter_memory_pressure,
+	.memory_pressure	= &dn_memory_pressure,
+	.memory_allocated	= &decnet_memory_allocated,
+	.sysctl_mem		= sysctl_decnet_mem,
+	.sysctl_wmem		= sysctl_decnet_wmem,
+	.sysctl_rmem		= sysctl_decnet_rmem,
+	.max_header		= DN_MAX_NSP_DATA_HEADER + 64,
+	.obj_size		= sizeof(struct dn_sock),
 };
 
 static struct sock *dn_alloc_sock(struct socket *sock, gfp_t gfp)
@@ -470,6 +487,8 @@ static struct sock *dn_alloc_sock(struct socket *sock, gfp_t gfp)
 	sk->sk_family      = PF_DECnet;
 	sk->sk_protocol    = 0;
 	sk->sk_allocation  = gfp;
+	sk->sk_sndbuf	   = sysctl_decnet_wmem[1];
+	sk->sk_rcvbuf	   = sysctl_decnet_rmem[1];
 
 	/* Initialization of DECnet Session Control Port		*/
 	scp = DN_SK(sk);
