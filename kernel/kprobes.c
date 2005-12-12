@@ -399,10 +399,7 @@ static inline void add_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 	INIT_LIST_HEAD(&ap->list);
 	list_add_rcu(&p->list, &ap->list);
 
-	INIT_HLIST_NODE(&ap->hlist);
-	hlist_del_rcu(&p->hlist);
-	hlist_add_head_rcu(&ap->hlist,
-		&kprobe_table[hash_ptr(ap->addr, KPROBE_HASH_BITS)]);
+	hlist_replace_rcu(&p->hlist, &ap->hlist);
 }
 
 /*
