@@ -947,7 +947,7 @@ static int dvb_demux_do_ioctl(struct inode *inode, struct file *file,
 
 	case DMX_GET_STC:
 		if (!dmxdev->demux->get_stc) {
-		        ret=-EINVAL;
+			ret=-EINVAL;
 			break;
 		}
 		ret = dmxdev->demux->get_stc(dmxdev->demux,

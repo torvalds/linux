@@ -20,7 +20,7 @@ http://linuxtv.org/downloads/
 
 What's inside this directory:
 
-"cards.txt" 
+"cards.txt"
 contains a list of supported hardware.
 
 "contributors.txt"
@@ -37,7 +37,7 @@ that require it.
 contains detailed informations about the
 TT DEC2000/DEC3000 USB DVB hardware.
 
-"bt8xx.txt" 
+"bt8xx.txt"
 contains detailed installation instructions for the
 various bt8xx based "budget" DVB cards
 (Nebula, Pinnacle PCTV, Twinhan DST)

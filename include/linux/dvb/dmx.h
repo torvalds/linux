@@ -1,4 +1,4 @@
-/* 
+/*
  * dmx.h
  *
  * Copyright (C) 2000 Marcus Metzler <marcus@convergence.de>
@@ -38,10 +38,10 @@ typedef enum
 {
 	DMX_OUT_DECODER, /* Streaming directly to decoder. */
 	DMX_OUT_TAP,     /* Output going to a memory buffer */
-	                 /* (to be retrieved via the read command).*/
+			 /* (to be retrieved via the read command).*/
 	DMX_OUT_TS_TAP   /* Output multiplexed into a new TS  */
-	                 /* (to be retrieved by reading from the */
-	                 /* logical DVR device).                 */
+			 /* (to be retrieved by reading from the */
+			 /* logical DVR device).                 */
 } dmx_output_t;
 
 
@@ -54,25 +54,25 @@ typedef enum
 
 typedef enum
 {
-        DMX_PES_AUDIO0,
+	DMX_PES_AUDIO0,
 	DMX_PES_VIDEO0,
 	DMX_PES_TELETEXT0,
 	DMX_PES_SUBTITLE0,
 	DMX_PES_PCR0,
 
-        DMX_PES_AUDIO1,
+	DMX_PES_AUDIO1,
 	DMX_PES_VIDEO1,
 	DMX_PES_TELETEXT1,
 	DMX_PES_SUBTITLE1,
 	DMX_PES_PCR1,
 
-        DMX_PES_AUDIO2,
+	DMX_PES_AUDIO2,
 	DMX_PES_VIDEO2,
 	DMX_PES_TELETEXT2,
 	DMX_PES_SUBTITLE2,
 	DMX_PES_PCR2,
 
-        DMX_PES_AUDIO3,
+	DMX_PES_AUDIO3,
 	DMX_PES_VIDEO3,
 	DMX_PES_TELETEXT3,
 	DMX_PES_SUBTITLE3,
@@ -90,8 +90,8 @@ typedef enum
 
 typedef enum
 {
-        DMX_SCRAMBLING_EV,
-        DMX_FRONTEND_EV
+	DMX_SCRAMBLING_EV,
+	DMX_FRONTEND_EV
 } dmx_event_t;
 
 

@@ -102,7 +102,15 @@ int boot_cpuid_phys = 0;
 dev_t boot_dev;
 u64 ppc64_pft_size;
 
-struct ppc64_caches ppc64_caches;
+/* Pick defaults since we might want to patch instructions
+ * before we've read this from the device tree.
+ */
+struct ppc64_caches ppc64_caches = {
+	.dline_size = 0x80,
+	.log_dline_size = 7,
+	.iline_size = 0x80,
+	.log_iline_size = 7
+};
 EXPORT_SYMBOL_GPL(ppc64_caches);
 
 /*

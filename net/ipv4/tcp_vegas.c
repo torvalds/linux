@@ -215,14 +215,6 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 		vegas->beg_snd_nxt  = tp->snd_nxt;
 		vegas->beg_snd_cwnd = tp->snd_cwnd;
 
-		/* Take into account the current RTT sample too, to
-		 * decrease the impact of delayed acks. This double counts
-		 * this sample since we count it for the next window as well,
-		 * but that's not too awful, since we're taking the min,
-		 * rather than averaging.
-		 */
-		tcp_vegas_rtt_calc(sk, seq_rtt * 1000);
-
 		/* We do the Vegas calculations only if we got enough RTT
 		 * samples that we can be reasonably sure that we got
 		 * at least one RTT sample that wasn't from a delayed ACK.
@@ -333,11 +325,11 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 			else if (tp->snd_cwnd > tp->snd_cwnd_clamp)
 				tp->snd_cwnd = tp->snd_cwnd_clamp;
 		}
-	}
 
-	/* Wipe the slate clean for the next RTT. */
-	vegas->cntRTT = 0;
-	vegas->minRTT = 0x7fffffff;
+		/* Wipe the slate clean for the next RTT. */
+		vegas->cntRTT = 0;
+		vegas->minRTT = 0x7fffffff;
+	}
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
