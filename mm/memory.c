@@ -377,6 +377,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 		unsigned long off = (addr - vma->vm_start) >> PAGE_SHIFT;
 		if (pfn == vma->vm_pgoff + off)
 			return NULL;
+		if (vma->vm_flags & VM_SHARED)
+			return NULL;
 	}
 
 	/*
@@ -1343,9 +1345,6 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	struct mm_struct *mm = vma->vm_mm;
 	int err;
 
-	if (addr != vma->vm_start || end != vma->vm_end)
-		return incomplete_pfn_remap(vma, addr, end, pfn, prot);
-
 	/*
 	 * Physically remapped pages are special. Tell the
 	 * rest of the world about it:
@@ -1359,9 +1358,18 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 *   VM_PFNMAP tells the core MM that the base pages are just
 	 *	raw PFN mappings, and do not have a "struct page" associated
 	 *	with them.
+	 *
+	 * There's a horrible special case to handle copy-on-write
+	 * behaviour that some programs depend on. We mark the "original"
+	 * un-COW'ed pages by matching them up with "vma->vm_pgoff".
 	 */
+	if (!(vma->vm_flags & VM_SHARED)) {
+		if (addr != vma->vm_start || end != vma->vm_end)
+			return incomplete_pfn_remap(vma, addr, end, pfn, prot);
+		vma->vm_pgoff = pfn;
+	}
+
 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
-	vma->vm_pgoff = pfn;
 
 	BUG_ON(addr >= end);
 	pfn -= addr >> PAGE_SHIFT;
