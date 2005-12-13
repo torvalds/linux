@@ -1740,28 +1740,15 @@ static int sbp2_create_command_orb(struct scsi_id_instance_data *scsi_id,
 	command_orb->misc |= ORB_SET_SPEED(scsi_id->speed_code);
 	command_orb->misc |= ORB_SET_NOTIFY(1);	/* Notify us when complete */
 
-	/*
-	 * Get the direction of the transfer. If the direction is unknown, then use our
-	 * goofy table as a back-up.
-	 */
-	switch (dma_dir) {
-	case DMA_NONE:
+	if (dma_dir == DMA_NONE)
 		orb_direction = ORB_DIRECTION_NO_DATA_TRANSFER;
-		break;
-	case DMA_TO_DEVICE:
+	else if (dma_dir == DMA_TO_DEVICE && scsi_request_bufflen)
 		orb_direction = ORB_DIRECTION_WRITE_TO_MEDIA;
-		break;
-	case DMA_FROM_DEVICE:
+	else if (dma_dir == DMA_FROM_DEVICE && scsi_request_bufflen)
 		orb_direction = ORB_DIRECTION_READ_FROM_MEDIA;
-		break;
-	case DMA_BIDIRECTIONAL:
-	default:
-		SBP2_ERR("SCSI data transfer direction not specified. "
-			 "Update the SBP2 direction table in sbp2.h if "
-			 "necessary for your application");
-		__scsi_print_command(scsi_cmd);
-		orb_direction = sbp2scsi_direction_table[*scsi_cmd];
-		break;
+	else {
+		SBP2_WARN("Falling back to DMA_NONE");
+		orb_direction = ORB_DIRECTION_NO_DATA_TRANSFER;
 	}
 
 	/*
@@ -1879,16 +1866,6 @@ static int sbp2_create_command_orb(struct scsi_id_instance_data *scsi_id,
 			command_orb->data_descriptor_lo = command->cmd_dma;
 			command_orb->misc |= ORB_SET_DATA_SIZE(scsi_request_bufflen);
 			command_orb->misc |= ORB_SET_DIRECTION(orb_direction);
-
-			/*
-			 * Sanity, in case our direction table is not
-			 * up-to-date
-			 */
-			if (!scsi_request_bufflen) {
-				command_orb->data_descriptor_hi = 0x0;
-				command_orb->data_descriptor_lo = 0x0;
-				command_orb->misc |= ORB_SET_DIRECTION(1);
-			}
 
 		} else {
 			/*
@@ -2367,6 +2344,16 @@ static int sbp2scsi_queuecommand(struct scsi_cmnd *SCpnt,
 	if (!hpsb_node_entry_valid(scsi_id->ne)) {
 		SBP2_ERR("Bus reset in progress - rejecting command");
 		result = DID_BUS_BUSY << 16;
+		goto done;
+	}
+
+	/*
+	 * Bidirectional commands are not yet implemented,
+	 * and unknown transfer direction not handled.
+	 */
+	if (SCpnt->sc_data_direction == DMA_BIDIRECTIONAL) {
+		SBP2_ERR("Cannot handle DMA_BIDIRECTIONAL - rejecting command");
+		result = DID_ERROR << 16;
 		goto done;
 	}
 

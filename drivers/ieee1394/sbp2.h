@@ -260,45 +260,7 @@ struct sbp2_status_block {
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 #define SBP2_MAX_UDS_PER_NODE		16	/* Maximum scsi devices per node */
 #define SBP2_MAX_SECTORS		255	/* Max sectors supported */
-
-/*
- * SCSI direction table...
- * (now used as a back-up in case the direction passed down from above is "unknown")
- *
- * DIN = IN data direction
- * DOU = OUT data direction
- * DNO = No data transfer
- * DUN = Unknown data direction
- *
- * Opcode 0xec (Teac specific "opc execute") possibly should be DNO,
- * but we'll change it when somebody reports a problem with this.
- */
-#define DIN				ORB_DIRECTION_READ_FROM_MEDIA
-#define DOU				ORB_DIRECTION_WRITE_TO_MEDIA
-#define DNO				ORB_DIRECTION_NO_DATA_TRANSFER
-#define DUN				DIN
-
-static unchar sbp2scsi_direction_table[0x100] = {
-	DNO,DNO,DIN,DIN,DOU,DIN,DIN,DOU,DIN,DUN,DOU,DOU,DUN,DUN,DUN,DIN,
-	DNO,DIN,DIN,DOU,DIN,DOU,DNO,DNO,DOU,DNO,DIN,DNO,DIN,DOU,DNO,DUN,
-	DIN,DUN,DIN,DIN,DOU,DIN,DUN,DUN,DIN,DIN,DOU,DNO,DUN,DIN,DOU,DOU,
-	DOU,DOU,DOU,DNO,DIN,DNO,DNO,DIN,DOU,DOU,DOU,DOU,DIN,DOU,DIN,DOU,
-	DOU,DOU,DIN,DIN,DIN,DNO,DIN,DNO,DNO,DNO,DUN,DNO,DOU,DIN,DNO,DUN,
-	DUN,DIN,DIN,DNO,DNO,DOU,DUN,DUN,DNO,DIN,DIN,DNO,DIN,DOU,DUN,DUN,
-	DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,
-	DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,
-	DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,
-	DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,
-	DUN,DNO,DOU,DOU,DIN,DNO,DNO,DNO,DIN,DNO,DOU,DUN,DNO,DIN,DOU,DOU,
-	DOU,DOU,DOU,DNO,DUN,DIN,DOU,DIN,DIN,DIN,DNO,DNO,DNO,DIN,DIN,DUN,
-	DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,
-	DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,
-	DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DOU,DUN,DUN,DUN,DUN,DUN,
-	DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN,DUN
-};
-
-/* This should be safe */
-#define SBP2_MAX_CMDS		8
+#define SBP2_MAX_CMDS			8	/* This should be safe */
 
 /* This is the two dma types we use for cmd_dma below */
 enum cmd_dma_types {
