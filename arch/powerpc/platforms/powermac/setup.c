@@ -75,7 +75,6 @@
 #include <asm/iommu.h>
 #include <asm/smu.h>
 #include <asm/pmc.h>
-#include <asm/mpic.h>
 #include <asm/lmb.h>
 #include <asm/udbg.h>
 
@@ -751,7 +750,7 @@ struct machdep_calls __initdata pmac_md = {
 	.init_early		= pmac_init_early,
 	.show_cpuinfo		= pmac_show_cpuinfo,
 	.init_IRQ		= pmac_pic_init,
-	.get_irq		= mpic_get_irq,	/* changed later */
+	.get_irq		= NULL,	/* changed later */
 	.pcibios_fixup		= pmac_pcibios_fixup,
 	.restart		= pmac_restart,
 	.power_off		= pmac_power_off,

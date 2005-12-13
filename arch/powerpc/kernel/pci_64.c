@@ -896,6 +896,25 @@ static void __devinit pci_process_ISA_OF_ranges(struct device_node *isa_node,
 				      unsigned long phb_io_base_phys,
 				      void __iomem * phb_io_base_virt)
 {
+	/* Remove these asap */
+
+	struct pci_address {
+		u32 a_hi;
+		u32 a_mid;
+		u32 a_lo;
+	};
+
+	struct isa_address {
+		u32 a_hi;
+		u32 a_lo;
+	};
+
+	struct isa_range {
+		struct isa_address isa_addr;
+		struct pci_address pci_addr;
+		unsigned int size;
+	};
+
 	struct isa_range *range;
 	unsigned long pci_addr;
 	unsigned int isa_addr;
@@ -1330,8 +1349,9 @@ unsigned int pci_address_to_pio(phys_addr_t address)
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		if (address >= hose->io_base_phys &&
 		    address < (hose->io_base_phys + hose->pci_io_size))
-			return (unsigned int)hose->io_base_virt +
-				(address - hose->io_base_phys);
+			return (unsigned int)
+				((unsigned long)hose->io_base_virt +
+				 (address - hose->io_base_phys));
 	}
 	return (unsigned int)-1;
 }

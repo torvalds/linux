@@ -432,7 +432,8 @@ static int __init parse_numa_properties(void)
 		if (!memcell_buf || len <= 0)
 			continue;
 
-		ranges = memory->n_addrs;
+		/* ranges in cell */
+		ranges = (len >> 2) / (n_mem_addr_cells + n_mem_size_cells);
 new_range:
 		/* these are order-sensitive, and modify the buffer pointer */
 		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
@@ -779,7 +780,8 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 		if (!memcell_buf || len <= 0)
 			continue;
 
-		ranges = memory->n_addrs;	/* ranges in cell */
+		/* ranges in cell */
+		ranges = (len >> 2) / (n_mem_addr_cells + n_mem_size_cells);
 ha_new_range:
 		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
 		size = read_n_cells(n_mem_size_cells, &memcell_buf);

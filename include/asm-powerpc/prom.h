@@ -65,47 +65,9 @@ struct boot_param_header
 typedef u32 phandle;
 typedef u32 ihandle;
 
-struct address_range {
-	unsigned long space;
-	unsigned long address;
-	unsigned long size;
-};
-
 struct interrupt_info {
 	int	line;
 	int	sense;		/* +ve/-ve logic, edge or level, etc. */
-};
-
-struct pci_address {
-	u32 a_hi;
-	u32 a_mid;
-	u32 a_lo;
-};
-
-struct isa_address {
-	u32 a_hi;
-	u32 a_lo;
-};
-
-struct isa_range {
-	struct isa_address isa_addr;
-	struct pci_address pci_addr;
-	unsigned int size;
-};
-
-struct reg_property {
-	unsigned long address;
-	unsigned long size;
-};
-
-struct reg_property32 {
-	unsigned int address;
-	unsigned int size;
-};
-
-struct reg_property64 {
-	u64 address;
-	u64 size;
 };
 
 struct property {
@@ -120,8 +82,6 @@ struct device_node {
 	char	*type;
 	phandle	node;
 	phandle linux_phandle;
-	int	n_addrs;
-	struct	address_range *addrs;
 	int	n_intrs;
 	struct	interrupt_info *intrs;
 	char	*full_name;

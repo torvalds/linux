@@ -558,7 +558,8 @@ unsigned long prom_memparse(const char *ptr, const char **retptr)
 static void __init early_cmdline_parse(void)
 {
 	struct prom_t *_prom = &RELOC(prom);
-	char *opt, *p;
+	const char *opt;
+	char *p;
 	int l = 0;
 
 	RELOC(prom_cmd_line[0]) = 0;

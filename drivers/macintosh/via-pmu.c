@@ -298,7 +298,7 @@ static struct backlight_controller pmu_backlight_controller = {
 
 int __init find_via_pmu(void)
 {
-	phys_addr_t taddr;
+	u64 taddr;
 	u32 *reg;
 
 	if (via != 0)
@@ -337,7 +337,7 @@ int __init find_via_pmu(void)
 	else if (device_is_compatible(vias->parent, "Keylargo")
 		 || device_is_compatible(vias->parent, "K2-Keylargo")) {
 		struct device_node *gpiop;
-		phys_addr_t gaddr = 0;
+		u64 gaddr = OF_BAD_ADDR;
 
 		pmu_kind = PMU_KEYLARGO_BASED;
 		pmu_has_adb = (find_type_devices("adb") != NULL);
@@ -352,7 +352,7 @@ int __init find_via_pmu(void)
 			reg = (u32 *)get_property(gpiop, "reg", NULL);
 			if (reg)
 				gaddr = of_translate_address(gpiop, reg);
-			if (gaddr != 0)
+			if (gaddr != OF_BAD_ADDR)
 				gpio_reg = ioremap(gaddr, 0x10);
 		}
 		if (gpio_reg == NULL)
@@ -479,9 +479,6 @@ static int __init via_pmu_dev_init(void)
 	if (vias == NULL)
 		return -ENODEV;
 
-#ifndef CONFIG_PPC64
-	request_OF_resource(vias, 0, NULL);
-#endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 	/* Enable backlight */
 	register_backlight_controller(&pmu_backlight_controller, NULL, "pmu");

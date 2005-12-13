@@ -1445,20 +1445,55 @@ static long g5_i2s_enable(struct device_node *node, long param, long value)
 	/* Very crude implementation for now */
 	struct macio_chip *macio = &macio_chips[0];
 	unsigned long flags;
+	int cell;
+	u32 fcrs[3][3] = {
+		{ 0,
+		  K2_FCR1_I2S0_CELL_ENABLE |
+		  K2_FCR1_I2S0_CLK_ENABLE_BIT | K2_FCR1_I2S0_ENABLE,
+		  KL3_I2S0_CLK18_ENABLE
+		},
+		{ KL0_SCC_A_INTF_ENABLE,
+		  K2_FCR1_I2S1_CELL_ENABLE |
+		  K2_FCR1_I2S1_CLK_ENABLE_BIT | K2_FCR1_I2S1_ENABLE,
+		  KL3_I2S1_CLK18_ENABLE
+		},
+		{ KL0_SCC_B_INTF_ENABLE,
+		  SH_FCR1_I2S2_CELL_ENABLE |
+		  SH_FCR1_I2S2_CLK_ENABLE_BIT | SH_FCR1_I2S2_ENABLE,
+		  SH_FCR3_I2S2_CLK18_ENABLE
+		},
+	};
 
-	if (value == 0)
-		return 0; /* don't disable yet */
+	if (macio->type != macio_keylargo2 /* && macio->type != macio_shasta*/)
+		return -ENODEV;
+	if (strncmp(node->name, "i2s-", 4))
+		return -ENODEV;
+	cell = node->name[4] - 'a';
+	switch(cell) {
+	case 0:
+	case 1:
+		break;
+#if 0
+	case 2:
+		if (macio->type == macio_shasta)
+			break;
+#endif
+	default:
+		return -ENODEV;
+	}
 
 	LOCK(flags);
-	MACIO_BIS(KEYLARGO_FCR3, KL3_CLK45_ENABLE | KL3_CLK49_ENABLE |
-		  KL3_I2S0_CLK18_ENABLE);
+	if (value) {
+		MACIO_BIC(KEYLARGO_FCR0, fcrs[cell][0]);
+		MACIO_BIS(KEYLARGO_FCR1, fcrs[cell][1]);
+		MACIO_BIS(KEYLARGO_FCR3, fcrs[cell][2]);
+	} else {
+		MACIO_BIC(KEYLARGO_FCR3, fcrs[cell][2]);
+		MACIO_BIC(KEYLARGO_FCR1, fcrs[cell][1]);
+		MACIO_BIS(KEYLARGO_FCR0, fcrs[cell][0]);
+	}
 	udelay(10);
-	MACIO_BIS(KEYLARGO_FCR1, K2_FCR1_I2S0_CELL_ENABLE |
-		  K2_FCR1_I2S0_CLK_ENABLE_BIT | K2_FCR1_I2S0_ENABLE);
-	udelay(10);
-	MACIO_BIC(KEYLARGO_FCR1, K2_FCR1_I2S0_RESET);
 	UNLOCK(flags);
-	udelay(10);
 
 	return 0;
 }
@@ -2959,26 +2994,6 @@ pmac_feature_init(void)
 	 */
 	set_initial_features();
 }
-
-int __init pmac_feature_late_init(void)
-{
-#if 0
-	struct device_node *np;
-
-	/* Request some resources late */
-	if (uninorth_node)
-		request_OF_resource(uninorth_node, 0, NULL);
-	np = find_devices("hammerhead");
-	if (np)
-		request_OF_resource(np, 0, NULL);
-	np = find_devices("interrupt-controller");
-	if (np)
-		request_OF_resource(np, 0, NULL);
-#endif
-	return 0;
-}
-
-device_initcall(pmac_feature_late_init);
 
 #if 0
 static void dump_HT_speeds(char *name, u32 cfg, u32 frq)

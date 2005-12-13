@@ -256,42 +256,42 @@ static int macio_resource_quirks(struct device_node *np, struct resource *res,
 {
 	if (res->flags & IORESOURCE_MEM) {
 		/* Grand Central has too large resource 0 on some machines */
-		if (index == 0 && !strcmp(np->name, "gc")) {
-			np->addrs[0].size = 0x20000;
+		if (index == 0 && !strcmp(np->name, "gc"))
 			res->end = res->start + 0x1ffff;
-		}
+
 		/* Airport has bogus resource 2 */
 		if (index >= 2 && !strcmp(np->name, "radio"))
 			return 1;
+
+#ifndef CONFIG_PPC64
 		/* DBDMAs may have bogus sizes */
-		if ((res->start & 0x0001f000) == 0x00008000) {
-			np->addrs[index].size = 0x100;
+		if ((res->start & 0x0001f000) == 0x00008000)
 			res->end = res->start + 0xff;
-		}
+#endif /* CONFIG_PPC64 */
+
 		/* ESCC parent eats child resources. We could have added a
 		 * level of hierarchy, but I don't really feel the need
 		 * for it
 		 */
 		if (!strcmp(np->name, "escc"))
 			return 1;
+
 		/* ESCC has bogus resources >= 3 */
 		if (index >= 3 && !(strcmp(np->name, "ch-a") &&
 				    strcmp(np->name, "ch-b")))
 			return 1;
+
 		/* Media bay has too many resources, keep only first one */
 		if (index > 0 && !strcmp(np->name, "media-bay"))
 			return 1;
+
 		/* Some older IDE resources have bogus sizes */
 		if (!(strcmp(np->name, "IDE") && strcmp(np->name, "ATA") &&
 		      strcmp(np->type, "ide") && strcmp(np->type, "ata"))) {
-			if (index == 0 && np->addrs[0].size > 0x1000) {
-				np->addrs[0].size = 0x1000;
+			if (index == 0 && (res->end - res->start) > 0xfff)
 				res->end = res->start + 0xfff;
-			}
-			if (index == 1 && np->addrs[1].size > 0x100) {
-				np->addrs[1].size = 0x100;
+			if (index == 1 && (res->end - res->start) > 0xff)
 				res->end = res->start + 0xff;
-			}
 		}
 	}
 	return 0;
@@ -349,7 +349,7 @@ static void macio_setup_resources(struct macio_dev *dev,
 		/* Currently, we consider failure as harmless, this may
 		 * change in the future, once I've found all the device
 		 * tree bugs in older machines & worked around them
-l		 */
+		 */
 		if (insert_resource(parent_res, res)) {
 			printk(KERN_WARNING "Can't request resource "
 			       "%d for MacIO device %s\n",

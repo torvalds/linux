@@ -285,15 +285,13 @@ static struct pci_ops chaos_pci_ops =
 };
 
 static void __init setup_chaos(struct pci_controller *hose,
-			       struct reg_property *addr)
+			       struct resource *addr)
 {
 	/* assume a `chaos' bridge */
 	hose->ops = &chaos_pci_ops;
-	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
-	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
+	hose->cfg_addr = ioremap(addr->start + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(addr->start + 0xc00000, 0x1000);
 }
-#else
-#define setup_chaos(hose, addr)
 #endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
@@ -356,9 +354,11 @@ static unsigned long u3_ht_cfg_access(struct pci_controller* hose,
 		/* For now, we don't self probe U3 HT bridge */
 		if (PCI_SLOT(devfn) == 0)
 			return 0;
-		return ((unsigned long)hose->cfg_data) + U3_HT_CFA0(devfn, offset);
+		return ((unsigned long)hose->cfg_data) +
+			U3_HT_CFA0(devfn, offset);
 	} else
-		return ((unsigned long)hose->cfg_data) + U3_HT_CFA1(bus, devfn, offset);
+		return ((unsigned long)hose->cfg_data) +
+			U3_HT_CFA1(bus, devfn, offset);
 }
 
 static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
@@ -532,7 +532,8 @@ static void __init init_p2pbridge(void)
 	}
 	if (early_read_config_word(hose, bus, devfn,
 				   PCI_BRIDGE_CONTROL, &val) < 0) {
-		printk(KERN_ERR "init_p2pbridge: couldn't read bridge control\n");
+		printk(KERN_ERR "init_p2pbridge: couldn't read bridge"
+		       " control\n");
 		return;
 	}
 	val &= ~PCI_BRIDGE_CTL_MASTER_ABORT;
@@ -576,36 +577,38 @@ static void __init fixup_nec_usb2(void)
 			continue;
 		early_read_config_dword(hose, bus, devfn, 0xe4, &data);
 		if (data & 1UL) {
-			printk("Found NEC PD720100A USB2 chip with disabled EHCI, fixing up...\n");
+			printk("Found NEC PD720100A USB2 chip with disabled"
+			       " EHCI, fixing up...\n");
 			data &= ~1UL;
 			early_write_config_dword(hose, bus, devfn, 0xe4, data);
-			early_write_config_byte(hose, bus, devfn | 2, PCI_INTERRUPT_LINE,
+			early_write_config_byte(hose, bus,
+						devfn | 2, PCI_INTERRUPT_LINE,
 				nec->intrs[0].line);
 		}
 	}
 }
 
 static void __init setup_bandit(struct pci_controller *hose,
-				struct reg_property *addr)
+				struct resource *addr)
 {
 	hose->ops = &macrisc_pci_ops;
-	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
-	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
+	hose->cfg_addr = ioremap(addr->start + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(addr->start + 0xc00000, 0x1000);
 	init_bandit(hose);
 }
 
 static int __init setup_uninorth(struct pci_controller *hose,
-				 struct reg_property *addr)
+				 struct resource *addr)
 {
 	pci_assign_all_buses = 1;
 	has_uninorth = 1;
 	hose->ops = &macrisc_pci_ops;
-	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
-	hose->cfg_data = ioremap(addr->address + 0xc00000, 0x1000);
+	hose->cfg_addr = ioremap(addr->start + 0x800000, 0x1000);
+	hose->cfg_data = ioremap(addr->start + 0xc00000, 0x1000);
 	/* We "know" that the bridge at f2000000 has the PCI slots. */
-	return addr->address == 0xf2000000;
+	return addr->start == 0xf2000000;
 }
-#endif
+#endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC64
 static void __init setup_u3_agp(struct pci_controller* hose)
@@ -722,7 +725,7 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 		hose->mem_resources[cur-1].end = res->start - 1;
 	}
 }
-#endif
+#endif /* CONFIG_PPC64 */
 
 /*
  * We assume that if we have a G3 powermac, we have one bridge called
@@ -733,24 +736,17 @@ static int __init add_bridge(struct device_node *dev)
 {
 	int len;
 	struct pci_controller *hose;
-#ifdef CONFIG_PPC32
-	struct reg_property *addr;
-#endif
+	struct resource rsrc;
 	char *disp_name;
 	int *bus_range;
-	int primary = 1;
+	int primary = 1, has_address = 0;
 
 	DBG("Adding PCI host bridge %s\n", dev->full_name);
 
-#ifdef CONFIG_PPC32
-	/* XXX fix this */
-	addr = (struct reg_property *) get_property(dev, "reg", &len);
-	if (addr == NULL || len < sizeof(*addr)) {
-		printk(KERN_WARNING "Can't use %s: no address\n",
-		       dev->full_name);
-		return -ENODEV;
-	}
-#endif
+	/* Fetch host bridge registers address */
+	has_address = (of_address_to_resource(dev, 0, &rsrc) == 0);
+
+	/* Get bus range if any */
 	bus_range = (int *) get_property(dev, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING "Can't get bus-range for %s, assume"
@@ -770,6 +766,8 @@ static int __init add_bridge(struct device_node *dev)
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
 	disp_name = NULL;
+
+	/* 64 bits only bridges */
 #ifdef CONFIG_PPC64
 	if (device_is_compatible(dev, "u3-agp")) {
 		setup_u3_agp(hose);
@@ -782,25 +780,30 @@ static int __init add_bridge(struct device_node *dev)
 	}
 	printk(KERN_INFO "Found %s PCI host bridge.  Firmware bus number: %d->%d\n",
 		disp_name, hose->first_busno, hose->last_busno);
-#else
+#endif /* CONFIG_PPC64 */
+
+	/* 32 bits only bridges */
+#ifdef CONFIG_PPC32
 	if (device_is_compatible(dev, "uni-north")) {
-		primary = setup_uninorth(hose, addr);
+		primary = setup_uninorth(hose, &rsrc);
 		disp_name = "UniNorth";
 	} else if (strcmp(dev->name, "pci") == 0) {
 		/* XXX assume this is a mpc106 (grackle) */
 		setup_grackle(hose);
 		disp_name = "Grackle (MPC106)";
 	} else if (strcmp(dev->name, "bandit") == 0) {
-		setup_bandit(hose, addr);
+		setup_bandit(hose, &rsrc);
 		disp_name = "Bandit";
 	} else if (strcmp(dev->name, "chaos") == 0) {
-		setup_chaos(hose, addr);
+		setup_chaos(hose, &rsrc);
 		disp_name = "Chaos";
 		primary = 0;
 	}
-	printk(KERN_INFO "Found %s PCI host bridge at 0x%08lx. Firmware bus number: %d->%d\n",
-		disp_name, addr->address, hose->first_busno, hose->last_busno);
-#endif
+	printk(KERN_INFO "Found %s PCI host bridge at 0x%08lx. "
+	       "Firmware bus number: %d->%d\n",
+		disp_name, rsrc.start, hose->first_busno, hose->last_busno);
+#endif /* CONFIG_PPC32 */
+
 	DBG(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
 		hose, hose->cfg_addr, hose->cfg_data);
 
@@ -814,8 +817,7 @@ static int __init add_bridge(struct device_node *dev)
 	return 0;
 }
 
-static void __init
-pcibios_fixup_OF_interrupts(void)
+static void __init pcibios_fixup_OF_interrupts(void)
 {
 	struct pci_dev* dev = NULL;
 
@@ -835,8 +837,7 @@ pcibios_fixup_OF_interrupts(void)
 	}
 }
 
-void __init
-pmac_pcibios_fixup(void)
+void __init pmac_pcibios_fixup(void)
 {
 	/* Fixup interrupts according to OF tree */
 	pcibios_fixup_OF_interrupts();

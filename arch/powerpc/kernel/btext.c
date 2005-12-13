@@ -211,8 +211,6 @@ int __init btext_find_display(int allow_nonstdout)
 	struct device_node *np = NULL; 
 	int rc = -ENODEV;
 
-	printk("trying to initialize btext ...\n");
-
 	name = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
 	if (name != NULL) {
 		np = of_find_node_by_path(name);
