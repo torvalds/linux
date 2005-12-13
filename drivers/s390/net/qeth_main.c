@@ -518,7 +518,8 @@ __qeth_set_offline(struct ccwgroup_device *cgdev, int recovery_mode)
 
 	QETH_DBF_TEXT(setup, 3, "setoffl");
 	QETH_DBF_HEX(setup, 3, &card, sizeof(void *));
-
+	
+	netif_carrier_off(card->dev);
 	recover_flag = card->state;
 	if (qeth_stop_card(card, recovery_mode) == -ERESTARTSYS){
 		PRINT_WARN("Stopping card %s interrupted by user!\n",
@@ -1020,7 +1021,6 @@ void
 qeth_schedule_recovery(struct qeth_card *card)
 {
 	QETH_DBF_TEXT(trace,2,"startrec");
-
 	if (qeth_set_thread_start_bit(card, QETH_RECOVER_THREAD) == 0)
 		schedule_work(&card->kernel_thread_starter);
 }
@@ -1710,7 +1710,6 @@ qeth_check_ipa_data(struct qeth_card *card, struct qeth_cmd_buffer *iob)
 					   "IP address reset.\n",
 					   QETH_CARD_IFNAME(card),
 					   card->info.chpid);
-				netif_carrier_on(card->dev);
 				qeth_schedule_recovery(card);
 				return NULL;
 			case IPA_CMD_MODCCID:
@@ -1959,7 +1958,7 @@ qeth_osn_send_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 {
 	u16 s1, s2;
 
-QETH_DBF_TEXT(trace,4,"osndipa");
+	QETH_DBF_TEXT(trace,4,"osndipa");
 
 	qeth_prepare_ipa_cmd(card, iob, QETH_PROT_OSN2);
 	s1 = (u16)(IPA_PDU_HEADER_SIZE + data_len);
@@ -3809,10 +3808,8 @@ qeth_open(struct net_device *dev)
 	card->data.state = CH_STATE_UP;
 	card->state = CARD_STATE_UP;
 
-	if (!card->lan_online){
-		if (netif_carrier_ok(dev))
-			netif_carrier_off(dev);
-	}
+	if (!card->lan_online && netif_carrier_ok(dev))
+		netif_carrier_off(dev);
 	return 0;
 }
 
@@ -7936,8 +7933,8 @@ __qeth_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		QETH_DBF_TEXT_(setup, 2, "6err%d", rc);
 		goto out_remove;
 	}
-/*maybe it was set offline without ifconfig down
- * we can also use this state for recovery purposes*/
+	netif_carrier_on(card->dev);
+
 	qeth_set_allowed_threads(card, 0xffffffff, 0);
 	if (recover_flag == CARD_STATE_RECOVER)
 		qeth_start_again(card, recovery_mode);
