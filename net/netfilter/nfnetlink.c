@@ -162,7 +162,7 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 		return -EINVAL;
 	}
 
-	min_len = NLMSG_ALIGN(sizeof(struct nfgenmsg));
+	min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
 	if (unlikely(nlh->nlmsg_len < min_len))
 		return -EINVAL;
 
@@ -236,8 +236,7 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 	}
 
 	/* All the messages must at least contain nfgenmsg */
-	if (nlh->nlmsg_len < 
-			NLMSG_LENGTH(NLMSG_ALIGN(sizeof(struct nfgenmsg)))) {
+	if (nlh->nlmsg_len < NLMSG_SPACE(sizeof(struct nfgenmsg))) {
 		DEBUGP("received message was too short\n");
 		return 0;
 	}

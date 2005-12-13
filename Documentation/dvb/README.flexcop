@@ -174,7 +174,7 @@ Debugging
 Everything which is identical in the following table, can be put into a common
 flexcop-module.
 
-                  PCI                  USB
+		  PCI                  USB
 -------------------------------------------------------------------------------
 Different:
 Register access:  accessing IO memory  USB control message

@@ -1251,12 +1251,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
     if (memcmp(promaddr, dev->dev_addr, 6)
 	|| !is_valid_ether_addr(dev->dev_addr)) {
-#ifndef __powerpc__
 	if (is_valid_ether_addr(promaddr)) {
-#else
-	if (!is_valid_ether_addr(dev->dev_addr)
-	    && is_valid_ether_addr(promaddr)) {
-#endif
 	    if (pcnet32_debug & NETIF_MSG_PROBE) {
 		printk(" warning: CSR address invalid,\n");
 		printk(KERN_INFO "    using instead PROM address of");

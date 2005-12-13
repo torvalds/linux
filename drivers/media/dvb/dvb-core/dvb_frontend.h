@@ -41,10 +41,10 @@
 #include "dvbdev.h"
 
 struct dvb_frontend_tune_settings {
-        int min_delay_ms;
-        int step_size;
-        int max_drift;
-        struct dvb_frontend_parameters parameters;
+	int min_delay_ms;
+	int step_size;
+	int max_drift;
+	struct dvb_frontend_parameters parameters;
 };
 
 struct dvb_frontend;

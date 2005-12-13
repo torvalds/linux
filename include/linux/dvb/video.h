@@ -36,7 +36,7 @@
 
 typedef enum {
 	VIDEO_FORMAT_4_3,     /* Select 4:3 format */
-        VIDEO_FORMAT_16_9,    /* Select 16:9 format. */
+	VIDEO_FORMAT_16_9,    /* Select 16:9 format. */
 	VIDEO_FORMAT_221_1    /* 2.21:1 */
 } video_format_t;
 
@@ -54,7 +54,7 @@ typedef enum {
 
 
 typedef enum {
-        VIDEO_PAN_SCAN,       /* use pan and scan format */
+	VIDEO_PAN_SCAN,       /* use pan and scan format */
 	VIDEO_LETTER_BOX,     /* use letterbox format */
 	VIDEO_CENTER_CUT_OUT  /* use center cut out format */
 } video_displayformat_t;
@@ -66,7 +66,7 @@ typedef struct {
 } video_size_t;
 
 typedef enum {
-        VIDEO_SOURCE_DEMUX, /* Select the demux as the main source */
+	VIDEO_SOURCE_DEMUX, /* Select the demux as the main source */
 	VIDEO_SOURCE_MEMORY /* If this source is selected, the stream
 			       comes from the user through the write
 			       system call */
@@ -75,35 +75,35 @@ typedef enum {
 
 typedef enum {
 	VIDEO_STOPPED, /* Video is stopped */
-        VIDEO_PLAYING, /* Video is currently playing */
+	VIDEO_PLAYING, /* Video is currently playing */
 	VIDEO_FREEZED  /* Video is freezed */
 } video_play_state_t;
 
 
 struct video_event {
-        int32_t type;
+	int32_t type;
 #define VIDEO_EVENT_SIZE_CHANGED	1
 #define VIDEO_EVENT_FRAME_RATE_CHANGED	2
-        time_t timestamp;
+	time_t timestamp;
 	union {
-	        video_size_t size;
+		video_size_t size;
 		unsigned int frame_rate;	/* in frames per 1000sec */
 	} u;
 };
 
 
 struct video_status {
-        int                   video_blank;   /* blank video on freeze? */
-        video_play_state_t    play_state;    /* current state of playback */
-        video_stream_source_t stream_source; /* current source (demux/memory) */
-        video_format_t        video_format;  /* current aspect ratio of stream*/
-        video_displayformat_t display_format;/* selected cropping mode */
+	int                   video_blank;   /* blank video on freeze? */
+	video_play_state_t    play_state;    /* current state of playback */
+	video_stream_source_t stream_source; /* current source (demux/memory) */
+	video_format_t        video_format;  /* current aspect ratio of stream*/
+	video_displayformat_t display_format;/* selected cropping mode */
 };
 
 
 struct video_still_picture {
-        char __user *iFrame;        /* pointer to a single iframe in memory */
-        int32_t size;
+	char __user *iFrame;        /* pointer to a single iframe in memory */
+	int32_t size;
 };
 
 
@@ -111,19 +111,19 @@ typedef
 struct video_highlight {
 	int     active;      /*    1=show highlight, 0=hide highlight */
 	uint8_t contrast1;   /*    7- 4  Pattern pixel contrast */
-                             /*    3- 0  Background pixel contrast */
+			     /*    3- 0  Background pixel contrast */
 	uint8_t contrast2;   /*    7- 4  Emphasis pixel-2 contrast */
-                             /*    3- 0  Emphasis pixel-1 contrast */
+			     /*    3- 0  Emphasis pixel-1 contrast */
 	uint8_t color1;      /*    7- 4  Pattern pixel color */
-                             /*    3- 0  Background pixel color */
+			     /*    3- 0  Background pixel color */
 	uint8_t color2;      /*    7- 4  Emphasis pixel-2 color */
-                             /*    3- 0  Emphasis pixel-1 color */
+			     /*    3- 0  Emphasis pixel-1 color */
 	uint32_t ypos;       /*   23-22  auto action mode */
-                             /*   21-12  start y */
-                             /*    9- 0  end y */
+			     /*   21-12  start y */
+			     /*    9- 0  end y */
 	uint32_t xpos;       /*   23-22  button color number */
-                             /*   21-12  start x */
-                             /*    9- 0  end x */
+			     /*   21-12  start x */
+			     /*    9- 0  end x */
 } video_highlight_t;
 
 

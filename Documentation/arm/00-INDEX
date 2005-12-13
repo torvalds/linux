@@ -16,5 +16,7 @@ empeg
 	- Empeg documentation
 mem_alignment
 	- alignment abort handler documentation
+memory.txt
+	- description of the virtual memory layout
 nwfpe
 	- NWFPE floating point emulator documentation

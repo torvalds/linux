@@ -992,13 +992,12 @@ static void tcp_v6_send_reset(struct sk_buff *skb)
 	/* sk = NULL, but it is safe for now. RST socket required. */
 	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
 
-		if ((xfrm_lookup(&buff->dst, &fl, NULL, 0)) < 0)
+		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
+			ip6_xmit(NULL, buff, &fl, NULL, 0);
+			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
+			TCP_INC_STATS_BH(TCP_MIB_OUTRSTS);
 			return;
-
-		ip6_xmit(NULL, buff, &fl, NULL, 0);
-		TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
-		TCP_INC_STATS_BH(TCP_MIB_OUTRSTS);
-		return;
+		}
 	}
 
 	kfree_skb(buff);
@@ -1057,11 +1056,11 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 	fl.fl_ip_sport = t1->source;
 
 	if (!ip6_dst_lookup(NULL, &buff->dst, &fl)) {
-		if ((xfrm_lookup(&buff->dst, &fl, NULL, 0)) < 0)
+		if (xfrm_lookup(&buff->dst, &fl, NULL, 0) >= 0) {
+			ip6_xmit(NULL, buff, &fl, NULL, 0);
+			TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
 			return;
-		ip6_xmit(NULL, buff, &fl, NULL, 0);
-		TCP_INC_STATS_BH(TCP_MIB_OUTSEGS);
-		return;
+		}
 	}
 
 	kfree_skb(buff);

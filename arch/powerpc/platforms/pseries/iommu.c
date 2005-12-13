@@ -109,6 +109,9 @@ static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	u64 rc;
 	union tce_entry tce;
 
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
+
 	tce.te_word = 0;
 	tce.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	tce.te_rdwr = 1;
@@ -143,10 +146,7 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	union tce_entry tce, *tcep;
 	long l, limit;
 
-	tcenum <<= TCE_PAGE_FACTOR;
-	npages <<= TCE_PAGE_FACTOR;
-
-	if (npages == 1)
+	if (TCE_PAGE_FACTOR == 0 && npages == 1)
 		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 					   direction);
 
@@ -163,6 +163,9 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 						   uaddr, direction);
 		__get_cpu_var(tce_page) = tcep;
 	}
+
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
 
 	tce.te_word = 0;
 	tce.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;

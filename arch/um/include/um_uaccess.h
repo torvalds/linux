@@ -17,6 +17,8 @@
 #include "uaccess-skas.h"
 #endif
 
+#include "asm/fixmap.h"
+
 #define __under_task_size(addr, size) \
 	(((unsigned long) (addr) < TASK_SIZE) && \
          (((unsigned long) (addr) + (size)) < TASK_SIZE))

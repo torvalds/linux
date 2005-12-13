@@ -98,43 +98,43 @@ typedef enum {
 } OSD_Command;
 
 typedef struct osd_cmd_s {
-        OSD_Command cmd;
-        int x0;
-        int y0;
-        int x1;
-        int y1;
-        int color;
-        void __user *data;
+	OSD_Command cmd;
+	int x0;
+	int y0;
+	int x1;
+	int y1;
+	int color;
+	void __user *data;
 } osd_cmd_t;
 
 /* OSD_OpenRaw: set 'color' to desired window type */
 typedef enum {
-        OSD_BITMAP1,           /* 1 bit bitmap */
-        OSD_BITMAP2,           /* 2 bit bitmap */
-        OSD_BITMAP4,           /* 4 bit bitmap */
-        OSD_BITMAP8,           /* 8 bit bitmap */
-        OSD_BITMAP1HR,         /* 1 Bit bitmap half resolution */
-        OSD_BITMAP2HR,         /* 2 bit bitmap half resolution */
-        OSD_BITMAP4HR,         /* 4 bit bitmap half resolution */
-        OSD_BITMAP8HR,         /* 8 bit bitmap half resolution */
-        OSD_YCRCB422,          /* 4:2:2 YCRCB Graphic Display */
-        OSD_YCRCB444,          /* 4:4:4 YCRCB Graphic Display */
-        OSD_YCRCB444HR,        /* 4:4:4 YCRCB graphic half resolution */
-        OSD_VIDEOTSIZE,        /* True Size Normal MPEG Video Display */
-        OSD_VIDEOHSIZE,        /* MPEG Video Display Half Resolution */
-        OSD_VIDEOQSIZE,        /* MPEG Video Display Quarter Resolution */
-        OSD_VIDEODSIZE,        /* MPEG Video Display Double Resolution */
-        OSD_VIDEOTHSIZE,       /* True Size MPEG Video Display Half Resolution */
-        OSD_VIDEOTQSIZE,       /* True Size MPEG Video Display Quarter Resolution*/
-        OSD_VIDEOTDSIZE,       /* True Size MPEG Video Display Double Resolution */
-        OSD_VIDEONSIZE,        /* Full Size MPEG Video Display */
-        OSD_CURSOR             /* Cursor */
+	OSD_BITMAP1,           /* 1 bit bitmap */
+	OSD_BITMAP2,           /* 2 bit bitmap */
+	OSD_BITMAP4,           /* 4 bit bitmap */
+	OSD_BITMAP8,           /* 8 bit bitmap */
+	OSD_BITMAP1HR,         /* 1 Bit bitmap half resolution */
+	OSD_BITMAP2HR,         /* 2 bit bitmap half resolution */
+	OSD_BITMAP4HR,         /* 4 bit bitmap half resolution */
+	OSD_BITMAP8HR,         /* 8 bit bitmap half resolution */
+	OSD_YCRCB422,          /* 4:2:2 YCRCB Graphic Display */
+	OSD_YCRCB444,          /* 4:4:4 YCRCB Graphic Display */
+	OSD_YCRCB444HR,        /* 4:4:4 YCRCB graphic half resolution */
+	OSD_VIDEOTSIZE,        /* True Size Normal MPEG Video Display */
+	OSD_VIDEOHSIZE,        /* MPEG Video Display Half Resolution */
+	OSD_VIDEOQSIZE,        /* MPEG Video Display Quarter Resolution */
+	OSD_VIDEODSIZE,        /* MPEG Video Display Double Resolution */
+	OSD_VIDEOTHSIZE,       /* True Size MPEG Video Display Half Resolution */
+	OSD_VIDEOTQSIZE,       /* True Size MPEG Video Display Quarter Resolution*/
+	OSD_VIDEOTDSIZE,       /* True Size MPEG Video Display Double Resolution */
+	OSD_VIDEONSIZE,        /* Full Size MPEG Video Display */
+	OSD_CURSOR             /* Cursor */
 } osd_raw_window_t;
 
 typedef struct osd_cap_s {
-        int  cmd;
+	int  cmd;
 #define OSD_CAP_MEMSIZE         1  /* memory size */
-        long val;
+	long val;
 } osd_cap_t;
 
 

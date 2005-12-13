@@ -355,10 +355,10 @@ static int cx22700_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 static int cx22700_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
 {
-        fesettings->min_delay_ms = 150;
-        fesettings->step_size = 166667;
-        fesettings->max_drift = 166667*2;
-        return 0;
+	fesettings->min_delay_ms = 150;
+	fesettings->step_size = 166667;
+	fesettings->max_drift = 166667*2;
+	return 0;
 }
 
 static void cx22700_release(struct dvb_frontend* fe)
@@ -407,7 +407,7 @@ static struct dvb_frontend_ops cx22700_ops = {
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		      FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 		      FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-	              FE_CAN_RECOVER
+		      FE_CAN_RECOVER
 	},
 
 	.release = cx22700_release,

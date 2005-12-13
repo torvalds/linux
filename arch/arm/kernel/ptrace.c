@@ -242,6 +242,15 @@ get_branch_address(struct task_struct *child, unsigned long pc, unsigned long in
 		 */
 		long aluop1, aluop2, ccbit;
 
+	        if ((insn & 0x0fffffd0) == 0x012fff10) {
+		        /*
+			 * bx or blx
+			 */
+			alt = get_user_reg(child, insn & 15);
+			break;
+		}
+
+
 		if ((insn & 0xf000) != 0xf000)
 			break;
 

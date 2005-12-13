@@ -248,7 +248,7 @@ static u32 esp6_get_max_size(struct xfrm_state *x, int mtu)
 	if (esp->conf.padlen)
 		mtu = ALIGN(mtu, esp->conf.padlen);
 
-	return mtu + x->props.header_len + esp->auth.icv_full_len;
+	return mtu + x->props.header_len + esp->auth.icv_trunc_len;
 }
 
 static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,

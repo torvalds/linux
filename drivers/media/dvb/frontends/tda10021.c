@@ -1,10 +1,10 @@
 /*
     TDA10021  - Single Chip Cable Channel Receiver driver module
-               used on the the Siemens DVB-C cards
+	       used on the the Siemens DVB-C cards
 
     Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
     Copyright (C) 2004 Markus Schulz <msc@antzsystem.de>
-                   Support for TDA10021
+		   Support for TDA10021
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -76,9 +76,9 @@ static u8 tda10021_inittab[0x40]=
 
 static int tda10021_writereg (struct tda10021_state* state, u8 reg, u8 data)
 {
-        u8 buf[] = { reg, data };
+	u8 buf[] = { reg, data };
 	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf, .len = 2 };
-        int ret;
+	int ret;
 
 	ret = i2c_transfer (state->i2c, &msg, 1);
 	if (ret != 1)
@@ -95,7 +95,7 @@ static u8 tda10021_readreg (struct tda10021_state* state, u8 reg)
 	u8 b0 [] = { reg };
 	u8 b1 [] = { 0 };
 	struct i2c_msg msg [] = { { .addr = state->config->demod_address, .flags = 0, .buf = b0, .len = 1 },
-	                          { .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
+		                  { .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 1 } };
 	int ret;
 
 	ret = i2c_transfer (state->i2c, msg, 2);
