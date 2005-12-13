@@ -14,7 +14,7 @@
 
 #include <asm/qeth.h>
 
-#define VERSION_QETH_MPC_H "$Revision: 1.44 $"
+#define VERSION_QETH_MPC_H "$Revision: 1.46 $"
 
 extern const char *VERSION_QETH_MPC_C;
 
