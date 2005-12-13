@@ -2175,9 +2175,12 @@ ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 	if (unlikely(!ata_dev_present(dev)))
 		return NULL;
 
-	if (!atapi_enabled) {
-		if (unlikely(dev->class == ATA_DEV_ATAPI))
+	if (!atapi_enabled || (ap->flags & ATA_FLAG_NO_ATAPI)) {
+		if (unlikely(dev->class == ATA_DEV_ATAPI)) {
+			printk(KERN_WARNING "ata%u(%u): WARNING: ATAPI is %s, device ignored.\n",
+			       ap->id, dev->devno, atapi_enabled ? "not supported with this driver" : "disabled");
 			return NULL;
+		}
 	}
 
 	return dev;
