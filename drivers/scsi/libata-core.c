@@ -1198,9 +1198,8 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 	u16 tmp;
 	unsigned long xfer_modes;
 	unsigned int using_edd;
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	unsigned long flags;
+	struct ata_taskfile tf;
+	unsigned int err_mask;
 	int rc;
 
 	if (!ata_dev_present(dev)) {
@@ -1221,40 +1220,26 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 
 	ata_dev_select(ap, device, 1, 1); /* select device 0/1 */
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
-
-	ata_sg_init_one(qc, dev->id, sizeof(dev->id));
-	qc->dma_dir = DMA_FROM_DEVICE;
-	qc->tf.protocol = ATA_PROT_PIO;
-	qc->nsect = 1;
-
 retry:
+	ata_tf_init(ap, &tf, device);
+
 	if (dev->class == ATA_DEV_ATA) {
-		qc->tf.command = ATA_CMD_ID_ATA;
+		tf.command = ATA_CMD_ID_ATA;
 		DPRINTK("do ATA identify\n");
 	} else {
-		qc->tf.command = ATA_CMD_ID_ATAPI;
+		tf.command = ATA_CMD_ID_ATAPI;
 		DPRINTK("do ATAPI identify\n");
 	}
 
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
+	tf.protocol = ATA_PROT_PIO;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	err_mask = ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
+				     dev->id, sizeof(dev->id));
 
-	if (rc)
-		goto err_out;
-	else
-		ata_qc_wait_err(qc, &wait);
+	if (err_mask) {
+		if (err_mask & ~AC_ERR_DEV)
+			goto err_out;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	ap->ops->tf_read(ap, &qc->tf);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (qc->tf.command & ATA_ERR) {
 		/*
 		 * arg!  EDD works for all test cases, but seems to return
 		 * the ATA signature for some ATAPI devices.  Until the
@@ -1267,14 +1252,9 @@ retry:
 		 * to have this problem.
 		 */
 		if ((using_edd) && (dev->class == ATA_DEV_ATA)) {
-			u8 err = qc->tf.feature;
+			u8 err = tf.feature;
 			if (err & ATA_ABORTED) {
 				dev->class = ATA_DEV_ATAPI;
-				qc->cursg = 0;
-				qc->cursg_ofs = 0;
-				qc->cursect = 0;
-				qc->nsect = 1;
-				qc->err_mask = 0;
 				goto retry;
 			}
 		}
@@ -2378,34 +2358,23 @@ static int ata_choose_xfer_mode(const struct ata_port *ap,
 
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 {
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	int rc;
-	unsigned long flags;
+	struct ata_taskfile tf;
 
 	/* set up set-features taskfile */
 	DPRINTK("set features - xfer mode\n");
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
+	ata_tf_init(ap, &tf, dev->devno);
+	tf.command = ATA_CMD_SET_FEATURES;
+	tf.feature = SETFEATURES_XFER;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+	tf.nsect = dev->xfer_mode;
 
-	qc->tf.command = ATA_CMD_SET_FEATURES;
-	qc->tf.feature = SETFEATURES_XFER;
-	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	qc->tf.protocol = ATA_PROT_NODATA;
-	qc->tf.nsect = dev->xfer_mode;
-
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (rc)
+	if (ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0)) {
+		printk(KERN_ERR "ata%u: failed to set xfermode, disabled\n",
+		       ap->id);
 		ata_port_disable(ap);
-	else
-		ata_qc_wait_err(qc, &wait);
+	}
 
 	DPRINTK("EXIT\n");
 }
@@ -2420,40 +2389,24 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 
 static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
 {
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	unsigned long flags;
-	int rc;
+	struct ata_taskfile tf;
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
-
-	ata_sg_init_one(qc, dev->id, sizeof(dev->id));
-	qc->dma_dir = DMA_FROM_DEVICE;
+	ata_tf_init(ap, &tf, dev->devno);
 
 	if (dev->class == ATA_DEV_ATA) {
-		qc->tf.command = ATA_CMD_ID_ATA;
+		tf.command = ATA_CMD_ID_ATA;
 		DPRINTK("do ATA identify\n");
 	} else {
-		qc->tf.command = ATA_CMD_ID_ATAPI;
+		tf.command = ATA_CMD_ID_ATAPI;
 		DPRINTK("do ATAPI identify\n");
 	}
 
-	qc->tf.flags |= ATA_TFLAG_DEVICE;
-	qc->tf.protocol = ATA_PROT_PIO;
-	qc->nsect = 1;
+	tf.flags |= ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_PIO;
 
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (rc)
+	if (ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
+			      dev->id, sizeof(dev->id)))
 		goto err_out;
-
-	ata_qc_wait_err(qc, &wait);
 
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
@@ -2463,6 +2416,7 @@ static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
 
 	return;
 err_out:
+	printk(KERN_ERR "ata%u: failed to reread ID, disabled\n", ap->id);
 	ata_port_disable(ap);
 }
 
@@ -2476,10 +2430,7 @@ err_out:
 
 static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 {
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	int rc;
-	unsigned long flags;
+	struct ata_taskfile tf;
 	u16 sectors = dev->id[6];
 	u16 heads   = dev->id[3];
 
@@ -2490,26 +2441,18 @@ static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 	/* set up init dev params taskfile */
 	DPRINTK("init dev params \n");
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
+	ata_tf_init(ap, &tf, dev->devno);
+	tf.command = ATA_CMD_INIT_DEV_PARAMS;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+	tf.nsect = sectors;
+	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	qc->tf.command = ATA_CMD_INIT_DEV_PARAMS;
-	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	qc->tf.protocol = ATA_PROT_NODATA;
-	qc->tf.nsect = sectors;
-	qc->tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
-
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (rc)
+	if (ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0)) {
+		printk(KERN_ERR "ata%u: failed to init parameters, disabled\n",
+		       ap->id);
 		ata_port_disable(ap);
-	else
-		ata_qc_wait_err(qc, &wait);
+	}
 
 	DPRINTK("EXIT\n");
 }
