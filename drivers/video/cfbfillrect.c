@@ -110,8 +110,8 @@ bitfill_aligned(unsigned long __iomem *dst, int dst_idx, unsigned long pat, unsi
 	if (!n)
 		return;
 
-	first = ~0UL >> dst_idx;
-	last = ~(~0UL >> ((dst_idx+n) % bits));
+	first = FB_SHIFT_HIGH(~0UL, dst_idx);
+	last = ~(FB_SHIFT_HIGH(~0UL, (dst_idx+n) % bits));
 
 	if (dst_idx+n <= bits) {
 		// Single word
@@ -167,8 +167,8 @@ bitfill_unaligned(unsigned long __iomem *dst, int dst_idx, unsigned long pat,
 	if (!n)
 		return;
 
-	first = ~0UL >> dst_idx;
-	last = ~(~0UL >> ((dst_idx+n) % bits));
+	first = FB_SHIFT_HIGH(~0UL, dst_idx);
+	last = ~(FB_SHIFT_HIGH(~0UL, (dst_idx+n) % bits));
 
 	if (dst_idx+n <= bits) {
 		// Single word
@@ -221,8 +221,8 @@ bitfill_aligned_rev(unsigned long __iomem *dst, int dst_idx, unsigned long pat, 
 	if (!n)
 		return;
 
-	first = ~0UL >> dst_idx;
-	last = ~(~0UL >> ((dst_idx+n) % bits));
+	first = FB_SHIFT_HIGH(~0UL, dst_idx);
+	last = ~(FB_SHIFT_HIGH(~0UL, (dst_idx+n) % bits));
 
 	if (dst_idx+n <= bits) {
 		// Single word
@@ -290,8 +290,8 @@ bitfill_unaligned_rev(unsigned long __iomem *dst, int dst_idx, unsigned long pat
 	if (!n)
 		return;
 
-	first = ~0UL >> dst_idx;
-	last = ~(~0UL >> ((dst_idx+n) % bits));
+	first = FB_SHIFT_HIGH(~0UL, dst_idx);
+	last = ~(FB_SHIFT_HIGH(~0UL, (dst_idx+n) % bits));
 
 	if (dst_idx+n <= bits) {
 		// Single word
