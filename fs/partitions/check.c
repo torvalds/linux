@@ -336,12 +336,31 @@ void add_partition(struct gendisk *disk, int part, sector_t start, sector_t len)
 	disk->part[part-1] = p;
 }
 
+static char *make_block_name(struct gendisk *disk)
+{
+	char *name;
+	static char *block_str = "block:";
+	int size;
+
+	size = strlen(block_str) + strlen(disk->disk_name) + 1;
+	name = kmalloc(size, GFP_KERNEL);
+	if (!name)
+		return NULL;
+	strcpy(name, block_str);
+	strcat(name, disk->disk_name);
+	return name;
+}
+
 static void disk_sysfs_symlinks(struct gendisk *disk)
 {
 	struct device *target = get_device(disk->driverfs_dev);
 	if (target) {
+		char *disk_name = make_block_name(disk);
 		sysfs_create_link(&disk->kobj,&target->kobj,"device");
-		sysfs_create_link(&target->kobj,&disk->kobj,"block");
+		if (disk_name) {
+			sysfs_create_link(&target->kobj,&disk->kobj,disk_name);
+			kfree(disk_name);
+		}
 	}
 }
 
@@ -461,8 +480,12 @@ void del_gendisk(struct gendisk *disk)
 	devfs_remove_disk(disk);
 
 	if (disk->driverfs_dev) {
+		char *disk_name = make_block_name(disk);
 		sysfs_remove_link(&disk->kobj, "device");
-		sysfs_remove_link(&disk->driverfs_dev->kobj, "block");
+		if (disk_name) {
+			sysfs_remove_link(&disk->driverfs_dev->kobj, disk_name);
+			kfree(disk_name);
+		}
 		put_device(disk->driverfs_dev);
 	}
 	kobject_uevent(&disk->kobj, KOBJ_REMOVE);
