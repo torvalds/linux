@@ -815,7 +815,7 @@ uintptr_t VNextDescr;	/* the virtual bus address of the next descriptor */
 		/* set the pointers right */
 		pDescr->VNextRxd = VNextDescr & 0xffffffffULL;
 		pDescr->pNextRxd = pNextDescr;
-		pDescr->TcpSumStarts = 0;
+		if (!IsTx) pDescr->TcpSumStarts = ETH_HLEN << 16 | ETH_HLEN;
 
 		/* advance one step */
 		pPrevDescr = pDescr;
@@ -2163,10 +2163,12 @@ rx_start:
 			skb_put(pMsg, FrameLength);
 		} /* frame > SK_COPY_TRESHOLD */
 
-		if (pRxPort->RxCsum) {
-			pMsg->csum = pRxd->TcpSums;
-			pMsg->ip_summed = CHECKSUM_HW;
-		}
+#ifdef USE_SK_RX_CHECKSUM
+		pMsg->csum = pRxd->TcpSums & 0xffff;
+		pMsg->ip_summed = CHECKSUM_HW;
+#else
+		pMsg->ip_summed = CHECKSUM_NONE;
+#endif
 
 		SK_DBG_MSG(NULL, SK_DBGMOD_DRV,	1,("V"));
 		ForRlmt = SK_RLMT_RX_PROTOCOL;
