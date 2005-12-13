@@ -175,57 +175,57 @@ static inline int mpic_is_ht_interrupt(struct mpic *mpic, unsigned int source_no
 	return mpic->fixups[source_no].base != NULL;
 }
 
+
 static inline void mpic_apic_end_irq(struct mpic *mpic, unsigned int source_no)
 {
 	struct mpic_irq_fixup *fixup = &mpic->fixups[source_no];
-	u32 tmp;
 
 	spin_lock(&mpic->fixup_lock);
-	writeb(0x11 + 2 * fixup->irq, fixup->base);
-	tmp = readl(fixup->base + 2);
-	writel(tmp | 0x80000000ul, fixup->base + 2);
-	/* config writes shouldn't be posted but let's be safe ... */
-	(void)readl(fixup->base + 2);
+	writeb(0x11 + 2 * fixup->irq, fixup->base + 2);
+	writel(fixup->data, fixup->base + 4);
 	spin_unlock(&mpic->fixup_lock);
 }
 
 
-static void __init mpic_amd8111_read_irq(struct mpic *mpic, u8 __iomem *devbase)
+static void __init mpic_scan_ioapic(struct mpic *mpic, u8 __iomem *devbase)
 {
-	int i, irq;
+	int i, irq, n;
 	u32 tmp;
+	u8 pos;
 
-	printk(KERN_INFO "mpic:    - Workarounds on AMD 8111 @ %p\n", devbase);
+	for (pos = readb(devbase + 0x34); pos; pos = readb(devbase + pos + 1)) {
+		u8 id = readb(devbase + pos);
 
-	for (i=0; i < 24; i++) {
-		writeb(0x10 + 2*i, devbase + 0xf2);
-		tmp = readl(devbase + 0xf4);
-		if ((tmp & 0x1) || !(tmp & 0x20))
+		if (id == 0x08) {
+			id = readb(devbase + pos + 3);
+			if (id == 0x80)
+				break;
+		}
+	}
+	if (pos == 0)
+		return;
+
+	printk(KERN_INFO "mpic:    - Workarounds @ %p, pos = 0x%02x\n", devbase, pos);
+
+	devbase += pos;
+
+	writeb(0x01, devbase + 2);
+	n = (readl(devbase + 4) >> 16) & 0xff;
+
+	for (i = 0; i <= n; i++) {
+		writeb(0x10 + 2 * i, devbase + 2);
+		tmp = readl(devbase + 4);
+		if ((tmp & 0x21) != 0x20)
 			continue;
 		irq = (tmp >> 16) & 0xff;
 		mpic->fixups[irq].irq = i;
-		mpic->fixups[irq].base = devbase + 0xf2;
+		mpic->fixups[irq].base = devbase;
+		writeb(0x11 + 2 * i, devbase + 2);
+		mpic->fixups[irq].data = readl(devbase + 4) | 0x80000000;
 	}
 }
  
-static void __init mpic_amd8131_read_irq(struct mpic *mpic, u8 __iomem *devbase)
-{
-	int i, irq;
-	u32 tmp;
 
-	printk(KERN_INFO "mpic:    - Workarounds on AMD 8131 @ %p\n", devbase);
-
-	for (i=0; i < 4; i++) {
-		writeb(0x10 + 2*i, devbase + 0xba);
-		tmp = readl(devbase + 0xbc);
-		if ((tmp & 0x1) || !(tmp & 0x20))
-			continue;
-		irq = (tmp >> 16) & 0xff;
-		mpic->fixups[irq].irq = i;
-		mpic->fixups[irq].base = devbase + 0xba;
-	}
-}
- 
 static void __init mpic_scan_ioapics(struct mpic *mpic)
 {
 	unsigned int devfn;
@@ -241,21 +241,19 @@ static void __init mpic_scan_ioapics(struct mpic *mpic)
 	/* Init spinlock */
 	spin_lock_init(&mpic->fixup_lock);
 
-	/* Map u3 config space. We assume all IO-APICs are on the primary bus
-	 * and slot will never be above "0xf" so we only need to map 32k
+	/* Map U3 config space. We assume all IO-APICs are on the primary bus
+	 * so we only need to map 64kB.
 	 */
-	cfgspace = (unsigned char __iomem *)ioremap(0xf2000000, 0x8000);
+	cfgspace = ioremap(0xf2000000, 0x10000);
 	BUG_ON(cfgspace == NULL);
 
 	/* Now we scan all slots. We do a very quick scan, we read the header type,
 	 * vendor ID and device ID only, that's plenty enough
 	 */
-	for (devfn = 0; devfn < PCI_DEVFN(0x10,0); devfn ++) {
+	for (devfn = 0; devfn < 0x100; devfn++) {
 		u8 __iomem *devbase = cfgspace + (devfn << 8);
 		u8 hdr_type = readb(devbase + PCI_HEADER_TYPE);
 		u32 l = readl(devbase + PCI_VENDOR_ID);
-		u16 vendor_id, device_id;
-		int multifunc = 0;
 
 		DBG("devfn %x, l: %x\n", devfn, l);
 
@@ -264,21 +262,11 @@ static void __init mpic_scan_ioapics(struct mpic *mpic)
 		    l == 0x0000ffff || l == 0xffff0000)
 			goto next;
 
-		/* Check if it's a multifunction device (only really used
-		 * to function 0 though
-		 */
-		multifunc = !!(hdr_type & 0x80);
-		vendor_id = l & 0xffff;
-		device_id = (l >> 16) & 0xffff;
+		mpic_scan_ioapic(mpic, devbase);
 
-		/* If a known device, go to fixup setup code */
-		if (vendor_id == PCI_VENDOR_ID_AMD && device_id == 0x7460)
-			mpic_amd8111_read_irq(mpic, devbase);
-		if (vendor_id == PCI_VENDOR_ID_AMD && device_id == 0x7450)
-			mpic_amd8131_read_irq(mpic, devbase);
 	next:
 		/* next device, if function 0 */
-		if ((PCI_FUNC(devfn) == 0) && !multifunc)
+		if (PCI_FUNC(devfn) == 0 && (hdr_type & 0x80) == 0)
 			devfn += 7;
 	}
 }
