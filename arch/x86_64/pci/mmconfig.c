@@ -19,7 +19,7 @@ struct mmcfg_virt {
 };
 static struct mmcfg_virt *pci_mmcfg_virt;
 
-static char *get_virt(unsigned int seg, int bus)
+static char *get_virt(unsigned int seg, unsigned bus)
 {
 	int cfg_num = -1;
 	struct acpi_table_mcfg_config *cfg;
@@ -27,10 +27,9 @@ static char *get_virt(unsigned int seg, int bus)
 	while (1) {
 		++cfg_num;
 		if (cfg_num >= pci_mmcfg_config_num) {
-			/* something bad is going on, no cfg table is found. */
-			/* so we fall back to the old way we used to do this */
-			/* and just rely on the first entry to be correct. */
-			return pci_mmcfg_virt[0].virt;
+			/* Not found - fall back to type 1. This happens
+			   e.g. on the internal devices of a K8 northbridge. */
+			return NULL;
 		}
 		cfg = pci_mmcfg_virt[cfg_num].cfg;
 		if (cfg->pci_segment_group_number != seg)
@@ -43,17 +42,24 @@ static char *get_virt(unsigned int seg, int bus)
 
 static inline char *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
 {
-
-	return get_virt(seg, bus) + ((bus << 20) | (devfn << 12));
+	char *addr = get_virt(seg, bus);
+	if (!addr)
+		return NULL;
+ 	return addr + ((bus << 20) | (devfn << 12));
 }
 
 static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 			  unsigned int devfn, int reg, int len, u32 *value)
 {
-	char *addr = pci_dev_base(seg, bus, devfn);
+	char *addr;
 
+	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
 	if (unlikely(!value || (bus > 255) || (devfn > 255) || (reg > 4095)))
 		return -EINVAL;
+
+	addr = pci_dev_base(seg, bus, devfn);
+	if (!addr)
+		return pci_conf1_read(seg,bus,devfn,reg,len,value);
 
 	switch (len) {
 	case 1:
@@ -73,10 +79,15 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 			   unsigned int devfn, int reg, int len, u32 value)
 {
-	char *addr = pci_dev_base(seg, bus, devfn);
+	char *addr;
 
+	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095)))
 		return -EINVAL;
+
+	addr = pci_dev_base(seg, bus, devfn);
+	if (!addr)
+		return pci_conf1_write(seg,bus,devfn,reg,len,value);
 
 	switch (len) {
 	case 1:

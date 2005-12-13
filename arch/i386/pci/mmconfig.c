@@ -30,10 +30,8 @@ static u32 get_base_addr(unsigned int seg, int bus)
 	while (1) {
 		++cfg_num;
 		if (cfg_num >= pci_mmcfg_config_num) {
-			/* something bad is going on, no cfg table is found. */
-			/* so we fall back to the old way we used to do this */
-			/* and just rely on the first entry to be correct. */
-			return pci_mmcfg_config[0].base_address;
+			/* Not found - fallback to type 1 */
+			return 0;
 		}
 		cfg = &pci_mmcfg_config[cfg_num];
 		if (cfg->pci_segment_group_number != seg)
@@ -44,9 +42,9 @@ static u32 get_base_addr(unsigned int seg, int bus)
 	}
 }
 
-static inline void pci_exp_set_dev_base(unsigned int seg, int bus, int devfn)
+static inline void pci_exp_set_dev_base(unsigned int base, int bus, int devfn)
 {
-	u32 dev_base = get_base_addr(seg, bus) | (bus << 20) | (devfn << 12);
+	u32 dev_base = base | (bus << 20) | (devfn << 12);
 	if (dev_base != mmcfg_last_accessed_device) {
 		mmcfg_last_accessed_device = dev_base;
 		set_fixmap_nocache(FIX_PCIE_MCFG, dev_base);
@@ -57,13 +55,18 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 			  unsigned int devfn, int reg, int len, u32 *value)
 {
 	unsigned long flags;
+	u32 base;
 
 	if (!value || (bus > 255) || (devfn > 255) || (reg > 4095))
 		return -EINVAL;
 
+	base = get_base_addr(seg, bus);
+	if (!base)
+		return pci_conf1_read(seg,bus,devfn,reg,len,value);
+
 	spin_lock_irqsave(&pci_config_lock, flags);
 
-	pci_exp_set_dev_base(seg, bus, devfn);
+	pci_exp_set_dev_base(base, bus, devfn);
 
 	switch (len) {
 	case 1:
@@ -86,13 +89,18 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 			   unsigned int devfn, int reg, int len, u32 value)
 {
 	unsigned long flags;
+	u32 base;
 
 	if ((bus > 255) || (devfn > 255) || (reg > 4095)) 
 		return -EINVAL;
 
+	base = get_base_addr(seg, bus);
+	if (!base)
+		return pci_conf1_write(seg,bus,devfn,reg,len,value);
+
 	spin_lock_irqsave(&pci_config_lock, flags);
 
-	pci_exp_set_dev_base(seg, bus, devfn);
+	pci_exp_set_dev_base(base, bus, devfn);
 
 	switch (len) {
 	case 1:
