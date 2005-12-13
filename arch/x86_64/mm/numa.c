@@ -53,6 +53,8 @@ static int __init populate_memnodemap(
 	int res = -1;
 	unsigned long addr, end;
 
+	if (shift >= 64)
+		return -1;
 	memset(memnodemap, 0xff, sizeof(memnodemap));
 	for (i = 0; i < numnodes; i++) {
 		addr = nodes[i].start;
@@ -65,7 +67,7 @@ static int __init populate_memnodemap(
 			if (memnodemap[addr >> shift] != 0xff)
 				return -1;
 			memnodemap[addr >> shift] = i;
-			addr += (1 << shift);
+                       addr += (1UL << shift);
 		} while (addr < end);
 		res = 1;
 	} 

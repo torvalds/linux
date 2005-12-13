@@ -392,18 +392,18 @@ extern const unsigned int em28xx_bcount;
 /* printk macros */
 
 #define em28xx_err(fmt, arg...) do {\
-	printk(KERN_ERR fmt , ##arg); } while (0)
+	printk(KERN_ERR fmt, ##arg); } while (0)
 
 #define em28xx_errdev(fmt, arg...) do {\
 	printk(KERN_ERR "%s: "fmt,\
-			dev->name , ##arg); } while (0)
+			dev->name, ##arg); } while (0)
 
 #define em28xx_info(fmt, arg...) do {\
 	printk(KERN_INFO "%s: "fmt,\
-			dev->name , ##arg); } while (0)
+			dev->name, ##arg); } while (0)
 #define em28xx_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "%s: "fmt,\
-			dev->name , ##arg); } while (0)
+			dev->name, ##arg); } while (0)
 
 inline static int em28xx_audio_source(struct em28xx *dev, int input)
 {

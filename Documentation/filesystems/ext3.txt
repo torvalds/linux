@@ -57,19 +57,19 @@ oldalloc		This disables the Orlov block allocator and enables the
 			we'd like to get some feedback if it's the contrary for
 			you.
 
-user_xattr	(*)	Enables POSIX Extended Attributes. It's enabled by
-			default, however you need to confifure its support
-			(CONFIG_EXT3_FS_XATTR). This is neccesary if you want
-			to use POSIX Acces Control Lists support. You can visit
-			http://acl.bestbits.at to know more about POSIX Extended
-			attributes.
+user_xattr		Enables Extended User Attributes. Additionally, you need
+			to have extended attribute support enabled in the kernel
+			configuration (CONFIG_EXT3_FS_XATTR). See the attr(5)
+			manual page and http://acl.bestbits.at to learn more
+			about extended attributes.
 
-nouser_xattr		Disables POSIX Extended Attributes.
+nouser_xattr		Disables Extended User Attributes.
 
-acl		(*)	Enables POSIX Access Control Lists support. This is
-			enabled by default, however you need to configure
-			its support (CONFIG_EXT3_FS_POSIX_ACL). If you want
-			to know more about ACLs visit http://acl.bestbits.at
+acl			Enables POSIX Access Control Lists support.  Additionally,
+			you need to have ACL support enabled in the kernel
+			configuration (CONFIG_EXT3_FS_POSIX_ACL). See the acl(5)
+			manual page and http://acl.bestbits.at for more
+			information.
 
 noacl			This option disables POSIX Access Control List support.
 

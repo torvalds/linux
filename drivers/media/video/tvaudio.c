@@ -188,7 +188,7 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 		buffer[1] = val;
 		if (2 != i2c_master_send(&chip->c,buffer,2)) {
 			tvaudio_warn("%s: I/O error (write reg%d=0x%x)\n",
-						chip->c.name, subaddr, val);
+			chip->c.name, subaddr, val);
 			return -1;
 		}
 	}
@@ -216,7 +216,7 @@ static int chip_read(struct CHIPSTATE *chip)
 		chip->c.name);
 		return -1;
 	}
-	tvaudio_dbg("%s: chip_read: 0x%x\n",chip->c.name,buffer);
+	tvaudio_dbg("%s: chip_read: 0x%x\n",chip->c.name, buffer);
 	return buffer;
 }
 
@@ -235,7 +235,7 @@ static int chip_read2(struct CHIPSTATE *chip, int subaddr)
 		return -1;
 	}
 	tvaudio_dbg("%s: chip_read2: reg%d=0x%x\n",
-			chip->c.name,subaddr,read[0]);
+		chip->c.name, subaddr,read[0]);
 	return read[0];
 }
 
@@ -248,7 +248,7 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 
 	/* update our shadow register set; print bytes if (debug > 0) */
 	tvaudio_dbg("%s: chip_cmd(%s): reg=%d, data:",
-		chip->c.name,name,cmd->bytes[0]);
+		chip->c.name, name,cmd->bytes[0]);
 	for (i = 1; i < cmd->count; i++) {
 		if (debug)
 			printk(" 0x%x",cmd->bytes[i]);
@@ -322,7 +322,7 @@ static void generic_checkmode(struct CHIPSTATE *chip)
 	int mode = desc->getmode(chip);
 
 	if (mode == chip->prevmode)
-		return;
+	return;
 
 	tvaudio_dbg("%s: thread checkmode\n", chip->c.name);
 	chip->prevmode = mode;
@@ -1506,18 +1506,18 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 		return -EIO;
 	}
 	tvaudio_info("%s found @ 0x%x (%s)\n", desc->name, addr<<1, adap->name);
-        if (desc->flags) {
-                tvaudio_dbg("matches:%s%s%s.\n",
-                        (desc->flags & CHIP_HAS_VOLUME)     ? " volume"      : "",
-                        (desc->flags & CHIP_HAS_BASSTREBLE) ? " bass/treble" : "",
-                        (desc->flags & CHIP_HAS_INPUTSEL)   ? " audiomux"    : "");
-        }
+	if (desc->flags) {
+		tvaudio_dbg("matches:%s%s%s.\n",
+			(desc->flags & CHIP_HAS_VOLUME)     ? " volume"      : "",
+			(desc->flags & CHIP_HAS_BASSTREBLE) ? " bass/treble" : "",
+			(desc->flags & CHIP_HAS_INPUTSEL)   ? " audiomux"    : "");
+	}
 
 	/* fill required data structures */
-	strcpy(chip->c.name,desc->name);
+	strcpy(chip->c.name, desc->name);
 	chip->type = desc-chiplist;
 	chip->shadow.count = desc->registers+1;
-        chip->prevmode = -1;
+	chip->prevmode = -1;
 	/* register */
 	i2c_attach_client(&chip->c);
 
@@ -1604,7 +1604,7 @@ static int chip_command(struct i2c_client *client,
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
 	struct CHIPDESC  *desc = chiplist + chip->type;
 
-	tvaudio_dbg("%s: chip_command 0x%x\n",chip->c.name,cmd);
+	tvaudio_dbg("%s: chip_command 0x%x\n", chip->c.name, cmd);
 
 	switch (cmd) {
 	case AUDC_SET_INPUT:
@@ -1624,7 +1624,7 @@ static int chip_command(struct i2c_client *client,
 
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
-					kernel pointer here... */
+	kernel pointer here... */
 	case VIDIOCGAUDIO:
 	{
 		struct video_audio *va = arg;

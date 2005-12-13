@@ -288,11 +288,6 @@ void stab_initialize(unsigned long stab)
 		return;
 	}
 #endif /* CONFIG_PPC_ISERIES */
-#ifdef CONFIG_PPC_PSERIES
-	if (platform_is_lpar()) {
-		plpar_hcall_norets(H_SET_ASR, stabreal);
-		return;
-	}
-#endif
+
 	mtspr(SPRN_ASR, stabreal);
 }

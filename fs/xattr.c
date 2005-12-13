@@ -245,7 +245,7 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 		error = d->d_inode->i_op->listxattr(d, klist, size);
 	} else {
 		error = security_inode_listsecurity(d->d_inode, klist, size);
-		if (size && error >= size)
+		if (size && error > size)
 			error = -ERANGE;
 	}
 	if (error > 0) {

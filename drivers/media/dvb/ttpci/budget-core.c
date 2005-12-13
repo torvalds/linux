@@ -87,7 +87,7 @@ static int start_ts_capture(struct budget *budget)
 	 *      Pitch: 188, NumBytes3: 188, NumLines3: 1024
 	 */
 
-        switch(budget->card->type) {
+	switch(budget->card->type) {
 	case BUDGET_FS_ACTIVY:
 		saa7146_write(dev, DD1_INIT, 0x04000000);
 		saa7146_write(dev, MC2, (MASK_09 | MASK_25));

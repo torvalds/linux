@@ -630,7 +630,7 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			 */
 			save_previous_kprobe(kcb);
 			set_current_kprobe(p, kcb);
-			p->nmissed++;
+			kprobes_inc_nmissed_count(p);
 			prepare_ss(p, regs);
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;

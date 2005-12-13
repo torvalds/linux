@@ -556,9 +556,9 @@ static int tdvs_tua6034_pll_set(struct dvb_frontend* fe, struct dvb_frontend_par
 	dprintk("%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		__FUNCTION__, msg.addr, buf[0],buf[1],buf[2],buf[3]);
 	if ((err = i2c_transfer(card->i2c_adapter, &msg, 1)) != 1) {
-	        printk(KERN_WARNING "dvb-bt8xx: %s error "
-		        "(addr %02x <- %02x, err = %i)\n",
-		        __FUNCTION__, buf[0], buf[1], err);
+		printk(KERN_WARNING "dvb-bt8xx: %s error "
+			"(addr %02x <- %02x, err = %i)\n",
+			__FUNCTION__, buf[0], buf[1], err);
 		if (err < 0)
 			return err;
 		else

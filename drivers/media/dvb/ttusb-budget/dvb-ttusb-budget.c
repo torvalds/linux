@@ -225,8 +225,8 @@ static int ttusb_i2c_msg(struct ttusb *ttusb,
 
 	err = ttusb_result(ttusb, b, 0x20);
 
-        /* check if the i2c transaction was successful */
-        if ((snd_len != b[5]) || (rcv_len != b[6])) return -EREMOTEIO;
+	/* check if the i2c transaction was successful */
+	if ((snd_len != b[5]) || (rcv_len != b[6])) return -EREMOTEIO;
 
 	if (rcv_len > 0) {
 
@@ -489,27 +489,27 @@ static int ttusb_send_diseqc(struct dvb_frontend* fe,
 
 static int lnbp21_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 {
-        struct  ttusb* ttusb = (struct ttusb*)  fe->dvb->priv;
-        int ret;
-        u8 data[1];
-        struct i2c_msg msg = { .addr = 0x08, .flags = 0, .buf = data, .len = sizeof(data) };
+	struct  ttusb* ttusb = (struct ttusb*)  fe->dvb->priv;
+	int ret;
+	u8 data[1];
+	struct i2c_msg msg = { .addr = 0x08, .flags = 0, .buf = data, .len = sizeof(data) };
 
-        switch(voltage) {
-        case SEC_VOLTAGE_OFF:
-                data[0] = 0x00;
-                break;
-        case SEC_VOLTAGE_13:
-                data[0] = 0x44;
-                break;
-        case SEC_VOLTAGE_18:
-                data[0] = 0x4c;
-                break;
-        default:
-                return -EINVAL;
-        };
+	switch(voltage) {
+	case SEC_VOLTAGE_OFF:
+		data[0] = 0x00;
+		break;
+	case SEC_VOLTAGE_13:
+		data[0] = 0x44;
+		break;
+	case SEC_VOLTAGE_18:
+		data[0] = 0x4c;
+		break;
+	default:
+		return -EINVAL;
+	};
 
-        ret = i2c_transfer(&ttusb->i2c_adap, &msg, 1);
-        return (ret != 1) ? -EIO : 0;
+	ret = i2c_transfer(&ttusb->i2c_adap, &msg, 1);
+	return (ret != 1) ? -EIO : 0;
 }
 
 static int ttusb_update_lnb(struct ttusb *ttusb)
@@ -1184,45 +1184,45 @@ static struct tda1004x_config philips_tdm1316l_config = {
 };
 
 static u8 alps_bsbe1_inittab[] = {
-        0x01, 0x15,
-        0x02, 0x30,
-        0x03, 0x00,
-        0x04, 0x7d,             /* F22FR = 0x7d, F22 = f_VCO / 128 / 0x7d = 22 kHz */
-        0x05, 0x35,             /* I2CT = 0, SCLT = 1, SDAT = 1 */
-        0x06, 0x40,             /* DAC not used, set to high impendance mode */
-        0x07, 0x00,             /* DAC LSB */
-        0x08, 0x40,             /* DiSEqC off, LNB power on OP2/LOCK pin on */
-        0x09, 0x00,             /* FIFO */
-        0x0c, 0x51,             /* OP1 ctl = Normal, OP1 val = 1 (LNB Power ON) */
-        0x0d, 0x82,             /* DC offset compensation = ON, beta_agc1 = 2 */
-        0x0e, 0x23,             /* alpha_tmg = 2, beta_tmg = 3 */
-        0x10, 0x3f,             // AGC2  0x3d
-        0x11, 0x84,
-        0x12, 0xb9,
-        0x15, 0xc9,             // lock detector threshold
-        0x16, 0x00,
-        0x17, 0x00,
-        0x18, 0x00,
-        0x19, 0x00,
-        0x1a, 0x00,
-        0x1f, 0x50,
-        0x20, 0x00,
-        0x21, 0x00,
-        0x22, 0x00,
-        0x23, 0x00,
-        0x28, 0x00,             // out imp: normal  out type: parallel FEC mode:0
-        0x29, 0x1e,             // 1/2 threshold
-        0x2a, 0x14,             // 2/3 threshold
-        0x2b, 0x0f,             // 3/4 threshold
-        0x2c, 0x09,             // 5/6 threshold
-        0x2d, 0x05,             // 7/8 threshold
-        0x2e, 0x01,
-        0x31, 0x1f,             // test all FECs
-        0x32, 0x19,             // viterbi and synchro search
-        0x33, 0xfc,             // rs control
-        0x34, 0x93,             // error control
-        0x0f, 0x92,
-        0xff, 0xff
+	0x01, 0x15,
+	0x02, 0x30,
+	0x03, 0x00,
+	0x04, 0x7d,             /* F22FR = 0x7d, F22 = f_VCO / 128 / 0x7d = 22 kHz */
+	0x05, 0x35,             /* I2CT = 0, SCLT = 1, SDAT = 1 */
+	0x06, 0x40,             /* DAC not used, set to high impendance mode */
+	0x07, 0x00,             /* DAC LSB */
+	0x08, 0x40,             /* DiSEqC off, LNB power on OP2/LOCK pin on */
+	0x09, 0x00,             /* FIFO */
+	0x0c, 0x51,             /* OP1 ctl = Normal, OP1 val = 1 (LNB Power ON) */
+	0x0d, 0x82,             /* DC offset compensation = ON, beta_agc1 = 2 */
+	0x0e, 0x23,             /* alpha_tmg = 2, beta_tmg = 3 */
+	0x10, 0x3f,             // AGC2  0x3d
+	0x11, 0x84,
+	0x12, 0xb9,
+	0x15, 0xc9,             // lock detector threshold
+	0x16, 0x00,
+	0x17, 0x00,
+	0x18, 0x00,
+	0x19, 0x00,
+	0x1a, 0x00,
+	0x1f, 0x50,
+	0x20, 0x00,
+	0x21, 0x00,
+	0x22, 0x00,
+	0x23, 0x00,
+	0x28, 0x00,             // out imp: normal  out type: parallel FEC mode:0
+	0x29, 0x1e,             // 1/2 threshold
+	0x2a, 0x14,             // 2/3 threshold
+	0x2b, 0x0f,             // 3/4 threshold
+	0x2c, 0x09,             // 5/6 threshold
+	0x2d, 0x05,             // 7/8 threshold
+	0x2e, 0x01,
+	0x31, 0x1f,             // test all FECs
+	0x32, 0x19,             // viterbi and synchro search
+	0x33, 0xfc,             // rs control
+	0x34, 0x93,             // error control
+	0x0f, 0x92,
+	0xff, 0xff
 };
 
 static u8 alps_bsru6_inittab[] = {
@@ -1350,7 +1350,7 @@ static int ttusb_novas_grundig_29504_491_pll_set(struct dvb_frontend *fe, struct
 	u32 div;
 	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
 
-        div = params->frequency / 125;
+	div = params->frequency / 125;
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
@@ -1487,7 +1487,7 @@ static int ttusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	udev = interface_to_usbdev(intf);
 
-        if (intf->altsetting->desc.bInterfaceNumber != 1) return -ENODEV;
+	if (intf->altsetting->desc.bInterfaceNumber != 1) return -ENODEV;
 
 	if (!(ttusb = kmalloc(sizeof(struct ttusb), GFP_KERNEL)))
 		return -ENOMEM;

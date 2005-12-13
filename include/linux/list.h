@@ -202,12 +202,15 @@ static inline void list_del_rcu(struct list_head *entry)
  *
  * The old entry will be replaced with the new entry atomically.
  */
-static inline void list_replace_rcu(struct list_head *old, struct list_head *new){
+static inline void list_replace_rcu(struct list_head *old,
+				struct list_head *new)
+{
 	new->next = old->next;
 	new->prev = old->prev;
 	smp_wmb();
 	new->next->prev = new;
 	new->prev->next = new;
+	old->prev = LIST_POISON2;
 }
 
 /**
@@ -576,6 +579,27 @@ static inline void hlist_del_init(struct hlist_node *n)
 		__hlist_del(n);
 		INIT_HLIST_NODE(n);
 	}
+}
+
+/*
+ * hlist_replace_rcu - replace old entry by new one
+ * @old : the element to be replaced
+ * @new : the new element to insert
+ *
+ * The old entry will be replaced with the new entry atomically.
+ */
+static inline void hlist_replace_rcu(struct hlist_node *old,
+					struct hlist_node *new)
+{
+	struct hlist_node *next = old->next;
+
+	new->next = next;
+	new->pprev = old->pprev;
+	smp_wmb();
+	if (next)
+		new->next->pprev = &new->next;
+	*new->pprev = new;
+	old->pprev = LIST_POISON2;
 }
 
 static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)

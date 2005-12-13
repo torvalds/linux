@@ -516,7 +516,7 @@ pci_timedia_setup(struct serial_private *priv, struct pciserial_board *board,
 		break;
 	case 3:
 		offset = board->uart_offset;
-		bar = 1;
+		/* FALLTHROUGH */
 	case 4: /* BAR 2 */
 	case 5: /* BAR 3 */
 	case 6: /* BAR 4 */

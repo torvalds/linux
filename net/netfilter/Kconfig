@@ -61,8 +61,8 @@ config NF_CONNTRACK_MARK
 	  instead of the individual packets.
 
 config NF_CONNTRACK_EVENTS
-	bool "Connection tracking events"
-	depends on NF_CONNTRACK
+	bool "Connection tracking events (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
 	help
 	  If this option is enabled, the connection tracking code will
 	  provide a notifier chain that can be used by other kernel code

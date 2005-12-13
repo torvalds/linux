@@ -140,7 +140,6 @@ struct p9100_par {
 	unsigned long		fbsize;
 
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 /**
