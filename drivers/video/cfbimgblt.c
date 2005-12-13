@@ -162,6 +162,8 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 	u32 i, j, l;
 	
 	dst2 = (u32 __iomem *) dst1;
+	fgcolor <<= LEFT_POS(bpp);
+	bgcolor <<= LEFT_POS(bpp);
 
 	for (i = image->height; i--; ) {
 		shift = val = 0;
@@ -180,7 +182,6 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 		while (j--) {
 			l--;
 			color = (*s & 1 << (BIT_NR(l))) ? fgcolor : bgcolor;
-			color <<= LEFT_POS(bpp);
 			val |= SHIFT_HIGH(color, shift);
 			
 			/* Did the bitshift spill bits to the next long? */
