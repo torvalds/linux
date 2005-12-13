@@ -941,7 +941,7 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	while (ranges && (rlen -= np * sizeof(unsigned int)) >= 0) {
 		res = NULL;
 		size = ranges[na+4];
-		switch (ranges[0] >> 24) {
+		switch ((ranges[0] >> 24) & 0x3) {
 		case 1:		/* I/O space */
 			if (ranges[2] != 0)
 				break;
@@ -955,6 +955,8 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			res = &hose->io_resource;
 			res->flags = IORESOURCE_IO;
 			res->start = ranges[2];
+			DBG("PCI: IO 0x%lx -> 0x%lx\n",
+				    res->start, res->start + size - 1);
 			break;
 		case 2:		/* memory space */
 			memno = 0;
@@ -972,7 +974,11 @@ pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			if (memno < 3) {
 				res = &hose->mem_resources[memno];
 				res->flags = IORESOURCE_MEM;
+				if(ranges[0] & 0x40000000)
+					res->flags |= IORESOURCE_PREFETCH;
 				res->start = ranges[na+2];
+				DBG("PCI: MEM[%d] 0x%lx -> 0x%lx\n", memno,
+					    res->start, res->start + size - 1);
 			}
 			break;
 		}
