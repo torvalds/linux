@@ -960,6 +960,8 @@ alloc_fail:
 	error = scsi_add_device(scsi_id->scsi_host, 0, scsi_id->ud->id, 0);
 	if (error) {
 		SBP2_ERR("scsi_add_device failed");
+		sbp2_logout_device(scsi_id);
+		sbp2_remove_device(scsi_id);
 		return error;
 	}
 
