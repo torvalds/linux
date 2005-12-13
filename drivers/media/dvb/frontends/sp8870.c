@@ -67,16 +67,16 @@ static int debug;
 
 static int sp8870_writereg (struct sp8870_state* state, u16 reg, u16 data)
 {
-        u8 buf [] = { reg >> 8, reg & 0xff, data >> 8, data & 0xff };
+	u8 buf [] = { reg >> 8, reg & 0xff, data >> 8, data & 0xff };
 	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf, .len = 4 };
 	int err;
 
-        if ((err = i2c_transfer (state->i2c, &msg, 1)) != 1) {
+	if ((err = i2c_transfer (state->i2c, &msg, 1)) != 1) {
 		dprintk ("%s: writereg error (err == %i, reg == 0x%02x, data == 0x%02x)\n", __FUNCTION__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
-        return 0;
+	return 0;
 }
 
 static int sp8870_readreg (struct sp8870_state* state, u16 reg)
@@ -305,7 +305,7 @@ static int sp8870_set_frontend_parameters (struct dvb_frontend* fe,
 static int sp8870_init (struct dvb_frontend* fe)
 {
 	struct sp8870_state* state = fe->demodulator_priv;
-        const struct firmware *fw = NULL;
+	const struct firmware *fw = NULL;
 
 	sp8870_wake_up(state);
 	if (state->initialised) return 0;
@@ -534,10 +534,10 @@ static int sp8870_sleep(struct dvb_frontend* fe)
 
 static int sp8870_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
 {
-        fesettings->min_delay_ms = 350;
-        fesettings->step_size = 0;
-        fesettings->max_drift = 0;
-        return 0;
+	fesettings->min_delay_ms = 350;
+	fesettings->step_size = 0;
+	fesettings->max_drift = 0;
+	return 0;
 }
 
 static void sp8870_release(struct dvb_frontend* fe)

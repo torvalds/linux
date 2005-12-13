@@ -601,7 +601,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	/* Handle hugepage regions */
 	if (unlikely(in_hugepage_area(mm->context, ea))) {
 		DBG_LOW(" -> huge page !\n");
-		return hash_huge_page(mm, access, ea, vsid, local);
+		return hash_huge_page(mm, access, ea, vsid, local, trap);
 	}
 
 	/* Get PTE and page size from page tables */

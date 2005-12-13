@@ -12,6 +12,7 @@
 #include <media/audiochip.h>
 #include <media/tuner.h>
 
+
 /* Chips:
    TDA9885 (PAL, NTSC)
    TDA9886 (PAL, SECAM, NTSC)
@@ -819,12 +820,12 @@ static int tda9887_resume(struct device * dev)
 
 static struct i2c_driver driver = {
 	.owner          = THIS_MODULE,
-        .name           = "i2c tda9887 driver",
-        .id             = -1, /* FIXME */
-        .flags          = I2C_DF_NOTIFY,
-        .attach_adapter = tda9887_probe,
-        .detach_client  = tda9887_detach,
-        .command        = tda9887_command,
+	.name           = "i2c tda9887 driver",
+	.id             = -1, /* FIXME */
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = tda9887_probe,
+	.detach_client  = tda9887_detach,
+	.command        = tda9887_command,
 	.driver = {
 		.suspend = tda9887_suspend,
 		.resume  = tda9887_resume,
@@ -834,7 +835,7 @@ static struct i2c_client client_template =
 {
 	.name      = "tda9887",
 	.flags     = I2C_CLIENT_ALLOW_USE,
-        .driver    = &driver,
+	.driver    = &driver,
 };
 
 static int __init tda9887_init_module(void)

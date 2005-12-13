@@ -66,7 +66,6 @@ int atomic_add_unless(atomic_t *v, int a, int u)
 	return ret != u;
 }
 
-static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 /* Atomic operations are already serializing */
 void atomic_set(atomic_t *v, int i)
 {

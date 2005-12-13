@@ -217,10 +217,10 @@ static int arm_thread(void *data)
 
 	dprintk(4, "%p\n",av7110);
 
-        lock_kernel();
-        daemonize("arm_mon");
-        sigfillset(&current->blocked);
-        unlock_kernel();
+	lock_kernel();
+	daemonize("arm_mon");
+	sigfillset(&current->blocked);
+	unlock_kernel();
 
 	av7110->arm_thread = current;
 
@@ -1535,7 +1535,7 @@ static int alps_bsrv2_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	buf[2] = ((div & 0x18000) >> 10) | 0x95;
 	buf[3] = (pwr << 6) | 0x30;
 
-        // NOTE: since we're using a prescaler of 2, we set the
+	// NOTE: since we're using a prescaler of 2, we set the
 	// divisor frequency to 62.5kHz and divide by 125 above
 
 	if (i2c_transfer (&av7110->i2c_adap, &msg, 1) != 1)
@@ -1811,7 +1811,7 @@ static struct tda8083_config grundig_29504_451_config = {
 static int philips_cd1516_pll_set(struct dvb_frontend* fe,
 				  struct dvb_frontend_parameters* params)
 {
-        struct av7110* av7110 = fe->dvb->priv;
+	struct av7110* av7110 = fe->dvb->priv;
 	u32 div;
 	u32 f = params->frequency;
 	u8 data[4];
@@ -2202,7 +2202,7 @@ static u8 read_pwm(struct av7110* av7110)
 	struct i2c_msg msg[] = { { .addr = 0x50,.flags = 0,.buf = &b,.len = 1 },
 				 { .addr = 0x50,.flags = I2C_M_RD,.buf = &pwm,.len = 1} };
 
-        if ((i2c_transfer(&av7110->i2c_adap, msg, 2) != 2) || (pwm == 0xff))
+	if ((i2c_transfer(&av7110->i2c_adap, msg, 2) != 2) || (pwm == 0xff))
 		pwm = 0x48;
 
 	return pwm;
@@ -2245,7 +2245,7 @@ static int frontend_init(struct av7110 *av7110)
 			}
 
 			// Try the grundig 29504-451
-                        av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
+		        av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
 				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
@@ -2271,12 +2271,12 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x0001: // Hauppauge/TT Nexus-T premium rev1.X
 
 			// ALPS TDLB7
-                        av7110->fe = sp8870_attach(&alps_tdlb7_config, &av7110->i2c_adap);
+		        av7110->fe = sp8870_attach(&alps_tdlb7_config, &av7110->i2c_adap);
 			break;
 
 		case 0x0002: // Hauppauge/TT DVB-C premium rev2.X
 
-                        av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
+		        av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
 			break;
 
 		case 0x0006: /* Fujitsu-Siemens DVB-S rev 1.6 */
@@ -2421,9 +2421,9 @@ static int av7110_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_d
 
 	dprintk(4, "dev: %p\n", dev);
 
-        /* Set RPS_IRQ to 1 to track rps1 activity.
-         * Enabling this won't send any interrupt to PC CPU.
-         */
+	/* Set RPS_IRQ to 1 to track rps1 activity.
+	 * Enabling this won't send any interrupt to PC CPU.
+	 */
 #define RPS_IRQ 0
 
 	if (budgetpatch == 1) {

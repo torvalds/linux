@@ -411,7 +411,6 @@ struct cx8802_dev {
 	struct videobuf_dvb        dvb;
 	void*                      fe_handle;
 	int                        (*fe_release)(void *handle);
-
 	/* for switching modulation types */
 	unsigned char              ts_gen_cntrl;
 

@@ -1650,11 +1650,19 @@ void pmac_tweak_clock_spreading(int enable)
 	 */
 
 	if (macio->type == macio_intrepid) {
-		if (enable)
-			UN_OUT(UNI_N_CLOCK_SPREADING, 2);
-		else
-			UN_OUT(UNI_N_CLOCK_SPREADING, 0);
-		mdelay(40);
+		struct device_node *clock =
+			of_find_node_by_path("/uni-n@f8000000/hw-clock");
+		if (clock && get_property(clock, "platform-do-clockspreading",
+					  NULL)) {
+			printk(KERN_INFO "%sabling clock spreading on Intrepid"
+			       " ASIC\n", enable ? "En" : "Dis");
+			if (enable)
+				UN_OUT(UNI_N_CLOCK_SPREADING, 2);
+			else
+				UN_OUT(UNI_N_CLOCK_SPREADING, 0);
+			mdelay(40);
+		}
+		of_node_put(clock);
 	}
 
 	while (machine_is_compatible("PowerBook5,2") ||
@@ -1724,6 +1732,9 @@ void pmac_tweak_clock_spreading(int enable)
 			pmac_low_i2c_close(ui2c);
 			break;
 		}
+		printk(KERN_INFO "%sabling clock spreading on i2c clock chip\n",
+		       enable ? "En" : "Dis");
+
 		pmac_low_i2c_setmode(ui2c, pmac_low_i2c_mode_stdsub);
 		rc = pmac_low_i2c_xfer(ui2c, 0xd2 | pmac_low_i2c_write, 0x80, buffer, 9);
 		DBG("write result: %d,", rc);
