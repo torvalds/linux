@@ -733,7 +733,7 @@ cifs_init_request_bufs(void)
 		kmem_cache_destroy(cifs_req_cachep);
 		return -ENOMEM;
 	}
-	/* 256 (MAX_CIFS_HDR_SIZE bytes is enough for most SMB responses and
+	/* MAX_CIFS_SMALL_BUFFER_SIZE bytes is enough for most SMB responses and
 	almost all handle based requests (but not write response, nor is it
 	sufficient for path based requests).  A smaller size would have
 	been more efficient (compacting multiple slab items on one 4k page) 
@@ -742,7 +742,8 @@ cifs_init_request_bufs(void)
 	efficient to alloc 1 per page off the slab compared to 17K (5page) 
 	alloc of large cifs buffers even when page debugging is on */
 	cifs_sm_req_cachep = kmem_cache_create("cifs_small_rq",
-			MAX_CIFS_HDR_SIZE, 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+			MAX_CIFS_SMALL_BUFFER_SIZE, 0, SLAB_HWCACHE_ALIGN, 
+			NULL, NULL);
 	if (cifs_sm_req_cachep == NULL) {
 		mempool_destroy(cifs_req_poolp);
 		kmem_cache_destroy(cifs_req_cachep);

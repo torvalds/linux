@@ -49,7 +49,7 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			int * /* bytes returned */ , const int long_op);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct kvec *, int /* nvec to send */, 
-			int * /* bytes returned */ , const int long_op);
+			int * /* type of buf returned */ , const int long_op);
 extern int checkSMBhdr(struct smb_hdr *smb, __u16 mid);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, int length);
 extern int is_valid_oplock_break(struct smb_hdr *smb);
@@ -93,11 +93,12 @@ extern int CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			const struct nls_table *);
 
 extern int CIFSFindFirst(const int xid, struct cifsTconInfo *tcon,
-            const char *searchName, const struct nls_table *nls_codepage,
-            __u16 *searchHandle, struct cifs_search_info * psrch_inf, int map, const char dirsep);
+		const char *searchName, const struct nls_table *nls_codepage,
+		__u16 *searchHandle, struct cifs_search_info * psrch_inf, 
+		int map, const char dirsep);
 
 extern int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
-            __u16 searchHandle, struct cifs_search_info * psrch_inf);
+		__u16 searchHandle, struct cifs_search_info * psrch_inf);
 
 extern int CIFSFindClose(const int, struct cifsTconInfo *tcon,
 			const __u16 search_handle);
@@ -230,8 +231,9 @@ extern int CIFSSMBClose(const int xid, struct cifsTconInfo *tcon,
 			const int smb_file_id);
 
 extern int CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
-			const int netfid, unsigned int count,
-			const __u64 lseek, unsigned int *nbytes, char **buf);
+                        const int netfid, unsigned int count,
+                        const __u64 lseek, unsigned int *nbytes, char **buf,
+			int * return_buf_type);
 extern int CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, const unsigned int count,
 			const __u64 lseek, unsigned int *nbytes,

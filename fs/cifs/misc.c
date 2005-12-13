@@ -299,7 +299,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 	struct cifsSesInfo * ses;
 	char *temp = (char *) buffer;
 
-	memset(temp,0,MAX_CIFS_HDR_SIZE);
+	memset(temp,0,256); /* bigger than MAX_CIFS_HDR_SIZE */
 
 	buffer->smb_buf_length =
 	    (2 * word_count) + sizeof (struct smb_hdr) -

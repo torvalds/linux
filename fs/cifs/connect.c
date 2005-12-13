@@ -514,7 +514,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		/* else length ok */
 		reconnect = 0;
 
-		if(pdu_length > MAX_CIFS_HDR_SIZE - 4) {
+		if(pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE - 4) {
 			isLargeBuf = TRUE;
 			memcpy(bigbuf, smallbuf, 4);
 			smb_buffer = bigbuf;

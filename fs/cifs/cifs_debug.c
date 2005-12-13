@@ -401,8 +401,8 @@ static read_proc_t ntlmv2_enabled_read;
 static write_proc_t ntlmv2_enabled_write;
 static read_proc_t packet_signing_enabled_read;
 static write_proc_t packet_signing_enabled_write;
-static read_proc_t quotaEnabled_read;
-static write_proc_t quotaEnabled_write;
+static read_proc_t experimEnabled_read;
+static write_proc_t experimEnabled_write;
 static read_proc_t linuxExtensionsEnabled_read;
 static write_proc_t linuxExtensionsEnabled_write;
 
@@ -442,9 +442,9 @@ cifs_proc_init(void)
 		pde->write_proc = oplockEnabled_write;
 
 	pde = create_proc_read_entry("Experimental", 0, proc_fs_cifs,
-				quotaEnabled_read, NULL);
+				experimEnabled_read, NULL);
 	if (pde)
-		pde->write_proc = quotaEnabled_write;
+		pde->write_proc = experimEnabled_write;
 
 	pde = create_proc_read_entry("LinuxExtensionsEnabled", 0, proc_fs_cifs,
 				linuxExtensionsEnabled_read, NULL);
@@ -586,14 +586,13 @@ oplockEnabled_write(struct file *file, const char __user *buffer,
 }
 
 static int
-quotaEnabled_read(char *page, char **start, off_t off,
+experimEnabled_read(char *page, char **start, off_t off,
                    int count, int *eof, void *data)
 {
         int len;
 
         len = sprintf(page, "%d\n", experimEnabled);
-/* could also check if quotas are enabled in kernel
-	as a whole first */
+
         len -= off;
         *start = page + off;
 
@@ -608,21 +607,23 @@ quotaEnabled_read(char *page, char **start, off_t off,
         return len;
 }
 static int
-quotaEnabled_write(struct file *file, const char __user *buffer,
+experimEnabled_write(struct file *file, const char __user *buffer,
                     unsigned long count, void *data)
 {
-        char c;
-        int rc;
+	char c;
+	int rc;
 
-        rc = get_user(c, buffer);
-        if (rc)
-                return rc;
-        if (c == '0' || c == 'n' || c == 'N')
-                experimEnabled = 0;
-        else if (c == '1' || c == 'y' || c == 'Y')
-                experimEnabled = 1;
+	rc = get_user(c, buffer);
+	if (rc)
+		return rc;
+	if (c == '0' || c == 'n' || c == 'N')
+		experimEnabled = 0;
+	else if (c == '1' || c == 'y' || c == 'Y')
+		experimEnabled = 1;
+	else if (c == '2')
+		experimEnabled = 2;
 
-        return count;
+	return count;
 }
 
 static int
@@ -632,8 +633,6 @@ linuxExtensionsEnabled_read(char *page, char **start, off_t off,
         int len;
 
         len = sprintf(page, "%d\n", linuxExtEnabled);
-/* could also check if quotas are enabled in kernel
-	as a whole first */
         len -= off;
         *start = page + off;
 

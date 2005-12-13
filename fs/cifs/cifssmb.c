@@ -958,21 +958,19 @@ openRetry:
 	return rc;
 }
 
-/* If no buffer passed in, then caller wants to do the copy
-	as in the case of readpages so the SMB buffer must be
-	freed by the caller */
-
 int
 CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
-	    const int netfid, const unsigned int count,
-	    const __u64 lseek, unsigned int *nbytes, char **buf)
+            const int netfid, const unsigned int count,
+            const __u64 lseek, unsigned int *nbytes, char **buf,
+	    int * pbuf_type)
 {
 	int rc = -EACCES;
 	READ_REQ *pSMB = NULL;
 	READ_RSP *pSMBr = NULL;
 	char *pReadData = NULL;
-	int bytes_returned;
 	int wct;
+	int resp_buf_type = 0;
+	struct kvec iov[1];
 
 	cFYI(1,("Reading %d bytes on fid %d",count,netfid));
 	if(tcon->ses->capabilities & CAP_LARGE_FILES)
@@ -981,8 +979,7 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 		wct = 10; /* old style read */
 
 	*nbytes = 0;
-	rc = smb_init(SMB_COM_READ_ANDX, wct, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	rc = small_smb_init(SMB_COM_READ_ANDX, wct, tcon, (void **) &pSMB);
 	if (rc)
 		return rc;
 
@@ -990,13 +987,13 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 	if (tcon->ses->server == NULL)
 		return -ECONNABORTED;
 
-	pSMB->AndXCommand = 0xFF;	/* none */
+	pSMB->AndXCommand = 0xFF;       /* none */
 	pSMB->Fid = netfid;
 	pSMB->OffsetLow = cpu_to_le32(lseek & 0xFFFFFFFF);
 	if(wct == 12)
 		pSMB->OffsetHigh = cpu_to_le32(lseek >> 32);
-        else if((lseek >> 32) > 0) /* can not handle this big offset for old */
-                return -EIO;
+	else if((lseek >> 32) > 0) /* can not handle this big offset for old */
+		return -EIO;
 
 	pSMB->Remaining = 0;
 	pSMB->MaxCount = cpu_to_le16(count & 0xFFFF);
@@ -1005,14 +1002,18 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 		pSMB->ByteCount = 0;  /* no need to do le conversion since 0 */
 	else {
 		/* old style read */
-		struct smb_com_readx_req * pSMBW = 
+		struct smb_com_readx_req * pSMBW =
 			(struct smb_com_readx_req *)pSMB;
-		pSMBW->ByteCount = 0;	
+		pSMBW->ByteCount = 0;
 	}
-	
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
-			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
+
+	iov[0].iov_base = (char *)pSMB;
+	iov[0].iov_len = pSMB->hdr.smb_buf_length + 4;
+	rc = SendReceive2(xid, tcon->ses, iov, 
+			  1 /* num iovecs */,
+			  &resp_buf_type, 0); 
 	cifs_stats_inc(&tcon->num_reads);
+	pSMBr = (READ_RSP *)iov[0].iov_base;
 	if (rc) {
 		cERROR(1, ("Send error in read = %d", rc));
 	} else {
@@ -1022,32 +1023,42 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 		*nbytes = data_length;
 
 		/*check that DataLength would not go beyond end of SMB */
-		if ((data_length > CIFSMaxBufSize) 
+		if ((data_length > CIFSMaxBufSize)
 				|| (data_length > count)) {
 			cFYI(1,("bad length %d for count %d",data_length,count));
 			rc = -EIO;
 			*nbytes = 0;
 		} else {
-			pReadData =
-			    (char *) (&pSMBr->hdr.Protocol) +
+			pReadData = (char *) (&pSMBr->hdr.Protocol) +
 			    le16_to_cpu(pSMBr->DataOffset);
-/*			if(rc = copy_to_user(buf, pReadData, data_length)) {
-				cERROR(1,("Faulting on read rc = %d",rc));
-				rc = -EFAULT;
-			}*/ /* can not use copy_to_user when using page cache*/
+/*                      if(rc = copy_to_user(buf, pReadData, data_length)) {
+                                cERROR(1,("Faulting on read rc = %d",rc));
+                                rc = -EFAULT;
+                        }*/ /* can not use copy_to_user when using page cache*/
 			if(*buf)
-			    memcpy(*buf,pReadData,data_length);
+				memcpy(*buf,pReadData,data_length);
 		}
 	}
-	if(*buf)
-		cifs_buf_release(pSMB);
-	else
-		*buf = (char *)pSMB;
 
-	/* Note: On -EAGAIN error only caller can retry on handle based calls 
+	cifs_small_buf_release(pSMB);
+	if(*buf) {
+		if(resp_buf_type == CIFS_SMALL_BUFFER)
+			cifs_small_buf_release(iov[0].iov_base);
+		else if(resp_buf_type == CIFS_LARGE_BUFFER)
+			cifs_buf_release(iov[0].iov_base);
+	} else /* return buffer to caller to free */ /* BB FIXME how do we tell caller if it is not a large buffer */ {
+		*buf = iov[0].iov_base;
+		if(resp_buf_type == CIFS_SMALL_BUFFER)
+			*pbuf_type = CIFS_SMALL_BUFFER;
+		else if(resp_buf_type == CIFS_LARGE_BUFFER)
+			*pbuf_type = CIFS_LARGE_BUFFER;
+	}
+
+	/* Note: On -EAGAIN error only caller can retry on handle based calls
 		since file handle passed in no longer valid */
 	return rc;
 }
+
 
 int
 CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
@@ -1163,10 +1174,10 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 {
 	int rc = -EACCES;
 	WRITE_REQ *pSMB = NULL;
-	int bytes_returned, wct;
+	int wct;
 	int smb_hdr_len;
+	int resp_buf_type = 0;
 
-	/* BB removeme BB */
 	cFYI(1,("write2 at %lld %d bytes", (long long)offset, count));
 
 	if(tcon->ses->capabilities & CAP_LARGE_FILES)
@@ -1209,22 +1220,34 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 		pSMBW->ByteCount = cpu_to_le16(count + 5);
 	}
 	iov[0].iov_base = pSMB;
-	iov[0].iov_len = smb_hdr_len + 4;
+	if(wct == 14)
+		iov[0].iov_len = smb_hdr_len + 4;
+	else /* wct == 12 pad bigger by four bytes */
+		iov[0].iov_len = smb_hdr_len + 8;
+	
 
-	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &bytes_returned,
+	rc = SendReceive2(xid, tcon->ses, iov, n_vec + 1, &resp_buf_type,
 			  long_op);
 	cifs_stats_inc(&tcon->num_writes);
 	if (rc) {
 		cFYI(1, ("Send error Write2 = %d", rc));
 		*nbytes = 0;
+	} else if(resp_buf_type == 0) {
+		/* presumably this can not happen, but best to be safe */
+		rc = -EIO;
+		*nbytes = 0;
 	} else {
-		WRITE_RSP * pSMBr = (WRITE_RSP *)pSMB;
+		WRITE_RSP * pSMBr = (WRITE_RSP *)iov[0].iov_base;
 		*nbytes = le16_to_cpu(pSMBr->CountHigh);
 		*nbytes = (*nbytes) << 16;
 		*nbytes += le16_to_cpu(pSMBr->Count);
 	} 
 
 	cifs_small_buf_release(pSMB);
+	if(resp_buf_type == CIFS_SMALL_BUFFER)
+		cifs_small_buf_release(iov[0].iov_base);
+	else if(resp_buf_type == CIFS_LARGE_BUFFER)
+		cifs_buf_release(iov[0].iov_base);
 
 	/* Note: On -EAGAIN error only caller can retry on handle based calls 
 		since file handle passed in no longer valid */

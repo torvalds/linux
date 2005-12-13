@@ -555,13 +555,13 @@ int cifs_closedir(struct inode *inode, struct file *file)
 		}
 		ptmp = pCFileStruct->srch_inf.ntwrk_buf_start;
 		if (ptmp) {
-   /* BB removeme BB */	cFYI(1, ("freeing smb buf in srch struct in closedir"));
+			cFYI(1, ("closedir free smb buf in srch struct"));
 			pCFileStruct->srch_inf.ntwrk_buf_start = NULL;
 			cifs_buf_release(ptmp);
 		}
 		ptmp = pCFileStruct->search_resume_name;
 		if (ptmp) {
-   /* BB removeme BB */	cFYI(1, ("freeing resume name in closedir"));
+			cFYI(1, ("closedir free resume name"));
 			pCFileStruct->search_resume_name = NULL;
 			kfree(ptmp);
 		}
@@ -871,8 +871,8 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 					break;
 			}
 			/* BB FIXME We can not sign across two buffers yet */
-			if((experimEnabled) && ((pTcon->ses->server->secMode & 
-			 (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) == 0)) {
+			if((pTcon->ses->server->secMode & 
+			 (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) == 0) {
 				struct kvec iov[2];
 				unsigned int len;
 
@@ -1424,6 +1424,7 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 		rc = -EAGAIN;
 		smb_read_data = NULL;
 		while (rc == -EAGAIN) {
+			int buf_type = CIFS_NO_BUFFER;
 			if ((open_file->invalidHandle) && 
 			    (!open_file->closePend)) {
 				rc = cifs_reopen_file(file->f_dentry->d_inode,
@@ -1432,20 +1433,22 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 					break;
 			}
 			rc = CIFSSMBRead(xid, pTcon,
-					open_file->netfid,
-					current_read_size, *poffset,
-					&bytes_read, &smb_read_data);
+					 open_file->netfid,
+					 current_read_size, *poffset,
+					 &bytes_read, &smb_read_data,
+					 &buf_type);
 			pSMBr = (struct smb_com_read_rsp *)smb_read_data;
 			if (copy_to_user(current_offset, 
 					 smb_read_data + 4 /* RFC1001 hdr */
 					 + le16_to_cpu(pSMBr->DataOffset), 
 					 bytes_read)) {
 				rc = -EFAULT;
-				FreeXid(xid);
-				return rc;
-            }
+			}
 			if (smb_read_data) {
-				cifs_buf_release(smb_read_data);
+				if(buf_type == CIFS_SMALL_BUFFER)
+					cifs_small_buf_release(smb_read_data);
+				else if(buf_type == CIFS_LARGE_BUFFER)
+					cifs_buf_release(smb_read_data);
 				smb_read_data = NULL;
 			}
 		}
@@ -1478,6 +1481,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	int xid;
 	char *current_offset;
 	struct cifsFileInfo *open_file;
+	int buf_type = CIFS_NO_BUFFER;
 
 	xid = GetXid();
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
@@ -1514,9 +1518,10 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 					break;
 			}
 			rc = CIFSSMBRead(xid, pTcon,
-					open_file->netfid,
-					current_read_size, *poffset,
-					&bytes_read, &current_offset);
+					 open_file->netfid,
+					 current_read_size, *poffset,
+					 &bytes_read, &current_offset,
+					 &buf_type);
 		}
 		if (rc || (bytes_read == 0)) {
 			if (total_read) {
@@ -1614,6 +1619,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	struct smb_com_read_rsp *pSMBr;
 	struct pagevec lru_pvec;
 	struct cifsFileInfo *open_file;
+	int buf_type = CIFS_NO_BUFFER;
 
 	xid = GetXid();
 	if (file->private_data == NULL) {
@@ -1670,14 +1676,17 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			}
 
 			rc = CIFSSMBRead(xid, pTcon,
-					open_file->netfid,
-					read_size, offset,
-					&bytes_read, &smb_read_data);
-
+					 open_file->netfid,
+					 read_size, offset,
+					 &bytes_read, &smb_read_data,
+					 &buf_type);
 			/* BB more RC checks ? */
 			if (rc== -EAGAIN) {
 				if (smb_read_data) {
-					cifs_buf_release(smb_read_data);
+					if(buf_type == CIFS_SMALL_BUFFER)
+						cifs_small_buf_release(smb_read_data);
+					else if(buf_type == CIFS_LARGE_BUFFER)
+						cifs_buf_release(smb_read_data);
 					smb_read_data = NULL;
 				}
 			}
@@ -1734,7 +1743,10 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 			break;
 		}
 		if (smb_read_data) {
-			cifs_buf_release(smb_read_data);
+			if(buf_type == CIFS_SMALL_BUFFER)
+				cifs_small_buf_release(smb_read_data);
+			else if(buf_type == CIFS_LARGE_BUFFER)
+				cifs_buf_release(smb_read_data);
 			smb_read_data = NULL;
 		}
 		bytes_read = 0;

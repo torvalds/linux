@@ -285,6 +285,7 @@ struct cifs_search_info {
 	unsigned endOfSearch:1;
 	unsigned emptyDir:1;
 	unsigned unicode:1;
+	unsigned smallBuf:1; /* so we know which buf_release function to call */
 };
 
 struct cifsFileInfo {
@@ -420,7 +421,12 @@ struct dir_notify_req {
 #define   MID_RESPONSE_RECEIVED 4
 #define   MID_RETRY_NEEDED      8 /* session closed while this request out */
 #define   MID_NO_RESP_NEEDED 0x10
-#define   MID_SMALL_BUFFER   0x20 /* 112 byte response buffer instead of 4K */
+
+/* Types of response buffer returned from SendReceive2 */
+#define   CIFS_NO_BUFFER        0    /* Response buffer not returned */
+#define   CIFS_SMALL_BUFFER     1
+#define   CIFS_LARGE_BUFFER     2
+#define   CIFS_IOVEC            4    /* array of response buffers */
 
 /*
  *****************************************************************
