@@ -343,6 +343,13 @@
 #define XSENS_CONVERTER_7_PID	0xD38F
 
 /*
+ * Teratronik product ids.
+ * Submitted by O. Wölfelschneider.
+ */
+#define FTDI_TERATRONIK_VCP_PID	 0xEC88	/* Teratronik device (preferring VCP driver on windows) */
+#define FTDI_TERATRONIK_D2XX_PID 0xEC89	/* Teratronik device (preferring D2XX driver on windows) */
+
+/*
  * Evolution Robotics products (http://www.evolution.com/).
  * Submitted by Shawn M. Lavelle.
  */
