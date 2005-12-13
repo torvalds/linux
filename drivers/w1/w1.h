@@ -203,6 +203,16 @@ static inline struct w1_master* dev_to_w1_master(struct device *dev)
 	return container_of(dev, struct w1_master, dev);
 }
 
+extern int w1_max_slave_count;
+extern int w1_max_slave_ttl;
+extern spinlock_t w1_mlock;
+extern struct list_head w1_masters;
+extern struct device_driver w1_master_driver;
+extern struct device w1_master_device;
+
+int w1_process(void *data);
+void w1_reconnect_slaves(struct w1_family *f);
+
 #endif /* __KERNEL__ */
 
 #endif /* __W1_H */
