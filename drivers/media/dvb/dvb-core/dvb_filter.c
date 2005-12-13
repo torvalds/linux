@@ -72,12 +72,12 @@ static int read_picture_header(u8 *headr, struct mpg_picture *pic, int field, in
 	u8 pct;
 
 	if (pr) printk( "Pic header: ");
-        pic->temporal_reference[field] = (( headr[0] << 2 ) |
+	pic->temporal_reference[field] = (( headr[0] << 2 ) |
 					  (headr[1] & 0x03) )& 0x03ff;
 	if (pr) printk( " temp ref: 0x%04x", pic->temporal_reference[field]);
 
 	pct = ( headr[1] >> 2 ) & 0x07;
-        pic->picture_coding_type[field] = pct;
+	pic->picture_coding_type[field] = pct;
 	if (pr) {
 		switch(pct){
 			case I_FRAME:
@@ -93,17 +93,17 @@ static int read_picture_header(u8 *headr, struct mpg_picture *pic, int field, in
 	}
 
 
-        pic->vinfo.vbv_delay  = (( headr[1] >> 5 ) | ( headr[2] << 3) |
+	pic->vinfo.vbv_delay  = (( headr[1] >> 5 ) | ( headr[2] << 3) |
 				 ( (headr[3] & 0x1F) << 11) ) & 0xffff;
 
 	if (pr) printk( " vbv delay: 0x%04x", pic->vinfo.vbv_delay);
 
-        pic->picture_header_parameter = ( headr[3] & 0xe0 ) |
+	pic->picture_header_parameter = ( headr[3] & 0xe0 ) |
 		((headr[4] & 0x80) >> 3);
 
-        if ( pct == B_FRAME ){
-                pic->picture_header_parameter |= ( headr[4] >> 3 ) & 0x0f;
-        }
+	if ( pct == B_FRAME ){
+		pic->picture_header_parameter |= ( headr[4] >> 3 ) & 0x0f;
+	}
 	if (pr) printk( " pic head param: 0x%x",
 			pic->picture_header_parameter);
 
@@ -124,18 +124,18 @@ static int read_gop_header(u8 *headr, struct mpg_picture *pic, int pr)
 		       ((headr[0]<<4)& 0x30)| ((headr[1]>>4)& 0x0F),
 		       ((headr[1]<<3)& 0x38)| ((headr[2]>>5)& 0x0F));
 
-        if ( ( headr[3] & 0x40 ) != 0 ){
-                pic->closed_gop = 1;
-        } else {
-                pic->closed_gop = 0;
-        }
+	if ( ( headr[3] & 0x40 ) != 0 ){
+		pic->closed_gop = 1;
+	} else {
+		pic->closed_gop = 0;
+	}
 	if (pr) printk("closed: %d", pic->closed_gop);
 
-        if ( ( headr[3] & 0x20 ) != 0 ){
-                pic->broken_link = 1;
-        } else {
-                pic->broken_link = 0;
-        }
+	if ( ( headr[3] & 0x20 ) != 0 ){
+		pic->broken_link = 1;
+	} else {
+		pic->broken_link = 0;
+	}
 	if (pr) printk(" broken: %d\n", pic->broken_link);
 
 	return 0;
@@ -146,7 +146,7 @@ static int read_gop_header(u8 *headr, struct mpg_picture *pic, int pr)
 /* needs 8 byte input */
 static int read_sequence_header(u8 *headr, struct dvb_video_info *vi, int pr)
 {
-        int sw;
+	int sw;
 	int form = -1;
 
 	if (pr) printk("Reading sequence header\n");
@@ -154,9 +154,9 @@ static int read_sequence_header(u8 *headr, struct dvb_video_info *vi, int pr)
 	vi->horizontal_size	= ((headr[1] &0xF0) >> 4) | (headr[0] << 4);
 	vi->vertical_size	= ((headr[1] &0x0F) << 8) | (headr[2]);
 
-        sw = (int)((headr[3]&0xF0) >> 4) ;
+	sw = (int)((headr[3]&0xF0) >> 4) ;
 
-        switch( sw ){
+	switch( sw ){
 	case 1:
 		if (pr)
 			printk("Videostream: ASPECT: 1:1");
@@ -165,84 +165,84 @@ static int read_sequence_header(u8 *headr, struct dvb_video_info *vi, int pr)
 	case 2:
 		if (pr)
 			printk("Videostream: ASPECT: 4:3");
-                vi->aspect_ratio = 133;
+		vi->aspect_ratio = 133;
 		break;
 	case 3:
 		if (pr)
 			printk("Videostream: ASPECT: 16:9");
-                vi->aspect_ratio = 177;
+		vi->aspect_ratio = 177;
 		break;
 	case 4:
 		if (pr)
 			printk("Videostream: ASPECT: 2.21:1");
-                vi->aspect_ratio = 221;
+		vi->aspect_ratio = 221;
 		break;
 
-        case 5 ... 15:
+	case 5 ... 15:
 		if (pr)
 			printk("Videostream: ASPECT: reserved");
-                vi->aspect_ratio = 0;
+		vi->aspect_ratio = 0;
 		break;
 
-        default:
-                vi->aspect_ratio = 0;
-                return -1;
+	default:
+		vi->aspect_ratio = 0;
+		return -1;
 	}
 
 	if (pr)
 		printk("  Size = %dx%d",vi->horizontal_size,vi->vertical_size);
 
-        sw = (int)(headr[3]&0x0F);
+	sw = (int)(headr[3]&0x0F);
 
-        switch ( sw ) {
+	switch ( sw ) {
 	case 1:
 		if (pr)
 			printk("  FRate: 23.976 fps");
-                vi->framerate = 23976;
+		vi->framerate = 23976;
 		form = -1;
 		break;
 	case 2:
 		if (pr)
 			printk("  FRate: 24 fps");
-                vi->framerate = 24000;
+		vi->framerate = 24000;
 		form = -1;
 		break;
 	case 3:
 		if (pr)
 			printk("  FRate: 25 fps");
-                vi->framerate = 25000;
+		vi->framerate = 25000;
 		form = VIDEO_MODE_PAL;
 		break;
 	case 4:
 		if (pr)
 			printk("  FRate: 29.97 fps");
-                vi->framerate = 29970;
+		vi->framerate = 29970;
 		form = VIDEO_MODE_NTSC;
 		break;
 	case 5:
 		if (pr)
 			printk("  FRate: 30 fps");
-                vi->framerate = 30000;
+		vi->framerate = 30000;
 		form = VIDEO_MODE_NTSC;
 		break;
 	case 6:
 		if (pr)
 			printk("  FRate: 50 fps");
-                vi->framerate = 50000;
+		vi->framerate = 50000;
 		form = VIDEO_MODE_PAL;
 		break;
 	case 7:
 		if (pr)
 			printk("  FRate: 60 fps");
-                vi->framerate = 60000;
+		vi->framerate = 60000;
 		form = VIDEO_MODE_NTSC;
 		break;
 	}
 
 	vi->bit_rate = (headr[4] << 10) | (headr[5] << 2) | (headr[6] & 0x03);
 
-        vi->vbv_buffer_size
-                = (( headr[6] & 0xF8) >> 3 ) | (( headr[7] & 0x1F )<< 5);
+	vi->vbv_buffer_size
+		= (( headr[6] & 0xF8) >> 3 ) | (( headr[7] & 0x1F )<< 5);
 
 	if (pr){
 		printk("  BRate: %d Mbit/s",4*(vi->bit_rate)/10000);
@@ -250,7 +250,7 @@ static int read_sequence_header(u8 *headr, struct dvb_video_info *vi, int pr)
 		printk("\n");
 	}
 
-        vi->video_format = form;
+	vi->video_format = form;
 
 	return 0;
 }
@@ -308,7 +308,7 @@ static int get_ainfo(u8 *mbuf, int count, struct dvb_audio_info *ai, int pr)
 	if (!found) return -1;
 
 	if (c+3 >= count) return -1;
-        headr = mbuf+c;
+	headr = mbuf+c;
 
 	ai->layer = (headr[1] & 0x06) >> 1;
 
@@ -368,7 +368,7 @@ int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int p
 	if (c+5 >= count) return -1;
 
 	ai->layer = 0;  // 0 for AC3
-        headr = mbuf+c+2;
+	headr = mbuf+c+2;
 
 	frame = (headr[2]&0x3f);
 	ai->bit_rate = ac3_bitrates[frame >> 1]*1000;
@@ -396,159 +396,159 @@ EXPORT_SYMBOL(dvb_filter_get_ac3info);
 #if 0
 static u8 *skip_pes_header(u8 **bufp)
 {
-        u8 *inbuf = *bufp;
-        u8 *buf = inbuf;
-        u8 *pts = NULL;
-        int skip = 0;
+	u8 *inbuf = *bufp;
+	u8 *buf = inbuf;
+	u8 *pts = NULL;
+	int skip = 0;
 
 	static const int mpeg1_skip_table[16] = {
 		1, 0xffff,      5,     10, 0xffff, 0xffff, 0xffff, 0xffff,
-	        0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff
+		0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff
 	};
 
 
-        if ((inbuf[6] & 0xc0) == 0x80){ /* mpeg2 */
-                if (buf[7] & PTS_ONLY)
-                        pts = buf+9;
-                else pts = NULL;
-                buf = inbuf + 9 + inbuf[8];
-        } else {        /* mpeg1 */
-                for (buf = inbuf + 6; *buf == 0xff; buf++)
-                        if (buf == inbuf + 6 + 16) {
-                                break;
-                        }
-                if ((*buf & 0xc0) == 0x40)
-                        buf += 2;
-                skip = mpeg1_skip_table [*buf >> 4];
-                if (skip == 5 || skip == 10) pts = buf;
-                else pts = NULL;
+	if ((inbuf[6] & 0xc0) == 0x80){ /* mpeg2 */
+		if (buf[7] & PTS_ONLY)
+		        pts = buf+9;
+		else pts = NULL;
+		buf = inbuf + 9 + inbuf[8];
+	} else {        /* mpeg1 */
+		for (buf = inbuf + 6; *buf == 0xff; buf++)
+		        if (buf == inbuf + 6 + 16) {
+		                break;
+		        }
+		if ((*buf & 0xc0) == 0x40)
+		        buf += 2;
+		skip = mpeg1_skip_table [*buf >> 4];
+		if (skip == 5 || skip == 10) pts = buf;
+		else pts = NULL;
 
-                buf += mpeg1_skip_table [*buf >> 4];
-        }
+		buf += mpeg1_skip_table [*buf >> 4];
+	}
 
-        *bufp = buf;
-        return pts;
+	*bufp = buf;
+	return pts;
 }
 #endif
 
 #if 0
 static void initialize_quant_matrix( u32 *matrix )
 {
-        int i;
+	int i;
 
-        matrix[0]  = 0x08101013;
-        matrix[1]  = 0x10131616;
-        matrix[2]  = 0x16161616;
-        matrix[3]  = 0x1a181a1b;
-        matrix[4]  = 0x1b1b1a1a;
-        matrix[5]  = 0x1a1a1b1b;
-        matrix[6]  = 0x1b1d1d1d;
-        matrix[7]  = 0x2222221d;
-        matrix[8]  = 0x1d1d1b1b;
-        matrix[9]  = 0x1d1d2020;
-        matrix[10] = 0x22222526;
-        matrix[11] = 0x25232322;
-        matrix[12] = 0x23262628;
-        matrix[13] = 0x28283030;
-        matrix[14] = 0x2e2e3838;
-        matrix[15] = 0x3a454553;
+	matrix[0]  = 0x08101013;
+	matrix[1]  = 0x10131616;
+	matrix[2]  = 0x16161616;
+	matrix[3]  = 0x1a181a1b;
+	matrix[4]  = 0x1b1b1a1a;
+	matrix[5]  = 0x1a1a1b1b;
+	matrix[6]  = 0x1b1d1d1d;
+	matrix[7]  = 0x2222221d;
+	matrix[8]  = 0x1d1d1b1b;
+	matrix[9]  = 0x1d1d2020;
+	matrix[10] = 0x22222526;
+	matrix[11] = 0x25232322;
+	matrix[12] = 0x23262628;
+	matrix[13] = 0x28283030;
+	matrix[14] = 0x2e2e3838;
+	matrix[15] = 0x3a454553;
 
-        for ( i = 16 ; i < 32 ; i++ )
-                matrix[i] = 0x10101010;
+	for ( i = 16 ; i < 32 ; i++ )
+		matrix[i] = 0x10101010;
 }
 #endif
 
 #if 0
 static void initialize_mpg_picture(struct mpg_picture *pic)
 {
-        int i;
+	int i;
 
-        /* set MPEG1 */
-        pic->mpeg1_flag = 1;
-        pic->profile_and_level = 0x4A ;        /* MP@LL */
-        pic->progressive_sequence = 1;
-        pic->low_delay = 0;
+	/* set MPEG1 */
+	pic->mpeg1_flag = 1;
+	pic->profile_and_level = 0x4A ;        /* MP@LL */
+	pic->progressive_sequence = 1;
+	pic->low_delay = 0;
 
-        pic->sequence_display_extension_flag = 0;
-        for ( i = 0 ; i < 4 ; i++ ){
-                pic->frame_centre_horizontal_offset[i] = 0;
-                pic->frame_centre_vertical_offset[i] = 0;
-        }
-        pic->last_frame_centre_horizontal_offset = 0;
-        pic->last_frame_centre_vertical_offset = 0;
+	pic->sequence_display_extension_flag = 0;
+	for ( i = 0 ; i < 4 ; i++ ){
+		pic->frame_centre_horizontal_offset[i] = 0;
+		pic->frame_centre_vertical_offset[i] = 0;
+	}
+	pic->last_frame_centre_horizontal_offset = 0;
+	pic->last_frame_centre_vertical_offset = 0;
 
-        pic->picture_display_extension_flag[0] = 0;
-        pic->picture_display_extension_flag[1] = 0;
-        pic->sequence_header_flag = 0;
+	pic->picture_display_extension_flag[0] = 0;
+	pic->picture_display_extension_flag[1] = 0;
+	pic->sequence_header_flag = 0;
 	pic->gop_flag = 0;
-        pic->sequence_end_flag = 0;
+	pic->sequence_end_flag = 0;
 }
 #endif
 
 #if 0
 static void mpg_set_picture_parameter( int32_t field_type, struct mpg_picture *pic )
 {
-        int16_t last_h_offset;
-        int16_t last_v_offset;
+	int16_t last_h_offset;
+	int16_t last_v_offset;
 
-        int16_t *p_h_offset;
-        int16_t *p_v_offset;
+	int16_t *p_h_offset;
+	int16_t *p_v_offset;
 
-        if ( pic->mpeg1_flag ){
-                pic->picture_structure[field_type] = VIDEO_FRAME_PICTURE;
-                pic->top_field_first = 0;
-                pic->repeat_first_field = 0;
-                pic->progressive_frame = 1;
-                pic->picture_coding_parameter = 0x000010;
-        }
+	if ( pic->mpeg1_flag ){
+		pic->picture_structure[field_type] = VIDEO_FRAME_PICTURE;
+		pic->top_field_first = 0;
+		pic->repeat_first_field = 0;
+		pic->progressive_frame = 1;
+		pic->picture_coding_parameter = 0x000010;
+	}
 
-        /* Reset flag */
-        pic->picture_display_extension_flag[field_type] = 0;
+	/* Reset flag */
+	pic->picture_display_extension_flag[field_type] = 0;
 
-        last_h_offset = pic->last_frame_centre_horizontal_offset;
-        last_v_offset = pic->last_frame_centre_vertical_offset;
-        if ( field_type == FIRST_FIELD ){
-                p_h_offset = pic->frame_centre_horizontal_offset;
-                p_v_offset = pic->frame_centre_vertical_offset;
-                *p_h_offset = last_h_offset;
-                *(p_h_offset + 1) = last_h_offset;
-                *(p_h_offset + 2) = last_h_offset;
-                *p_v_offset = last_v_offset;
-                *(p_v_offset + 1) = last_v_offset;
-                *(p_v_offset + 2) = last_v_offset;
-        } else {
-                pic->frame_centre_horizontal_offset[3] = last_h_offset;
-                pic->frame_centre_vertical_offset[3] = last_v_offset;
-        }
+	last_h_offset = pic->last_frame_centre_horizontal_offset;
+	last_v_offset = pic->last_frame_centre_vertical_offset;
+	if ( field_type == FIRST_FIELD ){
+		p_h_offset = pic->frame_centre_horizontal_offset;
+		p_v_offset = pic->frame_centre_vertical_offset;
+		*p_h_offset = last_h_offset;
+		*(p_h_offset + 1) = last_h_offset;
+		*(p_h_offset + 2) = last_h_offset;
+		*p_v_offset = last_v_offset;
+		*(p_v_offset + 1) = last_v_offset;
+		*(p_v_offset + 2) = last_v_offset;
+	} else {
+		pic->frame_centre_horizontal_offset[3] = last_h_offset;
+		pic->frame_centre_vertical_offset[3] = last_v_offset;
+	}
 }
 #endif
 
 #if 0
 static void init_mpg_picture( struct mpg_picture *pic, int chan, int32_t field_type)
 {
-        pic->picture_header = 0;
-        pic->sequence_header_data
-                = ( INIT_HORIZONTAL_SIZE << 20 )
-                        | ( INIT_VERTICAL_SIZE << 8 )
-                        | ( INIT_ASPECT_RATIO << 4 )
-                        | ( INIT_FRAME_RATE );
-        pic->mpeg1_flag = 0;
-        pic->vinfo.horizontal_size
-                = INIT_DISP_HORIZONTAL_SIZE;
-        pic->vinfo.vertical_size
-                = INIT_DISP_VERTICAL_SIZE;
-        pic->picture_display_extension_flag[field_type]
-                = 0;
-        pic->pts_flag[field_type] = 0;
+	pic->picture_header = 0;
+	pic->sequence_header_data
+		= ( INIT_HORIZONTAL_SIZE << 20 )
+		        | ( INIT_VERTICAL_SIZE << 8 )
+		        | ( INIT_ASPECT_RATIO << 4 )
+		        | ( INIT_FRAME_RATE );
+	pic->mpeg1_flag = 0;
+	pic->vinfo.horizontal_size
+		= INIT_DISP_HORIZONTAL_SIZE;
+	pic->vinfo.vertical_size
+		= INIT_DISP_VERTICAL_SIZE;
+	pic->picture_display_extension_flag[field_type]
+		= 0;
+	pic->pts_flag[field_type] = 0;
 
-        pic->sequence_gop_header = 0;
-        pic->picture_header = 0;
-        pic->sequence_header_flag = 0;
-        pic->gop_flag = 0;
-        pic->sequence_end_flag = 0;
-        pic->sequence_display_extension_flag = 0;
-        pic->last_frame_centre_horizontal_offset = 0;
-        pic->last_frame_centre_vertical_offset = 0;
+	pic->sequence_gop_header = 0;
+	pic->picture_header = 0;
+	pic->sequence_header_flag = 0;
+	pic->gop_flag = 0;
+	pic->sequence_end_flag = 0;
+	pic->sequence_display_extension_flag = 0;
+	pic->last_frame_centre_horizontal_offset = 0;
+	pic->last_frame_centre_vertical_offset = 0;
 	pic->channel = chan;
 }
 #endif
@@ -588,11 +588,11 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 		buf[1]&=~0x40;
 	}
 	if (!len)
-	        return 0;
+		return 0;
 	buf[3]=0x30|((p2ts->cc++)&0x0f);
 	rest=183-len;
 	if (rest) {
-	        buf[5]=0x00;
+		buf[5]=0x00;
 		if (rest-1)
 			memset(buf+6, 0xff, rest-1);
 	}

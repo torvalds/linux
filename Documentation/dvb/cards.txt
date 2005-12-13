@@ -16,7 +16,7 @@ Hardware supported by the linuxtv.org DVB drivers
   shielding, and the whole metal box has its own part number.
 
 
-o Frontends drivers: 
+o Frontends drivers:
   - dvb_dummy_fe: for testing...
   DVB-S:
    - ves1x93		: Alps BSRV2 (ves1893 demodulator) and dbox2 (ves1993)
@@ -24,7 +24,7 @@ o Frontends drivers:
    - grundig_29504-491	: Grundig 29504-491 (Philips TDA8083 demodulator), tsa5522 PLL
    - mt312		: Zarlink mt312 or Mitel vp310 demodulator, sl1935 or tsa5059 PLL
    - stv0299		: Alps BSRU6 (tsa5059 PLL), LG TDQB-S00x (tsa5059 PLL),
-   			  LG TDQF-S001F (sl1935 PLL), Philips SU1278 (tua6100 PLL), 
+			  LG TDQF-S001F (sl1935 PLL), Philips SU1278 (tua6100 PLL),
 			  Philips SU1278SH (tsa5059 PLL), Samsung TBMU24112IMB
   DVB-C:
    - ves1820		: various (ves1820 demodulator, sp5659c or spXXXX PLL)
@@ -35,8 +35,8 @@ o Frontends drivers:
    - grundig_29504-401	: Grundig 29504-401 (LSI L64781 demodulator), tsa5060 PLL
    - tda1004x		: Philips tda10045h (td1344 or tdm1316l PLL)
    - nxt6000 		: Alps TDME7 (MITEL SP5659 PLL), Alps TDED4 (TI ALP510 PLL),
-               		  Comtech DVBT-6k07 (SP5730 PLL)
-               		  (NxtWave Communications NXT6000 demodulator)
+			  Comtech DVBT-6k07 (SP5730 PLL)
+			  (NxtWave Communications NXT6000 demodulator)
    - sp887x		: Microtune 7202D
    - dib3000mb	: DiBcom 3000-MB demodulator
   DVB-S/C/T:

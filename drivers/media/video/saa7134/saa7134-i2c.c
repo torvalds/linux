@@ -333,7 +333,7 @@ static int attach_inform(struct i2c_client *client)
 	struct tuner_setup tun_setup;
 
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
-		 client->driver->name, client->addr, client->name);
+		client->driver->name, client->addr, client->name);
 
 	/* Am I an i2c remote control? */
 

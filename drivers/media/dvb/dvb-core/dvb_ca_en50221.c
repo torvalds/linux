@@ -498,7 +498,7 @@ static int dvb_ca_en50221_parse_attributes(struct dvb_ca_private *ca, int slot)
 	/* process the CFTABLE_ENTRY tuples, and any after those */
 	while ((!end_chain) && (address < 0x1000)) {
 		if ((status = dvb_ca_en50221_read_tuple(ca, slot, &address, &tupleType,
-						        &tupleLength, tuple)) < 0)
+							&tupleLength, tuple)) < 0)
 			return status;
 		switch (tupleType) {
 		case 0x1B:	// CISTPL_CFTABLE_ENTRY

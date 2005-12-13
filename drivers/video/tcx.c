@@ -125,7 +125,6 @@ struct tcx_par {
 	int			lowdepth;
 
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 /* Reset control plane so that WID is 8-bit plane. */
@@ -444,7 +443,7 @@ static void tcx_init_one(struct sbus_dev *sdev)
 
 	tcx_reset(&all->info);
 
-	tcx_blank(0, &all->info);
+	tcx_blank(FB_BLANK_UNBLANK, &all->info);
 
 	if (fb_alloc_cmap(&all->info.cmap, 256, 0)) {
 		printk(KERN_ERR "tcx: Could not allocate color map.\n");

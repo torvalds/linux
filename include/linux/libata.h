@@ -136,6 +136,10 @@ enum {
 	ATA_TMOUT_BOOT_QUICK	= 7 * HZ,	/* hueristic */
 	ATA_TMOUT_DATAOUT	= 30 * HZ,
 	ATA_TMOUT_DATAOUT_QUICK	= 5 * HZ,
+	ATA_TMOUT_CDB		= 30 * HZ,
+	ATA_TMOUT_CDB_QUICK	= 5 * HZ,
+	ATA_TMOUT_INTERNAL	= 30 * HZ,
+	ATA_TMOUT_INTERNAL_QUICK = 5 * HZ,
 
 	/* ATA bus states */
 	BUS_UNKNOWN		= 0,
@@ -285,8 +289,6 @@ struct ata_queued_cmd {
 	unsigned int		err_mask;
 
 	ata_qc_cb_t		complete_fn;
-
-	struct completion	*waiting;
 
 	void			*private_data;
 };

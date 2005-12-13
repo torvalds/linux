@@ -39,6 +39,6 @@ struct s5h1420_config
 };
 
 extern struct dvb_frontend* s5h1420_attach(const struct s5h1420_config* config,
-             struct i2c_adapter* i2c);
+	     struct i2c_adapter* i2c);
 
 #endif // S5H1420_H

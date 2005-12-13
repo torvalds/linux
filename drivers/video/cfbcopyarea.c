@@ -64,8 +64,8 @@ bitcpy(unsigned long __iomem *dst, int dst_idx, const unsigned long __iomem *src
 	int const shift = dst_idx-src_idx;
 	int left, right;
 
-	first = ~0UL >> dst_idx;
-	last = ~(~0UL >> ((dst_idx+n) % bits));
+	first = FB_SHIFT_HIGH(~0UL, dst_idx);
+	last = ~(FB_SHIFT_HIGH(~0UL, (dst_idx+n) % bits));
 
 	if (!shift) {
 		// Same alignment for source and dest
@@ -216,8 +216,8 @@ bitcpy_rev(unsigned long __iomem *dst, int dst_idx, const unsigned long __iomem 
 
 	shift = dst_idx-src_idx;
 
-	first = ~0UL << (bits - 1 - dst_idx);
-	last = ~(~0UL << (bits - 1 - ((dst_idx-n) % bits)));
+	first = FB_SHIFT_LOW(~0UL, bits - 1 - dst_idx);
+	last = ~(FB_SHIFT_LOW(~0UL, bits - 1 - ((dst_idx-n) % bits)));
 
 	if (!shift) {
 		// Same alignment for source and dest

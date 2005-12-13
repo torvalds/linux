@@ -943,6 +943,15 @@ config RAW_DRIVER
           Applications should simply open the device (eg /dev/hda1)
           with the O_DIRECT flag.
 
+config MAX_RAW_DEVS
+	int "Maximum number of RAW devices to support (1-8192)"
+	depends on RAW_DRIVER
+	default "256"
+	help
+	  The maximum number of RAW devices that are supported.
+	  Default is 256. Increase this number in case you need lots of
+	  raw devices.
+
 config HPET
 	bool "HPET - High Precision Event Timer" if (X86 || IA64)
 	default n
@@ -973,15 +982,6 @@ config HPET_MMAP
 	  registers may also contain other things that shouldn't be
 	  exposed to the user.  If this applies to your hardware,
 	  say N here.
-
-config MAX_RAW_DEVS
-	int "Maximum number of RAW devices to support (1-8192)"
-	depends on RAW_DRIVER
-	default "256"
-	help
-	  The maximum number of RAW devices that are supported.
-	  Default is 256. Increase this number in case you need lots of
-	  raw devices.
 
 config HANGCHECK_TIMER
 	tristate "Hangcheck timer"

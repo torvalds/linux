@@ -37,6 +37,49 @@
  *
  *  Hardware documentation available at http://developer.intel.com/
  *
+ * Documentation
+ *	Publically available from Intel web site. Errata documentation
+ * is also publically available. As an aide to anyone hacking on this
+ * driver the list of errata that are relevant is below.going back to
+ * PIIX4. Older device documentation is now a bit tricky to find.
+ *
+ * The chipsets all follow very much the same design. The orginal Triton
+ * series chipsets do _not_ support independant device timings, but this
+ * is fixed in Triton II. With the odd mobile exception the chips then
+ * change little except in gaining more modes until SATA arrives. This
+ * driver supports only the chips with independant timing (that is those
+ * with SITRE and the 0x44 timing register). See pata_oldpiix and pata_mpiix
+ * for the early chip drivers.
+ *
+ * Errata of note:
+ *
+ * Unfixable
+ *	PIIX4    errata #9	- Only on ultra obscure hw
+ *	ICH3	 errata #13     - Not observed to affect real hw
+ *				  by Intel
+ *
+ * Things we must deal with
+ *	PIIX4	errata #10	- BM IDE hang with non UDMA
+ *				  (must stop/start dma to recover)
+ *	440MX   errata #15	- As PIIX4 errata #10
+ *	PIIX4	errata #15	- Must not read control registers
+ * 				  during a PIO transfer
+ *	440MX   errata #13	- As PIIX4 errata #15
+ *	ICH2	errata #21	- DMA mode 0 doesn't work right
+ *	ICH0/1  errata #55	- As ICH2 errata #21
+ *	ICH2	spec c #9	- Extra operations needed to handle
+ *				  drive hotswap [NOT YET SUPPORTED]
+ *	ICH2    spec c #20	- IDE PRD must not cross a 64K boundary
+ *				  and must be dword aligned
+ *	ICH2    spec c #24	- UDMA mode 4,5 t85/86 should be 6ns not 3.3
+ *
+ * Should have been BIOS fixed:
+ *	450NX:	errata #19	- DMA hangs on old 450NX
+ *	450NX:  errata #20	- DMA hangs on old 450NX
+ *	450NX:  errata #25	- Corruption with DMA on old 450NX
+ *	ICH3    errata #15      - IDE deadlock under high load
+ *				  (BIOS must set dev 31 fn 0 bit 23)
+ *	ICH3	errata #18	- Don't use native mode
  */
 
 #include <linux/kernel.h>
@@ -577,6 +620,40 @@ static int piix_disable_ahci(struct pci_dev *pdev)
 }
 
 /**
+ *	piix_check_450nx_errata	-	Check for problem 450NX setup
+ *	
+ *	Check for the present of 450NX errata #19 and errata #25. If
+ *	they are found return an error code so we can turn off DMA
+ */
+
+static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
+{
+	struct pci_dev *pdev = NULL;
+	u16 cfg;
+	u8 rev;
+	int no_piix_dma = 0;
+	
+	while((pdev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev)) != NULL)
+	{
+		/* Look for 450NX PXB. Check for problem configurations
+		   A PCI quirk checks bit 6 already */
+		pci_read_config_byte(pdev, PCI_REVISION_ID, &rev);
+		pci_read_config_word(pdev, 0x41, &cfg);
+		/* Only on the original revision: IDE DMA can hang */
+		if(rev == 0x00)
+			no_piix_dma = 1;
+		/* On all revisions below 5 PXB bus lock must be disabled for IDE */
+		else if(cfg & (1<<14) && rev < 5)
+			no_piix_dma = 2;
+	}
+	if(no_piix_dma)
+		dev_printk(KERN_WARNING, &ata_dev->dev, "450NX errata present, disabling IDE DMA.\n");
+	if(no_piix_dma == 2)
+		dev_printk(KERN_WARNING, &ata_dev->dev, "A BIOS update may resolve this.\n");
+	return no_piix_dma;
+}		
+
+/**
  *	piix_init_one - Register PIIX ATA PCI device with kernel services
  *	@pdev: PCI device to register
  *	@ent: Entry in piix_pci_tbl matching with @pdev
@@ -650,7 +727,15 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			   "combined mode detected (p=%u, s=%u)\n",
 			   pata_chan, sata_chan);
 	}
-
+	if (piix_check_450nx_errata(pdev)) {
+		/* This writes into the master table but it does not
+		   really matter for this errata as we will apply it to
+		   all the PIIX devices on the board */
+		port_info[0]->mwdma_mask = 0;
+		port_info[0]->udma_mask = 0;
+		port_info[1]->mwdma_mask = 0;
+		port_info[1]->udma_mask = 0;
+	}
 	return ata_pci_init_one(pdev, port_info, 2);
 }
 
