@@ -77,7 +77,7 @@ pcibios_remove_pci_devices(struct pci_bus *bus)
 }
 
 /* Must be called before pci_bus_add_devices */
-static void
+void
 pcibios_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus)
 {
 	struct pci_dev *dev;
