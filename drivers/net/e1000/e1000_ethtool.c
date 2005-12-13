@@ -960,13 +960,21 @@ e1000_free_desc_rings(struct e1000_adapter *adapter)
 		}
 	}
 
-	if(txdr->desc)
+	if(txdr->desc) {
 		pci_free_consistent(pdev, txdr->size, txdr->desc, txdr->dma);
-	if(rxdr->desc)
+		txdr->desc = NULL;
+	}
+	if(rxdr->desc) {
 		pci_free_consistent(pdev, rxdr->size, rxdr->desc, rxdr->dma);
+		rxdr->desc = NULL;
+	}
 
 	kfree(txdr->buffer_info);
+	txdr->buffer_info = NULL;
+
 	kfree(rxdr->buffer_info);
+	rxdr->buffer_info = NULL;
+
 	return;
 }
 
@@ -1440,9 +1448,11 @@ static int
 e1000_loopback_test(struct e1000_adapter *adapter, uint64_t *data)
 {
 	if((*data = e1000_setup_desc_rings(adapter))) goto err_loopback;
-	if((*data = e1000_setup_loopback_test(adapter))) goto err_loopback;
+	if((*data = e1000_setup_loopback_test(adapter)))
+		goto err_loopback_setup;
 	*data = e1000_run_loopback_test(adapter);
 	e1000_loopback_cleanup(adapter);
+err_loopback_setup:
 	e1000_free_desc_rings(adapter);
 err_loopback:
 	return *data;
