@@ -856,56 +856,8 @@ static int sbp2_start_device(struct scsi_id_instance_data *scsi_id)
 		pci_alloc_consistent(hi->host->pdev,
 				     sizeof(struct sbp2_login_orb),
 				     &scsi_id->login_orb_dma);
-	if (!scsi_id->login_orb) {
-alloc_fail:
-		if (scsi_id->query_logins_response) {
-			pci_free_consistent(hi->host->pdev,
-					    sizeof(struct sbp2_query_logins_response),
-					    scsi_id->query_logins_response,
-					    scsi_id->query_logins_response_dma);
-			SBP2_DMA_FREE("query logins response DMA");
-		}
-
-		if (scsi_id->query_logins_orb) {
-			pci_free_consistent(hi->host->pdev,
-					    sizeof(struct sbp2_query_logins_orb),
-					    scsi_id->query_logins_orb,
-					    scsi_id->query_logins_orb_dma);
-			SBP2_DMA_FREE("query logins ORB DMA");
-		}
-
-		if (scsi_id->logout_orb) {
-			pci_free_consistent(hi->host->pdev,
-					    sizeof(struct sbp2_logout_orb),
-					    scsi_id->logout_orb,
-					    scsi_id->logout_orb_dma);
-			SBP2_DMA_FREE("logout ORB DMA");
-		}
-
-		if (scsi_id->reconnect_orb) {
-			pci_free_consistent(hi->host->pdev,
-					    sizeof(struct sbp2_reconnect_orb),
-					    scsi_id->reconnect_orb,
-					    scsi_id->reconnect_orb_dma);
-			SBP2_DMA_FREE("reconnect ORB DMA");
-		}
-
-		if (scsi_id->login_response) {
-			pci_free_consistent(hi->host->pdev,
-					    sizeof(struct sbp2_login_response),
-					    scsi_id->login_response,
-					    scsi_id->login_response_dma);
-			SBP2_DMA_FREE("login FIFO DMA");
-		}
-
-		list_del(&scsi_id->scsi_list);
-
-		kfree(scsi_id);
-
-		SBP2_ERR("Could not allocate memory for scsi_id");
-
-		return -ENOMEM;
-	}
+	if (!scsi_id->login_orb)
+		goto alloc_fail;
 	SBP2_DMA_ALLOC("consistent DMA region for login ORB");
 
 	SBP2_DEBUG("New SBP-2 device inserted, SCSI ID = %x", scsi_id->ud->id);
@@ -966,6 +918,11 @@ alloc_fail:
 	}
 
 	return 0;
+
+alloc_fail:
+	SBP2_ERR("Could not allocate memory for scsi_id");
+	sbp2_remove_device(scsi_id);
+	return -ENOMEM;
 }
 
 /*
