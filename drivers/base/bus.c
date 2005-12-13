@@ -428,6 +428,26 @@ static void driver_remove_attrs(struct bus_type * bus, struct device_driver * dr
 	}
 }
 
+#ifdef CONFIG_HOTPLUG
+/*
+ * Thanks to drivers making their tables __devinit, we can't allow manual
+ * bind and unbind from userspace unless CONFIG_HOTPLUG is enabled.
+ */
+static void add_bind_files(struct device_driver *drv)
+{
+	driver_create_file(drv, &driver_attr_unbind);
+	driver_create_file(drv, &driver_attr_bind);
+}
+
+static void remove_bind_files(struct device_driver *drv)
+{
+	driver_remove_file(drv, &driver_attr_bind);
+	driver_remove_file(drv, &driver_attr_unbind);
+}
+#else
+static inline void add_bind_files(struct device_driver *drv) {}
+static inline void remove_bind_files(struct device_driver *drv) {}
+#endif
 
 /**
  *	bus_add_driver - Add a driver to the bus.
@@ -457,8 +477,7 @@ int bus_add_driver(struct device_driver * drv)
 		module_add_driver(drv->owner, drv);
 
 		driver_add_attrs(bus, drv);
-		driver_create_file(drv, &driver_attr_unbind);
-		driver_create_file(drv, &driver_attr_bind);
+		add_bind_files(drv);
 	}
 	return error;
 }
@@ -476,8 +495,7 @@ int bus_add_driver(struct device_driver * drv)
 void bus_remove_driver(struct device_driver * drv)
 {
 	if (drv->bus) {
-		driver_remove_file(drv, &driver_attr_bind);
-		driver_remove_file(drv, &driver_attr_unbind);
+		remove_bind_files(drv);
 		driver_remove_attrs(drv->bus, drv);
 		klist_remove(&drv->knode_bus);
 		pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
