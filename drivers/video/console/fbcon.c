@@ -2146,8 +2146,12 @@ static int fbcon_switch(struct vc_data *vc)
 
 	scrollback_max = 0;
 	scrollback_current = 0;
-	ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-	ops->update_start(info);
+
+	if (!fbcon_is_inactive(vc, info)) {
+	    ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
+	    ops->update_start(info);
+	}
+
 	fbcon_set_palette(vc, color_table); 	
 	fbcon_clear_margins(vc, 0);
 
@@ -2746,8 +2750,12 @@ static void fbcon_modechanged(struct fb_info *info)
 		updatescrollmode(p, info, vc);
 		scrollback_max = 0;
 		scrollback_current = 0;
-		ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-		ops->update_start(info);
+
+		if (!fbcon_is_inactive(vc, info)) {
+		    ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
+		    ops->update_start(info);
+		}
+
 		fbcon_set_palette(vc, color_table);
 		update_screen(vc);
 		if (softback_buf)
@@ -2784,8 +2792,13 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 			updatescrollmode(p, info, vc);
 			scrollback_max = 0;
 			scrollback_current = 0;
-			ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-			ops->update_start(info);
+
+			if (!fbcon_is_inactive(vc, info)) {
+			    ops->var.xoffset = ops->var.yoffset =
+				p->yscroll = 0;
+			    ops->update_start(info);
+			}
+
 			fbcon_set_palette(vc, color_table);
 			update_screen(vc);
 			if (softback_buf)
