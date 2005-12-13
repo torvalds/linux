@@ -138,13 +138,15 @@ static int platinumfb_set_par (struct fb_info *info)
 
 	init = platinum_reg_init[pinfo->vmode-1];
 	
-	if (pinfo->vmode == 13 && pinfo->cmode > 0)
-		offset = 0x10;
+ 	if ((pinfo->vmode == VMODE_832_624_75) && (pinfo->cmode > CMODE_8))
+  		offset = 0x10;
+
 	info->screen_base = pinfo->frame_buffer + init->fb_offset + offset;
 	info->fix.smem_start = (pinfo->frame_buffer_phys) + init->fb_offset + offset;
 	info->fix.visual = (pinfo->cmode == CMODE_8) ?
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
-	info->fix.line_length = vmode_attrs[pinfo->vmode-1].hres * (1<<pinfo->cmode) + offset;
+ 	info->fix.line_length = vmode_attrs[pinfo->vmode-1].hres * (1<<pinfo->cmode)
+		+ offset;
 	printk("line_length: %x\n", info->fix.line_length);
 	return 0;
 }
@@ -221,7 +223,9 @@ static int platinumfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 static inline int platinum_vram_reqd(int video_mode, int color_mode)
 {
 	return vmode_attrs[video_mode-1].vres *
-	       (vmode_attrs[video_mode-1].hres * (1<<color_mode) + 0x20) +0x1000;
+	       (vmode_attrs[video_mode-1].hres * (1<<color_mode) +
+		((video_mode == VMODE_832_624_75) &&
+		 (color_mode > CMODE_8)) ? 0x10 : 0x20) + 0x1000;
 }
 
 #define STORE_D2(a, d) { \
