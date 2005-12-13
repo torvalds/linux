@@ -1407,14 +1407,28 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	struct hpsb_host *host = hi->host;
 	struct class *class = &nodemgr_ne_class;
 	struct class_device *cdev;
+	struct node_entry *ne;
 
 	/* Do some processing of the nodes we've probed. This pulls them
 	 * into the sysfs layer if needed, and can result in processing of
 	 * unit-directories, or just updating the node and it's
-	 * unit-directories. */
+	 * unit-directories.
+	 *
+	 * Run updates before probes. Usually, updates are time-critical
+	 * while probes are time-consuming. (Well, those probes need some
+	 * improvement...) */
+
 	down_read(&class->subsys.rwsem);
-	list_for_each_entry(cdev, &class->children, node)
-		nodemgr_probe_ne(hi, container_of(cdev, struct node_entry, class_dev), generation);
+	list_for_each_entry(cdev, &class->children, node) {
+		ne = container_of(cdev, struct node_entry, class_dev);
+		if (!ne->needs_probe)
+			nodemgr_probe_ne(hi, ne, generation);
+	}
+	list_for_each_entry(cdev, &class->children, node) {
+		ne = container_of(cdev, struct node_entry, class_dev);
+		if (ne->needs_probe)
+			nodemgr_probe_ne(hi, ne, generation);
+	}
         up_read(&class->subsys.rwsem);
 
 
