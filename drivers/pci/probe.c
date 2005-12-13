@@ -717,7 +717,7 @@ static void pci_release_dev(struct device *dev)
  * reading the dword at 0x100 which must either be 0 or a valid extended
  * capability header.
  */
-static int pci_cfg_space_size(struct pci_dev *dev)
+int pci_cfg_space_size(struct pci_dev *dev)
 {
 	int pos;
 	u32 status;
