@@ -1145,30 +1145,6 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 	return AC_ERR_OTHER;
 }
 
-static int ata_qc_wait_err(struct ata_queued_cmd *qc,
-			   struct completion *wait)
-{
-	int rc = 0;
-
-	if (wait_for_completion_timeout(wait, 30 * HZ) < 1) {
-		/* timeout handling */
-		qc->err_mask |= ac_err_mask(ata_chk_status(qc->ap));
-
-		if (!qc->err_mask) {
-			printk(KERN_WARNING "ata%u: slow completion (cmd %x)\n",
-			       qc->ap->id, qc->tf.command);
-		} else {
-			printk(KERN_WARNING "ata%u: qc timeout (cmd %x)\n",
-			       qc->ap->id, qc->tf.command);
-			rc = -EIO;
-		}
-
-		ata_qc_complete(qc);
-	}
-
-	return rc;
-}
-
 /**
  *	ata_dev_identify - obtain IDENTIFY x DEVICE page
  *	@ap: port on which device we wish to probe resides
@@ -3522,11 +3498,6 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 	}
 
 	return qc;
-}
-
-int ata_qc_complete_noop(struct ata_queued_cmd *qc)
-{
-	return 0;
 }
 
 static void __ata_qc_complete(struct ata_queued_cmd *qc)
