@@ -1707,26 +1707,184 @@ static int sbp2_agent_reset(struct scsi_id_instance_data *scsi_id, int wait)
 	return 0;
 }
 
+static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
+				     struct sbp2scsi_host_info *hi,
+				     struct sbp2_command_info *command,
+				     unsigned int scsi_use_sg,
+				     struct scatterlist *sgpnt,
+				     u32 orb_direction,
+				     enum dma_data_direction dma_dir)
+{
+	command->dma_dir = dma_dir;
+	orb->data_descriptor_hi = ORB_SET_NODE_ID(hi->host->node_id);
+	orb->misc |= ORB_SET_DIRECTION(orb_direction);
+
+	/* Special case if only one element (and less than 64KB in size) */
+	if ((scsi_use_sg == 1) &&
+	    (sgpnt[0].length <= SBP2_MAX_SG_ELEMENT_LENGTH)) {
+
+		SBP2_DEBUG("Only one s/g element");
+		command->dma_size = sgpnt[0].length;
+		command->dma_type = CMD_DMA_PAGE;
+		command->cmd_dma = pci_map_page(hi->host->pdev,
+						sgpnt[0].page,
+						sgpnt[0].offset,
+						command->dma_size,
+						command->dma_dir);
+		SBP2_DMA_ALLOC("single page scatter element");
+
+		orb->data_descriptor_lo = command->cmd_dma;
+		orb->misc |= ORB_SET_DATA_SIZE(command->dma_size);
+
+	} else {
+		struct sbp2_unrestricted_page_table *sg_element =
+					&command->scatter_gather_element[0];
+		u32 sg_count, sg_len;
+		dma_addr_t sg_addr;
+		int i, count = pci_map_sg(hi->host->pdev, sgpnt, scsi_use_sg,
+					  dma_dir);
+
+		SBP2_DMA_ALLOC("scatter list");
+
+		command->dma_size = scsi_use_sg;
+		command->sge_buffer = sgpnt;
+
+		/* use page tables (s/g) */
+		orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1);
+		orb->data_descriptor_lo = command->sge_dma;
+
+		/*
+		 * Loop through and fill out our sbp-2 page tables
+		 * (and split up anything too large)
+		 */
+		for (i = 0, sg_count = 0 ; i < count; i++, sgpnt++) {
+			sg_len = sg_dma_len(sgpnt);
+			sg_addr = sg_dma_address(sgpnt);
+			while (sg_len) {
+				sg_element[sg_count].segment_base_lo = sg_addr;
+				if (sg_len > SBP2_MAX_SG_ELEMENT_LENGTH) {
+					sg_element[sg_count].length_segment_base_hi =
+						PAGE_TABLE_SET_SEGMENT_LENGTH(SBP2_MAX_SG_ELEMENT_LENGTH);
+					sg_addr += SBP2_MAX_SG_ELEMENT_LENGTH;
+					sg_len -= SBP2_MAX_SG_ELEMENT_LENGTH;
+				} else {
+					sg_element[sg_count].length_segment_base_hi =
+						PAGE_TABLE_SET_SEGMENT_LENGTH(sg_len);
+					sg_len = 0;
+				}
+				sg_count++;
+			}
+		}
+
+		/* Number of page table (s/g) elements */
+		orb->misc |= ORB_SET_DATA_SIZE(sg_count);
+
+		sbp2util_packet_dump(sg_element,
+				     (sizeof(struct sbp2_unrestricted_page_table)) * sg_count,
+				     "sbp2 s/g list", command->sge_dma);
+
+		/* Byte swap page tables if necessary */
+		sbp2util_cpu_to_be32_buffer(sg_element,
+					    (sizeof(struct sbp2_unrestricted_page_table)) *
+					    sg_count);
+	}
+}
+
+static void sbp2_prep_command_orb_no_sg(struct sbp2_command_orb *orb,
+					struct sbp2scsi_host_info *hi,
+					struct sbp2_command_info *command,
+					struct scatterlist *sgpnt,
+					u32 orb_direction,
+					unsigned int scsi_request_bufflen,
+					void *scsi_request_buffer,
+					enum dma_data_direction dma_dir)
+{
+	command->dma_dir = dma_dir;
+	command->dma_size = scsi_request_bufflen;
+	command->dma_type = CMD_DMA_SINGLE;
+	command->cmd_dma = pci_map_single(hi->host->pdev, scsi_request_buffer,
+					  command->dma_size, command->dma_dir);
+	orb->data_descriptor_hi = ORB_SET_NODE_ID(hi->host->node_id);
+	orb->misc |= ORB_SET_DIRECTION(orb_direction);
+
+	SBP2_DMA_ALLOC("single bulk");
+
+	/*
+	 * Handle case where we get a command w/o s/g enabled (but
+	 * check for transfers larger than 64K)
+	 */
+	if (scsi_request_bufflen <= SBP2_MAX_SG_ELEMENT_LENGTH) {
+
+		orb->data_descriptor_lo = command->cmd_dma;
+		orb->misc |= ORB_SET_DATA_SIZE(scsi_request_bufflen);
+
+	} else {
+		struct sbp2_unrestricted_page_table *sg_element =
+			&command->scatter_gather_element[0];
+		u32 sg_count, sg_len;
+		dma_addr_t sg_addr;
+
+		/*
+		 * Need to turn this into page tables, since the
+		 * buffer is too large.
+		 */
+		orb->data_descriptor_lo = command->sge_dma;
+
+		/* Use page tables (s/g) */
+		orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1);
+
+		/*
+		 * fill out our sbp-2 page tables (and split up
+		 * the large buffer)
+		 */
+		sg_count = 0;
+		sg_len = scsi_request_bufflen;
+		sg_addr = command->cmd_dma;
+		while (sg_len) {
+			sg_element[sg_count].segment_base_lo = sg_addr;
+			if (sg_len > SBP2_MAX_SG_ELEMENT_LENGTH) {
+				sg_element[sg_count].length_segment_base_hi =
+					PAGE_TABLE_SET_SEGMENT_LENGTH(SBP2_MAX_SG_ELEMENT_LENGTH);
+				sg_addr += SBP2_MAX_SG_ELEMENT_LENGTH;
+				sg_len -= SBP2_MAX_SG_ELEMENT_LENGTH;
+			} else {
+				sg_element[sg_count].length_segment_base_hi =
+					PAGE_TABLE_SET_SEGMENT_LENGTH(sg_len);
+				sg_len = 0;
+			}
+			sg_count++;
+		}
+
+		/* Number of page table (s/g) elements */
+		orb->misc |= ORB_SET_DATA_SIZE(sg_count);
+
+		sbp2util_packet_dump(sg_element,
+				     (sizeof(struct sbp2_unrestricted_page_table)) * sg_count,
+				     "sbp2 s/g list", command->sge_dma);
+
+		/* Byte swap page tables if necessary */
+		sbp2util_cpu_to_be32_buffer(sg_element,
+					    (sizeof(struct sbp2_unrestricted_page_table)) *
+					     sg_count);
+	}
+}
+
 /*
  * This function is called to create the actual command orb and s/g list
  * out of the scsi command itself.
  */
-static int sbp2_create_command_orb(struct scsi_id_instance_data *scsi_id,
-				   struct sbp2_command_info *command,
-				   unchar *scsi_cmd,
-				   unsigned int scsi_use_sg,
-				   unsigned int scsi_request_bufflen,
-				   void *scsi_request_buffer,
-				   enum dma_data_direction dma_dir)
+static void sbp2_create_command_orb(struct scsi_id_instance_data *scsi_id,
+				    struct sbp2_command_info *command,
+				    unchar *scsi_cmd,
+				    unsigned int scsi_use_sg,
+				    unsigned int scsi_request_bufflen,
+				    void *scsi_request_buffer,
+				    enum dma_data_direction dma_dir)
 {
 	struct sbp2scsi_host_info *hi = scsi_id->hi;
 	struct scatterlist *sgpnt = (struct scatterlist *)scsi_request_buffer;
 	struct sbp2_command_orb *command_orb = &command->command_orb;
-	struct sbp2_unrestricted_page_table *scatter_gather_element =
-		&command->scatter_gather_element[0];
-	u32 sg_count, sg_len, orb_direction;
-	dma_addr_t sg_addr;
-	int i;
+	u32 orb_direction;
 
 	/*
 	 * Set-up our command ORB..
@@ -1753,186 +1911,29 @@ static int sbp2_create_command_orb(struct scsi_id_instance_data *scsi_id,
 		orb_direction = ORB_DIRECTION_NO_DATA_TRANSFER;
 	}
 
-	/*
-	 * Set-up our pagetable stuff... unfortunately, this has become
-	 * messier than I'd like. Need to clean this up a bit.   ;-)
-	 */
+	/* Set-up our pagetable stuff */
 	if (orb_direction == ORB_DIRECTION_NO_DATA_TRANSFER) {
-
 		SBP2_DEBUG("No data transfer");
-
-		/*
-		 * Handle no data transfer
-		 */
 		command_orb->data_descriptor_hi = 0x0;
 		command_orb->data_descriptor_lo = 0x0;
 		command_orb->misc |= ORB_SET_DIRECTION(1);
-
 	} else if (scsi_use_sg) {
-
 		SBP2_DEBUG("Use scatter/gather");
-
-		/*
-		 * Special case if only one element (and less than 64KB in size)
-		 */
-		if ((scsi_use_sg == 1) && (sgpnt[0].length <= SBP2_MAX_SG_ELEMENT_LENGTH)) {
-
-			SBP2_DEBUG("Only one s/g element");
-			command->dma_dir = dma_dir;
-			command->dma_size = sgpnt[0].length;
-			command->dma_type = CMD_DMA_PAGE;
-			command->cmd_dma = pci_map_page(hi->host->pdev,
-							sgpnt[0].page,
-							sgpnt[0].offset,
-							command->dma_size,
-							command->dma_dir);
-			SBP2_DMA_ALLOC("single page scatter element");
-
-			command_orb->data_descriptor_hi = ORB_SET_NODE_ID(hi->host->node_id);
-			command_orb->data_descriptor_lo = command->cmd_dma;
-			command_orb->misc |= ORB_SET_DATA_SIZE(command->dma_size);
-			command_orb->misc |= ORB_SET_DIRECTION(orb_direction);
-
-		} else {
-			int count = pci_map_sg(hi->host->pdev, sgpnt, scsi_use_sg, dma_dir);
-			SBP2_DMA_ALLOC("scatter list");
-
-			command->dma_size = scsi_use_sg;
-			command->dma_dir = dma_dir;
-			command->sge_buffer = sgpnt;
-
-			/* use page tables (s/g) */
-			command_orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1);
-			command_orb->misc |= ORB_SET_DIRECTION(orb_direction);
-			command_orb->data_descriptor_hi = ORB_SET_NODE_ID(hi->host->node_id);
-			command_orb->data_descriptor_lo = command->sge_dma;
-
-			/*
-			 * Loop through and fill out our sbp-2 page tables
-			 * (and split up anything too large)
-			 */
-			for (i = 0, sg_count = 0 ; i < count; i++, sgpnt++) {
-				sg_len = sg_dma_len(sgpnt);
-				sg_addr = sg_dma_address(sgpnt);
-				while (sg_len) {
-					scatter_gather_element[sg_count].segment_base_lo = sg_addr;
-					if (sg_len > SBP2_MAX_SG_ELEMENT_LENGTH) {
-						scatter_gather_element[sg_count].length_segment_base_hi =
-							PAGE_TABLE_SET_SEGMENT_LENGTH(SBP2_MAX_SG_ELEMENT_LENGTH);
-						sg_addr += SBP2_MAX_SG_ELEMENT_LENGTH;
-						sg_len -= SBP2_MAX_SG_ELEMENT_LENGTH;
-					} else {
-						scatter_gather_element[sg_count].length_segment_base_hi =
-							PAGE_TABLE_SET_SEGMENT_LENGTH(sg_len);
-						sg_len = 0;
-					}
-					sg_count++;
-				}
-			}
-
-			/* Number of page table (s/g) elements */
-			command_orb->misc |= ORB_SET_DATA_SIZE(sg_count);
-
-			sbp2util_packet_dump(scatter_gather_element,
-					     (sizeof(struct sbp2_unrestricted_page_table)) * sg_count,
-					     "sbp2 s/g list", command->sge_dma);
-
-			/*
-			 * Byte swap page tables if necessary
-			 */
-			sbp2util_cpu_to_be32_buffer(scatter_gather_element,
-						    (sizeof(struct sbp2_unrestricted_page_table)) *
-						    sg_count);
-
-		}
-
+		sbp2_prep_command_orb_sg(command_orb, hi, command, scsi_use_sg,
+					 sgpnt, orb_direction, dma_dir);
 	} else {
-
 		SBP2_DEBUG("No scatter/gather");
-
-		command->dma_dir = dma_dir;
-		command->dma_size = scsi_request_bufflen;
-		command->dma_type = CMD_DMA_SINGLE;
-		command->cmd_dma =
-		    pci_map_single(hi->host->pdev, scsi_request_buffer,
-				   command->dma_size, command->dma_dir);
-		SBP2_DMA_ALLOC("single bulk");
-
-		/*
-		 * Handle case where we get a command w/o s/g enabled (but
-		 * check for transfers larger than 64K)
-		 */
-		if (scsi_request_bufflen <= SBP2_MAX_SG_ELEMENT_LENGTH) {
-
-			command_orb->data_descriptor_hi = ORB_SET_NODE_ID(hi->host->node_id);
-			command_orb->data_descriptor_lo = command->cmd_dma;
-			command_orb->misc |= ORB_SET_DATA_SIZE(scsi_request_bufflen);
-			command_orb->misc |= ORB_SET_DIRECTION(orb_direction);
-
-		} else {
-			/*
-			 * Need to turn this into page tables, since the
-			 * buffer is too large.
-			 */
-			command_orb->data_descriptor_hi = ORB_SET_NODE_ID(hi->host->node_id);
-			command_orb->data_descriptor_lo = command->sge_dma;
-
-			/* Use page tables (s/g) */
-			command_orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1);
-			command_orb->misc |= ORB_SET_DIRECTION(orb_direction);
-
-			/*
-			 * fill out our sbp-2 page tables (and split up
-			 * the large buffer)
-			 */
-			sg_count = 0;
-			sg_len = scsi_request_bufflen;
-			sg_addr = command->cmd_dma;
-			while (sg_len) {
-				scatter_gather_element[sg_count].segment_base_lo = sg_addr;
-				if (sg_len > SBP2_MAX_SG_ELEMENT_LENGTH) {
-					scatter_gather_element[sg_count].length_segment_base_hi =
-						PAGE_TABLE_SET_SEGMENT_LENGTH(SBP2_MAX_SG_ELEMENT_LENGTH);
-					sg_addr += SBP2_MAX_SG_ELEMENT_LENGTH;
-					sg_len -= SBP2_MAX_SG_ELEMENT_LENGTH;
-				} else {
-					scatter_gather_element[sg_count].length_segment_base_hi =
-						PAGE_TABLE_SET_SEGMENT_LENGTH(sg_len);
-					sg_len = 0;
-				}
-				sg_count++;
-			}
-
-			/* Number of page table (s/g) elements */
-			command_orb->misc |= ORB_SET_DATA_SIZE(sg_count);
-
-			sbp2util_packet_dump(scatter_gather_element,
-					     (sizeof(struct sbp2_unrestricted_page_table)) * sg_count,
-					     "sbp2 s/g list", command->sge_dma);
-
-			/*
-			 * Byte swap page tables if necessary
-			 */
-			sbp2util_cpu_to_be32_buffer(scatter_gather_element,
-						    (sizeof(struct sbp2_unrestricted_page_table)) *
-						     sg_count);
-
-		}
-
+		sbp2_prep_command_orb_no_sg(command_orb, hi, command, sgpnt,
+					    orb_direction, scsi_request_bufflen,
+					    scsi_request_buffer, dma_dir);
 	}
 
-	/*
-	 * Byte swap command ORB if necessary
-	 */
+	/* Byte swap command ORB if necessary */
 	sbp2util_cpu_to_be32_buffer(command_orb, sizeof(struct sbp2_command_orb));
 
-	/*
-	 * Put our scsi command in the command ORB
-	 */
+	/* Put our scsi command in the command ORB */
 	memset(command_orb->cdb, 0, 12);
 	memcpy(command_orb->cdb, scsi_cmd, COMMAND_SIZE(*scsi_cmd));
-
-	return 0;
 }
 
 /*
