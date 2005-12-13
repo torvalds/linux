@@ -24,6 +24,9 @@
 #include <linux/transport_class.h>
 
 struct scsi_transport_template;
+struct scsi_target;
+struct scsi_device;
+struct Scsi_Host;
 
 struct spi_transport_attrs {
 	int period;		/* value in the PPR/SDTR command */
