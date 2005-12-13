@@ -1338,8 +1338,7 @@ int __cpu_disable(void)
 	if (cpu == 0)
 		return -EBUSY;
 
-	/* We enable the timer again on the exit path of the death loop */
-	disable_APIC_timer();
+	clear_local_APIC();
 	/* Allow any queued timer interrupts to get serviced */
 	local_irq_enable();
 	mdelay(1);

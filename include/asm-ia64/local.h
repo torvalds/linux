@@ -17,8 +17,8 @@ typedef struct {
 #define local_set(l, i)	atomic64_set(&(l)->val, i)
 #define local_inc(l)	atomic64_inc(&(l)->val)
 #define local_dec(l)	atomic64_dec(&(l)->val)
-#define local_add(l)	atomic64_add(&(l)->val)
-#define local_sub(l)	atomic64_sub(&(l)->val)
+#define local_add(i, l)	atomic64_add((i), &(l)->val)
+#define local_sub(i, l)	atomic64_sub((i), &(l)->val)
 
 /* Non-atomic variants, i.e., preemption disabled and won't be touched in interrupt, etc.  */
 

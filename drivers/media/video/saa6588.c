@@ -422,7 +422,6 @@ static int saa6588_attach(struct i2c_adapter *adap, int addr, int kind)
 	s->timer.function = saa6588_timer;
 	s->timer.data = (unsigned long)s;
 	schedule_work(&s->work);
-
 	return 0;
 }
 

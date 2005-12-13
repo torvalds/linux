@@ -150,23 +150,23 @@ static int try_win(struct saa7146_dev *dev, struct v4l2_window *win)
 	maxh  = vv->standard->v_max_out;
 
 	if (V4L2_FIELD_ANY == field) {
-                field = (win->w.height > maxh/2)
-                        ? V4L2_FIELD_INTERLACED
-                        : V4L2_FIELD_TOP;
-	        }
-        switch (field) {
-        case V4L2_FIELD_TOP:
-        case V4L2_FIELD_BOTTOM:
-        case V4L2_FIELD_ALTERNATE:
-                maxh = maxh / 2;
-                break;
-        case V4L2_FIELD_INTERLACED:
-                break;
-        default: {
+		field = (win->w.height > maxh/2)
+		        ? V4L2_FIELD_INTERLACED
+		        : V4L2_FIELD_TOP;
+		}
+	switch (field) {
+	case V4L2_FIELD_TOP:
+	case V4L2_FIELD_BOTTOM:
+	case V4L2_FIELD_ALTERNATE:
+		maxh = maxh / 2;
+		break;
+	case V4L2_FIELD_INTERLACED:
+		break;
+	default: {
 		DEB_D(("no known field mode '%d'.\n",field));
-                return -EINVAL;
+		return -EINVAL;
 	}
-        }
+	}
 
 	win->field = field;
 	if (win->w.width > maxw)
@@ -887,7 +887,7 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 
 		DEB_EE(("VIDIOC_QUERYCAP\n"));
 
-                strcpy(cap->driver, "saa7146 v4l2");
+		strcpy(cap->driver, "saa7146 v4l2");
 		strlcpy(cap->card, dev->ext->name, sizeof(cap->card));
 		sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
 		cap->version = SAA7146_VERSION_CODE;
@@ -1011,19 +1011,19 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 		err = set_control(fh,arg);
 		return err;
 	}
-        case VIDIOC_G_PARM:
-        {
-                struct v4l2_streamparm *parm = arg;
+	case VIDIOC_G_PARM:
+	{
+		struct v4l2_streamparm *parm = arg;
 		if( parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ) {
 			return -EINVAL;
 		}
-                memset(&parm->parm.capture,0,sizeof(struct v4l2_captureparm));
+		memset(&parm->parm.capture,0,sizeof(struct v4l2_captureparm));
 		parm->parm.capture.readbuffers = 1;
 		// fixme: only for PAL!
 		parm->parm.capture.timeperframe.numerator = 1;
 		parm->parm.capture.timeperframe.denominator = 25;
-                return 0;
-        }
+		return 0;
+	}
 	case VIDIOC_G_FMT:
 	{
 		struct v4l2_format *f = arg;
@@ -1383,7 +1383,7 @@ static struct videobuf_queue_ops video_qops = {
 
 static void video_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 {
-        INIT_LIST_HEAD(&vv->video_q.queue);
+	INIT_LIST_HEAD(&vv->video_q.queue);
 
 	init_timer(&vv->video_q.timeout);
 	vv->video_q.timeout.function = saa7146_buffer_timeout;

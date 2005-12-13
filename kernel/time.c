@@ -561,6 +561,28 @@ void getnstimeofday(struct timespec *tv)
 EXPORT_SYMBOL_GPL(getnstimeofday);
 #endif
 
+void getnstimestamp(struct timespec *ts)
+{
+	unsigned int seq;
+	struct timespec wall2mono;
+
+	/* synchronize with settimeofday() changes */
+	do {
+		seq = read_seqbegin(&xtime_lock);
+		getnstimeofday(ts);
+		wall2mono = wall_to_monotonic;
+	} while(unlikely(read_seqretry(&xtime_lock, seq)));
+
+	/* adjust to monotonicaly-increasing values */
+	ts->tv_sec += wall2mono.tv_sec;
+	ts->tv_nsec += wall2mono.tv_nsec;
+	while (unlikely(ts->tv_nsec >= NSEC_PER_SEC)) {
+		ts->tv_nsec -= NSEC_PER_SEC;
+		ts->tv_sec++;
+	}
+}
+EXPORT_SYMBOL_GPL(getnstimestamp);
+
 #if (BITS_PER_LONG < 64)
 u64 get_jiffies_64(void)
 {

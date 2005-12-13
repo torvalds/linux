@@ -301,6 +301,10 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	/* Probe platform for CPUs: always linear. */
 	num_cpus = smp_ops->probe();
+	
+	if (num_cpus < 2)
+		smp_tb_synchronized = 1;
+	
 	for (i = 0; i < num_cpus; ++i)
 		cpu_set(i, cpu_possible_map);
 

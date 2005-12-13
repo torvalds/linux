@@ -372,10 +372,10 @@ static int dvb_frontend_thread(void *data)
 
 	snprintf (name, sizeof(name), "kdvb-fe-%i", fe->dvb->num);
 
-        lock_kernel();
-        daemonize(name);
-        sigfillset(&current->blocked);
-        unlock_kernel();
+	lock_kernel();
+	daemonize(name);
+	sigfillset(&current->blocked);
+	unlock_kernel();
 
 	fepriv->status = 0;
 	dvb_frontend_init(fe);

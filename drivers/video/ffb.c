@@ -359,7 +359,6 @@ struct ffb_par {
 	int			prom_parent_node;
 	int			dac_rev;
 	int			board_type;
-	struct list_head	list;
 };
 
 static void FFBFifo(struct ffb_par *par, int n)

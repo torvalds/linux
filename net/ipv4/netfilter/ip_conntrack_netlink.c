@@ -503,7 +503,7 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 }
 
 static const size_t cta_min_proto[CTA_PROTO_MAX] = {
-	[CTA_PROTO_NUM-1]	= sizeof(u_int16_t),
+	[CTA_PROTO_NUM-1]	= sizeof(u_int8_t),
 	[CTA_PROTO_SRC_PORT-1]	= sizeof(u_int16_t),
 	[CTA_PROTO_DST_PORT-1]	= sizeof(u_int16_t),
 	[CTA_PROTO_ICMP_TYPE-1]	= sizeof(u_int8_t),
@@ -528,7 +528,7 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 
 	if (!tb[CTA_PROTO_NUM-1])
 		return -EINVAL;
-	tuple->dst.protonum = *(u_int16_t *)NFA_DATA(tb[CTA_PROTO_NUM-1]);
+	tuple->dst.protonum = *(u_int8_t *)NFA_DATA(tb[CTA_PROTO_NUM-1]);
 
 	proto = ip_conntrack_proto_find_get(tuple->dst.protonum);
 
@@ -728,11 +728,9 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			return -ENOENT;
 		}
 	}	
-	if (del_timer(&ct->timeout)) {
-		ip_conntrack_put(ct);
+	if (del_timer(&ct->timeout))
 		ct->timeout.function((unsigned long)ct);
-		return 0;
-	}
+
 	ip_conntrack_put(ct);
 	DEBUGP("leaving\n");
 
@@ -877,7 +875,7 @@ ctnetlink_change_status(struct ip_conntrack *ct, struct nfattr *cda[])
 		DEBUGP("NAT status: %lu\n", 
 		       status & (IPS_NAT_MASK | IPS_NAT_DONE_MASK));
 		
-		if (ip_nat_initialized(ct, hooknum))
+		if (ip_nat_initialized(ct, HOOK2MANIP(hooknum)))
 			return -EEXIST;
 		ip_nat_setup_info(ct, &range, hooknum);
 

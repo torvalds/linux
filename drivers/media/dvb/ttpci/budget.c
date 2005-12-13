@@ -256,7 +256,7 @@ static int alps_bsrv2_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	buf[2] = ((div & 0x18000) >> 10) | 0x95;
 	buf[3] = (pwr << 6) | 0x30;
 
-        // NOTE: since we're using a prescaler of 2, we set the
+	// NOTE: since we're using a prescaler of 2, we set the
 	// divisor frequency to 62.5kHz and divide by 125 above
 
 	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
@@ -565,7 +565,7 @@ static u8 read_pwm(struct budget* budget)
 	struct i2c_msg msg[] = { { .addr = 0x50,.flags = 0,.buf = &b,.len = 1 },
 				 { .addr = 0x50,.flags = I2C_M_RD,.buf = &pwm,.len = 1} };
 
-        if ((i2c_transfer(&budget->i2c_adap, msg, 2) != 2) || (pwm == 0xff))
+	if ((i2c_transfer(&budget->i2c_adap, msg, 2) != 2) || (pwm == 0xff))
 		pwm = 0x48;
 
 	return pwm;
@@ -593,7 +593,7 @@ static void frontend_init(struct budget *budget)
 		budget->dvb_frontend = ves1x93_attach(&alps_bsrv2_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
 			budget->dvb_frontend->ops->diseqc_send_master_cmd = budget_diseqc_send_master_cmd;
-		        budget->dvb_frontend->ops->diseqc_send_burst = budget_diseqc_send_burst;
+			budget->dvb_frontend->ops->diseqc_send_burst = budget_diseqc_send_burst;
 			budget->dvb_frontend->ops->set_tone = budget_set_tone;
 			break;
 		}

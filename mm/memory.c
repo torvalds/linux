@@ -349,6 +349,11 @@ void print_bad_pte(struct vm_area_struct *vma, pte_t pte, unsigned long vaddr)
 	dump_stack();
 }
 
+static inline int is_cow_mapping(unsigned int flags)
+{
+	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+}
+
 /*
  * This function gets the "struct page" associated with a pte.
  *
@@ -376,6 +381,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 	if (vma->vm_flags & VM_PFNMAP) {
 		unsigned long off = (addr - vma->vm_start) >> PAGE_SHIFT;
 		if (pfn == vma->vm_pgoff + off)
+			return NULL;
+		if (!is_cow_mapping(vma->vm_flags))
 			return NULL;
 	}
 
@@ -437,7 +444,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * If it's a COW mapping, write protect it both
 	 * in the parent and the child
 	 */
-	if ((vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE) {
+	if (is_cow_mapping(vm_flags)) {
 		ptep_set_wrprotect(src_mm, addr, src_pte);
 		pte = *src_pte;
 	}
@@ -1002,7 +1009,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			continue;
 		}
 
-		if (!vma || (vma->vm_flags & VM_IO)
+		if (!vma || (vma->vm_flags & (VM_IO | VM_PFNMAP))
 				|| !(vm_flags & vma->vm_flags))
 			return i ? : -EFAULT;
 
@@ -1226,50 +1233,6 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *
 EXPORT_SYMBOL(vm_insert_page);
 
 /*
- * Somebody does a pfn remapping that doesn't actually work as a vma.
- *
- * Do it as individual pages instead, and warn about it. It's bad form,
- * and very inefficient.
- */
-static int incomplete_pfn_remap(struct vm_area_struct *vma,
-		unsigned long start, unsigned long end,
-		unsigned long pfn, pgprot_t prot)
-{
-	static int warn = 10;
-	struct page *page;
-	int retval;
-
-	if (!(vma->vm_flags & VM_INCOMPLETE)) {
-		if (warn) {
-			warn--;
-			printk("%s does an incomplete pfn remapping", current->comm);
-			dump_stack();
-		}
-	}
-	vma->vm_flags |= VM_INCOMPLETE | VM_IO | VM_RESERVED;
-
-	if (start < vma->vm_start || end > vma->vm_end)
-		return -EINVAL;
-
-	if (!pfn_valid(pfn))
-		return -EINVAL;
-
-	page = pfn_to_page(pfn);
-	if (!PageReserved(page))
-		return -EINVAL;
-
-	retval = 0;
-	while (start < end) {
-		retval = insert_page(vma->vm_mm, start, page, prot);
-		if (retval < 0)
-			break;
-		start += PAGE_SIZE;
-		page++;
-	}
-	return retval;
-}
-
-/*
  * maps a range of physical memory into the requested pages. the old
  * mappings are removed. any references to nonexistent pages results
  * in null mappings (currently treated as "copy-on-access")
@@ -1343,9 +1306,6 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	struct mm_struct *mm = vma->vm_mm;
 	int err;
 
-	if (addr != vma->vm_start || end != vma->vm_end)
-		return incomplete_pfn_remap(vma, addr, end, pfn, prot);
-
 	/*
 	 * Physically remapped pages are special. Tell the
 	 * rest of the world about it:
@@ -1359,9 +1319,18 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 *   VM_PFNMAP tells the core MM that the base pages are just
 	 *	raw PFN mappings, and do not have a "struct page" associated
 	 *	with them.
+	 *
+	 * There's a horrible special case to handle copy-on-write
+	 * behaviour that some programs depend on. We mark the "original"
+	 * un-COW'ed pages by matching them up with "vma->vm_pgoff".
 	 */
+	if (is_cow_mapping(vma->vm_flags)) {
+		if (addr != vma->vm_start || end != vma->vm_end)
+			return -EINVAL;
+		vma->vm_pgoff = pfn;
+	}
+
 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
-	vma->vm_pgoff = pfn;
 
 	BUG_ON(addr >= end);
 	pfn -= addr >> PAGE_SHIFT;
