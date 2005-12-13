@@ -2048,7 +2048,7 @@ static int fbcon_switch(struct vc_data *vc)
 	struct fbcon_ops *ops;
 	struct display *p = &fb_display[vc->vc_num];
 	struct fb_var_screeninfo var;
-	int i, prev_console;
+	int i, prev_console, charcnt = 256;
 
 	info = registered_fb[con2fb_map[vc->vc_num]];
 	ops = info->fbcon_par;
@@ -2120,6 +2120,13 @@ static int fbcon_switch(struct vc_data *vc)
 
 	vc->vc_can_do_color = (fb_get_color_depth(&info->var, &info->fix)!=1);
 	vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
+
+	if (p->userfont)
+		charcnt = FNTCHARCNT(vc->vc_font.data);
+
+	if (charcnt > 256)
+		vc->vc_complement_mask <<= 1;
+
 	updatescrollmode(p, info, vc);
 
 	switch (p->scrollmode) {
