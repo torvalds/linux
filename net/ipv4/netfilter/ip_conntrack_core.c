@@ -1345,6 +1345,11 @@ static int kill_all(struct ip_conntrack *i, void *data)
 	return 1;
 }
 
+void ip_conntrack_flush(void)
+{
+	ip_ct_iterate_cleanup(kill_all, NULL);
+}
+
 static void free_conntrack_hash(struct list_head *hash, int vmalloced,int size)
 {
 	if (vmalloced)
@@ -1354,8 +1359,12 @@ static void free_conntrack_hash(struct list_head *hash, int vmalloced,int size)
 			   get_order(sizeof(struct list_head) * size));
 }
 
-void ip_conntrack_flush(void)
+/* Mishearing the voices in his head, our hero wonders how he's
+   supposed to kill the mall. */
+void ip_conntrack_cleanup(void)
 {
+	ip_ct_attach = NULL;
+
 	/* This makes sure all current packets have passed through
            netfilter framework.  Roll on, two-stage module
            delete... */
@@ -1363,7 +1372,7 @@ void ip_conntrack_flush(void)
 
 	ip_ct_event_cache_flush();
  i_see_dead_people:
-	ip_ct_iterate_cleanup(kill_all, NULL);
+	ip_conntrack_flush();
 	if (atomic_read(&ip_conntrack_count) != 0) {
 		schedule();
 		goto i_see_dead_people;
@@ -1371,14 +1380,7 @@ void ip_conntrack_flush(void)
 	/* wait until all references to ip_conntrack_untracked are dropped */
 	while (atomic_read(&ip_conntrack_untracked.ct_general.use) > 1)
 		schedule();
-}
 
-/* Mishearing the voices in his head, our hero wonders how he's
-   supposed to kill the mall. */
-void ip_conntrack_cleanup(void)
-{
-	ip_ct_attach = NULL;
-	ip_conntrack_flush();
 	kmem_cache_destroy(ip_conntrack_cachep);
 	kmem_cache_destroy(ip_conntrack_expect_cachep);
 	free_conntrack_hash(ip_conntrack_hash, ip_conntrack_vmalloc,

@@ -47,7 +47,7 @@ static LIST_HEAD(dvb_adapter_list);
 static DECLARE_MUTEX(dvbdev_register_lock);
 
 static const char * const dnames[] = {
-        "video", "audio", "sec", "frontend", "demux", "dvr", "ca",
+	"video", "audio", "sec", "frontend", "demux", "dvr", "ca",
 	"net", "osd"
 };
 
@@ -90,15 +90,15 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 
 		file->private_data = dvbdev;
 		old_fops = file->f_op;
-                file->f_op = fops_get(dvbdev->fops);
-                if(file->f_op->open)
-                        err = file->f_op->open(inode,file);
-                if (err) {
-                        fops_put(file->f_op);
-                        file->f_op = fops_get(old_fops);
-                }
-                fops_put(old_fops);
-                return err;
+		file->f_op = fops_get(dvbdev->fops);
+		if(file->f_op->open)
+		        err = file->f_op->open(inode,file);
+		if (err) {
+		        fops_put(file->f_op);
+		        file->f_op = fops_get(old_fops);
+		}
+		fops_put(old_fops);
+		return err;
 	}
 	return -ENODEV;
 }
@@ -117,21 +117,21 @@ static struct cdev dvb_device_cdev = {
 
 int dvb_generic_open(struct inode *inode, struct file *file)
 {
-        struct dvb_device *dvbdev = file->private_data;
+	struct dvb_device *dvbdev = file->private_data;
 
-        if (!dvbdev)
-                return -ENODEV;
+	if (!dvbdev)
+		return -ENODEV;
 
 	if (!dvbdev->users)
-                return -EBUSY;
+		return -EBUSY;
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
-                if (!dvbdev->readers)
-		        return -EBUSY;
+		if (!dvbdev->readers)
+			return -EBUSY;
 		dvbdev->readers--;
 	} else {
-                if (!dvbdev->writers)
-		        return -EBUSY;
+		if (!dvbdev->writers)
+			return -EBUSY;
 		dvbdev->writers--;
 	}
 
@@ -143,10 +143,10 @@ EXPORT_SYMBOL(dvb_generic_open);
 
 int dvb_generic_release(struct inode *inode, struct file *file)
 {
-        struct dvb_device *dvbdev = file->private_data;
+	struct dvb_device *dvbdev = file->private_data;
 
 	if (!dvbdev)
-                return -ENODEV;
+		return -ENODEV;
 
 	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
 		dvbdev->readers++;
@@ -163,10 +163,10 @@ EXPORT_SYMBOL(dvb_generic_release);
 int dvb_generic_ioctl(struct inode *inode, struct file *file,
 		      unsigned int cmd, unsigned long arg)
 {
-        struct dvb_device *dvbdev = file->private_data;
+	struct dvb_device *dvbdev = file->private_data;
 
-        if (!dvbdev)
-	        return -ENODEV;
+	if (!dvbdev)
+		return -ENODEV;
 
 	if (!dvbdev->kernel_ioctl)
 		return -EINVAL;
@@ -334,63 +334,63 @@ EXPORT_SYMBOL(dvb_unregister_adapter);
    to the v4l "videodev.o" module, which is unnecessary for some
    cards (ie. the budget dvb-cards don't need the v4l module...) */
 int dvb_usercopy(struct inode *inode, struct file *file,
-	             unsigned int cmd, unsigned long arg,
+		     unsigned int cmd, unsigned long arg,
 		     int (*func)(struct inode *inode, struct file *file,
 		     unsigned int cmd, void *arg))
 {
-        char    sbuf[128];
-        void    *mbuf = NULL;
-        void    *parg = NULL;
-        int     err  = -EINVAL;
+	char    sbuf[128];
+	void    *mbuf = NULL;
+	void    *parg = NULL;
+	int     err  = -EINVAL;
 
-        /*  Copy arguments into temp kernel buffer  */
-        switch (_IOC_DIR(cmd)) {
-        case _IOC_NONE:
+	/*  Copy arguments into temp kernel buffer  */
+	switch (_IOC_DIR(cmd)) {
+	case _IOC_NONE:
 		/*
 		 * For this command, the pointer is actually an integer
 		 * argument.
 		 */
 		parg = (void *) arg;
 		break;
-        case _IOC_READ: /* some v4l ioctls are marked wrong ... */
-        case _IOC_WRITE:
-        case (_IOC_WRITE | _IOC_READ):
-                if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
-                        parg = sbuf;
-                } else {
-                        /* too big to allocate from stack */
-                        mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
-                        if (NULL == mbuf)
-                                return -ENOMEM;
-                        parg = mbuf;
-                }
+	case _IOC_READ: /* some v4l ioctls are marked wrong ... */
+	case _IOC_WRITE:
+	case (_IOC_WRITE | _IOC_READ):
+		if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
+		        parg = sbuf;
+		} else {
+		        /* too big to allocate from stack */
+		        mbuf = kmalloc(_IOC_SIZE(cmd),GFP_KERNEL);
+		        if (NULL == mbuf)
+		                return -ENOMEM;
+		        parg = mbuf;
+		}
 
-                err = -EFAULT;
-                if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
-                        goto out;
-                break;
-        }
+		err = -EFAULT;
+		if (copy_from_user(parg, (void __user *)arg, _IOC_SIZE(cmd)))
+		        goto out;
+		break;
+	}
 
-        /* call driver */
-        if ((err = func(inode, file, cmd, parg)) == -ENOIOCTLCMD)
-                err = -EINVAL;
+	/* call driver */
+	if ((err = func(inode, file, cmd, parg)) == -ENOIOCTLCMD)
+		err = -EINVAL;
 
-        if (err < 0)
-                goto out;
+	if (err < 0)
+		goto out;
 
-        /*  Copy results into user buffer  */
-        switch (_IOC_DIR(cmd))
-        {
-        case _IOC_READ:
-        case (_IOC_WRITE | _IOC_READ):
-                if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
-                        err = -EFAULT;
-                break;
-        }
+	/*  Copy results into user buffer  */
+	switch (_IOC_DIR(cmd))
+	{
+	case _IOC_READ:
+	case (_IOC_WRITE | _IOC_READ):
+		if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
+		        err = -EFAULT;
+		break;
+	}
 
 out:
-        kfree(mbuf);
-        return err;
+	kfree(mbuf);
+	return err;
 }
 
 static int __init init_dvbdev(void)
@@ -427,10 +427,10 @@ error:
 
 static void __exit exit_dvbdev(void)
 {
-        devfs_remove("dvb");
+	devfs_remove("dvb");
 	class_destroy(dvb_class);
 	cdev_del(&dvb_device_cdev);
-        unregister_chrdev_region(MKDEV(DVB_MAJOR, 0), MAX_DVB_MINORS);
+	unregister_chrdev_region(MKDEV(DVB_MAJOR, 0), MAX_DVB_MINORS);
 }
 
 module_init(init_dvbdev);

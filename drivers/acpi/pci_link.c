@@ -316,7 +316,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	if (!link || !irq)
 		return_VALUE(-EINVAL);
 
-	resource = kmalloc(sizeof(*resource) + 1, GFP_KERNEL);
+	resource = kmalloc(sizeof(*resource) + 1, GFP_ATOMIC);
 	if (!resource)
 		return_VALUE(-ENOMEM);
 

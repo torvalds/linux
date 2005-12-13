@@ -69,7 +69,7 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,2=i2c (|-able)).");
 #define dbufout(b,l,m) {\
 	    int i; \
 	    for (i = 0; i < l; i++) \
-	        m("%02x ",b[i]); \
+		m("%02x ",b[i]); \
 }
 #define deb_info(args...) dprintk(0x01,args)
 #define deb_i2c(args...)  dprintk(0x02,args)
@@ -827,7 +827,7 @@ static struct dvb_frontend_ops bcm3510_ops = {
 		.type = FE_ATSC,
 		.frequency_min =  54000000,
 		.frequency_max = 803000000,
-                /* stepsize is just a guess */
+		/* stepsize is just a guess */
 		.frequency_stepsize = 0,
 		.caps =
 			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |

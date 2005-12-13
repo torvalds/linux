@@ -298,18 +298,6 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	if (!(vflags & HPTE_V_BOLTED))
 		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
 
-#if 1
-	{
-		int i;
-		for (i=0;i<8;i++) {
-			unsigned long w0, w1;
-			plpar_pte_read(0, hpte_group, &w0, &w1);
-			BUG_ON (HPTE_V_COMPARE(hpte_v, w0)
-				&& (w0 & HPTE_V_VALID));
-		}
-	}
-#endif
-
 	/* Now fill in the actual HPTE */
 	/* Set CEC cookie to 0         */
 	/* Zero page = 0               */

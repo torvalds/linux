@@ -1146,7 +1146,6 @@ static int revalidate_allvol(ctlr_info_t *host)
 				del_gendisk(disk);
 			if (q)
 				blk_cleanup_queue(q);
-			put_disk(disk);
 		}
 	}
 
@@ -1467,7 +1466,6 @@ static int deregister_disk(struct gendisk *disk, drive_info_struct *drv,
 				del_gendisk(disk);
 			if (q)	
 				blk_cleanup_queue(q);
-			put_disk(disk);	
 		}
 	}
 
@@ -3243,7 +3241,6 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 				del_gendisk(disk);
 			if (q)
 				blk_cleanup_queue(q);
-			put_disk(disk);
 		}
 	}
 

@@ -291,8 +291,10 @@ int kauditd_thread(void *dummy)
 			set_current_state(TASK_INTERRUPTIBLE);
 			add_wait_queue(&kauditd_wait, &wait);
 
-			if (!skb_queue_len(&audit_skb_queue))
+			if (!skb_queue_len(&audit_skb_queue)) {
+				try_to_freeze();
 				schedule();
+			}
 
 			__set_current_state(TASK_RUNNING);
 			remove_wait_queue(&kauditd_wait, &wait);

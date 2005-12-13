@@ -50,12 +50,12 @@ http://www.linuxtv.org/wiki/index.php/DVB_USB
 0. History & News:
   2005-06-30 - added support for WideView WT-220U (Thanks to Steve Chang)
   2005-05-30 - added basic isochronous support to the dvb-usb-framework
-               added support for Conexant Hybrid reference design and Nebula DigiTV USB
+	       added support for Conexant Hybrid reference design and Nebula DigiTV USB
   2005-04-17 - all dibusb devices ported to make use of the dvb-usb-framework
   2005-04-02 - re-enabled and improved remote control code.
   2005-03-31 - ported the Yakumo/Hama/Typhoon DVB-T USB2.0 device to dvb-usb.
   2005-03-30 - first commit of the dvb-usb-module based on the dibusb-source. First device is a new driver for the
-               TwinhanDTV Alpha / MagicBox II USB2.0-only DVB-T device.
+	       TwinhanDTV Alpha / MagicBox II USB2.0-only DVB-T device.
 
   (change from dvb-dibusb to dvb-usb)
   2005-03-28 - added support for the AVerMedia AverTV DVB-T USB2.0 device (Thanks to Glen Harris and Jiun-Kuei Jung, AVerMedia)
@@ -64,50 +64,50 @@ http://www.linuxtv.org/wiki/index.php/DVB_USB
   2005-02-02 - added support for the Hauppauge Win-TV Nova-T USB2
   2005-01-31 - distorted streaming is gone for USB1.1 devices
   2005-01-13 - moved the mirrored pid_filter_table back to dvb-dibusb
-             - first almost working version for HanfTek UMT-010
-             - found out, that Yakumo/HAMA/Typhoon are predecessors of the HanfTek UMT-010
+	     - first almost working version for HanfTek UMT-010
+	     - found out, that Yakumo/HAMA/Typhoon are predecessors of the HanfTek UMT-010
   2005-01-10 - refactoring completed, now everything is very delightful
-             - tuner quirks for some weird devices (Artec T1 AN2235 device has sometimes a
-               Panasonic Tuner assembled). Tunerprobing implemented. Thanks a lot to Gunnar Wittich.
+	     - tuner quirks for some weird devices (Artec T1 AN2235 device has sometimes a
+	       Panasonic Tuner assembled). Tunerprobing implemented. Thanks a lot to Gunnar Wittich.
   2004-12-29 - after several days of struggling around bug of no returning URBs fixed.
   2004-12-26 - refactored the dibusb-driver, splitted into separate files
-             - i2c-probing enabled
+	     - i2c-probing enabled
   2004-12-06 - possibility for demod i2c-address probing
-             - new usb IDs (Compro, Artec)
+	     - new usb IDs (Compro, Artec)
   2004-11-23 - merged changes from DiB3000MC_ver2.1
-             - revised the debugging
-             - possibility to deliver the complete TS for USB2.0
+	     - revised the debugging
+	     - possibility to deliver the complete TS for USB2.0
   2004-11-21 - first working version of the dib3000mc/p frontend driver.
   2004-11-12 - added additional remote control keys. Thanks to Uwe Hanke.
   2004-11-07 - added remote control support. Thanks to David Matthews.
   2004-11-05 - added support for a new devices (Grandtec/Avermedia/Artec)
-             - merged my changes (for dib3000mb/dibusb) to the FE_REFACTORING, because it became HEAD
-             - moved transfer control (pid filter, fifo control) from usb driver to frontend, it seems
-               better settled there (added xfer_ops-struct)
-             - created a common files for frontends (mc/p/mb)
+	     - merged my changes (for dib3000mb/dibusb) to the FE_REFACTORING, because it became HEAD
+	     - moved transfer control (pid filter, fifo control) from usb driver to frontend, it seems
+	       better settled there (added xfer_ops-struct)
+	     - created a common files for frontends (mc/p/mb)
   2004-09-28 - added support for a new device (Unkown, vendor ID is Hyper-Paltek)
   2004-09-20 - added support for a new device (Compro DVB-U2000), thanks
-               to Amaury Demol for reporting
-             - changed usb TS transfer method (several urbs, stopping transfer
-               before setting a new pid)
+	       to Amaury Demol for reporting
+	     - changed usb TS transfer method (several urbs, stopping transfer
+	       before setting a new pid)
   2004-09-13 - added support for a new device (Artec T1 USB TVBOX), thanks
-               to Christian Motschke for reporting
+	       to Christian Motschke for reporting
   2004-09-05 - released the dibusb device and dib3000mb-frontend driver
 
   (old news for vp7041.c)
   2004-07-15 - found out, by accident, that the device has a TUA6010XS for
-               PLL
+	       PLL
   2004-07-12 - figured out, that the driver should also work with the
-               CTS Portable (Chinese Television System)
+	       CTS Portable (Chinese Television System)
   2004-07-08 - firmware-extraction-2.422-problem solved, driver is now working
-               properly with firmware extracted from 2.422
-             - #if for 2.6.4 (dvb), compile issue
-             - changed firmware handling, see vp7041.txt sec 1.1
+	       properly with firmware extracted from 2.422
+	     - #if for 2.6.4 (dvb), compile issue
+	     - changed firmware handling, see vp7041.txt sec 1.1
   2004-07-02 - some tuner modifications, v0.1, cleanups, first public
   2004-06-28 - now using the dvb_dmx_swfilter_packets, everything
-               runs fine now
+	       runs fine now
   2004-06-27 - able to watch and switching channels (pre-alpha)
-             - no section filtering yet
+	     - no section filtering yet
   2004-06-06 - first TS received, but kernel oops :/
   2004-05-14 - firmware loader is working
   2004-05-11 - start writing the driver

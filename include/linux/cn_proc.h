@@ -26,6 +26,7 @@
 #define CN_PROC_H
 
 #include <linux/types.h>
+#include <linux/time.h>
 #include <linux/connector.h>
 
 /*
@@ -65,6 +66,7 @@ struct proc_event {
 		PROC_EVENT_EXIT = 0x80000000
 	} what;
 	__u32 cpu;
+	struct timespec timestamp;
 	union { /* must be last field of proc_event struct */
 		struct {
 			__u32 err;

@@ -453,7 +453,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		input_dev->id.product = pci->device;
 	}
 	input_dev->cdev.dev = &pci->dev;
-
 	/* record handles to ourself */
 	ir->core = core;
 	core->ir = ir;
@@ -586,7 +585,6 @@ void cx88_ir_irq(struct cx88_core *core)
 MODULE_AUTHOR("Gerd Knorr, Pavel Machek, Chris Pascoe");
 MODULE_DESCRIPTION("input driver for cx88 GPIO-based IR remote controls");
 MODULE_LICENSE("GPL");
-
 /*
  * Local variables:
  * c-basic-offset: 8

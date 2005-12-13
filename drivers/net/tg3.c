@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.43"
-#define DRV_MODULE_RELDATE	"Oct 24, 2005"
+#define DRV_MODULE_VERSION	"3.44"
+#define DRV_MODULE_RELDATE	"Dec 6, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3565,12 +3565,15 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!spin_trylock(&tp->tx_lock))
 		return NETDEV_TX_LOCKED; 
 
-	/* This is a hard error, log it. */
 	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
-		netif_stop_queue(dev);
+		if (!netif_queue_stopped(dev)) {
+			netif_stop_queue(dev);
+
+			/* This is a hard error, log it. */
+			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when "
+			       "queue awake!\n", dev->name);
+		}
 		spin_unlock(&tp->tx_lock);
-		printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
-		       dev->name);
 		return NETDEV_TX_BUSY;
 	}
 

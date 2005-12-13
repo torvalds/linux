@@ -120,8 +120,8 @@ static int ves1820_writereg(struct saa7146_dev *dev, u8 addr, u8 reg, u8 data)
 
 static int stv0297_writereg(struct saa7146_dev *dev, u8 addr, u8 reg, u8 data)
 {
-        u8 buf [] = { reg, data };
-        struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = 2 };
+	u8 buf [] = { reg, data };
+	struct i2c_msg msg = { .addr = addr, .flags = 0, .buf = buf, .len = 2 };
 
 	if (1 != saa7146_i2c_transfer(dev, &msg, 1, 1))
 		return -1;

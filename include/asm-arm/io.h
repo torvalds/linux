@@ -42,9 +42,9 @@ extern void __raw_writesb(void __iomem *addr, const void *data, int bytelen);
 extern void __raw_writesw(void __iomem *addr, const void *data, int wordlen);
 extern void __raw_writesl(void __iomem *addr, const void *data, int longlen);
 
-extern void __raw_readsb(void __iomem *addr, void *data, int bytelen);
-extern void __raw_readsw(void __iomem *addr, void *data, int wordlen);
-extern void __raw_readsl(void __iomem *addr, void *data, int longlen);
+extern void __raw_readsb(const void __iomem *addr, void *data, int bytelen);
+extern void __raw_readsw(const void __iomem *addr, void *data, int wordlen);
+extern void __raw_readsl(const void __iomem *addr, void *data, int longlen);
 
 #define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile unsigned char __force  *)(a) = (v))
 #define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile unsigned short __force *)(a) = (v))

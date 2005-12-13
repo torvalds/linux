@@ -475,7 +475,7 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 		ret = state->config->request_firmware(fe, &fw, TDA10046_DEFAULT_FIRMWARE);
 		if (ret) {
 			printk(KERN_ERR "tda1004x: no firmware upload (timeout or file not found?)\n");
-   	   		return ret;
+			return ret;
 		}
 		tda1004x_write_mask(state, TDA1004X_CONFC4, 8, 8); // going to boot from HOST
 		ret = tda1004x_do_upload(state, fw->data, fw->size, TDA10046H_CODE_CPT, TDA10046H_CODE_IN);

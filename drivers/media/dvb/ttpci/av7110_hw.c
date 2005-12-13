@@ -1203,15 +1203,15 @@ int av7110_osd_cmd(struct av7110 *av7110, osd_cmd_t *dc)
 
 int av7110_osd_capability(struct av7110 *av7110, osd_cap_t *cap)
 {
-        switch (cap->cmd) {
-        case OSD_CAP_MEMSIZE:
-                if (FW_4M_SDRAM(av7110->arm_app))
-                        cap->val = 1000000;
-                else
-                        cap->val = 92000;
-                return 0;
-        default:
-                return -EINVAL;
-        }
+	switch (cap->cmd) {
+	case OSD_CAP_MEMSIZE:
+		if (FW_4M_SDRAM(av7110->arm_app))
+		        cap->val = 1000000;
+		else
+		        cap->val = 92000;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 #endif /* CONFIG_DVB_AV7110_OSD */
