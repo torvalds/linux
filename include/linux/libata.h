@@ -285,8 +285,6 @@ struct ata_queued_cmd {
 
 	ata_qc_cb_t		complete_fn;
 
-	struct completion	*waiting;
-
 	void			*private_data;
 };
 
