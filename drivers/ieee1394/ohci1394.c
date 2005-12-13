@@ -584,12 +584,13 @@ static void ohci_initialize(struct ti_ohci *ohci)
 	sprintf (irq_buf, "%s", __irq_itoa(ohci->dev->irq));
 #endif
 	PRINT(KERN_INFO, "OHCI-1394 %d.%d (PCI): IRQ=[%s]  "
-	      "MMIO=[%lx-%lx]  Max Packet=[%d]",
+	      "MMIO=[%lx-%lx]  Max Packet=[%d]  IR/IT contexts=[%d/%d]",
 	      ((((buf) >> 16) & 0xf) + (((buf) >> 20) & 0xf) * 10),
 	      ((((buf) >> 4) & 0xf) + ((buf) & 0xf) * 10), irq_buf,
 	      pci_resource_start(ohci->dev, 0),
 	      pci_resource_start(ohci->dev, 0) + OHCI1394_REGISTER_SIZE - 1,
-	      ohci->max_packet_size);
+	      ohci->max_packet_size,
+	      ohci->nb_iso_rcv_ctx, ohci->nb_iso_xmit_ctx);
 
 	/* Check all of our ports to make sure that if anything is
 	 * connected, we enable that port. */
@@ -3351,13 +3352,8 @@ static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 	/* Determine the number of available IR and IT contexts. */
 	ohci->nb_iso_rcv_ctx =
 		get_nb_iso_ctx(ohci, OHCI1394_IsoRecvIntMaskSet);
-	DBGMSG("%d iso receive contexts available",
-	       ohci->nb_iso_rcv_ctx);
-
 	ohci->nb_iso_xmit_ctx =
 		get_nb_iso_ctx(ohci, OHCI1394_IsoXmitIntMaskSet);
-	DBGMSG("%d iso transmit contexts available",
-	       ohci->nb_iso_xmit_ctx);
 
 	/* Set the usage bits for non-existent contexts so they can't
 	 * be allocated */
