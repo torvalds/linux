@@ -1387,11 +1387,11 @@ free_interfaces:
 	if (dev->state != USB_STATE_ADDRESS)
 		usb_disable_device (dev, 1);	// Skip ep0
 
-	n = dev->bus_mA - cp->desc.bMaxPower * 2;
-	if (n < 0)
+	i = dev->bus_mA - cp->desc.bMaxPower * 2;
+	if (i < 0)
 		dev_warn(&dev->dev, "new config #%d exceeds power "
 				"limit by %dmA\n",
-				configuration, -n);
+				configuration, -i);
 
 	if ((ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			USB_REQ_SET_CONFIGURATION, 0, configuration, 0,
