@@ -2103,7 +2103,8 @@ static int fbcon_switch(struct vc_data *vc)
 	fb_set_var(info, &var);
 	ops->var = info->var;
 
-	if (old_info != NULL && old_info != info) {
+	if (old_info != NULL && (old_info != info ||
+				 info->flags & FBINFO_MISC_ALWAYS_SETPAR)) {
 		if (info->fbops->fb_set_par)
 			info->fbops->fb_set_par(info);
 		fbcon_del_cursor_timer(old_info);

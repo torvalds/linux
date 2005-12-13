@@ -732,6 +732,18 @@ struct fb_tile_ops {
 						  from userspace */
 #define FBINFO_MISC_TILEBLITTING       0x20000 /* use tile blitting */
 
+/* A driver may set this flag to indicate that it does want a set_par to be
+ * called every time when fbcon_switch is executed. The advantage is that with
+ * this flag set you can really be shure that set_par is always called before
+ * any of the functions dependant on the correct hardware state or altering
+ * that state, even if you are using some broken X releases. The disadvantage
+ * is that it introduces unwanted delays to every console switch if set_par
+ * is slow. It is a good idea to try this flag in the drivers initialization
+ * code whenever there is a bug report related to switching between X and the
+ * framebuffer console.
+ */
+#define FBINFO_MISC_ALWAYS_SETPAR   0x40000
+
 struct fb_info {
 	int node;
 	int flags;
