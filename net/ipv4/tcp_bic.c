@@ -210,14 +210,14 @@ static void bictcp_state(struct sock *sk, u8 new_state)
 		bictcp_reset(inet_csk_ca(sk));
 }
 
-/* Track delayed acknowledgement ratio using sliding window
+/* Track delayed acknowledgment ratio using sliding window
  * ratio = (15*ratio + sample) / 16
  */
 static void bictcp_acked(struct sock *sk, u32 cnt)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 
-	if (cnt > 0 && 	icsk->icsk_ca_state == TCP_CA_Open) {
+	if (cnt > 0 && icsk->icsk_ca_state == TCP_CA_Open) {
 		struct bictcp *ca = inet_csk_ca(sk);
 		cnt -= ca->delayed_ack >> ACK_RATIO_SHIFT;
 		ca->delayed_ack += cnt;
