@@ -2280,7 +2280,7 @@ static int skge_xmit_frame(struct sk_buff *skb, struct net_device *dev)
  	}
 
 	if (unlikely(skge->tx_avail < skb_shinfo(skb)->nr_frags +1)) {
-		if (!netif_stopped(dev)) {
+		if (!netif_queue_stopped(dev)) {
 			netif_stop_queue(dev);
 
 			printk(KERN_WARNING PFX "%s: ring full when queue awake!\n",
