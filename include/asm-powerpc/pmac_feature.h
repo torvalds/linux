@@ -121,6 +121,7 @@
 #define PMAC_TYPE_IMAC_G5		0x152	/* iMac G5 */
 #define PMAC_TYPE_XSERVE_G5		0x153	/* Xserve G5 */
 #define PMAC_TYPE_UNKNOWN_K2		0x19f	/* Any other K2 based */
+#define PMAC_TYPE_UNKNOWN_SHASTA       	0x19e	/* Any other Shasta based */
 
 /*
  * Motherboard flags
@@ -341,6 +342,7 @@ enum {
 	macio_pangea,
 	macio_intrepid,
 	macio_keylargo2,
+	macio_shasta,
 };
 
 struct macio_chip

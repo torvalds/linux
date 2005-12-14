@@ -13,6 +13,9 @@
  */
 
 #undef DEBUG
+#undef DEBUG_IPI
+#undef DEBUG_IRQ
+#undef DEBUG_LOW
 
 #include <linux/config.h>
 #include <linux/types.h>
@@ -168,35 +171,86 @@ static void __init mpic_test_broken_ipi(struct mpic *mpic)
 /* Test if an interrupt is sourced from HyperTransport (used on broken U3s)
  * to force the edge setting on the MPIC and do the ack workaround.
  */
-static inline int mpic_is_ht_interrupt(struct mpic *mpic, unsigned int source_no)
+static inline int mpic_is_ht_interrupt(struct mpic *mpic, unsigned int source)
 {
-	if (source_no >= 128 || !mpic->fixups)
+	if (source >= 128 || !mpic->fixups)
 		return 0;
-	return mpic->fixups[source_no].base != NULL;
+	return mpic->fixups[source].base != NULL;
 }
 
 
-static inline void mpic_apic_end_irq(struct mpic *mpic, unsigned int source_no)
+static inline void mpic_ht_end_irq(struct mpic *mpic, unsigned int source)
 {
-	struct mpic_irq_fixup *fixup = &mpic->fixups[source_no];
+	struct mpic_irq_fixup *fixup = &mpic->fixups[source];
 
-	spin_lock(&mpic->fixup_lock);
-	writeb(0x11 + 2 * fixup->irq, fixup->base + 2);
-	writel(fixup->data, fixup->base + 4);
-	spin_unlock(&mpic->fixup_lock);
+	if (fixup->applebase) {
+		unsigned int soff = (fixup->index >> 3) & ~3;
+		unsigned int mask = 1U << (fixup->index & 0x1f);
+		writel(mask, fixup->applebase + soff);
+	} else {
+		spin_lock(&mpic->fixup_lock);
+		writeb(0x11 + 2 * fixup->index, fixup->base + 2);
+		writel(fixup->data, fixup->base + 4);
+		spin_unlock(&mpic->fixup_lock);
+	}
 }
 
+static void mpic_startup_ht_interrupt(struct mpic *mpic, unsigned int source,
+				      unsigned int irqflags)
+{
+	struct mpic_irq_fixup *fixup = &mpic->fixups[source];
+	unsigned long flags;
+	u32 tmp;
 
-static void __init mpic_scan_ioapic(struct mpic *mpic, u8 __iomem *devbase)
+	if (fixup->base == NULL)
+		return;
+
+	DBG("startup_ht_interrupt(%u, %u) index: %d\n",
+	    source, irqflags, fixup->index);
+	spin_lock_irqsave(&mpic->fixup_lock, flags);
+	/* Enable and configure */
+	writeb(0x10 + 2 * fixup->index, fixup->base + 2);
+	tmp = readl(fixup->base + 4);
+	tmp &= ~(0x23U);
+	if (irqflags & IRQ_LEVEL)
+		tmp |= 0x22;
+	writel(tmp, fixup->base + 4);
+	spin_unlock_irqrestore(&mpic->fixup_lock, flags);
+}
+
+static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source,
+				       unsigned int irqflags)
+{
+	struct mpic_irq_fixup *fixup = &mpic->fixups[source];
+	unsigned long flags;
+	u32 tmp;
+
+	if (fixup->base == NULL)
+		return;
+
+	DBG("shutdown_ht_interrupt(%u, %u)\n", source, irqflags);
+
+	/* Disable */
+	spin_lock_irqsave(&mpic->fixup_lock, flags);
+	writeb(0x10 + 2 * fixup->index, fixup->base + 2);
+	tmp = readl(fixup->base + 4);
+	tmp &= ~1U;
+	writel(tmp, fixup->base + 4);
+	spin_unlock_irqrestore(&mpic->fixup_lock, flags);
+}
+
+static void __init mpic_scan_ht_pic(struct mpic *mpic, u8 __iomem *devbase,
+				    unsigned int devfn, u32 vdid)
 {
 	int i, irq, n;
+	u8 __iomem *base;
 	u32 tmp;
 	u8 pos;
 
-	for (pos = readb(devbase + 0x34); pos; pos = readb(devbase + pos + 1)) {
-		u8 id = readb(devbase + pos);
-
-		if (id == 0x08) {
+	for (pos = readb(devbase + PCI_CAPABILITY_LIST); pos != 0;
+	     pos = readb(devbase + pos + PCI_CAP_LIST_NEXT)) {
+		u8 id = readb(devbase + pos + PCI_CAP_LIST_ID);
+		if (id == PCI_CAP_ID_HT_IRQCONF) {
 			id = readb(devbase + pos + 3);
 			if (id == 0x80)
 				break;
@@ -205,33 +259,41 @@ static void __init mpic_scan_ioapic(struct mpic *mpic, u8 __iomem *devbase)
 	if (pos == 0)
 		return;
 
-	printk(KERN_INFO "mpic:    - Workarounds @ %p, pos = 0x%02x\n", devbase, pos);
+	base = devbase + pos;
+	writeb(0x01, base + 2);
+	n = (readl(base + 4) >> 16) & 0xff;
 
-	devbase += pos;
-
-	writeb(0x01, devbase + 2);
-	n = (readl(devbase + 4) >> 16) & 0xff;
+	printk(KERN_INFO "mpic:   - HT:%02x.%x [0x%02x] vendor %04x device %04x"
+	       " has %d irqs\n",
+	       devfn >> 3, devfn & 0x7, pos, vdid & 0xffff, vdid >> 16, n + 1);
 
 	for (i = 0; i <= n; i++) {
-		writeb(0x10 + 2 * i, devbase + 2);
-		tmp = readl(devbase + 4);
-		if ((tmp & 0x21) != 0x20)
-			continue;
+		writeb(0x10 + 2 * i, base + 2);
+		tmp = readl(base + 4);
 		irq = (tmp >> 16) & 0xff;
-		mpic->fixups[irq].irq = i;
-		mpic->fixups[irq].base = devbase;
-		writeb(0x11 + 2 * i, devbase + 2);
-		mpic->fixups[irq].data = readl(devbase + 4) | 0x80000000;
+		DBG("HT PIC index 0x%x, irq 0x%x, tmp: %08x\n", i, irq, tmp);
+		/* mask it , will be unmasked later */
+		tmp |= 0x1;
+		writel(tmp, base + 4);
+		mpic->fixups[irq].index = i;
+		mpic->fixups[irq].base = base;
+		/* Apple HT PIC has a non-standard way of doing EOIs */
+		if ((vdid & 0xffff) == 0x106b)
+			mpic->fixups[irq].applebase = devbase + 0x60;
+		else
+			mpic->fixups[irq].applebase = NULL;
+		writeb(0x11 + 2 * i, base + 2);
+		mpic->fixups[irq].data = readl(base + 4) | 0x80000000;
 	}
 }
  
 
-static void __init mpic_scan_ioapics(struct mpic *mpic)
+static void __init mpic_scan_ht_pics(struct mpic *mpic)
 {
 	unsigned int devfn;
 	u8 __iomem *cfgspace;
 
-	printk(KERN_INFO "mpic: Setting up IO-APICs workarounds for U3\n");
+	printk(KERN_INFO "mpic: Setting up HT PICs workarounds for U3/U4\n");
 
 	/* Allocate fixups array */
 	mpic->fixups = alloc_bootmem(128 * sizeof(struct mpic_irq_fixup));
@@ -247,13 +309,14 @@ static void __init mpic_scan_ioapics(struct mpic *mpic)
 	cfgspace = ioremap(0xf2000000, 0x10000);
 	BUG_ON(cfgspace == NULL);
 
-	/* Now we scan all slots. We do a very quick scan, we read the header type,
-	 * vendor ID and device ID only, that's plenty enough
+	/* Now we scan all slots. We do a very quick scan, we read the header
+	 * type, vendor ID and device ID only, that's plenty enough
 	 */
 	for (devfn = 0; devfn < 0x100; devfn++) {
 		u8 __iomem *devbase = cfgspace + (devfn << 8);
 		u8 hdr_type = readb(devbase + PCI_HEADER_TYPE);
 		u32 l = readl(devbase + PCI_VENDOR_ID);
+		u16 s;
 
 		DBG("devfn %x, l: %x\n", devfn, l);
 
@@ -261,8 +324,12 @@ static void __init mpic_scan_ioapics(struct mpic *mpic)
 		if (l == 0xffffffff || l == 0x00000000 ||
 		    l == 0x0000ffff || l == 0xffff0000)
 			goto next;
+		/* Check if is supports capability lists */
+		s = readw(devbase + PCI_STATUS);
+		if (!(s & PCI_STATUS_CAP_LIST))
+			goto next;
 
-		mpic_scan_ioapic(mpic, devbase);
+		mpic_scan_ht_pic(mpic, devbase, devfn, l);
 
 	next:
 		/* next device, if function 0 */
@@ -363,6 +430,31 @@ static void mpic_enable_irq(unsigned int irq)
 			break;
 		}
 	} while(mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) & MPIC_VECPRI_MASK);	
+
+#ifdef CONFIG_MPIC_BROKEN_U3
+	if (mpic->flags & MPIC_BROKEN_U3) {
+		unsigned int src = irq - mpic->irq_offset;
+		if (mpic_is_ht_interrupt(mpic, src) &&
+		    (irq_desc[irq].status & IRQ_LEVEL))
+			mpic_ht_end_irq(mpic, src);
+	}
+#endif /* CONFIG_MPIC_BROKEN_U3 */
+}
+
+static unsigned int mpic_startup_irq(unsigned int irq)
+{
+#ifdef CONFIG_MPIC_BROKEN_U3
+	struct mpic *mpic = mpic_from_irq(irq);
+	unsigned int src = irq - mpic->irq_offset;
+
+	if (mpic_is_ht_interrupt(mpic, src))
+		mpic_startup_ht_interrupt(mpic, src, irq_desc[irq].status);
+
+#endif /* CONFIG_MPIC_BROKEN_U3 */
+
+	mpic_enable_irq(irq);
+
+	return 0;
 }
 
 static void mpic_disable_irq(unsigned int irq)
@@ -386,12 +478,27 @@ static void mpic_disable_irq(unsigned int irq)
 	} while(!(mpic_irq_read(src, MPIC_IRQ_VECTOR_PRI) & MPIC_VECPRI_MASK));
 }
 
+static void mpic_shutdown_irq(unsigned int irq)
+{
+#ifdef CONFIG_MPIC_BROKEN_U3
+	struct mpic *mpic = mpic_from_irq(irq);
+	unsigned int src = irq - mpic->irq_offset;
+
+	if (mpic_is_ht_interrupt(mpic, src))
+		mpic_shutdown_ht_interrupt(mpic, src, irq_desc[irq].status);
+
+#endif /* CONFIG_MPIC_BROKEN_U3 */
+
+	mpic_disable_irq(irq);
+}
+
 static void mpic_end_irq(unsigned int irq)
 {
 	struct mpic *mpic = mpic_from_irq(irq);
 
+#ifdef DEBUG_IRQ
 	DBG("%s: end_irq: %d\n", mpic->name, irq);
-
+#endif
 	/* We always EOI on end_irq() even for edge interrupts since that
 	 * should only lower the priority, the MPIC should have properly
 	 * latched another edge interrupt coming in anyway
@@ -400,8 +507,9 @@ static void mpic_end_irq(unsigned int irq)
 #ifdef CONFIG_MPIC_BROKEN_U3
 	if (mpic->flags & MPIC_BROKEN_U3) {
 		unsigned int src = irq - mpic->irq_offset;
-		if (mpic_is_ht_interrupt(mpic, src))
-			mpic_apic_end_irq(mpic, src);
+		if (mpic_is_ht_interrupt(mpic, src) &&
+		    (irq_desc[irq].status & IRQ_LEVEL))
+			mpic_ht_end_irq(mpic, src);
 	}
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 
@@ -482,6 +590,8 @@ struct mpic * __init mpic_alloc(unsigned long phys_addr,
 	mpic->name = name;
 
 	mpic->hc_irq.typename = name;
+	mpic->hc_irq.startup = mpic_startup_irq;
+	mpic->hc_irq.shutdown = mpic_shutdown_irq;
 	mpic->hc_irq.enable = mpic_enable_irq;
 	mpic->hc_irq.disable = mpic_disable_irq;
 	mpic->hc_irq.end = mpic_end_irq;
@@ -650,10 +760,10 @@ void __init mpic_init(struct mpic *mpic)
 		mpic->irq_count = mpic->num_sources;
 
 #ifdef CONFIG_MPIC_BROKEN_U3
-	/* Do the ioapic fixups on U3 broken mpic */
+	/* Do the HT PIC fixups on U3 broken mpic */
 	DBG("MPIC flags: %x\n", mpic->flags);
 	if ((mpic->flags & MPIC_BROKEN_U3) && (mpic->flags & MPIC_PRIMARY))
-		mpic_scan_ioapics(mpic);
+		mpic_scan_ht_pics(mpic);
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 
 	for (i = 0; i < mpic->num_sources; i++) {
@@ -840,7 +950,9 @@ void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask)
 
 	BUG_ON(mpic == NULL);
 
+#ifdef DEBUG_IPI
 	DBG("%s: send_ipi(ipi_no: %d)\n", mpic->name, ipi_no);
+#endif
 
 	mpic_cpu_write(MPIC_CPU_IPI_DISPATCH_0 + ipi_no * 0x10,
 		       mpic_physmask(cpu_mask & cpus_addr(cpu_online_map)[0]));
@@ -851,19 +963,28 @@ int mpic_get_one_irq(struct mpic *mpic, struct pt_regs *regs)
 	u32 irq;
 
 	irq = mpic_cpu_read(MPIC_CPU_INTACK) & MPIC_VECPRI_VECTOR_MASK;
+#ifdef DEBUG_LOW
 	DBG("%s: get_one_irq(): %d\n", mpic->name, irq);
-
+#endif
 	if (mpic->cascade && irq == mpic->cascade_vec) {
+#ifdef DEBUG_LOW
 		DBG("%s: cascading ...\n", mpic->name);
+#endif
 		irq = mpic->cascade(regs, mpic->cascade_data);
 		mpic_eoi(mpic);
 		return irq;
 	}
 	if (unlikely(irq == MPIC_VEC_SPURRIOUS))
 		return -1;
-	if (irq < MPIC_VEC_IPI_0) 
+	if (irq < MPIC_VEC_IPI_0) {
+#ifdef DEBUG_IRQ
+		DBG("%s: irq %d\n", mpic->name, irq + mpic->irq_offset);
+#endif
 		return irq + mpic->irq_offset;
+	}
+#ifdef DEBUG_IPI
        	DBG("%s: ipi %d !\n", mpic->name, irq - MPIC_VEC_IPI_0);
+#endif
 	return irq - MPIC_VEC_IPI_0 + mpic->ipi_offset;
 }
 

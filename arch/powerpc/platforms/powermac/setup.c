@@ -345,7 +345,7 @@ void __init pmac_setup_arch(void)
 
 #ifdef CONFIG_SMP
 	/* Check for Core99 */
-	if (find_devices("uni-n") || find_devices("u3"))
+	if (find_devices("uni-n") || find_devices("u3") || find_devices("u4"))
 		smp_ops = &core99_smp_ops;
 #ifdef CONFIG_PPC32
 	else
@@ -635,7 +635,7 @@ static void __init pmac_init_early(void)
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
 
-	iommu_init_early_u3();
+	iommu_init_early_dart();
 #endif
 }
 
@@ -711,7 +711,7 @@ static int __init pmac_probe(int platform)
 	 * occupies having to be broken up so the DART itself is not
 	 * part of the cacheable linar mapping
 	 */
-	alloc_u3_dart_table();
+	alloc_dart_table();
 #endif
 
 #ifdef CONFIG_PMAC_SMU
@@ -733,10 +733,11 @@ static int pmac_pci_probe_mode(struct pci_bus *bus)
 	struct device_node *node = bus->sysdata;
 
 	/* We need to use normal PCI probing for the AGP bus,
-	   since the device for the AGP bridge isn't in the tree. */
-	if (bus->self == NULL && device_is_compatible(node, "u3-agp"))
+	 * since the device for the AGP bridge isn't in the tree.
+	 */
+	if (bus->self == NULL && (device_is_compatible(node, "u3-agp") ||
+				  device_is_compatible(node, "u4-pcie")))
 		return PCI_PROBE_NORMAL;
-
 	return PCI_PROBE_DEVTREE;
 }
 #endif

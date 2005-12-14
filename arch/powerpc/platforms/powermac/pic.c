@@ -524,18 +524,56 @@ static void __init pmac_pic_setup_mpic_nmi(struct mpic *mpic)
 #endif	/* defined(CONFIG_XMON) && defined(CONFIG_PPC32) */
 }
 
+static struct mpic * __init pmac_setup_one_mpic(struct device_node *np,
+						int master)
+{
+	unsigned char senses[128];
+	int offset = master ? 0 : 128;
+	int count = master ? 128 : 124;
+	const char *name = master ? " MPIC 1   " : " MPIC 2   ";
+	struct resource r;
+	struct mpic *mpic;
+	unsigned int flags = master ? MPIC_PRIMARY : 0;
+	int rc;
+
+	rc = of_address_to_resource(np, 0, &r);
+	if (rc)
+		return NULL;
+
+	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, np, 0, 0);
+
+	prom_get_irq_senses(senses, offset, offset + count);
+
+	flags |= MPIC_WANTS_RESET;
+	if (get_property(np, "big-endian", NULL))
+		flags |= MPIC_BIG_ENDIAN;
+
+	/* Primary Big Endian means HT interrupts. This is quite dodgy
+	 * but works until I find a better way
+	 */
+	if (master && (flags & MPIC_BIG_ENDIAN))
+		flags |= MPIC_BROKEN_U3;
+
+	mpic = mpic_alloc(r.start, flags, 0, offset, count, master ? 252 : 0,
+			  senses, count, name);
+	if (mpic == NULL)
+		return NULL;
+
+	mpic_init(mpic);
+
+	return mpic;
+ }
+
 static int __init pmac_pic_probe_mpic(void)
 {
 	struct mpic *mpic1, *mpic2;
 	struct device_node *np, *master = NULL, *slave = NULL;
-	unsigned char senses[128];
-	struct resource r;
 
 	/* We can have up to 2 MPICs cascaded */
 	for (np = NULL; (np = of_find_node_by_type(np, "open-pic"))
 		     != NULL;) {
 		if (master == NULL &&
-		    get_property(np, "interrupt-parent", NULL) != NULL)
+		    get_property(np, "interrupts", NULL) == NULL)
 			master = of_node_get(np);
 		else if (slave == NULL)
 			slave = of_node_get(np);
@@ -557,13 +595,8 @@ static int __init pmac_pic_probe_mpic(void)
 	ppc_md.get_irq = mpic_get_irq;
 
 	/* Setup master */
-	BUG_ON(of_address_to_resource(master, 0, &r));
-	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, master, 0, 0);
-	prom_get_irq_senses(senses, 0, 128);
-	mpic1 = mpic_alloc(r.start, MPIC_PRIMARY | MPIC_WANTS_RESET,
-			   0, 0, 128, 252, senses, 128, " OpenPIC  ");
+	mpic1 = pmac_setup_one_mpic(master, 1);
 	BUG_ON(mpic1 == NULL);
-	mpic_init(mpic1);
 
 	/* Install NMI if any */
 	pmac_pic_setup_mpic_nmi(mpic1);
@@ -574,27 +607,12 @@ static int __init pmac_pic_probe_mpic(void)
 	if (slave == NULL || slave->n_intrs < 1)
 		return 0;
 
-	/* Setup slave, failures are non-fatal */
-	if (of_address_to_resource(slave, 0, &r)) {
-		printk(KERN_ERR "Can't get address of MPIC %s\n",
-		       slave->full_name);
-		return 0;
-	}
-	pmac_call_feature(PMAC_FTR_ENABLE_MPIC, slave, 0, 0);
-	prom_get_irq_senses(senses, 128, 128 + 124);
-
-	/* We don't need to set MPIC_BROKEN_U3 here since we don't have
-	 * hypertransport interrupts routed to it, at least not on currently
-	 * supported machines, that may change.
-	 */
-	mpic2 = mpic_alloc(r.start, MPIC_BIG_ENDIAN | MPIC_WANTS_RESET,
-			   0, 128, 124, 0, senses, 124, " U3-MPIC  ");
+	mpic2 = pmac_setup_one_mpic(slave, 0);
 	if (mpic2 == NULL) {
-		printk(KERN_ERR "Can't create slave MPIC %s\n",
-		       slave->full_name);
+		printk(KERN_ERR "Failed to setup slave MPIC\n");
+		of_node_put(slave);
 		return 0;
 	}
-	mpic_init(mpic2);
 	mpic_setup_cascade(slave->intrs[0].line, pmac_u3_cascade, mpic2);
 
 	of_node_put(slave);

@@ -195,7 +195,7 @@ static void __init maple_init_early(void)
 	/* Setup interrupt mapping options */
 	ppc64_interrupt_controller = IC_OPEN_PIC;
 
-	iommu_init_early_u3();
+	iommu_init_early_dart();
 
 	DBG(" <- maple_init_early\n");
 }
@@ -257,7 +257,7 @@ static int __init maple_probe(int platform)
 	 * occupies having to be broken up so the DART itself is not
 	 * part of the cacheable linar mapping
 	 */
-	alloc_u3_dart_table();
+	alloc_dart_table();
 
 	return 1;
 }

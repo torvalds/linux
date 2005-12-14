@@ -298,6 +298,16 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 	int i, j, n, sense;
 	unsigned int *irq, virq;
 	struct device_node *ic;
+	int trace = 0;
+
+	//#define TRACE(fmt...) do { if (trace) { printk(fmt); mdelay(1000); } } while(0)
+#define TRACE(fmt...)
+
+	if (!strcmp(np->name, "smu-doorbell"))
+		trace = 1;
+
+	TRACE("Finishing SMU doorbell ! num_interrupt_controllers = %d\n",
+	      num_interrupt_controllers);
 
 	if (num_interrupt_controllers == 0) {
 		/*
@@ -332,11 +342,12 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 	}
 
 	ints = (unsigned int *) get_property(np, "interrupts", &intlen);
+	TRACE("ints=%p, intlen=%d\n", ints, intlen);
 	if (ints == NULL)
 		return 0;
 	intrcells = prom_n_intr_cells(np);
 	intlen /= intrcells * sizeof(unsigned int);
-
+	TRACE("intrcells=%d, new intlen=%d\n", intrcells, intlen);
 	np->intrs = prom_alloc(intlen * sizeof(*(np->intrs)), mem_start);
 	if (!np->intrs)
 		return -ENOMEM;
@@ -347,6 +358,7 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 	intrcount = 0;
 	for (i = 0; i < intlen; ++i, ints += intrcells) {
 		n = map_interrupt(&irq, &ic, np, ints, intrcells);
+		TRACE("map, irq=%d, ic=%p, n=%d\n", irq, ic, n);
 		if (n <= 0)
 			continue;
 
@@ -357,6 +369,7 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 			np->intrs[intrcount].sense = map_isa_senses[sense];
 		} else {
 			virq = virt_irq_create_mapping(irq[0]);
+			TRACE("virq=%d\n", virq);
 #ifdef CONFIG_PPC64
 			if (virq == NO_IRQ) {
 				printk(KERN_CRIT "Could not allocate interrupt"
@@ -366,6 +379,12 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 #endif
 			np->intrs[intrcount].line = irq_offset_up(virq);
 			sense = (n > 1)? (irq[1] & 3): 1;
+
+			/* Apple uses bits in there in a different way, let's
+			 * only keep the real sense bit on macs
+			 */
+			if (_machine == PLATFORM_POWERMAC)
+				sense &= 0x1;
 			np->intrs[intrcount].sense = map_mpic_senses[sense];
 		}
 
@@ -375,12 +394,13 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 			char *name = get_property(ic->parent, "name", NULL);
 			if (name && !strcmp(name, "u3"))
 				np->intrs[intrcount].line += 128;
-			else if (!(name && !strcmp(name, "mac-io")))
+			else if (!(name && (!strcmp(name, "mac-io") ||
+					    !strcmp(name, "u4"))))
 				/* ignore other cascaded controllers, such as
 				   the k2-sata-root */
 				break;
 		}
-#endif
+#endif /* CONFIG_PPC64 */
 		if (n > 2) {
 			printk("hmmm, got %d intr cells for %s:", n,
 			       np->full_name);

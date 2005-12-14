@@ -361,7 +361,6 @@ static void __init psurge_dual_sync_tb(int cpu_nr)
 	set_dec(tb_ticks_per_jiffy);
 	/* XXX fixme */
 	set_tb(0, 0);
-	last_jiffy_stamp(cpu_nr) = 0;
 
 	if (cpu_nr > 0) {
 		mb();
@@ -429,15 +428,62 @@ struct smp_ops_t psurge_smp_ops = {
 };
 #endif /* CONFIG_PPC32 - actually powersurge support */
 
+/*
+ * Core 99 and later support
+ */
+
+static void (*pmac_tb_freeze)(int freeze);
+static unsigned long timebase;
+static int tb_req;
+
+static void smp_core99_give_timebase(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	while(!tb_req)
+		barrier();
+	tb_req = 0;
+	(*pmac_tb_freeze)(1);
+	mb();
+	timebase = get_tb();
+	mb();
+	while (timebase)
+		barrier();
+	mb();
+	(*pmac_tb_freeze)(0);
+	mb();
+
+	local_irq_restore(flags);
+}
+
+
+static void __devinit smp_core99_take_timebase(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	tb_req = 1;
+	mb();
+	while (!timebase)
+		barrier();
+	mb();
+	set_tb(timebase >> 32, timebase & 0xffffffff);
+	timebase = 0;
+	mb();
+	set_dec(tb_ticks_per_jiffy/2);
+
+	local_irq_restore(flags);
+}
+
 #ifdef CONFIG_PPC64
 /*
  * G5s enable/disable the timebase via an i2c-connected clock chip.
  */
 static struct device_node *pmac_tb_clock_chip_host;
 static u8 pmac_tb_pulsar_addr;
-static void (*pmac_tb_freeze)(int freeze);
-static DEFINE_SPINLOCK(timebase_lock);
-static unsigned long timebase;
 
 static void smp_core99_cypress_tb_freeze(int freeze)
 {
@@ -447,7 +493,8 @@ static void smp_core99_cypress_tb_freeze(int freeze)
 	/* Strangely, the device-tree says address is 0xd2, but darwin
 	 * accesses 0xd0 ...
 	 */
-	pmac_low_i2c_setmode(pmac_tb_clock_chip_host, pmac_low_i2c_mode_combined);
+	pmac_low_i2c_setmode(pmac_tb_clock_chip_host,
+			     pmac_low_i2c_mode_combined);
 	rc = pmac_low_i2c_xfer(pmac_tb_clock_chip_host,
 			       0xd0 | pmac_low_i2c_read,
 			       0x81, &data, 1);
@@ -475,7 +522,8 @@ static void smp_core99_pulsar_tb_freeze(int freeze)
 	u8 data;
 	int rc;
 
-	pmac_low_i2c_setmode(pmac_tb_clock_chip_host, pmac_low_i2c_mode_combined);
+	pmac_low_i2c_setmode(pmac_tb_clock_chip_host,
+			     pmac_low_i2c_mode_combined);
 	rc = pmac_low_i2c_xfer(pmac_tb_clock_chip_host,
 			       pmac_tb_pulsar_addr | pmac_low_i2c_read,
 			       0x2e, &data, 1);
@@ -496,53 +544,13 @@ static void smp_core99_pulsar_tb_freeze(int freeze)
 	}
 }
 
-
-static void smp_core99_give_timebase(void)
-{
-	/* Open i2c bus for synchronous access */
-	if (pmac_low_i2c_open(pmac_tb_clock_chip_host, 0))
-		panic("Can't open i2c for TB sync !\n");
-
-	spin_lock(&timebase_lock);
-	(*pmac_tb_freeze)(1);
-	mb();
-	timebase = get_tb();
-	spin_unlock(&timebase_lock);
-
-	while (timebase)
-		barrier();
-
-	spin_lock(&timebase_lock);
-	(*pmac_tb_freeze)(0);
-	spin_unlock(&timebase_lock);
-
-	/* Close i2c bus */
-	pmac_low_i2c_close(pmac_tb_clock_chip_host);
-}
-
-
-static void __devinit smp_core99_take_timebase(void)
-{
-	while (!timebase)
-		barrier();
-	spin_lock(&timebase_lock);
-	set_tb(timebase >> 32, timebase & 0xffffffff);
-	timebase = 0;
-	spin_unlock(&timebase_lock);
-}
-
-static void __init smp_core99_setup(int ncpus)
+static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 {
 	struct device_node *cc = NULL;	
 	struct device_node *p;
+	const char *name = NULL;
 	u32 *reg;
 	int ok;
-
-	/* HW sync only on these platforms */
-	if (!machine_is_compatible("PowerMac7,2") &&
-	    !machine_is_compatible("PowerMac7,3") &&
-	    !machine_is_compatible("RackMac3,1"))
-		return;
 
 	/* Look for the clock chip */
 	while ((cc = of_find_node_by_name(cc, "i2c-hwclock")) != NULL) {
@@ -561,114 +569,64 @@ static void __init smp_core99_setup(int ncpus)
 			if (device_is_compatible(cc, "pulsar-legacy-slewing")) {
 				pmac_tb_freeze = smp_core99_pulsar_tb_freeze;
 				pmac_tb_pulsar_addr = 0xd2;
-				printk(KERN_INFO "Timebase clock is Pulsar chip\n");
+				name = "Pulsar";
 			} else if (device_is_compatible(cc, "cy28508")) {
 				pmac_tb_freeze = smp_core99_cypress_tb_freeze;
-				printk(KERN_INFO "Timebase clock is Cypress chip\n");
+				name = "Cypress";
 			}
 			break;
 		case 0xd4:
 			pmac_tb_freeze = smp_core99_pulsar_tb_freeze;
 			pmac_tb_pulsar_addr = 0xd4;
-			printk(KERN_INFO "Timebase clock is Pulsar chip\n");
+			name = "Pulsar";
 			break;
 		}
-		if (pmac_tb_freeze != NULL) {
-			pmac_tb_clock_chip_host = of_get_parent(cc);
-			of_node_put(cc);
+		if (pmac_tb_freeze != NULL)
 			break;
+	}
+	if (pmac_tb_freeze != NULL) {
+		struct device_node *p = of_get_parent(cc);
+		of_node_put(cc);
+		while(p && strcmp(p->type, "i2c")) {
+			cc = of_get_parent(p);
+			of_node_put(p);
+			p = cc;
 		}
+		if (p == NULL)
+			goto no_i2c_sync;
+		/* Open i2c bus for synchronous access */
+		if (pmac_low_i2c_open(p, 0)) {
+			printk(KERN_ERR "Failed top open i2c bus %s for clock"
+			       " sync, fallback to software sync !\n",
+			       p->full_name);
+			of_node_put(p);
+			goto no_i2c_sync;
+		}
+		pmac_tb_clock_chip_host = p;
+		printk(KERN_INFO "Processor timebase sync using %s i2c clock\n",
+		       name);
+		return;
 	}
-	if (pmac_tb_freeze == NULL) {
-		smp_ops->give_timebase = smp_generic_give_timebase;
-		smp_ops->take_timebase = smp_generic_take_timebase;
-	}
+ no_i2c_sync:
+	pmac_tb_freeze = NULL;
 }
 
-/* nothing to do here, caches are already set up by service processor */
-static inline void __devinit core99_init_caches(int cpu)
-{
-}
+#endif /* CONFIG_PPC64 */
 
-#else /* CONFIG_PPC64 */
 
 /*
- * SMP G4 powermacs use a GPIO to enable/disable the timebase.
+ * SMP G4 and newer G5 use a GPIO to enable/disable the timebase.
  */
 
 static unsigned int core99_tb_gpio;	/* Timebase freeze GPIO */
 
-static unsigned int pri_tb_hi, pri_tb_lo;
-static unsigned int pri_tb_stamp;
-
-/* not __init, called in sleep/wakeup code */
-void smp_core99_give_timebase(void)
+static void smp_core99_gpio_tb_freeze(int freeze)
 {
-	unsigned long flags;
-	unsigned int t;
-
-	/* wait for the secondary to be in take_timebase */
-	for (t = 100000; t > 0 && !sec_tb_reset; --t)
-		udelay(10);
-	if (!sec_tb_reset) {
-		printk(KERN_WARNING "Timeout waiting sync on second CPU\n");
-		return;
-	}
-
-	/* freeze the timebase and read it */
-	/* disable interrupts so the timebase is disabled for the
-	   shortest possible time */
-	local_irq_save(flags);
-	pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, core99_tb_gpio, 4);
+	if (freeze)
+		pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, core99_tb_gpio, 4);
+	else
+		pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, core99_tb_gpio, 0);
 	pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, core99_tb_gpio, 0);
-	mb();
-	pri_tb_hi = get_tbu();
-	pri_tb_lo = get_tbl();
-	pri_tb_stamp = last_jiffy_stamp(smp_processor_id());
-	mb();
-
-	/* tell the secondary we're ready */
-	sec_tb_reset = 2;
-	mb();
-
-	/* wait for the secondary to have taken it */
-	/* note: can't use udelay here, since it needs the timebase running */
-	for (t = 10000000; t > 0 && sec_tb_reset; --t)
-		barrier();
-	if (sec_tb_reset)
-		/* XXX BUG_ON here? */
-		printk(KERN_WARNING "Timeout waiting sync(2) on second CPU\n");
-
-	/* Now, restart the timebase by leaving the GPIO to an open collector */
-       	pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, core99_tb_gpio, 0);
-        pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, core99_tb_gpio, 0);
-	local_irq_restore(flags);
-}
-
-/* not __init, called in sleep/wakeup code */
-void smp_core99_take_timebase(void)
-{
-	unsigned long flags;
-
-	/* tell the primary we're here */
-	sec_tb_reset = 1;
-	mb();
-
-	/* wait for the primary to set pri_tb_hi/lo */
-	while (sec_tb_reset < 2)
-		mb();
-
-	/* set our stuff the same as the primary */
-	local_irq_save(flags);
-	set_dec(1);
-	set_tb(pri_tb_hi, pri_tb_lo);
-	last_jiffy_stamp(smp_processor_id()) = pri_tb_stamp;
-	mb();
-
-	/* tell the primary we're done */
-       	sec_tb_reset = 0;
-	mb();
-	local_irq_restore(flags);
 }
 
 /* L2 and L3 cache settings to pass from CPU0 to CPU1 on G4 cpus */
@@ -677,6 +635,7 @@ volatile static long int core99_l3_cache;
 
 static void __devinit core99_init_caches(int cpu)
 {
+#ifndef CONFIG_PPC64
 	if (!cpu_has_feature(CPU_FTR_L2CR))
 		return;
 
@@ -702,29 +661,79 @@ static void __devinit core99_init_caches(int cpu)
 		_set_L3CR(core99_l3_cache);
 		printk("CPU%d: L3CR set to %lx\n", cpu, core99_l3_cache);
 	}
+#endif /* !CONFIG_PPC64 */
 }
 
 static void __init smp_core99_setup(int ncpus)
 {
-	struct device_node *cpu;
-	u32 *tbprop = NULL;
-	int i;
+#ifdef CONFIG_PPC64
 
-	core99_tb_gpio = KL_GPIO_TB_ENABLE;	/* default value */
-	cpu = of_find_node_by_type(NULL, "cpu");
-	if (cpu != NULL) {
-		tbprop = (u32 *)get_property(cpu, "timebase-enable", NULL);
-		if (tbprop)
-			core99_tb_gpio = *tbprop;
-		of_node_put(cpu);
+	/* i2c based HW sync on some G5s */
+	if (machine_is_compatible("PowerMac7,2") ||
+	    machine_is_compatible("PowerMac7,3") ||
+	    machine_is_compatible("RackMac3,1"))
+		smp_core99_setup_i2c_hwsync(ncpus);
+
+	/* GPIO based HW sync on recent G5s */
+	if (pmac_tb_freeze == NULL) {
+		struct device_node *np =
+			of_find_node_by_name(NULL, "timebase-enable");
+		u32 *reg = (u32 *)get_property(np, "reg", NULL);
+
+		if (np && reg && !strcmp(np->type, "gpio")) {
+			core99_tb_gpio = *reg;
+			if (core99_tb_gpio < 0x50)
+				core99_tb_gpio += 0x50;
+			pmac_tb_freeze = smp_core99_gpio_tb_freeze;
+			printk(KERN_INFO "Processor timebase sync using"
+			       " GPIO 0x%02x\n", core99_tb_gpio);
+		}
 	}
 
-	/* XXX should get this from reg properties */
-	for (i = 1; i < ncpus; ++i)
-		smp_hw_index[i] = i;
-	powersave_nap = 0;
-}
+#else /* CONFIG_PPC64 */
+
+	/* GPIO based HW sync on ppc32 Core99 */
+	if (pmac_tb_freeze == NULL && !machine_is_compatible("MacRISC4")) {
+		struct device_node *cpu;
+		u32 *tbprop = NULL;
+
+		core99_tb_gpio = KL_GPIO_TB_ENABLE;	/* default value */
+		cpu = of_find_node_by_type(NULL, "cpu");
+		if (cpu != NULL) {
+			tbprop = (u32 *)get_property(cpu, "timebase-enable",
+						     NULL);
+			if (tbprop)
+				core99_tb_gpio = *tbprop;
+			of_node_put(cpu);
+		}
+		pmac_tb_freeze = smp_core99_gpio_tb_freeze;
+		printk(KERN_INFO "Processor timebase sync using"
+		       " GPIO 0x%02x\n", core99_tb_gpio);
+	}
+
+#endif /* CONFIG_PPC64 */
+
+	/* No timebase sync, fallback to software */
+	if (pmac_tb_freeze == NULL) {
+		smp_ops->give_timebase = smp_generic_give_timebase;
+		smp_ops->take_timebase = smp_generic_take_timebase;
+		printk(KERN_INFO "Processor timebase sync using software\n");
+	}
+
+#ifndef CONFIG_PPC64
+	{
+		int i;
+
+		/* XXX should get this from reg properties */
+		for (i = 1; i < ncpus; ++i)
+			smp_hw_index[i] = i;
+	}
 #endif
+
+	/* 32 bits SMP can't NAP */
+	if (!machine_is_compatible("MacRISC4"))
+		powersave_nap = 0;
+}
 
 static int __init smp_core99_probe(void)
 {
@@ -803,8 +812,14 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 	mpic_setup_this_cpu();
 
 	if (cpu_nr == 0) {
-#ifdef CONFIG_POWER4
+#ifdef CONFIG_PPC64
 		extern void g5_phy_disable_cpu1(void);
+
+		/* Close i2c bus if it was used for tb sync */
+		if (pmac_tb_clock_chip_host) {
+			pmac_low_i2c_close(pmac_tb_clock_chip_host);
+			pmac_tb_clock_chip_host	= NULL;
+		}
 
 		/* If we didn't start the second CPU, we must take
 		 * it off the bus
@@ -812,8 +827,10 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 		if (machine_is_compatible("MacRISC4") &&
 		    num_online_cpus() < 2)		
 			g5_phy_disable_cpu1();
-#endif /* CONFIG_POWER4 */
-		if (ppc_md.progress) ppc_md.progress("core99_setup_cpu 0 done", 0x349);
+#endif /* CONFIG_PPC64 */
+
+		if (ppc_md.progress)
+			ppc_md.progress("core99_setup_cpu 0 done", 0x349);
 	}
 }
 

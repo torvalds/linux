@@ -117,8 +117,9 @@ typedef int (*mpic_cascade_t)(struct pt_regs *regs, void *data);
 struct mpic_irq_fixup
 {
 	u8 __iomem	*base;
+	u8 __iomem	*applebase;
 	u32		data;
-	unsigned int	irq;
+	unsigned int	index;
 };
 #endif /* CONFIG_MPIC_BROKEN_U3 */
 

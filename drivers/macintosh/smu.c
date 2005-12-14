@@ -53,7 +53,7 @@
 #undef DEBUG_SMU
 
 #ifdef DEBUG_SMU
-#define DPRINTK(fmt, args...) do { udbg_printf(KERN_DEBUG fmt , ##args); } while (0)
+#define DPRINTK(fmt, args...) do { printk(KERN_DEBUG fmt , ##args); } while (0)
 #else
 #define DPRINTK(fmt, args...) do { } while (0)
 #endif
@@ -909,10 +909,13 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 	struct property *prop;
 
 	/* First query the partition info */
+	DPRINTK("SMU: Query partition infos ... (irq=%d)\n", smu->db_irq);
 	smu_queue_simple(&cmd, SMU_CMD_PARTITION_COMMAND, 2,
 			 smu_done_complete, &comp,
 			 SMU_CMD_PARTITION_LATEST, id);
 	wait_for_completion(&comp);
+	DPRINTK("SMU: done, status: %d, reply_len: %d\n",
+		cmd.cmd.status, cmd.cmd.reply_len);
 
 	/* Partition doesn't exist (or other error) */
 	if (cmd.cmd.status != 0 || cmd.cmd.reply_len != 6)
@@ -975,6 +978,8 @@ struct smu_sdbp_header *__smu_get_sdb_partition(int id, unsigned int *size,
 
 	sprintf(pname, "sdb-partition-%02x", id);
 
+	DPRINTK("smu_get_sdb_partition(%02x)\n", id);
+
 	if (interruptible) {
 		int rc;
 		rc = down_interruptible(&smu_part_access);
@@ -986,6 +991,7 @@ struct smu_sdbp_header *__smu_get_sdb_partition(int id, unsigned int *size,
 	part = (struct smu_sdbp_header *)get_property(smu->of_node,
 						      pname, size);
 	if (part == NULL) {
+		DPRINTK("trying to extract from SMU ...\n");
 		part = smu_create_sdb_partition(id);
 		if (part != NULL && size)
 			*size = part->len << 2;

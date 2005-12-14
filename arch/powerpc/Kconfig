@@ -300,6 +300,7 @@ config PPC_PMAC64
 	bool
 	depends on PPC_PMAC && POWER4
 	select U3_DART
+	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
 	default y
 

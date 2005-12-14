@@ -101,7 +101,8 @@ static const char *macio_names[] =
 	"Keylargo",
 	"Pangea",
 	"Intrepid",
-	"K2"
+	"K2",
+	"Shasta",
 };
 
 
@@ -119,7 +120,7 @@ static const char *macio_names[] =
 static struct device_node *uninorth_node;
 static u32 __iomem *uninorth_base;
 static u32 uninorth_rev;
-static int uninorth_u3;
+static int uninorth_maj;
 static void __iomem *u3_ht;
 
 /*
@@ -1399,8 +1400,15 @@ static long g5_fw_enable(struct device_node *node, long param, long value)
 static long g5_mpic_enable(struct device_node *node, long param, long value)
 {
 	unsigned long flags;
+	struct device_node *parent = of_get_parent(node);
+	int is_u3;
 
-	if (node->parent == NULL || strcmp(node->parent->name, "u3"))
+	if (parent == NULL)
+		return 0;
+	is_u3 = strcmp(parent->name, "u3") == 0 ||
+		strcmp(parent->name, "u4") == 0;
+	of_node_put(parent);
+	if (!is_u3)
 		return 0;
 
 	LOCK(flags);
@@ -1464,7 +1472,7 @@ static long g5_i2s_enable(struct device_node *node, long param, long value)
 		},
 	};
 
-	if (macio->type != macio_keylargo2 /* && macio->type != macio_shasta*/)
+	if (macio->type != macio_keylargo2 && macio->type != macio_shasta)
 		return -ENODEV;
 	if (strncmp(node->name, "i2s-", 4))
 		return -ENODEV;
@@ -1473,11 +1481,9 @@ static long g5_i2s_enable(struct device_node *node, long param, long value)
 	case 0:
 	case 1:
 		break;
-#if 0
 	case 2:
 		if (macio->type == macio_shasta)
 			break;
-#endif
 	default:
 		return -ENODEV;
 	}
@@ -1508,7 +1514,7 @@ static long g5_reset_cpu(struct device_node *node, long param, long value)
 	struct device_node *np;
 
 	macio = &macio_chips[0];
-	if (macio->type != macio_keylargo2)
+	if (macio->type != macio_keylargo2 && macio->type != macio_shasta)
 		return -ENODEV;
 
 	np = find_path_device("/cpus");
@@ -1547,7 +1553,8 @@ static long g5_reset_cpu(struct device_node *node, long param, long value)
  */
 void g5_phy_disable_cpu1(void)
 {
-	UN_OUT(U3_API_PHY_CONFIG_1, 0);
+	if (uninorth_maj == 3)
+		UN_OUT(U3_API_PHY_CONFIG_1, 0);
 }
 #endif /* CONFIG_POWER4 */
 
@@ -2462,6 +2469,14 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_TYPE_POWERMAC_G5_U3L,	g5_features,
 		0,
 	},
+	{	"PowerMac11,2",			"PowerMac G5 Dual Core",
+		PMAC_TYPE_POWERMAC_G5_U3L,	g5_features,
+		0,
+	},
+	{	"PowerMac12,1",			"iMac G5 (iSight)",
+		PMAC_TYPE_POWERMAC_G5_U3L,	g5_features,
+		0,
+	},
 	{       "RackMac3,1",                   "XServe G5",
 		PMAC_TYPE_XSERVE_G5,		g5_features,
 		0,
@@ -2574,6 +2589,11 @@ static int __init probe_motherboard(void)
 		pmac_mb.model_name = "Unknown K2-based";
 		pmac_mb.features = g5_features;
 		break;
+	case macio_shasta:
+		pmac_mb.model_id = PMAC_TYPE_UNKNOWN_SHASTA;
+		pmac_mb.model_name = "Unknown Shasta-based";
+		pmac_mb.features = g5_features;
+		break;
 #endif /* CONFIG_POWER4 */
 	default:
 		return -ENODEV;
@@ -2651,7 +2671,12 @@ static void __init probe_uninorth(void)
 	/* Locate G5 u3 */
 	if (uninorth_node == NULL) {
 		uninorth_node = of_find_node_by_name(NULL, "u3");
-		uninorth_u3 = 1;
+		uninorth_maj = 3;
+	}
+	/* Locate G5 u4 */
+	if (uninorth_node == NULL) {
+		uninorth_node = of_find_node_by_name(NULL, "u4");
+		uninorth_maj = 4;
 	}
 	if (uninorth_node == NULL)
 		return;
@@ -2664,12 +2689,13 @@ static void __init probe_uninorth(void)
 		return;
 	uninorth_base = ioremap(address, 0x40000);
 	uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
-	if (uninorth_u3)
+	if (uninorth_maj == 3 || uninorth_maj == 4)
 		u3_ht = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
 
-	printk(KERN_INFO "Found %s memory controller & host bridge,"
-	       " revision: %d\n", uninorth_u3 ? "U3" : "UniNorth",
-	       uninorth_rev);
+	printk(KERN_INFO "Found %s memory controller & host bridge"
+	       " @ 0x%08x revision: 0x%02x\n", uninorth_maj == 3 ? "U3" :
+	       uninorth_maj == 4 ? "U4" : "UniNorth",
+	       (unsigned int)address, uninorth_rev);
 	printk(KERN_INFO "Mapped at 0x%08lx\n", (unsigned long)uninorth_base);
 
 	/* Set the arbitrer QAck delay according to what Apple does
@@ -2677,7 +2703,8 @@ static void __init probe_uninorth(void)
 	if (uninorth_rev < 0x11) {
 		actrl = UN_IN(UNI_N_ARB_CTRL) & ~UNI_N_ARB_CTRL_QACK_DELAY_MASK;
 		actrl |= ((uninorth_rev < 3) ? UNI_N_ARB_CTRL_QACK_DELAY105 :
-			UNI_N_ARB_CTRL_QACK_DELAY) << UNI_N_ARB_CTRL_QACK_DELAY_SHIFT;
+			UNI_N_ARB_CTRL_QACK_DELAY) <<
+			UNI_N_ARB_CTRL_QACK_DELAY_SHIFT;
 		UN_OUT(UNI_N_ARB_CTRL, actrl);
 	}
 
@@ -2685,7 +2712,8 @@ static void __init probe_uninorth(void)
 	 * revs 1.5 to 2.O and Pangea. Seem to toggle the UniN Maxbus/PCI
 	 * memory timeout
 	 */
-	if ((uninorth_rev >= 0x11 && uninorth_rev <= 0x24) || uninorth_rev == 0xc0)
+	if ((uninorth_rev >= 0x11 && uninorth_rev <= 0x24) ||
+	    uninorth_rev == 0xc0)
 		UN_OUT(0x2160, UN_IN(0x2160) & 0x00ffffff);
 }
 
@@ -2736,12 +2764,14 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 		       node->full_name);
 		return;
 	}
-	if (type == macio_keylargo) {
+	if (type == macio_keylargo || type == macio_keylargo2) {
 		u32 *did = (u32 *)get_property(node, "device-id", NULL);
 		if (*did == 0x00000025)
 			type = macio_pangea;
 		if (*did == 0x0000003e)
 			type = macio_intrepid;
+		if (*did == 0x0000004f)
+			type = macio_shasta;
 	}
 	macio_chips[i].of_node	= node;
 	macio_chips[i].type	= type;
@@ -2840,7 +2870,8 @@ set_initial_features(void)
 	}
 
 #ifdef CONFIG_POWER4
-	if (macio_chips[0].type == macio_keylargo2) {
+	if (macio_chips[0].type == macio_keylargo2 ||
+	    macio_chips[0].type == macio_shasta) {
 #ifndef CONFIG_SMP
 		/* On SMP machines running UP, we have the second CPU eating
 		 * bus cycles. We need to take it off the bus. This is done

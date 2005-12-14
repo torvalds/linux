@@ -1686,7 +1686,7 @@ pmac_ide_probe(void)
 #else
 	macio_register_driver(&pmac_ide_macio_driver);
 	pci_register_driver(&pmac_ide_pci_driver);
-#endif	
+#endif
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC

@@ -110,10 +110,12 @@ static int early_console_initialized;
 
 void __init disable_early_printk(void)
 {
+#if 1
 	if (!early_console_initialized)
 		return;
 	unregister_console(&udbg_console);
 	early_console_initialized = 0;
+#endif
 }
 
 /* called by setup_system */
