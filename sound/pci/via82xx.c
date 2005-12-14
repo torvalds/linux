@@ -1763,6 +1763,12 @@ static struct ac97_quirk ac97_quirks[] = {
 		.name = "Arima Notebook",
 		.type = AC97_TUNE_HP_ONLY,
 	},
+	{
+		.subvendor = 0x161f,
+		.subdevice = 0x2032,
+		.name = "Targa Traveller 811",
+		.type = AC97_TUNE_HP_ONLY,
+	},
 	{ } /* terminator */
 };
 
