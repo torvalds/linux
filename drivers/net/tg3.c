@@ -8533,6 +8533,7 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) {
 		tp->tg3_flags |= TG3_FLAG_NVRAM;
 
+		tg3_nvram_lock(tp);
 		tg3_enable_nvram_access(tp);
 
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
@@ -8543,6 +8544,7 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 		tg3_get_nvram_size(tp);
 
 		tg3_disable_nvram_access(tp);
+		tg3_nvram_unlock(tp);
 
 	} else {
 		tp->tg3_flags &= ~(TG3_FLAG_NVRAM | TG3_FLAG_NVRAM_BUFFERED);
@@ -8640,9 +8642,9 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 	if (ret == 0)
 		*val = swab32(tr32(NVRAM_RDDATA));
 
-	tg3_nvram_unlock(tp);
-
 	tg3_disable_nvram_access(tp);
+
+	tg3_nvram_unlock(tp);
 
 	return ret;
 }
@@ -8728,6 +8730,10 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 
 		offset = offset + (pagesize - page_off);
 
+		/* Nvram lock released by tg3_nvram_read() above,
+		 * so need to get it again.
+		 */
+		tg3_nvram_lock(tp);
 		tg3_enable_nvram_access(tp);
 
 		/*
