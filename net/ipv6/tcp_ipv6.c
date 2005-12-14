@@ -48,6 +48,7 @@
 #include <net/tcp.h>
 #include <net/ndisc.h>
 #include <net/inet6_hashtables.h>
+#include <net/inet6_connection_sock.h>
 #include <net/ipv6.h>
 #include <net/transp_v6.h>
 #include <net/addrconf.h>
@@ -116,60 +117,6 @@ static void tcp_v6_hash(struct sock *sk)
 		__inet6_hash(&tcp_hashinfo, sk);
 		local_bh_enable();
 	}
-}
-
-/*
- * Open request hash tables.
- */
-
-static u32 tcp_v6_synq_hash(const struct in6_addr *raddr, const u16 rport, const u32 rnd)
-{
-	u32 a, b, c;
-
-	a = raddr->s6_addr32[0];
-	b = raddr->s6_addr32[1];
-	c = raddr->s6_addr32[2];
-
-	a += JHASH_GOLDEN_RATIO;
-	b += JHASH_GOLDEN_RATIO;
-	c += rnd;
-	__jhash_mix(a, b, c);
-
-	a += raddr->s6_addr32[3];
-	b += (u32) rport;
-	__jhash_mix(a, b, c);
-
-	return c & (TCP_SYNQ_HSIZE - 1);
-}
-
-static struct request_sock *tcp_v6_search_req(const struct sock *sk,
-					      struct request_sock ***prevp,
-					      __u16 rport,
-					      struct in6_addr *raddr,
-					      struct in6_addr *laddr,
-					      int iif)
-{
-	const struct inet_connection_sock *icsk = inet_csk(sk);
-	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	struct request_sock *req, **prev;  
-
-	for (prev = &lopt->syn_table[tcp_v6_synq_hash(raddr, rport, lopt->hash_rnd)];
-	     (req = *prev) != NULL;
-	     prev = &req->dl_next) {
-		const struct tcp6_request_sock *treq = tcp6_rsk(req);
-
-		if (inet_rsk(req)->rmt_port == rport &&
-		    req->rsk_ops->family == AF_INET6 &&
-		    ipv6_addr_equal(&treq->rmt_addr, raddr) &&
-		    ipv6_addr_equal(&treq->loc_addr, laddr) &&
-		    (!treq->iif || treq->iif == iif)) {
-			BUG_TRAP(req->sk == NULL);
-			*prevp = prev;
-			return req;
-		}
-	}
-
-	return NULL;
 }
 
 static __inline__ u16 tcp_v6_check(struct tcphdr *th, int len,
@@ -662,8 +609,8 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (sock_owned_by_user(sk))
 			goto out;
 
-		req = tcp_v6_search_req(sk, &prev, th->dest, &hdr->daddr,
-					&hdr->saddr, inet6_iif(skb));
+		req = inet6_csk_search_req(sk, &prev, th->dest, &hdr->daddr,
+					   &hdr->saddr, inet6_iif(skb));
 		if (!req)
 			goto out;
 
@@ -978,8 +925,9 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 	struct sock *nsk;
 
 	/* Find possible connection requests. */
-	req = tcp_v6_search_req(sk, &prev, th->source, &skb->nh.ipv6h->saddr,
-				&skb->nh.ipv6h->daddr, inet6_iif(skb));
+	req = inet6_csk_search_req(sk, &prev, th->source,
+				   &skb->nh.ipv6h->saddr,
+				   &skb->nh.ipv6h->daddr, inet6_iif(skb));
 	if (req)
 		return tcp_check_req(sk, skb, req, prev);
 
@@ -1002,17 +950,6 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 #endif
 	return sk;
 }
-
-static void tcp_v6_synq_add(struct sock *sk, struct request_sock *req)
-{
-	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	const u32 h = tcp_v6_synq_hash(&tcp6_rsk(req)->rmt_addr, inet_rsk(req)->rmt_port, lopt->hash_rnd);
-
-	reqsk_queue_hash_req(&icsk->icsk_accept_queue, h, req, TCP_TIMEOUT_INIT);
-	inet_csk_reqsk_queue_added(sk, TCP_TIMEOUT_INIT);
-}
-
 
 /* FIXME: this is substantially similar to the ipv4 code.
  * Can some kind of merge be done? -- erics
@@ -1083,8 +1020,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (tcp_v6_send_synack(sk, req, NULL))
 		goto drop;
 
-	tcp_v6_synq_add(sk, req);
-
+	inet6_csk_reqsk_queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 	return 0;
 
 drop:
