@@ -211,7 +211,7 @@ static inline void inet_csk_reqsk_queue_add(struct sock *sk,
 
 extern void inet_csk_reqsk_queue_hash_add(struct sock *sk,
 					  struct request_sock *req,
-					  const unsigned timeout);
+					  unsigned long timeout);
 
 static inline void inet_csk_reqsk_queue_removed(struct sock *sk,
 						struct request_sock *req)

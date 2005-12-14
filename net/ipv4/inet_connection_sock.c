@@ -385,7 +385,7 @@ struct request_sock *inet_csk_search_req(const struct sock *sk,
 EXPORT_SYMBOL_GPL(inet_csk_search_req);
 
 void inet_csk_reqsk_queue_hash_add(struct sock *sk, struct request_sock *req,
-				   const unsigned timeout)
+				   unsigned long timeout)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
