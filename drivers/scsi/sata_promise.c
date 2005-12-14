@@ -70,6 +70,10 @@ enum {
 	PDC_HAS_PATA		= (1 << 1), /* PDC20375 has PATA */
 
 	PDC_RESET		= (1 << 11), /* HDMA reset */
+
+	PDC_COMMON_FLAGS	= ATA_FLAG_NO_LEGACY | ATA_FLAG_SRST |
+				  ATA_FLAG_MMIO | ATA_FLAG_NO_ATAPI |
+				  ATA_FLAG_PIO_POLLING,
 };
 
 
@@ -162,9 +166,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_2037x */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_POLLING,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -174,9 +176,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_20319 */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
-				  ATA_FLAG_PIO_POLLING,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -186,9 +186,7 @@ static const struct ata_port_info pdc_port_info[] = {
 	/* board_20619 */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= ATA_FLAG_NO_LEGACY | ATA_FLAG_SRST |
-				  ATA_FLAG_MMIO | ATA_FLAG_SLAVE_POSS |
-				  ATA_FLAG_PIO_POLLING,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
