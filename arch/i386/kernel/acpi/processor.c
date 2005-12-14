@@ -47,7 +47,7 @@ static void init_intel_pdc(struct acpi_processor *pr, struct cpuinfo_x86 *c)
 	buf[2] = ACPI_PDC_C_CAPABILITY_SMP;
 
 	if (cpu_has(c, X86_FEATURE_EST))
-		buf[2] |= ACPI_PDC_EST_CAPABILITY_SMP;
+		buf[2] |= ACPI_PDC_EST_CAPABILITY_SWSMP;
 
 	obj->type = ACPI_TYPE_BUFFER;
 	obj->buffer.length = 12;
