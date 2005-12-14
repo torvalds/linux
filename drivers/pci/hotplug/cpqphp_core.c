@@ -479,6 +479,8 @@ static int ctrl_slot_cleanup (struct controller * ctrl)
 		old_slot = next_slot;
 	}
 
+	cpqhp_remove_debugfs_files(ctrl);
+
 	//Free IRQ associated with hot plug device
 	free_irq(ctrl->interrupt, ctrl);
 	//Unmap the memory
@@ -1275,7 +1277,7 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	// Done with exclusive hardware access
 	up(&ctrl->crit_sect);
 
-	cpqhp_create_ctrl_files(ctrl);
+	cpqhp_create_debugfs_files(ctrl);
 
 	return 0;
 
@@ -1515,6 +1517,7 @@ static int __init cpqhpc_init(void)
 	cpqhp_debug = debug;
 
 	info (DRIVER_DESC " version: " DRIVER_VERSION "\n");
+	cpqhp_initialize_debugfs();
 	result = pci_register_driver(&cpqhpc_driver);
 	dbg("pci_register_driver = %d\n", result);
 	return result;
@@ -1528,6 +1531,7 @@ static void __exit cpqhpc_cleanup(void)
 
 	dbg("pci_unregister_driver\n");
 	pci_unregister_driver(&cpqhpc_driver);
+	cpqhp_shutdown_debugfs();
 }
 
 
