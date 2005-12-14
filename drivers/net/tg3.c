@@ -10443,8 +10443,13 @@ static struct pci_dev * __devinit tg3_find_5704_peer(struct tg3 *tp)
 			break;
 		pci_dev_put(peer);
 	}
-	if (!peer || peer == tp->pdev)
-		BUG();
+	/* 5704 can be configured in single-port mode, set peer to
+	 * tp->pdev in that case.
+	 */
+	if (!peer) {
+		peer = tp->pdev;
+		return peer;
+	}
 
 	/*
 	 * We don't need to keep the refcount elevated; there's no way
