@@ -41,7 +41,11 @@
 
 DEFINE_SNMP_STAT(struct dccp_mib, dccp_statistics) __read_mostly;
 
+EXPORT_SYMBOL_GPL(dccp_statistics);
+
 atomic_t dccp_orphan_count = ATOMIC_INIT(0);
+
+EXPORT_SYMBOL_GPL(dccp_orphan_count);
 
 static struct net_protocol dccp_protocol = {
 	.handler	= dccp_v4_rcv,
@@ -149,6 +153,8 @@ int dccp_disconnect(struct sock *sk, int flags)
 	return err;
 }
 
+EXPORT_SYMBOL_GPL(dccp_disconnect);
+
 /*
  *	Wait for a DCCP event.
  *
@@ -156,8 +162,8 @@ int dccp_disconnect(struct sock *sk, int flags)
  *	take care of normal races (between the test and the event) and we don't
  *	go look at any of the socket buffers directly.
  */
-static unsigned int dccp_poll(struct file *file, struct socket *sock,
-			      poll_table *wait)
+unsigned int dccp_poll(struct file *file, struct socket *sock,
+		       poll_table *wait)
 {
 	unsigned int mask;
 	struct sock *sk = sock->sk;
@@ -205,11 +211,15 @@ static unsigned int dccp_poll(struct file *file, struct socket *sock,
 	return mask;
 }
 
+EXPORT_SYMBOL_GPL(dccp_poll);
+
 int dccp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
 	dccp_pr_debug("entry\n");
 	return -ENOIOCTLCMD;
 }
+
+EXPORT_SYMBOL_GPL(dccp_ioctl);
 
 static int dccp_setsockopt_service(struct sock *sk, const u32 service,
 				   char __user *optval, int optlen)
@@ -284,6 +294,8 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 	return err;
 }
 
+EXPORT_SYMBOL_GPL(dccp_setsockopt);
+
 static int dccp_getsockopt_service(struct sock *sk, int len,
 				   u32 __user *optval,
 				   int __user *optlen)
@@ -357,6 +369,8 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 	return 0;
 }
 
+EXPORT_SYMBOL_GPL(dccp_getsockopt);
+
 int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 size_t len)
 {
@@ -412,6 +426,8 @@ out_discard:
 	kfree_skb(skb);
 	goto out_release;
 }
+
+EXPORT_SYMBOL_GPL(dccp_sendmsg);
 
 int dccp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 size_t len, int nonblock, int flags, int *addr_len)
@@ -510,7 +526,9 @@ out:
 	return len;
 }
 
-static int inet_dccp_listen(struct socket *sock, int backlog)
+EXPORT_SYMBOL_GPL(dccp_recvmsg);
+
+int inet_dccp_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
 	unsigned char old_state;
@@ -545,6 +563,8 @@ out:
 	release_sock(sk);
 	return err;
 }
+
+EXPORT_SYMBOL_GPL(inet_dccp_listen);
 
 static const unsigned char dccp_new_state[] = {
 	/* current state:   new state:      action:	*/
@@ -651,10 +671,14 @@ adjudge_to_death:
 	sock_put(sk);
 }
 
+EXPORT_SYMBOL_GPL(dccp_close);
+
 void dccp_shutdown(struct sock *sk, int how)
 {
 	dccp_pr_debug("entry\n");
 }
+
+EXPORT_SYMBOL_GPL(dccp_shutdown);
 
 static struct proto_ops inet_dccp_ops = {
 	.family		= PF_INET,
@@ -763,6 +787,8 @@ MODULE_PARM_DESC(thash_entries, "Number of ehash buckets");
 int dccp_debug;
 module_param(dccp_debug, int, 0444);
 MODULE_PARM_DESC(dccp_debug, "Enable debug messages");
+
+EXPORT_SYMBOL_GPL(dccp_debug);
 #endif
 
 static int __init dccp_init(void)

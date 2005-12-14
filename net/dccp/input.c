@@ -250,6 +250,8 @@ discard:
 	return 0;
 }
 
+EXPORT_SYMBOL_GPL(dccp_rcv_established);
+
 static int dccp_rcv_request_sent_state_process(struct sock *sk,
 					       struct sk_buff *skb,
 					       const struct dccp_hdr *dh,
@@ -567,3 +569,5 @@ discard:
 	}
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(dccp_rcv_state_process);

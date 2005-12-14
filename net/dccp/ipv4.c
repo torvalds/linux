@@ -46,10 +46,12 @@ static void dccp_v4_hash(struct sock *sk)
 	inet_hash(&dccp_hashinfo, sk);
 }
 
-static void dccp_v4_unhash(struct sock *sk)
+void dccp_unhash(struct sock *sk)
 {
 	inet_unhash(&dccp_hashinfo, sk);
 }
+
+EXPORT_SYMBOL_GPL(dccp_unhash);
 
 /* called with local bh disabled */
 static int __dccp_v4_check_established(struct sock *sk, const __u16 lport,
@@ -209,8 +211,7 @@ out:
 	}
 }
 
-static int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
-			   int addr_len)
+int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -288,16 +289,6 @@ static int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 							    usin->sin_port);
 	dccp_update_gss(sk, dp->dccps_iss);
 
-	/*
-	 * SWL and AWL are initially adjusted so that they are not less than
-	 * the initial Sequence Numbers received and sent, respectively:
-	 *	SWL := max(GSR + 1 - floor(W/4), ISR),
-	 *	AWL := max(GSS - W' + 1, ISS).
-	 * These adjustments MUST be applied only at the beginning of the
-	 * connection.
-	 */
-	dccp_set_seqno(&dp->dccps_awl, max48(dp->dccps_awl, dp->dccps_iss));
-
 	inet->id = dp->dccps_iss ^ jiffies;
 
 	err = dccp_connect(sk);
@@ -316,6 +307,8 @@ failure:
 	inet->dport = 0;
 	goto out;
 }
+
+EXPORT_SYMBOL_GPL(dccp_v4_connect);
 
 /*
  * This routine does path mtu discovery as defined in RFC1191.
@@ -608,13 +601,15 @@ out:
 }
 
 /* This routine computes an IPv4 DCCP checksum. */
-static void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
+void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	struct dccp_hdr *dh = dccp_hdr(skb);
 
 	dh->dccph_checksum = dccp_v4_checksum(skb, inet->saddr, inet->daddr);
 }
+
+EXPORT_SYMBOL_GPL(dccp_v4_send_check);
 
 int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 {
@@ -651,16 +646,6 @@ static inline u64 dccp_v4_init_sequence(const struct sock *sk,
 					   dccp_hdr(skb)->dccph_sport);
 }
 
-static inline int dccp_bad_service_code(const struct sock *sk,
-					const __u32 service)
-{
-	const struct dccp_sock *dp = dccp_sk(sk);
-
-	if (dp->dccps_service == service)
-		return 0;
-	return !dccp_list_has_service(dp->dccps_service_list, service);
-}
-
 int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct inet_request_sock *ireq;
@@ -672,7 +657,6 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
  	const __u32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
-	struct dst_entry *dst = NULL;
 
 	/* Never answer to DCCP_PKT_REQUESTs send to broadcast or multicast */
 	if (((struct rtable *)skb->dst)->rt_flags &
@@ -713,7 +697,6 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	ireq->loc_addr = daddr;
 	ireq->rmt_addr = saddr;
-	/* FIXME: Merge Aristeu's option parsing code when ready */
 	req->rcv_wnd	= 100; /* Fake, option parsing will get the
 				  right value */
 	ireq->opt	= NULL;
@@ -731,7 +714,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	dreq->dreq_iss	   = dccp_v4_init_sequence(sk, skb);
 	dreq->dreq_service = service;
 
-	if (dccp_v4_send_response(sk, req, dst))
+	if (dccp_v4_send_response(sk, req, NULL))
 		goto drop_and_free;
 
 	inet_csk_reqsk_queue_hash_add(sk, req, DCCP_TIMEOUT_INIT);
@@ -747,6 +730,8 @@ drop:
 	dcb->dccpd_reset_code = reset_code;
 	return -1;
 }
+
+EXPORT_SYMBOL_GPL(dccp_v4_conn_request);
 
 /*
  * The three way handshake has completed - we got a valid ACK or DATAACK -
@@ -801,6 +786,8 @@ exit:
 	dst_release(dst);
 	return NULL;
 }
+
+EXPORT_SYMBOL_GPL(dccp_v4_request_recv_sock);
 
 static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 {
@@ -1021,7 +1008,9 @@ discard:
 	return 0;
 }
 
-static inline int dccp_invalid_packet(struct sk_buff *skb)
+EXPORT_SYMBOL_GPL(dccp_v4_do_rcv);
+
+int dccp_invalid_packet(struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh;
 
@@ -1075,16 +1064,10 @@ static inline int dccp_invalid_packet(struct sk_buff *skb)
 		return 1;
 	}
 
-	/* If the header checksum is incorrect, drop packet and return */
-	if (dccp_v4_verify_checksum(skb, skb->nh.iph->saddr,
-				    skb->nh.iph->daddr) < 0) {
-		LIMIT_NETDEBUG(KERN_WARNING "DCCP: header checksum is "
-					    "incorrect\n");
-		return 1;
-	}
-
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(dccp_invalid_packet);
 
 /* this is called when real data arrives */
 int dccp_v4_rcv(struct sk_buff *skb)
@@ -1097,6 +1080,14 @@ int dccp_v4_rcv(struct sk_buff *skb)
 
 	if (dccp_invalid_packet(skb))
 		goto discard_it;
+
+	/* If the header checksum is incorrect, drop packet and return */
+	if (dccp_v4_verify_checksum(skb, skb->nh.iph->saddr,
+				    skb->nh.iph->daddr) < 0) {
+		LIMIT_NETDEBUG(KERN_WARNING "%s: incorrect header checksum\n",
+			       __FUNCTION__);
+		goto discard_it;
+	}
 
 	dh = dccp_hdr(skb);
 
@@ -1217,7 +1208,7 @@ struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 	.sockaddr_len	= sizeof(struct sockaddr_in),
 };
 
-static int dccp_v4_init_sock(struct sock *sk)
+int dccp_v4_init_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	static int dccp_ctl_socket_init = 1;
@@ -1270,7 +1261,9 @@ static int dccp_v4_init_sock(struct sock *sk)
 	return 0;
 }
 
-static int dccp_v4_destroy_sock(struct sock *sk)
+EXPORT_SYMBOL_GPL(dccp_v4_init_sock);
+
+int dccp_v4_destroy_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
@@ -1303,6 +1296,8 @@ static int dccp_v4_destroy_sock(struct sock *sk)
 	return 0;
 }
 
+EXPORT_SYMBOL_GPL(dccp_v4_destroy_sock);
+
 static void dccp_v4_reqsk_destructor(struct request_sock *req)
 {
 	kfree(inet_rsk(req)->opt);
@@ -1331,7 +1326,7 @@ struct proto dccp_prot = {
 	.recvmsg		= dccp_recvmsg,
 	.backlog_rcv		= dccp_v4_do_rcv,
 	.hash			= dccp_v4_hash,
-	.unhash			= dccp_v4_unhash,
+	.unhash			= dccp_unhash,
 	.accept			= inet_csk_accept,
 	.get_port		= dccp_v4_get_port,
 	.shutdown		= dccp_shutdown,

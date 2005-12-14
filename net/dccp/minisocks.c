@@ -40,6 +40,8 @@ struct inet_timewait_death_row dccp_death_row = {
 					    (unsigned long)&dccp_death_row),
 };
 
+EXPORT_SYMBOL_GPL(dccp_death_row);
+
 void dccp_time_wait(struct sock *sk, int state, int timeo)
 {
 	struct inet_timewait_sock *tw = NULL;
@@ -170,6 +172,8 @@ out_free:
 	return newsk;
 }
 
+EXPORT_SYMBOL_GPL(dccp_create_openreq_child);
+
 /* 
  * Process an incoming packet for RESPOND sockets represented
  * as an request_sock.
@@ -236,6 +240,8 @@ drop:
 	goto out;
 }
 
+EXPORT_SYMBOL_GPL(dccp_check_req);
+
 /*
  *  Queue segment on the new socket if the new socket is active,
  *  otherwise we just shortcircuit this and continue with
@@ -266,3 +272,5 @@ int dccp_child_process(struct sock *parent, struct sock *child,
 	sock_put(child);
 	return ret;
 }
+
+EXPORT_SYMBOL_GPL(dccp_child_process);
