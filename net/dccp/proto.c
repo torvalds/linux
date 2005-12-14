@@ -684,7 +684,7 @@ extern struct net_proto_family inet_family_ops;
 static struct inet_protosw dccp_v4_protosw = {
 	.type		= SOCK_DCCP,
 	.protocol	= IPPROTO_DCCP,
-	.prot		= &dccp_v4_prot,
+	.prot		= &dccp_prot,
 	.ops		= &inet_dccp_ops,
 	.capability	= -1,
 	.no_check	= 0,
@@ -769,7 +769,7 @@ static int __init dccp_init(void)
 {
 	unsigned long goal;
 	int ehash_order, bhash_order, i;
-	int rc = proto_register(&dccp_v4_prot, 1);
+	int rc = proto_register(&dccp_prot, 1);
 
 	if (rc)
 		goto out;
@@ -872,7 +872,7 @@ out_free_bind_bucket_cachep:
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
 	dccp_hashinfo.bind_bucket_cachep = NULL;
 out_proto_unregister:
-	proto_unregister(&dccp_v4_prot);
+	proto_unregister(&dccp_prot);
 	goto out;
 }
 
@@ -895,7 +895,7 @@ static void __exit dccp_fini(void)
 		   get_order(dccp_hashinfo.ehash_size *
 			     sizeof(struct inet_ehash_bucket)));
 	kmem_cache_destroy(dccp_hashinfo.bind_bucket_cachep);
-	proto_unregister(&dccp_v4_prot);
+	proto_unregister(&dccp_prot);
 }
 
 module_init(dccp_init);

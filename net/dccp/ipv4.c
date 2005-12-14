@@ -1317,7 +1317,7 @@ static struct request_sock_ops dccp_request_sock_ops = {
 	.send_reset	= dccp_v4_ctl_send_reset,
 };
 
-struct proto dccp_v4_prot = {
+struct proto dccp_prot = {
 	.name			= "DCCP",
 	.owner			= THIS_MODULE,
 	.close			= dccp_close,

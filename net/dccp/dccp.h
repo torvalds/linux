@@ -59,7 +59,7 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 
 #define DCCP_RTO_MAX ((unsigned)(120 * HZ)) /* FIXME: using TCP value */
 
-extern struct proto dccp_v4_prot;
+extern struct proto dccp_prot;
 
 /* is seq1 < seq2 ? */
 static inline int before48(const u64 seq1, const u64 seq2)
