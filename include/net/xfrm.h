@@ -144,6 +144,9 @@ struct xfrm_state
 	 * transformer. */
 	struct xfrm_type	*type;
 
+	/* Security context */
+	struct xfrm_sec_ctx	*security;
+
 	/* Private data of this transformer, format is opaque,
 	 * interpreted by xfrm_type methods. */
 	void			*data;
@@ -298,6 +301,7 @@ struct xfrm_policy
 	__u8			flags;
 	__u8			dead;
 	__u8			xfrm_nr;
+	struct xfrm_sec_ctx	*security;
 	struct xfrm_tmpl       	xfrm_vec[XFRM_MAX_DEPTH];
 };
 
@@ -509,6 +513,25 @@ xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
 	}
 	return 0;
 }
+
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+/*	If neither has a context --> match
+ * 	Otherwise, both must have a context and the sids, doi, alg must match
+ */
+static inline int xfrm_sec_ctx_match(struct xfrm_sec_ctx *s1, struct xfrm_sec_ctx *s2)
+{
+	return ((!s1 && !s2) ||
+		(s1 && s2 &&
+		 (s1->ctx_sid == s2->ctx_sid) &&
+		 (s1->ctx_doi == s2->ctx_doi) &&
+		 (s1->ctx_alg == s2->ctx_alg)));
+}
+#else
+static inline int xfrm_sec_ctx_match(struct xfrm_sec_ctx *s1, struct xfrm_sec_ctx *s2)
+{
+	return 1;
+}
+#endif
 
 /* A struct encoding bundle of transformations to apply to some set of flow.
  *
@@ -878,8 +901,8 @@ static inline int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsig
 struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
 extern int xfrm_policy_walk(int (*func)(struct xfrm_policy *, int, int, void*), void *);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
-struct xfrm_policy *xfrm_policy_bysel(int dir, struct xfrm_selector *sel,
-				      int delete);
+struct xfrm_policy *xfrm_policy_bysel_ctx(int dir, struct xfrm_selector *sel,
+					  struct xfrm_sec_ctx *ctx, int delete);
 struct xfrm_policy *xfrm_policy_byid(int dir, u32 id, int delete);
 void xfrm_policy_flush(void);
 u32 xfrm_get_acqseq(void);
