@@ -37,7 +37,8 @@ EXPORT_SYMBOL(inet_csk_timer_bug_msg);
  */
 int sysctl_local_port_range[2] = { 1024, 4999 };
 
-static inline int inet_csk_bind_conflict(struct sock *sk, struct inet_bind_bucket *tb)
+int inet_csk_bind_conflict(const struct sock *sk,
+			   const struct inet_bind_bucket *tb)
 {
 	const u32 sk_rcv_saddr = inet_rcv_saddr(sk);
 	struct sock *sk2;
@@ -62,11 +63,15 @@ static inline int inet_csk_bind_conflict(struct sock *sk, struct inet_bind_bucke
 	return node != NULL;
 }
 
+EXPORT_SYMBOL_GPL(inet_csk_bind_conflict);
+
 /* Obtain a reference to a local port for the given sock,
  * if snum is zero it means select any available local port.
  */
 int inet_csk_get_port(struct inet_hashinfo *hashinfo,
-		      struct sock *sk, unsigned short snum)
+		      struct sock *sk, unsigned short snum,
+		      int (*bind_conflict)(const struct sock *sk,
+					   const struct inet_bind_bucket *tb))
 {
 	struct inet_bind_hashbucket *head;
 	struct hlist_node *node;
@@ -125,7 +130,7 @@ tb_found:
 			goto success;
 		} else {
 			ret = 1;
-			if (inet_csk_bind_conflict(sk, tb))
+			if (bind_conflict(sk, tb))
 				goto fail_unlock;
 		}
 	}

@@ -76,8 +76,8 @@ static int	tcp_v6_xmit(struct sk_buff *skb, int ipfragok);
 static struct tcp_func ipv6_mapped;
 static struct tcp_func ipv6_specific;
 
-static inline int tcp_v6_bind_conflict(const struct sock *sk,
-				       const struct inet_bind_bucket *tb)
+int inet6_csk_bind_conflict(const struct sock *sk,
+			    const struct inet_bind_bucket *tb)
 {
 	const struct sock *sk2;
 	const struct hlist_node *node;
@@ -97,97 +97,10 @@ static inline int tcp_v6_bind_conflict(const struct sock *sk,
 	return node != NULL;
 }
 
-/* Grrr, addr_type already calculated by caller, but I don't want
- * to add some silly "cookie" argument to this method just for that.
- * But it doesn't matter, the recalculation is in the rarest path
- * this function ever takes.
- */
 static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 {
-	struct inet_bind_hashbucket *head;
-	struct inet_bind_bucket *tb;
-	struct hlist_node *node;
-	int ret;
-
-	local_bh_disable();
-	if (snum == 0) {
-		int low = sysctl_local_port_range[0];
-		int high = sysctl_local_port_range[1];
-		int remaining = (high - low) + 1;
-		int rover = net_random() % (high - low) + low;
-
-		do {
-			head = &tcp_hashinfo.bhash[inet_bhashfn(rover, tcp_hashinfo.bhash_size)];
-			spin_lock(&head->lock);
-			inet_bind_bucket_for_each(tb, node, &head->chain)
-				if (tb->port == rover)
-					goto next;
-			break;
-		next:
-			spin_unlock(&head->lock);
-			if (++rover > high)
-				rover = low;
-		} while (--remaining > 0);
-
-		/* Exhausted local port range during search?  It is not
-		 * possible for us to be holding one of the bind hash
-		 * locks if this test triggers, because if 'remaining'
-		 * drops to zero, we broke out of the do/while loop at
-		 * the top level, not from the 'break;' statement.
-		 */
-		ret = 1;
-		if (unlikely(remaining <= 0))
-			goto fail;
-
-		/* OK, here is the one we will use. */
-		snum = rover;
-	} else {
-		head = &tcp_hashinfo.bhash[inet_bhashfn(snum, tcp_hashinfo.bhash_size)];
-		spin_lock(&head->lock);
-		inet_bind_bucket_for_each(tb, node, &head->chain)
-			if (tb->port == snum)
-				goto tb_found;
-	}
-	tb = NULL;
-	goto tb_not_found;
-tb_found:
-	if (tb && !hlist_empty(&tb->owners)) {
-		if (tb->fastreuse > 0 && sk->sk_reuse &&
-		    sk->sk_state != TCP_LISTEN) {
-			goto success;
-		} else {
-			ret = 1;
-			if (tcp_v6_bind_conflict(sk, tb))
-				goto fail_unlock;
-		}
-	}
-tb_not_found:
-	ret = 1;
-	if (tb == NULL) {
-	       	tb = inet_bind_bucket_create(tcp_hashinfo.bind_bucket_cachep, head, snum);
-		if (tb == NULL)
-			goto fail_unlock;
-	}
-	if (hlist_empty(&tb->owners)) {
-		if (sk->sk_reuse && sk->sk_state != TCP_LISTEN)
-			tb->fastreuse = 1;
-		else
-			tb->fastreuse = 0;
-	} else if (tb->fastreuse &&
-		   (!sk->sk_reuse || sk->sk_state == TCP_LISTEN))
-		tb->fastreuse = 0;
-
-success:
-	if (!inet_csk(sk)->icsk_bind_hash)
-		inet_bind_hash(sk, tb, snum);
-	BUG_TRAP(inet_csk(sk)->icsk_bind_hash == tb);
-	ret = 0;
-
-fail_unlock:
-	spin_unlock(&head->lock);
-fail:
-	local_bh_enable();
-	return ret;
+	return inet_csk_get_port(&tcp_hashinfo, sk, snum,
+				 inet6_csk_bind_conflict);
 }
 
 static __inline__ void __tcp_v6_hash(struct sock *sk)

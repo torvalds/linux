@@ -97,7 +97,8 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 
 static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
 {
-	return inet_csk_get_port(&tcp_hashinfo, sk, snum);
+	return inet_csk_get_port(&tcp_hashinfo, sk, snum,
+				 inet_csk_bind_conflict);
 }
 
 static void tcp_v4_hash(struct sock *sk)

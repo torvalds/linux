@@ -37,7 +37,8 @@ EXPORT_SYMBOL_GPL(dccp_hashinfo);
 
 static int dccp_v4_get_port(struct sock *sk, const unsigned short snum)
 {
-	return inet_csk_get_port(&dccp_hashinfo, sk, snum);
+	return inet_csk_get_port(&dccp_hashinfo, sk, snum,
+				 inet_csk_bind_conflict);
 }
 
 static void dccp_v4_hash(struct sock *sk)

@@ -192,8 +192,12 @@ extern struct request_sock *inet_csk_search_req(const struct sock *sk,
 						const __u16 rport,
 						const __u32 raddr,
 						const __u32 laddr);
+extern int inet_csk_bind_conflict(const struct sock *sk,
+				  const struct inet_bind_bucket *tb);
 extern int inet_csk_get_port(struct inet_hashinfo *hashinfo,
-			     struct sock *sk, unsigned short snum);
+			     struct sock *sk, unsigned short snum,
+			     int (*bind_conflict)(const struct sock *sk,
+						  const struct inet_bind_bucket *tb));
 
 extern struct dst_entry* inet_csk_route_req(struct sock *sk,
 					    const struct request_sock *req);
