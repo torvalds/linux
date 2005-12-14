@@ -2192,6 +2192,7 @@ static int skge_up(struct net_device *dev)
 	kfree(skge->rx_ring.start);
  free_pci_mem:
 	pci_free_consistent(hw->pdev, skge->mem_size, skge->mem, skge->dma);
+	skge->mem = NULL;
 
 	return err;
 }
@@ -2201,6 +2202,9 @@ static int skge_down(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
+
+	if (skge->mem == NULL)
+		return 0;
 
 	if (netif_msg_ifdown(skge))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
@@ -2258,6 +2262,7 @@ static int skge_down(struct net_device *dev)
 	kfree(skge->rx_ring.start);
 	kfree(skge->tx_ring.start);
 	pci_free_consistent(hw->pdev, skge->mem_size, skge->mem, skge->dma);
+	skge->mem = NULL;
 	return 0;
 }
 
@@ -2418,18 +2423,23 @@ static void skge_tx_timeout(struct net_device *dev)
 
 static int skge_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int err = 0;
-	int running = netif_running(dev);
+	int err;
 
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
+	if (!netif_running(dev)) {
+		dev->mtu = new_mtu;
+		return 0;
+	}
 
-	if (running)
-		skge_down(dev);
+	skge_down(dev);
+
 	dev->mtu = new_mtu;
-	if (running)
-		skge_up(dev);
+
+	err = skge_up(dev);
+	if (err)
+		dev_close(dev);
 
 	return err;
 }
