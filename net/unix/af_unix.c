@@ -1063,10 +1063,12 @@ restart:
 	/* Set credentials */
 	sk->sk_peercred = other->sk_peercred;
 
-	sock_hold(newsk);
-	unix_peer(sk)	= newsk;
 	sock->state	= SS_CONNECTED;
 	sk->sk_state	= TCP_ESTABLISHED;
+	sock_hold(newsk);
+
+	smp_mb__after_atomic_inc();	/* sock_hold() does an atomic_inc() */
+	unix_peer(sk)	= newsk;
 
 	unix_state_wunlock(sk);
 
@@ -1414,7 +1416,7 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	} else {
 		sunaddr = NULL;
 		err = -ENOTCONN;
-		other = unix_peer_get(sk);
+		other = unix_peer(sk);
 		if (!other)
 			goto out_err;
 	}
@@ -1476,7 +1478,6 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		other->sk_data_ready(other, size);
 		sent+=size;
 	}
-	sock_put(other);
 
 	scm_destroy(siocb->scm);
 	siocb->scm = NULL;
@@ -1491,8 +1492,6 @@ pipe_err:
 		send_sig(SIGPIPE,current,0);
 	err = -EPIPE;
 out_err:
-        if (other)
-		sock_put(other);
 	scm_destroy(siocb->scm);
 	siocb->scm = NULL;
 	return sent ? : err;
