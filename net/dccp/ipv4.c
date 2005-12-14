@@ -607,6 +607,15 @@ out:
 	sock_put(sk);
 }
 
+/* This routine computes an IPv4 DCCP checksum. */
+static void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
+{
+	const struct inet_sock *inet = inet_sk(sk);
+	struct dccp_hdr *dh = dccp_hdr(skb);
+
+	dh->dccph_checksum = dccp_v4_checksum(skb, inet->saddr, inet->daddr);
+}
+
 int dccp_v4_send_reset(struct sock *sk, enum dccp_reset_codes code)
 {
 	struct sk_buff *skb;
@@ -1195,6 +1204,19 @@ do_time_wait:
 	goto no_dccp_socket;
 }
 
+struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
+	.queue_xmit	= ip_queue_xmit,
+	.send_check	= dccp_v4_send_check,
+	.rebuild_header	= inet_sk_rebuild_header,
+	.conn_request	= dccp_v4_conn_request,
+	.syn_recv_sock	= dccp_v4_request_recv_sock,
+	.net_header_len	= sizeof(struct iphdr),
+	.setsockopt	= ip_setsockopt,
+	.getsockopt	= ip_getsockopt,
+	.addr2sockaddr	= inet_csk_addr2sockaddr,
+	.sockaddr_len	= sizeof(struct sockaddr_in),
+};
+
 static int dccp_v4_init_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -1240,6 +1262,7 @@ static int dccp_v4_init_sock(struct sock *sk)
 	inet_csk(sk)->icsk_rto = DCCP_TIMEOUT_INIT;
 	sk->sk_state = DCCP_CLOSED;
 	sk->sk_write_space = dccp_write_space;
+	inet_csk(sk)->icsk_af_ops = &dccp_ipv4_af_ops;
 	dp->dccps_mss_cache = 536;
 	dp->dccps_role = DCCP_ROLE_UNDEFINED;
 	dp->dccps_service = DCCP_SERVICE_INVALID_VALUE;

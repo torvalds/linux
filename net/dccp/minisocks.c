@@ -214,7 +214,7 @@ struct sock *dccp_check_req(struct sock *sk, struct sk_buff *skb,
 		goto drop;
 	}
 
-	child = dccp_v4_request_recv_sock(sk, skb, req, NULL);
+	child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb, req, NULL);
 	if (child == NULL)
 		goto listen_overflow;
 

@@ -254,7 +254,9 @@ int dccp_setsockopt(struct sock *sk, int level, int optname,
 	int val;
 
 	if (level != SOL_DCCP)
-		return ip_setsockopt(sk, level, optname, optval, optlen);
+		return inet_csk(sk)->icsk_af_ops->setsockopt(sk, level,
+							     optname, optval,
+							     optlen);
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -320,8 +322,9 @@ int dccp_getsockopt(struct sock *sk, int level, int optname,
 	int val, len;
 
 	if (level != SOL_DCCP)
-		return ip_getsockopt(sk, level, optname, optval, optlen);
-
+		return inet_csk(sk)->icsk_af_ops->getsockopt(sk, level,
+							     optname, optval,
+							     optlen);
 	if (get_user(len, optlen))
 		return -EFAULT;
 

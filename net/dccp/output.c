@@ -43,6 +43,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 {
 	if (likely(skb != NULL)) {
 		const struct inet_sock *inet = inet_sk(sk);
+		const struct inet_connection_sock *icsk = inet_csk(sk);
 		struct dccp_sock *dp = dccp_sk(sk);
 		struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 		struct dccp_hdr *dh;
@@ -108,8 +109,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			break;
 		}
 
-		dh->dccph_checksum = dccp_v4_checksum(skb, inet->saddr,
-						      inet->daddr);
+		icsk->icsk_af_ops->send_check(sk, skb->len, skb);
 
 		if (set_ack)
 			dccp_event_ack_sent(sk);
@@ -117,7 +117,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 
 		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-		err = ip_queue_xmit(skb, 0);
+		err = icsk->icsk_af_ops->queue_xmit(skb, 0);
 		if (err <= 0)
 			return err;
 
@@ -135,16 +135,14 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	int mss_now;
-
 	/*
 	 * FIXME: we really should be using the af_specific thing to support
 	 * 	  IPv6.
 	 * mss_now = pmtu - tp->af_specific->net_header_len -
 	 * 	     sizeof(struct dccp_hdr) - sizeof(struct dccp_hdr_ext);
 	 */
-	mss_now = pmtu - sizeof(struct iphdr) - sizeof(struct dccp_hdr) -
-		  sizeof(struct dccp_hdr_ext);
+	int mss_now = (pmtu - inet_csk(sk)->icsk_af_ops->net_header_len -
+		       sizeof(struct dccp_hdr) - sizeof(struct dccp_hdr_ext));
 
 	/* Now subtract optional transport overhead */
 	mss_now -= dp->dccps_ext_header_len;
@@ -266,7 +264,7 @@ int dccp_write_xmit(struct sock *sk, struct sk_buff *skb, long *timeo)
 
 int dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 {
-	if (inet_sk_rebuild_header(sk) != 0)
+	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk) != 0)
 		return -EHOSTUNREACH; /* Routing failure or similar. */
 
 	return dccp_transmit_skb(sk, (skb_cloned(skb) ?
