@@ -1332,8 +1332,8 @@ intr_handler_t t1_select_intr_handler(adapter_t *adapter)
  *
  * This runs with softirqs disabled.
  */
-unsigned int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
-		       unsigned int qid, struct net_device *dev)
+static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
+		     unsigned int qid, struct net_device *dev)
 {
 	struct sge *sge = adapter->sge;
 	struct cmdQ *q = &sge->cmdQ[qid];
@@ -1352,9 +1352,10 @@ unsigned int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 			set_bit(dev->if_port, &sge->stopped_tx_queues);
 			sge->stats.cmdQ_full[3]++;
 			spin_unlock(&q->lock);
-			CH_ERR("%s: Tx ring full while queue awake!\n",
-			       adapter->name);
-			return 1;
+			if (!netif_queue_stopped(dev))
+				CH_ERR("%s: Tx ring full while queue awake!\n",
+				       adapter->name);
+			return NETDEV_TX_BUSY;
 		}
 		if (unlikely(credits - count < q->stop_thres)) {
 			sge->stats.cmdQ_full[3]++;
@@ -1389,7 +1390,7 @@ unsigned int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 			writel(F_CMDQ0_ENABLE, adapter->regs + A_SG_DOORBELL);
 		}
 	}
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 #define MK_ETH_TYPE_MSS(type, mss) (((mss) & 0x3FFF) | ((type) << 14))
@@ -1449,7 +1450,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(skb->len < ETH_HLEN ||
 			     skb->len > dev->mtu + eth_hdr_len(skb->data))) {
 			dev_kfree_skb_any(skb);
-			return NET_XMIT_SUCCESS;
+			return NETDEV_TX_OK;
 		}
 
 		/*
@@ -1467,7 +1468,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb = skb_realloc_headroom(skb, sizeof(*cpl));
 			dev_kfree_skb_any(orig_skb);
 			if (!skb)
-				return -ENOMEM;
+				return NETDEV_TX_OK;
 		}
 
 		if (!(adapter->flags & UDP_CSUM_CAPABLE) &&
@@ -1475,7 +1476,7 @@ int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		    skb->nh.iph->protocol == IPPROTO_UDP)
 			if (unlikely(skb_checksum_help(skb, 0))) {
 				dev_kfree_skb_any(skb);
-				return -ENOMEM;
+				return NETDEV_TX_OK;
 			}
 
 		/* Hmmm, assuming to catch the gratious arp... and we'll use
