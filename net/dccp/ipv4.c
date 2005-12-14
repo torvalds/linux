@@ -721,10 +721,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	return 0;
 
 drop_and_free:
-	/*
-	 * FIXME: should be reqsk_free after implementing req->rsk_ops
-	 */
-	__reqsk_free(req);
+	reqsk_free(req);
 drop:
 	DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
 	dcb->dccpd_reset_code = reset_code;
