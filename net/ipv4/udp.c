@@ -1081,7 +1081,7 @@ static int udp_v4_mcast_deliver(struct sk_buff *skb, struct udphdr *uh,
  * Otherwise, csum completion requires chacksumming packet body,
  * including udp header and folding it to skb->csum.
  */
-static int udp_checksum_init(struct sk_buff *skb, struct udphdr *uh,
+static void udp_checksum_init(struct sk_buff *skb, struct udphdr *uh,
 			     unsigned short ulen, u32 saddr, u32 daddr)
 {
 	if (uh->check == 0) {
@@ -1095,7 +1095,6 @@ static int udp_checksum_init(struct sk_buff *skb, struct udphdr *uh,
 	/* Probably, we should checksum udp header (it should be in cache
 	 * in any case) and data in tiny packets (< rx copybreak).
 	 */
-	return 0;
 }
 
 /*
@@ -1128,8 +1127,7 @@ int udp_rcv(struct sk_buff *skb)
 	if (pskb_trim_rcsum(skb, ulen))
 		goto short_packet;
 
-	if (udp_checksum_init(skb, uh, ulen, saddr, daddr) < 0)
-		goto csum_error;
+	udp_checksum_init(skb, uh, ulen, saddr, daddr);
 
 	if(rt->rt_flags & (RTCF_BROADCAST|RTCF_MULTICAST))
 		return udp_v4_mcast_deliver(skb, uh, saddr, daddr);
