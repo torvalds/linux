@@ -397,6 +397,7 @@ static int skge_set_ring_param(struct net_device *dev,
 			       struct ethtool_ringparam *p)
 {
 	struct skge_port *skge = netdev_priv(dev);
+	int err;
 
 	if (p->rx_pending == 0 || p->rx_pending > MAX_RX_RING_SIZE ||
 	    p->tx_pending == 0 || p->tx_pending > MAX_TX_RING_SIZE)
@@ -407,7 +408,9 @@ static int skge_set_ring_param(struct net_device *dev,
 
 	if (netif_running(dev)) {
 		skge_down(dev);
-		skge_up(dev);
+		err = skge_up(dev);
+		if (err)
+			dev_close(dev);
 	}
 
 	return 0;
