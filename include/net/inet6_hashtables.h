@@ -48,6 +48,32 @@ static inline int inet6_sk_ehashfn(const struct sock *sk)
 	return inet6_ehashfn(laddr, lport, faddr, fport);
 }
 
+static inline void __inet6_hash(struct inet_hashinfo *hashinfo,
+				struct sock *sk)
+{
+	struct hlist_head *list;
+	rwlock_t *lock;
+
+	BUG_TRAP(sk_unhashed(sk));
+
+	if (sk->sk_state == TCP_LISTEN) {
+		list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		lock = &hashinfo->lhash_lock;
+		inet_listen_wlock(hashinfo);
+	} else {
+		unsigned int hash;
+		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
+		hash &= (hashinfo->ehash_size - 1);
+		list = &hashinfo->ehash[hash].chain;
+		lock = &hashinfo->ehash[hash].lock;
+		write_lock(lock);
+	}
+
+	__sk_add_node(sk, list);
+	sock_prot_inc_use(sk->sk_prot);
+	write_unlock(lock);
+}
+
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
  * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM

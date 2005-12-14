@@ -103,32 +103,6 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 				 inet6_csk_bind_conflict);
 }
 
-static __inline__ void __tcp_v6_hash(struct sock *sk)
-{
-	struct hlist_head *list;
-	rwlock_t *lock;
-
-	BUG_TRAP(sk_unhashed(sk));
-
-	if (sk->sk_state == TCP_LISTEN) {
-		list = &tcp_hashinfo.listening_hash[inet_sk_listen_hashfn(sk)];
-		lock = &tcp_hashinfo.lhash_lock;
-		inet_listen_wlock(&tcp_hashinfo);
-	} else {
-		unsigned int hash;
-		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
-		hash &= (tcp_hashinfo.ehash_size - 1);
-		list = &tcp_hashinfo.ehash[hash].chain;
-		lock = &tcp_hashinfo.ehash[hash].lock;
-		write_lock(lock);
-	}
-
-	__sk_add_node(sk, list);
-	sock_prot_inc_use(sk->sk_prot);
-	write_unlock(lock);
-}
-
-
 static void tcp_v6_hash(struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
@@ -139,7 +113,7 @@ static void tcp_v6_hash(struct sock *sk)
 			return;
 		}
 		local_bh_disable();
-		__tcp_v6_hash(sk);
+		__inet6_hash(&tcp_hashinfo, sk);
 		local_bh_enable();
 	}
 }
@@ -374,7 +348,7 @@ ok:
  		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
  			inet_sk(sk)->sport = htons(port);
- 			__tcp_v6_hash(sk);
+ 			__inet6_hash(&tcp_hashinfo, sk);
  		}
  		spin_unlock(&head->lock);
 
@@ -392,7 +366,7 @@ ok:
 	spin_lock_bh(&head->lock);
 
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		__tcp_v6_hash(sk);
+		__inet6_hash(&tcp_hashinfo, sk);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {
@@ -1295,7 +1269,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	newinet->daddr = newinet->saddr = newinet->rcv_saddr = LOOPBACK4_IPV6;
 
-	__tcp_v6_hash(newsk);
+	__inet6_hash(&tcp_hashinfo, newsk);
 	inet_inherit_port(&tcp_hashinfo, sk, newsk);
 
 	return newsk;
