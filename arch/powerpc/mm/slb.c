@@ -87,8 +87,8 @@ static void slb_flush_and_rebolt(void)
 		     /* Slot 2 - kernel stack */
 		     "slbmte	%2,%3\n"
 		     "isync"
-		     :: "r"(mk_vsid_data(VMALLOCBASE, vflags)),
-		        "r"(mk_esid_data(VMALLOCBASE, 1)),
+		     :: "r"(mk_vsid_data(VMALLOC_START, vflags)),
+		        "r"(mk_esid_data(VMALLOC_START, 1)),
 		        "r"(mk_vsid_data(ksp_esid_data, lflags)),
 		        "r"(ksp_esid_data)
 		     : "memory");
@@ -216,7 +216,7 @@ void slb_initialize(void)
 	create_slbe(PAGE_OFFSET, lflags, 0);
 
 	/* VMALLOC space has 4K pages always for now */
-	create_slbe(VMALLOCBASE, vflags, 1);
+	create_slbe(VMALLOC_START, vflags, 1);
 
 	/* We don't bolt the stack for the time being - we're in boot,
 	 * so the stack is in the bolted segment.  By the time it goes

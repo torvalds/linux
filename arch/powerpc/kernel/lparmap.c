@@ -18,8 +18,8 @@ const struct LparMap __attribute__((__section__(".text"))) xLparMap = {
 	.xEsids = {
 		{ .xKernelEsid = GET_ESID(PAGE_OFFSET),
 		  .xKernelVsid = KERNEL_VSID(PAGE_OFFSET), },
-		{ .xKernelEsid = GET_ESID(VMALLOCBASE),
-		  .xKernelVsid = KERNEL_VSID(VMALLOCBASE), },
+		{ .xKernelEsid = GET_ESID(VMALLOC_START),
+		  .xKernelVsid = KERNEL_VSID(VMALLOC_START), },
 	},
 
 	.xRanges = {

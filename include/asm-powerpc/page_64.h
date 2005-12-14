@@ -25,16 +25,6 @@
  */
 #define PAGE_FACTOR		(PAGE_SHIFT - HW_PAGE_SHIFT)
 
-#define REGION_SIZE   4UL
-#define REGION_SHIFT  60UL
-#define REGION_MASK   (((1UL<<REGION_SIZE)-1UL)<<REGION_SHIFT)
-
-#define VMALLOCBASE		ASM_CONST(0xD000000000000000)
-#define VMALLOC_REGION_ID	(VMALLOCBASE >> REGION_SHIFT)
-#define KERNEL_REGION_ID	(KERNELBASE >> REGION_SHIFT)
-#define USER_REGION_ID		(0UL)
-#define REGION_ID(ea)		(((unsigned long)(ea)) >> REGION_SHIFT)
-
 /* Segment size */
 #define SID_SHIFT		28
 #define SID_MASK		0xfffffffffUL
