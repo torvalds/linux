@@ -297,6 +297,8 @@ struct tcp6_sock {
 	struct ipv6_pinfo inet6;
 };
 
+extern int inet6_sk_rebuild_header(struct sock *sk);
+
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 {

@@ -15,8 +15,15 @@
 
 #include <linux/types.h>
 
-struct sock;
+struct in6_addr;
+struct inet_bind_bucket;
 struct request_sock;
+struct sk_buff;
+struct sock;
+struct sockaddr;
+
+extern int inet6_csk_bind_conflict(const struct sock *sk,
+				   const struct inet_bind_bucket *tb);
 
 extern struct request_sock *inet6_csk_search_req(const struct sock *sk,
 						 struct request_sock ***prevp,
@@ -28,4 +35,8 @@ extern struct request_sock *inet6_csk_search_req(const struct sock *sk,
 extern void inet6_csk_reqsk_queue_hash_add(struct sock *sk,
 					   struct request_sock *req,
 					   const unsigned long timeout);
+
+extern void inet6_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
+
+extern int inet6_csk_xmit(struct sk_buff *skb, int ipfragok);
 #endif /* _INET6_CONNECTION_SOCK_H */
