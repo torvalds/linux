@@ -10826,12 +10826,14 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	tg3_full_lock(tp, 0);
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
+	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
 	tg3_full_unlock(tp);
 
 	err = tg3_set_power_state(tp, pci_choose_state(pdev, state));
 	if (err) {
 		tg3_full_lock(tp, 0);
 
+		tp->tg3_flags |= TG3_FLAG_INIT_COMPLETE;
 		tg3_init_hw(tp);
 
 		tp->timer.expires = jiffies + tp->timer_offset;
@@ -10865,6 +10867,7 @@ static int tg3_resume(struct pci_dev *pdev)
 
 	tg3_full_lock(tp, 0);
 
+	tp->tg3_flags |= TG3_FLAG_INIT_COMPLETE;
 	tg3_init_hw(tp);
 
 	tp->timer.expires = jiffies + tp->timer_offset;
