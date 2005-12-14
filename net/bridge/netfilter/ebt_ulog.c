@@ -3,6 +3,7 @@
  *
  *	Authors:
  *	Bart De Schuymer <bdschuym@pandora.be>
+ *	Harald Welte <laforge@netfilter.org>
  *
  *  November, 2004
  *
@@ -115,14 +116,13 @@ static struct sk_buff *ulog_alloc_skb(unsigned int size)
 	return skb;
 }
 
-static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
+static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
    const struct net_device *in, const struct net_device *out,
-   const void *data, unsigned int datalen)
+   const struct ebt_ulog_info *uloginfo, const char *prefix)
 {
 	ebt_ulog_packet_msg_t *pm;
 	size_t size, copy_len;
 	struct nlmsghdr *nlh;
-	struct ebt_ulog_info *uloginfo = (struct ebt_ulog_info *)data;
 	unsigned int group = uloginfo->nlgroup;
 	ebt_ulog_buff_t *ub = &ulog_buffers[group];
 	spinlock_t *lock = &ub->lock;
@@ -216,6 +216,39 @@ alloc_failure:
 	goto unlock;
 }
 
+/* this function is registered with the netfilter core */
+static void ebt_log_packet(unsigned int pf, unsigned int hooknum,
+   const struct sk_buff *skb, const struct net_device *in,
+   const struct net_device *out, const struct nf_loginfo *li,
+   const char *prefix)
+{
+	struct ebt_ulog_info loginfo;
+
+	if (!li || li->type != NF_LOG_TYPE_ULOG) {
+		loginfo.nlgroup = EBT_ULOG_DEFAULT_NLGROUP;
+		loginfo.cprange = 0;
+		loginfo.qthreshold = EBT_ULOG_DEFAULT_QTHRESHOLD;
+		loginfo.prefix[0] = '\0';
+	} else {
+		loginfo.nlgroup = li->u.ulog.group;
+		loginfo.cprange = li->u.ulog.copy_len;
+		loginfo.qthreshold = li->u.ulog.qthreshold;
+		strlcpy(loginfo.prefix, prefix, sizeof(loginfo.prefix));
+	}
+
+	ebt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
+}
+
+static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
+   const struct net_device *in, const struct net_device *out,
+   const void *data, unsigned int datalen)
+{
+	struct ebt_ulog_info *uloginfo = (struct ebt_ulog_info *)data;
+
+	ebt_ulog_packet(hooknr, skb, in, out, uloginfo, NULL);
+}
+
+
 static int ebt_ulog_check(const char *tablename, unsigned int hookmask,
    const struct ebt_entry *e, void *data, unsigned int datalen)
 {
@@ -237,6 +270,12 @@ static struct ebt_watcher ulog = {
 	.name		= EBT_ULOG_WATCHER,
 	.watcher	= ebt_ulog,
 	.check		= ebt_ulog_check,
+	.me		= THIS_MODULE,
+};
+
+static struct nf_logger ebt_ulog_logger = {
+	.name		= EBT_ULOG_WATCHER,
+	.logfn		= &ebt_log_packet,
 	.me		= THIS_MODULE,
 };
 
@@ -265,6 +304,13 @@ static int __init init(void)
 	else if ((ret = ebt_register_watcher(&ulog)))
 		sock_release(ebtulognl->sk_socket);
 
+	if (nf_log_register(PF_BRIDGE, &ebt_ulog_logger) < 0) {
+		printk(KERN_WARNING "ebt_ulog: not logging via ulog "
+		       "since somebody else already registered for PF_BRIDGE\n");
+		/* we cannot make module load fail here, since otherwise
+		 * ebtables userspace would abort */
+	}
+
 	return ret;
 }
 
@@ -273,6 +319,7 @@ static void __exit fini(void)
 	ebt_ulog_buff_t *ub;
 	int i;
 
+	nf_log_unregister_logger(&ebt_ulog_logger);
 	ebt_unregister_watcher(&ulog);
 	for (i = 0; i < EBT_ULOG_MAXNLGROUPS; i++) {
 		ub = &ulog_buffers[i];
