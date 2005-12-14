@@ -45,6 +45,7 @@ struct inet_skb_parm
 #define IPSKB_TRANSLATED	2
 #define IPSKB_FORWARDED		4
 #define IPSKB_XFRM_TUNNEL_SIZE	8
+#define IPSKB_FRAG_COMPLETE	16
 };
 
 struct ipcm_cookie
@@ -168,6 +169,7 @@ extern int sysctl_ipfrag_high_thresh;
 extern int sysctl_ipfrag_low_thresh;
 extern int sysctl_ipfrag_time;
 extern int sysctl_ipfrag_secret_interval;
+extern int sysctl_ipfrag_max_dist;
 
 /* From inetpeer.c */
 extern int inet_peer_threshold;
