@@ -303,4 +303,6 @@ static inline unsigned int inet_csk_listen_poll(const struct sock *sk)
 extern int  inet_csk_listen_start(struct sock *sk, const int nr_table_entries);
 extern void inet_csk_listen_stop(struct sock *sk);
 
+extern void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
+
 #endif /* _INET_CONNECTION_SOCK_H */

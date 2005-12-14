@@ -1314,16 +1314,6 @@ do_time_wait:
 	goto discard_it;
 }
 
-static void v4_addr2sockaddr(struct sock *sk, struct sockaddr * uaddr)
-{
-	struct sockaddr_in *sin = (struct sockaddr_in *) uaddr;
-	struct inet_sock *inet = inet_sk(sk);
-
-	sin->sin_family		= AF_INET;
-	sin->sin_addr.s_addr	= inet->daddr;
-	sin->sin_port		= inet->dport;
-}
-
 /* VJ's idea. Save last timestamp seen from this destination
  * and hold it at least for normal timewait interval to use for duplicate
  * segment detection in subsequent connections, before they enter synchronized
@@ -1392,7 +1382,7 @@ struct inet_connection_sock_af_ops ipv4_specific = {
 	.net_header_len	=	sizeof(struct iphdr),
 	.setsockopt	=	ip_setsockopt,
 	.getsockopt	=	ip_getsockopt,
-	.addr2sockaddr	=	v4_addr2sockaddr,
+	.addr2sockaddr	=	inet_csk_addr2sockaddr,
 	.sockaddr_len	=	sizeof(struct sockaddr_in),
 };
 
