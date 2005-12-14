@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.43"
-#define DRV_MODULE_RELDATE	"Oct 24, 2005"
+#define DRV_MODULE_VERSION	"3.45"
+#define DRV_MODULE_RELDATE	"Dec 13, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -1025,7 +1025,9 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 
 
 	if ((tp->tg3_flags & TG3_FLAG_WOL_ENABLE) != 0 ||
-	    (tp_peer->tg3_flags & TG3_FLAG_WOL_ENABLE) != 0) {
+	    (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0 ||
+	    (tp_peer->tg3_flags & TG3_FLAG_WOL_ENABLE) != 0 ||
+	    (tp_peer->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701) {
 			tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
@@ -1105,6 +1107,8 @@ static int tg3_setup_phy(struct tg3 *, int);
 
 static void tg3_write_sig_post_reset(struct tg3 *, int);
 static int tg3_halt_cpu(struct tg3 *, u32);
+static int tg3_nvram_lock(struct tg3 *);
+static void tg3_nvram_unlock(struct tg3 *);
 
 static int tg3_set_power_state(struct tg3 *tp, int state)
 {
@@ -1178,6 +1182,21 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 		tp->link_config.autoneg = AUTONEG_ENABLE;
 		tg3_setup_phy(tp, 0);
 	}
+
+	if (!(tp->tg3_flags & TG3_FLAG_ENABLE_ASF)) {
+		int i;
+		u32 val;
+
+		for (i = 0; i < 200; i++) {
+			tg3_read_mem(tp, NIC_SRAM_FW_ASF_STATUS_MBOX, &val);
+			if (val == ~NIC_SRAM_FIRMWARE_MBOX_MAGIC1)
+				break;
+			msleep(1);
+		}
+	}
+	tg3_write_mem(tp, NIC_SRAM_WOL_MBOX, WOL_SIGNATURE |
+					     WOL_DRV_STATE_SHUTDOWN |
+					     WOL_DRV_WOL | WOL_SET_MAGIC_PKT);
 
 	pci_read_config_word(tp->pdev, pm + PCI_PM_PMC, &power_caps);
 
@@ -1268,6 +1287,17 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 		}
 	}
 
+	if (!(tp->tg3_flags & TG3_FLAG_WOL_ENABLE) &&
+	    !(tp->tg3_flags & TG3_FLAG_ENABLE_ASF)) {
+		/* Turn off the PHY */
+		if (!(tp->tg3_flags2 & TG3_FLG2_PHY_SERDES)) {
+			tg3_writephy(tp, MII_TG3_EXT_CTRL,
+				     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
+			tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
+			tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
+		}
+	}
+
 	tg3_frob_aux_power(tp);
 
 	/* Workaround for unstable PLL clock */
@@ -1277,8 +1307,12 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 
 		val &= ~((1 << 16) | (1 << 4) | (1 << 2) | (1 << 1) | 1);
 		tw32(0x7d00, val);
-		if (!(tp->tg3_flags & TG3_FLAG_ENABLE_ASF))
+		if (!(tp->tg3_flags & TG3_FLAG_ENABLE_ASF)) {
+			tg3_nvram_lock(tp);
 			tg3_halt_cpu(tp, RX_CPU_BASE);
+			tw32_f(NVRAM_SWARB, SWARB_REQ_CLR0);
+			tg3_nvram_unlock(tp);
+		}
 	}
 
 	/* Finally, set the new power state. */
@@ -1812,7 +1846,7 @@ static int tg3_setup_copper_phy(struct tg3 *tp, int force_reset)
 		}
 	}
 relink:
-	if (current_link_up == 0) {
+	if (current_link_up == 0 || tp->link_config.phy_is_low_power) {
 		u32 tmp;
 
 		tg3_phy_copper_begin(tp);
@@ -3565,12 +3599,15 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!spin_trylock(&tp->tx_lock))
 		return NETDEV_TX_LOCKED; 
 
-	/* This is a hard error, log it. */
 	if (unlikely(TX_BUFFS_AVAIL(tp) <= (skb_shinfo(skb)->nr_frags + 1))) {
-		netif_stop_queue(dev);
+		if (!netif_queue_stopped(dev)) {
+			netif_stop_queue(dev);
+
+			/* This is a hard error, log it. */
+			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when "
+			       "queue awake!\n", dev->name);
+		}
 		spin_unlock(&tp->tx_lock);
-		printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
-		       dev->name);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -8530,6 +8567,7 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5701) {
 		tp->tg3_flags |= TG3_FLAG_NVRAM;
 
+		tg3_nvram_lock(tp);
 		tg3_enable_nvram_access(tp);
 
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752)
@@ -8540,6 +8578,7 @@ static void __devinit tg3_nvram_init(struct tg3 *tp)
 		tg3_get_nvram_size(tp);
 
 		tg3_disable_nvram_access(tp);
+		tg3_nvram_unlock(tp);
 
 	} else {
 		tp->tg3_flags &= ~(TG3_FLAG_NVRAM | TG3_FLAG_NVRAM_BUFFERED);
@@ -8637,9 +8676,9 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 	if (ret == 0)
 		*val = swab32(tr32(NVRAM_RDDATA));
 
-	tg3_nvram_unlock(tp);
-
 	tg3_disable_nvram_access(tp);
+
+	tg3_nvram_unlock(tp);
 
 	return ret;
 }
@@ -8725,6 +8764,10 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 
 		offset = offset + (pagesize - page_off);
 
+		/* Nvram lock released by tg3_nvram_read() above,
+		 * so need to get it again.
+		 */
+		tg3_nvram_lock(tp);
 		tg3_enable_nvram_access(tp);
 
 		/*
@@ -10434,8 +10477,13 @@ static struct pci_dev * __devinit tg3_find_5704_peer(struct tg3 *tp)
 			break;
 		pci_dev_put(peer);
 	}
-	if (!peer || peer == tp->pdev)
-		BUG();
+	/* 5704 can be configured in single-port mode, set peer to
+	 * tp->pdev in that case.
+	 */
+	if (!peer) {
+		peer = tp->pdev;
+		return peer;
+	}
 
 	/*
 	 * We don't need to keep the refcount elevated; there's no way
@@ -10817,12 +10865,14 @@ static int tg3_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	tg3_full_lock(tp, 0);
 	tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
+	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
 	tg3_full_unlock(tp);
 
 	err = tg3_set_power_state(tp, pci_choose_state(pdev, state));
 	if (err) {
 		tg3_full_lock(tp, 0);
 
+		tp->tg3_flags |= TG3_FLAG_INIT_COMPLETE;
 		tg3_init_hw(tp);
 
 		tp->timer.expires = jiffies + tp->timer_offset;
@@ -10856,6 +10906,7 @@ static int tg3_resume(struct pci_dev *pdev)
 
 	tg3_full_lock(tp, 0);
 
+	tp->tg3_flags |= TG3_FLAG_INIT_COMPLETE;
 	tg3_init_hw(tp);
 
 	tp->timer.expires = jiffies + tp->timer_offset;

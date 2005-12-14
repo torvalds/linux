@@ -1,12 +1,12 @@
 config VIDEO_SAA7146
-        tristate
+	tristate
 	select I2C
 
 config VIDEO_SAA7146_VV
-        tristate
+	tristate
 	select VIDEO_BUF
 	select VIDEO_VIDEOBUF
 	select VIDEO_SAA7146
 
 config VIDEO_VIDEOBUF
-        tristate
+	tristate

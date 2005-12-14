@@ -206,7 +206,7 @@ config HOTPLUG
 	  outside the kernel tree does. Such modules require Y here.
 
 config KOBJECT_UEVENT
-	bool "Kernel Userspace Events"
+	bool "Kernel Userspace Events" if EMBEDDED
 	depends on NET
 	default y
 	help
@@ -339,7 +339,7 @@ config EPOLL
 	  support for epoll family of system calls.
 
 config CC_OPTIMIZE_FOR_SIZE
-	bool "Optimize for size" if EMBEDDED
+	bool "Optimize for size"
 	default y if ARM || H8300
 	help
 	  Enabling this option will pass "-Os" instead of "-O2" to gcc

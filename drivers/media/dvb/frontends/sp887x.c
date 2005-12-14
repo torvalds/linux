@@ -80,7 +80,7 @@ static int sp887x_readreg (struct sp887x_state* state, u16 reg)
 	u8 b1 [2];
 	int ret;
 	struct i2c_msg msg[] = {{ .addr = state->config->demod_address, .flags = 0, .buf = b0, .len = 2 },
-		         { .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 2 }};
+			 { .addr = state->config->demod_address, .flags = I2C_M_RD, .buf = b1, .len = 2 }};
 
 	if ((ret = i2c_transfer(state->i2c, msg, 2)) != 2) {
 		printk("%s: readreg error (ret == %i)\n", __FUNCTION__, ret);
@@ -498,7 +498,7 @@ static int sp887x_sleep(struct dvb_frontend* fe)
 static int sp887x_init(struct dvb_frontend* fe)
 {
 	struct sp887x_state* state = fe->demodulator_priv;
-        const struct firmware *fw = NULL;
+	const struct firmware *fw = NULL;
 	int ret;
 
 	if (!state->initialised) {
@@ -528,10 +528,10 @@ static int sp887x_init(struct dvb_frontend* fe)
 
 static int sp887x_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* fesettings)
 {
-        fesettings->min_delay_ms = 350;
-        fesettings->step_size = 166666*2;
-        fesettings->max_drift = (166666*2)+1;
-        return 0;
+	fesettings->min_delay_ms = 350;
+	fesettings->step_size = 166666*2;
+	fesettings->max_drift = (166666*2)+1;
+	return 0;
 }
 
 static void sp887x_release(struct dvb_frontend* fe)
@@ -581,7 +581,7 @@ static struct dvb_frontend_ops sp887x_ops = {
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-	                FE_CAN_RECOVER
+		        FE_CAN_RECOVER
 	},
 
 	.release = sp887x_release,

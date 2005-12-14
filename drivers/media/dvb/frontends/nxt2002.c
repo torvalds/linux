@@ -527,7 +527,7 @@ static int nxt2002_read_snr(struct dvb_frontend* fe, u16* snr)
 	else
 		snrdb = 1000*0 + ( 1000*(12-0) * ( temp2 - 0 ) / ( 0x7C00 - 0 ) );
 
-        /* the value reported back from the frontend will be FFFF=32db 0000=0db */
+	/* the value reported back from the frontend will be FFFF=32db 0000=0db */
 
 	*snr = snrdb * (0xFFFF/32000);
 
@@ -646,7 +646,7 @@ struct dvb_frontend* nxt2002_attach(const struct nxt2002_config* config,
 	memcpy(&state->ops, &nxt2002_ops, sizeof(struct dvb_frontend_ops));
 	state->initialised = 0;
 
-        /* Check the first 5 registers to ensure this a revision we can handle */
+	/* Check the first 5 registers to ensure this a revision we can handle */
 
 	i2c_readbytes(state, 0x00, buf, 5);
 	if (buf[0] != 0x04) goto error;		/* device id */
@@ -672,7 +672,7 @@ static struct dvb_frontend_ops nxt2002_ops = {
 		.type = FE_ATSC,
 		.frequency_min =  54000000,
 		.frequency_max = 860000000,
-                /* stepsize is just a guess */
+		/* stepsize is just a guess */
 		.frequency_stepsize = 166666,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

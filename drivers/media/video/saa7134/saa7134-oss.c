@@ -782,36 +782,36 @@ struct file_operations saa7134_mixer_fops = {
 
 static irqreturn_t saa7134_oss_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
-        struct saa7134_dmasound *dmasound = dev_id;
-        struct saa7134_dev *dev = dmasound->priv_data;
-        unsigned long report, status;
-        int loop, handled = 0;
+	struct saa7134_dmasound *dmasound = dev_id;
+	struct saa7134_dev *dev = dmasound->priv_data;
+	unsigned long report, status;
+	int loop, handled = 0;
 
-        for (loop = 0; loop < 10; loop++) {
-                report = saa_readl(SAA7134_IRQ_REPORT);
-                status = saa_readl(SAA7134_IRQ_STATUS);
+	for (loop = 0; loop < 10; loop++) {
+		report = saa_readl(SAA7134_IRQ_REPORT);
+		status = saa_readl(SAA7134_IRQ_STATUS);
 
-                if (report & SAA7134_IRQ_REPORT_DONE_RA3) {
-                        handled = 1;
-                        saa_writel(SAA7134_IRQ_REPORT,report);
-                        saa7134_irq_oss_done(dev, status);
-                } else {
-                        goto out;
-                }
-        }
+		if (report & SAA7134_IRQ_REPORT_DONE_RA3) {
+			handled = 1;
+			saa_writel(SAA7134_IRQ_REPORT,report);
+			saa7134_irq_oss_done(dev, status);
+		} else {
+			goto out;
+		}
+	}
 
-        if (loop == 10) {
-                dprintk("error! looping IRQ!");
-        }
+	if (loop == 10) {
+		dprintk("error! looping IRQ!");
+	}
 out:
-        return IRQ_RETVAL(handled);
+	return IRQ_RETVAL(handled);
 }
 
 int saa7134_oss_init1(struct saa7134_dev *dev)
 {
 
-        if ((request_irq(dev->pci->irq, saa7134_oss_irq,
-                         SA_SHIRQ | SA_INTERRUPT, dev->name,
+	if ((request_irq(dev->pci->irq, saa7134_oss_irq,
+			 SA_SHIRQ | SA_INTERRUPT, dev->name,
 			(void*) &dev->dmasound)) < 0)
 		return -1;
 
@@ -905,25 +905,25 @@ static int saa7134_dsp_create(struct saa7134_dev *dev)
 
 	err = dev->dmasound.minor_dsp =
 		register_sound_dsp(&saa7134_dsp_fops,
-                			dsp_nr[dev->nr]);
+				   dsp_nr[dev->nr]);
 	if (err < 0) {
 		goto fail;
 	}
 	printk(KERN_INFO "%s: registered device dsp%d\n",
-		dev->name,dev->dmasound.minor_dsp >> 4);
+	       dev->name,dev->dmasound.minor_dsp >> 4);
 
 	err = dev->dmasound.minor_mixer =
 		register_sound_mixer(&saa7134_mixer_fops,
-					mixer_nr[dev->nr]);
+				     mixer_nr[dev->nr]);
 	if (err < 0)
 		goto fail;
 	printk(KERN_INFO "%s: registered device mixer%d\n",
-		dev->name,dev->dmasound.minor_mixer >> 4);
+	       dev->name,dev->dmasound.minor_mixer >> 4);
 
 	return 0;
 
 fail:
-        unregister_sound_dsp(dev->dmasound.minor_dsp);
+	unregister_sound_dsp(dev->dmasound.minor_dsp);
 	return 0;
 
 
@@ -956,49 +956,50 @@ static int oss_device_exit(struct saa7134_dev *dev)
 
 static int saa7134_oss_init(void)
 {
-        struct saa7134_dev *dev = NULL;
-        struct list_head *list;
+	struct saa7134_dev *dev = NULL;
+	struct list_head *list;
 
-        printk(KERN_INFO "saa7134 OSS driver for DMA sound loaded\n");
+	printk(KERN_INFO "saa7134 OSS driver for DMA sound loaded\n");
 
-        list_for_each(list,&saa7134_devlist) {
-                dev = list_entry(list, struct saa7134_dev, devlist);
+	list_for_each(list,&saa7134_devlist) {
+		dev = list_entry(list, struct saa7134_dev, devlist);
 		if (dev->dmasound.priv_data == NULL) {
 			oss_device_init(dev);
 		} else {
-                	printk(KERN_ERR "saa7134 OSS: DMA sound is being handled by ALSA, ignoring %s\n",dev->name);
+			printk(KERN_ERR "saa7134 OSS: DMA sound is being handled by ALSA, ignoring %s\n",dev->name);
 			return -EBUSY;
 		}
-        }
+	}
 
-        if (dev == NULL)
-                printk(KERN_INFO "saa7134 OSS: no saa7134 cards found\n");
+	if (dev == NULL)
+		printk(KERN_INFO "saa7134 OSS: no saa7134 cards found\n");
 
 	dmasound_init = oss_device_init;
 	dmasound_exit = oss_device_exit;
 
-        return 0;
+	return 0;
 
 }
 
 static void saa7134_oss_exit(void)
 {
-        struct saa7134_dev *dev = NULL;
-        struct list_head *list;
+	struct saa7134_dev *dev = NULL;
+	struct list_head *list;
 
-        list_for_each(list,&saa7134_devlist) {
-                dev = list_entry(list, struct saa7134_dev, devlist);
+	list_for_each(list,&saa7134_devlist) {
+		dev = list_entry(list, struct saa7134_dev, devlist);
 
 		/* Device isn't registered by OSS, probably ALSA's */
 		if (!dev->dmasound.minor_dsp)
 			continue;
 
 		oss_device_exit(dev);
-        }
 
-        printk(KERN_INFO "saa7134 OSS driver for DMA sound unloaded\n");
+	}
 
-        return;
+	printk(KERN_INFO "saa7134 OSS driver for DMA sound unloaded\n");
+
+	return;
 }
 
 module_init(saa7134_oss_init);

@@ -932,8 +932,9 @@ static void mmc_read_scrs(struct mmc_host *host)
 
 		sg_init_one(&sg, (u8*)card->raw_scr, 8);
 
-		err = mmc_wait_for_req(host, &mrq);
-		if (err != MMC_ERR_NONE) {
+		mmc_wait_for_req(host, &mrq);
+
+		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
 			mmc_card_set_dead(card);
 			continue;
 		}

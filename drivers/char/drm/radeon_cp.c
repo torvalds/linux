@@ -1522,7 +1522,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 
 	dev_priv->gart_size = init->gart_size;
 	dev_priv->gart_vm_start = dev_priv->fb_location
-	    + RADEON_READ(RADEON_CONFIG_APER_SIZE);
+	    + RADEON_READ(RADEON_CONFIG_APER_SIZE) * 2;
 
 #if __OS_HAS_AGP
 	if (!dev_priv->is_pci)
