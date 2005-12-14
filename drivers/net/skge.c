@@ -504,10 +504,8 @@ static int skge_set_pauseparam(struct net_device *dev,
 	else
 		skge->flow_control = FLOW_MODE_NONE;
 
-	if (netif_running(dev)) {
-		skge_down(dev);
-		skge_up(dev);
-	}
+	if (netif_running(dev))
+		skge_phy_reset(skge);
 	return 0;
 }
 
