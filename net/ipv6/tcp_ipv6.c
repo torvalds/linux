@@ -60,6 +60,7 @@
 #include <net/addrconf.h>
 #include <net/snmp.h>
 #include <net/dsfield.h>
+#include <net/timewait_sock.h>
 
 #include <asm/uaccess.h>
 
@@ -147,22 +148,9 @@ static int __tcp_v6_check_established(struct sock *sk, const __u16 lport,
 		   ipv6_addr_equal(&tw6->tw_v6_daddr, saddr)	&&
 		   ipv6_addr_equal(&tw6->tw_v6_rcv_saddr, daddr)	&&
 		   sk2->sk_bound_dev_if == sk->sk_bound_dev_if) {
-			const struct tcp_timewait_sock *tcptw = tcp_twsk(sk2);
-			struct tcp_sock *tp = tcp_sk(sk);
-
-			if (tcptw->tw_ts_recent_stamp &&
-			    (!twp ||
-			     (sysctl_tcp_tw_reuse &&
-			      xtime.tv_sec - tcptw->tw_ts_recent_stamp > 1))) {
-				/* See comment in tcp_ipv4.c */
-				tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
-				if (!tp->write_seq)
-					tp->write_seq = 1;
-				tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
-				tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
-				sock_hold(sk2);
+			if (twsk_unique(sk, sk2, twp))
 				goto unique;
-			} else
+			else
 				goto not_unique;
 		}
 	}
@@ -709,6 +697,11 @@ static struct request_sock_ops tcp6_request_sock_ops = {
 	.send_ack	=	tcp_v6_reqsk_send_ack,
 	.destructor	=	tcp_v6_reqsk_destructor,
 	.send_reset	=	tcp_v6_send_reset
+};
+
+static struct timewait_sock_ops tcp6_timewait_sock_ops = {
+	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),
+	.twsk_unique	= tcp_twsk_unique,
 };
 
 static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
@@ -1752,7 +1745,7 @@ struct proto tcpv6_prot = {
 	.sysctl_rmem		= sysctl_tcp_rmem,
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp6_sock),
-	.twsk_obj_size		= sizeof(struct tcp6_timewait_sock),
+	.twsk_prot		= &tcp6_timewait_sock_ops,
 	.rsk_prot		= &tcp6_request_sock_ops,
 };
 

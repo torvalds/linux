@@ -360,7 +360,8 @@ struct tcp6_timewait_sock {
 
 static inline u16 inet6_tw_offset(const struct proto *prot)
 {
-	return prot->twsk_obj_size - sizeof(struct inet6_timewait_sock);
+	return prot->twsk_prot->twsk_obj_size -
+			sizeof(struct inet6_timewait_sock);
 }
 
 static inline struct inet6_timewait_sock *inet6_twsk(const struct sock *sk)

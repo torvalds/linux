@@ -287,6 +287,9 @@ extern int			tcp_rcv_established(struct sock *sk,
 
 extern void			tcp_rcv_space_adjust(struct sock *sk);
 
+extern int			tcp_twsk_unique(struct sock *sk,
+						struct sock *sktw, void *twp);
+
 static inline void tcp_dec_quickack_mode(struct sock *sk,
 					 const unsigned int pkts)
 {

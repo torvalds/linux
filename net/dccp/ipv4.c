@@ -20,6 +20,7 @@
 #include <net/icmp.h>
 #include <net/inet_hashtables.h>
 #include <net/sock.h>
+#include <net/timewait_sock.h>
 #include <net/tcp_states.h>
 #include <net/xfrm.h>
 
@@ -1309,6 +1310,10 @@ static struct request_sock_ops dccp_request_sock_ops = {
 	.send_reset	= dccp_v4_ctl_send_reset,
 };
 
+static struct timewait_sock_ops dccp_timewait_sock_ops = {
+	.twsk_obj_size	= sizeof(struct inet_timewait_sock),
+};
+
 struct proto dccp_prot = {
 	.name			= "DCCP",
 	.owner			= THIS_MODULE,
@@ -1332,5 +1337,7 @@ struct proto dccp_prot = {
 	.max_header		= MAX_DCCP_HEADER,
 	.obj_size		= sizeof(struct dccp_sock),
 	.rsk_prot		= &dccp_request_sock_ops,
-	.twsk_obj_size		= sizeof(struct inet_timewait_sock),
+	.twsk_prot		= &dccp_timewait_sock_ops,
 };
+
+EXPORT_SYMBOL_GPL(dccp_prot);

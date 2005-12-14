@@ -26,6 +26,7 @@
 
 #include <net/sock.h>
 #include <net/tcp_states.h>
+#include <net/timewait_sock.h>
 
 #include <asm/atomic.h>
 
@@ -200,7 +201,7 @@ static inline void inet_twsk_put(struct inet_timewait_sock *tw)
 		printk(KERN_DEBUG "%s timewait_sock %p released\n",
 		       tw->tw_prot->name, tw);
 #endif
-		kmem_cache_free(tw->tw_prot->twsk_slab, tw);
+		kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
 		module_put(owner);
 	}
 }

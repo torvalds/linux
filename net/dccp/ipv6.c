@@ -652,6 +652,10 @@ static struct request_sock_ops dccp6_request_sock_ops = {
 	.send_reset	= dccp_v6_ctl_send_reset,
 };
 
+static struct timewait_sock_ops dccp6_timewait_sock_ops = {
+	.twsk_obj_size	= sizeof(struct dccp6_timewait_sock),
+};
+
 static void dccp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -1359,7 +1363,7 @@ static struct proto dccp_v6_prot = {
 	.max_header		= MAX_DCCP_HEADER,
 	.obj_size		= sizeof(struct dccp6_sock),
 	.rsk_prot		= &dccp6_request_sock_ops,
-	.twsk_obj_size		= sizeof(struct dccp6_timewait_sock),
+	.twsk_prot		= &dccp6_timewait_sock_ops,
 };
 
 static struct inet6_protocol dccp_v6_protocol = {

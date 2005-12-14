@@ -69,6 +69,7 @@
 #include <net/transp_v6.h>
 #include <net/ipv6.h>
 #include <net/inet_common.h>
+#include <net/timewait_sock.h>
 #include <net/xfrm.h>
 
 #include <linux/inet.h>
@@ -118,6 +119,39 @@ static inline __u32 tcp_v4_init_sequence(struct sock *sk, struct sk_buff *skb)
 					  skb->h.th->source);
 }
 
+int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
+{
+	const struct tcp_timewait_sock *tcptw = tcp_twsk(sktw);
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	/* With PAWS, it is safe from the viewpoint
+	   of data integrity. Even without PAWS it is safe provided sequence
+	   spaces do not overlap i.e. at data rates <= 80Mbit/sec.
+
+	   Actually, the idea is close to VJ's one, only timestamp cache is
+	   held not per host, but per port pair and TW bucket is used as state
+	   holder.
+
+	   If TW bucket has been already destroyed we fall back to VJ's scheme
+	   and use initial timestamp retrieved from peer table.
+	 */
+	if (tcptw->tw_ts_recent_stamp &&
+	    (twp == NULL || (sysctl_tcp_tw_reuse &&
+			     xtime.tv_sec - tcptw->tw_ts_recent_stamp > 1))) {
+		tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
+		if (tp->write_seq == 0)
+			tp->write_seq = 1;
+		tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
+		tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
+		sock_hold(sktw);
+		return 1;
+	}
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(tcp_twsk_unique);
+
 /* called with local bh disabled */
 static int __tcp_v4_check_established(struct sock *sk, __u16 lport,
 				      struct inet_timewait_sock **twp)
@@ -142,35 +176,9 @@ static int __tcp_v4_check_established(struct sock *sk, __u16 lport,
 		tw = inet_twsk(sk2);
 
 		if (INET_TW_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif)) {
-			const struct tcp_timewait_sock *tcptw = tcp_twsk(sk2);
-			struct tcp_sock *tp = tcp_sk(sk);
-
-			/* With PAWS, it is safe from the viewpoint
-			   of data integrity. Even without PAWS it
-			   is safe provided sequence spaces do not
-			   overlap i.e. at data rates <= 80Mbit/sec.
-
-			   Actually, the idea is close to VJ's one,
-			   only timestamp cache is held not per host,
-			   but per port pair and TW bucket is used
-			   as state holder.
-
-			   If TW bucket has been already destroyed we
-			   fall back to VJ's scheme and use initial
-			   timestamp retrieved from peer table.
-			 */
-			if (tcptw->tw_ts_recent_stamp &&
-			    (!twp || (sysctl_tcp_tw_reuse &&
-				      xtime.tv_sec -
-				      tcptw->tw_ts_recent_stamp > 1))) {
-				tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
-				if (tp->write_seq == 0)
-					tp->write_seq = 1;
-				tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
-				tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
-				sock_hold(sk2);
+			if (twsk_unique(sk, sk2, twp))
 				goto unique;
-			} else
+			else
 				goto not_unique;
 		}
 	}
@@ -867,6 +875,11 @@ struct request_sock_ops tcp_request_sock_ops = {
 	.send_ack	=	tcp_v4_reqsk_send_ack,
 	.destructor	=	tcp_v4_reqsk_destructor,
 	.send_reset	=	tcp_v4_send_reset,
+};
+
+static struct timewait_sock_ops tcp_timewait_sock_ops = {
+	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
+	.twsk_unique	= tcp_twsk_unique,
 };
 
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
@@ -1979,7 +1992,7 @@ struct proto tcp_prot = {
 	.sysctl_rmem		= sysctl_tcp_rmem,
 	.max_header		= MAX_TCP_HEADER,
 	.obj_size		= sizeof(struct tcp_sock),
-	.twsk_obj_size		= sizeof(struct tcp_timewait_sock),
+	.twsk_prot		= &tcp_timewait_sock_ops,
 	.rsk_prot		= &tcp_request_sock_ops,
 };
 
