@@ -348,26 +348,36 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 
 #include <linux/tcp.h>
 
-struct tcp6_timewait_sock {
-	struct tcp_timewait_sock tw_v6_sk;
-	struct in6_addr		 tw_v6_daddr;
-	struct in6_addr		 tw_v6_rcv_saddr;
+struct inet6_timewait_sock {
+	struct in6_addr tw_v6_daddr;
+	struct in6_addr	tw_v6_rcv_saddr;
 };
 
-static inline struct tcp6_timewait_sock *tcp6_twsk(const struct sock *sk)
+struct tcp6_timewait_sock {
+	struct tcp_timewait_sock   tcp6tw_tcp;
+	struct inet6_timewait_sock tcp6tw_inet6;
+};
+
+static inline u16 inet6_tw_offset(const struct proto *prot)
 {
-	return (struct tcp6_timewait_sock *)sk;
+	return prot->twsk_obj_size - sizeof(struct inet6_timewait_sock);
 }
 
-static inline struct in6_addr *__tcp_v6_rcv_saddr(const struct sock *sk)
+static inline struct inet6_timewait_sock *inet6_twsk(const struct sock *sk)
+{
+	return (struct inet6_timewait_sock *)(((u8 *)sk) +
+					      inet_twsk(sk)->tw_ipv6_offset);
+}
+
+static inline struct in6_addr *__inet6_rcv_saddr(const struct sock *sk)
 {
 	return likely(sk->sk_state != TCP_TIME_WAIT) ?
-		&inet6_sk(sk)->rcv_saddr : &tcp6_twsk(sk)->tw_v6_rcv_saddr;
+		&inet6_sk(sk)->rcv_saddr : &inet6_twsk(sk)->tw_v6_rcv_saddr;
 }
 
-static inline struct in6_addr *tcp_v6_rcv_saddr(const struct sock *sk)
+static inline struct in6_addr *inet6_rcv_saddr(const struct sock *sk)
 {
-	return sk->sk_family == AF_INET6 ? __tcp_v6_rcv_saddr(sk) : NULL;
+	return sk->sk_family == AF_INET6 ? __inet6_rcv_saddr(sk) : NULL;
 }
 
 static inline int inet_v6_ipv6only(const struct sock *sk)
@@ -395,8 +405,8 @@ static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 	return NULL;
 }
 
-#define __tcp_v6_rcv_saddr(__sk)	NULL
-#define tcp_v6_rcv_saddr(__sk)		NULL
+#define __inet6_rcv_saddr(__sk)	NULL
+#define inet6_rcv_saddr(__sk)	NULL
 #define tcp_twsk_ipv6only(__sk)		0
 #define inet_v6_ipv6only(__sk)		0
 #endif /* defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE) */

@@ -112,12 +112,12 @@ static int inet_diag_fill(struct sk_buff *skb, struct sock *sk,
 		r->idiag_inode = 0;
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 		if (r->idiag_family == AF_INET6) {
-			const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk);
+			const struct inet6_timewait_sock *tw6 = inet6_twsk(sk);
 
 			ipv6_addr_copy((struct in6_addr *)r->id.idiag_src,
-				       &tcp6tw->tw_v6_rcv_saddr);
+				       &tw6->tw_v6_rcv_saddr);
 			ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
-				       &tcp6tw->tw_v6_daddr);
+				       &tw6->tw_v6_daddr);
 		}
 #endif
 		nlh->nlmsg_len = skb->tail - b;

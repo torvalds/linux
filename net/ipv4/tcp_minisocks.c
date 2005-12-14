@@ -298,10 +298,12 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 		if (tw->tw_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
-			struct tcp6_timewait_sock *tcp6tw = tcp6_twsk((struct sock *)tw);
+			struct inet6_timewait_sock *tw6;
 
-			ipv6_addr_copy(&tcp6tw->tw_v6_daddr, &np->daddr);
-			ipv6_addr_copy(&tcp6tw->tw_v6_rcv_saddr, &np->rcv_saddr);
+			tw->tw_ipv6_offset = inet6_tw_offset(sk->sk_prot);
+			tw6 = inet6_twsk((struct sock *)tw);
+			ipv6_addr_copy(&tw6->tw_v6_daddr, &np->daddr);
+			ipv6_addr_copy(&tw6->tw_v6_rcv_saddr, &np->rcv_saddr);
 			tw->tw_ipv6only = np->ipv6only;
 		}
 #endif

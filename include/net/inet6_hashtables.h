@@ -110,10 +110,10 @@ static inline struct sock *
 
 		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
 		   sk->sk_family		== PF_INET6) {
-			const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk);
+			const struct inet6_timewait_sock *tw6 = inet6_twsk(sk);
 
-			if (ipv6_addr_equal(&tcp6tw->tw_v6_daddr, saddr)	&&
-			    ipv6_addr_equal(&tcp6tw->tw_v6_rcv_saddr, daddr)	&&
+			if (ipv6_addr_equal(&tw6->tw_v6_daddr, saddr)	&&
+			    ipv6_addr_equal(&tw6->tw_v6_rcv_saddr, daddr)	&&
 			    (!sk->sk_bound_dev_if || sk->sk_bound_dev_if == dif))
 				goto hit;
 		}

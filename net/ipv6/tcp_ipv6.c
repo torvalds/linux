@@ -138,14 +138,14 @@ static int __tcp_v6_check_established(struct sock *sk, const __u16 lport,
 
 	/* Check TIME-WAIT sockets first. */
 	sk_for_each(sk2, node, &(head + tcp_hashinfo.ehash_size)->chain) {
-		const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk2);
+		const struct inet6_timewait_sock *tw6 = inet6_twsk(sk2);
 
 		tw = inet_twsk(sk2);
 
 		if(*((__u32 *)&(tw->tw_dport))	== ports	&&
 		   sk2->sk_family		== PF_INET6	&&
-		   ipv6_addr_equal(&tcp6tw->tw_v6_daddr, saddr)	&&
-		   ipv6_addr_equal(&tcp6tw->tw_v6_rcv_saddr, daddr)	&&
+		   ipv6_addr_equal(&tw6->tw_v6_daddr, saddr)	&&
+		   ipv6_addr_equal(&tw6->tw_v6_rcv_saddr, daddr)	&&
 		   sk2->sk_bound_dev_if == sk->sk_bound_dev_if) {
 			const struct tcp_timewait_sock *tcptw = tcp_twsk(sk2);
 			struct tcp_sock *tp = tcp_sk(sk);
@@ -1663,14 +1663,14 @@ static void get_timewait6_sock(struct seq_file *seq,
 {
 	struct in6_addr *dest, *src;
 	__u16 destp, srcp;
-	struct tcp6_timewait_sock *tcp6tw = tcp6_twsk((struct sock *)tw);
+	struct inet6_timewait_sock *tw6 = inet6_twsk((struct sock *)tw);
 	int ttd = tw->tw_ttd - jiffies;
 
 	if (ttd < 0)
 		ttd = 0;
 
-	dest = &tcp6tw->tw_v6_daddr;
-	src  = &tcp6tw->tw_v6_rcv_saddr;
+	dest = &tw6->tw_v6_daddr;
+	src  = &tw6->tw_v6_rcv_saddr;
 	destp = ntohs(tw->tw_dport);
 	srcp  = ntohs(tw->tw_sport);
 

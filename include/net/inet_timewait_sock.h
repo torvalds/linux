@@ -127,7 +127,8 @@ struct inet_timewait_sock {
 	__u16			tw_num;
 	/* And these are ours. */
 	__u8			tw_ipv6only:1;
-	/* 31 bits hole, try to pack */
+	/* 15 bits hole, try to pack */
+	__u16			tw_ipv6_offset;
 	int			tw_timeout;
 	unsigned long		tw_ttd;
 	struct inet_bind_bucket	*tw_tb;
