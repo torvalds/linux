@@ -13,7 +13,7 @@ extern void unix_gc(void);
 #define UNIX_HASH_SIZE	256
 
 extern struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
-extern rwlock_t unix_table_lock;
+extern spinlock_t unix_table_lock;
 
 extern atomic_t unix_tot_inflight;
 
