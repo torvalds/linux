@@ -295,8 +295,6 @@ struct tcp_sock {
 
 	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
 
-	struct tcp_func		*af_specific;	/* Operations which are AF_INET{4,6} specific	*/
-
  	__u32	rcv_wnd;	/* Current receiver window		*/
 	__u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
 	__u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */

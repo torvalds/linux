@@ -225,53 +225,6 @@ extern atomic_t tcp_sockets_allocated;
 extern int tcp_memory_pressure;
 
 /*
- *	Pointers to address related TCP functions
- *	(i.e. things that depend on the address family)
- */
-
-struct tcp_func {
-	int			(*queue_xmit)		(struct sk_buff *skb,
-							 int ipfragok);
-
-	void			(*send_check)		(struct sock *sk,
-							 struct tcphdr *th,
-							 int len,
-							 struct sk_buff *skb);
-
-	int			(*rebuild_header)	(struct sock *sk);
-
-	int			(*conn_request)		(struct sock *sk,
-							 struct sk_buff *skb);
-
-	struct sock *		(*syn_recv_sock)	(struct sock *sk,
-							 struct sk_buff *skb,
-							 struct request_sock *req,
-							 struct dst_entry *dst);
-    
-	int			(*remember_stamp)	(struct sock *sk);
-
-	__u16			net_header_len;
-
-	int			(*setsockopt)		(struct sock *sk, 
-							 int level, 
-							 int optname, 
-							 char __user *optval, 
-							 int optlen);
-
-	int			(*getsockopt)		(struct sock *sk, 
-							 int level, 
-							 int optname, 
-							 char __user *optval, 
-							 int __user *optlen);
-
-
-	void			(*addr2sockaddr)	(struct sock *sk,
-							 struct sockaddr *);
-
-	int sockaddr_len;
-};
-
-/*
  * The next routines deal with comparing 32 bit unsigned ints
  * and worry about wraparound (automatic with unsigned arithmetic).
  */
@@ -405,8 +358,7 @@ extern void			tcp_parse_options(struct sk_buff *skb,
  *	TCP v4 functions exported for the inet6 API
  */
 
-extern void		       	tcp_v4_send_check(struct sock *sk, 
-						  struct tcphdr *th, int len, 
+extern void		       	tcp_v4_send_check(struct sock *sk, int len,
 						  struct sk_buff *skb);
 
 extern int			tcp_v4_conn_request(struct sock *sk,

@@ -86,8 +86,7 @@ int sysctl_tcp_low_latency;
 /* Socket used for sending RSTs */
 static struct socket *tcp_socket;
 
-void tcp_v4_send_check(struct sock *sk, struct tcphdr *th, int len,
-		       struct sk_buff *skb);
+void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 
 struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 	.lhash_lock	= RW_LOCK_UNLOCKED,
@@ -645,10 +644,10 @@ out:
 }
 
 /* This routine computes an IPv4 TCP checksum. */
-void tcp_v4_send_check(struct sock *sk, struct tcphdr *th, int len,
-		       struct sk_buff *skb)
+void tcp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb)
 {
 	struct inet_sock *inet = inet_sk(sk);
+	struct tcphdr *th = skb->h.th;
 
 	if (skb->ip_summed == CHECKSUM_HW) {
 		th->check = ~tcp_v4_check(th, len, inet->saddr, inet->daddr, 0);
@@ -1383,7 +1382,7 @@ int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw)
 	return 0;
 }
 
-struct tcp_func ipv4_specific = {
+struct inet_connection_sock_af_ops ipv4_specific = {
 	.queue_xmit	=	ip_queue_xmit,
 	.send_check	=	tcp_v4_send_check,
 	.rebuild_header	=	inet_sk_rebuild_header,
@@ -1434,7 +1433,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	sk->sk_write_space = sk_stream_write_space;
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 
-	tp->af_specific = &ipv4_specific;
+	icsk->icsk_af_ops = &ipv4_specific;
 
 	sk->sk_sndbuf = sysctl_tcp_wmem[1];
 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];

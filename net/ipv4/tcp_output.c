@@ -371,7 +371,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 		TCP_ECN_send(sk, tp, skb, tcp_header_size);
 	}
 
-	tp->af_specific->send_check(sk, th, skb->len, skb);
+	icsk->icsk_af_ops->send_check(sk, skb->len, skb);
 
 	if (likely(tcb->flags & TCPCB_FLAG_ACK))
 		tcp_event_ack_sent(sk, tcp_skb_pcount(skb));
@@ -381,7 +381,7 @@ static int tcp_transmit_skb(struct sock *sk, struct sk_buff *skb, int clone_it, 
 
 	TCP_INC_STATS(TCP_MIB_OUTSEGS);
 
-	err = tp->af_specific->queue_xmit(skb, 0);
+	err = icsk->icsk_af_ops->queue_xmit(skb, 0);
 	if (unlikely(err <= 0))
 		return err;
 
@@ -638,12 +638,11 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	int mss_now;
-
 	/* Calculate base mss without TCP options:
 	   It is MMS_S - sizeof(tcphdr) of rfc1122
 	 */
-	mss_now = pmtu - tp->af_specific->net_header_len - sizeof(struct tcphdr);
+	int mss_now = (pmtu - inet_csk(sk)->icsk_af_ops->net_header_len -
+		       sizeof(struct tcphdr));
 
 	/* Clamp it (mss_clamp does not include tcp options) */
 	if (mss_now > tp->rx_opt.mss_clamp)
@@ -705,9 +704,9 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 	xmit_size_goal = mss_now;
 
 	if (doing_tso) {
-		xmit_size_goal = 65535 -
-			tp->af_specific->net_header_len -
-			tp->ext_header_len - tp->tcp_header_len;
+		xmit_size_goal = (65535 -
+				  inet_csk(sk)->icsk_af_ops->net_header_len -
+				  tp->ext_header_len - tp->tcp_header_len);
 
 		if (tp->max_window &&
 		    (xmit_size_goal > (tp->max_window >> 1)))
@@ -1422,7 +1421,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	   (sysctl_tcp_retrans_collapse != 0))
 		tcp_retrans_try_collapse(sk, skb, cur_mss);
 
-	if(tp->af_specific->rebuild_header(sk))
+	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk))
 		return -EHOSTUNREACH; /* Routing failure or similar. */
 
 	/* Some Solaris stacks overoptimize and ignore the FIN on a

@@ -170,7 +170,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 				sock_prot_inc_use(&tcp_prot);
 				local_bh_enable();
 				sk->sk_prot = &tcp_prot;
-				tp->af_specific = &ipv4_specific;
+				inet_csk(sk)->icsk_af_ops = &ipv4_specific;
 				sk->sk_socket->ops = &inet_stream_ops;
 				sk->sk_family = PF_INET;
 				tcp_sync_mss(sk, tp->pmtu_cookie);

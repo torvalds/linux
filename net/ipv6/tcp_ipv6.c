@@ -68,14 +68,14 @@
 
 static void	tcp_v6_send_reset(struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req);
-static void	tcp_v6_send_check(struct sock *sk, struct tcphdr *th, int len, 
+static void	tcp_v6_send_check(struct sock *sk, int len, 
 				  struct sk_buff *skb);
 
 static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
 static int	tcp_v6_xmit(struct sk_buff *skb, int ipfragok);
 
-static struct tcp_func ipv6_mapped;
-static struct tcp_func ipv6_specific;
+static struct inet_connection_sock_af_ops ipv6_mapped;
+static struct inet_connection_sock_af_ops ipv6_specific;
 
 int inet6_csk_bind_conflict(const struct sock *sk,
 			    const struct inet_bind_bucket *tb)
@@ -107,9 +107,7 @@ static int tcp_v6_get_port(struct sock *sk, unsigned short snum)
 static void tcp_v6_hash(struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
-		struct tcp_sock *tp = tcp_sk(sk);
-
-		if (tp->af_specific == &ipv6_mapped) {
+		if (inet_csk(sk)->icsk_af_ops == &ipv6_mapped) {
 			tcp_prot.hash(sk);
 			return;
 		}
@@ -417,14 +415,14 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		sin.sin_port = usin->sin6_port;
 		sin.sin_addr.s_addr = usin->sin6_addr.s6_addr32[3];
 
-		tp->af_specific = &ipv6_mapped;
+		inet_csk(sk)->icsk_af_ops = &ipv6_mapped;
 		sk->sk_backlog_rcv = tcp_v4_do_rcv;
 
 		err = tcp_v4_connect(sk, (struct sockaddr *)&sin, sizeof(sin));
 
 		if (err) {
 			tp->ext_header_len = exthdrlen;
-			tp->af_specific = &ipv6_specific;
+			inet_csk(sk)->icsk_af_ops = &ipv6_specific;
 			sk->sk_backlog_rcv = tcp_v6_do_rcv;
 			goto failure;
 		} else {
@@ -751,10 +749,10 @@ static int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb)
 }
 
 
-static void tcp_v6_send_check(struct sock *sk, struct tcphdr *th, int len, 
-			      struct sk_buff *skb)
+static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct tcphdr *th = skb->h.th;
 
 	if (skb->ip_summed == CHECKSUM_HW) {
 		th->check = ~csum_ipv6_magic(&np->saddr, &np->daddr, len, IPPROTO_TCP,  0);
@@ -1070,7 +1068,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 		ipv6_addr_copy(&newnp->rcv_saddr, &newnp->saddr);
 
-		newtp->af_specific = &ipv6_mapped;
+		inet_csk(newsk)->icsk_af_ops = &ipv6_mapped;
 		newsk->sk_backlog_rcv = tcp_v4_do_rcv;
 		newnp->pktoptions  = NULL;
 		newnp->opt	   = NULL;
@@ -1084,7 +1082,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		 */
 
 		/* It is tricky place. Until this moment IPv4 tcp
-		   worked with IPv6 af_tcp.af_specific.
+		   worked with IPv6 icsk.icsk_af_ops.
 		   Sync it now.
 		 */
 		tcp_sync_mss(newsk, newtp->pmtu_cookie);
@@ -1631,7 +1629,7 @@ static int tcp_v6_remember_stamp(struct sock *sk)
 	return 0;
 }
 
-static struct tcp_func ipv6_specific = {
+static struct inet_connection_sock_af_ops ipv6_specific = {
 	.queue_xmit	=	tcp_v6_xmit,
 	.send_check	=	tcp_v6_send_check,
 	.rebuild_header	=	tcp_v6_rebuild_header,
@@ -1650,7 +1648,7 @@ static struct tcp_func ipv6_specific = {
  *	TCP over IPv4 via INET6 API
  */
 
-static struct tcp_func ipv6_mapped = {
+static struct inet_connection_sock_af_ops ipv6_mapped = {
 	.queue_xmit	=	ip_queue_xmit,
 	.send_check	=	tcp_v4_send_check,
 	.rebuild_header	=	inet_sk_rebuild_header,
@@ -1700,7 +1698,7 @@ static int tcp_v6_init_sock(struct sock *sk)
 
 	sk->sk_state = TCP_CLOSE;
 
-	tp->af_specific = &ipv6_specific;
+	icsk->icsk_af_ops = &ipv6_specific;
 	icsk->icsk_ca_ops = &tcp_init_congestion_ops;
 	sk->sk_write_space = sk_stream_write_space;
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);

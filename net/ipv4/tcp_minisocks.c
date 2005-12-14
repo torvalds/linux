@@ -274,18 +274,18 @@ kill:
 void tcp_time_wait(struct sock *sk, int state, int timeo)
 {
 	struct inet_timewait_sock *tw = NULL;
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_sock *tp = tcp_sk(sk);
 	int recycle_ok = 0;
 
 	if (tcp_death_row.sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp)
-		recycle_ok = tp->af_specific->remember_stamp(sk);
+		recycle_ok = icsk->icsk_af_ops->remember_stamp(sk);
 
 	if (tcp_death_row.tw_count < tcp_death_row.sysctl_max_tw_buckets)
 		tw = inet_twsk_alloc(sk, state);
 
 	if (tw != NULL) {
 		struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
-		const struct inet_connection_sock *icsk = inet_csk(sk);
 		const int rto = (icsk->icsk_rto << 2) - (icsk->icsk_rto >> 1);
 
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
@@ -456,7 +456,6 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 			   struct request_sock **prev)
 {
 	struct tcphdr *th = skb->h.th;
-	struct tcp_sock *tp = tcp_sk(sk);
 	u32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
 	int paws_reject = 0;
 	struct tcp_options_received tmp_opt;
@@ -613,7 +612,8 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 		 * ESTABLISHED STATE. If it will be dropped after
 		 * socket is created, wait for troubles.
 		 */
-		child = tp->af_specific->syn_recv_sock(sk, skb, req, NULL);
+		child = inet_csk(sk)->icsk_af_ops->syn_recv_sock(sk, skb,
+								 req, NULL);
 		if (child == NULL)
 			goto listen_overflow;
 

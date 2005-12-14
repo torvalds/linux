@@ -4071,8 +4071,10 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		mb();
 		tcp_set_state(sk, TCP_ESTABLISHED);
 
+		icsk = inet_csk(sk);
+
 		/* Make sure socket is routed, for correct metrics.  */
-		tp->af_specific->rebuild_header(sk);
+		icsk->icsk_af_ops->rebuild_header(sk);
 
 		tcp_init_metrics(sk);
 
@@ -4097,8 +4099,6 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 			sk->sk_state_change(sk);
 			sk_wake_async(sk, 0, POLL_OUT);
 		}
-
-		icsk = inet_csk(sk);
 
 		if (sk->sk_write_pending ||
 		    icsk->icsk_accept_queue.rskq_defer_accept ||
@@ -4220,6 +4220,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			  struct tcphdr *th, unsigned len)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	int queued = 0;
 
 	tp->rx_opt.saw_tstamp = 0;
@@ -4236,7 +4237,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			goto discard;
 
 		if(th->syn) {
-			if(tp->af_specific->conn_request(sk, skb) < 0)
+			if (icsk->icsk_af_ops->conn_request(sk, skb) < 0)
 				return 1;
 
 			/* Now we have several options: In theory there is 
@@ -4349,7 +4350,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				/* Make sure socket is routed, for
 				 * correct metrics.
 				 */
-				tp->af_specific->rebuild_header(sk);
+				icsk->icsk_af_ops->rebuild_header(sk);
 
 				tcp_init_metrics(sk);
 
