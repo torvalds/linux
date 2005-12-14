@@ -311,7 +311,7 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 			goto out_invalid_packet;
 		}
 
-		dccp_sync_mss(sk, dp->dccps_pmtu_cookie);
+		dccp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 
 		/*
 		 *    Step 10: Process REQUEST state (second part)

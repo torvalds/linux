@@ -104,9 +104,9 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	inet->dport = usin->sin_port;
 	inet->daddr = daddr;
 
-	dp->dccps_ext_header_len = 0;
+	inet_csk(sk)->icsk_ext_hdr_len = 0;
 	if (inet->opt != NULL)
-		dp->dccps_ext_header_len = inet->opt->optlen;
+		inet_csk(sk)->icsk_ext_hdr_len = inet->opt->optlen;
 	/*
 	 * Socket identity is still unknown (sport may be zero).
 	 * However we set state to DCCP_REQUESTING and not releasing socket
@@ -191,7 +191,7 @@ static inline void dccp_do_pmtu_discovery(struct sock *sk,
 	mtu = dst_mtu(dst);
 
 	if (inet->pmtudisc != IP_PMTUDISC_DONT &&
-	    dp->dccps_pmtu_cookie > mtu) {
+	    inet_csk(sk)->icsk_pmtu_cookie > mtu) {
 		dccp_sync_mss(sk, mtu);
 
 		/*
@@ -1051,6 +1051,7 @@ struct inet_connection_sock_af_ops dccp_ipv4_af_ops = {
 int dccp_v4_init_sock(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	static int dccp_ctl_socket_init = 1;
 
 	dccp_options_init(&dp->dccps_options);
@@ -1090,10 +1091,11 @@ int dccp_v4_init_sock(struct sock *sk)
 		dccp_ctl_socket_init = 0;
 
 	dccp_init_xmit_timers(sk);
-	inet_csk(sk)->icsk_rto = DCCP_TIMEOUT_INIT;
+	icsk->icsk_rto = DCCP_TIMEOUT_INIT;
 	sk->sk_state = DCCP_CLOSED;
 	sk->sk_write_space = dccp_write_space;
-	inet_csk(sk)->icsk_af_ops = &dccp_ipv4_af_ops;
+	icsk->icsk_af_ops = &dccp_ipv4_af_ops;
+	icsk->icsk_sync_mss = dccp_sync_mss;
 	dp->dccps_mss_cache = 536;
 	dp->dccps_role = DCCP_ROLE_UNDEFINED;
 	dp->dccps_service = DCCP_SERVICE_INVALID_VALUE;

@@ -155,6 +155,7 @@ struct inet_sock {
 	__u8			mc_ttl;		/* Multicasting TTL */
 	__u8			pmtudisc;
 	unsigned		recverr : 1,
+				is_icsk : 1,	/* inet_connection_sock? */
 				freebind : 1,
 				hdrincl : 1,
 				mc_loop : 1;

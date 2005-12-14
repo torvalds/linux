@@ -302,6 +302,7 @@ lookup_protocol:
 		sk->sk_reuse = 1;
 
 	inet = inet_sk(sk);
+	inet->is_icsk = INET_PROTOSW_ICSK & answer_flags;
 
 	if (SOCK_RAW == sock->type) {
 		inet->num = protocol;
@@ -869,7 +870,8 @@ static struct inet_protosw inetsw_array[] =
                 .ops =        &inet_stream_ops,
                 .capability = -1,
                 .no_check =   0,
-                .flags =      INET_PROTOSW_PERMANENT,
+                .flags =      INET_PROTOSW_PERMANENT |
+			      INET_PROTOSW_ICSK,
         },
 
         {

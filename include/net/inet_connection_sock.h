@@ -60,6 +60,7 @@ struct inet_connection_sock_af_ops {
  * @icsk_timeout:	   Timeout
  * @icsk_retransmit_timer: Resend (no ack)
  * @icsk_rto:		   Retransmit timeout
+ * @icsk_pmtu_cookie	   Last pmtu seen by socket
  * @icsk_ca_ops		   Pluggable congestion control hook
  * @icsk_af_ops		   Operations which are AF_INET{4,6} specific
  * @icsk_ca_state:	   Congestion control state
@@ -68,6 +69,7 @@ struct inet_connection_sock_af_ops {
  * @icsk_backoff:	   Backoff
  * @icsk_syn_retries:      Number of allowed SYN (or equivalent) retries
  * @icsk_probes_out:	   unanswered 0 window probes
+ * @icsk_ext_hdr_len:	   Network protocol overhead (IP/IPv6 options)
  * @icsk_ack:		   Delayed ACK control data
  */
 struct inet_connection_sock {
@@ -79,15 +81,17 @@ struct inet_connection_sock {
  	struct timer_list	  icsk_retransmit_timer;
  	struct timer_list	  icsk_delack_timer;
 	__u32			  icsk_rto;
+	__u32			  icsk_pmtu_cookie;
 	struct tcp_congestion_ops *icsk_ca_ops;
 	struct inet_connection_sock_af_ops *icsk_af_ops;
+	unsigned int		  (*icsk_sync_mss)(struct sock *sk, u32 pmtu);
 	__u8			  icsk_ca_state;
 	__u8			  icsk_retransmits;
 	__u8			  icsk_pending;
 	__u8			  icsk_backoff;
 	__u8			  icsk_syn_retries;
 	__u8			  icsk_probes_out;
-	/* 2 BYTES HOLE, TRY TO PACK! */
+	__u16			  icsk_ext_hdr_len;
 	struct {
 		__u8		  pending;	 /* ACK is pending			   */
 		__u8		  quick;	 /* Scheduled number of quick acks	   */

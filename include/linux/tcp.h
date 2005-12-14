@@ -238,10 +238,9 @@ struct tcp_sock {
 	__u32	snd_wl1;	/* Sequence for window update		*/
 	__u32	snd_wnd;	/* The window we expect to receive	*/
 	__u32	max_window;	/* Maximal window ever seen from peer	*/
-	__u32	pmtu_cookie;	/* Last pmtu seen by socket		*/
 	__u32	mss_cache;	/* Cached effective mss, not including SACKS */
 	__u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
-	__u16	ext_header_len;	/* Network protocol overhead (IP/IPv6 options) */
+	/* XXX Two bytes hole, try to pack */
 
 	__u32	window_clamp;	/* Maximal window to advertise		*/
 	__u32	rcv_ssthresh;	/* Current window clamp			*/

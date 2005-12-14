@@ -1914,7 +1914,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_last_data_recv = jiffies_to_msecs(now - icsk->icsk_ack.lrcvtime);
 	info->tcpi_last_ack_recv = jiffies_to_msecs(now - tp->rcv_tstamp);
 
-	info->tcpi_pmtu = tp->pmtu_cookie;
+	info->tcpi_pmtu = icsk->icsk_pmtu_cookie;
 	info->tcpi_rcv_ssthresh = tp->rcv_ssthresh;
 	info->tcpi_rtt = jiffies_to_usecs(tp->srtt)>>3;
 	info->tcpi_rttvar = jiffies_to_usecs(tp->mdev)>>2;

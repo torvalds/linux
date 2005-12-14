@@ -2342,7 +2342,7 @@ static int tcp_ack_update_window(struct sock *sk, struct tcp_sock *tp,
 
 			if (nwin > tp->max_window) {
 				tp->max_window = nwin;
-				tcp_sync_mss(sk, tp->pmtu_cookie);
+				tcp_sync_mss(sk, inet_csk(sk)->icsk_pmtu_cookie);
 			}
 		}
 	}
@@ -3967,12 +3967,12 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 					 struct tcphdr *th, unsigned len)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	int saved_clamp = tp->rx_opt.mss_clamp;
 
 	tcp_parse_options(skb, &tp->rx_opt, 0);
 
 	if (th->ack) {
-		struct inet_connection_sock *icsk;
 		/* rfc793:
 		 * "If the state is SYN-SENT then
 		 *    first check the ACK bit
@@ -4061,7 +4061,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		if (tp->rx_opt.sack_ok && sysctl_tcp_fack)
 			tp->rx_opt.sack_ok |= 2;
 
-		tcp_sync_mss(sk, tp->pmtu_cookie);
+		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		tcp_initialize_rcv_mss(sk);
 
 		/* Remember, tcp_poll() does not lock socket!
@@ -4070,8 +4070,6 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		tp->copied_seq = tp->rcv_nxt;
 		mb();
 		tcp_set_state(sk, TCP_ESTABLISHED);
-
-		icsk = inet_csk(sk);
 
 		/* Make sure socket is routed, for correct metrics.  */
 		icsk->icsk_af_ops->rebuild_header(sk);
@@ -4173,7 +4171,7 @@ discard:
 		if (tp->ecn_flags&TCP_ECN_OK)
 			sock_set_flag(sk, SOCK_NO_LARGESEND);
 
-		tcp_sync_mss(sk, tp->pmtu_cookie);
+		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		tcp_initialize_rcv_mss(sk);
 
 

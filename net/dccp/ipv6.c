@@ -88,6 +88,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			   int addr_len)
 {
 	struct sockaddr_in6 *usin = (struct sockaddr_in6 *) uaddr;
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -158,7 +159,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	 */
 
 	if (addr_type == IPV6_ADDR_MAPPED) {
-		u32 exthdrlen = dp->dccps_ext_header_len;
+		u32 exthdrlen = icsk->icsk_ext_hdr_len;
 		struct sockaddr_in sin;
 
 		SOCK_DEBUG(sk, "connect: ipv4 mapped\n");
@@ -170,14 +171,14 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		sin.sin_port = usin->sin6_port;
 		sin.sin_addr.s_addr = usin->sin6_addr.s6_addr32[3];
 
-		inet_csk(sk)->icsk_af_ops = &dccp_ipv6_mapped;
+		icsk->icsk_af_ops = &dccp_ipv6_mapped;
 		sk->sk_backlog_rcv = dccp_v4_do_rcv;
 
 		err = dccp_v4_connect(sk, (struct sockaddr *)&sin, sizeof(sin));
 
 		if (err) {
-			dp->dccps_ext_header_len = exthdrlen;
-			inet_csk(sk)->icsk_af_ops = &dccp_ipv6_af_ops;
+			icsk->icsk_ext_hdr_len = exthdrlen;
+			icsk->icsk_af_ops = &dccp_ipv6_af_ops;
 			sk->sk_backlog_rcv = dccp_v6_do_rcv;
 			goto failure;
 		} else {
@@ -227,9 +228,10 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 	ip6_dst_store(sk, dst, NULL);
 
-	dp->dccps_ext_header_len = 0;
+	icsk->icsk_ext_hdr_len = 0;
 	if (np->opt)
-		dp->dccps_ext_header_len = np->opt->opt_flen + np->opt->opt_nflen;
+		icsk->icsk_ext_hdr_len = (np->opt->opt_flen +
+					  np->opt->opt_nflen);
 
 	inet->dport = usin->sin6_port;
 
@@ -292,7 +294,6 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	np = inet6_sk(sk);
 
 	if (type == ICMPV6_PKT_TOOBIG) {
-		struct dccp_sock *dp = dccp_sk(sk);
 		struct dst_entry *dst = NULL;
 
 		if (sock_owned_by_user(sk))
@@ -332,7 +333,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		} else
 			dst_hold(dst);
 
-		if (dp->dccps_pmtu_cookie > dst_mtu(dst)) {
+		if (inet_csk(sk)->icsk_pmtu_cookie > dst_mtu(dst)) {
 			dccp_sync_mss(sk, dst_mtu(dst));
 		} /* else let the usual retransmit timer handle it */
 		dst_release(dst);
@@ -808,7 +809,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 		   worked with IPv6 icsk.icsk_af_ops.
 		   Sync it now.
 		 */
-		dccp_sync_mss(newsk, newdp->dccps_pmtu_cookie);
+		dccp_sync_mss(newsk, inet_csk(newsk)->icsk_pmtu_cookie);
 
 		return newsk;
 	}
@@ -916,10 +917,10 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 			sock_kfree_s(sk, opt, opt->tot_len);
 	}
 
-	newdp->dccps_ext_header_len = 0;
+	inet_csk(newsk)->icsk_ext_hdr_len = 0;
 	if (newnp->opt)
-		newdp->dccps_ext_header_len = newnp->opt->opt_nflen +
-					      newnp->opt->opt_flen;
+		inet_csk(newsk)->icsk_ext_hdr_len = (newnp->opt->opt_nflen +
+						     newnp->opt->opt_flen);
 
 	dccp_sync_mss(newsk, dst_mtu(dst));
 
@@ -1230,6 +1231,7 @@ static struct inet_protosw dccp_v6_protosw = {
 	.prot		= &dccp_v6_prot,
 	.ops		= &inet6_dccp_ops,
 	.capability	= -1,
+	.flags		= INET_PROTOSW_ICSK,
 };
 
 static int __init dccp_v6_init(void)

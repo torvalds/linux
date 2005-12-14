@@ -29,8 +29,7 @@
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
-#include <net/tcp.h>
-#include <linux/tcp.h>
+#include <net/tcp_states.h>
 #include <linux/udp.h>
 #include <linux/igmp.h>
 #include <linux/netfilter.h>
@@ -427,8 +426,8 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 			err = ip_options_get_from_user(&opt, optval, optlen);
 			if (err)
 				break;
-			if (sk->sk_type == SOCK_STREAM) {
-				struct tcp_sock *tp = tcp_sk(sk);
+			if (inet->is_icsk) {
+				struct inet_connection_sock *icsk = inet_csk(sk);
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 				if (sk->sk_family == PF_INET ||
 				    (!((1 << sk->sk_state) &
@@ -436,10 +435,10 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 				     inet->daddr != LOOPBACK4_IPV6)) {
 #endif
 					if (inet->opt)
-						tp->ext_header_len -= inet->opt->optlen;
+						icsk->icsk_ext_hdr_len -= inet->opt->optlen;
 					if (opt)
-						tp->ext_header_len += opt->optlen;
-					tcp_sync_mss(sk, tp->pmtu_cookie);
+						icsk->icsk_ext_hdr_len += opt->optlen;
+					icsk->icsk_sync_mss(sk, icsk->icsk_pmtu_cookie);
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 				}
 #endif

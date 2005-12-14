@@ -621,7 +621,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
    It is minimum of user_mss and mss received with SYN.
    It also does not include TCP options.
 
-   tp->pmtu_cookie is last pmtu, seen by this function.
+   inet_csk(sk)->icsk_pmtu_cookie is last pmtu, seen by this function.
 
    tp->mss_cache is current effective sending mss, including
    all tcp options except for SACKs. It is evaluated,
@@ -631,17 +631,18 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
    NOTE1. rfc1122 clearly states that advertised MSS
    DOES NOT include either tcp or ip options.
 
-   NOTE2. tp->pmtu_cookie and tp->mss_cache are READ ONLY outside
-   this function.			--ANK (980731)
+   NOTE2. inet_csk(sk)->icsk_pmtu_cookie and tp->mss_cache
+   are READ ONLY outside this function.		--ANK (980731)
  */
 
 unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	/* Calculate base mss without TCP options:
 	   It is MMS_S - sizeof(tcphdr) of rfc1122
 	 */
-	int mss_now = (pmtu - inet_csk(sk)->icsk_af_ops->net_header_len -
+	int mss_now = (pmtu - icsk->icsk_af_ops->net_header_len -
 		       sizeof(struct tcphdr));
 
 	/* Clamp it (mss_clamp does not include tcp options) */
@@ -649,7 +650,7 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 		mss_now = tp->rx_opt.mss_clamp;
 
 	/* Now subtract optional transport overhead */
-	mss_now -= tp->ext_header_len;
+	mss_now -= icsk->icsk_ext_hdr_len;
 
 	/* Then reserve room for full set of TCP options and 8 bytes of data */
 	if (mss_now < 48)
@@ -663,7 +664,7 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 		mss_now = max((tp->max_window>>1), 68U - tp->tcp_header_len);
 
 	/* And store cached results */
-	tp->pmtu_cookie = pmtu;
+	icsk->icsk_pmtu_cookie = pmtu;
 	tp->mss_cache = mss_now;
 
 	return mss_now;
@@ -693,7 +694,7 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 
 	if (dst) {
 		u32 mtu = dst_mtu(dst);
-		if (mtu != tp->pmtu_cookie)
+		if (mtu != inet_csk(sk)->icsk_pmtu_cookie)
 			mss_now = tcp_sync_mss(sk, mtu);
 	}
 
@@ -706,7 +707,8 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 	if (doing_tso) {
 		xmit_size_goal = (65535 -
 				  inet_csk(sk)->icsk_af_ops->net_header_len -
-				  tp->ext_header_len - tp->tcp_header_len);
+				  inet_csk(sk)->icsk_ext_hdr_len -
+				  tp->tcp_header_len);
 
 		if (tp->max_window &&
 		    (xmit_size_goal > (tp->max_window >> 1)))

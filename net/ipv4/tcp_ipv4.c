@@ -220,9 +220,9 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	inet->dport = usin->sin_port;
 	inet->daddr = daddr;
 
-	tp->ext_header_len = 0;
+	inet_csk(sk)->icsk_ext_hdr_len = 0;
 	if (inet->opt)
-		tp->ext_header_len = inet->opt->optlen;
+		inet_csk(sk)->icsk_ext_hdr_len = inet->opt->optlen;
 
 	tp->rx_opt.mss_clamp = 536;
 
@@ -275,7 +275,6 @@ static inline void do_pmtu_discovery(struct sock *sk, struct iphdr *iph,
 {
 	struct dst_entry *dst;
 	struct inet_sock *inet = inet_sk(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
 
 	/* We are not interested in TCP_LISTEN and open_requests (SYN-ACKs
 	 * send out by Linux are always <576bytes so they should go through
@@ -304,7 +303,7 @@ static inline void do_pmtu_discovery(struct sock *sk, struct iphdr *iph,
 	mtu = dst_mtu(dst);
 
 	if (inet->pmtudisc != IP_PMTUDISC_DONT &&
-	    tp->pmtu_cookie > mtu) {
+	    inet_csk(sk)->icsk_pmtu_cookie > mtu) {
 		tcp_sync_mss(sk, mtu);
 
 		/* Resend the TCP packet because it's
@@ -895,9 +894,9 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	ireq->opt	      = NULL;
 	newinet->mc_index     = inet_iif(skb);
 	newinet->mc_ttl	      = skb->nh.iph->ttl;
-	newtp->ext_header_len = 0;
+	inet_csk(newsk)->icsk_ext_hdr_len = 0;
 	if (newinet->opt)
-		newtp->ext_header_len = newinet->opt->optlen;
+		inet_csk(newsk)->icsk_ext_hdr_len = newinet->opt->optlen;
 	newinet->id = newtp->write_seq ^ jiffies;
 
 	tcp_sync_mss(newsk, dst_mtu(dst));
@@ -1266,6 +1265,7 @@ static int tcp_v4_init_sock(struct sock *sk)
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 
 	icsk->icsk_af_ops = &ipv4_specific;
+	icsk->icsk_sync_mss = tcp_sync_mss;
 
 	sk->sk_sndbuf = sysctl_tcp_wmem[1];
 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
