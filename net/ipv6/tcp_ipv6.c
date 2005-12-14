@@ -711,22 +711,6 @@ static struct request_sock_ops tcp6_request_sock_ops = {
 	.send_reset	=	tcp_v6_send_reset
 };
 
-static int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb)
-{
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct inet6_skb_parm *opt = IP6CB(skb);
-
-	if (np->rxopt.all) {
-		if ((opt->hop && (np->rxopt.bits.hopopts || np->rxopt.bits.ohopopts)) ||
-		    ((IPV6_FLOWINFO_MASK & *(u32*)skb->nh.raw) && np->rxopt.bits.rxflow) ||
-		    (opt->srcrt && (np->rxopt.bits.srcrt || np->rxopt.bits.osrcrt)) ||
-		    ((opt->dst1 || opt->dst0) && (np->rxopt.bits.dstopts || np->rxopt.bits.odstopts)))
-			return 1;
-	}
-	return 0;
-}
-
-
 static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
