@@ -775,6 +775,8 @@ out_err_release:
 	return err;
 }
 
+EXPORT_SYMBOL_GPL(ip6_dst_lookup);
+
 static inline int ip6_ufo_append_data(struct sock *sk,
 			int getfrag(void *from, char *to, int offset, int len,
 			int odd, struct sk_buff *skb),

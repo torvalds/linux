@@ -389,6 +389,8 @@ int inet6_destroy_sock(struct sock *sk)
 	return 0;
 }
 
+EXPORT_SYMBOL_GPL(inet6_destroy_sock);
+
 /*
  *	This does both peername and sockname.
  */

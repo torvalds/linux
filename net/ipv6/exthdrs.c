@@ -413,6 +413,8 @@ ipv6_invert_rthdr(struct sock *sk, struct ipv6_rt_hdr *hdr)
 	return opt;
 }
 
+EXPORT_SYMBOL_GPL(ipv6_invert_rthdr);
+
 /**********************************
   Hop-by-hop options.
  **********************************/
@@ -578,6 +580,8 @@ ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)
 	}
 	return opt2;
 }
+
+EXPORT_SYMBOL_GPL(ipv6_dup_options);
 
 static int ipv6_renew_option(void *ohdr,
 			     struct ipv6_opt_hdr __user *newopt, int newoptlen,
