@@ -489,9 +489,9 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 	if (r->idiag_family == AF_INET6) {
 		ipv6_addr_copy((struct in6_addr *)r->id.idiag_src,
-			       &tcp6_rsk(req)->loc_addr);
+			       &inet6_rsk(req)->loc_addr);
 		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
-			       &tcp6_rsk(req)->rmt_addr);
+			       &inet6_rsk(req)->rmt_addr);
 	}
 #endif
 	nlh->nlmsg_len = skb->tail - b;
@@ -553,13 +553,13 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 				entry.saddr =
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 					(entry.family == AF_INET6) ?
-					tcp6_rsk(req)->loc_addr.s6_addr32 :
+					inet6_rsk(req)->loc_addr.s6_addr32 :
 #endif
 					&ireq->loc_addr;
 				entry.daddr = 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 					(entry.family == AF_INET6) ?
-					tcp6_rsk(req)->rmt_addr.s6_addr32 :
+					inet6_rsk(req)->rmt_addr.s6_addr32 :
 #endif
 					&ireq->rmt_addr;
 				entry.dport = ntohs(ireq->rmt_port);

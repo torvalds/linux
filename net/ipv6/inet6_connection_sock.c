@@ -61,7 +61,7 @@ struct request_sock *inet6_csk_search_req(const struct sock *sk,
 						     lopt->nr_table_entries)];
 	     (req = *prev) != NULL;
 	     prev = &req->dl_next) {
-		const struct tcp6_request_sock *treq = tcp6_rsk(req);
+		const struct inet6_request_sock *treq = inet6_rsk(req);
 
 		if (inet_rsk(req)->rmt_port == rport &&
 		    req->rsk_ops->family == AF_INET6 &&
@@ -85,7 +85,7 @@ void inet6_csk_reqsk_queue_hash_add(struct sock *sk,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct listen_sock *lopt = icsk->icsk_accept_queue.listen_opt;
-	const u32 h = inet6_synq_hash(&tcp6_rsk(req)->rmt_addr,
+	const u32 h = inet6_synq_hash(&inet6_rsk(req)->rmt_addr,
 				      inet_rsk(req)->rmt_port,
 				      lopt->hash_rnd, lopt->nr_table_entries);
 

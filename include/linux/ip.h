@@ -110,6 +110,10 @@ struct ip_options {
 
 struct inet_request_sock {
 	struct request_sock	req;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	u16			inet6_rsk_offset;
+	/* 2 bytes hole, try to pack */
+#endif
 	u32			loc_addr;
 	u32			rmt_addr;
 	u16			rmt_port;

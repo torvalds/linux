@@ -199,18 +199,17 @@ static inline int inet6_iif(const struct sk_buff *skb)
 	return IP6CB(skb)->iif;
 }
 
-struct tcp6_request_sock {
-	struct tcp_request_sock	req;
+struct inet6_request_sock {
 	struct in6_addr		loc_addr;
 	struct in6_addr		rmt_addr;
 	struct sk_buff		*pktopts;
 	int			iif;
 };
 
-static inline struct tcp6_request_sock *tcp6_rsk(const struct request_sock *sk)
-{
-	return (struct tcp6_request_sock *)sk;
-}
+struct tcp6_request_sock {
+	struct tcp_request_sock	  tcp6rsk_tcp;
+	struct inet6_request_sock tcp6rsk_inet6;
+};
 
 /**
  * struct ipv6_pinfo - ipv6 private area
@@ -304,6 +303,28 @@ static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
 	return inet_sk(__sk)->pinet6;
 }
 
+static inline struct inet6_request_sock *
+			inet6_rsk(const struct request_sock *rsk)
+{
+	return (struct inet6_request_sock *)(((u8 *)rsk) +
+					     inet_rsk(rsk)->inet6_rsk_offset);
+}
+
+static inline u32 inet6_rsk_offset(struct request_sock *rsk)
+{
+	return rsk->rsk_ops->obj_size - sizeof(struct inet6_request_sock);
+}
+
+static inline struct request_sock *inet6_reqsk_alloc(struct request_sock_ops *ops)
+{
+	struct request_sock *req = reqsk_alloc(ops);
+
+	if (req != NULL)
+		inet_rsk(req)->inet6_rsk_offset = inet6_rsk_offset(req);
+
+	return req;
+}
+
 static inline struct raw6_sock *raw6_sk(const struct sock *sk)
 {
 	return (struct raw6_sock *)sk;
@@ -357,6 +378,12 @@ static inline int inet_v6_ipv6only(const struct sock *sk)
 #define ipv6_only_sock(sk)	0
 
 static inline struct ipv6_pinfo * inet6_sk(const struct sock *__sk)
+{
+	return NULL;
+}
+
+static inline struct inet6_request_sock *
+			inet6_rsk(const struct request_sock *rsk)
 {
 	return NULL;
 }

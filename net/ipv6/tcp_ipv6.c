@@ -656,7 +656,7 @@ out:
 static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 			      struct dst_entry *dst)
 {
-	struct tcp6_request_sock *treq = tcp6_rsk(req);
+	struct inet6_request_sock *treq = inet6_rsk(req);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff * skb;
 	struct ipv6_txoptions *opt = NULL;
@@ -722,8 +722,8 @@ done:
 
 static void tcp_v6_reqsk_destructor(struct request_sock *req)
 {
-	if (tcp6_rsk(req)->pktopts)
-		kfree_skb(tcp6_rsk(req)->pktopts);
+	if (inet6_rsk(req)->pktopts)
+		kfree_skb(inet6_rsk(req)->pktopts);
 }
 
 static struct request_sock_ops tcp6_request_sock_ops = {
@@ -956,7 +956,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
  */
 static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp6_request_sock *treq;
+	struct inet6_request_sock *treq;
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_options_received tmp_opt;
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -981,7 +981,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (sk_acceptq_is_full(sk) && inet_csk_reqsk_queue_young(sk) > 1)
 		goto drop;
 
-	req = reqsk_alloc(&tcp6_request_sock_ops);
+	req = inet6_reqsk_alloc(&tcp6_request_sock_ops);
 	if (req == NULL)
 		goto drop;
 
@@ -994,7 +994,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
 	tcp_openreq_init(req, &tmp_opt, skb);
 
-	treq = tcp6_rsk(req);
+	treq = inet6_rsk(req);
 	ipv6_addr_copy(&treq->rmt_addr, &skb->nh.ipv6h->saddr);
 	ipv6_addr_copy(&treq->loc_addr, &skb->nh.ipv6h->daddr);
 	TCP_ECN_create_request(req, skb->h.th);
@@ -1035,7 +1035,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 					  struct request_sock *req,
 					  struct dst_entry *dst)
 {
-	struct tcp6_request_sock *treq = tcp6_rsk(req);
+	struct inet6_request_sock *treq = inet6_rsk(req);
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct tcp6_sock *newtcp6sk;
 	struct inet_sock *newinet;
@@ -1723,14 +1723,13 @@ static int tcp_v6_destroy_sock(struct sock *sk)
 static void get_openreq6(struct seq_file *seq, 
 			 struct sock *sk, struct request_sock *req, int i, int uid)
 {
-	struct in6_addr *dest, *src;
 	int ttd = req->expires - jiffies;
+	struct in6_addr *src = &inet6_rsk(req)->loc_addr;
+	struct in6_addr *dest = &inet6_rsk(req)->rmt_addr;
 
 	if (ttd < 0)
 		ttd = 0;
 
-	src = &tcp6_rsk(req)->loc_addr;
-	dest = &tcp6_rsk(req)->rmt_addr;
 	seq_printf(seq,
 		   "%4d: %08X%08X%08X%08X:%04X %08X%08X%08X%08X:%04X "
 		   "%02X %08X:%08X %02X:%08lX %08X %5d %8d %d %d %p\n",
