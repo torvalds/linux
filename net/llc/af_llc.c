@@ -566,10 +566,9 @@ static int llc_wait_data(struct sock *sk, long timeo)
 		/*
 		 * POSIX 1003.1g mandates this order.
 		 */
-		if (sk->sk_err) {
-			rc = sock_error(sk);
+		rc = sock_error(sk);
+		if (rc)
 			break;
-		}
 		rc = 0;
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;

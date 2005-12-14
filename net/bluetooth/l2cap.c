@@ -767,8 +767,9 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
-	if (sk->sk_err)
-		return sock_error(sk);
+	err = sock_error(sk);
+	if (err)
+		return err;
 
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;

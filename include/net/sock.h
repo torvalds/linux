@@ -1166,7 +1166,10 @@ static inline int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
  
 static inline int sock_error(struct sock *sk)
 {
-	int err = xchg(&sk->sk_err, 0);
+	int err;
+	if (likely(!sk->sk_err))
+		return 0;
+	err = xchg(&sk->sk_err, 0);
 	return -err;
 }
 

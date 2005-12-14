@@ -1438,8 +1438,9 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 			/*
 			 *	POSIX 1003.1g mandates this order.
 			 */
-			if (sk->sk_err)
-				ret = sock_error(sk);
+			ret = sock_error(sk);
+			if (ret)
+				break;
 			else if (sk->sk_shutdown & RCV_SHUTDOWN)
 				;
 			else if (noblock)
