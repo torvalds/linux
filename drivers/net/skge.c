@@ -88,15 +88,14 @@ MODULE_DEVICE_TABLE(pci, skge_id_table);
 
 static int skge_up(struct net_device *dev);
 static int skge_down(struct net_device *dev);
+static void skge_phy_reset(struct skge_port *skge);
 static void skge_tx_clean(struct skge_port *skge);
 static int xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
 static int gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
 static void genesis_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_init(struct skge_hw *hw, int port);
-static void yukon_reset(struct skge_hw *hw, int port);
 static void genesis_mac_init(struct skge_hw *hw, int port);
-static void genesis_reset(struct skge_hw *hw, int port);
 static void genesis_link_up(struct skge_port *skge);
 
 /* Avoid conditionals by using array */
@@ -276,10 +275,9 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	skge->autoneg = ecmd->autoneg;
 	skge->advertising = ecmd->advertising;
 
-	if (netif_running(dev)) {
-		skge_down(dev);
-		skge_up(dev);
-	}
+	if (netif_running(dev))
+		skge_phy_reset(skge);
+
 	return (0);
 }
 
@@ -430,21 +428,11 @@ static void skge_set_msglevel(struct net_device *netdev, u32 value)
 static int skge_nway_reset(struct net_device *dev)
 {
 	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-	int port = skge->port;
 
 	if (skge->autoneg != AUTONEG_ENABLE || !netif_running(dev))
 		return -EINVAL;
 
-	spin_lock_bh(&hw->phy_lock);
-	if (hw->chip_id == CHIP_ID_GENESIS) {
-		genesis_reset(hw, port);
-		genesis_mac_init(hw, port);
-	} else {
-		yukon_reset(hw, port);
-		yukon_init(hw, port);
-	}
-	spin_unlock_bh(&hw->phy_lock);
+	skge_phy_reset(skge);
 	return 0;
 }
 
@@ -2017,6 +2005,25 @@ static void yukon_phy_intr(struct skge_port *skge)
 	       skge->netdev->name, reason);
 
 	/* XXX restart autonegotiation? */
+}
+
+static void skge_phy_reset(struct skge_port *skge)
+{
+	struct skge_hw *hw = skge->hw;
+	int port = skge->port;
+
+	netif_stop_queue(skge->netdev);
+	netif_carrier_off(skge->netdev);
+
+	spin_lock_bh(&hw->phy_lock);
+	if (hw->chip_id == CHIP_ID_GENESIS) {
+		genesis_reset(hw, port);
+		genesis_mac_init(hw, port);
+	} else {
+		yukon_reset(hw, port);
+		yukon_init(hw, port);
+	}
+	spin_unlock_bh(&hw->phy_lock);
 }
 
 /* Basic MII support */
