@@ -1554,10 +1554,8 @@ __u32 secure_tcp_sequence_number(__u32 saddr, __u32 daddr,
 
 EXPORT_SYMBOL(secure_tcp_sequence_number);
 
-
-
-/* Generate secure starting point for ephemeral TCP port search */
-u32 secure_tcp_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport)
+/* Generate secure starting point for ephemeral IPV4 transport port search */
+u32 secure_ipv4_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport)
 {
 	struct keydata *keyptr = get_keyptr();
 	u32 hash[4];

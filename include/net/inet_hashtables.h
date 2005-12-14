@@ -434,4 +434,7 @@ static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
 
 	return sk;
 }
+
+extern int inet_hash_connect(struct inet_timewait_death_row *death_row,
+			     struct sock *sk);
 #endif /* _INET_HASHTABLES_H */
