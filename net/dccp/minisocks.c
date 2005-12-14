@@ -52,7 +52,18 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 	if (tw != NULL) {
 		const struct inet_connection_sock *icsk = inet_csk(sk);
 		const int rto = (icsk->icsk_rto << 2) - (icsk->icsk_rto >> 1);
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+		if (tw->tw_family == PF_INET6) {
+			const struct ipv6_pinfo *np = inet6_sk(sk);
+			struct inet6_timewait_sock *tw6;
 
+			tw->tw_ipv6_offset = inet6_tw_offset(sk->sk_prot);
+			tw6 = inet6_twsk((struct sock *)tw);
+			ipv6_addr_copy(&tw6->tw_v6_daddr, &np->daddr);
+			ipv6_addr_copy(&tw6->tw_v6_rcv_saddr, &np->rcv_saddr);
+			tw->tw_ipv6only = np->ipv6only;
+		}
+#endif
 		/* Linkage updates. */
 		__inet_twsk_hashdance(tw, sk, &dccp_hashinfo);
 
