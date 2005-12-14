@@ -176,7 +176,7 @@ MODULE_PARM_DESC(joystick, "Enable joystick.");
 
 /* Values for the ESM_LEGACY_AUDIO_CONTROL */
 
-#define ESS_ENABLE_AUDIO	0x8000
+#define ESS_DISABLE_AUDIO	0x8000
 #define ESS_ENABLE_SERIAL_IRQ	0x4000
 #define IO_ADRESS_ALIAS		0x0020
 #define MPU401_IRQ_ENABLE	0x0010
@@ -195,7 +195,7 @@ MODULE_PARM_DESC(joystick, "Enable joystick.");
 #define DMA_TDMA		0x0100
 #define DMA_PCPCI		0x0200
 #define POST_WRITE		0x0080
-#define ISA_TIMING		0x0040
+#define PCI_TIMING		0x0040
 #define SWAP_LR			0x0020
 #define SUBTR_DECODE		0x0002
 
@@ -2193,14 +2193,11 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 	/* Config Reg A */
 	pci_read_config_word(pci, ESM_CONFIG_A, &w);
 
-	/*      Use TDMA for now. TDMA works on all boards, so while its
-	 *      not the most efficient its the simplest. */
 	w &= ~DMA_CLEAR;	/* Clear DMA bits */
-	w |= DMA_TDMA;		/* TDMA on */
 	w &= ~(PIC_SNOOP1 | PIC_SNOOP2);	/* Clear Pic Snoop Mode Bits */
 	w &= ~SAFEGUARD;	/* Safeguard off */
 	w |= POST_WRITE;	/* Posted write */
-	w |= ISA_TIMING;	/* ISA timing on */
+	w |= PCI_TIMING;	/* PCI timing on */
 	/* XXX huh?  claims to be reserved.. */
 	w &= ~SWAP_LR;		/* swap left/right 
 				   seems to only have effect on SB
@@ -2241,7 +2238,7 @@ static void snd_es1968_chip_init(struct es1968 *chip)
 
 	pci_read_config_word(pci, ESM_LEGACY_AUDIO_CONTROL, &w);
 
-	w &= ~ESS_ENABLE_AUDIO;	/* Disable Legacy Audio */
+	w |= ESS_DISABLE_AUDIO;	/* Disable Legacy Audio */
 	w &= ~ESS_ENABLE_SERIAL_IRQ;	/* Disable SIRQ */
 	w &= ~(0x1f);		/* disable mpu irq/io, game port, fm, SB */
 
