@@ -1072,7 +1072,7 @@ static const char * const extended_msgs[] = {
 #define NO_EXTENDED_MSGS (sizeof(two_byte_msgs)  / sizeof (const char *))
 
 
-int scsi_print_msg (const unsigned char *msg)
+int spi_print_msg(const unsigned char *msg)
 {
 	int len = 0, i;
 	if (msg[0] == EXTENDED_MESSAGE) {
@@ -1125,11 +1125,11 @@ int scsi_print_msg (const unsigned char *msg)
 		printk("reserved");
 	return len;
 }
-EXPORT_SYMBOL(scsi_print_msg);
+EXPORT_SYMBOL(spi_print_msg);
 
 #else  /* ifndef CONFIG_SCSI_CONSTANTS */
 
-int scsi_print_msg (const unsigned char *msg)
+int spi_print_msg(const unsigned char *msg)
 {
 	int len = 0, i;
 
@@ -1153,7 +1153,7 @@ int scsi_print_msg (const unsigned char *msg)
 		printk("%02x ", msg[0]);
 	return len;
 }
-EXPORT_SYMBOL(scsi_print_msg);
+EXPORT_SYMBOL(spi_print_msg);
 #endif /* ! CONFIG_SCSI_CONSTANTS */
 
 #define SETUP_ATTRIBUTE(field)						\

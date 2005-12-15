@@ -75,7 +75,7 @@ static void sym_print_msg(struct sym_ccb *cp, char *label, u_char *msg)
 {
 	sym_print_addr(cp->cmd, "%s: ", label);
 
-	scsi_print_msg(msg);
+	spi_print_msg(msg);
 	printf("\n");
 }
 
@@ -84,7 +84,7 @@ static void sym_print_nego_msg(struct sym_hcb *np, int target, char *label, u_ch
 	struct sym_tcb *tp = &np->target[target];
 	dev_info(&tp->starget->dev, "%s: ", label);
 
-	scsi_print_msg(msg);
+	spi_print_msg(msg);
 	printf("\n");
 }
 
