@@ -522,6 +522,36 @@ static void init_port(struct mthca_dev *dev, int port)
 		mthca_warn(dev, "INIT_IB returned status %02x.\n", status);
 }
 
+static __be32 get_hw_access_flags(struct mthca_qp *qp, struct ib_qp_attr *attr,
+				  int attr_mask)
+{
+	u8 dest_rd_atomic;
+	u32 access_flags;
+	u32 hw_access_flags = 0;
+
+	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC)
+		dest_rd_atomic = attr->max_dest_rd_atomic;
+	else
+		dest_rd_atomic = qp->resp_depth;
+
+	if (attr_mask & IB_QP_ACCESS_FLAGS)
+		access_flags = attr->qp_access_flags;
+	else
+		access_flags = qp->atomic_rd_en;
+
+	if (!dest_rd_atomic)
+		access_flags &= IB_ACCESS_REMOTE_WRITE;
+
+	if (access_flags & IB_ACCESS_REMOTE_READ)
+		hw_access_flags |= MTHCA_QP_BIT_RRE;
+	if (access_flags & IB_ACCESS_REMOTE_ATOMIC)
+		hw_access_flags |= MTHCA_QP_BIT_RAE;
+	if (access_flags & IB_ACCESS_REMOTE_WRITE)
+		hw_access_flags |= MTHCA_QP_BIT_RWE;
+
+	return cpu_to_be32(hw_access_flags);
+}
+
 int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 {
 	struct mthca_dev *dev = to_mdev(ibqp->device);
@@ -743,62 +773,19 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		qp_context->snd_db_index   = cpu_to_be32(qp->sq.db_index);
 	}
 
-	if (attr_mask & IB_QP_ACCESS_FLAGS) {
-		qp_context->params2 |=
-			cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_WRITE ?
-				    MTHCA_QP_BIT_RWE : 0);
-
-		/*
-		 * Only enable RDMA reads and atomics if we have
-		 * responder resources set to a non-zero value.
-		 */
-		if (qp->resp_depth) {
-			qp_context->params2 |=
-				cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_READ ?
-					    MTHCA_QP_BIT_RRE : 0);
-			qp_context->params2 |=
-				cpu_to_be32(attr->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC ?
-					    MTHCA_QP_BIT_RAE : 0);
-		}
-
-		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RWE |
-							MTHCA_QP_OPTPAR_RRE |
-							MTHCA_QP_OPTPAR_RAE);
-	}
-
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC) {
-		if (qp->resp_depth && !attr->max_dest_rd_atomic) {
-			/*
-			 * Lowering our responder resources to zero.
-			 * Turn off reads RDMA and atomics as responder.
-			 * (RRE/RAE in params2 already zero)
-			 */
-			qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRE |
-								MTHCA_QP_OPTPAR_RAE);
-		}
-
-		if (!qp->resp_depth && attr->max_dest_rd_atomic) {
-			/*
-			 * Increasing our responder resources from
-			 * zero.  Turn on RDMA reads and atomics as
-			 * appropriate.
-			 */
-			qp_context->params2 |=
-				cpu_to_be32(qp->atomic_rd_en & IB_ACCESS_REMOTE_READ ?
-					    MTHCA_QP_BIT_RRE : 0);
-			qp_context->params2 |=
-				cpu_to_be32(qp->atomic_rd_en & IB_ACCESS_REMOTE_ATOMIC ?
-					    MTHCA_QP_BIT_RAE : 0);
-
-			qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRE |
-								MTHCA_QP_OPTPAR_RAE);
-		}
-
 		if (attr->max_dest_rd_atomic)
 			qp_context->params2 |=
 				cpu_to_be32(fls(attr->max_dest_rd_atomic - 1) << 21);
 
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RRA_MAX);
+	}
+
+	if (attr_mask & (IB_QP_ACCESS_FLAGS | IB_QP_MAX_DEST_RD_ATOMIC)) {
+		qp_context->params2      |= get_hw_access_flags(qp, attr, attr_mask);
+		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_RWE |
+							MTHCA_QP_OPTPAR_RRE |
+							MTHCA_QP_OPTPAR_RAE);
 	}
 
 	qp_context->params2 |= cpu_to_be32(MTHCA_QP_BIT_RSC);
