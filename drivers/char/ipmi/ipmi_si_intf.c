@@ -2399,7 +2399,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 			new_smi->handlers->cleanup(new_smi->si_sm);
 		kfree(new_smi->si_sm);
 	}
-	new_smi->io_cleanup(new_smi);
+	if (new_smi->io_cleanup)
+		new_smi->io_cleanup(new_smi);
 
 	return rv;
 }
@@ -2518,7 +2519,8 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 
 	kfree(to_clean->si_sm);
 
-	to_clean->io_cleanup(to_clean);
+	if (to_clean->io_cleanup)
+		to_clean->io_cleanup(to_clean);
 }
 
 static __exit void cleanup_ipmi_si(void)
