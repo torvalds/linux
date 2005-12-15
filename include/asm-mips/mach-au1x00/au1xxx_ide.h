@@ -87,11 +87,6 @@ typedef struct
 } _auide_hwif;
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-struct drive_list_entry {
-        const char * id_model;
-        const char * id_firmware;
-};
-
 /* HD white list */
 static const struct drive_list_entry dma_white_list [] = {
 /*
