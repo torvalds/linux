@@ -3425,7 +3425,7 @@ static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_add
 }
 
 static int sctp_copy_laddrs_to_user(struct sock *sk, __u16 port,
-				    void * __user *to, size_t space_left)
+				    void __user **to, size_t space_left)
 {
 	struct list_head *pos;
 	struct sctp_sockaddr_entry *addr;
