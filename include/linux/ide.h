@@ -980,10 +980,7 @@ typedef struct ide_driver_s {
 	int		(*end_request)(ide_drive_t *, int, int);
 	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);
 	ide_startstop_t	(*abort)(ide_drive_t *, struct request *rq);
-	int		(*ioctl)(ide_drive_t *, struct inode *, struct file *, unsigned int, unsigned long);
 	ide_proc_entry_t	*proc;
-	void		(*ata_prebuilder)(ide_drive_t *);
-	void		(*atapi_prebuilder)(ide_drive_t *);
 	struct device_driver	gen_driver;
 } ide_driver_t;
 
