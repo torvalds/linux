@@ -253,6 +253,15 @@ void mthca_cq_event(struct mthca_dev *dev, u32 cqn,
 		wake_up(&cq->wait);
 }
 
+static inline int is_recv_cqe(struct mthca_cqe *cqe)
+{
+	if ((cqe->opcode & MTHCA_ERROR_CQE_OPCODE_MASK) ==
+	    MTHCA_ERROR_CQE_OPCODE_MASK)
+		return !(cqe->opcode & 0x01);
+	else
+		return !(cqe->is_send & 0x80);
+}
+
 void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 		    struct mthca_srq *srq)
 {
@@ -296,7 +305,7 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 	while ((int) --prod_index - (int) cq->cons_index >= 0) {
 		cqe = get_cqe(cq, prod_index & cq->ibcq.cqe);
 		if (cqe->my_qpn == cpu_to_be32(qpn)) {
-			if (srq)
+			if (srq && is_recv_cqe(cqe))
 				mthca_free_srq_wqe(srq, be32_to_cpu(cqe->wqe));
 			++nfreed;
 		} else if (nfreed)
