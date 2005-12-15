@@ -1034,11 +1034,11 @@ static int ide_disk_remove(struct device *dev)
 	struct ide_disk_obj *idkp = drive->driver_data;
 	struct gendisk *g = idkp->disk;
 
-	ide_cacheflush_p(drive);
-
 	ide_unregister_subdriver(drive, idkp->driver);
 
 	del_gendisk(g);
+
+	ide_cacheflush_p(drive);
 
 	ide_disk_put(idkp);
 
