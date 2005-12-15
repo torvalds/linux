@@ -233,7 +233,7 @@ void *mthca_table_find(struct mthca_icm_table *table, int obj)
 		for (i = 0; i < chunk->npages; ++i) {
 			if (chunk->mem[i].length >= offset) {
 				page = chunk->mem[i].page;
-				break;
+				goto out;
 			}
 			offset -= chunk->mem[i].length;
 		}
