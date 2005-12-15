@@ -3416,8 +3416,8 @@ static int skge_resume(struct pci_dev *pdev)
 		struct net_device *dev = hw->dev[i];
 		if (dev) {
 			netif_device_attach(dev);
-			if (netif_running(dev))
-				skge_up(dev);
+			if (netif_running(dev) && skge_up(dev))
+				dev_close(dev);
 		}
 	}
 	return 0;
