@@ -855,7 +855,7 @@ unlock:
 	swap_free(swap);
 redirty:
 	set_page_dirty(page);
-	return WRITEPAGE_ACTIVATE;	/* Return with the page locked */
+	return AOP_WRITEPAGE_ACTIVATE;	/* Return with the page locked */
 }
 
 #ifdef CONFIG_NUMA

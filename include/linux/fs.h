@@ -302,6 +302,37 @@ struct iattr {
  */
 #include <linux/quota.h>
 
+/** 
+ * enum positive_aop_returns - aop return codes with specific semantics
+ *
+ * @AOP_WRITEPAGE_ACTIVATE: Informs the caller that page writeback has
+ * 			    completed, that the page is still locked, and
+ * 			    should be considered active.  The VM uses this hint
+ * 			    to return the page to the active list -- it won't
+ * 			    be a candidate for writeback again in the near
+ * 			    future.  Other callers must be careful to unlock
+ * 			    the page if they get this return.  Returned by
+ * 			    writepage(); 
+ *
+ * @AOP_TRUNCATED_PAGE: The AOP method that was handed a locked page has
+ *  			unlocked it and the page might have been truncated.
+ *  			The caller should back up to acquiring a new page and
+ *  			trying again.  The aop will be taking reasonable
+ *  			precautions not to livelock.  If the caller held a page
+ *  			reference, it should drop it before retrying.  Returned
+ *  			by readpage(), prepare_write(), and commit_write().
+ *
+ * address_space_operation functions return these large constants to indicate
+ * special semantics to the caller.  These are much larger than the bytes in a
+ * page to allow for functions that return the number of bytes operated on in a
+ * given page.
+ */
+
+enum positive_aop_returns {
+	AOP_WRITEPAGE_ACTIVATE	= 0x80000,
+	AOP_TRUNCATED_PAGE	= 0x80001,
+};
+
 /*
  * oh the beauties of C type declarations.
  */

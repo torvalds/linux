@@ -154,7 +154,7 @@ static int ramdisk_commit_write(struct file *file, struct page *page,
 
 /*
  * ->writepage to the the blockdev's mapping has to redirty the page so that the
- * VM doesn't go and steal it.  We return WRITEPAGE_ACTIVATE so that the VM
+ * VM doesn't go and steal it.  We return AOP_WRITEPAGE_ACTIVATE so that the VM
  * won't try to (pointlessly) write the page again for a while.
  *
  * Really, these pages should not be on the LRU at all.
@@ -165,7 +165,7 @@ static int ramdisk_writepage(struct page *page, struct writeback_control *wbc)
 		make_page_uptodate(page);
 	SetPageDirty(page);
 	if (wbc->for_reclaim)
-		return WRITEPAGE_ACTIVATE;
+		return AOP_WRITEPAGE_ACTIVATE;
 	unlock_page(page);
 	return 0;
 }

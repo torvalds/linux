@@ -213,7 +213,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 	struct address_space_operations *aops = mapping->a_ops;
 	pgoff_t index;
 	unsigned offset, bv_offs;
-	int len, ret = 0;
+	int len, ret;
 
 	down(&mapping->host->i_sem);
 	index = pos >> PAGE_CACHE_SHIFT;
@@ -232,9 +232,15 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 		page = grab_cache_page(mapping, index);
 		if (unlikely(!page))
 			goto fail;
-		if (unlikely(aops->prepare_write(file, page, offset,
-				offset + size)))
+		ret = aops->prepare_write(file, page, offset,
+					  offset + size);
+		if (unlikely(ret)) {
+			if (ret == AOP_TRUNCATED_PAGE) {
+				page_cache_release(page);
+				continue;
+			}
 			goto unlock;
+		}
 		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
 				bvec->bv_page, bv_offs, size, IV);
 		if (unlikely(transfer_result)) {
@@ -251,9 +257,15 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 			kunmap_atomic(kaddr, KM_USER0);
 		}
 		flush_dcache_page(page);
-		if (unlikely(aops->commit_write(file, page, offset,
-				offset + size)))
+		ret = aops->commit_write(file, page, offset,
+					 offset + size);
+		if (unlikely(ret)) {
+			if (ret == AOP_TRUNCATED_PAGE) {
+				page_cache_release(page);
+				continue;
+			}
 			goto unlock;
+		}
 		if (unlikely(transfer_result))
 			goto unlock;
 		bv_offs += size;
@@ -264,6 +276,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 		unlock_page(page);
 		page_cache_release(page);
 	}
+	ret = 0;
 out:
 	up(&mapping->host->i_sem);
 	return ret;
