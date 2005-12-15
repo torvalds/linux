@@ -379,9 +379,7 @@ static CLASS_DEVICE_ATTR(revalidate, S_IWUSR, NULL, store_spi_revalidate);
 
 /* Translate the period into ns according to the current spec
  * for SDTR/PPR messages */
-static ssize_t
-show_spi_transport_period_helper(struct class_device *cdev, char *buf,
-				 int period)
+static int period_to_str(char *buf, int period)
 {
 	int len, picosec;
 
@@ -399,6 +397,14 @@ show_spi_transport_period_helper(struct class_device *cdev, char *buf,
 		len = sprint_frac(buf, picosec, 1000);
 	}
 
+	return len;
+}
+
+static ssize_t
+show_spi_transport_period_helper(struct class_device *cdev, char *buf,
+				 int period)
+{
+	int len = period_to_str(buf, period);
 	buf[len++] = '\n';
 	buf[len] = '\0';
 	return len;
@@ -1065,9 +1071,23 @@ static const char * const two_byte_msgs[] = {
 
 static const char * const extended_msgs[] = {
 /* 0x00 */ "Modify Data Pointer", "Synchronous Data Transfer Request",
-/* 0x02 */ "SCSI-I Extended Identify", "Wide Data Transfer Request"
+/* 0x02 */ "SCSI-I Extended Identify", "Wide Data Transfer Request",
+/* 0x04 */ "Parallel Protocol Request"
 };
 
+void print_nego(const unsigned char *msg, int per, int off, int width)
+{
+	if (per) {
+		char buf[20];
+		period_to_str(buf, msg[per]);
+		printk("period = %s ns ", buf);
+	}
+
+	if (off)
+		printk("offset = %d ", msg[off]);
+	if (width)
+		printk("width = %d ", 8 << msg[width]);
+}
 
 int spi_print_msg(const unsigned char *msg)
 {
@@ -1085,11 +1105,13 @@ int spi_print_msg(const unsigned char *msg)
 				(msg[4] << 16) | (msg[5] << 8) | msg[6]);
 			break;
 		case EXTENDED_SDTR:
-			printk("period = %d ns, offset = %d",
-				(int) msg[3] * 4, (int) msg[4]);
+			print_nego(msg, 3, 4, 0);
 			break;
 		case EXTENDED_WDTR:
-			printk("width = 2^%d bytes", msg[3]);
+			print_nego(msg, 0, 0, 3);
+			break;
+		case EXTENDED_PPR:
+			print_nego(msg, 3, 5, 6);
 			break;
 		default:
 		for (i = 2; i < len; ++i) 
