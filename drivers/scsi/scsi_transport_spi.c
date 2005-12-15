@@ -1057,19 +1057,16 @@ static const char * const one_byte_msgs[] = {
 /* 0x0c */ "Bus device reset", "Abort Tag", "Clear Queue", 
 /* 0x0f */ "Initiate Recovery", "Release Recovery"
 };
-#define NO_ONE_BYTE_MSGS (sizeof(one_byte_msgs)  / sizeof (const char *))
 
 static const char * const two_byte_msgs[] = {
 /* 0x20 */ "Simple Queue Tag", "Head of Queue Tag", "Ordered Queue Tag",
 /* 0x23 */ "Ignore Wide Residue"
 };
-#define NO_TWO_BYTE_MSGS (sizeof(two_byte_msgs)  / sizeof (const char *))
 
 static const char * const extended_msgs[] = {
 /* 0x00 */ "Modify Data Pointer", "Synchronous Data Transfer Request",
 /* 0x02 */ "SCSI-I Extended Identify", "Wide Data Transfer Request"
 };
-#define NO_EXTENDED_MSGS (sizeof(two_byte_msgs)  / sizeof (const char *))
 
 
 int spi_print_msg(const unsigned char *msg)
@@ -1077,7 +1074,7 @@ int spi_print_msg(const unsigned char *msg)
 	int len = 0, i;
 	if (msg[0] == EXTENDED_MESSAGE) {
 		len = 3 + msg[1];
-		if (msg[2] < NO_EXTENDED_MSGS)
+		if (msg[2] < ARRAY_SIZE(extended_msgs))
 			printk ("%s ", extended_msgs[msg[2]]); 
 		else 
 			printk ("Extended Message, reserved code (0x%02x) ",
@@ -1107,14 +1104,14 @@ int spi_print_msg(const unsigned char *msg)
 		len = 1;
 	/* Normal One byte */
 	} else if (msg[0] < 0x1f) {
-		if (msg[0] < NO_ONE_BYTE_MSGS)
+		if (msg[0] < ARRAY_SIZE(one_byte_msgs))
 			printk(one_byte_msgs[msg[0]]);
 		else
 			printk("reserved (%02x) ", msg[0]);
 		len = 1;
 	/* Two byte */
 	} else if (msg[0] <= 0x2f) {
-		if ((msg[0] - 0x20) < NO_TWO_BYTE_MSGS)
+		if ((msg[0] - 0x20) < ARRAY_SIZE(two_byte_msgs))
 			printk("%s %02x ", two_byte_msgs[msg[0] - 0x20], 
 				msg[1]);
 		else 
