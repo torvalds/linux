@@ -12,6 +12,8 @@ cifs.txt
 	- description of the CIFS filesystem
 coda.txt
 	- description of the CODA filesystem.
+configfs/
+	- directory containing configfs documentation and example code.
 cramfs.txt
 	- info on the cram filesystem for small storage (ROMs etc)
 devfs/
