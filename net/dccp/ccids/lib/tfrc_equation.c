@@ -15,7 +15,6 @@
 #include <linux/config.h>
 #include <linux/module.h>
 
-#include <asm/bug.h>
 #include <asm/div64.h>
 
 #include "tfrc.h"

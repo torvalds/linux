@@ -239,7 +239,6 @@ typedef struct journal_superblock_s
 
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <asm/bug.h>
 
 #define JBD_ASSERTIONS
 #ifdef JBD_ASSERTIONS
