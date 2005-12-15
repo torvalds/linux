@@ -278,8 +278,6 @@ static inline void audit_inode_child(const char *dname,
 }
 
 				/* Private API (for audit.c only) */
-extern int  audit_receive_filter(int type, int pid, int uid, int seq,
-				 void *data, uid_t loginuid);
 extern unsigned int audit_serial(void);
 extern void auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
@@ -290,8 +288,6 @@ extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern void audit_signal_info(int sig, struct task_struct *t);
-extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
-extern int audit_filter_type(int type);
 extern int audit_set_macxattr(const char *name);
 #else
 #define audit_alloc(t) ({ 0; })
@@ -304,7 +300,6 @@ extern int audit_set_macxattr(const char *name);
 #define __audit_inode_child(d,i,p) do { ; } while (0)
 #define audit_inode(n,i,f) do { ; } while (0)
 #define audit_inode_child(d,i,p) do { ; } while (0)
-#define audit_receive_filter(t,p,u,s,d,l) ({ -EOPNOTSUPP; })
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
 #define audit_ipc_perms(q,u,g,m,i) ({ 0; })
@@ -312,7 +307,6 @@ extern int audit_set_macxattr(const char *name);
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_signal_info(s,t) do { ; } while (0)
-#define audit_filter_user(cb,t) ({ 1; })
 #define audit_set_macxattr(n) do { ; } while (0)
 #endif
 
@@ -337,13 +331,11 @@ extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
 					     struct dentry *dentry,
 					     struct vfsmount *vfsmnt);
-				/* Private API (for auditsc.c only) */
-extern void		    audit_send_reply(int pid, int seq, int type,
-					     int done, int multi,
-					     void *payload, int size);
-extern void		    audit_log_lost(const char *message);
-extern void		    audit_panic(const char *message);
-extern struct semaphore audit_netlink_sem;
+				/* Private API (for audit.c only) */
+extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
+extern int audit_filter_type(int type);
+extern int  audit_receive_filter(int type, int pid, int uid, int seq,
+				 void *data, uid_t loginuid);
 #else
 #define audit_log(c,g,t,f,...) do { ; } while (0)
 #define audit_log_start(c,g,t) ({ NULL; })
