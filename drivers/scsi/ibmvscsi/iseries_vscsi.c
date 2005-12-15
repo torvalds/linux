@@ -117,9 +117,10 @@ void ibmvscsi_release_crq_queue(struct crq_queue *queue,
  *
  * no-op for iSeries
  */
-void ibmvscsi_reset_crq_queue(struct crq_queue *queue,
+int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 			      struct ibmvscsi_host_data *hostdata)
 {
+	return 0;
 }
 
 /**

@@ -18,11 +18,11 @@ static DECLARE_BITMAP(fallback_slots, 32);
 /* Static virtual mapping of the MMCONFIG aperture */
 struct mmcfg_virt {
 	struct acpi_table_mcfg_config *cfg;
-	char *virt;
+	char __iomem *virt;
 };
 static struct mmcfg_virt *pci_mmcfg_virt;
 
-static char *get_virt(unsigned int seg, unsigned bus)
+static char __iomem *get_virt(unsigned int seg, unsigned bus)
 {
 	int cfg_num = -1;
 	struct acpi_table_mcfg_config *cfg;
@@ -43,9 +43,9 @@ static char *get_virt(unsigned int seg, unsigned bus)
 	}
 }
 
-static char *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
+static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
 {
-	char *addr;
+	char __iomem *addr;
 	if (seg == 0 && bus == 0 && test_bit(PCI_SLOT(devfn), &fallback_slots))
 		return NULL;
 	addr = get_virt(seg, bus);
@@ -57,7 +57,7 @@ static char *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn
 static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 			  unsigned int devfn, int reg, int len, u32 *value)
 {
-	char *addr;
+	char __iomem *addr;
 
 	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
 	if (unlikely(!value || (bus > 255) || (devfn > 255) || (reg > 4095)))
@@ -85,7 +85,7 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 			   unsigned int devfn, int reg, int len, u32 value)
 {
-	char *addr;
+	char __iomem *addr;
 
 	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095)))
@@ -127,7 +127,7 @@ static __init void unreachable_devices(void)
 	int i;
 	for (i = 0; i < 32; i++) {
 		u32 val1;
-		char *addr;
+		char __iomem *addr;
 
 		pci_conf1_read(0, 0, PCI_DEVFN(i,0), 0, 4, &val1);
 		if (val1 == 0xffffffff)

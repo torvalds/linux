@@ -22,7 +22,7 @@
 #include <asm/oplib.h>
 #include <asm/bpp.h>
 
-struct linux_ebus *ebus_chain = 0;
+struct linux_ebus *ebus_chain = NULL;
 
 /* We are together with pcic.c under CONFIG_PCI. */
 extern unsigned int pcic_pin_to_irq(unsigned int, char *name);
@@ -46,7 +46,7 @@ static struct ebus_device_irq je1_1[] = {
 	{ "SUNW,CS4231",	 0 },
 	{ "parallel",		 0 },
 	{ "se",			 2 },
-	{ 0, 0 }
+	{ NULL, 0 }
 };
 
 /*
@@ -55,7 +55,7 @@ static struct ebus_device_irq je1_1[] = {
  */
 static struct ebus_system_entry ebus_blacklist[] = {
 	{ "SUNW,JavaEngine1", je1_1 },
-	{ 0, 0 }
+	{ NULL, NULL }
 };
 
 static struct ebus_device_irq *ebus_blackp = NULL;
@@ -233,7 +233,7 @@ void __init fill_ebus_device(int node, struct linux_ebus_device *dev)
 			ebus_alloc(sizeof(struct linux_ebus_child));
 
 		child = dev->children;
-		child->next = 0;
+		child->next = NULL;
 		child->parent = dev;
 		child->bus = dev->bus;
 		fill_ebus_child(node, &regs[0], child);
@@ -243,7 +243,7 @@ void __init fill_ebus_device(int node, struct linux_ebus_device *dev)
 				ebus_alloc(sizeof(struct linux_ebus_child));
 
 			child = child->next;
-			child->next = 0;
+			child->next = NULL;
 			child->parent = dev;
 			child->bus = dev->bus;
 			fill_ebus_child(node, &regs[0], child);
@@ -275,7 +275,7 @@ void __init ebus_init(void)
 		}
 	}
 
-	pdev = pci_get_device(PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_EBUS, 0);
+	pdev = pci_get_device(PCI_VENDOR_ID_SUN, PCI_DEVICE_ID_SUN_EBUS, NULL);
 	if (!pdev) {
 		return;
 	}
@@ -284,7 +284,7 @@ void __init ebus_init(void)
 
 	ebus_chain = ebus = (struct linux_ebus *)
 			ebus_alloc(sizeof(struct linux_ebus));
-	ebus->next = 0;
+	ebus->next = NULL;
 
 	while (ebusnd) {
 
@@ -325,8 +325,8 @@ void __init ebus_init(void)
 				ebus_alloc(sizeof(struct linux_ebus_device));
 
 		dev = ebus->devices;
-		dev->next = 0;
-		dev->children = 0;
+		dev->next = NULL;
+		dev->children = NULL;
 		dev->bus = ebus;
 		fill_ebus_device(nd, dev);
 
@@ -335,8 +335,8 @@ void __init ebus_init(void)
 				ebus_alloc(sizeof(struct linux_ebus_device));
 
 			dev = dev->next;
-			dev->next = 0;
-			dev->children = 0;
+			dev->next = NULL;
+			dev->children = NULL;
 			dev->bus = ebus;
 			fill_ebus_device(nd, dev);
 		}
@@ -353,7 +353,7 @@ void __init ebus_init(void)
 		ebus->next = (struct linux_ebus *)
 			ebus_alloc(sizeof(struct linux_ebus));
 		ebus = ebus->next;
-		ebus->next = 0;
+		ebus->next = NULL;
 		++num_ebus;
 	}
 	if (pdev)

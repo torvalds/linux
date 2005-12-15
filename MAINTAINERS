@@ -1284,8 +1284,8 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/roland/infiniband.git
 S:	Supported
 
 INPUT (KEYBOARD, MOUSE, JOYSTICK) DRIVERS
-P:	Vojtech Pavlik
-M:	vojtech@suse.cz
+P:	Dmitry Torokhov
+M:	dtor_core@ameritech.net
 L:	linux-input@atrey.karlin.mff.cuni.cz
 L:	linux-joystick@atrey.karlin.mff.cuni.cz
 T:	git kernel.org:/pub/scm/linux/kernel/git/dtor/input.git

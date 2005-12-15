@@ -422,10 +422,15 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
  **/
 static void scsi_eh_done(struct scsi_cmnd *scmd)
 {
+	struct completion     *eh_action;
+
 	SCSI_LOG_ERROR_RECOVERY(3,
 		printk("%s scmd: %p result: %x\n",
 			__FUNCTION__, scmd, scmd->result));
-	complete(scmd->device->host->eh_action);
+
+	eh_action = scmd->device->host->eh_action;
+	if (eh_action)
+		complete(eh_action);
 }
 
 /**
