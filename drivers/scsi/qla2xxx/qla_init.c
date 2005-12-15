@@ -1259,7 +1259,7 @@ qla2x00_configure_hba(scsi_qla_host_t *ha)
 	rval = qla2x00_get_adapter_id(ha,
 	    &loop_id, &al_pa, &area, &domain, &topo);
 	if (rval != QLA_SUCCESS) {
-		if (LOOP_NOT_READY(ha) || atomic_read(&ha->loop_down_timer) ||
+		if (LOOP_TRANSITION(ha) || atomic_read(&ha->loop_down_timer) ||
 		    (rval == QLA_COMMAND_ERROR && loop_id == 0x7)) {
 			DEBUG2(printk("%s(%ld) Loop is in a transition state\n",
 			    __func__, ha->host_no));
@@ -1796,7 +1796,7 @@ qla2x00_configure_loop(scsi_qla_host_t *ha)
 	}
 
 	if (rval == QLA_SUCCESS && test_bit(RSCN_UPDATE, &flags)) {
-		if (LOOP_NOT_READY(ha)) {
+		if (LOOP_TRANSITION(ha)) {
 			rval = QLA_FUNCTION_FAILED;
 		} else {
 			rval = qla2x00_configure_fabric(ha);
@@ -2369,7 +2369,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		if (qla2x00_is_reserved_id(ha, loop_id))
 			continue;
 
-		if (atomic_read(&ha->loop_down_timer) || LOOP_NOT_READY(ha))
+		if (atomic_read(&ha->loop_down_timer) || LOOP_TRANSITION(ha))
 			break;
 
 		if (swl != NULL) {
