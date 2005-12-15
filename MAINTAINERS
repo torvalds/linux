@@ -1905,6 +1905,15 @@ M:	ajoshi@shell.unixbox.com
 L:	linux-nvidia@lists.surfsouth.com
 S:	Maintained
 
+ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
+P:	Mark Fasheh
+M:	mark.fasheh@oracle.com
+P:	Kurt Hackel
+M:	kurt.hackel@oracle.com
+L:	ocfs2-devel@oss.oracle.com
+W:	http://oss.oracle.com/projects/ocfs2/
+S:	Supported	
+
 OLYMPIC NETWORK DRIVER
 P:	Peter De Shrijver
 M:	p2@ace.ulyssis.student.kuleuven.ac.be

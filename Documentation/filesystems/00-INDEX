@@ -36,6 +36,8 @@ ntfs.txt
 	- info and mount options for the NTFS filesystem (Windows NT).
 proc.txt
 	- info on Linux's /proc filesystem.
+ocfs2.txt
+	- info and mount options for the OCFS2 clustered filesystem.
 romfs.txt
 	- Description of the ROMFS filesystem.
 smbfs.txt
