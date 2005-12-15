@@ -578,16 +578,14 @@ set_recv_slots(int num_channels)
 	} while ((stat & PSC_AC97STAT_DR) == 0);
 }
 
+/* Hold spinlock for both start_dac() and start_adc() calls */
 static void
 start_dac(struct au1550_state *s)
 {
 	struct dmabuf  *db = &s->dma_dac;
-	unsigned long   flags;
 
 	if (!db->stopped)
 		return;
-
-	spin_lock_irqsave(&s->lock, flags);
 
 	set_xmit_slots(db->num_channels);
 	au_writel(PSC_AC97PCR_TC, PSC_AC97PCR);
@@ -598,8 +596,6 @@ start_dac(struct au1550_state *s)
 	au1xxx_dbdma_start(db->dmanr);
 
 	db->stopped = 0;
-
-	spin_unlock_irqrestore(&s->lock, flags);
 }
 
 static void
@@ -718,13 +714,14 @@ prog_dmabuf_dac(struct au1550_state *s)
 }
 
 
-/* hold spinlock for the following */
 static void
 dac_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct au1550_state *s = (struct au1550_state *) dev_id;
 	struct dmabuf  *db = &s->dma_dac;
 	u32	ac97c_stat;
+
+	spin_lock(&s->lock);
 
 	ac97c_stat = au_readl(PSC_AC97STAT);
 	if (ac97c_stat & (AC97C_XU | AC97C_XO | AC97C_TE))
@@ -747,6 +744,8 @@ dac_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* wake up anybody listening */
 	if (waitqueue_active(&db->wait))
 		wake_up(&db->wait);
+
+	spin_unlock(&s->lock);
 }
 
 
@@ -758,6 +757,8 @@ adc_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	u32	obytes;
 	char	*obuf;
 
+	spin_lock(&s->lock);
+
 	/* Pull the buffer from the dma queue.
 	*/
 	au1xxx_dbdma_get_dest(dp->dmanr, (void *)(&obuf), &obytes);
@@ -765,6 +766,7 @@ adc_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if ((dp->count + obytes) > dp->dmasize) {
 		/* Overrun. Stop ADC and log the error
 		*/
+		spin_unlock(&s->lock);
 		stop_adc(s);
 		dp->error++;
 		err("adc overrun");
@@ -787,6 +789,7 @@ adc_dma_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (waitqueue_active(&dp->wait))
 		wake_up(&dp->wait);
 
+	spin_unlock(&s->lock);
 }
 
 static loff_t
@@ -1048,9 +1051,9 @@ au1550_read(struct file *file, char *buffer, size_t count, loff_t *ppos)
 		/* wait for samples in ADC dma buffer
 		*/
 		do {
+			spin_lock_irqsave(&s->lock, flags);
 			if (db->stopped)
 				start_adc(s);
-			spin_lock_irqsave(&s->lock, flags);
 			avail = db->count;
 			if (avail <= 0)
 				__set_current_state(TASK_INTERRUPTIBLE);
@@ -1570,15 +1573,19 @@ au1550_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		if (get_user(val, (int *) arg))
 			return -EFAULT;
 		if (file->f_mode & FMODE_READ) {
-			if (val & PCM_ENABLE_INPUT)
+			if (val & PCM_ENABLE_INPUT) {
+				spin_lock_irqsave(&s->lock, flags);
 				start_adc(s);
-			else
+				spin_unlock_irqrestore(&s->lock, flags);
+			} else
 				stop_adc(s);
 		}
 		if (file->f_mode & FMODE_WRITE) {
-			if (val & PCM_ENABLE_OUTPUT)
+			if (val & PCM_ENABLE_OUTPUT) {
+				spin_lock_irqsave(&s->lock, flags);
 				start_dac(s);
-			else
+				spin_unlock_irqrestore(&s->lock, flags);
+			} else
 				stop_dac(s);
 		}
 		return 0;
