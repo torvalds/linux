@@ -90,11 +90,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-struct drive_list_entry {
-	const char *id_model;
-	const char *id_firmware;
-};
-
 static const struct drive_list_entry drive_whitelist [] = {
 
 	{ "Micropolis 2112A"	,       "ALL"		},
@@ -139,7 +134,7 @@ static const struct drive_list_entry drive_blacklist [] = {
 };
 
 /**
- *	in_drive_list	-	look for drive in black/white list
+ *	ide_in_drive_list	-	look for drive in black/white list
  *	@id: drive identifier
  *	@drive_table: list to inspect
  *
@@ -147,7 +142,7 @@ static const struct drive_list_entry drive_blacklist [] = {
  *	Returns 1 if the drive is found in the table.
  */
 
-static int in_drive_list(struct hd_driveid *id, const struct drive_list_entry *drive_table)
+int ide_in_drive_list(struct hd_driveid *id, const struct drive_list_entry *drive_table)
 {
 	for ( ; drive_table->id_model ; drive_table++)
 		if ((!strcmp(drive_table->id_model, id->model)) &&
@@ -156,6 +151,8 @@ static int in_drive_list(struct hd_driveid *id, const struct drive_list_entry *d
 			return 1;
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(ide_in_drive_list);
 
 /**
  *	ide_dma_intr	-	IDE DMA interrupt handler
@@ -663,7 +660,7 @@ int __ide_dma_bad_drive (ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
 
-	int blacklist = in_drive_list(id, drive_blacklist);
+	int blacklist = ide_in_drive_list(id, drive_blacklist);
 	if (blacklist) {
 		printk(KERN_WARNING "%s: Disabling (U)DMA for %s (blacklisted)\n",
 				    drive->name, id->model);
@@ -677,7 +674,7 @@ EXPORT_SYMBOL(__ide_dma_bad_drive);
 int __ide_dma_good_drive (ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
-	return in_drive_list(id, drive_whitelist);
+	return ide_in_drive_list(id, drive_whitelist);
 }
 
 EXPORT_SYMBOL(__ide_dma_good_drive);
