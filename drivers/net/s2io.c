@@ -2020,7 +2020,7 @@ static struct sk_buff *s2io_txdl_getskb(fifo_info_t *fifo_data, TxD_t *txdlp, in
 	u16 j, frg_cnt;
 
 	txds = txdlp;
-	if (txds->Host_Control == (u64) nic->ufo_in_band_v) {
+	if (txds->Host_Control == (u64)(long)nic->ufo_in_band_v) {
 		pci_unmap_single(nic->pdev, (dma_addr_t)
 			txds->Buffer_Pointer, sizeof(u64),
 			PCI_DMA_TODEVICE);
@@ -3323,7 +3323,7 @@ failed\n", dev->name);
 					  s2io_msix_fifo_handle, 0, sp->desc1,
 					  sp->s2io_entries[i].arg);
 				DBG_PRINT(ERR_DBG, "%s @ 0x%llx\n", sp->desc1, 
-							sp->msix_info[i].addr);
+				    (unsigned long long)sp->msix_info[i].addr);
 			} else {
 				sprintf(sp->desc2, "%s:MSI-X-%d-RX",
 					dev->name, i);
@@ -3331,7 +3331,7 @@ failed\n", dev->name);
 					  s2io_msix_ring_handle, 0, sp->desc2,
 					  sp->s2io_entries[i].arg);
 				DBG_PRINT(ERR_DBG, "%s @ 0x%llx\n", sp->desc2, 
-							sp->msix_info[i].addr);
+				     (unsigned long long)sp->msix_info[i].addr);
 			}
 			if (err) {
 				DBG_PRINT(ERR_DBG, "%s: MSI-X-%d registration \
@@ -4746,7 +4746,10 @@ static int s2io_eeprom_test(nic_t * sp, uint64_t * data)
 		fail = 1;
 
 	if (ret_data != 0x012345) {
-		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x4F0. Data written %llx Data read %llx\n", dev->name, (u64)0x12345, ret_data); 
+		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x4F0. "
+			"Data written %llx Data read %llx\n",
+			dev->name, (unsigned long long)0x12345,
+			(unsigned long long)ret_data);
 		fail = 1;
 	}
 
@@ -4765,7 +4768,10 @@ static int s2io_eeprom_test(nic_t * sp, uint64_t * data)
 		fail = 1;
 
 	if (ret_data != 0x012345) {
-		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x7F0. Data written %llx Data read %llx\n", dev->name, (u64)0x12345, ret_data); 
+		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x7F0. "
+			"Data written %llx Data read %llx\n",
+			dev->name, (unsigned long long)0x12345,
+			(unsigned long long)ret_data);
 		fail = 1;
 	}
 
