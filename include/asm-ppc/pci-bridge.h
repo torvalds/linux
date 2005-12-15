@@ -138,11 +138,11 @@ static inline unsigned char bridge_swizzle(unsigned char pin,
 extern int pciauto_bus_scan(struct pci_controller *, int);
 
 #ifdef CONFIG_PCI
-extern unsigned int pci_address_to_pio(phys_addr_t address);
+extern unsigned long pci_address_to_pio(phys_addr_t address);
 #else
-static inline unsigned int pci_address_to_pio(phys_addr_t address)
+static inline unsigned long pci_address_to_pio(phys_addr_t address)
 {
-	return (unsigned int)-1;
+	return (unsigned long)-1;
 }
 #endif
 

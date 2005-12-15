@@ -1365,16 +1365,17 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
-unsigned int pci_address_to_pio(phys_addr_t address)
+unsigned long pci_address_to_pio(phys_addr_t address)
 {
 	struct pci_controller *hose, *tmp;
 
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		if (address >= hose->io_base_phys &&
-		    address < (hose->io_base_phys + hose->pci_io_size))
-			return (unsigned int)
-				((unsigned long)hose->io_base_virt +
-				 (address - hose->io_base_phys));
+		    address < (hose->io_base_phys + hose->pci_io_size)) {
+			unsigned long base =
+				(unsigned long)hose->io_base_virt - pci_io_base;
+			return base + (address - hose->io_base_phys);
+		}
 	}
 	return (unsigned int)-1;
 }

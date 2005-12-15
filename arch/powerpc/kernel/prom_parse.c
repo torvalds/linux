@@ -503,9 +503,9 @@ static int __of_address_to_resource(struct device_node *dev, u32 *addrp,
 		return -EINVAL;
 	memset(r, 0, sizeof(struct resource));
 	if (flags & IORESOURCE_IO) {
-		unsigned int port;
+		unsigned long port;
 		port = pci_address_to_pio(taddr);
-		if (port == (unsigned int)-1)
+		if (port == (unsigned long)-1)
 			return -EINVAL;
 		r->start = port;
 		r->end = port + size - 1;

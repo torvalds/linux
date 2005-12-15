@@ -1811,7 +1811,7 @@ void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 EXPORT_SYMBOL(pci_iomap);
 EXPORT_SYMBOL(pci_iounmap);
 
-unsigned int pci_address_to_pio(phys_addr_t address)
+unsigned long pci_address_to_pio(phys_addr_t address)
 {
 	struct pci_controller* hose = hose_head;
 
@@ -1819,9 +1819,11 @@ unsigned int pci_address_to_pio(phys_addr_t address)
 		unsigned int size = hose->io_resource.end -
 			hose->io_resource.start + 1;
 		if (address >= hose->io_base_phys &&
-		    address < (hose->io_base_phys + size))
-			return (unsigned int)hose->io_base_virt +
-				(address - hose->io_base_phys);
+		    address < (hose->io_base_phys + size)) {
+			unsigned long base =
+				(unsigned long)hose->io_base_virt - _IO_BASE;
+			return base + (address - hose->io_base_phys);
+
 	}
 	return (unsigned int)-1;
 }
