@@ -747,9 +747,7 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	qp_context->wqe_lkey   = cpu_to_be32(qp->mr.ibmr.lkey);
 	qp_context->params1    = cpu_to_be32((MTHCA_ACK_REQ_FREQ << 28) |
 					     (MTHCA_FLIGHT_LIMIT << 24) |
-					     MTHCA_QP_BIT_SRE           |
-					     MTHCA_QP_BIT_SWE           |
-					     MTHCA_QP_BIT_SAE);
+					     MTHCA_QP_BIT_SWE);
 	if (qp->sq_policy == IB_SIGNAL_ALL_WR)
 		qp_context->params1 |= cpu_to_be32(MTHCA_QP_BIT_SSC);
 	if (attr_mask & IB_QP_RETRY_CNT) {
@@ -758,9 +756,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	}
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC) {
-		if (attr->max_rd_atomic)
+		if (attr->max_rd_atomic) {
+			qp_context->params1 |=
+				cpu_to_be32(MTHCA_QP_BIT_SRE |
+					    MTHCA_QP_BIT_SAE);
 			qp_context->params1 |=
 				cpu_to_be32(fls(attr->max_rd_atomic - 1) << 21);
+		}
 		qp_param->opt_param_mask |= cpu_to_be32(MTHCA_QP_OPTPAR_SRA_MAX);
 	}
 
