@@ -205,7 +205,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
 	return 1;
 }
 
-void dump_regs(elf_greg_t *gp, struct pt_regs *regs)
+void elf_dump_regs(elf_greg_t *gp, struct pt_regs *regs)
 {
 	int i;
 
@@ -231,7 +231,7 @@ int dump_task_regs (struct task_struct *tsk, elf_gregset_t *regs)
 {
 	struct thread_info *ti = tsk->thread_info;
 	long ksp = (unsigned long)ti + THREAD_SIZE - 32;
-	dump_regs(&(*regs)[0], (struct pt_regs *) ksp - 1);
+	elf_dump_regs(&(*regs)[0], (struct pt_regs *) ksp - 1);
 	return 1;
 }
 
