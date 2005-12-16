@@ -140,7 +140,6 @@ struct onenand_chip {
  * OneNAND Flash Manufacturer ID Codes
  */
 #define ONENAND_MFR_SAMSUNG	0xec
-#define ONENAND_MFR_UNKNOWN	0x00
 
 /**
  * struct nand_manufacturers - NAND Flash Manufacturer ID Structure

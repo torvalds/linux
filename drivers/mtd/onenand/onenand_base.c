@@ -1346,7 +1346,6 @@ static void onenand_print_device_info(int device)
 
 static const struct onenand_manufacturers onenand_manuf_ids[] = {
         {ONENAND_MFR_SAMSUNG, "Samsung"},
-        {ONENAND_MFR_UNKNOWN, "Unknown"}
 };
 
 /**
@@ -1357,17 +1356,22 @@ static const struct onenand_manufacturers onenand_manuf_ids[] = {
  */
 static int onenand_check_maf(int manuf)
 {
+	int size = ARRAY_SIZE(onenand_manuf_ids);
+	char *name;
         int i;
 
-        for (i = 0; onenand_manuf_ids[i].id; i++) {
+	for (i = 0; i < size; i++)
                 if (manuf == onenand_manuf_ids[i].id)
                         break;
-        }
 
-        printk(KERN_DEBUG "OneNAND Manufacturer: %s (0x%0x)\n",
-                onenand_manuf_ids[i].name, manuf);
+	if (i < size)
+		name = onenand_manuf_ids[i].name;
+	else
+		name = "Unknown";
 
-        return (i != ONENAND_MFR_UNKNOWN);
+	printk(KERN_DEBUG "OneNAND Manufacturer: %s (0x%0x)\n", name, manuf);
+
+	return (i == size);
 }
 
 /**
