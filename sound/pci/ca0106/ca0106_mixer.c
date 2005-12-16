@@ -130,7 +130,7 @@ static int snd_ca0106_capture_source_info(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[6] = {
-		"SPDIF out", "i2s mixer out", "SPDIF in", "i2s in", "AC97 in", "SRC out"
+		"IEC958 out", "i2s mixer out", "IEC958 in", "i2s in", "AC97 in", "SRC out"
 	};
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -349,13 +349,13 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
         CA_VOLUME("Analog Side Playback Volume",
 		  CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME2),
 
-        CA_VOLUME("SPDIF Front Playback Volume",
+        CA_VOLUME("IEC958 Front Playback Volume",
 		  CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME1),
-	CA_VOLUME("SPDIF Rear Playback Volume",
+	CA_VOLUME("IEC958 Rear Playback Volume",
 		  CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME1),
-	CA_VOLUME("SPDIF Center/LFE Playback Volume",
+	CA_VOLUME("IEC958 Center/LFE Playback Volume",
 		  CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME1),
-	CA_VOLUME("SPDIF Unknown Playback Volume",
+	CA_VOLUME("IEC958 Unknown Playback Volume",
 		  CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME1),
 
         CA_VOLUME("CAPTURE feedback Playback Volume",
@@ -371,7 +371,7 @@ static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
 	},
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name =		"SPDIF Out",
+		.name =		"IEC958 Playback Switch",
 		.info =		snd_ca0106_shared_spdif_info,
 		.get =		snd_ca0106_shared_spdif_get,
 		.put =		snd_ca0106_shared_spdif_put
