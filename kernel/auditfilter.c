@@ -69,7 +69,7 @@ static inline int audit_copy_rule(struct audit_rule *d, struct audit_rule *s)
 /* Check to see if two rules are identical.  It is called from
  * audit_add_rule during AUDIT_ADD and 
  * audit_del_rule during AUDIT_DEL. */
-static inline int audit_compare_rule(struct audit_rule *a, struct audit_rule *b)
+static int audit_compare_rule(struct audit_rule *a, struct audit_rule *b)
 {
 	int i;
 
@@ -107,19 +107,18 @@ static inline int audit_add_rule(struct audit_rule *rule,
 	/* Do not use the _rcu iterator here, since this is the only
 	 * addition routine. */
 	list_for_each_entry(entry, list, list) {
-		if (!audit_compare_rule(rule, &entry->rule)) {
+		if (!audit_compare_rule(rule, &entry->rule))
 			return -EEXIST;
-		}
 	}
 
 	for (i = 0; i < rule->field_count; i++) {
 		if (rule->fields[i] & AUDIT_UNUSED_BITS)
 			return -EINVAL;
-		if ( rule->fields[i] & AUDIT_NEGATE )
+		if ( rule->fields[i] & AUDIT_NEGATE)
 			rule->fields[i] |= AUDIT_NOT_EQUAL;
 		else if ( (rule->fields[i] & AUDIT_OPERATORS) == 0 )
 			rule->fields[i] |= AUDIT_EQUAL;
-		rule->fields[i] &= (~AUDIT_NEGATE);
+		rule->fields[i] &= ~AUDIT_NEGATE;
 	}
 
 	if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))
@@ -374,5 +373,3 @@ unlock_and_return:
 	rcu_read_unlock();
 	return result;
 }
-
-
