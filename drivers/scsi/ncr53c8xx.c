@@ -2971,21 +2971,10 @@ struct host_data {
 
 static void ncr_print_msg(struct ccb *cp, char *label, u_char *msg)
 {
-	int i;
 	PRINT_ADDR(cp->cmd, "%s: ", label);
 
-	printk ("%x",*msg);
-	if (*msg == M_EXTENDED) {
-		for (i = 1; i < 8; i++) {
-			if (i - 1 > msg[1])
-				break;
-			printk ("-%x",msg[i]);
-		}
-	} else if ((*msg & 0xf0) == 0x20) {
-		printk ("-%x",msg[1]);
-	}
-
-	printk(".\n");
+	spi_print_msg(msg);
+	printk("\n");
 }
 
 /*==========================================================
