@@ -24,10 +24,9 @@ static DEFINE_SPINLOCK(usu_lock);
 /*
  */
 #define USB_US_DEFAULT_BIAS	USB_US_TYPE_STOR
+static atomic_t usu_bias = ATOMIC_INIT(USB_US_DEFAULT_BIAS);
 
 #define BIAS_NAME_SIZE  (sizeof("usb-storage"))
-static char bias[BIAS_NAME_SIZE];
-static int usb_usual_bias;
 static const char *bias_names[3] = { "none", "usb-storage", "ub" };
 
 static DECLARE_MUTEX_LOCKED(usu_init_notify);
@@ -35,7 +34,6 @@ static DECLARE_COMPLETION(usu_end_notify);
 static atomic_t total_threads = ATOMIC_INIT(0);
 
 static int usu_probe_thread(void *arg);
-static int parse_bias(const char *bias_s);
 
 /*
  * The table.
@@ -107,7 +105,7 @@ int usb_usual_check_type(const struct usb_device_id *id, int caller_type)
 	if (id_type == caller_type)
 		return 0;
 	/* Drivers grab devices biased to them */
-	if (id_type == USB_US_TYPE_NONE && caller_type == usb_usual_bias)
+	if (id_type == USB_US_TYPE_NONE && caller_type == atomic_read(&usu_bias))
 		return 0;
 	return -ENODEV;
 }
@@ -124,7 +122,7 @@ static int usu_probe(struct usb_interface *intf,
 
 	type = USB_US_TYPE(id->driver_info);
 	if (type == 0)
-		type = usb_usual_bias;
+		type = atomic_read(&usu_bias);
 
 	spin_lock_irqsave(&usu_lock, flags);
 	if ((stat[type].fls & (USU_MOD_FL_THREAD|USU_MOD_FL_PRESENT)) != 0) {
@@ -206,9 +204,6 @@ static int __init usb_usual_init(void)
 {
 	int rc;
 
-	bias[BIAS_NAME_SIZE-1] = 0;
-	usb_usual_bias = parse_bias(bias);
-
 	rc = usb_register(&usu_driver);
 	up(&usu_init_notify);
 	return rc;
@@ -231,36 +226,42 @@ static void __exit usb_usual_exit(void)
 
 /*
  * Validate and accept the bias parameter.
- * Maybe make an sysfs method later. XXX
  */
-static int parse_bias(const char *bias_s)
+static int usu_set_bias(const char *bias_s, struct kernel_param *kp)
 {
 	int i;
+	int len;
 	int bias_n = 0;
 
-	if (bias_s[0] == 0 || bias_s[0] == ' ') {
-		bias_n = USB_US_DEFAULT_BIAS;
-	} else {
-		for (i = 1; i < 3; i++) {
-			if (strcmp(bias_s, bias_names[i]) == 0) {
-				bias_n = i;
-				break;
-			}
-		}
-		if (bias_n == 0) {
-			bias_n = USB_US_DEFAULT_BIAS;
-			printk(KERN_INFO
-			    "libusual: unknown bias \"%s\", using \"%s\"\n",
-			    bias_s, bias_names[bias_n]);
+	len = strlen(bias_s);
+	if (len == 0)
+		return -EDOM;
+	if (bias_s[len-1] == '\n')
+		--len;
+
+	for (i = 1; i < 3; i++) {
+		if (strncmp(bias_s, bias_names[i], len) == 0) {
+			bias_n = i;
+			break;
 		}
 	}
-	return bias_n;
+	if (bias_n == 0)
+		return -EINVAL;
+
+	atomic_set(&usu_bias, bias_n);
+	return 0;
+}
+
+static int usu_get_bias(char *buffer, struct kernel_param *kp)
+{
+	return strlen(strcpy(buffer, bias_names[atomic_read(&usu_bias)]));
 }
 
 module_init(usb_usual_init);
 module_exit(usb_usual_exit);
 
-module_param_string(bias, bias, BIAS_NAME_SIZE,  S_IRUGO|S_IWUSR);
+module_param_call(bias, usu_set_bias, usu_get_bias, NULL, S_IRUGO|S_IWUSR);
+__MODULE_PARM_TYPE(bias, "string");
 MODULE_PARM_DESC(bias, "Bias to usb-storage or ub");
 
 MODULE_LICENSE("GPL");
