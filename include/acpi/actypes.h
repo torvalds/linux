@@ -44,7 +44,15 @@
 #ifndef __ACTYPES_H__
 #define __ACTYPES_H__
 
-/*! [Begin] no source code translation (keep the typedefs) */
+/*
+ * ACPI_MACHINE_WIDTH must be specified in an OS- or compiler-dependent header
+ * and must be either 16, 32, or 64
+ */
+#ifndef ACPI_MACHINE_WIDTH
+#error ACPI_MACHINE_WIDTH not defined
+#endif
+
+/*! [Begin] no source code translation */
 
 /*
  * Data type ranges
@@ -58,66 +66,96 @@
 #define ACPI_UINT64_MAX                 (UINT64)(~((UINT64) 0))	/* 0xFFFFFFFFFFFFFFFF */
 #define ACPI_ASCII_MAX                  0x7F
 
-#ifdef DEFINE_ALTERNATE_TYPES
 /*
- * Types used only in translated source, defined here to enable
- * cross-platform compilation only.
- */
-typedef int s32;
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef COMPILER_DEPENDENT_UINT64 u64;
-
-#endif
-
-/*
- * Data types - Fixed across all compilation models (16/32/64)
+ * Architecture-specific ACPICA Subsystem Data Types
  *
- * BOOLEAN          Logical Boolean.
- * INT8             8-bit  (1 byte) signed value
- * UINT8            8-bit  (1 byte) unsigned value
- * INT16            16-bit (2 byte) signed value
- * UINT16           16-bit (2 byte) unsigned value
- * INT32            32-bit (4 byte) signed value
- * UINT32           32-bit (4 byte) unsigned value
- * INT64            64-bit (8 byte) signed value
- * UINT64           64-bit (8 byte) unsigned value
- * ACPI_NATIVE_UINT 32-bit on IA-32, 64-bit on x86_64/IA-64 unsigned value
+ * The goal of these types is to provide source code portability across
+ * 16-bit, 32-bit, and 64-bit targets.
+ *
+ * 1) The following types are of fixed size for all targets (16/32/64):
+ *
+ * BOOLEAN      Logical boolean
+ *
+ * UINT8        8-bit  (1 byte) unsigned value
+ * UINT16       16-bit (2 byte) unsigned value
+ * UINT32       32-bit (4 byte) unsigned value
+ * UINT64       64-bit (8 byte) unsigned value
+ *
+ * INT16        16-bit (2 byte) signed value
+ * INT32        32-bit (4 byte) signed value
+ * INT64        64-bit (8 byte) signed value
+ *
+ * COMPILER_DEPENDENT_UINT64/INT64 - These types are defined in the
+ * compiler-dependent header(s) and were introduced because there is no common
+ * 64-bit integer type across the various compilation models, as shown in
+ * the table below.
+ *
+ * Datatype  LP64 ILP64 LLP64 ILP32 LP32 16bit
+ * char      8    8     8     8     8    8
+ * short     16   16    16    16    16   16
+ * _int32         32
+ * int       32   64    32    32    16   16
+ * long      64   64    32    32    32   32
+ * long long            64    64
+ * pointer   64   64    64    32    32   32
+ *
+ * Note: ILP64 and LP32 are currently not supported.
+ *
+ *
+ * 2) These types represent the native word size of the target mode of the
+ * processor, and may be 16-bit, 32-bit, or 64-bit as required. They are
+ * usually used for memory allocation, efficient loop counters, and array
+ * indexes. The types are similar to the size_t type in the C library and are
+ * required because there is no C type that consistently represents the native
+ * data width.
+ *
+ * ACPI_SIZE        16/32/64-bit unsigned value
+ * ACPI_NATIVE_UINT 16/32/64-bit unsigned value
+ * ACPI_NATIVE_INT  16/32/64-bit signed value
+ *
  */
 
-typedef unsigned long acpi_native_uint;
+/*******************************************************************************
+ *
+ * Common types for all compilers, all targets
+ *
+ ******************************************************************************/
 
-#ifndef ACPI_MACHINE_WIDTH
-#error ACPI_MACHINE_WIDTH not defined
-#endif
+typedef unsigned char BOOLEAN;
+typedef unsigned char UINT8;
+typedef unsigned short UINT16;
+typedef COMPILER_DEPENDENT_UINT64 UINT64;
+typedef COMPILER_DEPENDENT_INT64 INT64;
+
+/*! [End] no source code translation !*/
+
+/*******************************************************************************
+ *
+ * Types specific to 64-bit targets
+ *
+ ******************************************************************************/
 
 #if ACPI_MACHINE_WIDTH == 64
 
-/*! [Begin] no source code translation (keep the typedefs) */
+/*! [Begin] no source code translation (keep the typedefs as-is) */
 
-/*
- * 64-bit type definitions
- */
-typedef unsigned char UINT8;
-typedef unsigned char BOOLEAN;
-typedef unsigned short UINT16;
-typedef int INT32;
 typedef unsigned int UINT32;
-typedef COMPILER_DEPENDENT_INT64 INT64;
-typedef COMPILER_DEPENDENT_UINT64 UINT64;
+typedef int INT32;
 
 /*! [End] no source code translation !*/
+
+typedef u64 acpi_native_uint;
+typedef s64 acpi_native_int;
 
 typedef u64 acpi_table_ptr;
 typedef u64 acpi_io_address;
 typedef u64 acpi_physical_address;
-typedef u64 acpi_size;
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000008	/* No hardware alignment support in IA64 */
-#define ACPI_USE_NATIVE_DIVIDE	/* Native 64-bit integer support */
 #define ACPI_MAX_PTR                    ACPI_UINT64_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT64_MAX
+
+#define ALIGNED_ADDRESS_BOUNDARY        0x00000008
+#define ACPI_USE_NATIVE_DIVIDE	/* Has native 64-bit integer support */
 
 /*
  * In the case of the Itanium Processor Family (IPF), the hardware does not
@@ -125,87 +163,113 @@ typedef u64 acpi_size;
  * to indicate that special precautions must be taken to avoid alignment faults.
  * (IA64 or ia64 is currently used by existing compilers to indicate IPF.)
  *
- * Note: Em64_t and other X86-64 processors do support misaligned transfers,
+ * Note: Em64_t and other X86-64 processors support misaligned transfers,
  * so there is no need to define this flag.
  */
 #if defined (__IA64__) || defined (__ia64__)
 #define ACPI_MISALIGNMENT_NOT_SUPPORTED
 #endif
 
-#elif ACPI_MACHINE_WIDTH == 16
-
-/*! [Begin] no source code translation (keep the typedefs as-is) */
-
-/*
- * 16-bit type definitions
- */
-typedef unsigned char UINT8;
-typedef unsigned char BOOLEAN;
-typedef unsigned int UINT16;
-typedef long INT32;
-typedef int INT16;
-typedef unsigned long UINT32;
-
-struct {
-	UINT32 Lo;
-	UINT32 Hi;
-};
-
-/*! [End] no source code translation !*/
-
-typedef u32 acpi_table_ptr;
-typedef u32 acpi_io_address;
-typedef char *acpi_physical_address;
-typedef u16 acpi_size;
-
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000002
-#define ACPI_USE_NATIVE_DIVIDE	/* No 64-bit integers, ok to use native divide */
-#define ACPI_MAX_PTR                    ACPI_UINT16_MAX
-#define ACPI_SIZE_MAX                   ACPI_UINT16_MAX
-
-/*
- * (16-bit only) internal integers must be 32-bits, so
- * 64-bit integers cannot be supported
- */
-#define ACPI_NO_INTEGER64_SUPPORT
+/*******************************************************************************
+ *
+ * Types specific to 32-bit targets
+ *
+ ******************************************************************************/
 
 #elif ACPI_MACHINE_WIDTH == 32
 
-/*! [Begin] no source code translation (keep the typedefs) */
+/*! [Begin] no source code translation (keep the typedefs as-is) */
 
-/*
- * 32-bit type definitions (default)
- */
-typedef unsigned char UINT8;
-typedef unsigned char BOOLEAN;
-typedef unsigned short UINT16;
-typedef int INT32;
 typedef unsigned int UINT32;
-typedef COMPILER_DEPENDENT_INT64 INT64;
-typedef COMPILER_DEPENDENT_UINT64 UINT64;
+typedef int INT32;
 
 /*! [End] no source code translation !*/
+
+typedef u32 acpi_native_uint;
+typedef s32 acpi_native_int;
 
 typedef u64 acpi_table_ptr;
 typedef u32 acpi_io_address;
 typedef u64 acpi_physical_address;
-typedef u32 acpi_size;
 
-#define ALIGNED_ADDRESS_BOUNDARY        0x00000004
 #define ACPI_MAX_PTR                    ACPI_UINT32_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT32_MAX
 
+#define ALIGNED_ADDRESS_BOUNDARY        0x00000004
+
+/*******************************************************************************
+ *
+ * Types specific to 16-bit targets
+ *
+ ******************************************************************************/
+
+#elif ACPI_MACHINE_WIDTH == 16
+
+/*! [Begin] no source code translation (keep the typedefs as-is) */
+
+typedef unsigned long UINT32;
+typedef short INT16;
+typedef long INT32;
+
+/*! [End] no source code translation !*/
+
+typedef u16 acpi_native_uint;
+typedef s16 acpi_native_int;
+
+typedef u32 acpi_table_ptr;
+typedef u32 acpi_io_address;
+typedef char *acpi_physical_address;
+
+#define ACPI_MAX_PTR                    ACPI_UINT16_MAX
+#define ACPI_SIZE_MAX                   ACPI_UINT16_MAX
+
+#define ALIGNED_ADDRESS_BOUNDARY        0x00000002
+#define ACPI_USE_NATIVE_DIVIDE	/* No 64-bit integers, ok to use native divide */
+
+/* 64-bit integers cannot be supported */
+
+#define ACPI_NO_INTEGER64_SUPPORT
+
 #else
+
+/* ACPI_MACHINE_WIDTH must be either 64, 32, or 16 */
+
 #error unknown ACPI_MACHINE_WIDTH
 #endif
 
+/*******************************************************************************
+ *
+ * OS- or compiler-dependent types
+ *
+ ******************************************************************************/
+
 /*
- * This type is used for bitfields in ACPI tables. The only type that is
- * even remotely portable is u8. Anything else is not portable, so
- * do not add any more bitfield types.
+ * If acpi_uintptr_t was not defined in the OS- or compiler-dependent header,
+ * define it now (use C99 uintptr_t for pointer casting if available,
+ * "void *" otherwise)
  */
-typedef u8 UINT8_BIT;
-typedef acpi_native_uint ACPI_PTRDIFF;
+#ifndef acpi_uintptr_t
+#define acpi_uintptr_t                          void *
+#endif
+
+/*
+ * If acpi_cache_t was not defined in the OS-dependent header,
+ * define it now. This is typically the case where the local cache
+ * manager implementation is to be used (ACPI_USE_LOCAL_CACHE)
+ */
+#ifndef acpi_cache_t
+#define acpi_cache_t                            struct acpi_memory_list
+#endif
+
+/* Variable-width type, used instead of clib size_t */
+
+typedef acpi_native_uint acpi_size;
+
+/*******************************************************************************
+ *
+ * Independent types
+ *
+ ******************************************************************************/
 
 /*
  * Pointer overlays to avoid lots of typecasting for
@@ -237,18 +301,8 @@ struct acpi_pointer {
 #define ACPI_LOGMODE_PHYSPTR            ACPI_LOGICAL_ADDRESSING  | ACPI_PHYSICAL_POINTER
 #define ACPI_LOGMODE_LOGPTR             ACPI_LOGICAL_ADDRESSING  | ACPI_LOGICAL_POINTER
 
-/*
- * If acpi_cache_t was not defined in the OS-dependent header,
- * define it now. This is typically the case where the local cache
- * manager implementation is to be used (ACPI_USE_LOCAL_CACHE)
- */
-#ifndef acpi_cache_t
-#define acpi_cache_t                            struct acpi_memory_list
-#endif
+/* Logical defines and NULL */
 
-/*
- * Useful defines
- */
 #ifdef FALSE
 #undef FALSE
 #endif
@@ -264,12 +318,12 @@ struct acpi_pointer {
 #endif
 
 /*
- * Local datatypes
+ * Mescellaneous types
  */
 typedef u32 acpi_status;	/* All ACPI Exceptions */
 typedef u32 acpi_name;		/* 4-byte ACPI name */
 typedef char *acpi_string;	/* Null terminated ASCII string */
-typedef void *acpi_handle;	/* Actually a ptr to an Node */
+typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 
 struct uint64_struct {
 	u32 lo;
@@ -471,37 +525,6 @@ typedef u32 acpi_object_type;
 
 #define ACPI_TYPE_INVALID               0x1E
 #define ACPI_TYPE_NOT_FOUND             0xFF
-
-/*
- * Bitmapped ACPI types.  Used internally only
- */
-#define ACPI_BTYPE_ANY                  0x00000000
-#define ACPI_BTYPE_INTEGER              0x00000001
-#define ACPI_BTYPE_STRING               0x00000002
-#define ACPI_BTYPE_BUFFER               0x00000004
-#define ACPI_BTYPE_PACKAGE              0x00000008
-#define ACPI_BTYPE_FIELD_UNIT           0x00000010
-#define ACPI_BTYPE_DEVICE               0x00000020
-#define ACPI_BTYPE_EVENT                0x00000040
-#define ACPI_BTYPE_METHOD               0x00000080
-#define ACPI_BTYPE_MUTEX                0x00000100
-#define ACPI_BTYPE_REGION               0x00000200
-#define ACPI_BTYPE_POWER                0x00000400
-#define ACPI_BTYPE_PROCESSOR            0x00000800
-#define ACPI_BTYPE_THERMAL              0x00001000
-#define ACPI_BTYPE_BUFFER_FIELD         0x00002000
-#define ACPI_BTYPE_DDB_HANDLE           0x00004000
-#define ACPI_BTYPE_DEBUG_OBJECT         0x00008000
-#define ACPI_BTYPE_REFERENCE            0x00010000
-#define ACPI_BTYPE_RESOURCE             0x00020000
-
-#define ACPI_BTYPE_COMPUTE_DATA         (ACPI_BTYPE_INTEGER | ACPI_BTYPE_STRING | ACPI_BTYPE_BUFFER)
-
-#define ACPI_BTYPE_DATA                 (ACPI_BTYPE_COMPUTE_DATA  | ACPI_BTYPE_PACKAGE)
-#define ACPI_BTYPE_DATA_REFERENCE       (ACPI_BTYPE_DATA | ACPI_BTYPE_REFERENCE | ACPI_BTYPE_DDB_HANDLE)
-#define ACPI_BTYPE_DEVICE_OBJECTS       (ACPI_BTYPE_DEVICE | ACPI_BTYPE_THERMAL | ACPI_BTYPE_PROCESSOR)
-#define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF	/* ARG or LOCAL */
-#define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
 
 /*
  * All I/O
@@ -856,6 +879,14 @@ struct acpi_compatible_id_list {
 #define ACPI_VALID_CID                  0x0010
 #define ACPI_VALID_SXDS                 0x0020
 
+/* Flags for _STA method */
+
+#define ACPI_STA_DEVICE_PRESENT         0x01
+#define ACPI_STA_DEVICE_ENABLED         0x02
+#define ACPI_STA_DEVICE_UI              0x04
+#define ACPI_STA_DEVICE_OK              0x08
+#define ACPI_STA_BATTERY_PRESENT        0x10
+
 #define ACPI_COMMON_OBJ_INFO \
 	acpi_object_type                    type;           /* ACPI object type */ \
 	acpi_name                           name	/* ACPI object Name */
@@ -921,7 +952,9 @@ typedef u32 acpi_rsdesc_size;	/* Max Resource Descriptor size is (length+3) = (6
 #define ACPI_ISA_ONLY_RANGES            (u8) 0x02
 #define ACPI_ENTIRE_RANGE               (ACPI_NON_ISA_ONLY_RANGES | ACPI_ISA_ONLY_RANGES)
 
-#define ACPI_SPARSE_TRANSLATION         (u8) 0x03
+/* Type of translation - 1=Sparse, 0=Dense */
+
+#define ACPI_SPARSE_TRANSLATION         (u8) 0x01
 
 /*
  *  IO Port Descriptor Decode

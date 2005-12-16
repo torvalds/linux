@@ -314,12 +314,13 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 
 	case AML_CLASS_EXECUTE:
 	case AML_CLASS_CREATE:
-
 		/*
 		 * Most operators with arguments.
 		 * Start a new result/operand state
 		 */
-		status = acpi_ds_result_stack_push(walk_state);
+		if (walk_state->opcode != AML_CREATE_FIELD_OP) {
+			status = acpi_ds_result_stack_push(walk_state);
+		}
 		break;
 
 	default:
@@ -723,20 +724,6 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
       cleanup:
 
-	/* Invoke exception handler on error */
-
-	if (ACPI_FAILURE(status) &&
-	    acpi_gbl_exception_handler && !(status & AE_CODE_CONTROL)) {
-		acpi_ex_exit_interpreter();
-		status = acpi_gbl_exception_handler(status,
-						    walk_state->method_node->
-						    name.integer,
-						    walk_state->opcode,
-						    walk_state->aml_offset,
-						    NULL);
-		(void)acpi_ex_enter_interpreter();
-	}
-
 	if (walk_state->result_obj) {
 		/* Break to debugger to display result */
 
@@ -758,18 +745,14 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 	}
 #endif
 
+	/* Invoke exception handler on error */
+
+	if (ACPI_FAILURE(status)) {
+		status = acpi_ds_method_error(status, walk_state);
+	}
+
 	/* Always clear the object stack */
 
 	walk_state->num_operands = 0;
-
-#ifdef ACPI_DISASSEMBLER
-
-	/* On error, display method locals/args */
-
-	if (ACPI_FAILURE(status)) {
-		acpi_dm_dump_method_info(status, walk_state, op);
-	}
-#endif
-
 	return_ACPI_STATUS(status);
 }

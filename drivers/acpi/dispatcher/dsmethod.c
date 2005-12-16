@@ -47,9 +47,67 @@
 #include <acpi/acdispat.h>
 #include <acpi/acinterp.h>
 #include <acpi/acnamesp.h>
+#include <acpi/acdisasm.h>
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsmethod")
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ds_method_error
+ *
+ * PARAMETERS:  Status          - Execution status
+ *              walk_state      - Current state
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Called on method error. Invoke the global exception handler if
+ *              present, dump the method data if the disassembler is configured
+ *
+ *              Note: Allows the exception handler to change the status code
+ *
+ ******************************************************************************/
+acpi_status
+acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
+{
+	ACPI_FUNCTION_ENTRY();
+
+	/* Ignore AE_OK and control exception codes */
+
+	if (ACPI_SUCCESS(status) || (status & AE_CODE_CONTROL)) {
+		return (status);
+	}
+
+	/* Invoke the global exception handler */
+
+	if (acpi_gbl_exception_handler) {
+		/* Exit the interpreter, allow handler to execute methods */
+
+		acpi_ex_exit_interpreter();
+
+		/*
+		 * Handler can map the exception code to anything it wants, including
+		 * AE_OK, in which case the executing method will not be aborted.
+		 */
+		status = acpi_gbl_exception_handler(status,
+						    walk_state->method_node ?
+						    walk_state->method_node->
+						    name.integer : 0,
+						    walk_state->opcode,
+						    walk_state->aml_offset,
+						    NULL);
+		(void)acpi_ex_enter_interpreter();
+	}
+#ifdef ACPI_DISASSEMBLER
+	if (ACPI_FAILURE(status)) {
+		/* Display method locals/args if disassembler is present */
+
+		acpi_dm_dump_method_info(status, walk_state, walk_state->op);
+	}
+#endif
+
+	return (status);
+}
 
 /*******************************************************************************
  *
@@ -66,10 +124,11 @@ ACPI_MODULE_NAME("dsmethod")
  *              for clearance to execute.
  *
  ******************************************************************************/
+
 acpi_status
-acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
-			       union acpi_operand_object *obj_desc,
-			       struct acpi_namespace_node *calling_method_node)
+acpi_ds_begin_method_execution(struct acpi_namespace_node * method_node,
+			       union acpi_operand_object * obj_desc,
+			       struct acpi_namespace_node * calling_method_node)
 {
 	acpi_status status = AE_OK;
 

@@ -473,8 +473,8 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 		return (AE_CTRL_DEPTH);
 	}
 
-	if (!(flags & 0x01)) {
-		/* Don't return at the device or children of the device if not there */
+	if (!(flags & ACPI_STA_DEVICE_PRESENT)) {
+		/* Don't examine children of the device if not present */
 
 		return (AE_CTRL_DEPTH);
 	}

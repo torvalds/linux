@@ -179,7 +179,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 
 	/* Zero is not a valid owner_iD */
 
-	if ((owner_id == 0) || (owner_id > 255)) {
+	if (owner_id == 0) {
 		ACPI_REPORT_ERROR(("Invalid owner_id: %2.2X\n", owner_id));
 		return_VOID;
 	}

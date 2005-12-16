@@ -99,8 +99,8 @@ acpi_ns_search_node(u32 target_name,
 		if (scope_name) {
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 					  "Searching %s (%p) For [%4.4s] (%s)\n",
-					  scope_name, node,
-					  (char *)&target_name,
+					  scope_name, node, ACPI_CAST_PTR(char,
+									  &target_name),
 					  acpi_ut_get_type_name(type)));
 
 			ACPI_MEM_FREE(scope_name);
@@ -131,7 +131,7 @@ acpi_ns_search_node(u32 target_name,
 			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 					  "Name [%4.4s] (%s) %p found in scope [%4.4s] %p\n",
-					  (char *)&target_name,
+					  ACPI_CAST_PTR(char, &target_name),
 					  acpi_ut_get_type_name(next_node->
 								type),
 					  next_node,
@@ -160,7 +160,8 @@ acpi_ns_search_node(u32 target_name,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 			  "Name [%4.4s] (%s) not found in search in scope [%4.4s] %p first child %p\n",
-			  (char *)&target_name, acpi_ut_get_type_name(type),
+			  ACPI_CAST_PTR(char, &target_name),
+			  acpi_ut_get_type_name(type),
 			  acpi_ut_get_node_name(node), node, node->child));
 
 	return_ACPI_STATUS(AE_NOT_FOUND);
@@ -210,14 +211,14 @@ acpi_ns_search_parent_tree(u32 target_name,
 	 */
 	if (!parent_node) {
 		ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
-				  (char *)&target_name));
+				  ACPI_CAST_PTR(char, &target_name)));
 		return_ACPI_STATUS(AE_NOT_FOUND);
 	}
 
 	if (acpi_ns_local(type)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 				  "[%4.4s] type [%s] must be local to this scope (no parent search)\n",
-				  (char *)&target_name,
+				  ACPI_CAST_PTR(char, &target_name),
 				  acpi_ut_get_type_name(type)));
 		return_ACPI_STATUS(AE_NOT_FOUND);
 	}
@@ -227,7 +228,7 @@ acpi_ns_search_parent_tree(u32 target_name,
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 			  "Searching parent [%4.4s] for [%4.4s]\n",
 			  acpi_ut_get_node_name(parent_node),
-			  (char *)&target_name));
+			  ACPI_CAST_PTR(char, &target_name)));
 
 	/*
 	 * Search parents until target is found or we have backed up to the root
@@ -360,7 +361,7 @@ acpi_ns_search_and_enter(u32 target_name,
 	if (interpreter_mode == ACPI_IMODE_EXECUTE) {
 		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
 				  "%4.4s Not found in %p [Not adding]\n",
-				  (char *)&target_name, node));
+				  ACPI_CAST_PTR(char, &target_name), node));
 
 		return_ACPI_STATUS(AE_NOT_FOUND);
 	}

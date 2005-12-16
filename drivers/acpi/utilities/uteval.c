@@ -95,7 +95,9 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 
 	for (i = 0; i < ACPI_NUM_OSI_STRINGS; i++) {
 		if (!ACPI_STRCMP(string_desc->string.pointer,
-				 (char *)acpi_gbl_valid_osi_strings[i])) {
+				 ACPI_CAST_PTR(char,
+					       acpi_gbl_valid_osi_strings[i])))
+		{
 			/* This string is supported */
 
 			return_desc->integer.value = 0xFFFFFFFF;
@@ -592,7 +594,7 @@ acpi_ut_execute_STA(struct acpi_namespace_node *device_node, u32 * flags)
 					  "_STA on %4.4s was not found, assuming device is present\n",
 					  acpi_ut_get_node_name(device_node)));
 
-			*flags = 0x0F;
+			*flags = ACPI_UINT32_MAX;
 			status = AE_OK;
 		}
 
@@ -637,17 +639,17 @@ acpi_ut_execute_sxds(struct acpi_namespace_node *device_node, u8 * highest)
 	for (i = 0; i < 4; i++) {
 		highest[i] = 0xFF;
 		status = acpi_ut_evaluate_object(device_node,
-						 (char *)
-						 acpi_gbl_highest_dstate_names
-						 [i], ACPI_BTYPE_INTEGER,
-						 &obj_desc);
+						 ACPI_CAST_PTR(char,
+							       acpi_gbl_highest_dstate_names
+							       [i]),
+						 ACPI_BTYPE_INTEGER, &obj_desc);
 		if (ACPI_FAILURE(status)) {
 			if (status != AE_NOT_FOUND) {
 				ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 						  "%s on Device %4.4s, %s\n",
-						  (char *)
-						  acpi_gbl_highest_dstate_names
-						  [i],
+						  ACPI_CAST_PTR(char,
+								acpi_gbl_highest_dstate_names
+								[i]),
 						  acpi_ut_get_node_name
 						  (device_node),
 						  acpi_format_exception

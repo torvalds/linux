@@ -144,7 +144,8 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 
 	info.parameters = NULL;
 	info.return_object = NULL;
-	sleep_state_name = (char *)acpi_gbl_sleep_state_names[sleep_state];
+	sleep_state_name =
+	    ACPI_CAST_PTR(char, acpi_gbl_sleep_state_names[sleep_state]);
 
 	status = acpi_ns_evaluate_by_name(sleep_state_name, &info);
 	if (ACPI_FAILURE(status)) {

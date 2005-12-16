@@ -60,7 +60,7 @@
 
 /*
  * For 16-bit addresses, we have to assume that the upper 32 bits
- * are zero.
+ * (out of 64) are zero.
  */
 #define ACPI_LODWORD(l)                 ((u32)(l))
 #define ACPI_HIDWORD(l)                 ((u32)(0))
@@ -104,8 +104,9 @@
 #define ACPI_FORMAT_UINT64(i)           ACPI_HIDWORD(i),ACPI_LODWORD(i)
 
 /*
- * Extract a byte of data using a pointer.  Any more than a byte and we
- * get into potential aligment issues -- see the STORE macros below
+ * Extract data using a pointer.  Any more than a byte and we
+ * get into potential aligment issues -- see the STORE macros below.
+ * Use with care.
  */
 #define ACPI_GET8(ptr)                  *ACPI_CAST_PTR (u8, ptr)
 #define ACPI_GET16(ptr)                 *ACPI_CAST_PTR (u16, ptr)
@@ -116,16 +117,17 @@
 #define ACPI_SET32(ptr)                 *ACPI_CAST_PTR (u32, ptr)
 #define ACPI_SET64(ptr)                 *ACPI_CAST_PTR (u64, ptr)
 
-/* Pointer manipulation */
-
-#define ACPI_CAST_PTR(t, p)             ((t *)(void *)(p))
-#define ACPI_CAST_INDIRECT_PTR(t, p)    ((t **)(void *)(p))
-#define ACPI_ADD_PTR(t,a,b)             ACPI_CAST_PTR (t, (ACPI_CAST_PTR (u8, (a)) + (acpi_native_uint)(b)))
-#define ACPI_PTR_DIFF(a,b)              (acpi_native_uint) ((char *)(a) - (char *)(b))
+/*
+ * Pointer manipulation
+ */
+#define ACPI_CAST_PTR(t, p)             ((t *) (acpi_uintptr_t) (p))
+#define ACPI_CAST_INDIRECT_PTR(t, p)    ((t **) (acpi_uintptr_t) (p))
+#define ACPI_ADD_PTR(t,a,b)             ACPI_CAST_PTR (t, (ACPI_CAST_PTR (u8,(a)) + (acpi_native_uint)(b)))
+#define ACPI_PTR_DIFF(a,b)              (acpi_native_uint) (ACPI_CAST_PTR (u8,(a)) - ACPI_CAST_PTR (u8,(b)))
 
 /* Pointer/Integer type conversions */
 
-#define ACPI_TO_POINTER(i)              ACPI_ADD_PTR (void, (void *) NULL,(acpi_native_uint)i)
+#define ACPI_TO_POINTER(i)              ACPI_ADD_PTR (void,(void *) NULL,(acpi_native_uint) i)
 #define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF (p,(void *) NULL)
 #define ACPI_OFFSET(d,f)                (acpi_size) ACPI_PTR_DIFF (&(((d *)0)->f),(void *) NULL)
 #define ACPI_FADT_OFFSET(f)             ACPI_OFFSET (FADT_DESCRIPTOR, f)
@@ -133,7 +135,7 @@
 #if ACPI_MACHINE_WIDTH == 16
 #define ACPI_STORE_POINTER(d,s)         ACPI_MOVE_32_TO_32(d,s)
 #define ACPI_PHYSADDR_TO_PTR(i)         (void *)(i)
-#define ACPI_PTR_TO_PHYSADDR(i)         (u32) (char *)(i)
+#define ACPI_PTR_TO_PHYSADDR(i)         (u32) ACPI_CAST_PTR (u8,(i))
 #else
 #define ACPI_PHYSADDR_TO_PTR(i)         ACPI_TO_POINTER(i)
 #define ACPI_PTR_TO_PHYSADDR(i)         ACPI_TO_INTEGER(i)

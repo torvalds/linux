@@ -46,6 +46,30 @@
 
 extern const u8 acpi_gbl_resource_aml_sizes[];
 
+/* Strings used by the disassembler and debugger resource dump routines */
+
+#if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
+
+extern const char *acpi_gbl_BMdecode[2];
+extern const char *acpi_gbl_config_decode[4];
+extern const char *acpi_gbl_consume_decode[2];
+extern const char *acpi_gbl_DECdecode[2];
+extern const char *acpi_gbl_HEdecode[2];
+extern const char *acpi_gbl_io_decode[2];
+extern const char *acpi_gbl_LLdecode[2];
+extern const char *acpi_gbl_max_decode[2];
+extern const char *acpi_gbl_MEMdecode[4];
+extern const char *acpi_gbl_min_decode[2];
+extern const char *acpi_gbl_MTPdecode[4];
+extern const char *acpi_gbl_RNGdecode[4];
+extern const char *acpi_gbl_RWdecode[2];
+extern const char *acpi_gbl_SHRdecode[2];
+extern const char *acpi_gbl_SIZdecode[4];
+extern const char *acpi_gbl_TRSdecode[2];
+extern const char *acpi_gbl_TTPdecode[2];
+extern const char *acpi_gbl_TYPdecode[4];
+#endif
+
 /* Types for Resource descriptor entries */
 
 #define ACPI_INVALID_RESOURCE           0

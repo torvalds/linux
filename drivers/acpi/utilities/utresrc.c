@@ -47,6 +47,115 @@
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utmisc")
 
+#if defined(ACPI_DISASSEMBLER) || defined (ACPI_DEBUGGER)
+/*
+ * Strings used to decode resource descriptors.
+ * Used by both the disasssembler and the debugger resource dump routines
+ */
+const char *acpi_gbl_BMdecode[2] = {
+	"not_bus_master",
+	"bus_master"
+};
+
+const char *acpi_gbl_config_decode[4] = {
+	"0 - Good Configuration",
+	"1 - Acceptable Configuration",
+	"2 - Suboptimal Configuration",
+	"3 - ***Invalid Configuration***",
+};
+
+const char *acpi_gbl_consume_decode[2] = {
+	"resource_producer",
+	"resource_consumer"
+};
+
+const char *acpi_gbl_DECdecode[2] = {
+	"pos_decode",
+	"sub_decode"
+};
+
+const char *acpi_gbl_HEdecode[2] = {
+	"Level",
+	"Edge"
+};
+
+const char *acpi_gbl_io_decode[2] = {
+	"Decode10",
+	"Decode16"
+};
+
+const char *acpi_gbl_LLdecode[2] = {
+	"active_high",
+	"active_low"
+};
+
+const char *acpi_gbl_max_decode[2] = {
+	"max_not_fixed",
+	"max_fixed"
+};
+
+const char *acpi_gbl_MEMdecode[4] = {
+	"non_cacheable",
+	"Cacheable",
+	"write_combining",
+	"Prefetchable"
+};
+
+const char *acpi_gbl_min_decode[2] = {
+	"min_not_fixed",
+	"min_fixed"
+};
+
+const char *acpi_gbl_MTPdecode[4] = {
+	"address_range_memory",
+	"address_range_reserved",
+	"address_range_aCPI",
+	"address_range_nVS"
+};
+
+const char *acpi_gbl_RNGdecode[4] = {
+	"invalid_ranges",
+	"non_iSAonly_ranges",
+	"ISAonly_ranges",
+	"entire_range"
+};
+
+const char *acpi_gbl_RWdecode[2] = {
+	"read_only",
+	"read_write"
+};
+
+const char *acpi_gbl_SHRdecode[2] = {
+	"Exclusive",
+	"Shared"
+};
+
+const char *acpi_gbl_SIZdecode[4] = {
+	"Transfer8",
+	"Transfer8_16",
+	"Transfer16",
+	"invalid_size"
+};
+
+const char *acpi_gbl_TRSdecode[2] = {
+	"dense_translation",
+	"sparse_translation"
+};
+
+const char *acpi_gbl_TTPdecode[2] = {
+	"type_static",
+	"type_translation"
+};
+
+const char *acpi_gbl_TYPdecode[4] = {
+	"Compatibility",
+	"type_a",
+	"type_b",
+	"type_f"
+};
+
+#endif
+
 /*
  * Base sizes of the raw AML resource descriptors, indexed by resource type.
  * Zero indicates a reserved (and therefore invalid) resource type.

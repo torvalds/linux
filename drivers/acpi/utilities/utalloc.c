@@ -47,7 +47,7 @@
 ACPI_MODULE_NAME("utalloc")
 
 /* Local prototypes */
-#ifdef	ACPI_DBG_TRACK_ALLOCATIONS
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 static struct acpi_debug_mem_block *acpi_ut_find_allocation(void *allocation);
 
 static acpi_status
@@ -58,9 +58,7 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *address,
 static acpi_status
 acpi_ut_remove_allocation(struct acpi_debug_mem_block *address,
 			  u32 component, char *module, u32 line);
-#endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
 
-#ifdef ACPI_DBG_TRACK_ALLOCATIONS
 static acpi_status
 acpi_ut_create_list(char *list_name,
 		    u16 object_size, struct acpi_memory_list **return_cache);

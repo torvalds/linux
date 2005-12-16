@@ -333,7 +333,6 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 
 	switch (callback_status) {
 	case AE_CTRL_TERMINATE:
-
 		/*
 		 * A control method was terminated via a RETURN statement.
 		 * The walk of this method is complete.
@@ -346,13 +345,19 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 
 		parser_state->aml = walk_state->aml_last_while;
 		walk_state->control_state->common.value = FALSE;
-		status = AE_CTRL_BREAK;
+		status = acpi_ds_result_stack_pop(walk_state);
+		if (ACPI_SUCCESS(status)) {
+			status = AE_CTRL_BREAK;
+		}
 		break;
 
 	case AE_CTRL_CONTINUE:
 
 		parser_state->aml = walk_state->aml_last_while;
-		status = AE_CTRL_CONTINUE;
+		status = acpi_ds_result_stack_pop(walk_state);
+		if (ACPI_SUCCESS(status)) {
+			status = AE_CTRL_CONTINUE;
+		}
 		break;
 
 	case AE_CTRL_PENDING:
@@ -369,16 +374,18 @@ acpi_ps_next_parse_state(struct acpi_walk_state *walk_state,
 #endif
 
 	case AE_CTRL_TRUE:
-
 		/*
 		 * Predicate of an IF was true, and we are at the matching ELSE.
 		 * Just close out this package
 		 */
 		parser_state->aml = acpi_ps_get_next_package_end(parser_state);
+		status = acpi_ds_result_stack_pop(walk_state);
+		if (ACPI_SUCCESS(status)) {
+			status = AE_CTRL_PENDING;
+		}
 		break;
 
 	case AE_CTRL_FALSE:
-
 		/*
 		 * Either an IF/WHILE Predicate was false or we encountered a BREAK
 		 * opcode.  In both cases, we do not execute the rest of the

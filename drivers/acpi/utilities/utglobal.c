@@ -485,7 +485,7 @@ char *acpi_ut_get_region_name(u8 space_id)
 		return ("invalid_space_id");
 	}
 
-	return ((char *)acpi_gbl_region_types[space_id]);
+	return (ACPI_CAST_PTR(char, acpi_gbl_region_types[space_id]));
 }
 
 /*******************************************************************************
@@ -690,11 +690,12 @@ char *acpi_ut_get_descriptor_name(void *object)
 	}
 
 	if (ACPI_GET_DESCRIPTOR_TYPE(object) > ACPI_DESC_TYPE_MAX) {
-		return ((char *)acpi_gbl_bad_type);
+		return (ACPI_CAST_PTR(char, acpi_gbl_bad_type));
 	}
 
-	return ((char *)
-		acpi_gbl_desc_type_names[ACPI_GET_DESCRIPTOR_TYPE(object)]);
+	return (ACPI_CAST_PTR(char,
+			      acpi_gbl_desc_type_names[ACPI_GET_DESCRIPTOR_TYPE
+						       (object)]));
 
 }
 

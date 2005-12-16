@@ -223,8 +223,8 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 			goto cleanup;
 		}
 
-		if (length > 0) {
-			/* Copy the portion requested */
+		if (buffer) {
+			/* We have a buffer, copy the portion requested */
 
 			ACPI_MEMCPY(buffer, operand[0]->string.pointer + index,
 				    length);

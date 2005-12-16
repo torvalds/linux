@@ -57,27 +57,11 @@ struct acpi_external_list {
 };
 
 extern struct acpi_external_list *acpi_gbl_external_list;
-extern const char *acpi_gbl_io_decode[2];
-extern const char *acpi_gbl_word_decode[4];
-extern const char *acpi_gbl_consume_decode[2];
-extern const char *acpi_gbl_config_decode[4];
-extern const char *acpi_gbl_min_decode[2];
-extern const char *acpi_gbl_max_decode[2];
-extern const char *acpi_gbl_DECdecode[2];
-extern const char *acpi_gbl_RNGdecode[4];
-extern const char *acpi_gbl_MEMdecode[4];
-extern const char *acpi_gbl_RWdecode[2];
-extern const char *acpi_gbl_irq_decode[2];
-extern const char *acpi_gbl_HEdecode[2];
-extern const char *acpi_gbl_LLdecode[2];
-extern const char *acpi_gbl_SHRdecode[2];
-extern const char *acpi_gbl_TYPdecode[4];
-extern const char *acpi_gbl_BMdecode[2];
-extern const char *acpi_gbl_SIZdecode[4];
-extern const char *acpi_gbl_TTPdecode[2];
-extern const char *acpi_gbl_MTPdecode[4];
-extern const char *acpi_gbl_TRSdecode[2];
 
+/* Strings used for decoding flags to ASL keywords */
+
+extern const char *acpi_gbl_word_decode[4];
+extern const char *acpi_gbl_irq_decode[2];
 extern const char *acpi_gbl_lock_rule[ACPI_NUM_LOCK_RULES];
 extern const char *acpi_gbl_access_types[ACPI_NUM_ACCESS_TYPES];
 extern const char *acpi_gbl_update_rules[ACPI_NUM_UPDATE_RULES];

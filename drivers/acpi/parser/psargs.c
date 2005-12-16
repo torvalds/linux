@@ -45,6 +45,7 @@
 #include <acpi/acparser.h>
 #include <acpi/amlcode.h>
 #include <acpi/acnamesp.h>
+#include <acpi/acdispat.h>
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psargs")
@@ -211,7 +212,7 @@ char *acpi_ps_get_next_namestring(struct acpi_parse_state *parser_state)
  *              Arg                 - Where the namepath will be stored
  *              arg_count           - If the namepath points to a control method
  *                                    the method's argument is returned here.
- *              method_call         - Whether the namepath can possibly be the
+ *              possible_method_call - Whether the namepath can possibly be the
  *                                    start of a method call
  *
  * RETURN:      Status
@@ -227,11 +228,11 @@ char *acpi_ps_get_next_namestring(struct acpi_parse_state *parser_state)
 acpi_status
 acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 			  struct acpi_parse_state *parser_state,
-			  union acpi_parse_object *arg, u8 method_call)
+			  union acpi_parse_object *arg, u8 possible_method_call)
 {
 	char *path;
 	union acpi_parse_object *name_op;
-	acpi_status status = AE_OK;
+	acpi_status status;
 	union acpi_operand_object *method_desc;
 	struct acpi_namespace_node *node;
 	union acpi_generic_state scope_info;
@@ -239,114 +240,127 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	ACPI_FUNCTION_TRACE("ps_get_next_namepath");
 
 	path = acpi_ps_get_next_namestring(parser_state);
+	acpi_ps_init_op(arg, AML_INT_NAMEPATH_OP);
 
-	/* Null path case is allowed */
+	/* Null path case is allowed, just exit */
 
-	if (path) {
-		/*
-		 * Lookup the name in the internal namespace
-		 */
-		scope_info.scope.node = NULL;
-		node = parser_state->start_node;
-		if (node) {
-			scope_info.scope.node = node;
-		}
+	if (!path) {
+		arg->common.value.name = path;
+		return_ACPI_STATUS(AE_OK);
+	}
 
-		/*
-		 * Lookup object.  We don't want to add anything new to the namespace
-		 * here, however.  So we use MODE_EXECUTE.  Allow searching of the
-		 * parent tree, but don't open a new scope -- we just want to lookup the
-		 * object  (MUST BE mode EXECUTE to perform upsearch)
-		 */
-		status = acpi_ns_lookup(&scope_info, path, ACPI_TYPE_ANY,
-					ACPI_IMODE_EXECUTE,
-					ACPI_NS_SEARCH_PARENT |
-					ACPI_NS_DONT_OPEN_SCOPE, NULL, &node);
-		if (ACPI_SUCCESS(status) && method_call) {
-			if (node->type == ACPI_TYPE_METHOD) {
-				/* This name is actually a control method invocation */
+	/* Setup search scope info */
 
-				method_desc = acpi_ns_get_attached_object(node);
-				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Control Method - %p Desc %p Path=%p\n",
-						  node, method_desc, path));
-
-				name_op = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP);
-				if (!name_op) {
-					return_ACPI_STATUS(AE_NO_MEMORY);
-				}
-
-				/* Change arg into a METHOD CALL and attach name to it */
-
-				acpi_ps_init_op(arg, AML_INT_METHODCALL_OP);
-				name_op->common.value.name = path;
-
-				/* Point METHODCALL/NAME to the METHOD Node */
-
-				name_op->common.node = node;
-				acpi_ps_append_arg(arg, name_op);
-
-				if (!method_desc) {
-					ACPI_REPORT_ERROR(("ps_get_next_namepath: Control Method %p has no attached object\n", node));
-					return_ACPI_STATUS(AE_AML_INTERNAL);
-				}
-
-				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Control Method - %p Args %X\n",
-						  node,
-						  method_desc->method.
-						  param_count));
-
-				/* Get the number of arguments to expect */
-
-				walk_state->arg_count =
-				    method_desc->method.param_count;
-				return_ACPI_STATUS(AE_OK);
-			}
-
-			/*
-			 * Else this is normal named object reference.
-			 * Just init the NAMEPATH object with the pathname.
-			 * (See code below)
-			 */
-		}
-
-		if (ACPI_FAILURE(status)) {
-			/*
-			 * 1) Any error other than NOT_FOUND is always severe
-			 * 2) NOT_FOUND is only important if we are executing a method.
-			 * 3) If executing a cond_ref_of opcode, NOT_FOUND is ok.
-			 */
-			if ((((walk_state->
-			       parse_flags & ACPI_PARSE_MODE_MASK) ==
-			      ACPI_PARSE_EXECUTE) && (status == AE_NOT_FOUND)
-			     && (walk_state->op->common.aml_opcode !=
-				 AML_COND_REF_OF_OP))
-			    || (status != AE_NOT_FOUND)) {
-				ACPI_REPORT_NSERROR(path, status);
-
-				acpi_os_printf
-				    ("search_node %p start_node %p return_node %p\n",
-				     scope_info.scope.node,
-				     parser_state->start_node, node);
-			} else {
-				/*
-				 * We got a NOT_FOUND during table load or we encountered
-				 * a cond_ref_of(x) where the target does not exist.
-				 * Either case is ok
-				 */
-				status = AE_OK;
-			}
-		}
+	scope_info.scope.node = NULL;
+	node = parser_state->start_node;
+	if (node) {
+		scope_info.scope.node = node;
 	}
 
 	/*
-	 * Regardless of success/failure above,
-	 * Just initialize the Op with the pathname.
+	 * Lookup the name in the internal namespace. We don't want to add
+	 * anything new to the namespace here, however, so we use MODE_EXECUTE.
+	 * Allow searching of the parent tree, but don't open a new scope -
+	 * we just want to lookup the object (must be mode EXECUTE to perform
+	 * the upsearch)
 	 */
-	acpi_ps_init_op(arg, AML_INT_NAMEPATH_OP);
-	arg->common.value.name = path;
+	status =
+	    acpi_ns_lookup(&scope_info, path, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+			   ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
+			   NULL, &node);
 
+	/*
+	 * If this name is a control method invocation, we must
+	 * setup the method call
+	 */
+	if (ACPI_SUCCESS(status) &&
+	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
+		/* This name is actually a control method invocation */
+
+		method_desc = acpi_ns_get_attached_object(node);
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Control Method - %p Desc %p Path=%p\n", node,
+				  method_desc, path));
+
+		name_op = acpi_ps_alloc_op(AML_INT_NAMEPATH_OP);
+		if (!name_op) {
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
+
+		/* Change Arg into a METHOD CALL and attach name to it */
+
+		acpi_ps_init_op(arg, AML_INT_METHODCALL_OP);
+		name_op->common.value.name = path;
+
+		/* Point METHODCALL/NAME to the METHOD Node */
+
+		name_op->common.node = node;
+		acpi_ps_append_arg(arg, name_op);
+
+		if (!method_desc) {
+			ACPI_REPORT_ERROR(("ps_get_next_namepath: Control Method %p has no attached object\n", node));
+			return_ACPI_STATUS(AE_AML_INTERNAL);
+		}
+
+		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
+				  "Control Method - %p Args %X\n",
+				  node, method_desc->method.param_count));
+
+		/* Get the number of arguments to expect */
+
+		walk_state->arg_count = method_desc->method.param_count;
+		return_ACPI_STATUS(AE_OK);
+	}
+
+	/*
+	 * Special handling if the name was not found during the lookup -
+	 * some not_found cases are allowed
+	 */
+	if (status == AE_NOT_FOUND) {
+		/* 1) not_found is ok during load pass 1/2 (allow forward references) */
+
+		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) !=
+		    ACPI_PARSE_EXECUTE) {
+			status = AE_OK;
+		}
+
+		/* 2) not_found during a cond_ref_of(x) is ok by definition */
+
+		else if (walk_state->op->common.aml_opcode ==
+			 AML_COND_REF_OF_OP) {
+			status = AE_OK;
+		}
+
+		/*
+		 * 3) not_found while building a Package is ok at this point, we
+		 * may flag as an error later if slack mode is not enabled.
+		 * (Some ASL code depends on allowing this behavior)
+		 */
+		else if ((arg->common.parent) &&
+			 ((arg->common.parent->common.aml_opcode ==
+			   AML_PACKAGE_OP)
+			  || (arg->common.parent->common.aml_opcode ==
+			      AML_VAR_PACKAGE_OP))) {
+			status = AE_OK;
+		}
+	}
+
+	/* Final exception check (may have been changed from code above) */
+
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_NSERROR(path, status);
+
+		if ((walk_state->parse_flags & ACPI_PARSE_MODE_MASK) ==
+		    ACPI_PARSE_EXECUTE) {
+			/* Report a control method execution error */
+
+			status = acpi_ds_method_error(status, walk_state);
+		}
+	}
+
+	/* Save the namepath */
+
+	arg->common.value.name = path;
 	return_ACPI_STATUS(status);
 }
 

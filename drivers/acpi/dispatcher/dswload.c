@@ -428,43 +428,54 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 		}
 	}
 
-	if (op->common.aml_opcode == AML_METHOD_OP) {
-		/*
-		 * method_op pkg_length name_string method_flags term_list
-		 *
-		 * Note: We must create the method node/object pair as soon as we
-		 * see the method declaration.  This allows later pass1 parsing
-		 * of invocations of the method (need to know the number of
-		 * arguments.)
-		 */
-		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-				  "LOADING-Method: State=%p Op=%p named_obj=%p\n",
-				  walk_state, op, op->named.node));
+	/*
+	 * If we are executing a method, do not create any namespace objects
+	 * during the load phase, only during execution.
+	 */
+	if (!walk_state->method_node) {
+		if (op->common.aml_opcode == AML_METHOD_OP) {
+			/*
+			 * method_op pkg_length name_string method_flags term_list
+			 *
+			 * Note: We must create the method node/object pair as soon as we
+			 * see the method declaration.  This allows later pass1 parsing
+			 * of invocations of the method (need to know the number of
+			 * arguments.)
+			 */
+			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+					  "LOADING-Method: State=%p Op=%p named_obj=%p\n",
+					  walk_state, op, op->named.node));
 
-		if (!acpi_ns_get_attached_object(op->named.node)) {
-			walk_state->operands[0] = (void *)op->named.node;
-			walk_state->num_operands = 1;
+			if (!acpi_ns_get_attached_object(op->named.node)) {
+				walk_state->operands[0] =
+				    ACPI_CAST_PTR(void, op->named.node);
+				walk_state->num_operands = 1;
 
-			status =
-			    acpi_ds_create_operands(walk_state,
-						    op->common.value.arg);
-			if (ACPI_SUCCESS(status)) {
-				status = acpi_ex_create_method(op->named.data,
-							       op->named.length,
-							       walk_state);
-			}
-			walk_state->operands[0] = NULL;
-			walk_state->num_operands = 0;
+				status =
+				    acpi_ds_create_operands(walk_state,
+							    op->common.value.
+							    arg);
+				if (ACPI_SUCCESS(status)) {
+					status =
+					    acpi_ex_create_method(op->named.
+								  data,
+								  op->named.
+								  length,
+								  walk_state);
+				}
+				walk_state->operands[0] = NULL;
+				walk_state->num_operands = 0;
 
-			if (ACPI_FAILURE(status)) {
-				return_ACPI_STATUS(status);
+				if (ACPI_FAILURE(status)) {
+					return_ACPI_STATUS(status);
+				}
 			}
 		}
 	}
 
-	/* Pop the scope stack */
+	/* Pop the scope stack (only if loading a table) */
 
-	if (acpi_ns_opens_scope(object_type)) {
+	if (!walk_state->method_node && acpi_ns_opens_scope(object_type)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 				  "(%s): Popping scope for Op %p\n",
 				  acpi_ut_get_type_name(object_type), op));
@@ -1015,11 +1026,50 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 
 			status = acpi_ds_create_node(walk_state, node, op);
 			break;
+
+		case AML_METHOD_OP:
+			/*
+			 * method_op pkg_length name_string method_flags term_list
+			 *
+			 * Note: We must create the method node/object pair as soon as we
+			 * see the method declaration.  This allows later pass1 parsing
+			 * of invocations of the method (need to know the number of
+			 * arguments.)
+			 */
+			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+					  "LOADING-Method: State=%p Op=%p named_obj=%p\n",
+					  walk_state, op, op->named.node));
+
+			if (!acpi_ns_get_attached_object(op->named.node)) {
+				walk_state->operands[0] =
+				    ACPI_CAST_PTR(void, op->named.node);
+				walk_state->num_operands = 1;
+
+				status =
+				    acpi_ds_create_operands(walk_state,
+							    op->common.value.
+							    arg);
+				if (ACPI_SUCCESS(status)) {
+					status =
+					    acpi_ex_create_method(op->named.
+								  data,
+								  op->named.
+								  length,
+								  walk_state);
+				}
+				walk_state->operands[0] = NULL;
+				walk_state->num_operands = 0;
+
+				if (ACPI_FAILURE(status)) {
+					return_ACPI_STATUS(status);
+				}
+			}
+			break;
+
 #endif				/* ACPI_NO_METHOD_EXECUTION */
 
 		default:
 			/* All NAMED_COMPLEX opcodes must be handled above */
-			/* Note: Method objects were already created in Pass 1 */
 			break;
 		}
 		break;
