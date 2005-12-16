@@ -620,7 +620,6 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 {
 	int lastshift;
 	u16 areamask, curareas;
-	struct vm_area_struct *vma;
 
 	if (HPAGE_SHIFT == 0)
 		return -EINVAL;
