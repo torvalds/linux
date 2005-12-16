@@ -940,7 +940,7 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 	u_char *eccbuf, struct nand_oobinfo *oobsel)
 {
 	struct onenand_chip *this = mtd->priv;
-	unsigned char buffer[MAX_ONENAND_PAGESIZE], *pbuf;
+	unsigned char *pbuf;
 	size_t total_len, len;
 	int i, written = 0;
 	int ret = 0;
@@ -975,7 +975,7 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 	/* Loop until all keve's data has been written */
 	len = 0;
 	while (count) {
-		pbuf = buffer;
+		pbuf = this->page_buf;
 		/*
 		 * If the given tuple is >= pagesize then
 		 * write it out from the iov
@@ -995,7 +995,7 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			int cnt = 0, thislen;
 			while (cnt < mtd->oobblock) {
 				thislen = min_t(int, mtd->oobblock - cnt, vecs->iov_len - len);
-				memcpy(buffer + cnt, vecs->iov_base + len, thislen);
+				memcpy(this->page_buf + cnt, vecs->iov_base + len, thislen);
 				cnt += thislen;
 				len += thislen;
 
@@ -1519,6 +1519,18 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 		this->read_bufferram = onenand_sync_read_bufferram;
 	}
 
+	/* Allocate buffers, if necessary */
+	if (!this->page_buf) {
+		size_t len;
+		len = mtd->oobblock + mtd->oobsize;
+		this->page_buf = kmalloc(len, GFP_KERNEL);
+		if (!this->page_buf) {
+			printk(KERN_ERR "onenand_scan(): Can't allocate page_buf\n");
+			return -ENOMEM;
+		}
+		this->options |= ONENAND_PAGEBUF_ALLOC;
+	}
+
 	this->state = FL_READY;
 	init_waitqueue_head(&this->wq);
 	spin_lock_init(&this->chip_lock);
@@ -1580,12 +1592,21 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
  */
 void onenand_release(struct mtd_info *mtd)
 {
+	struct onenand_chip *this = mtd->priv;
+
 #ifdef CONFIG_MTD_PARTITIONS
 	/* Deregister partitions */
 	del_mtd_partitions (mtd);
 #endif
 	/* Deregister the device */
 	del_mtd_device (mtd);
+
+	/* Free bad block table memory, if allocated */
+	if (this->bbm)
+		kfree(this->bbm);
+	/* Buffer allocated by onenand_scan */
+	if (this->options & ONENAND_PAGEBUF_ALLOC)
+		kfree(this->page_buf);
 }
 
 EXPORT_SYMBOL_GPL(onenand_scan);
