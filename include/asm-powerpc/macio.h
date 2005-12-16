@@ -1,5 +1,6 @@
 #ifndef __MACIO_ASIC_H__
 #define __MACIO_ASIC_H__
+#ifdef __KERNEL__
 
 #include <asm/of_device.h>
 
@@ -137,4 +138,5 @@ struct macio_driver
 extern int macio_register_driver(struct macio_driver *);
 extern void macio_unregister_driver(struct macio_driver *);
 
+#endif /* __KERNEL__ */
 #endif /* __MACIO_ASIC_H__ */

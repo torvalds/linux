@@ -22,6 +22,7 @@
 
 #ifndef _SPU_CSA_H_
 #define _SPU_CSA_H_
+#ifdef __KERNEL__
 
 /*
  * Total number of 128-bit registers.
@@ -88,8 +89,6 @@ struct spu_lscsa {
 	struct spu_reg128 pad[119];	/* 'ls' must be page-aligned. */
 	unsigned char ls[LS_SIZE];
 };
-
-#ifdef __KERNEL__
 
 /*
  * struct spu_problem_collapsed - condensed problem state area, w/o pads.

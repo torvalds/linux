@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_KEXEC_H
 #define _ASM_POWERPC_KEXEC_H
+#ifdef __KERNEL__
 
 /*
  * Maximum page that is mapped directly into kernel memory.
@@ -58,4 +59,5 @@ extern void default_machine_crash_shutdown(struct pt_regs *regs);
 #endif /* !CONFIG_KEXEC */
 
 #endif /* ! __ASSEMBLY__ */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_KEXEC_H */

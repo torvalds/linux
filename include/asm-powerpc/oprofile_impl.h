@@ -11,6 +11,7 @@
 
 #ifndef _ASM_POWERPC_OPROFILE_IMPL_H
 #define _ASM_POWERPC_OPROFILE_IMPL_H
+#ifdef __KERNEL__
 
 #define OP_MAX_COUNTER 8
 
@@ -133,4 +134,5 @@ static inline void ctr_write(unsigned int i, unsigned int val)
 }
 #endif /* !CONFIG_FSL_BOOKE */
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_OPROFILE_IMPL_H */

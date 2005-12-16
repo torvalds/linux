@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_TOPOLOGY_H
 #define _ASM_POWERPC_TOPOLOGY_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 
@@ -65,4 +66,5 @@ static inline void dump_numa_cpu_topology(void) {}
 
 #endif /* CONFIG_NUMA */
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_TOPOLOGY_H */

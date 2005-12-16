@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_PGALLOC_H
 #define _ASM_POWERPC_PGALLOC_H
+#ifdef __KERNEL__
 
 #ifndef CONFIG_PPC64
 #include <asm-ppc/pgalloc.h>
@@ -153,4 +154,5 @@ extern void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf);
 #define check_pgt_cache()	do { } while (0)
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PGALLOC_H */

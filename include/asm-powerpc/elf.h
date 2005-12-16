@@ -1,7 +1,10 @@
 #ifndef _ASM_POWERPC_ELF_H
 #define _ASM_POWERPC_ELF_H
 
+#ifdef __KERNEL__
 #include <linux/sched.h>	/* for task_struct */
+#endif
+
 #include <asm/types.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>

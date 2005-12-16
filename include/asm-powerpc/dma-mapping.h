@@ -6,6 +6,7 @@
  */
 #ifndef _ASM_DMA_MAPPING_H
 #define _ASM_DMA_MAPPING_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #include <linux/types.h>
@@ -282,4 +283,5 @@ struct dma_mapping_ops {
 	int		(*dac_dma_supported)(struct device *dev, u64 mask);
 };
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_DMA_MAPPING_H */

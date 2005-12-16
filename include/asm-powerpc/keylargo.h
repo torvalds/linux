@@ -1,3 +1,6 @@
+#ifndef _ASM_POWERPC_KEYLARGO_H
+#define _ASM_POWERPC_KEYLARGO_H
+#ifdef __KERNEL__
 /*
  * keylargo.h: definitions for using the "KeyLargo" I/O controller chip.
  *
@@ -254,3 +257,5 @@
 #define SH_FCR1_I2S2_ENABLE		0x00000080
 #define SH_FCR3_I2S2_CLK18_ENABLE	0x00008000
 
+#endif /* __KERNEL__ */
+#endif /* _ASM_POWERPC_KEYLARGO_H */

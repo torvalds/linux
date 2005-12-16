@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_SPARSEMEM_H
 #define _ASM_POWERPC_SPARSEMEM_H 1
+#ifdef __KERNEL__
 
 #ifdef CONFIG_SPARSEMEM
 /*
@@ -25,4 +26,5 @@ static inline int hot_add_scn_to_nid(unsigned long scn_addr)
 
 #endif /* CONFIG_SPARSEMEM */
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SPARSEMEM_H */

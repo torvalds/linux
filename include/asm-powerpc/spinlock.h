@@ -1,5 +1,6 @@
 #ifndef __ASM_SPINLOCK_H
 #define __ASM_SPINLOCK_H
+#ifdef __KERNEL__
 
 /*
  * Simple spin lock operations.  
@@ -266,4 +267,5 @@ static __inline__ void __raw_write_unlock(raw_rwlock_t *rw)
 	rw->lock = 0;
 }
 
+#endif /* __KERNEL__ */
 #endif /* __ASM_SPINLOCK_H */

@@ -22,6 +22,8 @@
 
 #ifndef _SPU_H
 #define _SPU_H
+#ifdef __KERNEL__
+
 #include <linux/config.h>
 #include <linux/kref.h>
 #include <linux/workqueue.h>
@@ -578,4 +580,5 @@ struct spu_priv1 {
 	u64 spu_trace_cntl;					/* 0x1070 */
 } __attribute__ ((aligned(0x2000)));
 
+#endif /* __KERNEL__ */
 #endif

@@ -37,6 +37,7 @@
 
 #ifndef _ASM_EBUS_H
 #define _ASM_EBUS_H
+#ifdef __KERNEL__
 
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -80,4 +81,5 @@ static inline struct ibmebus_dev *to_ibmebus_dev(struct device *dev)
 }
 
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_IBMEBUS_H */

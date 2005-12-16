@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_ABS_ADDR_H
 #define _ASM_POWERPC_ABS_ADDR_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 
@@ -70,4 +71,5 @@ static inline unsigned long phys_to_abs(unsigned long pa)
 #define iseries_hv_addr(virtaddr)	\
 	(0x8000000000000000 | virt_to_abs(virtaddr))
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_ABS_ADDR_H */

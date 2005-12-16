@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_IO_H
 #define _ASM_POWERPC_IO_H
+#ifdef __KERNEL__
 
 /* 
  * This program is free software; you can redistribute it and/or
@@ -186,7 +187,6 @@ extern void _outsl_ns(volatile u32 __iomem *port, const void *buf, int nl);
 #define IO_SPACE_LIMIT ~(0UL)
 
 
-#ifdef __KERNEL__
 extern int __ioremap_explicit(unsigned long p_addr, unsigned long v_addr,
 		     	      unsigned long size, unsigned long flags);
 extern void __iomem *__ioremap(unsigned long address, unsigned long size,
@@ -255,8 +255,6 @@ static inline void * phys_to_virt(unsigned long address)
  * way by the iommu
  */
 #define BIO_VMERGE_BOUNDARY	0
-
-#endif /* __KERNEL__ */
 
 static inline void iosync(void)
 {
@@ -404,8 +402,6 @@ static inline void out_be64(volatile unsigned long __iomem *addr, unsigned long 
 #ifndef CONFIG_PPC_ISERIES 
 #include <asm/eeh.h>
 #endif
-
-#ifdef __KERNEL__
 
 /**
  *	check_signature		-	find BIOS signatures

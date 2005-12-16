@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_MMU_H_
 #define _ASM_POWERPC_MMU_H_
+#ifdef __KERNEL__
 
 #ifndef CONFIG_PPC64
 #include <asm-ppc/mmu.h>
@@ -402,4 +403,5 @@ typedef unsigned long phys_addr_t;
 #endif /* __ASSEMBLY */
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MMU_H_ */

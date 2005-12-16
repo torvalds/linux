@@ -10,7 +10,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <asm/reg.h>
 
 #ifndef __ASSEMBLY__
@@ -50,6 +49,7 @@
 #define _CHRP_IBM	0x05	/* IBM chrp, the longtrail and longtrail 2 */
 #define _CHRP_Pegasos	0x06	/* Genesi/bplan's Pegasos and Pegasos2 */
 
+#ifdef __KERNEL__
 #define platform_is_pseries()	(_machine == PLATFORM_PSERIES || \
 				 _machine == PLATFORM_PSERIES_LPAR)
 #define platform_is_lpar()	(!!(_machine & PLATFORM_LPAR))
@@ -81,7 +81,7 @@ extern unsigned char ucBoardRevMaj, ucBoardRevMin;
 #else
 #define _machine 0
 #endif /* CONFIG_PPC_MULTIPLATFORM */
-
+#endif /* __KERNEL__ */
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").

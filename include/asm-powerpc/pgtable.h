@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_PGTABLE_H
 #define _ASM_POWERPC_PGTABLE_H
+#ifdef __KERNEL__
 
 #ifndef CONFIG_PPC64
 #include <asm-ppc/pgtable.h>
@@ -532,4 +533,5 @@ void pgtable_cache_init(void);
 #endif /* __ASSEMBLY__ */
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PGTABLE_H */

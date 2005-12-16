@@ -20,6 +20,7 @@
 
 #ifndef _ASM_POWERPC_TCE_H
 #define _ASM_POWERPC_TCE_H
+#ifdef __KERNEL__
 
 /*
  * Tces come in two formats, one for the virtual bus and a different
@@ -61,4 +62,5 @@ union tce_entry {
 };
 
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_TCE_H */

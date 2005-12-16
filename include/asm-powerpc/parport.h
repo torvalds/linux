@@ -8,6 +8,7 @@
 
 #ifndef _ASM_POWERPC_PARPORT_H
 #define _ASM_POWERPC_PARPORT_H
+#ifdef __KERNEL__
 
 static int __devinit parport_pc_find_isa_ports (int autoirq, int autodma);
 static int __devinit parport_pc_find_nonpci_ports (int autoirq, int autodma)
@@ -15,4 +16,5 @@ static int __devinit parport_pc_find_nonpci_ports (int autoirq, int autodma)
 	return parport_pc_find_isa_ports (autoirq, autodma);
 }
 
+#endif /* __KERNEL__ */
 #endif /* !(_ASM_POWERPC_PARPORT_H) */

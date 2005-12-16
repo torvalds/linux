@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_CHECKSUM_H
 #define _ASM_POWERPC_CHECKSUM_H
+#ifdef __KERNEL__
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -129,4 +130,5 @@ static inline unsigned long csum_tcpudp_nofold(unsigned long saddr,
 }
 
 #endif
+#endif /* __KERNEL__ */
 #endif

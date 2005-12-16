@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_KPROBES_H
 #define _ASM_POWERPC_KPROBES_H
+#ifdef __KERNEL__
 /*
  *  Kernel Probes (KProbes)
  *
@@ -78,4 +79,5 @@ static inline int kprobe_exceptions_notify(struct notifier_block *self,
 	return 0;
 }
 #endif
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_KPROBES_H */

@@ -19,6 +19,7 @@
 
 #ifndef _PPC64_EEH_H
 #define _PPC64_EEH_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #include <linux/init.h>
@@ -373,4 +374,5 @@ static inline void eeh_insl_ns(unsigned long port, void * buf, int nl)
 		eeh_check_failure((void __iomem *)(port), *(u32*)buf);
 }
 
+#endif /* __KERNEL__ */
 #endif /* _PPC64_EEH_H */

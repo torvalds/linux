@@ -1,7 +1,6 @@
 #ifndef __ASM_POWERPC_CPUTABLE_H
 #define __ASM_POWERPC_CPUTABLE_H
 
-#include <linux/config.h>
 #include <asm/asm-compat.h>
 
 #define PPC_FEATURE_32			0x80000000

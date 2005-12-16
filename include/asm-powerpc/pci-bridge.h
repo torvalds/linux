@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_PCI_BRIDGE_H
 #define _ASM_POWERPC_PCI_BRIDGE_H
+#ifdef __KERNEL__
 
 #ifndef CONFIG_PPC64
 #include <asm-ppc/pci-bridge.h>
@@ -172,4 +173,5 @@ static inline unsigned long pci_address_to_pio(phys_addr_t address)
 #define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif

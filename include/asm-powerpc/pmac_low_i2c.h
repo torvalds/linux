@@ -11,6 +11,7 @@
  */
 #ifndef __PMAC_LOW_I2C_H__
 #define __PMAC_LOW_I2C_H__
+#ifdef __KERNEL__
 
 /* i2c mode (based on the platform functions format) */
 enum {
@@ -40,4 +41,5 @@ int pmac_low_i2c_setmode(struct device_node *np, int mode);
 int pmac_low_i2c_xfer(struct device_node *np, u8 addrdir, u8 subaddr, u8 *data, int len);
 
 
+#endif /* __KERNEL__ */
 #endif /* __PMAC_LOW_I2C_H__ */

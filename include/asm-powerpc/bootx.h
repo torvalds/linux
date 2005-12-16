@@ -9,6 +9,8 @@
 #ifndef __ASM_BOOTX_H__
 #define __ASM_BOOTX_H__
 
+#include <asm/types.h>
+
 #ifdef macintosh
 #include <Types.h>
 #include "linux_type_defs.h"
@@ -122,6 +124,7 @@ typedef struct boot_infos
 
 } boot_infos_t;
 
+#ifdef __KERNEL__
 /* (*) The format of the colormap is 256 * 3 * 2 bytes. Each color index
  * is represented by 3 short words containing a 16 bits (unsigned) color
  * component. Later versions may contain the gamma table for direct-color
@@ -158,6 +161,8 @@ struct bootx_dt_node {
 };
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
+
+#endif /* __KERNEL__ */
 
 #ifdef macintosh
 #pragma options align=reset

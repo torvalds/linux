@@ -20,6 +20,7 @@
 
 #ifndef _ASM_IOMMU_H
 #define _ASM_IOMMU_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #include <asm/types.h>
@@ -115,4 +116,5 @@ static inline void pci_iommu_init(void) { }
 
 extern void alloc_dart_table(void);
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_IOMMU_H */

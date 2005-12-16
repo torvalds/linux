@@ -8,6 +8,7 @@
  */
 #ifndef _ASM_POWERPC_PPC_PCI_H
 #define _ASM_POWERPC_PPC_PCI_H
+#ifdef __KERNEL__
 
 #include <linux/pci.h>
 #include <asm/pci-bridge.h>
@@ -93,4 +94,5 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag);
 
 #endif
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PPC_PCI_H */

@@ -9,6 +9,7 @@
 
 #ifndef _ASM_POWERPC_UDBG_H
 #define _ASM_POWERPC_UDBG_H
+#ifdef __KERNEL__
 
 #include <linux/compiler.h>
 #include <linux/init.h>
@@ -34,4 +35,5 @@ extern void udbg_scc_init(int force_scc);
 extern int udbg_adb_init(int force_btext);
 extern void udbg_adb_init_early(void);
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_UDBG_H */

@@ -4,9 +4,11 @@
 /*
  * Definitions for talking to the SMU chip in newer G5 PowerMacs
  */
-
+#ifdef __KERNEL__
 #include <linux/config.h>
 #include <linux/list.h>
+#endif
+#include <linux/types.h>
 
 /*
  * Known SMU commands
@@ -487,8 +489,8 @@ struct smu_sdbp_slotspow {
 #define SMU_SDB_SENSORTREE_ID		0x25
 
 struct smu_sdbp_sensortree {
-	u8	model_id;
-	u8	unknown[3];
+	__u8	model_id;
+	__u8	unknown[3];
 };
 
 /* This partition contains CPU thermal control PID informations. So far
@@ -498,13 +500,13 @@ struct smu_sdbp_sensortree {
 #define SMU_SDB_CPUPIDDATA_ID		0x17
 
 struct smu_sdbp_cpupiddata {
-	u8	unknown1;
-	u8	target_temp_delta;
-	u8	unknown2;
-	u8	history_len;
-	s16	power_adj;
-	u16	max_power;
-	s32	gp,gr,gd;
+	__u8	unknown1;
+	__u8	target_temp_delta;
+	__u8	unknown2;
+	__u8	history_len;
+	__s16	power_adj;
+	__u16	max_power;
+	__s32	gp,gr,gd;
 };
 
 

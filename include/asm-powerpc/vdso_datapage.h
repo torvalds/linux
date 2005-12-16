@@ -1,5 +1,6 @@
 #ifndef _VDSO_DATAPAGE_H
 #define _VDSO_DATAPAGE_H
+#ifdef __KERNEL__
 
 /*
  * Copyright (C) 2002 Peter Bergner <bergner@vnet.ibm.com>, IBM
@@ -105,4 +106,5 @@ extern struct vdso_data *vdso_data;
 
 #endif /* __ASSEMBLY__ */
 
+#endif /* __KERNEL__ */
 #endif /* _SYSTEMCFG_H */
