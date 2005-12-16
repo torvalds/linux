@@ -379,6 +379,7 @@ extern int r300_do_cp_cmdbuf(drm_device_t * dev, DRMFILE filp,
 #	define RADEON_PLL_WR_EN			(1 << 7)
 #define RADEON_CLOCK_CNTL_INDEX		0x0008
 #define RADEON_CONFIG_APER_SIZE		0x0108
+#define RADEON_CONFIG_MEMSIZE		0x00f8
 #define RADEON_CRTC_OFFSET		0x0224
 #define RADEON_CRTC_OFFSET_CNTL		0x0228
 #	define RADEON_CRTC_TILE_EN		(1 << 15)

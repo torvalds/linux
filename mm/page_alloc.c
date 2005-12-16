@@ -1896,7 +1896,7 @@ static int __devinit pageset_cpuup_callback(struct notifier_block *nfb,
 static struct notifier_block pageset_notifier =
 	{ &pageset_cpuup_callback, NULL, 0 };
 
-void __init setup_per_cpu_pageset()
+void __init setup_per_cpu_pageset(void)
 {
 	int err;
 

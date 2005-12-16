@@ -2048,7 +2048,7 @@ static int fbcon_switch(struct vc_data *vc)
 	struct fbcon_ops *ops;
 	struct display *p = &fb_display[vc->vc_num];
 	struct fb_var_screeninfo var;
-	int i, prev_console;
+	int i, prev_console, charcnt = 256;
 
 	info = registered_fb[con2fb_map[vc->vc_num]];
 	ops = info->fbcon_par;
@@ -2103,7 +2103,8 @@ static int fbcon_switch(struct vc_data *vc)
 	fb_set_var(info, &var);
 	ops->var = info->var;
 
-	if (old_info != NULL && old_info != info) {
+	if (old_info != NULL && (old_info != info ||
+				 info->flags & FBINFO_MISC_ALWAYS_SETPAR)) {
 		if (info->fbops->fb_set_par)
 			info->fbops->fb_set_par(info);
 		fbcon_del_cursor_timer(old_info);
@@ -2120,6 +2121,13 @@ static int fbcon_switch(struct vc_data *vc)
 
 	vc->vc_can_do_color = (fb_get_color_depth(&info->var, &info->fix)!=1);
 	vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
+
+	if (p->userfont)
+		charcnt = FNTCHARCNT(vc->vc_font.data);
+
+	if (charcnt > 256)
+		vc->vc_complement_mask <<= 1;
+
 	updatescrollmode(p, info, vc);
 
 	switch (p->scrollmode) {
@@ -2139,8 +2147,12 @@ static int fbcon_switch(struct vc_data *vc)
 
 	scrollback_max = 0;
 	scrollback_current = 0;
-	ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-	ops->update_start(info);
+
+	if (!fbcon_is_inactive(vc, info)) {
+	    ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
+	    ops->update_start(info);
+	}
+
 	fbcon_set_palette(vc, color_table); 	
 	fbcon_clear_margins(vc, 0);
 
@@ -2184,11 +2196,14 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 		ops->graphics = 1;
 
 		if (!blank) {
+			if (info->fbops->fb_save_state)
+				info->fbops->fb_save_state(info);
 			var.activate = FB_ACTIVATE_NOW | FB_ACTIVATE_FORCE;
 			fb_set_var(info, &var);
 			ops->graphics = 0;
 			ops->var = info->var;
-		}
+		} else if (info->fbops->fb_restore_state)
+			info->fbops->fb_restore_state(info);
 	}
 
  	if (!fbcon_is_inactive(vc, info)) {
@@ -2736,8 +2751,12 @@ static void fbcon_modechanged(struct fb_info *info)
 		updatescrollmode(p, info, vc);
 		scrollback_max = 0;
 		scrollback_current = 0;
-		ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-		ops->update_start(info);
+
+		if (!fbcon_is_inactive(vc, info)) {
+		    ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
+		    ops->update_start(info);
+		}
+
 		fbcon_set_palette(vc, color_table);
 		update_screen(vc);
 		if (softback_buf)
@@ -2774,8 +2793,13 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 			updatescrollmode(p, info, vc);
 			scrollback_max = 0;
 			scrollback_current = 0;
-			ops->var.xoffset = ops->var.yoffset = p->yscroll = 0;
-			ops->update_start(info);
+
+			if (!fbcon_is_inactive(vc, info)) {
+			    ops->var.xoffset = ops->var.yoffset =
+				p->yscroll = 0;
+			    ops->update_start(info);
+			}
+
 			fbcon_set_palette(vc, color_table);
 			update_screen(vc);
 			if (softback_buf)

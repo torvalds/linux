@@ -1039,6 +1039,10 @@ static int flush_commit_list(struct super_block *s,
 	}
 	atomic_dec(&journal->j_async_throttle);
 
+	/* We're skipping the commit if there's an error */
+	if (retval || reiserfs_is_journal_aborted(journal))
+		barrier = 0;
+
 	/* wait on everything written so far before writing the commit
 	 * if we are in barrier mode, send the commit down now
 	 */
@@ -1077,10 +1081,16 @@ static int flush_commit_list(struct super_block *s,
 	BUG_ON(atomic_read(&(jl->j_commit_left)) != 1);
 
 	if (!barrier) {
-		if (buffer_dirty(jl->j_commit_bh))
-			BUG();
-		mark_buffer_dirty(jl->j_commit_bh);
-		sync_dirty_buffer(jl->j_commit_bh);
+		/* If there was a write error in the journal - we can't commit
+		 * this transaction - it will be invalid and, if successful,
+		 * will just end up propogating the write error out to
+		 * the file system. */
+		if (likely(!retval && !reiserfs_is_journal_aborted (journal))) {
+			if (buffer_dirty(jl->j_commit_bh))
+				BUG();
+			mark_buffer_dirty(jl->j_commit_bh) ;
+			sync_dirty_buffer(jl->j_commit_bh) ;
+		}
 	} else
 		wait_on_buffer(jl->j_commit_bh);
 

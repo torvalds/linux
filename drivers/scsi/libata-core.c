@@ -2443,7 +2443,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 			struct scatterlist *psg = &qc->pad_sgent;
 			void *addr = kmap_atomic(psg->page, KM_IRQ0);
 			memcpy(addr + psg->offset, pad_buf, qc->pad_len);
-			kunmap_atomic(psg->page, KM_IRQ0);
+			kunmap_atomic(addr, KM_IRQ0);
 		}
 	} else {
 		if (sg_dma_len(&sg[0]) > 0)
@@ -2717,7 +2717,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_WRITE) {
 			void *addr = kmap_atomic(psg->page, KM_IRQ0);
 			memcpy(pad_buf, addr + psg->offset, qc->pad_len);
-			kunmap_atomic(psg->page, KM_IRQ0);
+			kunmap_atomic(addr, KM_IRQ0);
 		}
 
 		sg_dma_address(psg) = ap->pad_dma + (qc->tag * ATA_DMA_PAD_SZ);

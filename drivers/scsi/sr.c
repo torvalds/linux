@@ -320,25 +320,11 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 	 * these are already setup, just copy cdb basically
 	 */
 	if (SCpnt->request->flags & REQ_BLOCK_PC) {
-		struct request *rq = SCpnt->request;
+		scsi_setup_blk_pc_cmnd(SCpnt, MAX_RETRIES);
 
-		if (sizeof(rq->cmd) > sizeof(SCpnt->cmnd))
-			return 0;
+		if (SCpnt->timeout_per_command)
+			timeout = SCpnt->timeout_per_command;
 
-		memcpy(SCpnt->cmnd, rq->cmd, sizeof(SCpnt->cmnd));
-		SCpnt->cmd_len = rq->cmd_len;
-		if (!rq->data_len)
-			SCpnt->sc_data_direction = DMA_NONE;
-		else if (rq_data_dir(rq) == WRITE)
-			SCpnt->sc_data_direction = DMA_TO_DEVICE;
-		else
-			SCpnt->sc_data_direction = DMA_FROM_DEVICE;
-
-		this_count = rq->data_len;
-		if (rq->timeout)
-			timeout = rq->timeout;
-
-		SCpnt->transfersize = rq->data_len;
 		goto queue;
 	}
 
