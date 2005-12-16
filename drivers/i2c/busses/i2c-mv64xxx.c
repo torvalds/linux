@@ -529,14 +529,15 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	i2c_set_adapdata(&drv_data->adapter, drv_data);
 
 	if (request_irq(drv_data->irq, mv64xxx_i2c_intr, 0,
-		MV64XXX_I2C_CTLR_NAME, drv_data)) {
-
-		dev_err(dev, "mv64xxx: Can't register intr handler "
-			"irq: %d\n", drv_data->irq);
+			MV64XXX_I2C_CTLR_NAME, drv_data)) {
+		dev_err(&drv_data->adapter.dev,
+			"mv64xxx: Can't register intr handler irq: %d\n",
+			drv_data->irq);
 		rc = -EINVAL;
 		goto exit_unmap_regs;
 	} else if ((rc = i2c_add_adapter(&drv_data->adapter)) != 0) {
-		dev_err(dev, "mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
+		dev_err(&drv_data->adapter.dev,
+			"mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
 		goto exit_free_irq;
 	}
 
