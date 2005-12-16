@@ -173,7 +173,7 @@ static int __init booke_wdt_init(void)
 	int ret = 0;
 
 	printk (KERN_INFO "PowerPC Book-E Watchdog Timer Loaded\n");
-	ident.firmware_version = cpu_specs[0].pvr_value;
+	ident.firmware_version = cur_cpu_spec->pvr_value;
 
 	ret = misc_register(&booke_wdt_miscdev);
 	if (ret) {
