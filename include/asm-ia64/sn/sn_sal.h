@@ -1100,7 +1100,7 @@ ia64_sn_bte_recovery(nasid_t nasid)
 	struct ia64_sal_retval rv;
 
 	rv.status = 0;
-	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, 0, 0, 0, 0, 0, 0, 0);
+	SAL_CALL_NOLOCK(rv, SN_SAL_BTE_RECOVER, (u64)nasid, 0, 0, 0, 0, 0, 0);
 	if (rv.status == SALRET_NOT_IMPLEMENTED)
 		return 0;
 	return (int) rv.status;
