@@ -58,7 +58,7 @@
 
 #include "dialog.h"
 
-#define ITEM_IDENT 4   /* Indent of menu entries. Fixed for all menus */
+#define ITEM_IDENT 1   /* Indent of menu entries. Fixed for all menus */
 static int menu_width;
 
 /*
