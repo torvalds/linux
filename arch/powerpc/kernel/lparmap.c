@@ -7,7 +7,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <asm/mmu.h>
-#include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/iseries/lpar_map.h>
 
 const struct LparMap __attribute__((__section__(".text"))) xLparMap = {
