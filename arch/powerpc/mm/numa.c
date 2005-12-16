@@ -766,13 +766,15 @@ early_param("numa", early_numa);
 int hot_add_scn_to_nid(unsigned long scn_addr)
 {
 	struct device_node *memory = NULL;
+	nodemask_t nodes;
+	int numa_domain = 0;
 
 	if (!numa_enabled || (min_common_depth < 0))
-		return 0;
+		return numa_domain;
 
 	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
 		unsigned long start, size;
-		int numa_domain, ranges;
+		int ranges;
 		unsigned int *memcell_buf;
 		unsigned int len;
 
@@ -793,14 +795,21 @@ ha_new_range:
 
 		if ((scn_addr >= start) && (scn_addr < (start + size))) {
 			of_node_put(memory);
-			return numa_domain;
+			goto got_numa_domain;
 		}
 
 		if (--ranges)		/* process all ranges in cell */
 			goto ha_new_range;
 	}
-
 	BUG();	/* section address should be found above */
-	return 0;
+
+	/* Temporary code to ensure that returned node is not empty */
+got_numa_domain:
+	nodes_setall(nodes);
+	while (NODE_DATA(numa_domain)->node_spanned_pages == 0) {
+		node_clear(numa_domain, nodes);
+		numa_domain = any_online_node(nodes);
+	}
+	return numa_domain;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
