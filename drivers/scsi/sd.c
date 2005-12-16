@@ -245,7 +245,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	 * SG_IO from block layer already setup, just copy cdb basically
 	 */
 	if (blk_pc_request(rq)) {
-		scsi_setup_blk_pc_cmnd(SCpnt, SD_PASSTHROUGH_RETRIES);
+		scsi_setup_blk_pc_cmnd(SCpnt);
 		if (rq->timeout)
 			timeout = rq->timeout;
 

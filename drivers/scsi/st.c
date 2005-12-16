@@ -4198,7 +4198,7 @@ static int st_init_command(struct scsi_cmnd *SCpnt)
 	if (!(SCpnt->request->flags & REQ_BLOCK_PC))
 		return 0;
 
-	scsi_setup_blk_pc_cmnd(SCpnt, 0);
+	scsi_setup_blk_pc_cmnd(SCpnt);
 	SCpnt->done = st_intr;
 	return 1;
 }

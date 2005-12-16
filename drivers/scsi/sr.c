@@ -320,7 +320,7 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 	 * these are already setup, just copy cdb basically
 	 */
 	if (SCpnt->request->flags & REQ_BLOCK_PC) {
-		scsi_setup_blk_pc_cmnd(SCpnt, MAX_RETRIES);
+		scsi_setup_blk_pc_cmnd(SCpnt);
 
 		if (SCpnt->timeout_per_command)
 			timeout = SCpnt->timeout_per_command;
