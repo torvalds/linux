@@ -545,7 +545,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7450 2.1 */
 		.pvr_mask		= 0xffffffff,
@@ -556,7 +560,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7450 2.3 and newer */
 		.pvr_mask		= 0xffff0000,
@@ -567,7 +575,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7455 rev 1.x */
 		.pvr_mask		= 0xffffff00,
@@ -578,7 +590,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7455 rev 2.0 */
 		.pvr_mask		= 0xffffffff,
@@ -589,7 +605,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7455 others */
 		.pvr_mask		= 0xffff0000,
@@ -600,7 +620,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7447/7457 Rev 1.0 */
 		.pvr_mask		= 0xffffffff,
@@ -611,7 +635,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7447/7457 Rev 1.1 */
 		.pvr_mask		= 0xffffffff,
@@ -622,7 +650,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7447/7457 Rev 1.2 and later */
 		.pvr_mask		= 0xffff0000,
@@ -633,7 +665,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7447A */
 		.pvr_mask		= 0xffff0000,
@@ -644,7 +680,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 7448 */
 		.pvr_mask		= 0xffff0000,
@@ -655,7 +695,11 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 6,
-		.cpu_setup		= __setup_cpu_745x
+		.cpu_setup		= __setup_cpu_745x,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type      = "ppc/7450",
+		.oprofile_model         = &op_model_7450,
+#endif
 	},
 	{	/* 82xx (8240, 8245, 8260 are all 603e cores) */
 		.pvr_mask		= 0x7fff0000,
@@ -979,6 +1023,10 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc/e500",
+		.oprofile_model		= &op_model_fsl_booke,
+#endif
 	},
 	{	/* e500v2 */
 		.pvr_mask		= 0xffff0000,
@@ -992,6 +1040,10 @@ struct cpu_spec	cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
+#ifdef CONFIG_OPROFILE
+		.oprofile_cpu_type	= "ppc/e500",
+		.oprofile_model		= &op_model_fsl_booke,
+#endif
 	},
 #endif
 #if !CLASSIC_PPC

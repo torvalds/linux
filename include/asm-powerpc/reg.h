@@ -443,12 +443,35 @@
 #define SPRN_SDAR	781
 
 #else /* 32-bit */
-#define SPRN_MMCR0	0x3B8	/* Monitor Mode Control Register 0 */
-#define SPRN_MMCR1	0x3BC	/* Monitor Mode Control Register 1 */
-#define SPRN_PMC1	0x3B9	/* Performance Counter Register 1 */
-#define SPRN_PMC2	0x3BA	/* Performance Counter Register 2 */
-#define SPRN_PMC3	0x3BD	/* Performance Counter Register 3 */
-#define SPRN_PMC4	0x3BE	/* Performance Counter Register 4 */
+#define SPRN_MMCR0	952	/* Monitor Mode Control Register 0 */
+#define   MMCR0_FC	0x80000000UL /* freeze counters */
+#define   MMCR0_FCS	0x40000000UL /* freeze in supervisor state */
+#define   MMCR0_FCP	0x20000000UL /* freeze in problem state */
+#define   MMCR0_FCM1	0x10000000UL /* freeze counters while MSR mark = 1 */
+#define   MMCR0_FCM0	0x08000000UL /* freeze counters while MSR mark = 0 */
+#define   MMCR0_PMXE	0x04000000UL /* performance monitor exception enable */
+#define   MMCR0_FCECE	0x02000000UL /* freeze ctrs on enabled cond or event */
+#define   MMCR0_TBEE	0x00400000UL /* time base exception enable */
+#define   MMCR0_PMC1CE	0x00008000UL /* PMC1 count enable*/
+#define   MMCR0_PMCnCE	0x00004000UL /* count enable for all but PMC 1*/
+#define   MMCR0_TRIGGER	0x00002000UL /* TRIGGER enable */
+#define   MMCR0_PMC1SEL	0x00001fc0UL /* PMC 1 Event */
+#define   MMCR0_PMC2SEL	0x0000003fUL /* PMC 2 Event */
+
+#define SPRN_MMCR1	956
+#define   MMCR1_PMC3SEL	0xf8000000UL /* PMC 3 Event */
+#define   MMCR1_PMC4SEL	0x07c00000UL /* PMC 4 Event */
+#define   MMCR1_PMC5SEL	0x003e0000UL /* PMC 5 Event */
+#define   MMCR1_PMC6SEL 0x0001f800UL /* PMC 6 Event */
+#define SPRN_MMCR2	944
+#define SPRN_PMC1	953	/* Performance Counter Register 1 */
+#define SPRN_PMC2	954	/* Performance Counter Register 2 */
+#define SPRN_PMC3	957	/* Performance Counter Register 3 */
+#define SPRN_PMC4	958	/* Performance Counter Register 4 */
+#define SPRN_PMC5	945	/* Performance Counter Register 5 */
+#define SPRN_PMC6	946	/* Performance Counter Register 6 */
+
+#define SPRN_SIAR	955	/* Sampled Instruction Address Register */
 
 /* Bit definitions for MMCR0 and PMC1 / PMC2. */
 #define MMCR0_PMC1_CYCLES	(1 << 7)
@@ -458,7 +481,6 @@
 #define MMCR0_PMC2_CYCLES	0x1
 #define MMCR0_PMC2_ITLB		0x7
 #define MMCR0_PMC2_LOADMISSTIME	0x5
-#define MMCR0_PMXE	(1 << 26)
 #endif
 
 /* Processor Version Register (PVR) field extraction */
