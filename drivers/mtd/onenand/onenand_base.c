@@ -1296,6 +1296,12 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 
 	/* Block lock scheme */
 	for (block = start; block < end; block++) {
+		/* Set block address */
+		value = onenand_block_address(this, block);
+		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
+		/* Select DataRAM for DDP */
+		value = onenand_bufferram_address(this, block);
+		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS2);
 		/* Set start block address */
 		this->write_word(block, this->base + ONENAND_REG_START_BLOCK_ADDRESS);
 		/* Write unlock command */
@@ -1308,10 +1314,6 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 		while (this->read_word(this->base + ONENAND_REG_CTRL_STATUS)
 		    & ONENAND_CTRL_ONGO)
 			continue;
-
-		/* Set block address for read block status */
-		value = onenand_block_address(this, block);
-		this->write_word(value, this->base + ONENAND_REG_START_ADDRESS1);
 
 		/* Check lock status */
 		status = this->read_word(this->base + ONENAND_REG_WP_STATUS);
