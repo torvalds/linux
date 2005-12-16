@@ -165,7 +165,7 @@ static int nortel_pci_init_one(struct pci_dev *pdev,
 		goto fail_resources;
 	}
 
-	iomem = pci_iomap(pdev, 3, 0);
+	iomem = pci_iomap(pdev, 2, 0);
 	if (!iomem) {
 		err = -ENOMEM;
 		goto fail_map_io;
