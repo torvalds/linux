@@ -17,10 +17,13 @@
 
 #include "uhci-hcd.h"
 
-static struct dentry *uhci_debugfs_root = NULL;
+#define uhci_debug_operations (* (struct file_operations *) NULL)
+static struct dentry *uhci_debugfs_root;
+
+#ifdef DEBUG
 
 /* Handle REALLY large printks so we don't overflow buffers */
-static inline void lprintk(char *buf)
+static void lprintk(char *buf)
 {
 	char *p;
 
@@ -196,7 +199,6 @@ static int uhci_show_qh(struct uhci_qh *qh, char *buf, int len, int space)
 	return out - buf;
 }
 
-#ifdef CONFIG_PROC_FS
 static const char * const qh_names[] = {
   "skel_unlink_qh", "skel_iso_qh",
   "skel_int128_qh", "skel_int64_qh",
@@ -393,12 +395,13 @@ static int uhci_sprint_schedule(struct uhci_hcd *uhci, char *buf, int len)
 	return out - buf;
 }
 
+#ifdef CONFIG_DEBUG_FS
+
 #define MAX_OUTPUT	(64 * 1024)
 
 struct uhci_debug {
 	int size;
 	char *data;
-	struct uhci_hcd *uhci;
 };
 
 static int uhci_debug_open(struct inode *inode, struct file *file)
@@ -419,8 +422,10 @@ static int uhci_debug_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
+	up->size = 0;
 	spin_lock_irqsave(&uhci->lock, flags);
-	up->size = uhci_sprint_schedule(uhci, up->data, MAX_OUTPUT);
+	if (uhci->is_initialized)
+		up->size = uhci_sprint_schedule(uhci, up->data, MAX_OUTPUT);
 	spin_unlock_irqrestore(&uhci->lock, flags);
 
 	file->private_data = up;
@@ -472,15 +477,32 @@ static int uhci_debug_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#undef uhci_debug_operations
 static struct file_operations uhci_debug_operations = {
+	.owner =	THIS_MODULE,
 	.open =		uhci_debug_open,
 	.llseek =	uhci_debug_lseek,
 	.read =		uhci_debug_read,
 	.release =	uhci_debug_release,
 };
 
-#else	/* CONFIG_DEBUG_FS */
+#endif	/* CONFIG_DEBUG_FS */
 
-#define uhci_debug_operations (* (struct file_operations *) NULL)
+#else	/* DEBUG */
+
+static inline void lprintk(char *buf)
+{}
+
+static inline int uhci_show_qh(struct uhci_qh *qh, char *buf,
+		int len, int space)
+{
+	return 0;
+}
+
+static inline int uhci_sprint_schedule(struct uhci_hcd *uhci,
+		char *buf, int len)
+{
+	return 0;
+}
 
 #endif

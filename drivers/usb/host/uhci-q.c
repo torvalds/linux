@@ -736,7 +736,6 @@ err:
 		if (errbuf) {
 			/* Print the chain for debugging purposes */
 			uhci_show_qh(urbp->qh, errbuf, ERRBUF_LEN, 0);
-
 			lprintk(errbuf);
 		}
 	}
@@ -924,26 +923,17 @@ td_error:
 	ret = uhci_map_status(status, uhci_packetout(td_token(td)));
 
 err:
-	/* 
-	 * Enable this chunk of code if you want to see some more debugging.
-	 * But be careful, it has the tendancy to starve out khubd and prevent
-	 * disconnects from happening successfully if you have a slow debug
-	 * log interface (like a serial console.
-	 */
-#if 0
 	if ((debug == 1 && ret != -EPIPE) || debug > 1) {
 		/* Some debugging code */
 		dev_dbg(uhci_dev(uhci), "%s: failed with status %x\n",
 				__FUNCTION__, status);
 
-		if (errbuf) {
+		if (debug > 1 && errbuf) {
 			/* Print the chain for debugging purposes */
 			uhci_show_qh(urbp->qh, errbuf, ERRBUF_LEN, 0);
-
 			lprintk(errbuf);
 		}
 	}
-#endif
 
 	/* Note that the queue has stopped and save the next toggle value */
 	urbp->qh->element = UHCI_PTR_TERM;

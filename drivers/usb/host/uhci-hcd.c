@@ -68,12 +68,16 @@ Alan Stern"
  * debug = 3, show all TDs in URBs when dumping
  */
 #ifdef DEBUG
+#define DEBUG_CONFIGURED	1
 static int debug = 1;
-#else
-static int debug = 0;
-#endif
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug level");
+
+#else
+#define DEBUG_CONFIGURED	0
+#define debug			0
+#endif
+
 static char *errbuf;
 #define ERRBUF_LEN    (32 * 1024)
 
@@ -338,6 +342,12 @@ static irqreturn_t uhci_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 				dev_err(uhci_dev(uhci),
 					"host controller halted, "
 					"very bad!\n");
+				if (debug > 1 && errbuf) {
+					/* Print the schedule for debugging */
+					uhci_sprint_schedule(uhci,
+							errbuf, ERRBUF_LEN);
+					lprintk(errbuf);
+				}
 				hc_died(uhci);
 
 				/* Force a callback in case there are
@@ -376,6 +386,14 @@ static void release_uhci(struct uhci_hcd *uhci)
 {
 	int i;
 
+	if (DEBUG_CONFIGURED) {
+		spin_lock_irq(&uhci->lock);
+		uhci->is_initialized = 0;
+		spin_unlock_irq(&uhci->lock);
+
+		debugfs_remove(uhci->dentry);
+	}
+
 	for (i = 0; i < UHCI_NUM_SKELQH; i++)
 		uhci_free_qh(uhci, uhci->skelqh[i]);
 
@@ -390,8 +408,6 @@ static void release_uhci(struct uhci_hcd *uhci)
 	dma_free_coherent(uhci_dev(uhci),
 			UHCI_NUMFRAMES * sizeof(*uhci->frame),
 			uhci->frame, uhci->frame_dma_handle);
-
-	debugfs_remove(uhci->dentry);
 }
 
 static int uhci_reset(struct usb_hcd *hcd)
@@ -474,17 +490,6 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	hcd->uses_new_polling = 1;
 
-	dentry = debugfs_create_file(hcd->self.bus_name,
-			S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root, uhci,
-			&uhci_debug_operations);
-	if (!dentry) {
-		dev_err(uhci_dev(uhci),
-				"couldn't create uhci debugfs entry\n");
-		retval = -ENOMEM;
-		goto err_create_debug_entry;
-	}
-	uhci->dentry = dentry;
-
 	uhci->fsbr = 0;
 	uhci->fsbrtimeout = 0;
 
@@ -494,6 +499,19 @@ static int uhci_start(struct usb_hcd *hcd)
 	INIT_LIST_HEAD(&uhci->idle_qh_list);
 
 	init_waitqueue_head(&uhci->waitqh);
+
+	if (DEBUG_CONFIGURED) {
+		dentry = debugfs_create_file(hcd->self.bus_name,
+				S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root,
+				uhci, &uhci_debug_operations);
+		if (!dentry) {
+			dev_err(uhci_dev(uhci), "couldn't create uhci "
+					"debugfs entry\n");
+			retval = -ENOMEM;
+			goto err_create_debug_entry;
+		}
+		uhci->dentry = dentry;
+	}
 
 	uhci->frame = dma_alloc_coherent(uhci_dev(uhci),
 			UHCI_NUMFRAMES * sizeof(*uhci->frame),
@@ -609,6 +627,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	mb();
 
 	configure_hc(uhci);
+	uhci->is_initialized = 1;
 	start_rh(uhci);
 	return 0;
 
@@ -872,15 +891,14 @@ static int __init uhci_hcd_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	if (debug) {
+	if (DEBUG_CONFIGURED) {
 		errbuf = kmalloc(ERRBUF_LEN, GFP_KERNEL);
 		if (!errbuf)
 			goto errbuf_failed;
+		uhci_debugfs_root = debugfs_create_dir("uhci", NULL);
+		if (!uhci_debugfs_root)
+			goto debug_failed;
 	}
-
-	uhci_debugfs_root = debugfs_create_dir("uhci", NULL);
-	if (!uhci_debugfs_root)
-		goto debug_failed;
 
 	uhci_up_cachep = kmem_cache_create("uhci_urb_priv",
 		sizeof(struct urb_priv), 0, 0, NULL, NULL);

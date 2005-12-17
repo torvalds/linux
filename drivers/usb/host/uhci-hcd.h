@@ -411,6 +411,7 @@ struct uhci_hcd {
 	unsigned int hc_inaccessible:1;		/* HC is suspended or dead */
 	unsigned int working_RD:1;		/* Suspended root hub doesn't
 						   need to be polled */
+	unsigned int is_initialized:1;		/* Data structure is usable */
 
 	/* Support for port suspend/resume/reset */
 	unsigned long port_c_suspend;		/* Bit-arrays of ports */
