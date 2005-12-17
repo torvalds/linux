@@ -48,10 +48,6 @@ static struct uhci_td *uhci_alloc_td(struct uhci_hcd *uhci)
 		return NULL;
 
 	td->dma_handle = dma_handle;
-
-	td->link = UHCI_PTR_TERM;
-	td->buffer = 0;
-
 	td->frame = -1;
 
 	INIT_LIST_HEAD(&td->list);
@@ -221,6 +217,11 @@ static struct uhci_qh *uhci_alloc_qh(struct uhci_hcd *uhci,
 	INIT_LIST_HEAD(&qh->node);
 
 	if (udev) {		/* Normal QH */
+		qh->dummy_td = uhci_alloc_td(uhci);
+		if (!qh->dummy_td) {
+			dma_pool_free(uhci->qh_pool, qh, dma_handle);
+			return NULL;
+		}
 		qh->state = QH_STATE_IDLE;
 		qh->hep = hep;
 		qh->udev = udev;
@@ -244,6 +245,7 @@ static void uhci_free_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 	if (qh->udev) {
 		qh->hep->hcpriv = NULL;
 		usb_put_dev(qh->udev);
+		uhci_free_td(uhci, qh->dummy_td);
 	}
 	dma_pool_free(uhci->qh_pool, qh, qh->dma_handle);
 }
@@ -531,22 +533,20 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	/* The "pipe" thing contains the destination in bits 8--18 */
 	destination = (urb->pipe & PIPE_DEVEP_MASK) | USB_PID_SETUP;
 
-	/* 3 errors */
-	status = TD_CTRL_ACTIVE | uhci_maxerr(3);
+	/* 3 errors, dummy TD remains inactive */
+	status = uhci_maxerr(3);
 	if (urb->dev->speed == USB_SPEED_LOW)
 		status |= TD_CTRL_LS;
 
 	/*
 	 * Build the TD for the control request setup packet
 	 */
-	td = uhci_alloc_td(uhci);
-	if (!td)
-		return -ENOMEM;
-
+	td = qh->dummy_td;
 	uhci_add_td_to_urb(urb, td);
 	uhci_fill_td(td, status, destination | uhci_explen(8),
 			urb->setup_dma);
 	plink = &td->link;
+	status |= TD_CTRL_ACTIVE;
 
 	/*
 	 * If direction is "send", change the packet ID from SETUP (0x2D)
@@ -568,7 +568,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 
 		td = uhci_alloc_td(uhci);
 		if (!td)
-			return -ENOMEM;
+			goto nomem;
 		*plink = cpu_to_le32(td->dma_handle);
 
 		/* Alternate Data0/1 (start with Data1) */
@@ -588,7 +588,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	 */
 	td = uhci_alloc_td(uhci);
 	if (!td)
-		return -ENOMEM;
+		goto nomem;
 	*plink = cpu_to_le32(td->dma_handle);
 
 	/*
@@ -608,6 +608,20 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	uhci_add_td_to_urb(urb, td);
 	uhci_fill_td(td, status | TD_CTRL_IOC,
 			destination | uhci_explen(0), 0);
+	plink = &td->link;
+
+	/*
+	 * Build the new dummy TD and activate the old one
+	 */
+	td = uhci_alloc_td(uhci);
+	if (!td)
+		goto nomem;
+	*plink = cpu_to_le32(td->dma_handle);
+
+	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
+	wmb();
+	qh->dummy_td->status |= __constant_cpu_to_le32(TD_CTRL_ACTIVE);
+	qh->dummy_td = td;
 
 	/* Low-speed transfers get a different queue, and won't hog the bus.
 	 * Also, some devices enumerate better without FSBR; the easiest way
@@ -620,8 +634,12 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 		qh->skel = uhci->skel_fs_control_qh;
 		uhci_inc_fsbr(uhci, urb);
 	}
-
 	return 0;
+
+nomem:
+	/* Remove the dummy TD from the td_list so it doesn't get freed */
+	uhci_remove_td_from_urb(qh->dummy_td);
+	return -ENOMEM;
 }
 
 /*
@@ -761,16 +779,19 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	int maxsze = le16_to_cpu(qh->hep->desc.wMaxPacketSize);
 	int len = urb->transfer_buffer_length;
 	dma_addr_t data = urb->transfer_dma;
-	__le32 *plink, fake_link;
+	__le32 *plink;
+	unsigned int toggle;
 
 	if (len < 0)
 		return -EINVAL;
 
 	/* The "pipe" thing contains the destination in bits 8--18 */
 	destination = (urb->pipe & PIPE_DEVEP_MASK) | usb_packetid(urb->pipe);
+	toggle = usb_gettoggle(urb->dev, usb_pipeendpoint(urb->pipe),
+			 usb_pipeout(urb->pipe));
 
-	/* 3 errors */
-	status = TD_CTRL_ACTIVE | uhci_maxerr(3);
+	/* 3 errors, dummy TD remains inactive */
+	status = uhci_maxerr(3);
 	if (urb->dev->speed == USB_SPEED_LOW)
 		status |= TD_CTRL_LS;
 	if (usb_pipein(urb->pipe))
@@ -779,7 +800,8 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	/*
 	 * Build the DATA TDs
 	 */
-	plink = &fake_link;
+	plink = NULL;
+	td = qh->dummy_td;
 	do {	/* Allow zero length packets */
 		int pktsze = maxsze;
 
@@ -789,24 +811,23 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 				status &= ~TD_CTRL_SPD;
 		}
 
-		td = uhci_alloc_td(uhci);
-		if (!td)
-			return -ENOMEM;
-		*plink = cpu_to_le32(td->dma_handle);
-
+		if (plink) {
+			td = uhci_alloc_td(uhci);
+			if (!td)
+				goto nomem;
+			*plink = cpu_to_le32(td->dma_handle);
+		}
 		uhci_add_td_to_urb(urb, td);
 		uhci_fill_td(td, status,
-			destination | uhci_explen(pktsze) |
-			(usb_gettoggle(urb->dev, usb_pipeendpoint(urb->pipe),
-			 usb_pipeout(urb->pipe)) << TD_TOKEN_TOGGLE_SHIFT),
-			data);
+				destination | uhci_explen(pktsze) |
+					(toggle << TD_TOKEN_TOGGLE_SHIFT),
+				data);
 		plink = &td->link;
+		status |= TD_CTRL_ACTIVE;
 
 		data += pktsze;
 		len -= maxsze;
-
-		usb_dotoggle(urb->dev, usb_pipeendpoint(urb->pipe),
-			usb_pipeout(urb->pipe));
+		toggle ^= 1;
 	} while (len > 0);
 
 	/*
@@ -821,17 +842,17 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 			urb->transfer_buffer_length > 0) {
 		td = uhci_alloc_td(uhci);
 		if (!td)
-			return -ENOMEM;
+			goto nomem;
 		*plink = cpu_to_le32(td->dma_handle);
 
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(0) |
-			(usb_gettoggle(urb->dev, usb_pipeendpoint(urb->pipe),
-			 usb_pipeout(urb->pipe)) << TD_TOKEN_TOGGLE_SHIFT),
-			data);
+		uhci_fill_td(td, status,
+				destination | uhci_explen(0) |
+					(toggle << TD_TOKEN_TOGGLE_SHIFT),
+				data);
+		plink = &td->link;
 
-		usb_dotoggle(urb->dev, usb_pipeendpoint(urb->pipe),
-			usb_pipeout(urb->pipe));
+		toggle ^= 1;
 	}
 
 	/* Set the interrupt-on-completion flag on the last packet.
@@ -842,7 +863,27 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	 * flag setting. */
 	td->status |= __constant_cpu_to_le32(TD_CTRL_IOC);
 
+	/*
+	 * Build the new dummy TD and activate the old one
+	 */
+	td = uhci_alloc_td(uhci);
+	if (!td)
+		goto nomem;
+	*plink = cpu_to_le32(td->dma_handle);
+
+	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
+	wmb();
+	qh->dummy_td->status |= __constant_cpu_to_le32(TD_CTRL_ACTIVE);
+	qh->dummy_td = td;
+
+	usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
+			usb_pipeout(urb->pipe), toggle);
 	return 0;
+
+nomem:
+	/* Remove the dummy TD from the td_list so it doesn't get freed */
+	uhci_remove_td_from_urb(qh->dummy_td);
+	return -ENOMEM;
 }
 
 /*
@@ -1169,31 +1210,6 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 	 * become idle, so we can activate it right away. */
 	if (qh->queue.next == &urbp->node)
 		uhci_activate_qh(uhci, qh);
-
-	/* If the QH is already active, we have a race with the hardware.
-	 * This won't get fixed until dummy TDs are added. */
-	else if (qh->state == QH_STATE_ACTIVE) {
-
-		/* If the URB isn't first on its queue, adjust the link pointer
-		 * of the last TD in the previous URB. */
-		if (urbp->node.prev != &urbp->qh->queue) {
-			struct urb_priv *purbp = list_entry(urbp->node.prev,
-					struct urb_priv, node);
-			struct uhci_td *ptd = list_entry(purbp->td_list.prev,
-					struct uhci_td, list);
-			struct uhci_td *td = list_entry(urbp->td_list.next,
-					struct uhci_td, list);
-
-			ptd->link = cpu_to_le32(td->dma_handle);
-
-		}
-		if (qh_element(qh) == UHCI_PTR_TERM) {
-			struct uhci_td *td = list_entry(urbp->td_list.next,
-					struct uhci_td, list);
-
-			qh->element = cpu_to_le32(td->dma_handle);
-		}
-	}
 	goto done;
 
 err_submit_failed:

@@ -128,6 +128,7 @@ struct uhci_qh {
 	struct usb_device *udev;
 	struct list_head queue;		/* Queue of urbps for this QH */
 	struct uhci_qh *skel;		/* Skeleton for this QH */
+	struct uhci_td *dummy_td;	/* Dummy TD to end the queue */
 
 	unsigned int unlink_frame;	/* When the QH was unlinked */
 	int state;			/* QH_STATE_xxx; see above */
