@@ -132,6 +132,10 @@ struct uhci_qh {
 
 	unsigned int unlink_frame;	/* When the QH was unlinked */
 	int state;			/* QH_STATE_xxx; see above */
+
+	unsigned int initial_toggle:1;	/* Endpoint's current toggle value */
+	unsigned int needs_fixup:1;	/* Must fix the TD toggle values */
+	unsigned int is_stopped:1;	/* Queue was stopped by an error */
 } __attribute__((aligned(16)));
 
 /*
@@ -384,6 +388,7 @@ struct uhci_hcd {
 
 	struct uhci_td *term_td;	/* Terminating TD, see UHCI bug */
 	struct uhci_qh *skelqh[UHCI_NUM_SKELQH];	/* Skeleton QHs */
+	struct uhci_qh *next_qh;	/* Next QH to scan */
 
 	spinlock_t lock;
 
@@ -413,15 +418,9 @@ struct uhci_hcd {
 	unsigned long resuming_ports;
 	unsigned long ports_timeout;		/* Time to stop signalling */
 
-	/* Main list of URBs currently controlled by this HC */
-	struct list_head urb_list;
-
 	/* List of TDs that are done, but waiting to be freed (race) */
 	struct list_head td_remove_list;
 	unsigned int td_remove_age;		/* Age in frames */
-
-	/* List of URBs awaiting completion callback */
-	struct list_head complete_list;
 
 	struct list_head idle_qh_list;		/* Where the idle QHs live */
 
@@ -448,7 +447,6 @@ static inline struct usb_hcd *uhci_to_hcd(struct uhci_hcd *uhci)
  *	Private per-URB data
  */
 struct urb_priv {
-	struct list_head urb_list;
 	struct list_head node;		/* Node in the QH's urbp list */
 
 	struct urb *urb;
@@ -456,10 +454,7 @@ struct urb_priv {
 	struct uhci_qh *qh;		/* QH for this URB */
 	struct list_head td_list;
 
-	unsigned long fsbrtime;		/* In jiffies */
-
 	unsigned fsbr : 1;		/* URB turned on FSBR */
-	unsigned fsbr_timeout : 1;	/* URB timed out on FSBR */
 	unsigned short_transfer : 1;	/* URB got a short transfer, no
 					 * need to rescan */
 };

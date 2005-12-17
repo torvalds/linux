@@ -114,7 +114,6 @@ static int uhci_show_urbp(struct urb_priv *urbp, char *buf, int len, int space)
 	}
 
 	out += sprintf(out, "%s", (urbp->fsbr ? " FSBR" : ""));
-	out += sprintf(out, "%s", (urbp->fsbr_timeout ? " FSBR_TO" : ""));
 
 	if (urbp->urb->status != -EINPROGRESS)
 		out += sprintf(out, " Status=%d", urbp->urb->status);
