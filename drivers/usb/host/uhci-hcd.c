@@ -54,7 +54,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v2.3"
+#define DRIVER_VERSION "v3.0"
 #define DRIVER_AUTHOR "Linus 'Frodo Rabbit' Torvalds, Johannes Erdfelt, \
 Randy Dunlap, Georg Acher, Deti Fliegl, Thomas Sailer, Roman Weissgaerber, \
 Alan Stern"
@@ -489,15 +489,11 @@ static int uhci_start(struct usb_hcd *hcd)
 	uhci->fsbrtimeout = 0;
 
 	spin_lock_init(&uhci->lock);
-	INIT_LIST_HEAD(&uhci->qh_remove_list);
 
 	INIT_LIST_HEAD(&uhci->td_remove_list);
-
-	INIT_LIST_HEAD(&uhci->urb_remove_list);
-
 	INIT_LIST_HEAD(&uhci->urb_list);
-
 	INIT_LIST_HEAD(&uhci->complete_list);
+	INIT_LIST_HEAD(&uhci->idle_qh_list);
 
 	init_waitqueue_head(&uhci->waitqh);
 
@@ -540,7 +536,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	}
 
 	for (i = 0; i < UHCI_NUM_SKELQH; i++) {
-		uhci->skelqh[i] = uhci_alloc_qh(uhci);
+		uhci->skelqh[i] = uhci_alloc_qh(uhci, NULL, NULL);
 		if (!uhci->skelqh[i]) {
 			dev_err(uhci_dev(uhci), "unable to allocate QH\n");
 			goto err_alloc_skelqh;
@@ -557,13 +553,17 @@ static int uhci_start(struct usb_hcd *hcd)
 			uhci->skel_int16_qh->link =
 			uhci->skel_int8_qh->link =
 			uhci->skel_int4_qh->link =
-			uhci->skel_int2_qh->link =
-			cpu_to_le32(uhci->skel_int1_qh->dma_handle) | UHCI_PTR_QH;
-	uhci->skel_int1_qh->link = cpu_to_le32(uhci->skel_ls_control_qh->dma_handle) | UHCI_PTR_QH;
+			uhci->skel_int2_qh->link = UHCI_PTR_QH |
+			cpu_to_le32(uhci->skel_int1_qh->dma_handle);
 
-	uhci->skel_ls_control_qh->link = cpu_to_le32(uhci->skel_fs_control_qh->dma_handle) | UHCI_PTR_QH;
-	uhci->skel_fs_control_qh->link = cpu_to_le32(uhci->skel_bulk_qh->dma_handle) | UHCI_PTR_QH;
-	uhci->skel_bulk_qh->link = cpu_to_le32(uhci->skel_term_qh->dma_handle) | UHCI_PTR_QH;
+	uhci->skel_int1_qh->link = UHCI_PTR_QH |
+			cpu_to_le32(uhci->skel_ls_control_qh->dma_handle);
+	uhci->skel_ls_control_qh->link = UHCI_PTR_QH |
+			cpu_to_le32(uhci->skel_fs_control_qh->dma_handle);
+	uhci->skel_fs_control_qh->link = UHCI_PTR_QH |
+			cpu_to_le32(uhci->skel_bulk_qh->dma_handle);
+	uhci->skel_bulk_qh->link = UHCI_PTR_QH |
+			cpu_to_le32(uhci->skel_term_qh->dma_handle);
 
 	/* This dummy TD is to work around a bug in Intel PIIX controllers */
 	uhci_fill_td(uhci->term_td, 0, uhci_explen(0) |
@@ -589,15 +589,15 @@ static int uhci_start(struct usb_hcd *hcd)
 
 		/*
 		 * ffs (Find First bit Set) does exactly what we need:
-		 * 1,3,5,...  => ffs = 0 => use skel_int2_qh = skelqh[6],
-		 * 2,6,10,... => ffs = 1 => use skel_int4_qh = skelqh[5], etc.
-		 * ffs > 6 => not on any high-period queue, so use
-		 *	skel_int1_qh = skelqh[7].
+		 * 1,3,5,...  => ffs = 0 => use skel_int2_qh = skelqh[8],
+		 * 2,6,10,... => ffs = 1 => use skel_int4_qh = skelqh[7], etc.
+		 * ffs >= 7 => not on any high-period queue, so use
+		 *	skel_int1_qh = skelqh[9].
 		 * Add UHCI_NUMFRAMES to insure at least one bit is set.
 		 */
-		irq = 6 - (int) __ffs(i + UHCI_NUMFRAMES);
-		if (irq < 0)
-			irq = 7;
+		irq = 8 - (int) __ffs(i + UHCI_NUMFRAMES);
+		if (irq <= 1)
+			irq = 9;
 
 		/* Only place we don't use the frame list routines */
 		uhci->frame[i] = UHCI_PTR_QH |
@@ -767,13 +767,30 @@ static int uhci_resume(struct usb_hcd *hcd)
 }
 #endif
 
-/* Wait until all the URBs for a particular device/endpoint are gone */
+/* Wait until a particular device/endpoint's QH is idle, and free it */
 static void uhci_hcd_endpoint_disable(struct usb_hcd *hcd,
-		struct usb_host_endpoint *ep)
+		struct usb_host_endpoint *hep)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
+	struct uhci_qh *qh;
 
-	wait_event_interruptible(uhci->waitqh, list_empty(&ep->urb_list));
+	spin_lock_irq(&uhci->lock);
+	qh = (struct uhci_qh *) hep->hcpriv;
+	if (qh == NULL)
+		goto done;
+
+	while (qh->state != QH_STATE_IDLE) {
+		++uhci->num_waiting;
+		spin_unlock_irq(&uhci->lock);
+		wait_event_interruptible(uhci->waitqh,
+				qh->state == QH_STATE_IDLE);
+		spin_lock_irq(&uhci->lock);
+		--uhci->num_waiting;
+	}
+
+	uhci_free_qh(uhci, qh);
+done:
+	spin_unlock_irq(&uhci->lock);
 }
 
 static int uhci_hcd_get_frame_number(struct usb_hcd *hcd)
