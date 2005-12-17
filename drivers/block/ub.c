@@ -115,7 +115,7 @@
 /*
  */
 
-#define UB_MINORS_PER_MAJOR	8
+#define UB_PARTS_PER_LUN      8
 
 #define UB_MAX_CDB_SIZE      16		/* Corresponds to Bulk */
 
@@ -2473,14 +2473,14 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	ub_revalidate(sc, lun);
 
 	rc = -ENOMEM;
-	if ((disk = alloc_disk(UB_MINORS_PER_MAJOR)) == NULL)
+	if ((disk = alloc_disk(UB_PARTS_PER_LUN)) == NULL)
 		goto err_diskalloc;
 
 	lun->disk = disk;
 	sprintf(disk->disk_name, DRV_NAME "%c", lun->id + 'a');
 	sprintf(disk->devfs_name, DEVFS_NAME "/%c", lun->id + 'a');
 	disk->major = UB_MAJOR;
-	disk->first_minor = lun->id * UB_MINORS_PER_MAJOR;
+	disk->first_minor = lun->id * UB_PARTS_PER_LUN;
 	disk->fops = &ub_bd_fops;
 	disk->private_data = lun;
 	disk->driverfs_dev = &sc->intf->dev;
