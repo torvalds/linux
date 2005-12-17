@@ -1492,14 +1492,6 @@ config CPU_HAS_LLSC
 	  for better performance, N if you don't know.  You must say Y here
 	  for multiprocessor machines.
 
-config CPU_HAS_LLDSCD
-	bool "lld/scd Instructions available" if CPU_ADVANCED
-	default y if !CPU_ADVANCED && !CPU_R3000 && !CPU_VR41XX && !CPU_TX39XX && !CPU_MIPS32_R1
-	help
-	  Say Y here if your CPU has the lld and scd instructions, the 64-bit
-	  equivalents of ll and sc.  Say Y here for better performance, N if
-	  you don't know.  You must say Y here for multiprocessor machines.
-
 config CPU_HAS_WB
 	bool "Writeback Buffer available" if CPU_ADVANCED
 	default y if !CPU_ADVANCED && CPU_R3000 && MACH_DECSTATION
