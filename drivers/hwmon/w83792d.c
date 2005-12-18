@@ -269,7 +269,6 @@ DIV_TO_REG(long val)
 struct w83792d_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore lock;
 	enum chips type;
 
 	struct semaphore update_lock;
@@ -1192,7 +1191,6 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
 	new_client->addr = address;
-	init_MUTEX(&data->lock);
 	new_client->adapter = adapter;
 	new_client->driver = &w83792d_driver;
 	new_client->flags = 0;
@@ -1243,7 +1241,7 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 			goto ERROR1;
 		}
 		val1 = w83792d_read_value(new_client, W83792D_REG_WCHIPID);
-		if (val1 == 0x7a && address >= 0x2c) {
+		if (val1 == 0x7a) {
 			kind = w83792d;
 		} else {
 			if (kind == 0)
@@ -1416,26 +1414,17 @@ w83792d_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-/* The SMBus locks itself, usually, but nothing may access the Winbond between
-   bank switches. ISA access must always be locked explicitly!
-   We ignore the W83792D BUSY flag at this moment - it could lead to deadlocks,
-   would slow down the W83792D access and should not be necessary.
-   There are some ugly typecasts here, but the good news is - they should
-   nowhere else be necessary! */
-static int
-w83792d_read_value(struct i2c_client *client, u8 reg)
+/* The SMBus locks itself. The Winbond W83792D chip has a bank register,
+   but the driver only accesses registers in bank 0, so we don't have
+   to switch banks and lock access between switches. */
+static int w83792d_read_value(struct i2c_client *client, u8 reg)
 {
-	int res=0;
-	res = i2c_smbus_read_byte_data(client, reg);
-
-	return res;
+	return i2c_smbus_read_byte_data(client, reg);
 }
 
-static int
-w83792d_write_value(struct i2c_client *client, u8 reg, u8 value)
+static int w83792d_write_value(struct i2c_client *client, u8 reg, u8 value)
 {
-	i2c_smbus_write_byte_data(client, reg,  value);
-	return 0;
+	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
 static void
@@ -1506,7 +1495,7 @@ static struct w83792d_data *w83792d_update_device(struct device *dev)
 			pwm_array_tmp[i] = w83792d_read_value(client,
 						W83792D_REG_PWM[i]);
 			data->pwm[i] = pwm_array_tmp[i] & 0x0f;
-			data->pwm_mode[i] = (pwm_array_tmp[i] >> 7) & 0x01;
+			data->pwm_mode[i] = pwm_array_tmp[i] >> 7;
 		}
 
 		reg_tmp = w83792d_read_value(client, W83792D_REG_FAN_CFG);
