@@ -492,17 +492,13 @@ Note that some functions are marked by `__init', and some data structures
 by `__init_data'.  Hose functions and structures can be removed after
 kernel booting (or module loading) is completed.
 
+
 Command function
 ================
 
 A generic ioctl-like function call back is supported. You will seldom
-need this. You may even set it to NULL.
-
-  /* No commands defined */
-  int foo_command(struct i2c_client *client, unsigned int cmd, void *arg)
-  {
-    return 0;
-  }
+need this, and its use is deprecated anyway, so newer design should not
+use it. Set it to NULL.
 
 
 Sending and receiving
