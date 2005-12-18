@@ -226,12 +226,6 @@ static int saa5249_detach(struct i2c_client *client)
 	return 0;
 }
 
-static int saa5249_command(struct i2c_client *device,
-			     unsigned int cmd, void *arg)
-{
-	return -EINVAL;
-}
-
 /* new I2C driver support */
 
 static struct i2c_driver i2c_driver_videotext = 
@@ -242,7 +236,6 @@ static struct i2c_driver i2c_driver_videotext =
 	.id 		= I2C_DRIVERID_SAA5249, /* in i2c.h */
 	.attach_adapter = saa5249_probe,
 	.detach_client  = saa5249_detach,
-	.command 	= saa5249_command
 };
 
 static struct i2c_client client_template = {

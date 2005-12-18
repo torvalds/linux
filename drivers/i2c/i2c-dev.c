@@ -464,12 +464,6 @@ static int i2cdev_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-static int i2cdev_command(struct i2c_client *client, unsigned int cmd,
-                           void *arg)
-{
-	return -1;
-}
-
 static struct i2c_driver i2cdev_driver = {
 	.driver = {
 		.name	= "dev_driver",
@@ -478,7 +472,6 @@ static struct i2c_driver i2cdev_driver = {
 	.attach_adapter	= i2cdev_attach_adapter,
 	.detach_adapter	= i2cdev_detach_adapter,
 	.detach_client	= i2cdev_detach_client,
-	.command	= i2cdev_command,
 };
 
 static struct i2c_client i2cdev_client_template = {
