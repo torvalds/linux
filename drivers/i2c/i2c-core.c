@@ -246,10 +246,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	list_for_each_safe(item, _n, &adap->clients) {
 		client = list_entry(item, struct i2c_client, list);
 
-		/* detaching devices is unconditional of the set notify
-		 * flag, as _all_ clients that reside on the adapter
-		 * must be deleted, as this would cause invalid states.
-		 */
 		if ((res=client->driver->detach_client(client))) {
 			dev_err(&adap->dev, "detach_client failed for client "
 				"[%s] at address 0x%02x\n", client->name,
@@ -335,10 +331,6 @@ int i2c_del_driver(struct i2c_driver *driver)
 	/* Have a look at each adapter, if clients of this driver are still
 	 * attached. If so, detach them to be able to kill the driver 
 	 * afterwards.
-	 *
-	 * Removing clients does not depend on the notify flag, else
-	 * invalid operation might (will!) result, when using stale client
-	 * pointers.
 	 */
 	list_for_each(item1,&adapters) {
 		adap = list_entry(item1, struct i2c_adapter, list);
