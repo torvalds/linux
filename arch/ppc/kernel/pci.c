@@ -1823,7 +1823,7 @@ unsigned long pci_address_to_pio(phys_addr_t address)
 			unsigned long base =
 				(unsigned long)hose->io_base_virt - _IO_BASE;
 			return base + (address - hose->io_base_phys);
-
+		}
 	}
 	return (unsigned int)-1;
 }
