@@ -1829,6 +1829,8 @@ static int zd1201_probe(struct usb_interface *interface,
 	if (err)
 		goto err_net;
 
+	SET_NETDEV_DEV(zd->dev, &usb->dev);
+
 	err = register_netdev(zd->dev);
 	if (err)
 		goto err_net;
