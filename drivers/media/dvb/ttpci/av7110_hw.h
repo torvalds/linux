@@ -143,7 +143,8 @@ enum av7110_audio_command {
 	MainSwitch,
 	ADSwitch,
 	SendDiSEqC,
-	SetRegister
+	SetRegister,
+	SpdifSwitch
 };
 
 enum av7110_request_command {
