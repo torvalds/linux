@@ -79,13 +79,6 @@ UNUSUAL_DEV(  0x03f0, 0x0307, 0x0001, 0x0001,
 		US_SC_8070, US_PR_USBAT, init_usbat, 0),
 #endif
 
-/* Patch submitted by Mihnea-Costin Grigore <mihnea@zulu.ro> */
-UNUSUAL_DEV(  0x040d, 0x6205, 0x0003, 0x0003,
-		"VIA Technologies Inc.",
-		"USB 2.0 Card Reader",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_IGNORE_RESIDUE ),
-
 /* Reported by Sebastian Kapfer <sebastian_kapfer@gmx.net>
  * and Olaf Hering <olh@suse.de> (different bcd's, same vendor/product)
  * for USB floppies that need the SINGLE_LUN enforcement.
@@ -95,6 +88,13 @@ UNUSUAL_DEV(  0x0409, 0x0040, 0x0000, 0x9999,
 		"NEC USB UF000x",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
+
+/* Patch submitted by Mihnea-Costin Grigore <mihnea@zulu.ro> */
+UNUSUAL_DEV(  0x040d, 0x6205, 0x0003, 0x0003,
+		"VIA Technologies Inc.",
+		"USB 2.0 Card Reader",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
 
 /* Deduced by Jonathan Woithe <jwoithe@physics.adelaide.edu.au>
  * Entry needed for flags: US_FL_FIX_INQUIRY because initial inquiry message
