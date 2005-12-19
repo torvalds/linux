@@ -473,9 +473,9 @@ cleanup(struct intelfb_info *dinfo)
 	if (dinfo->aperture.virtual)
 		iounmap((void __iomem *)dinfo->aperture.virtual);
 
-	if (dinfo->mmio_base_phys)
+	if (dinfo->flag & INTELFB_MMIO_ACQUIRED)
 		release_mem_region(dinfo->mmio_base_phys, INTEL_REG_SIZE);
-	if (dinfo->aperture.physical)
+	if (dinfo->flag & INTELFB_FB_ACQUIRED)
 		release_mem_region(dinfo->aperture.physical,
 				   dinfo->aperture.size);
 	framebuffer_release(dinfo->info);
@@ -572,6 +572,9 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cleanup(dinfo);
 		return -ENODEV;
 	}
+
+	dinfo->flag |= INTELFB_FB_ACQUIRED;
+
 	if (!request_mem_region(dinfo->mmio_base_phys,
 				INTEL_REG_SIZE,
 				INTELFB_MODULE_NAME)) {
@@ -579,6 +582,8 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cleanup(dinfo);
 		return -ENODEV;
 	}
+
+	dinfo->flag |= INTELFB_MMIO_ACQUIRED;
 
 	/* Get the chipset info. */
 	dinfo->pci_chipset = pdev->device;
