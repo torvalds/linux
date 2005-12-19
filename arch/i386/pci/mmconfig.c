@@ -155,7 +155,7 @@ static __init void unreachable_devices(void)
 		addr = get_base_addr(0, 0, PCI_DEVFN(i, 0));
 		if (addr != 0)
 			pci_exp_set_dev_base(addr, 0, PCI_DEVFN(i, 0));
-		if (addr == 0 || readl((u32 *)addr) != val1)
+		if (addr == 0 || readl((u32 __iomem *)mmcfg_virt_addr) != val1)
 			set_bit(i, fallback_slots);
 		spin_unlock_irqrestore(&pci_config_lock, flags);
 	}

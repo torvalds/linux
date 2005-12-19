@@ -249,3 +249,32 @@ time_init (void)
 	 */
 	set_normalized_timespec(&wall_to_monotonic, -xtime.tv_sec, -xtime.tv_nsec);
 }
+
+#define SMALLUSECS 100
+
+void
+udelay (unsigned long usecs)
+{
+	unsigned long start;
+	unsigned long cycles;
+	unsigned long smallusecs;
+
+	/*
+	 * Execute the non-preemptible delay loop (because the ITC might
+	 * not be synchronized between CPUS) in relatively short time
+	 * chunks, allowing preemption between the chunks.
+	 */
+	while (usecs > 0) {
+		smallusecs = (usecs > SMALLUSECS) ? SMALLUSECS : usecs;
+		preempt_disable();
+		cycles = smallusecs*local_cpu_data->cyc_per_usec;
+		start = ia64_get_itc();
+
+		while (ia64_get_itc() - start < cycles)
+			cpu_relax();
+
+		preempt_enable();
+		usecs -= smallusecs;
+	}
+}
+EXPORT_SYMBOL(udelay);

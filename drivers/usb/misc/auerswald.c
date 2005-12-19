@@ -1696,7 +1696,7 @@ static ssize_t auerchar_write (struct file *file, const char __user *buf, size_t
 	int ret;
 	wait_queue_t wait;
 
-        dbg ("auerchar_write %d bytes", len);
+        dbg ("auerchar_write %zd bytes", len);
 
 	/* Error checking */
 	if (!ccp)

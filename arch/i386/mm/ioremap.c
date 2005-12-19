@@ -245,7 +245,7 @@ void iounmap(volatile void __iomem *addr)
 			addr < phys_to_virt(ISA_END_ADDRESS))
 		return;
 
-	addr = (volatile void *)(PAGE_MASK & (unsigned long __force)addr);
+	addr = (volatile void __iomem *)(PAGE_MASK & (unsigned long __force)addr);
 
 	/* Use the vm area unlocked, assuming the caller
 	   ensures there isn't another iounmap for the same address

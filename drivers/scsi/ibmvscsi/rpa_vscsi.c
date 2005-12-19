@@ -230,6 +230,11 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 	rc = plpar_hcall_norets(H_REG_CRQ,
 				vdev->unit_address,
 				queue->msg_token, PAGE_SIZE);
+	if (rc == H_Resource) 
+		/* maybe kexecing and resource is busy. try a reset */
+		rc = ibmvscsi_reset_crq_queue(queue,
+					      hostdata);
+
 	if (rc == 2) {
 		/* Adapter is good, but other end is not ready */
 		printk(KERN_WARNING "ibmvscsi: Partner adapter not ready\n");
@@ -281,7 +286,7 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
  * @hostdata:	ibmvscsi_host_data of host
  *
  */
-void ibmvscsi_reset_crq_queue(struct crq_queue *queue,
+int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 			      struct ibmvscsi_host_data *hostdata)
 {
 	int rc;
@@ -309,4 +314,5 @@ void ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 		printk(KERN_WARNING
 		       "ibmvscsi: couldn't register crq--rc 0x%x\n", rc);
 	}
+	return rc;
 }
