@@ -69,6 +69,9 @@ config GENERIC_ISA_DMA
 config FIQ
 	bool
 
+config ARCH_MTD_XIP
+	bool
+
 source "init/Kconfig"
 
 menu "System Type"
@@ -136,6 +139,7 @@ config ARCH_L7200
 
 config ARCH_PXA
 	bool "PXA2xx-based"
+	select ARCH_MTD_XIP
 
 config ARCH_RPC
 	bool "RiscPC"
@@ -152,6 +156,7 @@ config ARCH_SA1100
 	bool "SA1100-based"
 	select ISA
 	select ARCH_DISCONTIGMEM_ENABLE
+	select ARCH_MTD_XIP
 
 config ARCH_S3C2410
 	bool "Samsung S3C2410"
