@@ -933,7 +933,7 @@ static void do_monitor_cpu_combined(void)
 	if (state0->overtemp > 0) {
 		state0->rpm = state0->mpu.rmaxn_exhaust_fan;
 		state0->intake_rpm = intake = state0->mpu.rmaxn_intake_fan;
-		pump = state0->pump_min;
+		pump = state0->pump_max;
 		goto do_set_fans;
 	}
 
