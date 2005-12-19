@@ -50,7 +50,7 @@ static ssize_t o2cb_interface_revision_show(char *buf)
 	return snprintf(buf, PAGE_SIZE, "%u\n", O2NM_API_VERSION);
 }
 
-O2CB_ATTR(interface_revision, S_IFREG | S_IRUGO, o2cb_interface_revision_show, NULL);
+static O2CB_ATTR(interface_revision, S_IFREG | S_IRUGO, o2cb_interface_revision_show, NULL);
 
 static struct attribute *o2cb_attrs[] = {
 	&o2cb_attr_interface_revision.attr,
@@ -73,7 +73,7 @@ static struct kobj_type o2cb_subsys_type = {
 };
 
 /* gives us o2cb_subsys */
-decl_subsys(o2cb, NULL, NULL);
+static decl_subsys(o2cb, NULL, NULL);
 
 static ssize_t
 o2cb_show(struct kobject * kobj, struct attribute * attr, char * buffer)

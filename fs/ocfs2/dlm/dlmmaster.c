@@ -48,6 +48,7 @@
 #include "dlmapi.h"
 #include "dlmcommon.h"
 #include "dlmdebug.h"
+#include "dlmdomain.h"
 
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_MASTER)
 #include "cluster/masklog.h"
@@ -177,9 +178,6 @@ static void dlm_dump_mles(struct dlm_ctxt *dlm)
 	}
 	spin_unlock(&dlm->master_lock);
 }
-
-extern spinlock_t dlm_domain_lock;
-extern struct list_head dlm_domains;
 
 int dlm_dump_all_mles(const char __user *data, unsigned int len)
 {

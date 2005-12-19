@@ -52,9 +52,6 @@
 #define MLOG_MASK_PREFIX (ML_DLM|ML_DLM_THREAD)
 #include "cluster/masklog.h"
 
-extern spinlock_t dlm_domain_lock;
-extern struct list_head dlm_domains;
-
 static int dlm_thread(void *data);
 
 static void dlm_flush_asts(struct dlm_ctxt *dlm);
