@@ -483,10 +483,24 @@ static void ahci_start_engine(struct ata_port *ap)
 	readl(port_mmio + PORT_CMD); /* flush */
 }
 
-static void ahci_phy_reset(struct ata_port *ap)
+static unsigned int ahci_dev_classify(struct ata_port *ap)
 {
 	void __iomem *port_mmio = (void __iomem *) ap->ioaddr.cmd_addr;
 	struct ata_taskfile tf;
+	u32 tmp;
+
+	tmp = readl(port_mmio + PORT_SIG);
+	tf.lbah		= (tmp >> 24)	& 0xff;
+	tf.lbam		= (tmp >> 16)	& 0xff;
+	tf.lbal		= (tmp >> 8)	& 0xff;
+	tf.nsect	= (tmp)		& 0xff;
+
+	return ata_dev_classify(&tf);
+}
+
+static void ahci_phy_reset(struct ata_port *ap)
+{
+	void __iomem *port_mmio = (void __iomem *) ap->ioaddr.cmd_addr;
 	struct ata_device *dev = &ap->device[0];
 	u32 new_tmp, tmp;
 
@@ -495,13 +509,7 @@ static void ahci_phy_reset(struct ata_port *ap)
 	if (ap->flags & ATA_FLAG_PORT_DISABLED)
 		return;
 
-	tmp = readl(port_mmio + PORT_SIG);
-	tf.lbah		= (tmp >> 24)	& 0xff;
-	tf.lbam		= (tmp >> 16)	& 0xff;
-	tf.lbal		= (tmp >> 8)	& 0xff;
-	tf.nsect	= (tmp)		& 0xff;
-
-	dev->class = ata_dev_classify(&tf);
+	dev->class = ahci_dev_classify(ap);
 	if (!ata_dev_present(dev)) {
 		ata_port_disable(ap);
 		return;
