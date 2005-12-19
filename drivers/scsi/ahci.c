@@ -446,6 +446,43 @@ static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg_in,
 	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
+static int ahci_stop_engine(struct ata_port *ap)
+{
+	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
+	int work;
+	u32 tmp;
+
+	tmp = readl(port_mmio + PORT_CMD);
+	tmp &= ~PORT_CMD_START;
+	writel(tmp, port_mmio + PORT_CMD);
+
+	/* wait for engine to stop.  TODO: this could be
+	 * as long as 500 msec
+	 */
+	work = 1000;
+	while (work-- > 0) {
+		tmp = readl(port_mmio + PORT_CMD);
+		if ((tmp & PORT_CMD_LIST_ON) == 0)
+			return 0;
+		udelay(10);
+	}
+
+	return -EIO;
+}
+
+static void ahci_start_engine(struct ata_port *ap)
+{
+	void __iomem *mmio = ap->host_set->mmio_base;
+	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
+	u32 tmp;
+
+	tmp = readl(port_mmio + PORT_CMD);
+	tmp |= PORT_CMD_START;
+	writel(tmp, port_mmio + PORT_CMD);
+	readl(port_mmio + PORT_CMD); /* flush */
+}
+
 static void ahci_phy_reset(struct ata_port *ap)
 {
 	void __iomem *port_mmio = (void __iomem *) ap->ioaddr.cmd_addr;
@@ -572,7 +609,6 @@ static void ahci_restart_port(struct ata_port *ap, u32 irq_stat)
 	void __iomem *mmio = ap->host_set->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	u32 tmp;
-	int work;
 
 	if ((ap->device[0].class != ATA_DEV_ATAPI) ||
 	    ((irq_stat & PORT_IRQ_TF_ERR) == 0))
@@ -588,20 +624,7 @@ static void ahci_restart_port(struct ata_port *ap, u32 irq_stat)
 			readl(port_mmio + PORT_SCR_ERR));
 
 	/* stop DMA */
-	tmp = readl(port_mmio + PORT_CMD);
-	tmp &= ~PORT_CMD_START;
-	writel(tmp, port_mmio + PORT_CMD);
-
-	/* wait for engine to stop.  TODO: this could be
-	 * as long as 500 msec
-	 */
-	work = 1000;
-	while (work-- > 0) {
-		tmp = readl(port_mmio + PORT_CMD);
-		if ((tmp & PORT_CMD_LIST_ON) == 0)
-			break;
-		udelay(10);
-	}
+	ahci_stop_engine(ap);
 
 	/* clear SATA phy error, if any */
 	tmp = readl(port_mmio + PORT_SCR_ERR);
@@ -620,10 +643,7 @@ static void ahci_restart_port(struct ata_port *ap, u32 irq_stat)
 	}
 
 	/* re-start DMA */
-	tmp = readl(port_mmio + PORT_CMD);
-	tmp |= PORT_CMD_START;
-	writel(tmp, port_mmio + PORT_CMD);
-	readl(port_mmio + PORT_CMD); /* flush */
+	ahci_start_engine(ap);
 }
 
 static void ahci_eng_timeout(struct ata_port *ap)
