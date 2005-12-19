@@ -216,12 +216,12 @@ static int dart_init(struct device_node *dart_node)
 	base = dart_tablebase >> DART_PAGE_SHIFT;
 	size = dart_tablesize >> DART_PAGE_SHIFT;
 	if (dart_is_u4) {
-		BUG_ON(size & ~DART_SIZE_U4_SIZE_MASK);
+		size &= DART_SIZE_U4_SIZE_MASK;
 		DART_OUT(DART_BASE_U4, base);
 		DART_OUT(DART_SIZE_U4, size);
 		DART_OUT(DART_CNTL, DART_CNTL_U4_ENABLE);
 	} else {
-		BUG_ON(size & ~DART_CNTL_U3_SIZE_MASK);
+		size &= DART_CNTL_U3_SIZE_MASK;
 		DART_OUT(DART_CNTL,
 			 DART_CNTL_U3_ENABLE |
 			 (base << DART_CNTL_U3_BASE_SHIFT) |
