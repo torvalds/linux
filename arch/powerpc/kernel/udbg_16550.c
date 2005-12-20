@@ -137,7 +137,7 @@ unsigned int udbg_probe_uart_speed(void __iomem *comport, unsigned int clock)
 	speed = (clock / prescaler) / (divisor * 16);
 
 	/* sanity check */
-	if (speed < 9600 || speed > 115200)
+	if (speed < 0 || speed > (clock / 16))
 		speed = 9600;
 
 	return speed;
