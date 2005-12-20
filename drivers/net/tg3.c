@@ -1042,17 +1042,26 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 			udelay(100);
 		} else {
 			u32 no_gpio2;
-			u32 grc_local_ctrl;
+			u32 grc_local_ctrl = 0;
 
 			if (tp_peer != tp &&
 			    (tp_peer->tg3_flags & TG3_FLAG_INIT_COMPLETE) != 0)
 				return;
 
+			/* Workaround to prevent overdrawing Amps. */
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
+			    ASIC_REV_5714) {
+				grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE3;
+				tw32_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl |
+				       grc_local_ctrl);
+				udelay(100);
+			}
+
 			/* On 5753 and variants, GPIO2 cannot be used. */
 			no_gpio2 = tp->nic_sram_data_cfg &
 				    NIC_SRAM_DATA_CFG_NO_GPIO2;
 
-			grc_local_ctrl = GRC_LCLCTRL_GPIO_OE0 |
+			grc_local_ctrl |= GRC_LCLCTRL_GPIO_OE0 |
 					 GRC_LCLCTRL_GPIO_OE1 |
 					 GRC_LCLCTRL_GPIO_OE2 |
 					 GRC_LCLCTRL_GPIO_OUTPUT1 |
@@ -1297,7 +1306,8 @@ static int tg3_set_power_state(struct tg3 *tp, int state)
 			tg3_writephy(tp, MII_TG3_EXT_CTRL,
 				     MII_TG3_EXT_CTRL_FORCE_LED_OFF);
 			tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x01b2);
-			tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
+			if (GET_ASIC_REV(tp->pci_chip_rev_id) != ASIC_REV_5700)
+				tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
 		}
 	}
 
