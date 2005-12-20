@@ -93,6 +93,7 @@ __asm__ (
 	"	.set	noat						\n"
 #ifdef CONFIG_CPU_MIPSR2
 	"	di	\\result					\n"
+	"	andi	\\result, 1					\n"
 #else
 	"	mfc0	\\result, $12					\n"
 	"	ori	$1, \\result, 1					\n"
