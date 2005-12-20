@@ -68,8 +68,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.45"
-#define DRV_MODULE_RELDATE	"Dec 13, 2005"
+#define DRV_MODULE_VERSION	"3.46"
+#define DRV_MODULE_RELDATE	"Dec 19, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -7975,13 +7975,12 @@ static int tg3_test_memory(struct tg3 *tp)
 		u32 offset;
 		u32 len;
 	} mem_tbl_570x[] = {
-		{ 0x00000000, 0x01000},
+		{ 0x00000000, 0x00b50},
 		{ 0x00002000, 0x1c000},
 		{ 0xffffffff, 0x00000}
 	}, mem_tbl_5705[] = {
 		{ 0x00000100, 0x0000c},
 		{ 0x00000200, 0x00008},
-		{ 0x00000b50, 0x00400},
 		{ 0x00004000, 0x00800},
 		{ 0x00006000, 0x01000},
 		{ 0x00008000, 0x02000},
