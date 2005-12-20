@@ -130,10 +130,11 @@ mpc85xx_cds_show_cpuinfo(struct seq_file *m)
 }
 
 #ifdef CONFIG_CPM2
-static void cpm2_cascade(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t cpm2_cascade(int irq, void *dev_id, struct pt_regs *regs)
 {
 	while((irq = cpm2_get_irq(regs)) >= 0)
 		__do_IRQ(irq, regs);
+	return IRQ_HANDLED;
 }
 
 static struct irqaction cpm2_irqaction = {
