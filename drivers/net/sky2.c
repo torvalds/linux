@@ -1478,8 +1478,6 @@ static void sky2_link_down(struct sky2_port *sky2)
 			     | PHY_M_AN_ASP);
 	}
 
-	sky2_phy_reset(hw, port);
-
 	netif_carrier_off(sky2->netdev);
 	netif_stop_queue(sky2->netdev);
 
@@ -2833,6 +2831,8 @@ static int sky2_set_ringparam(struct net_device *dev,
 		err = sky2_up(dev);
 		if (err)
 			dev_close(dev);
+		else
+			sky2_set_multicast(dev);
 	}
 
 	return err;
