@@ -1017,12 +1017,15 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 	if ((tp->tg3_flags & TG3_FLAG_EEPROM_WRITE_PROT) != 0)
 		return;
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
-		tp_peer = pci_get_drvdata(tp->pdev_peer);
-		if (!tp_peer)
-			BUG();
-	}
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714)) {
+		struct net_device *dev_peer;
 
+		dev_peer = pci_get_drvdata(tp->pdev_peer);
+		if (!dev_peer)
+			BUG();
+		tp_peer = netdev_priv(dev_peer);
+	}
 
 	if ((tp->tg3_flags & TG3_FLAG_WOL_ENABLE) != 0 ||
 	    (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) != 0 ||
@@ -10466,7 +10469,7 @@ static char * __devinit tg3_bus_string(struct tg3 *tp, char *str)
 	return str;
 }
 
-static struct pci_dev * __devinit tg3_find_5704_peer(struct tg3 *tp)
+static struct pci_dev * __devinit tg3_find_peer(struct tg3 *tp)
 {
 	struct pci_dev *peer;
 	unsigned int func, devnr = tp->pdev->devfn & ~7;
@@ -10719,8 +10722,9 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		tp->rx_pending = 63;
 	}
 
-	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704)
-		tp->pdev_peer = tg3_find_5704_peer(tp);
+	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714))
+		tp->pdev_peer = tg3_find_peer(tp);
 
 	err = tg3_get_device_address(tp);
 	if (err) {
