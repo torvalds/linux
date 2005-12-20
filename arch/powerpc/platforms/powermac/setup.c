@@ -639,12 +639,6 @@ static void __init pmac_init_early(void)
 #endif
 }
 
-static void __init pmac_progress(char *s, unsigned short hex)
-{
-	udbg_puts(s);
-	udbg_puts("\n");
-}
-
 /*
  * pmac has no legacy IO, anything calling this function has to
  * fail or bad things will happen
@@ -763,7 +757,7 @@ struct machdep_calls __initdata pmac_md = {
 	.calibrate_decr		= pmac_calibrate_decr,
 	.feature_call		= pmac_do_feature_call,
 	.check_legacy_ioport	= pmac_check_legacy_ioport,
-	.progress		= pmac_progress,
+	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64
 	.pci_probe_mode		= pmac_pci_probe_mode,
 	.idle_loop		= native_idle,

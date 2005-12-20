@@ -90,6 +90,12 @@ void udbg_printf(const char *fmt, ...)
 	va_end(args);
 }
 
+void __init udbg_progress(char *s, unsigned short hex)
+{
+	udbg_puts(s);
+	udbg_puts("\n");
+}
+
 /*
  * Early boot console based on udbg
  */
