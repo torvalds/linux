@@ -1694,6 +1694,9 @@ static struct sk_buff *sky2_receive(struct sky2_port *sky2,
 	if (!(status & GMR_FS_RX_OK))
 		goto resubmit;
 
+	if ((status >> 16) != length || length > sky2->rx_bufsize)
+		goto oversize;
+
 	if (length < copybreak) {
 		skb = alloc_skb(length + 2, GFP_ATOMIC);
 		if (!skb)
@@ -1735,7 +1738,13 @@ resubmit:
 
 	return skb;
 
+oversize:
+	++sky2->net_stats.rx_over_errors;
+	goto resubmit;
+
 error:
+	++sky2->net_stats.rx_errors;
+
 	if (netif_msg_rx_err(sky2))
 		printk(KERN_INFO PFX "%s: rx error, status 0x%x length %d\n",
 		       sky2->netdev->name, status, length);
