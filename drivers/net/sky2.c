@@ -481,6 +481,14 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
 }
 
+/* Force a renegotiation */
+static void sky2_phy_reinit(struct sky2_port *sky2)
+{
+	down(&sky2->phy_sema);
+	sky2_phy_init(sky2->hw, sky2->port);
+	up(&sky2->phy_sema);
+}
+
 static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 {
 	struct sky2_port *sky2 = netdev_priv(hw->dev[port]);
@@ -1014,18 +1022,22 @@ static int sky2_up(struct net_device *dev)
 	return 0;
 
 err_out:
-	if (sky2->rx_le)
+	if (sky2->rx_le) {
 		pci_free_consistent(hw->pdev, RX_LE_BYTES,
 				    sky2->rx_le, sky2->rx_le_map);
-	if (sky2->tx_le)
+		sky2->rx_le = NULL;
+	}
+	if (sky2->tx_le) {
 		pci_free_consistent(hw->pdev,
 				    TX_RING_SIZE * sizeof(struct sky2_tx_le),
 				    sky2->tx_le, sky2->tx_le_map);
-	if (sky2->tx_ring)
-		kfree(sky2->tx_ring);
-	if (sky2->rx_ring)
-		kfree(sky2->rx_ring);
+		sky2->tx_le = NULL;
+	}
+	kfree(sky2->tx_ring);
+	kfree(sky2->rx_ring);
 
+	sky2->tx_ring = NULL;
+	sky2->rx_ring = NULL;
 	return err;
 }
 
@@ -1291,6 +1303,10 @@ static int sky2_down(struct net_device *dev)
 	unsigned port = sky2->port;
 	u16 ctrl;
 
+	/* Never really got started! */
+	if (!sky2->tx_le)
+		return 0;
+
 	if (netif_msg_ifdown(sky2))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
 
@@ -1364,6 +1380,12 @@ static int sky2_down(struct net_device *dev)
 			    TX_RING_SIZE * sizeof(struct sky2_tx_le),
 			    sky2->tx_le, sky2->tx_le_map);
 	kfree(sky2->tx_ring);
+
+	sky2->tx_le = NULL;
+	sky2->rx_le = NULL;
+
+	sky2->rx_ring = NULL;
+	sky2->tx_ring = NULL;
 
 	return 0;
 }
@@ -1636,11 +1658,16 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	sky2_write8(hw, RB_ADDR(rxqaddr[sky2->port], RB_CTRL), RB_ENA_OP_MD);
 
 	err = sky2_rx_start(sky2);
-	gma_write16(hw, sky2->port, GM_GP_CTRL, ctl);
-
-	netif_poll_disable(hw->dev[0]);
-	netif_wake_queue(dev);
 	sky2_write32(hw, B0_IMSK, hw->intr_mask);
+
+	if (err)
+		dev_close(dev);
+	else {
+		gma_write16(hw, sky2->port, GM_GP_CTRL, ctl);
+
+		netif_poll_enable(hw->dev[0]);
+		netif_wake_queue(dev);
+	}
 
 	return err;
 }
@@ -2315,10 +2342,8 @@ static int sky2_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	sky2->autoneg = ecmd->autoneg;
 	sky2->advertising = ecmd->advertising;
 
-	if (netif_running(dev)) {
-		sky2_down(dev);
-		sky2_up(dev);
-	}
+	if (netif_running(dev))
+		sky2_phy_reinit(sky2);
 
 	return 0;
 }
@@ -2389,17 +2414,11 @@ static u32 sky2_get_msglevel(struct net_device *netdev)
 static int sky2_nway_reset(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	struct sky2_hw *hw = sky2->hw;
 
 	if (sky2->autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
 
-	netif_stop_queue(dev);
-
-	down(&sky2->phy_sema);
-	sky2_phy_reset(hw, sky2->port);
-	sky2_phy_init(hw, sky2->port);
-	up(&sky2->phy_sema);
+	sky2_phy_reinit(sky2);
 
 	return 0;
 }
@@ -2477,20 +2496,20 @@ static int sky2_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sockaddr *addr = p;
-	int err = 0;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	sky2_down(dev);
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 	memcpy_toio(sky2->hw->regs + B2_MAC_1 + sky2->port * 8,
 		    dev->dev_addr, ETH_ALEN);
 	memcpy_toio(sky2->hw->regs + B2_MAC_2 + sky2->port * 8,
 		    dev->dev_addr, ETH_ALEN);
-	if (dev->flags & IFF_UP)
-		err = sky2_up(dev);
-	return err;
+
+	if (netif_running(dev))
+		sky2_phy_reinit(sky2);
+
+	return 0;
 }
 
 static void sky2_set_multicast(struct net_device *dev)
@@ -2648,10 +2667,7 @@ static int sky2_set_pauseparam(struct net_device *dev,
 	sky2->tx_pause = ecmd->tx_pause != 0;
 	sky2->rx_pause = ecmd->rx_pause != 0;
 
-	if (netif_running(dev)) {
-		sky2_down(dev);
-		err = sky2_up(dev);
-	}
+	sky2_phy_reinit(sky2);
 
 	return err;
 }
@@ -2813,8 +2829,11 @@ static int sky2_set_ringparam(struct net_device *dev,
 	sky2->rx_pending = ering->rx_pending;
 	sky2->tx_pending = ering->tx_pending;
 
-	if (netif_running(dev))
+	if (netif_running(dev)) {
 		err = sky2_up(dev);
+		if (err)
+			dev_close(dev);
+	}
 
 	return err;
 }
@@ -3195,7 +3214,8 @@ static int sky2_resume(struct pci_dev *pdev)
 		if (dev) {
 			if (netif_running(dev)) {
 				netif_device_attach(dev);
-				sky2_up(dev);
+				if (sky2_up(dev))
+					dev_close(dev);
 			}
 		}
 	}
