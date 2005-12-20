@@ -577,6 +577,7 @@ struct snd_ca0106_details {
         int ac97;
 	int gpio_type;
 	int i2c_adc;
+	int spi_dac;
 };
 
 // definition of the chip-specific record

@@ -183,6 +183,17 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 	   .name   = "Live! 7.1 24bit [SB0413]",
 	   .gpio_type = 1,
 	   .i2c_adc = 1 } ,
+	 /* New Audigy SE. Has a different DAC. */
+	 /* SB0570:
+	  * CTRL:CA0106-DAT
+	  * ADC: WM8768GEDS
+	  * DAC: WM8775EDS
+	  */
+	 { .serial = 0x100a1102,
+	   .name   = "Audigy SE [SB0570]",
+	   .gpio_type = 1,
+	   .i2c_adc = 1,
+	   .spi_dac = 1 } ,
 	 /* MSI K8N Diamond Motherboard with onboard SB Live 24bit without AC97 */
 	 { .serial = 0x10091462,
 	   .name   = "MSI K8N Diamond MB [SB0438]",
@@ -273,6 +284,20 @@ void snd_ca0106_ptr_write(struct snd_ca0106 *emu,
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
+int snd_ca0106_spi_write(struct snd_ca0106 *emu,
+				u32 value)
+{
+	snd_ca0106_ptr_write(emu, SPI, 0, value);
+	return 0;
+}
+
+int snd_ca0106_spi_read(struct snd_ca0106 *emu,
+				u32 *value)
+{
+	*value = snd_ca0106_ptr_read(emu, SPI, 0);
+	return 0;
+}
+		
 int snd_ca0106_i2c_write(struct snd_ca0106 *emu,
 				u32 reg,
 				u32 value)
@@ -1303,6 +1328,13 @@ static int __devinit snd_ca0106_create(struct snd_card *card,
 
         if (chip->details->i2c_adc == 1) { /* The SB0410 and SB0413 use I2C to control ADC. */
 	        snd_ca0106_i2c_write(chip, ADC_MUX, ADC_MUX_LINEIN); /* Enable Line-in capture. MIC in currently untested. */
+	}
+        if (chip->details->spi_dac == 1) { /* The SB0570 use SPI to control DAC. */
+		u32 tmp;
+	        snd_ca0106_spi_write(chip, 0xf0622); /* Enable speakers output. */
+	        snd_ca0106_spi_read(chip, &tmp); /* Read the value. */
+	        snd_ca0106_spi_write(chip, 0xe1400);
+	        snd_ca0106_spi_read(chip, &tmp); /* Read the value. */
 	}
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,
