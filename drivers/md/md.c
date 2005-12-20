@@ -1729,7 +1729,7 @@ level_show(mddev_t *mddev, char *page)
 	if (p == NULL && mddev->raid_disks == 0)
 		return 0;
 	if (mddev->level >= 0)
-		return sprintf(page, "RAID-%d\n", mddev->level);
+		return sprintf(page, "raid%d\n", mddev->level);
 	else
 		return sprintf(page, "%s\n", p->name);
 }
