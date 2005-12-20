@@ -922,7 +922,6 @@ static int uhci_result_common(struct uhci_hcd *uhci, struct urb *urb)
 td_error:
 	ret = uhci_map_status(status, uhci_packetout(td_token(td)));
 
-err:
 	if ((debug == 1 && ret != -EPIPE) || debug > 1) {
 		/* Some debugging code */
 		dev_dbg(uhci_dev(uhci), "%s: failed with status %x\n",
@@ -934,6 +933,7 @@ err:
 			lprintk(errbuf);
 		}
 	}
+err:
 
 	/* Note that the queue has stopped and save the next toggle value */
 	urbp->qh->element = UHCI_PTR_TERM;
