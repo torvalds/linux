@@ -1,7 +1,7 @@
 #ifndef _ASM_POWERPC_SECCOMP_H
 #define _ASM_POWERPC_SECCOMP_H
 
-#ifndef __KERNEL__
+#ifdef __KERNEL__
 #include <linux/thread_info.h>
 #endif
 

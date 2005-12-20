@@ -1,6 +1,6 @@
 #ifndef _ASM_POWERPC_OHARE_H
 #define _ASM_POWERPC_OHARE_H
-#ifndef __KERNEL__
+#ifdef __KERNEL__
 /*
  * ohare.h: definitions for using the "O'Hare" I/O controller chip.
  *

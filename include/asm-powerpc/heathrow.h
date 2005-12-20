@@ -1,6 +1,6 @@
 #ifndef _ASM_POWERPC_HEATHROW_H
 #define _ASM_POWERPC_HEATHROW_H
-#ifndef __KERNEL__
+#ifdef __KERNEL__
 /*
  * heathrow.h: definitions for using the "Heathrow" I/O controller chip.
  *
