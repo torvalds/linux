@@ -1062,6 +1062,8 @@ struct snd_emu_chip_details {
 	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
 	unsigned char ecard;        /* APS EEPROM */
 	unsigned char emu1212m;     /* EMU 1212m card */
+	unsigned char spi_dac;      /* SPI interface for DAC */
+	unsigned char i2c_adc;      /* I2C interface for ADC */
 	const char *driver;
 	const char *name;
 	const char *id;		/* for backward compatibility - can be NULL if not needed */
@@ -1203,6 +1205,7 @@ unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, un
 void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
 unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
+int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
 unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);
 void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb);

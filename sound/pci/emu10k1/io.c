@@ -29,6 +29,7 @@
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/emu10k1.h>
+#include <linux/delay.h>
 
 unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn)
 {
@@ -121,6 +122,41 @@ void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu,
 	outl(regptr, emu->port + 0x20 + PTR);
 	outl(data, emu->port + 0x20 + DATA);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
+}
+
+int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
+				   unsigned int data)
+{
+	unsigned int reset, set;
+	unsigned int reg, tmp;
+	int n, result;
+	if (emu->card_capabilities->ca0108_chip) {
+		reg=0x3c; /* PTR20, reg 0x3c */
+	} else {
+		return 1;  /* For other cards types the SPI register is currently unknown. */
+	}
+	if (data > 0xffff) return 1; /* Only 16bit values allowed */
+
+	tmp = snd_emu10k1_ptr20_read(emu, reg, 0);
+       	reset = (tmp & ~0x3ffff) | 0x20000; /* Set xxx20000 */
+	set = reset | 0x10000; /* Set xxx1xxxx */
+	snd_emu10k1_ptr20_write(emu, reg, 0, reset | data);
+	tmp = snd_emu10k1_ptr20_read(emu, reg, 0); /* write post */
+	snd_emu10k1_ptr20_write(emu, reg, 0, set | data);
+	result = 1;
+	/* Wait for status bit to return to 0 */
+	for (n=0;n<100;n++) {
+		udelay(10);
+		tmp = snd_emu10k1_ptr20_read(emu, reg, 0);
+		if (!(tmp & 0x10000)) {
+			result=0;
+			break;
+		}
+	}
+	if (result) return 1; /* Timed out */
+	snd_emu10k1_ptr20_write(emu, reg, 0, reset | data);
+	tmp = snd_emu10k1_ptr20_read(emu, reg, 0); /* Write post */
+	return 0;
 }
 
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb)
