@@ -130,15 +130,18 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	unsigned int reset, set;
 	unsigned int reg, tmp;
 	int n, result;
-	if (emu->card_capabilities->ca0108_chip) {
-		reg=0x3c; /* PTR20, reg 0x3c */
-	} else {
-		return 1;  /* For other cards types the SPI register is currently unknown. */
+	if (emu->card_capabilities->ca0108_chip)
+		reg = 0x3c; /* PTR20, reg 0x3c */
+	else {
+		/* For other chip types the SPI register
+		 * is currently unknown. */
+		return 1;
 	}
-	if (data > 0xffff) return 1; /* Only 16bit values allowed */
+	if (data > 0xffff) /* Only 16bit values allowed */
+		return 1;
 
 	tmp = snd_emu10k1_ptr20_read(emu, reg, 0);
-       	reset = (tmp & ~0x3ffff) | 0x20000; /* Set xxx20000 */
+	reset = (tmp & ~0x3ffff) | 0x20000; /* Set xxx20000 */
 	set = reset | 0x10000; /* Set xxx1xxxx */
 	snd_emu10k1_ptr20_write(emu, reg, 0, reset | data);
 	tmp = snd_emu10k1_ptr20_read(emu, reg, 0); /* write post */
