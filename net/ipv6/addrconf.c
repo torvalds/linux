@@ -908,11 +908,18 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 
 			score.addr_type = __ipv6_addr_type(&ifa->addr);
 
-			/* Rule 0: Candidate Source Address (section 4)
+			/* Rule 0:
+			 * - Tentative Address (RFC2462 section 5.4)
+			 *  - A tentative address is not considered
+			 *    "assigned to an interface" in the traditional
+			 *    sense.
+			 * - Candidate Source Address (section 4)
 			 *  - In any case, anycast addresses, multicast
 			 *    addresses, and the unspecified address MUST
 			 *    NOT be included in a candidate set.
 			 */
+			if (ifa->flags & IFA_F_TENTATIVE)
+				continue;
 			if (unlikely(score.addr_type == IPV6_ADDR_ANY ||
 				     score.addr_type & IPV6_ADDR_MULTICAST)) {
 				LIMIT_NETDEBUG(KERN_DEBUG
