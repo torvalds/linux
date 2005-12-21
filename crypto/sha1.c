@@ -61,8 +61,8 @@ static void sha1_update(void *ctx, const u8 *data, unsigned int len)
 		u32 temp[SHA_WORKSPACE_WORDS];
 
 		if (partial) {
-			done = 64 - partial;
-			memcpy(sctx->buffer + partial, data, done);
+			done = -partial;
+			memcpy(sctx->buffer + partial, data, done + 64);
 			src = sctx->buffer;
 		}
 
