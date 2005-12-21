@@ -472,7 +472,7 @@ void __init setup_system(void)
 	 * hash table management for us, thus ioremap works. We do that early
 	 * so that further code can be debugged
 	 */
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#ifdef CONFIG_SERIAL_8250
 	find_legacy_serial_ports();
 #endif
 

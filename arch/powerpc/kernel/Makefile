@@ -56,8 +56,7 @@ obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
-obj-$(CONFIG_PPC_MULTIPLATFORM) += legacy_serial.o
-obj-$(CONFIG_PPC_MULTIPLATFORM) += udbg_16550.o
+obj-$(CONFIG_SERIAL_8250)	+= legacy_serial.o udbg_16550.o
 module-$(CONFIG_PPC64)		+= module_64.o
 obj-$(CONFIG_MODULES)		+= $(module-y)
 
