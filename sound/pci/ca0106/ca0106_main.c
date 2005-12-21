@@ -284,20 +284,38 @@ void snd_ca0106_ptr_write(struct snd_ca0106 *emu,
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
 
-int snd_ca0106_spi_write(struct snd_ca0106 *emu,
-				u32 value)
+int snd_ca0106_spi_write(struct snd_ca0106 * emu,
+				   unsigned int data)
 {
-	snd_ca0106_ptr_write(emu, SPI, 0, value);
+	unsigned int reset, set;
+	unsigned int reg, tmp;
+	int n, result;
+	reg = SPI;
+	if (data > 0xffff) /* Only 16bit values allowed */
+		return 1;
+	tmp = snd_ca0106_ptr_read(emu, reg, 0);
+	reset = (tmp & ~0x3ffff) | 0x20000; /* Set xxx20000 */
+	set = reset | 0x10000; /* Set xxx1xxxx */
+	snd_ca0106_ptr_write(emu, reg, 0, reset | data);
+	tmp = snd_ca0106_ptr_read(emu, reg, 0); /* write post */
+	snd_ca0106_ptr_write(emu, reg, 0, set | data);
+	result = 1;
+	/* Wait for status bit to return to 0 */
+	for (n = 0; n < 100; n++) {
+		udelay(10);
+		tmp = snd_ca0106_ptr_read(emu, reg, 0);
+		if (!(tmp & 0x10000)) {
+			result = 0;
+			break;
+		}
+	}
+	if (result) /* Timed out */
+		return 1;
+	snd_ca0106_ptr_write(emu, reg, 0, reset | data);
+	tmp = snd_ca0106_ptr_read(emu, reg, 0); /* Write post */
 	return 0;
 }
 
-int snd_ca0106_spi_read(struct snd_ca0106 *emu,
-				u32 *value)
-{
-	*value = snd_ca0106_ptr_read(emu, SPI, 0);
-	return 0;
-}
-		
 int snd_ca0106_i2c_write(struct snd_ca0106 *emu,
 				u32 reg,
 				u32 value)
@@ -1148,6 +1166,30 @@ static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device, struct s
 	return 0;
 }
 
+static unsigned int spi_dac_init[] = {
+	0x00ff,
+	0x02ff,
+	0x0400,
+	0x0520,
+	0x0600,
+	0x08ff,
+	0x0aff,
+	0x0cff,
+	0x0eff,
+	0x10ff,
+	0x1200,
+	0x1400,
+	0x1480,
+	0x1800,
+	0x1aff,
+	0x1cff,
+	0x1e00,
+	0x0530,
+	0x0602,
+	0x0622,
+	0x1400,
+};
+
 static int __devinit snd_ca0106_create(struct snd_card *card,
 					 struct pci_dev *pci,
 					 struct snd_ca0106 **rchip)
@@ -1330,11 +1372,11 @@ static int __devinit snd_ca0106_create(struct snd_card *card,
 	        snd_ca0106_i2c_write(chip, ADC_MUX, ADC_MUX_LINEIN); /* Enable Line-in capture. MIC in currently untested. */
 	}
         if (chip->details->spi_dac == 1) { /* The SB0570 use SPI to control DAC. */
-		u32 tmp;
-	        snd_ca0106_spi_write(chip, 0xf0622); /* Enable speakers output. */
-	        snd_ca0106_spi_read(chip, &tmp); /* Read the value. */
-	        snd_ca0106_spi_write(chip, 0xe1400);
-	        snd_ca0106_spi_read(chip, &tmp); /* Read the value. */
+		int size, n;
+
+		size = ARRAY_SIZE(spi_dac_init);
+		for (n=0; n < size; n++)
+			snd_ca0106_spi_write(chip, spi_dac_init[n]);
 	}
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL,
