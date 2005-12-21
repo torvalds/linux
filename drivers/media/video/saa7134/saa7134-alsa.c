@@ -1028,7 +1028,8 @@ static void saa7134_alsa_exit(void)
 	return;
 }
 
-module_init(saa7134_alsa_init);
+/* We initialize this late, to make sure the sound system is up and running */
+late_initcall(saa7134_alsa_init);
 module_exit(saa7134_alsa_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ricardo Cerqueira");

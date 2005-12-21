@@ -1002,7 +1002,8 @@ static void saa7134_oss_exit(void)
 	return;
 }
 
-module_init(saa7134_oss_init);
+/* We initialize this late, to make sure the sound system is up and running */
+late_initcall(saa7134_oss_init);
 module_exit(saa7134_oss_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
