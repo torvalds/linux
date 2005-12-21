@@ -125,20 +125,6 @@ struct screen_info sn_screen_info = {
 };
 
 /*
- * This is here so we can use the CMOS detection in ide-probe.c to
- * determine what drives are present.  In theory, we don't need this
- * as the auto-detection could be done via ide-probe.c:do_probe() but
- * in practice that would be much slower, which is painful when
- * running in the simulator.  Note that passing zeroes in DRIVE_INFO
- * is sufficient (the IDE driver will autodetect the drive geometry).
- */
-#ifdef CONFIG_IA64_GENERIC
-extern char drive_info[4 * 16];
-#else
-char drive_info[4 * 16];
-#endif
-
-/*
  * This routine can only be used during init, since
  * smp_boot_data is an init data structure.
  * We have to use smp_boot_data.cpu_phys_id to find
