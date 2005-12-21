@@ -148,15 +148,16 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	snd_emu10k1_ptr20_write(emu, reg, 0, set | data);
 	result = 1;
 	/* Wait for status bit to return to 0 */
-	for (n=0;n<100;n++) {
+	for (n = 0; n < 100; n++) {
 		udelay(10);
 		tmp = snd_emu10k1_ptr20_read(emu, reg, 0);
 		if (!(tmp & 0x10000)) {
-			result=0;
+			result = 0;
 			break;
 		}
 	}
-	if (result) return 1; /* Timed out */
+	if (result) /* Timed out */
+		return 1;
 	snd_emu10k1_ptr20_write(emu, reg, 0, reset | data);
 	tmp = snd_emu10k1_ptr20_read(emu, reg, 0); /* Write post */
 	return 0;
