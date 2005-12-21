@@ -309,7 +309,7 @@ static void uctrl_do_txn(struct uctrl_txn *txn)
 	}
 }
 
-void uctrl_get_event_status()
+void uctrl_get_event_status(void)
 {
 	struct uctrl_driver *driver = &drv;
 	struct uctrl_txn txn;
@@ -318,7 +318,7 @@ void uctrl_get_event_status()
 	txn.opcode = READ_EVENT_STATUS;
 	txn.inbits = 0;
 	txn.outbits = 2;
-	txn.inbuf = 0;
+	txn.inbuf = NULL;
 	txn.outbuf = outbits;
 
 	uctrl_do_txn(&txn);
@@ -329,7 +329,7 @@ void uctrl_get_event_status()
 	dprintk(("ev is %x\n", driver->status.event_status));
 }
 
-void uctrl_get_external_status()
+void uctrl_get_external_status(void)
 {
 	struct uctrl_driver *driver = &drv;
 	struct uctrl_txn txn;
@@ -339,7 +339,7 @@ void uctrl_get_external_status()
 	txn.opcode = READ_EXTERNAL_STATUS;
 	txn.inbits = 0;
 	txn.outbits = 2;
-	txn.inbuf = 0;
+	txn.inbuf = NULL;
 	txn.outbuf = outbits;
 
 	uctrl_do_txn(&txn);
@@ -414,7 +414,7 @@ static void __exit ts102_uctrl_cleanup(void)
 	if (driver->irq)
 		free_irq(driver->irq, driver);
 	if (driver->regs)
-		driver->regs = 0;
+		driver->regs = NULL;
 }
 
 module_init(ts102_uctrl_init);

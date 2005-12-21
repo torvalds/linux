@@ -53,7 +53,7 @@ static void uncached_ipi_visibility(void *data)
 	if ((status != PAL_VISIBILITY_OK) &&
 	    (status != PAL_VISIBILITY_OK_REMOTE_NEEDED))
 		printk(KERN_DEBUG "pal_prefetch_visibility() returns %i on "
-		       "CPU %i\n", status, get_cpu());
+		       "CPU %i\n", status, raw_smp_processor_id());
 }
 
 
@@ -63,7 +63,7 @@ static void uncached_ipi_mc_drain(void *data)
 	status = ia64_pal_mc_drain();
 	if (status)
 		printk(KERN_WARNING "ia64_pal_mc_drain() failed with %i on "
-		       "CPU %i\n", status, get_cpu());
+		       "CPU %i\n", status, raw_smp_processor_id());
 }
 
 
@@ -105,7 +105,7 @@ uncached_get_new_chunk(struct gen_pool *poolp)
 	status = ia64_pal_prefetch_visibility(PAL_VISIBILITY_PHYSICAL);
 
 	dprintk(KERN_INFO "pal_prefetch_visibility() returns %i on cpu %i\n",
-		status, get_cpu());
+		status, raw_smp_processor_id());
 
 	if (!status) {
 		status = smp_call_function(uncached_ipi_visibility, NULL, 0, 1);

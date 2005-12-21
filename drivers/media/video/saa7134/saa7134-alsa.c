@@ -60,7 +60,7 @@ module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for SAA7134 capture interface(s).");
 
 #define dprintk(fmt, arg...)    if (debug) \
-	printk(KERN_DEBUG "%s/alsa: " fmt, dev->name, ## arg)
+	printk(KERN_DEBUG "%s/alsa: " fmt, dev->name , ##arg)
 
 
 

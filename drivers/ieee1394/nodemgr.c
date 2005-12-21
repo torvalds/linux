@@ -1349,6 +1349,33 @@ static void nodemgr_update_pdrv(struct node_entry *ne)
 }
 
 
+/* Write the BROADCAST_CHANNEL as per IEEE1394a 8.3.2.3.11 and 8.4.2.3.  This
+ * seems like an optional service but in the end it is practically mandatory
+ * as a consequence of these clauses.
+ *
+ * Note that we cannot do a broadcast write to all nodes at once because some
+ * pre-1394a devices would hang. */
+static void nodemgr_irm_write_bc(struct node_entry *ne, int generation)
+{
+	const u64 bc_addr = (CSR_REGISTER_BASE | CSR_BROADCAST_CHANNEL);
+	quadlet_t bc_remote, bc_local;
+	int ret;
+
+	if (!ne->host->is_irm || ne->generation != generation ||
+	    ne->nodeid == ne->host->node_id)
+		return;
+
+	bc_local = cpu_to_be32(ne->host->csr.broadcast_channel);
+
+	/* Check if the register is implemented and 1394a compliant. */
+	ret = hpsb_read(ne->host, ne->nodeid, generation, bc_addr, &bc_remote,
+			sizeof(bc_remote));
+	if (!ret && bc_remote & cpu_to_be32(0x80000000) &&
+	    bc_remote != bc_local)
+		hpsb_node_write(ne, bc_addr, &bc_local, sizeof(bc_local));
+}
+
+
 static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int generation)
 {
 	struct device *dev;
@@ -1359,6 +1386,8 @@ static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int ge
 	dev = get_device(&ne->device);
 	if (!dev)
 		return;
+
+	nodemgr_irm_write_bc(ne, generation);
 
 	/* If "needs_probe", then this is either a new or changed node we
 	 * rescan totally. If the generation matches for an existing node
@@ -1413,9 +1442,25 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	return;
 }
 
-/* Because we are a 1394a-2000 compliant IRM, we need to inform all the other
- * nodes of the broadcast channel.  (Really we're only setting the validity
- * bit). Other IRM responsibilities go in here as well. */
+static int nodemgr_send_resume_packet(struct hpsb_host *host)
+{
+	struct hpsb_packet *packet;
+	int ret = 1;
+
+	packet = hpsb_make_phypacket(host,
+			0x003c0000 | NODEID_TO_NODE(host->node_id) << 24);
+	if (packet) {
+		packet->no_waiter = 1;
+		packet->generation = get_hpsb_generation(host);
+		ret = hpsb_send_packet(packet);
+	}
+	if (ret)
+		HPSB_WARN("fw-host%d: Failed to broadcast resume packet",
+			  host->id);
+	return ret;
+}
+
+/* Perform a few high-level IRM responsibilities. */
 static int nodemgr_do_irm_duties(struct hpsb_host *host, int cycles)
 {
 	quadlet_t bc;
@@ -1424,13 +1469,8 @@ static int nodemgr_do_irm_duties(struct hpsb_host *host, int cycles)
 	if (!host->is_irm || host->irm_id == (nodeid_t)-1)
 		return 1;
 
-	host->csr.broadcast_channel |= 0x40000000;  /* set validity bit */
-
-	bc = cpu_to_be32(host->csr.broadcast_channel);
-
-	hpsb_write(host, LOCAL_BUS | ALL_NODES, get_hpsb_generation(host),
-		   (CSR_REGISTER_BASE | CSR_BROADCAST_CHANNEL),
-		   &bc, sizeof(quadlet_t));
+	/* We are a 1394a-2000 compliant IRM. Set the validity bit. */
+	host->csr.broadcast_channel |= 0x40000000;
 
 	/* If there is no bus manager then we should set the root node's
 	 * force_root bit to promote bus stability per the 1394
@@ -1462,6 +1502,13 @@ static int nodemgr_do_irm_duties(struct hpsb_host *host, int cycles)
 			return 0;
 		}
 	}
+
+	/* Some devices suspend their ports while being connected to an inactive
+	 * host adapter, i.e. if connected before the low-level driver is
+	 * loaded.  They become visible either when physically unplugged and
+	 * replugged, or when receiving a resume packet.  Send one once. */
+	if (!host->resume_packet_sent && !nodemgr_send_resume_packet(host))
+		host->resume_packet_sent = 1;
 
 	return 1;
 }

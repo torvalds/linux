@@ -1014,13 +1014,12 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 }
 EXPORT_SYMBOL(__xfrm_route_forward);
 
-/* Optimize later using cookies and generation ids. */
-
 static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 {
-	if (!stale_bundle(dst))
-		return dst;
-
+	/* If it is marked obsolete, which is how we even get here,
+	 * then we have purged it from the policy bundle list and we
+	 * did that for a good reason.
+	 */
 	return NULL;
 }
 
@@ -1102,6 +1101,16 @@ int xfrm_flush_bundles(void)
 {
 	xfrm_prune_bundles(stale_bundle);
 	return 0;
+}
+
+static int always_true(struct dst_entry *dst)
+{
+	return 1;
+}
+
+void xfrm_flush_all_bundles(void)
+{
+	xfrm_prune_bundles(always_true);
 }
 
 void xfrm_init_pmtu(struct dst_entry *dst)

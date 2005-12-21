@@ -1596,9 +1596,17 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 	   not good.
 	 */
 	if (valid_lft >= 0x7FFFFFFF/HZ)
-		rt_expires = 0;
+		rt_expires = 0x7FFFFFFF - (0x7FFFFFFF % HZ);
 	else
-		rt_expires = jiffies + valid_lft * HZ;
+		rt_expires = valid_lft * HZ;
+
+	/*
+	 * We convert this (in jiffies) to clock_t later.
+	 * Avoid arithmetic overflow there as well.
+	 * Overflow can happen only if HZ < USER_HZ.
+	 */
+	if (HZ < USER_HZ && rt_expires > 0x7FFFFFFF / USER_HZ)
+		rt_expires = 0x7FFFFFFF / USER_HZ;
 
 	if (pinfo->onlink) {
 		struct rt6_info *rt;
@@ -1610,12 +1618,12 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 					ip6_del_rt(rt, NULL, NULL, NULL);
 					rt = NULL;
 				} else {
-					rt->rt6i_expires = rt_expires;
+					rt->rt6i_expires = jiffies + rt_expires;
 				}
 			}
 		} else if (valid_lft) {
 			addrconf_prefix_route(&pinfo->prefix, pinfo->prefix_len,
-					      dev, rt_expires, RTF_ADDRCONF|RTF_EXPIRES|RTF_PREFIX_RT);
+					      dev, jiffies_to_clock_t(rt_expires), RTF_ADDRCONF|RTF_EXPIRES|RTF_PREFIX_RT);
 		}
 		if (rt)
 			dst_release(&rt->u.dst);

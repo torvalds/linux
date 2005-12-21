@@ -131,7 +131,7 @@ __syscall_start:
 		.long	sys_wait4
 /* 115 */	.long	sys_swapoff
 		.long	sys_sysinfo
-		.long	sys_ipc_wrapper
+		.long	sys_ipc
 		.long	sys_fsync
 		.long	sys_sigreturn_wrapper
 /* 120 */	.long	sys_clone_wrapper
@@ -254,7 +254,7 @@ __syscall_start:
 		.long	sys_fremovexattr
 		.long	sys_tkill
 		.long	sys_sendfile64
-/* 240 */	.long	sys_futex_wrapper
+/* 240 */	.long	sys_futex
 		.long	sys_sched_setaffinity
 		.long	sys_sched_getaffinity
 		.long	sys_io_setup
@@ -284,7 +284,7 @@ __syscall_start:
 		.long	sys_fstatfs64
 		.long	sys_tgkill
 		.long	sys_utimes
-/* 270 */	.long	sys_arm_fadvise64_64_wrapper
+/* 270 */	.long	sys_arm_fadvise64_64
 		.long	sys_pciconfig_iobase
 		.long	sys_pciconfig_read
 		.long	sys_pciconfig_write
@@ -333,7 +333,7 @@ __syscall_start:
 		.long	sys_inotify_init
 		.long	sys_inotify_add_watch
 		.long	sys_inotify_rm_watch
-		.long	sys_mbind_wrapper
+		.long	sys_mbind
 /* 320 */	.long	sys_get_mempolicy
 		.long	sys_set_mempolicy
 __syscall_end:

@@ -20,7 +20,8 @@ static void spin_bug(spinlock_t *lock, const char *msg)
 		if (lock->owner && lock->owner != SPINLOCK_OWNER_INIT)
 			owner = lock->owner;
 		printk("BUG: spinlock %s on CPU#%d, %s/%d\n",
-			msg, smp_processor_id(), current->comm, current->pid);
+			msg, raw_smp_processor_id(),
+			current->comm, current->pid);
 		printk(" lock: %p, .magic: %08x, .owner: %s/%d, .owner_cpu: %d\n",
 			lock, lock->magic,
 			owner ? owner->comm : "<none>",
@@ -78,8 +79,8 @@ static void __spin_lock_debug(spinlock_t *lock)
 		if (print_once) {
 			print_once = 0;
 			printk("BUG: spinlock lockup on CPU#%d, %s/%d, %p\n",
-				smp_processor_id(), current->comm, current->pid,
-					lock);
+				raw_smp_processor_id(), current->comm,
+				current->pid, lock);
 			dump_stack();
 		}
 	}
@@ -120,7 +121,8 @@ static void rwlock_bug(rwlock_t *lock, const char *msg)
 
 	if (xchg(&print_once, 0)) {
 		printk("BUG: rwlock %s on CPU#%d, %s/%d, %p\n", msg,
-			smp_processor_id(), current->comm, current->pid, lock);
+			raw_smp_processor_id(), current->comm,
+			current->pid, lock);
 		dump_stack();
 #ifdef CONFIG_SMP
 		/*
@@ -148,8 +150,8 @@ static void __read_lock_debug(rwlock_t *lock)
 		if (print_once) {
 			print_once = 0;
 			printk("BUG: read-lock lockup on CPU#%d, %s/%d, %p\n",
-				smp_processor_id(), current->comm, current->pid,
-					lock);
+				raw_smp_processor_id(), current->comm,
+				current->pid, lock);
 			dump_stack();
 		}
 	}
@@ -220,8 +222,8 @@ static void __write_lock_debug(rwlock_t *lock)
 		if (print_once) {
 			print_once = 0;
 			printk("BUG: write-lock lockup on CPU#%d, %s/%d, %p\n",
-				smp_processor_id(), current->comm, current->pid,
-					lock);
+				raw_smp_processor_id(), current->comm,
+				current->pid, lock);
 			dump_stack();
 		}
 	}

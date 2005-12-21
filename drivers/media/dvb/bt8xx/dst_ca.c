@@ -406,7 +406,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	}
 	dprintk(verbose, DST_CA_DEBUG, 1, " ");
 
-	if (copy_from_user(p_ca_message, (void *)arg, sizeof (struct ca_msg))) {
+	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg))) {
 		result = -EFAULT;
 		goto free_mem_and_exit;
 	}
@@ -579,7 +579,7 @@ static int dst_ca_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int dst_ca_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
+static ssize_t dst_ca_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
 {
 	int bytes_read = 0;
 
@@ -588,7 +588,7 @@ static int dst_ca_read(struct file *file, char __user *buffer, size_t length, lo
 	return bytes_read;
 }
 
-static int dst_ca_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset)
+static ssize_t dst_ca_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset)
 {
 	dprintk(verbose, DST_CA_DEBUG, 1, " Device write.");
 

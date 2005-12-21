@@ -829,7 +829,7 @@ int ip6_route_add(struct in6_rtmsg *rtmsg, struct nlmsghdr *nlh,
 	}
 
 	rt->u.dst.obsolete = -1;
-	rt->rt6i_expires = clock_t_to_jiffies(rtmsg->rtmsg_info);
+	rt->rt6i_expires = jiffies + clock_t_to_jiffies(rtmsg->rtmsg_info);
 	if (nlh && (r = NLMSG_DATA(nlh))) {
 		rt->rt6i_protocol = r->rtm_protocol;
 	} else {
