@@ -205,6 +205,18 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		tmp = snd_emu10k1_spi_write(emu, 0x0622);
 		tmp = snd_emu10k1_spi_write(emu, 0x1400);
 		snd_emu10k1_ptr20_write(emu, 0x60, 0, 0x10);
+		/* Enable GPIOs
+		 * GPIO0: Unknown
+		 * GPIO1: Speakers-enabled.
+		 * GPIO2: Unknown
+		 * GPIO3: Unknown
+		 * GPIO4: IEC958 Output on.
+		 * GPIO5: Unknown
+		 * GPIO6: Unknown
+		 * GPIO7: Unknown
+		 */
+		outl(0x76, emu->port + A_IOCFG); /* Windows uses 0x3f76 */
+
 	}
 	
 	snd_emu10k1_ptr_write(emu, PTB, 0, emu->ptb_pages.addr);
