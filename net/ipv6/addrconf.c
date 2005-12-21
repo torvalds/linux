@@ -137,6 +137,7 @@ static int addrconf_ifdown(struct net_device *dev, int how);
 static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags);
 static void addrconf_dad_timer(unsigned long data);
 static void addrconf_dad_completed(struct inet6_ifaddr *ifp);
+static void addrconf_dad_run(struct inet6_dev *idev);
 static void addrconf_rs_timer(unsigned long data);
 static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifa);
 static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifa);
@@ -418,6 +419,7 @@ static struct inet6_dev * ipv6_find_idev(struct net_device *dev)
 		if ((idev = ipv6_add_dev(dev)) == NULL)
 			return NULL;
 	}
+
 	if (dev->flags&IFF_UP)
 		ipv6_mc_up(idev);
 	return idev;
@@ -2140,6 +2142,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = (struct net_device *) data;
 	struct inet6_dev *idev = __in6_dev_get(dev);
+	int run_pending = 0;
 
 	switch(event) {
 	case NETDEV_UP:
@@ -2172,6 +2175,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 					"link becomes ready\n",
 					dev->name);
 
+			run_pending = 1;
 		}
 
 		switch(dev->type) {
@@ -2190,6 +2194,9 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			break;
 		};
 		if (idev) {
+			if (run_pending)
+				addrconf_dad_run(idev);
+
 			/* If the MTU changed during the interface down, when the
 			   interface up, the changed MTU must be reflected in the
 			   idev as well as routers.
@@ -2544,6 +2551,22 @@ static void addrconf_dad_completed(struct inet6_ifaddr *ifp)
 		addrconf_mod_timer(ifp, AC_RS, ifp->idev->cnf.rtr_solicit_interval);
 		spin_unlock_bh(&ifp->lock);
 	}
+}
+
+static void addrconf_dad_run(struct inet6_dev *idev) {
+	struct inet6_ifaddr *ifp;
+
+	read_lock_bh(&idev->lock);
+	for (ifp = idev->addr_list; ifp; ifp = ifp->if_next) {
+		spin_lock_bh(&ifp->lock);
+		if (!(ifp->flags & IFA_F_TENTATIVE)) {
+			spin_unlock_bh(&ifp->lock);
+			continue;
+		}
+		spin_unlock_bh(&ifp->lock);
+		addrconf_dad_kick(ifp);
+	}
+	read_unlock_bh(&idev->lock);
 }
 
 #ifdef CONFIG_PROC_FS
