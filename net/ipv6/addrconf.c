@@ -388,6 +388,9 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 		}
 #endif
 
+		if (netif_carrier_ok(dev))
+			ndev->if_flags |= IF_READY;
+
 		write_lock_bh(&addrconf_lock);
 		dev->ip6_ptr = ndev;
 		write_unlock_bh(&addrconf_lock);
@@ -1215,10 +1218,8 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 
 /* Gets referenced address, destroys ifaddr */
 
-void addrconf_dad_failure(struct inet6_ifaddr *ifp)
+void addrconf_dad_stop(struct inet6_ifaddr *ifp)
 {
-	if (net_ratelimit())
-		printk(KERN_INFO "%s: duplicate address detected!\n", ifp->idev->dev->name);
 	if (ifp->flags&IFA_F_PERMANENT) {
 		spin_lock_bh(&ifp->lock);
 		addrconf_del_timer(ifp);
@@ -1244,6 +1245,12 @@ void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 		ipv6_del_addr(ifp);
 }
 
+void addrconf_dad_failure(struct inet6_ifaddr *ifp)
+{
+	if (net_ratelimit())
+		printk(KERN_INFO "%s: duplicate address detected!\n", ifp->idev->dev->name);
+	addrconf_dad_stop(ifp);
+}
 
 /* Join to solicited addr multicast group. */
 
@@ -2136,6 +2143,37 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 
 	switch(event) {
 	case NETDEV_UP:
+	case NETDEV_CHANGE:
+		if (event == NETDEV_UP) {
+			if (!netif_carrier_ok(dev)) {
+				/* device is not ready yet. */
+				printk(KERN_INFO
+					"ADDRCONF(NETDEV_UP): %s: "
+					"link is not ready\n",
+					dev->name);
+				break;
+			}
+		} else {
+			if (!netif_carrier_ok(dev)) {
+				/* device is still not ready. */
+				break;
+			}
+
+			if (idev) {
+				if (idev->if_flags & IF_READY) {
+					/* device is already configured. */
+					break;
+				}
+				idev->if_flags |= IF_READY;
+			}
+
+			printk(KERN_INFO
+					"ADDRCONF(NETDEV_CHANGE): %s: "
+					"link becomes ready\n",
+					dev->name);
+
+		}
+
 		switch(dev->type) {
 		case ARPHRD_SIT:
 			addrconf_sit_config(dev);
@@ -2186,8 +2224,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 		 */
 		addrconf_ifdown(dev, event != NETDEV_DOWN);
 		break;
-	case NETDEV_CHANGE:
-		break;
+
 	case NETDEV_CHANGENAME:
 #ifdef CONFIG_SYSCTL
 		if (idev) {
@@ -2268,7 +2305,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	/* Step 3: clear flags for stateless addrconf */
 	if (how != 1)
-		idev->if_flags &= ~(IF_RS_SENT|IF_RA_RCVD);
+		idev->if_flags &= ~(IF_RS_SENT|IF_RA_RCVD|IF_READY);
 
 	/* Step 4: clear address list */
 #ifdef CONFIG_IPV6_PRIVACY
@@ -2377,11 +2414,20 @@ out:
 /*
  *	Duplicate Address Detection
  */
+static void addrconf_dad_kick(struct inet6_ifaddr *ifp)
+{
+	unsigned long rand_num;
+	struct inet6_dev *idev = ifp->idev;
+
+	rand_num = net_random() % (idev->cnf.rtr_solicit_delay ? : 1);
+	ifp->probes = idev->cnf.dad_transmits;
+	addrconf_mod_timer(ifp, AC_DAD, rand_num);
+}
+
 static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 {
 	struct inet6_dev *idev = ifp->idev;
 	struct net_device *dev = idev->dev;
-	unsigned long rand_num;
 
 	addrconf_join_solict(dev, &ifp->addr);
 
@@ -2390,7 +2436,6 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 					flags);
 
 	net_srandom(ifp->addr.s6_addr32[3]);
-	rand_num = net_random() % (idev->cnf.rtr_solicit_delay ? : 1);
 
 	read_lock_bh(&idev->lock);
 	if (ifp->dead)
@@ -2407,8 +2452,17 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 		return;
 	}
 
-	ifp->probes = idev->cnf.dad_transmits;
-	addrconf_mod_timer(ifp, AC_DAD, rand_num);
+	if (idev->if_flags & IF_READY)
+		addrconf_dad_kick(ifp);
+	else {
+		/*
+		 * If the defice is not ready:
+		 * - keep it tentative if it is a permanent address.
+		 * - otherwise, kill it.
+		 */
+		in6_ifa_hold(ifp);
+		addrconf_dad_stop(ifp);
+	}
 
 	spin_unlock_bh(&ifp->lock);
 out:
