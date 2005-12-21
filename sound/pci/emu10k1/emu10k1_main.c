@@ -92,6 +92,30 @@ void snd_emu10k1_voice_init(struct snd_emu10k1 * emu, int ch)
 	}
 }
 
+static unsigned int spi_dac_init[] = {
+		0x00ff,
+		0x02ff,
+		0x0400,
+		0x0520,
+		0x0600,
+		0x08ff,
+		0x0aff,
+		0x0cff,
+		0x0eff,
+		0x10ff,
+		0x1200,
+		0x1400,
+		0x1480,
+		0x1800,
+		0x1aff,
+		0x1cff,
+		0x1e00,
+		0x0530,
+		0x0602,
+		0x0622,
+		0x1400,
+};
+	
 static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 {
 	unsigned int silent_page;
@@ -182,28 +206,12 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		outl(tmp, emu->port + A_IOCFG);
 	}
 	if (emu->card_capabilities->spi_dac) { /* Audigy 2 ZS Notebook with DAC Wolfson WM8768/WM8568 */
-		u32 tmp;
-		tmp = snd_emu10k1_spi_write(emu, 0x00ff);
-		tmp = snd_emu10k1_spi_write(emu, 0x02ff);
-		tmp = snd_emu10k1_spi_write(emu, 0x0400);
-		tmp = snd_emu10k1_spi_write(emu, 0x0520);
-		tmp = snd_emu10k1_spi_write(emu, 0x0600);
-		tmp = snd_emu10k1_spi_write(emu, 0x08ff);
-		tmp = snd_emu10k1_spi_write(emu, 0x0aff);
-		tmp = snd_emu10k1_spi_write(emu, 0x0cff);
-		tmp = snd_emu10k1_spi_write(emu, 0x0eff);
-		tmp = snd_emu10k1_spi_write(emu, 0x10ff);
-		tmp = snd_emu10k1_spi_write(emu, 0x1200);
-		tmp = snd_emu10k1_spi_write(emu, 0x1400);
-		tmp = snd_emu10k1_spi_write(emu, 0x1480);
-		tmp = snd_emu10k1_spi_write(emu, 0x1800);
-		tmp = snd_emu10k1_spi_write(emu, 0x1aff);
-		tmp = snd_emu10k1_spi_write(emu, 0x1cff);
-		tmp = snd_emu10k1_spi_write(emu, 0x1e00);
-		tmp = snd_emu10k1_spi_write(emu, 0x0530);
-		tmp = snd_emu10k1_spi_write(emu, 0x0602);
-		tmp = snd_emu10k1_spi_write(emu, 0x0622);
-		tmp = snd_emu10k1_spi_write(emu, 0x1400);
+		int size, n;
+
+		size = ARRAY_SIZE(spi_dac_init);
+		for (n=0; n < size; n++)
+			snd_emu10k1_spi_write(emu, spi_dac_init[n]);
+
 		snd_emu10k1_ptr20_write(emu, 0x60, 0, 0x10);
 		/* Enable GPIOs
 		 * GPIO0: Unknown
