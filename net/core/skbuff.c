@@ -1725,7 +1725,7 @@ unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
  * of the skb if any page alloc fails user this procedure returns  -ENOMEM
  */
 int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
-			int getfrag(void *from, char *to, int offset,
+			int (*getfrag)(void *from, char *to, int offset,
 					int len, int odd, struct sk_buff *skb),
 			void *from, int length)
 {

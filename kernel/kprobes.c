@@ -246,6 +246,19 @@ static int __kprobes aggr_break_handler(struct kprobe *p, struct pt_regs *regs)
 	return ret;
 }
 
+/* Walks the list and increments nmissed count for multiprobe case */
+void __kprobes kprobes_inc_nmissed_count(struct kprobe *p)
+{
+	struct kprobe *kp;
+	if (p->pre_handler != aggr_pre_handler) {
+		p->nmissed++;
+	} else {
+		list_for_each_entry_rcu(kp, &p->list, list)
+			kp->nmissed++;
+	}
+	return;
+}
+
 /* Called with kretprobe_lock held */
 struct kretprobe_instance __kprobes *get_free_rp_inst(struct kretprobe *rp)
 {
@@ -399,10 +412,7 @@ static inline void add_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 	INIT_LIST_HEAD(&ap->list);
 	list_add_rcu(&p->list, &ap->list);
 
-	INIT_HLIST_NODE(&ap->hlist);
-	hlist_del_rcu(&p->hlist);
-	hlist_add_head_rcu(&ap->hlist,
-		&kprobe_table[hash_ptr(ap->addr, KPROBE_HASH_BITS)]);
+	hlist_replace_rcu(&p->hlist, &ap->hlist);
 }
 
 /*
@@ -462,9 +472,16 @@ int __kprobes register_kprobe(struct kprobe *p)
 	int ret = 0;
 	unsigned long flags = 0;
 	struct kprobe *old_p;
+	struct module *mod;
 
-	if ((ret = in_kprobes_functions((unsigned long) p->addr)) != 0)
-		return ret;
+	if ((!kernel_text_address((unsigned long) p->addr)) ||
+		in_kprobes_functions((unsigned long) p->addr))
+		return -EINVAL;
+
+	if ((mod = module_text_address((unsigned long) p->addr)) &&
+			(unlikely(!try_module_get(mod))))
+		return -EINVAL;
+
 	if ((ret = arch_prepare_kprobe(p)) != 0)
 		goto rm_kprobe;
 
@@ -488,6 +505,8 @@ out:
 rm_kprobe:
 	if (ret == -EEXIST)
 		arch_remove_kprobe(p);
+	if (ret && mod)
+		module_put(mod);
 	return ret;
 }
 
@@ -495,6 +514,7 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 {
 	unsigned long flags;
 	struct kprobe *old_p;
+	struct module *mod;
 
 	spin_lock_irqsave(&kprobe_lock, flags);
 	old_p = get_kprobe(p->addr);
@@ -506,6 +526,10 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 			cleanup_kprobe(p, flags);
 
 		synchronize_sched();
+
+		if ((mod = module_text_address((unsigned long)p->addr)))
+			module_put(mod);
+
 		if (old_p->pre_handler == aggr_pre_handler &&
 				list_empty(&old_p->list))
 			kfree(old_p);

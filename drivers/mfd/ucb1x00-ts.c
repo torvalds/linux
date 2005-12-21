@@ -59,16 +59,18 @@ static int adcsync;
 
 static inline void ucb1x00_ts_evt_add(struct ucb1x00_ts *ts, u16 pressure, u16 x, u16 y)
 {
-	input_report_abs(ts->idev, ABS_X, x);
-	input_report_abs(ts->idev, ABS_Y, y);
-	input_report_abs(ts->idev, ABS_PRESSURE, pressure);
-	input_sync(ts->idev);
+	struct input_dev *idev = ts->idev;
+	input_report_abs(idev, ABS_X, x);
+	input_report_abs(idev, ABS_Y, y);
+	input_report_abs(idev, ABS_PRESSURE, pressure);
+	input_sync(idev);
 }
 
 static inline void ucb1x00_ts_event_release(struct ucb1x00_ts *ts)
 {
-	input_report_abs(ts->idev, ABS_PRESSURE, 0);
-	input_sync(ts->idev);
+	struct input_dev *idev = ts->idev;
+	input_report_abs(idev, ABS_PRESSURE, 0);
+	input_sync(idev);
 }
 
 /*
@@ -297,7 +299,7 @@ static void ucb1x00_ts_irq(int idx, void *id)
 
 static int ucb1x00_ts_open(struct input_dev *idev)
 {
-	struct ucb1x00_ts *ts = (struct ucb1x00_ts *)idev;
+	struct ucb1x00_ts *ts = idev->private;
 	int ret = 0;
 
 	BUG_ON(ts->rtask);
@@ -334,7 +336,7 @@ static int ucb1x00_ts_open(struct input_dev *idev)
  */
 static void ucb1x00_ts_close(struct input_dev *idev)
 {
-	struct ucb1x00_ts *ts = (struct ucb1x00_ts *)idev;
+	struct ucb1x00_ts *ts = idev->private;
 
 	if (ts->rtask)
 		kthread_stop(ts->rtask);
@@ -386,6 +388,7 @@ static int ucb1x00_ts_add(struct ucb1x00_dev *dev)
 	ts->ucb = dev->ucb;
 	ts->adcsync = adcsync ? UCB_SYNC : UCB_NOSYNC;
 
+	ts->idev->private = ts;
 	ts->idev->name       = "Touchscreen panel";
 	ts->idev->id.product = ts->ucb->id;
 	ts->idev->open       = ucb1x00_ts_open;

@@ -293,7 +293,7 @@ retry:
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		if (down_interruptible(&data->sem))
-			return -ERESTARTSYS;
+			return -EINTR;
 	}
 
 	n = data->cpu_check;

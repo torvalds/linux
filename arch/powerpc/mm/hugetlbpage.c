@@ -148,43 +148,63 @@ int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
 	return 0;
 }
 
+struct slb_flush_info {
+	struct mm_struct *mm;
+	u16 newareas;
+};
+
 static void flush_low_segments(void *parm)
 {
-	u16 areas = (unsigned long) parm;
+	struct slb_flush_info *fi = parm;
 	unsigned long i;
 
+	BUILD_BUG_ON((sizeof(fi->newareas)*8) != NUM_LOW_AREAS);
+
+	if (current->active_mm != fi->mm)
+		return;
+
+	/* Only need to do anything if this CPU is working in the same
+	 * mm as the one which has changed */
+
+	/* update the paca copy of the context struct */
+	get_paca()->context = current->active_mm->context;
+
 	asm volatile("isync" : : : "memory");
-
-	BUILD_BUG_ON((sizeof(areas)*8) != NUM_LOW_AREAS);
-
 	for (i = 0; i < NUM_LOW_AREAS; i++) {
-		if (! (areas & (1U << i)))
+		if (! (fi->newareas & (1U << i)))
 			continue;
 		asm volatile("slbie %0"
 			     : : "r" ((i << SID_SHIFT) | SLBIE_C));
 	}
-
 	asm volatile("isync" : : : "memory");
 }
 
 static void flush_high_segments(void *parm)
 {
-	u16 areas = (unsigned long) parm;
+	struct slb_flush_info *fi = parm;
 	unsigned long i, j;
 
+
+	BUILD_BUG_ON((sizeof(fi->newareas)*8) != NUM_HIGH_AREAS);
+
+	if (current->active_mm != fi->mm)
+		return;
+
+	/* Only need to do anything if this CPU is working in the same
+	 * mm as the one which has changed */
+
+	/* update the paca copy of the context struct */
+	get_paca()->context = current->active_mm->context;
+
 	asm volatile("isync" : : : "memory");
-
-	BUILD_BUG_ON((sizeof(areas)*8) != NUM_HIGH_AREAS);
-
 	for (i = 0; i < NUM_HIGH_AREAS; i++) {
-		if (! (areas & (1U << i)))
+		if (! (fi->newareas & (1U << i)))
 			continue;
 		for (j = 0; j < (1UL << (HTLB_AREA_SHIFT-SID_SHIFT)); j++)
 			asm volatile("slbie %0"
 				     :: "r" (((i << HTLB_AREA_SHIFT)
-					     + (j << SID_SHIFT)) | SLBIE_C));
+					      + (j << SID_SHIFT)) | SLBIE_C));
 	}
-
 	asm volatile("isync" : : : "memory");
 }
 
@@ -229,6 +249,7 @@ static int prepare_high_area_for_htlb(struct mm_struct *mm, unsigned long area)
 static int open_low_hpage_areas(struct mm_struct *mm, u16 newareas)
 {
 	unsigned long i;
+	struct slb_flush_info fi;
 
 	BUILD_BUG_ON((sizeof(newareas)*8) != NUM_LOW_AREAS);
 	BUILD_BUG_ON((sizeof(mm->context.low_htlb_areas)*8) != NUM_LOW_AREAS);
@@ -244,19 +265,20 @@ static int open_low_hpage_areas(struct mm_struct *mm, u16 newareas)
 
 	mm->context.low_htlb_areas |= newareas;
 
-	/* update the paca copy of the context struct */
-	get_paca()->context = mm->context;
-
 	/* the context change must make it to memory before the flush,
 	 * so that further SLB misses do the right thing. */
 	mb();
-	on_each_cpu(flush_low_segments, (void *)(unsigned long)newareas, 0, 1);
+
+	fi.mm = mm;
+	fi.newareas = newareas;
+	on_each_cpu(flush_low_segments, &fi, 0, 1);
 
 	return 0;
 }
 
 static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 {
+	struct slb_flush_info fi;
 	unsigned long i;
 
 	BUILD_BUG_ON((sizeof(newareas)*8) != NUM_HIGH_AREAS);
@@ -280,7 +302,10 @@ static int open_high_hpage_areas(struct mm_struct *mm, u16 newareas)
 	/* the context change must make it to memory before the flush,
 	 * so that further SLB misses do the right thing. */
 	mb();
-	on_each_cpu(flush_high_segments, (void *)(unsigned long)newareas, 0, 1);
+
+	fi.mm = mm;
+	fi.newareas = newareas;
+	on_each_cpu(flush_high_segments, &fi, 0, 1);
 
 	return 0;
 }
@@ -639,8 +664,36 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	return -ENOMEM;
 }
 
+/*
+ * Called by asm hashtable.S for doing lazy icache flush
+ */
+static unsigned int hash_huge_page_do_lazy_icache(unsigned long rflags,
+						  pte_t pte, int trap)
+{
+	struct page *page;
+	int i;
+
+	if (!pfn_valid(pte_pfn(pte)))
+		return rflags;
+
+	page = pte_page(pte);
+
+	/* page is dirty */
+	if (!test_bit(PG_arch_1, &page->flags) && !PageReserved(page)) {
+		if (trap == 0x400) {
+			for (i = 0; i < (HPAGE_SIZE / PAGE_SIZE); i++)
+				__flush_dcache_icache(page_address(page+i));
+			set_bit(PG_arch_1, &page->flags);
+		} else {
+			rflags |= HPTE_R_N;
+		}
+	}
+	return rflags;
+}
+
 int hash_huge_page(struct mm_struct *mm, unsigned long access,
-		   unsigned long ea, unsigned long vsid, int local)
+		   unsigned long ea, unsigned long vsid, int local,
+		   unsigned long trap)
 {
 	pte_t *ptep;
 	unsigned long old_pte, new_pte;
@@ -691,6 +744,11 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 	rflags = 0x2 | (!(new_pte & _PAGE_RW));
  	/* _PAGE_EXEC -> HW_NO_EXEC since it's inverted */
 	rflags |= ((new_pte & _PAGE_EXEC) ? 0 : HPTE_R_N);
+	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
+		/* No CPU has hugepages but lacks no execute, so we
+		 * don't need to worry about that case */
+		rflags = hash_huge_page_do_lazy_icache(rflags, __pte(old_pte),
+						       trap);
 
 	/* Check if pte already has an hpte (case 2) */
 	if (unlikely(old_pte & _PAGE_HASHPTE)) {
@@ -703,7 +761,8 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += (old_pte & _PAGE_F_GIX) >> 12;
 
-		if (ppc_md.hpte_updatepp(slot, rflags, va, 1, local) == -1)
+		if (ppc_md.hpte_updatepp(slot, rflags, va, mmu_huge_psize,
+					 local) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 

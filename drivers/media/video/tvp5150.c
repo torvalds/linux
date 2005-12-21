@@ -31,7 +31,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define dprintk(num, format, args...) \
 	do { \
 		if (debug >= num) \
-			printk(format , ##args); \
+			printk(format, ##args); \
 	} while (0)
 
 /* supported controls */
@@ -770,7 +770,6 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 
 	if (debug > 1)
 		dump_reg(client);
-
 	return 0;
 }
 

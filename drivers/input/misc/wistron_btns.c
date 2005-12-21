@@ -339,7 +339,7 @@ static struct dmi_system_id dmi_ids[] = {
 		},
 		.driver_data = keymap_acer_travelmate_240
 	},
-	{ 0, }
+	{ NULL, }
 };
 
 static int __init select_keymap(void)

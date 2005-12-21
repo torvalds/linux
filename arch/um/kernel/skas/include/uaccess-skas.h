@@ -7,7 +7,6 @@
 #define __SKAS_UACCESS_H
 
 #include "asm/errno.h"
-#include "asm/fixmap.h"
 
 /* No SKAS-specific checking. */
 #define access_ok_skas(type, addr, size) 0

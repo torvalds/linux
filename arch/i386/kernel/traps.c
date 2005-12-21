@@ -650,13 +650,6 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 
 	cpu = smp_processor_id();
 
-#ifdef CONFIG_HOTPLUG_CPU
-	if (!cpu_online(cpu)) {
-		nmi_exit();
-		return;
-	}
-#endif
-
 	++nmi_count(cpu);
 
 	if (!rcu_dereference(nmi_callback)(regs, cpu))

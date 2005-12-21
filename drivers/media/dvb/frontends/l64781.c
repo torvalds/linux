@@ -2,7 +2,7 @@
     driver for LSI L64781 COFDM demodulator
 
     Copyright (C) 2001 Holger Waechtler for Convergence Integrated Media GmbH
-                       Marko Kohtala <marko.kohtala@luukku.com>
+		       Marko Kohtala <marko.kohtala@luukku.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -433,7 +433,7 @@ static int l64781_init(struct dvb_frontend* fe)
 {
 	struct l64781_state* state = fe->demodulator_priv;
 
-        reset_and_configure (state);
+	reset_and_configure (state);
 
 	/* Power up */
 	l64781_writereg (state, 0x3e, 0xa5);
@@ -456,9 +456,9 @@ static int l64781_init(struct dvb_frontend* fe)
 	l64781_writereg (state, 0x0d, 0x8c);
 
 	/* With ppm=8000, it seems the DTR_SENSITIVITY will result in
-           value of 2 with all possible bandwidths and guard
-           intervals, which is the initial value anyway. */
-        /*l64781_writereg (state, 0x19, 0x92);*/
+	   value of 2 with all possible bandwidths and guard
+	   intervals, which is the initial value anyway. */
+	/*l64781_writereg (state, 0x19, 0x92);*/
 
 	/* Everything is two's complement, soft bit and CSI_OUT too */
 	l64781_writereg (state, 0x1e, 0x09);
@@ -477,10 +477,10 @@ static int l64781_init(struct dvb_frontend* fe)
 static int l64781_get_tune_settings(struct dvb_frontend* fe,
 				    struct dvb_frontend_tune_settings* fesettings)
 {
-        fesettings->min_delay_ms = 4000;
-        fesettings->step_size = 0;
-        fesettings->max_drift = 0;
-        return 0;
+	fesettings->min_delay_ms = 4000;
+	fesettings->step_size = 0;
+	fesettings->max_drift = 0;
+	return 0;
 }
 
 static void l64781_release(struct dvb_frontend* fe)
@@ -522,7 +522,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* The chip always responds to reads */
 	if (i2c_transfer(state->i2c, msg, 2) != 2) {
-	        dprintk("No response to read on I2C bus\n");
+		dprintk("No response to read on I2C bus\n");
 		goto error;
 	}
 
@@ -531,7 +531,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Reading the POWER_DOWN register always returns 0 */
 	if (reg0x3e != 0) {
-	        dprintk("Device doesn't look like L64781\n");
+		dprintk("Device doesn't look like L64781\n");
 		goto error;
 	}
 
@@ -540,7 +540,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Responds to all reads with 0 */
 	if (l64781_readreg(state, 0x1a) != 0) {
-	        dprintk("Read 1 returned unexpcted value\n");
+		dprintk("Read 1 returned unexpcted value\n");
 		goto error;
 	}
 
@@ -549,7 +549,7 @@ struct dvb_frontend* l64781_attach(const struct l64781_config* config,
 
 	/* Responds with register default value */
 	if (l64781_readreg(state, 0x1a) != 0xa1) {
-	        dprintk("Read 2 returned unexpcted value\n");
+		dprintk("Read 2 returned unexpcted value\n");
 		goto error;
 	}
 

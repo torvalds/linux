@@ -420,13 +420,15 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info,
 int ud_update_start(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
-	u32 xoffset, yoffset;
+	int xoffset, yoffset;
 	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 	u32 vxres = GETVXRES(ops->p->scrollmode, info);
 	int err;
 
-	xoffset = (vxres - info->var.xres) - ops->var.xoffset;
-	yoffset = (vyres - info->var.yres) - ops->var.yoffset;
+	xoffset = vxres - info->var.xres - ops->var.xoffset;
+	yoffset = vyres - info->var.yres - ops->var.yoffset;
+	if (yoffset < 0)
+		yoffset += vyres;
 	ops->var.xoffset = xoffset;
 	ops->var.yoffset = yoffset;
 	err = fb_pan_display(info, &ops->var);

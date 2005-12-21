@@ -18,11 +18,10 @@
  * on some systems.
  */
 
-#define STUB_DATA(field) (((struct stub_data *) UML_CONFIG_STUB_DATA)->field)
-
 void __attribute__ ((__section__ (".__syscall_stub")))
 stub_clone_handler(void)
 {
+	struct stub_data *data = (struct stub_data *) UML_CONFIG_STUB_DATA;
 	long err;
 
 	err = stub_syscall2(__NR_clone, CLONE_PARENT | CLONE_FILES | SIGCHLD,
@@ -35,17 +34,21 @@ stub_clone_handler(void)
 	if(err)
 		goto out;
 
-	err = stub_syscall3(__NR_setitimer, ITIMER_VIRTUAL,
-			    (long) &STUB_DATA(timer), 0);
+	err = stub_syscall3(__NR_setitimer, ITIMER_VIRTUAL, 
+			    (long) &data->timer, 0);
 	if(err)
 		goto out;
 
-	err = stub_syscall6(STUB_MMAP_NR, UML_CONFIG_STUB_DATA,
-			    UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
-			    MAP_FIXED | MAP_SHARED, STUB_DATA(fd),
-			    STUB_DATA(offset));
+	remap_stack(data->fd, data->offset);
+	goto done;
+
  out:
-	/* save current result. Parent: pid; child: retcode of mmap */
-	STUB_DATA(err) = err;
+	/* save current result. 
+	 * Parent: pid; 
+	 * child: retcode of mmap already saved and it jumps around this 
+	 * assignment
+	 */
+	data->err = err;
+ done:
 	trap_myself();
 }

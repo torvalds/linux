@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 15
-EXTRAVERSION =-rc5
-NAME=Affluent Albatross
+EXTRAVERSION =-rc6
+NAME=Sliding Snow Leopard
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -408,7 +408,7 @@ outputmakefile:
 # of make so .config is not included in this case either (for *config).
 
 no-dot-config-targets := clean mrproper distclean \
-			 cscope TAGS tags help %docs check% kernelrelease
+			 cscope TAGS tags help %docs check%
 
 config-targets := 0
 mixed-targets  := 0

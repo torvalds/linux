@@ -20,9 +20,9 @@
 #include <linux/kref.h>
 
 /*
- * Tracks changes to rchan_buf struct
+ * Tracks changes to rchan/rchan_buf structs
  */
-#define RELAYFS_CHANNEL_VERSION		5
+#define RELAYFS_CHANNEL_VERSION		6
 
 /*
  * Per-cpu relay channel buffer
@@ -60,6 +60,7 @@ struct rchan
 	struct rchan_callbacks *cb;	/* client callbacks */
 	struct kref kref;		/* channel refcount */
 	void *private_data;		/* for user-defined data */
+	size_t last_toobig;		/* tried to log event > subbuf size */
 	struct rchan_buf *buf[NR_CPUS]; /* per-cpu channel buffers */
 };
 
