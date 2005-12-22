@@ -93,6 +93,7 @@ struct net_bridge
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
 	struct list_head		age_list;
+	unsigned long			feature_mask;
 
 	/* STP */
 	bridge_id			designated_root;

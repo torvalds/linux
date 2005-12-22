@@ -182,6 +182,7 @@ static struct net_device *new_bridge_dev(const char *name)
 	br->bridge_id.prio[1] = 0x00;
 	memset(br->bridge_id.addr, 0, ETH_ALEN);
 
+	br->feature_mask = dev->features;
 	br->stp_enabled = 0;
 	br->designated_root = br->bridge_id;
 	br->root_path_cost = 0;
@@ -349,9 +350,8 @@ void br_features_recompute(struct net_bridge *br)
 	struct net_bridge_port *p;
 	unsigned long features, checksum;
 
-	features = NETIF_F_SG | NETIF_F_FRAGLIST 
-		| NETIF_F_HIGHDMA | NETIF_F_TSO;
-	checksum = NETIF_F_IP_CSUM;	/* least commmon subset */
+	features = br->feature_mask &~ NETIF_F_IP_CSUM;
+	checksum = br->feature_mask & NETIF_F_IP_CSUM;
 
 	list_for_each_entry(p, &br->port_list, list) {
 		if (!(p->dev->features 
