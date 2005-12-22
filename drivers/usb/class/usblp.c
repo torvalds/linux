@@ -438,7 +438,7 @@ static unsigned int usblp_poll(struct file *file, struct poll_table_struct *wait
  			       | (!usblp->wcomplete ? 0 : POLLOUT | POLLWRNORM);
 }
 
-static int usblp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long usblp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct usblp *usblp = file->private_data;
 	int length, err, i;
@@ -838,7 +838,8 @@ static struct file_operations usblp_fops = {
 	.read =		usblp_read,
 	.write =	usblp_write,
 	.poll =		usblp_poll,
-	.ioctl =	usblp_ioctl,
+	.unlocked_ioctl =	usblp_ioctl,
+	.compat_ioctl =		usblp_ioctl,
 	.open =		usblp_open,
 	.release =	usblp_release,
 };
