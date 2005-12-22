@@ -93,6 +93,8 @@ enum sctp_optname {
 #define SCTP_STATUS SCTP_STATUS
 	SCTP_GET_PEER_ADDR_INFO,
 #define SCTP_GET_PEER_ADDR_INFO SCTP_GET_PEER_ADDR_INFO
+	SCTP_DELAYED_ACK_TIME,
+#define SCTP_DELAYED_ACK_TIME SCTP_DELAYED_ACK_TIME
 
 	/* Internal Socket Options. Some of the sctp library functions are 
 	 * implemented using these socket options.
@@ -525,6 +527,18 @@ struct sctp_paddrparams {
 	__u32			spp_sackdelay;
 	__u32			spp_flags;
 } __attribute__((packed, aligned(4)));
+
+/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+ *
+ *   This options will get or set the delayed ack timer.  The time is set
+ *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
+ *   endpoints default delayed ack timer value.  If the assoc_id field is
+ *   non-zero, then the set or get effects the specified association.
+ */
+struct sctp_assoc_value {
+    sctp_assoc_t            assoc_id;
+    uint32_t                assoc_value;
+};
 
 /*
  * 7.2.2 Peer Address Information
