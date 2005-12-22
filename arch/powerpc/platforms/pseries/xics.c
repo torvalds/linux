@@ -48,11 +48,6 @@ static struct hw_interrupt_type xics_pic = {
 	.set_affinity = xics_set_affinity
 };
 
-static struct hw_interrupt_type xics_8259_pic = {
-	.typename = " XICS/8259",
-	.ack = xics_mask_and_ack_irq,
-};
-
 /* This is used to map real irq numbers to virtual */
 static struct radix_tree_root irq_map = RADIX_TREE_INIT(GFP_ATOMIC);
 
@@ -367,12 +362,7 @@ int xics_get_irq(struct pt_regs *regs)
 	/* for sanity, this had better be < NR_IRQS - 16 */
 	if (vec == xics_irq_8259_cascade_real) {
 		irq = i8259_irq(regs);
-		if (irq == -1) {
-			/* Spurious cascaded interrupt.  Still must ack xics */
-			xics_end_irq(irq_offset_up(xics_irq_8259_cascade));
-
-			irq = -1;
-		}
+		xics_end_irq(irq_offset_up(xics_irq_8259_cascade));
 	} else if (vec == XICS_IRQ_SPURIOUS) {
 		irq = -1;
 	} else {
@@ -542,6 +532,7 @@ nextnode:
 		xics_irq_8259_cascade_real = *ireg;
 		xics_irq_8259_cascade
 			= virt_irq_create_mapping(xics_irq_8259_cascade_real);
+		i8259_init(0, 0);
 		of_node_put(np);
 	}
 
@@ -565,12 +556,7 @@ nextnode:
 #endif /* CONFIG_SMP */
 	}
 
-	xics_8259_pic.enable = i8259_pic.enable;
-	xics_8259_pic.disable = i8259_pic.disable;
-	xics_8259_pic.end = i8259_pic.end;
-	for (i = 0; i < 16; ++i)
-		get_irq_desc(i)->handler = &xics_8259_pic;
-	for (; i < NR_IRQS; ++i)
+	for (i = irq_offset_value(); i < NR_IRQS; ++i)
 		get_irq_desc(i)->handler = &xics_pic;
 
 	xics_setup_cpu();
@@ -590,7 +576,6 @@ static int __init xics_setup_i8259(void)
 				no_action, 0, "8259 cascade", NULL))
 			printk(KERN_ERR "xics_setup_i8259: couldn't get 8259 "
 					"cascade\n");
-		i8259_init(0, 0);
 	}
 	return 0;
 }
