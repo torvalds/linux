@@ -120,8 +120,7 @@ void br_stp_disable_port(struct net_bridge_port *p)
 }
 
 /* called under bridge lock */
-static void br_stp_change_bridge_id(struct net_bridge *br, 
-				    const unsigned char *addr)
+void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *addr)
 {
 	unsigned char oldaddr[6];
 	struct net_bridge_port *p;

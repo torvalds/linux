@@ -201,6 +201,7 @@ extern void br_stp_disable_bridge(struct net_bridge *br);
 extern void br_stp_enable_port(struct net_bridge_port *p);
 extern void br_stp_disable_port(struct net_bridge_port *p);
 extern void br_stp_recalculate_bridge_id(struct net_bridge *br);
+extern void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *a);
 extern void br_stp_set_bridge_priority(struct net_bridge *br,
 				       u16 newprio);
 extern void br_stp_set_port_priority(struct net_bridge_port *p,

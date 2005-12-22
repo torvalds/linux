@@ -15,7 +15,8 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <linux/module.h>
+#include <linux/etherdevice.h>
+
 #include <asm/uaccess.h>
 #include "br_private.h"
 
@@ -82,6 +83,29 @@ static int br_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+/* Allow setting mac address of pseudo-bridge to be same as
+ * any of the bound interfaces
+ */
+static int br_set_mac_address(struct net_device *dev, void *p)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct sockaddr *addr = p;
+	struct net_bridge_port *port;
+	int err = -EADDRNOTAVAIL;
+
+	spin_lock_bh(&br->lock);
+	list_for_each_entry(port, &br->port_list, list) {
+		if (!compare_ether_addr(port->dev->dev_addr, addr->sa_data)) {
+			br_stp_change_bridge_id(br, addr->sa_data);
+			err = 0;
+			break;
+		}
+	}
+	spin_unlock_bh(&br->lock);
+
+	return err;
+}
+
 void br_dev_setup(struct net_device *dev)
 {
 	memset(dev->dev_addr, 0, ETH_ALEN);
@@ -98,6 +122,6 @@ void br_dev_setup(struct net_device *dev)
 	SET_MODULE_OWNER(dev);
 	dev->stop = br_dev_stop;
 	dev->tx_queue_len = 0;
-	dev->set_mac_address = NULL;
+	dev->set_mac_address = br_set_mac_address;
 	dev->priv_flags = IFF_EBRIDGE;
 }
