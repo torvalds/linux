@@ -16,7 +16,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <net/tcp.h>
-
+#include <asm/div64.h>
 
 #define BICTCP_BETA_SCALE    1024	/* Scale factor beta calculation
 					 * max_cwnd = snd_cwnd * beta
@@ -34,15 +34,20 @@ static int initial_ssthresh = 100;
 static int bic_scale = 41;
 static int tcp_friendliness = 1;
 
+static u32 cube_rtt_scale;
+static u32 beta_scale;
+static u64 cube_factor;
+
+/* Note parameters that are used for precomputing scale factors are read-only */
 module_param(fast_convergence, int, 0644);
 MODULE_PARM_DESC(fast_convergence, "turn on/off fast convergence");
 module_param(max_increment, int, 0644);
 MODULE_PARM_DESC(max_increment, "Limit on increment allowed during binary search");
-module_param(beta, int, 0644);
+module_param(beta, int, 0444);
 MODULE_PARM_DESC(beta, "beta for multiplicative increase");
 module_param(initial_ssthresh, int, 0644);
 MODULE_PARM_DESC(initial_ssthresh, "initial value of slow start threshold");
-module_param(bic_scale, int, 0644);
+module_param(bic_scale, int, 0444);
 MODULE_PARM_DESC(bic_scale, "scale (scaled by 1024) value for bic function (bic_scale/1024)");
 module_param(tcp_friendliness, int, 0644);
 MODULE_PARM_DESC(tcp_friendliness, "turn on/off tcp friendliness");
@@ -151,65 +156,13 @@ static u32 cubic_root(u64 x)
                 return (u32)end;
 }
 
-static inline u32 bictcp_K(u32 dist, u32 srtt)
-{
-        u64 d64;
-        u32 d32;
-        u32 count;
-        u32 result;
-
-        /* calculate the "K" for (wmax-cwnd) = c/rtt * K^3
-           so K = cubic_root( (wmax-cwnd)*rtt/c )
-           the unit of K is bictcp_HZ=2^10, not HZ
-
-           c = bic_scale >> 10
-           rtt = (tp->srtt >> 3 ) / HZ
-
-           the following code has been designed and tested for
-           cwnd < 1 million packets
-           RTT < 100 seconds
-           HZ < 1,000,00  (corresponding to 10 nano-second)
-
-        */
-
-        /* 1/c * 2^2*bictcp_HZ */
-        d32 = (1 << (10+2*BICTCP_HZ)) / bic_scale;
-        d64 = (__u64)d32;
-
-        /* srtt * 2^count / HZ
-           1) to get a better accuracy of the following d32,
-           the larger the "count", the better the accuracy
-           2) and avoid overflow of the following d64
-           the larger the "count", the high possibility of overflow
-           3) so find a "count" between bictcp_hz-3 and bictcp_hz
-           "count" may be less than bictcp_HZ,
-           then d64 becomes 0. that is OK
-        */
-        d32 = srtt;
-        count = 0;
-        while (((d32 & 0x80000000)==0) && (count < BICTCP_HZ)){
-                d32 = d32 << 1;
-                count++;
-        }
-        d32 = d32 / HZ;
-
-        /* (wmax-cwnd) * (srtt>>3 / HZ) / c * 2^(3*bictcp_HZ)  */
-        d64 = (d64 * dist * d32) >> (count+3-BICTCP_HZ);
-
-        /* cubic root */
-        d64 = cubic_root(d64);
-
-        result = (u32)d64;
-        return result;
-}
-
 /*
  * Compute congestion window to use.
  */
 static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 {
-	u64 d64;
-	u32 d32, t, srtt, bic_target, min_cnt, max_cnt;
+	u64 offs;
+	u32 delta, t, bic_target, min_cnt, max_cnt;
 
 	ca->ack_cnt++;	/* count the number of ACKs */
 
@@ -220,8 +173,6 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	ca->last_cwnd = cwnd;
 	ca->last_time = tcp_time_stamp;
 
-	srtt = (HZ << 3)/10;	/* use real time-based growth function */
-
 	if (ca->epoch_start == 0) {
 		ca->epoch_start = tcp_time_stamp;	/* record the beginning of an epoch */
 		ca->ack_cnt = 1;			/* start counting */
@@ -231,7 +182,11 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 			ca->bic_K = 0;
 			ca->bic_origin_point = cwnd;
 		} else {
-			ca->bic_K = bictcp_K(ca->last_max_cwnd-cwnd, srtt);
+			/* Compute new K based on
+			 * (wmax-cwnd) * (srtt>>3 / HZ) / c * 2^(3*bictcp_HZ)
+			 */
+			ca->bic_K = cubic_root(cube_factor
+					       * (ca->last_max_cwnd - cwnd));
 			ca->bic_origin_point = ca->last_max_cwnd;
 		}
 	}
@@ -239,9 +194,9 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
         /* cubic function - calc*/
         /* calculate c * time^3 / rtt,
          *  while considering overflow in calculation of time^3
-	 * (so time^3 is done by using d64)
+	 * (so time^3 is done by using 64 bit)
 	 * and without the support of division of 64bit numbers
-	 * (so all divisions are done by using d32)
+	 * (so all divisions are done by using 32 bit)
          *  also NOTE the unit of those veriables
          *	  time  = (t - K) / 2^bictcp_HZ
          *	  c = bic_scale >> 10
@@ -255,18 +210,16 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 	     << BICTCP_HZ) / HZ;
 
         if (t < ca->bic_K)		/* t - K */
-                d32 = ca->bic_K - t;
+		offs = ca->bic_K - t;
         else
-                d32 = t - ca->bic_K;
+                offs = t - ca->bic_K;
 
-        d64 = (u64)d32;
-        d32 = (bic_scale << 3) * HZ / srtt;			/* 1024*c/rtt */
-        d64 = (d32 * d64 * d64 * d64) >> (10+3*BICTCP_HZ);	/* c/rtt * (t-K)^3 */
-        d32 = (u32)d64;
+	/* c/rtt * (t-K)^3 */
+	delta = (cube_rtt_scale * offs * offs * offs) >> (10+3*BICTCP_HZ);
         if (t < ca->bic_K)                                	/* below origin*/
-                bic_target = ca->bic_origin_point - d32;
+                bic_target = ca->bic_origin_point - delta;
         else                                                	/* above origin*/
-                bic_target = ca->bic_origin_point + d32;
+                bic_target = ca->bic_origin_point + delta;
 
         /* cubic function - calc bictcp_cnt*/
         if (bic_target > cwnd) {
@@ -288,16 +241,16 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd)
 
 	/* TCP Friendly */
 	if (tcp_friendliness) {
-		u32 scale = 8*(BICTCP_BETA_SCALE+beta)/3/(BICTCP_BETA_SCALE-beta);
-		d32 = (cwnd * scale) >> 3;
-	        while (ca->ack_cnt > d32) {		/* update tcp cwnd */
-	                ca->ack_cnt -= d32;
+		u32 scale = beta_scale;
+		delta = (cwnd * scale) >> 3;
+	        while (ca->ack_cnt > delta) {		/* update tcp cwnd */
+	                ca->ack_cnt -= delta;
         	        ca->tcp_cwnd++;
 		}
 
 		if (ca->tcp_cwnd > cwnd){	/* if bic is slower than tcp */
-			d32 = ca->tcp_cwnd - cwnd;
-			max_cnt = cwnd / d32;
+			delta = ca->tcp_cwnd - cwnd;
+			max_cnt = cwnd / delta;
 			if (ca->cnt > max_cnt)
 				ca->cnt = max_cnt;
 		}
@@ -428,6 +381,34 @@ static struct tcp_congestion_ops cubictcp = {
 static int __init cubictcp_register(void)
 {
 	BUG_ON(sizeof(struct bictcp) > ICSK_CA_PRIV_SIZE);
+
+	/* Precompute a bunch of the scaling factors that are used per-packet
+	 * based on SRTT of 100ms
+	 */
+
+	beta_scale = 8*(BICTCP_BETA_SCALE+beta)/ 3 / (BICTCP_BETA_SCALE - beta);
+
+	cube_rtt_scale = (bic_scale << 3) / 10;	/* 1024*c/rtt */
+
+	/* calculate the "K" for (wmax-cwnd) = c/rtt * K^3
+	 *  so K = cubic_root( (wmax-cwnd)*rtt/c )
+	 * the unit of K is bictcp_HZ=2^10, not HZ
+	 *
+	 *  c = bic_scale >> 10
+	 *  rtt = 100ms
+	 *
+	 * the following code has been designed and tested for
+	 * cwnd < 1 million packets
+	 * RTT < 100 seconds
+	 * HZ < 1,000,00  (corresponding to 10 nano-second)
+	 */
+
+	/* 1/c * 2^2*bictcp_HZ * srtt */
+	cube_factor = 1ull << (10+3*BICTCP_HZ); /* 2^40 */
+
+	/* divide by bic_scale and by constant Srtt (100ms) */
+	do_div(cube_factor, bic_scale * 10);
+
 	return tcp_register_congestion_control(&cubictcp);
 }
 
