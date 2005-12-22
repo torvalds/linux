@@ -166,7 +166,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	int retval = 0;
 	struct urb *urb = NULL;
 	char *buf = NULL;
-	size_t writesize = max(count, MAX_TRANSFER);
+	size_t writesize = min(count, MAX_TRANSFER);
 
 	dev = (struct usb_skel *)file->private_data;
 
