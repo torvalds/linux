@@ -160,7 +160,7 @@ int dialog_menu(const char *title, const char *prompt, int height, int width,
 		const char *const *items);
 int dialog_checklist(const char *title, const char *prompt, int height,
 		     int width, int list_height, int item_no,
-		     const char *const *items, int flag);
+		     const char *const *items);
 extern char dialog_input_result[];
 int dialog_inputbox(const char *title, const char *prompt, int height,
 		    int width, const char *init);
@@ -175,10 +175,3 @@ int dialog_inputbox(const char *title, const char *prompt, int height,
  *   -- uppercase chars are used to invoke the button (M_EVENT + 'O')
  */
 #define M_EVENT (KEY_MAX+1)
-
-/*
- * The `flag' parameter in checklist is used to select between
- * radiolist and checklist
- */
-#define FLAG_CHECK 1
-#define FLAG_RADIO 0

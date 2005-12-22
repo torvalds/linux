@@ -23,7 +23,7 @@
 
 #include "dialog.h"
 
-static int list_width, check_x, item_x, checkflag;
+static int list_width, check_x, item_x;
 
 /*
  * Print list item
@@ -41,10 +41,7 @@ static void print_item(WINDOW * win, const char *item, int status, int choice,
 
 	wmove(win, choice, check_x);
 	wattrset(win, selected ? check_selected_attr : check_attr);
-	if (checkflag == FLAG_CHECK)
-		wprintw(win, "[%c]", status ? 'X' : ' ');
-	else
-		wprintw(win, "(%c)", status ? 'X' : ' ');
+	wprintw(win, "(%c)", status ? 'X' : ' ');
 
 	wattrset(win, selected ? tag_selected_attr : tag_attr);
 	mvwaddch(win, choice, item_x, item[0]);
@@ -109,17 +106,15 @@ static void print_buttons(WINDOW * dialog, int height, int width, int selected)
 
 /*
  * Display a dialog box with a list of options that can be turned on or off
- * The `flag' parameter is used to select between radiolist and checklist.
+ * in the style of radiolist (only one option turned on at a time).
  */
 int dialog_checklist(const char *title, const char *prompt, int height,
 		     int width, int list_height, int item_no,
-		     const char *const *items, int flag)
+		     const char *const *items)
 {
 	int i, x, y, box_x, box_y;
 	int key = 0, button = 0, choice = 0, scroll = 0, max_choice, *status;
 	WINDOW *dialog, *list;
-
-	checkflag = flag;
 
 	/* Allocate space for storing item on/off status */
 	if ((status = malloc(sizeof(int) * item_no)) == NULL) {
@@ -303,34 +298,20 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 		case ' ':
 		case '\n':
 			if (!button) {
-				if (flag == FLAG_CHECK) {
-					status[scroll + choice] = !status[scroll + choice];
-					wmove(list, choice, check_x);
-					wattrset(list, check_selected_attr);
-					wprintw(list, "[%c]", status[scroll + choice] ? 'X' : ' ');
-				} else {
-					if (!status[scroll + choice]) {
-						for (i = 0; i < item_no; i++)
-							status[i] = 0;
-						status[scroll + choice] = 1;
-						for (i = 0; i < max_choice; i++)
-							print_item(list, items[(scroll + i) * 3 + 1],
-								   status[scroll + i], i, i == choice);
-					}
+				if (!status[scroll + choice]) {
+					for (i = 0; i < item_no; i++)
+						status[i] = 0;
+					status[scroll + choice] = 1;
+					for (i = 0; i < max_choice; i++)
+						print_item(list, items[(scroll + i) * 3 + 1],
+							   status[scroll + i], i, i == choice);
 				}
 				wnoutrefresh(list);
 				wrefresh(dialog);
 
-				for (i = 0; i < item_no; i++) {
-					if (status[i]) {
-						if (flag == FLAG_CHECK) {
-							fprintf(stderr, "\"%s\" ", items[i * 3]);
-						} else {
-							fprintf(stderr, "%s", items[i * 3]);
-						}
-
-					}
-				}
+				for (i = 0; i < item_no; i++)
+					if (status[i])
+						fprintf(stderr, "%s", items[i * 3]);
 			} else
 				fprintf(stderr, "%s", items[(scroll + choice) * 3]);
 			delwin(dialog);

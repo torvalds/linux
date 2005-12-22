@@ -31,12 +31,11 @@ struct Mode {
 	jumperFn *jumper;
 };
 
-jumperFn j_menu, j_checklist, j_radiolist, j_yesno, j_textbox, j_inputbox;
+jumperFn j_menu, j_radiolist, j_yesno, j_textbox, j_inputbox;
 jumperFn j_msgbox, j_infobox;
 
 static struct Mode modes[] = {
 	{"--menu", 9, 0, 3, j_menu},
-	{"--checklist", 9, 0, 3, j_checklist},
 	{"--radiolist", 9, 0, 3, j_radiolist},
 	{"--yesno", 5, 5, 1, j_yesno},
 	{"--textbox", 5, 5, 1, j_textbox},
@@ -151,7 +150,6 @@ static void Usage(const char *name)
 \nBox options:\
 \n\
 \n  --menu      <text> <height> <width> <menu height> <tag1> <item1>...\
-\n  --checklist <text> <height> <width> <list height> <tag1> <item1> <status1>...\
 \n  --radiolist <text> <height> <width> <list height> <tag1> <item1> <status1>...\
 \n  --textbox   <file> <height> <width>\
 \n  --inputbox  <text> <height> <width> [<init>]\
@@ -170,16 +168,10 @@ int j_menu(const char *t, int ac, const char *const *av)
 			   atoi(av[5]), av[6], (ac - 6) / 2, av + 7);
 }
 
-int j_checklist(const char *t, int ac, const char *const *av)
-{
-	return dialog_checklist(t, av[2], atoi(av[3]), atoi(av[4]),
-				atoi(av[5]), (ac - 6) / 3, av + 6, FLAG_CHECK);
-}
-
 int j_radiolist(const char *t, int ac, const char *const *av)
 {
 	return dialog_checklist(t, av[2], atoi(av[3]), atoi(av[4]),
-				atoi(av[5]), (ac - 6) / 3, av + 6, FLAG_RADIO);
+				atoi(av[5]), (ac - 6) / 3, av + 6);
 }
 
 int j_textbox(const char *t, int ac, const char *const *av)
