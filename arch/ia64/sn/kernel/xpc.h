@@ -707,7 +707,7 @@ extern void xpc_connected_callout(struct xpc_channel *);
 extern void xpc_deliver_msg(struct xpc_channel *);
 extern void xpc_disconnect_channel(const int, struct xpc_channel *,
 					enum xpc_retval, unsigned long *);
-extern void xpc_disconnecting_callout(struct xpc_channel *);
+extern void xpc_disconnect_callout(struct xpc_channel *, enum xpc_retval);
 extern void xpc_partition_going_down(struct xpc_partition *, enum xpc_retval);
 extern void xpc_teardown_infrastructure(struct xpc_partition *);
 

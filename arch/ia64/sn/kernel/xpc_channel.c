@@ -779,6 +779,12 @@ xpc_process_disconnect(struct xpc_channel *ch, unsigned long *irq_flags)
 
 	/* both sides are disconnected now */
 
+	if (ch->flags & XPC_C_CONNECTCALLOUT) {
+		spin_unlock_irqrestore(&ch->lock, *irq_flags);
+		xpc_disconnect_callout(ch, xpcDisconnected);
+		spin_lock_irqsave(&ch->lock, *irq_flags);
+	}
+
 	/* it's now safe to free the channel's message queues */
 	xpc_free_msgqueues(ch);
 
@@ -1645,7 +1651,7 @@ xpc_disconnect_channel(const int line, struct xpc_channel *ch,
 
 
 void
-xpc_disconnecting_callout(struct xpc_channel *ch)
+xpc_disconnect_callout(struct xpc_channel *ch, enum xpc_retval reason)
 {
 	/*
 	 * Let the channel's registerer know that the channel is being
@@ -1654,15 +1660,13 @@ xpc_disconnecting_callout(struct xpc_channel *ch)
 	 */
 
 	if (ch->func != NULL) {
-		dev_dbg(xpc_chan, "ch->func() called, reason=xpcDisconnecting,"
-			" partid=%d, channel=%d\n", ch->partid, ch->number);
+		dev_dbg(xpc_chan, "ch->func() called, reason=%d, partid=%d, "
+			"channel=%d\n", reason, ch->partid, ch->number);
 
-		ch->func(xpcDisconnecting, ch->partid, ch->number, NULL,
-								ch->key);
+		ch->func(reason, ch->partid, ch->number, NULL, ch->key);
 
-		dev_dbg(xpc_chan, "ch->func() returned, reason="
-			"xpcDisconnecting, partid=%d, channel=%d\n",
-			ch->partid, ch->number);
+		dev_dbg(xpc_chan, "ch->func() returned, reason=%d, partid=%d, "
+			"channel=%d\n", reason, ch->partid, ch->number);
 	}
 }
 

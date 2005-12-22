@@ -773,7 +773,7 @@ xpc_daemonize_kthread(void *args)
 			ch->flags |= XPC_C_DISCONNECTCALLOUT;
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 
-			xpc_disconnecting_callout(ch);
+			xpc_disconnect_callout(ch, xpcDisconnecting);
 		} else {
 			spin_unlock_irqrestore(&ch->lock, irq_flags);
 		}

@@ -771,7 +771,8 @@ xpc_identify_act_IRQ_req(int nasid)
 		}
 	}
 
-	if (!xpc_partition_disengaged(part)) {
+	if (part->disengage_request_timeout > 0 &&
+					!xpc_partition_disengaged(part)) {
 		/* still waiting on other side to disengage from us */
 		return;
 	}
