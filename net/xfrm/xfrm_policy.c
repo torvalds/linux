@@ -346,6 +346,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	struct xfrm_policy *pol, **p;
 	struct xfrm_policy *delpol = NULL;
 	struct xfrm_policy **newpos = NULL;
+	struct dst_entry *gc_list;
 
 	write_lock_bh(&xfrm_policy_lock);
 	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL;) {
@@ -381,9 +382,36 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 		xfrm_pol_hold(policy);
 	write_unlock_bh(&xfrm_policy_lock);
 
-	if (delpol) {
+	if (delpol)
 		xfrm_policy_kill(delpol);
+
+	read_lock_bh(&xfrm_policy_lock);
+	gc_list = NULL;
+	for (policy = policy->next; policy; policy = policy->next) {
+		struct dst_entry *dst;
+
+		write_lock(&policy->lock);
+		dst = policy->bundles;
+		if (dst) {
+			struct dst_entry *tail = dst;
+			while (tail->next)
+				tail = tail->next;
+			tail->next = gc_list;
+			gc_list = dst;
+
+			policy->bundles = NULL;
+		}
+		write_unlock(&policy->lock);
 	}
+	read_unlock_bh(&xfrm_policy_lock);
+
+	while (gc_list) {
+		struct dst_entry *dst = gc_list;
+
+		gc_list = dst->next;
+		dst_free(dst);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(xfrm_policy_insert);
