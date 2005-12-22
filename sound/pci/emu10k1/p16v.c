@@ -107,11 +107,11 @@
 #define PCM_FRONT_CHANNEL 0
 #define PCM_REAR_CHANNEL 1
 #define PCM_CENTER_LFE_CHANNEL 2
-#define PCM_UNKNOWN_CHANNEL 3
+#define PCM_SIDE_CHANNEL 3
 #define CONTROL_FRONT_CHANNEL 0
 #define CONTROL_REAR_CHANNEL 3
 #define CONTROL_CENTER_LFE_CHANNEL 1
-#define CONTROL_UNKNOWN_CHANNEL 2
+#define CONTROL_SIDE_CHANNEL 2
 
 /* Card IDs:
  * Class 0401: 1102:0004 (rev 04) Subsystem: 1102:2002 -> Audigy2 ZS 7.1 Model:SB0350
@@ -590,7 +590,7 @@ int snd_p16v_free(struct snd_emu10k1 *chip)
 	return 0;
 }
 
-int snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
+int __devinit snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
@@ -644,7 +644,8 @@ int snd_p16v_pcm(struct snd_emu10k1 *emu, int device, struct snd_pcm **rpcm)
 	return 0;
 }
 
-static int snd_p16v_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+static int snd_p16v_volume_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *uinfo)
 {
         uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
         uinfo->count = 2;
@@ -654,240 +655,56 @@ static int snd_p16v_volume_info(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 }
 
 static int snd_p16v_volume_get(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol, int reg, int high_low)
+			       struct snd_ctl_elem_value *ucontrol)
 {
         struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-        u32 value;
+	int high_low = (kcontrol->private_value >> 8) & 0xff;
+	int reg = kcontrol->private_value & 0xff;
+	u32 value;
 
-        value = snd_emu10k1_ptr20_read(emu, reg, high_low);
-	if (high_low == 1) {
-        	ucontrol->value.integer.value[0] = 0xff - ((value >> 24) & 0xff); /* Left */
-        	ucontrol->value.integer.value[1] = 0xff - ((value >> 16) & 0xff); /* Right */
+	value = snd_emu10k1_ptr20_read(emu, reg, high_low);
+	if (high_low) {
+		ucontrol->value.integer.value[0] = 0xff - ((value >> 24) & 0xff); /* Left */
+		ucontrol->value.integer.value[1] = 0xff - ((value >> 16) & 0xff); /* Right */
 	} else {
-        	ucontrol->value.integer.value[0] = 0xff - ((value >> 8) & 0xff); /* Left */
-        	ucontrol->value.integer.value[1] = 0xff - ((value >> 0) & 0xff); /* Right */
+		ucontrol->value.integer.value[0] = 0xff - ((value >> 8) & 0xff); /* Left */
+		ucontrol->value.integer.value[1] = 0xff - ((value >> 0) & 0xff); /* Right */
 	}
-        return 0;
-}
-
-static int snd_p16v_volume_get_spdif_front(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 0;
-	int reg = PLAYBACK_VOLUME_MIXER7;
-        return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_get_spdif_center_lfe(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 1;
-	int reg = PLAYBACK_VOLUME_MIXER7;
-        return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
-}
-static int snd_p16v_volume_get_spdif_unknown(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 0;
-	int reg = PLAYBACK_VOLUME_MIXER8;
-        return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
-}
-static int snd_p16v_volume_get_spdif_rear(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 1;
-	int reg = PLAYBACK_VOLUME_MIXER8;
-        return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_get_analog_front(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 0;
-	int reg = PLAYBACK_VOLUME_MIXER9;
-        return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_get_analog_center_lfe(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 1;
-	int reg = PLAYBACK_VOLUME_MIXER9;
-        return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
-}
-static int snd_p16v_volume_get_analog_rear(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 1;
-	int reg = PLAYBACK_VOLUME_MIXER10;
-        return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_get_analog_unknown(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 0;
-	int reg = PLAYBACK_VOLUME_MIXER10;
-        return snd_p16v_volume_get(kcontrol, ucontrol, reg, high_low);
+	return 0;
 }
 
 static int snd_p16v_volume_put(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol, int reg, int high_low)
+			       struct snd_ctl_elem_value *ucontrol)
 {
         struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-        u32 value;
-        value = snd_emu10k1_ptr20_read(emu, reg, 0);
-        //value = value & 0xffff;
+	int high_low = (kcontrol->private_value >> 8) & 0xff;
+	int reg = kcontrol->private_value & 0xff;
+        u32 value, oval;
+
+	oval = value = snd_emu10k1_ptr20_read(emu, reg, 0);
 	if (high_low == 1) {
 		value &= 0xffff;
-	        value = value | ((0xff - ucontrol->value.integer.value[0]) << 24) | ((0xff - ucontrol->value.integer.value[1]) << 16);
+		value |= ((0xff - ucontrol->value.integer.value[0]) << 24) |
+			((0xff - ucontrol->value.integer.value[1]) << 16);
 	} else {
 		value &= 0xffff0000;
-        	value = value | ((0xff - ucontrol->value.integer.value[0]) << 8) | ((0xff - ucontrol->value.integer.value[1]) );
+		value |= ((0xff - ucontrol->value.integer.value[0]) << 8) |
+			((0xff - ucontrol->value.integer.value[1]) );
 	}
-        	snd_emu10k1_ptr20_write(emu, reg, 0, value);
-        return 1;
+	if (value != oval) {
+		snd_emu10k1_ptr20_write(emu, reg, 0, value);
+		return 1;
+	}
+	return 0;
 }
 
-static int snd_p16v_volume_put_spdif_front(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
+static int snd_p16v_capture_source_info(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *uinfo)
 {
-	int high_low = 0;
-	int reg = PLAYBACK_VOLUME_MIXER7;
-        return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_put_spdif_center_lfe(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 1;
-	int reg = PLAYBACK_VOLUME_MIXER7;
-        return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_put_spdif_unknown(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 0;
-	int reg = PLAYBACK_VOLUME_MIXER8;
-        return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_put_spdif_rear(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 1;
-	int reg = PLAYBACK_VOLUME_MIXER8;
-        return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_put_analog_front(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 0;
-	int reg = PLAYBACK_VOLUME_MIXER9;
-        return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_put_analog_center_lfe(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 1;
-	int reg = PLAYBACK_VOLUME_MIXER9;
-        return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_put_analog_rear(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 1;
-	int reg = PLAYBACK_VOLUME_MIXER10;
-        return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
-}
-
-static int snd_p16v_volume_put_analog_unknown(struct snd_kcontrol *kcontrol,
-                                       struct snd_ctl_elem_value *ucontrol)
-{
-	int high_low = 0;
-	int reg = PLAYBACK_VOLUME_MIXER10;
-        return snd_p16v_volume_put(kcontrol, ucontrol, reg, high_low);
-}
-
-static struct snd_kcontrol_new snd_p16v_volume_control_analog_front =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD Analog Front Playback Volume",
-        .info =         snd_p16v_volume_info,
-        .get =          snd_p16v_volume_get_analog_front,
-        .put =          snd_p16v_volume_put_analog_front
-};
-
-static struct snd_kcontrol_new snd_p16v_volume_control_analog_center_lfe =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD Analog Center/LFE Playback Volume",
-        .info =         snd_p16v_volume_info,
-        .get =          snd_p16v_volume_get_analog_center_lfe,
-        .put =          snd_p16v_volume_put_analog_center_lfe
-};
-
-static struct snd_kcontrol_new snd_p16v_volume_control_analog_unknown =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD Analog Unknown Playback Volume",
-        .info =         snd_p16v_volume_info,
-        .get =          snd_p16v_volume_get_analog_unknown,
-        .put =          snd_p16v_volume_put_analog_unknown
-};
-
-static struct snd_kcontrol_new snd_p16v_volume_control_analog_rear =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD Analog Rear Playback Volume",
-        .info =         snd_p16v_volume_info,
-        .get =          snd_p16v_volume_get_analog_rear,
-        .put =          snd_p16v_volume_put_analog_rear
-};
-
-static struct snd_kcontrol_new snd_p16v_volume_control_spdif_front =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD SPDIF Front Playback Volume",
-        .info =         snd_p16v_volume_info,
-        .get =          snd_p16v_volume_get_spdif_front,
-        .put =          snd_p16v_volume_put_spdif_front
-};
-
-static struct snd_kcontrol_new snd_p16v_volume_control_spdif_center_lfe =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD SPDIF Center/LFE Playback Volume",
-        .info =         snd_p16v_volume_info,
-        .get =          snd_p16v_volume_get_spdif_center_lfe,
-        .put =          snd_p16v_volume_put_spdif_center_lfe
-};
-
-static struct snd_kcontrol_new snd_p16v_volume_control_spdif_unknown =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD SPDIF Unknown Playback Volume",
-        .info =         snd_p16v_volume_info,
-        .get =          snd_p16v_volume_get_spdif_unknown,
-        .put =          snd_p16v_volume_put_spdif_unknown
-};
-
-static struct snd_kcontrol_new snd_p16v_volume_control_spdif_rear =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "HD SPDIF Rear Playback Volume",
-        .info =         snd_p16v_volume_info,
-        .get =          snd_p16v_volume_get_spdif_rear,
-        .put =          snd_p16v_volume_put_spdif_rear
-};
-
-static int snd_p16v_capture_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
-{
-	static char *texts[8] = { "SPDIF", "I2S", "SRC48", "SRCMulti_SPDIF", "SRCMulti_I2S", "CDIF", "FX", "AC97" };
+	static char *texts[8] = {
+		"SPDIF", "I2S", "SRC48", "SRCMulti_SPDIF", "SRCMulti_I2S",
+		"CDIF", "FX", "AC97"
+	};
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -927,16 +744,8 @@ static int snd_p16v_capture_source_put(struct snd_kcontrol *kcontrol,
         return change;
 }
 
-static struct snd_kcontrol_new snd_p16v_capture_source __devinitdata =
-{
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =		"HD source Capture",
-	.info =		snd_p16v_capture_source_info,
-	.get =		snd_p16v_capture_source_get,
-	.put =		snd_p16v_capture_source_put
-};
-
-static int snd_p16v_capture_channel_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+static int snd_p16v_capture_channel_info(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[4] = { "0", "1", "2", "3",  };
 
@@ -976,60 +785,50 @@ static int snd_p16v_capture_channel_put(struct snd_kcontrol *kcontrol,
         return change;
 }
 
-static struct snd_kcontrol_new snd_p16v_capture_channel __devinitdata =
-{
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =		"HD channel Capture",
-	.info =		snd_p16v_capture_channel_info,
-	.get =		snd_p16v_capture_channel_get,
-	.put =		snd_p16v_capture_channel_put
+#define P16V_VOL(xname,xreg,xhl) { \
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_p16v_volume_info, \
+	.get = snd_p16v_volume_get, \
+	.put = snd_p16v_volume_put, \
+	.private_value = ((xreg) | ((xhl) << 8)) \
+}
+
+static struct snd_kcontrol_new p16v_mixer_controls[] __devinitdata = {
+	P16V_VOL("HD Analog Front Playback Volume", PLAYBACK_VOLUME_MIXER9, 0),
+	P16V_VOL("HD Analog Rear Playback Volume", PLAYBACK_VOLUME_MIXER10, 1),
+	P16V_VOL("HD Analog Center/LFE Playback Volume", PLAYBACK_VOLUME_MIXER9, 1),
+	P16V_VOL("HD Analog Side Playback Volume", PLAYBACK_VOLUME_MIXER10, 0),
+	P16V_VOL("HD SPDIF Front Playback Volume", PLAYBACK_VOLUME_MIXER7, 0),
+	P16V_VOL("HD SPDIF Rear Playback Volume", PLAYBACK_VOLUME_MIXER8, 1),
+	P16V_VOL("HD SPDIF Center/LFE Playback Volume", PLAYBACK_VOLUME_MIXER7, 1),
+	P16V_VOL("HD SPDIF Side Playback Volume", PLAYBACK_VOLUME_MIXER8, 0),
+	{
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name =		"HD source Capture",
+		.info =		snd_p16v_capture_source_info,
+		.get =		snd_p16v_capture_source_get,
+		.put =		snd_p16v_capture_source_put
+	},
+	{
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name =		"HD channel Capture",
+		.info =		snd_p16v_capture_channel_info,
+		.get =		snd_p16v_capture_channel_get,
+		.put =		snd_p16v_capture_channel_put
+	},
 };
 
-int snd_p16v_mixer(struct snd_emu10k1 *emu)
+
+int __devinit snd_p16v_mixer(struct snd_emu10k1 *emu)
 {
-        int err;
-        struct snd_kcontrol *kctl;
+	int i, err;
         struct snd_card *card = emu->card;
-        if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_analog_front, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_analog_rear, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_analog_center_lfe, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_analog_unknown, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_spdif_front, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_spdif_rear, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_spdif_center_lfe, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_volume_control_spdif_unknown, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_capture_source, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_p16v_capture_channel, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
+
+	for (i = 0; i < ARRAY_SIZE(p16v_mixer_controls); i++) {
+		if ((err = snd_ctl_add(card, snd_ctl_new1(&p16v_mixer_controls[i],
+							  emu))) < 0)
+			return err;
+	}
         return 0;
 }
 
