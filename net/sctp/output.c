@@ -234,8 +234,8 @@ sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *packet,
 		goto finish;
 
 	pmtu  = ((packet->transport->asoc) ?
-		 (packet->transport->asoc->pmtu) :
-		 (packet->transport->pmtu));
+		 (packet->transport->asoc->pathmtu) :
+		 (packet->transport->pathmtu));
 
 	too_big = (psize + chunk_len > pmtu);
 
@@ -482,7 +482,9 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	if (!dst || (dst->obsolete > 1)) {
 		dst_release(dst);
 		sctp_transport_route(tp, NULL, sctp_sk(sk));
-		sctp_assoc_sync_pmtu(asoc);
+		if (asoc->param_flags & SPP_PMTUD_ENABLE) {
+			sctp_assoc_sync_pmtu(asoc);
+		}
 	}
 
 	nskb->dst = dst_clone(tp->dst);
@@ -492,7 +494,10 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	SCTP_DEBUG_PRINTK("***sctp_transmit_packet*** skb len %d\n",
 			  nskb->len);
 
-	(*tp->af_specific->sctp_xmit)(nskb, tp, packet->ipfragok);
+	if (tp->param_flags & SPP_PMTUD_ENABLE)
+		(*tp->af_specific->sctp_xmit)(nskb, tp, packet->ipfragok);
+	else
+		(*tp->af_specific->sctp_xmit)(nskb, tp, 1);
 
 out:
 	packet->size = packet->overhead;
@@ -577,7 +582,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 	 * 	if ((flightsize + Max.Burst * MTU) < cwnd)
 	 *		cwnd = flightsize + Max.Burst * MTU
 	 */
-	max_burst_bytes = asoc->max_burst * asoc->pmtu;
+	max_burst_bytes = asoc->max_burst * asoc->pathmtu;
 	if ((transport->flight_size + max_burst_bytes) < transport->cwnd) {
 		transport->cwnd = transport->flight_size + max_burst_bytes;
 		SCTP_DEBUG_PRINTK("%s: cwnd limited by max_burst: "
@@ -622,7 +627,7 @@ static sctp_xmit_t sctp_packet_append_data(struct sctp_packet *packet,
 		 * data will fit or delay in hopes of bundling a full
 		 * sized packet.
 		 */
-		if (len < asoc->pmtu - packet->overhead) {
+		if (len < asoc->pathmtu - packet->overhead) {
 			retval = SCTP_XMIT_NAGLE_DELAY;
 			goto finish;
 		}
