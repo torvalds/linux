@@ -2036,7 +2036,7 @@ int sock_unregister(int family)
 	return 0;
 }
 
-void __init sock_init(void)
+static int __init sock_init(void)
 {
 	/*
 	 *	Initialize sock SLAB cache.
@@ -2044,12 +2044,10 @@ void __init sock_init(void)
 	 
 	sk_init();
 
-#ifdef SLAB_SKB
 	/*
 	 *	Initialize skbuff SLAB cache 
 	 */
 	skb_init();
-#endif
 
 	/*
 	 *	Initialize the protocols module. 
@@ -2058,14 +2056,16 @@ void __init sock_init(void)
 	init_inodecache();
 	register_filesystem(&sock_fs_type);
 	sock_mnt = kern_mount(&sock_fs_type);
-	/* The real protocol initialization is performed when
-	 *  do_initcalls is run.  
+
+	/* The real protocol initialization is performed in later initcalls.
 	 */
 
 #ifdef CONFIG_NETFILTER
 	netfilter_init();
 #endif
 }
+
+core_initcall(sock_init);	/* early initcall */
 
 #ifdef CONFIG_PROC_FS
 void socket_seq_show(struct seq_file *seq)

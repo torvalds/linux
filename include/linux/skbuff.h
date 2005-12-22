@@ -32,7 +32,6 @@
 
 #define HAVE_ALLOC_SKB		/* For the drivers to know */
 #define HAVE_ALIGNABLE_SKB	/* Ditto 8)		   */
-#define SLAB_SKB 		/* Slabified skbuffs 	   */
 
 #define CHECKSUM_NONE 0
 #define CHECKSUM_HW 1
