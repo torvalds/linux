@@ -192,20 +192,23 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	iface->condition = USB_INTERFACE_UNBOUND;
 	mark_quiesced(iface);
 }
+struct find_interface_arg {
+	int minor;
+	struct usb_interface *interface;
+};
 
 static int __find_interface(struct device * dev, void * data)
 {
-	struct usb_interface ** ret = (struct usb_interface **)data;
-	struct usb_interface * intf = *ret;
-	int *minor = (int *)data;
+	struct find_interface_arg *arg = data;
+	struct usb_interface *intf;
 
 	/* can't look at usb devices, only interfaces */
 	if (dev->driver == &usb_generic_driver)
 		return 0;
 
 	intf = to_usb_interface(dev);
-	if (intf->minor != -1 && intf->minor == *minor) {
-		*ret = intf;
+	if (intf->minor != -1 && intf->minor == arg->minor) {
+		arg->interface = intf;
 		return 1;
 	}
 	return 0;
@@ -222,12 +225,12 @@ static int __find_interface(struct device * dev, void * data)
  */
 struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 {
-	struct usb_interface *intf = (struct usb_interface *)(long)minor;
-	int ret;
+	struct find_interface_arg argb;
 
-	ret = driver_for_each_device(&drv->driver, NULL, &intf, __find_interface);
-
-	return ret ? intf : NULL;
+	argb.minor = minor;
+	argb.interface = NULL;
+	driver_for_each_device(&drv->driver, NULL, &argb, __find_interface);
+	return argb.interface;
 }
 
 #ifdef	CONFIG_HOTPLUG
