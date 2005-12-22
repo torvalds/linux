@@ -987,9 +987,21 @@ static int __init asus_hotk_get_info(void)
 		printk(KERN_NOTICE "  BSTS called, 0x%02x returned\n",
 		       bsts_result);
 
-	/* Samsung P30 has a device with a valid _HID whose INIT does not 
-	 * return anything. Catch this one and any similar here */
-	if (buffer.pointer == NULL) {
+	/* This is unlikely with implicit return */
+	if (buffer.pointer == NULL)
+		return -EINVAL;
+
+	model = (union acpi_object *) buffer.pointer;
+	/*
+	 * Samsung P30 has a device with a valid _HID whose INIT does not 
+	 * return anything. It used to be possible to catch this exception,
+	 * but the implicit return code will now happily confuse the 
+	 * driver. We assume that every ACPI_TYPE_STRING is a valid model
+	 * identifier but it's still possible to get completely bogus data.
+	 */
+	if (model->type == ACPI_TYPE_STRING) {
+		printk(KERN_NOTICE "  %s model detected, ", model->string.pointer);
+	} else {
 		if (asus_info &&	/* Samsung P30 */
 		    strncmp(asus_info->oem_table_id, "ODEM", 4) == 0) {
 			hotk->model = P30;
@@ -1002,13 +1014,10 @@ static int __init asus_hotk_get_info(void)
 			       "the developers with your DSDT\n");
 		}
 		hotk->methods = &model_conf[hotk->model];
-		return AE_OK;
-	}
+		
+		acpi_os_free(model);
 
-	model = (union acpi_object *)buffer.pointer;
-	if (model->type == ACPI_TYPE_STRING) {
-		printk(KERN_NOTICE "  %s model detected, ",
-		       model->string.pointer);
+		return AE_OK;
 	}
 
 	hotk->model = END_MODEL;
