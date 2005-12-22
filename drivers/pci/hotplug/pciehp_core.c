@@ -512,7 +512,7 @@ static void __exit unload_pciehpd(void)
 
 }
 
-int hpdriver_context = 0;
+static int hpdriver_context = 0;
 
 static void pciehp_remove (struct pcie_device *device)
 {
