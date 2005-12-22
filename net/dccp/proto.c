@@ -680,7 +680,7 @@ void dccp_shutdown(struct sock *sk, int how)
 
 EXPORT_SYMBOL_GPL(dccp_shutdown);
 
-static struct proto_ops inet_dccp_ops = {
+static const struct proto_ops inet_dccp_ops = {
 	.family		= PF_INET,
 	.owner		= THIS_MODULE,
 	.release	= inet_release,

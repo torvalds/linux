@@ -829,7 +829,7 @@ static struct notifier_block sctp_inetaddr_notifier = {
 };
 
 /* Socket operations.  */
-static struct proto_ops inet_seqpacket_ops = {
+static const struct proto_ops inet_seqpacket_ops = {
 	.family      = PF_INET,
 	.owner       = THIS_MODULE,
 	.release     = inet_release,       /* Needs to be wrapped... */

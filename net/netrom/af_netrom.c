@@ -63,7 +63,7 @@ static unsigned short circuit = 0x101;
 static HLIST_HEAD(nr_list);
 static DEFINE_SPINLOCK(nr_list_lock);
 
-static struct proto_ops nr_proto_ops;
+static const struct proto_ops nr_proto_ops;
 
 /*
  *	Socket removal during an interrupt is now safe.
@@ -1337,7 +1337,7 @@ static struct net_proto_family nr_family_ops = {
 	.owner		=	THIS_MODULE,
 };
 
-static struct proto_ops nr_proto_ops = {
+static const struct proto_ops nr_proto_ops = {
 	.family		=	PF_NETROM,
 	.owner		=	THIS_MODULE,
 	.release	=	nr_release,

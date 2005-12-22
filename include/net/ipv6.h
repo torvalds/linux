@@ -538,8 +538,8 @@ extern int sysctl_ip6frag_low_thresh;
 extern int sysctl_ip6frag_time;
 extern int sysctl_ip6frag_secret_interval;
 
-extern struct proto_ops inet6_stream_ops;
-extern struct proto_ops inet6_dgram_ops;
+extern const struct proto_ops inet6_stream_ops;
+extern const struct proto_ops inet6_dgram_ops;
 
 extern int ip6_mc_source(int add, int omode, struct sock *sk,
 			 struct group_source_req *pgsr);

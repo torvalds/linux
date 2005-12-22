@@ -113,7 +113,7 @@ static __inline__ void pfkey_unlock_table(void)
 }
 
 
-static struct proto_ops pfkey_ops;
+static const struct proto_ops pfkey_ops;
 
 static void pfkey_insert(struct sock *sk)
 {
@@ -3127,7 +3127,7 @@ out:
 	return err;
 }
 
-static struct proto_ops pfkey_ops = {
+static const struct proto_ops pfkey_ops = {
 	.family		=	PF_KEY,
 	.owner		=	THIS_MODULE,
 	/* Operations that make no sense on pfkey sockets. */

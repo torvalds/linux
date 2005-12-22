@@ -57,7 +57,7 @@
 
 #define VERSION "2.8"
 
-static struct proto_ops l2cap_sock_ops;
+static const struct proto_ops l2cap_sock_ops;
 
 static struct bt_sock_list l2cap_sk_list = {
 	.lock = RW_LOCK_UNLOCKED
@@ -2161,7 +2161,7 @@ static ssize_t l2cap_sysfs_show(struct class *dev, char *buf)
 
 static CLASS_ATTR(l2cap, S_IRUGO, l2cap_sysfs_show, NULL);
 
-static struct proto_ops l2cap_sock_ops = {
+static const struct proto_ops l2cap_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= l2cap_sock_release,

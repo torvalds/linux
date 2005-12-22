@@ -63,7 +63,7 @@
 #include <linux/atalk.h>
 
 struct datalink_proto *ddp_dl, *aarp_dl;
-static struct proto_ops atalk_dgram_ops;
+static const struct proto_ops atalk_dgram_ops;
 
 /**************************************************************************\
 *                                                                          *
@@ -1841,7 +1841,7 @@ static struct net_proto_family atalk_family_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(atalk_dgram_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(atalk_dgram_ops) = {
 	.family		= PF_APPLETALK,
 	.owner		= THIS_MODULE,
 	.release	= atalk_release,

@@ -462,7 +462,7 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return(0);
 }
 
-struct proto_ops inet6_stream_ops = {
+const struct proto_ops inet6_stream_ops = {
 	.family =	PF_INET6,
 	.owner =	THIS_MODULE,
 	.release =	inet6_release,
@@ -483,7 +483,7 @@ struct proto_ops inet6_stream_ops = {
 	.sendpage =	tcp_sendpage
 };
 
-struct proto_ops inet6_dgram_ops = {
+const struct proto_ops inet6_dgram_ops = {
 	.family =	PF_INET6,
 	.owner =	THIS_MODULE,
 	.release =	inet6_release,
@@ -511,7 +511,7 @@ static struct net_proto_family inet6_family_ops = {
 };
 
 /* Same as inet6_dgram_ops, sans udp_poll.  */
-static struct proto_ops inet6_sockraw_ops = {
+static const struct proto_ops inet6_sockraw_ops = {
 	.family =	PF_INET6,
 	.owner =	THIS_MODULE,
 	.release =	inet6_release,

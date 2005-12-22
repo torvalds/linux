@@ -75,7 +75,7 @@ static struct datalink_proto *pEII_datalink;
 static struct datalink_proto *p8023_datalink;
 static struct datalink_proto *pSNAP_datalink;
 
-static struct proto_ops ipx_dgram_ops;
+static const struct proto_ops ipx_dgram_ops;
 
 LIST_HEAD(ipx_interfaces);
 DEFINE_SPINLOCK(ipx_interfaces_lock);
@@ -1901,7 +1901,7 @@ static struct net_proto_family ipx_family_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(ipx_dgram_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(ipx_dgram_ops) = {
 	.family		= PF_IPX,
 	.owner		= THIS_MODULE,
 	.release	= ipx_release,

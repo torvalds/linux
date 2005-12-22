@@ -56,7 +56,7 @@
 
 #define VERSION "0.5"
 
-static struct proto_ops sco_sock_ops;
+static const struct proto_ops sco_sock_ops;
 
 static struct bt_sock_list sco_sk_list = {
 	.lock = RW_LOCK_UNLOCKED
@@ -914,7 +914,7 @@ static ssize_t sco_sysfs_show(struct class *dev, char *buf)
 
 static CLASS_ATTR(sco, S_IRUGO, sco_sysfs_show, NULL);
 
-static struct proto_ops sco_sock_ops = {
+static const struct proto_ops sco_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= sco_sock_release,

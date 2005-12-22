@@ -36,7 +36,7 @@
 static u16 llc_ui_sap_last_autoport = LLC_SAP_DYN_START;
 static u16 llc_ui_sap_link_no_max[256];
 static struct sockaddr_llc llc_ui_addrnull;
-static struct proto_ops llc_ui_ops;
+static const struct proto_ops llc_ui_ops;
 
 static int llc_ui_wait_for_conn(struct sock *sk, long timeout);
 static int llc_ui_wait_for_disc(struct sock *sk, long timeout);
@@ -1098,7 +1098,7 @@ static struct net_proto_family llc_ui_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-static struct proto_ops llc_ui_ops = {
+static const struct proto_ops llc_ui_ops = {
 	.family	     = PF_LLC,
 	.owner       = THIS_MODULE,
 	.release     = llc_ui_release,

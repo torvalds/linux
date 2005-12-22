@@ -785,7 +785,7 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return err;
 }
 
-struct proto_ops inet_stream_ops = {
+const struct proto_ops inet_stream_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,
@@ -806,7 +806,7 @@ struct proto_ops inet_stream_ops = {
 	.sendpage =	tcp_sendpage
 };
 
-struct proto_ops inet_dgram_ops = {
+const struct proto_ops inet_dgram_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,
@@ -831,7 +831,7 @@ struct proto_ops inet_dgram_ops = {
  * For SOCK_RAW sockets; should be the same as inet_dgram_ops but without
  * udp_poll
  */
-static struct proto_ops inet_sockraw_ops = {
+static const struct proto_ops inet_sockraw_ops = {
 	.family =	PF_INET,
 	.owner =	THIS_MODULE,
 	.release =	inet_release,

@@ -65,7 +65,7 @@ struct inet_protosw {
 	int		 protocol; /* This is the L4 protocol number.  */
 
 	struct proto	 *prot;
-	struct proto_ops *ops;
+	const struct proto_ops *ops;
   
 	int              capability; /* Which (if any) capability do
 				      * we need to use this socket

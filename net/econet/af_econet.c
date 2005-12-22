@@ -45,7 +45,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-static struct proto_ops econet_ops;
+static const struct proto_ops econet_ops;
 static struct hlist_head econet_sklist;
 static DEFINE_RWLOCK(econet_lock);
 
@@ -698,7 +698,7 @@ static struct net_proto_family econet_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(econet_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(econet_ops) = {
 	.family =	PF_ECONET,
 	.owner =	THIS_MODULE,
 	.release =	econet_release,

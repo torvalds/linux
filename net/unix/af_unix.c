@@ -473,7 +473,7 @@ static int unix_dgram_connect(struct socket *, struct sockaddr *,
 static int unix_seqpacket_sendmsg(struct kiocb *, struct socket *,
 				  struct msghdr *, size_t);
 
-static struct proto_ops unix_stream_ops = {
+static const struct proto_ops unix_stream_ops = {
 	.family =	PF_UNIX,
 	.owner =	THIS_MODULE,
 	.release =	unix_release,
@@ -494,7 +494,7 @@ static struct proto_ops unix_stream_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
-static struct proto_ops unix_dgram_ops = {
+static const struct proto_ops unix_dgram_ops = {
 	.family =	PF_UNIX,
 	.owner =	THIS_MODULE,
 	.release =	unix_release,
@@ -515,7 +515,7 @@ static struct proto_ops unix_dgram_ops = {
 	.sendpage =	sock_no_sendpage,
 };
 
-static struct proto_ops unix_seqpacket_ops = {
+static const struct proto_ops unix_seqpacket_ops = {
 	.family =	PF_UNIX,
 	.owner =	THIS_MODULE,
 	.release =	unix_release,

@@ -149,7 +149,7 @@ static void dn_keepalive(struct sock *sk);
 #define DN_SK_HASH_MASK (DN_SK_HASH_SIZE - 1)
 
 
-static struct proto_ops dn_proto_ops;
+static const struct proto_ops dn_proto_ops;
 static DEFINE_RWLOCK(dn_hash_lock);
 static struct hlist_head dn_sk_hash[DN_SK_HASH_SIZE];
 static struct hlist_head dn_wild_sk;
@@ -2342,7 +2342,7 @@ static struct net_proto_family	dn_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct proto_ops dn_proto_ops = {
+static const struct proto_ops dn_proto_ops = {
 	.family =	AF_DECnet,
 	.owner =	THIS_MODULE,
 	.release =	dn_release,
