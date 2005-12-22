@@ -29,6 +29,8 @@
 
 #define BR_PORT_DEBOUNCE (HZ/10)
 
+#define BR_VERSION	"2.1"
+
 typedef struct bridge_id bridge_id;
 typedef struct mac_addr mac_addr;
 typedef __u16 port_id;
