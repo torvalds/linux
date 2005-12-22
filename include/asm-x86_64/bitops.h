@@ -340,6 +340,20 @@ static __inline__ unsigned long __ffs(unsigned long word)
 	return word;
 }
 
+/*
+ * __fls: find last bit set.
+ * @word: The word to search
+ *
+ * Undefined if no zero exists, so code should check against ~0UL first.
+ */
+static __inline__ unsigned long __fls(unsigned long word)
+{
+	__asm__("bsrq %1,%0"
+		:"=r" (word)
+		:"rm" (word));
+	return word;
+}
+
 #ifdef __KERNEL__
 
 static inline int sched_find_first_bit(const unsigned long *b)
@@ -367,6 +381,19 @@ static __inline__ int ffs(int x)
 		"cmovzl %2,%0" 
 		: "=r" (r) : "rm" (x), "r" (-1));
 	return r+1;
+}
+
+/**
+ * fls64 - find last bit set in 64 bit word
+ * @x: the word to search
+ *
+ * This is defined the same way as fls.
+ */
+static __inline__ int fls64(__u64 x)
+{
+	if (x == 0)
+		return 0;
+	return __fls(x) + 1;
 }
 
 /**
@@ -409,7 +436,6 @@ static __inline__ int ffs(int x)
 
 /* find last set bit */
 #define fls(x) generic_fls(x)
-#define fls64(x) generic_fls64(x)
 
 #endif /* __KERNEL__ */
 
