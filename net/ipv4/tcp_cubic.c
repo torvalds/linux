@@ -52,6 +52,7 @@ MODULE_PARM_DESC(bic_scale, "scale (scaled by 1024) value for bic function (bic_
 module_param(tcp_friendliness, int, 0644);
 MODULE_PARM_DESC(tcp_friendliness, "turn on/off tcp friendliness");
 
+#include <asm/div64.h>
 
 /* BIC TCP Parameters */
 struct bictcp {
@@ -93,67 +94,51 @@ static void bictcp_init(struct sock *sk)
 		tcp_sk(sk)->snd_ssthresh = initial_ssthresh;
 }
 
-/* 65536 times the cubic root */
-static const u64 cubic_table[8]
-	= {0, 65536, 82570, 94519, 104030, 112063, 119087, 125367};
+/* 64bit divisor, dividend and result. dynamic precision */
+static inline u_int64_t div64_64(u_int64_t dividend, u_int64_t divisor)
+{
+	u_int32_t d = divisor;
+
+	if (divisor > 0xffffffffULL) {
+		unsigned int shift = fls(divisor >> 32);
+
+		d = divisor >> shift;
+		dividend >>= shift;
+	}
+
+	/* avoid 64 bit division if possible */
+	if (dividend >> 32)
+		do_div(dividend, d);
+	else
+		dividend = (uint32_t) dividend / d;
+
+	return dividend;
+}
 
 /*
- * calculate the cubic root of x
- * the basic idea is that x can be expressed as i*8^j
- * so cubic_root(x) = cubic_root(i)*2^j
- *  in the following code, x is i, and y is 2^j
- *  because of integer calculation, there are errors in calculation
- *  so finally use binary search to find out the exact solution
+ * calculate the cubic root of x using Newton-Raphson
  */
-static u32 cubic_root(u64 x)
+static u32 cubic_root(u64 a)
 {
-        u64 y, app, target, start, end, mid, start_diff, end_diff;
+	u32 x, x1;
 
-        if (x == 0)
-                return 0;
+	/* Initial estimate is based on:
+	 * cbrt(x) = exp(log(x) / 3)
+	 */
+	x = 1u << (fls64(a)/3);
 
-        target = x;
+	/*
+	 * Iteration based on:
+	 *                         2
+	 * x    = ( 2 * x  +  a / x  ) / 3
+	 *  k+1          k         k
+	 */
+	do {
+		x1 = x;
+		x = (2 * x + (uint32_t) div64_64(a, x*x)) / 3;
+	} while (abs(x1 - x) > 1);
 
-        /* first estimate lower and upper bound */
-        y = 1;
-        while (x >= 8){
-                x = (x >> 3);
-                y = (y << 1);
-        }
-        start = (y*cubic_table[x])>>16;
-        if (x==7)
-                end = (y<<1);
-        else
-                end = (y*cubic_table[x+1]+65535)>>16;
-
-        /* binary search for more accurate one */
-        while (start < end-1) {
-                mid = (start+end) >> 1;
-                app = mid*mid*mid;
-                if (app < target)
-                        start = mid;
-                else if (app > target)
-                        end = mid;
-                else
-                        return mid;
-        }
-
-        /* find the most accurate one from start and end */
-        app = start*start*start;
-        if (app < target)
-                start_diff = target - app;
-        else
-                start_diff = app - target;
-        app = end*end*end;
-        if (app < target)
-                end_diff = target - app;
-        else
-                end_diff = app - target;
-
-        if (start_diff < end_diff)
-                return (u32)start;
-        else
-                return (u32)end;
+	return x;
 }
 
 /*
