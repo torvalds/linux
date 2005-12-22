@@ -2063,6 +2063,8 @@ static int __init sock_init(void)
 #ifdef CONFIG_NETFILTER
 	netfilter_init();
 #endif
+
+	return 0;
 }
 
 core_initcall(sock_init);	/* early initcall */
