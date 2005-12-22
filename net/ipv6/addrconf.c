@@ -634,8 +634,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 	}
 #endif
 
-	for (ifap = &idev->addr_list; (ifa=*ifap) != NULL;
-	     ifap = &ifa->if_next) {
+	for (ifap = &idev->addr_list; (ifa=*ifap) != NULL;) {
 		if (ifa == ifp) {
 			*ifap = ifa->if_next;
 			__in6_ifa_put(ifp);
@@ -643,6 +642,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 			if (!(ifp->flags & IFA_F_PERMANENT) || onlink > 0)
 				break;
 			deleted = 1;
+			continue;
 		} else if (ifp->flags & IFA_F_PERMANENT) {
 			if (ipv6_prefix_equal(&ifa->addr, &ifp->addr,
 					      ifp->prefix_len)) {
@@ -666,6 +666,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 				}
 			}
 		}
+		ifap = &ifa->if_next;
 	}
 	write_unlock_bh(&idev->lock);
 
