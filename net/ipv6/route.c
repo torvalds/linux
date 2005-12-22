@@ -413,11 +413,14 @@ static struct rt6_info *rt6_cow(struct rt6_info *ort, struct in6_addr *daddr,
 	rt = ip6_rt_copy(ort);
 
 	if (rt) {
-		ipv6_addr_copy(&rt->rt6i_dst.addr, daddr);
-
-		if (!(rt->rt6i_flags&RTF_GATEWAY))
+		if (!(rt->rt6i_flags&RTF_GATEWAY)) {
+			if (rt->rt6i_dst.plen != 128 &&
+			    ipv6_addr_equal(&rt->rt6i_dst.addr, daddr))
+				rt->rt6i_flags |= RTF_ANYCAST;
 			ipv6_addr_copy(&rt->rt6i_gateway, daddr);
+		}
 
+		ipv6_addr_copy(&rt->rt6i_dst.addr, daddr);
 		rt->rt6i_dst.plen = 128;
 		rt->rt6i_flags |= RTF_CACHE;
 		rt->u.dst.flags |= DST_HOST;
@@ -1413,7 +1416,9 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	rt->u.dst.obsolete = -1;
 
 	rt->rt6i_flags = RTF_UP | RTF_NONEXTHOP;
-	if (!anycast)
+	if (anycast)
+		rt->rt6i_flags |= RTF_ANYCAST;
+	else
 		rt->rt6i_flags |= RTF_LOCAL;
 	rt->rt6i_nexthop = ndisc_get_neigh(rt->rt6i_dev, &rt->rt6i_gateway);
 	if (rt->rt6i_nexthop == NULL) {
