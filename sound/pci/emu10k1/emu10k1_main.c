@@ -790,8 +790,17 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .spk71 = 1,
 	 .ac97_chip = 1} ,
 	/* Audigy 2 ZS Notebook Cardbus card.*/
-	/* Tested by James@superbug.co.uk 30th October 2005 */
-	/* Not working yet, but progressing. */
+	/* Tested by James@superbug.co.uk 22th December 2005 */
+	/* Audio output 7.1/Headphones working.
+	 * Digital output working. (AC3 not checked, only PCM)
+	 * Audio inputs not tested.
+	 */ 
+	/* DSP: Tiny2
+	 * DAC: Wolfson WM8768/WM8568
+	 * ADC: Wolfson WM8775
+	 * AC97: None
+	 * CA0151: None
+	 */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x20011102,
 	 .driver = "Audigy2", .name = "Audigy 2 ZS Notebook [SB0530]", 
 	 .id = "Audigy2",
