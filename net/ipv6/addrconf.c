@@ -2467,9 +2467,11 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 		return;
 	}
 
-	if (idev->if_flags & IF_READY)
+	if (idev->if_flags & IF_READY) {
 		addrconf_dad_kick(ifp);
-	else {
+		spin_unlock_bh(&ifp->lock);
+	} else {
+		spin_unlock_bh(&ifp->lock);
 		/*
 		 * If the defice is not ready:
 		 * - keep it tentative if it is a permanent address.
@@ -2478,8 +2480,6 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 		in6_ifa_hold(ifp);
 		addrconf_dad_stop(ifp);
 	}
-
-	spin_unlock_bh(&ifp->lock);
 out:
 	read_unlock_bh(&idev->lock);
 }
