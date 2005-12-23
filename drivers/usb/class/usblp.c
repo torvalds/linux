@@ -850,6 +850,20 @@ static struct usb_class_driver usblp_class = {
 	.minor_base =	USBLP_MINOR_BASE,
 };
 
+static ssize_t usblp_show_ieee1284_id(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usblp *usblp = usb_get_intfdata (intf);
+
+	if (usblp->device_id_string[0] == 0 &&
+	    usblp->device_id_string[1] == 0)
+		return 0;
+
+	return sprintf(buf, "%s", usblp->device_id_string+2);
+}
+
+static DEVICE_ATTR(ieee1284_id, S_IRUGO, usblp_show_ieee1284_id, NULL);
+
 static int usblp_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
@@ -934,19 +948,11 @@ static int usblp_probe(struct usb_interface *intf,
 
 	/* Retrieve and store the device ID string. */
 	usblp_cache_device_id_string(usblp);
+	device_create_file(&intf->dev, &dev_attr_ieee1284_id);
 
 #ifdef DEBUG
 	usblp_check_status(usblp, 0);
 #endif
-
-	info("usblp%d: USB %sdirectional printer dev %d "
-		"if %d alt %d proto %d vid 0x%4.4X pid 0x%4.4X",
-		usblp->minor, usblp->bidir ? "Bi" : "Uni", dev->devnum,
-		usblp->ifnum,
-		usblp->protocol[usblp->current_protocol].alt_setting,
-		usblp->current_protocol,
-		le16_to_cpu(usblp->dev->descriptor.idVendor),
-		le16_to_cpu(usblp->dev->descriptor.idProduct));
 
 	usb_set_intfdata (intf, usblp);
 
@@ -958,11 +964,20 @@ static int usblp_probe(struct usb_interface *intf,
 		goto abort_intfdata;
 	}
 	usblp->minor = intf->minor;
+	info("usblp%d: USB %sdirectional printer dev %d "
+		"if %d alt %d proto %d vid 0x%4.4X pid 0x%4.4X",
+		usblp->minor, usblp->bidir ? "Bi" : "Uni", dev->devnum,
+		usblp->ifnum,
+		usblp->protocol[usblp->current_protocol].alt_setting,
+		usblp->current_protocol,
+		le16_to_cpu(usblp->dev->descriptor.idVendor),
+		le16_to_cpu(usblp->dev->descriptor.idProduct));
 
 	return 0;
 
 abort_intfdata:
 	usb_set_intfdata (intf, NULL);
+	device_remove_file(&intf->dev, &dev_attr_ieee1284_id);
 abort:
 	if (usblp) {
 		if (usblp->writebuf)
@@ -1156,6 +1171,8 @@ static void usblp_disconnect(struct usb_interface *intf)
 		err("bogus disconnect");
 		BUG ();
 	}
+
+	device_remove_file(&intf->dev, &dev_attr_ieee1284_id);
 
 	down (&usblp_sem);
 	down (&usblp->sem);
