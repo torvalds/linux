@@ -166,7 +166,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	int retval = 0;
 	struct urb *urb = NULL;
 	char *buf = NULL;
-	size_t writesize = min(count, MAX_TRANSFER);
+	size_t writesize = min(count, (size_t)MAX_TRANSFER);
 
 	dev = (struct usb_skel *)file->private_data;
 
@@ -175,7 +175,10 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 		goto exit;
 
 	/* limit the number of URBs in flight to stop a user from using up all RAM */
-	down (&dev->limit_sem);
+	if (down_interruptible(&dev->limit_sem)) {
+		retval = -ERESTARTSYS;
+		goto exit;
+	}
 
 	/* create a urb, and a buffer for it, and copy the data to the urb */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
