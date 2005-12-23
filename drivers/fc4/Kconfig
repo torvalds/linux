@@ -26,7 +26,7 @@ comment "FC4 drivers"
 
 config FC4_SOC
 	tristate "Sun SOC/Sbus"
-	depends on FC4!=n && (SPARC32 || SPARC64)
+	depends on FC4!=n && SPARC
 	help
 	  Serial Optical Channel is an interface card with one or two Fibre
 	  Optic ports, each of which can be connected to a disk array. Note
@@ -38,7 +38,7 @@ config FC4_SOC
 
 config FC4_SOCAL
 	tristate "Sun SOC+ (aka SOCAL)"
-	depends on FC4!=n && (SPARC32 || SPARC64)
+	depends on FC4!=n && SPARC
 	---help---
 	  Serial Optical Channel Plus is an interface card with up to two
 	  Fibre Optic ports. This card supports FC Arbitrated Loop (usually
@@ -62,7 +62,7 @@ config SCSI_PLUTO
 	  be called pluto.
 
 config SCSI_FCAL
-	tristate "Sun Enterprise Network Array (A5000 and EX500)" if SPARC32 || SPARC64
+	tristate "Sun Enterprise Network Array (A5000 and EX500)" if SPARC
 	depends on FC4!=n && SCSI
 	help
 	  This driver drives FC-AL disks connected through a Fibre Channel
@@ -75,7 +75,7 @@ config SCSI_FCAL
 
 config SCSI_FCAL
 	prompt "Generic FC-AL disk driver"
-	depends on FC4!=n && SCSI && !SPARC32 && !SPARC64
+	depends on FC4!=n && SCSI && !SPARC
 
 endmenu
 
