@@ -92,7 +92,8 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	cnodeid_t near_cnode;
 	struct hubdev_info *hubdev_info;
 	struct pcibus_info *soft;
-	struct sn_flush_device_list *sn_flush_device_list;
+	struct sn_flush_device_kernel *sn_flush_device_kernel;
+	struct sn_flush_device_common *common;
 
 	if (! IS_PCI_BRIDGE_ASIC(prom_bussoft->bs_asic_type)) {
 		return NULL;
@@ -137,20 +138,19 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	hubdev_info = (struct hubdev_info *)(NODEPDA(cnode)->pdinfo);
 
 	if (hubdev_info->hdi_flush_nasid_list.widget_p) {
-		sn_flush_device_list = hubdev_info->hdi_flush_nasid_list.
+		sn_flush_device_kernel = hubdev_info->hdi_flush_nasid_list.
 		    widget_p[(int)soft->pbi_buscommon.bs_xid];
-		if (sn_flush_device_list) {
+		if (sn_flush_device_kernel) {
 			for (j = 0; j < DEV_PER_WIDGET;
-			     j++, sn_flush_device_list++) {
-				if (sn_flush_device_list->sfdl_slot == -1)
+			     j++, sn_flush_device_kernel++) {
+				common = sn_flush_device_kernel->common;
+				if (common->sfdl_slot == -1)
 					continue;
-				if ((sn_flush_device_list->
-				     sfdl_persistent_segment ==
+				if ((common->sfdl_persistent_segment ==
 				     soft->pbi_buscommon.bs_persist_segment) &&
-				     (sn_flush_device_list->
-				     sfdl_persistent_busnum ==
+				     (common->sfdl_persistent_busnum ==
 				     soft->pbi_buscommon.bs_persist_busnum))
-					sn_flush_device_list->sfdl_pcibus_info =
+					common->sfdl_pcibus_info =
 					    soft;
 			}
 		}
