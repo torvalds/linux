@@ -894,7 +894,7 @@ asmlinkage long sunos_sysconf (int name)
 		ret = ARG_MAX;
 		break;
 	case _SC_CHILD_MAX:
-		ret = CHILD_MAX;
+		ret = -1; /* no limit */
 		break;
 	case _SC_CLK_TCK:
 		ret = HZ;
