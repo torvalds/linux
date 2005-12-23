@@ -24,6 +24,7 @@
 #define IF_RA_MANAGED	0x40
 #define IF_RA_RCVD	0x20
 #define IF_RS_SENT	0x10
+#define IF_READY	0x80000000
 
 /* prefix flags */
 #define IF_PREFIX_ONLINK	0x01
