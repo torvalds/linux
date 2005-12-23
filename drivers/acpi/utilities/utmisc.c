@@ -87,7 +87,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	for (i = 0; i < 64; i++) {
 		if (!(acpi_gbl_owner_id_mask & (1ULL << i))) {
 			ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
-					  "Current owner_id mask: %16.16lX New ID: %2.2X\n",
+					  "Current owner_id mask: %16.16LX New ID: %2.2X\n",
 					  acpi_gbl_owner_id_mask,
 					  (unsigned int)(i + 1)));
 
