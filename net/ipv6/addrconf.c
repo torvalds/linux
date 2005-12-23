@@ -2782,6 +2782,9 @@ restart:
 						in6_ifa_hold(ifpub);
 						spin_unlock(&ifp->lock);
 						read_unlock(&addrconf_hash_lock);
+						spin_lock(&ifpub->lock);
+						ifpub->regen_count = 0;
+						spin_unlock(&ifpub->lock);
 						ipv6_create_tempaddr(ifpub, ifp);
 						in6_ifa_put(ifpub);
 						in6_ifa_put(ifp);
