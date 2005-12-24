@@ -441,7 +441,7 @@ static int arcfb_ioctl(struct inode *inode, struct file *file,
  * the fb. it's inefficient for them to do anything less than 64*8
  * writes since we update the lcd in each write() anyway.
  */
-static ssize_t arcfb_write(struct file *file, const char *buf, size_t count,
+static ssize_t arcfb_write(struct file *file, const char __user *buf, size_t count,
 				loff_t *ppos)
 {
 	/* modded from epson 1355 */

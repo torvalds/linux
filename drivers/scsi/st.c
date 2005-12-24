@@ -4194,27 +4194,10 @@ static void st_intr(struct scsi_cmnd *SCpnt)
  */
 static int st_init_command(struct scsi_cmnd *SCpnt)
 {
-	struct request *rq;
-
 	if (!(SCpnt->request->flags & REQ_BLOCK_PC))
 		return 0;
 
-	rq = SCpnt->request;
-	if (sizeof(rq->cmd) > sizeof(SCpnt->cmnd))
-		return 0;
-
-	memcpy(SCpnt->cmnd, rq->cmd, sizeof(SCpnt->cmnd));
-	SCpnt->cmd_len = rq->cmd_len;
-
-	if (rq_data_dir(rq) == WRITE)
-		SCpnt->sc_data_direction = DMA_TO_DEVICE;
-	else if (rq->data_len)
-		SCpnt->sc_data_direction = DMA_FROM_DEVICE;
-	else
-		SCpnt->sc_data_direction = DMA_NONE;
-
-	SCpnt->timeout_per_command = rq->timeout;
-	SCpnt->transfersize = rq->data_len;
+	scsi_setup_blk_pc_cmnd(SCpnt, 0);
 	SCpnt->done = st_intr;
 	return 1;
 }

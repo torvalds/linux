@@ -6,8 +6,12 @@
 #ifndef __SYSDEP_STUB_H
 #define __SYSDEP_STUB_H
 
+#include <sys/mman.h>
 #include <asm/unistd.h>
 #include <sysdep/ptrace_user.h>
+#include "stub-data.h"
+#include "kern_constants.h"
+#include "uml-config.h"
 
 extern void stub_segv_handler(int sig);
 extern void stub_clone_handler(void);
@@ -81,23 +85,23 @@ static inline long stub_syscall5(long syscall, long arg1, long arg2, long arg3,
 	return ret;
 }
 
-static inline long stub_syscall6(long syscall, long arg1, long arg2, long arg3,
-				 long arg4, long arg5, long arg6)
-{
-	long ret;
-
-	__asm__ volatile ("movq %5,%%r10 ; movq %6,%%r8 ; "
-		"movq %7, %%r9; " __syscall : "=a" (ret)
-		: "0" (syscall), "D" (arg1), "S" (arg2), "d" (arg3),
-		  "g" (arg4), "g" (arg5), "g" (arg6)
-		: __syscall_clobber, "r10", "r8", "r9" );
-
-	return ret;
-}
-
 static inline void trap_myself(void)
 {
 	__asm("int3");
+}
+
+static inline void remap_stack(long fd, unsigned long offset)
+{
+	__asm__ volatile ("movq %4,%%r10 ; movq %5,%%r8 ; "
+			  "movq %6, %%r9; " __syscall "; movq %7, %%rbx ; "
+			  "movq %%rax, (%%rbx)": 
+			  : "a" (STUB_MMAP_NR), "D" (UML_CONFIG_STUB_DATA), 
+			    "S" (UM_KERN_PAGE_SIZE), 
+			    "d" (PROT_READ | PROT_WRITE), 
+                            "g" (MAP_FIXED | MAP_SHARED), "g" (fd), 
+			    "g" (offset),
+			    "i" (&((struct stub_data *) UML_CONFIG_STUB_DATA)->err)
+			  : __syscall_clobber, "r10", "r8", "r9" );
 }
 
 #endif

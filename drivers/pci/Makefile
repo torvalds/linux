@@ -6,6 +6,9 @@ obj-y		+= access.o bus.o probe.o remove.o pci.o quirks.o \
 			pci-driver.o search.o pci-sysfs.o rom.o setup-res.o
 obj-$(CONFIG_PROC_FS) += proc.o
 
+# Build PCI Express stuff if needed
+obj-$(CONFIG_PCIEPORTBUS) += pcie/
+
 obj-$(CONFIG_HOTPLUG) += hotplug.o
 
 # Build the PCI Hotplug drivers if we were asked to
@@ -40,7 +43,3 @@ endif
 ifeq ($(CONFIG_PCI_DEBUG),y)
 EXTRA_CFLAGS += -DDEBUG
 endif
-
-# Build PCI Express stuff if needed
-obj-$(CONFIG_PCIEPORTBUS) += pcie/
-
