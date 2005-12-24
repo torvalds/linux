@@ -79,6 +79,10 @@ enum inode_flags {
  * On-Disk datastructures of BeFS
  */
 
+typedef u64 __bitwise fs64;
+typedef u32 __bitwise fs32;
+typedef u16 __bitwise fs16;
+
 typedef u64 befs_off_t;
 typedef u64 befs_time_t;
 
