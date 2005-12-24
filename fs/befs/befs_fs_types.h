@@ -81,7 +81,6 @@ enum inode_flags {
 
 typedef u64 befs_off_t;
 typedef u64 befs_time_t;
-typedef void befs_binode_etc;
 
 /* Block runs */
 typedef struct {
