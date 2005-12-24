@@ -124,7 +124,7 @@ befs_dump_inode(const struct super_block *sb, befs_inode * inode)
 	befs_debug(sb, "  type %08x", fs32_to_cpu(sb, inode->type));
 	befs_debug(sb, "  inode_size %u", fs32_to_cpu(sb, inode->inode_size));
 
-	if (S_ISLNK(inode->mode)) {
+	if (S_ISLNK(fs32_to_cpu(sb, inode->mode))) {
 		befs_debug(sb, "  Symbolic link [%s]", inode->data.symlink);
 	} else {
 		int i;
