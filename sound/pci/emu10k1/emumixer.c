@@ -866,7 +866,17 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		c = emu10k1_rename_ctls;
 	for (; *c; c += 2)
 		rename_ctl(card, c[0], c[1]);
-
+	if (emu->card_capabilities->subsystem == 0x20071102) {  /* Audigy 4 Pro */
+		rename_ctl(card, "Line2 Capture Volume", "Line1/Mic Capture Volume");
+		rename_ctl(card, "Analog Mix Capture Volume", "Line2 Capture Volume");
+		rename_ctl(card, "Aux2 Capture Volume", "Line3 Capture Volume");
+		rename_ctl(card, "Mic Capture Volume", "Unknown1 Capture Volume");
+		remove_ctl(card, "Headphone Playback Switch");
+		remove_ctl(card, "Headphone Playback Volume");
+		remove_ctl(card, "3D Control - Center");
+		remove_ctl(card, "3D Control - Depth");
+		remove_ctl(card, "3D Control - Switch");
+	}
 	if ((kctl = emu->ctl_send_routing = snd_ctl_new1(&snd_emu10k1_send_routing_control, emu)) == NULL)
 		return -ENOMEM;
 	kctl->id.device = pcm_device;
