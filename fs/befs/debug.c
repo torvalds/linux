@@ -21,7 +21,6 @@
 #endif				/* __KERNEL__ */
 
 #include "befs.h"
-#include "endian.h"
 
 #define ERRBUFSIZE 1024
 

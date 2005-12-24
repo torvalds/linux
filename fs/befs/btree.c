@@ -30,7 +30,6 @@
 #include "befs.h"
 #include "btree.h"
 #include "datastream.h"
-#include "endian.h"
 
 /*
  * The btree functions in this file are built on top of the

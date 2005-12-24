@@ -151,4 +151,6 @@ befs_brun_size(struct super_block *sb, befs_block_run run)
 	return BEFS_SB(sb)->block_size * run.len;
 }
 
+#include "endian.h"
+
 #endif				/* _LINUX_BEFS_H */

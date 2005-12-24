@@ -18,7 +18,6 @@
 #include "befs.h"
 #include "datastream.h"
 #include "io.h"
-#include "endian.h"
 
 const befs_inode_addr BAD_IADDR = { 0, 0, 0 };
 
