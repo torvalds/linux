@@ -384,7 +384,7 @@ static int fat_fill_inode(struct inode *inode, struct msdos_dir_entry *de)
 				      le16_to_cpu(de->cdate)) + secs;
 		inode->i_ctime.tv_nsec = csecs * 10000000;
 		inode->i_atime.tv_sec =
-			date_dos2unix(le16_to_cpu(0), le16_to_cpu(de->adate));
+			date_dos2unix(0, le16_to_cpu(de->adate));
 		inode->i_atime.tv_nsec = 0;
 	} else
 		inode->i_ctime = inode->i_atime = inode->i_mtime;
