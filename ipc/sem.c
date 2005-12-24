@@ -381,7 +381,7 @@ static void update_queue (struct sem_array * sma)
 			/* hands-off: q will disappear immediately after
 			 * writing q->status.
 			 */
-			smb_wmb();
+			smp_wmb();
 			q->status = error;
 			q = n;
 		} else {
