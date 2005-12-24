@@ -68,26 +68,26 @@ cpu_to_fs16(const struct super_block *sb, u16 n)
 /* Composite types below here */
 
 static inline befs_block_run
-fsrun_to_cpu(const struct super_block *sb, befs_block_run n)
+fsrun_to_cpu(const struct super_block *sb, befs_disk_block_run n)
 {
 	befs_block_run run;
 
 	if (BEFS_SB(sb)->byte_order == BEFS_BYTESEX_LE) {
-		run.allocation_group = le32_to_cpu(n.allocation_group);
-		run.start = le16_to_cpu(n.start);
-		run.len = le16_to_cpu(n.len);
+		run.allocation_group = le32_to_cpu((__force __le32)n.allocation_group);
+		run.start = le16_to_cpu((__force __le16)n.start);
+		run.len = le16_to_cpu((__force __le16)n.len);
 	} else {
-		run.allocation_group = be32_to_cpu(n.allocation_group);
-		run.start = be16_to_cpu(n.start);
-		run.len = be16_to_cpu(n.len);
+		run.allocation_group = be32_to_cpu((__force __be32)n.allocation_group);
+		run.start = be16_to_cpu((__force __be16)n.start);
+		run.len = be16_to_cpu((__force __be16)n.len);
 	}
 	return run;
 }
 
-static inline befs_block_run
+static inline befs_disk_block_run
 cpu_to_fsrun(const struct super_block *sb, befs_block_run n)
 {
-	befs_block_run run;
+	befs_disk_block_run run;
 
 	if (BEFS_SB(sb)->byte_order == BEFS_BYTESEX_LE) {
 		run.allocation_group = cpu_to_le32(n.allocation_group);
@@ -102,7 +102,7 @@ cpu_to_fsrun(const struct super_block *sb, befs_block_run n)
 }
 
 static inline befs_data_stream
-fsds_to_cpu(const struct super_block *sb, befs_data_stream n)
+fsds_to_cpu(const struct super_block *sb, befs_disk_data_stream n)
 {
 	befs_data_stream data;
 	int i;

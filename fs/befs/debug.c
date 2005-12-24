@@ -230,21 +230,20 @@ befs_dump_small_data(const struct super_block *sb, befs_small_data * sd)
 
 /* unused */
 void
-befs_dump_run(const struct super_block *sb, befs_block_run run)
+befs_dump_run(const struct super_block *sb, befs_disk_block_run run)
 {
 #ifdef CONFIG_BEFS_DEBUG
 
-	run = fsrun_to_cpu(sb, run);
+	befs_block_run n = fsrun_to_cpu(sb, run);
 
-	befs_debug(sb, "[%u, %hu, %hu]",
-		   run.allocation_group, run.start, run.len);
+	befs_debug(sb, "[%u, %hu, %hu]", n.allocation_group, n.start, n.len);
 
 #endif				//CONFIG_BEFS_DEBUG
 }
 #endif  /*  0  */
 
 void
-befs_dump_index_entry(const struct super_block *sb, befs_btree_super * super)
+befs_dump_index_entry(const struct super_block *sb, befs_disk_btree_super * super)
 {
 #ifdef CONFIG_BEFS_DEBUG
 
