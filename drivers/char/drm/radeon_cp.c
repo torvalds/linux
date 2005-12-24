@@ -1311,7 +1311,7 @@ static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 
 static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 {
-	drm_radeon_private_t *dev_priv = dev->dev_private;;
+	drm_radeon_private_t *dev_priv = dev->dev_private;
 	unsigned int mem_size;
 
 	DRM_DEBUG("\n");
