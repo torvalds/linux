@@ -1844,8 +1844,7 @@ done:
 #else
 
 static inline int
-sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
-	unsigned mem_flags)
+sitd_submit (struct ehci_hcd *ehci, struct urb *urb, gfp_t mem_flags)
 {
 	ehci_dbg (ehci, "split iso support is disabled\n");
 	return -ENOSYS;
