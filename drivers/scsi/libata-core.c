@@ -3520,10 +3520,11 @@ static void ata_pio_error(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 
-	printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
-
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
+
+	if (qc->tf.command != ATA_CMD_PACKET)
+		printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
 
 	/* make sure qc->err_mask is available to 
 	 * know what's wrong and recover
@@ -4404,8 +4405,9 @@ fsm_start:
 		break;
 
 	case HSM_ST_ERR:
-		printk(KERN_ERR "ata%u: command error, drv_stat 0x%x host_stat 0x%x\n",
-		       ap->id, status, host_stat);
+		if (qc->tf.command != ATA_CMD_PACKET)
+			printk(KERN_ERR "ata%u: command error, drv_stat 0x%x host_stat 0x%x\n",
+			       ap->id, status, host_stat);
 
 		/* make sure qc->err_mask is available to 
 		 * know what's wrong and recover
