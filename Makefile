@@ -1236,9 +1236,10 @@ cscope: FORCE
 quiet_cmd_TAGS = MAKE   $@
 define cmd_TAGS
 	rm -f $@; \
-	ETAGSF=`etags --version | grep -i exuberant >/dev/null && \
-                echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL \
-                --extra=+f --c-kinds=+px"`; \
+	ETAGSF=`etags --version | grep -i exuberant >/dev/null &&     \
+                echo "-I __initdata,__exitdata,__acquires,__releases  \
+                      -I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL              \
+                      --extra=+f --c-kinds=+px"`;                     \
                 $(all-sources) | xargs etags $$ETAGSF -a
 endef
 
@@ -1249,9 +1250,10 @@ TAGS: FORCE
 quiet_cmd_tags = MAKE   $@
 define cmd_tags
 	rm -f $@; \
-	CTAGSF=`ctags --version | grep -i exuberant >/dev/null && \
-                echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL \
-                --extra=+f --c-kinds=+px"`; \
+	CTAGSF=`ctags --version | grep -i exuberant >/dev/null &&     \
+                echo "-I __initdata,__exitdata,__acquires,__releases  \
+                      -I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL              \
+                      --extra=+f --c-kinds=+px"`;                     \
                 $(all-sources) | xargs ctags $$CTAGSF -a
 endef
 
