@@ -418,8 +418,9 @@ static void scsi_target_reap_work(void *data) {
 	if (--starget->reap_ref == 0 && list_empty(&starget->devices)) {
 		list_del_init(&starget->siblings);
 		spin_unlock_irqrestore(shost->host_lock, flags);
+		transport_remove_device(&starget->dev);
 		device_del(&starget->dev);
-		transport_unregister_device(&starget->dev);
+		transport_destroy_device(&starget->dev);
 		put_device(&starget->dev);
 		return;
 
