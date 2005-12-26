@@ -460,8 +460,8 @@ config OBSOLETE_MODPARM
 	  If unsure, say Y.
 
 config MODVERSIONS
-	bool "Module versioning support (EXPERIMENTAL)"
-	depends on MODULES && EXPERIMENTAL
+	bool "Module versioning support"
+	depends on MODULES
 	help
 	  Usually, you have to use modules compiled with your kernel.
 	  Saying Y here makes it sometimes possible to use modules
