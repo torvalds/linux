@@ -945,6 +945,14 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k1_chip = 1,
 	 .ac97_chip = 1,
 	 .sblive51 = 1} ,
+	/* Tested by ALSA bug#1680 26th December 2005 */
+	/* note: It really has SB0220 written on the card. */
+	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80661102,
+	 .driver = "EMU10K1", .name = "SB Live 5.1 Dell OEM [SB0220]", 
+	 .id = "Live",
+	 .emu10k1_chip = 1,
+	 .ac97_chip = 1,
+	 .sblive51 = 1} ,
 	/* Tested by Thomas Zehetbauer 27th Aug 2005 */
 	{.vendor = 0x1102, .device = 0x0002, .subsystem = 0x80651102,
 	 .driver = "EMU10K1", .name = "SB Live 5.1 [SB0220]", 
