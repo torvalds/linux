@@ -3265,6 +3265,7 @@ static int ata_pio_first_block(struct ata_port *ap)
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
 	if (ata_busy_sleep(ap, ATA_TMOUT_DATAOUT_QUICK, ATA_TMOUT_DATAOUT)) {
+		qc->err_mask |= AC_ERR_ATA_BUS;
 		ap->hsm_task_state = HSM_ST_TMOUT;
 		goto err_out;
 	}
@@ -3273,6 +3274,7 @@ static int ata_pio_first_block(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ) {
 		/* device status error */
+		qc->err_mask |= AC_ERR_ATA_BUS;
 		ap->hsm_task_state = HSM_ST_ERR;
 		goto err_out;
 	}
@@ -4288,6 +4290,12 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 
 			/* before we do anything else, clear DMA-Start bit */
 			ap->ops->bmdma_stop(qc);
+
+			if (unlikely(host_stat & ATA_DMA_ERR)) {
+				/* error when transfering data to/from memory */
+				qc->err_mask |= AC_ERR_HOST_BUS;
+				ap->hsm_task_state = HSM_ST_ERR;
+			}
 		}
 		break;
 	case HSM_ST:
@@ -4313,8 +4321,10 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 	ap->ops->irq_clear(ap);
 
 	/* check error */
-	if (unlikely((status & ATA_ERR) || (host_stat & ATA_DMA_ERR)))
+	if (unlikely(status & (ATA_ERR | ATA_DF))) {
+		qc->err_mask |= AC_ERR_DEV;
 		ap->hsm_task_state = HSM_ST_ERR;
+	}
 
 fsm_start:
 	switch (ap->hsm_task_state) {
@@ -4326,6 +4336,7 @@ fsm_start:
 		/* check device status */
 		if (unlikely((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)) {
 			/* Wrong status. Let EH handle this */
+			qc->err_mask |= AC_ERR_ATA_BUS;
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
 		}
@@ -4354,6 +4365,7 @@ fsm_start:
 			/* ATA PIO protocol */
 			if (unlikely((status & ATA_DRQ) == 0)) {
 				/* handle BSY=0, DRQ=0 as error */
+				qc->err_mask |= AC_ERR_ATA_BUS;
 				ap->hsm_task_state = HSM_ST_ERR;
 				goto fsm_start;
 			}
@@ -4375,6 +4387,7 @@ fsm_start:
 	case HSM_ST_LAST:
 		if (unlikely(status & ATA_DRQ)) {
 			/* handle DRQ=1 as error */
+			qc->err_mask |= AC_ERR_ATA_BUS;
 			ap->hsm_task_state = HSM_ST_ERR;
 			goto fsm_start;
 		}
@@ -4394,8 +4407,12 @@ fsm_start:
 		printk(KERN_ERR "ata%u: command error, drv_stat 0x%x host_stat 0x%x\n",
 		       ap->id, status, host_stat);
 
+		/* make sure qc->err_mask is available to 
+		 * know what's wrong and recover
+		 */
+		assert(qc->err_mask);
+
 		ap->hsm_task_state = HSM_ST_IDLE;
-		qc->err_mask |= __ac_err_mask(status);
 		ata_qc_complete(qc);
 		break;
 	default:
