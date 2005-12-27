@@ -994,11 +994,11 @@ static __inline__ void tcp_build_and_update_options(__u32 *ptr, struct tcp_sock 
 		struct tcp_sack_block *sp = tp->rx_opt.dsack ? tp->duplicate_sack : tp->selective_acks;
 		int this_sack;
 
-		*ptr++ = __constant_htonl((TCPOPT_NOP << 24) |
-					  (TCPOPT_NOP << 16) |
-					  (TCPOPT_SACK << 8) |
-					  (TCPOLEN_SACK_BASE +
-					   (tp->rx_opt.eff_sacks * TCPOLEN_SACK_PERBLOCK)));
+		*ptr++ = htonl((TCPOPT_NOP  << 24) |
+			       (TCPOPT_NOP  << 16) |
+			       (TCPOPT_SACK <<  8) |
+			       (TCPOLEN_SACK_BASE + (tp->rx_opt.eff_sacks *
+						     TCPOLEN_SACK_PERBLOCK)));
 		for(this_sack = 0; this_sack < tp->rx_opt.eff_sacks; this_sack++) {
 			*ptr++ = htonl(sp[this_sack].start_seq);
 			*ptr++ = htonl(sp[this_sack].end_seq);
