@@ -926,6 +926,29 @@ static inline void sock_put(struct sock *sk)
 		sk_free(sk);
 }
 
+static inline int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
+{
+	int rc = NET_RX_SUCCESS;
+
+	if (sk_filter(sk, skb, 0))
+		goto discard_and_relse;
+
+	skb->dev = NULL;
+
+	bh_lock_sock(sk);
+	if (!sock_owned_by_user(sk))
+		rc = sk->sk_backlog_rcv(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
+out:
+	sock_put(sk);
+	return rc;
+discard_and_relse:
+	kfree_skb(skb);
+	goto out;
+}
+
 /* Detach socket from process context.
  * Announce socket dead, detach it from wait queue and inode.
  * Note that parent inode held reference count on this struct sock,

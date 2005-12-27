@@ -383,8 +383,6 @@ static int pppoe_rcv(struct sk_buff *skb,
 {
 	struct pppoe_hdr *ph;
 	struct pppox_sock *po;
-	struct sock *sk;
-	int ret;
 
 	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
 		goto drop;
@@ -395,24 +393,8 @@ static int pppoe_rcv(struct sk_buff *skb,
 	ph = (struct pppoe_hdr *) skb->nh.raw;
 
 	po = get_item((unsigned long) ph->sid, eth_hdr(skb)->h_source);
-	if (!po) 
-		goto drop;
-
-	sk = sk_pppox(po);
-	bh_lock_sock(sk);
-
-	/* Socket state is unknown, must put skb into backlog. */
-	if (sock_owned_by_user(sk) != 0) {
-		sk_add_backlog(sk, skb);
-		ret = NET_RX_SUCCESS;
-	} else {
-		ret = pppoe_rcv_core(sk, skb);
-	}
-
-	bh_unlock_sock(sk);
-	sock_put(sk);
-
-	return ret;
+	if (po != NULL) 
+		return sk_receive_skb(sk_pppox(po), skb);
 drop:
 	kfree_skb(skb);
 out:

@@ -914,7 +914,6 @@ int dccp_v4_rcv(struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh;
 	struct sock *sk;
-	int rc;
 
 	/* Step 1: Check header basics: */
 
@@ -984,28 +983,10 @@ int dccp_v4_rcv(struct sk_buff *skb)
                 goto do_time_wait;
 	}
 
-	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb)) {
-		dccp_pr_debug("xfrm4_policy_check failed\n");
+	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
-	}
 
-        if (sk_filter(sk, skb, 0)) {
-		dccp_pr_debug("sk_filter failed\n");
-                goto discard_and_relse;
-	}
-
-	skb->dev = NULL;
-
-	bh_lock_sock(sk);
-	rc = 0;
-	if (!sock_owned_by_user(sk))
-		rc = dccp_v4_do_rcv(sk, skb);
-	else
-		sk_add_backlog(sk, skb);
-	bh_unlock_sock(sk);
-
-	sock_put(sk);
-	return rc;
+	return sk_receive_skb(sk, skb);
 
 no_dccp_socket:
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb))

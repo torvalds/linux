@@ -1032,7 +1032,6 @@ static int dccp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	const struct dccp_hdr *dh;
 	struct sk_buff *skb = *pskb;
 	struct sock *sk;
-	int rc;
 
 	/* Step 1: Check header basics: */
 
@@ -1077,21 +1076,7 @@ static int dccp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
 
-	if (sk_filter(sk, skb, 0))
-		goto discard_and_relse;
-
-	skb->dev = NULL;
-
-	bh_lock_sock(sk);
-	rc = 0;
-	if (!sock_owned_by_user(sk))
-		rc = dccp_v6_do_rcv(sk, skb);
-	else
-		sk_add_backlog(sk, skb);
-	bh_unlock_sock(sk);
-
-	sock_put(sk);
-	return rc ? -1 : 0;
+	return sk_receive_skb(sk, skb) ? -1 : 0;
 
 no_dccp_socket:
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb))
