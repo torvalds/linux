@@ -369,6 +369,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
 			goto inhdr_error;
 
+ 	nf_bridge_put(skb->nf_bridge);
 	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
 		return NF_DROP;
 	setup_pre_routing(skb);
@@ -452,6 +453,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 			skb->ip_summed = CHECKSUM_NONE;
 	}
 
+ 	nf_bridge_put(skb->nf_bridge);
 	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
 		return NF_DROP;
 	setup_pre_routing(skb);
