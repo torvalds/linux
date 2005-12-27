@@ -1312,7 +1312,7 @@ static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	unsigned int mem_size;
+	unsigned int mem_size, aper_size;
 
 	DRM_DEBUG("\n");
 
@@ -1527,7 +1527,9 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 	mem_size = RADEON_READ(RADEON_CONFIG_MEMSIZE);
 	if (mem_size == 0)
 		mem_size = 0x800000;
-	dev_priv->gart_vm_start = dev_priv->fb_location + mem_size;
+	aper_size = max(RADEON_READ(RADEON_CONFIG_APER_SIZE), mem_size);
+
+	dev_priv->gart_vm_start = dev_priv->fb_location + aper_size;
 
 #if __OS_HAS_AGP
 	if (!dev_priv->is_pci)
