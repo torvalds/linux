@@ -429,11 +429,11 @@ UNUSUAL_DEV(  0x054c, 0x0010, 0x0106, 0x0450,
 		US_FL_SINGLE_LUN | US_FL_NOT_LOCKABLE | US_FL_NO_WP_DETECT ),
 
 /* This entry is needed because the device reports Sub=ff */
-UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0500, 
-               "Sony",
-               "DSC-T1", 
-               US_SC_8070, US_PR_DEVICE, NULL,
-               US_FL_SINGLE_LUN ),
+UNUSUAL_DEV(  0x054c, 0x0010, 0x0500, 0x0600,
+		"Sony",
+		"DSC-T1/T5",
+		US_SC_8070, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
 
 
 /* Reported by wim@geeks.nl */
