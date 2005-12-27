@@ -293,7 +293,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 	struct sock_filter *ftest;
 	int pc;
 
-	if (((unsigned int)flen >= (~0U / sizeof(struct sock_filter))) || flen == 0)
+	if (flen == 0 || flen > BPF_MAXINSNS)
 		return -EINVAL;
 
 	/* check the filter code now */
@@ -360,7 +360,7 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	int err;
 
 	/* Make sure new filter is there and in the right amounts. */
-        if (fprog->filter == NULL || fprog->len > BPF_MAXINSNS)
+        if (fprog->filter == NULL)
                 return -EINVAL;
 
 	fp = sock_kmalloc(sk, fsize+sizeof(*fp), GFP_KERNEL);
