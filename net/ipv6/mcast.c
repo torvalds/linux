@@ -170,7 +170,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 #define MLDV2_QQIC(value) MLDV2_EXP(0x80, 4, 3, value)
 #define MLDV2_MRC(value) MLDV2_EXP(0x8000, 12, 3, value)
 
-#define IPV6_MLD_MAX_MSF	10
+#define IPV6_MLD_MAX_MSF	64
 
 int sysctl_mld_max_msf = IPV6_MLD_MAX_MSF;
 
