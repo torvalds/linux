@@ -83,6 +83,7 @@ struct ipv6_mc_socklist
 	struct in6_addr		addr;
 	int			ifindex;
 	struct ipv6_mc_socklist *next;
+	rwlock_t		sflock;
 	unsigned int		sfmode;		/* MCAST_{INCLUDE,EXCLUDE} */
 	struct ip6_sf_socklist	*sflist;
 };
