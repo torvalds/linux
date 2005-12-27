@@ -171,11 +171,12 @@ enum {
 };
 
 #ifdef __KERNEL__
-#include <linux/in6.h>          /* struct sockaddr_in6 */
 #include <linux/icmpv6.h>
-#include <net/if_inet6.h>       /* struct ipv6_mc_socklist */
 #include <linux/tcp.h>
 #include <linux/udp.h>
+
+#include <net/if_inet6.h>       /* struct ipv6_mc_socklist */
+#include <net/inet_sock.h>
 
 /* 
    This structure contains results of exthdrs parsing
@@ -345,8 +346,6 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 
 #define __ipv6_only_sock(sk)	(inet6_sk(sk)->ipv6only)
 #define ipv6_only_sock(sk)	((sk)->sk_family == PF_INET6 && __ipv6_only_sock(sk))
-
-#include <linux/tcp.h>
 
 struct inet6_timewait_sock {
 	struct in6_addr tw_v6_daddr;

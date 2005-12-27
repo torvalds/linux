@@ -54,6 +54,7 @@
 #include <net/protocol.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/route.h>
 #include <net/sctp/sctp.h>
 #include <net/addrconf.h>
 #include <net/inet_common.h>

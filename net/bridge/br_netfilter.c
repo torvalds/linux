@@ -26,6 +26,7 @@
 #include <linux/ip.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/netfilter_bridge.h>
@@ -33,8 +34,11 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_arp.h>
 #include <linux/in_route.h>
+
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/route.h>
+
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
 #include "br_private.h"

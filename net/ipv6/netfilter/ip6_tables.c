@@ -15,6 +15,7 @@
  *      - new extension header parser code
  */
 #include <linux/config.h>
+#include <linux/in.h>
 #include <linux/skbuff.h>
 #include <linux/kmod.h>
 #include <linux/vmalloc.h>

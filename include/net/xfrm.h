@@ -2,11 +2,12 @@
 #define _NET_XFRM_H
 
 #include <linux/compiler.h>
+#include <linux/in.h>
 #include <linux/xfrm.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <linux/skbuff.h>
-#include <linux/netdevice.h>
+#include <linux/socket.h>
 #include <linux/crypto.h>
 #include <linux/pfkeyv2.h>
 #include <linux/in6.h>

@@ -31,6 +31,7 @@
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/skbuff.h>
+#include <linux/udp.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
 #include <linux/stat.h>

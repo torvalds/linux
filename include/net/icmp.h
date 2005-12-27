@@ -20,12 +20,9 @@
 
 #include <linux/config.h>
 #include <linux/icmp.h>
-#include <linux/skbuff.h>
 
-#include <net/sock.h>
-#include <net/protocol.h>
+#include <net/inet_sock.h>
 #include <net/snmp.h>
-#include <linux/ip.h>
 
 struct icmp_err {
   int		errno;
@@ -37,6 +34,10 @@ DECLARE_SNMP_STAT(struct icmp_mib, icmp_statistics);
 #define ICMP_INC_STATS(field)		SNMP_INC_STATS(icmp_statistics, field)
 #define ICMP_INC_STATS_BH(field)	SNMP_INC_STATS_BH(icmp_statistics, field)
 #define ICMP_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(icmp_statistics, field)
+
+struct dst_entry;
+struct net_proto_family;
+struct sk_buff;
 
 extern void	icmp_send(struct sk_buff *skb_in,  int type, int code, u32 info);
 extern int	icmp_rcv(struct sk_buff *skb);

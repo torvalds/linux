@@ -16,9 +16,10 @@
 #define _INET_CONNECTION_SOCK_H
 
 #include <linux/compiler.h>
-#include <linux/ip.h>
 #include <linux/string.h>
 #include <linux/timer.h>
+
+#include <net/inet_sock.h>
 #include <net/request_sock.h>
 
 #define INET_CSK_DEBUG 1

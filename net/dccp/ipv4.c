@@ -19,6 +19,7 @@
 
 #include <net/icmp.h>
 #include <net/inet_hashtables.h>
+#include <net/inet_sock.h>
 #include <net/sock.h>
 #include <net/timewait_sock.h>
 #include <net/tcp_states.h>

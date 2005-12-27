@@ -41,8 +41,10 @@
  * me to write this module.
  */
 
+#include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/skbuff.h>
 
 /* for sysctl */
 #include <linux/fs.h>

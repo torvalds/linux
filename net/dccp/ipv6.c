@@ -20,6 +20,7 @@
 #include <net/addrconf.h>
 #include <net/inet_common.h>
 #include <net/inet_hashtables.h>
+#include <net/inet_sock.h>
 #include <net/inet6_connection_sock.h>
 #include <net/inet6_hashtables.h>
 #include <net/ip6_route.h>

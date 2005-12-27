@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 
+#include <net/inet_sock.h>
 #include <net/sock.h>
 
 #include "ackvec.h"

@@ -35,6 +35,7 @@
 #include <linux/netfilter_ipv4.h>
 
 #include <net/ip.h>
+#include <net/route.h>
 #include <net/sock.h>
 
 #include <asm/uaccess.h>

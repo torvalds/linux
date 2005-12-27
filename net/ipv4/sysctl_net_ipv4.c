@@ -12,6 +12,7 @@
 #include <linux/sysctl.h>
 #include <linux/config.h>
 #include <linux/igmp.h>
+#include <linux/inetdevice.h>
 #include <net/snmp.h>
 #include <net/icmp.h>
 #include <net/ip.h>

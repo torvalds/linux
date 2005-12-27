@@ -3,6 +3,8 @@
 
 #include <linux/ip.h>
 #include <linux/skbuff.h>
+
+#include <net/inet_sock.h>
 #include <net/dsfield.h>
 
 enum {

@@ -22,6 +22,7 @@
 #include <linux/in.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>

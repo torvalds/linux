@@ -251,16 +251,15 @@ struct ip_vs_daemon_user {
 #include <linux/config.h>
 #include <linux/list.h>                 /* for struct list_head */
 #include <linux/spinlock.h>             /* for struct rwlock_t */
-#include <linux/skbuff.h>               /* for struct sk_buff */
-#include <linux/ip.h>                   /* for struct iphdr */
 #include <asm/atomic.h>                 /* for struct atomic_t */
-#include <linux/netdevice.h>		/* for struct neighbour */
-#include <net/dst.h>			/* for struct dst_entry */
-#include <net/udp.h>
 #include <linux/compiler.h>
+#include <linux/timer.h>
 
+#include <net/checksum.h>
 
 #ifdef CONFIG_IP_VS_DEBUG
+#include <linux/net.h>
+
 extern int ip_vs_get_debug_level(void);
 #define IP_VS_DBG(level, msg...)			\
     do {						\
@@ -429,8 +428,11 @@ struct ip_vs_stats
 	spinlock_t              lock;           /* spin lock */
 };
 
+struct dst_entry;
+struct iphdr;
 struct ip_vs_conn;
 struct ip_vs_app;
+struct sk_buff;
 
 struct ip_vs_protocol {
 	struct ip_vs_protocol	*next;

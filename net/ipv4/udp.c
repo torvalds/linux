@@ -86,6 +86,7 @@
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
+#include <linux/igmp.h>
 #include <linux/in.h>
 #include <linux/errno.h>
 #include <linux/timer.h>

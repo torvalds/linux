@@ -17,13 +17,13 @@
 
 #include <linux/config.h>
 
-#include <linux/ip.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/timer.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include <net/inet_sock.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/timewait_sock.h>

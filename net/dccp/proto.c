@@ -24,7 +24,7 @@
 #include <net/checksum.h>
 
 #include <net/inet_common.h>
-#include <net/ip.h>
+#include <net/inet_sock.h>
 #include <net/protocol.h>
 #include <net/sock.h>
 #include <net/xfrm.h>
@@ -34,7 +34,6 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/poll.h>
-#include <linux/dccp.h>
 
 #include "ccid.h"
 #include "dccp.h"

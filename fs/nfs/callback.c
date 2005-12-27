@@ -14,6 +14,9 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
 #include <linux/nfs_fs.h>
+
+#include <net/inet_sock.h>
+
 #include "nfs4_fs.h"
 #include "callback.h"
 

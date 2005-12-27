@@ -541,6 +541,9 @@ extern int sysctl_ip6frag_secret_interval;
 extern const struct proto_ops inet6_stream_ops;
 extern const struct proto_ops inet6_dgram_ops;
 
+struct group_source_req;
+struct group_filter;
+
 extern int ip6_mc_source(int add, int omode, struct sock *sk,
 			 struct group_source_req *pgsr);
 extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);

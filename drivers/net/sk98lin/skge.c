@@ -107,6 +107,7 @@
 
 #include	"h/skversion.h"
 
+#include	<linux/in.h>
 #include	<linux/module.h>
 #include	<linux/moduleparam.h>
 #include	<linux/init.h>

@@ -192,10 +192,9 @@ enum {
 #include <linux/workqueue.h>
 
 #include <net/inet_connection_sock.h>
+#include <net/inet_sock.h>
 #include <net/inet_timewait_sock.h>
-#include <net/sock.h>
 #include <net/tcp_states.h>
-#include <net/tcp.h>
 
 enum dccp_state {
 	DCCP_OPEN	= TCP_ESTABLISHED,

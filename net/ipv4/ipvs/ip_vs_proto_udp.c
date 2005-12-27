@@ -15,8 +15,11 @@
  *
  */
 
+#include <linux/in.h>
+#include <linux/ip.h>
 #include <linux/kernel.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/udp.h>
 
 #include <net/ip_vs.h>
 
