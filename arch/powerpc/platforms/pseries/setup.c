@@ -324,15 +324,18 @@ static  void __init pSeries_discover_pic(void)
 	ppc64_interrupt_controller = IC_INVALID;
 	for (np = NULL; (np = of_find_node_by_name(np, "interrupt-controller"));) {
 		typep = (char *)get_property(np, "compatible", NULL);
-		if (strstr(typep, "open-pic"))
+		if (strstr(typep, "open-pic")) {
 			ppc64_interrupt_controller = IC_OPEN_PIC;
-		else if (strstr(typep, "ppc-xicp"))
+			break;
+		} else if (strstr(typep, "ppc-xicp")) {
 			ppc64_interrupt_controller = IC_PPC_XIC;
-		else
-			printk("pSeries_discover_pic: failed to recognize"
-			       " interrupt-controller\n");
-		break;
+			break;
+		}
 	}
+	if (ppc64_interrupt_controller == IC_INVALID)
+		printk("pSeries_discover_pic: failed to recognize"
+			" interrupt-controller\n");
+
 }
 
 static void pSeries_mach_cpu_die(void)
