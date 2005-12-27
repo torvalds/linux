@@ -327,7 +327,7 @@ EXPORT_SYMBOL_GPL(platform_device_register);
  *	@pdev:	platform device we're unregistering
  *
  *	Unregistration is done in 2 steps. Fisrt we release all resources
- *	and remove it from the sybsystem, then we drop reference count by
+ *	and remove it from the subsystem, then we drop reference count by
  *	calling platform_device_put().
  */
 void platform_device_unregister(struct platform_device * pdev)
