@@ -23,6 +23,7 @@ Module.symvers
 # Generated include files
 #
 include/asm
+include/asm-*/asm-offsets.h
 include/config
 include/linux/autoconf.h
 include/linux/compile.h
