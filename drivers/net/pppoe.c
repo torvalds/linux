@@ -85,7 +85,7 @@ static int pppoe_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 static int pppoe_xmit(struct ppp_channel *chan, struct sk_buff *skb);
 static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb);
 
-static struct proto_ops pppoe_ops;
+static const struct proto_ops pppoe_ops;
 static DEFINE_RWLOCK(pppoe_hash_lock);
 
 static struct ppp_channel_ops pppoe_chan_ops;
@@ -1063,9 +1063,7 @@ static int __init pppoe_proc_init(void)
 static inline int pppoe_proc_init(void) { return 0; }
 #endif /* CONFIG_PROC_FS */
 
-/* ->ioctl are set at pppox_create */
-
-static struct proto_ops pppoe_ops = {
+static const struct proto_ops pppoe_ops = {
     .family		= AF_PPPOX,
     .owner		= THIS_MODULE,
     .release		= pppoe_release,
@@ -1081,7 +1079,8 @@ static struct proto_ops pppoe_ops = {
     .getsockopt		= sock_no_getsockopt,
     .sendmsg		= pppoe_sendmsg,
     .recvmsg		= pppoe_recvmsg,
-    .mmap		= sock_no_mmap
+    .mmap		= sock_no_mmap,
+    .ioctl		= pppox_ioctl,
 };
 
 static struct pppox_proto pppoe_proto = {
