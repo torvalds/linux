@@ -1160,6 +1160,10 @@ running once the system is up.
 			Limit processor to maximum C-state
 			max_cstate=9 overrides any DMI blacklist limit.
 
+	processor.nocst	[HW,ACPI]
+			Ignore the _CST method to determine C-states,
+			instead using the legacy FADT method
+
 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
 			before loading.
 			See Documentation/ramdisk.txt.
