@@ -1073,7 +1073,7 @@ acpi_native_uint acpi_os_acquire_lock(acpi_handle handle)
 
 void acpi_os_release_lock(acpi_handle handle, acpi_native_uint flags)
 {
-	spin_unlock_irqrestore((spinlock_t *) handle, flags);
+	spin_unlock_irqrestore((spinlock_t *) handle, (unsigned long) flags);
 }
 
 #ifndef ACPI_USE_LOCAL_CACHE
