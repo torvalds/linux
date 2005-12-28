@@ -114,8 +114,6 @@ extern ssize_t elv_iosched_store(request_queue_t *, const char *, size_t);
 extern int elevator_init(request_queue_t *, char *);
 extern void elevator_exit(elevator_t *);
 extern int elv_rq_merge_ok(struct request *, struct bio *);
-extern int elv_try_merge(struct request *, struct bio *);
-extern int elv_try_last_merge(request_queue_t *, struct bio *);
 
 /*
  * Return values from elevator merger

@@ -64,7 +64,7 @@ inline int elv_rq_merge_ok(struct request *rq, struct bio *bio)
 }
 EXPORT_SYMBOL(elv_rq_merge_ok);
 
-inline int elv_try_merge(struct request *__rq, struct bio *bio)
+static inline int elv_try_merge(struct request *__rq, struct bio *bio)
 {
 	int ret = ELEVATOR_NO_MERGE;
 
@@ -80,7 +80,6 @@ inline int elv_try_merge(struct request *__rq, struct bio *bio)
 
 	return ret;
 }
-EXPORT_SYMBOL(elv_try_merge);
 
 static struct elevator_type *elevator_find(const char *name)
 {
