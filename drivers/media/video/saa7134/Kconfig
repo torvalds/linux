@@ -25,7 +25,7 @@ config VIDEO_SAA7134_ALSA
 
 config VIDEO_SAA7134_OSS
 	tristate "Philips SAA7134 DMA audio support (OSS, DEPRECATED)"
-	depends on VIDEO_SAA7134 && SOUND_PRIME && (!VIDEO_SAA7134_ALSA || (VIDEO_SAA7134_ALSA=m && m))
+	depends on VIDEO_SAA7134 && SOUND_PRIME && !VIDEO_SAA7134_ALSA
 	---help---
 	  This is a video4linux driver for direct (DMA) audio in
 	  Philips SAA713x based TV cards using OSS
