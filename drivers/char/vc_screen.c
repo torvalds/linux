@@ -419,7 +419,7 @@ vcs_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 			while (this_round > 1) {
 				unsigned short w;
 
-				w = get_unaligned(((const unsigned short *)con_buf0));
+				w = get_unaligned(((unsigned short *)con_buf0));
 				vcs_scr_writew(vc, w, org++);
 				con_buf0 += 2;
 				this_round -= 2;
