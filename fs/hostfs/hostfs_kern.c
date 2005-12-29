@@ -910,10 +910,8 @@ static struct inode_operations hostfs_dir_iops = {
 int hostfs_link_readpage(struct file *file, struct page *page)
 {
 	char *buffer, *name;
-	long long start;
 	int err;
 
-	start = page->index << PAGE_CACHE_SHIFT;
 	buffer = kmap(page);
 	name = inode_name(page->mapping->host, 0);
 	if(name == NULL) return(-ENOMEM);
