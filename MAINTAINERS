@@ -182,7 +182,7 @@ S:	Supported
 ACPI
 P:	Len Brown
 M:	len.brown@intel.com
-L:	acpi-devel@lists.sourceforge.net
+L:	linux-acpi@vger.kernel.org
 W:	http://acpi.sourceforge.net/
 T:	git kernel.org:/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
 S:	Maintained
