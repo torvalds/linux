@@ -2221,7 +2221,7 @@ int sysctl_string(ctl_table *table, int __user *name, int nlen,
 			len--;
 		((char *) table->data)[len] = 0;
 	}
-	return 0;
+	return 1;
 }
 
 /*
