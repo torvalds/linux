@@ -309,41 +309,6 @@ struct pcmcia_socket * pcmcia_get_socket_by_nr(unsigned int nr)
 }
 EXPORT_SYMBOL(pcmcia_get_socket_by_nr);
 
-
-/**
- * socket_setup() and shutdown_socket() are called by the main event
- * handler when card insertion and removal events are received.
- * socket_setup() turns on socket power and resets the socket, in two stages.
- * shutdown_socket() unconfigures a socket and turns off socket power.
- */
-static void shutdown_socket(struct pcmcia_socket *s)
-{
-	cs_dbg(s, 1, "shutdown_socket\n");
-
-	/* Blank out the socket state */
-	s->socket = dead_socket;
-	s->ops->init(s);
-	s->ops->set_socket(s, &s->socket);
-	s->irq.AssignedIRQ = s->irq.Config = 0;
-	s->lock_count = 0;
-	destroy_cis_cache(s);
-#ifdef CONFIG_CARDBUS
-	cb_free(s);
-#endif
-	s->functions = 0;
-	kfree(s->config);
-	s->config = NULL;
-
-	{
-		int status;
-		s->ops->get_status(s, &status);
-		if (status & SS_POWERON) {
-			printk(KERN_ERR "PCMCIA: socket %p: *** DANGER *** unable to remove socket power\n", s);
-		}
-	}
-} /* shutdown_socket */
-
-
 /**
  * The central event handler.  Send_event() sends an event to the
  * 16-bit subsystem, which then calls the relevant device drivers.
@@ -383,17 +348,6 @@ static void socket_remove_drivers(struct pcmcia_socket *skt)
 	send_event(skt, CS_EVENT_CARD_REMOVAL, CS_EVENT_PRI_HIGH);
 }
 
-static void socket_shutdown(struct pcmcia_socket *skt)
-{
-	cs_dbg(skt, 4, "shutdown\n");
-
-	socket_remove_drivers(skt);
-	skt->state &= SOCKET_INUSE|SOCKET_PRESENT;
-	msleep(shutdown_delay * 10);
-	skt->state &= SOCKET_INUSE;
-	shutdown_socket(skt);
-}
-
 static int socket_reset(struct pcmcia_socket *skt)
 {
 	int status, i;
@@ -422,6 +376,45 @@ static int socket_reset(struct pcmcia_socket *skt)
 
 	cs_err(skt, "time out after reset.\n");
 	return CS_GENERAL_FAILURE;
+}
+
+/**
+ * socket_setup() and socket_shutdown() are called by the main event handler
+ * when card insertion and removal events are received.
+ * socket_setup() turns on socket power and resets the socket, in two stages.
+ * socket_shutdown() unconfigures a socket and turns off socket power.
+ */
+static void socket_shutdown(struct pcmcia_socket *s)
+{
+	int status;
+
+	cs_dbg(s, 4, "shutdown\n");
+
+	socket_remove_drivers(s);
+	s->state &= SOCKET_INUSE | SOCKET_PRESENT;
+	msleep(shutdown_delay * 10);
+	s->state &= SOCKET_INUSE;
+
+	/* Blank out the socket state */
+	s->socket = dead_socket;
+	s->ops->init(s);
+	s->ops->set_socket(s, &s->socket);
+	s->irq.AssignedIRQ = s->irq.Config = 0;
+	s->lock_count = 0;
+	destroy_cis_cache(s);
+#ifdef CONFIG_CARDBUS
+	cb_free(s);
+#endif
+	s->functions = 0;
+	kfree(s->config);
+	s->config = NULL;
+
+	s->ops->get_status(s, &status);
+	if (status & SS_POWERON) {
+		printk(KERN_ERR "PCMCIA: socket %p: *** DANGER *** unable to remove socket power\n", s);
+	}
+
+	cs_socket_put(s);
 }
 
 static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
@@ -529,7 +522,6 @@ static int socket_insert(struct pcmcia_socket *skt)
 		send_event(skt, CS_EVENT_CARD_INSERTION, CS_EVENT_PRI_LOW);
 	} else {
 		socket_shutdown(skt);
-		cs_socket_put(skt);
 	}
 
 	return ret;
@@ -593,7 +585,6 @@ static int socket_resume(struct pcmcia_socket *skt)
 		}
 	} else {
 		socket_shutdown(skt);
-		cs_socket_put(skt);
 	}
 
 	skt->state &= ~SOCKET_SUSPEND;
@@ -605,7 +596,6 @@ static void socket_remove(struct pcmcia_socket *skt)
 {
 	printk(KERN_NOTICE "pccard: card ejected from slot %d\n", skt->sock);
 	socket_shutdown(skt);
-	cs_socket_put(skt);
 }
 
 /*
