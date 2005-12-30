@@ -160,7 +160,7 @@ pl011_rx_chars(struct uart_amba_port *uap)
 				flag = TTY_FRAME;
 		}
 
-		if (uart_handle_sysrq_char(&uap->port, ch, regs))
+		if (uart_handle_sysrq_char(&uap->port, ch & 255, regs))
 			goto ignore_char;
 
 		uart_insert_char(&uap->port, ch, UART011_DR_OE, ch, flag);
