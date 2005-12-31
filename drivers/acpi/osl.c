@@ -836,7 +836,7 @@ acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
 			static const int quantum_ms = 1000 / HZ;
 
 			ret = down_trylock(sem);
-			for (i = timeout; (i > 0 && ret < 0); i -= quantum_ms) {
+			for (i = timeout; (i > 0 && ret != 0); i -= quantum_ms) {
 				schedule_timeout_interruptible(1);
 				ret = down_trylock(sem);
 			}
