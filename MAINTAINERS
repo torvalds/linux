@@ -536,7 +536,7 @@ P:	Mauro Carvalho Chehab
 M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
-T:	quilt http://www.linuxtv.org/download/quilt/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
 BUSLOGIC SCSI DRIVER
@@ -834,7 +834,7 @@ P:	LinuxTV.org Project
 M: 	linux-dvb-maintainer@linuxtv.org
 L: 	linux-dvb@linuxtv.org (subscription required)
 W:	http://linuxtv.org/
-T:	quilt http://www.linuxtv.org/download/quilt/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Supported
 
 EATA-DMA SCSI DRIVER
@@ -1284,8 +1284,8 @@ T:	git kernel.org:/pub/scm/linux/kernel/git/roland/infiniband.git
 S:	Supported
 
 INPUT (KEYBOARD, MOUSE, JOYSTICK) DRIVERS
-P:	Vojtech Pavlik
-M:	vojtech@suse.cz
+P:	Dmitry Torokhov
+M:	dtor_core@ameritech.net
 L:	linux-input@atrey.karlin.mff.cuni.cz
 L:	linux-joystick@atrey.karlin.mff.cuni.cz
 T:	git kernel.org:/pub/scm/linux/kernel/git/dtor/input.git
@@ -2896,7 +2896,7 @@ P:	Mauro Carvalho Chehab
 M:	mchehab@brturbo.com.br
 L:	video4linux-list@redhat.com
 W:	http://linuxtv.org
-T:	quilt http://www.linuxtv.org/download/quilt/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
 W1 DALLAS'S 1-WIRE BUS

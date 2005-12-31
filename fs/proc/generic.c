@@ -54,6 +54,18 @@ proc_file_read(struct file *file, char __user *buf, size_t nbytes,
 	ssize_t	n, count;
 	char	*start;
 	struct proc_dir_entry * dp;
+	unsigned long long pos;
+
+	/*
+	 * Gaah, please just use "seq_file" instead. The legacy /proc
+	 * interfaces cut loff_t down to off_t for reads, and ignore
+	 * the offset entirely for writes..
+	 */
+	pos = *ppos;
+	if (pos > MAX_NON_LFS)
+		return 0;
+	if (nbytes > MAX_NON_LFS - pos)
+		nbytes = MAX_NON_LFS - pos;
 
 	dp = PDE(inode);
 	if (!(page = (char*) __get_free_page(GFP_KERNEL)))
@@ -202,30 +214,17 @@ proc_file_write(struct file *file, const char __user *buffer,
 static loff_t
 proc_file_lseek(struct file *file, loff_t offset, int orig)
 {
-    lock_kernel();
-
-    switch (orig) {
-    case 0:
-	if (offset < 0)
-	    goto out;
-	file->f_pos = offset;
-	unlock_kernel();
-	return(file->f_pos);
-    case 1:
-	if (offset + file->f_pos < 0)
-	    goto out;
-	file->f_pos += offset;
-	unlock_kernel();
-	return(file->f_pos);
-    case 2:
-	goto out;
-    default:
-	goto out;
-    }
-
-out:
-    unlock_kernel();
-    return -EINVAL;
+	loff_t retval = -EINVAL;
+	switch (orig) {
+	case 1:
+		offset += file->f_pos;
+	/* fallthrough */
+	case 0:
+		if (offset < 0 || offset > MAX_NON_LFS)
+			break;
+		file->f_pos = retval = offset;
+	}
+	return retval;
 }
 
 static int proc_notify_change(struct dentry *dentry, struct iattr *iattr)

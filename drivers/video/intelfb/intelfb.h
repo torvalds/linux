@@ -41,6 +41,10 @@
 
 /*** hw-related values ***/
 
+/* Resource Allocation */
+#define INTELFB_FB_ACQUIRED                 1
+#define INTELFB_MMIO_ACQUIRED               2
+
 /* PCI ids for supported devices */
 #define PCI_DEVICE_ID_INTEL_830M	0x3577
 #define PCI_DEVICE_ID_INTEL_845G	0x2562
@@ -257,6 +261,7 @@ struct intelfb_info {
 	int hwcursor;
 	int fixed_mode;
 	int ring_active;
+	int flag;
 
 	/* hw cursor */
 	int cursor_on;

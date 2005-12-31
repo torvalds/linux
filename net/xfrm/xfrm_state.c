@@ -431,6 +431,8 @@ void xfrm_state_insert(struct xfrm_state *x)
 	spin_lock_bh(&xfrm_state_lock);
 	__xfrm_state_insert(x);
 	spin_unlock_bh(&xfrm_state_lock);
+
+	xfrm_flush_all_bundles();
 }
 EXPORT_SYMBOL(xfrm_state_insert);
 
@@ -477,6 +479,9 @@ int xfrm_state_add(struct xfrm_state *x)
 out:
 	spin_unlock_bh(&xfrm_state_lock);
 	xfrm_state_put_afinfo(afinfo);
+
+	if (!err)
+		xfrm_flush_all_bundles();
 
 	if (x1) {
 		xfrm_state_delete(x1);

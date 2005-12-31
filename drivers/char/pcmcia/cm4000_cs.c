@@ -1444,6 +1444,7 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 	dev_link_t *link;
 	int size;
 	int rc;
+	void __user *argp = (void __user *)arg;
 #ifdef PCMCIA_DEBUG
 	char *ioctl_names[CM_IOC_MAXNR + 1] = {
 		[_IOC_NR(CM_IOCGSTATUS)] "CM_IOCGSTATUS",
@@ -1481,11 +1482,11 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 	      _IOC_DIR(cmd), _IOC_READ, _IOC_WRITE, size, cmd);
 
 	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (!access_ok(VERIFY_WRITE, (void *)arg, size))
+		if (!access_ok(VERIFY_WRITE, argp, size))
 			return -EFAULT;
 	}
 	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		if (!access_ok(VERIFY_READ, (void *)arg, size))
+		if (!access_ok(VERIFY_READ, argp, size))
 			return -EFAULT;
 	}
 
@@ -1506,14 +1507,14 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 				status |= CM_NO_READER;
 			if (test_bit(IS_BAD_CARD, &dev->flags))
 				status |= CM_BAD_CARD;
-			if (copy_to_user((int *)arg, &status, sizeof(int)))
+			if (copy_to_user(argp, &status, sizeof(int)))
 				return -EFAULT;
 		}
 		return 0;
 	case CM_IOCGATR:
 		DEBUGP(4, dev, "... in CM_IOCGATR\n");
 		{
-			struct atreq *atreq = (struct atreq *) arg;
+			struct atreq __user *atreq = argp;
 			int tmp;
 			/* allow nonblocking io and being interrupted */
 			if (wait_event_interruptible
@@ -1597,7 +1598,7 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		{
 			struct ptsreq krnptsreq;
 
-			if (copy_from_user(&krnptsreq, (struct ptsreq *) arg,
+			if (copy_from_user(&krnptsreq, argp,
 					   sizeof(struct ptsreq)))
 				return -EFAULT;
 
@@ -1641,7 +1642,7 @@ static int cmm_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 			int old_pc_debug = 0;
 
 			old_pc_debug = pc_debug;
-			if (copy_from_user(&pc_debug, (int *)arg, sizeof(int)))
+			if (copy_from_user(&pc_debug, argp, sizeof(int)))
 				return -EFAULT;
 
 			if (old_pc_debug != pc_debug)

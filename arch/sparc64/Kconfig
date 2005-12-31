@@ -5,6 +5,10 @@
 
 mainmenu "Linux/UltraSPARC Kernel Configuration"
 
+config SPARC
+	bool
+	default y
+
 config SPARC64
 	bool
 	default y

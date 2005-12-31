@@ -12,9 +12,9 @@
  *   This is a device driver for the OneNAND flash for generic boards.
  */
 
-#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>
@@ -39,7 +39,7 @@ static int __devinit generic_onenand_probe(struct device *dev)
 {
 	struct onenand_info *info;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct onenand_platform_data *pdata = pdev->dev.platform_data;
+	struct flash_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res = pdev->resource;
 	unsigned long size = res->end - res->start + 1;
 	int err;

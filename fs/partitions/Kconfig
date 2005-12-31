@@ -203,7 +203,7 @@ config ULTRIX_PARTITION
 
 config SUN_PARTITION
 	bool "Sun partition tables support" if PARTITION_ADVANCED
-	default y if (SPARC32 || SPARC64 || SUN3 || SUN3X)
+	default y if (SPARC || SUN3 || SUN3X)
 	---help---
 	  Like most systems, SunOS uses its own hard disk partition table
 	  format, incompatible with all others. Saying Y here allows you to

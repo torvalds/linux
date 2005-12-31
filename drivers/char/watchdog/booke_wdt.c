@@ -72,7 +72,7 @@ static __inline__ void booke_wdt_ping(void)
 /*
  * booke_wdt_write:
  */
-static ssize_t booke_wdt_write (struct file *file, const char *buf,
+static ssize_t booke_wdt_write (struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	booke_wdt_ping();
@@ -92,14 +92,15 @@ static int booke_wdt_ioctl (struct inode *inode, struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
 	u32 tmp = 0;
+	u32 __user *p = (u32 __user *)arg;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user ((struct watchdog_info *) arg, &ident,
+		if (copy_to_user ((struct watchdog_info __user *) arg, &ident,
 				sizeof(struct watchdog_info)))
 			return -EFAULT;
 	case WDIOC_GETSTATUS:
-		return put_user(ident.options, (u32 *) arg);
+		return put_user(ident.options, p);
 	case WDIOC_GETBOOTSTATUS:
 		/* XXX: something is clearing TSR */
 		tmp = mfspr(SPRN_TSR) & TSR_WRS(3);
@@ -109,14 +110,14 @@ static int booke_wdt_ioctl (struct inode *inode, struct file *file,
 		booke_wdt_ping();
 		return 0;
 	case WDIOC_SETTIMEOUT:
-		if (get_user(booke_wdt_period, (u32 *) arg))
+		if (get_user(booke_wdt_period, p))
 			return -EFAULT;
 		mtspr(SPRN_TCR, (mfspr(SPRN_TCR)&~WDTP(0))|WDTP(booke_wdt_period));
 		return 0;
 	case WDIOC_GETTIMEOUT:
-		return put_user(booke_wdt_period, (u32 *) arg);
+		return put_user(booke_wdt_period, p);
 	case WDIOC_SETOPTIONS:
-		if (get_user(tmp, (u32 *) arg))
+		if (get_user(tmp, p))
 			return -EINVAL;
 		if (tmp == WDIOS_ENABLECARD) {
 			booke_wdt_ping();
@@ -172,7 +173,7 @@ static int __init booke_wdt_init(void)
 	int ret = 0;
 
 	printk (KERN_INFO "PowerPC Book-E Watchdog Timer Loaded\n");
-	ident.firmware_version = cpu_specs[0].pvr_value;
+	ident.firmware_version = cur_cpu_spec->pvr_value;
 
 	ret = misc_register(&booke_wdt_miscdev);
 	if (ret) {

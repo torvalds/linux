@@ -990,6 +990,7 @@ static void xs_udp_connect_worker(void *args)
 		sk->sk_data_ready = xs_udp_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
 		sk->sk_no_check = UDP_CSUM_NORCV;
+		sk->sk_allocation = GFP_ATOMIC;
 
 		xprt_set_connected(xprt);
 
@@ -1074,6 +1075,7 @@ static void xs_tcp_connect_worker(void *args)
 		sk->sk_data_ready = xs_tcp_data_ready;
 		sk->sk_state_change = xs_tcp_state_change;
 		sk->sk_write_space = xs_tcp_write_space;
+		sk->sk_allocation = GFP_ATOMIC;
 
 		/* socket options */
 		sk->sk_userlocks |= SOCK_BINDPORT_LOCK;

@@ -303,6 +303,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	struct i2o_controller *c;
 	int rc;
 	struct pci_dev *i960 = NULL;
+	int pci_dev_busy = 0;
 
 	printk(KERN_INFO "i2o: Checking for PCI I2O controllers...\n");
 
@@ -395,6 +396,8 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	if ((rc = i2o_pci_alloc(c))) {
 		printk(KERN_ERR "%s: DMA / IO allocation for I2O controller "
 		       " failed\n", c->name);
+		if (rc == -ENODEV)
+			pci_dev_busy = 1;
 		goto free_controller;
 	}
 
@@ -425,7 +428,8 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	i2o_iop_free(c);
 
       disable:
-	pci_disable_device(pdev);
+	if (!pci_dev_busy)
+		pci_disable_device(pdev);
 
 	return rc;
 }

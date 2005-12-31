@@ -38,7 +38,7 @@
 /*
  * Returns the number of the first CPU on Node 'node'.
  */
-#define node_to_first_cpu(node) (__ffs(node_to_cpumask(node)))
+#define node_to_first_cpu(node) (first_cpu(node_to_cpumask(node)))
 
 /*
  * Determines the node for a given pci bus

@@ -2201,13 +2201,11 @@ int sysctl_string(ctl_table *table, int __user *name, int nlen,
 		if (get_user(len, oldlenp))
 			return -EFAULT;
 		if (len) {
-			l = strlen(table->data);
+			l = strlen(table->data)+1;
 			if (len > l) len = l;
 			if (len >= table->maxlen)
 				len = table->maxlen;
 			if(copy_to_user(oldval, table->data, len))
-				return -EFAULT;
-			if(put_user(0, ((char __user *) oldval) + len))
 				return -EFAULT;
 			if(put_user(len, oldlenp))
 				return -EFAULT;
@@ -2223,7 +2221,7 @@ int sysctl_string(ctl_table *table, int __user *name, int nlen,
 			len--;
 		((char *) table->data)[len] = 0;
 	}
-	return 0;
+	return 1;
 }
 
 /*

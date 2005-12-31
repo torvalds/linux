@@ -664,7 +664,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 					sg->offset;
 			} else
 				buf = cmd->request_buffer;
-			memset(cmd->request_buffer, 0, cmd->cmnd[4]);
+			memset(buf, 0, cmd->cmnd[4]);
 			if (cmd->use_sg) {
 				struct scatterlist *sg;
 

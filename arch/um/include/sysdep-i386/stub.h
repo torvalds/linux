@@ -6,8 +6,12 @@
 #ifndef __SYSDEP_STUB_H
 #define __SYSDEP_STUB_H
 
+#include <sys/mman.h>
 #include <asm/ptrace.h>
 #include <asm/unistd.h>
+#include "stub-data.h"
+#include "kern_constants.h"
+#include "uml-config.h"
 
 extern void stub_segv_handler(int sig);
 extern void stub_clone_handler(void);
@@ -76,23 +80,22 @@ static inline long stub_syscall5(long syscall, long arg1, long arg2, long arg3,
 	return ret;
 }
 
-static inline long stub_syscall6(long syscall, long arg1, long arg2, long arg3,
-				 long arg4, long arg5, long arg6)
-{
-	long ret;
-
-	__asm__ volatile ("push %%ebp ; movl %%eax,%%ebp ; movl %1,%%eax ; "
-			"int $0x80 ; pop %%ebp"
-			: "=a" (ret)
-			: "g" (syscall), "b" (arg1), "c" (arg2), "d" (arg3),
-			  "S" (arg4), "D" (arg5), "0" (arg6));
-
-	return ret;
-}
-
 static inline void trap_myself(void)
 {
 	__asm("int3");
+}
+
+static inline void remap_stack(int fd, unsigned long offset)
+{
+	__asm__ volatile ("movl %%eax,%%ebp ; movl %0,%%eax ; int $0x80 ;"
+			  "movl %7, %%ebx ; movl %%eax, (%%ebx)"
+			  : : "g" (STUB_MMAP_NR), "b" (UML_CONFIG_STUB_DATA), 
+			    "c" (UM_KERN_PAGE_SIZE), 
+			    "d" (PROT_READ | PROT_WRITE),
+			    "S" (MAP_FIXED | MAP_SHARED), "D" (fd), 
+			    "a" (offset), 
+			    "i" (&((struct stub_data *) UML_CONFIG_STUB_DATA)->err) 
+			  : "memory");
 }
 
 #endif
