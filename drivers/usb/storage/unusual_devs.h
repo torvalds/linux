@@ -145,6 +145,11 @@ UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_BULK, NULL,
 		US_FL_NEED_OVERRIDE ),
 
+UNUSUAL_DEV(  0x045a, 0x5210, 0x0101, 0x0101,
+		"Rio",
+		"Rio Karma",
+		US_SC_SCSI, US_PR_BULK, rio_karma_init, 0),
+
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
 		"Kyocera",
