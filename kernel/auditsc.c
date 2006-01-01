@@ -57,6 +57,7 @@
 #include <asm/unistd.h>
 #include <linux/security.h>
 #include <linux/list.h>
+#include <linux/tty.h>
 
 #include "audit.h"
 
@@ -573,6 +574,7 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 	int i;
 	struct audit_buffer *ab;
 	struct audit_aux_data *aux;
+	const char *tty;
 
 	ab = audit_log_start(context, gfp_mask, AUDIT_SYSCALL);
 	if (!ab)
@@ -585,11 +587,15 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		audit_log_format(ab, " success=%s exit=%ld", 
 				 (context->return_valid==AUDITSC_SUCCESS)?"yes":"no",
 				 context->return_code);
+	if (current->signal->tty && current->signal->tty->name)
+		tty = current->signal->tty->name;
+	else
+		tty = "(none)";
 	audit_log_format(ab,
 		  " a0=%lx a1=%lx a2=%lx a3=%lx items=%d"
 		  " pid=%d auid=%u uid=%u gid=%u"
 		  " euid=%u suid=%u fsuid=%u"
-		  " egid=%u sgid=%u fsgid=%u",
+		  " egid=%u sgid=%u fsgid=%u tty=%s",
 		  context->argv[0],
 		  context->argv[1],
 		  context->argv[2],
@@ -600,7 +606,7 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		  context->uid,
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
-		  context->egid, context->sgid, context->fsgid);
+		  context->egid, context->sgid, context->fsgid, tty);
 	audit_log_task_info(ab, gfp_mask);
 	audit_log_end(ab);
 
