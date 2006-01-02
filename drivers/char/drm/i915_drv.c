@@ -1,6 +1,6 @@
 /* i915_drv.c -- i830,i845,i855,i865,i915 driver -*- linux-c -*-
  */
-/**************************************************************************
+/*
  *
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
@@ -25,7 +25,7 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- **************************************************************************/
+ */
 
 #include "drmP.h"
 #include "drm.h"
@@ -44,11 +44,12 @@ static struct drm_driver driver = {
 	 */
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | /* DRIVER_USE_MTRR |*/
-	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
+	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_IRQ_VBL,
 	.load = i915_driver_load,
 	.lastclose = i915_driver_lastclose,
 	.preclose = i915_driver_preclose,
 	.device_is_agp = i915_driver_device_is_agp,
+	.vblank_wait = i915_driver_vblank_wait,
 	.irq_preinstall = i915_driver_irq_preinstall,
 	.irq_postinstall = i915_driver_irq_postinstall,
 	.irq_uninstall = i915_driver_irq_uninstall,
