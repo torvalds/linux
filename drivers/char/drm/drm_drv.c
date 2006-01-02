@@ -56,66 +56,66 @@ static int drm_version(struct inode *inode, struct file *filp,
 
 /** Ioctl table */
 static drm_ioctl_desc_t drm_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_IOCTL_VERSION)] = {drm_version, 0, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE)] = {drm_getunique, 0, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAGIC)] = {drm_getmagic, 0, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_IRQ_BUSID)] = {drm_irq_by_busid, 0, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP)] = {drm_getmap, 0, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_CLIENT)] = {drm_getclient, 0, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS)] = {drm_getstats, 0, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_SET_VERSION)] = {drm_setversion, 0, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_VERSION)] = {drm_version, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE)] = {drm_getunique, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAGIC)] = {drm_getmagic, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_IRQ_BUSID)] = {drm_irq_by_busid, DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP)] = {drm_getmap, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_GET_CLIENT)] = {drm_getclient, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_GET_STATS)] = {drm_getstats, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_SET_VERSION)] = {drm_setversion, DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_SET_UNIQUE)] = {drm_setunique, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_BLOCK)] = {drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_UNBLOCK)] = {drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_AUTH_MAGIC)] = {drm_authmagic, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_SET_UNIQUE)] = {drm_setunique, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_BLOCK)] = {drm_noop, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_UNBLOCK)] = {drm_noop, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AUTH_MAGIC)] = {drm_authmagic, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP)] = {drm_addmap_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_RM_MAP)] = {drm_rmmap_ioctl, DRM_AUTH},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_ADD_MAP)] = {drm_addmap_ioctl, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_RM_MAP)] = {drm_rmmap_ioctl, 1, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_SET_SAREA_CTX)] = {drm_setsareactx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_GET_SAREA_CTX)] = {drm_getsareactx, DRM_AUTH},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_SET_SAREA_CTX)] = {drm_setsareactx, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_SAREA_CTX)] = {drm_getsareactx, 1, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_ADD_CTX)] = {drm_addctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_RM_CTX)] = {drm_rmctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_MOD_CTX)] = {drm_modctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_GET_CTX)] = {drm_getctx, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_IOCTL_SWITCH_CTX)] = {drm_switchctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_NEW_CTX)] = {drm_newctx, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_RES_CTX)] = {drm_resctx, DRM_AUTH},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_ADD_CTX)] = {drm_addctx, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_RM_CTX)] = {drm_rmctx, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_MOD_CTX)] = {drm_modctx, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_GET_CTX)] = {drm_getctx, 1, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_SWITCH_CTX)] = {drm_switchctx, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_NEW_CTX)] = {drm_newctx, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_RES_CTX)] = {drm_resctx, 1, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_ADD_DRAW)] = {drm_adddraw, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_RM_DRAW)] = {drm_rmdraw, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_ADD_DRAW)] = {drm_adddraw, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_RM_DRAW)] = {drm_rmdraw, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_LOCK)] = {drm_lock, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_IOCTL_UNLOCK)] = {drm_unlock, DRM_AUTH},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_LOCK)] = {drm_lock, 1, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_UNLOCK)] = {drm_unlock, 1, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_FINISH)] = {drm_noop, DRM_AUTH},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_FINISH)] = {drm_noop, 1, 0},
-
-	[DRM_IOCTL_NR(DRM_IOCTL_ADD_BUFS)] = {drm_addbufs, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_MARK_BUFS)] = {drm_markbufs, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_INFO_BUFS)] = {drm_infobufs, 1, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_MAP_BUFS)] = {drm_mapbufs, 1, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_FREE_BUFS)] = {drm_freebufs, 1, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_ADD_BUFS)] = {drm_addbufs, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_MARK_BUFS)] = {drm_markbufs, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_INFO_BUFS)] = {drm_infobufs, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_IOCTL_MAP_BUFS)] = {drm_mapbufs, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_IOCTL_FREE_BUFS)] = {drm_freebufs, DRM_AUTH},
 	/* The DRM_IOCTL_DMA ioctl should be defined by the driver. */
+	[DRM_IOCTL_NR(DRM_IOCTL_DMA)] = {NULL, DRM_AUTH},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_CONTROL)] = {drm_control, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_CONTROL)] = {drm_control, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 
 #if __OS_HAS_AGP
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ACQUIRE)] = {drm_agp_acquire_ioctl, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_RELEASE)] = {drm_agp_release_ioctl, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ENABLE)] = {drm_agp_enable_ioctl, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_INFO)] = {drm_agp_info_ioctl, 1, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ALLOC)] = {drm_agp_alloc_ioctl, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_FREE)] = {drm_agp_free_ioctl, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_BIND)] = {drm_agp_bind_ioctl, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_UNBIND)] = {drm_agp_unbind_ioctl, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ACQUIRE)] = {drm_agp_acquire_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_RELEASE)] = {drm_agp_release_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ENABLE)] = {drm_agp_enable_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_INFO)] = {drm_agp_info_ioctl, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ALLOC)] = {drm_agp_alloc_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_FREE)] = {drm_agp_free_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_BIND)] = {drm_agp_bind_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_UNBIND)] = {drm_agp_unbind_ioctl, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 #endif
 
-	[DRM_IOCTL_NR(DRM_IOCTL_SG_ALLOC)] = {drm_sg_alloc, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_SG_FREE)] = {drm_sg_free, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_SG_ALLOC)] = {drm_sg_alloc, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_IOCTL_SG_FREE)] = {drm_sg_free, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
 
-	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK)] = {drm_wait_vblank, 0, 0},
+	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK)] = {drm_wait_vblank, 0},
 };
 
 #define DRIVER_IOCTL_COUNT	DRM_ARRAY_SIZE( drm_ioctls )
@@ -496,8 +496,9 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 	if (!func) {
 		DRM_DEBUG("no function\n");
 		retcode = -EINVAL;
-	} else if ((ioctl->root_only && !capable(CAP_SYS_ADMIN)) ||
-		   (ioctl->auth_needed && !priv->authenticated)) {
+	} else if (((ioctl->flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)) ||
+		   ((ioctl->flags & DRM_AUTH) && !priv->authenticated) ||
+		   ((ioctl->flags & DRM_MASTER) && !priv->master)) {
 		retcode = -EACCES;
 	} else {
 		retcode = func(inode, filp, cmd, arg);

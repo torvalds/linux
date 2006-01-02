@@ -1357,21 +1357,21 @@ int i810_driver_dma_quiescent(drm_device_t * dev)
 }
 
 drm_ioctl_desc_t i810_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_I810_INIT)] = {i810_dma_init, 1, 1},
-	[DRM_IOCTL_NR(DRM_I810_VERTEX)] = {i810_dma_vertex, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_CLEAR)] = {i810_clear_bufs, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_FLUSH)] = {i810_flush_ioctl, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_GETAGE)] = {i810_getage, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_GETBUF)] = {i810_getbuf, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_SWAP)] = {i810_swap_bufs, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_COPY)] = {i810_copybuf, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_DOCOPY)] = {i810_docopy, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_OV0INFO)] = {i810_ov0_info, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_FSTATUS)] = {i810_fstatus, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_OV0FLIP)] = {i810_ov0_flip, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_MC)] = {i810_dma_mc, 1, 1},
-	[DRM_IOCTL_NR(DRM_I810_RSTATUS)] = {i810_rstatus, 1, 0},
-	[DRM_IOCTL_NR(DRM_I810_FLIP)] = {i810_flip_bufs, 1, 0}
+	[DRM_IOCTL_NR(DRM_I810_INIT)] = {i810_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_I810_VERTEX)] = {i810_dma_vertex, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_CLEAR)] = {i810_clear_bufs, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_FLUSH)] = {i810_flush_ioctl, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_GETAGE)] = {i810_getage, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_GETBUF)] = {i810_getbuf, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_SWAP)] = {i810_swap_bufs, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_COPY)] = {i810_copybuf, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_DOCOPY)] = {i810_docopy, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_OV0INFO)] = {i810_ov0_info, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_FSTATUS)] = {i810_fstatus, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_OV0FLIP)] = {i810_ov0_flip, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_MC)] = {i810_dma_mc, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
+	[DRM_IOCTL_NR(DRM_I810_RSTATUS)] = {i810_rstatus, DRM_AUTH},
+	[DRM_IOCTL_NR(DRM_I810_FLIP)] = {i810_flip_bufs, DRM_AUTH}
 };
 
 int i810_max_ioctl = DRM_ARRAY_SIZE(i810_ioctls);

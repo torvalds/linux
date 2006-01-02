@@ -272,10 +272,13 @@ typedef int drm_ioctl_t(struct inode *inode, struct file *filp,
 typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
 			       unsigned long arg);
 
+#define DRM_AUTH	0x1
+#define	DRM_MASTER	0x2
+#define DRM_ROOT_ONLY	0x4
+
 typedef struct drm_ioctl_desc {
 	drm_ioctl_t *func;
-	int auth_needed;
-	int root_only;
+	int flags;
 } drm_ioctl_desc_t;
 
 typedef struct drm_devstate {
@@ -370,6 +373,7 @@ typedef struct drm_buf_entry {
 /** File private data */
 typedef struct drm_file {
 	int authenticated;
+	int master;
 	int minor;
 	pid_t pid;
 	uid_t uid;
