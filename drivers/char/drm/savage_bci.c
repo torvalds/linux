@@ -584,21 +584,18 @@ int savage_driver_firstopen(drm_device_t *dev)
 			dev_priv->mtrr[0].base = fb_base;
 			dev_priv->mtrr[0].size = 0x01000000;
 			dev_priv->mtrr[0].handle =
-			    mtrr_add(dev_priv->mtrr[0].base,
-				     dev_priv->mtrr[0].size, MTRR_TYPE_WRCOMB,
-				     1);
+			    drm_mtrr_add(dev_priv->mtrr[0].base,
+				         dev_priv->mtrr[0].size, DRM_MTRR_WC);
 			dev_priv->mtrr[1].base = fb_base + 0x02000000;
 			dev_priv->mtrr[1].size = 0x02000000;
 			dev_priv->mtrr[1].handle =
-			    mtrr_add(dev_priv->mtrr[1].base,
-				     dev_priv->mtrr[1].size, MTRR_TYPE_WRCOMB,
-				     1);
+			    drm_mtrr_add(dev_priv->mtrr[1].base,
+					 dev_priv->mtrr[1].size, DRM_MTRR_WC);
 			dev_priv->mtrr[2].base = fb_base + 0x04000000;
 			dev_priv->mtrr[2].size = 0x04000000;
 			dev_priv->mtrr[2].handle =
-			    mtrr_add(dev_priv->mtrr[2].base,
-				     dev_priv->mtrr[2].size, MTRR_TYPE_WRCOMB,
-				     1);
+			    drm_mtrr_add(dev_priv->mtrr[2].base,
+					 dev_priv->mtrr[2].size, DRM_MTRR_WC);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08lx\n",
 				  drm_get_resource_len(dev, 0));
@@ -618,9 +615,8 @@ int savage_driver_firstopen(drm_device_t *dev)
 			dev_priv->mtrr[0].base = fb_base;
 			dev_priv->mtrr[0].size = 0x08000000;
 			dev_priv->mtrr[0].handle =
-			    mtrr_add(dev_priv->mtrr[0].base,
-				     dev_priv->mtrr[0].size, MTRR_TYPE_WRCOMB,
-				     1);
+			    drm_mtrr_add(dev_priv->mtrr[0].base,
+					 dev_priv->mtrr[0].size, DRM_MTRR_WC);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08lx\n",
 				  drm_get_resource_len(dev, 1));
@@ -664,9 +660,9 @@ void savage_driver_lastclose(drm_device_t *dev)
 
 	for (i = 0; i < 3; ++i)
 		if (dev_priv->mtrr[i].handle >= 0)
-			mtrr_del(dev_priv->mtrr[i].handle,
+			drm_mtrr_del(dev_priv->mtrr[i].handle,
 				 dev_priv->mtrr[i].base,
-				 dev_priv->mtrr[i].size);
+				 dev_priv->mtrr[i].size, DRM_MTRR_WC);
 }
 
 int savage_driver_unload(drm_device_t *dev)
@@ -1008,8 +1004,7 @@ static int savage_bci_event_wait(DRM_IOCTL_ARGS)
  * DMA buffer management
  */
 
-static int savage_bci_get_buffers(DRMFILE filp, drm_device_t * dev,
-				  drm_dma_t * d)
+static int savage_bci_get_buffers(DRMFILE filp, drm_device_t *dev, drm_dma_t *d)
 {
 	drm_buf_t *buf;
 	int i;
@@ -1071,7 +1066,7 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 	return ret;
 }
 
-void savage_reclaim_buffers(drm_device_t * dev, DRMFILE filp)
+void savage_reclaim_buffers(drm_device_t *dev, DRMFILE filp)
 {
 	drm_device_dma_t *dma = dev->dma;
 	drm_savage_private_t *dev_priv = dev->dev_private;
