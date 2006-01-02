@@ -42,7 +42,7 @@ static int via_agp_free(drm_via_mem_t * mem);
 static int via_fb_alloc(drm_via_mem_t * mem);
 static int via_fb_free(drm_via_mem_t * mem);
 
-static int add_alloc_set(int context, int type, unsigned int val)
+static int add_alloc_set(int context, int type, unsigned long val)
 {
 	int i, retval = 0;
 
@@ -56,7 +56,7 @@ static int add_alloc_set(int context, int type, unsigned int val)
 	return retval;
 }
 
-static int del_alloc_set(int context, int type, unsigned int val)
+static int del_alloc_set(int context, int type, unsigned long val)
 {
 	int i, retval = 0;
 
