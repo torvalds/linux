@@ -1,5 +1,5 @@
-/* radeon_cp.c -- CP support for Radeon -*- linux-c -*-
- *
+/* radeon_cp.c -- CP support for Radeon -*- linux-c -*- */
+/*
  * Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Fremont, California.
  * All Rights Reserved.
@@ -1561,25 +1561,28 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 		if (dev_priv->pcigart_offset) {
 			dev_priv->gart_info.bus_addr =
 			    dev_priv->pcigart_offset + dev_priv->fb_location;
+			dev_priv->gart_info.mapping.offset =
+			    dev_priv->gart_info.bus_addr;
+			dev_priv->gart_info.mapping.size =
+			    RADEON_PCIGART_TABLE_SIZE;
+
+			drm_core_ioremap(&dev_priv->gart_info.mapping, dev);
 			dev_priv->gart_info.addr =
-			    (unsigned long)drm_ioremap(dev_priv->gart_info.
-						       bus_addr,
-						       RADEON_PCIGART_TABLE_SIZE,
-						       dev);
+			    dev_priv->gart_info.mapping.handle;
 
 			dev_priv->gart_info.is_pcie =
 			    !!(dev_priv->flags & CHIP_IS_PCIE);
 			dev_priv->gart_info.gart_table_location =
 			    DRM_ATI_GART_FB;
 
-			DRM_DEBUG("Setting phys_pci_gart to %08lX %08lX\n",
+			DRM_DEBUG("Setting phys_pci_gart to %p %08lX\n",
 				  dev_priv->gart_info.addr,
 				  dev_priv->pcigart_offset);
 		} else {
 			dev_priv->gart_info.gart_table_location =
 			    DRM_ATI_GART_MAIN;
-			dev_priv->gart_info.addr =
-			    dev_priv->gart_info.bus_addr = 0;
+			dev_priv->gart_info.addr = NULL;
+			dev_priv->gart_info.bus_addr = 0;
 			if (dev_priv->flags & CHIP_IS_PCIE) {
 				DRM_ERROR
 				    ("Cannot use PCI Express without GART in FB memory\n");
@@ -1641,8 +1644,7 @@ static int radeon_do_cleanup_cp(drm_device_t * dev)
 				DRM_ERROR("failed to cleanup PCI GART!\n");
 
 		if (dev_priv->gart_info.gart_table_location == DRM_ATI_GART_FB) {
-			drm_ioremapfree((void *)dev_priv->gart_info.addr,
-					RADEON_PCIGART_TABLE_SIZE, dev);
+			drm_core_ioremapfree(&dev_priv->gart_info.mapping, dev);
 			dev_priv->gart_info.addr = 0;
 		}
 	}

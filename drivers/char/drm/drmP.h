@@ -522,8 +522,9 @@ typedef struct drm_vbl_sig {
 typedef struct ati_pcigart_info {
 	int gart_table_location;
 	int is_pcie;
-	unsigned long addr;
+	void *addr;
 	dma_addr_t bus_addr;
+	drm_local_map_t mapping;
 } drm_ati_pcigart_info;
 
 /**
