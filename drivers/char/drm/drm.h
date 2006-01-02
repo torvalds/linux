@@ -90,8 +90,8 @@
 #define DRM_MAX_ORDER	22	  /**< Up to 2^22 bytes = 4MB */
 #define DRM_RAM_PERCENT 10	  /**< How much system ram can we lock? */
 
-#define _DRM_LOCK_HELD	0x80000000 /**< Hardware lock is held */
-#define _DRM_LOCK_CONT	0x40000000 /**< Hardware lock is contended */
+#define _DRM_LOCK_HELD	0x80000000U /**< Hardware lock is held */
+#define _DRM_LOCK_CONT	0x40000000U /**< Hardware lock is contended */
 #define _DRM_LOCK_IS_HELD(lock)	   ((lock) & _DRM_LOCK_HELD)
 #define _DRM_LOCK_IS_CONT(lock)	   ((lock) & _DRM_LOCK_CONT)
 #define _DRM_LOCKING_CONTEXT(lock) ((lock) & ~(_DRM_LOCK_HELD|_DRM_LOCK_CONT))
