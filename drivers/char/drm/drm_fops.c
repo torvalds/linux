@@ -35,6 +35,7 @@
  */
 
 #include "drmP.h"
+#include "drm_sarea.h"
 #include <linux/poll.h>
 
 static int drm_open_helper(struct inode *inode, struct file *filp,
@@ -42,6 +43,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 
 static int drm_setup(drm_device_t * dev)
 {
+	drm_local_map_t *map;
 	int i;
 	int ret;
 
@@ -50,6 +52,11 @@ static int drm_setup(drm_device_t * dev)
 		if (ret != 0)
 			return ret;
 	}
+
+	/* prebuild the SAREA */
+	i = drm_addmap(dev, 0, SAREA_MAX, _DRM_SHM, _DRM_CONTAINS_LOCK, &map);
+	if (i != 0)
+		return i;
 
 	atomic_set(&dev->ioctl_count, 0);
 	atomic_set(&dev->vma_count, 0);
@@ -152,8 +159,166 @@ int drm_open(struct inode *inode, struct file *filp)
 
 	return retcode;
 }
-
 EXPORT_SYMBOL(drm_open);
+
+/**
+ * File \c open operation.
+ *
+ * \param inode device inode.
+ * \param filp file pointer.
+ *
+ * Puts the dev->fops corresponding to the device minor number into
+ * \p filp, call the \c open method, and restore the file operations.
+ */
+int drm_stub_open(struct inode *inode, struct file *filp)
+{
+	drm_device_t *dev = NULL;
+	int minor = iminor(inode);
+	int err = -ENODEV;
+	struct file_operations *old_fops;
+
+	DRM_DEBUG("\n");
+
+	if (!((minor >= 0) && (minor < drm_cards_limit)))
+		return -ENODEV;
+
+	if (!drm_heads[minor])
+		return -ENODEV;
+
+	if (!(dev = drm_heads[minor]->dev))
+		return -ENODEV;
+
+	old_fops = filp->f_op;
+	filp->f_op = fops_get(&dev->driver->fops);
+	if (filp->f_op->open && (err = filp->f_op->open(inode, filp))) {
+		fops_put(filp->f_op);
+		filp->f_op = fops_get(old_fops);
+	}
+	fops_put(old_fops);
+
+	return err;
+}
+
+/**
+ * Check whether DRI will run on this CPU.
+ *
+ * \return non-zero if the DRI will run on this CPU, or zero otherwise.
+ */
+static int drm_cpu_valid(void)
+{
+#if defined(__i386__)
+	if (boot_cpu_data.x86 == 3)
+		return 0;	/* No cmpxchg on a 386 */
+#endif
+#if defined(__sparc__) && !defined(__sparc_v9__)
+	return 0;		/* No cmpxchg before v9 sparc. */
+#endif
+	return 1;
+}
+
+/**
+ * Called whenever a process opens /dev/drm.
+ *
+ * \param inode device inode.
+ * \param filp file pointer.
+ * \param dev device.
+ * \return zero on success or a negative number on failure.
+ *
+ * Creates and initializes a drm_file structure for the file private data in \p
+ * filp and add it into the double linked list in \p dev.
+ */
+static int drm_open_helper(struct inode *inode, struct file *filp,
+			   drm_device_t * dev)
+{
+	int minor = iminor(inode);
+	drm_file_t *priv;
+	int ret;
+
+	if (filp->f_flags & O_EXCL)
+		return -EBUSY;	/* No exclusive opens */
+	if (!drm_cpu_valid())
+		return -EINVAL;
+
+	DRM_DEBUG("pid = %d, minor = %d\n", current->pid, minor);
+
+	priv = drm_alloc(sizeof(*priv), DRM_MEM_FILES);
+	if (!priv)
+		return -ENOMEM;
+
+	memset(priv, 0, sizeof(*priv));
+	filp->private_data = priv;
+	priv->uid = current->euid;
+	priv->pid = current->pid;
+	priv->minor = minor;
+	priv->head = drm_heads[minor];
+	priv->ioctl_count = 0;
+	/* for compatibility root is always authenticated */
+	priv->authenticated = capable(CAP_SYS_ADMIN);
+	priv->lock_count = 0;
+
+	if (dev->driver->open) {
+		ret = dev->driver->open(dev, priv);
+		if (ret < 0)
+			goto out_free;
+	}
+
+	down(&dev->struct_sem);
+	if (!dev->file_last) {
+		priv->next = NULL;
+		priv->prev = NULL;
+		dev->file_first = priv;
+		dev->file_last = priv;
+		/* first opener automatically becomes master */
+		priv->master = 1;
+	} else {
+		priv->next = NULL;
+		priv->prev = dev->file_last;
+		dev->file_last->next = priv;
+		dev->file_last = priv;
+	}
+	up(&dev->struct_sem);
+
+#ifdef __alpha__
+	/*
+	 * Default the hose
+	 */
+	if (!dev->hose) {
+		struct pci_dev *pci_dev;
+		pci_dev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, NULL);
+		if (pci_dev) {
+			dev->hose = pci_dev->sysdata;
+			pci_dev_put(pci_dev);
+		}
+		if (!dev->hose) {
+			struct pci_bus *b = pci_bus_b(pci_root_buses.next);
+			if (b)
+				dev->hose = b->sysdata;
+		}
+	}
+#endif
+
+	return 0;
+      out_free:
+	drm_free(priv, sizeof(*priv), DRM_MEM_FILES);
+	filp->private_data = NULL;
+	return ret;
+}
+
+/** No-op. */
+int drm_fasync(int fd, struct file *filp, int on)
+{
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->head->dev;
+	int retcode;
+
+	DRM_DEBUG("fd = %d, device = 0x%lx\n", fd,
+		  (long)old_encode_dev(priv->head->device));
+	retcode = fasync_helper(fd, filp, on, &dev->buf_async);
+	if (retcode < 0)
+		return retcode;
+	return 0;
+}
+EXPORT_SYMBOL(drm_fasync);
 
 /**
  * Release file.
@@ -291,7 +456,6 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	if (dev->driver->postclose)
 		dev->driver->postclose(dev, priv);
-
 	drm_free(priv, sizeof(*priv), DRM_MEM_FILES);
 
 	/* ========================================================
@@ -318,132 +482,11 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	return retcode;
 }
-
 EXPORT_SYMBOL(drm_release);
-
-/**
- * Check whether DRI will run on this CPU.
- *
- * \return non-zero if the DRI will run on this CPU, or zero otherwise.
- */
-static int drm_cpu_valid(void)
-{
-#if defined(__i386__)
-	if (boot_cpu_data.x86 == 3)
-		return 0;	/* No cmpxchg on a 386 */
-#endif
-#if defined(__sparc__) && !defined(__sparc_v9__)
-	return 0;		/* No cmpxchg before v9 sparc. */
-#endif
-	return 1;
-}
-
-/**
- * Called whenever a process opens /dev/drm.
- *
- * \param inode device inode.
- * \param filp file pointer.
- * \param dev device.
- * \return zero on success or a negative number on failure.
- *
- * Creates and initializes a drm_file structure for the file private data in \p
- * filp and add it into the double linked list in \p dev.
- */
-static int drm_open_helper(struct inode *inode, struct file *filp,
-			   drm_device_t * dev)
-{
-	int minor = iminor(inode);
-	drm_file_t *priv;
-	int ret;
-
-	if (filp->f_flags & O_EXCL)
-		return -EBUSY;	/* No exclusive opens */
-	if (!drm_cpu_valid())
-		return -EINVAL;
-
-	DRM_DEBUG("pid = %d, minor = %d\n", current->pid, minor);
-
-	priv = drm_alloc(sizeof(*priv), DRM_MEM_FILES);
-	if (!priv)
-		return -ENOMEM;
-
-	memset(priv, 0, sizeof(*priv));
-	filp->private_data = priv;
-	priv->uid = current->euid;
-	priv->pid = current->pid;
-	priv->minor = minor;
-	priv->head = drm_heads[minor];
-	priv->ioctl_count = 0;
-	priv->authenticated = capable(CAP_SYS_ADMIN);
-	priv->lock_count = 0;
-
-	if (dev->driver->open) {
-		ret = dev->driver->open(dev, priv);
-		if (ret < 0)
-			goto out_free;
-	}
-
-	down(&dev->struct_sem);
-	if (!dev->file_last) {
-		priv->next = NULL;
-		priv->prev = NULL;
-		dev->file_first = priv;
-		dev->file_last = priv;
-	} else {
-		priv->next = NULL;
-		priv->prev = dev->file_last;
-		dev->file_last->next = priv;
-		dev->file_last = priv;
-	}
-	up(&dev->struct_sem);
-
-#ifdef __alpha__
-	/*
-	 * Default the hose
-	 */
-	if (!dev->hose) {
-		struct pci_dev *pci_dev;
-		pci_dev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, NULL);
-		if (pci_dev) {
-			dev->hose = pci_dev->sysdata;
-			pci_dev_put(pci_dev);
-		}
-		if (!dev->hose) {
-			struct pci_bus *b = pci_bus_b(pci_root_buses.next);
-			if (b)
-				dev->hose = b->sysdata;
-		}
-	}
-#endif
-
-	return 0;
-      out_free:
-	drm_free(priv, sizeof(*priv), DRM_MEM_FILES);
-	filp->private_data = NULL;
-	return ret;
-}
-
-/** No-op. */
-int drm_fasync(int fd, struct file *filp, int on)
-{
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-	int retcode;
-
-	DRM_DEBUG("fd = %d, device = 0x%lx\n", fd,
-		  (long)old_encode_dev(priv->head->device));
-	retcode = fasync_helper(fd, filp, on, &dev->buf_async);
-	if (retcode < 0)
-		return retcode;
-	return 0;
-}
-
-EXPORT_SYMBOL(drm_fasync);
 
 /** No-op. */
 unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	return 0;
 }
-
 EXPORT_SYMBOL(drm_poll);

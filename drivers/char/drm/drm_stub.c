@@ -128,43 +128,6 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 	return retcode;
 }
 
-/**
- * File \c open operation.
- *
- * \param inode device inode.
- * \param filp file pointer.
- *
- * Puts the dev->fops corresponding to the device minor number into
- * \p filp, call the \c open method, and restore the file operations.
- */
-int drm_stub_open(struct inode *inode, struct file *filp)
-{
-	drm_device_t *dev = NULL;
-	int minor = iminor(inode);
-	int err = -ENODEV;
-	struct file_operations *old_fops;
-
-	DRM_DEBUG("\n");
-
-	if (!((minor >= 0) && (minor < drm_cards_limit)))
-		return -ENODEV;
-
-	if (!drm_heads[minor])
-		return -ENODEV;
-
-	if (!(dev = drm_heads[minor]->dev))
-		return -ENODEV;
-
-	old_fops = filp->f_op;
-	filp->f_op = fops_get(&dev->driver->fops);
-	if (filp->f_op->open && (err = filp->f_op->open(inode, filp))) {
-		fops_put(filp->f_op);
-		filp->f_op = fops_get(old_fops);
-	}
-	fops_put(old_fops);
-
-	return err;
-}
 
 /**
  * Get a secondary minor number.

@@ -550,7 +550,7 @@ struct drm_driver {
 	int (*kernel_context_switch) (struct drm_device * dev, int old,
 				      int new);
 	void (*kernel_context_switch_unlock) (struct drm_device * dev,
-					      drm_lock_t * lock);
+					      drm_lock_t *lock);
 	int (*vblank_wait) (struct drm_device * dev, unsigned int *sequence);
 	int (*dri_library_name) (struct drm_device *dev, char *buf);
 
@@ -574,12 +574,11 @@ struct drm_driver {
 	void (*irq_postinstall) (struct drm_device * dev);
 	void (*irq_uninstall) (struct drm_device * dev);
 	void (*reclaim_buffers) (struct drm_device * dev, struct file * filp);
-	void (*reclaim_buffers_locked) (struct drm_device *drv,
+	void (*reclaim_buffers_locked) (struct drm_device *dev,
 					struct file *filp);
 	unsigned long (*get_map_ofs) (drm_map_t * map);
 	unsigned long (*get_reg_ofs) (struct drm_device * dev);
 	void (*set_version) (struct drm_device * dev, drm_set_version_t * sv);
-	int (*version) (drm_version_t * version);
 
 	int major;
 	int minor;
@@ -774,10 +773,6 @@ static inline int drm_mtrr_del(int handle, unsigned long offset,
 /** \name Internal function definitions */
 /*@{*/
 
-				/* Misc. support (drm_init.h) */
-extern int drm_flags;
-extern void drm_parse_options(char *s);
-
 				/* Driver support (drm_drv.h) */
 extern int drm_init(struct drm_driver *driver);
 extern void drm_exit(struct drm_driver *driver);
@@ -831,6 +826,8 @@ extern int drm_getstats(struct inode *inode, struct file *filp,
 			unsigned int cmd, unsigned long arg);
 extern int drm_setversion(struct inode *inode, struct file *filp,
 			  unsigned int cmd, unsigned long arg);
+extern int drm_noop(struct inode *inode, struct file *filp,
+		    unsigned int cmd, unsigned long arg);
 
 				/* Context IOCTL support (drm_context.h) */
 extern int drm_resctx(struct inode *inode, struct file *filp,
@@ -869,10 +866,6 @@ extern int drm_getmagic(struct inode *inode, struct file *filp,
 extern int drm_authmagic(struct inode *inode, struct file *filp,
 			 unsigned int cmd, unsigned long arg);
 
-				/* Placeholder for ioctls past */
-extern int drm_noop(struct inode *inode, struct file *filp,
-		    unsigned int cmd, unsigned long arg);
-
 				/* Locking IOCTL support (drm_lock.h) */
 extern int drm_lock(struct inode *inode, struct file *filp,
 		    unsigned int cmd, unsigned long arg);
@@ -885,6 +878,7 @@ extern int drm_lock_free(drm_device_t * dev,
 				/* Buffer management support (drm_bufs.h) */
 extern int drm_addbufs_agp(drm_device_t * dev, drm_buf_desc_t * request);
 extern int drm_addbufs_pci(drm_device_t * dev, drm_buf_desc_t * request);
+extern int drm_addbufs_fb(drm_device_t *dev, drm_buf_desc_t *request);
 extern int drm_addmap(drm_device_t * dev, unsigned int offset,
 		      unsigned int size, drm_map_type_t type,
 		      drm_map_flags_t flags, drm_local_map_t ** map_ptr);
@@ -920,8 +914,8 @@ extern void drm_core_reclaim_buffers(drm_device_t * dev, struct file *filp);
 				/* IRQ support (drm_irq.h) */
 extern int drm_control(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg);
-extern int drm_irq_uninstall(drm_device_t * dev);
 extern irqreturn_t drm_irq_handler(DRM_IRQ_ARGS);
+extern int drm_irq_uninstall(drm_device_t * dev);
 extern void drm_driver_irq_preinstall(drm_device_t * dev);
 extern void drm_driver_irq_postinstall(drm_device_t * dev);
 extern void drm_driver_irq_uninstall(drm_device_t * dev);

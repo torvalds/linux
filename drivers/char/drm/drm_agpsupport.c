@@ -1,5 +1,5 @@
 /**
- * \file drm_agpsupport.h
+ * \file drm_agpsupport.c
  * DRM support for AGP/GART backend
  *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
@@ -91,7 +91,7 @@ int drm_agp_info_ioctl(struct inode *inode, struct file *filp,
 /**
  * Acquire the AGP device.
  *
- * \param dev DRM device that is to acquire AGP
+ * \param dev DRM device that is to acquire AGP.
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device hasn't been acquired before and calls
@@ -134,7 +134,7 @@ int drm_agp_acquire_ioctl(struct inode *inode, struct file *filp,
 /**
  * Release the AGP device.
  *
- * \param dev DRM device that is to release AGP
+ * \param dev DRM device that is to release AGP.
  * \return zero on success or a negative number on failure.
  *
  * Verifies the AGP device has been acquired and calls \c agp_backend_release.
@@ -147,7 +147,6 @@ int drm_agp_release(drm_device_t * dev)
 	dev->agp->acquired = 0;
 	return 0;
 }
-
 EXPORT_SYMBOL(drm_agp_release);
 
 int drm_agp_release_ioctl(struct inode *inode, struct file *filp,
@@ -447,6 +446,9 @@ int drm_agp_free_ioctl(struct inode *inode, struct file *filp,
  *
  * \return pointer to a drm_agp_head structure.
  *
+ * Gets the drm_agp_t structure which is made available by the agpgart module
+ * via the inter_module_* functions. Creates and initializes a drm_agp_head
+ * structure.
  */
 drm_agp_head_t *drm_agp_init(drm_device_t * dev)
 {

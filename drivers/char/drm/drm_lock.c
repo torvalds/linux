@@ -104,6 +104,9 @@ int drm_lock(struct inode *inode, struct file *filp,
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&dev->lock.lock_queue, &entry);
 
+	DRM_DEBUG( "%d %s\n", lock.context, ret ? "interrupted" : "has lock" );
+	if (ret) return ret;
+
 	sigemptyset(&dev->sigmask);
 	sigaddset(&dev->sigmask, SIGSTOP);
 	sigaddset(&dev->sigmask, SIGTSTP);
@@ -116,21 +119,20 @@ int drm_lock(struct inode *inode, struct file *filp,
 	if (dev->driver->dma_ready && (lock.flags & _DRM_LOCK_READY))
 		dev->driver->dma_ready(dev);
 
-	if (dev->driver->dma_quiescent && (lock.flags & _DRM_LOCK_QUIESCENT))
-		return dev->driver->dma_quiescent(dev);
-
-	/* dev->driver->kernel_context_switch isn't used by any of the x86
-	 *  drivers but is used by the Sparc driver.
-	 */
+	if (dev->driver->dma_quiescent && (lock.flags & _DRM_LOCK_QUIESCENT)) {
+		if (dev->driver->dma_quiescent(dev)) {
+			DRM_DEBUG( "%d waiting for DMA quiescent\n", lock.context);
+			return DRM_ERR(EBUSY);
+		}
+	}
 
 	if (dev->driver->kernel_context_switch &&
 	    dev->last_context != lock.context) {
 		dev->driver->kernel_context_switch(dev, dev->last_context,
 						   lock.context);
 	}
-	DRM_DEBUG("%d %s\n", lock.context, ret ? "interrupted" : "has lock");
 
-	return ret;
+	return 0;
 }
 
 /**
