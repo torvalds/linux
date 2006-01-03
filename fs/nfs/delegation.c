@@ -8,6 +8,7 @@
  */
 #include <linux/config.h>
 #include <linux/completion.h>
+#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
@@ -229,6 +230,51 @@ restart:
 		goto restart;
 	}
 	spin_unlock(&clp->cl_lock);
+}
+
+int nfs_do_expire_all_delegations(void *ptr)
+{
+	struct nfs4_client *clp = ptr;
+	struct nfs_delegation *delegation;
+	struct inode *inode;
+	int err = 0;
+
+	allow_signal(SIGKILL);
+restart:
+	spin_lock(&clp->cl_lock);
+	if (test_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) != 0)
+		goto out;
+	if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0)
+		goto out;
+	list_for_each_entry(delegation, &clp->cl_delegations, super_list) {
+		inode = igrab(delegation->inode);
+		if (inode == NULL)
+			continue;
+		spin_unlock(&clp->cl_lock);
+		err = nfs_inode_return_delegation(inode);
+		iput(inode);
+		if (!err)
+			goto restart;
+	}
+out:
+	spin_unlock(&clp->cl_lock);
+	nfs4_put_client(clp);
+	module_put_and_exit(0);
+}
+
+void nfs_expire_all_delegations(struct nfs4_client *clp)
+{
+	struct task_struct *task;
+
+	__module_get(THIS_MODULE);
+	atomic_inc(&clp->cl_count);
+	task = kthread_run(nfs_do_expire_all_delegations, clp,
+			"%u.%u.%u.%u-delegreturn",
+			NIPQUAD(clp->cl_addr));
+	if (!IS_ERR(task))
+		return;
+	nfs4_put_client(clp);
+	module_put(THIS_MODULE);
 }
 
 /*

@@ -63,6 +63,7 @@ static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinf
 static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *);
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry);
 static int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct nfs4_exception *exception);
+static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs4_client *clp);
 extern u32 *nfs4_decode_dirent(u32 *p, struct nfs_entry *entry, int plus);
 extern struct rpc_procinfo nfs4_procedures[];
 
@@ -765,6 +766,15 @@ out:
 	return -EACCES;
 }
 
+int nfs4_recover_expired_lease(struct nfs_server *server)
+{
+	struct nfs4_client *clp = server->nfs4_state;
+
+	if (test_and_clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
+		nfs4_schedule_state_recovery(clp);
+	return nfs4_wait_clnt_recover(server->client, clp);
+}
+
 /*
  * OPEN_EXPIRED:
  * 	reclaim state on the server after a network partition.
@@ -840,6 +850,9 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 	int open_flags = flags & (FMODE_READ|FMODE_WRITE);
 	int err;
 
+	err = nfs4_recover_expired_lease(server);
+	if (err != 0)
+		return err;
 	/* Protect against reboot recovery - NOTE ORDER! */
 	down_read(&clp->cl_sem);
 	/* Protect against delegation recall */
@@ -921,12 +934,16 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	int                     status;
 
 	/* Protect against reboot recovery conflicts */
-	down_read(&clp->cl_sem);
 	status = -ENOMEM;
 	if (!(sp = nfs4_get_state_owner(server, cred))) {
 		dprintk("nfs4_do_open: nfs4_get_state_owner failed!\n");
 		goto out_err;
 	}
+	status = nfs4_recover_expired_lease(server);
+	if (status != 0)
+		goto out_err;
+	down_read(&clp->cl_sem);
+	status = -ENOMEM;
 	opendata = nfs4_opendata_alloc(dentry, sp, flags, sattr);
 	if (opendata == NULL)
 		goto err_put_state_owner;
@@ -2897,6 +2914,7 @@ nfs4_proc_setclientid_confirm(struct nfs4_client *clp)
 		spin_lock(&clp->cl_lock);
 		clp->cl_lease_time = fsinfo.lease_time * HZ;
 		clp->cl_last_renewal = now;
+		clear_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 		spin_unlock(&clp->cl_lock);
 	}
 	return status;

@@ -39,6 +39,7 @@ struct idmap;
 
 enum nfs4_client_state {
 	NFS4CLNT_STATE_RECOVER  = 0,
+	NFS4CLNT_LEASE_EXPIRED,
 };
 
 /*
