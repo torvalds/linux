@@ -746,7 +746,6 @@ int __init s3c2410fb_probe(struct platform_device *pdev)
 		goto release_irq;
 	}
 
-	clk_use(info->clk);
 	clk_enable(info->clk);
 	dprintk("got and enabled clock\n");
 
@@ -783,7 +782,6 @@ free_video_memory:
 	s3c2410fb_unmap_video_memory(info);
 release_clock:
 	clk_disable(info->clk);
-	clk_unuse(info->clk);
 	clk_put(info->clk);
 release_irq:
 	free_irq(irq,info);
@@ -828,7 +826,6 @@ static int s3c2410fb_remove(struct platform_device *pdev)
 
  	if (info->clk) {
  		clk_disable(info->clk);
- 		clk_unuse(info->clk);
  		clk_put(info->clk);
  		info->clk = NULL;
 	}

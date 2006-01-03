@@ -191,7 +191,6 @@ static void s3c2410_timer_setup (void)
 		if (IS_ERR(clk))
 			panic("failed to get clock for system timer");
 
-		clk_use(clk);
 		clk_enable(clk);
 
 		pclk = clk_get_rate(clk);

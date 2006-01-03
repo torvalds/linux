@@ -57,17 +57,6 @@ void clk_disable(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_disable);
 
-int clk_use(struct clk *clk)
-{
-	return 0;
-}
-EXPORT_SYMBOL(clk_use);
-
-void clk_unuse(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_unuse);
-
 unsigned long clk_get_rate(struct clk *clk)
 {
 	return clk->rate;

@@ -738,7 +738,6 @@ static void s3c24xx_i2c_free(struct s3c24xx_i2c *i2c)
 {
 	if (i2c->clk != NULL && !IS_ERR(i2c->clk)) {
 		clk_disable(i2c->clk);
-		clk_unuse(i2c->clk);
 		clk_put(i2c->clk);
 		i2c->clk = NULL;
 	}
@@ -778,7 +777,6 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
 
-	clk_use(i2c->clk);
 	clk_enable(i2c->clk);
 
 	/* map the registers */

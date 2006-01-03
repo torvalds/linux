@@ -782,11 +782,9 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 
 		if (ourport->baudclk != NULL && !IS_ERR(ourport->baudclk)) {
 			clk_disable(ourport->baudclk);
-			clk_unuse(ourport->baudclk);
 			ourport->baudclk  = NULL;
 		}
 
-		clk_use(clk);
 		clk_enable(clk);
 
 		ourport->clksrc = clksrc;
@@ -1076,9 +1074,6 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 	port->irq	= platform_get_irq(platdev, 0);
 
 	ourport->clk	= clk_get(&platdev->dev, "uart");
-
-	if (ourport->clk != NULL && !IS_ERR(ourport->clk))
-		clk_use(ourport->clk);
 
 	dbg("port: map=%08x, mem=%08x, irq=%d, clock=%ld\n",
 	    port->mapbase, port->membase, port->irq, port->uartclk);

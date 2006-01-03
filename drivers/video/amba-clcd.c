@@ -346,10 +346,6 @@ static int clcdfb_register(struct clcd_fb *fb)
 		goto out;
 	}
 
-	ret = clk_use(fb->clk);
-	if (ret)
-		goto free_clk;
-
 	fb->fb.fix.mmio_start	= fb->dev->res.start;
 	fb->fb.fix.mmio_len	= SZ_4K;
 
@@ -357,7 +353,7 @@ static int clcdfb_register(struct clcd_fb *fb)
 	if (!fb->regs) {
 		printk(KERN_ERR "CLCD: unable to remap registers\n");
 		ret = -ENOMEM;
-		goto unuse_clk;
+		goto free_clk;
 	}
 
 	fb->fb.fbops		= &clcdfb_ops;
@@ -427,8 +423,6 @@ static int clcdfb_register(struct clcd_fb *fb)
 	printk(KERN_ERR "CLCD: cannot register framebuffer (%d)\n", ret);
 
 	iounmap(fb->regs);
- unuse_clk:
-	clk_unuse(fb->clk);
  free_clk:
 	clk_put(fb->clk);
  out:
@@ -489,7 +483,6 @@ static int clcdfb_remove(struct amba_device *dev)
 	clcdfb_disable(fb);
 	unregister_framebuffer(&fb->fb);
 	iounmap(fb->regs);
-	clk_unuse(fb->clk);
 	clk_put(fb->clk);
 
 	fb->board->remove(fb);

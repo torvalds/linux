@@ -761,10 +761,6 @@ static int pl011_probe(struct amba_device *dev, void *id)
 		goto unmap;
 	}
 
-	ret = clk_use(uap->clk);
-	if (ret)
-		goto putclk;
-
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;
@@ -782,8 +778,6 @@ static int pl011_probe(struct amba_device *dev, void *id)
 	if (ret) {
 		amba_set_drvdata(dev, NULL);
 		amba_ports[i] = NULL;
-		clk_unuse(uap->clk);
- putclk:
 		clk_put(uap->clk);
  unmap:
 		iounmap(base);
@@ -808,7 +802,6 @@ static int pl011_remove(struct amba_device *dev)
 			amba_ports[i] = NULL;
 
 	iounmap(uap->port.membase);
-	clk_unuse(uap->clk);
 	clk_put(uap->clk);
 	kfree(uap);
 	return 0;

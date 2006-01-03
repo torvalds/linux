@@ -151,18 +151,6 @@ void clk_disable(struct clk *clk)
 }
 
 
-int clk_use(struct clk *clk)
-{
-	atomic_inc(&clk->used);
-	return 0;
-}
-
-
-void clk_unuse(struct clk *clk)
-{
-	atomic_dec(&clk->used);
-}
-
 unsigned long clk_get_rate(struct clk *clk)
 {
 	if (IS_ERR(clk))
@@ -196,8 +184,6 @@ EXPORT_SYMBOL(clk_get);
 EXPORT_SYMBOL(clk_put);
 EXPORT_SYMBOL(clk_enable);
 EXPORT_SYMBOL(clk_disable);
-EXPORT_SYMBOL(clk_use);
-EXPORT_SYMBOL(clk_unuse);
 EXPORT_SYMBOL(clk_get_rate);
 EXPORT_SYMBOL(clk_round_rate);
 EXPORT_SYMBOL(clk_set_rate);
@@ -370,7 +356,6 @@ static struct clk init_clocks[] = {
 int s3c24xx_register_clock(struct clk *clk)
 {
 	clk->owner = THIS_MODULE;
-	atomic_set(&clk->used, 0);
 
 	if (clk->enable == NULL)
 		clk->enable = clk_null_enable;

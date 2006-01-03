@@ -63,20 +63,6 @@ int clk_enable(struct clk *clk);
 void clk_disable(struct clk *clk);
 
 /**
- * clk_use - increment the use count
- * @clk: clock source
- *
- * Returns success (0) or negative errno.
- */
-int clk_use(struct clk *clk);
-
-/**
- * clk_unuse - decrement the use count
- * @clk: clock source
- */
-void clk_unuse(struct clk *clk);
-
-/**
  * clk_get_rate - obtain the current clock rate (in Hz) for a clock source.
  *		  This is only valid once the clock source has been enabled.
  * @clk: clock source

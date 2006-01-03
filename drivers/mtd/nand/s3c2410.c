@@ -460,7 +460,6 @@ static int s3c2410_nand_remove(struct platform_device *pdev)
 
 	if (info->clk != NULL && !IS_ERR(info->clk)) {
 		clk_disable(info->clk);
-		clk_unuse(info->clk);
 		clk_put(info->clk);
 	}
 
@@ -598,7 +597,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev, int is_s3c2440)
 		goto exit_error;
 	}
 
-	clk_use(info->clk);
 	clk_enable(info->clk);
 
 	/* allocate and map the resource */
