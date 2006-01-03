@@ -2885,19 +2885,71 @@ nfs4_proc_setclientid_confirm(struct nfs4_client *clp)
 	return status;
 }
 
-static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid)
+struct nfs4_delegreturndata {
+	struct nfs4_delegreturnargs args;
+	struct nfs_fh fh;
+	nfs4_stateid stateid;
+	struct rpc_cred *cred;
+	int rpc_status;
+};
+
+static void nfs4_delegreturn_prepare(struct rpc_task *task, void *calldata)
 {
-	struct nfs4_delegreturnargs args = {
-		.fhandle = NFS_FH(inode),
-		.stateid = stateid,
-	};
+	struct nfs4_delegreturndata *data = calldata;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DELEGRETURN],
-		.rpc_argp = &args,
-		.rpc_cred = cred,
+		.rpc_argp = &data->args,
+		.rpc_cred = data->cred,
 	};
+	rpc_call_setup(task, &msg, 0);
+}
 
-	return rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
+static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_delegreturndata *data = calldata;
+	data->rpc_status = task->tk_status;
+}
+
+static void nfs4_delegreturn_release(void *calldata)
+{
+	struct nfs4_delegreturndata *data = calldata;
+
+	put_rpccred(data->cred);
+	kfree(calldata);
+}
+
+const static struct rpc_call_ops nfs4_delegreturn_ops = {
+	.rpc_call_prepare = nfs4_delegreturn_prepare,
+	.rpc_call_done = nfs4_delegreturn_done,
+	.rpc_release = nfs4_delegreturn_release,
+};
+
+static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid)
+{
+	struct nfs4_delegreturndata *data;
+	struct rpc_task *task;
+	int status;
+
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+	data->args.fhandle = &data->fh;
+	data->args.stateid = &data->stateid;
+	nfs_copy_fh(&data->fh, NFS_FH(inode));
+	memcpy(&data->stateid, stateid, sizeof(data->stateid));
+	data->cred = get_rpccred(cred);
+	data->rpc_status = 0;
+
+	task = rpc_run_task(NFS_CLIENT(inode), RPC_TASK_ASYNC, &nfs4_delegreturn_ops, data);
+	if (IS_ERR(task)) {
+		nfs4_delegreturn_release(data);
+		return PTR_ERR(task);
+	}
+	status = nfs4_wait_for_completion_rpc_task(task);
+	if (status == 0)
+		status = data->rpc_status;
+	rpc_release_task(task);
+	return status;
 }
 
 int nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid)
