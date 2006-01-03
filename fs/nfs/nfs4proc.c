@@ -850,9 +850,14 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 	int open_flags = flags & (FMODE_READ|FMODE_WRITE);
 	int err;
 
+	err = -ENOMEM;
+	if (!(sp = nfs4_get_state_owner(server, cred))) {
+		dprintk("%s: nfs4_get_state_owner failed!\n", __FUNCTION__);
+		return err;
+	}
 	err = nfs4_recover_expired_lease(server);
 	if (err != 0)
-		return err;
+		goto out_put_state_owner;
 	/* Protect against reboot recovery - NOTE ORDER! */
 	down_read(&clp->cl_sem);
 	/* Protect against delegation recall */
@@ -862,10 +867,6 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 	if (delegation == NULL || (delegation->type & open_flags) != open_flags)
 		goto out_err;
 	err = -ENOMEM;
-	if (!(sp = nfs4_get_state_owner(server, cred))) {
-		dprintk("%s: nfs4_get_state_owner failed!\n", __FUNCTION__);
-		goto out_err;
-	}
 	state = nfs4_get_open_state(inode, sp);
 	if (state == NULL)
 		goto out_err;
@@ -877,13 +878,13 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 		spin_unlock(&inode->i_lock);
 		goto out_ok;
 	} else if (state->state != 0)
-		goto out_err;
+		goto out_put_open_state;
 
 	lock_kernel();
 	err = _nfs4_do_access(inode, cred, open_flags);
 	unlock_kernel();
 	if (err != 0)
-		goto out_err;
+		goto out_put_open_state;
 	set_bit(NFS_DELEGATED_STATE, &state->flags);
 	update_open_stateid(state, &delegation->stateid, open_flags);
 out_ok:
@@ -891,17 +892,16 @@ out_ok:
 	up_read(&nfsi->rwsem);
 	up_read(&clp->cl_sem);
 	*res = state;
-	return 0; 
+	return 0;
+out_put_open_state:
+	nfs4_put_open_state(state);
 out_err:
-	if (sp != NULL) {
-		if (state != NULL)
-			nfs4_put_open_state(state);
-		nfs4_put_state_owner(sp);
-	}
 	up_read(&nfsi->rwsem);
 	up_read(&clp->cl_sem);
 	if (err != -EACCES)
 		nfs_inode_return_delegation(inode);
+out_put_state_owner:
+	nfs4_put_state_owner(sp);
 	return err;
 }
 
@@ -941,7 +941,7 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	}
 	status = nfs4_recover_expired_lease(server);
 	if (status != 0)
-		goto out_err;
+		goto err_put_state_owner;
 	down_read(&clp->cl_sem);
 	status = -ENOMEM;
 	opendata = nfs4_opendata_alloc(dentry, sp, flags, sattr);
@@ -2518,26 +2518,24 @@ static const struct rpc_call_ops nfs4_renew_ops = {
 	.rpc_call_done = nfs4_renew_done,
 };
 
-int
-nfs4_proc_async_renew(struct nfs4_client *clp)
+int nfs4_proc_async_renew(struct nfs4_client *clp, struct rpc_cred *cred)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_RENEW],
 		.rpc_argp	= clp,
-		.rpc_cred	= clp->cl_cred,
+		.rpc_cred	= cred,
 	};
 
 	return rpc_call_async(clp->cl_rpcclient, &msg, RPC_TASK_SOFT,
 			&nfs4_renew_ops, (void *)jiffies);
 }
 
-int
-nfs4_proc_renew(struct nfs4_client *clp)
+int nfs4_proc_renew(struct nfs4_client *clp, struct rpc_cred *cred)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_RENEW],
 		.rpc_argp	= clp,
-		.rpc_cred	= clp->cl_cred,
+		.rpc_cred	= cred,
 	};
 	unsigned long now = jiffies;
 	int status;

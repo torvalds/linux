@@ -232,6 +232,20 @@ nfs4_client_grab_unused(struct nfs4_client *clp, struct rpc_cred *cred)
 	return sp;
 }
 
+struct rpc_cred *nfs4_get_renew_cred(struct nfs4_client *clp)
+{
+	struct nfs4_state_owner *sp;
+	struct rpc_cred *cred = NULL;
+
+	list_for_each_entry(sp, &clp->cl_state_owners, so_list) {
+		if (list_empty(&sp->so_states))
+			continue;
+		cred = get_rpccred(sp->so_cred);
+		break;
+	}
+	return cred;
+}
+
 static struct nfs4_state_owner *
 nfs4_find_state_owner(struct nfs4_client *clp, struct rpc_cred *cred)
 {
@@ -899,7 +913,7 @@ static int reclaimer(void *ptr)
 	if (list_empty(&clp->cl_superblocks))
 		goto out;
 restart_loop:
-	status = nfs4_proc_renew(clp);
+	status = nfs4_proc_renew(clp, clp->cl_cred);
 	switch (status) {
 		case 0:
 		case -NFS4ERR_CB_PATH_DOWN:
