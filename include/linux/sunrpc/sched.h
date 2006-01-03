@@ -52,8 +52,6 @@ struct rpc_task {
 	 * RPC call state
 	 */
 	struct rpc_message	tk_msg;		/* RPC call info */
-	__u32 *			tk_buffer;	/* XDR buffer */
-	size_t			tk_bufsize;
 	__u8			tk_garb_retry;
 	__u8			tk_cred_retry;
 
@@ -268,6 +266,7 @@ struct rpc_task *rpc_wake_up_next(struct rpc_wait_queue *);
 void		rpc_wake_up_status(struct rpc_wait_queue *, int);
 void		rpc_delay(struct rpc_task *, unsigned long);
 void *		rpc_malloc(struct rpc_task *, size_t);
+void		rpc_free(struct rpc_task *);
 int		rpciod_up(void);
 void		rpciod_down(void);
 void		rpciod_wake_up(void);

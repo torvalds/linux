@@ -644,24 +644,26 @@ call_reserveresult(struct rpc_task *task)
 
 /*
  * 2.	Allocate the buffer. For details, see sched.c:rpc_malloc.
- *	(Note: buffer memory is freed in rpc_task_release).
+ *	(Note: buffer memory is freed in xprt_release).
  */
 static void
 call_allocate(struct rpc_task *task)
 {
+	struct rpc_rqst *req = task->tk_rqstp;
+	struct rpc_xprt *xprt = task->tk_xprt;
 	unsigned int	bufsiz;
 
 	dprintk("RPC: %4d call_allocate (status %d)\n", 
 				task->tk_pid, task->tk_status);
 	task->tk_action = call_bind;
-	if (task->tk_buffer)
+	if (req->rq_buffer)
 		return;
 
 	/* FIXME: compute buffer requirements more exactly using
 	 * auth->au_wslack */
 	bufsiz = task->tk_msg.rpc_proc->p_bufsiz + RPC_SLACK_SPACE;
 
-	if (rpc_malloc(task, bufsiz << 1) != NULL)
+	if (xprt->ops->buf_alloc(task, bufsiz << 1) != NULL)
 		return;
 	printk(KERN_INFO "RPC: buffer allocation failed for task %p\n", task); 
 
@@ -704,14 +706,14 @@ call_encode(struct rpc_task *task)
 				task->tk_pid, task->tk_status);
 
 	/* Default buffer setup */
-	bufsiz = task->tk_bufsize >> 1;
-	sndbuf->head[0].iov_base = (void *)task->tk_buffer;
+	bufsiz = req->rq_bufsize >> 1;
+	sndbuf->head[0].iov_base = (void *)req->rq_buffer;
 	sndbuf->head[0].iov_len  = bufsiz;
 	sndbuf->tail[0].iov_len  = 0;
 	sndbuf->page_len	 = 0;
 	sndbuf->len		 = 0;
 	sndbuf->buflen		 = bufsiz;
-	rcvbuf->head[0].iov_base = (void *)((char *)task->tk_buffer + bufsiz);
+	rcvbuf->head[0].iov_base = (void *)((char *)req->rq_buffer + bufsiz);
 	rcvbuf->head[0].iov_len  = bufsiz;
 	rcvbuf->tail[0].iov_len  = 0;
 	rcvbuf->page_len	 = 0;

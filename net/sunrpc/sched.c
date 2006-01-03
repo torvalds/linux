@@ -41,8 +41,6 @@ static mempool_t	*rpc_buffer_mempool __read_mostly;
 
 static void			__rpc_default_timer(struct rpc_task *task);
 static void			rpciod_killall(void);
-static void			rpc_free(struct rpc_task *task);
-
 static void			rpc_async_schedule(void *);
 
 /*
@@ -599,7 +597,6 @@ void rpc_exit_task(struct rpc_task *task)
 			WARN_ON(RPC_ASSASSINATED(task));
 			/* Always release the RPC slot and buffer memory */
 			xprt_release(task);
-			rpc_free(task);
 		}
 	}
 }
@@ -724,17 +721,19 @@ static void rpc_async_schedule(void *arg)
 	__rpc_execute((struct rpc_task *)arg);
 }
 
-/*
- * Allocate memory for RPC purposes.
+/**
+ * rpc_malloc - allocate an RPC buffer
+ * @task: RPC task that will use this buffer
+ * @size: requested byte size
  *
  * We try to ensure that some NFS reads and writes can always proceed
  * by using a mempool when allocating 'small' buffers.
  * In order to avoid memory starvation triggering more writebacks of
  * NFS requests, we use GFP_NOFS rather than GFP_KERNEL.
  */
-void *
-rpc_malloc(struct rpc_task *task, size_t size)
+void * rpc_malloc(struct rpc_task *task, size_t size)
 {
+	struct rpc_rqst *req = task->tk_rqstp;
 	gfp_t	gfp;
 
 	if (task->tk_flags & RPC_TASK_SWAPPER)
@@ -743,27 +742,33 @@ rpc_malloc(struct rpc_task *task, size_t size)
 		gfp = GFP_NOFS;
 
 	if (size > RPC_BUFFER_MAXSIZE) {
-		task->tk_buffer =  kmalloc(size, gfp);
-		if (task->tk_buffer)
-			task->tk_bufsize = size;
+		req->rq_buffer = kmalloc(size, gfp);
+		if (req->rq_buffer)
+			req->rq_bufsize = size;
 	} else {
-		task->tk_buffer =  mempool_alloc(rpc_buffer_mempool, gfp);
-		if (task->tk_buffer)
-			task->tk_bufsize = RPC_BUFFER_MAXSIZE;
+		req->rq_buffer = mempool_alloc(rpc_buffer_mempool, gfp);
+		if (req->rq_buffer)
+			req->rq_bufsize = RPC_BUFFER_MAXSIZE;
 	}
-	return task->tk_buffer;
+	return req->rq_buffer;
 }
 
-static void
-rpc_free(struct rpc_task *task)
+/**
+ * rpc_free - free buffer allocated via rpc_malloc
+ * @task: RPC task with a buffer to be freed
+ *
+ */
+void rpc_free(struct rpc_task *task)
 {
-	if (task->tk_buffer) {
-		if (task->tk_bufsize == RPC_BUFFER_MAXSIZE)
-			mempool_free(task->tk_buffer, rpc_buffer_mempool);
+	struct rpc_rqst *req = task->tk_rqstp;
+
+	if (req->rq_buffer) {
+		if (req->rq_bufsize == RPC_BUFFER_MAXSIZE)
+			mempool_free(req->rq_buffer, rpc_buffer_mempool);
 		else
-			kfree(task->tk_buffer);
-		task->tk_buffer = NULL;
-		task->tk_bufsize = 0;
+			kfree(req->rq_buffer);
+		req->rq_buffer = NULL;
+		req->rq_bufsize = 0;
 	}
 }
 
@@ -887,7 +892,6 @@ void rpc_release_task(struct rpc_task *task)
 		xprt_release(task);
 	if (task->tk_msg.rpc_cred)
 		rpcauth_unbindcred(task);
-	rpc_free(task);
 	if (task->tk_client) {
 		rpc_release_client(task->tk_client);
 		task->tk_client = NULL;

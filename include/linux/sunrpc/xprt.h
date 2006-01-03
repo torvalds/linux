@@ -79,21 +79,19 @@ struct rpc_rqst {
 	void (*rq_release_snd_buf)(struct rpc_rqst *); /* release rq_enc_pages */
 	struct list_head	rq_list;
 
+	__u32 *			rq_buffer;	/* XDR encode buffer */
+	size_t			rq_bufsize;
+
 	struct xdr_buf		rq_private_buf;		/* The receive buffer
 							 * used in the softirq.
 							 */
 	unsigned long		rq_majortimeo;	/* major timeout alarm */
 	unsigned long		rq_timeout;	/* Current timeout value */
 	unsigned int		rq_retries;	/* # of retries */
-	/*
-	 * For authentication (e.g. auth_des)
-	 */
-	u32			rq_creddata[2];
 	
 	/*
 	 * Partial send handling
 	 */
-	
 	u32			rq_bytes_sent;	/* Bytes we have sent */
 
 	unsigned long		rq_xtime;	/* when transmitted */
@@ -107,6 +105,8 @@ struct rpc_xprt_ops {
 	int		(*reserve_xprt)(struct rpc_task *task);
 	void		(*release_xprt)(struct rpc_xprt *xprt, struct rpc_task *task);
 	void		(*connect)(struct rpc_task *task);
+	void *		(*buf_alloc)(struct rpc_task *task, size_t size);
+	void		(*buf_free)(struct rpc_task *task);
 	int		(*send_request)(struct rpc_task *task);
 	void		(*set_retrans_timeout)(struct rpc_task *task);
 	void		(*timer)(struct rpc_task *task);
