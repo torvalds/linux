@@ -297,6 +297,20 @@ static int nfs4_wait_for_completion_rpc_task(struct rpc_task *task)
 	return ret;
 }
 
+static inline void update_open_stateflags(struct nfs4_state *state, mode_t open_flags)
+{
+	switch (open_flags) {
+		case FMODE_WRITE:
+			state->n_wronly++;
+			break;
+		case FMODE_READ:
+			state->n_rdonly++;
+			break;
+		case FMODE_READ|FMODE_WRITE:
+			state->n_rdwr++;
+	}
+}
+
 static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid, int open_flags)
 {
 	struct inode *inode = state->inode;
@@ -306,10 +320,7 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid,
 	spin_lock(&state->owner->so_lock);
 	spin_lock(&inode->i_lock);
 	memcpy(&state->stateid, stateid, sizeof(state->stateid));
-	if ((open_flags & FMODE_WRITE))
-		state->nwriters++;
-	if (open_flags & FMODE_READ)
-		state->nreaders++;
+	update_open_stateflags(state, open_flags);
 	nfs4_state_set_mode_locked(state, state->state | open_flags);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&state->owner->so_lock);
@@ -822,10 +833,7 @@ static int _nfs4_open_delegated(struct inode *inode, int flags, struct rpc_cred 
 	err = -ENOENT;
 	if ((state->state & open_flags) == open_flags) {
 		spin_lock(&inode->i_lock);
-		if (open_flags & FMODE_READ)
-			state->nreaders++;
-		if (open_flags & FMODE_WRITE)
-			state->nwriters++;
+		update_open_stateflags(state, open_flags);
 		spin_unlock(&inode->i_lock);
 		goto out_ok;
 	} else if (state->state != 0)
@@ -1082,10 +1090,12 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	spin_lock(&state->owner->so_lock);
 	spin_lock(&calldata->inode->i_lock);
 	mode = old_mode = state->state;
-	if (state->nreaders == 0)
-		mode &= ~FMODE_READ;
-	if (state->nwriters == 0)
-		mode &= ~FMODE_WRITE;
+	if (state->n_rdwr == 0) {
+		if (state->n_rdonly == 0)
+			mode &= ~FMODE_READ;
+		if (state->n_wronly == 0)
+			mode &= ~FMODE_WRITE;
+	}
 	nfs4_state_set_mode_locked(state, mode);
 	spin_unlock(&calldata->inode->i_lock);
 	spin_unlock(&state->owner->so_lock);

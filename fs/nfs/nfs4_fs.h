@@ -182,8 +182,9 @@ struct nfs4_state {
 
 	nfs4_stateid stateid;
 
-	unsigned int nreaders;
-	unsigned int nwriters;
+	unsigned int n_rdonly;
+	unsigned int n_wronly;
+	unsigned int n_rdwr;
 	int state;			/* State on the server (R,W, or RW) */
 	atomic_t count;
 };

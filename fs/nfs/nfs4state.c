@@ -349,14 +349,9 @@ nfs4_alloc_open_state(void)
 {
 	struct nfs4_state *state;
 
-	state = kmalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return NULL;
-	state->state = 0;
-	state->nreaders = 0;
-	state->nwriters = 0;
-	state->flags = 0;
-	memset(state->stateid.data, 0, sizeof(state->stateid.data));
 	atomic_set(&state->count, 1);
 	INIT_LIST_HEAD(&state->lock_states);
 	spin_lock_init(&state->state_lock);
@@ -475,15 +470,23 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 	/* Protect against nfs4_find_state() */
 	spin_lock(&owner->so_lock);
 	spin_lock(&inode->i_lock);
-	if (mode & FMODE_READ)
-		state->nreaders--;
-	if (mode & FMODE_WRITE)
-		state->nwriters--;
+	switch (mode & (FMODE_READ | FMODE_WRITE)) {
+		case FMODE_READ:
+			state->n_rdonly--;
+			break;
+		case FMODE_WRITE:
+			state->n_wronly--;
+			break;
+		case FMODE_READ|FMODE_WRITE:
+			state->n_rdwr--;
+	}
 	oldstate = newstate = state->state;
-	if (state->nreaders == 0)
-		newstate &= ~FMODE_READ;
-	if (state->nwriters == 0)
-		newstate &= ~FMODE_WRITE;
+	if (state->n_rdwr == 0) {
+		if (state->n_rdonly == 0)
+			newstate &= ~FMODE_READ;
+		if (state->n_wronly == 0)
+			newstate &= ~FMODE_WRITE;
+	}
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
 		nfs4_state_set_mode_locked(state, newstate);
 		oldstate = newstate;
