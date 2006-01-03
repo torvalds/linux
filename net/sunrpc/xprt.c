@@ -119,6 +119,17 @@ out_sleep:
 	return 0;
 }
 
+static void xprt_clear_locked(struct rpc_xprt *xprt)
+{
+	xprt->snd_task = NULL;
+	if (!test_bit(XPRT_CLOSE_WAIT, &xprt->state) || xprt->shutdown) {
+		smp_mb__before_clear_bit();
+		clear_bit(XPRT_LOCKED, &xprt->state);
+		smp_mb__after_clear_bit();
+	} else
+		schedule_work(&xprt->task_cleanup);
+}
+
 /*
  * xprt_reserve_xprt_cong - serialize write access to transports
  * @task: task that is requesting access to the transport
@@ -145,9 +156,7 @@ int xprt_reserve_xprt_cong(struct rpc_task *task)
 		}
 		return 1;
 	}
-	smp_mb__before_clear_bit();
-	clear_bit(XPRT_LOCKED, &xprt->state);
-	smp_mb__after_clear_bit();
+	xprt_clear_locked(xprt);
 out_sleep:
 	dprintk("RPC: %4d failed to lock transport %p\n", task->tk_pid, xprt);
 	task->tk_timeout = 0;
@@ -193,9 +202,7 @@ static void __xprt_lock_write_next(struct rpc_xprt *xprt)
 	return;
 
 out_unlock:
-	smp_mb__before_clear_bit();
-	clear_bit(XPRT_LOCKED, &xprt->state);
-	smp_mb__after_clear_bit();
+	xprt_clear_locked(xprt);
 }
 
 static void __xprt_lock_write_next_cong(struct rpc_xprt *xprt)
@@ -222,9 +229,7 @@ static void __xprt_lock_write_next_cong(struct rpc_xprt *xprt)
 		return;
 	}
 out_unlock:
-	smp_mb__before_clear_bit();
-	clear_bit(XPRT_LOCKED, &xprt->state);
-	smp_mb__after_clear_bit();
+	xprt_clear_locked(xprt);
 }
 
 /**
@@ -237,10 +242,7 @@ out_unlock:
 void xprt_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	if (xprt->snd_task == task) {
-		xprt->snd_task = NULL;
-		smp_mb__before_clear_bit();
-		clear_bit(XPRT_LOCKED, &xprt->state);
-		smp_mb__after_clear_bit();
+		xprt_clear_locked(xprt);
 		__xprt_lock_write_next(xprt);
 	}
 }
@@ -256,10 +258,7 @@ void xprt_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 void xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	if (xprt->snd_task == task) {
-		xprt->snd_task = NULL;
-		smp_mb__before_clear_bit();
-		clear_bit(XPRT_LOCKED, &xprt->state);
-		smp_mb__after_clear_bit();
+		xprt_clear_locked(xprt);
 		__xprt_lock_write_next_cong(xprt);
 	}
 }

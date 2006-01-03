@@ -254,6 +254,7 @@ int			xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to);
 #define XPRT_LOCKED		(0)
 #define XPRT_CONNECTED		(1)
 #define XPRT_CONNECTING		(2)
+#define XPRT_CLOSE_WAIT		(3)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {

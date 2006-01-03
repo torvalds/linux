@@ -425,7 +425,7 @@ static void xs_close(struct rpc_xprt *xprt)
 	struct sock *sk = xprt->inet;
 
 	if (!sk)
-		return;
+		goto clear_close_wait;
 
 	dprintk("RPC:      xs_close xprt %p\n", xprt);
 
@@ -442,6 +442,10 @@ static void xs_close(struct rpc_xprt *xprt)
 	sk->sk_no_check = 0;
 
 	sock_release(sock);
+clear_close_wait:
+	smp_mb__before_clear_bit();
+	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
+	smp_mb__after_clear_bit();
 }
 
 /**
@@ -801,9 +805,13 @@ static void xs_tcp_state_change(struct sock *sk)
 	case TCP_SYN_SENT:
 	case TCP_SYN_RECV:
 		break;
+	case TCP_CLOSE_WAIT:
+		/* Try to schedule an autoclose RPC calls */
+		set_bit(XPRT_CLOSE_WAIT, &xprt->state);
+		if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
+			schedule_work(&xprt->task_cleanup);
 	default:
 		xprt_disconnect(xprt);
-		break;
 	}
  out:
 	read_unlock(&sk->sk_callback_lock);
