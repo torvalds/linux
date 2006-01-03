@@ -92,10 +92,26 @@ static int emu10k1_playback_constraints(struct snd_pcm_runtime *runtime)
 #define USE_RATE_MAX		48000
 #endif
 
+#if 0 /* CA0106 */
+#define USE_FORMATS		SNDRV_PCM_FMTBIT_S16_LE
+#define USE_CHANNELS_MIN	2
+#define USE_CHANNELS_MAX	2
+#define USE_RATE		(SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_192000) 
+#define USE_RATE_MIN		48000 
+#define USE_RATE_MAX		192000
+#define MAX_BUFFER_SIZE		((65536-64)*8)
+#define MAX_PERIOD_SIZE		(65536-64)
+#define USE_PERIODS_MIN		2
+#define USE_PERIODS_MAX		8
+#endif
+
 
 /* defaults */
 #ifndef MAX_BUFFER_SIZE
 #define MAX_BUFFER_SIZE		(64*1024)
+#endif
+#ifndef MAX_PERIOD_SIZE
+#define MAX_PERIOD_SIZE		MAX_BUFFER_SIZE
 #endif
 #ifndef USE_FORMATS
 #define USE_FORMATS 		(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE)
@@ -287,7 +303,7 @@ static struct snd_pcm_hardware snd_card_dummy_capture =
 	.channels_max =		USE_CHANNELS_MAX,
 	.buffer_bytes_max =	MAX_BUFFER_SIZE,
 	.period_bytes_min =	64,
-	.period_bytes_max =	MAX_BUFFER_SIZE,
+	.period_bytes_max =	MAX_PERIOD_SIZE,
 	.periods_min =		USE_PERIODS_MIN,
 	.periods_max =		USE_PERIODS_MAX,
 	.fifo_size =		0,
