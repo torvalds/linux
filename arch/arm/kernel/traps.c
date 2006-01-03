@@ -23,7 +23,6 @@
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>

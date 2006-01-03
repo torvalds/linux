@@ -28,10 +28,9 @@
 #include <linux/init.h>
 #include <linux/cpu.h>
 
-#include <asm/system.h>
-#include <asm/io.h>
 #include <asm/leds.h>
 #include <asm/processor.h>
+#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/mach/time.h>
 
