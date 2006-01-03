@@ -1615,12 +1615,6 @@ static int nfs4_xdr_enc_lock(struct rpc_rqst *req, uint32_t *p, struct nfs_lock_
 	};
 	int status;
 
-	status = nfs_wait_on_sequence(args->lock_seqid, req->rq_task);
-	if (status != 0)
-		goto out;
-	/* Do we need to do an open_to_lock_owner? */
-	if (args->lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED)
-		args->new_lock_owner = 0;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
