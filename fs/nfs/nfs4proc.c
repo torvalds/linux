@@ -206,6 +206,17 @@ static int nfs4_call_async(struct rpc_clnt *clnt,
 	return 0;
 }
 
+static int nfs4_wait_for_completion_rpc_task(struct rpc_task *task)
+{
+	sigset_t oldset;
+	int ret;
+
+	rpc_clnt_sigmask(task->tk_client, &oldset);
+	ret = rpc_wait_for_completion_task(task);
+	rpc_clnt_sigunmask(task->tk_client, &oldset);
+	return ret;
+}
+
 static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid, int open_flags)
 {
 	struct inode *inode = state->inode;
@@ -2867,31 +2878,23 @@ struct nfs4_unlockdata {
 	struct nfs_lockres res;
 	struct nfs4_lock_state *lsp;
 	struct nfs_open_context *ctx;
-	atomic_t refcount;
-	struct completion completion;
 };
 
-static void nfs4_locku_release_calldata(struct nfs4_unlockdata *calldata)
-{
-	if (atomic_dec_and_test(&calldata->refcount)) {
-		nfs_free_seqid(calldata->luargs.seqid);
-		nfs4_put_lock_state(calldata->lsp);
-		put_nfs_open_context(calldata->ctx);
-		kfree(calldata);
-	}
-}
-
-static void nfs4_locku_complete(void *data)
+static void nfs4_locku_release_calldata(void *data)
 {
 	struct nfs4_unlockdata *calldata = data;
-	complete(&calldata->completion);
-	nfs4_locku_release_calldata(calldata);
+	nfs_free_seqid(calldata->luargs.seqid);
+	nfs4_put_lock_state(calldata->lsp);
+	put_nfs_open_context(calldata->ctx);
+	kfree(calldata);
 }
 
 static void nfs4_locku_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_unlockdata *calldata = data;
 
+	if (RPC_ASSASSINATED(task))
+		return;
 	nfs_increment_lock_seqid(task->tk_status, calldata->luargs.seqid);
 	switch (task->tk_status) {
 		case 0:
@@ -2935,7 +2938,7 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 static const struct rpc_call_ops nfs4_locku_ops = {
 	.rpc_call_prepare = nfs4_locku_prepare,
 	.rpc_call_done = nfs4_locku_done,
-	.rpc_release = nfs4_locku_complete,
+	.rpc_release = nfs4_locku_release_calldata,
 };
 
 static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *request)
@@ -2944,26 +2947,28 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	struct inode *inode = state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_lock_state *lsp;
-	int status;
+	struct rpc_task *task;
+	int status = 0;
 
 	/* Is this a delegated lock? */
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
-		return do_vfs_lock(request->fl_file, request);
+		goto out;
 
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
-		return status;
+		goto out;
 	lsp = request->fl_u.nfs4_fl.owner;
 	/* We might have lost the locks! */
 	if ((lsp->ls_flags & NFS_LOCK_INITIALIZED) == 0)
-		return 0;
+		goto out;
+	status = -ENOMEM;
 	calldata = kmalloc(sizeof(*calldata), GFP_KERNEL);
 	if (calldata == NULL)
-		return -ENOMEM;
+		goto out;
 	calldata->luargs.seqid = nfs_alloc_seqid(&lsp->ls_seqid);
 	if (calldata->luargs.seqid == NULL) {
 		kfree(calldata);
-		return -ENOMEM;
+		goto out;
 	}
 	calldata->luargs.stateid = &lsp->ls_stateid;
 	calldata->arg.fh = NFS_FH(inode);
@@ -2978,14 +2983,16 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	/* Ensure we don't close file until we're done freeing locks! */
 	calldata->ctx = get_nfs_open_context((struct nfs_open_context*)request->fl_file->private_data);
 
-	atomic_set(&calldata->refcount, 2);
-	init_completion(&calldata->completion);
-
-	status = nfs4_call_async(NFS_SERVER(inode)->client, &nfs4_locku_ops, calldata);
-	if (status == 0)
-		wait_for_completion_interruptible(&calldata->completion);
+	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_locku_ops, calldata);
+	if (!IS_ERR(task)) {
+		status = nfs4_wait_for_completion_rpc_task(task);
+		rpc_release_task(task);
+	} else {
+		status = PTR_ERR(task);
+		nfs4_locku_release_calldata(calldata);
+	}
+out:
 	do_vfs_lock(request->fl_file, request);
-	nfs4_locku_release_calldata(calldata);
 	return status;
 }
 
