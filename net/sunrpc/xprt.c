@@ -534,10 +534,6 @@ void xprt_connect(struct rpc_task *task)
 	dprintk("RPC: %4d xprt_connect xprt %p %s connected\n", task->tk_pid,
 			xprt, (xprt_connected(xprt) ? "is" : "is not"));
 
-	if (xprt->shutdown) {
-		task->tk_status = -EIO;
-		return;
-	}
 	if (!xprt->addr.sin_port) {
 		task->tk_status = -EIO;
 		return;
@@ -686,9 +682,6 @@ int xprt_prepare_transmit(struct rpc_task *task)
 
 	dprintk("RPC: %4d xprt_prepare_transmit\n", task->tk_pid);
 
-	if (xprt->shutdown)
-		return -EIO;
-
 	spin_lock_bh(&xprt->transport_lock);
 	if (req->rq_received && !req->rq_bytes_sent) {
 		err = req->rq_received;
@@ -813,11 +806,9 @@ void xprt_reserve(struct rpc_task *task)
 	struct rpc_xprt	*xprt = task->tk_xprt;
 
 	task->tk_status = -EIO;
-	if (!xprt->shutdown) {
-		spin_lock(&xprt->reserve_lock);
-		do_xprt_reserve(task);
-		spin_unlock(&xprt->reserve_lock);
-	}
+	spin_lock(&xprt->reserve_lock);
+	do_xprt_reserve(task);
+	spin_unlock(&xprt->reserve_lock);
 }
 
 static inline u32 xprt_alloc_xid(struct rpc_xprt *xprt)
@@ -864,7 +855,7 @@ void xprt_release(struct rpc_task *task)
 	if (!list_empty(&req->rq_list))
 		list_del(&req->rq_list);
 	xprt->last_used = jiffies;
-	if (list_empty(&xprt->recv) && !xprt->shutdown)
+	if (list_empty(&xprt->recv))
 		mod_timer(&xprt->timer,
 				xprt->last_used + xprt->idle_timeout);
 	spin_unlock_bh(&xprt->transport_lock);
@@ -976,16 +967,6 @@ struct rpc_xprt *xprt_create_proto(int proto, struct sockaddr_in *sap, struct rp
 	return xprt;
 }
 
-static void xprt_shutdown(struct rpc_xprt *xprt)
-{
-	xprt->shutdown = 1;
-	rpc_wake_up(&xprt->sending);
-	rpc_wake_up(&xprt->resend);
-	xprt_wake_pending_tasks(xprt, -EIO);
-	rpc_wake_up(&xprt->backlog);
-	del_timer_sync(&xprt->timer);
-}
-
 /**
  * xprt_destroy - destroy an RPC transport, killing off all requests.
  * @xprt: transport to destroy
@@ -994,7 +975,8 @@ static void xprt_shutdown(struct rpc_xprt *xprt)
 int xprt_destroy(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:      destroying transport %p\n", xprt);
-	xprt_shutdown(xprt);
+	xprt->shutdown = 1;
+	del_timer_sync(&xprt->timer);
 	xprt->ops->destroy(xprt);
 	kfree(xprt);
 
