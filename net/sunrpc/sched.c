@@ -694,9 +694,7 @@ static int __rpc_execute(struct rpc_task *task)
 		dprintk("RPC: %4d sync task resuming\n", task->tk_pid);
 	}
 
-	dprintk("RPC: %4d exit() = %d\n", task->tk_pid, task->tk_status);
-	status = task->tk_status;
-
+	dprintk("RPC: %4d, return %d, status %d\n", task->tk_pid, status, task->tk_status);
 	/* Wake up anyone who is waiting for task completion */
 	rpc_mark_complete_task(task);
 	/* Release all resources associated with the task */

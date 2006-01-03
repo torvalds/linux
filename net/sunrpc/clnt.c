@@ -446,14 +446,15 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 	rpc_call_setup(task, msg, 0);
 
 	/* Set up the call info struct and execute the task */
-	if (task->tk_status == 0) {
+	status = task->tk_status;
+	if (status == 0) {
+		atomic_inc(&task->tk_count);
 		status = rpc_execute(task);
-	} else {
-		status = task->tk_status;
-		rpc_release_task(task);
+		if (status == 0)
+			status = task->tk_status;
 	}
-
 	rpc_restore_sigmask(&oldset);
+	rpc_release_task(task);
 out:
 	return status;
 }
