@@ -1763,7 +1763,7 @@ static int atalk_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
  */
 static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-	int rc = -EINVAL;
+	int rc = -ENOIOCTLCMD;
 	struct sock *sk = sock->sk;
 	void __user *argp = (void __user *)arg;
 
@@ -1812,23 +1812,6 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			rtnl_lock();
 			rc = atif_ioctl(cmd, argp);
 			rtnl_unlock();
-			break;
-		/* Physical layer ioctl calls */
-		case SIOCSIFLINK:
-		case SIOCGIFHWADDR:
-		case SIOCSIFHWADDR:
-		case SIOCGIFFLAGS:
-		case SIOCSIFFLAGS:
-		case SIOCGIFTXQLEN:
-		case SIOCSIFTXQLEN:
-		case SIOCGIFMTU:
-		case SIOCGIFCONF:
-		case SIOCADDMULTI:
-		case SIOCDELMULTI:
-		case SIOCGIFCOUNT:
-		case SIOCGIFINDEX:
-		case SIOCGIFNAME:
-			rc = dev_ioctl(cmd, argp);
 			break;
 	}
 

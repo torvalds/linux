@@ -687,7 +687,7 @@ static int econet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 			break;
 
 		default:
-			return dev_ioctl(cmd, argp);
+			return -ENOIOCTLCMD;
 	}
 	/*NOTREACHED*/
 	return 0;

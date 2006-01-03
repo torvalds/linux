@@ -777,10 +777,10 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			err = devinet_ioctl(cmd, (void __user *)arg);
 			break;
 		default:
-			if (!sk->sk_prot->ioctl ||
-			    (err = sk->sk_prot->ioctl(sk, cmd, arg)) ==
-			    					-ENOIOCTLCMD)
-				err = dev_ioctl(cmd, (void __user *)arg);
+			if (sk->sk_prot->ioctl)
+				err = sk->sk_prot->ioctl(sk, cmd, arg);
+			else
+				err = -ENOIOCTLCMD;
 			break;
 	}
 	return err;

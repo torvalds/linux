@@ -1215,7 +1215,7 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		return nr_rt_ioctl(cmd, argp);
 
 	default:
-		return dev_ioctl(cmd, argp);
+		return -ENOIOCTLCMD;
 	}
 
 	return 0;

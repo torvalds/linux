@@ -900,6 +900,13 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			break;
 		default:
 			err = sock->ops->ioctl(sock, cmd, arg);
+
+			/*
+			 * If this ioctl is unknown try to hand it down
+			 * to the NIC driver.
+			 */
+			if (err == -ENOIOCTLCMD)
+				err = dev_ioctl(cmd, argp);
 			break;
 	}
 	return err;

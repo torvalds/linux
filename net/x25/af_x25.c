@@ -1378,7 +1378,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		}
 
  		default:
-			rc = dev_ioctl(cmd, argp);
+			rc = -ENOIOCTLCMD;
 			break;
 	}
 

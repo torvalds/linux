@@ -1822,7 +1822,7 @@ static int irda_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		return -EINVAL;
 	default:
 		IRDA_DEBUG(1, "%s(), doing device ioctl!\n", __FUNCTION__);
-		return dev_ioctl(cmd, (void __user *) arg);
+		return -ENOIOCTLCMD;
 	}
 
 	/*NOTREACHED*/

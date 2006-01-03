@@ -1521,7 +1521,7 @@ static int packet_ioctl(struct socket *sock, unsigned int cmd,
 #endif
 
 		default:
-			return dev_ioctl(cmd, (void __user *)arg);
+			return -ENOIOCTLCMD;
 	}
 	return 0;
 }

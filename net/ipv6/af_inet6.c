@@ -434,7 +434,6 @@ int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
-	int err = -EINVAL;
 
 	switch(cmd) 
 	{
@@ -453,10 +452,9 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCSIFDSTADDR:
 		return addrconf_set_dstaddr((void __user *) arg);
 	default:
-		if (!sk->sk_prot->ioctl ||
-		    (err = sk->sk_prot->ioctl(sk, cmd, arg)) == -ENOIOCTLCMD)
-			return(dev_ioctl(cmd,(void __user *) arg));		
-		return err;
+		if (!sk->sk_prot->ioctl)
+			return -ENOIOCTLCMD;
+		return sk->sk_prot->ioctl(sk, cmd, arg);
 	}
 	/*NOTREACHED*/
 	return(0);

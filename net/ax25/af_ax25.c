@@ -1827,7 +1827,7 @@ static int ax25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		res = dev_ioctl(cmd, argp);
+		res = -ENOIOCTLCMD;
 		break;
 	}
 	release_sock(sk);

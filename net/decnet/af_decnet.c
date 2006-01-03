@@ -1252,7 +1252,7 @@ static int dn_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		err = dev_ioctl(cmd, (void __user *)arg);
+		err = -ENOIOCTLCMD;
 		break;
 	}
 
