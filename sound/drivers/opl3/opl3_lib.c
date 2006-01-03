@@ -409,13 +409,13 @@ int snd_opl3_create(struct snd_card *card,
 	if (! integrated) {
 		if ((opl3->res_l_port = request_region(l_port, 2, "OPL2/3 (left)")) == NULL) {
 			snd_printk(KERN_ERR "opl3: can't grab left port 0x%lx\n", l_port);
-			snd_opl3_free(opl3);
+			snd_device_free(card, opl3);
 			return -EBUSY;
 		}
 		if (r_port != 0 &&
 		    (opl3->res_r_port = request_region(r_port, 2, "OPL2/3 (right)")) == NULL) {
 			snd_printk(KERN_ERR "opl3: can't grab right port 0x%lx\n", r_port);
-			snd_opl3_free(opl3);
+			snd_device_free(card, opl3);
 			return -EBUSY;
 		}
 	}
@@ -434,7 +434,7 @@ int snd_opl3_create(struct snd_card *card,
 		if ((err = snd_opl3_detect(opl3)) < 0) {
 			snd_printd("OPL2/3 chip not detected at 0x%lx/0x%lx\n",
 				   opl3->l_port, opl3->r_port);
-			snd_opl3_free(opl3);
+			snd_device_free(card, opl3);
 			return err;
 		}
 		/* detect routine returns correct hardware type */
