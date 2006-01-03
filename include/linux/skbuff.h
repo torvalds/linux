@@ -133,7 +133,7 @@ struct skb_frag_struct {
  */
 struct skb_shared_info {
 	atomic_t	dataref;
-	unsigned int	nr_frags;
+	unsigned short	nr_frags;
 	unsigned short	tso_size;
 	unsigned short	tso_segs;
 	unsigned short  ufo_size;
