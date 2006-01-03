@@ -165,50 +165,46 @@ struct nfs_closeres {
  *  * Arguments to the lock,lockt, and locku call.
  *   */
 struct nfs_lowner {
-	__u64           clientid;
-	u32                     id;
+	__u64			clientid;
+	u32			id;
 };
 
-struct nfs_lock_opargs {
+struct nfs_lock_args {
+	struct nfs_fh *		fh;
+	struct file_lock *	fl;
 	struct nfs_seqid *	lock_seqid;
 	nfs4_stateid *		lock_stateid;
 	struct nfs_seqid *	open_seqid;
 	nfs4_stateid *		open_stateid;
-	struct nfs_lowner       lock_owner;
-	__u32                   reclaim;
-	__u32                   new_lock_owner;
+	struct nfs_lowner	lock_owner;
+	unsigned char		block : 1;
+	unsigned char		reclaim : 1;
+	unsigned char		new_lock_owner : 1;
 };
 
-struct nfs_locku_opargs {
+struct nfs_lock_res {
+	nfs4_stateid			stateid;
+};
+
+struct nfs_locku_args {
+	struct nfs_fh *		fh;
+	struct file_lock *	fl;
 	struct nfs_seqid *	seqid;
 	nfs4_stateid *		stateid;
 };
 
-struct nfs_lockargs {
-	struct nfs_fh *         fh;
-	__u32                   type;
-	__u64                   offset; 
-	__u64                   length; 
-	union {
-		struct nfs_lock_opargs  *lock;    /* LOCK  */
-		struct nfs_lowner       *lockt;  /* LOCKT */
-		struct nfs_locku_opargs *locku;  /* LOCKU */
-	} u;
+struct nfs_locku_res {
+	nfs4_stateid			stateid;
 };
 
-struct nfs_lock_denied {
-	__u64                   offset;
-	__u64                   length;
-	__u32                   type;
-	struct nfs_lowner   	owner;
+struct nfs_lockt_args {
+	struct nfs_fh *		fh;
+	struct file_lock *	fl;
+	struct nfs_lowner	lock_owner;
 };
 
-struct nfs_lockres {
-	union {
-		nfs4_stateid            stateid;/* LOCK success, LOCKU */
-		struct nfs_lock_denied  denied; /* LOCK failed, LOCKT success */
-	} u;
-	const struct nfs_server *	server;
+struct nfs_lockt_res {
+	struct file_lock *	denied; /* LOCK, LOCKT failed */
 };
 
 struct nfs4_delegreturnargs {

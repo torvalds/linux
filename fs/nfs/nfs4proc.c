@@ -2935,43 +2935,17 @@ nfs4_set_lock_task_retry(unsigned long timeout)
 	return timeout;
 }
 
-static inline int
-nfs4_lck_type(int cmd, struct file_lock *request)
-{
-	/* set lock type */
-	switch (request->fl_type) {
-		case F_RDLCK:
-			return IS_SETLKW(cmd) ? NFS4_READW_LT : NFS4_READ_LT;
-		case F_WRLCK:
-			return IS_SETLKW(cmd) ? NFS4_WRITEW_LT : NFS4_WRITE_LT;
-		case F_UNLCK:
-			return NFS4_WRITE_LT; 
-	}
-	BUG();
-	return 0;
-}
-
-static inline uint64_t
-nfs4_lck_length(struct file_lock *request)
-{
-	if (request->fl_end == OFFSET_MAX)
-		return ~(uint64_t)0;
-	return request->fl_end - request->fl_start + 1;
-}
-
 static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
 	struct inode *inode = state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_client *clp = server->nfs4_state;
-	struct nfs_lockargs arg = {
+	struct nfs_lockt_args arg = {
 		.fh = NFS_FH(inode),
-		.type = nfs4_lck_type(cmd, request),
-		.offset = request->fl_start,
-		.length = nfs4_lck_length(request),
+		.fl = request,
 	};
-	struct nfs_lockres res = {
-		.server = server,
+	struct nfs_lockt_res res = {
+		.denied = request,
 	};
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_LOCKT],
@@ -2979,36 +2953,23 @@ static int _nfs4_proc_getlk(struct nfs4_state *state, int cmd, struct file_lock 
 		.rpc_resp       = &res,
 		.rpc_cred	= state->owner->so_cred,
 	};
-	struct nfs_lowner nlo;
 	struct nfs4_lock_state *lsp;
 	int status;
 
 	down_read(&clp->cl_sem);
-	nlo.clientid = clp->cl_clientid;
+	arg.lock_owner.clientid = clp->cl_clientid;
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
 		goto out;
 	lsp = request->fl_u.nfs4_fl.owner;
-	nlo.id = lsp->ls_id; 
-	arg.u.lockt = &nlo;
+	arg.lock_owner.id = lsp->ls_id; 
 	status = rpc_call_sync(server->client, &msg, 0);
-	if (!status) {
-		request->fl_type = F_UNLCK;
-	} else if (status == -NFS4ERR_DENIED) {
-		int64_t len, start, end;
-		start = res.u.denied.offset;
-		len = res.u.denied.length;
-		end = start + len - 1;
-		if (end < 0 || len == 0)
-			request->fl_end = OFFSET_MAX;
-		else
-			request->fl_end = (loff_t)end;
-		request->fl_start = (loff_t)start;
-		request->fl_type = F_WRLCK;
-		if (res.u.denied.type & 1)
-			request->fl_type = F_RDLCK;
-		request->fl_pid = 0;
-		status = 0;
+	switch (status) {
+		case 0:
+			request->fl_type = F_UNLCK;
+			break;
+		case -NFS4ERR_DENIED:
+			status = 0;
 	}
 out:
 	up_read(&clp->cl_sem);
@@ -3048,17 +3009,42 @@ static int do_vfs_lock(struct file *file, struct file_lock *fl)
 }
 
 struct nfs4_unlockdata {
-	struct nfs_lockargs arg;
-	struct nfs_locku_opargs luargs;
-	struct nfs_lockres res;
+	struct nfs_locku_args arg;
+	struct nfs_locku_res res;
 	struct nfs4_lock_state *lsp;
 	struct nfs_open_context *ctx;
+	struct file_lock fl;
+	const struct nfs_server *server;
 };
+
+static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
+		struct nfs_open_context *ctx,
+		struct nfs4_lock_state *lsp,
+		struct nfs_seqid *seqid)
+{
+	struct nfs4_unlockdata *p;
+	struct inode *inode = lsp->ls_state->inode;
+
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL)
+		return NULL;
+	p->arg.fh = NFS_FH(inode);
+	p->arg.fl = &p->fl;
+	p->arg.seqid = seqid;
+	p->arg.stateid = &lsp->ls_stateid;
+	p->lsp = lsp;
+	atomic_inc(&lsp->ls_count);
+	/* Ensure we don't close file until we're done freeing locks! */
+	p->ctx = get_nfs_open_context(ctx);
+	memcpy(&p->fl, fl, sizeof(p->fl));
+	p->server = NFS_SERVER(inode);
+	return p;
+}
 
 static void nfs4_locku_release_calldata(void *data)
 {
 	struct nfs4_unlockdata *calldata = data;
-	nfs_free_seqid(calldata->luargs.seqid);
+	nfs_free_seqid(calldata->arg.seqid);
 	nfs4_put_lock_state(calldata->lsp);
 	put_nfs_open_context(calldata->ctx);
 	kfree(calldata);
@@ -3070,19 +3056,19 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 
 	if (RPC_ASSASSINATED(task))
 		return;
-	nfs_increment_lock_seqid(task->tk_status, calldata->luargs.seqid);
+	nfs_increment_lock_seqid(task->tk_status, calldata->arg.seqid);
 	switch (task->tk_status) {
 		case 0:
 			memcpy(calldata->lsp->ls_stateid.data,
-					calldata->res.u.stateid.data,
+					calldata->res.stateid.data,
 					sizeof(calldata->lsp->ls_stateid.data));
 			break;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
-			nfs4_schedule_state_recovery(calldata->res.server->nfs4_state);
+			nfs4_schedule_state_recovery(calldata->server->nfs4_state);
 			break;
 		default:
-			if (nfs4_async_handle_error(task, calldata->res.server) == -EAGAIN) {
+			if (nfs4_async_handle_error(task, calldata->server) == -EAGAIN) {
 				rpc_restart_call(task);
 			}
 	}
@@ -3097,10 +3083,8 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 		.rpc_resp       = &calldata->res,
 		.rpc_cred	= calldata->lsp->ls_state->owner->so_cred,
 	};
-	int status;
 
-	status = nfs_wait_on_sequence(calldata->luargs.seqid, task);
-	if (status != 0)
+	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
 		return;
 	if ((calldata->lsp->ls_flags & NFS_LOCK_INITIALIZED) == 0) {
 		/* Note: exit _without_ running nfs4_locku_done */
@@ -3121,43 +3105,32 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	struct nfs4_unlockdata *calldata;
 	struct inode *inode = state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
+	struct nfs_seqid *seqid;
 	struct nfs4_lock_state *lsp;
 	struct rpc_task *task;
 	int status = 0;
 
 	/* Is this a delegated lock? */
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
-		goto out;
+		goto out_unlock;
+	/* Is this open_owner holding any locks on the server? */
+	if (test_bit(LK_STATE_IN_USE, &state->flags) == 0)
+		goto out_unlock;
 
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
-		goto out;
+		goto out_unlock;
 	lsp = request->fl_u.nfs4_fl.owner;
-	/* We might have lost the locks! */
-	if ((lsp->ls_flags & NFS_LOCK_INITIALIZED) == 0)
-		goto out;
 	status = -ENOMEM;
-	calldata = kmalloc(sizeof(*calldata), GFP_KERNEL);
+	seqid = nfs_alloc_seqid(&lsp->ls_seqid);
+	if (seqid == NULL)
+		goto out_unlock;
+	calldata = nfs4_alloc_unlockdata(request, request->fl_file->private_data,
+			lsp, seqid);
 	if (calldata == NULL)
-		goto out;
-	calldata->luargs.seqid = nfs_alloc_seqid(&lsp->ls_seqid);
-	if (calldata->luargs.seqid == NULL) {
-		kfree(calldata);
-		goto out;
-	}
-	calldata->luargs.stateid = &lsp->ls_stateid;
-	calldata->arg.fh = NFS_FH(inode);
-	calldata->arg.type = nfs4_lck_type(cmd, request);
-	calldata->arg.offset = request->fl_start;
-	calldata->arg.length = nfs4_lck_length(request);
-	calldata->arg.u.locku = &calldata->luargs;
-	calldata->res.server = server;
-	calldata->lsp = lsp;
-	atomic_inc(&lsp->ls_count);
-
-	/* Ensure we don't close file until we're done freeing locks! */
-	calldata->ctx = get_nfs_open_context((struct nfs_open_context*)request->fl_file->private_data);
-
+		goto out_free_seqid;
+	/* Unlock _before_ we do the RPC call */
+	do_vfs_lock(request->fl_file, request);
 	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_locku_ops, calldata);
 	if (!IS_ERR(task)) {
 		status = nfs4_wait_for_completion_rpc_task(task);
@@ -3166,7 +3139,10 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 		status = PTR_ERR(task);
 		nfs4_locku_release_calldata(calldata);
 	}
-out:
+	return status;
+out_free_seqid:
+	nfs_free_seqid(seqid);
+out_unlock:
 	do_vfs_lock(request->fl_file, request);
 	return status;
 }
@@ -3176,27 +3152,19 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *r
 	struct inode *inode = state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_lock_state *lsp = request->fl_u.nfs4_fl.owner;
-	struct nfs_lock_opargs largs = {
+	struct nfs_lock_args arg = {
+		.fh = NFS_FH(inode),
+		.fl = request,
 		.lock_stateid = &lsp->ls_stateid,
 		.open_stateid = &state->stateid,
 		.lock_owner = {
 			.clientid = server->nfs4_state->cl_clientid,
 			.id = lsp->ls_id,
 		},
+		.block = (IS_SETLKW(cmd)) ? 1 : 0,
 		.reclaim = reclaim,
 	};
-	struct nfs_lockargs arg = {
-		.fh = NFS_FH(inode),
-		.type = nfs4_lck_type(cmd, request),
-		.offset = request->fl_start,
-		.length = nfs4_lck_length(request),
-		.u = {
-			.lock = &largs,
-		},
-	};
-	struct nfs_lockres res = {
-		.server = server,
-	};
+	struct nfs_lock_res res;
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_LOCK],
 		.rpc_argp       = &arg,
@@ -3205,37 +3173,37 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *r
 	};
 	int status = -ENOMEM;
 
-	largs.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid);
-	if (largs.lock_seqid == NULL)
+	arg.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid);
+	if (arg.lock_seqid == NULL)
 		return -ENOMEM;
 	if (!(lsp->ls_seqid.flags & NFS_SEQID_CONFIRMED)) {
 		struct nfs4_state_owner *owner = state->owner;
 
-		largs.open_seqid = nfs_alloc_seqid(&owner->so_seqid);
-		if (largs.open_seqid == NULL)
+		arg.open_seqid = nfs_alloc_seqid(&owner->so_seqid);
+		if (arg.open_seqid == NULL)
 			goto out;
-		largs.new_lock_owner = 1;
+		arg.new_lock_owner = 1;
 		status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
 		/* increment open seqid on success, and seqid mutating errors */
-		if (largs.new_lock_owner != 0) {
-			nfs_increment_open_seqid(status, largs.open_seqid);
+		if (arg.new_lock_owner != 0) {
+			nfs_increment_open_seqid(status, arg.open_seqid);
 			if (status == 0)
 				nfs_confirm_seqid(&lsp->ls_seqid, 0);
 		}
-		nfs_free_seqid(largs.open_seqid);
+		nfs_free_seqid(arg.open_seqid);
 	} else
 		status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
 	/* increment lock seqid on success, and seqid mutating errors*/
-	nfs_increment_lock_seqid(status, largs.lock_seqid);
+	nfs_increment_lock_seqid(status, arg.lock_seqid);
 	/* save the returned stateid. */
 	if (status == 0) {
-		memcpy(lsp->ls_stateid.data, res.u.stateid.data,
+		memcpy(lsp->ls_stateid.data, res.stateid.data,
 				sizeof(lsp->ls_stateid.data));
 		lsp->ls_flags |= NFS_LOCK_INITIALIZED;
 	} else if (status == -NFS4ERR_DENIED)
 		status = -EAGAIN;
 out:
-	nfs_free_seqid(largs.lock_seqid);
+	nfs_free_seqid(arg.lock_seqid);
 	return status;
 }
 
