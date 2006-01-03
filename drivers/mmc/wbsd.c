@@ -2087,10 +2087,20 @@ static int __init wbsd_drv_init(void)
 		if (result < 0)
 			return result;
 
-		wbsd_device = platform_device_register_simple(DRIVER_NAME, -1,
-			NULL, 0);
-		if (IS_ERR(wbsd_device))
-			return PTR_ERR(wbsd_device);
+		wbsd_device = platform_device_alloc(DRIVER_NAME, -1);
+		if (!wbsd_device)
+		{
+			platform_driver_unregister(&wbsd_driver);
+			return -ENOMEM;
+		}
+
+		result = platform_device_add(wbsd_device);
+		if (result)
+		{
+			platform_device_put(wbsd_device);
+			platform_driver_unregister(&wbsd_driver);
+			return result;
+		}
 	}
 
 	return 0;
