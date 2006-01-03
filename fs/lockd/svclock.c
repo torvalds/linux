@@ -637,11 +637,12 @@ nlmsvc_grant_reply(struct svc_rqst *rqstp, struct nlm_cookie *cookie, u32 status
 
 	file->f_count++;
 	down(&file->f_sema);
-	if ((block = nlmsvc_find_block(cookie,&rqstp->rq_addr)) != NULL) {
+	block = nlmsvc_find_block(cookie, &rqstp->rq_addr);
+	if (block) {
 		if (status == NLM_LCK_DENIED_GRACE_PERIOD) {
 			/* Try again in a couple of seconds */
 			nlmsvc_insert_block(block, 10 * HZ);
-			block = NULL;
+			up(&file->f_sema);
 		} else {
 			/* Lock is now held by client, or has been rejected.
 			 * In both cases, the block should be removed. */
@@ -652,8 +653,6 @@ nlmsvc_grant_reply(struct svc_rqst *rqstp, struct nlm_cookie *cookie, u32 status
 				nlmsvc_delete_block(block, 1);
 		}
 	}
-	if (!block)
-		up(&file->f_sema);
 	nlm_release_file(file);
 }
 
