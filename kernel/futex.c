@@ -270,7 +270,13 @@ static void wake_futex(struct futex_q *q)
 	/*
 	 * The waiting task can free the futex_q as soon as this is written,
 	 * without taking any locks.  This must come last.
+	 *
+	 * A memory barrier is required here to prevent the following store
+	 * to lock_ptr from getting ahead of the wakeup. Clearing the lock
+	 * at the end of wake_up_all() does not prevent this store from
+	 * moving.
 	 */
+	wmb();
 	q->lock_ptr = NULL;
 }
 

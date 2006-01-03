@@ -2044,7 +2044,7 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	else {
 		u8 *scsicmd = cmd->cmnd;
 
-		if (scsicmd[0] == INQUIRY) {
+		if ((scsicmd[0] == INQUIRY) && ((scsicmd[1] & 0x03) == 0)) {
 			u8 *buf = NULL;
 			unsigned int buflen;
 
@@ -2057,9 +2057,6 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	 * to indicate to the Linux scsi midlayer this is a modern
 	 * device.  2) Ensure response data format / ATAPI information
 	 * are always correct.
-	 */
-	/* FIXME: do we ever override EVPD pages and the like, with
-	 * this code?
 	 */
 			if (buf[2] == 0) {
 				buf[2] = 0x5;

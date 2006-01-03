@@ -638,7 +638,7 @@ gss_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 				gss_msg);
 		atomic_inc(&gss_msg->count);
 		gss_unhash_msg(gss_msg);
-		if (msg->errno == -ETIMEDOUT || msg->errno == -EPIPE) {
+		if (msg->errno == -ETIMEDOUT) {
 			unsigned long now = jiffies;
 			if (time_after(now, ratelimit)) {
 				printk(KERN_WARNING "RPC: AUTH_GSS upcall timed out.\n"
@@ -786,7 +786,9 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int taskflags)
 	cred->gc_flags = 0;
 	cred->gc_base.cr_ops = &gss_credops;
 	cred->gc_service = gss_auth->service;
-	err = gss_create_upcall(gss_auth, cred);
+	do {
+		err = gss_create_upcall(gss_auth, cred);
+	} while (err == -EAGAIN);
 	if (err < 0)
 		goto out_err;
 

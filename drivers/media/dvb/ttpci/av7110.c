@@ -176,6 +176,9 @@ static void init_av7110_av(struct av7110 *av7110)
 		}
 	}
 
+	if (dev->pci->subsystem_vendor == 0x13c2 && dev->pci->subsystem_device == 0x000e)
+		av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, SpdifSwitch, 1, 0); // SPDIF on
+
 	ret = av7110_set_volume(av7110, av7110->mixer.volume_left, av7110->mixer.volume_right);
 	if (ret < 0)
 		printk("dvb-ttpci:cannot set volume :%d\n",ret);

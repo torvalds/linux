@@ -333,24 +333,30 @@ static int set_input(struct i2c_client *client, enum cx25840_input input)
 
 static int set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 {
-	u8 fmt;
+	u8 fmt=0; 	/* zero is autodetect */
 
-	switch (std) {
-	/* zero is autodetect */
-	case 0: fmt = 0x0; break;
-	/* default ntsc to ntsc-m */
-	case V4L2_STD_NTSC:
-	case V4L2_STD_NTSC_M: fmt = 0x1; break;
-	case V4L2_STD_NTSC_M_JP: fmt = 0x2; break;
-	case V4L2_STD_NTSC_443: fmt = 0x3; break;
-	case V4L2_STD_PAL: fmt = 0x4; break;
-	case V4L2_STD_PAL_M: fmt = 0x5; break;
-	case V4L2_STD_PAL_N: fmt = 0x6; break;
-	case V4L2_STD_PAL_Nc: fmt = 0x7; break;
-	case V4L2_STD_PAL_60: fmt = 0x8; break;
-	case V4L2_STD_SECAM: fmt = 0xc; break;
-	default:
-		return -ERANGE;
+	/* First tests should be against specific std */
+	if (std & V4L2_STD_NTSC_M_JP) {
+		fmt=0x2;
+	} else if (std & V4L2_STD_NTSC_443) {
+		fmt=0x3;
+	} else if (std & V4L2_STD_PAL_M) {
+		fmt=0x5;
+	} else if (std & V4L2_STD_PAL_N) {
+		fmt=0x6;
+	} else if (std & V4L2_STD_PAL_Nc) {
+		fmt=0x7;
+	} else if (std & V4L2_STD_PAL_60) {
+		fmt=0x8;
+	} else {
+		/* Then, test against generic ones */
+		if (std & V4L2_STD_NTSC) {
+			fmt=0x1;
+		} else if (std & V4L2_STD_PAL) {
+			fmt=0x4;
+		} else if (std & V4L2_STD_SECAM) {
+			fmt=0xc;
+		}
 	}
 
 	cx25840_and_or(client, 0x400, ~0xf, fmt);

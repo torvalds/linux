@@ -923,7 +923,7 @@ static void do_monitor_cpu_combined(void)
 	if (temp_combi >= ((state0->mpu.tmax + 8) << 16)) {
 		printk(KERN_WARNING "Warning ! Temperature way above maximum (%d) !\n",
 		       temp_combi >> 16);
-		state0->overtemp = CPU_MAX_OVERTEMP;
+		state0->overtemp += CPU_MAX_OVERTEMP / 4;
 	} else if (temp_combi > (state0->mpu.tmax << 16))
 		state0->overtemp++;
 	else
@@ -933,7 +933,7 @@ static void do_monitor_cpu_combined(void)
 	if (state0->overtemp > 0) {
 		state0->rpm = state0->mpu.rmaxn_exhaust_fan;
 		state0->intake_rpm = intake = state0->mpu.rmaxn_intake_fan;
-		pump = state0->pump_min;
+		pump = state0->pump_max;
 		goto do_set_fans;
 	}
 
@@ -998,7 +998,7 @@ static void do_monitor_cpu_split(struct cpu_pid_state *state)
 		printk(KERN_WARNING "Warning ! CPU %d temperature way above maximum"
 		       " (%d) !\n",
 		       state->index, temp >> 16);
-		state->overtemp = CPU_MAX_OVERTEMP;
+		state->overtemp += CPU_MAX_OVERTEMP / 4;
 	} else if (temp > (state->mpu.tmax << 16))
 		state->overtemp++;
 	else
@@ -1060,7 +1060,7 @@ static void do_monitor_cpu_rack(struct cpu_pid_state *state)
 		printk(KERN_WARNING "Warning ! CPU %d temperature way above maximum"
 		       " (%d) !\n",
 		       state->index, temp >> 16);
-		state->overtemp = CPU_MAX_OVERTEMP;
+		state->overtemp = CPU_MAX_OVERTEMP / 4;
 	} else if (temp > (state->mpu.tmax << 16))
 		state->overtemp++;
 	else

@@ -47,7 +47,7 @@ config LOGO_SGI_CLUT224
 
 config LOGO_SUN_CLUT224
 	bool "224-color Sun Linux logo"
-	depends on LOGO && (SPARC32 || SPARC64)
+	depends on LOGO && SPARC
 	default y
 
 config LOGO_SUPERH_MONO

@@ -400,6 +400,36 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	return found_target;
 }
 
+struct work_queue_wrapper {
+	struct work_struct	work;
+	struct scsi_target	*starget;
+};
+
+static void scsi_target_reap_work(void *data) {
+	struct work_queue_wrapper *wqw = (struct work_queue_wrapper *)data;
+	struct scsi_target *starget = wqw->starget;
+	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
+	unsigned long flags;
+
+	kfree(wqw);
+
+	spin_lock_irqsave(shost->host_lock, flags);
+
+	if (--starget->reap_ref == 0 && list_empty(&starget->devices)) {
+		list_del_init(&starget->siblings);
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		transport_remove_device(&starget->dev);
+		device_del(&starget->dev);
+		transport_destroy_device(&starget->dev);
+		put_device(&starget->dev);
+		return;
+
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	return;
+}
+
 /**
  * scsi_target_reap - check to see if target is in use and destroy if not
  *
@@ -411,19 +441,18 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
  */
 void scsi_target_reap(struct scsi_target *starget)
 {
-	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
-	unsigned long flags;
-	spin_lock_irqsave(shost->host_lock, flags);
+	struct work_queue_wrapper *wqw = 
+		kzalloc(sizeof(struct work_queue_wrapper), GFP_ATOMIC);
 
-	if (--starget->reap_ref == 0 && list_empty(&starget->devices)) {
-		list_del_init(&starget->siblings);
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		device_del(&starget->dev);
-		transport_unregister_device(&starget->dev);
-		put_device(&starget->dev);
+	if (!wqw) {
+		starget_printk(KERN_ERR, starget,
+			       "Failed to allocate memory in scsi_reap_target()\n");
 		return;
 	}
-	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	INIT_WORK(&wqw->work, scsi_target_reap_work, wqw);
+	wqw->starget = starget;
+	schedule_work(&wqw->work);
 }
 
 /**

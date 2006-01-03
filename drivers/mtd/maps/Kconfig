@@ -62,7 +62,7 @@ config MTD_PHYSMAP_BANKWIDTH
 
 config MTD_SUN_UFLASH
 	tristate "Sun Microsystems userflash support"
-	depends on (SPARC32 || SPARC64) && MTD_CFI
+	depends on SPARC && MTD_CFI
 	help
 	  This provides a 'mapping' driver which supports the way in
 	  which user-programmable flash chips are connected on various

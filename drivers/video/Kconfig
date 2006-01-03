@@ -536,13 +536,13 @@ config FB_SUN3
 
 config FB_SBUS
 	bool "SBUS and UPA framebuffers"
-	depends on (FB = y) && (SPARC32 || SPARC64)
+	depends on (FB = y) && SPARC
 	help
 	  Say Y if you want support for SBUS or UPA based frame buffer device.
 
 config FB_BW2
 	bool "BWtwo support"
-	depends on (FB = y) && ((SPARC32 || SPARC64) && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
+	depends on (FB = y) && (SPARC && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -551,7 +551,7 @@ config FB_BW2
 
 config FB_CG3
 	bool "CGthree support"
-	depends on (FB = y) && ((SPARC32 || SPARC64) && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
+	depends on (FB = y) && (SPARC && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -560,7 +560,7 @@ config FB_CG3
 
 config FB_CG6
 	bool "CGsix (GX,TurboGX) support"
-	depends on (FB = y) && ((SPARC32 || SPARC64) && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
+	depends on (FB = y) && (SPARC && FB_SBUS || (SUN3 || SUN3X) && FB_SUN3)
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
@@ -1268,7 +1268,7 @@ config FB_LEO
 
 config FB_PCI
 	bool "PCI framebuffers"
-	depends on (FB = y) && PCI && (SPARC64 || SPARC32)
+	depends on (FB = y) && PCI && SPARC
 
 config FB_IGA
 	bool "IGA 168x display support"
