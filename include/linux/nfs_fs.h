@@ -392,6 +392,17 @@ extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh, struct nfs_
 extern struct inode_operations nfs_symlink_inode_operations;
 
 /*
+ * linux/fs/nfs/sysctl.c
+ */
+#ifdef CONFIG_SYSCTL
+extern int nfs_register_sysctl(void);
+extern void nfs_unregister_sysctl(void);
+#else
+#define nfs_register_sysctl() do { } while(0)
+#define nfs_unregister_sysctl() do { } while(0)
+#endif
+
+/*
  * linux/fs/nfs/unlink.c
  */
 extern int  nfs_async_unlink(struct dentry *);

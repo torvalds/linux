@@ -40,6 +40,7 @@
 #include <asm/uaccess.h>
 
 #include "nfs4_fs.h"
+#include "callback.h"
 #include "delegation.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
@@ -2036,6 +2037,21 @@ static struct file_system_type nfs4_fs_type = {
 	.fs_flags	= FS_ODD_RENAME|FS_REVAL_DOT|FS_BINARY_MOUNTDATA,
 };
 
+static const int nfs_set_port_min = 0;
+static const int nfs_set_port_max = 65535;
+static int param_set_port(const char *val, struct kernel_param *kp)
+{
+	char *endp;
+	int num = simple_strtol(val, &endp, 0);
+	if (endp == val || *endp || num < nfs_set_port_min || num > nfs_set_port_max)
+		return -EINVAL;
+	*((int *)kp->arg) = num;
+	return 0;
+}
+
+module_param_call(callback_tcpport, param_set_port, param_get_int,
+		 &nfs_callback_set_tcpport, 0644);
+
 #define nfs4_init_once(nfsi) \
 	do { \
 		INIT_LIST_HEAD(&(nfsi)->open_states); \
@@ -2043,8 +2059,25 @@ static struct file_system_type nfs4_fs_type = {
 		nfsi->delegation_state = 0; \
 		init_rwsem(&nfsi->rwsem); \
 	} while(0)
-#define register_nfs4fs() register_filesystem(&nfs4_fs_type)
-#define unregister_nfs4fs() unregister_filesystem(&nfs4_fs_type)
+
+static inline int register_nfs4fs(void)
+{
+	int ret;
+
+	ret = nfs_register_sysctl();
+	if (ret != 0)
+		return ret;
+	ret = register_filesystem(&nfs4_fs_type);
+	if (ret != 0)
+		nfs_unregister_sysctl();
+	return ret;
+}
+
+static inline void unregister_nfs4fs(void)
+{
+	unregister_filesystem(&nfs4_fs_type);
+	nfs_unregister_sysctl();
+}
 #else
 #define nfs4_init_once(nfsi) \
 	do { } while (0)
