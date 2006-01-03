@@ -151,28 +151,11 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
-			 const struct dccp_hdr *dh, const unsigned len)
+static inline int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
+					 const struct dccp_hdr *dh,
+					 const unsigned len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-
-	if (dccp_check_seqno(sk, skb))
-		goto discard;
-
-	if (dccp_parse_options(sk, skb))
-		goto discard;
-
-	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
-		dccp_event_ack_recv(sk, skb);
-
-	if (dp->dccps_options.dccpo_send_ack_vector &&
-	    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
-			    DCCP_SKB_CB(skb)->dccpd_seq,
-			    DCCP_ACKVEC_STATE_RECEIVED))
-		goto discard;
-
-	ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
-	ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
 
 	switch (dccp_hdr(skb)->dccph_type) {
 	case DCCP_PKT_DATAACK:
@@ -245,6 +228,35 @@ send_sync:
 	}
 
 	DCCP_INC_STATS_BH(DCCP_MIB_INERRS);
+discard:
+	__kfree_skb(skb);
+	return 0;
+}
+
+int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
+			 const struct dccp_hdr *dh, const unsigned len)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+
+	if (dccp_check_seqno(sk, skb))
+		goto discard;
+
+	if (dccp_parse_options(sk, skb))
+		goto discard;
+
+	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
+		dccp_event_ack_recv(sk, skb);
+
+	if (dp->dccps_options.dccpo_send_ack_vector &&
+	    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
+			    DCCP_SKB_CB(skb)->dccpd_seq,
+			    DCCP_ACKVEC_STATE_RECEIVED))
+		goto discard;
+
+	ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
+	ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
+
+	return __dccp_rcv_established(sk, skb, dh, len);
 discard:
 	__kfree_skb(skb);
 	return 0;
@@ -400,9 +412,9 @@ static int dccp_rcv_respond_partopen_state_process(struct sock *sk,
 
 		if (dh->dccph_type == DCCP_PKT_DATAACK ||
 		    dh->dccph_type == DCCP_PKT_DATA) {
-			dccp_rcv_established(sk, skb, dh, len);
+			__dccp_rcv_established(sk, skb, dh, len);
 			queued = 1; /* packet was queued
-				       (by dccp_rcv_established) */
+				       (by __dccp_rcv_established) */
 		}
 		break;
 	}
