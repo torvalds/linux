@@ -233,6 +233,7 @@ struct rpc_task *rpc_new_child(struct rpc_clnt *, struct rpc_task *parent);
 void		rpc_init_task(struct rpc_task *, struct rpc_clnt *,
 					rpc_action exitfunc, int flags);
 void		rpc_release_task(struct rpc_task *);
+void		rpc_exit_task(struct rpc_task *);
 void		rpc_killall_tasks(struct rpc_clnt *);
 int		rpc_execute(struct rpc_task *);
 void		rpc_run_child(struct rpc_task *parent, struct rpc_task *child,
@@ -259,7 +260,7 @@ void		rpc_destroy_mempool(void);
 static inline void rpc_exit(struct rpc_task *task, int status)
 {
 	task->tk_status = status;
-	task->tk_action = NULL;
+	task->tk_action = rpc_exit_task;
 }
 
 #ifdef RPC_DEBUG

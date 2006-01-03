@@ -511,7 +511,7 @@ rpc_call_setup(struct rpc_task *task, struct rpc_message *msg, int flags)
 	if (task->tk_status == 0)
 		task->tk_action = call_start;
 	else
-		task->tk_action = NULL;
+		task->tk_action = rpc_exit_task;
 }
 
 void
@@ -892,7 +892,7 @@ call_transmit(struct rpc_task *task)
 	if (task->tk_status < 0)
 		return;
 	if (!task->tk_msg.rpc_proc->p_decode) {
-		task->tk_action = NULL;
+		task->tk_action = rpc_exit_task;
 		rpc_wake_up_task(task);
 	}
 	return;
@@ -1039,13 +1039,14 @@ call_decode(struct rpc_task *task)
 				sizeof(req->rq_rcv_buf)) != 0);
 
 	/* Verify the RPC header */
-	if (!(p = call_verify(task))) {
-		if (task->tk_action == NULL)
-			return;
-		goto out_retry;
+	p = call_verify(task);
+	if (IS_ERR(p)) {
+		if (p == ERR_PTR(-EAGAIN))
+			goto out_retry;
+		return;
 	}
 
-	task->tk_action = NULL;
+	task->tk_action = rpc_exit_task;
 
 	if (decode)
 		task->tk_status = rpcauth_unwrap_resp(task, decode, req, p,
@@ -1138,7 +1139,7 @@ call_verify(struct rpc_task *task)
 
 	if ((n = ntohl(*p++)) != RPC_REPLY) {
 		printk(KERN_WARNING "call_verify: not an RPC reply: %x\n", n);
-		goto out_retry;
+		goto out_garbage;
 	}
 	if ((n = ntohl(*p++)) != RPC_MSG_ACCEPTED) {
 		if (--len < 0)
@@ -1168,7 +1169,7 @@ call_verify(struct rpc_task *task)
 							task->tk_pid);
 			rpcauth_invalcred(task);
 			task->tk_action = call_refresh;
-			return NULL;
+			goto out_retry;
 		case RPC_AUTH_BADCRED:
 		case RPC_AUTH_BADVERF:
 			/* possibly garbled cred/verf? */
@@ -1178,7 +1179,7 @@ call_verify(struct rpc_task *task)
 			dprintk("RPC: %4d call_verify: retry garbled creds\n",
 							task->tk_pid);
 			task->tk_action = call_bind;
-			return NULL;
+			goto out_retry;
 		case RPC_AUTH_TOOWEAK:
 			printk(KERN_NOTICE "call_verify: server requires stronger "
 			       "authentication.\n");
@@ -1193,7 +1194,7 @@ call_verify(struct rpc_task *task)
 	}
 	if (!(p = rpcauth_checkverf(task, p))) {
 		printk(KERN_WARNING "call_verify: auth check failed\n");
-		goto out_retry;		/* bad verifier, retry */
+		goto out_garbage;		/* bad verifier, retry */
 	}
 	len = p - (u32 *)iov->iov_base - 1;
 	if (len < 0)
@@ -1230,23 +1231,24 @@ call_verify(struct rpc_task *task)
 		/* Also retry */
 	}
 
-out_retry:
+out_garbage:
 	task->tk_client->cl_stats->rpcgarbage++;
 	if (task->tk_garb_retry) {
 		task->tk_garb_retry--;
 		dprintk("RPC %s: retrying %4d\n", __FUNCTION__, task->tk_pid);
 		task->tk_action = call_bind;
-		return NULL;
+out_retry:
+		return ERR_PTR(-EAGAIN);
 	}
 	printk(KERN_WARNING "RPC %s: retry failed, exit EIO\n", __FUNCTION__);
 out_eio:
 	error = -EIO;
 out_err:
 	rpc_exit(task, error);
-	return NULL;
+	return ERR_PTR(error);
 out_overflow:
 	printk(KERN_WARNING "RPC %s: server reply was truncated.\n", __FUNCTION__);
-	goto out_retry;
+	goto out_garbage;
 }
 
 static int rpcproc_encode_null(void *rqstp, u32 *data, void *obj)

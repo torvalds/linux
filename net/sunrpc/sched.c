@@ -555,28 +555,22 @@ __rpc_atrun(struct rpc_task *task)
 }
 
 /*
- * Helper that calls task->tk_exit if it exists and then returns
- * true if we should exit __rpc_execute.
+ * Helper that calls task->tk_exit if it exists
  */
-static inline int __rpc_do_exit(struct rpc_task *task)
+void rpc_exit_task(struct rpc_task *task)
 {
+	task->tk_action = NULL;
 	if (task->tk_exit != NULL) {
-		lock_kernel();
 		task->tk_exit(task);
-		unlock_kernel();
-		/* If tk_action is non-null, we should restart the call */
 		if (task->tk_action != NULL) {
-			if (!RPC_ASSASSINATED(task)) {
-				/* Release RPC slot and buffer memory */
-				xprt_release(task);
-				rpc_free(task);
-				return 0;
-			}
-			printk(KERN_ERR "RPC: dead task tried to walk away.\n");
+			WARN_ON(RPC_ASSASSINATED(task));
+			/* Always release the RPC slot and buffer memory */
+			xprt_release(task);
+			rpc_free(task);
 		}
 	}
-	return 1;
 }
+EXPORT_SYMBOL(rpc_exit_task);
 
 static int rpc_wait_bit_interruptible(void *word)
 {
@@ -631,12 +625,11 @@ static int __rpc_execute(struct rpc_task *task)
 		 * by someone else.
 		 */
 		if (!RPC_IS_QUEUED(task)) {
-			if (task->tk_action != NULL) {
-				lock_kernel();
-				task->tk_action(task);
-				unlock_kernel();
-			} else if (__rpc_do_exit(task))
+			if (task->tk_action == NULL)
 				break;
+			lock_kernel();
+			task->tk_action(task);
+			unlock_kernel();
 		}
 
 		/*

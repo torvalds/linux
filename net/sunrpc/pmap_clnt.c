@@ -90,8 +90,7 @@ bailout:
 	map->pm_binding = 0;
 	rpc_wake_up(&map->pm_bindwait);
 	spin_unlock(&pmap_lock);
-	task->tk_status = -EIO;
-	task->tk_action = NULL;
+	rpc_exit(task, -EIO);
 }
 
 #ifdef CONFIG_ROOT_NFS
@@ -138,11 +137,10 @@ pmap_getport_done(struct rpc_task *task)
 			task->tk_pid, task->tk_status, clnt->cl_port);
 	if (task->tk_status < 0) {
 		/* Make the calling task exit with an error */
-		task->tk_action = NULL;
+		task->tk_action = rpc_exit_task;
 	} else if (clnt->cl_port == 0) {
 		/* Program not registered */
-		task->tk_status = -EACCES;
-		task->tk_action = NULL;
+		rpc_exit(task, -EACCES);
 	} else {
 		/* byte-swap port number first */
 		clnt->cl_port = htons(clnt->cl_port);
