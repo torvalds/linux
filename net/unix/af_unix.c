@@ -564,7 +564,7 @@ static struct sock * unix_create1(struct socket *sock)
 	u	  = unix_sk(sk);
 	u->dentry = NULL;
 	u->mnt	  = NULL;
-	rwlock_init(&u->lock);
+	spin_lock_init(&u->lock);
 	atomic_set(&u->inflight, sock ? 0 : -1);
 	init_MUTEX(&u->readsem); /* single task reading lock */
 	init_waitqueue_head(&u->peer_wait);
