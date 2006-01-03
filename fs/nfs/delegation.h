@@ -21,6 +21,7 @@ struct nfs_delegation {
 #define NFS_DELEGATION_NEED_RECLAIM 1
 	long flags;
 	loff_t maxsize;
+	__u64 change_attr;
 };
 
 int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct nfs_openres *res);
