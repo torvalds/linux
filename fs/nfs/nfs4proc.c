@@ -194,6 +194,76 @@ static void update_changeattr(struct inode *inode, struct nfs4_change_info *cinf
 	spin_unlock(&inode->i_lock);
 }
 
+struct nfs4_opendata {
+	struct nfs_openargs o_arg;
+	struct nfs_openres o_res;
+	struct nfs_fattr f_attr;
+	struct nfs_fattr dir_attr;
+	struct dentry *dentry;
+	struct dentry *dir;
+	struct nfs4_state_owner *owner;
+	struct iattr attrs;
+};
+
+static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
+		struct nfs4_state_owner *sp, int flags,
+		const struct iattr *attrs)
+{
+	struct dentry *parent = dget_parent(dentry);
+	struct inode *dir = parent->d_inode;
+	struct nfs_server *server = NFS_SERVER(dir);
+	struct nfs4_opendata *p;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL)
+		goto err;
+	p->o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid);
+	if (p->o_arg.seqid == NULL)
+		goto err_free;
+	p->dentry = dget(dentry);
+	p->dir = parent;
+	p->owner = sp;
+	atomic_inc(&sp->so_count);
+	p->o_arg.fh = NFS_FH(dir);
+	p->o_arg.open_flags = flags,
+	p->o_arg.clientid = server->nfs4_state->cl_clientid;
+	p->o_arg.id = sp->so_id;
+	p->o_arg.name = &dentry->d_name;
+	p->o_arg.server = server;
+	p->o_arg.bitmask = server->attr_bitmask;
+	p->o_arg.claim = NFS4_OPEN_CLAIM_NULL;
+	p->o_res.f_attr = &p->f_attr;
+	p->o_res.dir_attr = &p->dir_attr;
+	p->o_res.server = server;
+	nfs_fattr_init(&p->f_attr);
+	nfs_fattr_init(&p->dir_attr);
+	if (flags & O_EXCL) {
+		u32 *s = (u32 *) p->o_arg.u.verifier.data;
+		s[0] = jiffies;
+		s[1] = current->pid;
+	} else if (flags & O_CREAT) {
+		p->o_arg.u.attrs = &p->attrs;
+		memcpy(&p->attrs, attrs, sizeof(p->attrs));
+	}
+	return p;
+err_free:
+	kfree(p);
+err:
+	dput(parent);
+	return NULL;
+}
+
+static void nfs4_opendata_free(struct nfs4_opendata *p)
+{
+	if (p != NULL) {
+		nfs_free_seqid(p->o_arg.seqid);
+		nfs4_put_state_owner(p->owner);
+		dput(p->dir);
+		dput(p->dentry);
+		kfree(p);
+	}
+}
+
 /* Helper for asynchronous RPC calls */
 static int nfs4_call_async(struct rpc_clnt *clnt,
 		const struct rpc_call_ops *tk_ops, void *calldata)
@@ -314,57 +384,45 @@ static int _nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state
 	struct nfs4_state_owner  *sp  = state->owner;
 	struct inode *inode = dentry->d_inode;
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct dentry *parent = dget_parent(dentry);
-	struct nfs_openargs arg = {
-		.fh = NFS_FH(parent->d_inode),
-		.clientid = server->nfs4_state->cl_clientid,
-		.name = &dentry->d_name,
-		.id = sp->so_id,
-		.server = server,
-		.bitmask = server->attr_bitmask,
-		.claim = NFS4_OPEN_CLAIM_DELEGATE_CUR,
-	};
-	struct nfs_openres res = {
-		.server = server,
-	};
 	struct 	rpc_message msg = {
 		.rpc_proc       = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR],
-		.rpc_argp       = &arg,
-		.rpc_resp       = &res,
 		.rpc_cred	= sp->so_cred,
 	};
+	struct nfs4_opendata *opendata;
 	int status = 0;
 
 	if (!test_bit(NFS_DELEGATED_STATE, &state->flags))
 		goto out;
 	if (state->state == 0)
 		goto out;
-	arg.seqid = nfs_alloc_seqid(&sp->so_seqid);
+	opendata = nfs4_opendata_alloc(dentry, sp, state->state, NULL);
 	status = -ENOMEM;
-	if (arg.seqid == NULL)
+	if (opendata == NULL)
 		goto out;
-	arg.open_flags = state->state;
-	memcpy(arg.u.delegation.data, state->stateid.data, sizeof(arg.u.delegation.data));
+	opendata->o_arg.claim = NFS4_OPEN_CLAIM_DELEGATE_CUR;
+	msg.rpc_argp = &opendata->o_arg;
+	msg.rpc_resp = &opendata->o_res;
+	memcpy(opendata->o_arg.u.delegation.data, state->stateid.data,
+			sizeof(opendata->o_arg.u.delegation.data));
 	status = rpc_call_sync(server->client, &msg, RPC_TASK_NOINTR);
-	nfs_increment_open_seqid(status, arg.seqid);
+	nfs_increment_open_seqid(status, opendata->o_arg.seqid);
 	if (status != 0)
 		goto out_free;
-	if(res.rflags & NFS4_OPEN_RESULT_CONFIRM) {
+	if(opendata->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM) {
 		status = _nfs4_proc_open_confirm(server->client, NFS_FH(inode),
-				sp, &res.stateid, arg.seqid);
+				sp, &opendata->o_res.stateid, opendata->o_arg.seqid);
 		if (status != 0)
 			goto out_free;
 	}
 	nfs_confirm_seqid(&sp->so_seqid, 0);
 	if (status >= 0) {
-		memcpy(state->stateid.data, res.stateid.data,
+		memcpy(state->stateid.data, opendata->o_res.stateid.data,
 				sizeof(state->stateid.data));
 		clear_bit(NFS_DELEGATED_STATE, &state->flags);
 	}
 out_free:
-	nfs_free_seqid(arg.seqid);
+	nfs4_opendata_free(opendata);
 out:
-	dput(parent);
 	return status;
 }
 
@@ -506,21 +564,8 @@ static int _nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
 	struct dentry *parent = dget_parent(dentry);
 	struct inode *dir = parent->d_inode;
 	struct inode *inode = state->inode;
-	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_delegation *delegation = NFS_I(inode)->delegation;
-	struct nfs_fattr f_attr, dir_attr;
-	struct nfs_openargs o_arg = {
-		.fh = NFS_FH(dir),
-		.open_flags = state->state,
-		.name = &dentry->d_name,
-		.bitmask = server->attr_bitmask,
-		.claim = NFS4_OPEN_CLAIM_NULL,
-	};
-	struct nfs_openres o_res = {
-		.f_attr = &f_attr,
-		.dir_attr = &dir_attr,
-		.server = server,
-	};
+	struct nfs4_opendata *opendata;
 	int status = 0;
 
 	if (delegation != NULL && !(delegation->flags & NFS_DELEGATION_NEED_RECLAIM)) {
@@ -531,38 +576,38 @@ static int _nfs4_open_expired(struct nfs4_state_owner *sp, struct nfs4_state *st
 		set_bit(NFS_DELEGATED_STATE, &state->flags);
 		goto out;
 	}
-	o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid);
 	status = -ENOMEM;
-	if (o_arg.seqid == NULL)
+	opendata = nfs4_opendata_alloc(dentry, sp, state->state, NULL);
+	if (opendata == NULL)
 		goto out;
-	nfs_fattr_init(&f_attr);
-	nfs_fattr_init(&dir_attr);
-	status = _nfs4_proc_open(dir, sp, &o_arg, &o_res);
+	status = _nfs4_proc_open(dir, sp, &opendata->o_arg, &opendata->o_res);
 	if (status != 0)
 		goto out_nodeleg;
 	/* Check if files differ */
-	if ((f_attr.mode & S_IFMT) != (inode->i_mode & S_IFMT))
+	if ((opendata->f_attr.mode & S_IFMT) != (inode->i_mode & S_IFMT))
 		goto out_stale;
 	/* Has the file handle changed? */
-	if (nfs_compare_fh(&o_res.fh, NFS_FH(inode)) != 0) {
+	if (nfs_compare_fh(&opendata->o_res.fh, NFS_FH(inode)) != 0) {
 		/* Verify if the change attributes are the same */
-		if (f_attr.change_attr != NFS_I(inode)->change_attr)
+		if (opendata->f_attr.change_attr != NFS_I(inode)->change_attr)
 			goto out_stale;
-		if (nfs_size_to_loff_t(f_attr.size) != inode->i_size)
+		if (nfs_size_to_loff_t(opendata->f_attr.size) != inode->i_size)
 			goto out_stale;
 		/* Lets just pretend that this is the same file */
-		nfs_copy_fh(NFS_FH(inode), &o_res.fh);
-		NFS_I(inode)->fileid = f_attr.fileid;
+		nfs_copy_fh(NFS_FH(inode), &opendata->o_res.fh);
+		NFS_I(inode)->fileid = opendata->f_attr.fileid;
 	}
-	memcpy(&state->stateid, &o_res.stateid, sizeof(state->stateid));
-	if (o_res.delegation_type != 0) {
+	memcpy(&state->stateid, &opendata->o_res.stateid, sizeof(state->stateid));
+	if (opendata->o_res.delegation_type != 0) {
 		if (!(delegation->flags & NFS_DELEGATION_NEED_RECLAIM))
-			nfs_inode_set_delegation(inode, sp->so_cred, &o_res);
+			nfs_inode_set_delegation(inode, sp->so_cred,
+					&opendata->o_res);
 		else
-			nfs_inode_reclaim_delegation(inode, sp->so_cred, &o_res);
+			nfs_inode_reclaim_delegation(inode, sp->so_cred,
+					&opendata->o_res);
 	}
 out_nodeleg:
-	nfs_free_seqid(o_arg.seqid);
+	nfs4_opendata_free(opendata);
 	clear_bit(NFS_DELEGATED_STATE, &state->flags);
 out:
 	dput(parent);
@@ -706,21 +751,8 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 	struct nfs_server       *server = NFS_SERVER(dir);
 	struct nfs4_client *clp = server->nfs4_state;
 	struct inode *inode = NULL;
+	struct nfs4_opendata *opendata;
 	int                     status;
-	struct nfs_fattr f_attr, dir_attr;
-	struct nfs_openargs o_arg = {
-		.fh             = NFS_FH(dir),
-		.open_flags	= flags,
-		.name           = &dentry->d_name,
-		.server         = server,
-		.bitmask = server->attr_bitmask,
-		.claim = NFS4_OPEN_CLAIM_NULL,
-	};
-	struct nfs_openres o_res = {
-		.f_attr         = &f_attr,
-		.dir_attr	= &dir_attr,
-		.server         = server,
-	};
 
 	/* Protect against reboot recovery conflicts */
 	down_read(&clp->cl_sem);
@@ -729,45 +761,34 @@ static int _nfs4_do_open(struct inode *dir, struct dentry *dentry, int flags, st
 		dprintk("nfs4_do_open: nfs4_get_state_owner failed!\n");
 		goto out_err;
 	}
-	if (flags & O_EXCL) {
-		u32 *p = (u32 *) o_arg.u.verifier.data;
-		p[0] = jiffies;
-		p[1] = current->pid;
-	} else
-		o_arg.u.attrs = sattr;
-	/* Serialization for the sequence id */
+	opendata = nfs4_opendata_alloc(dentry, sp, flags, sattr);
+	if (opendata == NULL)
+		goto err_put_state_owner;
 
-	o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid);
-	if (o_arg.seqid == NULL)
-		return -ENOMEM;
-	nfs_fattr_init(&f_attr);
-	nfs_fattr_init(&dir_attr);
-	status = _nfs4_proc_open(dir, sp, &o_arg, &o_res);
+	status = _nfs4_proc_open(dir, sp, &opendata->o_arg, &opendata->o_res);
 	if (status != 0)
-		goto out_err;
+		goto err_opendata_free;
 
 	status = -ENOMEM;
-	inode = nfs_fhget(dir->i_sb, &o_res.fh, &f_attr);
+	inode = nfs_fhget(dir->i_sb, &opendata->o_res.fh, &opendata->f_attr);
 	if (!inode)
-		goto out_err;
+		goto err_opendata_free;
 	state = nfs4_get_open_state(inode, sp);
 	if (!state)
-		goto out_err;
-	update_open_stateid(state, &o_res.stateid, flags);
-	if (o_res.delegation_type != 0)
-		nfs_inode_set_delegation(inode, cred, &o_res);
-	nfs_free_seqid(o_arg.seqid);
+		goto err_opendata_free;
+	update_open_stateid(state, &opendata->o_res.stateid, flags);
+	if (opendata->o_res.delegation_type != 0)
+		nfs_inode_set_delegation(inode, cred, &opendata->o_res);
+	nfs4_opendata_free(opendata);
 	nfs4_put_state_owner(sp);
 	up_read(&clp->cl_sem);
 	*res = state;
 	return 0;
+err_opendata_free:
+	nfs4_opendata_free(opendata);
+err_put_state_owner:
+	nfs4_put_state_owner(sp);
 out_err:
-	if (sp != NULL) {
-		if (state != NULL)
-			nfs4_put_open_state(state);
-		nfs_free_seqid(o_arg.seqid);
-		nfs4_put_state_owner(sp);
-	}
 	/* Note: clp->cl_sem must be released before nfs4_put_open_state()! */
 	up_read(&clp->cl_sem);
 	if (inode != NULL)
