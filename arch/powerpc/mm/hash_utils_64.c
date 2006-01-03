@@ -514,7 +514,7 @@ void __init htab_initialize(void)
 #undef KB
 #undef MB
 
-void __init htab_initialize_secondary(void)
+void htab_initialize_secondary(void)
 {
 	if (!platform_is_lpar())
 		mtspr(SPRN_SDR1, _SDR1);
@@ -601,7 +601,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	/* Handle hugepage regions */
 	if (unlikely(in_hugepage_area(mm->context, ea))) {
 		DBG_LOW(" -> huge page !\n");
-		return hash_huge_page(mm, access, ea, vsid, local);
+		return hash_huge_page(mm, access, ea, vsid, local, trap);
 	}
 
 	/* Get PTE and page size from page tables */

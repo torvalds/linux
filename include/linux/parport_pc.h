@@ -86,7 +86,7 @@ extern __inline__ void dump_parport_state (char *str, struct parport *p)
 	unsigned char dcr = inb (CONTROL (p));
 	unsigned char dsr = inb (STATUS (p));
 	static char *ecr_modes[] = {"SPP", "PS2", "PPFIFO", "ECP", "xXx", "yYy", "TST", "CFG"};
-	const struct parport_pc_private *priv = (parport_pc_private *)p->physport->private_data;
+	const struct parport_pc_private *priv = p->physport->private_data;
 	int i;
 
 	printk (KERN_DEBUG "*** parport state (%s): ecr=[%s", str, ecr_modes[(ecr & 0xe0) >> 5]);

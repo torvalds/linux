@@ -41,6 +41,7 @@ struct hpsb_host {
         /* this nodes state */
         unsigned in_bus_reset:1;
         unsigned is_shutdown:1;
+	unsigned resume_packet_sent:1;
 
         /* this nodes' duties on the bus */
         unsigned is_root:1;

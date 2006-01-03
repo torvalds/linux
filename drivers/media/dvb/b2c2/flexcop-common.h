@@ -132,7 +132,7 @@ int flexcop_eeprom_check_mac_addr(struct flexcop_device *fc, int extended);
  * I2C-channel of the flexcop.
  */
 int flexcop_i2c_request(struct flexcop_device*, flexcop_access_op_t,
-		        flexcop_i2c_port_t, u8 chipaddr, u8 addr, u8 *buf, u16 len);
+			flexcop_i2c_port_t, u8 chipaddr, u8 addr, u8 *buf, u16 len);
 
 /* from flexcop-sram.c */
 int flexcop_sram_set_dest(struct flexcop_device *fc, flexcop_sram_dest_t dest, flexcop_sram_dest_target_t target);

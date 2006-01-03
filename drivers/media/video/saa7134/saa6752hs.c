@@ -523,7 +523,8 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 	h->standard = 0;
 
 	i2c_set_clientdata(&h->client, h);
-        i2c_attach_client(&h->client);
+	i2c_attach_client(&h->client);
+
 	return 0;
 }
 
@@ -597,19 +598,19 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 static struct i2c_driver driver = {
 	.owner          = THIS_MODULE,
-        .name           = "i2c saa6752hs MPEG encoder",
-        .id             = I2C_DRIVERID_SAA6752HS,
-        .flags          = I2C_DF_NOTIFY,
-        .attach_adapter = saa6752hs_probe,
-        .detach_client  = saa6752hs_detach,
-        .command        = saa6752hs_command,
+	.name           = "i2c saa6752hs MPEG encoder",
+	.id             = I2C_DRIVERID_SAA6752HS,
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = saa6752hs_probe,
+	.detach_client  = saa6752hs_detach,
+	.command        = saa6752hs_command,
 };
 
 static struct i2c_client client_template =
 {
 	.name       = "saa6752hs",
 	.flags      = I2C_CLIENT_ALLOW_USE,
-        .driver     = &driver,
+	.driver     = &driver,
 };
 
 static int __init saa6752hs_init_module(void)

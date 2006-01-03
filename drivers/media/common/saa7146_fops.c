@@ -1,6 +1,6 @@
 #include <media/saa7146_vv.h>
 
-#define BOARD_CAN_DO_VBI(dev)   (dev->revision != 0 && dev->vv_data->vbi_minor != -1) 
+#define BOARD_CAN_DO_VBI(dev)   (dev->revision != 0 && dev->vv_data->vbi_minor != -1)
 
 /****************************************************************************/
 /* resource management functions, shamelessly stolen from saa7134 driver */
@@ -102,9 +102,9 @@ void saa7146_buffer_finish(struct saa7146_dev *dev,
 	/* finish current buffer */
 	if (NULL == q->curr) {
 		DEB_D(("aiii. no current buffer\n"));
-		return;	
+		return;
 	}
-			
+
 	q->curr->vb.state = state;
 	do_gettimeofday(&q->curr->vb.ts);
 	wake_up(&q->curr->vb.done);
@@ -143,13 +143,13 @@ void saa7146_buffer_next(struct saa7146_dev *dev,
 			// fixme: fix this for vflip != 0
 
 			saa7146_write(dev, PROT_ADDR1, 0);
-			saa7146_write(dev, MC2, (MASK_02|MASK_18));		
+			saa7146_write(dev, MC2, (MASK_02|MASK_18));
 
 			/* write the address of the rps-program */
 			saa7146_write(dev, RPS_ADDR0, dev->d_rps0.dma_handle);
 			/* turn on rps */
 			saa7146_write(dev, MC1, (MASK_12 | MASK_28));
-				
+
 /*
 			printk("vdma%d.base_even:     0x%08x\n", 1,saa7146_read(dev,BASE_EVEN1));
 			printk("vdma%d.base_odd:      0x%08x\n", 1,saa7146_read(dev,BASE_ODD1));
@@ -246,7 +246,7 @@ static int fops_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	memset(fh,0,sizeof(*fh));
-	
+
 	file->private_data = fh;
 	fh->dev = dev;
 	fh->type = type;
@@ -275,7 +275,7 @@ out:
 		file->private_data = NULL;
 	}
 	up(&saa7146_devices_lock);
-        return result;
+	return result;
 }
 
 static int fops_release(struct inode *inode, struct file *file)
@@ -405,7 +405,7 @@ static struct file_operations video_fops =
 static void vv_callback(struct saa7146_dev *dev, unsigned long status)
 {
 	u32 isr = status;
-	
+
 	DEB_INT(("dev:%p, isr:0x%08x\n",dev,(u32)status));
 
 	if (0 != (isr & (MASK_27))) {
@@ -454,11 +454,11 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	   handle different devices that might need different
 	   configuration data) */
 	dev->ext_vv_data = ext_vv;
-	
+
 	vv->video_minor = -1;
 	vv->vbi_minor = -1;
 
-	vv->d_clipping.cpu_addr = pci_alloc_consistent(dev->pci, SAA7146_CLIPPING_MEM, &vv->d_clipping.dma_handle);	
+	vv->d_clipping.cpu_addr = pci_alloc_consistent(dev->pci, SAA7146_CLIPPING_MEM, &vv->d_clipping.dma_handle);
 	if( NULL == vv->d_clipping.cpu_addr ) {
 		ERR(("out of memory. aborting.\n"));
 		kfree(vv);
@@ -468,7 +468,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 
 	saa7146_video_uops.init(dev,vv);
 	saa7146_vbi_uops.init(dev,vv);
-	
+
 	dev->vv_data = vv;
 	dev->vv_callback = &vv_callback;
 
@@ -480,12 +480,12 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 	struct saa7146_vv *vv = dev->vv_data;
 
 	DEB_EE(("dev:%p\n",dev));
- 
+
 	pci_free_consistent(dev->pci, SAA7146_RPS_MEM, vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
- 	kfree(vv);
+	kfree(vv);
 	dev->vv_data = NULL;
 	dev->vv_callback = NULL;
-	
+
 	return 0;
 }
 
@@ -498,7 +498,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	DEB_EE(("dev:%p, name:'%s', type:%d\n",dev,name,type));
 
 	// released by vfd->release
- 	vfd = video_device_alloc();
+	vfd = video_device_alloc();
 	if (vfd == NULL)
 		return -ENOMEM;
 
@@ -530,7 +530,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 int saa7146_unregister_device(struct video_device **vid, struct saa7146_dev* dev)
 {
 	struct saa7146_vv *vv = dev->vv_data;
-	
+
 	DEB_EE(("dev:%p\n",dev));
 
 	if( VFL_TYPE_GRABBER == (*vid)->type ) {

@@ -109,7 +109,7 @@ static int slave_configure(struct scsi_device *sdev)
 	 * data comes from.
 	 */
 	if (sdev->scsi_level < SCSI_2)
-		sdev->scsi_level = SCSI_2;
+		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
 
 	/* According to the technical support people at Genesys Logic,
 	 * devices using their chips have problems transferring more than
@@ -162,7 +162,7 @@ static int slave_configure(struct scsi_device *sdev)
 		 * a Get-Max-LUN request, we won't lose much by setting the
 		 * revision level down to 2.  The only devices that would be
 		 * affected are those with sparse LUNs. */
-		sdev->scsi_level = SCSI_2;
+		sdev->scsi_level = sdev->sdev_target->scsi_level = SCSI_2;
 
 		/* USB-IDE bridges tend to report SK = 0x04 (Non-recoverable
 		 * Hardware Error) when any low-level error occurs,

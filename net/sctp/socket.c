@@ -156,10 +156,6 @@ static inline void sctp_set_owner_w(struct sctp_chunk *chunk)
 				sizeof(struct sk_buff) +
 				sizeof(struct sctp_chunk);
 
-	sk->sk_wmem_queued += SCTP_DATA_SNDSIZE(chunk) +
-				sizeof(struct sk_buff) +
-				sizeof(struct sctp_chunk);
-
 	atomic_add(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
 }
 
@@ -3425,7 +3421,7 @@ static int sctp_copy_laddrs_to_user_old(struct sock *sk, __u16 port, int max_add
 }
 
 static int sctp_copy_laddrs_to_user(struct sock *sk, __u16 port,
-				    void * __user *to, size_t space_left)
+				    void __user **to, size_t space_left)
 {
 	struct list_head *pos;
 	struct sctp_sockaddr_entry *addr;
@@ -4426,7 +4422,7 @@ cleanup:
  * tcp_poll().  Note that, based on these implementations, we don't
  * lock the socket in this function, even though it seems that,
  * ideally, locking or some other mechanisms can be used to ensure
- * the integrity of the counters (sndbuf and wmem_queued) used
+ * the integrity of the counters (sndbuf and wmem_alloc) used
  * in this place.  We assume that we don't need locks either until proven
  * otherwise.
  *
@@ -4833,10 +4829,6 @@ static void sctp_wfree(struct sk_buff *skb)
 				sizeof(struct sk_buff) +
 				sizeof(struct sctp_chunk);
 
-	sk->sk_wmem_queued -= SCTP_DATA_SNDSIZE(chunk) +
-				sizeof(struct sk_buff) +
-				sizeof(struct sctp_chunk);
-
 	atomic_sub(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
 
 	sock_wfree(skb);
@@ -4920,7 +4912,7 @@ void sctp_write_space(struct sock *sk)
 
 /* Is there any sndbuf space available on the socket?
  *
- * Note that wmem_queued is the sum of the send buffers on all of the
+ * Note that sk_wmem_alloc is the sum of the send buffers on all of the
  * associations on the same socket.  For a UDP-style socket with
  * multiple associations, it is possible for it to be "unwriteable"
  * prematurely.  I assume that this is acceptable because
@@ -4933,7 +4925,7 @@ static int sctp_writeable(struct sock *sk)
 {
 	int amt = 0;
 
-	amt = sk->sk_sndbuf - sk->sk_wmem_queued;
+	amt = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
 	if (amt < 0)
 		amt = 0;
 	return amt;

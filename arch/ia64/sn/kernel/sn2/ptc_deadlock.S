@@ -39,9 +39,13 @@ sn2_ptc_deadlock_recovery_core:
 	mov	r8=r0
 
 1:
+	cmp.ne  p8,p9=r0,ptc1		// Test for shub type (ptc1 non-null on shub1)
+					// p8 = 1 if shub1, p9 = 1 if shub2
+
 	add	scr2=ALIAS_OFFSET,piowc	// Address of WRITE_STATUS alias register 
-	;;
-	ld8.acq	scr1=[scr2];;
+	mov	scr1=7;;		// Clear DEADLOCK, WRITE_ERROR, MULTI_WRITE_ERROR
+(p8)	st8.rel	[scr2]=scr1;;
+(p9)	ld8.acq	scr1=[scr2];;
 
 5:	ld8.acq	scr1=[piowc];;		// Wait for PIOs to complete.
 	hint	@pause

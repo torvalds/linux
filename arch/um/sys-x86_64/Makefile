@@ -6,8 +6,9 @@
 
 #XXX: why into lib-y?
 lib-y = bitops.o bugs.o csum-partial.o delay.o fault.o ldt.o mem.o memcpy.o \
-	ptrace.o ptrace_user.o sigcontext.o signal.o stub.o \
-	stub_segv.o syscalls.o syscall_table.o sysrq.o thunk.o
+	ptrace.o ptrace_user.o sigcontext.o signal.o syscalls.o \
+	syscall_table.o sysrq.o thunk.o
+lib-$(CONFIG_MODE_SKAS) += stub.o stub_segv.o
 
 obj-y := ksyms.o
 obj-$(CONFIG_MODULES) += module.o um_module.o

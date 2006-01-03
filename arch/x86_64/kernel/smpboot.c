@@ -1181,7 +1181,7 @@ int __cpu_disable(void)
 	if (cpu == 0)
 		return -EBUSY;
 
-	disable_APIC_timer();
+	clear_local_APIC();
 
 	/*
 	 * HACK:

@@ -10,6 +10,7 @@
  *
  * Changes:
  * Steve Whitehouse - C99 changes and default device handling
+ * Steve Whitehouse - Memory buffer settings, like the tcp ones
  *
  */
 #include <linux/config.h>
@@ -36,6 +37,11 @@ int decnet_di_count = 3;
 int decnet_dr_count = 3;
 int decnet_log_martians = 1;
 int decnet_no_fc_max_cwnd = NSP_MIN_WINDOW;
+
+/* Reasonable defaults, I hope, based on tcp's defaults */
+int sysctl_decnet_mem[3] = { 768 << 3, 1024 << 3, 1536 << 3 };
+int sysctl_decnet_wmem[3] = { 4 * 1024, 16 * 1024, 128 * 1024 };
+int sysctl_decnet_rmem[3] = { 4 * 1024, 87380, 87380 * 2 };
 
 #ifdef CONFIG_SYSCTL
 extern int decnet_dst_gc_interval;
@@ -428,6 +434,33 @@ static ctl_table dn_table[] = {
 		.extra1 = &min_decnet_no_fc_max_cwnd,
 		.extra2 = &max_decnet_no_fc_max_cwnd
 	},
+       {
+                .ctl_name = NET_DECNET_MEM,
+                .procname = "decnet_mem",
+                .data = &sysctl_decnet_mem,
+                .maxlen = sizeof(sysctl_decnet_mem),
+                .mode = 0644,
+                .proc_handler = &proc_dointvec,
+                .strategy = &sysctl_intvec,
+        },
+        {
+                .ctl_name = NET_DECNET_RMEM,
+                .procname = "decnet_rmem",
+                .data = &sysctl_decnet_rmem,
+                .maxlen = sizeof(sysctl_decnet_rmem),
+                .mode = 0644,
+                .proc_handler = &proc_dointvec,
+                .strategy = &sysctl_intvec,
+        },
+        {
+                .ctl_name = NET_DECNET_WMEM,
+                .procname = "decnet_wmem",
+                .data = &sysctl_decnet_wmem,
+                .maxlen = sizeof(sysctl_decnet_wmem),
+                .mode = 0644,
+                .proc_handler = &proc_dointvec,
+                .strategy = &sysctl_intvec,
+        },
 	{
 		.ctl_name = NET_DECNET_DEBUG_LEVEL,
 		.procname = "debug",

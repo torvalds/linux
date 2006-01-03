@@ -79,6 +79,7 @@ enum fc_port_state {
 	FC_PORTSTATE_LINKDOWN,
 	FC_PORTSTATE_ERROR,
 	FC_PORTSTATE_LOOPBACK,
+	FC_PORTSTATE_DELETED,
 };
 
 
@@ -325,7 +326,13 @@ struct fc_host_attrs {
 	struct list_head rport_bindings;
 	u32 next_rport_number;
 	u32 next_target_id;
+	u8 flags;
+ 	struct work_struct rport_del_work;
 };
+
+/* values for struct fc_host_attrs "flags" field: */
+#define FC_SHOST_RPORT_DEL_SCHEDULED	0x01
+
 
 #define fc_host_node_name(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->node_name)
@@ -365,6 +372,10 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->next_rport_number)
 #define fc_host_next_target_id(x) \
 	(((struct fc_host_attrs *)(x)->shost_data)->next_target_id)
+#define fc_host_flags(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->flags)
+#define fc_host_rport_del_work(x) \
+	(((struct fc_host_attrs *)(x)->shost_data)->rport_del_work)
 
 
 /* The functions by which the transport class and the driver communicate */

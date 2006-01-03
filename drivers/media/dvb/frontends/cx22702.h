@@ -2,7 +2,7 @@
     Conexant 22702 DVB OFDM demodulator driver
 
     based on:
-        Alps TDMB7 DVB OFDM demodulator driver
+	Alps TDMB7 DVB OFDM demodulator driver
 
     Copyright (C) 2001-2002 Convergence Integrated Media GmbH
 	  Holger Waechtler <holger@convergence.de>

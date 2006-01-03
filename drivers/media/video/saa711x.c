@@ -59,7 +59,7 @@ MODULE_PARM_DESC(debug, " Set the default Debug level.  Default: 0 (Off) - (0-1)
 #define dprintk(num, format, args...) \
 	do { \
 		if (debug >= num) \
-			printk(format , ##args); \
+			printk(format, ##args); \
 	} while (0)
 
 /* ----------------------------------------------------------------------- */

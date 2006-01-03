@@ -161,7 +161,7 @@ static struct pcic_sn2list pcic_known_sysnames[] = {
 static int pcic0_up;
 static struct linux_pcic pcic0;
 
-void * __iomem pcic_regs;
+void __iomem *pcic_regs;
 volatile int pcic_speculative;
 volatile int pcic_trapped;
 

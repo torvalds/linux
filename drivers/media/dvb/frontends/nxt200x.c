@@ -339,7 +339,7 @@ static int nxt200x_writetuner (struct nxt200x_state* state, u8* data)
 	switch (state->demod_chip) {
 		case NXT2004:
 			if (i2c_writebytes(state, state->config->pll_address, data, 4))
-	        	        printk(KERN_WARNING "nxt200x: error writing to tuner\n");
+				printk(KERN_WARNING "nxt200x: error writing to tuner\n");
 			/* wait until we have a lock */
 			while (count < 20) {
 				i2c_readbytes(state, state->config->pll_address, &buf, 1);
@@ -497,7 +497,7 @@ static int nxt2004_load_firmware (struct dvb_frontend* fe, const struct firmware
 
 	/* calculate firmware CRC */
 	for (position = 0; position < fw->size; position++) {
-	        crc = nxt200x_crc(crc, fw->data[position]);
+		crc = nxt200x_crc(crc, fw->data[position]);
 	}
 
 	buf[0] = rambase >> 8;

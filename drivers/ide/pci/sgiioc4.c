@@ -622,11 +622,17 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t * d)
 	ide_hwif_t *hwif;
 	int h;
 
+	/*
+	 * Find an empty HWIF; if none available, return -ENOMEM.
+	 */
 	for (h = 0; h < MAX_HWIFS; ++h) {
 		hwif = &ide_hwifs[h];
-		/* Find an empty HWIF */
 		if (hwif->chipset == ide_unknown)
 			break;
+	}
+	if (h == MAX_HWIFS) {
+		printk(KERN_ERR "%s: too many IDE interfaces, no room in table\n", d->name);
+		return -ENOMEM;
 	}
 
 	/*  Get the CmdBlk and CtrlBlk Base Registers */

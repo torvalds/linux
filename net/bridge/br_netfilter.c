@@ -295,7 +295,7 @@ static int check_hbh_len(struct sk_buff *skb)
 	len -= 2;
 
 	while (len > 0) {
-		int optlen = raw[off+1]+2;
+		int optlen = skb->nh.raw[off+1]+2;
 
 		switch (skb->nh.raw[off]) {
 		case IPV6_TLV_PAD0:
@@ -308,18 +308,15 @@ static int check_hbh_len(struct sk_buff *skb)
 		case IPV6_TLV_JUMBO:
 			if (skb->nh.raw[off+1] != 4 || (off&3) != 2)
 				goto bad;
-
 			pkt_len = ntohl(*(u32*)(skb->nh.raw+off+2));
-
+			if (pkt_len <= IPV6_MAXPLEN ||
+			    skb->nh.ipv6h->payload_len)
+				goto bad;
 			if (pkt_len > skb->len - sizeof(struct ipv6hdr))
 				goto bad;
-			if (pkt_len + sizeof(struct ipv6hdr) < skb->len) {
-				if (__pskb_trim(skb,
-				    pkt_len + sizeof(struct ipv6hdr)))
-					goto bad;
-				if (skb->ip_summed == CHECKSUM_HW)
-					skb->ip_summed = CHECKSUM_NONE;
-			}
+			if (pskb_trim_rcsum(skb,
+			    pkt_len+sizeof(struct ipv6hdr)))
+				goto bad;
 			break;
 		default:
 			if (optlen > len)
@@ -372,6 +369,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
 			goto inhdr_error;
 
+ 	nf_bridge_put(skb->nf_bridge);
 	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
 		return NF_DROP;
 	setup_pre_routing(skb);
@@ -455,6 +453,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 			skb->ip_summed = CHECKSUM_NONE;
 	}
 
+ 	nf_bridge_put(skb->nf_bridge);
 	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
 		return NF_DROP;
 	setup_pre_routing(skb);

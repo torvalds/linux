@@ -36,7 +36,7 @@ int main(int argc, char **argv)
     }
 
     fprintf(fd_out, "\n};\n\n");
-    
+
     fclose(fd_in);
     fclose(fd_out);
 

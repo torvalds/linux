@@ -55,6 +55,10 @@ config NR_CPUS
 	depends on SMP
 	default "32"
 
+config SPARC
+	bool
+	default y
+
 # Identify this as a Sparc32 build
 config SPARC32
 	bool

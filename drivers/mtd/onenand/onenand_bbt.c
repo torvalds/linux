@@ -118,10 +118,10 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf, struct nand_bbt_descr 
  */
 static inline int onenand_memory_bbt (struct mtd_info *mtd, struct nand_bbt_descr *bd)
 {
-	unsigned char data_buf[MAX_ONENAND_PAGESIZE];
+	struct onenand_chip *this = mtd->priv;
 
         bd->options &= ~NAND_BBT_SCANEMPTY;
-        return create_bbt(mtd, data_buf, bd, -1);
+	return create_bbt(mtd, this->page_buf, bd, -1);
 }
 
 /**

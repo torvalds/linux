@@ -56,8 +56,8 @@ config IP_NF_CONNTRACK_MARK
 	  instead of the individual packets.
 	
 config IP_NF_CONNTRACK_EVENTS
-	bool "Connection tracking events"
-	depends on IP_NF_CONNTRACK
+	bool "Connection tracking events (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && IP_NF_CONNTRACK
 	help
 	  If this option is enabled, the connection tracking code will
 	  provide a notifier chain that can be used by other kernel code
@@ -66,8 +66,8 @@ config IP_NF_CONNTRACK_EVENTS
 	  IF unsure, say `N'.
 
 config IP_NF_CONNTRACK_NETLINK
-	tristate 'Connection tracking netlink interface'
-	depends on IP_NF_CONNTRACK && NETFILTER_NETLINK
+	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
+	depends on EXPERIMENTAL && IP_NF_CONNTRACK && NETFILTER_NETLINK
 	depends on IP_NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
 	help
 	  This option enables support for a netlink-based userspace interface

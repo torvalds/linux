@@ -361,9 +361,9 @@ static int at76c651_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 
 static int at76c651_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings *fesettings)
 {
-        fesettings->min_delay_ms = 50;
-        fesettings->step_size = 0;
-        fesettings->max_drift = 0;
+	fesettings->min_delay_ms = 50;
+	fesettings->step_size = 0;
+	fesettings->max_drift = 0;
 	return 0;
 }
 

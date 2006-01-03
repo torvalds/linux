@@ -123,7 +123,7 @@ static int __init adummy_init(void)
 	}
 	memset(adummy_dev, 0, sizeof(struct adummy_dev));
 
-	atm_dev = atm_dev_register(DEV_LABEL, &adummy_ops, -1, 0);
+	atm_dev = atm_dev_register(DEV_LABEL, &adummy_ops, -1, NULL);
 	if (!atm_dev) {
 		printk(KERN_ERR DEV_LABEL ": atm_dev_register() failed\n");
 		err = -ENODEV;

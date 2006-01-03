@@ -201,6 +201,16 @@ static inline void __raw_write_unlock(raw_rwlock_t *x)
 
 #endif /* !ASM_SUPPORTED */
 
-#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
+static inline int __raw_read_trylock(raw_rwlock_t *x)
+{
+	union {
+		raw_rwlock_t lock;
+		__u32 word;
+	} old, new;
+	old.lock = new.lock = *x;
+	old.lock.write_lock = new.lock.write_lock = 0;
+	++new.lock.read_counter;
+	return (u32)ia64_cmpxchg4_acq((__u32 *)(x), new.word, old.word) == old.word;
+}
 
 #endif /*  _ASM_IA64_SPINLOCK_H */
