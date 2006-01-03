@@ -1377,22 +1377,23 @@ int nfs_commit_inode(struct inode *inode, int how)
 int nfs_sync_inode(struct inode *inode, unsigned long idx_start,
 		  unsigned int npages, int how)
 {
-	int	error,
-		wait;
+	int nocommit = how & FLUSH_NOCOMMIT;
+	int wait = how & FLUSH_WAIT;
+	int error;
 
-	wait = how & FLUSH_WAIT;
-	how &= ~FLUSH_WAIT;
+	how &= ~(FLUSH_WAIT|FLUSH_NOCOMMIT);
 
 	do {
-		error = 0;
-		if (wait)
+		if (wait) {
 			error = nfs_wait_on_requests(inode, idx_start, npages);
-		if (error == 0)
-			error = nfs_flush_inode(inode, idx_start, npages, how);
-#if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-		if (error == 0)
+			if (error != 0)
+				continue;
+		}
+		error = nfs_flush_inode(inode, idx_start, npages, how);
+		if (error != 0)
+			continue;
+		if (!nocommit)
 			error = nfs_commit_inode(inode, how);
-#endif
 	} while (error > 0);
 	return error;
 }

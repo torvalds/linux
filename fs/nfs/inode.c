@@ -952,6 +952,8 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	int need_atime = NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATIME;
 	int err;
 
+	/* Flush out writes to the server in order to update c/mtime */
+	nfs_sync_inode(inode, 0, 0, FLUSH_WAIT|FLUSH_NOCOMMIT);
 	if (__IS_FLG(inode, MS_NOATIME))
 		need_atime = 0;
 	else if (__IS_FLG(inode, MS_NODIRATIME) && S_ISDIR(inode->i_mode))
