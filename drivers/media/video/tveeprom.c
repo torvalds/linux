@@ -206,7 +206,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "TCL 2002MI_3H"},
 	{ TUNER_TCL_2002N,     "TCL 2002N 5H"},
 	/* 100-109 */
-	{ TUNER_ABSENT,        "Philips FMD1216ME"},
+	{ TUNER_PHILIPS_FMD1216ME_MK3, "Philips FMD1216ME"},
 	{ TUNER_TEA5767,       "Philips TEA5768HL FM Radio"},
 	{ TUNER_ABSENT,        "Panasonic ENV57H12D5"},
 	{ TUNER_PHILIPS_FM1236_MK3, "TCL MFNM05-4"},

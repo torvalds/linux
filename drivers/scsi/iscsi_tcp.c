@@ -3368,7 +3368,7 @@ iscsi_conn_set_param(iscsi_connh_t connh, enum iscsi_param param,
 	switch(param) {
 	case ISCSI_PARAM_MAX_RECV_DLENGTH: {
 		char *saveptr = conn->data;
-		int flags = GFP_KERNEL;
+		gfp_t flags = GFP_KERNEL;
 
 		if (conn->data_size >= value) {
 			conn->max_recv_dlength = value;

@@ -328,8 +328,10 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		iif = skb->dev->ifindex;
 
 	/*
-	 *	Must not send if we know that source is Anycast also.
-	 *	for now we don't know that.
+	 *	Must not send error if the source does not uniquely
+	 *	identify a single node (RFC2463 Section 2.4).
+	 *	We check unspecified / multicast addresses here,
+	 *	and anycast addresses will be checked later.
 	 */
 	if ((addr_type == IPV6_ADDR_ANY) || (addr_type & IPV6_ADDR_MULTICAST)) {
 		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6_send: addr_any/mcast source\n");
@@ -373,6 +375,16 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)
 		goto out;
+
+	/*
+	 * We won't send icmp if the destination is known
+	 * anycast.
+	 */
+	if (((struct rt6_info *)dst)->rt6i_flags & RTF_ANYCAST) {
+		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6_send: acast source\n");
+		goto out_dst_release;
+	}
+
 	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
 		goto out;
 

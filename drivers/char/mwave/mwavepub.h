@@ -69,7 +69,7 @@ typedef struct _MW_ABILITIES {
 typedef struct _MW_READWRITE {
 	unsigned short usDspAddress;	/* The dsp address */
 	unsigned long ulDataLength;	/* The size in bytes of the data or user buffer */
-	void *pBuf;		/* Input:variable sized buffer */
+	void __user *pBuf;		/* Input:variable sized buffer */
 } MW_READWRITE, *pMW_READWRITE;
 
 #define IOCTL_MW_RESET           _IO(MWAVE_MINOR,1)

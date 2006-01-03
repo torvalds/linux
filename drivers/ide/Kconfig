@@ -807,14 +807,6 @@ config BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
        depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
 endchoice
 
-config BLK_DEV_IDE_AU1XXX_BURSTABLE_ON
-        bool "Enable burstable Mode on DbDMA"
-        default false
-        depends BLK_DEV_IDE_AU1XXX
-        help
-          This option enable the burstable Flag on DbDMA controller
-          (cf. "AMD Alchemy 'Au1200' Processor Data Book - PRELIMINARY").
-
 config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
        int "Maximum transfer size (KB) per request (up to 128)"
        default "128"
@@ -940,7 +932,7 @@ config BLK_DEV_Q40IDE
 
 config BLK_DEV_MPC8xx_IDE
 	bool "MPC8xx IDE support"
-	depends on 8xx
+	depends on 8xx && IDE=y && BLK_DEV_IDE=y
 	help
 	  This option provides support for IDE on Motorola MPC8xx Systems.
 	  Please see 'Type of MPC8xx IDE interface' for details.

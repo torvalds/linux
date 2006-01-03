@@ -256,6 +256,19 @@ config CPUSETS
 
 source "usr/Kconfig"
 
+config CC_OPTIMIZE_FOR_SIZE
+	bool "Optimize for size (Look out for broken compilers!)"
+	default y
+	depends on ARM || H8300 || EXPERIMENTAL
+	help
+	  Enabling this option will pass "-Os" instead of "-O2" to gcc
+	  resulting in a smaller kernel.
+
+	  WARNING: some versions of gcc may generate incorrect code with this
+	  option.  If problems are observed, a gcc upgrade may be needed.
+
+	  If unsure, say N.
+
 menuconfig EMBEDDED
 	bool "Configure standard kernel features (for small systems)"
 	help
@@ -337,18 +350,6 @@ config EPOLL
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for epoll family of system calls.
-
-config CC_OPTIMIZE_FOR_SIZE
-	bool "Optimize for size"
-	default y if ARM || H8300
-	help
-	  Enabling this option will pass "-Os" instead of "-O2" to gcc
-	  resulting in a smaller kernel.
-
-	  WARNING: some versions of gcc may generate incorrect code with this
-	  option.  If problems are observed, a gcc upgrade may be needed.
-
-	  If unsure, say N.
 
 config SHMEM
 	bool "Use full shmem filesystem" if EMBEDDED

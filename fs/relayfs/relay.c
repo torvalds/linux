@@ -333,8 +333,7 @@ size_t relay_switch_subbuf(struct rchan_buf *buf, size_t length)
 	return length;
 
 toobig:
-	printk(KERN_WARNING "relayfs: event too large (%Zd)\n", length);
-	WARN_ON(1);
+	buf->chan->last_toobig = length;
 	return 0;
 }
 
@@ -398,6 +397,11 @@ void relay_close(struct rchan *chan)
 			continue;
 		relay_close_buf(chan->buf[i]);
 	}
+
+	if (chan->last_toobig)
+		printk(KERN_WARNING "relayfs: one or more items not logged "
+		       "[item size (%Zd) > sub-buffer size (%Zd)]\n",
+		       chan->last_toobig, chan->subbuf_size);
 
 	kref_put(&chan->kref, relay_destroy_channel);
 }

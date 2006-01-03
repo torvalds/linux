@@ -105,6 +105,7 @@ static struct {
 	{ FC_PORTSTATE_LINKDOWN,	"Linkdown" },
 	{ FC_PORTSTATE_ERROR,		"Error" },
 	{ FC_PORTSTATE_LOOPBACK,	"Loopback" },
+	{ FC_PORTSTATE_DELETED,		"Deleted" },
 };
 fc_enum_name_search(port_state, fc_port_state, fc_port_state_names)
 #define FC_PORTSTATE_MAX_NAMELEN	20
@@ -211,6 +212,7 @@ fc_bitfield_name_search(remote_port_roles, fc_remote_port_role_names)
 #define FC_MGMTSRVR_PORTID		0x00000a
 
 
+static void fc_shost_remove_rports(void  *data);
 static void fc_timeout_deleted_rport(void *data);
 static void fc_scsi_scan_rport(void *data);
 static void fc_rport_terminate(struct fc_rport  *rport);
@@ -318,6 +320,8 @@ static int fc_host_setup(struct transport_container *tc, struct device *dev,
 	fc_host_next_rport_number(shost) = 0;
 	fc_host_next_target_id(shost) = 0;
 
+	fc_host_flags(shost) = 0;
+	INIT_WORK(&fc_host_rport_del_work(shost), fc_shost_remove_rports, shost);
 	return 0;
 }
 
@@ -387,6 +391,7 @@ show_fc_rport_##field (struct class_device *cdev, char *buf)		\
 	struct fc_internal *i = to_fc_internal(shost->transportt);	\
 	if ((i->f->get_rport_##field) &&				\
 	    !((rport->port_state == FC_PORTSTATE_BLOCKED) ||		\
+	      (rport->port_state == FC_PORTSTATE_DELETED) ||		\
 	      (rport->port_state == FC_PORTSTATE_NOTPRESENT)))		\
 		i->f->get_rport_##field(rport);				\
 	return snprintf(buf, sz, format_string, cast rport->field); 	\
@@ -402,6 +407,7 @@ store_fc_rport_##field(struct class_device *cdev, const char *buf,	\
 	struct Scsi_Host *shost = rport_to_shost(rport);		\
 	struct fc_internal *i = to_fc_internal(shost->transportt);	\
 	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||		\
+	    (rport->port_state == FC_PORTSTATE_DELETED) ||		\
 	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))		\
 		return -EBUSY;						\
 	val = simple_strtoul(buf, NULL, 0);				\
@@ -519,6 +525,7 @@ store_fc_rport_dev_loss_tmo(struct class_device *cdev, const char *buf,
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
 	if ((rport->port_state == FC_PORTSTATE_BLOCKED) ||
+	    (rport->port_state == FC_PORTSTATE_DELETED) ||
 	    (rport->port_state == FC_PORTSTATE_NOTPRESENT))
 		return -EBUSY;
 	val = simple_strtoul(buf, NULL, 0);
@@ -1769,7 +1776,7 @@ fc_timeout_deleted_rport(void  *data)
 	rport->maxframe_size = -1;
 	rport->supported_classes = FC_COS_UNSPECIFIED;
 	rport->roles = FC_RPORT_ROLE_UNKNOWN;
-	rport->port_state = FC_PORTSTATE_NOTPRESENT;
+	rport->port_state = FC_PORTSTATE_DELETED;
 
 	/* remove the identifiers that aren't used in the consisting binding */
 	switch (fc_host_tgtid_bind_type(shost)) {
@@ -1789,14 +1796,23 @@ fc_timeout_deleted_rport(void  *data)
 		break;
 	}
 
-	spin_unlock_irqrestore(shost->host_lock, flags);
-
 	/*
 	 * As this only occurs if the remote port (scsi target)
 	 * went away and didn't come back - we'll remove
 	 * all attached scsi devices.
+	 *
+	 * We'll schedule the shost work item to perform the actual removal
+	 * to avoid recursion in the different flush calls if we perform
+	 * the removal in each target - and there are lots of targets
+	 * whose timeouts fire at the same time.
 	 */
-	fc_rport_tgt_remove(rport);
+
+	if ( !(fc_host_flags(shost) & FC_SHOST_RPORT_DEL_SCHEDULED)) {
+		fc_host_flags(shost) |= FC_SHOST_RPORT_DEL_SCHEDULED;
+		scsi_queue_work(shost, &fc_host_rport_del_work(shost));
+	}
+
+	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
 /**
@@ -1815,6 +1831,41 @@ fc_scsi_scan_rport(void *data)
 	scsi_target_unblock(&rport->dev);
 	scsi_scan_target(&rport->dev, rport->channel, rport->scsi_target_id,
 			SCAN_WILD_CARD, 1);
+}
+
+
+/**
+ * fc_shost_remove_rports - called to remove all rports that are marked
+ *                       as in a deleted (not connected) state.
+ * 
+ * @data:	shost whose rports are to be looked at
+ **/
+static void
+fc_shost_remove_rports(void  *data)
+{
+	struct Scsi_Host *shost = (struct Scsi_Host *)data;
+	struct fc_rport *rport, *next_rport;
+	unsigned long flags;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	while (fc_host_flags(shost) & FC_SHOST_RPORT_DEL_SCHEDULED) {
+
+		fc_host_flags(shost) &= ~FC_SHOST_RPORT_DEL_SCHEDULED;
+
+restart_search:
+		list_for_each_entry_safe(rport, next_rport,
+				&fc_host_rport_bindings(shost), peers) {
+			if (rport->port_state == FC_PORTSTATE_DELETED) {
+				rport->port_state = FC_PORTSTATE_NOTPRESENT;
+				spin_unlock_irqrestore(shost->host_lock, flags);
+				fc_rport_tgt_remove(rport);
+				spin_lock_irqsave(shost->host_lock, flags);
+				goto restart_search;
+			}
+		}
+
+	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
 

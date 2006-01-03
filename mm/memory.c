@@ -574,7 +574,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * readonly mappings. The tradeoff is that copy_page_range is more
 	 * efficient than faulting.
 	 */
-	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_PFNMAP))) {
+	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_PFNMAP|VM_INSERTPAGE))) {
 		if (!vma->anon_vma)
 			return 0;
 	}
@@ -1228,6 +1228,7 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *
 		return -EFAULT;
 	if (!page_count(page))
 		return -EINVAL;
+	vma->vm_flags |= VM_INSERTPAGE;
 	return insert_page(vma->vm_mm, addr, page, vma->vm_page_prot);
 }
 EXPORT_SYMBOL(vm_insert_page);

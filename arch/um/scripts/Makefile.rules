@@ -21,11 +21,6 @@ define unprofile
 endef
 
 
-# The stubs and unmap.o can't try to call mcount or update basic block data
-define unprofile
-	$(patsubst -pg,,$(patsubst -fprofile-arcs -ftest-coverage,,$(1)))
-endef
-
 # cmd_make_link checks to see if the $(foo-dir) variable starts with a /.  If
 # so, it's considered to be a path relative to $(srcdir) rather than
 # $(srcdir)/arch/$(SUBARCH).  This is because x86_64 wants to get ldt.c from

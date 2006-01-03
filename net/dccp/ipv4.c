@@ -1251,7 +1251,7 @@ static int dccp_v4_destroy_sock(struct sock *sk)
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	/*
-	 * DCCP doesn't use sk_qrite_queue, just sk_send_head
+	 * DCCP doesn't use sk_write_queue, just sk_send_head
 	 * for retransmissions
 	 */
 	if (sk->sk_send_head != NULL) {

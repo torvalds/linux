@@ -174,7 +174,7 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 		goto out;
 	msg = (struct rpc_pipe_msg *)filp->private_data;
 	if (msg != NULL) {
-		msg->errno = -EPIPE;
+		msg->errno = -EAGAIN;
 		list_del_init(&msg->list);
 		rpci->ops->destroy_msg(msg);
 	}
@@ -183,7 +183,7 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 	if (filp->f_mode & FMODE_READ)
 		rpci->nreaders --;
 	if (!rpci->nreaders)
-		__rpc_purge_upcall(inode, -EPIPE);
+		__rpc_purge_upcall(inode, -EAGAIN);
 	if (rpci->ops->release_pipe)
 		rpci->ops->release_pipe(inode);
 out:

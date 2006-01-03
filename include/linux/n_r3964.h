@@ -13,6 +13,10 @@
  * L. Haag
  *
  * $Log: r3964.h,v $
+ * Revision 1.4  2005/12/21 19:54:24  Kurt Huwig <kurt huwig de>
+ * Fixed HZ usage on 2.6 kernels
+ * Removed unnecessary include
+ *
  * Revision 1.3  2001/03/18 13:02:24  dwmw2
  * Fix timer usage, use spinlocks properly.
  *
@@ -45,9 +49,11 @@
 #define __LINUX_N_R3964_H__
 
 /* line disciplines for r3964 protocol */
-#include <asm/termios.h>
 
 #ifdef __KERNEL__
+
+#include <linux/param.h>
+
 /*
  * Common ascii handshake characters:
  */
@@ -58,14 +64,14 @@
 #define NAK 0x15
 
 /*
- * Timeouts (msecs/10 msecs per timer interrupt):
+ * Timeouts (from milliseconds to jiffies)
  */
 
-#define R3964_TO_QVZ 550/10
-#define R3964_TO_ZVZ 220/10
-#define R3964_TO_NO_BUF 400/10
-#define R3964_NO_TX_ROOM 100/10
-#define R3964_TO_RX_PANIC 4000/10
+#define R3964_TO_QVZ ((550)*HZ/1000)
+#define R3964_TO_ZVZ ((220)*HZ/1000)
+#define R3964_TO_NO_BUF ((400)*HZ/1000)
+#define R3964_NO_TX_ROOM ((100)*HZ/1000)
+#define R3964_TO_RX_PANIC ((4000)*HZ/1000)
 #define R3964_MAX_RETRIES 5
 
 #endif

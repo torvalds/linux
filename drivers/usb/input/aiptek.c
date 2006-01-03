@@ -2103,7 +2103,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * values.
 	 */
 	input_set_abs_params(inputdev, ABS_X, 0, 2999, 0, 0);
-	input_set_abs_params(inputdev, ABS_X, 0, 2249, 0, 0);
+	input_set_abs_params(inputdev, ABS_Y, 0, 2249, 0, 0);
 	input_set_abs_params(inputdev, ABS_PRESSURE, 0, 511, 0, 0);
 	input_set_abs_params(inputdev, ABS_TILT_X, AIPTEK_TILT_MIN, AIPTEK_TILT_MAX, 0, 0);
 	input_set_abs_params(inputdev, ABS_TILT_Y, AIPTEK_TILT_MIN, AIPTEK_TILT_MAX, 0, 0);

@@ -1405,7 +1405,6 @@ static void sym_check_goals(struct sym_hcb *np, struct scsi_target *starget,
 		goal->iu = 0;
 		goal->dt = 0;
 		goal->qas = 0;
-		goal->period = 0;
 		goal->offset = 0;
 		return;
 	}
@@ -1465,7 +1464,8 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 	 * Many devices implement PPR in a buggy way, so only use it if we
 	 * really want to.
 	 */
-	if (goal->iu || goal->dt || goal->qas || (goal->period < 0xa)) {
+	if (goal->offset &&
+	    (goal->iu || goal->dt || goal->qas || (goal->period < 0xa))) {
 		nego = NS_PPR;
 	} else if (spi_width(starget) != goal->width) {
 		nego = NS_WIDE;

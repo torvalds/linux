@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 15
-EXTRAVERSION =-rc5
-NAME=Affluent Albatross
+EXTRAVERSION =
+NAME=Sliding Snow Leopard
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

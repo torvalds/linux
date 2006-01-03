@@ -346,6 +346,7 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 	struct xfrm_policy *pol, **p;
 	struct xfrm_policy *delpol = NULL;
 	struct xfrm_policy **newpos = NULL;
+	struct dst_entry *gc_list;
 
 	write_lock_bh(&xfrm_policy_lock);
 	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL;) {
@@ -381,9 +382,36 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 		xfrm_pol_hold(policy);
 	write_unlock_bh(&xfrm_policy_lock);
 
-	if (delpol) {
+	if (delpol)
 		xfrm_policy_kill(delpol);
+
+	read_lock_bh(&xfrm_policy_lock);
+	gc_list = NULL;
+	for (policy = policy->next; policy; policy = policy->next) {
+		struct dst_entry *dst;
+
+		write_lock(&policy->lock);
+		dst = policy->bundles;
+		if (dst) {
+			struct dst_entry *tail = dst;
+			while (tail->next)
+				tail = tail->next;
+			tail->next = gc_list;
+			gc_list = dst;
+
+			policy->bundles = NULL;
+		}
+		write_unlock(&policy->lock);
 	}
+	read_unlock_bh(&xfrm_policy_lock);
+
+	while (gc_list) {
+		struct dst_entry *dst = gc_list;
+
+		gc_list = dst->next;
+		dst_free(dst);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(xfrm_policy_insert);
@@ -1014,13 +1042,12 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 }
 EXPORT_SYMBOL(__xfrm_route_forward);
 
-/* Optimize later using cookies and generation ids. */
-
 static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 {
-	if (!stale_bundle(dst))
-		return dst;
-
+	/* If it is marked obsolete, which is how we even get here,
+	 * then we have purged it from the policy bundle list and we
+	 * did that for a good reason.
+	 */
 	return NULL;
 }
 
@@ -1102,6 +1129,16 @@ int xfrm_flush_bundles(void)
 {
 	xfrm_prune_bundles(stale_bundle);
 	return 0;
+}
+
+static int always_true(struct dst_entry *dst)
+{
+	return 1;
+}
+
+void xfrm_flush_all_bundles(void)
+{
+	xfrm_prune_bundles(always_true);
 }
 
 void xfrm_init_pmtu(struct dst_entry *dst)

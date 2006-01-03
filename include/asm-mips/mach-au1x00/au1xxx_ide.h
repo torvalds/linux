@@ -74,9 +74,6 @@ typedef struct
         u8                      white_list, black_list;
         struct dbdma_cmd        *dma_table_cpu;
         dma_addr_t              dma_table_dma;
-        struct scatterlist      *sg_table;
-        int                     sg_nents;
-        int                     sg_dma_direction;
 #endif
         struct device           *dev;
 	int			irq;
@@ -87,11 +84,6 @@ typedef struct
 } _auide_hwif;
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-struct drive_list_entry {
-        const char * id_model;
-        const char * id_firmware;
-};
-
 /* HD white list */
 static const struct drive_list_entry dma_white_list [] = {
 /*
@@ -167,13 +159,9 @@ int __init auide_probe(void);
  * Multi-Word DMA + DbDMA functions
  */
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-
-        static int in_drive_list(struct hd_driveid *id,
-                                 const struct drive_list_entry *drive_table);
         static int auide_build_sglist(ide_drive_t *drive,  struct request *rq);
         static int auide_build_dmatable(ide_drive_t *drive);
         static int auide_dma_end(ide_drive_t *drive);
-        static void auide_dma_start(ide_drive_t *drive );
         ide_startstop_t auide_dma_intr (ide_drive_t *drive);
         static void auide_dma_exec_cmd(ide_drive_t *drive, u8 command);
         static int auide_dma_setup(ide_drive_t *drive);
@@ -188,8 +176,6 @@ int __init auide_probe(void);
         static void auide_ddma_rx_callback(int irq, void *param,
                                            struct pt_regs *regs);
         static int auide_dma_off_quietly(ide_drive_t *drive);
-        static int auide_dma_timeout(ide_drive_t *drive);
-
 #endif /* end CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
 
 /*******************************************************************************
@@ -299,3 +285,11 @@ int __init auide_probe(void);
 #define SBC_IDE_MDMA2_TPM     (0x00<<6)
 #define SBC_IDE_MDMA2_TA      (0x12<<0)
 
+#define SBC_IDE_TIMING(mode) \
+         SBC_IDE_##mode##_TWCS | \
+         SBC_IDE_##mode##_TCSH | \
+         SBC_IDE_##mode##_TCSOFF | \
+         SBC_IDE_##mode##_TWP | \
+         SBC_IDE_##mode##_TCSW | \
+         SBC_IDE_##mode##_TPM | \
+         SBC_IDE_##mode##_TA
