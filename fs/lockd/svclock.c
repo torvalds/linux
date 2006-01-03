@@ -41,7 +41,8 @@
 
 static void	nlmsvc_insert_block(struct nlm_block *block, unsigned long);
 static int	nlmsvc_remove_block(struct nlm_block *block);
-static void	nlmsvc_grant_callback(struct rpc_task *task);
+
+static const struct rpc_call_ops nlmsvc_grant_ops;
 
 /*
  * The list of blocked locks to retry
@@ -562,7 +563,7 @@ callback:
 	/* Call the client */
 	nlm_get_host(block->b_call.a_host);
 	if (nlmsvc_async_call(&block->b_call, NLMPROC_GRANTED_MSG,
-						nlmsvc_grant_callback) < 0)
+						&nlmsvc_grant_ops) < 0)
 		nlm_release_host(block->b_call.a_host);
 	up(&file->f_sema);
 }
@@ -575,10 +576,9 @@ callback:
  * chain once more in order to have it removed by lockd itself (which can
  * then sleep on the file semaphore without disrupting e.g. the nfs client).
  */
-static void
-nlmsvc_grant_callback(struct rpc_task *task)
+static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 {
-	struct nlm_rqst		*call = (struct nlm_rqst *) task->tk_calldata;
+	struct nlm_rqst		*call = data;
 	struct nlm_block	*block;
 	unsigned long		timeout;
 	struct sockaddr_in	*peer_addr = RPC_PEERADDR(task->tk_client);
@@ -613,6 +613,10 @@ nlmsvc_grant_callback(struct rpc_task *task)
 
 	nlm_release_host(call->a_host);
 }
+
+static const struct rpc_call_ops nlmsvc_grant_ops = {
+	.rpc_call_done = nlmsvc_grant_callback,
+};
 
 /*
  * We received a GRANT_RES callback. Try to find the corresponding

@@ -126,7 +126,8 @@ int		rpc_register(u32, u32, int, unsigned short, int *);
 void		rpc_call_setup(struct rpc_task *, struct rpc_message *, int);
 
 int		rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg,
-			       int flags, rpc_action callback, void *clntdata);
+			       int flags, const struct rpc_call_ops *tk_ops,
+			       void *calldata);
 int		rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg,
 			      int flags);
 void		rpc_restart_call(struct rpc_task *);

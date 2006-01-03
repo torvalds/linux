@@ -196,14 +196,12 @@ static void update_changeattr(struct inode *inode, struct nfs4_change_info *cinf
 
 /* Helper for asynchronous RPC calls */
 static int nfs4_call_async(struct rpc_clnt *clnt, rpc_action tk_begin,
-		rpc_action tk_exit, void *calldata)
+		const struct rpc_call_ops *tk_ops, void *calldata)
 {
 	struct rpc_task *task;
 
-	if (!(task = rpc_new_task(clnt, tk_exit, RPC_TASK_ASYNC)))
+	if (!(task = rpc_new_task(clnt, RPC_TASK_ASYNC, tk_ops, calldata)))
 		return -ENOMEM;
-
-	task->tk_calldata = calldata;
 	task->tk_action = tk_begin;
 	rpc_execute(task);
 	return 0;
@@ -867,10 +865,10 @@ struct nfs4_closedata {
 	struct nfs_fattr fattr;
 };
 
-static void nfs4_free_closedata(struct nfs4_closedata *calldata)
+static void nfs4_free_closedata(void *data)
 {
-	struct nfs4_state *state = calldata->state;
-	struct nfs4_state_owner *sp = state->owner;
+	struct nfs4_closedata *calldata = data;
+	struct nfs4_state_owner *sp = calldata->state->owner;
 
 	nfs4_put_open_state(calldata->state);
 	nfs_free_seqid(calldata->arg.seqid);
@@ -878,9 +876,9 @@ static void nfs4_free_closedata(struct nfs4_closedata *calldata)
 	kfree(calldata);
 }
 
-static void nfs4_close_done(struct rpc_task *task)
+static void nfs4_close_done(struct rpc_task *task, void *data)
 {
-	struct nfs4_closedata *calldata = (struct nfs4_closedata *)task->tk_calldata;
+	struct nfs4_closedata *calldata = data;
 	struct nfs4_state *state = calldata->state;
 	struct nfs_server *server = NFS_SERVER(calldata->inode);
 
@@ -904,7 +902,6 @@ static void nfs4_close_done(struct rpc_task *task)
 			}
 	}
 	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
-	nfs4_free_closedata(calldata);
 }
 
 static void nfs4_close_begin(struct rpc_task *task)
@@ -918,10 +915,8 @@ static void nfs4_close_begin(struct rpc_task *task)
 		.rpc_cred = state->owner->so_cred,
 	};
 	int mode = 0, old_mode;
-	int status;
 
-	status = nfs_wait_on_sequence(calldata->arg.seqid, task);
-	if (status != 0)
+	if (nfs_wait_on_sequence(calldata->arg.seqid, task) != 0)
 		return;
 	/* Recalculate the new open mode in case someone reopened the file
 	 * while we were waiting in line to be scheduled.
@@ -937,9 +932,8 @@ static void nfs4_close_begin(struct rpc_task *task)
 	spin_unlock(&calldata->inode->i_lock);
 	spin_unlock(&state->owner->so_lock);
 	if (mode == old_mode || test_bit(NFS_DELEGATED_STATE, &state->flags)) {
-		nfs4_free_closedata(calldata);
-		task->tk_exit = NULL;
-		rpc_exit(task, 0);
+		/* Note: exit _without_ calling nfs4_close_done */
+		task->tk_action = NULL;
 		return;
 	}
 	nfs_fattr_init(calldata->res.fattr);
@@ -948,6 +942,11 @@ static void nfs4_close_begin(struct rpc_task *task)
 	calldata->arg.open_flags = mode;
 	rpc_call_setup(task, &msg, 0);
 }
+
+static const struct rpc_call_ops nfs4_close_ops = {
+	.rpc_call_done = nfs4_close_done,
+	.rpc_release = nfs4_free_closedata,
+};
 
 /* 
  * It is possible for data to be read/written from a mem-mapped file 
@@ -982,7 +981,7 @@ int nfs4_do_close(struct inode *inode, struct nfs4_state *state)
 	calldata->res.server = server;
 
 	status = nfs4_call_async(server->client, nfs4_close_begin,
-			nfs4_close_done, calldata);
+			&nfs4_close_ops, calldata);
 	if (status == 0)
 		goto out;
 
@@ -2125,10 +2124,9 @@ static int nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	return err;
 }
 
-static void
-nfs4_read_done(struct rpc_task *task)
+static void nfs4_read_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_read_data *data = (struct nfs_read_data *) task->tk_calldata;
+	struct nfs_read_data *data = calldata;
 	struct inode *inode = data->inode;
 
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode)) == -EAGAIN) {
@@ -2138,8 +2136,13 @@ nfs4_read_done(struct rpc_task *task)
 	if (task->tk_status > 0)
 		renew_lease(NFS_SERVER(inode), data->timestamp);
 	/* Call back common NFS readpage processing */
-	nfs_readpage_result(task);
+	nfs_readpage_result(task, calldata);
 }
+
+static const struct rpc_call_ops nfs4_read_ops = {
+	.rpc_call_done = nfs4_read_done,
+	.rpc_release = nfs_readdata_release,
+};
 
 static void
 nfs4_proc_read_setup(struct nfs_read_data *data)
@@ -2160,14 +2163,13 @@ nfs4_proc_read_setup(struct nfs_read_data *data)
 	flags = RPC_TASK_ASYNC | (IS_SWAPFILE(inode)? NFS_RPC_SWAPFLAGS : 0);
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), nfs4_read_done, flags);
+	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs4_read_ops, data);
 	rpc_call_setup(task, &msg, 0);
 }
 
-static void
-nfs4_write_done(struct rpc_task *task)
+static void nfs4_write_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data *data = (struct nfs_write_data *) task->tk_calldata;
+	struct nfs_write_data *data = calldata;
 	struct inode *inode = data->inode;
 	
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode)) == -EAGAIN) {
@@ -2179,8 +2181,13 @@ nfs4_write_done(struct rpc_task *task)
 		nfs_post_op_update_inode(inode, data->res.fattr);
 	}
 	/* Call back common NFS writeback processing */
-	nfs_writeback_done(task);
+	nfs_writeback_done(task, calldata);
 }
+
+static const struct rpc_call_ops nfs4_write_ops = {
+	.rpc_call_done = nfs4_write_done,
+	.rpc_release = nfs_writedata_release,
+};
 
 static void
 nfs4_proc_write_setup(struct nfs_write_data *data, int how)
@@ -2214,14 +2221,13 @@ nfs4_proc_write_setup(struct nfs_write_data *data, int how)
 	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), nfs4_write_done, flags);
+	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs4_write_ops, data);
 	rpc_call_setup(task, &msg, 0);
 }
 
-static void
-nfs4_commit_done(struct rpc_task *task)
+static void nfs4_commit_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data *data = (struct nfs_write_data *) task->tk_calldata;
+	struct nfs_write_data *data = calldata;
 	struct inode *inode = data->inode;
 	
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode)) == -EAGAIN) {
@@ -2231,8 +2237,13 @@ nfs4_commit_done(struct rpc_task *task)
 	if (task->tk_status >= 0)
 		nfs_post_op_update_inode(inode, data->res.fattr);
 	/* Call back common NFS writeback processing */
-	nfs_commit_done(task);
+	nfs_commit_done(task, calldata);
 }
+
+static const struct rpc_call_ops nfs4_commit_ops = {
+	.rpc_call_done = nfs4_commit_done,
+	.rpc_release = nfs_commit_release,
+};
 
 static void
 nfs4_proc_commit_setup(struct nfs_write_data *data, int how)
@@ -2255,7 +2266,7 @@ nfs4_proc_commit_setup(struct nfs_write_data *data, int how)
 	flags = (how & FLUSH_SYNC) ? 0 : RPC_TASK_ASYNC;
 
 	/* Finalize the task. */
-	rpc_init_task(task, NFS_CLIENT(inode), nfs4_commit_done, flags);
+	rpc_init_task(task, NFS_CLIENT(inode), flags, &nfs4_commit_ops, data);
 	rpc_call_setup(task, &msg, 0);	
 }
 
@@ -2263,11 +2274,10 @@ nfs4_proc_commit_setup(struct nfs_write_data *data, int how)
  * nfs4_proc_async_renew(): This is not one of the nfs_rpc_ops; it is a special
  * standalone procedure for queueing an asynchronous RENEW.
  */
-static void
-renew_done(struct rpc_task *task)
+static void nfs4_renew_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_client *clp = (struct nfs4_client *)task->tk_msg.rpc_argp;
-	unsigned long timestamp = (unsigned long)task->tk_calldata;
+	unsigned long timestamp = (unsigned long)data;
 
 	if (task->tk_status < 0) {
 		switch (task->tk_status) {
@@ -2284,6 +2294,10 @@ renew_done(struct rpc_task *task)
 	spin_unlock(&clp->cl_lock);
 }
 
+static const struct rpc_call_ops nfs4_renew_ops = {
+	.rpc_call_done = nfs4_renew_done,
+};
+
 int
 nfs4_proc_async_renew(struct nfs4_client *clp)
 {
@@ -2294,7 +2308,7 @@ nfs4_proc_async_renew(struct nfs4_client *clp)
 	};
 
 	return rpc_call_async(clp->cl_rpcclient, &msg, RPC_TASK_SOFT,
-			renew_done, (void *)jiffies);
+			&nfs4_renew_ops, (void *)jiffies);
 }
 
 int
@@ -2866,15 +2880,16 @@ static void nfs4_locku_release_calldata(struct nfs4_unlockdata *calldata)
 	}
 }
 
-static void nfs4_locku_complete(struct nfs4_unlockdata *calldata)
+static void nfs4_locku_complete(void *data)
 {
+	struct nfs4_unlockdata *calldata = data;
 	complete(&calldata->completion);
 	nfs4_locku_release_calldata(calldata);
 }
 
-static void nfs4_locku_done(struct rpc_task *task)
+static void nfs4_locku_done(struct rpc_task *task, void *data)
 {
-	struct nfs4_unlockdata *calldata = (struct nfs4_unlockdata *)task->tk_calldata;
+	struct nfs4_unlockdata *calldata = data;
 
 	nfs_increment_lock_seqid(task->tk_status, calldata->luargs.seqid);
 	switch (task->tk_status) {
@@ -2890,10 +2905,8 @@ static void nfs4_locku_done(struct rpc_task *task)
 		default:
 			if (nfs4_async_handle_error(task, calldata->res.server) == -EAGAIN) {
 				rpc_restart_call(task);
-				return;
 			}
 	}
-	nfs4_locku_complete(calldata);
 }
 
 static void nfs4_locku_begin(struct rpc_task *task)
@@ -2911,13 +2924,17 @@ static void nfs4_locku_begin(struct rpc_task *task)
 	if (status != 0)
 		return;
 	if ((calldata->lsp->ls_flags & NFS_LOCK_INITIALIZED) == 0) {
-		nfs4_locku_complete(calldata);
-		task->tk_exit = NULL;
-		rpc_exit(task, 0);
+		/* Note: exit _without_ running nfs4_locku_done */
+		task->tk_action = NULL;
 		return;
 	}
 	rpc_call_setup(task, &msg, 0);
 }
+
+static const struct rpc_call_ops nfs4_locku_ops = {
+	.rpc_call_done = nfs4_locku_done,
+	.rpc_release = nfs4_locku_complete,
+};
 
 static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *request)
 {
@@ -2963,7 +2980,7 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	init_completion(&calldata->completion);
 
 	status = nfs4_call_async(NFS_SERVER(inode)->client, nfs4_locku_begin,
-			nfs4_locku_done, calldata);
+			&nfs4_locku_ops, calldata);
 	if (status == 0)
 		wait_for_completion_interruptible(&calldata->completion);
 	do_vfs_lock(request->fl_file, request);

@@ -555,13 +555,13 @@ __rpc_atrun(struct rpc_task *task)
 }
 
 /*
- * Helper that calls task->tk_exit if it exists
+ * Helper that calls task->tk_ops->rpc_call_done if it exists
  */
 void rpc_exit_task(struct rpc_task *task)
 {
 	task->tk_action = NULL;
-	if (task->tk_exit != NULL) {
-		task->tk_exit(task);
+	if (task->tk_ops->rpc_call_done != NULL) {
+		task->tk_ops->rpc_call_done(task, task->tk_calldata);
 		if (task->tk_action != NULL) {
 			WARN_ON(RPC_ASSASSINATED(task));
 			/* Always release the RPC slot and buffer memory */
@@ -747,7 +747,7 @@ rpc_free(struct rpc_task *task)
 /*
  * Creation and deletion of RPC task structures
  */
-void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, rpc_action callback, int flags)
+void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, const struct rpc_call_ops *tk_ops, void *calldata)
 {
 	memset(task, 0, sizeof(*task));
 	init_timer(&task->tk_timer);
@@ -755,7 +755,8 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, rpc_action call
 	task->tk_timer.function = (void (*)(unsigned long)) rpc_run_timer;
 	task->tk_client = clnt;
 	task->tk_flags  = flags;
-	task->tk_exit   = callback;
+	task->tk_ops = tk_ops;
+	task->tk_calldata = calldata;
 
 	/* Initialize retry counters */
 	task->tk_garb_retry = 2;
@@ -784,6 +785,8 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, rpc_action call
 	list_add_tail(&task->tk_task, &all_tasks);
 	spin_unlock(&rpc_sched_lock);
 
+	BUG_ON(task->tk_ops == NULL);
+
 	dprintk("RPC: %4d new task procpid %d\n", task->tk_pid,
 				current->pid);
 }
@@ -794,8 +797,7 @@ rpc_alloc_task(void)
 	return (struct rpc_task *)mempool_alloc(rpc_task_mempool, GFP_NOFS);
 }
 
-static void
-rpc_default_free_task(struct rpc_task *task)
+static void rpc_free_task(struct rpc_task *task)
 {
 	dprintk("RPC: %4d freeing task\n", task->tk_pid);
 	mempool_free(task, rpc_task_mempool);
@@ -806,8 +808,7 @@ rpc_default_free_task(struct rpc_task *task)
  * clean up after an allocation failure, as the client may
  * have specified "oneshot".
  */
-struct rpc_task *
-rpc_new_task(struct rpc_clnt *clnt, rpc_action callback, int flags)
+struct rpc_task *rpc_new_task(struct rpc_clnt *clnt, int flags, const struct rpc_call_ops *tk_ops, void *calldata)
 {
 	struct rpc_task	*task;
 
@@ -815,10 +816,7 @@ rpc_new_task(struct rpc_clnt *clnt, rpc_action callback, int flags)
 	if (!task)
 		goto cleanup;
 
-	rpc_init_task(task, clnt, callback, flags);
-
-	/* Replace tk_release */
-	task->tk_release = rpc_default_free_task;
+	rpc_init_task(task, clnt, flags, tk_ops, calldata);
 
 	dprintk("RPC: %4d allocated task\n", task->tk_pid);
 	task->tk_flags |= RPC_TASK_DYNAMIC;
@@ -838,6 +836,8 @@ cleanup:
 
 void rpc_release_task(struct rpc_task *task)
 {
+	const struct rpc_call_ops *tk_ops = task->tk_ops;
+	void *calldata = task->tk_calldata;
 	dprintk("RPC: %4d release task\n", task->tk_pid);
 
 #ifdef RPC_DEBUG
@@ -869,8 +869,10 @@ void rpc_release_task(struct rpc_task *task)
 #ifdef RPC_DEBUG
 	task->tk_magic = 0;
 #endif
-	if (task->tk_release)
-		task->tk_release(task);
+	if (task->tk_flags & RPC_TASK_DYNAMIC)
+		rpc_free_task(task);
+	if (tk_ops->rpc_release)
+		tk_ops->rpc_release(calldata);
 }
 
 /**
@@ -883,12 +885,11 @@ void rpc_release_task(struct rpc_task *task)
  *
  * Caller must hold childq.lock
  */
-static inline struct rpc_task *rpc_find_parent(struct rpc_task *child)
+static inline struct rpc_task *rpc_find_parent(struct rpc_task *child, struct rpc_task *parent)
 {
-	struct rpc_task	*task, *parent;
+	struct rpc_task	*task;
 	struct list_head *le;
 
-	parent = (struct rpc_task *) child->tk_calldata;
 	task_for_each(task, le, &childq.tasks[0])
 		if (task == parent)
 			return parent;
@@ -896,17 +897,21 @@ static inline struct rpc_task *rpc_find_parent(struct rpc_task *child)
 	return NULL;
 }
 
-static void rpc_child_exit(struct rpc_task *child)
+static void rpc_child_exit(struct rpc_task *child, void *calldata)
 {
 	struct rpc_task	*parent;
 
 	spin_lock_bh(&childq.lock);
-	if ((parent = rpc_find_parent(child)) != NULL) {
+	if ((parent = rpc_find_parent(child, calldata)) != NULL) {
 		parent->tk_status = child->tk_status;
 		__rpc_wake_up_task(parent);
 	}
 	spin_unlock_bh(&childq.lock);
 }
+
+static const struct rpc_call_ops rpc_child_ops = {
+	.rpc_call_done = rpc_child_exit,
+};
 
 /*
  * Note: rpc_new_task releases the client after a failure.
@@ -916,11 +921,9 @@ rpc_new_child(struct rpc_clnt *clnt, struct rpc_task *parent)
 {
 	struct rpc_task	*task;
 
-	task = rpc_new_task(clnt, NULL, RPC_TASK_ASYNC | RPC_TASK_CHILD);
+	task = rpc_new_task(clnt, RPC_TASK_ASYNC | RPC_TASK_CHILD, &rpc_child_ops, parent);
 	if (!task)
 		goto fail;
-	task->tk_exit = rpc_child_exit;
-	task->tk_calldata = parent;
 	return task;
 
 fail:
@@ -1056,7 +1059,7 @@ void rpc_show_tasks(void)
 		return;
 	}
 	printk("-pid- proc flgs status -client- -prog- --rqstp- -timeout "
-		"-rpcwait -action- --exit--\n");
+		"-rpcwait -action- ---ops--\n");
 	alltask_for_each(t, le, &all_tasks) {
 		const char *rpc_waitq = "none";
 
@@ -1071,7 +1074,7 @@ void rpc_show_tasks(void)
 			(t->tk_client ? t->tk_client->cl_prog : 0),
 			t->tk_rqstp, t->tk_timeout,
 			rpc_waitq,
-			t->tk_action, t->tk_exit);
+			t->tk_action, t->tk_ops);
 	}
 	spin_unlock(&rpc_sched_lock);
 }

@@ -42,9 +42,8 @@ mempool_t *nfs_rdata_mempool;
 
 #define MIN_POOL_READ	(32)
 
-void nfs_readdata_release(struct rpc_task *task)
+void nfs_readdata_release(void *data)
 {
-        struct nfs_read_data   *data = (struct nfs_read_data *)task->tk_calldata;
         nfs_readdata_free(data);
 }
 
@@ -220,9 +219,6 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	NFS_PROTO(inode)->read_setup(data);
 
 	data->task.tk_cookie = (unsigned long)inode;
-	data->task.tk_calldata = data;
-	/* Release requests */
-	data->task.tk_release = nfs_readdata_release;
 
 	dprintk("NFS: %4d initiated read call (req %s/%Ld, %u bytes @ offset %Lu)\n",
 			data->task.tk_pid,
@@ -452,9 +448,9 @@ static void nfs_readpage_result_full(struct nfs_read_data *data, int status)
  * This is the callback from RPC telling us whether a reply was
  * received or some error occurred (timeout or socket shutdown).
  */
-void nfs_readpage_result(struct rpc_task *task)
+void nfs_readpage_result(struct rpc_task *task, void *calldata)
 {
-	struct nfs_read_data *data = (struct nfs_read_data *)task->tk_calldata;
+	struct nfs_read_data *data = calldata;
 	struct nfs_readargs *argp = &data->args;
 	struct nfs_readres *resp = &data->res;
 	int status = task->tk_status;

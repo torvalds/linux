@@ -374,9 +374,13 @@ out:
  * Default callback for async RPC calls
  */
 static void
-rpc_default_callback(struct rpc_task *task)
+rpc_default_callback(struct rpc_task *task, void *data)
 {
 }
+
+static const struct rpc_call_ops rpc_default_ops = {
+	.rpc_call_done = rpc_default_callback,
+};
 
 /*
  *	Export the signal mask handling for synchronous code that
@@ -432,7 +436,7 @@ int rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 	BUG_ON(flags & RPC_TASK_ASYNC);
 
 	status = -ENOMEM;
-	task = rpc_new_task(clnt, NULL, flags);
+	task = rpc_new_task(clnt, flags, &rpc_default_ops, NULL);
 	if (task == NULL)
 		goto out;
 
@@ -459,7 +463,7 @@ out:
  */
 int
 rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
-	       rpc_action callback, void *data)
+	       const struct rpc_call_ops *tk_ops, void *data)
 {
 	struct rpc_task	*task;
 	sigset_t	oldset;
@@ -472,12 +476,9 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 	flags |= RPC_TASK_ASYNC;
 
 	/* Create/initialize a new RPC task */
-	if (!callback)
-		callback = rpc_default_callback;
 	status = -ENOMEM;
-	if (!(task = rpc_new_task(clnt, callback, flags)))
+	if (!(task = rpc_new_task(clnt, flags, tk_ops, data)))
 		goto out;
-	task->tk_calldata = data;
 
 	/* Mask signals on GSS_AUTH upcalls */
 	rpc_task_sigmask(task, &oldset);		

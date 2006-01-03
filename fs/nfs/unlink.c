@@ -116,10 +116,9 @@ nfs_async_unlink_init(struct rpc_task *task)
  *
  * Do the directory attribute update.
  */
-static void
-nfs_async_unlink_done(struct rpc_task *task)
+static void nfs_async_unlink_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_unlinkdata	*data = (struct nfs_unlinkdata *)task->tk_calldata;
+	struct nfs_unlinkdata	*data = calldata;
 	struct dentry		*dir = data->dir;
 	struct inode		*dir_i;
 
@@ -141,12 +140,16 @@ nfs_async_unlink_done(struct rpc_task *task)
  * We need to call nfs_put_unlinkdata as a 'tk_release' task since the
  * rpc_task would be freed too.
  */
-static void
-nfs_async_unlink_release(struct rpc_task *task)
+static void nfs_async_unlink_release(void *calldata)
 {
-	struct nfs_unlinkdata	*data = (struct nfs_unlinkdata *)task->tk_calldata;
+	struct nfs_unlinkdata	*data = calldata;
 	nfs_put_unlinkdata(data);
 }
+
+static const struct rpc_call_ops nfs_unlink_ops = {
+	.rpc_call_done = nfs_async_unlink_done,
+	.rpc_release = nfs_async_unlink_release,
+};
 
 /**
  * nfs_async_unlink - asynchronous unlinking of a file
@@ -179,10 +182,8 @@ nfs_async_unlink(struct dentry *dentry)
 	data->count = 1;
 
 	task = &data->task;
-	rpc_init_task(task, clnt, nfs_async_unlink_done , RPC_TASK_ASYNC);
-	task->tk_calldata = data;
+	rpc_init_task(task, clnt, RPC_TASK_ASYNC, &nfs_unlink_ops, data);
 	task->tk_action = nfs_async_unlink_init;
-	task->tk_release = nfs_async_unlink_release;
 
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags |= DCACHE_NFSFS_RENAMED;

@@ -27,6 +27,7 @@ struct rpc_message {
 	struct rpc_cred *	rpc_cred;	/* Credentials */
 };
 
+struct rpc_call_ops;
 struct rpc_wait_queue;
 struct rpc_wait {
 	struct list_head	list;		/* wait queue links */
@@ -61,13 +62,12 @@ struct rpc_task {
 	 * timeout_fn   to be executed by timer bottom half
 	 * callback	to be executed after waking up
 	 * action	next procedure for async tasks
-	 * exit		exit async task and report to caller
+	 * tk_ops	caller callbacks
 	 */
 	void			(*tk_timeout_fn)(struct rpc_task *);
 	void			(*tk_callback)(struct rpc_task *);
 	void			(*tk_action)(struct rpc_task *);
-	void			(*tk_exit)(struct rpc_task *);
-	void			(*tk_release)(struct rpc_task *);
+	const struct rpc_call_ops *tk_ops;
 	void *			tk_calldata;
 
 	/*
@@ -110,6 +110,12 @@ struct rpc_task {
 		if ((task=list_entry(pos, struct rpc_task, tk_task)),1)
 
 typedef void			(*rpc_action)(struct rpc_task *);
+
+struct rpc_call_ops {
+	void (*rpc_call_done)(struct rpc_task *, void *);
+	void (*rpc_release)(void *);
+};
+
 
 /*
  * RPC task flags
@@ -228,10 +234,12 @@ struct rpc_wait_queue {
 /*
  * Function prototypes
  */
-struct rpc_task *rpc_new_task(struct rpc_clnt *, rpc_action, int flags);
+struct rpc_task *rpc_new_task(struct rpc_clnt *, int flags,
+				const struct rpc_call_ops *ops, void *data);
 struct rpc_task *rpc_new_child(struct rpc_clnt *, struct rpc_task *parent);
-void		rpc_init_task(struct rpc_task *, struct rpc_clnt *,
-					rpc_action exitfunc, int flags);
+void		rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt,
+				int flags, const struct rpc_call_ops *ops,
+				void *data);
 void		rpc_release_task(struct rpc_task *);
 void		rpc_exit_task(struct rpc_task *);
 void		rpc_killall_tasks(struct rpc_clnt *);

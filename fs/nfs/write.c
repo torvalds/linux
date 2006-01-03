@@ -104,9 +104,8 @@ static inline void nfs_commit_free(struct nfs_write_data *p)
 	mempool_free(p, nfs_commit_mempool);
 }
 
-static void nfs_writedata_release(struct rpc_task *task)
+void nfs_writedata_release(void *wdata)
 {
-	struct nfs_write_data	*wdata = (struct nfs_write_data *)task->tk_calldata;
 	nfs_writedata_free(wdata);
 }
 
@@ -871,9 +870,6 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 
 	data->task.tk_priority = flush_task_priority(how);
 	data->task.tk_cookie = (unsigned long)inode;
-	data->task.tk_calldata = data;
-	/* Release requests */
-	data->task.tk_release = nfs_writedata_release;
 
 	dprintk("NFS: %4d initiated write call (req %s/%Ld, %u bytes @ offset %Lu)\n",
 		data->task.tk_pid,
@@ -1131,9 +1127,9 @@ static void nfs_writeback_done_full(struct nfs_write_data *data, int status)
 /*
  * This function is called when the WRITE call is complete.
  */
-void nfs_writeback_done(struct rpc_task *task)
+void nfs_writeback_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data	*data = (struct nfs_write_data *) task->tk_calldata;
+	struct nfs_write_data	*data = calldata;
 	struct nfs_writeargs	*argp = &data->args;
 	struct nfs_writeres	*resp = &data->res;
 
@@ -1200,9 +1196,8 @@ void nfs_writeback_done(struct rpc_task *task)
 
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
-static void nfs_commit_release(struct rpc_task *task)
+void nfs_commit_release(void *wdata)
 {
-	struct nfs_write_data	*wdata = (struct nfs_write_data *)task->tk_calldata;
 	nfs_commit_free(wdata);
 }
 
@@ -1238,9 +1233,6 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 
 	data->task.tk_priority = flush_task_priority(how);
 	data->task.tk_cookie = (unsigned long)inode;
-	data->task.tk_calldata = data;
-	/* Release requests */
-	data->task.tk_release = nfs_commit_release;
 	
 	dprintk("NFS: %4d initiated commit call\n", data->task.tk_pid);
 }
@@ -1277,10 +1269,9 @@ nfs_commit_list(struct list_head *head, int how)
 /*
  * COMMIT call returned
  */
-void
-nfs_commit_done(struct rpc_task *task)
+void nfs_commit_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data	*data = (struct nfs_write_data *)task->tk_calldata;
+	struct nfs_write_data	*data = calldata;
 	struct nfs_page		*req;
 	int res = 0;
 
