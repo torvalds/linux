@@ -240,11 +240,6 @@ nlmsvc_delete_block(struct nlm_block *block, int unlock)
 	nlmsvc_remove_block(block);
 	if (fl->fl_next)
 		posix_unblock_lock(file->f_file, fl);
-	if (unlock) {
-		fl->fl_type = F_UNLCK;
-		posix_lock_file(file->f_file, fl);
-		block->b_granted = 0;
-	}
 
 	/* If the block is in the middle of a GRANT callback,
 	 * don't kill it yet. */

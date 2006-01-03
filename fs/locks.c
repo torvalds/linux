@@ -1961,19 +1961,10 @@ EXPORT_SYMBOL(posix_block_lock);
 void
 posix_unblock_lock(struct file *filp, struct file_lock *waiter)
 {
-	/* 
-	 * A remote machine may cancel the lock request after it's been
-	 * granted locally.  If that happens, we need to delete the lock.
-	 */
 	lock_kernel();
-	if (waiter->fl_next) {
+	if (waiter->fl_next)
 		__locks_delete_block(waiter);
-		unlock_kernel();
-	} else {
-		unlock_kernel();
-		waiter->fl_type = F_UNLCK;
-		posix_lock_file(filp, waiter);
-	}
+	unlock_kernel();
 }
 
 EXPORT_SYMBOL(posix_unblock_lock);
