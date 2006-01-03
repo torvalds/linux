@@ -921,6 +921,18 @@ static void xs_udp_timer(struct rpc_task *task)
 	xprt_adjust_cwnd(task, -ETIMEDOUT);
 }
 
+/**
+ * xs_set_port - reset the port number in the remote endpoint address
+ * @xprt: generic transport
+ * @port: new port number
+ *
+ */
+static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
+{
+	dprintk("RPC:      setting port for xprt %p to %u\n", xprt, port);
+	xprt->addr.sin_port = htons(port);
+}
+
 static int xs_bindresvport(struct rpc_xprt *xprt, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
@@ -1161,6 +1173,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.set_buffer_size	= xs_udp_set_buffer_size,
 	.reserve_xprt		= xprt_reserve_xprt_cong,
 	.release_xprt		= xprt_release_xprt_cong,
+	.set_port		= xs_set_port,
 	.connect		= xs_connect,
 	.buf_alloc		= rpc_malloc,
 	.buf_free		= rpc_free,
@@ -1175,6 +1188,7 @@ static struct rpc_xprt_ops xs_udp_ops = {
 static struct rpc_xprt_ops xs_tcp_ops = {
 	.reserve_xprt		= xprt_reserve_xprt,
 	.release_xprt		= xprt_release_xprt,
+	.set_port		= xs_set_port,
 	.connect		= xs_connect,
 	.buf_alloc		= rpc_malloc,
 	.buf_free		= rpc_free,
