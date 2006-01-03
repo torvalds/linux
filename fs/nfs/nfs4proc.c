@@ -2846,7 +2846,7 @@ int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct
 	return nfs4_map_errors(ret);
 }
 
-int nfs4_proc_setclientid(struct nfs4_client *clp, u32 program, unsigned short port)
+int nfs4_proc_setclientid(struct nfs4_client *clp, u32 program, unsigned short port, struct rpc_cred *cred)
 {
 	nfs4_verifier sc_verifier;
 	struct nfs4_setclientid setclientid = {
@@ -2857,7 +2857,7 @@ int nfs4_proc_setclientid(struct nfs4_client *clp, u32 program, unsigned short p
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SETCLIENTID],
 		.rpc_argp = &setclientid,
 		.rpc_resp = clp,
-		.rpc_cred = clp->cl_cred,
+		.rpc_cred = cred,
 	};
 	u32 *p;
 	int loop = 0;
@@ -2871,7 +2871,7 @@ int nfs4_proc_setclientid(struct nfs4_client *clp, u32 program, unsigned short p
 		setclientid.sc_name_len = scnprintf(setclientid.sc_name,
 				sizeof(setclientid.sc_name), "%s/%u.%u.%u.%u %s %u",
 				clp->cl_ipaddr, NIPQUAD(clp->cl_addr.s_addr),
-				clp->cl_cred->cr_ops->cr_name,
+				cred->cr_ops->cr_name,
 				clp->cl_id_uniquifier);
 		setclientid.sc_netid_len = scnprintf(setclientid.sc_netid,
 				sizeof(setclientid.sc_netid), "tcp");
@@ -2894,14 +2894,14 @@ int nfs4_proc_setclientid(struct nfs4_client *clp, u32 program, unsigned short p
 }
 
 int
-nfs4_proc_setclientid_confirm(struct nfs4_client *clp)
+nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cred *cred)
 {
 	struct nfs_fsinfo fsinfo;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_SETCLIENTID_CONFIRM],
 		.rpc_argp = clp,
 		.rpc_resp = &fsinfo,
-		.rpc_cred = clp->cl_cred,
+		.rpc_cred = cred,
 	};
 	unsigned long now;
 	int status;

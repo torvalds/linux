@@ -91,11 +91,10 @@ nfs4_alloc_client(struct in_addr *addr)
 
 	if (nfs_callback_up() < 0)
 		return NULL;
-	if ((clp = kmalloc(sizeof(*clp), GFP_KERNEL)) == NULL) {
+	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL) {
 		nfs_callback_down();
 		return NULL;
 	}
-	memset(clp, 0, sizeof(*clp));
 	memcpy(&clp->cl_addr, addr, sizeof(clp->cl_addr));
 	init_rwsem(&clp->cl_sem);
 	INIT_LIST_HEAD(&clp->cl_delegations);
@@ -108,7 +107,7 @@ nfs4_alloc_client(struct in_addr *addr)
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS4 client");
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 	clp->cl_boot_time = CURRENT_TIME;
-	clp->cl_state = 0;
+	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
 	return clp;
 }
 
@@ -125,8 +124,6 @@ nfs4_free_client(struct nfs4_client *clp)
 		kfree(sp);
 	}
 	BUG_ON(!list_empty(&clp->cl_state_owners));
-	if (clp->cl_cred)
-		put_rpccred(clp->cl_cred);
 	nfs_idmap_delete(clp);
 	if (!IS_ERR(clp->cl_rpcclient))
 		rpc_shutdown_client(clp->cl_rpcclient);
@@ -196,19 +193,15 @@ nfs4_put_client(struct nfs4_client *clp)
 	nfs4_free_client(clp);
 }
 
-static int __nfs4_init_client(struct nfs4_client *clp)
+static int nfs4_init_client(struct nfs4_client *clp, struct rpc_cred *cred)
 {
-	int status = nfs4_proc_setclientid(clp, NFS4_CALLBACK, nfs_callback_tcpport);
+	int status = nfs4_proc_setclientid(clp, NFS4_CALLBACK,
+			nfs_callback_tcpport, cred);
 	if (status == 0)
-		status = nfs4_proc_setclientid_confirm(clp);
+		status = nfs4_proc_setclientid_confirm(clp, cred);
 	if (status == 0)
 		nfs4_schedule_state_renewal(clp);
 	return status;
-}
-
-int nfs4_init_client(struct nfs4_client *clp)
-{
-	return nfs4_map_errors(__nfs4_init_client(clp));
 }
 
 u32
@@ -244,6 +237,18 @@ struct rpc_cred *nfs4_get_renew_cred(struct nfs4_client *clp)
 		break;
 	}
 	return cred;
+}
+
+struct rpc_cred *nfs4_get_setclientid_cred(struct nfs4_client *clp)
+{
+	struct nfs4_state_owner *sp;
+
+	if (!list_empty(&clp->cl_state_owners)) {
+		sp = list_entry(clp->cl_state_owners.next,
+				struct nfs4_state_owner, so_list);
+		return get_rpccred(sp->so_cred);
+	}
+	return NULL;
 }
 
 static struct nfs4_state_owner *
@@ -902,6 +907,7 @@ static int reclaimer(void *ptr)
 	struct nfs4_client *clp = ptr;
 	struct nfs4_state_owner *sp;
 	struct nfs4_state_recovery_ops *ops;
+	struct rpc_cred *cred;
 	int status = 0;
 
 	allow_signal(SIGKILL);
@@ -913,20 +919,33 @@ static int reclaimer(void *ptr)
 	if (list_empty(&clp->cl_superblocks))
 		goto out;
 restart_loop:
-	status = nfs4_proc_renew(clp, clp->cl_cred);
-	switch (status) {
-		case 0:
-		case -NFS4ERR_CB_PATH_DOWN:
-			goto out;
-		case -NFS4ERR_STALE_CLIENTID:
-		case -NFS4ERR_LEASE_MOVED:
-			ops = &nfs4_reboot_recovery_ops;
-			break;
-		default:
-			ops = &nfs4_network_partition_recovery_ops;
-	};
+	ops = &nfs4_network_partition_recovery_ops;
+	/* Are there any open files on this volume? */
+	cred = nfs4_get_renew_cred(clp);
+	if (cred != NULL) {
+		/* Yes there are: try to renew the old lease */
+		status = nfs4_proc_renew(clp, cred);
+		switch (status) {
+			case 0:
+			case -NFS4ERR_CB_PATH_DOWN:
+				put_rpccred(cred);
+				goto out;
+			case -NFS4ERR_STALE_CLIENTID:
+			case -NFS4ERR_LEASE_MOVED:
+				ops = &nfs4_reboot_recovery_ops;
+		}
+	} else {
+		/* "reboot" to ensure we clear all state on the server */
+		clp->cl_boot_time = CURRENT_TIME;
+		cred = nfs4_get_setclientid_cred(clp);
+	}
+	/* We're going to have to re-establish a clientid */
 	nfs4_state_mark_reclaim(clp);
-	status = __nfs4_init_client(clp);
+	status = -ENOENT;
+	if (cred != NULL) {
+		status = nfs4_init_client(clp, cred);
+		put_rpccred(cred);
+	}
 	if (status)
 		goto out_error;
 	/* Mark all delegations for reclaim */
