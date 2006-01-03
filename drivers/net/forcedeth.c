@@ -10,7 +10,7 @@
  * trademarks of NVIDIA Corporation in the United States and other
  * countries.
  *
- * Copyright (C) 2003,4 Manfred Spraul
+ * Copyright (C) 2003,4,5 Manfred Spraul
  * Copyright (C) 2004 Andrew de Quincey (wol support)
  * Copyright (C) 2004 Carl-Daniel Hailfinger (invalid MAC handling, insane
  *		IRQ rate fixes, bigendian fixes, cleanups, verification)
@@ -100,6 +100,7 @@
  *	0.45: 18 Sep 2005: Remove nv_stop/start_rx from every link check
  *	0.46: 20 Oct 2005: Add irq optimization modes.
  *	0.47: 26 Oct 2005: Add phyaddr 0 in phy scan.
+ *	0.48: 24 Dec 2005: Disable TSO, bugfix for pci_map_single
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -111,7 +112,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.47"
+#define FORCEDETH_VERSION		"0.48"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -871,8 +872,8 @@ static int nv_alloc_rx(struct net_device *dev)
 		} else {
 			skb = np->rx_skbuff[nr];
 		}
-		np->rx_dma[nr] = pci_map_single(np->pci_dev, skb->data, skb->len,
-						PCI_DMA_FROMDEVICE);
+		np->rx_dma[nr] = pci_map_single(np->pci_dev, skb->data,
+					skb->end-skb->data, PCI_DMA_FROMDEVICE);
 		if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 			np->rx_ring.orig[nr].PacketBuffer = cpu_to_le32(np->rx_dma[nr]);
 			wmb();
@@ -999,7 +1000,7 @@ static void nv_drain_rx(struct net_device *dev)
 		wmb();
 		if (np->rx_skbuff[i]) {
 			pci_unmap_single(np->pci_dev, np->rx_dma[i],
-						np->rx_skbuff[i]->len,
+						np->rx_skbuff[i]->end-np->rx_skbuff[i]->data,
 						PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(np->rx_skbuff[i]);
 			np->rx_skbuff[i] = NULL;
@@ -1334,7 +1335,7 @@ static void nv_rx_process(struct net_device *dev)
 		 * the performance.
 		 */
 		pci_unmap_single(np->pci_dev, np->rx_dma[i],
-				np->rx_skbuff[i]->len,
+				np->rx_skbuff[i]->end-np->rx_skbuff[i]->data,
 				PCI_DMA_FROMDEVICE);
 
 		{
@@ -2455,7 +2456,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->txrxctl_bits |= NVREG_TXRXCTL_RXCHECK;
 		dev->features |= NETIF_F_HW_CSUM | NETIF_F_SG;
 #ifdef NETIF_F_TSO
-		dev->features |= NETIF_F_TSO;
+		/* disabled dev->features |= NETIF_F_TSO; */
 #endif
  	}
 

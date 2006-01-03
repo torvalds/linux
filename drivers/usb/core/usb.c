@@ -1432,7 +1432,8 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 			mark_quiesced(intf);
 	} else {
 		// FIXME else if there's no suspend method, disconnect...
-		dev_warn(dev, "no %s?\n", "suspend");
+		dev_warn(dev, "no suspend for driver %s?\n", driver->name);
+		mark_quiesced(intf);
 		status = 0;
 	}
 	return status;
@@ -1460,8 +1461,10 @@ static int usb_generic_resume(struct device *dev)
 	}
 
 	if ((dev->driver == NULL) ||
-	    (dev->driver_data == &usb_generic_driver_data))
+	    (dev->driver_data == &usb_generic_driver_data)) {
+		dev->power.power_state.event = PM_EVENT_FREEZE;
 		return 0;
+	}
 
 	intf = to_usb_interface(dev);
 	driver = to_usb_driver(dev->driver);
@@ -1481,7 +1484,7 @@ static int usb_generic_resume(struct device *dev)
 			mark_quiesced(intf);
 		}
 	} else
-		dev_warn(dev, "no %s?\n", "resume");
+		dev_warn(dev, "no resume for driver %s?\n", driver->name);
 	return 0;
 }
 

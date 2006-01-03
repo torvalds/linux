@@ -182,6 +182,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 		case IPPROTO_UDP:
 		case IPPROTO_TCP:
 		case IPPROTO_SCTP:
+		case IPPROTO_DCCP:
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
 				u16 *ports = (u16 *)xprth;
 

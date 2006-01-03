@@ -381,6 +381,7 @@ static void update_queue (struct sem_array * sma)
 			/* hands-off: q will disappear immediately after
 			 * writing q->status.
 			 */
+			smp_wmb();
 			q->status = error;
 			q = n;
 		} else {
@@ -461,6 +462,7 @@ static void freeary (struct sem_array *sma, int id)
 		n = q->next;
 		q->status = IN_WAKEUP;
 		wake_up_process(q->sleeper); /* doesn't sleep */
+		smp_wmb();
 		q->status = -EIDRM;	/* hands-off q */
 		q = n;
 	}

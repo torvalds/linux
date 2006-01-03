@@ -60,7 +60,7 @@ module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for SAA7134 capture interface(s).");
 
 #define dprintk(fmt, arg...)    if (debug) \
-	printk(KERN_DEBUG "%s/alsa: " fmt, dev->name, ## arg)
+	printk(KERN_DEBUG "%s/alsa: " fmt, dev->name , ##arg)
 
 
 
@@ -989,6 +989,14 @@ static int saa7134_alsa_init(void)
 	struct saa7134_dev *dev = NULL;
 	struct list_head *list;
 
+	if (!dmasound_init && !dmasound_exit) {
+		dmasound_init = alsa_device_init;
+		dmasound_exit = alsa_device_exit;
+	} else {
+		printk(KERN_WARNING "saa7134 ALSA: can't load, DMA sound handler already assigned (probably to OSS)\n");
+		return -EBUSY;
+	}
+
 	printk(KERN_INFO "saa7134 ALSA driver for DMA sound loaded\n");
 
 	list_for_each(list,&saa7134_devlist) {
@@ -1000,9 +1008,6 @@ static int saa7134_alsa_init(void)
 			return -EBUSY;
 		}
 	}
-
-	dmasound_init = alsa_device_init;
-	dmasound_exit = alsa_device_exit;
 
 	if (dev == NULL)
 		printk(KERN_INFO "saa7134 ALSA: no saa7134 cards found\n");
@@ -1023,12 +1028,15 @@ static void saa7134_alsa_exit(void)
 		snd_card_free(snd_saa7134_cards[idx]);
 	}
 
+	dmasound_init = NULL;
+	dmasound_exit = NULL;
 	printk(KERN_INFO "saa7134 ALSA driver for DMA sound unloaded\n");
 
 	return;
 }
 
-module_init(saa7134_alsa_init);
+/* We initialize this late, to make sure the sound system is up and running */
+late_initcall(saa7134_alsa_init);
 module_exit(saa7134_alsa_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ricardo Cerqueira");

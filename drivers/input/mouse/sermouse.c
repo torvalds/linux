@@ -95,7 +95,7 @@ static void sermouse_process_msc(struct sermouse *sermouse, signed char data, st
 
 	input_sync(dev);
 
-	if (++sermouse->count == (5 - ((sermouse->type == SERIO_SUN) << 1)))
+	if (++sermouse->count == 5)
 		sermouse->count = 0;
 }
 

@@ -48,6 +48,7 @@ do { \
 #define preempt_enable() \
 do { \
 	preempt_enable_no_resched(); \
+	barrier(); \
 	preempt_check_resched(); \
 } while (0)
 

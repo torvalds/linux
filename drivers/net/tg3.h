@@ -1124,7 +1124,14 @@
 /* 0x280 --> 0x400 unused */
 
 #define RX_CPU_BASE			0x00005000
+#define RX_CPU_MODE			0x00005000
+#define RX_CPU_STATE			0x00005004
+#define RX_CPU_PGMCTR			0x0000501c
+#define RX_CPU_HWBKPT			0x00005034
 #define TX_CPU_BASE			0x00005400
+#define TX_CPU_MODE			0x00005400
+#define TX_CPU_STATE			0x00005404
+#define TX_CPU_PGMCTR			0x0000541c
 
 /* Mailboxes */
 #define GRCMBOX_INTERRUPT_0		0x00005800 /* 64-bit */
