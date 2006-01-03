@@ -386,11 +386,11 @@ static const struct rpc_call_ops rpc_default_ops = {
  *	Export the signal mask handling for synchronous code that
  *	sleeps on RPC calls
  */
-#define RPC_INTR_SIGNALS (sigmask(SIGINT) | sigmask(SIGQUIT) | sigmask(SIGKILL))
+#define RPC_INTR_SIGNALS (sigmask(SIGHUP) | sigmask(SIGINT) | sigmask(SIGQUIT) | sigmask(SIGTERM))
  
 static void rpc_save_sigmask(sigset_t *oldset, int intr)
 {
-	unsigned long	sigallow = 0;
+	unsigned long	sigallow = sigmask(SIGKILL);
 	sigset_t sigmask;
 
 	/* Block all signals except those listed in sigallow */
