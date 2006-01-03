@@ -426,7 +426,7 @@ set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 		struct ip_vs_dest *dest = cp->dest;
 
 		IP_VS_DBG(8, "%s %s [%c%c%c%c] %u.%u.%u.%u:%d->"
-			  "%u.%u.%u.%u:%d state: %s->%s cnt:%d\n",
+			  "%u.%u.%u.%u:%d state: %s->%s conn->refcnt:%d\n",
 			  pp->name,
 			  (state_off==TCP_DIR_OUTPUT)?"output ":"input ",
 			  th->syn? 'S' : '.',
