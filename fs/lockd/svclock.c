@@ -238,8 +238,7 @@ nlmsvc_delete_block(struct nlm_block *block, int unlock)
 
 	/* Remove block from list */
 	nlmsvc_remove_block(block);
-	if (fl->fl_next)
-		posix_unblock_lock(file->f_file, fl);
+	posix_unblock_lock(file->f_file, fl);
 
 	/* If the block is in the middle of a GRANT callback,
 	 * don't kill it yet. */
