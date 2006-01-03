@@ -43,6 +43,8 @@
 #include <linux/smp_lock.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_idmap.h>
+#include <linux/kthread.h>
+#include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 
@@ -56,8 +58,6 @@ const nfs4_stateid zero_stateid;
 
 static DEFINE_SPINLOCK(state_spinlock);
 static LIST_HEAD(nfs4_clientid_list);
-
-static void nfs4_recover_state(void *);
 
 void
 init_nfsv4_state(struct nfs_server *server)
@@ -103,7 +103,6 @@ nfs4_alloc_client(struct in_addr *addr)
 	INIT_LIST_HEAD(&clp->cl_unused);
 	spin_lock_init(&clp->cl_lock);
 	atomic_set(&clp->cl_count, 1);
-	INIT_WORK(&clp->cl_recoverd, nfs4_recover_state, clp);
 	INIT_WORK(&clp->cl_renewd, nfs4_renew_state, clp);
 	INIT_LIST_HEAD(&clp->cl_superblocks);
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS4 client");
@@ -734,10 +733,6 @@ out:
 }
 
 static int reclaimer(void *);
-struct reclaimer_args {
-	struct nfs4_client *clp;
-	struct completion complete;
-};
 
 static inline void nfs4_clear_recover_bit(struct nfs4_client *clp)
 {
@@ -751,35 +746,30 @@ static inline void nfs4_clear_recover_bit(struct nfs4_client *clp)
 /*
  * State recovery routine
  */
-void
-nfs4_recover_state(void *data)
+static void nfs4_recover_state(struct nfs4_client *clp)
 {
-	struct nfs4_client *clp = (struct nfs4_client *)data;
-	struct reclaimer_args args = {
-		.clp = clp,
-	};
-	might_sleep();
+	struct task_struct *task;
 
-	init_completion(&args.complete);
-
-	if (kernel_thread(reclaimer, &args, CLONE_KERNEL) < 0)
-		goto out_failed_clear;
-	wait_for_completion(&args.complete);
-	return;
-out_failed_clear:
+	__module_get(THIS_MODULE);
+	atomic_inc(&clp->cl_count);
+	task = kthread_run(reclaimer, clp, "%u.%u.%u.%u-reclaim",
+			NIPQUAD(clp->cl_addr));
+	if (!IS_ERR(task))
+		return;
 	nfs4_clear_recover_bit(clp);
+	nfs4_put_client(clp);
+	module_put(THIS_MODULE);
 }
 
 /*
  * Schedule a state recovery attempt
  */
-void
-nfs4_schedule_state_recovery(struct nfs4_client *clp)
+void nfs4_schedule_state_recovery(struct nfs4_client *clp)
 {
 	if (!clp)
 		return;
 	if (test_and_set_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) == 0)
-		schedule_work(&clp->cl_recoverd);
+		nfs4_recover_state(clp);
 }
 
 static int nfs4_reclaim_locks(struct nfs4_state_recovery_ops *ops, struct nfs4_state *state)
@@ -895,17 +885,12 @@ static void nfs4_state_mark_reclaim(struct nfs4_client *clp)
 
 static int reclaimer(void *ptr)
 {
-	struct reclaimer_args *args = (struct reclaimer_args *)ptr;
-	struct nfs4_client *clp = args->clp;
+	struct nfs4_client *clp = ptr;
 	struct nfs4_state_owner *sp;
 	struct nfs4_state_recovery_ops *ops;
 	int status = 0;
 
-	daemonize("%u.%u.%u.%u-reclaim", NIPQUAD(clp->cl_addr));
 	allow_signal(SIGKILL);
-
-	atomic_inc(&clp->cl_count);
-	complete(&args->complete);
 
 	/* Ensure exclusive access to NFSv4 state */
 	lock_kernel();
@@ -954,6 +939,7 @@ out:
 		nfs_handle_cb_pathdown(clp);
 	nfs4_clear_recover_bit(clp);
 	nfs4_put_client(clp);
+	module_put_and_exit(0);
 	return 0;
 out_error:
 	printk(KERN_WARNING "Error: state recovery failed on NFSv4 server %u.%u.%u.%u with error %d\n",
