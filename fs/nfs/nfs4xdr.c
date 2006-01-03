@@ -1552,19 +1552,19 @@ static int nfs4_xdr_enc_open_noattr(struct rpc_rqst *req, uint32_t *p, struct nf
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops   = 2,
+		.nops   = 3,
 	};
 	int status;
 
-	status = nfs_wait_on_sequence(args->seqid, req->rq_task);
-	if (status != 0)
-		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
 	if (status)
 		goto out;
 	status = encode_open(&xdr, args);
+	if (status)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
 out:
 	return status;
 }
@@ -3825,6 +3825,9 @@ static int nfs4_xdr_dec_open_noattr(struct rpc_rqst *rqstp, uint32_t *p, struct 
         if (status)
                 goto out;
         status = decode_open(&xdr, res);
+        if (status)
+                goto out;
+	decode_getfattr(&xdr, res->f_attr, res->server);
 out:
         return status;
 }
