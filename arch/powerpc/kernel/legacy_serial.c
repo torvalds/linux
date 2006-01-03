@@ -134,8 +134,9 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	return add_legacy_port(np, -1, UPIO_MEM, addr, addr, NO_IRQ, flags);
 }
 
+#ifdef CONFIG_ISA
 static int __init add_legacy_isa_port(struct device_node *np,
-				      struct device_node *isa_bridge)
+				      struct device_node *isa_brg)
 {
 	u32 *reg;
 	char *typep;
@@ -167,7 +168,9 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	return add_legacy_port(np, index, UPIO_PORT, reg[1], taddr, NO_IRQ, UPF_BOOT_AUTOCONF);
 
 }
+#endif
 
+#ifdef CONFIG_PCI
 static int __init add_legacy_pci_port(struct device_node *np,
 				      struct device_node *pci_dev)
 {
@@ -233,6 +236,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	 */
 	return add_legacy_port(np, index, iotype, base, addr, NO_IRQ, UPF_BOOT_AUTOCONF);
 }
+#endif
 
 /*
  * This is called very early, as part of setup_system() or eventually
@@ -272,6 +276,7 @@ void __init find_legacy_serial_ports(void)
 		of_node_put(soc);
 	}
 
+#ifdef CONFIG_ISA
 	/* First fill our array with ISA ports */
 	for (np = NULL; (np = of_find_node_by_type(np, "serial"));) {
 		struct device_node *isa = of_get_parent(np);
@@ -282,7 +287,9 @@ void __init find_legacy_serial_ports(void)
 		}
 		of_node_put(isa);
 	}
+#endif
 
+#ifdef CONFIG_PCI
 	/* Next, try to locate PCI ports */
 	for (np = NULL; (np = of_find_all_nodes(np));) {
 		struct device_node *pci, *parent = of_get_parent(np);
@@ -312,6 +319,7 @@ void __init find_legacy_serial_ports(void)
 			legacy_serial_console = index;
 		of_node_put(parent);
 	}
+#endif
 
 	DBG("legacy_serial_console = %d\n", legacy_serial_console);
 
@@ -375,6 +383,7 @@ static void __init fixup_port_pio(int index,
 				  struct device_node *np,
 				  struct plat_serial8250_port *port)
 {
+#ifdef CONFIG_PCI
 	struct pci_controller *hose;
 
 	DBG("fixup_port_pio(%d)\n", index);
@@ -391,6 +400,7 @@ static void __init fixup_port_pio(int index,
 		    index, port->iobase, port->iobase + offset);
 		port->iobase += offset;
 	}
+#endif
 }
 
 static void __init fixup_port_mmio(int index,
