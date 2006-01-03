@@ -1166,10 +1166,11 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 	int ret;
 
-	lock_sock(sk);
 	switch (cmd) {
 	case TIOCOUTQ: {
 		long amount;
+
+		lock_sock(sk);
 		amount = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
 		if (amount < 0)
 			amount = 0;
@@ -1180,6 +1181,8 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case TIOCINQ: {
 		struct sk_buff *skb;
 		long amount = 0L;
+
+		lock_sock(sk);
 		/* These two are safe on a single CPU system as only user tasks fiddle here */
 		if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
 			amount = skb->len;
@@ -1188,6 +1191,7 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 
 	case SIOCGSTAMP:
+		lock_sock(sk);
 		ret = sock_get_timestamp(sk, argp);
 		release_sock(sk);
 		return ret;
@@ -1202,21 +1206,17 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	case SIOCSIFNETMASK:
 	case SIOCGIFMETRIC:
 	case SIOCSIFMETRIC:
-		release_sock(sk);
 		return -EINVAL;
 
 	case SIOCADDRT:
 	case SIOCDELRT:
 	case SIOCNRDECOBS:
-		release_sock(sk);
 		if (!capable(CAP_NET_ADMIN)) return -EPERM;
 		return nr_rt_ioctl(cmd, argp);
 
 	default:
-		release_sock(sk);
 		return dev_ioctl(cmd, argp);
 	}
-	release_sock(sk);
 
 	return 0;
 }
