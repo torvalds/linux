@@ -134,7 +134,6 @@ struct snd_card {
 	wait_queue_head_t shutdown_sleep;
 	struct work_struct free_workq;	/* for free in workqueue */
 	struct device *dev;
-	struct class_device *parent_device;
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
