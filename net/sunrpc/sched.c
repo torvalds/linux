@@ -555,6 +555,14 @@ __rpc_atrun(struct rpc_task *task)
 }
 
 /*
+ * Helper to call task->tk_ops->rpc_call_prepare
+ */
+static void rpc_prepare_task(struct rpc_task *task)
+{
+	task->tk_ops->rpc_call_prepare(task, task->tk_calldata);
+}
+
+/*
  * Helper that calls task->tk_ops->rpc_call_done if it exists
  */
 void rpc_exit_task(struct rpc_task *task)
@@ -756,6 +764,8 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 	task->tk_client = clnt;
 	task->tk_flags  = flags;
 	task->tk_ops = tk_ops;
+	if (tk_ops->rpc_call_prepare != NULL)
+		task->tk_action = rpc_prepare_task;
 	task->tk_calldata = calldata;
 
 	/* Initialize retry counters */

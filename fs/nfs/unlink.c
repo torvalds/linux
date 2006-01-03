@@ -87,10 +87,9 @@ nfs_copy_dname(struct dentry *dentry, struct nfs_unlinkdata *data)
  * We delay initializing RPC info until after the call to dentry_iput()
  * in order to minimize races against rename().
  */
-static void
-nfs_async_unlink_init(struct rpc_task *task)
+static void nfs_async_unlink_init(struct rpc_task *task, void *calldata)
 {
-	struct nfs_unlinkdata	*data = (struct nfs_unlinkdata *)task->tk_calldata;
+	struct nfs_unlinkdata	*data = calldata;
 	struct dentry		*dir = data->dir;
 	struct rpc_message	msg = {
 		.rpc_cred	= data->cred,
@@ -147,6 +146,7 @@ static void nfs_async_unlink_release(void *calldata)
 }
 
 static const struct rpc_call_ops nfs_unlink_ops = {
+	.rpc_call_prepare = nfs_async_unlink_init,
 	.rpc_call_done = nfs_async_unlink_done,
 	.rpc_release = nfs_async_unlink_release,
 };
@@ -160,7 +160,6 @@ nfs_async_unlink(struct dentry *dentry)
 {
 	struct dentry	*dir = dentry->d_parent;
 	struct nfs_unlinkdata	*data;
-	struct rpc_task	*task;
 	struct rpc_clnt	*clnt = NFS_CLIENT(dir->d_inode);
 	int		status = -ENOMEM;
 
@@ -181,15 +180,13 @@ nfs_async_unlink(struct dentry *dentry)
 	nfs_deletes = data;
 	data->count = 1;
 
-	task = &data->task;
-	rpc_init_task(task, clnt, RPC_TASK_ASYNC, &nfs_unlink_ops, data);
-	task->tk_action = nfs_async_unlink_init;
+	rpc_init_task(&data->task, clnt, RPC_TASK_ASYNC, &nfs_unlink_ops, data);
 
 	spin_lock(&dentry->d_lock);
 	dentry->d_flags |= DCACHE_NFSFS_RENAMED;
 	spin_unlock(&dentry->d_lock);
 
-	rpc_sleep_on(&nfs_delete_queue, task, NULL, NULL);
+	rpc_sleep_on(&nfs_delete_queue, &data->task, NULL, NULL);
 	status = 0;
  out:
 	return status;

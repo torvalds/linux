@@ -195,14 +195,13 @@ static void update_changeattr(struct inode *inode, struct nfs4_change_info *cinf
 }
 
 /* Helper for asynchronous RPC calls */
-static int nfs4_call_async(struct rpc_clnt *clnt, rpc_action tk_begin,
+static int nfs4_call_async(struct rpc_clnt *clnt,
 		const struct rpc_call_ops *tk_ops, void *calldata)
 {
 	struct rpc_task *task;
 
 	if (!(task = rpc_new_task(clnt, RPC_TASK_ASYNC, tk_ops, calldata)))
 		return -ENOMEM;
-	task->tk_action = tk_begin;
 	rpc_execute(task);
 	return 0;
 }
@@ -882,6 +881,8 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	struct nfs4_state *state = calldata->state;
 	struct nfs_server *server = NFS_SERVER(calldata->inode);
 
+	if (RPC_ASSASSINATED(task))
+		return;
         /* hmm. we are done with the inode, and in the process of freeing
 	 * the state_owner. we keep this around to process errors
 	 */
@@ -904,9 +905,9 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
 }
 
-static void nfs4_close_begin(struct rpc_task *task)
+static void nfs4_close_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs4_closedata *calldata = (struct nfs4_closedata *)task->tk_calldata;
+	struct nfs4_closedata *calldata = data;
 	struct nfs4_state *state = calldata->state;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE],
@@ -944,6 +945,7 @@ static void nfs4_close_begin(struct rpc_task *task)
 }
 
 static const struct rpc_call_ops nfs4_close_ops = {
+	.rpc_call_prepare = nfs4_close_prepare,
 	.rpc_call_done = nfs4_close_done,
 	.rpc_release = nfs4_free_closedata,
 };
@@ -980,8 +982,7 @@ int nfs4_do_close(struct inode *inode, struct nfs4_state *state)
 	calldata->res.fattr = &calldata->fattr;
 	calldata->res.server = server;
 
-	status = nfs4_call_async(server->client, nfs4_close_begin,
-			&nfs4_close_ops, calldata);
+	status = nfs4_call_async(server->client, &nfs4_close_ops, calldata);
 	if (status == 0)
 		goto out;
 
@@ -2909,9 +2910,9 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 	}
 }
 
-static void nfs4_locku_begin(struct rpc_task *task)
+static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs4_unlockdata *calldata = (struct nfs4_unlockdata *)task->tk_calldata;
+	struct nfs4_unlockdata *calldata = data;
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_LOCKU],
 		.rpc_argp       = &calldata->arg,
@@ -2932,6 +2933,7 @@ static void nfs4_locku_begin(struct rpc_task *task)
 }
 
 static const struct rpc_call_ops nfs4_locku_ops = {
+	.rpc_call_prepare = nfs4_locku_prepare,
 	.rpc_call_done = nfs4_locku_done,
 	.rpc_release = nfs4_locku_complete,
 };
@@ -2979,8 +2981,7 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	atomic_set(&calldata->refcount, 2);
 	init_completion(&calldata->completion);
 
-	status = nfs4_call_async(NFS_SERVER(inode)->client, nfs4_locku_begin,
-			&nfs4_locku_ops, calldata);
+	status = nfs4_call_async(NFS_SERVER(inode)->client, &nfs4_locku_ops, calldata);
 	if (status == 0)
 		wait_for_completion_interruptible(&calldata->completion);
 	do_vfs_lock(request->fl_file, request);
