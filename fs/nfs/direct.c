@@ -268,7 +268,6 @@ static void nfs_direct_read_schedule(struct nfs_direct_req *dreq,
 		NFS_PROTO(inode)->read_setup(data);
 
 		data->task.tk_cookie = (unsigned long) inode;
-		data->task.tk_calldata = data;
 		data->complete = nfs_direct_read_result;
 
 		lock_kernel();

@@ -42,6 +42,7 @@ struct rpc_task {
 #ifdef RPC_DEBUG
 	unsigned long		tk_magic;	/* 0xf00baa */
 #endif
+	atomic_t		tk_count;	/* Reference count */
 	struct list_head	tk_task;	/* global list of tasks */
 	struct rpc_clnt *	tk_client;	/* RPC client */
 	struct rpc_rqst *	tk_rqstp;	/* RPC request */
@@ -78,7 +79,6 @@ struct rpc_task {
 	struct timer_list	tk_timer;	/* kernel timer */
 	unsigned long		tk_timeout;	/* timeout for rpc_sleep() */
 	unsigned short		tk_flags;	/* misc flags */
-	unsigned char		tk_active   : 1;/* Task has been activated */
 	unsigned char		tk_priority : 2;/* Task priority */
 	unsigned long		tk_runstate;	/* Task run status */
 	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could
@@ -136,7 +136,6 @@ struct rpc_call_ops {
 #define RPC_IS_SWAPPER(t)	((t)->tk_flags & RPC_TASK_SWAPPER)
 #define RPC_DO_ROOTOVERRIDE(t)	((t)->tk_flags & RPC_TASK_ROOTCREDS)
 #define RPC_ASSASSINATED(t)	((t)->tk_flags & RPC_TASK_KILLED)
-#define RPC_IS_ACTIVATED(t)	((t)->tk_active)
 #define RPC_DO_CALLBACK(t)	((t)->tk_callback != NULL)
 #define RPC_IS_SOFT(t)		((t)->tk_flags & RPC_TASK_SOFT)
 #define RPC_TASK_UNINTERRUPTIBLE(t) ((t)->tk_flags & RPC_TASK_NOINTR)
@@ -145,6 +144,7 @@ struct rpc_call_ops {
 #define RPC_TASK_QUEUED		1
 #define RPC_TASK_WAKEUP		2
 #define RPC_TASK_HAS_TIMER	3
+#define RPC_TASK_ACTIVE		4
 
 #define RPC_IS_RUNNING(t)	(test_bit(RPC_TASK_RUNNING, &(t)->tk_runstate))
 #define rpc_set_running(t)	(set_bit(RPC_TASK_RUNNING, &(t)->tk_runstate))
@@ -174,6 +174,15 @@ struct rpc_call_ops {
 		clear_bit(RPC_TASK_WAKEUP, &(t)->tk_runstate); \
 		smp_mb__after_clear_bit(); \
 	} while (0)
+
+#define RPC_IS_ACTIVATED(t)	(test_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate))
+#define rpc_set_active(t)	(set_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate))
+#define rpc_clear_active(t)	\
+	do { \
+		smp_mb__before_clear_bit(); \
+		clear_bit(RPC_TASK_ACTIVE, &(t)->tk_runstate); \
+		smp_mb__after_clear_bit(); \
+	} while(0)
 
 /*
  * Task priorities.
@@ -237,6 +246,8 @@ struct rpc_wait_queue {
  */
 struct rpc_task *rpc_new_task(struct rpc_clnt *, int flags,
 				const struct rpc_call_ops *ops, void *data);
+struct rpc_task *rpc_run_task(struct rpc_clnt *clnt, int flags,
+				const struct rpc_call_ops *ops, void *data);
 struct rpc_task *rpc_new_child(struct rpc_clnt *, struct rpc_task *parent);
 void		rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt,
 				int flags, const struct rpc_call_ops *ops,
@@ -260,6 +271,7 @@ void *		rpc_malloc(struct rpc_task *, size_t);
 int		rpciod_up(void);
 void		rpciod_down(void);
 void		rpciod_wake_up(void);
+int		__rpc_wait_for_completion_task(struct rpc_task *task, int (*)(void *));
 #ifdef RPC_DEBUG
 void		rpc_show_tasks(void);
 #endif
@@ -270,6 +282,11 @@ static inline void rpc_exit(struct rpc_task *task, int status)
 {
 	task->tk_status = status;
 	task->tk_action = rpc_exit_task;
+}
+
+static inline int rpc_wait_for_completion_task(struct rpc_task *task)
+{
+	return __rpc_wait_for_completion_task(task, NULL);
 }
 
 #ifdef RPC_DEBUG
