@@ -964,9 +964,9 @@ static int encode_open_confirm(struct xdr_stream *xdr, const struct nfs_open_con
 {
 	uint32_t *p;
 
-	RESERVE_SPACE(8+sizeof(arg->stateid.data));
+	RESERVE_SPACE(8+sizeof(arg->stateid->data));
 	WRITE32(OP_OPEN_CONFIRM);
-	WRITEMEM(arg->stateid.data, sizeof(arg->stateid.data));
+	WRITEMEM(arg->stateid->data, sizeof(arg->stateid->data));
 	WRITE32(arg->seqid->sequence->counter);
 
 	return 0;
@@ -1535,9 +1535,6 @@ static int nfs4_xdr_enc_open_confirm(struct rpc_rqst *req, uint32_t *p, struct n
 	};
 	int status;
 
-	status = nfs_wait_on_sequence(args->seqid, req->rq_task);
-	if (status != 0)
-		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);

@@ -57,7 +57,8 @@
 #define NFS4_POLL_RETRY_MIN	(1*HZ)
 #define NFS4_POLL_RETRY_MAX	(15*HZ)
 
-static int _nfs4_proc_open_confirm(struct rpc_clnt *clnt, const struct nfs_fh *fh, struct nfs4_state_owner *sp, nfs4_stateid *stateid, struct nfs_seqid *seqid);
+struct nfs4_opendata;
+static int _nfs4_proc_open_confirm(struct nfs4_opendata *data);
 static int nfs4_do_fsinfo(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *);
 static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *);
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry);
@@ -198,6 +199,8 @@ struct nfs4_opendata {
 	atomic_t count;
 	struct nfs_openargs o_arg;
 	struct nfs_openres o_res;
+	struct nfs_open_confirmargs c_arg;
+	struct nfs_open_confirmres c_res;
 	struct nfs_fattr f_attr;
 	struct nfs_fattr dir_attr;
 	struct dentry *dentry;
@@ -249,6 +252,9 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 		p->o_arg.u.attrs = &p->attrs;
 		memcpy(&p->attrs, attrs, sizeof(p->attrs));
 	}
+	p->c_arg.fh = &p->o_res.fh;
+	p->c_arg.stateid = &p->o_res.stateid;
+	p->c_arg.seqid = p->o_arg.seqid;
 	return p;
 err_free:
 	kfree(p);
@@ -433,8 +439,7 @@ static int _nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state
 	if (status != 0)
 		goto out_free;
 	if(opendata->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM) {
-		status = _nfs4_proc_open_confirm(server->client, NFS_FH(inode),
-				sp, &opendata->o_res.stateid, opendata->o_arg.seqid);
+		status = _nfs4_proc_open_confirm(opendata);
 		if (status != 0)
 			goto out_free;
 	}
@@ -472,28 +477,79 @@ int nfs4_open_delegation_recall(struct dentry *dentry, struct nfs4_state *state)
 	return err;
 }
 
-static int _nfs4_proc_open_confirm(struct rpc_clnt *clnt, const struct nfs_fh *fh, struct nfs4_state_owner *sp, nfs4_stateid *stateid, struct nfs_seqid *seqid)
+static void nfs4_open_confirm_prepare(struct rpc_task *task, void *calldata)
 {
-	struct nfs_open_confirmargs arg = {
-		.fh             = fh,
-		.seqid          = seqid,
-		.stateid	= *stateid,
+	struct nfs4_opendata *data = calldata;
+	struct  rpc_message msg = {
+		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_CONFIRM],
+		.rpc_argp = &data->c_arg,
+		.rpc_resp = &data->c_res,
+		.rpc_cred = data->owner->so_cred,
 	};
-	struct nfs_open_confirmres res;
-	struct 	rpc_message msg = {
-		.rpc_proc       = &nfs4_procedures[NFSPROC4_CLNT_OPEN_CONFIRM],
-		.rpc_argp       = &arg,
-		.rpc_resp       = &res,
-		.rpc_cred	= sp->so_cred,
-	};
+	rpc_call_setup(task, &msg, 0);
+}
+
+static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_opendata *data = calldata;
+
+	data->rpc_status = task->tk_status;
+	if (RPC_ASSASSINATED(task))
+		return;
+	if (data->rpc_status == 0)
+		memcpy(data->o_res.stateid.data, data->c_res.stateid.data,
+				sizeof(data->o_res.stateid.data));
+	nfs_increment_open_seqid(data->rpc_status, data->c_arg.seqid);
+	nfs_confirm_seqid(&data->owner->so_seqid, data->rpc_status);
+}
+
+static void nfs4_open_confirm_release(void *calldata)
+{
+	struct nfs4_opendata *data = calldata;
+	struct nfs4_state *state = NULL;
+
+	/* If this request hasn't been cancelled, do nothing */
+	if (data->cancelled == 0)
+		goto out_free;
+	/* In case of error, no cleanup! */
+	if (data->rpc_status != 0)
+		goto out_free;
+	nfs_confirm_seqid(&data->owner->so_seqid, 0);
+	state = nfs4_opendata_to_nfs4_state(data);
+	if (state != NULL)
+		nfs4_close_state(state, data->o_arg.open_flags);
+out_free:
+	nfs4_opendata_free(data);
+}
+
+static const struct rpc_call_ops nfs4_open_confirm_ops = {
+	.rpc_call_prepare = nfs4_open_confirm_prepare,
+	.rpc_call_done = nfs4_open_confirm_done,
+	.rpc_release = nfs4_open_confirm_release,
+};
+
+/*
+ * Note: On error, nfs4_proc_open_confirm will free the struct nfs4_opendata
+ */
+static int _nfs4_proc_open_confirm(struct nfs4_opendata *data)
+{
+	struct nfs_server *server = NFS_SERVER(data->dir->d_inode);
+	struct rpc_task *task;
 	int status;
 
-	status = rpc_call_sync(clnt, &msg, RPC_TASK_NOINTR);
-	/* Confirm the sequence as being established */
-	nfs_confirm_seqid(&sp->so_seqid, status);
-	nfs_increment_open_seqid(status, seqid);
-	if (status >= 0)
-		memcpy(stateid, &res.stateid, sizeof(*stateid));
+	atomic_inc(&data->count);
+	task = rpc_run_task(server->client, RPC_TASK_ASYNC, &nfs4_open_confirm_ops, data);
+	if (IS_ERR(task)) {
+		nfs4_opendata_free(data);
+		return PTR_ERR(task);
+	}
+	status = nfs4_wait_for_completion_rpc_task(task);
+	if (status != 0) {
+		data->cancelled = 1;
+		smp_wmb();
+	} else
+		status = data->rpc_status;
+	rpc_release_task(task);
 	return status;
 }
 
@@ -602,8 +658,7 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	} else
 		nfs_refresh_inode(dir, o_res->dir_attr);
 	if(o_res->rflags & NFS4_OPEN_RESULT_CONFIRM) {
-		status = _nfs4_proc_open_confirm(server->client, &o_res->fh,
-				data->owner, &o_res->stateid, o_arg->seqid);
+		status = _nfs4_proc_open_confirm(data);
 		if (status != 0)
 			return status;
 	}

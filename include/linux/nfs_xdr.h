@@ -137,7 +137,7 @@ struct nfs_openres {
  */
 struct nfs_open_confirmargs {
 	const struct nfs_fh *	fh;
-	nfs4_stateid            stateid;
+	nfs4_stateid *		stateid;
 	struct nfs_seqid *	seqid;
 };
 
