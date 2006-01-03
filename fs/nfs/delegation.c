@@ -236,7 +236,6 @@ int nfs_do_expire_all_delegations(void *ptr)
 	struct nfs4_client *clp = ptr;
 	struct nfs_delegation *delegation;
 	struct inode *inode;
-	int err = 0;
 
 	allow_signal(SIGKILL);
 restart:
@@ -250,10 +249,9 @@ restart:
 		if (inode == NULL)
 			continue;
 		spin_unlock(&clp->cl_lock);
-		err = nfs_inode_return_delegation(inode);
+		nfs_inode_return_delegation(inode);
 		iput(inode);
-		if (!err)
-			goto restart;
+		goto restart;
 	}
 out:
 	spin_unlock(&clp->cl_lock);
