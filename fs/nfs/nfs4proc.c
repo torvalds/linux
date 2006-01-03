@@ -174,8 +174,7 @@ static void nfs4_setup_readdir(u64 cookie, u32 *verifier, struct dentry *dentry,
 	kunmap_atomic(start, KM_USER0);
 }
 
-static void
-renew_lease(struct nfs_server *server, unsigned long timestamp)
+static void renew_lease(const struct nfs_server *server, unsigned long timestamp)
 {
 	struct nfs4_client *clp = server->nfs4_state;
 	spin_lock(&clp->cl_lock);
@@ -207,6 +206,7 @@ struct nfs4_opendata {
 	struct dentry *dir;
 	struct nfs4_state_owner *owner;
 	struct iattr attrs;
+	unsigned long timestamp;
 	int rpc_status;
 	int cancelled;
 };
@@ -548,6 +548,7 @@ static void nfs4_open_confirm_prepare(struct rpc_task *task, void *calldata)
 		.rpc_resp = &data->c_res,
 		.rpc_cred = data->owner->so_cred,
 	};
+	data->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
 }
 
@@ -558,9 +559,11 @@ static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 	data->rpc_status = task->tk_status;
 	if (RPC_ASSASSINATED(task))
 		return;
-	if (data->rpc_status == 0)
+	if (data->rpc_status == 0) {
 		memcpy(data->o_res.stateid.data, data->c_res.stateid.data,
 				sizeof(data->o_res.stateid.data));
+		renew_lease(data->o_res.server, data->timestamp);
+	}
 	nfs_increment_open_seqid(data->rpc_status, data->c_arg.seqid);
 	nfs_confirm_seqid(&data->owner->so_seqid, data->rpc_status);
 }
@@ -633,6 +636,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	data->o_arg.clientid = sp->so_client->cl_clientid;
 	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS)
 		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
+	data->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
 }
 
@@ -656,6 +660,7 @@ static void nfs4_open_done(struct rpc_task *task, void *calldata)
 			default:
 				data->rpc_status = -ENOTDIR;
 		}
+		renew_lease(data->o_res.server, data->timestamp);
 	}
 	nfs_increment_open_seqid(data->rpc_status, data->o_arg.seqid);
 }
@@ -1014,6 +1019,7 @@ static int _nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
                 .rpc_argp       = &arg,
                 .rpc_resp       = &res,
         };
+	unsigned long timestamp = jiffies;
 	int status;
 
 	nfs_fattr_init(fattr);
@@ -1025,6 +1031,8 @@ static int _nfs4_do_setattr(struct nfs_server *server, struct nfs_fattr *fattr,
 		memcpy(&arg.stateid, &zero_stateid, sizeof(arg.stateid));
 
 	status = rpc_call_sync(server->client, &msg, 0);
+	if (status == 0 && state != NULL)
+		renew_lease(server, timestamp);
 	return status;
 }
 
@@ -1049,6 +1057,7 @@ struct nfs4_closedata {
 	struct nfs_closeargs arg;
 	struct nfs_closeres res;
 	struct nfs_fattr fattr;
+	unsigned long timestamp;
 };
 
 static void nfs4_free_closedata(void *data)
@@ -1078,6 +1087,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 		case 0:
 			memcpy(&state->stateid, &calldata->res.stateid,
 					sizeof(state->stateid));
+			renew_lease(server, calldata->timestamp);
 			break;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
@@ -1130,6 +1140,7 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	if (mode != 0)
 		msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_DOWNGRADE];
 	calldata->arg.open_flags = mode;
+	calldata->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
 }
 
@@ -1694,11 +1705,13 @@ static int _nfs4_proc_write(struct nfs_write_data *wdata)
 
 	wdata->args.bitmask = server->attr_bitmask;
 	wdata->res.server = server;
+	wdata->timestamp = jiffies;
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(server->client, &msg, rpcflags);
 	dprintk("NFS reply write: %d\n", status);
 	if (status < 0)
 		return status;
+	renew_lease(server, wdata->timestamp);
 	nfs_post_op_update_inode(inode, fattr);
 	return wdata->res.count;
 }
@@ -1733,8 +1746,11 @@ static int _nfs4_proc_commit(struct nfs_write_data *cdata)
 
 	cdata->args.bitmask = server->attr_bitmask;
 	cdata->res.server = server;
+	cdata->timestamp = jiffies;
 	nfs_fattr_init(fattr);
 	status = rpc_call_sync(server->client, &msg, 0);
+	if (status >= 0)
+		renew_lease(server, cdata->timestamp);
 	dprintk("NFS reply commit: %d\n", status);
 	if (status >= 0)
 		nfs_post_op_update_inode(inode, fattr);
@@ -2890,6 +2906,8 @@ struct nfs4_delegreturndata {
 	struct nfs_fh fh;
 	nfs4_stateid stateid;
 	struct rpc_cred *cred;
+	unsigned long timestamp;
+	const struct nfs_server *server;
 	int rpc_status;
 };
 
@@ -2908,6 +2926,8 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_delegreturndata *data = calldata;
 	data->rpc_status = task->tk_status;
+	if (data->rpc_status == 0)
+		renew_lease(data->server, data->timestamp);
 }
 
 static void nfs4_delegreturn_release(void *calldata)
@@ -2938,6 +2958,8 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	nfs_copy_fh(&data->fh, NFS_FH(inode));
 	memcpy(&data->stateid, stateid, sizeof(data->stateid));
 	data->cred = get_rpccred(cred);
+	data->timestamp = jiffies;
+	data->server = NFS_SERVER(inode);
 	data->rpc_status = 0;
 
 	task = rpc_run_task(NFS_CLIENT(inode), RPC_TASK_ASYNC, &nfs4_delegreturn_ops, data);
@@ -3067,6 +3089,7 @@ struct nfs4_unlockdata {
 	struct nfs_open_context *ctx;
 	struct file_lock fl;
 	const struct nfs_server *server;
+	unsigned long timestamp;
 };
 
 static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
@@ -3114,6 +3137,7 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 			memcpy(calldata->lsp->ls_stateid.data,
 					calldata->res.stateid.data,
 					sizeof(calldata->lsp->ls_stateid.data));
+			renew_lease(calldata->server, calldata->timestamp);
 			break;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
@@ -3143,6 +3167,7 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 		task->tk_action = NULL;
 		return;
 	}
+	calldata->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
 }
 
@@ -3214,6 +3239,7 @@ struct nfs4_lockdata {
 	struct nfs4_lock_state *lsp;
 	struct nfs_open_context *ctx;
 	struct file_lock fl;
+	unsigned long timestamp;
 	int rpc_status;
 	int cancelled;
 };
@@ -3273,6 +3299,7 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 		data->arg.open_stateid = &state->stateid;
 		data->arg.new_lock_owner = 1;
 	}
+	data->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
 out:
 	dprintk("%s: done!, ret = %d\n", __FUNCTION__, data->rpc_status);
@@ -3298,6 +3325,7 @@ static void nfs4_lock_done(struct rpc_task *task, void *calldata)
 		memcpy(data->lsp->ls_stateid.data, data->res.stateid.data,
 					sizeof(data->lsp->ls_stateid.data));
 		data->lsp->ls_flags |= NFS_LOCK_INITIALIZED;
+		renew_lease(NFS_SERVER(data->ctx->dentry->d_inode), data->timestamp);
 	}
 	nfs_increment_lock_seqid(data->rpc_status, data->arg.lock_seqid);
 out:
