@@ -122,9 +122,10 @@ nfs_free_user_pages(struct page **pages, int npages, int do_dirty)
 {
 	int i;
 	for (i = 0; i < npages; i++) {
-		if (do_dirty)
-			set_page_dirty_lock(pages[i]);
-		page_cache_release(pages[i]);
+		struct page *page = pages[i];
+		if (do_dirty && !PageCompound(page))
+			set_page_dirty_lock(page);
+		page_cache_release(page);
 	}
 	kfree(pages);
 }
