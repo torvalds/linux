@@ -56,6 +56,12 @@
 #define FTDI_VNHCPCUSB_D_PID 0xfe38 /* Product Id */
 
 /*
+ * PCDJ use ftdi based dj-controllers.  The following PID is for their DAC-2 device
+ * http://www.pcdjhardware.com/DAC2.asp (PID sent by Wouter Paesen)
+ * (the VID is the standard ftdi vid (FTDI_VID) */
+#define FTDI_PCDJ_DAC2_PID 0xFA88
+
+/*
  * The following are the values for the Matrix Orbital LCD displays,
  * which are the FT232BM ( similar to the 8U232AM )
  */

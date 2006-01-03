@@ -483,6 +483,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_TTUSB_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_WESTREX_MODEL_777_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_WESTREX_MODEL_8900F_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_PCDJ_DAC2_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
