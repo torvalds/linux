@@ -232,19 +232,16 @@ static int nfs_writepage_async(struct nfs_open_context *ctx,
 		unsigned int offset, unsigned int count)
 {
 	struct nfs_page	*req;
-	int		status;
 
 	req = nfs_update_request(ctx, inode, page, offset, count);
-	status = (IS_ERR(req)) ? PTR_ERR(req) : 0;
-	if (status < 0)
-		goto out;
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 	/* Update file length */
 	nfs_grow_file(page, offset, count);
 	/* Set the PG_uptodate flag? */
 	nfs_mark_uptodate(page, offset, count);
 	nfs_unlock_request(req);
- out:
-	return status;
+	return 0;
 }
 
 static int wb_priority(struct writeback_control *wbc)
@@ -304,11 +301,8 @@ do_it:
 	lock_kernel();
 	if (!IS_SYNC(inode) && inode_referenced) {
 		err = nfs_writepage_async(ctx, inode, page, 0, offset);
-		if (err >= 0) {
-			err = 0;
-			if (wbc->for_reclaim)
-				nfs_flush_inode(inode, 0, 0, FLUSH_STABLE);
-		}
+		if (!wbc->for_writepages)
+			nfs_flush_inode(inode, 0, 0, wb_priority(wbc));
 	} else {
 		err = nfs_writepage_sync(ctx, inode, page, 0,
 						offset, priority);
