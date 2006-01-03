@@ -102,8 +102,8 @@ static int cpu_has_cpufreq(unsigned int cpu)
 {
 	struct cpufreq_policy policy;
 	if (!acpi_thermal_cpufreq_is_init || cpufreq_get_policy(&policy, cpu))
-		return -ENODEV;
-	return 0;
+		return 0;
+	return 1;
 }
 
 static int acpi_thermal_cpufreq_increase(unsigned int cpu)

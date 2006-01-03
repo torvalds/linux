@@ -6,7 +6,7 @@ menu "Console display driver support"
 
 config VGA_CONSOLE
 	bool "VGA text console" if EMBEDDED || !X86
-	depends on !ARCH_ACORN && !ARCH_EBSA110 && !4xx && !8xx && !SPARC32 && !SPARC64 && !M68K && !PARISC && !ARCH_VERSATILE
+	depends on !ARCH_ACORN && !ARCH_EBSA110 && !4xx && !8xx && !SPARC && !M68K && !PARISC && !ARCH_VERSATILE
 	default y
 	help
 	  Saying Y here will allow you to use Linux in text mode through a
@@ -68,7 +68,7 @@ config SGI_NEWPORT_CONSOLE
 
 config PROM_CONSOLE
 	bool "PROM console"
-	depends on SPARC32 || SPARC64
+	depends on SPARC
 	help
 	  Say Y to build a console driver for Sun machines that uses the
 	  terminal emulation built into their console PROMS.
@@ -136,7 +136,7 @@ config FONTS
 config FONT_8x8
 	bool "VGA 8x8 font" if FONTS
 	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
-	default y if !SPARC32 && !SPARC64 && !FONTS
+	default y if !SPARC && !FONTS
 	help
 	  This is the "high resolution" font for the VGA frame buffer (the one
 	  provided by the text console 80x50 (and higher) modes).
@@ -150,7 +150,7 @@ config FONT_8x8
 config FONT_8x16
 	bool "VGA 8x16 font" if FONTS
 	depends on FRAMEBUFFER_CONSOLE || SGI_NEWPORT_CONSOLE=y || STI_CONSOLE || USB_SISUSBVGA_CON 
-	default y if !SPARC32 && !SPARC64 && !FONTS
+	default y if !SPARC && !FONTS
 	help
 	  This is the "high resolution" font for the VGA frame buffer (the one
 	  provided by the VGA text console 80x25 mode.
@@ -160,7 +160,7 @@ config FONT_8x16
 config FONT_6x11
 	bool "Mac console 6x11 font (not supported by all drivers)" if FONTS
 	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
-	default y if !SPARC32 && !SPARC64 && !FONTS && MAC
+	default y if !SPARC && !FONTS && MAC
 	help
 	  Small console font with Macintosh-style high-half glyphs.  Some Mac
 	  framebuffer drivers don't support this one at all.
@@ -176,7 +176,7 @@ config FONT_7x14
 config FONT_PEARL_8x8
 	bool "Pearl (old m68k) console 8x8 font" if FONTS
 	depends on FRAMEBUFFER_CONSOLE
-	default y if !SPARC32 && !SPARC64 && !FONTS && AMIGA
+	default y if !SPARC && !FONTS && AMIGA
 	help
 	  Small console font with PC-style control-character and high-half
 	  glyphs.
@@ -184,24 +184,24 @@ config FONT_PEARL_8x8
 config FONT_ACORN_8x8
 	bool "Acorn console 8x8 font" if FONTS
 	depends on FRAMEBUFFER_CONSOLE
-	default y if !SPARC32 && !SPARC64 && !FONTS && ARM && ARCH_ACORN
+	default y if !SPARC && !FONTS && ARM && ARCH_ACORN
 	help
 	  Small console font with PC-style control characters and high-half
 	  glyphs.
 
 config FONT_MINI_4x6
 	bool "Mini 4x6 font"
-	depends on !SPARC32 && !SPARC64 && FONTS
+	depends on !SPARC && FONTS
 
 config FONT_SUN8x16
 	bool "Sparc console 8x16 font"
-	depends on FRAMEBUFFER_CONSOLE && (!SPARC32 && !SPARC64 && FONTS || SPARC32 || SPARC64)
+	depends on FRAMEBUFFER_CONSOLE && (!SPARC && FONTS || SPARC)
 	help
 	  This is the high resolution console font for Sun machines. Say Y.
 
 config FONT_SUN12x22
 	bool "Sparc console 12x22 font (not supported by all drivers)"
-	depends on FRAMEBUFFER_CONSOLE && (!SPARC32 && !SPARC64 && FONTS || SPARC32 || SPARC64)
+	depends on FRAMEBUFFER_CONSOLE && (!SPARC && FONTS || SPARC)
 	help
 	  This is the high resolution console font for Sun machines with very
 	  big letters (like the letters used in the SPARC PROM). If the

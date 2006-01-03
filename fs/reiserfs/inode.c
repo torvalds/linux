@@ -32,6 +32,7 @@ void reiserfs_delete_inode(struct inode *inode)
 	    JOURNAL_PER_BALANCE_CNT * 2 +
 	    2 * REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb);
 	struct reiserfs_transaction_handle th;
+	int err;
 
 	truncate_inode_pages(&inode->i_data, 0);
 
@@ -49,15 +50,13 @@ void reiserfs_delete_inode(struct inode *inode)
 		}
 		reiserfs_update_inode_transaction(inode);
 
-		if (reiserfs_delete_object(&th, inode)) {
-			up(&inode->i_sem);
-			goto out;
-		}
+		err = reiserfs_delete_object(&th, inode);
 
 		/* Do quota update inside a transaction for journaled quotas. We must do that
 		 * after delete_object so that quota updates go into the same transaction as
 		 * stat data deletion */
-		DQUOT_FREE_INODE(inode);
+		if (!err) 
+			DQUOT_FREE_INODE(inode);
 
 		if (journal_end(&th, inode->i_sb, jbegin_count)) {
 			up(&inode->i_sem);
@@ -65,6 +64,12 @@ void reiserfs_delete_inode(struct inode *inode)
 		}
 
 		up(&inode->i_sem);
+
+		/* check return value from reiserfs_delete_object after
+		 * ending the transaction
+		 */
+		if (err)
+		    goto out;
 
 		/* all items of file are deleted, so we can remove "save" link */
 		remove_save_link(inode, 0 /* not truncate */ );	/* we can't do anything
@@ -2099,6 +2104,7 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 	struct page *page = NULL;
 	int error;
 	struct buffer_head *bh = NULL;
+	int err2;
 
 	reiserfs_write_lock(p_s_inode->i_sb);
 
@@ -2136,14 +2142,18 @@ int reiserfs_truncate_file(struct inode *p_s_inode, int update_timestamps)
 		   transaction of truncating gets committed - on reboot the file
 		   either appears truncated properly or not truncated at all */
 		add_save_link(&th, p_s_inode, 1);
-	error = reiserfs_do_truncate(&th, p_s_inode, page, update_timestamps);
-	if (error)
-		goto out;
+	err2 = reiserfs_do_truncate(&th, p_s_inode, page, update_timestamps);
 	error =
 	    journal_end(&th, p_s_inode->i_sb, JOURNAL_PER_BALANCE_CNT * 2 + 1);
 	if (error)
 		goto out;
 
+	/* check reiserfs_do_truncate after ending the transaction */
+	if (err2) {
+		error = err2;
+  		goto out;
+	}
+	
 	if (update_timestamps) {
 		error = remove_save_link(p_s_inode, 1 /* truncate */ );
 		if (error)

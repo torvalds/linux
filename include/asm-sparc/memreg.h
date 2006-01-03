@@ -36,7 +36,7 @@
 
 /* Memory parity error register with associated bit constants. */
 #ifndef __ASSEMBLY__
-extern __volatile__ unsigned long *sun4c_memerr_reg;
+extern __volatile__ unsigned long __iomem *sun4c_memerr_reg;
 #endif
 
 #define	SUN4C_MPE_ERROR	0x80	/* Parity error detected. (ro) */

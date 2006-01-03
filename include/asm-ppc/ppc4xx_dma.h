@@ -33,9 +33,6 @@
 
 #define MAX_PPC4xx_DMA_CHANNELS		4
 
-/* in arch/ppc/kernel/setup.c -- Cort */
-extern unsigned long DMA_MODE_WRITE, DMA_MODE_READ;
-
 /*
  * Function return status codes
  * These values are used to indicate whether or not the function

@@ -1512,7 +1512,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 	 * I/O cycles storing into a reserved memory space at
 	 * physical address 0x3000000
 	 */
-	unsigned char *iop;
+	unsigned char __iomem *iop;
 
 	iop = ioremap(0x3000000, 0x5000);
 	if (iop == NULL) {
@@ -1526,7 +1526,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 	writeb(EXT_BIU_MISC, iop + 0x3ce);
 	writeb(EXT_BIU_MISC_LIN_ENABLE, iop + 0x3cf);
 
-	iounmap((void *)iop);
+	iounmap(iop);
 #else
 	/*
 	 * Most other machine types are "normal", so

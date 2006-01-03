@@ -1311,7 +1311,7 @@ static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 
 static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 {
-	drm_radeon_private_t *dev_priv = dev->dev_private;;
+	drm_radeon_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
 	dev_priv->is_pci = init->is_pci;
@@ -1522,7 +1522,7 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 
 	dev_priv->gart_size = init->gart_size;
 	dev_priv->gart_vm_start = dev_priv->fb_location
-	    + RADEON_READ(RADEON_CONFIG_APER_SIZE) * 2;
+	    + RADEON_READ(RADEON_CONFIG_APER_SIZE);
 
 #if __OS_HAS_AGP
 	if (!dev_priv->is_pci)

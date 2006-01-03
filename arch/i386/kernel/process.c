@@ -554,7 +554,9 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 	struct pt_regs ptregs;
 	
 	ptregs = *(struct pt_regs *)
-		((unsigned long)tsk->thread_info+THREAD_SIZE - sizeof(ptregs));
+		((unsigned long)tsk->thread_info +
+		/* see comments in copy_thread() about -8 */
+		THREAD_SIZE - sizeof(ptregs) - 8);
 	ptregs.xcs &= 0xffff;
 	ptregs.xds &= 0xffff;
 	ptregs.xes &= 0xffff;

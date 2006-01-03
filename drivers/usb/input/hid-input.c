@@ -137,6 +137,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			switch (usage->hid & 0xffff) {
 				case 0xba: map_abs(ABS_RUDDER); break;
 				case 0xbb: map_abs(ABS_THROTTLE); break;
+				default:   goto ignore;
 			}
 			break;
 

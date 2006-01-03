@@ -105,8 +105,8 @@ static int create_packet(void *data, size_t length)
 	int ordernum = 0;
 	int retval = 0;
 	unsigned int packet_array_size = 0;
-	void **invalid_addr_packet_array = 0;
-	void *packet_data_temp_buf = 0;
+	void **invalid_addr_packet_array = NULL;
+	void *packet_data_temp_buf = NULL;
 	unsigned int idx = 0;
 
 	pr_debug("create_packet: entry \n");
@@ -178,7 +178,7 @@ static int create_packet(void *data, size_t length)
 						packet_data_temp_buf),
 					allocation_floor);
 			invalid_addr_packet_array[idx++] = packet_data_temp_buf;
-			packet_data_temp_buf = 0;
+			packet_data_temp_buf = NULL;
 		}
 	}
 	spin_lock(&rbu_data.lock);

@@ -2476,16 +2476,8 @@ typedef struct scsi_qla_host {
  */
 #define LOOP_TRANSITION(ha) \
 	(test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) || \
-	 test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
-
-#define LOOP_NOT_READY(ha) \
-	((test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) || \
-	  test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags) || \
-	  test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) || \
-	  test_bit(LOOP_RESYNC_ACTIVE, &ha->dpc_flags)) || \
+	 test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) || \
 	 atomic_read(&ha->loop_state) == LOOP_DOWN)
-
-#define LOOP_RDY(ha)	(!LOOP_NOT_READY(ha))
 
 #define TGT_Q(ha, t) (ha->otgt[t])
 

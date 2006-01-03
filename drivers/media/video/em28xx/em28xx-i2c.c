@@ -44,7 +44,7 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 			printk(fmt, ##args); } while (0)
 #define dprintk2(lvl,fmt, args...) if (i2c_debug>=lvl) do{ \
 			printk(KERN_DEBUG "%s at %s: " fmt, \
-			dev->name, __FUNCTION__, ##args); } while (0)
+			dev->name, __FUNCTION__ , ##args); } while (0)
 
 /*
  * em2800_i2c_send_max4()

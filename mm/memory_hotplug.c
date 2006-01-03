@@ -104,7 +104,7 @@ static void grow_pgdat_span(struct pglist_data *pgdat,
 		pgdat->node_start_pfn = start_pfn;
 
 	if (end_pfn > old_pgdat_end_pfn)
-		pgdat->node_spanned_pages = end_pfn - pgdat->node_spanned_pages;
+		pgdat->node_spanned_pages = end_pfn - pgdat->node_start_pfn;
 }
 
 int online_pages(unsigned long pfn, unsigned long nr_pages)
