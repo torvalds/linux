@@ -538,6 +538,18 @@ size_t rpc_max_payload(struct rpc_clnt *clnt)
 }
 EXPORT_SYMBOL(rpc_max_payload);
 
+/**
+ * rpc_force_rebind - force transport to check that remote port is unchanged
+ * @clnt: client to rebind
+ *
+ */
+void rpc_force_rebind(struct rpc_clnt *clnt)
+{
+	if (clnt->cl_autobind)
+		clnt->cl_port = 0;
+}
+EXPORT_SYMBOL(rpc_force_rebind);
+
 /*
  * Restart an (async) RPC call. Usually called from within the
  * exit handler.
@@ -853,8 +865,7 @@ call_connect_status(struct rpc_task *task)
 	}
 
 	/* Something failed: remote service port may have changed */
-	if (clnt->cl_autobind)
-		clnt->cl_port = 0;
+	rpc_force_rebind(clnt);
 
 	switch (status) {
 	case -ENOTCONN:
@@ -935,8 +946,7 @@ call_status(struct rpc_task *task)
 		break;
 	case -ECONNREFUSED:
 	case -ENOTCONN:
-		if (clnt->cl_autobind)
-			clnt->cl_port = 0;
+		rpc_force_rebind(clnt);
 		task->tk_action = call_bind;
 		break;
 	case -EAGAIN:
@@ -995,8 +1005,7 @@ call_timeout(struct rpc_task *task)
 		printk(KERN_NOTICE "%s: server %s not responding, still trying\n",
 			clnt->cl_protname, clnt->cl_server);
 	}
-	if (clnt->cl_autobind)
-		clnt->cl_port = 0;
+	rpc_force_rebind(clnt);
 
 retry:
 	clnt->cl_stats->rpcretrans++;
