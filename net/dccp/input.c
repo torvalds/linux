@@ -300,6 +300,12 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 			goto out_invalid_packet;
 		}
 
+                if (dp->dccps_options.dccpo_send_ack_vector &&
+                    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
+                                    DCCP_SKB_CB(skb)->dccpd_seq,
+                                    DCCP_ACKVEC_STATE_RECEIVED))
+                        goto out_invalid_packet; /* FIXME: change error code */
+
 		dp->dccps_isr = DCCP_SKB_CB(skb)->dccpd_seq;
 		dccp_update_gsr(sk, dp->dccps_isr);
 		/*
