@@ -1499,9 +1499,6 @@ static int nfs4_xdr_enc_open(struct rpc_rqst *req, uint32_t *p, struct nfs_opena
 	};
 	int status;
 
-	status = nfs_wait_on_sequence(args->seqid, req->rq_task);
-	if (status != 0)
-		goto out;
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
 	status = encode_putfh(&xdr, args->fh);
