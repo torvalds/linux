@@ -33,6 +33,8 @@
 #define MACHINFO_PGOFFIO	12
 #define MACHINFO_NAME		16
 
+#define KERNEL_RAM_ADDR	(PAGE_OFFSET + TEXT_OFFSET)
+
 /*
  * swapper_pg_dir is the virtual address of the initial page table.
  * We place the page tables 16K below KERNEL_RAM_ADDR.  Therefore, we must
