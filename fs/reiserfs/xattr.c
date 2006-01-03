@@ -115,8 +115,8 @@ static struct dentry *__get_xa_root(struct super_block *s)
 }
 
 /* Returns the dentry (or NULL) referring to the root of the extended
- * attribute directory tree. If it has already been retreived, it is used.
- * Otherwise, we attempt to retreive it from disk. It may also return
+ * attribute directory tree. If it has already been retrieved, it is used.
+ * Otherwise, we attempt to retrieve it from disk. It may also return
  * a pointer-encoded error.
  */
 static inline struct dentry *get_xa_root(struct super_block *s)

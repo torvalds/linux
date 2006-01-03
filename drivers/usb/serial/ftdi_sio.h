@@ -714,7 +714,7 @@ typedef enum {
  */
 
 /* FTDI_SIO_GET_MODEM_STATUS */
-/* Retreive the current value of the modem status register */
+/* Retrieve the current value of the modem status register */
 
 #define FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE 0xc0
 #define FTDI_SIO_GET_MODEM_STATUS_REQUEST FTDI_SIO_GET_MODEM_STATUS
