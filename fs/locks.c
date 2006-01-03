@@ -1958,13 +1958,18 @@ EXPORT_SYMBOL(posix_block_lock);
  *
  *	lockd needs to block waiting for locks.
  */
-void
+int
 posix_unblock_lock(struct file *filp, struct file_lock *waiter)
 {
+	int status = 0;
+
 	lock_kernel();
 	if (waiter->fl_next)
 		__locks_delete_block(waiter);
+	else
+		status = -ENOENT;
 	unlock_kernel();
+	return status;
 }
 
 EXPORT_SYMBOL(posix_unblock_lock);
