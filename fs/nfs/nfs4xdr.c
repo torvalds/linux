@@ -566,7 +566,7 @@ static int encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const s
 	}
 	if (iap->ia_valid & ATTR_MODE) {
 		bmval1 |= FATTR4_WORD1_MODE;
-		WRITE32(iap->ia_mode);
+		WRITE32(iap->ia_mode & S_IALLUGO);
 	}
 	if (iap->ia_valid & ATTR_UID) {
 		bmval1 |= FATTR4_WORD1_OWNER;

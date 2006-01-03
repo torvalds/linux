@@ -111,6 +111,9 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	};
 	int	status;
 
+	/* Mask out the non-modebit related stuff from attr->ia_mode */
+	sattr->ia_mode &= S_IALLUGO;
+
 	dprintk("NFS call  setattr\n");
 	nfs_fattr_init(fattr);
 	status = rpc_call(NFS_CLIENT(inode), NFSPROC_SETATTR, &arg, fattr, 0);
