@@ -1248,6 +1248,33 @@ void nfs_end_data_update(struct inode *inode)
 	atomic_dec(&nfsi->data_updates);
 }
 
+static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	if ((fattr->valid & NFS_ATTR_PRE_CHANGE) != 0
+			&& nfsi->change_attr == fattr->pre_change_attr) {
+		nfsi->change_attr = fattr->change_attr;
+		nfsi->cache_change_attribute = jiffies;
+	}
+
+	/* If we have atomic WCC data, we may update some attributes */
+	if ((fattr->valid & NFS_ATTR_WCC) != 0) {
+		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime)) {
+			memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
+			nfsi->cache_change_attribute = jiffies;
+		}
+		if (timespec_equal(&inode->i_mtime, &fattr->pre_mtime)) {
+			memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
+			nfsi->cache_change_attribute = jiffies;
+		}
+		if (inode->i_size == fattr->pre_size && nfsi->npages == 0) {
+			inode->i_size = fattr->size;
+			nfsi->cache_change_attribute = jiffies;
+		}
+	}
+}
+
 /**
  * nfs_check_inode_attributes - verify consistency of the inode attribute cache
  * @inode - pointer to inode
@@ -1264,22 +1291,20 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	int data_unstable;
 
 
+	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
+		return 0;
+
 	/* Are we in the process of updating data on the server? */
 	data_unstable = nfs_caches_unstable(inode);
 
-	if (fattr->valid & NFS_ATTR_FATTR_V4) {
-		if ((fattr->valid & NFS_ATTR_PRE_CHANGE) != 0
-				&& nfsi->change_attr == fattr->pre_change_attr)
-			nfsi->change_attr = fattr->change_attr;
-		if (nfsi->change_attr != fattr->change_attr) {
-			nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
-			if (!data_unstable)
-				nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE;
-		}
-	}
+	/* Do atomic weak cache consistency updates */
+	nfs_wcc_update_inode(inode, fattr);
 
-	if ((fattr->valid & NFS_ATTR_FATTR) == 0) {
-		return 0;
+	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
+			nfsi->change_attr != fattr->change_attr) {
+		nfsi->cache_validity |= NFS_INO_INVALID_ATTR;
+		if (!data_unstable)
+			nfsi->cache_validity |= NFS_INO_REVAL_PAGECACHE;
 	}
 
 	/* Has the inode gone and changed behind our back? */
@@ -1290,14 +1315,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 
 	cur_size = i_size_read(inode);
  	new_isize = nfs_size_to_loff_t(fattr->size);
-
-	/* If we have atomic WCC data, we may update some attributes */
-	if ((fattr->valid & NFS_ATTR_WCC) != 0) {
-		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime))
-			memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
-		if (timespec_equal(&inode->i_mtime, &fattr->pre_mtime))
-			memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
-	}
 
 	/* Verify a few of the more important attributes */
 	if (!timespec_equal(&inode->i_mtime, &fattr->mtime)) {
@@ -1425,6 +1442,9 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	data_stable = nfs_verify_change_attribute(inode, fattr->time_start);
 	if (data_stable)
 		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME);
+
+	/* Do atomic weak cache consistency updates */
+	nfs_wcc_update_inode(inode, fattr);
 
 	/* Check if our cached file size is stale */
  	new_isize = nfs_size_to_loff_t(fattr->size);
