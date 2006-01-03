@@ -431,7 +431,6 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	}
 	clnt->cl_intr = 0;
 	clnt->cl_softrtry = 1;
-	clnt->cl_chatty = 1;
 
 	/* Kick rpciod, put the call on the wire. */
 

@@ -413,7 +413,6 @@ nfs_create_client(struct nfs_server *server, const struct nfs_mount_data *data)
 
 	clnt->cl_intr     = 1;
 	clnt->cl_softrtry = 1;
-	clnt->cl_chatty   = 1;
 
 	return clnt;
 
@@ -1838,7 +1837,6 @@ static int nfs4_fill_super(struct super_block *sb, struct nfs4_mount_data *data,
 		}
 		clnt->cl_intr     = 1;
 		clnt->cl_softrtry = 1;
-		clnt->cl_chatty   = 1;
 		clp->cl_rpcclient = clnt;
 		memcpy(clp->cl_ipaddr, server->ip_addr, sizeof(clp->cl_ipaddr));
 		nfs_idmap_new(clp);

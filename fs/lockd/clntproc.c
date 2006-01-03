@@ -222,8 +222,7 @@ nlmclnt_proc(struct inode *inode, int cmd, struct file_lock *fl)
 			goto done;
 		}
 		clnt->cl_softrtry = nfssrv->client->cl_softrtry;
-		clnt->cl_intr     = nfssrv->client->cl_intr;
-		clnt->cl_chatty   = nfssrv->client->cl_chatty;
+		clnt->cl_intr = nfssrv->client->cl_intr;
 	}
 
 	/* Keep the old signal mask */
