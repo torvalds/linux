@@ -68,6 +68,23 @@ nfs3_async_handle_jukebox(struct rpc_task *task)
 	return 1;
 }
 
+static int
+do_proc_get_root(struct rpc_clnt *client, struct nfs_fh *fhandle,
+		 struct nfs_fsinfo *info)
+{
+	int	status;
+
+	dprintk("%s: call  fsinfo\n", __FUNCTION__);
+	nfs_fattr_init(info->fattr);
+	status = rpc_call(client, NFS3PROC_FSINFO, fhandle, info, 0);
+	dprintk("%s: reply fsinfo: %d\n", __FUNCTION__, status);
+	if (!(info->fattr->valid & NFS_ATTR_FATTR)) {
+		status = rpc_call(client, NFS3PROC_GETATTR, fhandle, info->fattr, 0);
+		dprintk("%s: reply getattr: %d\n", __FUNCTION__, status);
+	}
+	return status;
+}
+
 /*
  * Bare-bones access to getattr: this is for nfs_read_super.
  */
@@ -77,14 +94,9 @@ nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 {
 	int	status;
 
-	dprintk("%s: call  fsinfo\n", __FUNCTION__);
-	nfs_fattr_init(info->fattr);
-	status = rpc_call(server->client_sys, NFS3PROC_FSINFO, fhandle, info, 0);
-	dprintk("%s: reply fsinfo: %d\n", __FUNCTION__, status);
-	if (!(info->fattr->valid & NFS_ATTR_FATTR)) {
-		status = rpc_call(server->client_sys, NFS3PROC_GETATTR, fhandle, info->fattr, 0);
-		dprintk("%s: reply getattr: %d\n", __FUNCTION__, status);
-	}
+	status = do_proc_get_root(server->client, fhandle, info);
+	if (status && server->client_sys != server->client)
+		status = do_proc_get_root(server->client_sys, fhandle, info);
 	return status;
 }
 
