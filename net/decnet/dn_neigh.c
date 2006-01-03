@@ -408,11 +408,14 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 			}
 		}
 
-		if (!dn_db->router) {
-			dn_db->router = neigh_clone(neigh);
-		} else {
-			if (msg->priority > ((struct dn_neigh *)dn_db->router)->priority)
-				neigh_release(xchg(&dn_db->router, neigh_clone(neigh)));
+		/* Only use routers in our area */
+		if ((dn_ntohs(src)>>10) == dn_ntohs((decnet_address)>>10)) {
+			if (!dn_db->router) {
+				dn_db->router = neigh_clone(neigh);
+			} else {
+				if (msg->priority > ((struct dn_neigh *)dn_db->router)->priority)
+					neigh_release(xchg(&dn_db->router, neigh_clone(neigh)));
+			}
 		}
 		write_unlock(&neigh->lock);
 		neigh_release(neigh);
