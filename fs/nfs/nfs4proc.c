@@ -2920,11 +2920,12 @@ nfs4_proc_setclientid_confirm(struct nfs4_client *clp, struct rpc_cred *cred)
 
 struct nfs4_delegreturndata {
 	struct nfs4_delegreturnargs args;
+	struct nfs4_delegreturnres res;
 	struct nfs_fh fh;
 	nfs4_stateid stateid;
 	struct rpc_cred *cred;
 	unsigned long timestamp;
-	const struct nfs_server *server;
+	struct nfs_fattr fattr;
 	int rpc_status;
 };
 
@@ -2934,8 +2935,10 @@ static void nfs4_delegreturn_prepare(struct rpc_task *task, void *calldata)
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_DELEGRETURN],
 		.rpc_argp = &data->args,
+		.rpc_resp = &data->res,
 		.rpc_cred = data->cred,
 	};
+	nfs_fattr_init(data->res.fattr);
 	rpc_call_setup(task, &msg, 0);
 }
 
@@ -2944,7 +2947,7 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	struct nfs4_delegreturndata *data = calldata;
 	data->rpc_status = task->tk_status;
 	if (data->rpc_status == 0)
-		renew_lease(data->server, data->timestamp);
+		renew_lease(data->res.server, data->timestamp);
 }
 
 static void nfs4_delegreturn_release(void *calldata)
@@ -2964,6 +2967,7 @@ const static struct rpc_call_ops nfs4_delegreturn_ops = {
 static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, const nfs4_stateid *stateid)
 {
 	struct nfs4_delegreturndata *data;
+	struct nfs_server *server = NFS_SERVER(inode);
 	struct rpc_task *task;
 	int status;
 
@@ -2972,11 +2976,13 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 		return -ENOMEM;
 	data->args.fhandle = &data->fh;
 	data->args.stateid = &data->stateid;
+	data->args.bitmask = server->attr_bitmask;
 	nfs_copy_fh(&data->fh, NFS_FH(inode));
 	memcpy(&data->stateid, stateid, sizeof(data->stateid));
+	data->res.fattr = &data->fattr;
+	data->res.server = server;
 	data->cred = get_rpccred(cred);
 	data->timestamp = jiffies;
-	data->server = NFS_SERVER(inode);
 	data->rpc_status = 0;
 
 	task = rpc_run_task(NFS_CLIENT(inode), RPC_TASK_ASYNC, &nfs4_delegreturn_ops, data);
@@ -2985,8 +2991,11 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 		return PTR_ERR(task);
 	}
 	status = nfs4_wait_for_completion_rpc_task(task);
-	if (status == 0)
+	if (status == 0) {
 		status = data->rpc_status;
+		if (status == 0)
+			nfs_post_op_update_inode(inode, &data->fattr);
+	}
 	rpc_release_task(task);
 	return status;
 }

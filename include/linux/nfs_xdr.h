@@ -220,6 +220,12 @@ struct nfs_lockt_res {
 struct nfs4_delegreturnargs {
 	const struct nfs_fh *fhandle;
 	const nfs4_stateid *stateid;
+	const u32 * bitmask;
+};
+
+struct nfs4_delegreturnres {
+	struct nfs_fattr * fattr;
+	const struct nfs_server *server;
 };
 
 /*

@@ -392,9 +392,11 @@ static int nfs_stat_to_errno(int);
 				decode_getattr_maxsz)
 #define NFS4_enc_delegreturn_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				encode_delegreturn_maxsz)
+				encode_delegreturn_maxsz + \
+				encode_getattr_maxsz)
 #define NFS4_dec_delegreturn_sz (compound_decode_hdr_maxsz + \
-				decode_delegreturn_maxsz)
+				decode_delegreturn_maxsz + \
+				decode_getattr_maxsz)
 #define NFS4_enc_getacl_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_getattr_maxsz)
@@ -1983,14 +1985,20 @@ static int nfs4_xdr_enc_delegreturn(struct rpc_rqst *req, uint32_t *p, const str
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 2,
+		.nops = 3,
 	};
 	int status;
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
-	if ((status = encode_putfh(&xdr, args->fhandle)) == 0)
-		status = encode_delegreturn(&xdr, args->stateid);
+	status = encode_putfh(&xdr, args->fhandle);
+	if (status != 0)
+		goto out;
+	status = encode_delegreturn(&xdr, args->stateid);
+	if (status != 0)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
+out:
 	return status;
 }
 
@@ -4184,7 +4192,7 @@ static int nfs4_xdr_dec_setclientid_confirm(struct rpc_rqst *req, uint32_t *p, s
 /*
  * DELEGRETURN request
  */
-static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp, uint32_t *p, void *dummy)
+static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_delegreturnres *res)
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr;
@@ -4192,11 +4200,14 @@ static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp, uint32_t *p, void *d
 
 	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
 	status = decode_compound_hdr(&xdr, &hdr);
-	if (status == 0) {
-		status = decode_putfh(&xdr);
-		if (status == 0)
-			status = decode_delegreturn(&xdr);
-	}
+	if (status != 0)
+		goto out;
+	status = decode_putfh(&xdr);
+	if (status != 0)
+		goto out;
+	status = decode_delegreturn(&xdr);
+	decode_getfattr(&xdr, res->fattr, res->server);
+out:
 	return status;
 }
 

@@ -159,8 +159,6 @@ static int nfs_do_return_delegation(struct inode *inode, struct nfs_delegation *
 {
 	int res = 0;
 
-	__nfs_revalidate_inode(NFS_SERVER(inode), inode);
-
 	res = nfs4_proc_delegreturn(inode, delegation->cred, &delegation->stateid);
 	nfs_free_delegation(delegation);
 	return res;
