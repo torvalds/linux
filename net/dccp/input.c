@@ -492,14 +492,14 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 			dccp_event_ack_recv(sk, skb);
 
-		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
-		ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
-
  		if (dp->dccps_options.dccpo_send_ack_vector &&
 		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
  				    DCCP_SKB_CB(skb)->dccpd_seq,
  				    DCCP_ACKVEC_STATE_RECEIVED))
  			goto discard;
+
+		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
+		ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
 	}
 
 	/*
