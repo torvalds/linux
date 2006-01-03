@@ -106,11 +106,10 @@ nfs4_alloc_client(struct in_addr *addr)
 	INIT_WORK(&clp->cl_recoverd, nfs4_recover_state, clp);
 	INIT_WORK(&clp->cl_renewd, nfs4_renew_state, clp);
 	INIT_LIST_HEAD(&clp->cl_superblocks);
-	init_waitqueue_head(&clp->cl_waitq);
 	rpc_init_wait_queue(&clp->cl_rpcwaitq, "NFS4 client");
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
 	clp->cl_boot_time = CURRENT_TIME;
-	clp->cl_state = 1 << NFS4CLNT_OK;
+	clp->cl_state = 0;
 	return clp;
 }
 
@@ -193,7 +192,6 @@ nfs4_put_client(struct nfs4_client *clp)
 	list_del(&clp->cl_servers);
 	spin_unlock(&state_spinlock);
 	BUG_ON(!list_empty(&clp->cl_superblocks));
-	wake_up_all(&clp->cl_waitq);
 	rpc_wake_up(&clp->cl_rpcwaitq);
 	nfs4_kill_renewd(clp);
 	nfs4_free_client(clp);
@@ -741,6 +739,15 @@ struct reclaimer_args {
 	struct completion complete;
 };
 
+static inline void nfs4_clear_recover_bit(struct nfs4_client *clp)
+{
+	smp_mb__before_clear_bit();
+	clear_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&clp->cl_state, NFS4CLNT_STATE_RECOVER);
+	rpc_wake_up(&clp->cl_rpcwaitq);
+}
+
 /*
  * State recovery routine
  */
@@ -760,9 +767,7 @@ nfs4_recover_state(void *data)
 	wait_for_completion(&args.complete);
 	return;
 out_failed_clear:
-	set_bit(NFS4CLNT_OK, &clp->cl_state);
-	wake_up_all(&clp->cl_waitq);
-	rpc_wake_up(&clp->cl_rpcwaitq);
+	nfs4_clear_recover_bit(clp);
 }
 
 /*
@@ -773,7 +778,7 @@ nfs4_schedule_state_recovery(struct nfs4_client *clp)
 {
 	if (!clp)
 		return;
-	if (test_and_clear_bit(NFS4CLNT_OK, &clp->cl_state))
+	if (test_and_set_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) == 0)
 		schedule_work(&clp->cl_recoverd);
 }
 
@@ -943,13 +948,11 @@ restart_loop:
 	}
 	nfs_delegation_reap_unclaimed(clp);
 out:
-	set_bit(NFS4CLNT_OK, &clp->cl_state);
 	up_write(&clp->cl_sem);
 	unlock_kernel();
-	wake_up_all(&clp->cl_waitq);
-	rpc_wake_up(&clp->cl_rpcwaitq);
 	if (status == -NFS4ERR_CB_PATH_DOWN)
 		nfs_handle_cb_pathdown(clp);
+	nfs4_clear_recover_bit(clp);
 	nfs4_put_client(clp);
 	return 0;
 out_error:

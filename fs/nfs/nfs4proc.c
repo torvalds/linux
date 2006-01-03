@@ -2736,7 +2736,7 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server)
 		case -NFS4ERR_EXPIRED:
 			rpc_sleep_on(&clp->cl_rpcwaitq, task, NULL, NULL);
 			nfs4_schedule_state_recovery(clp);
-			if (test_bit(NFS4CLNT_OK, &clp->cl_state))
+			if (test_bit(NFS4CLNT_STATE_RECOVER, &clp->cl_state) == 0)
 				rpc_wake_up_task(task);
 			task->tk_status = 0;
 			return -EAGAIN;
@@ -2753,25 +2753,25 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server)
 	return 0;
 }
 
+static int nfs4_wait_bit_interruptible(void *word)
+{
+	if (signal_pending(current))
+		return -ERESTARTSYS;
+	schedule();
+	return 0;
+}
+
 static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs4_client *clp)
 {
-	DEFINE_WAIT(wait);
 	sigset_t oldset;
-	int interruptible, res = 0;
+	int res;
 
 	might_sleep();
 
 	rpc_clnt_sigmask(clnt, &oldset);
-	interruptible = TASK_UNINTERRUPTIBLE;
-	if (clnt->cl_intr)
-		interruptible = TASK_INTERRUPTIBLE;
-	prepare_to_wait(&clp->cl_waitq, &wait, interruptible);
-	nfs4_schedule_state_recovery(clp);
-	if (clnt->cl_intr && signalled())
-		res = -ERESTARTSYS;
-	else if (!test_bit(NFS4CLNT_OK, &clp->cl_state))
-		schedule();
-	finish_wait(&clp->cl_waitq, &wait);
+	res = wait_on_bit(&clp->cl_state, NFS4CLNT_STATE_RECOVER,
+			nfs4_wait_bit_interruptible,
+			TASK_INTERRUPTIBLE);
 	rpc_clnt_sigunmask(clnt, &oldset);
 	return res;
 }
@@ -2814,6 +2814,7 @@ int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
+			nfs4_schedule_state_recovery(clp);
 			ret = nfs4_wait_clnt_recover(server->client, clp);
 			if (ret == 0)
 				exception->retry = 1;

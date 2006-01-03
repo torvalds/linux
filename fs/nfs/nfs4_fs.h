@@ -38,7 +38,7 @@ struct idmap;
  ((err) != NFSERR_NOFILEHANDLE))
 
 enum nfs4_client_state {
-	NFS4CLNT_OK  = 0,
+	NFS4CLNT_STATE_RECOVER  = 0,
 };
 
 /*
@@ -76,7 +76,6 @@ struct nfs4_client {
 	struct work_struct	cl_renewd;
 	struct work_struct	cl_recoverd;
 
-	wait_queue_head_t	cl_waitq;
 	struct rpc_wait_queue	cl_rpcwaitq;
 
 	/* used for the setclientid verifier */
