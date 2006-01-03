@@ -2350,6 +2350,7 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int dest
 	struct scsi_cmnd *SCpnt = NULL;
 	u32 scsi_status = SBP2_SCSI_STATUS_GOOD;
 	struct sbp2_command_info *command;
+	unsigned long flags;
 
 	SBP2_DEBUG("sbp2_handle_status_write");
 
@@ -2451,9 +2452,11 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid, int dest
 		 * null out last orb so that next time around we write directly to the orb pointer...
 		 * Quick start saves one 1394 bus transaction.
 		 */
+		spin_lock_irqsave(&scsi_id->sbp2_command_orb_lock, flags);
 		if (list_empty(&scsi_id->sbp2_command_orb_inuse)) {
 			scsi_id->last_orb = NULL;
 		}
+		spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 
 	} else {
 
@@ -2563,9 +2566,11 @@ static void sbp2scsi_complete_all_commands(struct scsi_id_instance_data *scsi_id
 	struct sbp2scsi_host_info *hi = scsi_id->hi;
 	struct list_head *lh;
 	struct sbp2_command_info *command;
+	unsigned long flags;
 
 	SBP2_DEBUG("sbp2scsi_complete_all_commands");
 
+	spin_lock_irqsave(&scsi_id->sbp2_command_orb_lock, flags);
 	while (!list_empty(&scsi_id->sbp2_command_orb_inuse)) {
 		SBP2_DEBUG("Found pending command to complete");
 		lh = scsi_id->sbp2_command_orb_inuse.next;
@@ -2582,6 +2587,7 @@ static void sbp2scsi_complete_all_commands(struct scsi_id_instance_data *scsi_id
 			command->Current_done(command->Current_SCpnt);
 		}
 	}
+	spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock, flags);
 
 	return;
 }

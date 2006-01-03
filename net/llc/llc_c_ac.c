@@ -866,7 +866,8 @@ int llc_conn_ac_send_ack_if_needed(struct sock *sk, struct sk_buff *skb)
 		llc->ack_must_be_send = 1;
 		llc->ack_pf = pf_bit & 1;
 	}
-	if (((llc->vR - llc->first_pdu_Ns + 129) % 128) >= llc->npta) {
+	if (((llc->vR - llc->first_pdu_Ns + 1 + LLC_2_SEQ_NBR_MODULO)
+			% LLC_2_SEQ_NBR_MODULO) >= llc->npta) {
 		llc_conn_ac_send_rr_rsp_f_set_ackpf(sk, skb);
 		llc->ack_must_be_send	= 0;
 		llc->ack_pf		= 0;
@@ -994,8 +995,8 @@ static int llc_conn_ac_inc_npta_value(struct sock *sk, struct sk_buff *skb)
 		llc->dec_step = 0;
 		llc->dec_cntr = llc->inc_cntr = 2;
 		++llc->npta;
-		if (llc->npta > 127)
-			llc->npta = 127 ;
+		if (llc->npta > (u8) ~LLC_2_SEQ_NBR_MODULO)
+			llc->npta = (u8) ~LLC_2_SEQ_NBR_MODULO;
 	} else
 		--llc->inc_cntr;
 	return 0;
@@ -1065,9 +1066,10 @@ int llc_conn_ac_dec_tx_win_size(struct sock *sk, struct sk_buff *skb)
 	struct llc_sock *llc = llc_sk(sk);
 	u8 unacked_pdu = skb_queue_len(&llc->pdu_unack_q);
 
-	llc->k -= unacked_pdu;
-	if (llc->k < 2)
-		llc->k = 2;
+	if (llc->k - unacked_pdu < 1)
+		llc->k = 1;
+	else
+		llc->k -= unacked_pdu;
 	return 0;
 }
 
@@ -1084,8 +1086,8 @@ int llc_conn_ac_inc_tx_win_size(struct sock *sk, struct sk_buff *skb)
 	struct llc_sock *llc = llc_sk(sk);
 
 	llc->k += 1;
-	if (llc->k > 128)
-		llc->k = 128 ;
+	if (llc->k > (u8) ~LLC_2_SEQ_NBR_MODULO)
+		llc->k = (u8) ~LLC_2_SEQ_NBR_MODULO;
 	return 0;
 }
 
@@ -1309,7 +1311,7 @@ int llc_conn_ac_set_vs_nr(struct sock *sk, struct sk_buff *skb)
 
 static int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb)
 {
-	llc_sk(sk)->vS = (llc_sk(sk)->vS + 1) % 128;
+	llc_sk(sk)->vS = (llc_sk(sk)->vS + 1) % LLC_2_SEQ_NBR_MODULO;
 	return 0;
 }
 

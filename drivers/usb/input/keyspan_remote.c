@@ -160,7 +160,8 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 	 * though so it's not too big a deal
 	 */
 	if (dev->data.pos >= dev->data.len) {
-		dev_dbg(&dev->udev, "%s - Error ran out of data. pos: %d, len: %d\n",
+		dev_dbg(&dev->udev->dev,
+			"%s - Error ran out of data. pos: %d, len: %d\n",
 			__FUNCTION__, dev->data.pos, dev->data.len);
 		return -1;
 	}
@@ -306,7 +307,7 @@ static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
 			err("Bad message recieved, no stop bit found.\n");
 		}
 
-		dev_dbg(&remote->udev,
+		dev_dbg(&remote->udev->dev,
 			"%s found valid message: system: %d, button: %d, toggle: %d\n",
 			__FUNCTION__, message.system, message.button, message.toggle);
 

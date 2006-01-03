@@ -203,6 +203,7 @@ acpi_handle acpi_get_pci_rootbridge_handle(unsigned int seg, unsigned int bus)
 	acpi_get_devices(PCI_ROOT_HID_STRING, find_pci_rootbridge, &find, NULL);
 	return find.handle;
 }
+EXPORT_SYMBOL_GPL(acpi_get_pci_rootbridge_handle);
 
 /* Get device's handler per its address under its parent */
 struct acpi_find_child {

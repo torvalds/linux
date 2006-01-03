@@ -532,6 +532,7 @@ match(const struct sk_buff *skb,
 			}
 			if(info->seconds && info->hit_count) {
 				for(pkt_count = 0, hits_found = 0; pkt_count < ip_pkt_list_tot; pkt_count++) {
+					if(r_list[location].last_pkts[pkt_count] == 0) break;
 					if(time_before_eq(now,r_list[location].last_pkts[pkt_count]+info->seconds*HZ)) hits_found++;
 				}
 				if(hits_found >= info->hit_count) ans = !info->invert; else ans = info->invert;

@@ -300,7 +300,7 @@ unsigned long get_base(int chip_num)
  * Model dependent ESP setup
  */
 
-int mac_esp_detect(Scsi_Host_Template * tpnt)
+int mac_esp_detect(struct scsi_host_template * tpnt)
 {
 	int quick = 0;
 	int chipnum, chipspresent = 0;
@@ -730,7 +730,7 @@ static void dma_setup_quick(struct NCR_ESP * esp, __u32 addr, int count, int wri
 #endif
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "mac_esp",
 	.name			= "Mac 53C9x SCSI",
 	.detect			= mac_esp_detect,

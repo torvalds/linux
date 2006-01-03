@@ -408,7 +408,6 @@ static struct pci_device_id __devinitdata ali1563_id_table[] = {
 MODULE_DEVICE_TABLE (pci, ali1563_id_table);
 
 static struct pci_driver ali1563_pci_driver = {
-	.owner		= THIS_MODULE,
  	.name		= "ali1563_smbus",
 	.id_table	= ali1563_id_table,
  	.probe		= ali1563_probe,

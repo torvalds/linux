@@ -1,4 +1,4 @@
-version 1.37 October 9, 2005
+Version 1.39 November 30, 2005
 
 A Partial List of Missing Features
 ==================================
@@ -58,7 +58,7 @@ o) Improve performance of readpages by sending more than one read
 at a time when 8 pages or more are requested. In conjuntion
 add support for async_cifs_readpages.
 
-p) Add support for storing symlink and fifo info to Windows servers 
+p) Add support for storing symlink info to Windows servers 
 in the Extended Attribute format their SFU clients would recognize.
 
 q) Finish fcntl D_NOTIFY support so kde and gnome file list windows

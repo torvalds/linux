@@ -494,10 +494,8 @@ typedef struct log {
 
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
 
-#define XLOG_GRANT_SUB_SPACE(log,bytes,type)	\
-	xlog_grant_sub_space(log,bytes,type)
-static inline void xlog_grant_sub_space(struct log *log, int bytes, int type)
-{
+#define XLOG_GRANT_SUB_SPACE(log,bytes,type)				\
+    {									\
 	if (type == 'w') {						\
 		(log)->l_grant_write_bytes -= (bytes);			\
 		if ((log)->l_grant_write_bytes < 0) {			\
@@ -511,13 +509,9 @@ static inline void xlog_grant_sub_space(struct log *log, int bytes, int type)
 			(log)->l_grant_reserve_cycle--;			\
 		}							\
 	 }								\
-}
-
-#define XLOG_GRANT_ADD_SPACE(log,bytes,type)	\
-	xlog_grant_add_space(log,bytes,type)
-static inline void
-xlog_grant_add_space(struct log *log, int bytes, int type)
-{
+    }
+#define XLOG_GRANT_ADD_SPACE(log,bytes,type)				\
+    {									\
 	if (type == 'w') {						\
 		(log)->l_grant_write_bytes += (bytes);			\
 		if ((log)->l_grant_write_bytes > (log)->l_logsize) {	\
@@ -531,12 +525,9 @@ xlog_grant_add_space(struct log *log, int bytes, int type)
 			(log)->l_grant_reserve_cycle++;			\
 		}							\
 	 }								\
-}
-
-#define XLOG_INS_TICKETQ(q, tic)	xlog_ins_ticketq(q, tic)
-static inline void
-xlog_ins_ticketq(struct xlog_ticket *q, struct xlog_ticket *tic)
-{							\
+    }
+#define XLOG_INS_TICKETQ(q, tic)			\
+    {							\
 	if (q) {					\
 		(tic)->t_next	    = (q);		\
 		(tic)->t_prev	    = (q)->t_prev;	\
@@ -547,12 +538,9 @@ xlog_ins_ticketq(struct xlog_ticket *q, struct xlog_ticket *tic)
 		(q) = (tic);				\
 	}						\
 	(tic)->t_flags |= XLOG_TIC_IN_Q;		\
-}
-
-#define XLOG_DEL_TICKETQ(q, tic)	xlog_del_ticketq(q, tic)
-static inline void
-xlog_del_ticketq(struct xlog_ticket *q, struct xlog_ticket *tic)
-{							\
+    }
+#define XLOG_DEL_TICKETQ(q, tic)			\
+    {							\
 	if ((tic) == (tic)->t_next) {			\
 		(q) = NULL;				\
 	} else {					\
@@ -562,7 +550,7 @@ xlog_del_ticketq(struct xlog_ticket *q, struct xlog_ticket *tic)
 	}						\
 	(tic)->t_next = (tic)->t_prev = NULL;		\
 	(tic)->t_flags &= ~XLOG_TIC_IN_Q;		\
-}
+    }
 
 /* common routines */
 extern xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);

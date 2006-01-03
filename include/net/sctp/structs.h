@@ -161,6 +161,13 @@ extern struct sctp_globals {
 	 */
 	int sndbuf_policy;
 
+	/*
+	 * Policy for preforming sctp/socket accounting
+	 * 0   - do socket level accounting, all assocs share sk_rcvbuf
+	 * 1   - do sctp accounting, each asoc may use sk_rcvbuf bytes
+	 */
+	int rcvbuf_policy;
+
 	/* Delayed SACK timeout  200ms default*/
 	int sack_timeout;
 
@@ -218,6 +225,7 @@ extern struct sctp_globals {
 #define sctp_cookie_preserve_enable	(sctp_globals.cookie_preserve_enable)
 #define sctp_max_retrans_association	(sctp_globals.max_retrans_association)
 #define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
+#define sctp_rcvbuf_policy	 	(sctp_globals.rcvbuf_policy)
 #define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
 #define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
 #define sctp_sack_timeout		(sctp_globals.sack_timeout)
@@ -1222,11 +1230,11 @@ struct sctp_endpoint {
 	int last_key;
 	int key_changed_at;
 
-	/* Default timeouts.  */
-	int timeouts[SCTP_NUM_TIMEOUT_TYPES];
-
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
+
+	/* rcvbuf acct. policy.	*/
+	__u32 rcvbuf_policy;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1552,6 +1560,11 @@ struct sctp_association {
 	 * as specified in the sk->sndbuf.
 	 */
 	int sndbuf_used;
+
+	/* This is the amount of memory that this association has allocated
+	 * in the receive path at any given time.
+	 */
+	atomic_t rmem_alloc;
 
 	/* This is the wait queue head for send requests waiting on
 	 * the association sndbuf space.

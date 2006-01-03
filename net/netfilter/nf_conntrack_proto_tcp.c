@@ -280,9 +280,9 @@ static enum tcp_conntrack tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sCL -> sCL
  */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*ack*/	   { sIV, sIV, sSR, sES, sCW, sCW, sTW, sTW, sCL, sIV },
+/*ack*/	   { sIV, sIG, sSR, sES, sCW, sCW, sTW, sTW, sCL, sIV },
 /*
- *	sSS -> sIV	Might be a half-open connection.
+ *	sSS -> sIG	Might be a half-open connection.
  *	sSR -> sSR	Might answer late resent SYN.
  *	sES -> sES	:-)
  *	sFW -> sCW	Normal close request answered by ACK.
@@ -779,6 +779,7 @@ static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG) + 1] =
 {
 	[TH_SYN]			= 1,
 	[TH_SYN|TH_ACK]			= 1,
+	[TH_SYN|TH_PUSH]		= 1,
 	[TH_SYN|TH_ACK|TH_PUSH]		= 1,
 	[TH_RST]			= 1,
 	[TH_RST|TH_ACK]			= 1,
@@ -911,8 +912,12 @@ static int tcp_packet(struct nf_conn *conntrack,
 
 	switch (new_state) {
 	case TCP_CONNTRACK_IGNORE:
-		/* Either SYN in ORIGINAL
-		 * or SYN/ACK in REPLY. */
+		/* Ignored packets:
+		 *
+		 * a) SYN in ORIGINAL
+		 * b) SYN/ACK in REPLY
+		 * c) ACK in reply direction after initial SYN in original. 
+		 */
 		if (index == TCP_SYNACK_SET
 		    && conntrack->proto.tcp.last_index == TCP_SYN_SET
 		    && conntrack->proto.tcp.last_dir != dir
@@ -969,16 +974,29 @@ static int tcp_packet(struct nf_conn *conntrack,
 		    		conntrack->timeout.function((unsigned long)
 		    					    conntrack);
 		    	return -NF_REPEAT;
+		} else {
+			write_unlock_bh(&tcp_lock);
+			if (LOG_INVALID(IPPROTO_TCP))
+				nf_log_packet(pf, 0, skb, NULL, NULL,
+					      NULL, "nf_ct_tcp: invalid SYN");
+			return -NF_ACCEPT;
 		}
 	case TCP_CONNTRACK_CLOSE:
 		if (index == TCP_RST_SET
-		    && test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)
-		    && conntrack->proto.tcp.last_index == TCP_SYN_SET
+		    && ((test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)
+		         && conntrack->proto.tcp.last_index == TCP_SYN_SET)
+		        || (!test_bit(IPS_ASSURED_BIT, &conntrack->status)
+		            && conntrack->proto.tcp.last_index == TCP_ACK_SET))
 		    && ntohl(th->ack_seq) == conntrack->proto.tcp.last_end) {
-			/* RST sent to invalid SYN we had let trough
-			 * SYN was in window then, tear down connection.
+			/* RST sent to invalid SYN or ACK we had let trough
+			 * at a) and c) above:
+			 *
+			 * a) SYN was in window then
+			 * c) we hold a half-open connection.
+			 *
+			 * Delete our connection entry.
 			 * We skip window checking, because packet might ACK
-			 * segments we ignored in the SYN. */
+			 * segments we ignored. */
 			goto in_window;
 		}
 		/* Just fall trough */

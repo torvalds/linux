@@ -99,7 +99,7 @@ unsigned long ip_ct_tcp_timeout_close =        10 SECS;
    to ~13-30min depending on RTO. */
 unsigned long ip_ct_tcp_timeout_max_retrans =     5 MINS;
  
-static unsigned long * tcp_timeouts[]
+static const unsigned long * tcp_timeouts[]
 = { NULL,                              /*      TCP_CONNTRACK_NONE */
     &ip_ct_tcp_timeout_syn_sent,       /*      TCP_CONNTRACK_SYN_SENT, */
     &ip_ct_tcp_timeout_syn_recv,       /*      TCP_CONNTRACK_SYN_RECV, */
@@ -170,7 +170,7 @@ enum tcp_bit_set {
  *	if they are invalid
  *	or we do not support the request (simultaneous open)
  */
-static enum tcp_conntrack tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
+static const enum tcp_conntrack tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 	{
 /* ORIGINAL */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
@@ -272,9 +272,9 @@ static enum tcp_conntrack tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
  *	sCL -> sCL
  */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/
-/*ack*/	   { sIV, sIV, sSR, sES, sCW, sCW, sTW, sTW, sCL, sIV },
+/*ack*/	   { sIV, sIG, sSR, sES, sCW, sCW, sTW, sTW, sCL, sIV },
 /*
- *	sSS -> sIV	Might be a half-open connection.
+ *	sSS -> sIG	Might be a half-open connection.
  *	sSR -> sSR	Might answer late resent SYN.
  *	sES -> sES	:-)
  *	sFW -> sCW	Normal close request answered by ACK.
@@ -341,9 +341,10 @@ static int tcp_print_conntrack(struct seq_file *s,
 static int tcp_to_nfattr(struct sk_buff *skb, struct nfattr *nfa,
 			 const struct ip_conntrack *ct)
 {
-	struct nfattr *nest_parms = NFA_NEST(skb, CTA_PROTOINFO_TCP);
+	struct nfattr *nest_parms;
 	
 	read_lock_bh(&tcp_lock);
+	nest_parms = NFA_NEST(skb, CTA_PROTOINFO_TCP);
 	NFA_PUT(skb, CTA_PROTOINFO_TCP_STATE, sizeof(u_int8_t),
 		&ct->proto.tcp.state);
 	read_unlock_bh(&tcp_lock);
@@ -357,6 +358,10 @@ nfattr_failure:
 	return -1;
 }
 
+static const size_t cta_min_tcp[CTA_PROTOINFO_TCP_MAX] = {
+	[CTA_PROTOINFO_TCP_STATE-1]	= sizeof(u_int8_t),
+};
+
 static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 {
 	struct nfattr *attr = cda[CTA_PROTOINFO_TCP-1];
@@ -368,6 +373,9 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 		return 0;
 
         nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr);
+
+	if (nfattr_bad_size(tb, CTA_PROTOINFO_TCP_MAX, cta_min_tcp))
+		return -EINVAL;
 
 	if (!tb[CTA_PROTOINFO_TCP_STATE-1])
 		return -EINVAL;
@@ -810,10 +818,11 @@ void ip_conntrack_tcp_update(struct sk_buff *skb,
 #define	TH_CWR	0x80
 
 /* table of valid flag combinations - ECE and CWR are always valid */
-static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG) + 1] =
+static const u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG) + 1] =
 {
 	[TH_SYN]			= 1,
 	[TH_SYN|TH_ACK]			= 1,
+	[TH_SYN|TH_PUSH]		= 1,
 	[TH_SYN|TH_ACK|TH_PUSH]		= 1,
 	[TH_RST]			= 1,
 	[TH_RST|TH_ACK]			= 1,
@@ -909,8 +918,12 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 
 	switch (new_state) {
 	case TCP_CONNTRACK_IGNORE:
-		/* Either SYN in ORIGINAL
-		 * or SYN/ACK in REPLY. */
+		/* Ignored packets:
+		 * 
+		 * a) SYN in ORIGINAL
+		 * b) SYN/ACK in REPLY
+		 * c) ACK in reply direction after initial SYN in original.
+		 */
 		if (index == TCP_SYNACK_SET
 		    && conntrack->proto.tcp.last_index == TCP_SYN_SET
 		    && conntrack->proto.tcp.last_dir != dir
@@ -977,13 +990,20 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		}
 	case TCP_CONNTRACK_CLOSE:
 		if (index == TCP_RST_SET
-		    && test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)
-		    && conntrack->proto.tcp.last_index == TCP_SYN_SET
+		    && ((test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)
+		         && conntrack->proto.tcp.last_index == TCP_SYN_SET)
+		        || (!test_bit(IPS_ASSURED_BIT, &conntrack->status)
+		            && conntrack->proto.tcp.last_index == TCP_ACK_SET))
 		    && ntohl(th->ack_seq) == conntrack->proto.tcp.last_end) {
-			/* RST sent to invalid SYN we had let trough
-			 * SYN was in window then, tear down connection.
+			/* RST sent to invalid SYN or ACK we had let trough
+			 * at a) and c) above:
+			 *
+			 * a) SYN was in window then
+			 * c) we hold a half-open connection.
+			 *
+			 * Delete our connection entry.
 			 * We skip window checking, because packet might ACK
-			 * segments we ignored in the SYN. */
+			 * segments we ignored. */
 			goto in_window;
 		}
 		/* Just fall trough */

@@ -7,6 +7,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/thread_info.h>
 #include <linux/linkage.h>
 
 #ifdef CONFIG_DEBUG_PREEMPT
@@ -47,6 +48,7 @@ do { \
 #define preempt_enable() \
 do { \
 	preempt_enable_no_resched(); \
+	barrier(); \
 	preempt_check_resched(); \
 } while (0)
 

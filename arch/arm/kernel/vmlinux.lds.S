@@ -172,6 +172,10 @@ SECTIONS
 	.comment 0 : { *(.comment) }
 }
 
-/* those must never be empty */
+/*
+ * These must never be empty
+ * If you have to comment these two assert statements out, your
+ * binutils is too old (for other reasons as well)
+ */
 ASSERT((__proc_info_end - __proc_info_begin), "missing CPU support")
 ASSERT((__arch_info_end - __arch_info_begin), "no machine record defined")

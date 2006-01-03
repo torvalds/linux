@@ -1,9 +1,9 @@
 /*
- * dz.c: Serial port driver for DECStations equiped 
+ * dz.c: Serial port driver for DECStations equiped
  *       with the DZ chipset.
  *
- * Copyright (C) 1998 Olivier A. D. Lebaillif 
- *             
+ * Copyright (C) 1998 Olivier A. D. Lebaillif
+ *
  * Email: olivier.lebaillif@ifrsys.com
  *
  * [31-AUG-98] triemer
@@ -11,14 +11,14 @@
  * removed base_addr code - moving address assignment to setup.c
  * Changed name of dz_init to rs_init to be consistent with tc code
  * [13-NOV-98] triemer fixed code to receive characters
- *    after patches by harald to irq code.  
+ *    after patches by harald to irq code.
  * [09-JAN-99] triemer minor fix for schedule - due to removal of timeout
  *            field from "current" - somewhere between 2.1.121 and 2.1.131
  Qua Jun 27 15:02:26 BRT 2001
  * [27-JUN-2001] Arnaldo Carvalho de Melo <acme@conectiva.com.br> - cleanups
- *  
- * Parts (C) 1999 David Airlie, airlied@linux.ie 
- * [07-SEP-99] Bugfixes 
+ *
+ * Parts (C) 1999 David Airlie, airlied@linux.ie
+ * [07-SEP-99] Bugfixes
  *
  * [06-Jan-2002] Russell King <rmk@arm.linux.org.uk>
  * Converted to new serial core
@@ -64,7 +64,7 @@ static struct dz_port dz_ports[DZ_NB_PORT];
 
 #ifdef DEBUG_DZ
 /*
- * debugging code to send out chars via prom 
+ * debugging code to send out chars via prom
  */
 static void debug_console(const char *s, int count)
 {
@@ -82,7 +82,7 @@ static void debug_console(const char *s, int count)
  * ------------------------------------------------------------
  * dz_in () and dz_out ()
  *
- * These routines are used to access the registers of the DZ 
+ * These routines are used to access the registers of the DZ
  * chip, hiding relocation differences between implementation.
  * ------------------------------------------------------------
  */
@@ -106,8 +106,8 @@ static inline void dz_out(struct dz_port *dport, unsigned offset,
  * ------------------------------------------------------------
  * rs_stop () and rs_start ()
  *
- * These routines are called before setting or resetting 
- * tty->stopped. They enable or disable transmitter interrupts, 
+ * These routines are called before setting or resetting
+ * tty->stopped. They enable or disable transmitter interrupts,
  * as necessary.
  * ------------------------------------------------------------
  */
@@ -156,17 +156,17 @@ static void dz_enable_ms(struct uart_port *port)
 
 /*
  * ------------------------------------------------------------
- * Here starts the interrupt handling routines.  All of the 
- * following subroutines are declared as inline and are folded 
- * into dz_interrupt.  They were separated out for readability's 
- * sake. 
+ * Here starts the interrupt handling routines.  All of the
+ * following subroutines are declared as inline and are folded
+ * into dz_interrupt.  They were separated out for readability's
+ * sake.
  *
  * Note: rs_interrupt() is a "fast" interrupt, which means that it
  * runs with interrupts turned off.  People who may want to modify
  * rs_interrupt() should try to keep the interrupt handler as fast as
  * possible.  After you are done making modifications, it is not a bad
  * idea to do:
- * 
+ *
  *	make drivers/serial/dz.s
  *
  * and look at the resulting assemble code in dz.s.
@@ -403,7 +403,7 @@ static void dz_set_mctrl(struct uart_port *uport, unsigned int mctrl)
  * startup ()
  *
  * various initialization tasks
- * ------------------------------------------------------------------- 
+ * -------------------------------------------------------------------
  */
 static int dz_startup(struct uart_port *uport)
 {
@@ -430,13 +430,13 @@ static int dz_startup(struct uart_port *uport)
 	return 0;
 }
 
-/* 
+/*
  * -------------------------------------------------------------------
  * shutdown ()
  *
  * This routine will shutdown a serial port; interrupts are disabled, and
  * DTR is dropped if the hangup on close termio flag is on.
- * ------------------------------------------------------------------- 
+ * -------------------------------------------------------------------
  */
 static void dz_shutdown(struct uart_port *uport)
 {
@@ -451,7 +451,7 @@ static void dz_shutdown(struct uart_port *uport)
  *          release the bus after transmitting. This must be done when
  *          the transmit shift register is empty, not be done when the
  *          transmit holding register is empty.  This functionality
- *          allows an RS485 driver to be written in user space. 
+ *          allows an RS485 driver to be written in user space.
  */
 static unsigned int dz_tx_empty(struct uart_port *uport)
 {
@@ -645,9 +645,9 @@ static void __init dz_init_ports(void)
 
 	if (mips_machtype == MACH_DS23100 ||
 	    mips_machtype == MACH_DS5100)
-		base = (unsigned long) KN01_DZ11_BASE;
+		base = CKSEG1ADDR(KN01_SLOT_BASE + KN01_DZ11);
 	else
-		base = (unsigned long) KN02_DZ11_BASE;
+		base = CKSEG1ADDR(KN02_SLOT_BASE + KN02_DZ11);
 
 	for (i = 0, dport = dz_ports; i < DZ_NB_PORT; i++, dport++) {
 		spin_lock_init(&dport->port.lock);
@@ -695,13 +695,13 @@ static void dz_console_put_char(struct dz_port *dport, unsigned char ch)
 
 	spin_unlock_irqrestore(&dport->port.lock, flags);
 }
-/* 
+/*
  * -------------------------------------------------------------------
  * dz_console_print ()
  *
  * dz_console_print is registered for printk.
  * The console must be locked when we get here.
- * ------------------------------------------------------------------- 
+ * -------------------------------------------------------------------
  */
 static void dz_console_print(struct console *cons,
 			     const char *str,

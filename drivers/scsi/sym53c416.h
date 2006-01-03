@@ -22,7 +22,7 @@
 
 #define SYM53C416_SCSI_ID 7
 
-static int sym53c416_detect(Scsi_Host_Template *);
+static int sym53c416_detect(struct scsi_host_template *);
 static const char *sym53c416_info(struct Scsi_Host *);
 static int sym53c416_release(struct Scsi_Host *);
 static int sym53c416_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));

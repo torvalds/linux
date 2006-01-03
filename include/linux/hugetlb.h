@@ -102,8 +102,8 @@ static inline unsigned long hugetlb_total_pages(void)
 #define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
 
 #ifndef HPAGE_MASK
-#define HPAGE_MASK	0		/* Keep the compiler happy */
-#define HPAGE_SIZE	0
+#define HPAGE_MASK	PAGE_MASK		/* Keep the compiler happy */
+#define HPAGE_SIZE	PAGE_SIZE
 #endif
 
 #endif /* !CONFIG_HUGETLB_PAGE */

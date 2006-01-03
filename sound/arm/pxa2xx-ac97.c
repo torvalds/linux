@@ -275,9 +275,9 @@ static int pxa2xx_ac97_do_resume(snd_card_t *card)
 	return 0;
 }
 
-static int pxa2xx_ac97_suspend(struct device *_dev, pm_message_t state)
+static int pxa2xx_ac97_suspend(struct platform_device *dev, pm_message_t state)
 {
-	snd_card_t *card = dev_get_drvdata(_dev);
+	snd_card_t *card = platform_get_drvdata(dev);
 	int ret = 0;
 
 	if (card)
@@ -286,9 +286,9 @@ static int pxa2xx_ac97_suspend(struct device *_dev, pm_message_t state)
 	return ret;
 }
 
-static int pxa2xx_ac97_resume(struct device *_dev)
+static int pxa2xx_ac97_resume(struct platform_device *dev)
 {
-	snd_card_t *card = dev_get_drvdata(_dev);
+	snd_card_t *card = platform_get_drvdata(dev);
 	int ret = 0;
 
 	if (card)
@@ -302,7 +302,7 @@ static int pxa2xx_ac97_resume(struct device *_dev)
 #define pxa2xx_ac97_resume	NULL
 #endif
 
-static int pxa2xx_ac97_probe(struct device *dev)
+static int pxa2xx_ac97_probe(struct platform_device *dev)
 {
 	snd_card_t *card;
 	ac97_bus_t *ac97_bus;
@@ -315,8 +315,8 @@ static int pxa2xx_ac97_probe(struct device *dev)
 	if (!card)
 		goto err;
 
-	card->dev = dev;
-	strncpy(card->driver, dev->driver->name, sizeof(card->driver));
+	card->dev = &dev->dev;
+	strncpy(card->driver, dev->dev.driver->name, sizeof(card->driver));
 
 	ret = pxa2xx_pcm_new(card, &pxa2xx_ac97_pcm_client, &pxa2xx_ac97_pcm);
 	if (ret)
@@ -347,13 +347,13 @@ static int pxa2xx_ac97_probe(struct device *dev)
 	snprintf(card->shortname, sizeof(card->shortname),
 		 "%s", snd_ac97_get_short_name(pxa2xx_ac97_ac97));
 	snprintf(card->longname, sizeof(card->longname),
-		 "%s (%s)", dev->driver->name, card->mixername);
+		 "%s (%s)", dev->dev.driver->name, card->mixername);
 
 	snd_card_set_pm_callback(card, pxa2xx_ac97_do_suspend,
 				 pxa2xx_ac97_do_resume, NULL);
 	ret = snd_card_register(card);
 	if (ret == 0) {
-		dev_set_drvdata(dev, card);
+		platform_set_drvdata(dev, card);
 		return 0;
 	}
 
@@ -368,13 +368,13 @@ static int pxa2xx_ac97_probe(struct device *dev)
 	return ret;
 }
 
-static int pxa2xx_ac97_remove(struct device *dev)
+static int pxa2xx_ac97_remove(struct platform_device *dev)
 {
-	snd_card_t *card = dev_get_drvdata(dev);
+	snd_card_t *card = platform_get_drvdata(dev);
 
 	if (card) {
 		snd_card_free(card);
-		dev_set_drvdata(dev, NULL);
+		platform_set_drvdata(dev, NULL);
 		GCR |= GCR_ACLINK_OFF;
 		free_irq(IRQ_AC97, NULL);
 		pxa_set_cken(CKEN2_AC97, 0);
@@ -383,23 +383,24 @@ static int pxa2xx_ac97_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver pxa2xx_ac97_driver = {
-	.name		= "pxa2xx-ac97",
-	.bus		= &platform_bus_type,
+static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_probe,
 	.remove		= pxa2xx_ac97_remove,
 	.suspend	= pxa2xx_ac97_suspend,
 	.resume		= pxa2xx_ac97_resume,
+	.driver		= {
+		.name	= "pxa2xx-ac97",
+	},
 };
 
 static int __init pxa2xx_ac97_init(void)
 {
-	return driver_register(&pxa2xx_ac97_driver);
+	return platform_driver_register(&pxa2xx_ac97_driver);
 }
 
 static void __exit pxa2xx_ac97_exit(void)
 {
-	driver_unregister(&pxa2xx_ac97_driver);
+	platform_driver_unregister(&pxa2xx_ac97_driver);
 }
 
 module_init(pxa2xx_ac97_init);

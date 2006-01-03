@@ -492,11 +492,10 @@ mv64xxx_i2c_unmap_regs(struct mv64xxx_i2c_data *drv_data)
 }
 
 static int __devinit
-mv64xxx_i2c_probe(struct device *dev)
+mv64xxx_i2c_probe(struct platform_device *pd)
 {
-	struct platform_device		*pd = to_platform_device(dev);
 	struct mv64xxx_i2c_data		*drv_data;
-	struct mv64xxx_i2c_pdata	*pdata = dev->platform_data;
+	struct mv64xxx_i2c_pdata	*pdata = pd->dev.platform_data;
 	int	rc;
 
 	if ((pd->id != 0) || !pdata)
@@ -526,18 +525,19 @@ mv64xxx_i2c_probe(struct device *dev)
 	drv_data->adapter.class = I2C_CLASS_HWMON;
 	drv_data->adapter.timeout = pdata->timeout;
 	drv_data->adapter.retries = pdata->retries;
-	dev_set_drvdata(dev, drv_data);
+	platform_set_drvdata(pd, drv_data);
 	i2c_set_adapdata(&drv_data->adapter, drv_data);
 
 	if (request_irq(drv_data->irq, mv64xxx_i2c_intr, 0,
-		MV64XXX_I2C_CTLR_NAME, drv_data)) {
-
-		dev_err(dev, "mv64xxx: Can't register intr handler "
-			"irq: %d\n", drv_data->irq);
+			MV64XXX_I2C_CTLR_NAME, drv_data)) {
+		dev_err(&drv_data->adapter.dev,
+			"mv64xxx: Can't register intr handler irq: %d\n",
+			drv_data->irq);
 		rc = -EINVAL;
 		goto exit_unmap_regs;
 	} else if ((rc = i2c_add_adapter(&drv_data->adapter)) != 0) {
-		dev_err(dev, "mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
+		dev_err(&drv_data->adapter.dev,
+			"mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
 		goto exit_free_irq;
 	}
 
@@ -555,9 +555,9 @@ mv64xxx_i2c_probe(struct device *dev)
 }
 
 static int __devexit
-mv64xxx_i2c_remove(struct device *dev)
+mv64xxx_i2c_remove(struct platform_device *dev)
 {
-	struct mv64xxx_i2c_data		*drv_data = dev_get_drvdata(dev);
+	struct mv64xxx_i2c_data		*drv_data = platform_get_drvdata(dev);
 	int	rc;
 
 	rc = i2c_del_adapter(&drv_data->adapter);
@@ -568,24 +568,25 @@ mv64xxx_i2c_remove(struct device *dev)
 	return rc;
 }
 
-static struct device_driver mv64xxx_i2c_driver = {
-	.owner	= THIS_MODULE,
-	.name	= MV64XXX_I2C_CTLR_NAME,
-	.bus	= &platform_bus_type,
+static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
 	.remove	= mv64xxx_i2c_remove,
+	.driver	= {
+		.owner	= THIS_MODULE,
+		.name	= MV64XXX_I2C_CTLR_NAME,
+	},
 };
 
 static int __init
 mv64xxx_i2c_init(void)
 {
-	return driver_register(&mv64xxx_i2c_driver);
+	return platform_driver_register(&mv64xxx_i2c_driver);
 }
 
 static void __exit
 mv64xxx_i2c_exit(void)
 {
-	driver_unregister(&mv64xxx_i2c_driver);
+	platform_driver_unregister(&mv64xxx_i2c_driver);
 }
 
 module_init(mv64xxx_i2c_init);

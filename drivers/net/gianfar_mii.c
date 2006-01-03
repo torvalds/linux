@@ -5,7 +5,7 @@
  * Provides Bus interface for MIIM regs
  *
  * Author: Andy Fleming
- * Maintainer: Kumar Gala (kumar.gala@freescale.com)
+ * Maintainer: Kumar Gala
  *
  * Copyright (c) 2002-2004 Freescale Semiconductor, Inc.
  *
@@ -133,7 +133,7 @@ int gfar_mdio_probe(struct device *dev)
 	if (NULL == dev)
 		return -EINVAL;
 
-	new_bus = kmalloc(sizeof(struct mii_bus), GFP_KERNEL);
+	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
 
 	if (NULL == new_bus)
 		return -ENOMEM;

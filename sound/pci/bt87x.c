@@ -897,14 +897,13 @@ static void __devexit snd_bt87x_remove(struct pci_dev *pci)
 /* default entries for all Bt87x cards - it's not exported */
 /* driver_data is set to 0 to call detection */
 static struct pci_device_id snd_bt87x_default_ids[] = {
-	BT_DEVICE(878, PCI_ANY_ID, PCI_ANY_ID, 0),
-	BT_DEVICE(879, PCI_ANY_ID, PCI_ANY_ID, 0),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, PCI_ANY_ID, PCI_ANY_ID, 0),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, PCI_ANY_ID, PCI_ANY_ID, 0),
 	{ }
 };
 
 static struct pci_driver driver = {
 	.name = "Bt87x",
-	.owner = THIS_MODULE,
 	.id_table = snd_bt87x_ids,
 	.probe = snd_bt87x_probe,
 	.remove = __devexit_p(snd_bt87x_remove),

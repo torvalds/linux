@@ -241,7 +241,8 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 		if (write) {
 			copy_to_user_page(vma, page, addr,
 					  maddr + offset, buf, bytes);
-			set_page_dirty_lock(page);
+			if (!PageCompound(page))
+				set_page_dirty_lock(page);
 		} else {
 			copy_from_user_page(vma, page, addr,
 					    buf, maddr + offset, bytes);
@@ -470,7 +471,7 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 
 	if (request == PTRACE_ATTACH) {
 		ret = ptrace_attach(child);
-		goto out;
+		goto out_put_task_struct;
 	}
 
 	ret = ptrace_check_attach(child, request == PTRACE_KILL);

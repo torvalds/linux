@@ -1633,17 +1633,15 @@ static struct hc_driver isp116x_hc_driver = {
 
 /*----------------------------------------------------------------*/
 
-static int __init_or_module isp116x_remove(struct device *dev)
+static int __init_or_module isp116x_remove(struct platform_device *pdev)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct isp116x *isp116x;
-	struct platform_device *pdev;
 	struct resource *res;
 
 	if (!hcd)
 		return 0;
 	isp116x = hcd_to_isp116x(hcd);
-	pdev = container_of(dev, struct platform_device, dev);
 	remove_debug_file(isp116x);
 	usb_remove_hcd(hcd);
 
@@ -1660,18 +1658,16 @@ static int __init_or_module isp116x_remove(struct device *dev)
 
 #define resource_len(r) (((r)->end - (r)->start) + 1)
 
-static int __init isp116x_probe(struct device *dev)
+static int __init isp116x_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct isp116x *isp116x;
-	struct platform_device *pdev;
 	struct resource *addr, *data;
 	void __iomem *addr_reg;
 	void __iomem *data_reg;
 	int irq;
 	int ret = 0;
 
-	pdev = container_of(dev, struct platform_device, dev);
 	if (pdev->num_resources < 3) {
 		ret = -ENODEV;
 		goto err1;
@@ -1685,7 +1681,7 @@ static int __init isp116x_probe(struct device *dev)
 		goto err1;
 	}
 
-	if (dev->dma_mask) {
+	if (pdev->dev.dma_mask) {
 		DBG("DMA not supported\n");
 		ret = -EINVAL;
 		goto err1;
@@ -1711,7 +1707,7 @@ static int __init isp116x_probe(struct device *dev)
 	}
 
 	/* allocate and initialize hcd */
-	hcd = usb_create_hcd(&isp116x_hc_driver, dev, dev->bus_id);
+	hcd = usb_create_hcd(&isp116x_hc_driver, &pdev->dev, pdev->dev.bus_id);
 	if (!hcd) {
 		ret = -ENOMEM;
 		goto err5;
@@ -1723,7 +1719,7 @@ static int __init isp116x_probe(struct device *dev)
 	isp116x->addr_reg = addr_reg;
 	spin_lock_init(&isp116x->lock);
 	INIT_LIST_HEAD(&isp116x->async);
-	isp116x->board = dev->platform_data;
+	isp116x->board = pdev->dev.platform_data;
 
 	if (!isp116x->board) {
 		ERR("Platform data structure not initialized\n");
@@ -1764,13 +1760,13 @@ static int __init isp116x_probe(struct device *dev)
 /*
   Suspend of platform device
 */
-static int isp116x_suspend(struct device *dev, pm_message_t state)
+static int isp116x_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int ret = 0;
 
 	VDBG("%s: state %x\n", __func__, state);
 
-	dev->power.power_state = state;
+	dev->dev.power.power_state = state;
 
 	return ret;
 }
@@ -1778,13 +1774,13 @@ static int isp116x_suspend(struct device *dev, pm_message_t state)
 /*
   Resume platform device
 */
-static int isp116x_resume(struct device *dev)
+static int isp116x_resume(struct platform_device *dev)
 {
 	int ret = 0;
 
-	VDBG("%s:  state %x\n", __func__, dev->power.power_state);
+	VDBG("%s:  state %x\n", __func__, dev->dev.power.power_state);
 
-	dev->power.power_state = PMSG_ON;
+	dev->dev.power.power_state = PMSG_ON;
 
 	return ret;
 }
@@ -1796,13 +1792,14 @@ static int isp116x_resume(struct device *dev)
 
 #endif
 
-static struct device_driver isp116x_driver = {
-	.name = (char *)hcd_name,
-	.bus = &platform_bus_type,
+static struct platform_driver isp116x_driver = {
 	.probe = isp116x_probe,
 	.remove = isp116x_remove,
 	.suspend = isp116x_suspend,
 	.resume = isp116x_resume,
+	.driver	= {
+		.name = (char *)hcd_name,
+	},
 };
 
 /*-----------------------------------------------------------------*/
@@ -1813,14 +1810,14 @@ static int __init isp116x_init(void)
 		return -ENODEV;
 
 	INFO("driver %s, %s\n", hcd_name, DRIVER_VERSION);
-	return driver_register(&isp116x_driver);
+	return platform_driver_register(&isp116x_driver);
 }
 
 module_init(isp116x_init);
 
 static void __exit isp116x_cleanup(void)
 {
-	driver_unregister(&isp116x_driver);
+	platform_driver_unregister(&isp116x_driver);
 }
 
 module_exit(isp116x_cleanup);

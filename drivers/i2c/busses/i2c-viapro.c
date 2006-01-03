@@ -440,7 +440,6 @@ static struct pci_device_id vt596_ids[] = {
 MODULE_DEVICE_TABLE(pci, vt596_ids);
 
 static struct pci_driver vt596_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "vt596_smbus",
 	.id_table	= vt596_ids,
 	.probe		= vt596_probe,

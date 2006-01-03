@@ -26,6 +26,7 @@
 #define CN_PROC_H
 
 #include <linux/types.h>
+#include <linux/time.h>
 #include <linux/connector.h>
 
 /*
@@ -65,6 +66,7 @@ struct proc_event {
 		PROC_EVENT_EXIT = 0x80000000
 	} what;
 	__u32 cpu;
+	struct timespec timestamp;
 	union { /* must be last field of proc_event struct */
 		struct {
 			__u32 err;
@@ -86,12 +88,12 @@ struct proc_event {
 			pid_t process_pid;
 			pid_t process_tgid;
 			union {
-				uid_t ruid; /* current->uid */
-				gid_t rgid; /* current->gid */
+				__u32 ruid; /* task uid */
+				__u32 rgid; /* task gid */
 			} r;
 			union {
-				uid_t euid;
-				gid_t egid;
+				__u32 euid;
+				__u32 egid;
 			} e;
 		} id;
 

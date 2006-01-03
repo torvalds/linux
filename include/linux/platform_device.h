@@ -43,4 +43,19 @@ extern int platform_device_add_data(struct platform_device *pdev, void *data, si
 extern int platform_device_add(struct platform_device *pdev);
 extern void platform_device_put(struct platform_device *pdev);
 
+struct platform_driver {
+	int (*probe)(struct platform_device *);
+	int (*remove)(struct platform_device *);
+	void (*shutdown)(struct platform_device *);
+	int (*suspend)(struct platform_device *, pm_message_t state);
+	int (*resume)(struct platform_device *);
+	struct device_driver driver;
+};
+
+extern int platform_driver_register(struct platform_driver *);
+extern void platform_driver_unregister(struct platform_driver *);
+
+#define platform_get_drvdata(_dev)	dev_get_drvdata(&(_dev)->dev)
+#define platform_set_drvdata(_dev,data)	dev_set_drvdata(&(_dev)->dev, (data))
+
 #endif /* _PLATFORM_DEVICE_H_ */

@@ -4162,6 +4162,12 @@ mptscsih_domainValidation(void *arg)
 						}
 					}
 
+					if(mpt_alt_ioc_wait(hd->ioc)!=0) {
+						ddvprintk((MYIOC_s_WARN_FMT "alt_ioc busy!\n",
+						    hd->ioc->name));
+						continue;
+					}
+
 					if (mptscsih_doDv(hd, 0, id) == 1) {
 						/* Untagged device was busy, try again
 						 */
@@ -4172,6 +4178,10 @@ mptscsih_domainValidation(void *arg)
 						 */
 						hd->ioc->spi_data.dvStatus[id] &= ~(MPT_SCSICFG_DV_NOT_DONE | MPT_SCSICFG_DV_PENDING);
 					}
+
+					spin_lock(&hd->ioc->initializing_hba_lock);
+					hd->ioc->initializing_hba_lock_flag=0;
+					spin_unlock(&hd->ioc->initializing_hba_lock);
 
 					if (isPhysDisk) {
 						for (ii=0; ii < MPT_MAX_SCSI_DEVICES; ii++) {

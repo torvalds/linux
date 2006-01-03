@@ -155,6 +155,12 @@ MODULE_LICENSE("GPL");
 #define MEMORY_WAIT_TIME	16
 
 /*
+ * The maximum number of processing loops allowed for each call to the
+ * IRQ handler.  
+ */
+#define MAX_IRQ_LOOPS		8
+
+/*
  * This selects whether TX packets are sent one by one to the SMC91x internal
  * memory and throttled until transmission completes.  This may prevent
  * RX overruns a litle by keeping much of the memory free for RX packets
@@ -684,7 +690,6 @@ static void smc_hardware_send_pkt(unsigned long data)
 
 	/* queue the packet for TX */
 	SMC_SET_MMU_CMD(MC_ENQUEUE);
-	SMC_ACK_INT(IM_TX_EMPTY_INT);
 	smc_special_unlock(&lp->lock);
 
 	dev->trans_start = jiffies;
@@ -1207,6 +1212,7 @@ static void smc_phy_configure(void *data)
 	smc_phy_check_media(dev, 1);
 
 smc_phy_configure_exit:
+	SMC_SELECT_BANK(2);
 	spin_unlock_irq(&lp->lock);
 	lp->work_pending = 0;
 }
@@ -1305,7 +1311,7 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	SMC_SET_INT_MASK(0);
 
 	/* set a timeout value, so I don't stay here forever */
-	timeout = 8;
+	timeout = MAX_IRQ_LOOPS;
 
 	do {
 		status = SMC_GET_INT();
@@ -1372,10 +1378,13 @@ static irqreturn_t smc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* restore register states */
 	SMC_SET_PTR(saved_pointer);
 	SMC_SET_INT_MASK(mask);
-
 	spin_unlock(&lp->lock);
 
-	DBG(3, "%s: Interrupt done (%d loops)\n", dev->name, 8-timeout);
+	if (timeout == MAX_IRQ_LOOPS)
+		PRINTK("%s: spurious interrupt (mask = 0x%02x)\n",
+		       dev->name, mask);
+	DBG(3, "%s: Interrupt done (%d loops)\n",
+	       dev->name, MAX_IRQ_LOOPS - timeout);
 
 	/*
 	 * We return IRQ_HANDLED unconditionally here even if there was
@@ -2183,9 +2192,8 @@ static void smc_release_datacs(struct platform_device *pdev, struct net_device *
  *	0 --> there is a device
  *	anything else, error
  */
-static int smc_drv_probe(struct device *dev)
+static int smc_drv_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct net_device *ndev;
 	struct resource *res;
 	unsigned int __iomem *addr;
@@ -2212,7 +2220,7 @@ static int smc_drv_probe(struct device *dev)
 		goto out_release_io;
 	}
 	SET_MODULE_OWNER(ndev);
-	SET_NETDEV_DEV(ndev, dev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	ndev->dma = (unsigned char)-1;
 	ndev->irq = platform_get_irq(pdev, 0);
@@ -2233,7 +2241,7 @@ static int smc_drv_probe(struct device *dev)
 		goto out_release_attrib;
 	}
 
-	dev_set_drvdata(dev, ndev);
+	platform_set_drvdata(pdev, ndev);
 	ret = smc_probe(ndev, addr);
 	if (ret != 0)
 		goto out_iounmap;
@@ -2249,7 +2257,7 @@ static int smc_drv_probe(struct device *dev)
 	return 0;
 
  out_iounmap:
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 	iounmap(addr);
  out_release_attrib:
 	smc_release_attrib(pdev);
@@ -2263,14 +2271,13 @@ static int smc_drv_probe(struct device *dev)
 	return ret;
 }
 
-static int smc_drv_remove(struct device *dev)
+static int smc_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct smc_local *lp = netdev_priv(ndev);
 	struct resource *res;
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
 
@@ -2295,9 +2302,9 @@ static int smc_drv_remove(struct device *dev)
 	return 0;
 }
 
-static int smc_drv_suspend(struct device *dev, pm_message_t state)
+static int smc_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(dev);
 
 	if (ndev) {
 		if (netif_running(ndev)) {
@@ -2309,14 +2316,13 @@ static int smc_drv_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int smc_drv_resume(struct device *dev)
+static int smc_drv_resume(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(dev);
 
 	if (ndev) {
 		struct smc_local *lp = netdev_priv(ndev);
-		smc_enable_device(pdev);
+		smc_enable_device(dev);
 		if (netif_running(ndev)) {
 			smc_reset(ndev);
 			smc_enable(ndev);
@@ -2328,13 +2334,14 @@ static int smc_drv_resume(struct device *dev)
 	return 0;
 }
 
-static struct device_driver smc_driver = {
-	.name		= CARDNAME,
-	.bus		= &platform_bus_type,
+static struct platform_driver smc_driver = {
 	.probe		= smc_drv_probe,
 	.remove		= smc_drv_remove,
 	.suspend	= smc_drv_suspend,
 	.resume		= smc_drv_resume,
+	.driver		= {
+		.name	= CARDNAME,
+	},
 };
 
 static int __init smc_init(void)
@@ -2348,12 +2355,12 @@ static int __init smc_init(void)
 #endif
 #endif
 
-	return driver_register(&smc_driver);
+	return platform_driver_register(&smc_driver);
 }
 
 static void __exit smc_cleanup(void)
 {
-	driver_unregister(&smc_driver);
+	platform_driver_unregister(&smc_driver);
 }
 
 module_init(smc_init);

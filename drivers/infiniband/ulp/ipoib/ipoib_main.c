@@ -58,6 +58,11 @@ module_param_named(debug_level, ipoib_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 #endif
 
+struct ipoib_path_iter {
+	struct net_device *dev;
+	struct ipoib_path  path;
+};
+
 static const u8 ipv4_bcast_addr[] = {
 	0x00, 0xff, 0xff, 0xff,
 	0xff, 0x12, 0x40, 0x1b,	0x00, 0x00, 0x00, 0x00,
@@ -89,8 +94,10 @@ int ipoib_open(struct net_device *dev)
 	if (ipoib_ib_dev_open(dev))
 		return -EINVAL;
 
-	if (ipoib_ib_dev_up(dev))
+	if (ipoib_ib_dev_up(dev)) {
+		ipoib_ib_dev_stop(dev);
 		return -EINVAL;
+	}
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
@@ -250,6 +257,64 @@ static void path_free(struct net_device *dev, struct ipoib_path *path)
 	kfree(path);
 }
 
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+
+struct ipoib_path_iter *ipoib_path_iter_init(struct net_device *dev)
+{
+	struct ipoib_path_iter *iter;
+
+	iter = kmalloc(sizeof *iter, GFP_KERNEL);
+	if (!iter)
+		return NULL;
+
+	iter->dev = dev;
+	memset(iter->path.pathrec.dgid.raw, 0, 16);
+
+	if (ipoib_path_iter_next(iter)) {
+		kfree(iter);
+		return NULL;
+	}
+
+	return iter;
+}
+
+int ipoib_path_iter_next(struct ipoib_path_iter *iter)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(iter->dev);
+	struct rb_node *n;
+	struct ipoib_path *path;
+	int ret = 1;
+
+	spin_lock_irq(&priv->lock);
+
+	n = rb_first(&priv->path_tree);
+
+	while (n) {
+		path = rb_entry(n, struct ipoib_path, rb_node);
+
+		if (memcmp(iter->path.pathrec.dgid.raw, path->pathrec.dgid.raw,
+			   sizeof (union ib_gid)) < 0) {
+			iter->path = *path;
+			ret = 0;
+			break;
+		}
+
+		n = rb_next(n);
+	}
+
+	spin_unlock_irq(&priv->lock);
+
+	return ret;
+}
+
+void ipoib_path_iter_read(struct ipoib_path_iter *iter,
+			  struct ipoib_path *path)
+{
+	*path = iter->path;
+}
+
+#endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */
+
 void ipoib_flush_paths(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -335,9 +400,9 @@ static void path_rec_completion(int status,
 			while ((skb = __skb_dequeue(&neigh->queue)))
 				__skb_queue_tail(&skqueue, skb);
 		}
-	} else
-		path->query = NULL;
+	}
 
+	path->query = NULL;
 	complete(&path->done);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -365,7 +430,6 @@ static struct ipoib_path *path_rec_create(struct net_device *dev,
 	skb_queue_head_init(&path->queue);
 
 	INIT_LIST_HEAD(&path->neigh_list);
-	init_completion(&path->done);
 
 	memcpy(path->pathrec.dgid.raw, gid->raw, sizeof (union ib_gid));
 	path->pathrec.sgid      = priv->local_gid;
@@ -382,6 +446,8 @@ static int path_rec_start(struct net_device *dev,
 
 	ipoib_dbg(priv, "Start path record lookup for " IPOIB_GID_FMT "\n",
 		  IPOIB_GID_ARG(path->pathrec.dgid));
+
+	init_completion(&path->done);
 
 	path->query_id =
 		ib_sa_path_rec_get(priv->ca, priv->port,
@@ -763,7 +829,7 @@ void ipoib_dev_cleanup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev), *cpriv, *tcpriv;
 
-	ipoib_delete_debug_file(dev);
+	ipoib_delete_debug_files(dev);
 
 	/* Delete any child interfaces first */
 	list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list) {
@@ -972,8 +1038,7 @@ static struct net_device *ipoib_add_port(const char *format,
 		goto register_failed;
 	}
 
-	if (ipoib_create_debug_file(priv->dev))
-		goto debug_failed;
+	ipoib_create_debug_files(priv->dev);
 
 	if (ipoib_add_pkey_attr(priv->dev))
 		goto sysfs_failed;
@@ -987,9 +1052,7 @@ static struct net_device *ipoib_add_port(const char *format,
 	return priv->dev;
 
 sysfs_failed:
-	ipoib_delete_debug_file(priv->dev);
-
-debug_failed:
+	ipoib_delete_debug_files(priv->dev);
 	unregister_netdev(priv->dev);
 
 register_failed:

@@ -595,23 +595,22 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	 */
 	ret |= !valid_user_regs(regs);
 
-	/*
-	 * Block the signal if we were unsuccessful.
-	 */
 	if (ret != 0) {
-		spin_lock_irq(&tsk->sighand->siglock);
-		sigorsets(&tsk->blocked, &tsk->blocked,
-			  &ka->sa.sa_mask);
-		if (!(ka->sa.sa_flags & SA_NODEFER))
-			sigaddset(&tsk->blocked, sig);
-		recalc_sigpending();
-		spin_unlock_irq(&tsk->sighand->siglock);
+		force_sigsegv(sig, tsk);
+		return;
 	}
 
-	if (ret == 0)
-		return;
+	/*
+	 * Block the signal if we were successful.
+	 */
+	spin_lock_irq(&tsk->sighand->siglock);
+	sigorsets(&tsk->blocked, &tsk->blocked,
+		  &ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
+		sigaddset(&tsk->blocked, sig);
+	recalc_sigpending();
+	spin_unlock_irq(&tsk->sighand->siglock);
 
-	force_sigsegv(sig, tsk);
 }
 
 /*

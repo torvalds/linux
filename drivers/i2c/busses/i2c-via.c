@@ -159,7 +159,6 @@ static void __devexit vt586b_remove(struct pci_dev *dev)
 
 
 static struct pci_driver vt586b_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "vt586b_smbus",
 	.id_table	= vt586b_ids,
 	.probe		= vt586b_probe,

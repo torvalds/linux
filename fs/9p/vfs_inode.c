@@ -427,6 +427,8 @@ v9fs_create(struct inode *dir,
 
 	v9fs_mistat2inode(fcall->params.rstat.stat, file_inode, sb);
 	kfree(fcall);
+	fcall = NULL;
+	file_dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(file_dentry, file_inode);
 
 	if (perm & V9FS_DMDIR) {

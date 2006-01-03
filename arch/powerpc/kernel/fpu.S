@@ -41,20 +41,20 @@ _GLOBAL(load_up_fpu)
 #ifndef CONFIG_SMP
 	LOADBASE(r3, last_task_used_math)
 	toreal(r3)
-	LDL	r4,OFF(last_task_used_math)(r3)
-	CMPI	0,r4,0
+	PPC_LL	r4,OFF(last_task_used_math)(r3)
+	PPC_LCMPI	0,r4,0
 	beq	1f
 	toreal(r4)
 	addi	r4,r4,THREAD		/* want last_task_used_math->thread */
 	SAVE_32FPRS(0, r4)
 	mffs	fr0
 	stfd	fr0,THREAD_FPSCR(r4)
-	LDL	r5,PT_REGS(r4)
+	PPC_LL	r5,PT_REGS(r4)
 	toreal(r5)
-	LDL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	PPC_LL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 	li	r10,MSR_FP|MSR_FE0|MSR_FE1
 	andc	r4,r4,r10		/* disable FP for previous task */
-	STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	PPC_STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 1:
 #endif /* CONFIG_SMP */
 	/* enable use of FP after return */
@@ -77,7 +77,7 @@ _GLOBAL(load_up_fpu)
 #ifndef CONFIG_SMP
 	subi	r4,r5,THREAD
 	fromreal(r4)
-	STL	r4,OFF(last_task_used_math)(r3)
+	PPC_STL	r4,OFF(last_task_used_math)(r3)
 #endif /* CONFIG_SMP */
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
@@ -97,24 +97,24 @@ _GLOBAL(giveup_fpu)
 	MTMSRD(r5)			/* enable use of fpu now */
 	SYNC_601
 	isync
-	CMPI	0,r3,0
+	PPC_LCMPI	0,r3,0
 	beqlr-				/* if no previous owner, done */
 	addi	r3,r3,THREAD	        /* want THREAD of task */
-	LDL	r5,PT_REGS(r3)
-	CMPI	0,r5,0
+	PPC_LL	r5,PT_REGS(r3)
+	PPC_LCMPI	0,r5,0
 	SAVE_32FPRS(0, r3)
 	mffs	fr0
 	stfd	fr0,THREAD_FPSCR(r3)
 	beq	1f
-	LDL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	PPC_LL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 	li	r3,MSR_FP|MSR_FE0|MSR_FE1
 	andc	r4,r4,r3		/* disable FP for previous task */
-	STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+	PPC_STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 1:
 #ifndef CONFIG_SMP
 	li	r5,0
 	LOADBASE(r4,last_task_used_math)
-	STL	r5,OFF(last_task_used_math)(r4)
+	PPC_STL	r5,OFF(last_task_used_math)(r4)
 #endif /* CONFIG_SMP */
 	blr
 

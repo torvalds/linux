@@ -90,6 +90,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 	memcpy(&props->node_guid,      out_mad->data + 12, 8);
 
 	props->max_mr_size         = ~0ull;
+	props->page_size_cap       = mdev->limits.page_size_cap;
 	props->max_qp              = mdev->limits.num_qps - mdev->limits.reserved_qps;
 	props->max_qp_wr           = mdev->limits.max_wqes;
 	props->max_sge             = mdev->limits.max_sg;
@@ -615,11 +616,11 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		return ERR_PTR(err);
 	}
 
-	init_attr->cap.max_inline_data = 0;
 	init_attr->cap.max_send_wr     = qp->sq.max;
 	init_attr->cap.max_recv_wr     = qp->rq.max;
 	init_attr->cap.max_send_sge    = qp->sq.max_gs;
 	init_attr->cap.max_recv_sge    = qp->rq.max_gs;
+	init_attr->cap.max_inline_data = qp->max_inline_data;
 
 	return &qp->ibqp;
 }

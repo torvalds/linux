@@ -344,9 +344,10 @@ module_param_array(dma, int, NULL, 0);
 
 static struct platform_device *proteon_dev[ISATR_MAX_ADAPTERS];
 
-static struct device_driver proteon_driver = {
-	.name		= "proteon",
-	.bus		= &platform_bus_type,
+static struct platform_driver proteon_driver = {
+	.driver		= {
+		.name	= "proteon",
+	},
 };
 
 static int __init proteon_init(void)
@@ -355,7 +356,7 @@ static int __init proteon_init(void)
 	struct platform_device *pdev;
 	int i, num = 0, err = 0;
 
-	err = driver_register(&proteon_driver);
+	err = platform_driver_register(&proteon_driver);
 	if (err)
 		return err;
 
@@ -372,7 +373,7 @@ static int __init proteon_init(void)
 		err = setup_card(dev, &pdev->dev);
 		if (!err) {
 			proteon_dev[i] = pdev;
-			dev_set_drvdata(&pdev->dev, dev);
+			platform_set_drvdata(pdev, dev);
 			++num;
 		} else {
 			platform_device_unregister(pdev);
@@ -399,17 +400,17 @@ static void __exit proteon_cleanup(void)
 		
 		if (!pdev)
 			continue;
-		dev = dev_get_drvdata(&pdev->dev);
+		dev = platform_get_drvdata(pdev);
 		unregister_netdev(dev);
 		release_region(dev->base_addr, PROTEON_IO_EXTENT);
 		free_irq(dev->irq, dev);
 		free_dma(dev->dma);
 		tmsdev_term(dev);
 		free_netdev(dev);
-		dev_set_drvdata(&pdev->dev, NULL);
+		platform_set_drvdata(pdev, NULL);
 		platform_device_unregister(pdev);
 	}
-	driver_unregister(&proteon_driver);
+	platform_driver_unregister(&proteon_driver);
 }
 
 module_init(proteon_init);

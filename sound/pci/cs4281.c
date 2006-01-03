@@ -2106,7 +2106,6 @@ static int cs4281_resume(snd_card_t *card)
 
 static struct pci_driver driver = {
 	.name = "CS4281",
-	.owner = THIS_MODULE,
 	.id_table = snd_cs4281_ids,
 	.probe = snd_cs4281_probe,
 	.remove = __devexit_p(snd_cs4281_remove),

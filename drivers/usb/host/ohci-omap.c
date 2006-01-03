@@ -433,24 +433,22 @@ static const struct hc_driver ohci_omap_hc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int ohci_hcd_omap_drv_probe(struct device *dev)
+static int ohci_hcd_omap_drv_probe(struct platform_device *dev)
 {
-	return usb_hcd_omap_probe(&ohci_omap_hc_driver,
-				to_platform_device(dev));
+	return usb_hcd_omap_probe(&ohci_omap_hc_driver, dev);
 }
 
-static int ohci_hcd_omap_drv_remove(struct device *dev)
+static int ohci_hcd_omap_drv_remove(struct platform_device *dev)
 {
-	struct platform_device	*pdev = to_platform_device(dev);
-	struct usb_hcd		*hcd = dev_get_drvdata(dev);
+	struct usb_hcd		*hcd = platform_get_drvdata(dev);
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 
-	usb_hcd_omap_remove(hcd, pdev);
+	usb_hcd_omap_remove(hcd, dev);
 	if (ohci->transceiver) {
 		(void) otg_set_host(ohci->transceiver, 0);
 		put_device(ohci->transceiver->dev);
 	}
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	return 0;
 }
@@ -459,9 +457,9 @@ static int ohci_hcd_omap_drv_remove(struct device *dev)
 
 #ifdef	CONFIG_PM
 
-static int ohci_omap_suspend(struct device *dev, pm_message_t message)
+static int ohci_omap_suspend(struct platform_device *dev, pm_message_t message)
 {
-	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
+	struct ohci_hcd	*ohci = hcd_to_ohci(platform_get_drvdata(dev));
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
@@ -473,9 +471,9 @@ static int ohci_omap_suspend(struct device *dev, pm_message_t message)
 	return 0;
 }
 
-static int ohci_omap_resume(struct device *dev)
+static int ohci_omap_resume(struct platform_device *dev)
 {
-	struct ohci_hcd	*ohci = hcd_to_ohci(dev_get_drvdata(dev));
+	struct ohci_hcd	*ohci = hcd_to_ohci(platform_get_drvdata(dev));
 
 	if (time_before(jiffies, ohci->next_statechange))
 		msleep(5);
@@ -494,16 +492,17 @@ static int ohci_omap_resume(struct device *dev)
 /*
  * Driver definition to register with the OMAP bus
  */
-static struct device_driver ohci_hcd_omap_driver = {
-	.name		= "ohci",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver ohci_hcd_omap_driver = {
 	.probe		= ohci_hcd_omap_drv_probe,
 	.remove		= ohci_hcd_omap_drv_remove,
 #ifdef	CONFIG_PM
 	.suspend	= ohci_omap_suspend,
 	.resume		= ohci_omap_resume,
 #endif
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "ohci",
+	},
 };
 
 static int __init ohci_hcd_omap_init (void)
@@ -515,12 +514,12 @@ static int __init ohci_hcd_omap_init (void)
 	pr_debug("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
 
-	return driver_register(&ohci_hcd_omap_driver);
+	return platform_driver_register(&ohci_hcd_omap_driver);
 }
 
 static void __exit ohci_hcd_omap_cleanup (void)
 {
-	driver_unregister(&ohci_hcd_omap_driver);
+	platform_driver_unregister(&ohci_hcd_omap_driver);
 }
 
 module_init (ohci_hcd_omap_init);

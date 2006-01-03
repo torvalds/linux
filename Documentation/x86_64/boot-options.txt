@@ -7,10 +7,12 @@ Machine check
 
    mce=off disable machine check
    mce=bootlog Enable logging of machine checks left over from booting.
-               Disabled by default because some BIOS leave bogus ones.
+               Disabled by default on AMD because some BIOS leave bogus ones.
                If your BIOS doesn't do that it's a good idea to enable though
                to make sure you log even machine check events that result
-               in a reboot.
+               in a reboot. On Intel systems it is enabled by default.
+   mce=nobootlog
+		Disable boot machine check logging.
    mce=tolerancelevel (number)
 		0: always panic, 1: panic if deadlock possible,
 		2: try to avoid panic, 3: never panic or exit (for testing)
@@ -122,6 +124,9 @@ SMP
 
   cpumask=MASK   only use cpus with bits set in mask
 
+  additional_cpus=NUM Allow NUM more CPUs for hotplug
+		 (defaults are specified by the BIOS or half the available CPUs)
+
 NUMA
 
   numa=off	Only set up a single NUMA node spanning all memory.
@@ -187,6 +192,9 @@ Debugging
 	     Useful together with panic=30 to trigger a reboot.
 
   kstack=N   Print that many words from the kernel stack in oops dumps.
+
+  pagefaulttrace Dump all page faults. Only useful for extreme debugging
+		and will create a lot of output.
 
 Misc
 

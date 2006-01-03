@@ -41,8 +41,6 @@
 
 /*****************************************************************************/
 
-#define DEBUG
-
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <linux/parport.h>

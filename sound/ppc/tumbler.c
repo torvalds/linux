@@ -1194,8 +1194,14 @@ static void tumbler_resume(pmac_t *chip)
 	tumbler_set_master_volume(mix);
 	if (chip->update_automute)
 		chip->update_automute(chip, 0);
-	if (mix->headphone_irq >= 0)
+	if (mix->headphone_irq >= 0) {
+		unsigned char val;
+
 		enable_irq(mix->headphone_irq);
+		/* activate headphone status interrupts */
+		val = do_gpio_read(&mix->hp_detect);
+		do_gpio_write(&mix->hp_detect, val | 0x80);
+	}
 	if (mix->lineout_irq >= 0)
 		enable_irq(mix->lineout_irq);
 }

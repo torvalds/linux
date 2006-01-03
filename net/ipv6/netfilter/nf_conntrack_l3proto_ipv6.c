@@ -339,8 +339,8 @@ extern unsigned long nf_ct_icmpv6_timeout;
 
 /* From nf_conntrack_frag6.c */
 extern unsigned long nf_ct_frag6_timeout;
-extern unsigned long nf_ct_frag6_low_thresh;
-extern unsigned long nf_ct_frag6_high_thresh;
+extern unsigned int nf_ct_frag6_low_thresh;
+extern unsigned int nf_ct_frag6_high_thresh;
 
 static struct ctl_table_header *nf_ct_ipv6_sysctl_header;
 
@@ -367,7 +367,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.data		= &nf_ct_frag6_low_thresh,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= &proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_NF_CONNTRACK_FRAG6_HIGH_THRESH,
@@ -375,7 +375,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.data		= &nf_ct_frag6_high_thresh,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= &proc_dointvec,
 	},
         { .ctl_name = 0 }
 };

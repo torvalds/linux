@@ -3,7 +3,7 @@
  *
  * MPC85XX ADS common board definitions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2004 Freescale Semiconductor Inc.
  *
@@ -24,6 +24,8 @@
 #define BOARD_CCSRBAR		((uint)0xe0000000)
 #define BCSR_ADDR		((uint)0xf8000000)
 #define BCSR_SIZE		((uint)(32 * 1024))
+
+struct seq_file;
 
 extern int mpc85xx_ads_show_cpuinfo(struct seq_file *m);
 extern void mpc85xx_ads_init_IRQ(void) __init;

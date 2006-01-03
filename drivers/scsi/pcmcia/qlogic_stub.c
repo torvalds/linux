@@ -72,7 +72,7 @@ static char *version = "qlogic_cs.c 1.79-ac 2002/10/26 (David Hinds)";
 #define DEBUG(n, args...)
 #endif
 
-static Scsi_Host_Template qlogicfas_driver_template = {
+static struct scsi_host_template qlogicfas_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= qlogic_name,
 	.proc_name		= qlogic_name,
@@ -108,7 +108,7 @@ static dev_link_t *dev_list = NULL;
 
 static dev_info_t dev_info = "qlogic_cs";
 
-static struct Scsi_Host *qlogic_detect(Scsi_Host_Template *host,
+static struct Scsi_Host *qlogic_detect(struct scsi_host_template *host,
 				dev_link_t *link, int qbase, int qlirq)
 {
 	int qltyp;		/* type of chip */

@@ -11,7 +11,6 @@
 #include <linux/cuda.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/sysrq.h>
 #include <linux/bitops.h>
 #include <asm/xmon.h>
 #include <asm/prom.h>
@@ -22,26 +21,17 @@
 #include <asm/processor.h>
 #include <asm/delay.h>
 #include <asm/btext.h>
+#include <asm/time.h>
+#include "nonstdio.h"
 
 static volatile unsigned char __iomem *sccc, *sccd;
 unsigned int TXRDY, RXRDY, DLAB;
-static int xmon_expect(const char *str, unsigned int timeout);
 
 static int use_serial;
 static int use_screen;
 static int via_modem;
 static int xmon_use_sccb;
 static struct device_node *channel_node;
-
-#define TB_SPEED	25000000
-
-static inline unsigned int readtb(void)
-{
-	unsigned int ret;
-
-	asm volatile("mftb %0" : "=r" (ret) :);
-	return ret;
-}
 
 void buf_access(void)
 {
@@ -91,23 +81,7 @@ static unsigned long chrp_find_phys_io_base(void)
 }
 #endif /* CONFIG_PPC_CHRP */
 
-#ifdef CONFIG_MAGIC_SYSRQ
-static void sysrq_handle_xmon(int key, struct pt_regs *regs,
-			      struct tty_struct *tty)
-{
-	xmon(regs);
-}
-
-static struct sysrq_key_op sysrq_xmon_op =
-{
-	.handler =	sysrq_handle_xmon,
-	.help_msg =	"Xmon",
-	.action_msg =	"Entering xmon",
-};
-#endif
-
-void
-xmon_map_scc(void)
+void xmon_map_scc(void)
 {
 #ifdef CONFIG_PPC_MULTIPLATFORM
 	volatile unsigned char __iomem *base;
@@ -217,8 +191,6 @@ xmon_map_scc(void)
 	RXRDY = 1;
 	DLAB = 0x80;
 #endif /* platform */
-
-	register_sysrq_key('x', &sysrq_xmon_op);
 }
 
 static int scc_initialized = 0;
@@ -238,8 +210,7 @@ static inline void do_poll_adb(void)
 #endif /* CONFIG_ADB_CUDA */
 }
 
-int
-xmon_write(void *handle, void *ptr, int nb)
+int xmon_write(void *ptr, int nb)
 {
 	char *p = ptr;
 	int i, c, ct;
@@ -311,8 +282,7 @@ static unsigned char xmon_shift_keytab[128] =
 	"\0.\0*\0+\0\0\0\0\0/\r\0-\0"			/* 0x40 - 0x4f */
 	"\0\0000123456789\0\0\0";			/* 0x50 - 0x5f */
 
-static int
-xmon_get_adb_key(void)
+static int xmon_get_adb_key(void)
 {
 	int k, t, on;
 
@@ -350,32 +320,21 @@ xmon_get_adb_key(void)
 }
 #endif /* CONFIG_BOOTX_TEXT */
 
-int
-xmon_read(void *handle, void *ptr, int nb)
+int xmon_readchar(void)
 {
-    char *p = ptr;
-    int i;
-
 #ifdef CONFIG_BOOTX_TEXT
-    if (use_screen) {
-	for (i = 0; i < nb; ++i)
-	    *p++ = xmon_get_adb_key();
-	return i;
-    }
+	if (use_screen)
+		return xmon_get_adb_key();
 #endif
-    if (!scc_initialized)
-	xmon_init_scc();
-    for (i = 0; i < nb; ++i) {
+	if (!scc_initialized)
+		xmon_init_scc();
 	while ((*sccc & RXRDY) == 0)
-	    do_poll_adb();
+		do_poll_adb();
 	buf_access();
-	*p++ = *sccd;
-    }
-    return i;
+	return *sccd;
 }
 
-int
-xmon_read_poll(void)
+int xmon_read_poll(void)
 {
 	if ((*sccc & RXRDY) == 0) {
 		do_poll_adb();
@@ -395,8 +354,7 @@ static unsigned char scc_inittab[] = {
     3,  0xc1,		/* rx enable, 8 bits */
 };
 
-void
-xmon_init_scc(void)
+void xmon_init_scc(void)
 {
 	if ( _machine == _MACH_chrp )
 	{
@@ -410,6 +368,7 @@ xmon_init_scc(void)
 	else if ( _machine == _MACH_Pmac )
 	{
 		int i, x;
+		unsigned long timeout;
 
 		if (channel_node != 0)
 			pmac_call_feature(
@@ -424,8 +383,12 @@ xmon_init_scc(void)
 				PMAC_FTR_MODEM_ENABLE,
 				channel_node, 0, 1);
 			printk(KERN_INFO "Modem powered up by debugger !\n");
-			t0 = readtb();
-			while (readtb() - t0 < 3*TB_SPEED)
+			t0 = get_tbl();
+			timeout = 3 * tb_ticks_per_sec;
+			if (timeout == 0)
+				/* assume 25MHz if tb_ticks_per_sec not set */
+				timeout = 75000000;
+			while (get_tbl() - t0 < timeout)
 				eieio();
 		}
 		/* use the B channel if requested */
@@ -447,164 +410,19 @@ xmon_init_scc(void)
 	scc_initialized = 1;
 	if (via_modem) {
 		for (;;) {
-			xmon_write(NULL, "ATE1V1\r", 7);
+			xmon_write("ATE1V1\r", 7);
 			if (xmon_expect("OK", 5)) {
-				xmon_write(NULL, "ATA\r", 4);
+				xmon_write("ATA\r", 4);
 				if (xmon_expect("CONNECT", 40))
 					break;
 			}
-			xmon_write(NULL, "+++", 3);
+			xmon_write("+++", 3);
 			xmon_expect("OK", 3);
 		}
 	}
 }
 
-void *xmon_stdin;
-void *xmon_stdout;
-void *xmon_stderr;
-
-int xmon_putc(int c, void *f)
-{
-    char ch = c;
-
-    if (c == '\n')
-	xmon_putc('\r', f);
-    return xmon_write(f, &ch, 1) == 1? c: -1;
-}
-
-int xmon_putchar(int c)
-{
-	return xmon_putc(c, xmon_stdout);
-}
-
-int xmon_fputs(char *str, void *f)
-{
-	int n = strlen(str);
-
-	return xmon_write(f, str, n) == n? 0: -1;
-}
-
-int
-xmon_readchar(void)
-{
-	char ch;
-
-	for (;;) {
-		switch (xmon_read(xmon_stdin, &ch, 1)) {
-		case 1:
-			return ch;
-		case -1:
-			xmon_printf("read(stdin) returned -1\r\n", 0, 0);
-			return -1;
-		}
-	}
-}
-
-static char line[256];
-static char *lineptr;
-static int lineleft;
-
-int xmon_expect(const char *str, unsigned int timeout)
-{
-	int c;
-	unsigned int t0;
-
-	timeout *= TB_SPEED;
-	t0 = readtb();
-	do {
-		lineptr = line;
-		for (;;) {
-			c = xmon_read_poll();
-			if (c == -1) {
-				if (readtb() - t0 > timeout)
-					return 0;
-				continue;
-			}
-			if (c == '\n')
-				break;
-			if (c != '\r' && lineptr < &line[sizeof(line) - 1])
-				*lineptr++ = c;
-		}
-		*lineptr = 0;
-	} while (strstr(line, str) == NULL);
-	return 1;
-}
-
-int
-xmon_getchar(void)
-{
-    int c;
-
-    if (lineleft == 0) {
-	lineptr = line;
-	for (;;) {
-	    c = xmon_readchar();
-	    if (c == -1 || c == 4)
-		break;
-	    if (c == '\r' || c == '\n') {
-		*lineptr++ = '\n';
-		xmon_putchar('\n');
-		break;
-	    }
-	    switch (c) {
-	    case 0177:
-	    case '\b':
-		if (lineptr > line) {
-		    xmon_putchar('\b');
-		    xmon_putchar(' ');
-		    xmon_putchar('\b');
-		    --lineptr;
-		}
-		break;
-	    case 'U' & 0x1F:
-		while (lineptr > line) {
-		    xmon_putchar('\b');
-		    xmon_putchar(' ');
-		    xmon_putchar('\b');
-		    --lineptr;
-		}
-		break;
-	    default:
-		if (lineptr >= &line[sizeof(line) - 1])
-		    xmon_putchar('\a');
-		else {
-		    xmon_putchar(c);
-		    *lineptr++ = c;
-		}
-	    }
-	}
-	lineleft = lineptr - line;
-	lineptr = line;
-    }
-    if (lineleft == 0)
-	return -1;
-    --lineleft;
-    return *lineptr++;
-}
-
-char *
-xmon_fgets(char *str, int nb, void *f)
-{
-    char *p;
-    int c;
-
-    for (p = str; p < str + nb - 1; ) {
-	c = xmon_getchar();
-	if (c == -1) {
-	    if (p == str)
-		return NULL;
-	    break;
-	}
-	*p++ = c;
-	if (c == '\n')
-	    break;
-    }
-    *p = 0;
-    return str;
-}
-
-void
-xmon_enter(void)
+void xmon_enter(void)
 {
 #ifdef CONFIG_ADB_PMU
 	if (_machine == _MACH_Pmac) {
@@ -613,8 +431,7 @@ xmon_enter(void)
 #endif
 }
 
-void
-xmon_leave(void)
+void xmon_leave(void)
 {
 #ifdef CONFIG_ADB_PMU
 	if (_machine == _MACH_Pmac) {

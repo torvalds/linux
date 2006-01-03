@@ -693,8 +693,8 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 	unsigned int cpu = sys_dev->id;
 	unsigned long flags;
 	struct cpufreq_policy *data;
-	struct sys_device *cpu_sys_dev;
 #ifdef CONFIG_SMP
+	struct sys_device *cpu_sys_dev;
 	unsigned int j;
 #endif
 
@@ -1113,21 +1113,13 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 {
 	int retval = -EINVAL;
 
-	/*
-	 * If we are already in context of hotplug thread, we dont need to
-	 * acquire the hotplug lock. Otherwise acquire cpucontrol to prevent
-	 * hotplug from removing this cpu that we are working on.
-	 */
-	if (!current_in_cpu_hotplug())
-		lock_cpu_hotplug();
-
+	lock_cpu_hotplug();
 	dprintk("target for CPU %u: %u kHz, relation %u\n", policy->cpu,
 		target_freq, relation);
 	if (cpu_online(policy->cpu) && cpufreq_driver->target)
 		retval = cpufreq_driver->target(policy, target_freq, relation);
 
-	if (!current_in_cpu_hotplug())
-		unlock_cpu_hotplug();
+	unlock_cpu_hotplug();
 
 	return retval;
 }

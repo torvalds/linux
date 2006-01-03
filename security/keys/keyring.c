@@ -526,7 +526,7 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 			    (!key->type->match ||
 			     key->type->match(key, description)) &&
 			    key_permission(make_key_ref(key, possessed),
-					   perm) < 0 &&
+					   perm) == 0 &&
 			    !test_bit(KEY_FLAG_REVOKED, &key->flags)
 			    )
 				goto found;

@@ -3,7 +3,7 @@
 #
 
 # Common support
-obj-y := io.o id.o irq.o time.o serial.o devices.o
+obj-y := io.o id.o clock.o irq.o time.o mux.o serial.o devices.o
 led-y := leds.o
 
 # Specific board support
@@ -15,8 +15,9 @@ obj-$(CONFIG_MACH_OMAP_OSK)		+= board-osk.o
 obj-$(CONFIG_MACH_OMAP_H3)		+= board-h3.o
 obj-$(CONFIG_MACH_VOICEBLUE)		+= board-voiceblue.o
 obj-$(CONFIG_MACH_NETSTAR)		+= board-netstar.o
+obj-$(CONFIG_MACH_OMAP_PALMTE)		+= board-palmte.o
 
-ifeq ($(CONFIG_ARCH_OMAP1510),y)
+ifeq ($(CONFIG_ARCH_OMAP15XX),y)
 # Innovator-1510 FPGA
 obj-$(CONFIG_MACH_OMAP_INNOVATOR)	+= fpga.o
 endif

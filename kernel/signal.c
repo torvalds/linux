@@ -513,16 +513,7 @@ static int __dequeue_signal(struct sigpending *pending, sigset_t *mask,
 {
 	int sig = 0;
 
-	/* SIGKILL must have priority, otherwise it is quite easy
-	 * to create an unkillable process, sending sig < SIGKILL
-	 * to self */
-	if (unlikely(sigismember(&pending->signal, SIGKILL))) {
-		if (!sigismember(mask, SIGKILL))
-			sig = SIGKILL;
-	}
-
-	if (likely(!sig))
-		sig = next_signal(pending, mask);
+	sig = next_signal(pending, mask);
 	if (sig) {
 		if (current->notifier) {
 			if (sigismember(current->notifier_mask, sig)) {
@@ -1499,7 +1490,7 @@ void do_notify_parent(struct task_struct *tsk, int sig)
 
 	psig = tsk->parent->sighand;
 	spin_lock_irqsave(&psig->siglock, flags);
-	if (sig == SIGCHLD &&
+	if (!tsk->ptrace && sig == SIGCHLD &&
 	    (psig->action[SIGCHLD-1].sa.sa_handler == SIG_IGN ||
 	     (psig->action[SIGCHLD-1].sa.sa_flags & SA_NOCLDWAIT))) {
 		/*

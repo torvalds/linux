@@ -436,13 +436,13 @@ xpc_check_remote_hb(void)
 		}
 
 		dev_dbg(xpc_part, "partid = %d, heartbeat = %ld, last_heartbeat"
-			" = %ld, kdb_status = %ld, HB_mask = 0x%lx\n", partid,
-			remote_vars->heartbeat, part->last_heartbeat,
-			remote_vars->kdb_status,
+			" = %ld, heartbeat_offline = %ld, HB_mask = 0x%lx\n",
+			partid, remote_vars->heartbeat, part->last_heartbeat,
+			remote_vars->heartbeat_offline,
 			remote_vars->heartbeating_to_mask);
 
 		if (((remote_vars->heartbeat == part->last_heartbeat) &&
-			(remote_vars->kdb_status == 0)) ||
+			(remote_vars->heartbeat_offline == 0)) ||
 			     !xpc_hb_allowed(sn_partition_id, remote_vars)) {
 
 			XPC_DEACTIVATE_PARTITION(part, xpcNoHeartbeat);

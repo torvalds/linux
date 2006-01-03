@@ -2478,7 +2478,6 @@ static void __devexit snd_via82xx_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "VIA 82xx Audio",
-	.owner = THIS_MODULE,
 	.id_table = snd_via82xx_ids,
 	.probe = snd_via82xx_probe,
 	.remove = __devexit_p(snd_via82xx_remove),

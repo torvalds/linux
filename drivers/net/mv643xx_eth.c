@@ -1387,9 +1387,8 @@ static void mv643xx_netpoll(struct net_device *netdev)
  * Input :	struct device *
  * Output :	-ENOMEM if failed , 0 if success
  */
-static int mv643xx_eth_probe(struct device *ddev)
+static int mv643xx_eth_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(ddev);
 	struct mv643xx_eth_platform_data *pd;
 	int port_num = pdev->id;
 	struct mv643xx_private *mp;
@@ -1402,7 +1401,7 @@ static int mv643xx_eth_probe(struct device *ddev)
 	if (!dev)
 		return -ENOMEM;
 
-	dev_set_drvdata(ddev, dev);
+	platform_set_drvdata(pdev, dev);
 
 	mp = netdev_priv(dev);
 
@@ -1546,21 +1545,20 @@ out:
 	return err;
 }
 
-static int mv643xx_eth_remove(struct device *ddev)
+static int mv643xx_eth_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(ddev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_netdev(dev);
 	flush_scheduled_work();
 
 	free_netdev(dev);
-	dev_set_drvdata(ddev, NULL);
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
-static int mv643xx_eth_shared_probe(struct device *ddev)
+static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(ddev);
 	struct resource *res;
 
 	printk(KERN_NOTICE "MV-643xx 10/100/1000 Ethernet Driver\n");
@@ -1578,7 +1576,7 @@ static int mv643xx_eth_shared_probe(struct device *ddev)
 
 }
 
-static int mv643xx_eth_shared_remove(struct device *ddev)
+static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
 	iounmap(mv643xx_eth_shared_base);
 	mv643xx_eth_shared_base = NULL;
@@ -1586,18 +1584,20 @@ static int mv643xx_eth_shared_remove(struct device *ddev)
 	return 0;
 }
 
-static struct device_driver mv643xx_eth_driver = {
-	.name = MV643XX_ETH_NAME,
-	.bus = &platform_bus_type,
+static struct platform_driver mv643xx_eth_driver = {
 	.probe = mv643xx_eth_probe,
 	.remove = mv643xx_eth_remove,
+	.driver = {
+		.name = MV643XX_ETH_NAME,
+	},
 };
 
-static struct device_driver mv643xx_eth_shared_driver = {
-	.name = MV643XX_ETH_SHARED_NAME,
-	.bus = &platform_bus_type,
+static struct platform_driver mv643xx_eth_shared_driver = {
 	.probe = mv643xx_eth_shared_probe,
 	.remove = mv643xx_eth_shared_remove,
+	.driver = {
+		.name = MV643XX_ETH_SHARED_NAME,
+	},
 };
 
 /*
@@ -1613,11 +1613,11 @@ static int __init mv643xx_init_module(void)
 {
 	int rc;
 
-	rc = driver_register(&mv643xx_eth_shared_driver);
+	rc = platform_driver_register(&mv643xx_eth_shared_driver);
 	if (!rc) {
-		rc = driver_register(&mv643xx_eth_driver);
+		rc = platform_driver_register(&mv643xx_eth_driver);
 		if (rc)
-			driver_unregister(&mv643xx_eth_shared_driver);
+			platform_driver_unregister(&mv643xx_eth_shared_driver);
 	}
 	return rc;
 }
@@ -1633,8 +1633,8 @@ static int __init mv643xx_init_module(void)
  */
 static void __exit mv643xx_cleanup_module(void)
 {
-	driver_unregister(&mv643xx_eth_driver);
-	driver_unregister(&mv643xx_eth_shared_driver);
+	platform_driver_unregister(&mv643xx_eth_driver);
+	platform_driver_unregister(&mv643xx_eth_shared_driver);
 }
 
 module_init(mv643xx_init_module);

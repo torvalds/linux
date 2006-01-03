@@ -42,7 +42,7 @@ int nvidia_probe_i2c_connector(struct fb_info *info, int conn,
 #define nvidia_probe_i2c_connector(p, c, edid) (-1)
 #endif
 
-#ifdef CONFIG_FB_OF
+#ifdef CONFIG_PPC_OF
 int nvidia_probe_of_connector(struct fb_info *info, int conn,
 			      u8 ** out_edid);
 #else

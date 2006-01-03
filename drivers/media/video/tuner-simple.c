@@ -233,7 +233,7 @@ static struct tunertype tuners[] = {
 	{ "Ymec TVision TVF-5533MF", Philips, NTSC,
 	  16*160.00,16*454.00,0x01,0x02,0x04,0x8e,732},
 
-	/* 60-68 */
+	/* 60-69 */
 	{ "Thomson DDT 7611 (ATSC/NTSC)", THOMSON, ATSC,
 	  16*157.25,16*454.00,0x39,0x3a,0x3c,0x8e,732},
 	{ "Tena TNF9533-D/IF/TNF9533-B/DF", Philips, PAL,
@@ -252,6 +252,8 @@ static struct tunertype tuners[] = {
 	  16*160.00,16*442.00,0xa1,0xa2,0xa4,0xc8,623 },
 	{ "Philips TUV1236D ATSC/NTSC dual in", Philips, ATSC,
 	  16*157.25,16*454.00,0x01,0x02,0x04,0xce,732 },
+	{ "Tena TNF 5335 MF", Philips, NTSC,
+	  16*157.25,16*454.00,0x01,0x02,0x04,0x8e,732 },
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);

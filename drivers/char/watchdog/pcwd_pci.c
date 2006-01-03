@@ -755,7 +755,6 @@ static struct pci_device_id pcipcwd_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, pcipcwd_pci_tbl);
 
 static struct pci_driver pcipcwd_driver = {
-	.owner		= THIS_MODULE,
 	.name		= WATCHDOG_NAME,
 	.id_table	= pcipcwd_pci_tbl,
 	.probe		= pcipcwd_card_init,

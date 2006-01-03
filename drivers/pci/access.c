@@ -2,6 +2,8 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 
+#include "pci.h"
+
 /*
  * This interrupt-safe spinlock protects all accesses to PCI
  * configuration space.

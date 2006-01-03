@@ -44,5 +44,6 @@ extern unsigned int processor_id;
 #include "ixdp425.h"
 #include "coyote.h"
 #include "prpmc1100.h"
+#include "nslu2.h"
 
 #endif  /* _ASM_ARCH_HARDWARE_H */

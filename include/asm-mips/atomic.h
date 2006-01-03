@@ -231,11 +231,12 @@ static __inline__ int atomic_sub_return(int i, atomic_t * v)
 }
 
 /*
- * atomic_sub_if_positive - add integer to atomic variable
+ * atomic_sub_if_positive - conditionally subtract integer from atomic variable
+ * @i: integer value to subtract
  * @v: pointer of type atomic_t
  *
- * Atomically test @v and decrement if it is greater than 0.
- * The function returns the old value of @v minus 1.
+ * Atomically test @v and subtract @i if @v is greater or equal than @i.
+ * The function returns the old value of @v minus @i.
  */
 static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 {
@@ -286,6 +287,27 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 
 	return result;
 }
+
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+
+/**
+ * atomic_add_unless - add unless the number is a given value
+ * @v: pointer of type atomic_t
+ * @a: the amount to add to v...
+ * @u: ...unless v is equal to u.
+ *
+ * Atomically adds @a to @v, so long as it was not @u.
+ * Returns non-zero if @v was not @u, and zero otherwise.
+ */
+#define atomic_add_unless(v, a, u)				\
+({								\
+	int c, old;						\
+	c = atomic_read(v);					\
+	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c) \
+		c = old;					\
+	c != (u);						\
+})
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic_inc_return(v) atomic_add_return(1,(v))
@@ -556,11 +578,12 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 }
 
 /*
- * atomic64_sub_if_positive - add integer to atomic variable
+ * atomic64_sub_if_positive - conditionally subtract integer from atomic variable
+ * @i: integer value to subtract
  * @v: pointer of type atomic64_t
  *
- * Atomically test @v and decrement if it is greater than 0.
- * The function returns the old value of @v minus 1.
+ * Atomically test @v and subtract @i if @v is greater or equal than @i.
+ * The function returns the old value of @v minus @i.
  */
 static __inline__ long atomic64_sub_if_positive(long i, atomic64_t * v)
 {

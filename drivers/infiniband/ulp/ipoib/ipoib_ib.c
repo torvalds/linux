@@ -608,9 +608,13 @@ void ipoib_ib_dev_flush(void *_dev)
 	if (test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
 		ipoib_ib_dev_up(dev);
 
+	down(&priv->vlan_mutex);
+
 	/* Flush any child interfaces too */
 	list_for_each_entry(cpriv, &priv->child_intfs, list)
 		ipoib_ib_dev_flush(&cpriv->dev);
+
+	up(&priv->vlan_mutex);
 }
 
 void ipoib_ib_dev_cleanup(struct net_device *dev)

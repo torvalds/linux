@@ -25,8 +25,9 @@ static int __init init_pit(char* override)
 {
  	/* check clock override */
  	if (override[0] && strncmp(override,"pit",3))
- 		printk(KERN_ERR "Warning: clock= override failed. Defaulting to PIT\n");
- 
+ 		printk(KERN_ERR "Warning: clock= override failed. Defaulting "
+				"to PIT\n");
+ 	init_cpu_khz();
 	count_p = LATCH;
 	return 0;
 }

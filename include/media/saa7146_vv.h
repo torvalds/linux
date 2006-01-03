@@ -113,7 +113,7 @@ struct saa7146_vv
 	/* vbi capture */
 	struct saa7146_dmaqueue		vbi_q;
 	/* vbi workaround interrupt queue */
-        wait_queue_head_t		vbi_wq;
+	wait_queue_head_t		vbi_wq;
 	int				vbi_fieldcount;
 	struct saa7146_fh		*vbi_streaming;
 
@@ -181,10 +181,10 @@ struct saa7146_ext_vv
 };
 
 struct saa7146_use_ops  {
-        void (*init)(struct saa7146_dev *, struct saa7146_vv *);
-        int(*open)(struct saa7146_dev *, struct file *);
-        void (*release)(struct saa7146_dev *, struct file *);
-        void (*irq_done)(struct saa7146_dev *, unsigned long status);
+	void (*init)(struct saa7146_dev *, struct saa7146_vv *);
+	int(*open)(struct saa7146_dev *, struct file *);
+	void (*release)(struct saa7146_dev *, struct file *);
+	void (*irq_done)(struct saa7146_dev *, unsigned long status);
 	ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
 };
 

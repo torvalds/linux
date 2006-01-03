@@ -597,21 +597,20 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 
 	if (pfn_valid(pfn)) {
 		struct page *page = pfn_to_page(pfn);
+#ifdef CONFIG_8xx
+		/* On 8xx, the TLB handlers work in 2 stages:
+	 	 * First, a zeroed entry is loaded by TLBMiss handler,
+		 * which causes the TLBError handler to be triggered.
+		 * That means the zeroed TLB has to be invalidated
+		 * whenever a page miss occurs.
+		 */
+		_tlbie(address);
+#endif
 		if (!PageReserved(page)
 		    && !test_bit(PG_arch_1, &page->flags)) {
-			if (vma->vm_mm == current->active_mm) {
-#ifdef CONFIG_8xx
-			/* On 8xx, cache control instructions (particularly 
-		 	 * "dcbst" from flush_dcache_icache) fault as write 
-			 * operation if there is an unpopulated TLB entry 
-			 * for the address in question. To workaround that, 
-			 * we invalidate the TLB here, thus avoiding dcbst 
-			 * misbehaviour.
-			 */
-				_tlbie(address);
-#endif
+			if (vma->vm_mm == current->active_mm)
 				__flush_dcache_icache((void *) address);
-			} else
+			else
 				flush_dcache_icache_page(page);
 			set_bit(PG_arch_1, &page->flags);
 		}

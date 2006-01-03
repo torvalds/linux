@@ -833,6 +833,16 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
+#ifdef CONFIG_X86_MCE_AMD
+void setup_threshold_lvt(unsigned long lvt_off)
+{
+	unsigned int v = 0;
+	unsigned long reg = (lvt_off << 4) + 0x500;
+	v |= THRESHOLD_APIC_VECTOR;
+	apic_write(reg, v);
+}
+#endif /* CONFIG_X86_MCE_AMD */
+
 #undef APIC_DIVISOR
 
 /*

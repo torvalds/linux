@@ -42,13 +42,6 @@
 #include "irq.h"
 #include "call_pci.h"
 
-/* This maps virtual irq numbers to real irqs */
-unsigned int virt_irq_to_real_map[NR_IRQS];
-
-/* The next available virtual irq number */
-/* Note: the pcnet32 driver assumes irq numbers < 2 aren't valid. :( */
-static int next_virtual_irq = 2;
-
 static long Pci_Interrupt_Count;
 static long Pci_Event_Count;
 
@@ -103,6 +96,9 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 		struct pt_regs *regsParm)
 {
 	int irq;
+#ifdef CONFIG_IRQSTACKS
+	struct thread_info *curtp, *irqtp;
+#endif
 
 	++Pci_Interrupt_Count;
 
@@ -110,7 +106,20 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 	case XmPciLpEvent_SlotInterrupt:
 		irq = eventParm->hvLpEvent.xCorrelationToken;
 		/* Dispatch the interrupt handlers for this irq */
-		ppc_irq_dispatch_handler(regsParm, irq);
+#ifdef CONFIG_IRQSTACKS
+		/* Switch to the irq stack to handle this */
+		curtp = current_thread_info();
+		irqtp = hardirq_ctx[smp_processor_id()];
+		if (curtp != irqtp) {
+			irqtp->task = curtp->task;
+			irqtp->flags = 0;
+			call___do_IRQ(irq, regsParm, irqtp);
+			irqtp->task = NULL;
+			if (irqtp->flags)
+				set_bits(irqtp->flags, &curtp->flags);
+		} else
+#endif
+			__do_IRQ(irq, regsParm);
 		HvCallPci_eoi(eventParm->eventData.slotInterrupt.busNumber,
 			eventParm->eventData.slotInterrupt.subBusNumber,
 			eventParm->eventData.slotInterrupt.deviceId);
@@ -310,10 +319,8 @@ static void iSeries_disable_IRQ(unsigned int irq)
 }
 
 /*
- * Need to define this so ppc_irq_dispatch_handler will NOT call
- * enable_IRQ at the end of interrupt handling.  However, this does
- * nothing because there is not enough information provided to do
- * the EOI HvCall.  This is done by XmPciLpEvent.c
+ * This does nothing because there is not enough information
+ * provided to do the EOI HvCall.  This is done by XmPciLpEvent.c
  */
 static void iSeries_end_IRQ(unsigned int irq)
 {
@@ -336,26 +343,14 @@ static hw_irq_controller iSeries_IRQ_handler = {
 int __init iSeries_allocate_IRQ(HvBusNumber busNumber,
 		HvSubBusNumber subBusNumber, HvAgentId deviceId)
 {
-	unsigned int realirq, virtirq;
+	int virtirq;
+	unsigned int realirq;
 	u8 idsel = (deviceId >> 4);
 	u8 function = deviceId & 7;
 
-	virtirq = next_virtual_irq++;
 	realirq = ((busNumber - 1) << 6) + ((idsel - 1) << 3) + function;
-	virt_irq_to_real_map[virtirq] = realirq;
+	virtirq = virt_irq_create_mapping(realirq);
 
 	irq_desc[virtirq].handler = &iSeries_IRQ_handler;
 	return virtirq;
-}
-
-int virt_irq_create_mapping(unsigned int real_irq)
-{
-	BUG(); /* Don't call this on iSeries, yet */
-
-	return 0;
-}
-
-void virt_irq_init(void)
-{
-	return;
 }

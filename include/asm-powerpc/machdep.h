@@ -93,7 +93,9 @@ struct machdep_calls {
 
 	void		(*init_IRQ)(void);
 	int		(*get_irq)(struct pt_regs *);
-	void		(*cpu_irq_down)(int secondary);
+#ifdef CONFIG_KEXEC
+	void		(*kexec_cpu_down)(int crash_shutdown, int secondary);
+#endif
 
 	/* PCI stuff */
 	/* Called after scanning the bus, before allocating resources */

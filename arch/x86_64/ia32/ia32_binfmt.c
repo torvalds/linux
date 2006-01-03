@@ -217,8 +217,7 @@ elf_core_copy_task_fpregs(struct task_struct *tsk, struct pt_regs *regs, elf_fpr
 	if (!tsk_used_math(tsk))
 		return 0;
 	if (!regs)
-		regs = (struct pt_regs *)tsk->thread.rsp0;
-	--regs;
+		regs = ((struct pt_regs *)tsk->thread.rsp0) - 1;
 	if (tsk == current)
 		unlazy_fpu(tsk);
 	set_fs(KERNEL_DS); 
@@ -335,7 +334,8 @@ static void elf32_init(struct pt_regs *regs)
 	me->thread.es = __USER_DS;
 }
 
-int setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int executable_stack)
+int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
+			 int executable_stack)
 {
 	unsigned long stack_base;
 	struct vm_area_struct *mpnt;
@@ -389,6 +389,7 @@ int setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int exec
 	
 	return 0;
 }
+EXPORT_SYMBOL(ia32_setup_arg_pages);
 
 static unsigned long
 elf32_map (struct file *filep, unsigned long addr, struct elf_phdr *eppnt, int prot, int type)

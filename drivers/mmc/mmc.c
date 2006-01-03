@@ -679,7 +679,15 @@ static void mmc_idle_cards(struct mmc_host *host)
 }
 
 /*
- * Apply power to the MMC stack.
+ * Apply power to the MMC stack.  This is a two-stage process.
+ * First, we enable power to the card without the clock running.
+ * We then wait a bit for the power to stabilise.  Finally,
+ * enable the bus drivers and clock to the card.
+ *
+ * We must _NOT_ enable the clock prior to power stablising.
+ *
+ * If a host does all the power sequencing itself, ignore the
+ * initial MMC_POWER_UP stage.
  */
 static void mmc_power_up(struct mmc_host *host)
 {
@@ -816,7 +824,7 @@ static void mmc_discover_cards(struct mmc_host *host)
 
 			cmd.opcode = SD_SEND_RELATIVE_ADDR;
 			cmd.arg = 0;
-			cmd.flags = MMC_RSP_R1;
+			cmd.flags = MMC_RSP_R6;
 
 			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
 			if (err != MMC_ERR_NONE)
@@ -932,8 +940,9 @@ static void mmc_read_scrs(struct mmc_host *host)
 
 		sg_init_one(&sg, (u8*)card->raw_scr, 8);
 
-		err = mmc_wait_for_req(host, &mrq);
-		if (err != MMC_ERR_NONE) {
+		mmc_wait_for_req(host, &mrq);
+
+		if (cmd.error != MMC_ERR_NONE || data.error != MMC_ERR_NONE) {
 			mmc_card_set_dead(card);
 			continue;
 		}

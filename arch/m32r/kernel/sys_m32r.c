@@ -41,7 +41,8 @@ asmlinkage int sys_tas(int *addr)
 		return -EFAULT;
 	local_irq_save(flags);
 	oldval = *addr;
-	*addr = 1;
+	if (!oldval)
+		*addr = 1;
 	local_irq_restore(flags);
 	return oldval;
 }
@@ -59,7 +60,8 @@ asmlinkage int sys_tas(int *addr)
 
 	_raw_spin_lock(&tas_lock);
 	oldval = *addr;
-	*addr = 1;
+	if (!oldval)
+		*addr = 1;
 	_raw_spin_unlock(&tas_lock);
 
 	return oldval;

@@ -931,14 +931,11 @@ out_put:
 
 static struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
 	[NFQNL_MSG_PACKET]	= { .call = nfqnl_recv_unsupp,
-				    .attr_count = NFQA_MAX,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFQA_MAX, },
 	[NFQNL_MSG_VERDICT]	= { .call = nfqnl_recv_verdict,
-				    .attr_count = NFQA_MAX,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFQA_MAX, },
 	[NFQNL_MSG_CONFIG]	= { .call = nfqnl_recv_config,
-				    .attr_count = NFQA_CFG_MAX,
-				    .cap_required = CAP_NET_ADMIN },
+				    .attr_count = NFQA_CFG_MAX, },
 };
 
 static struct nfnetlink_subsystem nfqnl_subsys = {

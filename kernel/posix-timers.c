@@ -270,7 +270,7 @@ static void tstojiffie(struct timespec *tp, int res, u64 *jiff)
 	long sec = tp->tv_sec;
 	long nsec = tp->tv_nsec + res - 1;
 
-	if (nsec > NSEC_PER_SEC) {
+	if (nsec >= NSEC_PER_SEC) {
 		sec++;
 		nsec -= NSEC_PER_SEC;
 	}
@@ -1209,13 +1209,9 @@ static int do_posix_clock_monotonic_get(clockid_t clock, struct timespec *tp)
 
 	do_posix_clock_monotonic_gettime_parts(tp, &wall_to_mono);
 
-	tp->tv_sec += wall_to_mono.tv_sec;
-	tp->tv_nsec += wall_to_mono.tv_nsec;
+	set_normalized_timespec(tp, tp->tv_sec + wall_to_mono.tv_sec,
+				tp->tv_nsec + wall_to_mono.tv_nsec);
 
-	if ((tp->tv_nsec - NSEC_PER_SEC) > 0) {
-		tp->tv_nsec -= NSEC_PER_SEC;
-		tp->tv_sec++;
-	}
 	return 0;
 }
 

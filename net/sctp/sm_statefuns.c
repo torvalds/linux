@@ -5160,6 +5160,8 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	sctp_verb_t deliver;
 	int tmp;
 	__u32 tsn;
+	int account_value;
+	struct sock *sk = asoc->base.sk;
 
 	data_hdr = chunk->subh.data_hdr = (sctp_datahdr_t *)chunk->skb->data;
 	skb_pull(chunk->skb, sizeof(sctp_datahdr_t));
@@ -5168,6 +5170,26 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	SCTP_DEBUG_PRINTK("eat_data: TSN 0x%x.\n", tsn);
 
 	/* ASSERT:  Now skb->data is really the user data.  */
+
+	/*
+	 * if we are established, and we have used up our receive
+	 * buffer memory, drop the frame
+	 */
+	if (asoc->state == SCTP_STATE_ESTABLISHED) {
+		/*
+		 * If the receive buffer policy is 1, then each
+		 * association can allocate up to sk_rcvbuf bytes
+		 * otherwise, all the associations in aggregate
+		 * may allocate up to sk_rcvbuf bytes
+		 */
+		if (asoc->ep->rcvbuf_policy)
+			account_value = atomic_read(&asoc->rmem_alloc);
+		else
+			account_value = atomic_read(&sk->sk_rmem_alloc);
+
+		if (account_value > sk->sk_rcvbuf)
+			return SCTP_IERROR_IGNORE_TSN;
+	}
 
 	/* Process ECN based congestion.
 	 *

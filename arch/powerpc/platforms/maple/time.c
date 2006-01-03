@@ -158,6 +158,11 @@ int maple_set_rtc_time(struct rtc_time *tm)
 	return 0;
 }
 
+static struct resource rtc_iores = {
+	.name = "rtc",
+	.flags = IORESOURCE_BUSY,
+};
+
 unsigned long __init maple_get_boot_time(void)
 {
 	struct rtc_time tm;
@@ -172,7 +177,11 @@ unsigned long __init maple_get_boot_time(void)
 		printk(KERN_INFO "Maple: No device node for RTC, assuming "
 		       "legacy address (0x%x)\n", maple_rtc_addr);
 	}
-	
+
+	rtc_iores.start = maple_rtc_addr;
+	rtc_iores.end = maple_rtc_addr + 7;
+	request_resource(&ioport_resource, &rtc_iores);
+
 	maple_get_rtc_time(&tm);
 	return mktime(tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
 		      tm.tm_hour, tm.tm_min, tm.tm_sec);

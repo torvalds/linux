@@ -20,9 +20,14 @@
 #ifndef _MIPS_SEADINT_H
 #define _MIPS_SEADINT_H
 
-#define SEADINT_UART0     2
-#define SEADINT_UART1     3
+/*
+ * Interrupts 0..7 are used for SEAD CPU interrupts
+ */
+#define MIPSCPU_INT_BASE	0
 
-extern void seadint_init(void);
+#define MIPSCPU_INT_UART0	2
+#define MIPSCPU_INT_UART1	3
+
+#define MIPSCPU_INT_CPUCTR	7
 
 #endif /* !(_MIPS_SEADINT_H) */

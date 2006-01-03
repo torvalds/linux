@@ -20,7 +20,7 @@
 #include "choose-mode.h"
 #include "mode.h"
 
-int generic_console_write(int fd, const char *buf, int n, void *unused)
+int generic_console_write(int fd, const char *buf, int n)
 {
 	struct termios save, new;
 	int err;

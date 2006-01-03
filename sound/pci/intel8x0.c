@@ -2876,7 +2876,6 @@ static void __devexit snd_intel8x0_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "Intel ICH",
-	.owner = THIS_MODULE,
 	.id_table = snd_intel8x0_ids,
 	.probe = snd_intel8x0_probe,
 	.remove = __devexit_p(snd_intel8x0_remove),

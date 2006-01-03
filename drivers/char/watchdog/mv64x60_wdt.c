@@ -182,10 +182,9 @@ static struct miscdevice mv64x60_wdt_miscdev = {
 	.fops = &mv64x60_wdt_fops,
 };
 
-static int __devinit mv64x60_wdt_probe(struct device *dev)
+static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
 {
-	struct platform_device *pd = to_platform_device(dev);
-	struct mv64x60_wdt_pdata *pdata = pd->dev.platform_data;
+	struct mv64x60_wdt_pdata *pdata = dev->dev.platform_data;
 	int bus_clk = 133;
 
 	mv64x60_wdt_timeout = 10;
@@ -202,7 +201,7 @@ static int __devinit mv64x60_wdt_probe(struct device *dev)
 	return misc_register(&mv64x60_wdt_miscdev);
 }
 
-static int __devexit mv64x60_wdt_remove(struct device *dev)
+static int __devexit mv64x60_wdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&mv64x60_wdt_miscdev);
 
@@ -212,12 +211,13 @@ static int __devexit mv64x60_wdt_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver mv64x60_wdt_driver = {
-	.owner = THIS_MODULE,
-	.name = MV64x60_WDT_NAME,
-	.bus = &platform_bus_type,
+static struct platform_driver mv64x60_wdt_driver = {
 	.probe = mv64x60_wdt_probe,
 	.remove = __devexit_p(mv64x60_wdt_remove),
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = MV64x60_WDT_NAME,
+	},
 };
 
 static struct platform_device *mv64x60_wdt_dev;
@@ -235,14 +235,14 @@ static int __init mv64x60_wdt_init(void)
 		goto out;
 	}
 
-	ret = driver_register(&mv64x60_wdt_driver);
+	ret = platform_driver_register(&mv64x60_wdt_driver);
       out:
 	return ret;
 }
 
 static void __exit mv64x60_wdt_exit(void)
 {
-	driver_unregister(&mv64x60_wdt_driver);
+	platform_driver_unregister(&mv64x60_wdt_driver);
 	platform_device_unregister(mv64x60_wdt_dev);
 }
 

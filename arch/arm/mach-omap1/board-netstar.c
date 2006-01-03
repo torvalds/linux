@@ -55,6 +55,14 @@ static struct platform_device *netstar_devices[] __initdata = {
 	&netstar_smc91x_device,
 };
 
+static struct omap_uart_config netstar_uart_config __initdata = {
+	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
+};
+
+static struct omap_board_config_kernel netstar_config[] = {
+	{ OMAP_TAG_UART,	&netstar_uart_config },
+};
+
 static void __init netstar_init_irq(void)
 {
 	omap_init_irq();
@@ -92,14 +100,15 @@ static void __init netstar_init(void)
 	/* Switch off red LED */
 	omap_writeb(0x00, OMAP_LPG1_PMR);	/* Disable clock */
 	omap_writeb(0x80, OMAP_LPG1_LCR);
-}
 
-static int __initdata omap_serial_ports[OMAP_MAX_NR_PORTS] = {1, 1, 1};
+	omap_board_config = netstar_config;
+	omap_board_config_size = ARRAY_SIZE(netstar_config);
+	omap_serial_init();
+}
 
 static void __init netstar_map_io(void)
 {
 	omap_map_common_io();
-	omap_serial_init(omap_serial_ports);
 }
 
 #define MACHINE_PANICED		1

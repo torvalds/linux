@@ -307,6 +307,21 @@ struct tcp_sock {
 	struct tcp_sack_block duplicate_sack[1]; /* D-SACK block */
 	struct tcp_sack_block selective_acks[4]; /* The SACKS themselves*/
 
+	struct tcp_sack_block recv_sack_cache[4];
+
+	/* from STCP, retrans queue hinting */
+	struct sk_buff* lost_skb_hint;
+
+	struct sk_buff *scoreboard_skb_hint;
+	struct sk_buff *retransmit_skb_hint;
+	struct sk_buff *forward_skb_hint;
+	struct sk_buff *fastpath_skb_hint;
+
+	int     fastpath_cnt_hint;
+	int     lost_cnt_hint;
+	int     retransmit_cnt_hint;
+	int     forward_cnt_hint;
+
 	__u16	advmss;		/* Advertised MSS			*/
 	__u16	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	__u32	lost_out;	/* Lost packets			*/
@@ -326,6 +341,7 @@ struct tcp_sock {
 	__u32	snd_up;		/* Urgent pointer		*/
 
 	__u32	total_retrans;	/* Total retransmits for entire connection */
+	__u32	bytes_acked;	/* Appropriate Byte Counting - RFC3465 */
 
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */

@@ -4,14 +4,14 @@
  * Linux on zSeries OSA Express and HiperSockets support
  *
  * Copyright 2000,2003 IBM Corporation
- * Author(s): Frank Pavlic <pavlic@de.ibm.com>
+ * Author(s): Frank Pavlic <fpavlic@de.ibm.com>
  * 	      Thomas Spatzier <tspat@de.ibm.com>
  *
  */
 #include <asm/cio.h>
 #include "qeth_mpc.h"
 
-const char *VERSION_QETH_MPC_C = "$Revision: 1.12 $";
+const char *VERSION_QETH_MPC_C = "$Revision: 1.13 $";
 
 unsigned char IDX_ACTIVATE_READ[]={
 	0x00,0x00,0x80,0x00, 0x00,0x00,0x00,0x00,

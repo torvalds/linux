@@ -387,7 +387,7 @@ nf_ct_invert_tuple(struct nf_conntrack_tuple *inverse,
 static void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 {
 	ASSERT_WRITE_LOCK(&nf_conntrack_lock);
-	NF_CT_ASSERT(!timer_pending(&exp_timeout));
+	NF_CT_ASSERT(!timer_pending(&exp->timeout));
 	list_del(&exp->list);
 	NF_CT_STAT_INC(expect_delete);
 	exp->master->expecting--;
@@ -1383,6 +1383,9 @@ void nf_conntrack_cleanup(void)
 		schedule();
 		goto i_see_dead_people;
 	}
+	/* wait until all references to nf_conntrack_untracked are dropped */
+	while (atomic_read(&nf_conntrack_untracked.ct_general.use) > 1)
+		schedule();
 
 	for (i = 0; i < NF_CT_F_NUM; i++) {
 		if (nf_ct_cache[i].use == 0)
@@ -1395,6 +1398,13 @@ void nf_conntrack_cleanup(void)
 	kmem_cache_destroy(nf_conntrack_expect_cachep);
 	free_conntrack_hash(nf_conntrack_hash, nf_conntrack_vmalloc,
 			    nf_conntrack_htable_size);
+
+	/* free l3proto protocol tables */
+	for (i = 0; i < PF_MAX; i++)
+		if (nf_ct_protos[i]) {
+			kfree(nf_ct_protos[i]);
+			nf_ct_protos[i] = NULL;
+		}
 }
 
 static struct list_head *alloc_hashtable(int size, int *vmalloced)

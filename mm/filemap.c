@@ -134,7 +134,7 @@ static int sync_page(void *word)
 	struct address_space *mapping;
 	struct page *page;
 
-	page = container_of((page_flags_t *)word, struct page, flags);
+	page = container_of((unsigned long *)word, struct page, flags);
 
 	/*
 	 * page_mapping() is being called without PG_locked held.

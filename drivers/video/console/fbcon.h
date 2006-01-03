@@ -52,8 +52,6 @@ struct display {
     struct fb_videomode *mode;
 };
 
-extern struct display fb_display[];
-
 struct fbcon_ops {
 	void (*bmove)(struct vc_data *vc, struct fb_info *info, int sy,
 		      int sx, int dy, int dx, int height, int width);
@@ -73,6 +71,7 @@ struct fbcon_ops {
 	struct fb_var_screeninfo var;  /* copy of the current fb_var_screeninfo */
 	struct timer_list cursor_timer; /* Cursor timer */
 	struct fb_cursor cursor_state;
+	struct display *p;
         int    currcon;	                /* Current VC. */
 	int    cursor_flash;
 	int    cursor_reset;

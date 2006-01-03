@@ -1110,8 +1110,7 @@ static struct ipw_fw_error *ipw_alloc_error_log(struct ipw_priv *priv)
 	error->elem_len = elem_len;
 	error->log_len = log_len;
 	error->elem = (struct ipw_error_elem *)error->payload;
-	error->log = (struct ipw_event *)(error->elem +
-					  (sizeof(*error->elem) * elem_len));
+	error->log = (struct ipw_event *)(error->elem + elem_len);
 
 	ipw_capture_event_log(priv, log_len, error->log);
 
@@ -8925,6 +8924,10 @@ static int ipw_request_direct_scan(struct ipw_priv *priv, char *essid,
 {
 	struct ipw_scan_request_ext scan;
 	int err = 0, scan_type;
+
+	if (!(priv->status & STATUS_INIT) ||
+	    (priv->status & STATUS_EXIT_PENDING))
+		return 0;
 
 	down(&priv->sem);
 

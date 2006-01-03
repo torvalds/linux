@@ -14,8 +14,6 @@
 /* The vDSO location. We have to use the same value as x86 for glibc's
  * sake :-)
  */
-#ifdef __powerpc64__
 #define AT_SYSINFO_EHDR		33
-#endif
 
 #endif

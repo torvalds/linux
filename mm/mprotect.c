@@ -124,14 +124,6 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 	 * a MAP_NORESERVE private mapping to writable will now reserve.
 	 */
 	if (newflags & VM_WRITE) {
-		if (oldflags & VM_RESERVED) {
-			BUG_ON(oldflags & VM_WRITE);
-			printk(KERN_WARNING "program %s is using MAP_PRIVATE, "
-				"PROT_WRITE mprotect of VM_RESERVED memory, "
-				"which is deprecated. Please report this to "
-				"linux-kernel@vger.kernel.org\n",current->comm);
-			return -EACCES;
-		}
 		if (!(oldflags & (VM_ACCOUNT|VM_WRITE|VM_SHARED|VM_HUGETLB))) {
 			charged = nrpages;
 			if (security_vm_enough_memory(charged))

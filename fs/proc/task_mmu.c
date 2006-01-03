@@ -195,7 +195,7 @@ static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats 
 
 static int show_map(struct seq_file *m, void *v)
 {
-	return show_map_internal(m, v, 0);
+	return show_map_internal(m, v, NULL);
 }
 
 static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
@@ -402,12 +402,11 @@ struct numa_maps {
 /*
  * Calculate numa node maps for a vma
  */
-static struct numa_maps *get_numa_maps(const struct vm_area_struct *vma)
+static struct numa_maps *get_numa_maps(struct vm_area_struct *vma)
 {
+	int i;
 	struct page *page;
 	unsigned long vaddr;
-	struct mm_struct *mm = vma->vm_mm;
-	int i;
 	struct numa_maps *md = kmalloc(sizeof(struct numa_maps), GFP_KERNEL);
 
 	if (!md)
@@ -420,7 +419,7 @@ static struct numa_maps *get_numa_maps(const struct vm_area_struct *vma)
 		md->node[i] =0;
 
  	for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
-		page = follow_page(mm, vaddr, 0);
+		page = follow_page(vma, vaddr, 0);
 		if (page) {
 			int count = page_mapcount(page);
 

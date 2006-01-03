@@ -600,7 +600,7 @@ int atari_queue_command (Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 #endif
 
 
-int atari_scsi_detect (Scsi_Host_Template *host)
+int atari_scsi_detect (struct scsi_host_template *host)
 {
 	static int called = 0;
 	struct Scsi_Host *instance;
@@ -1141,7 +1141,7 @@ static void atari_scsi_falcon_reg_write( unsigned char reg, unsigned char value 
 
 #include "atari_NCR5380.c"
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_info		= atari_scsi_proc_info,
 	.name			= "Atari native SCSI",
 	.detect			= atari_scsi_detect,

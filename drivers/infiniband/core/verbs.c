@@ -325,16 +325,8 @@ EXPORT_SYMBOL(ib_destroy_cq);
 int ib_resize_cq(struct ib_cq *cq,
                  int           cqe)
 {
-	int ret;
-
-	if (!cq->device->resize_cq)
-		return -ENOSYS;
-
-	ret = cq->device->resize_cq(cq, &cqe);
-	if (!ret)
-		cq->cqe = cqe;
-
-	return ret;
+	return cq->device->resize_cq ?
+		cq->device->resize_cq(cq, cqe) : -ENOSYS;
 }
 EXPORT_SYMBOL(ib_resize_cq);
 

@@ -18,9 +18,6 @@
  */
 
 #include <linux/config.h>
-#ifdef	CONFIG_USB_DEBUG
-#   define DEBUG
-#endif
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/sched.h>

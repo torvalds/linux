@@ -577,15 +577,16 @@ static int ipgre_rcv(struct sk_buff *skb)
 			goto drop_nolock;
 
 		if (flags&GRE_CSUM) {
-			if (skb->ip_summed == CHECKSUM_HW) {
+			switch (skb->ip_summed) {
+			case CHECKSUM_HW:
 				csum = (u16)csum_fold(skb->csum);
-				if (csum)
-					skb->ip_summed = CHECKSUM_NONE;
-			}
-			if (skb->ip_summed == CHECKSUM_NONE) {
-				skb->csum = skb_checksum(skb, 0, skb->len, 0);
+				if (!csum)
+					break;
+				/* fall through */
+			case CHECKSUM_NONE:
+				skb->csum = 0;
+				csum = __skb_checksum_complete(skb);
 				skb->ip_summed = CHECKSUM_HW;
-				csum = (u16)csum_fold(skb->csum);
 			}
 			offset += 4;
 		}
@@ -617,7 +618,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 
 		skb->mac.raw = skb->nh.raw;
 		skb->nh.raw = __pskb_pull(skb, offset);
-		skb_postpull_rcsum(skb, skb->mac.raw, offset);
+		skb_postpull_rcsum(skb, skb->h.raw, offset);
 		memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
 		skb->pkt_type = PACKET_HOST;
 #ifdef CONFIG_NET_IPGRE_BROADCAST
@@ -1216,7 +1217,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-int __init ipgre_fb_tunnel_init(struct net_device *dev)
+static int __init ipgre_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = (struct ip_tunnel*)dev->priv;
 	struct iphdr *iph = &tunnel->parms.iph;

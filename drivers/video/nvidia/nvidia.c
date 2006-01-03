@@ -1301,7 +1301,7 @@ static int nvidiafb_pan_display(struct fb_var_screeninfo *var,
 	struct nvidia_par *par = info->par;
 	u32 total;
 
-	total = info->var.yoffset * info->fix.line_length + info->var.xoffset;
+	total = var->yoffset * info->fix.line_length + var->xoffset;
 
 	NVSetStartAddress(par, total);
 

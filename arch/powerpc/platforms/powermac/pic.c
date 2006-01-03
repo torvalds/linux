@@ -74,6 +74,9 @@ static DEFINE_SPINLOCK(pmac_pic_lock);
 #define GATWICK_IRQ_POOL_SIZE        10
 static struct interrupt_info gatwick_int_pool[GATWICK_IRQ_POOL_SIZE];
 
+#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
+static unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
+
 /*
  * Mark an irq as "lost".  This is only used on the pmac
  * since it can lose interrupts (see pmac_set_irq_mask).

@@ -2133,7 +2133,10 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_dvb        = 1,
+		.has_remote	= 1,
+		.gpiomask	= 0x1b,
 		.no_gpioirq     = 1,
+		.any_irq		= 1,
 	},
 	[BTTV_BOARD_PV143] = {
 		/* Jorge Boncompte - DTI2 <jorge@dti2.net> */
@@ -2796,7 +2799,24 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 	},
-
+		/* ---- card 0x8e ---------------------------------- */
+	[BTTV_BOARD_SABRENT_TVFM] = {
+		.name		= "Sabrent TV-FM (bttv version)",
+		.video_inputs	= 3,
+		.audio_inputs	= 1,
+		.tuner		= 0,
+		.svhs		= 2,
+		.gpiomask	= 0x108007,
+		.muxsel		= { 2, 3, 1, 1},
+		.audiomux	= { 100000, 100002, 100002, 100000},
+		.no_msp34xx	= 1,
+		.no_tda9875     = 1,
+		.no_tda7432     = 1,
+		.pll		= PLL_28,
+		.tuner_type	= TUNER_TNF_5335MF,
+		.tuner_addr	= ADDR_UNSET,
+		.has_radio      = 1,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -2884,7 +2904,7 @@ void __devinit bttv_idcard(struct bttv *btv)
  */
 
 /* Some Modular Technology cards have an eeprom, but no subsystem ID */
-void identify_by_eeprom(struct bttv *btv, unsigned char eeprom_data[256])
+static void identify_by_eeprom(struct bttv *btv, unsigned char eeprom_data[256])
 {
 	int type = -1;
 
@@ -3367,6 +3387,8 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		btv->has_remote=1;
 	if (!bttv_tvcards[btv->c.type].no_gpioirq)
 		btv->gpioirq=1;
+	if (bttv_tvcards[btv->c.type].any_irq)
+		btv->any_irq = 1;
 	if (bttv_tvcards[btv->c.type].audio_hook)
 		btv->audio_hook=bttv_tvcards[btv->c.type].audio_hook;
 
@@ -3857,7 +3879,7 @@ static void __devinit init_PXC200(struct bttv *btv)
  *                error. ERROR_CPLD_Check_Failed.
  */
 /* ----------------------------------------------------------------------- */
-void
+static void
 init_RTV24 (struct bttv *btv)
 {
 	uint32_t dataRead = 0;
@@ -4081,7 +4103,7 @@ void tea5757_set_freq(struct bttv *btv, unsigned short freq)
 /* ----------------------------------------------------------------------- */
 /* winview                                                                 */
 
-void winview_audio(struct bttv *btv, struct video_audio *v, int set)
+static void winview_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	/* PT2254A programming Jon Tombs, jon@gte.esi.us.es */
 	int bits_out, loops, vol, data;

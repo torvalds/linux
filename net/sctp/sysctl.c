@@ -121,6 +121,14 @@ static ctl_table sctp_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
+		.ctl_name	= NET_SCTP_RCVBUF_POLICY,
+		.procname	= "rcvbuf_policy",
+		.data		= &sctp_rcvbuf_policy,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
 		.ctl_name	= NET_SCTP_PATH_MAX_RETRANS,
 		.procname	= "path_max_retrans",
 		.data		= &sctp_max_retrans_path,

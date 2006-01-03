@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/list.h>
 #include <linux/compiler.h>
 
 struct file;
@@ -390,6 +389,7 @@ enum
 	NET_TCP_BIC_BETA=108,
 	NET_IPV4_ICMP_ERRORS_USE_INBOUND_IFADDR=109,
 	NET_TCP_CONG_CONTROL=110,
+	NET_TCP_ABC=111,
 };
 
 enum {
@@ -670,6 +670,9 @@ enum {
 	NET_DECNET_DST_GC_INTERVAL = 9,
 	NET_DECNET_CONF = 10,
 	NET_DECNET_NO_FC_MAX_CWND = 11,
+	NET_DECNET_MEM = 12,
+	NET_DECNET_RMEM = 13,
+	NET_DECNET_WMEM = 14,
 	NET_DECNET_DEBUG_LEVEL = 255
 };
 
@@ -714,6 +717,7 @@ enum {
 	NET_SCTP_PRSCTP_ENABLE		 = 14,
 	NET_SCTP_SNDBUF_POLICY		 = 15,
 	NET_SCTP_SACK_TIMEOUT		 = 16,
+	NET_SCTP_RCVBUF_POLICY		 = 17,
 };
 
 /* /proc/sys/net/bridge */
@@ -857,6 +861,7 @@ enum
 };
 
 #ifdef __KERNEL__
+#include <linux/list.h>
 
 extern void sysctl_init(void);
 

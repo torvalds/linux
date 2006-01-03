@@ -198,7 +198,7 @@ static void __devexit nsp32_remove(struct pci_dev *);
 static int  __init    init_nsp32  (void);
 static void __exit    exit_nsp32  (void);
 
-/* struct Scsi_Host_Template */
+/* struct struct scsi_host_template */
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,73))
 static int         nsp32_proc_info   (struct Scsi_Host *, char *, char **, off_t, int, int);
 #else
@@ -208,7 +208,7 @@ static int         nsp32_proc_info   (char *, char **, off_t, int, int, int);
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,73))
 static int         nsp32_detect      (struct pci_dev *pdev);
 #else
-static int         nsp32_detect      (Scsi_Host_Template *);
+static int         nsp32_detect      (struct scsi_host_template *);
 #endif
 static int         nsp32_queuecommand(struct scsi_cmnd *,
 		void (*done)(struct scsi_cmnd *));
@@ -2683,7 +2683,7 @@ static int nsp32_detect(struct pci_dev *pdev)
 #define DETECT_OK 1
 #define DETECT_NG 0
 #define PCIDEV    (data->Pci)
-static int nsp32_detect(Scsi_Host_Template *sht)
+static int nsp32_detect(struct scsi_host_template *sht)
 #endif
 {
 	struct Scsi_Host *host;	/* registered host structure */

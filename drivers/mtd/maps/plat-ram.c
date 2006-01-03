@@ -56,9 +56,9 @@ struct platram_info {
  * device private data to struct platram_info conversion
 */
 
-static inline struct platram_info *to_platram_info(struct device *dev)
+static inline struct platram_info *to_platram_info(struct platform_device *dev)
 {
-	return (struct platram_info *)dev_get_drvdata(dev);
+	return (struct platram_info *)platform_get_drvdata(dev);
 }
 
 /* platram_setrw
@@ -83,13 +83,13 @@ static inline void platram_setrw(struct platram_info *info, int to)
  * called to remove the device from the driver's control
 */
 
-static int platram_remove(struct device *dev)
+static int platram_remove(struct platform_device *pdev)
 {
-	struct platram_info *info = to_platram_info(dev);
+	struct platram_info *info = to_platram_info(pdev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
-	dev_dbg(dev, "removing device\n");
+	dev_dbg(&pdev->dev, "removing device\n");
 
 	if (info == NULL)
 		return 0;
@@ -130,61 +130,60 @@ static int platram_remove(struct device *dev)
  * driver is found.
 */
 
-static int platram_probe(struct device *dev)
+static int platram_probe(struct platform_device *pdev)
 {
-	struct platform_device *pd = to_platform_device(dev);
 	struct platdata_mtd_ram	*pdata;
 	struct platram_info *info;
 	struct resource *res;
 	int err = 0;
 
-	dev_dbg(dev, "probe entered\n");
+	dev_dbg(&pdev->dev, "probe entered\n");
 
-	if (dev->platform_data == NULL) {
-		dev_err(dev, "no platform data supplied\n");
+	if (pdev->dev.platform_data == NULL) {
+		dev_err(&pdev->dev, "no platform data supplied\n");
 		err = -ENOENT;
 		goto exit_error;
 	}
 
-	pdata = dev->platform_data;
+	pdata = pdev->dev.platform_data;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err(dev, "no memory for flash info\n");
+		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
 
 	memset(info, 0, sizeof(*info));
-	dev_set_drvdata(dev, info);
+	platform_set_drvdata(pdev, info);
 
-	info->dev = dev;
+	info->dev = &pdev->dev;
 	info->pdata = pdata;
 
 	/* get the resource for the memory mapping */
 
-	res = platform_get_resource(pd, IORESOURCE_MEM, 0);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	if (res == NULL) {
-		dev_err(dev, "no memory resource specified\n");
+		dev_err(&pdev->dev, "no memory resource specified\n");
 		err = -ENOENT;
 		goto exit_free;
 	}
 
-	dev_dbg(dev, "got platform resource %p (0x%lx)\n", res, res->start);
+	dev_dbg(&pdev->dev, "got platform resource %p (0x%lx)\n", res, res->start);
 
 	/* setup map parameters */
 
 	info->map.phys = res->start;
 	info->map.size = (res->end - res->start) + 1;
-	info->map.name = pdata->mapname != NULL ? pdata->mapname : (char *)pd->name;
+	info->map.name = pdata->mapname != NULL ? pdata->mapname : (char *)pdev->name;
 	info->map.bankwidth = pdata->bankwidth;
 
 	/* register our usage of the memory area */
 
-	info->area = request_mem_region(res->start, info->map.size, pd->name);
+	info->area = request_mem_region(res->start, info->map.size, pdev->name);
 	if (info->area == NULL) {
-		dev_err(dev, "failed to request memory region\n");
+		dev_err(&pdev->dev, "failed to request memory region\n");
 		err = -EIO;
 		goto exit_free;
 	}
@@ -192,23 +191,23 @@ static int platram_probe(struct device *dev)
 	/* remap the memory area */
 
 	info->map.virt = ioremap(res->start, info->map.size);
-	dev_dbg(dev, "virt %p, %lu bytes\n", info->map.virt, info->map.size);
+	dev_dbg(&pdev->dev, "virt %p, %lu bytes\n", info->map.virt, info->map.size);
 
 	if (info->map.virt == NULL) {
-		dev_err(dev, "failed to ioremap() region\n");
+		dev_err(&pdev->dev, "failed to ioremap() region\n");
 		err = -EIO;
 		goto exit_free;
 	}
 
 	simple_map_init(&info->map);
 
-	dev_dbg(dev, "initialised map, probing for mtd\n");
+	dev_dbg(&pdev->dev, "initialised map, probing for mtd\n");
 
 	/* probe for the right mtd map driver */
 
 	info->mtd = do_map_probe("map_ram" , &info->map);
 	if (info->mtd == NULL) {
-		dev_err(dev, "failed to probe for map_ram\n");
+		dev_err(&pdev->dev, "failed to probe for map_ram\n");
 		err = -ENOMEM;
 		goto exit_free;
 	}
@@ -237,27 +236,28 @@ static int platram_probe(struct device *dev)
 #endif /* CONFIG_MTD_PARTITIONS */
 
 	if (add_mtd_device(info->mtd)) {
-		dev_err(dev, "add_mtd_device() failed\n");
+		dev_err(&pdev->dev, "add_mtd_device() failed\n");
 		err = -ENOMEM;
 	}
 
-	dev_info(dev, "registered mtd device\n");
+	dev_info(&pdev->dev, "registered mtd device\n");
 	return err;
 
  exit_free:
-	platram_remove(dev);
+	platram_remove(pdev);
  exit_error:
 	return err;
 }
 
 /* device driver info */
 
-static struct device_driver platram_driver = {
-	.name		= "mtd-ram",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver platram_driver = {
 	.probe		= platram_probe,
 	.remove		= platram_remove,
+	.driver		= {
+		.name	= "mtd-ram",
+		.owner	= THIS_MODULE,
+	},
 };
 
 /* module init/exit */
@@ -265,12 +265,12 @@ static struct device_driver platram_driver = {
 static int __init platram_init(void)
 {
 	printk("Generic platform RAM MTD, (c) 2004 Simtec Electronics\n");
-	return driver_register(&platram_driver);
+	return platform_driver_register(&platram_driver);
 }
 
 static void __exit platram_exit(void)
 {
-	driver_unregister(&platram_driver);
+	platform_driver_unregister(&platram_driver);
 }
 
 module_init(platram_init);

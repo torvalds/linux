@@ -48,7 +48,7 @@
 
 #define PFX "IPMI message handler: "
 
-#define IPMI_DRIVER_VERSION "36.0"
+#define IPMI_DRIVER_VERSION "38.0"
 
 static struct ipmi_recv_msg *ipmi_alloc_recv_msg(void);
 static int ipmi_init_msghandler(void);
@@ -2648,7 +2648,7 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 	spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
 	if (!list_empty(&intf->waiting_msgs)) {
 		list_add_tail(&msg->link, &intf->waiting_msgs);
-		spin_unlock(&intf->waiting_msgs_lock);
+		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
 		goto out;
 	}
 	spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
@@ -2657,9 +2657,9 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 	if (rv > 0) {
 		/* Could not handle the message now, just add it to a
                    list to handle later. */
-		spin_lock(&intf->waiting_msgs_lock);
+		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
 		list_add_tail(&msg->link, &intf->waiting_msgs);
-		spin_unlock(&intf->waiting_msgs_lock);
+		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
 	} else if (rv == 0) {
 		ipmi_free_smi_msg(msg);
 	}
@@ -2986,7 +2986,7 @@ static void send_panic_events(char *str)
 	msg.cmd = 2; /* Platform event command. */
 	msg.data = data;
 	msg.data_len = 8;
-	data[0] = 0x21; /* Kernel generator ID, IPMI table 5-4 */
+	data[0] = 0x41; /* Kernel generator ID, IPMI table 5-4 */
 	data[1] = 0x03; /* This is for IPMI 1.0. */
 	data[2] = 0x20; /* OS Critical Stop, IPMI table 36-3 */
 	data[4] = 0x6f; /* Sensor specific, IPMI table 36-1 */

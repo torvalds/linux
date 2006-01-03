@@ -499,8 +499,12 @@ alloc_pa_dev(unsigned long hpa, struct hardware_path *mod_path)
 
 	dev = create_parisc_device(mod_path);
 	if (dev->id.hw_type != HPHW_FAULTY) {
-		printk("Two devices have hardware path %s.  Please file a bug with HP.\n"
-			"In the meantime, you could try rearranging your cards.\n", parisc_pathname(dev));
+		printk(KERN_ERR "Two devices have hardware path [%s].  "
+				"IODC data for second device: "
+				"%02x%02x%02x%02x%02x%02x\n"
+				"Rearranging GSC cards sometimes helps\n",
+			parisc_pathname(dev), iodc_data[0], iodc_data[1],
+			iodc_data[3], iodc_data[4], iodc_data[5], iodc_data[6]);
 		return NULL;
 	}
 

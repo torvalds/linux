@@ -58,6 +58,10 @@ config IA64_UNCACHED_ALLOCATOR
 	bool
 	select GENERIC_ALLOCATOR
 
+config DMA_IS_DMA32
+	bool
+	default y
+
 choice
 	prompt "System type"
 	default IA64_GENERIC
@@ -161,6 +165,19 @@ config IA64_PAGE_SIZE_16KB
 config IA64_PAGE_SIZE_64KB
 	depends on !ITANIUM
 	bool "64KB"
+
+endchoice
+
+choice
+	prompt "Page Table Levels"
+	default PGTABLE_3
+
+config PGTABLE_3
+	bool "3 Levels"
+
+config PGTABLE_4
+	depends on !IA64_PAGE_SIZE_64KB
+	bool "4 Levels"
 
 endchoice
 

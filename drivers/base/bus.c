@@ -133,7 +133,7 @@ static struct kobj_type ktype_bus = {
 decl_subsys(bus, &ktype_bus, NULL);
 
 
-/* Manually detach a device from it's associated driver. */
+/* Manually detach a device from its associated driver. */
 static int driver_helper(struct device *dev, void *data)
 {
 	const char *name = data;
@@ -151,14 +151,13 @@ static ssize_t driver_unbind(struct device_driver *drv,
 	int err = -ENODEV;
 
 	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
-	if ((dev) &&
-	    (dev->driver == drv)) {
+	if (dev && dev->driver == drv) {
 		device_release_driver(dev);
 		err = count;
 	}
-	if (err)
-		return err;
-	return count;
+	put_device(dev);
+	put_bus(bus);
+	return err;
 }
 static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
 
@@ -175,16 +174,14 @@ static ssize_t driver_bind(struct device_driver *drv,
 	int err = -ENODEV;
 
 	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
-	if ((dev) &&
-	    (dev->driver == NULL)) {
+	if (dev && dev->driver == NULL) {
 		down(&dev->sem);
 		err = driver_probe_device(drv, dev);
 		up(&dev->sem);
-		put_device(dev);
 	}
-	if (err)
-		return err;
-	return count;
+	put_device(dev);
+	put_bus(bus);
+	return err;
 }
 static DRIVER_ATTR(bind, S_IWUSR, NULL, driver_bind);
 

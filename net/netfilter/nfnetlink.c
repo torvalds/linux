@@ -162,7 +162,7 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
 		return -EINVAL;
 	}
 
-	min_len = NLMSG_ALIGN(sizeof(struct nfgenmsg));
+	min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
 	if (unlikely(nlh->nlmsg_len < min_len))
 		return -EINVAL;
 
@@ -223,6 +223,12 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 		 NFNL_SUBSYS_ID(nlh->nlmsg_type),
 		 NFNL_MSG_TYPE(nlh->nlmsg_type));
 
+	if (!cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN)) {
+		DEBUGP("missing CAP_NET_ADMIN\n");
+		*errp = -EPERM;
+		return -1;
+	}
+
 	/* Only requests are handled by kernel now. */
 	if (!(nlh->nlmsg_flags & NLM_F_REQUEST)) {
 		DEBUGP("received non-request message\n");
@@ -230,8 +236,7 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 	}
 
 	/* All the messages must at least contain nfgenmsg */
-	if (nlh->nlmsg_len < 
-			NLMSG_LENGTH(NLMSG_ALIGN(sizeof(struct nfgenmsg)))) {
+	if (nlh->nlmsg_len < NLMSG_SPACE(sizeof(struct nfgenmsg))) {
 		DEBUGP("received message was too short\n");
 		return 0;
 	}
@@ -240,15 +245,12 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 	ss = nfnetlink_get_subsys(type);
 	if (!ss) {
 #ifdef CONFIG_KMOD
-		if (cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN)) {
-			/* don't call nfnl_shunlock, since it would reenter
-			 * with further packet processing */
-			up(&nfnl_sem);
-			request_module("nfnetlink-subsys-%d",
-					NFNL_SUBSYS_ID(type));
-			nfnl_shlock();
-			ss = nfnetlink_get_subsys(type);
-		}
+		/* don't call nfnl_shunlock, since it would reenter
+		 * with further packet processing */
+		up(&nfnl_sem);
+		request_module("nfnetlink-subsys-%d", NFNL_SUBSYS_ID(type));
+		nfnl_shlock();
+		ss = nfnetlink_get_subsys(type);
 		if (!ss)
 #endif
 			goto err_inval;
@@ -258,13 +260,6 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 	if (!nc) {
 		DEBUGP("unable to find client for type %d\n", type);
 		goto err_inval;
-	}
-
-	if (nc->cap_required && 
-	    !cap_raised(NETLINK_CB(skb).eff_cap, nc->cap_required)) {
-		DEBUGP("permission denied for type %d\n", type);
-		*errp = -EPERM;
-		return -1;
 	}
 
 	{

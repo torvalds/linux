@@ -220,8 +220,9 @@ static void __devinit MP_processor_info (struct mpc_config_processor *m)
 	num_processors++;
 
 	if ((num_processors > 8) &&
-	    APIC_XAPIC(ver) &&
-	    (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL))
+	    ((APIC_XAPIC(ver) &&
+	     (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)) ||
+	     (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)))
 		def_to_bigsmp = 1;
 	else
 		def_to_bigsmp = 0;

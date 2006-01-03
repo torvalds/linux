@@ -256,9 +256,7 @@ void __cpuexit cpu_die(void)
 asmlinkage void __cpuinit secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
-	unsigned int cpu;
-
-	cpu = smp_processor_id();
+	unsigned int cpu = smp_processor_id();
 
 	printk("CPU%u: Booted secondary processor\n", cpu);
 

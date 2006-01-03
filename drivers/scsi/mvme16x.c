@@ -21,7 +21,7 @@
 #include<linux/stat.h>
 
 
-int mvme16x_scsi_detect(Scsi_Host_Template *tpnt)
+int mvme16x_scsi_detect(struct scsi_host_template *tpnt)
 {
     static unsigned char called = 0;
     int clock;
@@ -61,7 +61,7 @@ static int mvme16x_scsi_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name			= "MVME16x NCR53c710 SCSI",
 	.detect			= mvme16x_scsi_detect,
 	.release		= mvme16x_scsi_release,

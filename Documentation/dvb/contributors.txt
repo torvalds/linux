@@ -15,7 +15,7 @@ Michael Holzt <kju@debian.org>
 
 Diego Picciani <d.picciani@novacomp.it>
   for CyberLogin for Linux which allows logging onto EON
-  (in case you are wondering where CyberLogin is, EON changed its login 
+  (in case you are wondering where CyberLogin is, EON changed its login
   procedure and CyberLogin is no longer used.)
 
 Martin Schaller <martin@smurf.franken.de>
@@ -57,7 +57,7 @@ Augusto Cardoso <augusto@carhil.net>
 Davor Emard <emard@softhome.net>
   for his work on the budget drivers, the demux code,
   the module unloading problems, ...
-  
+
 Hans-Frieder Vogt <hfvogt@arcor.de>
   for his work on calculating and checking the crc's for the
   TechnoTrend/Hauppauge DEC driver firmware

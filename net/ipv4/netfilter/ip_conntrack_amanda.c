@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL");
 module_param(master_timeout, int, 0600);
 MODULE_PARM_DESC(master_timeout, "timeout for the master connection");
 
-static char *conns[] = { "DATA ", "MESG ", "INDEX " };
+static const char *conns[] = { "DATA ", "MESG ", "INDEX " };
 
 /* This is slow, but it's simple. --RR */
 static char *amanda_buffer;

@@ -328,8 +328,10 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		iif = skb->dev->ifindex;
 
 	/*
-	 *	Must not send if we know that source is Anycast also.
-	 *	for now we don't know that.
+	 *	Must not send error if the source does not uniquely
+	 *	identify a single node (RFC2463 Section 2.4).
+	 *	We check unspecified / multicast addresses here,
+	 *	and anycast addresses will be checked later.
 	 */
 	if ((addr_type == IPV6_ADDR_ANY) || (addr_type & IPV6_ADDR_MULTICAST)) {
 		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6_send: addr_any/mcast source\n");
@@ -373,6 +375,16 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)
 		goto out;
+
+	/*
+	 * We won't send icmp if the destination is known
+	 * anycast.
+	 */
+	if (((struct rt6_info *)dst)->rt6i_flags & RTF_ANYCAST) {
+		LIMIT_NETDEBUG(KERN_DEBUG "icmpv6_send: acast source\n");
+		goto out_dst_release;
+	}
+
 	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
 		goto out;
 
@@ -585,17 +597,16 @@ static int icmpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	daddr = &skb->nh.ipv6h->daddr;
 
 	/* Perform checksum. */
-	if (skb->ip_summed == CHECKSUM_HW) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		if (csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
-				    skb->csum)) {
-			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 hw checksum failed\n");
-			skb->ip_summed = CHECKSUM_NONE;
-		}
-	}
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		if (csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
-				    skb_checksum(skb, 0, skb->len, 0))) {
+	switch (skb->ip_summed) {
+	case CHECKSUM_HW:
+		if (!csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
+				     skb->csum))
+			break;
+		/* fall through */
+	case CHECKSUM_NONE:
+		skb->csum = ~csum_ipv6_magic(saddr, daddr, skb->len,
+					     IPPROTO_ICMPV6, 0);
+		if (__skb_checksum_complete(skb)) {
 			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 checksum failed [%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x > %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]\n",
 				       NIP6(*saddr), NIP6(*daddr));
 			goto discard_it;
@@ -752,7 +763,7 @@ void icmpv6_cleanup(void)
 	inet6_del_protocol(&icmpv6_protocol, IPPROTO_ICMPV6);
 }
 
-static struct icmp6_err {
+static const struct icmp6_err {
 	int err;
 	int fatal;
 } tab_unreach[] = {

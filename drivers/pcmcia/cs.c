@@ -513,6 +513,11 @@ static int socket_insert(struct pcmcia_socket *skt)
 	ret = socket_setup(skt, setup_delay);
 	if (ret == CS_SUCCESS) {
 		skt->state |= SOCKET_PRESENT;
+
+		printk(KERN_NOTICE "pccard: %s card inserted into slot %d\n",
+		       (skt->state & SOCKET_CARDBUS) ? "CardBus" : "PCMCIA",
+		       skt->sock);
+
 #ifdef CONFIG_CARDBUS
 		if (skt->state & SOCKET_CARDBUS) {
 			cb_alloc(skt);
@@ -598,6 +603,7 @@ static int socket_resume(struct pcmcia_socket *skt)
 
 static void socket_remove(struct pcmcia_socket *skt)
 {
+	printk(KERN_NOTICE "pccard: card ejected from slot %d\n", skt->sock);
 	socket_shutdown(skt);
 	cs_socket_put(skt);
 }

@@ -727,71 +727,71 @@ void free_btres(struct bttv *btv, struct bttv_fh *fh, int bits)
 
 static void set_pll_freq(struct bttv *btv, unsigned int fin, unsigned int fout)
 {
-        unsigned char fl, fh, fi;
+	unsigned char fl, fh, fi;
 
-        /* prevent overflows */
-        fin/=4;
-        fout/=4;
+	/* prevent overflows */
+	fin/=4;
+	fout/=4;
 
-        fout*=12;
-        fi=fout/fin;
+	fout*=12;
+	fi=fout/fin;
 
-        fout=(fout%fin)*256;
-        fh=fout/fin;
+	fout=(fout%fin)*256;
+	fh=fout/fin;
 
-        fout=(fout%fin)*256;
-        fl=fout/fin;
+	fout=(fout%fin)*256;
+	fl=fout/fin;
 
-        btwrite(fl, BT848_PLL_F_LO);
-        btwrite(fh, BT848_PLL_F_HI);
-        btwrite(fi|BT848_PLL_X, BT848_PLL_XCI);
+	btwrite(fl, BT848_PLL_F_LO);
+	btwrite(fh, BT848_PLL_F_HI);
+	btwrite(fi|BT848_PLL_X, BT848_PLL_XCI);
 }
 
 static void set_pll(struct bttv *btv)
 {
-        int i;
+	int i;
 
-        if (!btv->pll.pll_crystal)
-                return;
+	if (!btv->pll.pll_crystal)
+		return;
 
 	if (btv->pll.pll_ofreq == btv->pll.pll_current) {
 		dprintk("bttv%d: PLL: no change required\n",btv->c.nr);
-                return;
-        }
+		return;
+	}
 
-        if (btv->pll.pll_ifreq == btv->pll.pll_ofreq) {
-                /* no PLL needed */
-                if (btv->pll.pll_current == 0)
-                        return;
+	if (btv->pll.pll_ifreq == btv->pll.pll_ofreq) {
+		/* no PLL needed */
+		if (btv->pll.pll_current == 0)
+			return;
 		bttv_printk(KERN_INFO "bttv%d: PLL can sleep, using XTAL (%d).\n",
-                           btv->c.nr,btv->pll.pll_ifreq);
-                btwrite(0x00,BT848_TGCTRL);
-                btwrite(0x00,BT848_PLL_XCI);
-                btv->pll.pll_current = 0;
-                return;
-        }
+			btv->c.nr,btv->pll.pll_ifreq);
+		btwrite(0x00,BT848_TGCTRL);
+		btwrite(0x00,BT848_PLL_XCI);
+		btv->pll.pll_current = 0;
+		return;
+	}
 
 	bttv_printk(KERN_INFO "bttv%d: PLL: %d => %d ",btv->c.nr,
-                   btv->pll.pll_ifreq, btv->pll.pll_ofreq);
+		btv->pll.pll_ifreq, btv->pll.pll_ofreq);
 	set_pll_freq(btv, btv->pll.pll_ifreq, btv->pll.pll_ofreq);
 
-        for (i=0; i<10; i++) {
+	for (i=0; i<10; i++) {
 		/*  Let other people run while the PLL stabilizes */
 		bttv_printk(".");
 		msleep(10);
 
-                if (btread(BT848_DSTATUS) & BT848_DSTATUS_PLOCK) {
+		if (btread(BT848_DSTATUS) & BT848_DSTATUS_PLOCK) {
 			btwrite(0,BT848_DSTATUS);
-                } else {
-                        btwrite(0x08,BT848_TGCTRL);
-                        btv->pll.pll_current = btv->pll.pll_ofreq;
+		} else {
+			btwrite(0x08,BT848_TGCTRL);
+			btv->pll.pll_current = btv->pll.pll_ofreq;
 			bttv_printk(" ok\n");
-                        return;
-                }
-        }
-        btv->pll.pll_current = -1;
+			return;
+		}
+	}
+	btv->pll.pll_current = -1;
 	bttv_printk("failed\n");
-        return;
+	return;
 }
 
 /* used to switch between the bt848's analog/digital video capture modes */
@@ -1720,7 +1720,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		memset(i,0,sizeof(*i));
 		i->index    = n;
 		i->type     = V4L2_INPUT_TYPE_CAMERA;
-		i->audioset = 1;
+		i->audioset = 0;
 		if (i->index == bttv_tvcards[btv->c.type].tuner) {
 			sprintf(i->name, "Television");
 			i->type  = V4L2_INPUT_TYPE_TUNER;
@@ -1771,11 +1771,19 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		memset(t,0,sizeof(*t));
 		strcpy(t->name, "Television");
 		t->type       = V4L2_TUNER_ANALOG_TV;
-		t->rangehigh  = 0xffffffffUL;
 		t->capability = V4L2_TUNER_CAP_NORM;
 		t->rxsubchans = V4L2_TUNER_SUB_MONO;
 		if (btread(BT848_DSTATUS)&BT848_DSTATUS_HLOC)
 			t->signal = 0xffff;
+		{
+			struct video_tuner tuner;
+
+			memset(&tuner, 0, sizeof (tuner));
+			tuner.rangehigh = 0xffffffffUL;
+			bttv_call_i2c_clients(btv, VIDIOCGTUNER, &tuner);
+			t->rangelow = tuner.rangelow;
+			t->rangehigh = tuner.rangehigh;
+		}
 		{
 			/* Hmmm ... */
 			struct video_audio va;
@@ -1853,7 +1861,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 	}
 	case VIDIOC_LOG_STATUS:
 	{
-		bttv_call_i2c_clients(btv, VIDIOC_LOG_STATUS, 0);
+		bttv_call_i2c_clients(btv, VIDIOC_LOG_STATUS, NULL);
 		return 0;
 	}
 
@@ -1956,7 +1964,7 @@ static int setup_window(struct bttv_fh *fh, struct bttv *btv,
 	}
 
 	down(&fh->cap.lock);
-	kfree(fh->ov.clips);
+		kfree(fh->ov.clips);
 	fh->ov.clips    = clips;
 	fh->ov.nclips   = n;
 
@@ -2029,19 +2037,33 @@ static int bttv_switch_type(struct bttv_fh *fh, enum v4l2_buf_type type)
 	return 0;
 }
 
+static void
+pix_format_set_size     (struct v4l2_pix_format *       f,
+			 const struct bttv_format *     fmt,
+			 unsigned int                   width,
+			 unsigned int                   height)
+{
+	f->width = width;
+	f->height = height;
+
+	if (fmt->flags & FORMAT_FLAGS_PLANAR) {
+		f->bytesperline = width; /* Y plane */
+		f->sizeimage = (width * height * fmt->depth) >> 3;
+	} else {
+		f->bytesperline = (width * fmt->depth) >> 3;
+		f->sizeimage = height * f->bytesperline;
+	}
+}
+
 static int bttv_g_fmt(struct bttv_fh *fh, struct v4l2_format *f)
 {
 	switch (f->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		memset(&f->fmt.pix,0,sizeof(struct v4l2_pix_format));
-		f->fmt.pix.width        = fh->width;
-		f->fmt.pix.height       = fh->height;
+		pix_format_set_size (&f->fmt.pix, fh->fmt,
+				     fh->width, fh->height);
 		f->fmt.pix.field        = fh->cap.field;
 		f->fmt.pix.pixelformat  = fh->fmt->fourcc;
-		f->fmt.pix.bytesperline =
-			(f->fmt.pix.width * fh->fmt->depth) >> 3;
-		f->fmt.pix.sizeimage =
-			f->fmt.pix.height * f->fmt.pix.bytesperline;
 		return 0;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 		memset(&f->fmt.win,0,sizeof(struct v4l2_window));
@@ -2106,11 +2128,9 @@ static int bttv_try_fmt(struct bttv_fh *fh, struct bttv *btv,
 			f->fmt.pix.width = maxw;
 		if (f->fmt.pix.height > maxh)
 			f->fmt.pix.height = maxh;
-		f->fmt.pix.width &= ~0x03;
-		f->fmt.pix.bytesperline =
-			(f->fmt.pix.width * fmt->depth) >> 3;
-		f->fmt.pix.sizeimage =
-			f->fmt.pix.height * f->fmt.pix.bytesperline;
+		pix_format_set_size (&f->fmt.pix, fmt,
+				     f->fmt.pix.width & ~3,
+				     f->fmt.pix.height);
 
 		return 0;
 	}
@@ -2277,6 +2297,15 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		if (fmt->depth != pic->depth) {
 			retval = -EINVAL;
 			goto fh_unlock_and_return;
+		}
+		if (fmt->flags & FORMAT_FLAGS_RAW) {
+			/* VIDIOCMCAPTURE uses gbufsize, not RAW_BPL *
+			   RAW_LINES * 2. F1 is stored at offset 0, F2
+			   at buffer size / 2. */
+			fh->width = RAW_BPL;
+			fh->height = gbufsize / RAW_BPL;
+			btv->init.width  = RAW_BPL;
+			btv->init.height = gbufsize / RAW_BPL;
 		}
 		fh->ovfmt   = fmt;
 		fh->fmt     = fmt;
@@ -2589,9 +2618,11 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 
 		if (0 == v4l2)
 			return -EINVAL;
-		strcpy(cap->driver,"bttv");
-		strlcpy(cap->card,btv->video_dev->name,sizeof(cap->card));
-		sprintf(cap->bus_info,"PCI:%s",pci_name(btv->c.pci));
+		memset(cap, 0, sizeof (*cap));
+		strlcpy(cap->driver, "bttv", sizeof (cap->driver));
+		strlcpy(cap->card, btv->video_dev->name, sizeof (cap->card));
+		snprintf(cap->bus_info, sizeof (cap->bus_info),
+			 "PCI:%s", pci_name(btv->c.pci));
 		cap->version = BTTV_VERSION_CODE;
 		cap->capabilities =
 			V4L2_CAP_VIDEO_CAPTURE |
@@ -2727,7 +2758,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			fh->ov.w.height = fb->fmt.height;
 			btv->init.ov.w.width  = fb->fmt.width;
 			btv->init.ov.w.height = fb->fmt.height;
-			kfree(fh->ov.clips);
+				kfree(fh->ov.clips);
 			fh->ov.clips = NULL;
 			fh->ov.nclips = 0;
 
@@ -2952,6 +2983,8 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 			fh->cap.read_buf->memory = V4L2_MEMORY_USERPTR;
 			field = videobuf_next_field(&fh->cap);
 			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,field)) {
+				kfree (fh->cap.read_buf);
+				fh->cap.read_buf = NULL;
 				up(&fh->cap.lock);
 				return POLLERR;
 			}
@@ -3667,6 +3700,10 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 	int handled = 0;
 
 	btv=(struct bttv *)dev_id;
+
+	if (btv->any_irq)
+		handled = bttv_any_irq(&btv->c);
+
 	count=0;
 	while (1) {
 		/* get/clear interrupt status bits */

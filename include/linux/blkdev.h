@@ -406,6 +406,7 @@ struct request_queue
 
 	atomic_t		refcnt;
 
+	unsigned int		nr_sorted;
 	unsigned int		in_flight;
 
 	/*
@@ -631,6 +632,7 @@ static inline void elv_dispatch_add_tail(struct request_queue *q,
 {
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
+	q->nr_sorted--;
 
 	q->end_sector = rq_end_sector(rq);
 	q->boundary_rq = rq;

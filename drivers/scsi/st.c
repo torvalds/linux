@@ -4194,27 +4194,10 @@ static void st_intr(struct scsi_cmnd *SCpnt)
  */
 static int st_init_command(struct scsi_cmnd *SCpnt)
 {
-	struct request *rq;
-
 	if (!(SCpnt->request->flags & REQ_BLOCK_PC))
 		return 0;
 
-	rq = SCpnt->request;
-	if (sizeof(rq->cmd) > sizeof(SCpnt->cmnd))
-		return 0;
-
-	memcpy(SCpnt->cmnd, rq->cmd, sizeof(SCpnt->cmnd));
-	SCpnt->cmd_len = rq->cmd_len;
-
-	if (rq_data_dir(rq) == WRITE)
-		SCpnt->sc_data_direction = DMA_TO_DEVICE;
-	else if (rq->data_len)
-		SCpnt->sc_data_direction = DMA_FROM_DEVICE;
-	else
-		SCpnt->sc_data_direction = DMA_NONE;
-
-	SCpnt->timeout_per_command = rq->timeout;
-	SCpnt->transfersize = rq->data_len;
+	scsi_setup_blk_pc_cmnd(SCpnt, 0);
 	SCpnt->done = st_intr;
 	return 1;
 }
@@ -4509,6 +4492,7 @@ static int sgl_map_user_pages(struct scatterlist *sgl, const unsigned int max_pa
 	if (res > 0) {
 		for (j=0; j < res; j++)
 			page_cache_release(pages[j]);
+		res = 0;
 	}
 	kfree(pages);
 	return res;
@@ -4524,8 +4508,6 @@ static int sgl_unmap_user_pages(struct scatterlist *sgl, const unsigned int nr_p
 	for (i=0; i < nr_pages; i++) {
 		struct page *page = sgl[i].page;
 
-		/* XXX: just for debug. Remove when PageReserved is removed */
-		BUG_ON(PageReserved(page));
 		if (dirtied)
 			SetPageDirty(page);
 		/* FIXME: cache flush missing for rw==READ

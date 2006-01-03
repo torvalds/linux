@@ -149,7 +149,7 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo * ses, struct nls_table * nls_
 	char temp_hash[16];
 	struct HMACMD5Context ctx;
 	char * ucase_buf;
-	wchar_t * unicode_buf;
+	__le16 * unicode_buf;
 	unsigned int i,user_name_len,dom_name_len;
 
 	if(ses == NULL)

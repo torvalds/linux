@@ -78,7 +78,7 @@ struct hd_struct {
 	sector_t start_sect;
 	sector_t nr_sects;
 	struct kobject kobj;
-	unsigned ios[2], sectors[2];
+	unsigned ios[2], sectors[2];	/* READs and WRITEs */
 	int policy, partno;
 };
 
@@ -89,7 +89,7 @@ struct hd_struct {
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	32
 
 struct disk_stats {
-	unsigned sectors[2];
+	unsigned sectors[2];		/* READs and WRITEs */
 	unsigned ios[2];
 	unsigned merges[2];
 	unsigned ticks[2];

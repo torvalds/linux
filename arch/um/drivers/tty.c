@@ -60,13 +60,6 @@ static int tty_open(int input, int output, int primary, void *d,
 	return(fd);
 }
 
-static int tty_console_write(int fd, const char *buf, int n, void *d)
-{
-	struct tty_chan *data = d;
-
-	return(generic_console_write(fd, buf, n, &data->tt));
-}
-
 struct chan_ops tty_ops = {
 	.type		= "tty",
 	.init		= tty_chan_init,
@@ -74,7 +67,7 @@ struct chan_ops tty_ops = {
 	.close		= generic_close,
 	.read		= generic_read,
 	.write		= generic_write,
-	.console_write	= tty_console_write,
+	.console_write	= generic_console_write,
 	.window_size	= generic_window_size,
 	.free		= generic_free,
 	.winch		= 0,

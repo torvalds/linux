@@ -16,7 +16,7 @@
 /*
  * A maximum of 255 APICs with the current APIC ID architecture.
  */
-#define MAX_APICS 128
+#define MAX_APICS 255
 
 struct intel_mp_floating
 {
@@ -157,7 +157,8 @@ struct mpc_config_lintsrc
  */
 
 #define MAX_MP_BUSSES 256
-#define MAX_IRQ_SOURCES 256
+/* Each PCI slot may be a combo card with its own bus.  4 IRQ pins per slot. */
+#define MAX_IRQ_SOURCES (MAX_MP_BUSSES * 4)
 enum mp_bustype {
 	MP_BUS_ISA = 1,
 	MP_BUS_EISA,
@@ -172,7 +173,7 @@ extern int smp_found_config;
 extern void find_smp_config (void);
 extern void get_smp_config (void);
 extern int nr_ioapics;
-extern int apic_version [MAX_APICS];
+extern unsigned char apic_version [MAX_APICS];
 extern int mp_irq_entries;
 extern struct mpc_config_intsrc mp_irqs [MAX_IRQ_SOURCES];
 extern int mpc_default_type;

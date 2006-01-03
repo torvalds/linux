@@ -128,9 +128,29 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 */
 	asoc->max_burst = sctp_max_burst;
 
-	/* Copy things from the endpoint.  */
+	/* initialize association timers */
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_NONE] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T4_RTO] = 0;
+
+	/* sctpimpguide Section 2.12.2
+	 * If the 'T5-shutdown-guard' timer is used, it SHOULD be set to the
+	 * recommended value of 5 times 'RTO.Max'.
+	 */
+        asoc->timeouts[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]
+		= 5 * asoc->rto_max;
+
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] =
+		SCTP_DEFAULT_TIMEOUT_SACK;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
+		sp->autoclose * HZ;
+	
+	/* Initilizes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i) {
-		asoc->timeouts[i] = ep->timeouts[i];
 		init_timer(&asoc->timers[i]);
 		asoc->timers[i].function = sctp_timer_events[i];
 		asoc->timers[i].data = (unsigned long) asoc;
@@ -157,10 +177,10 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * RFC 6 - A SCTP receiver MUST be able to receive a minimum of
 	 * 1500 bytes in one SCTP packet.
 	 */
-	if (sk->sk_rcvbuf < SCTP_DEFAULT_MINWINDOW)
+	if ((sk->sk_rcvbuf/2) < SCTP_DEFAULT_MINWINDOW)
 		asoc->rwnd = SCTP_DEFAULT_MINWINDOW;
 	else
-		asoc->rwnd = sk->sk_rcvbuf;
+		asoc->rwnd = sk->sk_rcvbuf/2;
 
 	asoc->a_rwnd = asoc->rwnd;
 
@@ -171,6 +191,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Set the sndbuf size for transmit.  */
 	asoc->sndbuf_used = 0;
+
+	/* Initialize the receive memory counter */
+	atomic_set(&asoc->rmem_alloc, 0);
 
 	init_waitqueue_head(&asoc->wait);
 
@@ -379,6 +402,8 @@ static void sctp_association_destroy(struct sctp_association *asoc)
 		idr_remove(&sctp_assocs_id, asoc->assoc_id);
 		spin_unlock_bh(&sctp_assocs_id_lock);
 	}
+
+	BUG_TRAP(!atomic_read(&asoc->rmem_alloc));
 
 	if (asoc->base.malloced) {
 		kfree(asoc);

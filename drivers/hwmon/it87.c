@@ -522,8 +522,15 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct it87_data *data = i2c_get_clientdata(client);
 	int val = simple_strtol(buf, NULL, 10);
+	u8 reg = it87_read_value(client, IT87_REG_FAN_DIV);
 
 	down(&data->update_lock);
+	switch (nr) {
+	case 0: data->fan_div[nr] = reg & 0x07; break;
+	case 1: data->fan_div[nr] = (reg >> 3) & 0x07; break;
+	case 2: data->fan_div[nr] = (reg & 0x40) ? 3 : 1; break;
+	}
+
 	data->fan_min[nr] = FAN_TO_REG(val, DIV_FROM_REG(data->fan_div[nr]));
 	it87_write_value(client, IT87_REG_FAN_MIN(nr), data->fan_min[nr]);
 	up(&data->update_lock);

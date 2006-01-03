@@ -40,13 +40,6 @@
  *****************************************************************************/
 
 #include <linux/config.h>
-
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/input.h>

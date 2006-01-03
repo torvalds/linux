@@ -125,14 +125,14 @@ static struct s3c2410_nand_info *s3c2410_nand_mtd_toinfo(struct mtd_info *mtd)
 	return s3c2410_nand_mtd_toours(mtd)->info;
 }
 
-static struct s3c2410_nand_info *to_nand_info(struct device *dev)
+static struct s3c2410_nand_info *to_nand_info(struct platform_device *dev)
 {
-	return dev_get_drvdata(dev);
+	return platform_get_drvdata(dev);
 }
 
-static struct s3c2410_platform_nand *to_nand_plat(struct device *dev)
+static struct s3c2410_platform_nand *to_nand_plat(struct platform_device *dev)
 {
-	return dev->platform_data;
+	return dev->dev.platform_data;
 }
 
 /* timing calculations */
@@ -165,9 +165,9 @@ static int s3c2410_nand_calc_rate(int wanted, unsigned long clk, int max)
 /* controller setup */
 
 static int s3c2410_nand_inithw(struct s3c2410_nand_info *info,
-			       struct device *dev)
+			       struct platform_device *pdev)
 {
-	struct s3c2410_platform_nand *plat = to_nand_plat(dev);
+	struct s3c2410_platform_nand *plat = to_nand_plat(pdev);
 	unsigned long clkrate = clk_get_rate(info->clk);
 	int tacls, twrph0, twrph1;
 	unsigned long cfg;
@@ -430,11 +430,11 @@ static void s3c2410_nand_write_buf(struct mtd_info *mtd,
 
 /* device management functions */
 
-static int s3c2410_nand_remove(struct device *dev)
+static int s3c2410_nand_remove(struct platform_device *pdev)
 {
-	struct s3c2410_nand_info *info = to_nand_info(dev);
+	struct s3c2410_nand_info *info = to_nand_info(pdev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	if (info == NULL)
 		return 0;
@@ -562,10 +562,9 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
  * nand layer to look for devices
 */
 
-static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
+static int s3c24xx_nand_probe(struct platform_device *pdev, int is_s3c2440)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s3c2410_platform_nand *plat = to_nand_plat(dev);
+	struct s3c2410_platform_nand *plat = to_nand_plat(pdev);
 	struct s3c2410_nand_info *info;
 	struct s3c2410_nand_mtd *nmtd;
 	struct s3c2410_nand_set *sets;
@@ -575,26 +574,26 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 	int nr_sets;
 	int setno;
 
-	pr_debug("s3c2410_nand_probe(%p)\n", dev);
+	pr_debug("s3c2410_nand_probe(%p)\n", pdev);
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
-		dev_err(dev, "no memory for flash info\n");
+		dev_err(&pdev->dev, "no memory for flash info\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
 
 	memzero(info, sizeof(*info));
-	dev_set_drvdata(dev, info);
+	platform_set_drvdata(pdev, info);
 
 	spin_lock_init(&info->controller.lock);
 	init_waitqueue_head(&info->controller.wq);
 
 	/* get the clock source and enable it */
 
-	info->clk = clk_get(dev, "nand");
+	info->clk = clk_get(&pdev->dev, "nand");
 	if (IS_ERR(info->clk)) {
-		dev_err(dev, "failed to get clock");
+		dev_err(&pdev->dev, "failed to get clock");
 		err = -ENOENT;
 		goto exit_error;
 	}
@@ -611,27 +610,27 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 	info->area = request_mem_region(res->start, size, pdev->name);
 
 	if (info->area == NULL) {
-		dev_err(dev, "cannot reserve register region\n");
+		dev_err(&pdev->dev, "cannot reserve register region\n");
 		err = -ENOENT;
 		goto exit_error;
 	}
 
-	info->device     = dev;
+	info->device     = &pdev->dev;
 	info->platform   = plat;
 	info->regs       = ioremap(res->start, size);
 	info->is_s3c2440 = is_s3c2440;
 
 	if (info->regs == NULL) {
-		dev_err(dev, "cannot reserve register region\n");
+		dev_err(&pdev->dev, "cannot reserve register region\n");
 		err = -EIO;
 		goto exit_error;
 	}
 
-	dev_dbg(dev, "mapped registers at %p\n", info->regs);
+	dev_dbg(&pdev->dev, "mapped registers at %p\n", info->regs);
 
 	/* initialise the hardware */
 
-	err = s3c2410_nand_inithw(info, dev);
+	err = s3c2410_nand_inithw(info, pdev);
 	if (err != 0)
 		goto exit_error;
 
@@ -645,7 +644,7 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 	size = nr_sets * sizeof(*info->mtds);
 	info->mtds = kmalloc(size, GFP_KERNEL);
 	if (info->mtds == NULL) {
-		dev_err(dev, "failed to allocate mtd storage\n");
+		dev_err(&pdev->dev, "failed to allocate mtd storage\n");
 		err = -ENOMEM;
 		goto exit_error;
 	}
@@ -677,7 +676,7 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 	return 0;
 
  exit_error:
-	s3c2410_nand_remove(dev);
+	s3c2410_nand_remove(pdev);
 
 	if (err == 0)
 		err = -EINVAL;
@@ -686,44 +685,46 @@ static int s3c24xx_nand_probe(struct device *dev, int is_s3c2440)
 
 /* driver device registration */
 
-static int s3c2410_nand_probe(struct device *dev)
+static int s3c2410_nand_probe(struct platform_device *dev)
 {
 	return s3c24xx_nand_probe(dev, 0);
 }
 
-static int s3c2440_nand_probe(struct device *dev)
+static int s3c2440_nand_probe(struct platform_device *dev)
 {
 	return s3c24xx_nand_probe(dev, 1);
 }
 
-static struct device_driver s3c2410_nand_driver = {
-	.name		= "s3c2410-nand",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2410_nand_driver = {
 	.probe		= s3c2410_nand_probe,
 	.remove		= s3c2410_nand_remove,
+	.driver		= {
+		.name	= "s3c2410-nand",
+		.owner	= THIS_MODULE,
+	},
 };
 
-static struct device_driver s3c2440_nand_driver = {
-	.name		= "s3c2440-nand",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2440_nand_driver = {
 	.probe		= s3c2440_nand_probe,
 	.remove		= s3c2410_nand_remove,
+	.driver		= {
+		.name	= "s3c2440-nand",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init s3c2410_nand_init(void)
 {
 	printk("S3C24XX NAND Driver, (c) 2004 Simtec Electronics\n");
 
-	driver_register(&s3c2440_nand_driver);
-	return driver_register(&s3c2410_nand_driver);
+	platform_driver_register(&s3c2440_nand_driver);
+	return platform_driver_register(&s3c2410_nand_driver);
 }
 
 static void __exit s3c2410_nand_exit(void)
 {
-	driver_unregister(&s3c2440_nand_driver);
-	driver_unregister(&s3c2410_nand_driver);
+	platform_driver_unregister(&s3c2440_nand_driver);
+	platform_driver_unregister(&s3c2410_nand_driver);
 }
 
 module_init(s3c2410_nand_init);

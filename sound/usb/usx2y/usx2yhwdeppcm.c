@@ -691,6 +691,7 @@ static struct page * snd_usX2Y_hwdep_pcm_vm_nopage(struct vm_area_struct *area, 
 	snd_assert((offset % PAGE_SIZE) == 0, return NOPAGE_OOM);
 	vaddr = (char*)((usX2Ydev_t*)area->vm_private_data)->hwdep_pcm_shm + offset;
 	page = virt_to_page(vaddr);
+	get_page(page);
 
 	if (type)
 		*type = VM_FAULT_MINOR;

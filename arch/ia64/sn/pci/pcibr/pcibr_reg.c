@@ -25,7 +25,7 @@ union br_ptr {
  */
 void pcireg_control_bit_clr(struct pcibus_info *pcibus_info, uint64_t bits)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 
 	if (pcibus_info) {
 		switch (pcibus_info->pbi_bridge_type) {
@@ -38,14 +38,14 @@ void pcireg_control_bit_clr(struct pcibus_info *pcibus_info, uint64_t bits)
 		default:
 			panic
 			    ("pcireg_control_bit_clr: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 }
 
 void pcireg_control_bit_set(struct pcibus_info *pcibus_info, uint64_t bits)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 
 	if (pcibus_info) {
 		switch (pcibus_info->pbi_bridge_type) {
@@ -58,7 +58,7 @@ void pcireg_control_bit_set(struct pcibus_info *pcibus_info, uint64_t bits)
 		default:
 			panic
 			    ("pcireg_control_bit_set: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 }
@@ -68,7 +68,7 @@ void pcireg_control_bit_set(struct pcibus_info *pcibus_info, uint64_t bits)
  */
 uint64_t pcireg_tflush_get(struct pcibus_info *pcibus_info)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 	uint64_t ret = 0;
 
 	if (pcibus_info) {
@@ -82,7 +82,7 @@ uint64_t pcireg_tflush_get(struct pcibus_info *pcibus_info)
 		default:
 			panic
 			    ("pcireg_tflush_get: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 
@@ -98,7 +98,7 @@ uint64_t pcireg_tflush_get(struct pcibus_info *pcibus_info)
  */
 uint64_t pcireg_intr_status_get(struct pcibus_info * pcibus_info)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 	uint64_t ret = 0;
 
 	if (pcibus_info) {
@@ -112,7 +112,7 @@ uint64_t pcireg_intr_status_get(struct pcibus_info * pcibus_info)
 		default:
 			panic
 			    ("pcireg_intr_status_get: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 	return ret;
@@ -123,7 +123,7 @@ uint64_t pcireg_intr_status_get(struct pcibus_info * pcibus_info)
  */
 void pcireg_intr_enable_bit_clr(struct pcibus_info *pcibus_info, uint64_t bits)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 
 	if (pcibus_info) {
 		switch (pcibus_info->pbi_bridge_type) {
@@ -136,14 +136,14 @@ void pcireg_intr_enable_bit_clr(struct pcibus_info *pcibus_info, uint64_t bits)
 		default:
 			panic
 			    ("pcireg_intr_enable_bit_clr: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 }
 
 void pcireg_intr_enable_bit_set(struct pcibus_info *pcibus_info, uint64_t bits)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 
 	if (pcibus_info) {
 		switch (pcibus_info->pbi_bridge_type) {
@@ -156,7 +156,7 @@ void pcireg_intr_enable_bit_set(struct pcibus_info *pcibus_info, uint64_t bits)
 		default:
 			panic
 			    ("pcireg_intr_enable_bit_set: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 }
@@ -167,7 +167,7 @@ void pcireg_intr_enable_bit_set(struct pcibus_info *pcibus_info, uint64_t bits)
 void pcireg_intr_addr_addr_set(struct pcibus_info *pcibus_info, int int_n,
 			       uint64_t addr)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 
 	if (pcibus_info) {
 		switch (pcibus_info->pbi_bridge_type) {
@@ -186,7 +186,7 @@ void pcireg_intr_addr_addr_set(struct pcibus_info *pcibus_info, int int_n,
 		default:
 			panic
 			    ("pcireg_intr_addr_addr_get: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 }
@@ -196,7 +196,7 @@ void pcireg_intr_addr_addr_set(struct pcibus_info *pcibus_info, int int_n,
  */
 void pcireg_force_intr_set(struct pcibus_info *pcibus_info, int int_n)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 
 	if (pcibus_info) {
 		switch (pcibus_info->pbi_bridge_type) {
@@ -209,7 +209,7 @@ void pcireg_force_intr_set(struct pcibus_info *pcibus_info, int int_n)
 		default:
 			panic
 			    ("pcireg_force_intr_set: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 }
@@ -219,7 +219,7 @@ void pcireg_force_intr_set(struct pcibus_info *pcibus_info, int int_n)
  */
 uint64_t pcireg_wrb_flush_get(struct pcibus_info *pcibus_info, int device)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 	uint64_t ret = 0;
 
 	if (pcibus_info) {
@@ -233,7 +233,7 @@ uint64_t pcireg_wrb_flush_get(struct pcibus_info *pcibus_info, int device)
 			    __sn_readq_relaxed(&ptr->pic.p_wr_req_buf[device]);
 			break;
 		default:
-		      panic("pcireg_wrb_flush_get: unknown bridgetype bridge 0x%p", (void *)ptr);
+		      panic("pcireg_wrb_flush_get: unknown bridgetype bridge 0x%p", ptr);
 		}
 
 	}
@@ -244,7 +244,7 @@ uint64_t pcireg_wrb_flush_get(struct pcibus_info *pcibus_info, int device)
 void pcireg_int_ate_set(struct pcibus_info *pcibus_info, int ate_index,
 			uint64_t val)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
 
 	if (pcibus_info) {
 		switch (pcibus_info->pbi_bridge_type) {
@@ -257,15 +257,15 @@ void pcireg_int_ate_set(struct pcibus_info *pcibus_info, int ate_index,
 		default:
 			panic
 			    ("pcireg_int_ate_set: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 }
 
-uint64_t *pcireg_int_ate_addr(struct pcibus_info *pcibus_info, int ate_index)
+uint64_t __iomem *pcireg_int_ate_addr(struct pcibus_info *pcibus_info, int ate_index)
 {
-	union br_ptr *ptr = (union br_ptr *)pcibus_info->pbi_buscommon.bs_base;
-	uint64_t *ret = (uint64_t *) 0;
+	union br_ptr __iomem *ptr = (union br_ptr __iomem *)pcibus_info->pbi_buscommon.bs_base;
+	uint64_t __iomem *ret = NULL;
 
 	if (pcibus_info) {
 		switch (pcibus_info->pbi_bridge_type) {
@@ -278,7 +278,7 @@ uint64_t *pcireg_int_ate_addr(struct pcibus_info *pcibus_info, int ate_index)
 		default:
 			panic
 			    ("pcireg_int_ate_addr: unknown bridgetype bridge 0x%p",
-			     (void *)ptr);
+			     ptr);
 		}
 	}
 	return ret;

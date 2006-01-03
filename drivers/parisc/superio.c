@@ -24,6 +24,9 @@
  *      Major changes to get basic interrupt infrastructure working to
  *      hopefully be able to support all SuperIO devices. Currently
  *      works with serial. -- John Marvin <jsm@fc.hp.com>
+ *
+ *	Converted superio_init() to be a PCI_FIXUP_FINAL callee.
+ *         -- Kyle McMartin <kyle@parisc-linux.org>
  */
 
 
@@ -141,10 +144,10 @@ superio_interrupt(int parent_irq, void *devp, struct pt_regs *regs)
 }
 
 /* Initialize Super I/O device */
-
-static void __devinit
-superio_init(struct superio_device *sio)
+static void
+superio_init(struct pci_dev *pcidev)
 {
+	struct superio_device *sio = &sio_dev;
 	struct pci_dev *pdev = sio->lio_pdev;
 	u16 word;
 
@@ -160,8 +163,8 @@ superio_init(struct superio_device *sio)
 	/* ...then properly fixup the USB to point at suckyio PIC */
 	sio->usb_pdev->irq = superio_fixup_irq(sio->usb_pdev);
 
-	printk (KERN_INFO "SuperIO: Found NS87560 Legacy I/O device at %s (IRQ %i) \n",
-		pci_name(pdev),pdev->irq);
+	printk(KERN_INFO "SuperIO: Found NS87560 Legacy I/O device at %s (IRQ %i) \n",
+	       pci_name(pdev), pdev->irq);
 
 	pci_read_config_dword (pdev, SIO_SP1BAR, &sio->sp1_base);
 	sio->sp1_base &= ~1;
@@ -274,7 +277,7 @@ superio_init(struct superio_device *sio)
 
 	sio->suckyio_irq_enabled = 1;
 }
-
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87560_LIO, superio_init);
 
 static void superio_disable_irq(unsigned int irq)
 {
@@ -452,8 +455,10 @@ static void superio_fixup_pci(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87415, superio_fixup_pci);
 
 
-static int __devinit superio_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int __devinit
+superio_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
+	struct superio_device *sio = &sio_dev;
 
 	/*
 	** superio_probe(00:0e.0) ven 0x100b dev 0x2 sv 0x0 sd 0x0 class 0x1018a
@@ -466,7 +471,8 @@ static int __devinit superio_probe(struct pci_dev *dev, const struct pci_device_
 		dev->subsystem_vendor, dev->subsystem_device,
 		dev->class);
 
-	superio_init(&sio_dev);
+	if (!sio->suckyio_irq_enabled)
+		BUG(); /* Enabled by PCI_FIXUP_FINAL */
 
 	if (dev->device == PCI_DEVICE_ID_NS_87560_LIO) {	/* Function 1 */
 		superio_parport_init();
@@ -481,19 +487,21 @@ static int __devinit superio_probe(struct pci_dev *dev, const struct pci_device_
 		DBG_INIT("superio_probe: WTF? Fire Extinguisher?\n");
 	}
 
-	/* Let appropriate other driver claim this device. */ 
+	/* Let appropriate other driver claim this device. */
 	return -ENODEV;
 }
 
 static struct pci_device_id superio_tbl[] = {
-	{ PCI_VENDOR_ID_NS, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87560_LIO) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87560_USB) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87415) },
 	{ 0, }
 };
 
 static struct pci_driver superio_driver = {
-	.name =		"SuperIO",
-	.id_table =	superio_tbl,
-	.probe =	superio_probe,
+	.name =         "SuperIO",
+	.id_table =     superio_tbl,
+	.probe =        superio_probe,
 };
 
 static int __init superio_modinit(void)
@@ -505,7 +513,6 @@ static void __exit superio_exit(void)
 {
 	pci_unregister_driver(&superio_driver);
 }
-
 
 module_init(superio_modinit);
 module_exit(superio_exit);

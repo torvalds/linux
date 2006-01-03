@@ -118,8 +118,6 @@ static __inline__ long atomic_add_return(int i, atomic_t * v)
 	return result;
 }
 
-#define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
-
 static __inline__ long atomic64_add_return(long i, atomic64_t * v)
 {
 	long temp, result;
@@ -177,6 +175,21 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 	return result;
 }
 
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+
+#define atomic_add_unless(v, a, u)				\
+({								\
+	int c, old;						\
+	c = atomic_read(v);					\
+	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c) \
+		c = old;					\
+	c != (u);						\
+})
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+
+#define atomic_add_negative(a, v) (atomic_add_return((a), (v)) < 0)
+#define atomic64_add_negative(a, v) (atomic64_add_return((a), (v)) < 0)
+
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic64_dec_return(v) atomic64_sub_return(1,(v))
 
@@ -187,6 +200,8 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 #define atomic64_sub_and_test(i,v) (atomic64_sub_return((i), (v)) == 0)
 
 #define atomic_inc_and_test(v) (atomic_add_return(1, (v)) == 0)
+#define atomic64_inc_and_test(v) (atomic64_add_return(1, (v)) == 0)
+
 #define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
 #define atomic64_dec_and_test(v) (atomic64_sub_return(1, (v)) == 0)
 

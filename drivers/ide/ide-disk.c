@@ -1034,11 +1034,11 @@ static int ide_disk_remove(struct device *dev)
 	struct ide_disk_obj *idkp = drive->driver_data;
 	struct gendisk *g = idkp->disk;
 
-	ide_cacheflush_p(drive);
-
 	ide_unregister_subdriver(drive, idkp->driver);
 
 	del_gendisk(g);
+
+	ide_cacheflush_p(drive);
 
 	ide_disk_put(idkp);
 
@@ -1089,8 +1089,8 @@ static void ide_device_shutdown(struct device *dev)
 }
 
 static ide_driver_t idedisk_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-disk",
 		.bus		= &ide_bus_type,
 		.probe		= ide_disk_probe,
@@ -1266,7 +1266,7 @@ static void __exit idedisk_exit (void)
 	driver_unregister(&idedisk_driver.gen_driver);
 }
 
-static int idedisk_init (void)
+static int __init idedisk_init(void)
 {
 	return driver_register(&idedisk_driver.gen_driver);
 }

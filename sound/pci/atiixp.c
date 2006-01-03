@@ -1635,7 +1635,6 @@ static void __devexit snd_atiixp_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ATI IXP AC97 controller",
-	.owner = THIS_MODULE,
 	.id_table = snd_atiixp_ids,
 	.probe = snd_atiixp_probe,
 	.remove = __devexit_p(snd_atiixp_remove),

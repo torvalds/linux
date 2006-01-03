@@ -711,7 +711,6 @@ MODULE_DEVICE_TABLE(pci, wdtpci_pci_tbl);
 
 
 static struct pci_driver wdtpci_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "wdt_pci",
 	.id_table	= wdtpci_pci_tbl,
 	.probe		= wdtpci_init_one,

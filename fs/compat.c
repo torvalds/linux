@@ -168,8 +168,8 @@ asmlinkage long compat_sys_statfs(const char __user *path, struct compat_statfs 
 	if (!error) {
 		struct kstatfs tmp;
 		error = vfs_statfs(nd.dentry->d_inode->i_sb, &tmp);
-		if (!error && put_compat_statfs(buf, &tmp))
-			error = -EFAULT;
+		if (!error)
+			error = put_compat_statfs(buf, &tmp);
 		path_release(&nd);
 	}
 	return error;
@@ -186,8 +186,8 @@ asmlinkage long compat_sys_fstatfs(unsigned int fd, struct compat_statfs __user 
 	if (!file)
 		goto out;
 	error = vfs_statfs(file->f_dentry->d_inode->i_sb, &tmp);
-	if (!error && put_compat_statfs(buf, &tmp))
-		error = -EFAULT;
+	if (!error)
+		error = put_compat_statfs(buf, &tmp);
 	fput(file);
 out:
 	return error;
@@ -236,8 +236,8 @@ asmlinkage long compat_sys_statfs64(const char __user *path, compat_size_t sz, s
 	if (!error) {
 		struct kstatfs tmp;
 		error = vfs_statfs(nd.dentry->d_inode->i_sb, &tmp);
-		if (!error && put_compat_statfs64(buf, &tmp))
-			error = -EFAULT;
+		if (!error)
+			error = put_compat_statfs64(buf, &tmp);
 		path_release(&nd);
 	}
 	return error;
@@ -257,8 +257,8 @@ asmlinkage long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct c
 	if (!file)
 		goto out;
 	error = vfs_statfs(file->f_dentry->d_inode->i_sb, &tmp);
-	if (!error && put_compat_statfs64(buf, &tmp))
-		error = -EFAULT;
+	if (!error)
+		error = put_compat_statfs64(buf, &tmp);
 	fput(file);
 out:
 	return error;
@@ -268,7 +268,6 @@ out:
 
 #define IOCTL_HASHSIZE 256
 static struct ioctl_trans *ioctl32_hash_table[IOCTL_HASHSIZE];
-static DECLARE_RWSEM(ioctl32_sem);
 
 extern struct ioctl_trans ioctl_start[];
 extern int ioctl_table_size;
@@ -390,14 +389,10 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		break;
 	}
 
-	/* When register_ioctl32_conversion is finally gone remove
-	   this lock! -AK */
-	down_read(&ioctl32_sem);
 	for (t = ioctl32_hash_table[ioctl32_hash(cmd)]; t; t = t->next) {
 		if (t->cmd == cmd)
 			goto found_handler;
 	}
-	up_read(&ioctl32_sem);
 
 	if (S_ISSOCK(filp->f_dentry->d_inode->i_mode) &&
 	    cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
@@ -417,11 +412,9 @@ asmlinkage long compat_sys_ioctl(unsigned int fd, unsigned int cmd,
 		lock_kernel();
 		error = t->handler(fd, cmd, arg, filp);
 		unlock_kernel();
-		up_read(&ioctl32_sem);
 		goto out_fput;
 	}
 
-	up_read(&ioctl32_sem);
  do_ioctl:
 	error = vfs_ioctl(filp, fd, cmd, arg);
  out_fput:

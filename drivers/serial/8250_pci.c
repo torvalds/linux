@@ -468,7 +468,7 @@ static unsigned short timedia_eight_port[] = {
 	0x9167, 0x9168, 0xA066, 0xA167, 0xA168, 0
 };
 
-static struct timedia_struct {
+static const struct timedia_struct {
 	int num;
 	unsigned short *ids;
 } timedia_data[] = {
@@ -516,7 +516,7 @@ pci_timedia_setup(struct serial_private *priv, struct pciserial_board *board,
 		break;
 	case 3:
 		offset = board->uart_offset;
-		bar = 1;
+		/* FALLTHROUGH */
 	case 4: /* BAR 2 */
 	case 5: /* BAR 3 */
 	case 6: /* BAR 4 */

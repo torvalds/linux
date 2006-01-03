@@ -268,9 +268,10 @@ void uml_net_user_timer_expire(unsigned long _conn)
 static DEFINE_SPINLOCK(devices_lock);
 static struct list_head devices = LIST_HEAD_INIT(devices);
 
-static struct device_driver uml_net_driver = {
-	.name  = DRIVER_NAME,
-	.bus   = &platform_bus_type,
+static struct platform_driver uml_net_driver = {
+	.driver = {
+		.name  = DRIVER_NAME,
+	},
 };
 static int driver_registered;
 
@@ -317,7 +318,7 @@ static int eth_configure(int n, void *init, char *mac,
 
 	/* sysfs register */
 	if (!driver_registered) {
-		driver_register(&uml_net_driver);
+		platform_driver_register(&uml_net_driver);
 		driver_registered = 1;
 	}
 	device->pdev.id = n;

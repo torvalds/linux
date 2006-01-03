@@ -181,12 +181,19 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		while (ops) {
 			unsigned long which = ffz(~ops);
 
+			ops &= ~(1 << which);
+
 			switch (which) {
+			case IPI_NOP:
+#if (kDEBUG>=100)
+				printk(KERN_DEBUG "CPU%d IPI_NOP\n",this_cpu);
+#endif /* kDEBUG */
+				break;
+				
 			case IPI_RESCHEDULE:
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d IPI_RESCHEDULE\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_RESCHEDULE);
 				/*
 				 * Reschedule callback.  Everything to be
 				 * done is done by the interrupt return path.
@@ -197,7 +204,6 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d IPI_CALL_FUNC\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_CALL_FUNC);
 				{
 					volatile struct smp_call_struct *data;
 					void (*func)(void *info);
@@ -231,7 +237,6 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d IPI_CPU_START\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_CPU_START);
 #ifdef ENTRY_SYS_CPUS
 				p->state = STATE_RUNNING;
 #endif
@@ -241,7 +246,6 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d IPI_CPU_STOP\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_CPU_STOP);
 #ifdef ENTRY_SYS_CPUS
 #else
 				halt_processor();
@@ -252,13 +256,11 @@ ipi_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 #if (kDEBUG>=100)
 				printk(KERN_DEBUG "CPU%d is alive!\n",this_cpu);
 #endif /* kDEBUG */
-				ops &= ~(1 << IPI_CPU_TEST);
 				break;
 
 			default:
 				printk(KERN_CRIT "Unknown IPI num on CPU%d: %lu\n",
 					this_cpu, which);
-				ops &= ~(1 << which);
 				return IRQ_NONE;
 			} /* Switch */
 		} /* while (ops) */
@@ -312,6 +314,12 @@ smp_send_start(void)	{ send_IPI_allbutself(IPI_CPU_START); }
 void 
 smp_send_reschedule(int cpu) { send_IPI_single(cpu, IPI_RESCHEDULE); }
 
+void
+smp_send_all_nop(void)
+{
+	send_IPI_allbutself(IPI_NOP);
+}
+
 
 /**
  * Run a function on all other CPUs.
@@ -338,6 +346,10 @@ smp_call_function (void (*func) (void *info), void *info, int retry, int wait)
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
+
+	/* can also deadlock if IPIs are disabled */
+	WARN_ON((get_eiem() & (1UL<<(CPU_IRQ_MAX - IPI_IRQ))) == 0);
+
 	
 	data.func = func;
 	data.info = info;

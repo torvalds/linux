@@ -617,6 +617,12 @@ struct fb_ops {
 
 	/* perform fb specific mmap */
 	int (*fb_mmap)(struct fb_info *info, struct file *file, struct vm_area_struct *vma);
+
+	/* save current hardware state */
+	void (*fb_save_state)(struct fb_info *info);
+
+	/* restore saved state */
+	void (*fb_restore_state)(struct fb_info *info);
 };
 
 #ifdef CONFIG_FB_TILEBLITTING
@@ -726,6 +732,18 @@ struct fb_tile_ops {
 						  from userspace */
 #define FBINFO_MISC_TILEBLITTING       0x20000 /* use tile blitting */
 
+/* A driver may set this flag to indicate that it does want a set_par to be
+ * called every time when fbcon_switch is executed. The advantage is that with
+ * this flag set you can really be shure that set_par is always called before
+ * any of the functions dependant on the correct hardware state or altering
+ * that state, even if you are using some broken X releases. The disadvantage
+ * is that it introduces unwanted delays to every console switch if set_par
+ * is slow. It is a good idea to try this flag in the drivers initialization
+ * code whenever there is a bug report related to switching between X and the
+ * framebuffer console.
+ */
+#define FBINFO_MISC_ALWAYS_SETPAR   0x40000
+
 struct fb_info {
 	int node;
 	int flags;
@@ -815,6 +833,18 @@ struct fb_info {
 #define fb_writeq(b,addr) (*(volatile u64 *) (addr) = (b))
 #define fb_memset memset
 
+#endif
+
+#if defined (__BIG_ENDIAN)
+#define FB_LEFT_POS(bpp)          (32 - bpp)
+#define FB_SHIFT_HIGH(val, bits)  ((val) >> (bits))
+#define FB_SHIFT_LOW(val, bits)   ((val) << (bits))
+#define FB_BIT_NR(b)              (7 - (b))
+#else
+#define FB_LEFT_POS(bpp)          (0)
+#define FB_SHIFT_HIGH(val, bits)  ((val) << (bits))
+#define FB_SHIFT_LOW(val, bits)   ((val) >> (bits))
+#define FB_BIT_NR(b)              (b)
 #endif
 
     /*

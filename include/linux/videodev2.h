@@ -636,6 +636,7 @@ typedef __u64 v4l2_std_id;
 #define V4L2_STD_SECAM_K        ((v4l2_std_id)0x00100000)
 #define V4L2_STD_SECAM_K1       ((v4l2_std_id)0x00200000)
 #define V4L2_STD_SECAM_L        ((v4l2_std_id)0x00400000)
+#define V4L2_STD_SECAM_LC       ((v4l2_std_id)0x00800000)
 
 /* ATSC/HDTV */
 #define V4L2_STD_ATSC_8_VSB     ((v4l2_std_id)0x01000000)

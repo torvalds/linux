@@ -137,8 +137,8 @@ static void __init parse_memory_affinity_structure (char *sratp)
 		 "enabled and removable" : "enabled" ) );
 }
 
-#if MAX_NR_ZONES != 3
-#error "MAX_NR_ZONES != 3, chunk_to_zone requires review"
+#if MAX_NR_ZONES != 4
+#error "MAX_NR_ZONES != 4, chunk_to_zone requires review"
 #endif
 /* Take a chunk of pages from page frame cstart to cend and count the number
  * of pages in each zone, returned via zones[].

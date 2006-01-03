@@ -220,7 +220,7 @@ unsigned long drm_alloc_pages (int order, int area) {
 	}
 	spin_unlock(&drm_mem_lock);
 
-	address = __get_free_pages(GFP_KERNEL, order);
+	address = __get_free_pages(GFP_KERNEL|__GFP_COMP, order);
 	if (!address) {
 		spin_lock(&drm_mem_lock);
 		++drm_mem_stats[area].fail_count;

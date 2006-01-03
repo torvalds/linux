@@ -327,7 +327,7 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, size_t size, dma_addr_t *dvma
 	order = get_order(size);
 	if (order >= 10)
 		return NULL;
-	first_page = __get_free_pages(GFP_KERNEL, order);
+	first_page = __get_free_pages(GFP_KERNEL|__GFP_COMP, order);
 	if (first_page == 0UL)
 		return NULL;
 	memset((char *)first_page, 0, PAGE_SIZE << order);

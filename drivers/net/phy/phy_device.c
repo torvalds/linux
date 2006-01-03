@@ -38,6 +38,10 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+MODULE_DESCRIPTION("PHY library");
+MODULE_AUTHOR("Andy Fleming");
+MODULE_LICENSE("GPL");
+
 static struct phy_driver genphy_driver;
 extern int mdio_bus_init(void);
 extern void mdio_bus_exit(void);

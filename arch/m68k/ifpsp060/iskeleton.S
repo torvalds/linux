@@ -75,10 +75,8 @@ _060_isp_done:
 .Lnotkern:
 	SAVE_ALL_INT
 	GET_CURRENT(%d0)
-	tstb	%curptr@(TASK_NEEDRESCHED)
-	jne	ret_from_exception	| deliver signals,
-					| reschedule etc..
-	RESTORE_ALL
+	| deliver signals, reschedule etc..
+	jra	ret_from_exception
 
 |
 | _060_real_chk():

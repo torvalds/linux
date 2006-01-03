@@ -1970,7 +1970,6 @@ MODULE_DEVICE_TABLE (pci, pci_ids);
 static struct pci_driver goku_pci_driver = {
 	.name =		(char *) driver_name,
 	.id_table =	pci_ids,
-	.owner =	THIS_MODULE,
 
 	.probe =	goku_probe,
 	.remove =	goku_remove,

@@ -26,6 +26,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 
@@ -325,8 +326,8 @@ static void __init offb_init_nodriver(struct device_node *dp)
 	int *pp, i;
 	unsigned int len;
 	int width = 640, height = 480, depth = 8, pitch;
-	unsigned *up;
-	unsigned long address;
+	unsigned int rsize, *up;
+	unsigned long address = 0;
 
 	if ((pp = (int *) get_property(dp, "depth", &len)) != NULL
 	    && len == sizeof(int))
@@ -344,10 +345,40 @@ static void __init offb_init_nodriver(struct device_node *dp)
 			pitch = 0x1000;
 	} else
 		pitch = width;
-	if ((up = (unsigned *) get_property(dp, "address", &len)) != NULL
-	    && len == sizeof(unsigned))
+
+       rsize = (unsigned long)pitch * (unsigned long)height *
+               (unsigned long)(depth / 8);
+
+       /* Try to match device to a PCI device in order to get a properly
+	* translated address rather then trying to decode the open firmware
+	* stuff in various incorrect ways
+	*/
+#ifdef CONFIG_PCI
+       /* First try to locate the PCI device if any */
+       {
+               struct pci_dev *pdev = NULL;
+
+	       for_each_pci_dev(pdev) {
+                       if (dp == pci_device_to_OF_node(pdev))
+                               break;
+	       }
+               if (pdev) {
+                       for (i = 0; i < 6 && address == 0; i++) {
+                               if ((pci_resource_flags(pdev, i) &
+				    IORESOURCE_MEM) &&
+				   (pci_resource_len(pdev, i) >= rsize))
+                                       address = pci_resource_start(pdev, i);
+                       }
+		       pci_dev_put(pdev);
+               }
+        }
+#endif /* CONFIG_PCI */
+
+	if (address == 0 &&
+	    (up = (unsigned *) get_property(dp, "address", &len)) != NULL &&
+	    len == sizeof(unsigned))
 		address = (u_long) * up;
-	else {
+	if (address == 0) {
 		for (i = 0; i < dp->n_addrs; ++i)
 			if (dp->addrs[i].size >=
 			    pitch * height * depth / 8)

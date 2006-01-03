@@ -326,9 +326,9 @@ static int write_page(struct bitmap *bitmap, struct page *page, int wait)
 		}
 	}
 
-	ret = page->mapping->a_ops->prepare_write(NULL, page, 0, PAGE_SIZE);
+	ret = page->mapping->a_ops->prepare_write(bitmap->file, page, 0, PAGE_SIZE);
 	if (!ret)
-		ret = page->mapping->a_ops->commit_write(NULL, page, 0,
+		ret = page->mapping->a_ops->commit_write(bitmap->file, page, 0,
 			PAGE_SIZE);
 	if (ret) {
 		unlock_page(page);

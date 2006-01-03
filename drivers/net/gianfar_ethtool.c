@@ -6,7 +6,7 @@
  *  Based on e1000 ethtool support
  *
  *  Author: Andy Fleming
- *  Maintainer: Kumar Gala (kumar.gala@freescale.com)
+ *  Maintainer: Kumar Gala
  *
  *  Copyright (c) 2003,2004 Freescale Semiconductor, Inc.
  *

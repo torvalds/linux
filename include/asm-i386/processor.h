@@ -65,7 +65,9 @@ struct cpuinfo_x86 {
 	int	f00f_bug;
 	int	coma_bug;
 	unsigned long loops_per_jiffy;
-	unsigned char x86_num_cores;
+	unsigned char x86_max_cores;	/* cpuid returned max cores value */
+	unsigned char booted_cores;	/* number of cores as seen by OS */
+	unsigned char apicid;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 #define X86_VENDOR_INTEL 0

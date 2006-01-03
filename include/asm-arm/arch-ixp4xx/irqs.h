@@ -93,4 +93,11 @@
 #define	IRQ_COYOTE_PCI_SLOT1	IRQ_IXP4XX_GPIO11
 #define	IRQ_COYOTE_IDE		IRQ_IXP4XX_GPIO5
 
+/*
+ * NSLU2 board IRQs
+ */
+#define        IRQ_NSLU2_PCI_INTA      IRQ_IXP4XX_GPIO11
+#define        IRQ_NSLU2_PCI_INTB      IRQ_IXP4XX_GPIO10
+#define        IRQ_NSLU2_PCI_INTC      IRQ_IXP4XX_GPIO9
+
 #endif

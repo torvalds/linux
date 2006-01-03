@@ -4,6 +4,9 @@
  * Copyright (C) 1998-2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  * 04/11/17 Ashok Raj	<ashok.raj@intel.com> Added CPU Hotplug Support
+ *
+ * 2005-10-07 Keith Owens <kaos@sgi.com>
+ *	      Add notify_die() hooks.
  */
 #define __KERNEL_SYSCALLS__	/* see <asm/unistd.h> */
 #include <linux/config.h>
@@ -34,6 +37,7 @@
 #include <asm/elf.h>
 #include <asm/ia32.h>
 #include <asm/irq.h>
+#include <asm/kdebug.h>
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/sal.h>
@@ -198,12 +202,9 @@ default_idle (void)
 {
 	local_irq_enable();
 	while (!need_resched()) {
-		if (can_do_pal_halt) {
-			local_irq_disable();
-			if (!need_resched())
-				safe_halt();
-			local_irq_enable();
-		} else
+		if (can_do_pal_halt)
+			safe_halt();
+		else
 			cpu_relax();
 	}
 }
@@ -268,10 +269,14 @@ cpu_idle (void)
 {
 	void (*mark_idle)(int) = ia64_mark_idle;
   	int cpu = smp_processor_id();
-	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	/* endless idle loop with no priority at all */
 	while (1) {
+		if (can_do_pal_halt)
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+		else
+			set_thread_flag(TIF_POLLING_NRFLAG);
+
 		if (!need_resched()) {
 			void (*idle)(void);
 #ifdef CONFIG_SMP
@@ -713,18 +718,16 @@ kernel_thread_helper (int (*fn)(void *), void *arg)
 void
 flush_thread (void)
 {
-	/*
-	 * Remove function-return probe instances associated with this task
-	 * and put them back on the free list. Do not insert an exit probe for
-	 * this function, it will be disabled by kprobe_flush_task if you do.
-	 */
-	kprobe_flush_task(current);
-
 	/* drop floating-point and debug-register state if it exists: */
 	current->thread.flags &= ~(IA64_THREAD_FPH_VALID | IA64_THREAD_DBG_VALID);
 	ia64_drop_fpu(current);
-	if (IS_IA32_PROCESS(ia64_task_regs(current)))
+#ifdef CONFIG_IA32_SUPPORT
+	if (IS_IA32_PROCESS(ia64_task_regs(current))) {
 		ia32_drop_partial_page_list(current);
+		current->thread.task_size = IA32_PAGE_OFFSET;
+		set_fs(USER_DS);
+	}
+#endif
 }
 
 /*
@@ -808,12 +811,14 @@ cpu_halt (void)
 void
 machine_restart (char *restart_cmd)
 {
+	(void) notify_die(DIE_MACHINE_RESTART, restart_cmd, NULL, 0, 0, 0);
 	(*efi.reset_system)(EFI_RESET_WARM, 0, 0, NULL);
 }
 
 void
 machine_halt (void)
 {
+	(void) notify_die(DIE_MACHINE_HALT, "", NULL, 0, 0, 0);
 	cpu_halt();
 }
 

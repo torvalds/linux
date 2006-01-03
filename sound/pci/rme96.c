@@ -2413,7 +2413,6 @@ static void __devexit snd_rme96_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "RME Digi96",
-	.owner = THIS_MODULE,
 	.id_table = snd_rme96_ids,
 	.probe = snd_rme96_probe,
 	.remove = __devexit_p(snd_rme96_remove),

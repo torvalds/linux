@@ -23,10 +23,12 @@ extern int __node_distance(int, int);
 
 #define cpu_to_node(cpu)		(cpu_to_node[cpu])
 #define parent_node(node)		(node)
-#define node_to_first_cpu(node) 	(__ffs(node_to_cpumask[node]))
+#define node_to_first_cpu(node) 	(first_cpu(node_to_cpumask[node]))
 #define node_to_cpumask(node)		(node_to_cpumask[node])
 #define pcibus_to_node(bus)		((long)(bus->sysdata))	
 #define pcibus_to_cpumask(bus)		node_to_cpumask(pcibus_to_node(bus));
+
+#define numa_node_id()			read_pda(nodenumber)
 
 /* sched_domains SD_NODE_INIT for x86_64 machines */
 #define SD_NODE_INIT (struct sched_domain) {		\

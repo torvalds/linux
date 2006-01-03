@@ -244,10 +244,9 @@ unsigned long __init find_and_init_phbs(void)
 		if (ret == 0) {
 			printk("bus %d appears to exist\n", bus);
 
-			phb = (struct pci_controller *)kmalloc(sizeof(struct pci_controller), GFP_KERNEL);
+			phb = pcibios_alloc_controller(NULL);
 			if (phb == NULL)
 				return -ENOMEM;
-			pci_setup_pci_controller(phb);
 
 			phb->pci_mem_offset = phb->local_number = bus;
 			phb->first_busno = bus;

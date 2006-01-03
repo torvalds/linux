@@ -634,19 +634,18 @@ static irqreturn_t s3c2410fb_irq(int irq, void *dev_id, struct pt_regs *r)
 
 static char driver_name[]="s3c2410fb";
 
-int __init s3c2410fb_probe(struct device *dev)
+int __init s3c2410fb_probe(struct platform_device *pdev)
 {
 	struct s3c2410fb_info *info;
 	struct fb_info	   *fbinfo;
-	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c2410fb_hw *mregs;
 	int ret;
 	int irq;
 	int i;
 
-	mach_info = dev->platform_data;
+	mach_info = pdev->dev.platform_data;
 	if (mach_info == NULL) {
-		dev_err(dev,"no platform data for lcd, cannot attach\n");
+		dev_err(&pdev->dev,"no platform data for lcd, cannot attach\n");
 		return -EINVAL;
 	}
 
@@ -654,11 +653,11 @@ int __init s3c2410fb_probe(struct device *dev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(dev, "no irq for device\n");
+		dev_err(&pdev->dev, "no irq for device\n");
 		return -ENOENT;
 	}
 
-	fbinfo = framebuffer_alloc(sizeof(struct s3c2410fb_info), dev);
+	fbinfo = framebuffer_alloc(sizeof(struct s3c2410fb_info), &pdev->dev);
 	if (!fbinfo) {
 		return -ENOMEM;
 	}
@@ -666,7 +665,7 @@ int __init s3c2410fb_probe(struct device *dev)
 
 	info = fbinfo->par;
 	info->fb = fbinfo;
-	dev_set_drvdata(dev, fbinfo);
+	platform_set_drvdata(pdev, fbinfo);
 
 	s3c2410fb_init_registers(info);
 
@@ -676,7 +675,7 @@ int __init s3c2410fb_probe(struct device *dev)
 
 	memcpy(&info->regs, &mach_info->regs, sizeof(info->regs));
 
-	info->mach_info		    = dev->platform_data;
+	info->mach_info		    = pdev->dev.platform_data;
 
 	fbinfo->fix.type	    = FB_TYPE_PACKED_PIXELS;
 	fbinfo->fix.type_aux	    = 0;
@@ -735,7 +734,7 @@ int __init s3c2410fb_probe(struct device *dev)
 
 	ret = request_irq(irq, s3c2410fb_irq, SA_INTERRUPT, pdev->name, info);
 	if (ret) {
-		dev_err(dev, "cannot get irq %d - err %d\n", irq, ret);
+		dev_err(&pdev->dev, "cannot get irq %d - err %d\n", irq, ret);
 		ret = -EBUSY;
 		goto release_mem;
 	}
@@ -773,7 +772,7 @@ int __init s3c2410fb_probe(struct device *dev)
 	}
 
 	/* create device files */
-	device_create_file(dev, &dev_attr_debug);
+	device_create_file(&pdev->dev, &dev_attr_debug);
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 		fbinfo->node, fbinfo->fix.id);
@@ -816,10 +815,9 @@ static void s3c2410fb_stop_lcd(void)
 /*
  *  Cleanup
  */
-static int s3c2410fb_remove(struct device *dev)
+static int s3c2410fb_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fb_info	   *fbinfo = dev_get_drvdata(dev);
+	struct fb_info	   *fbinfo = platform_get_drvdata(pdev);
 	struct s3c2410fb_info *info = fbinfo->par;
 	int irq;
 
@@ -847,9 +845,9 @@ static int s3c2410fb_remove(struct device *dev)
 
 /* suspend and resume support for the lcd controller */
 
-static int s3c2410fb_suspend(struct device *dev, pm_message_t state)
+static int s3c2410fb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct fb_info	   *fbinfo = dev_get_drvdata(dev);
+	struct fb_info	   *fbinfo = platform_get_drvdata(dev);
 	struct s3c2410fb_info *info = fbinfo->par;
 
 	s3c2410fb_stop_lcd();
@@ -864,9 +862,9 @@ static int s3c2410fb_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int s3c2410fb_resume(struct device *dev)
+static int s3c2410fb_resume(struct platform_device *dev)
 {
-	struct fb_info	   *fbinfo = dev_get_drvdata(dev);
+	struct fb_info	   *fbinfo = platform_get_drvdata(dev);
 	struct s3c2410fb_info *info = fbinfo->par;
 
 	clk_enable(info->clk);
@@ -882,24 +880,25 @@ static int s3c2410fb_resume(struct device *dev)
 #define s3c2410fb_resume  NULL
 #endif
 
-static struct device_driver s3c2410fb_driver = {
-	.name		= "s3c2410-lcd",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2410fb_driver = {
 	.probe		= s3c2410fb_probe,
+	.remove		= s3c2410fb_remove,
 	.suspend	= s3c2410fb_suspend,
 	.resume		= s3c2410fb_resume,
-	.remove		= s3c2410fb_remove
+	.driver		= {
+		.name	= "s3c2410-lcd",
+		.owner	= THIS_MODULE,
+	},
 };
 
 int __devinit s3c2410fb_init(void)
 {
-	return driver_register(&s3c2410fb_driver);
+	return platform_driver_register(&s3c2410fb_driver);
 }
 
 static void __exit s3c2410fb_cleanup(void)
 {
-	driver_unregister(&s3c2410fb_driver);
+	platform_driver_unregister(&s3c2410fb_driver);
 }
 
 

@@ -26,7 +26,7 @@
 #ifndef __ASM_ARCH_OMAP_INNOVATOR_H
 #define __ASM_ARCH_OMAP_INNOVATOR_H
 
-#if defined (CONFIG_ARCH_OMAP1510)
+#if defined (CONFIG_ARCH_OMAP15XX)
 
 #ifndef OMAP_SDRAM_DEVICE
 #define OMAP_SDRAM_DEVICE			D256M_1X16_4B
@@ -44,7 +44,7 @@ void fpga_write(unsigned char val, int reg);
 unsigned char fpga_read(int reg);
 #endif
 
-#endif /* CONFIG_ARCH_OMAP1510 */
+#endif /* CONFIG_ARCH_OMAP15XX */
 
 #if defined (CONFIG_ARCH_OMAP16XX)
 

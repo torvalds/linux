@@ -1502,7 +1502,6 @@ static void __devexit snd_sonic_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "S3 SonicVibes",
-	.owner = THIS_MODULE,
 	.id_table = snd_sonic_ids,
 	.probe = snd_sonic_probe,
 	.remove = __devexit_p(snd_sonic_remove),

@@ -32,7 +32,7 @@
 #include <sound/initval.h>
 #include <linux/kmod.h>
 #include <linux/devfs_fs_kernel.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #define SNDRV_OS_MINORS 256
 
@@ -329,7 +329,7 @@ int __exit snd_minor_info_done(void)
  */
 
 #ifdef CONFIG_SND_GENERIC_DRIVER
-extern struct device_driver snd_generic_driver;
+extern struct platform_driver snd_generic_driver;
 #endif
 
 static int __init alsa_sound_init(void)
@@ -357,7 +357,7 @@ static int __init alsa_sound_init(void)
 	}
 	snd_info_minor_register();
 #ifdef CONFIG_SND_GENERIC_DRIVER
-	driver_register(&snd_generic_driver);
+	platform_driver_register(&snd_generic_driver);
 #endif
 	for (controlnum = 0; controlnum < cards_limit; controlnum++)
 		devfs_mk_cdev(MKDEV(major, controlnum<<5), S_IFCHR | device_mode, "snd/controlC%d", controlnum);
@@ -375,7 +375,7 @@ static void __exit alsa_sound_exit(void)
 		devfs_remove("snd/controlC%d", controlnum);
 
 #ifdef CONFIG_SND_GENERIC_DRIVER
-	driver_unregister(&snd_generic_driver);
+	platform_driver_unregister(&snd_generic_driver);
 #endif
 	snd_info_minor_unregister();
 	snd_info_done();

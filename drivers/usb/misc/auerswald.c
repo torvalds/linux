@@ -30,7 +30,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/wait.h>
-#undef DEBUG   		/* include debug macros until it's done	*/
 #include <linux/usb.h>
 
 /*-------------------------------------------------------------------*/
@@ -1697,7 +1696,7 @@ static ssize_t auerchar_write (struct file *file, const char __user *buf, size_t
 	int ret;
 	wait_queue_t wait;
 
-        dbg ("auerchar_write %d bytes", len);
+        dbg ("auerchar_write %zd bytes", len);
 
 	/* Error checking */
 	if (!ccp)

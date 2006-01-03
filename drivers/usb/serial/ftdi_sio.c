@@ -475,6 +475,8 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_ARTEMIS_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ATIK_ATK16_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ATIK_ATK16HR_PID) },
+	{ USB_DEVICE(KOBIL_VID, KOBIL_CONV_B1_PID) },
+	{ USB_DEVICE(KOBIL_VID, KOBIL_CONV_KAAN_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };

@@ -1028,7 +1028,6 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->size = le64_to_cpu(sb->size)/2;
 		mddev->events = le64_to_cpu(sb->events);
 		mddev->bitmap_offset = 0;
-		mddev->default_bitmap_offset = 0;
 		mddev->default_bitmap_offset = 1024;
 		
 		mddev->recovery_cp = le64_to_cpu(sb->resync_offset);
@@ -1730,7 +1729,7 @@ level_show(mddev_t *mddev, char *page)
 	if (p == NULL && mddev->raid_disks == 0)
 		return 0;
 	if (mddev->level >= 0)
-		return sprintf(page, "RAID-%d\n", mddev->level);
+		return sprintf(page, "raid%d\n", mddev->level);
 	else
 		return sprintf(page, "%s\n", p->name);
 }
@@ -2932,6 +2931,9 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 
 	mddev->sb_dirty      = 1;
 
+	mddev->default_bitmap_offset = MD_SB_BYTES >> 9;
+	mddev->bitmap_offset = 0;
+
 	/*
 	 * Generate a 128 bit UUID
 	 */
@@ -3156,7 +3158,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 		if (cnt > 0 ) {
 			printk(KERN_WARNING
 			       "md: %s(pid %d) used deprecated START_ARRAY ioctl. "
-			       "This will not be supported beyond 2.6\n",
+			       "This will not be supported beyond July 2006\n",
 			       current->comm, current->pid);
 			cnt--;
 		}
@@ -3437,10 +3439,19 @@ static int md_thread(void * arg)
 	allow_signal(SIGKILL);
 	while (!kthread_should_stop()) {
 
-		wait_event_timeout(thread->wqueue,
-				   test_bit(THREAD_WAKEUP, &thread->flags)
-				   || kthread_should_stop(),
-				   thread->timeout);
+		/* We need to wait INTERRUPTIBLE so that
+		 * we don't add to the load-average.
+		 * That means we need to be sure no signals are
+		 * pending
+		 */
+		if (signal_pending(current))
+			flush_signals(current);
+
+		wait_event_interruptible_timeout
+			(thread->wqueue,
+			 test_bit(THREAD_WAKEUP, &thread->flags)
+			 || kthread_should_stop(),
+			 thread->timeout);
 		try_to_freeze();
 
 		clear_bit(THREAD_WAKEUP, &thread->flags);
@@ -3837,11 +3848,20 @@ static int is_mddev_idle(mddev_t *mddev)
 		curr_events = disk_stat_read(disk, sectors[0]) + 
 				disk_stat_read(disk, sectors[1]) - 
 				atomic_read(&disk->sync_io);
-		/* Allow some slack between valud of curr_events and last_events,
-		 * as there are some uninteresting races.
+		/* The difference between curr_events and last_events
+		 * will be affected by any new non-sync IO (making
+		 * curr_events bigger) and any difference in the amount of
+		 * in-flight syncio (making current_events bigger or smaller)
+		 * The amount in-flight is currently limited to
+		 * 32*64K in raid1/10 and 256*PAGE_SIZE in raid5/6
+		 * which is at most 4096 sectors.
+		 * These numbers are fairly fragile and should be made
+		 * more robust, probably by enforcing the
+		 * 'window size' that md_do_sync sort-of uses.
+		 *
 		 * Note: the following is an unsigned comparison.
 		 */
-		if ((curr_events - rdev->last_events + 32) > 64) {
+		if ((curr_events - rdev->last_events + 4096) > 8192) {
 			rdev->last_events = curr_events;
 			idle = 0;
 		}
@@ -4100,7 +4120,7 @@ static void md_do_sync(mddev_t *mddev)
 		if (currspeed > sysctl_speed_limit_min) {
 			if ((currspeed > sysctl_speed_limit_max) ||
 					!is_mddev_idle(mddev)) {
-				msleep(250);
+				msleep(500);
 				goto repeat;
 			}
 		}

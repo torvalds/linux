@@ -6514,7 +6514,7 @@ do_aic7xxx_isr(int irq, void *dev_id, struct pt_regs *regs)
 static void
 aic7xxx_init_transinfo(struct aic7xxx_host *p, struct aic_dev_data *aic_dev)
 {
-  Scsi_Device *sdpnt = aic_dev->SDptr;
+  struct scsi_device *sdpnt = aic_dev->SDptr;
   unsigned char tindex;
 
   tindex = sdpnt->id | (sdpnt->channel << 3);
@@ -6581,7 +6581,7 @@ aic7xxx_init_transinfo(struct aic7xxx_host *p, struct aic_dev_data *aic_dev)
  *   Set up the initial aic_dev struct pointers
  *-F*************************************************************************/
 static int
-aic7xxx_slave_alloc(Scsi_Device *SDptr)
+aic7xxx_slave_alloc(struct scsi_device *SDptr)
 {
   struct aic7xxx_host *p = (struct aic7xxx_host *)SDptr->host->hostdata;
   struct aic_dev_data *aic_dev;
@@ -6644,7 +6644,7 @@ aic7xxx_slave_alloc(Scsi_Device *SDptr)
  *   queueing to be [en|dis]abled for a specific adapter.
  *-F*************************************************************************/
 static void
-aic7xxx_device_queue_depth(struct aic7xxx_host *p, Scsi_Device *device)
+aic7xxx_device_queue_depth(struct aic7xxx_host *p, struct scsi_device *device)
 {
   int tag_enabled = FALSE;
   struct aic_dev_data *aic_dev = device->hostdata;
@@ -6734,7 +6734,7 @@ aic7xxx_device_queue_depth(struct aic7xxx_host *p, Scsi_Device *device)
  *   prepare for this device to go away
  *-F*************************************************************************/
 static void
-aic7xxx_slave_destroy(Scsi_Device *SDptr)
+aic7xxx_slave_destroy(struct scsi_device *SDptr)
 {
   struct aic_dev_data *aic_dev = SDptr->hostdata;
 
@@ -6754,7 +6754,7 @@ aic7xxx_slave_destroy(Scsi_Device *SDptr)
  *   depths, allocate command structs, etc.
  *-F*************************************************************************/
 static int
-aic7xxx_slave_configure(Scsi_Device *SDptr)
+aic7xxx_slave_configure(struct scsi_device *SDptr)
 {
   struct aic7xxx_host *p = (struct aic7xxx_host *) SDptr->host->hostdata;
   struct aic_dev_data *aic_dev;
@@ -7865,7 +7865,7 @@ detect_maxscb(struct aic7xxx_host *p)
  *   Register a Adaptec aic7xxx chip SCSI controller with the kernel.
  *-F*************************************************************************/
 static int
-aic7xxx_register(Scsi_Host_Template *template, struct aic7xxx_host *p,
+aic7xxx_register(struct scsi_host_template *template, struct aic7xxx_host *p,
   int reset_delay)
 {
   int i, result;
@@ -8412,7 +8412,7 @@ aic7xxx_chip_reset(struct aic7xxx_host *p)
  *   and a pointer to a aic7xxx_host struct upon success.
  *-F*************************************************************************/
 static struct aic7xxx_host *
-aic7xxx_alloc(Scsi_Host_Template *sht, struct aic7xxx_host *temp)
+aic7xxx_alloc(struct scsi_host_template *sht, struct aic7xxx_host *temp)
 {
   struct aic7xxx_host *p = NULL;
   struct Scsi_Host *host;
@@ -8991,7 +8991,7 @@ aic7xxx_configure_bugs(struct aic7xxx_host *p)
  *       mid-level SCSI code is overhauled.
  *-F*************************************************************************/
 static int
-aic7xxx_detect(Scsi_Host_Template *template)
+aic7xxx_detect(struct scsi_host_template *template)
 {
   struct aic7xxx_host *temp_p = NULL;
   struct aic7xxx_host *current_p = NULL;
@@ -11161,7 +11161,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(AIC7XXX_H_VERSION);
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_info		= aic7xxx_proc_info,
 	.detect			= aic7xxx_detect,
 	.release		= aic7xxx_release,

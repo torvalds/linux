@@ -1513,10 +1513,16 @@ int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
+	if (!dentry->d_inode) {
+		error = -ENOENT;
+		goto out;
+	}
+
 	error = security_quota_on(dentry);
 	if (!error)
 		error = vfs_quota_on_inode(dentry->d_inode, type, format_id);
 
+out:
 	dput(dentry);
 	return error;
 }

@@ -1601,9 +1601,10 @@ config CIFS
 	  PC operating systems.  The CIFS protocol is fully supported by 
 	  file servers such as Windows 2000 (including Windows 2003, NT 4  
 	  and Windows XP) as well by Samba (which provides excellent CIFS
-	  server support for Linux and many other operating systems). Currently
-	  you must use the smbfs client filesystem to access older SMB servers
-	  such as Windows 9x and OS/2.
+	  server support for Linux and many other operating systems). Limited
+	  support for Windows ME and similar servers is provided as well. 
+	  You must use the smbfs client filesystem to access older SMB servers
+	  such as OS/2 and DOS.
 
 	  The intent of the cifs module is to provide an advanced
 	  network file system client for mounting to CIFS compliant servers, 
@@ -1614,7 +1615,7 @@ config CIFS
 	  cifs if running only a (Samba) server. It is possible to enable both
 	  smbfs and cifs (e.g. if you are using CIFS for accessing Windows 2003
 	  and Samba 3 servers, and smbfs for accessing old servers). If you need 
-	  to mount to Samba or Windows 2003 servers from this machine, say Y.
+	  to mount to Samba or Windows from this machine, say Y.
 
 config CIFS_STATS
         bool "CIFS statistics"
@@ -1623,8 +1624,22 @@ config CIFS_STATS
           Enabling this option will cause statistics for each server share
 	  mounted by the cifs client to be displayed in /proc/fs/cifs/Stats
 
+config CIFS_STATS2
+	bool "CIFS extended statistics"
+	depends on CIFS_STATS
+	help
+	  Enabling this option will allow more detailed statistics on SMB
+	  request timing to be displayed in /proc/fs/cifs/DebugData and also
+	  allow optional logging of slow responses to dmesg (depending on the
+	  value of /proc/fs/cifs/cifsFYI, see fs/cifs/README for more details).
+	  These additional statistics may have a minor effect on performance
+	  and memory utilization.
+
+	  Unless you are a developer or are doing network performance analysis
+	  or tuning, say N.
+
 config CIFS_XATTR
-        bool "CIFS extended attributes (EXPERIMENTAL)"
+        bool "CIFS extended attributes"
         depends on CIFS
         help
           Extended attributes are name:value pairs associated with inodes by
@@ -1636,11 +1651,11 @@ config CIFS_XATTR
           prefaced by the user namespace prefix. The system namespace
           (used by some filesystems to store ACLs) is not supported at
           this time.
-                                                                                                    
+
           If unsure, say N.
 
 config CIFS_POSIX
-        bool "CIFS POSIX Extensions (EXPERIMENTAL)"
+        bool "CIFS POSIX Extensions"
         depends on CIFS_XATTR
         help
           Enabling this option will cause the cifs client to attempt to
@@ -1653,10 +1668,28 @@ config CIFS_POSIX
 
 config CIFS_EXPERIMENTAL
 	  bool "CIFS Experimental Features (EXPERIMENTAL)"
-	  depends on CIFS
+	  depends on CIFS && EXPERIMENTAL
 	  help
-	    Enables cifs features under testing. These features
-	    are highly experimental.  If unsure, say N.
+	    Enables cifs features under testing. These features are
+	    experimental and currently include support for writepages
+	    (multipage writebehind performance improvements) and directory
+	    change notification ie fcntl(F_DNOTIFY) as well as some security
+	    improvements.  Some also depend on setting at runtime the
+	    pseudo-file /proc/fs/cifs/Experimental (which is disabled by
+	    default). See the file fs/cifs/README for more details.
+
+	    If unsure, say N.
+
+config CIFS_UPCALL
+	  bool "CIFS Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
+	  depends on CIFS_EXPERIMENTAL
+	  select CONNECTOR
+	  help
+	    Enables an upcall mechanism for CIFS which will be used to contact
+	    userspace helper utilities to provide SPNEGO packaged Kerberos
+	    tickets which are needed to mount to certain secure servers
+	    (for which more secure Kerberos authentication is required). If
+	    unsure, say N.
 
 config NCP_FS
 	tristate "NCP file system support (to mount NetWare volumes)"

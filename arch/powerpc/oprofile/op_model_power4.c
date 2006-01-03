@@ -14,7 +14,6 @@
 #include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
-#include <asm/systemcfg.h>
 #include <asm/rtas.h>
 #include <asm/oprofile_impl.h>
 #include <asm/reg.h>
@@ -233,8 +232,7 @@ static unsigned long get_pc(struct pt_regs *regs)
 	mmcra = mfspr(SPRN_MMCRA);
 
 	/* Were we in the hypervisor? */
-	if ((systemcfg->platform == PLATFORM_PSERIES_LPAR) &&
-	    (mmcra & MMCRA_SIHV))
+	if (platform_is_lpar() && (mmcra & MMCRA_SIHV))
 		/* function descriptor madness */
 		return *((unsigned long *)hypervisor_bucket);
 

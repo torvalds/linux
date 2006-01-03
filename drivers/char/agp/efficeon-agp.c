@@ -429,7 +429,6 @@ static struct pci_device_id agp_efficeon_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, agp_efficeon_pci_table);
 
 static struct pci_driver agp_efficeon_pci_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "agpgart-efficeon",
 	.id_table	= agp_efficeon_pci_table,
 	.probe		= agp_efficeon_probe,

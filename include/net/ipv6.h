@@ -237,6 +237,8 @@ extern struct ipv6_txoptions *	ipv6_renew_options(struct sock *sk, struct ipv6_t
 						   int newtype,
 						   struct ipv6_opt_hdr __user *newopt,
 						   int newoptlen);
+struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
+					  struct ipv6_txoptions *opt);
 
 extern int ip6_frag_nqueues;
 extern atomic_t ip6_frag_mem;

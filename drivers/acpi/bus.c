@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 #include <linux/device.h>
 #include <linux/proc_fs.h>
 #ifdef CONFIG_X86
@@ -754,7 +755,7 @@ static int __init acpi_init(void)
 	result = acpi_bus_init();
 
 	if (!result) {
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 		if (!PM_IS_ACTIVE())
 			pm_active = 1;
 		else {

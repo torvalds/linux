@@ -34,6 +34,7 @@
 #include <asm/machdep.h>
 #include <asm/smp.h>
 #include <asm/mpic.h>
+#include <asm/rtas.h>
 
 static void __devinit smp_chrp_kick_cpu(int nr)
 {

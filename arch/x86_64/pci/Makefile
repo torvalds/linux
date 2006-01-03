@@ -11,7 +11,7 @@ obj-y		+= fixup.o
 obj-$(CONFIG_ACPI)	+= acpi.o
 obj-y			+= legacy.o irq.o common.o
 # mmconfig has a 64bit special
-obj-$(CONFIG_PCI_MMCONFIG) += mmconfig.o
+obj-$(CONFIG_PCI_MMCONFIG) += mmconfig.o direct.o
 
 obj-$(CONFIG_NUMA)	+= k8-bus.o
 

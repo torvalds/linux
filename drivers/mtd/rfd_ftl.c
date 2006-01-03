@@ -30,11 +30,9 @@ MODULE_PARM_DESC(block_size, "Block size to use by RFD, defaults to erase unit s
 
 #define PREFIX "rfd_ftl: "
 
-/* Major device # for FTL device */
-
-/* A request for this major has been sent to device@lanana.org */
+/* This major has been assigned by device@lanana.org */
 #ifndef RFD_FTL_MAJOR
-#define RFD_FTL_MAJOR		95
+#define RFD_FTL_MAJOR		256
 #endif
 
 /* Maximum number of partitions in an FTL region */

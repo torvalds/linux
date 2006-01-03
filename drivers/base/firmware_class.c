@@ -526,18 +526,23 @@ request_firmware_work_func(void *arg)
 {
 	struct firmware_work *fw_work = arg;
 	const struct firmware *fw;
+	int ret;
 	if (!arg) {
 		WARN_ON(1);
 		return 0;
 	}
 	daemonize("%s/%s", "firmware", fw_work->name);
-	_request_firmware(&fw, fw_work->name, fw_work->device,
+	ret = _request_firmware(&fw, fw_work->name, fw_work->device,
 		fw_work->hotplug);
-	fw_work->cont(fw, fw_work->context);
-	release_firmware(fw);
+	if (ret < 0)
+		fw_work->cont(NULL, fw_work->context);
+	else {
+		fw_work->cont(fw, fw_work->context);
+		release_firmware(fw);
+	}
 	module_put(fw_work->module);
 	kfree(fw_work);
-	return 0;
+	return ret;
 }
 
 /**
@@ -586,6 +591,8 @@ request_firmware_nowait(
 
 	if (ret < 0) {
 		fw_work->cont(NULL, fw_work->context);
+		module_put(fw_work->module);
+		kfree(fw_work);
 		return ret;
 	}
 	return 0;

@@ -616,9 +616,10 @@ void iss_net_user_timer_expire(unsigned long _conn)
 }
 
 
-static struct device_driver iss_net_driver = {
-	.name  = DRIVER_NAME,
-	.bus   = &platform_bus_type,
+static struct platform_driver iss_net_driver = {
+	.driver = {
+		.name  = DRIVER_NAME,
+	},
 };
 
 static int driver_registered;
@@ -669,7 +670,7 @@ static int iss_net_configure(int index, char *init)
 	/* sysfs register */
 
 	if (!driver_registered) {
-		driver_register(&iss_net_driver);
+		platform_driver_register(&iss_net_driver);
 		driver_registered = 1;
 	}
 

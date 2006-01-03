@@ -46,7 +46,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_sx4"
-#define DRV_VERSION	"0.7"
+#define DRV_VERSION	"0.8"
 
 
 enum {
@@ -220,7 +220,8 @@ static struct ata_port_info pdc_port_info[] = {
 	{
 		.sht		= &pdc_sata_sht,
 		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO,
+				  ATA_FLAG_SRST | ATA_FLAG_MMIO |
+				  ATA_FLAG_NO_ATAPI,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -229,7 +230,7 @@ static struct ata_port_info pdc_port_info[] = {
 
 };
 
-static struct pci_device_id pdc_sata_pci_tbl[] = {
+static const struct pci_device_id pdc_sata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x6622, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_20621 },
 	{ }	/* terminate list */

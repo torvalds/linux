@@ -417,6 +417,7 @@ void show_regs(struct pt_regs * regs)
 
 void exit_thread(void)
 {
+	preempt_disable();
 	if (last_task_used_math == current)
 		last_task_used_math = NULL;
 	if (last_task_used_altivec == current)
@@ -425,10 +426,12 @@ void exit_thread(void)
 	if (last_task_used_spe == current)
 		last_task_used_spe = NULL;
 #endif
+	preempt_enable();
 }
 
 void flush_thread(void)
 {
+	preempt_disable();
 	if (last_task_used_math == current)
 		last_task_used_math = NULL;
 	if (last_task_used_altivec == current)
@@ -437,6 +440,7 @@ void flush_thread(void)
 	if (last_task_used_spe == current)
 		last_task_used_spe = NULL;
 #endif
+	preempt_enable();
 }
 
 void
@@ -535,6 +539,7 @@ void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp)
 	regs->nip = nip;
 	regs->gpr[1] = sp;
 	regs->msr = MSR_USER;
+	preempt_disable();
 	if (last_task_used_math == current)
 		last_task_used_math = NULL;
 	if (last_task_used_altivec == current)
@@ -543,6 +548,7 @@ void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp)
 	if (last_task_used_spe == current)
 		last_task_used_spe = NULL;
 #endif
+	preempt_enable();
 	memset(current->thread.fpr, 0, sizeof(current->thread.fpr));
 	current->thread.fpscr.val = 0;
 #ifdef CONFIG_ALTIVEC

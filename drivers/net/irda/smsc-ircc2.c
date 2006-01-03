@@ -214,14 +214,15 @@ static int  smsc_ircc_probe_transceiver_smsc_ircc_atc(int fir_base);
 
 /* Power Management */
 
-static int smsc_ircc_suspend(struct device *dev, pm_message_t state);
-static int smsc_ircc_resume(struct device *dev);
+static int smsc_ircc_suspend(struct platform_device *dev, pm_message_t state);
+static int smsc_ircc_resume(struct platform_device *dev);
 
-static struct device_driver smsc_ircc_driver = {
-	.name		= SMSC_IRCC2_DRIVER_NAME,
-	.bus		= &platform_bus_type,
+static struct platform_driver smsc_ircc_driver = {
 	.suspend	= smsc_ircc_suspend,
 	.resume		= smsc_ircc_resume,
+	.driver		= {
+		.name	= SMSC_IRCC2_DRIVER_NAME,
+	},
 };
 
 /* Transceivers for SMSC-ircc */
@@ -346,7 +347,7 @@ static int __init smsc_ircc_init(void)
 
 	IRDA_DEBUG(1, "%s\n", __FUNCTION__);
 
-	ret = driver_register(&smsc_ircc_driver);
+	ret = platform_driver_register(&smsc_ircc_driver);
 	if (ret) {
 		IRDA_ERROR("%s, Can't register driver!\n", driver_name);
 		return ret;
@@ -378,7 +379,7 @@ static int __init smsc_ircc_init(void)
 	}
 
 	if (ret)
-		driver_unregister(&smsc_ircc_driver);
+		platform_driver_unregister(&smsc_ircc_driver);
 
 	return ret;
 }
@@ -491,7 +492,7 @@ static int __init smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u
 		err = PTR_ERR(self->pldev);
 		goto err_out5;
 	}
-	dev_set_drvdata(&self->pldev->dev, self);
+	platform_set_drvdata(self->pldev, self);
 
 	IRDA_MESSAGE("IrDA: Registered device %s\n", dev->name);
 	dev_count++;
@@ -1685,9 +1686,9 @@ static int smsc_ircc_net_close(struct net_device *dev)
 	return 0;
 }
 
-static int smsc_ircc_suspend(struct device *dev, pm_message_t state)
+static int smsc_ircc_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct smsc_ircc_cb *self = dev_get_drvdata(dev);
+	struct smsc_ircc_cb *self = platform_get_drvdata(dev);
 
 	if (!self->io.suspended) {
 		IRDA_DEBUG(1, "%s, Suspending\n", driver_name);
@@ -1706,9 +1707,9 @@ static int smsc_ircc_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int smsc_ircc_resume(struct device *dev)
+static int smsc_ircc_resume(struct platform_device *dev)
 {
-	struct smsc_ircc_cb *self = dev_get_drvdata(dev);
+	struct smsc_ircc_cb *self = platform_get_drvdata(dev);
 
 	if (self->io.suspended) {
 		IRDA_DEBUG(1, "%s, Waking up\n", driver_name);
@@ -1788,7 +1789,7 @@ static void __exit smsc_ircc_cleanup(void)
 			smsc_ircc_close(dev_self[i]);
 	}
 
-	driver_unregister(&smsc_ircc_driver);
+	platform_driver_unregister(&smsc_ircc_driver);
 }
 
 /*

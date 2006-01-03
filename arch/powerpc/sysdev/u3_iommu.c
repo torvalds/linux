@@ -1,11 +1,11 @@
 /*
  * arch/powerpc/sysdev/u3_iommu.c
  *
- * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
+ * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
  * Based on pSeries_iommu.c:
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen, IBM Corporation
- * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
+ * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
  * Dynamic DMA mapping support, Apple U3 & IBM CPC925 "DART" iommu.
  *
@@ -226,7 +226,7 @@ static void iommu_table_u3_setup(void)
 	iommu_table_u3.it_busno = 0;
 	iommu_table_u3.it_offset = 0;
 	/* it_size is in number of entries */
-	iommu_table_u3.it_size = dart_tablesize / sizeof(u32);
+	iommu_table_u3.it_size = (dart_tablesize / sizeof(u32)) >> DART_PAGE_FACTOR;
 
 	/* Initialize the common IOMMU code */
 	iommu_table_u3.it_base = (unsigned long)dart_vbase;

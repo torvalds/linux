@@ -163,7 +163,7 @@ struct xpc_vars {
 	u8 version;
 	u64 heartbeat;
 	u64 heartbeating_to_mask;
-	u64 kdb_status;		/* 0 = machine running */
+	u64 heartbeat_offline;	/* if 0, heartbeat should be changing */
 	int act_nasid;
 	int act_phys_cpuid;
 	u64 vars_part_pa;

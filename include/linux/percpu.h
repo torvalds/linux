@@ -38,7 +38,7 @@ extern void free_percpu(const void *);
 
 #else /* CONFIG_SMP */
 
-#define per_cpu_ptr(ptr, cpu) (ptr)
+#define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
 
 static inline void *__alloc_percpu(size_t size, size_t align)
 {

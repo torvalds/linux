@@ -257,6 +257,13 @@ void __init chrp_setup_arch(void)
 	if (rtas_token("display-character") >= 0)
 		ppc_md.progress = rtas_progress;
 
+	/* use RTAS time-of-day routines if available */
+	if (rtas_token("get-time-of-day") != RTAS_UNKNOWN_SERVICE) {
+		ppc_md.get_boot_time	= rtas_get_boot_time;
+		ppc_md.get_rtc_time	= rtas_get_rtc_time;
+		ppc_md.set_rtc_time	= rtas_set_rtc_time;
+	}
+
 #ifdef CONFIG_BOOTX_TEXT
 	if (ppc_md.progress == NULL && boot_text_mapped)
 		ppc_md.progress = btext_progress;
@@ -361,7 +368,9 @@ static void __init chrp_find_openpic(void)
 	printk(KERN_INFO "OpenPIC at %lx\n", opaddr);
 
 	irq_count = NR_IRQS - NUM_ISA_INTERRUPTS - 4; /* leave room for IPIs */
-	prom_get_irq_senses(init_senses, NUM_8259_INTERRUPTS, NR_IRQS - 4);
+	prom_get_irq_senses(init_senses, NUM_ISA_INTERRUPTS, NR_IRQS - 4);
+	/* i8259 cascade is always positive level */
+	init_senses[0] = IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE;
 
 	iranges = (unsigned int *) get_property(np, "interrupt-ranges", &len);
 	if (iranges == NULL)
@@ -503,9 +512,11 @@ void __init chrp_init(void)
 	ppc_md.halt           = rtas_halt;
 
 	ppc_md.time_init      = chrp_time_init;
+	ppc_md.calibrate_decr = chrp_calibrate_decr;
+
+	/* this may get overridden with rtas routines later... */
 	ppc_md.set_rtc_time   = chrp_set_rtc_time;
 	ppc_md.get_rtc_time   = chrp_get_rtc_time;
-	ppc_md.calibrate_decr = chrp_calibrate_decr;
 
 #ifdef CONFIG_SMP
 	smp_ops = &chrp_smp_ops;

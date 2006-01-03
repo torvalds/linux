@@ -623,12 +623,9 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		/* we can use it in-place */
 		rqstp->rq_arg.head[0].iov_base = skb->data + sizeof(struct udphdr);
 		rqstp->rq_arg.head[0].iov_len = len;
-		if (skb->ip_summed != CHECKSUM_UNNECESSARY) {
-			if ((unsigned short)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum))) {
-				skb_free_datagram(svsk->sk_sk, skb);
-				return 0;
-			}
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		if (skb_checksum_complete(skb)) {
+			skb_free_datagram(svsk->sk_sk, skb);
+			return 0;
 		}
 		rqstp->rq_skbuff = skb;
 	}
@@ -1181,6 +1178,7 @@ svc_recv(struct svc_serv *serv, struct svc_rqst *rqstp, long timeout)
 	arg->tail[0].iov_len = 0;
 
 	try_to_freeze();
+	cond_resched();
 	if (signalled())
 		return -EINTR;
 

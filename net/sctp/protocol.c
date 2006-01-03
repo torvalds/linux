@@ -530,6 +530,9 @@ static void sctp_v4_get_saddr(struct sctp_association *asoc,
 {
 	struct rtable *rt = (struct rtable *)dst;
 
+	if (!asoc)
+		return;
+
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
 		saddr->v4.sin_port = asoc->base.bind_addr.port;  
@@ -1046,6 +1049,9 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Sendbuffer growth	    - do per-socket accounting */
 	sctp_sndbuf_policy		= 0;
+
+	/* Rcvbuffer growth	    - do per-socket accounting */
+	sctp_rcvbuf_policy		= 0;
 
 	/* HB.interval              - 30 seconds */
 	sctp_hb_interval		= SCTP_DEFAULT_TIMEOUT_HEARTBEAT;

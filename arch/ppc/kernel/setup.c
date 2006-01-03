@@ -76,6 +76,7 @@ unsigned int DMA_MODE_WRITE;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 int _machine = 0;
+EXPORT_SYMBOL(_machine);
 
 extern void prep_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);
@@ -601,7 +602,19 @@ void parse_bootinfo(struct bi_record *rec)
 #endif /* CONFIG_BLK_DEV_INITRD */
 #ifdef CONFIG_PPC_MULTIPLATFORM
 		case BI_MACHTYPE:
-			_machine = data[0];
+			/* Machine types changed with the merge. Since the
+			 * bootinfo are now deprecated, we can just hard code
+			 * the appropriate conversion here for when we are
+			 * called with yaboot which passes us a machine type
+			 * this way.
+			 */
+			switch(data[0]) {
+			case 1: _machine = _MACH_prep; break;
+			case 2: _machine = _MACH_Pmac; break;
+			case 4: _machine = _MACH_chrp; break;
+			default:
+				_machine = data[0];
+			}
 			break;
 #endif
 		case BI_MEMSIZE:

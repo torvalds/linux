@@ -78,7 +78,6 @@ obj-$(CONFIG_SCSI_NCR_Q720)	+= NCR_Q720_mod.o
 obj-$(CONFIG_SCSI_SYM53C416)	+= sym53c416.o
 obj-$(CONFIG_SCSI_QLOGIC_FAS)	+= qlogicfas408.o	qlogicfas.o
 obj-$(CONFIG_PCMCIA_QLOGIC)	+= qlogicfas408.o
-obj-$(CONFIG_SCSI_QLOGIC_ISP)	+= qlogicisp.o 
 obj-$(CONFIG_SCSI_QLOGIC_FC)	+= qlogicfc.o 
 obj-$(CONFIG_SCSI_QLOGIC_1280)	+= qla1280.o 
 obj-$(CONFIG_SCSI_QLA2XXX)	+= qla2xxx/

@@ -36,6 +36,9 @@ void synchronize_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_desc + irq;
 
+	if (irq >= NR_IRQS)
+		return;
+
 	while (desc->status & IRQ_INPROGRESS)
 		cpu_relax();
 }
@@ -59,6 +62,9 @@ void disable_irq_nosync(unsigned int irq)
 {
 	irq_desc_t *desc = irq_desc + irq;
 	unsigned long flags;
+
+	if (irq >= NR_IRQS)
+		return;
 
 	spin_lock_irqsave(&desc->lock, flags);
 	if (!desc->depth++) {
@@ -86,6 +92,9 @@ void disable_irq(unsigned int irq)
 {
 	irq_desc_t *desc = irq_desc + irq;
 
+	if (irq >= NR_IRQS)
+		return;
+
 	disable_irq_nosync(irq);
 	if (desc->action)
 		synchronize_irq(irq);
@@ -107,6 +116,9 @@ void enable_irq(unsigned int irq)
 {
 	irq_desc_t *desc = irq_desc + irq;
 	unsigned long flags;
+
+	if (irq >= NR_IRQS)
+		return;
 
 	spin_lock_irqsave(&desc->lock, flags);
 	switch (desc->depth) {
@@ -162,6 +174,9 @@ int setup_irq(unsigned int irq, struct irqaction * new)
 	struct irqaction *old, **p;
 	unsigned long flags;
 	int shared = 0;
+
+	if (irq >= NR_IRQS)
+		return -EINVAL;
 
 	if (desc->handler == &no_irq_type)
 		return -ENOSYS;

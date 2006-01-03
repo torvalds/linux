@@ -1650,11 +1650,19 @@ void pmac_tweak_clock_spreading(int enable)
 	 */
 
 	if (macio->type == macio_intrepid) {
-		if (enable)
-			UN_OUT(UNI_N_CLOCK_SPREADING, 2);
-		else
-			UN_OUT(UNI_N_CLOCK_SPREADING, 0);
-		mdelay(40);
+		struct device_node *clock =
+			of_find_node_by_path("/uni-n@f8000000/hw-clock");
+		if (clock && get_property(clock, "platform-do-clockspreading",
+					  NULL)) {
+			printk(KERN_INFO "%sabling clock spreading on Intrepid"
+			       " ASIC\n", enable ? "En" : "Dis");
+			if (enable)
+				UN_OUT(UNI_N_CLOCK_SPREADING, 2);
+			else
+				UN_OUT(UNI_N_CLOCK_SPREADING, 0);
+			mdelay(40);
+		}
+		of_node_put(clock);
 	}
 
 	while (machine_is_compatible("PowerBook5,2") ||
@@ -1724,6 +1732,9 @@ void pmac_tweak_clock_spreading(int enable)
 			pmac_low_i2c_close(ui2c);
 			break;
 		}
+		printk(KERN_INFO "%sabling clock spreading on i2c clock chip\n",
+		       enable ? "En" : "Dis");
+
 		pmac_low_i2c_setmode(ui2c, pmac_low_i2c_mode_stdsub);
 		rc = pmac_low_i2c_xfer(ui2c, 0xd2 | pmac_low_i2c_write, 0x80, buffer, 9);
 		DBG("write result: %d,", rc);
@@ -2359,6 +2370,14 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_MB_MAY_SLEEP | PMAC_MB_HAS_FW_POWER | PMAC_MB_MOBILE,
 	},
 	{	"PowerBook5,7",			"PowerBook G4 17\"",
+		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
+		PMAC_MB_MAY_SLEEP | PMAC_MB_HAS_FW_POWER | PMAC_MB_MOBILE,
+	},
+	{	"PowerBook5,8",			"PowerBook G4 15\"",
+		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
+		PMAC_MB_MAY_SLEEP | PMAC_MB_HAS_FW_POWER | PMAC_MB_MOBILE,
+	},
+	{	"PowerBook5,9",			"PowerBook G4 17\"",
 		PMAC_TYPE_UNKNOWN_INTREPID,	intrepid_features,
 		PMAC_MB_MAY_SLEEP | PMAC_MB_HAS_FW_POWER | PMAC_MB_MOBILE,
 	},

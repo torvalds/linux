@@ -859,7 +859,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (group_dead && tsk->signal->leader)
 		disassociate_ctty(1);
 
-	module_put(tsk->thread_info->exec_domain->module);
+	module_put(task_thread_info(tsk)->exec_domain->module);
 	if (tsk->binfmt)
 		module_put(tsk->binfmt->module);
 

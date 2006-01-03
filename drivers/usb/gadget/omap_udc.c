@@ -2707,18 +2707,17 @@ omap_udc_setup(struct platform_device *odev, struct otg_transceiver *xceiv)
 	return 0;
 }
 
-static int __init omap_udc_probe(struct device *dev)
+static int __init omap_udc_probe(struct platform_device *pdev)
 {
-	struct platform_device	*odev = to_platform_device(dev);
 	int			status = -ENODEV;
 	int			hmc;
 	struct otg_transceiver	*xceiv = NULL;
 	const char		*type = NULL;
-	struct omap_usb_config	*config = dev->platform_data;
+	struct omap_usb_config	*config = pdev->dev.platform_data;
 
 	/* NOTE:  "knows" the order of the resources! */
-	if (!request_mem_region(odev->resource[0].start, 
-			odev->resource[0].end - odev->resource[0].start + 1,
+	if (!request_mem_region(pdev->resource[0].start, 
+			pdev->resource[0].end - pdev->resource[0].start + 1,
 			driver_name)) {
 		DBG("request_mem_region failed\n");
 		return -EBUSY;
@@ -2803,7 +2802,7 @@ bad_on_1710:
 	INFO("hmc mode %d, %s transceiver\n", hmc, type);
 
 	/* a "gadget" abstracts/virtualizes the controller */
-	status = omap_udc_setup(odev, xceiv);
+	status = omap_udc_setup(pdev, xceiv);
 	if (status) {
 		goto cleanup0;
 	}
@@ -2821,28 +2820,28 @@ bad_on_1710:
 		udc->clr_halt = UDC_RESET_EP;
 
 	/* USB general purpose IRQ:  ep0, state changes, dma, etc */
-	status = request_irq(odev->resource[1].start, omap_udc_irq,
+	status = request_irq(pdev->resource[1].start, omap_udc_irq,
 			SA_SAMPLE_RANDOM, driver_name, udc);
 	if (status != 0) {
 		ERR( "can't get irq %ld, err %d\n",
-			odev->resource[1].start, status);
+			pdev->resource[1].start, status);
 		goto cleanup1;
 	}
 
 	/* USB "non-iso" IRQ (PIO for all but ep0) */
-	status = request_irq(odev->resource[2].start, omap_udc_pio_irq,
+	status = request_irq(pdev->resource[2].start, omap_udc_pio_irq,
 			SA_SAMPLE_RANDOM, "omap_udc pio", udc);
 	if (status != 0) {
 		ERR( "can't get irq %ld, err %d\n",
-			odev->resource[2].start, status);
+			pdev->resource[2].start, status);
 		goto cleanup2;
 	}
 #ifdef	USE_ISO
-	status = request_irq(odev->resource[3].start, omap_udc_iso_irq,
+	status = request_irq(pdev->resource[3].start, omap_udc_iso_irq,
 			SA_INTERRUPT, "omap_udc iso", udc);
 	if (status != 0) {
 		ERR("can't get irq %ld, err %d\n",
-			odev->resource[3].start, status);
+			pdev->resource[3].start, status);
 		goto cleanup3;
 	}
 #endif
@@ -2853,11 +2852,11 @@ bad_on_1710:
 
 #ifdef	USE_ISO
 cleanup3:
-	free_irq(odev->resource[2].start, udc);
+	free_irq(pdev->resource[2].start, udc);
 #endif
 
 cleanup2:
-	free_irq(odev->resource[1].start, udc);
+	free_irq(pdev->resource[1].start, udc);
 
 cleanup1:
 	kfree (udc);
@@ -2866,14 +2865,13 @@ cleanup1:
 cleanup0:
 	if (xceiv)
 		put_device(xceiv->dev);
-	release_mem_region(odev->resource[0].start,
-			odev->resource[0].end - odev->resource[0].start + 1);
+	release_mem_region(pdev->resource[0].start,
+			pdev->resource[0].end - pdev->resource[0].start + 1);
 	return status;
 }
 
-static int __exit omap_udc_remove(struct device *dev)
+static int __exit omap_udc_remove(struct platform_device *pdev)
 {
-	struct platform_device	*odev = to_platform_device(dev);
 	DECLARE_COMPLETION(done);
 
 	if (!udc)
@@ -2891,13 +2889,13 @@ static int __exit omap_udc_remove(struct device *dev)
 	remove_proc_file();
 
 #ifdef	USE_ISO
-	free_irq(odev->resource[3].start, udc);
+	free_irq(pdev->resource[3].start, udc);
 #endif
-	free_irq(odev->resource[2].start, udc);
-	free_irq(odev->resource[1].start, udc);
+	free_irq(pdev->resource[2].start, udc);
+	free_irq(pdev->resource[1].start, udc);
 
-	release_mem_region(odev->resource[0].start,
-			odev->resource[0].end - odev->resource[0].start + 1);
+	release_mem_region(pdev->resource[0].start,
+			pdev->resource[0].end - pdev->resource[0].start + 1);
 
 	device_unregister(&udc->gadget.dev);
 	wait_for_completion(&done);
@@ -2915,7 +2913,7 @@ static int __exit omap_udc_remove(struct device *dev)
  * may involve talking to an external transceiver (e.g. isp1301).
  */
 
-static int omap_udc_suspend(struct device *dev, pm_message_t message)
+static int omap_udc_suspend(struct platform_device *dev, pm_message_t message)
 {
 	u32	devstat;
 
@@ -2935,7 +2933,7 @@ static int omap_udc_suspend(struct device *dev, pm_message_t message)
 	return 0;
 }
 
-static int omap_udc_resume(struct device *dev)
+static int omap_udc_resume(struct platform_device *dev)
 {
 	DBG("resume + wakeup/SRP\n");
 	omap_pullup(&udc->gadget, 1);
@@ -2947,14 +2945,15 @@ static int omap_udc_resume(struct device *dev)
 
 /*-------------------------------------------------------------------------*/
 
-static struct device_driver udc_driver = {
-	.name		= (char *) driver_name,
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver udc_driver = {
 	.probe		= omap_udc_probe,
 	.remove		= __exit_p(omap_udc_remove),
 	.suspend	= omap_udc_suspend,
 	.resume		= omap_udc_resume,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= (char *) driver_name,
+	},
 };
 
 static int __init udc_init(void)
@@ -2965,13 +2964,13 @@ static int __init udc_init(void)
 #endif
 		"%s\n", driver_desc,
 		use_dma ?  " (dma)" : "");
-	return driver_register(&udc_driver);
+	return platform_driver_register(&udc_driver);
 }
 module_init(udc_init);
 
 static void __exit udc_exit(void)
 {
-	driver_unregister(&udc_driver);
+	platform_driver_unregister(&udc_driver);
 }
 module_exit(udc_exit);
 

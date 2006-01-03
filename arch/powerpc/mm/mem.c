@@ -46,9 +46,7 @@
 #include <asm/prom.h>
 #include <asm/lmb.h>
 #include <asm/sections.h>
-#ifdef CONFIG_PPC64
 #include <asm/vdso.h>
-#endif
 
 #include "mmu_decl.h"
 
@@ -110,6 +108,7 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
+	set_page_count(page, 0);
 	free_cold_page(page);
 	totalram_pages++;
 	num_physpages++;
@@ -126,6 +125,9 @@ int __devinit add_memory(u64 start, u64 size)
 	struct zone *zone;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
+
+	start += KERNELBASE;
+	create_section_mapping(start, start + size);
 
 	/* this should work for most non-highmem platforms */
 	zone = pgdata->node_zones;
@@ -198,6 +200,8 @@ void show_mem(void)
 		unsigned long flags;
 		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			if (!pfn_valid(pgdat->node_start_pfn + i))
+				continue;
 			page = pgdat_page_nr(pgdat, i);
 			total++;
 			if (PageHighMem(page))
@@ -334,7 +338,7 @@ void __init mem_init(void)
 	struct page *page;
 	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
 
-	num_physpages = max_pfn;	/* RAM is assumed contiguous */
+	num_physpages = lmb.memory.size >> PAGE_SHIFT;
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
@@ -346,11 +350,13 @@ void __init mem_init(void)
 		}
 	}
 #else
-	max_mapnr = num_physpages;
+	max_mapnr = max_pfn;
 	totalram_pages += free_all_bootmem();
 #endif
 	for_each_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			if (!pfn_valid(pgdat->node_start_pfn + i))
+				continue;
 			page = pgdat_page_nr(pgdat, i);
 			if (PageReserved(page))
 				reservedpages++;
@@ -393,10 +399,8 @@ void __init mem_init(void)
 
 	mem_init_done = 1;
 
-#ifdef CONFIG_PPC64
 	/* Initialize the vDSO */
 	vdso_init();
-#endif
 }
 
 /*
@@ -491,7 +495,7 @@ EXPORT_SYMBOL(flush_icache_user_range);
  * We use it to preload an HPTE into the hash table corresponding to
  * the updated linux PTE.
  * 
- * This must always be called with the mm->page_table_lock held
+ * This must always be called with the pte lock held.
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t pte)

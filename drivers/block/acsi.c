@@ -58,7 +58,6 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <scsi/scsi.h> /* for SCSI_IOCTL_GET_IDLUN */
-typedef void Scsi_Device; /* hack to avoid including scsi.h */
 #include <scsi/scsi_ioctl.h>
 #include <linux/hdreg.h> /* for HDIO_GETGEO */
 #include <linux/blkpg.h>

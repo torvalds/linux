@@ -159,14 +159,37 @@ typedef struct sigaltstack {
 
 #define __HAVE_ARCH_SIG_BITOPS
 
-static __inline__ void sigaddset(sigset_t *set, int _sig)
+#define sigaddset(set,sig)                 \
+	(__builtin_constant_p(sig) ?       \
+	__const_sigaddset((set),(sig)) :   \
+	__gen_sigaddset((set),(sig)))
+
+static __inline__ void __gen_sigaddset(sigset_t *set, int _sig)
 {
-	__asm__("btsl %1,%0" : "=m"(*set) : "Ir"(_sig - 1) : "cc");
+	__asm__("btsl %1,%0" : "+m"(*set) : "Ir"(_sig - 1) : "cc");
 }
 
-static __inline__ void sigdelset(sigset_t *set, int _sig)
+static __inline__ void __const_sigaddset(sigset_t *set, int _sig)
 {
-	__asm__("btrl %1,%0" : "=m"(*set) : "Ir"(_sig - 1) : "cc");
+	unsigned long sig = _sig - 1;
+	set->sig[sig / _NSIG_BPW] |= 1 << (sig % _NSIG_BPW);
+}
+
+#define sigdelset(set,sig)                 \
+	(__builtin_constant_p(sig) ?       \
+	__const_sigdelset((set),(sig)) :   \
+	__gen_sigdelset((set),(sig)))
+
+
+static __inline__ void __gen_sigdelset(sigset_t *set, int _sig)
+{
+	__asm__("btrl %1,%0" : "+m"(*set) : "Ir"(_sig - 1) : "cc");
+}
+
+static __inline__ void __const_sigdelset(sigset_t *set, int _sig)
+{
+	unsigned long sig = _sig - 1;
+	set->sig[sig / _NSIG_BPW] &= ~(1 << (sig % _NSIG_BPW));
 }
 
 static __inline__ int __const_sigismember(sigset_t *set, int _sig)

@@ -252,7 +252,7 @@ their names here, but I don't have a list handy.  Check the MCA Linux
 home page (URL below) for a perpetually out-of-date list.
 
 =====================================================================
-MCA Linux Home Page: http://glycerine.itsmm.uni.edu/mca/
+MCA Linux Home Page: http://www.dgmicro.com/mca/
 
 Christophe Beauregard
 chrisb@truespectra.com

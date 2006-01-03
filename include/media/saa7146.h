@@ -14,7 +14,7 @@
 #include <linux/vmalloc.h>	/* for vmalloc() */
 #include <linux/mm.h>		/* for vmalloc_to_page() */
 
-#define SAA7146_VERSION_CODE 0x000500   /* 0.5.0 */
+#define SAA7146_VERSION_CODE 0x000500	/* 0.5.0 */
 
 #define saa7146_write(sxy,adr,dat)    writel((dat),(sxy->mem+(adr)))
 #define saa7146_read(sxy,adr)         readl(sxy->mem+(adr))
@@ -112,7 +112,7 @@ struct saa7146_dev
 
 	/* different device locks */
 	spinlock_t			slock;
-        struct semaphore		lock;
+	struct semaphore		lock;
 
 	unsigned char			__iomem *mem;		/* pointer to mapped IO memory */
 	int				revision;	/* chip revision; needed for bug-workarounds*/
@@ -133,7 +133,7 @@ struct saa7146_dev
 	void (*vv_callback)(struct saa7146_dev *dev, unsigned long status);
 
 	/* i2c-stuff */
-        struct semaphore	i2c_lock;
+	struct semaphore	i2c_lock;
 	u32			i2c_bitrate;
 	struct saa7146_dma	d_i2c;	/* pointer to i2c memory */
 	wait_queue_head_t	i2c_wq;

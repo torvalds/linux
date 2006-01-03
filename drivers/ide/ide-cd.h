@@ -480,7 +480,6 @@ struct cdrom_info {
 
 	struct request request_sense_request;
 	int dma;
-	int cmd;
 	unsigned long last_block;
 	unsigned long start_seek;
 	/* Buffer to hold mechanism status and changer slot table. */

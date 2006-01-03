@@ -231,9 +231,9 @@ static irqreturn_t ts_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_PM
-static int corgits_suspend(struct device *dev, pm_message_t state)
+static int corgits_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
+	struct corgi_ts *corgi_ts = platform_get_drvdata(dev);
 
 	if (corgi_ts->pendown) {
 		del_timer_sync(&corgi_ts->timer);
@@ -248,9 +248,9 @@ static int corgits_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int corgits_resume(struct device *dev)
+static int corgits_resume(struct platform_device *dev)
 {
-	struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
+	struct corgi_ts *corgi_ts = platform_get_drvdata(dev);
 
 	corgi_ssp_ads7846_putget((4u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
 	/* Enable Falling Edge */
@@ -264,10 +264,9 @@ static int corgits_resume(struct device *dev)
 #define corgits_resume		NULL
 #endif
 
-static int __init corgits_probe(struct device *dev)
+static int __init corgits_probe(struct platform_device *pdev)
 {
 	struct corgi_ts *corgi_ts;
-	struct platform_device *pdev = to_platform_device(dev);
 	struct input_dev *input_dev;
 	int err = -ENOMEM;
 
@@ -276,9 +275,9 @@ static int __init corgits_probe(struct device *dev)
 	if (!corgi_ts || !input_dev)
 		goto fail;
 
-	dev_set_drvdata(dev, corgi_ts);
+	platform_set_drvdata(pdev, corgi_ts);
 
-	corgi_ts->machinfo = dev->platform_data;
+	corgi_ts->machinfo = pdev->dev.platform_data;
 	corgi_ts->irq_gpio = platform_get_irq(pdev, 0);
 
 	if (corgi_ts->irq_gpio < 0) {
@@ -298,7 +297,7 @@ static int __init corgits_probe(struct device *dev)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0002;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = dev;
+	input_dev->cdev.dev = &pdev->dev;
 	input_dev->private = corgi_ts;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
@@ -339,9 +338,9 @@ static int __init corgits_probe(struct device *dev)
 
 }
 
-static int corgits_remove(struct device *dev)
+static int corgits_remove(struct platform_device *pdev)
 {
-	struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
+	struct corgi_ts *corgi_ts = platform_get_drvdata(pdev);
 
 	free_irq(corgi_ts->irq_gpio, NULL);
 	del_timer_sync(&corgi_ts->timer);
@@ -351,23 +350,24 @@ static int corgits_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver corgits_driver = {
-	.name		= "corgi-ts",
-	.bus		= &platform_bus_type,
+static struct platform_driver corgits_driver = {
 	.probe		= corgits_probe,
 	.remove		= corgits_remove,
 	.suspend	= corgits_suspend,
 	.resume		= corgits_resume,
+	.driver		= {
+		.name	= "corgi-ts",
+	},
 };
 
 static int __devinit corgits_init(void)
 {
-	return driver_register(&corgits_driver);
+	return platform_driver_register(&corgits_driver);
 }
 
 static void __exit corgits_exit(void)
 {
-	driver_unregister(&corgits_driver);
+	platform_driver_unregister(&corgits_driver);
 }
 
 module_init(corgits_init);

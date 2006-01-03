@@ -51,8 +51,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-#define DEBUG_TASKFILE	0	/* unset when fixed */
-
 static void ata_bswap_data (void *buffer, int wcount)
 {
 	u16 *p = buffer;
@@ -765,9 +763,6 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 	ide_hwif_t *hwif	= HWIF(drive);
 	task_struct_t *taskfile	= (task_struct_t *) task->tfRegister;
 	hob_struct_t *hobfile	= (hob_struct_t *) task->hobRegister;
-#if DEBUG_TASKFILE
-	u8 status;
-#endif
 
 	if (task->data_phase == TASKFILE_MULTI_IN ||
 	    task->data_phase == TASKFILE_MULTI_OUT) {
@@ -778,19 +773,13 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 	}
 
 	/*
-	 * (ks) Check taskfile in/out flags.
+	 * (ks) Check taskfile in flags.
 	 * If set, then execute as it is defined.
 	 * If not set, then define default settings.
 	 * The default values are:
-	 *	write and read all taskfile registers (except data) 
-	 *	write and read the hob registers (sector,nsector,lcyl,hcyl)
+	 *	read all taskfile registers (except data)
+	 *	read the hob registers (sector, nsector, lcyl, hcyl)
 	 */
-	if (task->tf_out_flags.all == 0) {
-		task->tf_out_flags.all = IDE_TASKFILE_STD_OUT_FLAGS;
-		if (drive->addressing == 1)
-			task->tf_out_flags.all |= (IDE_HOB_STD_OUT_FLAGS << 8);
-        }
-
 	if (task->tf_in_flags.all == 0) {
 		task->tf_in_flags.all = IDE_TASKFILE_STD_IN_FLAGS;
 		if (drive->addressing == 1)
@@ -802,16 +791,6 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 		/* clear nIEN */
 		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
 	SELECT_MASK(drive, 0);
-
-#if DEBUG_TASKFILE
-	status = hwif->INB(IDE_STATUS_REG);
-	if (status & 0x80) {
-		printk("flagged_taskfile -> Bad status. Status = %02x. wait 100 usec ...\n", status);
-		udelay(100);
-		status = hwif->INB(IDE_STATUS_REG);
-		printk("flagged_taskfile -> Status = %02x\n", status);
-	}
-#endif
 
 	if (task->tf_out_flags.b.data) {
 		u16 data =  taskfile->data + (hobfile->data << 8);

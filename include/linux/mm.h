@@ -144,7 +144,8 @@ extern unsigned int kobjsize(const void *objp);
 
 #define VM_GROWSDOWN	0x00000100	/* general info on the segment */
 #define VM_GROWSUP	0x00000200
-#define VM_SHM		0x00000400	/* shared memory area, don't swap out */
+#define VM_SHM		0x00000000	/* Means nothing: delete it later */
+#define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
 #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
 
 #define VM_EXECUTABLE	0x00001000
@@ -157,11 +158,12 @@ extern unsigned int kobjsize(const void *objp);
 
 #define VM_DONTCOPY	0x00020000      /* Do not copy this vma on fork */
 #define VM_DONTEXPAND	0x00040000	/* Cannot expand with mremap() */
-#define VM_RESERVED	0x00080000	/* Pages managed in a special way */
+#define VM_RESERVED	0x00080000	/* Count as reserved_vm like IO */
 #define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
 #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
 #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
 #define VM_MAPPED_COPY	0x01000000	/* T if mapped copy of data (nommu mmap) */
+#define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
 
 #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
 #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
@@ -206,12 +208,6 @@ struct vm_operations_struct {
 struct mmu_gather;
 struct inode;
 
-#ifdef ARCH_HAS_ATOMIC_UNSIGNED
-typedef unsigned page_flags_t;
-#else
-typedef unsigned long page_flags_t;
-#endif
-
 /*
  * Each physical page in the system has a struct page associated with
  * it to keep track of whatever it is we are using the page for at the
@@ -219,7 +215,7 @@ typedef unsigned long page_flags_t;
  * a page.
  */
 struct page {
-	page_flags_t flags;		/* Atomic flags, some possibly
+	unsigned long flags;		/* Atomic flags, some possibly
 					 * updated asynchronously */
 	atomic_t _count;		/* Usage count, see below. */
 	atomic_t _mapcount;		/* Count of ptes mapped in mms,
@@ -317,8 +313,6 @@ struct page {
 
 extern void FASTCALL(__page_cache_release(struct page *));
 
-#ifdef CONFIG_HUGETLB_PAGE
-
 static inline int page_count(struct page *page)
 {
 	if (PageCompound(page))
@@ -334,23 +328,6 @@ static inline void get_page(struct page *page)
 }
 
 void put_page(struct page *page);
-
-#else		/* CONFIG_HUGETLB_PAGE */
-
-#define page_count(p)		(atomic_read(&(p)->_count) + 1)
-
-static inline void get_page(struct page *page)
-{
-	atomic_inc(&page->_count);
-}
-
-static inline void put_page(struct page *page)
-{
-	if (put_page_testzero(page))
-		__page_cache_release(page);
-}
-
-#endif		/* CONFIG_HUGETLB_PAGE */
 
 /*
  * Multiple processes may "see" the same page. E.g. for untouched
@@ -435,7 +412,7 @@ static inline void put_page(struct page *page)
 #endif
 
 /* Page flags: | [SECTION] | [NODE] | ZONE | ... | FLAGS | */
-#define SECTIONS_PGOFF		((sizeof(page_flags_t)*8) - SECTIONS_WIDTH)
+#define SECTIONS_PGOFF		((sizeof(unsigned long)*8) - SECTIONS_WIDTH)
 #define NODES_PGOFF		(SECTIONS_PGOFF - NODES_WIDTH)
 #define ZONES_PGOFF		(NODES_PGOFF - ZONES_WIDTH)
 
@@ -688,6 +665,7 @@ struct zap_details {
 	unsigned long truncate_count;		/* Compare vm_truncate_count */
 };
 
+struct page *vm_normal_page(struct vm_area_struct *, unsigned long, pte_t);
 unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 		unsigned long size, struct zap_details *);
 unsigned long unmap_vmas(struct mmu_gather **tlb,
@@ -763,6 +741,8 @@ typedef int (*shrinker_t)(int nr_to_scan, gfp_t gfp_mask);
 struct shrinker;
 extern struct shrinker *set_shrinker(int, shrinker_t);
 extern void remove_shrinker(struct shrinker *shrinker);
+
+extern pte_t *FASTCALL(get_locked_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl));
 
 int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address);
 int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address);
@@ -946,7 +926,9 @@ unsigned long max_sane_readahead(unsigned long nr);
 
 /* Do stack extension */
 extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
+#ifdef CONFIG_IA64
 extern int expand_upwards(struct vm_area_struct *vma, unsigned long address);
+#endif
 
 /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
 extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr);
@@ -974,8 +956,9 @@ struct page *vmalloc_to_page(void *addr);
 unsigned long vmalloc_to_pfn(void *addr);
 int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
 			unsigned long pfn, unsigned long size, pgprot_t);
+int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
 
-struct page *follow_page(struct mm_struct *, unsigned long address,
+struct page *follow_page(struct vm_area_struct *, unsigned long address,
 			unsigned int foll_flags);
 #define FOLL_WRITE	0x01	/* check pte is writable */
 #define FOLL_TOUCH	0x02	/* mark page accessed */

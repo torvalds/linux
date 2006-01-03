@@ -282,7 +282,7 @@
  *  clustering is enabled. ENABLE_CLUSTERING provides a performance increase
  *  up to 50% on sequential access.
  *
- *  Since the Scsi_Host_Template structure is shared among all 14F and 34F,
+ *  Since the struct scsi_host_template structure is shared among all 14F and 34F,
  *  the last setting of use_clustering is in effect for all of these boards.
  *
  *  Here a sample configuration using two U14F boards:

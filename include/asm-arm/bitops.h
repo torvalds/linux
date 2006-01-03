@@ -19,6 +19,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/compiler.h>
 #include <asm/system.h>
 
 #define smp_mb__before_clear_bit()	mb()

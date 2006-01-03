@@ -58,7 +58,7 @@ static void tcp_write_err(struct sock *sk)
  * to prevent DoS attacks. It is called when a retransmission timeout
  * or zero probe timeout occurs on orphaned socket.
  *
- * Criterium is still not confirmed experimentally and may change.
+ * Criteria is still not confirmed experimentally and may change.
  * We kill the socket, if:
  * 1. If number of orphaned sockets exceeds an administratively configured
  *    limit.
@@ -132,7 +132,7 @@ static int tcp_write_timeout(struct sock *sk)
 			   hole detection. :-(
 
 			   It is place to make it. It is not made. I do not want
-			   to make it. It is disguisting. It does not work in any
+			   to make it. It is disgusting. It does not work in any
 			   case. Let me to cite the same draft, which requires for
 			   us to implement this:
 

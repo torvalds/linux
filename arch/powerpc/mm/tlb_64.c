@@ -95,7 +95,7 @@ static void pte_free_submit(struct pte_freelist_batch *batch)
 
 void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
 {
-	/* This is safe as we are holding page_table_lock */
+	/* This is safe since tlb_gather_mmu has disabled preemption */
         cpumask_t local_cpumask = cpumask_of_cpu(smp_processor_id());
 	struct pte_freelist_batch **batchp = &__get_cpu_var(pte_freelist_cur);
 
@@ -206,7 +206,7 @@ void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 
 void pte_free_finish(void)
 {
-	/* This is safe as we are holding page_table_lock */
+	/* This is safe since tlb_gather_mmu has disabled preemption */
 	struct pte_freelist_batch **batchp = &__get_cpu_var(pte_freelist_cur);
 
 	if (*batchp == NULL)

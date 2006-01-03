@@ -489,8 +489,10 @@ int cifs_close(struct inode *inode, struct file *file)
 					the struct would be in each open file,
 					but this should give enough time to 
 					clear the socket */
+					write_unlock(&file->f_owner.lock);
 					cERROR(1,("close with pending writes"));
 					msleep(timeout);
+					write_lock(&file->f_owner.lock);
 					timeout *= 4;
 				} 
 				write_unlock(&file->f_owner.lock);

@@ -269,14 +269,12 @@ extern int dcache_bsize;
 extern int icache_bsize;
 extern int ucache_bsize;
 
-#ifdef __powerpc64__
+/* vDSO has arch_setup_additional_pages */
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 struct linux_binprm;
-#define ARCH_HAS_SETUP_ADDITIONAL_PAGES	/* vDSO has arch_setup_additional_pages */
-extern int arch_setup_additional_pages(struct linux_binprm *bprm, int executable_stack);
+extern int arch_setup_additional_pages(struct linux_binprm *bprm,
+				       int executable_stack);
 #define VDSO_AUX_ENT(a,b) NEW_AUX_ENT(a,b);
-#else
-#define VDSO_AUX_ENT(a,b)
-#endif /* __powerpc64__ */
 
 /*
  * The requirements here are:

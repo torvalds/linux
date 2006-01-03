@@ -220,6 +220,12 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	   uses the normal dma_mask for alloc_coherent. */
 	dma_mask &= *dev->dma_mask;
 
+	/* Why <=? Even when the mask is smaller than 4GB it is often larger 
+	   than 16MB and in this case we have a chance of finding fitting memory 
+	   in the next higher zone first. If not retry with true GFP_DMA. -AK */
+	if (dma_mask <= 0xffffffff)
+		gfp |= GFP_DMA32;
+
  again:
 	memory = dma_alloc_pages(dev, gfp, get_order(size));
 	if (memory == NULL)
@@ -245,7 +251,7 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 				}
 
 				if (!(gfp & GFP_DMA)) { 
-					gfp |= GFP_DMA; 
+					gfp = (gfp & ~GFP_DMA32) | GFP_DMA;
 					goto again;
 				}
 				return NULL;

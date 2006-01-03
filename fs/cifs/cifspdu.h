@@ -603,7 +603,9 @@ typedef struct smb_com_logoff_andx_rsp {
 	__u16 ByteCount;
 } __attribute__((packed)) LOGOFF_ANDX_RSP;
 
-typedef union smb_com_tree_disconnect {	/* as an altetnative can use flag on tree_connect PDU to effect disconnect *//* probably the simplest SMB PDU */
+typedef union smb_com_tree_disconnect {	/* as an altetnative can use flag on 
+					tree_connect PDU to effect disconnect */
+					/* tdis is probably simplest SMB PDU */
 	struct {
 		struct smb_hdr hdr;	/* wct = 0 */
 		__u16 ByteCount;	/* bcc = 0 */
@@ -2024,6 +2026,12 @@ typedef struct {
 	char FileName[1];
 } __attribute__((packed)) FILE_BOTH_DIRECTORY_INFO;   /* level 0x104 FF response data area */
 
+
+struct win_dev {
+	unsigned char type[8]; /* IntxCHR or IntxBLK */
+	__le64 major;
+	__le64 minor;	
+} __attribute__((packed));
 
 struct gea {
 	unsigned char name_len;

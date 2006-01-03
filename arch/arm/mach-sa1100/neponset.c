@@ -137,7 +137,7 @@ static struct sa1100_port_fns neponset_port_fns __initdata = {
 	.get_mctrl	= neponset_get_mctrl,
 };
 
-static int neponset_probe(struct device *dev)
+static int neponset_probe(struct platform_device *dev)
 {
 	sa1100_register_uart_fns(&neponset_port_fns);
 
@@ -178,27 +178,27 @@ static int neponset_probe(struct device *dev)
 /*
  * LDM power management.
  */
-static int neponset_suspend(struct device *dev, pm_message_t state)
+static int neponset_suspend(struct platform_device *dev, pm_message_t state)
 {
 	/*
 	 * Save state.
 	 */
-	if (!dev->power.saved_state)
-		dev->power.saved_state = kmalloc(sizeof(unsigned int), GFP_KERNEL);
-	if (!dev->power.saved_state)
+	if (!dev->dev.power.saved_state)
+		dev->dev.power.saved_state = kmalloc(sizeof(unsigned int), GFP_KERNEL);
+	if (!dev->dev.power.saved_state)
 		return -ENOMEM;
 
-	*(unsigned int *)dev->power.saved_state = NCR_0;
+	*(unsigned int *)dev->dev.power.saved_state = NCR_0;
 
 	return 0;
 }
 
-static int neponset_resume(struct device *dev)
+static int neponset_resume(struct platform_device *dev)
 {
-	if (dev->power.saved_state) {
-		NCR_0 = *(unsigned int *)dev->power.saved_state;
-		kfree(dev->power.saved_state);
-		dev->power.saved_state = NULL;
+	if (dev->dev.power.saved_state) {
+		NCR_0 = *(unsigned int *)dev->dev.power.saved_state;
+		kfree(dev->dev.power.saved_state);
+		dev->dev.power.saved_state = NULL;
 	}
 
 	return 0;
@@ -209,12 +209,13 @@ static int neponset_resume(struct device *dev)
 #define neponset_resume  NULL
 #endif
 
-static struct device_driver neponset_device_driver = {
-	.name		= "neponset",
-	.bus		= &platform_bus_type,
+static struct platform_driver neponset_device_driver = {
 	.probe		= neponset_probe,
 	.suspend	= neponset_suspend,
 	.resume		= neponset_resume,
+	.driver		= {
+		.name	= "neponset",
+	},
 };
 
 static struct resource neponset_resources[] = {
@@ -293,7 +294,7 @@ static struct platform_device *devices[] __initdata = {
 
 static int __init neponset_init(void)
 {
-	driver_register(&neponset_device_driver);
+	platform_driver_register(&neponset_device_driver);
 
 	/*
 	 * The Neponset is only present on the Assabet machine type.

@@ -41,7 +41,7 @@ unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
 	tmp = *p;
 
 found_first:
-	tmp &= (~0UL >> (64 - size));
+	tmp &= (~0UL >> (BITS_PER_LONG - size));
 	if (tmp == 0UL)		/* Are any bits set? */
 		return result + size;	/* Nope. */
 found_middle:

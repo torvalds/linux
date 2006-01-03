@@ -389,6 +389,7 @@ extern u64 ppc64_interrupt_controller;
 #define	SIU_INT_TIMER4		((uint)0x0f + CPM_IRQ_OFFSET)
 #define	SIU_INT_TMCNT		((uint)0x10 + CPM_IRQ_OFFSET)
 #define	SIU_INT_PIT		((uint)0x11 + CPM_IRQ_OFFSET)
+#define	SIU_INT_PCI		((uint)0x12 + CPM_IRQ_OFFSET)
 #define	SIU_INT_IRQ1		((uint)0x13 + CPM_IRQ_OFFSET)
 #define	SIU_INT_IRQ2		((uint)0x14 + CPM_IRQ_OFFSET)
 #define	SIU_INT_IRQ3		((uint)0x15 + CPM_IRQ_OFFSET)
@@ -429,7 +430,6 @@ extern u64 ppc64_interrupt_controller;
 #define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
 /* pedantic: these are long because they are used with set_bit --RR */
 extern unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
-extern unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
 extern atomic_t ppc_n_lost_interrupts;
 
 #define virt_irq_create_mapping(x)	(x)
@@ -488,8 +488,8 @@ extern struct thread_info *softirq_ctx[NR_CPUS];
 
 extern void irq_ctx_init(void);
 extern void call_do_softirq(struct thread_info *tp);
-extern int call_handle_IRQ_event(int irq, struct pt_regs *regs,
-			struct irqaction *action, struct thread_info *tp);
+extern int call___do_IRQ(int irq, struct pt_regs *regs,
+		struct thread_info *tp);
 
 #define __ARCH_HAS_DO_SOFTIRQ
 

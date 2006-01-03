@@ -99,7 +99,9 @@ struct smm_regs {
 
 static inline char *i8k_get_dmi_data(int field)
 {
-	return dmi_get_system_info(field) ? : "N/A";
+	char *dmi_data = dmi_get_system_info(field);
+
+	return dmi_data && *dmi_data ? dmi_data : "?";
 }
 
 /*
@@ -396,7 +398,7 @@ static int i8k_proc_show(struct seq_file *seq, void *offset)
 	return seq_printf(seq, "%s %s %s %d %d %d %d %d %d %d\n",
 			  I8K_PROC_FMT,
 			  bios_version,
-			  dmi_get_system_info(DMI_PRODUCT_SERIAL) ? : "N/A",
+			  i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
 			  cpu_temp,
 			  left_fan, right_fan, left_speed, right_speed,
 			  ac_power, fn_key);

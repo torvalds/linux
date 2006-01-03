@@ -2085,21 +2085,21 @@ static struct lh7a40x_udc memory = {
 /*
  * 	probe - binds to the platform device
  */
-static int lh7a40x_udc_probe(struct device *_dev)
+static int lh7a40x_udc_probe(struct platform_device *pdev)
 {
 	struct lh7a40x_udc *dev = &memory;
 	int retval;
 
-	DEBUG("%s: %p\n", __FUNCTION__, _dev);
+	DEBUG("%s: %p\n", __FUNCTION__, pdev);
 
 	spin_lock_init(&dev->lock);
-	dev->dev = _dev;
+	dev->dev = &pdev->dev;
 
 	device_initialize(&dev->gadget.dev);
-	dev->gadget.dev.parent = _dev;
+	dev->gadget.dev.parent = &pdev->dev;
 
 	the_controller = dev;
-	dev_set_drvdata(_dev, dev);
+	platform_set_drvdata(pdev, dev);
 
 	udc_disable(dev);
 	udc_reinit(dev);
@@ -2119,11 +2119,11 @@ static int lh7a40x_udc_probe(struct device *_dev)
 	return retval;
 }
 
-static int lh7a40x_udc_remove(struct device *_dev)
+static int lh7a40x_udc_remove(struct platform_device *pdev)
 {
-	struct lh7a40x_udc *dev = _dev->driver_data;
+	struct lh7a40x_udc *dev = platform_get_drvdata(pdev);
 
-	DEBUG("%s: %p\n", __FUNCTION__, dev);
+	DEBUG("%s: %p\n", __FUNCTION__, pdev);
 
 	udc_disable(dev);
 	remove_proc_files();
@@ -2131,7 +2131,7 @@ static int lh7a40x_udc_remove(struct device *_dev)
 
 	free_irq(IRQ_USBINTR, dev);
 
-	dev_set_drvdata(_dev, 0);
+	platform_set_drvdata(pdev, 0);
 
 	the_controller = 0;
 
@@ -2140,26 +2140,27 @@ static int lh7a40x_udc_remove(struct device *_dev)
 
 /*-------------------------------------------------------------------------*/
 
-static struct device_driver udc_driver = {
-	.name = (char *)driver_name,
-	.owner = THIS_MODULE,
-	.bus = &platform_bus_type,
+static struct platform_driver udc_driver = {
 	.probe = lh7a40x_udc_probe,
 	.remove = lh7a40x_udc_remove
 	    /* FIXME power management support */
 	    /* .suspend = ... disable UDC */
 	    /* .resume = ... re-enable UDC */
+	.driver	= {
+		.name = (char *)driver_name,
+		.owner = THIS_MODULE,
+	},
 };
 
 static int __init udc_init(void)
 {
 	DEBUG("%s: %s version %s\n", __FUNCTION__, driver_name, DRIVER_VERSION);
-	return driver_register(&udc_driver);
+	return platform_driver_register(&udc_driver);
 }
 
 static void __exit udc_exit(void)
 {
-	driver_unregister(&udc_driver);
+	platform_driver_unregister(&udc_driver);
 }
 
 module_init(udc_init);

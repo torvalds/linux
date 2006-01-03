@@ -84,6 +84,7 @@ static int max_interrupt_work = 10;
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>	/* for udelay() */
 #include <linux/spinlock.h>
@@ -173,7 +174,7 @@ struct el3_private {
 	/* skb send-queue */
 	int head, size;
 	struct sk_buff *queue[SKB_QUEUE_SIZE];
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 	struct pm_dev *pmdev;
 #endif
 	enum {
@@ -200,7 +201,7 @@ static void el3_tx_timeout (struct net_device *dev);
 static void el3_down(struct net_device *dev);
 static void el3_up(struct net_device *dev);
 static struct ethtool_ops ethtool_ops;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 static int el3_suspend(struct pm_dev *pdev);
 static int el3_resume(struct pm_dev *pdev);
 static int el3_pm_callback(struct pm_dev *pdev, pm_request_t rqst, void *data);
@@ -361,7 +362,7 @@ static void el3_common_remove (struct net_device *dev)
 	struct el3_private *lp = netdev_priv(dev);
 
 	(void) lp;				/* Keep gcc quiet... */
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 	if (lp->pmdev)
 		pm_unregister(lp->pmdev);
 #endif
@@ -571,7 +572,7 @@ no_pnp:
 	if (err)
 		goto out1;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 	/* register power management */
 	lp->pmdev = pm_register(PM_ISA_DEV, card_idx, el3_pm_callback);
 	if (lp->pmdev) {
@@ -1479,7 +1480,7 @@ el3_up(struct net_device *dev)
 }
 
 /* Power Management support functions */
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 
 static int
 el3_suspend(struct pm_dev *pdev)
@@ -1548,7 +1549,7 @@ el3_pm_callback(struct pm_dev *pdev, pm_request_t rqst, void *data)
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_LEGACY */
 
 /* Parameters that may be passed into the module. */
 static int debug = -1;

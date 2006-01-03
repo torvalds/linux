@@ -708,7 +708,7 @@ ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 		resp->wc[i].opcode 	   = wc[i].opcode;
 		resp->wc[i].vendor_err 	   = wc[i].vendor_err;
 		resp->wc[i].byte_len 	   = wc[i].byte_len;
-		resp->wc[i].imm_data 	   = wc[i].imm_data;
+		resp->wc[i].imm_data 	   = (__u32 __force) wc[i].imm_data;
 		resp->wc[i].qp_num 	   = wc[i].qp_num;
 		resp->wc[i].src_qp 	   = wc[i].src_qp;
 		resp->wc[i].wc_flags 	   = wc[i].wc_flags;
@@ -815,7 +815,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	struct ib_uverbs_create_qp      cmd;
 	struct ib_uverbs_create_qp_resp resp;
 	struct ib_udata                 udata;
-	struct ib_uevent_object        *uobj;
+	struct ib_uqp_object           *uobj;
 	struct ib_pd                   *pd;
 	struct ib_cq                   *scq, *rcq;
 	struct ib_srq                  *srq;
@@ -866,10 +866,11 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	attr.cap.max_recv_sge    = cmd.max_recv_sge;
 	attr.cap.max_inline_data = cmd.max_inline_data;
 
-	uobj->uobject.user_handle = cmd.user_handle;
-	uobj->uobject.context     = file->ucontext;
-	uobj->events_reported     = 0;
-	INIT_LIST_HEAD(&uobj->event_list);
+	uobj->uevent.uobject.user_handle = cmd.user_handle;
+	uobj->uevent.uobject.context     = file->ucontext;
+	uobj->uevent.events_reported     = 0;
+	INIT_LIST_HEAD(&uobj->uevent.event_list);
+	INIT_LIST_HEAD(&uobj->mcast_list);
 
 	qp = pd->device->create_qp(pd, &attr, &udata);
 	if (IS_ERR(qp)) {
@@ -882,7 +883,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 	qp->send_cq    	  = attr.send_cq;
 	qp->recv_cq    	  = attr.recv_cq;
 	qp->srq	       	  = attr.srq;
-	qp->uobject       = &uobj->uobject;
+	qp->uobject       = &uobj->uevent.uobject;
 	qp->event_handler = attr.event_handler;
 	qp->qp_context    = attr.qp_context;
 	qp->qp_type	  = attr.qp_type;
@@ -901,14 +902,19 @@ retry:
 		goto err_destroy;
 	}
 
-	ret = idr_get_new(&ib_uverbs_qp_idr, qp, &uobj->uobject.id);
+	ret = idr_get_new(&ib_uverbs_qp_idr, qp, &uobj->uevent.uobject.id);
 
 	if (ret == -EAGAIN)
 		goto retry;
 	if (ret)
 		goto err_destroy;
 
-	resp.qp_handle = uobj->uobject.id;
+	resp.qp_handle       = uobj->uevent.uobject.id;
+	resp.max_recv_sge    = attr.cap.max_recv_sge;
+	resp.max_send_sge    = attr.cap.max_send_sge;
+	resp.max_recv_wr     = attr.cap.max_recv_wr;
+	resp.max_send_wr     = attr.cap.max_send_wr;
+	resp.max_inline_data = attr.cap.max_inline_data;
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
@@ -917,7 +923,7 @@ retry:
 	}
 
 	down(&file->mutex);
-	list_add_tail(&uobj->uobject.list, &file->ucontext->qp_list);
+	list_add_tail(&uobj->uevent.uobject.list, &file->ucontext->qp_list);
 	up(&file->mutex);
 
 	up(&ib_uverbs_idr_mutex);
@@ -925,7 +931,7 @@ retry:
 	return in_len;
 
 err_idr:
-	idr_remove(&ib_uverbs_qp_idr, uobj->uobject.id);
+	idr_remove(&ib_uverbs_qp_idr, uobj->uevent.uobject.id);
 
 err_destroy:
 	ib_destroy_qp(qp);
@@ -1027,7 +1033,7 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	struct ib_uverbs_destroy_qp      cmd;
 	struct ib_uverbs_destroy_qp_resp resp;
 	struct ib_qp               	*qp;
-	struct ib_uevent_object        	*uobj;
+	struct ib_uqp_object        	*uobj;
 	int                        	 ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1041,7 +1047,12 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	if (!qp || qp->uobject->context != file->ucontext)
 		goto out;
 
-	uobj = container_of(qp->uobject, struct ib_uevent_object, uobject);
+	uobj = container_of(qp->uobject, struct ib_uqp_object, uevent.uobject);
+
+	if (!list_empty(&uobj->mcast_list)) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	ret = ib_destroy_qp(qp);
 	if (ret)
@@ -1050,12 +1061,12 @@ ssize_t ib_uverbs_destroy_qp(struct ib_uverbs_file *file,
 	idr_remove(&ib_uverbs_qp_idr, cmd.qp_handle);
 
 	down(&file->mutex);
-	list_del(&uobj->uobject.list);
+	list_del(&uobj->uevent.uobject.list);
 	up(&file->mutex);
 
-	ib_uverbs_release_uevent(file, uobj);
+	ib_uverbs_release_uevent(file, &uobj->uevent);
 
-	resp.events_reported = uobj->events_reported;
+	resp.events_reported = uobj->uevent.events_reported;
 
 	kfree(uobj);
 
@@ -1135,7 +1146,7 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 		next->num_sge    = user_wr->num_sge;
 		next->opcode     = user_wr->opcode;
 		next->send_flags = user_wr->send_flags;
-		next->imm_data   = user_wr->imm_data;
+		next->imm_data   = (__be32 __force) user_wr->imm_data;
 
 		if (qp->qp_type == IB_QPT_UD) {
 			next->wr.ud.ah = idr_find(&ib_uverbs_ah_idr,
@@ -1537,6 +1548,8 @@ ssize_t ib_uverbs_attach_mcast(struct ib_uverbs_file *file,
 {
 	struct ib_uverbs_attach_mcast cmd;
 	struct ib_qp                 *qp;
+	struct ib_uqp_object         *uobj;
+	struct ib_uverbs_mcast_entry *mcast;
 	int                           ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1545,9 +1558,36 @@ ssize_t ib_uverbs_attach_mcast(struct ib_uverbs_file *file,
 	down(&ib_uverbs_idr_mutex);
 
 	qp = idr_find(&ib_uverbs_qp_idr, cmd.qp_handle);
-	if (qp && qp->uobject->context == file->ucontext)
-		ret = ib_attach_mcast(qp, (union ib_gid *) cmd.gid, cmd.mlid);
+	if (!qp || qp->uobject->context != file->ucontext)
+		goto out;
 
+	uobj = container_of(qp->uobject, struct ib_uqp_object, uevent.uobject);
+
+	list_for_each_entry(mcast, &uobj->mcast_list, list)
+		if (cmd.mlid == mcast->lid &&
+		    !memcmp(cmd.gid, mcast->gid.raw, sizeof mcast->gid.raw)) {
+			ret = 0;
+			goto out;
+		}
+
+	mcast = kmalloc(sizeof *mcast, GFP_KERNEL);
+	if (!mcast) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	mcast->lid = cmd.mlid;
+	memcpy(mcast->gid.raw, cmd.gid, sizeof mcast->gid.raw);
+
+	ret = ib_attach_mcast(qp, &mcast->gid, cmd.mlid);
+	if (!ret) {
+		uobj = container_of(qp->uobject, struct ib_uqp_object,
+				    uevent.uobject);
+		list_add_tail(&mcast->list, &uobj->mcast_list);
+	} else
+		kfree(mcast);
+
+out:
 	up(&ib_uverbs_idr_mutex);
 
 	return ret ? ret : in_len;
@@ -1558,7 +1598,9 @@ ssize_t ib_uverbs_detach_mcast(struct ib_uverbs_file *file,
 			       int out_len)
 {
 	struct ib_uverbs_detach_mcast cmd;
+	struct ib_uqp_object         *uobj;
 	struct ib_qp                 *qp;
+	struct ib_uverbs_mcast_entry *mcast;
 	int                           ret = -EINVAL;
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
@@ -1567,9 +1609,24 @@ ssize_t ib_uverbs_detach_mcast(struct ib_uverbs_file *file,
 	down(&ib_uverbs_idr_mutex);
 
 	qp = idr_find(&ib_uverbs_qp_idr, cmd.qp_handle);
-	if (qp && qp->uobject->context == file->ucontext)
-		ret = ib_detach_mcast(qp, (union ib_gid *) cmd.gid, cmd.mlid);
+	if (!qp || qp->uobject->context != file->ucontext)
+		goto out;
 
+	ret = ib_detach_mcast(qp, (union ib_gid *) cmd.gid, cmd.mlid);
+	if (ret)
+		goto out;
+
+	uobj = container_of(qp->uobject, struct ib_uqp_object, uevent.uobject);
+
+	list_for_each_entry(mcast, &uobj->mcast_list, list)
+		if (cmd.mlid == mcast->lid &&
+		    !memcmp(cmd.gid, mcast->gid.raw, sizeof mcast->gid.raw)) {
+			list_del(&mcast->list);
+			kfree(mcast);
+			break;
+		}
+
+out:
 	up(&ib_uverbs_idr_mutex);
 
 	return ret ? ret : in_len;
@@ -1701,7 +1758,6 @@ ssize_t ib_uverbs_modify_srq(struct ib_uverbs_file *file,
 	}
 
 	attr.max_wr    = cmd.max_wr;
-	attr.max_sge   = cmd.max_sge;
 	attr.srq_limit = cmd.srq_limit;
 
 	ret = ib_modify_srq(srq, &attr, cmd.attr_mask);

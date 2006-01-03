@@ -503,10 +503,9 @@ s1d13xxxfb_fetch_hw_state(struct fb_info *info)
 
 
 static int
-s1d13xxxfb_remove(struct device *dev)
+s1d13xxxfb_remove(struct platform_device *pdev)
 {
-	struct fb_info *info = dev_get_drvdata(dev);
-	struct platform_device *pdev = to_platform_device(dev);
+	struct fb_info *info = platform_get_drvdata(pdev);
 	struct s1d13xxxfb_par *par = NULL;
 
 	if (info) {
@@ -534,9 +533,8 @@ s1d13xxxfb_remove(struct device *dev)
 }
 
 static int __devinit
-s1d13xxxfb_probe(struct device *dev)
+s1d13xxxfb_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct s1d13xxxfb_par *default_par;
 	struct fb_info *info;
 	struct s1d13xxxfb_pdata *pdata = NULL;
@@ -548,8 +546,8 @@ s1d13xxxfb_probe(struct device *dev)
 	printk(KERN_INFO "Epson S1D13XXX FB Driver\n");
 
 	/* enable platform-dependent hardware glue, if any */
-	if (dev->platform_data)
-		pdata = dev->platform_data;
+	if (pdev->dev.platform_data)
+		pdata = pdev->dev.platform_data;
 
 	if (pdata && pdata->platform_init_video)
 		pdata->platform_init_video();
@@ -572,14 +570,14 @@ s1d13xxxfb_probe(struct device *dev)
 
 	if (!request_mem_region(pdev->resource[0].start,
 		pdev->resource[0].end - pdev->resource[0].start +1, "s1d13xxxfb mem")) {
-		dev_dbg(dev, "request_mem_region failed\n");
+		dev_dbg(&pdev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
 		goto bail;
 	}
 
 	if (!request_mem_region(pdev->resource[1].start,
 		pdev->resource[1].end - pdev->resource[1].start +1, "s1d13xxxfb regs")) {
-		dev_dbg(dev, "request_mem_region failed\n");
+		dev_dbg(&pdev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
 		goto bail;
 	}
@@ -640,7 +638,7 @@ s1d13xxxfb_probe(struct device *dev)
 		goto bail;
 	}
 
-	dev_set_drvdata(&pdev->dev, info);
+	platform_set_drvdata(pdev, info);
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 	       info->node, info->fix.id);
@@ -648,15 +646,15 @@ s1d13xxxfb_probe(struct device *dev)
 	return 0;
 
 bail:
-	s1d13xxxfb_remove(dev);
+	s1d13xxxfb_remove(pdev);
 	return ret;
 
 }
 
 #ifdef CONFIG_PM
-static int s1d13xxxfb_suspend(struct device *dev, pm_message_t state)
+static int s1d13xxxfb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct fb_info *info = dev_get_drvdata(dev);
+	struct fb_info *info = platform_get_drvdata(dev);
 	struct s1d13xxxfb_par *s1dfb = info->par;
 	struct s1d13xxxfb_pdata *pdata = NULL;
 
@@ -664,8 +662,8 @@ static int s1d13xxxfb_suspend(struct device *dev, pm_message_t state)
 	lcd_enable(s1dfb, 0);
 	crt_enable(s1dfb, 0);
 
-	if (dev->platform_data)
-		pdata = dev->platform_data;
+	if (dev->dev.platform_data)
+		pdata = dev->dev.platform_data;
 
 #if 0
 	if (!s1dfb->disp_save)
@@ -701,9 +699,9 @@ static int s1d13xxxfb_suspend(struct device *dev, pm_message_t state)
 		return 0;
 }
 
-static int s1d13xxxfb_resume(struct device *dev)
+static int s1d13xxxfb_resume(struct platform_device *dev)
 {
-	struct fb_info *info = dev_get_drvdata(dev);
+	struct fb_info *info = platform_get_drvdata(dev);
 	struct s1d13xxxfb_par *s1dfb = info->par;
 	struct s1d13xxxfb_pdata *pdata = NULL;
 
@@ -714,8 +712,8 @@ static int s1d13xxxfb_resume(struct device *dev)
 	while ((s1d13xxxfb_readreg(s1dfb, S1DREG_PS_STATUS) & 0x01))
 		udelay(10);
 
-	if (dev->platform_data)
-		pdata = dev->platform_data;
+	if (dev->dev.platform_data)
+		pdata = dev->dev.platform_data;
 
 	if (s1dfb->regs_save) {
 		/* will write RO regs, *should* get away with it :) */
@@ -741,15 +739,16 @@ static int s1d13xxxfb_resume(struct device *dev)
 }
 #endif /* CONFIG_PM */
 
-static struct device_driver s1d13xxxfb_driver = {
-	.name		= S1D_DEVICENAME,
-	.bus		= &platform_bus_type,
+static struct platform_driver s1d13xxxfb_driver = {
 	.probe		= s1d13xxxfb_probe,
 	.remove		= s1d13xxxfb_remove,
 #ifdef CONFIG_PM
 	.suspend	= s1d13xxxfb_suspend,
-	.resume		= s1d13xxxfb_resume
+	.resume		= s1d13xxxfb_resume,
 #endif
+	.driver		= {
+		.name	= S1D_DEVICENAME,
+	},
 };
 
 
@@ -759,14 +758,14 @@ s1d13xxxfb_init(void)
 	if (fb_get_options("s1d13xxxfb", NULL))
 		return -ENODEV;
 
-	return driver_register(&s1d13xxxfb_driver);
+	return platform_driver_register(&s1d13xxxfb_driver);
 }
 
 
 static void __exit
 s1d13xxxfb_exit(void)
 {
-	driver_unregister(&s1d13xxxfb_driver);
+	platform_driver_unregister(&s1d13xxxfb_driver);
 }
 
 module_init(s1d13xxxfb_init);

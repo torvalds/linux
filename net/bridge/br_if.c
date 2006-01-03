@@ -366,6 +366,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 		spin_lock_bh(&br->lock);
 		br_stp_recalculate_bridge_id(br);
+		br_features_recompute(br);
 		if ((br->dev->flags & IFF_UP) 
 		    && (dev->flags & IFF_UP) && netif_carrier_ok(dev))
 			br_stp_enable_port(p);

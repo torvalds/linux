@@ -46,6 +46,7 @@ atomic_t dccp_orphan_count = ATOMIC_INIT(0);
 static struct net_protocol dccp_protocol = {
 	.handler	= dccp_v4_rcv,
 	.err_handler	= dccp_v4_err,
+	.no_policy	= 1,
 };
 
 const char *dccp_packet_name(const int type)

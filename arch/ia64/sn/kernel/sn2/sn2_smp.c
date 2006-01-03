@@ -202,7 +202,7 @@ sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
 		     unsigned long end, unsigned long nbits)
 {
 	int i, opt, shub1, cnode, mynasid, cpu, lcpu = 0, nasid, flushed = 0;
-	int mymm = (mm == current->active_mm);
+	int mymm = (mm == current->active_mm && current->mm);
 	volatile unsigned long *ptc0, *ptc1;
 	unsigned long itc, itc2, flags, data0 = 0, data1 = 0, rr_value;
 	short nasids[MAX_NUMNODES], nix;
@@ -492,6 +492,9 @@ static struct proc_dir_entry *proc_sn2_ptc;
 
 static int __init sn2_ptc_init(void)
 {
+	if (!ia64_platform_is("sn2"))
+		return -ENOSYS;
+
 	if (!(proc_sn2_ptc = create_proc_entry(PTC_BASENAME, 0444, NULL))) {
 		printk(KERN_ERR "unable to create %s proc entry", PTC_BASENAME);
 		return -EINVAL;

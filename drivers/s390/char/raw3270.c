@@ -1179,12 +1179,12 @@ raw3270_create_attributes(struct raw3270 *rp)
 	//FIXME: check return code
 	sysfs_create_group(&rp->cdev->dev.kobj, &raw3270_attr_group);
 	rp->clttydev =
-		class_device_create(class3270,
+		class_device_create(class3270, NULL,
 				    MKDEV(IBM_TTY3270_MAJOR, rp->minor),
 				    &rp->cdev->dev, "tty%s",
 				    rp->cdev->dev.bus_id);
 	rp->cltubdev =
-		class_device_create(class3270,
+		class_device_create(class3270, NULL,
 				    MKDEV(IBM_FS3270_MAJOR, rp->minor),
 				    &rp->cdev->dev, "tub%s",
 				    rp->cdev->dev.bus_id);

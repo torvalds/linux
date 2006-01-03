@@ -393,13 +393,6 @@ void flush_thread(void)
 {
 	struct task_struct *tsk = current;
 
-	/*
-	 * Remove function-return probe instances associated with this task
-	 * and put them back on the free list. Do not insert an exit probe for
-	 * this function, it will be disabled by kprobe_flush_task if you do.
-	 */
-	kprobe_flush_task(tsk);
-
 	memset(tsk->thread.debugreg, 0, sizeof(unsigned long)*8);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));	
 	/*
@@ -561,7 +554,9 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 	struct pt_regs ptregs;
 	
 	ptregs = *(struct pt_regs *)
-		((unsigned long)tsk->thread_info+THREAD_SIZE - sizeof(ptregs));
+		((unsigned long)tsk->thread_info +
+		/* see comments in copy_thread() about -8 */
+		THREAD_SIZE - sizeof(ptregs) - 8);
 	ptregs.xcs &= 0xffff;
 	ptregs.xds &= 0xffff;
 	ptregs.xes &= 0xffff;

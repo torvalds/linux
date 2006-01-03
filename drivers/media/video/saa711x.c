@@ -36,7 +36,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/sched.h>
-#include <asm/segment.h>
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <linux/videodev.h>
@@ -60,7 +59,7 @@ MODULE_PARM_DESC(debug, " Set the default Debug level.  Default: 0 (Off) - (0-1)
 #define dprintk(num, format, args...) \
 	do { \
 		if (debug >= num) \
-			printk(format , ##args); \
+			printk(format, ##args); \
 	} while (0)
 
 /* ----------------------------------------------------------------------- */
@@ -324,7 +323,7 @@ saa711x_command (struct i2c_client *client,
 
 		case VIDEO_MODE_SECAM:
 			saa711x_write(client, 0x08,
-				      (decoder->reg[0x0e] & 0x3f) | 0x00);
+				      (decoder->reg[0x08] & 0x3f) | 0x00);
 			saa711x_write(client, 0x0e,
 				      (decoder->reg[0x0e] & 0x8f) | 0x50);
 			break;

@@ -47,6 +47,7 @@ struct usb_driver;
  * @urb_list: urbs queued to this endpoint; maintained by usbcore
  * @hcpriv: for use by HCD; typically holds hardware dma queue head (QH)
  *	with one or more transfer descriptors (TDs) per urb
+ * @kobj: kobject for sysfs info
  * @extra: descriptors following this endpoint in the configuration
  * @extralen: how many bytes of "extra" are valid
  *
@@ -819,7 +820,7 @@ typedef void (*usb_complete_t)(struct urb *, struct pt_regs *);
  */
 struct urb
 {
-	/* private, usb core and host controller only fields in the urb */
+	/* private: usb core and host controller only fields in the urb */
 	struct kref kref;		/* reference count of the URB */
 	spinlock_t lock;		/* lock for the URB */
 	void *hcpriv;			/* private data for host controller */
@@ -827,7 +828,7 @@ struct urb
 	atomic_t use_count;		/* concurrent submissions counter */
 	u8 reject;			/* submissions will fail */
 
-	/* public, documented fields in the urb that can be used by drivers */
+	/* public: documented fields in the urb that can be used by drivers */
 	struct list_head urb_list;	/* list head for use by the urb's
 					 * current owner */
 	struct usb_device *dev; 	/* (in) pointer to associated device */
@@ -1045,7 +1046,7 @@ struct usb_sg_request {
 	size_t			bytes;
 
 	/* 
-	 * members below are private to usbcore,
+	 * members below are private: to usbcore,
 	 * and are not provided for driver access!
 	 */
 	spinlock_t		lock;

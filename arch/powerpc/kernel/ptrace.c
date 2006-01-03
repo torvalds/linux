@@ -36,8 +36,9 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
+
 #ifdef CONFIG_PPC64
-#include <asm/ptrace-common.h>
+#include "ptrace-common.h"
 #endif
 
 #ifdef CONFIG_PPC32

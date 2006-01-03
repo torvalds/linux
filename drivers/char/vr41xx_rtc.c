@@ -560,13 +560,11 @@ static struct miscdevice rtc_miscdevice = {
 	.fops	= &rtc_fops,
 };
 
-static int rtc_probe(struct device *dev)
+static int rtc_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev;
 	unsigned int irq;
 	int retval;
 
-	pdev = to_platform_device(dev);
 	if (pdev->num_resources != 2)
 		return -EBUSY;
 
@@ -635,7 +633,7 @@ static int rtc_probe(struct device *dev)
 	return 0;
 }
 
-static int rtc_remove(struct device *dev)
+static int rtc_remove(struct platform_device *dev)
 {
 	int retval;
 
@@ -655,11 +653,12 @@ static int rtc_remove(struct device *dev)
 
 static struct platform_device *rtc_platform_device;
 
-static struct device_driver rtc_device_driver = {
-	.name		= rtc_name,
-	.bus		= &platform_bus_type,
+static struct platform_driver rtc_device_driver = {
 	.probe		= rtc_probe,
 	.remove		= rtc_remove,
+	.driver		= {
+		.name	= rtc_name,
+	},
 };
 
 static int __devinit vr41xx_rtc_init(void)
@@ -691,7 +690,7 @@ static int __devinit vr41xx_rtc_init(void)
 	if (IS_ERR(rtc_platform_device))
 		return PTR_ERR(rtc_platform_device);
 
-	retval = driver_register(&rtc_device_driver);
+	retval = platform_driver_register(&rtc_device_driver);
 	if (retval < 0)
 		platform_device_unregister(rtc_platform_device);
 
@@ -700,7 +699,7 @@ static int __devinit vr41xx_rtc_init(void)
 
 static void __devexit vr41xx_rtc_exit(void)
 {
-	driver_unregister(&rtc_device_driver);
+	platform_driver_unregister(&rtc_device_driver);
 
 	platform_device_unregister(rtc_platform_device);
 }

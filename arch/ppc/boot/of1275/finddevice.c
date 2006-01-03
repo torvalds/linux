@@ -10,22 +10,7 @@
 
 #include "of1275.h"
 
-phandle
-finddevice(const char *name)
+phandle finddevice(const char *name)
 {
-    struct prom_args {
-	char *service;
-	int nargs;
-	int nret;
-	const char *devspec;
-	phandle device;
-    } args;
-
-    args.service = "finddevice";
-    args.nargs = 1;
-    args.nret = 1;
-    args.devspec = name;
-    args.device = OF_INVALID_HANDLE;
-    (*of_prom_entry)(&args);
-    return args.device;
+	return (phandle) call_prom("finddevice", 1, 1, name);
 }

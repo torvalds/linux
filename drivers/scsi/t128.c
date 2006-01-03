@@ -183,7 +183,7 @@ void __init t128_setup(char *str, int *ints){
 }
 
 /* 
- * Function : int t128_detect(Scsi_Host_Template * tpnt)
+ * Function : int t128_detect(struct scsi_host_template * tpnt)
  *
  * Purpose : detects and initializes T128,T128F, or T228 controllers
  *	that were autoprobed, overridden on the LILO command line, 
@@ -195,7 +195,7 @@ void __init t128_setup(char *str, int *ints){
  *
  */
 
-int __init t128_detect(Scsi_Host_Template * tpnt){
+int __init t128_detect(struct scsi_host_template * tpnt){
     static int current_override = 0, current_base = 0;
     struct Scsi_Host *instance;
     unsigned long base;
@@ -430,7 +430,7 @@ MODULE_LICENSE("GPL");
 
 #include "NCR5380.c"
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name           = "Trantor T128/T128F/T228",
 	.detect         = t128_detect,
 	.release        = t128_release,

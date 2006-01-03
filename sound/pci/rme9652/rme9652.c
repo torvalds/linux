@@ -2654,7 +2654,6 @@ static void __devexit snd_rme9652_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name	  = "RME Digi9652 (Hammerfall)",
-	.owner	  = THIS_MODULE,
 	.id_table = snd_rme9652_ids,
 	.probe	  = snd_rme9652_probe,
 	.remove	  = __devexit_p(snd_rme9652_remove),

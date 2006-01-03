@@ -44,6 +44,7 @@ config PXA_SHARPSL_25x
 config PXA_SHARPSL_27x
 	bool "Sharp PXA270 models (SL-Cxx00)"
 	select PXA27x
+	select IWMMXT
 
 endchoice
 
@@ -71,6 +72,14 @@ config MACH_HUSKY
 	depends PXA_SHARPSL_25x
 	select PXA_SHARP_C7xx
 
+config MACH_AKITA
+	bool "Enable Sharp SL-1000 (Akita) Support"
+	depends PXA_SHARPSL_27x
+	select PXA_SHARP_Cxx00
+	select MACH_SPITZ
+	select I2C
+	select I2C_PXA
+
 config MACH_SPITZ
 	bool "Enable Sharp Zaurus SL-3000 (Spitz) Support"
 	depends PXA_SHARPSL_27x
@@ -83,7 +92,7 @@ config MACH_BORZOI
 
 config MACH_TOSA
 	bool "Enable Sharp SL-6000x (Tosa) Support"
-	depends PXA_SHARPSL
+	depends PXA_SHARPSL_25x
 
 config PXA25x
 	bool
@@ -102,12 +111,18 @@ config IWMMXT
 
 config PXA_SHARP_C7xx
 	bool
+	select PXA_SSP
 	help
 	  Enable support for all Sharp C7xx models
 
 config PXA_SHARP_Cxx00
 	bool
+	select PXA_SSP
 	help
 	  Enable common support for Sharp Cxx00 models
 
+config PXA_SSP
+	tristate
+	help
+	  Enable support for PXA2xx SSP ports
 endif

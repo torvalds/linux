@@ -93,6 +93,7 @@ textaddr-$(CONFIG_ARCH_FORTUNET)   := 0xc0008000
  machine-$(CONFIG_ARCH_IXP4XX)	   := ixp4xx
  machine-$(CONFIG_ARCH_IXP2000)    := ixp2000
  machine-$(CONFIG_ARCH_OMAP1)	   := omap1
+ machine-$(CONFIG_ARCH_OMAP2)	   := omap2
   incdir-$(CONFIG_ARCH_OMAP)	   := omap
  machine-$(CONFIG_ARCH_S3C2410)	   := s3c2410
  machine-$(CONFIG_ARCH_LH7A40X)	   := lh7a40x

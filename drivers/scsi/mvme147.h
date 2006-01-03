@@ -10,7 +10,7 @@
 
 #include <linux/types.h>
 
-int mvme147_detect(Scsi_Host_Template *);
+int mvme147_detect(struct scsi_host_template *);
 int mvme147_release(struct Scsi_Host *);
 const char *wd33c93_info(void);
 int wd33c93_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));

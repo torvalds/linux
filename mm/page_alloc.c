@@ -60,8 +60,11 @@ long nr_swap_pages;
  *	NORMAL allocation will leave 784M/256 of ram reserved in the ZONE_DMA
  *	HIGHMEM allocation will leave 224M/32 of ram reserved in ZONE_NORMAL
  *	HIGHMEM allocation will (224M+784M)/256 of ram reserved in ZONE_DMA
+ *
+ * TBD: should special case ZONE_DMA32 machines here - in those we normally
+ * don't need any ZONE_NORMAL reservation
  */
-int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 32 };
+int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 256, 32 };
 
 EXPORT_SYMBOL(totalram_pages);
 
@@ -72,7 +75,7 @@ EXPORT_SYMBOL(totalram_pages);
 struct zone *zone_table[1 << ZONETABLE_SHIFT] __read_mostly;
 EXPORT_SYMBOL(zone_table);
 
-static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
+static char *zone_names[MAX_NR_ZONES] = { "DMA", "DMA32", "Normal", "HighMem" };
 int min_free_kbytes = 1024;
 
 unsigned long __initdata nr_kernel_pages;
@@ -124,7 +127,7 @@ static void bad_page(const char *function, struct page *page)
 	printk(KERN_EMERG "Bad page state at %s (in process '%s', page %p)\n",
 		function, current->comm, page);
 	printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
-		(int)(2*sizeof(page_flags_t)), (unsigned long)page->flags,
+		(int)(2*sizeof(unsigned long)), (unsigned long)page->flags,
 		page->mapping, page_mapcount(page), page_count(page));
 	printk(KERN_EMERG "Backtrace:\n");
 	dump_stack();
@@ -137,18 +140,13 @@ static void bad_page(const char *function, struct page *page)
 			1 << PG_reclaim |
 			1 << PG_slab    |
 			1 << PG_swapcache |
-			1 << PG_writeback |
-			1 << PG_reserved );
+			1 << PG_writeback );
 	set_page_count(page, 0);
 	reset_page_mapcount(page);
 	page->mapping = NULL;
 	add_taint(TAINT_BAD_PAGE);
 }
 
-#ifndef CONFIG_HUGETLB_PAGE
-#define prep_compound_page(page, order) do { } while (0)
-#define destroy_compound_page(page, order) do { } while (0)
-#else
 /*
  * Higher-order pages are called "compound pages".  They are structured thusly:
  *
@@ -202,7 +200,6 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 		ClearPageCompound(p);
 	}
 }
-#endif		/* CONFIG_HUGETLB_PAGE */
 
 /*
  * function for dealing with page's order in buddy system.
@@ -337,7 +334,7 @@ static inline void __free_pages_bulk (struct page *page,
 	zone->free_area[order].nr_free++;
 }
 
-static inline void free_pages_check(const char *function, struct page *page)
+static inline int free_pages_check(const char *function, struct page *page)
 {
 	if (	page_mapcount(page) ||
 		page->mapping != NULL ||
@@ -355,6 +352,12 @@ static inline void free_pages_check(const char *function, struct page *page)
 		bad_page(function, page);
 	if (PageDirty(page))
 		__ClearPageDirty(page);
+	/*
+	 * For now, we report if PG_reserved was found set, but do not
+	 * clear it, and do not free the page.  But we shall soon need
+	 * to do more, for when the ZERO_PAGE count wraps negative.
+	 */
+	return PageReserved(page);
 }
 
 /*
@@ -394,10 +397,9 @@ void __free_pages_ok(struct page *page, unsigned int order)
 {
 	LIST_HEAD(list);
 	int i;
+	int reserved = 0;
 
 	arch_free_page(page, order);
-
-	mod_page_state(pgfree, 1 << order);
 
 #ifndef CONFIG_MMU
 	if (order > 0)
@@ -406,8 +408,12 @@ void __free_pages_ok(struct page *page, unsigned int order)
 #endif
 
 	for (i = 0 ; i < (1 << order) ; ++i)
-		free_pages_check(__FUNCTION__, page + i);
+		reserved += free_pages_check(__FUNCTION__, page + i);
+	if (reserved)
+		return;
+
 	list_add(&page->lru, &list);
+	mod_page_state(pgfree, 1 << order);
 	kernel_map_pages(page, 1<<order, 0);
 	free_pages_bulk(page_zone(page), 1, &list, order);
 }
@@ -465,7 +471,7 @@ void set_page_refs(struct page *page, int order)
 /*
  * This page is about to be returned from the page allocator
  */
-static void prep_new_page(struct page *page, int order)
+static int prep_new_page(struct page *page, int order)
 {
 	if (	page_mapcount(page) ||
 		page->mapping != NULL ||
@@ -483,12 +489,20 @@ static void prep_new_page(struct page *page, int order)
 			1 << PG_reserved )))
 		bad_page(__FUNCTION__, page);
 
+	/*
+	 * For now, we report if PG_reserved was found set, but do not
+	 * clear it, and do not allocate the page: as a safety net.
+	 */
+	if (PageReserved(page))
+		return 1;
+
 	page->flags &= ~(1 << PG_uptodate | 1 << PG_error |
 			1 << PG_referenced | 1 << PG_arch_1 |
 			1 << PG_checked | 1 << PG_mappedtodisk);
 	set_page_private(page, 0);
 	set_page_refs(page, order);
 	kernel_map_pages(page, 1 << order, 1);
+	return 0;
 }
 
 /* 
@@ -671,11 +685,14 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 
 	arch_free_page(page, 0);
 
-	kernel_map_pages(page, 1, 0);
-	inc_page_state(pgfree);
 	if (PageAnon(page))
 		page->mapping = NULL;
-	free_pages_check(__FUNCTION__, page);
+	if (free_pages_check(__FUNCTION__, page))
+		return;
+
+	inc_page_state(pgfree);
+	kernel_map_pages(page, 1, 0);
+
 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 	local_irq_save(flags);
 	list_add(&page->lru, &pcp->list);
@@ -714,12 +731,14 @@ static struct page *
 buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 {
 	unsigned long flags;
-	struct page *page = NULL;
+	struct page *page;
 	int cold = !!(gfp_flags & __GFP_COLD);
 
+again:
 	if (order == 0) {
 		struct per_cpu_pages *pcp;
 
+		page = NULL;
 		pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 		local_irq_save(flags);
 		if (pcp->count <= pcp->low)
@@ -732,9 +751,7 @@ buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 		}
 		local_irq_restore(flags);
 		put_cpu();
-	}
-
-	if (page == NULL) {
+	} else {
 		spin_lock_irqsave(&zone->lock, flags);
 		page = __rmqueue(zone, order);
 		spin_unlock_irqrestore(&zone->lock, flags);
@@ -743,7 +760,8 @@ buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 	if (page != NULL) {
 		BUG_ON(bad_range(zone, page));
 		mod_page_state_zone(zone, pgalloc, 1 << order);
-		prep_new_page(page, order);
+		if (prep_new_page(page, order))
+			goto again;
 
 		if (gfp_flags & __GFP_ZERO)
 			prep_zero_page(page, order, gfp_flags);
@@ -754,20 +772,28 @@ buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
 	return page;
 }
 
+#define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
+#define ALLOC_WMARK_MIN		0x02 /* use pages_min watermark */
+#define ALLOC_WMARK_LOW		0x04 /* use pages_low watermark */
+#define ALLOC_WMARK_HIGH	0x08 /* use pages_high watermark */
+#define ALLOC_HARDER		0x10 /* try to alloc harder */
+#define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+#define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+
 /*
  * Return 1 if free pages are above 'mark'. This takes into account the order
  * of the allocation.
  */
 int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-		      int classzone_idx, int can_try_harder, gfp_t gfp_high)
+		      int classzone_idx, int alloc_flags)
 {
 	/* free_pages my go negative - that's OK */
 	long min = mark, free_pages = z->free_pages - (1 << order) + 1;
 	int o;
 
-	if (gfp_high)
+	if (alloc_flags & ALLOC_HIGH)
 		min -= min / 2;
-	if (can_try_harder)
+	if (alloc_flags & ALLOC_HARDER)
 		min -= min / 4;
 
 	if (free_pages <= min + z->lowmem_reserve[classzone_idx])
@@ -785,14 +811,47 @@ int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 	return 1;
 }
 
-static inline int
-should_reclaim_zone(struct zone *z, gfp_t gfp_mask)
+/*
+ * get_page_from_freeliest goes through the zonelist trying to allocate
+ * a page.
+ */
+static struct page *
+get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
+		struct zonelist *zonelist, int alloc_flags)
 {
-	if (!z->reclaim_pages)
-		return 0;
-	if (gfp_mask & __GFP_NORECLAIM)
-		return 0;
-	return 1;
+	struct zone **z = zonelist->zones;
+	struct page *page = NULL;
+	int classzone_idx = zone_idx(*z);
+
+	/*
+	 * Go through the zonelist once, looking for a zone with enough free.
+	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+	 */
+	do {
+		if ((alloc_flags & ALLOC_CPUSET) &&
+				!cpuset_zone_allowed(*z, gfp_mask))
+			continue;
+
+		if (!(alloc_flags & ALLOC_NO_WATERMARKS)) {
+			unsigned long mark;
+			if (alloc_flags & ALLOC_WMARK_MIN)
+				mark = (*z)->pages_min;
+			else if (alloc_flags & ALLOC_WMARK_LOW)
+				mark = (*z)->pages_low;
+			else
+				mark = (*z)->pages_high;
+			if (!zone_watermark_ok(*z, order, mark,
+				    classzone_idx, alloc_flags))
+				continue;
+		}
+
+		page = buffered_rmqueue(*z, order, gfp_mask);
+		if (page) {
+			zone_statistics(zonelist, *z);
+			break;
+		}
+	} while (*(++z) != NULL);
+	return page;
 }
 
 /*
@@ -803,105 +862,76 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 		struct zonelist *zonelist)
 {
 	const gfp_t wait = gfp_mask & __GFP_WAIT;
-	struct zone **zones, *z;
+	struct zone **z;
 	struct page *page;
 	struct reclaim_state reclaim_state;
 	struct task_struct *p = current;
-	int i;
-	int classzone_idx;
 	int do_retry;
-	int can_try_harder;
+	int alloc_flags;
 	int did_some_progress;
 
 	might_sleep_if(wait);
 
-	/*
-	 * The caller may dip into page reserves a bit more if the caller
-	 * cannot run direct reclaim, or is the caller has realtime scheduling
-	 * policy
-	 */
-	can_try_harder = (unlikely(rt_task(p)) && !in_interrupt()) || !wait;
+restart:
+	z = zonelist->zones;  /* the list of zones suitable for gfp_mask */
 
-	zones = zonelist->zones;  /* the list of zones suitable for gfp_mask */
-
-	if (unlikely(zones[0] == NULL)) {
+	if (unlikely(*z == NULL)) {
 		/* Should this ever happen?? */
 		return NULL;
 	}
 
-	classzone_idx = zone_idx(zones[0]);
+	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
+				zonelist, ALLOC_WMARK_LOW|ALLOC_CPUSET);
+	if (page)
+		goto got_pg;
 
-restart:
+	do {
+		wakeup_kswapd(*z, order);
+	} while (*(++z));
+
 	/*
-	 * Go through the zonelist once, looking for a zone with enough free.
-	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
+	 * OK, we're below the kswapd watermark and have kicked background
+	 * reclaim. Now things get more complex, so set up alloc_flags according
+	 * to how we want to proceed.
+	 *
+	 * The caller may dip into page reserves a bit more if the caller
+	 * cannot run direct reclaim, or if the caller has realtime scheduling
+	 * policy.
 	 */
-	for (i = 0; (z = zones[i]) != NULL; i++) {
-		int do_reclaim = should_reclaim_zone(z, gfp_mask);
-
-		if (!cpuset_zone_allowed(z, __GFP_HARDWALL))
-			continue;
-
-		/*
-		 * If the zone is to attempt early page reclaim then this loop
-		 * will try to reclaim pages and check the watermark a second
-		 * time before giving up and falling back to the next zone.
-		 */
-zone_reclaim_retry:
-		if (!zone_watermark_ok(z, order, z->pages_low,
-				       classzone_idx, 0, 0)) {
-			if (!do_reclaim)
-				continue;
-			else {
-				zone_reclaim(z, gfp_mask, order);
-				/* Only try reclaim once */
-				do_reclaim = 0;
-				goto zone_reclaim_retry;
-			}
-		}
-
-		page = buffered_rmqueue(z, order, gfp_mask);
-		if (page)
-			goto got_pg;
-	}
-
-	for (i = 0; (z = zones[i]) != NULL; i++)
-		wakeup_kswapd(z, order);
+	alloc_flags = ALLOC_WMARK_MIN;
+	if ((unlikely(rt_task(p)) && !in_interrupt()) || !wait)
+		alloc_flags |= ALLOC_HARDER;
+	if (gfp_mask & __GFP_HIGH)
+		alloc_flags |= ALLOC_HIGH;
+	if (wait)
+		alloc_flags |= ALLOC_CPUSET;
 
 	/*
 	 * Go through the zonelist again. Let __GFP_HIGH and allocations
-	 * coming from realtime tasks to go deeper into reserves
+	 * coming from realtime tasks go deeper into reserves.
 	 *
 	 * This is the last chance, in general, before the goto nopage.
 	 * Ignore cpuset if GFP_ATOMIC (!wait) rather than fail alloc.
 	 * See also cpuset_zone_allowed() comment in kernel/cpuset.c.
 	 */
-	for (i = 0; (z = zones[i]) != NULL; i++) {
-		if (!zone_watermark_ok(z, order, z->pages_min,
-				       classzone_idx, can_try_harder,
-				       gfp_mask & __GFP_HIGH))
-			continue;
-
-		if (wait && !cpuset_zone_allowed(z, gfp_mask))
-			continue;
-
-		page = buffered_rmqueue(z, order, gfp_mask);
-		if (page)
-			goto got_pg;
-	}
+	page = get_page_from_freelist(gfp_mask, order, zonelist, alloc_flags);
+	if (page)
+		goto got_pg;
 
 	/* This allocation should allow future memory freeing. */
 
 	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
 			&& !in_interrupt()) {
 		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
+nofail_alloc:
 			/* go through the zonelist yet again, ignoring mins */
-			for (i = 0; (z = zones[i]) != NULL; i++) {
-				if (!cpuset_zone_allowed(z, gfp_mask))
-					continue;
-				page = buffered_rmqueue(z, order, gfp_mask);
-				if (page)
-					goto got_pg;
+			page = get_page_from_freelist(gfp_mask, order,
+				zonelist, ALLOC_NO_WATERMARKS|ALLOC_CPUSET);
+			if (page)
+				goto got_pg;
+			if (gfp_mask & __GFP_NOFAIL) {
+				blk_congestion_wait(WRITE, HZ/50);
+				goto nofail_alloc;
 			}
 		}
 		goto nopage;
@@ -919,7 +949,7 @@ rebalance:
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;
 
-	did_some_progress = try_to_free_pages(zones, gfp_mask);
+	did_some_progress = try_to_free_pages(zonelist->zones, gfp_mask);
 
 	p->reclaim_state = NULL;
 	p->flags &= ~PF_MEMALLOC;
@@ -927,19 +957,10 @@ rebalance:
 	cond_resched();
 
 	if (likely(did_some_progress)) {
-		for (i = 0; (z = zones[i]) != NULL; i++) {
-			if (!zone_watermark_ok(z, order, z->pages_min,
-					       classzone_idx, can_try_harder,
-					       gfp_mask & __GFP_HIGH))
-				continue;
-
-			if (!cpuset_zone_allowed(z, gfp_mask))
-				continue;
-
-			page = buffered_rmqueue(z, order, gfp_mask);
-			if (page)
-				goto got_pg;
-		}
+		page = get_page_from_freelist(gfp_mask, order,
+						zonelist, alloc_flags);
+		if (page)
+			goto got_pg;
 	} else if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY)) {
 		/*
 		 * Go through the zonelist yet one more time, keep
@@ -947,18 +968,10 @@ rebalance:
 		 * a parallel oom killing, we must fail if we're still
 		 * under heavy pressure.
 		 */
-		for (i = 0; (z = zones[i]) != NULL; i++) {
-			if (!zone_watermark_ok(z, order, z->pages_high,
-					       classzone_idx, 0, 0))
-				continue;
-
-			if (!cpuset_zone_allowed(z, __GFP_HARDWALL))
-				continue;
-
-			page = buffered_rmqueue(z, order, gfp_mask);
-			if (page)
-				goto got_pg;
-		}
+		page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, order,
+				zonelist, ALLOC_WMARK_HIGH|ALLOC_CPUSET);
+		if (page)
+			goto got_pg;
 
 		out_of_memory(gfp_mask, order);
 		goto restart;
@@ -991,9 +1004,7 @@ nopage:
 		dump_stack();
 		show_mem();
 	}
-	return NULL;
 got_pg:
-	zone_statistics(zonelist, z);
 	return page;
 }
 
@@ -1330,7 +1341,7 @@ void show_free_areas(void)
 		} else
 			printk("\n");
 
-		for_each_cpu(cpu) {
+		for_each_online_cpu(cpu) {
 			struct per_cpu_pageset *pageset;
 
 			pageset = zone_pcp(zone, cpu);
@@ -1441,6 +1452,10 @@ static int __init build_zonelists_node(pg_data_t *pgdat, struct zonelist *zoneli
 		zone = pgdat->node_zones + ZONE_NORMAL;
 		if (zone->present_pages)
 			zonelist->zones[j++] = zone;
+	case ZONE_DMA32:
+		zone = pgdat->node_zones + ZONE_DMA32;
+		if (zone->present_pages)
+			zonelist->zones[j++] = zone;
 	case ZONE_DMA:
 		zone = pgdat->node_zones + ZONE_DMA;
 		if (zone->present_pages)
@@ -1455,6 +1470,8 @@ static inline int highest_zone(int zone_bits)
 	int res = ZONE_NORMAL;
 	if (zone_bits & (__force int)__GFP_HIGHMEM)
 		res = ZONE_HIGHMEM;
+	if (zone_bits & (__force int)__GFP_DMA32)
+		res = ZONE_DMA32;
 	if (zone_bits & (__force int)__GFP_DMA)
 		res = ZONE_DMA;
 	return res;
@@ -1755,16 +1772,16 @@ static int __devinit zone_batchsize(struct zone *zone)
 		batch = 1;
 
 	/*
-	 * We will be trying to allcoate bigger chunks of contiguous
-	 * memory of the order of fls(batch).  This should result in
-	 * better cache coloring.
+	 * Clamp the batch to a 2^n - 1 value. Having a power
+	 * of 2 value was found to be more likely to have
+	 * suboptimal cache aliasing properties in some cases.
 	 *
-	 * A sanity check also to ensure that batch is still in limits.
+	 * For example if 2 tasks are alternately allocating
+	 * batches of pages, one task can end up with a lot
+	 * of pages of one half of the possible page colors
+	 * and the other with pages of the other colors.
 	 */
-	batch = (1 << fls(batch + batch/2));
-
-	if (fls(batch) >= (PAGE_SHIFT + MAX_ORDER - 2))
-		batch = PAGE_SHIFT + ((MAX_ORDER - 1 - PAGE_SHIFT)/2);
+	batch = (1 << (fls(batch + batch/2)-1)) - 1;
 
 	return batch;
 }
@@ -1866,11 +1883,10 @@ static int __devinit pageset_cpuup_callback(struct notifier_block *nfb,
 			if (process_zones(cpu))
 				ret = NOTIFY_BAD;
 			break;
-#ifdef CONFIG_HOTPLUG_CPU
+		case CPU_UP_CANCELED:
 		case CPU_DEAD:
 			free_zone_pagesets(cpu);
 			break;
-#endif
 		default:
 			break;
 	}
@@ -1880,7 +1896,7 @@ static int __devinit pageset_cpuup_callback(struct notifier_block *nfb,
 static struct notifier_block pageset_notifier =
 	{ &pageset_cpuup_callback, NULL, 0 };
 
-void __init setup_per_cpu_pageset()
+void __init setup_per_cpu_pageset(void)
 {
 	int err;
 
@@ -1975,7 +1991,7 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 		if (zholes_size)
 			realsize -= zholes_size[j];
 
-		if (j == ZONE_DMA || j == ZONE_NORMAL)
+		if (j < ZONE_HIGHMEM)
 			nr_kernel_pages += realsize;
 		nr_all_pages += realsize;
 
@@ -2417,13 +2433,18 @@ void setup_per_zone_pages_min(void)
 	}
 
 	for_each_zone(zone) {
+		unsigned long tmp;
 		spin_lock_irqsave(&zone->lru_lock, flags);
+		tmp = (pages_min * zone->present_pages) / lowmem_pages;
 		if (is_highmem(zone)) {
 			/*
-			 * Often, highmem doesn't need to reserve any pages.
-			 * But the pages_min/low/high values are also used for
-			 * batching up page reclaim activity so we need a
-			 * decent value here.
+			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
+			 * need highmem pages, so cap pages_min to a small
+			 * value here.
+			 *
+			 * The (pages_high-pages_low) and (pages_low-pages_min)
+			 * deltas controls asynch page reclaim, and so should
+			 * not be capped for highmem.
 			 */
 			int min_pages;
 
@@ -2434,19 +2455,15 @@ void setup_per_zone_pages_min(void)
 				min_pages = 128;
 			zone->pages_min = min_pages;
 		} else {
-			/* if it's a lowmem zone, reserve a number of pages
+			/*
+			 * If it's a lowmem zone, reserve a number of pages
 			 * proportionate to the zone's size.
 			 */
-			zone->pages_min = (pages_min * zone->present_pages) /
-			                   lowmem_pages;
+			zone->pages_min = tmp;
 		}
 
-		/*
-		 * When interpreting these watermarks, just keep in mind that:
-		 * zone->pages_min == (zone->pages_min * 4) / 4;
-		 */
-		zone->pages_low   = (zone->pages_min * 5) / 4;
-		zone->pages_high  = (zone->pages_min * 6) / 4;
+		zone->pages_low   = zone->pages_min + tmp / 4;
+		zone->pages_high  = zone->pages_min + tmp / 2;
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
 }

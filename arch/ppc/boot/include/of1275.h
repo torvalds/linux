@@ -19,6 +19,9 @@ extern prom_entry of_prom_entry;
 
 /* function declarations */
 
+int	call_prom(const char *service, int nargs, int nret, ...);
+int	call_prom_ret(const char *service, int nargs, int nret,
+		      unsigned int *rets, ...);
 void *	claim(unsigned int virt, unsigned int size, unsigned int align);
 int	map(unsigned int phys, unsigned int virt, unsigned int size);
 void	enter(void);

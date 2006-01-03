@@ -51,6 +51,7 @@ flush_tlb_mm (struct mm_struct *mm)
 	if (!mm)
 		return;
 
+	set_bit(mm->context, ia64_ctx.flushmap);
 	mm->context = 0;
 
 	if (atomic_read(&mm->mm_users) == 0)

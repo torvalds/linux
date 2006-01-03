@@ -6,6 +6,9 @@
  * Copyright (C) 1995, 1996 Olaf Kirch <okir@monad.swb.de>
  */
 
+#include <linux/compiler.h>
+#include <linux/netdevice.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
 #include <linux/udp.h>
@@ -165,6 +168,8 @@ int csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 		return -1;
 	if ((unsigned short)csum_fold(desc.csum))
 		return -1;
+	if (unlikely(skb->ip_summed == CHECKSUM_HW))
+		netdev_rx_csum_fault(skb->dev);
 	return 0;
 no_checksum:
 	if (xdr_partial_copy_from_skb(xdr, 0, &desc, skb_read_bits) < 0)

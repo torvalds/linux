@@ -71,77 +71,67 @@ typedef struct {
 /****************************************/
 static struct usb_device_id hfcusb_idtab[] = {
 	{
-	 .idVendor = 0x0959,
-	 .idProduct = 0x2bd0,
+	 USB_DEVICE(0x0959, 0x2bd0),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_OFF, {4, 0, 2, 1},
 			   "ISDN USB TA (Cologne Chip HFC-S USB based)"}),
 	},
 	{
-	 .idVendor = 0x0675,
-	 .idProduct = 0x1688,
+	 USB_DEVICE(0x0675, 0x1688),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {1, 2, 0, 0},
 			   "DrayTek miniVigor 128 USB ISDN TA"}),
 	},
 	{
-	 .idVendor = 0x07b0,
-	 .idProduct = 0x0007,
+	 USB_DEVICE(0x07b0, 0x0007),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {0x80, -64, -32, -16},
 			   "Billion tiny USB ISDN TA 128"}),
 	},
 	{
-	 .idVendor = 0x0742,
-	 .idProduct = 0x2008,
+	 USB_DEVICE(0x0742, 0x2008),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {4, 0, 2, 1},
 			   "Stollmann USB TA"}),
 	 },
 	{
-	 .idVendor = 0x0742,
-	 .idProduct = 0x2009,
+	 USB_DEVICE(0x0742, 0x2009),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {4, 0, 2, 1},
 			   "Aceex USB ISDN TA"}),
 	 },
 	{
-	 .idVendor = 0x0742,
-	 .idProduct = 0x200A,
+	 USB_DEVICE(0x0742, 0x200A),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {4, 0, 2, 1},
 			   "OEM USB ISDN TA"}),
 	 },
 	{
-	 .idVendor = 0x08e3,
-	 .idProduct = 0x0301,
+	 USB_DEVICE(0x08e3, 0x0301),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {2, 0, 1, 4},
 			   "Olitec USB RNIS"}),
 	 },
 	{
-	 .idVendor = 0x07fa,
-	 .idProduct = 0x0846,
+	 USB_DEVICE(0x07fa, 0x0846),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {0x80, -64, -32, -16},
 			   "Bewan Modem RNIS USB"}),
 	 },
 	{
-	 .idVendor = 0x07fa,
-	 .idProduct = 0x0847,
+	 USB_DEVICE(0x07fa, 0x0847),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {0x80, -64, -32, -16},
 			   "Djinn Numeris USB"}),
 	 },
 	{
-	 .idVendor = 0x07b0,
-	 .idProduct = 0x0006,
+	 USB_DEVICE(0x07b0, 0x0006),
 	 .driver_info = (unsigned long) &((hfcsusb_vdata)
 			  {LED_SCHEME1, {0x80, -64, -32, -16},
 			   "Twister ISDN TA"}),
 	 },
+	{ }
 };
-
 
 /***************************************************************/
 /* structure defining input+output fifos (interrupt/bulk mode) */

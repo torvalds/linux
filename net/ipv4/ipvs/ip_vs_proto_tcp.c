@@ -251,7 +251,7 @@ tcp_csum_check(struct sk_buff *skb, struct ip_vs_protocol *pp)
 #define TCP_DIR_OUTPUT		4
 #define TCP_DIR_INPUT_ONLY	8
 
-static int tcp_state_off[IP_VS_DIR_LAST] = {
+static const int tcp_state_off[IP_VS_DIR_LAST] = {
 	[IP_VS_DIR_INPUT]		=	TCP_DIR_INPUT,
 	[IP_VS_DIR_OUTPUT]		=	TCP_DIR_OUTPUT,
 	[IP_VS_DIR_INPUT_ONLY]		=	TCP_DIR_INPUT_ONLY,

@@ -1247,6 +1247,12 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
 		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
 		     skb = skb->next)
 
+/*from STCP for fast SACK Process*/
+#define sk_stream_for_retrans_queue_from(skb, sk)			\
+		for (; (skb != (sk)->sk_send_head) &&                   \
+		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
+		     skb = skb->next)
+
 /*
  *	Default write policy as shown to user space via poll/select/SIGIO
  */

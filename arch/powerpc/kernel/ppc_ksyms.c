@@ -44,6 +44,7 @@
 #include <asm/cputable.h>
 #include <asm/btext.h>
 #include <asm/div64.h>
+#include <asm/signal.h>
 
 #ifdef  CONFIG_8xx
 #include <asm/commproc.h>
@@ -56,7 +57,6 @@ extern void machine_check_exception(struct pt_regs *regs);
 extern void alignment_exception(struct pt_regs *regs);
 extern void program_check_exception(struct pt_regs *regs);
 extern void single_step_exception(struct pt_regs *regs);
-extern int do_signal(sigset_t *, struct pt_regs *);
 extern int pmac_newworld;
 extern int sys_sigreturn(struct pt_regs *regs);
 
@@ -105,6 +105,13 @@ EXPORT_SYMBOL(__clear_user);
 EXPORT_SYMBOL(__strncpy_from_user);
 EXPORT_SYMBOL(__strnlen_user);
 
+#ifndef  __powerpc64__
+EXPORT_SYMBOL(__ide_mm_insl);
+EXPORT_SYMBOL(__ide_mm_outsw);
+EXPORT_SYMBOL(__ide_mm_insw);
+EXPORT_SYMBOL(__ide_mm_outsl);
+#endif
+
 EXPORT_SYMBOL(_insb);
 EXPORT_SYMBOL(_outsb);
 EXPORT_SYMBOL(_insw);
@@ -139,9 +146,6 @@ EXPORT_SYMBOL(pci_bus_io_base);
 EXPORT_SYMBOL(pci_bus_io_base_phys);
 EXPORT_SYMBOL(pci_bus_mem_base_phys);
 EXPORT_SYMBOL(pci_bus_to_hose);
-EXPORT_SYMBOL(pci_resource_to_bus);
-EXPORT_SYMBOL(pci_phys_to_bus);
-EXPORT_SYMBOL(pci_bus_to_phys);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
@@ -159,15 +163,13 @@ EXPORT_SYMBOL(giveup_altivec);
 EXPORT_SYMBOL(giveup_spe);
 #endif /* CONFIG_SPE */
 
-#ifdef CONFIG_PPC64
-EXPORT_SYMBOL(__flush_icache_range);
-#else
+#ifndef CONFIG_PPC64
 EXPORT_SYMBOL(flush_instruction_cache);
-EXPORT_SYMBOL(flush_icache_range);
 EXPORT_SYMBOL(flush_tlb_kernel_range);
 EXPORT_SYMBOL(flush_tlb_page);
 EXPORT_SYMBOL(_tlbie);
 #endif
+EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
 
 #ifdef CONFIG_SMP
@@ -188,9 +190,6 @@ EXPORT_SYMBOL(adb_try_handler_change);
 EXPORT_SYMBOL(cuda_request);
 EXPORT_SYMBOL(cuda_poll);
 #endif /* CONFIG_ADB_CUDA */
-#if defined(CONFIG_PPC_MULTIPLATFORM) && defined(CONFIG_PPC32)
-EXPORT_SYMBOL(_machine);
-#endif
 #ifdef CONFIG_PPC_PMAC
 EXPORT_SYMBOL(sys_ctrler);
 #endif

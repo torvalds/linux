@@ -113,6 +113,24 @@ void bttv_gpio_irq(struct bttv_core *core)
 	}
 }
 
+int bttv_any_irq(struct bttv_core *core)
+{
+	struct bttv_sub_driver *drv;
+	struct bttv_sub_device *dev;
+	struct list_head *item;
+	int handled = 0;
+
+	list_for_each(item,&core->subs) {
+		dev = list_entry(item,struct bttv_sub_device,list);
+		drv = to_bttv_sub_drv(dev->dev.driver);
+		if (drv && drv->any_irq) {
+			if (drv->any_irq(dev))
+				handled = 1;
+		}
+	}
+	return handled;
+}
+
 /* ----------------------------------------------------------------------- */
 /* external: sub-driver register/unregister                                */
 

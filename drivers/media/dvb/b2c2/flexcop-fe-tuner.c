@@ -298,7 +298,7 @@ static int flexcop_fe_request_firmware(struct dvb_frontend* fe, const struct fir
 }
 
 static int lgdt3303_pll_set(struct dvb_frontend* fe,
-                            struct dvb_frontend_parameters* params)
+		            struct dvb_frontend_parameters* params)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
 	u8 buf[4];
@@ -332,7 +332,7 @@ static int lgdt3303_pll_set(struct dvb_frontend* fe,
 			return -EREMOTEIO;
 	}
 
-        return 0;
+	return 0;
 }
 
 static struct lgdt330x_config air2pc_atsc_hd5000_config = {

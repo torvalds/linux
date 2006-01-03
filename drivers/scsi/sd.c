@@ -245,24 +245,10 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	 * SG_IO from block layer already setup, just copy cdb basically
 	 */
 	if (blk_pc_request(rq)) {
-		if (sizeof(rq->cmd) > sizeof(SCpnt->cmnd))
-			return 0;
-
-		memcpy(SCpnt->cmnd, rq->cmd, sizeof(SCpnt->cmnd));
-		SCpnt->cmd_len = rq->cmd_len;
-		if (rq_data_dir(rq) == WRITE)
-			SCpnt->sc_data_direction = DMA_TO_DEVICE;
-		else if (rq->data_len)
-			SCpnt->sc_data_direction = DMA_FROM_DEVICE;
-		else
-			SCpnt->sc_data_direction = DMA_NONE;
-
-		this_count = rq->data_len;
+		scsi_setup_blk_pc_cmnd(SCpnt, SD_PASSTHROUGH_RETRIES);
 		if (rq->timeout)
 			timeout = rq->timeout;
 
-		SCpnt->transfersize = rq->data_len;
-		SCpnt->allowed = SD_PASSTHROUGH_RETRIES;
 		goto queue;
 	}
 
@@ -769,20 +755,16 @@ static void sd_end_flush(request_queue_t *q, struct request *flush_rq)
 static int sd_prepare_flush(request_queue_t *q, struct request *rq)
 {
 	struct scsi_device *sdev = q->queuedata;
-	struct scsi_disk *sdkp = scsi_disk_get_from_dev(&sdev->sdev_gendev);
-	int ret = 0;
+	struct scsi_disk *sdkp = dev_get_drvdata(&sdev->sdev_gendev);
 
-	if (sdkp) {
-		if (sdkp->WCE) {
-			memset(rq->cmd, 0, sizeof(rq->cmd));
-			rq->flags |= REQ_BLOCK_PC | REQ_SOFTBARRIER;
-			rq->timeout = SD_TIMEOUT;
-			rq->cmd[0] = SYNCHRONIZE_CACHE;
-			ret = 1;
-		}
-		scsi_disk_put(sdkp);
-	}
-	return ret;
+	if (!sdkp || !sdkp->WCE)
+		return 0;
+
+	memset(rq->cmd, 0, sizeof(rq->cmd));
+	rq->flags |= REQ_BLOCK_PC | REQ_SOFTBARRIER;
+	rq->timeout = SD_TIMEOUT;
+	rq->cmd[0] = SYNCHRONIZE_CACHE;
+	return 1;
 }
 
 static void sd_rescan(struct device *dev)

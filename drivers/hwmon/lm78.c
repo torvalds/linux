@@ -451,7 +451,7 @@ static DEVICE_ATTR(fan3_div, S_IRUGO, show_fan_3_div, NULL);
 static ssize_t show_vid(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm78_data *data = lm78_update_device(dev);
-	return sprintf(buf, "%d\n", vid_from_reg(82, data->vid));
+	return sprintf(buf, "%d\n", vid_from_reg(data->vid, 82));
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 

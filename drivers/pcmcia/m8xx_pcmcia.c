@@ -39,7 +39,6 @@
 
 #include <asm/io.h>
 #include <asm/bitops.h>
-#include <asm/segment.h>
 #include <asm/system.h>
 
 #include <linux/kernel.h>
@@ -50,6 +49,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
@@ -546,29 +546,11 @@ static void m8xx_shutdown(void)
 	free_irq(pcmcia_schlvl, NULL);
 }
 
-/* copied from tcic.c */
-
-static int m8xx_drv_suspend(struct device *dev, pm_message_t state, u32 level)
-{
-        int ret = 0;
-        if (level == SUSPEND_SAVE_STATE)
-                ret = pcmcia_socket_dev_suspend(dev, state);
-        return ret;
-}
-
-static int m8xx_drv_resume(struct device *dev, u32 level)
-{
-        int ret = 0;
-        if (level == RESUME_RESTORE_STATE)
-                ret = pcmcia_socket_dev_resume(dev);
-        return ret;
-}
-
 static struct device_driver m8xx_driver = {
         .name = "m8xx-pcmcia",
         .bus = &platform_bus_type,
-        .suspend = m8xx_drv_suspend,
-        .resume = m8xx_drv_resume,
+        .suspend = pcmcia_socket_dev_suspend,
+        .resume = pcmcia_socket_dev_resume,
 };
 
 static struct platform_device m8xx_device = {

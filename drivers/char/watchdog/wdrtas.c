@@ -320,7 +320,7 @@ static int
 wdrtas_ioctl(struct inode *inode, struct file *file,
 	     unsigned int cmd, unsigned long arg)
 {
-	int __user *argp = (void *)arg;
+	int __user *argp = (void __user *)arg;
 	int i;
 	static struct watchdog_info wdinfo = {
 		.options = WDRTAS_SUPPORTED_MASK,

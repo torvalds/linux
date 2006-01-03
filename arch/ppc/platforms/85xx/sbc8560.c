@@ -3,7 +3,7 @@
  * 
  * Wind River SBC8560 board specific routines
  * 
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala
  *
  * Copyright 2004 Freescale Semiconductor Inc.
  * 

@@ -54,6 +54,9 @@ static struct fb_ops cg6_ops = {
 	.fb_sync		= cg6_sync,
 	.fb_mmap		= cg6_mmap,
 	.fb_ioctl		= cg6_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 /* Offset of interesting structures in the OBIO space */
@@ -262,7 +265,6 @@ struct cg6_par {
 	unsigned long		fbsize;
 
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 static int cg6_sync(struct fb_info *info)
@@ -609,7 +611,7 @@ static void cg6_chip_init(struct fb_info *info)
 	struct cg6_par *par = (struct cg6_par *) info->par;
 	struct cg6_tec __iomem *tec = par->tec;
 	struct cg6_fbc __iomem *fbc = par->fbc;
-	u32 rev, conf, mode, tmp;
+	u32 rev, conf, mode;
 	int i;
 	
 	/* Turn off stuff in the Transform Engine. */

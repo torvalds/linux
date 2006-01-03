@@ -1168,7 +1168,7 @@ static int sonypi_disable(void)
 #ifdef CONFIG_PM
 static int old_camera_power;
 
-static int sonypi_suspend(struct device *dev, pm_message_t state)
+static int sonypi_suspend(struct platform_device *dev, pm_message_t state)
 {
 	old_camera_power = sonypi_device.camera_power;
 	sonypi_disable();
@@ -1176,26 +1176,27 @@ static int sonypi_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int sonypi_resume(struct device *dev)
+static int sonypi_resume(struct platform_device *dev)
 {
 	sonypi_enable(old_camera_power);
 	return 0;
 }
 #endif
 
-static void sonypi_shutdown(struct device *dev)
+static void sonypi_shutdown(struct platform_device *dev)
 {
 	sonypi_disable();
 }
 
-static struct device_driver sonypi_driver = {
-	.name		= "sonypi",
-	.bus		= &platform_bus_type,
+static struct platform_driver sonypi_driver = {
 #ifdef CONFIG_PM
 	.suspend	= sonypi_suspend,
 	.resume		= sonypi_resume,
 #endif
 	.shutdown	= sonypi_shutdown,
+	.driver		= {
+		.name	= "sonypi",
+	},
 };
 
 static int __devinit sonypi_create_input_devices(void)
@@ -1455,20 +1456,20 @@ static int __init sonypi_init(void)
 	if (!dmi_check_system(sonypi_dmi_table))
 		return -ENODEV;
 
-	ret = driver_register(&sonypi_driver);
+	ret = platform_driver_register(&sonypi_driver);
 	if (ret)
 		return ret;
 
 	ret = sonypi_probe();
 	if (ret)
-		driver_unregister(&sonypi_driver);
+		platform_driver_unregister(&sonypi_driver);
 
 	return ret;
 }
 
 static void __exit sonypi_exit(void)
 {
-	driver_unregister(&sonypi_driver);
+	platform_driver_unregister(&sonypi_driver);
 	sonypi_remove();
 }
 

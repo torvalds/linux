@@ -95,7 +95,7 @@ unsigned long drm_alloc_pages(int order, int area)
 	unsigned long addr;
 	unsigned int sz;
 
-	address = __get_free_pages(GFP_KERNEL, order);
+	address = __get_free_pages(GFP_KERNEL|__GFP_COMP, order);
 	if (!address)
 		return 0;
 

@@ -3113,7 +3113,6 @@ MODULE_DEVICE_TABLE(pci, epca_pci_tbl);
 int __init init_PCI (void)
 {	/* Begin init_PCI */
 	memset (&epca_driver, 0, sizeof (epca_driver));
-	epca_driver.owner = THIS_MODULE;
 	epca_driver.name = "epca";
 	epca_driver.id_table = epca_pci_tbl;
 	epca_driver.probe = epca_init_one;

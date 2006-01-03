@@ -251,6 +251,7 @@ struct mthca_qp {
 	struct mthca_wq        sq;
 	enum ib_sig_type       sq_policy;
 	int                    send_wqe_offset;
+	int                    max_inline_data;
 
 	u64                   *wrid;
 	union mthca_buf	       queue;

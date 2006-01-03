@@ -8,8 +8,12 @@
  * MAX_PHYSMEM_BITS		2^N: how much memory we can have in that space
  */
 #define SECTION_SIZE_BITS       24
-#define MAX_PHYSADDR_BITS       38
-#define MAX_PHYSMEM_BITS        36
+#define MAX_PHYSADDR_BITS       44
+#define MAX_PHYSMEM_BITS        44
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern void create_section_mapping(unsigned long start, unsigned long end);
+#endif /* CONFIG_MEMORY_HOTPLUG */
 
 #endif /* CONFIG_SPARSEMEM */
 

@@ -433,9 +433,8 @@ static void __devinit pci_post_fixup_toshiba_ohci1394(struct pci_dev *dev)
 		return; /* only applies to certain Toshibas (so far) */
 
 	/* Restore config space on Toshiba laptops */
-	mdelay(10);
 	pci_write_config_word(dev, PCI_CACHE_LINE_SIZE, toshiba_line_size);
-	pci_write_config_word(dev, PCI_INTERRUPT_LINE, dev->irq);
+	pci_read_config_byte(dev, PCI_INTERRUPT_LINE, (u8 *)&dev->irq);
 	pci_write_config_dword(dev, PCI_BASE_ADDRESS_0,
 			       pci_resource_start(dev, 0));
 	pci_write_config_dword(dev, PCI_BASE_ADDRESS_1,

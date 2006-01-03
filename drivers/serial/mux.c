@@ -65,8 +65,8 @@ static struct uart_driver mux_driver = {
 
 static struct timer_list mux_timer;
 
-#define UART_PUT_CHAR(p, c) __raw_writel((c), (unsigned long)(p)->membase + IO_DATA_REG_OFFSET)
-#define UART_GET_FIFO_CNT(p) __raw_readl((unsigned long)(p)->membase + IO_DCOUNT_REG_OFFSET)
+#define UART_PUT_CHAR(p, c) __raw_writel((c), (p)->membase + IO_DATA_REG_OFFSET)
+#define UART_GET_FIFO_CNT(p) __raw_readl((p)->membase + IO_DCOUNT_REG_OFFSET)
 #define GET_MUX_PORTS(iodc_data) ((((iodc_data)[4] & 0xf0) >> 4) * 8) + 8
 
 /**
@@ -79,10 +79,7 @@ static struct timer_list mux_timer;
  */
 static unsigned int mux_tx_empty(struct uart_port *port)
 {
-	unsigned int cnt = __raw_readl((unsigned long)port->membase 
-				+ IO_DCOUNT_REG_OFFSET);
-
-	return cnt ? 0 : TIOCSER_TEMT;
+	return UART_GET_FIFO_CNT(port) ? 0 : TIOCSER_TEMT;
 } 
 
 /**
@@ -218,8 +215,7 @@ static void mux_read(struct uart_port *port)
 	__u32 start_count = port->icount.rx;
 
 	while(1) {
-		data = __raw_readl((unsigned long)port->membase
-						+ IO_DATA_REG_OFFSET);
+		data = __raw_readl(port->membase + IO_DATA_REG_OFFSET);
 
 		if (MUX_STATUS(data))
 			continue;
@@ -481,6 +477,13 @@ static int __init mux_probe(struct parisc_device *dev)
 		port->ops	= &mux_pops;
 		port->flags	= UPF_BOOT_AUTOCONF;
 		port->line	= port_cnt;
+
+		/* The port->timeout needs to match what is present in
+		 * uart_wait_until_sent in serial_core.c.  Otherwise
+		 * the time spent in msleep_interruptable will be very
+		 * long, causing the appearance of a console hang.
+		 */
+		port->timeout   = HZ / 50;
 		spin_lock_init(&port->lock);
 		status = uart_add_one_port(&mux_driver, port);
 		BUG_ON(status);

@@ -966,6 +966,7 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 	outb_p(0x12, vga_video_port_reg);	/* Vertical display limit */
 	outb_p(vde, vga_video_port_val);
 	spin_unlock_irq(&vga_lock);
+	vga_video_font_height = fontheight;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		struct vc_data *c = vc_cons[i].d;

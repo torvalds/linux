@@ -45,6 +45,8 @@ extern void unlock_ipi_call_lock(void);
 #define MAX_APICID 256
 extern u8 x86_cpu_to_apicid[];
 
+#define cpu_physical_id(cpu)	x86_cpu_to_apicid[cpu]
+
 #ifdef CONFIG_HOTPLUG_CPU
 extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
@@ -91,6 +93,10 @@ static __inline int logical_smp_processor_id(void)
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 #endif /* !__ASSEMBLY__ */
+
+#else /* CONFIG_SMP */
+
+#define cpu_physical_id(cpu)		boot_cpu_physical_apicid
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 

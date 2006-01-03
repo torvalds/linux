@@ -220,7 +220,7 @@ struct icmp_control {
 	short   error;		/* This ICMP is classed as an error message */
 };
 
-static struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
+static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
 
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control
@@ -934,11 +934,11 @@ int icmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_HW:
 		if (!(u16)csum_fold(skb->csum))
 			break;
-		LIMIT_NETDEBUG(KERN_DEBUG "icmp v4 hw csum failure\n");
+		/* fall through */
 	case CHECKSUM_NONE:
-		if ((u16)csum_fold(skb_checksum(skb, 0, skb->len, 0)))
+		skb->csum = 0;
+		if (__skb_checksum_complete(skb))
 			goto error;
-	default:;
 	}
 
 	if (!pskb_pull(skb, sizeof(struct icmphdr)))
@@ -994,7 +994,7 @@ error:
 /*
  *	This table is the definition of how we handle ICMP.
  */
-static struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
+static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 	[ICMP_ECHOREPLY] = {
 		.output_entry = ICMP_MIB_OUTECHOREPS,
 		.input_entry = ICMP_MIB_INECHOREPS,

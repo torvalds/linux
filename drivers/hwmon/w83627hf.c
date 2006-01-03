@@ -456,7 +456,9 @@ static ssize_t store_regs_in_min0(struct device *dev, struct device_attribute *a
 		(w83627thf == data->type || w83637hf == data->type))
 
 		/* use VRM9 calculation */
-		data->in_min[0] = (u8)(((val * 100) - 70000 + 244) / 488);
+		data->in_min[0] =
+			SENSORS_LIMIT(((val * 100) - 70000 + 244) / 488, 0,
+					255);
 	else
 		/* use VRM8 (standard) calculation */
 		data->in_min[0] = IN_TO_REG(val);
@@ -481,7 +483,9 @@ static ssize_t store_regs_in_max0(struct device *dev, struct device_attribute *a
 		(w83627thf == data->type || w83637hf == data->type))
 		
 		/* use VRM9 calculation */
-		data->in_max[0] = (u8)(((val * 100) - 70000 + 244) / 488);
+		data->in_max[0] =
+			SENSORS_LIMIT(((val * 100) - 70000 + 244) / 488, 0,
+					255);
 	else
 		/* use VRM8 (standard) calculation */
 		data->in_max[0] = IN_TO_REG(val);

@@ -3,7 +3,7 @@
 
 #include <linux/config.h>
 
-#include <asm/arch/hardware.h>
+#include <asm/hardware.h>
 #include <asm/io.h>
 
 #define hard_smp_processor_id()				\

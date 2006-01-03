@@ -35,4 +35,3 @@ cflags-y += $(call cc-option,-mpreferred-stack-boundary=2)
 
 CFLAGS += $(cflags-y)
 USER_CFLAGS += $(cflags-y)
-

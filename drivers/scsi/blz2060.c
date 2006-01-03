@@ -90,7 +90,7 @@ static volatile unsigned char cmd_buffer[16];
 				 */
 
 /***************************************************************** Detection */
-int __init blz2060_esp_detect(Scsi_Host_Template *tpnt)
+int __init blz2060_esp_detect(struct scsi_host_template *tpnt)
 {
 	struct NCR_ESP *esp;
 	struct zorro_dev *z = NULL;
@@ -282,7 +282,7 @@ int blz2060_esp_release(struct Scsi_Host *instance)
 }
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "esp-blz2060",
 	.proc_info		= esp_proc_info,
 	.name			= "Blizzard2060 SCSI",

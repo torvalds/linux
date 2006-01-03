@@ -27,7 +27,6 @@ static void msync_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 again:
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
-		unsigned long pfn;
 		struct page *page;
 
 		if (progress >= 64) {
@@ -40,13 +39,9 @@ again:
 			continue;
 		if (!pte_maybe_dirty(*pte))
 			continue;
-		pfn = pte_pfn(*pte);
-		if (unlikely(!pfn_valid(pfn))) {
-			print_bad_pte(vma, *pte, addr);
+		page = vm_normal_page(vma, addr, *pte);
+		if (!page)
 			continue;
-		}
-		page = pfn_to_page(pfn);
-
 		if (ptep_clear_flush_dirty(vma, addr, pte) ||
 		    page_test_and_clear_dirty(page))
 			set_page_dirty(page);
@@ -97,9 +92,8 @@ static void msync_page_range(struct vm_area_struct *vma,
 	/* For hugepages we can't go walking the page table normally,
 	 * but that's ok, hugetlbfs is memory based, so we don't need
 	 * to do anything more on an msync().
-	 * Can't do anything with VM_RESERVED regions either.
 	 */
-	if (vma->vm_flags & (VM_HUGETLB|VM_RESERVED))
+	if (vma->vm_flags & VM_HUGETLB)
 		return;
 
 	BUG_ON(addr >= end);

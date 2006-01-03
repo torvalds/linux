@@ -9,11 +9,6 @@
  */
 
 #include <linux/config.h>
-#ifdef CONFIG_USB_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -1674,7 +1669,6 @@ int usb_suspend_device(struct usb_device *udev)
 	return 0;
 #endif
 }
-EXPORT_SYMBOL_GPL(usb_suspend_device);
 
 /*
  * If the USB "suspend" state is in use (rather than "global suspend"),

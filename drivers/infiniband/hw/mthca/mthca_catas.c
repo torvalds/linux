@@ -97,7 +97,7 @@ static void poll_catas(unsigned long dev_ptr)
 		}
 
 	spin_lock_irqsave(&catas_lock, flags);
-	if (dev->catas_err.stop)
+	if (!dev->catas_err.stop)
 		mod_timer(&dev->catas_err.timer,
 			  jiffies + MTHCA_CATAS_POLL_INTERVAL);
 	spin_unlock_irqrestore(&catas_lock, flags);

@@ -411,49 +411,38 @@ static void ehci_stop (struct usb_hcd *hcd)
 	dbg_status (ehci, "ehci_stop completed", readl (&ehci->regs->status));
 }
 
-static int ehci_run (struct usb_hcd *hcd)
+/* one-time init, only for memory state */
+static int ehci_init(struct usb_hcd *hcd)
 {
-	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	u32			temp;
 	int			retval;
 	u32			hcc_params;
-	int			first;
 
-	/* skip some things on restart paths */
-	first = (ehci->watchdog.data == 0);
-	if (first) {
-		init_timer (&ehci->watchdog);
-		ehci->watchdog.function = ehci_watchdog;
-		ehci->watchdog.data = (unsigned long) ehci;
-	}
+	spin_lock_init(&ehci->lock);
+
+	init_timer(&ehci->watchdog);
+	ehci->watchdog.function = ehci_watchdog;
+	ehci->watchdog.data = (unsigned long) ehci;
 
 	/*
 	 * hw default: 1K periodic list heads, one per frame.
 	 * periodic_size can shrink by USBCMD update if hcc_params allows.
 	 */
 	ehci->periodic_size = DEFAULT_I_TDPS;
-	if (first && (retval = ehci_mem_init (ehci, GFP_KERNEL)) < 0)
+	if ((retval = ehci_mem_init(ehci, GFP_KERNEL)) < 0)
 		return retval;
 
 	/* controllers may cache some of the periodic schedule ... */
-	hcc_params = readl (&ehci->caps->hcc_params);
-	if (HCC_ISOC_CACHE (hcc_params)) 	// full frame cache
+	hcc_params = readl(&ehci->caps->hcc_params);
+	if (HCC_ISOC_CACHE(hcc_params)) 	// full frame cache
 		ehci->i_thresh = 8;
 	else					// N microframes cached
-		ehci->i_thresh = 2 + HCC_ISOC_THRES (hcc_params);
+		ehci->i_thresh = 2 + HCC_ISOC_THRES(hcc_params);
 
 	ehci->reclaim = NULL;
 	ehci->reclaim_ready = 0;
 	ehci->next_uframe = -1;
-
-	/* controller state:  unknown --> reset */
-
-	/* EHCI spec section 4.1 */
-	if ((retval = ehci_reset (ehci)) != 0) {
-		ehci_mem_cleanup (ehci);
-		return retval;
-	}
-	writel (ehci->periodic_dma, &ehci->regs->frame_list);
 
 	/*
 	 * dedicate a qh for the async ring head, since we couldn't unlink
@@ -462,37 +451,13 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * its dummy is used in hw_alt_next of many tds, to prevent the qh
 	 * from automatically advancing to the next td after short reads.
 	 */
-	if (first) {
-		ehci->async->qh_next.qh = NULL;
-		ehci->async->hw_next = QH_NEXT (ehci->async->qh_dma);
-		ehci->async->hw_info1 = cpu_to_le32 (QH_HEAD);
-		ehci->async->hw_token = cpu_to_le32 (QTD_STS_HALT);
-		ehci->async->hw_qtd_next = EHCI_LIST_END;
-		ehci->async->qh_state = QH_STATE_LINKED;
-		ehci->async->hw_alt_next = QTD_NEXT (ehci->async->dummy->qtd_dma);
-	}
-	writel ((u32)ehci->async->qh_dma, &ehci->regs->async_next);
-
-	/*
-	 * hcc_params controls whether ehci->regs->segment must (!!!)
-	 * be used; it constrains QH/ITD/SITD and QTD locations.
-	 * pci_pool consistent memory always uses segment zero.
-	 * streaming mappings for I/O buffers, like pci_map_single(),
-	 * can return segments above 4GB, if the device allows.
-	 *
-	 * NOTE:  the dma mask is visible through dma_supported(), so
-	 * drivers can pass this info along ... like NETIF_F_HIGHDMA,
-	 * Scsi_Host.highmem_io, and so forth.  It's readonly to all
-	 * host side drivers though.
-	 */
-	if (HCC_64BIT_ADDR (hcc_params)) {
-		writel (0, &ehci->regs->segment);
-#if 0
-// this is deeply broken on almost all architectures
-		if (!dma_set_mask (hcd->self.controller, DMA_64BIT_MASK))
-			ehci_info (ehci, "enabled 64bit DMA\n");
-#endif
-	}
+	ehci->async->qh_next.qh = NULL;
+	ehci->async->hw_next = QH_NEXT(ehci->async->qh_dma);
+	ehci->async->hw_info1 = cpu_to_le32(QH_HEAD);
+	ehci->async->hw_token = cpu_to_le32(QTD_STS_HALT);
+	ehci->async->hw_qtd_next = EHCI_LIST_END;
+	ehci->async->qh_state = QH_STATE_LINKED;
+	ehci->async->hw_alt_next = QTD_NEXT(ehci->async->dummy->qtd_dma);
 
 	/* clear interrupt enables, set irq latency */
 	if (log2_irq_thresh < 0 || log2_irq_thresh > 6)
@@ -507,13 +472,13 @@ static int ehci_run (struct usb_hcd *hcd)
 		 * make problems:  throughput reduction (!), data errors...
 		 */
 		if (park) {
-			park = min (park, (unsigned) 3);
+			park = min(park, (unsigned) 3);
 			temp |= CMD_PARK;
 			temp |= park << 8;
 		}
-		ehci_info (ehci, "park %d\n", park);
+		ehci_dbg(ehci, "park %d\n", park);
 	}
-	if (HCC_PGM_FRAMELISTLEN (hcc_params)) {
+	if (HCC_PGM_FRAMELISTLEN(hcc_params)) {
 		/* periodic schedule size can be smaller than default */
 		temp &= ~(3 << 2);
 		temp |= (EHCI_TUNE_FLS << 2);
@@ -521,16 +486,63 @@ static int ehci_run (struct usb_hcd *hcd)
 		case 0: ehci->periodic_size = 1024; break;
 		case 1: ehci->periodic_size = 512; break;
 		case 2: ehci->periodic_size = 256; break;
-		default:	BUG ();
+		default:	BUG();
 		}
 	}
+	ehci->command = temp;
+
+	ehci->reboot_notifier.notifier_call = ehci_reboot;
+	register_reboot_notifier(&ehci->reboot_notifier);
+
+	return 0;
+}
+
+/* start HC running; it's halted, ehci_init() has been run (once) */
+static int ehci_run (struct usb_hcd *hcd)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
+	int			retval;
+	u32			temp;
+	u32			hcc_params;
+
+	/* EHCI spec section 4.1 */
+	if ((retval = ehci_reset(ehci)) != 0) {
+		unregister_reboot_notifier(&ehci->reboot_notifier);
+		ehci_mem_cleanup(ehci);
+		return retval;
+	}
+	writel(ehci->periodic_dma, &ehci->regs->frame_list);
+	writel((u32)ehci->async->qh_dma, &ehci->regs->async_next);
+
+	/*
+	 * hcc_params controls whether ehci->regs->segment must (!!!)
+	 * be used; it constrains QH/ITD/SITD and QTD locations.
+	 * pci_pool consistent memory always uses segment zero.
+	 * streaming mappings for I/O buffers, like pci_map_single(),
+	 * can return segments above 4GB, if the device allows.
+	 *
+	 * NOTE:  the dma mask is visible through dma_supported(), so
+	 * drivers can pass this info along ... like NETIF_F_HIGHDMA,
+	 * Scsi_Host.highmem_io, and so forth.  It's readonly to all
+	 * host side drivers though.
+	 */
+	hcc_params = readl(&ehci->caps->hcc_params);
+	if (HCC_64BIT_ADDR(hcc_params)) {
+		writel(0, &ehci->regs->segment);
+#if 0
+// this is deeply broken on almost all architectures
+		if (!dma_set_mask(hcd->self.controller, DMA_64BIT_MASK))
+			ehci_info(ehci, "enabled 64bit DMA\n");
+#endif
+	}
+
+
 	// Philips, Intel, and maybe others need CMD_RUN before the
 	// root hub will detect new devices (why?); NEC doesn't
-	temp |= CMD_RUN;
-	writel (temp, &ehci->regs->command);
-	dbg_cmd (ehci, "init", temp);
-
-	/* set async sleep time = 10 us ... ? */
+	ehci->command &= ~(CMD_LRESET|CMD_IAAD|CMD_PSE|CMD_ASE|CMD_RESET);
+	ehci->command |= CMD_RUN;
+	writel (ehci->command, &ehci->regs->command);
+	dbg_cmd (ehci, "init", ehci->command);
 
 	/*
 	 * Start, enabling full USB 2.0 functionality ... usb 1.1 devices
@@ -538,26 +550,23 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * involved with the root hub.  (Except where one is integrated,
 	 * and there's no companion controller unless maybe for USB OTG.)
 	 */
-	if (first) {
-		ehci->reboot_notifier.notifier_call = ehci_reboot;
-		register_reboot_notifier (&ehci->reboot_notifier);
-	}
-
 	hcd->state = HC_STATE_RUNNING;
 	writel (FLAG_CF, &ehci->regs->configured_flag);
-	readl (&ehci->regs->command);	/* unblock posted write */
+	readl (&ehci->regs->command);	/* unblock posted writes */
 
 	temp = HC_VERSION(readl (&ehci->caps->hc_capbase));
 	ehci_info (ehci,
-		"USB %x.%x %s, EHCI %x.%02x, driver %s\n",
+		"USB %x.%x started, EHCI %x.%02x, driver %s\n",
 		((ehci->sbrn & 0xf0)>>4), (ehci->sbrn & 0x0f),
-		first ? "initialized" : "restarted",
 		temp >> 8, temp & 0xff, DRIVER_VERSION);
 
 	writel (INTR_MASK, &ehci->regs->intr_enable); /* Turn On Interrupts */
 
-	if (first)
-		create_debug_files (ehci);
+	/* GRR this is run-once init(), being done every time the HC starts.
+	 * So long as they're part of class devices, we can't do it init()
+	 * since the class device isn't created that early.
+	 */
+	create_debug_files(ehci);
 
 	return 0;
 }
@@ -636,9 +645,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs)
 			 * stop that signaling.
 			 */
 			ehci->reset_done [i] = jiffies + msecs_to_jiffies (20);
-			mod_timer (&hcd->rh_timer,
-					ehci->reset_done [i] + 1);
 			ehci_dbg (ehci, "port %d remote wakeup\n", i + 1);
+			usb_hcd_resume_root_hub(hcd);
 		}
 	}
 

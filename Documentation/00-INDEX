@@ -24,6 +24,8 @@ DMA-mapping.txt
 	- info for PCI drivers using DMA portably across all platforms.
 DocBook/
 	- directory with DocBook templates etc. for kernel documentation.
+HOWTO
+	- The process and procedures of how to do Linux kernel development.
 IO-mapping.txt
 	- how to access I/O mapped memory from within device drivers.
 IPMI.txt
@@ -256,6 +258,10 @@ specialix.txt
 	- info on hardware/driver for specialix IO8+ multiport serial card.
 spinlocks.txt
 	- info on using spinlocks to provide exclusive access in kernel.
+stable_api_nonsense.txt
+	- info on why the kernel does not have a stable in-kernel api or abi.
+stable_kernel_rules.txt
+	- rules and procedures for the -stable kernel releases.
 stallion.txt
 	- info on using the Stallion multiport serial driver.
 svga.txt

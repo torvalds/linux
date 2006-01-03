@@ -60,6 +60,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10C4, 0x80F6) }, /* Suunto sports instrument */
 	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Knock-off DCU-11 cable */
 	{ USB_DEVICE(0x10AB, 0x10C5) },	/* Siemens MC60 Cable */
+	{ USB_DEVICE(0x16D6, 0x0001) }, /* Jablotron serial interface */
 	{ } /* Terminating Entry */
 };
 

@@ -186,24 +186,32 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 rtt, u32 in_flight,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (in_flight < tp->snd_cwnd)
+	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-        if (tp->snd_cwnd <= tp->snd_ssthresh) {
-                /* In "safe" area, increase. */
-		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-			tp->snd_cwnd++;
-	} else {
-                /* In dangerous area, increase slowly.
-		 * In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd
-		 */
-		if (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
-			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-				tp->snd_cwnd++;
-			tp->snd_cwnd_cnt = 0;
-		} else
-			tp->snd_cwnd_cnt++;
-	}
+	/* In "safe" area, increase. */
+        if (tp->snd_cwnd <= tp->snd_ssthresh)
+		tcp_slow_start(tp);
+
+ 	/* In dangerous area, increase slowly. */
+	else if (sysctl_tcp_abc) {
+ 		/* RFC3465: Apppriate Byte Count
+ 		 * increase once for each full cwnd acked
+ 		 */
+ 		if (tp->bytes_acked >= tp->snd_cwnd*tp->mss_cache) {
+ 			tp->bytes_acked -= tp->snd_cwnd*tp->mss_cache;
+ 			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+ 				tp->snd_cwnd++;
+ 		}
+ 	} else {
+ 		/* In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd */
+ 		if (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
+ 			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+ 				tp->snd_cwnd++;
+ 			tp->snd_cwnd_cnt = 0;
+ 		} else
+ 			tp->snd_cwnd_cnt++;
+ 	}
 }
 EXPORT_SYMBOL_GPL(tcp_reno_cong_avoid);
 

@@ -25,7 +25,7 @@
 
 
 LIST_HEAD(atm_devs);
-DEFINE_SPINLOCK(atm_dev_lock);
+DECLARE_MUTEX(atm_dev_mutex);
 
 static struct atm_dev *__alloc_atm_dev(const char *type)
 {
@@ -52,7 +52,7 @@ static struct atm_dev *__atm_dev_lookup(int number)
 
 	list_for_each(p, &atm_devs) {
 		dev = list_entry(p, struct atm_dev, dev_list);
-		if ((dev->ops) && (dev->number == number)) {
+		if (dev->number == number) {
 			atm_dev_hold(dev);
 			return dev;
 		}
@@ -64,11 +64,12 @@ struct atm_dev *atm_dev_lookup(int number)
 {
 	struct atm_dev *dev;
 
-	spin_lock(&atm_dev_lock);
+	down(&atm_dev_mutex);
 	dev = __atm_dev_lookup(number);
-	spin_unlock(&atm_dev_lock);
+	up(&atm_dev_mutex);
 	return dev;
 }
+
 
 struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 				 int number, unsigned long *flags)
@@ -81,11 +82,11 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		    type);
 		return NULL;
 	}
-	spin_lock(&atm_dev_lock);
+	down(&atm_dev_mutex);
 	if (number != -1) {
 		if ((inuse = __atm_dev_lookup(number))) {
 			atm_dev_put(inuse);
-			spin_unlock(&atm_dev_lock);
+			up(&atm_dev_mutex);
 			kfree(dev);
 			return NULL;
 		}
@@ -105,19 +106,17 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 		memset(&dev->flags, 0, sizeof(dev->flags));
 	memset(&dev->stats, 0, sizeof(dev->stats));
 	atomic_set(&dev->refcnt, 1);
-	list_add_tail(&dev->dev_list, &atm_devs);
-	spin_unlock(&atm_dev_lock);
 
 	if (atm_proc_dev_register(dev) < 0) {
 		printk(KERN_ERR "atm_dev_register: "
 		       "atm_proc_dev_register failed for dev %s\n",
 		       type);
-		spin_lock(&atm_dev_lock);
-		list_del(&dev->dev_list);
-		spin_unlock(&atm_dev_lock);
+		up(&atm_dev_mutex);
 		kfree(dev);
 		return NULL;
 	}
+	list_add_tail(&dev->dev_list, &atm_devs);
+	up(&atm_dev_mutex);
 
 	return dev;
 }
@@ -125,37 +124,22 @@ struct atm_dev *atm_dev_register(const char *type, const struct atmdev_ops *ops,
 
 void atm_dev_deregister(struct atm_dev *dev)
 {
-	unsigned long warning_time;
+	BUG_ON(test_bit(ATM_DF_REMOVED, &dev->flags));
+	set_bit(ATM_DF_REMOVED, &dev->flags);
 
+	/*
+	 * if we remove current device from atm_devs list, new device 
+	 * with same number can appear, such we need deregister proc, 
+	 * release async all vccs and remove them from vccs list too
+	 */
+	down(&atm_dev_mutex);
+	list_del(&dev->dev_list);
+	up(&atm_dev_mutex);
+
+	atm_dev_release_vccs(dev);
 	atm_proc_dev_deregister(dev);
 
-	spin_lock(&atm_dev_lock);
-	list_del(&dev->dev_list);
-	spin_unlock(&atm_dev_lock);
-
-        warning_time = jiffies;
-        while (atomic_read(&dev->refcnt) != 1) {
-                msleep(250);
-                if ((jiffies - warning_time) > 10 * HZ) {
-                        printk(KERN_EMERG "atm_dev_deregister: waiting for "
-                               "dev %d to become free. Usage count = %d\n",
-                               dev->number, atomic_read(&dev->refcnt));
-                        warning_time = jiffies;
-                }
-        }
-
-	kfree(dev);
-}
-
-void shutdown_atm_dev(struct atm_dev *dev)
-{
-	if (atomic_read(&dev->refcnt) > 1) {
-		set_bit(ATM_DF_CLOSE, &dev->flags);
-		return;
-	}
-	if (dev->ops->dev_close)
-		dev->ops->dev_close(dev);
-	atm_dev_deregister(dev);
+	atm_dev_put(dev);
 }
 
 
@@ -211,16 +195,16 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 				return -EFAULT;
 			if (get_user(len, &iobuf->length))
 				return -EFAULT;
-			spin_lock(&atm_dev_lock);
+			down(&atm_dev_mutex);
 			list_for_each(p, &atm_devs)
 				size += sizeof(int);
 			if (size > len) {
-				spin_unlock(&atm_dev_lock);
+				up(&atm_dev_mutex);
 				return -E2BIG;
 			}
 			tmp_buf = kmalloc(size, GFP_ATOMIC);
 			if (!tmp_buf) {
-				spin_unlock(&atm_dev_lock);
+				up(&atm_dev_mutex);
 				return -ENOMEM;
 			}
 			tmp_p = tmp_buf;
@@ -228,7 +212,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 				dev = list_entry(p, struct atm_dev, dev_list);
 				*tmp_p++ = dev->number;
 			}
-			spin_unlock(&atm_dev_lock);
+			up(&atm_dev_mutex);
 		        error = ((copy_to_user(buf, tmp_buf, size)) ||
 					put_user(size, &iobuf->length))
 						? -EFAULT : 0;
@@ -245,7 +229,8 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg)
 	if (get_user(number, &sioc->number))
 		return -EFAULT;
 
-	if (!(dev = atm_dev_lookup(number)))
+	if (!(dev = try_then_request_module(atm_dev_lookup(number),
+					    "atm-device-%d", number)))
 		return -ENODEV;
 	
 	switch (cmd) {
@@ -414,13 +399,13 @@ static __inline__ void *dev_get_idx(loff_t left)
 
 void *atm_dev_seq_start(struct seq_file *seq, loff_t *pos)
 {
- 	spin_lock(&atm_dev_lock);
+ 	down(&atm_dev_mutex);
 	return *pos ? dev_get_idx(*pos) : (void *) 1;
 }
 
 void atm_dev_seq_stop(struct seq_file *seq, void *v)
 {
- 	spin_unlock(&atm_dev_lock);
+ 	up(&atm_dev_mutex);
 }
  
 void *atm_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
@@ -434,4 +419,3 @@ void *atm_dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 EXPORT_SYMBOL(atm_dev_register);
 EXPORT_SYMBOL(atm_dev_deregister);
 EXPORT_SYMBOL(atm_dev_lookup);
-EXPORT_SYMBOL(shutdown_atm_dev);

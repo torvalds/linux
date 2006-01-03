@@ -254,55 +254,6 @@ void scsi_do_req(struct scsi_request *sreq, const void *cmnd,
 }
 EXPORT_SYMBOL(scsi_do_req);
 
-/* This is the end routine we get to if a command was never attached
- * to the request.  Simply complete the request without changing
- * rq_status; this will cause a DRIVER_ERROR. */
-static void scsi_wait_req_end_io(struct request *req)
-{
-	BUG_ON(!req->waiting);
-
-	complete(req->waiting);
-}
-
-void scsi_wait_req(struct scsi_request *sreq, const void *cmnd, void *buffer,
-		   unsigned bufflen, int timeout, int retries)
-{
-	DECLARE_COMPLETION(wait);
-	int write = (sreq->sr_data_direction == DMA_TO_DEVICE);
-	struct request *req;
-
-	req = blk_get_request(sreq->sr_device->request_queue, write,
-			      __GFP_WAIT);
-	if (bufflen && blk_rq_map_kern(sreq->sr_device->request_queue, req,
-				       buffer, bufflen, __GFP_WAIT)) {
-		sreq->sr_result = DRIVER_ERROR << 24;
-		blk_put_request(req);
-		return;
-	}
-
-	req->flags |= REQ_NOMERGE;
-	req->waiting = &wait;
-	req->end_io = scsi_wait_req_end_io;
-	req->cmd_len = COMMAND_SIZE(((u8 *)cmnd)[0]);
-	req->sense = sreq->sr_sense_buffer;
-	req->sense_len = 0;
-	memcpy(req->cmd, cmnd, req->cmd_len);
-	req->timeout = timeout;
-	req->flags |= REQ_BLOCK_PC;
-	req->rq_disk = NULL;
-	blk_insert_request(sreq->sr_device->request_queue, req,
-			   sreq->sr_data_direction == DMA_TO_DEVICE, NULL);
-	wait_for_completion(&wait);
-	sreq->sr_request->waiting = NULL;
-	sreq->sr_result = req->errors;
-	if (req->errors)
-		sreq->sr_result |= (DRIVER_ERROR << 24);
-
-	blk_put_request(req);
-}
-
-EXPORT_SYMBOL(scsi_wait_req);
-
 /**
  * scsi_execute - insert request and wait for the result
  * @sdev:	scsi device
@@ -591,10 +542,17 @@ static void scsi_requeue_command(struct request_queue *q, struct scsi_cmnd *cmd)
 
 void scsi_next_command(struct scsi_cmnd *cmd)
 {
-	struct request_queue *q = cmd->device->request_queue;
+	struct scsi_device *sdev = cmd->device;
+	struct request_queue *q = sdev->request_queue;
+
+	/* need to hold a reference on the device before we let go of the cmd */
+	get_device(&sdev->sdev_gendev);
 
 	scsi_put_command(cmd);
 	scsi_run_queue(q);
+
+	/* ok to remove device now */
+	put_device(&sdev->sdev_gendev);
 }
 
 void scsi_run_host_queues(struct Scsi_Host *shost)
@@ -1127,6 +1085,26 @@ static void scsi_generic_done(struct scsi_cmnd *cmd)
 	scsi_io_completion(cmd, cmd->result == 0 ? cmd->bufflen : 0, 0);
 }
 
+void scsi_setup_blk_pc_cmnd(struct scsi_cmnd *cmd, int retries)
+{
+	struct request *req = cmd->request;
+
+	BUG_ON(sizeof(req->cmd) > sizeof(cmd->cmnd));
+	memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
+	cmd->cmd_len = req->cmd_len;
+	if (!req->data_len)
+		cmd->sc_data_direction = DMA_NONE;
+	else if (rq_data_dir(req) == WRITE)
+		cmd->sc_data_direction = DMA_TO_DEVICE;
+	else
+		cmd->sc_data_direction = DMA_FROM_DEVICE;
+	
+	cmd->transfersize = req->data_len;
+	cmd->allowed = retries;
+	cmd->timeout_per_command = req->timeout;
+}
+EXPORT_SYMBOL_GPL(scsi_setup_blk_pc_cmnd);
+
 static int scsi_prep_fn(struct request_queue *q, struct request *req)
 {
 	struct scsi_device *sdev = q->queuedata;
@@ -1262,18 +1240,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 				goto kill;
 			}
 		} else {
-			memcpy(cmd->cmnd, req->cmd, sizeof(cmd->cmnd));
-			cmd->cmd_len = req->cmd_len;
-			if (rq_data_dir(req) == WRITE)
-				cmd->sc_data_direction = DMA_TO_DEVICE;
-			else if (req->data_len)
-				cmd->sc_data_direction = DMA_FROM_DEVICE;
-			else
-				cmd->sc_data_direction = DMA_NONE;
-			
-			cmd->transfersize = req->data_len;
-			cmd->allowed = 3;
-			cmd->timeout_per_command = req->timeout;
+			scsi_setup_blk_pc_cmnd(cmd, 3);
 			cmd->done = scsi_generic_done;
 		}
 	}

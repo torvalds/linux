@@ -784,8 +784,8 @@ static ide_proc_entry_t idescsi_proc[] = {
 #endif
 
 static ide_driver_t idescsi_driver = {
-	.owner			= THIS_MODULE,
 	.gen_driver = {
+		.owner		= THIS_MODULE,
 		.name		= "ide-scsi",
 		.bus		= &ide_bus_type,
 		.probe		= ide_scsi_probe,
@@ -882,7 +882,7 @@ static inline int should_transform(ide_drive_t *drive, struct scsi_cmnd *cmd)
 	struct gendisk *disk = cmd->request->rq_disk;
 
 	if (disk) {
-		struct Scsi_Device_Template **p = disk->private_data;
+		struct struct scsi_device_Template **p = disk->private_data;
 		if (strcmp((*p)->scsi_driverfs_driver.name, "sg") == 0)
 			return test_bit(IDESCSI_SG_TRANSFORM, &scsi->transform);
 	}

@@ -1437,7 +1437,7 @@ void fastcall sched_fork(task_t *p, int clone_flags)
 #endif
 #ifdef CONFIG_PREEMPT
 	/* Want to start with kernel preemption disabled. */
-	p->thread_info->preempt_count = 1;
+	task_thread_info(p)->preempt_count = 1;
 #endif
 	/*
 	 * Share the timeslice between parent and child, thus the
@@ -4327,10 +4327,10 @@ static void show_task(task_t *p)
 #endif
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	{
-		unsigned long *n = (unsigned long *) (p->thread_info+1);
+		unsigned long *n = end_of_stack(p);
 		while (!*n)
 			n++;
-		free = (unsigned long) n - (unsigned long)(p->thread_info+1);
+		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
 	printk("%5lu %5d %6d ", free, p->pid, p->parent->pid);
@@ -4410,9 +4410,9 @@ void __devinit init_idle(task_t *idle, int cpu)
 
 	/* Set the preempt count _outside_ the spinlocks! */
 #if defined(CONFIG_PREEMPT) && !defined(CONFIG_PREEMPT_BKL)
-	idle->thread_info->preempt_count = (idle->lock_depth >= 0);
+	task_thread_info(idle)->preempt_count = (idle->lock_depth >= 0);
 #else
-	idle->thread_info->preempt_count = 0;
+	task_thread_info(idle)->preempt_count = 0;
 #endif
 }
 

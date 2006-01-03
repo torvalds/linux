@@ -287,7 +287,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 	{
 		struct ipv6_txoptions *opt;
 		if (optlen == 0)
-			optval = 0;
+			optval = NULL;
 
 		/* hop-by-hop / destination options are privileged option */
 		retv = -EPERM;
@@ -628,8 +628,8 @@ e_inval:
 	return -EINVAL;
 }
 
-int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_opt_hdr *hdr,
-			   char __user *optval, int len)
+static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_opt_hdr *hdr,
+				  char __user *optval, int len)
 {
 	if (!hdr)
 		return 0;

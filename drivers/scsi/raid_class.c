@@ -1,5 +1,13 @@
 /*
- * RAID Attributes
+ * raid_class.c - implementation of a simple raid visualisation class
+ *
+ * Copyright (c) 2005 - James Bottomley <James.Bottomley@steeleye.com>
+ *
+ * This file is licensed under GPLv2
+ *
+ * This class is designed to allow raid attributes to be visualised and
+ * manipulated in a form independent of the underlying raid.  Ultimately this
+ * should work for both hardware and software raids.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -24,7 +32,7 @@ struct raid_internal {
 
 struct raid_component {
 	struct list_head node;
-	struct device *dev;
+	struct class_device cdev;
 	int num;
 };
 
@@ -74,11 +82,10 @@ static int raid_setup(struct transport_container *tc, struct device *dev,
 
 	BUG_ON(class_get_devdata(cdev));
 
-	rd = kmalloc(sizeof(*rd), GFP_KERNEL);
+	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
 		return -ENOMEM;
 
-	memset(rd, 0, sizeof(*rd));
 	INIT_LIST_HEAD(&rd->component_list);
 	class_set_devdata(cdev, rd);
 		
@@ -90,15 +97,15 @@ static int raid_remove(struct transport_container *tc, struct device *dev,
 {
 	struct raid_data *rd = class_get_devdata(cdev);
 	struct raid_component *rc, *next;
+	dev_printk(KERN_ERR, dev, "RAID REMOVE\n");
 	class_set_devdata(cdev, NULL);
 	list_for_each_entry_safe(rc, next, &rd->component_list, node) {
-		char buf[40];
-		snprintf(buf, sizeof(buf), "component-%d", rc->num);
 		list_del(&rc->node);
-		sysfs_remove_link(&cdev->kobj, buf);
-		kfree(rc);
+		dev_printk(KERN_ERR, rc->cdev.dev, "RAID COMPONENT REMOVE\n");
+		class_device_unregister(&rc->cdev);
 	}
-	kfree(class_get_devdata(cdev));
+	dev_printk(KERN_ERR, dev, "RAID REMOVE DONE\n");
+	kfree(rd);
 	return 0;
 }
 
@@ -112,10 +119,11 @@ static struct {
 	enum raid_state	value;
 	char		*name;
 } raid_states[] = {
-	{ RAID_ACTIVE, "active" },
-	{ RAID_DEGRADED, "degraded" },
-	{ RAID_RESYNCING, "resyncing" },
-	{ RAID_OFFLINE, "offline" },
+	{ RAID_STATE_UNKNOWN, "unknown" },
+	{ RAID_STATE_ACTIVE, "active" },
+	{ RAID_STATE_DEGRADED, "degraded" },
+	{ RAID_STATE_RESYNCING, "resyncing" },
+	{ RAID_STATE_OFFLINE, "offline" },
 };
 
 static const char *raid_state_name(enum raid_state state)
@@ -132,6 +140,33 @@ static const char *raid_state_name(enum raid_state state)
 	return name;
 }
 
+static struct {
+	enum raid_level value;
+	char *name;
+} raid_levels[] = {
+	{ RAID_LEVEL_UNKNOWN, "unknown" },
+	{ RAID_LEVEL_LINEAR, "linear" },
+	{ RAID_LEVEL_0, "raid0" },
+	{ RAID_LEVEL_1, "raid1" },
+	{ RAID_LEVEL_3, "raid3" },
+	{ RAID_LEVEL_4, "raid4" },
+	{ RAID_LEVEL_5, "raid5" },
+	{ RAID_LEVEL_6, "raid6" },
+};
+
+static const char *raid_level_name(enum raid_level level)
+{
+	int i;
+	char *name = NULL;
+
+	for (i = 0; i < sizeof(raid_levels)/sizeof(raid_levels[0]); i++) {
+		if (raid_levels[i].value == level) {
+			name = raid_levels[i].name;
+			break;
+		}
+	}
+	return name;
+}
 
 #define raid_attr_show_internal(attr, fmt, var, code)			\
 static ssize_t raid_show_##attr(struct class_device *cdev, char *buf)	\
@@ -161,11 +196,22 @@ static CLASS_DEVICE_ATTR(attr, S_IRUGO, raid_show_##attr, NULL)
 
 #define raid_attr_ro(attr)	raid_attr_ro_internal(attr, )
 #define raid_attr_ro_fn(attr)	raid_attr_ro_internal(attr, ATTR_CODE(attr))
-#define raid_attr_ro_state(attr)	raid_attr_ro_states(attr, attr, ATTR_CODE(attr))
+#define raid_attr_ro_state(attr)	raid_attr_ro_states(attr, attr, )
+#define raid_attr_ro_state_fn(attr)	raid_attr_ro_states(attr, attr, ATTR_CODE(attr))
 
-raid_attr_ro(level);
+
+raid_attr_ro_state(level);
 raid_attr_ro_fn(resync);
-raid_attr_ro_state(state);
+raid_attr_ro_state_fn(state);
+
+static void raid_component_release(struct class_device *cdev)
+{
+	struct raid_component *rc = container_of(cdev, struct raid_component,
+						 cdev);
+	dev_printk(KERN_ERR, rc->cdev.dev, "COMPONENT RELEASE\n");
+	put_device(rc->cdev.dev);
+	kfree(rc);
+}
 
 void raid_component_add(struct raid_template *r,struct device *raid_dev,
 			struct device *component_dev)
@@ -175,33 +221,35 @@ void raid_component_add(struct raid_template *r,struct device *raid_dev,
 						      raid_dev);
 	struct raid_component *rc;
 	struct raid_data *rd = class_get_devdata(cdev);
-	char buf[40];
 
-	rc = kmalloc(sizeof(*rc), GFP_KERNEL);
+	rc = kzalloc(sizeof(*rc), GFP_KERNEL);
 	if (!rc)
 		return;
 
 	INIT_LIST_HEAD(&rc->node);
-	rc->dev = component_dev;
+	class_device_initialize(&rc->cdev);
+	rc->cdev.release = raid_component_release;
+	rc->cdev.dev = get_device(component_dev);
 	rc->num = rd->component_count++;
 
-	snprintf(buf, sizeof(buf), "component-%d", rc->num);
+	snprintf(rc->cdev.class_id, sizeof(rc->cdev.class_id),
+		 "component-%d", rc->num);
 	list_add_tail(&rc->node, &rd->component_list);
-	sysfs_create_link(&cdev->kobj, &component_dev->kobj, buf);
+	rc->cdev.parent = cdev;
+	rc->cdev.class = &raid_class.class;
+	class_device_add(&rc->cdev);
 }
 EXPORT_SYMBOL(raid_component_add);
 
 struct raid_template *
 raid_class_attach(struct raid_function_template *ft)
 {
-	struct raid_internal *i = kmalloc(sizeof(struct raid_internal),
+	struct raid_internal *i = kzalloc(sizeof(struct raid_internal),
 					  GFP_KERNEL);
 	int count = 0;
 
 	if (unlikely(!i))
 		return NULL;
-
-	memset(i, 0, sizeof(*i));
 
 	i->f = ft;
 

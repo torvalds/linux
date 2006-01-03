@@ -320,7 +320,6 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 		 * this branch is our 'one mirror IO has finished' event handler:
 		 */
 		r1_bio->bios[mirror] = NULL;
-		bio_put(bio);
 		if (!uptodate) {
 			md_error(r1_bio->mddev, conf->mirrors[mirror].rdev);
 			/* an I/O failed, we can't clear the bitmap */
@@ -377,7 +376,6 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 		}
 		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
 			/* free extra copy of the data pages */
-/* FIXME bio has been freed!!! */
 			int i = bio->bi_vcnt;
 			while (i--)
 				__free_page(bio->bi_io_vec[i].bv_page);
@@ -390,6 +388,9 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 		md_write_end(r1_bio->mddev);
 		raid_end_bio_io(r1_bio);
 	}
+
+	if (r1_bio->bios[mirror]==NULL)
+		bio_put(bio);
 
 	rdev_dec_pending(conf->mirrors[mirror].rdev, conf->mddev);
 	return 0;
@@ -953,9 +954,6 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int mirror = 0;
 	mirror_info_t *p;
 
-	if (rdev->saved_raid_disk >= 0 &&
-	    conf->mirrors[rdev->saved_raid_disk].rdev == NULL)
-		mirror = rdev->saved_raid_disk;
 	for (mirror=0; mirror < mddev->raid_disks; mirror++)
 		if ( !(p=conf->mirrors+mirror)->rdev) {
 
@@ -972,7 +970,10 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
 			found = 1;
-			if (rdev->saved_raid_disk != mirror)
+			/* As all devices are equivalent, we don't need a full recovery
+			 * if this was recently any drive of the array
+			 */
+			if (rdev->saved_raid_disk < 0)
 				conf->fullsync = 1;
 			rcu_assign_pointer(p->rdev, rdev);
 			break;

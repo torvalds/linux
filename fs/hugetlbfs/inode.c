@@ -512,10 +512,14 @@ static int hugetlbfs_statfs(struct super_block *sb, struct kstatfs *buf)
 	buf->f_bsize = HPAGE_SIZE;
 	if (sbinfo) {
 		spin_lock(&sbinfo->stat_lock);
-		buf->f_blocks = sbinfo->max_blocks;
-		buf->f_bavail = buf->f_bfree = sbinfo->free_blocks;
-		buf->f_files = sbinfo->max_inodes;
-		buf->f_ffree = sbinfo->free_inodes;
+		/* If no limits set, just report 0 for max/free/used
+		 * blocks, like simple_statfs() */
+		if (sbinfo->max_blocks >= 0) {
+			buf->f_blocks = sbinfo->max_blocks;
+			buf->f_bavail = buf->f_bfree = sbinfo->free_blocks;
+			buf->f_files = sbinfo->max_inodes;
+			buf->f_ffree = sbinfo->free_inodes;
+		}
 		spin_unlock(&sbinfo->stat_lock);
 	}
 	buf->f_namelen = NAME_MAX;

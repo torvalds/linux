@@ -21,12 +21,18 @@ struct corgits_machinfo {
 	void (*wait_hsync)(void);
 };
 
+
 /*
  * SharpSL Backlight
  */
-
 struct corgibl_machinfo {
 	int max_intensity;
 	void (*set_bl_intensity)(int intensity);
 };
+extern void corgibl_limit_intensity(int limit);
 
+
+/*
+ * SharpSL Battery/PM Driver
+ */
+extern void sharpsl_battery_kick(void);

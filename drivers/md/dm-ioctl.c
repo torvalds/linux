@@ -425,8 +425,8 @@ static void list_version_get_needed(struct target_type *tt, void *needed_param)
 {
     size_t *needed = needed_param;
 
+    *needed += sizeof(struct dm_target_versions);
     *needed += strlen(tt->name);
-    *needed += sizeof(tt->version);
     *needed += ALIGN_MASK;
 }
 
@@ -974,6 +974,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	if (!hc) {
 		DMWARN("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
+		dm_table_put(t);
 		return -ENXIO;
 	}
 

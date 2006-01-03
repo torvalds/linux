@@ -46,9 +46,9 @@ Contact information:
 --------------------
 
    The main page for the project is hosted at sourceforge.net in the following
-   address: http://rio500.sourceforge.net You can also go to the sourceforge
-   project page at: http://sourceforge.net/project/?group_id=1944 There is 
-   also a mailing list: rio500-users@lists.sourceforge.net
+   URL: <http://rio500.sourceforge.net>. You can also go to the project's
+   sourceforge home page at: <http://sourceforge.net/projects/rio500/>.
+   There is also a mailing list: rio500-users@lists.sourceforge.net
 
 Authors:
 -------

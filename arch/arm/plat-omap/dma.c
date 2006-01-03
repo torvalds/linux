@@ -6,6 +6,8 @@
  * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@nokia.com>
  * Graphics DMA and LCD DMA graphics tranformations
  * by Imre Deak <imre.deak@nokia.com>
+ * OMAP2 support Copyright (C) 2004-2005 Texas Instruments, Inc.
+ * Merged to support both OMAP1 and OMAP2 by Tony Lindgren <tony@atomide.com>
  * Some functions based on earlier dma-omap.c Copyright (C) 2001 RidgeRun, Inc.
  *
  * Support functions for the OMAP internal DMA channels.
@@ -31,8 +33,15 @@
 
 #include <asm/arch/tc.h>
 
-#define OMAP_DMA_ACTIVE		0x01
+#define DEBUG_PRINTS
+#undef DEBUG_PRINTS
+#ifdef DEBUG_PRINTS
+#define debug_printk(x) printk x
+#else
+#define	debug_printk(x)
+#endif
 
+#define OMAP_DMA_ACTIVE		0x01
 #define OMAP_DMA_CCR_EN		(1 << 7)
 
 #define OMAP_FUNC_MUX_ARM_BASE	(0xfffe1000 + 0xec)
@@ -55,7 +64,7 @@ static int dma_chan_count;
 static spinlock_t dma_chan_lock;
 static struct omap_dma_lch dma_chan[OMAP_LOGICAL_DMA_CH_COUNT];
 
-const static u8 dma_irq[OMAP_LOGICAL_DMA_CH_COUNT] = {
+const static u8 omap1_dma_irq[OMAP_LOGICAL_DMA_CH_COUNT] = {
 	INT_DMA_CH0_6, INT_DMA_CH1_7, INT_DMA_CH2_8, INT_DMA_CH3,
 	INT_DMA_CH4, INT_DMA_CH5, INT_1610_DMA_CH6, INT_1610_DMA_CH7,
 	INT_1610_DMA_CH8, INT_1610_DMA_CH9, INT_1610_DMA_CH10,
@@ -63,6 +72,20 @@ const static u8 dma_irq[OMAP_LOGICAL_DMA_CH_COUNT] = {
 	INT_1610_DMA_CH14, INT_1610_DMA_CH15, INT_DMA_LCD
 };
 
+#define REVISIT_24XX()		printk(KERN_ERR "FIXME: no %s on 24xx\n", \
+						__FUNCTION__);
+
+#ifdef CONFIG_ARCH_OMAP15XX
+/* Returns 1 if the DMA module is in OMAP1510-compatible mode, 0 otherwise */
+int omap_dma_in_1510_mode(void)
+{
+	return enable_1510_mode;
+}
+#else
+#define omap_dma_in_1510_mode()		0
+#endif
+
+#ifdef CONFIG_ARCH_OMAP1
 static inline int get_gdma_dev(int req)
 {
 	u32 reg = OMAP_FUNC_MUX_ARM_BASE + ((req - 1) / 5) * 4;
@@ -82,6 +105,9 @@ static inline void set_gdma_dev(int req, int dev)
 	l |= (dev - 1) << shift;
 	omap_writel(l, reg);
 }
+#else
+#define set_gdma_dev(req, dev)	do {} while (0)
+#endif
 
 static void clear_lch_regs(int lch)
 {
@@ -121,38 +147,62 @@ void omap_set_dma_priority(int dst_port, int priority)
 }
 
 void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
-				  int frame_count, int sync_mode)
+				  int frame_count, int sync_mode,
+				  int dma_trigger, int src_or_dst_synch)
 {
-	u16 w;
+	OMAP_DMA_CSDP_REG(lch) &= ~0x03;
+	OMAP_DMA_CSDP_REG(lch) |= data_type;
 
-	w = omap_readw(OMAP_DMA_CSDP(lch));
-	w &= ~0x03;
-	w |= data_type;
-	omap_writew(w, OMAP_DMA_CSDP(lch));
+	if (cpu_class_is_omap1()) {
+		OMAP_DMA_CCR_REG(lch) &= ~(1 << 5);
+		if (sync_mode == OMAP_DMA_SYNC_FRAME)
+			OMAP_DMA_CCR_REG(lch) |= 1 << 5;
 
-	w = omap_readw(OMAP_DMA_CCR(lch));
-	w &= ~(1 << 5);
-	if (sync_mode == OMAP_DMA_SYNC_FRAME)
-		w |= 1 << 5;
-	omap_writew(w, OMAP_DMA_CCR(lch));
+		OMAP1_DMA_CCR2_REG(lch) &= ~(1 << 2);
+		if (sync_mode == OMAP_DMA_SYNC_BLOCK)
+			OMAP1_DMA_CCR2_REG(lch) |= 1 << 2;
+	}
 
-	w = omap_readw(OMAP_DMA_CCR2(lch));
-	w &= ~(1 << 2);
-	if (sync_mode == OMAP_DMA_SYNC_BLOCK)
-		w |= 1 << 2;
-	omap_writew(w, OMAP_DMA_CCR2(lch));
+	if (cpu_is_omap24xx() && dma_trigger) {
+		u32 val = OMAP_DMA_CCR_REG(lch);
 
-	omap_writew(elem_count, OMAP_DMA_CEN(lch));
-	omap_writew(frame_count, OMAP_DMA_CFN(lch));
+		if (dma_trigger > 63)
+			val |= 1 << 20;
+		if (dma_trigger > 31)
+			val |= 1 << 19;
 
+		val |= (dma_trigger & 0x1f);
+
+		if (sync_mode & OMAP_DMA_SYNC_FRAME)
+			val |= 1 << 5;
+
+		if (sync_mode & OMAP_DMA_SYNC_BLOCK)
+			val |= 1 << 18;
+
+		if (src_or_dst_synch)
+			val |= 1 << 24;		/* source synch */
+		else
+			val &= ~(1 << 24);	/* dest synch */
+
+		OMAP_DMA_CCR_REG(lch) = val;
+	}
+
+	OMAP_DMA_CEN_REG(lch) = elem_count;
+	OMAP_DMA_CFN_REG(lch) = frame_count;
 }
+
 void omap_set_dma_color_mode(int lch, enum omap_dma_color_mode mode, u32 color)
 {
 	u16 w;
 
 	BUG_ON(omap_dma_in_1510_mode());
 
-	w = omap_readw(OMAP_DMA_CCR2(lch)) & ~0x03;
+	if (cpu_is_omap24xx()) {
+		REVISIT_24XX();
+		return;
+	}
+
+	w = OMAP1_DMA_CCR2_REG(lch) & ~0x03;
 	switch (mode) {
 	case OMAP_DMA_CONSTANT_FILL:
 		w |= 0x01;
@@ -165,63 +215,84 @@ void omap_set_dma_color_mode(int lch, enum omap_dma_color_mode mode, u32 color)
 	default:
 		BUG();
 	}
-	omap_writew(w, OMAP_DMA_CCR2(lch));
+	OMAP1_DMA_CCR2_REG(lch) = w;
 
-	w = omap_readw(OMAP_DMA_LCH_CTRL(lch)) & ~0x0f;
+	w = OMAP1_DMA_LCH_CTRL_REG(lch) & ~0x0f;
 	/* Default is channel type 2D */
 	if (mode) {
-		omap_writew((u16)color, OMAP_DMA_COLOR_L(lch));
-		omap_writew((u16)(color >> 16), OMAP_DMA_COLOR_U(lch));
+		OMAP1_DMA_COLOR_L_REG(lch) = (u16)color;
+		OMAP1_DMA_COLOR_U_REG(lch) = (u16)(color >> 16);
 		w |= 1;		/* Channel type G */
 	}
-	omap_writew(w, OMAP_DMA_LCH_CTRL(lch));
+	OMAP1_DMA_LCH_CTRL_REG(lch) = w;
 }
 
-
+/* Note that src_port is only for omap1 */
 void omap_set_dma_src_params(int lch, int src_port, int src_amode,
-			     unsigned long src_start)
+			     unsigned long src_start,
+			     int src_ei, int src_fi)
 {
-	u16 w;
+	if (cpu_class_is_omap1()) {
+		OMAP_DMA_CSDP_REG(lch) &= ~(0x1f << 2);
+		OMAP_DMA_CSDP_REG(lch) |= src_port << 2;
+	}
 
-	w = omap_readw(OMAP_DMA_CSDP(lch));
-	w &= ~(0x1f << 2);
-	w |= src_port << 2;
-	omap_writew(w, OMAP_DMA_CSDP(lch));
+	OMAP_DMA_CCR_REG(lch) &= ~(0x03 << 12);
+	OMAP_DMA_CCR_REG(lch) |= src_amode << 12;
 
-	w = omap_readw(OMAP_DMA_CCR(lch));
-	w &= ~(0x03 << 12);
-	w |= src_amode << 12;
-	omap_writew(w, OMAP_DMA_CCR(lch));
+	if (cpu_class_is_omap1()) {
+		OMAP1_DMA_CSSA_U_REG(lch) = src_start >> 16;
+		OMAP1_DMA_CSSA_L_REG(lch) = src_start;
+	}
 
-	omap_writew(src_start >> 16, OMAP_DMA_CSSA_U(lch));
-	omap_writew(src_start, OMAP_DMA_CSSA_L(lch));
+	if (cpu_is_omap24xx())
+		OMAP2_DMA_CSSA_REG(lch) = src_start;
+
+	OMAP_DMA_CSEI_REG(lch) = src_ei;
+	OMAP_DMA_CSFI_REG(lch) = src_fi;
+}
+
+void omap_set_dma_params(int lch, struct omap_dma_channel_params * params)
+{
+	omap_set_dma_transfer_params(lch, params->data_type,
+				     params->elem_count, params->frame_count,
+				     params->sync_mode, params->trigger,
+				     params->src_or_dst_synch);
+	omap_set_dma_src_params(lch, params->src_port,
+				params->src_amode, params->src_start,
+				params->src_ei, params->src_fi);
+
+	omap_set_dma_dest_params(lch, params->dst_port,
+				 params->dst_amode, params->dst_start,
+				 params->dst_ei, params->dst_fi);
 }
 
 void omap_set_dma_src_index(int lch, int eidx, int fidx)
 {
-	omap_writew(eidx, OMAP_DMA_CSEI(lch));
-	omap_writew(fidx, OMAP_DMA_CSFI(lch));
+	if (cpu_is_omap24xx()) {
+		REVISIT_24XX();
+		return;
+	}
+	OMAP_DMA_CSEI_REG(lch) = eidx;
+	OMAP_DMA_CSFI_REG(lch) = fidx;
 }
 
 void omap_set_dma_src_data_pack(int lch, int enable)
 {
-	u16 w;
-
-	w = omap_readw(OMAP_DMA_CSDP(lch)) & ~(1 << 6);
-	w |= enable ? (1 << 6) : 0;
-	omap_writew(w, OMAP_DMA_CSDP(lch));
+	OMAP_DMA_CSDP_REG(lch) &= ~(1 << 6);
+	if (enable)
+		OMAP_DMA_CSDP_REG(lch) |= (1 << 6);
 }
 
 void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 {
-	u16 w;
+	OMAP_DMA_CSDP_REG(lch) &= ~(0x03 << 7);
 
-	w = omap_readw(OMAP_DMA_CSDP(lch)) & ~(0x03 << 7);
 	switch (burst_mode) {
 	case OMAP_DMA_DATA_BURST_DIS:
 		break;
 	case OMAP_DMA_DATA_BURST_4:
-		w |= (0x01 << 7);
+		OMAP_DMA_CSDP_REG(lch) |= (0x02 << 7);
 		break;
 	case OMAP_DMA_DATA_BURST_8:
 		/* not supported by current hardware
@@ -231,175 +302,87 @@ void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 	default:
 		BUG();
 	}
-	omap_writew(w, OMAP_DMA_CSDP(lch));
 }
 
+/* Note that dest_port is only for OMAP1 */
 void omap_set_dma_dest_params(int lch, int dest_port, int dest_amode,
-			      unsigned long dest_start)
+			      unsigned long dest_start,
+			      int dst_ei, int dst_fi)
 {
-	u16 w;
+	if (cpu_class_is_omap1()) {
+		OMAP_DMA_CSDP_REG(lch) &= ~(0x1f << 9);
+		OMAP_DMA_CSDP_REG(lch) |= dest_port << 9;
+	}
 
-	w = omap_readw(OMAP_DMA_CSDP(lch));
-	w &= ~(0x1f << 9);
-	w |= dest_port << 9;
-	omap_writew(w, OMAP_DMA_CSDP(lch));
+	OMAP_DMA_CCR_REG(lch) &= ~(0x03 << 14);
+	OMAP_DMA_CCR_REG(lch) |= dest_amode << 14;
 
-	w = omap_readw(OMAP_DMA_CCR(lch));
-	w &= ~(0x03 << 14);
-	w |= dest_amode << 14;
-	omap_writew(w, OMAP_DMA_CCR(lch));
+	if (cpu_class_is_omap1()) {
+		OMAP1_DMA_CDSA_U_REG(lch) = dest_start >> 16;
+		OMAP1_DMA_CDSA_L_REG(lch) = dest_start;
+	}
 
-	omap_writew(dest_start >> 16, OMAP_DMA_CDSA_U(lch));
-	omap_writew(dest_start, OMAP_DMA_CDSA_L(lch));
+	if (cpu_is_omap24xx())
+		OMAP2_DMA_CDSA_REG(lch) = dest_start;
+
+	OMAP_DMA_CDEI_REG(lch) = dst_ei;
+	OMAP_DMA_CDFI_REG(lch) = dst_fi;
 }
 
 void omap_set_dma_dest_index(int lch, int eidx, int fidx)
 {
-	omap_writew(eidx, OMAP_DMA_CDEI(lch));
-	omap_writew(fidx, OMAP_DMA_CDFI(lch));
+	if (cpu_is_omap24xx()) {
+		REVISIT_24XX();
+		return;
+	}
+	OMAP_DMA_CDEI_REG(lch) = eidx;
+	OMAP_DMA_CDFI_REG(lch) = fidx;
 }
 
 void omap_set_dma_dest_data_pack(int lch, int enable)
 {
-	u16 w;
-
-	w = omap_readw(OMAP_DMA_CSDP(lch)) & ~(1 << 13);
-	w |= enable ? (1 << 13) : 0;
-	omap_writew(w, OMAP_DMA_CSDP(lch));
+	OMAP_DMA_CSDP_REG(lch) &= ~(1 << 13);
+	if (enable)
+		OMAP_DMA_CSDP_REG(lch) |= 1 << 13;
 }
 
 void omap_set_dma_dest_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 {
-	u16 w;
+	OMAP_DMA_CSDP_REG(lch) &= ~(0x03 << 14);
 
-	w = omap_readw(OMAP_DMA_CSDP(lch)) & ~(0x03 << 14);
 	switch (burst_mode) {
 	case OMAP_DMA_DATA_BURST_DIS:
 		break;
 	case OMAP_DMA_DATA_BURST_4:
-		w |= (0x01 << 14);
+		OMAP_DMA_CSDP_REG(lch) |= (0x02 << 14);
 		break;
 	case OMAP_DMA_DATA_BURST_8:
-		w |= (0x03 << 14);
+		OMAP_DMA_CSDP_REG(lch) |= (0x03 << 14);
 		break;
 	default:
 		printk(KERN_ERR "Invalid DMA burst mode\n");
 		BUG();
 		return;
 	}
-	omap_writew(w, OMAP_DMA_CSDP(lch));
 }
 
-static inline void init_intr(int lch)
+static inline void omap_enable_channel_irq(int lch)
 {
-	u16 w;
+	u32 status;
 
 	/* Read CSR to make sure it's cleared. */
-	w = omap_readw(OMAP_DMA_CSR(lch));
+	status = OMAP_DMA_CSR_REG(lch);
+
 	/* Enable some nice interrupts. */
-	omap_writew(dma_chan[lch].enabled_irqs, OMAP_DMA_CICR(lch));
+	OMAP_DMA_CICR_REG(lch) = dma_chan[lch].enabled_irqs;
+
 	dma_chan[lch].flags |= OMAP_DMA_ACTIVE;
 }
 
-static inline void enable_lnk(int lch)
+static void omap_disable_channel_irq(int lch)
 {
-	u16 w;
-
-	/* Clear the STOP_LNK bits */
-	w = omap_readw(OMAP_DMA_CLNK_CTRL(lch));
-	w &= ~(1 << 14);
-	omap_writew(w, OMAP_DMA_CLNK_CTRL(lch));
-
-	/* And set the ENABLE_LNK bits */
-	if (dma_chan[lch].next_lch != -1)
-		omap_writew(dma_chan[lch].next_lch | (1 << 15),
-			    OMAP_DMA_CLNK_CTRL(lch));
-}
-
-static inline void disable_lnk(int lch)
-{
-	u16 w;
-
-	/* Disable interrupts */
-	omap_writew(0, OMAP_DMA_CICR(lch));
-
-	/* Set the STOP_LNK bit */
-	w = omap_readw(OMAP_DMA_CLNK_CTRL(lch));
-	w |= (1 << 14);
-	w = omap_writew(w, OMAP_DMA_CLNK_CTRL(lch));
-
-	dma_chan[lch].flags &= ~OMAP_DMA_ACTIVE;
-}
-
-void omap_start_dma(int lch)
-{
-	u16 w;
-
-	if (!omap_dma_in_1510_mode() && dma_chan[lch].next_lch != -1) {
-		int next_lch, cur_lch;
-		char dma_chan_link_map[OMAP_LOGICAL_DMA_CH_COUNT];
-
-		dma_chan_link_map[lch] = 1;
-		/* Set the link register of the first channel */
-		enable_lnk(lch);
-
-		memset(dma_chan_link_map, 0, sizeof(dma_chan_link_map));
-		cur_lch = dma_chan[lch].next_lch;
-		do {
-			next_lch = dma_chan[cur_lch].next_lch;
-
-                        /* The loop case: we've been here already */
-			if (dma_chan_link_map[cur_lch])
-				break;
-			/* Mark the current channel */
-			dma_chan_link_map[cur_lch] = 1;
-
-			enable_lnk(cur_lch);
-			init_intr(cur_lch);
-
-			cur_lch = next_lch;
-		} while (next_lch != -1);
-	}
-
-	init_intr(lch);
-
-	w = omap_readw(OMAP_DMA_CCR(lch));
-	w |= OMAP_DMA_CCR_EN;
-	omap_writew(w, OMAP_DMA_CCR(lch));
-	dma_chan[lch].flags |= OMAP_DMA_ACTIVE;
-}
-
-void omap_stop_dma(int lch)
-{
-	u16 w;
-
-	if (!omap_dma_in_1510_mode() && dma_chan[lch].next_lch != -1) {
-		int next_lch, cur_lch = lch;
-		char dma_chan_link_map[OMAP_LOGICAL_DMA_CH_COUNT];
-
-		memset(dma_chan_link_map, 0, sizeof(dma_chan_link_map));
-		do {
-			/* The loop case: we've been here already */
-			if (dma_chan_link_map[cur_lch])
-				break;
-			/* Mark the current channel */
-			dma_chan_link_map[cur_lch] = 1;
-
-			disable_lnk(cur_lch);
-
-			next_lch = dma_chan[cur_lch].next_lch;
-			cur_lch = next_lch;
-		} while (next_lch != -1);
-
-		return;
-	}
-	/* Disable all interrupts on the channel */
-	omap_writew(0, OMAP_DMA_CICR(lch));
-
-	w = omap_readw(OMAP_DMA_CCR(lch));
-	w &= ~OMAP_DMA_CCR_EN;
-	omap_writew(w, OMAP_DMA_CCR(lch));
-	dma_chan[lch].flags &= ~OMAP_DMA_ACTIVE;
+	if (cpu_is_omap24xx())
+		OMAP_DMA_CICR_REG(lch) = 0;
 }
 
 void omap_enable_dma_irq(int lch, u16 bits)
@@ -412,55 +395,45 @@ void omap_disable_dma_irq(int lch, u16 bits)
 	dma_chan[lch].enabled_irqs &= ~bits;
 }
 
-static int dma_handle_ch(int ch)
+static inline void enable_lnk(int lch)
 {
-	u16 csr;
+	if (cpu_class_is_omap1())
+		OMAP_DMA_CLNK_CTRL_REG(lch) &= ~(1 << 14);
 
-	if (enable_1510_mode && ch >= 6) {
-		csr = dma_chan[ch].saved_csr;
-		dma_chan[ch].saved_csr = 0;
-	} else
-		csr = omap_readw(OMAP_DMA_CSR(ch));
-	if (enable_1510_mode && ch <= 2 && (csr >> 7) != 0) {
-		dma_chan[ch + 6].saved_csr = csr >> 7;
-		csr &= 0x7f;
-	}
-	if ((csr & 0x3f) == 0)
-		return 0;
-	if (unlikely(dma_chan[ch].dev_id == -1)) {
-		printk(KERN_WARNING "Spurious interrupt from DMA channel %d (CSR %04x)\n",
-		       ch, csr);
-		return 0;
-	}
-	if (unlikely(csr & OMAP_DMA_TOUT_IRQ))
-		printk(KERN_WARNING "DMA timeout with device %d\n", dma_chan[ch].dev_id);
-	if (unlikely(csr & OMAP_DMA_DROP_IRQ))
-		printk(KERN_WARNING "DMA synchronization event drop occurred with device %d\n",
-		       dma_chan[ch].dev_id);
-	if (likely(csr & OMAP_DMA_BLOCK_IRQ))
-		dma_chan[ch].flags &= ~OMAP_DMA_ACTIVE;
-	if (likely(dma_chan[ch].callback != NULL))
-		dma_chan[ch].callback(ch, csr, dma_chan[ch].data);
-	return 1;
+	/* Set the ENABLE_LNK bits */
+	if (dma_chan[lch].next_lch != -1)
+		OMAP_DMA_CLNK_CTRL_REG(lch) =
+			dma_chan[lch].next_lch | (1 << 15);
 }
 
-static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static inline void disable_lnk(int lch)
 {
-	int ch = ((int) dev_id) - 1;
-	int handled = 0;
-
-	for (;;) {
-		int handled_now = 0;
-
-		handled_now += dma_handle_ch(ch);
-		if (enable_1510_mode && dma_chan[ch + 6].saved_csr)
-			handled_now += dma_handle_ch(ch + 6);
-		if (!handled_now)
-			break;
-		handled += handled_now;
+	/* Disable interrupts */
+	if (cpu_class_is_omap1()) {
+		OMAP_DMA_CICR_REG(lch) = 0;
+		/* Set the STOP_LNK bit */
+		OMAP_DMA_CLNK_CTRL_REG(lch) |= 1 << 14;
 	}
 
-	return handled ? IRQ_HANDLED : IRQ_NONE;
+	if (cpu_is_omap24xx()) {
+		omap_disable_channel_irq(lch);
+		/* Clear the ENABLE_LNK bit */
+		OMAP_DMA_CLNK_CTRL_REG(lch) &= ~(1 << 15);
+	}
+
+	dma_chan[lch].flags &= ~OMAP_DMA_ACTIVE;
+}
+
+static inline void omap2_enable_irq_lch(int lch)
+{
+	u32 val;
+
+	if (!cpu_is_omap24xx())
+		return;
+
+	val = omap_readl(OMAP_DMA4_IRQENABLE_L0);
+	val |= 1 << lch;
+	omap_writel(val, OMAP_DMA4_IRQENABLE_L0);
 }
 
 int omap_request_dma(int dev_id, const char *dev_name,
@@ -485,14 +458,23 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	}
 	chan = dma_chan + free_ch;
 	chan->dev_id = dev_id;
-	clear_lch_regs(free_ch);
+
+	if (cpu_class_is_omap1())
+		clear_lch_regs(free_ch);
+
+	if (cpu_is_omap24xx())
+		omap_clear_dma(free_ch);
+
 	spin_unlock_irqrestore(&dma_chan_lock, flags);
 
-	chan->dev_id = dev_id;
 	chan->dev_name = dev_name;
 	chan->callback = callback;
 	chan->data = data;
-	chan->enabled_irqs = OMAP_DMA_TOUT_IRQ | OMAP_DMA_DROP_IRQ | OMAP_DMA_BLOCK_IRQ;
+	chan->enabled_irqs = OMAP_DMA_TOUT_IRQ | OMAP_DMA_DROP_IRQ |
+				OMAP_DMA_BLOCK_IRQ;
+
+	if (cpu_is_omap24xx())
+		chan->enabled_irqs |= OMAP2_DMA_TRANS_ERR_IRQ;
 
 	if (cpu_is_omap16xx()) {
 		/* If the sync device is set, configure it dynamically. */
@@ -502,37 +484,242 @@ int omap_request_dma(int dev_id, const char *dev_name,
 		}
 		/* Disable the 1510 compatibility mode and set the sync device
 		 * id. */
-		omap_writew(dev_id | (1 << 10), OMAP_DMA_CCR(free_ch));
-	} else {
-		omap_writew(dev_id, OMAP_DMA_CCR(free_ch));
+		OMAP_DMA_CCR_REG(free_ch) = dev_id | (1 << 10);
+	} else if (cpu_is_omap730() || cpu_is_omap15xx()) {
+		OMAP_DMA_CCR_REG(free_ch) = dev_id;
 	}
+
+	if (cpu_is_omap24xx()) {
+		omap2_enable_irq_lch(free_ch);
+
+		omap_enable_channel_irq(free_ch);
+		/* Clear the CSR register and IRQ status register */
+		OMAP_DMA_CSR_REG(free_ch) = 0x0;
+		omap_writel(~0x0, OMAP_DMA4_IRQSTATUS_L0);
+	}
+
 	*dma_ch_out = free_ch;
 
 	return 0;
 }
 
-void omap_free_dma(int ch)
+void omap_free_dma(int lch)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&dma_chan_lock, flags);
-	if (dma_chan[ch].dev_id == -1) {
-		printk("omap_dma: trying to free nonallocated DMA channel %d\n", ch);
+	if (dma_chan[lch].dev_id == -1) {
+		printk("omap_dma: trying to free nonallocated DMA channel %d\n",
+		       lch);
 		spin_unlock_irqrestore(&dma_chan_lock, flags);
 		return;
 	}
-	dma_chan[ch].dev_id = -1;
+	dma_chan[lch].dev_id = -1;
+	dma_chan[lch].next_lch = -1;
+	dma_chan[lch].callback = NULL;
 	spin_unlock_irqrestore(&dma_chan_lock, flags);
 
-	/* Disable all DMA interrupts for the channel. */
-	omap_writew(0, OMAP_DMA_CICR(ch));
-	/* Make sure the DMA transfer is stopped. */
-	omap_writew(0, OMAP_DMA_CCR(ch));
+	if (cpu_class_is_omap1()) {
+		/* Disable all DMA interrupts for the channel. */
+		OMAP_DMA_CICR_REG(lch) = 0;
+		/* Make sure the DMA transfer is stopped. */
+		OMAP_DMA_CCR_REG(lch) = 0;
+	}
+
+	if (cpu_is_omap24xx()) {
+		u32 val;
+		/* Disable interrupts */
+		val = omap_readl(OMAP_DMA4_IRQENABLE_L0);
+		val &= ~(1 << lch);
+		omap_writel(val, OMAP_DMA4_IRQENABLE_L0);
+
+		/* Clear the CSR register and IRQ status register */
+		OMAP_DMA_CSR_REG(lch) = 0x0;
+
+		val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
+		val |= 1 << lch;
+		omap_writel(val, OMAP_DMA4_IRQSTATUS_L0);
+
+		/* Disable all DMA interrupts for the channel. */
+		OMAP_DMA_CICR_REG(lch) = 0;
+
+		/* Make sure the DMA transfer is stopped. */
+		OMAP_DMA_CCR_REG(lch) = 0;
+		omap_clear_dma(lch);
+	}
 }
 
-int omap_dma_in_1510_mode(void)
+/*
+ * Clears any DMA state so the DMA engine is ready to restart with new buffers
+ * through omap_start_dma(). Any buffers in flight are discarded.
+ */
+void omap_clear_dma(int lch)
 {
-	return enable_1510_mode;
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	if (cpu_class_is_omap1()) {
+		int status;
+		OMAP_DMA_CCR_REG(lch) &= ~OMAP_DMA_CCR_EN;
+
+		/* Clear pending interrupts */
+		status = OMAP_DMA_CSR_REG(lch);
+	}
+
+	if (cpu_is_omap24xx()) {
+		int i;
+		u32 lch_base = OMAP24XX_DMA_BASE + lch * 0x60 + 0x80;
+		for (i = 0; i < 0x44; i += 4)
+			omap_writel(0, lch_base + i);
+	}
+
+	local_irq_restore(flags);
+}
+
+void omap_start_dma(int lch)
+{
+	if (!omap_dma_in_1510_mode() && dma_chan[lch].next_lch != -1) {
+		int next_lch, cur_lch;
+		char dma_chan_link_map[OMAP_LOGICAL_DMA_CH_COUNT];
+
+		dma_chan_link_map[lch] = 1;
+		/* Set the link register of the first channel */
+		enable_lnk(lch);
+
+		memset(dma_chan_link_map, 0, sizeof(dma_chan_link_map));
+		cur_lch = dma_chan[lch].next_lch;
+		do {
+			next_lch = dma_chan[cur_lch].next_lch;
+
+			/* The loop case: we've been here already */
+			if (dma_chan_link_map[cur_lch])
+				break;
+			/* Mark the current channel */
+			dma_chan_link_map[cur_lch] = 1;
+
+			enable_lnk(cur_lch);
+			omap_enable_channel_irq(cur_lch);
+
+			cur_lch = next_lch;
+		} while (next_lch != -1);
+	} else if (cpu_is_omap24xx()) {
+		/* Errata: Need to write lch even if not using chaining */
+		OMAP_DMA_CLNK_CTRL_REG(lch) = lch;
+	}
+
+	omap_enable_channel_irq(lch);
+
+	/* Errata: On ES2.0 BUFFERING disable must be set.
+	 * This will always fail on ES1.0 */
+	if (cpu_is_omap24xx()) {
+		OMAP_DMA_CCR_REG(lch) |= OMAP_DMA_CCR_EN;
+	}
+
+	OMAP_DMA_CCR_REG(lch) |= OMAP_DMA_CCR_EN;
+
+	dma_chan[lch].flags |= OMAP_DMA_ACTIVE;
+}
+
+void omap_stop_dma(int lch)
+{
+	if (!omap_dma_in_1510_mode() && dma_chan[lch].next_lch != -1) {
+		int next_lch, cur_lch = lch;
+		char dma_chan_link_map[OMAP_LOGICAL_DMA_CH_COUNT];
+
+		memset(dma_chan_link_map, 0, sizeof(dma_chan_link_map));
+		do {
+			/* The loop case: we've been here already */
+			if (dma_chan_link_map[cur_lch])
+				break;
+			/* Mark the current channel */
+			dma_chan_link_map[cur_lch] = 1;
+
+			disable_lnk(cur_lch);
+
+			next_lch = dma_chan[cur_lch].next_lch;
+			cur_lch = next_lch;
+		} while (next_lch != -1);
+
+		return;
+	}
+
+	/* Disable all interrupts on the channel */
+	if (cpu_class_is_omap1())
+		OMAP_DMA_CICR_REG(lch) = 0;
+
+	OMAP_DMA_CCR_REG(lch) &= ~OMAP_DMA_CCR_EN;
+	dma_chan[lch].flags &= ~OMAP_DMA_ACTIVE;
+}
+
+/*
+ * Returns current physical source address for the given DMA channel.
+ * If the channel is running the caller must disable interrupts prior calling
+ * this function and process the returned value before re-enabling interrupt to
+ * prevent races with the interrupt handler. Note that in continuous mode there
+ * is a chance for CSSA_L register overflow inbetween the two reads resulting
+ * in incorrect return value.
+ */
+dma_addr_t omap_get_dma_src_pos(int lch)
+{
+	dma_addr_t offset;
+
+	if (cpu_class_is_omap1())
+		offset = (dma_addr_t) (OMAP1_DMA_CSSA_L_REG(lch) |
+				       (OMAP1_DMA_CSSA_U_REG(lch) << 16));
+
+	if (cpu_is_omap24xx())
+		offset = OMAP_DMA_CSAC_REG(lch);
+
+	return offset;
+}
+
+/*
+ * Returns current physical destination address for the given DMA channel.
+ * If the channel is running the caller must disable interrupts prior calling
+ * this function and process the returned value before re-enabling interrupt to
+ * prevent races with the interrupt handler. Note that in continuous mode there
+ * is a chance for CDSA_L register overflow inbetween the two reads resulting
+ * in incorrect return value.
+ */
+dma_addr_t omap_get_dma_dst_pos(int lch)
+{
+	dma_addr_t offset;
+
+	if (cpu_class_is_omap1())
+		offset = (dma_addr_t) (OMAP1_DMA_CDSA_L_REG(lch) |
+				       (OMAP1_DMA_CDSA_U_REG(lch) << 16));
+
+	if (cpu_is_omap24xx())
+		offset = OMAP2_DMA_CDSA_REG(lch);
+
+	return offset;
+}
+
+/*
+ * Returns current source transfer counting for the given DMA channel.
+ * Can be used to monitor the progress of a transfer inside a block.
+ * It must be called with disabled interrupts.
+ */
+int omap_get_dma_src_addr_counter(int lch)
+{
+	return (dma_addr_t) OMAP_DMA_CSAC_REG(lch);
+}
+
+int omap_dma_running(void)
+{
+	int lch;
+
+	/* Check if LCD DMA is running */
+	if (cpu_is_omap16xx())
+		if (omap_readw(OMAP1610_DMA_LCD_CCR) & OMAP_DMA_CCR_EN)
+			return 1;
+
+	for (lch = 0; lch < dma_chan_count; lch++)
+		if (OMAP_DMA_CCR_REG(lch) & OMAP_DMA_CCR_EN)
+			return 1;
+
+	return 0;
 }
 
 /*
@@ -550,7 +737,8 @@ void omap_dma_link_lch (int lch_head, int lch_queue)
 
 	if ((dma_chan[lch_head].dev_id == -1) ||
 	    (dma_chan[lch_queue].dev_id == -1)) {
-		printk(KERN_ERR "omap_dma: trying to link non requested channels\n");
+		printk(KERN_ERR "omap_dma: trying to link "
+		       "non requested channels\n");
 		dump_stack();
 	}
 
@@ -570,20 +758,149 @@ void omap_dma_unlink_lch (int lch_head, int lch_queue)
 
 	if (dma_chan[lch_head].next_lch != lch_queue ||
 	    dma_chan[lch_head].next_lch == -1) {
-		printk(KERN_ERR "omap_dma: trying to unlink non linked channels\n");
+		printk(KERN_ERR "omap_dma: trying to unlink "
+		       "non linked channels\n");
 		dump_stack();
 	}
 
 
 	if ((dma_chan[lch_head].flags & OMAP_DMA_ACTIVE) ||
 	    (dma_chan[lch_head].flags & OMAP_DMA_ACTIVE)) {
-		printk(KERN_ERR "omap_dma: You need to stop the DMA channels before unlinking\n");
+		printk(KERN_ERR "omap_dma: You need to stop the DMA channels "
+		       "before unlinking\n");
 		dump_stack();
 	}
 
 	dma_chan[lch_head].next_lch = -1;
 }
 
+/*----------------------------------------------------------------------------*/
+
+#ifdef CONFIG_ARCH_OMAP1
+
+static int omap1_dma_handle_ch(int ch)
+{
+	u16 csr;
+
+	if (enable_1510_mode && ch >= 6) {
+		csr = dma_chan[ch].saved_csr;
+		dma_chan[ch].saved_csr = 0;
+	} else
+		csr = OMAP_DMA_CSR_REG(ch);
+	if (enable_1510_mode && ch <= 2 && (csr >> 7) != 0) {
+		dma_chan[ch + 6].saved_csr = csr >> 7;
+		csr &= 0x7f;
+	}
+	if ((csr & 0x3f) == 0)
+		return 0;
+	if (unlikely(dma_chan[ch].dev_id == -1)) {
+		printk(KERN_WARNING "Spurious interrupt from DMA channel "
+		       "%d (CSR %04x)\n", ch, csr);
+		return 0;
+	}
+	if (unlikely(csr & OMAP_DMA_TOUT_IRQ))
+		printk(KERN_WARNING "DMA timeout with device %d\n",
+		       dma_chan[ch].dev_id);
+	if (unlikely(csr & OMAP_DMA_DROP_IRQ))
+		printk(KERN_WARNING "DMA synchronization event drop occurred "
+		       "with device %d\n", dma_chan[ch].dev_id);
+	if (likely(csr & OMAP_DMA_BLOCK_IRQ))
+		dma_chan[ch].flags &= ~OMAP_DMA_ACTIVE;
+	if (likely(dma_chan[ch].callback != NULL))
+		dma_chan[ch].callback(ch, csr, dma_chan[ch].data);
+	return 1;
+}
+
+static irqreturn_t omap1_dma_irq_handler(int irq, void *dev_id,
+					 struct pt_regs *regs)
+{
+	int ch = ((int) dev_id) - 1;
+	int handled = 0;
+
+	for (;;) {
+		int handled_now = 0;
+
+		handled_now += omap1_dma_handle_ch(ch);
+		if (enable_1510_mode && dma_chan[ch + 6].saved_csr)
+			handled_now += omap1_dma_handle_ch(ch + 6);
+		if (!handled_now)
+			break;
+		handled += handled_now;
+	}
+
+	return handled ? IRQ_HANDLED : IRQ_NONE;
+}
+
+#else
+#define omap1_dma_irq_handler	NULL
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2
+
+static int omap2_dma_handle_ch(int ch)
+{
+	u32 status = OMAP_DMA_CSR_REG(ch);
+	u32 val;
+
+	if (!status)
+		return 0;
+	if (unlikely(dma_chan[ch].dev_id == -1))
+		return 0;
+	/* REVISIT: According to 24xx TRM, there's no TOUT_IE */
+	if (unlikely(status & OMAP_DMA_TOUT_IRQ))
+		printk(KERN_INFO "DMA timeout with device %d\n",
+		       dma_chan[ch].dev_id);
+	if (unlikely(status & OMAP_DMA_DROP_IRQ))
+		printk(KERN_INFO
+		       "DMA synchronization event drop occurred with device "
+		       "%d\n", dma_chan[ch].dev_id);
+
+	if (unlikely(status & OMAP2_DMA_TRANS_ERR_IRQ))
+		printk(KERN_INFO "DMA transaction error with device %d\n",
+		       dma_chan[ch].dev_id);
+
+	OMAP_DMA_CSR_REG(ch) = 0x20;
+
+	val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
+	/* ch in this function is from 0-31 while in register it is 1-32 */
+	val = 1 << (ch);
+	omap_writel(val, OMAP_DMA4_IRQSTATUS_L0);
+
+	if (likely(dma_chan[ch].callback != NULL))
+		dma_chan[ch].callback(ch, status, dma_chan[ch].data);
+
+	return 0;
+}
+
+/* STATUS register count is from 1-32 while our is 0-31 */
+static irqreturn_t omap2_dma_irq_handler(int irq, void *dev_id,
+					 struct pt_regs *regs)
+{
+	u32 val;
+	int i;
+
+	val = omap_readl(OMAP_DMA4_IRQSTATUS_L0);
+
+	for (i = 1; i <= OMAP_LOGICAL_DMA_CH_COUNT; i++) {
+		int active = val & (1 << (i - 1));
+		if (active)
+			omap2_dma_handle_ch(i - 1);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction omap24xx_dma_irq = {
+	.name = "DMA",
+	.handler = omap2_dma_irq_handler,
+	.flags = SA_INTERRUPT
+};
+
+#else
+static struct irqaction omap24xx_dma_irq;
+#endif
+
+/*----------------------------------------------------------------------------*/
 
 static struct lcd_dma_info {
 	spinlock_t lock;
@@ -795,7 +1112,7 @@ static void set_b1_regs(void)
 	/* Always set the source port as SDRAM for now*/
 	w &= ~(0x03 << 6);
 	if (lcd_dma.callback != NULL)
-		w |= 1 << 1;            /* Block interrupt enable */
+		w |= 1 << 1;		/* Block interrupt enable */
 	else
 		w &= ~(1 << 1);
 	omap_writew(w, OMAP1610_DMA_LCD_CTRL);
@@ -814,7 +1131,8 @@ static void set_b1_regs(void)
 	omap_writew(fi, OMAP1610_DMA_LCD_SRC_FI_B1_L);
 }
 
-static irqreturn_t lcd_dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t lcd_dma_irq_handler(int irq, void *dev_id,
+				       struct pt_regs *regs)
 {
 	u16 w;
 
@@ -870,7 +1188,8 @@ void omap_free_lcd_dma(void)
 		return;
 	}
 	if (!enable_1510_mode)
-		omap_writew(omap_readw(OMAP1610_DMA_LCD_CCR) & ~1, OMAP1610_DMA_LCD_CCR);
+		omap_writew(omap_readw(OMAP1610_DMA_LCD_CCR) & ~1,
+			    OMAP1610_DMA_LCD_CCR);
 	lcd_dma.reserved = 0;
 	spin_unlock(&lcd_dma.lock);
 }
@@ -939,93 +1258,24 @@ void omap_stop_lcd_dma(void)
 	omap_writew(w, OMAP1610_DMA_LCD_CTRL);
 }
 
-/*
- * Clears any DMA state so the DMA engine is ready to restart with new buffers
- * through omap_start_dma(). Any buffers in flight are discarded.
- */
-void omap_clear_dma(int lch)
-{
-	unsigned long flags;
-	int status;
-
-	local_irq_save(flags);
-	omap_writew(omap_readw(OMAP_DMA_CCR(lch)) & ~OMAP_DMA_CCR_EN,
-		    OMAP_DMA_CCR(lch));
-	status = OMAP_DMA_CSR(lch);	/* clear pending interrupts */
-	local_irq_restore(flags);
-}
-
-/*
- * Returns current physical source address for the given DMA channel.
- * If the channel is running the caller must disable interrupts prior calling
- * this function and process the returned value before re-enabling interrupt to
- * prevent races with the interrupt handler. Note that in continuous mode there
- * is a chance for CSSA_L register overflow inbetween the two reads resulting
- * in incorrect return value.
- */
-dma_addr_t omap_get_dma_src_pos(int lch)
-{
-	return (dma_addr_t) (omap_readw(OMAP_DMA_CSSA_L(lch)) |
-	(omap_readw(OMAP_DMA_CSSA_U(lch)) << 16));
-}
-
-/*
- * Returns current physical destination address for the given DMA channel.
- * If the channel is running the caller must disable interrupts prior calling
- * this function and process the returned value before re-enabling interrupt to
- * prevent races with the interrupt handler. Note that in continuous mode there
- * is a chance for CDSA_L register overflow inbetween the two reads resulting
- * in incorrect return value.
- */
-dma_addr_t omap_get_dma_dst_pos(int lch)
-{
-	return (dma_addr_t) (omap_readw(OMAP_DMA_CDSA_L(lch)) |
-	(omap_readw(OMAP_DMA_CDSA_U(lch)) << 16));
-}
-
-/*
- * Returns current source transfer counting for the given DMA channel.
- * Can be used to monitor the progress of a transfer inside a  block.
- * It must be called with disabled interrupts.
- */
-int omap_get_dma_src_addr_counter(int lch)
-{
-	return (dma_addr_t) omap_readw(OMAP_DMA_CSAC(lch));
-}
-
-int omap_dma_running(void)
-{
-	int lch;
-
-	/* Check if LCD DMA is running */
-	if (cpu_is_omap16xx())
-		if (omap_readw(OMAP1610_DMA_LCD_CCR) & OMAP_DMA_CCR_EN)
-			return 1;
-
-	for (lch = 0; lch < dma_chan_count; lch++) {
-		u16 w;
-
-		w = omap_readw(OMAP_DMA_CCR(lch));
-		if (w & OMAP_DMA_CCR_EN)
-			return 1;
-	}
-	return 0;
-}
+/*----------------------------------------------------------------------------*/
 
 static int __init omap_init_dma(void)
 {
 	int ch, r;
 
-	if (cpu_is_omap1510()) {
-		printk(KERN_INFO "DMA support for OMAP1510 initialized\n");
+	if (cpu_is_omap15xx()) {
+		printk(KERN_INFO "DMA support for OMAP15xx initialized\n");
 		dma_chan_count = 9;
 		enable_1510_mode = 1;
 	} else if (cpu_is_omap16xx() || cpu_is_omap730()) {
 		printk(KERN_INFO "OMAP DMA hardware version %d\n",
 		       omap_readw(OMAP_DMA_HW_ID));
 		printk(KERN_INFO "DMA capabilities: %08x:%08x:%04x:%04x:%04x\n",
-		       (omap_readw(OMAP_DMA_CAPS_0_U) << 16) | omap_readw(OMAP_DMA_CAPS_0_L),
-		       (omap_readw(OMAP_DMA_CAPS_1_U) << 16) | omap_readw(OMAP_DMA_CAPS_1_L),
+		       (omap_readw(OMAP_DMA_CAPS_0_U) << 16) |
+		       omap_readw(OMAP_DMA_CAPS_0_L),
+		       (omap_readw(OMAP_DMA_CAPS_1_U) << 16) |
+		       omap_readw(OMAP_DMA_CAPS_1_L),
 		       omap_readw(OMAP_DMA_CAPS_2), omap_readw(OMAP_DMA_CAPS_3),
 		       omap_readw(OMAP_DMA_CAPS_4));
 		if (!enable_1510_mode) {
@@ -1038,6 +1288,11 @@ static int __init omap_init_dma(void)
 			dma_chan_count = 16;
 		} else
 			dma_chan_count = 9;
+	} else if (cpu_is_omap24xx()) {
+		u8 revision = omap_readb(OMAP_DMA4_REVISION);
+		printk(KERN_INFO "OMAP DMA hardware revision %d.%d\n",
+		       revision >> 4, revision & 0xf);
+		dma_chan_count = OMAP_LOGICAL_DMA_CH_COUNT;
 	} else {
 		dma_chan_count = 0;
 		return 0;
@@ -1049,40 +1304,55 @@ static int __init omap_init_dma(void)
 	memset(&dma_chan, 0, sizeof(dma_chan));
 
 	for (ch = 0; ch < dma_chan_count; ch++) {
+		omap_clear_dma(ch);
 		dma_chan[ch].dev_id = -1;
 		dma_chan[ch].next_lch = -1;
 
 		if (ch >= 6 && enable_1510_mode)
 			continue;
 
-		/* request_irq() doesn't like dev_id (ie. ch) being zero,
-		 * so we have to kludge around this. */
-		r = request_irq(dma_irq[ch], dma_irq_handler, 0, "DMA",
-				(void *) (ch + 1));
+		if (cpu_class_is_omap1()) {
+			/* request_irq() doesn't like dev_id (ie. ch) being
+			 * zero, so we have to kludge around this. */
+			r = request_irq(omap1_dma_irq[ch],
+					omap1_dma_irq_handler, 0, "DMA",
+					(void *) (ch + 1));
+			if (r != 0) {
+				int i;
+
+				printk(KERN_ERR "unable to request IRQ %d "
+				       "for DMA (error %d)\n",
+				       omap1_dma_irq[ch], r);
+				for (i = 0; i < ch; i++)
+					free_irq(omap1_dma_irq[i],
+						 (void *) (i + 1));
+				return r;
+			}
+		}
+	}
+
+	if (cpu_is_omap24xx())
+		setup_irq(INT_24XX_SDMA_IRQ0, &omap24xx_dma_irq);
+
+	/* FIXME: Update LCD DMA to work on 24xx */
+	if (cpu_class_is_omap1()) {
+		r = request_irq(INT_DMA_LCD, lcd_dma_irq_handler, 0,
+				"LCD DMA", NULL);
 		if (r != 0) {
 			int i;
 
-			printk(KERN_ERR "unable to request IRQ %d for DMA (error %d)\n",
-			       dma_irq[ch], r);
-			for (i = 0; i < ch; i++)
-				free_irq(dma_irq[i], (void *) (i + 1));
+			printk(KERN_ERR "unable to request IRQ for LCD DMA "
+			       "(error %d)\n", r);
+			for (i = 0; i < dma_chan_count; i++)
+				free_irq(omap1_dma_irq[i], (void *) (i + 1));
 			return r;
 		}
 	}
-	r = request_irq(INT_DMA_LCD, lcd_dma_irq_handler, 0, "LCD DMA", NULL);
-	if (r != 0) {
-		int i;
 
-		printk(KERN_ERR "unable to request IRQ for LCD DMA (error %d)\n", r);
-		for (i = 0; i < dma_chan_count; i++)
-			free_irq(dma_irq[i], (void *) (i + 1));
-		return r;
-	}
 	return 0;
 }
 
 arch_initcall(omap_init_dma);
-
 
 EXPORT_SYMBOL(omap_get_dma_src_pos);
 EXPORT_SYMBOL(omap_get_dma_dst_pos);
@@ -1108,6 +1378,8 @@ EXPORT_SYMBOL(omap_set_dma_dest_params);
 EXPORT_SYMBOL(omap_set_dma_dest_index);
 EXPORT_SYMBOL(omap_set_dma_dest_data_pack);
 EXPORT_SYMBOL(omap_set_dma_dest_burst_mode);
+
+EXPORT_SYMBOL(omap_set_dma_params);
 
 EXPORT_SYMBOL(omap_dma_link_lch);
 EXPORT_SYMBOL(omap_dma_unlink_lch);

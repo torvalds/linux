@@ -20,6 +20,8 @@
  *
  */
 
+#undef DEBUG
+
 #include <linux/config.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -62,7 +64,14 @@
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 #include <asm/vdso.h>
-#include <asm/imalloc.h>
+
+#include "mmu_decl.h"
+
+#ifdef DEBUG
+#define DBG(fmt...) printk(fmt)
+#else
+#define DBG(fmt...)
+#endif
 
 #if PGTABLE_RANGE > USER_VSID_RANGE
 #warning Limited user VSID range means pagetable space is wasted
@@ -71,8 +80,6 @@
 #if (TASK_SIZE_USER64 < PGTABLE_RANGE) && (TASK_SIZE_USER64 < USER_VSID_RANGE)
 #warning TASK_SIZE is smaller than it needs to be.
 #endif
-
-unsigned long klimit = (unsigned long)_end;
 
 /* max amount of RAM to use */
 unsigned long __max_memory;
@@ -188,14 +195,14 @@ static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
 }
 
 #ifdef CONFIG_PPC_64K_PAGES
-static const int pgtable_cache_size[2] = {
-	PTE_TABLE_SIZE, PGD_TABLE_SIZE
+static const unsigned int pgtable_cache_size[3] = {
+	PTE_TABLE_SIZE, PMD_TABLE_SIZE, PGD_TABLE_SIZE
 };
 static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
-	"pte_pmd_cache", "pgd_cache",
+	"pte_pmd_cache", "pmd_cache", "pgd_cache",
 };
 #else
-static const int pgtable_cache_size[2] = {
+static const unsigned int pgtable_cache_size[2] = {
 	PTE_TABLE_SIZE, PMD_TABLE_SIZE
 };
 static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
@@ -213,6 +220,8 @@ void pgtable_cache_init(void)
 		int size = pgtable_cache_size[i];
 		const char *name = pgtable_cache_name[i];
 
+		DBG("Allocating page table cache %s (#%d) "
+		    "for size: %08x...\n", name, i, size);
 		pgtable_cache[i] = kmem_cache_create(name,
 						     size, size,
 						     SLAB_HWCACHE_ALIGN |

@@ -1091,5 +1091,7 @@ typedef struct im_idma {
 #define CPM_IMMR_OFFSET	0x101a8
 #endif
 
+#define FCC_PSMR_RMII	((uint)0x00020000)	/* Use RMII interface */
+
 #endif /* __CPM2__ */
 #endif /* __KERNEL__ */

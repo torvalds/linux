@@ -37,8 +37,6 @@
 #include "hid.h"
 #include "pid.h"
 
-#define DEBUG
-
 #define CHECK_OWNERSHIP(i, hid_pid)	\
 	((i) < FF_EFFECTS_MAX && i >= 0 && \
 	test_bit(FF_PID_FLAGS_USED, &hid_pid->effects[(i)].flags) && \

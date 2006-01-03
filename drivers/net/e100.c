@@ -156,7 +156,7 @@
 
 #define DRV_NAME		"e100"
 #define DRV_EXT		"-NAPI"
-#define DRV_VERSION		"3.4.14-k2"DRV_EXT
+#define DRV_VERSION		"3.4.14-k4"DRV_EXT
 #define DRV_DESCRIPTION		"Intel(R) PRO/100 Network Driver"
 #define DRV_COPYRIGHT		"Copyright(c) 1999-2005 Intel Corporation"
 #define PFX			DRV_NAME ": "
@@ -903,8 +903,8 @@ static void mdio_write(struct net_device *netdev, int addr, int reg, int data)
 
 static void e100_get_defaults(struct nic *nic)
 {
-	struct param_range rfds = { .min = 16, .max = 256, .count = 64 };
-	struct param_range cbs  = { .min = 64, .max = 256, .count = 64 };
+	struct param_range rfds = { .min = 16, .max = 256, .count = 256 };
+	struct param_range cbs  = { .min = 64, .max = 256, .count = 128 };
 
 	pci_read_config_byte(nic->pdev, PCI_REVISION_ID, &nic->rev_id);
 	/* MAC type is encoded as rev ID; exception: ICH is treated as 82559 */
@@ -1007,25 +1007,264 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		c[16], c[17], c[18], c[19], c[20], c[21], c[22], c[23]);
 }
 
+/********************************************************/
+/*  Micro code for 8086:1229 Rev 8                      */
+/********************************************************/
+
+/*  Parameter values for the D101M B-step  */
+#define D101M_CPUSAVER_TIMER_DWORD		78
+#define D101M_CPUSAVER_BUNDLE_DWORD		65
+#define D101M_CPUSAVER_MIN_SIZE_DWORD		126
+
+#define D101M_B_RCVBUNDLE_UCODE \
+{\
+0x00550215, 0xFFFF0437, 0xFFFFFFFF, 0x06A70789, 0xFFFFFFFF, 0x0558FFFF, \
+0x000C0001, 0x00101312, 0x000C0008, 0x00380216, \
+0x0010009C, 0x00204056, 0x002380CC, 0x00380056, \
+0x0010009C, 0x00244C0B, 0x00000800, 0x00124818, \
+0x00380438, 0x00000000, 0x00140000, 0x00380555, \
+0x00308000, 0x00100662, 0x00100561, 0x000E0408, \
+0x00134861, 0x000C0002, 0x00103093, 0x00308000, \
+0x00100624, 0x00100561, 0x000E0408, 0x00100861, \
+0x000C007E, 0x00222C21, 0x000C0002, 0x00103093, \
+0x00380C7A, 0x00080000, 0x00103090, 0x00380C7A, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x0010009C, 0x00244C2D, 0x00010004, 0x00041000, \
+0x003A0437, 0x00044010, 0x0038078A, 0x00000000, \
+0x00100099, 0x00206C7A, 0x0010009C, 0x00244C48, \
+0x00130824, 0x000C0001, 0x00101213, 0x00260C75, \
+0x00041000, 0x00010004, 0x00130826, 0x000C0006, \
+0x002206A8, 0x0013C926, 0x00101313, 0x003806A8, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00080600, 0x00101B10, 0x00050004, 0x00100826, \
+0x00101210, 0x00380C34, 0x00000000, 0x00000000, \
+0x0021155B, 0x00100099, 0x00206559, 0x0010009C, \
+0x00244559, 0x00130836, 0x000C0000, 0x00220C62, \
+0x000C0001, 0x00101B13, 0x00229C0E, 0x00210C0E, \
+0x00226C0E, 0x00216C0E, 0x0022FC0E, 0x00215C0E, \
+0x00214C0E, 0x00380555, 0x00010004, 0x00041000, \
+0x00278C67, 0x00040800, 0x00018100, 0x003A0437, \
+0x00130826, 0x000C0001, 0x00220559, 0x00101313, \
+0x00380559, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00130831, 0x0010090B, 0x00124813, \
+0x000CFF80, 0x002606AB, 0x00041000, 0x00010004, \
+0x003806A8, 0x00000000, 0x00000000, 0x00000000, \
+}
+
+/********************************************************/
+/*  Micro code for 8086:1229 Rev 9                      */
+/********************************************************/
+
+/*  Parameter values for the D101S  */
+#define D101S_CPUSAVER_TIMER_DWORD		78
+#define D101S_CPUSAVER_BUNDLE_DWORD		67
+#define D101S_CPUSAVER_MIN_SIZE_DWORD		128
+
+#define D101S_RCVBUNDLE_UCODE \
+{\
+0x00550242, 0xFFFF047E, 0xFFFFFFFF, 0x06FF0818, 0xFFFFFFFF, 0x05A6FFFF, \
+0x000C0001, 0x00101312, 0x000C0008, 0x00380243, \
+0x0010009C, 0x00204056, 0x002380D0, 0x00380056, \
+0x0010009C, 0x00244F8B, 0x00000800, 0x00124818, \
+0x0038047F, 0x00000000, 0x00140000, 0x003805A3, \
+0x00308000, 0x00100610, 0x00100561, 0x000E0408, \
+0x00134861, 0x000C0002, 0x00103093, 0x00308000, \
+0x00100624, 0x00100561, 0x000E0408, 0x00100861, \
+0x000C007E, 0x00222FA1, 0x000C0002, 0x00103093, \
+0x00380F90, 0x00080000, 0x00103090, 0x00380F90, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x0010009C, 0x00244FAD, 0x00010004, 0x00041000, \
+0x003A047E, 0x00044010, 0x00380819, 0x00000000, \
+0x00100099, 0x00206FFD, 0x0010009A, 0x0020AFFD, \
+0x0010009C, 0x00244FC8, 0x00130824, 0x000C0001, \
+0x00101213, 0x00260FF7, 0x00041000, 0x00010004, \
+0x00130826, 0x000C0006, 0x00220700, 0x0013C926, \
+0x00101313, 0x00380700, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00080600, 0x00101B10, 0x00050004, 0x00100826, \
+0x00101210, 0x00380FB6, 0x00000000, 0x00000000, \
+0x002115A9, 0x00100099, 0x002065A7, 0x0010009A, \
+0x0020A5A7, 0x0010009C, 0x002445A7, 0x00130836, \
+0x000C0000, 0x00220FE4, 0x000C0001, 0x00101B13, \
+0x00229F8E, 0x00210F8E, 0x00226F8E, 0x00216F8E, \
+0x0022FF8E, 0x00215F8E, 0x00214F8E, 0x003805A3, \
+0x00010004, 0x00041000, 0x00278FE9, 0x00040800, \
+0x00018100, 0x003A047E, 0x00130826, 0x000C0001, \
+0x002205A7, 0x00101313, 0x003805A7, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00130831, \
+0x0010090B, 0x00124813, 0x000CFF80, 0x00260703, \
+0x00041000, 0x00010004, 0x00380700  \
+}
+
+/********************************************************/
+/*  Micro code for the 8086:1229 Rev F/10               */
+/********************************************************/
+
+/*  Parameter values for the D102 E-step  */
+#define D102_E_CPUSAVER_TIMER_DWORD		42
+#define D102_E_CPUSAVER_BUNDLE_DWORD		54
+#define D102_E_CPUSAVER_MIN_SIZE_DWORD		46
+
+#define     D102_E_RCVBUNDLE_UCODE \
+{\
+0x007D028F, 0x0E4204F9, 0x14ED0C85, 0x14FA14E9, 0x0EF70E36, 0x1FFF1FFF, \
+0x00E014B9, 0x00000000, 0x00000000, 0x00000000, \
+0x00E014BD, 0x00000000, 0x00000000, 0x00000000, \
+0x00E014D5, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00E014C1, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00E014C8, 0x00000000, 0x00000000, 0x00000000, \
+0x00200600, 0x00E014EE, 0x00000000, 0x00000000, \
+0x0030FF80, 0x00940E46, 0x00038200, 0x00102000, \
+0x00E00E43, 0x00000000, 0x00000000, 0x00000000, \
+0x00300006, 0x00E014FB, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00906E41, 0x00800E3C, 0x00E00E39, 0x00000000, \
+0x00906EFD, 0x00900EFD, 0x00E00EF8, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+0x00000000, 0x00000000, 0x00000000, 0x00000000, \
+}
+
 static void e100_load_ucode(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
-	int i;
-	static const u32 ucode[UCODE_SIZE] = {
-		/* NFS packets are misinterpreted as TCO packets and
-		 * incorrectly routed to the BMC over SMBus.  This
-		 * microcode patch checks the fragmented IP bit in the
-		 * NFS/UDP header to distinguish between NFS and TCO. */
-		0x0EF70E36, 0x1FFF1FFF, 0x1FFF1FFF, 0x1FFF1FFF, 0x1FFF1FFF,
-		0x1FFF1FFF, 0x00906E41, 0x00800E3C, 0x00E00E39, 0x00000000,
-		0x00906EFD, 0x00900EFD,	0x00E00EF8,
-	};
+/* *INDENT-OFF* */
+	static struct {
+		u32 ucode[UCODE_SIZE + 1];
+		u8 mac;
+		u8 timer_dword;
+		u8 bundle_dword;
+		u8 min_size_dword;
+	} ucode_opts[] = {
+		{ D101M_B_RCVBUNDLE_UCODE,
+		  mac_82559_D101M,
+		  D101M_CPUSAVER_TIMER_DWORD,
+		  D101M_CPUSAVER_BUNDLE_DWORD,
+		  D101M_CPUSAVER_MIN_SIZE_DWORD },
+		{ D101S_RCVBUNDLE_UCODE,
+		  mac_82559_D101S,
+		  D101S_CPUSAVER_TIMER_DWORD,
+		  D101S_CPUSAVER_BUNDLE_DWORD,
+		  D101S_CPUSAVER_MIN_SIZE_DWORD },
+		{ D102_E_RCVBUNDLE_UCODE,
+		  mac_82551_F,
+		  D102_E_CPUSAVER_TIMER_DWORD,
+		  D102_E_CPUSAVER_BUNDLE_DWORD,
+		  D102_E_CPUSAVER_MIN_SIZE_DWORD },
+		{ D102_E_RCVBUNDLE_UCODE,
+		  mac_82551_10,
+		  D102_E_CPUSAVER_TIMER_DWORD,
+		  D102_E_CPUSAVER_BUNDLE_DWORD,
+		  D102_E_CPUSAVER_MIN_SIZE_DWORD },
+		{ {0}, 0, 0, 0, 0}
+	}, *opts;
+/* *INDENT-ON* */
 
-	if(nic->mac == mac_82551_F || nic->mac == mac_82551_10) {
-		for(i = 0; i < UCODE_SIZE; i++)
+/*************************************************************************
+*  CPUSaver parameters
+*
+*  All CPUSaver parameters are 16-bit literals that are part of a
+*  "move immediate value" instruction.  By changing the value of
+*  the literal in the instruction before the code is loaded, the
+*  driver can change the algorithm.
+*
+*  INTDELAY - This loads the dead-man timer with its inital value.
+*    When this timer expires the interrupt is asserted, and the 
+*    timer is reset each time a new packet is received.  (see
+*    BUNDLEMAX below to set the limit on number of chained packets)
+*    The current default is 0x600 or 1536.  Experiments show that
+*    the value should probably stay within the 0x200 - 0x1000.
+*
+*  BUNDLEMAX - 
+*    This sets the maximum number of frames that will be bundled.  In
+*    some situations, such as the TCP windowing algorithm, it may be
+*    better to limit the growth of the bundle size than let it go as
+*    high as it can, because that could cause too much added latency.
+*    The default is six, because this is the number of packets in the
+*    default TCP window size.  A value of 1 would make CPUSaver indicate
+*    an interrupt for every frame received.  If you do not want to put
+*    a limit on the bundle size, set this value to xFFFF.
+*
+*  BUNDLESMALL - 
+*    This contains a bit-mask describing the minimum size frame that
+*    will be bundled.  The default masks the lower 7 bits, which means
+*    that any frame less than 128 bytes in length will not be bundled,
+*    but will instead immediately generate an interrupt.  This does
+*    not affect the current bundle in any way.  Any frame that is 128
+*    bytes or large will be bundled normally.  This feature is meant
+*    to provide immediate indication of ACK frames in a TCP environment.
+*    Customers were seeing poor performance when a machine with CPUSaver
+*    enabled was sending but not receiving.  The delay introduced when
+*    the ACKs were received was enough to reduce total throughput, because
+*    the sender would sit idle until the ACK was finally seen.
+*
+*    The current default is 0xFF80, which masks out the lower 7 bits.
+*    This means that any frame which is x7F (127) bytes or smaller
+*    will cause an immediate interrupt.  Because this value must be a 
+*    bit mask, there are only a few valid values that can be used.  To
+*    turn this feature off, the driver can write the value xFFFF to the
+*    lower word of this instruction (in the same way that the other
+*    parameters are used).  Likewise, a value of 0xF800 (2047) would
+*    cause an interrupt to be generated for every frame, because all
+*    standard Ethernet frames are <= 2047 bytes in length.
+*************************************************************************/
+
+/* if you wish to disable the ucode functionality, while maintaining the 
+ * workarounds it provides, set the following defines to:
+ * BUNDLESMALL 0
+ * BUNDLEMAX 1
+ * INTDELAY 1
+ */
+#define BUNDLESMALL 1
+#define BUNDLEMAX (u16)6
+#define INTDELAY (u16)1536 /* 0x600 */
+
+	/* do not load u-code for ICH devices */
+	if (nic->flags & ich)
+		goto noloaducode;
+
+	/* Search for ucode match against h/w rev_id */
+	for (opts = ucode_opts; opts->mac; opts++) {
+		int i;
+		u32 *ucode = opts->ucode;
+		if (nic->mac != opts->mac)
+			continue;
+
+		/* Insert user-tunable settings */
+		ucode[opts->timer_dword] &= 0xFFFF0000;
+		ucode[opts->timer_dword] |= INTDELAY;
+		ucode[opts->bundle_dword] &= 0xFFFF0000;
+		ucode[opts->bundle_dword] |= BUNDLEMAX;
+		ucode[opts->min_size_dword] &= 0xFFFF0000;
+		ucode[opts->min_size_dword] |= (BUNDLESMALL) ? 0xFFFF : 0xFF80;
+
+		for (i = 0; i < UCODE_SIZE; i++)
 			cb->u.ucode[i] = cpu_to_le32(ucode[i]);
 		cb->command = cpu_to_le16(cb_ucode);
-	} else
-		cb->command = cpu_to_le16(cb_nop);
+		return;
+	}
+
+noloaducode:
+	cb->command = cpu_to_le16(cb_nop);
 }
 
 static void e100_setup_iaaddr(struct nic *nic, struct cb *cb,

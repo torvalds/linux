@@ -710,11 +710,6 @@ UNUSUAL_DEV(  0x0686, 0x4017, 0x0001, 0x0001,
                 "DIMAGE E223",
                 US_SC_SCSI, US_PR_DEVICE, NULL, 0 ),
 
-UNUSUAL_DEV(  0x0693, 0x0002, 0x0100, 0x0100, 
-		"Hagiwara",
-		"FlashGate SmartMedia",
-		US_SC_SCSI, US_PR_BULK, NULL, 0 ),
-
 UNUSUAL_DEV(  0x0693, 0x0005, 0x0100, 0x0100,
 		"Hagiwara",
 		"Flashgate",
@@ -1008,6 +1003,11 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
  *
  */
 #ifdef CONFIG_USB_STORAGE_ONETOUCH
+	UNUSUAL_DEV(  0x0d49, 0x7000, 0x0000, 0x9999,
+			"Maxtor",
+			"OneTouch External Harddrive",
+			US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
+			0),
 	UNUSUAL_DEV(  0x0d49, 0x7010, 0x0000, 0x9999,
 			"Maxtor",
 			"OneTouch External Harddrive",
@@ -1117,6 +1117,15 @@ UNUSUAL_DEV(  0x2735, 0x100b, 0x0000, 0x9999,
 		"HS200",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_GO_SLOW ),
+
+/*
+ * David Härdeman <david@2gen.com>
+ * The key makes the SCSI stack print confusing (but harmless) messages
+ */
+UNUSUAL_DEV(  0x4146, 0xba01, 0x0100, 0x0100,
+		"Iomega",
+		"Micro Mini 1GB",
+		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
 
 #ifdef CONFIG_USB_STORAGE_SDDR55
 UNUSUAL_DEV(  0x55aa, 0xa103, 0x0000, 0x9999, 

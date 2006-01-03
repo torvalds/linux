@@ -37,7 +37,7 @@ static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
 static unsigned long console_logged;
 static int notify_user;
 static int rip_msr;
-static int mce_bootlog;
+static int mce_bootlog = 1;
 
 /*
  * Lockless MCE logging infrastructure.
@@ -347,7 +347,11 @@ static void __cpuinit mce_cpu_quirks(struct cpuinfo_x86 *c)
 		/* disable GART TBL walk error reporting, which trips off 
 		   incorrectly with the IOMMU & 3ware & Cerberus. */
 		clear_bit(10, &bank[4]);
+		/* Lots of broken BIOS around that don't clear them
+		   by default and leave crap in there. Don't log. */
+		mce_bootlog = 0;
 	}
+
 }			
 
 static void __cpuinit mce_cpu_features(struct cpuinfo_x86 *c)
@@ -355,6 +359,9 @@ static void __cpuinit mce_cpu_features(struct cpuinfo_x86 *c)
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
 		mce_intel_feature_init(c);
+		break;
+	case X86_VENDOR_AMD:
+		mce_amd_feature_init(c);
 		break;
 	default:
 		break;
@@ -495,16 +502,16 @@ static int __init mcheck_disable(char *str)
 /* mce=off disables machine check. Note you can reenable it later
    using sysfs.
    mce=TOLERANCELEVEL (number, see above)
-   mce=bootlog Log MCEs from before booting. Disabled by default to work
-   around buggy BIOS that leave bogus MCEs.  */
+   mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
+   mce=nobootlog Don't log MCEs from before booting. */
 static int __init mcheck_enable(char *str)
 {
 	if (*str == '=')
 		str++;
 	if (!strcmp(str, "off"))
 		mce_dont_init = 1;
-	else if (!strcmp(str, "bootlog"))
-		mce_bootlog = 1;
+	else if (!strcmp(str, "bootlog") || !strcmp(str,"nobootlog"))
+		mce_bootlog = str[0] == 'b';
 	else if (isdigit(str[0]))
 		get_option(&str, &tolerant);
 	else

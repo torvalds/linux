@@ -16,7 +16,11 @@
 /* Pickup Book E specific registers. */
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 #include <asm/reg_booke.h>
-#endif
+#endif /* CONFIG_BOOKE || CONFIG_40x */
+
+#ifdef CONFIG_8xx
+#include <asm/reg_8xx.h>
+#endif /* CONFIG_8xx */
 
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
 #define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
@@ -359,6 +363,7 @@
 #define SPRN_RPA	0x3D6	/* Required Physical Address Register */
 #define SPRN_SDA	0x3BF	/* Sampled Data Address Register */
 #define SPRN_SDR1	0x019	/* MMU Hash Base Register */
+#define SPRN_ASR	0x118   /* Address Space Register */
 #define SPRN_SIA	0x3BB	/* Sampled Instruction Address Register */
 #define SPRN_SPRG0	0x110	/* Special Purpose Register General 0 */
 #define SPRN_SPRG1	0x111	/* Special Purpose Register General 1 */

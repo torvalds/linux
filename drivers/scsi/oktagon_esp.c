@@ -114,7 +114,7 @@ static volatile unsigned char cmd_buffer[16];
 				 */
 
 /***************************************************************** Detection */
-int oktagon_esp_detect(Scsi_Host_Template *tpnt)
+int oktagon_esp_detect(struct scsi_host_template *tpnt)
 {
 	struct NCR_ESP *esp;
 	struct zorro_dev *z = NULL;
@@ -585,7 +585,7 @@ int oktagon_esp_release(struct Scsi_Host *instance)
 }
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "esp-oktagon",
 	.proc_info		= &esp_proc_info,
 	.name			= "BSC Oktagon SCSI",

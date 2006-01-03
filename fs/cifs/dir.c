@@ -228,8 +228,15 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		else {
 			rc = cifs_get_inode_info(&newinode, full_path,
 						 buf, inode->i_sb,xid);
-			if(newinode)
+			if(newinode) {
 				newinode->i_mode = mode;
+				if((oplock & CIFS_CREATE_ACTION) &&
+				  (cifs_sb->mnt_cifs_flags & 
+				     CIFS_MOUNT_SET_UID)) {
+					newinode->i_uid = current->fsuid;
+					newinode->i_gid = current->fsgid;
+				}
+			}
 		}
 
 		if (rc != 0) {
@@ -292,7 +299,8 @@ cifs_create_out:
 	return rc;
 }
 
-int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t device_number) 
+int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, 
+		dev_t device_number) 
 {
 	int rc = -EPERM;
 	int xid;
@@ -368,7 +376,34 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 
 			if(!rc) {
 				/* BB Do not bother to decode buf since no
-				   local inode yet to put timestamps in */
+				   local inode yet to put timestamps in,
+				   but we can reuse it safely */
+				int bytes_written;
+				struct win_dev *pdev;
+				pdev = (struct win_dev *)buf;
+				if(S_ISCHR(mode)) {
+					memcpy(pdev->type, "IntxCHR", 8);
+					pdev->major =
+					      cpu_to_le64(MAJOR(device_number));
+					pdev->minor = 
+					      cpu_to_le64(MINOR(device_number));
+					rc = CIFSSMBWrite(xid, pTcon,
+						fileHandle,
+						sizeof(struct win_dev),
+						0, &bytes_written, (char *)pdev,
+						NULL, 0);
+				} else if(S_ISBLK(mode)) {
+					memcpy(pdev->type, "IntxBLK", 8);
+					pdev->major =
+					      cpu_to_le64(MAJOR(device_number));
+					pdev->minor =
+					      cpu_to_le64(MINOR(device_number));
+					rc = CIFSSMBWrite(xid, pTcon,
+						fileHandle,
+						sizeof(struct win_dev),
+						0, &bytes_written, (char *)pdev,
+						NULL, 0);
+				} /* else if(S_ISFIFO */
 				CIFSSMBClose(xid, pTcon, fileHandle);
 				d_drop(direntry);
 			}
@@ -437,12 +472,20 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 			direntry->d_op = &cifs_dentry_ops;
 		d_add(direntry, newInode);
 
-		/* since paths are not looked up by component - the parent directories are presumed to be good here */
+		/* since paths are not looked up by component - the parent 
+		   directories are presumed to be good here */
 		renew_parental_timestamps(direntry);
 
 	} else if (rc == -ENOENT) {
 		rc = 0;
+		direntry->d_time = jiffies;
+		if (pTcon->nocase)
+			direntry->d_op = &cifs_ci_dentry_ops;
+		else
+			direntry->d_op = &cifs_dentry_ops;
 		d_add(direntry, NULL);
+	/*	if it was once a directory (but how can we tell?) we could do  
+			shrink_dcache_parent(direntry); */
 	} else {
 		cERROR(1,("Error 0x%x on cifs_get_inode_info in lookup of %s",
 			   rc,full_path));
@@ -461,20 +504,19 @@ cifs_d_revalidate(struct dentry *direntry, struct nameidata *nd)
 {
 	int isValid = 1;
 
-/*	lock_kernel(); *//* surely we do not want to lock the kernel for a whole network round trip which could take seconds */
-
 	if (direntry->d_inode) {
 		if (cifs_revalidate(direntry)) {
-			/* unlock_kernel(); */
 			return 0;
 		}
 	} else {
-		cFYI(1,
-		     ("In cifs_d_revalidate with no inode but name = %s and dentry 0x%p",
-		      direntry->d_name.name, direntry));
+		cFYI(1, ("neg dentry 0x%p name = %s",
+			 direntry, direntry->d_name.name));
+		if(time_after(jiffies, direntry->d_time + HZ) || 
+			!lookupCacheEnabled) {
+			d_drop(direntry);
+			isValid = 0;
+		} 
 	}
-
-/*    unlock_kernel(); */
 
 	return isValid;
 }

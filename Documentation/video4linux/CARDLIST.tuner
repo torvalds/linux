@@ -67,3 +67,4 @@ tuner=65 - Ymec TVF66T5-B/DFF
 tuner=66 - LG NTSC (TALN mini series)
 tuner=67 - Philips TD1316 Hybrid Tuner
 tuner=68 - Philips TUV1236D ATSC/NTSC dual in
+tuner=69 - Tena TNF 5335 MF

@@ -62,6 +62,15 @@ config USB_SERIAL_AIRPRIME
 	  To compile this driver as a module, choose M here: the
 	  module will be called airprime.
 
+config USB_SERIAL_ANYDATA
+	tristate "USB AnyData CDMA Wireless Driver"
+	depends on USB_SERIAL
+	help
+	  Say Y here if you want to use a AnyData CDMA device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called anydata.
+
 config USB_SERIAL_BELKIN
 	tristate "USB Belkin and Peracom Single Port Serial Driver"
 	depends on USB_SERIAL
@@ -393,15 +402,6 @@ config USB_SERIAL_MCT_U232
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mct_u232.
-
-config USB_SERIAL_NOKIA_DKU2
-	tristate "USB Nokia DKU2 Driver"
-	depends on USB_SERIAL
-	help
-	  Say Y here if you want to use a Nokia DKU2 device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called nokia_dku2.
 
 config USB_SERIAL_PL2303
 	tristate "USB Prolific 2303 Single Port Serial Driver"

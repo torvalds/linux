@@ -52,23 +52,33 @@
  * ----------------------------------------------------------------------------
  */
 
+#define PCIO_BASE	0
+
 #if defined(CONFIG_ARCH_OMAP1)
+
 #define IO_PHYS		0xFFFB0000
-#define IO_OFFSET      -0x01000000	/* Virtual IO = 0xfefb0000 */
+#define IO_OFFSET	0x01000000	/* Virtual IO = 0xfefb0000 */
 #define IO_SIZE		0x40000
+#define IO_VIRT		(IO_PHYS - IO_OFFSET)
+#define IO_ADDRESS(pa)	((pa) - IO_OFFSET)
+#define io_p2v(pa)	((pa) - IO_OFFSET)
+#define io_v2p(va)	((va) + IO_OFFSET)
 
 #elif defined(CONFIG_ARCH_OMAP2)
-#define IO_PHYS		0x48000000	/* L4 peripherals; other stuff has to be mapped *
-					 * manually. */
-#define IO_OFFSET	0x90000000	/* Virtual IO = 0xd8000000 */
-#define IO_SIZE		0x08000000
-#endif
 
-#define IO_VIRT		(IO_PHYS + IO_OFFSET)
-#define IO_ADDRESS(x)	((x) + IO_OFFSET)
-#define PCIO_BASE	0
-#define io_p2v(x)	((x) + IO_OFFSET)
-#define io_v2p(x)	((x) - IO_OFFSET)
+/* We map both L3 and L4 on OMAP2 */
+#define L3_24XX_PHYS	L3_24XX_BASE	/* 0x68000000 */
+#define L3_24XX_VIRT	0xf8000000
+#define L3_24XX_SIZE	SZ_1M		/* 44kB of 128MB used, want 1MB sect */
+#define L4_24XX_PHYS	L4_24XX_BASE	/* 0x48000000 */
+#define L4_24XX_VIRT	0xd8000000
+#define L4_24XX_SIZE	SZ_1M		/* 1MB of 128MB used, want 1MB sect */
+#define IO_OFFSET	0x90000000
+#define IO_ADDRESS(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
+#define io_p2v(pa)	((pa) + IO_OFFSET)	/* Works for L3 and L4 */
+#define io_v2p(va)	((va) - IO_OFFSET)	/* Works for L3 and L4 */
+
+#endif
 
 #ifndef __ASSEMBLER__
 

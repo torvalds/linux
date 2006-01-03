@@ -5,7 +5,7 @@
  *
  * Rewrite, cleanup: 
  *
- * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
+ * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
  * Dynamic DMA mapping support, pSeries-specific parts, both SMP and LPAR.
  *
@@ -42,7 +42,6 @@
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
 #include <asm/pSeries_reconfig.h>
-#include <asm/systemcfg.h>
 #include <asm/firmware.h>
 #include <asm/tce.h>
 #include <asm/ppc-pci.h>
@@ -110,6 +109,9 @@ static void tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	u64 rc;
 	union tce_entry tce;
 
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
+
 	tce.te_word = 0;
 	tce.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
 	tce.te_rdwr = 1;
@@ -144,10 +146,7 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	union tce_entry tce, *tcep;
 	long l, limit;
 
-	tcenum <<= TCE_PAGE_FACTOR;
-	npages <<= TCE_PAGE_FACTOR;
-
-	if (npages == 1)
+	if (TCE_PAGE_FACTOR == 0 && npages == 1)
 		return tce_build_pSeriesLP(tbl, tcenum, npages, uaddr,
 					   direction);
 
@@ -164,6 +163,9 @@ static void tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 						   uaddr, direction);
 		__get_cpu_var(tce_page) = tcep;
 	}
+
+	tcenum <<= TCE_PAGE_FACTOR;
+	npages <<= TCE_PAGE_FACTOR;
 
 	tce.te_word = 0;
 	tce.te_rpn = (virt_to_abs(uaddr)) >> TCE_SHIFT;
@@ -582,7 +584,7 @@ void iommu_init_early_pSeries(void)
 		return;
 	}
 
-	if (systemcfg->platform & PLATFORM_LPAR) {
+	if (platform_is_lpar()) {
 		if (firmware_has_feature(FW_FEATURE_MULTITCE)) {
 			ppc_md.tce_build = tce_buildmulti_pSeriesLP;
 			ppc_md.tce_free	 = tce_freemulti_pSeriesLP;

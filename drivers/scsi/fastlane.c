@@ -125,7 +125,7 @@ static inline void dma_clear(struct NCR_ESP *esp)
 }
 
 /***************************************************************** Detection */
-int __init fastlane_esp_detect(Scsi_Host_Template *tpnt)
+int __init fastlane_esp_detect(struct scsi_host_template *tpnt)
 {
 	struct NCR_ESP *esp;
 	struct zorro_dev *z = NULL;
@@ -398,7 +398,7 @@ int fastlane_esp_release(struct Scsi_Host *instance)
 }
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "esp-fastlane",
 	.proc_info		= esp_proc_info,
 	.name			= "Fastlane SCSI",

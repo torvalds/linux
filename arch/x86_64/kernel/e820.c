@@ -23,8 +23,7 @@
 #include <asm/e820.h>
 #include <asm/proto.h>
 #include <asm/bootsetup.h>
-
-extern char _end[];
+#include <asm/sections.h>
 
 /* 
  * PFN of last memory page.
