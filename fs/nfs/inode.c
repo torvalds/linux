@@ -2050,6 +2050,20 @@ static int param_set_port(const char *val, struct kernel_param *kp)
 module_param_call(callback_tcpport, param_set_port, param_get_int,
 		 &nfs_callback_set_tcpport, 0644);
 
+static int param_set_idmap_timeout(const char *val, struct kernel_param *kp)
+{
+	char *endp;
+	int num = simple_strtol(val, &endp, 0);
+	int jif = num * HZ;
+	if (endp == val || *endp || num < 0 || jif < num)
+		return -EINVAL;
+	*((int *)kp->arg) = jif;
+	return 0;
+}
+
+module_param_call(idmap_cache_timeout, param_set_idmap_timeout, param_get_int,
+		 &nfs_idmap_cache_timeout, 0644);
+
 #define nfs4_init_once(nfsi) \
 	do { \
 		INIT_LIST_HEAD(&(nfsi)->open_states); \
