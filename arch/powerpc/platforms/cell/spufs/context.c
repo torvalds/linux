@@ -120,27 +120,29 @@ int spu_acquire_runnable(struct spu_context *ctx)
 		ctx->spu->prio = current->prio;
 		return 0;
 	}
+	up_read(&ctx->state_sema);
+
+	down_write(&ctx->state_sema);
 	/* ctx is about to be freed, can't acquire any more */
 	if (!ctx->owner) {
 		ret = -EINVAL;
 		goto out;
 	}
-	up_read(&ctx->state_sema);
 
-	down_write(&ctx->state_sema);
 	if (ctx->state == SPU_STATE_SAVED) {
 		ret = spu_activate(ctx, 0);
 		ctx->state = SPU_STATE_RUNNABLE;
 	}
-	downgrade_write(&ctx->state_sema);
 	if (ret)
 		goto out;
 
+	downgrade_write(&ctx->state_sema);
 	/* On success, we return holding the lock */
+
 	return ret;
 out:
 	/* Release here, to simplify calling code. */
-	up_read(&ctx->state_sema);
+	up_write(&ctx->state_sema);
 
 	return ret;
 }
