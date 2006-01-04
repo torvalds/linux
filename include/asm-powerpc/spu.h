@@ -172,6 +172,29 @@ static inline void unregister_spu_syscalls(struct spufs_calls *calls)
 #endif /* MODULE */
 
 
+/* access to priv1 registers */
+void spu_int_mask_and(struct spu *spu, int class, u64 mask);
+void spu_int_mask_or(struct spu *spu, int class, u64 mask);
+void spu_int_mask_set(struct spu *spu, int class, u64 mask);
+u64 spu_int_mask_get(struct spu *spu, int class);
+void spu_int_stat_clear(struct spu *spu, int class, u64 stat);
+u64 spu_int_stat_get(struct spu *spu, int class);
+void spu_int_route_set(struct spu *spu, u64 route);
+u64 spu_mfc_dar_get(struct spu *spu);
+u64 spu_mfc_dsisr_get(struct spu *spu);
+void spu_mfc_dsisr_set(struct spu *spu, u64 dsisr);
+void spu_mfc_sdr_set(struct spu *spu, u64 sdr);
+void spu_mfc_sr1_set(struct spu *spu, u64 sr1);
+u64 spu_mfc_sr1_get(struct spu *spu);
+void spu_mfc_tclass_id_set(struct spu *spu, u64 tclass_id);
+u64 spu_mfc_tclass_id_get(struct spu *spu);
+void spu_tlb_invalidate(struct spu *spu);
+void spu_resource_allocation_groupID_set(struct spu *spu, u64 id);
+u64 spu_resource_allocation_groupID_get(struct spu *spu);
+void spu_resource_allocation_enable_set(struct spu *spu, u64 enable);
+u64 spu_resource_allocation_enable_get(struct spu *spu);
+
+
 /*
  * This defines the Local Store, Problem Area and Privlege Area of an SPU.
  */
@@ -379,25 +402,21 @@ struct spu_priv1 {
 
 
 	/* Interrupt Area */
-	u64 int_mask_class0_RW;					/* 0x100 */
+	u64 int_mask_RW[3];					/* 0x100 */
 #define CLASS0_ENABLE_DMA_ALIGNMENT_INTR		0x1L
 #define CLASS0_ENABLE_INVALID_DMA_COMMAND_INTR		0x2L
 #define CLASS0_ENABLE_SPU_ERROR_INTR			0x4L
 #define CLASS0_ENABLE_MFC_FIR_INTR			0x8L
-	u64 int_mask_class1_RW;					/* 0x108 */
 #define CLASS1_ENABLE_SEGMENT_FAULT_INTR		0x1L
 #define CLASS1_ENABLE_STORAGE_FAULT_INTR		0x2L
 #define CLASS1_ENABLE_LS_COMPARE_SUSPEND_ON_GET_INTR	0x4L
 #define CLASS1_ENABLE_LS_COMPARE_SUSPEND_ON_PUT_INTR	0x8L
-	u64 int_mask_class2_RW;					/* 0x110 */
 #define CLASS2_ENABLE_MAILBOX_INTR			0x1L
 #define CLASS2_ENABLE_SPU_STOP_INTR			0x2L
 #define CLASS2_ENABLE_SPU_HALT_INTR			0x4L
 #define CLASS2_ENABLE_SPU_DMA_TAG_GROUP_COMPLETE_INTR	0x8L
 	u8  pad_0x118_0x140[0x28];				/* 0x118 */
-	u64 int_stat_class0_RW;					/* 0x140 */
-	u64 int_stat_class1_RW;					/* 0x148 */
-	u64 int_stat_class2_RW;					/* 0x150 */
+	u64 int_stat_RW[3];					/* 0x140 */
 	u8  pad_0x158_0x180[0x28];				/* 0x158 */
 	u64 int_route_RW;					/* 0x180 */
 

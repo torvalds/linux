@@ -62,7 +62,6 @@ static unsigned int spu_hw_mbox_stat_poll(struct spu_context *ctx,
 					  unsigned int events)
 {
 	struct spu *spu = ctx->spu;
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	int ret = 0;
 	u32 stat;
 
@@ -78,18 +77,16 @@ static unsigned int spu_hw_mbox_stat_poll(struct spu_context *ctx,
 		if (stat & 0xff0000)
 			ret |= POLLIN | POLLRDNORM;
 		else {
-			out_be64(&priv1->int_stat_class2_RW, 0x1);
-			out_be64(&priv1->int_mask_class2_RW,
-				 in_be64(&priv1->int_mask_class2_RW) | 0x1);
+			spu_int_stat_clear(spu, 2, 0x1);
+			spu_int_mask_or(spu, 2, 0x1);
 		}
 	}
 	if (events & (POLLOUT | POLLWRNORM)) {
 		if (stat & 0x00ff00)
 			ret = POLLOUT | POLLWRNORM;
 		else {
-			out_be64(&priv1->int_stat_class2_RW, 0x10);
-			out_be64(&priv1->int_mask_class2_RW,
-				 in_be64(&priv1->int_mask_class2_RW) | 0x10);
+			spu_int_stat_clear(spu, 2, 0x10);
+			spu_int_mask_or(spu, 2, 0x10);
 		}
 	}
 	spin_unlock_irq(&spu->register_lock);
@@ -100,7 +97,6 @@ static int spu_hw_ibox_read(struct spu_context *ctx, u32 * data)
 {
 	struct spu *spu = ctx->spu;
 	struct spu_problem __iomem *prob = spu->problem;
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 	int ret;
 
@@ -111,8 +107,7 @@ static int spu_hw_ibox_read(struct spu_context *ctx, u32 * data)
 		ret = 4;
 	} else {
 		/* make sure we get woken up by the interrupt */
-		out_be64(&priv1->int_mask_class2_RW,
-			 in_be64(&priv1->int_mask_class2_RW) | 0x1);
+		spu_int_mask_or(spu, 2, 0x1);
 		ret = 0;
 	}
 	spin_unlock_irq(&spu->register_lock);
@@ -123,7 +118,6 @@ static int spu_hw_wbox_write(struct spu_context *ctx, u32 data)
 {
 	struct spu *spu = ctx->spu;
 	struct spu_problem __iomem *prob = spu->problem;
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	int ret;
 
 	spin_lock_irq(&spu->register_lock);
@@ -134,8 +128,7 @@ static int spu_hw_wbox_write(struct spu_context *ctx, u32 data)
 	} else {
 		/* make sure we get woken up by the interrupt when space
 		   becomes available */
-		out_be64(&priv1->int_mask_class2_RW,
-			 in_be64(&priv1->int_mask_class2_RW) | 0x10);
+		spu_int_mask_or(spu, 2, 0x10);
 		ret = 0;
 	}
 	spin_unlock_irq(&spu->register_lock);

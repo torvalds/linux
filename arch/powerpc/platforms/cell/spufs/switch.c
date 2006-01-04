@@ -108,8 +108,6 @@ static inline int check_spu_isolate(struct spu_state *csa, struct spu *spu)
 
 static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Save, Step 3:
 	 * Restore, Step 2:
 	 *     Save INT_Mask_class0 in CSA.
@@ -121,16 +119,13 @@ static inline void disable_interrupts(struct spu_state *csa, struct spu *spu)
 	 */
 	spin_lock_irq(&spu->register_lock);
 	if (csa) {
-		csa->priv1.int_mask_class0_RW =
-		    in_be64(&priv1->int_mask_class0_RW);
-		csa->priv1.int_mask_class1_RW =
-		    in_be64(&priv1->int_mask_class1_RW);
-		csa->priv1.int_mask_class2_RW =
-		    in_be64(&priv1->int_mask_class2_RW);
+		csa->priv1.int_mask_class0_RW = spu_int_mask_get(spu, 0);
+		csa->priv1.int_mask_class1_RW = spu_int_mask_get(spu, 1);
+		csa->priv1.int_mask_class2_RW = spu_int_mask_get(spu, 2);
 	}
-	out_be64(&priv1->int_mask_class0_RW, 0UL);
-	out_be64(&priv1->int_mask_class1_RW, 0UL);
-	out_be64(&priv1->int_mask_class2_RW, 0UL);
+	spu_int_mask_set(spu, 0, 0ul);
+	spu_int_mask_set(spu, 1, 0ul);
+	spu_int_mask_set(spu, 2, 0ul);
 	eieio();
 	spin_unlock_irq(&spu->register_lock);
 }
@@ -195,12 +190,10 @@ static inline void save_spu_runcntl(struct spu_state *csa, struct spu *spu)
 
 static inline void save_mfc_sr1(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Save, Step 10:
 	 *     Save MFC_SR1 in the CSA.
 	 */
-	csa->priv1.mfc_sr1_RW = in_be64(&priv1->mfc_sr1_RW);
+	csa->priv1.mfc_sr1_RW = spu_mfc_sr1_get(spu);
 }
 
 static inline void save_spu_status(struct spu_state *csa, struct spu *spu)
@@ -292,15 +285,13 @@ static inline void do_mfc_mssync(struct spu_state *csa, struct spu *spu)
 
 static inline void issue_mfc_tlbie(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Save, Step 17:
 	 * Restore, Step 12.
 	 * Restore, Step 48.
 	 *     Write TLB_Invalidate_Entry[IS,VPN,L,Lp]=0 register.
 	 *     Then issue a PPE sync instruction.
 	 */
-	out_be64(&priv1->tlb_invalidate_entry_W, 0UL);
+	spu_tlb_invalidate(spu);
 	mb();
 }
 
@@ -410,25 +401,21 @@ static inline void save_mfc_csr_ato(struct spu_state *csa, struct spu *spu)
 
 static inline void save_mfc_tclass_id(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Save, Step 25:
 	 *     Save the MFC_TCLASS_ID register in
 	 *     the CSA.
 	 */
-	csa->priv1.mfc_tclass_id_RW = in_be64(&priv1->mfc_tclass_id_RW);
+	csa->priv1.mfc_tclass_id_RW = spu_mfc_tclass_id_get(spu);
 }
 
 static inline void set_mfc_tclass_id(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Save, Step 26:
 	 * Restore, Step 23.
 	 *     Write the MFC_TCLASS_ID register with
 	 *     the value 0x10000000.
 	 */
-	out_be64(&priv1->mfc_tclass_id_RW, 0x10000000);
+	spu_mfc_tclass_id_set(spu, 0x10000000);
 	eieio();
 }
 
@@ -458,14 +445,13 @@ static inline void wait_purge_complete(struct spu_state *csa, struct spu *spu)
 
 static inline void save_mfc_slbs(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 	int i;
 
 	/* Save, Step 29:
 	 *     If MFC_SR1[R]='1', save SLBs in CSA.
 	 */
-	if (in_be64(&priv1->mfc_sr1_RW) & MFC_STATE1_RELOCATE_MASK) {
+	if (spu_mfc_sr1_get(spu) & MFC_STATE1_RELOCATE_MASK) {
 		csa->priv2.slb_index_W = in_be64(&priv2->slb_index_W);
 		for (i = 0; i < 8; i++) {
 			out_be64(&priv2->slb_index_W, i);
@@ -479,8 +465,6 @@ static inline void save_mfc_slbs(struct spu_state *csa, struct spu *spu)
 
 static inline void setup_mfc_sr1(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Save, Step 30:
 	 * Restore, Step 18:
 	 *     Write MFC_SR1 with MFC_SR1[D=0,S=1] and
@@ -492,9 +476,9 @@ static inline void setup_mfc_sr1(struct spu_state *csa, struct spu *spu)
 	 *     MFC_SR1[Pr] bit is not set.
 	 *
 	 */
-	out_be64(&priv1->mfc_sr1_RW, (MFC_STATE1_MASTER_RUN_CONTROL_MASK |
-				      MFC_STATE1_RELOCATE_MASK |
-				      MFC_STATE1_BUS_TLBIE_MASK));
+	spu_mfc_sr1_set(spu, (MFC_STATE1_MASTER_RUN_CONTROL_MASK |
+			      MFC_STATE1_RELOCATE_MASK |
+			      MFC_STATE1_BUS_TLBIE_MASK));
 }
 
 static inline void save_spu_npc(struct spu_state *csa, struct spu *spu)
@@ -571,16 +555,14 @@ static inline void save_pm_trace(struct spu_state *csa, struct spu *spu)
 
 static inline void save_mfc_rag(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Save, Step 38:
 	 *     Save RA_GROUP_ID register and the
 	 *     RA_ENABLE reigster in the CSA.
 	 */
 	csa->priv1.resource_allocation_groupID_RW =
-	    in_be64(&priv1->resource_allocation_groupID_RW);
+		spu_resource_allocation_groupID_get(spu);
 	csa->priv1.resource_allocation_enable_RW =
-	    in_be64(&priv1->resource_allocation_enable_RW);
+		spu_resource_allocation_enable_get(spu);
 }
 
 static inline void save_ppu_mb_stat(struct spu_state *csa, struct spu *spu)
@@ -698,14 +680,13 @@ static inline void resume_mfc_queue(struct spu_state *csa, struct spu *spu)
 
 static inline void invalidate_slbs(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 
 	/* Save, Step 45:
 	 * Restore, Step 19:
 	 *     If MFC_SR1[R]=1, write 0 to SLB_Invalidate_All.
 	 */
-	if (in_be64(&priv1->mfc_sr1_RW) & MFC_STATE1_RELOCATE_MASK) {
+	if (spu_mfc_sr1_get(spu) & MFC_STATE1_RELOCATE_MASK) {
 		out_be64(&priv2->slb_invalidate_all_W, 0UL);
 		eieio();
 	}
@@ -774,7 +755,6 @@ static inline void set_switch_active(struct spu_state *csa, struct spu *spu)
 
 static inline void enable_interrupts(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	unsigned long class1_mask = CLASS1_ENABLE_SEGMENT_FAULT_INTR |
 	    CLASS1_ENABLE_STORAGE_FAULT_INTR;
 
@@ -787,12 +767,12 @@ static inline void enable_interrupts(struct spu_state *csa, struct spu *spu)
 	 *     (translation) interrupts.
 	 */
 	spin_lock_irq(&spu->register_lock);
-	out_be64(&priv1->int_stat_class0_RW, ~(0UL));
-	out_be64(&priv1->int_stat_class1_RW, ~(0UL));
-	out_be64(&priv1->int_stat_class2_RW, ~(0UL));
-	out_be64(&priv1->int_mask_class0_RW, 0UL);
-	out_be64(&priv1->int_mask_class1_RW, class1_mask);
-	out_be64(&priv1->int_mask_class2_RW, 0UL);
+	spu_int_stat_clear(spu, 0, ~0ul);
+	spu_int_stat_clear(spu, 1, ~0ul);
+	spu_int_stat_clear(spu, 2, ~0ul);
+	spu_int_mask_set(spu, 0, 0ul);
+	spu_int_mask_set(spu, 1, class1_mask);
+	spu_int_mask_set(spu, 2, 0ul);
 	spin_unlock_irq(&spu->register_lock);
 }
 
@@ -930,7 +910,6 @@ static inline void set_ppu_querymask(struct spu_state *csa, struct spu *spu)
 
 static inline void wait_tag_complete(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	struct spu_problem __iomem *prob = spu->problem;
 	u32 mask = MFC_TAGID_TO_TAGMASK(0);
 	unsigned long flags;
@@ -947,14 +926,13 @@ static inline void wait_tag_complete(struct spu_state *csa, struct spu *spu)
 	POLL_WHILE_FALSE(in_be32(&prob->dma_tagstatus_R) & mask);
 
 	local_irq_save(flags);
-	out_be64(&priv1->int_stat_class0_RW, ~(0UL));
-	out_be64(&priv1->int_stat_class2_RW, ~(0UL));
+	spu_int_stat_clear(spu, 0, ~(0ul));
+	spu_int_stat_clear(spu, 2, ~(0ul));
 	local_irq_restore(flags);
 }
 
 static inline void wait_spu_stopped(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	struct spu_problem __iomem *prob = spu->problem;
 	unsigned long flags;
 
@@ -967,8 +945,8 @@ static inline void wait_spu_stopped(struct spu_state *csa, struct spu *spu)
 	POLL_WHILE_TRUE(in_be32(&prob->spu_status_R) & SPU_STATUS_RUNNING);
 
 	local_irq_save(flags);
-	out_be64(&priv1->int_stat_class0_RW, ~(0UL));
-	out_be64(&priv1->int_stat_class2_RW, ~(0UL));
+	spu_int_stat_clear(spu, 0, ~(0ul));
+	spu_int_stat_clear(spu, 2, ~(0ul));
 	local_irq_restore(flags);
 }
 
@@ -1067,7 +1045,6 @@ static inline int suspend_spe(struct spu_state *csa, struct spu *spu)
 static inline void clear_spu_status(struct spu_state *csa, struct spu *spu)
 {
 	struct spu_problem __iomem *prob = spu->problem;
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 
 	/* Restore, Step 10:
 	 *    If SPU_Status[R]=0 and SPU_Status[E,L,IS]=1,
@@ -1076,8 +1053,8 @@ static inline void clear_spu_status(struct spu_state *csa, struct spu *spu)
 	if (!(in_be32(&prob->spu_status_R) & SPU_STATUS_RUNNING)) {
 		if (in_be32(&prob->spu_status_R) &
 		    SPU_STATUS_ISOLATED_EXIT_STAUTUS) {
-			out_be64(&priv1->mfc_sr1_RW,
-				 MFC_STATE1_MASTER_RUN_CONTROL_MASK);
+			spu_mfc_sr1_set(spu,
+					MFC_STATE1_MASTER_RUN_CONTROL_MASK);
 			eieio();
 			out_be32(&prob->spu_runcntl_RW, SPU_RUNCNTL_RUNNABLE);
 			eieio();
@@ -1088,8 +1065,8 @@ static inline void clear_spu_status(struct spu_state *csa, struct spu *spu)
 		     SPU_STATUS_ISOLATED_LOAD_STAUTUS)
 		    || (in_be32(&prob->spu_status_R) &
 			SPU_STATUS_ISOLATED_STATE)) {
-			out_be64(&priv1->mfc_sr1_RW,
-				 MFC_STATE1_MASTER_RUN_CONTROL_MASK);
+			spu_mfc_sr1_set(spu,
+					MFC_STATE1_MASTER_RUN_CONTROL_MASK);
 			eieio();
 			out_be32(&prob->spu_runcntl_RW, 0x2);
 			eieio();
@@ -1257,16 +1234,14 @@ static inline void setup_spu_status_part2(struct spu_state *csa,
 
 static inline void restore_mfc_rag(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Restore, Step 29:
 	 *     Restore RA_GROUP_ID register and the
 	 *     RA_ENABLE reigster from the CSA.
 	 */
-	out_be64(&priv1->resource_allocation_groupID_RW,
-		 csa->priv1.resource_allocation_groupID_RW);
-	out_be64(&priv1->resource_allocation_enable_RW,
-		 csa->priv1.resource_allocation_enable_RW);
+	spu_resource_allocation_groupID_set(spu,
+			csa->priv1.resource_allocation_groupID_RW);
+	spu_resource_allocation_enable_set(spu,
+			csa->priv1.resource_allocation_enable_RW);
 }
 
 static inline void send_restore_code(struct spu_state *csa, struct spu *spu)
@@ -1409,8 +1384,6 @@ static inline void restore_ls_16kb(struct spu_state *csa, struct spu *spu)
 
 static inline void clear_interrupts(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Restore, Step 49:
 	 *     Write INT_MASK_class0 with value of 0.
 	 *     Write INT_MASK_class1 with value of 0.
@@ -1420,12 +1393,12 @@ static inline void clear_interrupts(struct spu_state *csa, struct spu *spu)
 	 *     Write INT_STAT_class2 with value of -1.
 	 */
 	spin_lock_irq(&spu->register_lock);
-	out_be64(&priv1->int_mask_class0_RW, 0UL);
-	out_be64(&priv1->int_mask_class1_RW, 0UL);
-	out_be64(&priv1->int_mask_class2_RW, 0UL);
-	out_be64(&priv1->int_stat_class0_RW, ~(0UL));
-	out_be64(&priv1->int_stat_class1_RW, ~(0UL));
-	out_be64(&priv1->int_stat_class2_RW, ~(0UL));
+	spu_int_mask_set(spu, 0, 0ul);
+	spu_int_mask_set(spu, 1, 0ul);
+	spu_int_mask_set(spu, 2, 0ul);
+	spu_int_stat_clear(spu, 0, ~0ul);
+	spu_int_stat_clear(spu, 1, ~0ul);
+	spu_int_stat_clear(spu, 2, ~0ul);
 	spin_unlock_irq(&spu->register_lock);
 }
 
@@ -1522,12 +1495,10 @@ static inline void restore_mfc_csr_ato(struct spu_state *csa, struct spu *spu)
 
 static inline void restore_mfc_tclass_id(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Restore, Step 56:
 	 *     Restore the MFC_TCLASS_ID register from CSA.
 	 */
-	out_be64(&priv1->mfc_tclass_id_RW, csa->priv1.mfc_tclass_id_RW);
+	spu_mfc_tclass_id_set(spu, csa->priv1.mfc_tclass_id_RW);
 	eieio();
 }
 
@@ -1689,7 +1660,6 @@ static inline void check_ppu_mb_stat(struct spu_state *csa, struct spu *spu)
 
 static inline void check_ppuint_mb_stat(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 	u64 dummy = 0UL;
 
@@ -1700,8 +1670,7 @@ static inline void check_ppuint_mb_stat(struct spu_state *csa, struct spu *spu)
 	if ((csa->prob.mb_stat_R & 0xFF0000) == 0) {
 		dummy = in_be64(&priv2->puint_mb_R);
 		eieio();
-		out_be64(&priv1->int_stat_class2_RW,
-			 CLASS2_ENABLE_MAILBOX_INTR);
+		spu_int_stat_clear(spu, 2, CLASS2_ENABLE_MAILBOX_INTR);
 		eieio();
 	}
 }
@@ -1729,12 +1698,10 @@ static inline void restore_mfc_slbs(struct spu_state *csa, struct spu *spu)
 
 static inline void restore_mfc_sr1(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Restore, Step 69:
 	 *     Restore the MFC_SR1 register from CSA.
 	 */
-	out_be64(&priv1->mfc_sr1_RW, csa->priv1.mfc_sr1_RW);
+	spu_mfc_sr1_set(spu, csa->priv1.mfc_sr1_RW);
 	eieio();
 }
 
@@ -1792,15 +1759,13 @@ static inline void reset_switch_active(struct spu_state *csa, struct spu *spu)
 
 static inline void reenable_interrupts(struct spu_state *csa, struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1 = spu->priv1;
-
 	/* Restore, Step 75:
 	 *     Re-enable SPU interrupts.
 	 */
 	spin_lock_irq(&spu->register_lock);
-	out_be64(&priv1->int_mask_class0_RW, csa->priv1.int_mask_class0_RW);
-	out_be64(&priv1->int_mask_class1_RW, csa->priv1.int_mask_class1_RW);
-	out_be64(&priv1->int_mask_class2_RW, csa->priv1.int_mask_class2_RW);
+	spu_int_mask_set(spu, 0, csa->priv1.int_mask_class0_RW);
+	spu_int_mask_set(spu, 1, csa->priv1.int_mask_class1_RW);
+	spu_int_mask_set(spu, 2, csa->priv1.int_mask_class2_RW);
 	spin_unlock_irq(&spu->register_lock);
 }
 

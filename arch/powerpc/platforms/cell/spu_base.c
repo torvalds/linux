@@ -142,8 +142,7 @@ static int __spu_trap_mailbox(struct spu *spu)
 
 	/* atomically disable SPU mailbox interrupts */
 	spin_lock(&spu->register_lock);
-	out_be64(&spu->priv1->int_mask_class2_RW,
-		in_be64(&spu->priv1->int_mask_class2_RW) & ~0x1);
+	spu_int_mask_and(spu, 2, ~0x1);
 	spin_unlock(&spu->register_lock);
 	return 0;
 }
@@ -180,8 +179,7 @@ static int __spu_trap_spubox(struct spu *spu)
 
 	/* atomically disable SPU mailbox interrupts */
 	spin_lock(&spu->register_lock);
-	out_be64(&spu->priv1->int_mask_class2_RW,
-		in_be64(&spu->priv1->int_mask_class2_RW) & ~0x10);
+	spu_int_mask_and(spu, 2, ~0x10);
 	spin_unlock(&spu->register_lock);
 	return 0;
 }
@@ -206,8 +204,8 @@ spu_irq_class_0_bottom(struct spu *spu)
 
 	spu->class_0_pending = 0;
 
-	mask = in_be64(&spu->priv1->int_mask_class0_RW);
-	stat = in_be64(&spu->priv1->int_stat_class0_RW);
+	mask = spu_int_mask_get(spu, 0);
+	stat = spu_int_stat_get(spu, 0);
 
 	stat &= mask;
 
@@ -220,7 +218,7 @@ spu_irq_class_0_bottom(struct spu *spu)
 	if (stat & 4) /* error on SPU */
 		__spu_trap_error(spu);
 
-	out_be64(&spu->priv1->int_stat_class0_RW, stat);
+	spu_int_stat_clear(spu, 0, stat);
 
 	return (stat & 0x7) ? -EIO : 0;
 }
@@ -236,13 +234,13 @@ spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
 
 	/* atomically read & clear class1 status. */
 	spin_lock(&spu->register_lock);
-	mask  = in_be64(&spu->priv1->int_mask_class1_RW);
-	stat  = in_be64(&spu->priv1->int_stat_class1_RW) & mask;
-	dar   = in_be64(&spu->priv1->mfc_dar_RW);
-	dsisr = in_be64(&spu->priv1->mfc_dsisr_RW);
+	mask  = spu_int_mask_get(spu, 1);
+	stat  = spu_int_stat_get(spu, 1) & mask;
+	dar   = spu_mfc_dar_get(spu);
+	dsisr = spu_mfc_dsisr_get(spu);
 	if (stat & 2) /* mapping fault */
-		out_be64(&spu->priv1->mfc_dsisr_RW, 0UL);
-	out_be64(&spu->priv1->int_stat_class1_RW, stat);
+		spu_mfc_dsisr_set(spu, 0ul);
+	spu_int_stat_clear(spu, 1, stat);
 	spin_unlock(&spu->register_lock);
 
 	if (stat & 1) /* segment fault */
@@ -270,8 +268,8 @@ spu_irq_class_2(int irq, void *data, struct pt_regs *regs)
 	unsigned long mask;
 
 	spu = data;
-	stat = in_be64(&spu->priv1->int_stat_class2_RW);
-	mask = in_be64(&spu->priv1->int_mask_class2_RW);
+	stat = spu_int_stat_get(spu, 2);
+	mask = spu_int_mask_get(spu, 2);
 
 	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
 
@@ -292,7 +290,7 @@ spu_irq_class_2(int irq, void *data, struct pt_regs *regs)
 	if (stat & 0x10) /* SPU mailbox threshold */
 		__spu_trap_spubox(spu);
 
-	out_be64(&spu->priv1->int_stat_class2_RW, stat);
+	spu_int_stat_clear(spu, 2, stat);
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 
@@ -309,21 +307,18 @@ spu_request_irqs(struct spu *spu)
 		 spu_irq_class_0, 0, spu->irq_c0, spu);
 	if (ret)
 		goto out;
-	out_be64(&spu->priv1->int_mask_class0_RW, 0x7);
 
 	snprintf(spu->irq_c1, sizeof (spu->irq_c1), "spe%02d.1", spu->number);
 	ret = request_irq(irq_base + IIC_CLASS_STRIDE + spu->isrc,
 		 spu_irq_class_1, 0, spu->irq_c1, spu);
 	if (ret)
 		goto out1;
-	out_be64(&spu->priv1->int_mask_class1_RW, 0x3);
 
 	snprintf(spu->irq_c2, sizeof (spu->irq_c2), "spe%02d.2", spu->number);
 	ret = request_irq(irq_base + 2*IIC_CLASS_STRIDE + spu->isrc,
 		 spu_irq_class_2, 0, spu->irq_c2, spu);
 	if (ret)
 		goto out2;
-	out_be64(&spu->priv1->int_mask_class2_RW, 0xe);
 	goto out;
 
 out2:
@@ -383,13 +378,6 @@ static void spu_init_channels(struct spu *spu)
 	}
 }
 
-static void spu_init_regs(struct spu *spu)
-{
-	out_be64(&spu->priv1->int_mask_class0_RW, 0x7);
-	out_be64(&spu->priv1->int_mask_class1_RW, 0x3);
-	out_be64(&spu->priv1->int_mask_class2_RW, 0xe);
-}
-
 struct spu *spu_alloc(void)
 {
 	struct spu *spu;
@@ -405,10 +393,8 @@ struct spu *spu_alloc(void)
 	}
 	up(&spu_mutex);
 
-	if (spu) {
+	if (spu)
 		spu_init_channels(spu);
-		spu_init_regs(spu);
-	}
 
 	return spu;
 }
@@ -579,8 +565,7 @@ static int __init spu_map_device(struct spu *spu, struct device_node *spe)
 		goto out_unmap;
 
 	spu->priv1= map_spe_prop(spe, "priv1");
-	if (!spu->priv1)
-		goto out_unmap;
+	/* priv1 is not available on a hypervisor */
 
 	spu->priv2= map_spe_prop(spe, "priv2");
 	if (!spu->priv2)
@@ -633,8 +618,8 @@ static int __init create_spu(struct device_node *spe)
 	spu->dsisr = 0UL;
 	spin_lock_init(&spu->register_lock);
 
-	out_be64(&spu->priv1->mfc_sdr_RW, mfspr(SPRN_SDR1));
-	out_be64(&spu->priv1->mfc_sr1_RW, 0x33);
+	spu_mfc_sdr_set(spu, mfspr(SPRN_SDR1));
+	spu_mfc_sr1_set(spu, 0x33);
 
 	spu->ibox_callback = NULL;
 	spu->wbox_callback = NULL;
