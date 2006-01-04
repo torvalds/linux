@@ -2299,9 +2299,7 @@ static int __init find_port(struct uart_port *p)
 
 	for (line = 0; line < UART_NR; line++) {
 		port = &serial8250_ports[line].port;
-		if (p->iotype == port->iotype &&
-		    p->iobase == port->iobase &&
-		    p->membase == port->membase)
+		if (uart_match_port(p, port))
 			return line;
 	}
 	return -ENODEV;
