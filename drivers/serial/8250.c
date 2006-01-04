@@ -1255,25 +1255,24 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 		__stop_tx(up);
 }
 
-static _INLINE_ void check_modem_status(struct uart_8250_port *up)
+static unsigned int check_modem_status(struct uart_8250_port *up)
 {
-	int status;
+	unsigned int status = serial_in(up, UART_MSR);
 
-	status = serial_in(up, UART_MSR);
+	if (status & UART_MSR_ANY_DELTA && up->ier & UART_IER_MSI) {
+		if (status & UART_MSR_TERI)
+			up->port.icount.rng++;
+		if (status & UART_MSR_DDSR)
+			up->port.icount.dsr++;
+		if (status & UART_MSR_DDCD)
+			uart_handle_dcd_change(&up->port, status & UART_MSR_DCD);
+		if (status & UART_MSR_DCTS)
+			uart_handle_cts_change(&up->port, status & UART_MSR_CTS);
 
-	if ((status & UART_MSR_ANY_DELTA) == 0)
-		return;
+		wake_up_interruptible(&up->port.info->delta_msr_wait);
+	}
 
-	if (status & UART_MSR_TERI)
-		up->port.icount.rng++;
-	if (status & UART_MSR_DDSR)
-		up->port.icount.dsr++;
-	if (status & UART_MSR_DDCD)
-		uart_handle_dcd_change(&up->port, status & UART_MSR_DCD);
-	if (status & UART_MSR_DCTS)
-		uart_handle_cts_change(&up->port, status & UART_MSR_CTS);
-
-	wake_up_interruptible(&up->port.info->delta_msr_wait);
+	return status;
 }
 
 /*
@@ -1454,10 +1453,10 @@ static unsigned int serial8250_tx_empty(struct uart_port *port)
 static unsigned int serial8250_get_mctrl(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
-	unsigned char status;
+	unsigned int status;
 	unsigned int ret;
 
-	status = serial_in(up, UART_MSR);
+	status = check_modem_status(up);
 
 	ret = 0;
 	if (status & UART_MSR_DCD)
