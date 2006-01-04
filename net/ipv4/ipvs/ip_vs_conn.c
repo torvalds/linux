@@ -25,6 +25,7 @@
  */
 
 #include <linux/in.h>
+#include <linux/net.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
