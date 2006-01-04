@@ -50,7 +50,7 @@
 #include "ad1889.h"
 #include "ac97/ac97_id.h"
 
-#define	AD1889_DRVVER	"$Revision: 1.4 $"
+#define	AD1889_DRVVER	"Version: 1.7"
 
 MODULE_AUTHOR("Kyle McMartin <kyle@parisc-linux.org>, Thibaut Varene <t-bone@parisc-linux.org>");
 MODULE_DESCRIPTION("Analog Devices AD1889 ALSA sound driver");
