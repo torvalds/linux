@@ -687,7 +687,17 @@ sas_rphy_delete(struct sas_rphy *rphy)
 	struct Scsi_Host *shost = dev_to_shost(parent->dev.parent);
 	struct sas_host_attrs *sas_host = to_sas_host_attrs(shost);
 
-	scsi_remove_target(dev);
+	switch (rphy->identify.device_type) {
+	case SAS_END_DEVICE:
+		scsi_remove_target(dev);
+		break;
+	case SAS_EDGE_EXPANDER_DEVICE:
+	case SAS_FANOUT_EXPANDER_DEVICE:
+		device_for_each_child(dev, NULL, do_sas_phy_delete);
+		break;
+	default:
+		break;
+	}
 
 	transport_remove_device(dev);
 	device_del(dev);
