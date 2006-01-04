@@ -91,7 +91,9 @@ extern void set_dma_sg(dmach_t channel, struct scatterlist *sg, int nr_sg);
  * especially since some DMA architectures don't update the
  * DMA address immediately, but defer it to the enable_dma().
  */
-extern void set_dma_addr(dmach_t channel, unsigned long physaddr);
+extern void __set_dma_addr(dmach_t channel, void *addr);
+#define set_dma_addr(channel, addr)				\
+	__set_dma_addr(channel, bus_to_virt(addr))
 
 /* Set the DMA byte count for this channel
  *

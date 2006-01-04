@@ -131,7 +131,7 @@ void set_dma_sg (dmach_t channel, struct scatterlist *sg, int nr_sg)
  *
  * Copy address to the structure, and set the invalid bit
  */
-void set_dma_addr (dmach_t channel, unsigned long physaddr)
+void __set_dma_addr (dmach_t channel, void *addr)
 {
 	dma_t *dma = dma_chan + channel;
 
@@ -141,7 +141,7 @@ void set_dma_addr (dmach_t channel, unsigned long physaddr)
 
 	dma->sg = &dma->buf;
 	dma->sgcount = 1;
-	dma->buf.__address = bus_to_virt(physaddr);
+	dma->buf.__address = addr;
 	dma->using_sg = 0;
 	dma->invalid = 1;
 }
@@ -278,7 +278,7 @@ GLOBAL_ALIAS(get_dma_list, get_dma_residue);
 GLOBAL_ALIAS(set_dma_mode, get_dma_residue);
 GLOBAL_ALIAS(set_dma_page, get_dma_residue);
 GLOBAL_ALIAS(set_dma_count, get_dma_residue);
-GLOBAL_ALIAS(set_dma_addr, get_dma_residue);
+GLOBAL_ALIAS(__set_dma_addr, get_dma_residue);
 GLOBAL_ALIAS(set_dma_sg, get_dma_residue);
 GLOBAL_ALIAS(set_dma_speed, get_dma_residue);
 GLOBAL_ALIAS(init_dma, get_dma_residue);
@@ -289,7 +289,7 @@ EXPORT_SYMBOL(request_dma);
 EXPORT_SYMBOL(free_dma);
 EXPORT_SYMBOL(enable_dma);
 EXPORT_SYMBOL(disable_dma);
-EXPORT_SYMBOL(set_dma_addr);
+EXPORT_SYMBOL(__set_dma_addr);
 EXPORT_SYMBOL(set_dma_count);
 EXPORT_SYMBOL(set_dma_mode);
 EXPORT_SYMBOL(set_dma_page);
