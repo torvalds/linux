@@ -123,7 +123,6 @@ void set_dma_sg (dmach_t channel, struct scatterlist *sg, int nr_sg)
 
 	dma->sg = sg;
 	dma->sgcount = nr_sg;
-	dma->using_sg = 1;
 	dma->invalid = 1;
 }
 
@@ -139,10 +138,8 @@ void __set_dma_addr (dmach_t channel, void *addr)
 		printk(KERN_ERR "dma%d: altering DMA address while "
 		       "DMA active\n", channel);
 
-	dma->sg = &dma->buf;
-	dma->sgcount = 1;
-	dma->buf.__address = addr;
-	dma->using_sg = 0;
+	dma->sg = NULL;
+	dma->addr = addr;
 	dma->invalid = 1;
 }
 
@@ -158,10 +155,8 @@ void set_dma_count (dmach_t channel, unsigned long count)
 		printk(KERN_ERR "dma%d: altering DMA count while "
 		       "DMA active\n", channel);
 
-	dma->sg = &dma->buf;
-	dma->sgcount = 1;
-	dma->buf.length = count;
-	dma->using_sg = 0;
+	dma->sg = NULL;
+	dma->count = count;
 	dma->invalid = 1;
 }
 
