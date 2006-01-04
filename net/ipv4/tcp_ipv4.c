@@ -270,8 +270,7 @@ failure:
 /*
  * This routine does path mtu discovery as defined in RFC1191.
  */
-static inline void do_pmtu_discovery(struct sock *sk, struct iphdr *iph,
-				     u32 mtu)
+static void do_pmtu_discovery(struct sock *sk, struct iphdr *iph, u32 mtu)
 {
 	struct dst_entry *dst;
 	struct inet_sock *inet = inet_sk(sk);
@@ -662,7 +661,7 @@ static void tcp_v4_reqsk_destructor(struct request_sock *req)
 	kfree(inet_rsk(req)->opt);
 }
 
-static inline void syn_flood_warning(struct sk_buff *skb)
+static void syn_flood_warning(struct sk_buff *skb)
 {
 	static unsigned long warntime;
 
@@ -677,8 +676,8 @@ static inline void syn_flood_warning(struct sk_buff *skb)
 /*
  * Save and compile IPv4 options into the request_sock if needed.
  */
-static inline struct ip_options *tcp_v4_save_options(struct sock *sk,
-						     struct sk_buff *skb)
+static struct ip_options *tcp_v4_save_options(struct sock *sk,
+					      struct sk_buff *skb)
 {
 	struct ip_options *opt = &(IPCB(skb)->opt);
 	struct ip_options *dopt = NULL;

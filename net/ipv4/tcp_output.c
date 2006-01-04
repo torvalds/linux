@@ -51,8 +51,8 @@ int sysctl_tcp_retrans_collapse = 1;
  */
 int sysctl_tcp_tso_win_divisor = 3;
 
-static inline void update_send_head(struct sock *sk, struct tcp_sock *tp,
-				    struct sk_buff *skb)
+static void update_send_head(struct sock *sk, struct tcp_sock *tp,
+			     struct sk_buff *skb)
 {
 	sk->sk_send_head = skb->next;
 	if (sk->sk_send_head == (struct sk_buff *)&sk->sk_write_queue)
@@ -124,8 +124,8 @@ static void tcp_cwnd_restart(struct sock *sk, struct dst_entry *dst)
 	tp->snd_cwnd_used = 0;
 }
 
-static inline void tcp_event_data_sent(struct tcp_sock *tp,
-				       struct sk_buff *skb, struct sock *sk)
+static void tcp_event_data_sent(struct tcp_sock *tp,
+				struct sk_buff *skb, struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	const u32 now = tcp_time_stamp;
@@ -142,7 +142,7 @@ static inline void tcp_event_data_sent(struct tcp_sock *tp,
 		icsk->icsk_ack.pingpong = 1;
 }
 
-static __inline__ void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
+static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
 {
 	tcp_dec_quickack_mode(sk, pkts);
 	inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
@@ -212,7 +212,7 @@ void tcp_select_initial_window(int __space, __u32 mss,
  * value can be stuffed directly into th->window for an outgoing
  * frame.
  */
-static __inline__ u16 tcp_select_window(struct sock *sk)
+static u16 tcp_select_window(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 cur_win = tcp_receive_window(tp);
@@ -250,6 +250,75 @@ static __inline__ u16 tcp_select_window(struct sock *sk)
 	return new_win;
 }
 
+static void tcp_build_and_update_options(__u32 *ptr, struct tcp_sock *tp,
+					 __u32 tstamp)
+{
+	if (tp->rx_opt.tstamp_ok) {
+		*ptr++ = __constant_htonl((TCPOPT_NOP << 24) |
+					  (TCPOPT_NOP << 16) |
+					  (TCPOPT_TIMESTAMP << 8) |
+					  TCPOLEN_TIMESTAMP);
+		*ptr++ = htonl(tstamp);
+		*ptr++ = htonl(tp->rx_opt.ts_recent);
+	}
+	if (tp->rx_opt.eff_sacks) {
+		struct tcp_sack_block *sp = tp->rx_opt.dsack ? tp->duplicate_sack : tp->selective_acks;
+		int this_sack;
+
+		*ptr++ = htonl((TCPOPT_NOP  << 24) |
+			       (TCPOPT_NOP  << 16) |
+			       (TCPOPT_SACK <<  8) |
+			       (TCPOLEN_SACK_BASE + (tp->rx_opt.eff_sacks *
+						     TCPOLEN_SACK_PERBLOCK)));
+		for(this_sack = 0; this_sack < tp->rx_opt.eff_sacks; this_sack++) {
+			*ptr++ = htonl(sp[this_sack].start_seq);
+			*ptr++ = htonl(sp[this_sack].end_seq);
+		}
+		if (tp->rx_opt.dsack) {
+			tp->rx_opt.dsack = 0;
+			tp->rx_opt.eff_sacks--;
+		}
+	}
+}
+
+/* Construct a tcp options header for a SYN or SYN_ACK packet.
+ * If this is every changed make sure to change the definition of
+ * MAX_SYN_SIZE to match the new maximum number of options that you
+ * can generate.
+ */
+static void tcp_syn_build_options(__u32 *ptr, int mss, int ts, int sack,
+				  int offer_wscale, int wscale, __u32 tstamp,
+				  __u32 ts_recent)
+{
+	/* We always get an MSS option.
+	 * The option bytes which will be seen in normal data
+	 * packets should timestamps be used, must be in the MSS
+	 * advertised.  But we subtract them from tp->mss_cache so
+	 * that calculations in tcp_sendmsg are simpler etc.
+	 * So account for this fact here if necessary.  If we
+	 * don't do this correctly, as a receiver we won't
+	 * recognize data packets as being full sized when we
+	 * should, and thus we won't abide by the delayed ACK
+	 * rules correctly.
+	 * SACKs don't matter, we never delay an ACK when we
+	 * have any of those going out.
+	 */
+	*ptr++ = htonl((TCPOPT_MSS << 24) | (TCPOLEN_MSS << 16) | mss);
+	if (ts) {
+		if(sack)
+			*ptr++ = __constant_htonl((TCPOPT_SACK_PERM << 24) | (TCPOLEN_SACK_PERM << 16) |
+						  (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
+		else
+			*ptr++ = __constant_htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
+						  (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP);
+		*ptr++ = htonl(tstamp);		/* TSVAL */
+		*ptr++ = htonl(ts_recent);	/* TSECR */
+	} else if(sack)
+		*ptr++ = __constant_htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
+					  (TCPOPT_SACK_PERM << 8) | TCPOLEN_SACK_PERM);
+	if (offer_wscale)
+		*ptr++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_WINDOW << 16) | (TCPOLEN_WINDOW << 8) | (wscale));
+}
 
 /* This routine actually transmits TCP packets queued in by
  * tcp_do_sendmsg().  This is used by both the initial
@@ -724,7 +793,7 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 
 /* Congestion window validation. (RFC2861) */
 
-static inline void tcp_cwnd_validate(struct sock *sk, struct tcp_sock *tp)
+static void tcp_cwnd_validate(struct sock *sk, struct tcp_sock *tp)
 {
 	__u32 packets_out = tp->packets_out;
 
@@ -773,7 +842,7 @@ static inline unsigned int tcp_cwnd_test(struct tcp_sock *tp, struct sk_buff *sk
 /* This must be invoked the first time we consider transmitting
  * SKB onto the wire.
  */
-static inline int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned int mss_now)
+static int tcp_init_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned int mss_now)
 {
 	int tso_segs = tcp_skb_pcount(skb);
 
@@ -1794,7 +1863,7 @@ struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 /* 
  * Do all connect socket setups that can be done AF independent.
  */ 
-static inline void tcp_connect_init(struct sock *sk)
+static void tcp_connect_init(struct sock *sk)
 {
 	struct dst_entry *dst = __sk_dst_get(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
