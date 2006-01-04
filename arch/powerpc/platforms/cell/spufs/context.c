@@ -132,10 +132,10 @@ int spu_acquire_runnable(struct spu_context *ctx)
 
 	if (ctx->state == SPU_STATE_SAVED) {
 		ret = spu_activate(ctx, 0);
+		if (ret)
+			goto out;
 		ctx->state = SPU_STATE_RUNNABLE;
 	}
-	if (ret)
-		goto out;
 
 	downgrade_write(&ctx->state_sema);
 	/* On success, we return holding the lock */
