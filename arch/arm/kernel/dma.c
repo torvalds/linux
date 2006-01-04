@@ -21,6 +21,7 @@
 #include <asm/mach/dma.h>
 
 DEFINE_SPINLOCK(dma_spin_lock);
+EXPORT_SYMBOL(dma_spin_lock);
 
 static dma_t dma_chan[MAX_DMA_CHANNELS];
 
@@ -77,6 +78,7 @@ bad_dma:
 busy:
 	return -EBUSY;
 }
+EXPORT_SYMBOL(request_dma);
 
 /*
  * Free DMA channel
@@ -108,6 +110,7 @@ void free_dma(dmach_t channel)
 bad_dma:
 	printk(KERN_ERR "dma: trying to free DMA%d\n", channel);
 }
+EXPORT_SYMBOL(free_dma);
 
 /* Set DMA Scatter-Gather list
  */
@@ -123,6 +126,7 @@ void set_dma_sg (dmach_t channel, struct scatterlist *sg, int nr_sg)
 	dma->sgcount = nr_sg;
 	dma->invalid = 1;
 }
+EXPORT_SYMBOL(set_dma_sg);
 
 /* Set DMA address
  *
@@ -140,6 +144,7 @@ void __set_dma_addr (dmach_t channel, void *addr)
 	dma->addr = addr;
 	dma->invalid = 1;
 }
+EXPORT_SYMBOL(__set_dma_addr);
 
 /* Set DMA byte count
  *
@@ -157,6 +162,7 @@ void set_dma_count (dmach_t channel, unsigned long count)
 	dma->count = count;
 	dma->invalid = 1;
 }
+EXPORT_SYMBOL(set_dma_count);
 
 /* Set DMA direction mode
  */
@@ -171,6 +177,7 @@ void set_dma_mode (dmach_t channel, dmamode_t mode)
 	dma->dma_mode = mode;
 	dma->invalid = 1;
 }
+EXPORT_SYMBOL(set_dma_mode);
 
 /* Enable DMA channel
  */
@@ -191,6 +198,7 @@ free_dma:
 	printk(KERN_ERR "dma%d: trying to enable free DMA\n", channel);
 	BUG();
 }
+EXPORT_SYMBOL(enable_dma);
 
 /* Disable DMA channel
  */
@@ -211,6 +219,7 @@ free_dma:
 	printk(KERN_ERR "dma%d: trying to disable free DMA\n", channel);
 	BUG();
 }
+EXPORT_SYMBOL(disable_dma);
 
 /*
  * Is the specified DMA channel active?
@@ -224,6 +233,7 @@ void set_dma_page(dmach_t channel, char pagenr)
 {
 	printk(KERN_ERR "dma%d: trying to set_dma_page\n", channel);
 }
+EXPORT_SYMBOL(set_dma_page);
 
 void set_dma_speed(dmach_t channel, int cycle_ns)
 {
@@ -234,6 +244,7 @@ void set_dma_speed(dmach_t channel, int cycle_ns)
 		ret = dma->d_ops->setspeed(channel, dma, cycle_ns);
 	dma->speed = ret;
 }
+EXPORT_SYMBOL(set_dma_speed);
 
 int get_dma_residue(dmach_t channel)
 {
@@ -245,6 +256,7 @@ int get_dma_residue(dmach_t channel)
 
 	return ret;
 }
+EXPORT_SYMBOL(get_dma_residue);
 
 static int __init init_dma(void)
 {
@@ -253,17 +265,3 @@ static int __init init_dma(void)
 }
 
 core_initcall(init_dma);
-
-EXPORT_SYMBOL(request_dma);
-EXPORT_SYMBOL(free_dma);
-EXPORT_SYMBOL(enable_dma);
-EXPORT_SYMBOL(disable_dma);
-EXPORT_SYMBOL(__set_dma_addr);
-EXPORT_SYMBOL(set_dma_count);
-EXPORT_SYMBOL(set_dma_mode);
-EXPORT_SYMBOL(set_dma_page);
-EXPORT_SYMBOL(get_dma_residue);
-EXPORT_SYMBOL(set_dma_sg);
-EXPORT_SYMBOL(set_dma_speed);
-
-EXPORT_SYMBOL(dma_spin_lock);
