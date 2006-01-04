@@ -155,7 +155,7 @@ ieee80211softmac_hdr_3addr(struct ieee80211softmac_device *mac,
  *****************************************************************************/ 
 
 /* Creates an association request packet */
-u32
+static u32
 ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt, 
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net)
 {
@@ -206,7 +206,7 @@ ieee80211softmac_assoc_req(struct ieee80211_assoc_request **pkt,
 }
 
 /* Create a reassociation request packet */
-u32
+static u32
 ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt, 
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net)
 {
@@ -253,7 +253,7 @@ ieee80211softmac_reassoc_req(struct ieee80211_reassoc_request **pkt,
 }
 
 /* Create an authentication packet */
-u32
+static u32
 ieee80211softmac_auth(struct ieee80211_auth **pkt, 
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net,
 	u16 transaction, u16 status)
@@ -301,7 +301,7 @@ ieee80211softmac_auth(struct ieee80211_auth **pkt,
 }
 
 /* Create a disassocation or deauthentication packet */
-u32
+static u32
 ieee80211softmac_disassoc_deauth(struct ieee80211_disassoc **pkt,
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net,
 	u16 type, u16 reason)
@@ -318,7 +318,7 @@ ieee80211softmac_disassoc_deauth(struct ieee80211_disassoc **pkt,
 }
 
 /* Create a probe request packet */
-u32
+static u32
 ieee80211softmac_probe_req(struct ieee80211_probe_request **pkt,
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_essid *essid)
 {
@@ -347,7 +347,7 @@ ieee80211softmac_probe_req(struct ieee80211_probe_request **pkt,
 
 /* Create a probe response packet */
 /* FIXME: Not complete */
-u32
+static u32
 ieee80211softmac_probe_resp(struct ieee80211_probe_response **pkt,
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net)
 {
@@ -430,7 +430,7 @@ ieee80211softmac_send_mgt_frame(struct ieee80211softmac_device *mac,
 
 
 /* Create an rts/cts frame */
-u32
+static u32
 ieee80211softmac_rts_cts(struct ieee80211_hdr_2addr **pkt,
 	struct ieee80211softmac_device *mac, struct ieee80211softmac_network *net, 
 	u32 type)

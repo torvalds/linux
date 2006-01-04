@@ -91,7 +91,12 @@ struct ieee80211softmac_network * ieee80211softmac_get_network_by_ssid_locked(
 	struct ieee80211softmac_device *mac, u8 *ssid, u8 ssid_len);
 struct ieee80211softmac_network * ieee80211softmac_get_network_by_ssid(
 	struct ieee80211softmac_device *mac, u8 *ssid, u8 ssid_len);
-
+struct ieee80211softmac_network *
+ieee80211softmac_get_network_by_essid_locked(struct ieee80211softmac_device *mac,
+	struct ieee80211softmac_essid *essid);
+struct ieee80211softmac_network *
+ieee80211softmac_get_network_by_essid(struct ieee80211softmac_device *mac,
+	struct ieee80211softmac_essid *essid);
 
 /* Rates related */
 u8 ieee80211softmac_lower_rate_delta(struct ieee80211softmac_device *mac, u8 rate, int delta);

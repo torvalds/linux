@@ -243,7 +243,7 @@ free_aq:
 /*
  * Handle deauthorization
  */
-void
+static void
 ieee80211softmac_deauth_from_net(struct ieee80211softmac_device *mac,
 	struct ieee80211softmac_network *net)
 {
