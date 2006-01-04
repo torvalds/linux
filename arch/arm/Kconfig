@@ -154,6 +154,7 @@ config ARCH_RPC
 	select FIQ
 	select TIMER_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
+	select ISA_DMA_API
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
 	  CD-ROM interface, serial and parallel port, and the floppy drive.
@@ -206,6 +207,7 @@ config ARCH_IMX
 
 config ARCH_H720X
 	bool "Hynix-HMS720x-based"
+	select ISA_DMA_API
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
@@ -290,12 +292,14 @@ config ISA
 	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
+# Select ISA DMA controller support
 config ISA_DMA
 	bool
+	select ISA_DMA_API
 
+# Select ISA DMA interface
 config ISA_DMA_API
 	bool
-	default y
 
 config PCI
 	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB
