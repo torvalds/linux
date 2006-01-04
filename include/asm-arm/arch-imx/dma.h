@@ -20,8 +20,6 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H
 
-#define MAX_DMA_CHANNELS	0
-
 /*
  * DMA registration
  */

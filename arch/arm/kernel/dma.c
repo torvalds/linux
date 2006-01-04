@@ -22,8 +22,6 @@
 
 DEFINE_SPINLOCK(dma_spin_lock);
 
-#if MAX_DMA_CHANNELS > 0
-
 static dma_t dma_chan[MAX_DMA_CHANNELS];
 
 /*
@@ -255,32 +253,6 @@ static int __init init_dma(void)
 }
 
 core_initcall(init_dma);
-
-#else
-
-int request_dma(dmach_t channel, const char *device_id)
-{
-	return -EINVAL;
-}
-
-int get_dma_residue(dmach_t channel)
-{
-	return 0;
-}
-
-#define GLOBAL_ALIAS(_a,_b) asm (".set " #_a "," #_b "; .globl " #_a)
-GLOBAL_ALIAS(disable_dma, get_dma_residue);
-GLOBAL_ALIAS(enable_dma, get_dma_residue);
-GLOBAL_ALIAS(free_dma, get_dma_residue);
-GLOBAL_ALIAS(get_dma_list, get_dma_residue);
-GLOBAL_ALIAS(set_dma_mode, get_dma_residue);
-GLOBAL_ALIAS(set_dma_page, get_dma_residue);
-GLOBAL_ALIAS(set_dma_count, get_dma_residue);
-GLOBAL_ALIAS(__set_dma_addr, get_dma_residue);
-GLOBAL_ALIAS(set_dma_sg, get_dma_residue);
-GLOBAL_ALIAS(set_dma_speed, get_dma_residue);
-
-#endif
 
 EXPORT_SYMBOL(request_dma);
 EXPORT_SYMBOL(free_dma);

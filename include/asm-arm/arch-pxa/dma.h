@@ -12,9 +12,6 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H
 
-/* No DMA as the rest of the world see it */
-#define MAX_DMA_CHANNELS	0
-
 /*
  * Descriptor structure for PXA's DMA engine
  * Note: this structure must always be aligned to a 16-byte boundary.

@@ -7,8 +7,3 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
-#ifndef _IOP3XX_DMA_H_P
-#define _IOP3XX_DMA_H_P
-
-#endif /* _ASM_ARCH_DMA_H_P */
