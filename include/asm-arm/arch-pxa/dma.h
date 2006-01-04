@@ -12,8 +12,6 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H
 
-#define MAX_DMA_ADDRESS		0xffffffff
-
 /* No DMA as the rest of the world see it */
 #define MAX_DMA_CHANNELS	0
 

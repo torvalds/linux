@@ -10,6 +10,13 @@ typedef unsigned int dmach_t;
 #include <asm/arch/dma.h>
 
 /*
+ * This is the maximum virtual address which can be DMA'd from.
+ */
+#ifndef MAX_DMA_ADDRESS
+#define MAX_DMA_ADDRESS	0xffffffff
+#endif
+
+/*
  * DMA modes
  */
 typedef unsigned int dmamode_t;

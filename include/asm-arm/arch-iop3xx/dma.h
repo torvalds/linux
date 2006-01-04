@@ -11,6 +11,4 @@
 #ifndef _IOP3XX_DMA_H_P
 #define _IOP3XX_DMA_H_P
 
-#define MAX_DMA_ADDRESS		0xffffffff
-
 #endif /* _ASM_ARCH_DMA_H_P */

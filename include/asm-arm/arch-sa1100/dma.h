@@ -15,12 +15,6 @@
 
 
 /*
- * This is the maximum DMA address that can be DMAd to.
- */
-#define MAX_DMA_ADDRESS		0xffffffff
-
-
-/*
  * The regular generic DMA interface is inappropriate for the
  * SA1100 DMA model.  None of the SA1100 specific drivers using
  * DMA are portable anyway so it's pointless to try to twist the
