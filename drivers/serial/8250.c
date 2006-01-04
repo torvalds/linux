@@ -296,7 +296,7 @@ static inline int map_8250_out_reg(struct uart_8250_port *up, int offset)
 
 #endif
 
-static _INLINE_ unsigned int serial_in(struct uart_8250_port *up, int offset)
+static unsigned int serial_in(struct uart_8250_port *up, int offset)
 {
 	offset = map_8250_in_reg(up, offset) << up->port.regshift;
 
@@ -321,7 +321,7 @@ static _INLINE_ unsigned int serial_in(struct uart_8250_port *up, int offset)
 	}
 }
 
-static _INLINE_ void
+static void
 serial_out(struct uart_8250_port *up, int offset, int value)
 {
 	offset = map_8250_out_reg(up, offset) << up->port.regshift;
@@ -1131,7 +1131,7 @@ static void serial8250_enable_ms(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 }
 
-static _INLINE_ void
+static void
 receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 {
 	struct tty_struct *tty = up->port.info->tty;
@@ -1217,7 +1217,7 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 	*status = lsr;
 }
 
-static _INLINE_ void transmit_chars(struct uart_8250_port *up)
+static void transmit_chars(struct uart_8250_port *up)
 {
 	struct circ_buf *xmit = &up->port.info->xmit;
 	int count;
