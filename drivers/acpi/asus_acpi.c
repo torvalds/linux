@@ -302,7 +302,7 @@ static struct model_data model_conf[END_MODEL] = {
 	 .brightness_set = "SPLV",
 	 .brightness_get = "GPLV",
 	 .display_set = "SDSP",
-	 .display_get = "\\SSTE"},
+	 .display_get = "\\_SB.PCI0.P0P1.VGA.GETD"},
 	{
 	 .name = "M6R",
 	 .mt_mled = "MLED",
