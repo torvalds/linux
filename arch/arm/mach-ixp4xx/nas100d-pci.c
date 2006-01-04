@@ -30,12 +30,6 @@ void __init nas100d_pci_preinit(void)
 	set_irq_type(IRQ_NAS100D_PCI_INTD, IRQT_LOW);
 	set_irq_type(IRQ_NAS100D_PCI_INTE, IRQT_LOW);
 
-	gpio_line_isr_clear(NAS100D_PCI_INTA_PIN);
-	gpio_line_isr_clear(NAS100D_PCI_INTB_PIN);
-	gpio_line_isr_clear(NAS100D_PCI_INTC_PIN);
-	gpio_line_isr_clear(NAS100D_PCI_INTD_PIN);
-	gpio_line_isr_clear(NAS100D_PCI_INTE_PIN);
-
 	ixp4xx_pci_preinit();
 }
 

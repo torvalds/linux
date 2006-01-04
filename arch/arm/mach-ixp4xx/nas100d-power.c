@@ -42,8 +42,6 @@ static int __init nas100d_power_init(void)
 
 	set_irq_type(NAS100D_RB_IRQ, IRQT_LOW);
 
-	gpio_line_isr_clear(NAS100D_RB_GPIO);
-
 	if (request_irq(NAS100D_RB_IRQ, &nas100d_reset_handler,
 		SA_INTERRUPT, "NAS100D reset button", NULL) < 0) {
 
