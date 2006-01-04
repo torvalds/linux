@@ -661,6 +661,7 @@ static void tcp_v4_reqsk_destructor(struct request_sock *req)
 	kfree(inet_rsk(req)->opt);
 }
 
+#ifdef CONFIG_SYN_COOKIES
 static void syn_flood_warning(struct sk_buff *skb)
 {
 	static unsigned long warntime;
@@ -672,6 +673,7 @@ static void syn_flood_warning(struct sk_buff *skb)
 		       ntohs(skb->h.th->dest));
 	}
 }
+#endif
 
 /*
  * Save and compile IPv4 options into the request_sock if needed.
