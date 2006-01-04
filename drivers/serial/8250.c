@@ -1281,7 +1281,11 @@ static unsigned int check_modem_status(struct uart_8250_port *up)
 static inline void
 serial8250_handle_port(struct uart_8250_port *up, struct pt_regs *regs)
 {
-	unsigned int status = serial_inp(up, UART_LSR);
+	unsigned int status;
+
+	spin_lock(&up->port.lock);
+
+	status = serial_inp(up, UART_LSR);
 
 	DEBUG_INTR("status = %x...", status);
 
@@ -1290,6 +1294,8 @@ serial8250_handle_port(struct uart_8250_port *up, struct pt_regs *regs)
 	check_modem_status(up);
 	if (status & UART_LSR_THRE)
 		transmit_chars(up);
+
+	spin_unlock(&up->port.lock);
 }
 
 /*
@@ -1325,9 +1331,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id, struct pt_regs *r
 
 		iir = serial_in(up, UART_IIR);
 		if (!(iir & UART_IIR_NO_INT)) {
-			spin_lock(&up->port.lock);
 			serial8250_handle_port(up, regs);
-			spin_unlock(&up->port.lock);
 
 			handled = 1;
 
@@ -1426,11 +1430,8 @@ static void serial8250_timeout(unsigned long data)
 	unsigned int iir;
 
 	iir = serial_in(up, UART_IIR);
-	if (!(iir & UART_IIR_NO_INT)) {
-		spin_lock(&up->port.lock);
+	if (!(iir & UART_IIR_NO_INT))
 		serial8250_handle_port(up, NULL);
-		spin_unlock(&up->port.lock);
-	}
 
 	timeout = up->port.timeout;
 	timeout = timeout > 6 ? (timeout / 2 - 2) : 1;
