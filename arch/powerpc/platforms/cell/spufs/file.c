@@ -620,8 +620,12 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 {
 	int ret;
 
-	if ((ret = spu_run_init(ctx, npc, status)) != 0)
-		return ret;
+	if (down_interruptible(&ctx->run_sema))
+		return -ERESTARTSYS;
+
+	ret = spu_run_init(ctx, npc, status);
+	if (ret)
+		goto out;
 
 	do {
 		ret = spufs_wait(ctx->stop_wq, spu_stopped(ctx, status));
@@ -629,9 +633,8 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 			break;
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
 			ret = spu_reacquire_runnable(ctx, npc, status);
-			if (ret) {
-				return ret;
-			}
+			if (ret)
+				goto out;
 			continue;
 		}
 		ret = spu_process_events(ctx);
@@ -645,6 +648,8 @@ long spufs_run_spu(struct file *file, struct spu_context *ctx,
 		ret = *status;
 	spu_yield(ctx);
 
+out:
+	up(&ctx->run_sema);
 	return ret;
 }
 

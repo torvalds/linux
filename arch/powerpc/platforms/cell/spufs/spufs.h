@@ -48,6 +48,7 @@ struct spu_context {
 
 	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
 	struct rw_semaphore state_sema;
+	struct semaphore run_sema;
 
 	struct mm_struct *owner;
 

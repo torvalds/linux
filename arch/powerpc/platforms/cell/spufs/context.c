@@ -43,6 +43,7 @@ struct spu_context *alloc_spu_context(struct address_space *local_store)
 	spin_lock_init(&ctx->mmio_lock);
 	kref_init(&ctx->kref);
 	init_rwsem(&ctx->state_sema);
+	init_MUTEX(&ctx->run_sema);
 	init_waitqueue_head(&ctx->ibox_wq);
 	init_waitqueue_head(&ctx->wbox_wq);
 	init_waitqueue_head(&ctx->stop_wq);
