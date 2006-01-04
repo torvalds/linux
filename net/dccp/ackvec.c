@@ -291,7 +291,7 @@ void dccp_ackvec_print(const struct dccp_ackvec *av)
 }
 #endif
 
-static void dccp_ackvec_trow_away_ack_record(struct dccp_ackvec *av)
+static void dccp_ackvec_throw_away_ack_record(struct dccp_ackvec *av)
 {
 	/*
 	 * As we're keeping track of the ack vector size (dccpav_vec_len) and
@@ -326,7 +326,7 @@ void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av, struct sock *sk,
 			      debug_prefix, 1,
 			      (unsigned long long)av->dccpav_ack_seqno,
 			      (unsigned long long)av->dccpav_ack_ackno);
-		dccp_ackvec_trow_away_ack_record(av);
+		dccp_ackvec_throw_away_ack_record(av);
 		av->dccpav_ack_seqno = DCCP_MAX_SEQNO + 1;
 	}
 }
@@ -389,7 +389,7 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 					      av->dccpav_ack_seqno,
 					      (unsigned long long)
 					      av->dccpav_ack_ackno);
-				dccp_ackvec_trow_away_ack_record(av);
+				dccp_ackvec_throw_away_ack_record(av);
 			}
 			/*
 			 * If dccpav_ack_seqno was not received, no problem
