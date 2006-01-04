@@ -142,6 +142,8 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 	*int_reg &= ~(IXP4XX_GPIO_STYLE_CLEAR <<
 	    		(line * IXP4XX_GPIO_STYLE_SIZE));
 
+	*IXP4XX_GPIO_GPISR = (1 << line);
+
 	/* Set the new style */
 	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
 
@@ -169,7 +171,7 @@ static void ixp4xx_irq_ack(unsigned int irq)
 	int line = (irq < 32) ? irq2gpio[irq] : -1;
 
 	if (line >= 0)
-		gpio_line_isr_clear(line);
+		*IXP4XX_GPIO_GPISR = (1 << line);
 }
 
 /*
