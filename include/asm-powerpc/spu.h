@@ -28,9 +28,7 @@
 #include <linux/kref.h>
 #include <linux/workqueue.h>
 
-#define LS_ORDER (6)		/* 256 kb */
-
-#define LS_SIZE (PAGE_SIZE << LS_ORDER)
+#define LS_SIZE (256 * 1024)
 #define LS_ADDR_MASK (LS_SIZE - 1)
 
 #define MFC_PUT_CMD             0x20
