@@ -31,6 +31,7 @@ core-$(CONFIG_BOARD_ATNGW100)		+= arch/avr32/boards/atngw100/
 core-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/
 core-y					+= arch/avr32/kernel/
 core-y					+= arch/avr32/mm/
+drivers-$(CONFIG_OPROFILE)		+= arch/avr32/oprofile/
 libs-y					+= arch/avr32/lib/
 
 archincdir-$(CONFIG_PLATFORM_AT32AP)	:= arch-at32ap
