@@ -83,6 +83,9 @@
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
 #define AUDIT_AVC_PATH		1402	/* dentry, vfsmount pair from avc */
+#define AUDIT_MAC_POLICY_LOAD	1403	/* Policy file load */
+#define AUDIT_MAC_STATUS	1404	/* Changed enforcing,permissive,off */
+#define AUDIT_MAC_CONFIG_CHANGE	1405	/* Changes to booleans */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
