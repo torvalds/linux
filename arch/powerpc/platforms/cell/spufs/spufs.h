@@ -37,8 +37,7 @@ enum {
 
 struct spu_context_ops;
 
-#define SPU_CONTEXT_PREEMPT_nr          0UL
-#define SPU_CONTEXT_PREEMPT             (1UL << SPU_CONTEXT_PREEMPT_nr)
+#define SPU_CONTEXT_PREEMPT          0UL
 
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */

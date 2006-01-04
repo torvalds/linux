@@ -63,7 +63,7 @@ static void spu_restart_dma(struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
 
-	if (!test_bit(SPU_CONTEXT_SWITCH_PENDING_nr, &spu->flags))
+	if (!test_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags))
 		out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
 }
 
@@ -75,7 +75,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 
 	pr_debug("%s\n", __FUNCTION__);
 
-	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE_nr, &spu->flags)) {
+	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE, &spu->flags)) {
 		/* SLBs are pre-loaded for context switch, so
 		 * we should never get here!
 		 */
@@ -122,7 +122,7 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 		return 0;
 	}
 
-	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE_nr, &spu->flags)) {
+	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE, &spu->flags)) {
 		printk("%s: invalid access during switch!\n", __func__);
 		return 1;
 	}

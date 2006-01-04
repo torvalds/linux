@@ -214,14 +214,14 @@ static void spu_reaper(void *data)
 
 	down_write(&ctx->state_sema);
 	spu = ctx->spu;
-	if (spu && (ctx->flags & SPU_CONTEXT_PREEMPT)) {
+	if (spu && test_bit(SPU_CONTEXT_PREEMPT, &ctx->flags)) {
 		if (atomic_read(&spu->rq->prio.nr_blocked)) {
 			pr_debug("%s: spu=%d\n", __func__, spu->number);
 			ctx->ops->runcntl_stop(ctx);
 			spu_deactivate(ctx);
 			wake_up_all(&ctx->stop_wq);
 		} else {
-			clear_bit(SPU_CONTEXT_PREEMPT_nr, &ctx->flags);
+			clear_bit(SPU_CONTEXT_PREEMPT, &ctx->flags);
 		}
 	}
 	up_write(&ctx->state_sema);
@@ -234,7 +234,7 @@ static void schedule_spu_reaper(struct spu_runqueue *rq, struct spu *spu)
 	unsigned long now = jiffies;
 	unsigned long expire = spu->timestamp + SPU_MIN_TIMESLICE;
 
-	set_bit(SPU_CONTEXT_PREEMPT_nr, &ctx->flags);
+	set_bit(SPU_CONTEXT_PREEMPT, &ctx->flags);
 	INIT_WORK(&ctx->reap_work, spu_reaper, ctx);
 	if (time_after(now, expire))
 		schedule_work(&ctx->reap_work);
@@ -250,7 +250,7 @@ static void check_preempt_active(struct spu_runqueue *rq)
 	list_for_each(p, &rq->active_list) {
 		struct spu *spu = list_entry(p, struct spu, sched_list);
 		struct spu_context *ctx = spu->ctx;
-		if (!(ctx->flags & SPU_CONTEXT_PREEMPT)) {
+		if (!test_bit(SPU_CONTEXT_PREEMPT, &ctx->flags)) {
 			if (!worst || (spu->prio > worst->prio)) {
 				worst = spu;
 			}

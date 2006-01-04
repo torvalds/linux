@@ -165,7 +165,7 @@ static inline void set_switch_pending(struct spu_state *csa, struct spu *spu)
 	 * Restore, Step 5:
 	 *     Set a software context switch pending flag.
 	 */
-	set_bit(SPU_CONTEXT_SWITCH_PENDING_nr, &spu->flags);
+	set_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
 	mb();
 }
 
@@ -767,8 +767,8 @@ static inline void set_switch_active(struct spu_state *csa, struct spu *spu)
 	 *     Change the software context switch pending flag
 	 *     to context switch active.
 	 */
-	set_bit(SPU_CONTEXT_SWITCH_ACTIVE_nr, &spu->flags);
-	clear_bit(SPU_CONTEXT_SWITCH_PENDING_nr, &spu->flags);
+	set_bit(SPU_CONTEXT_SWITCH_ACTIVE, &spu->flags);
+	clear_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags);
 	mb();
 }
 
@@ -1786,7 +1786,7 @@ static inline void reset_switch_active(struct spu_state *csa, struct spu *spu)
 	/* Restore, Step 74:
 	 *     Reset the "context switch active" flag.
 	 */
-	clear_bit(SPU_CONTEXT_SWITCH_ACTIVE_nr, &spu->flags);
+	clear_bit(SPU_CONTEXT_SWITCH_ACTIVE, &spu->flags);
 	mb();
 }
 
