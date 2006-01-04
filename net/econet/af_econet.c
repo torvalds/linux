@@ -57,7 +57,7 @@ static struct net_device *net2dev_map[256];
 #define EC_PORT_IP	0xd2
 
 #ifdef CONFIG_ECONET_AUNUDP
-static spinlock_t aun_queue_lock;
+static DEFINE_SPINLOCK(aun_queue_lock);
 static struct socket *udpsock;
 #define AUN_PORT	0x8000
 
