@@ -357,7 +357,7 @@ static void spu_init_channels(struct spu *spu)
 		{ 0x17, 1, }, { 0x18, 0, }, { 0x19, 0, }, { 0x1b, 0, },
 		{ 0x1c, 1, }, { 0x1d, 0, }, { 0x1e, 1, },
 	};
-	struct spu_priv2 *priv2;
+	struct spu_priv2 __iomem *priv2;
 	int i;
 
 	priv2 = spu->priv2;

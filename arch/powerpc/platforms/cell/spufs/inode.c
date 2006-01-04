@@ -293,9 +293,8 @@ out:
 
 static struct file_system_type spufs_type;
 
-long
-spufs_create_thread(struct nameidata *nd, const char *name,
-			unsigned int flags, mode_t mode)
+long spufs_create_thread(struct nameidata *nd,
+			 unsigned int flags, mode_t mode)
 {
 	struct dentry *dentry;
 	int ret;
