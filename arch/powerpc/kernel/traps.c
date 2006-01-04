@@ -230,8 +230,10 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 void system_reset_exception(struct pt_regs *regs)
 {
 	/* See if any machine dependent calls */
-	if (ppc_md.system_reset_exception)
-		ppc_md.system_reset_exception(regs);
+	if (ppc_md.system_reset_exception) {
+		if (ppc_md.system_reset_exception(regs))
+			return;
+	}
 
 	die("System Reset", regs, SIGABRT);
 

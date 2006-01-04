@@ -273,7 +273,7 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_model		= &op_model_power4,
 #endif
 	},
-	{	/* BE DD1.x */
+	{	/* Cell Broadband Engine */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00700000,
 		.cpu_name		= "Cell Broadband Engine",

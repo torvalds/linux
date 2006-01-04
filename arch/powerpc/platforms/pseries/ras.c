@@ -51,6 +51,8 @@
 #include <asm/udbg.h>
 #include <asm/firmware.h>
 
+#include "ras.h"
+
 static unsigned char ras_log_buf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(ras_log_buf_lock);
 
@@ -278,7 +280,7 @@ static void fwnmi_release_errinfo(void)
 		printk("FWNMI: nmi-interlock failed: %d\n", ret);
 }
 
-void pSeries_system_reset_exception(struct pt_regs *regs)
+int pSeries_system_reset_exception(struct pt_regs *regs)
 {
 	if (fwnmi_active) {
 		struct rtas_error_log *errhdr = fwnmi_get_errinfo(regs);
@@ -287,6 +289,7 @@ void pSeries_system_reset_exception(struct pt_regs *regs)
 		}
 		fwnmi_release_errinfo();
 	}
+	return 0; /* need to perform reset */
 }
 
 /*

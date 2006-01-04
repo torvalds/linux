@@ -69,6 +69,7 @@
 #include <asm/smp.h>
 
 #include "plpar_wrappers.h"
+#include "ras.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -79,9 +80,6 @@
 extern void find_udbg_vterm(void);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
-
-extern void pSeries_system_reset_exception(struct pt_regs *regs);
-extern int pSeries_machine_check_exception(struct pt_regs *regs);
 
 static void pseries_shared_idle(void);
 static void pseries_dedicated_idle(void);

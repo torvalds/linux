@@ -145,6 +145,10 @@
 #define SPRN_CTR	0x009	/* Count Register */
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
+#define   CTRL_CT	0xc0000000	/* current thread */
+#define   CTRL_CT0	0x80000000	/* thread 0 */
+#define   CTRL_CT1	0x40000000	/* thread 1 */
+#define   CTRL_TE	0x00c00000	/* thread enable */
 #define   CTRL_RUNLATCH	0x1
 #define SPRN_DABR	0x3F5	/* Data Address Breakpoint Register */
 #define   DABR_TRANSLATION	(1UL << 2)
@@ -257,11 +261,11 @@
 #define	SPRN_HID6	0x3F9	/* BE HID 6 */
 #define	  HID6_LB	(0x0F<<12) /* Concurrent Large Page Modes */
 #define	  HID6_DLP	(1<<20)	/* Disable all large page modes (4K only) */
-#define	SPRN_TSCR	0x399   /* Thread switch control on BE */
-#define	SPRN_TTR	0x39A   /* Thread switch timeout on BE */
-#define	  TSCR_DEC_ENABLE	0x200000 /* Decrementer Interrupt */
-#define	  TSCR_EE_ENABLE	0x100000 /* External Interrupt */
-#define	  TSCR_EE_BOOST		0x080000 /* External Interrupt Boost */
+#define	SPRN_TSC_CELL	0x399	/* Thread switch control on Cell */
+#define	  TSC_CELL_DEC_ENABLE_0	0x400000 /* Decrementer Interrupt */
+#define	  TSC_CELL_DEC_ENABLE_1	0x200000 /* Decrementer Interrupt */
+#define	  TSC_CELL_EE_ENABLE	0x100000 /* External Interrupt */
+#define	  TSC_CELL_EE_BOOST	0x080000 /* External Interrupt Boost */
 #define	SPRN_TSC 	0x3FD	/* Thread switch control on others */
 #define	SPRN_TST 	0x3FC	/* Thread switch timeout on others */
 #if !defined(SPRN_IAC1) && !defined(SPRN_IAC2)
@@ -375,6 +379,14 @@
 #define SPRN_SPRG7	0x117	/* Special Purpose Register General 7 */
 #define SPRN_SRR0	0x01A	/* Save/Restore Register 0 */
 #define SPRN_SRR1	0x01B	/* Save/Restore Register 1 */
+#define   SRR1_WAKEMASK		0x00380000 /* reason for wakeup */
+#define   SRR1_WAKERESET	0x00380000 /* System reset */
+#define   SRR1_WAKESYSERR	0x00300000 /* System error */
+#define   SRR1_WAKEEE		0x00200000 /* External interrupt */
+#define   SRR1_WAKEMT		0x00280000 /* mtctrl */
+#define   SRR1_WAKEDEC		0x00180000 /* Decrementer interrupt */
+#define   SRR1_WAKETHERM	0x00100000 /* Thermal management interrupt */
+
 #ifndef SPRN_SVR
 #define SPRN_SVR	0x11E	/* System Version Register */
 #endif

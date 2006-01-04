@@ -49,6 +49,7 @@
 
 #include "interrupt.h"
 #include "iommu.h"
+#include "pervasive.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -165,6 +166,7 @@ static void __init cell_setup_arch(void)
 	init_pci_config_tokens();
 	find_and_init_phbs();
 	spider_init_IRQ();
+	cell_pervasive_init();
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
