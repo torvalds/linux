@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/ioctl.h>
 #include <linux/module.h>
+#include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/poll.h>
@@ -251,6 +252,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	d_instantiate(dentry, inode);
 	dget(dentry);
 	dir->i_nlink++;
+	dentry->d_inode->i_nlink++;
 	goto out;
 
 out_free_ctx:
@@ -261,18 +263,44 @@ out:
 	return ret;
 }
 
+static int spufs_context_open(struct dentry *dentry, struct vfsmount *mnt)
+{
+	int ret;
+	struct file *filp;
+
+	ret = get_unused_fd();
+	if (ret < 0) {
+		dput(dentry);
+		mntput(mnt);
+		goto out;
+	}
+
+	filp = dentry_open(dentry, mnt, O_RDONLY);
+	if (IS_ERR(filp)) {
+		put_unused_fd(ret);
+		ret = PTR_ERR(filp);
+		goto out;
+	}
+
+	filp->f_op = &spufs_context_fops;
+	fd_install(ret, filp);
+out:
+	return ret;
+}
+
+static struct file_system_type spufs_type;
+
 long
 spufs_create_thread(struct nameidata *nd, const char *name,
 			unsigned int flags, mode_t mode)
 {
 	struct dentry *dentry;
-	struct file *filp;
 	int ret;
 
 	/* need to be at the root of spufs */
 	ret = -EINVAL;
-	if (nd->dentry->d_sb->s_magic != SPUFS_MAGIC ||
-		nd->dentry != nd->dentry->d_sb->s_root)
+	if (nd->dentry->d_sb->s_type != &spufs_type ||
+	    nd->dentry != nd->dentry->d_sb->s_root)
 		goto out;
 
 	dentry = lookup_create(nd, 1);
@@ -289,21 +317,13 @@ spufs_create_thread(struct nameidata *nd, const char *name,
 	if (ret)
 		goto out_dput;
 
-	ret = get_unused_fd();
+	/*
+	 * get references for dget and mntget, will be released
+	 * in error path of *_open().
+	 */
+	ret = spufs_context_open(dget(dentry), mntget(nd->mnt));
 	if (ret < 0)
-		goto out_dput;
-
-	dentry->d_inode->i_nlink++;
-
-	filp = filp_open(name, O_RDONLY, mode);
-	if (IS_ERR(filp)) {
-		// FIXME: remove directory again
-		put_unused_fd(ret);
-		ret = PTR_ERR(filp);
-	} else {
-		filp->f_op = &spufs_context_fops;
-		fd_install(ret, filp);
-	}
+		spufs_rmdir(nd->dentry->d_inode, dentry);
 
 out_dput:
 	dput(dentry);
