@@ -1,6 +1,6 @@
 obj-$(CONFIG_SPU_FS) += spufs.o
 spufs-y += inode.o file.o context.o switch.o syscalls.o
-spufs-y += sched.o backing_ops.o hw_ops.o
+spufs-y += sched.o backing_ops.o hw_ops.o run.o
 
 # Rules to build switch.o with the help of SPU tool chain
 SPU_CROSS	:= spu-

@@ -124,6 +124,34 @@ void spu_yield(struct spu_context *ctx);
 int __init spu_sched_init(void);
 void __exit spu_sched_exit(void);
 
+/*
+ * spufs_wait
+ * 	Same as wait_event_interruptible(), except that here
+ *	we need to call spu_release(ctx) before sleeping, and
+ *	then spu_acquire(ctx) when awoken.
+ */
+
+#define spufs_wait(wq, condition)					\
+({									\
+	int __ret = 0;							\
+	DEFINE_WAIT(__wait);						\
+	for (;;) {							\
+		prepare_to_wait(&(wq), &__wait, TASK_INTERRUPTIBLE);	\
+		if (condition)						\
+			break;						\
+		if (!signal_pending(current)) {				\
+			spu_release(ctx);				\
+			schedule();					\
+			spu_acquire(ctx);				\
+			continue;					\
+		}							\
+		__ret = -ERESTARTSYS;					\
+		break;							\
+	}								\
+	finish_wait(&(wq), &__wait);					\
+	__ret;								\
+})
+
 size_t spu_wbox_write(struct spu_context *ctx, u32 data);
 size_t spu_ibox_read(struct spu_context *ctx, u32 *data);
 
