@@ -162,10 +162,10 @@ static int spufs_rmdir(struct inode *root, struct dentry *dir_dentry)
 {
 	struct dentry *dentry, *tmp;
 	struct spu_context *ctx;
-	int err;
 
 	/* remove all entries */
-	err = 0;
+	down(&root->i_sem);
+	down(&dir_dentry->d_inode->i_sem);
 	list_for_each_entry_safe(dentry, tmp, &dir_dentry->d_subdirs, d_child) {
 		spin_lock(&dcache_lock);
 		spin_lock(&dentry->d_lock);
@@ -181,16 +181,16 @@ static int spufs_rmdir(struct inode *root, struct dentry *dir_dentry)
 			spin_unlock(&dcache_lock);
 		}
 	}
+	shrink_dcache_parent(dir_dentry);
+	up(&dir_dentry->d_inode->i_sem);
+	up(&root->i_sem);
 
 	/* We have to give up the mm_struct */
 	ctx = SPUFS_I(dir_dentry->d_inode)->i_ctx;
 	spu_forget(ctx);
 
-	if (!err) {
-		shrink_dcache_parent(dir_dentry);
-		err = simple_rmdir(root, dir_dentry);
-	}
-	return err;
+	/* XXX Do we need to hold i_sem here ? */
+	return simple_rmdir(root, dir_dentry);
 }
 
 static int spufs_dir_close(struct inode *inode, struct file *file)
@@ -201,10 +201,10 @@ static int spufs_dir_close(struct inode *inode, struct file *file)
 
 	dentry = file->f_dentry;
 	dir = dentry->d_parent->d_inode;
-	down(&dir->i_sem);
-	ret = spufs_rmdir(dir, file->f_dentry);
+
+	ret = spufs_rmdir(dir, dentry);
 	WARN_ON(ret);
-	up(&dir->i_sem);
+
 	return dcache_dir_close(inode, file);
 }
 
