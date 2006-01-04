@@ -134,9 +134,48 @@ spufs_delete_inode(struct inode *inode)
 	clear_inode(inode);
 }
 
-static int
-spufs_fill_dir(struct dentry *dir, struct tree_descr *files,
-		int mode, struct spu_context *ctx)
+static void spufs_prune_dir(struct dentry *dir)
+{
+	struct dentry *dentry, *tmp;
+	down(&dir->d_inode->i_sem);
+	list_for_each_entry_safe(dentry, tmp, &dir->d_subdirs, d_child) {
+		spin_lock(&dcache_lock);
+		spin_lock(&dentry->d_lock);
+		if (!(d_unhashed(dentry)) && dentry->d_inode) {
+			dget_locked(dentry);
+			__d_drop(dentry);
+			spin_unlock(&dentry->d_lock);
+			simple_unlink(dir->d_inode, dentry);
+			spin_unlock(&dcache_lock);
+			dput(dentry);
+		} else {
+			spin_unlock(&dentry->d_lock);
+			spin_unlock(&dcache_lock);
+		}
+	}
+	shrink_dcache_parent(dir);
+	up(&dir->d_inode->i_sem);
+}
+
+static int spufs_rmdir(struct inode *root, struct dentry *dir_dentry)
+{
+	struct spu_context *ctx;
+
+	/* remove all entries */
+	down(&root->i_sem);
+	spufs_prune_dir(dir_dentry);
+	up(&root->i_sem);
+
+	/* We have to give up the mm_struct */
+	ctx = SPUFS_I(dir_dentry->d_inode)->i_ctx;
+	spu_forget(ctx);
+
+	/* XXX Do we need to hold i_sem here ? */
+	return simple_rmdir(root, dir_dentry);
+}
+
+static int spufs_fill_dir(struct dentry *dir, struct tree_descr *files,
+			  int mode, struct spu_context *ctx)
 {
 	struct dentry *dentry;
 	int ret;
@@ -154,44 +193,8 @@ spufs_fill_dir(struct dentry *dir, struct tree_descr *files,
 	}
 	return 0;
 out:
-	// FIXME: remove all files that are left
-
+	spufs_prune_dir(dir);
 	return ret;
-}
-
-static int spufs_rmdir(struct inode *root, struct dentry *dir_dentry)
-{
-	struct dentry *dentry, *tmp;
-	struct spu_context *ctx;
-
-	/* remove all entries */
-	down(&root->i_sem);
-	down(&dir_dentry->d_inode->i_sem);
-	list_for_each_entry_safe(dentry, tmp, &dir_dentry->d_subdirs, d_child) {
-		spin_lock(&dcache_lock);
-		spin_lock(&dentry->d_lock);
-		if (!(d_unhashed(dentry)) && dentry->d_inode) {
-			dget_locked(dentry);
-			__d_drop(dentry);
-			spin_unlock(&dentry->d_lock);
-			simple_unlink(dir_dentry->d_inode, dentry);
-			spin_unlock(&dcache_lock);
-			dput(dentry);
-		} else {
-			spin_unlock(&dentry->d_lock);
-			spin_unlock(&dcache_lock);
-		}
-	}
-	shrink_dcache_parent(dir_dentry);
-	up(&dir_dentry->d_inode->i_sem);
-	up(&root->i_sem);
-
-	/* We have to give up the mm_struct */
-	ctx = SPUFS_I(dir_dentry->d_inode)->i_ctx;
-	spu_forget(ctx);
-
-	/* XXX Do we need to hold i_sem here ? */
-	return simple_rmdir(root, dir_dentry);
 }
 
 static int spufs_dir_close(struct inode *inode, struct file *file)
