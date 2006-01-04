@@ -103,6 +103,7 @@ long spufs_run_spu(struct file *file,
 		   struct spu_context *ctx, u32 *npc, u32 *status);
 long spufs_create_thread(struct nameidata *nd, const char *name,
 			 unsigned int flags, mode_t mode);
+extern struct file_operations spufs_context_fops;
 
 /* context management */
 struct spu_context * alloc_spu_context(struct address_space *local_store);

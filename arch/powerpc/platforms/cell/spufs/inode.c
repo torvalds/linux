@@ -212,7 +212,7 @@ struct inode_operations spufs_dir_inode_operations = {
 	.lookup = simple_lookup,
 };
 
-struct file_operations spufs_autodelete_dir_operations = {
+struct file_operations spufs_context_fops = {
 	.open		= dcache_dir_open,
 	.release	= spufs_dir_close,
 	.llseek		= dcache_dir_lseek,
@@ -301,7 +301,7 @@ spufs_create_thread(struct nameidata *nd, const char *name,
 		put_unused_fd(ret);
 		ret = PTR_ERR(filp);
 	} else {
-		filp->f_op = &spufs_autodelete_dir_operations;
+		filp->f_op = &spufs_context_fops;
 		fd_install(ret, filp);
 	}
 

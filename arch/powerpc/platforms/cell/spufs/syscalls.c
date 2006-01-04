@@ -39,8 +39,9 @@ long do_spu_run(struct file *filp, __u32 __user *unpc, __u32 __user *ustatus)
 	if (get_user(npc, unpc) || get_user(status, ustatus))
 		goto out;
 
+	/* check if this file was created by spu_create */
 	ret = -EINVAL;
-	if (filp->f_vfsmnt->mnt_sb->s_magic != SPUFS_MAGIC)
+	if (filp->f_op != &spufs_context_fops)
 		goto out;
 
 	i = SPUFS_I(filp->f_dentry->d_inode);
