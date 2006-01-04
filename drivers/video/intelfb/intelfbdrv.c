@@ -135,9 +135,6 @@
 static void __devinit get_initial_mode(struct intelfb_info *dinfo);
 static void update_dinfo(struct intelfb_info *dinfo,
 			 struct fb_var_screeninfo *var);
-static int intelfb_get_fix(struct fb_fix_screeninfo *fix,
-			   struct fb_info *info);
-
 static int intelfb_check_var(struct fb_var_screeninfo *var,
 			     struct fb_info *info);
 static int intelfb_set_par(struct fb_info *info);
@@ -473,9 +470,9 @@ cleanup(struct intelfb_info *dinfo)
 	if (dinfo->aperture.virtual)
 		iounmap((void __iomem *)dinfo->aperture.virtual);
 
-	if (dinfo->mmio_base_phys)
+	if (dinfo->flag & INTELFB_MMIO_ACQUIRED)
 		release_mem_region(dinfo->mmio_base_phys, INTEL_REG_SIZE);
-	if (dinfo->aperture.physical)
+	if (dinfo->flag & INTELFB_FB_ACQUIRED)
 		release_mem_region(dinfo->aperture.physical,
 				   dinfo->aperture.size);
 	framebuffer_release(dinfo->info);
@@ -572,6 +569,9 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cleanup(dinfo);
 		return -ENODEV;
 	}
+
+	dinfo->flag |= INTELFB_FB_ACQUIRED;
+
 	if (!request_mem_region(dinfo->mmio_base_phys,
 				INTEL_REG_SIZE,
 				INTELFB_MODULE_NAME)) {
@@ -579,6 +579,8 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 		cleanup(dinfo);
 		return -ENODEV;
 	}
+
+	dinfo->flag |= INTELFB_MMIO_ACQUIRED;
 
 	/* Get the chipset info. */
 	dinfo->pci_chipset = pdev->device;
@@ -1091,7 +1093,17 @@ intelfb_set_fbinfo(struct intelfb_info *dinfo)
 		return 1;
 
 	info->pixmap.scan_align = 1;
-
+	strcpy(info->fix.id, dinfo->name);
+	info->fix.smem_start = dinfo->fb.physical;
+	info->fix.smem_len = dinfo->fb.size;
+	info->fix.type = FB_TYPE_PACKED_PIXELS;
+	info->fix.type_aux = 0;
+	info->fix.xpanstep = 8;
+	info->fix.ypanstep = 1;
+	info->fix.ywrapstep = 0;
+	info->fix.mmio_start = dinfo->mmio_base_phys;
+	info->fix.mmio_len = INTEL_REG_SIZE;
+	info->fix.accel = FB_ACCEL_I830;
 	update_dinfo(dinfo, &info->var);
 
 	return 0;
@@ -1109,7 +1121,8 @@ update_dinfo(struct intelfb_info *dinfo, struct fb_var_screeninfo *var)
 	dinfo->yres = var->xres;
 	dinfo->pixclock = var->pixclock;
 
-	intelfb_get_fix(&dinfo->info->fix, dinfo->info);
+	dinfo->info->fix.visual = dinfo->visual;
+	dinfo->info->fix.line_length = dinfo->pitch;
 
 	switch (dinfo->bpp) {
 	case 8:
@@ -1138,30 +1151,6 @@ update_dinfo(struct intelfb_info *dinfo, struct fb_var_screeninfo *var)
 }
 
 /* fbops functions */
-
-static int
-intelfb_get_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
-{
-	struct intelfb_info *dinfo = GET_DINFO(info);
-
-	DBG_MSG("intelfb_get_fix\n");
-
-	memset(fix, 0, sizeof(*fix));
-	strcpy(fix->id, dinfo->name);
-	fix->smem_start = dinfo->fb.physical;
-	fix->smem_len = dinfo->fb.size;
-	fix->type = FB_TYPE_PACKED_PIXELS;
-	fix->type_aux = 0;
-	fix->visual = dinfo->visual;
-	fix->xpanstep = 8;
-	fix->ypanstep = 1;
-	fix->ywrapstep = 0;
-	fix->line_length = dinfo->pitch;
-	fix->mmio_start = dinfo->mmio_base_phys;
-	fix->mmio_len = INTEL_REG_SIZE;
-	fix->accel = FB_ACCEL_I830;
-	return 0;
-}
 
 /***************************************************************
  *                       fbdev interface                       *

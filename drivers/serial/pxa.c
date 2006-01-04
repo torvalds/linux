@@ -361,7 +361,7 @@ static int serial_pxa_startup(struct uart_port *port)
 	if (port->line == 3) /* HWUART */
 		up->mcr |= UART_MCR_AFE;
 	else
-	up->mcr = 0;
+		up->mcr = 0;
 
 	/*
 	 * Allocate the IRQ
@@ -641,7 +641,7 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	int i;
 
 	/*
-	 *	First save the UER then disable the interrupts
+	 *	First save the IER then disable the interrupts
 	 */
 	ier = serial_in(up, UART_IER);
 	serial_out(up, UART_IER, UART_IER_UUE);

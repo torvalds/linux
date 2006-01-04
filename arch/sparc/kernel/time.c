@@ -49,7 +49,7 @@ DEFINE_SPINLOCK(rtc_lock);
 enum sparc_clock_type sp_clock_typ;
 DEFINE_SPINLOCK(mostek_lock);
 void __iomem *mstk48t02_regs = NULL;
-static struct mostek48t08 *mstk48t08_regs = NULL;
+static struct mostek48t08 __iomem *mstk48t08_regs = NULL;
 static int set_rtc_mmss(unsigned long);
 static int sbus_do_settimeofday(struct timespec *tv);
 
@@ -342,7 +342,7 @@ static __inline__ void clock_probe(void)
 		/* XXX r/o attribute is somewhere in r.flags */
 		r.flags = clk_reg[0].which_io;
 		r.start = clk_reg[0].phys_addr;
-		mstk48t08_regs = (struct mostek48t08 *) sbus_ioremap(&r, 0,
+		mstk48t08_regs = sbus_ioremap(&r, 0,
 		    sizeof(struct mostek48t08), "mk48t08");
 
 		mstk48t02_regs = &mstk48t08_regs->regs;

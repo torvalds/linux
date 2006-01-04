@@ -18,6 +18,7 @@
 					   fallback, no routers on link */
 #define RTF_ADDRCONF	0x00040000	/* addrconf route - RA		*/
 #define RTF_PREFIX_RT	0x00080000	/* A prefix only route - RA	*/
+#define RTF_ANYCAST	0x00100000	/* Anycast			*/
 
 #define RTF_NONEXTHOP	0x00200000	/* route with no nexthop	*/
 #define RTF_EXPIRES	0x00400000

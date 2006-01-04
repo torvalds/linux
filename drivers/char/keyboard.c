@@ -930,8 +930,8 @@ static void kbd_refresh_leds(struct input_handle *handle)
 }
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_ALPHA) ||\
-    defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC32) ||\
-    defined(CONFIG_SPARC64) || defined(CONFIG_PARISC) || defined(CONFIG_SUPERH) ||\
+    defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) ||\
+    defined(CONFIG_PARISC) || defined(CONFIG_SUPERH) ||\
     (defined(CONFIG_ARM) && defined(CONFIG_KEYBOARD_ATKBD) && !defined(CONFIG_ARCH_RPC))
 
 #define HW_RAW(dev) (test_bit(EV_MSC, dev->evbit) && test_bit(MSC_RAW, dev->mscbit) &&\
@@ -958,7 +958,7 @@ static unsigned short x86_keycodes[256] =
 extern int mac_hid_mouse_emulate_buttons(int, int, int);
 #endif /* CONFIG_MAC_EMUMOUSEBTN */
 
-#if defined(CONFIG_SPARC32) || defined(CONFIG_SPARC64)
+#ifdef CONFIG_SPARC
 static int sparc_l1_a_state = 0;
 extern void sun_do_break(void);
 #endif
@@ -1045,7 +1045,7 @@ static void kbd_keycode(unsigned int keycode, int down,
 
 	if (keycode == KEY_LEFTALT || keycode == KEY_RIGHTALT)
 		sysrq_alt = down;
-#if defined(CONFIG_SPARC32) || defined(CONFIG_SPARC64)
+#ifdef CONFIG_SPARC
 	if (keycode == KEY_STOP)
 		sparc_l1_a_state = down;
 #endif
@@ -1072,7 +1072,7 @@ static void kbd_keycode(unsigned int keycode, int down,
 		return;
 	}
 #endif
-#if defined(CONFIG_SPARC32) || defined(CONFIG_SPARC64)
+#ifdef CONFIG_SPARC
 	if (keycode == KEY_A && sparc_l1_a_state) {
 		sparc_l1_a_state = 0;
 		sun_do_break();

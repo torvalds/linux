@@ -249,11 +249,11 @@ static loff_t jsf_lseek(struct file * file, loff_t offset, int orig)
 /*
  * OS SIMM Cannot be read in other size but a 32bits word.
  */
-static ssize_t jsf_read(struct file * file, char * buf, 
+static ssize_t jsf_read(struct file * file, char __user * buf, 
     size_t togo, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	char *tmp = buf;
+	char __user *tmp = buf;
 
 	union byte4 {
 		char s[4];
@@ -305,7 +305,7 @@ static ssize_t jsf_read(struct file * file, char * buf,
 	return tmp-buf;
 }
 
-static ssize_t jsf_write(struct file * file, const char * buf,
+static ssize_t jsf_write(struct file * file, const char __user * buf,
     size_t count, loff_t *ppos)
 {
 	return -ENOSPC;
@@ -356,10 +356,10 @@ static int jsf_ioctl_erase(unsigned long arg)
  * Program a block of flash.
  * Very simple because we can do it byte by byte anyway.
  */
-static int jsf_ioctl_program(unsigned long arg)
+static int jsf_ioctl_program(void __user *arg)
 {
 	struct jsflash_program_arg abuf;
-	char *uptr;
+	char __user *uptr;
 	unsigned long p;
 	unsigned int togo;
 	union {
@@ -367,13 +367,13 @@ static int jsf_ioctl_program(unsigned long arg)
 		char s[4];
 	} b;
 
-	if (copy_from_user(&abuf, (char *)arg, JSFPRGSZ))
+	if (copy_from_user(&abuf, arg, JSFPRGSZ))
 		return -EFAULT; 
 	p = abuf.off;
 	togo = abuf.size;
 	if ((togo & 3) || (p & 3)) return -EINVAL;
 
-	uptr = (char *) (unsigned long) abuf.data;
+	uptr = (char __user *) (unsigned long) abuf.data;
 	while (togo != 0) {
 		togo -= 4;
 		if (copy_from_user(&b.s[0], uptr, 4))
@@ -390,19 +390,20 @@ static int jsf_ioctl(struct inode *inode, struct file *f, unsigned int cmd,
     unsigned long arg)
 {
 	int error = -ENOTTY;
+	void __user *argp = (void __user *)arg;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	switch (cmd) {
 	case JSFLASH_IDENT:
-		if (copy_to_user((void *)arg, &jsf0.id, JSFIDSZ))
+		if (copy_to_user(argp, &jsf0.id, JSFIDSZ))
 			return -EFAULT;
 		break;
 	case JSFLASH_ERASE:
 		error = jsf_ioctl_erase(arg);
 		break;
 	case JSFLASH_PROGRAM:
-		error = jsf_ioctl_program(arg);
+		error = jsf_ioctl_program(argp);
 		break;
 	}
 

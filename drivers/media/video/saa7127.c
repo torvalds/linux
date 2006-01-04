@@ -389,7 +389,7 @@ static int saa7127_set_vps(struct i2c_client *client, struct v4l2_sliced_vbi_dat
 static int saa7127_set_cc(struct i2c_client *client, struct v4l2_sliced_vbi_data *data)
 {
 	struct saa7127_state *state = i2c_get_clientdata(client);
-	u16 cc = data->data[0] << 8 | data->data[1];
+	u16 cc = data->data[1] << 8 | data->data[0];
 	int enable = (data->line != 0);
 
 	if (enable && (data->field != 0 || data->line != 21))
@@ -397,7 +397,7 @@ static int saa7127_set_cc(struct i2c_client *client, struct v4l2_sliced_vbi_data
 	if (state->cc_enable != enable) {
 		saa7127_dbg("Turn CC %s\n", enable ? "on" : "off");
 		saa7127_write(client, SAA7127_REG_CLOSED_CAPTION,
-				(enable << 6) | 0x11);
+				(state->xds_enable << 7) | (enable << 6) | 0x11);
 		state->cc_enable = enable;
 	}
 	if (!enable)
@@ -423,7 +423,7 @@ static int saa7127_set_xds(struct i2c_client *client, struct v4l2_sliced_vbi_dat
 	if (state->xds_enable != enable) {
 		saa7127_dbg("Turn XDS %s\n", enable ? "on" : "off");
 		saa7127_write(client, SAA7127_REG_CLOSED_CAPTION,
-				(enable << 7) | 0x11);
+				(enable << 7) | (state->cc_enable << 6) | 0x11);
 		state->xds_enable = enable;
 	}
 	if (!enable)

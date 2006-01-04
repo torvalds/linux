@@ -348,7 +348,7 @@ size_zones(unsigned long *z, unsigned long *h,
 	}
 
 	/* Compute holes */
-	w = 0;
+	w = start_pfn;
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		unsigned long s = w;
 		w += z[i];

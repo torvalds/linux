@@ -122,6 +122,7 @@ enum {
 	ATA_FLAG_NOINTR		= (1 << 9), /* FIXME: Remove this once
 					     * proper HSM is in place. */
 	ATA_FLAG_DEBUGMSG	= (1 << 10),
+	ATA_FLAG_NO_ATAPI	= (1 << 11), /* No ATAPI support */
 
 	ATA_QCFLAG_ACTIVE	= (1 << 1), /* cmd not yet ack'd to scsi lyer */
 	ATA_QCFLAG_SG		= (1 << 3), /* have s/g table? */

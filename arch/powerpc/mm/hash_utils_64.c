@@ -514,7 +514,7 @@ void __init htab_initialize(void)
 #undef KB
 #undef MB
 
-void __init htab_initialize_secondary(void)
+void htab_initialize_secondary(void)
 {
 	if (!platform_is_lpar())
 		mtspr(SPRN_SDR1, _SDR1);

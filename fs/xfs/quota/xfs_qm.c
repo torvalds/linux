@@ -78,7 +78,7 @@ STATIC int	xfs_qm_dqhashlock_nowait(xfs_dquot_t *);
 
 STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
 STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
-STATIC int	xfs_qm_shake(int, unsigned int);
+STATIC int	xfs_qm_shake(int, gfp_t);
 
 #ifdef DEBUG
 extern mutex_t	qcheck_lock;
@@ -2197,7 +2197,7 @@ xfs_qm_shake_freelist(
  */
 /* ARGSUSED */
 STATIC int
-xfs_qm_shake(int nr_to_scan, unsigned int gfp_mask)
+xfs_qm_shake(int nr_to_scan, gfp_t gfp_mask)
 {
 	int	ndqused, nfree, n;
 

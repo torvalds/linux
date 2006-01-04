@@ -145,7 +145,7 @@ ENTRY(vector_swi)
 #endif
 	enable_irq
 
-	str	r4, [sp, #-S_OFF]!		@ push fifth arg
+	stmdb	sp!, {r4, r5}			@ push fifth and sixth args
 
 	get_thread_info tsk
 	ldr	ip, [tsk, #TI_FLAGS]		@ check for syscall tracing
@@ -204,7 +204,7 @@ ENTRY(sys_call_table)
  * Special system call wrappers
  */
 @ r0 = syscall number
-@ r5 = syscall table
+@ r8 = syscall table
 		.type	sys_syscall, #function
 sys_syscall:
 		eor	scno, r0, #__NR_SYSCALL_BASE
@@ -254,22 +254,6 @@ sys_rt_sigreturn_wrapper:
 sys_sigaltstack_wrapper:
 		ldr	r2, [sp, #S_OFF + S_SP]
 		b	do_sigaltstack
-
-sys_futex_wrapper:
-		str	r5, [sp, #4]		@ push sixth arg
-		b	sys_futex
-
-sys_arm_fadvise64_64_wrapper:
-		str	r5, [sp, #4]		@ push r5 to stack
-		b	sys_arm_fadvise64_64
-
-sys_mbind_wrapper:
-		str	r5, [sp, #4]
-		b	sys_mbind
-
-sys_ipc_wrapper:
-		str	r5, [sp, #4]		@ push sixth arg
-		b	sys_ipc
 
 /*
  * Note: off_4k (r5) is always units of 4K.  If we can't do the requested

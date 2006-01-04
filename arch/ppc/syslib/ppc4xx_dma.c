@@ -30,6 +30,7 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
+#include <asm/dma.h>
 #include <asm/ppc4xx_dma.h>
 
 ppc_dma_ch_t dma_channels[MAX_PPC4xx_DMA_CHANNELS];

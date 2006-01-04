@@ -84,14 +84,14 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 
 	/* Find a free owner ID */
 
-	for (i = 0; i < 32; i++) {
-		if (!(acpi_gbl_owner_id_mask & (1 << i))) {
+	for (i = 0; i < 64; i++) {
+		if (!(acpi_gbl_owner_id_mask & (1ULL << i))) {
 			ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
-					  "Current owner_id mask: %8.8X New ID: %2.2X\n",
+					  "Current owner_id mask: %16.16LX New ID: %2.2X\n",
 					  acpi_gbl_owner_id_mask,
 					  (unsigned int)(i + 1)));
 
-			acpi_gbl_owner_id_mask |= (1 << i);
+			acpi_gbl_owner_id_mask |= (1ULL << i);
 			*owner_id = (acpi_owner_id) (i + 1);
 			goto exit;
 		}
@@ -106,7 +106,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	 */
 	*owner_id = 0;
 	status = AE_OWNER_ID_LIMIT;
-	ACPI_REPORT_ERROR(("Could not allocate new owner_id (32 max), AE_OWNER_ID_LIMIT\n"));
+	ACPI_REPORT_ERROR(("Could not allocate new owner_id (64 max), AE_OWNER_ID_LIMIT\n"));
 
       exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);
@@ -123,7 +123,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
  *              control method or unloading a table. Either way, we would
  *              ignore any error anyway.
  *
- * DESCRIPTION: Release a table or method owner ID.  Valid IDs are 1 - 32
+ * DESCRIPTION: Release a table or method owner ID.  Valid IDs are 1 - 64
  *
  ******************************************************************************/
 
@@ -140,7 +140,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 
 	/* Zero is not a valid owner_iD */
 
-	if ((owner_id == 0) || (owner_id > 32)) {
+	if ((owner_id == 0) || (owner_id > 64)) {
 		ACPI_REPORT_ERROR(("Invalid owner_id: %2.2X\n", owner_id));
 		return_VOID;
 	}
@@ -158,8 +158,8 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 
 	/* Free the owner ID only if it is valid */
 
-	if (acpi_gbl_owner_id_mask & (1 << owner_id)) {
-		acpi_gbl_owner_id_mask ^= (1 << owner_id);
+	if (acpi_gbl_owner_id_mask & (1ULL << owner_id)) {
+		acpi_gbl_owner_id_mask ^= (1ULL << owner_id);
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_CACHES);

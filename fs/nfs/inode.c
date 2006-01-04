@@ -640,6 +640,27 @@ static int nfs_show_options(struct seq_file *m, struct vfsmount *mnt)
 	return 0;
 }
 
+/**
+ * nfs_sync_mapping - helper to flush all mmapped dirty data to disk
+ */
+int nfs_sync_mapping(struct address_space *mapping)
+{
+	int ret;
+
+	if (mapping->nrpages == 0)
+		return 0;
+	unmap_mapping_range(mapping, 0, 0, 0);
+	ret = filemap_fdatawrite(mapping);
+	if (ret != 0)
+		goto out;
+	ret = filemap_fdatawait(mapping);
+	if (ret != 0)
+		goto out;
+	ret = nfs_wb_all(mapping->host);
+out:
+	return ret;
+}
+
 /*
  * Invalidate the local caches
  */
@@ -1179,11 +1200,8 @@ void nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	if (nfsi->cache_validity & NFS_INO_INVALID_DATA) {
-		if (S_ISREG(inode->i_mode)) {
-			if (filemap_fdatawrite(mapping) == 0)
-				filemap_fdatawait(mapping);
-			nfs_wb_all(inode);
-		}
+		if (S_ISREG(inode->i_mode))
+			nfs_sync_mapping(mapping);
 		invalidate_inode_pages2(mapping);
 
 		spin_lock(&inode->i_lock);

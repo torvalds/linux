@@ -1464,8 +1464,10 @@ static int deregister_disk(struct gendisk *disk, drive_info_struct *drv,
 			request_queue_t *q = disk->queue;
 			if (disk->flags & GENHD_FL_UP)
 				del_gendisk(disk);
-			if (q)	
+			if (q) {
 				blk_cleanup_queue(q);
+				drv->queue = NULL;
+			}
 		}
 	}
 

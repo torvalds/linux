@@ -2044,7 +2044,7 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	else {
 		u8 *scsicmd = cmd->cmnd;
 
-		if (scsicmd[0] == INQUIRY) {
+		if ((scsicmd[0] == INQUIRY) && ((scsicmd[1] & 0x03) == 0)) {
 			u8 *buf = NULL;
 			unsigned int buflen;
 
@@ -2057,9 +2057,6 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	 * to indicate to the Linux scsi midlayer this is a modern
 	 * device.  2) Ensure response data format / ATAPI information
 	 * are always correct.
-	 */
-	/* FIXME: do we ever override EVPD pages and the like, with
-	 * this code?
 	 */
 			if (buf[2] == 0) {
 				buf[2] = 0x5;
@@ -2173,9 +2170,12 @@ ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 	if (unlikely(!ata_dev_present(dev)))
 		return NULL;
 
-	if (!atapi_enabled) {
-		if (unlikely(dev->class == ATA_DEV_ATAPI))
+	if (!atapi_enabled || (ap->flags & ATA_FLAG_NO_ATAPI)) {
+		if (unlikely(dev->class == ATA_DEV_ATAPI)) {
+			printk(KERN_WARNING "ata%u(%u): WARNING: ATAPI is %s, device ignored.\n",
+			       ap->id, dev->devno, atapi_enabled ? "not supported with this driver" : "disabled");
 			return NULL;
+		}
 	}
 
 	return dev;

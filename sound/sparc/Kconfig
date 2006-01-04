@@ -1,7 +1,7 @@
 # ALSA Sparc drivers
 
 menu "ALSA Sparc devices"
-	depends on SND!=n && (SPARC32 || SPARC64)
+	depends on SND!=n && SPARC
 
 config SND_SUN_AMD7930
 	tristate "Sun AMD7930"

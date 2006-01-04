@@ -17,7 +17,6 @@
 #include <linux/mtd/bbm.h>
 
 #define MAX_BUFFERRAM		2
-#define MAX_ONENAND_PAGESIZE	(2048 + 64)
 
 /* Scan and identify a OneNAND device */
 extern int onenand_scan(struct mtd_info *mtd, int max_chips);
@@ -110,6 +109,7 @@ struct onenand_chip {
 	spinlock_t		chip_lock;
 	wait_queue_head_t	wq;
 	onenand_state_t		state;
+	unsigned char		*page_buf;
 
 	struct nand_oobinfo	*autooob;
 
@@ -134,13 +134,12 @@ struct onenand_chip {
  * Options bits
  */
 #define ONENAND_CONT_LOCK		(0x0001)
-
+#define ONENAND_PAGEBUF_ALLOC		(0x1000)
 
 /*
  * OneNAND Flash Manufacturer ID Codes
  */
 #define ONENAND_MFR_SAMSUNG	0xec
-#define ONENAND_MFR_UNKNOWN	0x00
 
 /**
  * struct nand_manufacturers - NAND Flash Manufacturer ID Structure
