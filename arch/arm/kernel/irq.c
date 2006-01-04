@@ -1027,7 +1027,6 @@ void __init init_irq_proc(void)
 void __init init_IRQ(void)
 {
 	struct irqdesc *desc;
-	extern void init_dma(void);
 	int irq;
 
 #ifdef CONFIG_SMP
@@ -1041,7 +1040,6 @@ void __init init_IRQ(void)
 	}
 
 	init_arch_irq();
-	init_dma();
 }
 
 static int __init noirqdebug_setup(char *str)

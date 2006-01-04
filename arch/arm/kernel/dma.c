@@ -248,10 +248,13 @@ int get_dma_residue(dmach_t channel)
 	return ret;
 }
 
-void __init init_dma(void)
+static int __init init_dma(void)
 {
 	arch_dma_init(dma_chan);
+	return 0;
 }
+
+core_initcall(init_dma);
 
 #else
 
@@ -276,7 +279,6 @@ GLOBAL_ALIAS(set_dma_count, get_dma_residue);
 GLOBAL_ALIAS(__set_dma_addr, get_dma_residue);
 GLOBAL_ALIAS(set_dma_sg, get_dma_residue);
 GLOBAL_ALIAS(set_dma_speed, get_dma_residue);
-GLOBAL_ALIAS(init_dma, get_dma_residue);
 
 #endif
 
