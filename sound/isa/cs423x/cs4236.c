@@ -125,10 +125,12 @@ module_param_array(dma2, int, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for " IDENT " driver.");
 
 static struct platform_device *platform_devices[SNDRV_CARDS];
+#ifdef CONFIG_PNP
 static int pnpc_registered;
 #ifdef CS4232
 static int pnp_registered;
 #endif
+#endif /* CONFIG_PNP */
 
 struct snd_card_cs4236 {
 	struct snd_cs4231 *chip;
@@ -747,12 +749,14 @@ static void __init_or_module snd_cs423x_unregister_all(void)
 {
 	int i;
 
+#ifdef CONFIG_PNP
 	if (pnpc_registered)
 		pnp_unregister_card_driver(&cs423x_pnpc_driver);
 #ifdef CS4232
 	if (pnp_registered)
 		pnp_unregister_driver(&cs4232_pnp_driver);
 #endif
+#endif /* CONFIG_PNP */
 	for (i = 0; i < ARRAY_SIZE(platform_devices); ++i)
 		platform_device_unregister(platform_devices[i]);
 	platform_driver_unregister(&cs423x_nonpnp_driver);
@@ -778,6 +782,7 @@ static int __init alsa_card_cs423x_init(void)
 		platform_devices[i] = device;
 		cards++;
 	}
+#ifdef CONFIG_PNP
 #ifdef CS4232
 	i = pnp_register_driver(&cs4232_pnp_driver);
 	if (i >= 0) {
@@ -790,6 +795,8 @@ static int __init alsa_card_cs423x_init(void)
 		pnpc_registered = 1;
 		cards += i;
 	}
+#endif /* CONFIG_PNP */
+
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR IDENT " soundcard not found or device busy\n");
