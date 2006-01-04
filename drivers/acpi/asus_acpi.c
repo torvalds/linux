@@ -78,9 +78,9 @@ MODULE_LICENSE("GPL");
 static uid_t asus_uid;
 static gid_t asus_gid;
 module_param(asus_uid, uint, 0);
-MODULE_PARM_DESC(uid, "UID for entries in /proc/acpi/asus.\n");
+MODULE_PARM_DESC(asus_uid, "UID for entries in /proc/acpi/asus.\n");
 module_param(asus_gid, uint, 0);
-MODULE_PARM_DESC(gid, "GID for entries in /proc/acpi/asus.\n");
+MODULE_PARM_DESC(asus_gid, "GID for entries in /proc/acpi/asus.\n");
 
 /* For each model, all features implemented, 
  * those marked with R are relative to HOTK, A for absolute */
@@ -851,6 +851,8 @@ static int __init asus_hotk_add_fs(struct acpi_device *device)
 		mode = S_IFREG | S_IRUGO | S_IWUGO;
 	} else {
 		mode = S_IFREG | S_IRUSR | S_IRGRP | S_IWUSR | S_IWGRP;
+		printk(KERN_WARNING "  asus_uid and asus_gid parameters are "
+		       "deprecated, use chown and chmod instead!\n");
 	}
 
 	acpi_device_dir(device) = asus_proc_dir;
