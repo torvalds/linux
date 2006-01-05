@@ -410,9 +410,8 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		return 1;
 	}
 
-	if ((is_multicast_ether_addr(hdr->addr1) ||
-	     is_broadcast_ether_addr(hdr->addr2)) ? ieee->host_mc_decrypt :
-	    ieee->host_decrypt) {
+	if (is_multicast_ether_addr(hdr->addr1)
+	    ? ieee->host_mc_decrypt : ieee->host_decrypt) {
 		int idx = 0;
 		if (skb->len >= hdrlen + 3)
 			idx = skb->data[hdrlen + 3] >> 6;

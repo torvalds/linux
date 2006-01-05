@@ -441,7 +441,7 @@ errout:
 }
 
 static struct sk_buff *ctrl_build_msg(struct genl_family *family, u32 pid,
-				      int seq, int cmd)
+				      int seq, u8 cmd)
 {
 	struct sk_buff *skb;
 	int err;

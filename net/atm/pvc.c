@@ -102,7 +102,7 @@ static int pvc_getname(struct socket *sock,struct sockaddr *sockaddr,
 }
 
 
-static struct proto_ops pvc_proto_ops = {
+static const struct proto_ops pvc_proto_ops = {
 	.family =	PF_ATMPVC,
 	.owner =	THIS_MODULE,
 

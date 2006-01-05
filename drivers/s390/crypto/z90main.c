@@ -34,7 +34,6 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/kobject_uevent.h>
 #include <linux/proc_fs.h>
 #include <linux/syscalls.h>
 #include "z90crypt.h"

@@ -163,10 +163,8 @@
 typedef void (ak4114_write_t)(void *private_data, unsigned char addr, unsigned char data);
 typedef unsigned char (ak4114_read_t)(void *private_data, unsigned char addr);
 
-typedef struct ak4114 ak4114_t;
-
 struct ak4114 {
-	snd_card_t * card;
+	struct snd_card *card;
 	ak4114_write_t * write;
 	ak4114_read_t * read;
 	void * private_data;
@@ -174,9 +172,9 @@ struct ak4114 {
 	spinlock_t lock;
 	unsigned char regmap[7];
 	unsigned char txcsb[5];
-	snd_kcontrol_t *kctls[AK4114_CONTROLS];
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
+	struct snd_kcontrol *kctls[AK4114_CONTROLS];
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
 	unsigned long parity_errors;
 	unsigned long v_bit_errors;
 	unsigned long qcrc_errors;
@@ -186,20 +184,20 @@ struct ak4114 {
 	struct workqueue_struct *workqueue;
 	struct work_struct work;
 	void *change_callback_private;
-	void (*change_callback)(ak4114_t *ak4114, unsigned char c0, unsigned char c1);
+	void (*change_callback)(struct ak4114 *ak4114, unsigned char c0, unsigned char c1);
 };
 
-int snd_ak4114_create(snd_card_t *card,
+int snd_ak4114_create(struct snd_card *card,
 		      ak4114_read_t *read, ak4114_write_t *write,
 		      unsigned char pgm[7], unsigned char txcsb[5],
-		      void *private_data, ak4114_t **r_ak4114);
-void snd_ak4114_reg_write(ak4114_t *ak4114, unsigned char reg, unsigned char mask, unsigned char val);
-void snd_ak4114_reinit(ak4114_t *ak4114);
-int snd_ak4114_build(ak4114_t *ak4114,
-		     snd_pcm_substream_t *playback_substream,
-                     snd_pcm_substream_t *capture_substream);
-int snd_ak4114_external_rate(ak4114_t *ak4114);
-int snd_ak4114_check_rate_and_errors(ak4114_t *ak4114, unsigned int flags);
+		      void *private_data, struct ak4114 **r_ak4114);
+void snd_ak4114_reg_write(struct ak4114 *ak4114, unsigned char reg, unsigned char mask, unsigned char val);
+void snd_ak4114_reinit(struct ak4114 *ak4114);
+int snd_ak4114_build(struct ak4114 *ak4114,
+		     struct snd_pcm_substream *playback_substream,
+                     struct snd_pcm_substream *capture_substream);
+int snd_ak4114_external_rate(struct ak4114 *ak4114);
+int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags);
 
 #endif /* __SOUND_AK4114_H */
 

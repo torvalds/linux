@@ -177,9 +177,10 @@ static unsigned int nforce2_fsb_read(int bootfsb)
  */
 static int nforce2_set_fsb(unsigned int fsb)
 {
-	u32 pll, temp = 0;
+	u32 temp = 0;
 	unsigned int tfsb;
 	int diff;
+	int pll = 0;
 
 	if ((fsb > max_fsb) || (fsb < NFORCE2_MIN_FSB)) {
 		printk(KERN_ERR "cpufreq: FSB %d is out of range!\n", fsb);

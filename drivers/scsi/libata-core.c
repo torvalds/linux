@@ -605,7 +605,7 @@ void ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 	tf->command = ata_rw_cmds[index + lba48 + write];
 }
 
-static const char * xfer_mode_str[] = {
+static const char * const xfer_mode_str[] = {
 	"UDMA/16",
 	"UDMA/25",
 	"UDMA/33",
@@ -1046,28 +1046,103 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 	return modes;
 }
 
-static int ata_qc_wait_err(struct ata_queued_cmd *qc,
-			   struct completion *wait)
+struct ata_exec_internal_arg {
+	unsigned int err_mask;
+	struct ata_taskfile *tf;
+	struct completion *waiting;
+};
+
+int ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
-	int rc = 0;
+	struct ata_exec_internal_arg *arg = qc->private_data;
+	struct completion *waiting = arg->waiting;
 
-	if (wait_for_completion_timeout(wait, 30 * HZ) < 1) {
-		/* timeout handling */
-		unsigned int err_mask = ac_err_mask(ata_chk_status(qc->ap));
+	if (!(qc->err_mask & ~AC_ERR_DEV))
+		qc->ap->ops->tf_read(qc->ap, arg->tf);
+	arg->err_mask = qc->err_mask;
+	arg->waiting = NULL;
+	complete(waiting);
 
-		if (!err_mask) {
-			printk(KERN_WARNING "ata%u: slow completion (cmd %x)\n",
-			       qc->ap->id, qc->tf.command);
-		} else {
-			printk(KERN_WARNING "ata%u: qc timeout (cmd %x)\n",
-			       qc->ap->id, qc->tf.command);
-			rc = -EIO;
-		}
+	return 0;
+}
 
-		ata_qc_complete(qc, err_mask);
+/**
+ *	ata_exec_internal - execute libata internal command
+ *	@ap: Port to which the command is sent
+ *	@dev: Device to which the command is sent
+ *	@tf: Taskfile registers for the command and the result
+ *	@dma_dir: Data tranfer direction of the command
+ *	@buf: Data buffer of the command
+ *	@buflen: Length of data buffer
+ *
+ *	Executes libata internal command with timeout.  @tf contains
+ *	command on entry and result on return.  Timeout and error
+ *	conditions are reported via return value.  No recovery action
+ *	is taken after a command times out.  It's caller's duty to
+ *	clean up after timeout.
+ *
+ *	LOCKING:
+ *	None.  Should be called with kernel context, might sleep.
+ */
+
+static unsigned
+ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
+		  struct ata_taskfile *tf,
+		  int dma_dir, void *buf, unsigned int buflen)
+{
+	u8 command = tf->command;
+	struct ata_queued_cmd *qc;
+	DECLARE_COMPLETION(wait);
+	unsigned long flags;
+	struct ata_exec_internal_arg arg;
+
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+
+	qc = ata_qc_new_init(ap, dev);
+	BUG_ON(qc == NULL);
+
+	qc->tf = *tf;
+	qc->dma_dir = dma_dir;
+	if (dma_dir != DMA_NONE) {
+		ata_sg_init_one(qc, buf, buflen);
+		qc->nsect = buflen / ATA_SECT_SIZE;
 	}
 
-	return rc;
+	arg.waiting = &wait;
+	arg.tf = tf;
+	qc->private_data = &arg;
+	qc->complete_fn = ata_qc_complete_internal;
+
+	if (ata_qc_issue(qc))
+		goto issue_fail;
+
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	if (!wait_for_completion_timeout(&wait, ATA_TMOUT_INTERNAL)) {
+		spin_lock_irqsave(&ap->host_set->lock, flags);
+
+		/* We're racing with irq here.  If we lose, the
+		 * following test prevents us from completing the qc
+		 * again.  If completion irq occurs after here but
+		 * before the caller cleans up, it will result in a
+		 * spurious interrupt.  We can live with that.
+		 */
+		if (arg.waiting) {
+			qc->err_mask = AC_ERR_OTHER;
+			ata_qc_complete(qc);
+			printk(KERN_WARNING "ata%u: qc timeout (cmd 0x%x)\n",
+			       ap->id, command);
+		}
+
+		spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	}
+
+	return arg.err_mask;
+
+ issue_fail:
+	ata_qc_free(qc);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	return AC_ERR_OTHER;
 }
 
 /**
@@ -1099,9 +1174,8 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 	u16 tmp;
 	unsigned long xfer_modes;
 	unsigned int using_edd;
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	unsigned long flags;
+	struct ata_taskfile tf;
+	unsigned int err_mask;
 	int rc;
 
 	if (!ata_dev_present(dev)) {
@@ -1122,40 +1196,26 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 
 	ata_dev_select(ap, device, 1, 1); /* select device 0/1 */
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
-
-	ata_sg_init_one(qc, dev->id, sizeof(dev->id));
-	qc->dma_dir = DMA_FROM_DEVICE;
-	qc->tf.protocol = ATA_PROT_PIO;
-	qc->nsect = 1;
-
 retry:
+	ata_tf_init(ap, &tf, device);
+
 	if (dev->class == ATA_DEV_ATA) {
-		qc->tf.command = ATA_CMD_ID_ATA;
+		tf.command = ATA_CMD_ID_ATA;
 		DPRINTK("do ATA identify\n");
 	} else {
-		qc->tf.command = ATA_CMD_ID_ATAPI;
+		tf.command = ATA_CMD_ID_ATAPI;
 		DPRINTK("do ATAPI identify\n");
 	}
 
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
+	tf.protocol = ATA_PROT_PIO;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+	err_mask = ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
+				     dev->id, sizeof(dev->id));
 
-	if (rc)
-		goto err_out;
-	else
-		ata_qc_wait_err(qc, &wait);
+	if (err_mask) {
+		if (err_mask & ~AC_ERR_DEV)
+			goto err_out;
 
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	ap->ops->tf_read(ap, &qc->tf);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (qc->tf.command & ATA_ERR) {
 		/*
 		 * arg!  EDD works for all test cases, but seems to return
 		 * the ATA signature for some ATAPI devices.  Until the
@@ -1168,13 +1228,9 @@ retry:
 		 * to have this problem.
 		 */
 		if ((using_edd) && (dev->class == ATA_DEV_ATA)) {
-			u8 err = qc->tf.feature;
+			u8 err = tf.feature;
 			if (err & ATA_ABORTED) {
 				dev->class = ATA_DEV_ATAPI;
-				qc->cursg = 0;
-				qc->cursg_ofs = 0;
-				qc->cursect = 0;
-				qc->nsect = 1;
 				goto retry;
 			}
 		}
@@ -1444,11 +1500,23 @@ void __sata_phy_reset(struct ata_port *ap)
 	} while (time_before(jiffies, timeout));
 
 	/* TODO: phy layer with polling, timeouts, etc. */
-	if (sata_dev_present(ap))
+	sstatus = scr_read(ap, SCR_STATUS);
+	if (sata_dev_present(ap)) {
+		const char *speed;
+		u32 tmp;
+
+		tmp = (sstatus >> 4) & 0xf;
+		if (tmp & (1 << 0))
+			speed = "1.5";
+		else if (tmp & (1 << 1))
+			speed = "3.0";
+		else
+			speed = "<unknown>";
+		printk(KERN_INFO "ata%u: SATA link up %s Gbps (SStatus %X)\n",
+		       ap->id, speed, sstatus);
 		ata_port_probe(ap);
-	else {
-		sstatus = scr_read(ap, SCR_STATUS);
-		printk(KERN_INFO "ata%u: no device found (phy stat %08x)\n",
+	} else {
+		printk(KERN_INFO "ata%u: SATA link down (SStatus %X)\n",
 		       ap->id, sstatus);
 		ata_port_disable(ap);
 	}
@@ -2071,7 +2139,7 @@ static void ata_pr_blacklisted(const struct ata_port *ap,
 		ap->id, dev->devno);
 }
 
-static const char * ata_dma_blacklist [] = {
+static const char * const ata_dma_blacklist [] = {
 	"WDC AC11000H",
 	"WDC AC22100H",
 	"WDC AC32500H",
@@ -2266,34 +2334,23 @@ static int ata_choose_xfer_mode(const struct ata_port *ap,
 
 static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 {
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	int rc;
-	unsigned long flags;
+	struct ata_taskfile tf;
 
 	/* set up set-features taskfile */
 	DPRINTK("set features - xfer mode\n");
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
+	ata_tf_init(ap, &tf, dev->devno);
+	tf.command = ATA_CMD_SET_FEATURES;
+	tf.feature = SETFEATURES_XFER;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+	tf.nsect = dev->xfer_mode;
 
-	qc->tf.command = ATA_CMD_SET_FEATURES;
-	qc->tf.feature = SETFEATURES_XFER;
-	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	qc->tf.protocol = ATA_PROT_NODATA;
-	qc->tf.nsect = dev->xfer_mode;
-
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (rc)
+	if (ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0)) {
+		printk(KERN_ERR "ata%u: failed to set xfermode, disabled\n",
+		       ap->id);
 		ata_port_disable(ap);
-	else
-		ata_qc_wait_err(qc, &wait);
+	}
 
 	DPRINTK("EXIT\n");
 }
@@ -2308,40 +2365,24 @@ static void ata_dev_set_xfermode(struct ata_port *ap, struct ata_device *dev)
 
 static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
 {
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	unsigned long flags;
-	int rc;
+	struct ata_taskfile tf;
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
-
-	ata_sg_init_one(qc, dev->id, sizeof(dev->id));
-	qc->dma_dir = DMA_FROM_DEVICE;
+	ata_tf_init(ap, &tf, dev->devno);
 
 	if (dev->class == ATA_DEV_ATA) {
-		qc->tf.command = ATA_CMD_ID_ATA;
+		tf.command = ATA_CMD_ID_ATA;
 		DPRINTK("do ATA identify\n");
 	} else {
-		qc->tf.command = ATA_CMD_ID_ATAPI;
+		tf.command = ATA_CMD_ID_ATAPI;
 		DPRINTK("do ATAPI identify\n");
 	}
 
-	qc->tf.flags |= ATA_TFLAG_DEVICE;
-	qc->tf.protocol = ATA_PROT_PIO;
-	qc->nsect = 1;
+	tf.flags |= ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_PIO;
 
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (rc)
+	if (ata_exec_internal(ap, dev, &tf, DMA_FROM_DEVICE,
+			      dev->id, sizeof(dev->id)))
 		goto err_out;
-
-	ata_qc_wait_err(qc, &wait);
 
 	swap_buf_le16(dev->id, ATA_ID_WORDS);
 
@@ -2351,6 +2392,7 @@ static void ata_dev_reread_id(struct ata_port *ap, struct ata_device *dev)
 
 	return;
 err_out:
+	printk(KERN_ERR "ata%u: failed to reread ID, disabled\n", ap->id);
 	ata_port_disable(ap);
 }
 
@@ -2364,10 +2406,7 @@ err_out:
 
 static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 {
-	DECLARE_COMPLETION(wait);
-	struct ata_queued_cmd *qc;
-	int rc;
-	unsigned long flags;
+	struct ata_taskfile tf;
 	u16 sectors = dev->id[6];
 	u16 heads   = dev->id[3];
 
@@ -2378,26 +2417,18 @@ static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 	/* set up init dev params taskfile */
 	DPRINTK("init dev params \n");
 
-	qc = ata_qc_new_init(ap, dev);
-	BUG_ON(qc == NULL);
+	ata_tf_init(ap, &tf, dev->devno);
+	tf.command = ATA_CMD_INIT_DEV_PARAMS;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+	tf.nsect = sectors;
+	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	qc->tf.command = ATA_CMD_INIT_DEV_PARAMS;
-	qc->tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	qc->tf.protocol = ATA_PROT_NODATA;
-	qc->tf.nsect = sectors;
-	qc->tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
-
-	qc->waiting = &wait;
-	qc->complete_fn = ata_qc_complete_noop;
-
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	rc = ata_qc_issue(qc);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	if (rc)
+	if (ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0)) {
+		printk(KERN_ERR "ata%u: failed to init parameters, disabled\n",
+		       ap->id);
 		ata_port_disable(ap);
-	else
-		ata_qc_wait_err(qc, &wait);
+	}
 
 	DPRINTK("EXIT\n");
 }
@@ -2765,7 +2796,7 @@ skip_map:
  *	None.  (grabs host lock)
  */
 
-void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
+void ata_poll_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned long flags;
@@ -2773,7 +2804,7 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	ap->flags &= ~ATA_FLAG_NOINTR;
 	ata_irq_on(ap);
-	ata_qc_complete(qc, err_mask);
+	ata_qc_complete(qc);
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
 
@@ -2790,9 +2821,13 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 
 static unsigned long ata_pio_poll(struct ata_port *ap)
 {
+	struct ata_queued_cmd *qc;
 	u8 status;
 	unsigned int poll_state = HSM_ST_UNKNOWN;
 	unsigned int reg_state = HSM_ST_UNKNOWN;
+
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	assert(qc != NULL);
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -2813,6 +2848,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if (status & ATA_BUSY) {
 		if (time_after(jiffies, ap->pio_task_timeout)) {
+			qc->err_mask |= AC_ERR_ATA_BUS;
 			ap->hsm_task_state = HSM_ST_TMOUT;
 			return 0;
 		}
@@ -2847,29 +2883,31 @@ static int ata_pio_complete (struct ata_port *ap)
 	 * msecs, then chk-status again.  If still busy, fall back to
 	 * HSM_ST_POLL state.
 	 */
-	drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
-	if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
+	drv_stat = ata_busy_wait(ap, ATA_BUSY, 10);
+	if (drv_stat & ATA_BUSY) {
 		msleep(2);
-		drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
-		if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
+		drv_stat = ata_busy_wait(ap, ATA_BUSY, 10);
+		if (drv_stat & ATA_BUSY) {
 			ap->hsm_task_state = HSM_ST_LAST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
 			return 0;
 		}
 	}
 
+	qc = ata_qc_from_tag(ap, ap->active_tag);
+	assert(qc != NULL);
+
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
+		qc->err_mask |= __ac_err_mask(drv_stat);
 		ap->hsm_task_state = HSM_ST_ERR;
 		return 0;
 	}
 
-	qc = ata_qc_from_tag(ap, ap->active_tag);
-	assert(qc != NULL);
-
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	ata_poll_qc_complete(qc, 0);
+	assert(qc->err_mask == 0);
+	ata_poll_qc_complete(qc);
 
 	/* another command may start at this point */
 
@@ -3177,6 +3215,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 err_out:
 	printk(KERN_INFO "ata%u: dev %u: ATAPI check failed\n",
 	      ap->id, dev->devno);
+	qc->err_mask |= AC_ERR_ATA_BUS;
 	ap->hsm_task_state = HSM_ST_ERR;
 }
 
@@ -3215,8 +3254,16 @@ static void ata_pio_block(struct ata_port *ap)
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 
+	/* check error */
+	if (status & (ATA_ERR | ATA_DF)) {
+		qc->err_mask |= AC_ERR_DEV;
+		ap->hsm_task_state = HSM_ST_ERR;
+		return;
+	}
+
+	/* transfer data if any */
 	if (is_atapi_taskfile(&qc->tf)) {
-		/* no more data to transfer or unsupported ATAPI command */
+		/* DRQ=0 means no more data to transfer */
 		if ((status & ATA_DRQ) == 0) {
 			ap->hsm_task_state = HSM_ST_LAST;
 			return;
@@ -3226,6 +3273,7 @@ static void ata_pio_block(struct ata_port *ap)
 	} else {
 		/* handle BSY=0, DRQ=0 as error */
 		if ((status & ATA_DRQ) == 0) {
+			qc->err_mask |= AC_ERR_ATA_BUS;
 			ap->hsm_task_state = HSM_ST_ERR;
 			return;
 		}
@@ -3243,9 +3291,14 @@ static void ata_pio_error(struct ata_port *ap)
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 
+	/* make sure qc->err_mask is available to 
+	 * know what's wrong and recover
+	 */
+	assert(qc->err_mask);
+
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	ata_poll_qc_complete(qc, AC_ERR_ATA_BUS);
+	ata_poll_qc_complete(qc);
 }
 
 static void ata_pio_task(void *_data)
@@ -3347,7 +3400,8 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		       ap->id, qc->tf.command, drv_stat, host_stat);
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc, ac_err_mask(drv_stat));
+		qc->err_mask |= ac_err_mask(drv_stat);
+		ata_qc_complete(qc);
 		break;
 	}
 
@@ -3446,15 +3500,10 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 	return qc;
 }
 
-int ata_qc_complete_noop(struct ata_queued_cmd *qc, unsigned int err_mask)
-{
-	return 0;
-}
-
 static void __ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	unsigned int tag, do_clear = 0;
+	unsigned int tag;
 
 	qc->flags = 0;
 	tag = qc->tag;
@@ -3462,17 +3511,8 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc)
 		if (tag == ap->active_tag)
 			ap->active_tag = ATA_TAG_POISON;
 		qc->tag = ATA_TAG_POISON;
-		do_clear = 1;
-	}
-
-	if (qc->waiting) {
-		struct completion *waiting = qc->waiting;
-		qc->waiting = NULL;
-		complete(waiting);
-	}
-
-	if (likely(do_clear))
 		clear_bit(tag, &ap->qactive);
+	}
 }
 
 /**
@@ -3488,7 +3528,6 @@ static void __ata_qc_complete(struct ata_queued_cmd *qc)
 void ata_qc_free(struct ata_queued_cmd *qc)
 {
 	assert(qc != NULL);	/* ata_qc_from_tag _might_ return NULL */
-	assert(qc->waiting == NULL);	/* nothing should be waiting */
 
 	__ata_qc_complete(qc);
 }
@@ -3505,7 +3544,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
+void ata_qc_complete(struct ata_queued_cmd *qc)
 {
 	int rc;
 
@@ -3522,7 +3561,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 
 	/* call completion callback */
-	rc = qc->complete_fn(qc, err_mask);
+	rc = qc->complete_fn(qc);
 
 	/* if callback indicates not to complete command (non-zero),
 	 * return immediately
@@ -3960,7 +3999,8 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 		ap->ops->irq_clear(ap);
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc, ac_err_mask(status));
+		qc->err_mask |= ac_err_mask(status);
+		ata_qc_complete(qc);
 		break;
 
 	default:
@@ -4054,13 +4094,17 @@ static void atapi_packet_task(void *_data)
 
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
-	if (ata_busy_sleep(ap, ATA_TMOUT_CDB_QUICK, ATA_TMOUT_CDB))
-		goto err_out_status;
+	if (ata_busy_sleep(ap, ATA_TMOUT_CDB_QUICK, ATA_TMOUT_CDB)) {
+		qc->err_mask |= AC_ERR_ATA_BUS;
+		goto err_out;
+	}
 
 	/* make sure DRQ is set */
 	status = ata_chk_status(ap);
-	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)
+	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ) {
+		qc->err_mask |= AC_ERR_ATA_BUS;
 		goto err_out;
+	}
 
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
@@ -4092,10 +4136,8 @@ static void atapi_packet_task(void *_data)
 
 	return;
 
-err_out_status:
-	status = ata_chk_status(ap);
 err_out:
-	ata_poll_qc_complete(qc, __ac_err_mask(status));
+	ata_poll_qc_complete(qc);
 }
 
 

@@ -1696,8 +1696,8 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 	int err = 0;
 
 	if (level != SOL_TCP)
-		return tp->af_specific->setsockopt(sk, level, optname,
-						   optval, optlen);
+		return icsk->icsk_af_ops->setsockopt(sk, level, optname,
+						     optval, optlen);
 
 	/* This is a string value all the others are int's */
 	if (optname == TCP_CONGESTION) {
@@ -1914,7 +1914,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_last_data_recv = jiffies_to_msecs(now - icsk->icsk_ack.lrcvtime);
 	info->tcpi_last_ack_recv = jiffies_to_msecs(now - tp->rcv_tstamp);
 
-	info->tcpi_pmtu = tp->pmtu_cookie;
+	info->tcpi_pmtu = icsk->icsk_pmtu_cookie;
 	info->tcpi_rcv_ssthresh = tp->rcv_ssthresh;
 	info->tcpi_rtt = jiffies_to_usecs(tp->srtt)>>3;
 	info->tcpi_rttvar = jiffies_to_usecs(tp->mdev)>>2;
@@ -1939,8 +1939,8 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 	int val, len;
 
 	if (level != SOL_TCP)
-		return tp->af_specific->getsockopt(sk, level, optname,
-						   optval, optlen);
+		return icsk->icsk_af_ops->getsockopt(sk, level, optname,
+						     optval, optlen);
 
 	if (get_user(len, optlen))
 		return -EFAULT;

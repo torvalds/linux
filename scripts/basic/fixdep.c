@@ -130,9 +130,22 @@ void usage(void)
 	exit(1);
 }
 
+/*
+ * Print out the commandline prefixed with cmd_<target filename> :=
+ * If commandline contains '#' escape with '\' so make to not see
+ * the '#' as a start-of-comment symbol
+ **/
 void print_cmdline(void)
 {
-	printf("cmd_%s := %s\n\n", target, cmdline);
+	char *p = cmdline;
+
+	printf("cmd_%s := ", target);
+	for (; *p; p++) {
+		if (*p == '#')
+			printf("\\");
+		printf("%c", *p);
+	}
+	printf("\n\n");
 }
 
 char * str_config  = NULL;

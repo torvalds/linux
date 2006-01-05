@@ -160,14 +160,14 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver safe_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"safe_serial",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
-static __u16 crc10_table[256] = {
+static const __u16 crc10_table[256] = {
 	0x000, 0x233, 0x255, 0x066, 0x299, 0x0aa, 0x0cc, 0x2ff, 0x301, 0x132, 0x154, 0x367, 0x198, 0x3ab, 0x3cd, 0x1fe,
 	0x031, 0x202, 0x264, 0x057, 0x2a8, 0x09b, 0x0fd, 0x2ce, 0x330, 0x103, 0x165, 0x356, 0x1a9, 0x39a, 0x3fc, 0x1cf,
 	0x062, 0x251, 0x237, 0x004, 0x2fb, 0x0c8, 0x0ae, 0x29d, 0x363, 0x150, 0x136, 0x305, 0x1fa, 0x3c9, 0x3af, 0x19c,
@@ -425,7 +425,7 @@ static int __init safe_init (void)
 	if (vendor || product) {
 		info ("vendor: %x product: %x\n", vendor, product);
 
-		for (i = 0; i < (sizeof (id_table) / sizeof (struct usb_device_id)); i++) {
+		for (i = 0; i < ARRAY_SIZE(id_table); i++) {
 			if (!id_table[i].idVendor && !id_table[i].idProduct) {
 				id_table[i].idVendor = vendor;
 				id_table[i].idProduct = product;

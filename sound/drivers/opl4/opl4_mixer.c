@@ -20,7 +20,7 @@
 #include "opl4_local.h"
 #include <sound/control.h>
 
-static int snd_opl4_ctl_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_opl4_ctl_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -29,9 +29,9 @@ static int snd_opl4_ctl_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinf
 	return 0;
 }
 
-static int snd_opl4_ctl_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_opl4_ctl_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	opl4_t *opl4 = snd_kcontrol_chip(kcontrol);
+	struct snd_opl4 *opl4 = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	u8 reg = kcontrol->private_value;
 	u8 value;
@@ -44,9 +44,9 @@ static int snd_opl4_ctl_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 	return 0;
 }
 
-static int snd_opl4_ctl_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_opl4_ctl_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	opl4_t *opl4 = snd_kcontrol_chip(kcontrol);
+	struct snd_opl4 *opl4 = snd_kcontrol_chip(kcontrol);
 	unsigned long flags;
 	u8 reg = kcontrol->private_value;
 	u8 value, old_value;
@@ -60,7 +60,7 @@ static int snd_opl4_ctl_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucon
 	return value != old_value;
 }
 
-static snd_kcontrol_new_t snd_opl4_controls[] = {
+static struct snd_kcontrol_new snd_opl4_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "FM Playback Volume",
@@ -79,9 +79,9 @@ static snd_kcontrol_new_t snd_opl4_controls[] = {
 	}
 };
 
-int snd_opl4_create_mixer(opl4_t *opl4)
+int snd_opl4_create_mixer(struct snd_opl4 *opl4)
 {
-	snd_card_t *card = opl4->card;
+	struct snd_card *card = opl4->card;
 	int i, err;
 
 	strcat(card->mixername, ",OPL4");

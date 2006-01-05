@@ -139,25 +139,25 @@ static int ulaw2linear(unsigned char u_val)
  *  Basic Mu-Law plugin
  */
 
-typedef void (*mulaw_f)(snd_pcm_plugin_t *plugin,
-			const snd_pcm_plugin_channel_t *src_channels,
-			snd_pcm_plugin_channel_t *dst_channels,
+typedef void (*mulaw_f)(struct snd_pcm_plugin *plugin,
+			const struct snd_pcm_plugin_channel *src_channels,
+			struct snd_pcm_plugin_channel *dst_channels,
 			snd_pcm_uframes_t frames);
 
-typedef struct mulaw_private_data {
+struct mulaw_priv {
 	mulaw_f func;
 	int conv;
-} mulaw_t;
+};
 
-static void mulaw_decode(snd_pcm_plugin_t *plugin,
-			const snd_pcm_plugin_channel_t *src_channels,
-			snd_pcm_plugin_channel_t *dst_channels,
+static void mulaw_decode(struct snd_pcm_plugin *plugin,
+			const struct snd_pcm_plugin_channel *src_channels,
+			struct snd_pcm_plugin_channel *dst_channels,
 			snd_pcm_uframes_t frames)
 {
 #define PUT_S16_LABELS
 #include "plugin_ops.h"
 #undef PUT_S16_LABELS
-	mulaw_t *data = (mulaw_t *)plugin->extra_data;
+	struct mulaw_priv *data = (struct mulaw_priv *)plugin->extra_data;
 	void *put = put_s16_labels[data->conv];
 	int channel;
 	int nchannels = plugin->src_format.channels;
@@ -191,15 +191,15 @@ static void mulaw_decode(snd_pcm_plugin_t *plugin,
 	}
 }
 
-static void mulaw_encode(snd_pcm_plugin_t *plugin,
-			const snd_pcm_plugin_channel_t *src_channels,
-			snd_pcm_plugin_channel_t *dst_channels,
+static void mulaw_encode(struct snd_pcm_plugin *plugin,
+			const struct snd_pcm_plugin_channel *src_channels,
+			struct snd_pcm_plugin_channel *dst_channels,
 			snd_pcm_uframes_t frames)
 {
 #define GET_S16_LABELS
 #include "plugin_ops.h"
 #undef GET_S16_LABELS
-	mulaw_t *data = (mulaw_t *)plugin->extra_data;
+	struct mulaw_priv *data = (struct mulaw_priv *)plugin->extra_data;
 	void *get = get_s16_labels[data->conv];
 	int channel;
 	int nchannels = plugin->src_format.channels;
@@ -234,12 +234,12 @@ static void mulaw_encode(snd_pcm_plugin_t *plugin,
 	}
 }
 
-static snd_pcm_sframes_t mulaw_transfer(snd_pcm_plugin_t *plugin,
-			      const snd_pcm_plugin_channel_t *src_channels,
-			      snd_pcm_plugin_channel_t *dst_channels,
+static snd_pcm_sframes_t mulaw_transfer(struct snd_pcm_plugin *plugin,
+			      const struct snd_pcm_plugin_channel *src_channels,
+			      struct snd_pcm_plugin_channel *dst_channels,
 			      snd_pcm_uframes_t frames)
 {
-	mulaw_t *data;
+	struct mulaw_priv *data;
 
 	snd_assert(plugin != NULL && src_channels != NULL && dst_channels != NULL, return -ENXIO);
 	if (frames == 0)
@@ -257,20 +257,20 @@ static snd_pcm_sframes_t mulaw_transfer(snd_pcm_plugin_t *plugin,
 		}
 	}
 #endif
-	data = (mulaw_t *)plugin->extra_data;
+	data = (struct mulaw_priv *)plugin->extra_data;
 	data->func(plugin, src_channels, dst_channels, frames);
 	return frames;
 }
 
-int snd_pcm_plugin_build_mulaw(snd_pcm_plug_t *plug,
-			       snd_pcm_plugin_format_t *src_format,
-			       snd_pcm_plugin_format_t *dst_format,
-			       snd_pcm_plugin_t **r_plugin)
+int snd_pcm_plugin_build_mulaw(struct snd_pcm_substream *plug,
+			       struct snd_pcm_plugin_format *src_format,
+			       struct snd_pcm_plugin_format *dst_format,
+			       struct snd_pcm_plugin **r_plugin)
 {
 	int err;
-	mulaw_t *data;
-	snd_pcm_plugin_t *plugin;
-	snd_pcm_plugin_format_t *format;
+	struct mulaw_priv *data;
+	struct snd_pcm_plugin *plugin;
+	struct snd_pcm_plugin_format *format;
 	mulaw_f func;
 
 	snd_assert(r_plugin != NULL, return -ENXIO);
@@ -295,10 +295,10 @@ int snd_pcm_plugin_build_mulaw(snd_pcm_plug_t *plug,
 
 	err = snd_pcm_plugin_build(plug, "Mu-Law<->linear conversion",
 				   src_format, dst_format,
-				   sizeof(mulaw_t), &plugin);
+				   sizeof(struct mulaw_priv), &plugin);
 	if (err < 0)
 		return err;
-	data = (mulaw_t*)plugin->extra_data;
+	data = (struct mulaw_priv *)plugin->extra_data;
 	data->func = func;
 	data->conv = getput_index(format->format);
 	snd_assert(data->conv >= 0 && data->conv < 4*2*2, return -EINVAL);

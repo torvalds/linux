@@ -13,7 +13,7 @@ struct harmony_buffer {
         int coherent;
 };
 
-typedef struct snd_card_harmony {
+struct snd_harmony {
         int irq;
 
         unsigned long hpa; /* hard physical address */
@@ -44,15 +44,15 @@ typedef struct snd_card_harmony {
                 unsigned long silence_intr;
         } stats;
 
-        snd_pcm_t *pcm;
-        snd_card_t *card;
-        snd_pcm_substream_t *psubs;
-	snd_pcm_substream_t *csubs;
-        snd_info_entry_t *proc;
+        struct snd_pcm *pcm;
+        struct snd_card *card;
+        struct snd_pcm_substream *psubs;
+	struct snd_pcm_substream *csubs;
+        struct snd_info_entry *proc;
 
         spinlock_t lock;
         spinlock_t mixer_lock;
-} harmony_t;
+};
 
 #define MAX_PCM_DEVICES     1
 #define MAX_PCM_SUBSTREAMS  4

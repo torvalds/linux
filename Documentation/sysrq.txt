@@ -202,17 +202,13 @@ you must call __handle_sysrq_nolock instead.
 
 *  I have more questions, who can I ask?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You may feel free to send email to myrdraal@deathsdoor.com, and I will
-respond as soon as possible.
- -Myrdraal
-
 And I'll answer any questions about the registration system you got, also
 responding as soon as possible.
  -Crutcher
 
 *  Credits
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Written by Mydraal <myrdraal@deathsdoor.com>
+Written by Mydraal <vulpyne@vulpyne.net>
 Updated by Adam Sulmicki <adam@cfar.umd.edu>
 Updated by Jeremy M. Dolan <jmd@turbogeek.org> 2001/01/28 10:15:59
 Added to by Crutcher Dunnavant <crutcher+kernel@datastacks.com>

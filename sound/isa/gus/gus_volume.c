@@ -72,7 +72,7 @@ unsigned int snd_gf1_gvol_to_lvol_raw(unsigned short gf1_vol)
 	return rvol | (m >> (8 - e));
 }
 
-unsigned int snd_gf1_calc_ramp_rate(snd_gus_card_t * gus,
+unsigned int snd_gf1_calc_ramp_rate(struct snd_gus_card * gus,
 				    unsigned short start,
 				    unsigned short end,
 				    unsigned int us)
@@ -112,7 +112,7 @@ unsigned int snd_gf1_calc_ramp_rate(snd_gus_card_t * gus,
 
 #endif  /*  0  */
 
-unsigned short snd_gf1_translate_freq(snd_gus_card_t * gus, unsigned int freq16)
+unsigned short snd_gf1_translate_freq(struct snd_gus_card * gus, unsigned int freq16)
 {
 	freq16 >>= 3;
 	if (freq16 < 50)

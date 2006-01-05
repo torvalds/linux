@@ -36,9 +36,6 @@
 struct firmware;
 struct device;
 
-typedef struct snd_vx_core vx_core_t;
-typedef struct vx_pipe vx_pipe_t;
-
 #define VX_DRIVER_VERSION	0x010000	/* 1.0.0 */
 
 /*
@@ -76,7 +73,7 @@ struct vx_pipe {
 	int channels;
 	unsigned int differed_type;
 	pcx_time_t pcx_time;
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_substream *substream;
 
 	int hbuf_size;		/* H-buffer size in bytes */
 	int buffer_bytes;	/* the ALSA pcm buffer size in bytes */
@@ -88,36 +85,38 @@ struct vx_pipe {
 	u64 cur_count;		/* current sample position (for playback) */
 
 	unsigned int references;     /* an output pipe may be used for monitoring and/or playback */
-	vx_pipe_t *monitoring_pipe;  /* pointer to the monitoring pipe (capture pipe only)*/
+	struct vx_pipe *monitoring_pipe;  /* pointer to the monitoring pipe (capture pipe only)*/
 
 	struct tasklet_struct start_tq;
 };
 
+struct vx_core;
+
 struct snd_vx_ops {
 	/* low-level i/o */
-	unsigned char (*in8)(vx_core_t *chip, int reg);
-	unsigned int (*in32)(vx_core_t *chip, int reg);
-	void (*out8)(vx_core_t *chip, int reg, unsigned char val);
-	void (*out32)(vx_core_t *chip, int reg, unsigned int val);
+	unsigned char (*in8)(struct vx_core *chip, int reg);
+	unsigned int (*in32)(struct vx_core *chip, int reg);
+	void (*out8)(struct vx_core *chip, int reg, unsigned char val);
+	void (*out32)(struct vx_core *chip, int reg, unsigned int val);
 	/* irq */
-	int (*test_and_ack)(vx_core_t *chip);
-	void (*validate_irq)(vx_core_t *chip, int enable);
+	int (*test_and_ack)(struct vx_core *chip);
+	void (*validate_irq)(struct vx_core *chip, int enable);
 	/* codec */
-	void (*write_codec)(vx_core_t *chip, int codec, unsigned int data);
-	void (*akm_write)(vx_core_t *chip, int reg, unsigned int data);
-	void (*reset_codec)(vx_core_t *chip);
-	void (*change_audio_source)(vx_core_t *chip, int src);
-	void (*set_clock_source)(vx_core_t *chp, int src);
+	void (*write_codec)(struct vx_core *chip, int codec, unsigned int data);
+	void (*akm_write)(struct vx_core *chip, int reg, unsigned int data);
+	void (*reset_codec)(struct vx_core *chip);
+	void (*change_audio_source)(struct vx_core *chip, int src);
+	void (*set_clock_source)(struct vx_core *chp, int src);
 	/* chip init */
-	int (*load_dsp)(vx_core_t *chip, int idx, const struct firmware *fw);
-	void (*reset_dsp)(vx_core_t *chip);
-	void (*reset_board)(vx_core_t *chip, int cold_reset);
-	int (*add_controls)(vx_core_t *chip);
+	int (*load_dsp)(struct vx_core *chip, int idx, const struct firmware *fw);
+	void (*reset_dsp)(struct vx_core *chip);
+	void (*reset_board)(struct vx_core *chip, int cold_reset);
+	int (*add_controls)(struct vx_core *chip);
 	/* pcm */
-	void (*dma_write)(vx_core_t *chip, snd_pcm_runtime_t *runtime,
-			  vx_pipe_t *pipe, int count);
-	void (*dma_read)(vx_core_t *chip, snd_pcm_runtime_t *runtime,
-			  vx_pipe_t *pipe, int count);
+	void (*dma_write)(struct vx_core *chip, struct snd_pcm_runtime *runtime,
+			  struct vx_pipe *pipe, int count);
+	void (*dma_read)(struct vx_core *chip, struct snd_pcm_runtime *runtime,
+			  struct vx_pipe *pipe, int count);
 };
 
 struct snd_vx_hardware {
@@ -158,10 +157,10 @@ enum {
 /* min/max values for analog output for old codecs */
 #define VX_ANALOG_OUT_LEVEL_MAX		0xe3
 
-struct snd_vx_core {
+struct vx_core {
 	/* ALSA stuff */
-	snd_card_t *card;
-	snd_pcm_t *pcm[VX_MAX_CODECS];
+	struct snd_card *card;
+	struct snd_pcm *pcm[VX_MAX_CODECS];
 	int type;	/* VX_TYPE_XXX */
 
 	int irq;
@@ -179,7 +178,7 @@ struct snd_vx_core {
 	unsigned int pcm_running;
 
 	struct device *dev;
-	snd_hwdep_t *hwdep;
+	struct snd_hwdep *hwdep;
 
 	struct vx_rmh irq_rmh;	/* RMH used in interrupts */
 
@@ -216,14 +215,14 @@ struct snd_vx_core {
 /*
  * constructor
  */
-vx_core_t *snd_vx_create(snd_card_t *card, struct snd_vx_hardware *hw,
-			 struct snd_vx_ops *ops, int extra_size);
-int snd_vx_setup_firmware(vx_core_t *chip);
-int snd_vx_load_boot_image(vx_core_t *chip, const struct firmware *dsp);
-int snd_vx_dsp_boot(vx_core_t *chip, const struct firmware *dsp);
-int snd_vx_dsp_load(vx_core_t *chip, const struct firmware *dsp);
+struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
+			      struct snd_vx_ops *ops, int extra_size);
+int snd_vx_setup_firmware(struct vx_core *chip);
+int snd_vx_load_boot_image(struct vx_core *chip, const struct firmware *dsp);
+int snd_vx_dsp_boot(struct vx_core *chip, const struct firmware *dsp);
+int snd_vx_dsp_load(struct vx_core *chip, const struct firmware *dsp);
 
-void snd_vx_free_firmware(vx_core_t *chip);
+void snd_vx_free_firmware(struct vx_core *chip);
 
 /*
  * interrupt handler; exported for pcmcia
@@ -233,37 +232,37 @@ irqreturn_t snd_vx_irq_handler(int irq, void *dev, struct pt_regs *regs);
 /*
  * lowlevel functions
  */
-static inline int vx_test_and_ack(vx_core_t *chip)
+static inline int vx_test_and_ack(struct vx_core *chip)
 {
 	snd_assert(chip->ops->test_and_ack, return -ENXIO);
 	return chip->ops->test_and_ack(chip);
 }
 
-static inline void vx_validate_irq(vx_core_t *chip, int enable)
+static inline void vx_validate_irq(struct vx_core *chip, int enable)
 {
 	snd_assert(chip->ops->validate_irq, return);
 	chip->ops->validate_irq(chip, enable);
 }
 
-static inline unsigned char snd_vx_inb(vx_core_t *chip, int reg)
+static inline unsigned char snd_vx_inb(struct vx_core *chip, int reg)
 {
 	snd_assert(chip->ops->in8, return 0);
 	return chip->ops->in8(chip, reg);
 }
 
-static inline unsigned int snd_vx_inl(vx_core_t *chip, int reg)
+static inline unsigned int snd_vx_inl(struct vx_core *chip, int reg)
 {
 	snd_assert(chip->ops->in32, return 0);
 	return chip->ops->in32(chip, reg);
 }
 
-static inline void snd_vx_outb(vx_core_t *chip, int reg, unsigned char val)
+static inline void snd_vx_outb(struct vx_core *chip, int reg, unsigned char val)
 {
 	snd_assert(chip->ops->out8, return);
 	chip->ops->out8(chip, reg, val);
 }
 
-static inline void snd_vx_outl(vx_core_t *chip, int reg, unsigned int val)
+static inline void snd_vx_outl(struct vx_core *chip, int reg, unsigned int val)
 {
 	snd_assert(chip->ops->out32, return);
 	chip->ops->out32(chip, reg, val);
@@ -274,27 +273,25 @@ static inline void snd_vx_outl(vx_core_t *chip, int reg, unsigned int val)
 #define vx_inl(chip,reg)	snd_vx_inl(chip, VX_##reg)
 #define vx_outl(chip,reg,val)	snd_vx_outl(chip, VX_##reg,val)
 
-void snd_vx_delay(vx_core_t *chip, int msec);
-
-static inline void vx_reset_dsp(vx_core_t *chip)
+static inline void vx_reset_dsp(struct vx_core *chip)
 {
 	snd_assert(chip->ops->reset_dsp, return);
 	chip->ops->reset_dsp(chip);
 }
 
-int vx_send_msg(vx_core_t *chip, struct vx_rmh *rmh);
-int vx_send_msg_nolock(vx_core_t *chip, struct vx_rmh *rmh);
-int vx_send_rih(vx_core_t *chip, int cmd);
-int vx_send_rih_nolock(vx_core_t *chip, int cmd);
+int vx_send_msg(struct vx_core *chip, struct vx_rmh *rmh);
+int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh);
+int vx_send_rih(struct vx_core *chip, int cmd);
+int vx_send_rih_nolock(struct vx_core *chip, int cmd);
 
-void vx_reset_codec(vx_core_t *chip, int cold_reset);
+void vx_reset_codec(struct vx_core *chip, int cold_reset);
 
 /*
  * check the bit on the specified register
  * returns zero if a bit matches, or a negative error code.
  * exported for vxpocket driver
  */
-int snd_vx_check_reg_bit(vx_core_t *chip, int reg, int mask, int bit, int time);
+int snd_vx_check_reg_bit(struct vx_core *chip, int reg, int mask, int bit, int time);
 #define vx_check_isr(chip,mask,bit,time) snd_vx_check_reg_bit(chip, VX_ISR, mask, bit, time)
 #define vx_wait_isr_bit(chip,bit) vx_check_isr(chip, bit, bit, 200)
 #define vx_wait_for_rx_full(chip) vx_wait_isr_bit(chip, ISR_RX_FULL)
@@ -303,15 +300,15 @@ int snd_vx_check_reg_bit(vx_core_t *chip, int reg, int mask, int bit, int time);
 /*
  * pseudo-DMA transfer
  */
-static inline void vx_pseudo_dma_write(vx_core_t *chip, snd_pcm_runtime_t *runtime,
-				       vx_pipe_t *pipe, int count)
+static inline void vx_pseudo_dma_write(struct vx_core *chip, struct snd_pcm_runtime *runtime,
+				       struct vx_pipe *pipe, int count)
 {
 	snd_assert(chip->ops->dma_write, return);
 	chip->ops->dma_write(chip, runtime, pipe, count);
 }
 
-static inline void vx_pseudo_dma_read(vx_core_t *chip, snd_pcm_runtime_t *runtime,
-				      vx_pipe_t *pipe, int count)
+static inline void vx_pseudo_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
+				      struct vx_pipe *pipe, int count)
 {
 	snd_assert(chip->ops->dma_read, return);
 	chip->ops->dma_read(chip, runtime, pipe, count);
@@ -329,25 +326,31 @@ static inline void vx_pseudo_dma_read(vx_core_t *chip, snd_pcm_runtime_t *runtim
 /*
  * pcm stuff
  */
-int snd_vx_pcm_new(vx_core_t *chip);
-void vx_pcm_update_intr(vx_core_t *chip, unsigned int events);
+int snd_vx_pcm_new(struct vx_core *chip);
+void vx_pcm_update_intr(struct vx_core *chip, unsigned int events);
 
 /*
  * mixer stuff
  */
-int snd_vx_mixer_new(vx_core_t *chip);
-void vx_toggle_dac_mute(vx_core_t *chip, int mute);
-int vx_sync_audio_source(vx_core_t *chip);
-int vx_set_monitor_level(vx_core_t *chip, int audio, int level, int active);
+int snd_vx_mixer_new(struct vx_core *chip);
+void vx_toggle_dac_mute(struct vx_core *chip, int mute);
+int vx_sync_audio_source(struct vx_core *chip);
+int vx_set_monitor_level(struct vx_core *chip, int audio, int level, int active);
 
 /*
  * IEC958 & clock stuff
  */
-void vx_set_iec958_status(vx_core_t *chip, unsigned int bits);
-int vx_set_clock(vx_core_t *chip, unsigned int freq);
-void vx_set_internal_clock(vx_core_t *chip, unsigned int freq);
-int vx_change_frequency(vx_core_t *chip);
+void vx_set_iec958_status(struct vx_core *chip, unsigned int bits);
+int vx_set_clock(struct vx_core *chip, unsigned int freq);
+void vx_set_internal_clock(struct vx_core *chip, unsigned int freq);
+int vx_change_frequency(struct vx_core *chip);
 
+
+/*
+ * PM
+ */
+int snd_vx_suspend(struct vx_core *card, pm_message_t state);
+int snd_vx_resume(struct vx_core *card);
 
 /*
  * hardware constants

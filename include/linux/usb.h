@@ -225,7 +225,7 @@ struct usb_interface_cache {
  * Device drivers should not attempt to activate configurations.  The choice
  * of which configuration to install is a policy decision based on such
  * considerations as available power, functionality provided, and the user's
- * desires (expressed through hotplug scripts).  However, drivers can call
+ * desires (expressed through userspace tools).  However, drivers can call
  * usb_reset_configuration() to reinitialize the current configuration and
  * all its interfaces.
  */
@@ -329,8 +329,6 @@ struct usb_device {
 	struct usb_tt	*tt; 		/* low/full speed dev, highspeed hub */
 	int		ttport;		/* device port on that tt hub */
 
-	struct semaphore serialize;
-
 	unsigned int toggle[2];		/* one bit for each endpoint
 					 * ([0] = IN, [1] = OUT) */
 
@@ -348,6 +346,9 @@ struct usb_device {
 	struct usb_host_endpoint *ep_out[16];
 
 	char **rawdescriptors;		/* Raw descriptors for each config */
+
+	unsigned short bus_mA;		/* Current available from the bus */
+	u8 portnum;			/* Parent port number (origin 1) */
 
 	int have_langid;		/* whether string_langid is valid */
 	int string_langid;		/* language ID for strings */
@@ -377,11 +378,12 @@ struct usb_device {
 extern struct usb_device *usb_get_dev(struct usb_device *dev);
 extern void usb_put_dev(struct usb_device *dev);
 
-extern void usb_lock_device(struct usb_device *udev);
-extern int usb_trylock_device(struct usb_device *udev);
+/* USB device locking */
+#define usb_lock_device(udev)		down(&(udev)->dev.sem)
+#define usb_unlock_device(udev)		up(&(udev)->dev.sem)
+#define usb_trylock_device(udev)	down_trylock(&(udev)->dev.sem)
 extern int usb_lock_device_for_reset(struct usb_device *udev,
 		struct usb_interface *iface);
-extern void usb_unlock_device(struct usb_device *udev);
 
 /* USB port reset for device reinitialization */
 extern int usb_reset_device(struct usb_device *dev);
@@ -529,10 +531,13 @@ static inline int usb_make_path (struct usb_device *dev, char *buf,
 
 /* ----------------------------------------------------------------------- */
 
+struct usb_dynids {
+	spinlock_t lock;
+	struct list_head list;
+};
+
 /**
  * struct usb_driver - identifies USB driver to usbcore
- * @owner: Pointer to the module owner of this driver; initialize
- *	it using THIS_MODULE.
  * @name: The driver name should be unique among USB drivers,
  *	and should normally be the same as the module name.
  * @probe: Called to see if the driver is willing to manage a particular
@@ -553,7 +558,11 @@ static inline int usb_make_path (struct usb_device *dev, char *buf,
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set
  *	or your driver's probe function will never get called.
+ * @dynids: used internally to hold the list of dynamically added device
+ *	ids for this driver.
  * @driver: the driver model core driver structure.
+ * @no_dynamic_id: if set to 1, the USB core will not allow dynamic ids to be
+ *	added to this driver by preventing the sysfs file from being created.
  *
  * USB drivers must provide a name, probe() and disconnect() methods,
  * and an id_table.  Other driver fields are optional.
@@ -571,8 +580,6 @@ static inline int usb_make_path (struct usb_device *dev, char *buf,
  * them as necessary, and blocking until the unlinks complete).
  */
 struct usb_driver {
-	struct module *owner;
-
 	const char *name;
 
 	int (*probe) (struct usb_interface *intf,
@@ -588,7 +595,9 @@ struct usb_driver {
 
 	const struct usb_device_id *id_table;
 
+	struct usb_dynids dynids;
 	struct device_driver driver;
+	unsigned int no_dynamic_id:1;
 };
 #define	to_usb_driver(d) container_of(d, struct usb_driver, driver)
 
@@ -614,7 +623,11 @@ struct usb_class_driver {
  * use these in module_init()/module_exit()
  * and don't forget MODULE_DEVICE_TABLE(usb, ...)
  */
-extern int usb_register(struct usb_driver *);
+int usb_register_driver(struct usb_driver *, struct module *);
+static inline int usb_register(struct usb_driver *driver)
+{
+	return usb_register_driver(driver, THIS_MODULE);
+}
 extern void usb_deregister(struct usb_driver *);
 
 extern int usb_register_dev(struct usb_interface *intf,

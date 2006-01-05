@@ -73,6 +73,7 @@
 #include "avc.h"
 #include "objsec.h"
 #include "netif.h"
+#include "xfrm.h"
 
 #define XATTR_SELINUX_SUFFIX "selinux"
 #define XATTR_NAME_SELINUX XATTR_SECURITY_PREFIX XATTR_SELINUX_SUFFIX
@@ -3349,6 +3350,10 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		err = avc_has_perm(sock_sid, port_sid,
 				   sock_class, recv_perm, &ad);
 	}
+
+	if (!err)
+		err = selinux_xfrm_sock_rcv_skb(sock_sid, skb);
+
 out:	
 	return err;
 }
@@ -3399,6 +3404,24 @@ static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority
 static void selinux_sk_free_security(struct sock *sk)
 {
 	sk_free_security(sk);
+}
+
+static unsigned int selinux_sk_getsid_security(struct sock *sk, struct flowi *fl, u8 dir)
+{
+	struct inode_security_struct *isec;
+	u32 sock_sid = SECINITSID_ANY_SOCKET;
+
+	if (!sk)
+		return selinux_no_sk_sid(fl);
+
+	read_lock_bh(&sk->sk_callback_lock);
+	isec = get_sock_isec(sk);
+
+	if (isec)
+		sock_sid = isec->sid;
+
+	read_unlock_bh(&sk->sk_callback_lock);
+	return sock_sid;
 }
 
 static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
@@ -3535,6 +3558,11 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 		err = avc_has_perm(isec->sid, port_sid, isec->sclass,
 		                   send_perm, &ad) ? NF_DROP : NF_ACCEPT;
 	}
+
+	if (err != NF_ACCEPT)
+		goto out;
+
+	err = selinux_xfrm_postroute_last(isec->sid, skb);
 
 out:
 	return err;
@@ -4380,6 +4408,16 @@ static struct security_operations selinux_ops = {
 	.socket_getpeersec =		selinux_socket_getpeersec,
 	.sk_alloc_security =		selinux_sk_alloc_security,
 	.sk_free_security =		selinux_sk_free_security,
+	.sk_getsid = 			selinux_sk_getsid_security,
+#endif
+
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,
+	.xfrm_policy_clone_security =	selinux_xfrm_policy_clone,
+	.xfrm_policy_free_security =	selinux_xfrm_policy_free,
+	.xfrm_state_alloc_security =	selinux_xfrm_state_alloc,
+	.xfrm_state_free_security =	selinux_xfrm_state_free,
+	.xfrm_policy_lookup = 		selinux_xfrm_policy_lookup,
 #endif
 };
 
@@ -4491,6 +4529,7 @@ static int __init selinux_nf_ip_init(void)
 		panic("SELinux: nf_register_hook for IPv6: error %d\n", err);
 
 #endif	/* IPV6 */
+
 out:
 	return err;
 }

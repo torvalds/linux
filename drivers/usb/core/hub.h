@@ -220,8 +220,9 @@ struct usb_hub {
 	struct usb_hub_descriptor *descriptor;	/* class descriptor */
 	struct usb_tt		tt;		/* Transaction Translator */
 
-	u8			power_budget;	/* in 2mA units; or zero */
+	unsigned		mA_per_port;	/* current for each child */
 
+	unsigned		limited_power:1;
 	unsigned		quiescing:1;
 	unsigned		activating:1;
 	unsigned		resume_root_hub:1;

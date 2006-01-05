@@ -3,6 +3,7 @@
 #include <linux/string.h>
 #include <asm/semaphore.h>
 #include <linux/seq_file.h>
+#include <linux/cpufreq.h>
 
 /*
  *	Get CPU information for use by the procfs.
@@ -86,8 +87,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "stepping\t: unknown\n");
 
 	if ( cpu_has(c, X86_FEATURE_TSC) ) {
+		unsigned int freq = cpufreq_quick_get(n);
+		if (!freq)
+			freq = cpu_khz;
 		seq_printf(m, "cpu MHz\t\t: %u.%03u\n",
-			cpu_khz / 1000, (cpu_khz % 1000));
+			freq / 1000, (freq % 1000));
 	}
 
 	/* Cache size */

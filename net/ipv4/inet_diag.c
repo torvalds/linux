@@ -112,12 +112,12 @@ static int inet_diag_fill(struct sk_buff *skb, struct sock *sk,
 		r->idiag_inode = 0;
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 		if (r->idiag_family == AF_INET6) {
-			const struct tcp6_timewait_sock *tcp6tw = tcp6_twsk(sk);
+			const struct inet6_timewait_sock *tw6 = inet6_twsk(sk);
 
 			ipv6_addr_copy((struct in6_addr *)r->id.idiag_src,
-				       &tcp6tw->tw_v6_rcv_saddr);
+				       &tw6->tw_v6_rcv_saddr);
 			ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
-				       &tcp6tw->tw_v6_daddr);
+				       &tw6->tw_v6_daddr);
 		}
 #endif
 		nlh->nlmsg_len = skb->tail - b;
@@ -489,9 +489,9 @@ static int inet_diag_fill_req(struct sk_buff *skb, struct sock *sk,
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 	if (r->idiag_family == AF_INET6) {
 		ipv6_addr_copy((struct in6_addr *)r->id.idiag_src,
-			       &tcp6_rsk(req)->loc_addr);
+			       &inet6_rsk(req)->loc_addr);
 		ipv6_addr_copy((struct in6_addr *)r->id.idiag_dst,
-			       &tcp6_rsk(req)->rmt_addr);
+			       &inet6_rsk(req)->rmt_addr);
 	}
 #endif
 	nlh->nlmsg_len = skb->tail - b;
@@ -553,13 +553,13 @@ static int inet_diag_dump_reqs(struct sk_buff *skb, struct sock *sk,
 				entry.saddr =
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 					(entry.family == AF_INET6) ?
-					tcp6_rsk(req)->loc_addr.s6_addr32 :
+					inet6_rsk(req)->loc_addr.s6_addr32 :
 #endif
 					&ireq->loc_addr;
 				entry.daddr = 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
 					(entry.family == AF_INET6) ?
-					tcp6_rsk(req)->rmt_addr.s6_addr32 :
+					inet6_rsk(req)->rmt_addr.s6_addr32 :
 #endif
 					&ireq->rmt_addr;
 				entry.dport = ntohs(ireq->rmt_port);

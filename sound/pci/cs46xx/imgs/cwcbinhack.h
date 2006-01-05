@@ -4,7 +4,7 @@
 #ifndef __HEADER_cwcbinhack_H__
 #define __HEADER_cwcbinhack_H__
 
-static symbol_entry_t cwcbinhack_symbols[] = {
+static struct dsp_symbol_entry cwcbinhack_symbols[] = {
   { 0x02c8, "OVERLAYBEGINADDRESS",0x00 },
   { 0x02c8, "MAGICSNOOPTASK",0x03 },
   { 0x0308, "#CODE_END",0x00 },
@@ -31,11 +31,11 @@ static u32 cwcbinhack_code[] = {
 };
 /* #CODE_END */
 
-static segment_desc_t cwcbinhack_segments[] = {
+static struct dsp_segment_desc cwcbinhack_segments[] = {
   { SEGTYPE_SP_PROGRAM, 0x00000000, 64, cwcbinhack_code },
 };
 
-static dsp_module_desc_t cwcbinhack_module = {
+static struct dsp_module_desc cwcbinhack_module = {
   "cwcbinhack",
   {
     3,

@@ -41,6 +41,13 @@
  *		modify it under the terms of the GNU General Public License
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
+ *
+ * Substantial contributions to this work comes from:
+ *
+ *		David S. Miller, <davem@davemloft.net>
+ *		Stephen Hemminger <shemminger@osdl.org>
+ *		Paul E. McKenney <paulmck@us.ibm.com>
+ *		Patrick McHardy <kaber@trash.net>
  */
 
 #define VERSION "0.404"
@@ -59,6 +66,7 @@
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/proc_fs.h>

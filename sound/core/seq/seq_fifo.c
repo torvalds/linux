@@ -29,9 +29,9 @@
 /* FIFO */
 
 /* create new fifo */
-fifo_t *snd_seq_fifo_new(int poolsize)
+struct snd_seq_fifo *snd_seq_fifo_new(int poolsize)
 {
-	fifo_t *f;
+	struct snd_seq_fifo *f;
 
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (f == NULL) {
@@ -62,9 +62,9 @@ fifo_t *snd_seq_fifo_new(int poolsize)
 	return f;
 }
 
-void snd_seq_fifo_delete(fifo_t **fifo)
+void snd_seq_fifo_delete(struct snd_seq_fifo **fifo)
 {
-	fifo_t *f;
+	struct snd_seq_fifo *f;
 
 	snd_assert(fifo != NULL, return);
 	f = *fifo;
@@ -88,12 +88,12 @@ void snd_seq_fifo_delete(fifo_t **fifo)
 	kfree(f);
 }
 
-static snd_seq_event_cell_t *fifo_cell_out(fifo_t *f);
+static struct snd_seq_event_cell *fifo_cell_out(struct snd_seq_fifo *f);
 
 /* clear queue */
-void snd_seq_fifo_clear(fifo_t *f)
+void snd_seq_fifo_clear(struct snd_seq_fifo *f)
 {
-	snd_seq_event_cell_t *cell;
+	struct snd_seq_event_cell *cell;
 	unsigned long flags;
 
 	/* clear overflow flag */
@@ -110,9 +110,10 @@ void snd_seq_fifo_clear(fifo_t *f)
 
 
 /* enqueue event to fifo */
-int snd_seq_fifo_event_in(fifo_t *f, snd_seq_event_t *event)
+int snd_seq_fifo_event_in(struct snd_seq_fifo *f,
+			  struct snd_seq_event *event)
 {
-	snd_seq_event_cell_t *cell;
+	struct snd_seq_event_cell *cell;
 	unsigned long flags;
 	int err;
 
@@ -148,9 +149,9 @@ int snd_seq_fifo_event_in(fifo_t *f, snd_seq_event_t *event)
 }
 
 /* dequeue cell from fifo */
-static snd_seq_event_cell_t *fifo_cell_out(fifo_t *f)
+static struct snd_seq_event_cell *fifo_cell_out(struct snd_seq_fifo *f)
 {
-	snd_seq_event_cell_t *cell;
+	struct snd_seq_event_cell *cell;
 
 	if ((cell = f->head) != NULL) {
 		f->head = cell->next;
@@ -167,9 +168,10 @@ static snd_seq_event_cell_t *fifo_cell_out(fifo_t *f)
 }
 
 /* dequeue cell from fifo and copy on user space */
-int snd_seq_fifo_cell_out(fifo_t *f, snd_seq_event_cell_t **cellp, int nonblock)
+int snd_seq_fifo_cell_out(struct snd_seq_fifo *f,
+			  struct snd_seq_event_cell **cellp, int nonblock)
 {
-	snd_seq_event_cell_t *cell;
+	struct snd_seq_event_cell *cell;
 	unsigned long flags;
 	wait_queue_t wait;
 
@@ -202,7 +204,8 @@ int snd_seq_fifo_cell_out(fifo_t *f, snd_seq_event_cell_t **cellp, int nonblock)
 }
 
 
-void snd_seq_fifo_cell_putback(fifo_t *f, snd_seq_event_cell_t *cell)
+void snd_seq_fifo_cell_putback(struct snd_seq_fifo *f,
+			       struct snd_seq_event_cell *cell)
 {
 	unsigned long flags;
 
@@ -217,18 +220,19 @@ void snd_seq_fifo_cell_putback(fifo_t *f, snd_seq_event_cell_t *cell)
 
 
 /* polling; return non-zero if queue is available */
-int snd_seq_fifo_poll_wait(fifo_t *f, struct file *file, poll_table *wait)
+int snd_seq_fifo_poll_wait(struct snd_seq_fifo *f, struct file *file,
+			   poll_table *wait)
 {
 	poll_wait(file, &f->input_sleep, wait);
 	return (f->cells > 0);
 }
 
 /* change the size of pool; all old events are removed */
-int snd_seq_fifo_resize(fifo_t *f, int poolsize)
+int snd_seq_fifo_resize(struct snd_seq_fifo *f, int poolsize)
 {
 	unsigned long flags;
-	pool_t *newpool, *oldpool;
-	snd_seq_event_cell_t *cell, *next, *oldhead;
+	struct snd_seq_pool *newpool, *oldpool;
+	struct snd_seq_event_cell *cell, *next, *oldhead;
 
 	snd_assert(f != NULL && f->pool != NULL, return -EINVAL);
 

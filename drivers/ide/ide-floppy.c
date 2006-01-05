@@ -2197,6 +2197,7 @@ static int __init idefloppy_init(void)
 	return driver_register(&idefloppy_driver.gen_driver);
 }
 
+MODULE_ALIAS("ide:*m-floppy*");
 module_init(idefloppy_init);
 module_exit(idefloppy_exit);
 MODULE_LICENSE("GPL");

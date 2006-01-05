@@ -73,7 +73,8 @@
 
 #include "ca0106.h"
 
-static int snd_ca0106_shared_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_shared_spdif_info(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -82,19 +83,19 @@ static int snd_ca0106_shared_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_i
 	return 0;
 }
 
-static int snd_ca0106_shared_spdif_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_shared_spdif_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.enumerated.item[0] = emu->spdif_enable;
 	return 0;
 }
 
-static int snd_ca0106_shared_spdif_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_shared_spdif_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
 	u32 mask;
@@ -125,18 +126,12 @@ static int snd_ca0106_shared_spdif_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static snd_kcontrol_new_t snd_ca0106_shared_spdif __devinitdata =
+static int snd_ca0106_capture_source_info(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
 {
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =		"SPDIF Out",
-	.info =		snd_ca0106_shared_spdif_info,
-	.get =		snd_ca0106_shared_spdif_get,
-	.put =		snd_ca0106_shared_spdif_put
-};
-
-static int snd_ca0106_capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
-{
-	static char *texts[6] = { "SPDIF out", "i2s mixer out", "SPDIF in", "i2s in", "AC97 in", "SRC out" };
+	static char *texts[6] = {
+		"IEC958 out", "i2s mixer out", "IEC958 in", "i2s in", "AC97 in", "SRC out"
+	};
 
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
@@ -147,19 +142,19 @@ static int snd_ca0106_capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem
 	return 0;
 }
 
-static int snd_ca0106_capture_source_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_capture_source_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.enumerated.item[0] = emu->capture_source;
 	return 0;
 }
 
-static int snd_ca0106_capture_source_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_capture_source_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
 	u32 mask;
@@ -176,16 +171,8 @@ static int snd_ca0106_capture_source_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static snd_kcontrol_new_t snd_ca0106_capture_source __devinitdata =
-{
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name =		"Capture Source",
-	.info =		snd_ca0106_capture_source_info,
-	.get =		snd_ca0106_capture_source_get,
-	.put =		snd_ca0106_capture_source_put
-};
-
-static int snd_ca0106_capture_mic_line_in_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_capture_mic_line_in_info(struct snd_kcontrol *kcontrol,
+					       struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[2] = { "Line in", "Mic in" };
 
@@ -198,19 +185,19 @@ static int snd_ca0106_capture_mic_line_in_info(snd_kcontrol_t *kcontrol, snd_ctl
 	return 0;
 }
 
-static int snd_ca0106_capture_mic_line_in_get(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_capture_mic_line_in_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 
 	ucontrol->value.enumerated.item[0] = emu->capture_mic_line_in;
 	return 0;
 }
 
-static int snd_ca0106_capture_mic_line_in_put(snd_kcontrol_t * kcontrol,
-					snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_capture_mic_line_in_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
 	int change = 0;
 	u32 tmp;
@@ -235,7 +222,7 @@ static int snd_ca0106_capture_mic_line_in_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static snd_kcontrol_new_t snd_ca0106_capture_mic_line_in __devinitdata =
+static struct snd_kcontrol_new snd_ca0106_capture_mic_line_in __devinitdata =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Mic/Line in Capture",
@@ -244,17 +231,18 @@ static snd_kcontrol_new_t snd_ca0106_capture_mic_line_in __devinitdata =
 	.put =		snd_ca0106_capture_mic_line_in_put
 };
 
-static int snd_ca0106_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_spdif_info(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
 	uinfo->count = 1;
 	return 0;
 }
 
-static int snd_ca0106_spdif_get(snd_kcontrol_t * kcontrol,
-                                 snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_spdif_get(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 
 	ucontrol->value.iec958.status[0] = (emu->spdif_bits[idx] >> 0) & 0xff;
@@ -264,8 +252,8 @@ static int snd_ca0106_spdif_get(snd_kcontrol_t * kcontrol,
         return 0;
 }
 
-static int snd_ca0106_spdif_get_mask(snd_kcontrol_t * kcontrol,
-				      snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_spdif_get_mask(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.iec958.status[0] = 0xff;
 	ucontrol->value.iec958.status[1] = 0xff;
@@ -274,10 +262,10 @@ static int snd_ca0106_spdif_get_mask(snd_kcontrol_t * kcontrol,
         return 0;
 }
 
-static int snd_ca0106_spdif_put(snd_kcontrol_t * kcontrol,
-                                 snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_spdif_put(struct snd_kcontrol *kcontrol,
+                                 struct snd_ctl_elem_value *ucontrol)
 {
-	ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	int change;
 	unsigned int val;
@@ -294,27 +282,8 @@ static int snd_ca0106_spdif_put(snd_kcontrol_t * kcontrol,
         return change;
 }
 
-static snd_kcontrol_new_t snd_ca0106_spdif_mask_control =
-{
-	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-        .iface =        SNDRV_CTL_ELEM_IFACE_PCM,
-        .name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
-	.count =	4,
-        .info =         snd_ca0106_spdif_info,
-        .get =          snd_ca0106_spdif_get_mask
-};
-
-static snd_kcontrol_new_t snd_ca0106_spdif_control =
-{
-        .iface =	SNDRV_CTL_ELEM_IFACE_PCM,
-        .name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
-	.count =	4,
-        .info =         snd_ca0106_spdif_info,
-        .get =          snd_ca0106_spdif_get,
-        .put =          snd_ca0106_spdif_put
-};
-
-static int snd_ca0106_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ca0106_volume_info(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
 {
         uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
         uinfo->count = 2;
@@ -323,11 +292,15 @@ static int snd_ca0106_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
         return 0;
 }
 
-static int snd_ca0106_volume_get(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol, int reg, int channel_id)
+static int snd_ca0106_volume_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-        ca0106_t *emu = snd_kcontrol_chip(kcontrol);
+        struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
         unsigned int value;
+	int channel_id, reg;
+
+	channel_id = (kcontrol->private_value >> 8) & 0xff;
+	reg = kcontrol->private_value & 0xff;
 
         value = snd_ca0106_ptr_read(emu, reg, channel_id);
         ucontrol->value.integer.value[0] = 0xff - ((value >> 24) & 0xff); /* Left */
@@ -335,237 +308,103 @@ static int snd_ca0106_volume_get(snd_kcontrol_t * kcontrol,
         return 0;
 }
 
-static int snd_ca0106_volume_get_spdif_front(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
+static int snd_ca0106_volume_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	int channel_id = CONTROL_FRONT_CHANNEL;
-	int reg = PLAYBACK_VOLUME1;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
+        struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
+        unsigned int oval, nval;
+	int channel_id, reg;
+
+	channel_id = (kcontrol->private_value >> 8) & 0xff;
+	reg = kcontrol->private_value & 0xff;
+
+	oval = snd_ca0106_ptr_read(emu, reg, channel_id);
+	nval = ((0xff - ucontrol->value.integer.value[0]) << 24) |
+		((0xff - ucontrol->value.integer.value[1]) << 16);
+        nval |= ((0xff - ucontrol->value.integer.value[0]) << 8) |
+		((0xff - ucontrol->value.integer.value[1]) );
+	if (oval == nval)
+		return 0;
+	snd_ca0106_ptr_write(emu, reg, channel_id, nval);
+	return 1;
 }
 
-static int snd_ca0106_volume_get_spdif_center_lfe(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_CENTER_LFE_CHANNEL;
-	int reg = PLAYBACK_VOLUME1;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_get_spdif_unknown(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_UNKNOWN_CHANNEL;
-	int reg = PLAYBACK_VOLUME1;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_get_spdif_rear(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_REAR_CHANNEL;
-	int reg = PLAYBACK_VOLUME1;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_get_analog_front(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_FRONT_CHANNEL;
-	int reg = PLAYBACK_VOLUME2;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
+#define CA_VOLUME(xname,chid,reg) \
+{								\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	\
+	.info = snd_ca0106_volume_info,				\
+	.get =          snd_ca0106_volume_get,			\
+	.put =          snd_ca0106_volume_put,			\
+	.private_value = ((chid) << 8) | (reg)			\
 }
 
-static int snd_ca0106_volume_get_analog_center_lfe(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_CENTER_LFE_CHANNEL;
-	int reg = PLAYBACK_VOLUME2;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_get_analog_unknown(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_UNKNOWN_CHANNEL;
-	int reg = PLAYBACK_VOLUME2;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_get_analog_rear(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_REAR_CHANNEL;
-	int reg = PLAYBACK_VOLUME2;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
-}
 
-static int snd_ca0106_volume_get_feedback(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = 1;
-	int reg = CAPTURE_CONTROL;
-        return snd_ca0106_volume_get(kcontrol, ucontrol, reg, channel_id);
-}
-                                                                                                                           
-static int snd_ca0106_volume_put(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol, int reg, int channel_id)
-{
-        ca0106_t *emu = snd_kcontrol_chip(kcontrol);
-        unsigned int value;
-        //value = snd_ca0106_ptr_read(emu, reg, channel_id);
-        //value = value & 0xffff;
-        value = ((0xff - ucontrol->value.integer.value[0]) << 24) | ((0xff - ucontrol->value.integer.value[1]) << 16);
-        value = value | ((0xff - ucontrol->value.integer.value[0]) << 8) | ((0xff - ucontrol->value.integer.value[1]) );
-        snd_ca0106_ptr_write(emu, reg, channel_id, value);
-        return 1;
-}
-static int snd_ca0106_volume_put_spdif_front(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_FRONT_CHANNEL;
-	int reg = PLAYBACK_VOLUME1;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_put_spdif_center_lfe(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_CENTER_LFE_CHANNEL;
-	int reg = PLAYBACK_VOLUME1;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_put_spdif_unknown(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_UNKNOWN_CHANNEL;
-	int reg = PLAYBACK_VOLUME1;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_put_spdif_rear(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_REAR_CHANNEL;
-	int reg = PLAYBACK_VOLUME1;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_put_analog_front(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_FRONT_CHANNEL;
-	int reg = PLAYBACK_VOLUME2;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_put_analog_center_lfe(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_CENTER_LFE_CHANNEL;
-	int reg = PLAYBACK_VOLUME2;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_put_analog_unknown(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_UNKNOWN_CHANNEL;
-	int reg = PLAYBACK_VOLUME2;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
-static int snd_ca0106_volume_put_analog_rear(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = CONTROL_REAR_CHANNEL;
-	int reg = PLAYBACK_VOLUME2;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
+static struct snd_kcontrol_new snd_ca0106_volume_ctls[] __devinitdata = {
+	CA_VOLUME("Analog Front Playback Volume",
+		  CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME2),
+        CA_VOLUME("Analog Rear Playback Volume",
+		  CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME2),
+	CA_VOLUME("Analog Center/LFE Playback Volume",
+		  CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME2),
+        CA_VOLUME("Analog Side Playback Volume",
+		  CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME2),
 
-static int snd_ca0106_volume_put_feedback(snd_kcontrol_t * kcontrol,
-                                       snd_ctl_elem_value_t * ucontrol)
-{
-	int channel_id = 1;
-	int reg = CAPTURE_CONTROL;
-        return snd_ca0106_volume_put(kcontrol, ucontrol, reg, channel_id);
-}
+        CA_VOLUME("IEC958 Front Playback Volume",
+		  CONTROL_FRONT_CHANNEL, PLAYBACK_VOLUME1),
+	CA_VOLUME("IEC958 Rear Playback Volume",
+		  CONTROL_REAR_CHANNEL, PLAYBACK_VOLUME1),
+	CA_VOLUME("IEC958 Center/LFE Playback Volume",
+		  CONTROL_CENTER_LFE_CHANNEL, PLAYBACK_VOLUME1),
+	CA_VOLUME("IEC958 Unknown Playback Volume",
+		  CONTROL_UNKNOWN_CHANNEL, PLAYBACK_VOLUME1),
 
-static snd_kcontrol_new_t snd_ca0106_volume_control_analog_front =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Front Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_analog_front,
-        .put =          snd_ca0106_volume_put_analog_front
-};
-static snd_kcontrol_new_t snd_ca0106_volume_control_analog_center_lfe =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Center/LFE Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_analog_center_lfe,
-        .put =          snd_ca0106_volume_put_analog_center_lfe
-};
-static snd_kcontrol_new_t snd_ca0106_volume_control_analog_unknown =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Side Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_analog_unknown,
-        .put =          snd_ca0106_volume_put_analog_unknown
-};
-static snd_kcontrol_new_t snd_ca0106_volume_control_analog_rear =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "Analog Rear Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_analog_rear,
-        .put =          snd_ca0106_volume_put_analog_rear
-};
-static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_front =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "SPDIF Front Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_spdif_front,
-        .put =          snd_ca0106_volume_put_spdif_front
-};
-static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_center_lfe =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "SPDIF Center/LFE Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_spdif_center_lfe,
-        .put =          snd_ca0106_volume_put_spdif_center_lfe
-};
-static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_unknown =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "SPDIF Unknown Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_spdif_unknown,
-        .put =          snd_ca0106_volume_put_spdif_unknown
-};
-static snd_kcontrol_new_t snd_ca0106_volume_control_spdif_rear =
-{
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "SPDIF Rear Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_spdif_rear,
-        .put =          snd_ca0106_volume_put_spdif_rear
+        CA_VOLUME("CAPTURE feedback Playback Volume",
+		  1, CAPTURE_CONTROL),
+
+	{
+		.access =	SNDRV_CTL_ELEM_ACCESS_READ,
+		.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
+		.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
+		.count =	4,
+		.info =         snd_ca0106_spdif_info,
+		.get =          snd_ca0106_spdif_get_mask
+	},
+	{
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name =		"IEC958 Playback Switch",
+		.info =		snd_ca0106_shared_spdif_info,
+		.get =		snd_ca0106_shared_spdif_get,
+		.put =		snd_ca0106_shared_spdif_put
+	},
+	{
+		.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name =		"Capture Source",
+		.info =		snd_ca0106_capture_source_info,
+		.get =		snd_ca0106_capture_source_get,
+		.put =		snd_ca0106_capture_source_put
+	},
+	{
+		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
+		.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
+		.count =	4,
+		.info =         snd_ca0106_spdif_info,
+		.get =          snd_ca0106_spdif_get,
+		.put =          snd_ca0106_spdif_put
+	},
 };
 
-static snd_kcontrol_new_t snd_ca0106_volume_control_feedback =
+static int __devinit remove_ctl(struct snd_card *card, const char *name)
 {
-        .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
-        .name =         "CAPTURE feedback Playback Volume",
-        .info =         snd_ca0106_volume_info,
-        .get =          snd_ca0106_volume_get_feedback,
-        .put =          snd_ca0106_volume_put_feedback
-};
-
-
-static int remove_ctl(snd_card_t *card, const char *name)
-{
-	snd_ctl_elem_id_t id;
+	struct snd_ctl_elem_id id;
 	memset(&id, 0, sizeof(id));
 	strcpy(id.name, name);
 	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	return snd_ctl_remove_id(card, &id);
 }
 
-static snd_kcontrol_t *ctl_find(snd_card_t *card, const char *name)
+static struct snd_kcontrol __devinit *ctl_find(struct snd_card *card, const char *name)
 {
-	snd_ctl_elem_id_t sid;
+	struct snd_ctl_elem_id sid;
 	memset(&sid, 0, sizeof(sid));
 	/* FIXME: strcpy is bad. */
 	strcpy(sid.name, name);
@@ -573,9 +412,9 @@ static snd_kcontrol_t *ctl_find(snd_card_t *card, const char *name)
 	return snd_ctl_find_id(card, &sid);
 }
 
-static int rename_ctl(snd_card_t *card, const char *src, const char *dst)
+static int __devinit rename_ctl(struct snd_card *card, const char *src, const char *dst)
 {
-	snd_kcontrol_t *kctl = ctl_find(card, src);
+	struct snd_kcontrol *kctl = ctl_find(card, src);
 	if (kctl) {
 		strcpy(kctl->id.name, dst);
 		return 0;
@@ -583,11 +422,10 @@ static int rename_ctl(snd_card_t *card, const char *src, const char *dst)
 	return -ENOENT;
 }
 
-int __devinit snd_ca0106_mixer(ca0106_t *emu)
+int __devinit snd_ca0106_mixer(struct snd_ca0106 *emu)
 {
-        int err;
-        snd_kcontrol_t *kctl;
-        snd_card_t *card = emu->card;
+	int i, err;
+        struct snd_card *card = emu->card;
 	char **c;
 	static char *ca0106_remove_ctls[] = {
 		"Master Mono Playback Switch",
@@ -627,70 +465,22 @@ int __devinit snd_ca0106_mixer(ca0106_t *emu)
 		NULL
 	};
 #if 1
-	for (c=ca0106_remove_ctls; *c; c++)
+	for (c = ca0106_remove_ctls; *c; c++)
 		remove_ctl(card, *c);
-	for (c=ca0106_rename_ctls; *c; c += 2)
+	for (c = ca0106_rename_ctls; *c; c += 2)
 		rename_ctl(card, c[0], c[1]);
 #endif
 
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_analog_front, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_analog_rear, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_analog_center_lfe, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_analog_unknown, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_spdif_front, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_spdif_rear, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_spdif_center_lfe, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_spdif_unknown, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-        if ((kctl = snd_ctl_new1(&snd_ca0106_volume_control_feedback, emu)) == NULL)
-                return -ENOMEM;
-        if ((err = snd_ctl_add(card, kctl)))
-                return err;
-	if ((kctl = snd_ctl_new1(&snd_ca0106_spdif_mask_control, emu)) == NULL)
-		return -ENOMEM;
-	if ((err = snd_ctl_add(card, kctl)))
-		return err;
-	if ((kctl = snd_ctl_new1(&snd_ca0106_shared_spdif, emu)) == NULL)
-		return -ENOMEM;
-	if ((err = snd_ctl_add(card, kctl)))
-		return err;
-	if ((kctl = snd_ctl_new1(&snd_ca0106_capture_source, emu)) == NULL)
-		return -ENOMEM;
-	if ((err = snd_ctl_add(card, kctl)))
-		return err;
-	if (emu->details->i2c_adc == 1) {
-		if ((kctl = snd_ctl_new1(&snd_ca0106_capture_mic_line_in, emu)) == NULL)
-			return -ENOMEM;
-		if ((err = snd_ctl_add(card, kctl)))
+	for (i = 0; i < ARRAY_SIZE(snd_ca0106_volume_ctls); i++) {
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_volume_ctls[i], emu));
+		if (err < 0)
 			return err;
 	}
-	if ((kctl = snd_ctl_new1(&snd_ca0106_spdif_control, emu)) == NULL)
-		return -ENOMEM;
-	if ((err = snd_ctl_add(card, kctl)))
-		return err;
+	if (emu->details->i2c_adc == 1) {
+		err = snd_ctl_add(card, snd_ctl_new1(&snd_ca0106_capture_mic_line_in, emu));
+		if (err < 0)
+			return err;
+	}
         return 0;
 }
 

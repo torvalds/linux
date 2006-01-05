@@ -77,6 +77,8 @@
 #include "ca0106.h"
 
 
+#ifdef CONFIG_PROC_FS
+
 struct snd_ca0106_category_str {
 	int val;
 	const char *name;
@@ -97,7 +99,7 @@ static struct snd_ca0106_category_str snd_ca0106_con_category[] = {
 };
 
 
-static void snd_ca0106_proc_dump_iec958( snd_info_buffer_t *buffer, u32 value)
+static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 value)
 {
 	int i;
 	u32 status[4];
@@ -271,10 +273,10 @@ static void snd_ca0106_proc_dump_iec958( snd_info_buffer_t *buffer, u32 value)
 	}
 }
 
-static void snd_ca0106_proc_iec958(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_iec958(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
 	u32 value;
 
         value = snd_ca0106_ptr_read(emu, SAMPLE_RATE_TRACKER_STATUS, 0);
@@ -293,10 +295,10 @@ static void snd_ca0106_proc_iec958(snd_info_entry_t *entry,
 	snd_iprintf(buffer, "\n");
 }
 
-static void snd_ca0106_proc_reg_write32(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_reg_write32(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
 	unsigned long flags;
         char line[64];
         u32 reg, val;
@@ -311,10 +313,10 @@ static void snd_ca0106_proc_reg_write32(snd_info_entry_t *entry,
         }
 }
 
-static void snd_ca0106_proc_reg_read32(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_reg_read32(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
 	unsigned long value;
 	unsigned long flags;
 	int i;
@@ -327,10 +329,10 @@ static void snd_ca0106_proc_reg_read32(snd_info_entry_t *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_read16(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_reg_read16(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
         unsigned int value;
 	unsigned long flags;
 	int i;
@@ -343,10 +345,10 @@ static void snd_ca0106_proc_reg_read16(snd_info_entry_t *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_read8(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_reg_read8(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
 	unsigned int value;
 	unsigned long flags;
 	int i;
@@ -359,10 +361,10 @@ static void snd_ca0106_proc_reg_read8(snd_info_entry_t *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_read1(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_reg_read1(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
 	unsigned long value;
 	int i,j;
 
@@ -377,10 +379,10 @@ static void snd_ca0106_proc_reg_read1(snd_info_entry_t *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_read2(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_reg_read2(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
 	unsigned long value;
 	int i,j;
 
@@ -395,10 +397,10 @@ static void snd_ca0106_proc_reg_read2(snd_info_entry_t *entry,
 	}
 }
 
-static void snd_ca0106_proc_reg_write(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_reg_write(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
         char line[64];
         unsigned int reg, channel_id , val;
         while (!snd_info_get_line(buffer, line, sizeof(line))) {
@@ -409,10 +411,10 @@ static void snd_ca0106_proc_reg_write(snd_info_entry_t *entry,
         }
 }
 
-static void snd_ca0106_proc_i2c_write(snd_info_entry_t *entry, 
-				       snd_info_buffer_t * buffer)
+static void snd_ca0106_proc_i2c_write(struct snd_info_entry *entry, 
+				       struct snd_info_buffer *buffer)
 {
-	ca0106_t *emu = entry->private_data;
+	struct snd_ca0106 *emu = entry->private_data;
         char line[64];
         unsigned int reg, val;
         while (!snd_info_get_line(buffer, line, sizeof(line))) {
@@ -424,9 +426,9 @@ static void snd_ca0106_proc_i2c_write(snd_info_entry_t *entry,
         }
 }
 
-int __devinit snd_ca0106_proc_init(ca0106_t * emu)
+int __devinit snd_ca0106_proc_init(struct snd_ca0106 * emu)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	
 	if(! snd_card_proc_new(emu->card, "iec958", &entry))
 		snd_info_set_text_ops(entry, emu, 1024, snd_ca0106_proc_iec958);
@@ -459,3 +461,4 @@ int __devinit snd_ca0106_proc_init(ca0106_t * emu)
 	return 0;
 }
 
+#endif /* CONFIG_PROC_FS */

@@ -23,6 +23,7 @@
 #include <net/flow.h>
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
+#include <linux/security.h>
 
 struct flow_cache_entry {
 	struct flow_cache_entry	*next;
@@ -30,6 +31,7 @@ struct flow_cache_entry {
 	u8			dir;
 	struct flowi		key;
 	u32			genid;
+	u32			sk_sid;
 	void			*object;
 	atomic_t		*object_ref;
 };
@@ -162,7 +164,7 @@ static int flow_key_compare(struct flowi *key1, struct flowi *key2)
 	return 0;
 }
 
-void *flow_cache_lookup(struct flowi *key, u16 family, u8 dir,
+void *flow_cache_lookup(struct flowi *key, u32 sk_sid, u16 family, u8 dir,
 			flow_resolve_t resolver)
 {
 	struct flow_cache_entry *fle, **head;
@@ -186,6 +188,7 @@ void *flow_cache_lookup(struct flowi *key, u16 family, u8 dir,
 	for (fle = *head; fle; fle = fle->next) {
 		if (fle->family == family &&
 		    fle->dir == dir &&
+		    fle->sk_sid == sk_sid &&
 		    flow_key_compare(key, &fle->key) == 0) {
 			if (fle->genid == atomic_read(&flow_cache_genid)) {
 				void *ret = fle->object;
@@ -210,6 +213,7 @@ void *flow_cache_lookup(struct flowi *key, u16 family, u8 dir,
 			*head = fle;
 			fle->family = family;
 			fle->dir = dir;
+			fle->sk_sid = sk_sid;
 			memcpy(&fle->key, key, sizeof(*key));
 			fle->object = NULL;
 			flow_count(cpu)++;
@@ -221,7 +225,7 @@ nocache:
 		void *obj;
 		atomic_t *obj_ref;
 
-		resolver(key, family, dir, &obj, &obj_ref);
+		resolver(key, sk_sid, family, dir, &obj, &obj_ref);
 
 		if (fle) {
 			fle->genid = atomic_read(&flow_cache_genid);

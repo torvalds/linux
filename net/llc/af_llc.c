@@ -36,7 +36,7 @@
 static u16 llc_ui_sap_last_autoport = LLC_SAP_DYN_START;
 static u16 llc_ui_sap_link_no_max[256];
 static struct sockaddr_llc llc_ui_addrnull;
-static struct proto_ops llc_ui_ops;
+static const struct proto_ops llc_ui_ops;
 
 static int llc_ui_wait_for_conn(struct sock *sk, long timeout);
 static int llc_ui_wait_for_disc(struct sock *sk, long timeout);
@@ -566,10 +566,9 @@ static int llc_wait_data(struct sock *sk, long timeo)
 		/*
 		 * POSIX 1003.1g mandates this order.
 		 */
-		if (sk->sk_err) {
-			rc = sock_error(sk);
+		rc = sock_error(sk);
+		if (rc)
 			break;
-		}
 		rc = 0;
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
 			break;
@@ -960,7 +959,7 @@ out:
 static int llc_ui_ioctl(struct socket *sock, unsigned int cmd,
 			unsigned long arg)
 {
-	return dev_ioctl(cmd, (void __user *)arg);
+	return -ENOIOCTLCMD;
 }
 
 /**
@@ -1099,7 +1098,7 @@ static struct net_proto_family llc_ui_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-static struct proto_ops llc_ui_ops = {
+static const struct proto_ops llc_ui_ops = {
 	.family	     = PF_LLC,
 	.owner       = THIS_MODULE,
 	.release     = llc_ui_release,

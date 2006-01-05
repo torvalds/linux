@@ -243,7 +243,7 @@ static const struct ata_port_operations ahci_ops = {
 	.port_stop		= ahci_port_stop,
 };
 
-static struct ata_port_info ahci_port_info[] = {
+static const struct ata_port_info ahci_port_info[] = {
 	/* board_ahci */
 	{
 		.sht		= &ahci_sht,
@@ -643,7 +643,8 @@ static void ahci_eng_timeout(struct ata_port *ap)
 	 	 * not being called from the SCSI EH.
 	 	 */
 		qc->scsidone = scsi_finish_command;
-		ata_qc_complete(qc, AC_ERR_OTHER);
+		qc->err_mask |= AC_ERR_OTHER;
+		ata_qc_complete(qc);
 	}
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
@@ -664,7 +665,8 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	ci = readl(port_mmio + PORT_CMD_ISSUE);
 	if (likely((ci & 0x1) == 0)) {
 		if (qc) {
-			ata_qc_complete(qc, 0);
+			assert(qc->err_mask == 0);
+			ata_qc_complete(qc);
 			qc = NULL;
 		}
 	}
@@ -681,8 +683,10 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		/* command processing has stopped due to error; restart */
 		ahci_restart_port(ap, status);
 
-		if (qc)
-			ata_qc_complete(qc, err_mask);
+		if (qc) {
+			qc->err_mask |= AC_ERR_OTHER;
+			ata_qc_complete(qc);
+		}
 	}
 
 	return 1;

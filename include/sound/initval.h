@@ -50,20 +50,6 @@
 #define SNDRV_DEFAULT_DMA_SIZE	{ [0 ... (SNDRV_CARDS-1)] = SNDRV_AUTO_DMA_SIZE }
 #define SNDRV_DEFAULT_PTR	SNDRV_DEFAULT_STR
 
-#ifdef SNDRV_LEGACY_AUTO_PROBE
-static int snd_legacy_auto_probe(unsigned long *ports, int (*probe)(unsigned long port))
-{
-	int result = 0;	/* number of detected cards */
-
-	while ((signed long)*ports != -1) {
-		if (probe(*ports) >= 0)
-			result++;
-		ports++;
-	}
-	return result;
-}
-#endif
-
 #ifdef SNDRV_LEGACY_FIND_FREE_IRQ
 #include <linux/interrupt.h>
 

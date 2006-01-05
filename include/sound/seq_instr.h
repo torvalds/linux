@@ -24,29 +24,27 @@
 #include "seq_kernel.h"
 
 /* Instrument cluster */
-typedef struct _snd_seq_kcluster {
+struct snd_seq_kcluster {
 	snd_seq_instr_cluster_t cluster;
 	char name[32];
 	int priority;
-	struct _snd_seq_kcluster *next;
-} snd_seq_kcluster_t;
+	struct snd_seq_kcluster *next;
+};
 
 /* return pointer to private data */
-#define KINSTR_DATA(kinstr)	(void *)(((char *)kinstr) + sizeof(snd_seq_kinstr_t))
-
-typedef struct snd_seq_kinstr_ops snd_seq_kinstr_ops_t;
+#define KINSTR_DATA(kinstr)	(void *)(((char *)kinstr) + sizeof(struct snd_seq_kinstr))
 
 /* Instrument structure */
-typedef struct _snd_seq_kinstr {
-	snd_seq_instr_t instr;
+struct snd_seq_kinstr {
+	struct snd_seq_instr instr;
 	char name[32];
 	int type;			/* instrument type */
 	int use;			/* use count */
 	int busy;			/* not useable */
 	int add_len;			/* additional length */
-	snd_seq_kinstr_ops_t *ops;	/* operations */
-	struct _snd_seq_kinstr *next;
-} snd_seq_kinstr_t;
+	struct snd_seq_kinstr_ops *ops;	/* operations */
+	struct snd_seq_kinstr *next;
+};
 
 #define SNDRV_SEQ_INSTR_HASH_SIZE		32
 
@@ -54,11 +52,11 @@ typedef struct _snd_seq_kinstr {
 #define SNDRV_SEQ_INSTR_FLG_DIRECT	(1<<0)	/* accept only direct events */
 
 /* List of all instruments */
-typedef struct {
-	snd_seq_kinstr_t *hash[SNDRV_SEQ_INSTR_HASH_SIZE];
+struct snd_seq_kinstr_list {
+	struct snd_seq_kinstr *hash[SNDRV_SEQ_INSTR_HASH_SIZE];
 	int count;			/* count of all instruments */
 	
-	snd_seq_kcluster_t *chash[SNDRV_SEQ_INSTR_HASH_SIZE];
+	struct snd_seq_kcluster *chash[SNDRV_SEQ_INSTR_HASH_SIZE];
 	int ccount;			/* count of all clusters */
 
 	int owner;			/* current owner of the instrument list */
@@ -68,7 +66,7 @@ typedef struct {
 	spinlock_t ops_lock;
 	struct semaphore ops_mutex;
 	unsigned long ops_flags;
-} snd_seq_kinstr_list_t;
+};
 
 #define SNDRV_SEQ_INSTR_NOTIFY_REMOVE	0
 #define SNDRV_SEQ_INSTR_NOTIFY_CHANGE	1
@@ -78,33 +76,33 @@ struct snd_seq_kinstr_ops {
 	long add_len;			/* additional length */
 	char *instr_type;
 	int (*info)(void *private_data, char *info_data, long len);
-	int (*put)(void *private_data, snd_seq_kinstr_t *kinstr,
+	int (*put)(void *private_data, struct snd_seq_kinstr *kinstr,
 		   char __user *instr_data, long len, int atomic, int cmd);
-	int (*get)(void *private_data, snd_seq_kinstr_t *kinstr,
+	int (*get)(void *private_data, struct snd_seq_kinstr *kinstr,
 		   char __user *instr_data, long len, int atomic, int cmd);
-	int (*get_size)(void *private_data, snd_seq_kinstr_t *kinstr, long *size);
-	int (*remove)(void *private_data, snd_seq_kinstr_t *kinstr, int atomic);
-	void (*notify)(void *private_data, snd_seq_kinstr_t *kinstr, int what);
+	int (*get_size)(void *private_data, struct snd_seq_kinstr *kinstr, long *size);
+	int (*remove)(void *private_data, struct snd_seq_kinstr *kinstr, int atomic);
+	void (*notify)(void *private_data, struct snd_seq_kinstr *kinstr, int what);
 	struct snd_seq_kinstr_ops *next;
 };
 
 
 /* instrument operations */
-snd_seq_kinstr_list_t *snd_seq_instr_list_new(void);
-void snd_seq_instr_list_free(snd_seq_kinstr_list_t **list);
-int snd_seq_instr_list_free_cond(snd_seq_kinstr_list_t *list,
-				 snd_seq_instr_header_t *ifree,
+struct snd_seq_kinstr_list *snd_seq_instr_list_new(void);
+void snd_seq_instr_list_free(struct snd_seq_kinstr_list **list);
+int snd_seq_instr_list_free_cond(struct snd_seq_kinstr_list *list,
+				 struct snd_seq_instr_header *ifree,
 				 int client,
 				 int atomic);
-snd_seq_kinstr_t *snd_seq_instr_find(snd_seq_kinstr_list_t *list,
-				     snd_seq_instr_t *instr,
-				     int exact,
-				     int follow_alias);
-void snd_seq_instr_free_use(snd_seq_kinstr_list_t *list,
-			    snd_seq_kinstr_t *instr);
-int snd_seq_instr_event(snd_seq_kinstr_ops_t *ops,
-			snd_seq_kinstr_list_t *list,
-			snd_seq_event_t *ev,
+struct snd_seq_kinstr *snd_seq_instr_find(struct snd_seq_kinstr_list *list,
+					  struct snd_seq_instr *instr,
+					  int exact,
+					  int follow_alias);
+void snd_seq_instr_free_use(struct snd_seq_kinstr_list *list,
+			    struct snd_seq_kinstr *instr);
+int snd_seq_instr_event(struct snd_seq_kinstr_ops *ops,
+			struct snd_seq_kinstr_list *list,
+			struct snd_seq_event *ev,
 			int client,
 			int atomic,
 			int hop);

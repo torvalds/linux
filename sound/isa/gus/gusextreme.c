@@ -20,11 +20,13 @@
  */
 
 #include <sound/driver.h>
-#include <asm/dma.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/moduleparam.h>
+#include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/gus.h>
 #include <sound/es1688.h>
@@ -85,14 +87,15 @@ MODULE_PARM_DESC(channels, "GF1 channels for GUS Extreme driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS Extreme driver.");
 
-static snd_card_t *snd_gusextreme_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+struct platform_device *devices[SNDRV_CARDS];
+
 
 #define PFX	"gusextreme: "
 
 static int __init snd_gusextreme_detect(int dev,
-					snd_card_t * card,
-					snd_gus_card_t * gus,
-					es1688_t *es1688)
+					struct snd_card *card,
+					struct snd_gus_card * gus,
+					struct snd_es1688 *es1688)
 {
 	unsigned long flags;
 	unsigned char d;
@@ -139,15 +142,15 @@ static int __init snd_gusextreme_detect(int dev,
 	return 0;
 }
 
-static void __init snd_gusextreme_init(int dev, snd_gus_card_t * gus)
+static void __init snd_gusextreme_init(int dev, struct snd_gus_card * gus)
 {
 	gus->joystick_dac = joystick_dac[dev];
 }
 
-static int __init snd_gusextreme_mixer(es1688_t *chip)
+static int __init snd_gusextreme_mixer(struct snd_es1688 *chip)
 {
-	snd_card_t *card = chip->card;
-	snd_ctl_elem_id_t id1, id2;
+	struct snd_card *card = chip->card;
+	struct snd_ctl_elem_id id1, id2;
 	int err;
 
 	memset(&id1, 0, sizeof(id1));
@@ -166,24 +169,23 @@ static int __init snd_gusextreme_mixer(es1688_t *chip)
 	return 0;
 }
 
-static int __init snd_gusextreme_probe(int dev)
+static int __init snd_gusextreme_probe(struct platform_device *pdev)
 {
+	int dev = pdev->id;
 	static int possible_ess_irqs[] = {5, 9, 10, 7, -1};
 	static int possible_ess_dmas[] = {1, 3, 0, -1};
 	static int possible_gf1_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
 	static int possible_gf1_dmas[] = {5, 6, 7, 1, 3, -1};
 	int xgf1_irq, xgf1_dma, xess_irq, xmpu_irq, xess_dma;
-	snd_card_t *card;
-	struct snd_gusextreme *acard;
-	snd_gus_card_t *gus;
-	es1688_t *es1688;
-	opl3_t *opl3;
+	struct snd_card *card;
+	struct snd_gus_card *gus;
+	struct snd_es1688 *es1688;
+	struct snd_opl3 *opl3;
 	int err;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
-	acard = (struct snd_gusextreme *)card->private_data;
 
 	xgf1_irq = gf1_irq[dev];
 	if (xgf1_irq == SNDRV_AUTO_IRQ) {
@@ -223,10 +225,29 @@ static int __init snd_gusextreme_probe(int dev)
 		}
 	}
 
-	if ((err = snd_es1688_create(card, port[dev], mpu_port[dev],
-				     xess_irq, xmpu_irq, xess_dma,
-				     ES1688_HW_1688, &es1688)) < 0)
+	if (port[dev] != SNDRV_AUTO_PORT) {
+		err = snd_es1688_create(card, port[dev], mpu_port[dev],
+					xess_irq, xmpu_irq, xess_dma,
+					ES1688_HW_1688, &es1688);
+	} else {
+		/* auto-probe legacy ports */
+		static unsigned long possible_ports[] = {0x220, 0x240, 0x260};
+		int i;
+		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
+			err = snd_es1688_create(card,
+						possible_ports[i],
+						mpu_port[dev],
+						xess_irq, xmpu_irq, xess_dma,
+						ES1688_HW_1688, &es1688);
+			if (err >= 0) {
+				port[dev] = possible_ports[i];
+				break;
+			}
+		}
+	}
+	if (err < 0)
 		goto out;
+
 	if (gf1_port[dev] < 0)
 		gf1_port[dev] = port[dev] + 0x20;
 	if ((err = snd_gus_create(card,
@@ -287,13 +308,12 @@ static int __init snd_gusextreme_probe(int dev)
 	sprintf(card->longname, "Gravis UltraSound Extreme at 0x%lx, irq %i&%i, dma %i&%i",
 		es1688->port, xgf1_irq, xess_irq, xgf1_dma, xess_dma);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto out;
+	snd_card_set_dev(card, &pdev->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto out;
 
-	snd_gusextreme_cards[dev] = card;
+	platform_set_drvdata(pdev, card);
 	return 0;
 
       out:
@@ -301,60 +321,70 @@ static int __init snd_gusextreme_probe(int dev)
 	return err;
 }
 
-static int __init snd_gusextreme_legacy_auto_probe(unsigned long xport)
+static int snd_gusextreme_remove(struct platform_device *devptr)
 {
-        static int dev;
-        int res;
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
 
-        for ( ; dev < SNDRV_CARDS; dev++) {
-                if (!enable[dev] || port[dev] != SNDRV_AUTO_PORT)
-                        continue;
-                port[dev] = xport;
-                res = snd_gusextreme_probe(dev);
-                if (res < 0)
-                        port[dev] = SNDRV_AUTO_PORT;
-                return res;
-        }
-        return -ENODEV;
+#define GUSEXTREME_DRIVER	"snd_gusextreme"
+
+static struct platform_driver snd_gusextreme_driver = {
+	.probe		= snd_gusextreme_probe,
+	.remove		= snd_gusextreme_remove,
+	/* FIXME: suspend/resume */
+	.driver		= {
+		.name	= GUSEXTREME_DRIVER
+	},
+};
+
+static void __init_or_module snd_gusextreme_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_gusextreme_driver);
 }
 
 static int __init alsa_card_gusextreme_init(void)
 {
-	static unsigned long possible_ports[] = {0x220, 0x240, 0x260, -1};
-	int dev, cards, i;
+	int i, cards, err;
 
-	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev] > 0; dev++) {
-		if (port[dev] == SNDRV_AUTO_PORT)
-			continue;
-		if (snd_gusextreme_probe(dev) >= 0)
-			cards++;
+	err = platform_driver_register(&snd_gusextreme_driver);
+	if (err < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(GUSEXTREME_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		devices[i] = device;
+		cards++;
 	}
-	i = snd_legacy_auto_probe(possible_ports, snd_gusextreme_legacy_auto_probe);
-	if (i > 0)
-		cards += i;
-
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "GUS Extreme soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_gusextreme_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_gusextreme_exit(void)
 {
-	int idx;
-	snd_card_t *card;
-	struct snd_gusextreme *acard;
-
-	for (idx = 0; idx < SNDRV_CARDS; idx++) {
-		card = snd_gusextreme_cards[idx];
-		if (card == NULL)
-			continue;
-		acard = (struct snd_gusextreme *)card->private_data;
-		snd_card_free(snd_gusextreme_cards[idx]);
-	}
+	snd_gusextreme_unregister_all();
 }
 
 module_init(alsa_card_gusextreme_init)

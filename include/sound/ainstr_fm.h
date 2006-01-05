@@ -39,13 +39,13 @@
  * FM operator
  */
 
-typedef struct fm_operator {
+struct fm_operator {
 	unsigned char am_vib;
 	unsigned char ksl_level;
 	unsigned char attack_decay;
 	unsigned char sustain_release;
 	unsigned char wave_select;
-} fm_operator_t;
+};
 
 /*
  *  Instrument
@@ -54,11 +54,11 @@ typedef struct fm_operator {
 #define FM_PATCH_OPL2	0x01		/* OPL2 2 operators FM instrument */
 #define FM_PATCH_OPL3	0x02		/* OPL3 4 operators FM instrument */
 
-typedef struct {
+struct fm_instrument {
 	unsigned int share_id[4];	/* share id - zero = no sharing */
 	unsigned char type;		/* instrument type */
 
-	fm_operator_t op[4];
+	struct fm_operator op[4];
 	unsigned char feedback_connection[2];
 
 	unsigned char echo_delay;
@@ -68,7 +68,7 @@ typedef struct {
 	unsigned char fix_dur;
 	unsigned char modes;
 	unsigned char fix_key;
-} fm_instrument_t;
+};
 
 /*
  *
@@ -88,25 +88,25 @@ typedef struct {
  * FM operator
  */
 
-typedef struct fm_xoperator {
+struct fm_xoperator {
 	__u8 am_vib;
 	__u8 ksl_level;
 	__u8 attack_decay;
 	__u8 sustain_release;
 	__u8 wave_select;
-} fm_xoperator_t;
+};
 
 /*
  *  Instrument
  */
 
-typedef struct fm_xinstrument {
+struct fm_xinstrument {
 	__u32 stype;			/* structure type */
 
 	__u32 share_id[4];		/* share id - zero = no sharing */
 	__u8 type;			/* instrument type */
 
-	fm_xoperator_t op[4];		/* fm operators */
+	struct fm_xoperator op[4];		/* fm operators */
 	__u8 feedback_connection[2];
 
 	__u8 echo_delay;
@@ -116,15 +116,19 @@ typedef struct fm_xinstrument {
 	__u8 fix_dur;
 	__u8 modes;
 	__u8 fix_key;
-} fm_xinstrument_t;
+};
 
 #ifdef __KERNEL__
 
 #include "seq_instr.h"
 
-int snd_seq_fm_init(snd_seq_kinstr_ops_t * ops,
-		    snd_seq_kinstr_ops_t * next);
+int snd_seq_fm_init(struct snd_seq_kinstr_ops * ops,
+		    struct snd_seq_kinstr_ops * next);
 
 #endif
+
+/* typedefs for compatibility to user-space */
+typedef struct fm_xoperator fm_xoperator_t;
+typedef struct fm_xinstrument fm_xinstrument_t;
 
 #endif	/* __SOUND_AINSTR_FM_H */

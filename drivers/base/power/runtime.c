@@ -64,6 +64,7 @@ int dpm_runtime_suspend(struct device * dev, pm_message_t state)
 }
 
 
+#if 0
 /**
  *	dpm_set_power_state - Update power_state field.
  *	@dev:	Device.
@@ -80,3 +81,4 @@ void dpm_set_power_state(struct device * dev, pm_message_t state)
 	dev->power.power_state = state;
 	up(&dpm_sem);
 }
+#endif  /*  0  */

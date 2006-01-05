@@ -151,7 +151,6 @@ static void usb_pcwd_disconnect	(struct usb_interface *interface);
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver usb_pcwd_driver = {
-	.owner =	THIS_MODULE,
 	.name =		DRIVER_NAME,
 	.probe =	usb_pcwd_probe,
 	.disconnect =	usb_pcwd_disconnect,

@@ -43,6 +43,8 @@
 #include <linux/delay.h>
 #include <linux/completion.h>
 
+#include <net/dst.h>
+
 #include "ipoib.h"
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG

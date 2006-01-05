@@ -25,9 +25,11 @@
  */      
 
 #define REVO_DEVICE_DESC \
-		"{MidiMan M Audio,Revolution 7.1},"
+		"{MidiMan M Audio,Revolution 7.1},"\
+		"{MidiMan M Audio,Revolution 5.1},"
 
 #define VT1724_SUBDEVICE_REVOLUTION71	0x12143036
+#define VT1724_SUBDEVICE_REVOLUTION51	0x12143136
 
 /* entry point */
 extern struct snd_ice1712_card_info snd_vt1724_revo_cards[];

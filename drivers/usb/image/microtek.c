@@ -160,7 +160,6 @@ static void mts_usb_disconnect(struct usb_interface *intf);
 static struct usb_device_id mts_usb_ids [];
 
 static struct usb_driver mts_usb_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"microtekX6",
 	.probe =	mts_usb_probe,
 	.disconnect =	mts_usb_disconnect,

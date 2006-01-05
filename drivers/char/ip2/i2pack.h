@@ -358,7 +358,7 @@ typedef struct _failStat
 #define MB_OUT_STRIPPED    0x40  // Board has read all output from fifo 
 #define MB_FATAL_ERROR     0x20  // Board has encountered a fatal error
 
-#pragma pack(4)                  // Reset padding to command-line default
+#pragma pack()                  // Reset padding to command-line default
 
 #endif      // I2PACK_H
 

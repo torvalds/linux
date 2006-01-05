@@ -320,11 +320,13 @@ EXPORT_SYMBOL_GPL(speedstep_detect_processor);
 unsigned int speedstep_get_freqs(unsigned int processor,
 				  unsigned int *low_speed,
 				  unsigned int *high_speed,
+				  unsigned int *transition_latency,
 				  void (*set_state) (unsigned int state))
 {
 	unsigned int prev_speed;
 	unsigned int ret = 0;
 	unsigned long flags;
+	struct timeval tv1, tv2;
 
 	if ((!processor) || (!low_speed) || (!high_speed) || (!set_state))
 		return -EINVAL;
@@ -337,7 +339,7 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 		return -EIO;
 
 	dprintk("previous speed is %u\n", prev_speed);
-	
+
 	local_irq_save(flags);
 
 	/* switch to low state */
@@ -350,8 +352,17 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 
 	dprintk("low speed is %u\n", *low_speed);
 
+	/* start latency measurement */
+	if (transition_latency)
+		do_gettimeofday(&tv1);
+
 	/* switch to high state */
 	set_state(SPEEDSTEP_HIGH);
+
+	/* end latency measurement */
+	if (transition_latency)
+		do_gettimeofday(&tv2);
+
 	*high_speed = speedstep_get_processor_frequency(processor);
 	if (!*high_speed) {
 		ret = -EIO;
@@ -368,6 +379,25 @@ unsigned int speedstep_get_freqs(unsigned int processor,
 	/* switch to previous state, if necessary */
 	if (*high_speed != prev_speed)
 		set_state(SPEEDSTEP_LOW);
+
+	if (transition_latency) {
+		*transition_latency = (tv2.tv_sec - tv1.tv_sec) * USEC_PER_SEC +
+			tv2.tv_usec - tv1.tv_usec;
+		dprintk("transition latency is %u uSec\n", *transition_latency);
+
+		/* convert uSec to nSec and add 20% for safety reasons */
+		*transition_latency *= 1200;
+
+		/* check if the latency measurement is too high or too low
+		 * and set it to a safe value (500uSec) in that case
+		 */
+		if (*transition_latency > 10000000 || *transition_latency < 50000) {
+			printk (KERN_WARNING "speedstep: frequency transition measured seems out of "
+					"range (%u nSec), falling back to a safe one of %u nSec.\n",
+					*transition_latency, 500000);
+			*transition_latency = 500000;
+		}
+	}
 
  out:
 	local_irq_restore(flags);

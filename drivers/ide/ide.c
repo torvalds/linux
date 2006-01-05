@@ -1904,9 +1904,69 @@ static int ide_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
+static char *media_string(ide_drive_t *drive)
+{
+	switch (drive->media) {
+	case ide_disk:
+		return "disk";
+	case ide_cdrom:
+		return "cdrom";
+	case ide_tape:
+		return "tape";
+	case ide_floppy:
+		return "floppy";
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static ssize_t media_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "%s\n", media_string(drive));
+}
+
+static ssize_t drivename_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "%s\n", drive->name);
+}
+
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "ide:m-%s\n", media_string(drive));
+}
+
+static struct device_attribute ide_dev_attrs[] = {
+	__ATTR_RO(media),
+	__ATTR_RO(drivename),
+	__ATTR_RO(modalias),
+	__ATTR_NULL
+};
+
+static int ide_uevent(struct device *dev, char **envp, int num_envp,
+		      char *buffer, int buffer_size)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	int i = 0;
+	int length = 0;
+
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "MEDIA=%s", media_string(drive));
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "DRIVENAME=%s", drive->name);
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "MODALIAS=ide:m-%s", media_string(drive));
+	envp[i] = NULL;
+	return 0;
+}
+
 struct bus_type ide_bus_type = {
 	.name		= "ide",
 	.match		= ide_bus_match,
+	.uevent		= ide_uevent,
+	.dev_attrs	= ide_dev_attrs,
 	.suspend	= generic_ide_suspend,
 	.resume		= generic_ide_resume,
 };

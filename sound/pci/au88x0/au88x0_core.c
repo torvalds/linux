@@ -1097,7 +1097,7 @@ static void vortex_adbdma_setstartbuffer(vortex_t * vortex, int adbdma, int sb)
 
 static void
 vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
-			 snd_pcm_sgbuf_t * sgbuf, int psize, int count)
+			 struct snd_sg_buf * sgbuf, int psize, int count)
 {
 	stream_t *dma = &vortex->dma_adb[adbdma];
 
@@ -1367,7 +1367,7 @@ static void vortex_wtdma_setstartbuffer(vortex_t * vortex, int wtdma, int sb)
 
 static void
 vortex_wtdma_setbuffers(vortex_t * vortex, int wtdma,
-			snd_pcm_sgbuf_t * sgbuf, int psize, int count)
+			struct snd_sg_buf * sgbuf, int psize, int count)
 {
 	stream_t *dma = &vortex->dma_wt[wtdma];
 
@@ -2514,7 +2514,7 @@ static void vortex_codec_init(vortex_t * vortex)
 }
 
 static void
-vortex_codec_write(ac97_t * codec, unsigned short addr, unsigned short data)
+vortex_codec_write(struct snd_ac97 * codec, unsigned short addr, unsigned short data)
 {
 
 	vortex_t *card = (vortex_t *) codec->private_data;
@@ -2539,7 +2539,7 @@ vortex_codec_write(ac97_t * codec, unsigned short addr, unsigned short data)
 	hwread(card->mmio, VORTEX_CODEC_IO);
 }
 
-static unsigned short vortex_codec_read(ac97_t * codec, unsigned short addr)
+static unsigned short vortex_codec_read(struct snd_ac97 * codec, unsigned short addr)
 {
 
 	vortex_t *card = (vortex_t *) codec->private_data;

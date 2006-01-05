@@ -25,6 +25,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/in.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -43,7 +44,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"1.2"
+#define DRV_VERSION		"1.3"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -88,15 +89,14 @@ MODULE_DEVICE_TABLE(pci, skge_id_table);
 
 static int skge_up(struct net_device *dev);
 static int skge_down(struct net_device *dev);
+static void skge_phy_reset(struct skge_port *skge);
 static void skge_tx_clean(struct skge_port *skge);
 static int xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
 static int gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
 static void genesis_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_init(struct skge_hw *hw, int port);
-static void yukon_reset(struct skge_hw *hw, int port);
 static void genesis_mac_init(struct skge_hw *hw, int port);
-static void genesis_reset(struct skge_hw *hw, int port);
 static void genesis_link_up(struct skge_port *skge);
 
 /* Avoid conditionals by using array */
@@ -276,10 +276,9 @@ static int skge_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	skge->autoneg = ecmd->autoneg;
 	skge->advertising = ecmd->advertising;
 
-	if (netif_running(dev)) {
-		skge_down(dev);
-		skge_up(dev);
-	}
+	if (netif_running(dev))
+		skge_phy_reset(skge);
+
 	return (0);
 }
 
@@ -399,6 +398,7 @@ static int skge_set_ring_param(struct net_device *dev,
 			       struct ethtool_ringparam *p)
 {
 	struct skge_port *skge = netdev_priv(dev);
+	int err;
 
 	if (p->rx_pending == 0 || p->rx_pending > MAX_RX_RING_SIZE ||
 	    p->tx_pending == 0 || p->tx_pending > MAX_TX_RING_SIZE)
@@ -409,7 +409,9 @@ static int skge_set_ring_param(struct net_device *dev,
 
 	if (netif_running(dev)) {
 		skge_down(dev);
-		skge_up(dev);
+		err = skge_up(dev);
+		if (err)
+			dev_close(dev);
 	}
 
 	return 0;
@@ -430,21 +432,11 @@ static void skge_set_msglevel(struct net_device *netdev, u32 value)
 static int skge_nway_reset(struct net_device *dev)
 {
 	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-	int port = skge->port;
 
 	if (skge->autoneg != AUTONEG_ENABLE || !netif_running(dev))
 		return -EINVAL;
 
-	spin_lock_bh(&hw->phy_lock);
-	if (hw->chip_id == CHIP_ID_GENESIS) {
-		genesis_reset(hw, port);
-		genesis_mac_init(hw, port);
-	} else {
-		yukon_reset(hw, port);
-		yukon_init(hw, port);
-	}
-	spin_unlock_bh(&hw->phy_lock);
+	skge_phy_reset(skge);
 	return 0;
 }
 
@@ -516,10 +508,8 @@ static int skge_set_pauseparam(struct net_device *dev,
 	else
 		skge->flow_control = FLOW_MODE_NONE;
 
-	if (netif_running(dev)) {
-		skge_down(dev);
-		skge_up(dev);
-	}
+	if (netif_running(dev))
+		skge_phy_reset(skge);
 	return 0;
 }
 
@@ -2019,6 +2009,25 @@ static void yukon_phy_intr(struct skge_port *skge)
 	/* XXX restart autonegotiation? */
 }
 
+static void skge_phy_reset(struct skge_port *skge)
+{
+	struct skge_hw *hw = skge->hw;
+	int port = skge->port;
+
+	netif_stop_queue(skge->netdev);
+	netif_carrier_off(skge->netdev);
+
+	spin_lock_bh(&hw->phy_lock);
+	if (hw->chip_id == CHIP_ID_GENESIS) {
+		genesis_reset(hw, port);
+		genesis_mac_init(hw, port);
+	} else {
+		yukon_reset(hw, port);
+		yukon_init(hw, port);
+	}
+	spin_unlock_bh(&hw->phy_lock);
+}
+
 /* Basic MII support */
 static int skge_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -2187,6 +2196,7 @@ static int skge_up(struct net_device *dev)
 	kfree(skge->rx_ring.start);
  free_pci_mem:
 	pci_free_consistent(hw->pdev, skge->mem_size, skge->mem, skge->dma);
+	skge->mem = NULL;
 
 	return err;
 }
@@ -2196,6 +2206,9 @@ static int skge_down(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
+
+	if (skge->mem == NULL)
+		return 0;
 
 	if (netif_msg_ifdown(skge))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
@@ -2253,6 +2266,7 @@ static int skge_down(struct net_device *dev)
 	kfree(skge->rx_ring.start);
 	kfree(skge->tx_ring.start);
 	pci_free_consistent(hw->pdev, skge->mem_size, skge->mem, skge->dma);
+	skge->mem = NULL;
 	return 0;
 }
 
@@ -2413,18 +2427,23 @@ static void skge_tx_timeout(struct net_device *dev)
 
 static int skge_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int err = 0;
-	int running = netif_running(dev);
+	int err;
 
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
 
+	if (!netif_running(dev)) {
+		dev->mtu = new_mtu;
+		return 0;
+	}
 
-	if (running)
-		skge_down(dev);
+	skge_down(dev);
+
 	dev->mtu = new_mtu;
-	if (running)
-		skge_up(dev);
+
+	err = skge_up(dev);
+	if (err)
+		dev_close(dev);
 
 	return err;
 }
@@ -3398,8 +3417,8 @@ static int skge_resume(struct pci_dev *pdev)
 		struct net_device *dev = hw->dev[i];
 		if (dev) {
 			netif_device_attach(dev);
-			if (netif_running(dev))
-				skge_up(dev);
+			if (netif_running(dev) && skge_up(dev))
+				dev_close(dev);
 		}
 	}
 	return 0;

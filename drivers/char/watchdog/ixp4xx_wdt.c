@@ -186,8 +186,8 @@ static int __init ixp4xx_wdt_init(void)
 	unsigned long processor_id;
 
 	asm("mrc p15, 0, %0, cr0, cr0, 0;" : "=r"(processor_id) :);
-	if (!(processor_id & 0xf)) {
-		printk("IXP4XXX Watchdog: Rev. A0 CPU detected - "
+	if (!(processor_id & 0xf) && !cpu_is_ixp46x()) {
+		printk("IXP4XXX Watchdog: Rev. A0 IXP42x CPU detected - "
 			"watchdog disabled\n");
 
 		return -ENODEV;

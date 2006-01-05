@@ -93,6 +93,8 @@ enum sctp_optname {
 #define SCTP_STATUS SCTP_STATUS
 	SCTP_GET_PEER_ADDR_INFO,
 #define SCTP_GET_PEER_ADDR_INFO SCTP_GET_PEER_ADDR_INFO
+	SCTP_DELAYED_ACK_TIME,
+#define SCTP_DELAYED_ACK_TIME SCTP_DELAYED_ACK_TIME
 
 	/* Internal Socket Options. Some of the sctp library functions are 
 	 * implemented using these socket options.
@@ -503,12 +505,40 @@ struct sctp_setadaption {
  *   unreachable. The following structure is used to access and modify an
  *   address's parameters:
  */
+enum  sctp_spp_flags {
+	SPP_HB_ENABLE = 1,		/*Enable heartbeats*/
+	SPP_HB_DISABLE = 2,		/*Disable heartbeats*/
+	SPP_HB = SPP_HB_ENABLE | SPP_HB_DISABLE,
+	SPP_HB_DEMAND = 4,		/*Send heartbeat immediately*/
+	SPP_PMTUD_ENABLE = 8,		/*Enable PMTU discovery*/
+	SPP_PMTUD_DISABLE = 16,		/*Disable PMTU discovery*/
+	SPP_PMTUD = SPP_PMTUD_ENABLE | SPP_PMTUD_DISABLE,
+	SPP_SACKDELAY_ENABLE = 32,	/*Enable SACK*/
+	SPP_SACKDELAY_DISABLE = 64,	/*Disable SACK*/
+	SPP_SACKDELAY = SPP_SACKDELAY_ENABLE | SPP_SACKDELAY_DISABLE,
+};
+
 struct sctp_paddrparams {
 	sctp_assoc_t		spp_assoc_id;
 	struct sockaddr_storage	spp_address;
 	__u32			spp_hbinterval;
 	__u16			spp_pathmaxrxt;
+	__u32			spp_pathmtu;
+	__u32			spp_sackdelay;
+	__u32			spp_flags;
 } __attribute__((packed, aligned(4)));
+
+/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+ *
+ *   This options will get or set the delayed ack timer.  The time is set
+ *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
+ *   endpoints default delayed ack timer value.  If the assoc_id field is
+ *   non-zero, then the set or get effects the specified association.
+ */
+struct sctp_assoc_value {
+    sctp_assoc_t            assoc_id;
+    uint32_t                assoc_value;
+};
 
 /*
  * 7.2.2 Peer Address Information

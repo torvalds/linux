@@ -393,7 +393,9 @@ typedef struct _TxD {
 #define TXD_GATHER_CODE_LAST    BIT(23)
 #define TXD_TCP_LSO_EN          BIT(30)
 #define TXD_UDP_COF_EN          BIT(31)
+#define TXD_UFO_EN		BIT(31) | BIT(30)
 #define TXD_TCP_LSO_MSS(val)    vBIT(val,34,14)
+#define TXD_UFO_MSS(val)	vBIT(val,34,14)
 #define TXD_BUFFER0_SIZE(val)   vBIT(val,48,16)
 
 	u64 Control_2;
@@ -789,6 +791,7 @@ struct s2io_nic {
 
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
+	u64 *ufo_in_band_v;
 };
 
 #define RESET_ERROR 1;

@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
+#include <net/protocol.h>
 #include <net/xfrm.h>
 #include <asm/scatterlist.h>
 

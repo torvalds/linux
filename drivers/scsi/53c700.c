@@ -857,7 +857,7 @@ process_extended_message(struct Scsi_Host *host,
 		printk(KERN_INFO "scsi%d (%d:%d): Unexpected message %s: ",
 		       host->host_no, pun, lun,
 		       NCR_700_phase[(dsps & 0xf00) >> 8]);
-		scsi_print_msg(hostdata->msgin);
+		spi_print_msg(hostdata->msgin);
 		printk("\n");
 		/* just reject it */
 		hostdata->msgout[0] = A_REJECT_MSG;
@@ -887,7 +887,7 @@ process_message(struct Scsi_Host *host,	struct NCR_700_Host_Parameters *hostdata
 #ifdef NCR_700_DEBUG
 	printk("scsi%d (%d:%d): message %s: ", host->host_no, pun, lun,
 	       NCR_700_phase[(dsps & 0xf00) >> 8]);
-	scsi_print_msg(hostdata->msgin);
+	spi_print_msg(hostdata->msgin);
 	printk("\n");
 #endif
 
@@ -939,7 +939,7 @@ process_message(struct Scsi_Host *host,	struct NCR_700_Host_Parameters *hostdata
 		       host->host_no, pun, lun,
 		       NCR_700_phase[(dsps & 0xf00) >> 8]);
 
-		scsi_print_msg(hostdata->msgin);
+		spi_print_msg(hostdata->msgin);
 		printk("\n");
 		/* just reject it */
 		hostdata->msgout[0] = A_REJECT_MSG;

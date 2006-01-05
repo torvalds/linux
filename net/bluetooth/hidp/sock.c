@@ -143,7 +143,7 @@ static int hidp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	return -EINVAL;
 }
 
-static struct proto_ops hidp_sock_ops = {
+static const struct proto_ops hidp_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= hidp_sock_release,

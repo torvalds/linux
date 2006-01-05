@@ -121,8 +121,8 @@ struct host_info {
 };
 
 static int nodemgr_bus_match(struct device * dev, struct device_driver * drv);
-static int nodemgr_hotplug(struct class_device *cdev, char **envp, int num_envp,
-			   char *buffer, int buffer_size);
+static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+			  char *buffer, int buffer_size);
 static void nodemgr_resume_ne(struct node_entry *ne);
 static void nodemgr_remove_ne(struct node_entry *ne);
 static struct node_entry *find_entry_by_guid(u64 guid);
@@ -162,7 +162,7 @@ static void ud_cls_release(struct class_device *class_dev)
 static struct class nodemgr_ud_class = {
 	.name		= "ieee1394",
 	.release	= ud_cls_release,
-	.hotplug	= nodemgr_hotplug,
+	.uevent		= nodemgr_uevent,
 };
 
 static struct hpsb_highlevel nodemgr_highlevel;
@@ -963,7 +963,7 @@ static struct unit_directory *nodemgr_process_unit_directory
 				if (ud_child == NULL)
 					break;
 				
-				/* inherit unspecified values so hotplug picks it up */
+				/* inherit unspecified values, the driver core picks it up */
 				if ((ud->flags & UNIT_DIRECTORY_MODEL_ID) &&
 				    !(ud_child->flags & UNIT_DIRECTORY_MODEL_ID))
 				{
@@ -1059,8 +1059,8 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 
 #ifdef CONFIG_HOTPLUG
 
-static int nodemgr_hotplug(struct class_device *cdev, char **envp, int num_envp,
-			   char *buffer, int buffer_size)
+static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+			  char *buffer, int buffer_size)
 {
 	struct unit_directory *ud;
 	int i = 0;
@@ -1109,8 +1109,8 @@ do {								\
 
 #else
 
-static int nodemgr_hotplug(struct class_device *cdev, char **envp, int num_envp,
-			   char *buffer, int buffer_size)
+static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+			  char *buffer, int buffer_size)
 {
 	return -ENODEV;
 }
@@ -1630,8 +1630,8 @@ static int nodemgr_host_thread(void *__hi)
 
 		/* Scan our nodes to get the bus options and create node
 		 * entries. This does not do the sysfs stuff, since that
-		 * would trigger hotplug callbacks and such, which is a
-		 * bad idea at this point. */
+		 * would trigger uevents and such, which is a bad idea at
+		 * this point. */
 		nodemgr_node_scan(hi, generation);
 
 		/* This actually does the full probe, with sysfs

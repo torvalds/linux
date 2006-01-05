@@ -41,38 +41,7 @@
 #ifndef _TRANSPORT_H_
 #define _TRANSPORT_H_
 
-#include <linux/config.h>
 #include <linux/blkdev.h>
-
-/* Protocols */
-
-#define US_PR_CBI	0x00		/* Control/Bulk/Interrupt */
-#define US_PR_CB	0x01		/* Control/Bulk w/o interrupt */
-#define US_PR_BULK	0x50		/* bulk only */
-#ifdef CONFIG_USB_STORAGE_USBAT
-#define US_PR_USBAT	0x80		/* SCM-ATAPI bridge */
-#endif
-#ifdef CONFIG_USB_STORAGE_SDDR09
-#define US_PR_EUSB_SDDR09	0x81	/* SCM-SCSI bridge for SDDR-09 */
-#endif
-#ifdef CONFIG_USB_STORAGE_SDDR55
-#define US_PR_SDDR55	0x82		/* SDDR-55 (made up) */
-#endif
-#define US_PR_DPCM_USB  0xf0		/* Combination CB/SDDR09 */
-
-#ifdef CONFIG_USB_STORAGE_FREECOM
-#define US_PR_FREECOM   0xf1		/* Freecom */
-#endif
-
-#ifdef CONFIG_USB_STORAGE_DATAFAB
-#define US_PR_DATAFAB   0xf2		/* Datafab chipsets */
-#endif
-
-#ifdef CONFIG_USB_STORAGE_JUMPSHOT
-#define US_PR_JUMPSHOT  0xf3		/* Lexar Jumpshot */
-#endif
-
-#define US_PR_DEVICE	0xff		/* Use device's value */
 
 /*
  * Bulk only data structures

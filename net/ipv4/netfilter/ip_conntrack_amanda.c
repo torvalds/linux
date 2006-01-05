@@ -18,11 +18,13 @@
  *
  */
 
+#include <linux/in.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netfilter.h>
 #include <linux/ip.h>
 #include <linux/moduleparam.h>
+#include <linux/udp.h>
 #include <net/checksum.h>
 #include <net/udp.h>
 

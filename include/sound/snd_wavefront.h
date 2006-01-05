@@ -26,8 +26,8 @@ struct _snd_wavefront_midi {
         snd_wavefront_mpu_id     output_mpu;  /* most-recently-used */
         snd_wavefront_mpu_id     input_mpu;   /* most-recently-used */
         unsigned int             mode[2];     /* MPU401_MODE_XXX */
-	snd_rawmidi_substream_t	 *substream_output[2];
-	snd_rawmidi_substream_t	 *substream_input[2];
+	struct snd_rawmidi_substream	 *substream_output[2];
+	struct snd_rawmidi_substream	 *substream_input[2];
 	struct timer_list	 timer;
         spinlock_t               open;
         spinlock_t               virtual;     /* protects isvirtual */
@@ -38,8 +38,8 @@ struct _snd_wavefront_midi {
 #define	MPU_ACK		0xFE
 #define	UART_MODE_ON	0x3F
 
-extern snd_rawmidi_ops_t snd_wavefront_midi_output;
-extern snd_rawmidi_ops_t snd_wavefront_midi_input;
+extern struct snd_rawmidi_ops snd_wavefront_midi_output;
+extern struct snd_rawmidi_ops snd_wavefront_midi_input;
 
 extern void   snd_wavefront_midi_enable_virtual (snd_wavefront_card_t *);
 extern void   snd_wavefront_midi_disable_virtual (snd_wavefront_card_t *);
@@ -116,23 +116,23 @@ extern int  snd_wavefront_config_midi (snd_wavefront_t *dev) ;
 extern int  snd_wavefront_cmd (snd_wavefront_t *, int, unsigned char *,
 			       unsigned char *);
 
-extern int snd_wavefront_synth_ioctl   (snd_hwdep_t *, 
+extern int snd_wavefront_synth_ioctl   (struct snd_hwdep *, 
 					struct file *,
 					unsigned int cmd, 
 					unsigned long arg);
-extern int  snd_wavefront_synth_open    (snd_hwdep_t *, struct file *);
-extern int  snd_wavefront_synth_release (snd_hwdep_t *, struct file *);
+extern int  snd_wavefront_synth_open    (struct snd_hwdep *, struct file *);
+extern int  snd_wavefront_synth_release (struct snd_hwdep *, struct file *);
 
 /* FX processor - see also yss225.[ch] */
 
 extern int  snd_wavefront_fx_start  (snd_wavefront_t *);
 extern int  snd_wavefront_fx_detect (snd_wavefront_t *);
-extern int  snd_wavefront_fx_ioctl  (snd_hwdep_t *, 
+extern int  snd_wavefront_fx_ioctl  (struct snd_hwdep *, 
 				     struct file *,
 				     unsigned int cmd, 
 				     unsigned long arg);
-extern int snd_wavefront_fx_open    (snd_hwdep_t *, struct file *);
-extern int snd_wavefront_fx_release (snd_hwdep_t *, struct file *);
+extern int snd_wavefront_fx_open    (struct snd_hwdep *, struct file *);
+extern int snd_wavefront_fx_release (struct snd_hwdep *, struct file *);
 
 /* prefix in all snd_printk() delivered messages */
 

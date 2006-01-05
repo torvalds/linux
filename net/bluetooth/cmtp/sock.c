@@ -137,7 +137,7 @@ static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	return -EINVAL;
 }
 
-static struct proto_ops cmtp_sock_ops = {
+static const struct proto_ops cmtp_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= cmtp_sock_release,

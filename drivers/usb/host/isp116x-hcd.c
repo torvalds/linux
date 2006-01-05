@@ -55,19 +55,13 @@
 /* enqueuing/finishing log of urbs */
 //#define URB_TRACE
 
-#include <linux/config.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/ioport.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb_isp116x.h>
 #include <linux/platform_device.h>
@@ -77,14 +71,10 @@
 #include <asm/system.h>
 #include <asm/byteorder.h>
 
-#ifndef DEBUG
-#	define	STUB_DEBUG_FILE
-#endif
-
 #include "../core/hcd.h"
 #include "isp116x.h"
 
-#define DRIVER_VERSION	"05 Aug 2005"
+#define DRIVER_VERSION	"03 Nov 2005"
 #define DRIVER_DESC	"ISP116x USB Host Controller Driver"
 
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -164,13 +154,11 @@ static void pack_fifo(struct isp116x *isp116x)
 	struct ptd *ptd;
 	int buflen = isp116x->atl_last_dir == PTD_DIR_IN
 	    ? isp116x->atl_bufshrt : isp116x->atl_buflen;
-	int ptd_count = 0;
 
 	isp116x_write_reg16(isp116x, HCuPINT, HCuPINT_AIIEOT);
 	isp116x_write_reg16(isp116x, HCXFERCTR, buflen);
 	isp116x_write_addr(isp116x, HCATLPORT | ISP116x_WRITE_OFFSET);
 	for (ep = isp116x->atl_active; ep; ep = ep->active) {
-		++ptd_count;
 		ptd = &ep->ptd;
 		dump_ptd(ptd);
 		dump_ptd_out_data(ptd, ep->data);
@@ -305,9 +293,8 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 		udev = urb->dev;
 		ptd = &ep->ptd;
 		cc = PTD_GET_CC(ptd);
-
-		spin_lock(&urb->lock);
 		short_not_ok = 1;
+		spin_lock(&urb->lock);
 
 		/* Data underrun is special. For allowed underrun
 		   we clear the error and continue as normal. For
@@ -420,7 +407,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			ep->nextpid = 0;
 			break;
 		default:
-			BUG_ON(1);
+			BUG();
 		}
 		spin_unlock(&urb->lock);
 	}
@@ -628,8 +615,12 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 		u32 intstat = isp116x_read_reg32(isp116x, HCINTSTAT);
 		isp116x_write_reg32(isp116x, HCINTSTAT, intstat);
 		if (intstat & HCINT_UE) {
-			ERR("Unrecoverable error\n");
-			/* What should we do here? Reset?  */
+			ERR("Unrecoverable error, HC is dead!\n");
+			/* IRQ's are off, we do no DMA,
+			   perfectly ready to die ... */
+			hcd->state = HC_STATE_HALT;
+			ret = IRQ_HANDLED;
+			goto done;
 		}
 		if (intstat & HCINT_RHSC)
 			/* When root hub or any of its ports is going
@@ -640,7 +631,6 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 		if (intstat & HCINT_RD) {
 			DBG("---- remote wakeup\n");
 			usb_hcd_resume_root_hub(hcd);
-			ret = IRQ_HANDLED;
 		}
 		irqstat &= ~HCuPINT_OPR;
 		ret = IRQ_HANDLED;
@@ -651,6 +641,7 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 	}
 
 	isp116x_write_reg16(isp116x, HCuPINTENB, isp116x->irqenb);
+      done:
 	spin_unlock(&isp116x->lock);
 	return ret;
 }
@@ -724,6 +715,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 
 	spin_lock_irqsave(&isp116x->lock, flags);
 	if (!HC_IS_RUNNING(hcd->state)) {
+		kfree(ep);
 		ret = -ENODEV;
 		goto fail;
 	}
@@ -888,7 +880,7 @@ static void isp116x_endpoint_disable(struct usb_hcd *hcd,
 				     struct usb_host_endpoint *hep)
 {
 	int i;
-	struct isp116x_ep *ep = hep->hcpriv;;
+	struct isp116x_ep *ep = hep->hcpriv;
 
 	if (!ep)
 		return;
@@ -915,8 +907,6 @@ static int isp116x_get_frame(struct usb_hcd *hcd)
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return (int)fmnum;
 }
-
-/*----------------------------------------------------------------*/
 
 /*
   Adapted from ohci-hub.c. Currently we don't support autosuspend.
@@ -968,11 +958,10 @@ static void isp116x_hub_descriptor(struct isp116x *isp116x,
 	desc->bHubContrCurrent = 0;
 	desc->bNbrPorts = (u8) (reg & 0x3);
 	/* Power switching, device type, overcurrent. */
-	desc->wHubCharacteristics =
-	    (__force __u16) cpu_to_le16((u16) ((reg >> 8) & 0x1f));
+	desc->wHubCharacteristics = cpu_to_le16((u16) ((reg >> 8) & 0x1f));
 	desc->bPwrOn2PwrGood = (u8) ((reg >> 24) & 0xff);
 	/* two bitmaps:  ports removable, and legacy PortPwrCtrlMask */
-	desc->bitmap[0] = desc->bNbrPorts == 1 ? 1 << 1 : 3 << 1;
+	desc->bitmap[0] = 0;
 	desc->bitmap[1] = ~0;
 }
 
@@ -1159,135 +1148,9 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 	return ret;
 }
 
-#ifdef	CONFIG_PM
-
-static int isp116x_bus_suspend(struct usb_hcd *hcd)
-{
-	struct isp116x *isp116x = hcd_to_isp116x(hcd);
-	unsigned long flags;
-	u32 val;
-	int ret = 0;
-
-	spin_lock_irqsave(&isp116x->lock, flags);
-
-	val = isp116x_read_reg32(isp116x, HCCONTROL);
-	switch (val & HCCONTROL_HCFS) {
-	case HCCONTROL_USB_OPER:
-		hcd->state = HC_STATE_QUIESCING;
-		val &= (~HCCONTROL_HCFS & ~HCCONTROL_RWE);
-		val |= HCCONTROL_USB_SUSPEND;
-		if (hcd->remote_wakeup)
-			val |= HCCONTROL_RWE;
-		/* Wait for usb transfers to finish */
-		mdelay(2);
-		isp116x_write_reg32(isp116x, HCCONTROL, val);
-		hcd->state = HC_STATE_SUSPENDED;
-		/* Wait for devices to suspend */
-		mdelay(5);
-	case HCCONTROL_USB_SUSPEND:
-		break;
-	case HCCONTROL_USB_RESUME:
-		isp116x_write_reg32(isp116x, HCCONTROL,
-				    (val & ~HCCONTROL_HCFS) |
-				    HCCONTROL_USB_RESET);
-	case HCCONTROL_USB_RESET:
-		ret = -EBUSY;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	spin_unlock_irqrestore(&isp116x->lock, flags);
-	return ret;
-}
-
-static int isp116x_bus_resume(struct usb_hcd *hcd)
-{
-	struct isp116x *isp116x = hcd_to_isp116x(hcd);
-	u32 val;
-	int ret = -EINPROGRESS;
-
-	msleep(5);
-	spin_lock_irq(&isp116x->lock);
-
-	val = isp116x_read_reg32(isp116x, HCCONTROL);
-	switch (val & HCCONTROL_HCFS) {
-	case HCCONTROL_USB_SUSPEND:
-		val &= ~HCCONTROL_HCFS;
-		val |= HCCONTROL_USB_RESUME;
-		isp116x_write_reg32(isp116x, HCCONTROL, val);
-	case HCCONTROL_USB_RESUME:
-		break;
-	case HCCONTROL_USB_OPER:
-		/* Without setting power_state here the
-		   SUSPENDED state won't be removed from
-		   sysfs/usbN/power.state as a response to remote
-		   wakeup. Maybe in the future. */
-		hcd->self.root_hub->dev.power.power_state = PMSG_ON;
-		ret = 0;
-		break;
-	default:
-		ret = -EBUSY;
-	}
-
-	if (ret != -EINPROGRESS) {
-		spin_unlock_irq(&isp116x->lock);
-		return ret;
-	}
-
-	val = isp116x->rhdesca & RH_A_NDP;
-	while (val--) {
-		u32 stat =
-		    isp116x_read_reg32(isp116x, val ? HCRHPORT2 : HCRHPORT1);
-		/* force global, not selective, resume */
-		if (!(stat & RH_PS_PSS))
-			continue;
-		DBG("%s: Resuming port %d\n", __func__, val);
-		isp116x_write_reg32(isp116x, RH_PS_POCI, val
-				    ? HCRHPORT2 : HCRHPORT1);
-	}
-	spin_unlock_irq(&isp116x->lock);
-
-	hcd->state = HC_STATE_RESUMING;
-	mdelay(20);
-
-	/* Go operational */
-	spin_lock_irq(&isp116x->lock);
-	val = isp116x_read_reg32(isp116x, HCCONTROL);
-	isp116x_write_reg32(isp116x, HCCONTROL,
-			    (val & ~HCCONTROL_HCFS) | HCCONTROL_USB_OPER);
-	spin_unlock_irq(&isp116x->lock);
-	/* see analogous comment above */
-	hcd->self.root_hub->dev.power.power_state = PMSG_ON;
-	hcd->state = HC_STATE_RUNNING;
-
-	return 0;
-}
-
-
-#else
-
-#define	isp116x_bus_suspend	NULL
-#define	isp116x_bus_resume	NULL
-
-#endif
-
 /*-----------------------------------------------------------------*/
 
-#ifdef STUB_DEBUG_FILE
-
-static inline void create_debug_file(struct isp116x *isp116x)
-{
-}
-
-static inline void remove_debug_file(struct isp116x *isp116x)
-{
-}
-
-#else
-
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
+#ifdef CONFIG_DEBUG_FS
 
 static void dump_irq(struct seq_file *s, char *label, u16 mask)
 {
@@ -1311,13 +1174,9 @@ static void dump_int(struct seq_file *s, char *label, u32 mask)
 		   mask & HCINT_SF ? " sof" : "", mask & HCINT_SO ? " so" : "");
 }
 
-static int proc_isp116x_show(struct seq_file *s, void *unused)
+static int isp116x_show_dbg(struct seq_file *s, void *unused)
 {
 	struct isp116x *isp116x = s->private;
-	struct isp116x_ep *ep;
-	struct urb *urb;
-	unsigned i;
-	char *str;
 
 	seq_printf(s, "%s\n%s version %s\n",
 		   isp116x_to_hcd(isp116x)->product_desc, hcd_name,
@@ -1333,105 +1192,50 @@ static int proc_isp116x_show(struct seq_file *s, void *unused)
 	}
 
 	spin_lock_irq(&isp116x->lock);
-
 	dump_irq(s, "hc_irq_enable", isp116x_read_reg16(isp116x, HCuPINTENB));
 	dump_irq(s, "hc_irq_status", isp116x_read_reg16(isp116x, HCuPINT));
 	dump_int(s, "hc_int_enable", isp116x_read_reg32(isp116x, HCINTENB));
 	dump_int(s, "hc_int_status", isp116x_read_reg32(isp116x, HCINTSTAT));
-
-	list_for_each_entry(ep, &isp116x->async, schedule) {
-
-		switch (ep->nextpid) {
-		case USB_PID_IN:
-			str = "in";
-			break;
-		case USB_PID_OUT:
-			str = "out";
-			break;
-		case USB_PID_SETUP:
-			str = "setup";
-			break;
-		case USB_PID_ACK:
-			str = "status";
-			break;
-		default:
-			str = "?";
-			break;
-		};
-		seq_printf(s, "%p, ep%d%s, maxpacket %d:\n", ep,
-			   ep->epnum, str, ep->maxpacket);
-		list_for_each_entry(urb, &ep->hep->urb_list, urb_list) {
-			seq_printf(s, "  urb%p, %d/%d\n", urb,
-				   urb->actual_length,
-				   urb->transfer_buffer_length);
-		}
-	}
-	if (!list_empty(&isp116x->async))
-		seq_printf(s, "\n");
-
-	seq_printf(s, "periodic size= %d\n", PERIODIC_SIZE);
-
-	for (i = 0; i < PERIODIC_SIZE; i++) {
-		ep = isp116x->periodic[i];
-		if (!ep)
-			continue;
-		seq_printf(s, "%2d [%3d]:\n", i, isp116x->load[i]);
-
-		/* DUMB: prints shared entries multiple times */
-		do {
-			seq_printf(s, "   %d/%p (%sdev%d ep%d%s max %d)\n",
-				   ep->period, ep,
-				   (ep->udev->speed ==
-				    USB_SPEED_FULL) ? "" : "ls ",
-				   ep->udev->devnum, ep->epnum,
-				   (ep->epnum ==
-				    0) ? "" : ((ep->nextpid ==
-						USB_PID_IN) ? "in" : "out"),
-				   ep->maxpacket);
-			ep = ep->next;
-		} while (ep);
-	}
+	isp116x_show_regs_seq(isp116x, s);
 	spin_unlock_irq(&isp116x->lock);
 	seq_printf(s, "\n");
 
 	return 0;
 }
 
-static int proc_isp116x_open(struct inode *inode, struct file *file)
+static int isp116x_open_seq(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_isp116x_show, PDE(inode)->data);
+	return single_open(file, isp116x_show_dbg, inode->u.generic_ip);
 }
 
-static struct file_operations proc_ops = {
-	.open = proc_isp116x_open,
+static struct file_operations isp116x_debug_fops = {
+	.open = isp116x_open_seq,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
-/* expect just one isp116x per system */
-static const char proc_filename[] = "driver/isp116x";
-
-static void create_debug_file(struct isp116x *isp116x)
+static int create_debug_file(struct isp116x *isp116x)
 {
-	struct proc_dir_entry *pde;
-
-	pde = create_proc_entry(proc_filename, 0, NULL);
-	if (pde == NULL)
-		return;
-
-	pde->proc_fops = &proc_ops;
-	pde->data = isp116x;
-	isp116x->pde = pde;
+	isp116x->dentry = debugfs_create_file(hcd_name,
+					      S_IRUGO, NULL, isp116x,
+					      &isp116x_debug_fops);
+	if (!isp116x->dentry)
+		return -ENOMEM;
+	return 0;
 }
 
 static void remove_debug_file(struct isp116x *isp116x)
 {
-	if (isp116x->pde)
-		remove_proc_entry(proc_filename, NULL);
+	debugfs_remove(isp116x->dentry);
 }
 
-#endif
+#else
+
+#define	create_debug_file(d)	0
+#define	remove_debug_file(d)	do{}while(0)
+
+#endif				/* CONFIG_DEBUG_FS */
 
 /*-----------------------------------------------------------------*/
 
@@ -1466,7 +1270,7 @@ static int isp116x_reset(struct usb_hcd *hcd)
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	unsigned long t;
 	u16 clkrdy = 0;
-	int ret = 0, timeout = 15 /* ms */ ;
+	int ret, timeout = 15 /* ms */ ;
 
 	ret = isp116x_sw_reset(isp116x);
 	if (ret)
@@ -1482,7 +1286,7 @@ static int isp116x_reset(struct usb_hcd *hcd)
 			break;
 	}
 	if (!clkrdy) {
-		ERR("Clock not ready after 20ms\n");
+		ERR("Clock not ready after %dms\n", timeout);
 		/* After sw_reset the clock won't report to be ready, if
 		   H_WAKEUP pin is high. */
 		ERR("Please make sure that the H_WAKEUP pin is pulled low!\n");
@@ -1572,7 +1376,8 @@ static int isp116x_start(struct usb_hcd *hcd)
 
 	val = 0;
 	if (board->remote_wakeup_enable) {
-		hcd->can_wakeup = 1;
+		if (!device_can_wakeup(hcd->self.controller))
+			device_init_wakeup(hcd->self.controller, 1);
 		val |= RH_HS_DRWE;
 	}
 	isp116x_write_reg32(isp116x, HCRHSTATUS, val);
@@ -1600,12 +1405,126 @@ static int isp116x_start(struct usb_hcd *hcd)
 	isp116x_write_reg32(isp116x, HCRHPORT1, RH_PS_CCS);
 	isp116x_write_reg32(isp116x, HCRHPORT2, RH_PS_CCS);
 
-	isp116x_show_regs(isp116x);
+	isp116x_show_regs_log(isp116x);
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return 0;
 }
 
-/*-----------------------------------------------------------------*/
+#ifdef	CONFIG_PM
+
+static int isp116x_bus_suspend(struct usb_hcd *hcd)
+{
+	struct isp116x *isp116x = hcd_to_isp116x(hcd);
+	unsigned long flags;
+	u32 val;
+	int ret = 0;
+
+	spin_lock_irqsave(&isp116x->lock, flags);
+
+	val = isp116x_read_reg32(isp116x, HCCONTROL);
+	switch (val & HCCONTROL_HCFS) {
+	case HCCONTROL_USB_OPER:
+		val &= (~HCCONTROL_HCFS & ~HCCONTROL_RWE);
+		val |= HCCONTROL_USB_SUSPEND;
+		if (device_may_wakeup(&hcd->self.root_hub->dev))
+			val |= HCCONTROL_RWE;
+		/* Wait for usb transfers to finish */
+		mdelay(2);
+		isp116x_write_reg32(isp116x, HCCONTROL, val);
+		/* Wait for devices to suspend */
+		mdelay(5);
+	case HCCONTROL_USB_SUSPEND:
+		break;
+	case HCCONTROL_USB_RESUME:
+		isp116x_write_reg32(isp116x, HCCONTROL,
+				    (val & ~HCCONTROL_HCFS) |
+				    HCCONTROL_USB_RESET);
+	case HCCONTROL_USB_RESET:
+		ret = -EBUSY;
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	spin_unlock_irqrestore(&isp116x->lock, flags);
+	return ret;
+}
+
+static int isp116x_bus_resume(struct usb_hcd *hcd)
+{
+	struct isp116x *isp116x = hcd_to_isp116x(hcd);
+	u32 val;
+
+	msleep(5);
+	spin_lock_irq(&isp116x->lock);
+
+	val = isp116x_read_reg32(isp116x, HCCONTROL);
+	switch (val & HCCONTROL_HCFS) {
+	case HCCONTROL_USB_SUSPEND:
+		val &= ~HCCONTROL_HCFS;
+		val |= HCCONTROL_USB_RESUME;
+		isp116x_write_reg32(isp116x, HCCONTROL, val);
+	case HCCONTROL_USB_RESUME:
+		break;
+	case HCCONTROL_USB_OPER:
+		spin_unlock_irq(&isp116x->lock);
+		/* Without setting power_state here the
+		   SUSPENDED state won't be removed from
+		   sysfs/usbN/power.state as a response to remote
+		   wakeup. Maybe in the future. */
+		hcd->self.root_hub->dev.power.power_state = PMSG_ON;
+		return 0;
+	default:
+		/* HCCONTROL_USB_RESET: this may happen, when during
+		   suspension the HC lost power. Reinitialize completely */
+		spin_unlock_irq(&isp116x->lock);
+		DBG("Chip has been reset while suspended. Reinit from scratch.\n");
+		isp116x_reset(hcd);
+		isp116x_start(hcd);
+		isp116x_hub_control(hcd, SetPortFeature,
+				    USB_PORT_FEAT_POWER, 1, NULL, 0);
+		if ((isp116x->rhdesca & RH_A_NDP) == 2)
+			isp116x_hub_control(hcd, SetPortFeature,
+					    USB_PORT_FEAT_POWER, 2, NULL, 0);
+		hcd->self.root_hub->dev.power.power_state = PMSG_ON;
+		return 0;
+	}
+
+	val = isp116x->rhdesca & RH_A_NDP;
+	while (val--) {
+		u32 stat =
+		    isp116x_read_reg32(isp116x, val ? HCRHPORT2 : HCRHPORT1);
+		/* force global, not selective, resume */
+		if (!(stat & RH_PS_PSS))
+			continue;
+		DBG("%s: Resuming port %d\n", __func__, val);
+		isp116x_write_reg32(isp116x, RH_PS_POCI, val
+				    ? HCRHPORT2 : HCRHPORT1);
+	}
+	spin_unlock_irq(&isp116x->lock);
+
+	hcd->state = HC_STATE_RESUMING;
+	msleep(20);
+
+	/* Go operational */
+	spin_lock_irq(&isp116x->lock);
+	val = isp116x_read_reg32(isp116x, HCCONTROL);
+	isp116x_write_reg32(isp116x, HCCONTROL,
+			    (val & ~HCCONTROL_HCFS) | HCCONTROL_USB_OPER);
+	spin_unlock_irq(&isp116x->lock);
+	/* see analogous comment above */
+	hcd->self.root_hub->dev.power.power_state = PMSG_ON;
+	hcd->state = HC_STATE_RUNNING;
+
+	return 0;
+}
+
+#else
+
+#define	isp116x_bus_suspend	NULL
+#define	isp116x_bus_resume	NULL
+
+#endif
 
 static struct hc_driver isp116x_hc_driver = {
 	.description = hcd_name,
@@ -1735,12 +1654,19 @@ static int __init isp116x_probe(struct platform_device *pdev)
 	}
 
 	ret = usb_add_hcd(hcd, irq, SA_INTERRUPT);
-	if (ret != 0)
+	if (ret)
 		goto err6;
 
-	create_debug_file(isp116x);
+	ret = create_debug_file(isp116x);
+	if (ret) {
+		ERR("Couldn't create debugfs entry\n");
+		goto err7;
+	}
+
 	return 0;
 
+      err7:
+	usb_remove_hcd(hcd);
       err6:
 	usb_put_hcd(hcd);
       err5:
@@ -1762,13 +1688,9 @@ static int __init isp116x_probe(struct platform_device *pdev)
 */
 static int isp116x_suspend(struct platform_device *dev, pm_message_t state)
 {
-	int ret = 0;
-
-	VDBG("%s: state %x\n", __func__, state);
-
+	VDBG("%s: state %x\n", __func__, state.event);
 	dev->dev.power.power_state = state;
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -1776,13 +1698,9 @@ static int isp116x_suspend(struct platform_device *dev, pm_message_t state)
 */
 static int isp116x_resume(struct platform_device *dev)
 {
-	int ret = 0;
-
-	VDBG("%s:  state %x\n", __func__, dev->dev.power.power_state);
-
+	VDBG("%s:  state %x\n", __func__, dev->power.power_state.event);
 	dev->dev.power.power_state = PMSG_ON;
-
-	return ret;
+	return 0;
 }
 
 #else
