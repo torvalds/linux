@@ -166,8 +166,6 @@ static char *version =
 #define DEBUG(n, args...)
 #endif
 
-static dev_info_t dev_info = "netwave_cs";
-
 /*====================================================================*/
 
 /* Parameters that can be set with 'insmod' */
@@ -195,12 +193,9 @@ module_param(mem_speed, int, 0);
 
 /* PCMCIA (Card Services) related functions */
 static void netwave_release(dev_link_t *link);     /* Card removal */
-static int  netwave_event(event_t event, int priority, 
-					      event_callback_args_t *args);
 static void netwave_pcmcia_config(dev_link_t *arg); /* Runs after card 
 													   insertion */
-static dev_link_t *netwave_attach(void);     /* Create instance */
-static void netwave_detach(dev_link_t *);    /* Destroy instance */
+static void netwave_detach(struct pcmcia_device *p_dev);    /* Destroy instance */
 
 /* Hardware configuration */
 static void netwave_doreset(kio_addr_t iobase, u_char __iomem *ramBase);
@@ -226,17 +221,6 @@ static struct net_device_stats *netwave_get_stats(struct net_device *dev);
 static struct iw_statistics* netwave_get_wireless_stats(struct net_device *dev);
 
 static void set_multicast_list(struct net_device *dev);
-
-/*
-   A linked list of "instances" of the skeleton device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
-
-   You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of dev_link_t pointers, where minor
-   device numbers are used to derive the corresponding array index.
-*/
-static dev_link_t *dev_list;
 
 /*
    A dev_link_t structure has fields for most things that are needed
@@ -394,20 +378,18 @@ static struct iw_statistics *netwave_get_wireless_stats(struct net_device *dev)
  *     configure the card at this point -- we wait until we receive a
  *     card insertion event.
  */
-static dev_link_t *netwave_attach(void)
+static int netwave_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     struct net_device *dev;
     netwave_private *priv;
-    int ret;
-    
+
     DEBUG(0, "netwave_attach()\n");
-    
+
     /* Initialize the dev_link_t structure */
     dev = alloc_etherdev(sizeof(netwave_private));
     if (!dev)
-	return NULL;
+	return -ENOMEM;
     priv = netdev_priv(dev);
     link = &priv->link;
     link->priv = dev;
@@ -449,21 +431,14 @@ static dev_link_t *netwave_attach(void)
     dev->open = &netwave_open;
     dev->stop = &netwave_close;
     link->irq.Instance = dev;
-    
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	netwave_detach(link);
-	return NULL;
-    }
 
-    return link;
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    netwave_pcmcia_config( link);
+
+    return 0;
 } /* netwave_attach */
 
 /*
@@ -474,42 +449,20 @@ static dev_link_t *netwave_attach(void)
  *    structures are freed.  Otherwise, the structures will be freed
  *    when the device is released.
  */
-static void netwave_detach(dev_link_t *link)
+static void netwave_detach(struct pcmcia_device *p_dev)
 {
-    struct net_device *dev = link->priv;
-    dev_link_t **linkp;
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
 
-    DEBUG(0, "netwave_detach(0x%p)\n", link);
-  
-    /*
-	  If the device is currently configured and active, we won't
-	  actually delete it yet.  Instead, it is marked so that when
-	  the release() function is called, that will trigger a proper
-	  detach().
-	*/
-    if (link->state & DEV_CONFIG)
-	netwave_release(link);
-	
-    /* Break the link with Card Services */
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-      {
-	DEBUG(1, "netwave_cs: detach fail, '%s' not in list\n",
-	      link->dev->dev_name);
-	return;
-      }
+	DEBUG(0, "netwave_detach(0x%p)\n", link);
 
-    /* Unlink device structure, free pieces */
-    *linkp = link->next;
-    if (link->dev) 
-	unregister_netdev(dev);
-    free_netdev(dev);
-    
+	if (link->state & DEV_CONFIG)
+		netwave_release(link);
+
+	if (link->dev)
+		unregister_netdev(dev);
+
+	free_netdev(dev);
 } /* netwave_detach */
 
 /*
@@ -935,69 +888,38 @@ static void netwave_release(dev_link_t *link)
     link->state &= ~DEV_CONFIG;
 }
 
-/*
- * Function netwave_event (event, priority, args)
- *
- *    The card status event handler.  Mostly, this schedules other
- *    stuff to run after an event is received.  A CARD_REMOVAL event
- *    also sets some flags to discourage the net drivers from trying
- *    to talk to the card any more.
- *
- *    When a CARD_REMOVAL event is received, we immediately set a flag
- *    to block future accesses to this device.  All the functions that
- *    actually access the device should check this flag to make sure
- *    the card is still present.
- *
- */
-static int netwave_event(event_t event, int priority,
-			 event_callback_args_t *args)
+static int netwave_suspend(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
-	
-    DEBUG(1, "netwave_event(0x%06x)\n", event);
-  
-    switch (event) {
-    case CS_EVENT_REGISTRATION_COMPLETE:
-	DEBUG(0, "netwave_cs: registration complete\n");
-	break;
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
 
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    netif_device_detach(dev);
-	    netwave_release(link);
-	}
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	netwave_pcmcia_config( link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
 	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
 	if (link->state & DEV_CONFIG) {
-	    if (link->open)
-		netif_device_detach(dev);
-	    pcmcia_release_configuration(link->handle);
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
 	}
-	break;
-    case CS_EVENT_PM_RESUME:
+
+	return 0;
+}
+
+static int netwave_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
 	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
 	if (link->state & DEV_CONFIG) {
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (link->open) {
-		netwave_reset(dev);
-		netif_device_attach(dev);
-	    }
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			netwave_reset(dev);
+			netif_device_attach(dev);
+		}
 	}
-	break;
-    }
-    return 0;
-} /* netwave_event */
+
+	return 0;
+}
+
 
 /*
  * Function netwave_doreset (ioBase, ramBase)
@@ -1491,10 +1413,11 @@ static struct pcmcia_driver netwave_driver = {
 	.drv		= {
 		.name	= "netwave_cs",
 	},
-	.attach		= netwave_attach,
-	.event		= netwave_event,
-	.detach		= netwave_detach,
+	.probe		= netwave_attach,
+	.remove		= netwave_detach,
 	.id_table       = netwave_ids,
+	.suspend	= netwave_suspend,
+	.resume		= netwave_resume,
 };
 
 static int __init init_netwave_cs(void)
@@ -1505,7 +1428,6 @@ static int __init init_netwave_cs(void)
 static void __exit exit_netwave_cs(void)
 {
 	pcmcia_unregister_driver(&netwave_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_netwave_cs);

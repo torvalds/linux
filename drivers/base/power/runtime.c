@@ -62,6 +62,7 @@ int dpm_runtime_suspend(struct device * dev, pm_message_t state)
 	up(&dpm_sem);
 	return error;
 }
+EXPORT_SYMBOL(dpm_runtime_suspend);
 
 
 #if 0

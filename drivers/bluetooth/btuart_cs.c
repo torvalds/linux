@@ -86,14 +86,8 @@ typedef struct btuart_info_t {
 
 static void btuart_config(dev_link_t *link);
 static void btuart_release(dev_link_t *link);
-static int btuart_event(event_t event, int priority, event_callback_args_t *args);
 
-static dev_info_t dev_info = "btuart_cs";
-
-static dev_link_t *btuart_attach(void);
-static void btuart_detach(dev_link_t *);
-
-static dev_link_t *dev_list = NULL;
+static void btuart_detach(struct pcmcia_device *p_dev);
 
 
 /* Maximum baud rate */
@@ -582,17 +576,15 @@ static int btuart_close(btuart_info_t *info)
 	return 0;
 }
 
-static dev_link_t *btuart_attach(void)
+static int btuart_attach(struct pcmcia_device *p_dev)
 {
 	btuart_info_t *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 
 	link = &info->link;
 	link->priv = info;
@@ -609,49 +601,23 @@ static dev_link_t *btuart_attach(void)
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		btuart_detach(link);
-		return NULL;
-	}
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	btuart_config(link);
 
-	return link;
+	return 0;
 }
 
 
-static void btuart_detach(dev_link_t *link)
+static void btuart_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	btuart_info_t *info = link->priv;
-	dev_link_t **linkp;
-	int ret;
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-
-	if (*linkp == NULL)
-		return;
 
 	if (link->state & DEV_CONFIG)
 		btuart_release(link);
-
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
-
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 
 	kfree(info);
 }
@@ -811,42 +777,28 @@ static void btuart_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
-
-static int btuart_event(event_t event, int priority, event_callback_args_t *args)
+static int btuart_suspend(struct pcmcia_device *dev)
 {
-	dev_link_t *link = args->client_data;
-	btuart_info_t *info = link->priv;
+	dev_link_t *link = dev_to_instance(dev);
 
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			btuart_close(info);
-			btuart_release(link);
-		}
-		break;
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		btuart_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (DEV_OK(link))
-			pcmcia_request_configuration(link->handle, &link->conf);
-		break;
-	}
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
 
 	return 0;
 }
+
+static int btuart_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
 
 static struct pcmcia_device_id btuart_ids[] = {
 	/* don't use this driver. Use serial_cs + hci_uart instead */
@@ -859,10 +811,11 @@ static struct pcmcia_driver btuart_driver = {
 	.drv		= {
 		.name	= "btuart_cs",
 	},
-	.attach		= btuart_attach,
-	.event		= btuart_event,
-	.detach		= btuart_detach,
+	.probe		= btuart_attach,
+	.remove		= btuart_detach,
 	.id_table	= btuart_ids,
+	.suspend	= btuart_suspend,
+	.resume		= btuart_resume,
 };
 
 static int __init init_btuart_cs(void)
@@ -874,7 +827,6 @@ static int __init init_btuart_cs(void)
 static void __exit exit_btuart_cs(void)
 {
 	pcmcia_unregister_driver(&btuart_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_btuart_cs);

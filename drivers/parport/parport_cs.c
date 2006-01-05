@@ -87,15 +87,9 @@ typedef struct parport_info_t {
     struct parport	*port;
 } parport_info_t;
 
-static dev_link_t *parport_attach(void);
-static void parport_detach(dev_link_t *);
+static void parport_detach(struct pcmcia_device *p_dev);
 static void parport_config(dev_link_t *link);
 static void parport_cs_release(dev_link_t *);
-static int parport_event(event_t event, int priority,
-			 event_callback_args_t *args);
-
-static dev_info_t dev_info = "parport_cs";
-static dev_link_t *dev_list = NULL;
 
 /*======================================================================
 
@@ -105,18 +99,16 @@ static dev_link_t *dev_list = NULL;
 
 ======================================================================*/
 
-static dev_link_t *parport_attach(void)
+static int parport_attach(struct pcmcia_device *p_dev)
 {
     parport_info_t *info;
     dev_link_t *link;
-    client_reg_t client_reg;
-    int ret;
-    
+
     DEBUG(0, "parport_attach()\n");
 
     /* Create new parport device */
     info = kmalloc(sizeof(*info), GFP_KERNEL);
-    if (!info) return NULL;
+    if (!info) return -ENOMEM;
     memset(info, 0, sizeof(*info));
     link = &info->link; link->priv = info;
 
@@ -127,21 +119,14 @@ static dev_link_t *parport_attach(void)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
-    
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
-	parport_detach(link);
-	return NULL;
-    }
-    
-    return link;
+
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    parport_config(link);
+
+    return 0;
 } /* parport_attach */
 
 /*======================================================================
@@ -153,32 +138,16 @@ static dev_link_t *parport_attach(void)
 
 ======================================================================*/
 
-static void parport_detach(dev_link_t *link)
+static void parport_detach(struct pcmcia_device *p_dev)
 {
-    dev_link_t **linkp;
-    int ret;
+    dev_link_t *link = dev_to_instance(p_dev);
 
     DEBUG(0, "parport_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->state & DEV_CONFIG)
 	parport_cs_release(link);
-    
-    if (link->handle) {
-	ret = pcmcia_deregister_client(link->handle);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, DeregisterClient, ret);
-    }
-    
-    /* Unlink, free device structure */
-    *linkp = link->next;
+
     kfree(link->priv);
-    
 } /* parport_detach */
 
 /*======================================================================
@@ -325,47 +294,27 @@ void parport_cs_release(dev_link_t *link)
 
 } /* parport_cs_release */
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-    
-======================================================================*/
-
-int parport_event(event_t event, int priority,
-		  event_callback_args_t *args)
+static int parport_suspend(struct pcmcia_device *dev)
 {
-    dev_link_t *link = args->client_data;
+	dev_link_t *link = dev_to_instance(dev);
 
-    DEBUG(1, "parport_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-		parport_cs_release(link);
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	parport_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
 	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
 	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int parport_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
 	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
 	if (DEV_OK(link))
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	break;
-    }
-    return 0;
-} /* parport_event */
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
 
 static struct pcmcia_device_id parport_ids[] = {
 	PCMCIA_DEVICE_FUNC_ID(3),
@@ -379,11 +328,11 @@ static struct pcmcia_driver parport_cs_driver = {
 	.drv		= {
 		.name	= "parport_cs",
 	},
-	.attach		= parport_attach,
-	.event		= parport_event,
-	.detach		= parport_detach,
+	.probe		= parport_attach,
+	.remove		= parport_detach,
 	.id_table	= parport_ids,
-
+	.suspend	= parport_suspend,
+	.resume		= parport_resume,
 };
 
 static int __init init_parport_cs(void)
@@ -394,7 +343,6 @@ static int __init init_parport_cs(void)
 static void __exit exit_parport_cs(void)
 {
 	pcmcia_unregister_driver(&parport_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_parport_cs);

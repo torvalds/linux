@@ -198,48 +198,6 @@ static int cardu_get_status(unsigned int sock, u_int *value)
 	return 0;
 }
 
-static inline u_char get_Vcc_value(uint8_t val)
-{
-	switch (val & VCC_MASK) {
-	case VCC_3V:
-		return 33;
-	case VCC_5V:
-		return 50;
-	}
-
-	return 0;
-}
-
-static inline u_char get_Vpp_value(uint8_t val)
-{
-	switch (val & VPP_MASK) {
-	case VPP_12V:
-		return 120;
-	case VPP_VCC:
-		return get_Vcc_value(val);
-	}
-
-	return 0;
-}
-
-static int cardu_get_socket(unsigned int sock, socket_state_t *state)
-{
-	vrc4173_socket_t *socket = &cardu_sockets[sock];
-	uint8_t val;
-
-	val = exca_readb(socket, PWR_CNT);
-	state->Vcc = get_Vcc_value(val);
-	state->Vpp = get_Vpp_value(val);
-	state->flags = 0;
-	if (val & CARD_OUT_EN) state->flags |= SS_OUTPUT_ENA;
-
-	val = exca_readb(socket, INT_GEN_CNT);
-	if (!(val & CARD_REST0)) state->flags |= SS_RESET;
-	if (val & CARD_TYPE_IO) state->flags |= SS_IOCARD;
-
-	return 0;
-}
-
 static inline uint8_t set_Vcc_value(u_char Vcc)
 {
 	switch (Vcc) {
@@ -431,7 +389,6 @@ static struct pccard_operations cardu_operations = {
 	.register_callback	= cardu_register_callback,
 	.inquire_socket		= cardu_inquire_socket,
 	.get_status		= cardu_get_status,
-	.get_socket		= cardu_get_socket,
 	.set_socket		= cardu_set_socket,
 	.get_io_map		= cardu_get_io_map,
 	.set_io_map		= cardu_set_io_map,
