@@ -380,8 +380,6 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pci_bus_type;
-	drv->driver.probe = pci_device_probe;
-	drv->driver.remove = pci_device_remove;
 	/* FIXME, once all of the existing PCI drivers have been fixed to set
 	 * the pci shutdown function, this test can go away. */
 	if (!drv->driver.shutdown)
@@ -513,6 +511,8 @@ struct bus_type pci_bus_type = {
 	.name		= "pci",
 	.match		= pci_bus_match,
 	.uevent		= pci_uevent,
+	.probe		= pci_device_probe,
+	.remove		= pci_device_remove,
 	.suspend	= pci_device_suspend,
 	.resume		= pci_device_resume,
 	.dev_attrs	= pci_dev_attrs,
