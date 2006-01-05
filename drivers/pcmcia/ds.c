@@ -920,6 +920,78 @@ static struct device_attribute pcmcia_dev_attrs[] = {
 	__ATTR_NULL,
 };
 
+/* PM support, also needed for reset */
+
+static int pcmcia_dev_suspend(struct device * dev, pm_message_t state)
+{
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+	struct pcmcia_driver *p_drv = NULL;
+
+	if (dev->driver)
+		p_drv = to_pcmcia_drv(dev->driver);
+
+	if (p_drv && p_drv->suspend)
+		return p_drv->suspend(p_dev);
+
+	return 0;
+}
+
+
+static int pcmcia_dev_resume(struct device * dev)
+{
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+        struct pcmcia_driver *p_drv = NULL;
+
+	if (dev->driver)
+		p_drv = to_pcmcia_drv(dev->driver);
+
+	if (p_drv && p_drv->resume)
+		return p_drv->resume(p_dev);
+
+	return 0;
+}
+
+
+static int pcmcia_bus_suspend_callback(struct device *dev, void * _data)
+{
+	struct pcmcia_socket *skt = _data;
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+
+	if (p_dev->socket != skt)
+		return 0;
+
+	return dpm_runtime_suspend(dev, PMSG_SUSPEND);
+}
+
+static int pcmcia_bus_resume_callback(struct device *dev, void * _data)
+{
+	struct pcmcia_socket *skt = _data;
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+
+	if (p_dev->socket != skt)
+		return 0;
+
+	dpm_runtime_resume(dev);
+
+	return 0;
+}
+
+static int pcmcia_bus_resume(struct pcmcia_socket *skt)
+{
+	bus_for_each_dev(&pcmcia_bus_type, NULL, skt, pcmcia_bus_resume_callback);
+	return 0;
+}
+
+static int pcmcia_bus_suspend(struct pcmcia_socket *skt)
+{
+	if (bus_for_each_dev(&pcmcia_bus_type, NULL, skt,
+			     pcmcia_bus_suspend_callback)) {
+		pcmcia_bus_resume(skt);
+		return -EIO;
+	}
+	return 0;
+}
+
 
 /*======================================================================
 
@@ -950,16 +1022,6 @@ static int send_event_callback(struct device *dev, void * _data)
 
 	if (p_dev->state & (CLIENT_UNBOUND|CLIENT_STALE))
 		return 0;
-
-	if ((data->event == CS_EVENT_PM_SUSPEND) ||
-	    (data->event == CS_EVENT_RESET_PHYSICAL)) {
-		if (p_drv->suspend)
-			return p_drv->suspend(p_dev);
-	} else if ((data->event == CS_EVENT_PM_RESUME) ||
-		   (data->event == CS_EVENT_CARD_RESET)) {
-		if (p_drv->resume)
-			return p_drv->resume(p_dev);
-	}
 
 	if (p_drv->event)
 		return p_drv->event(data->event, data->priority,
@@ -1010,6 +1072,13 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 	case CS_EVENT_EJECTION_REQUEST:
 		ret = send_event(skt, event, priority);
+		break;
+
+	case CS_EVENT_PM_SUSPEND:
+	case CS_EVENT_PM_RESUME:
+	case CS_EVENT_RESET_PHYSICAL:
+	case CS_EVENT_CARD_RESET:
+		handle_event(skt, event);
 		break;
 
 	default:
@@ -1166,10 +1235,13 @@ int pcmcia_deregister_client(struct pcmcia_device *p_dev)
 } /* deregister_client */
 EXPORT_SYMBOL(pcmcia_deregister_client);
 
+
 static struct pcmcia_callback pcmcia_bus_callback = {
 	.owner = THIS_MODULE,
 	.event = ds_event,
 	.requery = pcmcia_bus_rescan,
+	.suspend = pcmcia_bus_suspend,
+	.resume = pcmcia_bus_resume,
 };
 
 static int __devinit pcmcia_bus_add_socket(struct class_device *class_dev,
@@ -1238,6 +1310,8 @@ struct bus_type pcmcia_bus_type = {
 	.uevent = pcmcia_bus_uevent,
 	.match = pcmcia_bus_match,
 	.dev_attrs = pcmcia_dev_attrs,
+	.suspend = pcmcia_dev_suspend,
+	.resume = pcmcia_dev_resume,
 };
 
 

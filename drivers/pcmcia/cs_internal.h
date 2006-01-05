@@ -143,6 +143,8 @@ struct pcmcia_callback{
 	struct module	*owner;
 	int		(*event) (struct pcmcia_socket *s, event_t event, int priority);
 	void		(*requery) (struct pcmcia_socket *s);
+	int		(*suspend) (struct pcmcia_socket *s);
+	int		(*resume) (struct pcmcia_socket *s);
 };
 
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);

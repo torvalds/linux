@@ -780,8 +780,13 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 		ret = send_event(skt, CS_EVENT_RESET_REQUEST, CS_EVENT_PRI_LOW);
 		if (ret == 0) {
 			send_event(skt, CS_EVENT_RESET_PHYSICAL, CS_EVENT_PRI_LOW);
-			if (socket_reset(skt) == CS_SUCCESS)
+			if (skt->callback)
+				skt->callback->suspend(skt);
+			if (socket_reset(skt) == CS_SUCCESS) {
 				send_event(skt, CS_EVENT_CARD_RESET, CS_EVENT_PRI_LOW);
+				if (skt->callback)
+					skt->callback->resume(skt);
+			}
 		}
 
 		ret = CS_SUCCESS;
@@ -812,6 +817,11 @@ int pcmcia_suspend_card(struct pcmcia_socket *skt)
 			ret = CS_UNSUPPORTED_FUNCTION;
 			break;
 		}
+		if (skt->callback) {
+			ret = skt->callback->suspend(skt);
+			if (ret)
+				break;
+		}
 		ret = socket_suspend(skt);
 	} while (0);
 	up(&skt->skt_sem);
@@ -838,6 +848,8 @@ int pcmcia_resume_card(struct pcmcia_socket *skt)
 			break;
 		}
 		ret = socket_resume(skt);
+		if (!ret && skt->callback)
+			skt->callback->resume(skt);
 	} while (0);
 	up(&skt->skt_sem);
 
