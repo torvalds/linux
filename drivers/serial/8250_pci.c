@@ -837,8 +837,8 @@ static struct pci_serial_quirk *find_quirk(struct pci_dev *dev)
 	return quirk;
 }
 
-static _INLINE_ int
-get_pci_irq(struct pci_dev *dev, struct pciserial_board *board)
+static inline int get_pci_irq(struct pci_dev *dev,
+				struct pciserial_board *board)
 {
 	if (board->flags & FL_NOIRQ)
 		return 0;
