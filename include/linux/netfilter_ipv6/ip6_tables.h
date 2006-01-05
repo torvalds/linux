@@ -474,7 +474,7 @@ extern unsigned int ip6t_do_table(struct sk_buff **pskb,
 extern int ip6t_ext_hdr(u8 nexthdr);
 /* find specified header and get offset to it */
 extern int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
-			 u8 target);
+			 int target, unsigned short *fragoff);
 
 #define IP6T_ALIGN(s) (((s) + (__alignof__(struct ip6t_entry)-1)) & ~(__alignof__(struct ip6t_entry)-1))
 

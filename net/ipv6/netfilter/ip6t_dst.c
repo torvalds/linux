@@ -71,9 +71,9 @@ match(const struct sk_buff *skb,
        unsigned int optlen;
        
 #if HOPBYHOP
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_HOP) < 0)
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_HOP, NULL) < 0)
 #else
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_DEST) < 0)
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_DEST, NULL) < 0)
 #endif
 		return 0;
 
