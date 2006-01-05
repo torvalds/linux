@@ -40,7 +40,10 @@ void device_shutdown(void)
 	down_write(&devices_subsys.rwsem);
 	list_for_each_entry_reverse(dev, &devices_subsys.kset.list,
 				kobj.entry) {
-		if (dev->driver && dev->driver->shutdown) {
+		if (dev->bus && dev->bus->shutdown) {
+			dev_dbg(dev, "shutdown\n");
+			dev->bus->shutdown(dev);
+		} else if (dev->driver && dev->driver->shutdown) {
 			dev_dbg(dev, "shutdown\n");
 			dev->driver->shutdown(dev);
 		}
