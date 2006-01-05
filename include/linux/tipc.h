@@ -539,7 +539,6 @@ static inline void TLV_LIST_STEP(struct tlv_list_desc *list)
  * Configuration messages exchanged via NETLINK_GENERIC use the following
  * family id, name, version and command.
  */
-#define TIPC_GENL_FAMILY	0x222
 #define TIPC_GENL_NAME		"TIPC"
 #define TIPC_GENL_VERSION	0x1
 #define TIPC_GENL_CMD		0x1

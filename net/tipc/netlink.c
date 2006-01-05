@@ -40,7 +40,7 @@ static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 	struct nlmsghdr *rep_nlh;
 	struct nlmsghdr *req_nlh = info->nlhdr;
 	struct tipc_genlmsghdr *req_userhdr = info->userhdr;
-	int hdr_space = NLMSG_SPACE(0);
+	int hdr_space = NLMSG_SPACE(GENL_HDRLEN + TIPC_GENL_HDRLEN);
 
 	if ((req_userhdr->cmd & 0xC000) && (!capable(CAP_NET_ADMIN)))
 		rep_buf = cfg_reply_error_string(TIPC_CFG_NOT_NET_ADMIN);
@@ -63,7 +63,7 @@ static int handle_cmd(struct sk_buff *skb, struct genl_info *info)
 }
 
 static struct genl_family family = {
-        .id		= TIPC_GENL_FAMILY,
+        .id		= GENL_ID_GENERATE,
         .name		= TIPC_GENL_NAME,
         .version	= TIPC_GENL_VERSION,
         .hdrsize	= TIPC_GENL_HDRLEN,
