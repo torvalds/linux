@@ -1301,14 +1301,14 @@ struct ipw_priv {
 
 /* debug macros */
 
-#ifdef CONFIG_IPW_DEBUG
+#ifdef CONFIG_IPW2200_DEBUG
 #define IPW_DEBUG(level, fmt, args...) \
 do { if (ipw_debug_level & (level)) \
   printk(KERN_DEBUG DRV_NAME": %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
 #else
 #define IPW_DEBUG(level, fmt, args...) do {} while (0)
-#endif				/* CONFIG_IPW_DEBUG */
+#endif				/* CONFIG_IPW2200_DEBUG */
 
 /*
  * To use the debug system;
@@ -1332,7 +1332,7 @@ do { if (ipw_debug_level & (level)) \
  * you simply need to add your entry to the ipw_debug_levels array.
  *
  * If you do not see debug_level in /proc/net/ipw then you do not have
- * CONFIG_IPW_DEBUG defined in your kernel configuration
+ * CONFIG_IPW2200_DEBUG defined in your kernel configuration
  *
  */
 
