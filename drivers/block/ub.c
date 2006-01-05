@@ -14,7 +14,6 @@
  *  -- special case some senses, e.g. 3a/0 -> no media present, reduce retries
  *  -- verify the 13 conditions and do bulk resets
  *  -- kill last_pipe and simply do two-state clearing on both pipes
- *  -- verify protocol (bulk) from USB descriptors (maybe...)
  *  -- highmem
  *  -- move top_sense and work_bcs into separate allocations (if they survive)
  *     for cache purists and esoteric architectures.
@@ -420,11 +419,13 @@ static void ub_state_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
 static int ub_submit_clear_stall(struct ub_dev *sc, struct ub_scsi_cmd *cmd,
     int stalled_pipe);
 static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd);
-static void ub_reset_enter(struct ub_dev *sc);
+static void ub_reset_enter(struct ub_dev *sc, int try);
 static void ub_reset_task(void *arg);
 static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun);
 static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_capacity *ret);
+static int ub_sync_reset(struct ub_dev *sc);
+static int ub_probe_clear_stall(struct ub_dev *sc, int stalled_pipe);
 static int ub_probe_lun(struct ub_dev *sc, int lnum);
 
 /*
@@ -983,7 +984,7 @@ static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
 	if (atomic_read(&sc->poison))
 		return -ENXIO;
 
-	ub_reset_enter(sc);
+	ub_reset_enter(sc, urq->current_try);
 
 	if (urq->current_try >= 3)
 		return -EIO;
@@ -1019,8 +1020,6 @@ static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
  * No exceptions.
  *
  * Host is assumed locked.
- *
- * XXX We only support Bulk for the moment.
  */
 static int ub_submit_scsi(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 {
@@ -1703,16 +1702,18 @@ static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd)
 
 /*
  * Reset management
+ * XXX Move usb_reset_device to khubd. Hogging kevent is not a good thing.
+ * XXX Make usb_sync_reset asynchronous.
  */
 
-static void ub_reset_enter(struct ub_dev *sc)
+static void ub_reset_enter(struct ub_dev *sc, int try)
 {
 
 	if (sc->reset) {
 		/* This happens often on multi-LUN devices. */
 		return;
 	}
-	sc->reset = 1;
+	sc->reset = try + 1;
 
 #if 0 /* Not needed because the disconnect waits for us. */
 	unsigned long flags;
@@ -1750,6 +1751,11 @@ static void ub_reset_task(void *arg)
 	if (atomic_read(&sc->poison)) {
 		printk(KERN_NOTICE "%s: Not resetting disconnected device\n",
 		    sc->name); /* P3 This floods. Remove soon. XXX */
+	} else if ((sc->reset & 1) == 0) {
+		ub_sync_reset(sc);
+		msleep(700);	/* usb-storage sleeps 6s (!) */
+		ub_probe_clear_stall(sc, sc->recv_bulk_pipe);
+		ub_probe_clear_stall(sc, sc->send_bulk_pipe);
 	} else if (sc->dev->actconfig->desc.bNumInterfaces != 1) {
 		printk(KERN_NOTICE "%s: Not resetting multi-interface device\n",
 		    sc->name); /* P3 This floods. Remove soon. XXX */
@@ -2138,6 +2144,52 @@ static void ub_probe_timeout(unsigned long arg)
 {
 	struct completion *cop = (struct completion *) arg;
 	complete(cop);
+}
+
+/*
+ * Reset with a Bulk reset.
+ */
+static int ub_sync_reset(struct ub_dev *sc)
+{
+	int ifnum = sc->intf->cur_altsetting->desc.bInterfaceNumber;
+	struct usb_ctrlrequest *cr;
+	struct completion compl;
+	struct timer_list timer;
+	int rc;
+
+	init_completion(&compl);
+
+	cr = &sc->work_cr;
+	cr->bRequestType = USB_TYPE_CLASS | USB_RECIP_INTERFACE;
+	cr->bRequest = US_BULK_RESET_REQUEST;
+	cr->wValue = cpu_to_le16(0);
+	cr->wIndex = cpu_to_le16(ifnum);
+	cr->wLength = cpu_to_le16(0);
+
+	usb_fill_control_urb(&sc->work_urb, sc->dev, sc->send_ctrl_pipe,
+	    (unsigned char*) cr, NULL, 0, ub_probe_urb_complete, &compl);
+	sc->work_urb.actual_length = 0;
+	sc->work_urb.error_count = 0;
+	sc->work_urb.status = 0;
+
+	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0) {
+		printk(KERN_WARNING
+		     "%s: Unable to submit a bulk reset (%d)\n", sc->name, rc);
+		return rc;
+	}
+
+	init_timer(&timer);
+	timer.function = ub_probe_timeout;
+	timer.data = (unsigned long) &compl;
+	timer.expires = jiffies + UB_CTRL_TIMEOUT;
+	add_timer(&timer);
+
+	wait_for_completion(&compl);
+
+	del_timer_sync(&timer);
+	usb_kill_urb(&sc->work_urb);
+
+	return sc->work_urb.status;
 }
 
 /*
