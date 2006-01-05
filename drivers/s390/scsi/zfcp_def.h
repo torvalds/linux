@@ -978,6 +978,9 @@ struct zfcp_adapter {
 	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
 	struct qdio_initialize  qdio_init_data;    /* for qdio_establish */
 	struct device           generic_services;  /* directory for WKA ports */
+	struct fc_host_statistics *fc_stats;
+	struct fsf_qtcb_bottom_port *stats_reset_data;
+	unsigned long		stats_reset;
 };
 
 /*
