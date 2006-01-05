@@ -26,8 +26,6 @@ static struct flash_platform_data nas100d_flash_data = {
 };
 
 static struct resource nas100d_flash_resource = {
-	.start			= NAS100D_FLASH_BASE,
-	.end			= NAS100D_FLASH_BASE + NAS100D_FLASH_SIZE,
 	.flags			= IORESOURCE_MEM,
 };
 
@@ -114,6 +112,10 @@ static void nas100d_power_off(void)
 static void __init nas100d_init(void)
 {
 	ixp4xx_sys_init();
+
+	nas100d_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
+	nas100d_flash_resource.end =
+		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	pm_power_off = nas100d_power_off;
 

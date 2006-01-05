@@ -332,11 +332,27 @@ static struct platform_device *ixp46x_devices[] __initdata = {
 	&ixp46x_i2c_controller
 };
 
+unsigned long ixp4xx_exp_bus_size;
+
 void __init ixp4xx_sys_init(void)
 {
+	ixp4xx_exp_bus_size = SZ_16M;
+
 	if (cpu_is_ixp46x()) {
+		int region;
+
 		platform_add_devices(ixp46x_devices,
 				ARRAY_SIZE(ixp46x_devices));
+
+		for (region = 0; region < 7; region++) {
+			if((*(IXP4XX_EXP_REG(0x4 * region)) & 0x200)) {
+				ixp4xx_exp_bus_size = SZ_32M;
+				break;
+			}
+		}
 	}
+
+	printk("IXP4xx: Using %uMiB expansion bus window size\n",
+			ixp4xx_exp_bus_size >> 20);
 }
 
