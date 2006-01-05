@@ -79,6 +79,7 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 		      const struct ip_conntrack_tuple *tuple)
 {
 	struct nfattr *nest_parms;
+	int ret;
 	
 	nest_parms = NFA_NEST(skb, CTA_TUPLE_IP);
 	NFA_PUT(skb, CTA_IP_V4_SRC, sizeof(u_int32_t), &tuple->src.ip);
@@ -86,10 +87,10 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 	NFA_NEST_END(skb, nest_parms);
 
 	nest_parms = NFA_NEST(skb, CTA_TUPLE_PROTO);
-	ctnetlink_dump_tuples_proto(skb, tuple);
+	ret = ctnetlink_dump_tuples_proto(skb, tuple);
 	NFA_NEST_END(skb, nest_parms);
 
-	return 0;
+	return ret;
 
 nfattr_failure:
 	return -1;
