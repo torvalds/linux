@@ -312,29 +312,22 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	if (events & IPCT_DESTROY) {
 		type = IPCTNL_MSG_CT_DELETE;
 		group = NFNLGRP_CONNTRACK_DESTROY;
-		goto alloc_skb;
-	}
-	if (events & (IPCT_NEW | IPCT_RELATED)) {
+	} else if (events & (IPCT_NEW | IPCT_RELATED)) {
 		type = IPCTNL_MSG_CT_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
 		/* dump everything */
 		events = ~0UL;
 		group = NFNLGRP_CONNTRACK_NEW;
-		goto alloc_skb;
-	}
-	if (events & (IPCT_STATUS |
+	} else if (events & (IPCT_STATUS |
 		      IPCT_PROTOINFO |
 		      IPCT_HELPER |
 		      IPCT_HELPINFO |
 		      IPCT_NATINFO)) {
 		type = IPCTNL_MSG_CT_NEW;
 		group = NFNLGRP_CONNTRACK_UPDATE;
-		goto alloc_skb;
-	} 
+	} else 
+		return NOTIFY_DONE;
 	
-	return NOTIFY_DONE;
-
-alloc_skb:
   /* FIXME: Check if there are any listeners before, don't hurt performance */
 	
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
