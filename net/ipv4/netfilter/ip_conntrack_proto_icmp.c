@@ -279,10 +279,6 @@ static int icmp_tuple_to_nfattr(struct sk_buff *skb,
 	NFA_PUT(skb, CTA_PROTO_ICMP_CODE, sizeof(u_int8_t),
 		&t->dst.u.icmp.code);
 
-	if (t->dst.u.icmp.type >= sizeof(valid_new) 
-	    || !valid_new[t->dst.u.icmp.type])
-		return -EINVAL;
-
 	return 0;
 
 nfattr_failure:
