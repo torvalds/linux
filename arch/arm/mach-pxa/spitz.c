@@ -36,6 +36,7 @@
 #include <asm/arch/irq.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/ohci.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/akita.h>
@@ -335,6 +336,35 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 
 
 /*
+ * USB Host (OHCI)
+ */
+static int spitz_ohci_init(struct device *dev)
+{
+	/* Only Port 2 is connected */
+	pxa_gpio_mode(SPITZ_GPIO_USB_CONNECT | GPIO_IN);
+	pxa_gpio_mode(SPITZ_GPIO_USB_HOST | GPIO_OUT);
+	pxa_gpio_mode(SPITZ_GPIO_USB_DEVICE | GPIO_IN);
+
+	/* Setup USB Port 2 Output Control Register */
+	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE | UP2OCR_DPPDE | UP2OCR_DMPDE;
+
+	GPSR(SPITZ_GPIO_USB_HOST) = GPIO_bit(SPITZ_GPIO_USB_HOST);
+
+	UHCHR = (UHCHR) &
+		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
+
+	UHCRHDA |= UHCRHDA_NOCP;
+
+	return 0;
+}
+
+static struct pxaohci_platform_data spitz_ohci_platform_data = {
+	.port_mode	= PMM_NPS_MODE,
+	.init		= spitz_ohci_init,
+};
+
+
+/*
  * Irda
  */
 static void spitz_irda_transceiver_mode(struct device *dev, int mode)
@@ -411,6 +441,7 @@ static void __init common_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_mci_info(&spitz_mci_platform_data);
+	pxa_set_ohci_info(&spitz_ohci_platform_data);
 	pxa_set_ficp_info(&spitz_ficp_platform_data);
 	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
