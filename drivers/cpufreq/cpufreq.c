@@ -823,6 +823,30 @@ static void cpufreq_out_of_sync(unsigned int cpu, unsigned int old_freq, unsigne
 
 
 /** 
+ * cpufreq_quick_get - get the CPU frequency (in kHz) frpm policy->cur
+ * @cpu: CPU number
+ *
+ * This is the last known freq, without actually getting it from the driver.
+ * Return value will be same as what is shown in scaling_cur_freq in sysfs.
+ */
+unsigned int cpufreq_quick_get(unsigned int cpu)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+	unsigned int ret = 0;
+
+	if (policy) {
+		down(&policy->lock);
+		ret = policy->cur;
+		up(&policy->lock);
+		cpufreq_cpu_put(policy);
+	}
+
+	return (ret);
+}
+EXPORT_SYMBOL(cpufreq_quick_get);
+
+
+/** 
  * cpufreq_get - get the current CPU frequency (in kHz)
  * @cpu: CPU number
  *
