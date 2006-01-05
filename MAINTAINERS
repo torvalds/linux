@@ -1465,7 +1465,6 @@ P:	Several
 L:	kernel-janitors@osdl.org
 W:	http://www.kerneljanitors.org/
 W:	http://sf.net/projects/kernel-janitor/
-W:	http://developer.osdl.org/rddunlap/kj-patches/
 S:	Maintained
 
 KERNEL NFSD
@@ -1486,7 +1485,7 @@ KEXEC
 P:	Eric Biederman
 P:	Randy Dunlap
 M:	ebiederm@xmission.com
-M:	rddunlap@osdl.org
+M:	rdunlap@xenotime.net
 W:	http://www.xmission.com/~ebiederm/files/kexec/
 L:	linux-kernel@vger.kernel.org
 L:	fastboot@osdl.org
@@ -2587,7 +2586,6 @@ S:	Maintained
 UDF FILESYSTEM
 P:	Ben Fennema
 M:	bfennema@falcon.csc.calpoly.edu
-L:	linux_udf@hpesjro.fc.hp.com
 W:	http://linux-udf.sourceforge.net
 S:	Maintained
 

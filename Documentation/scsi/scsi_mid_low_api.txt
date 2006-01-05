@@ -1452,7 +1452,7 @@ The following people have contributed to this document:
         Christoph Hellwig <hch at infradead dot org>
         Doug Ledford <dledford at redhat dot com>
         Andries Brouwer <Andries dot Brouwer at cwi dot nl>
-        Randy Dunlap <rddunlap at osdl dot org>
+        Randy Dunlap <rdunlap at xenotime dot net>
         Alan Stern <stern at rowland dot harvard dot edu>
 
 
