@@ -660,7 +660,6 @@ source "kernel/power/Kconfig"
 
 config APM
 	tristate "Advanced Power Management Emulation"
-	depends on PM_LEGACY
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
