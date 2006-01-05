@@ -964,6 +964,40 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
 					| ZFCP_STATUS_COMMON_ERP_FAILED);
 		break;
 
+	case FSF_STATUS_READ_NOTIFICATION_LOST:
+		ZFCP_LOG_NORMAL("Unsolicited status notification(s) lost: "
+				"adapter %s%s%s%s%s%s%s%s%s\n",
+				zfcp_get_busid_by_adapter(adapter),
+				(status_buffer->status_subtype &
+					FSF_STATUS_READ_SUB_INCOMING_ELS) ?
+					", incoming ELS" : "",
+				(status_buffer->status_subtype &
+					FSF_STATUS_READ_SUB_SENSE_DATA) ?
+					", sense data" : "",
+				(status_buffer->status_subtype &
+					FSF_STATUS_READ_SUB_LINK_STATUS) ?
+					", link status change" : "",
+				(status_buffer->status_subtype &
+					FSF_STATUS_READ_SUB_PORT_CLOSED) ?
+					", port close" : "",
+				(status_buffer->status_subtype &
+					FSF_STATUS_READ_SUB_BIT_ERROR_THRESHOLD) ?
+					", bit error exception" : "",
+				(status_buffer->status_subtype &
+					FSF_STATUS_READ_SUB_ACT_UPDATED) ?
+					", ACT update" : "",
+				(status_buffer->status_subtype &
+					FSF_STATUS_READ_SUB_ACT_HARDENED) ?
+					", ACT hardening" : "",
+				(status_buffer->status_subtype &
+					FSF_STATUS_READ_SUB_FEATURE_UPDATE_ALERT) ?
+					", adapter feature change" : "");
+
+		if (status_buffer->status_subtype &
+		    FSF_STATUS_READ_SUB_ACT_UPDATED)
+			zfcp_erp_adapter_access_changed(adapter);
+		break;
+
 	case FSF_STATUS_READ_CFDC_UPDATED:
 		ZFCP_LOG_NORMAL("CFDC has been updated on the adapter %s\n",
 			      zfcp_get_busid_by_adapter(adapter));
@@ -1954,6 +1988,7 @@ zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 	erp_action->fsf_req->qtcb->bottom.config.feature_selection =
 			FSF_FEATURE_CFDC |
 			FSF_FEATURE_LUN_SHARING |
+			FSF_FEATURE_NOTIFICATION_LOST |
 			FSF_FEATURE_UPDATE_ALERT;
 
 	/* start QDIO request for this FSF request */
