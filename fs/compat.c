@@ -1170,7 +1170,7 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	}
 
 	ret = rw_verify_area(type, file, pos, tot_len);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	fnv = NULL;
