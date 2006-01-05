@@ -189,6 +189,8 @@ ocp_device_resume(struct device *dev)
 struct bus_type ocp_bus_type = {
 	.name = "ocp",
 	.match = ocp_device_match,
+	.probe = ocp_driver_probe,
+	.remove = ocp_driver_remove,
 	.suspend = ocp_device_suspend,
 	.resume = ocp_device_resume,
 };
@@ -210,8 +212,6 @@ ocp_register_driver(struct ocp_driver *drv)
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &ocp_bus_type;
-	drv->driver.probe = ocp_device_probe;
-	drv->driver.remove = ocp_device_remove;
 
 	/* register with core */
 	return driver_register(&drv->driver);
