@@ -32,11 +32,11 @@
 /*
  * create a write queue record
  */
-seq_oss_writeq_t *
-snd_seq_oss_writeq_new(seq_oss_devinfo_t *dp, int maxlen)
+struct seq_oss_writeq *
+snd_seq_oss_writeq_new(struct seq_oss_devinfo *dp, int maxlen)
 {
-	seq_oss_writeq_t *q;
-	snd_seq_client_pool_t pool;
+	struct seq_oss_writeq *q;
+	struct snd_seq_client_pool pool;
 
 	if ((q = kzalloc(sizeof(*q), GFP_KERNEL)) == NULL)
 		return NULL;
@@ -61,7 +61,7 @@ snd_seq_oss_writeq_new(seq_oss_devinfo_t *dp, int maxlen)
  * delete the write queue
  */
 void
-snd_seq_oss_writeq_delete(seq_oss_writeq_t *q)
+snd_seq_oss_writeq_delete(struct seq_oss_writeq *q)
 {
 	snd_seq_oss_writeq_clear(q);	/* to be sure */
 	kfree(q);
@@ -72,9 +72,9 @@ snd_seq_oss_writeq_delete(seq_oss_writeq_t *q)
  * reset the write queue
  */
 void
-snd_seq_oss_writeq_clear(seq_oss_writeq_t *q)
+snd_seq_oss_writeq_clear(struct seq_oss_writeq *q)
 {
-	snd_seq_remove_events_t reset;
+	struct snd_seq_remove_events reset;
 
 	memset(&reset, 0, sizeof(reset));
 	reset.remove_mode = SNDRV_SEQ_REMOVE_OUTPUT; /* remove all */
@@ -88,9 +88,9 @@ snd_seq_oss_writeq_clear(seq_oss_writeq_t *q)
  * wait until the write buffer has enough room
  */
 int
-snd_seq_oss_writeq_sync(seq_oss_writeq_t *q)
+snd_seq_oss_writeq_sync(struct seq_oss_writeq *q)
 {
-	seq_oss_devinfo_t *dp = q->dp;
+	struct seq_oss_devinfo *dp = q->dp;
 	abstime_t time;
 
 	time = snd_seq_oss_timer_cur_tick(dp->timer);
@@ -98,8 +98,8 @@ snd_seq_oss_writeq_sync(seq_oss_writeq_t *q)
 		return 0; /* already finished */
 
 	if (! q->sync_event_put) {
-		snd_seq_event_t ev;
-		evrec_t *rec;
+		struct snd_seq_event ev;
+		union evrec *rec;
 
 		/* put echoback event */
 		memset(&ev, 0, sizeof(ev));
@@ -108,7 +108,7 @@ snd_seq_oss_writeq_sync(seq_oss_writeq_t *q)
 		ev.time.tick = time;
 		/* echo back to itself */
 		snd_seq_oss_fill_addr(dp, &ev, dp->addr.client, dp->addr.port);
-		rec = (evrec_t*)&ev.data;
+		rec = (union evrec *)&ev.data;
 		rec->t.code = SEQ_SYNCTIMER;
 		rec->t.time = time;
 		q->sync_event_put = 1;
@@ -128,7 +128,7 @@ snd_seq_oss_writeq_sync(seq_oss_writeq_t *q)
  * wake up sync - echo event was catched
  */
 void
-snd_seq_oss_writeq_wakeup(seq_oss_writeq_t *q, abstime_t time)
+snd_seq_oss_writeq_wakeup(struct seq_oss_writeq *q, abstime_t time)
 {
 	unsigned long flags;
 
@@ -146,9 +146,9 @@ snd_seq_oss_writeq_wakeup(seq_oss_writeq_t *q, abstime_t time)
  * return the unused pool size
  */
 int
-snd_seq_oss_writeq_get_free_size(seq_oss_writeq_t *q)
+snd_seq_oss_writeq_get_free_size(struct seq_oss_writeq *q)
 {
-	snd_seq_client_pool_t pool;
+	struct snd_seq_client_pool pool;
 	pool.client = q->dp->cseq;
 	snd_seq_oss_control(q->dp, SNDRV_SEQ_IOCTL_GET_CLIENT_POOL, &pool);
 	return pool.output_free;
@@ -159,9 +159,9 @@ snd_seq_oss_writeq_get_free_size(seq_oss_writeq_t *q)
  * set output threshold size from ioctl
  */
 void
-snd_seq_oss_writeq_set_output(seq_oss_writeq_t *q, int val)
+snd_seq_oss_writeq_set_output(struct seq_oss_writeq *q, int val)
 {
-	snd_seq_client_pool_t pool;
+	struct snd_seq_client_pool pool;
 	pool.client = q->dp->cseq;
 	snd_seq_oss_control(q->dp, SNDRV_SEQ_IOCTL_GET_CLIENT_POOL, &pool);
 	pool.output_room = val;

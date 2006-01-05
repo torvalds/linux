@@ -27,20 +27,20 @@
 #define AK4XXX_MAX_CHIPS	4
 #endif
 
-typedef struct snd_akm4xxx akm4xxx_t;
+struct snd_akm4xxx;
 
 struct snd_ak4xxx_ops {
-	void (*lock)(akm4xxx_t *ak, int chip);
-	void (*unlock)(akm4xxx_t *ak, int chip);
-	void (*write)(akm4xxx_t *ak, int chip, unsigned char reg, unsigned char val);
-	// unsigned char (*read)(akm4xxx_t *ak, int chip, unsigned char reg);
-	void (*set_rate_val)(akm4xxx_t *ak, unsigned int rate);
+	void (*lock)(struct snd_akm4xxx *ak, int chip);
+	void (*unlock)(struct snd_akm4xxx *ak, int chip);
+	void (*write)(struct snd_akm4xxx *ak, int chip, unsigned char reg, unsigned char val);
+	// unsigned char (*read)(struct snd_akm4xxx *ak, int chip, unsigned char reg);
+	void (*set_rate_val)(struct snd_akm4xxx *ak, unsigned int rate);
 };
 
 #define AK4XXX_IMAGE_SIZE	(AK4XXX_MAX_CHIPS * 16)	/* 64 bytes */
 
 struct snd_akm4xxx {
-	snd_card_t *card;
+	struct snd_card *card;
 	unsigned int num_adcs;				/* AK4524 or AK4528 ADCs */
 	unsigned int num_dacs;				/* AK4524 or AK4528 DACs */
 	unsigned char images[AK4XXX_IMAGE_SIZE];	/* saved register image */
@@ -56,10 +56,10 @@ struct snd_akm4xxx {
 	struct snd_ak4xxx_ops ops;
 };
 
-void snd_akm4xxx_write(akm4xxx_t *ak, int chip, unsigned char reg, unsigned char val);
-void snd_akm4xxx_reset(akm4xxx_t *ak, int state);
-void snd_akm4xxx_init(akm4xxx_t *ak);
-int snd_akm4xxx_build_controls(akm4xxx_t *ak);
+void snd_akm4xxx_write(struct snd_akm4xxx *ak, int chip, unsigned char reg, unsigned char val);
+void snd_akm4xxx_reset(struct snd_akm4xxx *ak, int state);
+void snd_akm4xxx_init(struct snd_akm4xxx *ak);
+int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak);
 
 #define snd_akm4xxx_get(ak,chip,reg) (ak)->images[(chip) * 16 + (reg)]
 #define snd_akm4xxx_set(ak,chip,reg,val) ((ak)->images[(chip) * 16 + (reg)] = (val))

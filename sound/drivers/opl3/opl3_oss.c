@@ -21,11 +21,11 @@
 #include "opl3_voice.h"
 #include <linux/slab.h>
 
-static int snd_opl3_open_seq_oss(snd_seq_oss_arg_t *arg, void *closure);
-static int snd_opl3_close_seq_oss(snd_seq_oss_arg_t *arg);
-static int snd_opl3_ioctl_seq_oss(snd_seq_oss_arg_t *arg, unsigned int cmd, unsigned long ioarg);
-static int snd_opl3_load_patch_seq_oss(snd_seq_oss_arg_t *arg, int format, const char __user *buf, int offs, int count);
-static int snd_opl3_reset_seq_oss(snd_seq_oss_arg_t *arg);
+static int snd_opl3_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure);
+static int snd_opl3_close_seq_oss(struct snd_seq_oss_arg *arg);
+static int snd_opl3_ioctl_seq_oss(struct snd_seq_oss_arg *arg, unsigned int cmd, unsigned long ioarg);
+static int snd_opl3_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format, const char __user *buf, int offs, int count);
+static int snd_opl3_reset_seq_oss(struct snd_seq_oss_arg *arg);
 
 /* */
 
@@ -43,9 +43,9 @@ static inline void snd_leave_user(mm_segment_t fs)
 
 /* operators */
 
-extern snd_midi_op_t opl3_ops;
+extern struct snd_midi_op opl3_ops;
 
-static snd_seq_oss_callback_t oss_callback = {
+static struct snd_seq_oss_callback oss_callback = {
 	.owner = 	THIS_MODULE,
 	.open =		snd_opl3_open_seq_oss,
 	.close =	snd_opl3_close_seq_oss,
@@ -54,10 +54,10 @@ static snd_seq_oss_callback_t oss_callback = {
 	.reset =	snd_opl3_reset_seq_oss,
 };
 
-static int snd_opl3_oss_event_input(snd_seq_event_t *ev, int direct,
+static int snd_opl3_oss_event_input(struct snd_seq_event *ev, int direct,
 				    void *private_data, int atomic, int hop)
 {
-	opl3_t *opl3 = private_data;
+	struct snd_opl3 *opl3 = private_data;
 
 	if (ev->type != SNDRV_SEQ_EVENT_OSS)
 		snd_midi_process_event(&opl3_ops, ev, opl3->oss_chset);
@@ -68,14 +68,14 @@ static int snd_opl3_oss_event_input(snd_seq_event_t *ev, int direct,
 
 static void snd_opl3_oss_free_port(void *private_data)
 {
-	opl3_t *opl3 = private_data;
+	struct snd_opl3 *opl3 = private_data;
 
 	snd_midi_channel_free_set(opl3->oss_chset);
 }
 
-static int snd_opl3_oss_create_port(opl3_t * opl3)
+static int snd_opl3_oss_create_port(struct snd_opl3 * opl3)
 {
-	snd_seq_port_callback_t callbacks;
+	struct snd_seq_port_callback callbacks;
 	char name[32];
 	int voices, opl_ver;
 
@@ -113,13 +113,13 @@ static int snd_opl3_oss_create_port(opl3_t * opl3)
 /* ------------------------------ */
 
 /* register OSS synth */
-void snd_opl3_init_seq_oss(opl3_t *opl3, char *name)
+void snd_opl3_init_seq_oss(struct snd_opl3 *opl3, char *name)
 {
-	snd_seq_oss_reg_t *arg;
-	snd_seq_device_t *dev;
+	struct snd_seq_oss_reg *arg;
+	struct snd_seq_device *dev;
 
 	if (snd_seq_device_new(opl3->card, 0, SNDRV_SEQ_DEV_ID_OSS,
-			       sizeof(snd_seq_oss_reg_t), &dev) < 0)
+			       sizeof(struct snd_seq_oss_reg), &dev) < 0)
 		return;
 
 	opl3->oss_seq_dev = dev;
@@ -143,7 +143,7 @@ void snd_opl3_init_seq_oss(opl3_t *opl3, char *name)
 }
 
 /* unregister */
-void snd_opl3_free_seq_oss(opl3_t *opl3)
+void snd_opl3_free_seq_oss(struct snd_opl3 *opl3)
 {
 	if (opl3->oss_seq_dev) {
 		snd_device_free(opl3->card, opl3->oss_seq_dev);
@@ -154,9 +154,9 @@ void snd_opl3_free_seq_oss(opl3_t *opl3)
 /* ------------------------------ */
 
 /* open OSS sequencer */
-static int snd_opl3_open_seq_oss(snd_seq_oss_arg_t *arg, void *closure)
+static int snd_opl3_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure)
 {
-	opl3_t *opl3 = closure;
+	struct snd_opl3 *opl3 = closure;
 	int err;
 
 	snd_assert(arg != NULL, return -ENXIO);
@@ -177,9 +177,9 @@ static int snd_opl3_open_seq_oss(snd_seq_oss_arg_t *arg, void *closure)
 }
 
 /* close OSS sequencer */
-static int snd_opl3_close_seq_oss(snd_seq_oss_arg_t *arg)
+static int snd_opl3_close_seq_oss(struct snd_seq_oss_arg *arg)
 {
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 
 	snd_assert(arg != NULL, return -ENXIO);
 	opl3 = arg->private_data;
@@ -206,10 +206,10 @@ static int snd_opl3_close_seq_oss(snd_seq_oss_arg_t *arg)
 /* from sound_config.h */
 #define SBFM_MAXINSTR	256
 
-static int snd_opl3_load_patch_seq_oss(snd_seq_oss_arg_t *arg, int format,
+static int snd_opl3_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 				       const char __user *buf, int offs, int count)
 {
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 	int err = -EINVAL;
 
 	snd_assert(arg != NULL, return -ENXIO);
@@ -219,11 +219,11 @@ static int snd_opl3_load_patch_seq_oss(snd_seq_oss_arg_t *arg, int format,
 		struct sbi_instrument sbi;
 
 		size_t size;
-		snd_seq_instr_header_t *put;
-		snd_seq_instr_data_t *data;
-		fm_xinstrument_t *xinstr;
+		struct snd_seq_instr_header *put;
+		struct snd_seq_instr_data *data;
+		struct fm_xinstrument *xinstr;
 
-		snd_seq_event_t ev;
+		struct snd_seq_event ev;
 		int i;
 
 		mm_segment_t fs;
@@ -240,7 +240,7 @@ static int snd_opl3_load_patch_seq_oss(snd_seq_oss_arg_t *arg, int format,
 			return -EINVAL;
 		}
 
-		size = sizeof(*put) + sizeof(fm_xinstrument_t);
+		size = sizeof(*put) + sizeof(struct fm_xinstrument);
 		put = kzalloc(size, GFP_KERNEL);
 		if (put == NULL)
 			return -ENOMEM;
@@ -249,7 +249,7 @@ static int snd_opl3_load_patch_seq_oss(snd_seq_oss_arg_t *arg, int format,
 		data->type = SNDRV_SEQ_INSTR_ATYPE_DATA;
 		strcpy(data->data.format, SNDRV_SEQ_INSTR_ID_OPL2_3);
 		/* build data section */
-		xinstr = (fm_xinstrument_t *)(data + 1);
+		xinstr = (struct fm_xinstrument *)(data + 1);
 		xinstr->stype = FM_STRU_INSTR;
         
 		for (i = 0; i < 2; i++) {
@@ -296,7 +296,7 @@ static int snd_opl3_load_patch_seq_oss(snd_seq_oss_arg_t *arg, int format,
 		err = snd_seq_instr_event(&opl3->fm_ops, opl3->ilist, &ev,
 				    opl3->seq_client, 0, 0);
 		if (err == -EBUSY) {
-			snd_seq_instr_header_t remove;
+			struct snd_seq_instr_header remove;
 
 			memset (&remove, 0, sizeof(remove));
 			remove.cmd = SNDRV_SEQ_INSTR_FREE_CMD_SINGLE;
@@ -319,10 +319,10 @@ static int snd_opl3_load_patch_seq_oss(snd_seq_oss_arg_t *arg, int format,
 }
 
 /* ioctl */
-static int snd_opl3_ioctl_seq_oss(snd_seq_oss_arg_t *arg, unsigned int cmd,
+static int snd_opl3_ioctl_seq_oss(struct snd_seq_oss_arg *arg, unsigned int cmd,
 				  unsigned long ioarg)
 {
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 
 	snd_assert(arg != NULL, return -ENXIO);
 	opl3 = arg->private_data;
@@ -345,9 +345,9 @@ static int snd_opl3_ioctl_seq_oss(snd_seq_oss_arg_t *arg, unsigned int cmd,
 }
 
 /* reset device */
-static int snd_opl3_reset_seq_oss(snd_seq_oss_arg_t *arg)
+static int snd_opl3_reset_seq_oss(struct snd_seq_oss_arg *arg)
 {
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 
 	snd_assert(arg != NULL, return -ENXIO);
 	opl3 = arg->private_data;

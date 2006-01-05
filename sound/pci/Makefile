@@ -54,12 +54,14 @@ obj-$(CONFIG_SND) += \
 	au88x0/ \
 	ca0106/ \
 	cs46xx/ \
+	cs5535audio/ \
 	emu10k1/ \
 	hda/ \
 	ice1712/ \
 	korg1212/ \
 	mixart/ \
 	nm256/ \
+	pcxhr/ \
 	rme9652/ \
 	trident/ \
 	ymfpci/ \

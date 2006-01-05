@@ -22,21 +22,10 @@
  *
  */
 
-#include "control.h"
 #include "i2c.h"		/* generic i2c support */
 
-typedef struct {
-	snd_i2c_device_t *device;
-	snd_i2c_bus_t *bus;
-	int equalizer;
-	int fader;
-	unsigned char regs[8];
-	unsigned char mleft, mright;
-	unsigned char bass, treble;
-	unsigned char max_bass, max_treble;
-} tea6330t_t;
-
-extern int snd_tea6330t_detect(snd_i2c_bus_t *bus, int equalizer);
-extern int snd_tea6330t_update_mixer(snd_card_t * card, snd_i2c_bus_t * bus, int equalizer, int fader);
+int snd_tea6330t_detect(struct snd_i2c_bus *bus, int equalizer);
+int snd_tea6330t_update_mixer(struct snd_card *card, struct snd_i2c_bus *bus,
+			      int equalizer, int fader);
 
 #endif /* __SOUND_TEA6330T_H */

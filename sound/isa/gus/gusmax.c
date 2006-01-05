@@ -20,15 +20,16 @@
  */
 
 #include <sound/driver.h>
-#include <asm/dma.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/moduleparam.h>
+#include <asm/dma.h>
 #include <sound/core.h>
 #include <sound/gus.h>
 #include <sound/cs4231.h>
-#define SNDRV_LEGACY_AUTO_PROBE
 #define SNDRV_LEGACY_FIND_FREE_IRQ
 #define SNDRV_LEGACY_FIND_FREE_DMA
 #include <sound/initval.h>
@@ -71,20 +72,20 @@ MODULE_PARM_DESC(channels, "Used GF1 channels for GUS MAX driver.");
 module_param_array(pcm_channels, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_channels, "Reserved PCM channels for GUS MAX driver.");
 
+static struct platform_device *devices[SNDRV_CARDS];
+
 struct snd_gusmax {
 	int irq;
-	snd_card_t *card;
-	snd_gus_card_t *gus;
-	cs4231_t *cs4231;
+	struct snd_card *card;
+	struct snd_gus_card *gus;
+	struct snd_cs4231 *cs4231;
 	unsigned short gus_status_reg;
 	unsigned short pcm_status_reg;
 };
 
-static snd_card_t *snd_gusmax_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
-
 #define PFX	"gusmax: "
 
-static int __init snd_gusmax_detect(snd_gus_card_t * gus)
+static int __init snd_gusmax_detect(struct snd_gus_card * gus)
 {
 	unsigned char d;
 
@@ -126,7 +127,7 @@ static irqreturn_t snd_gusmax_interrupt(int irq, void *dev_id, struct pt_regs *r
 	return IRQ_RETVAL(handled);
 }
 
-static void __init snd_gusmax_init(int dev, snd_card_t * card, snd_gus_card_t * gus)
+static void __init snd_gusmax_init(int dev, struct snd_card *card, struct snd_gus_card * gus)
 {
 	gus->equal_irq = 1;
 	gus->codec_flag = 1;
@@ -144,10 +145,10 @@ static void __init snd_gusmax_init(int dev, snd_card_t * card, snd_gus_card_t * 
 #define CS4231_PRIVATE( left, right, shift, mute ) \
 			((left << 24)|(right << 16)|(shift<<8)|mute)
 
-static int __init snd_gusmax_mixer(cs4231_t *chip)
+static int __init snd_gusmax_mixer(struct snd_cs4231 *chip)
 {
-	snd_card_t *card = chip->card;
-	snd_ctl_elem_id_t id1, id2;
+	struct snd_card *card = chip->card;
+	struct snd_ctl_elem_id id1, id2;
 	int err;
 	
 	memset(&id1, 0, sizeof(id1));
@@ -193,7 +194,7 @@ static int __init snd_gusmax_mixer(cs4231_t *chip)
 	return 0;
 }
 
-static void snd_gusmax_free(snd_card_t *card)
+static void snd_gusmax_free(struct snd_card *card)
 {
 	struct snd_gusmax *maxcard = (struct snd_gusmax *)card->private_data;
 	
@@ -203,14 +204,15 @@ static void snd_gusmax_free(snd_card_t *card)
 		free_irq(maxcard->irq, (void *)maxcard);
 }
 
-static int __init snd_gusmax_probe(int dev)
+static int __init snd_gusmax_probe(struct platform_device *pdev)
 {
+	int dev = pdev->id;
 	static int possible_irqs[] = {5, 11, 12, 9, 7, 15, 3, -1};
 	static int possible_dmas[] = {5, 6, 7, 1, 3, -1};
 	int xirq, xdma1, xdma2, err;
-	snd_card_t *card;
-	snd_gus_card_t *gus = NULL;
-	cs4231_t *cs4231;
+	struct snd_card *card;
+	struct snd_gus_card *gus = NULL;
+	struct snd_cs4231 *cs4231;
 	struct snd_gusmax *maxcard;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
@@ -247,12 +249,32 @@ static int __init snd_gusmax_probe(int dev)
 		}
 	}
 
-	if ((err = snd_gus_create(card,
-				  port[dev],
-				  -xirq, xdma1, xdma2,
-				  0, channels[dev],
-				  pcm_channels[dev],
-				  0, &gus)) < 0)
+	if (port[dev] != SNDRV_AUTO_PORT) {
+		err = snd_gus_create(card,
+				     port[dev],
+				     -xirq, xdma1, xdma2,
+				     0, channels[dev],
+				     pcm_channels[dev],
+				     0, &gus);
+	} else {
+		static unsigned long possible_ports[] = {
+			0x220, 0x230, 0x240, 0x250, 0x260
+		};
+		int i;
+		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
+			err = snd_gus_create(card,
+					     possible_ports[i],
+					     -xirq, xdma1, xdma2,
+					     0, channels[dev],
+					     pcm_channels[dev],
+					     0, &gus);
+			if (err >= 0) {
+				port[dev] = possible_ports[i];
+				break;
+			}
+		}
+	}
+	if (err < 0)
 		goto _err;
 
 	if ((err = snd_gusmax_detect(gus)) < 0)
@@ -310,15 +332,15 @@ static int __init snd_gusmax_probe(int dev)
 	if (xdma2 >= 0)
 		sprintf(card->longname + strlen(card->longname), "&%i", xdma2);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
+	snd_card_set_dev(card, &pdev->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 		
 	maxcard->gus = gus;
 	maxcard->cs4231 = cs4231;
-	snd_gusmax_cards[dev] = card;
+
+	platform_set_drvdata(pdev, card);
 	return 0;
 
  _err:
@@ -326,53 +348,70 @@ static int __init snd_gusmax_probe(int dev)
 	return err;
 }
 
-static int __init snd_gusmax_legacy_auto_probe(unsigned long xport)
+static int snd_gusmax_remove(struct platform_device *devptr)
 {
-	static int dev;
-	int res;
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
 
-	for ( ; dev < SNDRV_CARDS; dev++) {
-		if (!enable[dev] || port[dev] != SNDRV_AUTO_PORT)
-			continue;
-		port[dev] = xport;
-		res = snd_gusmax_probe(dev);
-		if (res < 0)
-			port[dev] = SNDRV_AUTO_PORT;
-		return res;
-	}
-	return -ENODEV;
+#define GUSMAX_DRIVER	"snd_gusmax"
+
+static struct platform_driver snd_gusmax_driver = {
+	.probe		= snd_gusmax_probe,
+	.remove		= snd_gusmax_remove,
+	/* FIXME: suspend/resume */
+	.driver		= {
+		.name	= GUSMAX_DRIVER
+	},
+};
+
+static void __init_or_module snd_gusmax_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_gusmax_driver);
 }
 
 static int __init alsa_card_gusmax_init(void)
 {
-	static unsigned long possible_ports[] = {0x220, 0x230, 0x240, 0x250, 0x260, -1};
-	int dev, cards, i;
+	int i, cards, err;
 
-	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev] > 0; dev++) {
-		if (port[dev] == SNDRV_AUTO_PORT)
-			continue;
-		if (snd_gusmax_probe(dev) >= 0)
-			cards++;
+	err = platform_driver_register(&snd_gusmax_driver);
+	if (err < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(GUSMAX_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		devices[i] = device;
+		cards++;
 	}
-	i = snd_legacy_auto_probe(possible_ports, snd_gusmax_legacy_auto_probe);
-	if (i > 0)
-		cards += i;
-
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "GUS MAX soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_gusmax_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_gusmax_exit(void)
 {
-	int idx;
-
-	for (idx = 0; idx < SNDRV_CARDS; idx++)
-		snd_card_free(snd_gusmax_cards[idx]);
+	snd_gusmax_unregister_all();
 }
 
 module_init(alsa_card_gusmax_init)

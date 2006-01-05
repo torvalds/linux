@@ -51,7 +51,7 @@ enum E_In84{
 #define T_NULL  0x80
 
 
-struct us428_ctls{
+struct us428_ctls {
 	unsigned char   Fader[9];
 	unsigned char 	Transport;
 	unsigned char 	Modifier;
@@ -63,46 +63,42 @@ struct us428_ctls{
 	unsigned char   Wheel[5];
 };
 
-typedef struct us428_ctls us428_ctls_t;
-
-typedef struct us428_setByte{
+struct us428_setByte {
 	unsigned char Offset,
 		Value;
-}us428_setByte_t;
+};
 
 enum {
 	eLT_Volume = 0,
 	eLT_Light
 };
 
-typedef struct usX2Y_volume {
+struct usX2Y_volume {
 	unsigned char Channel,
 		LH,
 		LL,
 		RH,
 		RL;
-} usX2Y_volume_t;
-
-struct us428_lights{
-	us428_setByte_t Light[7];
 };
-typedef struct us428_lights us428_lights_t;
 
-typedef struct {
+struct us428_lights {
+	struct us428_setByte Light[7];
+};
+
+struct us428_p4out {
 	char type;
 	union {
-		usX2Y_volume_t	vol;
-		us428_lights_t  lights;
+		struct usX2Y_volume vol;
+		struct us428_lights lights;
 	} val;
-} us428_p4out_t;
+};
 
 #define N_us428_ctl_BUFS 16
 #define N_us428_p4out_BUFS 16
 struct us428ctls_sharedmem{
-	us428_ctls_t	CtlSnapShot[N_us428_ctl_BUFS];
-	int		CtlSnapShotDiffersAt[N_us428_ctl_BUFS];
-	int		CtlSnapShotLast, CtlSnapShotRed;
-	us428_p4out_t	p4out[N_us428_p4out_BUFS];
-	int		p4outLast, p4outSent;
+	struct us428_ctls	CtlSnapShot[N_us428_ctl_BUFS];
+	int			CtlSnapShotDiffersAt[N_us428_ctl_BUFS];
+	int			CtlSnapShotLast, CtlSnapShotRed;
+	struct us428_p4out	p4out[N_us428_p4out_BUFS];
+	int			p4outLast, p4outSent;
 };
-typedef struct us428ctls_sharedmem us428ctls_sharedmem_t;

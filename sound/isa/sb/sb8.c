@@ -21,13 +21,14 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/sb.h>
 #include <sound/opl3.h>
-#define SNDRV_LEGACY_AUTO_PROBE
 #include <sound/initval.h>
 
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
@@ -55,15 +56,16 @@ MODULE_PARM_DESC(irq, "IRQ # for SB8 driver.");
 module_param_array(dma8, int, NULL, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for SB8 driver.");
 
+static struct platform_device *devices[SNDRV_CARDS];
+
 struct snd_sb8 {
 	struct resource *fm_res;	/* used to block FM i/o region for legacy cards */
+	struct snd_sb *chip;
 };
-
-static snd_card_t *snd_sb8_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 
 static irqreturn_t snd_sb8_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	sb_t *chip = dev_id;
+	struct snd_sb *chip = dev_id;
 
 	if (chip->open & SB_OPEN_PCM) {
 		return snd_sb8dsp_interrupt(chip);
@@ -72,7 +74,7 @@ static irqreturn_t snd_sb8_interrupt(int irq, void *dev_id, struct pt_regs *regs
 	}
 }
 
-static void snd_sb8_free(snd_card_t *card)
+static void snd_sb8_free(struct snd_card *card)
 {
 	struct snd_sb8 *acard = (struct snd_sb8 *)card->private_data;
 
@@ -81,32 +83,57 @@ static void snd_sb8_free(snd_card_t *card)
 	release_and_free_resource(acard->fm_res);
 }
 
-static int __init snd_sb8_probe(int dev)
+static int __init snd_sb8_probe(struct platform_device *pdev)
 {
-	sb_t *chip;
-	snd_card_t *card;
+	int dev = pdev->id;
+	struct snd_sb *chip;
+	struct snd_card *card;
 	struct snd_sb8 *acard;
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 	int err;
 
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 			    sizeof(struct snd_sb8));
 	if (card == NULL)
 		return -ENOMEM;
-	acard = (struct snd_sb8 *)card->private_data;
+	acard = card->private_data;
 	card->private_free = snd_sb8_free;
 
 	/* block the 0x388 port to avoid PnP conflicts */
 	acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
 
-	if ((err = snd_sbdsp_create(card, port[dev], irq[dev],
-				    snd_sb8_interrupt,
-				    dma8[dev],
-				    -1,
-				    SB_HW_AUTO,
-				    &chip)) < 0)
-		goto _err;
-
+	if (port[dev] != SNDRV_AUTO_PORT) {
+		if ((err = snd_sbdsp_create(card, port[dev], irq[dev],
+					    snd_sb8_interrupt,
+					    dma8[dev],
+					    -1,
+					    SB_HW_AUTO,
+					    &chip)) < 0)
+			goto _err;
+	} else {
+		/* auto-probe legacy ports */
+		static unsigned long possible_ports[] = {
+			0x220, 0x240, 0x260,
+		};
+		int i;
+		for (i = 0; i < ARRAY_SIZE(possible_ports); i++) {
+			err = snd_sbdsp_create(card, possible_ports[i],
+					       irq[dev],
+					       snd_sb8_interrupt,
+					       dma8[dev],
+					       -1,
+					       SB_HW_AUTO,
+					       &chip);
+			if (err >= 0) {
+				port[dev] = possible_ports[i];
+				break;
+			}
+		}
+		if (i >= ARRAY_SIZE(possible_ports))
+			goto _err;
+	}
+	acard->chip = chip;
+			
 	if (chip->hardware >= SB_HW_16) {
 		if (chip->hardware == SB_HW_ALS100)
 			snd_printk(KERN_WARNING "ALS100 chip detected at 0x%lx, try snd-als100 module\n",
@@ -153,13 +180,12 @@ static int __init snd_sb8_probe(int dev)
 		chip->port,
 		irq[dev], dma8[dev]);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
+	snd_card_set_dev(card, &pdev->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
-	snd_sb8_cards[dev] = card;
+	platform_set_drvdata(pdev, card);
 	return 0;
 
  _err:
@@ -167,53 +193,99 @@ static int __init snd_sb8_probe(int dev)
 	return err;
 }
 
-static int __init snd_card_sb8_legacy_auto_probe(unsigned long xport)
+static int snd_sb8_remove(struct platform_device *pdev)
 {
-        static int dev;
-        int res;
+	snd_card_free(platform_get_drvdata(pdev));
+	platform_set_drvdata(pdev, NULL);
+	return 0;
+}
 
-        for ( ; dev < SNDRV_CARDS; dev++) {
-                if (!enable[dev] || port[dev] != SNDRV_AUTO_PORT)
-                        continue;
-                port[dev] = xport;
-                res = snd_sb8_probe(dev);
-                if (res < 0)
-                        port[dev] = SNDRV_AUTO_PORT;
-                return res;
-        }
-        return -ENODEV;
+#ifdef CONFIG_PM
+static int snd_sb8_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct snd_card *card = platform_get_drvdata(dev);
+	struct snd_sb8 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	snd_pcm_suspend_all(chip->pcm);
+	snd_sbmixer_suspend(chip);
+	return 0;
+}
+
+static int snd_sb8_resume(struct platform_device *dev)
+{
+	struct snd_card *card = platform_get_drvdata(dev);
+	struct snd_sb8 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_sbdsp_reset(chip);
+	snd_sbmixer_resume(chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
+
+#define SND_SB8_DRIVER	"snd_sb8"
+
+static struct platform_driver snd_sb8_driver = {
+	.probe		= snd_sb8_probe,
+	.remove		= snd_sb8_remove,
+#ifdef CONFIG_PM
+	.suspend	= snd_sb8_suspend,
+	.resume		= snd_sb8_resume,
+#endif
+	.driver		= {
+		.name	= SND_SB8_DRIVER
+	},
+};
+
+static void __init_or_module snd_sb8_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_sb8_driver);
 }
 
 static int __init alsa_card_sb8_init(void)
 {
-	static unsigned long possible_ports[] = {0x220, 0x240, 0x260, -1};
-	int dev, cards, i;
+	int i, cards, err;
 
-	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev]; dev++) {
-		if (port[dev] == SNDRV_AUTO_PORT)
-			continue;
-		if (snd_sb8_probe(dev) >= 0)
-			cards++;
+	err = platform_driver_register(&snd_sb8_driver);
+	if (err < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(SND_SB8_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		devices[i] = device;
+		cards++;
 	}
-	i = snd_legacy_auto_probe(possible_ports, snd_card_sb8_legacy_auto_probe);
-	if (i > 0)
-		cards += i;
-
 	if (!cards) {
 #ifdef MODULE
 		snd_printk(KERN_ERR "Sound Blaster soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_sb8_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_sb8_exit(void)
 {
-	int idx;
-
-	for (idx = 0; idx < SNDRV_CARDS; idx++)
-		snd_card_free(snd_sb8_cards[idx]);
+	snd_sb8_unregister_all();
 }
 
 module_init(alsa_card_sb8_init)

@@ -46,19 +46,19 @@ MODULE_LICENSE("GPL");
 #define SB8_DEN(v)	((SB8_CLOCK + (v) / 2) / (v))
 #define SB8_RATE(v)	(SB8_CLOCK / SB8_DEN(v))
 
-static ratnum_t clock = {
+static struct snd_ratnum clock = {
 	.num = SB8_CLOCK,
 	.den_min = 1,
 	.den_max = 256,
 	.den_step = 1,
 };
 
-static snd_pcm_hw_constraint_ratnums_t hw_constraints_clock = {
+static struct snd_pcm_hw_constraint_ratnums hw_constraints_clock = {
 	.nrats = 1,
 	.rats = &clock,
 };
 
-static ratnum_t stereo_clocks[] = {
+static struct snd_ratnum stereo_clocks[] = {
 	{
 		.num = SB8_CLOCK,
 		.den_min = SB8_DEN(22050),
@@ -73,10 +73,10 @@ static ratnum_t stereo_clocks[] = {
 	}
 };
 
-static int snd_sb8_hw_constraint_rate_channels(snd_pcm_hw_params_t *params,
-					       snd_pcm_hw_rule_t *rule)
+static int snd_sb8_hw_constraint_rate_channels(struct snd_pcm_hw_params *params,
+					       struct snd_pcm_hw_rule *rule)
 {
-	snd_interval_t *c = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval *c = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	if (c->min > 1) {
 	  	unsigned int num = 0, den = 0;
 		int err = snd_interval_ratnum(hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE),
@@ -90,22 +90,22 @@ static int snd_sb8_hw_constraint_rate_channels(snd_pcm_hw_params_t *params,
 	return 0;
 }
 
-static int snd_sb8_hw_constraint_channels_rate(snd_pcm_hw_params_t *params,
-					       snd_pcm_hw_rule_t *rule)
+static int snd_sb8_hw_constraint_channels_rate(struct snd_pcm_hw_params *params,
+					       struct snd_pcm_hw_rule *rule)
 {
-	snd_interval_t *r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *r = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	if (r->min > SB8_RATE(22050) || r->max <= SB8_RATE(11025)) {
-		snd_interval_t t = { .min = 1, .max = 1 };
+		struct snd_interval t = { .min = 1, .max = 1 };
 		return snd_interval_refine(hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS), &t);
 	}
 	return 0;
 }
 
-static int snd_sb8_playback_prepare(snd_pcm_substream_t * substream)
+static int snd_sb8_playback_prepare(struct snd_pcm_substream *substream)
 {
 	unsigned long flags;
-	sb_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int mixreg, rate, size, count;
 
 	rate = runtime->rate;
@@ -178,11 +178,11 @@ static int snd_sb8_playback_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_sb8_playback_trigger(snd_pcm_substream_t * substream,
+static int snd_sb8_playback_trigger(struct snd_pcm_substream *substream,
 				    int cmd)
 {
 	unsigned long flags;
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	unsigned int count;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -197,7 +197,7 @@ static int snd_sb8_playback_trigger(snd_pcm_substream_t * substream,
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (chip->playback_format == SB_DSP_HI_OUTPUT_AUTO) {
-			snd_pcm_runtime_t *runtime = substream->runtime;
+			struct snd_pcm_runtime *runtime = substream->runtime;
 			snd_sbdsp_reset(chip);
 			if (runtime->channels > 1) {
 				spin_lock(&chip->mixer_lock);
@@ -215,23 +215,23 @@ static int snd_sb8_playback_trigger(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-static int snd_sb8_hw_params(snd_pcm_substream_t * substream,
-			     snd_pcm_hw_params_t * hw_params)
+static int snd_sb8_hw_params(struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *hw_params)
 {
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
-static int snd_sb8_hw_free(snd_pcm_substream_t * substream)
+static int snd_sb8_hw_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
-static int snd_sb8_capture_prepare(snd_pcm_substream_t * substream)
+static int snd_sb8_capture_prepare(struct snd_pcm_substream *substream)
 {
 	unsigned long flags;
-	sb_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int mixreg, rate, size, count;
 
 	rate = runtime->rate;
@@ -290,11 +290,11 @@ static int snd_sb8_capture_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_sb8_capture_trigger(snd_pcm_substream_t * substream,
+static int snd_sb8_capture_trigger(struct snd_pcm_substream *substream,
 				   int cmd)
 {
 	unsigned long flags;
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	unsigned int count;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -309,7 +309,7 @@ static int snd_sb8_capture_trigger(snd_pcm_substream_t * substream,
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		if (chip->capture_format == SB_DSP_HI_INPUT_AUTO) {
-			snd_pcm_runtime_t *runtime = substream->runtime;
+			struct snd_pcm_runtime *runtime = substream->runtime;
 			snd_sbdsp_reset(chip);
 			if (runtime->channels > 1) {
 				/* restore input filter status */
@@ -329,10 +329,10 @@ static int snd_sb8_capture_trigger(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-irqreturn_t snd_sb8dsp_interrupt(sb_t *chip)
+irqreturn_t snd_sb8dsp_interrupt(struct snd_sb *chip)
 {
-	snd_pcm_substream_t *substream;
-	snd_pcm_runtime_t *runtime;
+	struct snd_pcm_substream *substream;
+	struct snd_pcm_runtime *runtime;
 
 	snd_sb_ack_8bit(chip);
 	switch (chip->mode) {
@@ -354,9 +354,9 @@ irqreturn_t snd_sb8dsp_interrupt(sb_t *chip)
 	return IRQ_HANDLED;
 }
 
-static snd_pcm_uframes_t snd_sb8_playback_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_sb8_playback_pointer(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 
 	if (chip->mode != SB_MODE_PLAYBACK_8)
@@ -365,9 +365,9 @@ static snd_pcm_uframes_t snd_sb8_playback_pointer(snd_pcm_substream_t * substrea
 	return bytes_to_frames(substream->runtime, ptr);
 }
 
-static snd_pcm_uframes_t snd_sb8_capture_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_sb8_capture_pointer(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 
 	if (chip->mode != SB_MODE_CAPTURE_8)
@@ -380,7 +380,7 @@ static snd_pcm_uframes_t snd_sb8_capture_pointer(snd_pcm_substream_t * substream
 
  */
 
-static snd_pcm_hardware_t snd_sb8_playback =
+static struct snd_pcm_hardware snd_sb8_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -399,7 +399,7 @@ static snd_pcm_hardware_t snd_sb8_playback =
 	.fifo_size =		0,
 };
 
-static snd_pcm_hardware_t snd_sb8_capture =
+static struct snd_pcm_hardware snd_sb8_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP_VALID),
@@ -422,10 +422,10 @@ static snd_pcm_hardware_t snd_sb8_capture =
  *
  */
  
-static int snd_sb8_open(snd_pcm_substream_t *substream)
+static int snd_sb8_open(struct snd_pcm_substream *substream)
 {
-	sb_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->open_lock, flags);
@@ -468,10 +468,10 @@ static int snd_sb8_open(snd_pcm_substream_t *substream)
 	return 0;	
 }
 
-static int snd_sb8_close(snd_pcm_substream_t *substream)
+static int snd_sb8_close(struct snd_pcm_substream *substream)
 {
 	unsigned long flags;
-	sb_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_sb *chip = snd_pcm_substream_chip(substream);
 
 	chip->playback_substream = NULL;
 	chip->capture_substream = NULL;
@@ -485,7 +485,7 @@ static int snd_sb8_close(snd_pcm_substream_t *substream)
  *  Initialization part
  */
  
-static snd_pcm_ops_t snd_sb8_playback_ops = {
+static struct snd_pcm_ops snd_sb8_playback_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -496,7 +496,7 @@ static snd_pcm_ops_t snd_sb8_playback_ops = {
 	.pointer =		snd_sb8_playback_pointer,
 };
 
-static snd_pcm_ops_t snd_sb8_capture_ops = {
+static struct snd_pcm_ops snd_sb8_capture_ops = {
 	.open =			snd_sb8_open,
 	.close =		snd_sb8_close,
 	.ioctl =		snd_pcm_lib_ioctl,
@@ -507,15 +507,10 @@ static snd_pcm_ops_t snd_sb8_capture_ops = {
 	.pointer =		snd_sb8_capture_pointer,
 };
 
-static void snd_sb8dsp_pcm_free(snd_pcm_t *pcm)
+int snd_sb8dsp_pcm(struct snd_sb *chip, int device, struct snd_pcm ** rpcm)
 {
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-int snd_sb8dsp_pcm(sb_t *chip, int device, snd_pcm_t ** rpcm)
-{
-	snd_card_t *card = chip->card;
-	snd_pcm_t *pcm;
+	struct snd_card *card = chip->card;
+	struct snd_pcm *pcm;
 	int err;
 
 	if (rpcm)
@@ -525,7 +520,6 @@ int snd_sb8dsp_pcm(sb_t *chip, int device, snd_pcm_t ** rpcm)
 	sprintf(pcm->name, "DSP v%i.%i", chip->version >> 8, chip->version & 0xff);
 	pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
 	pcm->private_data = chip;
-	pcm->private_free = snd_sb8dsp_pcm_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_sb8_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_sb8_capture_ops);

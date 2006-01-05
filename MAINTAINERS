@@ -650,6 +650,11 @@ L:	linux-crypto@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/herbert/crypto-2.6.git
 S:	Maintained
 
+CS5535 Audio ALSA driver
+P:	Jaya Kumar
+M:	jayakumar.alsa@gmail.com
+S:	Maintained
+
 CYBERPRO FB DRIVER
 P:	Russell King
 M:	rmk@arm.linux.org.uk

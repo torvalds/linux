@@ -3,7 +3,7 @@
 #ifndef __HEADER_cwcsnoop_H__
 #define __HEADER_cwcsnoop_H__
 
-static symbol_entry_t cwcsnoop_symbols[] = {
+static struct dsp_symbol_entry cwcsnoop_symbols[] = {
   { 0x0500, "OVERLAYBEGINADDRESS",0x00 },
   { 0x0500, "OUTPUTSNOOP",0x03 },
   { 0x051f, "#CODE_END",0x00 },
@@ -29,11 +29,11 @@ static u32 cwcsnoop_code[] = {
 };
 /* #CODE_END */
 
-static segment_desc_t cwcsnoop_segments[] = {
+static struct dsp_segment_desc cwcsnoop_segments[] = {
   { SEGTYPE_SP_PROGRAM, 0x00000000, 0x0000003e, cwcsnoop_code },
 };
 
-static dsp_module_desc_t cwcsnoop_module = {
+static struct dsp_module_desc cwcsnoop_module = {
   "cwcsnoop",
   {
     3,

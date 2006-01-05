@@ -23,10 +23,10 @@
 
 #ifdef CONFIG_PROC_FS
 
-static int snd_opl4_mem_proc_open(snd_info_entry_t *entry,
+static int snd_opl4_mem_proc_open(struct snd_info_entry *entry,
 				  unsigned short mode, void **file_private_data)
 {
-	opl4_t *opl4 = entry->private_data;
+	struct snd_opl4 *opl4 = entry->private_data;
 
 	down(&opl4->access_mutex);
 	if (opl4->memory_access) {
@@ -38,10 +38,10 @@ static int snd_opl4_mem_proc_open(snd_info_entry_t *entry,
 	return 0;
 }
 
-static int snd_opl4_mem_proc_release(snd_info_entry_t *entry,
+static int snd_opl4_mem_proc_release(struct snd_info_entry *entry,
 				     unsigned short mode, void *file_private_data)
 {
-	opl4_t *opl4 = entry->private_data;
+	struct snd_opl4 *opl4 = entry->private_data;
 
 	down(&opl4->access_mutex);
 	opl4->memory_access--;
@@ -49,11 +49,11 @@ static int snd_opl4_mem_proc_release(snd_info_entry_t *entry,
 	return 0;
 }
 
-static long snd_opl4_mem_proc_read(snd_info_entry_t *entry, void *file_private_data,
+static long snd_opl4_mem_proc_read(struct snd_info_entry *entry, void *file_private_data,
 				   struct file *file, char __user *_buf,
 				   unsigned long count, unsigned long pos)
 {
-	opl4_t *opl4 = entry->private_data;
+	struct snd_opl4 *opl4 = entry->private_data;
 	long size;
 	char* buf;
 
@@ -75,11 +75,11 @@ static long snd_opl4_mem_proc_read(snd_info_entry_t *entry, void *file_private_d
 	return 0;
 }
 
-static long snd_opl4_mem_proc_write(snd_info_entry_t *entry, void *file_private_data,
+static long snd_opl4_mem_proc_write(struct snd_info_entry *entry, void *file_private_data,
 				    struct file *file, const char __user *_buf,
 				    unsigned long count, unsigned long pos)
 {
-	opl4_t *opl4 = entry->private_data;
+	struct snd_opl4 *opl4 = entry->private_data;
 	long size;
 	char *buf;
 
@@ -101,7 +101,7 @@ static long snd_opl4_mem_proc_write(snd_info_entry_t *entry, void *file_private_
 	return 0;
 }
 
-static long long snd_opl4_mem_proc_llseek(snd_info_entry_t *entry, void *file_private_data,
+static long long snd_opl4_mem_proc_llseek(struct snd_info_entry *entry, void *file_private_data,
 					  struct file *file, long long offset, int orig)
 {
 	switch (orig) {
@@ -130,9 +130,9 @@ static struct snd_info_entry_ops snd_opl4_mem_proc_ops = {
 	.llseek = snd_opl4_mem_proc_llseek,
 };
 
-int snd_opl4_create_proc(opl4_t *opl4)
+int snd_opl4_create_proc(struct snd_opl4 *opl4)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	entry = snd_info_create_card_entry(opl4->card, "opl4-mem", opl4->card->proc_root);
 	if (entry) {
@@ -157,7 +157,7 @@ int snd_opl4_create_proc(opl4_t *opl4)
 	return 0;
 }
 
-void snd_opl4_free_proc(opl4_t *opl4)
+void snd_opl4_free_proc(struct snd_opl4 *opl4)
 {
 	if (opl4->proc_entry)
 		snd_info_unregister(opl4->proc_entry);

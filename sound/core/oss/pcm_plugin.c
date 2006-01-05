@@ -36,22 +36,22 @@
 #define snd_pcm_plug_first(plug) ((plug)->runtime->oss.plugin_first)
 #define snd_pcm_plug_last(plug) ((plug)->runtime->oss.plugin_last)
 
-static int snd_pcm_plugin_src_channels_mask(snd_pcm_plugin_t *plugin,
-					    bitset_t *dst_vmask,
-					    bitset_t **src_vmask)
+static int snd_pcm_plugin_src_channels_mask(struct snd_pcm_plugin *plugin,
+					    unsigned long *dst_vmask,
+					    unsigned long **src_vmask)
 {
-	bitset_t *vmask = plugin->src_vmask;
-	bitset_copy(vmask, dst_vmask, plugin->src_format.channels);
+	unsigned long *vmask = plugin->src_vmask;
+	bitmap_copy(vmask, dst_vmask, plugin->src_format.channels);
 	*src_vmask = vmask;
 	return 0;
 }
 
-static int snd_pcm_plugin_dst_channels_mask(snd_pcm_plugin_t *plugin,
-					    bitset_t *src_vmask,
-					    bitset_t **dst_vmask)
+static int snd_pcm_plugin_dst_channels_mask(struct snd_pcm_plugin *plugin,
+					    unsigned long *src_vmask,
+					    unsigned long **dst_vmask)
 {
-	bitset_t *vmask = plugin->dst_vmask;
-	bitset_copy(vmask, src_vmask, plugin->dst_format.channels);
+	unsigned long *vmask = plugin->dst_vmask;
+	bitmap_copy(vmask, src_vmask, plugin->dst_format.channels);
 	*dst_vmask = vmask;
 	return 0;
 }
@@ -67,13 +67,13 @@ static int rate_match(unsigned int src_rate, unsigned int dst_rate)
 	return dst_rate >= low && dst_rate <= high;
 }
 
-static int snd_pcm_plugin_alloc(snd_pcm_plugin_t *plugin, snd_pcm_uframes_t frames)
+static int snd_pcm_plugin_alloc(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t frames)
 {
-	snd_pcm_plugin_format_t *format;
+	struct snd_pcm_plugin_format *format;
 	ssize_t width;
 	size_t size;
 	unsigned int channel;
-	snd_pcm_plugin_channel_t *c;
+	struct snd_pcm_plugin_channel *c;
 
 	if (plugin->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		format = &plugin->src_format;
@@ -120,12 +120,12 @@ static int snd_pcm_plugin_alloc(snd_pcm_plugin_t *plugin, snd_pcm_uframes_t fram
 	return 0;
 }
 
-int snd_pcm_plug_alloc(snd_pcm_plug_t *plug, snd_pcm_uframes_t frames)
+int snd_pcm_plug_alloc(struct snd_pcm_substream *plug, snd_pcm_uframes_t frames)
 {
 	int err;
 	snd_assert(snd_pcm_plug_first(plug) != NULL, return -ENXIO);
 	if (snd_pcm_plug_stream(plug) == SNDRV_PCM_STREAM_PLAYBACK) {
-		snd_pcm_plugin_t *plugin = snd_pcm_plug_first(plug);
+		struct snd_pcm_plugin *plugin = snd_pcm_plug_first(plug);
 		while (plugin->next) {
 			if (plugin->dst_frames)
 				frames = plugin->dst_frames(plugin, frames);
@@ -136,7 +136,7 @@ int snd_pcm_plug_alloc(snd_pcm_plug_t *plug, snd_pcm_uframes_t frames)
 				return err;
 		}
 	} else {
-		snd_pcm_plugin_t *plugin = snd_pcm_plug_last(plug);
+		struct snd_pcm_plugin *plugin = snd_pcm_plug_last(plug);
 		while (plugin->prev) {
 			if (plugin->src_frames)
 				frames = plugin->src_frames(plugin, frames);
@@ -151,22 +151,22 @@ int snd_pcm_plug_alloc(snd_pcm_plug_t *plug, snd_pcm_uframes_t frames)
 }
 
 
-snd_pcm_sframes_t snd_pcm_plugin_client_channels(snd_pcm_plugin_t *plugin,
+snd_pcm_sframes_t snd_pcm_plugin_client_channels(struct snd_pcm_plugin *plugin,
 				       snd_pcm_uframes_t frames,
-				       snd_pcm_plugin_channel_t **channels)
+				       struct snd_pcm_plugin_channel **channels)
 {
 	*channels = plugin->buf_channels;
 	return frames;
 }
 
-int snd_pcm_plugin_build(snd_pcm_plug_t *plug,
+int snd_pcm_plugin_build(struct snd_pcm_substream *plug,
 			 const char *name,
-			 snd_pcm_plugin_format_t *src_format,
-			 snd_pcm_plugin_format_t *dst_format,
+			 struct snd_pcm_plugin_format *src_format,
+			 struct snd_pcm_plugin_format *dst_format,
 			 size_t extra,
-			 snd_pcm_plugin_t **ret)
+			 struct snd_pcm_plugin **ret)
 {
-	snd_pcm_plugin_t *plugin;
+	struct snd_pcm_plugin *plugin;
 	unsigned int channels;
 	
 	snd_assert(plug != NULL, return -ENXIO);
@@ -193,12 +193,12 @@ int snd_pcm_plugin_build(snd_pcm_plug_t *plug,
 		snd_pcm_plugin_free(plugin);
 		return -ENOMEM;
 	}
-	plugin->src_vmask = bitset_alloc(src_format->channels);
+	plugin->src_vmask = bitmap_alloc(src_format->channels);
 	if (plugin->src_vmask == NULL) {
 		snd_pcm_plugin_free(plugin);
 		return -ENOMEM;
 	}
-	plugin->dst_vmask = bitset_alloc(dst_format->channels);
+	plugin->dst_vmask = bitmap_alloc(dst_format->channels);
 	if (plugin->dst_vmask == NULL) {
 		snd_pcm_plugin_free(plugin);
 		return -ENOMEM;
@@ -210,7 +210,7 @@ int snd_pcm_plugin_build(snd_pcm_plug_t *plug,
 	return 0;
 }
 
-int snd_pcm_plugin_free(snd_pcm_plugin_t *plugin)
+int snd_pcm_plugin_free(struct snd_pcm_plugin *plugin)
 {
 	if (! plugin)
 		return 0;
@@ -224,9 +224,9 @@ int snd_pcm_plugin_free(snd_pcm_plugin_t *plugin)
 	return 0;
 }
 
-snd_pcm_sframes_t snd_pcm_plug_client_size(snd_pcm_plug_t *plug, snd_pcm_uframes_t drv_frames)
+snd_pcm_sframes_t snd_pcm_plug_client_size(struct snd_pcm_substream *plug, snd_pcm_uframes_t drv_frames)
 {
-	snd_pcm_plugin_t *plugin, *plugin_prev, *plugin_next;
+	struct snd_pcm_plugin *plugin, *plugin_prev, *plugin_next;
 	int stream = snd_pcm_plug_stream(plug);
 
 	snd_assert(plug != NULL, return -ENXIO);
@@ -253,9 +253,9 @@ snd_pcm_sframes_t snd_pcm_plug_client_size(snd_pcm_plug_t *plug, snd_pcm_uframes
 	return drv_frames;
 }
 
-snd_pcm_sframes_t snd_pcm_plug_slave_size(snd_pcm_plug_t *plug, snd_pcm_uframes_t clt_frames)
+snd_pcm_sframes_t snd_pcm_plug_slave_size(struct snd_pcm_substream *plug, snd_pcm_uframes_t clt_frames)
 {
-	snd_pcm_plugin_t *plugin, *plugin_prev, *plugin_next;
+	struct snd_pcm_plugin *plugin, *plugin_prev, *plugin_next;
 	snd_pcm_sframes_t frames;
 	int stream = snd_pcm_plug_stream(plug);
 	
@@ -290,9 +290,9 @@ snd_pcm_sframes_t snd_pcm_plug_slave_size(snd_pcm_plug_t *plug, snd_pcm_uframes_
 	return frames;
 }
 
-static int snd_pcm_plug_formats(snd_mask_t *mask, int format)
+static int snd_pcm_plug_formats(struct snd_mask *mask, int format)
 {
-	snd_mask_t formats = *mask;
+	struct snd_mask formats = *mask;
 	u64 linfmts = (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S8 |
 		       SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_S16_LE |
 		       SNDRV_PCM_FMTBIT_U16_BE | SNDRV_PCM_FMTBIT_S16_BE |
@@ -326,7 +326,7 @@ static int preferred_formats[] = {
 	SNDRV_PCM_FORMAT_U8
 };
 
-int snd_pcm_plug_slave_format(int format, snd_mask_t *format_mask)
+int snd_pcm_plug_slave_format(int format, struct snd_mask *format_mask)
 {
 	if (snd_mask_test(format_mask, format))
 		return format;
@@ -376,15 +376,15 @@ int snd_pcm_plug_slave_format(int format, snd_mask_t *format_mask)
 	}
 }
 
-int snd_pcm_plug_format_plugins(snd_pcm_plug_t *plug,
-				snd_pcm_hw_params_t *params,
-				snd_pcm_hw_params_t *slave_params)
+int snd_pcm_plug_format_plugins(struct snd_pcm_substream *plug,
+				struct snd_pcm_hw_params *params,
+				struct snd_pcm_hw_params *slave_params)
 {
-	snd_pcm_plugin_format_t tmpformat;
-	snd_pcm_plugin_format_t dstformat;
-	snd_pcm_plugin_format_t srcformat;
+	struct snd_pcm_plugin_format tmpformat;
+	struct snd_pcm_plugin_format dstformat;
+	struct snd_pcm_plugin_format srcformat;
 	int src_access, dst_access;
-	snd_pcm_plugin_t *plugin = NULL;
+	struct snd_pcm_plugin *plugin = NULL;
 	int err;
 	int stream = snd_pcm_plug_stream(plug);
 	int slave_interleaved = (params_channels(slave_params) == 1 ||
@@ -462,7 +462,7 @@ int snd_pcm_plug_format_plugins(snd_pcm_plug_t *plug,
 	if (srcformat.channels > dstformat.channels) {
 		int sv = srcformat.channels;
 		int dv = dstformat.channels;
-		route_ttable_entry_t *ttable = kcalloc(dv * sv, sizeof(*ttable), GFP_KERNEL);
+		int *ttable = kcalloc(dv * sv, sizeof(*ttable), GFP_KERNEL);
 		if (ttable == NULL)
 			return -ENOMEM;
 #if 1
@@ -525,7 +525,7 @@ int snd_pcm_plug_format_plugins(snd_pcm_plug_t *plug,
 	if (srcformat.channels < dstformat.channels) {
 		int sv = srcformat.channels;
 		int dv = dstformat.channels;
-		route_ttable_entry_t *ttable = kcalloc(dv * sv, sizeof(*ttable), GFP_KERNEL);
+		int *ttable = kcalloc(dv * sv, sizeof(*ttable), GFP_KERNEL);
 		if (ttable == NULL)
 			return -ENOMEM;
 #if 0
@@ -614,14 +614,14 @@ int snd_pcm_plug_format_plugins(snd_pcm_plug_t *plug,
 	return 0;
 }
 
-snd_pcm_sframes_t snd_pcm_plug_client_channels_buf(snd_pcm_plug_t *plug,
+snd_pcm_sframes_t snd_pcm_plug_client_channels_buf(struct snd_pcm_substream *plug,
 					 char *buf,
 					 snd_pcm_uframes_t count,
-					 snd_pcm_plugin_channel_t **channels)
+					 struct snd_pcm_plugin_channel **channels)
 {
-	snd_pcm_plugin_t *plugin;
-	snd_pcm_plugin_channel_t *v;
-	snd_pcm_plugin_format_t *format;
+	struct snd_pcm_plugin *plugin;
+	struct snd_pcm_plugin_channel *v;
+	struct snd_pcm_plugin_format *format;
 	int width, nchannels, channel;
 	int stream = snd_pcm_plug_stream(plug);
 
@@ -650,19 +650,19 @@ snd_pcm_sframes_t snd_pcm_plug_client_channels_buf(snd_pcm_plug_t *plug,
 	return count;
 }
 
-static int snd_pcm_plug_playback_channels_mask(snd_pcm_plug_t *plug,
-					       bitset_t *client_vmask)
+static int snd_pcm_plug_playback_channels_mask(struct snd_pcm_substream *plug,
+					       unsigned long *client_vmask)
 {
-	snd_pcm_plugin_t *plugin = snd_pcm_plug_last(plug);
+	struct snd_pcm_plugin *plugin = snd_pcm_plug_last(plug);
 	if (plugin == NULL) {
 		return 0;
 	} else {
 		int schannels = plugin->dst_format.channels;
-		bitset_t bs[bitset_size(schannels)];
-		bitset_t *srcmask;
-		bitset_t *dstmask = bs;
+		DECLARE_BITMAP(bs, schannels);
+		unsigned long *srcmask;
+		unsigned long *dstmask = bs;
 		int err;
-		bitset_one(dstmask, schannels);
+		bitmap_fill(dstmask, schannels);
 
 		while (1) {
 			err = plugin->src_channels_mask(plugin, dstmask, &srcmask);
@@ -673,52 +673,52 @@ static int snd_pcm_plug_playback_channels_mask(snd_pcm_plug_t *plug,
 				break;
 			plugin = plugin->prev;
 		}
-		bitset_and(client_vmask, dstmask, plugin->src_format.channels);
+		bitmap_and(client_vmask, client_vmask, dstmask, plugin->src_format.channels);
 		return 0;
 	}
 }
 
-static int snd_pcm_plug_playback_disable_useless_channels(snd_pcm_plug_t *plug,
-							  snd_pcm_plugin_channel_t *src_channels)
+static int snd_pcm_plug_playback_disable_useless_channels(struct snd_pcm_substream *plug,
+							  struct snd_pcm_plugin_channel *src_channels)
 {
-	snd_pcm_plugin_t *plugin = snd_pcm_plug_first(plug);
+	struct snd_pcm_plugin *plugin = snd_pcm_plug_first(plug);
 	unsigned int nchannels = plugin->src_format.channels;
-	bitset_t bs[bitset_size(nchannels)];
-	bitset_t *srcmask = bs;
+	DECLARE_BITMAP(bs, nchannels);
+	unsigned long *srcmask = bs;
 	int err;
 	unsigned int channel;
 	for (channel = 0; channel < nchannels; channel++) {
 		if (src_channels[channel].enabled)
-			bitset_set(srcmask, channel);
+			set_bit(channel, srcmask);
 		else
-			bitset_reset(srcmask, channel);
+			clear_bit(channel, srcmask);
 	}
 	err = snd_pcm_plug_playback_channels_mask(plug, srcmask);
 	if (err < 0)
 		return err;
 	for (channel = 0; channel < nchannels; channel++) {
-		if (!bitset_get(srcmask, channel))
+		if (!test_bit(channel, srcmask))
 			src_channels[channel].enabled = 0;
 	}
 	return 0;
 }
 
-static int snd_pcm_plug_capture_disable_useless_channels(snd_pcm_plug_t *plug,
-							 snd_pcm_plugin_channel_t *src_channels,
-							 snd_pcm_plugin_channel_t *client_channels)
+static int snd_pcm_plug_capture_disable_useless_channels(struct snd_pcm_substream *plug,
+							 struct snd_pcm_plugin_channel *src_channels,
+							 struct snd_pcm_plugin_channel *client_channels)
 {
-	snd_pcm_plugin_t *plugin = snd_pcm_plug_last(plug);
+	struct snd_pcm_plugin *plugin = snd_pcm_plug_last(plug);
 	unsigned int nchannels = plugin->dst_format.channels;
-	bitset_t bs[bitset_size(nchannels)];
-	bitset_t *dstmask = bs;
-	bitset_t *srcmask;
+	DECLARE_BITMAP(bs, nchannels);
+	unsigned long *dstmask = bs;
+	unsigned long *srcmask;
 	int err;
 	unsigned int channel;
 	for (channel = 0; channel < nchannels; channel++) {
 		if (client_channels[channel].enabled)
-			bitset_set(dstmask, channel);
+			set_bit(channel, dstmask);
 		else
-			bitset_reset(dstmask, channel);
+			clear_bit(channel, dstmask);
 	}
 	while (plugin) {
 		err = plugin->src_channels_mask(plugin, dstmask, &srcmask);
@@ -730,16 +730,16 @@ static int snd_pcm_plug_capture_disable_useless_channels(snd_pcm_plug_t *plug,
 	plugin = snd_pcm_plug_first(plug);
 	nchannels = plugin->src_format.channels;
 	for (channel = 0; channel < nchannels; channel++) {
-		if (!bitset_get(dstmask, channel))
+		if (!test_bit(channel, dstmask))
 			src_channels[channel].enabled = 0;
 	}
 	return 0;
 }
 
-snd_pcm_sframes_t snd_pcm_plug_write_transfer(snd_pcm_plug_t *plug, snd_pcm_plugin_channel_t *src_channels, snd_pcm_uframes_t size)
+snd_pcm_sframes_t snd_pcm_plug_write_transfer(struct snd_pcm_substream *plug, struct snd_pcm_plugin_channel *src_channels, snd_pcm_uframes_t size)
 {
-	snd_pcm_plugin_t *plugin, *next;
-	snd_pcm_plugin_channel_t *dst_channels;
+	struct snd_pcm_plugin *plugin, *next;
+	struct snd_pcm_plugin_channel *dst_channels;
 	int err;
 	snd_pcm_sframes_t frames = size;
 
@@ -771,10 +771,10 @@ snd_pcm_sframes_t snd_pcm_plug_write_transfer(snd_pcm_plug_t *plug, snd_pcm_plug
 	return snd_pcm_plug_client_size(plug, frames);
 }
 
-snd_pcm_sframes_t snd_pcm_plug_read_transfer(snd_pcm_plug_t *plug, snd_pcm_plugin_channel_t *dst_channels_final, snd_pcm_uframes_t size)
+snd_pcm_sframes_t snd_pcm_plug_read_transfer(struct snd_pcm_substream *plug, struct snd_pcm_plugin_channel *dst_channels_final, snd_pcm_uframes_t size)
 {
-	snd_pcm_plugin_t *plugin, *next;
-	snd_pcm_plugin_channel_t *src_channels, *dst_channels;
+	struct snd_pcm_plugin *plugin, *next;
+	struct snd_pcm_plugin_channel *src_channels, *dst_channels;
 	snd_pcm_sframes_t frames = size;
 	int err;
 
@@ -806,7 +806,7 @@ snd_pcm_sframes_t snd_pcm_plug_read_transfer(snd_pcm_plug_t *plug, snd_pcm_plugi
 	return frames;
 }
 
-int snd_pcm_area_silence(const snd_pcm_channel_area_t *dst_area, size_t dst_offset,
+int snd_pcm_area_silence(const struct snd_pcm_channel_area *dst_area, size_t dst_offset,
 			 size_t samples, int format)
 {
 	/* FIXME: sub byte resolution and odd dst_offset */
@@ -852,8 +852,8 @@ int snd_pcm_area_silence(const snd_pcm_channel_area_t *dst_area, size_t dst_offs
 	return 0;
 }
 
-int snd_pcm_area_copy(const snd_pcm_channel_area_t *src_area, size_t src_offset,
-		      const snd_pcm_channel_area_t *dst_area, size_t dst_offset,
+int snd_pcm_area_copy(const struct snd_pcm_channel_area *src_area, size_t src_offset,
+		      const struct snd_pcm_channel_area *dst_area, size_t dst_offset,
 		      size_t samples, int format)
 {
 	/* FIXME: sub byte resolution and odd dst_offset */
