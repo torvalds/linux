@@ -76,7 +76,7 @@ static void vio_bus_shutdown(struct device *dev)
 	struct vio_dev *viodev = to_vio_dev(dev);
 	struct vio_driver *viodrv = to_vio_driver(dev->driver);
 
-	if (viodrv->shutdown)
+	if (dev->driver && viodrv->shutdown)
 		viodrv->shutdown(viodev);
 }
 
@@ -91,9 +91,6 @@ int vio_register_driver(struct vio_driver *viodrv)
 
 	/* fill in 'struct driver' fields */
 	viodrv->driver.bus = &vio_bus_type;
-	viodrv->driver.probe = vio_bus_probe;
-	viodrv->driver.remove = vio_bus_remove;
-	viodrv->driver.shutdown = vio_bus_shutdown;
 
 	return driver_register(&viodrv->driver);
 }
@@ -295,4 +292,7 @@ struct bus_type vio_bus_type = {
 	.name = "vio",
 	.uevent = vio_hotplug,
 	.match = vio_bus_match,
+	.probe = vio_bus_probe,
+	.remove = vio_bus_remove,
+	.shutdown = vio_bus_shutdown,
 };
