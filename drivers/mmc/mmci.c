@@ -300,7 +300,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id, struct pt_regs *regs)
 		/*
 		 * Unmap the buffer.
 		 */
-		mmci_kunmap_atomic(host, &flags);
+		mmci_kunmap_atomic(host, buffer, &flags);
 
 		host->sg_off += len;
 		host->size -= len;
