@@ -33,7 +33,7 @@ int file_write_dep(const char *name)
 	FILE *out;
 
 	if (!name)
-		name = ".config.cmd";
+		name = ".kconfig.d";
 	out = fopen("..config.tmp", "w");
 	if (!out)
 		return 1;
