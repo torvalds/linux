@@ -1203,7 +1203,6 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 	unsigned int type;
 	unsigned char *b;
 	int flags = 0;
-	u16 proto;
 
 	if (events & IPEXP_NEW) {
 		type = IPCTNL_MSG_EXP_NEW;
@@ -1230,7 +1229,6 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 		goto nfattr_failure;
 
 	nlh->nlmsg_len = skb->tail - b;
-	proto = exp->tuple.dst.protonum;
 	nfnetlink_send(skb, 0, NFNLGRP_CONNTRACK_EXP_NEW, 0);
 	return NOTIFY_DONE;
 
