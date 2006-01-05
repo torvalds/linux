@@ -1031,6 +1031,11 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 			return err;
 	}
 
+#if defined(CONFIG_IP_NF_CONNTRACK_MARK)
+	if (cda[CTA_MARK-1])
+		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
+#endif
+
 	ct->helper = ip_conntrack_helper_find_get(rtuple);
 
 	add_timer(&ct->timeout);
@@ -1038,11 +1043,6 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 
 	if (ct->helper)
 		ip_conntrack_helper_put(ct->helper);
-
-#if defined(CONFIG_IP_NF_CONNTRACK_MARK)
-	if (cda[CTA_MARK-1])
-		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
-#endif
 
 	DEBUGP("conntrack with id %u inserted\n", ct->id);
 	return 0;
