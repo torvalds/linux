@@ -47,20 +47,21 @@ static int icmp_pkt_to_tuple(const struct sk_buff *skb,
 	return 1;
 }
 
+/* Add 1; spaces filled with 0. */
+static const u_int8_t invmap[] = {
+	[ICMP_ECHO] = ICMP_ECHOREPLY + 1,
+	[ICMP_ECHOREPLY] = ICMP_ECHO + 1,
+	[ICMP_TIMESTAMP] = ICMP_TIMESTAMPREPLY + 1,
+	[ICMP_TIMESTAMPREPLY] = ICMP_TIMESTAMP + 1,
+	[ICMP_INFO_REQUEST] = ICMP_INFO_REPLY + 1,
+	[ICMP_INFO_REPLY] = ICMP_INFO_REQUEST + 1,
+	[ICMP_ADDRESS] = ICMP_ADDRESSREPLY + 1,
+	[ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1
+};
+
 static int icmp_invert_tuple(struct ip_conntrack_tuple *tuple,
 			     const struct ip_conntrack_tuple *orig)
 {
-	/* Add 1; spaces filled with 0. */
-	static const u_int8_t invmap[]
-		= { [ICMP_ECHO] = ICMP_ECHOREPLY + 1,
-		    [ICMP_ECHOREPLY] = ICMP_ECHO + 1,
-		    [ICMP_TIMESTAMP] = ICMP_TIMESTAMPREPLY + 1,
-		    [ICMP_TIMESTAMPREPLY] = ICMP_TIMESTAMP + 1,
-		    [ICMP_INFO_REQUEST] = ICMP_INFO_REPLY + 1,
-		    [ICMP_INFO_REPLY] = ICMP_INFO_REQUEST + 1,
-		    [ICMP_ADDRESS] = ICMP_ADDRESSREPLY + 1,
-		    [ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1};
-
 	if (orig->dst.u.icmp.type >= sizeof(invmap)
 	    || !invmap[orig->dst.u.icmp.type])
 		return 0;
@@ -110,17 +111,17 @@ static int icmp_packet(struct ip_conntrack *ct,
 	return NF_ACCEPT;
 }
 
-static const u_int8_t valid_new[] = { 
-	[ICMP_ECHO] = 1,
-	[ICMP_TIMESTAMP] = 1,
-	[ICMP_INFO_REQUEST] = 1,
-	[ICMP_ADDRESS] = 1 
-};
-
 /* Called when a new connection for this protocol found. */
 static int icmp_new(struct ip_conntrack *conntrack,
 		    const struct sk_buff *skb)
 {
+	static const u_int8_t valid_new[] = { 
+		[ICMP_ECHO] = 1,
+		[ICMP_TIMESTAMP] = 1,
+		[ICMP_INFO_REQUEST] = 1,
+		[ICMP_ADDRESS] = 1 
+	};
+
 	if (conntrack->tuplehash[0].tuple.dst.u.icmp.type >= sizeof(valid_new)
 	    || !valid_new[conntrack->tuplehash[0].tuple.dst.u.icmp.type]) {
 		/* Can't create a new ICMP `conn' with this. */
@@ -291,7 +292,7 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 	if (!tb[CTA_PROTO_ICMP_TYPE-1]
 	    || !tb[CTA_PROTO_ICMP_CODE-1]
 	    || !tb[CTA_PROTO_ICMP_ID-1])
-		return -1;
+		return -EINVAL;
 
 	tuple->dst.u.icmp.type = 
 			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_TYPE-1]);
@@ -299,6 +300,10 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_CODE-1]);
 	tuple->src.u.icmp.id =
 			*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_ICMP_ID-1]);
+
+	if (tuple->dst.u.icmp.type >= sizeof(invmap)
+	    || !invmap[tuple->dst.u.icmp.type])
+		return -EINVAL;
 
 	return 0;
 }
