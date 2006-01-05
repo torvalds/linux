@@ -52,11 +52,7 @@ ccwgroup_uevent (struct device *dev, char **envp, int num_envp, char *buffer,
 	return 0;
 }
 
-static struct bus_type ccwgroup_bus_type = {
-	.name    = "ccwgroup",
-	.match   = ccwgroup_bus_match,
-	.uevent = ccwgroup_uevent,
-};
+static struct bus_type ccwgroup_bus_type;
 
 static inline void
 __ccwgroup_remove_symlinks(struct ccwgroup_device *gdev)
@@ -389,6 +385,14 @@ ccwgroup_remove (struct device *dev)
 	return 0;
 }
 
+static struct bus_type ccwgroup_bus_type = {
+	.name   = "ccwgroup",
+	.match  = ccwgroup_bus_match,
+	.uevent = ccwgroup_uevent,
+	.probe  = ccwgroup_probe,
+	.remove = ccwgroup_remove,
+};
+
 int
 ccwgroup_driver_register (struct ccwgroup_driver *cdriver)
 {
@@ -396,8 +400,6 @@ ccwgroup_driver_register (struct ccwgroup_driver *cdriver)
 	cdriver->driver = (struct device_driver) {
 		.bus = &ccwgroup_bus_type,
 		.name = cdriver->name,
-		.probe = ccwgroup_probe,
-		.remove = ccwgroup_remove,
 	};
 
 	return driver_register(&cdriver->driver);
