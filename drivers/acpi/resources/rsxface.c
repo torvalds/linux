@@ -286,6 +286,12 @@ acpi_walk_resources(acpi_handle device_handle,
 			break;
 		}
 
+		/* end_tag indicates end-of-list */
+
+		if (resource->type == ACPI_RESOURCE_TYPE_END_TAG) {
+			break;
+		}
+
 		/* Invoke the user function, abort on any error returned */
 
 		status = user_function(resource, context);
@@ -295,12 +301,6 @@ acpi_walk_resources(acpi_handle device_handle,
 
 				status = AE_OK;
 			}
-			break;
-		}
-
-		/* end_tag indicates end-of-list */
-
-		if (resource->type == ACPI_RESOURCE_TYPE_END_TAG) {
 			break;
 		}
 
