@@ -1106,7 +1106,8 @@ static void ub_urb_timeout(unsigned long arg)
 	unsigned long flags;
 
 	spin_lock_irqsave(sc->lock, flags);
-	usb_unlink_urb(&sc->work_urb);
+	if (!ub_is_completed(&sc->work_done))
+		usb_unlink_urb(&sc->work_urb);
 	spin_unlock_irqrestore(sc->lock, flags);
 }
 
@@ -1131,7 +1132,6 @@ static void ub_scsi_action(unsigned long _dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(sc->lock, flags);
-	del_timer(&sc->work_timer);
 	ub_scsi_dispatch(sc);
 	spin_unlock_irqrestore(sc->lock, flags);
 }
@@ -1155,6 +1155,7 @@ static void ub_scsi_dispatch(struct ub_dev *sc)
 		} else {
 			if (!ub_is_completed(&sc->work_done))
 				break;
+			del_timer(&sc->work_timer);
 			ub_scsi_urb_compl(sc, cmd);
 		}
 	}
