@@ -13,6 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/string.h>
+#include <linux/if_arp.h>
 #include <linux/inetdevice.h>
 #include <linux/inet.h>
 #include <linux/interrupt.h>

@@ -52,17 +52,9 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 		br_stp_recalculate_bridge_id(br);
 		break;
 
-	case NETDEV_CHANGE:	/* device is up but carrier changed */
-		if (!(br->dev->flags & IFF_UP))
-			break;
-
-		if (netif_carrier_ok(dev)) {
-			if (p->state == BR_STATE_DISABLED)
-				br_stp_enable_port(p);
-		} else {
-			if (p->state != BR_STATE_DISABLED)
-				br_stp_disable_port(p);
-		}
+	case NETDEV_CHANGE:
+		if (br->dev->flags & IFF_UP)
+			schedule_delayed_work(&p->carrier_check, BR_PORT_DEBOUNCE);
 		break;
 
 	case NETDEV_FEAT_CHANGE:

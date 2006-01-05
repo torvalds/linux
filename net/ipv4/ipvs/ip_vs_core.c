@@ -426,7 +426,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		return NULL;
 
 	IP_VS_DBG(6, "Schedule fwd:%c c:%u.%u.%u.%u:%u v:%u.%u.%u.%u:%u "
-		  "d:%u.%u.%u.%u:%u flg:%X cnt:%d\n",
+		  "d:%u.%u.%u.%u:%u conn->flags:%X conn->refcnt:%d\n",
 		  ip_vs_fwd_tag(cp),
 		  NIPQUAD(cp->caddr), ntohs(cp->cport),
 		  NIPQUAD(cp->vaddr), ntohs(cp->vport),

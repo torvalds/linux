@@ -27,6 +27,22 @@ struct xfrm_id
 	__u8		proto;
 };
 
+struct xfrm_sec_ctx {
+	__u8	ctx_doi;
+	__u8	ctx_alg;
+	__u16	ctx_len;
+	__u32	ctx_sid;
+	char	ctx_str[0];
+};
+
+/* Security Context Domains of Interpretation */
+#define XFRM_SC_DOI_RESERVED 0
+#define XFRM_SC_DOI_LSM 1
+
+/* Security Context Algorithms */
+#define XFRM_SC_ALG_RESERVED 0
+#define XFRM_SC_ALG_SELINUX 1
+
 /* Selector, used as selector both on policy rules (SPD) and SAs. */
 
 struct xfrm_selector
@@ -146,6 +162,18 @@ enum {
 
 #define XFRM_NR_MSGTYPES (XFRM_MSG_MAX + 1 - XFRM_MSG_BASE)
 
+/*
+ * Generic LSM security context for comunicating to user space
+ * NOTE: Same format as sadb_x_sec_ctx
+ */
+struct xfrm_user_sec_ctx {
+	__u16			len;
+	__u16			exttype;
+	__u8			ctx_alg;  /* LSMs: e.g., selinux == 1 */
+	__u8			ctx_doi;
+	__u16			ctx_len;
+};
+
 struct xfrm_user_tmpl {
 	struct xfrm_id		id;
 	__u16			family;
@@ -176,6 +204,7 @@ enum xfrm_attr_type_t {
 	XFRMA_TMPL,		/* 1 or more struct xfrm_user_tmpl */
 	XFRMA_SA,
 	XFRMA_POLICY,
+	XFRMA_SEC_CTX,		/* struct xfrm_sec_ctx */
 	__XFRMA_MAX
 
 #define XFRMA_MAX (__XFRMA_MAX - 1)

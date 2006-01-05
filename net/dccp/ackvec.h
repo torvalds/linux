@@ -54,16 +54,16 @@
  * @dccpav_buf - circular buffer of acknowledgeable packets
  */
 struct dccp_ackvec {
-	unsigned int	dccpav_buf_head;
-	unsigned int	dccpav_buf_tail;
 	u64		dccpav_buf_ackno;
 	u64		dccpav_ack_seqno;
 	u64		dccpav_ack_ackno;
-	unsigned int	dccpav_ack_ptr;
-	unsigned int	dccpav_sent_len;
-	unsigned int	dccpav_vec_len;
-	unsigned int	dccpav_buf_len;
 	struct timeval	dccpav_time;
+	u8		dccpav_buf_head;
+	u8		dccpav_buf_tail;
+	u8		dccpav_ack_ptr;
+	u8		dccpav_sent_len;
+	u8		dccpav_vec_len;
+	u8		dccpav_buf_len;
 	u8		dccpav_buf_nonce;
 	u8		dccpav_ack_nonce;
 	u8		dccpav_buf[0];

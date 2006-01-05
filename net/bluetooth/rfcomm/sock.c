@@ -58,7 +58,7 @@
 #define BT_DBG(D...)
 #endif
 
-static struct proto_ops rfcomm_sock_ops;
+static const struct proto_ops rfcomm_sock_ops;
 
 static struct bt_sock_list rfcomm_sk_list = {
 	.lock = RW_LOCK_UNLOCKED
@@ -907,7 +907,7 @@ static ssize_t rfcomm_sock_sysfs_show(struct class *dev, char *buf)
 
 static CLASS_ATTR(rfcomm, S_IRUGO, rfcomm_sock_sysfs_show, NULL);
 
-static struct proto_ops rfcomm_sock_ops = {
+static const struct proto_ops rfcomm_sock_ops = {
 	.family		= PF_BLUETOOTH,
 	.owner		= THIS_MODULE,
 	.release	= rfcomm_sock_release,

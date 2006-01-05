@@ -55,8 +55,8 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	from = av->dccpav_buf + av->dccpav_buf_head;
 
 	/* Check if buf_head wraps */
-	if (av->dccpav_buf_head + len > av->dccpav_vec_len) {
-		const u32 tailsize = (av->dccpav_vec_len - av->dccpav_buf_head);
+	if ((int)av->dccpav_buf_head + len > av->dccpav_vec_len) {
+		const u32 tailsize = av->dccpav_vec_len - av->dccpav_buf_head;
 
 		memcpy(to, from, tailsize);
 		to   += tailsize;
@@ -93,8 +93,14 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 struct dccp_ackvec *dccp_ackvec_alloc(const unsigned int len,
 				      const gfp_t priority)
 {
-	struct dccp_ackvec *av = kmalloc(sizeof(*av) + len, priority);
+	struct dccp_ackvec *av;
 
+	BUG_ON(len == 0);
+
+	if (len > DCCP_MAX_ACKVEC_LEN)
+		return NULL;
+
+	av = kmalloc(sizeof(*av) + len, priority);
 	if (av != NULL) {
 		av->dccpav_buf_len	= len;
 		av->dccpav_buf_head	=
@@ -117,13 +123,13 @@ void dccp_ackvec_free(struct dccp_ackvec *av)
 }
 
 static inline u8 dccp_ackvec_state(const struct dccp_ackvec *av,
-				   const unsigned int index)
+				   const u8 index)
 {
 	return av->dccpav_buf[index] & DCCP_ACKVEC_STATE_MASK;
 }
 
 static inline u8 dccp_ackvec_len(const struct dccp_ackvec *av,
-				 const unsigned int index)
+				 const u8 index)
 {
 	return av->dccpav_buf[index] & DCCP_ACKVEC_LEN_MASK;
 }
@@ -135,7 +141,7 @@ static inline u8 dccp_ackvec_len(const struct dccp_ackvec *av,
  */
 static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 						 const unsigned int packets,
-						  const unsigned char state)
+						 const unsigned char state)
 {
 	unsigned int gap;
 	signed long new_head;
@@ -223,7 +229,7 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 		 *	could reduce the complexity of this scan.)
 		 */
 		u64 delta = dccp_delta_seqno(ackno, av->dccpav_buf_ackno);
-		unsigned int index = av->dccpav_buf_head;
+		u8 index = av->dccpav_buf_head;
 
 		while (1) {
 			const u8 len = dccp_ackvec_len(av, index);
@@ -291,7 +297,7 @@ void dccp_ackvec_print(const struct dccp_ackvec *av)
 }
 #endif
 
-static void dccp_ackvec_trow_away_ack_record(struct dccp_ackvec *av)
+static void dccp_ackvec_throw_away_ack_record(struct dccp_ackvec *av)
 {
 	/*
 	 * As we're keeping track of the ack vector size (dccpav_vec_len) and
@@ -301,9 +307,10 @@ static void dccp_ackvec_trow_away_ack_record(struct dccp_ackvec *av)
 	 * draft-ietf-dccp-spec-11.txt Appendix A. -acme
 	 */
 #if 0
-	av->dccpav_buf_tail = av->dccpav_ack_ptr + 1;
-	if (av->dccpav_buf_tail >= av->dccpav_vec_len)
-		av->dccpav_buf_tail -= av->dccpav_vec_len;
+	u32 new_buf_tail = av->dccpav_ack_ptr + 1;
+	if (new_buf_tail >= av->dccpav_vec_len)
+		new_buf_tail -= av->dccpav_vec_len;
+	av->dccpav_buf_tail = new_buf_tail;
 #endif
 	av->dccpav_vec_len -= av->dccpav_sent_len;
 }
@@ -326,7 +333,7 @@ void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av, struct sock *sk,
 			      debug_prefix, 1,
 			      (unsigned long long)av->dccpav_ack_seqno,
 			      (unsigned long long)av->dccpav_ack_ackno);
-		dccp_ackvec_trow_away_ack_record(av);
+		dccp_ackvec_throw_away_ack_record(av);
 		av->dccpav_ack_seqno = DCCP_MAX_SEQNO + 1;
 	}
 }
@@ -389,7 +396,7 @@ static void dccp_ackvec_check_rcv_ackvector(struct dccp_ackvec *av,
 					      av->dccpav_ack_seqno,
 					      (unsigned long long)
 					      av->dccpav_ack_ackno);
-				dccp_ackvec_trow_away_ack_record(av);
+				dccp_ackvec_throw_away_ack_record(av);
 			}
 			/*
 			 * If dccpav_ack_seqno was not received, no problem

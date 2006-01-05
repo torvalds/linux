@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/types.h>
 #include <net/checksum.h>

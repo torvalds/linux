@@ -65,7 +65,7 @@ struct inet_protosw {
 	int		 protocol; /* This is the L4 protocol number.  */
 
 	struct proto	 *prot;
-	struct proto_ops *ops;
+	const struct proto_ops *ops;
   
 	int              capability; /* Which (if any) capability do
 				      * we need to use this socket
@@ -76,6 +76,7 @@ struct inet_protosw {
 };
 #define INET_PROTOSW_REUSE 0x01	     /* Are ports automatically reusable? */
 #define INET_PROTOSW_PERMANENT 0x02  /* Permanent protocols are unremovable. */
+#define INET_PROTOSW_ICSK      0x04  /* Is this an inet_connection_sock? */
 
 extern struct net_protocol *inet_protocol_base;
 extern struct net_protocol *inet_protos[MAX_INET_PROTOS];

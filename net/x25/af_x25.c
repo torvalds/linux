@@ -64,7 +64,7 @@ int sysctl_x25_ack_holdback_timeout    = X25_DEFAULT_T2;
 HLIST_HEAD(x25_list);
 DEFINE_RWLOCK(x25_list_lock);
 
-static struct proto_ops x25_proto_ops;
+static const struct proto_ops x25_proto_ops;
 
 static struct x25_address null_x25_address = {"               "};
 
@@ -1378,7 +1378,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		}
 
  		default:
-			rc = dev_ioctl(cmd, argp);
+			rc = -ENOIOCTLCMD;
 			break;
 	}
 
@@ -1391,7 +1391,7 @@ static struct net_proto_family x25_family_ops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct proto_ops SOCKOPS_WRAPPED(x25_proto_ops) = {
+static const struct proto_ops SOCKOPS_WRAPPED(x25_proto_ops) = {
 	.family =	AF_X25,
 	.owner =	THIS_MODULE,
 	.release =	x25_release,

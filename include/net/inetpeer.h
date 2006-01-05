@@ -25,6 +25,7 @@ struct inet_peer
 	__u32			v4daddr;	/* peer's address */
 	__u16			avl_height;
 	__u16			ip_id_count;	/* IP ID for the next packet */
+	atomic_t		rid;		/* Frag reception counter */
 	__u32			tcp_ts;
 	unsigned long		tcp_ts_stamp;
 };

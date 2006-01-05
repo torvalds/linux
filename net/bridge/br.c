@@ -67,3 +67,4 @@ EXPORT_SYMBOL(br_should_route_hook);
 module_init(br_init)
 module_exit(br_deinit)
 MODULE_LICENSE("GPL");
+MODULE_VERSION(BR_VERSION);

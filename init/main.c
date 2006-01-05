@@ -47,7 +47,6 @@
 #include <linux/rmap.h>
 #include <linux/mempolicy.h>
 #include <linux/key.h>
-#include <net/sock.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -613,9 +612,6 @@ static void __init do_basic_setup(void)
 #ifdef CONFIG_SYSCTL
 	sysctl_init();
 #endif
-
-	/* Networking initialization needs a process context */ 
-	sock_init();
 
 	do_initcalls();
 }

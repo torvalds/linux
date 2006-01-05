@@ -470,6 +470,7 @@ found_middle:
  */
 
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 #endif /* __KERNEL__ */
 

@@ -3276,7 +3276,6 @@ EXPORT_SYMBOL(dev_close);
 EXPORT_SYMBOL(dev_get_by_flags);
 EXPORT_SYMBOL(dev_get_by_index);
 EXPORT_SYMBOL(dev_get_by_name);
-EXPORT_SYMBOL(dev_ioctl);
 EXPORT_SYMBOL(dev_open);
 EXPORT_SYMBOL(dev_queue_xmit);
 EXPORT_SYMBOL(dev_remove_pack);
