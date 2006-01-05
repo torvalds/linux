@@ -230,7 +230,7 @@ nfattr_failure:
 static inline int
 ctnetlink_dump_use(struct sk_buff *skb, const struct ip_conntrack *ct)
 {
-	unsigned int use = htonl(atomic_read(&ct->ct_general.use));
+	u_int32_t use = htonl(atomic_read(&ct->ct_general.use));
 	
 	NFA_PUT(skb, CTA_USE, sizeof(u_int32_t), &use);
 	return 0;
