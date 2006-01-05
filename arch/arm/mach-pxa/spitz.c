@@ -127,10 +127,12 @@ static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
 		        cpr &= ~0x0002;
 		if (device == SPITZ_PWR_SD)
 		        cpr &= ~0x0004;
-	        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
 		if (!(cpr & 0x0002) && !(cpr & 0x0004)) {
+			write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, 0x0000);
 		        mdelay(1);
 		        reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+		} else {
+		        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
 		}
 	}
 }

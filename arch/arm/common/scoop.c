@@ -33,7 +33,6 @@ void reset_scoop(struct device *dev)
 
 	SCOOP_REG(sdev->base,SCOOP_MCR) = 0x0100;  // 00
 	SCOOP_REG(sdev->base,SCOOP_CDR) = 0x0000;  // 04
-	SCOOP_REG(sdev->base,SCOOP_CPR) = 0x0000;  // 0C
 	SCOOP_REG(sdev->base,SCOOP_CCR) = 0x0000;  // 10
 	SCOOP_REG(sdev->base,SCOOP_IMR) = 0x0000;  // 18
 	SCOOP_REG(sdev->base,SCOOP_IRM) = 0x00FF;  // 14
@@ -154,6 +153,7 @@ int __init scoop_probe(struct platform_device *pdev)
 
 	SCOOP_REG(devptr->base, SCOOP_MCR) = 0x0140;
 	reset_scoop(&pdev->dev);
+	SCOOP_REG(devptr->base, SCOOP_CPR) = 0x0000;
 	SCOOP_REG(devptr->base, SCOOP_GPCR) = inf->io_dir & 0xffff;
 	SCOOP_REG(devptr->base, SCOOP_GPWR) = inf->io_out & 0xffff;
 
