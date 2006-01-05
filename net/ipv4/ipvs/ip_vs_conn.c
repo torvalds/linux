@@ -24,6 +24,7 @@
  *
  */
 
+#include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/net.h>
 #include <linux/kernel.h>
