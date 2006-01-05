@@ -80,7 +80,7 @@ static inline void uhci_fill_td(struct uhci_td *td, u32 status,
 }
 
 /*
- * We insert Isochronous URB's directly into the frame list at the beginning
+ * We insert Isochronous URBs directly into the frame list at the beginning
  */
 static void uhci_insert_td_frame_list(struct uhci_hcd *uhci, struct uhci_td *td, unsigned framenum)
 {
@@ -369,7 +369,7 @@ static void uhci_append_queued_urb(struct uhci_hcd *uhci, struct urb *eurb, stru
 				uhci_fixup_toggle(urb,
 					uhci_toggle(td_token(lltd)) ^ 1));
 
-	/* All qh's in the queue need to link to the next queue */
+	/* All qhs in the queue need to link to the next queue */
 	urbp->qh->link = eurbp->qh->link;
 
 	wmb();			/* Make sure we flush everything */
@@ -502,7 +502,7 @@ static void uhci_destroy_urb_priv(struct uhci_hcd *uhci, struct urb *urb)
 	}
 
 	/* Check to see if the remove list is empty. Set the IOC bit */
-	/* to force an interrupt so we can remove the TD's*/
+	/* to force an interrupt so we can remove the TDs*/
 	if (list_empty(&uhci->td_remove_list))
 		uhci_set_next_interrupt(uhci);
 
@@ -596,7 +596,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 		return -ENOMEM;
 
 	uhci_add_td_to_urb(urb, td);
-	uhci_fill_td(td, status, destination | uhci_explen(7),
+	uhci_fill_td(td, status, destination | uhci_explen(8),
 		urb->setup_dma);
 
 	/*
@@ -612,7 +612,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 	}
 
 	/*
-	 * Build the DATA TD's
+	 * Build the DATA TDs
 	 */
 	while (len > 0) {
 		int pktsze = len;
@@ -628,7 +628,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 		destination ^= TD_TOKEN_TOGGLE;
 	
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(pktsze - 1),
+		uhci_fill_td(td, status, destination | uhci_explen(pktsze),
 			data);
 
 		data += pktsze;
@@ -658,7 +658,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb, struct ur
 
 	uhci_add_td_to_urb(urb, td);
 	uhci_fill_td(td, status | TD_CTRL_IOC,
-		destination | uhci_explen(UHCI_NULL_DATA_SIZE), 0);
+		destination | uhci_explen(0), 0);
 
 	qh = uhci_alloc_qh(uhci);
 	if (!qh)
@@ -744,7 +744,7 @@ static int uhci_result_control(struct uhci_hcd *uhci, struct urb *urb)
 
 	urb->actual_length = 0;
 
-	/* The rest of the TD's (but the last) are data */
+	/* The rest of the TDs (but the last) are data */
 	tmp = tmp->next;
 	while (tmp != head && tmp->next != head) {
 		unsigned int ctrlstat;
@@ -848,7 +848,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 		status |= TD_CTRL_SPD;
 
 	/*
-	 * Build the DATA TD's
+	 * Build the DATA TDs
 	 */
 	do {	/* Allow zero length packets */
 		int pktsze = maxsze;
@@ -864,7 +864,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 			return -ENOMEM;
 
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(pktsze - 1) |
+		uhci_fill_td(td, status, destination | uhci_explen(pktsze) |
 			(usb_gettoggle(urb->dev, usb_pipeendpoint(urb->pipe),
 			 usb_pipeout(urb->pipe)) << TD_TOKEN_TOGGLE_SHIFT),
 			data);
@@ -890,7 +890,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb, struct urb
 			return -ENOMEM;
 
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(UHCI_NULL_DATA_SIZE) |
+		uhci_fill_td(td, status, destination | uhci_explen(0) |
 			(usb_gettoggle(urb->dev, usb_pipeendpoint(urb->pipe),
 			 usb_pipeout(urb->pipe)) << TD_TOKEN_TOGGLE_SHIFT),
 			data);
@@ -1025,7 +1025,7 @@ static int isochronous_find_limits(struct uhci_hcd *uhci, struct urb *urb, unsig
 	list_for_each_entry(up, &uhci->urb_list, urb_list) {
 		struct urb *u = up->urb;
 
-		/* look for pending URB's with identical pipe handle */
+		/* look for pending URBs with identical pipe handle */
 		if ((urb->pipe == u->pipe) && (urb->dev == u->dev) &&
 		    (u->status == -EINPROGRESS) && (u != urb)) {
 			if (!last_urb)
@@ -1092,7 +1092,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 			return -ENOMEM;
 
 		uhci_add_td_to_urb(urb, td);
-		uhci_fill_td(td, status, destination | uhci_explen(urb->iso_frame_desc[i].length - 1),
+		uhci_fill_td(td, status, destination | uhci_explen(urb->iso_frame_desc[i].length),
 			urb->transfer_dma + urb->iso_frame_desc[i].offset);
 
 		if (i + 1 >= urb->number_of_packets)
@@ -1355,7 +1355,7 @@ static void uhci_unlink_generic(struct uhci_hcd *uhci, struct urb *urb)
 
 	uhci_delete_queued_urb(uhci, urb);
 
-	/* The interrupt loop will reclaim the QH's */
+	/* The interrupt loop will reclaim the QHs */
 	uhci_remove_qh(uhci, urbp->qh);
 	urbp->qh = NULL;
 }
@@ -1413,7 +1413,7 @@ static int uhci_fsbr_timeout(struct uhci_hcd *uhci, struct urb *urb)
 	list_for_each_entry(td, head, list) {
 		/*
 		 * Make sure we don't do the last one (since it'll have the
-		 * TERM bit set) as well as we skip every so many TD's to
+		 * TERM bit set) as well as we skip every so many TDs to
 		 * make sure it doesn't hog the bandwidth
 		 */
 		if (td->list.next != head && (count % DEPTH_INTERVAL) ==

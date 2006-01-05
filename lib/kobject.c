@@ -207,7 +207,7 @@ int kobject_register(struct kobject * kobj)
 			       kobject_name(kobj),error);
 			dump_stack();
 		} else
-			kobject_hotplug(kobj, KOBJ_ADD);
+			kobject_uevent(kobj, KOBJ_ADD);
 	} else
 		error = -EINVAL;
 	return error;
@@ -312,7 +312,7 @@ void kobject_del(struct kobject * kobj)
 void kobject_unregister(struct kobject * kobj)
 {
 	pr_debug("kobject %s: unregistering\n",kobject_name(kobj));
-	kobject_hotplug(kobj, KOBJ_REMOVE);
+	kobject_uevent(kobj, KOBJ_REMOVE);
 	kobject_del(kobj);
 	kobject_put(kobj);
 }

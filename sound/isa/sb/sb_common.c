@@ -41,7 +41,7 @@ MODULE_LICENSE("GPL");
 
 #undef IO_DEBUG
 
-int snd_sbdsp_command(sb_t *chip, unsigned char val)
+int snd_sbdsp_command(struct snd_sb *chip, unsigned char val)
 {
 	int i;
 #ifdef IO_DEBUG
@@ -56,7 +56,7 @@ int snd_sbdsp_command(sb_t *chip, unsigned char val)
 	return 0;
 }
 
-int snd_sbdsp_get_byte(sb_t *chip)
+int snd_sbdsp_get_byte(struct snd_sb *chip)
 {
 	int val;
 	int i;
@@ -73,7 +73,7 @@ int snd_sbdsp_get_byte(sb_t *chip)
 	return -ENODEV;
 }
 
-int snd_sbdsp_reset(sb_t *chip)
+int snd_sbdsp_reset(struct snd_sb *chip)
 {
 	int i;
 
@@ -92,7 +92,7 @@ int snd_sbdsp_reset(sb_t *chip)
 	return -ENODEV;
 }
 
-static int snd_sbdsp_version(sb_t * chip)
+static int snd_sbdsp_version(struct snd_sb * chip)
 {
 	unsigned int result = -ENODEV;
 
@@ -102,7 +102,7 @@ static int snd_sbdsp_version(sb_t * chip)
 	return result;
 }
 
-static int snd_sbdsp_probe(sb_t * chip)
+static int snd_sbdsp_probe(struct snd_sb * chip)
 {
 	int version;
 	int major, minor;
@@ -176,7 +176,7 @@ static int snd_sbdsp_probe(sb_t * chip)
 	return 0;
 }
 
-static int snd_sbdsp_free(sb_t *chip)
+static int snd_sbdsp_free(struct snd_sb *chip)
 {
 	if (chip->res_port)
 		release_and_free_resource(chip->res_port);
@@ -196,24 +196,24 @@ static int snd_sbdsp_free(sb_t *chip)
 	return 0;
 }
 
-static int snd_sbdsp_dev_free(snd_device_t *device)
+static int snd_sbdsp_dev_free(struct snd_device *device)
 {
-	sb_t *chip = device->device_data;
+	struct snd_sb *chip = device->device_data;
 	return snd_sbdsp_free(chip);
 }
 
-int snd_sbdsp_create(snd_card_t *card,
+int snd_sbdsp_create(struct snd_card *card,
 		     unsigned long port,
 		     int irq,
 		     irqreturn_t (*irq_handler)(int, void *, struct pt_regs *),
 		     int dma8,
 		     int dma16,
 		     unsigned short hardware,
-		     sb_t **r_chip)
+		     struct snd_sb **r_chip)
 {
-	sb_t *chip;
+	struct snd_sb *chip;
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_sbdsp_dev_free,
 	};
 
@@ -293,6 +293,10 @@ EXPORT_SYMBOL(snd_sbmixer_write);
 EXPORT_SYMBOL(snd_sbmixer_read);
 EXPORT_SYMBOL(snd_sbmixer_new);
 EXPORT_SYMBOL(snd_sbmixer_add_ctl);
+#ifdef CONFIG_PM
+EXPORT_SYMBOL(snd_sbmixer_suspend);
+EXPORT_SYMBOL(snd_sbmixer_resume);
+#endif
 
 /*
  *  INIT part

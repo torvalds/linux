@@ -5,6 +5,7 @@ config*
 lex.*.c
 *.tab.c
 *.tab.h
+zconf.hash.c
 
 #
 # configuration programs

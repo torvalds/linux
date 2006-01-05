@@ -35,9 +35,9 @@
  *  Basic io plugin
  */
  
-static snd_pcm_sframes_t io_playback_transfer(snd_pcm_plugin_t *plugin,
-				    const snd_pcm_plugin_channel_t *src_channels,
-				    snd_pcm_plugin_channel_t *dst_channels ATTRIBUTE_UNUSED,
+static snd_pcm_sframes_t io_playback_transfer(struct snd_pcm_plugin *plugin,
+				    const struct snd_pcm_plugin_channel *src_channels,
+				    struct snd_pcm_plugin_channel *dst_channels,
 				    snd_pcm_uframes_t frames)
 {
 	snd_assert(plugin != NULL, return -ENXIO);
@@ -58,9 +58,9 @@ static snd_pcm_sframes_t io_playback_transfer(snd_pcm_plugin_t *plugin,
 	}
 }
  
-static snd_pcm_sframes_t io_capture_transfer(snd_pcm_plugin_t *plugin,
-				   const snd_pcm_plugin_channel_t *src_channels ATTRIBUTE_UNUSED,
-				   snd_pcm_plugin_channel_t *dst_channels,
+static snd_pcm_sframes_t io_capture_transfer(struct snd_pcm_plugin *plugin,
+				   const struct snd_pcm_plugin_channel *src_channels,
+				   struct snd_pcm_plugin_channel *dst_channels,
 				   snd_pcm_uframes_t frames)
 {
 	snd_assert(plugin != NULL, return -ENXIO);
@@ -82,13 +82,13 @@ static snd_pcm_sframes_t io_capture_transfer(snd_pcm_plugin_t *plugin,
 	return 0;
 }
  
-static snd_pcm_sframes_t io_src_channels(snd_pcm_plugin_t *plugin,
+static snd_pcm_sframes_t io_src_channels(struct snd_pcm_plugin *plugin,
 			     snd_pcm_uframes_t frames,
-			     snd_pcm_plugin_channel_t **channels)
+			     struct snd_pcm_plugin_channel **channels)
 {
 	int err;
 	unsigned int channel;
-	snd_pcm_plugin_channel_t *v;
+	struct snd_pcm_plugin_channel *v;
 	err = snd_pcm_plugin_client_channels(plugin, frames, &v);
 	if (err < 0)
 		return err;
@@ -100,13 +100,13 @@ static snd_pcm_sframes_t io_src_channels(snd_pcm_plugin_t *plugin,
 	return frames;
 }
 
-int snd_pcm_plugin_build_io(snd_pcm_plug_t *plug,
-			    snd_pcm_hw_params_t *params,
-			    snd_pcm_plugin_t **r_plugin)
+int snd_pcm_plugin_build_io(struct snd_pcm_substream *plug,
+			    struct snd_pcm_hw_params *params,
+			    struct snd_pcm_plugin **r_plugin)
 {
 	int err;
-	snd_pcm_plugin_format_t format;
-	snd_pcm_plugin_t *plugin;
+	struct snd_pcm_plugin_format format;
+	struct snd_pcm_plugin *plugin;
 
 	snd_assert(r_plugin != NULL, return -ENXIO);
 	*r_plugin = NULL;

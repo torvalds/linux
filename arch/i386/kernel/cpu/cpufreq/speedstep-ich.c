@@ -40,6 +40,7 @@ static struct pci_dev *speedstep_chipset_dev;
  */
 static unsigned int speedstep_processor = 0;
 
+static u32 pmbase;
 
 /*
  *   There are only two frequency states for each processor. Values
@@ -56,6 +57,33 @@ static struct cpufreq_frequency_table speedstep_freqs[] = {
 
 
 /**
+ * speedstep_find_register - read the PMBASE address
+ *
+ * Returns: -ENODEV if no register could be found
+ */
+static int speedstep_find_register (void)
+{
+	if (!speedstep_chipset_dev)
+		return -ENODEV;
+
+	/* get PMBASE */
+	pci_read_config_dword(speedstep_chipset_dev, 0x40, &pmbase);
+	if (!(pmbase & 0x01)) {
+		printk(KERN_ERR "speedstep-ich: could not find speedstep register\n");
+		return -ENODEV;
+	}
+
+	pmbase &= 0xFFFFFFFE;
+	if (!pmbase) {
+		printk(KERN_ERR "speedstep-ich: could not find speedstep register\n");
+		return -ENODEV;
+	}
+
+	dprintk("pmbase is 0x%x\n", pmbase);
+	return 0;
+}
+
+/**
  * speedstep_set_state - set the SpeedStep state
  * @state: new processor frequency state (SPEEDSTEP_LOW or SPEEDSTEP_HIGH)
  *
@@ -63,26 +91,12 @@ static struct cpufreq_frequency_table speedstep_freqs[] = {
  */
 static void speedstep_set_state (unsigned int state)
 {
-	u32 pmbase;
 	u8 pm2_blk;
 	u8 value;
 	unsigned long flags;
 
-	if (!speedstep_chipset_dev || (state > 0x1))
+	if (state > 0x1)
 		return;
-
-	/* get PMBASE */
-	pci_read_config_dword(speedstep_chipset_dev, 0x40, &pmbase);
-	if (!(pmbase & 0x01)) {
-		printk(KERN_ERR "speedstep-ich: could not find speedstep register\n");
-		return;
-	}
-
-	pmbase &= 0xFFFFFFFE;
-	if (!pmbase) {
-		printk(KERN_ERR "speedstep-ich: could not find speedstep register\n");
-		return;
-	}
 
 	/* Disable IRQs */
 	local_irq_save(flags);
@@ -315,10 +329,11 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 	cpus_allowed = current->cpus_allowed;
 	set_cpus_allowed(current, policy->cpus);
 
-	/* detect low and high frequency */
+	/* detect low and high frequency and transition latency */
 	result = speedstep_get_freqs(speedstep_processor,
 				     &speedstep_freqs[SPEEDSTEP_LOW].frequency,
 				     &speedstep_freqs[SPEEDSTEP_HIGH].frequency,
+				     &policy->cpuinfo.transition_latency,
 				     &speedstep_set_state);
 	set_cpus_allowed(current, cpus_allowed);
 	if (result)
@@ -335,7 +350,6 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	/* cpuinfo and default policy values */
 	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	policy->cur = speed;
 
 	result = cpufreq_frequency_table_cpuinfo(policy, speedstep_freqs);
@@ -399,6 +413,9 @@ static int __init speedstep_init(void)
 		pci_dev_put(speedstep_chipset_dev);
 		return -EINVAL;
 	}
+
+	if (speedstep_find_register())
+		return -ENODEV;
 
 	return cpufreq_register_driver(&speedstep_driver);
 }

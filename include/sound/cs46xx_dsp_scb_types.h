@@ -41,7 +41,7 @@
 
 /* This structs are used internally by the SP */
 
-typedef struct _basic_dma_req_t {
+struct dsp_basic_dma_req {
 	/* DMA Requestor Word 0 (DCW)  fields:
 
 	   31 [30-28]27  [26:24] 23 22 21 20 [19:18] [17:16] 15 14 13  12  11 10 9 8 7 6  [5:0]
@@ -53,9 +53,9 @@ typedef struct _basic_dma_req_t {
 	u32 dmw;                 /* DMA Mode Word */
 	u32 saw;                 /* Source Address Word */
 	u32 daw;                 /* Destination Address Word  */
-} basic_dma_req_t;
+};
 
-typedef struct _scatter_gather_ext_t {
+struct dsp_scatter_gather_ext {
 	u32 npaw;                /* Next-Page Address Word */
 
 	/* DMA Requestor Word 5 (NPCW)  fields:
@@ -69,9 +69,9 @@ typedef struct _scatter_gather_ext_t {
 	u32 lbaw;                /* Loop-Begin Address Word */
 	u32 nplbaw;              /* Next-Page after Loop-Begin Address Word */
 	u32 sgaw;                /* Scatter/Gather Address Word */
-} scatter_gather_ext_t;
+};
 
-typedef struct _volume_control_t {
+struct dsp_volume_control {
 	___DSP_DUAL_16BIT_ALLOC(
 	   rightTarg,  /* Target volume for left & right channels */
 	   leftTarg
@@ -80,10 +80,10 @@ typedef struct _volume_control_t {
 	   rightVol,   /* Current left & right channel volumes */
 	   leftVol
 	)
-} volume_control_t;
+};
 
 /* Generic stream control block (SCB) structure definition */
-typedef struct _generic_scb_t {
+struct dsp_generic_scb {
 	/* For streaming I/O, the DSP should never alter any words in the DMA
 	   requestor or the scatter/gather extension.  Only ad hoc DMA request
 	   streams are free to alter the requestor (currently only occur in the
@@ -99,13 +99,13 @@ typedef struct _generic_scb_t {
   
 	/* Initialized by the host, only modified by DMA 
 	   R/O for the DSP task */
-	basic_dma_req_t  basic_req;  /* Optional */
+	struct dsp_basic_dma_req  basic_req;  /* Optional */
 
 	/* Scatter/gather DMA requestor extension   (5 ints) 
 	   Initialized by the host, only modified by DMA
 	   DSP task never needs to even read these.
 	*/
-	scatter_gather_ext_t sg_ext;  /* Optional */
+	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
 
 	/* Sublist pointer & next stream control block (SCB) link.
 	   Initialized & modified by the host R/O for the DSP task
@@ -179,11 +179,11 @@ typedef struct _generic_scb_t {
      
 	   These two 32-bit words are redefined for wavetable & 3-D voices.    
 	*/
-	volume_control_t vol_ctrl_t;   /* Optional */
-} generic_scb_t;
+	struct dsp_volume_control vol_ctrl_t;   /* Optional */
+};
 
 
-typedef struct _spos_control_block_t {
+struct dsp_spos_control_block {
 	/* WARNING: Certain items in this structure are modified by the host
 	            Any dword that can be modified by the host, must not be
 		    modified by the SP as the host can only do atomic dword
@@ -273,10 +273,10 @@ typedef struct _spos_control_block_t {
 	u32 r32_save_for_spurious_int;
 	u32 r32_save_for_trap;
 	u32 r32_save_for_HFG;
-} spos_control_block_t;
+};
 
 /* SPB for MIX_TO_OSTREAM algorithm family */
-typedef struct _mix2_ostream_spb_t
+struct dsp_mix2_ostream_spb
 {
 	/* 16b.16b integer.frac approximation to the
 	   number of 3 sample triplets to output each
@@ -290,13 +290,13 @@ typedef struct _mix2_ostream_spb_t
 	   output triplets since the start of group 
 	*/
 	u32 accumOutTriplets;  
-} mix2_ostream_spb_t;
+};
 
 /* SCB for Timing master algorithm */
-typedef struct _timing_master_scb_t {
+struct dsp_timing_master_scb {
 	/* First 12 dwords from generic_scb_t */
-	basic_dma_req_t  basic_req;  /* Optional */
-	scatter_gather_ext_t sg_ext;  /* Optional */
+	struct dsp_basic_dma_req  basic_req;  /* Optional */
+	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
 	___DSP_DUAL_16BIT_ALLOC(
 	    next_scb,     /* REQUIRED */
 	    sub_list_ptr  /* REQUIRED */
@@ -358,13 +358,13 @@ typedef struct _timing_master_scb_t {
 	   number of samples to output each frame.
 	   (approximation must be floor, to insure */
 	u32 nsamp_per_frm_q15;
-} timing_master_scb_t;
+};
 
 /* SCB for CODEC output algorithm */
-typedef struct _codec_output_scb_t {
+struct dsp_codec_output_scb {
 	/* First 13 dwords from generic_scb_t */
-	basic_dma_req_t  basic_req;  /* Optional */
-	scatter_gather_ext_t sg_ext;  /* Optional */
+	struct dsp_basic_dma_req  basic_req;  /* Optional */
+	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
 	___DSP_DUAL_16BIT_ALLOC(
 	    next_scb,       /* REQUIRED */
 	    sub_list_ptr    /* REQUIRED */
@@ -422,13 +422,13 @@ typedef struct _codec_output_scb_t {
 	    reserved,
 	    last_sub_ptr
 	)
-} codec_output_scb_t;
+};
 
 /* SCB for CODEC input algorithm */
-typedef struct _codec_input_scb_t {
+struct dsp_codec_input_scb {
 	/* First 13 dwords from generic_scb_t */
-	basic_dma_req_t  basic_req;  /* Optional */
-	scatter_gather_ext_t sg_ext;  /* Optional */
+	struct dsp_basic_dma_req  basic_req;  /* Optional */
+	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
 	___DSP_DUAL_16BIT_ALLOC(
 	    next_scb,       /* REQUIRED */
 	    sub_list_ptr    /* REQUIRED */
@@ -479,13 +479,13 @@ typedef struct _codec_input_scb_t {
 	)
 
 	u32  reserved2;
-} codec_input_scb_t;
+};
 
 
-typedef struct _pcm_serial_input_scb_t {
+struct dsp_pcm_serial_input_scb {
 	/* First 13 dwords from generic_scb_t */
-	basic_dma_req_t  basic_req;  /* Optional */
-	scatter_gather_ext_t sg_ext;  /* Optional */
+	struct dsp_basic_dma_req  basic_req;  /* Optional */
+	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
 	___DSP_DUAL_16BIT_ALLOC(
 	    next_scb,       /* REQUIRED */
 	    sub_list_ptr    /* REQUIRED */
@@ -512,11 +512,11 @@ typedef struct _pcm_serial_input_scb_t {
 	)
 
 	/* Initialized by the host (host updates target volumes) */
-	volume_control_t psi_vol_ctrl;   
+	struct dsp_volume_control psi_vol_ctrl;   
   
-} pcm_serial_input_scb_t;
+};
 
-typedef struct _src_task_scb_t {
+struct dsp_src_task_scb {
 	___DSP_DUAL_16BIT_ALLOC(
 	    frames_left_in_gof,
 	    gofs_left_in_sec
@@ -571,10 +571,10 @@ typedef struct _src_task_scb_t {
   
 	u32   phiIncr6int_26frac;
   
-	volume_control_t src_vol_ctrl;
-} src_task_scb_t;
+	struct dsp_volume_control src_vol_ctrl;
+};
 
-typedef struct _decimate_by_pow2_scb_t {
+struct dsp_decimate_by_pow2_scb {
 	/* decimationFactor = 2, 4, or 8 (larger factors waste too much memory
 	                                  when compared to cascading decimators)
 	*/
@@ -648,10 +648,10 @@ typedef struct _decimate_by_pow2_scb_t {
 
 	u32  dec2_reserved4;
 
-	volume_control_t dec2_vol_ctrl; /* Not used! */
-} decimate_by_pow2_scb_t;
+	struct dsp_volume_control dec2_vol_ctrl; /* Not used! */
+};
 
-typedef struct _vari_decimate_scb_t {
+struct dsp_vari_decimate_scb {
 	___DSP_DUAL_16BIT_ALLOC(
 	    vdec_frames_left_in_gof,
 	    vdec_gofs_left_in_sec
@@ -711,15 +711,15 @@ typedef struct _vari_decimate_scb_t {
 
 	u32 vdec_phi_incr_6int_26frac;
 
-	volume_control_t vdec_vol_ctrl;
-} vari_decimate_scb_t;
+	struct dsp_volume_control vdec_vol_ctrl;
+};
 
 
 /* SCB for MIX_TO_OSTREAM algorithm family */
-typedef struct _mix2_ostream_scb_t {
+struct dsp_mix2_ostream_scb {
 	/* First 13 dwords from generic_scb_t */
-	basic_dma_req_t  basic_req;  /* Optional */
-	scatter_gather_ext_t sg_ext;  /* Optional */
+	struct dsp_basic_dma_req  basic_req;  /* Optional */
+	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
 	___DSP_DUAL_16BIT_ALLOC(
 	    next_scb,       /* REQUIRED */
 	    sub_list_ptr    /* REQUIRED */
@@ -758,14 +758,14 @@ typedef struct _mix2_ostream_scb_t {
 	    const_FFFF,
 	    const_zero
 	)
-} mix2_ostream_scb_t;
+};
 
 
 /* SCB for S16_MIX algorithm */
-typedef struct _mix_only_scb_t {
+struct dsp_mix_only_scb {
 	/* First 13 dwords from generic_scb_t */
-	basic_dma_req_t  basic_req;  /* Optional */
-	scatter_gather_ext_t sg_ext;  /* Optional */
+	struct dsp_basic_dma_req  basic_req;  /* Optional */
+	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
 	___DSP_DUAL_16BIT_ALLOC(
 	    next_scb,       /* REQUIRED */
 	    sub_list_ptr    /* REQUIRED */
@@ -780,11 +780,11 @@ typedef struct _mix_only_scb_t {
 	u32 strm_buf_ptr;   /* REQUIRED */
 
 	u32 reserved;
-	volume_control_t vol_ctrl;
-} mix_only_scb_t;
+	struct dsp_volume_control vol_ctrl;
+};
 
 /* SCB for the async. CODEC input algorithm */
-typedef struct _async_codec_input_scb_t {		 
+struct dsp_async_codec_input_scb {
 	u32 io_free2;     
   
 	u32 io_current_total;
@@ -837,11 +837,11 @@ typedef struct _async_codec_input_scb_t {
 	)
 
 	u32 i_free;
-} async_codec_input_scb_t;
+};
 
 
 /* SCB for the SP/DIF CODEC input and output */
-typedef struct _spdifiscb_t {
+struct dsp_spdifiscb {
 	___DSP_DUAL_16BIT_ALLOC(
 	    status_ptr,     
 	    status_start_ptr
@@ -895,12 +895,11 @@ typedef struct _spdifiscb_t {
 	)
 
 	u32  free1;
-} spdifiscb_t;
+};
 
 
 /* SCB for the SP/DIF CODEC input and output  */
-typedef struct _spdifoscb_t {		 
-
+struct dsp_spdifoscb {		 
 
 	u32 free2;     
 
@@ -941,11 +940,10 @@ typedef struct _spdifoscb_t {
 	)
 
 	u32  free1;                                         
-} spdifoscb_t;
+};
 
 
-
-typedef struct _asynch_fg_rx_scb_t {
+struct dsp_asynch_fg_rx_scb {
 	___DSP_DUAL_16BIT_ALLOC(
 	    bot_buf_mask,
 	    buf_Mask
@@ -993,11 +991,10 @@ typedef struct _asynch_fg_rx_scb_t {
 	    right_vol,
 	    left_vol
 	)
-} asynch_fg_rx_scb_t;
+};
 
 
-
-typedef struct _asynch_fg_tx_scb_t {
+struct dsp_asynch_fg_tx_scb {
 	___DSP_DUAL_16BIT_ALLOC(
 	    not_buf_mask,
 	    buf_mask
@@ -1052,13 +1049,13 @@ typedef struct _asynch_fg_tx_scb_t {
 	    unused_right_vol,
 	    unused_left_vol
 	)
-} asynch_fg_tx_scb_t;
+};
 
 
-typedef struct _output_snoop_scb_t {
+struct dsp_output_snoop_scb {
 	/* First 13 dwords from generic_scb_t */
-	basic_dma_req_t  basic_req;  /* Optional */
-	scatter_gather_ext_t sg_ext;  /* Optional */
+	struct dsp_basic_dma_req  basic_req;  /* Optional */
+	struct dsp_scatter_gather_ext sg_ext;  /* Optional */
 	___DSP_DUAL_16BIT_ALLOC(
 	    next_scb,       /* REQUIRED */
 	    sub_list_ptr    /* REQUIRED */
@@ -1083,9 +1080,9 @@ typedef struct _output_snoop_scb_t {
 	    reserved,
 	    input_scb
 	)
-} output_snoop_scb_t;
+};
 
-typedef struct _spio_write_scb_t {
+struct dsp_spio_write_scb {
 	___DSP_DUAL_16BIT_ALLOC(
 	    address1,
 	    address2
@@ -1122,9 +1119,9 @@ typedef struct _spio_write_scb_t {
 	)
 
 	u32 unused3[5];
-} spio_write_scb_t;
+};
 
-typedef struct _magic_snoop_task_t {
+struct dsp_magic_snoop_task {
 	u32 i0;
 	u32 i1;
 
@@ -1155,11 +1152,11 @@ typedef struct _magic_snoop_task_t {
 
 	u32 i8;
 
-	volume_control_t vdec_vol_ctrl;
-} magic_snoop_task_t;
+	struct dsp_volume_control vdec_vol_ctrl;
+};
 
 
-typedef struct _filter_scb_t {
+struct dsp_filter_scb {
 	___DSP_DUAL_16BIT_ALLOC(
 	      a0_right,          /* 0x00 */
 	      a0_left
@@ -1212,5 +1209,5 @@ typedef struct _filter_scb_t {
               b2_right,          /* 0x0F */
 	      b2_left
 	)
-} filter_scb_t;
+};
 #endif /* __DSP_SCB_TYPES_H__ */

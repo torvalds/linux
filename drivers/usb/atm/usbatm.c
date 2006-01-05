@@ -646,14 +646,14 @@ static void usbatm_destroy_instance(struct kref *kref)
 	kfree(instance);
 }
 
-void usbatm_get_instance(struct usbatm_data *instance)
+static void usbatm_get_instance(struct usbatm_data *instance)
 {
 	dbg("%s", __func__);
 
 	kref_get(&instance->refcount);
 }
 
-void usbatm_put_instance(struct usbatm_data *instance)
+static void usbatm_put_instance(struct usbatm_data *instance)
 {
 	dbg("%s", __func__);
 

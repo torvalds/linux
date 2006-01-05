@@ -1271,6 +1271,7 @@ static int __init idedisk_init(void)
 	return driver_register(&idedisk_driver.gen_driver);
 }
 
+MODULE_ALIAS("ide:*m-disk*");
 module_init(idedisk_init);
 module_exit(idedisk_exit);
 MODULE_LICENSE("GPL");

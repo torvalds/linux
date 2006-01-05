@@ -539,6 +539,48 @@ static int setPauseParams(struct net_device *dev , struct ethtool_pauseparam *ep
         return ret ? -EIO : 0;
 }
 
+/* Only Yukon supports checksum offload. */
+static int setScatterGather(struct net_device *dev, u32 data)
+{
+	DEV_NET *pNet = netdev_priv(dev);
+	SK_AC *pAC = pNet->pAC;
+
+	if (pAC->GIni.GIChipId == CHIP_ID_GENESIS)
+		return -EOPNOTSUPP;
+	return ethtool_op_set_sg(dev, data);
+}
+
+static int setTxCsum(struct net_device *dev, u32 data)
+{
+	DEV_NET *pNet = netdev_priv(dev);
+	SK_AC *pAC = pNet->pAC;
+
+	if (pAC->GIni.GIChipId == CHIP_ID_GENESIS)
+		return -EOPNOTSUPP;
+
+	return ethtool_op_set_tx_csum(dev, data);
+}
+
+static u32 getRxCsum(struct net_device *dev)
+{
+	DEV_NET *pNet = netdev_priv(dev);
+	SK_AC *pAC = pNet->pAC;
+
+	return pAC->RxPort[pNet->PortNr].RxCsum;
+}
+
+static int setRxCsum(struct net_device *dev, u32 data)
+{
+	DEV_NET *pNet = netdev_priv(dev);
+	SK_AC *pAC = pNet->pAC;
+
+	if (pAC->GIni.GIChipId == CHIP_ID_GENESIS)
+		return -EOPNOTSUPP;
+
+	pAC->RxPort[pNet->PortNr].RxCsum = data != 0;
+	return 0;
+}
+
 struct ethtool_ops SkGeEthtoolOps = {
 	.get_settings		= getSettings,
 	.set_settings		= setSettings,
@@ -551,4 +593,10 @@ struct ethtool_ops SkGeEthtoolOps = {
 	.set_pauseparam		= setPauseParams,
 	.get_link		= ethtool_op_get_link,
 	.get_perm_addr		= ethtool_op_get_perm_addr,
+	.get_sg			= ethtool_op_get_sg,
+	.set_sg			= setScatterGather,
+	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.set_tx_csum		= setTxCsum,
+	.get_rx_csum		= getRxCsum,
+	.set_rx_csum		= setRxCsum,
 };

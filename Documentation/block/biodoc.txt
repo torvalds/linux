@@ -31,7 +31,7 @@ The following people helped with review comments and inputs for this
 document:
 	Christoph Hellwig <hch@infradead.org>
 	Arjan van de Ven <arjanv@redhat.com>
-	Randy Dunlap <rddunlap@osdl.org>
+	Randy Dunlap <rdunlap@xenotime.net>
 	Andre Hedrick <andre@linux-ide.org>
 
 The following people helped with fixes/contributions to the bio patches

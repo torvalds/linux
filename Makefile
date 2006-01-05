@@ -286,10 +286,6 @@ export quiet Q KBUILD_VERBOSE
 cc-option = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
              > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
 
-# For backward compatibility
-check_gcc = $(warning check_gcc is deprecated - use cc-option) \
-            $(call cc-option, $(1),$(2))
-
 # cc-option-yn
 # Usage: flag := $(call cc-option-yn, -march=winchip-c6)
 cc-option-yn = $(shell if $(CC) $(CFLAGS) $(1) -S -o /dev/null -xc /dev/null \
@@ -481,18 +477,20 @@ ifeq ($(dot-config),1)
 
 # Read in dependencies to all Kconfig* files, make sure to run
 # oldconfig if changes are detected.
--include .config.cmd
+-include .kconfig.d
 
 include .config
 
 # If .config needs to be updated, it will be done via the dependency
 # that autoconf has on .config.
 # To avoid any implicit rule to kick in, define an empty command
-.config: ;
+.config .kconfig.d: ;
 
 # If .config is newer than include/linux/autoconf.h, someone tinkered
-# with it and forgot to run make oldconfig
-include/linux/autoconf.h: .config
+# with it and forgot to run make oldconfig.
+# If kconfig.d is missing then we are probarly in a cleaned tree so
+# we execute the config step to be sure to catch updated Kconfig files
+include/linux/autoconf.h: .kconfig.d .config
 	$(Q)mkdir -p include/linux
 	$(Q)$(MAKE) -f $(srctree)/Makefile silentoldconfig
 else
@@ -1066,7 +1064,7 @@ help:
 	@echo  '  all		  - Build all targets marked with [*]'
 	@echo  '* vmlinux	  - Build the bare kernel'
 	@echo  '* modules	  - Build all modules'
-	@echo  '  modules_install - Install all modules'
+	@echo  '  modules_install - Install all modules to INSTALL_MOD_PATH (default: /)'
 	@echo  '  dir/            - Build all files in dir and below'
 	@echo  '  dir/file.[ois]  - Build specified target only'
 	@echo  '  dir/file.ko     - Build module including final link'
@@ -1240,8 +1238,11 @@ cscope: FORCE
 quiet_cmd_TAGS = MAKE   $@
 define cmd_TAGS
 	rm -f $@; \
-	ETAGSF=`etags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL --extra=+f"`; \
-	$(all-sources) | xargs etags $$ETAGSF -a
+	ETAGSF=`etags --version | grep -i exuberant >/dev/null &&     \
+                echo "-I __initdata,__exitdata,__acquires,__releases  \
+                      -I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL              \
+                      --extra=+f --c-kinds=+px"`;                     \
+                $(all-sources) | xargs etags $$ETAGSF -a
 endef
 
 TAGS: FORCE
@@ -1251,8 +1252,11 @@ TAGS: FORCE
 quiet_cmd_tags = MAKE   $@
 define cmd_tags
 	rm -f $@; \
-	CTAGSF=`ctags --version | grep -i exuberant >/dev/null && echo "-I __initdata,__exitdata,EXPORT_SYMBOL,EXPORT_SYMBOL_GPL --extra=+f"`; \
-	$(all-sources) | xargs ctags $$CTAGSF -a
+	CTAGSF=`ctags --version | grep -i exuberant >/dev/null &&     \
+                echo "-I __initdata,__exitdata,__acquires,__releases  \
+                      -I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL              \
+                      --extra=+f --c-kinds=+px"`;                     \
+                $(all-sources) | xargs ctags $$CTAGSF -a
 endef
 
 tags: FORCE

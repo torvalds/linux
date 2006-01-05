@@ -91,6 +91,8 @@
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/times.h>
+
+#include <net/arp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>

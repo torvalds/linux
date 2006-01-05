@@ -176,7 +176,7 @@ static const struct ata_port_operations sil_ops = {
 	.host_stop		= ata_pci_host_stop,
 };
 
-static struct ata_port_info sil_port_info[] = {
+static const struct ata_port_info sil_port_info[] = {
 	/* sil_3112 */
 	{
 		.sht		= &sil_sht,

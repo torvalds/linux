@@ -10,12 +10,13 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mbox.c
- * Version	: v2.20.4.6 (Mar 07 2005)
+ * Version	: v2.20.4.7 (Nov 14 2005)
  *
  * Authors:
  * 	Atul Mukker		<Atul.Mukker@lsil.com>
  * 	Sreenivas Bagalkote	<Sreenivas.Bagalkote@lsil.com>
  * 	Manoj Jose		<Manoj.Jose@lsil.com>
+ * 	Seokmann Ju		<Seokmann.Ju@lsil.com>
  *
  * List of supported controllers
  *
@@ -136,7 +137,7 @@ static int wait_till_fw_empty(adapter_t *);
 
 
 
-MODULE_AUTHOR("LSI Logic Corporation");
+MODULE_AUTHOR("sju@lsil.com");
 MODULE_DESCRIPTION("LSI Logic MegaRAID Mailbox Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGARAID_VERSION);
@@ -278,86 +279,20 @@ static struct pci_device_id pci_id_table_g[] =  {
 	{
 		PCI_VENDOR_ID_AMI,
 		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_QC,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
 	},
 	{
-		PCI_VENDOR_ID_AMI,
+		PCI_VENDOR_ID_LSI_LOGIC,
 		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_DC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_DELL,
-		PCI_SUBSYS_ID_PERC3_SC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_AMI,
-		PCI_SUBSYS_ID_PERC3_SC,
-	},
-	{
-		PCI_VENDOR_ID_AMI,
-		PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_VENDOR_ID_AMI,
-		PCI_SUBSYS_ID_PERC3_DC,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_0,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_0,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_1,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_1,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SCSI_320_2,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SCSI_320_2,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_I4_133_RAID,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_I4_133_RAID,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SATA_150_4,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SATA_150_4,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_MEGARAID_SATA_150_6,
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_SUBSYS_ID_MEGARAID_SATA_150_6,
+		PCI_ANY_ID,
+		PCI_ANY_ID,
 	},
 	{
 		PCI_VENDOR_ID_LSI_LOGIC,
 		PCI_DEVICE_ID_LINDSAY,
 		PCI_ANY_ID,
 		PCI_ANY_ID,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_INTEL_RAID_SRCS16,
-		PCI_VENDOR_ID_INTEL,
-		PCI_SUBSYS_ID_INTEL_RAID_SRCS16,
-	},
-	{
-		PCI_VENDOR_ID_LSI_LOGIC,
-		PCI_DEVICE_ID_INTEL_RAID_SRCU41L_LAKE_SHETEK,
-		PCI_VENDOR_ID_INTEL,
-		PCI_SUBSYS_ID_INTEL_RAID_SRCU41L_LAKE_SHETEK,
 	},
 	{0}	/* Terminating entry */
 };
@@ -2985,6 +2920,7 @@ mbox_post_sync_cmd_fast(adapter_t *adapter, uint8_t raw_mbox[])
 
 	for (i = 0; i < 0xFFFFF; i++) {
 		if (mbox->numstatus != 0xFF) break;
+		rmb();
 	}
 
 	if (i == 0xFFFFF) {

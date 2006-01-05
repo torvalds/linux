@@ -54,7 +54,7 @@
  *  Wavetable definitions
  */
 
-typedef struct iwffff_wave {
+struct iwffff_wave {
 	unsigned int share_id[4];	/* share id - zero = no sharing */
 	unsigned int format;		/* wave format */
 
@@ -76,7 +76,7 @@ typedef struct iwffff_wave {
 	unsigned char pad;
   
 	struct iwffff_wave *next;
-} iwffff_wave_t;
+};
 
 /*
  *  Layer
@@ -85,13 +85,13 @@ typedef struct iwffff_wave {
 #define IWFFFF_LFO_SHAPE_TRIANGLE	0
 #define IWFFFF_LFO_SHAPE_POSTRIANGLE	1
 
-typedef struct iwffff_lfo {
+struct iwffff_lfo {
 	unsigned short freq;		/* (0-2047) 0.01Hz - 21.5Hz */
 	signed short depth;		/* volume +- (0-255) 0.48675dB/step */
 	signed short sweep;		/* 0 - 950 deciseconds */
 	unsigned char shape;		/* see to IWFFFF_LFO_SHAPE_XXXX */
 	unsigned char delay;		/* 0 - 255 deciseconds */
-} iwffff_lfo_t;
+};
 
 #define IWFFFF_ENV_FLAG_RETRIGGER	0x0001	/* flag - retrigger */
 
@@ -102,12 +102,12 @@ typedef struct iwffff_lfo {
 #define IWFFFF_ENV_INDEX_VELOCITY	0x0001	/* index - velocity */
 #define IWFFFF_ENV_INDEX_FREQUENCY	0x0002	/* index - frequency */
 
-typedef struct iwffff_env_point {
+struct iwffff_env_point {
 	unsigned short offset;
 	unsigned short rate;
-} iwffff_env_point_t;
+};
 
-typedef struct iwffff_env_record {
+struct iwffff_env_record {
 	unsigned short nattack;
 	unsigned short nrelease;
 	unsigned short sustain_offset;
@@ -118,15 +118,15 @@ typedef struct iwffff_env_record {
 	struct iwffff_env_record *next;
 	/* points are stored here */
 	/* count of points = nattack + nrelease */
-} iwffff_env_record_t;
+};
 
-typedef struct iwffff_env {
+struct iwffff_env {
 	unsigned char flags;
   	unsigned char mode;
   	unsigned char index;
 	unsigned char pad;
 	struct iwffff_env_record *record;
-} iwffff_env_t;
+};
 
 #define IWFFFF_LAYER_FLAG_RETRIGGER	0x0001	/* retrigger */
 
@@ -138,7 +138,7 @@ typedef struct iwffff_env {
 #define IWFFFF_LAYER_EVENT_RETRIG	0x0002	/* layer event - retrigger */
 #define IWFFFF_LAYER_EVENT_LEGATO	0x0003	/* layer event - legato */
 
-typedef struct iwffff_layer {
+struct iwffff_layer {
 	unsigned char flags;
 	unsigned char velocity_mode;
       	unsigned char layer_event;
@@ -147,17 +147,17 @@ typedef struct iwffff_layer {
 	unsigned char pan;		/* pan offset from CC1 (0 left - 127 right) */
 	unsigned char pan_freq_scale;	/* position based on frequency (0-127) */
 	unsigned char attenuation;	/* 0-127 (no corresponding midi controller) */
-	iwffff_lfo_t tremolo;		/* tremolo effect */
-	iwffff_lfo_t vibrato;		/* vibrato effect */
+	struct iwffff_lfo tremolo;		/* tremolo effect */
+	struct iwffff_lfo vibrato;		/* vibrato effect */
 	unsigned short freq_scale;	/* 0-2048, 1024 is equal to semitone scaling */
 	unsigned char freq_center;	/* center for keyboard frequency scaling */
 	unsigned char pad;
-	iwffff_env_t penv;		/* pitch envelope */
-	iwffff_env_t venv;		/* volume envelope */
+	struct iwffff_env penv;		/* pitch envelope */
+	struct iwffff_env venv;		/* volume envelope */
 
-	iwffff_wave_t *wave;
+	struct iwffff_wave *wave;
 	struct iwffff_layer *next;
-} iwffff_layer_t;
+};
 
 /*
  *  Instrument
@@ -177,7 +177,7 @@ typedef struct iwffff_layer {
 #define IWFFFF_EFFECT_CHORUS		2
 #define IWFFFF_EFFECT_ECHO		3
 
-typedef struct {
+struct iwffff_instrument {
 	unsigned short exclusion;
 	unsigned short layer_type;
 	unsigned short exclusion_group;	/* 0 - none, 1-65535 */
@@ -187,8 +187,8 @@ typedef struct {
 	unsigned char effect2;		/* effect 2 */
 	unsigned char effect2_depth;	/* 0-127 */
 
-	iwffff_layer_t *layer;		/* first layer */
-} iwffff_instrument_t;
+	struct iwffff_layer *layer;		/* first layer */
+};
 
 /*
  *
@@ -216,7 +216,7 @@ typedef struct {
  *  Wavetable definitions
  */
 
-typedef struct iwffff_xwave {
+struct iwffff_xwave {
 	__u32 stype;			/* structure type */
 
 	__u32 share_id[4];		/* share id - zero = no sharing */
@@ -234,26 +234,26 @@ typedef struct iwffff_xwave {
 	__u8 low_note;			/* lower frequency range for this waveform */
 	__u8 high_note;			/* higher frequency range for this waveform */
 	__u8 pad;
-} iwffff_xwave_t;
+};
 
 /*
  *  Layer
  */
 
-typedef struct iwffff_xlfo {
+struct iwffff_xlfo {
 	__u16 freq;			/* (0-2047) 0.01Hz - 21.5Hz */
 	__s16 depth;			/* volume +- (0-255) 0.48675dB/step */
 	__s16 sweep;			/* 0 - 950 deciseconds */
 	__u8 shape;			/* see to ULTRA_IW_LFO_SHAPE_XXXX */
 	__u8 delay;			/* 0 - 255 deciseconds */
-} iwffff_xlfo_t;
+};
 
-typedef struct iwffff_xenv_point {
+struct iwffff_xenv_point {
 	__u16 offset;
 	__u16 rate;
-} iwffff_xenv_point_t;
+};
 
-typedef struct iwffff_xenv_record {
+struct iwffff_xenv_record {
 	__u32 stype;
 	__u16 nattack;
 	__u16 nrelease;
@@ -264,16 +264,16 @@ typedef struct iwffff_xenv_record {
 	__u8 pad;
 	/* points are stored here.. */
 	/* count of points = nattack + nrelease */
-} iwffff_xenv_record_t;
+};
 
-typedef struct iwffff_xenv {
+struct iwffff_xenv {
 	__u8 flags;
   	__u8 mode;
   	__u8 index;
 	__u8 pad;
-} iwffff_xenv_t;
+};
 
-typedef struct iwffff_xlayer {
+struct iwffff_xlayer {
 	__u32 stype;
 	__u8 flags;
 	__u8 velocity_mode;
@@ -283,20 +283,20 @@ typedef struct iwffff_xlayer {
 	__u8 pan;			/* pan offset from CC1 (0 left - 127 right) */
 	__u8 pan_freq_scale;		/* position based on frequency (0-127) */
 	__u8 attenuation;		/* 0-127 (no corresponding midi controller) */
-	iwffff_xlfo_t tremolo;		/* tremolo effect */
-	iwffff_xlfo_t vibrato;		/* vibrato effect */
+	struct iwffff_xlfo tremolo;		/* tremolo effect */
+	struct iwffff_xlfo vibrato;		/* vibrato effect */
 	__u16 freq_scale;		/* 0-2048, 1024 is equal to semitone scaling */
 	__u8 freq_center;		/* center for keyboard frequency scaling */
 	__u8 pad;
-	iwffff_xenv_t penv;		/* pitch envelope */
-	iwffff_xenv_t venv;		/* volume envelope */
-} iwffff_xlayer_t;
+	struct iwffff_xenv penv;		/* pitch envelope */
+	struct iwffff_xenv venv;		/* volume envelope */
+};
 
 /*
  *  Instrument
  */
 
-typedef struct iwffff_xinstrument {
+struct iwffff_xinstrument {
 	__u32 stype;
 	
 	__u16 exclusion;
@@ -307,7 +307,7 @@ typedef struct iwffff_xinstrument {
 	__u8 effect1_depth;		/* 0-127 */
 	__u8 effect2;			/* effect 2 */
 	__u8 effect2_depth;		/* 0-127 */
-} iwffff_xinstrument_t;
+};
 
 /*
  *  ROM support
@@ -316,7 +316,7 @@ typedef struct iwffff_xinstrument {
 
 #define IWFFFF_ROM_HDR_SIZE	512
 
-typedef struct {
+struct iwffff_rom_header {
 	__u8 iwave[8];
 	__u8 revision;
 	__u8 series_number;
@@ -328,7 +328,7 @@ typedef struct {
 	__u8 copyright[128];
 	__u8 vendor_name[64];
 	__u8 description[128];
-} iwffff_rom_header_t;
+};
 
 /*
  *  Instrument info
@@ -339,35 +339,46 @@ typedef struct {
 #define IWFFFF_INFO_LFO_TREMOLO		(1<<2)
 #define IWFFFF_INFO_LFO_TREMOLO_SHAPE	(1<<3)
 
-typedef struct iwffff_info {
+struct iwffff_info {
 	unsigned int format;		/* supported format bits */
 	unsigned int effects;		/* supported effects (1 << IWFFFF_EFFECT*) */
 	unsigned int lfos;		/* LFO effects */
 	unsigned int max8_len;		/* maximum 8-bit wave length */
 	unsigned int max16_len;		/* maximum 16-bit wave length */
-} iwffff_info_t;
+};
 
 #ifdef __KERNEL__
 
 #include "seq_instr.h"
 
-typedef struct {
+struct snd_iwffff_ops {
 	void *private_data;
-	int (*info)(void *private_data, iwffff_info_t *info);
-	int (*put_sample)(void *private_data, iwffff_wave_t *wave,
+	int (*info)(void *private_data, struct iwffff_info *info);
+	int (*put_sample)(void *private_data, struct iwffff_wave *wave,
 	                  char __user *data, long len, int atomic);
-	int (*get_sample)(void *private_data, iwffff_wave_t *wave,
+	int (*get_sample)(void *private_data, struct iwffff_wave *wave,
 			  char __user *data, long len, int atomic);
-	int (*remove_sample)(void *private_data, iwffff_wave_t *wave,
+	int (*remove_sample)(void *private_data, struct iwffff_wave *wave,
 			     int atomic);
-	void (*notify)(void *private_data, snd_seq_kinstr_t *instr, int what);
-	snd_seq_kinstr_ops_t kops;
-} snd_iwffff_ops_t;
+	void (*notify)(void *private_data, struct snd_seq_kinstr *instr, int what);
+	struct snd_seq_kinstr_ops kops;
+};
 
-int snd_seq_iwffff_init(snd_iwffff_ops_t *ops,
+int snd_seq_iwffff_init(struct snd_iwffff_ops *ops,
 			void *private_data,
-                        snd_seq_kinstr_ops_t *next);
+                        struct snd_seq_kinstr_ops *next);
 
 #endif
+
+/* typedefs for compatibility to user-space */
+typedef struct iwffff_xwave iwffff_xwave_t;
+typedef struct iwffff_xlfo iwffff_xlfo_t;
+typedef struct iwffff_xenv_point iwffff_xenv_point_t;
+typedef struct iwffff_xenv_record iwffff_xenv_record_t;
+typedef struct iwffff_xenv iwffff_xenv_t;
+typedef struct iwffff_xlayer iwffff_xlayer_t;
+typedef struct iwffff_xinstrument iwffff_xinstrument_t;
+typedef struct iwffff_rom_header iwffff_rom_header_t;
+typedef struct iwffff_info iwffff_info_t;
 
 #endif /* __SOUND_AINSTR_IW_H */

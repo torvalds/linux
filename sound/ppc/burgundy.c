@@ -31,7 +31,7 @@
 
 /* Waits for busy flag to clear */
 static inline void
-snd_pmac_burgundy_busy_wait(pmac_t *chip)
+snd_pmac_burgundy_busy_wait(struct snd_pmac *chip)
 {
 	int timeout = 50;
 	while ((in_le32(&chip->awacs->codec_ctrl) & MASK_NEWECMD) && timeout--)
@@ -41,7 +41,7 @@ snd_pmac_burgundy_busy_wait(pmac_t *chip)
 }
 
 static inline void
-snd_pmac_burgundy_extend_wait(pmac_t *chip)
+snd_pmac_burgundy_extend_wait(struct snd_pmac *chip)
 {
 	int timeout;
 	timeout = 50;
@@ -57,7 +57,7 @@ snd_pmac_burgundy_extend_wait(pmac_t *chip)
 }
 
 static void
-snd_pmac_burgundy_wcw(pmac_t *chip, unsigned addr, unsigned val)
+snd_pmac_burgundy_wcw(struct snd_pmac *chip, unsigned addr, unsigned val)
 {
 	out_le32(&chip->awacs->codec_ctrl, addr + 0x200c00 + (val & 0xff));
 	snd_pmac_burgundy_busy_wait(chip);
@@ -70,7 +70,7 @@ snd_pmac_burgundy_wcw(pmac_t *chip, unsigned addr, unsigned val)
 }
 
 static unsigned
-snd_pmac_burgundy_rcw(pmac_t *chip, unsigned addr)
+snd_pmac_burgundy_rcw(struct snd_pmac *chip, unsigned addr)
 {
 	unsigned val = 0;
 	unsigned long flags;
@@ -103,14 +103,14 @@ snd_pmac_burgundy_rcw(pmac_t *chip, unsigned addr)
 }
 
 static void
-snd_pmac_burgundy_wcb(pmac_t *chip, unsigned int addr, unsigned int val)
+snd_pmac_burgundy_wcb(struct snd_pmac *chip, unsigned int addr, unsigned int val)
 {
 	out_le32(&chip->awacs->codec_ctrl, addr + 0x300000 + (val & 0xff));
 	snd_pmac_burgundy_busy_wait(chip);
 }
 
 static unsigned
-snd_pmac_burgundy_rcb(pmac_t *chip, unsigned int addr)
+snd_pmac_burgundy_rcb(struct snd_pmac *chip, unsigned int addr)
 {
 	unsigned val = 0;
 	unsigned long flags;
@@ -131,7 +131,8 @@ snd_pmac_burgundy_rcb(pmac_t *chip, unsigned int addr)
  * Burgundy volume: 0 - 100, stereo
  */
 static void
-snd_pmac_burgundy_write_volume(pmac_t *chip, unsigned int address, long *volume, int shift)
+snd_pmac_burgundy_write_volume(struct snd_pmac *chip, unsigned int address,
+			       long *volume, int shift)
 {
 	int hardvolume, lvolume, rvolume;
 
@@ -146,7 +147,8 @@ snd_pmac_burgundy_write_volume(pmac_t *chip, unsigned int address, long *volume,
 }
 
 static void
-snd_pmac_burgundy_read_volume(pmac_t *chip, unsigned int address, long *volume, int shift)
+snd_pmac_burgundy_read_volume(struct snd_pmac *chip, unsigned int address,
+			      long *volume, int shift)
 {
 	int wvolume;
 
@@ -171,7 +173,8 @@ snd_pmac_burgundy_read_volume(pmac_t *chip, unsigned int address, long *volume, 
 #define BASE2ADDR(base)	((base) << 12)
 #define ADDR2BASE(addr)	((addr) >> 12)
 
-static int snd_pmac_burgundy_info_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_pmac_burgundy_info_volume(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -180,23 +183,27 @@ static int snd_pmac_burgundy_info_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_pmac_burgundy_get_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_burgundy_get_volume(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	unsigned int addr = BASE2ADDR(kcontrol->private_value & 0xff);
 	int shift = (kcontrol->private_value >> 8) & 0xff;
-	snd_pmac_burgundy_read_volume(chip, addr, ucontrol->value.integer.value, shift);
+	snd_pmac_burgundy_read_volume(chip, addr, ucontrol->value.integer.value,
+				      shift);
 	return 0;
 }
 
-static int snd_pmac_burgundy_put_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_burgundy_put_volume(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	unsigned int addr = BASE2ADDR(kcontrol->private_value & 0xff);
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	long nvoices[2];
 
-	snd_pmac_burgundy_write_volume(chip, addr, ucontrol->value.integer.value, shift);
+	snd_pmac_burgundy_write_volume(chip, addr, ucontrol->value.integer.value,
+				       shift);
 	snd_pmac_burgundy_read_volume(chip, addr, nvoices, shift);
 	return (nvoices[0] != ucontrol->value.integer.value[0] ||
 		nvoices[1] != ucontrol->value.integer.value[1]);
@@ -211,7 +218,8 @@ static int snd_pmac_burgundy_put_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 
 /* lineout/speaker */
 
-static int snd_pmac_burgundy_info_switch_out(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_pmac_burgundy_info_switch_out(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_info *uinfo)
 {
 	int stereo = (kcontrol->private_value >> 24) & 1;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
@@ -221,9 +229,10 @@ static int snd_pmac_burgundy_info_switch_out(snd_kcontrol_t *kcontrol, snd_ctl_e
 	return 0;
 }
 
-static int snd_pmac_burgundy_get_switch_out(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_burgundy_get_switch_out(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int lmask = kcontrol->private_value & 0xff;
 	int rmask = (kcontrol->private_value >> 8) & 0xff;
 	int stereo = (kcontrol->private_value >> 24) & 1;
@@ -234,9 +243,10 @@ static int snd_pmac_burgundy_get_switch_out(snd_kcontrol_t *kcontrol, snd_ctl_el
 	return 0;
 }
 
-static int snd_pmac_burgundy_put_switch_out(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_burgundy_put_switch_out(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int lmask = kcontrol->private_value & 0xff;
 	int rmask = (kcontrol->private_value >> 8) & 0xff;
 	int stereo = (kcontrol->private_value >> 24) & 1;
@@ -259,7 +269,8 @@ static int snd_pmac_burgundy_put_switch_out(snd_kcontrol_t *kcontrol, snd_ctl_el
   .private_value = ((lmask) | ((rmask) << 8) | ((stereo) << 24)) }
 
 /* line/speaker output volume */
-static int snd_pmac_burgundy_info_volume_out(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_pmac_burgundy_info_volume_out(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_info *uinfo)
 {
 	int stereo = (kcontrol->private_value >> 24) & 1;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
@@ -269,9 +280,10 @@ static int snd_pmac_burgundy_info_volume_out(snd_kcontrol_t *kcontrol, snd_ctl_e
 	return 0;
 }
 
-static int snd_pmac_burgundy_get_volume_out(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_burgundy_get_volume_out(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	unsigned int addr = BASE2ADDR(kcontrol->private_value & 0xff);
 	int stereo = (kcontrol->private_value >> 24) & 1;
 	int oval;
@@ -283,9 +295,10 @@ static int snd_pmac_burgundy_get_volume_out(snd_kcontrol_t *kcontrol, snd_ctl_el
 	return 0;
 }
 
-static int snd_pmac_burgundy_put_volume_out(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_burgundy_put_volume_out(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	unsigned int addr = BASE2ADDR(kcontrol->private_value & 0xff);
 	int stereo = (kcontrol->private_value >> 24) & 1;
 	int oval, val;
@@ -308,7 +321,7 @@ static int snd_pmac_burgundy_put_volume_out(snd_kcontrol_t *kcontrol, snd_ctl_el
   .put = snd_pmac_burgundy_put_volume_out,\
   .private_value = (ADDR2BASE(addr) | ((stereo) << 24)) }
 
-static snd_kcontrol_new_t snd_pmac_burgundy_mixers[] __initdata = {
+static struct snd_kcontrol_new snd_pmac_burgundy_mixers[] __initdata = {
 	BURGUNDY_VOLUME("Master Playback Volume", 0, MASK_ADDR_BURGUNDY_MASTER_VOLUME, 8),
 	BURGUNDY_VOLUME("Line Playback Volume", 0, MASK_ADDR_BURGUNDY_VOLLINE, 16),
 	BURGUNDY_VOLUME("CD Playback Volume", 0, MASK_ADDR_BURGUNDY_VOLCD, 16),
@@ -317,9 +330,9 @@ static snd_kcontrol_new_t snd_pmac_burgundy_mixers[] __initdata = {
 	/*BURGUNDY_OUTPUT_VOLUME("PCM Playback Volume", 0, MASK_ADDR_BURGUNDY_ATTENLINEOUT, 1),*/
 	BURGUNDY_OUTPUT_VOLUME("Headphone Playback Volume", 0, MASK_ADDR_BURGUNDY_ATTENSPEAKER, 1),
 };	
-static snd_kcontrol_new_t snd_pmac_burgundy_master_sw __initdata = 
+static struct snd_kcontrol_new snd_pmac_burgundy_master_sw __initdata = 
 BURGUNDY_OUTPUT_SWITCH("Headphone Playback Switch", 0, BURGUNDY_OUTPUT_LEFT, BURGUNDY_OUTPUT_RIGHT, 1);
-static snd_kcontrol_new_t snd_pmac_burgundy_speaker_sw __initdata = 
+static struct snd_kcontrol_new snd_pmac_burgundy_speaker_sw __initdata = 
 BURGUNDY_OUTPUT_SWITCH("PC Speaker Playback Switch", 0, BURGUNDY_OUTPUT_INTERN, 0, 0);
 
 
@@ -327,12 +340,12 @@ BURGUNDY_OUTPUT_SWITCH("PC Speaker Playback Switch", 0, BURGUNDY_OUTPUT_INTERN, 
 /*
  * auto-mute stuffs
  */
-static int snd_pmac_burgundy_detect_headphone(pmac_t *chip)
+static int snd_pmac_burgundy_detect_headphone(struct snd_pmac *chip)
 {
 	return (in_le32(&chip->awacs->codec_stat) & chip->hp_stat_mask) ? 1 : 0;
 }
 
-static void snd_pmac_burgundy_update_automute(pmac_t *chip, int do_notify)
+static void snd_pmac_burgundy_update_automute(struct snd_pmac *chip, int do_notify)
 {
 	if (chip->auto_mute) {
 		int reg, oreg;
@@ -361,7 +374,7 @@ static void snd_pmac_burgundy_update_automute(pmac_t *chip, int do_notify)
 /*
  * initialize burgundy
  */
-int __init snd_pmac_burgundy_init(pmac_t *chip)
+int __init snd_pmac_burgundy_init(struct snd_pmac *chip)
 {
 	int i, err;
 

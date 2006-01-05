@@ -650,6 +650,11 @@ L:	linux-crypto@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/herbert/crypto-2.6.git
 S:	Maintained
 
+CS5535 Audio ALSA driver
+P:	Jaya Kumar
+M:	jayakumar.alsa@gmail.com
+S:	Maintained
+
 CYBERPRO FB DRIVER
 P:	Russell King
 M:	rmk@arm.linux.org.uk
@@ -1465,7 +1470,6 @@ P:	Several
 L:	kernel-janitors@osdl.org
 W:	http://www.kerneljanitors.org/
 W:	http://sf.net/projects/kernel-janitor/
-W:	http://developer.osdl.org/rddunlap/kj-patches/
 S:	Maintained
 
 KERNEL NFSD
@@ -1476,17 +1480,11 @@ W:	http://nfs.sourceforge.net/
 W:	http://www.cse.unsw.edu.au/~neilb/patches/linux-devel/
 S:	Maintained
 
-KERNEL EVENT LAYER (KOBJECT_UEVENT)
-P:	Robert Love
-M:	rml@novell.com
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
 KEXEC
 P:	Eric Biederman
 P:	Randy Dunlap
 M:	ebiederm@xmission.com
-M:	rddunlap@osdl.org
+M:	rdunlap@xenotime.net
 W:	http://www.xmission.com/~ebiederm/files/kexec/
 L:	linux-kernel@vger.kernel.org
 L:	fastboot@osdl.org
@@ -2587,7 +2585,6 @@ S:	Maintained
 UDF FILESYSTEM
 P:	Ben Fennema
 M:	bfennema@falcon.csc.calpoly.edu
-L:	linux_udf@hpesjro.fc.hp.com
 W:	http://linux-udf.sourceforge.net
 S:	Maintained
 
@@ -2640,6 +2637,12 @@ L:	linux-usb-users@lists.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
+USB ISP116X DRIVER
+P:	Olav Kongas
+M:	ok@artecdesign.ee
+L:	linux-usb-devel@lists.sourceforge.net
+S:	Maintained
+
 USB KAWASAKI LSI DRIVER
 P:	Oliver Neukum
 M:	oliver@neukum.name
@@ -2651,7 +2654,7 @@ USB MASS STORAGE DRIVER
 P:	Matthew Dharm
 M:	mdharm-usb@one-eyed-alien.net
 L:	linux-usb-users@lists.sourceforge.net
-L:	linux-usb-devel@lists.sourceforge.net
+L:	usb-storage@lists.one-eyed-alien.net
 S:	Maintained
 W:	http://www.one-eyed-alien.net/~mdharm/linux-usb/
 

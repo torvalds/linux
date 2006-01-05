@@ -239,7 +239,7 @@ void blk_queue_make_request(request_queue_t * q, make_request_fn * mfn)
 	q->backing_dev_info.ra_pages = (VM_MAX_READAHEAD * 1024) / PAGE_CACHE_SIZE;
 	q->backing_dev_info.state = 0;
 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
-	blk_queue_max_sectors(q, MAX_SECTORS);
+	blk_queue_max_sectors(q, SAFE_MAX_SECTORS);
 	blk_queue_hardsect_size(q, 512);
 	blk_queue_dma_alignment(q, 511);
 	blk_queue_congestion_threshold(q);
@@ -555,7 +555,12 @@ void blk_queue_max_sectors(request_queue_t *q, unsigned short max_sectors)
 		printk("%s: set to minimum %d\n", __FUNCTION__, max_sectors);
 	}
 
-	q->max_sectors = q->max_hw_sectors = max_sectors;
+	if (BLK_DEF_MAX_SECTORS > max_sectors)
+		q->max_hw_sectors = q->max_sectors = max_sectors;
+ 	else {
+		q->max_sectors = BLK_DEF_MAX_SECTORS;
+		q->max_hw_sectors = max_sectors;
+	}
 }
 
 EXPORT_SYMBOL(blk_queue_max_sectors);
@@ -657,8 +662,8 @@ EXPORT_SYMBOL(blk_queue_hardsect_size);
 void blk_queue_stack_limits(request_queue_t *t, request_queue_t *b)
 {
 	/* zero is "infinity" */
-	t->max_sectors = t->max_hw_sectors =
-		min_not_zero(t->max_sectors,b->max_sectors);
+	t->max_sectors = min_not_zero(t->max_sectors,b->max_sectors);
+	t->max_hw_sectors = min_not_zero(t->max_hw_sectors,b->max_hw_sectors);
 
 	t->max_phys_segments = min(t->max_phys_segments,b->max_phys_segments);
 	t->max_hw_segments = min(t->max_hw_segments,b->max_hw_segments);
@@ -1293,9 +1298,15 @@ static inline int ll_new_hw_segment(request_queue_t *q,
 static int ll_back_merge_fn(request_queue_t *q, struct request *req, 
 			    struct bio *bio)
 {
+	unsigned short max_sectors;
 	int len;
 
-	if (req->nr_sectors + bio_sectors(bio) > q->max_sectors) {
+	if (unlikely(blk_pc_request(req)))
+		max_sectors = q->max_hw_sectors;
+	else
+		max_sectors = q->max_sectors;
+
+	if (req->nr_sectors + bio_sectors(bio) > max_sectors) {
 		req->flags |= REQ_NOMERGE;
 		if (req == q->last_merge)
 			q->last_merge = NULL;
@@ -1325,9 +1336,16 @@ static int ll_back_merge_fn(request_queue_t *q, struct request *req,
 static int ll_front_merge_fn(request_queue_t *q, struct request *req, 
 			     struct bio *bio)
 {
+	unsigned short max_sectors;
 	int len;
 
-	if (req->nr_sectors + bio_sectors(bio) > q->max_sectors) {
+	if (unlikely(blk_pc_request(req)))
+		max_sectors = q->max_hw_sectors;
+	else
+		max_sectors = q->max_sectors;
+
+
+	if (req->nr_sectors + bio_sectors(bio) > max_sectors) {
 		req->flags |= REQ_NOMERGE;
 		if (req == q->last_merge)
 			q->last_merge = NULL;
@@ -2144,7 +2162,7 @@ int blk_rq_map_user(request_queue_t *q, struct request *rq, void __user *ubuf,
 	struct bio *bio;
 	int reading;
 
-	if (len > (q->max_sectors << 9))
+	if (len > (q->max_hw_sectors << 9))
 		return -EINVAL;
 	if (!len || !ubuf)
 		return -EINVAL;
@@ -2259,7 +2277,7 @@ int blk_rq_map_kern(request_queue_t *q, struct request *rq, void *kbuf,
 {
 	struct bio *bio;
 
-	if (len > (q->max_sectors << 9))
+	if (len > (q->max_hw_sectors << 9))
 		return -EINVAL;
 	if (!len || !kbuf)
 		return -EINVAL;
@@ -2305,6 +2323,8 @@ void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
 	elv_add_request(q, rq, where, 1);
 	generic_unplug_device(q);
 }
+
+EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 
 /**
  * blk_execute_rq - insert a request into queue for execution
@@ -2444,7 +2464,7 @@ void disk_round_stats(struct gendisk *disk)
 /*
  * queue lock must be held
  */
-static void __blk_put_request(request_queue_t *q, struct request *req)
+void __blk_put_request(request_queue_t *q, struct request *req)
 {
 	struct request_list *rl = req->rl;
 
@@ -2472,6 +2492,8 @@ static void __blk_put_request(request_queue_t *q, struct request *req)
 		freed_request(q, rw, priv);
 	}
 }
+
+EXPORT_SYMBOL_GPL(__blk_put_request);
 
 void blk_put_request(struct request *req)
 {

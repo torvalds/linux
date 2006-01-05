@@ -41,14 +41,14 @@ static ssize_t store_online(struct sys_device *dev, const char *buf,
 	case '0':
 		ret = cpu_down(cpu->sysdev.id);
 		if (!ret)
-			kobject_hotplug(&dev->kobj, KOBJ_OFFLINE);
+			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
 		break;
 	case '1':
 		ret = smp_prepare_cpu(cpu->sysdev.id);
 		if (!ret)
 			ret = cpu_up(cpu->sysdev.id);
 		if (!ret)
-			kobject_hotplug(&dev->kobj, KOBJ_ONLINE);
+			kobject_uevent(&dev->kobj, KOBJ_ONLINE);
 		break;
 	default:
 		ret = -EINVAL;

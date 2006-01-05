@@ -58,10 +58,8 @@
 #define MPU401_MODE_INPUT_TIMER		(1<<0)
 #define MPU401_MODE_OUTPUT_TIMER	(1<<1)
 
-typedef struct _snd_mpu401 mpu401_t;
-
-struct _snd_mpu401 {
-	snd_rawmidi_t *rmidi;
+struct snd_mpu401 {
+	struct snd_rawmidi *rmidi;
 
 	unsigned short hardware;	/* MPU401_HW_XXXX */
 	unsigned long port;		/* base port of MPU-401 chip */
@@ -73,14 +71,14 @@ struct _snd_mpu401 {
 	unsigned long mode;		/* MPU401_MODE_XXXX */
 	int timer_invoked;
 
-	int (*open_input) (mpu401_t * mpu);
-	void (*close_input) (mpu401_t * mpu);
-	int (*open_output) (mpu401_t * mpu);
-	void (*close_output) (mpu401_t * mpu);
+	int (*open_input) (struct snd_mpu401 * mpu);
+	void (*close_input) (struct snd_mpu401 * mpu);
+	int (*open_output) (struct snd_mpu401 * mpu);
+	void (*close_output) (struct snd_mpu401 * mpu);
 	void *private_data;
 
-	snd_rawmidi_substream_t *substream_input;
-	snd_rawmidi_substream_t *substream_output;
+	struct snd_rawmidi_substream *substream_input;
+	struct snd_rawmidi_substream *substream_output;
 
 	spinlock_t input_lock;
 	spinlock_t output_lock;
@@ -88,8 +86,8 @@ struct _snd_mpu401 {
 	
 	struct timer_list timer;
 
-	void (*write) (mpu401_t * mpu, unsigned char data, unsigned long addr);
-	unsigned char (*read) (mpu401_t * mpu, unsigned long addr);
+	void (*write) (struct snd_mpu401 * mpu, unsigned char data, unsigned long addr);
+	unsigned char (*read) (struct snd_mpu401 *mpu, unsigned long addr);
 };
 
 /* I/O ports */
@@ -103,13 +101,13 @@ struct _snd_mpu401 {
 
 irqreturn_t snd_mpu401_uart_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 
-int snd_mpu401_uart_new(snd_card_t * card,
+int snd_mpu401_uart_new(struct snd_card *card,
 			int device,
 			unsigned short hardware,
 			unsigned long port,
 			int integrated,
 			int irq,
 			int irq_flags,
-			snd_rawmidi_t ** rrawmidi);
+			struct snd_rawmidi ** rrawmidi);
 
 #endif /* __SOUND_MPU401_H */

@@ -143,6 +143,9 @@ LPFC_MBOXQ_t *lpfc_mbox_get(struct lpfc_hba *);
 int lpfc_mem_alloc(struct lpfc_hba *);
 void lpfc_mem_free(struct lpfc_hba *);
 
+void lpfc_poll_timeout(unsigned long ptr);
+void lpfc_poll_start_timer(struct lpfc_hba * phba);
+void lpfc_sli_poll_fcp_ring(struct lpfc_hba * hba);
 struct lpfc_iocbq * lpfc_sli_get_iocbq(struct lpfc_hba *);
 void lpfc_sli_release_iocbq(struct lpfc_hba * phba, struct lpfc_iocbq * iocb);
 uint16_t lpfc_sli_next_iotag(struct lpfc_hba * phba, struct lpfc_iocbq * iocb);

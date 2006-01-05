@@ -240,6 +240,7 @@ static inline int test_bit(int nr, const volatile unsigned long *addr)
  */
 
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 /*
  * hweightN - returns the hamming weight of a N-bit word

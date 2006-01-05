@@ -112,7 +112,7 @@ fc_enum_name_search(port_state, fc_port_state, fc_port_state_names)
 
 
 /* Convert fc_tgtid_binding_type values to ascii string name */
-static struct {
+static const struct {
 	enum fc_tgtid_binding_type	value;
 	char				*name;
 	int				matchlen;
@@ -150,7 +150,7 @@ get_fc_##title##_names(u32 table_key, char *buf)		\
 
 
 /* Convert FC_COS bit values to ascii string name */
-static struct {
+static const struct {
 	u32 			value;
 	char			*name;
 } fc_cos_names[] = {
@@ -164,7 +164,7 @@ fc_bitfield_name_search(cos, fc_cos_names)
 
 
 /* Convert FC_PORTSPEED bit values to ascii string name */
-static struct {
+static const struct {
 	u32 			value;
 	char			*name;
 } fc_port_speed_names[] = {
@@ -190,7 +190,7 @@ show_fc_fc4s (char *buf, u8 *fc4_list)
 
 
 /* Convert FC_RPORT_ROLE bit values to ascii string name */
-static struct {
+static const struct {
 	u32 			value;
 	char			*name;
 } fc_remote_port_role_names[] = {

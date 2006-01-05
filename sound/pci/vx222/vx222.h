@@ -25,7 +25,7 @@
 
 struct snd_vx222 {
 
-	vx_core_t core;
+	struct vx_core core;
 
 	/* h/w config; for PLX and for DSP */
 	struct pci_dev *pci;

@@ -563,11 +563,13 @@ e1000_reset_hw(struct e1000_hw *hw)
             msec_delay(20);
             break;
         case e1000_82573:
-            udelay(10);
-            ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
-            ctrl_ext |= E1000_CTRL_EXT_EE_RST;
-            E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
-            E1000_WRITE_FLUSH(hw);
+            if (e1000_is_onboard_nvm_eeprom(hw) == FALSE) {
+                udelay(10);
+                ctrl_ext = E1000_READ_REG(hw, CTRL_EXT);
+                ctrl_ext |= E1000_CTRL_EXT_EE_RST;
+                E1000_WRITE_REG(hw, CTRL_EXT, ctrl_ext);
+                E1000_WRITE_FLUSH(hw);
+            }
             /* fall through */
         case e1000_82571:
         case e1000_82572:
@@ -844,19 +846,27 @@ e1000_setup_link(struct e1000_hw *hw)
      * control setting, then the variable hw->fc will
      * be initialized based on a value in the EEPROM.
      */
-    if(e1000_read_eeprom(hw, EEPROM_INIT_CONTROL2_REG, 1, &eeprom_data)) {
-        DEBUGOUT("EEPROM Read Error\n");
-        return -E1000_ERR_EEPROM;
-    }
-
-    if(hw->fc == e1000_fc_default) {
-        if((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) == 0)
-            hw->fc = e1000_fc_none;
-        else if((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) ==
-                EEPROM_WORD0F_ASM_DIR)
-            hw->fc = e1000_fc_tx_pause;
-        else
+    if (hw->fc == e1000_fc_default) {
+        switch (hw->mac_type) {
+        case e1000_82573:
             hw->fc = e1000_fc_full;
+            break;
+        default:
+            ret_val = e1000_read_eeprom(hw, EEPROM_INIT_CONTROL2_REG,
+                                        1, &eeprom_data);
+            if (ret_val) {
+                DEBUGOUT("EEPROM Read Error\n");
+                return -E1000_ERR_EEPROM;
+            }
+            if ((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) == 0)
+                hw->fc = e1000_fc_none;
+            else if ((eeprom_data & EEPROM_WORD0F_PAUSE_MASK) ==
+                    EEPROM_WORD0F_ASM_DIR)
+                hw->fc = e1000_fc_tx_pause;
+            else
+                hw->fc = e1000_fc_full;
+            break;
+        }
     }
 
     /* We want to save off the original Flow Control configuration just
@@ -2962,13 +2972,22 @@ e1000_phy_hw_reset(struct e1000_hw *hw)
     if(hw->mac_type > e1000_82543) {
         /* Read the device control register and assert the E1000_CTRL_PHY_RST
          * bit. Then, take it out of reset.
+         * For pre-e1000_82571 hardware, we delay for 10ms between the assert 
+         * and deassert.  For e1000_82571 hardware and later, we instead delay
+         * for 10ms after the deassertion.
          */
         ctrl = E1000_READ_REG(hw, CTRL);
         E1000_WRITE_REG(hw, CTRL, ctrl | E1000_CTRL_PHY_RST);
         E1000_WRITE_FLUSH(hw);
-        msec_delay(10);
+        
+        if (hw->mac_type < e1000_82571) 
+            msec_delay(10);
+        
         E1000_WRITE_REG(hw, CTRL, ctrl);
         E1000_WRITE_FLUSH(hw);
+        
+        if (hw->mac_type >= e1000_82571)
+            msec_delay(10);
     } else {
         /* Read the Extended Device Control Register, assert the PHY_RESET_DIR
          * bit to put the PHY into reset. Then, take it out of reset.
@@ -5278,9 +5297,13 @@ e1000_get_bus_info(struct e1000_hw *hw)
         hw->bus_speed = e1000_bus_speed_unknown;
         hw->bus_width = e1000_bus_width_unknown;
         break;
-    case e1000_82571:
     case e1000_82572:
     case e1000_82573:
+        hw->bus_type = e1000_bus_type_pci_express;
+        hw->bus_speed = e1000_bus_speed_2500;
+        hw->bus_width = e1000_bus_width_pciex_1;
+        break;
+    case e1000_82571:
         hw->bus_type = e1000_bus_type_pci_express;
         hw->bus_speed = e1000_bus_speed_2500;
         hw->bus_width = e1000_bus_width_pciex_4;
@@ -6649,6 +6672,12 @@ e1000_get_auto_rd_done(struct e1000_hw *hw)
         }
         break;
     }
+
+    /* PHY configuration from NVM just starts after EECD_AUTO_RD sets to high.
+     * Need to wait for PHY configuration completion before accessing NVM
+     * and PHY. */
+    if (hw->mac_type == e1000_82573)
+        msec_delay(25);
 
     return E1000_SUCCESS;
 }

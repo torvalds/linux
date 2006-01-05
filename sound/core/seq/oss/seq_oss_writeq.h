@@ -25,8 +25,8 @@
 #include "seq_oss_device.h"
 
 
-struct seq_oss_writeq_t {
-	seq_oss_devinfo_t *dp;
+struct seq_oss_writeq {
+	struct seq_oss_devinfo *dp;
 	int maxlen;
 	abstime_t sync_time;
 	int sync_event_put;
@@ -38,13 +38,13 @@ struct seq_oss_writeq_t {
 /*
  * seq_oss_writeq.c
  */
-seq_oss_writeq_t *snd_seq_oss_writeq_new(seq_oss_devinfo_t *dp, int maxlen);
-void snd_seq_oss_writeq_delete(seq_oss_writeq_t *q);
-void snd_seq_oss_writeq_clear(seq_oss_writeq_t *q);
-int snd_seq_oss_writeq_sync(seq_oss_writeq_t *q);
-void snd_seq_oss_writeq_wakeup(seq_oss_writeq_t *q, abstime_t time);
-int snd_seq_oss_writeq_get_free_size(seq_oss_writeq_t *q);
-void snd_seq_oss_writeq_set_output(seq_oss_writeq_t *q, int size);
+struct seq_oss_writeq *snd_seq_oss_writeq_new(struct seq_oss_devinfo *dp, int maxlen);
+void snd_seq_oss_writeq_delete(struct seq_oss_writeq *q);
+void snd_seq_oss_writeq_clear(struct seq_oss_writeq *q);
+int snd_seq_oss_writeq_sync(struct seq_oss_writeq *q);
+void snd_seq_oss_writeq_wakeup(struct seq_oss_writeq *q, abstime_t time);
+int snd_seq_oss_writeq_get_free_size(struct seq_oss_writeq *q);
+void snd_seq_oss_writeq_set_output(struct seq_oss_writeq *q, int size);
 
 
 #endif

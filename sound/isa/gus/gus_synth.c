@@ -34,10 +34,10 @@ MODULE_LICENSE("GPL");
  *
  */
 
-static void snd_gus_synth_free_voices(snd_gus_card_t * gus, int client, int port)
+static void snd_gus_synth_free_voices(struct snd_gus_card * gus, int client, int port)
 {
 	int idx;
-	snd_gus_voice_t * voice;
+	struct snd_gus_voice * voice;
 	
 	for (idx = 0; idx < 32; idx++) {
 		voice = &gus->gf1.voices[idx];
@@ -46,11 +46,11 @@ static void snd_gus_synth_free_voices(snd_gus_card_t * gus, int client, int port
 	}
 }
 
-static int snd_gus_synth_use(void *private_data, snd_seq_port_subscribe_t *info)
+static int snd_gus_synth_use(void *private_data, struct snd_seq_port_subscribe *info)
 {
-	snd_gus_port_t * port = (snd_gus_port_t *)private_data;
-	snd_gus_card_t * gus = port->gus;
-	snd_gus_voice_t * voice;
+	struct snd_gus_port * port = private_data;
+	struct snd_gus_card * gus = port->gus;
+	struct snd_gus_voice * voice;
 	unsigned int idx;
 
 	if (info->voices > 32)
@@ -74,10 +74,10 @@ static int snd_gus_synth_use(void *private_data, snd_seq_port_subscribe_t *info)
 	return 0;
 }
 
-static int snd_gus_synth_unuse(void *private_data, snd_seq_port_subscribe_t *info)
+static int snd_gus_synth_unuse(void *private_data, struct snd_seq_port_subscribe *info)
 {
-	snd_gus_port_t * port = (snd_gus_port_t *)private_data;
-	snd_gus_card_t * gus = port->gus;
+	struct snd_gus_port * port = private_data;
+	struct snd_gus_card * gus = port->gus;
 
 	down(&gus->register_mutex);
 	snd_gus_synth_free_voices(gus, info->sender.client, info->sender.port);
@@ -90,19 +90,19 @@ static int snd_gus_synth_unuse(void *private_data, snd_seq_port_subscribe_t *inf
  *
  */
 
-static void snd_gus_synth_free_private_instruments(snd_gus_port_t *p, int client)
+static void snd_gus_synth_free_private_instruments(struct snd_gus_port *p, int client)
 {
-	snd_seq_instr_header_t ifree;
+	struct snd_seq_instr_header ifree;
 
 	memset(&ifree, 0, sizeof(ifree));
 	ifree.cmd = SNDRV_SEQ_INSTR_FREE_CMD_PRIVATE;
 	snd_seq_instr_list_free_cond(p->gus->gf1.ilist, &ifree, client, 0);
 }
  
-static int snd_gus_synth_event_input(snd_seq_event_t *ev, int direct,
+static int snd_gus_synth_event_input(struct snd_seq_event *ev, int direct,
 				     void *private_data, int atomic, int hop)
 {
-	snd_gus_port_t * p = (snd_gus_port_t *) private_data;
+	struct snd_gus_port * p = private_data;
 	
 	snd_assert(p != NULL, return -EINVAL);
 	if (ev->type >= SNDRV_SEQ_EVENT_SAMPLE &&
@@ -131,12 +131,12 @@ static int snd_gus_synth_event_input(snd_seq_event_t *ev, int direct,
 }
 
 static void snd_gus_synth_instr_notify(void *private_data,
-				       snd_seq_kinstr_t *instr,
+				       struct snd_seq_kinstr *instr,
 				       int what)
 {
 	unsigned int idx;
-	snd_gus_card_t *gus = private_data;
-	snd_gus_voice_t *pvoice;
+	struct snd_gus_card *gus = private_data;
+	struct snd_gus_voice *pvoice;
 	unsigned long flags;
 	
 	spin_lock_irqsave(&gus->event_lock, flags);
@@ -160,16 +160,16 @@ static void snd_gus_synth_instr_notify(void *private_data,
 
 static void snd_gus_synth_free_port(void *private_data)
 {
-	snd_gus_port_t * p = (snd_gus_port_t *)private_data;
+	struct snd_gus_port * p = private_data;
 	
 	if (p)
 		snd_midi_channel_free_set(p->chset);
 }
 
-static int snd_gus_synth_create_port(snd_gus_card_t * gus, int idx)
+static int snd_gus_synth_create_port(struct snd_gus_card * gus, int idx)
 {
-	snd_gus_port_t * p;
-	snd_seq_port_callback_t callbacks;
+	struct snd_gus_port * p;
+	struct snd_seq_port_callback callbacks;
 	char name[32];
 	int result;
 	
@@ -210,46 +210,28 @@ static int snd_gus_synth_create_port(snd_gus_card_t * gus, int idx)
  *
  */
 
-static int snd_gus_synth_new_device(snd_seq_device_t *dev)
+static int snd_gus_synth_new_device(struct snd_seq_device *dev)
 {
-	snd_gus_card_t *gus;
+	struct snd_gus_card *gus;
 	int client, i;
-	snd_seq_client_callback_t callbacks;
-	snd_seq_client_info_t *cinfo;
-	snd_seq_port_subscribe_t sub;
-	snd_iwffff_ops_t *iwops;
-	snd_gf1_ops_t *gf1ops;
-	snd_simple_ops_t *simpleops;
+	struct snd_seq_port_subscribe sub;
+	struct snd_iwffff_ops *iwops;
+	struct snd_gf1_ops *gf1ops;
+	struct snd_simple_ops *simpleops;
 
-	gus = *(snd_gus_card_t**)SNDRV_SEQ_DEVICE_ARGPTR(dev);
+	gus = *(struct snd_gus_card **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	if (gus == NULL)
 		return -EINVAL;
 
 	init_MUTEX(&gus->register_mutex);
 	gus->gf1.seq_client = -1;
 	
-	cinfo = kmalloc(sizeof(*cinfo), GFP_KERNEL);
-	if (! cinfo)
-		return -ENOMEM;
-
 	/* allocate new client */
-	memset(&callbacks, 0, sizeof(callbacks));
-	callbacks.private_data = gus;
-	callbacks.allow_output = callbacks.allow_input = 1;
 	client = gus->gf1.seq_client =
-			snd_seq_create_kernel_client(gus->card, 1, &callbacks);
-	if (client < 0) {
-		kfree(cinfo);
+		snd_seq_create_kernel_client(gus->card, 1, gus->interwave ?
+					     "AMD InterWave" : "GF1");
+	if (client < 0)
 		return client;
-	}
-
-	/* change name of client */
-	memset(cinfo, 0, sizeof(*cinfo));
-	cinfo->client = client;
-	cinfo->type = KERNEL_CLIENT;
-	sprintf(cinfo->name, gus->interwave ? "AMD InterWave" : "GF1");
-	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, cinfo);
-	kfree(cinfo);
 
 	for (i = 0; i < 4; i++)
 		snd_gus_synth_create_port(gus, i);
@@ -293,11 +275,11 @@ static int snd_gus_synth_new_device(snd_seq_device_t *dev)
 	return 0;
 }
 
-static int snd_gus_synth_delete_device(snd_seq_device_t *dev)
+static int snd_gus_synth_delete_device(struct snd_seq_device *dev)
 {
-	snd_gus_card_t *gus;
+	struct snd_gus_card *gus;
 
-	gus = *(snd_gus_card_t**)SNDRV_SEQ_DEVICE_ARGPTR(dev);
+	gus = *(struct snd_gus_card **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	if (gus == NULL)
 		return -EINVAL;
 
@@ -312,13 +294,13 @@ static int snd_gus_synth_delete_device(snd_seq_device_t *dev)
 
 static int __init alsa_gus_synth_init(void)
 {
-	static snd_seq_dev_ops_t ops = {
+	static struct snd_seq_dev_ops ops = {
 		snd_gus_synth_new_device,
 		snd_gus_synth_delete_device
 	};
 
 	return snd_seq_device_register_driver(SNDRV_SEQ_DEV_ID_GUS, &ops,
-					      sizeof(snd_gus_card_t*));
+					      sizeof(struct snd_gus_card *));
 }
 
 static void __exit alsa_gus_synth_exit(void)

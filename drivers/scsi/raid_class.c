@@ -115,7 +115,7 @@ static DECLARE_TRANSPORT_CLASS(raid_class,
 			       raid_remove,
 			       NULL);
 
-static struct {
+static const struct {
 	enum raid_state	value;
 	char		*name;
 } raid_states[] = {

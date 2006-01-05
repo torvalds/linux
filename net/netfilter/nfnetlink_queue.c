@@ -148,7 +148,7 @@ instance_create(u_int16_t queue_num, int pid)
 	atomic_set(&inst->id_sequence, 0);
 	/* needs to be two, since we _put() after creation */
 	atomic_set(&inst->use, 2);
-	inst->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&inst->lock);
 	INIT_LIST_HEAD(&inst->queue_list);
 
 	if (!try_module_get(THIS_MODULE))

@@ -47,6 +47,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/poll.h>
 #include <linux/highmem.h>
+#include <linux/spinlock.h>
 
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -198,6 +199,41 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
 	kfree_skb(skb);
 }
+
+/**
+ *	skb_kill_datagram - Free a datagram skbuff forcibly
+ *	@sk: socket
+ *	@skb: datagram skbuff
+ *	@flags: MSG_ flags
+ *
+ *	This function frees a datagram skbuff that was received by
+ *	skb_recv_datagram.  The flags argument must match the one
+ *	used for skb_recv_datagram.
+ *
+ *	If the MSG_PEEK flag is set, and the packet is still on the
+ *	receive queue of the socket, it will be taken off the queue
+ *	before it is freed.
+ *
+ *	This function currently only disables BH when acquiring the
+ *	sk_receive_queue lock.  Therefore it must not be used in a
+ *	context where that lock is acquired in an IRQ context.
+ */
+
+void skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
+{
+	if (flags & MSG_PEEK) {
+		spin_lock_bh(&sk->sk_receive_queue.lock);
+		if (skb == skb_peek(&sk->sk_receive_queue)) {
+			__skb_unlink(skb, &sk->sk_receive_queue);
+			atomic_dec(&skb->users);
+		}
+		spin_unlock_bh(&sk->sk_receive_queue.lock);
+	}
+
+	kfree_skb(skb);
+}
+
+EXPORT_SYMBOL(skb_kill_datagram);
 
 /**
  *	skb_copy_datagram_iovec - Copy a datagram to an iovec.

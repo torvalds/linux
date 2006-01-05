@@ -126,34 +126,26 @@ lpfc_config_port_prep(struct lpfc_hba * phba)
 		return -ERESTART;
 	}
 
-	/* The HBA's current state is provided by the ProgType and rr fields.
-	 * Read and check the value of these fields before continuing to config
-	 * this port.
+	/*
+	 * The value of rr must be 1 since the driver set the cv field to 1.
+	 * This setting requires the FW to set all revision fields.
 	 */
-	if (mb->un.varRdRev.rr == 0 || mb->un.varRdRev.un.b.ProgType != 2) {
-		/* Old firmware */
+	if (mb->un.varRdRev.rr == 0) {
 		vp->rev.rBit = 0;
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
-				"%d:0440 Adapter failed to init, mbxCmd x%x "
-				"READ_REV detected outdated firmware"
-				"Data: x%x\n",
-				phba->brd_no,
-				mb->mbxCommand, 0);
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"%d:0440 Adapter failed to init, READ_REV has "
+				"missing revision information.\n",
+				phba->brd_no);
 		mempool_free(pmb, phba->mbox_mem_pool);
 		return -ERESTART;
-	} else {
-		vp->rev.rBit = 1;
-		vp->rev.sli1FwRev = mb->un.varRdRev.sli1FwRev;
-		memcpy(vp->rev.sli1FwName,
-			(char*)mb->un.varRdRev.sli1FwName, 16);
-		vp->rev.sli2FwRev = mb->un.varRdRev.sli2FwRev;
-		memcpy(vp->rev.sli2FwName,
-					(char *)mb->un.varRdRev.sli2FwName, 16);
 	}
 
 	/* Save information as VPD data */
+	vp->rev.rBit = 1;
+	vp->rev.sli1FwRev = mb->un.varRdRev.sli1FwRev;
+	memcpy(vp->rev.sli1FwName, (char*) mb->un.varRdRev.sli1FwName, 16);
+	vp->rev.sli2FwRev = mb->un.varRdRev.sli2FwRev;
+	memcpy(vp->rev.sli2FwName, (char *) mb->un.varRdRev.sli2FwName, 16);
 	vp->rev.biuRev = mb->un.varRdRev.biuRev;
 	vp->rev.smRev = mb->un.varRdRev.smRev;
 	vp->rev.smFwRev = mb->un.varRdRev.un.smFwRev;
@@ -378,6 +370,10 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	if (psli->num_rings > 3)
 		status |= HC_R3INT_ENA;
 
+	if ((phba->cfg_poll & ENABLE_FCP_RING_POLLING) &&
+	    (phba->cfg_poll & DISABLE_FCP_RING_INT))
+		status &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
+
 	writel(status, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
 	spin_unlock_irq(phba->host->host_lock);
@@ -571,6 +567,8 @@ lpfc_handle_latt(struct lpfc_hba * phba)
 
 	rc = -EIO;
 
+	/* Cleanup any outstanding ELS commands */
+	lpfc_els_flush_cmd(phba);
 
 	psli->slistat.link_event++;
 	lpfc_read_la(phba, pmb, mp);
@@ -765,96 +763,139 @@ static void
 lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 {
 	lpfc_vpd_t *vp;
-	uint32_t id;
-	uint8_t hdrtype;
-	char str[16];
+	uint16_t dev_id = phba->pcidev->device;
+	uint16_t dev_subid = phba->pcidev->subsystem_device;
+	uint8_t hdrtype = phba->pcidev->hdr_type;
+	char *model_str = "";
 
 	vp = &phba->vpd;
-	pci_read_config_dword(phba->pcidev, PCI_VENDOR_ID, &id);
-	pci_read_config_byte(phba->pcidev, PCI_HEADER_TYPE, &hdrtype);
 
-	switch ((id >> 16) & 0xffff) {
+	switch (dev_id) {
 	case PCI_DEVICE_ID_FIREFLY:
-		strcpy(str, "LP6000 1");
+		model_str = "LP6000 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_SUPERFLY:
 		if (vp->rev.biuRev >= 1 && vp->rev.biuRev <= 3)
-			strcpy(str, "LP7000 1");
+			model_str = "LP7000 1Gb PCI";
 		else
-			strcpy(str, "LP7000E 1");
+			model_str = "LP7000E 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_DRAGONFLY:
-		strcpy(str, "LP8000 1");
+		model_str = "LP8000 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_CENTAUR:
 		if (FC_JEDEC_ID(vp->rev.biuRev) == CENTAUR_2G_JEDEC_ID)
-			strcpy(str, "LP9002 2");
+			model_str = "LP9002 2Gb PCI";
 		else
-			strcpy(str, "LP9000 1");
+			model_str = "LP9000 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_RFLY:
-		strcpy(str, "LP952 2");
+		model_str = "LP952 2Gb PCI";
 		break;
 	case PCI_DEVICE_ID_PEGASUS:
-		strcpy(str, "LP9802 2");
+		model_str = "LP9802 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_THOR:
 		if (hdrtype == 0x80)
-			strcpy(str, "LP10000DC 2");
+			model_str = "LP10000DC 2Gb 2-port PCI-X";
 		else
-			strcpy(str, "LP10000 2");
+			model_str = "LP10000 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_VIPER:
-		strcpy(str, "LPX1000 10");
+		model_str = "LPX1000 10Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_PFLY:
-		strcpy(str, "LP982 2");
+		model_str = "LP982 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_TFLY:
 		if (hdrtype == 0x80)
-			strcpy(str, "LP1050DC 2");
+			model_str = "LP1050DC 2Gb 2-port PCI-X";
 		else
-			strcpy(str, "LP1050 2");
+			model_str = "LP1050 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_HELIOS:
 		if (hdrtype == 0x80)
-			strcpy(str, "LP11002 4");
+			model_str = "LP11002 4Gb 2-port PCI-X2";
 		else
-			strcpy(str, "LP11000 4");
+			model_str = "LP11000 4Gb PCI-X2";
+		break;
+	case PCI_DEVICE_ID_HELIOS_SCSP:
+		model_str = "LP11000-SP 4Gb PCI-X2";
+		break;
+	case PCI_DEVICE_ID_HELIOS_DCSP:
+		model_str = "LP11002-SP 4Gb 2-port PCI-X2";
+		break;
+	case PCI_DEVICE_ID_NEPTUNE:
+		if (hdrtype == 0x80)
+			model_str = "LPe1002 4Gb 2-port";
+		else
+			model_str = "LPe1000 4Gb PCIe";
+		break;
+	case PCI_DEVICE_ID_NEPTUNE_SCSP:
+		model_str = "LPe1000-SP 4Gb PCIe";
+		break;
+	case PCI_DEVICE_ID_NEPTUNE_DCSP:
+		model_str = "LPe1002-SP 4Gb 2-port PCIe";
 		break;
 	case PCI_DEVICE_ID_BMID:
-		strcpy(str, "LP1150 4");
+		model_str = "LP1150 4Gb PCI-X2";
 		break;
 	case PCI_DEVICE_ID_BSMB:
-		strcpy(str, "LP111 4");
+		model_str = "LP111 4Gb PCI-X2";
 		break;
 	case PCI_DEVICE_ID_ZEPHYR:
 		if (hdrtype == 0x80)
-			strcpy(str, "LPe11002 4");
+			model_str = "LPe11002 4Gb 2-port PCIe";
 		else
-			strcpy(str, "LPe11000 4");
+			model_str = "LPe11000 4Gb PCIe";
+		break;
+	case PCI_DEVICE_ID_ZEPHYR_SCSP:
+		model_str = "LPe11000-SP 4Gb PCIe";
+		break;
+	case PCI_DEVICE_ID_ZEPHYR_DCSP:
+		model_str = "LPe11002-SP 4Gb 2-port PCIe";
 		break;
 	case PCI_DEVICE_ID_ZMID:
-		strcpy(str, "LPe1150 4");
+		model_str = "LPe1150 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_ZSMB:
-		strcpy(str, "LPe111 4");
+		model_str = "LPe111 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_LP101:
-		strcpy(str, "LP101 2");
+		model_str = "LP101 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_LP10000S:
-		strcpy(str, "LP10000-S 2");
+		model_str = "LP10000-S 2Gb PCI";
+		break;
+	case PCI_DEVICE_ID_LP11000S:
+	case PCI_DEVICE_ID_LPE11000S:
+		switch (dev_subid) {
+		case PCI_SUBSYSTEM_ID_LP11000S:
+			model_str = "LP11002-S 4Gb PCI-X2";
+			break;
+		case PCI_SUBSYSTEM_ID_LP11002S:
+			model_str = "LP11000-S 4Gb 2-port PCI-X2";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11000S:
+			model_str = "LPe11002-S 4Gb PCIe";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11002S:
+			model_str = "LPe11002-S 4Gb 2-port PCIe";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11010S:
+			model_str = "LPe11010-S 4Gb 10-port PCIe";
+			break;
+		default:
+			break;
+		}
 		break;
 	default:
-		memset(str, 0, 16);
 		break;
 	}
 	if (mdp)
-		sscanf(str, "%s", mdp);
+		sscanf(model_str, "%s", mdp);
 	if (descp)
-		sprintf(descp, "Emulex LightPulse %s Gigabit PCI Fibre "
-			"Channel Adapter", str);
+		sprintf(descp, "Emulex %s Fibre Channel Adapter", model_str);
 }
 
 /**************************************************/
@@ -1196,6 +1237,7 @@ lpfc_stop_timer(struct lpfc_hba * phba)
 		}
 	}
 
+	del_timer_sync(&phba->fcp_poll_timer);
 	del_timer_sync(&phba->fc_estabtmo);
 	del_timer_sync(&phba->fc_disctmo);
 	del_timer_sync(&phba->fc_fdmitmo);
@@ -1351,7 +1393,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_put_host;
 
 	host->unique_id = phba->brd_no;
-
+	init_MUTEX(&phba->hba_can_block);
 	INIT_LIST_HEAD(&phba->ctrspbuflist);
 	INIT_LIST_HEAD(&phba->rnidrspbuflist);
 	INIT_LIST_HEAD(&phba->freebufList);
@@ -1374,6 +1416,10 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	init_timer(&psli->mbox_tmo);
 	psli->mbox_tmo.function = lpfc_mbox_timeout;
 	psli->mbox_tmo.data = (unsigned long)phba;
+
+	init_timer(&phba->fcp_poll_timer);
+	phba->fcp_poll_timer.function = lpfc_poll_timeout;
+	phba->fcp_poll_timer.data = (unsigned long)phba;
 
 	/*
 	 * Get all the module params for configuring this host and then
@@ -1489,6 +1535,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	host->max_cmd_len = 16;
 
 	/* Initialize the list of scsi buffers used by driver for scsi IO. */
+	spin_lock_init(&phba->scsi_buf_list_lock);
 	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list);
 
 	host->transportt = lpfc_transport_template;
@@ -1519,6 +1566,12 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	error = lpfc_sli_hba_setup(phba);
 	if (error)
 		goto out_free_irq;
+
+	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
+		spin_lock_irq(phba->host->host_lock);
+		lpfc_poll_start_timer(phba);
+		spin_unlock_irq(phba->host->host_lock);
+	}
 
 	/*
 	 * set fixed host attributes
@@ -1679,13 +1732,27 @@ static struct pci_device_id lpfc_id_table[] = {
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_PFLY,
 		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_NEPTUNE,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_NEPTUNE_SCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_NEPTUNE_DCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_HELIOS,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_HELIOS_SCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_HELIOS_DCSP,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_BMID,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_BSMB,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR_SCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR_DCSP,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZMID,
 		PCI_ANY_ID, PCI_ANY_ID, },
@@ -1696,6 +1763,10 @@ static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LP101,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LP10000S,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LP11000S,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LPE11000S,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }
 };

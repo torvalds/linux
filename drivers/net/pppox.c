@@ -68,8 +68,7 @@ EXPORT_SYMBOL(register_pppox_proto);
 EXPORT_SYMBOL(unregister_pppox_proto);
 EXPORT_SYMBOL(pppox_unbind_sock);
 
-static int pppox_ioctl(struct socket* sock, unsigned int cmd, 
-		       unsigned long arg)
+int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
 	struct sock *sk = sock->sk;
 	struct pppox_sock *po = pppox_sk(sk);
@@ -105,6 +104,7 @@ static int pppox_ioctl(struct socket* sock, unsigned int cmd,
 	return rc;
 }
 
+EXPORT_SYMBOL(pppox_ioctl);
 
 static int pppox_create(struct socket *sock, int protocol)
 {
@@ -119,11 +119,7 @@ static int pppox_create(struct socket *sock, int protocol)
 		goto out;
 
 	rc = pppox_protos[protocol]->create(sock);
-	if (!rc) {
-		/* We get to set the ioctl handler. */
-		/* For everything else, pppox is just a shell. */
-		sock->ops->ioctl = pppox_ioctl;
-	}
+
 	module_put(pppox_protos[protocol]->owner);
 out:
 	return rc;

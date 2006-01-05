@@ -22,6 +22,7 @@ obj-$(CONFIG_USB_MIDI)		+= class/
 obj-$(CONFIG_USB_PRINTER)	+= class/
 
 obj-$(CONFIG_USB_STORAGE)	+= storage/
+obj-$(CONFIG_USB)		+= storage/
 
 obj-$(CONFIG_USB_AIPTEK)	+= input/
 obj-$(CONFIG_USB_ATI_REMOTE)	+= input/

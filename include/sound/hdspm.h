@@ -25,8 +25,6 @@
 
 /* -------------------- IOCTL Peak/RMS Meters -------------------- */
 
-typedef struct _snd_hdspm_peak_rms hdspm_peak_rms_t;
-
 /* peam rms level structure like we get from hardware 
   
    maybe in future we can memory map it so I just copy it
@@ -36,7 +34,7 @@ typedef struct _snd_hdspm_peak_rms hdspm_peak_rms_t;
    (i asume so from the code)
 */
 
-struct _snd_hdspm_peak_rms {
+struct hdspm_peak_rms {
 
 	unsigned int level_offset[1024];
 
@@ -58,18 +56,16 @@ struct _snd_hdspm_peak_rms {
 	unsigned int xxx_rms_h[64];	/* not used */
 };
 
-struct sndrv_hdspm_peak_rms_ioctl {
-	hdspm_peak_rms_t *peak;
+struct hdspm_peak_rms_ioctl {
+	struct hdspm_peak_rms *peak;
 };
 
 /* use indirect access due to the limit of ioctl bit size */
-#define SNDRV_HDSPM_IOCTL_GET_PEAK_RMS _IOR('H', 0x40, struct sndrv_hdspm_peak_rms_ioctl)
+#define SNDRV_HDSPM_IOCTL_GET_PEAK_RMS _IOR('H', 0x40, struct hdspm_peak_rms_ioctl)
 
 /* ------------ CONFIG block IOCTL ---------------------- */
 
-typedef struct _snd_hdspm_config_info hdspm_config_info_t;
-
-struct _snd_hdspm_config_info {
+struct hdspm_config_info {
 	unsigned char pref_sync_ref;
 	unsigned char wordclock_sync_check;
 	unsigned char madi_sync_check;
@@ -83,18 +79,16 @@ struct _snd_hdspm_config_info {
 	unsigned int analog_out;
 };
 
-#define SNDRV_HDSPM_IOCTL_GET_CONFIG_INFO _IOR('H', 0x41, hdspm_config_info_t)
+#define SNDRV_HDSPM_IOCTL_GET_CONFIG_INFO _IOR('H', 0x41, struct hdspm_config_info)
 
 
 /* get Soundcard Version */
 
-typedef struct _snd_hdspm_version hdspm_version_t;
-
-struct _snd_hdspm_version {
+struct hdspm_version {
 	unsigned short firmware_rev;
 };
 
-#define SNDRV_HDSPM_IOCTL_GET_VERSION _IOR('H', 0x43, hdspm_version_t)
+#define SNDRV_HDSPM_IOCTL_GET_VERSION _IOR('H', 0x43, struct hdspm_version)
 
 
 /* ------------- get Matrix Mixer IOCTL --------------- */
@@ -108,24 +102,27 @@ struct _snd_hdspm_version {
 
 #define HDSPM_MIXER_CHANNELS HDSPM_MAX_CHANNELS
 
-typedef struct _snd_hdspm_channelfader snd_hdspm_channelfader_t;
-
-struct _snd_hdspm_channelfader {
+struct hdspm_channelfader {
 	unsigned int in[HDSPM_MIXER_CHANNELS];
 	unsigned int pb[HDSPM_MIXER_CHANNELS];
 };
 
-typedef struct _snd_hdspm_mixer hdspm_mixer_t;
-
-struct _snd_hdspm_mixer {
-	snd_hdspm_channelfader_t ch[HDSPM_MIXER_CHANNELS];
+struct hdspm_mixer {
+	struct hdspm_channelfader ch[HDSPM_MIXER_CHANNELS];
 };
 
-struct sndrv_hdspm_mixer_ioctl {
-	hdspm_mixer_t *mixer;
+struct hdspm_mixer_ioctl {
+	struct hdspm_mixer *mixer;
 };
 
 /* use indirect access due to the limit of ioctl bit size */
-#define SNDRV_HDSPM_IOCTL_GET_MIXER _IOR('H', 0x44, struct sndrv_hdspm_mixer_ioctl)
+#define SNDRV_HDSPM_IOCTL_GET_MIXER _IOR('H', 0x44, struct hdspm_mixer_ioctl)
+
+/* typedefs for compatibility to user-space */
+typedef struct hdspm_peak_rms hdspm_peak_rms_t;
+typedef struct hdspm_config_info hdspm_config_info_t;
+typedef struct hdspm_version hdspm_version_t;
+typedef struct hdspm_channelfader snd_hdspm_channelfader_t;
+typedef struct hdspm_mixer hdspm_mixer_t;
 
 #endif				/* __SOUND_HDSPM_H */

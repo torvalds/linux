@@ -55,9 +55,9 @@
 
 
 /* create new prioq (constructor) */
-prioq_t *snd_seq_prioq_new(void)
+struct snd_seq_prioq *snd_seq_prioq_new(void)
 {
-	prioq_t *f;
+	struct snd_seq_prioq *f;
 
 	f = kzalloc(sizeof(*f), GFP_KERNEL);
 	if (f == NULL) {
@@ -74,9 +74,9 @@ prioq_t *snd_seq_prioq_new(void)
 }
 
 /* delete prioq (destructor) */
-void snd_seq_prioq_delete(prioq_t **fifo)
+void snd_seq_prioq_delete(struct snd_seq_prioq **fifo)
 {
-	prioq_t *f = *fifo;
+	struct snd_seq_prioq *f = *fifo;
 	*fifo = NULL;
 
 	if (f == NULL) {
@@ -101,7 +101,8 @@ void snd_seq_prioq_delete(prioq_t **fifo)
 
 /* compare timestamp between events */
 /* return 1 if a >= b; 0 */
-static inline int compare_timestamp(snd_seq_event_t * a, snd_seq_event_t * b)
+static inline int compare_timestamp(struct snd_seq_event *a,
+				    struct snd_seq_event *b)
 {
 	if ((a->flags & SNDRV_SEQ_TIME_STAMP_MASK) == SNDRV_SEQ_TIME_STAMP_TICK) {
 		/* compare ticks */
@@ -117,7 +118,8 @@ static inline int compare_timestamp(snd_seq_event_t * a, snd_seq_event_t * b)
  *        zero     if a = b;
  *        positive if a > b;
  */
-static inline int compare_timestamp_rel(snd_seq_event_t *a, snd_seq_event_t *b)
+static inline int compare_timestamp_rel(struct snd_seq_event *a,
+					struct snd_seq_event *b)
 {
 	if ((a->flags & SNDRV_SEQ_TIME_STAMP_MASK) == SNDRV_SEQ_TIME_STAMP_TICK) {
 		/* compare ticks */
@@ -144,9 +146,10 @@ static inline int compare_timestamp_rel(snd_seq_event_t *a, snd_seq_event_t *b)
 }
 
 /* enqueue cell to prioq */
-int snd_seq_prioq_cell_in(prioq_t * f, snd_seq_event_cell_t * cell)
+int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
+			  struct snd_seq_event_cell * cell)
 {
-	snd_seq_event_cell_t *cur, *prev;
+	struct snd_seq_event_cell *cur, *prev;
 	unsigned long flags;
 	int count;
 	int prior;
@@ -215,9 +218,9 @@ int snd_seq_prioq_cell_in(prioq_t * f, snd_seq_event_cell_t * cell)
 }
 
 /* dequeue cell from prioq */
-snd_seq_event_cell_t *snd_seq_prioq_cell_out(prioq_t * f)
+struct snd_seq_event_cell *snd_seq_prioq_cell_out(struct snd_seq_prioq *f)
 {
-	snd_seq_event_cell_t *cell;
+	struct snd_seq_event_cell *cell;
 	unsigned long flags;
 
 	if (f == NULL) {
@@ -243,7 +246,7 @@ snd_seq_event_cell_t *snd_seq_prioq_cell_out(prioq_t * f)
 }
 
 /* return number of events available in prioq */
-int snd_seq_prioq_avail(prioq_t * f)
+int snd_seq_prioq_avail(struct snd_seq_prioq * f)
 {
 	if (f == NULL) {
 		snd_printd("oops: snd_seq_prioq_cell_in() called with NULL prioq\n");
@@ -254,7 +257,7 @@ int snd_seq_prioq_avail(prioq_t * f)
 
 
 /* peek at cell at the head of the prioq */
-snd_seq_event_cell_t *snd_seq_prioq_cell_peek(prioq_t * f)
+struct snd_seq_event_cell *snd_seq_prioq_cell_peek(struct snd_seq_prioq * f)
 {
 	if (f == NULL) {
 		snd_printd("oops: snd_seq_prioq_cell_in() called with NULL prioq\n");
@@ -264,7 +267,8 @@ snd_seq_event_cell_t *snd_seq_prioq_cell_peek(prioq_t * f)
 }
 
 
-static inline int prioq_match(snd_seq_event_cell_t *cell, int client, int timestamp)
+static inline int prioq_match(struct snd_seq_event_cell *cell,
+			      int client, int timestamp)
 {
 	if (cell->event.source.client == client ||
 	    cell->event.dest.client == client)
@@ -286,12 +290,12 @@ static inline int prioq_match(snd_seq_event_cell_t *cell, int client, int timest
 }
 
 /* remove cells for left client */
-void snd_seq_prioq_leave(prioq_t * f, int client, int timestamp)
+void snd_seq_prioq_leave(struct snd_seq_prioq * f, int client, int timestamp)
 {
-	register snd_seq_event_cell_t *cell, *next;
+	register struct snd_seq_event_cell *cell, *next;
 	unsigned long flags;
-	snd_seq_event_cell_t *prev = NULL;
-	snd_seq_event_cell_t *freefirst = NULL, *freeprev = NULL, *freenext;
+	struct snd_seq_event_cell *prev = NULL;
+	struct snd_seq_event_cell *freefirst = NULL, *freeprev = NULL, *freenext;
 
 	/* collect all removed cells */
 	spin_lock_irqsave(&f->lock, flags);
@@ -338,8 +342,8 @@ void snd_seq_prioq_leave(prioq_t * f, int client, int timestamp)
 	}
 }
 
-static int prioq_remove_match(snd_seq_remove_events_t *info,
-	snd_seq_event_t *ev)
+static int prioq_remove_match(struct snd_seq_remove_events *info,
+			      struct snd_seq_event *ev)
 {
 	int res;
 
@@ -394,13 +398,13 @@ static int prioq_remove_match(snd_seq_remove_events_t *info,
 }
 
 /* remove cells matching remove criteria */
-void snd_seq_prioq_remove_events(prioq_t * f, int client,
-	snd_seq_remove_events_t *info)
+void snd_seq_prioq_remove_events(struct snd_seq_prioq * f, int client,
+				 struct snd_seq_remove_events *info)
 {
-	register snd_seq_event_cell_t *cell, *next;
+	struct snd_seq_event_cell *cell, *next;
 	unsigned long flags;
-	snd_seq_event_cell_t *prev = NULL;
-	snd_seq_event_cell_t *freefirst = NULL, *freeprev = NULL, *freenext;
+	struct snd_seq_event_cell *prev = NULL;
+	struct snd_seq_event_cell *freefirst = NULL, *freeprev = NULL, *freenext;
 
 	/* collect all removed cells */
 	spin_lock_irqsave(&f->lock, flags);

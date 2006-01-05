@@ -98,7 +98,7 @@ struct nf_ct_frag6_queue
 #define FRAG6Q_HASHSZ	64
 
 static struct nf_ct_frag6_queue *nf_ct_frag6_hash[FRAG6Q_HASHSZ];
-static rwlock_t nf_ct_frag6_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(nf_ct_frag6_lock);
 static u32 nf_ct_frag6_hash_rnd;
 static LIST_HEAD(nf_ct_frag6_lru_list);
 int nf_ct_frag6_nqueues = 0;
@@ -371,7 +371,7 @@ nf_ct_frag6_create(unsigned int hash, u32 id, struct in6_addr *src,				   struct
 	init_timer(&fq->timer);
 	fq->timer.function = nf_ct_frag6_expire;
 	fq->timer.data = (long) fq;
-	fq->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&fq->lock);
 	atomic_set(&fq->refcnt, 1);
 
 	return nf_ct_frag6_intern(hash, fq);

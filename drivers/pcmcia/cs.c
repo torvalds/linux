@@ -901,14 +901,14 @@ int pcmcia_insert_card(struct pcmcia_socket *skt)
 EXPORT_SYMBOL(pcmcia_insert_card);
 
 
-static int pcmcia_socket_hotplug(struct class_device *dev, char **envp,
-				int num_envp, char *buffer, int buffer_size)
+static int pcmcia_socket_uevent(struct class_device *dev, char **envp,
+			        int num_envp, char *buffer, int buffer_size)
 {
 	struct pcmcia_socket *s = container_of(dev, struct pcmcia_socket, dev);
 	int i = 0, length = 0;
 
-	if (add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size,
-				&length, "SOCKET_NO=%u", s->sock))
+	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
+			   &length, "SOCKET_NO=%u", s->sock))
 		return -ENOMEM;
 
 	envp[i] = NULL;
@@ -927,7 +927,7 @@ static void pcmcia_release_socket_class(struct class *data)
 
 struct class pcmcia_socket_class = {
 	.name = "pcmcia_socket",
-        .hotplug = pcmcia_socket_hotplug,
+	.uevent = pcmcia_socket_uevent,
 	.release = pcmcia_release_socket,
 	.class_release = pcmcia_release_socket_class,
 };

@@ -38,7 +38,7 @@ MODULE_LICENSE("GPL");
 /* MACROS                                                             */
 /*====================================================================*/
 
-#if defined(DEBUG) || defined(CONFIG_USB_DEBUG) || defined(PCMCIA_DEBUG)
+#if defined(DEBUG) || defined(PCMCIA_DEBUG)
 
 static int pc_debug = 0;
 module_param(pc_debug, int, 0644);
@@ -129,7 +129,8 @@ static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
 	resources[2].end   = base_addr + 1;
 
 	/* The driver core will probe for us.  We know sl811-hcd has been
-	 * initialized already because of the link order dependency.
+	 * initialized already because of the link order dependency created
+	 * by referencing "sl811h_driver".
 	 */
 	platform_dev.name = sl811h_driver.name;
 	return platform_device_register(&platform_dev);

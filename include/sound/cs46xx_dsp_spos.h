@@ -65,133 +65,130 @@
 #define DSP_SPDIF_STATUS_HW_ENABLED           4
 #define DSP_SPDIF_STATUS_INPUT_CTRL_ENABLED   8
 
-struct _dsp_module_desc_t;
-
-typedef struct _symbol_entry_t {
+struct dsp_symbol_entry {
 	u32 address;
 	char symbol_name[DSP_MAX_SYMBOL_NAME];
 	int symbol_type;
 
 	/* initialized by driver */
-	struct _dsp_module_desc_t * module;
+	struct dsp_module_desc * module;
 	int deleted;
-} symbol_entry_t;
+};
 
-typedef struct _symbol_desc_t {
+struct dsp_symbol_desc {
 	int nsymbols;
 
-	symbol_entry_t * symbols;
+	struct dsp_symbol_entry *symbols;
 
 	/* initialized by driver */
 	int highest_frag_index;
-} symbol_desc_t;
+};
 
-
-typedef struct _segment_desc_t {
+struct dsp_segment_desc {
 	int segment_type;
 	u32 offset;
 	u32 size;
 	u32 * data;
-} segment_desc_t;
+};
 
-typedef struct _dsp_module_desc_t {
+struct dsp_module_desc {
 	char * module_name;
-	symbol_desc_t symbol_table;
+	struct dsp_symbol_desc symbol_table;
 	int nsegments;
-	segment_desc_t * segments;
+	struct dsp_segment_desc * segments;
 
 	/* initialized by driver */
 	u32 overlay_begin_address;
 	u32 load_address;
 	int nfixups;
-} dsp_module_desc_t;
+};
 
-typedef struct _dsp_scb_descriptor_t {
+struct dsp_scb_descriptor {
 	char scb_name[DSP_MAX_SCB_NAME];
 	u32 address;
 	int index;
 
-	struct _dsp_scb_descriptor_t * sub_list_ptr;
-	struct _dsp_scb_descriptor_t * next_scb_ptr;
-	struct _dsp_scb_descriptor_t * parent_scb_ptr;
+	struct dsp_scb_descriptor * sub_list_ptr;
+	struct dsp_scb_descriptor * next_scb_ptr;
+	struct dsp_scb_descriptor * parent_scb_ptr;
 
-	symbol_entry_t * task_entry;
-	symbol_entry_t * scb_symbol;
+	struct dsp_symbol_entry * task_entry;
+	struct dsp_symbol_entry * scb_symbol;
 
-	snd_info_entry_t *proc_info;
+	struct snd_info_entry *proc_info;
 	int ref_count;
 	spinlock_t lock;
 
 	int deleted;
-} dsp_scb_descriptor_t;
+};
 
-typedef struct _dsp_task_descriptor_t {
+struct dsp_task_descriptor {
 	char task_name[DSP_MAX_TASK_NAME];
 	int size;
 	u32 address;
 	int index;
-} dsp_task_descriptor_t;
+};
 
-typedef struct _pcm_channel_descriptor_t {
+struct dsp_pcm_channel_descriptor {
 	int active;
 	int src_slot;
 	int pcm_slot;
 	u32 sample_rate;
 	u32 unlinked;
-	dsp_scb_descriptor_t * pcm_reader_scb;
-	dsp_scb_descriptor_t * src_scb;
-	dsp_scb_descriptor_t * mixer_scb;
+	struct dsp_scb_descriptor * pcm_reader_scb;
+	struct dsp_scb_descriptor * src_scb;
+	struct dsp_scb_descriptor * mixer_scb;
 
 	void * private_data;
-} pcm_channel_descriptor_t;
+};
 
-typedef struct _dsp_spos_instance_t {
-	symbol_desc_t symbol_table; /* currently availble loaded symbols in SP */
+struct dsp_spos_instance {
+	struct dsp_symbol_desc symbol_table; /* currently availble loaded symbols in SP */
 
 	int nmodules;
-	dsp_module_desc_t * modules; /* modules loaded into SP */
+	struct dsp_module_desc * modules; /* modules loaded into SP */
 
-	segment_desc_t code;
+	struct dsp_segment_desc code;
 
 	/* Main PCM playback mixer */
-	dsp_scb_descriptor_t * master_mix_scb;
+	struct dsp_scb_descriptor * master_mix_scb;
 	u16 dac_volume_right;
 	u16 dac_volume_left;
 
 	/* Rear/surround PCM playback mixer */
-	dsp_scb_descriptor_t * rear_mix_scb;
+	struct dsp_scb_descriptor * rear_mix_scb;
 
 	/* Center/LFE mixer */
-	dsp_scb_descriptor_t * center_lfe_mix_scb;
+	struct dsp_scb_descriptor * center_lfe_mix_scb;
 
 	int npcm_channels;
 	int nsrc_scb;
-	pcm_channel_descriptor_t pcm_channels[DSP_MAX_PCM_CHANNELS];
+	struct dsp_pcm_channel_descriptor pcm_channels[DSP_MAX_PCM_CHANNELS];
 	int src_scb_slots[DSP_MAX_SRC_NR];
 
 	/* cache this symbols */
-	symbol_entry_t * null_algorithm; /* used by PCMreaderSCB's */
-	symbol_entry_t * s16_up;         /* used by SRCtaskSCB's */
+	struct dsp_symbol_entry * null_algorithm; /* used by PCMreaderSCB's */
+	struct dsp_symbol_entry * s16_up;         /* used by SRCtaskSCB's */
 
 	/* proc fs */  
-	snd_card_t * snd_card;
-	snd_info_entry_t * proc_dsp_dir;
-	snd_info_entry_t * proc_sym_info_entry;
-	snd_info_entry_t * proc_modules_info_entry;
-	snd_info_entry_t * proc_parameter_dump_info_entry;
-	snd_info_entry_t * proc_sample_dump_info_entry;
+	struct snd_card *snd_card;
+	struct snd_info_entry * proc_dsp_dir;
+	struct snd_info_entry * proc_sym_info_entry;
+	struct snd_info_entry * proc_modules_info_entry;
+	struct snd_info_entry * proc_parameter_dump_info_entry;
+	struct snd_info_entry * proc_sample_dump_info_entry;
 
 	/* SCB's descriptors */
 	int nscb;
 	int scb_highest_frag_index;
-	dsp_scb_descriptor_t scbs[DSP_MAX_SCB_DESC];
-	snd_info_entry_t * proc_scb_info_entry;
-	dsp_scb_descriptor_t * the_null_scb;
+	struct dsp_scb_descriptor scbs[DSP_MAX_SCB_DESC];
+	struct snd_info_entry * proc_scb_info_entry;
+	struct dsp_scb_descriptor * the_null_scb;
 
 	/* Task's descriptors */
 	int ntask;
-	dsp_task_descriptor_t tasks[DSP_MAX_TASK_DESC];
-	snd_info_entry_t * proc_task_info_entry;
+	struct dsp_task_descriptor tasks[DSP_MAX_TASK_DESC];
+	struct snd_info_entry * proc_task_info_entry;
 
 	/* SPDIF status */
 	int spdif_status_out;
@@ -204,30 +201,30 @@ typedef struct _dsp_spos_instance_t {
 	unsigned int spdif_csuv_stream;
 
 	/* SPDIF input sample rate converter */
-	dsp_scb_descriptor_t * spdif_in_src;
+	struct dsp_scb_descriptor * spdif_in_src;
 	/* SPDIF input asynch. receiver */
-	dsp_scb_descriptor_t * asynch_rx_scb;
+	struct dsp_scb_descriptor * asynch_rx_scb;
 
 	/* Capture record mixer SCB */
-	dsp_scb_descriptor_t * record_mixer_scb;
+	struct dsp_scb_descriptor * record_mixer_scb;
     
 	/* CODEC input SCB */
-	dsp_scb_descriptor_t * codec_in_scb;
+	struct dsp_scb_descriptor * codec_in_scb;
 
 	/* reference snooper */
-	dsp_scb_descriptor_t * ref_snoop_scb;
+	struct dsp_scb_descriptor * ref_snoop_scb;
 
 	/* SPDIF output  PCM reference  */
-	dsp_scb_descriptor_t * spdif_pcm_input_scb;
+	struct dsp_scb_descriptor * spdif_pcm_input_scb;
 
 	/* asynch TX task */
-	dsp_scb_descriptor_t * asynch_tx_scb;
+	struct dsp_scb_descriptor * asynch_tx_scb;
 
 	/* record sources */
-	dsp_scb_descriptor_t * pcm_input;
-	dsp_scb_descriptor_t * adc_input;
+	struct dsp_scb_descriptor * pcm_input;
+	struct dsp_scb_descriptor * adc_input;
 
 	int spdif_in_sample_rate;
-} dsp_spos_instance_t;
+};
 
 #endif /* __DSP_SPOS_H__ */

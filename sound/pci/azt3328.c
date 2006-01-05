@@ -186,7 +186,7 @@ static int seqtimer_scaling = 128;
 module_param(seqtimer_scaling, int, 0444);
 MODULE_PARM_DESC(seqtimer_scaling, "Set 1024000Hz sequencer timer scale factor (lockup danger!). Default 128.");
 
-typedef struct _snd_azf3328 {
+struct snd_azf3328 {
 	/* often-used fields towards beginning, then grouped */
 	unsigned long codec_port;
 	unsigned long io2_port;
@@ -196,16 +196,16 @@ typedef struct _snd_azf3328 {
 
 	spinlock_t reg_lock;
 
-	snd_timer_t *timer;
+	struct snd_timer *timer;
 	
-	snd_pcm_t *pcm;
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
+	struct snd_pcm *pcm;
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
 	unsigned int is_playing;
 	unsigned int is_recording;
 
-	snd_card_t *card;
-	snd_rawmidi_t *rmidi;
+	struct snd_card *card;
+	struct snd_rawmidi *rmidi;
 
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
@@ -213,7 +213,7 @@ typedef struct _snd_azf3328 {
 
 	struct pci_dev *pci;
 	int irq;
-} azf3328_t;
+};
 
 static const struct pci_device_id snd_azf3328_ids[] = {
 	{ 0x122D, 0x50DC, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },   /* PCI168/3328 */
@@ -224,61 +224,61 @@ static const struct pci_device_id snd_azf3328_ids[] = {
 MODULE_DEVICE_TABLE(pci, snd_azf3328_ids);
 
 static inline void
-snd_azf3328_codec_outb(const azf3328_t *chip, int reg, u8 value)
+snd_azf3328_codec_outb(const struct snd_azf3328 *chip, int reg, u8 value)
 {
 	outb(value, chip->codec_port + reg);
 }
 
 static inline u8
-snd_azf3328_codec_inb(const azf3328_t *chip, int reg)
+snd_azf3328_codec_inb(const struct snd_azf3328 *chip, int reg)
 {
 	return inb(chip->codec_port + reg);
 }
 
 static inline void
-snd_azf3328_codec_outw(const azf3328_t *chip, int reg, u16 value)
+snd_azf3328_codec_outw(const struct snd_azf3328 *chip, int reg, u16 value)
 {
 	outw(value, chip->codec_port + reg);
 }
 
 static inline u16
-snd_azf3328_codec_inw(const azf3328_t *chip, int reg)
+snd_azf3328_codec_inw(const struct snd_azf3328 *chip, int reg)
 {
 	return inw(chip->codec_port + reg);
 }
 
 static inline void
-snd_azf3328_codec_outl(const azf3328_t *chip, int reg, u32 value)
+snd_azf3328_codec_outl(const struct snd_azf3328 *chip, int reg, u32 value)
 {
 	outl(value, chip->codec_port + reg);
 }
 
 static inline void
-snd_azf3328_io2_outb(const azf3328_t *chip, int reg, u8 value)
+snd_azf3328_io2_outb(const struct snd_azf3328 *chip, int reg, u8 value)
 {
 	outb(value, chip->io2_port + reg);
 }
 
 static inline u8
-snd_azf3328_io2_inb(const azf3328_t *chip, int reg)
+snd_azf3328_io2_inb(const struct snd_azf3328 *chip, int reg)
 {
 	return inb(chip->io2_port + reg);
 }
 
 static inline void
-snd_azf3328_mixer_outw(const azf3328_t *chip, int reg, u16 value)
+snd_azf3328_mixer_outw(const struct snd_azf3328 *chip, int reg, u16 value)
 {
 	outw(value, chip->mixer_port + reg);
 }
 
 static inline u16
-snd_azf3328_mixer_inw(const azf3328_t *chip, int reg)
+snd_azf3328_mixer_inw(const struct snd_azf3328 *chip, int reg)
 {
 	return inw(chip->mixer_port + reg);
 }
 
 static void
-snd_azf3328_mixer_set_mute(const azf3328_t *chip, int reg, int do_mute)
+snd_azf3328_mixer_set_mute(const struct snd_azf3328 *chip, int reg, int do_mute)
 {
 	unsigned long portbase = chip->mixer_port + reg + 1;
 	unsigned char oldval;
@@ -294,7 +294,7 @@ snd_azf3328_mixer_set_mute(const azf3328_t *chip, int reg, int do_mute)
 }
 
 static void
-snd_azf3328_mixer_write_volume_gradually(const azf3328_t *chip, int reg, unsigned char dst_vol_left, unsigned char dst_vol_right, int chan_sel, int delay)
+snd_azf3328_mixer_write_volume_gradually(const struct snd_azf3328 *chip, int reg, unsigned char dst_vol_left, unsigned char dst_vol_right, int chan_sel, int delay)
 {
 	unsigned long portbase = chip->mixer_port + reg;
 	unsigned char curr_vol_left = 0, curr_vol_right = 0;
@@ -353,14 +353,14 @@ snd_azf3328_mixer_write_volume_gradually(const azf3328_t *chip, int reg, unsigne
 /*
  * general mixer element
  */
-typedef struct azf3328_mixer_reg {
+struct azf3328_mixer_reg {
 	unsigned int reg;
 	unsigned int lchan_shift, rchan_shift;
 	unsigned int mask;
 	unsigned int invert: 1;
 	unsigned int stereo: 1;
 	unsigned int enum_c: 4;
-} azf3328_mixer_reg_t;
+};
 
 #define COMPOSE_MIXER_REG(reg,lchan_shift,rchan_shift,mask,invert,stereo,enum_c) \
  ((reg) | (lchan_shift << 8) | (rchan_shift << 12) | \
@@ -369,7 +369,7 @@ typedef struct azf3328_mixer_reg {
   (stereo << 25) | \
   (enum_c << 26))
 
-static void snd_azf3328_mixer_reg_decode(azf3328_mixer_reg_t *r, unsigned long val)
+static void snd_azf3328_mixer_reg_decode(struct azf3328_mixer_reg *r, unsigned long val)
 {
 	r->reg = val & 0xff;
 	r->lchan_shift = (val >> 8) & 0x0f;
@@ -420,9 +420,10 @@ static void snd_azf3328_mixer_reg_decode(azf3328_mixer_reg_t *r, unsigned long v
 }
 
 static int
-snd_azf3328_info_mixer(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+snd_azf3328_info_mixer(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_info *uinfo)
 {
-	azf3328_mixer_reg_t reg;
+	struct azf3328_mixer_reg reg;
 
 	snd_azf3328_dbgcallenter();
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
@@ -436,10 +437,11 @@ snd_azf3328_info_mixer(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 }
 
 static int
-snd_azf3328_get_mixer(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+snd_azf3328_get_mixer(struct snd_kcontrol *kcontrol,
+		      struct snd_ctl_elem_value *ucontrol)
 {
-	azf3328_t *chip = snd_kcontrol_chip(kcontrol);
-	azf3328_mixer_reg_t reg;
+	struct snd_azf3328 *chip = snd_kcontrol_chip(kcontrol);
+	struct azf3328_mixer_reg reg;
 	unsigned int oreg, val;
 
 	snd_azf3328_dbgcallenter();
@@ -466,10 +468,11 @@ snd_azf3328_get_mixer(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol
 }
 
 static int
-snd_azf3328_put_mixer(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+snd_azf3328_put_mixer(struct snd_kcontrol *kcontrol,
+		      struct snd_ctl_elem_value *ucontrol)
 {
-	azf3328_t *chip = snd_kcontrol_chip(kcontrol);
-	azf3328_mixer_reg_t reg;
+	struct snd_azf3328 *chip = snd_kcontrol_chip(kcontrol);
+	struct azf3328_mixer_reg reg;
 	unsigned int oreg, nreg, val;
 
 	snd_azf3328_dbgcallenter();
@@ -506,7 +509,8 @@ snd_azf3328_put_mixer(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol
 }
 
 static int
-snd_azf3328_info_mixer_enum(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+snd_azf3328_info_mixer_enum(struct snd_kcontrol *kcontrol,
+			    struct snd_ctl_elem_info *uinfo)
 {
 	static const char * const texts1[] = {
 		"ModemOut1", "ModemOut2"
@@ -518,7 +522,7 @@ snd_azf3328_info_mixer_enum(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinf
                 "Mic", "CD", "Video", "Aux",
 		"Line", "Mix", "Mix Mono", "Phone"
         };
-	azf3328_mixer_reg_t reg;
+	struct azf3328_mixer_reg reg;
 
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
         uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -540,10 +544,11 @@ snd_azf3328_info_mixer_enum(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinf
 }
 
 static int
-snd_azf3328_get_mixer_enum(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+snd_azf3328_get_mixer_enum(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
 {
-        azf3328_t *chip = snd_kcontrol_chip(kcontrol);
-	azf3328_mixer_reg_t reg;
+        struct snd_azf3328 *chip = snd_kcontrol_chip(kcontrol);
+	struct azf3328_mixer_reg reg;
         unsigned short val;
         
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
@@ -563,10 +568,11 @@ snd_azf3328_get_mixer_enum(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * uco
 }
 
 static int
-snd_azf3328_put_mixer_enum(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+snd_azf3328_put_mixer_enum(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
 {
-        azf3328_t *chip = snd_kcontrol_chip(kcontrol);
-	azf3328_mixer_reg_t reg;
+        struct snd_azf3328 *chip = snd_kcontrol_chip(kcontrol);
+	struct azf3328_mixer_reg reg;
 	unsigned int oreg, nreg, val;
         
 	snd_azf3328_mixer_reg_decode(&reg, kcontrol->private_value);
@@ -594,7 +600,7 @@ snd_azf3328_put_mixer_enum(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * uco
 	return (nreg != oreg);
 }
 
-static const snd_kcontrol_new_t snd_azf3328_mixer_controls[] __devinitdata = {
+static const struct snd_kcontrol_new snd_azf3328_mixer_controls[] __devinitdata = {
 	AZF3328_MIXER_SWITCH("Master Playback Switch", IDX_MIXER_PLAY_MASTER, 15, 1),
 	AZF3328_MIXER_VOL_STEREO("Master Playback Volume", IDX_MIXER_PLAY_MASTER, 0x1f, 1),
 	AZF3328_MIXER_SWITCH("Wave Playback Switch", IDX_MIXER_WAVEOUT, 15, 1),
@@ -666,10 +672,10 @@ static const u16 __devinitdata snd_azf3328_init_values[][2] = {
 };
 
 static int __devinit
-snd_azf3328_mixer_new(azf3328_t *chip)
+snd_azf3328_mixer_new(struct snd_azf3328 *chip)
 {
-	snd_card_t *card;
-	const snd_kcontrol_new_t *sw;
+	struct snd_card *card;
+	const struct snd_kcontrol_new *sw;
 	unsigned int idx;
 	int err;
 
@@ -702,8 +708,8 @@ snd_azf3328_mixer_new(azf3328_t *chip)
 }
 
 static int
-snd_azf3328_hw_params(snd_pcm_substream_t * substream,
-				 snd_pcm_hw_params_t * hw_params)
+snd_azf3328_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *hw_params)
 {
 	int res;
 	snd_azf3328_dbgcallenter();
@@ -713,7 +719,7 @@ snd_azf3328_hw_params(snd_pcm_substream_t * substream,
 }
 
 static int
-snd_azf3328_hw_free(snd_pcm_substream_t * substream)
+snd_azf3328_hw_free(struct snd_pcm_substream *substream)
 {
 	snd_azf3328_dbgcallenter();
 	snd_pcm_lib_free_pages(substream);
@@ -722,7 +728,7 @@ snd_azf3328_hw_free(snd_pcm_substream_t * substream)
 }
 
 static void
-snd_azf3328_setfmt(azf3328_t *chip,
+snd_azf3328_setfmt(struct snd_azf3328 *chip,
 			       unsigned int reg,
 			       unsigned int bitrate,
 			       unsigned int format_width,
@@ -796,7 +802,7 @@ snd_azf3328_setfmt(azf3328_t *chip,
 }
 
 static void
-snd_azf3328_setdmaa(azf3328_t *chip,
+snd_azf3328_setdmaa(struct snd_azf3328 *chip,
 				long unsigned int addr,
                                 unsigned int count,
                                 unsigned int size,
@@ -842,11 +848,11 @@ snd_azf3328_setdmaa(azf3328_t *chip,
 }
 
 static int
-snd_azf3328_playback_prepare(snd_pcm_substream_t *substream)
+snd_azf3328_playback_prepare(struct snd_pcm_substream *substream)
 {
 #if 0
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
         unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
 #endif
@@ -864,11 +870,11 @@ snd_azf3328_playback_prepare(snd_pcm_substream_t *substream)
 }
 
 static int
-snd_azf3328_capture_prepare(snd_pcm_substream_t * substream)
+snd_azf3328_capture_prepare(struct snd_pcm_substream *substream)
 {
 #if 0
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
         unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
 #endif
@@ -886,10 +892,10 @@ snd_azf3328_capture_prepare(snd_pcm_substream_t * substream)
 }
 
 static int
-snd_azf3328_playback_trigger(snd_pcm_substream_t * substream, int cmd)
+snd_azf3328_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int result = 0;
 	unsigned int status1;
 
@@ -998,10 +1004,10 @@ snd_azf3328_playback_trigger(snd_pcm_substream_t * substream, int cmd)
 /* this is just analogous to playback; I'm not quite sure whether recording
  * should actually be triggered like that */
 static int
-snd_azf3328_capture_trigger(snd_pcm_substream_t * substream, int cmd)
+snd_azf3328_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int result = 0;
 	unsigned int status1;
 
@@ -1096,9 +1102,9 @@ snd_azf3328_capture_trigger(snd_pcm_substream_t * substream, int cmd)
 }
 
 static snd_pcm_uframes_t
-snd_azf3328_playback_pointer(snd_pcm_substream_t * substream)
+snd_azf3328_playback_pointer(struct snd_pcm_substream *substream)
 {
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 	unsigned long bufptr, result;
 	snd_pcm_uframes_t frmres;
 
@@ -1117,9 +1123,9 @@ snd_azf3328_playback_pointer(snd_pcm_substream_t * substream)
 }
 
 static snd_pcm_uframes_t
-snd_azf3328_capture_pointer(snd_pcm_substream_t * substream)
+snd_azf3328_capture_pointer(struct snd_pcm_substream *substream)
 {
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 	unsigned long bufptr, result;
 	snd_pcm_uframes_t frmres;
 
@@ -1140,7 +1146,7 @@ snd_azf3328_capture_pointer(snd_pcm_substream_t * substream)
 static irqreturn_t
 snd_azf3328_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	azf3328_t *chip = dev_id;
+	struct snd_azf3328 *chip = dev_id;
 	u8 status, which;
 	static unsigned long irq_count;
 
@@ -1223,7 +1229,7 @@ snd_azf3328_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 /*****************************************************************/
 
-static const snd_pcm_hardware_t snd_azf3328_playback =
+static const struct snd_pcm_hardware snd_azf3328_playback =
 {
 	/* FIXME!! Correct? */
 	.info =			SNDRV_PCM_INFO_MMAP |
@@ -1251,7 +1257,7 @@ static const snd_pcm_hardware_t snd_azf3328_playback =
 	.fifo_size =		0,
 };
 
-static const snd_pcm_hardware_t snd_azf3328_capture =
+static const struct snd_pcm_hardware snd_azf3328_capture =
 {
 	/* FIXME */
 	.info =			SNDRV_PCM_INFO_MMAP |
@@ -1280,7 +1286,7 @@ static const snd_pcm_hardware_t snd_azf3328_capture =
 static unsigned int snd_azf3328_fixed_rates[] = {
 	4000, 4800, 5512, 6620, 8000, 9600, 11025, 13240, 16000, 22050, 32000,
 	44100, 48000, 66200 };
-static snd_pcm_hw_constraint_list_t snd_azf3328_hw_constraints_rates = {
+static struct snd_pcm_hw_constraint_list snd_azf3328_hw_constraints_rates = {
 	.count = ARRAY_SIZE(snd_azf3328_fixed_rates), 
 	.list = snd_azf3328_fixed_rates,
 	.mask = 0,
@@ -1289,10 +1295,10 @@ static snd_pcm_hw_constraint_list_t snd_azf3328_hw_constraints_rates = {
 /*****************************************************************/
 
 static int
-snd_azf3328_playback_open(snd_pcm_substream_t * substream)
+snd_azf3328_playback_open(struct snd_pcm_substream *substream)
 {
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	snd_azf3328_dbgcallenter();
 	chip->playback_substream = substream;
@@ -1304,10 +1310,10 @@ snd_azf3328_playback_open(snd_pcm_substream_t * substream)
 }
 
 static int
-snd_azf3328_capture_open(snd_pcm_substream_t * substream)
+snd_azf3328_capture_open(struct snd_pcm_substream *substream)
 {
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	snd_azf3328_dbgcallenter();
 	chip->capture_substream = substream;
@@ -1319,9 +1325,9 @@ snd_azf3328_capture_open(snd_pcm_substream_t * substream)
 }
 
 static int
-snd_azf3328_playback_close(snd_pcm_substream_t * substream)
+snd_azf3328_playback_close(struct snd_pcm_substream *substream)
 {
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 
 	snd_azf3328_dbgcallenter();
 
@@ -1331,9 +1337,9 @@ snd_azf3328_playback_close(snd_pcm_substream_t * substream)
 }
 
 static int
-snd_azf3328_capture_close(snd_pcm_substream_t * substream)
+snd_azf3328_capture_close(struct snd_pcm_substream *substream)
 {
-	azf3328_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_azf3328 *chip = snd_pcm_substream_chip(substream);
 
 	snd_azf3328_dbgcallenter();
 	chip->capture_substream = NULL;
@@ -1343,7 +1349,7 @@ snd_azf3328_capture_close(snd_pcm_substream_t * substream)
 
 /******************************************************************/
 
-static snd_pcm_ops_t snd_azf3328_playback_ops = {
+static struct snd_pcm_ops snd_azf3328_playback_ops = {
 	.open =		snd_azf3328_playback_open,
 	.close =	snd_azf3328_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1354,7 +1360,7 @@ static snd_pcm_ops_t snd_azf3328_playback_ops = {
 	.pointer =	snd_azf3328_playback_pointer
 };
 
-static snd_pcm_ops_t snd_azf3328_capture_ops = {
+static struct snd_pcm_ops snd_azf3328_capture_ops = {
 	.open =		snd_azf3328_capture_open,
 	.close =	snd_azf3328_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1365,18 +1371,10 @@ static snd_pcm_ops_t snd_azf3328_capture_ops = {
 	.pointer =	snd_azf3328_capture_pointer
 };
 
-static void
-snd_azf3328_pcm_free(snd_pcm_t *pcm)
-{
-	azf3328_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit
-snd_azf3328_pcm(azf3328_t *chip, int device)
+snd_azf3328_pcm(struct snd_azf3328 *chip, int device)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	snd_azf3328_dbgcallenter();
@@ -1386,7 +1384,6 @@ snd_azf3328_pcm(azf3328_t *chip, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_azf3328_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_azf3328_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;
@@ -1402,7 +1399,7 @@ snd_azf3328_pcm(azf3328_t *chip, int device)
 
 #ifdef SUPPORT_JOYSTICK
 static int __devinit
-snd_azf3328_config_joystick(azf3328_t *chip, int dev)
+snd_azf3328_config_joystick(struct snd_azf3328 *chip, int dev)
 {
 	struct gameport *gp;
 	struct resource *r;
@@ -1437,7 +1434,7 @@ snd_azf3328_config_joystick(azf3328_t *chip, int dev)
 }
 
 static void
-snd_azf3328_free_joystick(azf3328_t *chip)
+snd_azf3328_free_joystick(struct snd_azf3328 *chip)
 {
 	if (chip->gameport) {
 		struct resource *r = gameport_get_port_data(chip->gameport);
@@ -1452,15 +1449,15 @@ snd_azf3328_free_joystick(azf3328_t *chip)
 }
 #else
 static inline int
-snd_azf3328_config_joystick(azf3328_t *chip, int dev) { return -ENOSYS; }
+snd_azf3328_config_joystick(struct snd_azf3328 *chip, int dev) { return -ENOSYS; }
 static inline void
-snd_azf3328_free_joystick(azf3328_t *chip) { }
+snd_azf3328_free_joystick(struct snd_azf3328 *chip) { }
 #endif
 
 /******************************************************************/
 
 static int
-snd_azf3328_free(azf3328_t *chip)
+snd_azf3328_free(struct snd_azf3328 *chip)
 {
         if (chip->irq < 0)
                 goto __end_hw;
@@ -1486,9 +1483,9 @@ __end_hw:
 }
 
 static int
-snd_azf3328_dev_free(snd_device_t *device)
+snd_azf3328_dev_free(struct snd_device *device)
 {
-	azf3328_t *chip = device->device_data;
+	struct snd_azf3328 *chip = device->device_data;
 	return snd_azf3328_free(chip);
 }
 
@@ -1504,9 +1501,9 @@ snd_azf3328_dev_free(snd_device_t *device)
  ***/
 
 static int
-snd_azf3328_timer_start(snd_timer_t *timer)
+snd_azf3328_timer_start(struct snd_timer *timer)
 {
-	azf3328_t *chip;
+	struct snd_azf3328 *chip;
 	unsigned long flags;
 	unsigned int delay;
 
@@ -1532,9 +1529,9 @@ snd_azf3328_timer_start(snd_timer_t *timer)
 }
 
 static int
-snd_azf3328_timer_stop(snd_timer_t *timer)
+snd_azf3328_timer_stop(struct snd_timer *timer)
 {
-	azf3328_t *chip;
+	struct snd_azf3328 *chip;
 	unsigned long flags;
 
 	snd_azf3328_dbgcallenter();
@@ -1550,7 +1547,7 @@ snd_azf3328_timer_stop(snd_timer_t *timer)
 
 
 static int
-snd_azf3328_timer_precise_resolution(snd_timer_t *timer,
+snd_azf3328_timer_precise_resolution(struct snd_timer *timer,
 					       unsigned long *num, unsigned long *den)
 {
 	snd_azf3328_dbgcallenter();
@@ -1560,7 +1557,7 @@ snd_azf3328_timer_precise_resolution(snd_timer_t *timer,
 	return 0;
 }
 
-static struct _snd_timer_hardware snd_azf3328_timer_hw = {
+static struct snd_timer_hardware snd_azf3328_timer_hw = {
 	.flags = SNDRV_TIMER_HW_AUTO,
 	.resolution = 977, /* 1000000/1024000 = 0.9765625us */
 	.ticks = 1024000, /* max tick count, defined by the value register; actually it's not 1024000, but 1048576, but we don't care */
@@ -1570,10 +1567,10 @@ static struct _snd_timer_hardware snd_azf3328_timer_hw = {
 };
 
 static int __devinit
-snd_azf3328_timer(azf3328_t *chip, int device)
+snd_azf3328_timer(struct snd_azf3328 *chip, int device)
 {
-	snd_timer_t *timer = NULL;
-	snd_timer_id_t tid;
+	struct snd_timer *timer = NULL;
+	struct snd_timer_id tid;
 	int err;
 
 	snd_azf3328_dbgcallenter();
@@ -1626,7 +1623,7 @@ snd_azf3328_test_bit(unsigned int reg, int bit)
 #endif
 
 static void
-snd_azf3328_debug_show_ports(const azf3328_t *chip)
+snd_azf3328_debug_show_ports(const struct snd_azf3328 *chip)
 {
 #if DEBUG_MISC
 	u16 tmp;
@@ -1644,14 +1641,14 @@ snd_azf3328_debug_show_ports(const azf3328_t *chip)
 }
 
 static int __devinit
-snd_azf3328_create(snd_card_t * card,
+snd_azf3328_create(struct snd_card *card,
                                          struct pci_dev *pci,
                                          unsigned long device_type,
-                                         azf3328_t ** rchip)
+                                         struct snd_azf3328 ** rchip)
 {
-	azf3328_t *chip;
+	struct snd_azf3328 *chip;
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =     snd_azf3328_dev_free,
 	};
 	u16 tmp;
@@ -1744,9 +1741,9 @@ static int __devinit
 snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	azf3328_t *chip;
-	opl3_t *opl3;
+	struct snd_card *card;
+	struct snd_azf3328 *chip;
+	struct snd_opl3 *opl3;
 	int err;
 
 	snd_azf3328_dbgcallenter();

@@ -779,8 +779,8 @@ static int pcmcia_bus_match(struct device * dev, struct device_driver * drv) {
 
 #ifdef CONFIG_HOTPLUG
 
-static int pcmcia_bus_hotplug(struct device *dev, char **envp, int num_envp,
-			      char *buffer, int buffer_size)
+static int pcmcia_bus_uevent(struct device *dev, char **envp, int num_envp,
+			     char *buffer, int buffer_size)
 {
 	struct pcmcia_device *p_dev;
 	int i, length = 0;
@@ -800,31 +800,31 @@ static int pcmcia_bus_hotplug(struct device *dev, char **envp, int num_envp,
 
 	i = 0;
 
-	if (add_hotplug_env_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"SOCKET_NO=%u",
-				p_dev->socket->sock))
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "SOCKET_NO=%u",
+			   p_dev->socket->sock))
 		return -ENOMEM;
 
-	if (add_hotplug_env_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"DEVICE_NO=%02X",
-				p_dev->device_no))
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "DEVICE_NO=%02X",
+			   p_dev->device_no))
 		return -ENOMEM;
 
-	if (add_hotplug_env_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"MODALIAS=pcmcia:m%04Xc%04Xf%02Xfn%02Xpfn%02X"
-				"pa%08Xpb%08Xpc%08Xpd%08X",
-				p_dev->has_manf_id ? p_dev->manf_id : 0,
-				p_dev->has_card_id ? p_dev->card_id : 0,
-				p_dev->has_func_id ? p_dev->func_id : 0,
-				p_dev->func,
-				p_dev->device_no,
-				hash[0],
-				hash[1],
-				hash[2],
-				hash[3]))
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "MODALIAS=pcmcia:m%04Xc%04Xf%02Xfn%02Xpfn%02X"
+			   "pa%08Xpb%08Xpc%08Xpd%08X",
+			   p_dev->has_manf_id ? p_dev->manf_id : 0,
+			   p_dev->has_card_id ? p_dev->card_id : 0,
+			   p_dev->has_func_id ? p_dev->func_id : 0,
+			   p_dev->func,
+			   p_dev->device_no,
+			   hash[0],
+			   hash[1],
+			   hash[2],
+			   hash[3]))
 		return -ENOMEM;
 
 	envp[i] = NULL;
@@ -834,7 +834,7 @@ static int pcmcia_bus_hotplug(struct device *dev, char **envp, int num_envp,
 
 #else
 
-static int pcmcia_bus_hotplug(struct device *dev, char **envp, int num_envp,
+static int pcmcia_bus_uevent(struct device *dev, char **envp, int num_envp,
 			      char *buffer, int buffer_size)
 {
 	return -ENODEV;
@@ -1223,7 +1223,7 @@ static struct class_interface pcmcia_bus_interface = {
 
 struct bus_type pcmcia_bus_type = {
 	.name = "pcmcia",
-	.hotplug = pcmcia_bus_hotplug,
+	.uevent = pcmcia_bus_uevent,
 	.match = pcmcia_bus_match,
 	.dev_attrs = pcmcia_dev_attrs,
 };

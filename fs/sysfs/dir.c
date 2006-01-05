@@ -112,7 +112,11 @@ static int create_dir(struct kobject * k, struct dentry * p,
 			}
 		}
 		if (error && (error != -EEXIST)) {
-			sysfs_put((*d)->d_fsdata);
+			struct sysfs_dirent *sd = (*d)->d_fsdata;
+			if (sd) {
+ 				list_del_init(&sd->s_sibling);
+				sysfs_put(sd);
+			}
 			d_drop(*d);
 		}
 		dput(*d);

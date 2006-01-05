@@ -29,19 +29,19 @@
  *
  */
 
-static void interrupt_wave(snd_gus_card_t *gus, snd_gus_voice_t *voice);
-static void interrupt_volume(snd_gus_card_t *gus, snd_gus_voice_t *voice);
-static void interrupt_effect(snd_gus_card_t *gus, snd_gus_voice_t *voice);
+static void interrupt_wave(struct snd_gus_card *gus, struct snd_gus_voice *voice);
+static void interrupt_volume(struct snd_gus_card *gus, struct snd_gus_voice *voice);
+static void interrupt_effect(struct snd_gus_card *gus, struct snd_gus_voice *voice);
 
-static void sample_start(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_position_t position);
-static void sample_stop(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_stop_mode_t mode);
-static void sample_freq(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_frequency_t freq);
-static void sample_volume(snd_gus_card_t *card, snd_gus_voice_t *voice, snd_seq_ev_volume_t *volume);
-static void sample_loop(snd_gus_card_t *card, snd_gus_voice_t *voice, snd_seq_ev_loop_t *loop);
-static void sample_pos(snd_gus_card_t *card, snd_gus_voice_t *voice, snd_seq_position_t position);
-static void sample_private1(snd_gus_card_t *card, snd_gus_voice_t *voice, unsigned char *data);
+static void sample_start(struct snd_gus_card *gus, struct snd_gus_voice *voice, snd_seq_position_t position);
+static void sample_stop(struct snd_gus_card *gus, struct snd_gus_voice *voice, int mode);
+static void sample_freq(struct snd_gus_card *gus, struct snd_gus_voice *voice, snd_seq_frequency_t freq);
+static void sample_volume(struct snd_gus_card *card, struct snd_gus_voice *voice, struct snd_seq_ev_volume *volume);
+static void sample_loop(struct snd_gus_card *card, struct snd_gus_voice *voice, struct snd_seq_ev_loop *loop);
+static void sample_pos(struct snd_gus_card *card, struct snd_gus_voice *voice, snd_seq_position_t position);
+static void sample_private1(struct snd_gus_card *card, struct snd_gus_voice *voice, unsigned char *data);
 
-static snd_gus_sample_ops_t sample_ops = {
+static struct snd_gus_sample_ops sample_ops = {
 	sample_start,
 	sample_stop,
 	sample_freq,
@@ -53,13 +53,13 @@ static snd_gus_sample_ops_t sample_ops = {
 
 #if 0
 
-static void note_stop(snd_gus_card_t *gus, snd_gus_voice_t *voice, int wait);
-static void note_wait(snd_gus_card_t *gus, snd_gus_voice_t *voice);
-static void note_off(snd_gus_card_t *gus, snd_gus_voice_t *voice);
-static void note_volume(snd_gus_card_t *card, snd_gus_voice_t *voice);
-static void note_pitchbend(snd_gus_card_t *card, snd_gus_voice_t *voice);
-static void note_vibrato(snd_gus_card_t *card, snd_gus_voice_t *voice);
-static void note_tremolo(snd_gus_card_t *card, snd_gus_voice_t *voice);
+static void note_stop(struct snd_gus_card *gus, struct snd_gus_voice *voice, int wait);
+static void note_wait(struct snd_gus_card *gus, struct snd_gus_voice *voice);
+static void note_off(struct snd_gus_card *gus, struct snd_gus_voice *voice);
+static void note_volume(struct snd_gus_card *card, struct snd_gus_voice *voice);
+static void note_pitchbend(struct snd_gus_card *card, struct snd_gus_voice *voice);
+static void note_vibrato(struct snd_gus_card *card, struct snd_gus_voice *voice);
+static void note_tremolo(struct snd_gus_card *card, struct snd_gus_voice *voice);
 
 static struct snd_gus_note_handlers note_commands = {
 	note_stop,
@@ -71,7 +71,7 @@ static struct snd_gus_note_handlers note_commands = {
 	note_tremolo
 };
 
-static void chn_trigger_down(snd_gus_card_t *card, ultra_channel_t *channel, ultra_instrument_t *instrument, unsigned char note, unsigned char velocity, unsigned char priority );
+static void chn_trigger_down(struct snd_gus_card *card, ultra_channel_t *channel, ultra_instrument_t *instrument, unsigned char note, unsigned char velocity, unsigned char priority );
 static void chn_trigger_up( ultra_card_t *card, ultra_note_t *note );
 static void chn_control( ultra_card_t *card, ultra_channel_t *channel, unsigned short p1, unsigned short p2 );
 
@@ -83,14 +83,14 @@ static struct ULTRA_STRU_INSTRUMENT_CHANNEL_COMMANDS channel_commands = {
 
 #endif
 
-static void do_volume_envelope(snd_gus_card_t *card, snd_gus_voice_t *voice);
-static void do_pan_envelope(snd_gus_card_t *card, snd_gus_voice_t *voice);
+static void do_volume_envelope(struct snd_gus_card *card, struct snd_gus_voice *voice);
+static void do_pan_envelope(struct snd_gus_card *card, struct snd_gus_voice *voice);
 
 /*
  *
  */
 
-static void interrupt_wave(snd_gus_card_t *gus, snd_gus_voice_t *voice)
+static void interrupt_wave(struct snd_gus_card *gus, struct snd_gus_voice *voice)
 {
 	spin_lock(&gus->event_lock);
 	snd_gf1_stop_voice(gus, voice->number);
@@ -102,7 +102,7 @@ static void interrupt_wave(snd_gus_card_t *gus, snd_gus_voice_t *voice)
 	spin_unlock(&gus->event_lock);
 }
 
-static void interrupt_volume(snd_gus_card_t *gus, snd_gus_voice_t *voice)
+static void interrupt_volume(struct snd_gus_card *gus, struct snd_gus_voice *voice)
 {
 	spin_lock(&gus->event_lock);
 	if (voice->flags & SNDRV_GF1_VFLG_RUNNING)
@@ -112,7 +112,7 @@ static void interrupt_volume(snd_gus_card_t *gus, snd_gus_voice_t *voice)
 	spin_unlock(&gus->event_lock);
 }
 
-static void interrupt_effect(snd_gus_card_t *gus, snd_gus_voice_t *voice)
+static void interrupt_effect(struct snd_gus_card *gus, struct snd_gus_voice *voice)
 {
 	spin_lock(&gus->event_lock);
 	if ((voice->flags & (SNDRV_GF1_VFLG_RUNNING|SNDRV_GF1_VFLG_EFFECT_TIMER1)) ==
@@ -125,7 +125,7 @@ static void interrupt_effect(snd_gus_card_t *gus, snd_gus_voice_t *voice)
  *
  */
 
-static void do_volume_envelope(snd_gus_card_t *gus, snd_gus_voice_t *voice)
+static void do_volume_envelope(struct snd_gus_card *gus, struct snd_gus_voice *voice)
 {
 	unsigned short next, rate, old_volume;
 	int program_next_ramp;
@@ -229,7 +229,7 @@ static void do_volume_envelope(snd_gus_card_t *gus, snd_gus_voice_t *voice)
 	}
 }
 
-static void do_pan_envelope(snd_gus_card_t *gus, snd_gus_voice_t *voice)
+static void do_pan_envelope(struct snd_gus_card *gus, struct snd_gus_voice *voice)
 {
 	unsigned long flags;
 	unsigned char old_pan;
@@ -276,7 +276,7 @@ static void do_pan_envelope(snd_gus_card_t *gus, snd_gus_voice_t *voice)
 #endif
 }
 
-static void set_enhanced_pan(snd_gus_card_t *gus, snd_gus_voice_t *voice, unsigned short pan)
+static void set_enhanced_pan(struct snd_gus_card *gus, struct snd_gus_voice *voice, unsigned short pan)
 {
 	unsigned long flags;
 	unsigned short vlo, vro;
@@ -307,13 +307,13 @@ static void set_enhanced_pan(snd_gus_card_t *gus, snd_gus_voice_t *voice, unsign
  *
  */
 
-static void sample_start(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_position_t position)
+static void sample_start(struct snd_gus_card *gus, struct snd_gus_voice *voice, snd_seq_position_t position)
 {
 	unsigned long flags;
 	unsigned int begin, addr, addr_end, addr_start;
 	int w_16;
-	simple_instrument_t *simple;
-	snd_seq_kinstr_t *instr;
+	struct simple_instrument *simple;
+	struct snd_seq_kinstr *instr;
 
 	instr = snd_seq_instr_find(gus->gf1.ilist, &voice->instr, 0, 1);
 	if (instr == NULL)
@@ -397,7 +397,7 @@ static void sample_start(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_po
 	snd_seq_instr_free_use(gus->gf1.ilist, instr);
 }
 
-static void sample_stop(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_stop_mode_t mode)
+static void sample_stop(struct snd_gus_card *gus, struct snd_gus_voice *voice, int mode)
 {
 	unsigned char control;
 	unsigned long flags;
@@ -433,7 +433,7 @@ static void sample_stop(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_sto
 	}
 }
 
-static void sample_freq(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_frequency_t freq)
+static void sample_freq(struct snd_gus_card *gus, struct snd_gus_voice *voice, snd_seq_frequency_t freq)
 {
 	unsigned long flags;
 
@@ -444,7 +444,7 @@ static void sample_freq(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_fre
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-static void sample_volume(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_ev_volume_t *volume)
+static void sample_volume(struct snd_gus_card *gus, struct snd_gus_voice *voice, struct snd_seq_ev_volume *volume)
 {
 	if (volume->volume >= 0) {
 		volume->volume &= 0x3fff;
@@ -471,13 +471,13 @@ static void sample_volume(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_e
 	}
 }
 
-static void sample_loop(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_ev_loop_t *loop)
+static void sample_loop(struct snd_gus_card *gus, struct snd_gus_voice *voice, struct snd_seq_ev_loop *loop)
 {
 	unsigned long flags;
 	int w_16 = voice->control & 0x04;
 	unsigned int begin, addr_start, addr_end;
-	simple_instrument_t *simple;
-	snd_seq_kinstr_t *instr;
+	struct simple_instrument *simple;
+	struct snd_seq_kinstr *instr;
 
 #if 0
 	printk("voice_loop: start = 0x%x, end = 0x%x\n", loop->start, loop->end);
@@ -500,13 +500,13 @@ static void sample_loop(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_ev_
 	snd_seq_instr_free_use(gus->gf1.ilist, instr);
 }
 
-static void sample_pos(snd_gus_card_t *gus, snd_gus_voice_t *voice, snd_seq_position_t position)
+static void sample_pos(struct snd_gus_card *gus, struct snd_gus_voice *voice, snd_seq_position_t position)
 {
 	unsigned long flags;
 	int w_16 = voice->control & 0x04;
 	unsigned int begin, addr;
-	simple_instrument_t *simple;
-	snd_seq_kinstr_t *instr;
+	struct simple_instrument *simple;
+	struct snd_seq_kinstr *instr;
 
 #if 0
 	printk("voice_loop: start = 0x%x, end = 0x%x\n", loop->start, loop->end);
@@ -537,7 +537,7 @@ static unsigned char get_effects_mask( ultra_card_t *card, int value )
 
 #endif
 
-static void sample_private1(snd_gus_card_t *card, snd_gus_voice_t *voice, unsigned char *data)
+static void sample_private1(struct snd_gus_card *card, struct snd_gus_voice *voice, unsigned char *data)
 {
 #if 0
   unsigned long flags;
@@ -624,7 +624,7 @@ static void chn_control( ultra_card_t *card, ultra_channel_t *channel, unsigned 
  
 #endif
 
-void snd_gf1_simple_init(snd_gus_voice_t *voice)
+void snd_gf1_simple_init(struct snd_gus_voice *voice)
 {
 	voice->handler_wave = interrupt_wave;
 	voice->handler_volume = interrupt_volume;

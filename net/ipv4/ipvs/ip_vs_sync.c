@@ -21,12 +21,14 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/inetdevice.h>
 #include <linux/net.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/in.h>
 #include <linux/igmp.h>                 /* for ip_mc_join_group */
+#include <linux/udp.h>
 
 #include <net/ip.h>
 #include <net/sock.h>

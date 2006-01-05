@@ -429,6 +429,7 @@ enum
 	TCA_NETEM_CORR,
 	TCA_NETEM_DELAY_DIST,
 	TCA_NETEM_REORDER,
+	TCA_NETEM_CORRUPT,
 	__TCA_NETEM_MAX,
 };
 
@@ -452,6 +453,12 @@ struct tc_netem_corr
 };
 
 struct tc_netem_reorder
+{
+	__u32	probability;
+	__u32	correlation;
+};
+
+struct tc_netem_corrupt
 {
 	__u32	probability;
 	__u32	correlation;
