@@ -400,6 +400,8 @@ static int ctnetlink_done(struct netlink_callback *cb)
 	return 0;
 }
 
+#define L3PROTO(ct) ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num
+
 static int
 ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 {
@@ -407,6 +409,8 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct nf_conntrack_tuple_hash *h;
 	struct list_head *i;
 	u_int32_t *id = (u_int32_t *) &cb->args[1];
+	struct nfgenmsg *nfmsg = NLMSG_DATA(cb->nlh);
+	u_int8_t l3proto = nfmsg->nfgen_family;
 
 	DEBUGP("entered %s, last bucket=%lu id=%u\n", __FUNCTION__, 
 			cb->args[0], *id);
@@ -418,6 +422,11 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
+			/* Dump entries of a given L3 protocol number.
+			 * If it is not specified, ie. l3proto == 0,
+			 * then dump everything. */
+			if (l3proto && L3PROTO(ct) != l3proto)
+				continue;
 			if (ct->id <= *id)
 				continue;
 			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
@@ -444,6 +453,8 @@ ctnetlink_dump_table_w(struct sk_buff *skb, struct netlink_callback *cb)
 	struct nf_conntrack_tuple_hash *h;
 	struct list_head *i;
 	u_int32_t *id = (u_int32_t *) &cb->args[1];
+	struct nfgenmsg *nfmsg = NLMSG_DATA(cb->nlh);
+	u_int8_t l3proto = nfmsg->nfgen_family;	
 
 	DEBUGP("entered %s, last bucket=%u id=%u\n", __FUNCTION__, 
 			cb->args[0], *id);
@@ -455,6 +466,8 @@ ctnetlink_dump_table_w(struct sk_buff *skb, struct netlink_callback *cb)
 			if (DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
+			if (l3proto && L3PROTO(ct) != l3proto)
+				continue;
 			if (ct->id <= *id)
 				continue;
 			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
@@ -749,9 +762,6 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		u32 rlen;
-
-		if (nfmsg->nfgen_family != AF_INET)
-			return -EAFNOSUPPORT;
 
 		if (NFNL_MSG_TYPE(nlh->nlmsg_type) ==
 					IPCTNL_MSG_CT_GET_CTRZERO) {
@@ -1251,12 +1261,16 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct nf_conntrack_expect *exp = NULL;
 	struct list_head *i;
 	u_int32_t *id = (u_int32_t *) &cb->args[0];
+	struct nfgenmsg *nfmsg = NLMSG_DATA(cb->nlh);
+	u_int8_t l3proto = nfmsg->nfgen_family;
 
 	DEBUGP("entered %s, last id=%llu\n", __FUNCTION__, *id);
 
 	read_lock_bh(&nf_conntrack_lock);
 	list_for_each_prev(i, &nf_conntrack_expect_list) {
 		exp = (struct nf_conntrack_expect *) i;
+		if (l3proto && exp->tuple.src.l3num != l3proto)
+			continue;
 		if (exp->id <= *id)
 			continue;
 		if (ctnetlink_exp_fill_info(skb, NETLINK_CB(cb->skb).pid,
@@ -1297,9 +1311,6 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		u32 rlen;
-
-		if (nfmsg->nfgen_family != AF_INET)
-			return -EAFNOSUPPORT;
 
 		if ((*errp = netlink_dump_start(ctnl, skb, nlh,
 		    				ctnetlink_exp_dump_table,
