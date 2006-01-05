@@ -480,6 +480,7 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(KOBIL_VID, KOBIL_CONV_B1_PID) },
 	{ USB_DEVICE(KOBIL_VID, KOBIL_CONV_KAAN_PID) },
 	{ USB_DEVICE(POSIFLEX_VID, POSIFLEX_PP7000_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_TTUSB_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
