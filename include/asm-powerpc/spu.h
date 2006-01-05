@@ -147,6 +147,7 @@ struct spu *spu_alloc(void);
 void spu_free(struct spu *spu);
 int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
+void spu_irq_setaffinity(struct spu *spu, int cpu);
 
 extern struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,

@@ -54,6 +54,7 @@ extern void iic_setup_cpu(void);
 extern void iic_local_enable(void);
 extern void iic_local_disable(void);
 
+extern u8 iic_get_target_id(int cpu);
 
 extern void spider_init_IRQ(void);
 extern int spider_get_irq(unsigned long int_pending);

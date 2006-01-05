@@ -357,6 +357,11 @@ int spu_activate(struct spu_context *ctx, u64 flags)
 	if (!spu)
 		return (signal_pending(current)) ? -ERESTARTSYS : -EAGAIN;
 	bind_context(spu, ctx);
+	/*
+	 * We're likely to wait for interrupts on the same
+	 * CPU that we are now on, so send them here.
+	 */
+	spu_irq_setaffinity(spu, raw_smp_processor_id());
 	put_active_spu(spu);
 	return 0;
 }
