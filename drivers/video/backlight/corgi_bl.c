@@ -20,6 +20,7 @@
 #include <linux/backlight.h>
 
 #include <asm/arch/sharpsl.h>
+#include <asm/hardware/sharpsl_pm.h>
 
 #define CORGI_DEFAULT_INTENSITY		0x1f
 #define CORGI_LIMIT_MASK		0x0b

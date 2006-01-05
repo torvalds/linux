@@ -23,5 +23,8 @@ config SHARP_LOCOMO
 config SHARP_PARAM
 	bool
 
+config SHARPSL_PM
+	bool
+
 config SHARP_SCOOP
 	bool
