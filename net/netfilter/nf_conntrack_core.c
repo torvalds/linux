@@ -1129,6 +1129,7 @@ static inline int refresh_timer(struct nf_conntrack_expect *i)
 int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 {
 	struct nf_conntrack_expect *i;
+	struct nf_conn *master = expect->master;
 	int ret;
 
 	DEBUGP("nf_conntrack_expect_related %p\n", related_to);
@@ -1149,9 +1150,9 @@ int nf_conntrack_expect_related(struct nf_conntrack_expect *expect)
 		}
 	}
 	/* Will be over limit? */
-	if (expect->master->helper->max_expected && 
-	    expect->master->expecting >= expect->master->helper->max_expected)
-		evict_oldest_expect(expect->master);
+	if (master->helper->max_expected && 
+	    master->expecting >= master->helper->max_expected)
+		evict_oldest_expect(master);
 
 	nf_conntrack_expect_insert(expect);
 	nf_conntrack_expect_event(IPEXP_NEW, expect);
