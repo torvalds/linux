@@ -22,6 +22,7 @@
 #include <linux/skbuff.h>
 #include <linux/icmp.h>
 #include <linux/sysctl.h>
+#include <net/route.h>
 #include <net/ip.h>
 
 #include <linux/netfilter_ipv4.h>
