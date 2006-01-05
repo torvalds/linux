@@ -29,12 +29,12 @@ static struct sysdev_class memory_sysdev_class = {
 	set_kset_name(MEMORY_CLASS_NAME),
 };
 
-static char *memory_hotplug_name(struct kset *kset, struct kobject *kobj)
+static const char *memory_uevent_name(struct kset *kset, struct kobject *kobj)
 {
 	return MEMORY_CLASS_NAME;
 }
 
-static int memory_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
+static int memory_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			int num_envp, char *buffer, int buffer_size)
 {
 	int retval = 0;
@@ -42,9 +42,9 @@ static int memory_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 	return retval;
 }
 
-static struct kset_hotplug_ops memory_hotplug_ops = {
-	.name		= memory_hotplug_name,
-	.hotplug	= memory_hotplug,
+static struct kset_uevent_ops memory_uevent_ops = {
+	.name		= memory_uevent_name,
+	.uevent		= memory_uevent,
 };
 
 static struct notifier_block *memory_chain;
@@ -431,7 +431,7 @@ int __init memory_dev_init(void)
 	unsigned int i;
 	int ret;
 
-	memory_sysdev_class.kset.hotplug_ops = &memory_hotplug_ops;
+	memory_sysdev_class.kset.uevent_ops = &memory_uevent_ops;
 	ret = sysdev_class_register(&memory_sysdev_class);
 
 	/*

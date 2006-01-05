@@ -45,7 +45,7 @@ ccwgroup_bus_match (struct device * dev, struct device_driver * drv)
 	return 0;
 }
 static int
-ccwgroup_hotplug (struct device *dev, char **envp, int num_envp, char *buffer,
+ccwgroup_uevent (struct device *dev, char **envp, int num_envp, char *buffer,
 		  int buffer_size)
 {
 	/* TODO */
@@ -55,7 +55,7 @@ ccwgroup_hotplug (struct device *dev, char **envp, int num_envp, char *buffer,
 static struct bus_type ccwgroup_bus_type = {
 	.name    = "ccwgroup",
 	.match   = ccwgroup_bus_match,
-	.hotplug = ccwgroup_hotplug,
+	.uevent = ccwgroup_uevent,
 };
 
 static inline void

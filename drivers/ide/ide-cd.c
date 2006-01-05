@@ -3509,6 +3509,7 @@ static int __init ide_cdrom_init(void)
 	return driver_register(&ide_cdrom_driver.gen_driver);
 }
 
+MODULE_ALIAS("ide:*m-cdrom*");
 module_init(ide_cdrom_init);
 module_exit(ide_cdrom_exit);
 MODULE_LICENSE("GPL");

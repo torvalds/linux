@@ -192,6 +192,7 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	iface->condition = USB_INTERFACE_UNBOUND;
 	mark_quiesced(iface);
 }
+
 struct find_interface_arg {
 	int minor;
 	struct usb_interface *interface;
@@ -236,10 +237,7 @@ struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 #ifdef	CONFIG_HOTPLUG
 
 /*
- * USB hotplugging invokes what /proc/sys/kernel/hotplug says
- * (normally /sbin/hotplug) when USB devices get added or removed.
- *
- * This invokes a user mode policy agent, typically helping to load driver
+ * This sends an uevent to userspace, typically helping to load driver
  * or other modules, configure the device, and more.  Drivers can provide
  * a MODULE_DEVICE_TABLE to help with module loading subtasks.
  *
@@ -248,8 +246,8 @@ struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
  * delays in event delivery.  Use sysfs (and DEVPATH) to make sure the
  * device (and this configuration!) are still present.
  */
-static int usb_hotplug (struct device *dev, char **envp, int num_envp,
-			char *buffer, int buffer_size)
+static int usb_uevent(struct device *dev, char **envp, int num_envp,
+		      char *buffer, int buffer_size)
 {
 	struct usb_interface *intf;
 	struct usb_device *usb_dev;
@@ -261,7 +259,7 @@ static int usb_hotplug (struct device *dev, char **envp, int num_envp,
 		return -ENODEV;
 
 	/* driver is often null here; dev_dbg() would oops */
-	pr_debug ("usb %s: hotplug\n", dev->bus_id);
+	pr_debug ("usb %s: uevent\n", dev->bus_id);
 
 	/* Must check driver_data here, as on remove driver is always NULL */
 	if ((dev->driver == &usb_generic_driver) || 
@@ -288,51 +286,51 @@ static int usb_hotplug (struct device *dev, char **envp, int num_envp,
 	 *
 	 * FIXME reduce hardwired intelligence here
 	 */
-	if (add_hotplug_env_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"DEVICE=/proc/bus/usb/%03d/%03d",
-				usb_dev->bus->busnum, usb_dev->devnum))
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "DEVICE=/proc/bus/usb/%03d/%03d",
+			   usb_dev->bus->busnum, usb_dev->devnum))
 		return -ENOMEM;
 #endif
 
 	/* per-device configurations are common */
-	if (add_hotplug_env_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"PRODUCT=%x/%x/%x",
-				le16_to_cpu(usb_dev->descriptor.idVendor),
-				le16_to_cpu(usb_dev->descriptor.idProduct),
-				le16_to_cpu(usb_dev->descriptor.bcdDevice)))
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "PRODUCT=%x/%x/%x",
+			   le16_to_cpu(usb_dev->descriptor.idVendor),
+			   le16_to_cpu(usb_dev->descriptor.idProduct),
+			   le16_to_cpu(usb_dev->descriptor.bcdDevice)))
 		return -ENOMEM;
 
 	/* class-based driver binding models */
-	if (add_hotplug_env_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"TYPE=%d/%d/%d",
-				usb_dev->descriptor.bDeviceClass,
-				usb_dev->descriptor.bDeviceSubClass,
-				usb_dev->descriptor.bDeviceProtocol))
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "TYPE=%d/%d/%d",
+			   usb_dev->descriptor.bDeviceClass,
+			   usb_dev->descriptor.bDeviceSubClass,
+			   usb_dev->descriptor.bDeviceProtocol))
 		return -ENOMEM;
 
-	if (add_hotplug_env_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"INTERFACE=%d/%d/%d",
-				alt->desc.bInterfaceClass,
-				alt->desc.bInterfaceSubClass,
-				alt->desc.bInterfaceProtocol))
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "INTERFACE=%d/%d/%d",
+			   alt->desc.bInterfaceClass,
+			   alt->desc.bInterfaceSubClass,
+			   alt->desc.bInterfaceProtocol))
 		return -ENOMEM;
 
-	if (add_hotplug_env_var(envp, num_envp, &i,
-				buffer, buffer_size, &length,
-				"MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
-				le16_to_cpu(usb_dev->descriptor.idVendor),
-				le16_to_cpu(usb_dev->descriptor.idProduct),
-				le16_to_cpu(usb_dev->descriptor.bcdDevice),
-				usb_dev->descriptor.bDeviceClass,
-				usb_dev->descriptor.bDeviceSubClass,
-				usb_dev->descriptor.bDeviceProtocol,
-				alt->desc.bInterfaceClass,
-				alt->desc.bInterfaceSubClass,
-				alt->desc.bInterfaceProtocol))
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
+			   le16_to_cpu(usb_dev->descriptor.idVendor),
+			   le16_to_cpu(usb_dev->descriptor.idProduct),
+			   le16_to_cpu(usb_dev->descriptor.bcdDevice),
+			   usb_dev->descriptor.bDeviceClass,
+			   usb_dev->descriptor.bDeviceSubClass,
+			   usb_dev->descriptor.bDeviceProtocol,
+			   alt->desc.bInterfaceClass,
+			   alt->desc.bInterfaceSubClass,
+			   alt->desc.bInterfaceProtocol))
 		return -ENOMEM;
 
 	envp[i] = NULL;
@@ -342,7 +340,7 @@ static int usb_hotplug (struct device *dev, char **envp, int num_envp,
 
 #else
 
-static int usb_hotplug (struct device *dev, char **envp,
+static int usb_uevent(struct device *dev, char **envp,
 			int num_envp, char *buffer, int buffer_size)
 {
 	return -ENODEV;
@@ -1093,7 +1091,7 @@ static int usb_generic_resume(struct device *dev)
 struct bus_type usb_bus_type = {
 	.name =		"usb",
 	.match =	usb_device_match,
-	.hotplug =	usb_hotplug,
+	.uevent =	usb_uevent,
 	.suspend =	usb_generic_suspend,
 	.resume =	usb_generic_resume,
 };

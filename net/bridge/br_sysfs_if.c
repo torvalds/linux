@@ -248,7 +248,7 @@ int br_sysfs_addif(struct net_bridge_port *p)
 	if (err)
 		goto out2;
 
-	kobject_hotplug(&p->kobj, KOBJ_ADD);
+	kobject_uevent(&p->kobj, KOBJ_ADD);
 	return 0;
  out2:
 	kobject_del(&p->kobj);
@@ -260,7 +260,7 @@ void br_sysfs_removeif(struct net_bridge_port *p)
 {
 	pr_debug("br_sysfs_removeif\n");
 	sysfs_remove_link(&p->br->ifobj, p->dev->name);
-	kobject_hotplug(&p->kobj, KOBJ_REMOVE);
+	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 }
 

@@ -115,7 +115,7 @@ Current PPC64 Linux EEH Implementation
 At this time, a generic EEH recovery mechanism has been implemented,
 so that individual device drivers do not need to be modified to support
 EEH recovery.  This generic mechanism piggy-backs on the PCI hotplug
-infrastructure,  and percolates events up through the hotplug/udev
+infrastructure,  and percolates events up through the userspace/udev
 infrastructure.  Followiing is a detailed description of how this is
 accomplished.
 
@@ -172,7 +172,7 @@ A handler for the EEH notifier_block events is implemented in
 drivers/pci/hotplug/pSeries_pci.c, called handle_eeh_events().
 It saves the device BAR's and then calls rpaphp_unconfig_pci_adapter().
 This last call causes the device driver for the card to be stopped,
-which causes hotplug events to go out to user space. This triggers
+which causes uevents to go out to user space. This triggers
 user-space scripts that might issue commands such as "ifdown eth0"
 for ethernet cards, and so on.  This handler then sleeps for 5 seconds,
 hoping to give the user-space scripts enough time to complete.
@@ -258,29 +258,30 @@ rpa_php_unconfig_pci_adapter() {             // in rpaphp_pci.c
     calls
     pci_destroy_dev (struct pci_dev *) {
       calls
-      device_unregister (&dev->dev) {      // in /drivers/base/core.c
+      device_unregister (&dev->dev) {        // in /drivers/base/core.c
         calls
-        device_del(struct device * dev) {  // in /drivers/base/core.c
+        device_del(struct device * dev) {    // in /drivers/base/core.c
           calls
-          kobject_del() {                  //in /libs/kobject.c
+          kobject_del() {                    //in /libs/kobject.c
             calls
-            kobject_hotplug() {            // in /libs/kobject.c
+            kobject_uevent() {               // in /libs/kobject.c
               calls
-              kset_hotplug() {             // in /lib/kobject.c
+              kset_uevent() {                // in /lib/kobject.c
                 calls
-                kset->hotplug_ops->hotplug() which is really just
+                kset->uevent_ops->uevent()   // which is really just
                 a call to
-                dev_hotplug() {           // in /drivers/base/core.c
+                dev_uevent() {               // in /drivers/base/core.c
                   calls
-                  dev->bus->hotplug() which is really just a call to
-                  pci_hotplug () {      // in drivers/pci/hotplug.c
+                  dev->bus->uevent() which is really just a call to
+                  pci_uevent () {            // in drivers/pci/hotplug.c
                     which prints device name, etc....
                  }
                }
-               then kset_hotplug() calls
-                call_usermodehelper () with
-                   argv[0]=hotplug_path[] which is "/sbin/hotplug"
-             --> event to userspace,
+               then kobject_uevent() sends a netlink uevent to userspace
+               --> userspace uevent
+               (during early boot, nobody listens to netlink events and
+               kobject_uevent() executes uevent_helper[], which runs the
+               event process /sbin/hotplug)
            }
          }
          kobject_del() then calls sysfs_remove_dir(), which would

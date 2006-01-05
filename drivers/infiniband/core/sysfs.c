@@ -434,24 +434,24 @@ static void ib_device_release(struct class_device *cdev)
 	kfree(dev);
 }
 
-static int ib_device_hotplug(struct class_device *cdev, char **envp,
-			     int num_envp, char *buf, int size)
+static int ib_device_uevent(struct class_device *cdev, char **envp,
+			    int num_envp, char *buf, int size)
 {
 	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
 	int i = 0, len = 0;
 
-	if (add_hotplug_env_var(envp, num_envp, &i, buf, size, &len,
-				"NAME=%s", dev->name))
+	if (add_uevent_var(envp, num_envp, &i, buf, size, &len,
+			   "NAME=%s", dev->name))
 		return -ENOMEM;
 
 	/*
-	 * It might be nice to pass the node GUID to hotplug, but
+	 * It might be nice to pass the node GUID with the event, but
 	 * right now the only way to get it is to query the device
 	 * provider, and this can crash during device removal because
 	 * we are will be running after driver removal has started.
 	 * We could add a node_guid field to struct ib_device, or we
-	 * could just let the hotplug script read the node GUID from
-	 * sysfs when devices are added.
+	 * could just let userspace read the node GUID from sysfs when
+	 * devices are added.
 	 */
 
 	envp[i] = NULL;
@@ -653,7 +653,7 @@ static struct class_device_attribute *ib_class_attributes[] = {
 static struct class ib_class = {
 	.name    = "infiniband",
 	.release = ib_device_release,
-	.hotplug = ib_device_hotplug,
+	.uevent = ib_device_uevent,
 };
 
 int ib_device_register_sysfs(struct ib_device *device)
