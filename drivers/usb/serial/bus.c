@@ -37,11 +37,6 @@ static int usb_serial_device_match (struct device *dev, struct device_driver *dr
 	return 0;
 }
 
-struct bus_type usb_serial_bus_type = {
-	.name =		"usb-serial",
-	.match =	usb_serial_device_match,
-};
-
 static int usb_serial_device_probe (struct device *dev)
 {
 	struct usb_serial_driver *driver;
@@ -109,14 +104,18 @@ exit:
 	return retval;
 }
 
+struct bus_type usb_serial_bus_type = {
+	.name =		"usb-serial",
+	.match =	usb_serial_device_match,
+	.probe =	usb_serial_device_probe,
+	.remove =	usb_serial_device_remove,
+};
+
 int usb_serial_bus_register(struct usb_serial_driver *driver)
 {
 	int retval;
 
 	driver->driver.bus = &usb_serial_bus_type;
-	driver->driver.probe = usb_serial_device_probe;
-	driver->driver.remove = usb_serial_device_remove;
-
 	retval = driver_register(&driver->driver);
 
 	return retval;
