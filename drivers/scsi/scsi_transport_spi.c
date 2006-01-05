@@ -1075,7 +1075,7 @@ static const char * const extended_msgs[] = {
 /* 0x04 */ "Parallel Protocol Request"
 };
 
-void print_nego(const unsigned char *msg, int per, int off, int width)
+static void print_nego(const unsigned char *msg, int per, int off, int width)
 {
 	if (per) {
 		char buf[20];
