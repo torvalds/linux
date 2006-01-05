@@ -518,7 +518,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 	char family[32], features[128], *cp, sep;
 	struct cpuinfo_ia64 *c = v;
 	unsigned long mask;
-	unsigned int proc_freq;
+	unsigned long proc_freq;
 	int i;
 
 	mask = c->features;
