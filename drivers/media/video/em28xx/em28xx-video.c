@@ -1884,7 +1884,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver em28xx_usb_driver = {
-	.owner = THIS_MODULE,
 	.name = "em28xx",
 	.probe = em28xx_usb_probe,
 	.disconnect = em28xx_usb_disconnect,

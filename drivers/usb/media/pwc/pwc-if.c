@@ -111,7 +111,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 static void usb_pwc_disconnect(struct usb_interface *intf);
 
 static struct usb_driver pwc_driver = {
-	.owner =		THIS_MODULE,
 	.name =			"Philips webcam",	/* name */
 	.id_table =		pwc_device_table,
 	.probe =		usb_pwc_probe,		/* probe() */

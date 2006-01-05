@@ -31,18 +31,7 @@
 
 extern int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us);
 
-struct sddr09_card_info {
-	unsigned long	capacity;	/* Size of card in bytes */
-	int		pagesize;	/* Size of page in bytes */
-	int		pageshift;	/* log2 of pagesize */
-	int		blocksize;	/* Size of block in pages */
-	int		blockshift;	/* log2 of blocksize */
-	int		blockmask;	/* 2^blockshift - 1 */
-	int		*lba_to_pba;	/* logical to physical map */
-	int		*pba_to_lba;	/* physical to logical map */
-	int		lbact;		/* number of available pages */
-	int		flags;
-#define	SDDR09_WP	1		/* write protected */
-};
+extern int usb_stor_sddr09_dpcm_init(struct us_data *us);
+extern int usb_stor_sddr09_init(struct us_data *us);
 
 #endif

@@ -82,11 +82,11 @@ static struct usb_device_id id_table [] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver pl2303_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"pl2303",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 #define SET_LINE_REQUEST_TYPE		0x21
@@ -810,7 +810,7 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	u8 status_idx = UART_STATE;
-	u8 length = UART_STATE;
+	u8 length = UART_STATE + 1;
 
 	if ((le16_to_cpu(port->serial->dev->descriptor.idVendor) == SIEMENS_VENDOR_ID) &&
 	    (le16_to_cpu(port->serial->dev->descriptor.idProduct) == SIEMENS_PRODUCT_ID_X65 ||

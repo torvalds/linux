@@ -50,7 +50,6 @@ static void cytherm_disconnect(struct usb_interface *interface);
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver cytherm_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"cytherm",
 	.probe =	cytherm_probe,
 	.disconnect =	cytherm_disconnect,

@@ -261,7 +261,6 @@ static struct usb_device_id usb_acecad_id_table [] = {
 MODULE_DEVICE_TABLE(usb, usb_acecad_id_table);
 
 static struct usb_driver usb_acecad_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usb_acecad",
 	.probe =	usb_acecad_probe,
 	.disconnect =	usb_acecad_disconnect,

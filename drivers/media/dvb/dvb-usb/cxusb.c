@@ -241,7 +241,6 @@ static struct dvb_usb_properties cxusb_properties = {
 };
 
 static struct usb_driver cxusb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_cxusb",
 	.probe		= cxusb_probe,
 	.disconnect = dvb_usb_device_exit,

@@ -1316,7 +1316,7 @@ static int sn9c102_init(struct sn9c102_device* cam)
 	struct v4l2_control ctrl;
 	struct v4l2_queryctrl *qctrl;
 	struct v4l2_rect* rect;
-	u8 i = 0, n = 0;
+	u8 i = 0;
 	int err = 0;
 
 	if (!(cam->state & DEV_INITIALIZED)) {
@@ -1352,7 +1352,7 @@ static int sn9c102_init(struct sn9c102_device* cam)
 		return err;
 
 	if (s->pix_format.pixelformat == V4L2_PIX_FMT_SN9C10X)
-		DBG(3, "Compressed video format is active, quality %d", 
+		DBG(3, "Compressed video format is active, quality %d",
 		    cam->compression.quality)
 	else
 		DBG(3, "Uncompressed video format is active")
@@ -1364,9 +1364,8 @@ static int sn9c102_init(struct sn9c102_device* cam)
 		}
 
 	if (s->set_ctrl) {
-		n = sizeof(s->qctrl) / sizeof(s->qctrl[0]);
-		for (i = 0; i < n; i++)
-			if (s->qctrl[i].id != 0 && 
+		for (i = 0; i < ARRAY_SIZE(s->qctrl); i++)
+			if (s->qctrl[i].id != 0 &&
 			    !(s->qctrl[i].flags & V4L2_CTRL_FLAG_DISABLED)) {
 				ctrl.id = s->qctrl[i].id;
 				ctrl.value = qctrl[i].default_value;
@@ -1388,7 +1387,7 @@ static int sn9c102_init(struct sn9c102_device* cam)
 		init_waitqueue_head(&cam->wait_stream);
 		cam->nreadbuffers = 2;
 		memcpy(s->_qctrl, s->qctrl, sizeof(s->qctrl));
-		memcpy(&(s->_rect), &(s->cropcap.defrect), 
+		memcpy(&(s->_rect), &(s->cropcap.defrect),
 		       sizeof(struct v4l2_rect));
 		cam->state |= DEV_INITIALIZED;
 	}
@@ -1810,13 +1809,12 @@ static int sn9c102_ioctl_v4l2(struct inode* inode, struct file* filp,
 	{
 		struct sn9c102_sensor* s = cam->sensor;
 		struct v4l2_queryctrl qc;
-		u8 i, n;
+		u8 i;
 
 		if (copy_from_user(&qc, arg, sizeof(qc)))
 			return -EFAULT;
 
-		n = sizeof(s->qctrl) / sizeof(s->qctrl[0]);
-		for (i = 0; i < n; i++)
+		for (i = 0; i < ARRAY_SIZE(s->qctrl); i++)
 			if (qc.id && qc.id == s->qctrl[i].id) {
 				memcpy(&qc, &(s->qctrl[i]), sizeof(qc));
 				if (copy_to_user(arg, &qc, sizeof(qc)))
@@ -1852,7 +1850,7 @@ static int sn9c102_ioctl_v4l2(struct inode* inode, struct file* filp,
 	{
 		struct sn9c102_sensor* s = cam->sensor;
 		struct v4l2_control ctrl;
-		u8 i, n;
+		u8 i;
 		int err = 0;
 
 		if (!s->set_ctrl)
@@ -1861,8 +1859,7 @@ static int sn9c102_ioctl_v4l2(struct inode* inode, struct file* filp,
 		if (copy_from_user(&ctrl, arg, sizeof(ctrl)))
 			return -EFAULT;
 
-		n = sizeof(s->qctrl) / sizeof(s->qctrl[0]);
-		for (i = 0; i < n; i++)
+		for (i = 0; i < ARRAY_SIZE(s->qctrl); i++)
 			if (ctrl.id == s->qctrl[i].id) {
 				if (ctrl.value < s->qctrl[i].minimum ||
 				    ctrl.value > s->qctrl[i].maximum)
@@ -2544,7 +2541,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	unsigned int i, n;
 	int err = 0, r;
 
-	n = sizeof(sn9c102_id_table)/sizeof(sn9c102_id_table[0]);
+	n = ARRAY_SIZE(sn9c102_id_table);
 	for (i = 0; i < n-1; i++)
 		if (le16_to_cpu(udev->descriptor.idVendor) == 
 		    sn9c102_id_table[i].idVendor &&
@@ -2711,7 +2708,6 @@ static void sn9c102_usb_disconnect(struct usb_interface* intf)
 
 
 static struct usb_driver sn9c102_usb_driver = {
-	.owner =      THIS_MODULE,
 	.name =       "sn9c102",
 	.id_table =   sn9c102_id_table,
 	.probe =      sn9c102_usb_probe,

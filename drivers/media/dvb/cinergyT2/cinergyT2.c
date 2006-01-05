@@ -986,7 +986,6 @@ static const struct usb_device_id cinergyt2_table [] __devinitdata = {
 MODULE_DEVICE_TABLE(usb, cinergyt2_table);
 
 static struct usb_driver cinergyt2_driver = {
-	.owner	= THIS_MODULE,
 	.name	= "cinergyT2",
 	.probe	= cinergyt2_probe,
 	.disconnect	= cinergyt2_disconnect,

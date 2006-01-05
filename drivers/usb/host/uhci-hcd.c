@@ -23,11 +23,6 @@
  */
 
 #include <linux/config.h>
-#ifdef CONFIG_USB_DEBUG
-#define DEBUG
-#else
-#undef DEBUG
-#endif
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -67,10 +62,10 @@ Alan Stern"
 
 /*
  * debug = 0, no debugging messages
- * debug = 1, dump failed URB's except for stalls
- * debug = 2, dump all failed URB's (including stalls)
+ * debug = 1, dump failed URBs except for stalls
+ * debug = 2, dump all failed URBs (including stalls)
  *            show all queues in /debug/uhci/[pci_addr]
- * debug = 3, show all TD's in URB's when dumping
+ * debug = 3, show all TDs in URBs when dumping
  */
 #ifdef DEBUG
 static int debug = 1;
@@ -93,7 +88,7 @@ static void uhci_get_current_frame_number(struct uhci_hcd *uhci);
 #define FSBR_DELAY	msecs_to_jiffies(50)
 
 /* When we timeout an idle transfer for FSBR, we'll switch it over to */
-/* depth first traversal. We'll do it in groups of this number of TD's */
+/* depth first traversal. We'll do it in groups of this number of TDs */
 /* to make sure it doesn't hog all of the bandwidth */
 #define DEPTH_INTERVAL 5
 
@@ -478,8 +473,6 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct dentry *dentry;
 
 	hcd->uses_new_polling = 1;
-	if (pci_find_capability(to_pci_dev(uhci_dev(uhci)), PCI_CAP_ID_PM))
-		hcd->can_wakeup = 1;		/* Assume it supports PME# */
 
 	dentry = debugfs_create_file(hcd->self.bus_name,
 			S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root, uhci,
@@ -573,7 +566,7 @@ static int uhci_start(struct usb_hcd *hcd)
 	uhci->skel_bulk_qh->link = cpu_to_le32(uhci->skel_term_qh->dma_handle) | UHCI_PTR_QH;
 
 	/* This dummy TD is to work around a bug in Intel PIIX controllers */
-	uhci_fill_td(uhci->term_td, 0, (UHCI_NULL_DATA_SIZE << 21) |
+	uhci_fill_td(uhci->term_td, 0, uhci_explen(0) |
 		(0x7f << TD_TOKEN_DEVADDR_SHIFT) | USB_PID_IN, 0);
 	uhci->term_td->link = cpu_to_le32(uhci->term_td->dma_handle);
 
@@ -735,8 +728,9 @@ static int uhci_resume(struct usb_hcd *hcd)
 
 	dev_dbg(uhci_dev(uhci), "%s\n", __FUNCTION__);
 
-	/* We aren't in D3 state anymore, we do that even if dead as I
-	 * really don't want to keep a stale HCD_FLAG_HW_ACCESSIBLE=0
+	/* Since we aren't in D3 any more, it's safe to set this flag
+	 * even if the controller was dead.  It might not even be dead
+	 * any more, if the firmware or quirks code has reset it.
 	 */
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 	mb();
@@ -755,8 +749,12 @@ static int uhci_resume(struct usb_hcd *hcd)
 	check_and_reset_hc(uhci);
 	configure_hc(uhci);
 
-	if (uhci->rh_state == UHCI_RH_RESET)
+	if (uhci->rh_state == UHCI_RH_RESET) {
+
+		/* The controller had to be reset */
+		usb_root_hub_lost_power(hcd->self.root_hub);
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
+	}
 
 	spin_unlock_irq(&uhci->lock);
 
@@ -882,7 +880,7 @@ static int __init uhci_hcd_init(void)
 
 init_failed:
 	if (kmem_cache_destroy(uhci_up_cachep))
-		warn("not all urb_priv's were freed!");
+		warn("not all urb_privs were freed!");
 
 up_failed:
 	debugfs_remove(uhci_debugfs_root);
@@ -900,7 +898,7 @@ static void __exit uhci_hcd_cleanup(void)
 	pci_unregister_driver(&uhci_pci_driver);
 	
 	if (kmem_cache_destroy(uhci_up_cachep))
-		warn("not all urb_priv's were freed!");
+		warn("not all urb_privs were freed!");
 
 	debugfs_remove(uhci_debugfs_root);
 	kfree(errbuf);
