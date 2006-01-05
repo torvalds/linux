@@ -1,7 +1,7 @@
 /***************************************************************************
  * V4L2 driver for SN9C10x PC Camera Controllers                           *
  *                                                                         *
- * Copyright (C) 2004-2005 by Luca Risolia <luca.risolia@studio.unibo.it>  *
+ * Copyright (C) 2004-2006 by Luca Risolia <luca.risolia@studio.unibo.it>  *
  *                                                                         *
  * This program is free software; you can redistribute it and/or modify    *
  * it under the terms of the GNU General Public License as published by    *
@@ -53,11 +53,11 @@
 /*****************************************************************************/
 
 #define SN9C102_MODULE_NAME     "V4L2 driver for SN9C10x PC Camera Controllers"
-#define SN9C102_MODULE_AUTHOR   "(C) 2004-2005 Luca Risolia"
+#define SN9C102_MODULE_AUTHOR   "(C) 2004-2006 Luca Risolia"
 #define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
 #define SN9C102_MODULE_LICENSE  "GPL"
-#define SN9C102_MODULE_VERSION  "1:1.24a"
-#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 24)
+#define SN9C102_MODULE_VERSION  "1:1.25"
+#define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 0, 25)
 
 enum sn9c102_bridge {
 	BRIDGE_SN9C101 = 0x01,
@@ -102,12 +102,13 @@ enum sn9c102_stream_state {
 	STREAM_ON,
 };
 
+typedef char sn9c103_sof_header_t[18];
 typedef char sn9c102_sof_header_t[12];
 typedef char sn9c102_eof_header_t[4];
 
 struct sn9c102_sysfs_attr {
 	u8 reg, i2c_reg;
-	sn9c102_sof_header_t frame_header;
+	sn9c103_sof_header_t frame_header;
 };
 
 struct sn9c102_module_param {
@@ -140,8 +141,8 @@ struct sn9c102_device {
 	struct v4l2_jpegcompression compression;
 
 	struct sn9c102_sysfs_attr sysfs;
-	sn9c102_sof_header_t sof_header;
-	u16 reg[32];
+	sn9c103_sof_header_t sof_header;
+	u16 reg[63];
 
 	struct sn9c102_module_param module_param;
 
@@ -170,7 +171,7 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 #undef KDBG
 #ifdef SN9C102_DEBUG
 #	define DBG(level, fmt, args...)                                       \
-{                                                                             \
+do {                                                                          \
 	if (debug >= (level)) {                                               \
 		if ((level) == 1)                                             \
 			dev_err(&cam->dev, fmt "\n", ## args);                \
@@ -180,9 +181,9 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 			dev_info(&cam->dev, "[%s:%d] " fmt "\n",              \
 			         __FUNCTION__, __LINE__ , ## args);           \
 	}                                                                     \
-}
+} while (0)
 #	define KDBG(level, fmt, args...)                                      \
-{                                                                             \
+do {                                                                          \
 	if (debug >= (level)) {                                               \
 		if ((level) == 1 || (level) == 2)                             \
 			pr_info("sn9c102: " fmt "\n", ## args);               \
@@ -190,17 +191,17 @@ sn9c102_attach_sensor(struct sn9c102_device* cam,
 			pr_debug("sn9c102: [%s:%d] " fmt "\n", __FUNCTION__,  \
 			         __LINE__ , ## args);                         \
 	}                                                                     \
-}
+} while (0)
 #else
-#	define KDBG(level, fmt, args...) do {;} while(0);
-#	define DBG(level, fmt, args...) do {;} while(0);
+#	define KDBG(level, fmt, args...) do {;} while(0)
+#	define DBG(level, fmt, args...) do {;} while(0)
 #endif
 
 #undef PDBG
 #define PDBG(fmt, args...)                                                    \
-dev_info(&cam->dev, "[%s:%d] " fmt "\n", __FUNCTION__, __LINE__ , ## args);
+dev_info(&cam->dev, "[%s:%d] " fmt "\n", __FUNCTION__, __LINE__ , ## args)
 
 #undef PDBGG
-#define PDBGG(fmt, args...) do {;} while(0); /* placeholder */
+#define PDBGG(fmt, args...) do {;} while(0) /* placeholder */
 
 #endif /* _SN9C102_H_ */
