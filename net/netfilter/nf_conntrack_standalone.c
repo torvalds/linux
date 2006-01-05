@@ -161,14 +161,14 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (NF_CT_DIRECTION(hash))
 		return 0;
 
-	l3proto = nf_ct_find_l3proto(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
-				     .tuple.src.l3num);
+	l3proto = __nf_ct_l3proto_find(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
+				       .tuple.src.l3num);
 
 	NF_CT_ASSERT(l3proto);
-	proto = nf_ct_find_proto(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
-				 .tuple.src.l3num,
-				 conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
-				 .tuple.dst.protonum);
+	proto = __nf_ct_proto_find(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
+				   .tuple.src.l3num,
+				   conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
+				   .tuple.dst.protonum);
 	NF_CT_ASSERT(proto);
 
 	if (seq_printf(s, "%-8s %u %-8s %u %ld ",
@@ -307,9 +307,9 @@ static int exp_seq_show(struct seq_file *s, void *v)
 		   expect->tuple.src.l3num,
 		   expect->tuple.dst.protonum);
 	print_tuple(s, &expect->tuple,
-		    nf_ct_find_l3proto(expect->tuple.src.l3num),
-		    nf_ct_find_proto(expect->tuple.src.l3num,
-				     expect->tuple.dst.protonum));
+		    __nf_ct_l3proto_find(expect->tuple.src.l3num),
+		    __nf_ct_proto_find(expect->tuple.src.l3num,
+				       expect->tuple.dst.protonum));
 	return seq_putc(s, '\n');
 }
 
@@ -847,7 +847,11 @@ EXPORT_SYMBOL(nf_conntrack_helper_unregister);
 EXPORT_SYMBOL(nf_ct_iterate_cleanup);
 EXPORT_SYMBOL(__nf_ct_refresh_acct);
 EXPORT_SYMBOL(nf_ct_protos);
-EXPORT_SYMBOL(nf_ct_find_proto);
+EXPORT_SYMBOL(__nf_ct_proto_find);
+EXPORT_SYMBOL(nf_ct_proto_find_get);
+EXPORT_SYMBOL(nf_ct_proto_put);
+EXPORT_SYMBOL(nf_ct_l3proto_find_get);
+EXPORT_SYMBOL(nf_ct_l3proto_put);
 EXPORT_SYMBOL(nf_ct_l3protos);
 EXPORT_SYMBOL(nf_conntrack_expect_alloc);
 EXPORT_SYMBOL(nf_conntrack_expect_put);
@@ -867,3 +871,21 @@ EXPORT_SYMBOL(nf_ct_get_tuple);
 EXPORT_SYMBOL(nf_ct_invert_tuple);
 EXPORT_SYMBOL(nf_conntrack_in);
 EXPORT_SYMBOL(__nf_conntrack_attach);
+EXPORT_SYMBOL(nf_conntrack_alloc);
+EXPORT_SYMBOL(nf_conntrack_free);
+EXPORT_SYMBOL(nf_conntrack_flush);
+EXPORT_SYMBOL(nf_ct_remove_expectations);
+EXPORT_SYMBOL(nf_ct_helper_find_get);
+EXPORT_SYMBOL(nf_ct_helper_put);
+EXPORT_SYMBOL(__nf_conntrack_helper_find_byname);
+EXPORT_SYMBOL(__nf_conntrack_find);
+EXPORT_SYMBOL(nf_ct_unlink_expect);
+EXPORT_SYMBOL(nf_conntrack_hash_insert);
+EXPORT_SYMBOL(__nf_conntrack_expect_find);
+EXPORT_SYMBOL(nf_conntrack_expect_find);
+EXPORT_SYMBOL(nf_conntrack_expect_list);
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+EXPORT_SYMBOL(nf_ct_port_tuple_to_nfattr);
+EXPORT_SYMBOL(nf_ct_port_nfattr_to_tuple);
+#endif
