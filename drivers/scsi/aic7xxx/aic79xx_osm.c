@@ -1064,6 +1064,7 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 	struct	Scsi_Host *host;
 	char	*new_name;
 	u_long	s;
+	int	retval;
 
 	template->name = ahd->description;
 	host = scsi_host_alloc(template, sizeof(struct ahd_softc *));
@@ -1096,9 +1097,15 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 
 	host->transportt = ahd_linux_transport_template;
 
-	scsi_add_host(host, &ahd->dev_softc->dev); /* XXX handle failure */
+	retval = scsi_add_host(host, &ahd->dev_softc->dev);
+	if (retval) {
+		printk(KERN_WARNING "aic79xx: scsi_add_host failed\n");
+		scsi_host_put(host);
+		return retval;
+	}
+
 	scsi_scan_host(host);
-	return (0);
+	return 0;
 }
 
 uint64_t

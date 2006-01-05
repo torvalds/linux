@@ -1,3 +1,38 @@
+Release Date	: Fri Nov 11 12:27:22 EST 2005 - Seokmann Ju <sju@lsil.com>
+Current Version : 2.20.4.7 (scsi module), 2.20.2.6 (cmm module)
+Older Version	: 2.20.4.6 (scsi module), 2.20.2.6 (cmm module)
+
+1.	Sorted out PCI IDs to remove megaraid support overlaps.
+	Based on the patch from Daniel, sorted out PCI IDs along with
+	charactor node name change from 'megadev' to 'megadev_legacy' to avoid
+	conflict.
+	---
+	Hopefully we'll be getting the build restriction zapped much sooner, 
+	but we should also be thinking about totally removing the hardware 
+	support overlap in the megaraid drivers.
+
+	This patch pencils in a date of Feb 06 for this, and performs some 
+	printk abuse in hope that existing legacy users might pick up on what's
+	going on.
+
+	Signed-off-by: Daniel Drake <dsd@gentoo.org>
+	---
+
+2.	Fixed a issue: megaraid always fails to reset handler.
+	---
+	I found that the megaraid driver always fails to reset the
+	adapter with the following message:
+		megaraid: resetting the host...
+		megaraid mbox: reset sequence completed successfully
+		megaraid: fast sync command timed out
+		megaraid: reservation reset failed
+	when the "Cluster mode" of the adapter BIOS is enabled.
+	So, whenever the reset occurs, the adapter goes to
+	offline and just become unavailable.
+
+	Jun'ichi Nomura [mailto:jnomura@mtc.biglobe.ne.jp]
+	---
+
 Release Date	: Mon Mar 07 12:27:22 EST 2005 - Seokmann Ju <sju@lsil.com>
 Current Version : 2.20.4.6 (scsi module), 2.20.2.6 (cmm module)
 Older Version	: 2.20.4.5 (scsi module), 2.20.2.5 (cmm module)

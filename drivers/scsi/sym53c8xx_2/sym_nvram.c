@@ -92,29 +92,32 @@ void sym_nvram_setup_host(struct Scsi_Host *shost, struct sym_hcb *np, struct sy
  *  Get target set-up from Symbios format NVRAM.
  */
 static void
-sym_Symbios_setup_target(struct sym_hcb *np, int target, Symbios_nvram *nvram)
+sym_Symbios_setup_target(struct sym_tcb *tp, int target, Symbios_nvram *nvram)
 {
-	struct sym_tcb *tp = &np->target[target];
 	Symbios_target *tn = &nvram->target[target];
 
-	tp->usrtags =
-		(tn->flags & SYMBIOS_QUEUE_TAGS_ENABLED)? SYM_SETUP_MAX_TAG : 0;
-
+	if (!(tn->flags & SYMBIOS_QUEUE_TAGS_ENABLED))
+		tp->usrtags = 0;
 	if (!(tn->flags & SYMBIOS_DISCONNECT_ENABLE))
 		tp->usrflags &= ~SYM_DISC_ENABLED;
 	if (!(tn->flags & SYMBIOS_SCAN_AT_BOOT_TIME))
 		tp->usrflags |= SYM_SCAN_BOOT_DISABLED;
 	if (!(tn->flags & SYMBIOS_SCAN_LUNS))
 		tp->usrflags |= SYM_SCAN_LUNS_DISABLED;
+	tp->usr_period = (tn->sync_period + 3) / 4;
+	tp->usr_width = (tn->bus_width == 0x8) ? 0 : 1;
 }
+
+static const unsigned char Tekram_sync[16] = {
+	25, 31, 37, 43, 50, 62, 75, 125, 12, 15, 18, 21, 6, 7, 9, 10
+};
 
 /*
  *  Get target set-up from Tekram format NVRAM.
  */
 static void
-sym_Tekram_setup_target(struct sym_hcb *np, int target, Tekram_nvram *nvram)
+sym_Tekram_setup_target(struct sym_tcb *tp, int target, Tekram_nvram *nvram)
 {
-	struct sym_tcb *tp = &np->target[target];
 	struct Tekram_target *tn = &nvram->target[target];
 
 	if (tn->flags & TEKRAM_TAGGED_COMMANDS) {
@@ -124,22 +127,22 @@ sym_Tekram_setup_target(struct sym_hcb *np, int target, Tekram_nvram *nvram)
 	if (tn->flags & TEKRAM_DISCONNECT_ENABLE)
 		tp->usrflags |= SYM_DISC_ENABLED;
  
-	/* If any device does not support parity, we will not use this option */
-	if (!(tn->flags & TEKRAM_PARITY_CHECK))
-		np->rv_scntl0  &= ~0x0a; /* SCSI parity checking disabled */
+	if (tn->flags & TEKRAM_SYNC_NEGO)
+		tp->usr_period = Tekram_sync[tn->sync_index & 0xf];
+	tp->usr_width = (tn->flags & TEKRAM_WIDE_NEGO) ? 1 : 0;
 }
 
 /*
  *  Get target setup from NVRAM.
  */
-void sym_nvram_setup_target(struct sym_hcb *np, int target, struct sym_nvram *nvp)
+void sym_nvram_setup_target(struct sym_tcb *tp, int target, struct sym_nvram *nvp)
 {
 	switch (nvp->type) {
 	case SYM_SYMBIOS_NVRAM:
-		sym_Symbios_setup_target(np, target, &nvp->data.Symbios);
+		sym_Symbios_setup_target(tp, target, &nvp->data.Symbios);
 		break;
 	case SYM_TEKRAM_NVRAM:
-		sym_Tekram_setup_target(np, target, &nvp->data.Tekram);
+		sym_Tekram_setup_target(tp, target, &nvp->data.Tekram);
 		break;
 	default:
 		break;

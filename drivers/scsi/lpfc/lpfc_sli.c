@@ -886,6 +886,182 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring,
 	return rc;
 }
 
+static void lpfc_sli_rsp_pointers_error(struct lpfc_hba * phba,
+					struct lpfc_sli_ring * pring)
+{
+	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
+	/*
+	 * Ring <ringno> handler: portRspPut <portRspPut> is bigger then
+	 * rsp ring <portRspMax>
+	 */
+	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			"%d:0312 Ring %d handler: portRspPut %d "
+			"is bigger then rsp ring %d\n",
+			phba->brd_no, pring->ringno,
+			le32_to_cpu(pgp->rspPutInx),
+			pring->numRiocb);
+
+	phba->hba_state = LPFC_HBA_ERROR;
+
+	/*
+	 * All error attention handlers are posted to
+	 * worker thread
+	 */
+	phba->work_ha |= HA_ERATT;
+	phba->work_hs = HS_FFER3;
+	if (phba->work_wait)
+		wake_up(phba->work_wait);
+
+	return;
+}
+
+void lpfc_sli_poll_fcp_ring(struct lpfc_hba * phba)
+{
+	struct lpfc_sli      * psli   = &phba->sli;
+	struct lpfc_sli_ring * pring = &psli->ring[LPFC_FCP_RING];
+	IOCB_t *irsp = NULL;
+	IOCB_t *entry = NULL;
+	struct lpfc_iocbq *cmdiocbq = NULL;
+	struct lpfc_iocbq rspiocbq;
+	struct lpfc_pgp *pgp;
+	uint32_t status;
+	uint32_t portRspPut, portRspMax;
+	int type;
+	uint32_t rsp_cmpl = 0;
+	void __iomem *to_slim;
+	uint32_t ha_copy;
+
+	pring->stats.iocb_event++;
+
+	/* The driver assumes SLI-2 mode */
+	pgp =  &phba->slim2p->mbx.us.s2.port[pring->ringno];
+
+	/*
+	 * The next available response entry should never exceed the maximum
+	 * entries.  If it does, treat it as an adapter hardware error.
+	 */
+	portRspMax = pring->numRiocb;
+	portRspPut = le32_to_cpu(pgp->rspPutInx);
+	if (unlikely(portRspPut >= portRspMax)) {
+		lpfc_sli_rsp_pointers_error(phba, pring);
+		return;
+	}
+
+	rmb();
+	while (pring->rspidx != portRspPut) {
+
+		entry = IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+
+		if (++pring->rspidx >= portRspMax)
+			pring->rspidx = 0;
+
+		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
+				      (uint32_t *) &rspiocbq.iocb,
+				      sizeof (IOCB_t));
+		irsp = &rspiocbq.iocb;
+		type = lpfc_sli_iocb_cmd_type(irsp->ulpCommand & CMD_IOCB_MASK);
+		pring->stats.iocb_rsp++;
+		rsp_cmpl++;
+
+		if (unlikely(irsp->ulpStatus)) {
+			/* Rsp ring <ringno> error: IOCB */
+			lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+					"%d:0326 Rsp Ring %d error: IOCB Data: "
+					"x%x x%x x%x x%x x%x x%x x%x x%x\n",
+					phba->brd_no, pring->ringno,
+					irsp->un.ulpWord[0],
+					irsp->un.ulpWord[1],
+					irsp->un.ulpWord[2],
+					irsp->un.ulpWord[3],
+					irsp->un.ulpWord[4],
+					irsp->un.ulpWord[5],
+					*(((uint32_t *) irsp) + 6),
+					*(((uint32_t *) irsp) + 7));
+		}
+
+		switch (type) {
+		case LPFC_ABORT_IOCB:
+		case LPFC_SOL_IOCB:
+			/*
+			 * Idle exchange closed via ABTS from port.  No iocb
+			 * resources need to be recovered.
+			 */
+			if (unlikely(irsp->ulpCommand == CMD_XRI_ABORTED_CX)) {
+				printk(KERN_INFO "%s: IOCB cmd 0x%x processed."
+				       " Skipping completion\n", __FUNCTION__,
+				       irsp->ulpCommand);
+				break;
+			}
+
+			cmdiocbq = lpfc_sli_iocbq_lookup(phba, pring,
+							 &rspiocbq);
+			if ((cmdiocbq) && (cmdiocbq->iocb_cmpl)) {
+				(cmdiocbq->iocb_cmpl)(phba, cmdiocbq,
+						      &rspiocbq);
+			}
+			break;
+		default:
+			if (irsp->ulpCommand == CMD_ADAPTER_MSG) {
+				char adaptermsg[LPFC_MAX_ADPTMSG];
+				memset(adaptermsg, 0, LPFC_MAX_ADPTMSG);
+				memcpy(&adaptermsg[0], (uint8_t *) irsp,
+				       MAX_MSG_DATA);
+				dev_warn(&((phba->pcidev)->dev), "lpfc%d: %s",
+					 phba->brd_no, adaptermsg);
+			} else {
+				/* Unknown IOCB command */
+				lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+						"%d:0321 Unknown IOCB command "
+						"Data: x%x, x%x x%x x%x x%x\n",
+						phba->brd_no, type,
+						irsp->ulpCommand,
+						irsp->ulpStatus,
+						irsp->ulpIoTag,
+						irsp->ulpContext);
+			}
+			break;
+		}
+
+		/*
+		 * The response IOCB has been processed.  Update the ring
+		 * pointer in SLIM.  If the port response put pointer has not
+		 * been updated, sync the pgp->rspPutInx and fetch the new port
+		 * response put pointer.
+		 */
+		to_slim = phba->MBslimaddr +
+			(SLIMOFF + (pring->ringno * 2) + 1) * 4;
+		writeb(pring->rspidx, to_slim);
+
+		if (pring->rspidx == portRspPut)
+			portRspPut = le32_to_cpu(pgp->rspPutInx);
+	}
+
+	ha_copy = readl(phba->HAregaddr);
+	ha_copy >>= (LPFC_FCP_RING * 4);
+
+	if ((rsp_cmpl > 0) && (ha_copy & HA_R0RE_REQ)) {
+		pring->stats.iocb_rsp_full++;
+		status = ((CA_R0ATT | CA_R0RE_RSP) << (LPFC_FCP_RING * 4));
+		writel(status, phba->CAregaddr);
+		readl(phba->CAregaddr);
+	}
+	if ((ha_copy & HA_R0CE_RSP) &&
+	    (pring->flag & LPFC_CALL_RING_AVAILABLE)) {
+		pring->flag &= ~LPFC_CALL_RING_AVAILABLE;
+		pring->stats.iocb_cmd_empty++;
+
+		/* Force update of the local copy of cmdGetInx */
+		pring->local_getidx = le32_to_cpu(pgp->cmdGetInx);
+		lpfc_sli_resume_iocb(phba, pring);
+
+		if ((pring->lpfc_sli_cmd_available))
+			(pring->lpfc_sli_cmd_available) (phba, pring);
+
+	}
+
+	return;
+}
+
 /*
  * This routine presumes LPFC_FCP_RING handling and doesn't bother
  * to check it explicitly.
@@ -917,24 +1093,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 	portRspMax = pring->numRiocb;
 	portRspPut = le32_to_cpu(pgp->rspPutInx);
 	if (unlikely(portRspPut >= portRspMax)) {
-		/*
-		 * Ring <ringno> handler: portRspPut <portRspPut> is bigger then
-		 * rsp ring <portRspMax>
-		 */
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"%d:0312 Ring %d handler: portRspPut %d "
-				"is bigger then rsp ring %d\n",
-				phba->brd_no, pring->ringno, portRspPut,
-				portRspMax);
-
-		phba->hba_state = LPFC_HBA_ERROR;
-
-		/* All error attention handlers are posted to worker thread */
-		phba->work_ha |= HA_ERATT;
-		phba->work_hs = HS_FFER3;
-		if (phba->work_wait)
-			wake_up(phba->work_wait);
-
+		lpfc_sli_rsp_pointers_error(phba, pring);
 		spin_unlock_irqrestore(phba->host->host_lock, iflag);
 		return 1;
 	}
@@ -947,6 +1106,10 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 		 * network byte order and pci byte orders are different.
 		 */
 		entry = IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+
+		if (++pring->rspidx >= portRspMax)
+			pring->rspidx = 0;
+
 		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
 				      (uint32_t *) &rspiocbq.iocb,
 				      sizeof (IOCB_t));
@@ -1020,9 +1183,6 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 		 * been updated, sync the pgp->rspPutInx and fetch the new port
 		 * response put pointer.
 		 */
-		if (++pring->rspidx >= portRspMax)
-			pring->rspidx = 0;
-
 		to_slim = phba->MBslimaddr +
 			(SLIMOFF + (pring->ringno * 2) + 1) * 4;
 		writel(pring->rspidx, to_slim);
@@ -2615,6 +2775,7 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
 	DECLARE_WAIT_QUEUE_HEAD(done_q);
 	long timeleft, timeout_req = 0;
 	int retval = IOCB_SUCCESS;
+	uint32_t creg_val;
 
 	/*
 	 * If the caller has provided a response iocbq buffer, then context2
@@ -2629,6 +2790,13 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
 	piocb->iocb_cmpl = lpfc_sli_wake_iocb_wait;
 	piocb->context_un.wait_queue = &done_q;
 	piocb->iocb_flag &= ~LPFC_IO_WAKE;
+
+	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
+		creg_val = readl(phba->HCregaddr);
+		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
+		writel(creg_val, phba->HCregaddr);
+		readl(phba->HCregaddr); /* flush */
+	}
 
 	retval = lpfc_sli_issue_iocb(phba, pring, piocb, 0);
 	if (retval == IOCB_SUCCESS) {
@@ -2661,6 +2829,13 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
 				"%d:0332 IOCB wait issue failed, Data x%x\n",
 				phba->brd_no, retval);
 		retval = IOCB_ERROR;
+	}
+
+	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
+		creg_val = readl(phba->HCregaddr);
+		creg_val &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
+		writel(creg_val, phba->HCregaddr);
+		readl(phba->HCregaddr); /* flush */
 	}
 
 	if (prspiocbq)

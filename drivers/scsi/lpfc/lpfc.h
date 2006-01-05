@@ -29,9 +29,10 @@ struct lpfc_sli2_slim;
 #define LPFC_LC_HBA_Q_DEPTH	1024	/* max cmds per low cost hba */
 #define LPFC_LP101_HBA_Q_DEPTH	128	/* max cmds per low cost hba */
 
-#define LPFC_CMD_PER_LUN	30	/* max outstanding cmds per lun */
+#define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_SG_SEG_CNT		64	/* sg element count per scsi cmnd */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
+#define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 
 /* Define macros for 64 bit support */
 #define putPaddrLow(addr)    ((uint32_t) (0xffffffff & (u64)(addr)))
@@ -44,6 +45,11 @@ struct lpfc_sli2_slim;
 #define FC_MAX_ADPTMSG		64
 
 #define MAX_HBAEVT	32
+
+enum lpfc_polling_flags {
+	ENABLE_FCP_RING_POLLING = 0x1,
+	DISABLE_FCP_RING_INT    = 0x2
+};
 
 /* Provide DMA memory definitions the driver uses per port instance. */
 struct lpfc_dmabuf {
@@ -167,6 +173,7 @@ struct lpfc_hba {
 	dma_addr_t slim2p_mapping;
 	uint16_t pci_cfg_value;
 
+	struct semaphore hba_can_block;
 	uint32_t hba_state;
 
 #define LPFC_INIT_START           1	/* Initial state after board reset */
@@ -286,6 +293,8 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_bind_method;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_max_luns;
+	uint32_t cfg_poll;
+	uint32_t cfg_poll_tmo;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 
@@ -337,7 +346,9 @@ struct lpfc_hba {
 #define VPD_PORT            0x8         /* valid vpd port data */
 #define VPD_MASK            0xf         /* mask for any vpd data */
 
+	struct timer_list fcp_poll_timer;
 	struct timer_list els_tmofunc;
+
 	/*
 	 * stat  counters
 	 */
@@ -348,6 +359,7 @@ struct lpfc_hba {
 	struct lpfc_sysfs_mbox sysfs_mbox;
 
 	/* fastpath list. */
+	spinlock_t scsi_buf_list_lock;
 	struct list_head lpfc_scsi_buf_list;
 	uint32_t total_scsi_bufs;
 	struct list_head lpfc_iocb_list;

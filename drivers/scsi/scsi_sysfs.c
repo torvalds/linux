@@ -21,7 +21,7 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
-static struct {
+static const struct {
 	enum scsi_device_state	value;
 	char			*name;
 } sdev_states[] = {
@@ -48,7 +48,7 @@ const char *scsi_device_state_name(enum scsi_device_state state)
 	return name;
 }
 
-static struct {
+static const struct {
 	enum scsi_host_state	value;
 	char			*name;
 } shost_states[] = {

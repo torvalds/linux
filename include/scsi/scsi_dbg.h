@@ -16,7 +16,6 @@ extern void __scsi_print_sense(const char *name,
 extern void scsi_print_driverbyte(int);
 extern void scsi_print_hostbyte(int);
 extern void scsi_print_status(unsigned char);
-extern int scsi_print_msg(const unsigned char *);
 extern const char *scsi_sense_key_string(unsigned char);
 extern const char *scsi_extd_sense_format(unsigned char, unsigned char);
 
