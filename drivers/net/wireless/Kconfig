@@ -216,6 +216,19 @@ config IPW2200
           say M here and read <file:Documentation/modules.txt>.  The module
           will be called ipw2200.ko.
 
+config IPW2200_MONITOR
+        bool "Enable promiscuous mode"
+        depends on IPW2200
+        ---help---
+	  Enables promiscuous/monitor mode support for the ipw2200 driver.
+	  With this feature compiled into the driver, you can switch to 
+	  promiscuous mode via the Wireless Tool's Monitor mode.  While in this
+	  mode, no packets can be sent.
+
+config IPW_QOS
+        bool "Enable QoS support"
+        depends on IPW2200 && EXPERIMENTAL
+
 config IPW2200_DEBUG
 	bool "Enable full debugging output in IPW2200 module."
 	depends on IPW2200
