@@ -58,6 +58,7 @@ int dm_create(struct mapped_device **md);
 int dm_create_with_minor(unsigned int minor, struct mapped_device **md);
 void dm_set_mdptr(struct mapped_device *md, void *ptr);
 void *dm_get_mdptr(dev_t dev);
+struct mapped_device *dm_get_md(dev_t dev);
 
 /*
  * Reference counting for md.
