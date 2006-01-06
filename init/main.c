@@ -52,6 +52,7 @@
 #include <asm/bugs.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
+#include <asm/cacheflush.h>
 
 /*
  * This is one of the first .c files built. Error out early
@@ -98,6 +99,9 @@ extern void prepare_namespace(void);
 extern void acpi_early_init(void);
 #else
 static inline void acpi_early_init(void) { }
+#endif
+#ifndef CONFIG_DEBUG_RODATA
+static inline void mark_rodata_ro(void) { }
 #endif
 
 #ifdef CONFIG_TC
@@ -708,6 +712,7 @@ static int init(void * unused)
 	 */
 	free_initmem();
 	unlock_kernel();
+	mark_rodata_ro();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 
