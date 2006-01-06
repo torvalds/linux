@@ -422,7 +422,7 @@ void mconsole_remove(struct mc_request *req)
 {
 	struct mc_device *dev;
 	char *ptr = req->request.data, *err_msg = "";
-        char error[256];
+	char error[256];
 	int err, start, end, n;
 
 	ptr += strlen("remove");
@@ -433,33 +433,33 @@ void mconsole_remove(struct mc_request *req)
 		return;
 	}
 
-        ptr = &ptr[strlen(dev->name)];
+	ptr = &ptr[strlen(dev->name)];
 
-        err = 1;
-        n = (*dev->id)(&ptr, &start, &end);
-        if(n < 0){
-                err_msg = "Couldn't parse device number";
-                goto out;
-        }
-        else if((n < start) || (n > end)){
-                sprintf(error, "Invalid device number - must be between "
-                        "%d and %d", start, end);
-                err_msg = error;
-                goto out;
-        }
+	err = 1;
+	n = (*dev->id)(&ptr, &start, &end);
+	if(n < 0){
+		err_msg = "Couldn't parse device number";
+		goto out;
+	}
+	else if((n < start) || (n > end)){
+		sprintf(error, "Invalid device number - must be between "
+			"%d and %d", start, end);
+		err_msg = error;
+		goto out;
+	}
 
 	err = (*dev->remove)(n);
-        switch(err){
-        case -ENODEV:
-                err_msg = "Device doesn't exist";
-                break;
-        case -EBUSY:
-                err_msg = "Device is currently open";
-                break;
-        default:
-                break;
-        }
- out:
+	switch(err){
+	case -ENODEV:
+		err_msg = "Device doesn't exist";
+		break;
+	case -EBUSY:
+		err_msg = "Device is currently open";
+		break;
+	default:
+		break;
+	}
+out:
 	mconsole_reply(req, err_msg, err, 0);
 }
 
@@ -576,34 +576,33 @@ static void stack_proc(void *arg)
  */
 void do_stack(struct mc_request *req)
 {
-        char *ptr = req->request.data;
-        int pid_requested= -1;
+	char *ptr = req->request.data;
+	int pid_requested= -1;
 	struct task_struct *from = NULL;
 	struct task_struct *to = NULL;
 
-        /* Would be nice:
-         * 1) Send showregs output to mconsole.
+	/* Would be nice:
+	 * 1) Send showregs output to mconsole.
 	 * 2) Add a way to stack dump all pids.
 	 */
 
-        ptr += strlen("stack");
-        while(isspace(*ptr)) ptr++;
+	ptr += strlen("stack");
+	while(isspace(*ptr)) ptr++;
 
-        /* Should really check for multiple pids or reject bad args here */
-        /* What do the arguments in mconsole_reply mean? */
-        if(sscanf(ptr, "%d", &pid_requested) == 0){
-                mconsole_reply(req, "Please specify a pid", 1, 0);
-                return;
-        }
+	/* Should really check for multiple pids or reject bad args here */
+	/* What do the arguments in mconsole_reply mean? */
+	if(sscanf(ptr, "%d", &pid_requested) == 0){
+		mconsole_reply(req, "Please specify a pid", 1, 0);
+		return;
+	}
 
 	from = current;
 
 	to = find_task_by_pid(pid_requested);
-        if((to == NULL) || (pid_requested == 0)) {
-                mconsole_reply(req, "Couldn't find that pid", 1, 0);
-                return;
-        }
-
+	if((to == NULL) || (pid_requested == 0)) {
+		mconsole_reply(req, "Couldn't find that pid", 1, 0);
+		return;
+	}
 	with_console(req, stack_proc, to);
 }
 
@@ -772,14 +771,3 @@ char *mconsole_notify_socket(void)
 }
 
 EXPORT_SYMBOL(mconsole_notify_socket);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
