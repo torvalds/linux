@@ -221,6 +221,17 @@ extern void note_interrupt(unsigned int irq, irq_desc_t *desc,
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
 extern void init_irq_proc(void);
+
+#ifdef CONFIG_AUTO_IRQ_AFFINITY
+extern int select_smp_affinity(unsigned int irq);
+#else
+static inline int
+select_smp_affinity(unsigned int irq)
+{
+	return 1;
+}
+#endif
+
 #endif
 
 extern hw_irq_controller no_irq_type;  /* needed in every arch ? */
