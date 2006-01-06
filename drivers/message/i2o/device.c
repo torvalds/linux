@@ -43,7 +43,7 @@ static inline int i2o_device_issue_claim(struct i2o_device *dev, u32 cmd,
 
 	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
 	msg->u.head[1] =
-		cpu_to_le32(cmd << 24 | HOST_TID << 12 | dev->lct_data.tid);
+	    cpu_to_le32(cmd << 24 | HOST_TID << 12 | dev->lct_data.tid);
 	msg->body[0] = cpu_to_le32(type);
 
 	return i2o_msg_post_wait(dev->iop, msg, 60);
@@ -123,7 +123,6 @@ int i2o_device_claim_release(struct i2o_device *dev)
 	return rc;
 }
 
-
 /**
  *	i2o_device_release - release the memory for a I2O device
  *	@dev: I2O device which should be released
@@ -139,7 +138,6 @@ static void i2o_device_release(struct device *dev)
 
 	kfree(i2o_dev);
 }
-
 
 /**
  *	i2o_device_show_class_id - Displays class id of I2O device
@@ -250,10 +248,10 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 
 	/* create user entries refering to this device */
 	list_for_each_entry(tmp, &c->devices, list)
-		if ((tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
-		    && (tmp != i2o_dev))
-		    sysfs_create_link(&tmp->device.kobj,
-				      &i2o_dev->device.kobj, "user");
+	    if ((tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
+		&& (tmp != i2o_dev))
+		sysfs_create_link(&tmp->device.kobj,
+				  &i2o_dev->device.kobj, "user");
 
 	/* create parent entries for this device */
 	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.parent_tid);
@@ -263,10 +261,10 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 
 	/* create parent entries refering to this device */
 	list_for_each_entry(tmp, &c->devices, list)
-		if ((tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
-		    && (tmp != i2o_dev))
-			sysfs_create_link(&tmp->device.kobj,
-					  &i2o_dev->device.kobj, "parent");
+	    if ((tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
+		&& (tmp != i2o_dev))
+		sysfs_create_link(&tmp->device.kobj,
+				  &i2o_dev->device.kobj, "parent");
 
 	i2o_driver_notify_device_add_all(i2o_dev);
 
@@ -409,7 +407,6 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 
 	return 0;
 }
-
 
 /*
  *	Run time support routines
