@@ -66,9 +66,8 @@ static struct hid_report *hid_register_report(struct hid_device *device, unsigne
 	if (report_enum->report_id_hash[id])
 		return report_enum->report_id_hash[id];
 
-	if (!(report = kmalloc(sizeof(struct hid_report), GFP_KERNEL)))
+	if (!(report = kzalloc(sizeof(struct hid_report), GFP_KERNEL)))
 		return NULL;
-	memset(report, 0, sizeof(struct hid_report));
 
 	if (id != 0)
 		report_enum->numbered = 1;
@@ -97,11 +96,8 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 		return NULL;
 	}
 
-	if (!(field = kmalloc(sizeof(struct hid_field) + usages * sizeof(struct hid_usage)
+	if (!(field = kzalloc(sizeof(struct hid_field) + usages * sizeof(struct hid_usage)
 		+ values * sizeof(unsigned), GFP_KERNEL))) return NULL;
-
-	memset(field, 0, sizeof(struct hid_field) + usages * sizeof(struct hid_usage)
-		+ values * sizeof(unsigned));
 
 	field->index = report->maxfield++;
 	report->field[field->index] = field;
@@ -651,17 +647,14 @@ static struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 		hid_parser_reserved
 	};
 
-	if (!(device = kmalloc(sizeof(struct hid_device), GFP_KERNEL)))
+	if (!(device = kzalloc(sizeof(struct hid_device), GFP_KERNEL)))
 		return NULL;
-	memset(device, 0, sizeof(struct hid_device));
 
-	if (!(device->collection = kmalloc(sizeof(struct hid_collection) *
+	if (!(device->collection = kzalloc(sizeof(struct hid_collection) *
 				   HID_DEFAULT_NUM_COLLECTIONS, GFP_KERNEL))) {
 		kfree(device);
 		return NULL;
 	}
-	memset(device->collection, 0, sizeof(struct hid_collection) *
-		HID_DEFAULT_NUM_COLLECTIONS);
 	device->collection_size = HID_DEFAULT_NUM_COLLECTIONS;
 
 	for (i = 0; i < HID_REPORT_TYPES; i++)
@@ -675,13 +668,12 @@ static struct hid_device *hid_parse_report(__u8 *start, unsigned size)
 	memcpy(device->rdesc, start, size);
 	device->rsize = size;
 
-	if (!(parser = kmalloc(sizeof(struct hid_parser), GFP_KERNEL))) {
+	if (!(parser = kzalloc(sizeof(struct hid_parser), GFP_KERNEL))) {
 		kfree(device->rdesc);
 		kfree(device->collection);
 		kfree(device);
 		return NULL;
 	}
-	memset(parser, 0, sizeof(struct hid_parser));
 	parser->device = device;
 
 	end = start + size;
