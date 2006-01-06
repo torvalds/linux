@@ -284,7 +284,8 @@ static int raid1_end_read_request(struct bio *bio, unsigned int bytes_done, int 
 		 * user-side. So if something waits for IO, then it will
 		 * wait for the 'master' bio.
 		 */
-		set_bit(R1BIO_Uptodate, &r1_bio->state);
+		if (uptodate)
+			set_bit(R1BIO_Uptodate, &r1_bio->state);
 
 		raid_end_bio_io(r1_bio);
 	} else {
