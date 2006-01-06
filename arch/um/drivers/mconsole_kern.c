@@ -20,6 +20,7 @@
 #include "linux/namei.h"
 #include "linux/proc_fs.h"
 #include "linux/syscalls.h"
+#include "linux/console.h"
 #include "asm/irq.h"
 #include "asm/uaccess.h"
 #include "user_util.h"
@@ -480,6 +481,82 @@ void mconsole_sysrq(struct mc_request *req)
 }
 #endif
 
+static DEFINE_SPINLOCK(console_lock);
+static LIST_HEAD(clients);
+static char console_buf[MCONSOLE_MAX_DATA];
+static int console_index = 0;
+
+static void console_write(struct console *console, const char *string,
+			  unsigned len)
+{
+	struct list_head *ele;
+	int n;
+
+	if(list_empty(&clients))
+		return;
+
+	while(1){
+		n = min(len, ARRAY_SIZE(console_buf) - console_index);
+		strncpy(&console_buf[console_index], string, n);
+		console_index += n;
+		string += n;
+		len -= n;
+		if(len == 0)
+			return;
+
+		list_for_each(ele, &clients){
+			struct mconsole_entry *entry;
+
+			entry = list_entry(ele, struct mconsole_entry, list);
+			mconsole_reply_len(&entry->request, console_buf,
+					   console_index, 0, 1);
+		}
+
+		console_index = 0;
+	}
+}
+
+static struct console mc_console = { .name	= "mc",
+				     .write	= console_write,
+				     .flags	= CON_PRINTBUFFER | CON_ENABLED,
+				     .index	= -1 };
+
+static int mc_add_console(void)
+{
+	register_console(&mc_console);
+	return 0;
+}
+
+late_initcall(mc_add_console);
+
+static void with_console(struct mc_request *req, void (*proc)(void *),
+			 void *arg)
+{
+	struct mconsole_entry entry;
+	unsigned long flags;
+
+	INIT_LIST_HEAD(&entry.list);
+	entry.request = *req;
+	list_add(&entry.list, &clients);
+	spin_lock_irqsave(&console_lock, flags);
+
+	(*proc)(arg);
+
+	mconsole_reply_len(req, console_buf, console_index, 0, 0);
+	console_index = 0;
+
+	spin_unlock_irqrestore(&console_lock, flags);
+	list_del(&entry.list);
+}
+
+static void stack_proc(void *arg)
+{
+	struct task_struct *from = current, *to = arg;
+
+	to->thread.saved_task = from;
+	switch_to(from, to, from);
+}
+
 /* Mconsole stack trace
  *  Added by Allan Graves, Jeff Dike
  *  Dumps a stacks registers to the linux console.
@@ -489,7 +566,7 @@ void do_stack(struct mc_request *req)
 {
         char *ptr = req->request.data;
         int pid_requested= -1;
-        struct task_struct *from = NULL;
+	struct task_struct *from = NULL;
 	struct task_struct *to = NULL;
 
         /* Would be nice:
@@ -507,17 +584,15 @@ void do_stack(struct mc_request *req)
                 return;
         }
 
-        from = current;
-        to = find_task_by_pid(pid_requested);
+	from = current;
 
+	to = find_task_by_pid(pid_requested);
         if((to == NULL) || (pid_requested == 0)) {
                 mconsole_reply(req, "Couldn't find that pid", 1, 0);
                 return;
         }
-        to->thread.saved_task = current;
 
-        switch_to(from, to, from);
-        mconsole_reply(req, "Stack Dumped to console and message log", 0, 0);
+	with_console(req, stack_proc, to);
 }
 
 void mconsole_stack(struct mc_request *req)
