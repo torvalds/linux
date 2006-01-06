@@ -629,7 +629,7 @@ void chan_interrupt(struct list_head *chans, struct work_struct *task,
 		do {
 			if((tty != NULL) &&
 			   (tty->flip.count >= TTY_FLIPBUF_SIZE)){
-				schedule_work(task);
+				schedule_delayed_work(task, 1);
 				goto out;
 			}
 			err = chan->ops->read(chan->fd, &c, chan->data);
