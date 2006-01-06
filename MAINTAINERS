@@ -554,6 +554,11 @@ W:	http://us1.samba.org/samba/Linux_CIFS_client.html
 T:	git kernel.org:/pub/scm/linux/kernel/git/sfrench/cifs-2.6.git
 S:	Supported	
 
+CONFIGFS
+P:	Joel Becker
+M:	Joel Becker <joel.becker@oracle.com>
+S:	Supported
+
 CIRRUS LOGIC GENERIC FBDEV DRIVER
 P:	Jeff Garzik
 M:	jgarzik@pobox.com
@@ -1897,6 +1902,15 @@ P:	Ani Joshi
 M:	ajoshi@shell.unixbox.com
 L:	linux-nvidia@lists.surfsouth.com
 S:	Maintained
+
+ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
+P:	Mark Fasheh
+M:	mark.fasheh@oracle.com
+P:	Kurt Hackel
+M:	kurt.hackel@oracle.com
+L:	ocfs2-devel@oss.oracle.com
+W:	http://oss.oracle.com/projects/ocfs2/
+S:	Supported	
 
 OLYMPIC NETWORK DRIVER
 P:	Peter De Shrijver
