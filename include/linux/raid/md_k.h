@@ -263,8 +263,6 @@ static inline char * mdname (mddev_t * mddev)
 	return mddev->gendisk ? mddev->gendisk->disk_name : "mdX";
 }
 
-extern mdk_rdev_t * find_rdev_nr(mddev_t *mddev, int nr);
-
 /*
  * iterates through some rdev ringlist. It's safe to remove the
  * current 'rdev'. Dont touch 'tmp' though.

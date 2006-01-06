@@ -144,7 +144,7 @@ static int start_readonly;
  *  start array, stop array, error, add device, remove device,
  *  start build, activate spare
  */
-DECLARE_WAIT_QUEUE_HEAD(md_event_waiters);
+static DECLARE_WAIT_QUEUE_HEAD(md_event_waiters);
 static atomic_t md_event_count;
 void md_new_event(mddev_t *mddev)
 {
@@ -279,7 +279,7 @@ static inline void mddev_unlock(mddev_t * mddev)
 	md_wakeup_thread(mddev->thread);
 }
 
-mdk_rdev_t * find_rdev_nr(mddev_t *mddev, int nr)
+static mdk_rdev_t * find_rdev_nr(mddev_t *mddev, int nr)
 {
 	mdk_rdev_t * rdev;
 	struct list_head *tmp;
