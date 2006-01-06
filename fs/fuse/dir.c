@@ -23,9 +23,26 @@ static inline unsigned long time_to_jiffies(unsigned long sec,
 
 static void fuse_change_timeout(struct dentry *entry, struct fuse_entry_out *o)
 {
-	struct fuse_inode *fi = get_fuse_inode(entry->d_inode);
 	entry->d_time = time_to_jiffies(o->entry_valid, o->entry_valid_nsec);
-	fi->i_time = time_to_jiffies(o->attr_valid, o->attr_valid_nsec);
+	if (entry->d_inode)
+		get_fuse_inode(entry->d_inode)->i_time =
+			time_to_jiffies(o->attr_valid, o->attr_valid_nsec);
+}
+
+void fuse_invalidate_attr(struct inode *inode)
+{
+	get_fuse_inode(inode)->i_time = jiffies - 1;
+}
+
+static void fuse_invalidate_entry_cache(struct dentry *entry)
+{
+	entry->d_time = jiffies - 1;
+}
+
+static void fuse_invalidate_entry(struct dentry *entry)
+{
+	d_invalidate(entry);
+	fuse_invalidate_entry_cache(entry);
 }
 
 static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
@@ -45,15 +62,22 @@ static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
 
 static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 {
-	if (!entry->d_inode || is_bad_inode(entry->d_inode))
+	struct inode *inode = entry->d_inode;
+
+	if (inode && is_bad_inode(inode))
 		return 0;
 	else if (time_after(jiffies, entry->d_time)) {
 		int err;
 		struct fuse_entry_out outarg;
-		struct inode *inode = entry->d_inode;
-		struct fuse_inode *fi = get_fuse_inode(inode);
-		struct fuse_conn *fc = get_fuse_conn(inode);
-		struct fuse_req *req = fuse_get_request(fc);
+		struct fuse_conn *fc;
+		struct fuse_req *req;
+
+		fuse_invalidate_entry_cache(entry);
+		if (!inode)
+			return 0;
+
+		fc = get_fuse_conn(inode);
+		req = fuse_get_request(fc);
 		if (!req)
 			return 0;
 
@@ -61,6 +85,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		request_send(fc, req);
 		err = req->out.h.error;
 		if (!err) {
+			struct fuse_inode *fi = get_fuse_inode(inode);
 			if (outarg.nodeid != get_node_id(inode)) {
 				fuse_send_forget(fc, req, outarg.nodeid, 1);
 				return 0;
@@ -118,9 +143,9 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
 	err = req->out.h.error;
-	if (!err && invalid_nodeid(outarg.nodeid))
+	if (!err && outarg.nodeid && invalid_nodeid(outarg.nodeid))
 		err = -EIO;
-	if (!err) {
+	if (!err && outarg.nodeid) {
 		inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
 				  &outarg.attr);
 		if (!inode) {
@@ -138,20 +163,11 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	}
 	d_add(entry, inode);
 	entry->d_op = &fuse_dentry_operations;
-	if (inode)
+	if (!err)
 		fuse_change_timeout(entry, &outarg);
+	else
+		fuse_invalidate_entry_cache(entry);
 	return NULL;
-}
-
-void fuse_invalidate_attr(struct inode *inode)
-{
-	get_fuse_inode(inode)->i_time = jiffies - 1;
-}
-
-static void fuse_invalidate_entry(struct dentry *entry)
-{
-	d_invalidate(entry);
-	entry->d_time = jiffies - 1;
 }
 
 static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
@@ -387,6 +403,7 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 		inode->i_nlink = 0;
 		fuse_invalidate_attr(inode);
 		fuse_invalidate_attr(dir);
+		fuse_invalidate_entry_cache(entry);
 	} else if (err == -EINTR)
 		fuse_invalidate_entry(entry);
 	return err;
@@ -412,6 +429,7 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	if (!err) {
 		entry->d_inode->i_nlink = 0;
 		fuse_invalidate_attr(dir);
+		fuse_invalidate_entry_cache(entry);
 	} else if (err == -EINTR)
 		fuse_invalidate_entry(entry);
 	return err;
@@ -447,6 +465,10 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 		fuse_invalidate_attr(olddir);
 		if (olddir != newdir)
 			fuse_invalidate_attr(newdir);
+
+		/* newent will end up negative */
+		if (newent->d_inode)
+			fuse_invalidate_entry_cache(newent);
 	} else if (err == -EINTR) {
 		/* If request was interrupted, DEITY only knows if the
 		   rename actually took place.  If the invalidation
