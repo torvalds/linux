@@ -35,12 +35,10 @@
 #define STRIPE_SHIFT		(PAGE_SHIFT - 9)
 #define STRIPE_SECTORS		(STRIPE_SIZE>>9)
 #define	IO_THRESHOLD		1
-#define HASH_PAGES		1
-#define HASH_PAGES_ORDER	0
-#define NR_HASH			(HASH_PAGES * PAGE_SIZE / sizeof(struct stripe_head *))
+#define NR_HASH			(PAGE_SIZE / sizeof(struct hlist_head))
 #define HASH_MASK		(NR_HASH - 1)
 
-#define stripe_hash(conf, sect)	((conf)->stripe_hashtbl[((sect) >> STRIPE_SHIFT) & HASH_MASK])
+#define stripe_hash(conf, sect)	(&((conf)->stripe_hashtbl[((sect) >> STRIPE_SHIFT) & HASH_MASK]))
 
 /* bio's attached to a stripe+device for I/O are linked together in bi_sector
  * order without overlap.  There may be several bio's per stripe+device, and
@@ -113,29 +111,21 @@ static void release_stripe(struct stripe_head *sh)
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 }
 
-static void remove_hash(struct stripe_head *sh)
+static inline void remove_hash(struct stripe_head *sh)
 {
 	PRINTK("remove_hash(), stripe %llu\n", (unsigned long long)sh->sector);
 
-	if (sh->hash_pprev) {
-		if (sh->hash_next)
-			sh->hash_next->hash_pprev = sh->hash_pprev;
-		*sh->hash_pprev = sh->hash_next;
-		sh->hash_pprev = NULL;
-	}
+	hlist_del_init(&sh->hash);
 }
 
-static __inline__ void insert_hash(raid5_conf_t *conf, struct stripe_head *sh)
+static inline void insert_hash(raid5_conf_t *conf, struct stripe_head *sh)
 {
-	struct stripe_head **shp = &stripe_hash(conf, sh->sector);
+	struct hlist_head *hp = stripe_hash(conf, sh->sector);
 
 	PRINTK("insert_hash(), stripe %llu\n", (unsigned long long)sh->sector);
 
 	CHECK_DEVLOCK();
-	if ((sh->hash_next = *shp) != NULL)
-		(*shp)->hash_pprev = &sh->hash_next;
-	*shp = sh;
-	sh->hash_pprev = shp;
+	hlist_add_head(&sh->hash, hp);
 }
 
 
@@ -228,10 +218,11 @@ static inline void init_stripe(struct stripe_head *sh, sector_t sector, int pd_i
 static struct stripe_head *__find_stripe(raid5_conf_t *conf, sector_t sector)
 {
 	struct stripe_head *sh;
+	struct hlist_node *hn;
 
 	CHECK_DEVLOCK();
 	PRINTK("__find_stripe, sector %llu\n", (unsigned long long)sector);
-	for (sh = stripe_hash(conf, sector); sh; sh = sh->hash_next)
+	hlist_for_each_entry(sh, hn, stripe_hash(conf, sector), hash)
 		if (sh->sector == sector)
 			return sh;
 	PRINTK("__stripe %llu not in cache\n", (unsigned long long)sector);
@@ -1835,9 +1826,8 @@ static int run(mddev_t *mddev)
 
 	conf->mddev = mddev;
 
-	if ((conf->stripe_hashtbl = (struct stripe_head **) __get_free_pages(GFP_ATOMIC, HASH_PAGES_ORDER)) == NULL)
+	if ((conf->stripe_hashtbl = kzalloc(PAGE_SIZE, GFP_KERNEL)) == NULL)
 		goto abort;
-	memset(conf->stripe_hashtbl, 0, HASH_PAGES * PAGE_SIZE);
 
 	spin_lock_init(&conf->device_lock);
 	init_waitqueue_head(&conf->wait_for_stripe);
@@ -1972,9 +1962,7 @@ static int run(mddev_t *mddev)
 abort:
 	if (conf) {
 		print_raid5_conf(conf);
-		if (conf->stripe_hashtbl)
-			free_pages((unsigned long) conf->stripe_hashtbl,
-							HASH_PAGES_ORDER);
+		kfree(conf->stripe_hashtbl);
 		kfree(conf);
 	}
 	mddev->private = NULL;
@@ -1991,7 +1979,7 @@ static int stop(mddev_t *mddev)
 	md_unregister_thread(mddev->thread);
 	mddev->thread = NULL;
 	shrink_stripes(conf);
-	free_pages((unsigned long) conf->stripe_hashtbl, HASH_PAGES_ORDER);
+	kfree(conf->stripe_hashtbl);
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	sysfs_remove_group(&mddev->kobj, &raid5_attrs_group);
 	kfree(conf);
@@ -2019,12 +2007,12 @@ static void print_sh (struct stripe_head *sh)
 static void printall (raid5_conf_t *conf)
 {
 	struct stripe_head *sh;
+	struct hlist_node *hn;
 	int i;
 
 	spin_lock_irq(&conf->device_lock);
 	for (i = 0; i < NR_HASH; i++) {
-		sh = conf->stripe_hashtbl[i];
-		for (; sh; sh = sh->hash_next) {
+		hlist_for_each_entry(sh, hn, &conf->stripe_hashtbl[i], hash) {
 			if (sh->raid_conf != conf)
 				continue;
 			print_sh(sh);

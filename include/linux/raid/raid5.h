@@ -126,7 +126,7 @@
  */
 
 struct stripe_head {
-	struct stripe_head	*hash_next, **hash_pprev; /* hash pointers */
+	struct hlist_node	hash;
 	struct list_head	lru;			/* inactive_list or handle_list */
 	struct raid5_private_data	*raid_conf;
 	sector_t		sector;			/* sector of this row */
@@ -204,7 +204,7 @@ struct disk_info {
 };
 
 struct raid5_private_data {
-	struct stripe_head	**stripe_hashtbl;
+	struct hlist_head	*stripe_hashtbl;
 	mddev_t			*mddev;
 	struct disk_info	*spare;
 	int			chunk_size, level, algorithm;
