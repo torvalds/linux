@@ -42,6 +42,7 @@ struct r10_private_data_s {
 	spinlock_t		resync_lock;
 	int nr_pending;
 	int nr_waiting;
+	int nr_queued;
 	int barrier;
 	sector_t		next_resync;
 	int			fullsync;  /* set to 1 if a full sync is needed,
@@ -53,6 +54,7 @@ struct r10_private_data_s {
 
 	mempool_t *r10bio_pool;
 	mempool_t *r10buf_pool;
+	struct page		*tmppage;
 };
 
 typedef struct r10_private_data_s conf_t;
