@@ -1206,6 +1206,10 @@ static void sync_request_write(mddev_t *mddev, r10bio_t *r10_bio)
 				break;
 		if (j == vcnt)
 			continue;
+		mddev->resync_mismatches += r10_bio->sectors;
+		if (test_bit(MD_RECOVERY_CHECK, &mddev->recovery))
+			/* Don't fix anything. */
+			continue;
 		/* Ok, we need to write this bio
 		 * First we need to fixup bv_offset, bv_len and
 		 * bi_vecs, as the read request might have corrupted these
