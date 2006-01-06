@@ -270,6 +270,7 @@ static int dm_hash_rename(const char *old, const char *new)
 {
 	char *new_name, *old_name;
 	struct hash_cell *hc;
+	struct dm_table *table;
 
 	/*
 	 * duplicate new.
@@ -316,6 +317,15 @@ static int dm_hash_rename(const char *old, const char *new)
 
 	/* rename the device node in devfs */
 	register_with_devfs(hc);
+
+	/*
+	 * Wake up any dm event waiters.
+	 */
+	table = dm_get_table(hc->md);
+	if (table) {
+		dm_table_event(table);
+		dm_table_put(table);
+	}
 
 	up_write(&_hash_lock);
 	kfree(old_name);
