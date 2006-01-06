@@ -306,14 +306,17 @@ void die(const char * str, struct pt_regs * regs, long err)
 		.lock_owner_depth =	0
 	};
 	static int die_counter;
+	unsigned long flags;
 
 	if (die.lock_owner != raw_smp_processor_id()) {
 		console_verbose();
-		spin_lock_irq(&die.lock);
+		spin_lock_irqsave(&die.lock, flags);
 		die.lock_owner = smp_processor_id();
 		die.lock_owner_depth = 0;
 		bust_spinlocks(1);
 	}
+	else
+		local_save_flags(flags);
 
 	if (++die.lock_owner_depth < 3) {
 		int nl = 0;
@@ -340,7 +343,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
-	spin_unlock_irq(&die.lock);
+	spin_unlock_irqrestore(&die.lock, flags);
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
