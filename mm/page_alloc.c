@@ -36,6 +36,7 @@
 #include <linux/memory_hotplug.h>
 #include <linux/nodemask.h>
 #include <linux/vmalloc.h>
+#include <linux/mempolicy.h>
 
 #include <asm/tlbflush.h>
 #include "internal.h"
@@ -1470,6 +1471,7 @@ static int __init build_zonelists_node(pg_data_t *pgdat,
 			BUG_ON(zone - pgdat->node_zones > ZONE_NORMAL);
 #endif
 			zonelist->zones[j++] = zone;
+			check_highest_zone(k);
 		}
 	}
 	return j;

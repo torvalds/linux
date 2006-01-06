@@ -93,7 +93,7 @@ static kmem_cache_t *sn_cache;
 
 /* Highest zone. An specific allocation for a zone below that is not
    policied. */
-static int policy_zone;
+int policy_zone = ZONE_DMA;
 
 struct mempolicy default_policy = {
 	.refcnt = ATOMIC_INIT(1), /* never free it */
@@ -131,17 +131,8 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 	if (!zl)
 		return NULL;
 	num = 0;
-	for_each_node_mask(nd, *nodes) {
-		int k;
-		for (k = MAX_NR_ZONES-1; k >= 0; k--) {
-			struct zone *z = &NODE_DATA(nd)->node_zones[k];
-			if (!z->present_pages)
-				continue;
-			zl->zones[num++] = z;
-			if (k > policy_zone)
-				policy_zone = k;
-		}
-	}
+	for_each_node_mask(nd, *nodes)
+		zl->zones[num++] = &NODE_DATA(nd)->node_zones[policy_zone];
 	zl->zones[num] = NULL;
 	return zl;
 }

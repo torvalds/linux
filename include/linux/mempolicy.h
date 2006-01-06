@@ -151,6 +151,14 @@ extern struct mempolicy default_policy;
 extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 		unsigned long addr);
 
+extern int policy_zone;
+
+static inline void check_highest_zone(int k)
+{
+	if (k > policy_zone)
+		policy_zone = k;
+}
+
 #else
 
 struct mempolicy {};
@@ -221,6 +229,9 @@ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 	return NODE_DATA(0)->node_zonelists + gfp_zone(GFP_HIGHUSER);
 }
 
+static inline void check_highest_zone(int k)
+{
+}
 #endif /* CONFIG_NUMA */
 #endif /* __KERNEL__ */
 
