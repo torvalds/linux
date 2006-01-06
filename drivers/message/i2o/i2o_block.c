@@ -468,7 +468,7 @@ static void i2o_block_end_request(struct request *req, int uptodate,
 
 	spin_lock_irqsave(q->queue_lock, flags);
 
-	end_that_request_last(req);
+	end_that_request_last(req, uptodate);
 
 	if (likely(dev)) {
 		dev->open_queue_depth--;

@@ -2310,7 +2310,7 @@ static inline void complete_command( ctlr_info_t *h, CommandList_struct *cmd,
 	printk("Done with %p\n", cmd->rq);
 #endif /* CCISS_DEBUG */ 
 
-	end_that_request_last(cmd->rq);
+	end_that_request_last(cmd->rq, status ? 1 : -EIO);
 	cmd_free(h,cmd,1);
 }
 

@@ -3471,7 +3471,7 @@ static inline boolean DAC960_ProcessCompletedRequest(DAC960_Command_T *Command,
 
 	 if (!end_that_request_first(Request, UpToDate, Command->BlockCount)) {
 
- 	 	end_that_request_last(Request);
+ 	 	end_that_request_last(Request, UpToDate);
 
 		if (Command->Completion) {
 			complete(Command->Completion);

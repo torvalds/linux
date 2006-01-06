@@ -19,10 +19,10 @@
 /*
  * See Documentation/block/deadline-iosched.txt
  */
-static int read_expire = HZ / 2;  /* max time before a read is submitted. */
-static int write_expire = 5 * HZ; /* ditto for writes, these limits are SOFT! */
-static int writes_starved = 2;    /* max times reads can starve a write */
-static int fifo_batch = 16;       /* # of sequential requests treated as one
+static const int read_expire = HZ / 2;  /* max time before a read is submitted. */
+static const int write_expire = 5 * HZ; /* ditto for writes, these limits are SOFT! */
+static const int writes_starved = 2;    /* max times reads can starve a write */
+static const int fifo_batch = 16;       /* # of sequential requests treated as one
 				     by the above parameters. For throughput. */
 
 static const int deadline_hash_shift = 5;

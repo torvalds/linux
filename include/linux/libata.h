@@ -488,7 +488,8 @@ extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
 extern void ata_qc_complete(struct ata_queued_cmd *qc);
 extern void ata_eng_timeout(struct ata_port *ap);
-extern void ata_scsi_simulate(u16 *id, struct scsi_cmnd *cmd,
+extern void ata_scsi_simulate(struct ata_port *ap, struct ata_device *dev,
+			      struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *));
 extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
