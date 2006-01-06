@@ -1421,6 +1421,7 @@ static void raid10d(mddev_t *mddev)
 				} while (!success && sl != r10_bio->read_slot);
 
 				if (success) {
+					int start = sl;
 					/* write it back and re-read */
 					while (sl != r10_bio->read_slot) {
 						int d;
@@ -1434,14 +1435,27 @@ static void raid10d(mddev_t *mddev)
 							if (sync_page_io(rdev->bdev,
 									 r10_bio->devs[sl].addr +
 									 sect + rdev->data_offset,
-									 s<<9, conf->tmppage, WRITE) == 0 ||
-							    sync_page_io(rdev->bdev,
-									 r10_bio->devs[sl].addr +
-									 sect + rdev->data_offset,
-									 s<<9, conf->tmppage, READ) == 0) {
+									 s<<9, conf->tmppage, WRITE) == 0)
 								/* Well, this device is dead */
 								md_error(mddev, rdev);
-							}
+						}
+					}
+					sl = start;
+					while (sl != r10_bio->read_slot) {
+						int d;
+						if (sl==0)
+							sl = conf->copies;
+						sl--;
+						d = r10_bio->devs[sl].devnum;
+						rdev = conf->mirrors[d].rdev;
+						if (rdev &&
+						    test_bit(In_sync, &rdev->flags)) {
+							if (sync_page_io(rdev->bdev,
+									 r10_bio->devs[sl].addr +
+									 sect + rdev->data_offset,
+									 s<<9, conf->tmppage, READ) == 0)
+								/* Well, this device is dead */
+								md_error(mddev, rdev);
 						}
 					}
 				} else {

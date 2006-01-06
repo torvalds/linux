@@ -1253,6 +1253,7 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 			} while (!success && d != r1_bio->read_disk);
 
 			if (success) {
+				int start = d;
 				/* write it back and re-read */
 				set_bit(R1BIO_Uptodate, &r1_bio->state);
 				while (d != r1_bio->read_disk) {
@@ -1266,14 +1267,23 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 							 sect + rdev->data_offset,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
-							 WRITE) == 0 ||
-					    sync_page_io(rdev->bdev,
+							 WRITE) == 0)
+						md_error(mddev, rdev);
+				}
+				d = start;
+				while (d != r1_bio->read_disk) {
+					if (d == 0)
+						d = conf->raid_disks;
+					d--;
+					if (r1_bio->bios[d]->bi_end_io != end_sync_read)
+						continue;
+					rdev = conf->mirrors[d].rdev;
+					if (sync_page_io(rdev->bdev,
 							 sect + rdev->data_offset,
 							 s<<9,
 							 bio->bi_io_vec[idx].bv_page,
-							 READ) == 0) {
+							 READ) == 0)
 						md_error(mddev, rdev);
-					}
 				}
 			} else {
 				char b[BDEVNAME_SIZE];
@@ -1445,6 +1455,7 @@ static void raid1d(mddev_t *mddev)
 
 				if (success) {
 					/* write it back and re-read */
+					int start = d;
 					while (d != r1_bio->read_disk) {
 						if (d==0)
 							d = conf->raid_disks;
@@ -1454,13 +1465,24 @@ static void raid1d(mddev_t *mddev)
 						    test_bit(In_sync, &rdev->flags)) {
 							if (sync_page_io(rdev->bdev,
 									 sect + rdev->data_offset,
-									 s<<9, conf->tmppage, WRITE) == 0 ||
-							    sync_page_io(rdev->bdev,
-									 sect + rdev->data_offset,
-									 s<<9, conf->tmppage, READ) == 0) {
+									 s<<9, conf->tmppage, WRITE) == 0)
 								/* Well, this device is dead */
 								md_error(mddev, rdev);
-							}
+						}
+					}
+					d = start;
+					while (d != r1_bio->read_disk) {
+						if (d==0)
+							d = conf->raid_disks;
+						d--;
+						rdev = conf->mirrors[d].rdev;
+						if (rdev &&
+						    test_bit(In_sync, &rdev->flags)) {
+							if (sync_page_io(rdev->bdev,
+									 sect + rdev->data_offset,
+									 s<<9, conf->tmppage, READ) == 0)
+								/* Well, this device is dead */
+								md_error(mddev, rdev);
 						}
 					}
 				} else {
