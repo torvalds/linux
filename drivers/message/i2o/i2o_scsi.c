@@ -309,9 +309,9 @@ static int i2o_scsi_probe(struct device *dev)
 	sysfs_create_link(&i2o_dev->device.kobj, &scsi_dev->sdev_gendev.kobj,
 			  "scsi");
 
-	osm_info("device added (TID: %03x) channel: %d, id: %d, lun: %d\n",
+	osm_info("device added (TID: %03x) channel: %d, id: %d, lun: %ld\n",
 		 i2o_dev->lct_data.tid, channel, le32_to_cpu(id),
-		 (unsigned int)le64_to_cpu(lun));
+		 (long unsigned int)le64_to_cpu(lun));
 
 	return 0;
 };

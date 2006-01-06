@@ -36,12 +36,12 @@
 
 #include <asm/uaccess.h>
 
-#include "core.h"
-
 #define SG_TABLESIZE		30
 
-static int i2o_cfg_ioctl(struct inode *inode, struct file *fp, unsigned int cmd,
-			 unsigned long arg);
+extern int i2o_parm_issue(struct i2o_device *, int, void *, int, void *, int);
+
+static int i2o_cfg_ioctl(struct inode *, struct file *, unsigned int,
+			 unsigned long);
 
 static spinlock_t i2o_config_lock;
 
@@ -593,9 +593,6 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 
 	sg_offset = (msg->u.head[0] >> 4) & 0x0f;
 
-	msg->u.s.icntxt = cpu_to_le32(i2o_config_driver.context);
-	msg->u.s.tcntxt = cpu_to_le32(i2o_cntxt_list_add(c, reply));
-
 	memset(sg_list, 0, sizeof(sg_list[0]) * SG_TABLESIZE);
 	if (sg_offset) {
 		struct sg_simple_element *sg;
@@ -629,7 +626,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 				goto cleanup;
 			}
 			sg_size = sg[i].flag_count & 0xffffff;
-			p = &(sg_list[sg_index++]);
+			p = &(sg_list[sg_index]);
 			/* Allocate memory for the transfer */
 			if (i2o_dma_alloc
 			    (&c->pdev->dev, p, sg_size,
@@ -640,6 +637,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 				rcode = -ENOMEM;
 				goto sg_list_cleanup;
 			}
+			sg_index++;
 			/* Copy in the user's SG buffer if necessary */
 			if (sg[i].
 			    flag_count & 0x04000000 /*I2O_SGL_FLAGS_DIR */ ) {
@@ -661,8 +659,10 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 	}
 
 	rcode = i2o_msg_post_wait(c, msg, 60);
-	if (rcode)
+	if (rcode) {
+		reply[4] = ((u32) rcode) << 24;
 		goto sg_list_cleanup;
+	}
 
 	if (sg_offset) {
 		u32 msg[I2O_OUTBOUND_MSG_FRAME_SIZE];
@@ -712,6 +712,7 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 		}
 	}
 
+      sg_list_cleanup:
 	/* Copy back the reply to user space */
 	if (reply_size) {
 		// we wrote our own values for context - now restore the user supplied ones
@@ -729,7 +730,6 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 		}
 	}
 
-      sg_list_cleanup:
 	for (i = 0; i < sg_index; i++)
 		i2o_dma_free(&c->pdev->dev, &sg_list[i]);
 
@@ -827,9 +827,6 @@ static int i2o_cfg_passthru(unsigned long arg)
 
 	sg_offset = (msg->u.head[0] >> 4) & 0x0f;
 
-	msg->u.s.icntxt = cpu_to_le32(i2o_config_driver.context);
-	msg->u.s.tcntxt = cpu_to_le32(i2o_cntxt_list_add(c, reply));
-
 	memset(sg_list, 0, sizeof(sg_list[0]) * SG_TABLESIZE);
 	if (sg_offset) {
 		struct sg_simple_element *sg;
@@ -892,8 +889,10 @@ static int i2o_cfg_passthru(unsigned long arg)
 	}
 
 	rcode = i2o_msg_post_wait(c, msg, 60);
-	if (rcode)
+	if (rcode) {
+		reply[4] = ((u32) rcode) << 24;
 		goto sg_list_cleanup;
+	}
 
 	if (sg_offset) {
 		u32 msg[128];
@@ -943,6 +942,7 @@ static int i2o_cfg_passthru(unsigned long arg)
 		}
 	}
 
+      sg_list_cleanup:
 	/* Copy back the reply to user space */
 	if (reply_size) {
 		// we wrote our own values for context - now restore the user supplied ones
@@ -959,7 +959,6 @@ static int i2o_cfg_passthru(unsigned long arg)
 		}
 	}
 
-      sg_list_cleanup:
 	for (i = 0; i < sg_index; i++)
 		kfree(sg_list[i]);
 

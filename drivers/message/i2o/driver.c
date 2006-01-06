@@ -217,14 +217,15 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 		/* cut of header from message size (in 32-bit words) */
 		size = (le32_to_cpu(msg->u.head[0]) >> 16) - 5;
 
-		evt = kmalloc(size * 4 + sizeof(*evt), GFP_ATOMIC | __GFP_ZERO);
+		evt = kmalloc(size * 4 + sizeof(*evt), GFP_ATOMIC);
 		if (!evt)
 			return -ENOMEM;
+		memset(evt, 0, size * 4 + sizeof(*evt));
 
 		evt->size = size;
 		evt->tcntxt = le32_to_cpu(msg->u.s.tcntxt);
 		evt->event_indicator = le32_to_cpu(msg->body[0]);
-		memcpy(&evt->tcntxt, &msg->u.s.tcntxt, size * 4);
+		memcpy(&evt->data, &msg->body[1], size * 4);
 
 		list_for_each_entry_safe(dev, tmp, &c->devices, list)
 		    if (dev->lct_data.tid == tid) {

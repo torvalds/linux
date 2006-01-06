@@ -384,7 +384,7 @@
 
 /* defines for max_sectors and max_phys_segments */
 #define I2O_MAX_SECTORS			1024
-#define I2O_MAX_SECTORS_LIMITED		256
+#define I2O_MAX_SECTORS_LIMITED		128
 #define I2O_MAX_PHYS_SEGMENTS		MAX_PHYS_SEGMENTS
 
 /*
