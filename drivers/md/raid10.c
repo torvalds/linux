@@ -172,7 +172,7 @@ static void put_all_bios(conf_t *conf, r10bio_t *r10_bio)
 
 	for (i = 0; i < conf->copies; i++) {
 		struct bio **bio = & r10_bio->devs[i].bio;
-		if (*bio)
+		if (*bio && *bio != IO_BLOCKED)
 			bio_put(*bio);
 		*bio = NULL;
 	}
@@ -500,6 +500,7 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 		disk = r10_bio->devs[slot].devnum;
 
 		while ((rdev = rcu_dereference(conf->mirrors[disk].rdev)) == NULL ||
+		       r10_bio->devs[slot].bio == IO_BLOCKED ||
 		       !test_bit(In_sync, &rdev->flags)) {
 			slot++;
 			if (slot == conf->copies) {
@@ -517,6 +518,7 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 	slot = 0;
 	disk = r10_bio->devs[slot].devnum;
 	while ((rdev=rcu_dereference(conf->mirrors[disk].rdev)) == NULL ||
+	       r10_bio->devs[slot].bio == IO_BLOCKED ||
 	       !test_bit(In_sync, &rdev->flags)) {
 		slot ++;
 		if (slot == conf->copies) {
@@ -537,6 +539,7 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 
 
 		if ((rdev=rcu_dereference(conf->mirrors[ndisk].rdev)) == NULL ||
+		    r10_bio->devs[nslot].bio == IO_BLOCKED ||
 		    !test_bit(In_sync, &rdev->flags))
 			continue;
 
@@ -1104,7 +1107,6 @@ abort:
 
 static int end_sync_read(struct bio *bio, unsigned int bytes_done, int error)
 {
-	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r10bio_t * r10_bio = (r10bio_t *)(bio->bi_private);
 	conf_t *conf = mddev_to_conf(r10_bio->mddev);
 	int i,d;
@@ -1119,7 +1121,10 @@ static int end_sync_read(struct bio *bio, unsigned int bytes_done, int error)
 		BUG();
 	update_head_pos(i, r10_bio);
 	d = r10_bio->devs[i].devnum;
-	if (!uptodate)
+
+	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
+		set_bit(R10BIO_Uptodate, &r10_bio->state);
+	else if (!test_bit(MD_RECOVERY_SYNC, &conf->mddev->recovery))
 		md_error(r10_bio->mddev,
 			 conf->mirrors[d].rdev);
 
@@ -1209,25 +1214,30 @@ static void sync_request_write(mddev_t *mddev, r10bio_t *r10_bio)
 	fbio = r10_bio->devs[i].bio;
 
 	/* now find blocks with errors */
-	for (i=first+1 ; i < conf->copies ; i++) {
-		int vcnt, j, d;
+	for (i=0 ; i < conf->copies ; i++) {
+		int  j, d;
+		int vcnt = r10_bio->sectors >> (PAGE_SHIFT-9);
 
-		if (!test_bit(BIO_UPTODATE, &r10_bio->devs[i].bio->bi_flags))
-			continue;
-		/* We know that the bi_io_vec layout is the same for
-		 * both 'first' and 'i', so we just compare them.
-		 * All vec entries are PAGE_SIZE;
-		 */
 		tbio = r10_bio->devs[i].bio;
-		vcnt = r10_bio->sectors >> (PAGE_SHIFT-9);
-		for (j = 0; j < vcnt; j++)
-			if (memcmp(page_address(fbio->bi_io_vec[j].bv_page),
-				   page_address(tbio->bi_io_vec[j].bv_page),
-				   PAGE_SIZE))
-				break;
-		if (j == vcnt)
+
+		if (tbio->bi_end_io != end_sync_read)
 			continue;
-		mddev->resync_mismatches += r10_bio->sectors;
+		if (i == first)
+			continue;
+		if (test_bit(BIO_UPTODATE, &r10_bio->devs[i].bio->bi_flags)) {
+			/* We know that the bi_io_vec layout is the same for
+			 * both 'first' and 'i', so we just compare them.
+			 * All vec entries are PAGE_SIZE;
+			 */
+			for (j = 0; j < vcnt; j++)
+				if (memcmp(page_address(fbio->bi_io_vec[j].bv_page),
+					   page_address(tbio->bi_io_vec[j].bv_page),
+					   PAGE_SIZE))
+					break;
+			if (j == vcnt)
+				continue;
+			mddev->resync_mismatches += r10_bio->sectors;
+		}
 		if (test_bit(MD_RECOVERY_CHECK, &mddev->recovery))
 			/* Don't fix anything. */
 			continue;
@@ -1308,7 +1318,10 @@ static void recovery_request_write(mddev_t *mddev, r10bio_t *r10_bio)
 
 	atomic_inc(&conf->mirrors[d].rdev->nr_pending);
 	md_sync_acct(conf->mirrors[d].rdev->bdev, wbio->bi_size >> 9);
-	generic_make_request(wbio);
+	if (test_bit(R10BIO_Uptodate, &r10_bio->state))
+		generic_make_request(wbio);
+	else
+		bio_endio(wbio, wbio->bi_size, -EIO);
 }
 
 
@@ -1445,7 +1458,8 @@ static void raid10d(mddev_t *mddev)
 			unfreeze_array(conf);
 
 			bio = r10_bio->devs[r10_bio->read_slot].bio;
-			r10_bio->devs[r10_bio->read_slot].bio = NULL;
+			r10_bio->devs[r10_bio->read_slot].bio =
+				mddev->ro ? IO_BLOCKED : NULL;
 			bio_put(bio);
 			mirror = read_balance(conf, r10_bio);
 			if (mirror == -1) {
