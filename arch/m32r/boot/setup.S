@@ -80,6 +80,10 @@ ENTRY(boot)
 	ldi	r1, #0x101		; cache on (with invalidation)
 ;	ldi	r1, #0x00		; cache off
 	st	r1, @r0
+#elif defined(CONFIG_CHIP_M32104)
+	ldi	r0, #-4              ;LDIMM	(r0, M32R_MCCR)
+	ldi	r1, #0x703		; cache on (with invalidation)
+	st	r1, @r0
 #else
 #error unknown chip configuration
 #endif
@@ -115,10 +119,15 @@ mmu_on:
 	st      r1, @(MATM_offset,r0)		; Set MATM (T bit ON)
 	ld      r0, @(MATM_offset,r0)		; Check
 #else
+#if defined(CONFIG_CHIP_M32700)
 	seth	r0,#high(M32R_MCDCAR)
 	or3	r0,r0,#low(M32R_MCDCAR)
 	ld24	r1,#0x8080
 	st	r1,@r0
+#elif defined(CONFIG_CHIP_M32104)
+	LDIMM	(r2, eit_vector)		; set EVB(cr5)
+	mvtc    r2, cr5
+#endif
 #endif	/* CONFIG_MMU */
 	jmp	r13
 	nop

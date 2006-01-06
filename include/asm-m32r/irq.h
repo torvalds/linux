@@ -65,6 +65,22 @@
 #define NR_IRQS \
 	(OPSPUT_NUM_CPU_IRQ + OPSPUT_NUM_PLD_IRQ \
 	+ OPSPUT_NUM_LCD_PLD_IRQ + OPSPUT_NUM_LAN_PLD_IRQ)
+
+#elif defined(CONFIG_PLAT_M32104UT)
+/*
+ * IRQ definitions for M32104UT
+ *  M32104 Chip: 64 interrupts
+ *  ICU of M32104UT-on-board PLD: 32 interrupts cascaded to INT1# chip pin
+ */
+#define	M32104UT_NUM_CPU_IRQ	(64)
+#define M32104UT_NUM_PLD_IRQ	(32)
+#define M32104UT_IRQ_BASE	0
+#define M32104UT_CPU_IRQ_BASE	M32104UT_IRQ_BASE
+#define M32104UT_PLD_IRQ_BASE	(M32104UT_CPU_IRQ_BASE + M32104UT_NUM_CPU_IRQ)
+
+#define NR_IRQS	\
+    (M32104UT_NUM_CPU_IRQ + M32104UT_NUM_PLD_IRQ)
+
 #else
 #define NR_IRQS	64
 #endif
