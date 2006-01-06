@@ -320,7 +320,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	/* temporarily use utf8 to correctly find the hidden dir below */
 	nls = sbi->nls;
 	sbi->nls = load_nls("utf8");
-	if (!nls) {
+	if (!sbi->nls) {
 		printk("HFS+: unable to load nls for utf8\n");
 		err = -EINVAL;
 		goto cleanup;
