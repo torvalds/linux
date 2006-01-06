@@ -58,7 +58,7 @@ ieee80211softmac_wx_set_essid(struct net_device *net_dev,
 	sm->associnfo.req_essid.len = length;
 
 	/* queue lower level code to do work (if necessary) */
-	queue_work(sm->workqueue, &sm->associnfo.work);
+	schedule_work(&sm->associnfo.work);
 
 	spin_unlock_irqrestore(&sm->lock, flags);
 	return 0;
@@ -286,7 +286,7 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 	spin_lock_irqsave(&mac->lock, flags);
 	if (!memcmp(any, data->ap_addr.sa_data, ETH_ALEN) ||
 	    !memcmp(off, data->ap_addr.sa_data, ETH_ALEN)) {
-		queue_work(mac->workqueue, &mac->associnfo.work);
+		schedule_work(&mac->associnfo.work);
 		goto out;
         } else {
 		if (!memcmp(mac->associnfo.bssid, data->ap_addr.sa_data, ETH_ALEN)) {
@@ -299,7 +299,7 @@ ieee80211softmac_wx_set_wap(struct net_device *net_dev,
 			memcpy(mac->associnfo.bssid, data->ap_addr.sa_data, ETH_ALEN);
 		}	
 		/* queue associate if new bssid or (old one again and not associated) */
-		queue_work(mac->workqueue,&mac->associnfo.work);
+		schedule_work(&mac->associnfo.work);
         }
 
 out:

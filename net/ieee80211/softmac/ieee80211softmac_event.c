@@ -118,7 +118,7 @@ ieee80211softmac_call_events_locked(struct ieee80211softmac_device *mac, int eve
 			if ((eventptr->event_type == event || eventptr->event_type == -1)
 				&& (eventptr->event_context == NULL || eventptr->event_context == event_ctx)) {
 				list_del(&eventptr->list);
-				queue_work(mac->workqueue, &eventptr->work);
+				schedule_work(&eventptr->work);
 			}
 		}
 }

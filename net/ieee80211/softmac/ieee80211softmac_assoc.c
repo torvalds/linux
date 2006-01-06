@@ -29,7 +29,7 @@ ieee80211softmac_assoc(struct ieee80211softmac_device *mac, struct ieee80211soft
 
 	/* Set a timer for timeout */
 	/* FIXME: make timeout configurable */
-	queue_delayed_work(mac->workqueue, &mac->associnfo.timeout, 5 * HZ);
+	schedule_delayed_work(&mac->associnfo.timeout, 5 * HZ);
 }
 
 void
@@ -324,7 +324,7 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 				network->authenticated = 0;
 				/* we don't want to do this more than once ... */
 				network->auth_desynced_once = 1;
-				queue_work(mac->workqueue, &mac->associnfo.work);
+				schedule_work(&mac->associnfo.work);
 				break;
 			}
 		default:

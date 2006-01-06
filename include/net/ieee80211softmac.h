@@ -177,9 +177,6 @@ struct ieee80211softmac_device {
 	u8 scanning:1, /* protects scanning from being done multiple times at once */
 	   associated:1;
 	
-	/* workquere for scannning, ... */
-	struct workqueue_struct	*workqueue;
-
 	struct ieee80211softmac_scaninfo *scaninfo;
 	struct ieee80211softmac_assoc_info associnfo;
 

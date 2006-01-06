@@ -22,10 +22,6 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	 *	 (once they're written)
 	 */
 
-	softmac->workqueue = create_workqueue("80211softmac");
-	if (!softmac->workqueue)
-		goto err_free_ieee80211;
-
 	INIT_LIST_HEAD(&softmac->auth_queue);
 	INIT_LIST_HEAD(&softmac->network_list);
 	INIT_LIST_HEAD(&softmac->events);
@@ -90,7 +86,7 @@ ieee80211softmac_clear_pending_work(struct ieee80211softmac_device *sm)
 		cancel_delayed_work(&eventptr->work);
 
 	spin_unlock_irqrestore(&sm->lock, flags);
-	flush_workqueue(sm->workqueue);
+	flush_scheduled_work();
 
 	// now we should be save and no longer need locking...
 	spin_lock_irqsave(&sm->lock, flags);
@@ -121,7 +117,6 @@ void free_ieee80211softmac(struct net_device *dev)
 {
 	struct ieee80211softmac_device *sm = ieee80211_priv(dev);
 	ieee80211softmac_clear_pending_work(sm);	
-	destroy_workqueue(sm->workqueue);
 	kfree(sm->scaninfo);
 	kfree(sm->wpa.IE);
 	free_ieee80211(dev);
