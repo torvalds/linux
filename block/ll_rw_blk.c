@@ -1039,7 +1039,7 @@ void blk_queue_invalidate_tags(request_queue_t *q)
 
 EXPORT_SYMBOL(blk_queue_invalidate_tags);
 
-static char *rq_flags[] = {
+static const char * const rq_flags[] = {
 	"REQ_RW",
 	"REQ_FAILFAST",
 	"REQ_SORTED",
