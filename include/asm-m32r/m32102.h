@@ -302,15 +302,12 @@
 #define M32R_FPGA_VERSION0_PORTL    (0x30+M32R_FPGA_TOP)
 #define M32R_FPGA_VERSION1_PORTL    (0x34+M32R_FPGA_TOP)
 
+#endif /* CONFIG_SMP */
+
 #ifndef __ASSEMBLY__
-/* For NETDEV WATCHDOG */
 typedef struct {
 	unsigned long icucr;	/* ICU Control Register */
 } icu_data_t;
-
-extern icu_data_t icu_data[];
 #endif
-
-#endif /* CONFIG_SMP */
 
 #endif /* _M32102_H_ */
