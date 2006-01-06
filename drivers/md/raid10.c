@@ -134,10 +134,10 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 
 out_free_pages:
 	for ( ; i > 0 ; i--)
-		__free_page(bio->bi_io_vec[i-1].bv_page);
+		put_page(bio->bi_io_vec[i-1].bv_page);
 	while (j--)
 		for (i = 0; i < RESYNC_PAGES ; i++)
-			__free_page(r10_bio->devs[j].bio->bi_io_vec[i].bv_page);
+			put_page(r10_bio->devs[j].bio->bi_io_vec[i].bv_page);
 	j = -1;
 out_free_bio:
 	while ( ++j < nalloc )
@@ -157,7 +157,7 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 		struct bio *bio = r10bio->devs[j].bio;
 		if (bio) {
 			for (i = 0; i < RESYNC_PAGES; i++) {
-				__free_page(bio->bi_io_vec[i].bv_page);
+				put_page(bio->bi_io_vec[i].bv_page);
 				bio->bi_io_vec[i].bv_page = NULL;
 			}
 			bio_put(bio);
@@ -2015,7 +2015,7 @@ static int run(mddev_t *mddev)
 	 * maybe...
 	 */
 	{
-		int stripe = conf->raid_disks * mddev->chunk_size / PAGE_CACHE_SIZE;
+		int stripe = conf->raid_disks * mddev->chunk_size / PAGE_SIZE;
 		stripe /= conf->near_copies;
 		if (mddev->queue->backing_dev_info.ra_pages < 2* stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2* stripe;

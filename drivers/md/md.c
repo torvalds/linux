@@ -339,7 +339,7 @@ static int alloc_disk_sb(mdk_rdev_t * rdev)
 static void free_disk_sb(mdk_rdev_t * rdev)
 {
 	if (rdev->sb_page) {
-		page_cache_release(rdev->sb_page);
+		put_page(rdev->sb_page);
 		rdev->sb_loaded = 0;
 		rdev->sb_page = NULL;
 		rdev->sb_offset = 0;

@@ -186,7 +186,7 @@ static void shrink_buffers(struct stripe_head *sh, int num)
 		if (!p)
 			continue;
 		sh->dev[i].page = NULL;
-		page_cache_release(p);
+		put_page(p);
 	}
 }
 
@@ -2069,7 +2069,7 @@ static int run(mddev_t *mddev)
 	 */
 	{
 		int stripe = (mddev->raid_disks-2) * mddev->chunk_size
-			/ PAGE_CACHE_SIZE;
+			/ PAGE_SIZE;
 		if (mddev->queue->backing_dev_info.ra_pages < 2 * stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2 * stripe;
 	}
@@ -2084,7 +2084,7 @@ abort:
 	if (conf) {
 		print_raid6_conf(conf);
 		if (conf->spare_page)
-			page_cache_release(conf->spare_page);
+			put_page(conf->spare_page);
 		if (conf->stripe_hashtbl)
 			free_pages((unsigned long) conf->stripe_hashtbl,
 							HASH_PAGES_ORDER);
