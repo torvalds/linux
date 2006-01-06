@@ -883,8 +883,6 @@ config CONFIGFS_FS
 	  Both sysfs and configfs can and should exist together on the
 	  same system. One is not a replacement for the other.
 
-	  If unsure, say N.
-
 endmenu
 
 menu "Miscellaneous filesystems"
