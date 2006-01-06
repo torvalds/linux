@@ -2222,8 +2222,8 @@ static struct dmi_system_id __initdata apm_dmi_table[] = {
 static int __init apm_init(void)
 {
 	struct proc_dir_entry *apm_proc;
+	struct desc_struct *gdt;
 	int ret;
-	int i;
 
 	dmi_check_system(apm_dmi_table);
 
@@ -2314,18 +2314,17 @@ static int __init apm_init(void)
 	 * not restrict themselves to their claimed limit.  When this happens,
 	 * they will cause a segmentation violation in the kernel at boot time.
 	 * Most BIOS's, however, will respect a 64k limit, so we use that.
+	 *
+	 * Note we only set APM segments on CPU zero, since we pin the APM
+	 * code to that CPU.
 	 */
-	for (i = 0; i < NR_CPUS; i++) {
-		struct desc_struct *gdt = get_cpu_gdt_table(i);
-  		if (!gdt)
-  			continue;
-		set_base(gdt[APM_CS >> 3],
-			 __va((unsigned long)apm_info.bios.cseg << 4));
-		set_base(gdt[APM_CS_16 >> 3],
-			 __va((unsigned long)apm_info.bios.cseg_16 << 4));
-		set_base(gdt[APM_DS >> 3],
-			 __va((unsigned long)apm_info.bios.dseg << 4));
-	}
+	gdt = get_cpu_gdt_table(0);
+	set_base(gdt[APM_CS >> 3],
+		 __va((unsigned long)apm_info.bios.cseg << 4));
+	set_base(gdt[APM_CS_16 >> 3],
+		 __va((unsigned long)apm_info.bios.cseg_16 << 4));
+	set_base(gdt[APM_DS >> 3],
+		 __va((unsigned long)apm_info.bios.dseg << 4));
 
 	apm_proc = create_proc_info_entry("apm", 0, NULL, apm_get_info);
 	if (apm_proc)
