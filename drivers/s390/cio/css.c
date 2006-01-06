@@ -21,7 +21,6 @@
 #include "ioasm.h"
 #include "chsc.h"
 
-unsigned int highest_subchannel;
 int need_rescan = 0;
 int css_init_done = 0;
 
@@ -31,6 +30,22 @@ int css_characteristics_avail = 0;
 struct device css_bus_device = {
 	.bus_id = "css0",
 };
+
+inline int
+for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
+{
+	struct subchannel_id schid;
+	int ret;
+
+	init_subchannel_id(&schid);
+	ret = -ENODEV;
+	do {
+		ret = fn(schid, data);
+		if (ret)
+			break;
+	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
+	return ret;
+}
 
 static struct subchannel *
 css_alloc_subchannel(struct subchannel_id schid)
@@ -280,25 +295,10 @@ css_evaluate_subchannel(struct subchannel_id schid, int slow)
 	return ret;
 }
 
-static void
-css_rescan_devices(void)
+static int
+css_rescan_devices(struct subchannel_id schid, void *data)
 {
-	int ret;
-	struct subchannel_id schid;
-
-	init_subchannel_id(&schid);
-	do {
-		ret = css_evaluate_subchannel(schid, 1);
-		/* No more memory. It doesn't make sense to continue. No
-		 * panic because this can happen in midflight and just
-		 * because we can't use a new device is no reason to crash
-		 * the system. */
-		if (ret == -ENOMEM)
-			break;
-		/* -ENXIO indicates that there are no more subchannels. */
-		if (ret == -ENXIO)
-			break;
-	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
+	return css_evaluate_subchannel(schid, 1);
 }
 
 struct slow_subchannel {
@@ -316,7 +316,7 @@ css_trigger_slow_path(void)
 
 	if (need_rescan) {
 		need_rescan = 0;
-		css_rescan_devices();
+		for_each_subchannel(css_rescan_devices, NULL);
 		return;
 	}
 
@@ -383,6 +383,43 @@ css_process_crw(int irq)
 	return ret;
 }
 
+static int __init
+__init_channel_subsystem(struct subchannel_id schid, void *data)
+{
+	struct subchannel *sch;
+	int ret;
+
+	if (cio_is_console(schid))
+		sch = cio_get_console_subchannel();
+	else {
+		sch = css_alloc_subchannel(schid);
+		if (IS_ERR(sch))
+			ret = PTR_ERR(sch);
+		else
+			ret = 0;
+		switch (ret) {
+		case 0:
+			break;
+		case -ENOMEM:
+			panic("Out of memory in init_channel_subsystem\n");
+		/* -ENXIO: no more subchannels. */
+		case -ENXIO:
+			return ret;
+		default:
+			return 0;
+		}
+	}
+	/*
+	 * We register ALL valid subchannels in ioinfo, even those
+	 * that have been present before init_channel_subsystem.
+	 * These subchannels can't have been registered yet (kmalloc
+	 * not working) so we do it now. This is true e.g. for the
+	 * console subchannel.
+	 */
+	css_register_subchannel(sch);
+	return 0;
+}
+
 static void __init
 css_generate_pgid(void)
 {
@@ -410,7 +447,6 @@ static int __init
 init_channel_subsystem (void)
 {
 	int ret;
-	struct subchannel_id schid;
 
 	if (chsc_determine_css_characteristics() == 0)
 		css_characteristics_avail = 1;
@@ -426,38 +462,8 @@ init_channel_subsystem (void)
 
 	ctl_set_bit(6, 28);
 
-	init_subchannel_id(&schid);
-	do {
-		struct subchannel *sch;
-
-		if (cio_is_console(schid))
-			sch = cio_get_console_subchannel();
-		else {
-			sch = css_alloc_subchannel(schid);
-			if (IS_ERR(sch))
-				ret = PTR_ERR(sch);
-			else
-				ret = 0;
-			if (ret == -ENOMEM)
-				panic("Out of memory in "
-				      "init_channel_subsystem\n");
-			/* -ENXIO: no more subchannels. */
-			if (ret == -ENXIO)
-				break;
-			if (ret)
-				continue;
-		}
-		/*
-		 * We register ALL valid subchannels in ioinfo, even those
-		 * that have been present before init_channel_subsystem.
-		 * These subchannels can't have been registered yet (kmalloc
-		 * not working) so we do it now. This is true e.g. for the
-		 * console subchannel.
-		 */
-		css_register_subchannel(sch);
-	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
+	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
-
 out_bus:
 	bus_unregister(&css_bus_type);
 out:

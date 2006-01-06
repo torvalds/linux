@@ -691,7 +691,22 @@ wait_cons_dev (void)
 }
 
 static int
-cio_console_irq(void)
+cio_test_for_console(struct subchannel_id schid, void *data)
+{
+	if (stsch(schid, &console_subchannel.schib) != 0)
+		return -ENXIO;
+	if (console_subchannel.schib.pmcw.dnv &&
+	    console_subchannel.schib.pmcw.dev ==
+	    console_devno) {
+		console_irq = schid.sch_no;
+		return 1; /* found */
+	}
+	return 0;
+}
+
+
+static int
+cio_get_console_sch_no(void)
 {
 	struct subchannel_id schid;
 	
@@ -705,16 +720,7 @@ cio_console_irq(void)
 		console_devno = console_subchannel.schib.pmcw.dev;
 	} else if (console_devno != -1) {
 		/* At least the console device number is known. */
-		do {
-			if (stsch(schid, &console_subchannel.schib) != 0)
-				break;
-			if (console_subchannel.schib.pmcw.dnv &&
-			    console_subchannel.schib.pmcw.dev ==
-			    console_devno) {
-				console_irq = schid.sch_no;
-				break;
-			}
-		} while (schid.sch_no++ < __MAX_SUBCHANNEL);
+		for_each_subchannel(cio_test_for_console, NULL);
 		if (console_irq == -1)
 			return -1;
 	} else {
@@ -730,19 +736,19 @@ cio_console_irq(void)
 struct subchannel *
 cio_probe_console(void)
 {
-	int irq, ret;
+	int sch_no, ret;
 	struct subchannel_id schid;
 
 	if (xchg(&console_subchannel_in_use, 1) != 0)
 		return ERR_PTR(-EBUSY);
-	irq = cio_console_irq();
-	if (irq == -1) {
+	sch_no = cio_get_console_sch_no();
+	if (sch_no == -1) {
 		console_subchannel_in_use = 0;
 		return ERR_PTR(-ENODEV);
 	}
 	memset(&console_subchannel, 0, sizeof(struct subchannel));
 	init_subchannel_id(&schid);
-	schid.sch_no = irq;
+	schid.sch_no = sch_no;
 	ret = cio_validate_subchannel(&console_subchannel, schid);
 	if (ret) {
 		console_subchannel_in_use = 0;
@@ -830,32 +836,33 @@ __clear_subchannel_easy(struct subchannel_id schid)
 }
 
 extern void do_reipl(unsigned long devno);
+static int
+__shutdown_subchannel_easy(struct subchannel_id schid, void *data)
+{
+	struct schib schib;
 
-/* Clear all subchannels. */
+	if (stsch(schid, &schib))
+		return -ENXIO;
+	if (!schib.pmcw.ena)
+		return 0;
+	switch(__disable_subchannel_easy(schid, &schib)) {
+	case 0:
+	case -ENODEV:
+		break;
+	default: /* -EBUSY */
+		if (__clear_subchannel_easy(schid))
+			break; /* give up... */
+		stsch(schid, &schib);
+		__disable_subchannel_easy(schid, &schib);
+	}
+	return 0;
+}
+
 void
 clear_all_subchannels(void)
 {
-	struct subchannel_id schid;
-
 	local_irq_disable();
-	init_subchannel_id(&schid);
-	do {
-		struct schib schib;
-		if (stsch(schid, &schib))
-			break; /* break out of the loop */
-		if (!schib.pmcw.ena)
-			continue;
-		switch(__disable_subchannel_easy(schid, &schib)) {
-		case 0:
-		case -ENODEV:
-			break;
-		default: /* -EBUSY */
-			if (__clear_subchannel_easy(schid))
-				break; /* give up... jump out of switch */
-			stsch(schid, &schib);
-			__disable_subchannel_easy(schid, &schib);
-		}
-	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
+	for_each_subchannel(__shutdown_subchannel_easy, NULL);
 }
 
 /* Make sure all subchannels are quiet before we re-ipl an lpar. */

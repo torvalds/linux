@@ -219,6 +219,27 @@ is_blacklisted (int devno)
 }
 
 #ifdef CONFIG_PROC_FS
+static int
+__s390_redo_validation(struct subchannel_id schid, void *data)
+{
+	int ret;
+	struct subchannel *sch;
+
+	sch = get_subchannel_by_schid(schid);
+	if (sch) {
+		/* Already known. */
+		put_device(&sch->dev);
+		return 0;
+	}
+	ret = css_probe_device(schid);
+	if (ret == -ENXIO)
+		return ret; /* We're through. */
+	if (ret == -ENOMEM)
+		/* Stop validation for now. Bad, but no need for a panic. */
+		return ret;
+	return 0;
+}
+
 /*
  * Function: s390_redo_validation
  * Look for no longer blacklisted devices
@@ -226,30 +247,9 @@ is_blacklisted (int devno)
 static inline void
 s390_redo_validation (void)
 {
-	struct subchannel_id schid;
-
 	CIO_TRACE_EVENT (0, "redoval");
-	init_subchannel_id(&schid);
-	do {
-		int ret;
-		struct subchannel *sch;
 
-		sch = get_subchannel_by_schid(schid);
-		if (sch) {
-			/* Already known. */
-			put_device(&sch->dev);
-			continue;
-		}
-		ret = css_probe_device(schid);
-		if (ret == -ENXIO)
-			break; /* We're through. */
-		if (ret == -ENOMEM)
-			/*
-			 * Stop validation for now. Bad, but no need for a
-			 * panic.
-			 */
-			break;
-	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
+	for_each_subchannel(__s390_redo_validation, NULL);
 }
 
 /*

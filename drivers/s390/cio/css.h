@@ -126,6 +126,7 @@ extern struct css_driver io_subchannel_driver;
 extern int css_probe_device(struct subchannel_id);
 extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
+extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 
 #define __MAX_SUBCHANNEL 65535
 
