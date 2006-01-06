@@ -86,8 +86,6 @@ extern void (*mach_disable_irq)(unsigned int);
  */
 #define enable_irq(x)	0
 #define disable_irq(x)	do { } while (0)
-
-#define enable_irq_nosync(x)	enable_irq(x)
 #define disable_irq_nosync(x)	disable_irq(x)
 
 struct irqaction;
