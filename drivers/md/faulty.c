@@ -342,4 +342,5 @@ module_init(raid_init);
 module_exit(raid_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-10"); /* faulty */
+MODULE_ALIAS("md-faulty");
 MODULE_ALIAS("md-level--5");

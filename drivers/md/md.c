@@ -303,12 +303,15 @@ static mdk_rdev_t * find_rdev(mddev_t * mddev, dev_t dev)
 	return NULL;
 }
 
-static struct mdk_personality *find_pers(int level)
+static struct mdk_personality *find_pers(int level, char *clevel)
 {
 	struct mdk_personality *pers;
-	list_for_each_entry(pers, &pers_list, list)
-		if (pers->level == level)
+	list_for_each_entry(pers, &pers_list, list) {
+		if (level != LEVEL_NONE && pers->level == level)
 			return pers;
+		if (strcmp(pers->name, clevel)==0)
+			return pers;
+	}
 	return NULL;
 }
 
@@ -715,6 +718,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->ctime = sb->ctime;
 		mddev->utime = sb->utime;
 		mddev->level = sb->level;
+		mddev->clevel[0] = 0;
 		mddev->layout = sb->layout;
 		mddev->raid_disks = sb->raid_disks;
 		mddev->size = sb->size;
@@ -1051,6 +1055,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		mddev->ctime = le64_to_cpu(sb->ctime) & ((1ULL << 32)-1);
 		mddev->utime = le64_to_cpu(sb->utime) & ((1ULL << 32)-1);
 		mddev->level = le32_to_cpu(sb->level);
+		mddev->clevel[0] = 0;
 		mddev->layout = le32_to_cpu(sb->layout);
 		mddev->raid_disks = le32_to_cpu(sb->raid_disks);
 		mddev->size = le64_to_cpu(sb->size)/2;
@@ -1774,15 +1779,36 @@ static ssize_t
 level_show(mddev_t *mddev, char *page)
 {
 	struct mdk_personality *p = mddev->pers;
-	if (p == NULL && mddev->raid_disks == 0)
-		return 0;
-	if (mddev->level >= 0)
-		return sprintf(page, "raid%d\n", mddev->level);
-	else
+	if (p)
 		return sprintf(page, "%s\n", p->name);
+	else if (mddev->clevel[0])
+		return sprintf(page, "%s\n", mddev->clevel);
+	else if (mddev->level != LEVEL_NONE)
+		return sprintf(page, "%d\n", mddev->level);
+	else
+		return 0;
 }
 
-static struct md_sysfs_entry md_level = __ATTR_RO(level);
+static ssize_t
+level_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	int rv = len;
+	if (mddev->pers)
+		return -EBUSY;
+	if (len == 0)
+		return 0;
+	if (len >= sizeof(mddev->clevel))
+		return -ENOSPC;
+	strncpy(mddev->clevel, buf, len);
+	if (mddev->clevel[len-1] == '\n')
+		len--;
+	mddev->clevel[len] = 0;
+	mddev->level = LEVEL_NONE;
+	return rv;
+}
+
+static struct md_sysfs_entry md_level =
+__ATTR(level, 0644, level_show, level_store);
 
 static ssize_t
 raid_disks_show(mddev_t *mddev, char *page)
@@ -2158,7 +2184,10 @@ static int do_md_run(mddev_t * mddev)
 	}
 
 #ifdef CONFIG_KMOD
-	request_module("md-level-%d", mddev->level);
+	if (mddev->level != LEVEL_NONE)
+		request_module("md-level-%d", mddev->level);
+	else if (mddev->clevel[0])
+		request_module("md-%s", mddev->clevel);
 #endif
 
 	/*
@@ -2180,15 +2209,21 @@ static int do_md_run(mddev_t * mddev)
 		return -ENOMEM;
 
 	spin_lock(&pers_lock);
-	pers = find_pers(mddev->level);
+	pers = find_pers(mddev->level, mddev->clevel);
 	if (!pers || !try_module_get(pers->owner)) {
 		spin_unlock(&pers_lock);
-		printk(KERN_WARNING "md: personality for level %d is not loaded!\n",
-		       mddev->level);
+		if (mddev->level != LEVEL_NONE)
+			printk(KERN_WARNING "md: personality for level %d is not loaded!\n",
+			       mddev->level);
+		else
+			printk(KERN_WARNING "md: personality for level %s is not loaded!\n",
+			       mddev->clevel);
 		return -EINVAL;
 	}
 	mddev->pers = pers;
 	spin_unlock(&pers_lock);
+	mddev->level = pers->level;
+	strlcpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
 
 	mddev->recovery = 0;
 	mddev->resync_max_sectors = mddev->size << 1; /* may be over-ridden by personality */

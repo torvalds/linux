@@ -2341,4 +2341,5 @@ module_init(raid6_init);
 module_exit(raid6_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-8"); /* RAID6 */
+MODULE_ALIAS("md-raid6");
 MODULE_ALIAS("md-level-6");

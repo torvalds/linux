@@ -119,6 +119,7 @@ struct mddev_s
 	int				chunk_size;
 	time_t				ctime, utime;
 	int				level, layout;
+	char				clevel[16];
 	int				raid_disks;
 	int				max_disks;
 	sector_t			size; /* used size of component devices */

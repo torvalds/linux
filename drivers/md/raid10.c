@@ -2117,4 +2117,5 @@ module_init(raid_init);
 module_exit(raid_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-9"); /* RAID10 */
+MODULE_ALIAS("md-raid10");
 MODULE_ALIAS("md-level-10");
