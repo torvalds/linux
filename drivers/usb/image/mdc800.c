@@ -978,13 +978,11 @@ static int __init usb_mdc800_init (void)
 {
 	int retval = -ENODEV;
 	/* Allocate Memory */
-	mdc800=kmalloc (sizeof (struct mdc800_data), GFP_KERNEL);
+	mdc800=kzalloc (sizeof (struct mdc800_data), GFP_KERNEL);
 	if (!mdc800)
 		goto cleanup_on_fail;
 
-	memset(mdc800, 0, sizeof(struct mdc800_data));
 	mdc800->dev = NULL;
-	mdc800->open=0;
 	mdc800->state=NOT_CONNECTED;
 	init_MUTEX (&mdc800->io_lock);
 
