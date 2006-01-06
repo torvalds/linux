@@ -1672,8 +1672,10 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 				for (j=0; j<conf->copies;j++) {
 					int d = r10_bio->devs[j].devnum;
 					if (conf->mirrors[d].rdev == NULL ||
-					    test_bit(Faulty, &conf->mirrors[d].rdev->flags))
+					    test_bit(Faulty, &conf->mirrors[d].rdev->flags)) {
 						still_degraded = 1;
+						break;
+					}
 				}
 				must_sync = bitmap_start_sync(mddev->bitmap, sect,
 							      &sync_blocks, still_degraded);
