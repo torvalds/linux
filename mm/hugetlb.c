@@ -376,19 +376,14 @@ out:
 	return page;
 }
 
-int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-			unsigned long address, int write_access)
+int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long address, pte_t *ptep)
 {
 	int ret = VM_FAULT_SIGBUS;
 	unsigned long idx;
 	unsigned long size;
-	pte_t *pte;
 	struct page *page;
 	struct address_space *mapping;
-
-	pte = huge_pte_alloc(mm, address);
-	if (!pte)
-		goto out;
 
 	mapping = vma->vm_file->f_mapping;
 	idx = ((address - vma->vm_start) >> HPAGE_SHIFT)
@@ -408,11 +403,11 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		goto backout;
 
 	ret = VM_FAULT_MINOR;
-	if (!pte_none(*pte))
+	if (!pte_none(*ptep))
 		goto backout;
 
 	add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
-	set_huge_pte_at(mm, address, pte, make_huge_pte(vma, page));
+	set_huge_pte_at(mm, address, ptep, make_huge_pte(vma, page));
 	spin_unlock(&mm->page_table_lock);
 	unlock_page(page);
 out:
@@ -424,6 +419,27 @@ backout:
 	unlock_page(page);
 	put_page(page);
 	goto out;
+}
+
+int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long address, int write_access)
+{
+	pte_t *ptep;
+	pte_t entry;
+
+	ptep = huge_pte_alloc(mm, address);
+	if (!ptep)
+		return VM_FAULT_OOM;
+
+	entry = *ptep;
+	if (pte_none(entry))
+		return hugetlb_no_page(mm, vma, address, ptep);
+
+	/*
+	 * We could get here if another thread instantiated the pte
+	 * before the test above.
+	 */
+	return VM_FAULT_MINOR;
 }
 
 int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
