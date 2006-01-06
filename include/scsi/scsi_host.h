@@ -296,6 +296,12 @@ struct scsi_host_template {
 	int (*proc_info)(struct Scsi_Host *, char *, char **, off_t, int, int);
 
 	/*
+	 * suspend support
+	 */
+	int (*resume)(struct scsi_device *);
+	int (*suspend)(struct scsi_device *);
+
+	/*
 	 * Name of proc directory
 	 */
 	char *proc_name;

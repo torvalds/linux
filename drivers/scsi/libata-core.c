@@ -4154,6 +4154,96 @@ err_out:
  *	Inherited from caller.
  */
 
+/*
+ * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
+ * without filling any other registers
+ */
+static int ata_do_simple_cmd(struct ata_port *ap, struct ata_device *dev,
+			     u8 cmd)
+{
+	struct ata_taskfile tf;
+	int err;
+
+	ata_tf_init(ap, &tf, dev->devno);
+
+	tf.command = cmd;
+	tf.flags |= ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+
+	err = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
+	if (err)
+		printk(KERN_ERR "%s: ata command failed: %d\n",
+				__FUNCTION__, err);
+
+	return err;
+}
+
+static int ata_flush_cache(struct ata_port *ap, struct ata_device *dev)
+{
+	u8 cmd;
+
+	if (!ata_try_flush_cache(dev))
+		return 0;
+
+	if (ata_id_has_flush_ext(dev->id))
+		cmd = ATA_CMD_FLUSH_EXT;
+	else
+		cmd = ATA_CMD_FLUSH;
+
+	return ata_do_simple_cmd(ap, dev, cmd);
+}
+
+static int ata_standby_drive(struct ata_port *ap, struct ata_device *dev)
+{
+	return ata_do_simple_cmd(ap, dev, ATA_CMD_STANDBYNOW1);
+}
+
+static int ata_start_drive(struct ata_port *ap, struct ata_device *dev)
+{
+	return ata_do_simple_cmd(ap, dev, ATA_CMD_IDLEIMMEDIATE);
+}
+
+/**
+ *	ata_device_resume - wakeup a previously suspended devices
+ *
+ *	Kick the drive back into action, by sending it an idle immediate
+ *	command and making sure its transfer mode matches between drive
+ *	and host.
+ *
+ */
+int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
+{
+	if (ap->flags & ATA_FLAG_SUSPENDED) {
+		ap->flags &= ~ATA_FLAG_SUSPENDED;
+		ata_set_mode(ap);
+	}
+	if (!ata_dev_present(dev))
+		return 0;
+	if (dev->class == ATA_DEV_ATA)
+		ata_start_drive(ap, dev);
+
+	return 0;
+}
+
+/**
+ *	ata_device_suspend - prepare a device for suspend
+ *
+ *	Flush the cache on the drive, if appropriate, then issue a
+ *	standbynow command.
+ *
+ */
+int ata_device_suspend(struct ata_port *ap, struct ata_device *dev)
+{
+	if (!ata_dev_present(dev))
+		return 0;
+	if (dev->class == ATA_DEV_ATA)
+		ata_flush_cache(ap, dev);
+
+	ata_standby_drive(ap, dev);
+	ap->flags |= ATA_FLAG_SUSPENDED;
+	return 0;
+}
+
 int ata_port_start (struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
@@ -4902,6 +4992,23 @@ int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits)
 
 	return (tmp == bits->val) ? 1 : 0;
 }
+
+int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+	return 0;
+}
+
+int ata_pci_device_resume(struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_device(pdev);
+	pci_set_master(pdev);
+	return 0;
+}
 #endif /* CONFIG_PCI */
 
 
@@ -5005,4 +5112,11 @@ EXPORT_SYMBOL_GPL(ata_pci_host_stop);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);
+EXPORT_SYMBOL_GPL(ata_pci_device_suspend);
+EXPORT_SYMBOL_GPL(ata_pci_device_resume);
 #endif /* CONFIG_PCI */
+
+EXPORT_SYMBOL_GPL(ata_device_suspend);
+EXPORT_SYMBOL_GPL(ata_device_resume);
+EXPORT_SYMBOL_GPL(ata_scsi_device_suspend);
+EXPORT_SYMBOL_GPL(ata_scsi_device_resume);

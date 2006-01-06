@@ -396,6 +396,22 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 	}
 }
 
+int ata_scsi_device_resume(struct scsi_device *sdev)
+{
+	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
+	struct ata_device *dev = &ap->device[sdev->id];
+
+	return ata_device_resume(ap, dev);
+}
+
+int ata_scsi_device_suspend(struct scsi_device *sdev)
+{
+	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
+	struct ata_device *dev = &ap->device[sdev->id];
+
+	return ata_device_suspend(ap, dev);
+}
+
 /**
  *	ata_to_sense_error - convert ATA error to SCSI error
  *	@id: ATA device number
