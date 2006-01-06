@@ -880,6 +880,16 @@ out:
 	return err;
 }
 
+static void kill_suid(struct dentry *dentry)
+{
+	struct iattr	ia;
+	ia.ia_valid = ATTR_KILL_SUID | ATTR_KILL_SGID;
+
+	down(&dentry->d_inode->i_sem);
+	notify_change(dentry, &ia);
+	up(&dentry->d_inode->i_sem);
+}
+
 static inline int
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
@@ -933,14 +943,8 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	}
 
 	/* clear setuid/setgid flag after write */
-	if (err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID))) {
-		struct iattr	ia;
-		ia.ia_valid = ATTR_KILL_SUID | ATTR_KILL_SGID;
-
-		down(&inode->i_sem);
-		notify_change(dentry, &ia);
-		up(&inode->i_sem);
-	}
+	if (err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID)))
+		kill_suid(dentry);
 
 	if (err >= 0 && stable) {
 		static ino_t	last_ino;
