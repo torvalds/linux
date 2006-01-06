@@ -55,6 +55,7 @@ union map_info *dm_get_mapinfo(struct bio *bio)
  */
 #define DMF_BLOCK_IO 0
 #define DMF_SUSPENDED 1
+#define DMF_FROZEN 2
 
 struct mapped_device {
 	struct rw_semaphore io_lock;
@@ -1021,6 +1022,8 @@ static int lock_fs(struct mapped_device *md)
 		return r;
 	}
 
+	set_bit(DMF_FROZEN, &md->flags);
+
 	/* don't bdput right now, we don't want the bdev
 	 * to go away while it is locked.
 	 */
@@ -1029,8 +1032,12 @@ static int lock_fs(struct mapped_device *md)
 
 static void unlock_fs(struct mapped_device *md)
 {
+	if (!test_bit(DMF_FROZEN, &md->flags))
+		return;
+
 	thaw_bdev(md->suspended_bdev, md->frozen_sb);
 	md->frozen_sb = NULL;
+	clear_bit(DMF_FROZEN, &md->flags);
 }
 
 /*
@@ -1040,7 +1047,7 @@ static void unlock_fs(struct mapped_device *md)
  * dm_bind_table, dm_suspend must be called to flush any in
  * flight bios and ensure that any further io gets deferred.
  */
-int dm_suspend(struct mapped_device *md)
+int dm_suspend(struct mapped_device *md, int do_lockfs)
 {
 	struct dm_table *map = NULL;
 	DECLARE_WAITQUEUE(wait, current);
@@ -1064,9 +1071,11 @@ int dm_suspend(struct mapped_device *md)
 	}
 
 	/* Flush I/O to the device. */
-	r = lock_fs(md);
-	if (r)
-		goto out;
+	if (do_lockfs) {
+		r = lock_fs(md);
+		if (r)
+			goto out;
+	}
 
 	/*
 	 * First we set the BLOCK_IO flag so no more ios will be mapped.

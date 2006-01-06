@@ -69,7 +69,7 @@ void dm_put(struct mapped_device *md);
 /*
  * A device can still be used while suspended, but I/O is deferred.
  */
-int dm_suspend(struct mapped_device *md);
+int dm_suspend(struct mapped_device *md, int with_lockfs);
 int dm_resume(struct mapped_device *md);
 
 /*

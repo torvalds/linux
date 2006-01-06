@@ -700,7 +700,7 @@ static int do_suspend(struct dm_ioctl *param)
 		return -ENXIO;
 
 	if (!dm_suspended(md))
-		r = dm_suspend(md);
+		r = dm_suspend(md, 1);
 
 	if (!r)
 		r = __dev_status(md, param);
@@ -738,7 +738,7 @@ static int do_resume(struct dm_ioctl *param)
 	if (new_map) {
 		/* Suspend if it isn't already suspended */
 		if (!dm_suspended(md))
-			dm_suspend(md);
+			dm_suspend(md, 1);
 
 		r = dm_swap_table(md, new_map);
 		if (r) {
