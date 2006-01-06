@@ -34,7 +34,7 @@
 #include "irq_kern.h"
 #include "choose-mode.h"
 
-static int do_unlink_socket(struct notifier_block *notifier, 
+static int do_unlink_socket(struct notifier_block *notifier,
 			    unsigned long what, void *data)
 {
 	return(mconsole_unlink_socket());
@@ -46,7 +46,7 @@ static struct notifier_block reboot_notifier = {
 	.priority		= 0,
 };
 
-/* Safe without explicit locking for now.  Tasklets provide their own 
+/* Safe without explicit locking for now.  Tasklets provide their own
  * locking, and the interrupt handler is safe because it can't interrupt
  * itself and it can only happen on CPU 0.
  */
@@ -60,7 +60,7 @@ static void mc_work_proc(void *unused)
 
 	while(!list_empty(&mc_requests)){
 		local_save_flags(flags);
-		req = list_entry(mc_requests.next, struct mconsole_entry, 
+		req = list_entry(mc_requests.next, struct mconsole_entry,
 				 list);
 		list_del(&req->list);
 		local_irq_restore(flags);
@@ -103,8 +103,8 @@ void mconsole_version(struct mc_request *req)
 {
 	char version[256];
 
-	sprintf(version, "%s %s %s %s %s", system_utsname.sysname, 
-		system_utsname.nodename, system_utsname.release, 
+	sprintf(version, "%s %s %s %s %s", system_utsname.sysname,
+		system_utsname.nodename, system_utsname.release,
 		system_utsname.version, system_utsname.machine);
 	mconsole_reply(req, version, 0, 0);
 }
@@ -348,7 +348,7 @@ static struct mc_device *mconsole_find_dev(char *name)
 
 #define CONFIG_BUF_SIZE 64
 
-static void mconsole_get_config(int (*get_config)(char *, char *, int, 
+static void mconsole_get_config(int (*get_config)(char *, char *, int,
 						  char **),
 				struct mc_request *req, char *name)
 {
@@ -389,7 +389,6 @@ static void mconsole_get_config(int (*get_config)(char *, char *, int,
  out:
 	if(buf != default_buf)
 		kfree(buf);
-	
 }
 
 void mconsole_config(struct mc_request *req)
@@ -420,7 +419,7 @@ void mconsole_config(struct mc_request *req)
 
 void mconsole_remove(struct mc_request *req)
 {
-	struct mc_device *dev;	
+	struct mc_device *dev;
 	char *ptr = req->request.data, *err_msg = "";
         char error[256];
 	int err, start, end, n;
@@ -534,7 +533,7 @@ void mconsole_stack(struct mc_request *req)
 /* Changed by mconsole_setup, which is __setup, and called before SMP is
  * active.
  */
-static char *notify_socket = NULL; 
+static char *notify_socket = NULL;
 
 int mconsole_init(void)
 {
@@ -566,13 +565,13 @@ int mconsole_init(void)
 		notify_socket = kstrdup(notify_socket, GFP_KERNEL);
 		if(notify_socket != NULL)
 			mconsole_notify(notify_socket, MCONSOLE_SOCKET,
-					mconsole_socket_name, 
+					mconsole_socket_name,
 					strlen(mconsole_socket_name) + 1);
 		else printk(KERN_ERR "mconsole_setup failed to strdup "
 			    "string\n");
 	}
 
-	printk("mconsole (version %d) initialized on %s\n", 
+	printk("mconsole (version %d) initialized on %s\n",
 	       MCONSOLE_VERSION, mconsole_socket_name);
 	return(0);
 }
@@ -585,7 +584,7 @@ static int write_proc_mconsole(struct file *file, const char __user *buffer,
 	char *buf;
 
 	buf = kmalloc(count + 1, GFP_KERNEL);
-	if(buf == NULL) 
+	if(buf == NULL)
 		return(-ENOMEM);
 
 	if(copy_from_user(buf, buffer, count)){
@@ -661,7 +660,7 @@ static int notify_panic(struct notifier_block *self, unsigned long unused1,
 
 	if(notify_socket == NULL) return(0);
 
-	mconsole_notify(notify_socket, MCONSOLE_PANIC, message, 
+	mconsole_notify(notify_socket, MCONSOLE_PANIC, message,
 			strlen(message) + 1);
 	return(0);
 }

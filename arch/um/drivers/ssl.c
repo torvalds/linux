@@ -69,7 +69,7 @@ static struct line_driver driver = {
 		.name  		= "ssl",
 		.config 	= ssl_config,
 		.get_config 	= ssl_get_config,
-                .id		= line_id,
+		.id		= line_id,
 		.remove 	= ssl_remove,
 	},
 };
@@ -84,21 +84,21 @@ static struct lines lines = LINES_INIT(NR_PORTS);
 
 static int ssl_config(char *str)
 {
-	return(line_config(serial_lines, 
-			   sizeof(serial_lines)/sizeof(serial_lines[0]), str));
+	return line_config(serial_lines,
+			   sizeof(serial_lines)/sizeof(serial_lines[0]), str);
 }
 
 static int ssl_get_config(char *dev, char *str, int size, char **error_out)
 {
-	return(line_get_config(dev, serial_lines, 
-			       sizeof(serial_lines)/sizeof(serial_lines[0]), 
-			       str, size, error_out));
+	return line_get_config(dev, serial_lines,
+			       sizeof(serial_lines)/sizeof(serial_lines[0]),
+			       str, size, error_out);
 }
 
 static int ssl_remove(int n)
 {
-        return line_remove(serial_lines,
-                           sizeof(serial_lines)/sizeof(serial_lines[0]), n);
+	return line_remove(serial_lines,
+			   sizeof(serial_lines)/sizeof(serial_lines[0]), n);
 }
 
 int ssl_open(struct tty_struct *tty, struct file *filp)
@@ -183,7 +183,7 @@ static int ssl_console_setup(struct console *co, char *options)
 {
 	struct line *line = &serial_lines[co->index];
 
-	return console_open_chan(line,co,&opts);
+	return console_open_chan(line, co, &opts);
 }
 
 static struct console ssl_cons = {
@@ -199,10 +199,11 @@ int ssl_init(void)
 {
 	char *new_title;
 
-	printk(KERN_INFO "Initializing software serial port version %d\n", 
+	printk(KERN_INFO "Initializing software serial port version %d\n",
 	       ssl_version);
 	ssl_driver = line_register_devfs(&lines, &driver, &ssl_ops,
-					 serial_lines, ARRAY_SIZE(serial_lines));
+					 serial_lines,
+					 ARRAY_SIZE(serial_lines));
 
 	lines_init(serial_lines, sizeof(serial_lines)/sizeof(serial_lines[0]));
 
@@ -212,7 +213,7 @@ int ssl_init(void)
 
 	ssl_init_done = 1;
 	register_console(&ssl_cons);
-	return(0);
+	return 0;
 }
 late_initcall(ssl_init);
 
@@ -227,9 +228,9 @@ __uml_exitcall(ssl_exit);
 
 static int ssl_chan_setup(char *str)
 {
-	return(line_setup(serial_lines,
+	return line_setup(serial_lines,
 			  sizeof(serial_lines)/sizeof(serial_lines[0]),
-			  str, 1));
+			  str, 1);
 }
 
 __setup("ssl", ssl_chan_setup);

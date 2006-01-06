@@ -124,7 +124,8 @@ static int buffer_data(struct line *line, const char *buf, int len)
 	if (len < end){
 		memcpy(line->tail, buf, len);
 		line->tail += len;
-	} else {
+	}
+	else {
 		/* The circular buffer is wrapping */
 		memcpy(line->tail, buf, end);
 		buf += end;
@@ -170,7 +171,7 @@ static int flush_buffer(struct line *line)
 	}
 
 	count = line->tail - line->head;
-	n = write_chan(&line->chan_list, line->head, count, 
+	n = write_chan(&line->chan_list, line->head, count,
 		       line->driver->write_irq);
 
 	if(n < 0)
@@ -227,7 +228,7 @@ int line_write(struct tty_struct *tty, const unsigned char *buf, int len)
 		if (err <= 0 && (err != -EAGAIN || !ret))
 			ret = err;
 	} else {
-		n = write_chan(&line->chan_list, buf, len, 
+		n = write_chan(&line->chan_list, buf, len,
 			       line->driver->write_irq);
 		if (n < 0) {
 			ret = n;
@@ -384,13 +385,13 @@ int line_setup_irq(int fd, int input, int output, struct tty_struct *tty)
 
 	if (input)
 		err = um_request_irq(driver->read_irq, fd, IRQ_READ,
-				       line_interrupt, flags, 
+				       line_interrupt, flags,
 				       driver->read_irq_name, tty);
 	if (err)
 		return err;
 	if (output)
 		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
-					line_write_interrupt, flags, 
+					line_write_interrupt, flags,
 					driver->write_irq_name, tty);
 	line->have_irq = 1;
 	return err;
@@ -512,10 +513,11 @@ int line_setup(struct line *lines, unsigned int num, char *init, int all_allowed
 		/* We said con=/ssl= instead of con#=, so we are configuring all
 		 * consoles at once.*/
 		n = -1;
-	} else {
+	}
+	else {
 		n = simple_strtoul(init, &end, 0);
 		if(*end != '='){
-			printk(KERN_ERR "line_setup failed to parse \"%s\"\n", 
+			printk(KERN_ERR "line_setup failed to parse \"%s\"\n",
 			       init);
 			return 0;
 		}
@@ -527,7 +529,8 @@ int line_setup(struct line *lines, unsigned int num, char *init, int all_allowed
 		printk("line_setup - %d out of range ((0 ... %d) allowed)\n",
 		       n, num - 1);
 		return 0;
-	} else if (n >= 0){
+	}
+	else if (n >= 0){
 		if (lines[n].count > 0) {
 			printk("line_setup - device %d is open\n", n);
 			return 0;
@@ -541,11 +544,13 @@ int line_setup(struct line *lines, unsigned int num, char *init, int all_allowed
 				lines[n].valid = 1;
 			}	
 		}
-	} else if(!all_allowed){
+	}
+	else if(!all_allowed){
 		printk("line_setup - can't configure all devices from "
 		       "mconsole\n");
 		return 0;
-	} else {
+	}
+	else {
 		for(i = 0; i < num; i++){
 			if(lines[i].init_pri <= INIT_ALL){
 				lines[i].init_pri = INIT_ALL;
@@ -627,7 +632,7 @@ int line_remove(struct line *lines, unsigned int num, int n)
 }
 
 struct tty_driver *line_register_devfs(struct lines *set,
-			 struct line_driver *line_driver, 
+			 struct line_driver *line_driver,
 			 struct tty_operations *ops, struct line *lines,
 			 int nlines)
 {
@@ -656,7 +661,7 @@ struct tty_driver *line_register_devfs(struct lines *set,
 	}
 
 	for(i = 0; i < nlines; i++){
-		if(!lines[i].valid) 
+		if(!lines[i].valid)
 			tty_unregister_device(driver, i);
 	}
 
@@ -677,11 +682,12 @@ void lines_init(struct line *lines, int nlines)
 		line = &lines[i];
 		INIT_LIST_HEAD(&line->chan_list);
 		spin_lock_init(&line->lock);
-		if(line->init_str != NULL){
-			line->init_str = kstrdup(line->init_str, GFP_KERNEL);
-			if(line->init_str == NULL)
-				printk("lines_init - kstrdup returned NULL\n");
-		}
+		if(line->init_str == NULL)
+			continue;
+
+		line->init_str = kstrdup(line->init_str, GFP_KERNEL);
+		if(line->init_str == NULL)
+			printk("lines_init - kstrdup returned NULL\n");
 	}
 }
 
@@ -717,8 +723,7 @@ irqreturn_t winch_interrupt(int irq, void *data, struct pt_regs *unused)
 	tty  = winch->tty;
 	if (tty != NULL) {
 		line = tty->driver_data;
-		chan_window_size(&line->chan_list,
-				 &tty->winsize.ws_row, 
+		chan_window_size(&line->chan_list, &tty->winsize.ws_row,
 				 &tty->winsize.ws_col);
 		kill_pg(tty->pgrp, SIGWINCH, 1);
 	}
@@ -749,7 +754,7 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty)
 	spin_unlock(&winch_handler_lock);
 
 	if(um_request_irq(WINCH_IRQ, fd, IRQ_READ, winch_interrupt,
-			  SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM, 
+			  SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM,
 			  "winch", winch) < 0)
 		printk("register_winch_irq - failed to register IRQ\n");
 }
@@ -800,7 +805,7 @@ static void winch_cleanup(void)
 			deactivate_fd(winch->fd, WINCH_IRQ);
 			os_close_file(winch->fd);
 		}
-		if(winch->pid != -1) 
+		if(winch->pid != -1)
 			os_kill_process(winch->pid, 1);
 	}
 }
