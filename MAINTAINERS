@@ -1230,7 +1230,7 @@ IEEE 1394 SUBSYSTEM
 P:	Ben Collins
 M:	bcollins@debian.org
 P:	Jody McIntyre
-M:	scjody@steamballoon.com
+M:	scjody@modernduck.com
 L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/scjody/ieee1394.git
@@ -1240,14 +1240,14 @@ IEEE 1394 OHCI DRIVER
 P:	Ben Collins
 M:	bcollins@debian.org
 P:	Jody McIntyre
-M:	scjody@steamballoon.com
+M:	scjody@modernduck.com
 L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 S:	Maintained
 
 IEEE 1394 PCILYNX DRIVER
 P:	Jody McIntyre
-M:	scjody@steamballoon.com
+M:	scjody@modernduck.com
 L:	linux1394-devel@lists.sourceforge.net
 W:	http://www.linux1394.org/
 S:	Maintained
