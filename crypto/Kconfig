@@ -40,8 +40,8 @@ config CRYPTO_SHA1
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
-config CRYPTO_SHA1_Z990
-	tristate "SHA1 digest algorithm for IBM zSeries z990"
+config CRYPTO_SHA1_S390
+	tristate "SHA1 digest algorithm (s390)"
 	depends on CRYPTO && ARCH_S390
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
@@ -98,8 +98,8 @@ config CRYPTO_DES
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
 
-config CRYPTO_DES_Z990
-	tristate "DES and Triple DES cipher algorithms for IBM zSeries z990"
+config CRYPTO_DES_S390
+	tristate "DES and Triple DES cipher algorithms (s390)"
 	depends on CRYPTO && ARCH_S390
 	help
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).

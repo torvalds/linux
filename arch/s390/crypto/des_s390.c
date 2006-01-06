@@ -1,7 +1,7 @@
 /*
  * Cryptographic API.
  *
- * z990 implementation of the DES Cipher Algorithm.
+ * s390 implementation of the DES Cipher Algorithm.
  *
  * Copyright (c) 2003 IBM Deutschland Entwicklung GmbH, IBM Corporation
  * Author(s): Thomas Spatzier (tspat@de.ibm.com)
@@ -19,7 +19,7 @@
 #include <linux/errno.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
-#include "crypt_z990.h"
+#include "crypt_s390.h"
 #include "crypto_des.h"
 
 #define DES_BLOCK_SIZE 8
@@ -31,17 +31,17 @@
 #define DES3_192_KEY_SIZE	(3 * DES_KEY_SIZE)
 #define DES3_192_BLOCK_SIZE	DES_BLOCK_SIZE
 
-struct crypt_z990_des_ctx {
+struct crypt_s390_des_ctx {
 	u8 iv[DES_BLOCK_SIZE];
 	u8 key[DES_KEY_SIZE];
 };
 
-struct crypt_z990_des3_128_ctx {
+struct crypt_s390_des3_128_ctx {
 	u8 iv[DES_BLOCK_SIZE];
 	u8 key[DES3_128_KEY_SIZE];
 };
 
-struct crypt_z990_des3_192_ctx {
+struct crypt_s390_des3_192_ctx {
 	u8 iv[DES_BLOCK_SIZE];
 	u8 key[DES3_192_KEY_SIZE];
 };
@@ -49,7 +49,7 @@ struct crypt_z990_des3_192_ctx {
 static int
 des_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
 {
-	struct crypt_z990_des_ctx *dctx;
+	struct crypt_s390_des_ctx *dctx;
 	int ret;
 
 	dctx = ctx;
@@ -65,26 +65,26 @@ des_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
 static void
 des_encrypt(void *ctx, u8 *dst, const u8 *src)
 {
-	struct crypt_z990_des_ctx *dctx;
+	struct crypt_s390_des_ctx *dctx;
 
 	dctx = ctx;
-	crypt_z990_km(KM_DEA_ENCRYPT, dctx->key, dst, src, DES_BLOCK_SIZE);
+	crypt_s390_km(KM_DEA_ENCRYPT, dctx->key, dst, src, DES_BLOCK_SIZE);
 }
 
 static void
 des_decrypt(void *ctx, u8 *dst, const u8 *src)
 {
-	struct crypt_z990_des_ctx *dctx;
+	struct crypt_s390_des_ctx *dctx;
 
 	dctx = ctx;
-	crypt_z990_km(KM_DEA_DECRYPT, dctx->key, dst, src, DES_BLOCK_SIZE);
+	crypt_s390_km(KM_DEA_DECRYPT, dctx->key, dst, src, DES_BLOCK_SIZE);
 }
 
 static struct crypto_alg des_alg = {
 	.cra_name		=	"des",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	DES_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct crypt_z990_des_ctx),
+	.cra_ctxsize		=	sizeof(struct crypt_s390_des_ctx),
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(des_alg.cra_list),
 	.cra_u			=	{ .cipher = {
@@ -111,7 +111,7 @@ static int
 des3_128_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
 {
 	int i, ret;
-	struct crypt_z990_des3_128_ctx *dctx;
+	struct crypt_s390_des3_128_ctx *dctx;
 	const u8* temp_key = key;
 
 	dctx = ctx;
@@ -132,20 +132,20 @@ des3_128_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
 static void
 des3_128_encrypt(void *ctx, u8 *dst, const u8 *src)
 {
-	struct crypt_z990_des3_128_ctx *dctx;
+	struct crypt_s390_des3_128_ctx *dctx;
 
 	dctx = ctx;
-	crypt_z990_km(KM_TDEA_128_ENCRYPT, dctx->key, dst, (void*)src,
+	crypt_s390_km(KM_TDEA_128_ENCRYPT, dctx->key, dst, (void*)src,
 			DES3_128_BLOCK_SIZE);
 }
 
 static void
 des3_128_decrypt(void *ctx, u8 *dst, const u8 *src)
 {
-	struct crypt_z990_des3_128_ctx *dctx;
+	struct crypt_s390_des3_128_ctx *dctx;
 
 	dctx = ctx;
-	crypt_z990_km(KM_TDEA_128_DECRYPT, dctx->key, dst, (void*)src,
+	crypt_s390_km(KM_TDEA_128_DECRYPT, dctx->key, dst, (void*)src,
 			DES3_128_BLOCK_SIZE);
 }
 
@@ -153,7 +153,7 @@ static struct crypto_alg des3_128_alg = {
 	.cra_name		=	"des3_ede128",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	DES3_128_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct crypt_z990_des3_128_ctx),
+	.cra_ctxsize		=	sizeof(struct crypt_s390_des3_128_ctx),
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(des3_128_alg.cra_list),
 	.cra_u			=	{ .cipher = {
@@ -181,7 +181,7 @@ static int
 des3_192_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
 {
 	int i, ret;
-	struct crypt_z990_des3_192_ctx *dctx;
+	struct crypt_s390_des3_192_ctx *dctx;
 	const u8* temp_key;
 
 	dctx = ctx;
@@ -206,20 +206,20 @@ des3_192_setkey(void *ctx, const u8 *key, unsigned int keylen, u32 *flags)
 static void
 des3_192_encrypt(void *ctx, u8 *dst, const u8 *src)
 {
-	struct crypt_z990_des3_192_ctx *dctx;
+	struct crypt_s390_des3_192_ctx *dctx;
 
 	dctx = ctx;
-	crypt_z990_km(KM_TDEA_192_ENCRYPT, dctx->key, dst, (void*)src,
+	crypt_s390_km(KM_TDEA_192_ENCRYPT, dctx->key, dst, (void*)src,
 			DES3_192_BLOCK_SIZE);
 }
 
 static void
 des3_192_decrypt(void *ctx, u8 *dst, const u8 *src)
 {
-	struct crypt_z990_des3_192_ctx *dctx;
+	struct crypt_s390_des3_192_ctx *dctx;
 
 	dctx = ctx;
-	crypt_z990_km(KM_TDEA_192_DECRYPT, dctx->key, dst, (void*)src,
+	crypt_s390_km(KM_TDEA_192_DECRYPT, dctx->key, dst, (void*)src,
 			DES3_192_BLOCK_SIZE);
 }
 
@@ -227,7 +227,7 @@ static struct crypto_alg des3_192_alg = {
 	.cra_name		=	"des3_ede",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	DES3_192_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct crypt_z990_des3_192_ctx),
+	.cra_ctxsize		=	sizeof(struct crypt_s390_des3_192_ctx),
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(des3_192_alg.cra_list),
 	.cra_u			=	{ .cipher = {
@@ -245,9 +245,9 @@ init(void)
 {
 	int ret;
 
-	if (!crypt_z990_func_available(KM_DEA_ENCRYPT) ||
-	    !crypt_z990_func_available(KM_TDEA_128_ENCRYPT) ||
-	    !crypt_z990_func_available(KM_TDEA_192_ENCRYPT)){
+	if (!crypt_s390_func_available(KM_DEA_ENCRYPT) ||
+	    !crypt_s390_func_available(KM_TDEA_128_ENCRYPT) ||
+	    !crypt_s390_func_available(KM_TDEA_192_ENCRYPT)){
 		return -ENOSYS;
 	}
 
@@ -262,7 +262,7 @@ init(void)
 		return -EEXIST;
 	}
 
-	printk(KERN_INFO "crypt_z990: des_z990 loaded.\n");
+	printk(KERN_INFO "crypt_s390: des_s390 loaded.\n");
 	return 0;
 }
 
