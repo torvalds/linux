@@ -475,8 +475,10 @@ static LIST_HEAD(acpi_bus_drivers);
 static DECLARE_MUTEX(acpi_bus_drivers_lock);
 
 /**
- * acpi_bus_match 
- * --------------
+ * acpi_bus_match - match device IDs to driver's supported IDs
+ * @device: the device that we are trying to match to a driver
+ * @driver: driver whose device id table is being checked
+ *
  * Checks the device's hardware (_HID) or compatible (_CID) ids to see if it
  * matches the specified driver's criteria.
  */
@@ -489,8 +491,10 @@ acpi_bus_match(struct acpi_device *device, struct acpi_driver *driver)
 }
 
 /**
- * acpi_bus_driver_init 
- * --------------------
+ * acpi_bus_driver_init - add a device to a driver
+ * @device: the device to add and initialize
+ * @driver: driver for the device
+ *
  * Used to initialize a device via its device driver.  Called whenever a 
  * driver is bound to a device.  Invokes the driver's add() and start() ops.
  */
@@ -603,8 +607,9 @@ static int acpi_driver_detach(struct acpi_driver *drv)
 }
 
 /**
- * acpi_bus_register_driver 
- * ------------------------ 
+ * acpi_bus_register_driver - register a driver with the ACPI bus
+ * @driver: driver being registered
+ *
  * Registers a driver with the ACPI bus.  Searches the namespace for all
  * devices that match the driver's criteria and binds.  Returns the
  * number of devices that were claimed by the driver, or a negative
@@ -633,8 +638,9 @@ int acpi_bus_register_driver(struct acpi_driver *driver)
 EXPORT_SYMBOL(acpi_bus_register_driver);
 
 /**
- * acpi_bus_unregister_driver 
- * --------------------------
+ * acpi_bus_unregister_driver - unregisters a driver with the APIC bus
+ * @driver: driver to unregister
+ *
  * Unregisters a driver with the ACPI bus.  Searches the namespace for all
  * devices that match the driver's criteria and unbinds.
  */
@@ -660,8 +666,9 @@ int acpi_bus_unregister_driver(struct acpi_driver *driver)
 EXPORT_SYMBOL(acpi_bus_unregister_driver);
 
 /**
- * acpi_bus_find_driver 
- * --------------------
+ * acpi_bus_find_driver - check if there is a driver installed for the device
+ * @device: device that we are trying to find a supporting driver for
+ *
  * Parses the list of registered drivers looking for a driver applicable for
  * the specified device.
  */
