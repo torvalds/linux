@@ -668,7 +668,7 @@ mpc52xx_console_setup(struct console *co, char *options)
 }
 
 
-extern struct uart_driver mpc52xx_uart_driver;
+static struct uart_driver mpc52xx_uart_driver;
 
 static struct console mpc52xx_console = {
 	.name	= "ttyS",
