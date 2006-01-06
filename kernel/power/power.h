@@ -9,19 +9,14 @@
 #define SUSPEND_CONSOLE	(MAX_NR_CONSOLES-1)
 #endif
 
-#define MAX_PBES	((PAGE_SIZE - sizeof(struct new_utsname) \
-			- 4 - 3*sizeof(unsigned long) - sizeof(int) \
-			- sizeof(void *)) / sizeof(swp_entry_t))
-
 struct swsusp_info {
 	struct new_utsname	uts;
 	u32			version_code;
 	unsigned long		num_physpages;
 	int			cpus;
 	unsigned long		image_pages;
-	unsigned long		pagedir_pages;
-	suspend_pagedir_t	* suspend_pagedir;
-	swp_entry_t		pagedir[MAX_PBES];
+	unsigned long		pages;
+	swp_entry_t		start;
 } __attribute__((aligned(PAGE_SIZE)));
 
 
@@ -67,6 +62,8 @@ extern asmlinkage int swsusp_arch_resume(void);
 
 extern void free_pagedir(struct pbe *pblist);
 extern struct pbe *alloc_pagedir(unsigned nr_pages, gfp_t gfp_mask, int safe_needed);
-extern void create_pbe_list(struct pbe *pblist, unsigned nr_pages);
 extern void swsusp_free(void);
 extern int alloc_data_pages(struct pbe *pblist, gfp_t gfp_mask, int safe_needed);
+extern unsigned int snapshot_nr_pages(void);
+extern struct pbe *snapshot_pblist(void);
+extern void snapshot_pblist_set(struct pbe *pblist);

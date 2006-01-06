@@ -14,11 +14,7 @@
 typedef struct pbe {
 	unsigned long address;		/* address of the copy */
 	unsigned long orig_address;	/* original address of page */
-	swp_entry_t swap_address;	
-
-	struct pbe *next;	/* also used as scratch space at
-				 * end of page (see link, diskpage)
-				 */
+	struct pbe *next;
 } suspend_pagedir_t;
 
 #define for_each_pbe(pbe, pblist) \

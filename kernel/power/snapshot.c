@@ -33,6 +33,9 @@
 
 #include "power.h"
 
+struct pbe *pagedir_nosave;
+unsigned int nr_copy_pages;
+
 #ifdef CONFIG_HIGHMEM
 struct highmem_page {
 	char *data;
@@ -244,7 +247,7 @@ static inline void fill_pb_page(struct pbe *pbpage)
  *	of memory pages allocated with alloc_pagedir()
  */
 
-void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
+static inline void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
 {
 	struct pbe *pbpage, *p;
 	unsigned int num = PBES_PER_PAGE;
@@ -261,7 +264,6 @@ void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
 			p->next = p + 1;
 		p->next = NULL;
 	}
-	pr_debug("create_pbe_list(): initialized %d PBEs\n", num);
 }
 
 /**
@@ -332,7 +334,8 @@ struct pbe *alloc_pagedir(unsigned int nr_pages, gfp_t gfp_mask, int safe_needed
 	if (!pbe) { /* get_zeroed_page() failed */
 		free_pagedir(pblist);
 		pblist = NULL;
-        }
+        } else
+        	create_pbe_list(pblist, nr_pages);
 	return pblist;
 }
 
@@ -395,7 +398,6 @@ static struct pbe *swsusp_alloc(unsigned int nr_pages)
 		printk(KERN_ERR "suspend: Allocating pagedir failed.\n");
 		return NULL;
 	}
-	create_pbe_list(pblist, nr_pages);
 
 	if (alloc_data_pages(pblist, GFP_ATOMIC | __GFP_COLD, 0)) {
 		printk(KERN_ERR "suspend: Allocating image pages failed.\n");
@@ -420,10 +422,6 @@ asmlinkage int swsusp_save(void)
 		 nr_pages,
 		 (nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE,
 		 PAGES_FOR_IO, nr_free_pages());
-
-	/* This is needed because of the fixed size of swsusp_info */
-	if (MAX_PBES < (nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE)
-		return -ENOSPC;
 
 	if (!enough_free_mem(nr_pages)) {
 		printk(KERN_ERR "swsusp: Not enough free memory\n");
