@@ -144,9 +144,9 @@ again:
 	add_dev (numdevs++, port, -1);
 
 	/* Find out the legacy device's IEEE 1284 device ID. */
-	deviceid = kmalloc (1000, GFP_KERNEL);
+	deviceid = kmalloc (1024, GFP_KERNEL);
 	if (deviceid) {
-		if (parport_device_id (numdevs - 1, deviceid, 1000) > 2)
+		if (parport_device_id (numdevs - 1, deviceid, 1024) > 2)
 			detected++;
 
 		kfree (deviceid);
@@ -508,11 +508,11 @@ static int assign_addrs (struct parport *port)
 		 detected);
 
 	/* Ask the new devices to introduce themselves. */
-	deviceid = kmalloc (1000, GFP_KERNEL);
+	deviceid = kmalloc (1024, GFP_KERNEL);
 	if (!deviceid) return 0;
 
 	for (daisy = 0; thisdev < numdevs; thisdev++, daisy++)
-		parport_device_id (thisdev, deviceid, 1000);
+		parport_device_id (thisdev, deviceid, 1024);
 
 	kfree (deviceid);
 	return detected;
