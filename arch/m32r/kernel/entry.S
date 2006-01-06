@@ -651,8 +651,6 @@ ENTRY(rie_handler)
 /* void rie_handler(int error_code) */
 	SWITCH_TO_KERNEL_STACK
 	SAVE_ALL
-	mvfc	r0, bpc
-	ld	r1, @r0
 	ldi	r1, #0x20			; error_code
 	mv	r0, sp				; pt_regs
 	bl	do_rie_handler
