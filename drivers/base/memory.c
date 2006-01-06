@@ -49,12 +49,12 @@ static struct kset_uevent_ops memory_uevent_ops = {
 
 static struct notifier_block *memory_chain;
 
-static int register_memory_notifier(struct notifier_block *nb)
+int register_memory_notifier(struct notifier_block *nb)
 {
         return notifier_chain_register(&memory_chain, nb);
 }
 
-static void unregister_memory_notifier(struct notifier_block *nb)
+void unregister_memory_notifier(struct notifier_block *nb)
 {
         notifier_chain_unregister(&memory_chain, nb);
 }
