@@ -11,9 +11,9 @@
 #include <linux/string.h>
 #include <asm/uaccess.h>
 
-static struct {
-	char *token;
-	char *descr;
+static const struct {
+	const char *token;
+	const char *descr;
 } classes[] = {
 	{ "",            "Legacy device" },
 	{ "PRINTER",     "Printer" },
