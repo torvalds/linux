@@ -444,6 +444,15 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 
 }
 
+static void
+channel_subsystem_release(struct device *dev)
+{
+	struct channel_subsystem *css;
+
+	css = to_css(dev);
+	kfree(css);
+}
+
 static inline void __init
 setup_css(int nr)
 {
@@ -453,6 +462,7 @@ setup_css(int nr)
 	css[nr]->valid = 1;
 	css[nr]->cssid = nr;
 	sprintf(css[nr]->device.bus_id, "css%x", nr);
+	css[nr]->device.release = channel_subsystem_release;
 	tod_high = (u32) (get_clock() >> 32);
 	css_generate_pgid(css[nr], tod_high);
 }

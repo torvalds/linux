@@ -299,10 +299,9 @@ cio_ignore_proc_seq_start(struct seq_file *s, loff_t *offset)
 
 	if (*offset >= (__MAX_SUBCHANNEL + 1) * (__MAX_SSID + 1))
 		return NULL;
-	iter = kmalloc(sizeof(struct ccwdev_iter), GFP_KERNEL);
+	iter = kzalloc(sizeof(struct ccwdev_iter), GFP_KERNEL);
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
-	memset(iter, 0, sizeof(struct ccwdev_iter));
 	iter->ssid = *offset / (__MAX_SUBCHANNEL + 1);
 	iter->devno = *offset % (__MAX_SUBCHANNEL + 1);
 	return iter;
@@ -322,7 +321,7 @@ cio_ignore_proc_seq_next(struct seq_file *s, void *it, loff_t *offset)
 
 	if (*offset >= (__MAX_SUBCHANNEL + 1) * (__MAX_SSID + 1))
 		return NULL;
-	iter = (struct ccwdev_iter *)it;
+	iter = it;
 	if (iter->devno == __MAX_SUBCHANNEL) {
 		iter->devno = 0;
 		iter->ssid++;
@@ -339,7 +338,7 @@ cio_ignore_proc_seq_show(struct seq_file *s, void *it)
 {
 	struct ccwdev_iter *iter;
 
-	iter = (struct ccwdev_iter *)it;
+	iter = it;
 	if (!is_blacklisted(iter->ssid, iter->devno))
 		/* Not blacklisted, nothing to output. */
 		return 0;
