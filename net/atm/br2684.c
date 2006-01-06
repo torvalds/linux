@@ -295,7 +295,7 @@ static inline __be16 br_type_trans(struct sk_buff *skb, struct net_device *dev)
 	unsigned char *rawp;
 	eth = eth_hdr(skb);
 
-	if (*eth->h_dest & 1) {
+	if (is_multicast_ether_addr(eth->h_dest)) {
 		if (memcmp(eth->h_dest, dev->broadcast, ETH_ALEN) == 0)
 			skb->pkt_type = PACKET_BROADCAST;
 		else
