@@ -40,14 +40,16 @@ static struct page *dequeue_huge_page(void)
 {
 	int nid = numa_node_id();
 	struct page *page = NULL;
+	struct zonelist *zonelist = NODE_DATA(nid)->node_zonelists;
+	struct zone **z;
 
-	if (list_empty(&hugepage_freelists[nid])) {
-		for (nid = 0; nid < MAX_NUMNODES; ++nid)
-			if (!list_empty(&hugepage_freelists[nid]))
-				break;
+	for (z = zonelist->zones; *z; z++) {
+		nid = (*z)->zone_pgdat->node_id;
+		if (!list_empty(&hugepage_freelists[nid]))
+			break;
 	}
-	if (nid >= 0 && nid < MAX_NUMNODES &&
-	    !list_empty(&hugepage_freelists[nid])) {
+
+	if (*z) {
 		page = list_entry(hugepage_freelists[nid].next,
 				  struct page, lru);
 		list_del(&page->lru);
