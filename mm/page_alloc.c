@@ -132,16 +132,16 @@ static inline int bad_range(struct zone *zone, struct page *page)
 }
 #endif
 
-static void bad_page(const char *function, struct page *page)
+static void bad_page(struct page *page)
 {
-	printk(KERN_EMERG "Bad page state at %s (in process '%s', page %p)\n",
-		function, current->comm, page);
-	printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
-		(int)(2*sizeof(unsigned long)), (unsigned long)page->flags,
-		page->mapping, page_mapcount(page), page_count(page));
-	printk(KERN_EMERG "Backtrace:\n");
+	printk(KERN_EMERG "Bad page state in process '%s'\n"
+		"page:%p flags:0x%0*lx mapping:%p mapcount:%d count:%d\n"
+		"Trying to fix it up, but a reboot is needed\n"
+		"Backtrace:\n",
+		current->comm, page, (int)(2*sizeof(unsigned long)),
+		(unsigned long)page->flags, page->mapping,
+		page_mapcount(page), page_count(page));
 	dump_stack();
-	printk(KERN_EMERG "Trying to fix it up, but a reboot is needed\n");
 	page->flags &= ~(1 << PG_lru	|
 			1 << PG_private |
 			1 << PG_locked	|
@@ -194,19 +194,15 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 	int i;
 	int nr_pages = 1 << order;
 
-	if (!PageCompound(page))
-		return;
-
-	if (page[1].index != order)
-		bad_page(__FUNCTION__, page);
+	if (unlikely(page[1].index != order))
+		bad_page(page);
 
 	for (i = 0; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		if (!PageCompound(p))
-			bad_page(__FUNCTION__, page);
-		if (page_private(p) != (unsigned long)page)
-			bad_page(__FUNCTION__, page);
+		if (unlikely(!PageCompound(p) |
+				(page_private(p) != (unsigned long)page)))
+			bad_page(page);
 		ClearPageCompound(p);
 	}
 }
@@ -316,7 +312,7 @@ static inline void __free_pages_bulk (struct page *page,
 	unsigned long page_idx;
 	int order_size = 1 << order;
 
-	if (unlikely(order))
+	if (unlikely(PageCompound(page)))
 		destroy_compound_page(page, order);
 
 	page_idx = page_to_pfn(page) & ((1 << MAX_ORDER) - 1);
@@ -348,7 +344,7 @@ static inline void __free_pages_bulk (struct page *page,
 	zone->free_area[order].nr_free++;
 }
 
-static inline int free_pages_check(const char *function, struct page *page)
+static inline int free_pages_check(struct page *page)
 {
 	if (unlikely(page_mapcount(page) |
 		(page->mapping != NULL)  |
@@ -363,7 +359,7 @@ static inline int free_pages_check(const char *function, struct page *page)
 			1 << PG_swapcache |
 			1 << PG_writeback |
 			1 << PG_reserved ))))
-		bad_page(function, page);
+		bad_page(page);
 	if (PageDirty(page))
 		__ClearPageDirty(page);
 	/*
@@ -422,7 +418,7 @@ void __free_pages_ok(struct page *page, unsigned int order)
 #endif
 
 	for (i = 0 ; i < (1 << order) ; ++i)
-		reserved += free_pages_check(__FUNCTION__, page + i);
+		reserved += free_pages_check(page + i);
 	if (reserved)
 		return;
 
@@ -517,7 +513,7 @@ static int prep_new_page(struct page *page, int order)
 			1 << PG_swapcache |
 			1 << PG_writeback |
 			1 << PG_reserved ))))
-		bad_page(__FUNCTION__, page);
+		bad_page(page);
 
 	/*
 	 * For now, we report if PG_reserved was found set, but do not
@@ -716,7 +712,7 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 
 	if (PageAnon(page))
 		page->mapping = NULL;
-	if (free_pages_check(__FUNCTION__, page))
+	if (free_pages_check(page))
 		return;
 
 	inc_page_state(pgfree);
