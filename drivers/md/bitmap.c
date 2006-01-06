@@ -315,6 +315,8 @@ static int write_page(struct bitmap *bitmap, struct page *page, int wait)
 	if (bitmap->file == NULL)
 		return write_sb_page(bitmap->mddev, bitmap->offset, page, wait);
 
+	flush_dcache_page(page); /* make sure visible to anyone reading the file */
+
 	if (wait)
 		lock_page(page);
 	else {
