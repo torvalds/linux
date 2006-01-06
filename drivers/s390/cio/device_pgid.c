@@ -22,6 +22,7 @@
 #include "cio_debug.h"
 #include "css.h"
 #include "device.h"
+#include "ioasm.h"
 
 /*
  * Start Sense Path Group ID helper function. Used in ccw_device_recog
@@ -364,8 +365,22 @@ ccw_device_verify_irq(struct ccw_device *cdev, enum dev_event dev_event)
 void
 ccw_device_verify_start(struct ccw_device *cdev)
 {
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
 	cdev->private->flags.pgid_single = 0;
 	cdev->private->iretry = 5;
+	/*
+	 * Update sch->lpm with current values to catch paths becoming
+	 * available again.
+	 */
+	if (stsch(sch->irq, &sch->schib)) {
+		ccw_device_verify_done(cdev, -ENODEV);
+		return;
+	}
+	sch->lpm = sch->schib.pmcw.pim &
+		sch->schib.pmcw.pam &
+		sch->schib.pmcw.pom &
+		sch->opm;
 	__ccw_device_verify_start(cdev);
 }
 
