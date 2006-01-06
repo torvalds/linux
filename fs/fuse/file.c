@@ -163,6 +163,9 @@ static int fuse_flush(struct file *file)
 	struct fuse_flush_in inarg;
 	int err;
 
+	if (is_bad_inode(inode))
+		return -EIO;
+
 	if (fc->no_flush)
 		return 0;
 
@@ -198,6 +201,9 @@ int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
 	struct fuse_req *req;
 	struct fuse_fsync_in inarg;
 	int err;
+
+	if (is_bad_inode(inode))
+		return -EIO;
 
 	if ((!isdir && fc->no_fsync) || (isdir && fc->no_fsyncdir))
 		return 0;
@@ -272,8 +278,15 @@ static int fuse_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req = fuse_get_request(fc);
-	int err = -EINTR;
+	struct fuse_req *req;
+	int err;
+
+	err = -EIO;
+	if (is_bad_inode(inode))
+		goto out;
+
+	err = -EINTR;
+	req = fuse_get_request(fc);
 	if (!req)
 		goto out;
 
@@ -344,6 +357,10 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_readpages_data data;
 	int err;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
 	data.file = file;
 	data.inode = inode;
 	data.req = fuse_get_request(fc);
@@ -402,7 +419,12 @@ static int fuse_commit_write(struct file *file, struct page *page,
 	struct inode *inode = page->mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	loff_t pos = page_offset(page) + offset;
-	struct fuse_req *req = fuse_get_request(fc);
+	struct fuse_req *req;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
+	req = fuse_get_request(fc);
 	if (!req)
 		return -EINTR;
 
@@ -474,7 +496,12 @@ static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 	size_t nmax = write ? fc->max_write : fc->max_read;
 	loff_t pos = *ppos;
 	ssize_t res = 0;
-	struct fuse_req *req = fuse_get_request(fc);
+	struct fuse_req *req;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
+	req = fuse_get_request(fc);
 	if (!req)
 		return -EINTR;
 
