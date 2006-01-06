@@ -1358,7 +1358,7 @@ void show_free_areas(void)
 		show_node(zone);
 		printk("%s per-cpu:", zone->name);
 
-		if (!zone->present_pages) {
+		if (!populated_zone(zone)) {
 			printk(" empty\n");
 			continue;
 		} else
@@ -1435,7 +1435,7 @@ void show_free_areas(void)
 
 		show_node(zone);
 		printk("%s: ", zone->name);
-		if (!zone->present_pages) {
+		if (!populated_zone(zone)) {
 			printk("empty\n");
 			continue;
 		}
@@ -2134,7 +2134,7 @@ static int frag_show(struct seq_file *m, void *arg)
 	int order;
 
 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
-		if (!zone->present_pages)
+		if (!populated_zone(zone))
 			continue;
 
 		spin_lock_irqsave(&zone->lock, flags);
@@ -2167,7 +2167,7 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; zone++) {
 		int i;
 
-		if (!zone->present_pages)
+		if (!populated_zone(zone))
 			continue;
 
 		spin_lock_irqsave(&zone->lock, flags);
