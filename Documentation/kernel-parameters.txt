@@ -910,6 +910,14 @@ running once the system is up.
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
 			See Documentation/nfsroot.txt.
 
+	nfs.callback_tcpport=
+			[NFS] set the TCP port on which the NFSv4 callback
+			channel should listen.
+
+	nfs.idmap_cache_timeout=
+			[NFS] set the maximum lifetime for idmapper cache
+			entries.
+
 	nmi_watchdog=	[KNL,BUGS=IA-32] Debugging features for SMP kernels
 
 	no387		[BUGS=IA-32] Tells the kernel to use the 387 maths

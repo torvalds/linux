@@ -49,7 +49,6 @@ struct rpc_clnt {
 
 	unsigned int		cl_softrtry : 1,/* soft timeouts */
 				cl_intr     : 1,/* interruptible */
-				cl_chatty   : 1,/* be verbose */
 				cl_autobind : 1,/* use getport() */
 				cl_oneshot  : 1,/* dispose after use */
 				cl_dead     : 1;/* abandoned */
@@ -126,7 +125,8 @@ int		rpc_register(u32, u32, int, unsigned short, int *);
 void		rpc_call_setup(struct rpc_task *, struct rpc_message *, int);
 
 int		rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg,
-			       int flags, rpc_action callback, void *clntdata);
+			       int flags, const struct rpc_call_ops *tk_ops,
+			       void *calldata);
 int		rpc_call_sync(struct rpc_clnt *clnt, struct rpc_message *msg,
 			      int flags);
 void		rpc_restart_call(struct rpc_task *);
@@ -134,6 +134,7 @@ void		rpc_clnt_sigmask(struct rpc_clnt *clnt, sigset_t *oldset);
 void		rpc_clnt_sigunmask(struct rpc_clnt *clnt, sigset_t *oldset);
 void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
 size_t		rpc_max_payload(struct rpc_clnt *);
+void		rpc_force_rebind(struct rpc_clnt *);
 int		rpc_ping(struct rpc_clnt *clnt, int flags);
 
 static __inline__
