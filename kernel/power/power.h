@@ -43,9 +43,6 @@ static struct subsys_attribute _name##_attr = {	\
 
 extern struct subsystem power_subsys;
 
-extern int freeze_processes(void);
-extern void thaw_processes(void);
-
 extern int pm_prepare_console(void);
 extern void pm_restore_console(void);
 
