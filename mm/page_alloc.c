@@ -447,8 +447,7 @@ void __free_pages_ok(struct page *page, unsigned int order)
  *
  * -- wli
  */
-static inline struct page *
-expand(struct zone *zone, struct page *page,
+static inline void expand(struct zone *zone, struct page *page,
  	int low, int high, struct free_area *area)
 {
 	unsigned long size = 1 << high;
@@ -462,7 +461,6 @@ expand(struct zone *zone, struct page *page,
 		area->nr_free++;
 		set_page_order(&page[size], high);
 	}
-	return page;
 }
 
 /*
@@ -522,7 +520,8 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order)
 		rmv_page_order(page);
 		area->nr_free--;
 		zone->free_pages -= 1UL << order;
-		return expand(zone, page, order, current_order, area);
+		expand(zone, page, order, current_order, area);
+		return page;
 	}
 
 	return NULL;
@@ -537,19 +536,16 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 			unsigned long count, struct list_head *list)
 {
 	int i;
-	int allocated = 0;
-	struct page *page;
 	
 	spin_lock(&zone->lock);
 	for (i = 0; i < count; ++i) {
-		page = __rmqueue(zone, order);
-		if (page == NULL)
+		struct page *page = __rmqueue(zone, order);
+		if (unlikely(page == NULL))
 			break;
-		allocated++;
 		list_add_tail(&page->lru, list);
 	}
 	spin_unlock(&zone->lock);
-	return allocated;
+	return i;
 }
 
 #ifdef CONFIG_NUMA
