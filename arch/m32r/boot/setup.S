@@ -1,11 +1,10 @@
 /*
  *  linux/arch/m32r/boot/setup.S -- A setup code.
  *
- *  Copyright (C) 2001, 2002  Hiroyuki Kondo, Hirokazu Takata,
- *  and Hitoshi Yamamoto
+ *  Copyright (C) 2001-2005   Hiroyuki Kondo, Hirokazu Takata,
+ *                            Hitoshi Yamamoto, Hayato Fujiwara
  *
  */
-/* $Id$ */
 
 #include <linux/linkage.h>
 #include <asm/segment.h>
@@ -81,6 +80,16 @@ ENTRY(boot)
 ;	ldi	r1, #0x00		; cache off
 	st	r1, @r0
 #elif defined(CONFIG_CHIP_M32104)
+	ldi	r0, #-96		; DNCR0
+	seth	r1, #0x0060		;  from 0x00600000
+	or3	r1, r1, #0x0005		;  size 2MB
+	st	r1, @r0
+	seth	r1, #0x0100		;  from 0x01000000
+	or3	r1, r1, #0x0003		;  size 16MB
+	st	r1, @+r0
+	seth	r1, #0x0200		;  from 0x02000000
+	or3	r1, r1, #0x0002		;  size 32MB
+	st	r1, @+r0
 	ldi	r0, #-4              ;LDIMM	(r0, M32R_MCCR)
 	ldi	r1, #0x703		; cache on (with invalidation)
 	st	r1, @r0
