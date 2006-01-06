@@ -165,6 +165,9 @@ All md devices contain:
      in a fully functional array.  If this is not yet known, the file
      will be empty.  If an array is being resized (not currently
      possible) this will contain the larger of the old and new sizes.
+     Some raid level (RAID1) allow this value to be set while the
+     array is active.  This will reconfigure the array.   Otherwise
+     it can only be set while assembling an array.
 
   chunk_size
      This is the size if bytes for 'chunks' and is only relevant to
