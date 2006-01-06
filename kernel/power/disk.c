@@ -365,9 +365,29 @@ out:
 
 power_attr(resume);
 
+static ssize_t image_size_show(struct subsystem * subsys, char *buf)
+{
+	return sprintf(buf, "%u\n", image_size);
+}
+
+static ssize_t image_size_store(struct subsystem * subsys, const char * buf, size_t n)
+{
+	unsigned int size;
+
+	if (sscanf(buf, "%u", &size) == 1) {
+		image_size = size;
+		return n;
+	}
+
+	return -EINVAL;
+}
+
+power_attr(image_size);
+
 static struct attribute * g[] = {
 	&disk_attr.attr,
 	&resume_attr.attr,
+	&image_size_attr.attr,
 	NULL,
 };
 

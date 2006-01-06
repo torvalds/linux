@@ -52,11 +52,8 @@ extern const void __nosave_begin, __nosave_end;
 extern unsigned int nr_copy_pages;
 extern struct pbe *pagedir_nosave;
 
-/*
- * Preferred image size in MB (set it to zero to get the smallest
- * image possible)
- */
-#define IMAGE_SIZE	500
+/* Preferred image size in MB (default 500) */
+extern unsigned int image_size;
 
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
