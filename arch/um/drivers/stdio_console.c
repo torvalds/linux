@@ -91,18 +91,17 @@ struct line vts[MAX_TTYS] = { LINE_INIT(CONFIG_CON_ZERO_CHAN, &driver),
 
 static int con_config(char *str)
 {
-	return line_config(vts, sizeof(vts)/sizeof(vts[0]), str);
+	return line_config(vts, ARRAY_SIZE(vts), str);
 }
 
 static int con_get_config(char *dev, char *str, int size, char **error_out)
 {
-	return line_get_config(dev, vts, sizeof(vts)/sizeof(vts[0]), str,
-			       size, error_out);
+	return line_get_config(dev, vts, ARRAY_SIZE(vts), str, size, error_out);
 }
 
 static int con_remove(int n)
 {
-	return line_remove(vts, sizeof(vts)/sizeof(vts[0]), n);
+	return line_remove(vts, ARRAY_SIZE(vts), n);
 }
 
 static int con_open(struct tty_struct *tty, struct file *filp)
@@ -170,7 +169,7 @@ int stdio_init(void)
 		return -1;
 	printk(KERN_INFO "Initialized stdio console driver\n");
 
-	lines_init(vts, sizeof(vts)/sizeof(vts[0]));
+	lines_init(vts, ARRAY_SIZE(vts));
 
 	new_title = add_xterm_umid(opts.xterm_title);
 	if(new_title != NULL)
@@ -186,13 +185,13 @@ static void console_exit(void)
 {
 	if (!con_init_done)
 		return;
-	close_lines(vts, sizeof(vts)/sizeof(vts[0]));
+	close_lines(vts, ARRAY_SIZE(vts));
 }
 __uml_exitcall(console_exit);
 
 static int console_chan_setup(char *str)
 {
-	return line_setup(vts, sizeof(vts)/sizeof(vts[0]), str, 1);
+	return line_setup(vts, ARRAY_SIZE(vts), str, 1);
 }
 __setup("con", console_chan_setup);
 __channel_help(console_chan_setup, "con");

@@ -84,21 +84,18 @@ static struct lines lines = LINES_INIT(NR_PORTS);
 
 static int ssl_config(char *str)
 {
-	return line_config(serial_lines,
-			   sizeof(serial_lines)/sizeof(serial_lines[0]), str);
+	return line_config(serial_lines, ARRAY_SIZE(serial_lines), str);
 }
 
 static int ssl_get_config(char *dev, char *str, int size, char **error_out)
 {
-	return line_get_config(dev, serial_lines,
-			       sizeof(serial_lines)/sizeof(serial_lines[0]),
-			       str, size, error_out);
+	return line_get_config(dev, serial_lines, ARRAY_SIZE(serial_lines), str,
+			       size, error_out);
 }
 
 static int ssl_remove(int n)
 {
-	return line_remove(serial_lines,
-			   sizeof(serial_lines)/sizeof(serial_lines[0]), n);
+	return line_remove(serial_lines, ARRAY_SIZE(serial_lines), n);
 }
 
 int ssl_open(struct tty_struct *tty, struct file *filp)
@@ -205,7 +202,7 @@ int ssl_init(void)
 					 serial_lines,
 					 ARRAY_SIZE(serial_lines));
 
-	lines_init(serial_lines, sizeof(serial_lines)/sizeof(serial_lines[0]));
+	lines_init(serial_lines, ARRAY_SIZE(serial_lines));
 
 	new_title = add_xterm_umid(opts.xterm_title);
 	if (new_title != NULL)
@@ -221,16 +218,13 @@ static void ssl_exit(void)
 {
 	if (!ssl_init_done)
 		return;
-	close_lines(serial_lines,
-		    sizeof(serial_lines)/sizeof(serial_lines[0]));
+	close_lines(serial_lines, ARRAY_SIZE(serial_lines));
 }
 __uml_exitcall(ssl_exit);
 
 static int ssl_chan_setup(char *str)
 {
-	return line_setup(serial_lines,
-			  sizeof(serial_lines)/sizeof(serial_lines[0]),
-			  str, 1);
+	return line_setup(serial_lines, ARRAY_SIZE(serial_lines), str, 1);
 }
 
 __setup("ssl", ssl_chan_setup);
