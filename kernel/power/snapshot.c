@@ -428,8 +428,14 @@ void swsusp_free(void)
 
 static int enough_free_mem(unsigned int nr_pages)
 {
-	pr_debug("swsusp: available memory: %u pages\n", nr_free_pages());
-	return nr_free_pages() > (nr_pages + PAGES_FOR_IO +
+	struct zone *zone;
+	unsigned int n = 0;
+
+	for_each_zone (zone)
+		if (!is_highmem(zone))
+			n += zone->free_pages;
+	pr_debug("swsusp: available memory: %u pages\n", n);
+	return n > (nr_pages + PAGES_FOR_IO +
 		(nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE);
 }
 
