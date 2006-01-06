@@ -626,7 +626,7 @@ int swsusp_write(struct pbe *pblist, unsigned int nr_pages)
 
 int swsusp_shrink_memory(void)
 {
-	long tmp;
+	long size, tmp;
 	struct zone *zone;
 	unsigned long pages = 0;
 	unsigned int i = 0;
@@ -634,11 +634,11 @@ int swsusp_shrink_memory(void)
 
 	printk("Shrinking memory...  ");
 	do {
-#ifdef FAST_FREE
-		tmp = 2 * count_highmem_pages();
-		tmp += tmp / 50 + count_data_pages();
-		tmp += (tmp + PBES_PER_PAGE - 1) / PBES_PER_PAGE +
+		size = 2 * count_highmem_pages();
+		size += size / 50 + count_data_pages();
+		size += (size + PBES_PER_PAGE - 1) / PBES_PER_PAGE +
 			PAGES_FOR_IO;
+		tmp = size;
 		for_each_zone (zone)
 			if (!is_highmem(zone))
 				tmp -= zone->free_pages;
@@ -647,11 +647,10 @@ int swsusp_shrink_memory(void)
 			if (!tmp)
 				return -ENOMEM;
 			pages += tmp;
+		} else if (size > (IMAGE_SIZE * 1024 * 1024) / PAGE_SIZE) {
+			tmp = shrink_all_memory(SHRINK_BITE);
+			pages += tmp;
 		}
-#else
-		tmp = shrink_all_memory(SHRINK_BITE);
-		pages += tmp;
-#endif
 		printk("\b%c", p[i++%4]);
 	} while (tmp > 0);
 	printk("\bdone (%lu pages freed)\n", pages);

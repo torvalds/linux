@@ -53,12 +53,10 @@ extern unsigned int nr_copy_pages;
 extern struct pbe *pagedir_nosave;
 
 /*
- * This compilation switch determines the way in which memory will be freed
- * during suspend.  If defined, only as much memory will be freed as needed
- * to complete the suspend, which will make it go faster.  Otherwise, the
- * largest possible amount of memory will be freed.
+ * Preferred image size in MB (set it to zero to get the smallest
+ * image possible)
  */
-#define FAST_FREE	1
+#define IMAGE_SIZE	500
 
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
