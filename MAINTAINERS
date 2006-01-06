@@ -696,13 +696,6 @@ M:	pc300@cyclades.com
 W:	http://www.cyclades.com/
 S:	Supported
 
-DAC960 RAID CONTROLLER DRIVER
-P:	Dave Olien
-M	dmo@osdl.org
-W:	http://www.osdl.org/archive/dmo/DAC960
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
 DAMA SLAVE for AX.25
 P:	Joerg Reuter
 M:	jreuter@yaina.de
