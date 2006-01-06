@@ -308,7 +308,7 @@ struct scsi_io_context {
 
 static kmem_cache_t *scsi_io_context_cache;
 
-static void scsi_end_async(struct request *req)
+static void scsi_end_async(struct request *req, int uptodate)
 {
 	struct scsi_io_context *sioc = req->end_io_data;
 
