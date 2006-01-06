@@ -28,7 +28,7 @@
  * in types.h.
  */
 #ifdef CONFIG_LBD
-#define SECTOR_FORMAT "%Lu"
+#define SECTOR_FORMAT "%llu"
 #else
 #define SECTOR_FORMAT "%lu"
 #endif
