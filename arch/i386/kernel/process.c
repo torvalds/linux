@@ -308,9 +308,7 @@ void show_regs(struct pt_regs * regs)
 	cr0 = read_cr0();
 	cr2 = read_cr2();
 	cr3 = read_cr3();
-	if (current_cpu_data.x86 > 4) {
-		cr4 = read_cr4();
-	}
+	cr4 = read_cr4_safe();
 	printk("CR0: %08lx CR2: %08lx CR3: %08lx CR4: %08lx\n", cr0, cr2, cr3, cr4);
 	show_trace(NULL, &regs->esp);
 }
