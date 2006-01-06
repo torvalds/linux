@@ -218,6 +218,7 @@ static void convert_fuse_statfs(struct kstatfs *stbuf, struct fuse_kstatfs *attr
 {
 	stbuf->f_type    = FUSE_SUPER_MAGIC;
 	stbuf->f_bsize   = attr->bsize;
+	stbuf->f_frsize  = attr->frsize;
 	stbuf->f_blocks  = attr->blocks;
 	stbuf->f_bfree   = attr->bfree;
 	stbuf->f_bavail  = attr->bavail;
@@ -238,10 +239,12 @@ static int fuse_statfs(struct super_block *sb, struct kstatfs *buf)
 	if (!req)
 		return -EINTR;
 
+	memset(&outarg, 0, sizeof(outarg));
 	req->in.numargs = 0;
 	req->in.h.opcode = FUSE_STATFS;
 	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(outarg);
+	req->out.args[0].size =
+		fc->minor < 4 ? FUSE_COMPAT_STATFS_SIZE : sizeof(outarg);
 	req->out.args[0].value = &outarg;
 	request_send(fc, req);
 	err = req->out.h.error;

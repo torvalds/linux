@@ -53,6 +53,9 @@ struct fuse_kstatfs {
 	__u64	ffree;
 	__u32	bsize;
 	__u32	namelen;
+	__u32	frsize;
+	__u32	padding;
+	__u32	spare[6];
 };
 
 #define FATTR_MODE	(1 << 0)
@@ -212,6 +215,8 @@ struct fuse_write_out {
 	__u32	size;
 	__u32	padding;
 };
+
+#define FUSE_COMPAT_STATFS_SIZE 48
 
 struct fuse_statfs_out {
 	struct fuse_kstatfs st;
