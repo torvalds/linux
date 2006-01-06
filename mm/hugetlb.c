@@ -350,17 +350,10 @@ static struct page *find_lock_huge_page(struct address_space *mapping,
 {
 	struct page *page;
 	int err;
-	struct inode *inode = mapping->host;
-	unsigned long size;
 
 retry:
 	page = find_lock_page(mapping, idx);
 	if (page)
-		goto out;
-
-	/* Check to make sure the mapping hasn't been truncated */
-	size = i_size_read(inode) >> HPAGE_SHIFT;
-	if (idx >= size)
 		goto out;
 
 	if (hugetlb_get_quota(mapping))
