@@ -368,43 +368,6 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	flush_tlb_range(vma, start, end);
 }
 
-static struct page *find_or_alloc_huge_page(struct vm_area_struct *vma,
-			unsigned long addr, struct address_space *mapping,
-			unsigned long idx, int shared)
-{
-	struct page *page;
-	int err;
-
-retry:
-	page = find_lock_page(mapping, idx);
-	if (page)
-		goto out;
-
-	if (hugetlb_get_quota(mapping))
-		goto out;
-	page = alloc_huge_page(vma, addr);
-	if (!page) {
-		hugetlb_put_quota(mapping);
-		goto out;
-	}
-
-	if (shared) {
-		err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
-		if (err) {
-			put_page(page);
-			hugetlb_put_quota(mapping);
-			if (err == -EEXIST)
-				goto retry;
-			page = NULL;
-		}
-	} else {
-		/* Caller expects a locked page */
-		lock_page(page);
-	}
-out:
-	return page;
-}
-
 static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep, pte_t pte)
 {
@@ -471,12 +434,31 @@ int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * Use page lock to guard against racing truncation
 	 * before we get page_table_lock.
 	 */
-	page = find_or_alloc_huge_page(vma, address, mapping, idx,
-			vma->vm_flags & VM_SHARED);
-	if (!page)
-		goto out;
+retry:
+	page = find_lock_page(mapping, idx);
+	if (!page) {
+		if (hugetlb_get_quota(mapping))
+			goto out;
+		page = alloc_huge_page(vma, address);
+		if (!page) {
+			hugetlb_put_quota(mapping);
+			goto out;
+		}
 
-	BUG_ON(!PageLocked(page));
+		if (vma->vm_flags & VM_SHARED) {
+			int err;
+
+			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
+			if (err) {
+				put_page(page);
+				hugetlb_put_quota(mapping);
+				if (err == -EEXIST)
+					goto retry;
+				goto out;
+			}
+		} else
+			lock_page(page);
+	}
 
 	spin_lock(&mm->page_table_lock);
 	size = i_size_read(mapping->host) >> HPAGE_SHIFT;
