@@ -527,7 +527,7 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 			/* cannot risk returning a device that failed
 			 * before we inc'ed nr_pending
 			 */
-			atomic_dec(&rdev->nr_pending);
+			rdev_dec_pending(rdev, conf->mddev);
 			goto retry;
 		}
 		conf->next_seq_sect = this_sector + sectors;
@@ -830,7 +830,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 		    !test_bit(Faulty, &rdev->flags)) {
 			atomic_inc(&rdev->nr_pending);
 			if (test_bit(Faulty, &rdev->flags)) {
-				atomic_dec(&rdev->nr_pending);
+				rdev_dec_pending(rdev, mddev);
 				r1_bio->bios[i] = NULL;
 			} else
 				r1_bio->bios[i] = bio;
@@ -1176,6 +1176,7 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 			if (r1_bio->bios[primary]->bi_end_io == end_sync_read &&
 			    test_bit(BIO_UPTODATE, &r1_bio->bios[primary]->bi_flags)) {
 				r1_bio->bios[primary]->bi_end_io = NULL;
+				rdev_dec_pending(conf->mirrors[primary].rdev, mddev);
 				break;
 			}
 		r1_bio->read_disk = primary;
@@ -1193,9 +1194,10 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 						break;
 				if (j >= 0)
 					mddev->resync_mismatches += r1_bio->sectors;
-				if (j < 0 || test_bit(MD_RECOVERY_CHECK, &mddev->recovery))
+				if (j < 0 || test_bit(MD_RECOVERY_CHECK, &mddev->recovery)) {
 					sbio->bi_end_io = NULL;
-				else {
+					rdev_dec_pending(conf->mirrors[i].rdev, mddev);
+				} else {
 					/* fixup the bio for reuse */
 					sbio->bi_vcnt = vcnt;
 					sbio->bi_size = r1_bio->sectors << 9;
