@@ -24,8 +24,6 @@
 #include "ioasm.h"
 #include "chsc.h"
 
-static struct channel_path *chps[NR_CHPIDS];
-
 static void *sei_page;
 
 static int new_channel_path(int chpid);
@@ -33,13 +31,13 @@ static int new_channel_path(int chpid);
 static inline void
 set_chp_logically_online(int chp, int onoff)
 {
-	chps[chp]->state = onoff;
+	css[0]->chps[chp]->state = onoff;
 }
 
 static int
 get_chp_status(int chp)
 {
-	return (chps[chp] ? chps[chp]->state : -ENODEV);
+	return (css[0]->chps[chp] ? css[0]->chps[chp]->state : -ENODEV);
 }
 
 void
@@ -219,13 +217,13 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	int j;
 	int mask;
 	struct subchannel *sch;
-	__u8 *chpid;
+	struct channel_path *chpid;
 	struct schib schib;
 
 	sch = to_subchannel(dev);
 	chpid = data;
 	for (j = 0; j < 8; j++)
-		if (sch->schib.pmcw.chpid[j] == *chpid)
+		if (sch->schib.pmcw.chpid[j] == chpid->id)
 			break;
 	if (j >= 8)
 		return 0;
@@ -296,18 +294,20 @@ static inline void
 s390_set_chpid_offline( __u8 chpid)
 {
 	char dbf_txt[15];
+	struct device *dev;
 
 	sprintf(dbf_txt, "chpr%x", chpid);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
 	if (get_chp_status(chpid) <= 0)
 		return;
-
-	bus_for_each_dev(&css_bus_type, NULL, &chpid,
+	dev = get_device(&css[0]->chps[chpid]->dev);
+	bus_for_each_dev(&css_bus_type, NULL, to_channelpath(dev),
 			 s390_subchannel_remove_chpid);
 
 	if (need_rescan || css_slow_subchannels_exist())
 		queue_work(slow_path_wq, &slow_path_work);
+	put_device(dev);
 }
 
 struct res_acc_data {
@@ -511,6 +511,7 @@ chsc_process_crw(void)
 	ret = 0;
 	do {
 		int ccode, status;
+		struct device *dev;
 		memset(sei_area, 0, sizeof(*sei_area));
 		memset(&res_data, 0, sizeof(struct res_acc_data));
 		sei_area->request = (struct chsc_header) {
@@ -586,7 +587,8 @@ chsc_process_crw(void)
 				new_channel_path(sei_area->rsid);
 			else if (!status)
 				break;
-			res_data.chp = chps[sei_area->rsid];
+			dev = get_device(&css[0]->chps[sei_area->rsid]->dev);
+			res_data.chp = to_channelpath(dev);
 			pr_debug("chpid: %x", sei_area->rsid);
 			if ((sei_area->vf & 0xc0) != 0) {
 				res_data.fla = sei_area->fla;
@@ -602,6 +604,7 @@ chsc_process_crw(void)
 			}
 			ret = s390_process_res_acc(&res_data);
 			pr_debug("\n\n");
+			put_device(dev);
 			break;
 			
 		default: /* other stuff */
@@ -678,6 +681,7 @@ chp_add(int chpid)
 {
 	int rc;
 	char dbf_txt[15];
+	struct device *dev;
 
 	if (!get_chp_status(chpid))
 		return 0; /* no need to do the rest */
@@ -685,11 +689,13 @@ chp_add(int chpid)
 	sprintf(dbf_txt, "cadd%x", chpid);
 	CIO_TRACE_EVENT(2, dbf_txt);
 
-	rc = for_each_subchannel(__chp_add, chps[chpid]);
+	dev = get_device(&css[0]->chps[chpid]->dev);
+	rc = for_each_subchannel(__chp_add, to_channelpath(dev));
 	if (css_slow_subchannels_exist())
 		rc = -EAGAIN;
 	if (rc != -EAGAIN)
 		rc = 0;
+	put_device(dev);
 	return rc;
 }
 
@@ -1016,7 +1022,7 @@ new_channel_path(int chpid)
 	chp->id = chpid;
 	chp->state = 1;
 	chp->dev = (struct device) {
-		.parent  = &css_bus_device,
+		.parent  = &css[0]->device,
 		.release = chp_release,
 	};
 	snprintf(chp->dev.bus_id, BUS_ID_SIZE, "chp0.%x", chpid);
@@ -1038,7 +1044,7 @@ new_channel_path(int chpid)
 		device_unregister(&chp->dev);
 		goto out_free;
 	} else
-		chps[chpid] = chp;
+		css[0]->chps[chpid] = chp;
 	return ret;
 out_free:
 	kfree(chp);
@@ -1051,7 +1057,7 @@ chsc_get_chp_desc(struct subchannel *sch, int chp_no)
 	struct channel_path *chp;
 	struct channel_path_desc *desc;
 
-	chp = chps[sch->schib.pmcw.chpid[chp_no]];
+	chp = css[0]->chps[sch->schib.pmcw.chpid[chp_no]];
 	if (!chp)
 		return NULL;
 	desc = kmalloc(sizeof(struct channel_path_desc), GFP_KERNEL);

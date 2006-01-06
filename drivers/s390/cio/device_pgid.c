@@ -164,7 +164,7 @@ ccw_device_sense_pgid_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	/* 0, -ETIME, -EOPNOTSUPP, -EAGAIN, -EACCES or -EUSERS */
 	case 0:			/* Sense Path Group ID successful. */
 		if (cdev->private->pgid.inf.ps.state1 == SNID_STATE1_RESET)
-			memcpy(&cdev->private->pgid, &global_pgid,
+			memcpy(&cdev->private->pgid, &css[0]->global_pgid,
 			       sizeof(struct pgid));
 		ccw_device_sense_pgid_done(cdev, 0);
 		break;

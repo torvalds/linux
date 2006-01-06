@@ -35,18 +35,24 @@ struct path_state {
 	__u8  resvd  : 3;	/* reserved */
 } __attribute__ ((packed));
 
+struct extended_cssid {
+	u8 version;
+	u8 cssid;
+} __attribute__ ((packed));
+
 struct pgid {
 	union {
 		__u8 fc;   	/* SPID function code */
 		struct path_state ps;	/* SNID path state */
 	} inf;
-	__u32 cpu_addr	: 16;	/* CPU address */
+	union {
+		__u32 cpu_addr	: 16;	/* CPU address */
+		struct extended_cssid ext_cssid;
+	} pgid_high;
 	__u32 cpu_id	: 24;	/* CPU identification */
 	__u32 cpu_model : 16;	/* CPU model */
 	__u32 tod_high;		/* high word TOD clock */
 } __attribute__ ((packed));
-
-extern struct pgid global_pgid;
 
 #define MAX_CIWS 8
 
@@ -129,9 +135,20 @@ extern int css_init_done;
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 
 #define __MAX_SUBCHANNEL 65535
+#define __MAX_CHPID 255
+#define __MAX_CSSID 0
+
+struct channel_subsystem {
+	u8 cssid;
+	int valid;
+	struct channel_path *chps[__MAX_CHPID];
+	struct device device;
+	struct pgid global_pgid;
+};
+#define to_css(dev) container_of(dev, struct channel_subsystem, device)
 
 extern struct bus_type css_bus_type;
-extern struct device css_bus_device;
+extern struct channel_subsystem *css[];
 
 /* Some helper functions for disconnected state. */
 int device_is_disconnected(struct subchannel *);

@@ -1,8 +1,6 @@
 #ifndef S390_CHSC_H
 #define S390_CHSC_H
 
-#define NR_CHPIDS 256
-
 #define CHSC_SEI_ACC_CHPID        1
 #define CHSC_SEI_ACC_LINKADDR     2
 #define CHSC_SEI_ACC_FULLLINKADDR 3
@@ -65,4 +63,7 @@ extern int chsc_determine_css_characteristics(void);
 extern int css_characteristics_avail;
 
 extern void *chsc_get_chp_desc(struct subchannel*, int);
+
+#define to_channelpath(dev) container_of(dev, struct channel_path, dev)
+
 #endif

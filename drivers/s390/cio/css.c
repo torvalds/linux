@@ -24,12 +24,9 @@
 int need_rescan = 0;
 int css_init_done = 0;
 
-struct pgid global_pgid;
-int css_characteristics_avail = 0;
+struct channel_subsystem *css[__MAX_CSSID + 1];
 
-struct device css_bus_device = {
-	.bus_id = "css0",
-};
+int css_characteristics_avail = 0;
 
 inline int
 for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
@@ -112,7 +109,7 @@ css_register_subchannel(struct subchannel *sch)
 	int ret;
 
 	/* Initialize the subchannel structure */
-	sch->dev.parent = &css_bus_device;
+	sch->dev.parent = &css[0]->device;
 	sch->dev.bus = &css_bus_type;
 	sch->dev.release = &css_subchannel_release;
 	
@@ -421,21 +418,35 @@ __init_channel_subsystem(struct subchannel_id schid, void *data)
 }
 
 static void __init
-css_generate_pgid(void)
+css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 {
-	/* Let's build our path group ID here. */
-	if (css_characteristics_avail && css_general_characteristics.mcss)
-		global_pgid.cpu_addr = 0x8000;
-	else {
+	if (css_characteristics_avail && css_general_characteristics.mcss) {
+		css->global_pgid.pgid_high.ext_cssid.version = 0x80;
+		css->global_pgid.pgid_high.ext_cssid.cssid = css->cssid;
+	} else {
 #ifdef CONFIG_SMP
-		global_pgid.cpu_addr = hard_smp_processor_id();
+		css->global_pgid.pgid_high.cpu_addr = hard_smp_processor_id();
 #else
-		global_pgid.cpu_addr = 0;
+		css->global_pgid.pgid_high.cpu_addr = 0;
 #endif
 	}
-	global_pgid.cpu_id = ((cpuid_t *) __LC_CPUID)->ident;
-	global_pgid.cpu_model = ((cpuid_t *) __LC_CPUID)->machine;
-	global_pgid.tod_high = (__u32) (get_clock() >> 32);
+	css->global_pgid.cpu_id = ((cpuid_t *) __LC_CPUID)->ident;
+	css->global_pgid.cpu_model = ((cpuid_t *) __LC_CPUID)->machine;
+	css->global_pgid.tod_high = tod_high;
+
+}
+
+static inline void __init
+setup_css(int nr)
+{
+	u32 tod_high;
+
+	memset(css[nr], 0, sizeof(struct channel_subsystem));
+	css[nr]->valid = 1;
+	css[nr]->cssid = nr;
+	sprintf(css[nr]->device.bus_id, "css%x", nr);
+	tod_high = (u32) (get_clock() >> 32);
+	css_generate_pgid(css[nr], tod_high);
 }
 
 /*
@@ -446,25 +457,39 @@ css_generate_pgid(void)
 static int __init
 init_channel_subsystem (void)
 {
-	int ret;
+	int ret, i;
 
 	if (chsc_determine_css_characteristics() == 0)
 		css_characteristics_avail = 1;
 
-	css_generate_pgid();
-
 	if ((ret = bus_register(&css_bus_type)))
 		goto out;
-	if ((ret = device_register (&css_bus_device)))
-		goto out_bus;
 
+	/* Setup css structure. */
+	for (i = 0; i <= __MAX_CSSID; i++) {
+		css[i] = kmalloc(sizeof(struct channel_subsystem), GFP_KERNEL);
+		if (!css[i]) {
+			ret = -ENOMEM;
+			goto out_bus;
+		}
+		setup_css(i);
+		ret = device_register(&css[i]->device);
+		if (ret)
+			goto out_free;
+	}
 	css_init_done = 1;
 
 	ctl_set_bit(6, 28);
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
+out_free:
+	kfree(css[i]);
 out_bus:
+	while (i > 0) {
+		i--;
+		device_unregister(&css[i]->device);
+	}
 	bus_unregister(&css_bus_type);
 out:
 	return ret;

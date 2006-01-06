@@ -986,10 +986,6 @@ ccw_device_console_enable (struct ccw_device *cdev, struct subchannel *sch)
 	cdev->dev = (struct device) {
 		.parent = &sch->dev,
 	};
-	/* Initialize the subchannel structure */
-	sch->dev.parent = &css_bus_device;
-	sch->dev.bus = &css_bus_type;
-
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc)
 		return rc;
