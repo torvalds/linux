@@ -1929,13 +1929,18 @@ static int run(mddev_t *mddev)
 		goto abort;
 	}
 
-#if 0				/* FIX: For now */
 	if (mddev->degraded > 0 &&
 	    mddev->recovery_cp != MaxSector) {
-		printk(KERN_ERR "raid6: cannot start dirty degraded array for %s\n", mdname(mddev));
-		goto abort;
+		if (mddev->ok_start_degraded)
+			printk(KERN_WARNING "raid6: starting dirty degraded array:%s"
+			       "- data corruption possible.\n",
+			       mdname(mddev));
+		else {
+			printk(KERN_ERR "raid6: cannot start dirty degraded array"
+			       " for %s\n", mdname(mddev));
+			goto abort;
+		}
 	}
-#endif
 
 	{
 		mddev->thread = md_register_thread(raid6d, mddev, "%s_raid6");

@@ -51,6 +51,30 @@ superblock can be autodetected and run at boot time.
 The kernel parameter "raid=partitionable" (or "raid=part") means
 that all auto-detected arrays are assembled as partitionable.
 
+Boot time assembly of degraded/dirty arrays
+-------------------------------------------
+
+If a raid5 or raid6 array is both dirty and degraded, it could have
+undetectable data corruption.  This is because the fact that it is
+'dirty' means that the parity cannot be trusted, and the fact that it
+is degraded means that some datablocks are missing and cannot reliably
+be reconstructed (due to no parity).
+
+For this reason, md will normally refuse to start such an array.  This
+requires the sysadmin to take action to explicitly start the array
+desipite possible corruption.  This is normally done with
+   mdadm --assemble --force ....
+
+This option is not really available if the array has the root
+filesystem on it.  In order to support this booting from such an
+array, md supports a module parameter "start_dirty_degraded" which,
+when set to 1, bypassed the checks and will allows dirty degraded
+arrays to be started.
+
+So, to boot with a root filesystem of a dirty degraded raid[56], use
+
+   md-mod.start_dirty_degraded=1
+
 
 Superblock formats
 ------------------

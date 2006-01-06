@@ -1937,6 +1937,7 @@ static void md_safemode_timeout(unsigned long data)
 	md_wakeup_thread(mddev->thread);
 }
 
+static int start_dirty_degraded;
 
 static int do_md_run(mddev_t * mddev)
 {
@@ -2048,6 +2049,7 @@ static int do_md_run(mddev_t * mddev)
 	mddev->recovery = 0;
 	mddev->resync_max_sectors = mddev->size << 1; /* may be over-ridden by personality */
 	mddev->barriers_work = 1;
+	mddev->ok_start_degraded = start_dirty_degraded;
 
 	if (start_readonly)
 		mddev->ro = 2; /* read-only, but switch on first write */
@@ -4509,6 +4511,8 @@ static int set_ro(const char *val, struct kernel_param *kp)
 }
 
 module_param_call(start_ro, set_ro, get_ro, NULL, 0600);
+module_param(start_dirty_degraded, int, 0644);
+
 
 EXPORT_SYMBOL(register_md_personality);
 EXPORT_SYMBOL(unregister_md_personality);

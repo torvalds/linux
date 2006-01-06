@@ -183,6 +183,7 @@ struct mddev_s
 	sector_t			resync_mismatches; /* count of sectors where
 							    * parity/replica mismatch found
 							    */
+	int				ok_start_degraded;
 	/* recovery/resync flags 
 	 * NEEDED:   we might need to start a resync/recover
 	 * RUNNING:  a thread is running, or about to be started
