@@ -1667,7 +1667,7 @@ __ATTR(slot, 0644, slot_show, slot_store);
 static ssize_t
 offset_show(mdk_rdev_t *rdev, char *page)
 {
-	return sprintf(page, "%llu\n", rdev->data_offset);
+	return sprintf(page, "%llu\n", (unsigned long long)rdev->data_offset);
 }
 
 static ssize_t
