@@ -332,9 +332,9 @@ static inline unsigned long __ffs(unsigned long word)
  * Returns the bit-number of the first set bit, not the number of the byte
  * containing a bit.
  */
-static inline int find_first_bit(const unsigned long *addr, unsigned size)
+static inline unsigned find_first_bit(const unsigned long *addr, unsigned size)
 {
-	int x = 0;
+	unsigned x = 0;
 
 	while (x < size) {
 		unsigned long val = *addr++;
