@@ -1460,25 +1460,25 @@ void show_free_areas(void)
  * Add all populated zones of a node to the zonelist.
  */
 static int __init build_zonelists_node(pg_data_t *pgdat,
-			struct zonelist *zonelist, int j, int k)
+			struct zonelist *zonelist, int nr_zones, int zone_type)
 {
 	struct zone *zone;
 
-	BUG_ON(k > ZONE_HIGHMEM);
+	BUG_ON(zone_type > ZONE_HIGHMEM);
 
 	do {
-		zone = pgdat->node_zones + k;
+		zone = pgdat->node_zones + zone_type;
 		if (populated_zone(zone)) {
 #ifndef CONFIG_HIGHMEM
-			BUG_ON(k > ZONE_NORMAL);
+			BUG_ON(zone_type > ZONE_NORMAL);
 #endif
-			zonelist->zones[j++] = zone;
-			check_highest_zone(k);
+			zonelist->zones[nr_zones++] = zone;
+			check_highest_zone(zone_type);
 		}
-		k--;
+		zone_type--;
 
-	} while (k >= 0);
-	return j;
+	} while (zone_type >= 0);
+	return nr_zones;
 }
 
 static inline int highest_zone(int zone_bits)
