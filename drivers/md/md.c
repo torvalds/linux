@@ -1686,12 +1686,37 @@ offset_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 static struct rdev_sysfs_entry rdev_offset =
 __ATTR(offset, 0644, offset_show, offset_store);
 
+static ssize_t
+rdev_size_show(mdk_rdev_t *rdev, char *page)
+{
+	return sprintf(page, "%llu\n", (unsigned long long)rdev->size);
+}
+
+static ssize_t
+rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long long size = simple_strtoull(buf, &e, 10);
+	if (e==buf || (*e && *e != '\n'))
+		return -EINVAL;
+	if (rdev->mddev->pers)
+		return -EBUSY;
+	rdev->size = size;
+	if (size < rdev->mddev->size || rdev->mddev->size == 0)
+		rdev->mddev->size = size;
+	return len;
+}
+
+static struct rdev_sysfs_entry rdev_size =
+__ATTR(size, 0644, rdev_size_show, rdev_size_store);
+
 static struct attribute *rdev_default_attrs[] = {
 	&rdev_state.attr,
 	&rdev_super.attr,
 	&rdev_errors.attr,
 	&rdev_slot.attr,
 	&rdev_offset.attr,
+	&rdev_size.attr,
 	NULL,
 };
 static ssize_t

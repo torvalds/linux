@@ -250,6 +250,13 @@ Each directory contains:
         the device before this offset us not touched, unless it is
         used for storing metadata (Formats 1.1 and 1.2).
 
+      size
+        The amount of the device, after the offset, that can be used
+        for storage of data.  This will normally be the same as the
+	component_size.  This can be written while assembling an
+        array.  If a value less than the current component_size is
+        written, component_size will be reduced to this value.
+
 
 An active md device will also contain and entry for each active device
 in the array.  These are named
