@@ -695,6 +695,10 @@ static int super_90_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version
 	}
 	rdev->size = calc_dev_size(rdev, sb->chunk_size);
 
+	if (rdev->size < sb->size && sb->level > 1)
+		/* "this cannot possibly happen" ... */
+		ret = -EINVAL;
+
  abort:
 	return ret;
 }
@@ -1039,6 +1043,9 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	rdev->size = le64_to_cpu(sb->data_size)/2;
 	if (le32_to_cpu(sb->chunksize))
 		rdev->size &= ~((sector_t)le32_to_cpu(sb->chunksize)/2 - 1);
+
+	if (le32_to_cpu(sb->size) > rdev->size*2)
+		return -EINVAL;
 	return 0;
 }
 
@@ -1223,6 +1230,14 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	if (rdev->mddev) {
 		MD_BUG();
 		return -EINVAL;
+	}
+	/* make sure rdev->size exceeds mddev->size */
+	if (rdev->size && (mddev->size == 0 || rdev->size < mddev->size)) {
+		if (mddev->pers)
+			/* Cannot change size, so fail */
+			return -ENOSPC;
+		else
+			mddev->size = rdev->size;
 	}
 	same_pdev = match_dev_unit(mddev, rdev);
 	if (same_pdev)
@@ -2898,12 +2913,6 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
 
-		err = bind_rdev_to_array(rdev, mddev);
-		if (err) {
-			export_rdev(rdev);
-			return err;
-		}
-
 		if (!mddev->persistent) {
 			printk(KERN_INFO "md: nonpersistent superblock ...\n");
 			rdev->sb_offset = rdev->bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
@@ -2911,8 +2920,11 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 			rdev->sb_offset = calc_dev_sboffset(rdev->bdev);
 		rdev->size = calc_dev_size(rdev, mddev->chunk_size);
 
-		if (!mddev->size || (mddev->size > rdev->size))
-			mddev->size = rdev->size;
+		err = bind_rdev_to_array(rdev, mddev);
+		if (err) {
+			export_rdev(rdev);
+			return err;
+		}
 	}
 
 	return 0;
@@ -2984,15 +2996,6 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	size = calc_dev_size(rdev, mddev->chunk_size);
 	rdev->size = size;
 
-	if (size < mddev->size) {
-		printk(KERN_WARNING 
-			"%s: disk size %llu blocks < array size %llu\n",
-			mdname(mddev), (unsigned long long)size,
-			(unsigned long long)mddev->size);
-		err = -ENOSPC;
-		goto abort_export;
-	}
-
 	if (test_bit(Faulty, &rdev->flags)) {
 		printk(KERN_WARNING 
 			"md: can not hot-add faulty %s disk to %s!\n",
@@ -3002,7 +3005,9 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	}
 	clear_bit(In_sync, &rdev->flags);
 	rdev->desc_nr = -1;
-	bind_rdev_to_array(rdev, mddev);
+	err = bind_rdev_to_array(rdev, mddev);
+	if (err)
+		goto abort_export;
 
 	/*
 	 * The rest should better be atomic, we can have disk failures
