@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2001, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -23,8 +23,9 @@
 
 static irqreturn_t line_interrupt(int irq, void *data, struct pt_regs *unused)
 {
-	struct tty_struct *tty = data;
-	struct line *line = tty->driver_data;
+	struct chan *chan = data;
+	struct line *line = chan->line;
+	struct tty_struct *tty = line->tty;
 
 	if (line)
 		chan_interrupt(&line->chan_list, &line->task, tty, irq);
@@ -33,10 +34,10 @@ static irqreturn_t line_interrupt(int irq, void *data, struct pt_regs *unused)
 
 static void line_timer_cb(void *arg)
 {
-	struct tty_struct *tty = arg;
-	struct line *line = tty->driver_data;
+	struct line *line = arg;
 
-	line_interrupt(line->driver->read_irq, arg, NULL);
+	chan_interrupt(&line->chan_list, &line->task, line->tty,
+		       line->driver->read_irq);
 }
 
 /* Returns the free space inside the ring buffer of this line.
@@ -342,8 +343,9 @@ int line_ioctl(struct tty_struct *tty, struct file * file,
 static irqreturn_t line_write_interrupt(int irq, void *data,
 					struct pt_regs *unused)
 {
-	struct tty_struct *tty = data;
-	struct line *line = tty->driver_data;
+	struct chan *chan = data;
+	struct line *line = chan->line;
+	struct tty_struct *tty = line->tty;
 	int err;
 
 	/* Interrupts are enabled here because we registered the interrupt with
@@ -365,7 +367,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data,
 	if (test_bit(TTY_DO_WRITE_WAKEUP, &tty->flags) &&
 	   (tty->ldisc.write_wakeup != NULL))
 		(tty->ldisc.write_wakeup)(tty);
-	
+
 	/* BLOCKING mode
 	 * In blocking mode, everything sleeps on tty->write_wait.
 	 * Sleeping in the console driver would break non-blocking
@@ -377,52 +379,29 @@ static irqreturn_t line_write_interrupt(int irq, void *data,
 	return IRQ_HANDLED;
 }
 
-int line_setup_irq(int fd, int input, int output, struct tty_struct *tty)
+int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 {
-	struct line *line = tty->driver_data;
 	struct line_driver *driver = line->driver;
 	int err = 0, flags = SA_INTERRUPT | SA_SHIRQ | SA_SAMPLE_RANDOM;
 
 	if (input)
 		err = um_request_irq(driver->read_irq, fd, IRQ_READ,
 				       line_interrupt, flags,
-				       driver->read_irq_name, tty);
+				       driver->read_irq_name, data);
 	if (err)
 		return err;
 	if (output)
 		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
 					line_write_interrupt, flags,
-					driver->write_irq_name, tty);
+					driver->write_irq_name, data);
 	line->have_irq = 1;
 	return err;
-}
-
-void line_disable(struct tty_struct *tty, int current_irq)
-{
-	struct line *line = tty->driver_data;
-
-	if(!line->have_irq)
-		return;
-
-	if(line->driver->read_irq == current_irq)
-		free_irq_later(line->driver->read_irq, tty);
-	else {
-		free_irq(line->driver->read_irq, tty);
-	}
-
-	if(line->driver->write_irq == current_irq)
-		free_irq_later(line->driver->write_irq, tty);
-	else {
-		free_irq(line->driver->write_irq, tty);
-	}
-
-	line->have_irq = 0;
 }
 
 int line_open(struct line *lines, struct tty_struct *tty)
 {
 	struct line *line;
-	int err = 0;
+	int err = -ENODEV;
 
 	line = &lines[tty->index];
 	tty->driver_data = line;
@@ -430,29 +409,29 @@ int line_open(struct line *lines, struct tty_struct *tty)
 	/* The IRQ which takes this lock is not yet enabled and won't be run
 	 * before the end, so we don't need to use spin_lock_irq.*/
 	spin_lock(&line->lock);
-	if (tty->count == 1) {
-		if (!line->valid) {
-			err = -ENODEV;
-			goto out;
+
+	tty->driver_data = line;
+	line->tty = tty;
+	if(!line->valid)
+		goto out;
+
+	if(tty->count == 1){
+		/* Here the device is opened, if necessary, and interrupt
+		 * is registered.
+		 */
+		enable_chan(line);
+		INIT_WORK(&line->task, line_timer_cb, line);
+
+		if(!line->sigio){
+			chan_enable_winch(&line->chan_list, tty);
+			line->sigio = 1;
 		}
 
-		err = open_chan(&line->chan_list);
-		if(err)
-			goto out;
-
-		/* Here the interrupt is registered.*/
-		enable_chan(&line->chan_list, tty);
-		INIT_WORK(&line->task, line_timer_cb, tty);
+		chan_window_size(&line->chan_list, &tty->winsize.ws_row,
+				 &tty->winsize.ws_col);
 	}
 
-	if(!line->sigio){
-		chan_enable_winch(&line->chan_list, tty);
-		line->sigio = 1;
-	}
-	chan_window_size(&line->chan_list, &tty->winsize.ws_row,
-			 &tty->winsize.ws_col);
-	line->count++;
-
+	err = 0;
 out:
 	spin_unlock(&line->lock);
 	return err;
@@ -472,15 +451,14 @@ void line_close(struct tty_struct *tty, struct file * filp)
 	/* We ignore the error anyway! */
 	flush_buffer(line);
 
-	line->count--;
-	if (tty->count == 1) {
-		line_disable(tty, -1);
+	if(tty->count == 1){
+		line->tty = NULL;
 		tty->driver_data = NULL;
-	}
 
-        if((line->count == 0) && line->sigio){
-                unregister_winch(tty);
-                line->sigio = 0;
+		if(line->sigio){
+			unregister_winch(tty);
+			line->sigio = 0;
+		}
         }
 
 	spin_unlock_irq(&line->lock);
@@ -491,7 +469,7 @@ void close_lines(struct line *lines, int nlines)
 	int i;
 
 	for(i = 0; i < nlines; i++)
-		close_chan(&lines[i].chan_list);
+		close_chan(&lines[i].chan_list, 0);
 }
 
 /* Common setup code for both startup command line and mconsole initialization.
@@ -526,7 +504,7 @@ int line_setup(struct line *lines, unsigned int num, char *init)
 		return 0;
 	}
 	else if (n >= 0){
-		if (lines[n].count > 0) {
+		if (lines[n].tty != NULL) {
 			printk("line_setup - device %d is open\n", n);
 			return 0;
 		}
@@ -537,7 +515,7 @@ int line_setup(struct line *lines, unsigned int num, char *init)
 			else {
 				lines[n].init_str = init;
 				lines[n].valid = 1;
-			}	
+			}
 		}
 	}
 	else {
@@ -578,7 +556,7 @@ int line_config(struct line *lines, unsigned int num, char *str,
 		return 1;
 
 	line = &lines[n];
-	return parse_chan_pair(line->init_str, &line->chan_list, n, opts);
+	return parse_chan_pair(line->init_str, line, n, opts);
 }
 
 int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
@@ -604,7 +582,7 @@ int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
 	spin_lock(&line->lock);
 	if(!line->valid)
 		CONFIG_CHUNK(str, size, n, "none", 1);
-	else if(line->count == 0)
+	else if(line->tty == NULL)
 		CONFIG_CHUNK(str, size, n, line->init_str, 1);
 	else n = chan_config_string(&line->chan_list, str, size, error_out);
 	spin_unlock(&line->lock);
@@ -696,7 +674,7 @@ void lines_init(struct line *lines, int nlines, struct chan_opts *opts)
 		if(line->init_str == NULL)
 			printk("lines_init - kstrdup returned NULL\n");
 
-		if(parse_chan_pair(line->init_str, &line->chan_list, i, opts)){
+		if(parse_chan_pair(line->init_str, line, i, opts)){
 			printk("parse_chan_pair failed for device %d\n", i);
 			line->valid = 0;
 		}
@@ -831,7 +809,7 @@ char *add_xterm_umid(char *base)
 	umid = get_umid(1);
 	if(umid == NULL)
 		return base;
-	
+
 	len = strlen(base) + strlen(" ()") + strlen(umid) + 1;
 	title = kmalloc(len, GFP_KERNEL);
 	if(title == NULL){

@@ -32,6 +32,7 @@ struct line_driver {
 };
 
 struct line {
+	struct tty_struct *tty;
 	char *init_str;
 	int init_pri;
 	struct list_head chan_list;
@@ -89,10 +90,9 @@ extern int line_ioctl(struct tty_struct *tty, struct file * file,
 		      unsigned int cmd, unsigned long arg);
 
 extern char *add_xterm_umid(char *base);
-extern int line_setup_irq(int fd, int input, int output,
-			  struct tty_struct *tty);
+extern int line_setup_irq(int fd, int input, int output, struct line *line,
+			  void *data);
 extern void line_close_chan(struct line *line);
-extern void line_disable(struct tty_struct *tty, int current_irq);
 extern struct tty_driver * line_register_devfs(struct lines *set,
 				struct line_driver *line_driver,
 				struct tty_operations *driver,
