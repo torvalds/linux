@@ -932,9 +932,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 	int sense_valid = 0;
 	int sense_deferred = 0;
 
-	if (blk_complete_barrier_rq(q, req, good_bytes >> 9))
-		return;
-
 	/*
 	 * Free up any indirection buffers we allocated for DMA purposes. 
 	 * For the case of a READ, we need to copy the data out of the
@@ -1197,38 +1194,6 @@ static int scsi_init_io(struct scsi_cmnd *cmd)
 	scsi_release_buffers(cmd);
 	scsi_put_command(cmd);
 	return BLKPREP_KILL;
-}
-
-static int scsi_prepare_flush_fn(request_queue_t *q, struct request *rq)
-{
-	struct scsi_device *sdev = q->queuedata;
-	struct scsi_driver *drv;
-
-	if (sdev->sdev_state == SDEV_RUNNING) {
-		drv = *(struct scsi_driver **) rq->rq_disk->private_data;
-
-		if (drv->prepare_flush)
-			return drv->prepare_flush(q, rq);
-	}
-
-	return 0;
-}
-
-static void scsi_end_flush_fn(request_queue_t *q, struct request *rq)
-{
-	struct scsi_device *sdev = q->queuedata;
-	struct request *flush_rq = rq->end_io_data;
-	struct scsi_driver *drv;
-
-	if (flush_rq->errors) {
-		printk("scsi: barrier error, disabling flush support\n");
-		blk_queue_ordered(q, QUEUE_ORDERED_NONE);
-	}
-
-	if (sdev->sdev_state == SDEV_RUNNING) {
-		drv = *(struct scsi_driver **) rq->rq_disk->private_data;
-		drv->end_flush(q, rq);
-	}
 }
 
 static int scsi_issue_flush_fn(request_queue_t *q, struct gendisk *disk,
@@ -1702,17 +1667,6 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 	blk_queue_bounce_limit(q, scsi_calculate_bounce_limit(shost));
 	blk_queue_segment_boundary(q, shost->dma_boundary);
 	blk_queue_issue_flush_fn(q, scsi_issue_flush_fn);
-
-	/*
-	 * ordered tags are superior to flush ordering
-	 */
-	if (shost->ordered_tag)
-		blk_queue_ordered(q, QUEUE_ORDERED_TAG);
-	else if (shost->ordered_flush) {
-		blk_queue_ordered(q, QUEUE_ORDERED_FLUSH);
-		q->prepare_flush_fn = scsi_prepare_flush_fn;
-		q->end_flush_fn = scsi_end_flush_fn;
-	}
 
 	if (!shost->use_clustering)
 		clear_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
