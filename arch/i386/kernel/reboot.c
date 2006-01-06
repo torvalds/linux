@@ -111,12 +111,12 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "PowerEdge 2400"),
 		},
 	},
-	{	/* Handle problems with rebooting on HP nc6120 */
+	{	/* Handle problems with rebooting on HP laptops */
 		.callback = set_bios_reboot,
-		.ident = "HP Compaq nc6120",
+		.ident = "HP Compaq Laptop",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq nc6120"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Compaq"),
 		},
 	},
 	{ }
