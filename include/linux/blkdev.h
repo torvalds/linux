@@ -613,8 +613,7 @@ extern int blk_rq_map_user_iov(request_queue_t *, struct request *, struct sg_io
 extern int blk_execute_rq(request_queue_t *, struct gendisk *,
 			  struct request *, int);
 extern void blk_execute_rq_nowait(request_queue_t *, struct gendisk *,
-				  struct request *, int,
-				  void (*done)(struct request *));
+				  struct request *, int, rq_end_io_fn *);
 
 static inline request_queue_t *bdev_get_queue(struct block_device *bdev)
 {
