@@ -20,15 +20,14 @@ struct chan {
 	unsigned int output:1;
 	unsigned int opened:1;
 	int fd;
-	enum chan_init_pri pri;
 	struct chan_ops *ops;
 	void *data;
 };
 
 extern void chan_interrupt(struct list_head *chans, struct work_struct *task,
 			   struct tty_struct *tty, int irq);
-extern int parse_chan_pair(char *str, struct list_head *chans, int pri, 
-			   int device, struct chan_opts *opts);
+extern int parse_chan_pair(char *str, struct list_head *chans, int device,
+			   struct chan_opts *opts);
 extern int open_chan(struct list_head *chans);
 extern int write_chan(struct list_head *chans, const char *buf, int len,
 			     int write_irq);

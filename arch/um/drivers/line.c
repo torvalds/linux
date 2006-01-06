@@ -438,7 +438,7 @@ int line_open(struct line *lines, struct tty_struct *tty,
 		}
 		if (list_empty(&line->chan_list)) {
 			err = parse_chan_pair(line->init_str, &line->chan_list,
-					      line->init_pri, tty->index, opts);
+					      tty->index, opts);
 			if(err) goto out;
 			err = open_chan(&line->chan_list);
 			if(err) goto out;

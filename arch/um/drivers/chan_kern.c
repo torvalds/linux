@@ -315,7 +315,7 @@ int console_open_chan(struct line *line, struct console *co,
 		return 0;
 
 	if (0 != parse_chan_pair(line->init_str, &line->chan_list,
-				 line->init_pri, co->index, opts))
+				 co->index, opts))
 		return -1;
 	if (0 != open_chan(&line->chan_list))
 		return -1;
@@ -468,8 +468,7 @@ struct chan_type chan_table[] = {
 #endif
 };
 
-static struct chan *parse_chan(char *str, int pri, int device,
-			       struct chan_opts *opts)
+static struct chan *parse_chan(char *str, int device, struct chan_opts *opts)
 {
 	struct chan_type *entry;
 	struct chan_ops *ops;
@@ -507,13 +506,12 @@ static struct chan *parse_chan(char *str, int pri, int device,
 				 .output 	= 0,
 				 .opened  	= 0,
 				 .fd 		= -1,
-				 .pri 		= pri,
 				 .ops 		= ops,
 				 .data 		= data });
 	return chan;
 }
 
-int parse_chan_pair(char *str, struct list_head *chans, int pri, int device,
+int parse_chan_pair(char *str, struct list_head *chans, int device,
 		    struct chan_opts *opts)
 {
 	struct chan *new, *chan;
@@ -521,8 +519,6 @@ int parse_chan_pair(char *str, struct list_head *chans, int pri, int device,
 
 	if(!list_empty(chans)){
 		chan = list_entry(chans->next, struct chan, list);
-		if(chan->pri >= pri)
-			return 0;
 		free_chan(chans);
 		INIT_LIST_HEAD(chans);
 	}
@@ -532,14 +528,14 @@ int parse_chan_pair(char *str, struct list_head *chans, int pri, int device,
 		in = str;
 		*out = '\0';
 		out++;
-		new = parse_chan(in, pri, device, opts);
+		new = parse_chan(in, device, opts);
 		if(new == NULL)
 			return -1;
 
 		new->input = 1;
 		list_add(&new->list, chans);
 
-		new = parse_chan(out, pri, device, opts);
+		new = parse_chan(out, device, opts);
 		if(new == NULL)
 			return -1;
 
@@ -547,7 +543,7 @@ int parse_chan_pair(char *str, struct list_head *chans, int pri, int device,
 		new->output = 1;
 	}
 	else {
-		new = parse_chan(str, pri, device, opts);
+		new = parse_chan(str, device, opts);
 		if(new == NULL)
 			return -1;
 
