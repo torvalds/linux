@@ -693,14 +693,18 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 static int do_suspend(struct dm_ioctl *param)
 {
 	int r = 0;
+	int do_lockfs = 1;
 	struct mapped_device *md;
 
 	md = find_device(param);
 	if (!md)
 		return -ENXIO;
 
+	if (param->flags & DM_SKIP_LOCKFS_FLAG)
+		do_lockfs = 0;
+
 	if (!dm_suspended(md))
-		r = dm_suspend(md, 1);
+		r = dm_suspend(md, do_lockfs);
 
 	if (!r)
 		r = __dev_status(md, param);
@@ -712,6 +716,7 @@ static int do_suspend(struct dm_ioctl *param)
 static int do_resume(struct dm_ioctl *param)
 {
 	int r = 0;
+	int do_lockfs = 1;
 	struct hash_cell *hc;
 	struct mapped_device *md;
 	struct dm_table *new_map;
@@ -737,8 +742,10 @@ static int do_resume(struct dm_ioctl *param)
 	/* Do we need to load a new map ? */
 	if (new_map) {
 		/* Suspend if it isn't already suspended */
+		if (param->flags & DM_SKIP_LOCKFS_FLAG)
+			do_lockfs = 0;
 		if (!dm_suspended(md))
-			dm_suspend(md, 1);
+			dm_suspend(md, do_lockfs);
 
 		r = dm_swap_table(md, new_map);
 		if (r) {
