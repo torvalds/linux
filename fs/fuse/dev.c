@@ -148,6 +148,26 @@ void fuse_release_background(struct fuse_req *req)
 	spin_unlock(&fuse_lock);
 }
 
+static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
+{
+	int i;
+	struct fuse_init_out *arg = &req->misc.init_out;
+
+	if (arg->major != FUSE_KERNEL_VERSION)
+		fc->conn_error = 1;
+	else {
+		fc->minor = arg->minor;
+		fc->max_write = arg->minor < 5 ? 4096 : arg->max_write;
+	}
+
+	/* After INIT reply is received other requests can go
+	   out.  So do (FUSE_MAX_OUTSTANDING - 1) number of
+	   up()s on outstanding_sem.  The last up() is done in
+	   fuse_putback_request() */
+	for (i = 1; i < FUSE_MAX_OUTSTANDING; i++)
+		up(&fc->outstanding_sem);
+}
+
 /*
  * This function is called when a request is finished.  Either a reply
  * has arrived or it was interrupted (and not yet sent) or some error
@@ -172,21 +192,9 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		up_read(&fc->sbput_sem);
 	}
 	wake_up(&req->waitq);
-	if (req->in.h.opcode == FUSE_INIT) {
-		int i;
-
-		if (req->misc.init_in_out.major != FUSE_KERNEL_VERSION)
-			fc->conn_error = 1;
-
-		fc->minor = req->misc.init_in_out.minor;
-
-		/* After INIT reply is received other requests can go
-		   out.  So do (FUSE_MAX_OUTSTANDING - 1) number of
-		   up()s on outstanding_sem.  The last up() is done in
-		   fuse_putback_request() */
-		for (i = 1; i < FUSE_MAX_OUTSTANDING; i++)
-			up(&fc->outstanding_sem);
-	} else if (req->in.h.opcode == FUSE_RELEASE && req->inode == NULL) {
+	if (req->in.h.opcode == FUSE_INIT)
+		process_init_reply(fc, req);
+	else if (req->in.h.opcode == FUSE_RELEASE && req->inode == NULL) {
 		/* Special case for failed iget in CREATE */
 		u64 nodeid = req->in.h.nodeid;
 		__fuse_get_request(req);
@@ -359,7 +367,7 @@ void fuse_send_init(struct fuse_conn *fc)
 	/* This is called from fuse_read_super() so there's guaranteed
 	   to be a request available */
 	struct fuse_req *req = do_get_request(fc);
-	struct fuse_init_in_out *arg = &req->misc.init_in_out;
+	struct fuse_init_in *arg = &req->misc.init_in;
 	arg->major = FUSE_KERNEL_VERSION;
 	arg->minor = FUSE_KERNEL_MINOR_VERSION;
 	req->in.h.opcode = FUSE_INIT;
@@ -367,8 +375,12 @@ void fuse_send_init(struct fuse_conn *fc)
 	req->in.args[0].size = sizeof(*arg);
 	req->in.args[0].value = arg;
 	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(*arg);
-	req->out.args[0].value = arg;
+	/* Variable length arguement used for backward compatibility
+	   with interface version < 7.5.  Rest of init_out is zeroed
+	   by do_get_request(), so a short reply is not a problem */
+	req->out.argvar = 1;
+	req->out.args[0].size = sizeof(struct fuse_init_out);
+	req->out.args[0].value = &req->misc.init_out;
 	request_send_background(fc, req);
 }
 

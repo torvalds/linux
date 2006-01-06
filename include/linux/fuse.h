@@ -14,7 +14,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 4
+#define FUSE_KERNEL_MINOR_VERSION 5
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -244,9 +244,16 @@ struct fuse_access_in {
 	__u32	padding;
 };
 
-struct fuse_init_in_out {
+struct fuse_init_in {
 	__u32	major;
 	__u32	minor;
+};
+
+struct fuse_init_out {
+	__u32	major;
+	__u32	minor;
+	__u32	unused[3];
+	__u32	max_write;
 };
 
 struct fuse_in_header {

@@ -21,9 +21,6 @@
 /** If more requests are outstanding, then the operation will block */
 #define FUSE_MAX_OUTSTANDING 10
 
-/** Maximum size of data in a write request */
-#define FUSE_MAX_WRITE 4096
-
 /** It could be as large as PATH_MAX, but would that have any uses? */
 #define FUSE_NAME_MAX 1024
 
@@ -162,7 +159,8 @@ struct fuse_req {
 	union {
 		struct fuse_forget_in forget_in;
 		struct fuse_release_in release_in;
-		struct fuse_init_in_out init_in_out;
+		struct fuse_init_in init_in;
+		struct fuse_init_out init_out;
 	} misc;
 
 	/** page vector */
