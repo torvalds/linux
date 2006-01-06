@@ -463,24 +463,6 @@ void mconsole_remove(struct mc_request *req)
 	mconsole_reply(req, err_msg, err, 0);
 }
 
-#ifdef CONFIG_MAGIC_SYSRQ
-void mconsole_sysrq(struct mc_request *req)
-{
-	char *ptr = req->request.data;
-
-	ptr += strlen("sysrq");
-	while(isspace(*ptr)) ptr++;
-
-	mconsole_reply(req, "", 0, 0);
-	handle_sysrq(*ptr, &current->thread.regs, NULL);
-}
-#else
-void mconsole_sysrq(struct mc_request *req)
-{
-	mconsole_reply(req, "Sysrq not compiled in", 1, 0);
-}
-#endif
-
 static DEFINE_SPINLOCK(console_lock);
 static LIST_HEAD(clients);
 static char console_buf[MCONSOLE_MAX_DATA];
@@ -548,6 +530,36 @@ static void with_console(struct mc_request *req, void (*proc)(void *),
 	spin_unlock_irqrestore(&console_lock, flags);
 	list_del(&entry.list);
 }
+
+#ifdef CONFIG_MAGIC_SYSRQ
+static void sysrq_proc(void *arg)
+{
+	char *op = arg;
+
+	handle_sysrq(*op, &current->thread.regs, NULL);
+}
+
+void mconsole_sysrq(struct mc_request *req)
+{
+	char *ptr = req->request.data;
+
+	ptr += strlen("sysrq");
+	while(isspace(*ptr)) ptr++;
+
+	/* With 'b', the system will shut down without a chance to reply,
+	 * so in this case, we reply first.
+	 */
+	if(*ptr == 'b')
+		mconsole_reply(req, "", 0, 0);
+
+	with_console(req, sysrq_proc, ptr);
+}
+#else
+void mconsole_sysrq(struct mc_request *req)
+{
+	mconsole_reply(req, "Sysrq not compiled in", 1, 0);
+}
+#endif
 
 static void stack_proc(void *arg)
 {
