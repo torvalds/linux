@@ -166,6 +166,14 @@ All md devices contain:
      will be empty.  If an array is being resized (not currently
      possible) this will contain the larger of the old and new sizes.
 
+  chunk_size
+     This is the size if bytes for 'chunks' and is only relevant to
+     raid levels that involve striping (1,4,5,6,10). The address space
+     of the array is conceptually divided into chunks and consecutive
+     chunks are striped onto neighbouring devices.
+     The size should be atleast PAGE_SIZE (4k) and should be a power
+     of 2.  This can only be set while assembling an array
+
 As component devices are added to an md array, they appear in the 'md'
 directory as new directories named
       dev-XXX

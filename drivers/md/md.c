@@ -1795,6 +1795,31 @@ raid_disks_show(mddev_t *mddev, char *page)
 static struct md_sysfs_entry md_raid_disks = __ATTR_RO(raid_disks);
 
 static ssize_t
+chunk_size_show(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%d\n", mddev->chunk_size);
+}
+
+static ssize_t
+chunk_size_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	/* can only set chunk_size if array is not yet active */
+	char *e;
+	unsigned long n = simple_strtoul(buf, &e, 10);
+
+	if (mddev->pers)
+		return -EBUSY;
+	if (!*buf || (*e && *e != '\n'))
+		return -EINVAL;
+
+	mddev->chunk_size = n;
+	return len;
+}
+static struct md_sysfs_entry md_chunk_size =
+__ATTR(chunk_size, 0644, chunk_size_show, chunk_size_store);
+
+
+static ssize_t
 action_show(mddev_t *mddev, char *page)
 {
 	char *type = "idle";
@@ -1861,6 +1886,7 @@ md_mismatches = __ATTR_RO(mismatch_cnt);
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
 	&md_raid_disks.attr,
+	&md_chunk_size.attr,
 	NULL,
 };
 
