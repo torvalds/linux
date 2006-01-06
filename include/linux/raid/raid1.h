@@ -45,6 +45,7 @@ struct r1_private_data_s {
 
 	spinlock_t		resync_lock;
 	int			nr_pending;
+	int			nr_waiting;
 	int			barrier;
 	sector_t		next_resync;
 	int			fullsync;  /* set to 1 if a full sync is needed,
@@ -52,8 +53,7 @@ struct r1_private_data_s {
 					    * Cleared when a sync completes.
 					    */
 
-	wait_queue_head_t	wait_idle;
-	wait_queue_head_t	wait_resume;
+	wait_queue_head_t	wait_barrier;
 
 	struct pool_info	*poolinfo;
 
