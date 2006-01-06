@@ -596,7 +596,11 @@ static inline int pfn_valid(unsigned long pfn)
  * this restriction.
  */
 #ifdef CONFIG_NUMA
-#define pfn_to_nid		early_pfn_to_nid
+#define pfn_to_nid(pfn)							\
+({									\
+	unsigned long __pfn_to_nid_pfn = (pfn);				\
+	page_to_nid(pfn_to_page(__pfn_to_nid_pfn));			\
+})
 #else
 #define pfn_to_nid(pfn)		(0)
 #endif
