@@ -2325,12 +2325,6 @@ static int __init apm_init(void)
 			 __va((unsigned long)apm_info.bios.cseg_16 << 4));
 		set_base(gdt[APM_DS >> 3],
 			 __va((unsigned long)apm_info.bios.dseg << 4));
-		/* For ASUS motherboard, Award BIOS rev 110 (and others?) */
-		_set_limit((char *)&gdt[APM_CS >> 3], 64 * 1024 - 1);
-		/* For some unknown machine. */
-		_set_limit((char *)&gdt[APM_CS_16 >> 3], 64 * 1024 - 1);
-		/* For the DEC Hinote Ultra CT475 (and others?) */
-		_set_limit((char *)&gdt[APM_DS >> 3], 64 * 1024 - 1);
 	}
 
 	apm_proc = create_proc_info_entry("apm", 0, NULL, apm_get_info);
