@@ -476,9 +476,8 @@ static const struct {
 			.opt_param = {
 				[UD]  = (IB_QP_CUR_STATE             |
 					 IB_QP_QKEY),
-				[UC]  = IB_QP_CUR_STATE,
-				[RC]  = (IB_QP_CUR_STATE             |
-					 IB_QP_MIN_RNR_TIMER),
+				[UC]  = (IB_QP_CUR_STATE             |
+					 IB_QP_ACCESS_FLAGS),
 				[MLX] = (IB_QP_CUR_STATE             |
 					 IB_QP_QKEY),
 			}
