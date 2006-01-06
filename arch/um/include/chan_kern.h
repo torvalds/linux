@@ -38,6 +38,8 @@ extern int console_write_chan(struct list_head *chans, const char *buf,
 			      int len);
 extern int console_open_chan(struct line *line, struct console *co,
 			     struct chan_opts *opts);
+extern void deactivate_chan(struct list_head *chans, int irq);
+extern void reactivate_chan(struct list_head *chans, int irq);
 extern void chan_enable_winch(struct list_head *chans, struct tty_struct *tty);
 extern void enable_chan(struct line *line);
 extern void close_chan(struct list_head *chans, int delay_free_irq);

@@ -109,16 +109,6 @@ static void ssl_flush_buffer(struct tty_struct *tty)
 	return;
 }
 
-static void ssl_throttle(struct tty_struct * tty)
-{
-	printk(KERN_ERR "Someone should implement ssl_throttle\n");
-}
-
-static void ssl_unthrottle(struct tty_struct * tty)
-{
-	printk(KERN_ERR "Someone should implement ssl_unthrottle\n");
-}
-
 static void ssl_stop(struct tty_struct *tty)
 {
 	printk(KERN_ERR "Someone should implement ssl_stop\n");
@@ -145,9 +135,9 @@ static struct tty_operations ssl_ops = {
 	.flush_chars 		= line_flush_chars,
 	.set_termios 		= line_set_termios,
 	.ioctl 	 		= line_ioctl,
+	.throttle 		= line_throttle,
+	.unthrottle 		= line_unthrottle,
 #if 0
-	.throttle 		= ssl_throttle,
-	.unthrottle 		= ssl_unthrottle,
 	.stop 	 		= ssl_stop,
 	.start 	 		= ssl_start,
 	.hangup 	 	= ssl_hangup,

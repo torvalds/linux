@@ -36,8 +36,9 @@ static void line_timer_cb(void *arg)
 {
 	struct line *line = arg;
 
-	chan_interrupt(&line->chan_list, &line->task, line->tty,
-		       line->driver->read_irq);
+	if(!line->throttled)
+		chan_interrupt(&line->chan_list, &line->task, line->tty,
+			       line->driver->read_irq);
 }
 
 /* Returns the free space inside the ring buffer of this line.
@@ -338,6 +339,30 @@ int line_ioctl(struct tty_struct *tty, struct file * file,
 		break;
 	}
 	return ret;
+}
+
+void line_throttle(struct tty_struct *tty)
+{
+	struct line *line = tty->driver_data;
+
+	deactivate_chan(&line->chan_list, line->driver->read_irq);
+	line->throttled = 1;
+}
+
+void line_unthrottle(struct tty_struct *tty)
+{
+	struct line *line = tty->driver_data;
+
+	line->throttled = 0;
+	chan_interrupt(&line->chan_list, &line->task, tty,
+		       line->driver->read_irq);
+
+	/* Maybe there is enough stuff pending that calling the interrupt
+	 * throttles us again.  In this case, line->throttled will be 1
+	 * again and we shouldn't turn the interrupt back on.
+	 */
+	if(!line->throttled)
+		reactivate_chan(&line->chan_list, line->driver->read_irq);
 }
 
 static irqreturn_t line_write_interrupt(int irq, void *data,

@@ -312,6 +312,32 @@ void close_chan(struct list_head *chans, int delay_free_irq)
 	}
 }
 
+void deactivate_chan(struct list_head *chans, int irq)
+{
+	struct list_head *ele;
+
+	struct chan *chan;
+	list_for_each(ele, chans) {
+		chan = list_entry(ele, struct chan, list);
+
+		if(chan->enabled && chan->input)
+			deactivate_fd(chan->fd, irq);
+	}
+}
+
+void reactivate_chan(struct list_head *chans, int irq)
+{
+	struct list_head *ele;
+	struct chan *chan;
+
+	list_for_each(ele, chans) {
+		chan = list_entry(ele, struct chan, list);
+
+		if(chan->enabled && chan->input)
+			reactivate_fd(chan->fd, irq);
+	}
+}
+
 int write_chan(struct list_head *chans, const char *buf, int len,
 	       int write_irq)
 {

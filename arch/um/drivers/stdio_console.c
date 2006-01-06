@@ -122,6 +122,8 @@ static struct tty_operations console_ops = {
 	.flush_chars 		= line_flush_chars,
 	.set_termios 		= line_set_termios,
 	.ioctl 	 		= line_ioctl,
+	.throttle 		= line_throttle,
+	.unthrottle 		= line_unthrottle,
 };
 
 static void uml_console_write(struct console *console, const char *string,

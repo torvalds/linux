@@ -38,6 +38,7 @@ struct line {
 	struct list_head chan_list;
 	int valid;
 	int count;
+	int throttled;
 	/*This lock is actually, mostly, local to*/
 	spinlock_t lock;
 
@@ -60,6 +61,7 @@ struct line {
 	{ init_str :	str, \
 	  init_pri :	INIT_STATIC, \
 	  valid :	1, \
+	  throttled :	0, \
 	  lock :	SPIN_LOCK_UNLOCKED, \
 	  buffer :	NULL, \
 	  head :	NULL, \
@@ -88,6 +90,8 @@ extern void line_flush_chars(struct tty_struct *tty);
 extern int line_write_room(struct tty_struct *tty);
 extern int line_ioctl(struct tty_struct *tty, struct file * file,
 		      unsigned int cmd, unsigned long arg);
+extern void line_throttle(struct tty_struct *tty);
+extern void line_unthrottle(struct tty_struct *tty);
 
 extern char *add_xterm_umid(char *base);
 extern int line_setup_irq(int fd, int input, int output, struct line *line,
