@@ -36,7 +36,7 @@ static DECLARE_WORK(key_cleanup_task, key_cleanup, NULL);
 DECLARE_RWSEM(key_construction_sem);
 
 /* any key who's type gets unegistered will be re-typed to this */
-struct key_type key_type_dead = {
+static struct key_type key_type_dead = {
 	.name		= "dead",
 };
 

@@ -68,7 +68,7 @@ struct key_type key_type_keyring = {
  * semaphore to serialise link/link calls to prevent two link calls in parallel
  * introducing a cycle
  */
-DECLARE_RWSEM(keyring_serialise_link_sem);
+static DECLARE_RWSEM(keyring_serialise_link_sem);
 
 /*****************************************************************************/
 /*
