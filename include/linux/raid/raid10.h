@@ -35,13 +35,19 @@ struct r10_private_data_s {
 	sector_t chunk_mask;
 
 	struct list_head	retry_list;
-	/* for use when syncing mirrors: */
+	/* queue pending writes and submit them on unplug */
+	struct bio_list		pending_bio_list;
+
 
 	spinlock_t		resync_lock;
 	int nr_pending;
 	int nr_waiting;
 	int barrier;
 	sector_t		next_resync;
+	int			fullsync;  /* set to 1 if a full sync is needed,
+					    * (fresh device added).
+					    * Cleared when a sync completes.
+					    */
 
 	wait_queue_head_t	wait_barrier;
 
@@ -100,4 +106,5 @@ struct r10bio_s {
 #define	R10BIO_Uptodate	0
 #define	R10BIO_IsSync	1
 #define	R10BIO_IsRecover 2
+#define	R10BIO_Degraded 3
 #endif

@@ -714,9 +714,10 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 		if (sb->state & (1<<MD_SB_BITMAP_PRESENT) &&
 		    mddev->bitmap_file == NULL) {
-			if (mddev->level != 1 && mddev->level != 5 && mddev->level != 6) {
+			if (mddev->level != 1 && mddev->level != 5 && mddev->level != 6
+			    && mddev->level != 10) {
 				/* FIXME use a better test */
-				printk(KERN_WARNING "md: bitmaps only support for raid1\n");
+				printk(KERN_WARNING "md: bitmaps not supported for this level.\n");
 				return -EINVAL;
 			}
 			mddev->bitmap_offset = mddev->default_bitmap_offset;
@@ -1037,8 +1038,9 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 
 		if ((le32_to_cpu(sb->feature_map) & MD_FEATURE_BITMAP_OFFSET) &&
 		    mddev->bitmap_file == NULL ) {
-			if (mddev->level != 1) {
-				printk(KERN_WARNING "md: bitmaps only supported for raid1\n");
+			if (mddev->level != 1 && mddev->level != 5 && mddev->level != 6
+			    && mddev->level != 10) {
+				printk(KERN_WARNING "md: bitmaps not supported for this level.\n");
 				return -EINVAL;
 			}
 			mddev->bitmap_offset = (__s32)le32_to_cpu(sb->bitmap_offset);
