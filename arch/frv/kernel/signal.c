@@ -297,7 +297,8 @@ static inline void __user *get_sigframe(struct k_sigaction *ka,
 /*
  *
  */
-static void setup_frame(int sig, struct k_sigaction *ka, sigset_t *set, struct pt_regs * regs)
+static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
+		       struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
 	int rsig;
@@ -362,26 +363,30 @@ static void setup_frame(int sig, struct k_sigaction *ka, sigset_t *set, struct p
 
 	set_fs(USER_DS);
 
+	/* the tracer may want to single-step inside the handler */
+	if (test_thread_flag(TIF_SINGLESTEP))
+		ptrace_notify(SIGTRAP);
+
 #if DEBUG_SIG
 	printk("SIG deliver %d (%s:%d): sp=%p pc=%lx ra=%p\n",
-		sig, current->comm, current->pid, frame, regs->pc, frame->pretcode);
+	       sig, current->comm, current->pid, frame, regs->pc,
+	       frame->pretcode);
 #endif
 
-	return;
+	return 1;
 
 give_sigsegv:
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-
 	force_sig(SIGSEGV, current);
+	return 0;
+
 } /* end setup_frame() */
 
 /*****************************************************************************/
 /*
  *
  */
-static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-			   sigset_t *set, struct pt_regs * regs)
+static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+			  sigset_t *set, struct pt_regs * regs)
 {
 	struct rt_sigframe __user *frame;
 	int rsig;
@@ -457,17 +462,21 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	set_fs(USER_DS);
 
+	/* the tracer may want to single-step inside the handler */
+	if (test_thread_flag(TIF_SINGLESTEP))
+		ptrace_notify(SIGTRAP);
+
 #if DEBUG_SIG
 	printk("SIG deliver %d (%s:%d): sp=%p pc=%lx ra=%p\n",
-		sig, current->comm, current->pid, frame, regs->pc, frame->pretcode);
+		sig, current->comm, current->pid, frame, regs->pc,
+	       frame->pretcode);
 #endif
 
-	return;
+	return 1;
 
 give_sigsegv:
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
 	force_sig(SIGSEGV, current);
+	return 0;
 
 } /* end setup_rt_frame() */
 
@@ -475,10 +484,12 @@ give_sigsegv:
 /*
  * OK, we're invoking a handler
  */
-static void handle_signal(unsigned long sig, siginfo_t *info,
-			  struct k_sigaction *ka, sigset_t *oldset,
-			  struct pt_regs *regs)
+static int handle_signal(unsigned long sig, siginfo_t *info,
+			 struct k_sigaction *ka, sigset_t *oldset,
+			 struct pt_regs *regs)
 {
+	int ret;
+
 	/* Are we from a system call? */
 	if (in_syscall(regs)) {
 		/* If so, check system call restarting.. */
@@ -493,6 +504,7 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 				regs->gr8 = -EINTR;
 				break;
 			}
+
 			/* fallthrough */
 		case -ERESTARTNOINTR:
 			regs->gr8 = regs->orig_gr8;
@@ -502,16 +514,22 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(sig, ka, info, oldset, regs);
+		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_frame(sig, ka, oldset, regs);
+		ret = setup_frame(sig, ka, oldset, regs);
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked, sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	if (ret) {
+		spin_lock_irq(&current->sighand->siglock);
+		sigorsets(&current->blocked, &current->blocked,
+			  &ka->sa.sa_mask);
+		if (!(ka->sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked, sig);
+		recalc_sigpending();
+		spin_unlock_irq(&current->sighand->siglock);
+	}
+
+	return ret;
+
 } /* end handle_signal() */
 
 /*****************************************************************************/
@@ -542,12 +560,10 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
-		handle_signal(signr, &info, &ka, oldset, regs);
-		return 1;
-	}
+	if (signr > 0)
+		return handle_signal(signr, &info, &ka, oldset, regs);
 
- no_signal:
+no_signal:
 	/* Did we come from a system call? */
 	if (regs->syscallno >= 0) {
 		/* Restart the system call - no handlers present */
@@ -565,6 +581,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	}
 
 	return 0;
+
 } /* end do_signal() */
 
 /*****************************************************************************/
