@@ -60,7 +60,7 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 #define dprintk(level, args...)						\
 do {									\
 	if ((debug & level)) {						\
-		printk("%s: %s(): ", __stringify(KBUILD_MODNAME),	\
+		printk("%s: %s(): ", KBUILD_MODNAME,			\
 		       __FUNCTION__);					\
 		printk(args); }						\
 } while (0)
