@@ -345,8 +345,8 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	flush_tlb_range(vma, start, end);
 }
 
-static struct page *find_lock_huge_page(struct address_space *mapping,
-			unsigned long idx)
+static struct page *find_or_alloc_huge_page(struct address_space *mapping,
+						unsigned long idx)
 {
 	struct page *page;
 	int err;
@@ -398,7 +398,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * Use page lock to guard against racing truncation
 	 * before we get page_table_lock.
 	 */
-	page = find_lock_huge_page(mapping, idx);
+	page = find_or_alloc_huge_page(mapping, idx);
 	if (!page)
 		goto out;
 
