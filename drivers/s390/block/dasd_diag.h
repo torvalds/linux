@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.8 $
+ * $Revision: 1.9 $
  */
 
 #define MDSK_WRITE_REQ 0x01
@@ -44,27 +44,6 @@ struct dasd_diag_characteristics {
 	u8 rdev_features;
 } __attribute__ ((packed, aligned(4)));
 
-struct dasd_diag_cms_label {
-	u8 label_id[4];
-	u8 vol_id[6];
-	u16 version_id;
-	u32 block_size;
-	u32 origin_ptr;
-	u32 usable_count;
-	u32 formatted_count;
-	u32 block_count;
-	u32 used_count;
-	u32 fst_size;
-	u32 fst_count;
-	u8 format_date[6];
-	u8 reserved1[2];
-	u32 disk_offset;
-	u32 map_block;
-	u32 hblk_disp;
-	u32 user_disp;
-	u8 reserved2[4];
-	u8 segment_name[8];
-} __attribute__ ((packed));
 
 #ifdef CONFIG_ARCH_S390X
 #define DASD_DIAG_FLAGA_DEFAULT		DASD_DIAG_FLAGA_FORMAT_64BIT

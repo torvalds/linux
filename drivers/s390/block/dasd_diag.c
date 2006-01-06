@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.51 $
+ * $Revision: 1.52 $
  */
 
 #include <linux/config.h>
@@ -25,6 +25,7 @@
 #include <asm/io.h>
 #include <asm/s390_ext.h>
 #include <asm/todclk.h>
+#include <asm/vtoc.h>
 
 #include "dasd_int.h"
 #include "dasd_diag.h"
@@ -329,7 +330,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	struct dasd_diag_private *private;
 	struct dasd_diag_characteristics *rdc_data;
 	struct dasd_diag_bio bio;
-	struct dasd_diag_cms_label *label;
+	struct vtoc_cms_label *label;
 	blocknum_t end_block;
 	unsigned int sb, bsize;
 	int rc;
@@ -380,7 +381,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	mdsk_term_io(device);
 
 	/* figure out blocksize of device */
-	label = (struct dasd_diag_cms_label *) get_zeroed_page(GFP_KERNEL);
+	label = (struct vtoc_cms_label *) get_zeroed_page(GFP_KERNEL);
 	if (label == NULL)  {
 		DEV_MESSAGE(KERN_WARNING, device, "%s",
 			    "No memory to allocate initialization request");
