@@ -95,6 +95,10 @@ struct mdk_rdev_s
 	atomic_t	read_errors;	/* number of consecutive read errors that
 					 * we have tried to ignore.
 					 */
+	atomic_t	corrected_errors; /* number of corrected read errors,
+					   * for reporting to userspace and storing
+					   * in superblock.
+					   */
 };
 
 struct mddev_s

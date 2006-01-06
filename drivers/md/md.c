@@ -1000,6 +1000,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	}
 	rdev->preferred_minor = 0xffff;
 	rdev->data_offset = le64_to_cpu(sb->data_offset);
+	atomic_set(&rdev->corrected_errors, le32_to_cpu(sb->cnt_corrected_read));
 
 	rdev->sb_size = le32_to_cpu(sb->max_dev) * 2 + 256;
 	bmask = queue_hardsect_size(rdev->bdev->bd_disk->queue)-1;
@@ -1138,6 +1139,8 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		sb->resync_offset = cpu_to_le64(mddev->recovery_cp);
 	else
 		sb->resync_offset = cpu_to_le64(0);
+
+	sb->cnt_corrected_read = atomic_read(&rdev->corrected_errors);
 
 	if (mddev->bitmap && mddev->bitmap_file == NULL) {
 		sb->bitmap_offset = cpu_to_le32((__u32)mddev->bitmap_offset);
@@ -1592,9 +1595,30 @@ super_show(mdk_rdev_t *rdev, char *page)
 }
 static struct rdev_sysfs_entry rdev_super = __ATTR_RO(super);
 
+static ssize_t
+errors_show(mdk_rdev_t *rdev, char *page)
+{
+	return sprintf(page, "%d\n", atomic_read(&rdev->corrected_errors));
+}
+
+static ssize_t
+errors_store(mdk_rdev_t *rdev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long n = simple_strtoul(buf, &e, 10);
+	if (*buf && (*e == 0 || *e == '\n')) {
+		atomic_set(&rdev->corrected_errors, n);
+		return len;
+	}
+	return -EINVAL;
+}
+static struct rdev_sysfs_entry rdev_errors =
+__ATTR(errors, 0644, errors_show, errors_store);
+
 static struct attribute *rdev_default_attrs[] = {
 	&rdev_state.attr,
 	&rdev_super.attr,
+	&rdev_errors.attr,
 	NULL,
 };
 static ssize_t
@@ -1674,6 +1698,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	rdev->data_offset = 0;
 	atomic_set(&rdev->nr_pending, 0);
 	atomic_set(&rdev->read_errors, 0);
+	atomic_set(&rdev->corrected_errors, 0);
 
 	size = rdev->bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
 	if (!size) {
@@ -4729,7 +4754,7 @@ static int set_ro(const char *val, struct kernel_param *kp)
 	int num = simple_strtoul(val, &e, 10);
 	if (*val && (*e == '\0' || *e == '\n')) {
 		start_readonly = num;
-		return 0;;
+		return 0;
 	}
 	return -EINVAL;
 }

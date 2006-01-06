@@ -222,6 +222,17 @@ Each directory contains:
 			 of being recoverred to
 	This list make grow in future.
 
+      errors
+	An approximate count of read errors that have been detected on
+	this device but have not caused the device to be evicted from
+	the array (either because they were corrected or because they
+	happened while the array was read-only).  When using version-1
+	metadata, this value persists across restarts of the array.
+
+	This value can be written while assembling an array thus
+	providing an ongoing count for arrays with metadata managed by
+	userspace.
+
 
 An active md device will also contain and entry for each active device
 in the array.  These are named

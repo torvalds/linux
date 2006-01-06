@@ -1265,6 +1265,7 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					if (r1_bio->bios[d]->bi_end_io != end_sync_read)
 						continue;
 					rdev = conf->mirrors[d].rdev;
+					atomic_add(s, &rdev->corrected_errors);
 					if (sync_page_io(rdev->bdev,
 							 sect + rdev->data_offset,
 							 s<<9,
@@ -1463,6 +1464,7 @@ static void raid1d(mddev_t *mddev)
 							d = conf->raid_disks;
 						d--;
 						rdev = conf->mirrors[d].rdev;
+						atomic_add(s, &rdev->corrected_errors);
 						if (rdev &&
 						    test_bit(In_sync, &rdev->flags)) {
 							if (sync_page_io(rdev->bdev,

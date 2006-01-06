@@ -1122,9 +1122,13 @@ static int end_sync_read(struct bio *bio, unsigned int bytes_done, int error)
 
 	if (test_bit(BIO_UPTODATE, &bio->bi_flags))
 		set_bit(R10BIO_Uptodate, &r10_bio->state);
-	else if (!test_bit(MD_RECOVERY_SYNC, &conf->mddev->recovery))
-		md_error(r10_bio->mddev,
-			 conf->mirrors[d].rdev);
+	else {
+		atomic_add(r10_bio->sectors,
+			   &conf->mirrors[d].rdev->corrected_errors);
+		if (!test_bit(MD_RECOVERY_SYNC, &conf->mddev->recovery))
+			md_error(r10_bio->mddev,
+				 conf->mirrors[d].rdev);
+	}
 
 	/* for reconstruct, we always reschedule after a read.
 	 * for resync, only after all reads
@@ -1430,6 +1434,7 @@ static void raid10d(mddev_t *mddev)
 						sl--;
 						d = r10_bio->devs[sl].devnum;
 						rdev = conf->mirrors[d].rdev;
+						atomic_add(s, &rdev->corrected_errors);
 						if (rdev &&
 						    test_bit(In_sync, &rdev->flags)) {
 							if (sync_page_io(rdev->bdev,
