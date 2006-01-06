@@ -481,45 +481,6 @@ struct bus_type css_bus_type = {
 
 subsys_initcall(init_channel_subsystem);
 
-/*
- * Register root devices for some drivers. The release function must not be
- * in the device drivers, so we do it here.
- */
-static void
-s390_root_dev_release(struct device *dev)
-{
-	kfree(dev);
-}
-
-struct device *
-s390_root_dev_register(const char *name)
-{
-	struct device *dev;
-	int ret;
-
-	if (!strlen(name))
-		return ERR_PTR(-EINVAL);
-	dev = kmalloc(sizeof(struct device), GFP_KERNEL);
-	if (!dev)
-		return ERR_PTR(-ENOMEM);
-	memset(dev, 0, sizeof(struct device));
-	strncpy(dev->bus_id, name, min(strlen(name), (size_t)BUS_ID_SIZE));
-	dev->release = s390_root_dev_release;
-	ret = device_register(dev);
-	if (ret) {
-		kfree(dev);
-		return ERR_PTR(ret);
-	}
-	return dev;
-}
-
-void
-s390_root_dev_unregister(struct device *dev)
-{
-	if (dev)
-		device_unregister(dev);
-}
-
 int
 css_enqueue_subchannel_slow(unsigned long schid)
 {
@@ -564,6 +525,4 @@ css_slow_subchannels_exist(void)
 
 MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(css_bus_type);
-EXPORT_SYMBOL(s390_root_dev_register);
-EXPORT_SYMBOL(s390_root_dev_unregister);
 EXPORT_SYMBOL_GPL(css_characteristics_avail);

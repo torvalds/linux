@@ -54,7 +54,7 @@
 #include <asm/s390_ext.h>
 #include <asm/ebcdic.h>
 #include <asm/smp.h>
-#include <asm/ccwdev.h> //for root device stuff
+#include <asm/s390_rdev.h>
 
 /* FLAGS:
  * All flags are defined in the field IPFLAGS1 of each function
