@@ -162,7 +162,7 @@ EXPORT_SYMBOL(net_srandom);
  * is otherwise not dependent on the TCP/IP stack.
  */
 
-__u32 in_aton(const char *str)
+__be32 in_aton(const char *str)
 {
 	unsigned long l;
 	unsigned int val;
