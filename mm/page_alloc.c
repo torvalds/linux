@@ -1455,35 +1455,23 @@ void show_free_areas(void)
 
 /*
  * Builds allocation fallback zone lists.
+ *
+ * Add all populated zones of a node to the zonelist.
  */
-static int __init build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist, int j, int k)
+static int __init build_zonelists_node(pg_data_t *pgdat,
+			struct zonelist *zonelist, int j, int k)
 {
-	switch (k) {
-		struct zone *zone;
-	default:
-		BUG();
-	case ZONE_HIGHMEM:
-		zone = pgdat->node_zones + ZONE_HIGHMEM;
-		if (zone->present_pages) {
+	struct zone *zone;
+
+	BUG_ON(k > ZONE_HIGHMEM);
+	for (zone = pgdat->node_zones + k; zone >= pgdat->node_zones; zone--) {
+		if (populated_zone(zone)) {
 #ifndef CONFIG_HIGHMEM
-			BUG();
+			BUG_ON(zone - pgdat->node_zones > ZONE_NORMAL);
 #endif
 			zonelist->zones[j++] = zone;
 		}
-	case ZONE_NORMAL:
-		zone = pgdat->node_zones + ZONE_NORMAL;
-		if (zone->present_pages)
-			zonelist->zones[j++] = zone;
-	case ZONE_DMA32:
-		zone = pgdat->node_zones + ZONE_DMA32;
-		if (zone->present_pages)
-			zonelist->zones[j++] = zone;
-	case ZONE_DMA:
-		zone = pgdat->node_zones + ZONE_DMA;
-		if (zone->present_pages)
-			zonelist->zones[j++] = zone;
 	}
-
 	return j;
 }
 
