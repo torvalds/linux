@@ -1530,6 +1530,8 @@ void bitmap_destroy(mddev_t *mddev)
 		return;
 
 	mddev->bitmap = NULL; /* disconnect from the md device */
+	if (mddev->thread)
+		mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
 
 	bitmap_free(bitmap);
 }
@@ -1636,6 +1638,8 @@ int bitmap_create(mddev_t *mddev)
 
 	if (IS_ERR(bitmap->writeback_daemon))
 		return PTR_ERR(bitmap->writeback_daemon);
+	mddev->thread->timeout = bitmap->daemon_sleep * HZ;
+
 	return bitmap_update_sb(bitmap);
 
  error:

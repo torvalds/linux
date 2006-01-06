@@ -1990,9 +1990,6 @@ static int run(mddev_t *mddev)
 	/* Ok, everything is just fine now */
 	mddev->array_size =  mddev->size * (mddev->raid_disks - 2);
 
-	if (mddev->bitmap)
-		mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
-
 	mddev->queue->unplug_fn = raid6_unplug_device;
 	mddev->queue->issue_flush_fn = raid6_issue_flush;
 	return 0;
@@ -2228,14 +2225,8 @@ static void raid6_quiesce(mddev_t *mddev, int state)
 		spin_unlock_irq(&conf->device_lock);
 		break;
 	}
-	if (mddev->thread) {
-		if (mddev->bitmap)
-			mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
-		else
-			mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
-		md_wakeup_thread(mddev->thread);
-	}
 }
+
 static mdk_personality_t raid6_personality=
 {
 	.name		= "raid6",

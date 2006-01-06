@@ -1964,9 +1964,6 @@ static int run(mddev_t *mddev)
 	/* Ok, everything is just fine now */
 	sysfs_create_group(&mddev->kobj, &raid5_attrs_group);
 
-	if (mddev->bitmap)
-		mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
-
 	mddev->queue->unplug_fn = raid5_unplug_device;
 	mddev->queue->issue_flush_fn = raid5_issue_flush;
 
@@ -2200,14 +2197,8 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 		spin_unlock_irq(&conf->device_lock);
 		break;
 	}
-	if (mddev->thread) {
-		if (mddev->bitmap)
-			mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
-		else
-			mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
-		md_wakeup_thread(mddev->thread);
-	}
 }
+
 static mdk_personality_t raid5_personality=
 {
 	.name		= "raid5",

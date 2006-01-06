@@ -2054,13 +2054,15 @@ static int do_md_run(mddev_t * mddev)
 	if (start_readonly)
 		mddev->ro = 2; /* read-only, but switch on first write */
 
-	/* before we start the array running, initialise the bitmap */
-	err = bitmap_create(mddev);
-	if (err)
-		printk(KERN_ERR "%s: failed to create bitmap (%d)\n",
-			mdname(mddev), err);
-	else
-		err = mddev->pers->run(mddev);
+	err = mddev->pers->run(mddev);
+	if (!err && mddev->pers->sync_request) {
+		err = bitmap_create(mddev);
+		if (err) {
+			printk(KERN_ERR "%s: failed to create bitmap (%d)\n",
+			       mdname(mddev), err);
+			mddev->pers->stop(mddev);
+		}
+	}
 	if (err) {
 		printk(KERN_ERR "md: pers->run() failed ...\n");
 		module_put(mddev->pers->owner);

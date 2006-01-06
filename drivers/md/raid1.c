@@ -1611,7 +1611,6 @@ static int run(mddev_t *mddev)
 		       mdname(mddev));
 		goto out_free_conf;
 	}
-	if (mddev->bitmap) mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
 
 	printk(KERN_INFO 
 		"raid1: raid set %s active with %d out of %d mirrors\n",
@@ -1782,13 +1781,6 @@ static void raid1_quiesce(mddev_t *mddev, int state)
 	case 0:
 		lower_barrier(conf);
 		break;
-	}
-	if (mddev->thread) {
-		if (mddev->bitmap)
-			mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
-		else
-			mddev->thread->timeout = MAX_SCHEDULE_TIMEOUT;
-		md_wakeup_thread(mddev->thread);
 	}
 }
 
