@@ -1098,6 +1098,28 @@ void __init trap_init(void)
 #endif
 	set_trap_gate(19,&simd_coprocessor_error);
 
+	if (cpu_has_fxsr) {
+		/*
+		 * Verify that the FXSAVE/FXRSTOR data will be 16-byte aligned.
+		 * Generates a compile-time "error: zero width for bit-field" if
+		 * the alignment is wrong.
+		 */
+		struct fxsrAlignAssert {
+			int _:!(offsetof(struct task_struct,
+					thread.i387.fxsave) & 15);
+		};
+
+		printk(KERN_INFO "Enabling fast FPU save and restore... ");
+		set_in_cr4(X86_CR4_OSFXSR);
+		printk("done.\n");
+	}
+	if (cpu_has_xmm) {
+		printk(KERN_INFO "Enabling unmasked SIMD FPU exception "
+				"support... ");
+		set_in_cr4(X86_CR4_OSXMMEXCPT);
+		printk("done.\n");
+	}
+
 	set_system_gate(SYSCALL_VECTOR,&system_call);
 
 	/*
