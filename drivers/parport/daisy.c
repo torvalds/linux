@@ -344,9 +344,9 @@ static int cpp_daisy (struct parport *port, int cmd)
 			      PARPORT_CONTROL_STROBE,
 			      PARPORT_CONTROL_STROBE);
 	udelay (1);
+	s = parport_read_status (port);
 	parport_frob_control (port, PARPORT_CONTROL_STROBE, 0);
 	udelay (1);
-	s = parport_read_status (port);
 	parport_write_data (port, 0xff); udelay (2);
 
 	return s;
@@ -395,15 +395,15 @@ int parport_daisy_select (struct parport *port, int daisy, int mode)
 		case IEEE1284_MODE_EPP:
 		case IEEE1284_MODE_EPPSL:
 		case IEEE1284_MODE_EPPSWE:
-			return (cpp_daisy (port, 0x20 + daisy) &
-				PARPORT_STATUS_ERROR);
+			return !(cpp_daisy (port, 0x20 + daisy) &
+				 PARPORT_STATUS_ERROR);
 
 		// For these modes we should switch to ECP mode:
 		case IEEE1284_MODE_ECP:
 		case IEEE1284_MODE_ECPRLE:
 		case IEEE1284_MODE_ECPSWE: 
-			return (cpp_daisy (port, 0xd0 + daisy) &
-				PARPORT_STATUS_ERROR);
+			return !(cpp_daisy (port, 0xd0 + daisy) &
+				 PARPORT_STATUS_ERROR);
 
 		// Nothing was told for BECP in Daisy chain specification.
 		// May be it's wise to use ECP?
@@ -413,8 +413,8 @@ int parport_daisy_select (struct parport *port, int daisy, int mode)
 		case IEEE1284_MODE_BYTE:
 		case IEEE1284_MODE_COMPAT:
 		default:
-			return (cpp_daisy (port, 0xe0 + daisy) &
-				PARPORT_STATUS_ERROR);
+			return !(cpp_daisy (port, 0xe0 + daisy) &
+				 PARPORT_STATUS_ERROR);
 	}
 }
 
