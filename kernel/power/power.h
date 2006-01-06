@@ -16,7 +16,6 @@ struct swsusp_info {
 	int			cpus;
 	unsigned long		image_pages;
 	unsigned long		pages;
-	swp_entry_t		start;
 } __attribute__((aligned(PAGE_SIZE)));
 
 

@@ -93,7 +93,7 @@ extern char resume_file[];
 
 static struct swsusp_header {
 	char reserved[PAGE_SIZE - 20 - sizeof(swp_entry_t)];
-	swp_entry_t swsusp_info;
+	swp_entry_t image;
 	char	orig_sig[10];
 	char	sig[10];
 } __attribute__((packed, aligned(PAGE_SIZE))) swsusp_header;
@@ -106,7 +106,7 @@ static struct swsusp_info swsusp_info;
 
 static unsigned short root_swap = 0xffff;
 
-static int mark_swapfiles(swp_entry_t prev)
+static int mark_swapfiles(swp_entry_t start)
 {
 	int error;
 
@@ -117,7 +117,7 @@ static int mark_swapfiles(swp_entry_t prev)
 	    !memcmp("SWAPSPACE2",swsusp_header.sig, 10)) {
 		memcpy(swsusp_header.orig_sig,swsusp_header.sig, 10);
 		memcpy(swsusp_header.sig,SWSUSP_SIG, 10);
-		swsusp_header.swsusp_info = prev;
+		swsusp_header.image = start;
 		error = rw_swap_page_sync(WRITE,
 					  swp_entry(root_swap, 0),
 					  virt_to_page((unsigned long)
@@ -423,22 +423,7 @@ static void init_header(unsigned int nr_pages)
 	swsusp_info.cpus = num_online_cpus();
 	swsusp_info.image_pages = nr_pages;
 	swsusp_info.pages = nr_pages +
-		((nr_pages * sizeof(long) + PAGE_SIZE - 1) >> PAGE_SHIFT);
-}
-
-static int close_swap(void)
-{
-	swp_entry_t entry;
-	int error;
-
-	dump_info();
-	error = write_page((unsigned long)&swsusp_info, &entry);
-	if (!error) {
-		printk( "S" );
-		error = mark_swapfiles(entry);
-		printk( "|\n" );
-	}
-	return error;
+		((nr_pages * sizeof(long) + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
 }
 
 /**
@@ -522,6 +507,7 @@ int swsusp_write(struct pbe *pblist, unsigned int nr_pages)
 {
 	struct swap_map_page *swap_map;
 	struct swap_map_handle handle;
+	swp_entry_t start;
 	int error;
 
 	if ((error = swsusp_swap_check())) {
@@ -539,18 +525,23 @@ int swsusp_write(struct pbe *pblist, unsigned int nr_pages)
 		return -ENOMEM;
 	init_swap_map_handle(&handle, swap_map);
 
-	error = save_image_metadata(pblist, &handle);
+	error = swap_map_write_page(&handle, (unsigned long)&swsusp_info);
+	if (!error)
+		error = save_image_metadata(pblist, &handle);
 	if (!error)
 		error = save_image_data(pblist, &handle, nr_pages);
 	if (error)
 		goto Free_image_entries;
 
 	swap_map = reverse_swap_map(swap_map);
-	error = save_swap_map(swap_map, &swsusp_info.start);
+	error = save_swap_map(swap_map, &start);
 	if (error)
 		goto Free_map_entries;
 
-	error = close_swap();
+	dump_info();
+	printk( "S" );
+	error = mark_swapfiles(start);
+	printk( "|\n" );
 	if (error)
 		goto Free_map_entries;
 
@@ -840,70 +831,28 @@ static inline int swap_map_read_page(struct swap_map_handle *handle, void *buf)
 	return error;
 }
 
-/*
- * Sanity check if this image makes sense with this kernel/swap context
- * I really don't think that it's foolproof but more than nothing..
- */
-
-static const char *sanity_check(void)
-{
-	dump_info();
-	if (swsusp_info.version_code != LINUX_VERSION_CODE)
-		return "kernel version";
-	if (swsusp_info.num_physpages != num_physpages)
-		return "memory size";
-	if (strcmp(swsusp_info.uts.sysname,system_utsname.sysname))
-		return "system type";
-	if (strcmp(swsusp_info.uts.release,system_utsname.release))
-		return "kernel release";
-	if (strcmp(swsusp_info.uts.version,system_utsname.version))
-		return "version";
-	if (strcmp(swsusp_info.uts.machine,system_utsname.machine))
-		return "machine";
-#if 0
-	/* We can't use number of online CPUs when we use hotplug to remove them ;-))) */
-	if (swsusp_info.cpus != num_possible_cpus())
-		return "number of cpus";
-#endif
-	return NULL;
-}
-
 static int check_header(void)
 {
-	const char *reason = NULL;
-	int error;
+	char *reason = NULL;
 
-	if ((error = bio_read_page(swp_offset(swsusp_header.swsusp_info), &swsusp_info)))
-		return error;
-
- 	/* Is this same machine? */
-	if ((reason = sanity_check())) {
-		printk(KERN_ERR "swsusp: Resume mismatch: %s\n",reason);
+	dump_info();
+	if (swsusp_info.version_code != LINUX_VERSION_CODE)
+		reason = "kernel version";
+	if (swsusp_info.num_physpages != num_physpages)
+		reason = "memory size";
+	if (strcmp(swsusp_info.uts.sysname,system_utsname.sysname))
+		reason = "system type";
+	if (strcmp(swsusp_info.uts.release,system_utsname.release))
+		reason = "kernel release";
+	if (strcmp(swsusp_info.uts.version,system_utsname.version))
+		reason = "version";
+	if (strcmp(swsusp_info.uts.machine,system_utsname.machine))
+		reason = "machine";
+	if (reason) {
+		printk(KERN_ERR "swsusp: Resume mismatch: %s\n", reason);
 		return -EPERM;
 	}
-	return error;
-}
-
-static int check_sig(void)
-{
-	int error;
-
-	memset(&swsusp_header, 0, sizeof(swsusp_header));
-	if ((error = bio_read_page(0, &swsusp_header)))
-		return error;
-	if (!memcmp(SWSUSP_SIG, swsusp_header.sig, 10)) {
-		memcpy(swsusp_header.sig, swsusp_header.orig_sig, 10);
-
-		/*
-		 * Reset swap signature now.
-		 */
-		error = bio_write_page(0, &swsusp_header);
-	} else {
-		return -EINVAL;
-	}
-	if (!error)
-		pr_debug("swsusp: Signature found, resuming\n");
-	return error;
+	return 0;
 }
 
 /**
@@ -989,33 +938,29 @@ static int load_image_metadata(struct pbe *pblist, struct swap_map_handle *handl
 	return error;
 }
 
-static int check_suspend_image(void)
+int swsusp_read(struct pbe **pblist_ptr)
 {
-	int error = 0;
-
-	if ((error = check_sig()))
-		return error;
-
-	if ((error = check_header()))
-		return error;
-
-	return 0;
-}
-
-static int read_suspend_image(struct pbe **pblist_ptr)
-{
-	int error = 0;
+	int error;
 	struct pbe *p, *pblist;
 	struct swap_map_handle handle;
-	unsigned int nr_pages = swsusp_info.image_pages;
+	unsigned int nr_pages;
 
+	if (IS_ERR(resume_bdev)) {
+		pr_debug("swsusp: block device not initialised\n");
+		return PTR_ERR(resume_bdev);
+	}
+
+	error = get_swap_map_reader(&handle, swsusp_header.image);
+	if (!error)
+		error = swap_map_read_page(&handle, &swsusp_info);
+	if (!error)
+		error = check_header();
+	if (error)
+		return error;
+	nr_pages = swsusp_info.image_pages;
 	p = alloc_pagedir(nr_pages, GFP_ATOMIC, 0);
 	if (!p)
 		return -ENOMEM;
-	error = get_swap_map_reader(&handle, swsusp_info.start);
-	if (error)
-		/* The PBE list at p will be released by swsusp_free() */
-		return error;
 	error = load_image_metadata(p, &handle);
 	if (!error) {
 		mark_unsafe_pages(p);
@@ -1037,11 +982,18 @@ static int read_suspend_image(struct pbe **pblist_ptr)
 			*pblist_ptr = pblist;
 	}
 	release_swap_map_reader(&handle);
+
+	blkdev_put(resume_bdev);
+
+	if (!error)
+		pr_debug("swsusp: Reading resume file was successful\n");
+	else
+		pr_debug("swsusp: Error %d resuming\n", error);
 	return error;
 }
 
 /**
- *      swsusp_check - Check for saved image in swap
+ *      swsusp_check - Check for swsusp signature in the resume device
  */
 
 int swsusp_check(void)
@@ -1051,39 +1003,27 @@ int swsusp_check(void)
 	resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_READ);
 	if (!IS_ERR(resume_bdev)) {
 		set_blocksize(resume_bdev, PAGE_SIZE);
-		error = check_suspend_image();
+		memset(&swsusp_header, 0, sizeof(swsusp_header));
+		if ((error = bio_read_page(0, &swsusp_header)))
+			return error;
+		if (!memcmp(SWSUSP_SIG, swsusp_header.sig, 10)) {
+			memcpy(swsusp_header.sig, swsusp_header.orig_sig, 10);
+			/* Reset swap signature now */
+			error = bio_write_page(0, &swsusp_header);
+		} else {
+			return -EINVAL;
+		}
 		if (error)
-		    blkdev_put(resume_bdev);
-	} else
+			blkdev_put(resume_bdev);
+		else
+			pr_debug("swsusp: Signature found, resuming\n");
+	} else {
 		error = PTR_ERR(resume_bdev);
-
-	if (!error)
-		pr_debug("swsusp: resume file found\n");
-	else
-		pr_debug("swsusp: Error %d check for resume file\n", error);
-	return error;
-}
-
-/**
- *	swsusp_read - Read saved image from swap.
- */
-
-int swsusp_read(struct pbe **pblist_ptr)
-{
-	int error;
-
-	if (IS_ERR(resume_bdev)) {
-		pr_debug("swsusp: block device not initialised\n");
-		return PTR_ERR(resume_bdev);
 	}
 
-	error = read_suspend_image(pblist_ptr);
-	blkdev_put(resume_bdev);
+	if (error)
+		pr_debug("swsusp: Error %d check for resume file\n", error);
 
-	if (!error)
-		pr_debug("swsusp: Reading resume file was successful\n");
-	else
-		pr_debug("swsusp: Error %d resuming\n", error);
 	return error;
 }
 
