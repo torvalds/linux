@@ -69,14 +69,16 @@ __asm__(
 
 #define Q_SET_SEL(cpu, selname, address, size) \
 do { \
-set_base(per_cpu(cpu_gdt_table,cpu)[(selname) >> 3], __va((u32)(address))); \
-set_limit(per_cpu(cpu_gdt_table,cpu)[(selname) >> 3], size); \
+struct desc_struct *gdt = get_cpu_gdt_table((cpu)); \
+set_base(gdt[(selname) >> 3], __va((u32)(address))); \
+set_limit(gdt[(selname) >> 3], size); \
 } while(0)
 
 #define Q2_SET_SEL(cpu, selname, address, size) \
 do { \
-set_base(per_cpu(cpu_gdt_table,cpu)[(selname) >> 3], (u32)(address)); \
-set_limit(per_cpu(cpu_gdt_table,cpu)[(selname) >> 3], size); \
+struct desc_struct *gdt = get_cpu_gdt_table((cpu)); \
+set_base(gdt[(selname) >> 3], (u32)(address)); \
+set_limit(gdt[(selname) >> 3], size); \
 } while(0)
 
 static struct desc_struct bad_bios_desc = { 0, 0x00409200 };
@@ -115,8 +117,8 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
 		return PNP_FUNCTION_NOT_SUPPORTED;
 
 	cpu = get_cpu();
-	save_desc_40 = per_cpu(cpu_gdt_table,cpu)[0x40 / 8];
-	per_cpu(cpu_gdt_table,cpu)[0x40 / 8] = bad_bios_desc;
+	save_desc_40 = get_cpu_gdt_table(cpu)[0x40 / 8];
+	get_cpu_gdt_table(cpu)[0x40 / 8] = bad_bios_desc;
 
 	/* On some boxes IRQ's during PnP BIOS calls are deadly.  */
 	spin_lock_irqsave(&pnp_bios_lock, flags);
@@ -158,7 +160,7 @@ static inline u16 call_pnp_bios(u16 func, u16 arg1, u16 arg2, u16 arg3,
 	);
 	spin_unlock_irqrestore(&pnp_bios_lock, flags);
 
-	per_cpu(cpu_gdt_table,cpu)[0x40 / 8] = save_desc_40;
+	get_cpu_gdt_table(cpu)[0x40 / 8] = save_desc_40;
 	put_cpu();
 
 	/* If we get here and this is set then the PnP BIOS faulted on us. */
@@ -535,8 +537,10 @@ void pnpbios_calls_init(union pnp_bios_install_struct *header)
 
 	set_base(bad_bios_desc, __va((unsigned long)0x40 << 4));
 	_set_limit((char *)&bad_bios_desc, 4095 - (0x40 << 4));
-	for(i=0; i < NR_CPUS; i++)
-	{
+ 	for (i = 0; i < NR_CPUS; i++) {
+  		struct desc_struct *gdt = get_cpu_gdt_table(i);
+  		if (!gdt)
+  			continue;
 		Q2_SET_SEL(i, PNP_CS32, &pnp_bios_callfunc, 64 * 1024);
 		Q_SET_SEL(i, PNP_CS16, header->fields.pm16cseg, 64 * 1024);
 		Q_SET_SEL(i, PNP_DS, header->fields.pm16dseg, 64 * 1024);

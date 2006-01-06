@@ -2317,6 +2317,8 @@ static int __init apm_init(void)
 
 	for (i = 0; i < NR_CPUS; i++) {
 		struct desc_struct *gdt = get_cpu_gdt_table(i);
+  		if (!gdt)
+  			continue;
 		set_base(gdt[APM_CS >> 3],
 			 __va((unsigned long)apm_info.bios.cseg << 4));
 		set_base(gdt[APM_CS_16 >> 3],
