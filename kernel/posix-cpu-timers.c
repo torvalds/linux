@@ -238,18 +238,7 @@ static int cpu_clock_sample_group_locked(unsigned int clock_idx,
 		while ((t = next_thread(t)) != p) {
 			cpu->sched += t->sched_time;
 		}
-		if (p->tgid == current->tgid) {
-			/*
-			 * We're sampling ourselves, so include the
-			 * cycles not yet banked.  We still omit
-			 * other threads running on other CPUs,
-			 * so the total can always be behind as
-			 * much as max(nthreads-1,ncpus) * (NSEC_PER_SEC/HZ).
-			 */
-			cpu->sched += current_sched_time(current);
-		} else {
-			cpu->sched += p->sched_time;
-		}
+		cpu->sched += sched_ns(p);
 		break;
 	}
 	return 0;
