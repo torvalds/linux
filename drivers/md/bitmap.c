@@ -485,12 +485,12 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	else if (le32_to_cpu(sb->version) < BITMAP_MAJOR_LO ||
 		 le32_to_cpu(sb->version) > BITMAP_MAJOR_HI)
 		reason = "unrecognized superblock version";
-	else if (chunksize < 512 || chunksize > (1024 * 1024 * 4))
-		reason = "bitmap chunksize out of range (512B - 4MB)";
+	else if (chunksize < PAGE_SIZE)
+		reason = "bitmap chunksize too small";
 	else if ((1 << ffz(~chunksize)) != chunksize)
 		reason = "bitmap chunksize not a power of 2";
-	else if (daemon_sleep < 1 || daemon_sleep > 15)
-		reason = "daemon sleep period out of range (1-15s)";
+	else if (daemon_sleep < 1 || daemon_sleep > MAX_SCHEDULE_TIMEOUT / HZ)
+		reason = "daemon sleep period out of range";
 	else if (write_behind > COUNTER_MAX)
 		reason = "write-behind limit out of range (0 - 16383)";
 	if (reason) {
