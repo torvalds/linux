@@ -961,11 +961,11 @@ static void handle_stripe(struct stripe_head *sh)
 	syncing = test_bit(STRIPE_SYNCING, &sh->state);
 	/* Now to look around and see what can be done */
 
+	rcu_read_lock();
 	for (i=disks; i--; ) {
 		mdk_rdev_t *rdev;
 		dev = &sh->dev[i];
 		clear_bit(R5_Insync, &dev->flags);
-		clear_bit(R5_Syncio, &dev->flags);
 
 		PRINTK("check %d: state 0x%lx read %p write %p written %p\n",
 			i, dev->flags, dev->toread, dev->towrite, dev->written);
@@ -1004,7 +1004,7 @@ static void handle_stripe(struct stripe_head *sh)
 				non_overwrite++;
 		}
 		if (dev->written) written++;
-		rdev = conf->disks[i].rdev; /* FIXME, should I be looking rdev */
+		rdev = rcu_dereference(conf->disks[i].rdev);
 		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
@@ -1017,6 +1017,7 @@ static void handle_stripe(struct stripe_head *sh)
 		} else
 			set_bit(R5_Insync, &dev->flags);
 	}
+	rcu_read_unlock();
 	PRINTK("locked=%d uptodate=%d to_read=%d"
 		" to_write=%d failed=%d failed_num=%d\n",
 		locked, uptodate, to_read, to_write, failed, failed_num);
@@ -1028,10 +1029,13 @@ static void handle_stripe(struct stripe_head *sh)
 			int bitmap_end = 0;
 
 			if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
-				mdk_rdev_t *rdev = conf->disks[i].rdev;
+				mdk_rdev_t *rdev;
+				rcu_read_lock();
+				rdev = rcu_dereference(conf->disks[i].rdev);
 				if (rdev && test_bit(In_sync, &rdev->flags))
 					/* multiple read failures in one stripe */
 					md_error(conf->mddev, rdev);
+				rcu_read_unlock();
 			}
 
 			spin_lock_irq(&conf->device_lock);
@@ -1180,9 +1184,6 @@ static void handle_stripe(struct stripe_head *sh)
 					locked++;
 					PRINTK("Reading block %d (sync=%d)\n", 
 						i, syncing);
-					if (syncing)
-						md_sync_acct(conf->disks[i].rdev->bdev,
-							     STRIPE_SECTORS);
 				}
 			}
 		}
@@ -1326,7 +1327,6 @@ static void handle_stripe(struct stripe_head *sh)
 			clear_bit(STRIPE_DEGRADED, &sh->state);
 			locked++;
 			set_bit(STRIPE_INSYNC, &sh->state);
-			set_bit(R5_Syncio, &dev->flags);
 		}
 	}
 	if (syncing && locked == 0 && test_bit(STRIPE_INSYNC, &sh->state)) {
@@ -1392,7 +1392,7 @@ static void handle_stripe(struct stripe_head *sh)
 		rcu_read_unlock();
  
 		if (rdev) {
-			if (test_bit(R5_Syncio, &sh->dev[i].flags))
+			if (syncing)
 				md_sync_acct(rdev->bdev, STRIPE_SECTORS);
 
 			bi->bi_bdev = rdev->bdev;

@@ -1060,11 +1060,11 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 	syncing = test_bit(STRIPE_SYNCING, &sh->state);
 	/* Now to look around and see what can be done */
 
+	rcu_read_lock();
 	for (i=disks; i--; ) {
 		mdk_rdev_t *rdev;
 		dev = &sh->dev[i];
 		clear_bit(R5_Insync, &dev->flags);
-		clear_bit(R5_Syncio, &dev->flags);
 
 		PRINTK("check %d: state 0x%lx read %p write %p written %p\n",
 			i, dev->flags, dev->toread, dev->towrite, dev->written);
@@ -1103,7 +1103,7 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 				non_overwrite++;
 		}
 		if (dev->written) written++;
-		rdev = conf->disks[i].rdev; /* FIXME, should I be looking rdev */
+		rdev = rcu_dereference(conf->disks[i].rdev);
 		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
@@ -1117,6 +1117,7 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 		} else
 			set_bit(R5_Insync, &dev->flags);
 	}
+	rcu_read_unlock();
 	PRINTK("locked=%d uptodate=%d to_read=%d"
 	       " to_write=%d failed=%d failed_num=%d,%d\n",
 	       locked, uptodate, to_read, to_write, failed,
@@ -1129,10 +1130,13 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 			int bitmap_end = 0;
 
 			if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
-				mdk_rdev_t *rdev = conf->disks[i].rdev;
+				mdk_rdev_t *rdev;
+				rcu_read_lock();
+				rdev = rcu_dereference(conf->disks[i].rdev);
 				if (rdev && test_bit(In_sync, &rdev->flags))
 					/* multiple read failures in one stripe */
 					md_error(conf->mddev, rdev);
+				rcu_read_unlock();
 			}
 
 			spin_lock_irq(&conf->device_lock);
@@ -1307,9 +1311,6 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 					locked++;
 					PRINTK("Reading block %d (sync=%d)\n",
 						i, syncing);
-					if (syncing)
-						md_sync_acct(conf->disks[i].rdev->bdev,
-							     STRIPE_SECTORS);
 				}
 			}
 		}
@@ -1463,14 +1464,12 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 				locked++;
 				set_bit(R5_LOCKED, &dev->flags);
 				set_bit(R5_Wantwrite, &dev->flags);
-				set_bit(R5_Syncio, &dev->flags);
 			}
 			if (failed >= 1) {
 				dev = &sh->dev[failed_num[0]];
 				locked++;
 				set_bit(R5_LOCKED, &dev->flags);
 				set_bit(R5_Wantwrite, &dev->flags);
-				set_bit(R5_Syncio, &dev->flags);
 			}
 
 			if (update_p) {
@@ -1478,14 +1477,12 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 				locked ++;
 				set_bit(R5_LOCKED, &dev->flags);
 				set_bit(R5_Wantwrite, &dev->flags);
-				set_bit(R5_Syncio, &dev->flags);
 			}
 			if (update_q) {
 				dev = &sh->dev[qd_idx];
 				locked++;
 				set_bit(R5_LOCKED, &dev->flags);
 				set_bit(R5_Wantwrite, &dev->flags);
-				set_bit(R5_Syncio, &dev->flags);
 			}
 			clear_bit(STRIPE_DEGRADED, &sh->state);
 
@@ -1557,7 +1554,7 @@ static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 		rcu_read_unlock();
 
 		if (rdev) {
-			if (test_bit(R5_Syncio, &sh->dev[i].flags))
+			if (syncing)
 				md_sync_acct(rdev->bdev, STRIPE_SECTORS);
 
 			bi->bi_bdev = rdev->bdev;
