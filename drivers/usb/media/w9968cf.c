@@ -695,13 +695,12 @@ static int w9968cf_allocate_memory(struct w9968cf_device* cam)
 	/* Allocate memory for the isochronous transfer buffers */
 	for (i = 0; i < W9968CF_URBS; i++) {
 		if (!(cam->transfer_buffer[i] =
-		      kmalloc(W9968CF_ISO_PACKETS*p_size, GFP_KERNEL))) {
+		      kzalloc(W9968CF_ISO_PACKETS*p_size, GFP_KERNEL))) {
 			DBG(1, "Couldn't allocate memory for the isochronous "
 			       "transfer buffers (%u bytes)", 
 			    p_size * W9968CF_ISO_PACKETS)
 			return -ENOMEM;
 		}
-		memset(cam->transfer_buffer[i], 0, W9968CF_ISO_PACKETS*p_size);
 	}
 
 	/* Allocate memory for the temporary frame buffer */
@@ -3499,11 +3498,9 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 		return -ENODEV;
 
 	cam = (struct w9968cf_device*)
-	          kmalloc(sizeof(struct w9968cf_device), GFP_KERNEL);
+	          kzalloc(sizeof(struct w9968cf_device), GFP_KERNEL);
 	if (!cam)
 		return -ENOMEM;
-
-	memset(cam, 0, sizeof(*cam));
 
 	init_MUTEX(&cam->dev_sem);
 	down(&cam->dev_sem);
@@ -3532,21 +3529,19 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 
 	/* Allocate 2 bytes of memory for camera control USB transfers */
-	if (!(cam->control_buffer = kmalloc(2, GFP_KERNEL))) {
+	if (!(cam->control_buffer = kzalloc(2, GFP_KERNEL))) {
 		DBG(1,"Couldn't allocate memory for camera control transfers")
 		err = -ENOMEM;
 		goto fail;
 	}
-	memset(cam->control_buffer, 0, 2);
 
 	/* Allocate 8 bytes of memory for USB data transfers to the FSB */
-	if (!(cam->data_buffer = kmalloc(8, GFP_KERNEL))) {
+	if (!(cam->data_buffer = kzalloc(8, GFP_KERNEL))) {
 		DBG(1, "Couldn't allocate memory for data "
 		       "transfers to the FSB")
 		err = -ENOMEM;
 		goto fail;
 	}
-	memset(cam->data_buffer, 0, 8);
 
 	/* Register the V4L device */
 	cam->v4ldev = video_device_alloc();
