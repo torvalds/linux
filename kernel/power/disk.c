@@ -363,30 +363,28 @@ static ssize_t resume_show(struct subsystem * subsys, char *buf)
 		       MINOR(swsusp_resume_device));
 }
 
-static ssize_t resume_store(struct subsystem * subsys, const char * buf, size_t n)
+static ssize_t resume_store(struct subsystem *subsys, const char *buf, size_t n)
 {
-	int len;
-	char *p;
 	unsigned int maj, min;
-	int error = -EINVAL;
 	dev_t res;
+	int ret = -EINVAL;
 
-	p = memchr(buf, '\n', n);
-	len = p ? p - buf : n;
+	if (sscanf(buf, "%u:%u", &maj, &min) != 2)
+		goto out;
 
-	if (sscanf(buf, "%u:%u", &maj, &min) == 2) {
-		res = MKDEV(maj,min);
-		if (maj == MAJOR(res) && min == MINOR(res)) {
-			down(&pm_sem);
-			swsusp_resume_device = res;
-			up(&pm_sem);
-			printk("Attempting manual resume\n");
-			noresume = 0;
-			software_resume();
-		}
-	}
+	res = MKDEV(maj,min);
+	if (maj != MAJOR(res) || min != MINOR(res))
+		goto out;
 
-	return error >= 0 ? n : error;
+	down(&pm_sem);
+	swsusp_resume_device = res;
+	up(&pm_sem);
+	printk("Attempting manual resume\n");
+	noresume = 0;
+	software_resume();
+	ret = n;
+out:
+	return ret;
 }
 
 power_attr(resume);
