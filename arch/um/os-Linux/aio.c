@@ -210,6 +210,8 @@ static int not_aio_thread(void *arg)
                         printk("not_aio_thread - write failed, fd = %d, "
                                "err = %d\n", aio_req_fd_r, -err);
         }
+
+	return 0;
 }
 
 static int aio_pid = -1;
