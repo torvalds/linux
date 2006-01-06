@@ -105,7 +105,6 @@ config SWAP
 
 config SYSVIPC
 	bool "System V IPC"
-	depends on MMU
 	---help---
 	  Inter Process Communication is a suite of library functions and
 	  system calls which let processes (running programs) synchronize and

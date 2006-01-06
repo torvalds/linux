@@ -654,8 +654,17 @@ static inline struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
 }
 #endif
 struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags);
+extern int shmem_mmap(struct file *file, struct vm_area_struct *vma);
 
 int shmem_zero_setup(struct vm_area_struct *);
+
+#ifndef CONFIG_MMU
+extern unsigned long shmem_get_unmapped_area(struct file *file,
+					     unsigned long addr,
+					     unsigned long len,
+					     unsigned long pgoff,
+					     unsigned long flags);
+#endif
 
 static inline int can_do_mlock(void)
 {
