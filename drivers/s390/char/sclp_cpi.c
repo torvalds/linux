@@ -204,7 +204,7 @@ cpi_module_init(void)
 		printk(KERN_WARNING "cpi: no control program identification "
 		       "support\n");
 		sclp_unregister(&sclp_cpi_event);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	req = cpi_prepare_req();
