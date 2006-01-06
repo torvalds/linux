@@ -1722,7 +1722,7 @@ static const struct iw_priv_args zd1201_private_args[] = {
 	    IW_PRIV_TYPE_NONE, "sethostauth" },
 	{ ZD1201GIWHOSTAUTH, IW_PRIV_TYPE_NONE,
 	    IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "gethostauth" },
-	{ ZD1201SIWAUTHSTA, IW_PRIV_TYPE_ADDR | IW_PRIV_SIZE_FIXED | 1, 
+	{ ZD1201SIWAUTHSTA, IW_PRIV_TYPE_ADDR | IW_PRIV_SIZE_FIXED | 1,
 	    IW_PRIV_TYPE_NONE, "authstation" },
 	{ ZD1201SIWMAXASSOC, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	    IW_PRIV_TYPE_NONE, "setmaxassoc" },
@@ -1731,9 +1731,9 @@ static const struct iw_priv_args zd1201_private_args[] = {
 };
 
 static const struct iw_handler_def zd1201_iw_handlers = {
-	.num_standard 		= sizeof(zd1201_iw_handler)/sizeof(iw_handler),
-	.num_private 		= sizeof(zd1201_private_handler)/sizeof(iw_handler),
-	.num_private_args 	= sizeof(zd1201_private_args)/sizeof(struct iw_priv_args),
+	.num_standard 		= ARRAY_SIZE(zd1201_iw_handler),
+	.num_private 		= ARRAY_SIZE(zd1201_private_handler),
+	.num_private_args 	= ARRAY_SIZE(zd1201_private_args),
 	.standard 		= (iw_handler *)zd1201_iw_handler,
 	.private 		= (iw_handler *)zd1201_private_handler,
 	.private_args 		= (struct iw_priv_args *) zd1201_private_args,
@@ -1829,6 +1829,8 @@ static int zd1201_probe(struct usb_interface *interface,
 	if (err)
 		goto err_net;
 
+	SET_NETDEV_DEV(zd->dev, &usb->dev);
+
 	err = register_netdev(zd->dev);
 	if (err)
 		goto err_net;
@@ -1923,7 +1925,6 @@ static int zd1201_resume(struct usb_interface *interface)
 #endif
 
 static struct usb_driver zd1201_usb = {
-	.owner = THIS_MODULE,
 	.name = "zd1201",
 	.probe = zd1201_probe,
 	.disconnect = zd1201_disconnect,

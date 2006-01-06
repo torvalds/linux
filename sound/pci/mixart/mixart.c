@@ -66,11 +66,12 @@ static struct pci_device_id snd_mixart_ids[] = {
 MODULE_DEVICE_TABLE(pci, snd_mixart_ids);
 
 
-static int mixart_set_pipe_state(mixart_mgr_t *mgr, mixart_pipe_t* pipe, int start)
+static int mixart_set_pipe_state(struct mixart_mgr *mgr,
+				 struct mixart_pipe *pipe, int start)
 {
-	mixart_group_state_req_t group_state;
-	mixart_group_state_resp_t group_state_resp;
-	mixart_msg_t request;
+	struct mixart_group_state_req group_state;
+	struct mixart_group_state_resp group_state_resp;
+	struct mixart_msg request;
 	int err;
 	u32 system_msg_uid;
 
@@ -92,7 +93,7 @@ static int mixart_set_pipe_state(mixart_mgr_t *mgr, mixart_pipe_t* pipe, int sta
 	/* wait on the last MSG_SYSTEM_SEND_SYNCHRO_CMD command to be really finished */
 
 	request.message_id = MSG_SYSTEM_WAIT_SYNCHRO_CMD;
-	request.uid = (mixart_uid_t){0,0};
+	request.uid = (struct mixart_uid){0,0};
 	request.data = &system_msg_uid;
 	request.size = sizeof(system_msg_uid);
 
@@ -113,7 +114,7 @@ static int mixart_set_pipe_state(mixart_mgr_t *mgr, mixart_pipe_t* pipe, int sta
 	else
 		request.message_id = MSG_STREAM_STOP_STREAM_GRP_PACKET;
 
-	request.uid = pipe->group_uid; /*(mixart_uid_t){0,0};*/
+	request.uid = pipe->group_uid; /*(struct mixart_uid){0,0};*/
 	request.data = &group_state;
 	request.size = sizeof(group_state);
 
@@ -137,7 +138,7 @@ static int mixart_set_pipe_state(mixart_mgr_t *mgr, mixart_pipe_t* pipe, int sta
 		/* in case of start send a synchro top */
 
 		request.message_id = MSG_SYSTEM_SEND_SYNCHRO_CMD;
-		request.uid = (mixart_uid_t){0,0};
+		request.uid = (struct mixart_uid){0,0};
 		request.data = NULL;
 		request.size = 0;
 
@@ -156,11 +157,12 @@ static int mixart_set_pipe_state(mixart_mgr_t *mgr, mixart_pipe_t* pipe, int sta
 }
 
 
-static int mixart_set_clock(mixart_mgr_t *mgr, mixart_pipe_t *pipe, unsigned int rate)
+static int mixart_set_clock(struct mixart_mgr *mgr,
+			    struct mixart_pipe *pipe, unsigned int rate)
 {
-	mixart_msg_t request;
-	mixart_clock_properties_t clock_properties;
-	mixart_clock_properties_resp_t clock_prop_resp;
+	struct mixart_msg request;
+	struct mixart_clock_properties clock_properties;
+	struct mixart_clock_properties_resp clock_prop_resp;
 	int err;
 
 	switch(pipe->status) {
@@ -208,11 +210,13 @@ static int mixart_set_clock(mixart_mgr_t *mgr, mixart_pipe_t *pipe, unsigned int
 /*
  *  Allocate or reference output pipe for analog IOs (pcmp0/1)
  */
-mixart_pipe_t* snd_mixart_add_ref_pipe( mixart_t *chip, int pcm_number, int capture, int monitoring)
+struct mixart_pipe *
+snd_mixart_add_ref_pipe(struct snd_mixart *chip, int pcm_number, int capture,
+			int monitoring)
 {
 	int stream_count;
-	mixart_pipe_t *pipe;
-	mixart_msg_t request;
+	struct mixart_pipe *pipe;
+	struct mixart_msg request;
 
 	if(capture) {
 		if (pcm_number == MIXART_PCM_ANALOG) {
@@ -241,8 +245,8 @@ mixart_pipe_t* snd_mixart_add_ref_pipe( mixart_t *chip, int pcm_number, int capt
 	if( pipe->status == PIPE_UNDEFINED ) {
 		int err, i;
 		struct {
-			mixart_streaming_group_req_t sgroup_req;
-			mixart_streaming_group_t sgroup_resp;
+			struct mixart_streaming_group_req sgroup_req;
+			struct mixart_streaming_group sgroup_resp;
 		} *buf;
 
 		snd_printdd("add_ref_pipe audio chip(%d) pcm(%d)\n", chip->chip_idx, pcm_number);
@@ -251,7 +255,7 @@ mixart_pipe_t* snd_mixart_add_ref_pipe( mixart_t *chip, int pcm_number, int capt
 		if (!buf)
 			return NULL;
 
-		request.uid = (mixart_uid_t){0,0};      /* should be StreamManagerUID, but zero is OK if there is only one ! */
+		request.uid = (struct mixart_uid){0,0};      /* should be StreamManagerUID, but zero is OK if there is only one ! */
 		request.data = &buf->sgroup_req;
 		request.size = sizeof(buf->sgroup_req);
 
@@ -279,7 +283,7 @@ mixart_pipe_t* snd_mixart_add_ref_pipe( mixart_t *chip, int pcm_number, int capt
 			buf->sgroup_req.flow_entry[i] = j;
 
 			flowinfo = (struct mixart_flowinfo *)chip->mgr->flowinfo.area;
-			flowinfo[j].bufferinfo_array_phy_address = (u32)chip->mgr->bufferinfo.addr + (j * sizeof(mixart_bufferinfo_t));
+			flowinfo[j].bufferinfo_array_phy_address = (u32)chip->mgr->bufferinfo.addr + (j * sizeof(struct mixart_bufferinfo));
 			flowinfo[j].bufferinfo_count = 1;               /* 1 will set the miXart to ring-buffer mode ! */
 
 			bufferinfo = (struct mixart_bufferinfo *)chip->mgr->bufferinfo.area;
@@ -315,7 +319,8 @@ mixart_pipe_t* snd_mixart_add_ref_pipe( mixart_t *chip, int pcm_number, int capt
 }
 
 
-int snd_mixart_kill_ref_pipe( mixart_mgr_t *mgr, mixart_pipe_t *pipe, int monitoring)
+int snd_mixart_kill_ref_pipe(struct mixart_mgr *mgr,
+			     struct mixart_pipe *pipe, int monitoring)
 {
 	int err = 0;
 
@@ -329,8 +334,8 @@ int snd_mixart_kill_ref_pipe( mixart_mgr_t *mgr, mixart_pipe_t *pipe, int monito
 
 	if((pipe->references <= 0) && (pipe->monitoring == 0)) {
 
-		mixart_msg_t request;
-		mixart_delete_group_resp_t delete_resp;
+		struct mixart_msg request;
+		struct mixart_delete_group_resp delete_resp;
 
 		/* release the clock */
 		err = mixart_set_clock( mgr, pipe, 0);
@@ -345,7 +350,7 @@ int snd_mixart_kill_ref_pipe( mixart_mgr_t *mgr, mixart_pipe_t *pipe, int monito
 		}
 
 		request.message_id = MSG_STREAM_DELETE_GROUP;
-		request.uid = (mixart_uid_t){0,0};
+		request.uid = (struct mixart_uid){0,0};
 		request.data = &pipe->group_uid;            /* the streaming group ! */
 		request.size = sizeof(pipe->group_uid);
 
@@ -355,7 +360,7 @@ int snd_mixart_kill_ref_pipe( mixart_mgr_t *mgr, mixart_pipe_t *pipe, int monito
 			snd_printk(KERN_ERR "error MSG_STREAM_DELETE_GROUP err(%x), status(%x)\n", err, delete_resp.status);
 		}
 
-		pipe->group_uid = (mixart_uid_t){0,0};
+		pipe->group_uid = (struct mixart_uid){0,0};
 		pipe->stream_count = 0;
 		pipe->status = PIPE_UNDEFINED;
 	}
@@ -363,11 +368,11 @@ int snd_mixart_kill_ref_pipe( mixart_mgr_t *mgr, mixart_pipe_t *pipe, int monito
 	return err;
 }
 
-static int mixart_set_stream_state(mixart_stream_t *stream, int start)
+static int mixart_set_stream_state(struct mixart_stream *stream, int start)
 {
-	mixart_t *chip;
-	mixart_stream_state_req_t stream_state_req;
-	mixart_msg_t request;
+	struct snd_mixart *chip;
+	struct mixart_stream_state_req stream_state_req;
+	struct mixart_msg request;
 
 	if(!stream->substream)
 		return -EINVAL;
@@ -382,7 +387,7 @@ static int mixart_set_stream_state(mixart_stream_t *stream, int start)
 	else
 		request.message_id = start ? MSG_STREAM_START_OUTPUT_STAGE_PACKET : MSG_STREAM_STOP_OUTPUT_STAGE_PACKET;
 
-	request.uid = (mixart_uid_t){0,0};
+	request.uid = (struct mixart_uid){0,0};
 	request.data = &stream_state_req;
 	request.size = sizeof(stream_state_req);
 
@@ -399,9 +404,9 @@ static int mixart_set_stream_state(mixart_stream_t *stream, int start)
  *  Trigger callback
  */
 
-static int snd_mixart_trigger(snd_pcm_substream_t *subs, int cmd)
+static int snd_mixart_trigger(struct snd_pcm_substream *subs, int cmd)
 {
-	mixart_stream_t *stream = (mixart_stream_t*)subs->runtime->private_data;
+	struct mixart_stream *stream = subs->runtime->private_data;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -443,7 +448,7 @@ static int snd_mixart_trigger(snd_pcm_substream_t *subs, int cmd)
 	return 0;
 }
 
-static int mixart_sync_nonblock_events(mixart_mgr_t *mgr)
+static int mixart_sync_nonblock_events(struct mixart_mgr *mgr)
 {
 	unsigned long timeout = jiffies + HZ;
 	while (atomic_read(&mgr->msg_processed) > 0) {
@@ -459,10 +464,10 @@ static int mixart_sync_nonblock_events(mixart_mgr_t *mgr)
 /*
  *  prepare callback for all pcms
  */
-static int snd_mixart_prepare(snd_pcm_substream_t *subs)
+static int snd_mixart_prepare(struct snd_pcm_substream *subs)
 {
-	mixart_t *chip = snd_pcm_substream_chip(subs);
-	mixart_stream_t *stream = (mixart_stream_t*)subs->runtime->private_data;
+	struct snd_mixart *chip = snd_pcm_substream_chip(subs);
+	struct mixart_stream *stream = subs->runtime->private_data;
 
 	/* TODO de façon non bloquante, réappliquer les hw_params (rate, bits, codec) */
 
@@ -485,13 +490,13 @@ static int snd_mixart_prepare(snd_pcm_substream_t *subs)
 }
 
 
-static int mixart_set_format(mixart_stream_t *stream, snd_pcm_format_t format)
+static int mixart_set_format(struct mixart_stream *stream, snd_pcm_format_t format)
 {
 	int err;
-	mixart_t *chip;
-	mixart_msg_t request;
-	mixart_stream_param_desc_t stream_param;
-	mixart_return_uid_t resp;
+	struct snd_mixart *chip;
+	struct mixart_msg request;
+	struct mixart_stream_param_desc stream_param;
+	struct mixart_return_uid resp;
 
 	chip = snd_pcm_substream_chip(stream->substream);
 
@@ -552,7 +557,7 @@ static int mixart_set_format(mixart_stream_t *stream, snd_pcm_format_t format)
 	stream_param.stream_desc[0].stream_idx = stream->substream->number;
 
 	request.message_id = MSG_STREAM_SET_INPUT_STAGE_PARAM;
-	request.uid = (mixart_uid_t){0,0};
+	request.uid = (struct mixart_uid){0,0};
 	request.data = &stream_param;
 	request.size = sizeof(stream_param);
 
@@ -568,12 +573,12 @@ static int mixart_set_format(mixart_stream_t *stream, snd_pcm_format_t format)
 /*
  *  HW_PARAMS callback for all pcms
  */
-static int snd_mixart_hw_params(snd_pcm_substream_t *subs,
-                                snd_pcm_hw_params_t *hw)
+static int snd_mixart_hw_params(struct snd_pcm_substream *subs,
+                                struct snd_pcm_hw_params *hw)
 {
-	mixart_t *chip = snd_pcm_substream_chip(subs);
-	mixart_mgr_t *mgr = chip->mgr;
-	mixart_stream_t *stream = (mixart_stream_t*)subs->runtime->private_data;
+	struct snd_mixart *chip = snd_pcm_substream_chip(subs);
+	struct mixart_mgr *mgr = chip->mgr;
+	struct mixart_stream *stream = subs->runtime->private_data;
 	snd_pcm_format_t format;
 	int err;
 	int channels;
@@ -628,9 +633,9 @@ static int snd_mixart_hw_params(snd_pcm_substream_t *subs,
 	return err;
 }
 
-static int snd_mixart_hw_free(snd_pcm_substream_t *subs)
+static int snd_mixart_hw_free(struct snd_pcm_substream *subs)
 {
-	mixart_t *chip = snd_pcm_substream_chip(subs);
+	struct snd_mixart *chip = snd_pcm_substream_chip(subs);
 	snd_pcm_lib_free_pages(subs);
 	mixart_sync_nonblock_events(chip->mgr);
 	return 0;
@@ -641,7 +646,7 @@ static int snd_mixart_hw_free(snd_pcm_substream_t *subs)
 /*
  *  TODO CONFIGURATION SPACE for all pcms, mono pcm must update channels_max
  */
-static snd_pcm_hardware_t snd_mixart_analog_caps =
+static struct snd_pcm_hardware snd_mixart_analog_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_SYNC_START |
@@ -662,7 +667,7 @@ static snd_pcm_hardware_t snd_mixart_analog_caps =
 	.periods_max      = (32*1024/256),
 };
 
-static snd_pcm_hardware_t snd_mixart_digital_caps =
+static struct snd_pcm_hardware snd_mixart_digital_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 			      SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_SYNC_START |
@@ -684,14 +689,14 @@ static snd_pcm_hardware_t snd_mixart_digital_caps =
 };
 
 
-static int snd_mixart_playback_open(snd_pcm_substream_t *subs)
+static int snd_mixart_playback_open(struct snd_pcm_substream *subs)
 {
-	mixart_t            *chip = snd_pcm_substream_chip(subs);
-	mixart_mgr_t        *mgr = chip->mgr;
-	snd_pcm_runtime_t   *runtime = subs->runtime;
-	snd_pcm_t           *pcm = subs->pcm;
-	mixart_stream_t     *stream;
-	mixart_pipe_t       *pipe;
+	struct snd_mixart            *chip = snd_pcm_substream_chip(subs);
+	struct mixart_mgr        *mgr = chip->mgr;
+	struct snd_pcm_runtime *runtime = subs->runtime;
+	struct snd_pcm *pcm = subs->pcm;
+	struct mixart_stream     *stream;
+	struct mixart_pipe       *pipe;
 	int err = 0;
 	int pcm_number;
 
@@ -759,14 +764,14 @@ static int snd_mixart_playback_open(snd_pcm_substream_t *subs)
 }
 
 
-static int snd_mixart_capture_open(snd_pcm_substream_t *subs)
+static int snd_mixart_capture_open(struct snd_pcm_substream *subs)
 {
-	mixart_t            *chip = snd_pcm_substream_chip(subs);
-	mixart_mgr_t        *mgr = chip->mgr;
-	snd_pcm_runtime_t   *runtime = subs->runtime;
-	snd_pcm_t           *pcm = subs->pcm;
-	mixart_stream_t     *stream;
-	mixart_pipe_t       *pipe;
+	struct snd_mixart            *chip = snd_pcm_substream_chip(subs);
+	struct mixart_mgr        *mgr = chip->mgr;
+	struct snd_pcm_runtime *runtime = subs->runtime;
+	struct snd_pcm *pcm = subs->pcm;
+	struct mixart_stream     *stream;
+	struct mixart_pipe       *pipe;
 	int err = 0;
 	int pcm_number;
 
@@ -838,11 +843,11 @@ static int snd_mixart_capture_open(snd_pcm_substream_t *subs)
 
 
 
-static int snd_mixart_close(snd_pcm_substream_t *subs)
+static int snd_mixart_close(struct snd_pcm_substream *subs)
 {
-	mixart_t *chip = snd_pcm_substream_chip(subs);
-	mixart_mgr_t *mgr = chip->mgr;
-	mixart_stream_t *stream = (mixart_stream_t*)subs->runtime->private_data;
+	struct snd_mixart *chip = snd_pcm_substream_chip(subs);
+	struct mixart_mgr *mgr = chip->mgr;
+	struct mixart_stream *stream = subs->runtime->private_data;
 
 	down(&mgr->setup_mutex);
 
@@ -868,17 +873,17 @@ static int snd_mixart_close(snd_pcm_substream_t *subs)
 }
 
 
-static snd_pcm_uframes_t snd_mixart_stream_pointer(snd_pcm_substream_t * subs)
+static snd_pcm_uframes_t snd_mixart_stream_pointer(struct snd_pcm_substream *subs)
 {
-	snd_pcm_runtime_t *runtime = subs->runtime;
-	mixart_stream_t   *stream  = (mixart_stream_t*)runtime->private_data;
+	struct snd_pcm_runtime *runtime = subs->runtime;
+	struct mixart_stream   *stream  = runtime->private_data;
 
 	return (snd_pcm_uframes_t)((stream->buf_periods * runtime->period_size) + stream->buf_period_frag);
 }
 
 
 
-static snd_pcm_ops_t snd_mixart_playback_ops = {
+static struct snd_pcm_ops snd_mixart_playback_ops = {
 	.open      = snd_mixart_playback_open,
 	.close     = snd_mixart_close,
 	.ioctl     = snd_pcm_lib_ioctl,
@@ -889,7 +894,7 @@ static snd_pcm_ops_t snd_mixart_playback_ops = {
 	.pointer   = snd_mixart_stream_pointer,
 };
 
-static snd_pcm_ops_t snd_mixart_capture_ops = {
+static struct snd_pcm_ops snd_mixart_capture_ops = {
 	.open      = snd_mixart_capture_open,
 	.close     = snd_mixart_close,
 	.ioctl     = snd_pcm_lib_ioctl,
@@ -900,10 +905,10 @@ static snd_pcm_ops_t snd_mixart_capture_ops = {
 	.pointer   = snd_mixart_stream_pointer,
 };
 
-static void preallocate_buffers(mixart_t *chip, snd_pcm_t *pcm)
+static void preallocate_buffers(struct snd_mixart *chip, struct snd_pcm *pcm)
 {
 #if 0
-	snd_pcm_substream_t *subs;
+	struct snd_pcm_substream *subs;
 	int stream;
 
 	for (stream = 0; stream < 2; stream++) {
@@ -921,10 +926,10 @@ static void preallocate_buffers(mixart_t *chip, snd_pcm_t *pcm)
 
 /*
  */
-static int snd_mixart_pcm_analog(mixart_t *chip)
+static int snd_mixart_pcm_analog(struct snd_mixart *chip)
 {
 	int err;
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	char name[32];
 
 	sprintf(name, "miXart analog %d", chip->chip_idx);
@@ -952,10 +957,10 @@ static int snd_mixart_pcm_analog(mixart_t *chip)
 
 /*
  */
-static int snd_mixart_pcm_digital(mixart_t *chip)
+static int snd_mixart_pcm_digital(struct snd_mixart *chip)
 {
 	int err;
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	char name[32];
 
 	sprintf(name, "miXart AES/EBU %d", chip->chip_idx);
@@ -980,26 +985,26 @@ static int snd_mixart_pcm_digital(mixart_t *chip)
 	return 0;
 }
 
-static int snd_mixart_chip_free(mixart_t *chip)
+static int snd_mixart_chip_free(struct snd_mixart *chip)
 {
 	kfree(chip);
 	return 0;
 }
 
-static int snd_mixart_chip_dev_free(snd_device_t *device)
+static int snd_mixart_chip_dev_free(struct snd_device *device)
 {
-	mixart_t *chip = device->device_data;
+	struct snd_mixart *chip = device->device_data;
 	return snd_mixart_chip_free(chip);
 }
 
 
 /*
  */
-static int __devinit snd_mixart_create(mixart_mgr_t *mgr, snd_card_t *card, int idx)
+static int __devinit snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *card, int idx)
 {
 	int err;
-	mixart_t *chip;
-	static snd_device_ops_t ops = {
+	struct snd_mixart *chip;
+	static struct snd_device_ops ops = {
 		.dev_free = snd_mixart_chip_dev_free,
 	};
 
@@ -1023,7 +1028,7 @@ static int __devinit snd_mixart_create(mixart_mgr_t *mgr, snd_card_t *card, int 
 	return 0;
 }
 
-int snd_mixart_create_pcm(mixart_t* chip)
+int snd_mixart_create_pcm(struct snd_mixart* chip)
 {
 	int err;
 
@@ -1044,7 +1049,7 @@ int snd_mixart_create_pcm(mixart_t* chip)
 /*
  * release all the cards assigned to a manager instance
  */
-static int snd_mixart_free(mixart_mgr_t *mgr)
+static int snd_mixart_free(struct mixart_mgr *mgr)
 {
 	unsigned int i;
 
@@ -1092,7 +1097,7 @@ static int snd_mixart_free(mixart_mgr_t *mgr)
 /*
  * proc interface
  */
-static long long snd_mixart_BA0_llseek(snd_info_entry_t *entry,
+static long long snd_mixart_BA0_llseek(struct snd_info_entry *entry,
 				       void *private_file_data,
 				       struct file *file,
 				       long long offset,
@@ -1118,7 +1123,7 @@ static long long snd_mixart_BA0_llseek(snd_info_entry_t *entry,
 	return file->f_pos;
 }
 
-static long long snd_mixart_BA1_llseek(snd_info_entry_t *entry,
+static long long snd_mixart_BA1_llseek(struct snd_info_entry *entry,
 				       void *private_file_data,
 				       struct file *file,
 				       long long offset,
@@ -1147,11 +1152,11 @@ static long long snd_mixart_BA1_llseek(snd_info_entry_t *entry,
 /*
   mixart_BA0 proc interface for BAR 0 - read callback
  */
-static long snd_mixart_BA0_read(snd_info_entry_t *entry, void *file_private_data,
+static long snd_mixart_BA0_read(struct snd_info_entry *entry, void *file_private_data,
 				struct file *file, char __user *buf,
 				unsigned long count, unsigned long pos)
 {
-	mixart_mgr_t *mgr = entry->private_data;
+	struct mixart_mgr *mgr = entry->private_data;
 
 	count = count & ~3; /* make sure the read size is a multiple of 4 bytes */
 	if(count <= 0)
@@ -1166,11 +1171,11 @@ static long snd_mixart_BA0_read(snd_info_entry_t *entry, void *file_private_data
 /*
   mixart_BA1 proc interface for BAR 1 - read callback
  */
-static long snd_mixart_BA1_read(snd_info_entry_t *entry, void *file_private_data,
+static long snd_mixart_BA1_read(struct snd_info_entry *entry, void *file_private_data,
 				struct file *file, char __user *buf,
 				unsigned long count, unsigned long pos)
 {
-	mixart_mgr_t *mgr = entry->private_data;
+	struct mixart_mgr *mgr = entry->private_data;
 
 	count = count & ~3; /* make sure the read size is a multiple of 4 bytes */
 	if(count <= 0)
@@ -1193,10 +1198,10 @@ static struct snd_info_entry_ops snd_mixart_proc_ops_BA1 = {
 };
 
 
-static void snd_mixart_proc_read(snd_info_entry_t *entry, 
-                                 snd_info_buffer_t * buffer)
+static void snd_mixart_proc_read(struct snd_info_entry *entry, 
+                                 struct snd_info_buffer *buffer)
 {
-	mixart_t *chip = entry->private_data;        
+	struct snd_mixart *chip = entry->private_data;        
 	u32 ref; 
 
 	snd_iprintf(buffer, "Digigram miXart (alsa card %d)\n\n", chip->chip_idx);
@@ -1229,9 +1234,9 @@ static void snd_mixart_proc_read(snd_info_entry_t *entry,
 	} /* endif elf loaded */
 }
 
-static void __devinit snd_mixart_proc_init(mixart_t *chip)
+static void __devinit snd_mixart_proc_init(struct snd_mixart *chip)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	/* text interface to read perf and temp meters */
 	if (! snd_card_proc_new(chip->card, "board_info", &entry)) {
@@ -1263,7 +1268,7 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 				      const struct pci_device_id *pci_id)
 {
 	static int dev;
-	mixart_mgr_t *mgr;
+	struct mixart_mgr *mgr;
 	unsigned int i;
 	int err;
 	size_t size;
@@ -1338,12 +1343,12 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 	init_MUTEX(&mgr->setup_mutex);
 
 	/* init message taslket */
-	tasklet_init( &mgr->msg_taskq, snd_mixart_msg_tasklet, (unsigned long) mgr);
+	tasklet_init(&mgr->msg_taskq, snd_mixart_msg_tasklet, (unsigned long) mgr);
 
 	/* card assignment */
 	mgr->num_cards = MIXART_MAX_CARDS; /* 4  FIXME: configurable? */
 	for (i = 0; i < mgr->num_cards; i++) {
-		snd_card_t *card;
+		struct snd_card *card;
 		char tmpid[16];
 		int idx;
 
@@ -1384,7 +1389,8 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 	mgr->board_type = MIXART_DAUGHTER_TYPE_NONE;
 
 	/* create array of streaminfo */
-	size = PAGE_ALIGN( (MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS * sizeof(mixart_flowinfo_t)) );
+	size = PAGE_ALIGN( (MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS *
+			    sizeof(struct mixart_flowinfo)) );
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				size, &mgr->flowinfo) < 0) {
 		snd_mixart_free(mgr);
@@ -1394,7 +1400,8 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 	memset(mgr->flowinfo.area, 0, size);
 
 	/* create array of bufferinfo */
-	size = PAGE_ALIGN( (MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS * sizeof(mixart_bufferinfo_t)) );
+	size = PAGE_ALIGN( (MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS *
+			    sizeof(struct mixart_bufferinfo)) );
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				size, &mgr->bufferinfo) < 0) {
 		snd_mixart_free(mgr);

@@ -1,17 +1,39 @@
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
-	depends on VIDEO_DEV && PCI && I2C && SOUND && SND
+	depends on VIDEO_DEV && PCI && I2C
 	select VIDEO_BUF
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select CRC32
-	select SND_PCM_OSS
 	---help---
 	  This is a video4linux driver for Philips SAA713x based
 	  TV cards.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7134.
+
+config VIDEO_SAA7134_ALSA
+	tristate "Philips SAA7134 DMA audio support"
+	depends on VIDEO_SAA7134 && SND
+	select SND_PCM_OSS
+	---help---
+	  This is a video4linux driver for direct (DMA) audio in
+	  Philips SAA713x based TV cards using ALSA
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7134-alsa.
+
+config VIDEO_SAA7134_OSS
+	tristate "Philips SAA7134 DMA audio support (OSS, DEPRECATED)"
+	depends on VIDEO_SAA7134 && SOUND_PRIME && !VIDEO_SAA7134_ALSA
+	---help---
+	  This is a video4linux driver for direct (DMA) audio in
+	  Philips SAA713x based TV cards using OSS
+
+	  This is deprecated in favor of the ALSA module
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa7134-oss.
 
 config VIDEO_SAA7134_DVB
 	tristate "DVB/ATSC Support for saa7134 based TV cards"

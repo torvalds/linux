@@ -345,6 +345,7 @@ fls (int t)
 	x |= x >> 16;
 	return ia64_popcnt(x);
 }
+#define fls64(x)   generic_fls64(x)
 
 /*
  * ffs: find first bit set. This is defined the same way as the libc and compiler builtin

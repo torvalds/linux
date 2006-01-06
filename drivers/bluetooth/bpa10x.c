@@ -619,7 +619,6 @@ static void bpa10x_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver bpa10x_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "bpa10x",
 	.probe		= bpa10x_probe,
 	.disconnect	= bpa10x_disconnect,

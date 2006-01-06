@@ -151,7 +151,7 @@ instance_create(u_int16_t group_num, int pid)
 		goto out_unlock;
 
 	INIT_HLIST_NODE(&inst->hlist);
-	inst->lock = SPIN_LOCK_UNLOCKED;
+	spin_lock_init(&inst->lock);
 	/* needs to be two, since we _put() after creation */
 	atomic_set(&inst->use, 2);
 

@@ -31,9 +31,6 @@
 #ifndef HIGH8
 	#define HIGH8(a)	((unsigned char)((a & 0xff00) >> 8))
 #endif
-#ifndef NUM_ENTRIES
-	#define NUM_ENTRIES(x)	(sizeof(x)/sizeof((x)[0]))
-#endif
 
 #ifndef __KERNEL__
 #define __KERNEL__

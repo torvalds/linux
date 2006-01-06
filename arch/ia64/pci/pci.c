@@ -700,7 +700,7 @@ int ia64_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
  */
 int ia64_pci_legacy_write(struct pci_dev *bus, u16 port, u32 val, u8 size)
 {
-	int ret = 0;
+	int ret = size;
 
 	switch (size) {
 	case 1:

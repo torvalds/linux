@@ -9,6 +9,9 @@
  *     <oliver.kurth@cyclades.de>
  * Further fixes, v2.6 kernel port
  *     <marcelo.tosatti@cyclades.com>
+ * 
+ * Some fixes, additions (C) 2005 Montavista Software, Inc. 
+ *     <vbordug@ru.mvista.com>
  *
  * "The ExCA standard specifies that socket controllers should provide
  * two IO and five memory windows per socket, which can be independently
@@ -95,6 +98,11 @@ MODULE_LICENSE("Dual MPL/GPL");
 #else
 #define CONFIG_PCMCIA_SLOT_B
 #endif
+#endif
+
+#if defined(CONFIG_MPC885ADS)
+#define CONFIG_PCMCIA_SLOT_A
+#define PCMCIA_GLITCHY_CD
 #endif
 
 /* Cyclades ACS uses both slots */
@@ -374,10 +382,10 @@ static int voltage_set(int slot, int vcc, int vpp)
 	}
 
 	/* first, turn off all power */
-	out_be32(&((u32 *)BCSR1), in_be32(&((u32 *)BCSR1)) & ~(BCSR1_PCCVCC_MASK | BCSR1_PCCVPP_MASK));
+	out_be32((u32 *)BCSR1, in_be32((u32 *)BCSR1) & ~(BCSR1_PCCVCC_MASK | BCSR1_PCCVPP_MASK));
 
 	/* enable new powersettings */
-	out_be32(&((u32 *)BCSR1), in_be32(&((u32 *)BCSR1)) | reg);
+	out_be32((u32 *)BCSR1, in_be32((u32 *)BCSR1) | reg);
 
 	return 0;
 }
@@ -386,12 +394,89 @@ static int voltage_set(int slot, int vcc, int vpp)
 
 static void hardware_enable(int slot)
 {
-	out_be32(&((u32 *)BCSR1), in_be32(&((u32 *)BCSR1)) & ~BCSR1_PCCEN);
+	out_be32((u32 *)BCSR1, in_be32((u32 *)BCSR1) & ~BCSR1_PCCEN);
 }
 
 static void hardware_disable(int slot)
 {
-	out_be32(&((u32 *)BCSR1), in_be32(&((u32 *)BCSR1)) |  BCSR1_PCCEN);
+	out_be32((u32 *)BCSR1, in_be32((u32 *)BCSR1) |  BCSR1_PCCEN);
+}
+
+#endif
+
+/* MPC885ADS Boards */
+
+#if defined(CONFIG_MPC885ADS)
+
+#define PCMCIA_BOARD_MSG "MPC885ADS"
+
+static int voltage_set(int slot, int vcc, int vpp)
+{
+	u32 reg = 0;
+	unsigned *bcsr_io;
+
+	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
+
+	switch(vcc) {
+		case 0:
+			break;
+		case 33:
+			reg |= BCSR1_PCCVCC0;
+			break;
+		case 50:
+			reg |= BCSR1_PCCVCC1;
+			break;
+		default:
+			return 1;
+	}
+
+	switch(vpp) {
+		case 0:
+			break;
+		case 33:
+		case 50:
+			if(vcc == vpp)
+				reg |= BCSR1_PCCVPP1;
+			else
+				return 1;
+			break;
+		case 120:
+			if ((vcc == 33) || (vcc == 50))
+				reg |= BCSR1_PCCVPP0;
+			else
+				return 1;
+		default:
+			return 1;
+	}
+
+	/* first, turn off all power */
+	out_be32(bcsr_io, in_be32(bcsr_io) & ~(BCSR1_PCCVCC_MASK | BCSR1_PCCVPP_MASK));
+
+	/* enable new powersettings */
+	out_be32(bcsr_io, in_be32(bcsr_io) | reg);
+
+	iounmap(bcsr_io);
+	return 0;
+}
+
+#define socket_get(_slot_) PCMCIA_SOCKET_KEY_5V
+
+static void hardware_enable(int slot)
+{
+	unsigned *bcsr_io;
+
+	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
+	out_be32(bcsr_io, in_be32(bcsr_io) & ~BCSR1_PCCEN);
+	iounmap(bcsr_io);
+}
+
+static void hardware_disable(int slot)
+{
+	unsigned *bcsr_io;
+
+	bcsr_io = ioremap(BCSR1, sizeof(unsigned long));
+	out_be32(bcsr_io, in_be32(bcsr_io) |  BCSR1_PCCEN);
+	iounmap(bcsr_io);
 }
 
 #endif
@@ -440,10 +525,10 @@ static int voltage_set(int slot, int vcc, int vpp)
 	}
 
 	/* first, turn off all power */
-	out_8(&((u8 *)MBX_CSR2_ADDR), in_8(&((u8 *)MBX_CSR2_ADDR)) & ~(CSR2_VCC_MASK | CSR2_VPP_MASK));
+	out_8((u8 *)MBX_CSR2_ADDR, in_8((u8 *)MBX_CSR2_ADDR) & ~(CSR2_VCC_MASK | CSR2_VPP_MASK));
 
 	/* enable new powersettings */
-	out_8(&((u8 *)MBX_CSR2_ADDR), in_8(&((u8 *)MBX_CSR2_ADDR)) | reg);
+	out_8((u8 *)MBX_CSR2_ADDR, in_8((u8 *)MBX_CSR2_ADDR) | reg);
 
 	return 0;
 }
@@ -823,17 +908,6 @@ static int m8xx_get_status(struct pcmcia_socket *sock, unsigned int *value)
 	return 0;
 }
 
-static int m8xx_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-	int lsock = container_of(sock, struct socket_info, socket)->slot;
-	*state = socket[lsock].state; /* copy the whole structure */
-
-	dprintk("GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
-	      "io_irq %d, csc_mask %#2.2x\n", lsock, state->flags,
-	      state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
-	return 0;
-}
-
 static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 {
 	int lsock = container_of(sock, struct socket_info, socket)->slot;
@@ -1023,8 +1097,7 @@ static int m8xx_set_io_map(struct pcmcia_socket *sock, struct pccard_io_map *io)
 		if(io->flags & MAP_WRPROT)
 			reg |= M8XX_PCMCIA_POR_WRPROT;
 
-		/*if(io->flags & (MAP_16BIT | MAP_AUTOSZ))*/
-		if(io->flags & MAP_16BIT)
+		if(io->flags & (MAP_16BIT | MAP_AUTOSZ))
 			reg |= M8XX_PCMCIA_POR_16BIT;
 
 		if(io->flags & MAP_ACTIVE)
@@ -1169,7 +1242,6 @@ static struct pccard_operations m8xx_services = {
 	.init	= m8xx_sock_init,
 	.suspend = m8xx_suspend,
 	.get_status = m8xx_get_status,
-	.get_socket = m8xx_get_socket,
 	.set_socket = m8xx_set_socket,
 	.set_io_map = m8xx_set_io_map,
 	.set_mem_map = m8xx_set_mem_map,
@@ -1244,7 +1316,7 @@ static int __init m8xx_init(void)
 		socket[i].socket.io_offset = 0;
 		socket[i].socket.pci_irq = i  ? 7 : 9;
 		socket[i].socket.ops = &m8xx_services;
-		socket[i].socket.resource_ops = &pccard_nonstatic_ops;
+		socket[i].socket.resource_ops = &pccard_iodyn_ops;
 		socket[i].socket.cb_dev = NULL;
 		socket[i].socket.dev.dev = &m8xx_device.dev;
 	}

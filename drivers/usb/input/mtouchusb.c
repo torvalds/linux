@@ -310,7 +310,6 @@ static void mtouchusb_disconnect(struct usb_interface *intf)
 MODULE_DEVICE_TABLE(usb, mtouchusb_devices);
 
 static struct usb_driver mtouchusb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "mtouchusb",
 	.probe		= mtouchusb_probe,
 	.disconnect	= mtouchusb_disconnect,

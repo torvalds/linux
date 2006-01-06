@@ -175,7 +175,6 @@ MODULE_DEVICE_TABLE (usb, usb_klsi_table);
  *     kaweth_driver
  ****************************************************************/
 static struct usb_driver kaweth_driver = {
-	.owner =	THIS_MODULE,
 	.name =		driver_name,
 	.probe =	kaweth_probe,
 	.disconnect =	kaweth_disconnect,

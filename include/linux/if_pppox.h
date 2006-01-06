@@ -157,8 +157,7 @@ struct pppox_proto {
 extern int register_pppox_proto(int proto_num, struct pppox_proto *pp);
 extern void unregister_pppox_proto(int proto_num);
 extern void pppox_unbind_sock(struct sock *sk);/* delete ppp-channel binding */
-extern int pppox_channel_ioctl(struct ppp_channel *pc, unsigned int cmd,
-			       unsigned long arg);
+extern int pppox_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 
 /* PPPoX socket states */
 enum {

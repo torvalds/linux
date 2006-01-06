@@ -22,11 +22,10 @@
 #ifndef __SOUND_ASEQUENCER_H
 #define __SOUND_ASEQUENCER_H
 
-#ifndef __KERNEL__
+#ifdef __KERNEL__
 #include <linux/ioctl.h>
-#endif
-
 #include <sound/asound.h>
+#endif
 
 /** version of the sequencer */
 #define SNDRV_SEQ_VERSION SNDRV_PROTOCOL_VERSION (1, 0, 1)
@@ -36,13 +35,13 @@
  */
 
 /** system messages
- * event data type = #sndrv_seq_result_t
+ * event data type = #snd_seq_result
  */
 #define SNDRV_SEQ_EVENT_SYSTEM		0
 #define SNDRV_SEQ_EVENT_RESULT		1
 
 /** note messages (channel specific)
- * event data type = #sndrv_seq_ev_note
+ * event data type = #snd_seq_ev_note
  */
 #define SNDRV_SEQ_EVENT_NOTE		5
 #define SNDRV_SEQ_EVENT_NOTEON		6
@@ -50,7 +49,7 @@
 #define SNDRV_SEQ_EVENT_KEYPRESS	8
 	
 /** control messages (channel specific)
- * event data type = #sndrv_seq_ev_ctrl
+ * event data type = #snd_seq_ev_ctrl
  */
 #define SNDRV_SEQ_EVENT_CONTROLLER	10
 #define SNDRV_SEQ_EVENT_PGMCHANGE	11
@@ -61,7 +60,7 @@
 #define SNDRV_SEQ_EVENT_REGPARAM	16	/**< 14 bit RPN address + 14 bit unsigned value */
 
 /** synchronisation messages
- * event data type = #sndrv_seq_ev_ctrl
+ * event data type = #snd_seq_ev_ctrl
  */
 #define SNDRV_SEQ_EVENT_SONGPOS		20	/* Song Position Pointer with LSB and MSB values */
 #define SNDRV_SEQ_EVENT_SONGSEL		21	/* Song Select with song ID number */
@@ -70,7 +69,7 @@
 #define SNDRV_SEQ_EVENT_KEYSIGN		24	/* SMF Key Signature event */
 	        
 /** timer messages
- * event data type = sndrv_seq_ev_queue_control_t
+ * event data type = snd_seq_ev_queue_control
  */
 #define SNDRV_SEQ_EVENT_START		30	/* midi Real Time Start message */
 #define SNDRV_SEQ_EVENT_CONTINUE	31	/* midi Real Time Continue message */
@@ -96,7 +95,7 @@
 #define SNDRV_SEQ_EVENT_OSS		51	/* OSS raw event */
 
 /** system status messages (broadcast for subscribers)
- * event data type = sndrv_seq_addr_t
+ * event data type = snd_seq_addr
  */
 #define SNDRV_SEQ_EVENT_CLIENT_START	60	/* new client has connected */
 #define SNDRV_SEQ_EVENT_CLIENT_EXIT	61	/* client has left the system */
@@ -106,13 +105,13 @@
 #define SNDRV_SEQ_EVENT_PORT_CHANGE	65	/* port status/info has changed */
 
 /** port connection changes
- * event data type = sndrv_seq_connect_t
+ * event data type = snd_seq_connect
  */
 #define SNDRV_SEQ_EVENT_PORT_SUBSCRIBED	66	/* ports connected */
 #define SNDRV_SEQ_EVENT_PORT_UNSUBSCRIBED 67	/* ports disconnected */
 
 /** synthesizer events
- * event data type = sndrv_seq_eve_sample_control_t
+ * event data type = snd_seq_eve_sample_control
  */
 #define SNDRV_SEQ_EVENT_SAMPLE		70	/* sample select */
 #define SNDRV_SEQ_EVENT_SAMPLE_CLUSTER	71	/* sample cluster select */
@@ -163,7 +162,7 @@
 /* 119-129: reserved */
 
 /* 130-139: variable length events
- * event data type = sndrv_seq_ev_ext
+ * event data type = snd_seq_ev_ext
  * (SNDRV_SEQ_EVENT_LENGTH_VARIABLE must be set)
  */
 #define SNDRV_SEQ_EVENT_SYSEX		130	/* system exclusive data (variable length) */
@@ -187,18 +186,18 @@
 #define SNDRV_SEQ_EVENT_NONE		255
 
 
-typedef unsigned char sndrv_seq_event_type_t;
+typedef unsigned char snd_seq_event_type_t;
 
 /** event address */
-struct sndrv_seq_addr {
+struct snd_seq_addr {
 	unsigned char client;	/**< Client number:         0..255, 255 = broadcast to all clients */
 	unsigned char port;	/**< Port within client:    0..255, 255 = broadcast to all ports */
 };
 
 /** port connection */
-struct sndrv_seq_connect {
-	struct sndrv_seq_addr sender;
-	struct sndrv_seq_addr dest;
+struct snd_seq_connect {
+	struct snd_seq_addr sender;
+	struct snd_seq_addr dest;
 };
 
 
@@ -227,7 +226,7 @@ struct sndrv_seq_connect {
 
 
 	/* note event */
-struct sndrv_seq_ev_note {
+struct snd_seq_ev_note {
 	unsigned char channel;
 	unsigned char note;
 	unsigned char velocity;
@@ -236,7 +235,7 @@ struct sndrv_seq_ev_note {
 };
 
 	/* controller event */
-struct sndrv_seq_ev_ctrl {
+struct snd_seq_ev_ctrl {
 	unsigned char channel;
 	unsigned char unused1, unused2, unused3;	/* pad */
 	unsigned int param;
@@ -244,59 +243,59 @@ struct sndrv_seq_ev_ctrl {
 };
 
 	/* generic set of bytes (12x8 bit) */
-struct sndrv_seq_ev_raw8 {
+struct snd_seq_ev_raw8 {
 	unsigned char d[12];	/* 8 bit value */
 };
 
 	/* generic set of integers (3x32 bit) */
-struct sndrv_seq_ev_raw32 {
+struct snd_seq_ev_raw32 {
 	unsigned int d[3];	/* 32 bit value */
 };
 
 	/* external stored data */
-struct sndrv_seq_ev_ext {
+struct snd_seq_ev_ext {
 	unsigned int len;	/* length of data */
 	void *ptr;		/* pointer to data (note: maybe 64-bit) */
 } __attribute__((packed));
 
 /* Instrument cluster type */
-typedef unsigned int sndrv_seq_instr_cluster_t;
+typedef unsigned int snd_seq_instr_cluster_t;
 
 /* Instrument type */
-struct sndrv_seq_instr {
-	sndrv_seq_instr_cluster_t cluster;
+struct snd_seq_instr {
+	snd_seq_instr_cluster_t cluster;
 	unsigned int std;		/* the upper byte means a private instrument (owner - client #) */
 	unsigned short bank;
 	unsigned short prg;
 };
 
 	/* sample number */
-struct sndrv_seq_ev_sample {
+struct snd_seq_ev_sample {
 	unsigned int std;
 	unsigned short bank;
 	unsigned short prg;
 };
 
 	/* sample cluster */
-struct sndrv_seq_ev_cluster {
-	sndrv_seq_instr_cluster_t cluster;
+struct snd_seq_ev_cluster {
+	snd_seq_instr_cluster_t cluster;
 };
 
 	/* sample position */
-typedef unsigned int sndrv_seq_position_t; /* playback position (in samples) * 16 */
+typedef unsigned int snd_seq_position_t; /* playback position (in samples) * 16 */
 
 	/* sample stop mode */
-enum sndrv_seq_stop_mode {
+enum {
 	SAMPLE_STOP_IMMEDIATELY = 0,	/* terminate playing immediately */
 	SAMPLE_STOP_VENVELOPE = 1,	/* finish volume envelope */
 	SAMPLE_STOP_LOOP = 2		/* terminate loop and finish wave */
 };
 
 	/* sample frequency */
-typedef int sndrv_seq_frequency_t; /* playback frequency in HZ * 16 */
+typedef int snd_seq_frequency_t; /* playback frequency in HZ * 16 */
 
 	/* sample volume control; if any value is set to -1 == do not change */
-struct sndrv_seq_ev_volume {
+struct snd_seq_ev_volume {
 	signed short volume;	/* range: 0-16383 */
 	signed short lr;	/* left-right balance; range: 0-16383 */
 	signed short fr;	/* front-rear balance; range: 0-16383 */
@@ -304,22 +303,22 @@ struct sndrv_seq_ev_volume {
 };
 
 	/* simple loop redefinition */
-struct sndrv_seq_ev_loop {
+struct snd_seq_ev_loop {
 	unsigned int start;	/* loop start (in samples) * 16 */
 	unsigned int end;	/* loop end (in samples) * 16 */
 };
 
-struct sndrv_seq_ev_sample_control {
+struct snd_seq_ev_sample_control {
 	unsigned char channel;
 	unsigned char unused1, unused2, unused3;	/* pad */
 	union {
-		struct sndrv_seq_ev_sample sample;
-		struct sndrv_seq_ev_cluster cluster;
-		sndrv_seq_position_t position;
-		enum sndrv_seq_stop_mode stop_mode;
-		sndrv_seq_frequency_t frequency;
-		struct sndrv_seq_ev_volume volume;
-		struct sndrv_seq_ev_loop loop;
+		struct snd_seq_ev_sample sample;
+		struct snd_seq_ev_cluster cluster;
+		snd_seq_position_t position;
+		int stop_mode;
+		snd_seq_frequency_t frequency;
+		struct snd_seq_ev_volume volume;
+		struct snd_seq_ev_loop loop;
 		unsigned char raw8[8];
 	} param;
 };
@@ -327,82 +326,82 @@ struct sndrv_seq_ev_sample_control {
 
 
 /* INSTR_BEGIN event */
-struct sndrv_seq_ev_instr_begin {
+struct snd_seq_ev_instr_begin {
 	int timeout;		/* zero = forever, otherwise timeout in ms */
 };
 
-struct sndrv_seq_result {
+struct snd_seq_result {
 	int event;		/* processed event type */
 	int result;
 };
 
 
-struct sndrv_seq_real_time {
+struct snd_seq_real_time {
 	unsigned int tv_sec;	/* seconds */
 	unsigned int tv_nsec;	/* nanoseconds */
 };
 
-typedef unsigned int sndrv_seq_tick_time_t;	/* midi ticks */
+typedef unsigned int snd_seq_tick_time_t;	/* midi ticks */
 
-union sndrv_seq_timestamp {
-	sndrv_seq_tick_time_t tick;
-	struct sndrv_seq_real_time time;
+union snd_seq_timestamp {
+	snd_seq_tick_time_t tick;
+	struct snd_seq_real_time time;
 };
 
-struct sndrv_seq_queue_skew {
+struct snd_seq_queue_skew {
 	unsigned int value;
 	unsigned int base;
 };
 
 	/* queue timer control */
-struct sndrv_seq_ev_queue_control {
+struct snd_seq_ev_queue_control {
 	unsigned char queue;			/* affected queue */
 	unsigned char pad[3];			/* reserved */
 	union {
 		signed int value;		/* affected value (e.g. tempo) */
-		union sndrv_seq_timestamp time;	/* time */
+		union snd_seq_timestamp time;	/* time */
 		unsigned int position;		/* sync position */
-		struct sndrv_seq_queue_skew skew;
+		struct snd_seq_queue_skew skew;
 		unsigned int d32[2];
 		unsigned char d8[8];
 	} param;
 };
 
 	/* quoted event - inside the kernel only */
-struct sndrv_seq_ev_quote {
-	struct sndrv_seq_addr origin;		/* original sender */
+struct snd_seq_ev_quote {
+	struct snd_seq_addr origin;		/* original sender */
 	unsigned short value;		/* optional data */
-	struct sndrv_seq_event *event;		/* quoted event */
+	struct snd_seq_event *event;		/* quoted event */
 } __attribute__((packed));
 
 
 	/* sequencer event */
-struct sndrv_seq_event {
-	sndrv_seq_event_type_t type;	/* event type */
+struct snd_seq_event {
+	snd_seq_event_type_t type;	/* event type */
 	unsigned char flags;		/* event flags */
 	char tag;
 	
 	unsigned char queue;		/* schedule queue */
-	union sndrv_seq_timestamp time;	/* schedule time */
+	union snd_seq_timestamp time;	/* schedule time */
 
 
-	struct sndrv_seq_addr source;	/* source address */
-	struct sndrv_seq_addr dest;	/* destination address */
+	struct snd_seq_addr source;	/* source address */
+	struct snd_seq_addr dest;	/* destination address */
 
 	union {				/* event data... */
-		struct sndrv_seq_ev_note note;
-		struct sndrv_seq_ev_ctrl control;
-		struct sndrv_seq_ev_raw8 raw8;
-		struct sndrv_seq_ev_raw32 raw32;
-		struct sndrv_seq_ev_ext ext;
-		struct sndrv_seq_ev_queue_control queue;
-		union sndrv_seq_timestamp time;
-		struct sndrv_seq_addr addr;
-		struct sndrv_seq_connect connect;
-		struct sndrv_seq_result result;
-		struct sndrv_seq_ev_instr_begin instr_begin;
-		struct sndrv_seq_ev_sample_control sample;
-		struct sndrv_seq_ev_quote quote;
+		struct snd_seq_ev_note note;
+		struct snd_seq_ev_ctrl control;
+		struct snd_seq_ev_raw8 raw8;
+		struct snd_seq_ev_raw32 raw32;
+		struct snd_seq_ev_ext ext;
+		struct snd_seq_ev_queue_control queue;
+		union snd_seq_timestamp time;
+		struct snd_seq_addr addr;
+		struct snd_seq_connect connect;
+		struct snd_seq_result result;
+		struct snd_seq_ev_instr_begin instr_begin;
+		struct snd_seq_ev_sample_control sample;
+		struct snd_seq_ev_quote quote;
 	} data;
 };
 
@@ -410,72 +409,77 @@ struct sndrv_seq_event {
 /*
  * bounce event - stored as variable size data
  */
-struct sndrv_seq_event_bounce {
+struct snd_seq_event_bounce {
 	int err;
-	struct sndrv_seq_event event;
+	struct snd_seq_event event;
 	/* external data follows here. */
 };
 
-#define sndrv_seq_event_bounce_ext_data(ev) ((void*)((char *)(ev)->data.ext.ptr + sizeof(sndrv_seq_event_bounce_t)))
+#ifdef __KERNEL__
+
+/* helper macro */
+#define snd_seq_event_bounce_ext_data(ev) ((void*)((char *)(ev)->data.ext.ptr + sizeof(struct snd_seq_event_bounce)))
 
 /*
  * type check macros
  */
 /* result events: 0-4 */
-#define sndrv_seq_ev_is_result_type(ev)	((ev)->type < 5)
+#define snd_seq_ev_is_result_type(ev)	((ev)->type < 5)
 /* channel specific events: 5-19 */
-#define sndrv_seq_ev_is_channel_type(ev)	((ev)->type >= 5 && (ev)->type < 20)
+#define snd_seq_ev_is_channel_type(ev)	((ev)->type >= 5 && (ev)->type < 20)
 /* note events: 5-9 */
-#define sndrv_seq_ev_is_note_type(ev)	((ev)->type >= 5 && (ev)->type < 10)
+#define snd_seq_ev_is_note_type(ev)	((ev)->type >= 5 && (ev)->type < 10)
 /* control events: 10-19 */
-#define sndrv_seq_ev_is_control_type(ev)	((ev)->type >= 10 && (ev)->type < 20)
+#define snd_seq_ev_is_control_type(ev)	((ev)->type >= 10 && (ev)->type < 20)
 /* queue control events: 30-39 */
-#define sndrv_seq_ev_is_queue_type(ev)	((ev)->type >= 30 && (ev)->type < 40)
+#define snd_seq_ev_is_queue_type(ev)	((ev)->type >= 30 && (ev)->type < 40)
 /* system status messages */
-#define sndrv_seq_ev_is_message_type(ev)	((ev)->type >= 60 && (ev)->type < 69)
+#define snd_seq_ev_is_message_type(ev)	((ev)->type >= 60 && (ev)->type < 69)
 /* sample messages */
-#define sndrv_seq_ev_is_sample_type(ev)	((ev)->type >= 70 && (ev)->type < 79)
+#define snd_seq_ev_is_sample_type(ev)	((ev)->type >= 70 && (ev)->type < 79)
 /* user-defined messages */
-#define sndrv_seq_ev_is_user_type(ev)	((ev)->type >= 90 && (ev)->type < 99)
+#define snd_seq_ev_is_user_type(ev)	((ev)->type >= 90 && (ev)->type < 99)
 /* fixed length events: 0-99 */
-#define sndrv_seq_ev_is_fixed_type(ev)	((ev)->type < 100)
+#define snd_seq_ev_is_fixed_type(ev)	((ev)->type < 100)
 /* instrument layer events: 100-129 */
-#define sndrv_seq_ev_is_instr_type(ev)	((ev)->type >= 100 && (ev)->type < 130)
+#define snd_seq_ev_is_instr_type(ev)	((ev)->type >= 100 && (ev)->type < 130)
 /* variable length events: 130-139 */
-#define sndrv_seq_ev_is_variable_type(ev)	((ev)->type >= 130 && (ev)->type < 140)
+#define snd_seq_ev_is_variable_type(ev)	((ev)->type >= 130 && (ev)->type < 140)
 /* reserved for kernel */
-#define sndrv_seq_ev_is_reserved(ev)	((ev)->type >= 150)
+#define snd_seq_ev_is_reserved(ev)	((ev)->type >= 150)
 
 /* direct dispatched events */
-#define sndrv_seq_ev_is_direct(ev)	((ev)->queue == SNDRV_SEQ_QUEUE_DIRECT)
+#define snd_seq_ev_is_direct(ev)	((ev)->queue == SNDRV_SEQ_QUEUE_DIRECT)
 
 /*
  * macros to check event flags
  */
 /* prior events */
-#define sndrv_seq_ev_is_prior(ev)		(((ev)->flags & SNDRV_SEQ_PRIORITY_MASK) == SNDRV_SEQ_PRIORITY_HIGH)
+#define snd_seq_ev_is_prior(ev)		(((ev)->flags & SNDRV_SEQ_PRIORITY_MASK) == SNDRV_SEQ_PRIORITY_HIGH)
 
 /* event length type */
-#define sndrv_seq_ev_length_type(ev)	((ev)->flags & SNDRV_SEQ_EVENT_LENGTH_MASK)
-#define sndrv_seq_ev_is_fixed(ev)		(sndrv_seq_ev_length_type(ev) == SNDRV_SEQ_EVENT_LENGTH_FIXED)
-#define sndrv_seq_ev_is_variable(ev)	(sndrv_seq_ev_length_type(ev) == SNDRV_SEQ_EVENT_LENGTH_VARIABLE)
-#define sndrv_seq_ev_is_varusr(ev)	(sndrv_seq_ev_length_type(ev) == SNDRV_SEQ_EVENT_LENGTH_VARUSR)
+#define snd_seq_ev_length_type(ev)	((ev)->flags & SNDRV_SEQ_EVENT_LENGTH_MASK)
+#define snd_seq_ev_is_fixed(ev)		(snd_seq_ev_length_type(ev) == SNDRV_SEQ_EVENT_LENGTH_FIXED)
+#define snd_seq_ev_is_variable(ev)	(snd_seq_ev_length_type(ev) == SNDRV_SEQ_EVENT_LENGTH_VARIABLE)
+#define snd_seq_ev_is_varusr(ev)	(snd_seq_ev_length_type(ev) == SNDRV_SEQ_EVENT_LENGTH_VARUSR)
 
 /* time-stamp type */
-#define sndrv_seq_ev_timestamp_type(ev)	((ev)->flags & SNDRV_SEQ_TIME_STAMP_MASK)
-#define sndrv_seq_ev_is_tick(ev)		(sndrv_seq_ev_timestamp_type(ev) == SNDRV_SEQ_TIME_STAMP_TICK)
-#define sndrv_seq_ev_is_real(ev)		(sndrv_seq_ev_timestamp_type(ev) == SNDRV_SEQ_TIME_STAMP_REAL)
+#define snd_seq_ev_timestamp_type(ev)	((ev)->flags & SNDRV_SEQ_TIME_STAMP_MASK)
+#define snd_seq_ev_is_tick(ev)		(snd_seq_ev_timestamp_type(ev) == SNDRV_SEQ_TIME_STAMP_TICK)
+#define snd_seq_ev_is_real(ev)		(snd_seq_ev_timestamp_type(ev) == SNDRV_SEQ_TIME_STAMP_REAL)
 
 /* time-mode type */
-#define sndrv_seq_ev_timemode_type(ev)	((ev)->flags & SNDRV_SEQ_TIME_MODE_MASK)
-#define sndrv_seq_ev_is_abstime(ev)	(sndrv_seq_ev_timemode_type(ev) == SNDRV_SEQ_TIME_MODE_ABS)
-#define sndrv_seq_ev_is_reltime(ev)	(sndrv_seq_ev_timemode_type(ev) == SNDRV_SEQ_TIME_MODE_REL)
+#define snd_seq_ev_timemode_type(ev)	((ev)->flags & SNDRV_SEQ_TIME_MODE_MASK)
+#define snd_seq_ev_is_abstime(ev)	(snd_seq_ev_timemode_type(ev) == SNDRV_SEQ_TIME_MODE_ABS)
+#define snd_seq_ev_is_reltime(ev)	(snd_seq_ev_timemode_type(ev) == SNDRV_SEQ_TIME_MODE_REL)
 
 /* queue sync port */
-#define sndrv_seq_queue_sync_port(q)	((q) + 16)
+#define snd_seq_queue_sync_port(q)	((q) + 16)
+
+#endif /* __KERNEL__ */
 
 	/* system information */
-struct sndrv_seq_system_info {
+struct snd_seq_system_info {
 	int queues;			/* maximum queues count */
 	int clients;			/* maximum clients count */
 	int ports;			/* maximum ports per client */
@@ -487,7 +491,7 @@ struct sndrv_seq_system_info {
 
 
 	/* system running information */
-struct sndrv_seq_running_info {
+struct snd_seq_running_info {
 	unsigned char client;		/* client id */
 	unsigned char big_endian;	/* 1 = big-endian */
 	unsigned char cpu_mode;		/* 4 = 32bit, 8 = 64bit */
@@ -498,16 +502,16 @@ struct sndrv_seq_running_info {
 
 	/* known client numbers */
 #define SNDRV_SEQ_CLIENT_SYSTEM		0
-#define SNDRV_SEQ_CLIENT_DUMMY		62	/* dummy ports */
-#define SNDRV_SEQ_CLIENT_OSS		63	/* oss sequencer emulator */
+	/* internal client numbers */
+#define SNDRV_SEQ_CLIENT_DUMMY		14	/* midi through */
+#define SNDRV_SEQ_CLIENT_OSS		15	/* oss sequencer emulator */
 
 
 	/* client types */
-enum sndrv_seq_client_type {
-	NO_CLIENT       = 0,
-	USER_CLIENT     = 1,
-	KERNEL_CLIENT   = 2
-};
+typedef int __bitwise snd_seq_client_type_t;
+#define	NO_CLIENT	((__force snd_seq_client_type_t) 0)
+#define	USER_CLIENT	((__force snd_seq_client_type_t) 1)
+#define	KERNEL_CLIENT	((__force snd_seq_client_type_t) 2)
                         
 	/* event filter flags */
 #define SNDRV_SEQ_FILTER_BROADCAST	(1<<0)	/* accept broadcast messages */
@@ -515,9 +519,9 @@ enum sndrv_seq_client_type {
 #define SNDRV_SEQ_FILTER_BOUNCE		(1<<2)	/* accept bounce event in error */
 #define SNDRV_SEQ_FILTER_USE_EVENT	(1<<31)	/* use event filter */
 
-struct sndrv_seq_client_info {
+struct snd_seq_client_info {
 	int client;			/* client number to inquire */
-	enum sndrv_seq_client_type type;	/* client type */
+	snd_seq_client_type_t type;	/* client type */
 	char name[64];			/* client name */
 	unsigned int filter;		/* filter flags */
 	unsigned char multicast_filter[8]; /* multicast filter bitmap */
@@ -529,7 +533,7 @@ struct sndrv_seq_client_info {
 
 
 /* client pool size */
-struct sndrv_seq_client_pool {
+struct snd_seq_client_pool {
 	int client;			/* client number to inquire */
 	int output_pool;		/* outgoing (write) pool size */
 	int input_pool;			/* incoming (read) pool size */
@@ -553,13 +557,13 @@ struct sndrv_seq_client_pool {
 #define SNDRV_SEQ_REMOVE_IGNORE_OFF 	(1<<8)	/* Do not flush off events */
 #define SNDRV_SEQ_REMOVE_TAG_MATCH 	(1<<9)	/* Restrict to events with given tag */
 
-struct sndrv_seq_remove_events {
+struct snd_seq_remove_events {
 	unsigned int  remove_mode;	/* Flags that determine what gets removed */
 
-	union sndrv_seq_timestamp time;
+	union snd_seq_timestamp time;
 
 	unsigned char queue;	/* Queue for REMOVE_DEST */
-	struct sndrv_seq_addr dest;	/* Address for REMOVE_DEST */
+	struct snd_seq_addr dest;	/* Address for REMOVE_DEST */
 	unsigned char channel;	/* Channel for REMOVE_DEST */
 
 	int  type;	/* For REMOVE_EVENT_TYPE */
@@ -608,8 +612,8 @@ struct sndrv_seq_remove_events {
 #define SNDRV_SEQ_PORT_FLG_TIMESTAMP	(1<<1)
 #define SNDRV_SEQ_PORT_FLG_TIME_REAL	(1<<2)
 
-struct sndrv_seq_port_info {
-	struct sndrv_seq_addr addr;	/* client/port numbers */
+struct snd_seq_port_info {
+	struct snd_seq_addr addr;	/* client/port numbers */
 	char name[64];			/* port name */
 
 	unsigned int capability;	/* port capability bits */
@@ -632,7 +636,7 @@ struct sndrv_seq_port_info {
 #define SNDRV_SEQ_QUEUE_FLG_SYNC	(1<<0)	/* sync enabled */
 
 /* queue information */
-struct sndrv_seq_queue_info {
+struct snd_seq_queue_info {
 	int queue;		/* queue id */
 
 	/*
@@ -648,11 +652,11 @@ struct sndrv_seq_queue_info {
 };
 
 /* queue info/status */
-struct sndrv_seq_queue_status {
+struct snd_seq_queue_status {
 	int queue;			/* queue id */
 	int events;			/* read-only - queue size */
-	sndrv_seq_tick_time_t tick;	/* current tick */
-	struct sndrv_seq_real_time time; /* current time */
+	snd_seq_tick_time_t tick;	/* current tick */
+	struct snd_seq_real_time time;	/* current time */
 	int running;			/* running state of queue */
 	int flags;			/* various flags */
 	char reserved[64];		/* for the future */
@@ -660,7 +664,7 @@ struct sndrv_seq_queue_status {
 
 
 /* queue tempo */
-struct sndrv_seq_queue_tempo {
+struct snd_seq_queue_tempo {
 	int queue;			/* sequencer queue */
 	unsigned int tempo;		/* current tempo, us/tick */
 	int ppq;			/* time resolution, ticks/quarter */
@@ -676,12 +680,12 @@ struct sndrv_seq_queue_tempo {
 #define SNDRV_SEQ_TIMER_MIDI_TICK	2	/* Midi Timer Tick (TICK event) */
 
 /* queue timer info */
-struct sndrv_seq_queue_timer {
+struct snd_seq_queue_timer {
 	int queue;			/* sequencer queue */
 	int type;			/* source timer type */
 	union {
 		struct {
-			struct sndrv_timer_id id;	/* ALSA's timer ID */
+			struct snd_timer_id id;	/* ALSA's timer ID */
 			unsigned int resolution;	/* resolution in Hz */
 		} alsa;
 	} u;
@@ -689,7 +693,7 @@ struct sndrv_seq_queue_timer {
 };
 
 
-struct sndrv_seq_queue_client {
+struct snd_seq_queue_client {
 	int queue;		/* sequencer queue */
 	int client;		/* sequencer client */
 	int used;		/* queue is used with this client
@@ -703,9 +707,9 @@ struct sndrv_seq_queue_client {
 #define SNDRV_SEQ_PORT_SUBS_TIMESTAMP	(1<<1)
 #define SNDRV_SEQ_PORT_SUBS_TIME_REAL	(1<<2)
 
-struct sndrv_seq_port_subscribe {
-	struct sndrv_seq_addr sender;	/* sender address */
-	struct sndrv_seq_addr dest;	/* destination address */
+struct snd_seq_port_subscribe {
+	struct snd_seq_addr sender;	/* sender address */
+	struct snd_seq_addr dest;	/* destination address */
 	unsigned int voices;		/* number of voices to be allocated (0 = don't care) */
 	unsigned int flags;		/* modes */
 	unsigned char queue;		/* input time-stamp queue (optional) */
@@ -717,12 +721,12 @@ struct sndrv_seq_port_subscribe {
 #define SNDRV_SEQ_QUERY_SUBS_READ	0
 #define SNDRV_SEQ_QUERY_SUBS_WRITE	1
 
-struct sndrv_seq_query_subs {
-	struct sndrv_seq_addr root;	/* client/port id to be searched */
+struct snd_seq_query_subs {
+	struct snd_seq_addr root;	/* client/port id to be searched */
 	int type;		/* READ or WRITE */
 	int index;		/* 0..N-1 */
 	int num_subs;		/* R/O: number of subscriptions on this port */
-	struct sndrv_seq_addr addr;	/* R/O: result */
+	struct snd_seq_addr addr;	/* R/O: result */
 	unsigned char queue;	/* R/O: result */
 	unsigned int flags;	/* R/O: result */
 	char reserved[64];	/* for future use */
@@ -779,72 +783,72 @@ struct sndrv_seq_query_subs {
 #define SNDRV_SEQ_INSTR_FREE_CMD_SINGLE		3
 
 /* size of ROM/RAM */
-typedef unsigned int sndrv_seq_instr_size_t;
+typedef unsigned int snd_seq_instr_size_t;
 
 /* INSTR_INFO */
 
-struct sndrv_seq_instr_info {
+struct snd_seq_instr_info {
 	int result;			/* operation result */
 	unsigned int formats[8];	/* bitmap of supported formats */
 	int ram_count;			/* count of RAM banks */
-	sndrv_seq_instr_size_t ram_sizes[16]; /* size of RAM banks */
+	snd_seq_instr_size_t ram_sizes[16]; /* size of RAM banks */
 	int rom_count;			/* count of ROM banks */
-	sndrv_seq_instr_size_t rom_sizes[8]; /* size of ROM banks */
+	snd_seq_instr_size_t rom_sizes[8]; /* size of ROM banks */
 	char reserved[128];
 };
 
 /* INSTR_STATUS */
 
-struct sndrv_seq_instr_status {
+struct snd_seq_instr_status {
 	int result;			/* operation result */
-	sndrv_seq_instr_size_t free_ram[16]; /* free RAM in banks */
+	snd_seq_instr_size_t free_ram[16]; /* free RAM in banks */
 	int instrument_count;		/* count of downloaded instruments */
 	char reserved[128];
 };
 
 /* INSTR_FORMAT_INFO */
 
-struct sndrv_seq_instr_format_info {
+struct snd_seq_instr_format_info {
 	char format[16];		/* format identifier - SNDRV_SEQ_INSTR_ID_* */	
 	unsigned int len;		/* max data length (without this structure) */
 };
 
-struct sndrv_seq_instr_format_info_result {
+struct snd_seq_instr_format_info_result {
 	int result;			/* operation result */
 	char format[16];		/* format identifier */
 	unsigned int len;		/* filled data length (without this structure) */
 };
 
 /* instrument data */
-struct sndrv_seq_instr_data {
+struct snd_seq_instr_data {
 	char name[32];			/* instrument name */
 	char reserved[16];		/* for the future use */
 	int type;			/* instrument type */
 	union {
 		char format[16];	/* format identifier */
-		struct sndrv_seq_instr alias;
+		struct snd_seq_instr alias;
 	} data;
 };
 
 /* INSTR_PUT/GET, data are stored in one block (extended), header + data */
 
-struct sndrv_seq_instr_header {
+struct snd_seq_instr_header {
 	union {
-		struct sndrv_seq_instr instr;
-		sndrv_seq_instr_cluster_t cluster;
+		struct snd_seq_instr instr;
+		snd_seq_instr_cluster_t cluster;
 	} id;				/* instrument identifier */
 	unsigned int cmd;		/* get/put/free command */
 	unsigned int flags;		/* query flags (only for get) */
 	unsigned int len;		/* real instrument data length (without header) */
 	int result;			/* operation result */
 	char reserved[16];		/* for the future */
-	struct sndrv_seq_instr_data data; /* instrument data (for put/get result) */
+	struct snd_seq_instr_data data; /* instrument data (for put/get result) */
 };
 
 /* INSTR_CLUSTER_SET */
 
-struct sndrv_seq_instr_cluster_set {
-	sndrv_seq_instr_cluster_t cluster; /* cluster identifier */
+struct snd_seq_instr_cluster_set {
+	snd_seq_instr_cluster_t cluster; /* cluster identifier */
 	char name[32];			/* cluster name */
 	int priority;			/* cluster priority */
 	char reserved[64];		/* for the future use */
@@ -852,8 +856,8 @@ struct sndrv_seq_instr_cluster_set {
 
 /* INSTR_CLUSTER_GET */
 
-struct sndrv_seq_instr_cluster_get {
-	sndrv_seq_instr_cluster_t cluster; /* cluster identifier */
+struct snd_seq_instr_cluster_get {
+	snd_seq_instr_cluster_t cluster; /* cluster identifier */
 	char name[32];			/* cluster name */
 	int priority;			/* cluster priority */
 	char reserved[64];		/* for the future use */
@@ -865,44 +869,44 @@ struct sndrv_seq_instr_cluster_get {
 
 #define SNDRV_SEQ_IOCTL_PVERSION	_IOR ('S', 0x00, int)
 #define SNDRV_SEQ_IOCTL_CLIENT_ID	_IOR ('S', 0x01, int)
-#define SNDRV_SEQ_IOCTL_SYSTEM_INFO	_IOWR('S', 0x02, struct sndrv_seq_system_info)
-#define SNDRV_SEQ_IOCTL_RUNNING_MODE	_IOWR('S', 0x03, struct sndrv_seq_running_info)
+#define SNDRV_SEQ_IOCTL_SYSTEM_INFO	_IOWR('S', 0x02, struct snd_seq_system_info)
+#define SNDRV_SEQ_IOCTL_RUNNING_MODE	_IOWR('S', 0x03, struct snd_seq_running_info)
 
-#define SNDRV_SEQ_IOCTL_GET_CLIENT_INFO	_IOWR('S', 0x10, struct sndrv_seq_client_info)
-#define SNDRV_SEQ_IOCTL_SET_CLIENT_INFO	_IOW ('S', 0x11, struct sndrv_seq_client_info)
+#define SNDRV_SEQ_IOCTL_GET_CLIENT_INFO	_IOWR('S', 0x10, struct snd_seq_client_info)
+#define SNDRV_SEQ_IOCTL_SET_CLIENT_INFO	_IOW ('S', 0x11, struct snd_seq_client_info)
 
-#define SNDRV_SEQ_IOCTL_CREATE_PORT	_IOWR('S', 0x20, struct sndrv_seq_port_info)
-#define SNDRV_SEQ_IOCTL_DELETE_PORT	_IOW ('S', 0x21, struct sndrv_seq_port_info)
-#define SNDRV_SEQ_IOCTL_GET_PORT_INFO	_IOWR('S', 0x22, struct sndrv_seq_port_info)
-#define SNDRV_SEQ_IOCTL_SET_PORT_INFO	_IOW ('S', 0x23, struct sndrv_seq_port_info)
+#define SNDRV_SEQ_IOCTL_CREATE_PORT	_IOWR('S', 0x20, struct snd_seq_port_info)
+#define SNDRV_SEQ_IOCTL_DELETE_PORT	_IOW ('S', 0x21, struct snd_seq_port_info)
+#define SNDRV_SEQ_IOCTL_GET_PORT_INFO	_IOWR('S', 0x22, struct snd_seq_port_info)
+#define SNDRV_SEQ_IOCTL_SET_PORT_INFO	_IOW ('S', 0x23, struct snd_seq_port_info)
 
-#define SNDRV_SEQ_IOCTL_SUBSCRIBE_PORT	_IOW ('S', 0x30, struct sndrv_seq_port_subscribe)
-#define SNDRV_SEQ_IOCTL_UNSUBSCRIBE_PORT _IOW ('S', 0x31, struct sndrv_seq_port_subscribe)
+#define SNDRV_SEQ_IOCTL_SUBSCRIBE_PORT	_IOW ('S', 0x30, struct snd_seq_port_subscribe)
+#define SNDRV_SEQ_IOCTL_UNSUBSCRIBE_PORT _IOW ('S', 0x31, struct snd_seq_port_subscribe)
 
-#define SNDRV_SEQ_IOCTL_CREATE_QUEUE	_IOWR('S', 0x32, struct sndrv_seq_queue_info)
-#define SNDRV_SEQ_IOCTL_DELETE_QUEUE	_IOW ('S', 0x33, struct sndrv_seq_queue_info)
-#define SNDRV_SEQ_IOCTL_GET_QUEUE_INFO	_IOWR('S', 0x34, struct sndrv_seq_queue_info)
-#define SNDRV_SEQ_IOCTL_SET_QUEUE_INFO	_IOWR('S', 0x35, struct sndrv_seq_queue_info)
-#define SNDRV_SEQ_IOCTL_GET_NAMED_QUEUE	_IOWR('S', 0x36, struct sndrv_seq_queue_info)
-#define SNDRV_SEQ_IOCTL_GET_QUEUE_STATUS _IOWR('S', 0x40, struct sndrv_seq_queue_status)
-#define SNDRV_SEQ_IOCTL_GET_QUEUE_TEMPO	_IOWR('S', 0x41, struct sndrv_seq_queue_tempo)
-#define SNDRV_SEQ_IOCTL_SET_QUEUE_TEMPO	_IOW ('S', 0x42, struct sndrv_seq_queue_tempo)
-#define SNDRV_SEQ_IOCTL_GET_QUEUE_OWNER	_IOWR('S', 0x43, struct sndrv_seq_queue_owner)
-#define SNDRV_SEQ_IOCTL_SET_QUEUE_OWNER	_IOW ('S', 0x44, struct sndrv_seq_queue_owner)
-#define SNDRV_SEQ_IOCTL_GET_QUEUE_TIMER	_IOWR('S', 0x45, struct sndrv_seq_queue_timer)
-#define SNDRV_SEQ_IOCTL_SET_QUEUE_TIMER	_IOW ('S', 0x46, struct sndrv_seq_queue_timer)
+#define SNDRV_SEQ_IOCTL_CREATE_QUEUE	_IOWR('S', 0x32, struct snd_seq_queue_info)
+#define SNDRV_SEQ_IOCTL_DELETE_QUEUE	_IOW ('S', 0x33, struct snd_seq_queue_info)
+#define SNDRV_SEQ_IOCTL_GET_QUEUE_INFO	_IOWR('S', 0x34, struct snd_seq_queue_info)
+#define SNDRV_SEQ_IOCTL_SET_QUEUE_INFO	_IOWR('S', 0x35, struct snd_seq_queue_info)
+#define SNDRV_SEQ_IOCTL_GET_NAMED_QUEUE	_IOWR('S', 0x36, struct snd_seq_queue_info)
+#define SNDRV_SEQ_IOCTL_GET_QUEUE_STATUS _IOWR('S', 0x40, struct snd_seq_queue_status)
+#define SNDRV_SEQ_IOCTL_GET_QUEUE_TEMPO	_IOWR('S', 0x41, struct snd_seq_queue_tempo)
+#define SNDRV_SEQ_IOCTL_SET_QUEUE_TEMPO	_IOW ('S', 0x42, struct snd_seq_queue_tempo)
+#define SNDRV_SEQ_IOCTL_GET_QUEUE_OWNER	_IOWR('S', 0x43, struct snd_seq_queue_owner)
+#define SNDRV_SEQ_IOCTL_SET_QUEUE_OWNER	_IOW ('S', 0x44, struct snd_seq_queue_owner)
+#define SNDRV_SEQ_IOCTL_GET_QUEUE_TIMER	_IOWR('S', 0x45, struct snd_seq_queue_timer)
+#define SNDRV_SEQ_IOCTL_SET_QUEUE_TIMER	_IOW ('S', 0x46, struct snd_seq_queue_timer)
 /* XXX
-#define SNDRV_SEQ_IOCTL_GET_QUEUE_SYNC	_IOWR('S', 0x53, struct sndrv_seq_queue_sync)
-#define SNDRV_SEQ_IOCTL_SET_QUEUE_SYNC	_IOW ('S', 0x54, struct sndrv_seq_queue_sync)
+#define SNDRV_SEQ_IOCTL_GET_QUEUE_SYNC	_IOWR('S', 0x53, struct snd_seq_queue_sync)
+#define SNDRV_SEQ_IOCTL_SET_QUEUE_SYNC	_IOW ('S', 0x54, struct snd_seq_queue_sync)
 */
-#define SNDRV_SEQ_IOCTL_GET_QUEUE_CLIENT	_IOWR('S', 0x49, struct sndrv_seq_queue_client)
-#define SNDRV_SEQ_IOCTL_SET_QUEUE_CLIENT	_IOW ('S', 0x4a, struct sndrv_seq_queue_client)
-#define SNDRV_SEQ_IOCTL_GET_CLIENT_POOL	_IOWR('S', 0x4b, struct sndrv_seq_client_pool)
-#define SNDRV_SEQ_IOCTL_SET_CLIENT_POOL	_IOW ('S', 0x4c, struct sndrv_seq_client_pool)
-#define SNDRV_SEQ_IOCTL_REMOVE_EVENTS	_IOW ('S', 0x4e, struct sndrv_seq_remove_events)
-#define SNDRV_SEQ_IOCTL_QUERY_SUBS	_IOWR('S', 0x4f, struct sndrv_seq_query_subs)
-#define SNDRV_SEQ_IOCTL_GET_SUBSCRIPTION	_IOWR('S', 0x50, struct sndrv_seq_port_subscribe)
-#define SNDRV_SEQ_IOCTL_QUERY_NEXT_CLIENT	_IOWR('S', 0x51, struct sndrv_seq_client_info)
-#define SNDRV_SEQ_IOCTL_QUERY_NEXT_PORT	_IOWR('S', 0x52, struct sndrv_seq_port_info)
+#define SNDRV_SEQ_IOCTL_GET_QUEUE_CLIENT	_IOWR('S', 0x49, struct snd_seq_queue_client)
+#define SNDRV_SEQ_IOCTL_SET_QUEUE_CLIENT	_IOW ('S', 0x4a, struct snd_seq_queue_client)
+#define SNDRV_SEQ_IOCTL_GET_CLIENT_POOL	_IOWR('S', 0x4b, struct snd_seq_client_pool)
+#define SNDRV_SEQ_IOCTL_SET_CLIENT_POOL	_IOW ('S', 0x4c, struct snd_seq_client_pool)
+#define SNDRV_SEQ_IOCTL_REMOVE_EVENTS	_IOW ('S', 0x4e, struct snd_seq_remove_events)
+#define SNDRV_SEQ_IOCTL_QUERY_SUBS	_IOWR('S', 0x4f, struct snd_seq_query_subs)
+#define SNDRV_SEQ_IOCTL_GET_SUBSCRIPTION	_IOWR('S', 0x50, struct snd_seq_port_subscribe)
+#define SNDRV_SEQ_IOCTL_QUERY_NEXT_CLIENT	_IOWR('S', 0x51, struct snd_seq_client_info)
+#define SNDRV_SEQ_IOCTL_QUERY_NEXT_PORT	_IOWR('S', 0x52, struct snd_seq_port_info)
 
 #endif /* __SOUND_ASEQUENCER_H */

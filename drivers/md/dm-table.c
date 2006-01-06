@@ -638,7 +638,7 @@ int dm_split_args(int *argc, char ***argvp, char *input)
 static void check_for_valid_limits(struct io_restrictions *rs)
 {
 	if (!rs->max_sectors)
-		rs->max_sectors = MAX_SECTORS;
+		rs->max_sectors = SAFE_MAX_SECTORS;
 	if (!rs->max_phys_segments)
 		rs->max_phys_segments = MAX_PHYS_SEGMENTS;
 	if (!rs->max_hw_segments)

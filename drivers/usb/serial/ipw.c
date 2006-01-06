@@ -152,11 +152,11 @@ static struct usb_device_id usb_ipw_ids[] = {
 MODULE_DEVICE_TABLE(usb, usb_ipw_ids);
 
 static struct usb_driver usb_ipw_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"ipwtty",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	usb_ipw_ids,
+	.no_dynamic_id = 	1,
 };
 
 static int debug;

@@ -77,14 +77,14 @@ static int saturation =	MAX_SATURATION/2;
 static int sharpness =	MAX_SHARPNESS/2;
 static int whitebal =	3*(MAX_WHITEBAL/4);
 
-static int spd_to_iface[] = { 1, 0, 3, 2, 4, 5, 6 };
+static const int spd_to_iface[] = { 1, 0, 3, 2, 4, 5, 6 };
 
 /* These FPS speeds are from the windows config box. They are
  * indexed on size (0-2) and speed (0-6). Divide by 3 to get the
  * real fps.
  */
 
-static int spd_to_fps[][7] = { { 24, 40, 48, 60, 72, 80, 100 },
+static const int spd_to_fps[][7] = { { 24, 40, 48, 60, 72, 80, 100 },
 			       { 24, 40, 48, 60, 72, 80, 100 },
 			       { 18, 30, 36, 45, 54, 60, 75  },
 			       { 6,  10, 12, 15, 18, 21, 25  } };
@@ -95,7 +95,7 @@ struct cam_size {
 	u8	cmd;
 };
 
-static struct cam_size camera_sizes[] = { { 160, 120, 0x7 },
+static const struct cam_size camera_sizes[] = { { 160, 120, 0x7 },
 					  { 160, 136, 0xa },
 					  { 176, 144, 0x4 },
 					  { 320, 240, 0x5 } };

@@ -155,18 +155,16 @@
 typedef void (ak4117_write_t)(void *private_data, unsigned char addr, unsigned char data);
 typedef unsigned char (ak4117_read_t)(void *private_data, unsigned char addr);
 
-typedef struct ak4117 ak4117_t;
-
 struct ak4117 {
-	snd_card_t * card;
+	struct snd_card *card;
 	ak4117_write_t * write;
 	ak4117_read_t * read;
 	void * private_data;
 	unsigned int init: 1;
 	spinlock_t lock;
 	unsigned char regmap[5];
-	snd_kcontrol_t *kctls[AK4117_CONTROLS];
-	snd_pcm_substream_t *substream;
+	struct snd_kcontrol *kctls[AK4117_CONTROLS];
+	struct snd_pcm_substream *substream;
 	unsigned long parity_errors;
 	unsigned long v_bit_errors;
 	unsigned long qcrc_errors;
@@ -176,16 +174,16 @@ struct ak4117 {
 	unsigned char rcs2;
 	struct timer_list timer;	/* statistic timer */
 	void *change_callback_private;
-	void (*change_callback)(ak4117_t *ak4117, unsigned char c0, unsigned char c1);
+	void (*change_callback)(struct ak4117 *ak4117, unsigned char c0, unsigned char c1);
 };
 
-int snd_ak4117_create(snd_card_t *card, ak4117_read_t *read, ak4117_write_t *write,
-		      unsigned char pgm[5], void *private_data, ak4117_t **r_ak4117);
-void snd_ak4117_reg_write(ak4117_t *ak4117, unsigned char reg, unsigned char mask, unsigned char val);
-void snd_ak4117_reinit(ak4117_t *ak4117);
-int snd_ak4117_build(ak4117_t *ak4117, snd_pcm_substream_t *capture_substream);
-int snd_ak4117_external_rate(ak4117_t *ak4117);
-int snd_ak4117_check_rate_and_errors(ak4117_t *ak4117, unsigned int flags);
+int snd_ak4117_create(struct snd_card *card, ak4117_read_t *read, ak4117_write_t *write,
+		      unsigned char pgm[5], void *private_data, struct ak4117 **r_ak4117);
+void snd_ak4117_reg_write(struct ak4117 *ak4117, unsigned char reg, unsigned char mask, unsigned char val);
+void snd_ak4117_reinit(struct ak4117 *ak4117);
+int snd_ak4117_build(struct ak4117 *ak4117, struct snd_pcm_substream *capture_substream);
+int snd_ak4117_external_rate(struct ak4117 *ak4117);
+int snd_ak4117_check_rate_and_errors(struct ak4117 *ak4117, unsigned int flags);
 
 #endif /* __SOUND_AK4117_H */
 

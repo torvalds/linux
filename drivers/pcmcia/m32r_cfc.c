@@ -480,25 +480,6 @@ static int _pcc_get_status(u_short sock, u_int *value)
 
 /*====================================================================*/
 
-static int _pcc_get_socket(u_short sock, socket_state_t *state)
-{
-//	pcc_socket_t *t = &socket[sock];
-
-	state->flags = 0;
-	state->csc_mask = SS_DETECT;
-	state->csc_mask |= SS_READY;
-	state->io_irq = 0;
-	state->Vcc = 33;	/* 3.3V fixed */
-	state->Vpp = 33;
-
-	debug(3, "m32r_cfc: GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
-		  "io_irq %d, csc_mask %#2.2x\n", sock, state->flags,
-		  state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
-	return 0;
-} /* _get_socket */
-
-/*====================================================================*/
-
 static int _pcc_set_socket(u_short sock, socket_state_t *state)
 {
 	debug(3, "m32r_cfc: SetSocket(%d, flags %#3.3x, Vcc %d, Vpp %d, "
@@ -667,18 +648,6 @@ static int pcc_get_status(struct pcmcia_socket *s, u_int *value)
 	LOCKED(_pcc_get_status(sock, value));
 }
 
-static int pcc_get_socket(struct pcmcia_socket *s, socket_state_t *state)
-{
-	unsigned int sock = container_of(s, struct pcc_socket, socket)->number;
-
-	if (socket[sock].flags & IS_ALIVE) {
-		debug(3, "m32r_cfc: pcc_get_socket: sock(%d) -EINVAL\n", sock);
-		return -EINVAL;
-	}
-	debug(3, "m32r_cfc: pcc_get_socket: sock(%d)\n", sock);
-	LOCKED(_pcc_get_socket(sock, state));
-}
-
 static int pcc_set_socket(struct pcmcia_socket *s, socket_state_t *state)
 {
 	unsigned int sock = container_of(s, struct pcc_socket, socket)->number;
@@ -724,7 +693,6 @@ static int pcc_init(struct pcmcia_socket *s)
 static struct pccard_operations pcc_operations = {
 	.init			= pcc_init,
 	.get_status		= pcc_get_status,
-	.get_socket		= pcc_get_socket,
 	.set_socket		= pcc_set_socket,
 	.set_io_map		= pcc_set_io_map,
 	.set_mem_map		= pcc_set_mem_map,

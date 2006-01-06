@@ -59,6 +59,12 @@ struct sk_buff;
 struct sock;
 struct sockaddr;
 struct socket;
+struct flowi;
+struct dst_entry;
+struct xfrm_selector;
+struct xfrm_policy;
+struct xfrm_state;
+struct xfrm_user_sec_ctx;
 
 extern int cap_netlink_send(struct sock *sk, struct sk_buff *skb);
 extern int cap_netlink_recv(struct sk_buff *skb);
@@ -788,6 +794,52 @@ struct swap_info_struct;
  *      which is used to copy security attributes between local stream sockets.
  * @sk_free_security:
  *	Deallocate security structure.
+ * @sk_getsid:
+ *	Retrieve the LSM-specific sid for the sock to enable caching of network
+ *	authorizations.
+ *
+ * Security hooks for XFRM operations.
+ *
+ * @xfrm_policy_alloc_security:
+ *	@xp contains the xfrm_policy being added to Security Policy Database
+ *	used by the XFRM system.
+ *	@sec_ctx contains the security context information being provided by
+ *	the user-level policy update program (e.g., setkey).
+ *	Allocate a security structure to the xp->selector.security field.
+ *	The security field is initialized to NULL when the xfrm_policy is
+ *	allocated.
+ *	Return 0 if operation was successful (memory to allocate, legal context)
+ * @xfrm_policy_clone_security:
+ *	@old contains an existing xfrm_policy in the SPD.
+ *	@new contains a new xfrm_policy being cloned from old.
+ *	Allocate a security structure to the new->selector.security field
+ *	that contains the information from the old->selector.security field.
+ *	Return 0 if operation was successful (memory to allocate).
+ * @xfrm_policy_free_security:
+ *	@xp contains the xfrm_policy
+ *	Deallocate xp->selector.security.
+ * @xfrm_state_alloc_security:
+ *	@x contains the xfrm_state being added to the Security Association
+ *	Database by the XFRM system.
+ *	@sec_ctx contains the security context information being provided by
+ *	the user-level SA generation program (e.g., setkey or racoon).
+ *	Allocate a security structure to the x->sel.security field.  The
+ *	security field is initialized to NULL when the xfrm_state is
+ *	allocated.
+ *	Return 0 if operation was successful (memory to allocate, legal context).
+ * @xfrm_state_free_security:
+ *	@x contains the xfrm_state.
+ *	Deallocate x>sel.security.
+ * @xfrm_policy_lookup:
+ *	@xp contains the xfrm_policy for which the access control is being
+ *	checked.
+ *	@sk_sid contains the sock security label that is used to authorize
+ *	access to the policy xp.
+ *	@dir contains the direction of the flow (input or output).
+ *	Check permission when a sock selects a xfrm_policy for processing
+ *	XFRMs on a packet.  The hook is called when selecting either a
+ *	per-socket policy or a generic xfrm policy.
+ *	Return 0 if permission is granted.
  *
  * Security hooks affecting all Key Management operations
  *
@@ -1237,7 +1289,17 @@ struct security_operations {
 	int (*socket_getpeersec) (struct socket *sock, char __user *optval, int __user *optlen, unsigned len);
 	int (*sk_alloc_security) (struct sock *sk, int family, gfp_t priority);
 	void (*sk_free_security) (struct sock *sk);
+	unsigned int (*sk_getsid) (struct sock *sk, struct flowi *fl, u8 dir);
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+	int (*xfrm_policy_alloc_security) (struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx);
+	int (*xfrm_policy_clone_security) (struct xfrm_policy *old, struct xfrm_policy *new);
+	void (*xfrm_policy_free_security) (struct xfrm_policy *xp);
+	int (*xfrm_state_alloc_security) (struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx);
+	void (*xfrm_state_free_security) (struct xfrm_state *x);
+	int (*xfrm_policy_lookup)(struct xfrm_policy *xp, u32 sk_sid, u8 dir);
+#endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
 	/* key management security hooks */
 #ifdef CONFIG_KEYS
@@ -2679,6 +2741,11 @@ static inline void security_sk_free(struct sock *sk)
 {
 	return security_ops->sk_free_security(sk);
 }
+
+static inline unsigned int security_sk_sid(struct sock *sk, struct flowi *fl, u8 dir)
+{
+	return security_ops->sk_getsid(sk, fl, dir);
+}
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct socket * sock,
 					       struct socket * other, 
@@ -2795,7 +2862,72 @@ static inline int security_sk_alloc(struct sock *sk, int family, gfp_t priority)
 static inline void security_sk_free(struct sock *sk)
 {
 }
+
+static inline unsigned int security_sk_sid(struct sock *sk, struct flowi *fl, u8 dir)
+{
+	return 0;
+}
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return security_ops->xfrm_policy_alloc_security(xp, sec_ctx);
+}
+
+static inline int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
+{
+	return security_ops->xfrm_policy_clone_security(old, new);
+}
+
+static inline void security_xfrm_policy_free(struct xfrm_policy *xp)
+{
+	security_ops->xfrm_policy_free_security(xp);
+}
+
+static inline int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return security_ops->xfrm_state_alloc_security(x, sec_ctx);
+}
+
+static inline void security_xfrm_state_free(struct xfrm_state *x)
+{
+	security_ops->xfrm_state_free_security(x);
+}
+
+static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
+{
+	return security_ops->xfrm_policy_lookup(xp, sk_sid, dir);
+}
+#else	/* CONFIG_SECURITY_NETWORK_XFRM */
+static inline int security_xfrm_policy_alloc(struct xfrm_policy *xp, struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static inline int security_xfrm_policy_clone(struct xfrm_policy *old, struct xfrm_policy *new)
+{
+	return 0;
+}
+
+static inline void security_xfrm_policy_free(struct xfrm_policy *xp)
+{
+}
+
+static inline int security_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
+{
+	return 0;
+}
+
+static inline void security_xfrm_state_free(struct xfrm_state *x)
+{
+}
+
+static inline int security_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
+{
+	return 0;
+}
+#endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 
 #ifdef CONFIG_KEYS
 #ifdef CONFIG_SECURITY

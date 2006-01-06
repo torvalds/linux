@@ -132,6 +132,7 @@ void usb_stor_show_command(struct scsi_cmnd *srb)
 	case 0x5C: what = "READ BUFFER CAPACITY"; break;
 	case 0x5D: what = "SEND CUE SHEET"; break;
 	case GPCMD_BLANK: what = "BLANK"; break;
+	case REPORT_LUNS: what = "REPORT LUNS"; break;
 	case MOVE_MEDIUM: what = "MOVE_MEDIUM or PLAY AUDIO (12)"; break;
 	case READ_12: what = "READ_12"; break;
 	case WRITE_12: what = "WRITE_12"; break;

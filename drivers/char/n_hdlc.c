@@ -562,7 +562,7 @@ static void n_hdlc_tty_receive(struct tty_struct *tty, const __u8 *data,
 }	/* end of n_hdlc_tty_receive() */
 
 /**
- * n_hdlc_tty_read - Called to retreive one frame of data (if available)
+ * n_hdlc_tty_read - Called to retrieve one frame of data (if available)
  * @tty - pointer to tty instance data
  * @file - pointer to open file object
  * @buf - pointer to returned data buffer

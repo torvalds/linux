@@ -32,7 +32,7 @@
  * we have to keep a static variable here since i2c attach_adapter
  * callback cannot pass a private data.
  */
-static pmac_keywest_t *keywest_ctx;
+static struct pmac_keywest *keywest_ctx;
 
 
 #define I2C_DRIVERID_KEYWEST	0xFEBA
@@ -106,7 +106,7 @@ static int keywest_detach_client(struct i2c_client *client)
 }
 
 /* exported */
-void snd_pmac_keywest_cleanup(pmac_keywest_t *i2c)
+void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c)
 {
 	if (keywest_ctx && keywest_ctx == i2c) {
 		i2c_del_driver(&keywest_driver);
@@ -126,7 +126,7 @@ int __init snd_pmac_tumbler_post_init(void)
 }
 
 /* exported */
-int __init snd_pmac_keywest_init(pmac_keywest_t *i2c)
+int __init snd_pmac_keywest_init(struct pmac_keywest *i2c)
 {
 	int err;
 

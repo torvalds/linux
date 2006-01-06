@@ -364,7 +364,7 @@ static void iriap_disconnect_request(struct iriap_cb *self)
 /*
  * Function iriap_getvaluebyclass (addr, name, attr)
  *
- *    Retreive all values from attribute in all objects with given class
+ *    Retrieve all values from attribute in all objects with given class
  *    name
  */
 int iriap_getvaluebyclass_request(struct iriap_cb *self,

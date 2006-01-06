@@ -695,7 +695,7 @@ static inline unsigned long fls(unsigned long word)
 
 	return flz(~word) + 1;
 }
-
+#define fls64(x)   generic_fls64(x)
 
 /*
  * find_next_zero_bit - find the first zero bit in a memory region

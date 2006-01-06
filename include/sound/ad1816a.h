@@ -123,9 +123,7 @@
 #define AD1816A_CAPTURE_NOT_EQUAL	0x1000
 #define AD1816A_WSS_ENABLE		0x8000
 
-typedef struct _snd_ad1816a ad1816a_t;
-
-struct _snd_ad1816a {
+struct snd_ad1816a {
 	unsigned long port;
 	struct resource *res_port;
 	int irq;
@@ -140,15 +138,15 @@ struct _snd_ad1816a {
 	unsigned short mode;
 	unsigned int clock_freq;
 
-	snd_card_t *card;
-	snd_pcm_t *pcm;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
 
-	snd_pcm_substream_t *playback_substream;
-	snd_pcm_substream_t *capture_substream;
+	struct snd_pcm_substream *playback_substream;
+	struct snd_pcm_substream *capture_substream;
 	unsigned int p_dma_size;
 	unsigned int c_dma_size;
 
-	snd_timer_t *timer;
+	struct snd_timer *timer;
 };
 
 
@@ -165,11 +163,11 @@ struct _snd_ad1816a {
 				AD1816A_MODE_TIMER)
 
 
-extern int snd_ad1816a_create(snd_card_t *card, unsigned long port,
+extern int snd_ad1816a_create(struct snd_card *card, unsigned long port,
 			      int irq, int dma1, int dma2,
-			      ad1816a_t **chip);
+			      struct snd_ad1816a **chip);
 
-extern int snd_ad1816a_pcm(ad1816a_t *chip, int device, snd_pcm_t **rpcm);
-extern int snd_ad1816a_mixer(ad1816a_t *chip);
+extern int snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_pcm **rpcm);
+extern int snd_ad1816a_mixer(struct snd_ad1816a *chip);
 
 #endif	/* __SOUND_AD1816A_H */

@@ -23,11 +23,16 @@
 #ifndef IEEE80211_CRYPT_H
 #define IEEE80211_CRYPT_H
 
-#include <linux/skbuff.h>
+#include <linux/types.h>
+#include <linux/list.h>
+#include <asm/atomic.h>
 
 enum {
 	IEEE80211_CRYPTO_TKIP_COUNTERMEASURES = (1 << 0),
 };
+
+struct sk_buff;
+struct module;
 
 struct ieee80211_crypto_ops {
 	const char *name;
@@ -86,6 +91,8 @@ struct ieee80211_crypt_data {
 	void *priv;
 	atomic_t refcnt;
 };
+
+struct ieee80211_device;
 
 int ieee80211_register_crypto_ops(struct ieee80211_crypto_ops *ops);
 int ieee80211_unregister_crypto_ops(struct ieee80211_crypto_ops *ops);

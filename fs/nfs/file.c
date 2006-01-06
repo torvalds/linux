@@ -509,7 +509,8 @@ static int nfs_lock(struct file *filp, int cmd, struct file_lock *fl)
 		return -EINVAL;
 
 	/* No mandatory locks over NFS */
-	if ((inode->i_mode & (S_ISGID | S_IXGRP)) == S_ISGID)
+	if ((inode->i_mode & (S_ISGID | S_IXGRP)) == S_ISGID &&
+	    fl->fl_type != F_UNLCK)
 		return -ENOLCK;
 
 	if (IS_GETLK(cmd))

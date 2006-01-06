@@ -90,8 +90,9 @@ EXPORT_SYMBOL_GPL(__inet_twsk_hashdance);
 
 struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk, const int state)
 {
-	struct inet_timewait_sock *tw = kmem_cache_alloc(sk->sk_prot_creator->twsk_slab,
-							 SLAB_ATOMIC);
+	struct inet_timewait_sock *tw =
+		kmem_cache_alloc(sk->sk_prot_creator->twsk_prot->twsk_slab,
+				 SLAB_ATOMIC);
 	if (tw != NULL) {
 		const struct inet_sock *inet = inet_sk(sk);
 

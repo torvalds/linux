@@ -191,11 +191,9 @@ MODULE_PARM_DESC(enable, "Enable ESS Solo-1 soundcard.");
 
  */
 
-typedef struct _snd_es1938 es1938_t;
-
 #define SAVED_REG_SIZE	32 /* max. number of registers to save */
 
-struct _snd_es1938 {
+struct es1938 {
 	int irq;
 
 	unsigned long io_port;
@@ -208,19 +206,18 @@ struct _snd_es1938 {
 	unsigned char irqmask;
 	unsigned char revision;
 
-	snd_kcontrol_t *hw_volume;
-	snd_kcontrol_t *hw_switch;
-	snd_kcontrol_t *master_volume;
-	snd_kcontrol_t *master_switch;
+	struct snd_kcontrol *hw_volume;
+	struct snd_kcontrol *hw_switch;
+	struct snd_kcontrol *master_volume;
+	struct snd_kcontrol *master_switch;
 
 	struct pci_dev *pci;
-	snd_card_t *card;
-	snd_pcm_t *pcm;
-	snd_pcm_substream_t *capture_substream;
-	snd_pcm_substream_t *playback1_substream;
-	snd_pcm_substream_t *playback2_substream;
-	snd_kmixer_t *mixer;
-	snd_rawmidi_t *rmidi;
+	struct snd_card *card;
+	struct snd_pcm *pcm;
+	struct snd_pcm_substream *capture_substream;
+	struct snd_pcm_substream *playback1_substream;
+	struct snd_pcm_substream *playback2_substream;
+	struct snd_rawmidi *rmidi;
 
 	unsigned int dma1_size;
 	unsigned int dma2_size;
@@ -232,7 +229,7 @@ struct _snd_es1938 {
 
 	spinlock_t reg_lock;
 	spinlock_t mixer_lock;
-        snd_info_entry_t *proc_entry;
+        struct snd_info_entry *proc_entry;
 
 #ifdef SUPPORT_JOYSTICK
 	struct gameport *gameport;
@@ -259,7 +256,7 @@ MODULE_DEVICE_TABLE(pci, snd_es1938_ids);
 /* -----------------------------------------------------------------
  * Write to a mixer register
  * -----------------------------------------------------------------*/
-static void snd_es1938_mixer_write(es1938_t *chip, unsigned char reg, unsigned char val)
+static void snd_es1938_mixer_write(struct es1938 *chip, unsigned char reg, unsigned char val)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&chip->mixer_lock, flags);
@@ -274,7 +271,7 @@ static void snd_es1938_mixer_write(es1938_t *chip, unsigned char reg, unsigned c
 /* -----------------------------------------------------------------
  * Read from a mixer register
  * -----------------------------------------------------------------*/
-static int snd_es1938_mixer_read(es1938_t *chip, unsigned char reg)
+static int snd_es1938_mixer_read(struct es1938 *chip, unsigned char reg)
 {
 	int data;
 	unsigned long flags;
@@ -291,7 +288,8 @@ static int snd_es1938_mixer_read(es1938_t *chip, unsigned char reg)
 /* -----------------------------------------------------------------
  * Write to some bits of a mixer register (return old value)
  * -----------------------------------------------------------------*/
-static int snd_es1938_mixer_bits(es1938_t *chip, unsigned char reg, unsigned char mask, unsigned char val)
+static int snd_es1938_mixer_bits(struct es1938 *chip, unsigned char reg,
+				 unsigned char mask, unsigned char val)
 {
 	unsigned long flags;
 	unsigned char old, new, oval;
@@ -314,7 +312,7 @@ static int snd_es1938_mixer_bits(es1938_t *chip, unsigned char reg, unsigned cha
 /* -----------------------------------------------------------------
  * Write command to Controller Registers
  * -----------------------------------------------------------------*/
-static void snd_es1938_write_cmd(es1938_t *chip, unsigned char cmd)
+static void snd_es1938_write_cmd(struct es1938 *chip, unsigned char cmd)
 {
 	int i;
 	unsigned char v;
@@ -330,7 +328,7 @@ static void snd_es1938_write_cmd(es1938_t *chip, unsigned char cmd)
 /* -----------------------------------------------------------------
  * Read the Read Data Buffer
  * -----------------------------------------------------------------*/
-static int snd_es1938_get_byte(es1938_t *chip)
+static int snd_es1938_get_byte(struct es1938 *chip)
 {
 	int i;
 	unsigned char v;
@@ -344,7 +342,7 @@ static int snd_es1938_get_byte(es1938_t *chip)
 /* -----------------------------------------------------------------
  * Write value cmd register
  * -----------------------------------------------------------------*/
-static void snd_es1938_write(es1938_t *chip, unsigned char reg, unsigned char val)
+static void snd_es1938_write(struct es1938 *chip, unsigned char reg, unsigned char val)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&chip->reg_lock, flags);
@@ -359,7 +357,7 @@ static void snd_es1938_write(es1938_t *chip, unsigned char reg, unsigned char va
 /* -----------------------------------------------------------------
  * Read data from cmd register and return it
  * -----------------------------------------------------------------*/
-static unsigned char snd_es1938_read(es1938_t *chip, unsigned char reg)
+static unsigned char snd_es1938_read(struct es1938 *chip, unsigned char reg)
 {
 	unsigned char val;
 	unsigned long flags;
@@ -377,7 +375,8 @@ static unsigned char snd_es1938_read(es1938_t *chip, unsigned char reg)
 /* -----------------------------------------------------------------
  * Write data to cmd register and return old value
  * -----------------------------------------------------------------*/
-static int snd_es1938_bits(es1938_t *chip, unsigned char reg, unsigned char mask, unsigned char val)
+static int snd_es1938_bits(struct es1938 *chip, unsigned char reg, unsigned char mask,
+			   unsigned char val)
 {
 	unsigned long flags;
 	unsigned char old, new, oval;
@@ -402,7 +401,7 @@ static int snd_es1938_bits(es1938_t *chip, unsigned char reg, unsigned char mask
 /* --------------------------------------------------------------------
  * Reset the chip
  * --------------------------------------------------------------------*/
-static void snd_es1938_reset(es1938_t *chip)
+static void snd_es1938_reset(struct es1938 *chip)
 {
 	int i;
 
@@ -441,13 +440,13 @@ static void snd_es1938_reset(es1938_t *chip)
 /* --------------------------------------------------------------------
  * Reset the FIFOs
  * --------------------------------------------------------------------*/
-static void snd_es1938_reset_fifo(es1938_t *chip)
+static void snd_es1938_reset_fifo(struct es1938 *chip)
 {
 	outb(2, SLSB_REG(chip, RESET));
 	outb(0, SLSB_REG(chip, RESET));
 }
 
-static ratnum_t clocks[2] = {
+static struct snd_ratnum clocks[2] = {
 	{
 		.num = 793800,
 		.den_min = 1,
@@ -462,18 +461,18 @@ static ratnum_t clocks[2] = {
 	}
 };
 
-static snd_pcm_hw_constraint_ratnums_t hw_constraints_clocks = {
+static struct snd_pcm_hw_constraint_ratnums hw_constraints_clocks = {
 	.nrats = 2,
 	.rats = clocks,
 };
 
 
-static void snd_es1938_rate_set(es1938_t *chip, 
-				snd_pcm_substream_t *substream,
+static void snd_es1938_rate_set(struct es1938 *chip, 
+				struct snd_pcm_substream *substream,
 				int mode)
 {
 	unsigned int bits, div0;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	if (runtime->rate_num == clocks[0].num)
 		bits = 128 - runtime->rate_den;
 	else
@@ -495,7 +494,7 @@ static void snd_es1938_rate_set(es1938_t *chip,
  * Configure Solo1 builtin DMA Controller
  * --------------------------------------------------------------------*/
 
-static void snd_es1938_playback1_setdma(es1938_t *chip)
+static void snd_es1938_playback1_setdma(struct es1938 *chip)
 {
 	outb(0x00, SLIO_REG(chip, AUDIO2MODE));
 	outl(chip->dma2_start, SLIO_REG(chip, AUDIO2DMAADDR));
@@ -503,7 +502,7 @@ static void snd_es1938_playback1_setdma(es1938_t *chip)
 	outw(chip->dma2_size, SLIO_REG(chip, AUDIO2DMACOUNT));
 }
 
-static void snd_es1938_playback2_setdma(es1938_t *chip)
+static void snd_es1938_playback2_setdma(struct es1938 *chip)
 {
 	/* Enable DMA controller */
 	outb(0xc4, SLDM_REG(chip, DMACOMMAND));
@@ -518,7 +517,7 @@ static void snd_es1938_playback2_setdma(es1938_t *chip)
 	outb(0, SLDM_REG(chip, DMAMASK));
 }
 
-static void snd_es1938_capture_setdma(es1938_t *chip)
+static void snd_es1938_capture_setdma(struct es1938 *chip)
 {
 	/* Enable DMA controller */
 	outb(0xc4, SLDM_REG(chip, DMACOMMAND));
@@ -538,10 +537,10 @@ static void snd_es1938_capture_setdma(es1938_t *chip)
  *                           *** PCM part ***
  */
 
-static int snd_es1938_capture_trigger(snd_pcm_substream_t * substream,
+static int snd_es1938_capture_trigger(struct snd_pcm_substream *substream,
 				      int cmd)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	int val;
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -561,10 +560,10 @@ static int snd_es1938_capture_trigger(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-static int snd_es1938_playback1_trigger(snd_pcm_substream_t * substream,
+static int snd_es1938_playback1_trigger(struct snd_pcm_substream *substream,
 					int cmd)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -591,10 +590,10 @@ static int snd_es1938_playback1_trigger(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-static int snd_es1938_playback2_trigger(snd_pcm_substream_t * substream,
+static int snd_es1938_playback2_trigger(struct snd_pcm_substream *substream,
 					int cmd)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	int val;
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -614,7 +613,7 @@ static int snd_es1938_playback2_trigger(snd_pcm_substream_t * substream,
 	return 0;
 }
 
-static int snd_es1938_playback_trigger(snd_pcm_substream_t *substream,
+static int snd_es1938_playback_trigger(struct snd_pcm_substream *substream,
 				       int cmd)
 {
 	switch (substream->number) {
@@ -630,10 +629,10 @@ static int snd_es1938_playback_trigger(snd_pcm_substream_t *substream,
 /* --------------------------------------------------------------------
  * First channel for Extended Mode Audio 1 ADC Operation
  * --------------------------------------------------------------------*/
-static int snd_es1938_capture_prepare(snd_pcm_substream_t * substream)
+static int snd_es1938_capture_prepare(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int u, is8, mono;
 	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
@@ -678,10 +677,10 @@ static int snd_es1938_capture_prepare(snd_pcm_substream_t * substream)
 /* ------------------------------------------------------------------------------
  * Second Audio channel DAC Operation
  * ------------------------------------------------------------------------------*/
-static int snd_es1938_playback1_prepare(snd_pcm_substream_t * substream)
+static int snd_es1938_playback1_prepare(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int u, is8, mono;
 	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
@@ -706,7 +705,8 @@ static int snd_es1938_playback1_prepare(snd_pcm_substream_t * substream)
 	snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2TCOUNTH, count >> 8);
 
 	/* initialize and configure Audio 2 DAC */
-	snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2CONTROL2, 0x40 | (u ? 0 : 4) | (mono ? 0 : 2) | (is8 ? 0 : 1));
+	snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2CONTROL2, 0x40 | (u ? 0 : 4) |
+			       (mono ? 0 : 2) | (is8 ? 0 : 1));
 
 	/* program DMA */
 	snd_es1938_playback1_setdma(chip);
@@ -714,10 +714,10 @@ static int snd_es1938_playback1_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_es1938_playback2_prepare(snd_pcm_substream_t * substream)
+static int snd_es1938_playback2_prepare(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int u, is8, mono;
 	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
@@ -756,7 +756,7 @@ static int snd_es1938_playback2_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_es1938_playback_prepare(snd_pcm_substream_t *substream)
+static int snd_es1938_playback_prepare(struct snd_pcm_substream *substream)
 {
 	switch (substream->number) {
 	case 0:
@@ -768,9 +768,9 @@ static int snd_es1938_playback_prepare(snd_pcm_substream_t *substream)
 	return -EINVAL;
 }
 
-static snd_pcm_uframes_t snd_es1938_capture_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_es1938_capture_pointer(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 	size_t old, new;
 #if 1
@@ -785,9 +785,9 @@ static snd_pcm_uframes_t snd_es1938_capture_pointer(snd_pcm_substream_t * substr
 	return ptr >> chip->dma1_shift;
 }
 
-static snd_pcm_uframes_t snd_es1938_playback1_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_es1938_playback1_pointer(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 #if 1
 	ptr = chip->dma2_size - inw(SLIO_REG(chip, AUDIO2DMACOUNT));
@@ -797,9 +797,9 @@ static snd_pcm_uframes_t snd_es1938_playback1_pointer(snd_pcm_substream_t * subs
 	return ptr >> chip->dma2_shift;
 }
 
-static snd_pcm_uframes_t snd_es1938_playback2_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_es1938_playback2_pointer(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	size_t ptr;
 	size_t old, new;
 #if 1
@@ -814,7 +814,7 @@ static snd_pcm_uframes_t snd_es1938_playback2_pointer(snd_pcm_substream_t * subs
 	return ptr >> chip->dma1_shift;
 }
 
-static snd_pcm_uframes_t snd_es1938_playback_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_es1938_playback_pointer(struct snd_pcm_substream *substream)
 {
 	switch (substream->number) {
 	case 0:
@@ -826,14 +826,14 @@ static snd_pcm_uframes_t snd_es1938_playback_pointer(snd_pcm_substream_t *substr
 	return -EINVAL;
 }
 
-static int snd_es1938_capture_copy(snd_pcm_substream_t *substream,
+static int snd_es1938_capture_copy(struct snd_pcm_substream *substream,
 				   int channel,
 				   snd_pcm_uframes_t pos,
 				   void __user *dst,
 				   snd_pcm_uframes_t count)
 {
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	pos <<= chip->dma1_shift;
 	count <<= chip->dma1_shift;
 	snd_assert(pos + count <= chip->dma1_size, return -EINVAL);
@@ -852,8 +852,8 @@ static int snd_es1938_capture_copy(snd_pcm_substream_t *substream,
 /*
  * buffer management
  */
-static int snd_es1938_pcm_hw_params(snd_pcm_substream_t *substream,
-				    snd_pcm_hw_params_t * hw_params)
+static int snd_es1938_pcm_hw_params(struct snd_pcm_substream *substream,
+				    struct snd_pcm_hw_params *hw_params)
 
 {
 	int err;
@@ -863,7 +863,7 @@ static int snd_es1938_pcm_hw_params(snd_pcm_substream_t *substream,
 	return 0;
 }
 
-static int snd_es1938_pcm_hw_free(snd_pcm_substream_t *substream)
+static int snd_es1938_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
@@ -871,11 +871,12 @@ static int snd_es1938_pcm_hw_free(snd_pcm_substream_t *substream)
 /* ----------------------------------------------------------------------
  * Audio1 Capture (ADC)
  * ----------------------------------------------------------------------*/
-static snd_pcm_hardware_t snd_es1938_capture =
+static struct snd_pcm_hardware snd_es1938_capture =
 {
 	.info =			(SNDRV_PCM_INFO_INTERLEAVED |
 				SNDRV_PCM_INFO_BLOCK_TRANSFER),
-	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U16_LE,
+	.formats =		(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE |
+				 SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U16_LE),
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		6000,
 	.rate_max =		48000,
@@ -892,12 +893,13 @@ static snd_pcm_hardware_t snd_es1938_capture =
 /* -----------------------------------------------------------------------
  * Audio2 Playback (DAC)
  * -----------------------------------------------------------------------*/
-static snd_pcm_hardware_t snd_es1938_playback =
+static struct snd_pcm_hardware snd_es1938_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID),
-	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U16_LE,
+	.formats =		(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE |
+				 SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U16_LE),
 	.rates =		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000,
 	.rate_min =		6000,
 	.rate_max =		48000,
@@ -911,10 +913,10 @@ static snd_pcm_hardware_t snd_es1938_playback =
 	.fifo_size =		256,
 };
 
-static int snd_es1938_capture_open(snd_pcm_substream_t * substream)
+static int snd_es1938_capture_open(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	if (chip->playback2_substream)
 		return -EAGAIN;
@@ -926,10 +928,10 @@ static int snd_es1938_capture_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_es1938_playback_open(snd_pcm_substream_t * substream)
+static int snd_es1938_playback_open(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	switch (substream->number) {
 	case 0:
@@ -951,17 +953,17 @@ static int snd_es1938_playback_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_es1938_capture_close(snd_pcm_substream_t * substream)
+static int snd_es1938_capture_close(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 
 	chip->capture_substream = NULL;
 	return 0;
 }
 
-static int snd_es1938_playback_close(snd_pcm_substream_t * substream)
+static int snd_es1938_playback_close(struct snd_pcm_substream *substream)
 {
-	es1938_t *chip = snd_pcm_substream_chip(substream);
+	struct es1938 *chip = snd_pcm_substream_chip(substream);
 
 	switch (substream->number) {
 	case 0:
@@ -977,7 +979,7 @@ static int snd_es1938_playback_close(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static snd_pcm_ops_t snd_es1938_playback_ops = {
+static struct snd_pcm_ops snd_es1938_playback_ops = {
 	.open =		snd_es1938_playback_open,
 	.close =	snd_es1938_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -988,7 +990,7 @@ static snd_pcm_ops_t snd_es1938_playback_ops = {
 	.pointer =	snd_es1938_playback_pointer,
 };
 
-static snd_pcm_ops_t snd_es1938_capture_ops = {
+static struct snd_pcm_ops snd_es1938_capture_ops = {
 	.open =		snd_es1938_capture_open,
 	.close =	snd_es1938_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1000,14 +1002,9 @@ static snd_pcm_ops_t snd_es1938_capture_ops = {
 	.copy =		snd_es1938_capture_copy,
 };
 
-static void snd_es1938_free_pcm(snd_pcm_t *pcm)
+static int __devinit snd_es1938_new_pcm(struct es1938 *chip, int device)
 {
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-static int __devinit snd_es1938_new_pcm(es1938_t *chip, int device)
-{
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	if ((err = snd_pcm_new(chip->card, "es-1938-1946", device, 2, 1, &pcm)) < 0)
@@ -1016,7 +1013,6 @@ static int __devinit snd_es1938_new_pcm(es1938_t *chip, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_es1938_capture_ops);
 	
 	pcm->private_data = chip;
-	pcm->private_free = snd_es1938_free_pcm;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "ESS Solo-1");
 
@@ -1032,7 +1028,8 @@ static int __devinit snd_es1938_new_pcm(es1938_t *chip, int device)
  *                       *** Mixer part ***
  */
 
-static int snd_es1938_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_es1938_info_mux(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[8] = {
 		"Mic", "Mic Master", "CD", "AOUT",
@@ -1048,16 +1045,18 @@ static int snd_es1938_info_mux(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * u
 	return 0;
 }
 
-static int snd_es1938_get_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_get_mux(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	ucontrol->value.enumerated.item[0] = snd_es1938_mixer_read(chip, 0x1c) & 0x07;
 	return 0;
 }
 
-static int snd_es1938_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_put_mux(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned char val = ucontrol->value.enumerated.item[0];
 	
 	if (val > 7)
@@ -1065,7 +1064,8 @@ static int snd_es1938_put_mux(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * 
 	return snd_es1938_mixer_bits(chip, 0x1c, 0x07, val) != val;
 }
 
-static int snd_es1938_info_spatializer_enable(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_es1938_info_spatializer_enable(struct snd_kcontrol *kcontrol,
+					      struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -1074,17 +1074,19 @@ static int snd_es1938_info_spatializer_enable(snd_kcontrol_t *kcontrol, snd_ctl_
 	return 0;
 }
 
-static int snd_es1938_get_spatializer_enable(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_get_spatializer_enable(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned char val = snd_es1938_mixer_read(chip, 0x50);
 	ucontrol->value.integer.value[0] = !!(val & 8);
 	return 0;
 }
 
-static int snd_es1938_put_spatializer_enable(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_put_spatializer_enable(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	unsigned char oval, nval;
 	int change;
 	nval = ucontrol->value.integer.value[0] ? 0x0c : 0x04;
@@ -1097,7 +1099,8 @@ static int snd_es1938_put_spatializer_enable(snd_kcontrol_t * kcontrol, snd_ctl_
 	return change;
 }
 
-static int snd_es1938_info_hw_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_es1938_info_hw_volume(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -1106,15 +1109,17 @@ static int snd_es1938_info_hw_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_info
 	return 0;
 }
 
-static int snd_es1938_get_hw_volume(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_get_hw_volume(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	ucontrol->value.integer.value[0] = snd_es1938_mixer_read(chip, 0x61) & 0x3f;
 	ucontrol->value.integer.value[1] = snd_es1938_mixer_read(chip, 0x63) & 0x3f;
 	return 0;
 }
 
-static int snd_es1938_info_hw_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_es1938_info_hw_switch(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 2;
@@ -1123,24 +1128,25 @@ static int snd_es1938_info_hw_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_info
 	return 0;
 }
 
-static int snd_es1938_get_hw_switch(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_get_hw_switch(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	ucontrol->value.integer.value[0] = !(snd_es1938_mixer_read(chip, 0x61) & 0x40);
 	ucontrol->value.integer.value[1] = !(snd_es1938_mixer_read(chip, 0x63) & 0x40);
 	return 0;
 }
 
-static void snd_es1938_hwv_free(snd_kcontrol_t *kcontrol)
+static void snd_es1938_hwv_free(struct snd_kcontrol *kcontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	chip->master_volume = NULL;
 	chip->master_switch = NULL;
 	chip->hw_volume = NULL;
 	chip->hw_switch = NULL;
 }
 
-static int snd_es1938_reg_bits(es1938_t *chip, unsigned char reg,
+static int snd_es1938_reg_bits(struct es1938 *chip, unsigned char reg,
 			       unsigned char mask, unsigned char val)
 {
 	if (reg < 0xa0)
@@ -1149,7 +1155,7 @@ static int snd_es1938_reg_bits(es1938_t *chip, unsigned char reg,
 		return snd_es1938_bits(chip, reg, mask, val);
 }
 
-static int snd_es1938_reg_read(es1938_t *chip, unsigned char reg)
+static int snd_es1938_reg_read(struct es1938 *chip, unsigned char reg)
 {
 	if (reg < 0xa0)
 		return snd_es1938_mixer_read(chip, reg);
@@ -1163,7 +1169,8 @@ static int snd_es1938_reg_read(es1938_t *chip, unsigned char reg)
   .get = snd_es1938_get_single, .put = snd_es1938_put_single, \
   .private_value = reg | (shift << 8) | (mask << 16) | (invert << 24) }
 
-static int snd_es1938_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_es1938_info_single(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 
@@ -1174,9 +1181,10 @@ static int snd_es1938_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int snd_es1938_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_get_single(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
@@ -1190,9 +1198,10 @@ static int snd_es1938_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_es1938_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_put_single(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
@@ -1213,7 +1222,8 @@ static int snd_es1938_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
   .get = snd_es1938_get_double, .put = snd_es1938_put_double, \
   .private_value = left_reg | (right_reg << 8) | (shift_left << 16) | (shift_right << 19) | (mask << 24) | (invert << 22) }
 
-static int snd_es1938_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_es1938_info_double(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_info *uinfo)
 {
 	int mask = (kcontrol->private_value >> 24) & 0xff;
 
@@ -1224,9 +1234,10 @@ static int snd_es1938_info_double(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int snd_es1938_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_get_double(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int shift_left = (kcontrol->private_value >> 16) & 0x07;
@@ -1249,9 +1260,10 @@ static int snd_es1938_get_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return 0;
 }
 
-static int snd_es1938_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_es1938_put_double(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
 {
-	es1938_t *chip = snd_kcontrol_chip(kcontrol);
+	struct es1938 *chip = snd_kcontrol_chip(kcontrol);
 	int left_reg = kcontrol->private_value & 0xff;
 	int right_reg = (kcontrol->private_value >> 8) & 0xff;
 	int shift_left = (kcontrol->private_value >> 16) & 0x07;
@@ -1284,7 +1296,7 @@ static int snd_es1938_put_double(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	return change;
 }
 
-static snd_kcontrol_new_t snd_es1938_controls[] = {
+static struct snd_kcontrol_new snd_es1938_controls[] = {
 ES1938_DOUBLE("Master Playback Volume", 0, 0x60, 0x62, 0, 0, 63, 0),
 ES1938_DOUBLE("Master Playback Switch", 0, 0x60, 0x62, 6, 6, 1, 1),
 {
@@ -1347,7 +1359,7 @@ ES1938_SINGLE("Mic Boost (+26dB)", 0, 0x7d, 3, 1, 0)
 /*
  * initialize the chip - used by resume callback, too
  */
-static void snd_es1938_chip_init(es1938_t *chip)
+static void snd_es1938_chip_init(struct es1938 *chip)
 {
 	/* reset chip */
 	snd_es1938_reset(chip);
@@ -1386,11 +1398,13 @@ static unsigned char saved_regs[SAVED_REG_SIZE+1] = {
 };
 
 
-static int es1938_suspend(snd_card_t *card, pm_message_t state)
+static int es1938_suspend(struct pci_dev *pci, pm_message_t state)
 {
-	es1938_t *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
 
 	/* save mixer-related registers */
@@ -1399,20 +1413,23 @@ static int es1938_suspend(snd_card_t *card, pm_message_t state)
 
 	outb(0x00, SLIO_REG(chip, IRQCONTROL)); /* disable irqs */
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);  
-	pci_disable_device(chip->pci);
+		free_irq(chip->irq, chip);
+	pci_disable_device(pci);
+	pci_save_state(pci);
 	return 0;
 }
 
-static int es1938_resume(snd_card_t *card)
+static int es1938_resume(struct pci_dev *pci)
 {
-	es1938_t *chip = card->pm_private_data;
+	struct snd_card *card = pci_get_drvdata(pci);
+	struct es1938 *chip = card->private_data;
 	unsigned char *s, *d;
 
-	pci_enable_device(chip->pci);
-	request_irq(chip->pci->irq, snd_es1938_interrupt,
-		    SA_INTERRUPT|SA_SHIRQ, "ES1938", (void *)chip);
-	chip->irq = chip->pci->irq;
+	pci_restore_state(pci);
+	pci_enable_device(pci);
+	request_irq(pci->irq, snd_es1938_interrupt,
+		    SA_INTERRUPT|SA_SHIRQ, "ES1938", chip);
+	chip->irq = pci->irq;
 	snd_es1938_chip_init(chip);
 
 	/* restore mixer-related registers */
@@ -1423,12 +1440,13 @@ static int es1938_resume(snd_card_t *card)
 			snd_es1938_write(chip, *s, *d);
 	}
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* CONFIG_PM */
 
 #ifdef SUPPORT_JOYSTICK
-static int __devinit snd_es1938_create_gameport(es1938_t *chip)
+static int __devinit snd_es1938_create_gameport(struct es1938 *chip)
 {
 	struct gameport *gp;
 
@@ -1448,7 +1466,7 @@ static int __devinit snd_es1938_create_gameport(es1938_t *chip)
 	return 0;
 }
 
-static void snd_es1938_free_gameport(es1938_t *chip)
+static void snd_es1938_free_gameport(struct es1938 *chip)
 {
 	if (chip->gameport) {
 		gameport_unregister_port(chip->gameport);
@@ -1456,11 +1474,11 @@ static void snd_es1938_free_gameport(es1938_t *chip)
 	}
 }
 #else
-static inline int snd_es1938_create_gameport(es1938_t *chip) { return -ENOSYS; }
-static inline void snd_es1938_free_gameport(es1938_t *chip) { }
+static inline int snd_es1938_create_gameport(struct es1938 *chip) { return -ENOSYS; }
+static inline void snd_es1938_free_gameport(struct es1938 *chip) { }
 #endif /* SUPPORT_JOYSTICK */
 
-static int snd_es1938_free(es1938_t *chip)
+static int snd_es1938_free(struct es1938 *chip)
 {
 	/* disable irqs */
 	outb(0x00, SLIO_REG(chip, IRQCONTROL));
@@ -1470,26 +1488,26 @@ static int snd_es1938_free(es1938_t *chip)
 	snd_es1938_free_gameport(chip);
 
 	if (chip->irq >= 0)
-		free_irq(chip->irq, (void *)chip);
+		free_irq(chip->irq, chip);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
 	kfree(chip);
 	return 0;
 }
 
-static int snd_es1938_dev_free(snd_device_t *device)
+static int snd_es1938_dev_free(struct snd_device *device)
 {
-	es1938_t *chip = device->device_data;
+	struct es1938 *chip = device->device_data;
 	return snd_es1938_free(chip);
 }
 
-static int __devinit snd_es1938_create(snd_card_t * card,
+static int __devinit snd_es1938_create(struct snd_card *card,
 				    struct pci_dev * pci,
-				    es1938_t ** rchip)
+				    struct es1938 ** rchip)
 {
-	es1938_t *chip;
+	struct es1938 *chip;
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_es1938_dev_free,
 	};
 
@@ -1525,7 +1543,8 @@ static int __devinit snd_es1938_create(snd_card_t * card,
 	chip->vc_port = pci_resource_start(pci, 2);
 	chip->mpu_port = pci_resource_start(pci, 3);
 	chip->game_port = pci_resource_start(pci, 4);
-	if (request_irq(pci->irq, snd_es1938_interrupt, SA_INTERRUPT|SA_SHIRQ, "ES1938", (void *)chip)) {
+	if (request_irq(pci->irq, snd_es1938_interrupt, SA_INTERRUPT|SA_SHIRQ,
+			"ES1938", chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_es1938_free(chip);
 		return -EBUSY;
@@ -1539,8 +1558,6 @@ static int __devinit snd_es1938_create(snd_card_t * card,
 	chip->ddma_port = chip->vc_port + 0x00;		/* fix from Thomas Sailer */
 
 	snd_es1938_chip_init(chip);
-
-	snd_card_set_pm_callback(card, es1938_suspend, es1938_resume, chip);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_es1938_free(chip);
@@ -1558,7 +1575,7 @@ static int __devinit snd_es1938_create(snd_card_t * card,
  * -------------------------------------------------------------------- */
 static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	es1938_t *chip = dev_id;
+	struct es1938 *chip = dev_id;
 	unsigned char status, audiostatus;
 	int handled = 0;
 
@@ -1571,9 +1588,12 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *r
 	if (status & 0x10) {
 #if 0
                 printk("Es1938debug - AUDIO channel 1 interrupt\n");
-		printk("Es1938debug - AUDIO channel 1 DMAC DMA count: %u\n", inw(SLDM_REG(chip, DMACOUNT)));
-		printk("Es1938debug - AUDIO channel 1 DMAC DMA base: %u\n", inl(SLDM_REG(chip, DMAADDR)));
-		printk("Es1938debug - AUDIO channel 1 DMAC DMA status: 0x%x\n", inl(SLDM_REG(chip, DMASTATUS)));
+		printk("Es1938debug - AUDIO channel 1 DMAC DMA count: %u\n",
+		       inw(SLDM_REG(chip, DMACOUNT)));
+		printk("Es1938debug - AUDIO channel 1 DMAC DMA base: %u\n",
+		       inl(SLDM_REG(chip, DMAADDR)));
+		printk("Es1938debug - AUDIO channel 1 DMAC DMA status: 0x%x\n",
+		       inl(SLDM_REG(chip, DMASTATUS)));
 #endif
 		/* clear irq */
 		handled = 1;
@@ -1588,8 +1608,10 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *r
 	if (status & 0x20) {
 #if 0
                 printk("Es1938debug - AUDIO channel 2 interrupt\n");
-		printk("Es1938debug - AUDIO channel 2 DMAC DMA count: %u\n", inw(SLIO_REG(chip, AUDIO2DMACOUNT)));
-		printk("Es1938debug - AUDIO channel 2 DMAC DMA base: %u\n", inl(SLIO_REG(chip, AUDIO2DMAADDR)));
+		printk("Es1938debug - AUDIO channel 2 DMAC DMA count: %u\n",
+		       inw(SLIO_REG(chip, AUDIO2DMACOUNT)));
+		printk("Es1938debug - AUDIO channel 2 DMAC DMA base: %u\n",
+		       inl(SLIO_REG(chip, AUDIO2DMAADDR)));
 
 #endif
 		/* clear irq */
@@ -1606,8 +1628,10 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *r
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->hw_switch->id);
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->hw_volume->id);
 		if (!split) {
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->master_switch->id);
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->master_volume->id);
+			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+				       &chip->master_switch->id);
+			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+				       &chip->master_volume->id);
 		}
 		/* ack interrupt */
 		snd_es1938_mixer_write(chip, 0x66, 0x00);
@@ -1629,9 +1653,9 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id, struct pt_regs *r
 
 #define ES1938_DMA_SIZE 64
 
-static int __devinit snd_es1938_mixer(es1938_t *chip)
+static int __devinit snd_es1938_mixer(struct es1938 *chip)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	unsigned int idx;
 	int err;
 
@@ -1640,7 +1664,7 @@ static int __devinit snd_es1938_mixer(es1938_t *chip)
 	strcpy(card->mixername, "ESS Solo-1");
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_es1938_controls); idx++) {
-		snd_kcontrol_t *kctl;
+		struct snd_kcontrol *kctl;
 		kctl = snd_ctl_new1(&snd_es1938_controls[idx], chip);
 		switch (idx) {
 			case 0:
@@ -1671,9 +1695,9 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 				      const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	es1938_t *chip;
-	opl3_t *opl3;
+	struct snd_card *card;
+	struct es1938 *chip;
+	struct snd_opl3 *opl3;
 	int idx, err;
 
 	if (dev >= SNDRV_CARDS)
@@ -1697,6 +1721,7 @@ static int __devinit snd_es1938_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+	card->private_data = chip;
 
 	strcpy(card->driver, "ES1938");
 	strcpy(card->shortname, "ESS ES1938 (Solo-1)");
@@ -1761,7 +1786,10 @@ static struct pci_driver driver = {
 	.id_table = snd_es1938_ids,
 	.probe = snd_es1938_probe,
 	.remove = __devexit_p(snd_es1938_remove),
-	SND_PCI_PM_CALLBACKS
+#ifdef CONFIG_PM
+	.suspend = es1938_suspend,
+	.resume = es1938_resume,
+#endif
 };
 
 static int __init alsa_card_es1938_init(void)

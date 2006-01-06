@@ -273,6 +273,20 @@ config USB_ATI_REMOTE
 	  To compile this driver as a module, choose M here: the module will be
 	  called ati_remote.
 
+config USB_ATI_REMOTE2
+	tristate "ATI / Philips USB RF remote control"
+	depends on USB && INPUT
+	---help---
+	  Say Y here if you want to use an ATI or Philips USB RF remote control.
+	  These are RF remotes with USB receivers.
+	  ATI Remote Wonder II comes with some ATI's All-In-Wonder video cards
+	  and is also available as a separate product.
+	  This driver provides mouse pointer, left and right mouse buttons,
+	  and maps all the other remote buttons to keypress events.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ati_remote2.
+
 config USB_KEYSPAN_REMOTE
 	tristate "Keyspan DMR USB remote control (EXPERIMENTAL)"
 	depends on USB && INPUT && EXPERIMENTAL

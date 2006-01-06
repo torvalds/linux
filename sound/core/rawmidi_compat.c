@@ -22,7 +22,7 @@
 
 #include <linux/compat.h>
 
-struct sndrv_rawmidi_params32 {
+struct snd_rawmidi_params32 {
 	s32 stream;
 	u32 buffer_size;
 	u32 avail_min;
@@ -30,10 +30,10 @@ struct sndrv_rawmidi_params32 {
 	unsigned char reserved[16];
 } __attribute__((packed));
 
-static int snd_rawmidi_ioctl_params_compat(snd_rawmidi_file_t *rfile,
-					   struct sndrv_rawmidi_params32 __user *src)
+static int snd_rawmidi_ioctl_params_compat(struct snd_rawmidi_file *rfile,
+					   struct snd_rawmidi_params32 __user *src)
 {
-	snd_rawmidi_params_t params;
+	struct snd_rawmidi_params params;
 	unsigned int val;
 
 	if (rfile->output == NULL)
@@ -53,7 +53,7 @@ static int snd_rawmidi_ioctl_params_compat(snd_rawmidi_file_t *rfile,
 	return -EINVAL;
 }
 
-struct sndrv_rawmidi_status32 {
+struct snd_rawmidi_status32 {
 	s32 stream;
 	struct compat_timespec tstamp;
 	u32 avail;
@@ -61,11 +61,11 @@ struct sndrv_rawmidi_status32 {
 	unsigned char reserved[16];
 } __attribute__((packed));
 
-static int snd_rawmidi_ioctl_status_compat(snd_rawmidi_file_t *rfile,
-					   struct sndrv_rawmidi_status32 __user *src)
+static int snd_rawmidi_ioctl_status_compat(struct snd_rawmidi_file *rfile,
+					   struct snd_rawmidi_status32 __user *src)
 {
 	int err;
-	snd_rawmidi_status_t status;
+	struct snd_rawmidi_status status;
 
 	if (rfile->output == NULL)
 		return -EINVAL;
@@ -95,13 +95,13 @@ static int snd_rawmidi_ioctl_status_compat(snd_rawmidi_file_t *rfile,
 }
 
 enum {
-	SNDRV_RAWMIDI_IOCTL_PARAMS32 = _IOWR('W', 0x10, struct sndrv_rawmidi_params32),
-	SNDRV_RAWMIDI_IOCTL_STATUS32 = _IOWR('W', 0x20, struct sndrv_rawmidi_status32),
+	SNDRV_RAWMIDI_IOCTL_PARAMS32 = _IOWR('W', 0x10, struct snd_rawmidi_params32),
+	SNDRV_RAWMIDI_IOCTL_STATUS32 = _IOWR('W', 0x20, struct snd_rawmidi_status32),
 };
 
 static long snd_rawmidi_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	snd_rawmidi_file_t *rfile;
+	struct snd_rawmidi_file *rfile;
 	void __user *argp = compat_ptr(arg);
 
 	rfile = file->private_data;

@@ -116,6 +116,31 @@ config YENTA
 
 	  If unsure, say Y.
 
+config YENTA_O2
+	default y
+	bool "Special initialization for O2Micro bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_RICOH
+	default y
+	bool "Special initialization for Ricoh bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_TI
+	default y
+	bool "Special initialization for TI and EnE bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_ENE_TUNE
+	default y
+	bool "Auto-tune EnE bridges for CB cards" if EMBEDDED
+	depends on YENTA_TI && CARDBUS
+
+config YENTA_TOSHIBA
+	default y
+	bool "Special initialization for Toshiba ToPIC bridges" if EMBEDDED
+	depends on YENTA
+
 config PD6729
 	tristate "Cirrus PD6729 compatible bridge support"
 	depends on PCMCIA && PCI
@@ -157,7 +182,7 @@ config TCIC
 config PCMCIA_M8XX
         tristate "MPC8xx PCMCIA support"
         depends on PCMCIA && PPC && 8xx 
-        select PCCARD_NONSTATIC
+        select PCCARD_IODYN
         help
         Say Y here to include support for PowerPC 8xx series PCMCIA
         controller.
@@ -200,7 +225,7 @@ config PCMCIA_PXA2XX
 
 config PCMCIA_PROBE
 	bool
-	default y if ISA && !ARCH_SA1100 && !ARCH_CLPS711X
+	default y if ISA && !ARCH_SA1100 && !ARCH_CLPS711X && !PARISC
 
 config M32R_PCC
 	bool "M32R PCMCIA I/F"
@@ -240,6 +265,9 @@ config OMAP_CF
 
 config PCCARD_NONSTATIC
 	tristate
+
+config PCCARD_IODYN
+	bool
 
 endif	# PCCARD
 

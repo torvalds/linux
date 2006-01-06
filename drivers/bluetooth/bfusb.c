@@ -768,7 +768,6 @@ static void bfusb_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver bfusb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "bfusb",
 	.probe		= bfusb_probe,
 	.disconnect	= bfusb_disconnect,

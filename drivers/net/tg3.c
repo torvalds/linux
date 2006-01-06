@@ -24,6 +24,7 @@
 #include <linux/compiler.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/in.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
@@ -68,8 +69,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.46"
-#define DRV_MODULE_RELDATE	"Dec 19, 2005"
+#define DRV_MODULE_VERSION	"3.47"
+#define DRV_MODULE_RELDATE	"Dec 28, 2005"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -3650,7 +3651,7 @@ static int tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			       TXD_FLAG_CPU_POST_DMA);
 
 		skb->nh.iph->check = 0;
-		skb->nh.iph->tot_len = ntohs(mss + ip_tcp_len + tcp_opt_len);
+		skb->nh.iph->tot_len = htons(mss + ip_tcp_len + tcp_opt_len);
 		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO) {
 			skb->h.th->check = 0;
 			base_flags &= ~TXD_FLAG_TCPUDP_CSUM;
@@ -7151,8 +7152,13 @@ do {	p = (u32 *)(orig_p + (reg));		\
 	GET_REG32_LOOP(BUFMGR_MODE, 0x58);
 	GET_REG32_LOOP(RDMAC_MODE, 0x08);
 	GET_REG32_LOOP(WDMAC_MODE, 0x08);
-	GET_REG32_LOOP(RX_CPU_BASE, 0x280);
-	GET_REG32_LOOP(TX_CPU_BASE, 0x280);
+	GET_REG32_1(RX_CPU_MODE);
+	GET_REG32_1(RX_CPU_STATE);
+	GET_REG32_1(RX_CPU_PGMCTR);
+	GET_REG32_1(RX_CPU_HWBKPT);
+	GET_REG32_1(TX_CPU_MODE);
+	GET_REG32_1(TX_CPU_STATE);
+	GET_REG32_1(TX_CPU_PGMCTR);
 	GET_REG32_LOOP(GRCMBOX_INTERRUPT_0, 0x110);
 	GET_REG32_LOOP(FTQ_RESET, 0x120);
 	GET_REG32_LOOP(MSGINT_MODE, 0x0c);

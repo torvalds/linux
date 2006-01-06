@@ -21,7 +21,7 @@
  *                              merged HAL layer (patches from Brian)
  */
 
-/* $Id: sa11xx-uda1341.c,v 1.23 2005/09/09 13:22:34 tiwai Exp $ */
+/* $Id: sa11xx-uda1341.c,v 1.27 2005/12/07 09:13:42 cladisch Exp $ */
 
 /***************************************************************************************************
 *
@@ -64,6 +64,8 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/ioctl.h>
 #include <linux/delay.h>
@@ -115,7 +117,7 @@ static char *id = NULL;	/* ID for this card */
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for SA1100/SA1111 + UDA1341TS soundcard.");
 
-typedef struct audio_stream {
+struct audio_stream {
 	char *id;		/* identification string */
 	int stream_id;		/* numeric identification */	
 	dma_device_t dma_dev;	/* device identifier for DMA */
@@ -130,18 +132,16 @@ typedef struct audio_stream {
 	int tx_spin;		/* are we recoding - flag used to do DMA trans. for sync */
 	unsigned int old_offset;
 	spinlock_t dma_lock;	/* for locking in DMA operations (see dma-sa1100.c in the kernel) */
-	snd_pcm_substream_t *stream;
-}audio_stream_t;
+	struct snd_pcm_substream *stream;
+};
 
-typedef struct snd_card_sa11xx_uda1341 {
-	snd_card_t *card;
+struct sa11xx_uda1341 {
+	struct snd_card *card;
 	struct l3_client *uda1341;
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	long samplerate;
-	audio_stream_t s[2];	/* playback & capture */
-} sa11xx_uda1341_t;
-
-static struct snd_card_sa11xx_uda1341 *sa11xx_uda1341 = NULL;
+	struct audio_stream s[2];	/* playback & capture */
+};
 
 static unsigned int rates[] = {
 	8000,  10666, 10985, 14647,
@@ -149,11 +149,13 @@ static unsigned int rates[] = {
 	29400, 32000, 44100, 48000,
 };
 
-static snd_pcm_hw_constraint_list_t hw_constraints_rates = {
+static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count	= ARRAY_SIZE(rates),
 	.list	= rates,
 	.mask	= 0,
 };
+
+static struct platform_device *device;
 
 /* }}} */
 
@@ -195,7 +197,7 @@ static void sa11xx_uda1341_set_audio_clock(long val)
 	}
 }
 
-static void sa11xx_uda1341_set_samplerate(sa11xx_uda1341_t *sa11xx_uda1341, long rate)
+static void sa11xx_uda1341_set_samplerate(struct sa11xx_uda1341 *sa11xx_uda1341, long rate)
 {
 	int clk_div = 0;
 	int clk=0;
@@ -280,7 +282,7 @@ static void sa11xx_uda1341_set_samplerate(sa11xx_uda1341_t *sa11xx_uda1341, long
 
 /* {{{ HW init and shutdown */
 
-static void sa11xx_uda1341_audio_init(sa11xx_uda1341_t *sa11xx_uda1341)
+static void sa11xx_uda1341_audio_init(struct sa11xx_uda1341 *sa11xx_uda1341)
 {
 	unsigned long flags;
 
@@ -337,7 +339,7 @@ static void sa11xx_uda1341_audio_init(sa11xx_uda1341_t *sa11xx_uda1341)
 #endif     
 }
 
-static void sa11xx_uda1341_audio_shutdown(sa11xx_uda1341_t *sa11xx_uda1341)
+static void sa11xx_uda1341_audio_shutdown(struct sa11xx_uda1341 *sa11xx_uda1341)
 {
 	/* mute on */
 #ifdef CONFIG_H3600_HAL
@@ -378,7 +380,7 @@ static void sa11xx_uda1341_audio_shutdown(sa11xx_uda1341_t *sa11xx_uda1341)
 
 #ifdef HH_VERSION
 
-static int audio_dma_request(audio_stream_t *s, void (*callback)(void *, int))
+static int audio_dma_request(struct audio_stream *s, void (*callback)(void *, int))
 {
 	int ret;
 
@@ -391,7 +393,7 @@ static int audio_dma_request(audio_stream_t *s, void (*callback)(void *, int))
 	return 0;
 }
 
-static inline void audio_dma_free(audio_stream_t *s)
+static inline void audio_dma_free(struct audio_stream *s)
 {
 	sa1100_free_dma(s->dmach);
 	s->dmach = -1;
@@ -399,7 +401,7 @@ static inline void audio_dma_free(audio_stream_t *s)
 
 #else
 
-static int audio_dma_request(audio_stream_t *s, void (*callback)(void *))
+static int audio_dma_request(struct audio_stream *s, void (*callback)(void *))
 {
 	int ret;
 
@@ -409,18 +411,18 @@ static int audio_dma_request(audio_stream_t *s, void (*callback)(void *))
 	return ret;
 }
 
-static void audio_dma_free(audio_stream_t *s)
+static void audio_dma_free(struct audio_stream *s)
 {
-	sa1100_free_dma((s)->dma_regs);
-	(s)->dma_regs = 0;
+	sa1100_free_dma(s->dma_regs);
+	s->dma_regs = 0;
 }
 
 #endif
 
-static u_int audio_get_dma_pos(audio_stream_t *s)
+static u_int audio_get_dma_pos(struct audio_stream *s)
 {
-	snd_pcm_substream_t * substream = s->stream;
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_pcm_substream *substream = s->stream;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int offset;
 	unsigned long flags;
 	dma_addr_t addr;
@@ -445,7 +447,7 @@ static u_int audio_get_dma_pos(audio_stream_t *s)
 /*
  * this stops the dma and clears the dma ptrs
  */
-static void audio_stop_dma(audio_stream_t *s)
+static void audio_stop_dma(struct audio_stream *s)
 {
 	unsigned long flags;
 
@@ -461,10 +463,10 @@ static void audio_stop_dma(audio_stream_t *s)
 	spin_unlock_irqrestore(&s->dma_lock, flags);
 }
 
-static void audio_process_dma(audio_stream_t *s)
+static void audio_process_dma(struct audio_stream *s)
 {
-	snd_pcm_substream_t *substream = s->stream;
-	snd_pcm_runtime_t *runtime;
+	struct snd_pcm_substream *substream = s->stream;
+	struct snd_pcm_runtime *runtime;
 	unsigned int dma_size;		
 	unsigned int offset;
 	int ret;
@@ -527,7 +529,7 @@ static void audio_dma_callback(void *data, int size)
 static void audio_dma_callback(void *data)
 #endif
 {
-	audio_stream_t *s = data;
+	struct audio_stream *s = data;
         
 	/* 
 	 * If we are getting a callback for an active stream then we inform
@@ -549,12 +551,12 @@ static void audio_dma_callback(void *data)
 
 /* {{{ trigger & timer */
 
-static int snd_sa11xx_uda1341_trigger(snd_pcm_substream_t * substream, int cmd)
+static int snd_sa11xx_uda1341_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	sa11xx_uda1341_t *chip = snd_pcm_substream_chip(substream);
+	struct sa11xx_uda1341 *chip = snd_pcm_substream_chip(substream);
 	int stream_id = substream->pstr->stream;
-	audio_stream_t *s = &chip->s[stream_id];
-	audio_stream_t *s1 = &chip->s[stream_id ^ 1];
+	struct audio_stream *s = &chip->s[stream_id];
+	struct audio_stream *s1 = &chip->s[stream_id ^ 1];
 	int err = 0;
 
 	/* note local interrupts are already disabled in the midlevel code */
@@ -683,11 +685,11 @@ static int snd_sa11xx_uda1341_trigger(snd_pcm_substream_t * substream, int cmd)
 	return err;
 }
 
-static int snd_sa11xx_uda1341_prepare(snd_pcm_substream_t * substream)
+static int snd_sa11xx_uda1341_prepare(struct snd_pcm_substream *substream)
 {
-	sa11xx_uda1341_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
-	audio_stream_t *s = &chip->s[substream->pstr->stream];
+	struct sa11xx_uda1341 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct audio_stream *s = &chip->s[substream->pstr->stream];
         
 	/* set requested samplerate */
 	sa11xx_uda1341_set_samplerate(chip, runtime->rate);
@@ -701,15 +703,15 @@ static int snd_sa11xx_uda1341_prepare(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static snd_pcm_uframes_t snd_sa11xx_uda1341_pointer(snd_pcm_substream_t * substream)
+static snd_pcm_uframes_t snd_sa11xx_uda1341_pointer(struct snd_pcm_substream *substream)
 {
-	sa11xx_uda1341_t *chip = snd_pcm_substream_chip(substream);
+	struct sa11xx_uda1341 *chip = snd_pcm_substream_chip(substream);
 	return audio_get_dma_pos(&chip->s[substream->pstr->stream]);
 }
 
 /* }}} */
 
-static snd_pcm_hardware_t snd_sa11xx_uda1341_capture =
+static struct snd_pcm_hardware snd_sa11xx_uda1341_capture =
 {
 	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -732,7 +734,7 @@ static snd_pcm_hardware_t snd_sa11xx_uda1341_capture =
 	.fifo_size		= 0,
 };
 
-static snd_pcm_hardware_t snd_sa11xx_uda1341_playback =
+static struct snd_pcm_hardware snd_sa11xx_uda1341_playback =
 {
 	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
 				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -755,10 +757,10 @@ static snd_pcm_hardware_t snd_sa11xx_uda1341_playback =
 	.fifo_size		= 0,
 };
 
-static int snd_card_sa11xx_uda1341_open(snd_pcm_substream_t * substream)
+static int snd_card_sa11xx_uda1341_open(struct snd_pcm_substream *substream)
 {
-	sa11xx_uda1341_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct sa11xx_uda1341 *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int stream_id = substream->pstr->stream;
 	int err;
 
@@ -776,9 +778,9 @@ static int snd_card_sa11xx_uda1341_open(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static int snd_card_sa11xx_uda1341_close(snd_pcm_substream_t * substream)
+static int snd_card_sa11xx_uda1341_close(struct snd_pcm_substream *substream)
 {
-	sa11xx_uda1341_t *chip = snd_pcm_substream_chip(substream);
+	struct sa11xx_uda1341 *chip = snd_pcm_substream_chip(substream);
 
 	chip->s[substream->pstr->stream].stream = NULL;
 	return 0;
@@ -786,21 +788,21 @@ static int snd_card_sa11xx_uda1341_close(snd_pcm_substream_t * substream)
 
 /* {{{ HW params & free */
 
-static int snd_sa11xx_uda1341_hw_params(snd_pcm_substream_t * substream,
-					snd_pcm_hw_params_t * hw_params)
+static int snd_sa11xx_uda1341_hw_params(struct snd_pcm_substream *substream,
+					struct snd_pcm_hw_params *hw_params)
 {
         
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
-static int snd_sa11xx_uda1341_hw_free(snd_pcm_substream_t * substream)
+static int snd_sa11xx_uda1341_hw_free(struct snd_pcm_substream *substream)
 {
 	return snd_pcm_lib_free_pages(substream);
 }
 
 /* }}} */
 
-static snd_pcm_ops_t snd_card_sa11xx_uda1341_playback_ops = {
+static struct snd_pcm_ops snd_card_sa11xx_uda1341_playback_ops = {
 	.open			= snd_card_sa11xx_uda1341_open,
 	.close			= snd_card_sa11xx_uda1341_close,
 	.ioctl			= snd_pcm_lib_ioctl,
@@ -811,7 +813,7 @@ static snd_pcm_ops_t snd_card_sa11xx_uda1341_playback_ops = {
 	.pointer		= snd_sa11xx_uda1341_pointer,
 };
 
-static snd_pcm_ops_t snd_card_sa11xx_uda1341_capture_ops = {
+static struct snd_pcm_ops snd_card_sa11xx_uda1341_capture_ops = {
 	.open			= snd_card_sa11xx_uda1341_open,
 	.close			= snd_card_sa11xx_uda1341_close,
 	.ioctl			= snd_pcm_lib_ioctl,
@@ -822,9 +824,9 @@ static snd_pcm_ops_t snd_card_sa11xx_uda1341_capture_ops = {
 	.pointer		= snd_sa11xx_uda1341_pointer,
 };
 
-static int __init snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341_t *sa11xx_uda1341, int device)
+static int __init snd_card_sa11xx_uda1341_pcm(struct sa11xx_uda1341 *sa11xx_uda1341, int device)
 {
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 	int err;
 
 	if ((err = snd_pcm_new(sa11xx_uda1341->card, "UDA1341 PCM", device, 1, 1, &pcm)) < 0)
@@ -835,8 +837,8 @@ static int __init snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341_t *sa11xx_uda1341, 
 	 * isa works but I'm not sure why (or if) it's the right choice
 	 * this may be too large, trying it for now
 	 */
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_ISA, 
-					      snd_pcm_dma_flags(0),
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV, 
+					      snd_dma_isa_data(),
 					      64*1024, 64*1024);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_card_sa11xx_uda1341_playback_ops);
@@ -862,12 +864,15 @@ static int __init snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341_t *sa11xx_uda1341, 
 
 #ifdef CONFIG_PM
 
-static int snd_sa11xx_uda1341_suspend(snd_card_t *card, pm_message_t state)
+static int snd_sa11xx_uda1341_suspend(struct platform_device *devptr,
+				      pm_message_t state)
 {
-	sa11xx_uda1341_t *chip = card->pm_private_data;
+	struct snd_card *card = platform_get_drvdata(devptr);
+	struct sa11xx_uda1341 *chip = card->private_data;
 
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(chip->pcm);
-#ifdef HH_VERSION	
+#ifdef HH_VERSION
 	sa1100_dma_sleep(chip->s[SNDRV_PCM_STREAM_PLAYBACK].dmach);
 	sa1100_dma_sleep(chip->s[SNDRV_PCM_STREAM_CAPTURE].dmach);
 #else
@@ -875,12 +880,14 @@ static int snd_sa11xx_uda1341_suspend(snd_card_t *card, pm_message_t state)
 #endif
 	l3_command(chip->uda1341, CMD_SUSPEND, NULL);
 	sa11xx_uda1341_audio_shutdown(chip);
+
 	return 0;
 }
 
-static int snd_sa11xx_uda1341_resume(snd_card_t *card)
+static int snd_sa11xx_uda1341_resume(struct platform_device *devptr)
 {
-	sa11xx_uda1341_t *chip = card->pm_private_data;
+	struct snd_card *card = platform_get_drvdata(devptr);
+	struct sa11xx_uda1341 *chip = card->private_data;
 
 	sa11xx_uda1341_audio_init(chip);
 	l3_command(chip->uda1341, CMD_RESUME, NULL);
@@ -890,67 +897,55 @@ static int snd_sa11xx_uda1341_resume(snd_card_t *card)
 #else
 	//FIXME
 #endif
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
 #endif /* COMFIG_PM */
 
-void snd_sa11xx_uda1341_free(snd_card_t *card)
+void snd_sa11xx_uda1341_free(struct snd_card *card)
 {
-	sa11xx_uda1341_t *chip = card->private_data;
+	struct sa11xx_uda1341 *chip = card->private_data;
 
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_PLAYBACK]);
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_CAPTURE]);
-	sa11xx_uda1341 = NULL;
-	card->private_data = NULL;
-	kfree(chip);
 }
 
-static int __init sa11xx_uda1341_init(void)
+static int __init sa11xx_uda1341_probe(struct platform_device *devptr)
 {
 	int err;
-	snd_card_t *card;
-
-	if (!machine_is_h3xxx())
-		return -ENODEV;
+	struct snd_card *card;
+	struct sa11xx_uda1341 *chip;
 
 	/* register the soundcard */
-	card = snd_card_new(-1, id, THIS_MODULE, sizeof(sa11xx_uda1341_t));
+	card = snd_card_new(-1, id, THIS_MODULE, sizeof(struct sa11xx_uda1341));
 	if (card == NULL)
 		return -ENOMEM;
 
-	sa11xx_uda1341 = kzalloc(sizeof(*sa11xx_uda1341), GFP_KERNEL);
-	if (sa11xx_uda1341 == NULL)
-		return -ENOMEM;	
+	chip = card->private_data;
 	spin_lock_init(&chip->s[0].dma_lock);
 	spin_lock_init(&chip->s[1].dma_lock);
-         
-	card->private_data = (void *)sa11xx_uda1341;
-	card->private_free = snd_sa11xx_uda1341_free;
 
-	sa11xx_uda1341->card = card;
-	sa11xx_uda1341->samplerate = AUDIO_RATE_DEFAULT;
+	card->private_free = snd_sa11xx_uda1341_free;
+	chip->card = card;
+	chip->samplerate = AUDIO_RATE_DEFAULT;
 
 	// mixer
-	if ((err = snd_chip_uda1341_mixer_new(sa11xx_uda1341->card, &sa11xx_uda1341->uda1341)))
+	if ((err = snd_chip_uda1341_mixer_new(card, &chip->uda1341)))
 		goto nodev;
 
 	// PCM
-	if ((err = snd_card_sa11xx_uda1341_pcm(sa11xx_uda1341, 0)) < 0)
+	if ((err = snd_card_sa11xx_uda1341_pcm(chip, 0)) < 0)
 		goto nodev;
         
-	snd_card_set_generic_pm_callback(card,
-				     snd_sa11xx_uda1341_suspend, snd_sa11_uda1341_resume,
-				     sa11xx_uda1341);
-
 	strcpy(card->driver, "UDA1341");
 	strcpy(card->shortname, "H3600 UDA1341TS");
 	sprintf(card->longname, "Compaq iPAQ H3600 with Philips UDA1341TS");
         
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto nodev;
+	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) == 0) {
 		printk( KERN_INFO "iPAQ audio support initialized\n" );
+		platform_set_drvdata(devptr, card);
 		return 0;
 	}
         
@@ -959,9 +954,47 @@ static int __init sa11xx_uda1341_init(void)
 	return err;
 }
 
+static int __devexit sa11xx_uda1341_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#define SA11XX_UDA1341_DRIVER	"sa11xx_uda1341"
+
+static struct platform_driver sa11xx_uda1341_driver = {
+	.probe		= sa11xx_uda1341_probe,
+	.remove		= __devexit_p(sa11xx_uda1341_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_sa11xx_uda1341_suspend,
+	.resume		= snd_sa11xx_uda1341_resume,
+#endif
+	.driver		= {
+		.name	= SA11XX_UDA1341_DRIVER,
+	},
+};
+
+static int __init sa11xx_uda1341_init(void)
+{
+	int err;
+
+	if (!machine_is_h3xxx())
+		return -ENODEV;
+	if ((err = platform_driver_register(&sa11xx_uda1341_driver)) < 0)
+		return err;
+	device = platform_device_register_simple(SA11XX_UDA1341_DRIVER, -1, NULL, 0);
+	if (IS_ERR(device)) {
+		platform_driver_unregister(&sa11xx_uda1341_driver);
+		return PTR_ERR(device);
+	}
+	return 0;
+}
+
 static void __exit sa11xx_uda1341_exit(void)
 {
-	snd_card_free(sa11xx_uda1341->card);
+	platform_device_unregister(device);
+	platform_driver_unregister(&sa11xx_uda1341_driver);
 }
 
 module_init(sa11xx_uda1341_init);

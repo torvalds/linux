@@ -111,6 +111,25 @@ config SND_SEQ_RTCTIMER_DEFAULT
 
 	  If in doubt, say Y.
 
+config SND_DYNAMIC_MINORS
+	bool "Dynamic device file minor numbers (EXPERIMENTAL)"
+	depends on SND && EXPERIMENTAL
+	help
+	  If you say Y here, the minor numbers of ALSA device files in
+	  /dev/snd/ are allocated dynamically.  This allows you to have
+	  more than 8 sound cards, but requires a dynamic device file
+	  system like udev.
+
+	  If you are unsure about this, say N here.
+
+config SND_SUPPORT_OLD_API
+	bool "Support old ALSA API"
+	depends on SND
+	default y
+	help
+	  Say Y here to support the obsolete ALSA PCM API (ver.0.9.0 rc3
+	  or older).
+
 config SND_VERBOSE_PRINTK
 	bool "Verbose printk"
 	depends on SND
@@ -133,7 +152,3 @@ config SND_DEBUG_DETECT
 	help
 	  Say Y here to enable extra-verbose log messages printed when
 	  detecting devices.
-
-config SND_GENERIC_DRIVER
-	bool
-	depends on SND

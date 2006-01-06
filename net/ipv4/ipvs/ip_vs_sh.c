@@ -34,8 +34,10 @@
  *
  */
 
+#include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/skbuff.h>
 
 #include <net/ip_vs.h>
 

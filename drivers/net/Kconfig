@@ -1901,6 +1901,8 @@ config E1000_NAPI
 
 	  If in doubt, say N.
 
+source "drivers/net/ixp2000/Kconfig"
+
 config MYRI_SBUS
 	tristate "MyriCOM Gigabit Ethernet support"
 	depends on SBUS
@@ -2008,7 +2010,18 @@ config SKGE
 
 	  It does not support the link failover and network management 
 	  features that "portable" vendor supplied sk98lin driver does.
-	
+
+
+config SKY2
+	tristate "SysKonnect Yukon2 support (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select CRC32
+	---help---
+	  This driver support the Marvell Yukon 2 Gigabit Ethernet adapter.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sky2.  This is recommended.
+
 config SK98LIN
 	tristate "Marvell Yukon Chipset / SysKonnect SK-98xx Support"
 	depends on PCI
@@ -2120,7 +2133,7 @@ config BNX2
 
 config SPIDER_NET
 	tristate "Spider Gigabit Ethernet driver"
-	depends on PCI && PPC_BPA
+	depends on PCI && PPC_CELL
 	help
 	  This driver supports the Gigabit Ethernet chips present on the
 	  Cell Processor-Based Blades from IBM.

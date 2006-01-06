@@ -55,8 +55,9 @@ int sk_stream_wait_connect(struct sock *sk, long *timeo_p)
 	int done;
 
 	do {
-		if (sk->sk_err)
-			return sock_error(sk);
+		int err = sock_error(sk);
+		if (err)
+			return err;
 		if ((1 << sk->sk_state) & ~(TCPF_SYN_SENT | TCPF_SYN_RECV))
 			return -EPIPE;
 		if (!*timeo_p)
@@ -67,6 +68,7 @@ int sk_stream_wait_connect(struct sock *sk, long *timeo_p)
 		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 		sk->sk_write_pending++;
 		done = sk_wait_event(sk, timeo_p,
+				     !sk->sk_err &&
 				     !((1 << sk->sk_state) & 
 				       ~(TCPF_ESTABLISHED | TCPF_CLOSE_WAIT)));
 		finish_wait(sk->sk_sleep, &wait);
@@ -137,7 +139,9 @@ int sk_stream_wait_memory(struct sock *sk, long *timeo_p)
 
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 		sk->sk_write_pending++;
-		sk_wait_event(sk, &current_timeo, sk_stream_memory_free(sk) &&
+		sk_wait_event(sk, &current_timeo, !sk->sk_err && 
+						  !(sk->sk_shutdown & SEND_SHUTDOWN) &&
+						  sk_stream_memory_free(sk) &&
 						  vm_wait);
 		sk->sk_write_pending--;
 

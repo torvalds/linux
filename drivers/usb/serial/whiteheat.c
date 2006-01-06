@@ -127,11 +127,11 @@ static struct usb_device_id id_table_combined [] = {
 MODULE_DEVICE_TABLE (usb, id_table_combined);
 
 static struct usb_driver whiteheat_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"whiteheat",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 /* function prototypes for the Connect Tech WhiteHEAT prerenumeration device */

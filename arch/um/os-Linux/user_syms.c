@@ -34,6 +34,11 @@ EXPORT_SYMBOL(strstr);
        int sym(void);                  \
        EXPORT_SYMBOL(sym);
 
+extern void readdir64(void) __attribute__((weak));
+EXPORT_SYMBOL(readdir64);
+extern void truncate64(void) __attribute__((weak));
+EXPORT_SYMBOL(truncate64);
+
 #ifdef SUBARCH_i386
 EXPORT_SYMBOL(vsyscall_ehdr);
 EXPORT_SYMBOL(vsyscall_end);

@@ -1061,10 +1061,11 @@ uint32_t aic7xxx_verbose;
 int
 ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *template)
 {
-	char	 buf[80];
-	struct	 Scsi_Host *host;
+	char	buf[80];
+	struct	Scsi_Host *host;
 	char	*new_name;
-	u_long	 s;
+	u_long	s;
+	int	retval;
 
 	template->name = ahc->description;
 	host = scsi_host_alloc(template, sizeof(struct ahc_softc *));
@@ -1097,9 +1098,16 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 
 	host->transportt = ahc_linux_transport_template;
 
-	scsi_add_host(host, (ahc->dev_softc ? &ahc->dev_softc->dev : NULL)); /* XXX handle failure */
+	retval = scsi_add_host(host,
+			(ahc->dev_softc ? &ahc->dev_softc->dev : NULL));
+	if (retval) {
+		printk(KERN_WARNING "aic7xxx: scsi_add_host failed\n");
+		scsi_host_put(host);
+		return retval;
+	}
+
 	scsi_scan_host(host);
-	return (0);
+	return 0;
 }
 
 /*

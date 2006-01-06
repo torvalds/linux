@@ -24,10 +24,10 @@
 #define HASH_LOG 9
 
 /* Defaults, these can be overridden on the module command-line. */
-static int ip_list_tot = 100;
-static int ip_pkt_list_tot = 20;
-static int ip_list_hash_size = 0;
-static int ip_list_perms = 0644;
+static unsigned int ip_list_tot = 100;
+static unsigned int ip_pkt_list_tot = 20;
+static unsigned int ip_list_hash_size = 0;
+static unsigned int ip_list_perms = 0644;
 #ifdef DEBUG
 static int debug = 1;
 #endif
@@ -38,13 +38,13 @@ KERN_INFO RECENT_NAME " " RECENT_VER ": Stephen Frost <sfrost@snowman.net>.  htt
 MODULE_AUTHOR("Stephen Frost <sfrost@snowman.net>");
 MODULE_DESCRIPTION("IP tables recently seen matching module " RECENT_VER);
 MODULE_LICENSE("GPL");
-module_param(ip_list_tot, int, 0400);
-module_param(ip_pkt_list_tot, int, 0400);
-module_param(ip_list_hash_size, int, 0400);
-module_param(ip_list_perms, int, 0400);
+module_param(ip_list_tot, uint, 0400);
+module_param(ip_pkt_list_tot, uint, 0400);
+module_param(ip_list_hash_size, uint, 0400);
+module_param(ip_list_perms, uint, 0400);
 #ifdef DEBUG
-module_param(debug, int, 0600);
-MODULE_PARM_DESC(debug,"debugging level, defaults to 1");
+module_param(debug, bool, 0600);
+MODULE_PARM_DESC(debug,"enable debugging output");
 #endif
 MODULE_PARM_DESC(ip_list_tot,"number of IPs to remember per list");
 MODULE_PARM_DESC(ip_pkt_list_tot,"number of packets per IP to remember");

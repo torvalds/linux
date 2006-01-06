@@ -128,7 +128,7 @@ static int macio_device_resume(struct device * dev)
 	return 0;
 }
 
-static int macio_hotplug (struct device *dev, char **envp, int num_envp,
+static int macio_uevent(struct device *dev, char **envp, int num_envp,
                           char *buffer, int buffer_size)
 {
 	struct macio_dev * macio_dev;
@@ -203,7 +203,7 @@ extern struct device_attribute macio_dev_attrs[];
 struct bus_type macio_bus_type = {
        .name	= "macio",
        .match	= macio_bus_match,
-       .hotplug = macio_hotplug,
+       .uevent = macio_uevent,
        .suspend	= macio_device_suspend,
        .resume	= macio_device_resume,
        .dev_attrs = macio_dev_attrs,

@@ -487,9 +487,9 @@ static unsigned int fmt_ip6(char *s,const char ip[16]);
 
 /* Module parameters, defaults. */
 static int pg_count_d = 1000; /* 1000 pkts by default */
-static int pg_delay_d = 0;
-static int pg_clone_skb_d = 0;
-static int debug = 0;
+static int pg_delay_d;
+static int pg_clone_skb_d;
+static int debug;
 
 static DECLARE_MUTEX(pktgen_sem);
 static struct pktgen_thread *pktgen_threads = NULL;

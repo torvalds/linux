@@ -16,9 +16,6 @@ extern int usb_get_device_descriptor(struct usb_device *dev,
 extern char *usb_cache_string(struct usb_device *udev, int index);
 extern int usb_set_configuration(struct usb_device *dev, int configuration);
 
-extern void usb_lock_all_devices(void);
-extern void usb_unlock_all_devices(void);
-
 extern void usb_kick_khubd(struct usb_device *dev);
 extern void usb_suspend_root_hub(struct usb_device *hdev);
 extern void usb_resume_root_hub(struct usb_device *dev);
@@ -33,6 +30,9 @@ extern void usb_host_cleanup(void);
 extern int usb_suspend_device(struct usb_device *dev);
 extern int usb_resume_device(struct usb_device *dev);
 
+extern struct device_driver usb_generic_driver;
+extern int usb_generic_driver_data;
+extern int usb_device_match(struct device *dev, struct device_driver *drv);
 
 /* Interfaces and their "power state" are owned by usbcore */
 

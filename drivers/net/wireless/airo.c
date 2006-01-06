@@ -4037,7 +4037,7 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 		Cmd cmd;
 		Resp rsp;
 
-		if (test_bit(FLAG_ENABLED, &ai->flags))
+		if (test_bit(FLAG_ENABLED, &ai->flags) && (RID_WEP_TEMP != rid))
 			printk(KERN_ERR
 				"%s: MAC should be disabled (rid=%04x)\n",
 				__FUNCTION__, rid);
@@ -5093,9 +5093,9 @@ static int set_wep_key(struct airo_info *ai, u16 index,
 		printk(KERN_INFO "Setting key %d\n", index);
 	}
 
-	disable_MAC(ai, lock);
+	if (perm) disable_MAC(ai, lock);
 	writeWepKeyRid(ai, &wkr, perm, lock);
-	enable_MAC(ai, &rsp, lock);
+	if (perm) enable_MAC(ai, &rsp, lock);
 	return 0;
 }
 
@@ -6170,6 +6170,8 @@ static int airo_set_encode(struct net_device *dev,
 {
 	struct airo_info *local = dev->priv;
 	CapabilityRid cap_rid;		/* Card capability info */
+	int perm = ( dwrq->flags & IW_ENCODE_TEMP ? 0 : 1 );
+	u16 currentAuthType = local->config.authType;
 
 	/* Is WEP supported ? */
 	readCapabilityRid(local, &cap_rid, 1);
@@ -6212,7 +6214,7 @@ static int airo_set_encode(struct net_device *dev,
 			/* Copy the key in the driver */
 			memcpy(key.key, extra, dwrq->length);
 			/* Send the key to the card */
-			set_wep_key(local, index, key.key, key.len, 1, 1);
+			set_wep_key(local, index, key.key, key.len, perm, 1);
 		}
 		/* WE specify that if a valid key is set, encryption
 		 * should be enabled (user may turn it off later)
@@ -6220,13 +6222,12 @@ static int airo_set_encode(struct net_device *dev,
 		if((index == current_index) && (key.len > 0) &&
 		   (local->config.authType == AUTH_OPEN)) {
 			local->config.authType = AUTH_ENCRYPT;
-			set_bit (FLAG_COMMIT, &local->flags);
 		}
 	} else {
 		/* Do we want to just set the transmit key index ? */
 		int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 		if ((index >= 0) && (index < ((cap_rid.softCap & 0x80)?4:1))) {
-			set_wep_key(local, index, NULL, 0, 1, 1);
+			set_wep_key(local, index, NULL, 0, perm, 1);
 		} else
 			/* Don't complain if only change the mode */
 			if(!dwrq->flags & IW_ENCODE_MODE) {
@@ -6241,7 +6242,7 @@ static int airo_set_encode(struct net_device *dev,
 	if(dwrq->flags & IW_ENCODE_OPEN)
 		local->config.authType = AUTH_ENCRYPT;	// Only Wep
 	/* Commit the changes to flags if needed */
-	if(dwrq->flags & IW_ENCODE_MODE)
+	if (local->config.authType != currentAuthType)
 		set_bit (FLAG_COMMIT, &local->flags);
 	return -EINPROGRESS;		/* Call commit handler */
 }

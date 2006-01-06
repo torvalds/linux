@@ -839,6 +839,7 @@ static inline int sched_find_first_bit(unsigned long *b)
  * fls: find last bit set.
  */
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 /*
  * hweightN: returns the hamming weight (i.e. the number

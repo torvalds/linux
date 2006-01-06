@@ -426,7 +426,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		return NULL;
 
 	IP_VS_DBG(6, "Schedule fwd:%c c:%u.%u.%u.%u:%u v:%u.%u.%u.%u:%u "
-		  "d:%u.%u.%u.%u:%u flg:%X cnt:%d\n",
+		  "d:%u.%u.%u.%u:%u conn->flags:%X conn->refcnt:%d\n",
 		  ip_vs_fwd_tag(cp),
 		  NIPQUAD(cp->caddr), ntohs(cp->cport),
 		  NIPQUAD(cp->vaddr), ntohs(cp->vport),
@@ -532,11 +532,8 @@ static unsigned int ip_vs_post_routing(unsigned int hooknum,
 {
 	if (!((*pskb)->ipvs_property))
 		return NF_ACCEPT;
-
 	/* The packet was sent from IPVS, exit this chain */
-	(*okfn)(*pskb);
-
-	return NF_STOLEN;
+	return NF_STOP;
 }
 
 u16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)

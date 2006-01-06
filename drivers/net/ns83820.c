@@ -115,6 +115,7 @@
 #include <linux/ethtool.h>
 #include <linux/timer.h>
 #include <linux/if_vlan.h>
+#include <linux/rtnetlink.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>

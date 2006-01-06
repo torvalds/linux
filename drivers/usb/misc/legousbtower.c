@@ -282,7 +282,6 @@ static struct usb_class_driver tower_class = {
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver tower_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"legousbtower",
 	.probe =	tower_probe,
 	.disconnect =	tower_disconnect,

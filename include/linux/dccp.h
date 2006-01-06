@@ -192,10 +192,9 @@ enum {
 #include <linux/workqueue.h>
 
 #include <net/inet_connection_sock.h>
+#include <net/inet_sock.h>
 #include <net/inet_timewait_sock.h>
-#include <net/sock.h>
 #include <net/tcp_states.h>
-#include <net/tcp.h>
 
 enum dccp_state {
 	DCCP_OPEN	= TCP_ESTABLISHED,
@@ -408,8 +407,6 @@ struct dccp_ackvec;
  * @dccps_gar - greatest valid ack number received on a non-Sync; initialized to %dccps_iss
  * @dccps_timestamp_time - time of latest TIMESTAMP option
  * @dccps_timestamp_echo - latest timestamp received on a TIMESTAMP option
- * @dccps_ext_header_len - network protocol overhead (IP/IPv6 options)
- * @dccps_pmtu_cookie - Last pmtu seen by socket
  * @dccps_packet_size - Set thru setsockopt
  * @dccps_role - Role of this sock, one of %dccp_role
  * @dccps_ndp_count - number of Non Data Packets since last data packet
@@ -434,8 +431,6 @@ struct dccp_sock {
 	__u32				dccps_timestamp_echo;
 	__u32				dccps_packet_size;
 	unsigned long			dccps_ndp_count;
-	__u16				dccps_ext_header_len;
-	__u32				dccps_pmtu_cookie;
 	__u32				dccps_mss_cache;
 	struct dccp_options		dccps_options;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;

@@ -32,7 +32,7 @@ MODULE_PARM_DESC(emu8000_reset_addr, "reset write address at each time (makes sl
  * Open up channels.
  */
 static int
-snd_emu8000_open_dma(emu8000_t *emu, int write)
+snd_emu8000_open_dma(struct snd_emu8000 *emu, int write)
 {
 	int i;
 
@@ -59,7 +59,7 @@ snd_emu8000_open_dma(emu8000_t *emu, int write)
  * Close all dram channels.
  */
 static void
-snd_emu8000_close_dma(emu8000_t *emu)
+snd_emu8000_close_dma(struct snd_emu8000 *emu)
 {
 	int i;
 
@@ -106,7 +106,7 @@ read_word(const void __user *buf, int offset, int mode)
 /*
  */
 static void
-snd_emu8000_write_wait(emu8000_t *emu)
+snd_emu8000_write_wait(struct snd_emu8000 *emu)
 {
 	while ((EMU8000_SMALW_READ(emu) & 0x80000000) != 0) {
 		schedule_timeout_interruptible(1);
@@ -128,7 +128,7 @@ snd_emu8000_write_wait(emu8000_t *emu)
  * working.
  */
 static inline void
-write_word(emu8000_t *emu, int *offset, unsigned short data)
+write_word(struct snd_emu8000 *emu, int *offset, unsigned short data)
 {
 	if (emu8000_reset_addr) {
 		if (emu8000_reset_addr > 1)
@@ -144,15 +144,16 @@ write_word(emu8000_t *emu, int *offset, unsigned short data)
  * the generic soundfont routines as a callback.
  */
 int
-snd_emu8000_sample_new(snd_emux_t *rec, snd_sf_sample_t *sp,
-		       snd_util_memhdr_t *hdr, const void __user *data, long count)
+snd_emu8000_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
+		       struct snd_util_memhdr *hdr,
+		       const void __user *data, long count)
 {
 	int  i;
 	int  rc;
 	int  offset;
 	int  truesize;
 	int  dram_offset, dram_start;
-	emu8000_t *emu;
+	struct snd_emu8000 *emu;
 
 	emu = rec->hw;
 	snd_assert(sp != NULL, return -EINVAL);
@@ -282,7 +283,8 @@ snd_emu8000_sample_new(snd_emux_t *rec, snd_sf_sample_t *sp,
  * free a sample block
  */
 int
-snd_emu8000_sample_free(snd_emux_t *rec, snd_sf_sample_t *sp, snd_util_memhdr_t *hdr)
+snd_emu8000_sample_free(struct snd_emux *rec, struct snd_sf_sample *sp,
+			struct snd_util_memhdr *hdr)
 {
 	if (sp->block) {
 		snd_util_mem_free(hdr, sp->block);
@@ -296,7 +298,7 @@ snd_emu8000_sample_free(snd_emux_t *rec, snd_sf_sample_t *sp, snd_util_memhdr_t 
  * sample_reset callback - terminate voices
  */
 void
-snd_emu8000_sample_reset(snd_emux_t *rec)
+snd_emu8000_sample_reset(struct snd_emux *rec)
 {
 	snd_emux_terminate_all(rec);
 }

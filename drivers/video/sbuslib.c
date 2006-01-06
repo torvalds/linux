@@ -46,6 +46,9 @@ int sbusfb_mmap_helper(struct sbus_mmap_map *map,
 	unsigned long off;
 	int i;
                                         
+	if (!(vma->vm_flags & (VM_SHARED | VM_MAYSHARE)))
+		return -EINVAL;
+
 	size = vma->vm_end - vma->vm_start;
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;

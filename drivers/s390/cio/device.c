@@ -59,7 +59,7 @@ ccw_bus_match (struct device * dev, struct device_driver * drv)
  * Heavily modeled on pci and usb hotplug.
  */
 static int
-ccw_hotplug (struct device *dev, char **envp, int num_envp,
+ccw_uevent (struct device *dev, char **envp, int num_envp,
 	     char *buffer, int buffer_size)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
@@ -110,7 +110,7 @@ ccw_hotplug (struct device *dev, char **envp, int num_envp,
 struct bus_type ccw_bus_type = {
 	.name  = "ccw",
 	.match = &ccw_bus_match,
-	.hotplug = &ccw_hotplug,
+	.uevent = &ccw_uevent,
 };
 
 static int io_subchannel_probe (struct device *);

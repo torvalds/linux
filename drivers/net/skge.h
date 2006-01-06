@@ -475,18 +475,6 @@ enum {
 	Q_T2	= 0x40,	/* 32 bit	Test Register 2	*/
 	Q_T3	= 0x44,	/* 32 bit	Test Register 3	*/
 
-/* Yukon-2 */
-	Q_DONE	= 0x24,	/* 16 bit	Done Index 		(Yukon-2 only) */
-	Q_WM	= 0x40,	/* 16 bit	FIFO Watermark */
-	Q_AL	= 0x42,	/*  8 bit	FIFO Alignment */
-	Q_RSP	= 0x44,	/* 16 bit	FIFO Read Shadow Pointer */
-	Q_RSL	= 0x46,	/*  8 bit	FIFO Read Shadow Level */
-	Q_RP	= 0x48,	/*  8 bit	FIFO Read Pointer */
-	Q_RL	= 0x4a,	/*  8 bit	FIFO Read Level */
-	Q_WP	= 0x4c,	/*  8 bit	FIFO Write Pointer */
-	Q_WSP	= 0x4d,	/*  8 bit	FIFO Write Shadow Pointer */
-	Q_WL	= 0x4e,	/*  8 bit	FIFO Write Level */
-	Q_WSL	= 0x4f,	/*  8 bit	FIFO Write Shadow Level */
 };
 #define Q_ADDR(reg, offs) (B8_Q_REGS + (reg) + (offs))
 
@@ -675,22 +663,16 @@ enum {
 	LED_OFF	= 1<<0,	/* switch LED off */
 };
 
-/* Receive GMAC FIFO (YUKON and Yukon-2) */
+/* Receive GMAC FIFO (YUKON) */
 enum {
 	RX_GMF_EA	= 0x0c40,/* 32 bit	Rx GMAC FIFO End Address */
 	RX_GMF_AF_THR	= 0x0c44,/* 32 bit	Rx GMAC FIFO Almost Full Thresh. */
 	RX_GMF_CTRL_T	= 0x0c48,/* 32 bit	Rx GMAC FIFO Control/Test */
 	RX_GMF_FL_MSK	= 0x0c4c,/* 32 bit	Rx GMAC FIFO Flush Mask */
 	RX_GMF_FL_THR	= 0x0c50,/* 32 bit	Rx GMAC FIFO Flush Threshold */
-	RX_GMF_TR_THR	= 0x0c54,/* 32 bit	Rx Truncation Threshold (Yukon-2) */
-
-	RX_GMF_VLAN	= 0x0c5c,/* 32 bit	Rx VLAN Type Register (Yukon-2) */
 	RX_GMF_WP	= 0x0c60,/* 32 bit	Rx GMAC FIFO Write Pointer */
-
 	RX_GMF_WLEV	= 0x0c68,/* 32 bit	Rx GMAC FIFO Write Level */
-
 	RX_GMF_RP	= 0x0c70,/* 32 bit	Rx GMAC FIFO Read Pointer */
-
 	RX_GMF_RLEV	= 0x0c78,/* 32 bit	Rx GMAC FIFO Read Level */
 };
 
@@ -855,48 +837,6 @@ enum {
 	GMAC_TI_ST_TST	= 0x0e1a,/*  8 bit	Time Stamp Timer Test Reg */
 };
 
-/* Status BMU Registers (Yukon-2 only)*/
-enum {
-	STAT_CTRL	= 0x0e80,/* 32 bit	Status BMU Control Reg */
-	STAT_LAST_IDX	= 0x0e84,/* 16 bit	Status BMU Last Index */
-	/* 0x0e85 - 0x0e86:	reserved */
-	STAT_LIST_ADDR_LO	= 0x0e88,/* 32 bit	Status List Start Addr (low) */
-	STAT_LIST_ADDR_HI	= 0x0e8c,/* 32 bit	Status List Start Addr (high) */
-	STAT_TXA1_RIDX	= 0x0e90,/* 16 bit	Status TxA1 Report Index Reg */
-	STAT_TXS1_RIDX	= 0x0e92,/* 16 bit	Status TxS1 Report Index Reg */
-	STAT_TXA2_RIDX	= 0x0e94,/* 16 bit	Status TxA2 Report Index Reg */
-	STAT_TXS2_RIDX	= 0x0e96,/* 16 bit	Status TxS2 Report Index Reg */
-	STAT_TX_IDX_TH	= 0x0e98,/* 16 bit	Status Tx Index Threshold Reg */
-	STAT_PUT_IDX	= 0x0e9c,/* 16 bit	Status Put Index Reg */
-
-/* FIFO Control/Status Registers (Yukon-2 only)*/
-	STAT_FIFO_WP	= 0x0ea0,/*  8 bit	Status FIFO Write Pointer Reg */
-	STAT_FIFO_RP	= 0x0ea4,/*  8 bit	Status FIFO Read Pointer Reg */
-	STAT_FIFO_RSP	= 0x0ea6,/*  8 bit	Status FIFO Read Shadow Ptr */
-	STAT_FIFO_LEVEL	= 0x0ea8,/*  8 bit	Status FIFO Level Reg */
-	STAT_FIFO_SHLVL	= 0x0eaa,/*  8 bit	Status FIFO Shadow Level Reg */
-	STAT_FIFO_WM	= 0x0eac,/*  8 bit	Status FIFO Watermark Reg */
-	STAT_FIFO_ISR_WM	= 0x0ead,/*  8 bit	Status FIFO ISR Watermark Reg */
-
-/* Level and ISR Timer Registers (Yukon-2 only)*/
-	STAT_LEV_TIMER_INI	= 0x0eb0,/* 32 bit	Level Timer Init. Value Reg */
-	STAT_LEV_TIMER_CNT	= 0x0eb4,/* 32 bit	Level Timer Counter Reg */
-	STAT_LEV_TIMER_CTRL	= 0x0eb8,/*  8 bit	Level Timer Control Reg */
-	STAT_LEV_TIMER_TEST	= 0x0eb9,/*  8 bit	Level Timer Test Reg */
-	STAT_TX_TIMER_INI	= 0x0ec0,/* 32 bit	Tx Timer Init. Value Reg */
-	STAT_TX_TIMER_CNT	= 0x0ec4,/* 32 bit	Tx Timer Counter Reg */
-	STAT_TX_TIMER_CTRL	= 0x0ec8,/*  8 bit	Tx Timer Control Reg */
-	STAT_TX_TIMER_TEST	= 0x0ec9,/*  8 bit	Tx Timer Test Reg */
-	STAT_ISR_TIMER_INI	= 0x0ed0,/* 32 bit	ISR Timer Init. Value Reg */
-	STAT_ISR_TIMER_CNT	= 0x0ed4,/* 32 bit	ISR Timer Counter Reg */
-	STAT_ISR_TIMER_CTRL	= 0x0ed8,/*  8 bit	ISR Timer Control Reg */
-	STAT_ISR_TIMER_TEST	= 0x0ed9,/*  8 bit	ISR Timer Test Reg */
-
-	ST_LAST_IDX_MASK	= 0x007f,/* Last Index Mask */
-	ST_TXRP_IDX_MASK	= 0x0fff,/* Tx Report Index Mask */
-	ST_TXTH_IDX_MASK	= 0x0fff,/* Tx Threshold Index Mask */
-	ST_WM_IDX_MASK	= 0x3f,/* FIFO Watermark Index Mask */
-};
 
 enum {
 	LINKLED_OFF 	     = 0x01,
@@ -923,8 +863,6 @@ enum {
 	WOL_MATCH_CTL	= 0x0f22,/*  8 bit	WOL Match Control Reg */
 	WOL_MATCH_RES	= 0x0f23,/*  8 bit	WOL Match Result Reg */
 	WOL_MAC_ADDR	= 0x0f24,/* 32 bit	WOL MAC Address */
-	WOL_PATT_PME	= 0x0f2a,/*  8 bit	WOL PME Match Enable (Yukon-2) */
-	WOL_PATT_ASFM	= 0x0f2b,/*  8 bit	WOL ASF Match Enable (Yukon-2) */
 	WOL_PATT_RPTR	= 0x0f2c,/*  8 bit	WOL Pattern Read Pointer */
 
 /* WOL Pattern Length Registers (YUKON only) */
@@ -1641,15 +1579,6 @@ enum {
 	PHY_M_FESC_SEL_CL_A	= 1<<0, /* Select Class A driver (100B-TX) */
 };
 
-/* for Yukon-2 Gigabit Ethernet PHY (88E1112 only) */
-/*****  PHY_MARV_PHY_CTRL (page 2)		16 bit r/w	MAC Specific Ctrl *****/
-enum {
-	PHY_M_MAC_MD_MSK	= 7<<7, /* Bit  9.. 7: Mode Select Mask */
-	PHY_M_MAC_MD_AUTO	= 3,/* Auto Copper/1000Base-X */
-	PHY_M_MAC_MD_COPPER	= 5,/* Copper only */
-	PHY_M_MAC_MD_1000BX	= 7,/* 1000Base-X only */
-};
-#define PHY_M_MAC_MODE_SEL(x)	(((x)<<7) & PHY_M_MAC_MD_MSK)
 
 /*****  PHY_MARV_PHY_CTRL (page 3)		16 bit r/w	LED Control Reg. *****/
 enum {

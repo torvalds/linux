@@ -3,7 +3,7 @@
  *
  * Copyright (c) 1999 Michael Gee	<michael@linuxspecific.com>
  * Copyright (c) 1999 Pavel Machek	<pavel@suse.cz>
- * Copyright (c) 2000 Randy Dunlap	<rddunlap@osdl.org>
+ * Copyright (c) 2000 Randy Dunlap	<rdunlap@xenotime.net>
  * Copyright (c) 2000 Vojtech Pavlik	<vojtech@suse.cz>
  # Copyright (c) 2001 Pete Zaitcev	<zaitcev@redhat.com>
  # Copyright (c) 2001 David Paschal	<paschal@rcsis.com>
@@ -199,7 +199,7 @@ struct quirk_printer_struct {
 #define USBLP_QUIRK_BIDIR	0x1	/* reports bidir but requires unidirectional mode (no INs/reads) */
 #define USBLP_QUIRK_USB_INIT	0x2	/* needs vendor USB init string */
 
-static struct quirk_printer_struct quirk_printers[] = {
+static const struct quirk_printer_struct quirk_printers[] = {
 	{ 0x03f0, 0x0004, USBLP_QUIRK_BIDIR }, /* HP DeskJet 895C */
 	{ 0x03f0, 0x0104, USBLP_QUIRK_BIDIR }, /* HP DeskJet 880C */
 	{ 0x03f0, 0x0204, USBLP_QUIRK_BIDIR }, /* HP DeskJet 815C */
@@ -301,7 +301,7 @@ static void usblp_bulk_write(struct urb *urb, struct pt_regs *regs)
  * Get and print printer errors.
  */
 
-static char *usblp_messages[] = { "ok", "out of paper", "off-line", "on fire" };
+static const char *usblp_messages[] = { "ok", "out of paper", "off-line", "on fire" };
 
 static int usblp_check_status(struct usblp *usblp, int err)
 {
@@ -438,7 +438,7 @@ static unsigned int usblp_poll(struct file *file, struct poll_table_struct *wait
  			       | (!usblp->wcomplete ? 0 : POLLOUT | POLLWRNORM);
 }
 
-static int usblp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long usblp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct usblp *usblp = file->private_data;
 	int length, err, i;
@@ -838,7 +838,8 @@ static struct file_operations usblp_fops = {
 	.read =		usblp_read,
 	.write =	usblp_write,
 	.poll =		usblp_poll,
-	.ioctl =	usblp_ioctl,
+	.unlocked_ioctl =	usblp_ioctl,
+	.compat_ioctl =		usblp_ioctl,
 	.open =		usblp_open,
 	.release =	usblp_release,
 };
@@ -848,6 +849,20 @@ static struct usb_class_driver usblp_class = {
 	.fops =		&usblp_fops,
 	.minor_base =	USBLP_MINOR_BASE,
 };
+
+static ssize_t usblp_show_ieee1284_id(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usblp *usblp = usb_get_intfdata (intf);
+
+	if (usblp->device_id_string[0] == 0 &&
+	    usblp->device_id_string[1] == 0)
+		return 0;
+
+	return sprintf(buf, "%s", usblp->device_id_string+2);
+}
+
+static DEVICE_ATTR(ieee1284_id, S_IRUGO, usblp_show_ieee1284_id, NULL);
 
 static int usblp_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -933,19 +948,11 @@ static int usblp_probe(struct usb_interface *intf,
 
 	/* Retrieve and store the device ID string. */
 	usblp_cache_device_id_string(usblp);
+	device_create_file(&intf->dev, &dev_attr_ieee1284_id);
 
 #ifdef DEBUG
 	usblp_check_status(usblp, 0);
 #endif
-
-	info("usblp%d: USB %sdirectional printer dev %d "
-		"if %d alt %d proto %d vid 0x%4.4X pid 0x%4.4X",
-		usblp->minor, usblp->bidir ? "Bi" : "Uni", dev->devnum,
-		usblp->ifnum,
-		usblp->protocol[usblp->current_protocol].alt_setting,
-		usblp->current_protocol,
-		le16_to_cpu(usblp->dev->descriptor.idVendor),
-		le16_to_cpu(usblp->dev->descriptor.idProduct));
 
 	usb_set_intfdata (intf, usblp);
 
@@ -957,11 +964,20 @@ static int usblp_probe(struct usb_interface *intf,
 		goto abort_intfdata;
 	}
 	usblp->minor = intf->minor;
+	info("usblp%d: USB %sdirectional printer dev %d "
+		"if %d alt %d proto %d vid 0x%4.4X pid 0x%4.4X",
+		usblp->minor, usblp->bidir ? "Bi" : "Uni", dev->devnum,
+		usblp->ifnum,
+		usblp->protocol[usblp->current_protocol].alt_setting,
+		usblp->current_protocol,
+		le16_to_cpu(usblp->dev->descriptor.idVendor),
+		le16_to_cpu(usblp->dev->descriptor.idProduct));
 
 	return 0;
 
 abort_intfdata:
 	usb_set_intfdata (intf, NULL);
+	device_remove_file(&intf->dev, &dev_attr_ieee1284_id);
 abort:
 	if (usblp) {
 		if (usblp->writebuf)
@@ -1156,6 +1172,8 @@ static void usblp_disconnect(struct usb_interface *intf)
 		BUG ();
 	}
 
+	device_remove_file(&intf->dev, &dev_attr_ieee1284_id);
+
 	down (&usblp_sem);
 	down (&usblp->sem);
 	usblp->present = 0;
@@ -1186,7 +1204,6 @@ static struct usb_device_id usblp_ids [] = {
 MODULE_DEVICE_TABLE (usb, usblp_ids);
 
 static struct usb_driver usblp_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usblp",
 	.probe =	usblp_probe,
 	.disconnect =	usblp_disconnect,

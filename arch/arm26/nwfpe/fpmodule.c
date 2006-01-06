@@ -46,10 +46,9 @@ typedef struct task_struct*	PTASK;
 
 #ifdef MODULE
 void fp_send_sig(unsigned long sig, PTASK p, int priv);
-#if LINUX_VERSION_CODE > 0x20115
+
 MODULE_AUTHOR("Scott Bambrough <scottb@rebel.com>");
 MODULE_DESCRIPTION("NWFPE floating point emulator");
-#endif
 
 #else
 #define fp_send_sig	send_sig

@@ -66,7 +66,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "Version 2.0.9.3"
+#define DRV_VERSION "Version 2.0.9.4"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -412,7 +412,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 		    config->tx_cfg[i].fifo_len - 1;
 		mac_control->fifos[i].fifo_no = i;
 		mac_control->fifos[i].nic = nic;
-		mac_control->fifos[i].max_txds = MAX_SKB_FRAGS + 1;
+		mac_control->fifos[i].max_txds = MAX_SKB_FRAGS + 2;
 
 		for (j = 0; j < page_num; j++) {
 			int k = 0;
@@ -458,6 +458,10 @@ static int init_shared_mem(struct s2io_nic *nic)
 			}
 		}
 	}
+
+	nic->ufo_in_band_v = kmalloc((sizeof(u64) * size), GFP_KERNEL);
+	if (!nic->ufo_in_band_v)
+		return -ENOMEM;
 
 	/* Allocation and initialization of RXDs in Rings */
 	size = 0;
@@ -731,6 +735,8 @@ static void free_shared_mem(struct s2io_nic *nic)
 				    mac_control->stats_mem,
 				    mac_control->stats_mem_phy);
 	}
+	if (nic->ufo_in_band_v)
+		kfree(nic->ufo_in_band_v);
 }
 
 /**
@@ -2003,6 +2009,49 @@ static int start_nic(struct s2io_nic *nic)
 
 	return SUCCESS;
 }
+/**
+ * s2io_txdl_getskb - Get the skb from txdl, unmap and return skb
+ */
+static struct sk_buff *s2io_txdl_getskb(fifo_info_t *fifo_data, TxD_t *txdlp, int get_off)
+{
+	nic_t *nic = fifo_data->nic;
+	struct sk_buff *skb;
+	TxD_t *txds;
+	u16 j, frg_cnt;
+
+	txds = txdlp;
+	if (txds->Host_Control == (u64)(long)nic->ufo_in_band_v) {
+		pci_unmap_single(nic->pdev, (dma_addr_t)
+			txds->Buffer_Pointer, sizeof(u64),
+			PCI_DMA_TODEVICE);
+		txds++;
+	}
+
+	skb = (struct sk_buff *) ((unsigned long)
+			txds->Host_Control);
+	if (!skb) {
+		memset(txdlp, 0, (sizeof(TxD_t) * fifo_data->max_txds));
+		return NULL;
+	}
+	pci_unmap_single(nic->pdev, (dma_addr_t)
+			 txds->Buffer_Pointer,
+			 skb->len - skb->data_len,
+			 PCI_DMA_TODEVICE);
+	frg_cnt = skb_shinfo(skb)->nr_frags;
+	if (frg_cnt) {
+		txds++;
+		for (j = 0; j < frg_cnt; j++, txds++) {
+			skb_frag_t *frag = &skb_shinfo(skb)->frags[j];
+			if (!txds->Buffer_Pointer)
+				break;
+			pci_unmap_page(nic->pdev, (dma_addr_t) 
+					txds->Buffer_Pointer,
+				       frag->size, PCI_DMA_TODEVICE);
+		}
+	}
+	txdlp->Host_Control = 0;
+	return(skb);
+}
 
 /**
  *  free_tx_buffers - Free all queued Tx buffers
@@ -2020,7 +2069,7 @@ static void free_tx_buffers(struct s2io_nic *nic)
 	int i, j;
 	mac_info_t *mac_control;
 	struct config_param *config;
-	int cnt = 0, frg_cnt;
+	int cnt = 0;
 
 	mac_control = &nic->mac_control;
 	config = &nic->config;
@@ -2029,38 +2078,11 @@ static void free_tx_buffers(struct s2io_nic *nic)
 		for (j = 0; j < config->tx_cfg[i].fifo_len - 1; j++) {
 			txdp = (TxD_t *) mac_control->fifos[i].list_info[j].
 			    list_virt_addr;
-			skb =
-			    (struct sk_buff *) ((unsigned long) txdp->
-						Host_Control);
-			if (skb == NULL) {
-				memset(txdp, 0, sizeof(TxD_t) *
-				       config->max_txds);
-				continue;
+			skb = s2io_txdl_getskb(&mac_control->fifos[i], txdp, j);
+			if (skb) {
+				dev_kfree_skb(skb);
+				cnt++;
 			}
-			frg_cnt = skb_shinfo(skb)->nr_frags;
-			pci_unmap_single(nic->pdev, (dma_addr_t)
-					 txdp->Buffer_Pointer,
-					 skb->len - skb->data_len,
-					 PCI_DMA_TODEVICE);
-			if (frg_cnt) {
-				TxD_t *temp;
-				temp = txdp;
-				txdp++;
-				for (j = 0; j < frg_cnt; j++, txdp++) {
-					skb_frag_t *frag =
-					    &skb_shinfo(skb)->frags[j];
-					pci_unmap_page(nic->pdev,
-						       (dma_addr_t)
-						       txdp->
-						       Buffer_Pointer,
-						       frag->size,
-						       PCI_DMA_TODEVICE);
-				}
-				txdp = temp;
-			}
-			dev_kfree_skb(skb);
-			memset(txdp, 0, sizeof(TxD_t) * config->max_txds);
-			cnt++;
 		}
 		DBG_PRINT(INTR_DBG,
 			  "%s:forcibly freeing %d skbs on FIFO%d\n",
@@ -2661,7 +2683,6 @@ static void tx_intr_handler(fifo_info_t *fifo_data)
 	tx_curr_get_info_t get_info, put_info;
 	struct sk_buff *skb;
 	TxD_t *txdlp;
-	u16 j, frg_cnt;
 
 	get_info = fifo_data->tx_curr_get_info;
 	put_info = fifo_data->tx_curr_put_info;
@@ -2684,42 +2705,13 @@ to loss of link\n");
 			}
 		}
 
-		skb = (struct sk_buff *) ((unsigned long)
-				txdlp->Host_Control);
+		skb = s2io_txdl_getskb(fifo_data, txdlp, get_info.offset);
 		if (skb == NULL) {
 			DBG_PRINT(ERR_DBG, "%s: Null skb ",
 			__FUNCTION__);
 			DBG_PRINT(ERR_DBG, "in Tx Free Intr\n");
 			return;
 		}
-
-		frg_cnt = skb_shinfo(skb)->nr_frags;
-		nic->tx_pkt_count++;
-
-		pci_unmap_single(nic->pdev, (dma_addr_t)
-				 txdlp->Buffer_Pointer,
-				 skb->len - skb->data_len,
-				 PCI_DMA_TODEVICE);
-		if (frg_cnt) {
-			TxD_t *temp;
-			temp = txdlp;
-			txdlp++;
-			for (j = 0; j < frg_cnt; j++, txdlp++) {
-				skb_frag_t *frag =
-				    &skb_shinfo(skb)->frags[j];
-				if (!txdlp->Buffer_Pointer)
-					break;
-				pci_unmap_page(nic->pdev,
-					       (dma_addr_t)
-					       txdlp->
-					       Buffer_Pointer,
-					       frag->size,
-					       PCI_DMA_TODEVICE);
-			}
-			txdlp = temp;
-		}
-		memset(txdlp, 0,
-		       (sizeof(TxD_t) * fifo_data->max_txds));
 
 		/* Updating the statistics block */
 		nic->stats.tx_bytes += skb->len;
@@ -3331,7 +3323,7 @@ failed\n", dev->name);
 					  s2io_msix_fifo_handle, 0, sp->desc1,
 					  sp->s2io_entries[i].arg);
 				DBG_PRINT(ERR_DBG, "%s @ 0x%llx\n", sp->desc1, 
-							sp->msix_info[i].addr);
+				    (unsigned long long)sp->msix_info[i].addr);
 			} else {
 				sprintf(sp->desc2, "%s:MSI-X-%d-RX",
 					dev->name, i);
@@ -3339,7 +3331,7 @@ failed\n", dev->name);
 					  s2io_msix_ring_handle, 0, sp->desc2,
 					  sp->s2io_entries[i].arg);
 				DBG_PRINT(ERR_DBG, "%s @ 0x%llx\n", sp->desc2, 
-							sp->msix_info[i].addr);
+				     (unsigned long long)sp->msix_info[i].addr);
 			}
 			if (err) {
 				DBG_PRINT(ERR_DBG, "%s: MSI-X-%d registration \
@@ -3527,6 +3519,8 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 
+	txdp->Control_1 = 0;
+	txdp->Control_2 = 0;
 #ifdef NETIF_F_TSO
 	mss = skb_shinfo(skb)->tso_size;
 	if (mss) {
@@ -3534,19 +3528,13 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Control_1 |= TXD_TCP_LSO_MSS(mss);
 	}
 #endif
-
-	frg_cnt = skb_shinfo(skb)->nr_frags;
-	frg_len = skb->len - skb->data_len;
-
-	txdp->Buffer_Pointer = pci_map_single
-	    (sp->pdev, skb->data, frg_len, PCI_DMA_TODEVICE);
-	txdp->Host_Control = (unsigned long) skb;
 	if (skb->ip_summed == CHECKSUM_HW) {
 		txdp->Control_2 |=
 		    (TXD_TX_CKO_IPV4_EN | TXD_TX_CKO_TCP_EN |
 		     TXD_TX_CKO_UDP_EN);
 	}
-
+	txdp->Control_1 |= TXD_GATHER_CODE_FIRST;
+	txdp->Control_1 |= TXD_LIST_OWN_XENA;
 	txdp->Control_2 |= config->tx_intr_type;
 
 	if (sp->vlgrp && vlan_tx_tag_present(skb)) {
@@ -3554,10 +3542,40 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		txdp->Control_2 |= TXD_VLAN_TAG(vlan_tag);
 	}
 
-	txdp->Control_1 |= (TXD_BUFFER0_SIZE(frg_len) |
-			    TXD_GATHER_CODE_FIRST);
-	txdp->Control_1 |= TXD_LIST_OWN_XENA;
+	frg_len = skb->len - skb->data_len;
+	if (skb_shinfo(skb)->ufo_size) {
+		int ufo_size;
 
+		ufo_size = skb_shinfo(skb)->ufo_size;
+		ufo_size &= ~7;
+		txdp->Control_1 |= TXD_UFO_EN;
+		txdp->Control_1 |= TXD_UFO_MSS(ufo_size);
+		txdp->Control_1 |= TXD_BUFFER0_SIZE(8);
+#ifdef __BIG_ENDIAN
+		sp->ufo_in_band_v[put_off] =
+				(u64)skb_shinfo(skb)->ip6_frag_id;
+#else
+		sp->ufo_in_band_v[put_off] =
+				(u64)skb_shinfo(skb)->ip6_frag_id << 32;
+#endif
+		txdp->Host_Control = (unsigned long)sp->ufo_in_band_v;
+		txdp->Buffer_Pointer = pci_map_single(sp->pdev,
+					sp->ufo_in_band_v,
+					sizeof(u64), PCI_DMA_TODEVICE);
+		txdp++;
+		txdp->Control_1 = 0;
+		txdp->Control_2 = 0;
+	}
+
+	txdp->Buffer_Pointer = pci_map_single
+	    (sp->pdev, skb->data, frg_len, PCI_DMA_TODEVICE);
+	txdp->Host_Control = (unsigned long) skb;
+	txdp->Control_1 |= TXD_BUFFER0_SIZE(frg_len);
+
+	if (skb_shinfo(skb)->ufo_size)
+		txdp->Control_1 |= TXD_UFO_EN;
+
+	frg_cnt = skb_shinfo(skb)->nr_frags;
 	/* For fragmented SKB. */
 	for (i = 0; i < frg_cnt; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -3569,8 +3587,13 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		    (sp->pdev, frag->page, frag->page_offset,
 		     frag->size, PCI_DMA_TODEVICE);
 		txdp->Control_1 |= TXD_BUFFER0_SIZE(frag->size);
+		if (skb_shinfo(skb)->ufo_size)
+			txdp->Control_1 |= TXD_UFO_EN;
 	}
 	txdp->Control_1 |= TXD_GATHER_CODE_LAST;
+
+	if (skb_shinfo(skb)->ufo_size)
+		frg_cnt++; /* as Txd0 was used for inband header */
 
 	tx_fifo = mac_control->tx_FIFO_start[queue];
 	val64 = mac_control->fifos[queue].list_info[put_off].list_phy_addr;
@@ -3583,6 +3606,8 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (mss)
 		val64 |= TX_FIFO_SPECIAL_FUNC;
 #endif
+	if (skb_shinfo(skb)->ufo_size)
+		val64 |= TX_FIFO_SPECIAL_FUNC;
 	writeq(val64, &tx_fifo->List_Control);
 
 	mmiowb();
@@ -4721,7 +4746,10 @@ static int s2io_eeprom_test(nic_t * sp, uint64_t * data)
 		fail = 1;
 
 	if (ret_data != 0x012345) {
-		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x4F0. Data written %llx Data read %llx\n", dev->name, (u64)0x12345, ret_data); 
+		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x4F0. "
+			"Data written %llx Data read %llx\n",
+			dev->name, (unsigned long long)0x12345,
+			(unsigned long long)ret_data);
 		fail = 1;
 	}
 
@@ -4740,7 +4768,10 @@ static int s2io_eeprom_test(nic_t * sp, uint64_t * data)
 		fail = 1;
 
 	if (ret_data != 0x012345) {
-		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x7F0. Data written %llx Data read %llx\n", dev->name, (u64)0x12345, ret_data); 
+		DBG_PRINT(ERR_DBG, "%s: eeprom test error at offset 0x7F0. "
+			"Data written %llx Data read %llx\n",
+			dev->name, (unsigned long long)0x12345,
+			(unsigned long long)ret_data);
 		fail = 1;
 	}
 
@@ -5190,6 +5221,8 @@ static struct ethtool_ops netdev_ethtool_ops = {
 	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 #endif
+	.get_ufo = ethtool_op_get_ufo,
+	.set_ufo = ethtool_op_set_ufo,
 	.self_test_count = s2io_ethtool_self_test_count,
 	.self_test = s2io_ethtool_test,
 	.get_strings = s2io_ethtool_get_strings,
@@ -5941,7 +5974,8 @@ Defaulting to INTA\n");
 			break;
 		}
 	}
-	config->max_txds = MAX_SKB_FRAGS + 1;
+	/* + 2 because one Txd for skb->data and one Txd for UFO */
+	config->max_txds = MAX_SKB_FRAGS + 2;
 
 	/* Rx side parameters. */
 	if (rx_ring_sz[0] == 0)
@@ -6035,6 +6069,10 @@ Defaulting to INTA\n");
 #ifdef NETIF_F_TSO
 	dev->features |= NETIF_F_TSO;
 #endif
+	if (sp->device_type & XFRAME_II_DEVICE) {
+		dev->features |= NETIF_F_UFO;
+		dev->features |= NETIF_F_HW_CSUM;
+	}
 
 	dev->tx_timeout = &s2io_tx_watchdog;
 	dev->watchdog_timeo = WATCH_DOG_TIMEOUT;

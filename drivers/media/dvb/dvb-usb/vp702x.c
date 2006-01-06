@@ -256,7 +256,6 @@ static struct dvb_usb_properties vp702x_properties = {
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver vp702x_usb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb-usb-vp702x",
 	.probe 		= vp702x_usb_probe,
 	.disconnect = dvb_usb_device_exit,

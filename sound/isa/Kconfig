@@ -6,12 +6,10 @@ menu "ISA devices"
 config SND_AD1848_LIB
         tristate
         select SND_PCM
-	select SND_GENERIC_DRIVER
 
 config SND_CS4231_LIB
         tristate
         select SND_PCM
-	select SND_GENERIC_DRIVER
 
 config SND_AD1816A
 	tristate "Analog Devices SoundPort AD1816A"
@@ -40,264 +38,6 @@ config SND_AD1848
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-ad1848.
-
-config SND_CS4231
-	tristate "Generic Cirrus Logic CS4231 driver"
-	depends on SND
-	select SND_MPU401_UART
-	select SND_CS4231_LIB
-	help
-	  Say Y here to include support for CS4231 chips from Cirrus
-	  Logic - Crystal Semiconductors.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-cs4231.
-
-config SND_CS4232
-	tristate "Generic Cirrus Logic CS4232 driver"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_CS4231_LIB
-	help
-	  Say Y here to include support for CS4232 chips from Cirrus
-	  Logic - Crystal Semiconductors.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-cs4232.
-
-config SND_CS4236
-	tristate "Generic Cirrus Logic CS4236+ driver"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_CS4231_LIB
-	help
-	  Say Y to include support for CS4235,CS4236,CS4237B,CS4238B,
-	  CS4239 chips from Cirrus Logic - Crystal Semiconductors.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-cs4236.
-
-config SND_ES968
-	tristate "Generic ESS ES968 driver"
-	depends on SND && PNP && ISA
-	select ISAPNP
-	select SND_MPU401_UART
-	select SND_PCM
-	help
-	  Say Y here to include support for ESS AudioDrive ES968 chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-es968.
-
-config SND_ES1688
-	tristate "Generic ESS ES688/ES1688 driver"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_PCM
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for ESS AudioDrive ES688 or
-	  ES1688 chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-es1688.
-
-config SND_ES18XX
-	tristate "Generic ESS ES18xx driver"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_PCM
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for ESS AudioDrive ES18xx chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-es18xx.
-
-config SND_GUS_SYNTH
-	tristate
-
-config SND_GUSCLASSIC
-	tristate "Gravis UltraSound Classic"
-	depends on SND
-	select SND_RAWMIDI
-	select SND_PCM
-	select SND_GUS_SYNTH
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for Gravis UltraSound Classic
-	  soundcards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-gusclassic.
-
-config SND_GUSEXTREME
-	tristate "Gravis UltraSound Extreme"
-	depends on SND
-	select SND_HWDEP
-	select SND_MPU401_UART
-	select SND_PCM
-	select SND_GUS_SYNTH
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for Gravis UltraSound Extreme
-	  soundcards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-gusextreme.
-
-config SND_GUSMAX
-	tristate "Gravis UltraSound MAX"
-	depends on SND
-	select SND_RAWMIDI
-	select SND_CS4231_LIB
-	select SND_GUS_SYNTH
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for Gravis UltraSound MAX
-	  soundcards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-gusmax.
-
-config SND_INTERWAVE
-	tristate "AMD InterWave, Gravis UltraSound PnP"
-	depends on SND && PNP && ISA
-	select SND_RAWMIDI
-	select SND_CS4231_LIB
-	select SND_GUS_SYNTH
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for AMD InterWave based
-	  soundcards (Gravis UltraSound Plug & Play, STB SoundRage32,
-	  MED3210, Dynasonic Pro, Panasonic PCA761AW).
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-interwave.
-
-config SND_INTERWAVE_STB
-	tristate "AMD InterWave + TEA6330T (UltraSound 32-Pro)"
-	depends on SND && PNP && ISA
-	select SND_RAWMIDI
-	select SND_CS4231_LIB
-	select SND_GUS_SYNTH
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for AMD InterWave based
-	  soundcards with a TEA6330T bass and treble regulator
-	  (UltraSound 32-Pro).
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-interwave-stb.
-
-config SND_OPTI92X_AD1848
-	tristate "OPTi 82C92x - AD1848"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_OPL4_LIB
-	select SND_MPU401_UART
-	select SND_AD1848_LIB
-	help
-	  Say Y here to include support for soundcards based on Opti
-	  82C92x or OTI-601 chips and using an AD1848 codec.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-opti92x-ad1848.
-
-config SND_OPTI92X_CS4231
-	tristate "OPTi 82C92x - CS4231"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_OPL4_LIB
-	select SND_MPU401_UART
-	select SND_CS4231_LIB
-	help
-	  Say Y here to include support for soundcards based on Opti
-	  82C92x chips and using a CS4231 codec.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-opti92x-cs4231.
-
-config SND_OPTI93X
-	tristate "OPTi 82C93x"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_PCM
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for soundcards based on Opti
-	  82C93x chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-opti93x.
-
-config SND_SB8
-	tristate "Sound Blaster 1.0/2.0/Pro (8-bit)"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_RAWMIDI
-	select SND_PCM
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for Creative Sound Blaster 1.0/
-	  2.0/Pro (8-bit) or 100% compatible soundcards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-sb8.
-
-config SND_SB16
-	tristate "Sound Blaster 16 (PnP)"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_PCM
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for Sound Blaster 16 soundcards
-	  (including the Plug and Play version).
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-sb16.
-
-config SND_SBAWE
-	tristate "Sound Blaster AWE (32,64) (PnP)"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_PCM
-	select SND_GENERIC_DRIVER
-	help
-	  Say Y here to include support for Sound Blaster AWE soundcards
-	  (including the Plug and Play version).
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-sbawe.
-
-config SND_SB16_CSP
-	bool "Sound Blaster 16/AWE CSP support"
-	depends on (SND_SB16 || SND_SBAWE) && (BROKEN || !PPC)
-	help
-	  Say Y here to include support for the CSP core.  This special
-	  coprocessor can do variable tasks like various compression and
-	  decompression algorithms.
-
-config SND_WAVEFRONT
-	tristate "Turtle Beach Maui,Tropez,Tropez+ (Wavefront)"
-	depends on SND
-	select SND_OPL3_LIB
-	select SND_MPU401_UART
-	select SND_CS4231_LIB
-	help
-	  Say Y here to include support for Turtle Beach Maui, Tropez
-	  and Tropez+ soundcards based on the Wavefront chip.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-wavefront.
 
 config SND_ALS100
 	tristate "Avance Logic ALS100/ALS120"
@@ -338,6 +78,44 @@ config SND_CMI8330
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cmi8330.
 
+config SND_CS4231
+	tristate "Generic Cirrus Logic CS4231 driver"
+	depends on SND
+	select SND_MPU401_UART
+	select SND_CS4231_LIB
+	help
+	  Say Y here to include support for CS4231 chips from Cirrus
+	  Logic - Crystal Semiconductors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-cs4231.
+
+config SND_CS4232
+	tristate "Generic Cirrus Logic CS4232 driver"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_CS4231_LIB
+	help
+	  Say Y here to include support for CS4232 chips from Cirrus
+	  Logic - Crystal Semiconductors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-cs4232.
+
+config SND_CS4236
+	tristate "Generic Cirrus Logic CS4236+ driver"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_CS4231_LIB
+	help
+	  Say Y to include support for CS4235,CS4236,CS4237B,CS4238B,
+	  CS4239 chips from Cirrus Logic - Crystal Semiconductors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-cs4236.
+
 config SND_DT019X
 	tristate "Diamond Technologies DT-019X, Avance Logic ALS-007"
 	depends on SND && PNP && ISA
@@ -352,6 +130,114 @@ config SND_DT019X
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-dt019x.
 
+config SND_ES968
+	tristate "Generic ESS ES968 driver"
+	depends on SND && PNP && ISA
+	select ISAPNP
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y here to include support for ESS AudioDrive ES968 chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-es968.
+
+config SND_ES1688
+	tristate "Generic ESS ES688/ES1688 driver"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y here to include support for ESS AudioDrive ES688 or
+	  ES1688 chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-es1688.
+
+config SND_ES18XX
+	tristate "Generic ESS ES18xx driver"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y here to include support for ESS AudioDrive ES18xx chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-es18xx.
+
+config SND_GUS_SYNTH
+	tristate
+
+config SND_GUSCLASSIC
+	tristate "Gravis UltraSound Classic"
+	depends on SND
+	select SND_RAWMIDI
+	select SND_PCM
+	select SND_GUS_SYNTH
+	help
+	  Say Y here to include support for Gravis UltraSound Classic
+	  soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-gusclassic.
+
+config SND_GUSEXTREME
+	tristate "Gravis UltraSound Extreme"
+	depends on SND
+	select SND_HWDEP
+	select SND_MPU401_UART
+	select SND_PCM
+	select SND_GUS_SYNTH
+	help
+	  Say Y here to include support for Gravis UltraSound Extreme
+	  soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-gusextreme.
+
+config SND_GUSMAX
+	tristate "Gravis UltraSound MAX"
+	depends on SND
+	select SND_RAWMIDI
+	select SND_CS4231_LIB
+	select SND_GUS_SYNTH
+	help
+	  Say Y here to include support for Gravis UltraSound MAX
+	  soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-gusmax.
+
+config SND_INTERWAVE
+	tristate "AMD InterWave, Gravis UltraSound PnP"
+	depends on SND && PNP && ISA
+	select SND_RAWMIDI
+	select SND_CS4231_LIB
+	select SND_GUS_SYNTH
+	help
+	  Say Y here to include support for AMD InterWave based
+	  soundcards (Gravis UltraSound Plug & Play, STB SoundRage32,
+	  MED3210, Dynasonic Pro, Panasonic PCA761AW).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-interwave.
+
+config SND_INTERWAVE_STB
+	tristate "AMD InterWave + TEA6330T (UltraSound 32-Pro)"
+	depends on SND && PNP && ISA
+	select SND_RAWMIDI
+	select SND_CS4231_LIB
+	select SND_GUS_SYNTH
+	help
+	  Say Y here to include support for AMD InterWave based
+	  soundcards with a TEA6330T bass and treble regulator
+	  (UltraSound 32-Pro).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-interwave-stb.
+
 config SND_OPL3SA2
 	tristate "Yamaha OPL3-SA2/SA3"
 	depends on SND
@@ -364,6 +250,94 @@ config SND_OPL3SA2
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-opl3sa2.
+
+config SND_OPTI92X_AD1848
+	tristate "OPTi 82C92x - AD1848"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_OPL4_LIB
+	select SND_MPU401_UART
+	select SND_AD1848_LIB
+	help
+	  Say Y here to include support for soundcards based on Opti
+	  82C92x or OTI-601 chips and using an AD1848 codec.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-opti92x-ad1848.
+
+config SND_OPTI92X_CS4231
+	tristate "OPTi 82C92x - CS4231"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_OPL4_LIB
+	select SND_MPU401_UART
+	select SND_CS4231_LIB
+	help
+	  Say Y here to include support for soundcards based on Opti
+	  82C92x chips and using a CS4231 codec.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-opti92x-cs4231.
+
+config SND_OPTI93X
+	tristate "OPTi 82C93x"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y here to include support for soundcards based on Opti
+	  82C93x chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-opti93x.
+
+config SND_SB8
+	tristate "Sound Blaster 1.0/2.0/Pro (8-bit)"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_RAWMIDI
+	select SND_PCM
+	help
+	  Say Y here to include support for Creative Sound Blaster 1.0/
+	  2.0/Pro (8-bit) or 100% compatible soundcards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-sb8.
+
+config SND_SB16
+	tristate "Sound Blaster 16 (PnP)"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y here to include support for Sound Blaster 16 soundcards
+	  (including the Plug and Play version).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-sb16.
+
+config SND_SBAWE
+	tristate "Sound Blaster AWE (32,64) (PnP)"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_PCM
+	help
+	  Say Y here to include support for Sound Blaster AWE soundcards
+	  (including the Plug and Play version).
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-sbawe.
+
+config SND_SB16_CSP
+	bool "Sound Blaster 16/AWE CSP support"
+	depends on (SND_SB16 || SND_SBAWE) && (BROKEN || !PPC)
+	help
+	  Say Y here to include support for the CSP core.  This special
+	  coprocessor can do variable tasks like various compression and
+	  decompression algorithms.
 
 config SND_SGALAXY
 	tristate "Aztech Sound Galaxy"
@@ -388,5 +362,18 @@ config SND_SSCAPE
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-sscape.
+
+config SND_WAVEFRONT
+	tristate "Turtle Beach Maui,Tropez,Tropez+ (Wavefront)"
+	depends on SND
+	select SND_OPL3_LIB
+	select SND_MPU401_UART
+	select SND_CS4231_LIB
+	help
+	  Say Y here to include support for Turtle Beach Maui, Tropez
+	  and Tropez+ soundcards based on the Wavefront chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-wavefront.
 
 endmenu

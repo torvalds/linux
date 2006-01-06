@@ -112,6 +112,15 @@ config USB_STORAGE_JUMPSHOT
 	  Say Y here to include additional code to support the Lexar Jumpshot
 	  USB CompactFlash reader.
 
+config USB_STORAGE_ALAUDA
+	bool "Olympus MAUSB-10/Fuji DPC-R1 support (EXPERIMENTAL)"
+	depends on USB_STORAGE && EXPERIMENTAL
+	help
+	  Say Y here to include additional code to support the Olympus MAUSB-10
+	  and Fujifilm DPC-R1 USB Card reader/writer devices.
+
+	  These devices are based on the Alauda chip and support support both
+	  XD and SmartMedia cards.
 
 config USB_STORAGE_ONETOUCH
 	bool "Support OneTouch Button on Maxtor Hard Drives (EXPERIMENTAL)"
@@ -124,3 +133,17 @@ config USB_STORAGE_ONETOUCH
 	  hard drive's as an input device. An action can be associated with
 	  this input in any keybinding software. (e.g. gnome's keyboard short-
 	  cuts)
+
+config USB_LIBUSUAL
+	bool "The shared table of common (or usual) storage devices"
+	depends on USB
+	help
+	  This module contains a table of common (or usual) devices
+	  for usb-storage and ub drivers, and allows to switch binding
+	  of these devices without rebuilding modules.
+
+	  Typical syntax of /etc/modprobe.conf is:
+
+		options libusual bias="ub"
+
+	  If unsure, say N.

@@ -77,8 +77,6 @@ module_param(protocol, int, 0);
 
 static void teles_cs_config(dev_link_t *link);
 static void teles_cs_release(dev_link_t *link);
-static int teles_cs_event(event_t event, int priority,
-                          event_callback_args_t *args);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -86,16 +84,7 @@ static int teles_cs_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-static dev_link_t *teles_attach(void);
-static void teles_detach(dev_link_t *);
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "teles_cs";
+static void teles_detach(struct pcmcia_device *p_dev);
 
 /*
    A linked list of "instances" of the teles_cs device.  Each actual
@@ -107,18 +96,7 @@ static dev_info_t dev_info = "teles_cs";
    device numbers are used to derive the corresponding array index.
 */
 
-static dev_link_t *dev_list = NULL;
-
 /*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
-
-   To simplify the data structure handling, we actually include the
-   dev_link_t structure in the device's private data structure.
-
    A driver needs to provide a dev_node_t structure for each device
    on a card.  In some cases, there is only one device per card (for
    example, ethernet cards, modems).  In other cases, there may be
@@ -152,18 +130,16 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
-static dev_link_t *teles_attach(void)
+static int teles_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     local_info_t *local;
-    int ret;
 
     DEBUG(0, "teles_attach()\n");
 
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
-    if (!local) return NULL;
+    if (!local) return -ENOMEM;
     memset(local, 0, sizeof(local_info_t));
     local->cardnr = -1;
     link = &local->link; link->priv = local;
@@ -188,20 +164,13 @@ static dev_link_t *teles_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-        cs_error(link->handle, RegisterClient, ret);
-        teles_detach(link);
-        return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    teles_cs_config(link);
+
+    return 0;
 } /* teles_attach */
 
 /*======================================================================
@@ -213,32 +182,18 @@ static dev_link_t *teles_attach(void)
 
 ======================================================================*/
 
-static void teles_detach(dev_link_t *link)
+static void teles_detach(struct pcmcia_device *p_dev)
 {
-    dev_link_t **linkp;
+    dev_link_t *link = dev_to_instance(p_dev);
     local_info_t *info = link->priv;
-    int ret;
 
     DEBUG(0, "teles_detach(0x%p)\n", link);
 
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-        if (*linkp == link) break;
-    if (*linkp == NULL)
-        return;
-
-    if (link->state & DEV_CONFIG)
-        teles_cs_release(link);
-
-    /* Break the link with Card Services */
-    if (link->handle) {
-        ret = pcmcia_deregister_client(link->handle);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, DeregisterClient, ret);
+    if (link->state & DEV_CONFIG) {
+	    info->busy = 1;
+	    teles_cs_release(link);
     }
 
-    /* Unlink device structure and free it */
-    *linkp = link->next;
     kfree(info);
 
 } /* teles_detach */
@@ -428,60 +383,32 @@ static void teles_cs_release(dev_link_t *link)
     link->state &= ~DEV_CONFIG;
 } /* teles_cs_release */
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-    When a CARD_REMOVAL event is received, we immediately set a flag
-    to block future accesses to this device.  All the functions that
-    actually access the device should check this flag to make sure
-    the card is still present.
-
-======================================================================*/
-
-static int teles_cs_event(event_t event, int priority,
-                          event_callback_args_t *args)
+static int teles_suspend(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = args->client_data;
-    local_info_t *dev = link->priv;
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *dev = link->priv;
 
-    DEBUG(1, "teles_cs_event(%d)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
-        if (link->state & DEV_CONFIG) {
-            ((local_info_t*)link->priv)->busy = 1;
-	    teles_cs_release(link);
-        }
-        break;
-    case CS_EVENT_CARD_INSERTION:
-        link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-        teles_cs_config(link);
-        break;
-    case CS_EVENT_PM_SUSPEND:
-        link->state |= DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-        /* Mark the device as stopped, to block IO until later */
+	link->state |= DEV_SUSPEND;
         dev->busy = 1;
-        if (link->state & DEV_CONFIG)
-            pcmcia_release_configuration(link->handle);
-        break;
-    case CS_EVENT_PM_RESUME:
-        link->state &= ~DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-        if (link->state & DEV_CONFIG)
-            pcmcia_request_configuration(link->handle, &link->conf);
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int teles_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
         dev->busy = 0;
-        break;
-    }
-    return 0;
-} /* teles_cs_event */
+
+	return 0;
+}
+
 
 static struct pcmcia_device_id teles_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("TELES", "S0/PC", 0x67b50eae, 0xe9e70119),
@@ -494,10 +421,11 @@ static struct pcmcia_driver teles_cs_driver = {
 	.drv		= {
 		.name	= "teles_cs",
 	},
-	.attach		= teles_attach,
-	.event		= teles_cs_event,
-	.detach		= teles_detach,
+	.probe		= teles_attach,
+	.remove		= teles_detach,
 	.id_table       = teles_ids,
+	.suspend	= teles_suspend,
+	.resume		= teles_resume,
 };
 
 static int __init init_teles_cs(void)
@@ -508,7 +436,6 @@ static int __init init_teles_cs(void)
 static void __exit exit_teles_cs(void)
 {
 	pcmcia_unregister_driver(&teles_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_teles_cs);

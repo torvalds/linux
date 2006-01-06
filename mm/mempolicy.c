@@ -161,6 +161,10 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 	switch (mode) {
 	case MPOL_INTERLEAVE:
 		policy->v.nodes = *nodes;
+		if (nodes_weight(*nodes) == 0) {
+			kmem_cache_free(policy_cache, policy);
+			return ERR_PTR(-EINVAL);
+		}
 		break;
 	case MPOL_PREFERRED:
 		policy->v.preferred_node = first_node(*nodes);

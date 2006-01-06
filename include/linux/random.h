@@ -52,9 +52,9 @@ extern void get_random_bytes(void *buf, int nbytes);
 void generate_random_uuid(unsigned char uuid_out[16]);
 
 extern __u32 secure_ip_id(__u32 daddr);
-extern u32 secure_tcp_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport);
-extern u32 secure_tcpv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, 
-				       __u16 dport);
+extern u32 secure_ipv4_port_ephemeral(__u32 saddr, __u32 daddr, __u16 dport);
+extern u32 secure_ipv6_port_ephemeral(const __u32 *saddr, const __u32 *daddr, 
+				      __u16 dport);
 extern __u32 secure_tcp_sequence_number(__u32 saddr, __u32 daddr,
 					__u16 sport, __u16 dport);
 extern __u32 secure_tcpv6_sequence_number(__u32 *saddr, __u32 *daddr,

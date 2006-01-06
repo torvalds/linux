@@ -48,14 +48,6 @@ config SND
 
 	  For more information, see <http://www.alsa-project.org/>
 
-config SND_AC97_CODEC
-	tristate
-	select SND_PCM
-	select SND_AC97_BUS
-
-config SND_AC97_BUS
-	tristate
-
 source "sound/core/Kconfig"
 
 source "sound/drivers/Kconfig"

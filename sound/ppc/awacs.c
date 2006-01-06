@@ -35,18 +35,18 @@
 #endif
 
 #ifdef PMAC_AMP_AVAIL
-typedef struct awacs_amp {
+struct awacs_amp {
 	unsigned char amp_master;
 	unsigned char amp_vol[2][2];
 	unsigned char amp_tone[2];
-} awacs_amp_t;
+};
 
 #define CHECK_CUDA_AMP() (sys_ctrler == SYS_CTRLER_CUDA)
 
 #endif /* PMAC_AMP_AVAIL */
 
 
-static void snd_pmac_screamer_wait(pmac_t *chip)
+static void snd_pmac_screamer_wait(struct snd_pmac *chip)
 {
 	long timeout = 2000;
 	while (!(in_le32(&chip->awacs->codec_stat) & MASK_VALID)) {
@@ -62,7 +62,7 @@ static void snd_pmac_screamer_wait(pmac_t *chip)
  * write AWACS register
  */
 static void
-snd_pmac_awacs_write(pmac_t *chip, int val)
+snd_pmac_awacs_write(struct snd_pmac *chip, int val)
 {
 	long timeout = 5000000;
 
@@ -78,21 +78,21 @@ snd_pmac_awacs_write(pmac_t *chip, int val)
 }
 
 static void
-snd_pmac_awacs_write_reg(pmac_t *chip, int reg, int val)
+snd_pmac_awacs_write_reg(struct snd_pmac *chip, int reg, int val)
 {
 	snd_pmac_awacs_write(chip, val | (reg << 12));
 	chip->awacs_reg[reg] = val;
 }
 
 static void
-snd_pmac_awacs_write_noreg(pmac_t *chip, int reg, int val)
+snd_pmac_awacs_write_noreg(struct snd_pmac *chip, int reg, int val)
 {
 	snd_pmac_awacs_write(chip, val | (reg << 12));
 }
 
 #ifdef CONFIG_PM
 /* Recalibrate chip */
-static void screamer_recalibrate(pmac_t *chip)
+static void screamer_recalibrate(struct snd_pmac *chip)
 {
 	if (chip->model != PMAC_SCREAMER)
 		return;
@@ -105,7 +105,8 @@ static void screamer_recalibrate(pmac_t *chip)
 		/* delay for broken crystal part */
 		msleep(750);
 	snd_pmac_awacs_write_noreg(chip, 1,
-				   chip->awacs_reg[1] | MASK_RECALIBRATE | MASK_CMUTE | MASK_AMUTE);
+				   chip->awacs_reg[1] | MASK_RECALIBRATE |
+				   MASK_CMUTE | MASK_AMUTE);
 	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
 	snd_pmac_awacs_write_noreg(chip, 6, chip->awacs_reg[6]);
 }
@@ -118,7 +119,7 @@ static void screamer_recalibrate(pmac_t *chip)
 /*
  * additional callback to set the pcm format
  */
-static void snd_pmac_awacs_set_format(pmac_t *chip)
+static void snd_pmac_awacs_set_format(struct snd_pmac *chip)
 {
 	chip->awacs_reg[1] &= ~MASK_SAMPLERATE;
 	chip->awacs_reg[1] |= chip->rate_index << 3;
@@ -132,7 +133,8 @@ static void snd_pmac_awacs_set_format(pmac_t *chip)
 /*
  * volumes: 0-15 stereo
  */
-static int snd_pmac_awacs_info_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_pmac_awacs_info_volume(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -141,9 +143,10 @@ static int snd_pmac_awacs_info_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_inf
 	return 0;
 }
  
-static int snd_pmac_awacs_get_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_get_volume(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int lshift = (kcontrol->private_value >> 8) & 0xff;
 	int inverted = (kcontrol->private_value >> 16) & 1;
@@ -163,9 +166,10 @@ static int snd_pmac_awacs_get_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_valu
 	return 0;
 }
 
-static int snd_pmac_awacs_put_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_put_volume(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int lshift = (kcontrol->private_value >> 8) & 0xff;
 	int inverted = (kcontrol->private_value >> 16) & 1;
@@ -203,9 +207,10 @@ static int snd_pmac_awacs_put_volume(snd_kcontrol_t *kcontrol, snd_ctl_elem_valu
 /*
  * mute master/ogain for AWACS: mono
  */
-static int snd_pmac_awacs_get_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_get_switch(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int invert = (kcontrol->private_value >> 16) & 1;
@@ -221,9 +226,10 @@ static int snd_pmac_awacs_get_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_valu
 	return 0;
 }
 
-static int snd_pmac_awacs_put_switch(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_put_switch(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int reg = kcontrol->private_value & 0xff;
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int invert = (kcontrol->private_value >> 16) & 1;
@@ -268,7 +274,7 @@ static void awacs_set_cuda(int reg, int val)
 /*
  * level = 0 - 14, 7 = 0 dB
  */
-static void awacs_amp_set_tone(awacs_amp_t *amp, int bass, int treble)
+static void awacs_amp_set_tone(struct awacs_amp *amp, int bass, int treble)
 {
 	amp->amp_tone[0] = bass;
 	amp->amp_tone[1] = treble;
@@ -282,7 +288,8 @@ static void awacs_amp_set_tone(awacs_amp_t *amp, int bass, int treble)
 /*
  * vol = 0 - 31 (attenuation), 32 = mute bit, stereo
  */
-static int awacs_amp_set_vol(awacs_amp_t *amp, int index, int lvol, int rvol, int do_check)
+static int awacs_amp_set_vol(struct awacs_amp *amp, int index, int lvol, int rvol,
+			     int do_check)
 {
 	if (do_check && amp->amp_vol[index][0] == lvol &&
 	    amp->amp_vol[index][1] == rvol)
@@ -297,7 +304,7 @@ static int awacs_amp_set_vol(awacs_amp_t *amp, int index, int lvol, int rvol, in
 /*
  * 0 = -79 dB, 79 = 0 dB, 99 = +20 dB
  */
-static void awacs_amp_set_master(awacs_amp_t *amp, int vol)
+static void awacs_amp_set_master(struct awacs_amp *amp, int vol)
 {
 	amp->amp_master = vol;
 	if (vol <= 79)
@@ -307,9 +314,9 @@ static void awacs_amp_set_master(awacs_amp_t *amp, int vol)
 	awacs_set_cuda(1, vol);
 }
 
-static void awacs_amp_free(pmac_t *chip)
+static void awacs_amp_free(struct snd_pmac *chip)
 {
-	awacs_amp_t *amp = chip->mixer_data;
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return);
 	kfree(amp);
 	chip->mixer_data = NULL;
@@ -320,7 +327,8 @@ static void awacs_amp_free(pmac_t *chip)
 /*
  * mixer controls
  */
-static int snd_pmac_awacs_info_volume_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_pmac_awacs_info_volume_amp(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
@@ -329,11 +337,12 @@ static int snd_pmac_awacs_info_volume_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem
 	return 0;
 }
  
-static int snd_pmac_awacs_get_volume_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_get_volume_amp(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int index = kcontrol->private_value;
-	awacs_amp_t *amp = chip->mixer_data;
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
 	ucontrol->value.integer.value[0] = 31 - (amp->amp_vol[index][0] & 31);
@@ -341,12 +350,13 @@ static int snd_pmac_awacs_get_volume_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_pmac_awacs_put_volume_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_put_volume_amp(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int index = kcontrol->private_value;
 	int vol[2];
-	awacs_amp_t *amp = chip->mixer_data;
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
 
@@ -355,11 +365,12 @@ static int snd_pmac_awacs_put_volume_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return awacs_amp_set_vol(amp, index, vol[0], vol[1], 1);
 }
 
-static int snd_pmac_awacs_get_switch_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_get_switch_amp(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int index = kcontrol->private_value;
-	awacs_amp_t *amp = chip->mixer_data;
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
 	ucontrol->value.integer.value[0] = (amp->amp_vol[index][0] & 32) ? 0 : 1;
@@ -367,12 +378,13 @@ static int snd_pmac_awacs_get_switch_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_pmac_awacs_put_switch_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_put_switch_amp(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int index = kcontrol->private_value;
 	int vol[2];
-	awacs_amp_t *amp = chip->mixer_data;
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
 
@@ -381,7 +393,8 @@ static int snd_pmac_awacs_put_switch_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return awacs_amp_set_vol(amp, index, vol[0], vol[1], 1);
 }
 
-static int snd_pmac_awacs_info_tone_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_pmac_awacs_info_tone_amp(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -390,22 +403,24 @@ static int snd_pmac_awacs_info_tone_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_i
 	return 0;
 }
  
-static int snd_pmac_awacs_get_tone_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_get_tone_amp(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int index = kcontrol->private_value;
-	awacs_amp_t *amp = chip->mixer_data;
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
 	ucontrol->value.integer.value[0] = amp->amp_tone[index];
 	return 0;
 }
 
-static int snd_pmac_awacs_put_tone_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_put_tone_amp(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int index = kcontrol->private_value;
-	awacs_amp_t *amp = chip->mixer_data;
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	snd_assert(index >= 0 && index <= 1, return -EINVAL);
 	if (ucontrol->value.integer.value[0] != amp->amp_tone[index]) {
@@ -416,7 +431,8 @@ static int snd_pmac_awacs_put_tone_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 	return 0;
 }
 
-static int snd_pmac_awacs_info_master_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_pmac_awacs_info_master_amp(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -425,19 +441,21 @@ static int snd_pmac_awacs_info_master_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem
 	return 0;
 }
  
-static int snd_pmac_awacs_get_master_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_get_master_amp(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
-	awacs_amp_t *amp = chip->mixer_data;
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	ucontrol->value.integer.value[0] = amp->amp_master;
 	return 0;
 }
 
-static int snd_pmac_awacs_put_master_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_awacs_put_master_amp(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
-	awacs_amp_t *amp = chip->mixer_data;
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
+	struct awacs_amp *amp = chip->mixer_data;
 	snd_assert(amp, return -EINVAL);
 	if (ucontrol->value.integer.value[0] != amp->amp_master) {
 		amp->amp_master = ucontrol->value.integer.value[0];
@@ -450,7 +468,7 @@ static int snd_pmac_awacs_put_master_amp(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 #define AMP_CH_SPK	0
 #define AMP_CH_HD	1
 
-static snd_kcontrol_new_t snd_pmac_awacs_amp_vol[] __initdata = {
+static struct snd_kcontrol_new snd_pmac_awacs_amp_vol[] __initdata = {
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	  .name = "PC Speaker Playback Volume",
 	  .info = snd_pmac_awacs_info_volume_amp,
@@ -487,7 +505,7 @@ static snd_kcontrol_new_t snd_pmac_awacs_amp_vol[] __initdata = {
 	},
 };
 
-static snd_kcontrol_new_t snd_pmac_awacs_amp_hp_sw __initdata = {
+static struct snd_kcontrol_new snd_pmac_awacs_amp_hp_sw __initdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Headphone Playback Switch",
 	.info = snd_pmac_boolean_stereo_info,
@@ -496,7 +514,7 @@ static snd_kcontrol_new_t snd_pmac_awacs_amp_hp_sw __initdata = {
 	.private_value = AMP_CH_HD,
 };
 
-static snd_kcontrol_new_t snd_pmac_awacs_amp_spk_sw __initdata = {
+static struct snd_kcontrol_new snd_pmac_awacs_amp_spk_sw __initdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PC Speaker Playback Switch",
 	.info = snd_pmac_boolean_stereo_info,
@@ -511,7 +529,8 @@ static snd_kcontrol_new_t snd_pmac_awacs_amp_spk_sw __initdata = {
 /*
  * mic boost for screamer
  */
-static int snd_pmac_screamer_mic_boost_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
+static int snd_pmac_screamer_mic_boost_info(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
@@ -520,9 +539,10 @@ static int snd_pmac_screamer_mic_boost_info(snd_kcontrol_t *kcontrol, snd_ctl_el
 	return 0;
 }
 
-static int snd_pmac_screamer_mic_boost_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_screamer_mic_boost_get(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int val;
 	unsigned long flags;
 
@@ -538,9 +558,10 @@ static int snd_pmac_screamer_mic_boost_get(snd_kcontrol_t *kcontrol, snd_ctl_ele
 	return 0;
 }
 
-static int snd_pmac_screamer_mic_boost_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
+static int snd_pmac_screamer_mic_boost_put(struct snd_kcontrol *kcontrol,
+					   struct snd_ctl_elem_value *ucontrol)
 {
-	pmac_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	int changed = 0;
 	int val0, val6;
 	unsigned long flags;
@@ -568,7 +589,7 @@ static int snd_pmac_screamer_mic_boost_put(snd_kcontrol_t *kcontrol, snd_ctl_ele
 /*
  * lists of mixer elements
  */
-static snd_kcontrol_new_t snd_pmac_awacs_mixers[] __initdata = {
+static struct snd_kcontrol_new snd_pmac_awacs_mixers[] __initdata = {
 	AWACS_VOLUME("Master Playback Volume", 2, 6, 1),
 	AWACS_SWITCH("Master Capture Switch", 1, SHIFT_LOOPTHRU, 0),
 	AWACS_VOLUME("Capture Volume", 0, 4, 0),
@@ -578,24 +599,24 @@ static snd_kcontrol_new_t snd_pmac_awacs_mixers[] __initdata = {
 /* FIXME: is this correct order?
  * screamer (powerbook G3 pismo) seems to have different bits...
  */
-static snd_kcontrol_new_t snd_pmac_awacs_mixers2[] __initdata = {
+static struct snd_kcontrol_new snd_pmac_awacs_mixers2[] __initdata = {
 	AWACS_SWITCH("Line Capture Switch", 0, SHIFT_MUX_LINE, 0),
 	AWACS_SWITCH("Mic Capture Switch", 0, SHIFT_MUX_MIC, 0),
 };
 
-static snd_kcontrol_new_t snd_pmac_screamer_mixers2[] __initdata = {
+static struct snd_kcontrol_new snd_pmac_screamer_mixers2[] __initdata = {
 	AWACS_SWITCH("Line Capture Switch", 0, SHIFT_MUX_MIC, 0),
 	AWACS_SWITCH("Mic Capture Switch", 0, SHIFT_MUX_LINE, 0),
 };
 
-static snd_kcontrol_new_t snd_pmac_awacs_master_sw __initdata =
+static struct snd_kcontrol_new snd_pmac_awacs_master_sw __initdata =
 AWACS_SWITCH("Master Playback Switch", 1, SHIFT_HDMUTE, 1);
 
-static snd_kcontrol_new_t snd_pmac_awacs_mic_boost[] __initdata = {
+static struct snd_kcontrol_new snd_pmac_awacs_mic_boost[] __initdata = {
 	AWACS_SWITCH("Mic Boost", 0, SHIFT_GAINLINE, 0),
 };
 
-static snd_kcontrol_new_t snd_pmac_screamer_mic_boost[] __initdata = {
+static struct snd_kcontrol_new snd_pmac_screamer_mic_boost[] __initdata = {
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	  .name = "Mic Boost",
 	  .info = snd_pmac_screamer_mic_boost_info,
@@ -604,17 +625,17 @@ static snd_kcontrol_new_t snd_pmac_screamer_mic_boost[] __initdata = {
 	},
 };
 
-static snd_kcontrol_new_t snd_pmac_awacs_speaker_vol[] __initdata = {
+static struct snd_kcontrol_new snd_pmac_awacs_speaker_vol[] __initdata = {
 	AWACS_VOLUME("PC Speaker Playback Volume", 4, 6, 1),
 };
-static snd_kcontrol_new_t snd_pmac_awacs_speaker_sw __initdata =
+static struct snd_kcontrol_new snd_pmac_awacs_speaker_sw __initdata =
 AWACS_SWITCH("PC Speaker Playback Switch", 1, SHIFT_SPKMUTE, 1);
 
 
 /*
  * add new mixer elements to the card
  */
-static int build_mixers(pmac_t *chip, int nums, snd_kcontrol_new_t *mixers)
+static int build_mixers(struct snd_pmac *chip, int nums, struct snd_kcontrol_new *mixers)
 {
 	int i, err;
 
@@ -629,7 +650,7 @@ static int build_mixers(pmac_t *chip, int nums, snd_kcontrol_new_t *mixers)
 /*
  * restore all registers
  */
-static void awacs_restore_all_regs(pmac_t *chip)
+static void awacs_restore_all_regs(struct snd_pmac *chip)
 {
 	snd_pmac_awacs_write_noreg(chip, 0, chip->awacs_reg[0]);
 	snd_pmac_awacs_write_noreg(chip, 1, chip->awacs_reg[1]);
@@ -643,13 +664,13 @@ static void awacs_restore_all_regs(pmac_t *chip)
 }
 
 #ifdef CONFIG_PM
-static void snd_pmac_awacs_suspend(pmac_t *chip)
+static void snd_pmac_awacs_suspend(struct snd_pmac *chip)
 {
 	snd_pmac_awacs_write_noreg(chip, 1, (chip->awacs_reg[1]
 					     | MASK_AMUTE | MASK_CMUTE));
 }
 
-static void snd_pmac_awacs_resume(pmac_t *chip)
+static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 {
 	if (machine_is_compatible("PowerBook3,1")
 	    || machine_is_compatible("PowerBook3,2")) {
@@ -668,7 +689,7 @@ static void snd_pmac_awacs_resume(pmac_t *chip)
 	screamer_recalibrate(chip);
 #ifdef PMAC_AMP_AVAIL
 	if (chip->mixer_data) {
-		awacs_amp_t *amp = chip->mixer_data;
+		struct awacs_amp *amp = chip->mixer_data;
 		awacs_amp_set_vol(amp, 0, amp->amp_vol[0][0], amp->amp_vol[0][1], 0);
 		awacs_amp_set_vol(amp, 1, amp->amp_vol[1][0], amp->amp_vol[1][1], 0);
 		awacs_amp_set_tone(amp, amp->amp_tone[0], amp->amp_tone[1]);
@@ -682,13 +703,13 @@ static void snd_pmac_awacs_resume(pmac_t *chip)
 /*
  * auto-mute stuffs
  */
-static int snd_pmac_awacs_detect_headphone(pmac_t *chip)
+static int snd_pmac_awacs_detect_headphone(struct snd_pmac *chip)
 {
 	return (in_le32(&chip->awacs->codec_stat) & chip->hp_stat_mask) ? 1 : 0;
 }
 
 #ifdef PMAC_AMP_AVAIL
-static int toggle_amp_mute(awacs_amp_t *amp, int index, int mute)
+static int toggle_amp_mute(struct awacs_amp *amp, int index, int mute)
 {
 	int vol[2];
 	vol[0] = amp->amp_vol[index][0] & 31;
@@ -701,12 +722,12 @@ static int toggle_amp_mute(awacs_amp_t *amp, int index, int mute)
 }
 #endif
 
-static void snd_pmac_awacs_update_automute(pmac_t *chip, int do_notify)
+static void snd_pmac_awacs_update_automute(struct snd_pmac *chip, int do_notify)
 {
 	if (chip->auto_mute) {
 #ifdef PMAC_AMP_AVAIL
 		if (chip->mixer_data) {
-			awacs_amp_t *amp = chip->mixer_data;
+			struct awacs_amp *amp = chip->mixer_data;
 			int changed;
 			if (snd_pmac_awacs_detect_headphone(chip)) {
 				changed = toggle_amp_mute(amp, AMP_CH_HD, 0);
@@ -746,7 +767,7 @@ static void snd_pmac_awacs_update_automute(pmac_t *chip, int do_notify)
  * initialize chip
  */
 int __init
-snd_pmac_awacs_init(pmac_t *chip)
+snd_pmac_awacs_init(struct snd_pmac *chip)
 {
 	int err, vol;
 
@@ -780,7 +801,7 @@ snd_pmac_awacs_init(pmac_t *chip)
 	chip->revision = (in_le32(&chip->awacs->codec_stat) >> 12) & 0xf;
 #ifdef PMAC_AMP_AVAIL
 	if (chip->revision == 3 && chip->has_iic && CHECK_CUDA_AMP()) {
-		awacs_amp_t *amp = kmalloc(sizeof(*amp), GFP_KERNEL);
+		struct awacs_amp *amp = kmalloc(sizeof(*amp), GFP_KERNEL);
 		if (! amp)
 			return -ENOMEM;
 		chip->mixer_data = amp;

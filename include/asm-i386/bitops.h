@@ -372,6 +372,7 @@ static inline unsigned long ffz(unsigned long word)
  */
 
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 #ifdef __KERNEL__
 

@@ -402,7 +402,6 @@ static void driver_disconnect(struct usb_interface *intf)
 }
 
 struct usb_driver usbfs_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbfs",
 	.probe =	driver_probe,
 	.disconnect =	driver_disconnect,
@@ -1350,9 +1349,7 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 	/* let kernel drivers try to (re)bind to the interface */
 	case USBDEVFS_CONNECT:
 		usb_unlock_device(ps->dev);
-		usb_lock_all_devices();
 		bus_rescan_devices(intf->dev.bus);
-		usb_unlock_all_devices();
 		usb_lock_device(ps->dev);
 		break;
 

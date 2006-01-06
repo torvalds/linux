@@ -3,7 +3,7 @@
 #ifndef __HEADER_cwc4630_H__
 #define __HEADER_cwc4630_H__
 
-static symbol_entry_t cwc4630_symbols[] = {
+static struct dsp_symbol_entry cwc4630_symbols[] = {
   { 0x0000, "BEGINADDRESS",0x00 },
   { 0x8000, "EXECCHILD",0x03 },
   { 0x8001, "EXECCHILD_98",0x03 },
@@ -302,12 +302,12 @@ static u32 cwc4630_parameter[] = {
 }; /* #PARAMETER_END */
 
 
-static segment_desc_t cwc4630_segments[] = {
+static struct dsp_segment_desc cwc4630_segments[] = {
   { SEGTYPE_SP_PROGRAM, 0x00000000, 0x00000328, cwc4630_code },
   { SEGTYPE_SP_PARAMETER, 0x00000000, 0x00000080, cwc4630_parameter },
 };
 
-static dsp_module_desc_t cwc4630_module = {
+static struct dsp_module_desc cwc4630_module = {
   "cwc4630",
   {
     38,

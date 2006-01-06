@@ -84,7 +84,7 @@ clean-dirs += $(objtree)/debian/
 # ---------------------------------------------------------------------------
 .PHONY: tar%pkg
 tar%pkg:
-	$(MAKE)
+	$(MAKE) KBUILD_SRC=
 	$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@
 
 clean-dirs += $(objtree)/tar-install/

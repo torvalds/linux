@@ -27,23 +27,25 @@
 #include <sound/seq_oss_legacy.h>
 #include <sound/seq_device.h>
 
-typedef struct seq_oss_synth_t seq_oss_synth_t;
-
 void snd_seq_oss_synth_init(void);
-int snd_seq_oss_synth_register(snd_seq_device_t *dev);
-int snd_seq_oss_synth_unregister(snd_seq_device_t *dev);
-void snd_seq_oss_synth_setup(seq_oss_devinfo_t *dp);
-void snd_seq_oss_synth_setup_midi(seq_oss_devinfo_t *dp);
-void snd_seq_oss_synth_cleanup(seq_oss_devinfo_t *dp);
+int snd_seq_oss_synth_register(struct snd_seq_device *dev);
+int snd_seq_oss_synth_unregister(struct snd_seq_device *dev);
+void snd_seq_oss_synth_setup(struct seq_oss_devinfo *dp);
+void snd_seq_oss_synth_setup_midi(struct seq_oss_devinfo *dp);
+void snd_seq_oss_synth_cleanup(struct seq_oss_devinfo *dp);
 
-void snd_seq_oss_synth_reset(seq_oss_devinfo_t *dp, int dev);
-int snd_seq_oss_synth_load_patch(seq_oss_devinfo_t *dp, int dev, int fmt, const char __user *buf, int p, int c);
-int snd_seq_oss_synth_is_valid(seq_oss_devinfo_t *dp, int dev);
-int snd_seq_oss_synth_sysex(seq_oss_devinfo_t *dp, int dev, unsigned char *buf, snd_seq_event_t *ev);
-int snd_seq_oss_synth_addr(seq_oss_devinfo_t *dp, int dev, snd_seq_event_t *ev);
-int snd_seq_oss_synth_ioctl(seq_oss_devinfo_t *dp, int dev, unsigned int cmd, unsigned long addr);
-int snd_seq_oss_synth_raw_event(seq_oss_devinfo_t *dp, int dev, unsigned char *data, snd_seq_event_t *ev);
+void snd_seq_oss_synth_reset(struct seq_oss_devinfo *dp, int dev);
+int snd_seq_oss_synth_load_patch(struct seq_oss_devinfo *dp, int dev, int fmt,
+				 const char __user *buf, int p, int c);
+int snd_seq_oss_synth_is_valid(struct seq_oss_devinfo *dp, int dev);
+int snd_seq_oss_synth_sysex(struct seq_oss_devinfo *dp, int dev, unsigned char *buf,
+			    struct snd_seq_event *ev);
+int snd_seq_oss_synth_addr(struct seq_oss_devinfo *dp, int dev, struct snd_seq_event *ev);
+int snd_seq_oss_synth_ioctl(struct seq_oss_devinfo *dp, int dev, unsigned int cmd,
+			    unsigned long addr);
+int snd_seq_oss_synth_raw_event(struct seq_oss_devinfo *dp, int dev,
+				unsigned char *data, struct snd_seq_event *ev);
 
-int snd_seq_oss_synth_make_info(seq_oss_devinfo_t *dp, int dev, struct synth_info *inf);
+int snd_seq_oss_synth_make_info(struct seq_oss_devinfo *dp, int dev, struct synth_info *inf);
 
 #endif

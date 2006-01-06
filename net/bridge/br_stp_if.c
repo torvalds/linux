@@ -120,8 +120,7 @@ void br_stp_disable_port(struct net_bridge_port *p)
 }
 
 /* called under bridge lock */
-static void br_stp_change_bridge_id(struct net_bridge *br, 
-				    const unsigned char *addr)
+void br_stp_change_bridge_id(struct net_bridge *br, const unsigned char *addr)
 {
 	unsigned char oldaddr[6];
 	struct net_bridge_port *p;
@@ -158,7 +157,7 @@ void br_stp_recalculate_bridge_id(struct net_bridge *br)
 
 	list_for_each_entry(p, &br->port_list, list) {
 		if (addr == br_mac_zero ||
-		    compare_ether_addr(p->dev->dev_addr, addr) < 0)
+		    memcmp(p->dev->dev_addr, addr, ETH_ALEN) < 0)
 			addr = p->dev->dev_addr;
 
 	}

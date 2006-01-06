@@ -780,7 +780,6 @@ MODULE_DEVICE_TABLE (usb, uss720_table);
 
 
 static struct usb_driver uss720_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"uss720",
 	.probe =	uss720_probe,
 	.disconnect =	uss720_disconnect,

@@ -33,7 +33,7 @@
 #include "hoontech.h"
 
 
-static void __devinit snd_ice1712_stdsp24_gpio_write(ice1712_t *ice, unsigned char byte)
+static void __devinit snd_ice1712_stdsp24_gpio_write(struct snd_ice1712 *ice, unsigned char byte)
 {
 	byte |= ICE1712_STDSP24_CLOCK_BIT;
 	udelay(100);
@@ -46,7 +46,7 @@ static void __devinit snd_ice1712_stdsp24_gpio_write(ice1712_t *ice, unsigned ch
 	snd_ice1712_write(ice, ICE1712_IREG_GPIO_DATA, byte);
 }
 
-static void __devinit snd_ice1712_stdsp24_darear(ice1712_t *ice, int activate)
+static void __devinit snd_ice1712_stdsp24_darear(struct snd_ice1712 *ice, int activate)
 {
 	down(&ice->gpio_mutex);
 	ICE1712_STDSP24_0_DAREAR(ice->spec.hoontech.boxbits, activate);
@@ -54,7 +54,7 @@ static void __devinit snd_ice1712_stdsp24_darear(ice1712_t *ice, int activate)
 	up(&ice->gpio_mutex);
 }
 
-static void __devinit snd_ice1712_stdsp24_mute(ice1712_t *ice, int activate)
+static void __devinit snd_ice1712_stdsp24_mute(struct snd_ice1712 *ice, int activate)
 {
 	down(&ice->gpio_mutex);
 	ICE1712_STDSP24_3_MUTE(ice->spec.hoontech.boxbits, activate);
@@ -62,7 +62,7 @@ static void __devinit snd_ice1712_stdsp24_mute(ice1712_t *ice, int activate)
 	up(&ice->gpio_mutex);
 }
 
-static void __devinit snd_ice1712_stdsp24_insel(ice1712_t *ice, int activate)
+static void __devinit snd_ice1712_stdsp24_insel(struct snd_ice1712 *ice, int activate)
 {
 	down(&ice->gpio_mutex);
 	ICE1712_STDSP24_3_INSEL(ice->spec.hoontech.boxbits, activate);
@@ -70,7 +70,7 @@ static void __devinit snd_ice1712_stdsp24_insel(ice1712_t *ice, int activate)
 	up(&ice->gpio_mutex);
 }
 
-static void __devinit snd_ice1712_stdsp24_box_channel(ice1712_t *ice, int box, int chn, int activate)
+static void __devinit snd_ice1712_stdsp24_box_channel(struct snd_ice1712 *ice, int box, int chn, int activate)
 {
 	down(&ice->gpio_mutex);
 
@@ -118,7 +118,7 @@ static void __devinit snd_ice1712_stdsp24_box_channel(ice1712_t *ice, int box, i
 	up(&ice->gpio_mutex);
 }
 
-static void __devinit snd_ice1712_stdsp24_box_midi(ice1712_t *ice, int box, int master)
+static void __devinit snd_ice1712_stdsp24_box_midi(struct snd_ice1712 *ice, int box, int master)
 {
 	down(&ice->gpio_mutex);
 
@@ -144,7 +144,7 @@ static void __devinit snd_ice1712_stdsp24_box_midi(ice1712_t *ice, int box, int 
 	up(&ice->gpio_mutex);
 }
 
-static void __devinit snd_ice1712_stdsp24_midi2(ice1712_t *ice, int activate)
+static void __devinit snd_ice1712_stdsp24_midi2(struct snd_ice1712 *ice, int activate)
 {
 	down(&ice->gpio_mutex);
 	ICE1712_STDSP24_3_MIDI2(ice->spec.hoontech.boxbits, activate);
@@ -152,7 +152,7 @@ static void __devinit snd_ice1712_stdsp24_midi2(ice1712_t *ice, int activate)
 	up(&ice->gpio_mutex);
 }
 
-static int __devinit snd_ice1712_hoontech_init(ice1712_t *ice)
+static int __devinit snd_ice1712_hoontech_init(struct snd_ice1712 *ice)
 {
 	int box, chn;
 
@@ -221,9 +221,9 @@ static int __devinit snd_ice1712_hoontech_init(ice1712_t *ice)
  */
 
 /* start callback for STDSP24 with modified hardware */
-static void stdsp24_ak4524_lock(akm4xxx_t *ak, int chip)
+static void stdsp24_ak4524_lock(struct snd_akm4xxx *ak, int chip)
 {
-	ice1712_t *ice = ak->private_data[0];
+	struct snd_ice1712 *ice = ak->private_data[0];
 	unsigned char tmp;
 	snd_ice1712_save_gpio_status(ice);
 	tmp =	ICE1712_STDSP24_SERIAL_DATA |
@@ -234,10 +234,10 @@ static void stdsp24_ak4524_lock(akm4xxx_t *ak, int chip)
 	snd_ice1712_write(ice, ICE1712_IREG_GPIO_WRITE_MASK, ~tmp);
 }
 
-static int __devinit snd_ice1712_value_init(ice1712_t *ice)
+static int __devinit snd_ice1712_value_init(struct snd_ice1712 *ice)
 {
 	/* Hoontech STDSP24 with modified hardware */
-	static akm4xxx_t akm_stdsp24_mv __devinitdata = {
+	static struct snd_akm4xxx akm_stdsp24_mv __devinitdata = {
 		.num_adcs = 2,
 		.num_dacs = 2,
 		.type = SND_AK4524,
@@ -258,7 +258,7 @@ static int __devinit snd_ice1712_value_init(ice1712_t *ice)
 	};
 
 	int err;
-	akm4xxx_t *ak;
+	struct snd_akm4xxx *ak;
 
 	/* set the analog DACs */
 	ice->num_total_dacs = 2;
@@ -267,7 +267,7 @@ static int __devinit snd_ice1712_value_init(ice1712_t *ice)
 	ice->num_total_adcs = 2;
 	
 	/* analog section */
-	ak = ice->akm = kmalloc(sizeof(akm4xxx_t), GFP_KERNEL);
+	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 1;
@@ -284,7 +284,7 @@ static int __devinit snd_ice1712_value_init(ice1712_t *ice)
 	return 0;
 }
 
-static int __devinit snd_ice1712_ez8_init(ice1712_t *ice)
+static int __devinit snd_ice1712_ez8_init(struct snd_ice1712 *ice)
 {
 	ice->gpio.write_mask = ice->eeprom.gpiomask;
 	ice->gpio.direction = ice->eeprom.gpiodir;

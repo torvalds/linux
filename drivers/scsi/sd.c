@@ -245,7 +245,7 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	 * SG_IO from block layer already setup, just copy cdb basically
 	 */
 	if (blk_pc_request(rq)) {
-		scsi_setup_blk_pc_cmnd(SCpnt, SD_PASSTHROUGH_RETRIES);
+		scsi_setup_blk_pc_cmnd(SCpnt);
 		if (rq->timeout)
 			timeout = rq->timeout;
 
@@ -1495,9 +1495,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 */
 	if (sdkp->media_present) {
 		sd_read_capacity(sdkp, disk->disk_name, buffer);
-		if (sdp->removable)
-			sd_read_write_protect_flag(sdkp, disk->disk_name,
-						   buffer);
+		sd_read_write_protect_flag(sdkp, disk->disk_name, buffer);
 		sd_read_cache_type(sdkp, disk->disk_name, buffer);
 	}
 		

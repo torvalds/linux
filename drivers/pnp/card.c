@@ -69,6 +69,7 @@ static int card_probe(struct pnp_card * card, struct pnp_card_driver * drv)
 			return 0;
 		clink->card = card;
 		clink->driver = drv;
+		clink->pm_state = PMSG_ON;
 		if (drv->probe) {
 			if (drv->probe(clink, id)>=0)
 				return 1;
@@ -333,6 +334,28 @@ void pnp_release_card_device(struct pnp_dev * dev)
 	up_write(&dev->dev.bus->subsys.rwsem);
 }
 
+/*
+ * suspend/resume callbacks
+ */
+static int card_suspend(struct pnp_dev *dev, pm_message_t state)
+{
+	struct pnp_card_link *link = dev->card_link;
+	if (link->pm_state.event == state.event)
+		return 0;
+	link->pm_state = state;
+	return link->driver->suspend(link, state);
+}
+
+static int card_resume(struct pnp_dev *dev)
+{
+	struct pnp_card_link *link = dev->card_link;
+	if (link->pm_state.event == PM_EVENT_ON)
+		return 0;
+	link->pm_state = PMSG_ON;
+	link->driver->resume(link);
+	return 0;
+}
+
 /**
  * pnp_register_card_driver - registers a PnP card driver with the PnP Layer
  * @drv: pointer to the driver to register
@@ -348,6 +371,8 @@ int pnp_register_card_driver(struct pnp_card_driver * drv)
 	drv->link.flags = drv->flags;
 	drv->link.probe = NULL;
 	drv->link.remove = &card_remove_first;
+	drv->link.suspend = drv->suspend ? card_suspend : NULL;
+	drv->link.resume = drv->resume ? card_resume : NULL;
 
 	spin_lock(&pnp_lock);
 	list_add_tail(&drv->global_list, &pnp_card_drivers);

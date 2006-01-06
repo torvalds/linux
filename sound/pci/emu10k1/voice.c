@@ -45,9 +45,10 @@
  *							--rlrevell
  */
 
-static int voice_alloc(emu10k1_t *emu, emu10k1_voice_type_t type, int number, emu10k1_voice_t **rvoice)
+static int voice_alloc(struct snd_emu10k1 *emu, int type, int number,
+		       struct snd_emu10k1_voice **rvoice)
 {
-	emu10k1_voice_t *voice;
+	struct snd_emu10k1_voice *voice;
 	int i, j, k, first_voice, last_voice, skip;
 
 	*rvoice = NULL;
@@ -105,7 +106,8 @@ static int voice_alloc(emu10k1_t *emu, emu10k1_voice_type_t type, int number, em
 	return 0;
 }
 
-int snd_emu10k1_voice_alloc(emu10k1_t *emu, emu10k1_voice_type_t type, int number, emu10k1_voice_t **rvoice)
+int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int number,
+			    struct snd_emu10k1_voice **rvoice)
 {
 	unsigned long flags;
 	int result;
@@ -123,7 +125,7 @@ int snd_emu10k1_voice_alloc(emu10k1_t *emu, emu10k1_voice_type_t type, int numbe
 		if (emu->get_synth_voice) {
 			result = emu->get_synth_voice(emu);
 			if (result >= 0) {
-				emu10k1_voice_t *pvoice = &emu->voices[result];
+				struct snd_emu10k1_voice *pvoice = &emu->voices[result];
 				pvoice->interrupt = NULL;
 				pvoice->use = pvoice->pcm = pvoice->synth = pvoice->midi = pvoice->efx = 0;
 				pvoice->epcm = NULL;
@@ -137,7 +139,8 @@ int snd_emu10k1_voice_alloc(emu10k1_t *emu, emu10k1_voice_type_t type, int numbe
 	return result;
 }
 
-int snd_emu10k1_voice_free(emu10k1_t *emu, emu10k1_voice_t *pvoice)
+int snd_emu10k1_voice_free(struct snd_emu10k1 *emu,
+			   struct snd_emu10k1_voice *pvoice)
 {
 	unsigned long flags;
 

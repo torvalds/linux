@@ -21,9 +21,6 @@
  *
  */
 
-typedef struct snd_seq_device snd_seq_device_t;
-typedef struct snd_seq_dev_ops snd_seq_dev_ops_t;
-
 /*
  * registered device information
  */
@@ -36,7 +33,7 @@ typedef struct snd_seq_dev_ops snd_seq_dev_ops_t;
 
 struct snd_seq_device {
 	/* device info */
-	snd_card_t *card;	/* sound card */
+	struct snd_card *card;	/* sound card */
 	int device;		/* device number */
 	char id[ID_LEN];	/* driver id */
 	char name[80];		/* device name */
@@ -44,7 +41,7 @@ struct snd_seq_device {
 	void *driver_data;	/* private data for driver */
 	int status;		/* flag - read only */
 	void *private_data;	/* private data for the caller */
-	void (*private_free)(snd_seq_device_t *device);
+	void (*private_free)(struct snd_seq_device *device);
 	struct list_head list;	/* link to next device */
 };
 
@@ -63,19 +60,19 @@ struct snd_seq_device {
  *	Typically, call snd_device_free(dev->card, dev->driver_data)
  */
 struct snd_seq_dev_ops {
-	int (*init_device)(snd_seq_device_t *dev);
-	int (*free_device)(snd_seq_device_t *dev);
+	int (*init_device)(struct snd_seq_device *dev);
+	int (*free_device)(struct snd_seq_device *dev);
 };
 
 /*
  * prototypes
  */
 void snd_seq_device_load_drivers(void);
-int snd_seq_device_new(snd_card_t *card, int device, char *id, int argsize, snd_seq_device_t **result);
-int snd_seq_device_register_driver(char *id, snd_seq_dev_ops_t *entry, int argsize);
+int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize, struct snd_seq_device **result);
+int snd_seq_device_register_driver(char *id, struct snd_seq_dev_ops *entry, int argsize);
 int snd_seq_device_unregister_driver(char *id);
 
-#define SNDRV_SEQ_DEVICE_ARGPTR(dev) (void *)((char *)(dev) + sizeof(snd_seq_device_t))
+#define SNDRV_SEQ_DEVICE_ARGPTR(dev) (void *)((char *)(dev) + sizeof(struct snd_seq_device))
 
 
 /*
@@ -83,6 +80,5 @@ int snd_seq_device_unregister_driver(char *id);
  */
 #define SNDRV_SEQ_DEV_ID_MIDISYNTH	"seq-midi"
 #define SNDRV_SEQ_DEV_ID_OPL3		"opl3-synth"
-
 
 #endif /* __SOUND_SEQ_DEVICE_H */

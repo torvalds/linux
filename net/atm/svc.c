@@ -613,7 +613,7 @@ static int svc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return error;
 }
 
-static struct proto_ops svc_proto_ops = {
+static const struct proto_ops svc_proto_ops = {
 	.family =	PF_ATMSVC,
 	.owner =	THIS_MODULE,
 

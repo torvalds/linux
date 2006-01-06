@@ -26,17 +26,11 @@
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
-
-
-#define PMM_NPS_MODE           1
-#define PMM_GLOBAL_MODE        2
-#define PMM_PERPORT_MODE       3
+#include <asm/arch/ohci.h>
 
 #define PXA_UHC_MAX_PORTNUM    3
 
 #define UHCRHPS(x)              __REG2( 0x4C000050, (x)<<2 )
-
-static int pxa27x_ohci_pmm_state;
 
 /*
   PMM_NPS_MODE -- PMM Non-power switching mode
@@ -50,8 +44,6 @@ static int pxa27x_ohci_pmm_state;
  */
 static int pxa27x_ohci_select_pmm( int mode )
 {
-	pxa27x_ohci_pmm_state = mode;
-
 	switch ( mode ) {
 	case PMM_NPS_MODE:
 		UHCRHDA |= RH_A_NPS;
@@ -71,7 +63,6 @@ static int pxa27x_ohci_select_pmm( int mode )
 			"Invalid mode %d, set to non-power switch mode.\n", 
 			mode );
 
-		pxa27x_ohci_pmm_state = PMM_NPS_MODE;
 		UHCRHDA |= RH_A_NPS;
 	}
 
@@ -82,8 +73,13 @@ extern int usb_disabled(void);
 
 /*-------------------------------------------------------------------------*/
 
-static void pxa27x_start_hc(struct platform_device *dev)
+static int pxa27x_start_hc(struct device *dev)
 {
+	int retval = 0;
+	struct pxaohci_platform_data *inf;
+
+	inf = dev->platform_data;
+
 	pxa_set_cken(CKEN10_USBHOST, 1);
 
 	UHCHR |= UHCHR_FHR;
@@ -94,21 +90,11 @@ static void pxa27x_start_hc(struct platform_device *dev)
 	while (UHCHR & UHCHR_FSBIR)
 		cpu_relax();
 
-	/* This could be properly abstracted away through the
-	   device data the day more machines are supported and
-	   their differences can be figured out correctly. */
-	if (machine_is_mainstone()) {
-		/* setup Port1 GPIO pin. */
-		pxa_gpio_mode( 88 | GPIO_ALT_FN_1_IN);	/* USBHPWR1 */
-		pxa_gpio_mode( 89 | GPIO_ALT_FN_2_OUT);	/* USBHPEN1 */
+	if (inf->init)
+		retval = inf->init(dev);
 
-		/* Set the Power Control Polarity Low and Power Sense
-		   Polarity Low to active low. Supply power to USB ports. */
-		UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
-			~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
-
-		pxa27x_ohci_pmm_state = PMM_PERPORT_MODE;
-	}
+	if (retval < 0)
+		return retval;
 
 	UHCHR &= ~UHCHR_SSE;
 
@@ -117,10 +103,19 @@ static void pxa27x_start_hc(struct platform_device *dev)
 	/* Clear any OTG Pin Hold */
 	if (PSSR & PSSR_OTGPH)
 		PSSR |= PSSR_OTGPH;
+
+	return 0;
 }
 
-static void pxa27x_stop_hc(struct platform_device *dev)
+static void pxa27x_stop_hc(struct device *dev)
 {
+	struct pxaohci_platform_data *inf;
+
+	inf = dev->platform_data;
+
+	if (inf->exit)
+		inf->exit(dev);
+
 	UHCHR |= UHCHR_FHR;
 	udelay(11);
 	UHCHR &= ~UHCHR_FHR;
@@ -147,22 +142,27 @@ static void pxa27x_stop_hc(struct platform_device *dev)
  * through the hotplug entry's driver_data.
  *
  */
-int usb_hcd_pxa27x_probe (const struct hc_driver *driver,
-			  struct platform_device *dev)
+int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device *pdev)
 {
 	int retval;
 	struct usb_hcd *hcd;
+	struct pxaohci_platform_data *inf;
 
-	if (dev->resource[1].flags != IORESOURCE_IRQ) {
+	inf = pdev->dev.platform_data;
+
+	if (!inf)
+		return -ENODEV;
+
+	if (pdev->resource[1].flags != IORESOURCE_IRQ) {
 		pr_debug ("resource[1] is not IORESOURCE_IRQ");
 		return -ENOMEM;
 	}
 
-	hcd = usb_create_hcd (driver, &dev->dev, "pxa27x");
+	hcd = usb_create_hcd (driver, &pdev->dev, "pxa27x");
 	if (!hcd)
 		return -ENOMEM;
-	hcd->rsrc_start = dev->resource[0].start;
-	hcd->rsrc_len = dev->resource[0].end - dev->resource[0].start + 1;
+	hcd->rsrc_start = pdev->resource[0].start;
+	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		pr_debug("request_mem_region failed");
@@ -177,18 +177,22 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver,
 		goto err2;
 	}
 
-	pxa27x_start_hc(dev);
+	if ((retval = pxa27x_start_hc(&pdev->dev)) < 0) {
+		pr_debug("pxa27x_start_hc failed");
+		goto err3;
+	}
 
 	/* Select Power Management Mode */
-	pxa27x_ohci_select_pmm(pxa27x_ohci_pmm_state);
+	pxa27x_ohci_select_pmm(inf->port_mode);
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
-	retval = usb_add_hcd(hcd, dev->resource[1].start, SA_INTERRUPT);
+	retval = usb_add_hcd(hcd, pdev->resource[1].start, SA_INTERRUPT);
 	if (retval == 0)
 		return retval;
 
-	pxa27x_stop_hc(dev);
+	pxa27x_stop_hc(&pdev->dev);
+ err3:
 	iounmap(hcd->regs);
  err2:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
@@ -211,10 +215,10 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver,
  * context, normally "rmmod", "apmd", or something similar.
  *
  */
-void usb_hcd_pxa27x_remove (struct usb_hcd *hcd, struct platform_device *dev)
+void usb_hcd_pxa27x_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 {
 	usb_remove_hcd(hcd);
-	pxa27x_stop_hc(dev);
+	pxa27x_stop_hc(&pdev->dev);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
@@ -292,15 +296,12 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 
 static int ohci_hcd_pxa27x_drv_probe(struct platform_device *pdev)
 {
-	int ret;
-
 	pr_debug ("In ohci_hcd_pxa27x_drv_probe");
 
 	if (usb_disabled())
 		return -ENODEV;
 
-	ret = usb_hcd_pxa27x_probe(&ohci_pxa27x_hc_driver, pdev);
-	return ret;
+	return usb_hcd_pxa27x_probe(&ohci_pxa27x_hc_driver, pdev);
 }
 
 static int ohci_hcd_pxa27x_drv_remove(struct platform_device *pdev)
@@ -308,31 +309,55 @@ static int ohci_hcd_pxa27x_drv_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_pxa27x_remove(hcd, pdev);
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *dev, pm_message_t state)
+#ifdef	CONFIG_PM
+static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
-//	struct usb_hcd *hcd = platform_get_drvdata(dev);
-	printk("%s: not implemented yet\n", __FUNCTION__);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
+
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
+
+	pxa27x_stop_hc(&pdev->dev);
+	hcd->state = HC_STATE_SUSPENDED;
+	pdev->dev.power.power_state = PMSG_SUSPEND;
 
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_resume(struct platform_device *dev)
+static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 {
-//	struct usb_hcd *hcd = platform_get_drvdata(dev);
-	printk("%s: not implemented yet\n", __FUNCTION__);
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
+	int status;
+
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
+
+	if ((status = pxa27x_start_hc(&pdev->dev)) < 0)
+		return status;
+
+	pdev->dev.power.power_state = PMSG_ON;
+	usb_hcd_resume_root_hub(hcd);
 
 	return 0;
 }
+#endif
 
 
 static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_drv_probe,
 	.remove		= ohci_hcd_pxa27x_drv_remove,
+#ifdef CONFIG_PM
 	.suspend	= ohci_hcd_pxa27x_drv_suspend, 
 	.resume		= ohci_hcd_pxa27x_drv_resume,
+#endif
 	.driver		= {
 		.name	= "pxa27x-ohci",
 	},
