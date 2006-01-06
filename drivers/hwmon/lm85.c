@@ -380,10 +380,10 @@ static void lm85_init_client(struct i2c_client *client);
 
 
 static struct i2c_driver lm85_driver = {
-	.owner          = THIS_MODULE,
-	.name           = "lm85",
+	.driver = {
+		.name   = "lm85",
+	},
 	.id             = I2C_DRIVERID_LM85,
-	.flags          = I2C_DF_NOTIFY,
 	.attach_adapter = lm85_attach_adapter,
 	.detach_client  = lm85_detach_client,
 };
@@ -443,7 +443,17 @@ show_fan_offset(4);
 static ssize_t show_vid_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct lm85_data *data = lm85_update_device(dev);
-	return sprintf(buf, "%ld\n", (long) vid_from_reg(data->vid, data->vrm));
+	int vid;
+
+	if (data->type == adt7463 && (data->vid & 0x80)) {
+		/* 6-pin VID (VRM 10) */
+		vid = vid_from_reg(data->vid & 0x3f, data->vrm);
+	} else {
+		/* 5-pin VID (VRM 9) */
+		vid = vid_from_reg(data->vid & 0x1f, data->vrm);
+	}
+
+	return sprintf(buf, "%d\n", vid);
 }
 
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
@@ -1176,17 +1186,14 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 	device_create_file(&new_client->dev, &dev_attr_in1_input);
 	device_create_file(&new_client->dev, &dev_attr_in2_input);
 	device_create_file(&new_client->dev, &dev_attr_in3_input);
-	device_create_file(&new_client->dev, &dev_attr_in4_input);
 	device_create_file(&new_client->dev, &dev_attr_in0_min);
 	device_create_file(&new_client->dev, &dev_attr_in1_min);
 	device_create_file(&new_client->dev, &dev_attr_in2_min);
 	device_create_file(&new_client->dev, &dev_attr_in3_min);
-	device_create_file(&new_client->dev, &dev_attr_in4_min);
 	device_create_file(&new_client->dev, &dev_attr_in0_max);
 	device_create_file(&new_client->dev, &dev_attr_in1_max);
 	device_create_file(&new_client->dev, &dev_attr_in2_max);
 	device_create_file(&new_client->dev, &dev_attr_in3_max);
-	device_create_file(&new_client->dev, &dev_attr_in4_max);
 	device_create_file(&new_client->dev, &dev_attr_temp1_input);
 	device_create_file(&new_client->dev, &dev_attr_temp2_input);
 	device_create_file(&new_client->dev, &dev_attr_temp3_input);
@@ -1223,6 +1230,15 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 	device_create_file(&new_client->dev, &dev_attr_temp1_auto_temp_crit);
 	device_create_file(&new_client->dev, &dev_attr_temp2_auto_temp_crit);
 	device_create_file(&new_client->dev, &dev_attr_temp3_auto_temp_crit);
+
+	/* The ADT7463 has an optional VRM 10 mode where pin 21 is used
+	   as a sixth digital VID input rather than an analog input. */
+	data->vid = lm85_read_value(new_client, LM85_REG_VID);
+	if (!(kind == adt7463 && (data->vid & 0x80))) {
+		device_create_file(&new_client->dev, &dev_attr_in4_input);
+		device_create_file(&new_client->dev, &dev_attr_in4_min);
+		device_create_file(&new_client->dev, &dev_attr_in4_max);
+	}
 
 	return 0;
 
@@ -1382,9 +1398,16 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 		   irrelevant. So it is left in 4*/
 		data->adc_scale = (data->type == emc6d102 ) ? 16 : 4;
 
-		for (i = 0; i <= 4; ++i) {
+		data->vid = lm85_read_value(client, LM85_REG_VID);
+
+		for (i = 0; i <= 3; ++i) {
 			data->in[i] =
 			    lm85_read_value(client, LM85_REG_IN(i));
+		}
+
+		if (!(data->type == adt7463 && (data->vid & 0x80))) {
+			data->in[4] = lm85_read_value(client,
+				      LM85_REG_IN(4));
 		}
 
 		for (i = 0; i <= 3; ++i) {
@@ -1450,11 +1473,18 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 		/* Things that don't change often */
 		dev_dbg(&client->dev, "Reading config values\n");
 
-		for (i = 0; i <= 4; ++i) {
+		for (i = 0; i <= 3; ++i) {
 			data->in_min[i] =
 			    lm85_read_value(client, LM85_REG_IN_MIN(i));
 			data->in_max[i] =
 			    lm85_read_value(client, LM85_REG_IN_MAX(i));
+		}
+
+		if (!(data->type == adt7463 && (data->vid & 0x80))) {
+			data->in_min[4] = lm85_read_value(client,
+					  LM85_REG_IN_MIN(4));
+			data->in_max[4] = lm85_read_value(client,
+					  LM85_REG_IN_MAX(4));
 		}
 
 		if ( data->type == emc6d100 ) {
@@ -1477,8 +1507,6 @@ static struct lm85_data *lm85_update_device(struct device *dev)
 			data->temp_max[i] =
 			    lm85_read_value(client, LM85_REG_TEMP_MAX(i));
 		}
-
-		data->vid = lm85_read_value(client, LM85_REG_VID);
 
 		for (i = 0; i <= 2; ++i) {
 			int val ;

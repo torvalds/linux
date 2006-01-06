@@ -420,7 +420,6 @@ adv7170_detect_client (struct i2c_adapter *adapter,
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_adv7170;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	if ((client->addr == I2C_ADV7170 >> 1) ||
 	    (client->addr == (I2C_ADV7170 >> 1) + 1)) {
 		dname = adv7170_name;
@@ -498,11 +497,11 @@ adv7170_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_adv7170 = {
-	.owner = THIS_MODULE,
-	.name = "adv7170",	/* name */
+	.driver = {
+		.name = "adv7170",	/* name */
+	},
 
 	.id = I2C_DRIVERID_ADV7170,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = adv7170_attach_adapter,
 	.detach_client = adv7170_detach_client,

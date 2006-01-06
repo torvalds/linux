@@ -283,9 +283,9 @@ static int therm_pm72_detach(struct i2c_adapter *adapter);
 
 static struct i2c_driver therm_pm72_driver =
 {
-	.owner		= THIS_MODULE,
-	.name		= "therm_pm72",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "therm_pm72",
+	},
 	.attach_adapter	= therm_pm72_attach,
 	.detach_adapter	= therm_pm72_detach,
 };

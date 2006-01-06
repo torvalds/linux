@@ -5,7 +5,8 @@ Supported adapters:
   * nForce2 Ultra 400 MCP      10de:0084 
   * nForce3 Pro150 MCP         10de:00D4 
   * nForce3 250Gb MCP          10de:00E4 
-  * nForce4 MCP	       	       10de:0052
+  * nForce4 MCP                10de:0052
+  * nForce4 MCP-04             10de:0034
 
 Datasheet: not publically available, but seems to be similar to the
            AMD-8111 SMBus 2.0 adapter.

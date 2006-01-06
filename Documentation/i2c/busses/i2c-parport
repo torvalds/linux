@@ -17,6 +17,7 @@ It currently supports the following devices:
  * Velleman K8000 adapter
  * ELV adapter
  * Analog Devices evaluation boards (ADM1025, ADM1030, ADM1031, ADM1032)
+ * Barco LPT->DVI (K5800236) adapter
 
 These devices use different pinout configurations, so you have to tell
 the driver what you have, using the type module parameter. There is no

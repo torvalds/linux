@@ -497,7 +497,6 @@ static struct i2c_adapter em28xx_adap_template = {
 
 static struct i2c_client em28xx_client_template = {
 	.name = "em28xx internal",
-	.flags = I2C_CLIENT_ALLOW_USE,
 };
 
 /* ----------------------------------------------------------- */
