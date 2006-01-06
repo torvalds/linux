@@ -1664,11 +1664,34 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 static struct rdev_sysfs_entry rdev_slot =
 __ATTR(slot, 0644, slot_show, slot_store);
 
+static ssize_t
+offset_show(mdk_rdev_t *rdev, char *page)
+{
+	return sprintf(page, "%llu\n", rdev->data_offset);
+}
+
+static ssize_t
+offset_store(mdk_rdev_t *rdev, const char *buf, size_t len)
+{
+	char *e;
+	unsigned long long offset = simple_strtoull(buf, &e, 10);
+	if (e==buf || (*e && *e != '\n'))
+		return -EINVAL;
+	if (rdev->mddev->pers)
+		return -EBUSY;
+	rdev->data_offset = offset;
+	return len;
+}
+
+static struct rdev_sysfs_entry rdev_offset =
+__ATTR(offset, 0644, offset_show, offset_store);
+
 static struct attribute *rdev_default_attrs[] = {
 	&rdev_state.attr,
 	&rdev_super.attr,
 	&rdev_errors.attr,
 	&rdev_slot.attr,
+	&rdev_offset.attr,
 	NULL,
 };
 static ssize_t

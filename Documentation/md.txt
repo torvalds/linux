@@ -244,6 +244,12 @@ Each directory contains:
 	it currently fills.  This can only be set while assembling an
 	array.  A device for which this is set is assumed to be working.
 
+      offset
+        This gives the location in the device (in sectors from the
+        start) where data from the array will be stored.  Any part of
+        the device before this offset us not touched, unless it is
+        used for storing metadata (Formats 1.1 and 1.2).
+
 
 An active md device will also contain and entry for each active device
 in the array.  These are named
