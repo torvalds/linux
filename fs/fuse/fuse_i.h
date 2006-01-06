@@ -272,6 +272,9 @@ struct fuse_conn {
 	/** Is create not implemented by fs? */
 	unsigned no_create : 1;
 
+	/** Negotiated minor version */
+	unsigned minor;
+
 	/** Backing dev info */
 	struct backing_dev_info bdi;
 };

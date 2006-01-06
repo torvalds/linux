@@ -178,6 +178,8 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		if (req->misc.init_in_out.major != FUSE_KERNEL_VERSION)
 			fc->conn_error = 1;
 
+		fc->minor = req->misc.init_in_out.minor;
+
 		/* After INIT reply is received other requests can go
 		   out.  So do (FUSE_MAX_OUTSTANDING - 1) number of
 		   up()s on outstanding_sem.  The last up() is done in
