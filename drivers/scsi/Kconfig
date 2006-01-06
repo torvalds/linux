@@ -914,7 +914,7 @@ config SCSI_INIA100
 
 config SCSI_PPA
 	tristate "IOMEGA parallel port (ppa - older drives)"
-	depends on SCSI && PARPORT
+	depends on SCSI && PARPORT_PC
 	---help---
 	  This driver supports older versions of IOMEGA's parallel port ZIP
 	  drive (a 100 MB removable media device).
@@ -941,7 +941,7 @@ config SCSI_PPA
 
 config SCSI_IMM
 	tristate "IOMEGA parallel port (imm - newer drives)"
-	depends on SCSI && PARPORT
+	depends on SCSI && PARPORT_PC
 	---help---
 	  This driver supports newer versions of IOMEGA's parallel port ZIP
 	  drive (a 100 MB removable media device).
@@ -968,7 +968,7 @@ config SCSI_IMM
 
 config SCSI_IZIP_EPP16
 	bool "ppa/imm option - Use slow (but safe) EPP-16"
-	depends on PARPORT && (SCSI_PPA || SCSI_IMM)
+	depends on SCSI_PPA || SCSI_IMM
 	---help---
 	  EPP (Enhanced Parallel Port) is a standard for parallel ports which
 	  allows them to act as expansion buses that can handle up to 64
@@ -983,7 +983,7 @@ config SCSI_IZIP_EPP16
 
 config SCSI_IZIP_SLOW_CTR
 	bool "ppa/imm option - Assume slow parport control register"
-	depends on PARPORT && (SCSI_PPA || SCSI_IMM)
+	depends on SCSI_PPA || SCSI_IMM
 	help
 	  Some parallel ports are known to have excessive delays between
 	  changing the parallel port control register and good data being

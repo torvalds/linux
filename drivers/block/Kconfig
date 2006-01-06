@@ -117,7 +117,7 @@ config BLK_DEV_XD
 
 config PARIDE
 	tristate "Parallel port IDE device support"
-	depends on PARPORT
+	depends on PARPORT_PC
 	---help---
 	  There are many external CD-ROM and disk devices that connect through
 	  your computer's parallel port. Most of them are actually IDE devices
