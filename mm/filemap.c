@@ -555,11 +555,12 @@ repeat:
 		page_cache_get(page);
 		if (TestSetPageLocked(page)) {
 			read_unlock_irq(&mapping->tree_lock);
-			lock_page(page);
+			__lock_page(page);
 			read_lock_irq(&mapping->tree_lock);
 
 			/* Has the page been truncated while we slept? */
-			if (page->mapping != mapping || page->index != offset) {
+			if (unlikely(page->mapping != mapping ||
+				     page->index != offset)) {
 				unlock_page(page);
 				page_cache_release(page);
 				goto repeat;
