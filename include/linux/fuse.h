@@ -108,12 +108,8 @@ enum fuse_opcode {
 	FUSE_CREATE        = 35
 };
 
-/* Conservative buffer size for the client */
-#define FUSE_MAX_IN 8192
-
-#define FUSE_NAME_MAX 1024
-#define FUSE_SYMLINK_MAX 4096
-#define FUSE_XATTR_SIZE_MAX 4096
+/* The read buffer is required to be at least 8k, but may be much larger */
+#define FUSE_MIN_READ_BUFFER 8192
 
 struct fuse_entry_out {
 	__u64	nodeid;		/* Inode ID */

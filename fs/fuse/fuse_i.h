@@ -21,6 +21,12 @@
 /** If more requests are outstanding, then the operation will block */
 #define FUSE_MAX_OUTSTANDING 10
 
+/** Maximum size of data in a write request */
+#define FUSE_MAX_WRITE 4096
+
+/** It could be as large as PATH_MAX, but would that have any uses? */
+#define FUSE_NAME_MAX 1024
+
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
     permission checking is done in the kernel */
@@ -107,9 +113,6 @@ struct fuse_out {
 	/** Array of arguments */
 	struct fuse_arg args[3];
 };
-
-struct fuse_req;
-struct fuse_conn;
 
 /**
  * A request to the client

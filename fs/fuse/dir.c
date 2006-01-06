@@ -236,10 +236,6 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	if (fc->no_create)
 		goto out;
 
-	err = -ENAMETOOLONG;
-	if (entry->d_name.len > FUSE_NAME_MAX)
-		goto out;
-
 	err = -EINTR;
 	req = fuse_get_request(fc);
 	if (!req)
@@ -413,12 +409,7 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 {
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	unsigned len = strlen(link) + 1;
-	struct fuse_req *req;
-
-	if (len > FUSE_SYMLINK_MAX)
-		return -ENAMETOOLONG;
-
-	req = fuse_get_request(fc);
+	struct fuse_req *req = fuse_get_request(fc);
 	if (!req)
 		return -EINTR;
 
@@ -987,9 +978,6 @@ static int fuse_setxattr(struct dentry *entry, const char *name,
 	struct fuse_req *req;
 	struct fuse_setxattr_in inarg;
 	int err;
-
-	if (size > FUSE_XATTR_SIZE_MAX)
-		return -E2BIG;
 
 	if (fc->no_setxattr)
 		return -EOPNOTSUPP;
