@@ -58,13 +58,6 @@ __asm__(
 	".previous		\n"
 );
 
-#define Q_SET_SEL(cpu, selname, address, size) \
-do { \
-struct desc_struct *gdt = get_cpu_gdt_table((cpu)); \
-set_base(gdt[(selname) >> 3], __va((u32)(address))); \
-set_limit(gdt[(selname) >> 3], size); \
-} while(0)
-
 #define Q2_SET_SEL(cpu, selname, address, size) \
 do { \
 struct desc_struct *gdt = get_cpu_gdt_table((cpu)); \
@@ -535,8 +528,8 @@ void pnpbios_calls_init(union pnp_bios_install_struct *header)
   		struct desc_struct *gdt = get_cpu_gdt_table(i);
   		if (!gdt)
   			continue;
-		Q2_SET_SEL(i, PNP_CS32, &pnp_bios_callfunc, 64 * 1024);
-		Q_SET_SEL(i, PNP_CS16, header->fields.pm16cseg, 64 * 1024);
-		Q_SET_SEL(i, PNP_DS, header->fields.pm16dseg, 64 * 1024);
-	}
+ 		set_base(gdt[GDT_ENTRY_PNPBIOS_CS32], &pnp_bios_callfunc);
+ 		set_base(gdt[GDT_ENTRY_PNPBIOS_CS16], __va(header->fields.pm16cseg));
+ 		set_base(gdt[GDT_ENTRY_PNPBIOS_DS], __va(header->fields.pm16dseg));
+  	}
 }
