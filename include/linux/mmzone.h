@@ -46,7 +46,6 @@ struct zone_padding {
 
 struct per_cpu_pages {
 	int count;		/* number of pages in the list */
-	int low;		/* low watermark, refill needed */
 	int high;		/* high watermark, emptying needed */
 	int batch;		/* chunk size for buddy add/remove */
 	struct list_head list;	/* the list of pages */

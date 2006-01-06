@@ -740,7 +740,7 @@ again:
 		page = NULL;
 		pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 		local_irq_save(flags);
-		if (pcp->count <= pcp->low)
+		if (!pcp->count)
 			pcp->count += rmqueue_bulk(zone, 0,
 						pcp->batch, &pcp->list);
 		if (likely(pcp->count)) {
@@ -1345,10 +1345,9 @@ void show_free_areas(void)
 			pageset = zone_pcp(zone, cpu);
 
 			for (temperature = 0; temperature < 2; temperature++)
-				printk("cpu %d %s: low %d, high %d, batch %d used:%d\n",
+				printk("cpu %d %s: high %d, batch %d used:%d\n",
 					cpu,
 					temperature ? "cold" : "hot",
-					pageset->pcp[temperature].low,
 					pageset->pcp[temperature].high,
 					pageset->pcp[temperature].batch,
 					pageset->pcp[temperature].count);
@@ -1790,14 +1789,12 @@ inline void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
 
 	pcp = &p->pcp[0];		/* hot */
 	pcp->count = 0;
-	pcp->low = 0;
 	pcp->high = 6 * batch;
 	pcp->batch = max(1UL, 1 * batch);
 	INIT_LIST_HEAD(&pcp->list);
 
 	pcp = &p->pcp[1];		/* cold*/
 	pcp->count = 0;
-	pcp->low = 0;
 	pcp->high = 2 * batch;
 	pcp->batch = max(1UL, batch/2);
 	INIT_LIST_HEAD(&pcp->list);
@@ -2193,12 +2190,10 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 				seq_printf(m,
 					   "\n    cpu: %i pcp: %i"
 					   "\n              count: %i"
-					   "\n              low:   %i"
 					   "\n              high:  %i"
 					   "\n              batch: %i",
 					   i, j,
 					   pageset->pcp[j].count,
-					   pageset->pcp[j].low,
 					   pageset->pcp[j].high,
 					   pageset->pcp[j].batch);
 			}
