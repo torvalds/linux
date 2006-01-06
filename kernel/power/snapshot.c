@@ -37,6 +37,31 @@ struct pbe *pagedir_nosave;
 unsigned int nr_copy_pages;
 
 #ifdef CONFIG_HIGHMEM
+unsigned int count_highmem_pages(void)
+{
+	struct zone *zone;
+	unsigned long zone_pfn;
+	unsigned int n = 0;
+
+	for_each_zone (zone)
+		if (is_highmem(zone)) {
+			mark_free_pages(zone);
+			for (zone_pfn = 0; zone_pfn < zone->spanned_pages; zone_pfn++) {
+				struct page *page;
+				unsigned long pfn = zone_pfn + zone->zone_start_pfn;
+				if (!pfn_valid(pfn))
+					continue;
+				page = pfn_to_page(pfn);
+				if (PageReserved(page))
+					continue;
+				if (PageNosaveFree(page))
+					continue;
+				n++;
+			}
+		}
+	return n;
+}
+
 struct highmem_page {
 	char *data;
 	struct page *page;
@@ -152,17 +177,15 @@ static int saveable(struct zone *zone, unsigned long *zone_pfn)
 	BUG_ON(PageReserved(page) && PageNosave(page));
 	if (PageNosave(page))
 		return 0;
-	if (PageReserved(page) && pfn_is_nosave(pfn)) {
-		pr_debug("[nosave pfn 0x%lx]", pfn);
+	if (PageReserved(page) && pfn_is_nosave(pfn))
 		return 0;
-	}
 	if (PageNosaveFree(page))
 		return 0;
 
 	return 1;
 }
 
-static unsigned count_data_pages(void)
+unsigned int count_data_pages(void)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
@@ -267,6 +290,35 @@ static inline void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
 }
 
 /**
+ *	On resume it is necessary to trace and eventually free the unsafe
+ *	pages that have been allocated, because they are needed for I/O
+ *	(on x86-64 we likely will "eat" these pages once again while
+ *	creating the temporary page translation tables)
+ */
+
+struct eaten_page {
+	struct eaten_page *next;
+	char padding[PAGE_SIZE - sizeof(void *)];
+};
+
+static struct eaten_page *eaten_pages = NULL;
+
+void release_eaten_pages(void)
+{
+	struct eaten_page *p, *q;
+
+	p = eaten_pages;
+	while (p) {
+		q = p->next;
+		/* We don't want swsusp_free() to free this page again */
+		ClearPageNosave(virt_to_page(p));
+		free_page((unsigned long)p);
+		p = q;
+	}
+	eaten_pages = NULL;
+}
+
+/**
  *	@safe_needed - on resume, for storing the PBE list and the image,
  *	we can only use memory pages that do not conflict with the pages
  *	which had been used before suspend.
@@ -284,9 +336,12 @@ static inline void *alloc_image_page(gfp_t gfp_mask, int safe_needed)
 	if (safe_needed)
 		do {
 			res = (void *)get_zeroed_page(gfp_mask);
-			if (res && PageNosaveFree(virt_to_page(res)))
+			if (res && PageNosaveFree(virt_to_page(res))) {
 				/* This is for swsusp_free() */
 				SetPageNosave(virt_to_page(res));
+				((struct eaten_page *)res)->next = eaten_pages;
+				eaten_pages = res;
+			}
 		} while (res && PageNosaveFree(virt_to_page(res)));
 	else
 		res = (void *)get_zeroed_page(gfp_mask);

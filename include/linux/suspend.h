@@ -73,6 +73,6 @@ unsigned long get_safe_page(gfp_t gfp_mask);
  * XXX: We try to keep some more pages free so that I/O operations succeed
  * without paging. Might this be more?
  */
-#define PAGES_FOR_IO	512
+#define PAGES_FOR_IO	1024
 
 #endif /* _LINUX_SWSUSP_H */

@@ -49,18 +49,26 @@ extern void thaw_processes(void);
 extern int pm_prepare_console(void);
 extern void pm_restore_console(void);
 
-
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
 
 extern unsigned int nr_copy_pages;
-extern suspend_pagedir_t *pagedir_nosave;
-extern suspend_pagedir_t *pagedir_save;
+extern struct pbe *pagedir_nosave;
+
+/*
+ * This compilation switch determines the way in which memory will be freed
+ * during suspend.  If defined, only as much memory will be freed as needed
+ * to complete the suspend, which will make it go faster.  Otherwise, the
+ * largest possible amount of memory will be freed.
+ */
+#define FAST_FREE	1
 
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
 
+extern unsigned int count_data_pages(void);
 extern void free_pagedir(struct pbe *pblist);
+extern void release_eaten_pages(void);
 extern struct pbe *alloc_pagedir(unsigned nr_pages, gfp_t gfp_mask, int safe_needed);
 extern void swsusp_free(void);
 extern int alloc_data_pages(struct pbe *pblist, gfp_t gfp_mask, int safe_needed);

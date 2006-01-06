@@ -70,11 +70,13 @@
 #include "power.h"
 
 #ifdef CONFIG_HIGHMEM
+unsigned int count_highmem_pages(void);
 int save_highmem(void);
 int restore_highmem(void);
 #else
 static int save_highmem(void) { return 0; }
 static int restore_highmem(void) { return 0; }
+static unsigned int count_highmem_pages(void) { return 0; }
 #endif
 
 extern char resume_file[];
@@ -611,6 +613,52 @@ int swsusp_write(struct pbe *pblist, unsigned int nr_pages)
 	return error;
 }
 
+/**
+ *	swsusp_shrink_memory -  Try to free as much memory as needed
+ *
+ *	... but do not OOM-kill anyone
+ *
+ *	Notice: all userland should be stopped before it is called, or
+ *	livelock is possible.
+ */
+
+#define SHRINK_BITE	10000
+
+int swsusp_shrink_memory(void)
+{
+	long tmp;
+	struct zone *zone;
+	unsigned long pages = 0;
+	unsigned int i = 0;
+	char *p = "-\\|/";
+
+	printk("Shrinking memory...  ");
+	do {
+#ifdef FAST_FREE
+		tmp = 2 * count_highmem_pages();
+		tmp += tmp / 50 + count_data_pages();
+		tmp += (tmp + PBES_PER_PAGE - 1) / PBES_PER_PAGE +
+			PAGES_FOR_IO;
+		for_each_zone (zone)
+			if (!is_highmem(zone))
+				tmp -= zone->free_pages;
+		if (tmp > 0) {
+			tmp = shrink_all_memory(SHRINK_BITE);
+			if (!tmp)
+				return -ENOMEM;
+			pages += tmp;
+		}
+#else
+		tmp = shrink_all_memory(SHRINK_BITE);
+		pages += tmp;
+#endif
+		printk("\b%c", p[i++%4]);
+	} while (tmp > 0);
+	printk("\bdone (%lu pages freed)\n", pages);
+
+	return 0;
+}
+
 int swsusp_suspend(void)
 {
 	int error;
@@ -1030,8 +1078,10 @@ static int read_suspend_image(struct pbe **pblist_ptr)
 		/* Allocate memory for the image and read the data from swap */
 		if (!error)
 			error = alloc_data_pages(pblist, GFP_ATOMIC, 1);
-		if (!error)
+		if (!error) {
+			release_eaten_pages();
 			error = load_image_data(pblist, &handle, nr_pages);
+		}
 		if (!error)
 			*pblist_ptr = pblist;
 	}
