@@ -213,15 +213,10 @@ extern int run_helper_thread(int (*proc)(void *), void *arg,
 			     int stack_order);
 extern int helper_wait(int pid);
 
-#endif
+/* umid.c */
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+extern int umid_file_name(char *name, char *buf, int len);
+extern int set_umid(char *name, int (*printer)(const char *fmt, ...));
+extern char *get_umid(int only_if_set);
+
+#endif
