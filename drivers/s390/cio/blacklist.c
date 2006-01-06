@@ -35,7 +35,7 @@
  */
 
 /* 65536 bits to indicate if a devno is blacklisted or not */
-#define __BL_DEV_WORDS ((__MAX_SUBCHANNELS + (8*sizeof(long) - 1)) / \
+#define __BL_DEV_WORDS ((__MAX_SUBCHANNEL + (8*sizeof(long) - 1)) / \
 			 (8*sizeof(long)))
 static unsigned long bl_dev[__BL_DEV_WORDS];
 typedef enum {add, free} range_action;
@@ -50,7 +50,7 @@ blacklist_range (range_action action, unsigned int from, unsigned int to)
 	if (!to)
 		to = from;
 
-	if (from > to || to > __MAX_SUBCHANNELS) {
+	if (from > to || to > __MAX_SUBCHANNEL) {
 		printk (KERN_WARNING "Invalid blacklist range "
 			"0x%04x to 0x%04x, skipping\n", from, to);
 		return;
@@ -143,7 +143,7 @@ blacklist_parse_parameters (char *str, range_action action)
 		if (strncmp(str,"all,",4) == 0 || strcmp(str,"all") == 0 ||
 		    strncmp(str,"all\n",4) == 0 || strncmp(str,"all ",4) == 0) {
 			from = 0;
-			to = __MAX_SUBCHANNELS;
+			to = __MAX_SUBCHANNEL;
 			str += 3;
 		} else {
 			int rc;
@@ -226,20 +226,21 @@ is_blacklisted (int devno)
 static inline void
 s390_redo_validation (void)
 {
-	unsigned int irq;
+	struct subchannel_id schid;
 
 	CIO_TRACE_EVENT (0, "redoval");
-	for (irq = 0; irq < __MAX_SUBCHANNELS; irq++) {
+	init_subchannel_id(&schid);
+	do {
 		int ret;
 		struct subchannel *sch;
 
-		sch = get_subchannel_by_schid(irq);
+		sch = get_subchannel_by_schid(schid);
 		if (sch) {
 			/* Already known. */
 			put_device(&sch->dev);
 			continue;
 		}
-		ret = css_probe_device(irq);
+		ret = css_probe_device(schid);
 		if (ret == -ENXIO)
 			break; /* We're through. */
 		if (ret == -ENOMEM)
@@ -248,7 +249,7 @@ s390_redo_validation (void)
 			 * panic.
 			 */
 			break;
-	}
+	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
 }
 
 /*
@@ -289,12 +290,12 @@ static int cio_ignore_read (char *page, char **start, off_t off,
 	len = 0;
 	for (devno = off; /* abuse the page variable
 			   * as counter, see fs/proc/generic.c */
-	     devno < __MAX_SUBCHANNELS && len + entry_size < count; devno++) {
+	     devno < __MAX_SUBCHANNEL && len + entry_size < count; devno++) {
 		if (!test_bit(devno, bl_dev))
 			continue;
 		len += sprintf(page + len, "0.0.%04lx", devno);
 		if (test_bit(devno + 1, bl_dev)) { /* print range */
-			while (++devno < __MAX_SUBCHANNELS)
+			while (++devno < __MAX_SUBCHANNEL)
 				if (!test_bit(devno, bl_dev))
 					break;
 			len += sprintf(page + len, "-0.0.%04lx", --devno);
@@ -302,7 +303,7 @@ static int cio_ignore_read (char *page, char **start, off_t off,
 		len += sprintf(page + len, "\n");
 	}
 
-	if (devno < __MAX_SUBCHANNELS)
+	if (devno < __MAX_SUBCHANNEL)
 		*eof = 1;
 	*start = (char *) (devno - off); /* number of checked entries */
 	return len;

@@ -258,7 +258,7 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		 */
 		CIO_MSG_EVENT(2, "SenseID : device %04x on Subchannel %04x "
 			      "reports cmd reject\n",
-			      cdev->private->devno, sch->irq);
+			      cdev->private->devno, sch->schid.sch_no);
 		return -EOPNOTSUPP;
 	}
 	if (irb->esw.esw0.erw.cons) {
@@ -280,13 +280,13 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 			CIO_MSG_EVENT(2, "SenseID : path %02X for device %04x on"
 				      " subchannel %04x is 'not operational'\n",
 				      sch->orb.lpm, cdev->private->devno,
-				      sch->irq);
+				      sch->schid.sch_no);
 		return -EACCES;
 	}
 	/* Hmm, whatever happened, try again. */
 	CIO_MSG_EVENT(2, "SenseID : start_IO() for device %04x on "
 		      "subchannel %04x returns status %02X%02X\n",
-		      cdev->private->devno, sch->irq,
+		      cdev->private->devno, sch->schid.sch_no,
 		      irb->scsw.dstat, irb->scsw.cstat);
 	return -EAGAIN;
 }

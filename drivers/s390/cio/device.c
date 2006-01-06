@@ -622,7 +622,7 @@ ccw_device_do_unreg_rereg(void *data)
 
 			other_sch = to_subchannel(other_cdev->dev.parent);
 			if (get_device(&other_sch->dev)) {
-				stsch(other_sch->irq, &other_sch->schib);
+				stsch(other_sch->schid, &other_sch->schib);
 				if (other_sch->schib.pmcw.dnv) {
 					other_sch->schib.pmcw.intparm = 0;
 					cio_modify(other_sch);
@@ -772,7 +772,7 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	/* Init private data. */
 	priv = cdev->private;
 	priv->devno = sch->schib.pmcw.dev;
-	priv->irq = sch->irq;
+	priv->sch_no = sch->schid.sch_no;
 	priv->state = DEV_STATE_NOT_OPER;
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
@@ -951,7 +951,7 @@ io_subchannel_shutdown(struct device *dev)
 	sch = to_subchannel(dev);
 	cdev = dev->driver_data;
 
-	if (cio_is_console(sch->irq))
+	if (cio_is_console(sch->schid))
 		return;
 	if (!sch->schib.pmcw.ena)
 		/* Nothing to do. */
@@ -1146,6 +1146,16 @@ ccw_driver_unregister (struct ccw_driver *cdriver)
 	driver_unregister(&cdriver->driver);
 }
 
+/* Helper func for qdio. */
+struct subchannel_id
+ccw_device_get_subchannel_id(struct ccw_device *cdev)
+{
+	struct subchannel *sch;
+
+	sch = to_subchannel(cdev->dev.parent);
+	return sch->schid;
+}
+
 MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(ccw_device_set_online);
 EXPORT_SYMBOL(ccw_device_set_offline);
@@ -1155,3 +1165,4 @@ EXPORT_SYMBOL(get_ccwdev_by_busid);
 EXPORT_SYMBOL(ccw_bus_type);
 EXPORT_SYMBOL(ccw_device_work);
 EXPORT_SYMBOL(ccw_device_notify_work);
+EXPORT_SYMBOL_GPL(ccw_device_get_subchannel_id);

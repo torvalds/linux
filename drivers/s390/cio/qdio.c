@@ -270,7 +270,7 @@ qdio_siga_sync(struct qdio_q *q, unsigned int gpr2,
 	perf_stats.siga_syncs++;
 #endif /* QDIO_PERFORMANCE_STATS */
 
-	cc = do_siga_sync(0x10000|q->irq, gpr2, gpr3);
+	cc = do_siga_sync(q->schid, gpr2, gpr3);
 	if (cc)
 		QDIO_DBF_HEX3(0,trace,&cc,sizeof(int*));
 
@@ -290,12 +290,16 @@ __do_siga_output(struct qdio_q *q, unsigned int *busy_bit)
 {
        struct qdio_irq *irq;
        unsigned int fc = 0;
+       unsigned long schid;
 
        irq = (struct qdio_irq *) q->irq_ptr;
        if (!irq->is_qebsm)
-               return do_siga_output(0x10000|q->irq, q->mask, busy_bit, fc);
-       fc |= 0x80;
-       return do_siga_output(irq->sch_token, q->mask, busy_bit, fc);
+	       schid = *((u32 *)&q->schid);
+       else {
+	       schid = irq->sch_token;
+	       fc |= 0x80;
+       }
+       return do_siga_output(schid, q->mask, busy_bit, fc);
 }
 
 /* 
@@ -349,7 +353,7 @@ qdio_siga_input(struct qdio_q *q)
 	perf_stats.siga_ins++;
 #endif /* QDIO_PERFORMANCE_STATS */
 
-	cc = do_siga_input(0x10000|q->irq, q->mask);
+	cc = do_siga_input(q->schid, q->mask);
 	
 	if (cc)
 		QDIO_DBF_HEX3(0,trace,&cc,sizeof(int*));
@@ -855,7 +859,7 @@ qdio_kick_outbound_q(struct qdio_q *q)
 		/* went smooth this time, reset timestamp */
 #ifdef CONFIG_QDIO_DEBUG
 		QDIO_DBF_TEXT3(0,trace,"cc2reslv");
-		sprintf(dbf_text,"%4x%2x%2x",q->irq,q->q_no,
+		sprintf(dbf_text,"%4x%2x%2x",q->schid.sch_no,q->q_no,
 			atomic_read(&q->busy_siga_counter));
 		QDIO_DBF_TEXT3(0,trace,dbf_text);
 #endif /* CONFIG_QDIO_DEBUG */
@@ -878,7 +882,7 @@ qdio_kick_outbound_q(struct qdio_q *q)
 		}
 		QDIO_DBF_TEXT2(0,trace,"cc2REPRT");
 #ifdef CONFIG_QDIO_DEBUG
-		sprintf(dbf_text,"%4x%2x%2x",q->irq,q->q_no,
+		sprintf(dbf_text,"%4x%2x%2x",q->schid.sch_no,q->q_no,
 			atomic_read(&q->busy_siga_counter));
 		QDIO_DBF_TEXT3(0,trace,dbf_text);
 #endif /* CONFIG_QDIO_DEBUG */
@@ -1733,7 +1737,7 @@ qdio_fill_qs(struct qdio_irq *irq_ptr, struct ccw_device *cdev,
 	void *ptr;
 	int available;
 
-	sprintf(dbf_text,"qfqs%4x",cdev->private->irq);
+	sprintf(dbf_text,"qfqs%4x",cdev->private->sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	for (i=0;i<no_input_qs;i++) {
 		q=irq_ptr->input_qs[i];
@@ -1753,7 +1757,7 @@ qdio_fill_qs(struct qdio_irq *irq_ptr, struct ccw_device *cdev,
 
                 q->queue_type=q_format;
 		q->int_parm=int_parm;
-		q->irq=irq_ptr->irq;
+		q->schid = irq_ptr->schid;
 		q->irq_ptr = irq_ptr;
 		q->cdev = cdev;
 		q->mask=1<<(31-i);
@@ -1826,7 +1830,7 @@ qdio_fill_qs(struct qdio_irq *irq_ptr, struct ccw_device *cdev,
                 q->queue_type=q_format;
 		q->int_parm=int_parm;
 		q->is_input_q=0;
-		q->irq=irq_ptr->irq;
+		q->schid = irq_ptr->schid;
 		q->cdev = cdev;
 		q->irq_ptr = irq_ptr;
 		q->mask=1<<(31-i);
@@ -1933,7 +1937,7 @@ qdio_set_state(struct qdio_irq *irq_ptr, enum qdio_irq_states state)
 	char dbf_text[15];
 
 	QDIO_DBF_TEXT5(0,trace,"newstate");
-	sprintf(dbf_text,"%4x%4x",irq_ptr->irq,state);
+	sprintf(dbf_text,"%4x%4x",irq_ptr->schid.sch_no,state);
 	QDIO_DBF_TEXT5(0,trace,dbf_text);
 #endif /* CONFIG_QDIO_DEBUG */
 
@@ -1946,12 +1950,12 @@ qdio_set_state(struct qdio_irq *irq_ptr, enum qdio_irq_states state)
 }
 
 static inline void
-qdio_irq_check_sense(int irq, struct irb *irb)
+qdio_irq_check_sense(struct subchannel_id schid, struct irb *irb)
 {
 	char dbf_text[15];
 
 	if (irb->esw.esw0.erw.cons) {
-		sprintf(dbf_text,"sens%4x",irq);
+		sprintf(dbf_text,"sens%4x",schid.sch_no);
 		QDIO_DBF_TEXT2(1,trace,dbf_text);
 		QDIO_DBF_HEX0(0,sense,irb,QDIO_DBF_SENSE_LEN);
 
@@ -2063,20 +2067,20 @@ qdio_timeout_handler(struct ccw_device *cdev)
 	switch (irq_ptr->state) {
 	case QDIO_IRQ_STATE_INACTIVE:
 		QDIO_PRINT_ERR("establish queues on irq %04x: timed out\n",
-			       irq_ptr->irq);
+			       irq_ptr->schid.sch_no);
 		QDIO_DBF_TEXT2(1,setup,"eq:timeo");
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		break;
 	case QDIO_IRQ_STATE_CLEANUP:
 		QDIO_PRINT_INFO("Did not get interrupt on cleanup, irq=0x%x.\n",
-				irq_ptr->irq);
+				irq_ptr->schid.sch_no);
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		break;
 	case QDIO_IRQ_STATE_ESTABLISHED:
 	case QDIO_IRQ_STATE_ACTIVE:
 		/* I/O has been terminated by common I/O layer. */
 		QDIO_PRINT_INFO("Queues on irq %04x killed by cio.\n",
-				irq_ptr->irq);
+				irq_ptr->schid.sch_no);
 		QDIO_DBF_TEXT2(1, trace, "cio:term");
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 		if (get_device(&cdev->dev)) {
@@ -2139,7 +2143,7 @@ qdio_handler(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		}
 	}
 
-	qdio_irq_check_sense(irq_ptr->irq, irb);
+	qdio_irq_check_sense(irq_ptr->schid, irb);
 
 #ifdef CONFIG_QDIO_DEBUG
 	sprintf(dbf_text, "state:%d", irq_ptr->state);
@@ -2195,7 +2199,7 @@ qdio_synchronize(struct ccw_device *cdev, unsigned int flags,
 		return -ENODEV;
 
 #ifdef CONFIG_QDIO_DEBUG
-	*((int*)(&dbf_text[4])) = irq_ptr->irq;
+	*((int*)(&dbf_text[4])) = irq_ptr->schid.sch_no;
 	QDIO_DBF_HEX4(0,trace,dbf_text,QDIO_DBF_TRACE_LEN);
 	*((int*)(&dbf_text[0]))=flags;
 	*((int*)(&dbf_text[4]))=queue_number;
@@ -2207,13 +2211,13 @@ qdio_synchronize(struct ccw_device *cdev, unsigned int flags,
 		if (!q)
 			return -EINVAL;
 		if (!(irq_ptr->is_qebsm))
-			cc = do_siga_sync(0x10000|q->irq, 0, q->mask);
+			cc = do_siga_sync(q->schid, 0, q->mask);
 	} else if (flags&QDIO_FLAG_SYNC_OUTPUT) {
 		q=irq_ptr->output_qs[queue_number];
 		if (!q)
 			return -EINVAL;
 		if (!(irq_ptr->is_qebsm))
-			cc = do_siga_sync(0x10000|q->irq, q->mask, 0);
+			cc = do_siga_sync(q->schid, q->mask, 0);
 	} else 
 		return -EINVAL;
 
@@ -2298,7 +2302,7 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 	ssqd_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!ssqd_area) {
 	        QDIO_PRINT_WARN("Could not get memory for chsc. Using all " \
-				"SIGAs for sch x%x.\n", irq_ptr->irq);
+				"SIGAs for sch x%x.\n", irq_ptr->schid.sch_no);
 		irq_ptr->qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY ||
 				  CHSC_FLAG_SIGA_OUTPUT_NECESSARY ||
 				  CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
@@ -2312,14 +2316,14 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 		.length = 0x0010,
 		.code   = 0x0024,
 	};
-	ssqd_area->first_sch = irq_ptr->irq;
-	ssqd_area->last_sch = irq_ptr->irq;
+	ssqd_area->first_sch = irq_ptr->schid.sch_no;
+	ssqd_area->last_sch = irq_ptr->schid.sch_no;
 	result = chsc(ssqd_area);
 
 	if (result) {
 		QDIO_PRINT_WARN("CHSC returned cc %i. Using all " \
 				"SIGAs for sch x%x.\n",
-				result, irq_ptr->irq);
+				result, irq_ptr->schid.sch_no);
 		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY ||
 			CHSC_FLAG_SIGA_OUTPUT_NECESSARY ||
 			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
@@ -2330,7 +2334,7 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 	if (ssqd_area->response.code != QDIO_CHSC_RESPONSE_CODE_OK) {
 		QDIO_PRINT_WARN("response upon checking SIGA needs " \
 				"is 0x%x. Using all SIGAs for sch x%x.\n",
-				ssqd_area->response.code, irq_ptr->irq);
+				ssqd_area->response.code, irq_ptr->schid.sch_no);
 		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY ||
 			CHSC_FLAG_SIGA_OUTPUT_NECESSARY ||
 			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
@@ -2339,9 +2343,9 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 	}
 	if (!(ssqd_area->flags & CHSC_FLAG_QDIO_CAPABILITY) ||
 	    !(ssqd_area->flags & CHSC_FLAG_VALIDITY) ||
-	    (ssqd_area->sch != irq_ptr->irq)) {
+	    (ssqd_area->sch != irq_ptr->schid.sch_no)) {
 		QDIO_PRINT_WARN("huh? problems checking out sch x%x... " \
-				"using all SIGAs.\n",irq_ptr->irq);
+				"using all SIGAs.\n",irq_ptr->schid.sch_no);
 		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
 			CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
 			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* worst case */
@@ -2427,7 +2431,7 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 		/* set to 0x10000000 to enable
 		 * time delay disablement facility */
 		u32 reserved5;
-		u32 subsystem_id;
+		struct subchannel_id schid;
 		u32 reserved6[1004];
 		struct chsc_header response;
 		u32 reserved7;
@@ -2449,7 +2453,7 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 	scssc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scssc_area) {
 		QDIO_PRINT_WARN("No memory for setting indicators on " \
-				"subchannel x%x.\n", irq_ptr->irq);
+				"subchannel x%x.\n", irq_ptr->schid.sch_no);
 		return -ENOMEM;
 	}
 	scssc_area->request = (struct chsc_header) {
@@ -2463,7 +2467,7 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 	scssc_area->ks = QDIO_STORAGE_KEY;
 	scssc_area->kc = QDIO_STORAGE_KEY;
 	scssc_area->isc = TIQDIO_THININT_ISC;
-	scssc_area->subsystem_id = (1<<16) + irq_ptr->irq;
+	scssc_area->schid = irq_ptr->schid;
 	/* enables the time delay disablement facility. Don't care
 	 * whether it is really there (i.e. we haven't checked for
 	 * it) */
@@ -2473,12 +2477,10 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 		QDIO_PRINT_WARN("Time delay disablement facility " \
 				"not available\n");
 
-
-
 	result = chsc(scssc_area);
 	if (result) {
 		QDIO_PRINT_WARN("could not set indicators on irq x%x, " \
-				"cc=%i.\n",irq_ptr->irq,result);
+				"cc=%i.\n",irq_ptr->schid.sch_no,result);
 		result = -EIO;
 		goto out;
 	}
@@ -2534,7 +2536,7 @@ tiqdio_set_delay_target(struct qdio_irq *irq_ptr, unsigned long delay_target)
 	scsscf_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scsscf_area) {
 		QDIO_PRINT_WARN("No memory for setting delay target on " \
-				"subchannel x%x.\n", irq_ptr->irq);
+				"subchannel x%x.\n", irq_ptr->schid.sch_no);
 		return -ENOMEM;
 	}
 	scsscf_area->request = (struct chsc_header) {
@@ -2547,7 +2549,8 @@ tiqdio_set_delay_target(struct qdio_irq *irq_ptr, unsigned long delay_target)
 	result=chsc(scsscf_area);
 	if (result) {
 		QDIO_PRINT_WARN("could not set delay target on irq x%x, " \
-				"cc=%i. Continuing.\n",irq_ptr->irq,result);
+				"cc=%i. Continuing.\n",irq_ptr->schid.sch_no,
+				result);
 		result = -EIO;
 		goto out;
 	}
@@ -2581,7 +2584,7 @@ qdio_cleanup(struct ccw_device *cdev, int how)
 	if (!irq_ptr)
 		return -ENODEV;
 
-	sprintf(dbf_text,"qcln%4x",irq_ptr->irq);
+	sprintf(dbf_text,"qcln%4x",irq_ptr->schid.sch_no);
 	QDIO_DBF_TEXT1(0,trace,dbf_text);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 
@@ -2608,7 +2611,7 @@ qdio_shutdown(struct ccw_device *cdev, int how)
 
 	down(&irq_ptr->setting_up_sema);
 
-	sprintf(dbf_text,"qsqs%4x",irq_ptr->irq);
+	sprintf(dbf_text,"qsqs%4x",irq_ptr->schid.sch_no);
 	QDIO_DBF_TEXT1(0,trace,dbf_text);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 
@@ -2714,7 +2717,7 @@ qdio_free(struct ccw_device *cdev)
 
 	down(&irq_ptr->setting_up_sema);
 
-	sprintf(dbf_text,"qfqs%4x",irq_ptr->irq);
+	sprintf(dbf_text,"qfqs%4x",irq_ptr->schid.sch_no);
 	QDIO_DBF_TEXT1(0,trace,dbf_text);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 
@@ -2862,13 +2865,13 @@ qdio_establish_irq_check_for_errors(struct ccw_device *cdev, int cstat,
 	irq_ptr = cdev->private->qdio_data;
 
 	if (cstat || (dstat & ~(DEV_STAT_CHN_END|DEV_STAT_DEV_END))) {
-		sprintf(dbf_text,"ick1%4x",irq_ptr->irq);
+		sprintf(dbf_text,"ick1%4x",irq_ptr->schid.sch_no);
 		QDIO_DBF_TEXT2(1,trace,dbf_text);
 		QDIO_DBF_HEX2(0,trace,&dstat,sizeof(int));
 		QDIO_DBF_HEX2(0,trace,&cstat,sizeof(int));
 		QDIO_PRINT_ERR("received check condition on establish " \
 			       "queues on irq 0x%x (cs=x%x, ds=x%x).\n",
-			       irq_ptr->irq,cstat,dstat);
+			       irq_ptr->schid.sch_no,cstat,dstat);
 		qdio_set_state(irq_ptr,QDIO_IRQ_STATE_ERR);
 	}
 	
@@ -2878,7 +2881,7 @@ qdio_establish_irq_check_for_errors(struct ccw_device *cdev, int cstat,
 		QDIO_DBF_HEX2(0,setup,&cstat, sizeof(cstat));
 		QDIO_PRINT_ERR("establish queues on irq %04x: didn't get "
 			       "device end: dstat=%02x, cstat=%02x\n",
-			       irq_ptr->irq, dstat, cstat);
+			       irq_ptr->schid.sch_no, dstat, cstat);
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		return 1;
 	}
@@ -2890,7 +2893,7 @@ qdio_establish_irq_check_for_errors(struct ccw_device *cdev, int cstat,
 		QDIO_PRINT_ERR("establish queues on irq %04x: got "
 			       "the following devstat: dstat=%02x, "
 			       "cstat=%02x\n",
-			       irq_ptr->irq, dstat, cstat);
+			       irq_ptr->schid.sch_no, dstat, cstat);
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		return 1;
 	}
@@ -2905,7 +2908,7 @@ qdio_establish_handle_irq(struct ccw_device *cdev, int cstat, int dstat)
 
 	irq_ptr = cdev->private->qdio_data;
 
-	sprintf(dbf_text,"qehi%4x",cdev->private->irq);
+	sprintf(dbf_text,"qehi%4x",cdev->private->sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 
@@ -2924,7 +2927,7 @@ qdio_initialize(struct qdio_initialize *init_data)
 	int rc;
 	char dbf_text[15];
 
-	sprintf(dbf_text,"qini%4x",init_data->cdev->private->irq);
+	sprintf(dbf_text,"qini%4x",init_data->cdev->private->sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 
@@ -2945,7 +2948,7 @@ qdio_allocate(struct qdio_initialize *init_data)
 	struct qdio_irq *irq_ptr;
 	char dbf_text[15];
 
-	sprintf(dbf_text,"qalc%4x",init_data->cdev->private->irq);
+	sprintf(dbf_text,"qalc%4x",init_data->cdev->private->sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 	if ( (init_data->no_input_qs>QDIO_MAX_QUEUES_PER_IRQ) ||
@@ -3018,7 +3021,7 @@ int qdio_fill_irq(struct qdio_initialize *init_data)
 
 	irq_ptr->int_parm=init_data->int_parm;
 
-	irq_ptr->irq = init_data->cdev->private->irq;
+	irq_ptr->schid = ccw_device_get_subchannel_id(init_data->cdev);
 	irq_ptr->no_input_qs=init_data->no_input_qs;
 	irq_ptr->no_output_qs=init_data->no_output_qs;
 
@@ -3038,7 +3041,7 @@ int qdio_fill_irq(struct qdio_initialize *init_data)
 		QDIO_DBF_HEX1(0,setup,&irq_ptr->dev_st_chg_ind,sizeof(void*));
 		if (!irq_ptr->dev_st_chg_ind) {
 			QDIO_PRINT_WARN("no indicator location available " \
-					"for irq 0x%x\n",irq_ptr->irq);
+					"for irq 0x%x\n",irq_ptr->schid.sch_no);
 			qdio_release_irq_memory(irq_ptr);
 			return -ENOBUFS;
 		}
@@ -3169,7 +3172,7 @@ qdio_establish(struct qdio_initialize *init_data)
 		tiqdio_set_delay_target(irq_ptr,TIQDIO_DELAY_TARGET);
 	}
 
-	sprintf(dbf_text,"qest%4x",cdev->private->irq);
+	sprintf(dbf_text,"qest%4x",cdev->private->sch_no);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 	QDIO_DBF_TEXT0(0,trace,dbf_text);
 
@@ -3197,7 +3200,7 @@ qdio_establish(struct qdio_initialize *init_data)
 		}
 		QDIO_PRINT_WARN("establish queues on irq %04x: do_IO " \
                            "returned %i, next try returned %i\n",
-                           irq_ptr->irq,result,result2);
+                           irq_ptr->schid.sch_no,result,result2);
 		result=result2;
 		if (result)
 			ccw_device_set_timeout(cdev, 0);
@@ -3270,7 +3273,7 @@ qdio_activate(struct ccw_device *cdev, int flags)
 		goto out;
 	}
 
-	sprintf(dbf_text,"qact%4x", irq_ptr->irq);
+	sprintf(dbf_text,"qact%4x", irq_ptr->schid.sch_no);
 	QDIO_DBF_TEXT2(0,setup,dbf_text);
 	QDIO_DBF_TEXT2(0,trace,dbf_text);
 
@@ -3297,7 +3300,7 @@ qdio_activate(struct ccw_device *cdev, int flags)
 		}
 		QDIO_PRINT_WARN("activate queues on irq %04x: do_IO " \
                            "returned %i, next try returned %i\n",
-                           irq_ptr->irq,result,result2);
+                           irq_ptr->schid.sch_no,result,result2);
 		result=result2;
 	}
 
@@ -3509,7 +3512,7 @@ do_QDIO(struct ccw_device *cdev,unsigned int callflags,
 #ifdef CONFIG_QDIO_DEBUG
 	char dbf_text[20];
 
-	sprintf(dbf_text,"doQD%04x",cdev->private->irq);
+	sprintf(dbf_text,"doQD%04x",cdev->private->sch_no);
  	QDIO_DBF_TEXT3(0,trace,dbf_text);
 #endif /* CONFIG_QDIO_DEBUG */
 

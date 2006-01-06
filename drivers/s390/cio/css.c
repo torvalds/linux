@@ -33,7 +33,7 @@ struct device css_bus_device = {
 };
 
 static struct subchannel *
-css_alloc_subchannel(int irq)
+css_alloc_subchannel(struct subchannel_id schid)
 {
 	struct subchannel *sch;
 	int ret;
@@ -41,13 +41,11 @@ css_alloc_subchannel(int irq)
 	sch = kmalloc (sizeof (*sch), GFP_KERNEL | GFP_DMA);
 	if (sch == NULL)
 		return ERR_PTR(-ENOMEM);
-	ret = cio_validate_subchannel (sch, irq);
+	ret = cio_validate_subchannel (sch, schid);
 	if (ret < 0) {
 		kfree(sch);
 		return ERR_PTR(ret);
 	}
-	if (irq > highest_subchannel)
-		highest_subchannel = irq;
 
 	if (sch->st != SUBCHANNEL_TYPE_IO) {
 		/* For now we ignore all non-io subchannels. */
@@ -87,7 +85,7 @@ css_subchannel_release(struct device *dev)
 	struct subchannel *sch;
 
 	sch = to_subchannel(dev);
-	if (!cio_is_console(sch->irq))
+	if (!cio_is_console(sch->schid))
 		kfree(sch);
 }
 
@@ -114,12 +112,12 @@ css_register_subchannel(struct subchannel *sch)
 }
 
 int
-css_probe_device(int irq)
+css_probe_device(struct subchannel_id schid)
 {
 	int ret;
 	struct subchannel *sch;
 
-	sch = css_alloc_subchannel(irq);
+	sch = css_alloc_subchannel(schid);
 	if (IS_ERR(sch))
 		return PTR_ERR(sch);
 	ret = css_register_subchannel(sch);
@@ -132,26 +130,26 @@ static int
 check_subchannel(struct device * dev, void * data)
 {
 	struct subchannel *sch;
-	int irq = (unsigned long)data;
+	struct subchannel_id *schid = data;
 
 	sch = to_subchannel(dev);
-	return (sch->irq == irq);
+	return schid_equal(&sch->schid, schid);
 }
 
 struct subchannel *
-get_subchannel_by_schid(int irq)
+get_subchannel_by_schid(struct subchannel_id schid)
 {
 	struct device *dev;
 
 	dev = bus_find_device(&css_bus_type, NULL,
-			      (void *)(unsigned long)irq, check_subchannel);
+			      (void *)&schid, check_subchannel);
 
 	return dev ? to_subchannel(dev) : NULL;
 }
 
 
 static inline int
-css_get_subchannel_status(struct subchannel *sch, int schid)
+css_get_subchannel_status(struct subchannel *sch, struct subchannel_id schid)
 {
 	struct schib schib;
 	int cc;
@@ -170,13 +168,13 @@ css_get_subchannel_status(struct subchannel *sch, int schid)
 }
 	
 static int
-css_evaluate_subchannel(int irq, int slow)
+css_evaluate_subchannel(struct subchannel_id schid, int slow)
 {
 	int event, ret, disc;
 	struct subchannel *sch;
 	unsigned long flags;
 
-	sch = get_subchannel_by_schid(irq);
+	sch = get_subchannel_by_schid(schid);
 	disc = sch ? device_is_disconnected(sch) : 0;
 	if (disc && slow) {
 		if (sch)
@@ -194,9 +192,10 @@ css_evaluate_subchannel(int irq, int slow)
 			put_device(&sch->dev);
 		return -EAGAIN; /* Will be done on the slow path. */
 	}
-	event = css_get_subchannel_status(sch, irq);
+	event = css_get_subchannel_status(sch, schid);
 	CIO_MSG_EVENT(4, "Evaluating schid %04x, event %d, %s, %s path.\n",
-		      irq, event, sch?(disc?"disconnected":"normal"):"unknown",
+		      schid.sch_no, event,
+		      sch?(disc?"disconnected":"normal"):"unknown",
 		      slow?"slow":"fast");
 	switch (event) {
 	case CIO_NO_PATH:
@@ -253,7 +252,7 @@ css_evaluate_subchannel(int irq, int slow)
 			sch->schib.pmcw.intparm = 0;
 			cio_modify(sch);
 			put_device(&sch->dev);
-			ret = css_probe_device(irq);
+			ret = css_probe_device(schid);
 		} else {
 			/*
 			 * We can't immediately deregister the disconnected
@@ -272,7 +271,7 @@ css_evaluate_subchannel(int irq, int slow)
 			device_trigger_reprobe(sch);
 			spin_unlock_irqrestore(&sch->lock, flags);
 		}
-		ret = sch ? 0 : css_probe_device(irq);
+		ret = sch ? 0 : css_probe_device(schid);
 		break;
 	default:
 		BUG();
@@ -284,10 +283,12 @@ css_evaluate_subchannel(int irq, int slow)
 static void
 css_rescan_devices(void)
 {
-	int irq, ret;
+	int ret;
+	struct subchannel_id schid;
 
-	for (irq = 0; irq < __MAX_SUBCHANNELS; irq++) {
-		ret = css_evaluate_subchannel(irq, 1);
+	init_subchannel_id(&schid);
+	do {
+		ret = css_evaluate_subchannel(schid, 1);
 		/* No more memory. It doesn't make sense to continue. No
 		 * panic because this can happen in midflight and just
 		 * because we can't use a new device is no reason to crash
@@ -297,12 +298,12 @@ css_rescan_devices(void)
 		/* -ENXIO indicates that there are no more subchannels. */
 		if (ret == -ENXIO)
 			break;
-	}
+	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
 }
 
 struct slow_subchannel {
 	struct list_head slow_list;
-	unsigned long schid;
+	struct subchannel_id schid;
 };
 
 static LIST_HEAD(slow_subchannels_head);
@@ -357,20 +358,24 @@ int
 css_process_crw(int irq)
 {
 	int ret;
+	struct subchannel_id mchk_schid;
 
 	CIO_CRW_EVENT(2, "source is subchannel %04X\n", irq);
 
 	if (need_rescan)
 		/* We need to iterate all subchannels anyway. */
 		return -EAGAIN;
+
+	init_subchannel_id(&mchk_schid);
+	mchk_schid.sch_no = irq;
 	/* 
 	 * Since we are always presented with IPI in the CRW, we have to
 	 * use stsch() to find out if the subchannel in question has come
 	 * or gone.
 	 */
-	ret = css_evaluate_subchannel(irq, 0);
+	ret = css_evaluate_subchannel(mchk_schid, 0);
 	if (ret == -EAGAIN) {
-		if (css_enqueue_subchannel_slow(irq)) {
+		if (css_enqueue_subchannel_slow(mchk_schid)) {
 			css_clear_subchannel_slow_list();
 			need_rescan = 1;
 		}
@@ -404,7 +409,8 @@ css_generate_pgid(void)
 static int __init
 init_channel_subsystem (void)
 {
-	int ret, irq;
+	int ret;
+	struct subchannel_id schid;
 
 	if (chsc_determine_css_characteristics() == 0)
 		css_characteristics_avail = 1;
@@ -420,13 +426,14 @@ init_channel_subsystem (void)
 
 	ctl_set_bit(6, 28);
 
-	for (irq = 0; irq < __MAX_SUBCHANNELS; irq++) {
+	init_subchannel_id(&schid);
+	do {
 		struct subchannel *sch;
 
-		if (cio_is_console(irq))
+		if (cio_is_console(schid))
 			sch = cio_get_console_subchannel();
 		else {
-			sch = css_alloc_subchannel(irq);
+			sch = css_alloc_subchannel(schid);
 			if (IS_ERR(sch))
 				ret = PTR_ERR(sch);
 			else
@@ -448,7 +455,7 @@ init_channel_subsystem (void)
 		 * console subchannel.
 		 */
 		css_register_subchannel(sch);
-	}
+	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
 	return 0;
 
 out_bus:
@@ -482,7 +489,7 @@ struct bus_type css_bus_type = {
 subsys_initcall(init_channel_subsystem);
 
 int
-css_enqueue_subchannel_slow(unsigned long schid)
+css_enqueue_subchannel_slow(struct subchannel_id schid)
 {
 	struct slow_subchannel *new_slow_sch;
 	unsigned long flags;

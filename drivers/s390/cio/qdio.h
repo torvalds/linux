@@ -3,7 +3,9 @@
 
 #include <asm/page.h>
 
-#define VERSION_CIO_QDIO_H "$Revision: 1.37 $"
+#include "schid.h"
+
+#define VERSION_CIO_QDIO_H "$Revision: 1.40 $"
 
 #ifdef CONFIG_QDIO_DEBUG
 #define QDIO_VERBOSE_LEVEL 9
@@ -317,7 +319,7 @@ do_eqbs(unsigned long sch, unsigned char *state, int queue,
 
 
 static inline int
-do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
+do_siga_sync(struct subchannel_id schid, unsigned int mask1, unsigned int mask2)
 {
 	int cc;
 
@@ -331,7 +333,7 @@ do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
 		: "=d" (cc)
-		: "d" (irq), "d" (mask1), "d" (mask2)
+		: "d" (schid), "d" (mask1), "d" (mask2)
 		: "cc", "0", "1", "2", "3"
 		);
 #else /* CONFIG_ARCH_S390X */
@@ -344,7 +346,7 @@ do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
 		: "=d" (cc)
-		: "d" (irq), "d" (mask1), "d" (mask2)
+		: "d" (schid), "d" (mask1), "d" (mask2)
 		: "cc", "0", "1", "2", "3"
 		);
 #endif /* CONFIG_ARCH_S390X */
@@ -352,7 +354,7 @@ do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
 }
 
 static inline int
-do_siga_input(unsigned int irq, unsigned int mask)
+do_siga_input(struct subchannel_id schid, unsigned int mask)
 {
 	int cc;
 
@@ -365,7 +367,7 @@ do_siga_input(unsigned int irq, unsigned int mask)
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
 		: "=d" (cc)
-		: "d" (irq), "d" (mask)
+		: "d" (schid), "d" (mask)
 		: "cc", "0", "1", "2", "memory"
 		);
 #else /* CONFIG_ARCH_S390X */
@@ -377,7 +379,7 @@ do_siga_input(unsigned int irq, unsigned int mask)
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
 		: "=d" (cc)
-		: "d" (irq), "d" (mask)
+		: "d" (schid), "d" (mask)
 		: "cc", "0", "1", "2", "memory"
 		);
 #endif /* CONFIG_ARCH_S390X */
@@ -386,7 +388,7 @@ do_siga_input(unsigned int irq, unsigned int mask)
 }
 
 static inline int
-do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb,
+do_siga_output(unsigned long schid, unsigned long mask, __u32 *bb,
 	       unsigned int fc)
 {
 	int cc;
@@ -418,7 +420,7 @@ do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb,
 		".long	0b,2b	\n\t"
 		".previous	\n\t"
 		: "=d" (cc), "=d" (busy_bit)
-		: "d" (irq), "d" (mask),
+		: "d" (schid), "d" (mask),
 		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION)
 		: "cc", "0", "1", "2", "memory"
 		);
@@ -443,7 +445,7 @@ do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb,
 		".quad	0b,1b	\n\t"
 		".previous	\n\t"
 		: "=d" (cc), "=d" (busy_bit)
-		: "d" (irq), "d" (mask),
+		: "d" (schid), "d" (mask),
 		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION), "d" (fc)
 		: "cc", "0", "1", "2", "memory"
 		);
@@ -554,7 +556,7 @@ struct qdio_q {
 	__u32 * dev_st_chg_ind;
 
 	int is_input_q;
-	int irq;
+	struct subchannel_id schid;
 	struct ccw_device *cdev;
 
 	unsigned int is_iqdio_q;
@@ -649,7 +651,7 @@ struct qdio_irq {
 	__u32 * volatile dev_st_chg_ind;
 
 	unsigned long int_parm;
-	int irq;
+	struct subchannel_id schid;
 
 	unsigned int is_iqdio_irq;
 	unsigned int is_thinint_irq;

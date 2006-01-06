@@ -6,6 +6,8 @@
 
 #include <asm/cio.h>
 
+#include "schid.h"
+
 /*
  * path grouping stuff
  */
@@ -68,7 +70,7 @@ struct ccw_device_private {
 	atomic_t onoff;
 	unsigned long registered;
 	__u16 devno;		/* device number */
-	__u16 irq;		/* subchannel number */
+	__u16 sch_no;		/* subchannel number */
 	__u8 imask;		/* lpm mask for SNID/SID/SPGID */
 	int iretry;		/* retry counter SNID/SID/SPGID */
 	struct {
@@ -121,12 +123,11 @@ struct css_driver {
 extern struct bus_type css_bus_type;
 extern struct css_driver io_subchannel_driver;
 
-int css_probe_device(int irq);
-extern struct subchannel * get_subchannel_by_schid(int irq);
-extern unsigned int highest_subchannel;
+extern int css_probe_device(struct subchannel_id);
+extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 
-#define __MAX_SUBCHANNELS 65536
+#define __MAX_SUBCHANNEL 65535
 
 extern struct bus_type css_bus_type;
 extern struct device css_bus_device;
@@ -144,7 +145,7 @@ void device_set_waiting(struct subchannel *);
 void device_kill_pending_timer(struct subchannel *);
 
 /* Helper functions to build lists for the slow path. */
-int css_enqueue_subchannel_slow(unsigned long schid);
+extern int css_enqueue_subchannel_slow(struct subchannel_id schid);
 void css_walk_subchannel_slow_list(void (*fn)(unsigned long));
 void css_clear_subchannel_slow_list(void);
 int css_slow_subchannels_exist(void);
