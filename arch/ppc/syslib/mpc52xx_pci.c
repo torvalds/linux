@@ -154,9 +154,12 @@ static struct pci_ops mpc52xx_pci_ops = {
 static void __init
 mpc52xx_pci_setup(struct mpc52xx_pci __iomem *pci_regs)
 {
+	u32 tmp;
 
 	/* Setup control regs */
-		/* Nothing to do afaik */
+	tmp = in_be32(&pci_regs->scr);
+	tmp |= PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY;
+	out_be32(&pci_regs->scr, tmp);
 
 	/* Setup windows */
 	out_be32(&pci_regs->iw0btar, MPC52xx_PCI_IWBTAR_TRANSLATION(
@@ -197,13 +200,12 @@ mpc52xx_pci_setup(struct mpc52xx_pci __iomem *pci_regs)
 	/* Not necessary and can be a bad thing if for example the bootloader
 	   is displaying a splash screen or ... Just left here for
 	   documentation purpose if anyone need it */
-#if 0
-	u32 tmp;
 	tmp = in_be32(&pci_regs->gscr);
+#if 0
 	out_be32(&pci_regs->gscr, tmp | MPC52xx_PCI_GSCR_PR);
 	udelay(50);
-	out_be32(&pci_regs->gscr, tmp);
 #endif
+	out_be32(&pci_regs->gscr, tmp & ~MPC52xx_PCI_GSCR_PR);
 }
 
 static void
