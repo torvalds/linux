@@ -154,37 +154,34 @@ decode_sattr3(u32 *p, struct iattr *iap)
 }
 
 static inline u32 *
-encode_fattr3(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp)
+encode_fattr3(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp,
+	      struct kstat *stat)
 {
-	struct vfsmount *mnt = fhp->fh_export->ex_mnt;
 	struct dentry	*dentry = fhp->fh_dentry;
-	struct kstat stat;
 	struct timespec time;
 
-	vfs_getattr(mnt, dentry, &stat);
-
-	*p++ = htonl(nfs3_ftypes[(stat.mode & S_IFMT) >> 12]);
-	*p++ = htonl((u32) stat.mode);
-	*p++ = htonl((u32) stat.nlink);
-	*p++ = htonl((u32) nfsd_ruid(rqstp, stat.uid));
-	*p++ = htonl((u32) nfsd_rgid(rqstp, stat.gid));
-	if (S_ISLNK(stat.mode) && stat.size > NFS3_MAXPATHLEN) {
+	*p++ = htonl(nfs3_ftypes[(stat->mode & S_IFMT) >> 12]);
+	*p++ = htonl((u32) stat->mode);
+	*p++ = htonl((u32) stat->nlink);
+	*p++ = htonl((u32) nfsd_ruid(rqstp, stat->uid));
+	*p++ = htonl((u32) nfsd_rgid(rqstp, stat->gid));
+	if (S_ISLNK(stat->mode) && stat->size > NFS3_MAXPATHLEN) {
 		p = xdr_encode_hyper(p, (u64) NFS3_MAXPATHLEN);
 	} else {
-		p = xdr_encode_hyper(p, (u64) stat.size);
+		p = xdr_encode_hyper(p, (u64) stat->size);
 	}
-	p = xdr_encode_hyper(p, ((u64)stat.blocks) << 9);
-	*p++ = htonl((u32) MAJOR(stat.rdev));
-	*p++ = htonl((u32) MINOR(stat.rdev));
+	p = xdr_encode_hyper(p, ((u64)stat->blocks) << 9);
+	*p++ = htonl((u32) MAJOR(stat->rdev));
+	*p++ = htonl((u32) MINOR(stat->rdev));
 	if (is_fsid(fhp, rqstp->rq_reffh))
 		p = xdr_encode_hyper(p, (u64) fhp->fh_export->ex_fsid);
 	else
-		p = xdr_encode_hyper(p, (u64) huge_encode_dev(stat.dev));
-	p = xdr_encode_hyper(p, (u64) stat.ino);
-	p = encode_time3(p, &stat.atime);
+		p = xdr_encode_hyper(p, (u64) huge_encode_dev(stat->dev));
+	p = xdr_encode_hyper(p, (u64) stat->ino);
+	p = encode_time3(p, &stat->atime);
 	lease_get_mtime(dentry->d_inode, &time); 
 	p = encode_time3(p, &time);
-	p = encode_time3(p, &stat.ctime);
+	p = encode_time3(p, &stat->ctime);
 
 	return p;
 }
@@ -232,8 +229,14 @@ encode_post_op_attr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp)
 {
 	struct dentry *dentry = fhp->fh_dentry;
 	if (dentry && dentry->d_inode != NULL) {
-		*p++ = xdr_one;		/* attributes follow */
-		return encode_fattr3(rqstp, p, fhp);
+	        int err;
+		struct kstat stat;
+
+		err = vfs_getattr(fhp->fh_export->ex_mnt, dentry, &stat);
+		if (!err) {
+			*p++ = xdr_one;		/* attributes follow */
+			return encode_fattr3(rqstp, p, fhp, &stat);
+		}
 	}
 	*p++ = xdr_zero;
 	return p;
@@ -616,7 +619,7 @@ nfs3svc_encode_attrstat(struct svc_rqst *rqstp, u32 *p,
 					struct nfsd3_attrstat *resp)
 {
 	if (resp->status == 0)
-		p = encode_fattr3(rqstp, p, &resp->fh);
+		p = encode_fattr3(rqstp, p, &resp->fh, &resp->stat);
 	return xdr_ressize_check(rqstp, p);
 }
 
