@@ -18,61 +18,18 @@
 /* and dm-bio-list.h is not under include/linux because.... ??? */
 #include "../../../drivers/md/dm-bio-list.h"
 
-#define MD_RESERVED       0UL
-#define LINEAR            1UL
-#define RAID0             2UL
-#define RAID1             3UL
-#define RAID5             4UL
-#define TRANSLUCENT       5UL
-#define HSM               6UL
-#define MULTIPATH         7UL
-#define RAID6		  8UL
-#define	RAID10		  9UL
-#define FAULTY		  10UL
-#define MAX_PERSONALITY   11UL
-
 #define	LEVEL_MULTIPATH		(-4)
 #define	LEVEL_LINEAR		(-1)
 #define	LEVEL_FAULTY		(-5)
 
+/* we need a value for 'no level specified' and 0
+ * means 'raid0', so we need something else.  This is
+ * for internal use only
+ */
+#define	LEVEL_NONE		(-1000000)
+
 #define MaxSector (~(sector_t)0)
 #define MD_THREAD_NAME_MAX 14
-
-static inline int pers_to_level (int pers)
-{
-	switch (pers) {
-		case FAULTY:		return LEVEL_FAULTY;
-		case MULTIPATH:		return LEVEL_MULTIPATH;
-		case HSM:		return -3;
-		case TRANSLUCENT:	return -2;
-		case LINEAR:		return LEVEL_LINEAR;
-		case RAID0:		return 0;
-		case RAID1:		return 1;
-		case RAID5:		return 5;
-		case RAID6:		return 6;
-		case RAID10:		return 10;
-	}
-	BUG();
-	return MD_RESERVED;
-}
-
-static inline int level_to_pers (int level)
-{
-	switch (level) {
-		case LEVEL_FAULTY: return FAULTY;
-		case LEVEL_MULTIPATH: return MULTIPATH;
-		case -3: return HSM;
-		case -2: return TRANSLUCENT;
-		case LEVEL_LINEAR: return LINEAR;
-		case 0: return RAID0;
-		case 1: return RAID1;
-		case 4:
-		case 5: return RAID5;
-		case 6: return RAID6;
-		case 10: return RAID10;
-	}
-	return MD_RESERVED;
-}
 
 typedef struct mddev_s mddev_t;
 typedef struct mdk_rdev_s mdk_rdev_t;
@@ -140,12 +97,10 @@ struct mdk_rdev_s
 					 */
 };
 
-typedef struct mdk_personality_s mdk_personality_t;
-
 struct mddev_s
 {
 	void				*private;
-	mdk_personality_t		*pers;
+	struct mdk_personality		*pers;
 	dev_t				unit;
 	int				md_minor;
 	struct list_head 		disks;
@@ -266,9 +221,11 @@ static inline void md_sync_acct(struct block_device *bdev, unsigned long nr_sect
         atomic_add(nr_sectors, &bdev->bd_contains->bd_disk->sync_io);
 }
 
-struct mdk_personality_s
+struct mdk_personality
 {
 	char *name;
+	int level;
+	struct list_head list;
 	struct module *owner;
 	int (*make_request)(request_queue_t *q, struct bio *bio);
 	int (*run)(mddev_t *mddev);

@@ -47,7 +47,6 @@
  */
 #define	NR_RAID1_BIOS 256
 
-static mdk_personality_t raid1_personality;
 
 static void unplug_slaves(mddev_t *mddev);
 
@@ -2036,9 +2035,10 @@ static void raid1_quiesce(mddev_t *mddev, int state)
 }
 
 
-static mdk_personality_t raid1_personality =
+static struct mdk_personality raid1_personality =
 {
 	.name		= "raid1",
+	.level		= 1,
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
@@ -2056,15 +2056,16 @@ static mdk_personality_t raid1_personality =
 
 static int __init raid_init(void)
 {
-	return register_md_personality(RAID1, &raid1_personality);
+	return register_md_personality(&raid1_personality);
 }
 
 static void raid_exit(void)
 {
-	unregister_md_personality(RAID1);
+	unregister_md_personality(&raid1_personality);
 }
 
 module_init(raid_init);
 module_exit(raid_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-3"); /* RAID1 */
+MODULE_ALIAS("md-level-1");

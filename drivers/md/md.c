@@ -68,7 +68,7 @@
 static void autostart_arrays (int part);
 #endif
 
-static mdk_personality_t *pers[MAX_PERSONALITY];
+static LIST_HEAD(pers_list);
 static DEFINE_SPINLOCK(pers_lock);
 
 /*
@@ -300,6 +300,15 @@ static mdk_rdev_t * find_rdev(mddev_t * mddev, dev_t dev)
 		if (rdev->bdev->bd_dev == dev)
 			return rdev;
 	}
+	return NULL;
+}
+
+static struct mdk_personality *find_pers(int level)
+{
+	struct mdk_personality *pers;
+	list_for_each_entry(pers, &pers_list, list)
+		if (pers->level == level)
+			return pers;
 	return NULL;
 }
 
@@ -1744,7 +1753,7 @@ static void analyze_sbs(mddev_t * mddev)
 static ssize_t
 level_show(mddev_t *mddev, char *page)
 {
-	mdk_personality_t *p = mddev->pers;
+	struct mdk_personality *p = mddev->pers;
 	if (p == NULL && mddev->raid_disks == 0)
 		return 0;
 	if (mddev->level >= 0)
@@ -1960,11 +1969,12 @@ static int start_dirty_degraded;
 
 static int do_md_run(mddev_t * mddev)
 {
-	int pnum, err;
+	int err;
 	int chunk_size;
 	struct list_head *tmp;
 	mdk_rdev_t *rdev;
 	struct gendisk *disk;
+	struct mdk_personality *pers;
 	char b[BDEVNAME_SIZE];
 
 	if (list_empty(&mddev->disks))
@@ -1981,20 +1991,8 @@ static int do_md_run(mddev_t * mddev)
 		analyze_sbs(mddev);
 
 	chunk_size = mddev->chunk_size;
-	pnum = level_to_pers(mddev->level);
 
-	if ((pnum != MULTIPATH) && (pnum != RAID1)) {
-		if (!chunk_size) {
-			/*
-			 * 'default chunksize' in the old md code used to
-			 * be PAGE_SIZE, baaad.
-			 * we abort here to be on the safe side. We don't
-			 * want to continue the bad practice.
-			 */
-			printk(KERN_ERR 
-				"no chunksize specified, see 'man raidtab'\n");
-			return -EINVAL;
-		}
+	if (chunk_size) {
 		if (chunk_size > MAX_CHUNK_SIZE) {
 			printk(KERN_ERR "too big chunk_size: %d > %d\n",
 				chunk_size, MAX_CHUNK_SIZE);
@@ -2030,10 +2028,7 @@ static int do_md_run(mddev_t * mddev)
 	}
 
 #ifdef CONFIG_KMOD
-	if (!pers[pnum])
-	{
-		request_module("md-personality-%d", pnum);
-	}
+	request_module("md-level-%d", mddev->level);
 #endif
 
 	/*
@@ -2055,14 +2050,14 @@ static int do_md_run(mddev_t * mddev)
 		return -ENOMEM;
 
 	spin_lock(&pers_lock);
-	if (!pers[pnum] || !try_module_get(pers[pnum]->owner)) {
+	pers = find_pers(mddev->level);
+	if (!pers || !try_module_get(pers->owner)) {
 		spin_unlock(&pers_lock);
-		printk(KERN_WARNING "md: personality %d is not loaded!\n",
-		       pnum);
+		printk(KERN_WARNING "md: personality for level %d is not loaded!\n",
+		       mddev->level);
 		return -EINVAL;
 	}
-
-	mddev->pers = pers[pnum];
+	mddev->pers = pers;
 	spin_unlock(&pers_lock);
 
 	mddev->recovery = 0;
@@ -3701,15 +3696,14 @@ static int md_seq_show(struct seq_file *seq, void *v)
 	struct list_head *tmp2;
 	mdk_rdev_t *rdev;
 	struct mdstat_info *mi = seq->private;
-	int i;
 	struct bitmap *bitmap;
 
 	if (v == (void*)1) {
+		struct mdk_personality *pers;
 		seq_printf(seq, "Personalities : ");
 		spin_lock(&pers_lock);
-		for (i = 0; i < MAX_PERSONALITY; i++)
-			if (pers[i])
-				seq_printf(seq, "[%s] ", pers[i]->name);
+		list_for_each_entry(pers, &pers_list, list)
+			seq_printf(seq, "[%s] ", pers->name);
 
 		spin_unlock(&pers_lock);
 		seq_printf(seq, "\n");
@@ -3870,35 +3864,20 @@ static struct file_operations md_seq_fops = {
 	.poll		= mdstat_poll,
 };
 
-int register_md_personality(int pnum, mdk_personality_t *p)
+int register_md_personality(struct mdk_personality *p)
 {
-	if (pnum >= MAX_PERSONALITY) {
-		printk(KERN_ERR
-		       "md: tried to install personality %s as nr %d, but max is %lu\n",
-		       p->name, pnum, MAX_PERSONALITY-1);
-		return -EINVAL;
-	}
-
 	spin_lock(&pers_lock);
-	if (pers[pnum]) {
-		spin_unlock(&pers_lock);
-		return -EBUSY;
-	}
-
-	pers[pnum] = p;
-	printk(KERN_INFO "md: %s personality registered as nr %d\n", p->name, pnum);
+	list_add_tail(&p->list, &pers_list);
+	printk(KERN_INFO "md: %s personality registered for level %d\n", p->name, p->level);
 	spin_unlock(&pers_lock);
 	return 0;
 }
 
-int unregister_md_personality(int pnum)
+int unregister_md_personality(struct mdk_personality *p)
 {
-	if (pnum >= MAX_PERSONALITY)
-		return -EINVAL;
-
-	printk(KERN_INFO "md: %s personality unregistered\n", pers[pnum]->name);
+	printk(KERN_INFO "md: %s personality unregistered\n", p->name);
 	spin_lock(&pers_lock);
-	pers[pnum] = NULL;
+	list_del_init(&p->list);
 	spin_unlock(&pers_lock);
 	return 0;
 }

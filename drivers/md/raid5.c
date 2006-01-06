@@ -2187,9 +2187,10 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 	}
 }
 
-static mdk_personality_t raid5_personality=
+static struct mdk_personality raid5_personality =
 {
 	.name		= "raid5",
+	.level		= 5,
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
@@ -2204,17 +2205,40 @@ static mdk_personality_t raid5_personality=
 	.quiesce	= raid5_quiesce,
 };
 
-static int __init raid5_init (void)
+static struct mdk_personality raid4_personality =
 {
-	return register_md_personality (RAID5, &raid5_personality);
+	.name		= "raid4",
+	.level		= 4,
+	.owner		= THIS_MODULE,
+	.make_request	= make_request,
+	.run		= run,
+	.stop		= stop,
+	.status		= status,
+	.error_handler	= error,
+	.hot_add_disk	= raid5_add_disk,
+	.hot_remove_disk= raid5_remove_disk,
+	.spare_active	= raid5_spare_active,
+	.sync_request	= sync_request,
+	.resize		= raid5_resize,
+	.quiesce	= raid5_quiesce,
+};
+
+static int __init raid5_init(void)
+{
+	register_md_personality(&raid5_personality);
+	register_md_personality(&raid4_personality);
+	return 0;
 }
 
-static void raid5_exit (void)
+static void raid5_exit(void)
 {
-	unregister_md_personality (RAID5);
+	unregister_md_personality(&raid5_personality);
+	unregister_md_personality(&raid4_personality);
 }
 
 module_init(raid5_init);
 module_exit(raid5_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-4"); /* RAID5 */
+MODULE_ALIAS("md-level-5");
+MODULE_ALIAS("md-level-4");

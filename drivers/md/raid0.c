@@ -275,7 +275,11 @@ static int raid0_run (mddev_t *mddev)
 	mdk_rdev_t *rdev;
 	struct list_head *tmp;
 
-	printk("%s: setting max_sectors to %d, segment boundary to %d\n",
+	if (mddev->chunk_size == 0) {
+		printk(KERN_ERR "md/raid0: non-zero chunk size required.\n");
+		return -EINVAL;
+	}
+	printk(KERN_INFO "%s: setting max_sectors to %d, segment boundary to %d\n",
 	       mdname(mddev),
 	       mddev->chunk_size >> 9,
 	       (mddev->chunk_size>>1)-1);
@@ -507,9 +511,10 @@ static void raid0_status (struct seq_file *seq, mddev_t *mddev)
 	return;
 }
 
-static mdk_personality_t raid0_personality=
+static struct mdk_personality raid0_personality=
 {
 	.name		= "raid0",
+	.level		= 0,
 	.owner		= THIS_MODULE,
 	.make_request	= raid0_make_request,
 	.run		= raid0_run,
@@ -519,15 +524,16 @@ static mdk_personality_t raid0_personality=
 
 static int __init raid0_init (void)
 {
-	return register_md_personality (RAID0, &raid0_personality);
+	return register_md_personality (&raid0_personality);
 }
 
 static void raid0_exit (void)
 {
-	unregister_md_personality (RAID0);
+	unregister_md_personality (&raid0_personality);
 }
 
 module_init(raid0_init);
 module_exit(raid0_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-2"); /* RAID0 */
+MODULE_ALIAS("md-level-0");

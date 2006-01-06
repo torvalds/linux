@@ -2304,9 +2304,10 @@ static void raid6_quiesce(mddev_t *mddev, int state)
 	}
 }
 
-static mdk_personality_t raid6_personality=
+static struct mdk_personality raid6_personality =
 {
 	.name		= "raid6",
+	.level		= 6,
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
@@ -2321,7 +2322,7 @@ static mdk_personality_t raid6_personality=
 	.quiesce	= raid6_quiesce,
 };
 
-static int __init raid6_init (void)
+static int __init raid6_init(void)
 {
 	int e;
 
@@ -2329,15 +2330,16 @@ static int __init raid6_init (void)
 	if ( e )
 		return e;
 
-	return register_md_personality (RAID6, &raid6_personality);
+	return register_md_personality(&raid6_personality);
 }
 
 static void raid6_exit (void)
 {
-	unregister_md_personality (RAID6);
+	unregister_md_personality(&raid6_personality);
 }
 
 module_init(raid6_init);
 module_exit(raid6_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-8"); /* RAID6 */
+MODULE_ALIAS("md-level-6");

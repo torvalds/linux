@@ -1883,11 +1883,11 @@ static int run(mddev_t *mddev)
 	int nc, fc;
 	sector_t stride, size;
 
-	if (mddev->level != 10) {
-		printk(KERN_ERR "raid10: %s: raid level not set correctly... (%d)\n",
-		       mdname(mddev), mddev->level);
-		goto out;
+	if (mddev->chunk_size == 0) {
+		printk(KERN_ERR "md/raid10: non-zero chunk size required.\n");
+		return -EINVAL;
 	}
+
 	nc = mddev->layout & 255;
 	fc = (mddev->layout >> 8) & 255;
 	if ((nc*fc) <2 || (nc*fc) > mddev->raid_disks ||
@@ -2072,9 +2072,10 @@ static void raid10_quiesce(mddev_t *mddev, int state)
 	}
 }
 
-static mdk_personality_t raid10_personality =
+static struct mdk_personality raid10_personality =
 {
 	.name		= "raid10",
+	.level		= 10,
 	.owner		= THIS_MODULE,
 	.make_request	= make_request,
 	.run		= run,
@@ -2090,15 +2091,16 @@ static mdk_personality_t raid10_personality =
 
 static int __init raid_init(void)
 {
-	return register_md_personality(RAID10, &raid10_personality);
+	return register_md_personality(&raid10_personality);
 }
 
 static void raid_exit(void)
 {
-	unregister_md_personality(RAID10);
+	unregister_md_personality(&raid10_personality);
 }
 
 module_init(raid_init);
 module_exit(raid_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-9"); /* RAID10 */
+MODULE_ALIAS("md-level-10");

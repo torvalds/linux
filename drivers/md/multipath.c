@@ -35,9 +35,6 @@
 #define	NR_RESERVED_BUFS	32
 
 
-static mdk_personality_t multipath_personality;
-
-
 static void *mp_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	struct multipath_bh *mpb;
@@ -553,9 +550,10 @@ static int multipath_stop (mddev_t *mddev)
 	return 0;
 }
 
-static mdk_personality_t multipath_personality=
+static struct mdk_personality multipath_personality =
 {
 	.name		= "multipath",
+	.level		= LEVEL_MULTIPATH,
 	.owner		= THIS_MODULE,
 	.make_request	= multipath_make_request,
 	.run		= multipath_run,
@@ -568,15 +566,16 @@ static mdk_personality_t multipath_personality=
 
 static int __init multipath_init (void)
 {
-	return register_md_personality (MULTIPATH, &multipath_personality);
+	return register_md_personality (&multipath_personality);
 }
 
 static void __exit multipath_exit (void)
 {
-	unregister_md_personality (MULTIPATH);
+	unregister_md_personality (&multipath_personality);
 }
 
 module_init(multipath_init);
 module_exit(multipath_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("md-personality-7"); /* MULTIPATH */
+MODULE_ALIAS("md-level--4");
