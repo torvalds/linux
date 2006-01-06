@@ -37,9 +37,10 @@
 #include "cs46xx_lib.h"
 #include "dsp_spos.h"
 
-static int cs46xx_dsp_async_init (cs46xx_t *chip, dsp_scb_descriptor_t * fg_entry);
+static int cs46xx_dsp_async_init (struct snd_cs46xx *chip,
+				  struct dsp_scb_descriptor * fg_entry);
 
-static wide_opcode_t wide_opcodes[] = { 
+static enum wide_opcode wide_opcodes[] = { 
 	WIDE_FOR_BEGIN_LOOP,
 	WIDE_FOR_BEGIN_LOOP2,
 	WIDE_COND_GOTO_ADDR,
@@ -54,12 +55,13 @@ static wide_opcode_t wide_opcodes[] = {
 	WIDE_TBEQ_NCOND_CALL1_ADDR
 };
 
-static int shadow_and_reallocate_code (cs46xx_t * chip,u32 * data,u32 size, u32 overlay_begin_address)
+static int shadow_and_reallocate_code (struct snd_cs46xx * chip, u32 * data, u32 size,
+				       u32 overlay_begin_address)
 {
 	unsigned int i = 0, j, nreallocated = 0;
 	u32 hival,loval,address;
 	u32 mop_operands,mop_type,wide_op;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	snd_assert( ((size % 2) == 0), return -EINVAL);
   
@@ -114,7 +116,7 @@ static int shadow_and_reallocate_code (cs46xx_t * chip,u32 * data,u32 size, u32 
 	return nreallocated;
 }
 
-static segment_desc_t * get_segment_desc (dsp_module_desc_t * module, int seg_type)
+static struct dsp_segment_desc * get_segment_desc (struct dsp_module_desc * module, int seg_type)
 {
 	int i;
 	for (i = 0;i < module->nsegments; ++i) {
@@ -126,7 +128,7 @@ static segment_desc_t * get_segment_desc (dsp_module_desc_t * module, int seg_ty
 	return NULL;
 };
 
-static int find_free_symbol_index (dsp_spos_instance_t * ins)
+static int find_free_symbol_index (struct dsp_spos_instance * ins)
 {
 	int index = ins->symbol_table.nsymbols,i;
 
@@ -140,10 +142,10 @@ static int find_free_symbol_index (dsp_spos_instance_t * ins)
 	return index;
 }
 
-static int add_symbols (cs46xx_t * chip, dsp_module_desc_t * module)
+static int add_symbols (struct snd_cs46xx * chip, struct dsp_module_desc * module)
 {
 	int i;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	if (module->symbol_table.nsymbols > 0) {
 		if (!strcmp(module->symbol_table.symbols[0].symbol_name, "OVERLAYBEGINADDRESS") &&
@@ -181,10 +183,11 @@ static int add_symbols (cs46xx_t * chip, dsp_module_desc_t * module)
 	return 0;
 }
 
-static symbol_entry_t * add_symbol (cs46xx_t * chip, char * symbol_name, u32 address, int type)
+static struct dsp_symbol_entry *
+add_symbol (struct snd_cs46xx * chip, char * symbol_name, u32 address, int type)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
-	symbol_entry_t * symbol = NULL;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
+	struct dsp_symbol_entry * symbol = NULL;
 	int index;
 
 	if (ins->symbol_table.nsymbols == (DSP_MAX_SYMBOLS - 1)) {
@@ -217,17 +220,17 @@ static symbol_entry_t * add_symbol (cs46xx_t * chip, char * symbol_name, u32 add
 	return symbol;
 }
 
-dsp_spos_instance_t *  cs46xx_dsp_spos_create (cs46xx_t * chip)
+struct dsp_spos_instance *cs46xx_dsp_spos_create (struct snd_cs46xx * chip)
 {
-	dsp_spos_instance_t * ins = kmalloc(sizeof(dsp_spos_instance_t), GFP_KERNEL);
+	struct dsp_spos_instance * ins = kzalloc(sizeof(struct dsp_spos_instance), GFP_KERNEL);
 
 	if (ins == NULL) 
 		return NULL;
-	memset(ins, 0, sizeof(*ins));
 
 	/* better to use vmalloc for this big table */
 	ins->symbol_table.nsymbols = 0;
-	ins->symbol_table.symbols = vmalloc(sizeof(symbol_entry_t) * DSP_MAX_SYMBOLS);
+	ins->symbol_table.symbols = vmalloc(sizeof(struct dsp_symbol_entry) *
+					    DSP_MAX_SYMBOLS);
 	ins->symbol_table.highest_frag_index = 0;
 
 	if (ins->symbol_table.symbols == NULL) {
@@ -248,7 +251,7 @@ dsp_spos_instance_t *  cs46xx_dsp_spos_create (cs46xx_t * chip)
 	ins->ntask = 0;
 
 	ins->nmodules = 0;
-	ins->modules = kmalloc(sizeof(dsp_module_desc_t) * DSP_MAX_MODULES, GFP_KERNEL);
+	ins->modules = kmalloc(sizeof(struct dsp_module_desc) * DSP_MAX_MODULES, GFP_KERNEL);
 
 	if (ins->modules == NULL) {
 		cs46xx_dsp_spos_destroy(chip);
@@ -277,10 +280,10 @@ dsp_spos_instance_t *  cs46xx_dsp_spos_create (cs46xx_t * chip)
 	return ins;
 }
 
-void  cs46xx_dsp_spos_destroy (cs46xx_t * chip)
+void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
 {
 	int i;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	snd_assert(ins != NULL, return);
 
@@ -298,12 +301,12 @@ void  cs46xx_dsp_spos_destroy (cs46xx_t * chip)
 	up(&chip->spos_mutex);
 }
 
-int cs46xx_dsp_load_module (cs46xx_t * chip, dsp_module_desc_t * module)
+int cs46xx_dsp_load_module (struct snd_cs46xx * chip, struct dsp_module_desc * module)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
-	segment_desc_t * code = get_segment_desc (module,SEGTYPE_SP_PROGRAM);
-	segment_desc_t * parameter = get_segment_desc (module,SEGTYPE_SP_PARAMETER);
-	segment_desc_t * sample = get_segment_desc (module,SEGTYPE_SP_SAMPLE);
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
+	struct dsp_segment_desc * code = get_segment_desc (module,SEGTYPE_SP_PROGRAM);
+	struct dsp_segment_desc * parameter = get_segment_desc (module,SEGTYPE_SP_PARAMETER);
+	struct dsp_segment_desc * sample = get_segment_desc (module,SEGTYPE_SP_SAMPLE);
 	u32 doffset, dsize;
 
 	if (ins->nmodules == DSP_MAX_MODULES - 1) {
@@ -410,10 +413,11 @@ int cs46xx_dsp_load_module (cs46xx_t * chip, dsp_module_desc_t * module)
 	return 0;
 }
 
-symbol_entry_t * cs46xx_dsp_lookup_symbol (cs46xx_t * chip, char * symbol_name, int symbol_type)
+struct dsp_symbol_entry *
+cs46xx_dsp_lookup_symbol (struct snd_cs46xx * chip, char * symbol_name, int symbol_type)
 {
 	int i;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	for ( i = 0; i < ins->symbol_table.nsymbols; ++i ) {
 
@@ -435,10 +439,12 @@ symbol_entry_t * cs46xx_dsp_lookup_symbol (cs46xx_t * chip, char * symbol_name, 
 }
 
 
-static symbol_entry_t * cs46xx_dsp_lookup_symbol_addr (cs46xx_t * chip, u32 address, int symbol_type)
+#ifdef CONFIG_PROC_FS
+static struct dsp_symbol_entry *
+cs46xx_dsp_lookup_symbol_addr (struct snd_cs46xx * chip, u32 address, int symbol_type)
 {
 	int i;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	for ( i = 0; i < ins->symbol_table.nsymbols; ++i ) {
 
@@ -456,10 +462,11 @@ static symbol_entry_t * cs46xx_dsp_lookup_symbol_addr (cs46xx_t * chip, u32 addr
 }
 
 
-static void cs46xx_dsp_proc_symbol_table_read (snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void cs46xx_dsp_proc_symbol_table_read (struct snd_info_entry *entry,
+					       struct snd_info_buffer *buffer)
 {
-	cs46xx_t *chip = entry->private_data;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct snd_cs46xx *chip = entry->private_data;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i;
 
 	snd_iprintf(buffer, "SYMBOLS:\n");
@@ -483,10 +490,11 @@ static void cs46xx_dsp_proc_symbol_table_read (snd_info_entry_t *entry, snd_info
 }
 
 
-static void cs46xx_dsp_proc_modules_read (snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void cs46xx_dsp_proc_modules_read (struct snd_info_entry *entry,
+					  struct snd_info_buffer *buffer)
 {
-	cs46xx_t *chip = entry->private_data;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct snd_cs46xx *chip = entry->private_data;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i,j;
 
 	down(&chip->spos_mutex);
@@ -497,7 +505,7 @@ static void cs46xx_dsp_proc_modules_read (snd_info_entry_t *entry, snd_info_buff
 		snd_iprintf(buffer, "   %d fixups\n", ins->modules[i].nfixups);
 
 		for (j = 0; j < ins->modules[i].nsegments; ++ j) {
-			segment_desc_t * desc = (ins->modules[i].segments + j);
+			struct dsp_segment_desc * desc = (ins->modules[i].segments + j);
 			snd_iprintf(buffer, "   segment %02x offset %08x size %08x\n",
 				    desc->segment_type,desc->offset, desc->size);
 		}
@@ -505,11 +513,12 @@ static void cs46xx_dsp_proc_modules_read (snd_info_entry_t *entry, snd_info_buff
 	up(&chip->spos_mutex);
 }
 
-static void cs46xx_dsp_proc_task_tree_read (snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void cs46xx_dsp_proc_task_tree_read (struct snd_info_entry *entry,
+					    struct snd_info_buffer *buffer)
 {
-	cs46xx_t *chip = entry->private_data;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
-	int i,j,col;
+	struct snd_cs46xx *chip = entry->private_data;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
+	int i, j, col;
 	void __iomem *dst = chip->region.idx[1].remap_addr + DSP_PARAMETER_BYTE_OFFSET;
 
 	down(&chip->spos_mutex);
@@ -532,10 +541,11 @@ static void cs46xx_dsp_proc_task_tree_read (snd_info_entry_t *entry, snd_info_bu
 	up(&chip->spos_mutex);
 }
 
-static void cs46xx_dsp_proc_scb_read (snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void cs46xx_dsp_proc_scb_read (struct snd_info_entry *entry,
+				      struct snd_info_buffer *buffer)
 {
-	cs46xx_t *chip = entry->private_data;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct snd_cs46xx *chip = entry->private_data;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i;
 
 	down(&chip->spos_mutex);
@@ -564,13 +574,14 @@ static void cs46xx_dsp_proc_scb_read (snd_info_entry_t *entry, snd_info_buffer_t
 	up(&chip->spos_mutex);
 }
 
-static void cs46xx_dsp_proc_parameter_dump_read (snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void cs46xx_dsp_proc_parameter_dump_read (struct snd_info_entry *entry,
+						 struct snd_info_buffer *buffer)
 {
-	cs46xx_t *chip = entry->private_data;
-	/*dsp_spos_instance_t * ins = chip->dsp_spos_instance; */
-	unsigned int i,col = 0;
+	struct snd_cs46xx *chip = entry->private_data;
+	/*struct dsp_spos_instance * ins = chip->dsp_spos_instance; */
+	unsigned int i, col = 0;
 	void __iomem *dst = chip->region.idx[1].remap_addr + DSP_PARAMETER_BYTE_OFFSET;
-	symbol_entry_t * symbol; 
+	struct dsp_symbol_entry * symbol; 
 
 	for (i = 0;i < DSP_PARAMETER_BYTE_SIZE; i += sizeof(u32),col ++) {
 		if (col == 4) {
@@ -591,9 +602,10 @@ static void cs46xx_dsp_proc_parameter_dump_read (snd_info_entry_t *entry, snd_in
 	}
 }
 
-static void cs46xx_dsp_proc_sample_dump_read (snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void cs46xx_dsp_proc_sample_dump_read (struct snd_info_entry *entry,
+					      struct snd_info_buffer *buffer)
 {
-	cs46xx_t *chip = entry->private_data;
+	struct snd_cs46xx *chip = entry->private_data;
 	int i,col = 0;
 	void __iomem *dst = chip->region.idx[2].remap_addr;
 
@@ -738,10 +750,10 @@ static void cs46xx_dsp_proc_sample_dump_read (snd_info_entry_t *entry, snd_info_
 	snd_iprintf(buffer,"\n");
 }
 
-int cs46xx_dsp_proc_init (snd_card_t * card, cs46xx_t *chip)
+int cs46xx_dsp_proc_init (struct snd_card *card, struct snd_cs46xx *chip)
 {
-	snd_info_entry_t *entry;
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct snd_info_entry *entry;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i;
 
 	ins->snd_card = card;
@@ -852,9 +864,9 @@ int cs46xx_dsp_proc_init (snd_card_t * card, cs46xx_t *chip)
 	return 0;
 }
 
-int cs46xx_dsp_proc_done (cs46xx_t *chip)
+int cs46xx_dsp_proc_done (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 	int i;
 
 	if (ins->proc_sym_info_entry) {
@@ -901,9 +913,11 @@ int cs46xx_dsp_proc_done (cs46xx_t *chip)
 
 	return 0;
 }
+#endif /* CONFIG_PROC_FS */
 
 static int debug_tree;
-static void _dsp_create_task_tree (cs46xx_t *chip,u32 * task_data, u32  dest, int size)
+static void _dsp_create_task_tree (struct snd_cs46xx *chip, u32 * task_data,
+				   u32  dest, int size)
 {
 	void __iomem *spdst = chip->region.idx[1].remap_addr + 
 		DSP_PARAMETER_BYTE_OFFSET + dest * sizeof(u32);
@@ -917,7 +931,7 @@ static void _dsp_create_task_tree (cs46xx_t *chip,u32 * task_data, u32  dest, in
 }
 
 static int debug_scb;
-static void _dsp_create_scb (cs46xx_t *chip,u32 * scb_data, u32  dest)
+static void _dsp_create_scb (struct snd_cs46xx *chip, u32 * scb_data, u32 dest)
 {
 	void __iomem *spdst = chip->region.idx[1].remap_addr + 
 		DSP_PARAMETER_BYTE_OFFSET + dest * sizeof(u32);
@@ -930,7 +944,7 @@ static void _dsp_create_scb (cs46xx_t *chip,u32 * scb_data, u32  dest)
 	}
 }
 
-static int find_free_scb_index (dsp_spos_instance_t * ins)
+static int find_free_scb_index (struct dsp_spos_instance * ins)
 {
 	int index = ins->nscb, i;
 
@@ -944,10 +958,10 @@ static int find_free_scb_index (dsp_spos_instance_t * ins)
 	return index;
 }
 
-static dsp_scb_descriptor_t * _map_scb (cs46xx_t *chip,char * name,u32 dest)
+static struct dsp_scb_descriptor * _map_scb (struct snd_cs46xx *chip, char * name, u32 dest)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
-	dsp_scb_descriptor_t * desc = NULL;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
+	struct dsp_scb_descriptor * desc = NULL;
 	int index;
 
 	if (ins->nscb == DSP_MAX_SCB_DESC - 1) {
@@ -977,10 +991,11 @@ static dsp_scb_descriptor_t * _map_scb (cs46xx_t *chip,char * name,u32 dest)
 	return desc;
 }
 
-static dsp_task_descriptor_t * _map_task_tree (cs46xx_t *chip,char * name,u32 dest,u32 size)
+static struct dsp_task_descriptor *
+_map_task_tree (struct snd_cs46xx *chip, char * name, u32 dest, u32 size)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
-	dsp_task_descriptor_t * desc = NULL;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
+	struct dsp_task_descriptor * desc = NULL;
 
 	if (ins->ntask == DSP_MAX_TASK_DESC - 1) {
 		snd_printk(KERN_ERR "dsp_spos: got no place for other TASK\n");
@@ -1000,9 +1015,10 @@ static dsp_task_descriptor_t * _map_task_tree (cs46xx_t *chip,char * name,u32 de
 	return desc;
 }
 
-dsp_scb_descriptor_t * cs46xx_dsp_create_scb (cs46xx_t *chip,char * name, u32 * scb_data,u32 dest)
+struct dsp_scb_descriptor *
+cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u32 dest)
 {
-	dsp_scb_descriptor_t * desc;
+	struct dsp_scb_descriptor * desc;
 
 	desc = _map_scb (chip,name,dest);
 	if (desc) {
@@ -1015,9 +1031,11 @@ dsp_scb_descriptor_t * cs46xx_dsp_create_scb (cs46xx_t *chip,char * name, u32 * 
 }
 
 
-static dsp_task_descriptor_t *  cs46xx_dsp_create_task_tree (cs46xx_t *chip,char * name, u32 * task_data,u32 dest,int size)
+static struct dsp_task_descriptor *
+cs46xx_dsp_create_task_tree (struct snd_cs46xx *chip, char * name, u32 * task_data,
+			     u32 dest, int size)
 {
-	dsp_task_descriptor_t * desc;
+	struct dsp_task_descriptor * desc;
 
 	desc = _map_task_tree (chip,name,dest,size);
 	if (desc) {
@@ -1029,31 +1047,31 @@ static dsp_task_descriptor_t *  cs46xx_dsp_create_task_tree (cs46xx_t *chip,char
 	return desc;
 }
 
-int cs46xx_dsp_scb_and_task_init (cs46xx_t *chip)
+int cs46xx_dsp_scb_and_task_init (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
-	symbol_entry_t * fg_task_tree_header_code;
-	symbol_entry_t * task_tree_header_code;
-	symbol_entry_t * task_tree_thread;
-	symbol_entry_t * null_algorithm;
-	symbol_entry_t * magic_snoop_task;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
+	struct dsp_symbol_entry * fg_task_tree_header_code;
+	struct dsp_symbol_entry * task_tree_header_code;
+	struct dsp_symbol_entry * task_tree_thread;
+	struct dsp_symbol_entry * null_algorithm;
+	struct dsp_symbol_entry * magic_snoop_task;
 
-	dsp_scb_descriptor_t * timing_master_scb;
-	dsp_scb_descriptor_t * codec_out_scb;
-	dsp_scb_descriptor_t * codec_in_scb;
-	dsp_scb_descriptor_t * src_task_scb;
-	dsp_scb_descriptor_t * master_mix_scb;
-	dsp_scb_descriptor_t * rear_mix_scb;
-	dsp_scb_descriptor_t * record_mix_scb;
-	dsp_scb_descriptor_t * write_back_scb;
-	dsp_scb_descriptor_t * vari_decimate_scb;
-	dsp_scb_descriptor_t * rear_codec_out_scb;
-	dsp_scb_descriptor_t * clfe_codec_out_scb;
-	dsp_scb_descriptor_t * magic_snoop_scb;
+	struct dsp_scb_descriptor * timing_master_scb;
+	struct dsp_scb_descriptor * codec_out_scb;
+	struct dsp_scb_descriptor * codec_in_scb;
+	struct dsp_scb_descriptor * src_task_scb;
+	struct dsp_scb_descriptor * master_mix_scb;
+	struct dsp_scb_descriptor * rear_mix_scb;
+	struct dsp_scb_descriptor * record_mix_scb;
+	struct dsp_scb_descriptor * write_back_scb;
+	struct dsp_scb_descriptor * vari_decimate_scb;
+	struct dsp_scb_descriptor * rear_codec_out_scb;
+	struct dsp_scb_descriptor * clfe_codec_out_scb;
+	struct dsp_scb_descriptor * magic_snoop_scb;
 	
-	int fifo_addr,fifo_span,valid_slots;
+	int fifo_addr, fifo_span, valid_slots;
 
-	static spos_control_block_t sposcb = {
+	static struct dsp_spos_control_block sposcb = {
 		/* 0 */ HFG_TREE_SCB,HFG_STACK,
 		/* 1 */ SPOSCB_ADDR,BG_TREE_SCB_ADDR,
 		/* 2 */ DSP_SPOS_DC,0,
@@ -1106,7 +1124,7 @@ int cs46xx_dsp_scb_and_task_init (cs46xx_t *chip)
   
 	{
 		/* create the null SCB */
-		static generic_scb_t null_scb = {
+		static struct dsp_generic_scb null_scb = {
 			{ 0, 0, 0, 0 },
 			{ 0, 0, 0, 0, 0 },
 			NULL_SCB_ADDR, NULL_SCB_ADDR,
@@ -1128,7 +1146,7 @@ int cs46xx_dsp_scb_and_task_init (cs46xx_t *chip)
 
 	{
 		/* setup foreground task tree */
-		static task_tree_control_block_t fg_task_tree_hdr =  {
+		static struct dsp_task_tree_control_block fg_task_tree_hdr =  {
 			{ FG_TASK_HEADER_ADDR | (DSP_SPOS_DC << 0x10),
 			  DSP_SPOS_DC_DC,
 			  DSP_SPOS_DC_DC,
@@ -1204,7 +1222,7 @@ int cs46xx_dsp_scb_and_task_init (cs46xx_t *chip)
 
 	{
 		/* setup foreground task tree */
-		static task_tree_control_block_t bg_task_tree_hdr =  {
+		static struct dsp_task_tree_control_block bg_task_tree_hdr =  {
 			{ DSP_SPOS_DC_DC,
 			  DSP_SPOS_DC_DC,
 			  DSP_SPOS_DC_DC,
@@ -1313,7 +1331,7 @@ int cs46xx_dsp_scb_and_task_init (cs46xx_t *chip)
 	if (!write_back_scb) goto _fail_end;
 
 	{
-		static mix2_ostream_spb_t mix2_ostream_spb = {
+		static struct dsp_mix2_ostream_spb mix2_ostream_spb = {
 			0x00020000,
 			0x0000ffff
 		};
@@ -1448,13 +1466,14 @@ int cs46xx_dsp_scb_and_task_init (cs46xx_t *chip)
 	return -EINVAL;
 }
 
-static int cs46xx_dsp_async_init (cs46xx_t *chip, dsp_scb_descriptor_t * fg_entry)
+static int cs46xx_dsp_async_init (struct snd_cs46xx *chip,
+				  struct dsp_scb_descriptor * fg_entry)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
-	symbol_entry_t * s16_async_codec_input_task;
-	symbol_entry_t * spdifo_task;
-	symbol_entry_t * spdifi_task;
-	dsp_scb_descriptor_t * spdifi_scb_desc,* spdifo_scb_desc,* async_codec_scb_desc;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
+	struct dsp_symbol_entry * s16_async_codec_input_task;
+	struct dsp_symbol_entry * spdifo_task;
+	struct dsp_symbol_entry * spdifi_task;
+	struct dsp_scb_descriptor * spdifi_scb_desc, * spdifo_scb_desc, * async_codec_scb_desc;
 
 	s16_async_codec_input_task = cs46xx_dsp_lookup_symbol(chip, "S16_ASYNCCODECINPUTTASK", SYMBOL_CODE);
 	if (s16_async_codec_input_task == NULL) {
@@ -1475,7 +1494,7 @@ static int cs46xx_dsp_async_init (cs46xx_t *chip, dsp_scb_descriptor_t * fg_entr
 
 	{
 		/* 0xBC0 */
-		spdifoscb_t spdifo_scb = {
+		struct dsp_spdifoscb spdifo_scb = {
 			/* 0 */ DSP_SPOS_UUUU,
 			{
 				/* 1 */ 0xb0, 
@@ -1504,7 +1523,7 @@ static int cs46xx_dsp_async_init (cs46xx_t *chip, dsp_scb_descriptor_t * fg_entr
 		};
 
 		/* 0xBB0 */
-		spdifiscb_t spdifi_scb = {
+		struct dsp_spdifiscb spdifi_scb = {
 			/* 0 */ DSP_SPOS_UULO,DSP_SPOS_UUHI,
 			/* 1 */ 0,
 			/* 2 */ 0,
@@ -1529,7 +1548,7 @@ static int cs46xx_dsp_async_init (cs46xx_t *chip, dsp_scb_descriptor_t * fg_entr
 		};
 
 		/* 0xBA0 */
-		async_codec_input_scb_t async_codec_input_scb = {
+		struct dsp_async_codec_input_scb async_codec_input_scb = {
 			/* 0 */ DSP_SPOS_UUUU,
 			/* 1 */ 0,
 			/* 2 */ 0,
@@ -1620,9 +1639,9 @@ static int cs46xx_dsp_async_init (cs46xx_t *chip, dsp_scb_descriptor_t * fg_entr
 }
 
 
-static void cs46xx_dsp_disable_spdif_hw (cs46xx_t *chip)
+static void cs46xx_dsp_disable_spdif_hw (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	/* set SPDIF output FIFO slot */
 	snd_cs46xx_pokeBA0(chip, BA0_ASER_FADDR, 0);
@@ -1641,9 +1660,9 @@ static void cs46xx_dsp_disable_spdif_hw (cs46xx_t *chip)
 	ins->spdif_status_out &= ~DSP_SPDIF_STATUS_HW_ENABLED;
 }
 
-int cs46xx_dsp_enable_spdif_hw (cs46xx_t *chip)
+int cs46xx_dsp_enable_spdif_hw (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	/* if hw-ctrl already enabled, turn off to reset logic ... */
 	cs46xx_dsp_disable_spdif_hw (chip);
@@ -1664,9 +1683,9 @@ int cs46xx_dsp_enable_spdif_hw (cs46xx_t *chip)
 	return 0;
 }
 
-int cs46xx_dsp_enable_spdif_in (cs46xx_t *chip)
+int cs46xx_dsp_enable_spdif_in (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	/* turn on amplifier */
 	chip->active_ctrl(chip, 1);
@@ -1724,9 +1743,9 @@ int cs46xx_dsp_enable_spdif_in (cs46xx_t *chip)
 	return 0;
 }
 
-int cs46xx_dsp_disable_spdif_in (cs46xx_t *chip)
+int cs46xx_dsp_disable_spdif_in (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	snd_assert (ins->asynch_rx_scb != NULL, return -EINVAL);
 	snd_assert (ins->spdif_in_src != NULL,return -EINVAL);	
@@ -1750,9 +1769,9 @@ int cs46xx_dsp_disable_spdif_in (cs46xx_t *chip)
 	return 0;
 }
 
-int cs46xx_dsp_enable_pcm_capture (cs46xx_t *chip)
+int cs46xx_dsp_enable_pcm_capture (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	snd_assert (ins->pcm_input == NULL,return -EINVAL);
 	snd_assert (ins->ref_snoop_scb != NULL,return -EINVAL);
@@ -1765,9 +1784,9 @@ int cs46xx_dsp_enable_pcm_capture (cs46xx_t *chip)
 	return 0;
 }
 
-int cs46xx_dsp_disable_pcm_capture (cs46xx_t *chip)
+int cs46xx_dsp_disable_pcm_capture (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	snd_assert (ins->pcm_input != NULL,return -EINVAL);
 
@@ -1779,9 +1798,9 @@ int cs46xx_dsp_disable_pcm_capture (cs46xx_t *chip)
 	return 0;
 }
 
-int cs46xx_dsp_enable_adc_capture (cs46xx_t *chip)
+int cs46xx_dsp_enable_adc_capture (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	snd_assert (ins->adc_input == NULL,return -EINVAL);
 	snd_assert (ins->codec_in_scb != NULL,return -EINVAL);
@@ -1794,9 +1813,9 @@ int cs46xx_dsp_enable_adc_capture (cs46xx_t *chip)
 	return 0;
 }
 
-int cs46xx_dsp_disable_adc_capture (cs46xx_t *chip)
+int cs46xx_dsp_disable_adc_capture (struct snd_cs46xx *chip)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	snd_assert (ins->adc_input != NULL,return -EINVAL);
 
@@ -1808,7 +1827,7 @@ int cs46xx_dsp_disable_adc_capture (cs46xx_t *chip)
 	return 0;
 }
 
-int cs46xx_poke_via_dsp (cs46xx_t *chip,u32 address,u32 data)
+int cs46xx_poke_via_dsp (struct snd_cs46xx *chip, u32 address, u32 data)
 {
 	u32 temp;
 	int  i;
@@ -1845,10 +1864,10 @@ int cs46xx_poke_via_dsp (cs46xx_t *chip,u32 address,u32 data)
 	return 0;
 }
 
-int cs46xx_dsp_set_dac_volume (cs46xx_t * chip,u16 left,u16 right)
+int cs46xx_dsp_set_dac_volume (struct snd_cs46xx * chip, u16 left, u16 right)
 {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
-	dsp_scb_descriptor_t * scb; 
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
+	struct dsp_scb_descriptor * scb; 
 
 	down(&chip->spos_mutex);
 	
@@ -1874,8 +1893,9 @@ int cs46xx_dsp_set_dac_volume (cs46xx_t * chip,u16 left,u16 right)
 	return 0;
 }
 
-int cs46xx_dsp_set_iec958_volume (cs46xx_t * chip,u16 left,u16 right) {
-	dsp_spos_instance_t * ins = chip->dsp_spos_instance;
+int cs46xx_dsp_set_iec958_volume (struct snd_cs46xx * chip, u16 left, u16 right)
+{
+	struct dsp_spos_instance * ins = chip->dsp_spos_instance;
 
 	down(&chip->spos_mutex);
 

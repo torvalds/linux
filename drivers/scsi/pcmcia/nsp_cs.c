@@ -104,9 +104,6 @@ static struct scsi_host_template nsp_driver_template = {
 #endif
 };
 
-static dev_link_t *dev_list = NULL;
-static dev_info_t dev_info  = {"nsp_cs"};
-
 static nsp_hw_data nsp_data_base; /* attach <-> detect glue */
 
 
@@ -1596,19 +1593,17 @@ static int nsp_eh_host_reset(Scsi_Cmnd *SCpnt)
     configure the card at this point -- we wait until we receive a
     card insertion event.
 ======================================================================*/
-static dev_link_t *nsp_cs_attach(void)
+static int nsp_cs_attach(struct pcmcia_device *p_dev)
 {
 	scsi_info_t  *info;
-	client_reg_t  client_reg;
 	dev_link_t   *link;
-	int	      ret;
 	nsp_hw_data  *data = &nsp_data_base;
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
 	/* Create new SCSI device */
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (info == NULL) { return NULL; }
+	if (info == NULL) { return -ENOMEM; }
 	memset(info, 0, sizeof(*info));
 	link = &info->link;
 	link->priv = info;
@@ -1636,23 +1631,14 @@ static dev_link_t *nsp_cs_attach(void)
 	link->conf.IntType	 = INT_MEMORY_AND_IO;
 	link->conf.Present	 = PRESENT_OPTION;
 
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	/* Register with Card Services */
-	link->next               = dev_list;
-	dev_list                 = link;
-	client_reg.dev_info	 = &dev_info;
-	client_reg.Version	 = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		nsp_cs_detach(link);
-		return NULL;
-	}
-
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	nsp_cs_config(link);
 
 	nsp_dbg(NSP_DEBUG_INIT, "link=0x%p", link);
-	return link;
+	return 0;
 } /* nsp_cs_attach */
 
 
@@ -1662,35 +1648,19 @@ static dev_link_t *nsp_cs_attach(void)
     structures are freed.  Otherwise, the structures will be freed
     when the device is released.
 ======================================================================*/
-static void nsp_cs_detach(dev_link_t *link)
+static void nsp_cs_detach(struct pcmcia_device *p_dev)
 {
-	dev_link_t **linkp;
+	dev_link_t *link = dev_to_instance(p_dev);
 
 	nsp_dbg(NSP_DEBUG_INIT, "in, link=0x%p", link);
 
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next) {
-		if (*linkp == link) {
-			break;
-		}
-	}
-	if (*linkp == NULL) {
-		return;
-	}
-
-	if (link->state & DEV_CONFIG)
+	if (link->state & DEV_CONFIG) {
+		((scsi_info_t *)link->priv)->stop = 1;
 		nsp_cs_release(link);
-
-	/* Break the link with Card Services */
-	if (link->handle) {
-		pcmcia_deregister_client(link->handle);
 	}
 
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 	kfree(link->priv);
 	link->priv = NULL;
-
 } /* nsp_cs_detach */
 
 
@@ -2021,99 +1991,58 @@ static void nsp_cs_release(dev_link_t *link)
 #endif
 } /* nsp_cs_release */
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-    When a CARD_REMOVAL event is received, we immediately set a flag
-    to block future accesses to this device.  All the functions that
-    actually access the device should check this flag to make sure
-    the card is still present.
-
-======================================================================*/
-static int nsp_cs_event(event_t		       event,
-			int		       priority,
-			event_callback_args_t *args)
+static int nsp_cs_suspend(struct pcmcia_device *dev)
 {
-	dev_link_t  *link = args->client_data;
+	dev_link_t *link = dev_to_instance(dev);
 	scsi_info_t *info = link->priv;
 	nsp_hw_data *data;
 
-	nsp_dbg(NSP_DEBUG_INIT, "in, event=0x%08x", event);
+	link->state |= DEV_SUSPEND;
 
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		nsp_dbg(NSP_DEBUG_INIT, "event: remove");
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			((scsi_info_t *)link->priv)->stop = 1;
-			nsp_cs_release(link);
-		}
-		break;
+	nsp_dbg(NSP_DEBUG_INIT, "event: suspend");
 
-	case CS_EVENT_CARD_INSERTION:
-		nsp_dbg(NSP_DEBUG_INIT, "event: insert");
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,68))
-		info->bus    =  args->bus;
-#endif
-		nsp_cs_config(link);
-		break;
+	if (info->host != NULL) {
+		nsp_msg(KERN_INFO, "clear SDTR status");
 
-	case CS_EVENT_PM_SUSPEND:
-		nsp_dbg(NSP_DEBUG_INIT, "event: suspend");
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		/* Mark the device as stopped, to block IO until later */
-		nsp_dbg(NSP_DEBUG_INIT, "event: reset physical");
+		data = (nsp_hw_data *)info->host->hostdata;
 
-		if (info->host != NULL) {
-			nsp_msg(KERN_INFO, "clear SDTR status");
-
-			data = (nsp_hw_data *)info->host->hostdata;
-
-			nsphw_init_sync(data);
-		}
-
-		info->stop = 1;
-		if (link->state & DEV_CONFIG) {
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		nsp_dbg(NSP_DEBUG_INIT, "event: resume");
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		nsp_dbg(NSP_DEBUG_INIT, "event: reset");
-		if (link->state & DEV_CONFIG) {
-			pcmcia_request_configuration(link->handle, &link->conf);
-		}
-		info->stop = 0;
-
-		if (info->host != NULL) {
-			nsp_msg(KERN_INFO, "reset host and bus");
-
-			data = (nsp_hw_data *)info->host->hostdata;
-
-			nsphw_init   (data);
-			nsp_bus_reset(data);
-		}
-
-		break;
-
-	default:
-		nsp_dbg(NSP_DEBUG_INIT, "event: unknown");
-		break;
+		nsphw_init_sync(data);
 	}
-	nsp_dbg(NSP_DEBUG_INIT, "end");
+
+	info->stop = 1;
+
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
 	return 0;
-} /* nsp_cs_event */
+}
+
+static int nsp_cs_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+	scsi_info_t *info = link->priv;
+	nsp_hw_data *data;
+
+	nsp_dbg(NSP_DEBUG_INIT, "event: resume");
+
+	link->state &= ~DEV_SUSPEND;
+
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	info->stop = 0;
+
+	if (info->host != NULL) {
+		nsp_msg(KERN_INFO, "reset host and bus");
+
+		data = (nsp_hw_data *)info->host->hostdata;
+
+		nsphw_init   (data);
+		nsp_bus_reset(data);
+	}
+
+	return 0;
+}
 
 /*======================================================================*
  *	module entry point
@@ -2136,10 +2065,11 @@ static struct pcmcia_driver nsp_driver = {
 	.drv		= {
 		.name	= "nsp_cs",
 	},
-	.attach		= nsp_cs_attach,
-	.event		= nsp_cs_event,
-	.detach		= nsp_cs_detach,
+	.probe		= nsp_cs_attach,
+	.remove		= nsp_cs_detach,
 	.id_table	= nsp_cs_ids,
+	.suspend	= nsp_cs_suspend,
+	.resume		= nsp_cs_resume,
 };
 #endif
 
@@ -2171,7 +2101,6 @@ static void __exit nsp_cs_exit(void)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,68))
 	pcmcia_unregister_driver(&nsp_driver);
-	BUG_ON(dev_list != NULL);
 #else
 	unregister_pcmcia_driver(&dev_info);
 	/* XXX: this really needs to move into generic code.. */

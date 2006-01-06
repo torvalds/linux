@@ -174,6 +174,34 @@ int tcp_set_congestion_control(struct sock *sk, const char *name)
 	return err;
 }
 
+
+/*
+ * Linear increase during slow start
+ */
+void tcp_slow_start(struct tcp_sock *tp)
+{
+	if (sysctl_tcp_abc) {
+		/* RFC3465: Slow Start
+		 * TCP sender SHOULD increase cwnd by the number of
+		 * previously unacknowledged bytes ACKed by each incoming
+		 * acknowledgment, provided the increase is not more than L
+		 */
+		if (tp->bytes_acked < tp->mss_cache)
+			return;
+
+		/* We MAY increase by 2 if discovered delayed ack */
+		if (sysctl_tcp_abc > 1 && tp->bytes_acked > 2*tp->mss_cache) {
+			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+				tp->snd_cwnd++;
+		}
+	}
+	tp->bytes_acked = 0;
+
+	if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+		tp->snd_cwnd++;
+}
+EXPORT_SYMBOL_GPL(tcp_slow_start);
+
 /*
  * TCP Reno congestion control
  * This is special case used for fallback as well.

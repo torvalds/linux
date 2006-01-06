@@ -30,7 +30,7 @@
 
 struct snd_vxpocket {
 
-	vx_core_t core;
+	struct vx_core core;
 
 	unsigned long port;
 
@@ -48,10 +48,10 @@ struct snd_vxpocket {
 
 extern struct snd_vx_ops snd_vxpocket_ops;
 
-void vx_set_mic_boost(vx_core_t *chip, int boost);
-void vx_set_mic_level(vx_core_t *chip, int level);
+void vx_set_mic_boost(struct vx_core *chip, int boost);
+void vx_set_mic_level(struct vx_core *chip, int level);
 
-int vxp_add_mic_controls(vx_core_t *chip);
+int vxp_add_mic_controls(struct vx_core *chip);
 
 /* Constants used to access the CDSP register (0x08). */
 #define CDSP_MAGIC	0xA7	/* magic value (for read) */

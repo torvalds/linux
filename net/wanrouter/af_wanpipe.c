@@ -181,7 +181,7 @@ struct wanpipe_opt
 #endif
 
 static int sk_count;
-extern struct proto_ops wanpipe_ops;
+extern const struct proto_ops wanpipe_ops;
 static unsigned long find_free_critical;
 
 static void wanpipe_unlink_driver(struct sock *sk);
@@ -1839,7 +1839,7 @@ static int wanpipe_ioctl(struct socket *sock, unsigned int cmd, unsigned long ar
 #endif
 
 		default:
-			return dev_ioctl(cmd,(void __user *) arg);
+			return -ENOIOCTLCMD;
 	}
 	/*NOTREACHED*/
 }
@@ -2546,7 +2546,7 @@ static int wanpipe_connect(struct socket *sock, struct sockaddr *uaddr, int addr
 	return 0;
 }
 
-struct proto_ops wanpipe_ops = {
+const struct proto_ops wanpipe_ops = {
 	.family = 	PF_WANPIPE,
 	.owner =	THIS_MODULE,
 	.release = 	wanpipe_release,

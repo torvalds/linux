@@ -31,4 +31,8 @@ int change_page_attr(struct page *page, int numpages, pgprot_t prot);
 void kernel_map_pages(struct page *page, int numpages, int enable);
 #endif
 
+#ifdef CONFIG_DEBUG_RODATA
+void mark_rodata_ro(void);
+#endif
+
 #endif /* _I386_CACHEFLUSH_H */

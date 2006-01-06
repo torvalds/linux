@@ -11,6 +11,7 @@
 #include <linux/timer.h>
 #include <linux/netfilter.h>
 #include <linux/in.h>
+#include <linux/ip.h>
 #include <linux/udp.h>
 #include <linux/seq_file.h>
 #include <net/checksum.h>

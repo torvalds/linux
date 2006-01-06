@@ -102,12 +102,9 @@ static struct pending_request *__alloc_pending_request(gfp_t flags)
 {
 	struct pending_request *req;
 
-	req = (struct pending_request *)kmalloc(sizeof(struct pending_request),
-						flags);
-	if (req != NULL) {
-		memset(req, 0, sizeof(struct pending_request));
+	req = kzalloc(sizeof(*req), flags);
+	if (req)
 		INIT_LIST_HEAD(&req->list);
-	}
 
 	return req;
 }
@@ -192,9 +189,9 @@ static void add_host(struct hpsb_host *host)
 	struct host_info *hi;
 	unsigned long flags;
 
-	hi = (struct host_info *)kmalloc(sizeof(struct host_info), GFP_KERNEL);
+	hi = kmalloc(sizeof(*hi), GFP_KERNEL);
 
-	if (hi != NULL) {
+	if (hi) {
 		INIT_LIST_HEAD(&hi->list);
 		hi->host = host;
 		INIT_LIST_HEAD(&hi->file_info_list);
@@ -315,8 +312,8 @@ static void iso_receive(struct hpsb_host *host, int channel, quadlet_t * data,
 				break;
 
 			if (!ibs) {
-				ibs = kmalloc(sizeof(struct iso_block_store)
-					      + length, SLAB_ATOMIC);
+				ibs = kmalloc(sizeof(*ibs) + length,
+					      SLAB_ATOMIC);
 				if (!ibs) {
 					kfree(req);
 					break;
@@ -376,8 +373,8 @@ static void fcp_request(struct hpsb_host *host, int nodeid, int direction,
 				break;
 
 			if (!ibs) {
-				ibs = kmalloc(sizeof(struct iso_block_store)
-					      + length, SLAB_ATOMIC);
+				ibs = kmalloc(sizeof(*ibs) + length,
+					      SLAB_ATOMIC);
 				if (!ibs) {
 					kfree(req);
 					break;
@@ -502,10 +499,9 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 	switch (req->req.type) {
 	case RAW1394_REQ_LIST_CARDS:
 		spin_lock_irqsave(&host_info_lock, flags);
-		khl = kmalloc(sizeof(struct raw1394_khost_list) * host_count,
-			      SLAB_ATOMIC);
+		khl = kmalloc(sizeof(*khl) * host_count, SLAB_ATOMIC);
 
-		if (khl != NULL) {
+		if (khl) {
 			req->req.misc = host_count;
 			req->data = (quadlet_t *) khl;
 
@@ -517,7 +513,7 @@ static int state_initialized(struct file_info *fi, struct pending_request *req)
 		}
 		spin_unlock_irqrestore(&host_info_lock, flags);
 
-		if (khl != NULL) {
+		if (khl) {
 			req->req.error = RAW1394_ERROR_NONE;
 			req->req.length = min(req->req.length,
 					      (u32) (sizeof
@@ -1647,13 +1643,13 @@ static int arm_register(struct file_info *fi, struct pending_request *req)
 		return (-EINVAL);
 	}
 	/* addr-list-entry for fileinfo */
-	addr = (struct arm_addr *)kmalloc(sizeof(struct arm_addr), SLAB_KERNEL);
+	addr = kmalloc(sizeof(*addr), SLAB_KERNEL);
 	if (!addr) {
 		req->req.length = 0;
 		return (-ENOMEM);
 	}
 	/* allocation of addr_space_buffer */
-	addr->addr_space_buffer = (u8 *) vmalloc(req->req.length);
+	addr->addr_space_buffer = vmalloc(req->req.length);
 	if (!(addr->addr_space_buffer)) {
 		kfree(addr);
 		req->req.length = 0;
@@ -2122,8 +2118,7 @@ static int modify_config_rom(struct file_info *fi, struct pending_request *req)
 		return -ENOMEM;
 	}
 
-	cache->filled_head =
-	    kmalloc(sizeof(struct csr1212_cache_region), GFP_KERNEL);
+	cache->filled_head = kmalloc(sizeof(*cache->filled_head), GFP_KERNEL);
 	if (!cache->filled_head) {
 		csr1212_release_keyval(fi->csr1212_dirs[dr]);
 		fi->csr1212_dirs[dr] = NULL;
@@ -2136,7 +2131,6 @@ static int modify_config_rom(struct file_info *fi, struct pending_request *req)
 			   req->req.length)) {
 		csr1212_release_keyval(fi->csr1212_dirs[dr]);
 		fi->csr1212_dirs[dr] = NULL;
-		CSR1212_FREE(cache);
 		ret = -EFAULT;
 	} else {
 		cache->len = req->req.length;
@@ -2172,7 +2166,7 @@ static int modify_config_rom(struct file_info *fi, struct pending_request *req)
 		}
 	}
 	kfree(cache->filled_head);
-	kfree(cache);
+	CSR1212_FREE(cache);
 
 	if (ret >= 0) {
 		/* we have to free the request, because we queue no response,
@@ -2488,8 +2482,8 @@ static int raw1394_iso_recv_packets(struct file_info *fi, void __user * uaddr)
 
 	/* ensure user-supplied buffer is accessible and big enough */
 	if (!access_ok(VERIFY_WRITE, upackets.infos,
-			upackets.n_packets *
-			sizeof(struct raw1394_iso_packet_info)))
+		       upackets.n_packets *
+		       sizeof(struct raw1394_iso_packet_info)))
 		return -EFAULT;
 
 	/* copy the packet_infos out */
@@ -2522,8 +2516,8 @@ static int raw1394_iso_send_packets(struct file_info *fi, void __user * uaddr)
 
 	/* ensure user-supplied buffer is accessible and big enough */
 	if (!access_ok(VERIFY_READ, upackets.infos,
-			upackets.n_packets *
-			sizeof(struct raw1394_iso_packet_info)))
+		       upackets.n_packets *
+		       sizeof(struct raw1394_iso_packet_info)))
 		return -EFAULT;
 
 	/* copy the infos structs in and queue the packets */
@@ -2684,11 +2678,10 @@ static int raw1394_open(struct inode *inode, struct file *file)
 {
 	struct file_info *fi;
 
-	fi = kmalloc(sizeof(struct file_info), SLAB_KERNEL);
-	if (fi == NULL)
+	fi = kzalloc(sizeof(*fi), SLAB_KERNEL);
+	if (!fi)
 		return -ENOMEM;
 
-	memset(fi, 0, sizeof(struct file_info));
 	fi->notification = (u8) RAW1394_NOTIFY_ON;	/* busreset notification */
 
 	INIT_LIST_HEAD(&fi->list);
@@ -2748,8 +2741,7 @@ static int raw1394_release(struct inode *inode, struct file *file)
 						    list) {
 					entry = fi_hlp->addr_list.next;
 					while (entry != &(fi_hlp->addr_list)) {
-						arm_addr = list_entry(entry,
-								      struct
+						arm_addr = list_entry(entry, struct
 								      arm_addr,
 								      addr_list);
 						if (arm_addr->start ==
@@ -2912,16 +2904,17 @@ static int __init init_raw1394(void)
 
 	hpsb_register_highlevel(&raw1394_highlevel);
 
-	if (IS_ERR(class_device_create(hpsb_protocol_class, NULL, MKDEV(
-		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_RAW1394 * 16), 
-		NULL, RAW1394_DEVICE_NAME))) {
+	if (IS_ERR
+	    (class_device_create
+	     (hpsb_protocol_class, NULL,
+	      MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16), NULL,
+	      RAW1394_DEVICE_NAME))) {
 		ret = -EFAULT;
 		goto out_unreg;
 	}
-	
-	devfs_mk_cdev(MKDEV(
-		IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
-		S_IFCHR | S_IRUSR | S_IWUSR, RAW1394_DEVICE_NAME);
+
+	devfs_mk_cdev(MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16),
+		      S_IFCHR | S_IRUSR | S_IWUSR, RAW1394_DEVICE_NAME);
 
 	cdev_init(&raw1394_cdev, &raw1394_fops);
 	raw1394_cdev.owner = THIS_MODULE;
@@ -2943,20 +2936,22 @@ static int __init init_raw1394(void)
 
 	goto out;
 
-out_dev:
+      out_dev:
 	devfs_remove(RAW1394_DEVICE_NAME);
 	class_device_destroy(hpsb_protocol_class,
-		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16));
-out_unreg:
+			     MKDEV(IEEE1394_MAJOR,
+				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
+      out_unreg:
 	hpsb_unregister_highlevel(&raw1394_highlevel);
-out:
+      out:
 	return ret;
 }
 
 static void __exit cleanup_raw1394(void)
 {
 	class_device_destroy(hpsb_protocol_class,
-		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16));
+			     MKDEV(IEEE1394_MAJOR,
+				   IEEE1394_MINOR_BLOCK_RAW1394 * 16));
 	cdev_del(&raw1394_cdev);
 	devfs_remove(RAW1394_DEVICE_NAME);
 	hpsb_unregister_highlevel(&raw1394_highlevel);

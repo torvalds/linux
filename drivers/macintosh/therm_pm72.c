@@ -1988,18 +1988,13 @@ static void fcu_lookup_fans(struct device_node *fcu_node)
 
 static int fcu_of_probe(struct of_device* dev, const struct of_device_id *match)
 {
-	int rc;
-
 	state = state_detached;
 
 	/* Lookup the fans in the device tree */
 	fcu_lookup_fans(dev->node);
 
 	/* Add the driver */
-	rc = i2c_add_driver(&therm_pm72_driver);
-	if (rc < 0)
-		return rc;
-	return 0;
+	return i2c_add_driver(&therm_pm72_driver);
 }
 
 static int fcu_of_remove(struct of_device* dev)

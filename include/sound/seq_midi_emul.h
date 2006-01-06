@@ -29,7 +29,7 @@
  * channel.  All drivers for hardware that does not understand midi
  * directly will probably need to use this structure.
  */
-typedef struct snd_midi_channel {
+struct snd_midi_channel {
 	void *private;		/* A back pointer to driver data */
 	int  number;		/* The channel number */
 	int  client;		/* The client associated with this channel */
@@ -53,41 +53,43 @@ typedef struct snd_midi_channel {
 	short gm_rpn_fine_tuning; 	/* Master fine tuning */
 	short gm_rpn_coarse_tuning;	/* Master coarse tuning */
 
-} snd_midi_channel_t;
+};
 
 /*
  * A structure that represets a set of channels bound to a port.  There
  * would usually be 16 channels per port.  But fewer could be used for
  * particular cases.
  * The channel set consists of information describing the client and
- * port for this midi synth and an array of snd_midi_channel_t structures.
- * A driver that had no need for snd_midi_channel_t could still use the
+ * port for this midi synth and an array of snd_midi_channel structures.
+ * A driver that had no need for snd_midi_channel could still use the
  * channel set type if it wished with the channel array null.
  */
-typedef struct snd_midi_channel_set {
+struct snd_midi_channel_set {
 	void *private_data;		/* Driver data */
 	int  client;			/* Client for this port */
 	int  port;			/* The port number */
 
 	int  max_channels;		/* Size of the channels array */
-	snd_midi_channel_t *channels;
+	struct snd_midi_channel *channels;
 
 	unsigned char midi_mode;	/* MIDI operating mode */
 	unsigned char gs_master_volume;	/* SYSEX master volume: 0-127 */
 	unsigned char gs_chorus_mode;
 	unsigned char gs_reverb_mode;
 
-} snd_midi_channel_set_t;
+};
 
-typedef struct snd_seq_midi_op {
-	void (*note_on)(void *private_data, int note, int vel, snd_midi_channel_t *chan);
-	void (*note_off)(void *private_data,int note, int vel, snd_midi_channel_t *chan); /* release note */
-	void (*key_press)(void *private_data, int note, int vel, snd_midi_channel_t *chan);
-	void (*note_terminate)(void *private_data, int note, snd_midi_channel_t *chan); /* terminate note immediately */
-	void (*control)(void *private_data, int type, snd_midi_channel_t *chan);
-	void (*nrpn)(void *private_data, snd_midi_channel_t *chan, snd_midi_channel_set_t *chset);
-	void (*sysex)(void *private_data, unsigned char *buf, int len, int parsed, snd_midi_channel_set_t *chset);
-} snd_midi_op_t;
+struct snd_midi_op {
+	void (*note_on)(void *private_data, int note, int vel, struct snd_midi_channel *chan);
+	void (*note_off)(void *private_data,int note, int vel, struct snd_midi_channel *chan); /* release note */
+	void (*key_press)(void *private_data, int note, int vel, struct snd_midi_channel *chan);
+	void (*note_terminate)(void *private_data, int note, struct snd_midi_channel *chan); /* terminate note immediately */
+	void (*control)(void *private_data, int type, struct snd_midi_channel *chan);
+	void (*nrpn)(void *private_data, struct snd_midi_channel *chan,
+		     struct snd_midi_channel_set *chset);
+	void (*sysex)(void *private_data, unsigned char *buf, int len, int parsed,
+		      struct snd_midi_channel_set *chset);
+};
 
 /*
  * These defines are used so that pitchbend, aftertouch etc, can be
@@ -186,10 +188,10 @@ enum {
 };
 
 /* Prototypes for midi_process.c */
-void snd_midi_process_event(snd_midi_op_t *ops, snd_seq_event_t *ev,
-			    snd_midi_channel_set_t *chanset);
-void snd_midi_channel_set_clear(snd_midi_channel_set_t *chset);
-snd_midi_channel_set_t *snd_midi_channel_alloc_set(int n);
-void snd_midi_channel_free_set(snd_midi_channel_set_t *chset);
+void snd_midi_process_event(struct snd_midi_op *ops, struct snd_seq_event *ev,
+			    struct snd_midi_channel_set *chanset);
+void snd_midi_channel_set_clear(struct snd_midi_channel_set *chset);
+struct snd_midi_channel_set *snd_midi_channel_alloc_set(int n);
+void snd_midi_channel_free_set(struct snd_midi_channel_set *chset);
 
 #endif /* __SOUND_SEQ_MIDI_EMUL_H */

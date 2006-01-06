@@ -7,14 +7,6 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-
-/* AMDTP Gets 6 */
-#define AMDTP_IOC_CHANNEL	_IOW('#', 0x00, struct amdtp_ioctl)
-#define AMDTP_IOC_PLUG		_IOW('#', 0x01, struct amdtp_ioctl)
-#define AMDTP_IOC_PING		_IOW('#', 0x02, struct amdtp_ioctl)
-#define AMDTP_IOC_ZAP		_IO ('#', 0x03)
-
-
 /* DV1394 Gets 10 */
 
 /* Get the driver ready to transmit video.  pass a struct dv1394_init* as

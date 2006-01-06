@@ -711,6 +711,7 @@ e1000_probe(struct pci_dev *pdev,
 		break;
 	case e1000_82546:
 	case e1000_82546_rev_3:
+	case e1000_82571:
 		if((E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_FUNC_1)
 		   && (adapter->hw.media_type == e1000_media_type_copper)) {
 			e1000_read_eeprom(&adapter->hw,
@@ -1158,7 +1159,6 @@ e1000_setup_tx_resources(struct e1000_adapter *adapter,
 		return -ENOMEM;
 	}
 	memset(txdr->buffer_info, 0, size);
-	memset(&txdr->previous_buffer_info, 0, sizeof(struct e1000_buffer));
 
 	/* round up to nearest 4K */
 
@@ -1813,11 +1813,6 @@ e1000_clean_tx_ring(struct e1000_adapter *adapter,
 
 	/* Free all the Tx ring sk_buffs */
 
-	if (likely(tx_ring->previous_buffer_info.skb != NULL)) {
-		e1000_unmap_and_free_tx_resource(adapter,
-				&tx_ring->previous_buffer_info);
-	}
-
 	for(i = 0; i < tx_ring->count; i++) {
 		buffer_info = &tx_ring->buffer_info[i];
 		e1000_unmap_and_free_tx_resource(adapter, buffer_info);
@@ -1832,6 +1827,7 @@ e1000_clean_tx_ring(struct e1000_adapter *adapter,
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+	tx_ring->last_tx_tso = 0;
 
 	writel(0, adapter->hw.hw_addr + tx_ring->tdh);
 	writel(0, adapter->hw.hw_addr + tx_ring->tdt);
@@ -2437,6 +2433,16 @@ e1000_tx_map(struct e1000_adapter *adapter, struct e1000_tx_ring *tx_ring,
 		buffer_info = &tx_ring->buffer_info[i];
 		size = min(len, max_per_txd);
 #ifdef NETIF_F_TSO
+		/* Workaround for Controller erratum --
+		 * descriptor for non-tso packet in a linear SKB that follows a
+		 * tso gets written back prematurely before the data is fully
+		 * DMAd to the controller */
+		if (!skb->data_len && tx_ring->last_tx_tso &&
+				!skb_shinfo(skb)->tso_size) {
+			tx_ring->last_tx_tso = 0;
+			size -= 4;
+		}
+
 		/* Workaround for premature desc write-backs
 		 * in TSO mode.  Append 4-byte sentinel desc */
 		if(unlikely(mss && !nr_frags && size == len && size > 8))
@@ -2693,6 +2699,14 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if(skb->ip_summed == CHECKSUM_HW)
 		count++;
 #endif
+
+#ifdef NETIF_F_TSO
+	/* Controller Erratum workaround */
+	if (!skb->data_len && tx_ring->last_tx_tso &&
+		!skb_shinfo(skb)->tso_size)
+		count++;
+#endif
+
 	count += TXD_USE_COUNT(len, max_txd_pwr);
 
 	if(adapter->pcix_82544)
@@ -2774,9 +2788,10 @@ e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	if (likely(tso))
+	if (likely(tso)) {
+		tx_ring->last_tx_tso = 1;
 		tx_flags |= E1000_TX_FLAGS_TSO;
-	else if (likely(e1000_tx_csum(adapter, tx_ring, skb)))
+	} else if (likely(e1000_tx_csum(adapter, tx_ring, skb)))
 		tx_flags |= E1000_TX_FLAGS_CSUM;
 
 	/* Old method was to assume IPv4 packet by default if TSO was enabled.
@@ -3227,37 +3242,12 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 	eop_desc = E1000_TX_DESC(*tx_ring, eop);
 
 	while (eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) {
-		/* Premature writeback of Tx descriptors clear (free buffers
-		 * and unmap pci_mapping) previous_buffer_info */
-		if (likely(tx_ring->previous_buffer_info.skb != NULL)) {
-			e1000_unmap_and_free_tx_resource(adapter,
-					&tx_ring->previous_buffer_info);
-		}
-
 		for(cleaned = FALSE; !cleaned; ) {
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
 			cleaned = (i == eop);
 
-#ifdef NETIF_F_TSO
-			if (!(netdev->features & NETIF_F_TSO)) {
-#endif
-				e1000_unmap_and_free_tx_resource(adapter,
-				                                 buffer_info);
-#ifdef NETIF_F_TSO
-			} else {
-				if (cleaned) {
-					memcpy(&tx_ring->previous_buffer_info,
-					       buffer_info,
-					       sizeof(struct e1000_buffer));
-					memset(buffer_info, 0,
-					       sizeof(struct e1000_buffer));
-				} else {
-					e1000_unmap_and_free_tx_resource(
-					    adapter, buffer_info);
-				}
-			}
-#endif
+			e1000_unmap_and_free_tx_resource(adapter, buffer_info);
 
 			tx_desc->buffer_addr = 0;
 			tx_desc->lower.data = 0;
@@ -3318,12 +3308,6 @@ e1000_clean_tx_irq(struct e1000_adapter *adapter,
 			netif_stop_queue(netdev);
 		}
 	}
-#ifdef NETIF_F_TSO
-	if (unlikely(!(eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
-	    time_after(jiffies, tx_ring->previous_buffer_info.time_stamp + HZ)))
-		e1000_unmap_and_free_tx_resource(
-		    adapter, &tx_ring->previous_buffer_info);
-#endif
 	return cleaned;
 }
 

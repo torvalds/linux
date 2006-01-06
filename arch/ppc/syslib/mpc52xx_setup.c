@@ -84,9 +84,11 @@ mpc52xx_set_bat(void)
 void __init
 mpc52xx_map_io(void)
 {
-	/* Here we only map the MBAR */
+	/* Here we map the MBAR and the whole upper zone. MBAR is only
+	   64k but we can't map only 64k with BATs. Map the whole
+	   0xf0000000 range is ok and helps eventual lpb devices placed there */
 	io_block_mapping(
-		MPC52xx_MBAR_VIRT, MPC52xx_MBAR, MPC52xx_MBAR_SIZE, _PAGE_IO);
+		MPC52xx_MBAR_VIRT, MPC52xx_MBAR, 0x10000000, _PAGE_IO);
 }
 
 

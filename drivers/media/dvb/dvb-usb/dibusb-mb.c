@@ -373,7 +373,6 @@ static struct dvb_usb_properties artec_t1_usb2_properties = {
 };
 
 static struct usb_driver dibusb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_dibusb_mb",
 	.probe		= dibusb_probe,
 	.disconnect = dvb_usb_device_exit,

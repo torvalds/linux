@@ -45,21 +45,21 @@ int volume_boost = 8;
 module_param(volume_boost, int, 0644);
 MODULE_PARM_DESC(volume_boost, "Additional volume for OPL4 wavetable sounds.");
 
-static int snd_opl4_seq_use_inc(opl4_t *opl4)
+static int snd_opl4_seq_use_inc(struct snd_opl4 *opl4)
 {
 	if (!try_module_get(opl4->card->module))
 		return -EFAULT;
 	return 0;
 }
 
-static void snd_opl4_seq_use_dec(opl4_t *opl4)
+static void snd_opl4_seq_use_dec(struct snd_opl4 *opl4)
 {
 	module_put(opl4->card->module);
 }
 
-static int snd_opl4_seq_use(void *private_data, snd_seq_port_subscribe_t *info)
+static int snd_opl4_seq_use(void *private_data, struct snd_seq_port_subscribe *info)
 {
-	opl4_t *opl4 = private_data;
+	struct snd_opl4 *opl4 = private_data;
 	int err;
 
 	down(&opl4->access_mutex);
@@ -84,9 +84,9 @@ static int snd_opl4_seq_use(void *private_data, snd_seq_port_subscribe_t *info)
 	return 0;
 }
 
-static int snd_opl4_seq_unuse(void *private_data, snd_seq_port_subscribe_t *info)
+static int snd_opl4_seq_unuse(void *private_data, struct snd_seq_port_subscribe *info)
 {
-	opl4_t *opl4 = private_data;
+	struct snd_opl4 *opl4 = private_data;
 
 	snd_opl4_synth_shutdown(opl4);
 
@@ -99,7 +99,7 @@ static int snd_opl4_seq_unuse(void *private_data, snd_seq_port_subscribe_t *info
 	return 0;
 }
 
-static snd_midi_op_t opl4_ops = {
+static struct snd_midi_op opl4_ops = {
 	.note_on =		snd_opl4_note_on,
 	.note_off =		snd_opl4_note_off,
 	.note_terminate =	snd_opl4_terminate_note,
@@ -107,10 +107,10 @@ static snd_midi_op_t opl4_ops = {
 	.sysex =		snd_opl4_sysex,
 };
 
-static int snd_opl4_seq_event_input(snd_seq_event_t *ev, int direct,
+static int snd_opl4_seq_event_input(struct snd_seq_event *ev, int direct,
 				    void *private_data, int atomic, int hop)
 {
-	opl4_t *opl4 = private_data;
+	struct snd_opl4 *opl4 = private_data;
 
 	snd_midi_process_event(&opl4_ops, ev, opl4->chset);
 	return 0;
@@ -118,20 +118,18 @@ static int snd_opl4_seq_event_input(snd_seq_event_t *ev, int direct,
 
 static void snd_opl4_seq_free_port(void *private_data)
 {
-	opl4_t *opl4 = private_data;
+	struct snd_opl4 *opl4 = private_data;
 
 	snd_midi_channel_free_set(opl4->chset);
 }
 
-static int snd_opl4_seq_new_device(snd_seq_device_t *dev)
+static int snd_opl4_seq_new_device(struct snd_seq_device *dev)
 {
-	opl4_t *opl4;
+	struct snd_opl4 *opl4;
 	int client;
-	snd_seq_client_callback_t callbacks;
-	snd_seq_client_info_t cinfo;
-	snd_seq_port_callback_t pcallbacks;
+	struct snd_seq_port_callback pcallbacks;
 
-	opl4 = *(opl4_t **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
+	opl4 = *(struct snd_opl4 **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	if (!opl4)
 		return -EINVAL;
 
@@ -144,23 +142,14 @@ static int snd_opl4_seq_new_device(snd_seq_device_t *dev)
 	opl4->chset->private_data = opl4;
 
 	/* allocate new client */
-	memset(&callbacks, 0, sizeof(callbacks));
-	callbacks.private_data = opl4;
-	callbacks.allow_output = callbacks.allow_input = 1;
-	client = snd_seq_create_kernel_client(opl4->card, opl4->seq_dev_num, &callbacks);
+	client = snd_seq_create_kernel_client(opl4->card, opl4->seq_dev_num,
+					      "OPL4 Wavetable");
 	if (client < 0) {
 		snd_midi_channel_free_set(opl4->chset);
 		return client;
 	}
 	opl4->seq_client = client;
 	opl4->chset->client = client;
-
-	/* change name of client */
-	memset(&cinfo, 0, sizeof(cinfo));
-	cinfo.client = client;
-	cinfo.type = KERNEL_CLIENT;
-	strcpy(cinfo.name, "OPL4 Wavetable");
-	snd_seq_kernel_client_ctl(client, SNDRV_SEQ_IOCTL_SET_CLIENT_INFO, &cinfo);
 
 	/* create new port */
 	memset(&pcallbacks, 0, sizeof(pcallbacks));
@@ -188,11 +177,11 @@ static int snd_opl4_seq_new_device(snd_seq_device_t *dev)
 	return 0;
 }
 
-static int snd_opl4_seq_delete_device(snd_seq_device_t *dev)
+static int snd_opl4_seq_delete_device(struct snd_seq_device *dev)
 {
-	opl4_t *opl4;
+	struct snd_opl4 *opl4;
 
-	opl4 = *(opl4_t **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
+	opl4 = *(struct snd_opl4 **)SNDRV_SEQ_DEVICE_ARGPTR(dev);
 	if (!opl4)
 		return -EINVAL;
 
@@ -205,13 +194,13 @@ static int snd_opl4_seq_delete_device(snd_seq_device_t *dev)
 
 static int __init alsa_opl4_synth_init(void)
 {
-	static snd_seq_dev_ops_t ops = {
+	static struct snd_seq_dev_ops ops = {
 		snd_opl4_seq_new_device,
 		snd_opl4_seq_delete_device
 	};
 
 	return snd_seq_device_register_driver(SNDRV_SEQ_DEV_ID_OPL4, &ops,
-					      sizeof(opl4_t*));
+					      sizeof(struct snd_opl4 *));
 }
 
 static void __exit alsa_opl4_synth_exit(void)

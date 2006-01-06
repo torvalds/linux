@@ -24,13 +24,13 @@
 #include <sound/timer.h>
 #include <sound/seq_kernel.h>
 
-typedef struct {
+struct snd_seq_timer_tick {
 	snd_seq_tick_time_t	cur_tick;	/* current tick */
 	unsigned long		resolution;	/* time per tick in nsec */
 	unsigned long		fraction;	/* current time per tick in nsec */
-} seq_timer_tick_t;
+};
 
-typedef struct {
+struct snd_seq_timer {
 	/* ... tempo / offset / running state */
 
 	unsigned int		running:1,	/* running state of queue */	
@@ -40,12 +40,12 @@ typedef struct {
 	int			ppq;		/* time resolution, ticks/quarter */
 
 	snd_seq_real_time_t	cur_time;	/* current time */
-	seq_timer_tick_t	tick;		/* current tick */
+	struct snd_seq_timer_tick	tick;	/* current tick */
 	int tick_updated;
 	
 	int			type;		/* timer type */
-	snd_timer_id_t		alsa_id;	/* ALSA's timer ID */
-	snd_timer_instance_t	*timeri;	/* timer instance */
+	struct snd_timer_id	alsa_id;	/* ALSA's timer ID */
+	struct snd_timer_instance	*timeri;	/* timer instance */
 	unsigned int		ticks;
 	unsigned long		preferred_resolution; /* timer resolution, ticks/sec */
 
@@ -55,17 +55,18 @@ typedef struct {
 	struct timeval 		last_update;	 /* time of last clock update, used for interpolation */
 
 	spinlock_t lock;
-} seq_timer_t;
+};
 
 
 /* create new timer (constructor) */
-extern seq_timer_t *snd_seq_timer_new(void);
+struct snd_seq_timer *snd_seq_timer_new(void);
 
 /* delete timer (destructor) */
-extern void snd_seq_timer_delete(seq_timer_t **tmr);
+void snd_seq_timer_delete(struct snd_seq_timer **tmr);
 
 /* */
-static inline void snd_seq_timer_update_tick(seq_timer_tick_t *tick, unsigned long resolution)
+static inline void snd_seq_timer_update_tick(struct snd_seq_timer_tick *tick,
+					     unsigned long resolution)
 {
 	if (tick->resolution > 0) {
 		tick->fraction += resolution;
@@ -119,21 +120,22 @@ static inline void snd_seq_inc_time_nsec(snd_seq_real_time_t *tm, unsigned long 
 }
 
 /* called by timer isr */
-int snd_seq_timer_open(queue_t *q);
-int snd_seq_timer_close(queue_t *q);
-int snd_seq_timer_midi_open(queue_t *q);
-int snd_seq_timer_midi_close(queue_t *q);
-void snd_seq_timer_defaults(seq_timer_t *tmr);
-void snd_seq_timer_reset(seq_timer_t *tmr);
-int snd_seq_timer_stop(seq_timer_t *tmr);
-int snd_seq_timer_start(seq_timer_t *tmr);
-int snd_seq_timer_continue(seq_timer_t *tmr);
-int snd_seq_timer_set_tempo(seq_timer_t *tmr, int tempo);
-int snd_seq_timer_set_ppq(seq_timer_t *tmr, int ppq);
-int snd_seq_timer_set_position_tick(seq_timer_t *tmr, snd_seq_tick_time_t position);
-int snd_seq_timer_set_position_time(seq_timer_t *tmr, snd_seq_real_time_t position);
-int snd_seq_timer_set_skew(seq_timer_t *tmr, unsigned int skew, unsigned int base);
-snd_seq_real_time_t snd_seq_timer_get_cur_time(seq_timer_t *tmr);
-snd_seq_tick_time_t snd_seq_timer_get_cur_tick(seq_timer_t *tmr);
+struct snd_seq_queue;
+int snd_seq_timer_open(struct snd_seq_queue *q);
+int snd_seq_timer_close(struct snd_seq_queue *q);
+int snd_seq_timer_midi_open(struct snd_seq_queue *q);
+int snd_seq_timer_midi_close(struct snd_seq_queue *q);
+void snd_seq_timer_defaults(struct snd_seq_timer *tmr);
+void snd_seq_timer_reset(struct snd_seq_timer *tmr);
+int snd_seq_timer_stop(struct snd_seq_timer *tmr);
+int snd_seq_timer_start(struct snd_seq_timer *tmr);
+int snd_seq_timer_continue(struct snd_seq_timer *tmr);
+int snd_seq_timer_set_tempo(struct snd_seq_timer *tmr, int tempo);
+int snd_seq_timer_set_ppq(struct snd_seq_timer *tmr, int ppq);
+int snd_seq_timer_set_position_tick(struct snd_seq_timer *tmr, snd_seq_tick_time_t position);
+int snd_seq_timer_set_position_time(struct snd_seq_timer *tmr, snd_seq_real_time_t position);
+int snd_seq_timer_set_skew(struct snd_seq_timer *tmr, unsigned int skew, unsigned int base);
+snd_seq_real_time_t snd_seq_timer_get_cur_time(struct snd_seq_timer *tmr);
+snd_seq_tick_time_t snd_seq_timer_get_cur_tick(struct snd_seq_timer *tmr);
 
 #endif

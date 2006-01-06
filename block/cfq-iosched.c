@@ -25,15 +25,15 @@
 /*
  * tunables
  */
-static int cfq_quantum = 4;		/* max queue in one round of service */
-static int cfq_queued = 8;		/* minimum rq allocate limit per-queue*/
-static int cfq_fifo_expire[2] = { HZ / 4, HZ / 8 };
-static int cfq_back_max = 16 * 1024;	/* maximum backwards seek, in KiB */
-static int cfq_back_penalty = 2;	/* penalty of a backwards seek */
+static const int cfq_quantum = 4;		/* max queue in one round of service */
+static const int cfq_queued = 8;		/* minimum rq allocate limit per-queue*/
+static const int cfq_fifo_expire[2] = { HZ / 4, HZ / 8 };
+static const int cfq_back_max = 16 * 1024;	/* maximum backwards seek, in KiB */
+static const int cfq_back_penalty = 2;		/* penalty of a backwards seek */
 
-static int cfq_slice_sync = HZ / 10;
+static const int cfq_slice_sync = HZ / 10;
 static int cfq_slice_async = HZ / 25;
-static int cfq_slice_async_rq = 2;
+static const int cfq_slice_async_rq = 2;
 static int cfq_slice_idle = HZ / 100;
 
 #define CFQ_IDLE_GRACE		(HZ / 10)
@@ -45,7 +45,7 @@ static int cfq_slice_idle = HZ / 100;
 /*
  * disable queueing at the driver/hardware level
  */
-static int cfq_max_depth = 2;
+static const int cfq_max_depth = 2;
 
 /*
  * for the hash of cfqq inside the cfqd

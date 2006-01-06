@@ -32,6 +32,7 @@
 #define MADV_SEQUENTIAL	0x2		/* read-ahead aggressively */
 #define MADV_WILLNEED	0x3		/* pre-fault pages */
 #define MADV_DONTNEED	0x4		/* discard these pages */
+#define MADV_REMOVE	0x5		/* remove these pages & resources */
 
 /* compatibility flags */
 #define MAP_ANON	MAP_ANONYMOUS

@@ -66,7 +66,6 @@ static struct pci_driver i82092aa_pci_drv = {
 static struct pccard_operations i82092aa_operations = {
 	.init 		 	= i82092aa_init,
 	.get_status		= i82092aa_get_status,
-	.get_socket		= i82092aa_get_socket,
 	.set_socket		= i82092aa_set_socket,
 	.set_io_map		= i82092aa_set_io_map,
 	.set_mem_map		= i82092aa_set_mem_map,
@@ -481,78 +480,6 @@ static int i82092aa_get_status(struct pcmcia_socket *socket, u_int *value)
 	return 0;
 }
 
-
-static int i82092aa_get_socket(struct pcmcia_socket *socket, socket_state_t *state) 
-{
-	unsigned int sock = container_of(socket, struct socket_info, socket)->number;
-	unsigned char reg,vcc,vpp;
-	
-	enter("i82092aa_get_socket");
-	state->flags    = 0;
-	state->Vcc      = 0;
-	state->Vpp      = 0;
-	state->io_irq   = 0;
-	state->csc_mask = 0;
-
-	/* First the power status of the socket */
-	reg = indirect_read(sock,I365_POWER); /* PCTRL - Power Control Register */
-
-	if (reg & I365_PWR_AUTO)
-		state->flags |= SS_PWR_AUTO;  /* Automatic Power Switch */
-		
-	if (reg & I365_PWR_OUT)
-		state->flags |= SS_OUTPUT_ENA; /* Output signals are enabled */
-		
-	vcc = reg & I365_VCC_MASK;    vpp = reg & I365_VPP1_MASK;
-	
-	if (reg & I365_VCC_5V) { /* Can still be 3.3V, in this case the Vcc value will be overwritten later */
-		state->Vcc = 50;
-		
-		if (vpp == I365_VPP1_5V)
-			state->Vpp = 50;
-		if (vpp == I365_VPP1_12V)
-			state->Vpp = 120;
-			
-	}
-	
-	if ((reg & I365_VCC_3V)==I365_VCC_3V)
-		state->Vcc = 33;
-	
-	
-	/* Now the IO card, RESET flags and IO interrupt */
-	
-	reg = indirect_read(sock, I365_INTCTL); /* IGENC, Interrupt and General Control */
-	
-	if ((reg & I365_PC_RESET)==0)
-		state->flags |= SS_RESET;
-	if (reg & I365_PC_IOCARD) 
-		state->flags |= SS_IOCARD; /* This is an IO card */
-	
-	/* Set the IRQ number */
-	if (sockets[sock].dev!=NULL)
-		state->io_irq = sockets[sock].dev->irq;
-	
-	/* Card status change */
-	reg = indirect_read(sock, I365_CSCINT); /* CSCICR, Card Status Change Interrupt Configuration */
-	
-	if (reg & I365_CSC_DETECT) 
-		state->csc_mask |= SS_DETECT; /* Card detect is enabled */
-	
-	if (state->flags & SS_IOCARD) {/* IO Cards behave different */
-		if (reg & I365_CSC_STSCHG)
-			state->csc_mask |= SS_STSCHG;
-	} else {
-		if (reg & I365_CSC_BVD1) 
-			state->csc_mask |= SS_BATDEAD;
-		if (reg & I365_CSC_BVD2) 
-			state->csc_mask |= SS_BATWARN;
-		if (reg & I365_CSC_READY) 
-			state->csc_mask |= SS_READY;
-	}
-		
-	leave("i82092aa_get_socket");
-	return 0;
-}
 
 static int i82092aa_set_socket(struct pcmcia_socket *socket, socket_state_t *state) 
 {

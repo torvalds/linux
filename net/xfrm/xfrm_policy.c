@@ -10,7 +10,7 @@
  * 	YOSHIFUJI Hideaki
  * 		Split up af-specific portion
  *	Derek Atkins <derek@ihtfp.com>		Add the post_input processor
- * 	
+ *
  */
 
 #include <asm/bug.h>
@@ -256,6 +256,7 @@ void __xfrm_policy_destroy(struct xfrm_policy *policy)
 	if (del_timer(&policy->timer))
 		BUG();
 
+	security_xfrm_policy_free(policy);
 	kfree(policy);
 }
 EXPORT_SYMBOL(__xfrm_policy_destroy);
@@ -350,7 +351,8 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 
 	write_lock_bh(&xfrm_policy_lock);
 	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL;) {
-		if (!delpol && memcmp(&policy->selector, &pol->selector, sizeof(pol->selector)) == 0) {
+		if (!delpol && memcmp(&policy->selector, &pol->selector, sizeof(pol->selector)) == 0 &&
+		    xfrm_sec_ctx_match(pol->security, policy->security)) {
 			if (excl) {
 				write_unlock_bh(&xfrm_policy_lock);
 				return -EEXIST;
@@ -416,14 +418,15 @@ int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl)
 }
 EXPORT_SYMBOL(xfrm_policy_insert);
 
-struct xfrm_policy *xfrm_policy_bysel(int dir, struct xfrm_selector *sel,
-				      int delete)
+struct xfrm_policy *xfrm_policy_bysel_ctx(int dir, struct xfrm_selector *sel,
+					  struct xfrm_sec_ctx *ctx, int delete)
 {
 	struct xfrm_policy *pol, **p;
 
 	write_lock_bh(&xfrm_policy_lock);
 	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL; p = &pol->next) {
-		if (memcmp(sel, &pol->selector, sizeof(*sel)) == 0) {
+		if ((memcmp(sel, &pol->selector, sizeof(*sel)) == 0) &&
+		    (xfrm_sec_ctx_match(ctx, pol->security))) {
 			xfrm_pol_hold(pol);
 			if (delete)
 				*p = pol->next;
@@ -438,7 +441,7 @@ struct xfrm_policy *xfrm_policy_bysel(int dir, struct xfrm_selector *sel,
 	}
 	return pol;
 }
-EXPORT_SYMBOL(xfrm_policy_bysel);
+EXPORT_SYMBOL(xfrm_policy_bysel_ctx);
 
 struct xfrm_policy *xfrm_policy_byid(int dir, u32 id, int delete)
 {
@@ -519,7 +522,7 @@ EXPORT_SYMBOL(xfrm_policy_walk);
 
 /* Find policy to apply to this flow. */
 
-static void xfrm_policy_lookup(struct flowi *fl, u16 family, u8 dir,
+static void xfrm_policy_lookup(struct flowi *fl, u32 sk_sid, u16 family, u8 dir,
 			       void **objp, atomic_t **obj_refp)
 {
 	struct xfrm_policy *pol;
@@ -533,9 +536,12 @@ static void xfrm_policy_lookup(struct flowi *fl, u16 family, u8 dir,
 			continue;
 
 		match = xfrm_selector_match(sel, fl, family);
+
 		if (match) {
-			xfrm_pol_hold(pol);
-			break;
+ 			if (!security_xfrm_policy_lookup(pol, sk_sid, dir)) {
+				xfrm_pol_hold(pol);
+				break;
+			}
 		}
 	}
 	read_unlock_bh(&xfrm_policy_lock);
@@ -543,15 +549,37 @@ static void xfrm_policy_lookup(struct flowi *fl, u16 family, u8 dir,
 		*obj_refp = &pol->refcnt;
 }
 
-static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir, struct flowi *fl)
+static inline int policy_to_flow_dir(int dir)
+{
+	if (XFRM_POLICY_IN == FLOW_DIR_IN &&
+ 	    XFRM_POLICY_OUT == FLOW_DIR_OUT &&
+ 	    XFRM_POLICY_FWD == FLOW_DIR_FWD)
+ 		return dir;
+ 	switch (dir) {
+ 	default:
+ 	case XFRM_POLICY_IN:
+ 		return FLOW_DIR_IN;
+ 	case XFRM_POLICY_OUT:
+ 		return FLOW_DIR_OUT;
+ 	case XFRM_POLICY_FWD:
+ 		return FLOW_DIR_FWD;
+	};
+}
+
+static struct xfrm_policy *xfrm_sk_policy_lookup(struct sock *sk, int dir, struct flowi *fl, u32 sk_sid)
 {
 	struct xfrm_policy *pol;
 
 	read_lock_bh(&xfrm_policy_lock);
 	if ((pol = sk->sk_policy[dir]) != NULL) {
-		int match = xfrm_selector_match(&pol->selector, fl,
+ 		int match = xfrm_selector_match(&pol->selector, fl,
 						sk->sk_family);
+ 		int err = 0;
+
 		if (match)
+		  err = security_xfrm_policy_lookup(pol, sk_sid, policy_to_flow_dir(dir));
+
+ 		if (match && !err)
 			xfrm_pol_hold(pol);
 		else
 			pol = NULL;
@@ -624,6 +652,10 @@ static struct xfrm_policy *clone_policy(struct xfrm_policy *old, int dir)
 
 	if (newp) {
 		newp->selector = old->selector;
+		if (security_xfrm_policy_clone(old, newp)) {
+			kfree(newp);
+			return NULL;  /* ENOMEM */
+		}
 		newp->lft = old->lft;
 		newp->curlft = old->curlft;
 		newp->action = old->action;
@@ -735,22 +767,6 @@ xfrm_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int nx,
 	return err;
 }
 
-static inline int policy_to_flow_dir(int dir)
-{
-	if (XFRM_POLICY_IN == FLOW_DIR_IN &&
-	    XFRM_POLICY_OUT == FLOW_DIR_OUT &&
-	    XFRM_POLICY_FWD == FLOW_DIR_FWD)
-		return dir;
-	switch (dir) {
-	default:
-	case XFRM_POLICY_IN:
-		return FLOW_DIR_IN;
-	case XFRM_POLICY_OUT:
-		return FLOW_DIR_OUT;
-	case XFRM_POLICY_FWD:
-		return FLOW_DIR_FWD;
-	};
-}
 
 static int stale_bundle(struct dst_entry *dst);
 
@@ -769,19 +785,20 @@ int xfrm_lookup(struct dst_entry **dst_p, struct flowi *fl,
 	int err;
 	u32 genid;
 	u16 family = dst_orig->ops->family;
+	u8 dir = policy_to_flow_dir(XFRM_POLICY_OUT);
+	u32 sk_sid = security_sk_sid(sk, fl, dir);
 restart:
 	genid = atomic_read(&flow_cache_genid);
 	policy = NULL;
 	if (sk && sk->sk_policy[1])
-		policy = xfrm_sk_policy_lookup(sk, XFRM_POLICY_OUT, fl);
+		policy = xfrm_sk_policy_lookup(sk, XFRM_POLICY_OUT, fl, sk_sid);
 
 	if (!policy) {
 		/* To accelerate a bit...  */
 		if ((dst_orig->flags & DST_NOXFRM) || !xfrm_policy_list[XFRM_POLICY_OUT])
 			return 0;
 
-		policy = flow_cache_lookup(fl, family,
-					   policy_to_flow_dir(XFRM_POLICY_OUT),
+		policy = flow_cache_lookup(fl, sk_sid, family, dir,
 					   xfrm_policy_lookup);
 	}
 
@@ -962,16 +979,20 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 {
 	struct xfrm_policy *pol;
 	struct flowi fl;
+	u8 fl_dir = policy_to_flow_dir(dir);
+	u32 sk_sid;
 
 	if (_decode_session(skb, &fl, family) < 0)
 		return 0;
+
+	sk_sid = security_sk_sid(sk, &fl, fl_dir);
 
 	/* First, check used SA against their selectors. */
 	if (skb->sp) {
 		int i;
 
 		for (i=skb->sp->len-1; i>=0; i--) {
-		  struct sec_decap_state *xvec = &(skb->sp->x[i]);
+			struct sec_decap_state *xvec = &(skb->sp->x[i]);
 			if (!xfrm_selector_match(&xvec->xvec->sel, &fl, family))
 				return 0;
 
@@ -986,11 +1007,10 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 
 	pol = NULL;
 	if (sk && sk->sk_policy[dir])
-		pol = xfrm_sk_policy_lookup(sk, dir, &fl);
+		pol = xfrm_sk_policy_lookup(sk, dir, &fl, sk_sid);
 
 	if (!pol)
-		pol = flow_cache_lookup(&fl, family,
-					policy_to_flow_dir(dir),
+		pol = flow_cache_lookup(&fl, sk_sid, family, fl_dir,
 					xfrm_policy_lookup);
 
 	if (!pol)

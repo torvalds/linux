@@ -25,7 +25,7 @@
 #include <sound/core.h>
 #include <sound/gus.h>
 
-static void snd_gf1_dma_ack(snd_gus_card_t * gus)
+static void snd_gf1_dma_ack(struct snd_gus_card * gus)
 {
 	unsigned long flags;
 
@@ -35,7 +35,7 @@ static void snd_gf1_dma_ack(snd_gus_card_t * gus)
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-static void snd_gf1_dma_program(snd_gus_card_t * gus,
+static void snd_gf1_dma_program(struct snd_gus_card * gus,
 				unsigned int addr,
 				unsigned long buf_addr,
 				unsigned int count,
@@ -91,9 +91,9 @@ static void snd_gf1_dma_program(snd_gus_card_t * gus,
 	spin_unlock_irqrestore(&gus->reg_lock, flags);
 }
 
-static snd_gf1_dma_block_t *snd_gf1_dma_next_block(snd_gus_card_t * gus)
+static struct snd_gf1_dma_block *snd_gf1_dma_next_block(struct snd_gus_card * gus)
 {
-	snd_gf1_dma_block_t *block;
+	struct snd_gf1_dma_block *block;
 
 	/* PCM block have bigger priority than synthesizer one */
 	if (gus->gf1.dma_data_pcm) {
@@ -123,9 +123,9 @@ static snd_gf1_dma_block_t *snd_gf1_dma_next_block(snd_gus_card_t * gus)
 }
 
 
-static void snd_gf1_dma_interrupt(snd_gus_card_t * gus)
+static void snd_gf1_dma_interrupt(struct snd_gus_card * gus)
 {
-	snd_gf1_dma_block_t *block;
+	struct snd_gf1_dma_block *block;
 
 	snd_gf1_dma_ack(gus);
 	if (gus->gf1.dma_ack)
@@ -147,7 +147,7 @@ static void snd_gf1_dma_interrupt(snd_gus_card_t * gus)
 #endif
 }
 
-int snd_gf1_dma_init(snd_gus_card_t * gus)
+int snd_gf1_dma_init(struct snd_gus_card * gus)
 {
 	down(&gus->dma_mutex);
 	gus->gf1.dma_shared++;
@@ -164,9 +164,9 @@ int snd_gf1_dma_init(snd_gus_card_t * gus)
 	return 0;
 }
 
-int snd_gf1_dma_done(snd_gus_card_t * gus)
+int snd_gf1_dma_done(struct snd_gus_card * gus)
 {
-	snd_gf1_dma_block_t *block;
+	struct snd_gf1_dma_block *block;
 
 	down(&gus->dma_mutex);
 	gus->gf1.dma_shared--;
@@ -189,13 +189,13 @@ int snd_gf1_dma_done(snd_gus_card_t * gus)
 	return 0;
 }
 
-int snd_gf1_dma_transfer_block(snd_gus_card_t * gus,
-			       snd_gf1_dma_block_t * __block,
+int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
+			       struct snd_gf1_dma_block * __block,
 			       int atomic,
 			       int synth)
 {
 	unsigned long flags;
-	snd_gf1_dma_block_t *block;
+	struct snd_gf1_dma_block *block;
 
 	block = kmalloc(sizeof(*block), atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (block == NULL) {

@@ -3457,7 +3457,7 @@ static void ibmcam_model3_setup_after_video_if(struct uvd *uvd)
 	if(init_model3_input) {
 		if (debug > 0)
 			info("Setting input to RCA.");
-		for (i=0; i < (sizeof(initData)/sizeof(initData[0])); i++) {
+		for (i=0; i < ARRAY_SIZE(initData); i++) {
 			ibmcam_veio(uvd, initData[i].req, initData[i].value, initData[i].index);
 		}
 	}

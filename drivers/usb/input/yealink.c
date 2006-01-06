@@ -987,7 +987,6 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 }
 
 static struct usb_driver yealink_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "yealink",
 	.probe		= usb_probe,
 	.disconnect	= usb_disconnect,

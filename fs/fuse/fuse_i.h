@@ -21,6 +21,9 @@
 /** If more requests are outstanding, then the operation will block */
 #define FUSE_MAX_OUTSTANDING 10
 
+/** It could be as large as PATH_MAX, but would that have any uses? */
+#define FUSE_NAME_MAX 1024
+
 /** If the FUSE_DEFAULT_PERMISSIONS flag is given, the filesystem
     module will check permissions based on the file mode.  Otherwise no
     permission checking is done in the kernel */
@@ -108,9 +111,6 @@ struct fuse_out {
 	struct fuse_arg args[3];
 };
 
-struct fuse_req;
-struct fuse_conn;
-
 /**
  * A request to the client
  */
@@ -159,7 +159,8 @@ struct fuse_req {
 	union {
 		struct fuse_forget_in forget_in;
 		struct fuse_release_in release_in;
-		struct fuse_init_in_out init_in_out;
+		struct fuse_init_in init_in;
+		struct fuse_init_out init_out;
 	} misc;
 
 	/** page vector */
@@ -271,6 +272,9 @@ struct fuse_conn {
 
 	/** Is create not implemented by fs? */
 	unsigned no_create : 1;
+
+	/** Negotiated minor version */
+	unsigned minor;
 
 	/** Backing dev info */
 	struct backing_dev_info bdi;

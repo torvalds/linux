@@ -28,7 +28,7 @@ static void dccp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_retransmits	= icsk->icsk_retransmits;
 	info->tcpi_probes	= icsk->icsk_probes_out;
 	info->tcpi_backoff	= icsk->icsk_backoff;
-	info->tcpi_pmtu		= dp->dccps_pmtu_cookie;
+	info->tcpi_pmtu		= icsk->icsk_pmtu_cookie;
 
 	if (dp->dccps_options.dccpo_send_ack_vector)
 		info->tcpi_options |= TCPI_OPT_SACK;

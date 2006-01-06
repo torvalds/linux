@@ -71,7 +71,7 @@ Ptr____Call (c)
                                                at the end of BG */
 
 /* Minimal context save area for Hyper Forground */
-typedef struct _hf_save_area_t {
+struct dsp_hf_save_area {
 	u32	r10_save;
 	u32	r54_save;
 	u32	r98_save;
@@ -96,11 +96,11 @@ typedef struct _hf_save_area_t {
 	      rsa2Save
 	)
 	/* saved as part of HFG context  */
-} hf_save_area_t;
+};
 
 
 /* Task link data structure */
-typedef struct _tree_link_t {
+struct dsp_tree_link {
 	___DSP_DUAL_16BIT_ALLOC(
 	/* Pointer to sibling task control block */
 	    next_scb,
@@ -114,10 +114,10 @@ typedef struct _tree_link_t {
 	/* Pointer to local data */
 	    this_spb
 	)
-} tree_link_t;
+};
 
 
-typedef struct _task_tree_data_t {
+struct dsp_task_tree_data {
 	___DSP_DUAL_16BIT_ALLOC(
 	/* Initial tock count; controls task tree execution rate */
 	    tock_count_limit,
@@ -155,11 +155,10 @@ typedef struct _task_tree_data_t {
 	    data_stack_base_ptr
 	)
 
-} task_tree_data_t;
+};
 
 
-
-typedef struct _interval_timer_data_t
+struct dsp_interval_timer_data
 {
 	/* These data items have the same relative locations to those */
 	___DSP_DUAL_16BIT_ALLOC(
@@ -172,12 +171,12 @@ typedef struct _interval_timer_data_t
 	     num_FG_ticks_this_interval,        
 	     num_intervals
 	)
-} interval_timer_data_t;    
+};
 
 
 /* This structure contains extra storage for the task tree
    Currently, this additional data is related only to a full context save */
-typedef struct _task_tree_context_block_t {
+struct dsp_task_tree_context_block {
 	/* Up to 10 values are saved onto the stack.  8 for the task tree, 1 for
 	   The access to the context switch (call or interrupt), and 1 spare that
 	   users should never use.  This last may be required by the system */
@@ -238,16 +237,16 @@ typedef struct _task_tree_context_block_t {
 	u32		saveaux2xaux3x;
 	u32		savershouthl;
 	u32		savershoutxmacmode;
-} task_tree_context_block_t;						  
+};
                 
 
-typedef struct _task_tree_control_block_t	{
-	hf_save_area_t		 	context;
-	tree_link_t			links;
-	task_tree_data_t		data;
-	task_tree_context_block_t	context_blk;
-	interval_timer_data_t		int_timer;
-} task_tree_control_block_t;
+struct dsp_task_tree_control_block {
+	struct dsp_hf_save_area			context;
+	struct dsp_tree_link			links;
+	struct dsp_task_tree_data		data;
+	struct dsp_task_tree_context_block	context_blk;
+	struct dsp_interval_timer_data		int_timer;
+};
 
 
 #endif /* __DSP_TASK_TYPES_H__ */

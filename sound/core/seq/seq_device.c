@@ -50,11 +50,6 @@ MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ALSA sequencer device management");
 MODULE_LICENSE("GPL");
 
-/*
- * driver list
- */
-typedef struct ops_list ops_list_t;
-
 /* driver state */
 #define DRIVER_EMPTY		0
 #define DRIVER_LOADED		(1<<0)
@@ -68,7 +63,7 @@ struct ops_list {
 	int argsize;		/* argument size */
 
 	/* operators */
-	snd_seq_dev_ops_t ops;
+	struct snd_seq_dev_ops ops;
 
 	/* registred devices */
 	struct list_head dev_list;	/* list of devices */
@@ -83,35 +78,39 @@ struct ops_list {
 static LIST_HEAD(opslist);
 static int num_ops;
 static DECLARE_MUTEX(ops_mutex);
-static snd_info_entry_t *info_entry = NULL;
+#ifdef CONFIG_PROC_FS
+static struct snd_info_entry *info_entry = NULL;
+#endif
 
 /*
  * prototypes
  */
-static int snd_seq_device_free(snd_seq_device_t *dev);
-static int snd_seq_device_dev_free(snd_device_t *device);
-static int snd_seq_device_dev_register(snd_device_t *device);
-static int snd_seq_device_dev_disconnect(snd_device_t *device);
-static int snd_seq_device_dev_unregister(snd_device_t *device);
+static int snd_seq_device_free(struct snd_seq_device *dev);
+static int snd_seq_device_dev_free(struct snd_device *device);
+static int snd_seq_device_dev_register(struct snd_device *device);
+static int snd_seq_device_dev_disconnect(struct snd_device *device);
+static int snd_seq_device_dev_unregister(struct snd_device *device);
 
-static int init_device(snd_seq_device_t *dev, ops_list_t *ops);
-static int free_device(snd_seq_device_t *dev, ops_list_t *ops);
-static ops_list_t *find_driver(char *id, int create_if_empty);
-static ops_list_t *create_driver(char *id);
-static void unlock_driver(ops_list_t *ops);
+static int init_device(struct snd_seq_device *dev, struct ops_list *ops);
+static int free_device(struct snd_seq_device *dev, struct ops_list *ops);
+static struct ops_list *find_driver(char *id, int create_if_empty);
+static struct ops_list *create_driver(char *id);
+static void unlock_driver(struct ops_list *ops);
 static void remove_drivers(void);
 
 /*
  * show all drivers and their status
  */
 
-static void snd_seq_device_info(snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+#ifdef CONFIG_PROC_FS
+static void snd_seq_device_info(struct snd_info_entry *entry,
+				struct snd_info_buffer *buffer)
 {
 	struct list_head *head;
 
 	down(&ops_mutex);
 	list_for_each(head, &opslist) {
-		ops_list_t *ops = list_entry(head, ops_list_t, list);
+		struct ops_list *ops = list_entry(head, struct ops_list, list);
 		snd_iprintf(buffer, "snd-%s%s%s%s,%d\n",
 				ops->id,
 				ops->driver & DRIVER_LOADED ? ",loaded" : (ops->driver == DRIVER_EMPTY ? ",empty" : ""),
@@ -121,6 +120,7 @@ static void snd_seq_device_info(snd_info_entry_t *entry, snd_info_buffer_t * buf
 	}
 	up(&ops_mutex);	
 }
+#endif
  
 /*
  * load all registered drivers (called from seq_clientmgr.c)
@@ -156,7 +156,7 @@ void snd_seq_device_load_drivers(void)
 
 	down(&ops_mutex);
 	list_for_each(head, &opslist) {
-		ops_list_t *ops = list_entry(head, ops_list_t, list);
+		struct ops_list *ops = list_entry(head, struct ops_list, list);
 		if (! (ops->driver & DRIVER_LOADED) &&
 		    ! (ops->driver & DRIVER_REQUESTED)) {
 			ops->used++;
@@ -178,13 +178,13 @@ void snd_seq_device_load_drivers(void)
  * id = id of driver
  * result = return pointer (NULL allowed if unnecessary)
  */
-int snd_seq_device_new(snd_card_t *card, int device, char *id, int argsize,
-		       snd_seq_device_t **result)
+int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize,
+		       struct snd_seq_device **result)
 {
-	snd_seq_device_t *dev;
-	ops_list_t *ops;
+	struct snd_seq_device *dev;
+	struct ops_list *ops;
 	int err;
-	static snd_device_ops_t dops = {
+	static struct snd_device_ops dops = {
 		.dev_free = snd_seq_device_dev_free,
 		.dev_register = snd_seq_device_dev_register,
 		.dev_disconnect = snd_seq_device_dev_disconnect,
@@ -235,9 +235,9 @@ int snd_seq_device_new(snd_card_t *card, int device, char *id, int argsize,
 /*
  * free the existing device
  */
-static int snd_seq_device_free(snd_seq_device_t *dev)
+static int snd_seq_device_free(struct snd_seq_device *dev)
 {
-	ops_list_t *ops;
+	struct ops_list *ops;
 
 	snd_assert(dev != NULL, return -EINVAL);
 
@@ -261,19 +261,19 @@ static int snd_seq_device_free(snd_seq_device_t *dev)
 	return 0;
 }
 
-static int snd_seq_device_dev_free(snd_device_t *device)
+static int snd_seq_device_dev_free(struct snd_device *device)
 {
-	snd_seq_device_t *dev = device->device_data;
+	struct snd_seq_device *dev = device->device_data;
 	return snd_seq_device_free(dev);
 }
 
 /*
  * register the device
  */
-static int snd_seq_device_dev_register(snd_device_t *device)
+static int snd_seq_device_dev_register(struct snd_device *device)
 {
-	snd_seq_device_t *dev = device->device_data;
-	ops_list_t *ops;
+	struct snd_seq_device *dev = device->device_data;
+	struct ops_list *ops;
 
 	ops = find_driver(dev->id, 0);
 	if (ops == NULL)
@@ -292,10 +292,10 @@ static int snd_seq_device_dev_register(snd_device_t *device)
 /*
  * disconnect the device
  */
-static int snd_seq_device_dev_disconnect(snd_device_t *device)
+static int snd_seq_device_dev_disconnect(struct snd_device *device)
 {
-	snd_seq_device_t *dev = device->device_data;
-	ops_list_t *ops;
+	struct snd_seq_device *dev = device->device_data;
+	struct ops_list *ops;
 
 	ops = find_driver(dev->id, 0);
 	if (ops == NULL)
@@ -310,9 +310,9 @@ static int snd_seq_device_dev_disconnect(snd_device_t *device)
 /*
  * unregister the existing device
  */
-static int snd_seq_device_dev_unregister(snd_device_t *device)
+static int snd_seq_device_dev_unregister(struct snd_device *device)
 {
-	snd_seq_device_t *dev = device->device_data;
+	struct snd_seq_device *dev = device->device_data;
 	return snd_seq_device_free(dev);
 }
 
@@ -321,10 +321,11 @@ static int snd_seq_device_dev_unregister(snd_device_t *device)
  * id = driver id
  * entry = driver operators - duplicated to each instance
  */
-int snd_seq_device_register_driver(char *id, snd_seq_dev_ops_t *entry, int argsize)
+int snd_seq_device_register_driver(char *id, struct snd_seq_dev_ops *entry,
+				   int argsize)
 {
 	struct list_head *head;
-	ops_list_t *ops;
+	struct ops_list *ops;
 
 	if (id == NULL || entry == NULL ||
 	    entry->init_device == NULL || entry->free_device == NULL)
@@ -351,7 +352,7 @@ int snd_seq_device_register_driver(char *id, snd_seq_dev_ops_t *entry, int argsi
 
 	/* initialize existing devices if necessary */
 	list_for_each(head, &ops->dev_list) {
-		snd_seq_device_t *dev = list_entry(head, snd_seq_device_t, list);
+		struct snd_seq_device *dev = list_entry(head, struct snd_seq_device, list);
 		init_device(dev, ops);
 	}
 	up(&ops->reg_mutex);
@@ -366,9 +367,9 @@ int snd_seq_device_register_driver(char *id, snd_seq_dev_ops_t *entry, int argsi
 /*
  * create driver record
  */
-static ops_list_t * create_driver(char *id)
+static struct ops_list * create_driver(char *id)
 {
-	ops_list_t *ops;
+	struct ops_list *ops;
 
 	ops = kmalloc(sizeof(*ops), GFP_KERNEL);
 	if (ops == NULL)
@@ -399,14 +400,15 @@ static ops_list_t * create_driver(char *id)
 int snd_seq_device_unregister_driver(char *id)
 {
 	struct list_head *head;
-	ops_list_t *ops;
+	struct ops_list *ops;
 
 	ops = find_driver(id, 0);
 	if (ops == NULL)
 		return -ENXIO;
 	if (! (ops->driver & DRIVER_LOADED) ||
 	    (ops->driver & DRIVER_LOCKED)) {
-		snd_printk(KERN_ERR "driver_unregister: cannot unload driver '%s': status=%x\n", id, ops->driver);
+		snd_printk(KERN_ERR "driver_unregister: cannot unload driver '%s': status=%x\n",
+			   id, ops->driver);
 		unlock_driver(ops);
 		return -EBUSY;
 	}
@@ -415,13 +417,14 @@ int snd_seq_device_unregister_driver(char *id)
 	down(&ops->reg_mutex);
 	ops->driver |= DRIVER_LOCKED; /* do not remove this driver recursively */
 	list_for_each(head, &ops->dev_list) {
-		snd_seq_device_t *dev = list_entry(head, snd_seq_device_t, list);
+		struct snd_seq_device *dev = list_entry(head, struct snd_seq_device, list);
 		free_device(dev, ops);
 	}
 
 	ops->driver = 0;
 	if (ops->num_init_devices > 0)
-		snd_printk(KERN_ERR "free_driver: init_devices > 0!! (%d)\n", ops->num_init_devices);
+		snd_printk(KERN_ERR "free_driver: init_devices > 0!! (%d)\n",
+			   ops->num_init_devices);
 	up(&ops->reg_mutex);
 
 	unlock_driver(ops);
@@ -443,7 +446,7 @@ static void remove_drivers(void)
 	down(&ops_mutex);
 	head = opslist.next;
 	while (head != &opslist) {
-		ops_list_t *ops = list_entry(head, ops_list_t, list);
+		struct ops_list *ops = list_entry(head, struct ops_list, list);
 		if (! (ops->driver & DRIVER_LOADED) &&
 		    ops->used == 0 && ops->num_devices == 0) {
 			head = head->next;
@@ -459,21 +462,23 @@ static void remove_drivers(void)
 /*
  * initialize the device - call init_device operator
  */
-static int init_device(snd_seq_device_t *dev, ops_list_t *ops)
+static int init_device(struct snd_seq_device *dev, struct ops_list *ops)
 {
 	if (! (ops->driver & DRIVER_LOADED))
 		return 0; /* driver is not loaded yet */
 	if (dev->status != SNDRV_SEQ_DEVICE_FREE)
 		return 0; /* already initialized */
 	if (ops->argsize != dev->argsize) {
-		snd_printk(KERN_ERR "incompatible device '%s' for plug-in '%s' (%d %d)\n", dev->name, ops->id, ops->argsize, dev->argsize);
+		snd_printk(KERN_ERR "incompatible device '%s' for plug-in '%s' (%d %d)\n",
+			   dev->name, ops->id, ops->argsize, dev->argsize);
 		return -EINVAL;
 	}
 	if (ops->ops.init_device(dev) >= 0) {
 		dev->status = SNDRV_SEQ_DEVICE_REGISTERED;
 		ops->num_init_devices++;
 	} else {
-		snd_printk(KERN_ERR "init_device failed: %s: %s\n", dev->name, dev->id);
+		snd_printk(KERN_ERR "init_device failed: %s: %s\n",
+			   dev->name, dev->id);
 	}
 
 	return 0;
@@ -482,7 +487,7 @@ static int init_device(snd_seq_device_t *dev, ops_list_t *ops)
 /*
  * release the device - call free_device operator
  */
-static int free_device(snd_seq_device_t *dev, ops_list_t *ops)
+static int free_device(struct snd_seq_device *dev, struct ops_list *ops)
 {
 	int result;
 
@@ -491,7 +496,8 @@ static int free_device(snd_seq_device_t *dev, ops_list_t *ops)
 	if (dev->status != SNDRV_SEQ_DEVICE_REGISTERED)
 		return 0; /* not registered */
 	if (ops->argsize != dev->argsize) {
-		snd_printk(KERN_ERR "incompatible device '%s' for plug-in '%s' (%d %d)\n", dev->name, ops->id, ops->argsize, dev->argsize);
+		snd_printk(KERN_ERR "incompatible device '%s' for plug-in '%s' (%d %d)\n",
+			   dev->name, ops->id, ops->argsize, dev->argsize);
 		return -EINVAL;
 	}
 	if ((result = ops->ops.free_device(dev)) >= 0 || result == -ENXIO) {
@@ -499,7 +505,8 @@ static int free_device(snd_seq_device_t *dev, ops_list_t *ops)
 		dev->driver_data = NULL;
 		ops->num_init_devices--;
 	} else {
-		snd_printk(KERN_ERR "free_device failed: %s: %s\n", dev->name, dev->id);
+		snd_printk(KERN_ERR "free_device failed: %s: %s\n",
+			   dev->name, dev->id);
 	}
 
 	return 0;
@@ -508,13 +515,13 @@ static int free_device(snd_seq_device_t *dev, ops_list_t *ops)
 /*
  * find the matching driver with given id
  */
-static ops_list_t * find_driver(char *id, int create_if_empty)
+static struct ops_list * find_driver(char *id, int create_if_empty)
 {
 	struct list_head *head;
 
 	down(&ops_mutex);
 	list_for_each(head, &opslist) {
-		ops_list_t *ops = list_entry(head, ops_list_t, list);
+		struct ops_list *ops = list_entry(head, struct ops_list, list);
 		if (strcmp(ops->id, id) == 0) {
 			ops->used++;
 			up(&ops_mutex);
@@ -527,7 +534,7 @@ static ops_list_t * find_driver(char *id, int create_if_empty)
 	return NULL;
 }
 
-static void unlock_driver(ops_list_t *ops)
+static void unlock_driver(struct ops_list *ops)
 {
 	down(&ops_mutex);
 	ops->used--;
@@ -541,7 +548,9 @@ static void unlock_driver(ops_list_t *ops)
 
 static int __init alsa_seq_device_init(void)
 {
-	info_entry = snd_info_create_module_entry(THIS_MODULE, "drivers", snd_seq_root);
+#ifdef CONFIG_PROC_FS
+	info_entry = snd_info_create_module_entry(THIS_MODULE, "drivers",
+						  snd_seq_root);
 	if (info_entry == NULL)
 		return -ENOMEM;
 	info_entry->content = SNDRV_INFO_CONTENT_TEXT;
@@ -551,13 +560,16 @@ static int __init alsa_seq_device_init(void)
 		snd_info_free_entry(info_entry);
 		return -ENOMEM;
 	}
+#endif
 	return 0;
 }
 
 static void __exit alsa_seq_device_exit(void)
 {
 	remove_drivers();
+#ifdef CONFIG_PROC_FS
 	snd_info_unregister(info_entry);
+#endif
 	if (num_ops)
 		snd_printk(KERN_ERR "drivers not released (%d)\n", num_ops);
 }

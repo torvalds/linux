@@ -8,7 +8,6 @@ config SND_AU1X00
 	depends on (SOC_AU1000 || SOC_AU1100 || SOC_AU1500) && SND
 	select SND_PCM
 	select SND_AC97_CODEC
-	select SND_GENERIC_DRIVER
 	help
 	  ALSA Sound driver for the Au1x00's AC97 port.
 

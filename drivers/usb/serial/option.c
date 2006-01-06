@@ -95,11 +95,11 @@ static struct usb_device_id option_ids[] = {
 MODULE_DEVICE_TABLE(usb, option_ids);
 
 static struct usb_driver option_driver = {
-	.owner      = THIS_MODULE,
 	.name       = "option",
 	.probe      = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table   = option_ids,
+	.no_dynamic_id = 	1,
 };
 
 /* The card has three separate interfaces, wich the serial driver

@@ -65,30 +65,30 @@
 
 static void juli_ak4114_write(void *private_data, unsigned char reg, unsigned char val)
 {
-	snd_vt1724_write_i2c((ice1712_t *)private_data, AK4114_ADDR, reg, val);
+	snd_vt1724_write_i2c((struct snd_ice1712 *)private_data, AK4114_ADDR, reg, val);
 }
         
 static unsigned char juli_ak4114_read(void *private_data, unsigned char reg)
 {
-	return snd_vt1724_read_i2c((ice1712_t *)private_data, AK4114_ADDR, reg);
+	return snd_vt1724_read_i2c((struct snd_ice1712 *)private_data, AK4114_ADDR, reg);
 }
 
 /*
  * AK4358 section
  */
 
-static void juli_akm_lock(akm4xxx_t *ak, int chip)
+static void juli_akm_lock(struct snd_akm4xxx *ak, int chip)
 {
 }
 
-static void juli_akm_unlock(akm4xxx_t *ak, int chip)
+static void juli_akm_unlock(struct snd_akm4xxx *ak, int chip)
 {
 }
 
-static void juli_akm_write(akm4xxx_t *ak, int chip,
+static void juli_akm_write(struct snd_akm4xxx *ak, int chip,
 			   unsigned char addr, unsigned char data)
 {
-	ice1712_t *ice = ak->private_data[0];
+	struct snd_ice1712 *ice = ak->private_data[0];
 	 
 	snd_assert(chip == 0, return);
 	snd_vt1724_write_i2c(ice, AK4358_ADDR, addr, data);
@@ -97,7 +97,7 @@ static void juli_akm_write(akm4xxx_t *ak, int chip,
 /*
  * change the rate of envy24HT, AK4358
  */
-static void juli_akm_set_rate_val(akm4xxx_t *ak, unsigned int rate)
+static void juli_akm_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
 	unsigned char old, tmp, dfs;
 
@@ -125,7 +125,7 @@ static void juli_akm_set_rate_val(akm4xxx_t *ak, unsigned int rate)
 	snd_akm4xxx_reset(ak, 0);
 }
 
-static akm4xxx_t akm_juli_dac __devinitdata = {
+static struct snd_akm4xxx akm_juli_dac __devinitdata = {
 	.type = SND_AK4358,
 	.num_dacs = 2,
 	.ops = {
@@ -136,7 +136,7 @@ static akm4xxx_t akm_juli_dac __devinitdata = {
 	}
 };
 
-static int __devinit juli_add_controls(ice1712_t *ice)
+static int __devinit juli_add_controls(struct snd_ice1712 *ice)
 {
 	return snd_ice1712_akm4xxx_build_controls(ice);
 }
@@ -144,7 +144,7 @@ static int __devinit juli_add_controls(ice1712_t *ice)
 /*
  * initialize the chip
  */
-static int __devinit juli_init(ice1712_t *ice)
+static int __devinit juli_init(struct snd_ice1712 *ice)
 {
 	static unsigned char ak4114_init_vals[] = {
 		/* AK4117_REG_PWRDN */	AK4114_RST | AK4114_PWN | AK4114_OCKS0 | AK4114_OCKS1,
@@ -158,7 +158,7 @@ static int __devinit juli_init(ice1712_t *ice)
 		0x41, 0x02, 0x2c, 0x00, 0x00
 	};
 	int err;
-	akm4xxx_t *ak;
+	struct snd_akm4xxx *ak;
 
 #if 0
 	for (err = 0; err < 0x20; err++)
@@ -175,14 +175,21 @@ static int __devinit juli_init(ice1712_t *ice)
 	if (err < 0)
 		return err;
 
-	ice->spec.juli.analog = ice->gpio.get_data(ice) & GPIO_ANALOG_PRESENT;
+#if 0
+        /* it seems that the analog doughter board detection does not work
+           reliably, so force the analog flag; it should be very rare
+           to use Juli@ without the analog doughter board */
+	ice->spec.juli.analog = (ice->gpio.get_data(ice) & GPIO_ANALOG_PRESENT) ? 0 : 1;
+#else
+        ice->spec.juli.analog = 1;
+#endif
 
 	if (ice->spec.juli.analog) {
 		printk(KERN_INFO "juli@: analog I/O detected\n");
 		ice->num_total_dacs = 2;
 		ice->num_total_adcs = 2;
 
-		ak = ice->akm = kzalloc(sizeof(akm4xxx_t), GFP_KERNEL);
+		ak = ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 		if (! ak)
 			return -ENOMEM;
 		ice->akm_codecs = 1;

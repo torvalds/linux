@@ -82,7 +82,6 @@ static struct dvb_usb_properties dibusb_mc_properties = {
 };
 
 static struct usb_driver dibusb_mc_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_dibusb_mc",
 	.probe		= dibusb_mc_probe,
 	.disconnect = dvb_usb_device_exit,

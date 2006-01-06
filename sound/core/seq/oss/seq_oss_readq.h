@@ -28,8 +28,8 @@
 /*
  * definition of read queue
  */
-struct seq_oss_readq_t {
-	evrec_t *q;
+struct seq_oss_readq {
+	union evrec *q;
 	int qlen;
 	int maxlen;
 	int head, tail;
@@ -39,16 +39,16 @@ struct seq_oss_readq_t {
 	spinlock_t lock;
 };
 
-seq_oss_readq_t *snd_seq_oss_readq_new(seq_oss_devinfo_t *dp, int maxlen);
-void snd_seq_oss_readq_delete(seq_oss_readq_t *q);
-void snd_seq_oss_readq_clear(seq_oss_readq_t *readq);
-unsigned int snd_seq_oss_readq_poll(seq_oss_readq_t *readq, struct file *file, poll_table *wait);
-int snd_seq_oss_readq_puts(seq_oss_readq_t *readq, int dev, unsigned char *data, int len);
-int snd_seq_oss_readq_put_event(seq_oss_readq_t *readq, evrec_t *ev);
-int snd_seq_oss_readq_put_timestamp(seq_oss_readq_t *readq, unsigned long curt, int seq_mode);
-int snd_seq_oss_readq_pick(seq_oss_readq_t *q, evrec_t *rec);
-void snd_seq_oss_readq_wait(seq_oss_readq_t *q);
-void snd_seq_oss_readq_free(seq_oss_readq_t *q);
+struct seq_oss_readq *snd_seq_oss_readq_new(struct seq_oss_devinfo *dp, int maxlen);
+void snd_seq_oss_readq_delete(struct seq_oss_readq *q);
+void snd_seq_oss_readq_clear(struct seq_oss_readq *readq);
+unsigned int snd_seq_oss_readq_poll(struct seq_oss_readq *readq, struct file *file, poll_table *wait);
+int snd_seq_oss_readq_puts(struct seq_oss_readq *readq, int dev, unsigned char *data, int len);
+int snd_seq_oss_readq_put_event(struct seq_oss_readq *readq, union evrec *ev);
+int snd_seq_oss_readq_put_timestamp(struct seq_oss_readq *readq, unsigned long curt, int seq_mode);
+int snd_seq_oss_readq_pick(struct seq_oss_readq *q, union evrec *rec);
+void snd_seq_oss_readq_wait(struct seq_oss_readq *q);
+void snd_seq_oss_readq_free(struct seq_oss_readq *q);
 
 #define snd_seq_oss_readq_lock(q, flags) spin_lock_irqsave(&(q)->lock, flags)
 #define snd_seq_oss_readq_unlock(q, flags) spin_unlock_irqrestore(&(q)->lock, flags)

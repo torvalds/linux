@@ -224,34 +224,6 @@ void unregister_ip_vs_app(struct ip_vs_app *app)
 }
 
 
-#if 0000
-/*
- *	Get reference to app by name (called from user context)
- */
-struct ip_vs_app *ip_vs_app_get_by_name(char *appname)
-{
-	struct ip_vs_app *app, *a = NULL;
-
-	down(&__ip_vs_app_mutex);
-
-	list_for_each_entry(ent, &ip_vs_app_list, a_list) {
-		if (strcmp(app->name, appname))
-			continue;
-
-		/* softirq may call ip_vs_app_get too, so the caller
-		   must disable softirq on the current CPU */
-		if (ip_vs_app_get(app))
-			a = app;
-		break;
-	}
-
-	up(&__ip_vs_app_mutex);
-
-	return a;
-}
-#endif
-
-
 /*
  *	Bind ip_vs_conn to its ip_vs_app (called by cp constructor)
  */

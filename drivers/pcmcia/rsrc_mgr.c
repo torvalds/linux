@@ -98,10 +98,12 @@ int pcmcia_adjust_resource_info(adjust_t *adj)
 }
 EXPORT_SYMBOL(pcmcia_adjust_resource_info);
 
-void pcmcia_validate_mem(struct pcmcia_socket *s)
+int pcmcia_validate_mem(struct pcmcia_socket *s)
 {
 	if (s->resource_ops->validate_mem)
-		s->resource_ops->validate_mem(s);
+		return s->resource_ops->validate_mem(s);
+	/* if there is no callback, we can assume that everything is OK */
+	return 0;
 }
 EXPORT_SYMBOL(pcmcia_validate_mem);
 
@@ -164,3 +166,105 @@ struct pccard_resource_ops pccard_static_ops = {
 	.exit = NULL,
 };
 EXPORT_SYMBOL(pccard_static_ops);
+
+
+#ifdef CONFIG_PCCARD_IODYN
+
+static struct resource *
+make_resource(unsigned long b, unsigned long n, int flags, char *name)
+{
+	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
+
+	if (res) {
+		res->name = name;
+		res->start = b;
+		res->end = b + n - 1;
+		res->flags = flags;
+	}
+	return res;
+}
+
+struct pcmcia_align_data {
+	unsigned long	mask;
+	unsigned long	offset;
+};
+
+static void pcmcia_align(void *align_data, struct resource *res,
+			unsigned long size, unsigned long align)
+{
+	struct pcmcia_align_data *data = align_data;
+	unsigned long start;
+
+	start = (res->start & ~data->mask) + data->offset;
+	if (start < res->start)
+		start += data->mask + 1;
+	res->start = start;
+
+#ifdef CONFIG_X86
+        if (res->flags & IORESOURCE_IO) {
+                if (start & 0x300) {
+                        start = (start + 0x3ff) & ~0x3ff;
+                        res->start = start;
+                }
+        }
+#endif
+
+#ifdef CONFIG_M68K
+        if (res->flags & IORESOURCE_IO) {
+		if ((res->start + size - 1) >= 1024)
+			res->start = res->end;
+	}
+#endif
+}
+
+
+static int iodyn_adjust_io_region(struct resource *res, unsigned long r_start,
+				      unsigned long r_end, struct pcmcia_socket *s)
+{
+	return adjust_resource(res, r_start, r_end - r_start + 1);
+}
+
+
+static struct resource *iodyn_find_io_region(unsigned long base, int num,
+		unsigned long align, struct pcmcia_socket *s)
+{
+	struct resource *res = make_resource(0, num, IORESOURCE_IO,
+					     s->dev.class_id);
+	struct pcmcia_align_data data;
+	unsigned long min = base;
+	int ret;
+
+	if (align == 0)
+		align = 0x10000;
+
+	data.mask = align - 1;
+	data.offset = base & data.mask;
+
+#ifdef CONFIG_PCI
+	if (s->cb_dev) {
+		ret = pci_bus_alloc_resource(s->cb_dev->bus, res, num, 1,
+					     min, 0, pcmcia_align, &data);
+	} else
+#endif
+		ret = allocate_resource(&ioport_resource, res, num, min, ~0UL,
+					1, pcmcia_align, &data);
+
+	if (ret != 0) {
+		kfree(res);
+		res = NULL;
+	}
+	return res;
+}
+
+struct pccard_resource_ops pccard_iodyn_ops = {
+	.validate_mem = NULL,
+	.adjust_io_region = iodyn_adjust_io_region,
+	.find_io = iodyn_find_io_region,
+	.find_mem = NULL,
+	.adjust_resource = NULL,
+	.init = static_init,
+	.exit = NULL,
+};
+EXPORT_SYMBOL(pccard_iodyn_ops);
+
+#endif /* CONFIG_PCCARD_IODYN */

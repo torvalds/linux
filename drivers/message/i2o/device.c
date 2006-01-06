@@ -35,18 +35,18 @@
 static inline int i2o_device_issue_claim(struct i2o_device *dev, u32 cmd,
 					 u32 type)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 
-	m = i2o_msg_get_wait(dev->iop, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(dev->iop, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(cmd << 24 | HOST_TID << 12 | dev->lct_data.tid, &msg->u.head[1]);
-	writel(type, &msg->body[0]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(cmd << 24 | HOST_TID << 12 | dev->lct_data.tid);
+	msg->body[0] = cpu_to_le32(type);
 
-	return i2o_msg_post_wait(dev->iop, m, 60);
+	return i2o_msg_post_wait(dev->iop, msg, 60);
 }
 
 /**
@@ -123,7 +123,6 @@ int i2o_device_claim_release(struct i2o_device *dev)
 	return rc;
 }
 
-
 /**
  *	i2o_device_release - release the memory for a I2O device
  *	@dev: I2O device which should be released
@@ -140,10 +139,10 @@ static void i2o_device_release(struct device *dev)
 	kfree(i2o_dev);
 }
 
-
 /**
- *	i2o_device_class_show_class_id - Displays class id of I2O device
- *	@cd: class device of which the class id should be displayed
+ *	i2o_device_show_class_id - Displays class id of I2O device
+ *	@dev: device of which the class id should be displayed
+ *	@attr: pointer to device attribute
  *	@buf: buffer into which the class id should be printed
  *
  *	Returns the number of bytes which are printed into the buffer.
@@ -159,15 +158,15 @@ static ssize_t i2o_device_show_class_id(struct device *dev,
 }
 
 /**
- *	i2o_device_class_show_tid - Displays TID of I2O device
- *	@cd: class device of which the TID should be displayed
- *	@buf: buffer into which the class id should be printed
+ *	i2o_device_show_tid - Displays TID of I2O device
+ *	@dev: device of which the TID should be displayed
+ *	@attr: pointer to device attribute
+ *	@buf: buffer into which the TID should be printed
  *
  *	Returns the number of bytes which are printed into the buffer.
  */
 static ssize_t i2o_device_show_tid(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
@@ -175,6 +174,7 @@ static ssize_t i2o_device_show_tid(struct device *dev,
 	return strlen(buf) + 1;
 }
 
+/* I2O device attributes */
 struct device_attribute i2o_device_attrs[] = {
 	__ATTR(class_id, S_IRUGO, i2o_device_show_class_id, NULL),
 	__ATTR(tid, S_IRUGO, i2o_device_show_tid, NULL),
@@ -193,11 +193,9 @@ static struct i2o_device *i2o_device_alloc(void)
 {
 	struct i2o_device *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-
-	memset(dev, 0, sizeof(*dev));
 
 	INIT_LIST_HEAD(&dev->list);
 	init_MUTEX(&dev->lock);
@@ -207,66 +205,6 @@ static struct i2o_device *i2o_device_alloc(void)
 
 	return dev;
 }
-
-/**
- *	i2o_setup_sysfs_links - Adds attributes to the I2O device
- *	@cd: I2O class device which is added to the I2O device class
- *
- *	This function get called when a I2O device is added to the class. It
- *	creates the attributes for each device and creates user/parent symlink
- *	if necessary.
- *
- *	Returns 0 on success or negative error code on failure.
- */
-static void i2o_setup_sysfs_links(struct i2o_device *i2o_dev)
-{
-	struct i2o_controller *c = i2o_dev->iop;
-	struct i2o_device *tmp;
-
-	/* create user entries for this device */
-	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.user_tid);
-	if (tmp && tmp != i2o_dev)
-		sysfs_create_link(&i2o_dev->device.kobj,
-				  &tmp->device.kobj, "user");
-
-	/* create user entries refering to this device */
-	list_for_each_entry(tmp, &c->devices, list)
-		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid &&
-		    tmp != i2o_dev)
-			sysfs_create_link(&tmp->device.kobj,
-					  &i2o_dev->device.kobj, "user");
-
-	/* create parent entries for this device */
-	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.parent_tid);
-	if (tmp && tmp != i2o_dev)
-		sysfs_create_link(&i2o_dev->device.kobj,
-				  &tmp->device.kobj, "parent");
-
-	/* create parent entries refering to this device */
-	list_for_each_entry(tmp, &c->devices, list)
-		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid &&
-		    tmp != i2o_dev)
-		sysfs_create_link(&tmp->device.kobj,
-				  &i2o_dev->device.kobj, "parent");
-}
-
-static void i2o_remove_sysfs_links(struct i2o_device *i2o_dev)
-{
-	struct i2o_controller *c = i2o_dev->iop;
-	struct i2o_device *tmp;
-
-	sysfs_remove_link(&i2o_dev->device.kobj, "parent");
-	sysfs_remove_link(&i2o_dev->device.kobj, "user");
-
-	list_for_each_entry(tmp, &c->devices, list) {
-		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
-			sysfs_remove_link(&tmp->device.kobj, "parent");
-		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
-			sysfs_remove_link(&tmp->device.kobj, "user");
-	}
-}
-
-
 
 /**
  *	i2o_device_add - allocate a new I2O device and add it to the IOP
@@ -282,33 +220,57 @@ static void i2o_remove_sysfs_links(struct i2o_device *i2o_dev)
 static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 					 i2o_lct_entry * entry)
 {
-	struct i2o_device *dev;
+	struct i2o_device *i2o_dev, *tmp;
 
-	dev = i2o_device_alloc();
-	if (IS_ERR(dev)) {
+	i2o_dev = i2o_device_alloc();
+	if (IS_ERR(i2o_dev)) {
 		printk(KERN_ERR "i2o: unable to allocate i2o device\n");
-		return dev;
+		return i2o_dev;
 	}
 
-	dev->lct_data = *entry;
-	dev->iop = c;
+	i2o_dev->lct_data = *entry;
 
-	snprintf(dev->device.bus_id, BUS_ID_SIZE, "%d:%03x", c->unit,
-		 dev->lct_data.tid);
+	snprintf(i2o_dev->device.bus_id, BUS_ID_SIZE, "%d:%03x", c->unit,
+		 i2o_dev->lct_data.tid);
 
-	dev->device.parent = &c->device;
+	i2o_dev->iop = c;
+	i2o_dev->device.parent = &c->device;
 
-	device_register(&dev->device);
+	device_register(&i2o_dev->device);
 
-	list_add_tail(&dev->list, &c->devices);
+	list_add_tail(&i2o_dev->list, &c->devices);
 
-	i2o_setup_sysfs_links(dev);
+	/* create user entries for this device */
+	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.user_tid);
+	if (tmp && (tmp != i2o_dev))
+		sysfs_create_link(&i2o_dev->device.kobj, &tmp->device.kobj,
+				  "user");
 
-	i2o_driver_notify_device_add_all(dev);
+	/* create user entries refering to this device */
+	list_for_each_entry(tmp, &c->devices, list)
+	    if ((tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
+		&& (tmp != i2o_dev))
+		sysfs_create_link(&tmp->device.kobj,
+				  &i2o_dev->device.kobj, "user");
 
-	pr_debug("i2o: device %s added\n", dev->device.bus_id);
+	/* create parent entries for this device */
+	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.parent_tid);
+	if (tmp && (tmp != i2o_dev))
+		sysfs_create_link(&i2o_dev->device.kobj, &tmp->device.kobj,
+				  "parent");
 
-	return dev;
+	/* create parent entries refering to this device */
+	list_for_each_entry(tmp, &c->devices, list)
+	    if ((tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
+		&& (tmp != i2o_dev))
+		sysfs_create_link(&tmp->device.kobj,
+				  &i2o_dev->device.kobj, "parent");
+
+	i2o_driver_notify_device_add_all(i2o_dev);
+
+	pr_debug("i2o: device %s added\n", i2o_dev->device.bus_id);
+
+	return i2o_dev;
 }
 
 /**
@@ -321,9 +283,22 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
  */
 void i2o_device_remove(struct i2o_device *i2o_dev)
 {
+	struct i2o_device *tmp;
+	struct i2o_controller *c = i2o_dev->iop;
+
 	i2o_driver_notify_device_remove_all(i2o_dev);
-	i2o_remove_sysfs_links(i2o_dev);
+
+	sysfs_remove_link(&i2o_dev->device.kobj, "parent");
+	sysfs_remove_link(&i2o_dev->device.kobj, "user");
+
+	list_for_each_entry(tmp, &c->devices, list) {
+		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
+			sysfs_remove_link(&tmp->device.kobj, "parent");
+		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
+			sysfs_remove_link(&tmp->device.kobj, "user");
+	}
 	list_del(&i2o_dev->list);
+
 	device_unregister(&i2o_dev->device);
 }
 
@@ -341,35 +316,77 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 {
 	struct i2o_device *dev, *tmp;
 	i2o_lct *lct;
-	int i;
-	int max;
+	u32 *dlct = c->dlct.virt;
+	int max = 0, i = 0;
+	u16 table_size;
+	u32 buf;
 
 	down(&c->lct_lock);
 
 	kfree(c->lct);
 
-	lct = c->dlct.virt;
+	buf = le32_to_cpu(*dlct++);
+	table_size = buf & 0xffff;
 
-	c->lct = kmalloc(lct->table_size * 4, GFP_KERNEL);
-	if (!c->lct) {
+	lct = c->lct = kmalloc(table_size * 4, GFP_KERNEL);
+	if (!lct) {
 		up(&c->lct_lock);
 		return -ENOMEM;
 	}
 
-	if (lct->table_size * 4 > c->dlct.len) {
-		memcpy(c->lct, c->dlct.virt, c->dlct.len);
-		up(&c->lct_lock);
-		return -EAGAIN;
-	}
+	lct->lct_ver = buf >> 28;
+	lct->boot_tid = buf >> 16 & 0xfff;
+	lct->table_size = table_size;
+	lct->change_ind = le32_to_cpu(*dlct++);
+	lct->iop_flags = le32_to_cpu(*dlct++);
 
-	memcpy(c->lct, c->dlct.virt, lct->table_size * 4);
-
-	lct = c->lct;
-
-	max = (lct->table_size - 3) / 9;
+	table_size -= 3;
 
 	pr_debug("%s: LCT has %d entries (LCT size: %d)\n", c->name, max,
 		 lct->table_size);
+
+	while (table_size > 0) {
+		i2o_lct_entry *entry = &lct->lct_entry[max];
+		int found = 0;
+
+		buf = le32_to_cpu(*dlct++);
+		entry->entry_size = buf & 0xffff;
+		entry->tid = buf >> 16 & 0xfff;
+
+		entry->change_ind = le32_to_cpu(*dlct++);
+		entry->device_flags = le32_to_cpu(*dlct++);
+
+		buf = le32_to_cpu(*dlct++);
+		entry->class_id = buf & 0xfff;
+		entry->version = buf >> 12 & 0xf;
+		entry->vendor_id = buf >> 16;
+
+		entry->sub_class = le32_to_cpu(*dlct++);
+
+		buf = le32_to_cpu(*dlct++);
+		entry->user_tid = buf & 0xfff;
+		entry->parent_tid = buf >> 12 & 0xfff;
+		entry->bios_info = buf >> 24;
+
+		memcpy(&entry->identity_tag, dlct, 8);
+		dlct += 2;
+
+		entry->event_capabilities = le32_to_cpu(*dlct++);
+
+		/* add new devices, which are new in the LCT */
+		list_for_each_entry_safe(dev, tmp, &c->devices, list) {
+			if (entry->tid == dev->lct_data.tid) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found)
+			i2o_device_add(c, entry);
+
+		table_size -= 9;
+		max++;
+	}
 
 	/* remove devices, which are not in the LCT anymore */
 	list_for_each_entry_safe(dev, tmp, &c->devices, list) {
@@ -386,25 +403,10 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 			i2o_device_remove(dev);
 	}
 
-	/* add new devices, which are new in the LCT */
-	for (i = 0; i < max; i++) {
-		int found = 0;
-
-		list_for_each_entry_safe(dev, tmp, &c->devices, list) {
-			if (lct->lct_entry[i].tid == dev->lct_data.tid) {
-				found = 1;
-				break;
-			}
-		}
-
-		if (!found)
-			i2o_device_add(c, &lct->lct_entry[i]);
-	}
 	up(&c->lct_lock);
 
 	return 0;
 }
-
 
 /*
  *	Run time support routines
@@ -419,13 +421,9 @@ int i2o_device_parse_lct(struct i2o_controller *c)
  *	ResultCount, ErrorInfoSize, BlockStatus and BlockSize.
  */
 int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
-			  int oplen, void *reslist, int reslen)
+		   int oplen, void *reslist, int reslen)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
-	u32 *res32 = (u32 *) reslist;
-	u32 *restmp = (u32 *) reslist;
-	int len = 0;
+	struct i2o_message *msg;
 	int i = 0;
 	int rc;
 	struct i2o_dma res;
@@ -437,26 +435,27 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 	if (i2o_dma_alloc(dev, &res, reslen, GFP_KERNEL))
 		return -ENOMEM;
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY) {
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg)) {
 		i2o_dma_free(dev, &res);
-		return -ETIMEDOUT;
+		return PTR_ERR(msg);
 	}
 
 	i = 0;
-	writel(cmd << 24 | HOST_TID << 12 | i2o_dev->lct_data.tid,
-	       &msg->u.head[1]);
-	writel(0, &msg->body[i++]);
-	writel(0x4C000000 | oplen, &msg->body[i++]);	/* OperationList */
-	memcpy_toio(&msg->body[i], oplist, oplen);
+	msg->u.head[1] =
+	    cpu_to_le32(cmd << 24 | HOST_TID << 12 | i2o_dev->lct_data.tid);
+	msg->body[i++] = cpu_to_le32(0x00000000);
+	msg->body[i++] = cpu_to_le32(0x4C000000 | oplen);	/* OperationList */
+	memcpy(&msg->body[i], oplist, oplen);
 	i += (oplen / 4 + (oplen % 4 ? 1 : 0));
-	writel(0xD0000000 | res.len, &msg->body[i++]);	/* ResultList */
-	writel(res.phys, &msg->body[i++]);
+	msg->body[i++] = cpu_to_le32(0xD0000000 | res.len);	/* ResultList */
+	msg->body[i++] = cpu_to_le32(res.phys);
 
-	writel(I2O_MESSAGE_SIZE(i + sizeof(struct i2o_message) / 4) |
-	       SGL_OFFSET_5, &msg->u.head[0]);
+	msg->u.head[0] =
+	    cpu_to_le32(I2O_MESSAGE_SIZE(i + sizeof(struct i2o_message) / 4) |
+			SGL_OFFSET_5);
 
-	rc = i2o_msg_post_wait_mem(c, m, 10, &res);
+	rc = i2o_msg_post_wait_mem(c, msg, 10, &res);
 
 	/* This only looks like a memory leak - don't "fix" it. */
 	if (rc == -ETIMEDOUT)
@@ -465,36 +464,7 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 	memcpy(reslist, res.virt, res.len);
 	i2o_dma_free(dev, &res);
 
-	/* Query failed */
-	if (rc)
-		return rc;
-	/*
-	 * Calculate number of bytes of Result LIST
-	 * We need to loop through each Result BLOCK and grab the length
-	 */
-	restmp = res32 + 1;
-	len = 1;
-	for (i = 0; i < (res32[0] & 0X0000FFFF); i++) {
-		if (restmp[0] & 0x00FF0000) {	/* BlockStatus != SUCCESS */
-			printk(KERN_WARNING
-			       "%s - Error:\n  ErrorInfoSize = 0x%02x, "
-			       "BlockStatus = 0x%02x, BlockSize = 0x%04x\n",
-			       (cmd ==
-				I2O_CMD_UTIL_PARAMS_SET) ? "PARAMS_SET" :
-			       "PARAMS_GET", res32[1] >> 24,
-			       (res32[1] >> 16) & 0xFF, res32[1] & 0xFFFF);
-
-			/*
-			 *      If this is the only request,than we return an error
-			 */
-			if ((res32[0] & 0x0000FFFF) == 1) {
-				return -((res32[1] >> 16) & 0xFF);	/* -BlockStatus */
-			}
-		}
-		len += restmp[0] & 0x0000FFFF;	/* Length of res BLOCK */
-		restmp += restmp[0] & 0x0000FFFF;	/* Skip to next BLOCK */
-	}
-	return (len << 2);	/* bytes used by result list */
+	return rc;
 }
 
 /*
@@ -503,28 +473,25 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 int i2o_parm_field_get(struct i2o_device *i2o_dev, int group, int field,
 		       void *buf, int buflen)
 {
-	u16 opblk[] = { 1, 0, I2O_PARAMS_FIELD_GET, group, 1, field };
+	u32 opblk[] = { cpu_to_le32(0x00000001),
+		cpu_to_le32((u16) group << 16 | I2O_PARAMS_FIELD_GET),
+		cpu_to_le32((s16) field << 16 | 0x00000001)
+	};
 	u8 *resblk;		/* 8 bytes for header */
-	int size;
-
-	if (field == -1)	/* whole group */
-		opblk[4] = -1;
+	int rc;
 
 	resblk = kmalloc(buflen + 8, GFP_KERNEL | GFP_ATOMIC);
 	if (!resblk)
 		return -ENOMEM;
 
-	size = i2o_parm_issue(i2o_dev, I2O_CMD_UTIL_PARAMS_GET, opblk,
-			      sizeof(opblk), resblk, buflen + 8);
+	rc = i2o_parm_issue(i2o_dev, I2O_CMD_UTIL_PARAMS_GET, opblk,
+			    sizeof(opblk), resblk, buflen + 8);
 
 	memcpy(buf, resblk + 8, buflen);	/* cut off header */
 
 	kfree(resblk);
 
-	if (size > buflen)
-		return buflen;
-
-	return size;
+	return rc;
 }
 
 /*
@@ -534,12 +501,12 @@ int i2o_parm_field_get(struct i2o_device *i2o_dev, int group, int field,
  *		else return specific fields
  *			ibuf contains fieldindexes
  *
- * 	if oper == I2O_PARAMS_LIST_GET, get from specific rows
- * 		if fieldcount == -1 return all fields
+ *	if oper == I2O_PARAMS_LIST_GET, get from specific rows
+ *		if fieldcount == -1 return all fields
  *			ibuf contains rowcount, keyvalues
- * 		else return specific fields
+ *		else return specific fields
  *			fieldcount is # of fieldindexes
- *  			ibuf contains fieldindexes, rowcount, keyvalues
+ *			ibuf contains fieldindexes, rowcount, keyvalues
  *
  *	You could also use directly function i2o_issue_params().
  */

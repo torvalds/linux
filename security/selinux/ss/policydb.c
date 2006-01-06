@@ -103,7 +103,7 @@ static struct policydb_compat_info *policydb_lookup_compat(int version)
 	int i;
 	struct policydb_compat_info *info = NULL;
 
-	for (i = 0; i < sizeof(policydb_compat)/sizeof(*info); i++) {
+	for (i = 0; i < ARRAY_SIZE(policydb_compat); i++) {
 		if (policydb_compat[i].version == version) {
 			info = &policydb_compat[i];
 			break;

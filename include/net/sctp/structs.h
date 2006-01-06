@@ -277,6 +277,24 @@ struct sctp_sock {
 	__u32 default_context;
 	__u32 default_timetolive;
 
+	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
+	 * the destination address every heartbeat interval. This value
+	 * will be inherited by all new associations.
+	 */
+	__u32 hbinterval;
+
+	/* This is the max_retrans value for new associations. */
+	__u16 pathmaxrxt;
+
+	/* The initial Path MTU to use for new associations. */
+	__u32 pathmtu;
+
+	/* The default SACK delay timeout for new associations. */
+	__u32 sackdelay;
+
+	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	__u32 param_flags;
+
 	struct sctp_initmsg initmsg;
 	struct sctp_rtoinfo rtoinfo;
 	struct sctp_paddrparams paddrparam;
@@ -845,9 +863,6 @@ struct sctp_transport {
 	/* Data that has been sent, but not acknowledged. */
 	__u32 flight_size;
 
-	/* PMTU	      : The current known path MTU.  */
-	__u32 pmtu;
-
 	/* Destination */
 	struct dst_entry *dst;
 	/* Source address. */
@@ -862,7 +877,22 @@ struct sctp_transport {
 	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
 	 * the destination address every heartbeat interval.
 	 */
-	int hb_interval;
+	__u32 hbinterval;
+
+	/* This is the max_retrans value for the transport and will
+	 * be initialized from the assocs value.  This can be changed
+	 * using SCTP_SET_PEER_ADDR_PARAMS socket option.
+	 */
+	__u16 pathmaxrxt;
+
+	/* PMTU	      : The current known path MTU.  */
+	__u32 pathmtu;
+
+	/* SACK delay timeout */
+	__u32 sackdelay;
+
+	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	__u32 param_flags;
 
 	/* When was the last time (in jiffies) that we heard from this
 	 * transport?  We use this to pick new active and retran paths.
@@ -882,21 +912,10 @@ struct sctp_transport {
 	 */
 	int state;
 
-	/* hb_allowed  : The current heartbeat state of this destination,
-	 *	       :  i.e. ALLOW-HB, NO-HEARTBEAT, etc.
-	 */
-	int hb_allowed;
-
 	/* These are the error stats for this destination.  */
 
 	/* Error count : The current error count for this destination.	*/
 	unsigned short error_count;
-
-	/* This is the max_retrans value for the transport and will
-	 * be initialized to proto.max_retrans.path.  This can be changed
-	 * using SCTP_SET_PEER_ADDR_PARAMS socket option.
-	 */
-	int max_retrans;
 
 	/* Per	       : A timer used by each destination.
 	 * Destination :
@@ -1502,6 +1521,28 @@ struct sctp_association {
 	/* The largest timeout or RTO value to use in attempting an INIT */
 	__u16 max_init_timeo;
 
+	/* Heartbeat interval: The endpoint sends out a Heartbeat chunk to
+	 * the destination address every heartbeat interval. This value
+	 * will be inherited by all new transports.
+	 */
+	__u32 hbinterval;
+
+	/* This is the max_retrans value for new transports in the
+	 * association.
+	 */
+	__u16 pathmaxrxt;
+
+	/* Association : The smallest PMTU discovered for all of the
+	 * PMTU	       : peer's transport addresses.
+	 */
+	__u32 pathmtu;
+
+	/* SACK delay timeout */
+	__u32 sackdelay;
+
+	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	__u32 param_flags;
+
 	int timeouts[SCTP_NUM_TIMEOUT_TYPES];
 	struct timer_list timers[SCTP_NUM_TIMEOUT_TYPES];
 
@@ -1570,11 +1611,6 @@ struct sctp_association {
 	 * the association sndbuf space.
 	 */
 	wait_queue_head_t	wait;
-
-	/* Association : The smallest PMTU discovered for all of the
-	 * PMTU	       : peer's transport addresses.
-	 */
-	__u32 pmtu;
 
 	/* The message size at which SCTP fragmentation will occur. */
 	__u32 frag_point;

@@ -278,6 +278,71 @@ lpfc_board_online_store(struct class_device *cdev, const char *buf,
 		return -EIO;
 }
 
+static ssize_t
+lpfc_poll_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];
+
+	return snprintf(buf, PAGE_SIZE, "%#x\n", phba->cfg_poll);
+}
+
+static ssize_t
+lpfc_poll_store(struct class_device *cdev, const char *buf,
+		size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];
+	uint32_t creg_val;
+	uint32_t old_val;
+	int val=0;
+
+	if (!isdigit(buf[0]))
+		return -EINVAL;
+
+	if (sscanf(buf, "%i", &val) != 1)
+		return -EINVAL;
+
+	if ((val & 0x3) != val)
+		return -EINVAL;
+
+	spin_lock_irq(phba->host->host_lock);
+
+	old_val = phba->cfg_poll;
+
+	if (val & ENABLE_FCP_RING_POLLING) {
+		if ((val & DISABLE_FCP_RING_INT) &&
+		    !(old_val & DISABLE_FCP_RING_INT)) {
+			creg_val = readl(phba->HCregaddr);
+			creg_val &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
+			writel(creg_val, phba->HCregaddr);
+			readl(phba->HCregaddr); /* flush */
+
+			lpfc_poll_start_timer(phba);
+		}
+	} else if (val != 0x0) {
+		spin_unlock_irq(phba->host->host_lock);
+		return -EINVAL;
+	}
+
+	if (!(val & DISABLE_FCP_RING_INT) &&
+	    (old_val & DISABLE_FCP_RING_INT))
+	{
+		spin_unlock_irq(phba->host->host_lock);
+		del_timer(&phba->fcp_poll_timer);
+		spin_lock_irq(phba->host->host_lock);
+		creg_val = readl(phba->HCregaddr);
+		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
+		writel(creg_val, phba->HCregaddr);
+		readl(phba->HCregaddr); /* flush */
+	}
+
+	phba->cfg_poll = val;
+
+	spin_unlock_irq(phba->host->host_lock);
+
+	return strlen(buf);
+}
 
 #define lpfc_param_show(attr)	\
 static ssize_t \
@@ -416,6 +481,15 @@ static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
 static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
 			 lpfc_board_online_show, lpfc_board_online_store);
 
+static int lpfc_poll = 0;
+module_param(lpfc_poll, int, 0);
+MODULE_PARM_DESC(lpfc_poll, "FCP ring polling mode control:"
+		 " 0 - none,"
+		 " 1 - poll with interrupts enabled"
+		 " 3 - poll and disable FCP ring interrupts");
+
+static CLASS_DEVICE_ATTR(lpfc_poll, S_IRUGO | S_IWUSR,
+			 lpfc_poll_show, lpfc_poll_store);
 
 /*
 # lpfc_log_verbose: Only turn this flag on if you are willing to risk being
@@ -523,10 +597,10 @@ LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 # is 0. Default value of cr_count is 1. The cr_count feature is disabled if
 # cr_delay is set to 0.
 */
-LPFC_ATTR(cr_delay, 0, 0, 63, "A count of milliseconds after which an"
+LPFC_ATTR_RW(cr_delay, 0, 0, 63, "A count of milliseconds after which an"
 		"interrupt response is generated");
 
-LPFC_ATTR(cr_count, 1, 1, 255, "A count of I/O completions after which an"
+LPFC_ATTR_RW(cr_count, 1, 1, 255, "A count of I/O completions after which an"
 		"interrupt response is generated");
 
 /*
@@ -553,6 +627,13 @@ LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands"
 LPFC_ATTR_R(max_luns, 256, 1, 32768,
 	     "Maximum number of LUNs per target driver will support");
 
+/*
+# lpfc_poll_tmo: .Milliseconds driver will wait between polling FCP ring.
+# Value range is [1,255], default value is 10.
+*/
+LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
+	     "Milliseconds driver will wait between polling FCP ring");
+
 struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_info,
 	&class_device_attr_serialnum,
@@ -575,11 +656,15 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_topology,
 	&class_device_attr_lpfc_scan_down,
 	&class_device_attr_lpfc_link_speed,
+	&class_device_attr_lpfc_cr_delay,
+	&class_device_attr_lpfc_cr_count,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_management_version,
 	&class_device_attr_board_online,
+	&class_device_attr_lpfc_poll,
+	&class_device_attr_lpfc_poll_tmo,
 	NULL,
 };
 
@@ -1292,6 +1377,9 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_fdmi_on_init(phba, lpfc_fdmi_on);
 	lpfc_discovery_threads_init(phba, lpfc_discovery_threads);
 	lpfc_max_luns_init(phba, lpfc_max_luns);
+	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
+
+	phba->cfg_poll = lpfc_poll;
 
 	/*
 	 * The total number of segments is the configuration value plus 2

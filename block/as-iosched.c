@@ -182,6 +182,9 @@ struct as_rq {
 
 static kmem_cache_t *arq_pool;
 
+static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq);
+static void as_antic_stop(struct as_data *ad);
+
 /*
  * IO Context helper functions
  */
@@ -370,7 +373,7 @@ static struct as_rq *as_find_first_arq(struct as_data *ad, int data_dir)
  * existing request against the same sector), which can happen when using
  * direct IO, then return the alias.
  */
-static struct as_rq *as_add_arq_rb(struct as_data *ad, struct as_rq *arq)
+static struct as_rq *__as_add_arq_rb(struct as_data *ad, struct as_rq *arq)
 {
 	struct rb_node **p = &ARQ_RB_ROOT(ad, arq)->rb_node;
 	struct rb_node *parent = NULL;
@@ -395,6 +398,16 @@ static struct as_rq *as_add_arq_rb(struct as_data *ad, struct as_rq *arq)
 	rb_insert_color(&arq->rb_node, ARQ_RB_ROOT(ad, arq));
 
 	return NULL;
+}
+
+static void as_add_arq_rb(struct as_data *ad, struct as_rq *arq)
+{
+	struct as_rq *alias;
+
+	while ((unlikely(alias = __as_add_arq_rb(ad, arq)))) {
+		as_move_to_dispatch(ad, alias);
+		as_antic_stop(ad);
+	}
 }
 
 static inline void as_del_arq_rb(struct as_data *ad, struct as_rq *arq)
@@ -1133,23 +1146,6 @@ static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq)
 	/*
 	 * take it off the sort and fifo list, add to dispatch queue
 	 */
-	while (!list_empty(&rq->queuelist)) {
-		struct request *__rq = list_entry_rq(rq->queuelist.next);
-		struct as_rq *__arq = RQ_DATA(__rq);
-
-		list_del(&__rq->queuelist);
-
-		elv_dispatch_add_tail(ad->q, __rq);
-
-		if (__arq->io_context && __arq->io_context->aic)
-			atomic_inc(&__arq->io_context->aic->nr_dispatched);
-
-		WARN_ON(__arq->state != AS_RQ_QUEUED);
-		__arq->state = AS_RQ_DISPATCHED;
-
-		ad->nr_dispatched++;
-	}
-
 	as_remove_queued_request(ad->q, rq);
 	WARN_ON(arq->state != AS_RQ_QUEUED);
 
@@ -1326,49 +1322,12 @@ fifo_expired:
 }
 
 /*
- * Add arq to a list behind alias
- */
-static inline void
-as_add_aliased_request(struct as_data *ad, struct as_rq *arq,
-				struct as_rq *alias)
-{
-	struct request  *req = arq->request;
-	struct list_head *insert = alias->request->queuelist.prev;
-
-	/*
-	 * Transfer list of aliases
-	 */
-	while (!list_empty(&req->queuelist)) {
-		struct request *__rq = list_entry_rq(req->queuelist.next);
-		struct as_rq *__arq = RQ_DATA(__rq);
-
-		list_move_tail(&__rq->queuelist, &alias->request->queuelist);
-
-		WARN_ON(__arq->state != AS_RQ_QUEUED);
-	}
-
-	/*
-	 * Another request with the same start sector on the rbtree.
-	 * Link this request to that sector. They are untangled in
-	 * as_move_to_dispatch
-	 */
-	list_add(&arq->request->queuelist, insert);
-
-	/*
-	 * Don't want to have to handle merges.
-	 */
-	as_del_arq_hash(arq);
-	arq->request->flags |= REQ_NOMERGE;
-}
-
-/*
  * add arq to rbtree and fifo
  */
 static void as_add_request(request_queue_t *q, struct request *rq)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	struct as_rq *arq = RQ_DATA(rq);
-	struct as_rq *alias;
 	int data_dir;
 
 	arq->state = AS_RQ_NEW;
@@ -1387,33 +1346,17 @@ static void as_add_request(request_queue_t *q, struct request *rq)
 		atomic_inc(&arq->io_context->aic->nr_queued);
 	}
 
-	alias = as_add_arq_rb(ad, arq);
-	if (!alias) {
-		/*
-		 * set expire time (only used for reads) and add to fifo list
-		 */
-		arq->expires = jiffies + ad->fifo_expire[data_dir];
-		list_add_tail(&arq->fifo, &ad->fifo_list[data_dir]);
+	as_add_arq_rb(ad, arq);
+	if (rq_mergeable(arq->request))
+		as_add_arq_hash(ad, arq);
 
-		if (rq_mergeable(arq->request))
-			as_add_arq_hash(ad, arq);
-		as_update_arq(ad, arq); /* keep state machine up to date */
+	/*
+	 * set expire time (only used for reads) and add to fifo list
+	 */
+	arq->expires = jiffies + ad->fifo_expire[data_dir];
+	list_add_tail(&arq->fifo, &ad->fifo_list[data_dir]);
 
-	} else {
-		as_add_aliased_request(ad, arq, alias);
-
-		/*
-		 * have we been anticipating this request?
-		 * or does it come from the same process as the one we are
-		 * anticipating for?
-		 */
-		if (ad->antic_status == ANTIC_WAIT_REQ
-				|| ad->antic_status == ANTIC_WAIT_NEXT) {
-			if (as_can_break_anticipation(ad, arq))
-				as_antic_stop(ad);
-		}
-	}
-
+	as_update_arq(ad, arq); /* keep state machine up to date */
 	arq->state = AS_RQ_QUEUED;
 }
 
@@ -1536,23 +1479,8 @@ static void as_merged_request(request_queue_t *q, struct request *req)
 	 * if the merge was a front merge, we need to reposition request
 	 */
 	if (rq_rb_key(req) != arq->rb_key) {
-		struct as_rq *alias, *next_arq = NULL;
-
-		if (ad->next_arq[arq->is_sync] == arq)
-			next_arq = as_find_next_arq(ad, arq);
-
-		/*
-		 * Note! We should really be moving any old aliased requests
-		 * off this request and try to insert them into the rbtree. We
-		 * currently don't bother. Ditto the next function.
-		 */
 		as_del_arq_rb(ad, arq);
-		if ((alias = as_add_arq_rb(ad, arq))) {
-			list_del_init(&arq->fifo);
-			as_add_aliased_request(ad, arq, alias);
-			if (next_arq)
-				ad->next_arq[arq->is_sync] = next_arq;
-		}
+		as_add_arq_rb(ad, arq);
 		/*
 		 * Note! At this stage of this and the next function, our next
 		 * request may not be optimal - eg the request may have "grown"
@@ -1579,18 +1507,8 @@ static void as_merged_requests(request_queue_t *q, struct request *req,
 	as_add_arq_hash(ad, arq);
 
 	if (rq_rb_key(req) != arq->rb_key) {
-		struct as_rq *alias, *next_arq = NULL;
-
-		if (ad->next_arq[arq->is_sync] == arq)
-			next_arq = as_find_next_arq(ad, arq);
-
 		as_del_arq_rb(ad, arq);
-		if ((alias = as_add_arq_rb(ad, arq))) {
-			list_del_init(&arq->fifo);
-			as_add_aliased_request(ad, arq, alias);
-			if (next_arq)
-				ad->next_arq[arq->is_sync] = next_arq;
-		}
+		as_add_arq_rb(ad, arq);
 	}
 
 	/*
@@ -1607,18 +1525,6 @@ static void as_merged_requests(request_queue_t *q, struct request *req,
 			 */
 			swap_io_context(&arq->io_context, &anext->io_context);
 		}
-	}
-
-	/*
-	 * Transfer list of aliases
-	 */
-	while (!list_empty(&next->queuelist)) {
-		struct request *__rq = list_entry_rq(next->queuelist.next);
-		struct as_rq *__arq = RQ_DATA(__rq);
-
-		list_move_tail(&__rq->queuelist, &req->queuelist);
-
-		WARN_ON(__arq->state != AS_RQ_QUEUED);
 	}
 
 	/*

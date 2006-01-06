@@ -1,9 +1,9 @@
 /*
  *  linux/drivers/s390/crypto/z90crypt.h
  *
- *  z90crypt 1.3.2
+ *  z90crypt 1.3.3
  *
- *  Copyright (C)  2001, 2004 IBM Corporation
+ *  Copyright (C)  2001, 2005 IBM Corporation
  *  Author(s): Robert Burroughs (burrough@us.ibm.com)
  *             Eric Rossman (edrossma@us.ibm.com)
  *
@@ -29,11 +29,11 @@
 
 #include <linux/ioctl.h>
 
-#define VERSION_Z90CRYPT_H "$Revision: 1.11 $"
+#define VERSION_Z90CRYPT_H "$Revision: 1.2.2.4 $"
 
 #define z90crypt_VERSION 1
 #define z90crypt_RELEASE 3	// 2 = PCIXCC, 3 = rewrite for coding standards
-#define z90crypt_VARIANT 2	// 2 = added PCIXCC MCL3 and CEX2C support
+#define z90crypt_VARIANT 3	// 3 = CEX2A support
 
 /**
  * struct ica_rsa_modexpo
@@ -122,6 +122,9 @@ struct ica_rsa_modexpo_crt {
  *   Z90STAT_CEX2CCOUNT
  *     Return an integer count of all CEX2Cs.
  *
+ *   Z90STAT_CEX2ACOUNT
+ *     Return an integer count of all CEX2As.
+ *
  *   Z90STAT_REQUESTQ_COUNT
  *     Return an integer count of the number of entries waiting to be
  *     sent to a device.
@@ -144,6 +147,7 @@ struct ica_rsa_modexpo_crt {
  *       0x03: PCIXCC_MCL2
  *       0x04: PCIXCC_MCL3
  *       0x05: CEX2C
+ *       0x06: CEX2A
  *       0x0d: device is disabled via the proc filesystem
  *
  *   Z90STAT_QDEPTH_MASK
@@ -199,6 +203,7 @@ struct ica_rsa_modexpo_crt {
 #define Z90STAT_PCIXCCMCL2COUNT	_IOR(Z90_IOCTL_MAGIC, 0x4b, int)
 #define Z90STAT_PCIXCCMCL3COUNT	_IOR(Z90_IOCTL_MAGIC, 0x4c, int)
 #define Z90STAT_CEX2CCOUNT	_IOR(Z90_IOCTL_MAGIC, 0x4d, int)
+#define Z90STAT_CEX2ACOUNT	_IOR(Z90_IOCTL_MAGIC, 0x4e, int)
 #define Z90STAT_REQUESTQ_COUNT	_IOR(Z90_IOCTL_MAGIC, 0x44, int)
 #define Z90STAT_PENDINGQ_COUNT	_IOR(Z90_IOCTL_MAGIC, 0x45, int)
 #define Z90STAT_TOTALOPEN_COUNT _IOR(Z90_IOCTL_MAGIC, 0x46, int)

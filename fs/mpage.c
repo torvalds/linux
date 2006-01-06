@@ -721,7 +721,7 @@ retry:
 						&last_block_in_bio, &ret, wbc,
 						page->mapping->a_ops->writepage);
 			}
-			if (unlikely(ret == WRITEPAGE_ACTIVATE))
+			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE))
 				unlock_page(page);
 			if (ret || (--(wbc->nr_to_write) <= 0))
 				done = 1;

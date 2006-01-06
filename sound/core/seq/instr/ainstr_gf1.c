@@ -42,14 +42,14 @@ static unsigned int snd_seq_gf1_size(unsigned int size, unsigned int format)
 	return format;
 }
 
-static int snd_seq_gf1_copy_wave_from_stream(snd_gf1_ops_t *ops,
-					     gf1_instrument_t *ip,
+static int snd_seq_gf1_copy_wave_from_stream(struct snd_gf1_ops *ops,
+					     struct gf1_instrument *ip,
 					     char __user **data,
 					     long *len,
 					     int atomic)
 {
-	gf1_wave_t *wp, *prev;
-	gf1_xwave_t xp;
+	struct gf1_wave *wp, *prev;
+	struct gf1_xwave xp;
 	int err;
 	gfp_t gfp_mask;
 	unsigned int real_size;
@@ -116,8 +116,8 @@ static int snd_seq_gf1_copy_wave_from_stream(snd_gf1_ops_t *ops,
 	return 0;
 }
 
-static void snd_seq_gf1_wave_free(snd_gf1_ops_t *ops,
-				  gf1_wave_t *wave,
+static void snd_seq_gf1_wave_free(struct snd_gf1_ops *ops,
+				  struct gf1_wave *wave,
 				  int atomic)
 {
 	if (ops->remove_sample)
@@ -125,11 +125,11 @@ static void snd_seq_gf1_wave_free(snd_gf1_ops_t *ops,
 	kfree(wave);
 }
 
-static void snd_seq_gf1_instr_free(snd_gf1_ops_t *ops,
-				   gf1_instrument_t *ip,
+static void snd_seq_gf1_instr_free(struct snd_gf1_ops *ops,
+				   struct gf1_instrument *ip,
 				   int atomic)
 {
-	gf1_wave_t *wave;
+	struct gf1_wave *wave;
 	
 	while ((wave = ip->wave) != NULL) {
 		ip->wave = wave->next;
@@ -137,13 +137,13 @@ static void snd_seq_gf1_instr_free(snd_gf1_ops_t *ops,
 	}
 }
 
-static int snd_seq_gf1_put(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_gf1_put(void *private_data, struct snd_seq_kinstr *instr,
 			   char __user *instr_data, long len, int atomic,
 			   int cmd)
 {
-	snd_gf1_ops_t *ops = (snd_gf1_ops_t *)private_data;
-	gf1_instrument_t *ip;
-	gf1_xinstrument_t ix;
+	struct snd_gf1_ops *ops = private_data;
+	struct gf1_instrument *ip;
+	struct gf1_xinstrument ix;
 	int err;
 	gfp_t gfp_mask;
 
@@ -159,7 +159,7 @@ static int snd_seq_gf1_put(void *private_data, snd_seq_kinstr_t *instr,
 		return -EINVAL;
 	instr_data += sizeof(ix);
 	len -= sizeof(ix);
-	ip = (gf1_instrument_t *)KINSTR_DATA(instr);
+	ip = (struct gf1_instrument *)KINSTR_DATA(instr);
 	ip->exclusion = le16_to_cpu(ix.exclusion);
 	ip->exclusion_group = le16_to_cpu(ix.exclusion_group);
 	ip->effect1 = ix.effect1;
@@ -189,14 +189,14 @@ static int snd_seq_gf1_put(void *private_data, snd_seq_kinstr_t *instr,
 	return 0;
 }
 
-static int snd_seq_gf1_copy_wave_to_stream(snd_gf1_ops_t *ops,
-					   gf1_instrument_t *ip,
+static int snd_seq_gf1_copy_wave_to_stream(struct snd_gf1_ops *ops,
+					   struct gf1_instrument *ip,
 					   char __user **data,
 					   long *len,
 					   int atomic)
 {
-	gf1_wave_t *wp;
-	gf1_xwave_t xp;
+	struct gf1_wave *wp;
+	struct gf1_xwave xp;
 	int err;
 	unsigned int real_size;
 	
@@ -251,20 +251,20 @@ static int snd_seq_gf1_copy_wave_to_stream(snd_gf1_ops_t *ops,
 	return 0;
 }
 
-static int snd_seq_gf1_get(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_gf1_get(void *private_data, struct snd_seq_kinstr *instr,
 			   char __user *instr_data, long len, int atomic,
 			   int cmd)
 {
-	snd_gf1_ops_t *ops = (snd_gf1_ops_t *)private_data;
-	gf1_instrument_t *ip;
-	gf1_xinstrument_t ix;
+	struct snd_gf1_ops *ops = private_data;
+	struct gf1_instrument *ip;
+	struct gf1_xinstrument ix;
 	
 	if (cmd != SNDRV_SEQ_INSTR_GET_CMD_FULL)
 		return -EINVAL;
 	if (len < (long)sizeof(ix))
 		return -ENOMEM;
 	memset(&ix, 0, sizeof(ix));
-	ip = (gf1_instrument_t *)KINSTR_DATA(instr);
+	ip = (struct gf1_instrument *)KINSTR_DATA(instr);
 	ix.stype = GF1_STRU_INSTR;
 	ix.exclusion = cpu_to_le16(ip->exclusion);
 	ix.exclusion_group = cpu_to_le16(ip->exclusion_group);
@@ -283,18 +283,18 @@ static int snd_seq_gf1_get(void *private_data, snd_seq_kinstr_t *instr,
 					       atomic);
 }
 
-static int snd_seq_gf1_get_size(void *private_data, snd_seq_kinstr_t *instr,
+static int snd_seq_gf1_get_size(void *private_data, struct snd_seq_kinstr *instr,
 				long *size)
 {
 	long result;
-	gf1_instrument_t *ip;
-	gf1_wave_t *wp;
+	struct gf1_instrument *ip;
+	struct gf1_wave *wp;
 
 	*size = 0;
-	ip = (gf1_instrument_t *)KINSTR_DATA(instr);
-	result = sizeof(gf1_xinstrument_t);
+	ip = (struct gf1_instrument *)KINSTR_DATA(instr);
+	result = sizeof(struct gf1_xinstrument);
 	for (wp = ip->wave; wp; wp = wp->next) {
-		result += sizeof(gf1_xwave_t);
+		result += sizeof(struct gf1_xwave);
 		result += wp->size;
 	}
 	*size = result;
@@ -302,35 +302,35 @@ static int snd_seq_gf1_get_size(void *private_data, snd_seq_kinstr_t *instr,
 }
 
 static int snd_seq_gf1_remove(void *private_data,
-			      snd_seq_kinstr_t *instr,
+			      struct snd_seq_kinstr *instr,
                               int atomic)
 {
-	snd_gf1_ops_t *ops = (snd_gf1_ops_t *)private_data;
-	gf1_instrument_t *ip;
+	struct snd_gf1_ops *ops = private_data;
+	struct gf1_instrument *ip;
 
-	ip = (gf1_instrument_t *)KINSTR_DATA(instr);
+	ip = (struct gf1_instrument *)KINSTR_DATA(instr);
 	snd_seq_gf1_instr_free(ops, ip, atomic);
 	return 0;
 }
 
 static void snd_seq_gf1_notify(void *private_data,
-			       snd_seq_kinstr_t *instr,
+			       struct snd_seq_kinstr *instr,
 			       int what)
 {
-	snd_gf1_ops_t *ops = (snd_gf1_ops_t *)private_data;
+	struct snd_gf1_ops *ops = private_data;
 
 	if (ops->notify)
 		ops->notify(ops->private_data, instr, what);
 }
 
-int snd_seq_gf1_init(snd_gf1_ops_t *ops,
+int snd_seq_gf1_init(struct snd_gf1_ops *ops,
 		     void *private_data,
-		     snd_seq_kinstr_ops_t *next)
+		     struct snd_seq_kinstr_ops *next)
 {
 	memset(ops, 0, sizeof(*ops));
 	ops->private_data = private_data;
 	ops->kops.private_data = ops;
-	ops->kops.add_len = sizeof(gf1_instrument_t);
+	ops->kops.add_len = sizeof(struct gf1_instrument);
 	ops->kops.instr_type = SNDRV_SEQ_INSTR_ID_GUS_PATCH;
 	ops->kops.put = snd_seq_gf1_put;
 	ops->kops.get = snd_seq_gf1_get;

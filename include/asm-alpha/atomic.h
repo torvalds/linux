@@ -216,4 +216,5 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
+#include <asm-generic/atomic.h>
 #endif /* _ALPHA_ATOMIC_H */

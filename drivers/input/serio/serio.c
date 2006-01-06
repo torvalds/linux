@@ -800,16 +800,16 @@ static int serio_bus_match(struct device *dev, struct device_driver *drv)
 
 #ifdef CONFIG_HOTPLUG
 
-#define SERIO_ADD_HOTPLUG_VAR(fmt, val...)				\
+#define SERIO_ADD_UEVENT_VAR(fmt, val...)				\
 	do {								\
-		int err = add_hotplug_env_var(envp, num_envp, &i,	\
+		int err = add_uevent_var(envp, num_envp, &i,	\
 					buffer, buffer_size, &len,	\
 					fmt, val);			\
 		if (err)						\
 			return err;					\
 	} while (0)
 
-static int serio_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+static int serio_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
 {
 	struct serio *serio;
 	int i = 0;
@@ -820,21 +820,21 @@ static int serio_hotplug(struct device *dev, char **envp, int num_envp, char *bu
 
 	serio = to_serio_port(dev);
 
-	SERIO_ADD_HOTPLUG_VAR("SERIO_TYPE=%02x", serio->id.type);
-	SERIO_ADD_HOTPLUG_VAR("SERIO_PROTO=%02x", serio->id.proto);
-	SERIO_ADD_HOTPLUG_VAR("SERIO_ID=%02x", serio->id.id);
-	SERIO_ADD_HOTPLUG_VAR("SERIO_EXTRA=%02x", serio->id.extra);
-	SERIO_ADD_HOTPLUG_VAR("MODALIAS=serio:ty%02Xpr%02Xid%02Xex%02X",
+	SERIO_ADD_UEVENT_VAR("SERIO_TYPE=%02x", serio->id.type);
+	SERIO_ADD_UEVENT_VAR("SERIO_PROTO=%02x", serio->id.proto);
+	SERIO_ADD_UEVENT_VAR("SERIO_ID=%02x", serio->id.id);
+	SERIO_ADD_UEVENT_VAR("SERIO_EXTRA=%02x", serio->id.extra);
+	SERIO_ADD_UEVENT_VAR("MODALIAS=serio:ty%02Xpr%02Xid%02Xex%02X",
 				serio->id.type, serio->id.proto, serio->id.id, serio->id.extra);
 	envp[i] = NULL;
 
 	return 0;
 }
-#undef SERIO_ADD_HOTPLUG_VAR
+#undef SERIO_ADD_UEVENT_VAR
 
 #else
 
-static int serio_hotplug(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
+static int serio_uevent(struct device *dev, char **envp, int num_envp, char *buffer, int buffer_size)
 {
 	return -ENODEV;
 }
@@ -908,7 +908,7 @@ static int __init serio_init(void)
 	serio_bus.dev_attrs = serio_device_attrs;
 	serio_bus.drv_attrs = serio_driver_attrs;
 	serio_bus.match = serio_bus_match;
-	serio_bus.hotplug = serio_hotplug;
+	serio_bus.uevent = serio_uevent;
 	serio_bus.resume = serio_resume;
 	bus_register(&serio_bus);
 

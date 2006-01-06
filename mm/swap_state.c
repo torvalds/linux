@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/backing-dev.h>
+#include <linux/pagevec.h>
 
 #include <asm/pgtable.h>
 
@@ -272,12 +273,11 @@ void free_page_and_swap_cache(struct page *page)
  */
 void free_pages_and_swap_cache(struct page **pages, int nr)
 {
-	int chunk = 16;
 	struct page **pagep = pages;
 
 	lru_add_drain();
 	while (nr) {
-		int todo = min(chunk, nr);
+		int todo = min(nr, PAGEVEC_SIZE);
 		int i;
 
 		for (i = 0; i < todo; i++)

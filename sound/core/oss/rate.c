@@ -33,29 +33,29 @@
  *  Basic rate conversion plugin
  */
 
-typedef struct {
+struct rate_channel {
 	signed short last_S1;
 	signed short last_S2;
-} rate_channel_t;
+};
  
-typedef void (*rate_f)(snd_pcm_plugin_t *plugin,
-		       const snd_pcm_plugin_channel_t *src_channels,
-		       snd_pcm_plugin_channel_t *dst_channels,
+typedef void (*rate_f)(struct snd_pcm_plugin *plugin,
+		       const struct snd_pcm_plugin_channel *src_channels,
+		       struct snd_pcm_plugin_channel *dst_channels,
 		       int src_frames, int dst_frames);
 
-typedef struct rate_private_data {
+struct rate_priv {
 	unsigned int pitch;
 	unsigned int pos;
 	rate_f func;
 	int get, put;
 	snd_pcm_sframes_t old_src_frames, old_dst_frames;
-	rate_channel_t channels[0];
-} rate_t;
+	struct rate_channel channels[0];
+};
 
-static void rate_init(snd_pcm_plugin_t *plugin)
+static void rate_init(struct snd_pcm_plugin *plugin)
 {
 	unsigned int channel;
-	rate_t *data = (rate_t *)plugin->extra_data;
+	struct rate_priv *data = (struct rate_priv *)plugin->extra_data;
 	data->pos = 0;
 	for (channel = 0; channel < plugin->src_format.channels; channel++) {
 		data->channels[channel].last_S1 = 0;
@@ -63,9 +63,9 @@ static void rate_init(snd_pcm_plugin_t *plugin)
 	}
 }
 
-static void resample_expand(snd_pcm_plugin_t *plugin,
-			    const snd_pcm_plugin_channel_t *src_channels,
-			    snd_pcm_plugin_channel_t *dst_channels,
+static void resample_expand(struct snd_pcm_plugin *plugin,
+			    const struct snd_pcm_plugin_channel *src_channels,
+			    struct snd_pcm_plugin_channel *dst_channels,
 			    int src_frames, int dst_frames)
 {
 	unsigned int pos = 0;
@@ -75,8 +75,8 @@ static void resample_expand(snd_pcm_plugin_t *plugin,
 	unsigned int channel;
 	int src_step, dst_step;
 	int src_frames1, dst_frames1;
-	rate_t *data = (rate_t *)plugin->extra_data;
-	rate_channel_t *rchannels = data->channels;
+	struct rate_priv *data = (struct rate_priv *)plugin->extra_data;
+	struct rate_channel *rchannels = data->channels;
 
 #define GET_S16_LABELS
 #define PUT_S16_LABELS
@@ -139,9 +139,9 @@ static void resample_expand(snd_pcm_plugin_t *plugin,
 	data->pos = pos;
 }
 
-static void resample_shrink(snd_pcm_plugin_t *plugin,
-			    const snd_pcm_plugin_channel_t *src_channels,
-			    snd_pcm_plugin_channel_t *dst_channels,
+static void resample_shrink(struct snd_pcm_plugin *plugin,
+			    const struct snd_pcm_plugin_channel *src_channels,
+			    struct snd_pcm_plugin_channel *dst_channels,
 			    int src_frames, int dst_frames)
 {
 	unsigned int pos = 0;
@@ -151,8 +151,8 @@ static void resample_shrink(snd_pcm_plugin_t *plugin,
 	unsigned int channel;
 	int src_step, dst_step;
 	int src_frames1, dst_frames1;
-	rate_t *data = (rate_t *)plugin->extra_data;
-	rate_channel_t *rchannels = data->channels;
+	struct rate_priv *data = (struct rate_priv *)plugin->extra_data;
+	struct rate_channel *rchannels = data->channels;
 	
 #define GET_S16_LABELS
 #define PUT_S16_LABELS
@@ -216,15 +216,15 @@ static void resample_shrink(snd_pcm_plugin_t *plugin,
 	data->pos = pos;
 }
 
-static snd_pcm_sframes_t rate_src_frames(snd_pcm_plugin_t *plugin, snd_pcm_uframes_t frames)
+static snd_pcm_sframes_t rate_src_frames(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t frames)
 {
-	rate_t *data;
+	struct rate_priv *data;
 	snd_pcm_sframes_t res;
 
 	snd_assert(plugin != NULL, return -ENXIO);
 	if (frames == 0)
 		return 0;
-	data = (rate_t *)plugin->extra_data;
+	data = (struct rate_priv *)plugin->extra_data;
 	if (plugin->src_format.rate < plugin->dst_format.rate) {
 		res = (((frames * data->pitch) + (BITS/2)) >> SHIFT);
 	} else {
@@ -248,15 +248,15 @@ static snd_pcm_sframes_t rate_src_frames(snd_pcm_plugin_t *plugin, snd_pcm_ufram
 	return res;
 }
 
-static snd_pcm_sframes_t rate_dst_frames(snd_pcm_plugin_t *plugin, snd_pcm_uframes_t frames)
+static snd_pcm_sframes_t rate_dst_frames(struct snd_pcm_plugin *plugin, snd_pcm_uframes_t frames)
 {
-	rate_t *data;
+	struct rate_priv *data;
 	snd_pcm_sframes_t res;
 
 	snd_assert(plugin != NULL, return -ENXIO);
 	if (frames == 0)
 		return 0;
-	data = (rate_t *)plugin->extra_data;
+	data = (struct rate_priv *)plugin->extra_data;
 	if (plugin->src_format.rate < plugin->dst_format.rate) {
 		res = (((frames << SHIFT) + (data->pitch / 2)) / data->pitch);
 	} else {
@@ -280,13 +280,13 @@ static snd_pcm_sframes_t rate_dst_frames(snd_pcm_plugin_t *plugin, snd_pcm_ufram
 	return res;
 }
 
-static snd_pcm_sframes_t rate_transfer(snd_pcm_plugin_t *plugin,
-			     const snd_pcm_plugin_channel_t *src_channels,
-			     snd_pcm_plugin_channel_t *dst_channels,
+static snd_pcm_sframes_t rate_transfer(struct snd_pcm_plugin *plugin,
+			     const struct snd_pcm_plugin_channel *src_channels,
+			     struct snd_pcm_plugin_channel *dst_channels,
 			     snd_pcm_uframes_t frames)
 {
 	snd_pcm_uframes_t dst_frames;
-	rate_t *data;
+	struct rate_priv *data;
 
 	snd_assert(plugin != NULL && src_channels != NULL && dst_channels != NULL, return -ENXIO);
 	if (frames == 0)
@@ -308,14 +308,14 @@ static snd_pcm_sframes_t rate_transfer(snd_pcm_plugin_t *plugin,
 	dst_frames = rate_dst_frames(plugin, frames);
 	if (dst_frames > dst_channels[0].frames)
 		dst_frames = dst_channels[0].frames;
-	data = (rate_t *)plugin->extra_data;
+	data = (struct rate_priv *)plugin->extra_data;
 	data->func(plugin, src_channels, dst_channels, frames, dst_frames);
 	return dst_frames;
 }
 
-static int rate_action(snd_pcm_plugin_t *plugin,
-		       snd_pcm_plugin_action_t action,
-		       unsigned long udata ATTRIBUTE_UNUSED)
+static int rate_action(struct snd_pcm_plugin *plugin,
+		       enum snd_pcm_plugin_action action,
+		       unsigned long udata)
 {
 	snd_assert(plugin != NULL, return -ENXIO);
 	switch (action) {
@@ -329,14 +329,14 @@ static int rate_action(snd_pcm_plugin_t *plugin,
 	return 0;	/* silenty ignore other actions */
 }
 
-int snd_pcm_plugin_build_rate(snd_pcm_plug_t *plug,
-			      snd_pcm_plugin_format_t *src_format,
-			      snd_pcm_plugin_format_t *dst_format,
-			      snd_pcm_plugin_t **r_plugin)
+int snd_pcm_plugin_build_rate(struct snd_pcm_substream *plug,
+			      struct snd_pcm_plugin_format *src_format,
+			      struct snd_pcm_plugin_format *dst_format,
+			      struct snd_pcm_plugin **r_plugin)
 {
 	int err;
-	rate_t *data;
-	snd_pcm_plugin_t *plugin;
+	struct rate_priv *data;
+	struct snd_pcm_plugin *plugin;
 
 	snd_assert(r_plugin != NULL, return -ENXIO);
 	*r_plugin = NULL;
@@ -349,11 +349,12 @@ int snd_pcm_plugin_build_rate(snd_pcm_plug_t *plug,
 
 	err = snd_pcm_plugin_build(plug, "rate conversion",
 				   src_format, dst_format,
-				   sizeof(rate_t) + src_format->channels * sizeof(rate_channel_t),
+				   sizeof(struct rate_priv) +
+				   src_format->channels * sizeof(struct rate_channel),
 				   &plugin);
 	if (err < 0)
 		return err;
-	data = (rate_t *)plugin->extra_data;
+	data = (struct rate_priv *)plugin->extra_data;
 	data->get = getput_index(src_format->format);
 	snd_assert(data->get >= 0 && data->get < 4*2*2, return -EINVAL);
 	data->put = getput_index(dst_format->format);

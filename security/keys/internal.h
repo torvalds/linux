@@ -25,7 +25,6 @@
 #define kdebug(FMT, a...)	do {} while(0)
 #endif
 
-extern struct key_type key_type_dead;
 extern struct key_type key_type_user;
 
 /*****************************************************************************/

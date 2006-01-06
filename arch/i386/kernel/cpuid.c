@@ -117,14 +117,13 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 {
 	char __user *tmp = buf;
 	u32 data[4];
-	size_t rv;
 	u32 reg = *ppos;
 	int cpu = iminor(file->f_dentry->d_inode);
 
 	if (count % 16)
 		return -EINVAL;	/* Invalid chunk size */
 
-	for (rv = 0; count; count -= 16) {
+	for (; count; count -= 16) {
 		do_cpuid(cpu, reg, data);
 		if (copy_to_user(tmp, &data, 16))
 			return -EFAULT;

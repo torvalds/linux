@@ -103,13 +103,16 @@ static int	mptspiTaskCtx = -1;
 static int	mptspiInternalCtx = -1; /* Used only for internal commands */
 
 static struct scsi_host_template mptspi_driver_template = {
+	.module				= THIS_MODULE,
 	.proc_name			= "mptspi",
 	.proc_info			= mptscsih_proc_info,
 	.name				= "MPT SPI Host",
 	.info				= mptscsih_info,
 	.queuecommand			= mptscsih_qcmd,
+	.target_alloc			= mptscsih_target_alloc,
 	.slave_alloc			= mptscsih_slave_alloc,
 	.slave_configure		= mptscsih_slave_configure,
+	.target_destroy			= mptscsih_target_destroy,
 	.slave_destroy			= mptscsih_slave_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
 	.eh_abort_handler		= mptscsih_abort,
@@ -177,13 +180,15 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(MYIOC_s_WARN_FMT
 		  "Skipping because it's not operational!\n",
 		  ioc->name);
-		return -ENODEV;
+		error = -ENODEV;
+		goto out_mptspi_probe;
 	}
 
 	if (!ioc->active) {
 		printk(MYIOC_s_WARN_FMT "Skipping because it's disabled!\n",
 		  ioc->name);
-		return -ENODEV;
+		error = -ENODEV;
+		goto out_mptspi_probe;
 	}
 
 	/*  Sanity check - ensure at least 1 port is INITIATOR capable
@@ -208,7 +213,8 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(MYIOC_s_WARN_FMT
 			"Unable to register controller with SCSI subsystem\n",
 			ioc->name);
-                return -1;
+		error = -1;
+		goto out_mptspi_probe;
         }
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
@@ -286,7 +292,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mem = kmalloc(sz, GFP_ATOMIC);
 	if (mem == NULL) {
 		error = -ENOMEM;
-		goto mptspi_probe_failed;
+		goto out_mptspi_probe;
 	}
 
 	memset(mem, 0, sz);
@@ -304,14 +310,14 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mem = kmalloc(sz, GFP_ATOMIC);
 	if (mem == NULL) {
 		error = -ENOMEM;
-		goto mptspi_probe_failed;
+		goto out_mptspi_probe;
 	}
 
 	memset(mem, 0, sz);
-	hd->Targets = (VirtDevice **) mem;
+	hd->Targets = (VirtTarget **) mem;
 
 	dprintk((KERN_INFO
-	  "  Targets @ %p, sz=%d\n", hd->Targets, sz));
+	  "  vdev @ %p, sz=%d\n", hd->Targets, sz));
 
 	/* Clear the TM flags
 	 */
@@ -385,13 +391,13 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if(error) {
 		dprintk((KERN_ERR MYNAM
 		  "scsi_add_host failed\n"));
-		goto mptspi_probe_failed;
+		goto out_mptspi_probe;
 	}
 
 	scsi_scan_host(sh);
 	return 0;
 
-mptspi_probe_failed:
+out_mptspi_probe:
 
 	mptscsih_remove(pdev);
 	return error;

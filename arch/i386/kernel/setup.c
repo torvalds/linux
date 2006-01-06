@@ -954,6 +954,12 @@ efi_find_max_pfn(unsigned long start, unsigned long end, void *arg)
 	return 0;
 }
 
+static int __init
+efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
+{
+	memory_present(0, start, end);
+	return 0;
+}
 
 /*
  * Find the highest page frame number we have available
@@ -965,6 +971,7 @@ void __init find_max_pfn(void)
 	max_pfn = 0;
 	if (efi_enabled) {
 		efi_memmap_walk(efi_find_max_pfn, &max_pfn);
+		efi_memmap_walk(efi_memory_present_wrapper, NULL);
 		return;
 	}
 
@@ -979,6 +986,7 @@ void __init find_max_pfn(void)
 			continue;
 		if (end > max_pfn)
 			max_pfn = end;
+		memory_present(0, start, end);
 	}
 }
 

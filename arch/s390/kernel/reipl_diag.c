@@ -26,7 +26,7 @@ void reipl_diag(void)
 		"   st   %%r4,%0\n"
 		"   st   %%r5,%1\n"
                 ".section __ex_table,\"a\"\n"
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
                 "   .align 8\n"
                 "   .quad 0b, 0b\n"
 #else

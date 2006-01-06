@@ -659,7 +659,6 @@ MODULE_DEVICE_TABLE(usb, speedtch_usb_ids);
 static int speedtch_usb_probe(struct usb_interface *, const struct usb_device_id *);
 
 static struct usb_driver speedtch_usb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= speedtch_driver_name,
 	.probe		= speedtch_usb_probe,
 	.disconnect	= usbatm_usb_disconnect,

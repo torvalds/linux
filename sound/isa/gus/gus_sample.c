@@ -28,9 +28,9 @@
  *
  */
 
-static void select_instrument(snd_gus_card_t * gus, snd_gus_voice_t * v)
+static void select_instrument(struct snd_gus_card * gus, struct snd_gus_voice * v)
 {
-	snd_seq_kinstr_t *instr;
+	struct snd_seq_kinstr *instr;
 
 #if 0
 	printk("select instrument: cluster = %li, std = 0x%x, bank = %i, prg = %i\n",
@@ -53,7 +53,8 @@ static void select_instrument(snd_gus_card_t * gus, snd_gus_voice_t * v)
  *
  */
 
-static void event_sample(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_sample(struct snd_seq_event *ev, struct snd_gus_port *p,
+			 struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_stop)
 		v->sample_ops->sample_stop(p->gus, v, SAMPLE_STOP_IMMEDIATELY);
@@ -67,7 +68,8 @@ static void event_sample(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t
 	select_instrument(p->gus, v);
 }
 
-static void event_cluster(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_cluster(struct snd_seq_event *ev, struct snd_gus_port *p,
+			  struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_stop)
 		v->sample_ops->sample_stop(p->gus, v, SAMPLE_STOP_IMMEDIATELY);
@@ -75,50 +77,58 @@ static void event_cluster(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_
 	select_instrument(p->gus, v);
 }
 
-static void event_start(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_start(struct snd_seq_event *ev, struct snd_gus_port *p,
+			struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_start)
 		v->sample_ops->sample_start(p->gus, v, ev->data.sample.param.position);
 }
 
-static void event_stop(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_stop(struct snd_seq_event *ev, struct snd_gus_port *p,
+		       struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_stop)
 		v->sample_ops->sample_stop(p->gus, v, ev->data.sample.param.stop_mode);
 }
 
-static void event_freq(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_freq(struct snd_seq_event *ev, struct snd_gus_port *p,
+		       struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_freq)
 		v->sample_ops->sample_freq(p->gus, v, ev->data.sample.param.frequency);
 }
 
-static void event_volume(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_volume(struct snd_seq_event *ev, struct snd_gus_port *p,
+			 struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_volume)
 		v->sample_ops->sample_volume(p->gus, v, &ev->data.sample.param.volume);
 }
 
-static void event_loop(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_loop(struct snd_seq_event *ev, struct snd_gus_port *p,
+		       struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_loop)
 		v->sample_ops->sample_loop(p->gus, v, &ev->data.sample.param.loop);
 }
 
-static void event_position(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_position(struct snd_seq_event *ev, struct snd_gus_port *p,
+			   struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_pos)
 		v->sample_ops->sample_pos(p->gus, v, ev->data.sample.param.position);
 }
 
-static void event_private1(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v)
+static void event_private1(struct snd_seq_event *ev, struct snd_gus_port *p,
+			   struct snd_gus_voice *v)
 {
 	if (v->sample_ops && v->sample_ops->sample_private1)
 		v->sample_ops->sample_private1(p->gus, v, (unsigned char *)&ev->data.sample.param.raw8);
 }
 
-typedef void (gus_sample_event_handler_t)(snd_seq_event_t *ev, snd_gus_port_t *p, snd_gus_voice_t *v);
-
+typedef void (gus_sample_event_handler_t)(struct snd_seq_event *ev,
+					  struct snd_gus_port *p,
+					  struct snd_gus_voice *v);
 static gus_sample_event_handler_t *gus_sample_event_handlers[9] = {
 	event_sample,
 	event_cluster,
@@ -131,11 +141,11 @@ static gus_sample_event_handler_t *gus_sample_event_handlers[9] = {
 	event_private1
 };
 
-void snd_gus_sample_event(snd_seq_event_t *ev, snd_gus_port_t *p)
+void snd_gus_sample_event(struct snd_seq_event *ev, struct snd_gus_port *p)
 {
 	int idx, voice;
-	snd_gus_card_t *gus = p->gus;
-	snd_gus_voice_t *v;
+	struct snd_gus_card *gus = p->gus;
+	struct snd_gus_voice *v;
 	unsigned long flags;
 	
 	idx = ev->type - SNDRV_SEQ_EVENT_SAMPLE;

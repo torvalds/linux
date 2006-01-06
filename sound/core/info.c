@@ -37,6 +37,8 @@
  *
  */
 
+#ifdef CONFIG_PROC_FS
+
 int snd_info_check_reserved_words(const char *str)
 {
 	static char *reserved[] =
@@ -66,16 +68,14 @@ int snd_info_check_reserved_words(const char *str)
 	return 1;
 }
 
-#ifdef CONFIG_PROC_FS
-
 static DECLARE_MUTEX(info_mutex);
 
-typedef struct _snd_info_private_data {
-	snd_info_buffer_t *rbuffer;
-	snd_info_buffer_t *wbuffer;
-	snd_info_entry_t *entry;
+struct snd_info_private_data {
+	struct snd_info_buffer *rbuffer;
+	struct snd_info_buffer *wbuffer;
+	struct snd_info_entry *entry;
 	void *file_private_data;
-} snd_info_private_data_t;
+};
 
 static int snd_info_version_init(void);
 static int snd_info_version_done(void);
@@ -90,7 +90,7 @@ static int snd_info_version_done(void);
  *
  * Returns the size of output string.
  */
-int snd_iprintf(snd_info_buffer_t * buffer, char *fmt,...)
+int snd_iprintf(struct snd_info_buffer *buffer, char *fmt,...)
 {
 	va_list args;
 	int len, res;
@@ -115,9 +115,9 @@ int snd_iprintf(snd_info_buffer_t * buffer, char *fmt,...)
  */
 
 static struct proc_dir_entry *snd_proc_root = NULL;
-snd_info_entry_t *snd_seq_root = NULL;
+struct snd_info_entry *snd_seq_root = NULL;
 #ifdef CONFIG_SND_OSSEMUL
-snd_info_entry_t *snd_oss_root = NULL;
+struct snd_info_entry *snd_oss_root = NULL;
 #endif
 
 static inline void snd_info_entry_prepare(struct proc_dir_entry *de)
@@ -134,7 +134,7 @@ static void snd_remove_proc_entry(struct proc_dir_entry *parent,
 
 static loff_t snd_info_entry_llseek(struct file *file, loff_t offset, int orig)
 {
-	snd_info_private_data_t *data;
+	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
 	loff_t ret;
 
@@ -176,9 +176,9 @@ out:
 static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
 				   size_t count, loff_t * offset)
 {
-	snd_info_private_data_t *data;
+	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
-	snd_info_buffer_t *buf;
+	struct snd_info_buffer *buf;
 	size_t size = 0;
 	loff_t pos;
 
@@ -217,9 +217,9 @@ static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
 static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer,
 				    size_t count, loff_t * offset)
 {
-	snd_info_private_data_t *data;
+	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
-	snd_info_buffer_t *buf;
+	struct snd_info_buffer *buf;
 	size_t size = 0;
 	loff_t pos;
 
@@ -259,15 +259,15 @@ static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer
 
 static int snd_info_entry_open(struct inode *inode, struct file *file)
 {
-	snd_info_entry_t *entry;
-	snd_info_private_data_t *data;
-	snd_info_buffer_t *buffer;
+	struct snd_info_entry *entry;
+	struct snd_info_private_data *data;
+	struct snd_info_buffer *buffer;
 	struct proc_dir_entry *p;
 	int mode, err;
 
 	down(&info_mutex);
 	p = PDE(inode);
-	entry = p == NULL ? NULL : (snd_info_entry_t *)p->data;
+	entry = p == NULL ? NULL : (struct snd_info_entry *)p->data;
 	if (entry == NULL || entry->disconnected) {
 		up(&info_mutex);
 		return -ENODEV;
@@ -381,8 +381,8 @@ static int snd_info_entry_open(struct inode *inode, struct file *file)
 
 static int snd_info_entry_release(struct inode *inode, struct file *file)
 {
-	snd_info_entry_t *entry;
-	snd_info_private_data_t *data;
+	struct snd_info_entry *entry;
+	struct snd_info_private_data *data;
 	int mode;
 
 	mode = file->f_flags & O_ACCMODE;
@@ -420,7 +420,7 @@ static int snd_info_entry_release(struct inode *inode, struct file *file)
 
 static unsigned int snd_info_entry_poll(struct file *file, poll_table * wait)
 {
-	snd_info_private_data_t *data;
+	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
 	unsigned int mask;
 
@@ -447,7 +447,7 @@ static unsigned int snd_info_entry_poll(struct file *file, poll_table * wait)
 static inline int _snd_info_entry_ioctl(struct inode *inode, struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
-	snd_info_private_data_t *data;
+	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
 
 	data = file->private_data;
@@ -479,7 +479,7 @@ static int snd_info_entry_ioctl(struct inode *inode, struct file *file,
 static int snd_info_entry_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file->f_dentry->d_inode;
-	snd_info_private_data_t *data;
+	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
 
 	data = file->private_data;
@@ -541,7 +541,7 @@ int __init snd_info_init(void)
 	snd_proc_root = p;
 #ifdef CONFIG_SND_OSSEMUL
 	{
-		snd_info_entry_t *entry;
+		struct snd_info_entry *entry;
 		if ((entry = snd_info_create_module_entry(THIS_MODULE, "oss", NULL)) == NULL)
 			return -ENOMEM;
 		entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
@@ -554,7 +554,7 @@ int __init snd_info_init(void)
 #endif
 #if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
 	{
-		snd_info_entry_t *entry;
+		struct snd_info_entry *entry;
 		if ((entry = snd_info_create_module_entry(THIS_MODULE, "seq", NULL)) == NULL)
 			return -ENOMEM;
 		entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
@@ -580,12 +580,10 @@ int __exit snd_info_done(void)
 	snd_info_version_done();
 	if (snd_proc_root) {
 #if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
-		if (snd_seq_root)
-			snd_info_unregister(snd_seq_root);
+		snd_info_unregister(snd_seq_root);
 #endif
 #ifdef CONFIG_SND_OSSEMUL
-		if (snd_oss_root)
-			snd_info_unregister(snd_oss_root);
+		snd_info_unregister(snd_oss_root);
 #endif
 		snd_remove_proc_entry(&proc_root, snd_proc_root);
 	}
@@ -601,10 +599,10 @@ int __exit snd_info_done(void)
  * create a card proc file
  * called from init.c
  */
-int snd_info_card_create(snd_card_t * card)
+int snd_info_card_create(struct snd_card *card)
 {
 	char str[8];
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	snd_assert(card != NULL, return -ENXIO);
 
@@ -624,7 +622,7 @@ int snd_info_card_create(snd_card_t * card)
  * register the card proc file
  * called from init.c
  */
-int snd_info_card_register(snd_card_t * card)
+int snd_info_card_register(struct snd_card *card)
 {
 	struct proc_dir_entry *p;
 
@@ -644,7 +642,7 @@ int snd_info_card_register(snd_card_t * card)
  * de-register the card proc file
  * called from init.c
  */
-int snd_info_card_free(snd_card_t * card)
+int snd_info_card_free(struct snd_card *card)
 {
 	snd_assert(card != NULL, return -ENXIO);
 	if (card->proc_root_link) {
@@ -669,7 +667,7 @@ int snd_info_card_free(snd_card_t * card)
  *
  * Returns zero if successful, or 1 if error or EOF.
  */
-int snd_info_get_line(snd_info_buffer_t * buffer, char *line, int len)
+int snd_info_get_line(struct snd_info_buffer *buffer, char *line, int len)
 {
 	int c = -1;
 
@@ -747,9 +745,9 @@ char *snd_info_get_str(char *dest, char *src, int len)
  *
  * Returns the pointer of the new instance, or NULL on failure.
  */
-static snd_info_entry_t *snd_info_create_entry(const char *name)
+static struct snd_info_entry *snd_info_create_entry(const char *name)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry == NULL)
 		return NULL;
@@ -774,11 +772,11 @@ static snd_info_entry_t *snd_info_create_entry(const char *name)
  *
  * Returns the pointer of the new instance, or NULL on failure.
  */
-snd_info_entry_t *snd_info_create_module_entry(struct module * module,
+struct snd_info_entry *snd_info_create_module_entry(struct module * module,
 					       const char *name,
-					       snd_info_entry_t *parent)
+					       struct snd_info_entry *parent)
 {
-	snd_info_entry_t *entry = snd_info_create_entry(name);
+	struct snd_info_entry *entry = snd_info_create_entry(name);
 	if (entry) {
 		entry->module = module;
 		entry->parent = parent;
@@ -796,11 +794,11 @@ snd_info_entry_t *snd_info_create_module_entry(struct module * module,
  *
  * Returns the pointer of the new instance, or NULL on failure.
  */
-snd_info_entry_t *snd_info_create_card_entry(snd_card_t * card,
+struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
-					     snd_info_entry_t * parent)
+					     struct snd_info_entry * parent)
 {
-	snd_info_entry_t *entry = snd_info_create_entry(name);
+	struct snd_info_entry *entry = snd_info_create_entry(name);
 	if (entry) {
 		entry->module = card->module;
 		entry->card = card;
@@ -809,29 +807,29 @@ snd_info_entry_t *snd_info_create_card_entry(snd_card_t * card,
 	return entry;
 }
 
-static int snd_info_dev_free_entry(snd_device_t *device)
+static int snd_info_dev_free_entry(struct snd_device *device)
 {
-	snd_info_entry_t *entry = device->device_data;
+	struct snd_info_entry *entry = device->device_data;
 	snd_info_free_entry(entry);
 	return 0;
 }
 
-static int snd_info_dev_register_entry(snd_device_t *device)
+static int snd_info_dev_register_entry(struct snd_device *device)
 {
-	snd_info_entry_t *entry = device->device_data;
+	struct snd_info_entry *entry = device->device_data;
 	return snd_info_register(entry);
 }
 
-static int snd_info_dev_disconnect_entry(snd_device_t *device)
+static int snd_info_dev_disconnect_entry(struct snd_device *device)
 {
-	snd_info_entry_t *entry = device->device_data;
+	struct snd_info_entry *entry = device->device_data;
 	entry->disconnected = 1;
 	return 0;
 }
 
-static int snd_info_dev_unregister_entry(snd_device_t *device)
+static int snd_info_dev_unregister_entry(struct snd_device *device)
 {
-	snd_info_entry_t *entry = device->device_data;
+	struct snd_info_entry *entry = device->device_data;
 	return snd_info_unregister(entry);
 }
 
@@ -855,16 +853,16 @@ static int snd_info_dev_unregister_entry(snd_device_t *device)
  *
  * Returns zero if successful, or a negative error code on failure.
  */
-int snd_card_proc_new(snd_card_t *card, const char *name,
-		      snd_info_entry_t **entryp)
+int snd_card_proc_new(struct snd_card *card, const char *name,
+		      struct snd_info_entry **entryp)
 {
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free = snd_info_dev_free_entry,
 		.dev_register =	snd_info_dev_register_entry,
 		.dev_disconnect = snd_info_dev_disconnect_entry,
 		.dev_unregister = snd_info_dev_unregister_entry
 	};
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 	int err;
 
 	entry = snd_info_create_card_entry(card, name, card->proc_root);
@@ -885,7 +883,7 @@ int snd_card_proc_new(snd_card_t *card, const char *name,
  *
  * Releases the info entry.  Don't call this after registered.
  */
-void snd_info_free_entry(snd_info_entry_t * entry)
+void snd_info_free_entry(struct snd_info_entry * entry)
 {
 	if (entry == NULL)
 		return;
@@ -903,7 +901,7 @@ void snd_info_free_entry(snd_info_entry_t * entry)
  *
  * Returns zero if successful, or a negative error code on failure.
  */
-int snd_info_register(snd_info_entry_t * entry)
+int snd_info_register(struct snd_info_entry * entry)
 {
 	struct proc_dir_entry *root, *p = NULL;
 
@@ -933,11 +931,12 @@ int snd_info_register(snd_info_entry_t * entry)
  *
  * Returns zero if successful, or a negative error code on failure.
  */
-int snd_info_unregister(snd_info_entry_t * entry)
+int snd_info_unregister(struct snd_info_entry * entry)
 {
 	struct proc_dir_entry *root;
 
-	snd_assert(entry != NULL, return -ENXIO);
+	if (! entry)
+		return 0;
 	snd_assert(entry->p != NULL, return -ENXIO);
 	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
 	snd_assert(root, return -ENXIO);
@@ -952,9 +951,9 @@ int snd_info_unregister(snd_info_entry_t * entry)
 
  */
 
-static snd_info_entry_t *snd_info_version_entry = NULL;
+static struct snd_info_entry *snd_info_version_entry = NULL;
 
-static void snd_info_version_read(snd_info_entry_t *entry, snd_info_buffer_t * buffer)
+static void snd_info_version_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	snd_iprintf(buffer,
 		    "Advanced Linux Sound Architecture Driver Version "
@@ -964,7 +963,7 @@ static void snd_info_version_read(snd_info_entry_t *entry, snd_info_buffer_t * b
 
 static int __init snd_info_version_init(void)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "version", NULL);
 	if (entry == NULL)

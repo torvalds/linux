@@ -24,51 +24,53 @@
 
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 
-typedef struct _snd_oss_mixer_slot snd_mixer_oss_slot_t;
-typedef struct _snd_oss_file snd_mixer_oss_file_t;
-
-typedef int (*snd_mixer_oss_get_volume_t)(snd_mixer_oss_file_t *fmixer, snd_mixer_oss_slot_t *chn, int *left, int *right);
-typedef int (*snd_mixer_oss_put_volume_t)(snd_mixer_oss_file_t *fmixer, snd_mixer_oss_slot_t *chn, int left, int right);
-typedef int (*snd_mixer_oss_get_recsrc_t)(snd_mixer_oss_file_t *fmixer, snd_mixer_oss_slot_t *chn, int *active);
-typedef int (*snd_mixer_oss_put_recsrc_t)(snd_mixer_oss_file_t *fmixer, snd_mixer_oss_slot_t *chn, int active);
-typedef int (*snd_mixer_oss_get_recsrce_t)(snd_mixer_oss_file_t *fmixer, unsigned int *active_index);
-typedef int (*snd_mixer_oss_put_recsrce_t)(snd_mixer_oss_file_t *fmixer, unsigned int active_index);
-
 #define SNDRV_OSS_MAX_MIXERS	32
 
-struct _snd_oss_mixer_slot {
+struct snd_mixer_oss_file;
+
+struct snd_mixer_oss_slot {
 	int number;
 	unsigned int stereo: 1;
-	snd_mixer_oss_get_volume_t get_volume;
-	snd_mixer_oss_put_volume_t put_volume;
-	snd_mixer_oss_get_recsrc_t get_recsrc;
-	snd_mixer_oss_put_recsrc_t put_recsrc;
+	int (*get_volume)(struct snd_mixer_oss_file *fmixer,
+			  struct snd_mixer_oss_slot *chn,
+			  int *left, int *right);
+	int (*put_volume)(struct snd_mixer_oss_file *fmixer,
+			  struct snd_mixer_oss_slot *chn,
+			  int left, int right);
+	int (*get_recsrc)(struct snd_mixer_oss_file *fmixer,
+			  struct snd_mixer_oss_slot *chn,
+			  int *active);
+	int (*put_recsrc)(struct snd_mixer_oss_file *fmixer,
+			  struct snd_mixer_oss_slot *chn,
+			  int active);
 	unsigned long private_value;
 	void *private_data;
-	void (*private_free)(snd_mixer_oss_slot_t *slot);
+	void (*private_free)(struct snd_mixer_oss_slot *slot);
 	int volume[2];
 };
 
-struct _snd_oss_mixer {
-	snd_card_t *card;
+struct snd_mixer_oss {
+	struct snd_card *card;
 	char id[16];
 	char name[32];
-	snd_mixer_oss_slot_t slots[SNDRV_OSS_MAX_MIXERS]; /* OSS mixer slots */
+	struct snd_mixer_oss_slot slots[SNDRV_OSS_MAX_MIXERS]; /* OSS mixer slots */
 	unsigned int mask_recsrc;		/* exclusive recsrc mask */
-	snd_mixer_oss_get_recsrce_t get_recsrc;
-	snd_mixer_oss_put_recsrce_t put_recsrc;
+	int (*get_recsrc)(struct snd_mixer_oss_file *fmixer,
+			  unsigned int *active_index);
+	int (*put_recsrc)(struct snd_mixer_oss_file *fmixer,
+			  unsigned int active_index);
 	void *private_data_recsrc;
-	void (*private_free_recsrc)(snd_mixer_oss_t *mixer);
+	void (*private_free_recsrc)(struct snd_mixer_oss *mixer);
 	struct semaphore reg_mutex;
-	snd_info_entry_t *proc_entry;
+	struct snd_info_entry *proc_entry;
 	int oss_dev_alloc;
 	/* --- */
 	int oss_recsrc;
 };
 
-struct _snd_oss_file {
-	snd_card_t *card;
-	snd_mixer_oss_t *mixer;
+struct snd_mixer_oss_file {
+	struct snd_card *card;
+	struct snd_mixer_oss *mixer;
 };
 
 #endif /* CONFIG_SND_MIXER_OSS */

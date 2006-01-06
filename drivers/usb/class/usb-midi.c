@@ -2027,7 +2027,6 @@ static struct usb_device_id id_table[] = {
 };
 
 static struct usb_driver usb_midi_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"midi",
 	.probe =	usb_midi_probe,
 	.disconnect =	usb_midi_disconnect,

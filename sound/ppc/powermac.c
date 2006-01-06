@@ -20,6 +20,8 @@
 
 #include <sound/driver.h>
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -44,20 +46,16 @@ MODULE_PARM_DESC(id, "ID string for " CHIP_NAME " soundchip.");
 module_param(enable_beep, bool, 0444);
 MODULE_PARM_DESC(enable_beep, "Enable beep using PCM.");
 
+static struct platform_device *device;
 
-/*
- * card entry
- */
-
-static snd_card_t *snd_pmac_card = NULL;
 
 /*
  */
 
-static int __init snd_pmac_probe(void)
+static int __init snd_pmac_probe(struct platform_device *devptr)
 {
-	snd_card_t *card;
-	pmac_t *chip;
+	struct snd_card *card;
+	struct snd_pmac *chip;
 	char *name_ext;
 	int err;
 
@@ -67,6 +65,7 @@ static int __init snd_pmac_probe(void)
 
 	if ((err = snd_pmac_new(card, &chip)) < 0)
 		goto __error;
+	card->private_data = chip;
 
 	switch (chip->model) {
 	case PMAC_BURGUNDY:
@@ -131,13 +130,12 @@ static int __init snd_pmac_probe(void)
 	if (enable_beep)
 		snd_pmac_attach_beep(chip);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto __error;
+	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto __error;
 
-	snd_pmac_card = card;
+	platform_set_drvdata(devptr, card);
 	return 0;
 
 __error:
@@ -146,23 +144,62 @@ __error:
 }
 
 
-/*
- * MODULE stuff
- */
+static int __devexit snd_pmac_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#ifdef CONFIG_PM
+static int snd_pmac_driver_suspend(struct platform_device *devptr, pm_message_t state)
+{
+	struct snd_card *card = platform_get_drvdata(devptr);
+	snd_pmac_suspend(card->private_data);
+	return 0;
+}
+
+static int snd_pmac_driver_resume(struct platform_device *devptr)
+{
+	struct snd_card *card = platform_get_drvdata(devptr);
+	snd_pmac_resume(card->private_data);
+	return 0;
+}
+#endif
+
+#define SND_PMAC_DRIVER		"snd_powermac"
+
+static struct platform_driver snd_pmac_driver = {
+	.probe		= snd_pmac_probe,
+	.remove		= __devexit_p(snd_pmac_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_pmac_driver_suspend,
+	.resume		= snd_pmac_driver_resume,
+#endif
+	.driver		= {
+		.name	= SND_PMAC_DRIVER
+	},
+};
 
 static int __init alsa_card_pmac_init(void)
 {
 	int err;
-	if ((err = snd_pmac_probe()) < 0)
+
+	if ((err = platform_driver_register(&snd_pmac_driver)) < 0)
 		return err;
+	device = platform_device_register_simple(SND_PMAC_DRIVER, -1, NULL, 0);
+	if (IS_ERR(device)) {
+		platform_driver_unregister(&snd_pmac_driver);
+		return PTR_ERR(device);
+	}
 	return 0;
 
 }
 
 static void __exit alsa_card_pmac_exit(void)
 {
-	if (snd_pmac_card)
-		snd_card_free(snd_pmac_card);
+	platform_device_unregister(device);
+	platform_driver_unregister(&snd_pmac_driver);
 }
 
 module_init(alsa_card_pmac_init)

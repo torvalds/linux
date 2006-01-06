@@ -37,11 +37,11 @@
  * by the bootloader or in the platform init code.
  *
  * The idx field must be equal to the PSC index ( e.g. 0 for PSC1, 1 for PSC2,
- * and so on). So the PSC1 is mapped to /dev/ttyS0, PSC2 to /dev/ttyS1 and so
- * on. But be warned, it's an ABSOLUTE REQUIREMENT ! This is needed mainly for
- * the console code : without this 1:1 mapping, at early boot time, when we are
- * parsing the kernel args console=ttyS?, we wouldn't know wich PSC it will be
- * mapped to.
+ * and so on). So the PSC1 is mapped to /dev/ttyPSC0, PSC2 to /dev/ttyPSC1 and
+ * so on. But be warned, it's an ABSOLUTE REQUIREMENT ! This is needed mainly
+ * fpr the console code : without this 1:1 mapping, at early boot time, when we
+ * are parsing the kernel args console=ttyPSC?, we wouldn't know wich PSC it
+ * will be mapped to.
  */
 
 #include <linux/config.h>
@@ -64,6 +64,10 @@
 
 #include <linux/serial_core.h>
 
+
+/* We've been assigned a range on the "Low-density serial ports" major */
+#define SERIAL_PSC_MAJOR	204
+#define SERIAL_PSC_MINOR	148
 
 
 #define ISR_PASS_LIMIT 256	/* Max number of iteration in the interrupt */
@@ -668,15 +672,15 @@ mpc52xx_console_setup(struct console *co, char *options)
 }
 
 
-extern struct uart_driver mpc52xx_uart_driver;
+static struct uart_driver mpc52xx_uart_driver;
 
 static struct console mpc52xx_console = {
-	.name	= "ttyS",
+	.name	= "ttyPSC",
 	.write	= mpc52xx_console_write,
 	.device	= uart_console_device,
 	.setup	= mpc52xx_console_setup,
 	.flags	= CON_PRINTBUFFER,
-	.index	= -1,	/* Specified on the cmdline (e.g. console=ttyS0 ) */
+	.index	= -1,	/* Specified on the cmdline (e.g. console=ttyPSC0 ) */
 	.data	= &mpc52xx_uart_driver,
 };
 
@@ -703,10 +707,10 @@ console_initcall(mpc52xx_console_init);
 static struct uart_driver mpc52xx_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "mpc52xx_psc_uart",
-	.dev_name	= "ttyS",
-	.devfs_name	= "ttyS",
-	.major		= TTY_MAJOR,
-	.minor		= 64,
+	.dev_name	= "ttyPSC",
+	.devfs_name	= "ttyPSC",
+	.major		= SERIAL_PSC_MAJOR,
+	.minor		= SERIAL_PSC_MINOR,
 	.nr		= MPC52xx_PSC_MAXNUM,
 	.cons		= MPC52xx_PSC_CONSOLE,
 };

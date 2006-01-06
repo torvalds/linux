@@ -65,7 +65,7 @@ static void
 tapeblock_trigger_requeue(struct tape_device *device)
 {
 	/* Protect against rescheduling. */
-	if (atomic_compare_and_swap(0, 1, &device->blk_data.requeue_scheduled))
+	if (atomic_cmpxchg(&device->blk_data.requeue_scheduled, 0, 1) != 0)
 		return;
 	schedule_work(&device->blk_data.requeue_task);
 }
@@ -78,7 +78,7 @@ tapeblock_end_request(struct request *req, int uptodate)
 {
 	if (end_that_request_first(req, uptodate, req->hard_nr_sectors))
 		BUG();
-	end_that_request_last(req);
+	end_that_request_last(req, uptodate);
 }
 
 static void
