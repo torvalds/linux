@@ -79,13 +79,23 @@
 /*
  * Global page accounting.  One instance per CPU.  Only unsigned longs are
  * allowed.
+ *
+ * - Fields can be modified with xxx_page_state and xxx_page_state_zone at
+ * any time safely (which protects the instance from modification by
+ * interrupt.
+ * - The __xxx_page_state variants can be used safely when interrupts are
+ * disabled.
+ * - The __xxx_page_state variants can be used if the field is only
+ * modified from process context, or only modified from interrupt context.
+ * In this case, the field should be commented here.
  */
 struct page_state {
 	unsigned long nr_dirty;		/* Dirty writeable pages */
 	unsigned long nr_writeback;	/* Pages under writeback */
 	unsigned long nr_unstable;	/* NFS unstable pages */
 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
-	unsigned long nr_mapped;	/* mapped into pagetables */
+	unsigned long nr_mapped;	/* mapped into pagetables.
+					 * only modified from process context */
 	unsigned long nr_slab;		/* In slab */
 #define GET_PAGE_STATE_LAST nr_slab
 
