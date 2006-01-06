@@ -424,9 +424,9 @@ void __free_pages_ok(struct page *page, unsigned int order)
 		return;
 
 	list_add(&page->lru, &list);
-	mod_page_state(pgfree, 1 << order);
 	kernel_map_pages(page, 1<<order, 0);
 	local_irq_save(flags);
+	__mod_page_state(pgfree, 1 << order);
 	free_pages_bulk(page_zone(page), 1, &list, order);
 	local_irq_restore(flags);
 }
@@ -674,18 +674,14 @@ void drain_local_pages(void)
 }
 #endif /* CONFIG_PM */
 
-static void zone_statistics(struct zonelist *zonelist, struct zone *z)
+static void zone_statistics(struct zonelist *zonelist, struct zone *z, int cpu)
 {
 #ifdef CONFIG_NUMA
-	unsigned long flags;
-	int cpu;
 	pg_data_t *pg = z->zone_pgdat;
 	pg_data_t *orig = zonelist->zones[0]->zone_pgdat;
 	struct per_cpu_pageset *p;
 
-	local_irq_save(flags);
-	cpu = smp_processor_id();
-	p = zone_pcp(z,cpu);
+	p = zone_pcp(z, cpu);
 	if (pg == orig) {
 		p->numa_hit++;
 	} else {
@@ -696,7 +692,6 @@ static void zone_statistics(struct zonelist *zonelist, struct zone *z)
 		p->local_node++;
 	else
 		p->other_node++;
-	local_irq_restore(flags);
 #endif
 }
 
@@ -716,11 +711,11 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 	if (free_pages_check(page))
 		return;
 
-	inc_page_state(pgfree);
 	kernel_map_pages(page, 1, 0);
 
 	pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
 	local_irq_save(flags);
+	__inc_page_state(pgfree);
 	list_add(&page->lru, &pcp->list);
 	pcp->count++;
 	if (pcp->count >= pcp->high)
@@ -753,49 +748,58 @@ static inline void prep_zero_page(struct page *page, int order, gfp_t gfp_flags)
  * we cheat by calling it from here, in the order > 0 path.  Saves a branch
  * or two.
  */
-static struct page *
-buffered_rmqueue(struct zone *zone, int order, gfp_t gfp_flags)
+static struct page *buffered_rmqueue(struct zonelist *zonelist,
+			struct zone *zone, int order, gfp_t gfp_flags)
 {
 	unsigned long flags;
 	struct page *page;
 	int cold = !!(gfp_flags & __GFP_COLD);
+	int cpu;
 
 again:
+	cpu  = get_cpu();
 	if (order == 0) {
 		struct per_cpu_pages *pcp;
 
-		page = NULL;
-		pcp = &zone_pcp(zone, get_cpu())->pcp[cold];
+		pcp = &zone_pcp(zone, cpu)->pcp[cold];
 		local_irq_save(flags);
-		if (!pcp->count)
+		if (!pcp->count) {
 			pcp->count += rmqueue_bulk(zone, 0,
 						pcp->batch, &pcp->list);
-		if (likely(pcp->count)) {
-			page = list_entry(pcp->list.next, struct page, lru);
-			list_del(&page->lru);
-			pcp->count--;
+			if (unlikely(!pcp->count))
+				goto failed;
 		}
-		local_irq_restore(flags);
-		put_cpu();
+		page = list_entry(pcp->list.next, struct page, lru);
+		list_del(&page->lru);
+		pcp->count--;
 	} else {
 		spin_lock_irqsave(&zone->lock, flags);
 		page = __rmqueue(zone, order);
-		spin_unlock_irqrestore(&zone->lock, flags);
+		spin_unlock(&zone->lock);
+		if (!page)
+			goto failed;
 	}
 
-	if (page != NULL) {
-		BUG_ON(bad_range(zone, page));
-		mod_page_state_zone(zone, pgalloc, 1 << order);
-		if (prep_new_page(page, order))
-			goto again;
+	__mod_page_state_zone(zone, pgalloc, 1 << order);
+	zone_statistics(zonelist, zone, cpu);
+	local_irq_restore(flags);
+	put_cpu();
 
-		if (gfp_flags & __GFP_ZERO)
-			prep_zero_page(page, order, gfp_flags);
+	BUG_ON(bad_range(zone, page));
+	if (prep_new_page(page, order))
+		goto again;
 
-		if (order && (gfp_flags & __GFP_COMP))
-			prep_compound_page(page, order);
-	}
+	if (gfp_flags & __GFP_ZERO)
+		prep_zero_page(page, order, gfp_flags);
+
+	if (order && (gfp_flags & __GFP_COMP))
+		prep_compound_page(page, order);
 	return page;
+
+failed:
+	local_irq_restore(flags);
+	put_cpu();
+	return NULL;
 }
 
 #define ALLOC_NO_WATERMARKS	0x01 /* don't check watermarks at all */
@@ -871,9 +875,8 @@ get_page_from_freelist(gfp_t gfp_mask, unsigned int order,
 				continue;
 		}
 
-		page = buffered_rmqueue(*z, order, gfp_mask);
+		page = buffered_rmqueue(zonelist, *z, order, gfp_mask);
 		if (page) {
-			zone_statistics(zonelist, *z);
 			break;
 		}
 	} while (*(++z) != NULL);
@@ -1248,7 +1251,7 @@ void get_full_page_state(struct page_state *ret)
 	__get_page_state(ret, sizeof(*ret) / sizeof(unsigned long), &mask);
 }
 
-unsigned long __read_page_state(unsigned long offset)
+unsigned long read_page_state_offset(unsigned long offset)
 {
 	unsigned long ret = 0;
 	int cpu;
@@ -1262,18 +1265,26 @@ unsigned long __read_page_state(unsigned long offset)
 	return ret;
 }
 
-void __mod_page_state(unsigned long offset, unsigned long delta)
+void __mod_page_state_offset(unsigned long offset, unsigned long delta)
+{
+	void *ptr;
+
+	ptr = &__get_cpu_var(page_states);
+	*(unsigned long *)(ptr + offset) += delta;
+}
+EXPORT_SYMBOL(__mod_page_state_offset);
+
+void mod_page_state_offset(unsigned long offset, unsigned long delta)
 {
 	unsigned long flags;
-	void* ptr;
+	void *ptr;
 
 	local_irq_save(flags);
 	ptr = &__get_cpu_var(page_states);
-	*(unsigned long*)(ptr + offset) += delta;
+	*(unsigned long *)(ptr + offset) += delta;
 	local_irq_restore(flags);
 }
-
-EXPORT_SYMBOL(__mod_page_state);
+EXPORT_SYMBOL(mod_page_state_offset);
 
 void __get_zone_counts(unsigned long *active, unsigned long *inactive,
 			unsigned long *free, struct pglist_data *pgdat)

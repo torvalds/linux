@@ -144,22 +144,33 @@ struct page_state {
 extern void get_page_state(struct page_state *ret);
 extern void get_page_state_node(struct page_state *ret, int node);
 extern void get_full_page_state(struct page_state *ret);
-extern unsigned long __read_page_state(unsigned long offset);
-extern void __mod_page_state(unsigned long offset, unsigned long delta);
+extern unsigned long read_page_state_offset(unsigned long offset);
+extern void mod_page_state_offset(unsigned long offset, unsigned long delta);
+extern void __mod_page_state_offset(unsigned long offset, unsigned long delta);
 
 #define read_page_state(member) \
-	__read_page_state(offsetof(struct page_state, member))
+	read_page_state_offset(offsetof(struct page_state, member))
 
 #define mod_page_state(member, delta)	\
-	__mod_page_state(offsetof(struct page_state, member), (delta))
+	mod_page_state_offset(offsetof(struct page_state, member), (delta))
 
-#define inc_page_state(member)	mod_page_state(member, 1UL)
-#define dec_page_state(member)	mod_page_state(member, 0UL - 1)
-#define add_page_state(member,delta) mod_page_state(member, (delta))
-#define sub_page_state(member,delta) mod_page_state(member, 0UL - (delta))
+#define __mod_page_state(member, delta)	\
+	__mod_page_state_offset(offsetof(struct page_state, member), (delta))
 
-#define mod_page_state_zone(zone, member, delta)			\
- do {									\
+#define inc_page_state(member)		mod_page_state(member, 1UL)
+#define dec_page_state(member)		mod_page_state(member, 0UL - 1)
+#define add_page_state(member,delta)	mod_page_state(member, (delta))
+#define sub_page_state(member,delta)	mod_page_state(member, 0UL - (delta))
+
+#define __inc_page_state(member)	__mod_page_state(member, 1UL)
+#define __dec_page_state(member)	__mod_page_state(member, 0UL - 1)
+#define __add_page_state(member,delta)	__mod_page_state(member, (delta))
+#define __sub_page_state(member,delta)	__mod_page_state(member, 0UL - (delta))
+
+#define page_state(member) (*__page_state(offsetof(struct page_state, member)))
+
+#define state_zone_offset(zone, member)					\
+({									\
 	unsigned offset;						\
 	if (is_highmem(zone))						\
 		offset = offsetof(struct page_state, member##_high);	\
@@ -169,7 +180,17 @@ extern void __mod_page_state(unsigned long offset, unsigned long delta);
 		offset = offsetof(struct page_state, member##_dma32);	\
 	else								\
 		offset = offsetof(struct page_state, member##_dma);	\
-	__mod_page_state(offset, (delta));				\
+	offset;								\
+})
+
+#define __mod_page_state_zone(zone, member, delta)			\
+ do {									\
+	__mod_page_state_offset(state_zone_offset(zone, member), (delta)); \
+ } while (0)
+
+#define mod_page_state_zone(zone, member, delta)			\
+ do {									\
+	mod_page_state_offset(state_zone_offset(zone, member), (delta)); \
  } while (0)
 
 /*

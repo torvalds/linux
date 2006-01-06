@@ -645,16 +645,17 @@ static void shrink_cache(struct zone *zone, struct scan_control *sc)
 			goto done;
 
 		max_scan -= nr_scan;
-		if (current_is_kswapd())
-			mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
-		else
-			mod_page_state_zone(zone, pgscan_direct, nr_scan);
 		nr_freed = shrink_list(&page_list, sc);
-		if (current_is_kswapd())
-			mod_page_state(kswapd_steal, nr_freed);
-		mod_page_state_zone(zone, pgsteal, nr_freed);
 
-		spin_lock_irq(&zone->lru_lock);
+		local_irq_disable();
+		if (current_is_kswapd()) {
+			__mod_page_state_zone(zone, pgscan_kswapd, nr_scan);
+			__mod_page_state(kswapd_steal, nr_freed);
+		} else
+			__mod_page_state_zone(zone, pgscan_direct, nr_scan);
+		__mod_page_state_zone(zone, pgsteal, nr_freed);
+
+		spin_lock(&zone->lru_lock);
 		/*
 		 * Put back any unfreeable pages.
 		 */
@@ -816,11 +817,13 @@ refill_inactive_zone(struct zone *zone, struct scan_control *sc)
 		}
 	}
 	zone->nr_active += pgmoved;
-	spin_unlock_irq(&zone->lru_lock);
-	pagevec_release(&pvec);
+	spin_unlock(&zone->lru_lock);
 
-	mod_page_state_zone(zone, pgrefill, pgscanned);
-	mod_page_state(pgdeactivate, pgdeactivate);
+	__mod_page_state_zone(zone, pgrefill, pgscanned);
+	__mod_page_state(pgdeactivate, pgdeactivate);
+	local_irq_enable();
+
+	pagevec_release(&pvec);
 }
 
 /*

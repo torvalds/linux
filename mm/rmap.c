@@ -451,7 +451,11 @@ static void __page_set_anon_rmap(struct page *page,
 
 	page->index = linear_page_index(vma, address);
 
-	inc_page_state(nr_mapped);
+	/*
+	 * nr_mapped state can be updated without turning off
+	 * interrupts because it is not modified via interrupt.
+	 */
+	__inc_page_state(nr_mapped);
 }
 
 /**
@@ -498,7 +502,7 @@ void page_add_file_rmap(struct page *page)
 	BUG_ON(!pfn_valid(page_to_pfn(page)));
 
 	if (atomic_inc_and_test(&page->_mapcount))
-		inc_page_state(nr_mapped);
+		__inc_page_state(nr_mapped);
 }
 
 /**
@@ -522,7 +526,7 @@ void page_remove_rmap(struct page *page)
 		 */
 		if (page_test_and_clear_dirty(page))
 			set_page_dirty(page);
-		dec_page_state(nr_mapped);
+		__dec_page_state(nr_mapped);
 	}
 }
 
