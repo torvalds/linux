@@ -32,7 +32,7 @@
 #include "core.h"
 
 #define OSM_NAME	"i2o"
-#define OSM_VERSION	"1.316"
+#define OSM_VERSION	"1.325"
 #define OSM_DESCRIPTION	"I2O subsystem"
 
 /* global I2O controller list */
@@ -838,12 +838,11 @@ static int i2o_systab_build(void)
 	i2o_systab.len = sizeof(struct i2o_sys_tbl) + num_controllers *
 	    sizeof(struct i2o_sys_tbl_entry);
 
-	systab = i2o_systab.virt = kmalloc(i2o_systab.len, GFP_KERNEL);
+	systab = i2o_systab.virt = kzalloc(i2o_systab.len, GFP_KERNEL);
 	if (!systab) {
 		osm_err("unable to allocate memory for System Table\n");
 		return -ENOMEM;
 	}
-	memset(systab, 0, i2o_systab.len);
 
 	systab->version = I2OVERSION;
 	systab->change_ind = change_ind + 1;
@@ -1020,16 +1019,6 @@ static int i2o_hrt_get(struct i2o_controller *c)
 }
 
 /**
- *	i2o_iop_free - Free the i2o_controller struct
- *	@c: I2O controller to free
- */
-void i2o_iop_free(struct i2o_controller *c)
-{
-	i2o_pool_free(&c->in_msg);
-	kfree(c);
-};
-
-/**
  *	i2o_iop_release - release the memory for a I2O controller
  *	@dev: I2O controller which should be released
  *
@@ -1058,13 +1047,12 @@ struct i2o_controller *i2o_iop_alloc(void)
 	struct i2o_controller *c;
 	char poolname[32];
 
-	c = kmalloc(sizeof(*c), GFP_KERNEL);
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c) {
 		osm_err("i2o: Insufficient memory to allocate a I2O controller."
 			"\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(c, 0, sizeof(*c));
 
 	c->unit = unit++;
 	sprintf(c->name, "iop%d", c->unit);

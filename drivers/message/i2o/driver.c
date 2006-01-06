@@ -217,10 +217,9 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 		/* cut of header from message size (in 32-bit words) */
 		size = (le32_to_cpu(msg->u.head[0]) >> 16) - 5;
 
-		evt = kmalloc(size * 4 + sizeof(*evt), GFP_ATOMIC);
+		evt = kzalloc(size * 4 + sizeof(*evt), GFP_ATOMIC);
 		if (!evt)
 			return -ENOMEM;
-		memset(evt, 0, size * 4 + sizeof(*evt));
 
 		evt->size = size;
 		evt->tcntxt = le32_to_cpu(msg->u.s.tcntxt);
@@ -348,11 +347,9 @@ int __init i2o_driver_init(void)
 	osm_info("max drivers = %d\n", i2o_max_drivers);
 
 	i2o_drivers =
-	    kmalloc(i2o_max_drivers * sizeof(*i2o_drivers), GFP_KERNEL);
+	    kzalloc(i2o_max_drivers * sizeof(*i2o_drivers), GFP_KERNEL);
 	if (!i2o_drivers)
 		return -ENOMEM;
-
-	memset(i2o_drivers, 0, i2o_max_drivers * sizeof(*i2o_drivers));
 
 	rc = bus_register(&i2o_bus_type);
 

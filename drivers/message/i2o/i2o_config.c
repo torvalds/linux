@@ -583,13 +583,12 @@ static int i2o_cfg_passthru32(struct file *file, unsigned cmnd,
 	reply_size >>= 16;
 	reply_size <<= 2;
 
-	reply = kmalloc(reply_size, GFP_KERNEL);
+	reply = kzalloc(reply_size, GFP_KERNEL);
 	if (!reply) {
 		printk(KERN_WARNING "%s: Could not allocate reply buffer\n",
 		       c->name);
 		return -ENOMEM;
 	}
-	memset(reply, 0, reply_size);
 
 	sg_offset = (msg->u.head[0] >> 4) & 0x0f;
 
@@ -817,13 +816,12 @@ static int i2o_cfg_passthru(unsigned long arg)
 	reply_size >>= 16;
 	reply_size <<= 2;
 
-	reply = kmalloc(reply_size, GFP_KERNEL);
+	reply = kzalloc(reply_size, GFP_KERNEL);
 	if (!reply) {
 		printk(KERN_WARNING "%s: Could not allocate reply buffer\n",
 		       c->name);
 		return -ENOMEM;
 	}
-	memset(reply, 0, reply_size);
 
 	sg_offset = (msg->u.head[0] >> 4) & 0x0f;
 

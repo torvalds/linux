@@ -40,7 +40,16 @@ extern int i2o_device_parse_lct(struct i2o_controller *);
 
 /* IOP */
 extern struct i2o_controller *i2o_iop_alloc(void);
-extern void i2o_iop_free(struct i2o_controller *);
+
+/**
+ *	i2o_iop_free - Free the i2o_controller struct
+ *	@c: I2O controller to free
+ */
+static inline void i2o_iop_free(struct i2o_controller *c)
+{
+	i2o_pool_free(&c->in_msg);
+	kfree(c);
+}
 
 extern int i2o_iop_add(struct i2o_controller *);
 extern void i2o_iop_remove(struct i2o_controller *);

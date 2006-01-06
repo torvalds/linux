@@ -75,11 +75,9 @@ static struct i2o_exec_wait *i2o_exec_wait_alloc(void)
 {
 	struct i2o_exec_wait *wait;
 
-	wait = kmalloc(sizeof(*wait), GFP_KERNEL);
+	wait = kzalloc(sizeof(*wait), GFP_KERNEL);
 	if (!wait)
 		return NULL;
-
-	memset(wait, 0, sizeof(*wait));
 
 	INIT_LIST_HEAD(&wait->list);
 

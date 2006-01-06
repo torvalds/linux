@@ -195,11 +195,9 @@ static struct i2o_device *i2o_device_alloc(void)
 {
 	struct i2o_device *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
-
-	memset(dev, 0, sizeof(*dev));
 
 	INIT_LIST_HEAD(&dev->list);
 	init_MUTEX(&dev->lock);

@@ -22,7 +22,7 @@
 #include <asm/uaccess.h>
 
 #define OSM_NAME	"config-osm"
-#define OSM_VERSION	"1.317"
+#define OSM_VERSION	"1.323"
 #define OSM_DESCRIPTION	"I2O Configuration OSM"
 
 /* access mode user rw */

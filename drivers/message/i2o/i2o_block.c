@@ -64,7 +64,7 @@
 #include "i2o_block.h"
 
 #define OSM_NAME	"block-osm"
-#define OSM_VERSION	"1.316"
+#define OSM_VERSION	"1.325"
 #define OSM_DESCRIPTION	"I2O Block Device OSM"
 
 static struct i2o_driver i2o_block_driver;
@@ -981,13 +981,12 @@ static struct i2o_block_device *i2o_block_device_alloc(void)
 	struct request_queue *queue;
 	int rc;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		osm_err("Insufficient memory to allocate I2O Block disk.\n");
 		rc = -ENOMEM;
 		goto exit;
 	}
-	memset(dev, 0, sizeof(*dev));
 
 	INIT_LIST_HEAD(&dev->open_queue);
 	spin_lock_init(&dev->lock);
