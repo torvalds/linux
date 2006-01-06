@@ -325,10 +325,31 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 	if (unlikely(bio_flagged(bio, BIO_CLONED)))
 		return 0;
 
-	if (bio->bi_vcnt >= bio->bi_max_vecs)
+	if (((bio->bi_size + len) >> 9) > max_sectors)
 		return 0;
 
-	if (((bio->bi_size + len) >> 9) > max_sectors)
+	/*
+	 * For filesystems with a blocksize smaller than the pagesize
+	 * we will often be called with the same page as last time and
+	 * a consecutive offset.  Optimize this special case.
+	 */
+	if (bio->bi_vcnt > 0) {
+		struct bio_vec *prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
+
+		if (page == prev->bv_page &&
+		    offset == prev->bv_offset + prev->bv_len) {
+			prev->bv_len += len;
+			if (q->merge_bvec_fn &&
+			    q->merge_bvec_fn(q, bio, prev) < len) {
+				prev->bv_len -= len;
+				return 0;
+			}
+
+			goto done;
+		}
+	}
+
+	if (bio->bi_vcnt >= bio->bi_max_vecs)
 		return 0;
 
 	/*
@@ -382,6 +403,7 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 	bio->bi_vcnt++;
 	bio->bi_phys_segments++;
 	bio->bi_hw_segments++;
+ done:
 	bio->bi_size += len;
 	return len;
 }
