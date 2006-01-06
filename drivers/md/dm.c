@@ -97,7 +97,7 @@ struct mapped_device {
 	 * freeze/thaw support require holding onto a super block
 	 */
 	struct super_block *frozen_sb;
-	struct block_device *frozen_bdev;
+	struct block_device *suspended_bdev;
 };
 
 #define MIN_IOS 256
@@ -836,9 +836,9 @@ static void __set_size(struct mapped_device *md, sector_t size)
 {
 	set_capacity(md->disk, size);
 
-	down(&md->frozen_bdev->bd_inode->i_sem);
-	i_size_write(md->frozen_bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
-	up(&md->frozen_bdev->bd_inode->i_sem);
+	down(&md->suspended_bdev->bd_inode->i_sem);
+	i_size_write(md->suspended_bdev->bd_inode, (loff_t)size << SECTOR_SHIFT);
+	up(&md->suspended_bdev->bd_inode->i_sem);
 }
 
 static int __bind(struct mapped_device *md, struct dm_table *t)
@@ -1010,43 +1010,27 @@ out:
  */
 static int lock_fs(struct mapped_device *md)
 {
-	int r = -ENOMEM;
-
-	md->frozen_bdev = bdget_disk(md->disk, 0);
-	if (!md->frozen_bdev) {
-		DMWARN("bdget failed in lock_fs");
-		goto out;
-	}
+	int r;
 
 	WARN_ON(md->frozen_sb);
 
-	md->frozen_sb = freeze_bdev(md->frozen_bdev);
+	md->frozen_sb = freeze_bdev(md->suspended_bdev);
 	if (IS_ERR(md->frozen_sb)) {
 		r = PTR_ERR(md->frozen_sb);
-		goto out_bdput;
+		md->frozen_sb = NULL;
+		return r;
 	}
 
 	/* don't bdput right now, we don't want the bdev
-	 * to go away while it is locked.  We'll bdput
-	 * in unlock_fs
+	 * to go away while it is locked.
 	 */
 	return 0;
-
-out_bdput:
-	bdput(md->frozen_bdev);
-	md->frozen_sb = NULL;
-	md->frozen_bdev = NULL;
-out:
-	return r;
 }
 
 static void unlock_fs(struct mapped_device *md)
 {
-	thaw_bdev(md->frozen_bdev, md->frozen_sb);
-	bdput(md->frozen_bdev);
-
+	thaw_bdev(md->suspended_bdev, md->frozen_sb);
 	md->frozen_sb = NULL;
-	md->frozen_bdev = NULL;
 }
 
 /*
@@ -1071,6 +1055,13 @@ int dm_suspend(struct mapped_device *md)
 
 	/* This does not get reverted if there's an error later. */
 	dm_table_presuspend_targets(map);
+
+	md->suspended_bdev = bdget_disk(md->disk, 0);
+	if (!md->suspended_bdev) {
+		DMWARN("bdget failed in dm_suspend");
+		r = -ENOMEM;
+		goto out;
+	}
 
 	/* Flush I/O to the device. */
 	r = lock_fs(md);
@@ -1124,6 +1115,11 @@ int dm_suspend(struct mapped_device *md)
 	r = 0;
 
 out:
+	if (r && md->suspended_bdev) {
+		bdput(md->suspended_bdev);
+		md->suspended_bdev = NULL;
+	}
+
 	dm_table_put(map);
 	up(&md->suspend_lock);
 	return r;
@@ -1153,6 +1149,9 @@ int dm_resume(struct mapped_device *md)
 	up_write(&md->io_lock);
 
 	unlock_fs(md);
+
+	bdput(md->suspended_bdev);
+	md->suspended_bdev = NULL;
 
 	clear_bit(DMF_SUSPENDED, &md->flags);
 
