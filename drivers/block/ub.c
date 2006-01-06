@@ -951,7 +951,7 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 static void ub_end_rq(struct request *rq, int uptodate)
 {
 	end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
-	end_that_request_last(rq);
+	end_that_request_last(rq, uptodate);
 }
 
 static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,

@@ -748,7 +748,7 @@ static void sd_end_flush(request_queue_t *q, struct request *flush_rq)
 		 * force journal abort of barriers
 		 */
 		end_that_request_first(rq, -EOPNOTSUPP, rq->hard_nr_sectors);
-		end_that_request_last(rq);
+		end_that_request_last(rq, -EOPNOTSUPP);
 	}
 }
 

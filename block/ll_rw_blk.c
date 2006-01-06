@@ -344,7 +344,7 @@ EXPORT_SYMBOL(blk_queue_issue_flush_fn);
 /*
  * Cache flushing for ordered writes handling
  */
-static void blk_pre_flush_end_io(struct request *flush_rq)
+static void blk_pre_flush_end_io(struct request *flush_rq, int error)
 {
 	struct request *rq = flush_rq->end_io_data;
 	request_queue_t *q = rq->q;
@@ -362,7 +362,7 @@ static void blk_pre_flush_end_io(struct request *flush_rq)
 	}
 }
 
-static void blk_post_flush_end_io(struct request *flush_rq)
+static void blk_post_flush_end_io(struct request *flush_rq, int error)
 {
 	struct request *rq = flush_rq->end_io_data;
 	request_queue_t *q = rq->q;
@@ -2317,7 +2317,7 @@ EXPORT_SYMBOL(blk_rq_map_kern);
  */
 void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
 			   struct request *rq, int at_head,
-			   void (*done)(struct request *))
+			   rq_end_io_fn *done)
 {
 	int where = at_head ? ELEVATOR_INSERT_FRONT : ELEVATOR_INSERT_BACK;
 
@@ -2521,7 +2521,7 @@ EXPORT_SYMBOL(blk_put_request);
  * blk_end_sync_rq - executes a completion event on a request
  * @rq: request to complete
  */
-void blk_end_sync_rq(struct request *rq)
+void blk_end_sync_rq(struct request *rq, int error)
 {
 	struct completion *waiting = rq->waiting;
 
@@ -3183,9 +3183,17 @@ EXPORT_SYMBOL(end_that_request_chunk);
 /*
  * queue lock must be held
  */
-void end_that_request_last(struct request *req)
+void end_that_request_last(struct request *req, int uptodate)
 {
 	struct gendisk *disk = req->rq_disk;
+	int error;
+
+	/*
+	 * extend uptodate bool to allow < 0 value to be direct io error
+	 */
+	error = 0;
+	if (end_io_error(uptodate))
+		error = !uptodate ? -EIO : uptodate;
 
 	if (unlikely(laptop_mode) && blk_fs_request(req))
 		laptop_io_completion();
@@ -3200,7 +3208,7 @@ void end_that_request_last(struct request *req)
 		disk->in_flight--;
 	}
 	if (req->end_io)
-		req->end_io(req);
+		req->end_io(req, error);
 	else
 		__blk_put_request(req->q, req);
 }
@@ -3212,7 +3220,7 @@ void end_request(struct request *req, int uptodate)
 	if (!end_that_request_first(req, uptodate, req->hard_cur_sectors)) {
 		add_disk_randomness(req->rq_disk);
 		blkdev_dequeue_request(req);
-		end_that_request_last(req);
+		end_that_request_last(req, uptodate);
 	}
 }
 
