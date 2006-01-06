@@ -1050,8 +1050,8 @@ static int i2o_block_probe(struct device *dev)
 	int rc;
 	u64 size;
 	u32 blocksize;
-	u32 flags, status;
 	u16 body_size = 4;
+	u16 power;
 	unsigned short max_sectors;
 
 #ifdef CONFIG_I2O_EXT_ADAPTEC
@@ -1109,22 +1109,20 @@ static int i2o_block_probe(struct device *dev)
 	 *      Ask for the current media data. If that isn't supported
 	 *      then we ask for the device capacity data
 	 */
-	if (i2o_parm_field_get(i2o_dev, 0x0004, 1, &blocksize, 4) ||
-	    i2o_parm_field_get(i2o_dev, 0x0000, 3, &blocksize, 4)) {
-		blk_queue_hardsect_size(queue, blocksize);
+	if (!i2o_parm_field_get(i2o_dev, 0x0004, 1, &blocksize, 4) ||
+	    !i2o_parm_field_get(i2o_dev, 0x0000, 3, &blocksize, 4)) {
+		blk_queue_hardsect_size(queue, le32_to_cpu(blocksize));
 	} else
 		osm_warn("unable to get blocksize of %s\n", gd->disk_name);
 
-	if (i2o_parm_field_get(i2o_dev, 0x0004, 0, &size, 8) ||
-	    i2o_parm_field_get(i2o_dev, 0x0000, 4, &size, 8)) {
-		set_capacity(gd, size >> KERNEL_SECTOR_SHIFT);
+	if (!i2o_parm_field_get(i2o_dev, 0x0004, 0, &size, 8) ||
+	    !i2o_parm_field_get(i2o_dev, 0x0000, 4, &size, 8)) {
+		set_capacity(gd, le64_to_cpu(size) >> KERNEL_SECTOR_SHIFT);
 	} else
 		osm_warn("could not get size of %s\n", gd->disk_name);
 
-	if (!i2o_parm_field_get(i2o_dev, 0x0000, 2, &i2o_blk_dev->power, 2))
-		i2o_blk_dev->power = 0;
-	i2o_parm_field_get(i2o_dev, 0x0000, 5, &flags, 4);
-	i2o_parm_field_get(i2o_dev, 0x0000, 6, &status, 4);
+	if (!i2o_parm_field_get(i2o_dev, 0x0000, 2, &power, 2))
+		i2o_blk_dev->power = power;
 
 	i2o_event_register(i2o_dev, &i2o_block_driver, 0, 0xffffffff);
 

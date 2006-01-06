@@ -113,7 +113,7 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 
 	list_for_each_entry(i2o_dev, &c->devices, list)
 	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER) {
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
+		if (!i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
 		    && (type == 0x01))	/* SCSI bus */
 			max_channel++;
 	}
@@ -146,7 +146,7 @@ static struct i2o_scsi_host *i2o_scsi_host_alloc(struct i2o_controller *c)
 	i = 0;
 	list_for_each_entry(i2o_dev, &c->devices, list)
 	    if (i2o_dev->lct_data.class_id == I2O_CLASS_BUS_ADAPTER) {
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
+		if (!i2o_parm_field_get(i2o_dev, 0x0000, 0, &type, 1)
 		    && (type == 0x01))	/* only SCSI bus */
 			i2o_shost->channel[i++] = i2o_dev;
 
@@ -238,13 +238,15 @@ static int i2o_scsi_probe(struct device *dev)
 			u8 type;
 			struct i2o_device *d = i2o_shost->channel[0];
 
-			if (i2o_parm_field_get(d, 0x0000, 0, &type, 1)
+			if (!i2o_parm_field_get(d, 0x0000, 0, &type, 1)
 			    && (type == 0x01))	/* SCSI bus */
-				if (i2o_parm_field_get(d, 0x0200, 4, &id, 4)) {
+				if (!i2o_parm_field_get(d, 0x0200, 4, &id, 4)) {
 					channel = 0;
 					if (i2o_dev->lct_data.class_id ==
 					    I2O_CLASS_RANDOM_BLOCK_STORAGE)
-						lun = i2o_shost->lun++;
+						lun =
+						    cpu_to_le64(i2o_shost->
+								lun++);
 					else
 						lun = 0;
 				}
@@ -253,10 +255,10 @@ static int i2o_scsi_probe(struct device *dev)
 		break;
 
 	case I2O_CLASS_SCSI_PERIPHERAL:
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 3, &id, 4) < 0)
+		if (i2o_parm_field_get(i2o_dev, 0x0000, 3, &id, 4))
 			return -EFAULT;
 
-		if (i2o_parm_field_get(i2o_dev, 0x0000, 4, &lun, 8) < 0)
+		if (i2o_parm_field_get(i2o_dev, 0x0000, 4, &lun, 8))
 			return -EFAULT;
 
 		parent = i2o_iop_find_device(c, i2o_dev->lct_data.parent_tid);
@@ -281,20 +283,22 @@ static int i2o_scsi_probe(struct device *dev)
 		return -EFAULT;
 	}
 
-	if (id >= scsi_host->max_id) {
-		osm_warn("SCSI device id (%d) >= max_id of I2O host (%d)", id,
-			 scsi_host->max_id);
+	if (le32_to_cpu(id) >= scsi_host->max_id) {
+		osm_warn("SCSI device id (%d) >= max_id of I2O host (%d)",
+			 le32_to_cpu(id), scsi_host->max_id);
 		return -EFAULT;
 	}
 
-	if (lun >= scsi_host->max_lun) {
-		osm_warn("SCSI device id (%d) >= max_lun of I2O host (%d)",
-			 (unsigned int)lun, scsi_host->max_lun);
+	if (le64_to_cpu(lun) >= scsi_host->max_lun) {
+		osm_warn("SCSI device lun (%lu) >= max_lun of I2O host (%d)",
+			 (long unsigned int)le64_to_cpu(lun),
+			 scsi_host->max_lun);
 		return -EFAULT;
 	}
 
 	scsi_dev =
-	    __scsi_add_device(i2o_shost->scsi_host, channel, id, lun, i2o_dev);
+	    __scsi_add_device(i2o_shost->scsi_host, channel, le32_to_cpu(id),
+			      le64_to_cpu(lun), i2o_dev);
 
 	if (IS_ERR(scsi_dev)) {
 		osm_warn("can not add SCSI device %03x\n",
@@ -306,7 +310,8 @@ static int i2o_scsi_probe(struct device *dev)
 			  "scsi");
 
 	osm_info("device added (TID: %03x) channel: %d, id: %d, lun: %d\n",
-		 i2o_dev->lct_data.tid, channel, id, (unsigned int)lun);
+		 i2o_dev->lct_data.tid, channel, le32_to_cpu(id),
+		 (unsigned int)le64_to_cpu(lun));
 
 	return 0;
 };

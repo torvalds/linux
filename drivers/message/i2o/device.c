@@ -341,35 +341,77 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 {
 	struct i2o_device *dev, *tmp;
 	i2o_lct *lct;
-	int i;
-	int max;
+	u32 *dlct = c->dlct.virt;
+	int max = 0, i = 0;
+	u16 table_size;
+	u32 buf;
 
 	down(&c->lct_lock);
 
 	kfree(c->lct);
 
-	lct = c->dlct.virt;
+	buf = le32_to_cpu(*dlct++);
+	table_size = buf & 0xffff;
 
-	c->lct = kmalloc(lct->table_size * 4, GFP_KERNEL);
-	if (!c->lct) {
+	lct = c->lct = kmalloc(table_size * 4, GFP_KERNEL);
+	if (!lct) {
 		up(&c->lct_lock);
 		return -ENOMEM;
 	}
 
-	if (lct->table_size * 4 > c->dlct.len) {
-		memcpy(c->lct, c->dlct.virt, c->dlct.len);
-		up(&c->lct_lock);
-		return -EAGAIN;
-	}
+	lct->lct_ver = buf >> 28;
+	lct->boot_tid = buf >> 16 & 0xfff;
+	lct->table_size = table_size;
+	lct->change_ind = le32_to_cpu(*dlct++);
+	lct->iop_flags = le32_to_cpu(*dlct++);
 
-	memcpy(c->lct, c->dlct.virt, lct->table_size * 4);
-
-	lct = c->lct;
-
-	max = (lct->table_size - 3) / 9;
+	table_size -= 3;
 
 	pr_debug("%s: LCT has %d entries (LCT size: %d)\n", c->name, max,
 		 lct->table_size);
+
+	while (table_size > 0) {
+		i2o_lct_entry *entry = &lct->lct_entry[max];
+		int found = 0;
+
+		buf = le32_to_cpu(*dlct++);
+		entry->entry_size = buf & 0xffff;
+		entry->tid = buf >> 16 & 0xfff;
+
+		entry->change_ind = le32_to_cpu(*dlct++);
+		entry->device_flags = le32_to_cpu(*dlct++);
+
+		buf = le32_to_cpu(*dlct++);
+		entry->class_id = buf & 0xfff;
+		entry->version = buf >> 12 & 0xf;
+		entry->vendor_id = buf >> 16;
+
+		entry->sub_class = le32_to_cpu(*dlct++);
+
+		buf = le32_to_cpu(*dlct++);
+		entry->user_tid = buf & 0xfff;
+		entry->parent_tid = buf >> 12 & 0xfff;
+		entry->bios_info = buf >> 24;
+
+		memcpy(&entry->identity_tag, dlct, 8);
+		dlct += 2;
+
+		entry->event_capabilities = le32_to_cpu(*dlct++);
+
+		/* add new devices, which are new in the LCT */
+		list_for_each_entry_safe(dev, tmp, &c->devices, list) {
+			if (entry->tid == dev->lct_data.tid) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found)
+			i2o_device_add(c, entry);
+
+		table_size -= 9;
+		max++;
+	}
 
 	/* remove devices, which are not in the LCT anymore */
 	list_for_each_entry_safe(dev, tmp, &c->devices, list) {
@@ -386,20 +428,6 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 			i2o_device_remove(dev);
 	}
 
-	/* add new devices, which are new in the LCT */
-	for (i = 0; i < max; i++) {
-		int found = 0;
-
-		list_for_each_entry_safe(dev, tmp, &c->devices, list) {
-			if (lct->lct_entry[i].tid == dev->lct_data.tid) {
-				found = 1;
-				break;
-			}
-		}
-
-		if (!found)
-			i2o_device_add(c, &lct->lct_entry[i]);
-	}
 	up(&c->lct_lock);
 
 	return 0;
@@ -422,9 +450,6 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 		   int oplen, void *reslist, int reslen)
 {
 	struct i2o_message *msg;
-	u32 *res32 = (u32 *) reslist;
-	u32 *restmp = (u32 *) reslist;
-	int len = 0;
 	int i = 0;
 	int rc;
 	struct i2o_dma res;
@@ -448,7 +473,6 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 	msg->body[i++] = cpu_to_le32(0x00000000);
 	msg->body[i++] = cpu_to_le32(0x4C000000 | oplen);	/* OperationList */
 	memcpy(&msg->body[i], oplist, oplen);
-
 	i += (oplen / 4 + (oplen % 4 ? 1 : 0));
 	msg->body[i++] = cpu_to_le32(0xD0000000 | res.len);	/* ResultList */
 	msg->body[i++] = cpu_to_le32(res.phys);
@@ -466,36 +490,7 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 	memcpy(reslist, res.virt, res.len);
 	i2o_dma_free(dev, &res);
 
-	/* Query failed */
-	if (rc)
-		return rc;
-	/*
-	 * Calculate number of bytes of Result LIST
-	 * We need to loop through each Result BLOCK and grab the length
-	 */
-	restmp = res32 + 1;
-	len = 1;
-	for (i = 0; i < (res32[0] & 0X0000FFFF); i++) {
-		if (restmp[0] & 0x00FF0000) {	/* BlockStatus != SUCCESS */
-			printk(KERN_WARNING
-			       "%s - Error:\n  ErrorInfoSize = 0x%02x, "
-			       "BlockStatus = 0x%02x, BlockSize = 0x%04x\n",
-			       (cmd ==
-				I2O_CMD_UTIL_PARAMS_SET) ? "PARAMS_SET" :
-			       "PARAMS_GET", res32[1] >> 24,
-			       (res32[1] >> 16) & 0xFF, res32[1] & 0xFFFF);
-
-			/*
-			 *      If this is the only request,than we return an error
-			 */
-			if ((res32[0] & 0x0000FFFF) == 1) {
-				return -((res32[1] >> 16) & 0xFF);	/* -BlockStatus */
-			}
-		}
-		len += restmp[0] & 0x0000FFFF;	/* Length of res BLOCK */
-		restmp += restmp[0] & 0x0000FFFF;	/* Skip to next BLOCK */
-	}
-	return (len << 2);	/* bytes used by result list */
+	return rc;
 }
 
 /*
@@ -504,28 +499,25 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 int i2o_parm_field_get(struct i2o_device *i2o_dev, int group, int field,
 		       void *buf, int buflen)
 {
-	u16 opblk[] = { 1, 0, I2O_PARAMS_FIELD_GET, group, 1, field };
+	u32 opblk[] = { cpu_to_le32(0x00000001),
+		cpu_to_le32((u16) group << 16 | I2O_PARAMS_FIELD_GET),
+		cpu_to_le32((s16) field << 16 | 0x00000001)
+	};
 	u8 *resblk;		/* 8 bytes for header */
-	int size;
-
-	if (field == -1)	/* whole group */
-		opblk[4] = -1;
+	int rc;
 
 	resblk = kmalloc(buflen + 8, GFP_KERNEL | GFP_ATOMIC);
 	if (!resblk)
 		return -ENOMEM;
 
-	size = i2o_parm_issue(i2o_dev, I2O_CMD_UTIL_PARAMS_GET, opblk,
-			      sizeof(opblk), resblk, buflen + 8);
+	rc = i2o_parm_issue(i2o_dev, I2O_CMD_UTIL_PARAMS_GET, opblk,
+			    sizeof(opblk), resblk, buflen + 8);
 
 	memcpy(buf, resblk + 8, buflen);	/* cut off header */
 
 	kfree(resblk);
 
-	if (size > buflen)
-		return buflen;
-
-	return size;
+	return rc;
 }
 
 /*

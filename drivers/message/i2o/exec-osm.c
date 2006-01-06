@@ -77,7 +77,7 @@ static struct i2o_exec_wait *i2o_exec_wait_alloc(void)
 
 	wait = kmalloc(sizeof(*wait), GFP_KERNEL);
 	if (!wait)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	memset(wait, 0, sizeof(*wait));
 
@@ -271,8 +271,8 @@ static ssize_t i2o_exec_show_vendor_id(struct device *d,
 	struct i2o_device *dev = to_i2o_device(d);
 	u16 id;
 
-	if (i2o_parm_field_get(dev, 0x0000, 0, &id, 2)) {
-		sprintf(buf, "0x%04x", id);
+	if (!i2o_parm_field_get(dev, 0x0000, 0, &id, 2)) {
+		sprintf(buf, "0x%04x", le16_to_cpu(id));
 		return strlen(buf) + 1;
 	}
 
@@ -293,8 +293,8 @@ static ssize_t i2o_exec_show_product_id(struct device *d,
 	struct i2o_device *dev = to_i2o_device(d);
 	u16 id;
 
-	if (i2o_parm_field_get(dev, 0x0000, 1, &id, 2)) {
-		sprintf(buf, "0x%04x", id);
+	if (!i2o_parm_field_get(dev, 0x0000, 1, &id, 2)) {
+		sprintf(buf, "0x%04x", le16_to_cpu(id));
 		return strlen(buf) + 1;
 	}
 
@@ -364,7 +364,9 @@ static void i2o_exec_lct_modified(struct i2o_controller *c)
 	if (i2o_device_parse_lct(c) != -EAGAIN)
 		change_ind = c->lct->change_ind + 1;
 
+#ifdef CONFIG_I2O_LCT_NOTIFY_ON_CHANGES
 	i2o_exec_lct_notify(c, change_ind);
+#endif
 };
 
 /**
@@ -512,7 +514,8 @@ static int i2o_exec_lct_notify(struct i2o_controller *c, u32 change_ind)
 
 	dev = &c->pdev->dev;
 
-	if (i2o_dma_realloc(dev, &c->dlct, sb->expected_lct_size, GFP_KERNEL))
+	if (i2o_dma_realloc
+	    (dev, &c->dlct, le32_to_cpu(sb->expected_lct_size), GFP_KERNEL))
 		return -ENOMEM;
 
 	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
