@@ -336,9 +336,9 @@ static inline void __free_pages_bulk (struct page *page,
 
 static inline int free_pages_check(const char *function, struct page *page)
 {
-	if (	page_mapcount(page) ||
-		page->mapping != NULL ||
-		page_count(page) != 0 ||
+	if (unlikely(page_mapcount(page) |
+		(page->mapping != NULL)  |
+		(page_count(page) != 0)  |
 		(page->flags & (
 			1 << PG_lru	|
 			1 << PG_private |
@@ -348,7 +348,7 @@ static inline int free_pages_check(const char *function, struct page *page)
 			1 << PG_slab	|
 			1 << PG_swapcache |
 			1 << PG_writeback |
-			1 << PG_reserved )))
+			1 << PG_reserved ))))
 		bad_page(function, page);
 	if (PageDirty(page))
 		__ClearPageDirty(page);
@@ -458,9 +458,9 @@ expand(struct zone *zone, struct page *page,
  */
 static int prep_new_page(struct page *page, int order)
 {
-	if (	page_mapcount(page) ||
-		page->mapping != NULL ||
-		page_count(page) != 0 ||
+	if (unlikely(page_mapcount(page) |
+		(page->mapping != NULL)  |
+		(page_count(page) != 0)  |
 		(page->flags & (
 			1 << PG_lru	|
 			1 << PG_private	|
@@ -471,7 +471,7 @@ static int prep_new_page(struct page *page, int order)
 			1 << PG_slab    |
 			1 << PG_swapcache |
 			1 << PG_writeback |
-			1 << PG_reserved )))
+			1 << PG_reserved ))))
 		bad_page(__FUNCTION__, page);
 
 	/*
