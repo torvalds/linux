@@ -418,7 +418,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	struct sk_buff *skb2;
 	unsigned int mtu, hlen, left, len, ll_rs;
 	int offset;
-	int not_last_frag;
+	__be16 not_last_frag;
 	struct rtable *rt = (struct rtable*)skb->dst;
 	int err = 0;
 
@@ -1180,7 +1180,7 @@ int ip_push_pending_frames(struct sock *sk)
 	struct ip_options *opt = NULL;
 	struct rtable *rt = inet->cork.rt;
 	struct iphdr *iph;
-	int df = 0;
+	__be16 df = 0;
 	__u8 ttl;
 	int err = 0;
 
