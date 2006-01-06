@@ -475,7 +475,7 @@ static int fuse_get_user_pages(struct fuse_req *req, const char __user *buf,
 
 	nbytes = min(nbytes, (unsigned) FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT);
 	npages = (nbytes + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	npages = min(npages, FUSE_MAX_PAGES_PER_REQ);
+	npages = min(max(npages, 1), FUSE_MAX_PAGES_PER_REQ);
 	down_read(&current->mm->mmap_sem);
 	npages = get_user_pages(current, current->mm, user_addr, npages, write,
 				0, req->pages, NULL);
@@ -506,7 +506,6 @@ static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 		return -EINTR;
 
 	while (count) {
-		size_t tmp;
 		size_t nres;
 		size_t nbytes = min(count, nmax);
 		int err = fuse_get_user_pages(req, buf, nbytes, !write);
@@ -514,8 +513,8 @@ static ssize_t fuse_direct_io(struct file *file, const char __user *buf,
 			res = err;
 			break;
 		}
-		tmp = (req->num_pages << PAGE_SHIFT) - req->page_offset;
-		nbytes = min(nbytes, tmp);
+		nbytes = (req->num_pages << PAGE_SHIFT) - req->page_offset;
+		nbytes = min(count, nbytes);
 		if (write)
 			nres = fuse_send_write(req, file, inode, pos, nbytes);
 		else
