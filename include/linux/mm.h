@@ -896,6 +896,8 @@ extern unsigned long do_brk(unsigned long, unsigned long);
 /* filemap.c */
 extern unsigned long page_unuse(struct page *);
 extern void truncate_inode_pages(struct address_space *, loff_t);
+extern void truncate_inode_pages_range(struct address_space *,
+				       loff_t lstart, loff_t lend);
 
 /* generic vm_area_ops exported for stackable file systems */
 extern struct page *filemap_nopage(struct vm_area_struct *, unsigned long, int *);
