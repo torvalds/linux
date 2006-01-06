@@ -224,7 +224,7 @@ __uml_exitcall(ssl_exit);
 
 static int ssl_chan_setup(char *str)
 {
-	return line_setup(serial_lines, ARRAY_SIZE(serial_lines), str, 1);
+	return line_setup(serial_lines, ARRAY_SIZE(serial_lines), str);
 }
 
 __setup("ssl", ssl_chan_setup);

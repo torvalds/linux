@@ -191,7 +191,7 @@ __uml_exitcall(console_exit);
 
 static int console_chan_setup(char *str)
 {
-	return line_setup(vts, ARRAY_SIZE(vts), str, 1);
+	return line_setup(vts, ARRAY_SIZE(vts), str);
 }
 __setup("con", console_chan_setup);
 __channel_help(console_chan_setup, "con");

@@ -76,8 +76,8 @@ struct lines {
 extern void line_close(struct tty_struct *tty, struct file * filp);
 extern int line_open(struct line *lines, struct tty_struct *tty,
 		     struct chan_opts *opts);
-extern int line_setup(struct line *lines, unsigned int sizeof_lines, char *init,
-		      int all_allowed);
+extern int line_setup(struct line *lines, unsigned int sizeof_lines,
+		      char *init);
 extern int line_write(struct tty_struct *tty, const unsigned char *buf,
 		      int len);
 extern void line_put_char(struct tty_struct *tty, unsigned char ch);

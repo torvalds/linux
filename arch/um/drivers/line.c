@@ -500,11 +500,9 @@ void close_lines(struct line *lines, int nlines)
 /* Common setup code for both startup command line and mconsole initialization.
  * @lines contains the the array (of size @num) to modify;
  * @init is the setup string;
- * @all_allowed is a boolean saying if we can setup the whole @lines
- * at once. For instance, it will be usually true for startup init. (where we
- * can use con=xterm) and false for mconsole.*/
+ */
 
-int line_setup(struct line *lines, unsigned int num, char *init, int all_allowed)
+int line_setup(struct line *lines, unsigned int num, char *init)
 {
 	int i, n;
 	char *end;
@@ -545,11 +543,6 @@ int line_setup(struct line *lines, unsigned int num, char *init, int all_allowed
 			}	
 		}
 	}
-	else if(!all_allowed){
-		printk("line_setup - can't configure all devices from "
-		       "mconsole\n");
-		return 0;
-	}
 	else {
 		for(i = 0; i < num; i++){
 			if(lines[i].init_pri <= INIT_ALL){
@@ -569,12 +562,18 @@ int line_config(struct line *lines, unsigned int num, char *str)
 {
 	char *new;
 
+	if(*str == '='){
+		printk("line_config - can't configure all devices from "
+		       "mconsole\n");
+		return 1;
+	}
+
 	new = kstrdup(str, GFP_KERNEL);
 	if(new == NULL){
 		printk("line_config - kstrdup failed\n");
 		return -ENOMEM;
 	}
-	return !line_setup(lines, num, new, 0);
+	return !line_setup(lines, num, new);
 }
 
 int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
@@ -628,7 +627,7 @@ int line_remove(struct line *lines, unsigned int num, int n)
 	char config[sizeof("conxxxx=none\0")];
 
 	sprintf(config, "%d=none", n);
-	return !line_setup(lines, num, config, 0);
+	return !line_setup(lines, num, config);
 }
 
 struct tty_driver *line_register_devfs(struct lines *set,
