@@ -555,12 +555,13 @@ int line_setup(struct line *lines, unsigned int num, char *init)
 			}
 		}
 	}
-	return 1;
+	return n == -1 ? num : n;
 }
 
 int line_config(struct line *lines, unsigned int num, char *str)
 {
 	char *new;
+	int n;
 
 	if(*str == '='){
 		printk("line_config - can't configure all devices from "
@@ -573,7 +574,8 @@ int line_config(struct line *lines, unsigned int num, char *str)
 		printk("line_config - kstrdup failed\n");
 		return -ENOMEM;
 	}
-	return !line_setup(lines, num, new);
+	n = line_setup(lines, num, new);
+	return n < 0 ? n : 0;
 }
 
 int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
@@ -624,10 +626,14 @@ int line_id(char **str, int *start_out, int *end_out)
 
 int line_remove(struct line *lines, unsigned int num, int n)
 {
+	int err;
 	char config[sizeof("conxxxx=none\0")];
 
 	sprintf(config, "%d=none", n);
-	return !line_setup(lines, num, config);
+	err = line_setup(lines, num, config);
+	if(err >= 0)
+		err = 0;
+	return err;
 }
 
 struct tty_driver *line_register_devfs(struct lines *set,
