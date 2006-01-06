@@ -26,3 +26,5 @@ static inline void set_page_refs(struct page *page, int order)
 #endif /* CONFIG_MMU */
 }
 
+extern void fastcall __init __free_pages_bootmem(struct page *page,
+						unsigned int order);

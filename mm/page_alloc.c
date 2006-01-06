@@ -53,6 +53,8 @@ unsigned long totalram_pages __read_mostly;
 unsigned long totalhigh_pages __read_mostly;
 long nr_swap_pages;
 
+static void fastcall free_hot_cold_page(struct page *page, int cold);
+
 /*
  * results with 256, 32 in the lowmem_reserve sysctl:
  *	1G machine -> (16M dma, 800M-16M normal, 1G-800M high)
@@ -432,6 +434,39 @@ void __free_pages_ok(struct page *page, unsigned int order)
 	local_irq_restore(flags);
 }
 
+/*
+ * permit the bootmem allocator to evade page validation on high-order frees
+ */
+void fastcall __init __free_pages_bootmem(struct page *page, unsigned int order)
+{
+	if (order == 0) {
+		__ClearPageReserved(page);
+		set_page_count(page, 0);
+
+		free_hot_cold_page(page, 0);
+	} else {
+		LIST_HEAD(list);
+		int loop;
+
+		for (loop = 0; loop < BITS_PER_LONG; loop++) {
+			struct page *p = &page[loop];
+
+			if (loop + 16 < BITS_PER_LONG)
+				prefetchw(p + 16);
+			__ClearPageReserved(p);
+			set_page_count(p, 0);
+		}
+
+		arch_free_page(page, order);
+
+		mod_page_state(pgfree, 1 << order);
+
+		list_add(&page->lru, &list);
+		kernel_map_pages(page, 1 << order, 0);
+		free_pages_bulk(page_zone(page), 1, &list, order);
+	}
+}
+
 
 /*
  * The order of subdivision here is critical for the IO subsystem.
@@ -671,7 +706,6 @@ static void zone_statistics(struct zonelist *zonelist, struct zone *z)
 /*
  * Free a 0-order page
  */
-static void FASTCALL(free_hot_cold_page(struct page *page, int cold));
 static void fastcall free_hot_cold_page(struct page *page, int cold)
 {
 	struct zone *zone = page_zone(page);
