@@ -831,8 +831,8 @@ char *add_xterm_umid(char *base)
 	char *umid, *title;
 	int len;
 
-	umid = get_umid(1);
-	if(umid == NULL)
+	umid = get_umid();
+	if(*umid == '\0')
 		return base;
 
 	len = strlen(base) + strlen(" ()") + strlen(umid) + 1;

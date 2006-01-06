@@ -3,15 +3,13 @@
  * Licensed under the GPL
  */
 
-#include "linux/stddef.h"
-#include "linux/kernel.h"
 #include "asm/errno.h"
 #include "init.h"
 #include "os.h"
 #include "kern.h"
+#include "linux/kernel.h"
 
-/* Changed by set_umid_arg and umid_file_name */
-int umid_is_random = 0;
+/* Changed by set_umid_arg */
 static int umid_inited = 0;
 
 static int __init set_umid_arg(char *name, int *add)
@@ -22,11 +20,9 @@ static int __init set_umid_arg(char *name, int *add)
 		return 0;
 
 	*add = 0;
-	err = set_umid(name, printf);
-	if(err == -EEXIST){
+	err = set_umid(name);
+	if(err == -EEXIST)
 		printf("umid '%s' already in use\n", name);
-		umid_is_random = 1;
-	}
 	else if(!err)
 		umid_inited = 1;
 

@@ -216,7 +216,7 @@ extern int helper_wait(int pid);
 /* umid.c */
 
 extern int umid_file_name(char *name, char *buf, int len);
-extern int set_umid(char *name, int (*printer)(const char *fmt, ...));
-extern char *get_umid(int only_if_set);
+extern int set_umid(char *name);
+extern char *get_umid(void);
 
 #endif
