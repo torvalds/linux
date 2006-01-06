@@ -228,6 +228,8 @@ struct raid5_private_data {
 					    * Cleared when a sync completes.
 					    */
 
+	struct page 		*spare_page; /* Used when checking P/Q in raid6 */
+
 	/*
 	 * Free stripes pool
 	 */
