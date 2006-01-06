@@ -596,11 +596,6 @@ void __devinit cpu_init(void)
 	load_idt(&idt_descr);
 
 	/*
-	 * Delete NT
-	 */
-	__asm__("pushfl ; andl $0xffffbfff,(%esp) ; popfl");
-
-	/*
 	 * Set up and load the per-CPU TSS and LDT
 	 */
 	atomic_inc(&init_mm.mm_count);
