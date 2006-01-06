@@ -435,7 +435,6 @@ extern struct pglist_data contig_page_data;
 #define NODE_DATA(nid)		(&contig_page_data)
 #define NODE_MEM_MAP(nid)	mem_map
 #define MAX_NODES_SHIFT		1
-#define pfn_to_nid(pfn)		(0)
 
 #else /* CONFIG_NEED_MULTIPLE_NODES */
 
@@ -468,6 +467,10 @@ extern struct pglist_data contig_page_data;
 
 #ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
 #define early_pfn_to_nid(nid)  (0UL)
+#endif
+
+#ifdef CONFIG_FLATMEM
+#define pfn_to_nid(pfn)		(0)
 #endif
 
 #define pfn_to_section_nr(pfn) ((pfn) >> PFN_SECTION_SHIFT)
@@ -594,6 +597,8 @@ static inline int pfn_valid(unsigned long pfn)
  */
 #ifdef CONFIG_NUMA
 #define pfn_to_nid		early_pfn_to_nid
+#else
+#define pfn_to_nid(pfn)		(0)
 #endif
 
 #define early_pfn_valid(pfn)	pfn_valid(pfn)
