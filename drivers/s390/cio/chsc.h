@@ -5,6 +5,8 @@
 #define CHSC_SEI_ACC_LINKADDR     2
 #define CHSC_SEI_ACC_FULLLINKADDR 3
 
+#define CHSC_SDA_OC_MSS   0x2
+
 struct chsc_header {
 	u16 length;
 	u16 code;
@@ -63,6 +65,8 @@ extern int chsc_determine_css_characteristics(void);
 extern int css_characteristics_avail;
 
 extern void *chsc_get_chp_desc(struct subchannel*, int);
+
+extern int chsc_enable_facility(int);
 
 #define to_channelpath(dev) container_of(dev, struct channel_path, dev)
 

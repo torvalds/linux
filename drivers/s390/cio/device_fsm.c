@@ -257,8 +257,9 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	switch (state) {
 	case DEV_STATE_NOT_OPER:
 		CIO_DEBUG(KERN_WARNING, 2,
-			  "SenseID : unknown device %04x on subchannel %04x\n",
-			  cdev->private->devno, sch->schid.sch_no);
+			  "SenseID : unknown device %04x on subchannel "
+			  "0.%x.%04x\n", cdev->private->devno,
+			  sch->schid.ssid, sch->schid.sch_no);
 		break;
 	case DEV_STATE_OFFLINE:
 		if (cdev->private->state == DEV_STATE_DISCONNECTED_SENSE_ID) {
@@ -282,16 +283,18 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			return;
 		}
 		/* Issue device info message. */
-		CIO_DEBUG(KERN_INFO, 2, "SenseID : device %04x reports: "
+		CIO_DEBUG(KERN_INFO, 2, "SenseID : device 0.%x.%04x reports: "
 			  "CU  Type/Mod = %04X/%02X, Dev Type/Mod = "
-			  "%04X/%02X\n", cdev->private->devno,
+			  "%04X/%02X\n",
+			  cdev->private->ssid, cdev->private->devno,
 			  cdev->id.cu_type, cdev->id.cu_model,
 			  cdev->id.dev_type, cdev->id.dev_model);
 		break;
 	case DEV_STATE_BOXED:
 		CIO_DEBUG(KERN_WARNING, 2,
-			  "SenseID : boxed device %04x on subchannel %04x\n",
-			  cdev->private->devno, sch->schid.sch_no);
+			  "SenseID : boxed device %04x on subchannel "
+			  "0.%x.%04x\n", cdev->private->devno,
+			  sch->schid.ssid, sch->schid.sch_no);
 		break;
 	}
 	cdev->private->state = state;

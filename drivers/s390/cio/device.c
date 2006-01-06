@@ -535,7 +535,8 @@ ccw_device_register(struct ccw_device *cdev)
 }
 
 struct match_data {
-	unsigned int  devno;
+	unsigned int devno;
+	unsigned int ssid;
 	struct ccw_device * sibling;
 };
 
@@ -548,6 +549,7 @@ match_devno(struct device * dev, void * data)
 	cdev = to_ccwdev(dev);
 	if ((cdev->private->state == DEV_STATE_DISCONNECTED) &&
 	    (cdev->private->devno == d->devno) &&
+	    (cdev->private->ssid == d->ssid) &&
 	    (cdev != d->sibling)) {
 		cdev->private->state = DEV_STATE_NOT_OPER;
 		return 1;
@@ -556,11 +558,13 @@ match_devno(struct device * dev, void * data)
 }
 
 static struct ccw_device *
-get_disc_ccwdev_by_devno(unsigned int devno, struct ccw_device *sibling)
+get_disc_ccwdev_by_devno(unsigned int devno, unsigned int ssid,
+			 struct ccw_device *sibling)
 {
 	struct device *dev;
 	struct match_data data = {
-		.devno  = devno,
+		.devno   = devno,
+		.ssid    = ssid,
 		.sibling = sibling,
 	};
 
@@ -616,7 +620,7 @@ ccw_device_do_unreg_rereg(void *data)
 
 		need_rename = 1;
 		other_cdev = get_disc_ccwdev_by_devno(sch->schib.pmcw.dev,
-						      cdev);
+						      sch->schid.ssid, cdev);
 		if (other_cdev) {
 			struct subchannel *other_sch;
 
@@ -639,8 +643,8 @@ ccw_device_do_unreg_rereg(void *data)
 	if (test_and_clear_bit(1, &cdev->private->registered))
 		device_del(&cdev->dev);
 	if (need_rename)
-		snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.0.%04x",
-			  sch->schib.pmcw.dev);
+		snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x",
+			  sch->schid.ssid, sch->schib.pmcw.dev);
 	PREPARE_WORK(&cdev->private->kick_work,
 		     ccw_device_add_changed, (void *)cdev);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
@@ -769,9 +773,11 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	sch->dev.driver_data = cdev;
 	sch->driver = &io_subchannel_driver;
 	cdev->ccwlock = &sch->lock;
+
 	/* Init private data. */
 	priv = cdev->private;
 	priv->devno = sch->schib.pmcw.dev;
+	priv->ssid = sch->schid.ssid;
 	priv->sch_no = sch->schid.sch_no;
 	priv->state = DEV_STATE_NOT_OPER;
 	INIT_LIST_HEAD(&priv->cmb_list);
@@ -779,8 +785,8 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	init_timer(&priv->timer);
 
 	/* Set an initial name for the device. */
-	snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.0.%04x",
-		  sch->schib.pmcw.dev);
+	snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x",
+		  sch->schid.ssid, sch->schib.pmcw.dev);
 
 	/* Increase counter of devices currently in recognition. */
 	atomic_inc(&ccw_device_init_count);

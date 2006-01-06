@@ -77,6 +77,7 @@ struct ccw_device_private {
 	unsigned long registered;
 	__u16 devno;		/* device number */
 	__u16 sch_no;		/* subchannel number */
+	__u8 ssid;              /* subchannel set id */
 	__u8 imask;		/* lpm mask for SNID/SID/SPGID */
 	int iretry;		/* retry counter SNID/SID/SPGID */
 	struct {
@@ -135,6 +136,7 @@ extern int css_init_done;
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 
 #define __MAX_SUBCHANNEL 65535
+#define __MAX_SSID 3
 #define __MAX_CHPID 255
 #define __MAX_CSSID 0
 

@@ -56,7 +56,7 @@
 #include "ioasm.h"
 #include "chsc.h"
 
-#define VERSION_QDIO_C "$Revision: 1.113 $"
+#define VERSION_QDIO_C "$Revision: 1.114 $"
 
 /****************** MODULE PARAMETER VARIABLES ********************/
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>");
@@ -2066,21 +2066,22 @@ qdio_timeout_handler(struct ccw_device *cdev)
 
 	switch (irq_ptr->state) {
 	case QDIO_IRQ_STATE_INACTIVE:
-		QDIO_PRINT_ERR("establish queues on irq %04x: timed out\n",
-			       irq_ptr->schid.sch_no);
+		QDIO_PRINT_ERR("establish queues on irq 0.%x.%04x: timed out\n",
+			       irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 		QDIO_DBF_TEXT2(1,setup,"eq:timeo");
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		break;
 	case QDIO_IRQ_STATE_CLEANUP:
-		QDIO_PRINT_INFO("Did not get interrupt on cleanup, irq=0x%x.\n",
-				irq_ptr->schid.sch_no);
+		QDIO_PRINT_INFO("Did not get interrupt on cleanup, "
+				"irq=0.%x.%x.\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		break;
 	case QDIO_IRQ_STATE_ESTABLISHED:
 	case QDIO_IRQ_STATE_ACTIVE:
 		/* I/O has been terminated by common I/O layer. */
-		QDIO_PRINT_INFO("Queues on irq %04x killed by cio.\n",
-				irq_ptr->schid.sch_no);
+		QDIO_PRINT_INFO("Queues on irq 0.%x.%04x killed by cio.\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 		QDIO_DBF_TEXT2(1, trace, "cio:term");
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 		if (get_device(&cdev->dev)) {
@@ -2273,7 +2274,9 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 	unsigned char qdioac;
 	struct {
 		struct chsc_header request;
-		u16 reserved1;
+		u16 reserved1:10;
+		u16 ssid:2;
+		u16 fmt:4;
 		u16 first_sch;
 		u16 reserved2;
 		u16 last_sch;
@@ -2318,12 +2321,13 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 	};
 	ssqd_area->first_sch = irq_ptr->schid.sch_no;
 	ssqd_area->last_sch = irq_ptr->schid.sch_no;
+	ssqd_area->ssid = irq_ptr->schid.ssid;
 	result = chsc(ssqd_area);
 
 	if (result) {
 		QDIO_PRINT_WARN("CHSC returned cc %i. Using all " \
-				"SIGAs for sch x%x.\n",
-				result, irq_ptr->schid.sch_no);
+				"SIGAs for sch 0.%x.%x.\n", result,
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY ||
 			CHSC_FLAG_SIGA_OUTPUT_NECESSARY ||
 			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
@@ -2333,8 +2337,9 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 
 	if (ssqd_area->response.code != QDIO_CHSC_RESPONSE_CODE_OK) {
 		QDIO_PRINT_WARN("response upon checking SIGA needs " \
-				"is 0x%x. Using all SIGAs for sch x%x.\n",
-				ssqd_area->response.code, irq_ptr->schid.sch_no);
+				"is 0x%x. Using all SIGAs for sch 0.%x.%x.\n",
+				ssqd_area->response.code,
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY ||
 			CHSC_FLAG_SIGA_OUTPUT_NECESSARY ||
 			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* all flags set */
@@ -2344,8 +2349,9 @@ qdio_get_ssqd_information(struct qdio_irq *irq_ptr)
 	if (!(ssqd_area->flags & CHSC_FLAG_QDIO_CAPABILITY) ||
 	    !(ssqd_area->flags & CHSC_FLAG_VALIDITY) ||
 	    (ssqd_area->sch != irq_ptr->schid.sch_no)) {
-		QDIO_PRINT_WARN("huh? problems checking out sch x%x... " \
-				"using all SIGAs.\n",irq_ptr->schid.sch_no);
+		QDIO_PRINT_WARN("huh? problems checking out sch 0.%x.%x... " \
+				"using all SIGAs.\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 		qdioac = CHSC_FLAG_SIGA_INPUT_NECESSARY |
 			CHSC_FLAG_SIGA_OUTPUT_NECESSARY |
 			CHSC_FLAG_SIGA_SYNC_NECESSARY; /* worst case */
@@ -2453,7 +2459,8 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 	scssc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scssc_area) {
 		QDIO_PRINT_WARN("No memory for setting indicators on " \
-				"subchannel x%x.\n", irq_ptr->schid.sch_no);
+				"subchannel 0.%x.%x.\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 		return -ENOMEM;
 	}
 	scssc_area->request = (struct chsc_header) {
@@ -2479,8 +2486,9 @@ tiqdio_set_subchannel_ind(struct qdio_irq *irq_ptr, int reset_to_zero)
 
 	result = chsc(scssc_area);
 	if (result) {
-		QDIO_PRINT_WARN("could not set indicators on irq x%x, " \
-				"cc=%i.\n",irq_ptr->schid.sch_no,result);
+		QDIO_PRINT_WARN("could not set indicators on irq 0.%x.%x, " \
+				"cc=%i.\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no,result);
 		result = -EIO;
 		goto out;
 	}
@@ -2536,7 +2544,8 @@ tiqdio_set_delay_target(struct qdio_irq *irq_ptr, unsigned long delay_target)
 	scsscf_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scsscf_area) {
 		QDIO_PRINT_WARN("No memory for setting delay target on " \
-				"subchannel x%x.\n", irq_ptr->schid.sch_no);
+				"subchannel 0.%x.%x.\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 		return -ENOMEM;
 	}
 	scsscf_area->request = (struct chsc_header) {
@@ -2548,8 +2557,9 @@ tiqdio_set_delay_target(struct qdio_irq *irq_ptr, unsigned long delay_target)
 
 	result=chsc(scsscf_area);
 	if (result) {
-		QDIO_PRINT_WARN("could not set delay target on irq x%x, " \
-				"cc=%i. Continuing.\n",irq_ptr->schid.sch_no,
+		QDIO_PRINT_WARN("could not set delay target on irq 0.%x.%x, " \
+				"cc=%i. Continuing.\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no,
 				result);
 		result = -EIO;
 		goto out;
@@ -2870,8 +2880,9 @@ qdio_establish_irq_check_for_errors(struct ccw_device *cdev, int cstat,
 		QDIO_DBF_HEX2(0,trace,&dstat,sizeof(int));
 		QDIO_DBF_HEX2(0,trace,&cstat,sizeof(int));
 		QDIO_PRINT_ERR("received check condition on establish " \
-			       "queues on irq 0x%x (cs=x%x, ds=x%x).\n",
-			       irq_ptr->schid.sch_no,cstat,dstat);
+			       "queues on irq 0.%x.%x (cs=x%x, ds=x%x).\n",
+			       irq_ptr->schid.ssid, irq_ptr->schid.sch_no,
+			       cstat,dstat);
 		qdio_set_state(irq_ptr,QDIO_IRQ_STATE_ERR);
 	}
 	
@@ -2879,9 +2890,10 @@ qdio_establish_irq_check_for_errors(struct ccw_device *cdev, int cstat,
 		QDIO_DBF_TEXT2(1,setup,"eq:no de");
 		QDIO_DBF_HEX2(0,setup,&dstat, sizeof(dstat));
 		QDIO_DBF_HEX2(0,setup,&cstat, sizeof(cstat));
-		QDIO_PRINT_ERR("establish queues on irq %04x: didn't get "
+		QDIO_PRINT_ERR("establish queues on irq 0.%x.%04x: didn't get "
 			       "device end: dstat=%02x, cstat=%02x\n",
-			       irq_ptr->schid.sch_no, dstat, cstat);
+			       irq_ptr->schid.ssid, irq_ptr->schid.sch_no,
+			       dstat, cstat);
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		return 1;
 	}
@@ -2890,9 +2902,9 @@ qdio_establish_irq_check_for_errors(struct ccw_device *cdev, int cstat,
 		QDIO_DBF_TEXT2(1,setup,"eq:badio");
 		QDIO_DBF_HEX2(0,setup,&dstat, sizeof(dstat));
 		QDIO_DBF_HEX2(0,setup,&cstat, sizeof(cstat));
-		QDIO_PRINT_ERR("establish queues on irq %04x: got "
+		QDIO_PRINT_ERR("establish queues on irq 0.%x.%04x: got "
 			       "the following devstat: dstat=%02x, "
-			       "cstat=%02x\n",
+			       "cstat=%02x\n", irq_ptr->schid.ssid,
 			       irq_ptr->schid.sch_no, dstat, cstat);
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
 		return 1;
@@ -3041,7 +3053,8 @@ int qdio_fill_irq(struct qdio_initialize *init_data)
 		QDIO_DBF_HEX1(0,setup,&irq_ptr->dev_st_chg_ind,sizeof(void*));
 		if (!irq_ptr->dev_st_chg_ind) {
 			QDIO_PRINT_WARN("no indicator location available " \
-					"for irq 0x%x\n",irq_ptr->schid.sch_no);
+					"for irq 0.%x.%x\n",
+					irq_ptr->schid.ssid, irq_ptr->schid.sch_no);
 			qdio_release_irq_memory(irq_ptr);
 			return -ENOBUFS;
 		}
@@ -3198,9 +3211,10 @@ qdio_establish(struct qdio_initialize *init_data)
 			sprintf(dbf_text,"eq:io%4x",result);
 			QDIO_DBF_TEXT2(1,setup,dbf_text);
 		}
-		QDIO_PRINT_WARN("establish queues on irq %04x: do_IO " \
-                           "returned %i, next try returned %i\n",
-                           irq_ptr->schid.sch_no,result,result2);
+		QDIO_PRINT_WARN("establish queues on irq 0.%x.%04x: do_IO " \
+				"returned %i, next try returned %i\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no,
+				result, result2);
 		result=result2;
 		if (result)
 			ccw_device_set_timeout(cdev, 0);
@@ -3298,9 +3312,10 @@ qdio_activate(struct ccw_device *cdev, int flags)
 			sprintf(dbf_text,"aq:io%4x",result);
 			QDIO_DBF_TEXT2(1,setup,dbf_text);
 		}
-		QDIO_PRINT_WARN("activate queues on irq %04x: do_IO " \
-                           "returned %i, next try returned %i\n",
-                           irq_ptr->schid.sch_no,result,result2);
+		QDIO_PRINT_WARN("activate queues on irq 0.%x.%04x: do_IO " \
+				"returned %i, next try returned %i\n",
+				irq_ptr->schid.ssid, irq_ptr->schid.sch_no,
+				result, result2);
 		result=result2;
 	}
 

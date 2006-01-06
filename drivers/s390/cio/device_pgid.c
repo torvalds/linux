@@ -57,10 +57,10 @@ __ccw_device_sense_pgid_start(struct ccw_device *cdev)
 			if (ret != -EACCES)
 				return ret;
 			CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel "
-				      "%04x, lpm %02X, became 'not "
+				      "0.%x.%04x, lpm %02X, became 'not "
 				      "operational'\n",
-				      cdev->private->devno, sch->schid.sch_no,
-				      cdev->private->imask);
+				      cdev->private->devno, sch->schid.ssid,
+				      sch->schid.sch_no, cdev->private->imask);
 
 		}
 		cdev->private->imask >>= 1;
@@ -106,10 +106,10 @@ __ccw_device_check_sense_pgid(struct ccw_device *cdev)
 		return -EOPNOTSUPP;
 	}
 	if (irb->esw.esw0.erw.cons) {
-		CIO_MSG_EVENT(2, "SNID - device %04x, unit check, "
+		CIO_MSG_EVENT(2, "SNID - device 0.%x.%04x, unit check, "
 			      "lpum %02X, cnt %02d, sns : "
 			      "%02X%02X%02X%02X %02X%02X%02X%02X ...\n",
-			      cdev->private->devno,
+			      cdev->private->ssid, cdev->private->devno,
 			      irb->esw.esw0.sublog.lpum,
 			      irb->esw.esw0.erw.scnt,
 			      irb->ecw[0], irb->ecw[1],
@@ -119,16 +119,17 @@ __ccw_device_check_sense_pgid(struct ccw_device *cdev)
 		return -EAGAIN;
 	}
 	if (irb->scsw.cc == 3) {
-		CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel "
-			      "%04x, lpm %02X, became 'not operational'\n",
-			      cdev->private->devno, sch->schid.sch_no,
-			      sch->orb.lpm);
+		CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel 0.%x.%04x,"
+			      " lpm %02X, became 'not operational'\n",
+			      cdev->private->devno, sch->schid.ssid,
+			      sch->schid.sch_no, sch->orb.lpm);
 		return -EACCES;
 	}
 	if (cdev->private->pgid.inf.ps.state2 == SNID_STATE2_RESVD_ELSE) {
-		CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel %04x "
+		CIO_MSG_EVENT(2, "SNID - Device %04x on Subchannel 0.%x.%04x "
 			      "is reserved by someone else\n",
-			      cdev->private->devno, sch->schid.sch_no);
+			      cdev->private->devno, sch->schid.ssid,
+			      sch->schid.sch_no);
 		return -EUSERS;
 	}
 	return 0;
@@ -237,8 +238,9 @@ __ccw_device_do_pgid(struct ccw_device *cdev, __u8 func)
 	sch->lpm &= ~cdev->private->imask;
 	sch->vpm &= ~cdev->private->imask;
 	CIO_MSG_EVENT(2, "SPID - Device %04x on Subchannel "
-		      "%04x, lpm %02X, became 'not operational'\n",
-		      cdev->private->devno, sch->schid.sch_no, cdev->private->imask);
+		      "0.%x.%04x, lpm %02X, became 'not operational'\n",
+		      cdev->private->devno, sch->schid.ssid,
+		      sch->schid.sch_no, cdev->private->imask);
 	return ret;
 }
 
@@ -260,8 +262,10 @@ __ccw_device_check_pgid(struct ccw_device *cdev)
 		if (irb->ecw[0] & SNS0_CMD_REJECT)
 			return -EOPNOTSUPP;
 		/* Hmm, whatever happened, try again. */
-		CIO_MSG_EVENT(2, "SPID - device %04x, unit check, cnt %02d, "
+		CIO_MSG_EVENT(2, "SPID - device 0.%x.%04x, unit check, "
+			      "cnt %02d, "
 			      "sns : %02X%02X%02X%02X %02X%02X%02X%02X ...\n",
+			      cdev->private->ssid,
 			      cdev->private->devno, irb->esw.esw0.erw.scnt,
 			      irb->ecw[0], irb->ecw[1],
 			      irb->ecw[2], irb->ecw[3],
@@ -270,10 +274,10 @@ __ccw_device_check_pgid(struct ccw_device *cdev)
 		return -EAGAIN;
 	}
 	if (irb->scsw.cc == 3) {
-		CIO_MSG_EVENT(2, "SPID - Device %04x on Subchannel "
-			      "%04x, lpm %02X, became 'not operational'\n",
-			      cdev->private->devno, sch->schid.sch_no,
-			      cdev->private->imask);
+		CIO_MSG_EVENT(2, "SPID - Device %04x on Subchannel 0.%x.%04x,"
+			      " lpm %02X, became 'not operational'\n",
+			      cdev->private->devno, sch->schid.ssid,
+			      sch->schid.sch_no, cdev->private->imask);
 		return -EACCES;
 	}
 	return 0;

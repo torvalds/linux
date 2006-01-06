@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/css.c
  *  driver for channel subsystem
- *   $Revision: 1.85 $
+ *   $Revision: 1.93 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
@@ -23,6 +23,7 @@
 
 int need_rescan = 0;
 int css_init_done = 0;
+static int max_ssid = 0;
 
 struct channel_subsystem *css[__MAX_CSSID + 1];
 
@@ -37,10 +38,13 @@ for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 	init_subchannel_id(&schid);
 	ret = -ENODEV;
 	do {
-		ret = fn(schid, data);
-		if (ret)
-			break;
-	} while (schid.sch_no++ < __MAX_SUBCHANNEL);
+		do {
+			ret = fn(schid, data);
+			if (ret)
+				break;
+		} while (schid.sch_no++ < __MAX_SUBCHANNEL);
+		schid.sch_no = 0;
+	} while (schid.ssid++ < max_ssid);
 	return ret;
 }
 
@@ -205,8 +209,8 @@ css_evaluate_subchannel(struct subchannel_id schid, int slow)
 		return -EAGAIN; /* Will be done on the slow path. */
 	}
 	event = css_get_subchannel_status(sch, schid);
-	CIO_MSG_EVENT(4, "Evaluating schid %04x, event %d, %s, %s path.\n",
-		      schid.sch_no, event,
+	CIO_MSG_EVENT(4, "Evaluating schid 0.%x.%04x, event %d, %s, %s path.\n",
+		      schid.ssid, schid.sch_no, event,
 		      sch?(disc?"disconnected":"normal"):"unknown",
 		      slow?"slow":"fast");
 	switch (event) {
@@ -352,19 +356,23 @@ css_reiterate_subchannels(void)
  * Called from the machine check handler for subchannel report words.
  */
 int
-css_process_crw(int irq)
+css_process_crw(int rsid1, int rsid2)
 {
 	int ret;
 	struct subchannel_id mchk_schid;
 
-	CIO_CRW_EVENT(2, "source is subchannel %04X\n", irq);
+	CIO_CRW_EVENT(2, "source is subchannel %04X, subsystem id %x\n",
+		      rsid1, rsid2);
 
 	if (need_rescan)
 		/* We need to iterate all subchannels anyway. */
 		return -EAGAIN;
 
 	init_subchannel_id(&mchk_schid);
-	mchk_schid.sch_no = irq;
+	mchk_schid.sch_no = rsid1;
+	if (rsid2 != 0)
+		mchk_schid.ssid = (rsid2 >> 8) & 3;
+
 	/* 
 	 * Since we are always presented with IPI in the CRW, we have to
 	 * use stsch() to find out if the subchannel in question has come
@@ -465,12 +473,23 @@ init_channel_subsystem (void)
 	if ((ret = bus_register(&css_bus_type)))
 		goto out;
 
+	/* Try to enable MSS. */
+	ret = chsc_enable_facility(CHSC_SDA_OC_MSS);
+	switch (ret) {
+	case 0: /* Success. */
+		max_ssid = __MAX_SSID;
+		break;
+	case -ENOMEM:
+		goto out_bus;
+	default:
+		max_ssid = 0;
+	}
 	/* Setup css structure. */
 	for (i = 0; i <= __MAX_CSSID; i++) {
 		css[i] = kmalloc(sizeof(struct channel_subsystem), GFP_KERNEL);
 		if (!css[i]) {
 			ret = -ENOMEM;
-			goto out_bus;
+			goto out_unregister;
 		}
 		setup_css(i);
 		ret = device_register(&css[i]->device);
@@ -485,11 +504,12 @@ init_channel_subsystem (void)
 	return 0;
 out_free:
 	kfree(css[i]);
-out_bus:
+out_unregister:
 	while (i > 0) {
 		i--;
 		device_unregister(&css[i]->device);
 	}
+out_bus:
 	bus_unregister(&css_bus_type);
 out:
 	return ret;

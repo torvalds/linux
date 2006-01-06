@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/chsc.c
  *   S/390 common I/O routines -- channel subsystem call
- *   $Revision: 1.120 $
+ *   $Revision: 1.126 $
  *
  *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
  *			      IBM Corporation
@@ -75,7 +75,9 @@ chsc_get_sch_desc_irq(struct subchannel *sch, void *page)
 
 	struct {
 		struct chsc_header request;
-		u16 reserved1;
+		u16 reserved1a:10;
+		u16 ssid:2;
+		u16 reserved1b:4;
 		u16 f_sch;	  /* first subchannel */
 		u16 reserved2;
 		u16 l_sch;	  /* last subchannel */
@@ -102,6 +104,7 @@ chsc_get_sch_desc_irq(struct subchannel *sch, void *page)
 		.code   = 0x0004,
 	};
 
+	ssd_area->ssid = sch->schid.ssid;
 	ssd_area->f_sch = sch->schid.sch_no;
 	ssd_area->l_sch = sch->schid.sch_no;
 
@@ -145,8 +148,8 @@ chsc_get_sch_desc_irq(struct subchannel *sch, void *page)
 	 */
 	if (ssd_area->st > 3) { /* uhm, that looks strange... */
 		CIO_CRW_EVENT(0, "Strange subchannel type %d"
-			      " for sch %04x\n", ssd_area->st,
-			      sch->schid.sch_no);
+			      " for sch 0.%x.%04x\n", ssd_area->st,
+			      sch->schid.ssid, sch->schid.sch_no);
 		/*
 		 * There may have been a new subchannel type defined in the
 		 * time since this code was written; since we don't know which
@@ -155,8 +158,9 @@ chsc_get_sch_desc_irq(struct subchannel *sch, void *page)
 		return 0;
 	} else {
 		const char *type[4] = {"I/O", "chsc", "message", "ADM"};
-		CIO_CRW_EVENT(6, "ssd: sch %04x is %s subchannel\n",
-			      sch->schid.sch_no, type[ssd_area->st]);
+		CIO_CRW_EVENT(6, "ssd: sch 0.%x.%04x is %s subchannel\n",
+			      sch->schid.ssid, sch->schid.sch_no,
+			      type[ssd_area->st]);
 
 		sch->ssd_info.valid = 1;
 		sch->ssd_info.type = ssd_area->st;
@@ -364,7 +368,7 @@ s390_process_res_acc_new_sch(struct subchannel_id schid)
 	 * that beast may be on we'll have to do a stsch
 	 * on all devices, grr...
 	 */
-	if (stsch(schid, &schib))
+	if (stsch_err(schid, &schib))
 		/* We're through */
 		return need_rescan ? -EAGAIN : -ENXIO;
 
@@ -818,7 +822,7 @@ __s390_vary_chpid_on(struct subchannel_id schid, void *data)
 		put_device(&sch->dev);
 		return 0;
 	}
-	if (stsch(schid, &schib))
+	if (stsch_err(schid, &schib))
 		/* We're through */
 		return -ENXIO;
 	/* Put it on the slow path. */
@@ -1076,6 +1080,54 @@ chsc_alloc_sei_area(void)
 		printk(KERN_WARNING"Can't allocate page for processing of " \
 		       "chsc machine checks!\n");
 	return (sei_page ? 0 : -ENOMEM);
+}
+
+int __init
+chsc_enable_facility(int operation_code)
+{
+	int ret;
+	struct {
+		struct chsc_header request;
+		u8 reserved1:4;
+		u8 format:4;
+		u8 reserved2;
+		u16 operation_code;
+		u32 reserved3;
+		u32 reserved4;
+		u32 operation_data_area[252];
+		struct chsc_header response;
+		u32 reserved5:4;
+		u32 format2:4;
+		u32 reserved6:24;
+	} *sda_area;
+
+	sda_area = (void *)get_zeroed_page(GFP_KERNEL|GFP_DMA);
+	if (!sda_area)
+		return -ENOMEM;
+	sda_area->request = (struct chsc_header) {
+		.length = 0x0400,
+		.code = 0x0031,
+	};
+	sda_area->operation_code = operation_code;
+
+	ret = chsc(sda_area);
+	if (ret > 0) {
+		ret = (ret == 3) ? -ENODEV : -EBUSY;
+		goto out;
+	}
+	switch (sda_area->response.code) {
+	case 0x0003: /* invalid request block */
+	case 0x0007:
+		ret = -EINVAL;
+		break;
+	case 0x0004: /* command not provided */
+	case 0x0101: /* facility not provided */
+		ret = -EOPNOTSUPP;
+		break;
+	}
+ out:
+	free_page((unsigned long)sda_area);
+	return ret;
 }
 
 subsys_initcall(chsc_alloc_sei_area);

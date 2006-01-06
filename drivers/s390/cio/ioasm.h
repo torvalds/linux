@@ -38,6 +38,35 @@ static inline int stsch(struct subchannel_id schid,
 	return ccode;
 }
 
+static inline int stsch_err(struct subchannel_id schid,
+				volatile struct schib *addr)
+{
+	int ccode;
+
+	__asm__ __volatile__(
+		"    lhi  %0,%3\n"
+		"    lr	  1,%1\n"
+		"    stsch 0(%2)\n"
+		"0:  ipm  %0\n"
+		"    srl  %0,28\n"
+		"1:\n"
+#ifdef CONFIG_ARCH_S390X
+		".section __ex_table,\"a\"\n"
+		"   .align 8\n"
+		"   .quad 0b,1b\n"
+		".previous"
+#else
+		".section __ex_table,\"a\"\n"
+		"   .align 4\n"
+		"   .long 0b,1b\n"
+		".previous"
+#endif
+		: "=&d" (ccode)
+		: "d" (schid), "a" (addr), "K" (-EIO), "m" (*addr)
+		: "cc", "1" );
+	return ccode;
+}
+
 static inline int msch(struct subchannel_id schid,
 			   volatile struct schib *addr)
 {

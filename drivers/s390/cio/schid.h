@@ -2,7 +2,8 @@
 #define S390_SCHID_H
 
 struct subchannel_id {
-	__u32 reserved:15;
+	__u32 reserved:13;
+	__u32 ssid:2;
 	__u32 one:1;
 	__u32 sch_no:16;
 } __attribute__ ((packed,aligned(4)));

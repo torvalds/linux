@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/cio.c
  *   S/390 common I/O routines -- low level i/o calls
- *   $Revision: 1.135 $
+ *   $Revision: 1.138 $
  *
  *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
  *			      IBM Corporation
@@ -166,7 +166,8 @@ cio_start_handle_notoper(struct subchannel *sch, __u8 lpm)
 	stsch (sch->schid, &sch->schib);
 
 	CIO_MSG_EVENT(0, "cio_start: 'not oper' status for "
-		      "subchannel %04x!\n", sch->schid.sch_no);
+		      "subchannel 0.%x.%04x!\n", sch->schid.ssid,
+		      sch->schid.sch_no);
 	sprintf(dbf_text, "no%s", sch->dev.bus_id);
 	CIO_TRACE_EVENT(0, dbf_text);
 	CIO_HEX_EVENT(0, &sch->schib, sizeof (struct schib));
@@ -522,15 +523,18 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	spin_lock_init(&sch->lock);
 
 	/* Set a name for the subchannel */
-	snprintf (sch->dev.bus_id, BUS_ID_SIZE, "0.0.%04x", schid.sch_no);
+	snprintf (sch->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x", schid.ssid,
+		  schid.sch_no);
 
 	/*
 	 * The first subchannel that is not-operational (ccode==3)
 	 *  indicates that there aren't any more devices available.
+	 * If stsch gets an exception, it means the current subchannel set
+	 *  is not valid.
 	 */
-	ccode = stsch (schid, &sch->schib);
+	ccode = stsch_err (schid, &sch->schib);
 	if (ccode)
-		return -ENXIO;
+		return (ccode == 3) ? -ENXIO : ccode;
 
 	sch->schid = schid;
 	/* Copy subchannel type from path management control word. */
@@ -541,9 +545,9 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	 */
 	if (sch->st != 0) {
 		CIO_DEBUG(KERN_INFO, 0,
-			  "Subchannel %04X reports "
+			  "Subchannel 0.%x.%04x reports "
 			  "non-I/O subchannel type %04X\n",
-			  sch->schid.sch_no, sch->st);
+			  sch->schid.ssid, sch->schid.sch_no, sch->st);
 		/* We stop here for non-io subchannels. */
 		return sch->st;
 	}
@@ -554,26 +558,29 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 		return -ENODEV;
 
 	/* Devno is valid. */
-	if (is_blacklisted (sch->schib.pmcw.dev)) {
+	if (is_blacklisted (sch->schid.ssid, sch->schib.pmcw.dev)) {
 		/*
 		 * This device must not be known to Linux. So we simply
 		 * say that there is no device and return ENODEV.
 		 */
 		CIO_MSG_EVENT(0, "Blacklisted device detected "
-			      "at devno %04X\n", sch->schib.pmcw.dev);
+			      "at devno %04X, subchannel set %x\n",
+			      sch->schib.pmcw.dev, sch->schid.ssid);
 		return -ENODEV;
 	}
 	sch->opm = 0xff;
-	chsc_validate_chpids(sch);
+	if (!cio_is_console(sch->schid))
+		chsc_validate_chpids(sch);
 	sch->lpm = sch->schib.pmcw.pim &
 		sch->schib.pmcw.pam &
 		sch->schib.pmcw.pom &
 		sch->opm;
 
 	CIO_DEBUG(KERN_INFO, 0,
-		  "Detected device %04X on subchannel %04X"
+		  "Detected device %04x on subchannel 0.%x.%04X"
 		  " - PIM = %02X, PAM = %02X, POM = %02X\n",
-		  sch->schib.pmcw.dev, sch->schid.sch_no, sch->schib.pmcw.pim,
+		  sch->schib.pmcw.dev, sch->schid.ssid,
+		  sch->schid.sch_no, sch->schib.pmcw.pim,
 		  sch->schib.pmcw.pam, sch->schib.pmcw.pom);
 
 	/*
@@ -693,7 +700,7 @@ wait_cons_dev (void)
 static int
 cio_test_for_console(struct subchannel_id schid, void *data)
 {
-	if (stsch(schid, &console_subchannel.schib) != 0)
+	if (stsch_err(schid, &console_subchannel.schib) != 0)
 		return -ENXIO;
 	if (console_subchannel.schib.pmcw.dnv &&
 	    console_subchannel.schib.pmcw.dev ==
@@ -841,7 +848,7 @@ __shutdown_subchannel_easy(struct subchannel_id schid, void *data)
 {
 	struct schib schib;
 
-	if (stsch(schid, &schib))
+	if (stsch_err(schid, &schib))
 		return -ENXIO;
 	if (!schib.pmcw.ena)
 		return 0;
