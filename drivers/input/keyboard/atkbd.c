@@ -321,7 +321,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	switch (code) {
 		case ATKBD_RET_BAT:
 			atkbd->enabled = 0;
-			serio_rescan(atkbd->ps2dev.serio);
+			serio_reconnect(atkbd->ps2dev.serio);
 			goto out;
 		case ATKBD_RET_EMUL0:
 			atkbd->emul = 1;
