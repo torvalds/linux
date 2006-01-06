@@ -61,10 +61,8 @@ static void * r1bio_pool_alloc(gfp_t gfp_flags, void *data)
 	int size = offsetof(r1bio_t, bios[pi->raid_disks]);
 
 	/* allocate a r1bio with room for raid_disks entries in the bios array */
-	r1_bio = kmalloc(size, gfp_flags);
-	if (r1_bio)
-		memset(r1_bio, 0, size);
-	else
+	r1_bio = kzalloc(size, gfp_flags);
+	if (!r1_bio)
 		unplug_slaves(pi->mddev);
 
 	return r1_bio;
@@ -711,12 +709,10 @@ static struct page **alloc_behind_pages(struct bio *bio)
 {
 	int i;
 	struct bio_vec *bvec;
-	struct page **pages = kmalloc(bio->bi_vcnt * sizeof(struct page *),
+	struct page **pages = kzalloc(bio->bi_vcnt * sizeof(struct page *),
 					GFP_NOIO);
 	if (unlikely(!pages))
 		goto do_sync_io;
-
-	memset(pages, 0, bio->bi_vcnt * sizeof(struct page *));
 
 	bio_for_each_segment(bvec, bio, i) {
 		pages[i] = alloc_page(GFP_NOIO);
@@ -1770,18 +1766,15 @@ static int run(mddev_t *mddev)
 	 * bookkeeping area. [whatever we allocate in run(),
 	 * should be freed in stop()]
 	 */
-	conf = kmalloc(sizeof(conf_t), GFP_KERNEL);
+	conf = kzalloc(sizeof(conf_t), GFP_KERNEL);
 	mddev->private = conf;
 	if (!conf)
 		goto out_no_mem;
 
-	memset(conf, 0, sizeof(*conf));
-	conf->mirrors = kmalloc(sizeof(struct mirror_info)*mddev->raid_disks, 
+	conf->mirrors = kzalloc(sizeof(struct mirror_info)*mddev->raid_disks,
 				 GFP_KERNEL);
 	if (!conf->mirrors)
 		goto out_no_mem;
-
-	memset(conf->mirrors, 0, sizeof(struct mirror_info)*mddev->raid_disks);
 
 	conf->tmppage = alloc_page(GFP_KERNEL);
 	if (!conf->tmppage)
@@ -1992,13 +1985,12 @@ static int raid1_reshape(mddev_t *mddev, int raid_disks)
 		kfree(newpoolinfo);
 		return -ENOMEM;
 	}
-	newmirrors = kmalloc(sizeof(struct mirror_info) * raid_disks, GFP_KERNEL);
+	newmirrors = kzalloc(sizeof(struct mirror_info) * raid_disks, GFP_KERNEL);
 	if (!newmirrors) {
 		kfree(newpoolinfo);
 		mempool_destroy(newpool);
 		return -ENOMEM;
 	}
-	memset(newmirrors, 0, sizeof(struct mirror_info)*raid_disks);
 
 	raise_barrier(conf);
 

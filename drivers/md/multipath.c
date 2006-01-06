@@ -41,9 +41,7 @@ static mdk_personality_t multipath_personality;
 static void *mp_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	struct multipath_bh *mpb;
-	mpb = kmalloc(sizeof(*mpb), gfp_flags);
-	if (mpb) 
-		memset(mpb, 0, sizeof(*mpb));
+	mpb = kzalloc(sizeof(*mpb), gfp_flags);
 	return mpb;
 }
 
@@ -444,7 +442,7 @@ static int multipath_run (mddev_t *mddev)
 	 * should be freed in multipath_stop()]
 	 */
 
-	conf = kmalloc(sizeof(multipath_conf_t), GFP_KERNEL);
+	conf = kzalloc(sizeof(multipath_conf_t), GFP_KERNEL);
 	mddev->private = conf;
 	if (!conf) {
 		printk(KERN_ERR 
@@ -452,9 +450,8 @@ static int multipath_run (mddev_t *mddev)
 			mdname(mddev));
 		goto out;
 	}
-	memset(conf, 0, sizeof(*conf));
 
-	conf->multipaths = kmalloc(sizeof(struct multipath_info)*mddev->raid_disks,
+	conf->multipaths = kzalloc(sizeof(struct multipath_info)*mddev->raid_disks,
 				   GFP_KERNEL);
 	if (!conf->multipaths) {
 		printk(KERN_ERR 
@@ -462,7 +459,6 @@ static int multipath_run (mddev_t *mddev)
 			mdname(mddev));
 		goto out_free_conf;
 	}
-	memset(conf->multipaths, 0, sizeof(struct multipath_info)*mddev->raid_disks);
 
 	conf->working_disks = 0;
 	ITERATE_RDEV(mddev,rdev,tmp) {

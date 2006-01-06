@@ -59,10 +59,8 @@ static void * r10bio_pool_alloc(gfp_t gfp_flags, void *data)
 	int size = offsetof(struct r10bio_s, devs[conf->copies]);
 
 	/* allocate a r10bio with room for raid_disks entries in the bios array */
-	r10_bio = kmalloc(size, gfp_flags);
-	if (r10_bio)
-		memset(r10_bio, 0, size);
-	else
+	r10_bio = kzalloc(size, gfp_flags);
+	if (!r10_bio)
 		unplug_slaves(conf->mddev);
 
 	return r10_bio;

@@ -228,11 +228,9 @@ static mddev_t * mddev_find(dev_t unit)
 	}
 	spin_unlock(&all_mddevs_lock);
 
-	new = (mddev_t *) kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return NULL;
-
-	memset(new, 0, sizeof(*new));
 
 	new->unit = unit;
 	if (MAJOR(unit) == MD_MAJOR)
@@ -1620,12 +1618,11 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	mdk_rdev_t *rdev;
 	sector_t size;
 
-	rdev = (mdk_rdev_t *) kmalloc(sizeof(*rdev), GFP_KERNEL);
+	rdev = kzalloc(sizeof(*rdev), GFP_KERNEL);
 	if (!rdev) {
 		printk(KERN_ERR "md: could not alloc mem for new device!\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(rdev, 0, sizeof(*rdev));
 
 	if ((err = alloc_disk_sb(rdev)))
 		goto abort_free;
@@ -3505,11 +3502,10 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 {
 	mdk_thread_t *thread;
 
-	thread = kmalloc(sizeof(mdk_thread_t), GFP_KERNEL);
+	thread = kzalloc(sizeof(mdk_thread_t), GFP_KERNEL);
 	if (!thread)
 		return NULL;
 
-	memset(thread, 0, sizeof(mdk_thread_t));
 	init_waitqueue_head(&thread->wqueue);
 
 	thread->run = run;

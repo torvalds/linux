@@ -887,11 +887,9 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 	if (!bitmap->filemap)
 		goto out;
 
-	bitmap->filemap_attr = kmalloc(sizeof(long) * num_pages, GFP_KERNEL);
+	bitmap->filemap_attr = kzalloc(sizeof(long) * num_pages, GFP_KERNEL);
 	if (!bitmap->filemap_attr)
 		goto out;
-
-	memset(bitmap->filemap_attr, 0, sizeof(long) * num_pages);
 
 	oldindex = ~0L;
 
@@ -1557,11 +1555,9 @@ int bitmap_create(mddev_t *mddev)
 
 	BUG_ON(file && mddev->bitmap_offset);
 
-	bitmap = kmalloc(sizeof(*bitmap), GFP_KERNEL);
+	bitmap = kzalloc(sizeof(*bitmap), GFP_KERNEL);
 	if (!bitmap)
 		return -ENOMEM;
-
-	memset(bitmap, 0, sizeof(*bitmap));
 
 	spin_lock_init(&bitmap->lock);
 	bitmap->mddev = mddev;
@@ -1603,12 +1599,11 @@ int bitmap_create(mddev_t *mddev)
 #ifdef INJECT_FATAL_FAULT_1
 	bitmap->bp = NULL;
 #else
-	bitmap->bp = kmalloc(pages * sizeof(*bitmap->bp), GFP_KERNEL);
+	bitmap->bp = kzalloc(pages * sizeof(*bitmap->bp), GFP_KERNEL);
 #endif
 	err = -ENOMEM;
 	if (!bitmap->bp)
 		goto error;
-	memset(bitmap->bp, 0, pages * sizeof(*bitmap->bp));
 
 	bitmap->flags |= BITMAP_ACTIVE;
 

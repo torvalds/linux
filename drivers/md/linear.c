@@ -121,11 +121,10 @@ static int linear_run (mddev_t *mddev)
 	sector_t curr_offset;
 	struct list_head *tmp;
 
-	conf = kmalloc (sizeof (*conf) + mddev->raid_disks*sizeof(dev_info_t),
+	conf = kzalloc (sizeof (*conf) + mddev->raid_disks*sizeof(dev_info_t),
 			GFP_KERNEL);
 	if (!conf)
 		goto out;
-	memset(conf, 0, sizeof(*conf) + mddev->raid_disks*sizeof(dev_info_t));
 	mddev->private = conf;
 
 	cnt = 0;

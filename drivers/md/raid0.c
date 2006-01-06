@@ -113,20 +113,15 @@ static int create_strip_zones (mddev_t *mddev)
 	}
 	printk("raid0: FINAL %d zones\n", conf->nr_strip_zones);
 
-	conf->strip_zone = kmalloc(sizeof(struct strip_zone)*
+	conf->strip_zone = kzalloc(sizeof(struct strip_zone)*
 				conf->nr_strip_zones, GFP_KERNEL);
 	if (!conf->strip_zone)
 		return 1;
-	conf->devlist = kmalloc(sizeof(mdk_rdev_t*)*
+	conf->devlist = kzalloc(sizeof(mdk_rdev_t*)*
 				conf->nr_strip_zones*mddev->raid_disks,
 				GFP_KERNEL);
 	if (!conf->devlist)
 		return 1;
-
-	memset(conf->strip_zone, 0,sizeof(struct strip_zone)*
-				   conf->nr_strip_zones);
-	memset(conf->devlist, 0,
-	       sizeof(mdk_rdev_t*) * conf->nr_strip_zones * mddev->raid_disks);
 
 	/* The first zone must contain all devices, so here we check that
 	 * there is a proper alignment of slots to devices and find them all
