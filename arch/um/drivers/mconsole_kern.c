@@ -563,7 +563,7 @@ int mconsole_init(void)
 	}
 
 	if(notify_socket != NULL){
-		notify_socket = uml_strdup(notify_socket);
+		notify_socket = kstrdup(notify_socket, GFP_KERNEL);
 		if(notify_socket != NULL)
 			mconsole_notify(notify_socket, MCONSOLE_SOCKET,
 					mconsole_socket_name, 

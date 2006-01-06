@@ -586,7 +586,7 @@ static int net_config(char *str)
 	err = eth_parse(str, &n, &str);
 	if(err) return(err);
 
-	str = uml_strdup(str);
+	str = kstrdup(str, GFP_KERNEL);
 	if(str == NULL){
 		printk(KERN_ERR "net_config failed to strdup string\n");
 		return(-1);

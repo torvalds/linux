@@ -706,7 +706,7 @@ static int ubd_config(char *str)
 {
 	int n, err;
 
-	str = uml_strdup(str);
+	str = kstrdup(str, GFP_KERNEL);
 	if(str == NULL){
 		printk(KERN_ERR "ubd_config failed to strdup string\n");
 		return(1);

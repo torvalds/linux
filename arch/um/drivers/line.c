@@ -562,10 +562,11 @@ int line_setup(struct line *lines, unsigned int num, char *init, int all_allowed
 
 int line_config(struct line *lines, unsigned int num, char *str)
 {
-	char *new = uml_strdup(str);
+	char *new;
 
+	new = kstrdup(str, GFP_KERNEL);
 	if(new == NULL){
-		printk("line_config - uml_strdup failed\n");
+		printk("line_config - kstrdup failed\n");
 		return -ENOMEM;
 	}
 	return !line_setup(lines, num, new, 0);
@@ -677,10 +678,9 @@ void lines_init(struct line *lines, int nlines)
 		INIT_LIST_HEAD(&line->chan_list);
 		spin_lock_init(&line->lock);
 		if(line->init_str != NULL){
-			line->init_str = uml_strdup(line->init_str);
+			line->init_str = kstrdup(line->init_str, GFP_KERNEL);
 			if(line->init_str == NULL)
-				printk("lines_init - uml_strdup returned "
-				       "NULL\n");
+				printk("lines_init - kstrdup returned NULL\n");
 		}
 	}
 }
