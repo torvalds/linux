@@ -663,6 +663,7 @@ extern struct xpc_registration xpc_registrations[];
 extern struct device *xpc_part;
 extern struct device *xpc_chan;
 extern int xpc_disengage_request_timelimit;
+extern int xpc_disengage_request_timedout;
 extern irqreturn_t xpc_notify_IRQ_handler(int, void *, struct pt_regs *);
 extern void xpc_dropped_IPI_check(struct xpc_partition *);
 extern void xpc_activate_partition(struct xpc_partition *);

@@ -162,6 +162,8 @@ static ctl_table xpc_sys_dir[] = {
 };
 static struct ctl_table_header *xpc_sysctl;
 
+/* non-zero if any remote partition disengage request was timed out */
+int xpc_disengage_request_timedout;
 
 /* #of IRQs received */
 static atomic_t xpc_act_IRQ_rcvd;
@@ -921,9 +923,9 @@ static void
 xpc_do_exit(enum xpc_retval reason)
 {
 	partid_t partid;
-	int active_part_count;
+	int active_part_count, printed_waiting_msg = 0;
 	struct xpc_partition *part;
-	unsigned long printmsg_time;
+	unsigned long printmsg_time, disengage_request_timeout = 0;
 
 
 	/* a 'rmmod XPC' and a 'reboot' cannot both end up here together */
@@ -953,7 +955,8 @@ xpc_do_exit(enum xpc_retval reason)
 
 	/* wait for all partitions to become inactive */
 
-	printmsg_time = jiffies;
+	printmsg_time = jiffies + (XPC_DISENGAGE_PRINTMSG_INTERVAL * HZ);
+	xpc_disengage_request_timedout = 0;
 
 	do {
 		active_part_count = 0;
@@ -969,20 +972,39 @@ xpc_do_exit(enum xpc_retval reason)
 			active_part_count++;
 
 			XPC_DEACTIVATE_PARTITION(part, reason);
+
+			if (part->disengage_request_timeout >
+						disengage_request_timeout) {
+				disengage_request_timeout =
+						part->disengage_request_timeout;
+			}
 		}
 
-		if (active_part_count == 0) {
-			break;
-		}
-
-		if (jiffies >= printmsg_time) {
-			dev_info(xpc_part, "waiting for partitions to "
-				"deactivate/disengage, active count=%d, remote "
-				"engaged=0x%lx\n", active_part_count,
-				xpc_partition_engaged(1UL << partid));
-
-			printmsg_time = jiffies +
+		if (xpc_partition_engaged(-1UL)) {
+			if (time_after(jiffies, printmsg_time)) {
+				dev_info(xpc_part, "waiting for remote "
+					"partitions to disengage, timeout in "
+					"%ld seconds\n",
+					(disengage_request_timeout - jiffies)
+									/ HZ);
+				printmsg_time = jiffies +
 					(XPC_DISENGAGE_PRINTMSG_INTERVAL * HZ);
+				printed_waiting_msg = 1;
+			}
+
+		} else if (active_part_count > 0) {
+			if (printed_waiting_msg) {
+				dev_info(xpc_part, "waiting for local partition"
+					" to disengage\n");
+				printed_waiting_msg = 0;
+			}
+
+		} else {
+			if (!xpc_disengage_request_timedout) {
+				dev_info(xpc_part, "all partitions have "
+					"disengaged\n");
+			}
+			break;
 		}
 
 		/* sleep for a 1/3 of a second or so */
@@ -1028,7 +1050,7 @@ xpc_die_disengage(void)
 	struct xpc_partition *part;
 	partid_t partid;
 	unsigned long engaged;
-	long time, print_time, disengage_request_timeout;
+	long time, printmsg_time, disengage_request_timeout;
 
 
 	/* keep xpc_hb_checker thread from doing anything (just in case) */
@@ -1055,24 +1077,43 @@ xpc_die_disengage(void)
 		}
 	}
 
-	print_time = rtc_time();
-	disengage_request_timeout = print_time +
+	time = rtc_time();
+	printmsg_time = time +
+		(XPC_DISENGAGE_PRINTMSG_INTERVAL * sn_rtc_cycles_per_second);
+	disengage_request_timeout = time +
 		(xpc_disengage_request_timelimit * sn_rtc_cycles_per_second);
 
 	/* wait for all other partitions to disengage from us */
 
-	while ((engaged = xpc_partition_engaged(-1UL)) &&
-			(time = rtc_time()) < disengage_request_timeout) {
+	while (1) {
+		engaged = xpc_partition_engaged(-1UL);
+		if (!engaged) {
+			dev_info(xpc_part, "all partitions have disengaged\n");
+			break;
+		}
 
-		if (time >= print_time) {
+		time = rtc_time();
+		if (time >= disengage_request_timeout) {
+			for (partid = 1; partid < XP_MAX_PARTITIONS; partid++) {
+				if (engaged & (1UL << partid)) {
+					dev_info(xpc_part, "disengage from "
+						"remote partition %d timed "
+						"out\n", partid);
+				}
+			}
+			break;
+		}
+
+		if (time >= printmsg_time) {
 			dev_info(xpc_part, "waiting for remote partitions to "
-				"disengage, engaged=0x%lx\n", engaged);
-			print_time = time + (XPC_DISENGAGE_PRINTMSG_INTERVAL *
+				"disengage, timeout in %ld seconds\n",
+				(disengage_request_timeout - time) /
+						sn_rtc_cycles_per_second);
+			printmsg_time = time +
+					(XPC_DISENGAGE_PRINTMSG_INTERVAL *
 						sn_rtc_cycles_per_second);
 		}
 	}
-	dev_info(xpc_part, "finished waiting for remote partitions to "
-				"disengage, engaged=0x%lx\n", engaged);
 }
 
 

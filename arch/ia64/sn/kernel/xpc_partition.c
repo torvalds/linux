@@ -874,6 +874,9 @@ xpc_partition_disengaged(struct xpc_partition *part)
 			 * request in a timely fashion, so assume it's dead.
 			 */
 
+			dev_info(xpc_part, "disengage from remote partition %d "
+				"timed out\n", partid);
+			xpc_disengage_request_timedout = 1;
 			xpc_clear_partition_engaged(1UL << partid);
 			disengaged = 1;
 		}
