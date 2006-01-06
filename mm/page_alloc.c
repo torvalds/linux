@@ -375,11 +375,10 @@ static int
 free_pages_bulk(struct zone *zone, int count,
 		struct list_head *list, unsigned int order)
 {
-	unsigned long flags;
 	struct page *page = NULL;
 	int ret = 0;
 
-	spin_lock_irqsave(&zone->lock, flags);
+	spin_lock(&zone->lock);
 	zone->all_unreclaimable = 0;
 	zone->pages_scanned = 0;
 	while (!list_empty(list) && count--) {
@@ -389,12 +388,13 @@ free_pages_bulk(struct zone *zone, int count,
 		__free_pages_bulk(page, zone, order);
 		ret++;
 	}
-	spin_unlock_irqrestore(&zone->lock, flags);
+	spin_unlock(&zone->lock);
 	return ret;
 }
 
 void __free_pages_ok(struct page *page, unsigned int order)
 {
+	unsigned long flags;
 	LIST_HEAD(list);
 	int i;
 	int reserved = 0;
@@ -415,7 +415,9 @@ void __free_pages_ok(struct page *page, unsigned int order)
 	list_add(&page->lru, &list);
 	mod_page_state(pgfree, 1 << order);
 	kernel_map_pages(page, 1<<order, 0);
+	local_irq_save(flags);
 	free_pages_bulk(page_zone(page), 1, &list, order);
+	local_irq_restore(flags);
 }
 
 
@@ -539,12 +541,11 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order)
 static int rmqueue_bulk(struct zone *zone, unsigned int order, 
 			unsigned long count, struct list_head *list)
 {
-	unsigned long flags;
 	int i;
 	int allocated = 0;
 	struct page *page;
 	
-	spin_lock_irqsave(&zone->lock, flags);
+	spin_lock(&zone->lock);
 	for (i = 0; i < count; ++i) {
 		page = __rmqueue(zone, order);
 		if (page == NULL)
@@ -552,7 +553,7 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 		allocated++;
 		list_add_tail(&page->lru, list);
 	}
-	spin_unlock_irqrestore(&zone->lock, flags);
+	spin_unlock(&zone->lock);
 	return allocated;
 }
 
@@ -589,6 +590,7 @@ void drain_remote_pages(void)
 #if defined(CONFIG_PM) || defined(CONFIG_HOTPLUG_CPU)
 static void __drain_pages(unsigned int cpu)
 {
+	unsigned long flags;
 	struct zone *zone;
 	int i;
 
@@ -600,8 +602,10 @@ static void __drain_pages(unsigned int cpu)
 			struct per_cpu_pages *pcp;
 
 			pcp = &pset->pcp[i];
+			local_irq_save(flags);
 			pcp->count -= free_pages_bulk(zone, pcp->count,
 						&pcp->list, 0);
+			local_irq_restore(flags);
 		}
 	}
 }
@@ -744,7 +748,7 @@ again:
 		if (pcp->count <= pcp->low)
 			pcp->count += rmqueue_bulk(zone, 0,
 						pcp->batch, &pcp->list);
-		if (pcp->count) {
+		if (likely(pcp->count)) {
 			page = list_entry(pcp->list.next, struct page, lru);
 			list_del(&page->lru);
 			pcp->count--;
