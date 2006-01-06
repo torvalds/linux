@@ -252,7 +252,7 @@ struct pardevice *parport_open (int devnum, const char *name,
 		selected = port->daisy;
 		parport_release (dev);
 
-		if (selected != port->daisy) {
+		if (selected != daisy) {
 			/* No corresponding device. */
 			parport_unregister_device (dev);
 			return NULL;
