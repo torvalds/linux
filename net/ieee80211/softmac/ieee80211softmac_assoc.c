@@ -268,7 +268,7 @@ ieee80211softmac_associated(struct ieee80211softmac_device *mac,
 	if (mac->set_bssid_filter)
 		mac->set_bssid_filter(mac->dev, net->bssid);
 	memcpy(mac->ieee->bssid, net->bssid, ETH_ALEN);
-	mac->dev->flags |= IFF_RUNNING;
+	netif_carrier_on(mac->dev);
 	
 	mac->association_id = le16_to_cpup(&resp->aid);
 }
@@ -346,7 +346,7 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	unsigned long flags;
 	dprintk(KERN_INFO PFX "got disassoc frame\n");
-	
+	netif_carrier_off(dev);
 	spin_lock_irqsave(&mac->lock, flags);
 	mac->associnfo.bssvalid = 0;
 	mac->associated = 0;

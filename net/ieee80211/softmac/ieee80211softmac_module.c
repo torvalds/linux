@@ -40,21 +40,10 @@ struct net_device *alloc_ieee80211softmac(int sizeof_priv)
 	softmac->txrates.default_rate = IEEE80211_CCK_RATE_1MB;
 	softmac->txrates.default_fallback = IEEE80211_CCK_RATE_1MB;
 
-	/* should we also assign softmac->mgmt_xmit here so
-	 * that it is always valid? If so, we probably want
-	 * to define a new function for that which just
-	 * wraps ieee80211_tx_frame
-	 */
+	/* to start with, we can't send anything ... */
+	netif_carrier_off(dev);
 	
-	/* until associated, we're not ready */
-	dev->flags &= ~IFF_RUNNING;
-
 	return dev;
-
-err_free_ieee80211:
- 	free_ieee80211(dev);
-
-	return NULL;
 }
 
 /* Clears the pending work queue items, stops all scans, etc. */
