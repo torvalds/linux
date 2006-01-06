@@ -183,6 +183,12 @@ All md devices contain:
      the array if the personality supports it (raid1, raid5, raid6),
      and if the component drives are large enough.
 
+  metadata_version
+     This indicates the format that is being used to record metadata
+     about the array.  It can be 0.90 (traditional format), 1.0, 1.1,
+     1.2 (newer format in varying locations) or "none" indicating that
+     the kernel isn't managing metadata at all.
+
 As component devices are added to an md array, they appear in the 'md'
 directory as new directories named
       dev-XXX

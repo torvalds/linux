@@ -1857,6 +1857,54 @@ size_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry md_size =
 __ATTR(component_size, 0644, size_show, size_store);
 
+
+/* Metdata version.
+ * This is either 'none' for arrays with externally managed metadata,
+ * or N.M for internally known formats
+ */
+static ssize_t
+metadata_show(mddev_t *mddev, char *page)
+{
+	if (mddev->persistent)
+		return sprintf(page, "%d.%d\n",
+			       mddev->major_version, mddev->minor_version);
+	else
+		return sprintf(page, "none\n");
+}
+
+static ssize_t
+metadata_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	int major, minor;
+	char *e;
+	if (!list_empty(&mddev->disks))
+		return -EBUSY;
+
+	if (cmd_match(buf, "none")) {
+		mddev->persistent = 0;
+		mddev->major_version = 0;
+		mddev->minor_version = 90;
+		return len;
+	}
+	major = simple_strtoul(buf, &e, 10);
+	if (e==buf || *e != '.')
+		return -EINVAL;
+	buf = e+1;
+	minor = simple_strtoul(buf, &e, 10);
+	if (e==buf || *e != '\n')
+		return -EINVAL;
+	if (major >= sizeof(super_types)/sizeof(super_types[0]) ||
+	    super_types[major].name == NULL)
+		return -ENOENT;
+	mddev->major_version = major;
+	mddev->minor_version = minor;
+	mddev->persistent = 1;
+	return len;
+}
+
+static struct md_sysfs_entry md_metadata =
+__ATTR(metadata_version, 0644, metadata_show, metadata_store);
+
 static ssize_t
 action_show(mddev_t *mddev, char *page)
 {
@@ -1926,6 +1974,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_raid_disks.attr,
 	&md_chunk_size.attr,
 	&md_size.attr,
+	&md_metadata.attr,
 	NULL,
 };
 
