@@ -2072,8 +2072,7 @@ static int run(mddev_t *mddev)
 abort:
 	if (conf) {
 		print_raid6_conf(conf);
-		if (conf->spare_page)
-			put_page(conf->spare_page);
+		safe_put_page(conf->spare_page);
 		kfree(conf->stripe_hashtbl);
 		kfree(conf);
 	}

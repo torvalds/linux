@@ -626,8 +626,7 @@ static void bitmap_file_unmap(struct bitmap *bitmap)
 	kfree(map);
 	kfree(attr);
 
-	if (sb_page)
-		put_page(sb_page);
+	safe_put_page(sb_page);
 }
 
 static void bitmap_stop_daemon(struct bitmap *bitmap);

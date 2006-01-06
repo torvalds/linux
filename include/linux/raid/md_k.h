@@ -324,5 +324,10 @@ do {									\
 	__wait_event_lock_irq(wq, condition, lock, cmd);		\
 } while (0)
 
+static inline void safe_put_page(struct page *p)
+{
+	if (p) put_page(p);
+}
+
 #endif
 

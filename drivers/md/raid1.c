@@ -136,7 +136,7 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 out_free_pages:
 	for (i=0; i < RESYNC_PAGES ; i++)
 		for (j=0 ; j < pi->raid_disks; j++)
-			put_page(r1_bio->bios[j]->bi_io_vec[i].bv_page);
+			safe_put_page(r1_bio->bios[j]->bi_io_vec[i].bv_page);
 	j = -1;
 out_free_bio:
 	while ( ++j < pi->raid_disks )
@@ -156,7 +156,7 @@ static void r1buf_pool_free(void *__r1_bio, void *data)
 			if (j == 0 ||
 			    r1bio->bios[j]->bi_io_vec[i].bv_page !=
 			    r1bio->bios[0]->bi_io_vec[i].bv_page)
-				put_page(r1bio->bios[j]->bi_io_vec[i].bv_page);
+				safe_put_page(r1bio->bios[j]->bi_io_vec[i].bv_page);
 		}
 	for (i=0 ; i < pi->raid_disks; i++)
 		bio_put(r1bio->bios[i]);
@@ -381,7 +381,7 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 			/* free extra copy of the data pages */
 			int i = bio->bi_vcnt;
 			while (i--)
-				put_page(bio->bi_io_vec[i].bv_page);
+				safe_put_page(bio->bi_io_vec[i].bv_page);
 		}
 		/* clear the bitmap if all writes complete successfully */
 		bitmap_endwrite(r1_bio->mddev->bitmap, r1_bio->sector,
@@ -1907,7 +1907,7 @@ out_free_conf:
 		if (conf->r1bio_pool)
 			mempool_destroy(conf->r1bio_pool);
 		kfree(conf->mirrors);
-		put_page(conf->tmppage);
+		safe_put_page(conf->tmppage);
 		kfree(conf->poolinfo);
 		kfree(conf);
 		mddev->private = NULL;

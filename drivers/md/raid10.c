@@ -132,10 +132,10 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 
 out_free_pages:
 	for ( ; i > 0 ; i--)
-		put_page(bio->bi_io_vec[i-1].bv_page);
+		safe_put_page(bio->bi_io_vec[i-1].bv_page);
 	while (j--)
 		for (i = 0; i < RESYNC_PAGES ; i++)
-			put_page(r10_bio->devs[j].bio->bi_io_vec[i].bv_page);
+			safe_put_page(r10_bio->devs[j].bio->bi_io_vec[i].bv_page);
 	j = -1;
 out_free_bio:
 	while ( ++j < nalloc )
@@ -155,7 +155,7 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 		struct bio *bio = r10bio->devs[j].bio;
 		if (bio) {
 			for (i = 0; i < RESYNC_PAGES; i++) {
-				put_page(bio->bi_io_vec[i].bv_page);
+				safe_put_page(bio->bi_io_vec[i].bv_page);
 				bio->bi_io_vec[i].bv_page = NULL;
 			}
 			bio_put(bio);
@@ -2042,7 +2042,7 @@ static int run(mddev_t *mddev)
 out_free_conf:
 	if (conf->r10bio_pool)
 		mempool_destroy(conf->r10bio_pool);
-	put_page(conf->tmppage);
+	safe_put_page(conf->tmppage);
 	kfree(conf->mirrors);
 	kfree(conf);
 	mddev->private = NULL;
