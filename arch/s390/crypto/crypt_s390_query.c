@@ -32,6 +32,12 @@ static void query_available_functions(void)
 		crypt_s390_func_available(KM_TDEA_128_ENCRYPT));
 	printk(KERN_INFO "KM_TDEA_192: %d\n",
 		crypt_s390_func_available(KM_TDEA_192_ENCRYPT));
+	printk(KERN_INFO "KM_AES_128: %d\n",
+		crypt_s390_func_available(KM_AES_128_ENCRYPT));
+	printk(KERN_INFO "KM_AES_192: %d\n",
+		crypt_s390_func_available(KM_AES_192_ENCRYPT));
+	printk(KERN_INFO "KM_AES_256: %d\n",
+		crypt_s390_func_available(KM_AES_256_ENCRYPT));
 
 	/* query available KMC functions */
 	printk(KERN_INFO "KMC_QUERY: %d\n",
@@ -42,6 +48,12 @@ static void query_available_functions(void)
 		crypt_s390_func_available(KMC_TDEA_128_ENCRYPT));
 	printk(KERN_INFO "KMC_TDEA_192: %d\n",
 		crypt_s390_func_available(KMC_TDEA_192_ENCRYPT));
+	printk(KERN_INFO "KMC_AES_128: %d\n",
+		crypt_s390_func_available(KMC_AES_128_ENCRYPT));
+	printk(KERN_INFO "KMC_AES_192: %d\n",
+		crypt_s390_func_available(KMC_AES_192_ENCRYPT));
+	printk(KERN_INFO "KMC_AES_256: %d\n",
+		crypt_s390_func_available(KMC_AES_256_ENCRYPT));
 
 	/* query available KIMD fucntions */
 	printk(KERN_INFO "KIMD_QUERY: %d\n",
