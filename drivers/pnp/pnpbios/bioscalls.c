@@ -31,15 +31,6 @@ static struct {
 } pnp_bios_callpoint;
 
 
-/* The PnP BIOS entries in the GDT */
-#define PNP_GDT    (GDT_ENTRY_PNPBIOS_BASE * 8)
-
-#define PNP_CS32   (PNP_GDT+0x00)	/* segment for calling fn */
-#define PNP_CS16   (PNP_GDT+0x08)	/* code segment for BIOS */
-#define PNP_DS     (PNP_GDT+0x10)	/* data segment for BIOS */
-#define PNP_TS1    (PNP_GDT+0x18)	/* transfer data segment */
-#define PNP_TS2    (PNP_GDT+0x20)	/* another data segment */
-
 /*
  * These are some opcodes for a "static asmlinkage"
  * As this code is *not* executed inside the linux kernel segment, but in a
