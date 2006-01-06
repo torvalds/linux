@@ -1977,7 +1977,6 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			goto release;
 		inc_mm_counter(mm, anon_rss);
 		lru_cache_add_active(page);
-		SetPageReferenced(page);
 		page_add_new_anon_rmap(page, vma, address);
 	} else {
 		/* Map the ZERO_PAGE - vm_page_prot is readonly */
