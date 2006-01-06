@@ -157,7 +157,7 @@ EXPORT_SYMBOL_GPL(cpu_idle_wait);
 DECLARE_PER_CPU(int, cpu_state);
 
 #include <asm/nmi.h>
-/* We don't actually take CPU down, just spin without interrupts. */
+/* We halt the CPU with physical CPU hotplug */
 static inline void play_dead(void)
 {
 	idle_task_exit();
@@ -166,8 +166,9 @@ static inline void play_dead(void)
 	/* Ack it */
 	__get_cpu_var(cpu_state) = CPU_DEAD;
 
+	local_irq_disable();
 	while (1)
-		safe_halt();
+		halt();
 }
 #else
 static inline void play_dead(void)
