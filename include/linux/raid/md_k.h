@@ -143,6 +143,10 @@ struct mddev_s
 	sector_t			resync_mismatches; /* count of sectors where
 							    * parity/replica mismatch found
 							    */
+	/* if zero, use the system-wide default */
+	int				sync_speed_min;
+	int				sync_speed_max;
+
 	int				ok_start_degraded;
 	/* recovery/resync flags 
 	 * NEEDED:   we might need to start a resync/recover
