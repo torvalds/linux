@@ -172,7 +172,8 @@ config DEBUG_VM
 	bool "Debug VM"
 	depends on DEBUG_KERNEL
 	help
-	  Enable this to debug the virtual-memory system.
+	  Enable this to turn on extended checks in the virtual-memory system
+          that may impact performance.
 
 	  If unsure, say N.
 

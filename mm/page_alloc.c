@@ -81,6 +81,7 @@ int min_free_kbytes = 1024;
 unsigned long __initdata nr_kernel_pages;
 unsigned long __initdata nr_all_pages;
 
+#ifdef CONFIG_DEBUG_VM
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 {
 	int ret = 0;
@@ -121,6 +122,13 @@ static int bad_range(struct zone *zone, struct page *page)
 
 	return 0;
 }
+
+#else
+static inline int bad_range(struct zone *zone, struct page *page)
+{
+	return 0;
+}
+#endif
 
 static void bad_page(const char *function, struct page *page)
 {
@@ -255,14 +263,20 @@ __find_combined_index(unsigned long page_idx, unsigned int order)
 /*
  * This function checks whether a page is free && is the buddy
  * we can do coalesce a page and its buddy if
- * (a) the buddy is free &&
- * (b) the buddy is on the buddy system &&
- * (c) a page and its buddy have the same order.
+ * (a) the buddy is not in a hole &&
+ * (b) the buddy is free &&
+ * (c) the buddy is on the buddy system &&
+ * (d) a page and its buddy have the same order.
  * for recording page's order, we use page_private(page) and PG_private.
  *
  */
 static inline int page_is_buddy(struct page *page, int order)
 {
+#ifdef CONFIG_HOLES_IN_ZONE
+	if (!pfn_valid(page_to_pfn(page)))
+		return 0;
+#endif
+
        if (PagePrivate(page)           &&
            (page_order(page) == order) &&
             page_count(page) == 0)
@@ -314,17 +328,15 @@ static inline void __free_pages_bulk (struct page *page,
 		struct free_area *area;
 		struct page *buddy;
 
-		combined_idx = __find_combined_index(page_idx, order);
 		buddy = __page_find_buddy(page, page_idx, order);
-
-		if (bad_range(zone, buddy))
-			break;
 		if (!page_is_buddy(buddy, order))
 			break;		/* Move the buddy up one level. */
+
 		list_del(&buddy->lru);
 		area = zone->free_area + order;
 		area->nr_free--;
 		rmv_page_order(buddy);
+		combined_idx = __find_combined_index(page_idx, order);
 		page = page + (combined_idx - page_idx);
 		page_idx = combined_idx;
 		order++;
