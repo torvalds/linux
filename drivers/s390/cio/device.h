@@ -110,6 +110,7 @@ int ccw_device_stlck(struct ccw_device *);
 
 /* qdio needs this. */
 void ccw_device_set_timeout(struct ccw_device *, int);
+extern struct subchannel_id ccw_device_get_subchannel_id(struct ccw_device *);
 
 void retry_set_schib(struct ccw_device *cdev);
 #endif

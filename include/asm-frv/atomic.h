@@ -426,4 +426,5 @@ extern uint32_t __cmpxchg_32(uint32_t *v, uint32_t test, uint32_t new);
 })
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
+#include <asm-generic/atomic.h>
 #endif /* _ASM_ATOMIC_H */

@@ -98,7 +98,6 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <linux/in.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/lp.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -106,7 +105,6 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <linux/skbuff.h>
 #include <linux/if_plip.h>
 #include <linux/workqueue.h>
-#include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/parport.h>
 #include <linux/bitops.h>

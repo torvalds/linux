@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.51 $
+ * $Revision: 1.53 $
  */
 
 #include <linux/config.h>
@@ -25,6 +25,7 @@
 #include <asm/io.h>
 #include <asm/s390_ext.h>
 #include <asm/todclk.h>
+#include <asm/vtoc.h>
 
 #include "dasd_int.h"
 #include "dasd_diag.h"
@@ -74,7 +75,7 @@ dia250(void *iob, int cmd)
 	int rc;
 
 	__asm__ __volatile__(
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 		"	lghi	%0,3\n"
 		"	lgr	0,%3\n"
 		"	diag	0,%2,0x250\n"
@@ -329,7 +330,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	struct dasd_diag_private *private;
 	struct dasd_diag_characteristics *rdc_data;
 	struct dasd_diag_bio bio;
-	struct dasd_diag_cms_label *label;
+	struct vtoc_cms_label *label;
 	blocknum_t end_block;
 	unsigned int sb, bsize;
 	int rc;
@@ -380,7 +381,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	mdsk_term_io(device);
 
 	/* figure out blocksize of device */
-	label = (struct dasd_diag_cms_label *) get_zeroed_page(GFP_KERNEL);
+	label = (struct vtoc_cms_label *) get_zeroed_page(GFP_KERNEL);
 	if (label == NULL)  {
 		DEV_MESSAGE(KERN_WARNING, device, "%s",
 			    "No memory to allocate initialization request");
@@ -548,6 +549,8 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	}
 	cqr->retries = DIAG_MAX_RETRIES;
 	cqr->buildclk = get_clock();
+	if (req->flags & REQ_FAILFAST)
+		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->device = device;
 	cqr->expires = DIAG_TIMEOUT;
 	cqr->status = DASD_CQR_FILLED;

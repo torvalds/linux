@@ -292,7 +292,6 @@ static struct scsi_host_template sil24_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
 	.bios_param		= ata_std_bios_param,
-	.ordered_flush		= 1, /* NCQ not supported yet */
 };
 
 static const struct ata_port_operations sil24_ops = {

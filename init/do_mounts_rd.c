@@ -145,7 +145,7 @@ int __init rd_load_image(char *from)
 	int nblocks, i, disk;
 	char *buf = NULL;
 	unsigned short rotate = 0;
-#if !defined(CONFIG_ARCH_S390) && !defined(CONFIG_PPC_ISERIES)
+#if !defined(CONFIG_S390) && !defined(CONFIG_PPC_ISERIES)
 	char rotator[4] = { '|' , '/' , '-' , '\\' };
 #endif
 
@@ -237,7 +237,7 @@ int __init rd_load_image(char *from)
 		}
 		sys_read(in_fd, buf, BLOCK_SIZE);
 		sys_write(out_fd, buf, BLOCK_SIZE);
-#if !defined(CONFIG_ARCH_S390) && !defined(CONFIG_PPC_ISERIES)
+#if !defined(CONFIG_S390) && !defined(CONFIG_PPC_ISERIES)
 		if (!(i % 16)) {
 			printk("%c\b", rotator[rotate & 0x3]);
 			rotate++;

@@ -341,7 +341,7 @@ ENTRY(ia32_ptregs_common)
 	jmp  ia32_sysret	/* misbalances the return cache */
 	CFI_ENDPROC
 
-	.data
+	.section .rodata,"a"
 	.align 8
 	.globl ia32_sys_call_table
 ia32_sys_call_table:

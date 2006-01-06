@@ -1402,7 +1402,7 @@ static void do_cdu31a_request(request_queue_t * q)
 			if (!end_that_request_first(req, 1, nblock)) {
 				spin_lock_irq(q->queue_lock);
 				blkdev_dequeue_request(req);
-				end_that_request_last(req);
+				end_that_request_last(req, 1);
 				spin_unlock_irq(q->queue_lock);
 			}
 			continue;

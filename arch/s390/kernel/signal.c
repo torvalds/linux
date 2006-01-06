@@ -254,9 +254,9 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigregs(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	do_sigaltstack(&frame->uc.uc_stack, NULL, regs->gprs[15]);
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL,
+			   regs->gprs[15]) == -EFAULT)
+		goto badframe;
 	return regs->gprs[2];
 
 badframe:
@@ -501,7 +501,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 		if (test_thread_flag(TIF_31BIT)) {
 			extern void handle_signal32(unsigned long sig,
 						    struct k_sigaction *ka,

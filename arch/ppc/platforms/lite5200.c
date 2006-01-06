@@ -196,8 +196,10 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	mpc52xx_set_bat();
 
 	/* No ISA bus by default */
+#ifdef CONFIG_PCI
 	isa_io_base		= 0;
 	isa_mem_base		= 0;
+#endif
 
 	/* Powersave */
 	/* This is provided as an example on how to do it. But you

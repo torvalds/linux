@@ -562,16 +562,28 @@ static const u8 ata_rw_cmds[] = {
 	ATA_CMD_WRITE_MULTI,
 	ATA_CMD_READ_MULTI_EXT,
 	ATA_CMD_WRITE_MULTI_EXT,
+	0,
+	0,
+	0,
+	ATA_CMD_WRITE_MULTI_FUA_EXT,
 	/* pio */
 	ATA_CMD_PIO_READ,
 	ATA_CMD_PIO_WRITE,
 	ATA_CMD_PIO_READ_EXT,
 	ATA_CMD_PIO_WRITE_EXT,
+	0,
+	0,
+	0,
+	0,
 	/* dma */
 	ATA_CMD_READ,
 	ATA_CMD_WRITE,
 	ATA_CMD_READ_EXT,
-	ATA_CMD_WRITE_EXT
+	ATA_CMD_WRITE_EXT,
+	0,
+	0,
+	0,
+	ATA_CMD_WRITE_FUA_EXT
 };
 
 /**
@@ -584,25 +596,32 @@ static const u8 ata_rw_cmds[] = {
  *	LOCKING:
  *	caller.
  */
-void ata_rwcmd_protocol(struct ata_queued_cmd *qc)
+int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
+	u8 cmd;
 
-	int index, lba48, write;
+	int index, fua, lba48, write;
  
+	fua = (tf->flags & ATA_TFLAG_FUA) ? 4 : 0;
 	lba48 = (tf->flags & ATA_TFLAG_LBA48) ? 2 : 0;
 	write = (tf->flags & ATA_TFLAG_WRITE) ? 1 : 0;
 
 	if (dev->flags & ATA_DFLAG_PIO) {
 		tf->protocol = ATA_PROT_PIO;
-		index = dev->multi_count ? 0 : 4;
+		index = dev->multi_count ? 0 : 8;
 	} else {
 		tf->protocol = ATA_PROT_DMA;
-		index = 8;
+		index = 16;
 	}
 
-	tf->command = ata_rw_cmds[index + lba48 + write];
+	cmd = ata_rw_cmds[index + fua + lba48 + write];
+	if (cmd) {
+		tf->command = cmd;
+		return 0;
+	}
+	return -1;
 }
 
 static const char * const xfer_mode_str[] = {
@@ -4154,6 +4173,96 @@ err_out:
  *	Inherited from caller.
  */
 
+/*
+ * Execute a 'simple' command, that only consists of the opcode 'cmd' itself,
+ * without filling any other registers
+ */
+static int ata_do_simple_cmd(struct ata_port *ap, struct ata_device *dev,
+			     u8 cmd)
+{
+	struct ata_taskfile tf;
+	int err;
+
+	ata_tf_init(ap, &tf, dev->devno);
+
+	tf.command = cmd;
+	tf.flags |= ATA_TFLAG_DEVICE;
+	tf.protocol = ATA_PROT_NODATA;
+
+	err = ata_exec_internal(ap, dev, &tf, DMA_NONE, NULL, 0);
+	if (err)
+		printk(KERN_ERR "%s: ata command failed: %d\n",
+				__FUNCTION__, err);
+
+	return err;
+}
+
+static int ata_flush_cache(struct ata_port *ap, struct ata_device *dev)
+{
+	u8 cmd;
+
+	if (!ata_try_flush_cache(dev))
+		return 0;
+
+	if (ata_id_has_flush_ext(dev->id))
+		cmd = ATA_CMD_FLUSH_EXT;
+	else
+		cmd = ATA_CMD_FLUSH;
+
+	return ata_do_simple_cmd(ap, dev, cmd);
+}
+
+static int ata_standby_drive(struct ata_port *ap, struct ata_device *dev)
+{
+	return ata_do_simple_cmd(ap, dev, ATA_CMD_STANDBYNOW1);
+}
+
+static int ata_start_drive(struct ata_port *ap, struct ata_device *dev)
+{
+	return ata_do_simple_cmd(ap, dev, ATA_CMD_IDLEIMMEDIATE);
+}
+
+/**
+ *	ata_device_resume - wakeup a previously suspended devices
+ *
+ *	Kick the drive back into action, by sending it an idle immediate
+ *	command and making sure its transfer mode matches between drive
+ *	and host.
+ *
+ */
+int ata_device_resume(struct ata_port *ap, struct ata_device *dev)
+{
+	if (ap->flags & ATA_FLAG_SUSPENDED) {
+		ap->flags &= ~ATA_FLAG_SUSPENDED;
+		ata_set_mode(ap);
+	}
+	if (!ata_dev_present(dev))
+		return 0;
+	if (dev->class == ATA_DEV_ATA)
+		ata_start_drive(ap, dev);
+
+	return 0;
+}
+
+/**
+ *	ata_device_suspend - prepare a device for suspend
+ *
+ *	Flush the cache on the drive, if appropriate, then issue a
+ *	standbynow command.
+ *
+ */
+int ata_device_suspend(struct ata_port *ap, struct ata_device *dev)
+{
+	if (!ata_dev_present(dev))
+		return 0;
+	if (dev->class == ATA_DEV_ATA)
+		ata_flush_cache(ap, dev);
+
+	ata_standby_drive(ap, dev);
+	ap->flags |= ATA_FLAG_SUSPENDED;
+	return 0;
+}
+
 int ata_port_start (struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
@@ -4902,6 +5011,23 @@ int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits)
 
 	return (tmp == bits->val) ? 1 : 0;
 }
+
+int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+	return 0;
+}
+
+int ata_pci_device_resume(struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+	pci_enable_device(pdev);
+	pci_set_master(pdev);
+	return 0;
+}
 #endif /* CONFIG_PCI */
 
 
@@ -5005,4 +5131,11 @@ EXPORT_SYMBOL_GPL(ata_pci_host_stop);
 EXPORT_SYMBOL_GPL(ata_pci_init_native_mode);
 EXPORT_SYMBOL_GPL(ata_pci_init_one);
 EXPORT_SYMBOL_GPL(ata_pci_remove_one);
+EXPORT_SYMBOL_GPL(ata_pci_device_suspend);
+EXPORT_SYMBOL_GPL(ata_pci_device_resume);
 #endif /* CONFIG_PCI */
+
+EXPORT_SYMBOL_GPL(ata_device_suspend);
+EXPORT_SYMBOL_GPL(ata_device_resume);
+EXPORT_SYMBOL_GPL(ata_scsi_device_suspend);
+EXPORT_SYMBOL_GPL(ata_scsi_device_resume);

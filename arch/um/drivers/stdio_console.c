@@ -75,7 +75,7 @@ static struct line_driver driver = {
 		.name  		= "con",
 		.config 	= con_config,
 		.get_config 	= con_get_config,
-                .id		= line_id,
+		.id		= line_id,
 		.remove 	= con_remove,
 	},
 };
@@ -86,28 +86,27 @@ static struct lines console_lines = LINES_INIT(MAX_TTYS);
  * individual elements are protected by individual semaphores.
  */
 struct line vts[MAX_TTYS] = { LINE_INIT(CONFIG_CON_ZERO_CHAN, &driver),
-			      [ 1 ... MAX_TTYS - 1 ] = 
+			      [ 1 ... MAX_TTYS - 1 ] =
 			      LINE_INIT(CONFIG_CON_CHAN, &driver) };
 
 static int con_config(char *str)
 {
-	return(line_config(vts, sizeof(vts)/sizeof(vts[0]), str));
+	return line_config(vts, ARRAY_SIZE(vts), str, &opts);
 }
 
 static int con_get_config(char *dev, char *str, int size, char **error_out)
 {
-	return(line_get_config(dev, vts, sizeof(vts)/sizeof(vts[0]), str, 
-			       size, error_out));
+	return line_get_config(dev, vts, ARRAY_SIZE(vts), str, size, error_out);
 }
 
 static int con_remove(int n)
 {
-        return line_remove(vts, sizeof(vts)/sizeof(vts[0]), n);
+	return line_remove(vts, ARRAY_SIZE(vts), n);
 }
 
 static int con_open(struct tty_struct *tty, struct file *filp)
 {
-	return line_open(vts, tty, &opts);
+	return line_open(vts, tty);
 }
 
 static int con_init_done = 0;
@@ -117,16 +116,18 @@ static struct tty_operations console_ops = {
 	.close 	 		= line_close,
 	.write 	 		= line_write,
 	.put_char 		= line_put_char,
- 	.write_room		= line_write_room,
+	.write_room		= line_write_room,
 	.chars_in_buffer 	= line_chars_in_buffer,
 	.flush_buffer 		= line_flush_buffer,
 	.flush_chars 		= line_flush_chars,
 	.set_termios 		= line_set_termios,
 	.ioctl 	 		= line_ioctl,
+	.throttle 		= line_throttle,
+	.unthrottle 		= line_unthrottle,
 };
 
 static void uml_console_write(struct console *console, const char *string,
-			  unsigned len)
+			      unsigned len)
 {
 	struct line *line = &vts[console->index];
 	unsigned long flags;
@@ -146,7 +147,7 @@ static int uml_console_setup(struct console *co, char *options)
 {
 	struct line *line = &vts[co->index];
 
-	return console_open_chan(line,co,&opts);
+	return console_open_chan(line, co, &opts);
 }
 
 static struct console stdiocons = {
@@ -156,7 +157,7 @@ static struct console stdiocons = {
 	.setup		= uml_console_setup,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
-	.data           = &vts,
+	.data		= &vts,
 };
 
 int stdio_init(void)
@@ -166,11 +167,11 @@ int stdio_init(void)
 	console_driver = line_register_devfs(&console_lines, &driver,
 					     &console_ops, vts,
 					     ARRAY_SIZE(vts));
-	if (NULL == console_driver)
+	if (console_driver == NULL)
 		return -1;
 	printk(KERN_INFO "Initialized stdio console driver\n");
 
-	lines_init(vts, sizeof(vts)/sizeof(vts[0]));
+	lines_init(vts, ARRAY_SIZE(vts), &opts);
 
 	new_title = add_xterm_umid(opts.xterm_title);
 	if(new_title != NULL)
@@ -178,7 +179,7 @@ int stdio_init(void)
 
 	con_init_done = 1;
 	register_console(&stdiocons);
-	return(0);
+	return 0;
 }
 late_initcall(stdio_init);
 
@@ -186,13 +187,13 @@ static void console_exit(void)
 {
 	if (!con_init_done)
 		return;
-	close_lines(vts, sizeof(vts)/sizeof(vts[0]));
+	close_lines(vts, ARRAY_SIZE(vts));
 }
 __uml_exitcall(console_exit);
 
 static int console_chan_setup(char *str)
 {
-	return(line_setup(vts, sizeof(vts)/sizeof(vts[0]), str, 1));
+	return line_setup(vts, ARRAY_SIZE(vts), str);
 }
 __setup("con", console_chan_setup);
 __channel_help(console_chan_setup, "con");

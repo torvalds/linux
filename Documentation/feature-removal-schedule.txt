@@ -47,17 +47,6 @@ Who:	Paul E. McKenney <paulmck@us.ibm.com>
 
 ---------------------------
 
-What:	IEEE1394 Audio and Music Data Transmission Protocol driver,
-	Connection Management Procedures driver
-When:	November 2005
-Files:	drivers/ieee1394/{amdtp,cmp}*
-Why:	These are incomplete, have never worked, and are better implemented
-	in userland via raw1394 (see http://freebob.sourceforge.net/ for
-	example.)
-Who:	Jody McIntyre <scjody@steamballoon.com>
-
----------------------------
-
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
 When:	November 2005
 Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is

@@ -64,7 +64,6 @@ extern void setup_machinename(char *machine_out);
 extern void setup_hostinfo(void);
 extern void do_exec(int old_pid, int new_pid);
 extern void tracer_panic(char *msg, ...);
-extern char *get_umid(int only_if_set);
 extern void do_longjmp(void *p, int val);
 extern int detach(int pid, int sig);
 extern int attach(int pid);

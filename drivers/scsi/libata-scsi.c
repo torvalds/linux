@@ -396,6 +396,22 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 	}
 }
 
+int ata_scsi_device_resume(struct scsi_device *sdev)
+{
+	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
+	struct ata_device *dev = &ap->device[sdev->id];
+
+	return ata_device_resume(ap, dev);
+}
+
+int ata_scsi_device_suspend(struct scsi_device *sdev)
+{
+	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
+	struct ata_device *dev = &ap->device[sdev->id];
+
+	return ata_device_suspend(ap, dev);
+}
+
 /**
  *	ata_to_sense_error - convert ATA error to SCSI error
  *	@id: ATA device number
@@ -1080,11 +1096,13 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 	    scsicmd[0] == WRITE_16)
 		tf->flags |= ATA_TFLAG_WRITE;
 
-	/* Calculate the SCSI LBA and transfer length. */
+	/* Calculate the SCSI LBA, transfer length and FUA. */
 	switch (scsicmd[0]) {
 	case READ_10:
 	case WRITE_10:
 		scsi_10_lba_len(scsicmd, &block, &n_block);
+		if (unlikely(scsicmd[1] & (1 << 3)))
+			tf->flags |= ATA_TFLAG_FUA;
 		break;
 	case READ_6:
 	case WRITE_6:
@@ -1099,6 +1117,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 	case READ_16:
 	case WRITE_16:
 		scsi_16_lba_len(scsicmd, &block, &n_block);
+		if (unlikely(scsicmd[1] & (1 << 3)))
+			tf->flags |= ATA_TFLAG_FUA;
 		break;
 	default:
 		DPRINTK("no-byte command\n");
@@ -1142,7 +1162,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 			tf->device |= (block >> 24) & 0xf;
 		}
 
-		ata_rwcmd_protocol(qc);
+		if (unlikely(ata_rwcmd_protocol(qc) < 0))
+			goto invalid_fld;
 
 		qc->nsect = n_block;
 		tf->nsect = n_block & 0xff;
@@ -1160,7 +1181,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		if ((block >> 28) || (n_block > 256))
 			goto out_of_range;
 
-		ata_rwcmd_protocol(qc);
+		if (unlikely(ata_rwcmd_protocol(qc) < 0))
+			goto invalid_fld;
 
 		/* Convert LBA to CHS */
 		track = (u32)block / dev->sectors;
@@ -1695,6 +1717,7 @@ static unsigned int ata_msense_rw_recovery(u8 **ptr_io, const u8 *last)
 unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 				  unsigned int buflen)
 {
+	struct ata_device *dev = args->dev;
 	u8 *scsicmd = args->cmd->cmnd, *p, *last;
 	const u8 sat_blk_desc[] = {
 		0, 0, 0, 0,	/* number of blocks: sat unspecified */
@@ -1703,6 +1726,7 @@ unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 	};
 	u8 pg, spg;
 	unsigned int ebd, page_control, six_byte, output_len, alloc_len, minlen;
+	u8 dpofua;
 
 	VPRINTK("ENTER\n");
 
@@ -1771,9 +1795,17 @@ unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 
 	if (minlen < 1)
 		return 0;
+
+	dpofua = 0;
+	if (ata_id_has_fua(args->id) && dev->flags & ATA_DFLAG_LBA48 &&
+	    (!(dev->flags & ATA_DFLAG_PIO) || dev->multi_count))
+		dpofua = 1 << 4;
+
 	if (six_byte) {
 		output_len--;
 		rbuf[0] = output_len;
+		if (minlen > 2)
+			rbuf[2] |= dpofua;
 		if (ebd) {
 			if (minlen > 3)
 				rbuf[3] = sizeof(sat_blk_desc);
@@ -1786,6 +1818,8 @@ unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 		rbuf[0] = output_len >> 8;
 		if (minlen > 1)
 			rbuf[1] = output_len;
+		if (minlen > 3)
+			rbuf[3] |= dpofua;
 		if (ebd) {
 			if (minlen > 7)
 				rbuf[7] = sizeof(sat_blk_desc);
@@ -2446,7 +2480,7 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 		if (xlat_func)
 			ata_scsi_translate(ap, dev, cmd, done, xlat_func);
 		else
-			ata_scsi_simulate(dev->id, cmd, done);
+			ata_scsi_simulate(ap, dev, cmd, done);
 	} else
 		ata_scsi_translate(ap, dev, cmd, done, atapi_xlat);
 
@@ -2469,14 +2503,16 @@ out_unlock:
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_scsi_simulate(u16 *id,
+void ata_scsi_simulate(struct ata_port *ap, struct ata_device *dev,
 		      struct scsi_cmnd *cmd,
 		      void (*done)(struct scsi_cmnd *))
 {
 	struct ata_scsi_args args;
 	const u8 *scsicmd = cmd->cmnd;
 
-	args.id = id;
+	args.ap = ap;
+	args.dev = dev;
+	args.id = dev->id;
 	args.cmd = cmd;
 	args.done = done;
 

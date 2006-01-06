@@ -28,7 +28,7 @@
  * in types.h.
  */
 #ifdef CONFIG_LBD
-#define SECTOR_FORMAT "%Lu"
+#define SECTOR_FORMAT "%llu"
 #else
 #define SECTOR_FORMAT "%lu"
 #endif
@@ -58,6 +58,7 @@ int dm_create(struct mapped_device **md);
 int dm_create_with_minor(unsigned int minor, struct mapped_device **md);
 void dm_set_mdptr(struct mapped_device *md, void *ptr);
 void *dm_get_mdptr(dev_t dev);
+struct mapped_device *dm_get_md(dev_t dev);
 
 /*
  * Reference counting for md.
@@ -68,7 +69,7 @@ void dm_put(struct mapped_device *md);
 /*
  * A device can still be used while suspended, but I/O is deferred.
  */
-int dm_suspend(struct mapped_device *md);
+int dm_suspend(struct mapped_device *md, int with_lockfs);
 int dm_resume(struct mapped_device *md);
 
 /*

@@ -146,8 +146,8 @@ void set_cmdline(char *cmd)
 
 	if(CHOOSE_MODE(honeypot, 0)) return;
 
-	umid = get_umid(1);
-	if(umid != NULL){
+	umid = get_umid();
+	if(*umid != '\0'){
 		snprintf(argv1_begin, 
 			 (argv1_end - argv1_begin) * sizeof(*ptr), 
 			 "(%s) ", umid);

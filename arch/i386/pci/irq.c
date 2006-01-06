@@ -846,7 +846,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	 * reported by the device if possible.
 	 */
 	newirq = dev->irq;
-	if (!((1 << newirq) & mask)) {
+	if (newirq && !((1 << newirq) & mask)) {
 		if ( pci_probe & PCI_USE_PIRQ_MASK) newirq = 0;
 		else printk(KERN_WARNING "PCI: IRQ %i for device %s doesn't match PIRQ mask - try pci=usepirqmask\n", newirq, pci_name(dev));
 	}

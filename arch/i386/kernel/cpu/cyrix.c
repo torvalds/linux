@@ -343,6 +343,31 @@ static void __init init_cyrix(struct cpuinfo_x86 *c)
 }
 
 /*
+ * Handle National Semiconductor branded processors
+ */
+static void __devinit init_nsc(struct cpuinfo_x86 *c)
+{
+	/* There may be GX1 processors in the wild that are branded
+	 * NSC and not Cyrix.
+	 *
+	 * This function only handles the GX processor, and kicks every
+	 * thing else to the Cyrix init function above - that should
+	 * cover any processors that might have been branded differently
+	 * after NSC aquired Cyrix.
+	 *
+	 * If this breaks your GX1 horribly, please e-mail
+	 * info-linux@ldcmail.amd.com to tell us.
+	 */
+
+	/* Handle the GX (Formally known as the GX2) */
+
+	if (c->x86 == 5 && c->x86_model == 5)
+		display_cacheinfo(c);
+	else
+		init_cyrix(c);
+}
+
+/*
  * Cyrix CPUs without cpuid or with cpuid not yet enabled can be detected
  * by the fact that they preserve the flags across the division of 5/2.
  * PII and PPro exhibit this behavior too, but they have cpuid available.
@@ -422,7 +447,7 @@ int __init cyrix_init_cpu(void)
 static struct cpu_dev nsc_cpu_dev __initdata = {
 	.c_vendor	= "NSC",
 	.c_ident 	= { "Geode by NSC" },
-	.c_init		= init_cyrix,
+	.c_init		= init_nsc,
 	.c_identify	= generic_identify,
 };
 

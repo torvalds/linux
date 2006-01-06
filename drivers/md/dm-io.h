@@ -9,9 +9,6 @@
 
 #include "dm.h"
 
-/* FIXME make this configurable */
-#define DM_MAX_IO_REGIONS 8
-
 struct io_region {
 	struct block_device *bdev;
 	sector_t sector;

@@ -26,7 +26,6 @@
 struct key_type key_type_user = {
 	.name		= "user",
 	.instantiate	= user_instantiate,
-	.duplicate	= user_duplicate,
 	.update		= user_update,
 	.match		= user_match,
 	.destroy	= user_destroy,
@@ -68,39 +67,7 @@ error:
 	return ret;
 
 } /* end user_instantiate() */
-
 EXPORT_SYMBOL_GPL(user_instantiate);
-
-/*****************************************************************************/
-/*
- * duplicate a user defined key
- * - both keys' semaphores are locked against further modification
- * - the new key cannot yet be accessed
- */
-int user_duplicate(struct key *key, const struct key *source)
-{
-	struct user_key_payload *upayload, *spayload;
-	int ret;
-
-	/* just copy the payload */
-	ret = -ENOMEM;
-	upayload = kmalloc(sizeof(*upayload) + source->datalen, GFP_KERNEL);
-	if (upayload) {
-		spayload = rcu_dereference(source->payload.data);
-		BUG_ON(source->datalen != spayload->datalen);
-
-		upayload->datalen = key->datalen = spayload->datalen;
-		memcpy(upayload->data, spayload->data, key->datalen);
-
-		key->payload.data = upayload;
-		ret = 0;
-	}
-
-	return ret;
-
-} /* end user_duplicate() */
-
-EXPORT_SYMBOL_GPL(user_duplicate);
 
 /*****************************************************************************/
 /*

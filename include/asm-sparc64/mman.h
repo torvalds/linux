@@ -54,6 +54,7 @@
 #define MADV_WILLNEED	0x3		/* pre-fault pages */
 #define MADV_DONTNEED	0x4		/* discard these pages */
 #define MADV_FREE	0x5		/* (Solaris) contents can be freed */
+#define MADV_REMOVE	0x6		/* remove these pages & resources */
 
 /* compatibility flags */
 #define MAP_ANON	MAP_ANONYMOUS

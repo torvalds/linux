@@ -51,6 +51,30 @@ superblock can be autodetected and run at boot time.
 The kernel parameter "raid=partitionable" (or "raid=part") means
 that all auto-detected arrays are assembled as partitionable.
 
+Boot time assembly of degraded/dirty arrays
+-------------------------------------------
+
+If a raid5 or raid6 array is both dirty and degraded, it could have
+undetectable data corruption.  This is because the fact that it is
+'dirty' means that the parity cannot be trusted, and the fact that it
+is degraded means that some datablocks are missing and cannot reliably
+be reconstructed (due to no parity).
+
+For this reason, md will normally refuse to start such an array.  This
+requires the sysadmin to take action to explicitly start the array
+desipite possible corruption.  This is normally done with
+   mdadm --assemble --force ....
+
+This option is not really available if the array has the root
+filesystem on it.  In order to support this booting from such an
+array, md supports a module parameter "start_dirty_degraded" which,
+when set to 1, bypassed the checks and will allows dirty degraded
+arrays to be started.
+
+So, to boot with a root filesystem of a dirty degraded raid[56], use
+
+   md-mod.start_dirty_degraded=1
+
 
 Superblock formats
 ------------------
@@ -141,6 +165,70 @@ All md devices contain:
      in a fully functional array.  If this is not yet known, the file
      will be empty.  If an array is being resized (not currently
      possible) this will contain the larger of the old and new sizes.
+     Some raid level (RAID1) allow this value to be set while the
+     array is active.  This will reconfigure the array.   Otherwise
+     it can only be set while assembling an array.
+
+  chunk_size
+     This is the size if bytes for 'chunks' and is only relevant to
+     raid levels that involve striping (1,4,5,6,10). The address space
+     of the array is conceptually divided into chunks and consecutive
+     chunks are striped onto neighbouring devices.
+     The size should be atleast PAGE_SIZE (4k) and should be a power
+     of 2.  This can only be set while assembling an array
+
+  component_size
+     For arrays with data redundancy (i.e. not raid0, linear, faulty,
+     multipath), all components must be the same size - or at least
+     there must a size that they all provide space for.  This is a key
+     part or the geometry of the array.  It is measured in sectors
+     and can be read from here.  Writing to this value may resize
+     the array if the personality supports it (raid1, raid5, raid6),
+     and if the component drives are large enough.
+
+  metadata_version
+     This indicates the format that is being used to record metadata
+     about the array.  It can be 0.90 (traditional format), 1.0, 1.1,
+     1.2 (newer format in varying locations) or "none" indicating that
+     the kernel isn't managing metadata at all.
+
+  level
+     The raid 'level' for this array.  The name will often (but not
+     always) be the same as the name of the module that implements the
+     level.  To be auto-loaded the module must have an alias
+        md-$LEVEL  e.g. md-raid5
+     This can be written only while the array is being assembled, not
+     after it is started.
+
+   new_dev
+     This file can be written but not read.  The value written should
+     be a block device number as major:minor.  e.g. 8:0
+     This will cause that device to be attached to the array, if it is
+     available.  It will then appear at md/dev-XXX (depending on the
+     name of the device) and further configuration is then possible.
+
+   sync_speed_min
+   sync_speed_max
+     This are similar to /proc/sys/dev/raid/speed_limit_{min,max}
+     however they only apply to the particular array.
+     If no value has been written to these, of if the word 'system'
+     is written, then the system-wide value is used.  If a value,
+     in kibibytes-per-second is written, then it is used.
+     When the files are read, they show the currently active value
+     followed by "(local)" or "(system)" depending on whether it is
+     a locally set or system-wide value.
+
+   sync_completed
+     This shows the number of sectors that have been completed of
+     whatever the current sync_action is, followed by the number of
+     sectors in total that could need to be processed.  The two
+     numbers are separated by a '/'  thus effectively showing one
+     value, a fraction of the process that is complete.
+
+   sync_speed
+     This shows the current actual speed, in K/sec, of the current
+     sync_action.  It is averaged over the last 30 seconds.
+
 
 As component devices are added to an md array, they appear in the 'md'
 directory as new directories named
@@ -166,6 +254,38 @@ Each directory contains:
 			 This includes spares that are in the process
 			 of being recoverred to
 	This list make grow in future.
+
+      errors
+	An approximate count of read errors that have been detected on
+	this device but have not caused the device to be evicted from
+	the array (either because they were corrected or because they
+	happened while the array was read-only).  When using version-1
+	metadata, this value persists across restarts of the array.
+
+	This value can be written while assembling an array thus
+	providing an ongoing count for arrays with metadata managed by
+	userspace.
+
+      slot
+        This gives the role that the device has in the array.  It will
+	either be 'none' if the device is not active in the array
+        (i.e. is a spare or has failed) or an integer less than the
+	'raid_disks' number for the array indicating which possition
+	it currently fills.  This can only be set while assembling an
+	array.  A device for which this is set is assumed to be working.
+
+      offset
+        This gives the location in the device (in sectors from the
+        start) where data from the array will be stored.  Any part of
+        the device before this offset us not touched, unless it is
+        used for storing metadata (Formats 1.1 and 1.2).
+
+      size
+        The amount of the device, after the offset, that can be used
+        for storage of data.  This will normally be the same as the
+	component_size.  This can be written while assembling an
+        array.  If a value less than the current component_size is
+        written, component_size will be reduced to this value.
 
 
 An active md device will also contain and entry for each active device

@@ -5,7 +5,7 @@
 #include <asm-generic/vmlinux.lds.h>
 #include <linux/config.h>
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 OUTPUT_FORMAT("elf32-s390", "elf32-s390", "elf32-s390")
 OUTPUT_ARCH(s390)
 ENTRY(_start)

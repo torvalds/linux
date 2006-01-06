@@ -143,7 +143,7 @@ dcss_diag (__u8 func, void *parameter,
 	rx = (unsigned long) parameter;
 	ry = (unsigned long) func;
 	__asm__ __volatile__(
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 		"   sam31\n" // switch to 31 bit
 		"   diag    %0,%1,0x64\n"
 		"   sam64\n" // switch back to 64 bit

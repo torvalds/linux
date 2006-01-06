@@ -101,3 +101,5 @@ obj-$(CONFIG_BEFS_FS)		+= befs/
 obj-$(CONFIG_HOSTFS)		+= hostfs/
 obj-$(CONFIG_HPPFS)		+= hppfs/
 obj-$(CONFIG_DEBUG_FS)		+= debugfs/
+obj-$(CONFIG_CONFIGFS_FS)	+= configfs/
+obj-$(CONFIG_OCFS2_FS)		+= ocfs2/

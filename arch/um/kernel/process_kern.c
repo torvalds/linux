@@ -324,10 +324,6 @@ int user_context(unsigned long sp)
 	return(stack != (unsigned long) current_thread);
 }
 
-extern void remove_umid_dir(void);
-
-__uml_exitcall(remove_umid_dir);
-
 extern exitcall_t __uml_exitcall_begin, __uml_exitcall_end;
 
 void do_uml_exitcalls(void)

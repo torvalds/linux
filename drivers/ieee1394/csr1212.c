@@ -1261,7 +1261,7 @@ static int csr1212_parse_bus_info_block(struct csr1212_csr *csr)
 		return CSR1212_EINVAL;
 #endif
 
-	cr = CSR1212_MALLOC(sizeof(struct csr1212_cache_region));
+	cr = CSR1212_MALLOC(sizeof(*cr));
 	if (!cr)
 		return CSR1212_ENOMEM;
 
@@ -1393,8 +1393,7 @@ int csr1212_parse_keyval(struct csr1212_keyval *kv,
 	case CSR1212_KV_TYPE_LEAF:
 		if (kv->key.id != CSR1212_KV_ID_EXTENDED_ROM) {
 			kv->value.leaf.data = CSR1212_MALLOC(quads_to_bytes(kvi_len));
-			if (!kv->value.leaf.data)
-			{
+			if (!kv->value.leaf.data) {
 				ret = CSR1212_ENOMEM;
 				goto fail;
 			}
@@ -1462,7 +1461,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 		cache->next = NULL;
 		csr->cache_tail = cache;
 		cache->filled_head =
-			CSR1212_MALLOC(sizeof(struct csr1212_cache_region));
+			CSR1212_MALLOC(sizeof(*cache->filled_head));
 		if (!cache->filled_head) {
 			return CSR1212_ENOMEM;
 		}
@@ -1484,7 +1483,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 	/* Now seach read portions of the cache to see if it is there. */
 	for (cr = cache->filled_head; cr; cr = cr->next) {
 		if (cache_index < cr->offset_start) {
-			newcr = CSR1212_MALLOC(sizeof(struct csr1212_cache_region));
+			newcr = CSR1212_MALLOC(sizeof(*newcr));
 			if (!newcr)
 				return CSR1212_ENOMEM;
 
@@ -1508,7 +1507,7 @@ int _csr1212_read_keyval(struct csr1212_csr *csr, struct csr1212_keyval *kv)
 
 	if (!cr) {
 		cr = cache->filled_tail;
-		newcr = CSR1212_MALLOC(sizeof(struct csr1212_cache_region));
+		newcr = CSR1212_MALLOC(sizeof(*newcr));
 		if (!newcr)
 			return CSR1212_ENOMEM;
 
@@ -1611,15 +1610,17 @@ int csr1212_parse_csr(struct csr1212_csr *csr)
 	csr->root_kv->valid = 0;
 	csr->root_kv->next = csr->root_kv;
 	csr->root_kv->prev = csr->root_kv;
-	csr1212_get_keyval(csr, csr->root_kv);
+	ret = _csr1212_read_keyval(csr, csr->root_kv);
+	if (ret != CSR1212_SUCCESS)
+		return ret;
 
 	/* Scan through the Root directory finding all extended ROM regions
 	 * and make cache regions for them */
 	for (dentry = csr->root_kv->value.directory.dentries_head;
 	     dentry; dentry = dentry->next) {
-		if (dentry->kv->key.id == CSR1212_KV_ID_EXTENDED_ROM) {
-			csr1212_get_keyval(csr, dentry->kv);
-
+		if (dentry->kv->key.id == CSR1212_KV_ID_EXTENDED_ROM &&
+			!dentry->kv->valid) {
+			ret = _csr1212_read_keyval(csr, dentry->kv);
 			if (ret != CSR1212_SUCCESS)
 				return ret;
 		}

@@ -60,12 +60,6 @@ struct writeback_control {
 };
 
 /*
- * ->writepage() return values (make these much larger than a pagesize, in
- * case some fs is returning number-of-bytes-written from writepage)
- */
-#define WRITEPAGE_ACTIVATE	0x80000	/* IO was not started: activate page */
-
-/*
  * fs/fs-writeback.c
  */	
 void writeback_inodes(struct writeback_control *wbc);

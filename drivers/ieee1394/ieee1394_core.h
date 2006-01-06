@@ -10,8 +10,8 @@
 
 
 struct hpsb_packet {
-        /* This struct is basically read-only for hosts with the exception of
-         * the data buffer contents and xnext - see below. */
+	/* This struct is basically read-only for hosts with the exception of
+	 * the data buffer contents and xnext - see below. */
 
 	/* This can be used for host driver internal linking.
 	 *
@@ -21,47 +21,47 @@ struct hpsb_packet {
 	 * driver_list when free'ing it. */
 	struct list_head driver_list;
 
-        nodeid_t node_id;
+	nodeid_t node_id;
 
-        /* Async and Iso types should be clear, raw means send-as-is, do not
-         * CRC!  Byte swapping shall still be done in this case. */
-        enum { hpsb_async, hpsb_iso, hpsb_raw } __attribute__((packed)) type;
+	/* Async and Iso types should be clear, raw means send-as-is, do not
+	 * CRC!  Byte swapping shall still be done in this case. */
+	enum { hpsb_async, hpsb_iso, hpsb_raw } __attribute__((packed)) type;
 
-        /* Okay, this is core internal and a no care for hosts.
-         * queued   = queued for sending
-         * pending  = sent, waiting for response
-         * complete = processing completed, successful or not
-         */
-        enum {
-                hpsb_unused, hpsb_queued, hpsb_pending, hpsb_complete
-        } __attribute__((packed)) state;
+	/* Okay, this is core internal and a no care for hosts.
+	 * queued   = queued for sending
+	 * pending  = sent, waiting for response
+	 * complete = processing completed, successful or not
+	 */
+	enum {
+		hpsb_unused, hpsb_queued, hpsb_pending, hpsb_complete
+	} __attribute__((packed)) state;
 
-        /* These are core internal. */
-        signed char tlabel;
+	/* These are core internal. */
+	signed char tlabel;
 	signed char ack_code;
 	unsigned char tcode;
 
-        unsigned expect_response:1;
-        unsigned no_waiter:1;
+	unsigned expect_response:1;
+	unsigned no_waiter:1;
 
-        /* Speed to transmit with: 0 = 100Mbps, 1 = 200Mbps, 2 = 400Mbps */
-        unsigned speed_code:2;
+	/* Speed to transmit with: 0 = 100Mbps, 1 = 200Mbps, 2 = 400Mbps */
+	unsigned speed_code:2;
 
-        /*
-         * *header and *data are guaranteed to be 32-bit DMAable and may be
-         * overwritten to allow in-place byte swapping.  Neither of these is
-         * CRCed (the sizes also don't include CRC), but contain space for at
-         * least one additional quadlet to allow in-place CRCing.  The memory is
-         * also guaranteed to be DMA mappable.
-         */
-        quadlet_t *header;
-        quadlet_t *data;
-        size_t header_size;
-        size_t data_size;
+	/*
+	 * *header and *data are guaranteed to be 32-bit DMAable and may be
+	 * overwritten to allow in-place byte swapping.  Neither of these is
+	 * CRCed (the sizes also don't include CRC), but contain space for at
+	 * least one additional quadlet to allow in-place CRCing.  The memory is
+	 * also guaranteed to be DMA mappable.
+	 */
+	quadlet_t *header;
+	quadlet_t *data;
+	size_t header_size;
+	size_t data_size;
 
 
-        struct hpsb_host *host;
-        unsigned int generation;
+	struct hpsb_host *host;
+	unsigned int generation;
 
 	atomic_t refcnt;
 
@@ -73,10 +73,10 @@ struct hpsb_packet {
 	/* XXX This is just a hack at the moment */
 	struct sk_buff *skb;
 
-        /* Store jiffies for implementing bus timeouts. */
-        unsigned long sendtime;
+	/* Store jiffies for implementing bus timeouts. */
+	unsigned long sendtime;
 
-        quadlet_t embedded_header[5];
+	quadlet_t embedded_header[5];
 };
 
 /* Set a task for when a packet completes */
@@ -102,7 +102,7 @@ void hpsb_free_packet(struct hpsb_packet *packet);
  */
 static inline unsigned int get_hpsb_generation(struct hpsb_host *host)
 {
-        return atomic_read(&host->generation);
+	return atomic_read(&host->generation);
 }
 
 /*
@@ -157,7 +157,7 @@ void hpsb_selfid_complete(struct hpsb_host *host, int phyid, int isroot);
  * from within a transmit packet routine.
  */
 void hpsb_packet_sent(struct hpsb_host *host, struct hpsb_packet *packet,
-                      int ackcode);
+		      int ackcode);
 
 /*
  * Hand over received packet to the core.  The contents of data are expected to
@@ -171,7 +171,7 @@ void hpsb_packet_sent(struct hpsb_host *host, struct hpsb_packet *packet,
  * packet type.
  */
 void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
-                          int write_acked);
+			  int write_acked);
 
 
 /*
@@ -197,20 +197,20 @@ void hpsb_packet_received(struct hpsb_host *host, quadlet_t *data, size_t size,
  * Block 15 (240-255)  reserved for drivers under development, etc.
  */
 
-#define IEEE1394_MAJOR               171
+#define IEEE1394_MAJOR			 171
 
-#define IEEE1394_MINOR_BLOCK_RAW1394       0
-#define IEEE1394_MINOR_BLOCK_VIDEO1394     1
-#define IEEE1394_MINOR_BLOCK_DV1394        2
-#define IEEE1394_MINOR_BLOCK_AMDTP         3
+#define IEEE1394_MINOR_BLOCK_RAW1394	   0
+#define IEEE1394_MINOR_BLOCK_VIDEO1394	   1
+#define IEEE1394_MINOR_BLOCK_DV1394	   2
+#define IEEE1394_MINOR_BLOCK_AMDTP	   3
 #define IEEE1394_MINOR_BLOCK_EXPERIMENTAL 15
 
-#define IEEE1394_CORE_DEV		MKDEV(IEEE1394_MAJOR, 0)
-#define IEEE1394_RAW1394_DEV		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16)
-#define IEEE1394_VIDEO1394_DEV		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_VIDEO1394 * 16)
-#define IEEE1394_DV1394_DEV		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16)
-#define IEEE1394_AMDTP_DEV		MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_AMDTP * 16)
-#define IEEE1394_EXPERIMENTAL_DEV	MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_EXPERIMENTAL * 16)
+#define IEEE1394_CORE_DEV	  MKDEV(IEEE1394_MAJOR, 0)
+#define IEEE1394_RAW1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_RAW1394 * 16)
+#define IEEE1394_VIDEO1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_VIDEO1394 * 16)
+#define IEEE1394_DV1394_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16)
+#define IEEE1394_AMDTP_DEV	  MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_AMDTP * 16)
+#define IEEE1394_EXPERIMENTAL_DEV MKDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_EXPERIMENTAL * 16)
 
 /* return the index (within a minor number block) of a file */
 static inline unsigned char ieee1394_file_to_instance(struct file *file)

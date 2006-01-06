@@ -216,4 +216,5 @@ static __inline__ int atomic_read(const atomic_t *v)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
+#include <asm-generic/atomic.h>
 #endif

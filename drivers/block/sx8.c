@@ -770,7 +770,7 @@ static inline void carm_end_request_queued(struct carm_host *host,
 	rc = end_that_request_first(req, uptodate, req->hard_nr_sectors);
 	assert(rc == 0);
 
-	end_that_request_last(req);
+	end_that_request_last(req, uptodate);
 
 	rc = carm_put_request(host, crq);
 	assert(rc == 0);

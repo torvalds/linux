@@ -33,7 +33,7 @@ extern void pcc_iowrite_word(int, unsigned long, void *, size_t, size_t, int);
 
 static inline void *_port2addr(unsigned long port)
 {
-	return (void *)(port | (NONCACHE_OFFSET));
+	return (void *)(port | NONCACHE_OFFSET);
 }
 
 #if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
@@ -42,22 +42,22 @@ static inline void *__port2addr_ata(unsigned long port)
 	static int	dummy_reg;
 
 	switch (port) {
-	case 0x1f0:	return (void *)0xac002000;
-	case 0x1f1:	return (void *)0xac012800;
-	case 0x1f2:	return (void *)0xac012002;
-	case 0x1f3:	return (void *)0xac012802;
-	case 0x1f4:	return (void *)0xac012004;
-	case 0x1f5:	return (void *)0xac012804;
-	case 0x1f6:	return (void *)0xac012006;
-	case 0x1f7:	return (void *)0xac012806;
-	case 0x3f6:	return (void *)0xac01200e;
+	case 0x1f0:	return (void *)(0x0c002000 | NONCACHE_OFFSET);
+	case 0x1f1:	return (void *)(0x0c012800 | NONCACHE_OFFSET);
+	case 0x1f2:	return (void *)(0x0c012002 | NONCACHE_OFFSET);
+	case 0x1f3:	return (void *)(0x0c012802 | NONCACHE_OFFSET);
+	case 0x1f4:	return (void *)(0x0c012004 | NONCACHE_OFFSET);
+	case 0x1f5:	return (void *)(0x0c012804 | NONCACHE_OFFSET);
+	case 0x1f6:	return (void *)(0x0c012006 | NONCACHE_OFFSET);
+	case 0x1f7:	return (void *)(0x0c012806 | NONCACHE_OFFSET);
+	case 0x3f6:	return (void *)(0x0c01200e | NONCACHE_OFFSET);
 	default: 	return (void *)&dummy_reg;
 	}
 }
 #endif
 
-#define LAN_IOSTART	0xa0000300
-#define LAN_IOEND	0xa0000320
+#define LAN_IOSTART	(0x300 | NONCACHE_OFFSET)
+#define LAN_IOEND	(0x320 | NONCACHE_OFFSET)
 #ifdef CONFIG_CHIP_OPSP
 static inline void *_port2addr_ne(unsigned long port)
 {

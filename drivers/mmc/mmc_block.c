@@ -263,7 +263,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			 */
 			add_disk_randomness(req->rq_disk);
 			blkdev_dequeue_request(req);
-			end_that_request_last(req);
+			end_that_request_last(req, 1);
 		}
 		spin_unlock_irq(&md->lock);
 	} while (ret);
@@ -289,7 +289,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 	add_disk_randomness(req->rq_disk);
 	blkdev_dequeue_request(req);
-	end_that_request_last(req);
+	end_that_request_last(req, 0);
 	spin_unlock_irq(&md->lock);
 
 	return 0;

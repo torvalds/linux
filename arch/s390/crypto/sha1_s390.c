@@ -1,7 +1,7 @@
 /*
  * Cryptographic API.
  *
- * z990 implementation of the SHA1 Secure Hash Algorithm.
+ * s390 implementation of the SHA1 Secure Hash Algorithm.
  *
  * Derived from cryptoapi implementation, adapted for in-place
  * scatterlist interface.  Originally based on the public domain
@@ -28,22 +28,22 @@
 #include <linux/crypto.h>
 #include <asm/scatterlist.h>
 #include <asm/byteorder.h>
-#include "crypt_z990.h"
+#include "crypt_s390.h"
 
 #define SHA1_DIGEST_SIZE	20
 #define SHA1_BLOCK_SIZE		64
 
-struct crypt_z990_sha1_ctx {
-        u64 count;
-        u32 state[5];
+struct crypt_s390_sha1_ctx {
+	u64 count;
+	u32 state[5];
 	u32 buf_len;
-        u8 buffer[2 * SHA1_BLOCK_SIZE];
+	u8 buffer[2 * SHA1_BLOCK_SIZE];
 };
 
 static void
 sha1_init(void *ctx)
 {
-	static const struct crypt_z990_sha1_ctx initstate = {
+	static const struct crypt_s390_sha1_ctx initstate = {
 		.state = {
 			0x67452301,
 			0xEFCDAB89,
@@ -58,7 +58,7 @@ sha1_init(void *ctx)
 static void
 sha1_update(void *ctx, const u8 *data, unsigned int len)
 {
-	struct crypt_z990_sha1_ctx *sctx;
+	struct crypt_s390_sha1_ctx *sctx;
 	long imd_len;
 
 	sctx = ctx;
@@ -69,7 +69,7 @@ sha1_update(void *ctx, const u8 *data, unsigned int len)
 		//complete full block and hash
 		memcpy(sctx->buffer + sctx->buf_len, data,
 				SHA1_BLOCK_SIZE - sctx->buf_len);
-		crypt_z990_kimd(KIMD_SHA_1, sctx->state, sctx->buffer,
+		crypt_s390_kimd(KIMD_SHA_1, sctx->state, sctx->buffer,
 				SHA1_BLOCK_SIZE);
 		data += SHA1_BLOCK_SIZE - sctx->buf_len;
 		len -= SHA1_BLOCK_SIZE - sctx->buf_len;
@@ -79,7 +79,7 @@ sha1_update(void *ctx, const u8 *data, unsigned int len)
 	//rest of data contains full blocks?
 	imd_len = len & ~0x3ful;
 	if (imd_len){
-		crypt_z990_kimd(KIMD_SHA_1, sctx->state, data, imd_len);
+		crypt_s390_kimd(KIMD_SHA_1, sctx->state, data, imd_len);
 		data += imd_len;
 		len -= imd_len;
 	}
@@ -92,7 +92,7 @@ sha1_update(void *ctx, const u8 *data, unsigned int len)
 
 
 static void
-pad_message(struct crypt_z990_sha1_ctx* sctx)
+pad_message(struct crypt_s390_sha1_ctx* sctx)
 {
 	int index;
 
@@ -113,11 +113,11 @@ pad_message(struct crypt_z990_sha1_ctx* sctx)
 static void
 sha1_final(void* ctx, u8 *out)
 {
-	struct crypt_z990_sha1_ctx *sctx = ctx;
+	struct crypt_s390_sha1_ctx *sctx = ctx;
 
 	//must perform manual padding
 	pad_message(sctx);
-	crypt_z990_kimd(KIMD_SHA_1, sctx->state, sctx->buffer, sctx->buf_len);
+	crypt_s390_kimd(KIMD_SHA_1, sctx->state, sctx->buffer, sctx->buf_len);
 	//copy digest to out
 	memcpy(out, sctx->state, SHA1_DIGEST_SIZE);
 	/* Wipe context */
@@ -128,7 +128,7 @@ static struct crypto_alg alg = {
 	.cra_name	=	"sha1",
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
 	.cra_blocksize	=	SHA1_BLOCK_SIZE,
-	.cra_ctxsize	=	sizeof(struct crypt_z990_sha1_ctx),
+	.cra_ctxsize	=	sizeof(struct crypt_s390_sha1_ctx),
 	.cra_module	=	THIS_MODULE,
 	.cra_list       =       LIST_HEAD_INIT(alg.cra_list),
 	.cra_u		=	{ .digest = {
@@ -143,10 +143,10 @@ init(void)
 {
 	int ret = -ENOSYS;
 
-	if (crypt_z990_func_available(KIMD_SHA_1)){
+	if (crypt_s390_func_available(KIMD_SHA_1)){
 		ret = crypto_register_alg(&alg);
 		if (ret == 0){
-			printk(KERN_INFO "crypt_z990: sha1_z990 loaded.\n");
+			printk(KERN_INFO "crypt_s390: sha1_s390 loaded.\n");
 		}
 	}
 	return ret;
