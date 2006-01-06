@@ -1630,10 +1630,45 @@ errors_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 static struct rdev_sysfs_entry rdev_errors =
 __ATTR(errors, 0644, errors_show, errors_store);
 
+static ssize_t
+slot_show(mdk_rdev_t *rdev, char *page)
+{
+	if (rdev->raid_disk < 0)
+		return sprintf(page, "none\n");
+	else
+		return sprintf(page, "%d\n", rdev->raid_disk);
+}
+
+static ssize_t
+slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
+{
+	char *e;
+	int slot = simple_strtoul(buf, &e, 10);
+	if (strncmp(buf, "none", 4)==0)
+		slot = -1;
+	else if (e==buf || (*e && *e!= '\n'))
+		return -EINVAL;
+	if (rdev->mddev->pers)
+		/* Cannot set slot in active array (yet) */
+		return -EBUSY;
+	if (slot >= rdev->mddev->raid_disks)
+		return -ENOSPC;
+	rdev->raid_disk = slot;
+	/* assume it is working */
+	rdev->flags = 0;
+	set_bit(In_sync, &rdev->flags);
+	return len;
+}
+
+
+static struct rdev_sysfs_entry rdev_slot =
+__ATTR(slot, 0644, slot_show, slot_store);
+
 static struct attribute *rdev_default_attrs[] = {
 	&rdev_state.attr,
 	&rdev_super.attr,
 	&rdev_errors.attr,
+	&rdev_slot.attr,
 	NULL,
 };
 static ssize_t

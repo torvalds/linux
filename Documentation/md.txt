@@ -236,6 +236,14 @@ Each directory contains:
 	providing an ongoing count for arrays with metadata managed by
 	userspace.
 
+      slot
+        This gives the role that the device has in the array.  It will
+	either be 'none' if the device is not active in the array
+        (i.e. is a spare or has failed) or an integer less than the
+	'raid_disks' number for the array indicating which possition
+	it currently fills.  This can only be set while assembling an
+	array.  A device for which this is set is assumed to be working.
+
 
 An active md device will also contain and entry for each active device
 in the array.  These are named
