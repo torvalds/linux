@@ -207,6 +207,7 @@ enum rq_flag_bits {
 	__REQ_SORTED,		/* elevator knows about this request */
 	__REQ_SOFTBARRIER,	/* may not be passed by ioscheduler */
 	__REQ_HARDBARRIER,	/* may not be passed by drive either */
+	__REQ_FUA,		/* forced unit access */
 	__REQ_CMD,		/* is a regular fs rw request */
 	__REQ_NOMERGE,		/* don't touch this for merging */
 	__REQ_STARTED,		/* drive already may have started this one */
@@ -230,9 +231,7 @@ enum rq_flag_bits {
 	__REQ_PM_SUSPEND,	/* suspend request */
 	__REQ_PM_RESUME,	/* resume request */
 	__REQ_PM_SHUTDOWN,	/* shutdown request */
-	__REQ_BAR_PREFLUSH,	/* barrier pre-flush done */
-	__REQ_BAR_POSTFLUSH,	/* barrier post-flush */
-	__REQ_BAR_FLUSH,	/* rq is the flush request */
+	__REQ_ORDERED_COLOR,	/* is before or after barrier */
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -241,6 +240,7 @@ enum rq_flag_bits {
 #define REQ_SORTED	(1 << __REQ_SORTED)
 #define REQ_SOFTBARRIER	(1 << __REQ_SOFTBARRIER)
 #define REQ_HARDBARRIER	(1 << __REQ_HARDBARRIER)
+#define REQ_FUA		(1 << __REQ_FUA)
 #define REQ_CMD		(1 << __REQ_CMD)
 #define REQ_NOMERGE	(1 << __REQ_NOMERGE)
 #define REQ_STARTED	(1 << __REQ_STARTED)
@@ -260,9 +260,7 @@ enum rq_flag_bits {
 #define REQ_PM_SUSPEND	(1 << __REQ_PM_SUSPEND)
 #define REQ_PM_RESUME	(1 << __REQ_PM_RESUME)
 #define REQ_PM_SHUTDOWN	(1 << __REQ_PM_SHUTDOWN)
-#define REQ_BAR_PREFLUSH	(1 << __REQ_BAR_PREFLUSH)
-#define REQ_BAR_POSTFLUSH	(1 << __REQ_BAR_POSTFLUSH)
-#define REQ_BAR_FLUSH	(1 << __REQ_BAR_FLUSH)
+#define REQ_ORDERED_COLOR	(1 << __REQ_ORDERED_COLOR)
 
 /*
  * State information carried for REQ_PM_SUSPEND and REQ_PM_RESUME
@@ -292,8 +290,7 @@ struct bio_vec;
 typedef int (merge_bvec_fn) (request_queue_t *, struct bio *, struct bio_vec *);
 typedef void (activity_fn) (void *data, int rw);
 typedef int (issue_flush_fn) (request_queue_t *, struct gendisk *, sector_t *);
-typedef int (prepare_flush_fn) (request_queue_t *, struct request *);
-typedef void (end_flush_fn) (request_queue_t *, struct request *);
+typedef void (prepare_flush_fn) (request_queue_t *, struct request *);
 
 enum blk_queue_state {
 	Queue_down,
@@ -335,7 +332,6 @@ struct request_queue
 	activity_fn		*activity_fn;
 	issue_flush_fn		*issue_flush_fn;
 	prepare_flush_fn	*prepare_flush_fn;
-	end_flush_fn		*end_flush_fn;
 
 	/*
 	 * Dispatch queue sorting
@@ -420,14 +416,11 @@ struct request_queue
 	/*
 	 * reserved for flush operations
 	 */
-	struct request		*flush_rq;
-	unsigned char		ordered;
-};
-
-enum {
-	QUEUE_ORDERED_NONE,
-	QUEUE_ORDERED_TAG,
-	QUEUE_ORDERED_FLUSH,
+	unsigned int		ordered, next_ordered, ordseq;
+	int			orderr, ordcolor;
+	struct request		pre_flush_rq, bar_rq, post_flush_rq;
+	struct request		*orig_bar_rq;
+	unsigned int		bi_size;
 };
 
 #define RQ_INACTIVE		(-1)
@@ -445,12 +438,51 @@ enum {
 #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
 #define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
 #define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
-#define QUEUE_FLAG_FLUSH	9	/* doing barrier flush sequence */
+
+enum {
+	/*
+	 * Hardbarrier is supported with one of the following methods.
+	 *
+	 * NONE		: hardbarrier unsupported
+	 * DRAIN	: ordering by draining is enough
+	 * DRAIN_FLUSH	: ordering by draining w/ pre and post flushes
+	 * DRAIN_FUA	: ordering by draining w/ pre flush and FUA write
+	 * TAG		: ordering by tag is enough
+	 * TAG_FLUSH	: ordering by tag w/ pre and post flushes
+	 * TAG_FUA	: ordering by tag w/ pre flush and FUA write
+	 */
+	QUEUE_ORDERED_NONE	= 0x00,
+	QUEUE_ORDERED_DRAIN	= 0x01,
+	QUEUE_ORDERED_TAG	= 0x02,
+
+	QUEUE_ORDERED_PREFLUSH	= 0x10,
+	QUEUE_ORDERED_POSTFLUSH	= 0x20,
+	QUEUE_ORDERED_FUA	= 0x40,
+
+	QUEUE_ORDERED_DRAIN_FLUSH = QUEUE_ORDERED_DRAIN |
+			QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH,
+	QUEUE_ORDERED_DRAIN_FUA	= QUEUE_ORDERED_DRAIN |
+			QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_FUA,
+	QUEUE_ORDERED_TAG_FLUSH	= QUEUE_ORDERED_TAG |
+			QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH,
+	QUEUE_ORDERED_TAG_FUA	= QUEUE_ORDERED_TAG |
+			QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_FUA,
+
+	/*
+	 * Ordered operation sequence
+	 */
+	QUEUE_ORDSEQ_STARTED	= 0x01,	/* flushing in progress */
+	QUEUE_ORDSEQ_DRAIN	= 0x02,	/* waiting for the queue to be drained */
+	QUEUE_ORDSEQ_PREFLUSH	= 0x04,	/* pre-flushing in progress */
+	QUEUE_ORDSEQ_BAR	= 0x08,	/* original barrier req in progress */
+	QUEUE_ORDSEQ_POSTFLUSH	= 0x10,	/* post-flushing in progress */
+	QUEUE_ORDSEQ_DONE	= 0x20,
+};
 
 #define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
-#define blk_queue_flushing(q)	test_bit(QUEUE_FLAG_FLUSH, &(q)->queue_flags)
+#define blk_queue_flushing(q)	((q)->ordseq)
 
 #define blk_fs_request(rq)	((rq)->flags & REQ_CMD)
 #define blk_pc_request(rq)	((rq)->flags & REQ_BLOCK_PC)
@@ -466,8 +498,7 @@ enum {
 
 #define blk_sorted_rq(rq)	((rq)->flags & REQ_SORTED)
 #define blk_barrier_rq(rq)	((rq)->flags & REQ_HARDBARRIER)
-#define blk_barrier_preflush(rq)	((rq)->flags & REQ_BAR_PREFLUSH)
-#define blk_barrier_postflush(rq)	((rq)->flags & REQ_BAR_POSTFLUSH)
+#define blk_fua_rq(rq)		((rq)->flags & REQ_FUA)
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 
@@ -665,11 +696,12 @@ extern void blk_queue_prep_rq(request_queue_t *, prep_rq_fn *pfn);
 extern void blk_queue_merge_bvec(request_queue_t *, merge_bvec_fn *);
 extern void blk_queue_dma_alignment(request_queue_t *, int);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
-extern void blk_queue_ordered(request_queue_t *, int);
+extern int blk_queue_ordered(request_queue_t *, unsigned, prepare_flush_fn *);
 extern void blk_queue_issue_flush_fn(request_queue_t *, issue_flush_fn *);
-extern struct request *blk_start_pre_flush(request_queue_t *,struct request *);
-extern int blk_complete_barrier_rq(request_queue_t *, struct request *, int);
-extern int blk_complete_barrier_rq_locked(request_queue_t *, struct request *, int);
+extern int blk_do_ordered(request_queue_t *, struct request **);
+extern unsigned blk_ordered_cur_seq(request_queue_t *);
+extern unsigned blk_ordered_req_seq(struct request *);
+extern void blk_ordered_complete_seq(request_queue_t *, unsigned, int);
 
 extern int blk_rq_map_sg(request_queue_t *, struct request *, struct scatterlist *);
 extern void blk_dump_rq_flags(struct request *, char *);

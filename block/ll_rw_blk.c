@@ -290,8 +290,8 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
 
 /**
  * blk_queue_ordered - does this queue support ordered writes
- * @q:     the request queue
- * @flag:  see below
+ * @q:        the request queue
+ * @ordered:  one of QUEUE_ORDERED_*
  *
  * Description:
  *   For journalled file systems, doing ordered writes on a commit
@@ -300,28 +300,30 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
  *   feature should call this function and indicate so.
  *
  **/
-void blk_queue_ordered(request_queue_t *q, int flag)
+int blk_queue_ordered(request_queue_t *q, unsigned ordered,
+		      prepare_flush_fn *prepare_flush_fn)
 {
-	switch (flag) {
-		case QUEUE_ORDERED_NONE:
-			if (q->flush_rq)
-				kmem_cache_free(request_cachep, q->flush_rq);
-			q->flush_rq = NULL;
-			q->ordered = flag;
-			break;
-		case QUEUE_ORDERED_TAG:
-			q->ordered = flag;
-			break;
-		case QUEUE_ORDERED_FLUSH:
-			q->ordered = flag;
-			if (!q->flush_rq)
-				q->flush_rq = kmem_cache_alloc(request_cachep,
-								GFP_KERNEL);
-			break;
-		default:
-			printk("blk_queue_ordered: bad value %d\n", flag);
-			break;
+	if (ordered & (QUEUE_ORDERED_PREFLUSH | QUEUE_ORDERED_POSTFLUSH) &&
+	    prepare_flush_fn == NULL) {
+		printk(KERN_ERR "blk_queue_ordered: prepare_flush_fn required\n");
+		return -EINVAL;
 	}
+
+	if (ordered != QUEUE_ORDERED_NONE &&
+	    ordered != QUEUE_ORDERED_DRAIN &&
+	    ordered != QUEUE_ORDERED_DRAIN_FLUSH &&
+	    ordered != QUEUE_ORDERED_DRAIN_FUA &&
+	    ordered != QUEUE_ORDERED_TAG &&
+	    ordered != QUEUE_ORDERED_TAG_FLUSH &&
+	    ordered != QUEUE_ORDERED_TAG_FUA) {
+		printk(KERN_ERR "blk_queue_ordered: bad value %d\n", ordered);
+		return -EINVAL;
+	}
+
+	q->next_ordered = ordered;
+	q->prepare_flush_fn = prepare_flush_fn;
+
+	return 0;
 }
 
 EXPORT_SYMBOL(blk_queue_ordered);
@@ -346,167 +348,265 @@ EXPORT_SYMBOL(blk_queue_issue_flush_fn);
 /*
  * Cache flushing for ordered writes handling
  */
-static void blk_pre_flush_end_io(struct request *flush_rq, int error)
+inline unsigned blk_ordered_cur_seq(request_queue_t *q)
 {
-	struct request *rq = flush_rq->end_io_data;
+	if (!q->ordseq)
+		return 0;
+	return 1 << ffz(q->ordseq);
+}
+
+unsigned blk_ordered_req_seq(struct request *rq)
+{
 	request_queue_t *q = rq->q;
 
-	elv_completed_request(q, flush_rq);
+	BUG_ON(q->ordseq == 0);
 
-	rq->flags |= REQ_BAR_PREFLUSH;
+	if (rq == &q->pre_flush_rq)
+		return QUEUE_ORDSEQ_PREFLUSH;
+	if (rq == &q->bar_rq)
+		return QUEUE_ORDSEQ_BAR;
+	if (rq == &q->post_flush_rq)
+		return QUEUE_ORDSEQ_POSTFLUSH;
 
-	if (!flush_rq->errors)
-		elv_requeue_request(q, rq);
-	else {
-		q->end_flush_fn(q, flush_rq);
-		clear_bit(QUEUE_FLAG_FLUSH, &q->queue_flags);
-		q->request_fn(q);
-	}
+	if ((rq->flags & REQ_ORDERED_COLOR) ==
+	    (q->orig_bar_rq->flags & REQ_ORDERED_COLOR))
+		return QUEUE_ORDSEQ_DRAIN;
+	else
+		return QUEUE_ORDSEQ_DONE;
 }
 
-static void blk_post_flush_end_io(struct request *flush_rq, int error)
+void blk_ordered_complete_seq(request_queue_t *q, unsigned seq, int error)
 {
-	struct request *rq = flush_rq->end_io_data;
-	request_queue_t *q = rq->q;
+	struct request *rq;
+	int uptodate;
 
-	elv_completed_request(q, flush_rq);
+	if (error && !q->orderr)
+		q->orderr = error;
 
-	rq->flags |= REQ_BAR_POSTFLUSH;
+	BUG_ON(q->ordseq & seq);
+	q->ordseq |= seq;
 
-	q->end_flush_fn(q, flush_rq);
-	clear_bit(QUEUE_FLAG_FLUSH, &q->queue_flags);
-	q->request_fn(q);
-}
-
-struct request *blk_start_pre_flush(request_queue_t *q, struct request *rq)
-{
-	struct request *flush_rq = q->flush_rq;
-
-	BUG_ON(!blk_barrier_rq(rq));
-
-	if (test_and_set_bit(QUEUE_FLAG_FLUSH, &q->queue_flags))
-		return NULL;
-
-	rq_init(q, flush_rq);
-	flush_rq->elevator_private = NULL;
-	flush_rq->flags = REQ_BAR_FLUSH;
-	flush_rq->rq_disk = rq->rq_disk;
-	flush_rq->rl = NULL;
+	if (blk_ordered_cur_seq(q) != QUEUE_ORDSEQ_DONE)
+		return;
 
 	/*
-	 * prepare_flush returns 0 if no flush is needed, just mark both
-	 * pre and post flush as done in that case
+	 * Okay, sequence complete.
 	 */
-	if (!q->prepare_flush_fn(q, flush_rq)) {
-		rq->flags |= REQ_BAR_PREFLUSH | REQ_BAR_POSTFLUSH;
-		clear_bit(QUEUE_FLAG_FLUSH, &q->queue_flags);
-		return rq;
+	rq = q->orig_bar_rq;
+	uptodate = q->orderr ? q->orderr : 1;
+
+	q->ordseq = 0;
+
+	end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
+	end_that_request_last(rq, uptodate);
+}
+
+static void pre_flush_end_io(struct request *rq, int error)
+{
+	elv_completed_request(rq->q, rq);
+	blk_ordered_complete_seq(rq->q, QUEUE_ORDSEQ_PREFLUSH, error);
+}
+
+static void bar_end_io(struct request *rq, int error)
+{
+	elv_completed_request(rq->q, rq);
+	blk_ordered_complete_seq(rq->q, QUEUE_ORDSEQ_BAR, error);
+}
+
+static void post_flush_end_io(struct request *rq, int error)
+{
+	elv_completed_request(rq->q, rq);
+	blk_ordered_complete_seq(rq->q, QUEUE_ORDSEQ_POSTFLUSH, error);
+}
+
+static void queue_flush(request_queue_t *q, unsigned which)
+{
+	struct request *rq;
+	rq_end_io_fn *end_io;
+
+	if (which == QUEUE_ORDERED_PREFLUSH) {
+		rq = &q->pre_flush_rq;
+		end_io = pre_flush_end_io;
+	} else {
+		rq = &q->post_flush_rq;
+		end_io = post_flush_end_io;
 	}
+
+	rq_init(q, rq);
+	rq->flags = REQ_HARDBARRIER;
+	rq->elevator_private = NULL;
+	rq->rq_disk = q->bar_rq.rq_disk;
+	rq->rl = NULL;
+	rq->end_io = end_io;
+	q->prepare_flush_fn(q, rq);
+
+	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+}
+
+static inline struct request *start_ordered(request_queue_t *q,
+					    struct request *rq)
+{
+	q->bi_size = 0;
+	q->orderr = 0;
+	q->ordered = q->next_ordered;
+	q->ordseq |= QUEUE_ORDSEQ_STARTED;
 
 	/*
-	 * some drivers dequeue requests right away, some only after io
-	 * completion. make sure the request is dequeued.
+	 * Prep proxy barrier request.
 	 */
-	if (!list_empty(&rq->queuelist))
-		blkdev_dequeue_request(rq);
+	blkdev_dequeue_request(rq);
+	q->orig_bar_rq = rq;
+	rq = &q->bar_rq;
+	rq_init(q, rq);
+	rq->flags = bio_data_dir(q->orig_bar_rq->bio);
+	rq->flags |= q->ordered & QUEUE_ORDERED_FUA ? REQ_FUA : 0;
+	rq->elevator_private = NULL;
+	rq->rl = NULL;
+	init_request_from_bio(rq, q->orig_bar_rq->bio);
+	rq->end_io = bar_end_io;
 
-	flush_rq->end_io_data = rq;
-	flush_rq->end_io = blk_pre_flush_end_io;
+	/*
+	 * Queue ordered sequence.  As we stack them at the head, we
+	 * need to queue in reverse order.  Note that we rely on that
+	 * no fs request uses ELEVATOR_INSERT_FRONT and thus no fs
+	 * request gets inbetween ordered sequence.
+	 */
+	if (q->ordered & QUEUE_ORDERED_POSTFLUSH)
+		queue_flush(q, QUEUE_ORDERED_POSTFLUSH);
+	else
+		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
 
-	__elv_add_request(q, flush_rq, ELEVATOR_INSERT_FRONT, 0);
-	return flush_rq;
+	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+
+	if (q->ordered & QUEUE_ORDERED_PREFLUSH) {
+		queue_flush(q, QUEUE_ORDERED_PREFLUSH);
+		rq = &q->pre_flush_rq;
+	} else
+		q->ordseq |= QUEUE_ORDSEQ_PREFLUSH;
+
+	if ((q->ordered & QUEUE_ORDERED_TAG) || q->in_flight == 0)
+		q->ordseq |= QUEUE_ORDSEQ_DRAIN;
+	else
+		rq = NULL;
+
+	return rq;
 }
 
-static void blk_start_post_flush(request_queue_t *q, struct request *rq)
+int blk_do_ordered(request_queue_t *q, struct request **rqp)
 {
-	struct request *flush_rq = q->flush_rq;
+	struct request *rq = *rqp, *allowed_rq;
+	int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
 
-	BUG_ON(!blk_barrier_rq(rq));
+	if (!q->ordseq) {
+		if (!is_barrier)
+			return 1;
 
-	rq_init(q, flush_rq);
-	flush_rq->elevator_private = NULL;
-	flush_rq->flags = REQ_BAR_FLUSH;
-	flush_rq->rq_disk = rq->rq_disk;
-	flush_rq->rl = NULL;
-
-	if (q->prepare_flush_fn(q, flush_rq)) {
-		flush_rq->end_io_data = rq;
-		flush_rq->end_io = blk_post_flush_end_io;
-
-		__elv_add_request(q, flush_rq, ELEVATOR_INSERT_FRONT, 0);
-		q->request_fn(q);
+		if (q->next_ordered != QUEUE_ORDERED_NONE) {
+			*rqp = start_ordered(q, rq);
+			return 1;
+		} else {
+			/*
+			 * This can happen when the queue switches to
+			 * ORDERED_NONE while this request is on it.
+			 */
+			blkdev_dequeue_request(rq);
+			end_that_request_first(rq, -EOPNOTSUPP,
+					       rq->hard_nr_sectors);
+			end_that_request_last(rq, -EOPNOTSUPP);
+			*rqp = NULL;
+			return 0;
+		}
 	}
-}
 
-static inline int blk_check_end_barrier(request_queue_t *q, struct request *rq,
-					int sectors)
-{
-	if (sectors > rq->nr_sectors)
-		sectors = rq->nr_sectors;
-
-	rq->nr_sectors -= sectors;
-	return rq->nr_sectors;
-}
-
-static int __blk_complete_barrier_rq(request_queue_t *q, struct request *rq,
-				     int sectors, int queue_locked)
-{
-	if (q->ordered != QUEUE_ORDERED_FLUSH)
-		return 0;
-	if (!blk_fs_request(rq) || !blk_barrier_rq(rq))
-		return 0;
-	if (blk_barrier_postflush(rq))
-		return 0;
-
-	if (!blk_check_end_barrier(q, rq, sectors)) {
-		unsigned long flags = 0;
-
-		if (!queue_locked)
-			spin_lock_irqsave(q->queue_lock, flags);
-
-		blk_start_post_flush(q, rq);
-
-		if (!queue_locked)
-			spin_unlock_irqrestore(q->queue_lock, flags);
+	if (q->ordered & QUEUE_ORDERED_TAG) {
+		if (is_barrier && rq != &q->bar_rq)
+			*rqp = NULL;
+		return 1;
 	}
+
+	switch (blk_ordered_cur_seq(q)) {
+	case QUEUE_ORDSEQ_PREFLUSH:
+		allowed_rq = &q->pre_flush_rq;
+		break;
+	case QUEUE_ORDSEQ_BAR:
+		allowed_rq = &q->bar_rq;
+		break;
+	case QUEUE_ORDSEQ_POSTFLUSH:
+		allowed_rq = &q->post_flush_rq;
+		break;
+	default:
+		allowed_rq = NULL;
+		break;
+	}
+
+	if (rq != allowed_rq &&
+	    (blk_fs_request(rq) || rq == &q->pre_flush_rq ||
+	     rq == &q->post_flush_rq))
+		*rqp = NULL;
 
 	return 1;
 }
 
-/**
- * blk_complete_barrier_rq - complete possible barrier request
- * @q:  the request queue for the device
- * @rq:  the request
- * @sectors:  number of sectors to complete
- *
- * Description:
- *   Used in driver end_io handling to determine whether to postpone
- *   completion of a barrier request until a post flush has been done. This
- *   is the unlocked variant, used if the caller doesn't already hold the
- *   queue lock.
- **/
-int blk_complete_barrier_rq(request_queue_t *q, struct request *rq, int sectors)
+static int flush_dry_bio_endio(struct bio *bio, unsigned int bytes, int error)
 {
-	return __blk_complete_barrier_rq(q, rq, sectors, 0);
-}
-EXPORT_SYMBOL(blk_complete_barrier_rq);
+	request_queue_t *q = bio->bi_private;
+	struct bio_vec *bvec;
+	int i;
 
-/**
- * blk_complete_barrier_rq_locked - complete possible barrier request
- * @q:  the request queue for the device
- * @rq:  the request
- * @sectors:  number of sectors to complete
- *
- * Description:
- *   See blk_complete_barrier_rq(). This variant must be used if the caller
- *   holds the queue lock.
- **/
-int blk_complete_barrier_rq_locked(request_queue_t *q, struct request *rq,
-				   int sectors)
-{
-	return __blk_complete_barrier_rq(q, rq, sectors, 1);
+	/*
+	 * This is dry run, restore bio_sector and size.  We'll finish
+	 * this request again with the original bi_end_io after an
+	 * error occurs or post flush is complete.
+	 */
+	q->bi_size += bytes;
+
+	if (bio->bi_size)
+		return 1;
+
+	/* Rewind bvec's */
+	bio->bi_idx = 0;
+	bio_for_each_segment(bvec, bio, i) {
+		bvec->bv_len += bvec->bv_offset;
+		bvec->bv_offset = 0;
+	}
+
+	/* Reset bio */
+	set_bit(BIO_UPTODATE, &bio->bi_flags);
+	bio->bi_size = q->bi_size;
+	bio->bi_sector -= (q->bi_size >> 9);
+	q->bi_size = 0;
+
+	return 0;
 }
-EXPORT_SYMBOL(blk_complete_barrier_rq_locked);
+
+static inline int ordered_bio_endio(struct request *rq, struct bio *bio,
+				    unsigned int nbytes, int error)
+{
+	request_queue_t *q = rq->q;
+	bio_end_io_t *endio;
+	void *private;
+
+	if (&q->bar_rq != rq)
+		return 0;
+
+	/*
+	 * Okay, this is the barrier request in progress, dry finish it.
+	 */
+	if (error && !q->orderr)
+		q->orderr = error;
+
+	endio = bio->bi_end_io;
+	private = bio->bi_private;
+	bio->bi_end_io = flush_dry_bio_endio;
+	bio->bi_private = q;
+
+	bio_endio(bio, nbytes, error);
+
+	bio->bi_end_io = endio;
+	bio->bi_private = private;
+
+	return 1;
+}
 
 /**
  * blk_queue_bounce_limit - set bounce buffer limit for queue
@@ -1047,6 +1147,7 @@ static const char * const rq_flags[] = {
 	"REQ_SORTED",
 	"REQ_SOFTBARRIER",
 	"REQ_HARDBARRIER",
+	"REQ_FUA",
 	"REQ_CMD",
 	"REQ_NOMERGE",
 	"REQ_STARTED",
@@ -1066,6 +1167,7 @@ static const char * const rq_flags[] = {
 	"REQ_PM_SUSPEND",
 	"REQ_PM_RESUME",
 	"REQ_PM_SHUTDOWN",
+	"REQ_ORDERED_COLOR",
 };
 
 void blk_dump_rq_flags(struct request *rq, char *msg)
@@ -1642,8 +1744,6 @@ void blk_cleanup_queue(request_queue_t * q)
 
 	if (q->queue_tags)
 		__blk_queue_free_tags(q);
-
-	blk_queue_ordered(q, QUEUE_ORDERED_NONE);
 
 	kmem_cache_free(requestq_cachep, q);
 }
@@ -2714,7 +2814,7 @@ static int __make_request(request_queue_t *q, struct bio *bio)
 	spin_lock_prefetch(q->queue_lock);
 
 	barrier = bio_barrier(bio);
-	if (unlikely(barrier) && (q->ordered == QUEUE_ORDERED_NONE)) {
+	if (unlikely(barrier) && (q->next_ordered == QUEUE_ORDERED_NONE)) {
 		err = -EOPNOTSUPP;
 		goto end_io;
 	}
@@ -3075,7 +3175,8 @@ static int __end_that_request_first(struct request *req, int uptodate,
 		if (nr_bytes >= bio->bi_size) {
 			req->bio = bio->bi_next;
 			nbytes = bio->bi_size;
-			bio_endio(bio, nbytes, error);
+			if (!ordered_bio_endio(req, bio, nbytes, error))
+				bio_endio(bio, nbytes, error);
 			next_idx = 0;
 			bio_nbytes = 0;
 		} else {
@@ -3130,7 +3231,8 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	 * if the request wasn't completed, update state
 	 */
 	if (bio_nbytes) {
-		bio_endio(bio, bio_nbytes, error);
+		if (!ordered_bio_endio(req, bio, bio_nbytes, error))
+			bio_endio(bio, bio_nbytes, error);
 		bio->bi_idx += next_idx;
 		bio_iovec(bio)->bv_offset += nr_bytes;
 		bio_iovec(bio)->bv_len -= nr_bytes;
