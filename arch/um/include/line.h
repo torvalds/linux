@@ -74,8 +74,7 @@ struct lines {
 #define LINES_INIT(n) {  num :		n }
 
 extern void line_close(struct tty_struct *tty, struct file * filp);
-extern int line_open(struct line *lines, struct tty_struct *tty,
-		     struct chan_opts *opts);
+extern int line_open(struct line *lines, struct tty_struct *tty);
 extern int line_setup(struct line *lines, unsigned int sizeof_lines,
 		      char *init);
 extern int line_write(struct tty_struct *tty, const unsigned char *buf,
@@ -99,11 +98,11 @@ extern struct tty_driver * line_register_devfs(struct lines *set,
 				struct tty_operations *driver,
 				struct line *lines,
 				int nlines);
-extern void lines_init(struct line *lines, int nlines);
+extern void lines_init(struct line *lines, int nlines, struct chan_opts *opts);
 extern void close_lines(struct line *lines, int nlines);
 
 extern int line_config(struct line *lines, unsigned int sizeof_lines,
-		       char *str);
+		       char *str, struct chan_opts *opts);
 extern int line_id(char **str, int *start_out, int *end_out);
 extern int line_remove(struct line *lines, unsigned int sizeof_lines, int n);
 extern int line_get_config(char *dev, struct line *lines,

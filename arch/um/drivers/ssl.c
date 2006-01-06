@@ -84,7 +84,7 @@ static struct lines lines = LINES_INIT(NR_PORTS);
 
 static int ssl_config(char *str)
 {
-	return line_config(serial_lines, ARRAY_SIZE(serial_lines), str);
+	return line_config(serial_lines, ARRAY_SIZE(serial_lines), str, &opts);
 }
 
 static int ssl_get_config(char *dev, char *str, int size, char **error_out)
@@ -100,7 +100,7 @@ static int ssl_remove(int n)
 
 int ssl_open(struct tty_struct *tty, struct file *filp)
 {
-	return line_open(serial_lines, tty, &opts);
+	return line_open(serial_lines, tty);
 }
 
 #if 0
@@ -202,7 +202,7 @@ int ssl_init(void)
 					 serial_lines,
 					 ARRAY_SIZE(serial_lines));
 
-	lines_init(serial_lines, ARRAY_SIZE(serial_lines));
+	lines_init(serial_lines, ARRAY_SIZE(serial_lines), &opts);
 
 	new_title = add_xterm_umid(opts.xterm_title);
 	if (new_title != NULL)

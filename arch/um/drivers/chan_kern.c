@@ -311,14 +311,12 @@ int console_write_chan(struct list_head *chans, const char *buf, int len)
 int console_open_chan(struct line *line, struct console *co,
 		      struct chan_opts *opts)
 {
-	if (!list_empty(&line->chan_list))
-		return 0;
+	int err;
 
-	if (0 != parse_chan_pair(line->init_str, &line->chan_list,
-				 co->index, opts))
-		return -1;
-	if (0 != open_chan(&line->chan_list))
-		return -1;
+	err = open_chan(&line->chan_list);
+	if(err)
+		return err;
+
 	printk("Console initialized on /dev/%s%d\n",co->name,co->index);
 	return 0;
 }
@@ -596,13 +594,11 @@ void chan_interrupt(struct list_head *chans, struct work_struct *task,
 					tty_hangup(tty);
 				line_disable(tty, irq);
 				close_chan(chans);
-				free_chan(chans);
 				return;
 			}
 			else {
 				if(chan->ops->close != NULL)
 					chan->ops->close(chan->fd, chan->data);
-				free_one_chan(chan);
 			}
 		}
 	}

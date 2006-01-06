@@ -91,7 +91,7 @@ struct line vts[MAX_TTYS] = { LINE_INIT(CONFIG_CON_ZERO_CHAN, &driver),
 
 static int con_config(char *str)
 {
-	return line_config(vts, ARRAY_SIZE(vts), str);
+	return line_config(vts, ARRAY_SIZE(vts), str, &opts);
 }
 
 static int con_get_config(char *dev, char *str, int size, char **error_out)
@@ -106,7 +106,7 @@ static int con_remove(int n)
 
 static int con_open(struct tty_struct *tty, struct file *filp)
 {
-	return line_open(vts, tty, &opts);
+	return line_open(vts, tty);
 }
 
 static int con_init_done = 0;
@@ -169,7 +169,7 @@ int stdio_init(void)
 		return -1;
 	printk(KERN_INFO "Initialized stdio console driver\n");
 
-	lines_init(vts, ARRAY_SIZE(vts));
+	lines_init(vts, ARRAY_SIZE(vts), &opts);
 
 	new_title = add_xterm_umid(opts.xterm_title);
 	if(new_title != NULL)

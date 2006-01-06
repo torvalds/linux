@@ -419,8 +419,7 @@ void line_disable(struct tty_struct *tty, int current_irq)
 	line->have_irq = 0;
 }
 
-int line_open(struct line *lines, struct tty_struct *tty,
-	      struct chan_opts *opts)
+int line_open(struct line *lines, struct tty_struct *tty)
 {
 	struct line *line;
 	int err = 0;
@@ -436,13 +435,11 @@ int line_open(struct line *lines, struct tty_struct *tty,
 			err = -ENODEV;
 			goto out;
 		}
-		if (list_empty(&line->chan_list)) {
-			err = parse_chan_pair(line->init_str, &line->chan_list,
-					      tty->index, opts);
-			if(err) goto out;
-			err = open_chan(&line->chan_list);
-			if(err) goto out;
-		}
+
+		err = open_chan(&line->chan_list);
+		if(err)
+			goto out;
+
 		/* Here the interrupt is registered.*/
 		enable_chan(&line->chan_list, tty);
 		INIT_WORK(&line->task, line_timer_cb, tty);
@@ -558,8 +555,10 @@ int line_setup(struct line *lines, unsigned int num, char *init)
 	return n == -1 ? num : n;
 }
 
-int line_config(struct line *lines, unsigned int num, char *str)
+int line_config(struct line *lines, unsigned int num, char *str,
+		struct chan_opts *opts)
 {
+	struct line *line;
 	char *new;
 	int n;
 
@@ -572,10 +571,14 @@ int line_config(struct line *lines, unsigned int num, char *str)
 	new = kstrdup(str, GFP_KERNEL);
 	if(new == NULL){
 		printk("line_config - kstrdup failed\n");
-		return -ENOMEM;
+		return 1;
 	}
 	n = line_setup(lines, num, new);
-	return n < 0 ? n : 0;
+	if(n < 0)
+		return 1;
+
+	line = &lines[n];
+	return parse_chan_pair(line->init_str, &line->chan_list, n, opts);
 }
 
 int line_get_config(char *name, struct line *lines, unsigned int num, char *str,
@@ -677,7 +680,7 @@ struct tty_driver *line_register_devfs(struct lines *set,
 static DEFINE_SPINLOCK(winch_handler_lock);
 static LIST_HEAD(winch_handlers);
 
-void lines_init(struct line *lines, int nlines)
+void lines_init(struct line *lines, int nlines, struct chan_opts *opts)
 {
 	struct line *line;
 	int i;
@@ -692,6 +695,11 @@ void lines_init(struct line *lines, int nlines)
 		line->init_str = kstrdup(line->init_str, GFP_KERNEL);
 		if(line->init_str == NULL)
 			printk("lines_init - kstrdup returned NULL\n");
+
+		if(parse_chan_pair(line->init_str, &line->chan_list, i, opts)){
+			printk("parse_chan_pair failed for device %d\n", i);
+			line->valid = 0;
+		}
 	}
 }
 
