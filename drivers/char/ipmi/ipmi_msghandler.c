@@ -787,7 +787,6 @@ int ipmi_destroy_user(ipmi_user_t user)
 	int              i;
 	unsigned long    flags;
 	struct cmd_rcvr  *rcvr;
-	struct list_head *entry1, *entry2;
 	struct cmd_rcvr  *rcvrs = NULL;
 
 	user->valid = 1;
@@ -812,8 +811,7 @@ int ipmi_destroy_user(ipmi_user_t user)
 	 * synchronize_rcu()) then free everything in that list.
 	 */
 	down(&intf->cmd_rcvrs_lock);
-	list_for_each_safe_rcu(entry1, entry2, &intf->cmd_rcvrs) {
-		rcvr = list_entry(entry1, struct cmd_rcvr, link);
+	list_for_each_entry_rcu(rcvr, &intf->cmd_rcvrs, link) {
 		if (rcvr->user == user) {
 			list_del_rcu(&rcvr->link);
 			rcvr->next = rcvrs;
