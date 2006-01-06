@@ -156,6 +156,8 @@ extern void numa_default_policy(void);
 extern void numa_policy_init(void);
 extern void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new);
 extern struct mempolicy default_policy;
+extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+		unsigned long addr);
 
 #else
 
@@ -230,6 +232,12 @@ static inline void numa_default_policy(void)
 static inline void numa_policy_rebind(const nodemask_t *old,
 					const nodemask_t *new)
 {
+}
+
+static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
+		unsigned long addr)
+{
+	return NODE_DATA(0)->node_zonelists + gfp_zone(GFP_HIGHUSER);
 }
 
 #endif /* CONFIG_NUMA */

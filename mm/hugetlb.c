@@ -11,6 +11,8 @@
 #include <linux/highmem.h>
 #include <linux/nodemask.h>
 #include <linux/pagemap.h>
+#include <linux/mempolicy.h>
+
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
@@ -36,11 +38,12 @@ static void enqueue_huge_page(struct page *page)
 	free_huge_pages_node[nid]++;
 }
 
-static struct page *dequeue_huge_page(void)
+static struct page *dequeue_huge_page(struct vm_area_struct *vma,
+				unsigned long address)
 {
 	int nid = numa_node_id();
 	struct page *page = NULL;
-	struct zonelist *zonelist = NODE_DATA(nid)->node_zonelists;
+	struct zonelist *zonelist = huge_zonelist(vma, address);
 	struct zone **z;
 
 	for (z = zonelist->zones; *z; z++) {
@@ -87,13 +90,13 @@ void free_huge_page(struct page *page)
 	spin_unlock(&hugetlb_lock);
 }
 
-struct page *alloc_huge_page(void)
+struct page *alloc_huge_page(struct vm_area_struct *vma, unsigned long addr)
 {
 	struct page *page;
 	int i;
 
 	spin_lock(&hugetlb_lock);
-	page = dequeue_huge_page();
+	page = dequeue_huge_page(vma, addr);
 	if (!page) {
 		spin_unlock(&hugetlb_lock);
 		return NULL;
@@ -196,7 +199,7 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	spin_lock(&hugetlb_lock);
 	try_to_free_low(count);
 	while (count < nr_huge_pages) {
-		struct page *page = dequeue_huge_page();
+		struct page *page = dequeue_huge_page(NULL, 0);
 		if (!page)
 			break;
 		update_and_free_page(page);
@@ -365,8 +368,9 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	flush_tlb_range(vma, start, end);
 }
 
-static struct page *find_or_alloc_huge_page(struct address_space *mapping,
-				unsigned long idx, int shared)
+static struct page *find_or_alloc_huge_page(struct vm_area_struct *vma,
+			unsigned long addr, struct address_space *mapping,
+			unsigned long idx, int shared)
 {
 	struct page *page;
 	int err;
@@ -378,7 +382,7 @@ retry:
 
 	if (hugetlb_get_quota(mapping))
 		goto out;
-	page = alloc_huge_page();
+	page = alloc_huge_page(vma, addr);
 	if (!page) {
 		hugetlb_put_quota(mapping);
 		goto out;
@@ -418,7 +422,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	page_cache_get(old_page);
-	new_page = alloc_huge_page();
+	new_page = alloc_huge_page(vma, address);
 
 	if (!new_page) {
 		page_cache_release(old_page);
@@ -467,7 +471,7 @@ int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * Use page lock to guard against racing truncation
 	 * before we get page_table_lock.
 	 */
-	page = find_or_alloc_huge_page(mapping, idx,
+	page = find_or_alloc_huge_page(vma, address, mapping, idx,
 			vma->vm_flags & VM_SHARED);
 	if (!page)
 		goto out;
