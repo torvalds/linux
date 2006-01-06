@@ -902,10 +902,9 @@ int dm_create_with_minor(unsigned int minor, struct mapped_device **result)
 	return create_aux(minor, 1, result);
 }
 
-void *dm_get_mdptr(dev_t dev)
+static struct mapped_device *dm_find_md(dev_t dev)
 {
 	struct mapped_device *md;
-	void *mdptr = NULL;
 	unsigned minor = MINOR(dev);
 
 	if (MAJOR(dev) != _major || minor >= (1 << MINORBITS))
@@ -914,12 +913,22 @@ void *dm_get_mdptr(dev_t dev)
 	down(&_minor_lock);
 
 	md = idr_find(&_minor_idr, minor);
-
-	if (md && (dm_disk(md)->first_minor == minor))
-		mdptr = md->interface_ptr;
+	if (!md || (dm_disk(md)->first_minor != minor))
+		md = NULL;
 
 	up(&_minor_lock);
 
+	return md;
+}
+
+void *dm_get_mdptr(dev_t dev)
+{
+	struct mapped_device *md;
+	void *mdptr = NULL;
+
+	md = dm_find_md(dev);
+	if (md)
+		mdptr = md->interface_ptr;
 	return mdptr;
 }
 
