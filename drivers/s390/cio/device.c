@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/device.c
  *  bus driver for ccw devices
- *   $Revision: 1.131 $
+ *   $Revision: 1.137 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
@@ -374,7 +374,7 @@ online_store (struct device *dev, struct device_attribute *attr, const char *buf
 	int i, force, ret;
 	char *tmp;
 
-	if (atomic_compare_and_swap(0, 1, &cdev->private->onoff))
+	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
 		return -EAGAIN;
 
 	if (cdev->drv && !try_module_get(cdev->drv->owner)) {

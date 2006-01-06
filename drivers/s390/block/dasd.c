@@ -7,7 +7,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.167 $
+ * $Revision: 1.169 $
  */
 
 #include <linux/config.h>
@@ -1323,7 +1323,7 @@ void
 dasd_schedule_bh(struct dasd_device * device)
 {
 	/* Protect against rescheduling. */
-	if (atomic_compare_and_swap (0, 1, &device->tasklet_scheduled))
+	if (atomic_cmpxchg (&device->tasklet_scheduled, 0, 1) != 0)
 		return;
 	dasd_get_device(device);
 	tasklet_hi_schedule(&device->tasklet);

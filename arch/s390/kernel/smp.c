@@ -263,7 +263,7 @@ static void do_machine_restart(void * __unused)
 	int cpu;
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid))
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) != -1)
 		signal_processor(smp_processor_id(), sigp_stop);
 
 	/* Wait for all other cpus to enter stopped state */
@@ -313,7 +313,7 @@ static void do_machine_halt(void * __unused)
 {
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
 			cpcmd(vmhalt_cmd, NULL, 0, NULL);
@@ -332,7 +332,7 @@ static void do_machine_power_off(void * __unused)
 {
 	static atomic_t cpuid = ATOMIC_INIT(-1);
 
-	if (atomic_compare_and_swap(-1, smp_processor_id(), &cpuid) == 0) {
+	if (atomic_cmpxchg(&cpuid, -1, smp_processor_id()) == -1) {
 		smp_send_stop();
 		if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
 			cpcmd(vmpoff_cmd, NULL, 0, NULL);

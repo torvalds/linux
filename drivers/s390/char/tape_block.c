@@ -65,7 +65,7 @@ static void
 tapeblock_trigger_requeue(struct tape_device *device)
 {
 	/* Protect against rescheduling. */
-	if (atomic_compare_and_swap(0, 1, &device->blk_data.requeue_scheduled))
+	if (atomic_cmpxchg(&device->blk_data.requeue_scheduled, 0, 1) != 0)
 		return;
 	schedule_work(&device->blk_data.requeue_task);
 }
