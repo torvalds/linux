@@ -402,5 +402,6 @@ static __inline__ long atomic64_dec_if_positive(atomic64_t *v)
 
 #endif /* __powerpc64__ */
 
+#include <asm-generic/atomic.h>
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_ATOMIC_H_ */

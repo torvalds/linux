@@ -215,5 +215,6 @@ atomic_compare_and_swap(int expected_oldval,int new_val,atomic_t *v)
 #define smp_mb__before_atomic_inc()	smp_mb()
 #define smp_mb__after_atomic_inc()	smp_mb()
 
+#include <asm-generic/atomic.h>
 #endif /* __KERNEL__ */
 #endif /* __ARCH_S390_ATOMIC__  */

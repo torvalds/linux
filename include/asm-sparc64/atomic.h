@@ -96,4 +96,5 @@ extern int atomic64_sub_ret(int, atomic64_t *);
 #define smp_mb__after_atomic_inc()	barrier()
 #endif
 
+#include <asm-generic/atomic.h>
 #endif /* !(__ARCH_SPARC64_ATOMIC__) */
