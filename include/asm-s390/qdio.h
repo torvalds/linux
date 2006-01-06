@@ -195,12 +195,14 @@ struct qdr {
 /*
  * queue information block (QIB)
  */
-#define QIB_AC_INBOUND_PCI_SUPPORTED 0x80
-#define QIB_AC_OUTBOUND_PCI_SUPPORTED 0x40
+#define QIB_AC_INBOUND_PCI_SUPPORTED 	0x80
+#define QIB_AC_OUTBOUND_PCI_SUPPORTED 	0x40
+#define QIB_RFLAGS_ENABLE_QEBSM		0x80
+
 struct qib {
 	unsigned int  qfmt    :  8;     /* queue format */
 	unsigned int  pfmt    :  8;     /* impl. dep. parameter format */
-	unsigned int  res1    :  8;     /* reserved */
+	unsigned int  rflags  :  8;	/* QEBSM */
 	unsigned int  ac      :  8;     /* adapter characteristics */
 	unsigned int  res2;             /* reserved */
 #ifdef QDIO_32_BIT

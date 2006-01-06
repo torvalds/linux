@@ -240,8 +240,8 @@ config MACHCHK_WARNING
 config QDIO
 	tristate "QDIO support"
 	---help---
-	  This driver provides the Queued Direct I/O base support for the
-	  IBM S/390 (G5 and G6) and eServer zSeries (z800, z890, z900 and z990).
+	  This driver provides the Queued Direct I/O base support for
+	  IBM mainframes.
 
 	  For details please refer to the documentation provided by IBM at
 	  <http://www10.software.ibm.com/developerworks/opensource/linux390>
@@ -263,7 +263,8 @@ config QDIO_DEBUG
 	bool "Extended debugging information"
 	depends on QDIO
 	help
-	  Say Y here to get extended debugging output in /proc/s390dbf/qdio...
+	  Say Y here to get extended debugging output in
+	    /sys/kernel/debug/s390dbf/qdio...
 	  Warning: this option reduces the performance of the QDIO module.
 
 	  If unsure, say N.

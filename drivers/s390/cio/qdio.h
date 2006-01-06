@@ -3,14 +3,13 @@
 
 #include <asm/page.h>
 
-#define VERSION_CIO_QDIO_H "$Revision: 1.33 $"
+#define VERSION_CIO_QDIO_H "$Revision: 1.37 $"
 
 #ifdef CONFIG_QDIO_DEBUG
 #define QDIO_VERBOSE_LEVEL 9
 #else /* CONFIG_QDIO_DEBUG */
 #define QDIO_VERBOSE_LEVEL 5
 #endif /* CONFIG_QDIO_DEBUG */
-
 #define QDIO_USE_PROCESSING_STATE
 
 #ifdef CONFIG_QDIO_PERF_STATS
@@ -265,6 +264,58 @@ QDIO_PRINT_##importance(header "%02x %02x %02x %02x  %02x %02x %02x %02x  " \
 /*
  * Some instructions as assembly
  */
+
+static inline int
+do_sqbs(unsigned long sch, unsigned char state, int queue,
+       unsigned int *start, unsigned int *count)
+{
+#ifdef CONFIG_ARCH_S390X
+       register unsigned long _ccq asm ("0") = *count;
+       register unsigned long _sch asm ("1") = sch;
+       unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
+
+       asm volatile (
+              " .insn rsy,0xeb000000008A,%1,0,0(%2)\n\t"
+              : "+d" (_ccq), "+d" (_queuestart)
+              : "d" ((unsigned long)state), "d" (_sch)
+              : "memory", "cc"
+       );
+       *count = _ccq & 0xff;
+       *start = _queuestart & 0xff;
+
+       return (_ccq >> 32) & 0xff;
+#else
+       return 0;
+#endif
+}
+
+static inline int
+do_eqbs(unsigned long sch, unsigned char *state, int queue,
+	unsigned int *start, unsigned int *count)
+{
+#ifdef CONFIG_ARCH_S390X
+	register unsigned long _ccq asm ("0") = *count;
+	register unsigned long _sch asm ("1") = sch;
+	unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
+	unsigned long _state = 0;
+
+	asm volatile (
+	      " .insn rrf,0xB99c0000,%1,%2,0,0  \n\t"
+	      : "+d" (_ccq), "+d" (_queuestart), "+d" (_state)
+	      : "d" (_sch)
+	      : "memory", "cc"
+	);
+	*count = _ccq & 0xff;
+	*start = _queuestart & 0xff;
+	*state = _state & 0xff;
+
+	return (_ccq >> 32) & 0xff;
+#else
+	return 0;
+#endif
+}
+
+
 static inline int
 do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
 {
@@ -280,7 +331,7 @@ do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
 		: "=d" (cc)
-		: "d" (0x10000|irq), "d" (mask1), "d" (mask2)
+		: "d" (irq), "d" (mask1), "d" (mask2)
 		: "cc", "0", "1", "2", "3"
 		);
 #else /* CONFIG_ARCH_S390X */
@@ -293,7 +344,7 @@ do_siga_sync(unsigned int irq, unsigned int mask1, unsigned int mask2)
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
 		: "=d" (cc)
-		: "d" (0x10000|irq), "d" (mask1), "d" (mask2)
+		: "d" (irq), "d" (mask1), "d" (mask2)
 		: "cc", "0", "1", "2", "3"
 		);
 #endif /* CONFIG_ARCH_S390X */
@@ -314,7 +365,7 @@ do_siga_input(unsigned int irq, unsigned int mask)
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
 		: "=d" (cc)
-		: "d" (0x10000|irq), "d" (mask)
+		: "d" (irq), "d" (mask)
 		: "cc", "0", "1", "2", "memory"
 		);
 #else /* CONFIG_ARCH_S390X */
@@ -326,7 +377,7 @@ do_siga_input(unsigned int irq, unsigned int mask)
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
 		: "=d" (cc)
-		: "d" (0x10000|irq), "d" (mask)
+		: "d" (irq), "d" (mask)
 		: "cc", "0", "1", "2", "memory"
 		);
 #endif /* CONFIG_ARCH_S390X */
@@ -335,7 +386,8 @@ do_siga_input(unsigned int irq, unsigned int mask)
 }
 
 static inline int
-do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb)
+do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb,
+	       unsigned int fc)
 {
 	int cc;
 	__u32 busy_bit;
@@ -366,14 +418,14 @@ do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb)
 		".long	0b,2b	\n\t"
 		".previous	\n\t"
 		: "=d" (cc), "=d" (busy_bit)
-		: "d" (0x10000|irq), "d" (mask),
+		: "d" (irq), "d" (mask),
 		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION)
 		: "cc", "0", "1", "2", "memory"
 		);
 #else /* CONFIG_ARCH_S390X */
 	asm volatile (
-		"lghi	0,0	\n\t"
-		"llgfr	1,%2	\n\t"
+        	"llgfr  0,%5    \n\t"
+                "lgr    1,%2    \n\t"
 		"llgfr	2,%3	\n\t"
 		"siga	0	\n\t"
 		"0:"
@@ -391,8 +443,8 @@ do_siga_output(unsigned long irq, unsigned long mask, __u32 *bb)
 		".quad	0b,1b	\n\t"
 		".previous	\n\t"
 		: "=d" (cc), "=d" (busy_bit)
-		: "d" (0x10000|irq), "d" (mask),
-		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION)
+		: "d" (irq), "d" (mask),
+		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION), "d" (fc)
 		: "cc", "0", "1", "2", "memory"
 		);
 #endif /* CONFIG_ARCH_S390X */
@@ -494,33 +546,12 @@ struct qdio_perf_stats {
 #define QDIO_GET_ADDR(x) ((__u32)(long)x)
 #endif /* CONFIG_ARCH_S390X */
 
-#ifdef CONFIG_QDIO_DEBUG
-#define set_slsb(x,y) \
-  if(q->queue_type==QDIO_TRACE_QTYPE) { \
-        if(q->is_input_q) { \
-            QDIO_DBF_HEX2(0,slsb_in,&q->slsb,QDIO_MAX_BUFFERS_PER_Q); \
-        } else { \
-            QDIO_DBF_HEX2(0,slsb_out,&q->slsb,QDIO_MAX_BUFFERS_PER_Q); \
-        } \
-  } \
-  qdio_set_slsb(x,y); \
-  if(q->queue_type==QDIO_TRACE_QTYPE) { \
-        if(q->is_input_q) { \
-            QDIO_DBF_HEX2(0,slsb_in,&q->slsb,QDIO_MAX_BUFFERS_PER_Q); \
-        } else { \
-            QDIO_DBF_HEX2(0,slsb_out,&q->slsb,QDIO_MAX_BUFFERS_PER_Q); \
-        } \
-  }
-#else /* CONFIG_QDIO_DEBUG */
-#define set_slsb(x,y) qdio_set_slsb(x,y)
-#endif /* CONFIG_QDIO_DEBUG */
-
 struct qdio_q {
 	volatile struct slsb slsb;
 
 	char unused[QDIO_MAX_BUFFERS_PER_Q];
 
-	__u32 * volatile dev_st_chg_ind;
+	__u32 * dev_st_chg_ind;
 
 	int is_input_q;
 	int irq;
@@ -567,6 +598,7 @@ struct qdio_q {
 #else /* QDIO_USE_TIMERS_FOR_POLLING */
 	struct tasklet_struct tasklet;
 #endif /* QDIO_USE_TIMERS_FOR_POLLING */
+
 
 	enum qdio_irq_states state;
 
@@ -623,6 +655,10 @@ struct qdio_irq {
 	unsigned int is_thinint_irq;
 	unsigned int hydra_gives_outbound_pcis;
 	unsigned int sync_done_on_outb_pcis;
+
+	/* QEBSM facility */
+	unsigned int is_qebsm;
+	unsigned long sch_token;
 
 	enum qdio_irq_states state;
 
