@@ -44,8 +44,6 @@
 #include <asm/msr.h>
 #include "mtrr.h"
 
-#define MTRR_VERSION            "2.0 (20020519)"
-
 u32 num_var_ranges = 0;
 
 unsigned int *usage_table;
@@ -671,7 +669,6 @@ void __init mtrr_bp_init(void)
 			break;
 		}
 	}
-	printk(KERN_INFO "mtrr: v%s\n",MTRR_VERSION);
 
 	if (mtrr_if) {
 		set_num_var_ranges();
