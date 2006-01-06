@@ -246,7 +246,7 @@ s390_revalidate_registers(struct mci *mci)
 		 */
 		kill_task = 1;
 
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	asm volatile("ld 0,0(%0)\n"
 		     "ld 2,8(%0)\n"
 		     "ld 4,16(%0)\n"
@@ -255,7 +255,7 @@ s390_revalidate_registers(struct mci *mci)
 #endif
 
 	if (MACHINE_HAS_IEEE) {
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 		fpt_save_area = &S390_lowcore.floating_pt_save_area;
 		fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
 #else
@@ -314,7 +314,7 @@ s390_revalidate_registers(struct mci *mci)
 		 */
 		s390_handle_damage("invalid control registers.");
 	else
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 		asm volatile("lctlg 0,15,0(%0)"
 			     : : "a" (&S390_lowcore.cregs_save_area));
 #else
@@ -327,7 +327,7 @@ s390_revalidate_registers(struct mci *mci)
 	 * can't write something sensible into that register.
 	 */
 
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	/*
 	 * See if we can revalidate the TOD programmable register with its
 	 * old contents (should be zero) otherwise set it to zero.
@@ -384,7 +384,7 @@ s390_do_machine_check(struct pt_regs *regs)
 		if (mci->b) {
 			/* Processing backup -> verify if we can survive this */
 			u64 z_mcic, o_mcic, t_mcic;
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 			z_mcic = (1ULL<<63 | 1ULL<<59 | 1ULL<<29);
 			o_mcic = (1ULL<<43 | 1ULL<<42 | 1ULL<<41 | 1ULL<<40 |
 				  1ULL<<36 | 1ULL<<35 | 1ULL<<34 | 1ULL<<32 |

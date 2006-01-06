@@ -112,7 +112,7 @@ struct crypt_s390_query_status {
  * [ret] is the variable to receive the error code
  * [ERR] is the error code value
  */
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 #define __crypt_s390_fixup \
 	".section .fixup,\"ax\" \n"	\
 	"7:	lhi	%0,%h[e1] \n"	\
@@ -129,7 +129,7 @@ struct crypt_s390_query_status {
 	"	.long	0b,7b \n"	\
 	"	.long	1b,8b \n"	\
 	".previous"
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 #define __crypt_s390_fixup \
 	".section .fixup,\"ax\" \n"	\
 	"7:	lhi	%0,%h[e1] \n"	\
@@ -142,7 +142,7 @@ struct crypt_s390_query_status {
 	"	.quad	0b,7b \n"	\
 	"	.quad	1b,8b \n"	\
 	".previous"
-#endif /* __s390x__ */
+#endif /* CONFIG_64BIT */
 
 /*
  * Standard code for setting the result of s390 crypto instructions.
@@ -150,10 +150,10 @@ struct crypt_s390_query_status {
  * [result]: the register containing the result (e.g. second operand length
  * to compute number of processed bytes].
  */
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 #define __crypt_s390_set_result \
 	"	lr	%0,%[result] \n"
-#else /* __s390x__ */
+#else /* CONFIG_64BIT */
 #define __crypt_s390_set_result \
 	"	lgr	%0,%[result] \n"
 #endif

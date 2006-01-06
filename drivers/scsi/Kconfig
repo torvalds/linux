@@ -1815,7 +1815,7 @@ config SCSI_SUNESP
 
 config ZFCP
 	tristate "FCP host bus adapter driver for IBM eServer zSeries"
-	depends on ARCH_S390 && QDIO && SCSI
+	depends on S390 && QDIO && SCSI
 	select SCSI_FC_ATTRS
 	help
           If you want to access SCSI devices attached to your IBM eServer

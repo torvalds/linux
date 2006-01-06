@@ -402,7 +402,7 @@ static void smp_ext_bitcall_others(ec_bit_sig sig)
         }
 }
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 /*
  * this function sends a 'purge tlb' signal to another CPU.
  */
@@ -416,7 +416,7 @@ void smp_ptlb_all(void)
         on_each_cpu(smp_ptlb_callback, NULL, 0, 1);
 }
 EXPORT_SYMBOL(smp_ptlb_all);
-#endif /* ! CONFIG_ARCH_S390X */
+#endif /* ! CONFIG_64BIT */
 
 /*
  * this function sends a 'reschedule' IPI to another CPU.
@@ -783,7 +783,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		if (stack == 0ULL)
 			panic("smp_boot_cpus failed to allocate memory\n");
 		lowcore_ptr[i]->panic_stack = stack + (PAGE_SIZE);
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 		if (MACHINE_HAS_IEEE) {
 			lowcore_ptr[i]->extended_save_area_addr =
 				(__u32) __get_free_pages(GFP_KERNEL,0);
@@ -793,7 +793,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		}
 #endif
 	}
-#ifndef __s390x__
+#ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE)
 		ctl_set_bit(14, 29); /* enable extended save area */
 #endif

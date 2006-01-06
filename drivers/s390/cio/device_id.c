@@ -27,7 +27,7 @@
 /*
  * diag210 is used under VM to get information about a virtual device
  */
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 int
 diag210(struct diag210 * addr)
 {

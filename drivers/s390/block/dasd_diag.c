@@ -75,7 +75,7 @@ dia250(void *iob, int cmd)
 	int rc;
 
 	__asm__ __volatile__(
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 		"	lghi	%0,3\n"
 		"	lgr	0,%3\n"
 		"	diag	0,%2,0x250\n"

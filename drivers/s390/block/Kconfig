@@ -1,11 +1,11 @@
-if ARCH_S390
+if S390
 
 comment "S/390 block device drivers"
-	depends on ARCH_S390
+	depends on S390
 
 config BLK_DEV_XPRAM
 	tristate "XPRAM disk support"
-	depends on ARCH_S390
+	depends on S390
 	help
 	  Select this option if you want to use your expanded storage on S/390
 	  or zSeries as a disk.  This is useful as a _fast_ swap device if you
@@ -49,7 +49,7 @@ config DASD_FBA
 
 config DASD_DIAG
 	tristate "Support for DIAG access to Disks"
-	depends on DASD && ( ARCH_S390X = 'n' || EXPERIMENTAL)
+	depends on DASD && ( 64BIT = 'n' || EXPERIMENTAL)
 	help
 	  Select this option if you want to use Diagnose250 command to access
 	  Disks under VM.  If you are not running under VM or unsure what it is,

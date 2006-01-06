@@ -42,7 +42,7 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 #include "compat_ptrace.h"
 #endif
 
@@ -59,7 +59,7 @@ FixPerRegisters(struct task_struct *task)
 	
 	if (per_info->single_step) {
 		per_info->control_regs.bits.starting_addr = 0;
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 		if (test_thread_flag(TIF_31BIT))
 			per_info->control_regs.bits.ending_addr = 0x7fffffffUL;
 		else
@@ -112,7 +112,7 @@ ptrace_disable(struct task_struct *child)
 	clear_single_step(child);
 }
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 # define __ADDR_MASK 3
 #else
 # define __ADDR_MASK 7
@@ -138,7 +138,7 @@ peek_user(struct task_struct *child, addr_t addr, addr_t data)
 	 * an alignment of 4. Programmers from hell...
 	 */
 	mask = __ADDR_MASK;
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 	if (addr >= (addr_t) &dummy->regs.acrs &&
 	    addr < (addr_t) &dummy->regs.orig_gpr2)
 		mask = 3;
@@ -160,7 +160,7 @@ peek_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * access registers are stored in the thread structure
 		 */
 		offset = addr - (addr_t) &dummy->regs.acrs;
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 		/*
 		 * Very special case: old & broken 64 bit gdb reading
 		 * from acrs[15]. Result is a 64 bit value. Read the
@@ -218,7 +218,7 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 	 * an alignment of 4. Programmers from hell indeed...
 	 */
 	mask = __ADDR_MASK;
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 	if (addr >= (addr_t) &dummy->regs.acrs &&
 	    addr < (addr_t) &dummy->regs.orig_gpr2)
 		mask = 3;
@@ -231,13 +231,13 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * psw and gprs are stored on the stack
 		 */
 		if (addr == (addr_t) &dummy->regs.psw.mask &&
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 		    data != PSW_MASK_MERGE(PSW_USER32_BITS, data) &&
 #endif
 		    data != PSW_MASK_MERGE(PSW_USER_BITS, data))
 			/* Invalid psw mask. */
 			return -EINVAL;
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 		if (addr == (addr_t) &dummy->regs.psw.addr)
 			/* I'd like to reject addresses without the
 			   high order bit but older gdb's rely on it */
@@ -250,7 +250,7 @@ poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * access registers are stored in the thread structure
 		 */
 		offset = addr - (addr_t) &dummy->regs.acrs;
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 		/*
 		 * Very special case: old & broken 64 bit gdb writing
 		 * to acrs[15] with a 64 bit value. Ignore the lower
@@ -357,7 +357,7 @@ do_ptrace_normal(struct task_struct *child, long request, long addr, long data)
 	return ptrace_request(child, request, addr, data);
 }
 
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 /*
  * Now the fun part starts... a 31 bit program running in the
  * 31 bit emulation tracing another program. PTRACE_PEEKTEXT,
@@ -629,7 +629,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 			return peek_user(child, addr, data);
 		if (request == PTRACE_POKEUSR && addr == PT_IEEE_IP)
 			return poke_user(child, addr, data);
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 		if (request == PTRACE_PEEKUSR &&
 		    addr == PT32_IEEE_IP && test_thread_flag(TIF_31BIT))
 			return peek_user_emu31(child, addr, data);
@@ -695,7 +695,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	/* Do requests that differ for 31/64 bit */
 	default:
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 		if (test_thread_flag(TIF_31BIT))
 			return do_ptrace_emu31(child, request, addr, data);
 #endif

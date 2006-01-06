@@ -271,7 +271,7 @@ dasd_fba_build_cp(struct dasd_device * device, struct request *req)
 				/* Fba can only do full blocks. */
 				return ERR_PTR(-EINVAL);
 			count += bv->bv_len >> (device->s2b_shift + 9);
-#if defined(CONFIG_ARCH_S390X)
+#if defined(CONFIG_64BIT)
 			if (idal_is_needed (page_address(bv->bv_page),
 					    bv->bv_len))
 				cidaw += bv->bv_len / blksize;

@@ -50,7 +50,7 @@ static inline int stsch_err(struct subchannel_id schid,
 		"0:  ipm  %0\n"
 		"    srl  %0,28\n"
 		"1:\n"
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 		".section __ex_table,\"a\"\n"
 		"   .align 8\n"
 		"   .quad 0b,1b\n"
@@ -95,7 +95,7 @@ static inline int msch_err(struct subchannel_id schid,
 		"0:  ipm  %0\n"
 		"    srl  %0,28\n"
 		"1:\n"
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 		".section __ex_table,\"a\"\n"
 		"   .align 8\n"
 		"   .quad 0b,1b\n"

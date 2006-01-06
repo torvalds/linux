@@ -160,7 +160,7 @@ static int xpram_page_in (unsigned long page_addr, unsigned int xpage_index)
                 "0: ipm   %0\n"
 		"   srl   %0,28\n"
 		"1:\n"
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 		".section __ex_table,\"a\"\n"
 		"   .align 4\n"
 		"   .long  0b,1b\n"
@@ -208,7 +208,7 @@ static long xpram_page_out (unsigned long page_addr, unsigned int xpage_index)
                 "0: ipm   %0\n"
 		"   srl   %0,28\n"
 		"1:\n"
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 		".section __ex_table,\"a\"\n"
 		"   .align 4\n"
 		"   .long  0b,1b\n"

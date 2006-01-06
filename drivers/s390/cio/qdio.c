@@ -2394,7 +2394,7 @@ tiqdio_check_chsc_availability(void)
 	sprintf(dbf_text,"hydrati%1x", hydra_thinints);
 	QDIO_DBF_TEXT0(0,setup,dbf_text);
 
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 	/* Check for QEBSM support in general (bit 58). */
 	is_passthrough = css_general_characteristics.qebsm;
 #endif

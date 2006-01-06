@@ -271,7 +271,7 @@ static inline int
 do_sqbs(unsigned long sch, unsigned char state, int queue,
        unsigned int *start, unsigned int *count)
 {
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
        register unsigned long _ccq asm ("0") = *count;
        register unsigned long _sch asm ("1") = sch;
        unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
@@ -295,7 +295,7 @@ static inline int
 do_eqbs(unsigned long sch, unsigned char *state, int queue,
 	unsigned int *start, unsigned int *count)
 {
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 	register unsigned long _ccq asm ("0") = *count;
 	register unsigned long _sch asm ("1") = sch;
 	unsigned long _queuestart = ((unsigned long)queue << 32) | *start;
@@ -323,7 +323,7 @@ do_siga_sync(struct subchannel_id schid, unsigned int mask1, unsigned int mask2)
 {
 	int cc;
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 	asm volatile (
 		"lhi	0,2	\n\t"
 		"lr	1,%1	\n\t"
@@ -336,7 +336,7 @@ do_siga_sync(struct subchannel_id schid, unsigned int mask1, unsigned int mask2)
 		: "d" (schid), "d" (mask1), "d" (mask2)
 		: "cc", "0", "1", "2", "3"
 		);
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	asm volatile (
 		"lghi	0,2	\n\t"
 		"llgfr	1,%1	\n\t"
@@ -349,7 +349,7 @@ do_siga_sync(struct subchannel_id schid, unsigned int mask1, unsigned int mask2)
 		: "d" (schid), "d" (mask1), "d" (mask2)
 		: "cc", "0", "1", "2", "3"
 		);
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 	return cc;
 }
 
@@ -358,7 +358,7 @@ do_siga_input(struct subchannel_id schid, unsigned int mask)
 {
 	int cc;
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 	asm volatile (
 		"lhi	0,1	\n\t"
 		"lr	1,%1	\n\t"
@@ -370,7 +370,7 @@ do_siga_input(struct subchannel_id schid, unsigned int mask)
 		: "d" (schid), "d" (mask)
 		: "cc", "0", "1", "2", "memory"
 		);
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	asm volatile (
 		"lghi	0,1	\n\t"
 		"llgfr	1,%1	\n\t"
@@ -382,7 +382,7 @@ do_siga_input(struct subchannel_id schid, unsigned int mask)
 		: "d" (schid), "d" (mask)
 		: "cc", "0", "1", "2", "memory"
 		);
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 	
 	return cc;
 }
@@ -394,7 +394,7 @@ do_siga_output(unsigned long schid, unsigned long mask, __u32 *bb,
 	int cc;
 	__u32 busy_bit;
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 	asm volatile (
 		"lhi	0,0	\n\t"
 		"lr	1,%2	\n\t"
@@ -424,7 +424,7 @@ do_siga_output(unsigned long schid, unsigned long mask, __u32 *bb,
 		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION)
 		: "cc", "0", "1", "2", "memory"
 		);
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	asm volatile (
         	"llgfr  0,%5    \n\t"
                 "lgr    1,%2    \n\t"
@@ -449,7 +449,7 @@ do_siga_output(unsigned long schid, unsigned long mask, __u32 *bb,
 		"i" (QDIO_SIGA_ERROR_ACCESS_EXCEPTION), "d" (fc)
 		: "cc", "0", "1", "2", "memory"
 		);
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 	
 	(*bb) = busy_bit;
 	return cc;
@@ -461,21 +461,21 @@ do_clear_global_summary(void)
 
 	unsigned long time;
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 	asm volatile (
 		"lhi	1,3	\n\t"
 		".insn	rre,0xb2650000,2,0	\n\t"
 		"lr	%0,3	\n\t"
 		: "=d" (time) : : "cc", "1", "2", "3"
 		);
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	asm volatile (
 		"lghi	1,3	\n\t"
 		".insn	rre,0xb2650000,2,0	\n\t"
 		"lgr	%0,3	\n\t"
 		: "=d" (time) : : "cc", "1", "2", "3"
 		);
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 	
 	return time;
 }
@@ -542,11 +542,11 @@ struct qdio_perf_stats {
 
 #define MY_MODULE_STRING(x) #x
 
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 #define QDIO_GET_ADDR(x) ((__u32)(unsigned long)x)
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 #define QDIO_GET_ADDR(x) ((__u32)(long)x)
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 struct qdio_q {
 	volatile struct slsb slsb;

@@ -1603,7 +1603,7 @@ dumpit(char* buf, int len)
         __u32      ct, sw, rm, dup;
         char       *ptr, *rptr;
         char       tbuf[82], tdup[82];
-#if (CONFIG_ARCH_S390X)
+#if (CONFIG_64BIT)
         char       addr[22];
 #else
         char       addr[12];
@@ -1619,7 +1619,7 @@ dumpit(char* buf, int len)
         dup = 0;
         for ( ct=0; ct < len; ct++, ptr++, rptr++ )  {
                 if (sw == 0) {
-#if (CONFIG_ARCH_S390X)
+#if (CONFIG_64BIT)
                         sprintf(addr, "%16.16lX",(unsigned long)rptr);
 #else
                         sprintf(addr, "%8.8X",(__u32)rptr);
@@ -1634,7 +1634,7 @@ dumpit(char* buf, int len)
                 if (sw == 8) {
                         strcat(bhex, "  ");
                 }
-#if (CONFIG_ARCH_S390X)
+#if (CONFIG_64BIT)
                 sprintf(tbuf,"%2.2lX", (unsigned long)*ptr);
 #else
                 sprintf(tbuf,"%2.2X", (__u32)*ptr);

@@ -785,7 +785,7 @@ testq(int q_nr, int *q_depth, int *dev_type, struct ap_status_word *stat)
 	int ccode;
 
 	asm volatile
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	("	llgfr	0,%4		\n"
 	 "	slgr	1,1		\n"
 	 "	lgr	2,1		\n"
@@ -855,7 +855,7 @@ resetq(int q_nr, struct ap_status_word *stat_p)
 	int ccode;
 
 	asm volatile
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	("	llgfr	0,%2		\n"
 	 "	lghi	1,1		\n"
 	 "	sll	1,24		\n"
@@ -921,7 +921,7 @@ sen(int msg_len, unsigned char *msg_ext, struct ap_status_word *stat)
 	int ccode;
 
 	asm volatile
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	("	lgr	6,%3		\n"
 	 "	llgfr	7,%2		\n"
 	 "	llgt	0,0(6)		\n"
@@ -1000,7 +1000,7 @@ rec(int q_nr, int buff_l, unsigned char *rsp, unsigned char *id,
 	int ccode;
 
 	asm volatile
-#ifdef __s390x__
+#ifdef CONFIG_64BIT
 	("	llgfr	0,%2		\n"
 	 "	lgr	3,%4		\n"
 	 "	lgr	6,%3		\n"

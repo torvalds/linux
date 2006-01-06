@@ -501,7 +501,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-#ifdef CONFIG_S390_SUPPORT
+#ifdef CONFIG_COMPAT
 		if (test_thread_flag(TIF_31BIT)) {
 			extern void handle_signal32(unsigned long sig,
 						    struct k_sigaction *ka,

@@ -195,7 +195,7 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	sch->orb.spnd = sch->options.suspend;
 	sch->orb.ssic = sch->options.suspend && sch->options.inter;
 	sch->orb.lpm = (lpm != 0) ? (lpm & sch->opm) : sch->lpm;
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 	/*
 	 * for 64 bit we always support 64 bit IDAWs with 4k page size only
 	 */

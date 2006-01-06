@@ -12,7 +12,7 @@
 #include <linux/config.h>
 #include <linux/smp.h>
 
-#if !defined(CONFIG_ARCH_S390)
+#if !defined(CONFIG_S390)
 
 #include <linux/linkage.h>
 #include <linux/cache.h>

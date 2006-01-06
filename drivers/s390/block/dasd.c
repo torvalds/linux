@@ -604,7 +604,7 @@ dasd_smalloc_request(char *magic, int cplength, int datasize,
 void
 dasd_kfree_request(struct dasd_ccw_req * cqr, struct dasd_device * device)
 {
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 	struct ccw1 *ccw;
 
 	/* Clear any idals used for the request. */
