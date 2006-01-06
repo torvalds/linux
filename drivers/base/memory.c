@@ -62,8 +62,7 @@ void unregister_memory_notifier(struct notifier_block *nb)
 /*
  * register_memory - Setup a sysfs device for a memory block
  */
-static int
-register_memory(struct memory_block *memory, struct mem_section *section,
+int register_memory(struct memory_block *memory, struct mem_section *section,
 		struct node *root)
 {
 	int error;
