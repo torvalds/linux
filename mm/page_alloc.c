@@ -2277,32 +2277,40 @@ static char *vmstat_text[] = {
 	"pgpgout",
 	"pswpin",
 	"pswpout",
-	"pgalloc_high",
 
+	"pgalloc_high",
 	"pgalloc_normal",
+	"pgalloc_dma32",
 	"pgalloc_dma",
+
 	"pgfree",
 	"pgactivate",
 	"pgdeactivate",
 
 	"pgfault",
 	"pgmajfault",
+
 	"pgrefill_high",
 	"pgrefill_normal",
+	"pgrefill_dma32",
 	"pgrefill_dma",
 
 	"pgsteal_high",
 	"pgsteal_normal",
+	"pgsteal_dma32",
 	"pgsteal_dma",
+
 	"pgscan_kswapd_high",
 	"pgscan_kswapd_normal",
-
+	"pgscan_kswapd_dma32",
 	"pgscan_kswapd_dma",
+
 	"pgscan_direct_high",
 	"pgscan_direct_normal",
+	"pgscan_direct_dma32",
 	"pgscan_direct_dma",
-	"pginodesteal",
 
+	"pginodesteal",
 	"slabs_scanned",
 	"kswapd_steal",
 	"kswapd_inodesteal",

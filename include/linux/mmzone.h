@@ -397,6 +397,7 @@ static inline int is_normal_idx(int idx)
 {
 	return (idx == ZONE_NORMAL);
 }
+
 /**
  * is_highmem - helper function to quickly check if a struct zone is a 
  *              highmem zone or not.  This is an attempt to keep references
@@ -411,6 +412,16 @@ static inline int is_highmem(struct zone *zone)
 static inline int is_normal(struct zone *zone)
 {
 	return zone == zone->zone_pgdat->node_zones + ZONE_NORMAL;
+}
+
+static inline int is_dma32(struct zone *zone)
+{
+	return zone == zone->zone_pgdat->node_zones + ZONE_DMA32;
+}
+
+static inline int is_dma(struct zone *zone)
+{
+	return zone == zone->zone_pgdat->node_zones + ZONE_DMA;
 }
 
 /* These two functions are used to setup the per zone pages min values */

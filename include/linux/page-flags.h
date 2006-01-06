@@ -97,32 +97,40 @@ struct page_state {
 	unsigned long pgpgout;		/* Disk writes */
 	unsigned long pswpin;		/* swap reads */
 	unsigned long pswpout;		/* swap writes */
-	unsigned long pgalloc_high;	/* page allocations */
 
+	unsigned long pgalloc_high;	/* page allocations */
 	unsigned long pgalloc_normal;
+	unsigned long pgalloc_dma32;
 	unsigned long pgalloc_dma;
+
 	unsigned long pgfree;		/* page freeings */
 	unsigned long pgactivate;	/* pages moved inactive->active */
 	unsigned long pgdeactivate;	/* pages moved active->inactive */
 
 	unsigned long pgfault;		/* faults (major+minor) */
 	unsigned long pgmajfault;	/* faults (major only) */
+
 	unsigned long pgrefill_high;	/* inspected in refill_inactive_zone */
 	unsigned long pgrefill_normal;
+	unsigned long pgrefill_dma32;
 	unsigned long pgrefill_dma;
 
 	unsigned long pgsteal_high;	/* total highmem pages reclaimed */
 	unsigned long pgsteal_normal;
+	unsigned long pgsteal_dma32;
 	unsigned long pgsteal_dma;
+
 	unsigned long pgscan_kswapd_high;/* total highmem pages scanned */
 	unsigned long pgscan_kswapd_normal;
-
+	unsigned long pgscan_kswapd_dma32;
 	unsigned long pgscan_kswapd_dma;
+
 	unsigned long pgscan_direct_high;/* total highmem pages scanned */
 	unsigned long pgscan_direct_normal;
+	unsigned long pgscan_direct_dma32;
 	unsigned long pgscan_direct_dma;
-	unsigned long pginodesteal;	/* pages reclaimed via inode freeing */
 
+	unsigned long pginodesteal;	/* pages reclaimed via inode freeing */
 	unsigned long slabs_scanned;	/* slab objects scanned */
 	unsigned long kswapd_steal;	/* pages reclaimed by kswapd */
 	unsigned long kswapd_inodesteal;/* reclaimed via kswapd inode freeing */
@@ -150,17 +158,19 @@ extern void __mod_page_state(unsigned long offset, unsigned long delta);
 #define add_page_state(member,delta) mod_page_state(member, (delta))
 #define sub_page_state(member,delta) mod_page_state(member, 0UL - (delta))
 
-#define mod_page_state_zone(zone, member, delta)				\
-	do {									\
-		unsigned offset;						\
-		if (is_highmem(zone))						\
-			offset = offsetof(struct page_state, member##_high);	\
-		else if (is_normal(zone))					\
-			offset = offsetof(struct page_state, member##_normal);	\
-		else								\
-			offset = offsetof(struct page_state, member##_dma);	\
-		__mod_page_state(offset, (delta));				\
-	} while (0)
+#define mod_page_state_zone(zone, member, delta)			\
+ do {									\
+	unsigned offset;						\
+	if (is_highmem(zone))						\
+		offset = offsetof(struct page_state, member##_high);	\
+	else if (is_normal(zone))					\
+		offset = offsetof(struct page_state, member##_normal);	\
+	else if (is_dma32(zone))					\
+		offset = offsetof(struct page_state, member##_dma32);	\
+	else								\
+		offset = offsetof(struct page_state, member##_dma);	\
+	__mod_page_state(offset, (delta));				\
+ } while (0)
 
 /*
  * Manipulation of page state flags
