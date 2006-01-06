@@ -478,7 +478,7 @@ int sync_page_io(struct block_device *bdev, sector_t sector, int size,
 	bio_put(bio);
 	return ret;
 }
-EXPORT_SYMBOL(sync_page_io);
+EXPORT_SYMBOL_GPL(sync_page_io);
 
 static int read_disk_sb(mdk_rdev_t * rdev, int size)
 {
