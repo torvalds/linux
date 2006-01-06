@@ -126,7 +126,7 @@
 
 #include <asm/page.h>
 #ifdef CONFIG_MMU
-#define NONCACHE_OFFSET  __PAGE_OFFSET+0x20000000
+#define NONCACHE_OFFSET  (__PAGE_OFFSET + 0x20000000)
 #else
 #define NONCACHE_OFFSET  __PAGE_OFFSET
 #endif /* CONFIG_MMU */
