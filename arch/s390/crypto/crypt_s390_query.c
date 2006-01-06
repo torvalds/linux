@@ -48,16 +48,20 @@ static void query_available_functions(void)
 		crypt_s390_func_available(KIMD_QUERY));
 	printk(KERN_INFO "KIMD_SHA_1: %d\n",
 		crypt_s390_func_available(KIMD_SHA_1));
+	printk(KERN_INFO "KIMD_SHA_256: %d\n",
+		crypt_s390_func_available(KIMD_SHA_256));
 
 	/* query available KLMD functions */
 	printk(KERN_INFO "KLMD_QUERY: %d\n",
 		crypt_s390_func_available(KLMD_QUERY));
 	printk(KERN_INFO "KLMD_SHA_1: %d\n",
 		crypt_s390_func_available(KLMD_SHA_1));
+	printk(KERN_INFO "KLMD_SHA_256: %d\n",
+		crypt_s390_func_available(KLMD_SHA_256));
 
 	/* query available KMAC functions */
 	printk(KERN_INFO "KMAC_QUERY: %d\n",
-		crypt_s3990_func_available(KMAC_QUERY));
+		crypt_s390_func_available(KMAC_QUERY));
 	printk(KERN_INFO "KMAC_DEA: %d\n",
 		crypt_s390_func_available(KMAC_DEA));
 	printk(KERN_INFO "KMAC_TDEA_128: %d\n",

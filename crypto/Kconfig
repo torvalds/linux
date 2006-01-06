@@ -44,6 +44,7 @@ config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm (s390)"
 	depends on CRYPTO && ARCH_S390
 	help
+	  This is the s390 hardware accelerated implementation of the
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA256
@@ -52,6 +53,16 @@ config CRYPTO_SHA256
 	help
 	  SHA256 secure hash standard (DFIPS 180-2).
 	  
+	  This version of SHA implements a 256 bit hash with 128 bits of
+	  security against collision attacks.
+
+config CRYPTO_SHA256_S390
+	tristate "SHA256 digest algorithm (s390)"
+	depends on CRYPTO && ARCH_S390
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA256 secure hash standard (DFIPS 180-2).
+
 	  This version of SHA implements a 256 bit hash with 128 bits of
 	  security against collision attacks.
 

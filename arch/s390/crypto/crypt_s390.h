@@ -61,6 +61,7 @@ enum crypt_s390_kmc_func {
 enum crypt_s390_kimd_func {
 	KIMD_QUERY   = CRYPT_S390_KIMD | 0,
 	KIMD_SHA_1   = CRYPT_S390_KIMD | 1,
+	KIMD_SHA_256 = CRYPT_S390_KIMD | 2,
 };
 
 /* function codes for KLMD (COMPUTE LAST MESSAGE DIGEST)
@@ -69,6 +70,7 @@ enum crypt_s390_kimd_func {
 enum crypt_s390_klmd_func {
 	KLMD_QUERY   = CRYPT_S390_KLMD | 0,
 	KLMD_SHA_1   = CRYPT_S390_KLMD | 1,
+	KLMD_SHA_256 = CRYPT_S390_KLMD | 2,
 };
 
 /* function codes for KMAC (COMPUTE MESSAGE AUTHENTICATION CODE)
