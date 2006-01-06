@@ -217,12 +217,11 @@ static int dabusb_alloc_buffers (pdabusb_t s)
 		 pipesize, packets, transfer_buffer_length);
 
 	while (buffers < (s->total_buffer_size << 10)) {
-		b = (pbuff_t) kmalloc (sizeof (buff_t), GFP_KERNEL);
+		b = (pbuff_t) kzalloc (sizeof (buff_t), GFP_KERNEL);
 		if (!b) {
-			err("kmalloc(sizeof(buff_t))==NULL");
+			err("kzalloc(sizeof(buff_t))==NULL");
 			goto err;
 		}
-		memset (b, 0, sizeof (buff_t));
 		b->s = s;
 		b->purb = usb_alloc_urb(packets, GFP_KERNEL);
 		if (!b->purb) {
