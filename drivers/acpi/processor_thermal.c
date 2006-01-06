@@ -394,6 +394,7 @@ ssize_t acpi_processor_write_limit(struct file * file,
 struct file_operations acpi_processor_limit_fops = {
 	.open = acpi_processor_limit_open_fs,
 	.read = seq_read,
+	.write = acpi_processor_write_limit,
 	.llseek = seq_lseek,
 	.release = single_release,
 };

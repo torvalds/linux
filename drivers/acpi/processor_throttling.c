@@ -337,6 +337,7 @@ ssize_t acpi_processor_write_throttling(struct file * file,
 struct file_operations acpi_processor_throttling_fops = {
 	.open = acpi_processor_throttling_open_fs,
 	.read = seq_read,
+	.write = acpi_processor_write_throttling,
 	.llseek = seq_lseek,
 	.release = single_release,
 };

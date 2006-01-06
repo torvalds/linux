@@ -357,7 +357,6 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 				  ACPI_PROCESSOR_FILE_THROTTLING));
 	else {
 		entry->proc_fops = &acpi_processor_throttling_fops;
-		entry->proc_fops->write = acpi_processor_write_throttling;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
@@ -372,7 +371,6 @@ static int acpi_processor_add_fs(struct acpi_device *device)
 				  ACPI_PROCESSOR_FILE_LIMIT));
 	else {
 		entry->proc_fops = &acpi_processor_limit_fops;
-		entry->proc_fops->write = acpi_processor_write_limit;
 		entry->data = acpi_driver_data(device);
 		entry->owner = THIS_MODULE;
 	}
