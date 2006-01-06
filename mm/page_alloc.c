@@ -1169,12 +1169,11 @@ EXPORT_SYMBOL(nr_pagecache);
 DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
 #endif
 
-void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
+static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
 {
 	int cpu = 0;
 
 	memset(ret, 0, sizeof(*ret));
-	cpus_and(*cpumask, *cpumask, cpu_online_map);
 
 	cpu = first_cpu(*cpumask);
 	while (cpu < NR_CPUS) {
@@ -1227,7 +1226,7 @@ unsigned long __read_page_state(unsigned long offset)
 	unsigned long ret = 0;
 	int cpu;
 
-	for_each_online_cpu(cpu) {
+	for_each_cpu(cpu) {
 		unsigned long in;
 
 		in = (unsigned long)&per_cpu(page_states, cpu) + offset;
