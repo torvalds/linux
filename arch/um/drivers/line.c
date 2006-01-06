@@ -774,55 +774,49 @@ void register_winch_irq(int fd, int tty_fd, int pid, struct tty_struct *tty)
 		printk("register_winch_irq - failed to register IRQ\n");
 }
 
-static void unregister_winch(struct tty_struct *tty)
+static void free_winch(struct winch *winch)
 {
-	struct list_head *ele;
-	struct winch *winch, *found = NULL;
-
-	spin_lock(&winch_handler_lock);
-	list_for_each(ele, &winch_handlers){
-		winch = list_entry(ele, struct winch, list);
-                if(winch->tty == tty){
-                        found = winch;
-                        break;
-                }
-        }
-        if(found == NULL)
-		goto err;
-
 	list_del(&winch->list);
-	spin_unlock(&winch_handler_lock);
 
-        if(winch->pid != -1)
-                os_kill_process(winch->pid, 1);
+	if(winch->pid != -1)
+		os_kill_process(winch->pid, 1);
+	if(winch->fd != -1)
+		os_close_file(winch->fd);
 
-        free_irq(WINCH_IRQ, winch);
-        kfree(winch);
-
-	return;
-err:
-	spin_unlock(&winch_handler_lock);
+	free_irq(WINCH_IRQ, winch);
+	kfree(winch);
 }
 
-/* XXX: No lock as it's an exitcall... is this valid? Depending on cleanup
- * order... are we sure that nothing else is done on the list? */
-static void winch_cleanup(void)
+static void unregister_winch(struct tty_struct *tty)
 {
 	struct list_head *ele;
 	struct winch *winch;
 
+	spin_lock(&winch_handler_lock);
+
 	list_for_each(ele, &winch_handlers){
 		winch = list_entry(ele, struct winch, list);
-		if(winch->fd != -1){
-			/* Why is this different from the above free_irq(),
-			 * which deactivates SIGIO? This searches the FD
-			 * somewhere else and removes it from the list... */
-			deactivate_fd(winch->fd, WINCH_IRQ);
-			os_close_file(winch->fd);
-		}
-		if(winch->pid != -1)
-			os_kill_process(winch->pid, 1);
+                if(winch->tty == tty){
+			free_winch(winch);
+			break;
+                }
+        }
+	spin_unlock(&winch_handler_lock);
+}
+
+static void winch_cleanup(void)
+{
+	struct list_head *ele, *next;
+	struct winch *winch;
+
+	spin_lock(&winch_handler_lock);
+
+	list_for_each_safe(ele, next, &winch_handlers){
+		winch = list_entry(ele, struct winch, list);
+		free_winch(winch);
 	}
+
+	spin_unlock(&winch_handler_lock);
 }
 __uml_exitcall(winch_cleanup);
 
