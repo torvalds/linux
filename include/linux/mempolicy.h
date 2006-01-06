@@ -110,14 +110,6 @@ static inline int mpol_equal(struct mempolicy *a, struct mempolicy *b)
 #define mpol_set_vma_default(vma) ((vma)->vm_policy = NULL)
 
 /*
- * Hugetlb policy. i386 hugetlb so far works with node numbers
- * instead of zone lists, so give it special interfaces for now.
- */
-extern int mpol_first_node(struct vm_area_struct *vma, unsigned long addr);
-extern int mpol_node_valid(int nid, struct vm_area_struct *vma,
-			unsigned long addr);
-
-/*
  * Tree of shared policies for a shared memory region.
  * Maintain the policies in a pseudo mm that contains vmas. The vmas
  * carry the policy. As a special twist the pseudo mm is indexed in pages, not
@@ -182,17 +174,6 @@ static inline void mpol_get(struct mempolicy *pol)
 static inline struct mempolicy *mpol_copy(struct mempolicy *old)
 {
 	return NULL;
-}
-
-static inline int mpol_first_node(struct vm_area_struct *vma, unsigned long a)
-{
-	return numa_node_id();
-}
-
-static inline int
-mpol_node_valid(int nid, struct vm_area_struct *vma, unsigned long a)
-{
-	return 1;
 }
 
 struct shared_policy {};

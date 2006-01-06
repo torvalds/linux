@@ -961,54 +961,6 @@ void __mpol_free(struct mempolicy *p)
 }
 
 /*
- * Hugetlb policy. Same as above, just works with node numbers instead of
- * zonelists.
- */
-
-/* Find first node suitable for an allocation */
-int mpol_first_node(struct vm_area_struct *vma, unsigned long addr)
-{
-	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-
-	switch (pol->policy) {
-	case MPOL_DEFAULT:
-		return numa_node_id();
-	case MPOL_BIND:
-		return pol->v.zonelist->zones[0]->zone_pgdat->node_id;
-	case MPOL_INTERLEAVE:
-		return interleave_nodes(pol);
-	case MPOL_PREFERRED:
-		return pol->v.preferred_node >= 0 ?
-				pol->v.preferred_node : numa_node_id();
-	}
-	BUG();
-	return 0;
-}
-
-/* Find secondary valid nodes for an allocation */
-int mpol_node_valid(int nid, struct vm_area_struct *vma, unsigned long addr)
-{
-	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-
-	switch (pol->policy) {
-	case MPOL_PREFERRED:
-	case MPOL_DEFAULT:
-	case MPOL_INTERLEAVE:
-		return 1;
-	case MPOL_BIND: {
-		struct zone **z;
-		for (z = pol->v.zonelist->zones; *z; z++)
-			if ((*z)->zone_pgdat->node_id == nid)
-				return 1;
-		return 0;
-	}
-	default:
-		BUG();
-		return 0;
-	}
-}
-
-/*
  * Shared memory backing store policy support.
  *
  * Remember policies even when nobody has shared memory mapped.
