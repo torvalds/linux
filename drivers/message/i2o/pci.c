@@ -483,4 +483,5 @@ void __exit i2o_pci_exit(void)
 {
 	pci_unregister_driver(&i2o_pci_driver);
 };
+
 MODULE_DEVICE_TABLE(pci, i2o_pci_ids);

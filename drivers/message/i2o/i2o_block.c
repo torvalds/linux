@@ -130,20 +130,20 @@ static int i2o_block_remove(struct device *dev)
  */
 static int i2o_block_device_flush(struct i2o_device *dev)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 
-	m = i2o_msg_get_wait(dev->iop, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(dev->iop, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_BLOCK_CFLUSH << 24 | HOST_TID << 12 | dev->lct_data.tid,
-	       &msg->u.head[1]);
-	writel(60 << 16, &msg->body[0]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_BLOCK_CFLUSH << 24 | HOST_TID << 12 | dev->
+			lct_data.tid);
+	msg->body[0] = cpu_to_le32(60 << 16);
 	osm_debug("Flushing...\n");
 
-	return i2o_msg_post_wait(dev->iop, m, 60);
+	return i2o_msg_post_wait(dev->iop, msg, 60);
 };
 
 /**
@@ -181,21 +181,21 @@ static int i2o_block_issue_flush(request_queue_t * queue, struct gendisk *disk,
  */
 static int i2o_block_device_mount(struct i2o_device *dev, u32 media_id)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 
-	m = i2o_msg_get_wait(dev->iop, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(dev->iop, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_BLOCK_MMOUNT << 24 | HOST_TID << 12 | dev->lct_data.tid,
-	       &msg->u.head[1]);
-	writel(-1, &msg->body[0]);
-	writel(0, &msg->body[1]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_BLOCK_MMOUNT << 24 | HOST_TID << 12 | dev->
+			lct_data.tid);
+	msg->body[0] = cpu_to_le32(-1);
+	msg->body[1] = cpu_to_le32(0x00000000);
 	osm_debug("Mounting...\n");
 
-	return i2o_msg_post_wait(dev->iop, m, 2);
+	return i2o_msg_post_wait(dev->iop, msg, 2);
 };
 
 /**
@@ -210,20 +210,20 @@ static int i2o_block_device_mount(struct i2o_device *dev, u32 media_id)
  */
 static int i2o_block_device_lock(struct i2o_device *dev, u32 media_id)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 
-	m = i2o_msg_get_wait(dev->iop, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(dev->iop, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg) == I2O_QUEUE_EMPTY)
+		return PTR_ERR(msg);
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_BLOCK_MLOCK << 24 | HOST_TID << 12 | dev->lct_data.tid,
-	       &msg->u.head[1]);
-	writel(-1, &msg->body[0]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_BLOCK_MLOCK << 24 | HOST_TID << 12 | dev->
+			lct_data.tid);
+	msg->body[0] = cpu_to_le32(-1);
 	osm_debug("Locking...\n");
 
-	return i2o_msg_post_wait(dev->iop, m, 2);
+	return i2o_msg_post_wait(dev->iop, msg, 2);
 };
 
 /**
@@ -238,20 +238,20 @@ static int i2o_block_device_lock(struct i2o_device *dev, u32 media_id)
  */
 static int i2o_block_device_unlock(struct i2o_device *dev, u32 media_id)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 
-	m = i2o_msg_get_wait(dev->iop, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(dev->iop, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_BLOCK_MUNLOCK << 24 | HOST_TID << 12 | dev->lct_data.tid,
-	       &msg->u.head[1]);
-	writel(media_id, &msg->body[0]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_BLOCK_MUNLOCK << 24 | HOST_TID << 12 | dev->
+			lct_data.tid);
+	msg->body[0] = cpu_to_le32(media_id);
 	osm_debug("Unlocking...\n");
 
-	return i2o_msg_post_wait(dev->iop, m, 2);
+	return i2o_msg_post_wait(dev->iop, msg, 2);
 };
 
 /**
@@ -267,21 +267,21 @@ static int i2o_block_device_power(struct i2o_block_device *dev, u8 op)
 {
 	struct i2o_device *i2o_dev = dev->i2o_dev;
 	struct i2o_controller *c = i2o_dev->iop;
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 	int rc;
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FOUR_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_BLOCK_POWER << 24 | HOST_TID << 12 | i2o_dev->lct_data.
-	       tid, &msg->u.head[1]);
-	writel(op << 24, &msg->body[0]);
+	msg->u.head[0] = cpu_to_le32(FOUR_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_BLOCK_POWER << 24 | HOST_TID << 12 | i2o_dev->
+			lct_data.tid);
+	msg->body[0] = cpu_to_le32(op << 24);
 	osm_debug("Power...\n");
 
-	rc = i2o_msg_post_wait(c, m, 60);
+	rc = i2o_msg_post_wait(c, msg, 60);
 	if (!rc)
 		dev->power = op;
 
@@ -331,7 +331,7 @@ static inline void i2o_block_request_free(struct i2o_block_request *ireq)
  */
 static inline int i2o_block_sglist_alloc(struct i2o_controller *c,
 					 struct i2o_block_request *ireq,
-					 u32 __iomem ** mptr)
+					 u32 ** mptr)
 {
 	int nents;
 	enum dma_data_direction direction;
@@ -745,10 +745,9 @@ static int i2o_block_transfer(struct request *req)
 	struct i2o_block_device *dev = req->rq_disk->private_data;
 	struct i2o_controller *c;
 	int tid = dev->i2o_dev->lct_data.tid;
-	struct i2o_message __iomem *msg;
-	u32 __iomem *mptr;
+	struct i2o_message *msg;
+	u32 *mptr;
 	struct i2o_block_request *ireq = req->special;
-	u32 m;
 	u32 tcntxt;
 	u32 sgl_offset = SGL_OFFSET_8;
 	u32 ctl_flags = 0x00000000;
@@ -763,9 +762,9 @@ static int i2o_block_transfer(struct request *req)
 
 	c = dev->i2o_dev->iop;
 
-	m = i2o_msg_get(c, &msg);
-	if (m == I2O_QUEUE_EMPTY) {
-		rc = -EBUSY;
+	msg = i2o_msg_get(c);
+	if (IS_ERR(msg)) {
+		rc = PTR_ERR(msg);
 		goto exit;
 	}
 
@@ -775,8 +774,8 @@ static int i2o_block_transfer(struct request *req)
 		goto nop_msg;
 	}
 
-	writel(i2o_block_driver.context, &msg->u.s.icntxt);
-	writel(tcntxt, &msg->u.s.tcntxt);
+	msg->u.s.icntxt = cpu_to_le32(i2o_block_driver.context);
+	msg->u.s.tcntxt = cpu_to_le32(tcntxt);
 
 	mptr = &msg->body[0];
 
@@ -834,11 +833,11 @@ static int i2o_block_transfer(struct request *req)
 
 		sgl_offset = SGL_OFFSET_12;
 
-		writel(I2O_CMD_PRIVATE << 24 | HOST_TID << 12 | tid,
-		       &msg->u.head[1]);
+		msg->u.head[1] =
+		    cpu_to_le32(I2O_CMD_PRIVATE << 24 | HOST_TID << 12 | tid);
 
-		writel(I2O_VENDOR_DPT << 16 | I2O_CMD_SCSI_EXEC, mptr++);
-		writel(tid, mptr++);
+		*mptr++ = cpu_to_le32(I2O_VENDOR_DPT << 16 | I2O_CMD_SCSI_EXEC);
+		*mptr++ = cpu_to_le32(tid);
 
 		/*
 		 * ENABLE_DISCONNECT
@@ -853,22 +852,24 @@ static int i2o_block_transfer(struct request *req)
 			scsi_flags = 0xa0a0000a;
 		}
 
-		writel(scsi_flags, mptr++);
+		*mptr++ = cpu_to_le32(scsi_flags);
 
 		*((u32 *) & cmd[2]) = cpu_to_be32(req->sector * hwsec);
 		*((u16 *) & cmd[7]) = cpu_to_be16(req->nr_sectors * hwsec);
 
-		memcpy_toio(mptr, cmd, 10);
+		memcpy(mptr, cmd, 10);
 		mptr += 4;
-		writel(req->nr_sectors << KERNEL_SECTOR_SHIFT, mptr++);
+		*mptr++ = cpu_to_le32(req->nr_sectors << KERNEL_SECTOR_SHIFT);
 	} else
 #endif
 	{
-		writel(cmd | HOST_TID << 12 | tid, &msg->u.head[1]);
-		writel(ctl_flags, mptr++);
-		writel(req->nr_sectors << KERNEL_SECTOR_SHIFT, mptr++);
-		writel((u32) (req->sector << KERNEL_SECTOR_SHIFT), mptr++);
-		writel(req->sector >> (32 - KERNEL_SECTOR_SHIFT), mptr++);
+		msg->u.head[1] = cpu_to_le32(cmd | HOST_TID << 12 | tid);
+		*mptr++ = cpu_to_le32(ctl_flags);
+		*mptr++ = cpu_to_le32(req->nr_sectors << KERNEL_SECTOR_SHIFT);
+		*mptr++ =
+		    cpu_to_le32((u32) (req->sector << KERNEL_SECTOR_SHIFT));
+		*mptr++ =
+		    cpu_to_le32(req->sector >> (32 - KERNEL_SECTOR_SHIFT));
 	}
 
 	if (!i2o_block_sglist_alloc(c, ireq, &mptr)) {
@@ -876,13 +877,13 @@ static int i2o_block_transfer(struct request *req)
 		goto context_remove;
 	}
 
-	writel(I2O_MESSAGE_SIZE(mptr - &msg->u.head[0]) |
-	       sgl_offset, &msg->u.head[0]);
+	msg->u.head[0] =
+	    cpu_to_le32(I2O_MESSAGE_SIZE(mptr - &msg->u.head[0]) | sgl_offset);
 
 	list_add_tail(&ireq->queue, &dev->open_queue);
 	dev->open_queue_depth++;
 
-	i2o_msg_post(c, m);
+	i2o_msg_post(c, msg);
 
 	return 0;
 
@@ -890,7 +891,7 @@ static int i2o_block_transfer(struct request *req)
 	i2o_cntxt_list_remove(c, req);
 
       nop_msg:
-	i2o_msg_nop(c, m);
+	i2o_msg_nop(c, msg);
 
       exit:
 	return rc;

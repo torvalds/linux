@@ -35,18 +35,18 @@
 static inline int i2o_device_issue_claim(struct i2o_device *dev, u32 cmd,
 					 u32 type)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 
-	m = i2o_msg_get_wait(dev->iop, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(dev->iop, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(cmd << 24 | HOST_TID << 12 | dev->lct_data.tid, &msg->u.head[1]);
-	writel(type, &msg->body[0]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+		cpu_to_le32(cmd << 24 | HOST_TID << 12 | dev->lct_data.tid);
+	msg->body[0] = cpu_to_le32(type);
 
-	return i2o_msg_post_wait(dev->iop, m, 60);
+	return i2o_msg_post_wait(dev->iop, msg, 60);
 }
 
 /**
@@ -419,10 +419,9 @@ int i2o_device_parse_lct(struct i2o_controller *c)
  *	ResultCount, ErrorInfoSize, BlockStatus and BlockSize.
  */
 int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
-			  int oplen, void *reslist, int reslen)
+		   int oplen, void *reslist, int reslen)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 	u32 *res32 = (u32 *) reslist;
 	u32 *restmp = (u32 *) reslist;
 	int len = 0;
@@ -437,26 +436,28 @@ int i2o_parm_issue(struct i2o_device *i2o_dev, int cmd, void *oplist,
 	if (i2o_dma_alloc(dev, &res, reslen, GFP_KERNEL))
 		return -ENOMEM;
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY) {
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg)) {
 		i2o_dma_free(dev, &res);
-		return -ETIMEDOUT;
+		return PTR_ERR(msg);
 	}
 
 	i = 0;
-	writel(cmd << 24 | HOST_TID << 12 | i2o_dev->lct_data.tid,
-	       &msg->u.head[1]);
-	writel(0, &msg->body[i++]);
-	writel(0x4C000000 | oplen, &msg->body[i++]);	/* OperationList */
-	memcpy_toio(&msg->body[i], oplist, oplen);
+	msg->u.head[1] =
+	    cpu_to_le32(cmd << 24 | HOST_TID << 12 | i2o_dev->lct_data.tid);
+	msg->body[i++] = cpu_to_le32(0x00000000);
+	msg->body[i++] = cpu_to_le32(0x4C000000 | oplen);	/* OperationList */
+	memcpy(&msg->body[i], oplist, oplen);
+
 	i += (oplen / 4 + (oplen % 4 ? 1 : 0));
-	writel(0xD0000000 | res.len, &msg->body[i++]);	/* ResultList */
-	writel(res.phys, &msg->body[i++]);
+	msg->body[i++] = cpu_to_le32(0xD0000000 | res.len);	/* ResultList */
+	msg->body[i++] = cpu_to_le32(res.phys);
 
-	writel(I2O_MESSAGE_SIZE(i + sizeof(struct i2o_message) / 4) |
-	       SGL_OFFSET_5, &msg->u.head[0]);
+	msg->u.head[0] =
+	    cpu_to_le32(I2O_MESSAGE_SIZE(i + sizeof(struct i2o_message) / 4) |
+			SGL_OFFSET_5);
 
-	rc = i2o_msg_post_wait_mem(c, m, 10, &res);
+	rc = i2o_msg_post_wait_mem(c, msg, 10, &res);
 
 	/* This only looks like a memory leak - don't "fix" it. */
 	if (rc == -ETIMEDOUT)
