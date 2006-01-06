@@ -48,7 +48,6 @@ static inline unsigned keyring_hash(const char *desc)
  */
 static int keyring_instantiate(struct key *keyring,
 			       const void *data, size_t datalen);
-static int keyring_duplicate(struct key *keyring, const struct key *source);
 static int keyring_match(const struct key *keyring, const void *criterion);
 static void keyring_destroy(struct key *keyring);
 static void keyring_describe(const struct key *keyring, struct seq_file *m);
@@ -59,7 +58,6 @@ struct key_type key_type_keyring = {
 	.name		= "keyring",
 	.def_datalen	= sizeof(struct keyring_list),
 	.instantiate	= keyring_instantiate,
-	.duplicate	= keyring_duplicate,
 	.match		= keyring_match,
 	.destroy	= keyring_destroy,
 	.describe	= keyring_describe,
@@ -117,68 +115,6 @@ static int keyring_instantiate(struct key *keyring,
 	return ret;
 
 } /* end keyring_instantiate() */
-
-/*****************************************************************************/
-/*
- * duplicate the list of subscribed keys from a source keyring into this one
- */
-static int keyring_duplicate(struct key *keyring, const struct key *source)
-{
-	struct keyring_list *sklist, *klist;
-	unsigned max;
-	size_t size;
-	int loop, ret;
-
-	const unsigned limit =
-		(PAGE_SIZE - sizeof(*klist)) / sizeof(struct key *);
-
-	ret = 0;
-
-	/* find out how many keys are currently linked */
-	rcu_read_lock();
-	sklist = rcu_dereference(source->payload.subscriptions);
-	max = 0;
-	if (sklist)
-		max = sklist->nkeys;
-	rcu_read_unlock();
-
-	/* allocate a new payload and stuff load with key links */
-	if (max > 0) {
-		BUG_ON(max > limit);
-
-		max = (max + 3) & ~3;
-		if (max > limit)
-			max = limit;
-
-		ret = -ENOMEM;
-		size = sizeof(*klist) + sizeof(struct key *) * max;
-		klist = kmalloc(size, GFP_KERNEL);
-		if (!klist)
-			goto error;
-
-		/* set links */
-		rcu_read_lock();
-		sklist = rcu_dereference(source->payload.subscriptions);
-
-		klist->maxkeys = max;
-		klist->nkeys = sklist->nkeys;
-		memcpy(klist->keys,
-		       sklist->keys,
-		       sklist->nkeys * sizeof(struct key *));
-
-		for (loop = klist->nkeys - 1; loop >= 0; loop--)
-			atomic_inc(&klist->keys[loop]->usage);
-
-		rcu_read_unlock();
-
-		rcu_assign_pointer(keyring->payload.subscriptions, klist);
-		ret = 0;
-	}
-
- error:
-	return ret;
-
-} /* end keyring_duplicate() */
 
 /*****************************************************************************/
 /*
