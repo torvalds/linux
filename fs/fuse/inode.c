@@ -135,12 +135,8 @@ static void fuse_init_inode(struct inode *inode, struct fuse_attr *attr)
 		fuse_init_common(inode);
 		init_special_inode(inode, inode->i_mode,
 				   new_decode_dev(attr->rdev));
-	} else {
-		/* Don't let user create weird files */
-		inode->i_mode = S_IFREG;
-		fuse_init_common(inode);
-		fuse_init_file_inode(inode);
-	}
+	} else
+		BUG();
 }
 
 static int fuse_inode_eq(struct inode *inode, void *_nodeidp)

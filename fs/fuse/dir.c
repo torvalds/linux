@@ -166,6 +166,12 @@ static struct dentry_operations fuse_dentry_operations = {
 	.d_revalidate	= fuse_dentry_revalidate,
 };
 
+static inline int valid_mode(int m)
+{
+	return S_ISREG(m) || S_ISDIR(m) || S_ISLNK(m) || S_ISCHR(m) ||
+		S_ISBLK(m) || S_ISFIFO(m) || S_ISSOCK(m);
+}
+
 static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 				  struct nameidata *nd)
 {
@@ -185,7 +191,8 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
 	err = req->out.h.error;
-	if (!err && outarg.nodeid && invalid_nodeid(outarg.nodeid))
+	if (!err && ((outarg.nodeid && invalid_nodeid(outarg.nodeid)) ||
+		     !valid_mode(outarg.attr.mode)))
 		err = -EIO;
 	if (!err && outarg.nodeid) {
 		inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
@@ -328,10 +335,13 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 		fuse_put_request(fc, req);
 		return err;
 	}
-	if (invalid_nodeid(outarg.nodeid)) {
-		fuse_put_request(fc, req);
-		return -EIO;
-	}
+	err = -EIO;
+	if (invalid_nodeid(outarg.nodeid))
+		goto out_put_request;
+
+	if ((outarg.attr.mode ^ mode) & S_IFMT)
+		goto out_put_request;
+
 	inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
 			  &outarg.attr);
 	if (!inode) {
@@ -340,8 +350,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	}
 	fuse_put_request(fc, req);
 
-	/* Don't allow userspace to do really stupid things... */
-	if (((inode->i_mode ^ mode) & S_IFMT) || dir_alias(inode)) {
+	if (dir_alias(inode)) {
 		iput(inode);
 		return -EIO;
 	}
@@ -350,6 +359,10 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	fuse_change_timeout(entry, &outarg);
 	fuse_invalidate_attr(dir);
 	return 0;
+
+ out_put_request:
+	fuse_put_request(fc, req);
+	return err;
 }
 
 static int fuse_mknod(struct inode *dir, struct dentry *entry, int mode,
