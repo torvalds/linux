@@ -383,12 +383,10 @@ static const struct {
 				[UC]  = (IB_QP_CUR_STATE             |
 					 IB_QP_ALT_PATH              |
 					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_PKEY_INDEX            |
 					 IB_QP_PATH_MIG_STATE),
 				[RC]  = (IB_QP_CUR_STATE             |
 					 IB_QP_ALT_PATH              |
 					 IB_QP_ACCESS_FLAGS          |
-					 IB_QP_PKEY_INDEX            |
 					 IB_QP_MIN_RNR_TIMER         |
 					 IB_QP_PATH_MIG_STATE),
 				[MLX] = (IB_QP_CUR_STATE             |
