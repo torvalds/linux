@@ -232,34 +232,12 @@ static void scsi_disk_put(struct scsi_disk *sdkp)
  **/
 static int sd_init_command(struct scsi_cmnd * SCpnt)
 {
-	unsigned int this_count, timeout;
-	struct gendisk *disk;
-	sector_t block;
 	struct scsi_device *sdp = SCpnt->device;
 	struct request *rq = SCpnt->request;
-
-	timeout = sdp->timeout;
-
-	/*
-	 * SG_IO from block layer already setup, just copy cdb basically
-	 */
-	if (blk_pc_request(rq)) {
-		scsi_setup_blk_pc_cmnd(SCpnt);
-		if (rq->timeout)
-			timeout = rq->timeout;
-
-		goto queue;
-	}
-
-	/*
-	 * we only do REQ_CMD and REQ_BLOCK_PC
-	 */
-	if (!blk_fs_request(rq))
-		return 0;
-
-	disk = rq->rq_disk;
-	block = rq->sector;
-	this_count = SCpnt->request_bufflen >> 9;
+	struct gendisk *disk = rq->rq_disk;
+	sector_t block = rq->sector;
+	unsigned int this_count = SCpnt->request_bufflen >> 9;
+	unsigned int timeout = sdp->timeout;
 
 	SCSI_LOG_HLQUEUE(1, printk("sd_init_command: disk=%s, block=%llu, "
 			    "count=%d\n", disk->disk_name,
@@ -402,8 +380,6 @@ static int sd_init_command(struct scsi_cmnd * SCpnt)
 	SCpnt->transfersize = sdp->sector_size;
 	SCpnt->underflow = this_count << 9;
 	SCpnt->allowed = SD_MAX_RETRIES;
-
-queue:
 	SCpnt->timeout_per_command = timeout;
 
 	/*
@@ -837,15 +813,7 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 	   relatively rare error condition, no care is taken to avoid
 	   unnecessary additional work such as memcpy's that could be avoided.
 	 */
-
-	/* 
-	 * If SG_IO from block layer then set good_bytes to stop retries;
-	 * else if errors, check them, and if necessary prepare for
-	 * (partial) retries.
-	 */
-	if (blk_pc_request(SCpnt->request))
-		good_bytes = this_count;
-	else if (driver_byte(result) != 0 &&
+	if (driver_byte(result) != 0 &&
 		 sense_valid && !sense_deferred) {
 		switch (sshdr.sense_key) {
 		case MEDIUM_ERROR:

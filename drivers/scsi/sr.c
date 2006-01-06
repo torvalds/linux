@@ -238,8 +238,6 @@ static void rw_intr(struct scsi_cmnd * SCpnt)
 		case ILLEGAL_REQUEST:
 			if (!(SCpnt->sense_buffer[0] & 0x90))
 				break;
-			if (!blk_fs_request(SCpnt->request))
-				break;
 			error_sector = (SCpnt->sense_buffer[3] << 24) |
 				(SCpnt->sense_buffer[4] << 16) |
 				(SCpnt->sense_buffer[5] << 8) |
@@ -314,23 +312,6 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 		 * quietly refuse to do anything to a changed disc until the
 		 * changed bit has been reset
 		 */
-		return 0;
-	}
-
-	/*
-	 * these are already setup, just copy cdb basically
-	 */
-	if (SCpnt->request->flags & REQ_BLOCK_PC) {
-		scsi_setup_blk_pc_cmnd(SCpnt);
-
-		if (SCpnt->timeout_per_command)
-			timeout = SCpnt->timeout_per_command;
-
-		goto queue;
-	}
-
-	if (!(SCpnt->request->flags & REQ_CMD)) {
-		blk_dump_rq_flags(SCpnt->request, "sr unsup command");
 		return 0;
 	}
 
@@ -422,8 +403,6 @@ static int sr_init_command(struct scsi_cmnd * SCpnt)
 	 */
 	SCpnt->transfersize = cd->device->sector_size;
 	SCpnt->underflow = this_count << 9;
-
-queue:
 	SCpnt->allowed = MAX_RETRIES;
 	SCpnt->timeout_per_command = timeout;
 

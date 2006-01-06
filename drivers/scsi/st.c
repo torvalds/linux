@@ -194,7 +194,6 @@ static int sgl_unmap_user_pages(struct scatterlist *, const unsigned int, int);
 
 static int st_probe(struct device *);
 static int st_remove(struct device *);
-static int st_init_command(struct scsi_cmnd *);
 
 static void do_create_driverfs_files(void);
 static void do_remove_driverfs_files(void);
@@ -207,7 +206,6 @@ static struct scsi_driver st_template = {
 		.probe		= st_probe,
 		.remove		= st_remove,
 	},
-	.init_command		= st_init_command,
 };
 
 static int st_compression(struct scsi_tape *, int);
@@ -4179,29 +4177,6 @@ static void scsi_tape_release(struct kref *kref)
 	put_disk(disk);
 	kfree(tpnt);
 	return;
-}
-
-static void st_intr(struct scsi_cmnd *SCpnt)
-{
-	/*
-	 * The caller should be checking the request's errors
-	 * value.
-	 */
-	scsi_io_completion(SCpnt, SCpnt->bufflen, 0);
-}
-
-/*
- * st_init_command: only called via the scsi_cmd_ioctl (block SG_IO)
- * interface for REQ_BLOCK_PC commands.
- */
-static int st_init_command(struct scsi_cmnd *SCpnt)
-{
-	if (!(SCpnt->request->flags & REQ_BLOCK_PC))
-		return 0;
-
-	scsi_setup_blk_pc_cmnd(SCpnt);
-	SCpnt->done = st_intr;
-	return 1;
 }
 
 static int __init init_st(void)
