@@ -562,16 +562,28 @@ static const u8 ata_rw_cmds[] = {
 	ATA_CMD_WRITE_MULTI,
 	ATA_CMD_READ_MULTI_EXT,
 	ATA_CMD_WRITE_MULTI_EXT,
+	0,
+	0,
+	0,
+	ATA_CMD_WRITE_MULTI_FUA_EXT,
 	/* pio */
 	ATA_CMD_PIO_READ,
 	ATA_CMD_PIO_WRITE,
 	ATA_CMD_PIO_READ_EXT,
 	ATA_CMD_PIO_WRITE_EXT,
+	0,
+	0,
+	0,
+	0,
 	/* dma */
 	ATA_CMD_READ,
 	ATA_CMD_WRITE,
 	ATA_CMD_READ_EXT,
-	ATA_CMD_WRITE_EXT
+	ATA_CMD_WRITE_EXT,
+	0,
+	0,
+	0,
+	ATA_CMD_WRITE_FUA_EXT
 };
 
 /**
@@ -584,25 +596,32 @@ static const u8 ata_rw_cmds[] = {
  *	LOCKING:
  *	caller.
  */
-void ata_rwcmd_protocol(struct ata_queued_cmd *qc)
+int ata_rwcmd_protocol(struct ata_queued_cmd *qc)
 {
 	struct ata_taskfile *tf = &qc->tf;
 	struct ata_device *dev = qc->dev;
+	u8 cmd;
 
-	int index, lba48, write;
+	int index, fua, lba48, write;
  
+	fua = (tf->flags & ATA_TFLAG_FUA) ? 4 : 0;
 	lba48 = (tf->flags & ATA_TFLAG_LBA48) ? 2 : 0;
 	write = (tf->flags & ATA_TFLAG_WRITE) ? 1 : 0;
 
 	if (dev->flags & ATA_DFLAG_PIO) {
 		tf->protocol = ATA_PROT_PIO;
-		index = dev->multi_count ? 0 : 4;
+		index = dev->multi_count ? 0 : 8;
 	} else {
 		tf->protocol = ATA_PROT_DMA;
-		index = 8;
+		index = 16;
 	}
 
-	tf->command = ata_rw_cmds[index + lba48 + write];
+	cmd = ata_rw_cmds[index + fua + lba48 + write];
+	if (cmd) {
+		tf->command = cmd;
+		return 0;
+	}
+	return -1;
 }
 
 static const char * const xfer_mode_str[] = {

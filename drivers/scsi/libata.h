@@ -32,6 +32,8 @@
 #define DRV_VERSION	"1.20"	/* must be exactly four chars */
 
 struct ata_scsi_args {
+	struct ata_port		*ap;
+	struct ata_device	*dev;
 	u16			*id;
 	struct scsi_cmnd	*cmd;
 	void			(*done)(struct scsi_cmnd *);
@@ -41,7 +43,7 @@ struct ata_scsi_args {
 extern int atapi_enabled;
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 				      struct ata_device *dev);
-extern void ata_rwcmd_protocol(struct ata_queued_cmd *qc);
+extern int ata_rwcmd_protocol(struct ata_queued_cmd *qc);
 extern void ata_qc_free(struct ata_queued_cmd *qc);
 extern int ata_qc_issue(struct ata_queued_cmd *qc);
 extern int ata_check_atapi_dma(struct ata_queued_cmd *qc);
