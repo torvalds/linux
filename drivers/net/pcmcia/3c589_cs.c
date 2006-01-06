@@ -143,8 +143,6 @@ DRV_NAME ".c " DRV_VERSION " 2001/10/13 00:08:50 (David Hinds)";
 
 static void tc589_config(dev_link_t *link);
 static void tc589_release(dev_link_t *link);
-static int tc589_event(event_t event, int priority,
-		       event_callback_args_t *args);
 
 static u16 read_eeprom(kio_addr_t ioaddr, int index);
 static void tc589_reset(struct net_device *dev);
@@ -161,12 +159,7 @@ static void el3_tx_timeout(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static struct ethtool_ops netdev_ethtool_ops;
 
-static dev_info_t dev_info = "3c589_cs";
-
-static dev_link_t *tc589_attach(void);
-static void tc589_detach(dev_link_t *);
-
-static dev_link_t *dev_list;
+static void tc589_detach(struct pcmcia_device *p_dev);
 
 /*======================================================================
 
@@ -176,20 +169,18 @@ static dev_link_t *dev_list;
 
 ======================================================================*/
 
-static dev_link_t *tc589_attach(void)
+static int tc589_attach(struct pcmcia_device *p_dev)
 {
     struct el3_private *lp;
-    client_reg_t client_reg;
     dev_link_t *link;
     struct net_device *dev;
-    int ret;
 
     DEBUG(0, "3c589_attach()\n");
-    
+
     /* Create new ethernet device */
     dev = alloc_etherdev(sizeof(struct el3_private));
     if (!dev)
-	 return NULL;
+	 return -ENOMEM;
     lp = netdev_priv(dev);
     link = &lp->link;
     link->priv = dev;
@@ -206,7 +197,7 @@ static dev_link_t *tc589_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
     link->conf.Present = PRESENT_OPTION;
-    
+
     /* The EL3-specific entries in the device structure. */
     SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &el3_start_xmit;
@@ -221,20 +212,13 @@ static dev_link_t *tc589_attach(void)
 #endif
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	tc589_detach(link);
-	return NULL;
-    }
-    
-    return link;
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    tc589_config(link);
+
+    return 0;
 } /* tc589_attach */
 
 /*======================================================================
@@ -246,30 +230,19 @@ static dev_link_t *tc589_attach(void)
 
 ======================================================================*/
 
-static void tc589_detach(dev_link_t *link)
+static void tc589_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
-    
+
     DEBUG(0, "3c589_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->dev)
 	unregister_netdev(dev);
 
     if (link->state & DEV_CONFIG)
 	tc589_release(link);
-    
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
+
     free_netdev(dev);
 } /* tc589_detach */
 
@@ -421,58 +394,37 @@ static void tc589_release(dev_link_t *link)
     link->state &= ~DEV_CONFIG;
 }
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-    
-======================================================================*/
-
-static int tc589_event(event_t event, int priority,
-		       event_callback_args_t *args)
+static int tc589_suspend(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
-    
-    DEBUG(1, "3c589_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	tc589_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
 	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
 	if (link->state & DEV_CONFIG) {
-	    if (link->open)
-		netif_device_detach(dev);
-	    pcmcia_release_configuration(link->handle);
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
 	}
-	break;
-    case CS_EVENT_PM_RESUME:
+
+	return 0;
+}
+
+static int tc589_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
 	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
 	if (link->state & DEV_CONFIG) {
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (link->open) {
-		tc589_reset(dev);
-		netif_device_attach(dev);
-	    }
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			tc589_reset(dev);
+			netif_device_attach(dev);
+		}
 	}
-	break;
-    }
-    return 0;
-} /* tc589_event */
+
+	return 0;
+}
 
 /*====================================================================*/
 
@@ -1067,10 +1019,11 @@ static struct pcmcia_driver tc589_driver = {
 	.drv		= {
 		.name	= "3c589_cs",
 	},
-	.attach		= tc589_attach,
-	.event		= tc589_event,
-	.detach		= tc589_detach,
+	.probe		= tc589_attach,
+	.remove		= tc589_detach,
         .id_table       = tc589_ids,
+	.suspend	= tc589_suspend,
+	.resume		= tc589_resume,
 };
 
 static int __init init_tc589(void)
@@ -1081,7 +1034,6 @@ static int __init init_tc589(void)
 static void __exit exit_tc589(void)
 {
 	pcmcia_unregister_driver(&tc589_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_tc589);

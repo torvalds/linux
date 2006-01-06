@@ -754,19 +754,10 @@ static void
 static int
 	wavelan_open(struct net_device *),		/* Open the device */
 	wavelan_close(struct net_device *);	/* Close the device */
-static dev_link_t *
-	wavelan_attach(void);		/* Create a new device */
 static void
-	wavelan_detach(dev_link_t *);	/* Destroy a removed device */
-static int
-	wavelan_event(event_t,		/* Manage pcmcia events */
-		      int,
-		      event_callback_args_t *);
+	wavelan_detach(struct pcmcia_device *p_dev);	/* Destroy a removed device */
 
 /**************************** VARIABLES ****************************/
-
-static dev_info_t dev_info = "wavelan_cs";
-static dev_link_t *dev_list = NULL;	/* Linked list of devices */
 
 /*
  * Parameters that can be set with 'insmod'

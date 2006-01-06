@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
+#include <linux/if_ether.h>
 #include <net/sock.h>
 
 #include "br_private.h"
@@ -323,7 +324,7 @@ int br_del_bridge(const char *name)
 	return ret;
 }
 
-/* Mtu of the bridge pseudo-device 1500 or the minimum of the ports */
+/* MTU of the bridge pseudo-device: ETH_DATA_LEN or the minimum of the ports */
 int br_min_mtu(const struct net_bridge *br)
 {
 	const struct net_bridge_port *p;
@@ -332,7 +333,7 @@ int br_min_mtu(const struct net_bridge *br)
 	ASSERT_RTNL();
 
 	if (list_empty(&br->port_list))
-		mtu = 1500;
+		mtu = ETH_DATA_LEN;
 	else {
 		list_for_each_entry(p, &br->port_list, list) {
 			if (!mtu  || p->dev->mtu < mtu)

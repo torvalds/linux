@@ -49,6 +49,7 @@
 #include <linux/seq_file.h>
 #include <linux/mroute.h>
 #include <linux/init.h>
+#include <linux/if_ether.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -193,7 +194,7 @@ static struct net_device_stats *reg_vif_get_stats(struct net_device *dev)
 static void reg_vif_setup(struct net_device *dev)
 {
 	dev->type		= ARPHRD_PIMREG;
-	dev->mtu		= 1500 - sizeof(struct iphdr) - 8;
+	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 8;
 	dev->flags		= IFF_NOARP;
 	dev->hard_start_xmit	= reg_vif_xmit;
 	dev->get_stats		= reg_vif_get_stats;

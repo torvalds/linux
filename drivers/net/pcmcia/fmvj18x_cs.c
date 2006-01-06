@@ -88,10 +88,7 @@ static void fmvj18x_config(dev_link_t *link);
 static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id);
 static int fmvj18x_setup_mfc(dev_link_t *link);
 static void fmvj18x_release(dev_link_t *link);
-static int fmvj18x_event(event_t event, int priority,
-			  event_callback_args_t *args);
-static dev_link_t *fmvj18x_attach(void);
-static void fmvj18x_detach(dev_link_t *);
+static void fmvj18x_detach(struct pcmcia_device *p_dev);
 
 /*
     LAN controller(MBH86960A) specific routines
@@ -107,9 +104,6 @@ static struct net_device_stats *fjn_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static void fjn_tx_timeout(struct net_device *dev);
 static struct ethtool_ops netdev_ethtool_ops;
-
-static dev_info_t dev_info = "fmvj18x_cs";
-static dev_link_t *dev_list;
 
 /*
     card type
@@ -234,20 +228,18 @@ typedef struct local_info_t {
 #define BANK_1U              0x24 /* bank 1 (CONFIG_1) */
 #define BANK_2U              0x28 /* bank 2 (CONFIG_1) */
 
-static dev_link_t *fmvj18x_attach(void)
+static int fmvj18x_attach(struct pcmcia_device *p_dev)
 {
     local_info_t *lp;
     dev_link_t *link;
     struct net_device *dev;
-    client_reg_t client_reg;
-    int ret;
-    
+
     DEBUG(0, "fmvj18x_attach()\n");
 
     /* Make up a FMVJ18x specific data structure */
     dev = alloc_etherdev(sizeof(local_info_t));
     if (!dev)
-	return NULL;
+	return -ENOMEM;
     lp = netdev_priv(dev);
     link = &lp->link;
     link->priv = dev;
@@ -262,7 +254,7 @@ static dev_link_t *fmvj18x_attach(void)
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->irq.Handler = &fjn_interrupt;
     link->irq.Instance = dev;
-    
+
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.Vcc = 50;
@@ -281,37 +273,24 @@ static dev_link_t *fmvj18x_attach(void)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-    
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	fmvj18x_detach(link);
-	return NULL;
-    }
 
-    return link;
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    fmvj18x_config(link);
+
+    return 0;
 } /* fmvj18x_attach */
 
 /*====================================================================*/
 
-static void fmvj18x_detach(dev_link_t *link)
+static void fmvj18x_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
-    
+
     DEBUG(0, "fmvj18x_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -319,12 +298,6 @@ static void fmvj18x_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
 	fmvj18x_release(link);
 
-    /* Break the link with Card Services */
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
-    /* Unlink device structure, free pieces */
-    *linkp = link->next;
     free_netdev(dev);
 } /* fmvj18x_detach */
 
@@ -713,51 +686,40 @@ static void fmvj18x_release(dev_link_t *link)
     link->state &= ~DEV_CONFIG;
 }
 
-/*====================================================================*/
-
-static int fmvj18x_event(event_t event, int priority,
-			  event_callback_args_t *args)
+static int fmvj18x_suspend(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
 
-    DEBUG(1, "fmvj18x_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	fmvj18x_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
 	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
 	if (link->state & DEV_CONFIG) {
-	    if (link->open)
-		netif_device_detach(dev);
-	    pcmcia_release_configuration(link->handle);
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
 	}
-	break;
-    case CS_EVENT_PM_RESUME:
+
+
+	return 0;
+}
+
+static int fmvj18x_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
 	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
 	if (link->state & DEV_CONFIG) {
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (link->open) {
-		fjn_reset(dev);
-		netif_device_attach(dev);
-	    }
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			fjn_reset(dev);
+			netif_device_attach(dev);
+		}
 	}
-	break;
-    }
-    return 0;
-} /* fmvj18x_event */
+
+	return 0;
+}
+
+/*====================================================================*/
 
 static struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0004, 0x0004),
@@ -789,10 +751,11 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	.drv		= {
 		.name	= "fmvj18x_cs",
 	},
-	.attach		= fmvj18x_attach,
-	.event		= fmvj18x_event,
-	.detach		= fmvj18x_detach,
+	.probe		= fmvj18x_attach,
+	.remove		= fmvj18x_detach,
 	.id_table       = fmvj18x_ids,
+	.suspend	= fmvj18x_suspend,
+	.resume		= fmvj18x_resume,
 };
 
 static int __init init_fmvj18x_cs(void)
@@ -803,7 +766,6 @@ static int __init init_fmvj18x_cs(void)
 static void __exit exit_fmvj18x_cs(void)
 {
 	pcmcia_unregister_driver(&fmvj18x_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_fmvj18x_cs);

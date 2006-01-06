@@ -57,17 +57,17 @@ static int icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 	return 1;
 }
 
+/* Add 1; spaces filled with 0. */
+static u_int8_t invmap[] = {
+	[ICMPV6_ECHO_REQUEST - 128]	= ICMPV6_ECHO_REPLY + 1,
+	[ICMPV6_ECHO_REPLY - 128]	= ICMPV6_ECHO_REQUEST + 1,
+	[ICMPV6_NI_QUERY - 128]		= ICMPV6_NI_QUERY + 1,
+	[ICMPV6_NI_REPLY - 128]		= ICMPV6_NI_REPLY +1
+};
+
 static int icmpv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 			       const struct nf_conntrack_tuple *orig)
 {
-	/* Add 1; spaces filled with 0. */
-	static u_int8_t invmap[] = {
-		[ICMPV6_ECHO_REQUEST - 128]	= ICMPV6_ECHO_REPLY + 1,
-		[ICMPV6_ECHO_REPLY - 128]	= ICMPV6_ECHO_REQUEST + 1,
-		[ICMPV6_NI_QUERY - 128]		= ICMPV6_NI_QUERY + 1,
-		[ICMPV6_NI_REPLY - 128]		= ICMPV6_NI_REPLY +1
-	};
-
 	int type = orig->dst.u.icmp.type - 128;
 	if (type < 0 || type >= sizeof(invmap) || !invmap[type])
 		return 0;
@@ -185,7 +185,7 @@ icmpv6_error_message(struct sk_buff *skb,
 		return -NF_ACCEPT;
 	}
 
-	inproto = nf_ct_find_proto(PF_INET6, inprotonum);
+	inproto = __nf_ct_proto_find(PF_INET6, inprotonum);
 
 	/* Are they talking about one of our connections? */
 	if (!nf_ct_get_tuple(skb, inip6off, inprotoff, PF_INET6, inprotonum,
@@ -255,6 +255,60 @@ skipped:
 	return icmpv6_error_message(skb, dataoff, ctinfo, hooknum);
 }
 
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
+static int icmpv6_tuple_to_nfattr(struct sk_buff *skb,
+				  const struct nf_conntrack_tuple *t)
+{
+	NFA_PUT(skb, CTA_PROTO_ICMPV6_ID, sizeof(u_int16_t),
+		&t->src.u.icmp.id);
+	NFA_PUT(skb, CTA_PROTO_ICMPV6_TYPE, sizeof(u_int8_t),
+		&t->dst.u.icmp.type);
+	NFA_PUT(skb, CTA_PROTO_ICMPV6_CODE, sizeof(u_int8_t),
+		&t->dst.u.icmp.code);
+
+	return 0;
+
+nfattr_failure:
+	return -1;
+}
+
+static const size_t cta_min_proto[CTA_PROTO_MAX] = {
+	[CTA_PROTO_ICMPV6_TYPE-1] = sizeof(u_int8_t),
+	[CTA_PROTO_ICMPV6_CODE-1] = sizeof(u_int8_t),
+	[CTA_PROTO_ICMPV6_ID-1]   = sizeof(u_int16_t)
+};
+
+static int icmpv6_nfattr_to_tuple(struct nfattr *tb[],
+				struct nf_conntrack_tuple *tuple)
+{
+	if (!tb[CTA_PROTO_ICMPV6_TYPE-1]
+	    || !tb[CTA_PROTO_ICMPV6_CODE-1]
+	    || !tb[CTA_PROTO_ICMPV6_ID-1])
+		return -EINVAL;
+
+	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
+		return -EINVAL;
+
+	tuple->dst.u.icmp.type =
+			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMPV6_TYPE-1]);
+	tuple->dst.u.icmp.code =
+			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMPV6_CODE-1]);
+	tuple->src.u.icmp.id =
+			*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_ICMPV6_ID-1]);
+
+	if (tuple->dst.u.icmp.type < 128
+	    || tuple->dst.u.icmp.type - 128 >= sizeof(invmap)
+	    || !invmap[tuple->dst.u.icmp.type - 128])
+		return -EINVAL;
+
+	return 0;
+}
+#endif
+
 struct nf_conntrack_protocol nf_conntrack_protocol_icmpv6 =
 {
 	.l3proto		= PF_INET6,
@@ -267,6 +321,11 @@ struct nf_conntrack_protocol nf_conntrack_protocol_icmpv6 =
 	.packet			= icmpv6_packet,
 	.new			= icmpv6_new,
 	.error			= icmpv6_error,
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.tuple_to_nfattr	= icmpv6_tuple_to_nfattr,
+	.nfattr_to_tuple	= icmpv6_nfattr_to_tuple,
+#endif
 };
 
 EXPORT_SYMBOL(nf_conntrack_protocol_icmpv6);

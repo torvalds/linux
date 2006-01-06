@@ -36,7 +36,7 @@
 #define MAX_PORTS 8
 static unsigned short ports[MAX_PORTS];
 static int ports_c;
-static int max_dcc_channels = 8;
+static unsigned int max_dcc_channels = 8;
 static unsigned int dcc_timeout = 300;
 /* This is slow, but it's simple. --RR */
 static char *irc_buffer;
@@ -54,9 +54,9 @@ MODULE_DESCRIPTION("IRC (DCC) connection tracking helper");
 MODULE_LICENSE("GPL");
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of IRC servers");
-module_param(max_dcc_channels, int, 0400);
+module_param(max_dcc_channels, uint, 0400);
 MODULE_PARM_DESC(max_dcc_channels, "max number of expected DCC channels per IRC session");
-module_param(dcc_timeout, int, 0400);
+module_param(dcc_timeout, uint, 0400);
 MODULE_PARM_DESC(dcc_timeout, "timeout on for unestablished DCC channels");
 
 static const char *dccprotos[] = { "SEND ", "CHAT ", "MOVE ", "TSEND ", "SCHAT " };
@@ -252,10 +252,6 @@ static int __init init(void)
 
 	if (max_dcc_channels < 1) {
 		printk("ip_conntrack_irc: max_dcc_channels must be a positive integer\n");
-		return -EBUSY;
-	}
-	if (dcc_timeout < 0) {
-		printk("ip_conntrack_irc: dcc_timeout must be a positive integer\n");
 		return -EBUSY;
 	}
 

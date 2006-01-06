@@ -105,7 +105,6 @@ module_param(pc_debug, int, 0);
  */
 static void wl3501_config(dev_link_t *link);
 static void wl3501_release(dev_link_t *link);
-static int wl3501_event(event_t event, int pri, event_callback_args_t *args);
 
 /*
  * The dev_info variable is the "key" that is used to match up this
@@ -1498,9 +1497,11 @@ static struct ethtool_ops ops = {
  * Services. If it has been released, all local data structures are freed.
  * Otherwise, the structures will be freed when the device is released.
  */
-static void wl3501_detach(dev_link_t *link)
+static void wl3501_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
+	struct net_device *dev = link->priv;
 
 	/* Locate device structure */
 	for (linkp = &wl3501_dev_list; *linkp; linkp = &(*linkp)->next)
@@ -1514,16 +1515,12 @@ static void wl3501_detach(dev_link_t *link)
 	 * function is called, that will trigger a proper detach(). */
 
 	if (link->state & DEV_CONFIG) {
-#ifdef PCMCIA_DEBUG
-		printk(KERN_DEBUG "wl3501_cs: detach postponed, '%s' "
-		       "still locked\n", link->dev->dev_name);
-#endif
-		goto out;
-	}
+		while (link->open > 0)
+			wl3501_close(dev);
 
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
+		netif_device_detach(dev);
+		wl3501_release(link);
+	}
 
 	/* Unlink device structure, free pieces */
 	*linkp = link->next;
@@ -1956,18 +1953,16 @@ static const struct iw_handler_def wl3501_handler_def = {
  * The dev_link structure is initialized, but we don't actually configure the
  * card at this point -- we wait until we receive a card insertion event.
  */
-static dev_link_t *wl3501_attach(void)
+static int wl3501_attach(struct pcmcia_device *p_dev)
 {
-	client_reg_t client_reg;
 	dev_link_t *link;
 	struct net_device *dev;
 	struct wl3501_card *this;
-	int ret;
 
 	/* Initialize the dev_link_t structure */
 	link = kzalloc(sizeof(*link), GFP_KERNEL);
 	if (!link)
-		goto out;
+		return -ENOMEM;
 
 	/* The io structure describes IO port mapping */
 	link->io.NumPorts1	= 16;
@@ -2003,24 +1998,17 @@ static dev_link_t *wl3501_attach(void)
 	netif_stop_queue(dev);
 	link->priv = link->irq.Instance = dev;
 
-	/* Register with Card Services */
-	link->next		 = wl3501_dev_list;
-	wl3501_dev_list		 = link;
-	client_reg.dev_info	 = &wl3501_dev_info;
-	client_reg.Version	 = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret) {
-		cs_error(link->handle, RegisterClient, ret);
-		wl3501_detach(link);
-		link = NULL;
-	}
-out:
-	return link;
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	wl3501_config(link);
+
+	return 0;
 out_link:
 	kfree(link);
 	link = NULL;
-	goto out;
+	return -ENOMEM;
 }
 
 #define CS_CHECK(fn, ret) \
@@ -2173,66 +2161,40 @@ static void wl3501_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
-/**
- * wl3501_event - The card status event handler
- * @event - event
- * @pri - priority
- * @args - arguments for this event
- *
- * The card status event handler. Mostly, this schedules other stuff to run
- * after an event is received. A CARD_REMOVAL event also sets some flags to
- * discourage the net drivers from trying to talk to the card any more.
- *
- * When a CARD_REMOVAL event is received, we immediately set a flag to block
- * future accesses to this device. All the functions that actually access the
- * device should check this flag to make sure the card is still present.
- */
-static int wl3501_event(event_t event, int pri, event_callback_args_t *args)
+static int wl3501_suspend(struct pcmcia_device *p_dev)
 {
-	dev_link_t *link = args->client_data;
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			while (link->open > 0)
-				wl3501_close(dev);
+	link->state |= DEV_SUSPEND;
+
+	wl3501_pwr_mgmt(dev->priv, WL3501_SUSPEND);
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
 			netif_device_detach(dev);
-			wl3501_release(link);
-		}
-		break;
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		wl3501_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		wl3501_pwr_mgmt(dev->priv, WL3501_SUSPEND);
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG) {
-			if (link->open)
-				netif_device_detach(dev);
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		wl3501_pwr_mgmt(dev->priv, WL3501_RESUME);
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			pcmcia_request_configuration(link->handle, &link->conf);
-			if (link->open) {
-				wl3501_reset(dev);
-				netif_device_attach(dev);
-			}
-		}
-		break;
+		pcmcia_release_configuration(link->handle);
 	}
+
 	return 0;
 }
+
+static int wl3501_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	wl3501_pwr_mgmt(dev->priv, WL3501_RESUME);
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			wl3501_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
 
 static struct pcmcia_device_id wl3501_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0xd601, 0x0001),
@@ -2245,10 +2207,11 @@ static struct pcmcia_driver wl3501_driver = {
 	.drv		= {
 		.name	= "wl3501_cs",
 	},
-	.attach		= wl3501_attach,
-	.event		= wl3501_event,
-	.detach		= wl3501_detach,
+	.probe		= wl3501_attach,
+	.remove		= wl3501_detach,
 	.id_table	= wl3501_ids,
+	.suspend	= wl3501_suspend,
+	.resume		= wl3501_resume,
 };
 
 static int __init wl3501_init_module(void)
