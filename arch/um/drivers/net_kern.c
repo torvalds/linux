@@ -34,7 +34,7 @@
 #define DRIVER_NAME "uml-netdev"
 
 static DEFINE_SPINLOCK(opened_lock);
-LIST_HEAD(opened);
+static LIST_HEAD(opened);
 
 static int uml_net_rx(struct net_device *dev)
 {
@@ -266,7 +266,7 @@ void uml_net_user_timer_expire(unsigned long _conn)
 }
 
 static DEFINE_SPINLOCK(devices_lock);
-static struct list_head devices = LIST_HEAD_INIT(devices);
+static LIST_HEAD(devices);
 
 static struct platform_driver uml_net_driver = {
 	.driver = {

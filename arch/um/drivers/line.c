@@ -668,19 +668,18 @@ struct tty_driver *line_register_devfs(struct lines *set,
 	return driver;
 }
 
-static spinlock_t winch_handler_lock;
-LIST_HEAD(winch_handlers);
+static DEFINE_SPINLOCK(winch_handler_lock);
+static LIST_HEAD(winch_handlers);
 
 void lines_init(struct line *lines, int nlines)
 {
 	struct line *line;
 	int i;
 
-	spin_lock_init(&winch_handler_lock);
 	for(i = 0; i < nlines; i++){
 		line = &lines[i];
 		INIT_LIST_HEAD(&line->chan_list);
-		spin_lock_init(&line->lock);
+
 		if(line->init_str == NULL)
 			continue;
 

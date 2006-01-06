@@ -58,8 +58,8 @@ struct line {
 #define LINE_INIT(str, d) \
 	{ init_str :	str, \
 	  init_pri :	INIT_STATIC, \
-	  chan_list : 	{ }, \
 	  valid :	1, \
+	  lock :	SPIN_LOCK_UNLOCKED, \
 	  buffer :	NULL, \
 	  head :	NULL, \
 	  tail :	NULL, \

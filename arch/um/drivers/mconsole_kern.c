@@ -51,7 +51,7 @@ static struct notifier_block reboot_notifier = {
  * itself and it can only happen on CPU 0.
  */
 
-LIST_HEAD(mc_requests);
+static LIST_HEAD(mc_requests);
 
 static void mc_work_proc(void *unused)
 {
@@ -69,7 +69,7 @@ static void mc_work_proc(void *unused)
 	}
 }
 
-DECLARE_WORK(mconsole_work, mc_work_proc, NULL);
+static DECLARE_WORK(mconsole_work, mc_work_proc, NULL);
 
 static irqreturn_t mconsole_interrupt(int irq, void *dev_id,
 				      struct pt_regs *regs)
@@ -535,7 +535,7 @@ void mconsole_stack(struct mc_request *req)
  */
 static char *notify_socket = NULL;
 
-int mconsole_init(void)
+static int mconsole_init(void)
 {
 	/* long to avoid size mismatch warnings from gcc */
 	long sock;
