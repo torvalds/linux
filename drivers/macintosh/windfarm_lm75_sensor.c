@@ -240,12 +240,7 @@ static int wf_lm75_detach(struct i2c_client *client)
 
 static int __init wf_lm75_sensor_init(void)
 {
-	int rc;
-
-	rc = i2c_add_driver(&wf_lm75_driver);
-	if (rc < 0)
-		return rc;
-	return 0;
+	return i2c_add_driver(&wf_lm75_driver);
 }
 
 static void __exit wf_lm75_sensor_exit(void)
