@@ -806,7 +806,6 @@ void i2o_iop_remove(struct i2o_controller *c)
 	list_for_each_entry_safe(dev, tmp, &c->devices, list)
 	    i2o_device_remove(dev);
 
-	class_device_unregister(c->classdev);
 	device_del(&c->device);
 
 	/* Ask the IOP to switch to RESET state */
@@ -1050,9 +1049,6 @@ static void i2o_iop_release(struct device *dev)
 	i2o_iop_free(c);
 };
 
-/* I2O controller class */
-static struct class *i2o_controller_class;
-
 /**
  *	i2o_iop_alloc - Allocate and initialize a i2o_controller struct
  *
@@ -1124,36 +1120,29 @@ int i2o_iop_add(struct i2o_controller *c)
 		goto iop_reset;
 	}
 
-	c->classdev = class_device_create(i2o_controller_class, NULL, MKDEV(0,0),
-			&c->device, "iop%d", c->unit);
-	if (IS_ERR(c->classdev)) {
-		osm_err("%s: could not add controller class\n", c->name);
-		goto device_del;
-	}
-
 	osm_info("%s: Activating I2O controller...\n", c->name);
 	osm_info("%s: This may take a few minutes if there are many devices\n",
 		 c->name);
 
 	if ((rc = i2o_iop_activate(c))) {
 		osm_err("%s: could not activate controller\n", c->name);
-		goto class_del;
+		goto device_del;
 	}
 
 	osm_debug("%s: building sys table...\n", c->name);
 
 	if ((rc = i2o_systab_build()))
-		goto class_del;
+		goto device_del;
 
 	osm_debug("%s: online controller...\n", c->name);
 
 	if ((rc = i2o_iop_online(c)))
-		goto class_del;
+		goto device_del;
 
 	osm_debug("%s: getting LCT...\n", c->name);
 
 	if ((rc = i2o_exec_lct_get(c)))
-		goto class_del;
+		goto device_del;
 
 	list_add(&c->list, &i2o_controllers);
 
@@ -1162,9 +1151,6 @@ int i2o_iop_add(struct i2o_controller *c)
 	osm_info("%s: Controller added\n", c->name);
 
 	return 0;
-
-      class_del:
-	class_device_unregister(c->classdev);
 
       device_del:
 	device_del(&c->device);
@@ -1225,14 +1211,8 @@ static int __init i2o_iop_init(void)
 
 	printk(KERN_INFO OSM_DESCRIPTION " v" OSM_VERSION "\n");
 
-	i2o_controller_class = class_create(THIS_MODULE, "i2o_controller");
-	if (IS_ERR(i2o_controller_class)) {
-		osm_err("can't register class i2o_controller\n");
-		goto exit;
-	}
-
 	if ((rc = i2o_driver_init()))
-		goto class_exit;
+		goto exit;
 
 	if ((rc = i2o_exec_init()))
 		goto driver_exit;
@@ -1248,9 +1228,6 @@ static int __init i2o_iop_init(void)
       driver_exit:
 	i2o_driver_exit();
 
-      class_exit:
-	class_destroy(i2o_controller_class);
-
       exit:
 	return rc;
 }
@@ -1265,7 +1242,6 @@ static void __exit i2o_iop_exit(void)
 	i2o_pci_exit();
 	i2o_exec_exit();
 	i2o_driver_exit();
-	class_destroy(i2o_controller_class);
 };
 
 module_init(i2o_iop_init);

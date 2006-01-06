@@ -142,8 +142,9 @@ static void i2o_device_release(struct device *dev)
 
 
 /**
- *	i2o_device_class_show_class_id - Displays class id of I2O device
- *	@cd: class device of which the class id should be displayed
+ *	i2o_device_show_class_id - Displays class id of I2O device
+ *	@dev: device of which the class id should be displayed
+ *	@attr: pointer to device attribute
  *	@buf: buffer into which the class id should be printed
  *
  *	Returns the number of bytes which are printed into the buffer.
@@ -159,15 +160,15 @@ static ssize_t i2o_device_show_class_id(struct device *dev,
 }
 
 /**
- *	i2o_device_class_show_tid - Displays TID of I2O device
- *	@cd: class device of which the TID should be displayed
- *	@buf: buffer into which the class id should be printed
+ *	i2o_device_show_tid - Displays TID of I2O device
+ *	@dev: device of which the TID should be displayed
+ *	@attr: pointer to device attribute
+ *	@buf: buffer into which the TID should be printed
  *
  *	Returns the number of bytes which are printed into the buffer.
  */
 static ssize_t i2o_device_show_tid(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+				   struct device_attribute *attr, char *buf)
 {
 	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
@@ -209,66 +210,6 @@ static struct i2o_device *i2o_device_alloc(void)
 }
 
 /**
- *	i2o_setup_sysfs_links - Adds attributes to the I2O device
- *	@cd: I2O class device which is added to the I2O device class
- *
- *	This function get called when a I2O device is added to the class. It
- *	creates the attributes for each device and creates user/parent symlink
- *	if necessary.
- *
- *	Returns 0 on success or negative error code on failure.
- */
-static void i2o_setup_sysfs_links(struct i2o_device *i2o_dev)
-{
-	struct i2o_controller *c = i2o_dev->iop;
-	struct i2o_device *tmp;
-
-	/* create user entries for this device */
-	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.user_tid);
-	if (tmp && tmp != i2o_dev)
-		sysfs_create_link(&i2o_dev->device.kobj,
-				  &tmp->device.kobj, "user");
-
-	/* create user entries refering to this device */
-	list_for_each_entry(tmp, &c->devices, list)
-		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid &&
-		    tmp != i2o_dev)
-			sysfs_create_link(&tmp->device.kobj,
-					  &i2o_dev->device.kobj, "user");
-
-	/* create parent entries for this device */
-	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.parent_tid);
-	if (tmp && tmp != i2o_dev)
-		sysfs_create_link(&i2o_dev->device.kobj,
-				  &tmp->device.kobj, "parent");
-
-	/* create parent entries refering to this device */
-	list_for_each_entry(tmp, &c->devices, list)
-		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid &&
-		    tmp != i2o_dev)
-		sysfs_create_link(&tmp->device.kobj,
-				  &i2o_dev->device.kobj, "parent");
-}
-
-static void i2o_remove_sysfs_links(struct i2o_device *i2o_dev)
-{
-	struct i2o_controller *c = i2o_dev->iop;
-	struct i2o_device *tmp;
-
-	sysfs_remove_link(&i2o_dev->device.kobj, "parent");
-	sysfs_remove_link(&i2o_dev->device.kobj, "user");
-
-	list_for_each_entry(tmp, &c->devices, list) {
-		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
-			sysfs_remove_link(&tmp->device.kobj, "parent");
-		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
-			sysfs_remove_link(&tmp->device.kobj, "user");
-	}
-}
-
-
-
-/**
  *	i2o_device_add - allocate a new I2O device and add it to the IOP
  *	@iop: I2O controller where the device is on
  *	@entry: LCT entry of the I2O device
@@ -282,33 +223,57 @@ static void i2o_remove_sysfs_links(struct i2o_device *i2o_dev)
 static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 					 i2o_lct_entry * entry)
 {
-	struct i2o_device *dev;
+	struct i2o_device *i2o_dev, *tmp;
 
-	dev = i2o_device_alloc();
-	if (IS_ERR(dev)) {
+	i2o_dev = i2o_device_alloc();
+	if (IS_ERR(i2o_dev)) {
 		printk(KERN_ERR "i2o: unable to allocate i2o device\n");
-		return dev;
+		return i2o_dev;
 	}
 
-	dev->lct_data = *entry;
-	dev->iop = c;
+	i2o_dev->lct_data = *entry;
 
-	snprintf(dev->device.bus_id, BUS_ID_SIZE, "%d:%03x", c->unit,
-		 dev->lct_data.tid);
+	snprintf(i2o_dev->device.bus_id, BUS_ID_SIZE, "%d:%03x", c->unit,
+		 i2o_dev->lct_data.tid);
 
-	dev->device.parent = &c->device;
+	i2o_dev->iop = c;
+	i2o_dev->device.parent = &c->device;
 
-	device_register(&dev->device);
+	device_register(&i2o_dev->device);
 
-	list_add_tail(&dev->list, &c->devices);
+	list_add_tail(&i2o_dev->list, &c->devices);
 
-	i2o_setup_sysfs_links(dev);
+	/* create user entries for this device */
+	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.user_tid);
+	if (tmp && (tmp != i2o_dev))
+		sysfs_create_link(&i2o_dev->device.kobj, &tmp->device.kobj,
+				  "user");
 
-	i2o_driver_notify_device_add_all(dev);
+	/* create user entries refering to this device */
+	list_for_each_entry(tmp, &c->devices, list)
+		if ((tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
+		    && (tmp != i2o_dev))
+		    sysfs_create_link(&tmp->device.kobj,
+				      &i2o_dev->device.kobj, "user");
 
-	pr_debug("i2o: device %s added\n", dev->device.bus_id);
+	/* create parent entries for this device */
+	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.parent_tid);
+	if (tmp && (tmp != i2o_dev))
+		sysfs_create_link(&i2o_dev->device.kobj, &tmp->device.kobj,
+				  "parent");
 
-	return dev;
+	/* create parent entries refering to this device */
+	list_for_each_entry(tmp, &c->devices, list)
+		if ((tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
+		    && (tmp != i2o_dev))
+			sysfs_create_link(&tmp->device.kobj,
+					  &i2o_dev->device.kobj, "parent");
+
+	i2o_driver_notify_device_add_all(i2o_dev);
+
+	pr_debug("i2o: device %s added\n", i2o_dev->device.bus_id);
+
+	return i2o_dev;
 }
 
 /**
@@ -321,9 +286,22 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
  */
 void i2o_device_remove(struct i2o_device *i2o_dev)
 {
+	struct i2o_device *tmp;
+	struct i2o_controller *c = i2o_dev->iop;
+
 	i2o_driver_notify_device_remove_all(i2o_dev);
-	i2o_remove_sysfs_links(i2o_dev);
+
+	sysfs_remove_link(&i2o_dev->device.kobj, "parent");
+	sysfs_remove_link(&i2o_dev->device.kobj, "user");
+
+	list_for_each_entry(tmp, &c->devices, list) {
+		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
+			sysfs_remove_link(&tmp->device.kobj, "parent");
+		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
+			sysfs_remove_link(&tmp->device.kobj, "user");
+	}
 	list_del(&i2o_dev->list);
+
 	device_unregister(&i2o_dev->device);
 }
 

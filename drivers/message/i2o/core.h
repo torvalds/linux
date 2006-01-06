@@ -33,6 +33,8 @@ extern int __init i2o_pci_init(void);
 extern void __exit i2o_pci_exit(void);
 
 /* device */
+extern struct device_attribute i2o_device_attrs[];
+
 extern void i2o_device_remove(struct i2o_device *);
 extern int i2o_device_parse_lct(struct i2o_controller *);
 
