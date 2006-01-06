@@ -367,11 +367,6 @@ static inline unsigned long ffz(unsigned long word)
 	return word;
 }
 
-/*
- * fls: find last bit set.
- */
-
-#define fls(x) generic_fls(x)
 #define fls64(x)   generic_fls64(x)
 
 #ifdef __KERNEL__
@@ -408,6 +403,23 @@ static inline int ffs(int x)
 	int r;
 
 	__asm__("bsfl %1,%0\n\t"
+		"jnz 1f\n\t"
+		"movl $-1,%0\n"
+		"1:" : "=r" (r) : "rm" (x));
+	return r+1;
+}
+
+/**
+ * fls - find last bit set
+ * @x: the word to search
+ *
+ * This is defined the same way as ffs.
+ */
+static inline int fls(int x)
+{
+	int r;
+
+	__asm__("bsrl %1,%0\n\t"
 		"jnz 1f\n\t"
 		"movl $-1,%0\n"
 		"1:" : "=r" (r) : "rm" (x));
