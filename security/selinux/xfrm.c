@@ -137,15 +137,9 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_us
 	 * Must be permitted to relabel from default socket type (process type)
 	 * to specified context
 	 */
-	rc = avc_has_perm(tsec->sid, tsec->sid,
-			  SECCLASS_ASSOCIATION,
-			  ASSOCIATION__RELABELFROM, NULL);
-	if (rc)
-		goto out;
-
 	rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
 			  SECCLASS_ASSOCIATION,
-			  ASSOCIATION__RELABELTO, NULL);
+			  ASSOCIATION__SETCONTEXT, NULL);
 	if (rc)
 		goto out;
 

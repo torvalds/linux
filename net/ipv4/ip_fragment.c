@@ -383,7 +383,7 @@ out_nomem:
  */
 static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 {
-	__u16 id = iph->id;
+	__be16 id = iph->id;
 	__u32 saddr = iph->saddr;
 	__u32 daddr = iph->daddr;
 	__u8 protocol = iph->protocol;

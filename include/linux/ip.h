@@ -90,14 +90,14 @@ struct iphdr {
 #error	"Please fix <asm/byteorder.h>"
 #endif
 	__u8	tos;
-	__u16	tot_len;
-	__u16	id;
-	__u16	frag_off;
+	__be16	tot_len;
+	__be16	id;
+	__be16	frag_off;
 	__u8	ttl;
 	__u8	protocol;
 	__u16	check;
-	__u32	saddr;
-	__u32	daddr;
+	__be32	saddr;
+	__be32	daddr;
 	/*The options start here. */
 };
 
