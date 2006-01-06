@@ -75,7 +75,7 @@ static inline void *load_pointer(struct sk_buff *skb, int k,
  * len is the number of filter blocks in the array.
  */
  
-int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
+unsigned int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 {
 	struct sock_filter *fentry;	/* We walk down these */
 	void *ptr;
@@ -241,9 +241,9 @@ load_b:
 			A = X;
 			continue;
 		case BPF_RET|BPF_K:
-			return ((unsigned int)fentry->k);
+			return fentry->k;
 		case BPF_RET|BPF_A:
-			return ((unsigned int)A);
+			return A;
 		case BPF_ST:
 			mem[fentry->k] = A;
 			continue;
