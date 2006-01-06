@@ -712,7 +712,7 @@ static void allow_barrier(conf_t *conf)
 static void freeze_array(conf_t *conf)
 {
 	/* stop syncio and normal IO and wait for everything to
-	 * go quite.
+	 * go quiet.
 	 * We increment barrier and nr_waiting, and then
 	 * wait until barrier+nr_pending match nr_queued+2
 	 */
