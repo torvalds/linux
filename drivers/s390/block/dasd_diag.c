@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.52 $
+ * $Revision: 1.53 $
  */
 
 #include <linux/config.h>
@@ -549,6 +549,8 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	}
 	cqr->retries = DIAG_MAX_RETRIES;
 	cqr->buildclk = get_clock();
+	if (req->flags & REQ_FAILFAST)
+		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->device = device;
 	cqr->expires = DIAG_TIMEOUT;
 	cqr->status = DASD_CQR_FILLED;
