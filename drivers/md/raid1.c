@@ -154,7 +154,7 @@ static void put_all_bios(conf_t *conf, r1bio_t *r1_bio)
 
 	for (i = 0; i < conf->raid_disks; i++) {
 		struct bio **bio = r1_bio->bios + i;
-		if (*bio)
+		if (*bio && *bio != IO_BLOCKED)
 			bio_put(*bio);
 		*bio = NULL;
 	}
@@ -419,11 +419,13 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 		new_disk = 0;
 
 		for (rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
+		     r1_bio->bios[new_disk] == IO_BLOCKED ||
 		     !rdev || !test_bit(In_sync, &rdev->flags)
 			     || test_bit(WriteMostly, &rdev->flags);
 		     rdev = rcu_dereference(conf->mirrors[++new_disk].rdev)) {
 
-			if (rdev && test_bit(In_sync, &rdev->flags))
+			if (rdev && test_bit(In_sync, &rdev->flags) &&
+				r1_bio->bios[new_disk] != IO_BLOCKED)
 				wonly_disk = new_disk;
 
 			if (new_disk == conf->raid_disks - 1) {
@@ -437,11 +439,13 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 
 	/* make sure the disk is operational */
 	for (rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
+	     r1_bio->bios[new_disk] == IO_BLOCKED ||
 	     !rdev || !test_bit(In_sync, &rdev->flags) ||
 		     test_bit(WriteMostly, &rdev->flags);
 	     rdev = rcu_dereference(conf->mirrors[new_disk].rdev)) {
 
-		if (rdev && test_bit(In_sync, &rdev->flags))
+		if (rdev && test_bit(In_sync, &rdev->flags) &&
+		    r1_bio->bios[new_disk] != IO_BLOCKED)
 			wonly_disk = new_disk;
 
 		if (new_disk <= 0)
@@ -478,7 +482,7 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 
 		rdev = rcu_dereference(conf->mirrors[disk].rdev);
 
-		if (!rdev ||
+		if (!rdev || r1_bio->bios[disk] == IO_BLOCKED ||
 		    !test_bit(In_sync, &rdev->flags) ||
 		    test_bit(WriteMostly, &rdev->flags))
 			continue;
@@ -1335,7 +1339,7 @@ static void raid1d(mddev_t *mddev)
 			sector_t sect = r1_bio->sector;
 			int sectors = r1_bio->sectors;
 			freeze_array(conf);
-			while(sectors) {
+			if (mddev->ro == 0) while(sectors) {
 				int s = sectors;
 				int d = r1_bio->read_disk;
 				int success = 0;
@@ -1388,7 +1392,6 @@ static void raid1d(mddev_t *mddev)
 				sect += s;
 			}
 
-
 			unfreeze_array(conf);
 
 			bio = r1_bio->bios[r1_bio->read_disk];
@@ -1399,7 +1402,8 @@ static void raid1d(mddev_t *mddev)
 				       (unsigned long long)r1_bio->sector);
 				raid_end_bio_io(r1_bio);
 			} else {
-				r1_bio->bios[r1_bio->read_disk] = NULL;
+				r1_bio->bios[r1_bio->read_disk] =
+					mddev->ro ? IO_BLOCKED : NULL;
 				r1_bio->read_disk = disk;
 				bio_put(bio);
 				bio = bio_clone(r1_bio->master_bio, GFP_NOIO);
