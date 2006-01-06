@@ -1498,7 +1498,7 @@ gotten:
 		update_mmu_cache(vma, address, entry);
 		lazy_mmu_prot_update(entry);
 		lru_cache_add_active(new_page);
-		page_add_anon_rmap(new_page, vma, address);
+		page_add_new_anon_rmap(new_page, vma, address);
 
 		/* Free the old page.. */
 		new_page = old_page;
@@ -1978,7 +1978,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		inc_mm_counter(mm, anon_rss);
 		lru_cache_add_active(page);
 		SetPageReferenced(page);
-		page_add_anon_rmap(page, vma, address);
+		page_add_new_anon_rmap(page, vma, address);
 	} else {
 		/* Map the ZERO_PAGE - vm_page_prot is readonly */
 		page = ZERO_PAGE(address);
@@ -2109,7 +2109,7 @@ retry:
 		if (anon) {
 			inc_mm_counter(mm, anon_rss);
 			lru_cache_add_active(new_page);
-			page_add_anon_rmap(new_page, vma, address);
+			page_add_new_anon_rmap(new_page, vma, address);
 		} else {
 			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(new_page);

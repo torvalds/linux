@@ -324,7 +324,7 @@ void install_arg_page(struct vm_area_struct *vma,
 	lru_cache_add_active(page);
 	set_pte_at(mm, address, pte, pte_mkdirty(pte_mkwrite(mk_pte(
 					page, vma->vm_page_prot))));
-	page_add_anon_rmap(page, vma, address);
+	page_add_new_anon_rmap(page, vma, address);
 	pte_unmap_unlock(pte, ptl);
 
 	/* no need for flush_tlb */
