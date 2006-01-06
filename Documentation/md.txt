@@ -174,6 +174,15 @@ All md devices contain:
      The size should be atleast PAGE_SIZE (4k) and should be a power
      of 2.  This can only be set while assembling an array
 
+  component_size
+     For arrays with data redundancy (i.e. not raid0, linear, faulty,
+     multipath), all components must be the same size - or at least
+     there must a size that they all provide space for.  This is a key
+     part or the geometry of the array.  It is measured in sectors
+     and can be read from here.  Writing to this value may resize
+     the array if the personality supports it (raid1, raid5, raid6),
+     and if the component drives are large enough.
+
 As component devices are added to an md array, they appear in the 'md'
 directory as new directories named
       dev-XXX

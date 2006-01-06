@@ -1820,6 +1820,44 @@ __ATTR(chunk_size, 0644, chunk_size_show, chunk_size_store);
 
 
 static ssize_t
+size_show(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%llu\n", (unsigned long long)mddev->size);
+}
+
+static int update_size(mddev_t *mddev, unsigned long size);
+
+static ssize_t
+size_store(mddev_t *mddev, const char *buf, size_t len)
+{
+	/* If array is inactive, we can reduce the component size, but
+	 * not increase it (except from 0).
+	 * If array is active, we can try an on-line resize
+	 */
+	char *e;
+	int err = 0;
+	unsigned long long size = simple_strtoull(buf, &e, 10);
+	if (!*buf || *buf == '\n' ||
+	    (*e && *e != '\n'))
+		return -EINVAL;
+
+	if (mddev->pers) {
+		err = update_size(mddev, size);
+		md_update_sb(mddev);
+	} else {
+		if (mddev->size == 0 ||
+		    mddev->size > size)
+			mddev->size = size;
+		else
+			err = -ENOSPC;
+	}
+	return err ? err : len;
+}
+
+static struct md_sysfs_entry md_size =
+__ATTR(component_size, 0644, size_show, size_store);
+
+static ssize_t
 action_show(mddev_t *mddev, char *page)
 {
 	char *type = "idle";
@@ -1887,6 +1925,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
 	&md_raid_disks.attr,
 	&md_chunk_size.attr,
+	&md_size.attr,
 	NULL,
 };
 
@@ -3005,6 +3044,54 @@ static int set_array_info(mddev_t * mddev, mdu_array_info_t *info)
 	return 0;
 }
 
+static int update_size(mddev_t *mddev, unsigned long size)
+{
+	mdk_rdev_t * rdev;
+	int rv;
+	struct list_head *tmp;
+
+	if (mddev->pers->resize == NULL)
+		return -EINVAL;
+	/* The "size" is the amount of each device that is used.
+	 * This can only make sense for arrays with redundancy.
+	 * linear and raid0 always use whatever space is available
+	 * We can only consider changing the size if no resync
+	 * or reconstruction is happening, and if the new size
+	 * is acceptable. It must fit before the sb_offset or,
+	 * if that is <data_offset, it must fit before the
+	 * size of each device.
+	 * If size is zero, we find the largest size that fits.
+	 */
+	if (mddev->sync_thread)
+		return -EBUSY;
+	ITERATE_RDEV(mddev,rdev,tmp) {
+		sector_t avail;
+		int fit = (size == 0);
+		if (rdev->sb_offset > rdev->data_offset)
+			avail = (rdev->sb_offset*2) - rdev->data_offset;
+		else
+			avail = get_capacity(rdev->bdev->bd_disk)
+				- rdev->data_offset;
+		if (fit && (size == 0 || size > avail/2))
+			size = avail/2;
+		if (avail < ((sector_t)size << 1))
+			return -ENOSPC;
+	}
+	rv = mddev->pers->resize(mddev, (sector_t)size *2);
+	if (!rv) {
+		struct block_device *bdev;
+
+		bdev = bdget_disk(mddev->gendisk, 0);
+		if (bdev) {
+			down(&bdev->bd_inode->i_sem);
+			i_size_write(bdev->bd_inode, mddev->array_size << 10);
+			up(&bdev->bd_inode->i_sem);
+			bdput(bdev);
+		}
+	}
+	return rv;
+}
+
 /*
  * update_array_info is used to change the configuration of an
  * on-line array.
@@ -3053,49 +3140,9 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 		else
 			return mddev->pers->reconfig(mddev, info->layout, -1);
 	}
-	if (mddev->size != info->size) {
-		mdk_rdev_t * rdev;
-		struct list_head *tmp;
-		if (mddev->pers->resize == NULL)
-			return -EINVAL;
-		/* The "size" is the amount of each device that is used.
-		 * This can only make sense for arrays with redundancy.
-		 * linear and raid0 always use whatever space is available
-		 * We can only consider changing the size if no resync
-		 * or reconstruction is happening, and if the new size
-		 * is acceptable. It must fit before the sb_offset or,
-		 * if that is <data_offset, it must fit before the
-		 * size of each device.
-		 * If size is zero, we find the largest size that fits.
-		 */
-		if (mddev->sync_thread)
-			return -EBUSY;
-		ITERATE_RDEV(mddev,rdev,tmp) {
-			sector_t avail;
-			int fit = (info->size == 0);
-			if (rdev->sb_offset > rdev->data_offset)
-				avail = (rdev->sb_offset*2) - rdev->data_offset;
-			else
-				avail = get_capacity(rdev->bdev->bd_disk)
-					- rdev->data_offset;
-			if (fit && (info->size == 0 || info->size > avail/2))
-				info->size = avail/2;
-			if (avail < ((sector_t)info->size << 1))
-				return -ENOSPC;
-		}
-		rv = mddev->pers->resize(mddev, (sector_t)info->size *2);
-		if (!rv) {
-			struct block_device *bdev;
+	if (mddev->size != info->size)
+		rv = update_size(mddev, info->size);
 
-			bdev = bdget_disk(mddev->gendisk, 0);
-			if (bdev) {
-				down(&bdev->bd_inode->i_sem);
-				i_size_write(bdev->bd_inode, mddev->array_size << 10);
-				up(&bdev->bd_inode->i_sem);
-				bdput(bdev);
-			}
-		}
-	}
 	if (mddev->raid_disks    != info->raid_disks) {
 		/* change the number of raid disks */
 		if (mddev->pers->reshape == NULL)
