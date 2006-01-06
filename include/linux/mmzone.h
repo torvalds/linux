@@ -596,11 +596,6 @@ static inline int pfn_valid(unsigned long pfn)
 #define pfn_to_nid		early_pfn_to_nid
 #endif
 
-#define pfn_to_pgdat(pfn)						\
-({									\
-	NODE_DATA(pfn_to_nid(pfn));					\
-})
-
 #define early_pfn_valid(pfn)	pfn_valid(pfn)
 void sparse_init(void);
 #else
