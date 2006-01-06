@@ -151,7 +151,7 @@ mpc52xx_pci_setup(struct mpc52xx_pci __iomem *pci_regs)
 #endif
 }
 
-static void __init
+static void
 mpc52xx_pci_fixup_resources(struct pci_dev *dev)
 {
 	int i;
