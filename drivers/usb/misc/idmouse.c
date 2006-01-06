@@ -340,10 +340,9 @@ static int idmouse_probe(struct usb_interface *interface,
 		return -ENODEV;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL)
 		return -ENOMEM;
-	memset(dev, 0x00, sizeof(*dev));
 
 	init_MUTEX(&dev->sem);
 	dev->udev = udev;
