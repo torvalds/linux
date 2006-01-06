@@ -18,6 +18,7 @@ In this document you will find information about:
 	=== 5. Include files
 	   --- 5.1 How to include files from the kernel include dir
 	   --- 5.2 External modules using an include/ dir
+	   --- 5.3 External modules using several directories
 	=== 6. Module installation
 	   --- 6.1 INSTALL_MOD_PATH
 	   --- 6.2 INSTALL_MOD_DIR
@@ -344,6 +345,45 @@ directory and therefore needs to deal with this in their kbuild file.
 	Note that in the assignment there is no space between -I and the path.
 	This is a kbuild limitation:  there must be no space present.
 
+--- 5.3 External modules using several directories
+
+	If an external module does not follow the usual kernel style but
+	decide to spread files over several directories then kbuild can
+	support this too.
+
+	Consider the following example:
+	
+	|
+	+- src/complex_main.c
+	|   +- hal/hardwareif.c
+	|   +- hal/include/hardwareif.h
+	+- include/complex.h
+	
+	To build a single module named complex.ko we then need the following
+	kbuild file:
+
+	Kbuild:
+		obj-m := complex.o
+		complex-y := src/complex_main.o
+		complex-y += src/hal/hardwareif.o
+
+		EXTRA_CFLAGS := -I$(src)/include
+		EXTRA_CFLAGS += -I$(src)src/hal/include
+
+
+	kbuild knows how to handle .o files located in another directory -
+	although this is NOT reccommended practice. The syntax is to specify
+	the directory relative to the directory where the Kbuild file is
+	located.
+
+	To find the .h files we have to explicitly tell kbuild where to look
+	for the .h files. When kbuild executes current directory is always
+	the root of the kernel tree (argument to -C) and therefore we have to
+	tell kbuild how to find the .h files using absolute paths.
+	$(src) will specify the absolute path to the directory where the
+	Kbuild file are located when being build as an external module.
+	Therefore -I$(src)/ is used to point out the directory of the Kbuild
+	file and any additional path are just appended.
 
 === 6. Module installation
 
