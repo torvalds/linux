@@ -176,6 +176,7 @@ static ssize_t i2o_device_show_tid(struct device *dev,
 	return strlen(buf) + 1;
 }
 
+/* I2O device attributes */
 struct device_attribute i2o_device_attrs[] = {
 	__ATTR(class_id, S_IRUGO, i2o_device_show_class_id, NULL),
 	__ATTR(tid, S_IRUGO, i2o_device_show_tid, NULL),
@@ -505,12 +506,12 @@ int i2o_parm_field_get(struct i2o_device *i2o_dev, int group, int field,
  *		else return specific fields
  *			ibuf contains fieldindexes
  *
- * 	if oper == I2O_PARAMS_LIST_GET, get from specific rows
- * 		if fieldcount == -1 return all fields
+ *	if oper == I2O_PARAMS_LIST_GET, get from specific rows
+ *		if fieldcount == -1 return all fields
  *			ibuf contains rowcount, keyvalues
- * 		else return specific fields
+ *		else return specific fields
  *			fieldcount is # of fieldindexes
- *  			ibuf contains fieldindexes, rowcount, keyvalues
+ *			ibuf contains fieldindexes, rowcount, keyvalues
  *
  *	You could also use directly function i2o_issue_params().
  */

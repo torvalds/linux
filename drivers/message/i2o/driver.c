@@ -64,7 +64,7 @@ static int i2o_bus_match(struct device *dev, struct device_driver *drv)
 struct bus_type i2o_bus_type = {
 	.name = "i2o",
 	.match = i2o_bus_match,
-	.dev_attrs = i2o_device_attrs,
+	.dev_attrs = i2o_device_attrs
 };
 
 /**

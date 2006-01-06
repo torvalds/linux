@@ -32,7 +32,7 @@
 #include "core.h"
 
 #define OSM_NAME	"i2o"
-#define OSM_VERSION	"1.288"
+#define OSM_VERSION	"1.316"
 #define OSM_DESCRIPTION	"I2O subsystem"
 
 /* global I2O controller list */
@@ -730,10 +730,6 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 	 * Provide three SGL-elements:
 	 * System table (SysTab), Private memory space declaration and
 	 * Private i/o space declaration
-	 *
-	 * FIXME: is this still true?
-	 * Nasty one here. We can't use dma_alloc_coherent to send the
-	 * same table to everyone. We have to go remap it for them all
 	 */
 
 	msg->body[0] = cpu_to_le32(c->unit + 2);
@@ -756,8 +752,6 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 	else
 		osm_debug("%s: SysTab set.\n", c->name);
 
-	i2o_status_get(c);	// Entered READY state
-
 	return rc;
 }
 
@@ -767,7 +761,7 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
  *
  *	Send the system table and enable the I2O controller.
  *
- *	Returns 0 on success or negativer error code on failure.
+ *	Returns 0 on success or negative error code on failure.
  */
 static int i2o_iop_online(struct i2o_controller *c)
 {
@@ -977,7 +971,7 @@ int i2o_status_get(struct i2o_controller *c)
  *	The HRT contains information about possible hidden devices but is
  *	mostly useless to us.
  *
- *	Returns 0 on success or negativer error code on failure.
+ *	Returns 0 on success or negative error code on failure.
  */
 static int i2o_hrt_get(struct i2o_controller *c)
 {

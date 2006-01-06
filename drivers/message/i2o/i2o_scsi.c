@@ -70,7 +70,7 @@
 #include <scsi/sg_request.h>
 
 #define OSM_NAME	"scsi-osm"
-#define OSM_VERSION	"1.282"
+#define OSM_VERSION	"1.316"
 #define OSM_DESCRIPTION	"I2O SCSI Peripheral OSM"
 
 static struct i2o_driver i2o_scsi_driver;

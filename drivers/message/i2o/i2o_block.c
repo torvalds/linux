@@ -59,10 +59,12 @@
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 
+#include <scsi/scsi.h>
+
 #include "i2o_block.h"
 
 #define OSM_NAME	"block-osm"
-#define OSM_VERSION	"1.287"
+#define OSM_VERSION	"1.316"
 #define OSM_DESCRIPTION	"I2O Block Device OSM"
 
 static struct i2o_driver i2o_block_driver;
@@ -845,10 +847,10 @@ static int i2o_block_transfer(struct request *req)
 		 * RETURN_SENSE_DATA_IN_REPLY_MESSAGE_FRAME
 		 */
 		if (rq_data_dir(req) == READ) {
-			cmd[0] = 0x28;
+			cmd[0] = READ_10;
 			scsi_flags = 0x60a0000a;
 		} else {
-			cmd[0] = 0x2A;
+			cmd[0] = WRITE_10;
 			scsi_flags = 0xa0a0000a;
 		}
 

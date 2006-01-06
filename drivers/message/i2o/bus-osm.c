@@ -17,7 +17,7 @@
 #include <linux/i2o.h>
 
 #define OSM_NAME	"bus-osm"
-#define OSM_VERSION	"$Rev$"
+#define OSM_VERSION	"1.317"
 #define OSM_DESCRIPTION	"I2O Bus Adapter OSM"
 
 static struct i2o_driver i2o_bus_driver;
