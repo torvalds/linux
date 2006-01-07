@@ -296,7 +296,7 @@ static inline int map_8250_out_reg(struct uart_8250_port *up, int offset)
 
 #endif
 
-static _INLINE_ unsigned int serial_in(struct uart_8250_port *up, int offset)
+static unsigned int serial_in(struct uart_8250_port *up, int offset)
 {
 	offset = map_8250_in_reg(up, offset) << up->port.regshift;
 
@@ -321,7 +321,7 @@ static _INLINE_ unsigned int serial_in(struct uart_8250_port *up, int offset)
 	}
 }
 
-static _INLINE_ void
+static void
 serial_out(struct uart_8250_port *up, int offset, int value)
 {
 	offset = map_8250_out_reg(up, offset) << up->port.regshift;
@@ -1131,7 +1131,7 @@ static void serial8250_enable_ms(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 }
 
-static _INLINE_ void
+static void
 receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 {
 	struct tty_struct *tty = up->port.info->tty;
@@ -1217,7 +1217,7 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 	*status = lsr;
 }
 
-static _INLINE_ void transmit_chars(struct uart_8250_port *up)
+static void transmit_chars(struct uart_8250_port *up)
 {
 	struct circ_buf *xmit = &up->port.info->xmit;
 	int count;
@@ -1255,25 +1255,24 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 		__stop_tx(up);
 }
 
-static _INLINE_ void check_modem_status(struct uart_8250_port *up)
+static unsigned int check_modem_status(struct uart_8250_port *up)
 {
-	int status;
+	unsigned int status = serial_in(up, UART_MSR);
 
-	status = serial_in(up, UART_MSR);
+	if (status & UART_MSR_ANY_DELTA && up->ier & UART_IER_MSI) {
+		if (status & UART_MSR_TERI)
+			up->port.icount.rng++;
+		if (status & UART_MSR_DDSR)
+			up->port.icount.dsr++;
+		if (status & UART_MSR_DDCD)
+			uart_handle_dcd_change(&up->port, status & UART_MSR_DCD);
+		if (status & UART_MSR_DCTS)
+			uart_handle_cts_change(&up->port, status & UART_MSR_CTS);
 
-	if ((status & UART_MSR_ANY_DELTA) == 0)
-		return;
+		wake_up_interruptible(&up->port.info->delta_msr_wait);
+	}
 
-	if (status & UART_MSR_TERI)
-		up->port.icount.rng++;
-	if (status & UART_MSR_DDSR)
-		up->port.icount.dsr++;
-	if (status & UART_MSR_DDCD)
-		uart_handle_dcd_change(&up->port, status & UART_MSR_DCD);
-	if (status & UART_MSR_DCTS)
-		uart_handle_cts_change(&up->port, status & UART_MSR_CTS);
-
-	wake_up_interruptible(&up->port.info->delta_msr_wait);
+	return status;
 }
 
 /*
@@ -1282,7 +1281,11 @@ static _INLINE_ void check_modem_status(struct uart_8250_port *up)
 static inline void
 serial8250_handle_port(struct uart_8250_port *up, struct pt_regs *regs)
 {
-	unsigned int status = serial_inp(up, UART_LSR);
+	unsigned int status;
+
+	spin_lock(&up->port.lock);
+
+	status = serial_inp(up, UART_LSR);
 
 	DEBUG_INTR("status = %x...", status);
 
@@ -1291,6 +1294,8 @@ serial8250_handle_port(struct uart_8250_port *up, struct pt_regs *regs)
 	check_modem_status(up);
 	if (status & UART_LSR_THRE)
 		transmit_chars(up);
+
+	spin_unlock(&up->port.lock);
 }
 
 /*
@@ -1326,9 +1331,7 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id, struct pt_regs *r
 
 		iir = serial_in(up, UART_IIR);
 		if (!(iir & UART_IIR_NO_INT)) {
-			spin_lock(&up->port.lock);
 			serial8250_handle_port(up, regs);
-			spin_unlock(&up->port.lock);
 
 			handled = 1;
 
@@ -1427,11 +1430,8 @@ static void serial8250_timeout(unsigned long data)
 	unsigned int iir;
 
 	iir = serial_in(up, UART_IIR);
-	if (!(iir & UART_IIR_NO_INT)) {
-		spin_lock(&up->port.lock);
+	if (!(iir & UART_IIR_NO_INT))
 		serial8250_handle_port(up, NULL);
-		spin_unlock(&up->port.lock);
-	}
 
 	timeout = up->port.timeout;
 	timeout = timeout > 6 ? (timeout / 2 - 2) : 1;
@@ -1454,10 +1454,10 @@ static unsigned int serial8250_tx_empty(struct uart_port *port)
 static unsigned int serial8250_get_mctrl(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
-	unsigned char status;
+	unsigned int status;
 	unsigned int ret;
 
-	status = serial_in(up, UART_MSR);
+	status = check_modem_status(up);
 
 	ret = 0;
 	if (status & UART_MSR_DCD)
@@ -2300,9 +2300,7 @@ static int __init find_port(struct uart_port *p)
 
 	for (line = 0; line < UART_NR; line++) {
 		port = &serial8250_ports[line].port;
-		if (p->iotype == port->iotype &&
-		    p->iobase == port->iobase &&
-		    p->membase == port->membase)
+		if (uart_match_port(p, port))
 			return line;
 	}
 	return -ENODEV;
