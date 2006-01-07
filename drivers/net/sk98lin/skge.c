@@ -530,7 +530,7 @@ SK_BOOL	DualNet;
 	if (SkGeInit(pAC, pAC->IoBase, SK_INIT_DATA) != 0) {
 		printk("HWInit (0) failed.\n");
 		spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
-		return(-EAGAIN);
+		return -EIO;
 	}
 	SkI2cInit(  pAC, pAC->IoBase, SK_INIT_DATA);
 	SkEventInit(pAC, pAC->IoBase, SK_INIT_DATA);
@@ -552,7 +552,7 @@ SK_BOOL	DualNet;
 	if (SkGeInit(pAC, pAC->IoBase, SK_INIT_IO) != 0) {
 		printk("sk98lin: HWInit (1) failed.\n");
 		spin_unlock_irqrestore(&pAC->SlowPathLock, Flags);
-		return(-EAGAIN);
+		return -EIO;
 	}
 	SkI2cInit(  pAC, pAC->IoBase, SK_INIT_IO);
 	SkEventInit(pAC, pAC->IoBase, SK_INIT_IO);
@@ -584,20 +584,20 @@ SK_BOOL	DualNet;
 	} else {
 		printk(KERN_WARNING "sk98lin: Illegal number of ports: %d\n",
 		       pAC->GIni.GIMacsFound);
-		return -EAGAIN;
+		return -EIO;
 	}
 
 	if (Ret) {
 		printk(KERN_WARNING "sk98lin: Requested IRQ %d is busy.\n",
 		       dev->irq);
-		return -EAGAIN;
+		return Ret;
 	}
 	pAC->AllocFlag |= SK_ALLOC_IRQ;
 
 	/* Alloc memory for this board (Mem for RxD/TxD) : */
 	if(!BoardAllocMem(pAC)) {
 		printk("No memory for descriptor rings.\n");
-       		return(-EAGAIN);
+		return -ENOMEM;
 	}
 
 	BoardInitMem(pAC);
@@ -613,7 +613,7 @@ SK_BOOL	DualNet;
 		DualNet)) {
 		BoardFreeMem(pAC);
 		printk("sk98lin: SkGeInitAssignRamToQueues failed.\n");
-		return(-EAGAIN);
+		return -EIO;
 	}
 
 	return (0);
@@ -4800,8 +4800,10 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		}
 	}
 
-	if ((dev = alloc_etherdev(sizeof(DEV_NET))) == NULL) {
-		printk(KERN_ERR "Unable to allocate etherdev "
+ 	error = -ENOMEM;
+ 	dev = alloc_etherdev(sizeof(DEV_NET));
+ 	if (!dev) {
+		printk(KERN_ERR "sk98lin: unable to allocate etherdev "
 		       "structure!\n");
 		goto out_disable_device;
 	}
@@ -4809,7 +4811,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	pNet = netdev_priv(dev);
 	pNet->pAC = kzalloc(sizeof(SK_AC), GFP_KERNEL);
 	if (!pNet->pAC) {
-		printk(KERN_ERR "Unable to allocate adapter "
+		printk(KERN_ERR "sk98lin: unable to allocate adapter "
 		       "structure!\n");
 		goto out_free_netdev;
 	}
@@ -4822,6 +4824,7 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	pAC->CheckQueue = SK_FALSE;
 
 	dev->irq = pdev->irq;
+
 	error = SkGeInitPCI(pAC);
 	if (error) {
 		printk(KERN_ERR "sk98lin: PCI setup failed: %i\n", error);
@@ -4861,17 +4864,20 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 
 	pAC->Index = boards_found++;
 
-	if (SkGeBoardInit(dev, pAC))
+	error = SkGeBoardInit(dev, pAC);
+	if (error)
 		goto out_free_netdev;
 
 	/* Read Adapter name from VPD */
 	if (ProductStr(pAC, DeviceStr, sizeof(DeviceStr)) != 0) {
+		error = -EIO;
 		printk(KERN_ERR "sk98lin: Could not read VPD data.\n");
 		goto out_free_resources;
 	}
 
 	/* Register net device */
-	if (register_netdev(dev)) {
+	error = register_netdev(dev);
+	if (error) {
 		printk(KERN_ERR "sk98lin: Could not register device.\n");
 		goto out_free_resources;
 	}
