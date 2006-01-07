@@ -4775,16 +4775,30 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	struct net_device	*dev = NULL;
 	static int boards_found = 0;
 	int error = -ENODEV;
+	int using_dac = 0;
 	char DeviceStr[80];
 
 	if (pci_enable_device(pdev))
 		goto out;
  
 	/* Configure DMA attributes. */
-	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) &&
-	    pci_set_dma_mask(pdev, DMA_32BIT_MASK))
-		goto out_disable_device;
-
+	if (sizeof(dma_addr_t) > sizeof(u32) &&
+	    !(error = pci_set_dma_mask(pdev, DMA_64BIT_MASK))) {
+		using_dac = 1;
+		error = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		if (error < 0) {
+			printk(KERN_ERR "sk98lin %s unable to obtain 64 bit DMA "
+			       "for consistent allocations\n", pci_name(pdev));
+			goto out_disable_device;
+		}
+	} else {
+		error = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		if (error) {
+			printk(KERN_ERR "sk98lin %s no usable DMA configuration\n",
+			       pci_name(pdev));
+			goto out_disable_device;
+		}
+	}
 
 	if ((dev = alloc_etherdev(sizeof(DEV_NET))) == NULL) {
 		printk(KERN_ERR "Unable to allocate etherdev "
@@ -4842,6 +4856,9 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		pAC->RxPort[0].RxCsum = 1;
 #endif
 	}
+
+	if (using_dac)
+		dev->features |= NETIF_F_HIGHDMA;
 
 	pAC->Index = boards_found++;
 
@@ -4918,6 +4935,9 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 			pAC->RxPort[1].RxCsum = 1;
 #endif
 		}
+
+		if (using_dac)
+			dev->features |= NETIF_F_HIGHDMA;
 
 		if (register_netdev(dev)) {
 			printk(KERN_ERR "sk98lin: Could not register device for seconf port.\n");
