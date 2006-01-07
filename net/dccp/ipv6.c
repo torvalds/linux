@@ -1029,7 +1029,7 @@ discard:
 	return 0;
 }
 
-static int dccp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int dccp_v6_rcv(struct sk_buff **pskb)
 {
 	const struct dccp_hdr *dh;
 	struct sk_buff *skb = *pskb;

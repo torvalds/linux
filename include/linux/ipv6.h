@@ -191,6 +191,7 @@ struct inet6_skb_parm {
 	__u16			srcrt;
 	__u16			dst1;
 	__u16			lastopt;
+	__u32			nhoff;
 };
 
 #define IP6CB(skb)	((struct inet6_skb_parm*)((skb)->cb))

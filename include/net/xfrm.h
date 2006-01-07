@@ -831,7 +831,7 @@ struct xfrm_tunnel {
 };
 
 struct xfrm6_tunnel {
-	int (*handler)(struct sk_buff **pskb, unsigned int *nhoffp);
+	int (*handler)(struct sk_buff **pskb);
 	void (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			    int type, int code, int offset, __u32 info);
 };
@@ -868,8 +868,8 @@ extern int xfrm4_rcv(struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler);
-extern int xfrm6_rcv_spi(struct sk_buff **pskb, unsigned int *nhoffp, u32 spi);
-extern int xfrm6_rcv(struct sk_buff **pskb, unsigned int *nhoffp);
+extern int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi);
+extern int xfrm6_rcv(struct sk_buff **pskb);
 extern int xfrm6_tunnel_register(struct xfrm6_tunnel *handler);
 extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler);
 extern u32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr);

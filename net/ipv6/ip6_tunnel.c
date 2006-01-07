@@ -510,7 +510,7 @@ static inline void ip6ip6_ecn_decapsulate(struct ipv6hdr *outer_iph,
  **/
 
 static int 
-ip6ip6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+ip6ip6_rcv(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
 	struct ipv6hdr *ipv6h;

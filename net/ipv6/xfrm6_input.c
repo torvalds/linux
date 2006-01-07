@@ -26,7 +26,7 @@ static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 		IP6_ECN_set_ce(inner_iph);
 }
 
-int xfrm6_rcv_spi(struct sk_buff **pskb, unsigned int *nhoffp, u32 spi)
+int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi)
 {
 	struct sk_buff *skb = *pskb;
 	int err;
@@ -38,7 +38,7 @@ int xfrm6_rcv_spi(struct sk_buff **pskb, unsigned int *nhoffp, u32 spi)
 	int nexthdr;
 	unsigned int nhoff;
 
-	nhoff = *nhoffp;
+	nhoff = IP6CB(skb)->nhoff;
 	nexthdr = skb->nh.raw[nhoff];
 
 	seq = 0;
@@ -144,7 +144,7 @@ drop:
 
 EXPORT_SYMBOL(xfrm6_rcv_spi);
 
-int xfrm6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+int xfrm6_rcv(struct sk_buff **pskb)
 {
-	return xfrm6_rcv_spi(pskb, nhoffp, 0);
+	return xfrm6_rcv_spi(pskb, 0);
 }
