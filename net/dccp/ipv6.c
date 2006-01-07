@@ -27,6 +27,7 @@
 #include <net/ipv6.h>
 #include <net/protocol.h>
 #include <net/transp_v6.h>
+#include <net/ip6_checksum.h>
 #include <net/xfrm.h>
 
 #include "dccp.h"
