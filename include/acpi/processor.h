@@ -235,9 +235,6 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 /* in processor_throttling.c */
 int acpi_processor_get_throttling_info(struct acpi_processor *pr);
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state);
-ssize_t acpi_processor_write_throttling(struct file *file,
-					const char __user * buffer,
-					size_t count, loff_t * data);
 extern struct file_operations acpi_processor_throttling_fops;
 
 /* in processor_idle.c */
@@ -249,9 +246,6 @@ int acpi_processor_power_exit(struct acpi_processor *pr,
 
 /* in processor_thermal.c */
 int acpi_processor_get_limit_info(struct acpi_processor *pr);
-ssize_t acpi_processor_write_limit(struct file *file,
-				   const char __user * buffer,
-				   size_t count, loff_t * data);
 extern struct file_operations acpi_processor_limit_fops;
 
 #ifdef CONFIG_CPU_FREQ

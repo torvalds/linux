@@ -348,9 +348,9 @@ static int acpi_processor_limit_open_fs(struct inode *inode, struct file *file)
 			   PDE(inode)->data);
 }
 
-ssize_t acpi_processor_write_limit(struct file * file,
-				   const char __user * buffer,
-				   size_t count, loff_t * data)
+static ssize_t acpi_processor_write_limit(struct file * file,
+					  const char __user * buffer,
+					  size_t count, loff_t * data)
 {
 	int result = 0;
 	struct seq_file *m = (struct seq_file *)file->private_data;
