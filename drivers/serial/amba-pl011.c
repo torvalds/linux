@@ -47,12 +47,12 @@
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/serial.h>
 
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/hardware/amba.h>
 #include <asm/hardware/clock.h>
-#include <asm/hardware/amba_serial.h>
 
 #define UART_NR			14
 

@@ -16,15 +16,15 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysdev.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/kmi.h>
+#include <linux/amba/clcd.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/amba_kmi.h>
-#include <asm/hardware/amba_clcd.h>
 #include <asm/hardware/icst525.h>
 
 #include <asm/arch/cm.h>

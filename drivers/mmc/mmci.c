@@ -19,12 +19,12 @@
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
+#include <linux/amba/bus.h>
 
 #include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/scatterlist.h>
 #include <asm/sizes.h>
-#include <asm/hardware/amba.h>
 #include <asm/hardware/clock.h>
 #include <asm/mach/mmc.h>
 

@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
+#include <linux/amba/bus.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -30,7 +31,6 @@
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/gic.h>
-#include <asm/hardware/amba.h>
 #include <asm/hardware/icst307.h>
 
 #include <asm/mach/arch.h>

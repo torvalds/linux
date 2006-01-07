@@ -14,8 +14,8 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/amba/bus.h>
 
-#include <asm/hardware/amba.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>

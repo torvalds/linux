@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysdev.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/kmi.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -32,8 +34,6 @@
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/amba_kmi.h>
 
 #include <asm/arch/lm.h>
 

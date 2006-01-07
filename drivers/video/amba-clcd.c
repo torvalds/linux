@@ -21,12 +21,11 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/clcd.h>
 
 #include <asm/sizes.h>
-#include <asm/hardware/amba.h>
 #include <asm/hardware/clock.h>
-
-#include <asm/hardware/amba_clcd.h>
 
 #define to_clcd(info)	container_of(info, struct clcd_fb, fb)
 

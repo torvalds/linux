@@ -19,11 +19,11 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/kmi.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/amba_kmi.h>
 #include <asm/hardware/clock.h>
 
 #define KMI_BASE	(kmi->base)

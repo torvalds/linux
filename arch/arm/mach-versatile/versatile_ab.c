@@ -23,12 +23,12 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/sysdev.h>
+#include <linux/amba/bus.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/amba.h>
 
 #include <asm/mach/arch.h>
 
