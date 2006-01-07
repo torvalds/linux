@@ -1,6 +1,8 @@
 /* orinoco_nortel.c
  * 
  * Driver for Prism II devices which would usually be driven by orinoco_cs,
+ * but are connected to the PCI bus by a PCI-to-PCMCIA adapter used in
+ * Nortel emobility, Symbol LA-4113 and Symbol LA-4123.
  * but are connected to the PCI bus by a Nortel PCI-PCMCIA-Adapter. 
  *
  * Copyright (C) 2002 Tobias Hoffmann
@@ -165,7 +167,7 @@ static int nortel_pci_init_one(struct pci_dev *pdev,
 		goto fail_resources;
 	}
 
-	iomem = pci_iomap(pdev, 3, 0);
+	iomem = pci_iomap(pdev, 2, 0);
 	if (!iomem) {
 		err = -ENOMEM;
 		goto fail_map_io;
@@ -265,6 +267,8 @@ static void __devexit nortel_pci_remove_one(struct pci_dev *pdev)
 static struct pci_device_id nortel_pci_id_table[] = {
 	/* Nortel emobility PCI */
 	{0x126c, 0x8030, PCI_ANY_ID, PCI_ANY_ID,},
+	/* Symbol LA-4123 PCI */
+	{0x1562, 0x0001, PCI_ANY_ID, PCI_ANY_ID,},
 	{0,},
 };
 

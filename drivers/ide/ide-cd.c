@@ -614,7 +614,7 @@ static void cdrom_end_request (ide_drive_t *drive, int uptodate)
 			 */
 			spin_lock_irqsave(&ide_lock, flags);
 			end_that_request_chunk(failed, 0, failed->data_len);
-			end_that_request_last(failed);
+			end_that_request_last(failed, 0);
 			spin_unlock_irqrestore(&ide_lock, flags);
 		}
 
@@ -1292,7 +1292,6 @@ static ide_startstop_t cdrom_start_seek (ide_drive_t *drive, unsigned int block)
 	struct cdrom_info *info = drive->driver_data;
 
 	info->dma = 0;
-	info->cmd = 0;
 	info->start_seek = jiffies;
 	return cdrom_start_packet_command(drive, 0, cdrom_start_seek_continuation);
 }
@@ -1343,8 +1342,6 @@ static ide_startstop_t cdrom_start_read (ide_drive_t *drive, unsigned int block)
 	if ((rq->sector & (sectors_per_frame - 1)) ||
 	    (rq->nr_sectors & (sectors_per_frame - 1)))
 		info->dma = 0;
-
-	info->cmd = READ;
 
 	/* Start sending the read request to the drive. */
 	return cdrom_start_packet_command(drive, 32768, cdrom_start_read_continuation);
@@ -1484,7 +1481,6 @@ static ide_startstop_t cdrom_do_packet_command (ide_drive_t *drive)
 	struct cdrom_info *info = drive->driver_data;
 
 	info->dma = 0;
-	info->cmd = 0;
 	rq->flags &= ~REQ_FAILED;
 	len = rq->data_len;
 
@@ -1739,7 +1735,7 @@ end_request:
 
 	spin_lock_irqsave(&ide_lock, flags);
 	blkdev_dequeue_request(rq);
-	end_that_request_last(rq);
+	end_that_request_last(rq, 1);
 	HWGROUP(drive)->rq = NULL;
 	spin_unlock_irqrestore(&ide_lock, flags);
 	return ide_stopped;
@@ -1891,7 +1887,6 @@ static ide_startstop_t cdrom_start_write(ide_drive_t *drive, struct request *rq)
 	/* use dma, if possible. we don't need to check more, since we
 	 * know that the transfer is always (at least!) frame aligned */
 	info->dma = drive->using_dma ? 1 : 0;
-	info->cmd = WRITE;
 
 	info->devinfo.media_written = 1;
 
@@ -1916,7 +1911,6 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 	rq->flags |= REQ_QUIET;
 
 	info->dma = 0;
-	info->cmd = 0;
 
 	/*
 	 * sg request
@@ -1925,7 +1919,6 @@ static ide_startstop_t cdrom_do_block_pc(ide_drive_t *drive, struct request *rq)
 		int mask = drive->queue->dma_alignment;
 		unsigned long addr = (unsigned long) page_address(bio_page(rq->bio));
 
-		info->cmd = rq_data_dir(rq);
 		info->dma = drive->using_dma;
 
 		/*
@@ -3516,6 +3509,7 @@ static int __init ide_cdrom_init(void)
 	return driver_register(&ide_cdrom_driver.gen_driver);
 }
 
+MODULE_ALIAS("ide:*m-cdrom*");
 module_init(ide_cdrom_init);
 module_exit(ide_cdrom_exit);
 MODULE_LICENSE("GPL");

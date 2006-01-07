@@ -31,7 +31,7 @@ MODULE_DESCRIPTION("Advanced Linux Sound Architecture sequencer instrument libra
 MODULE_LICENSE("GPL");
 
 
-static void snd_instr_lock_ops(snd_seq_kinstr_list_t *list)
+static void snd_instr_lock_ops(struct snd_seq_kinstr_list *list)
 {
 	if (!(list->flags & SNDRV_SEQ_INSTR_FLG_DIRECT)) {
 		spin_lock_irqsave(&list->ops_lock, list->ops_flags);
@@ -40,7 +40,7 @@ static void snd_instr_lock_ops(snd_seq_kinstr_list_t *list)
 	}
 }
 
-static void snd_instr_unlock_ops(snd_seq_kinstr_list_t *list)
+static void snd_instr_unlock_ops(struct snd_seq_kinstr_list *list)
 {
 	if (!(list->flags & SNDRV_SEQ_INSTR_FLG_DIRECT)) {
 		spin_unlock_irqrestore(&list->ops_lock, list->ops_flags);
@@ -49,18 +49,18 @@ static void snd_instr_unlock_ops(snd_seq_kinstr_list_t *list)
 	}
 }
 
-static snd_seq_kinstr_t *snd_seq_instr_new(int add_len, int atomic)
+static struct snd_seq_kinstr *snd_seq_instr_new(int add_len, int atomic)
 {
-	snd_seq_kinstr_t *instr;
+	struct snd_seq_kinstr *instr;
 	
-	instr = kzalloc(sizeof(snd_seq_kinstr_t) + add_len, atomic ? GFP_ATOMIC : GFP_KERNEL);
+	instr = kzalloc(sizeof(struct snd_seq_kinstr) + add_len, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (instr == NULL)
 		return NULL;
 	instr->add_len = add_len;
 	return instr;
 }
 
-static int snd_seq_instr_free(snd_seq_kinstr_t *instr, int atomic)
+static int snd_seq_instr_free(struct snd_seq_kinstr *instr, int atomic)
 {
 	int result = 0;
 
@@ -73,11 +73,11 @@ static int snd_seq_instr_free(snd_seq_kinstr_t *instr, int atomic)
 	return result;
 }
 
-snd_seq_kinstr_list_t *snd_seq_instr_list_new(void)
+struct snd_seq_kinstr_list *snd_seq_instr_list_new(void)
 {
-	snd_seq_kinstr_list_t *list;
+	struct snd_seq_kinstr_list *list;
 
-	list = kzalloc(sizeof(snd_seq_kinstr_list_t), GFP_KERNEL);
+	list = kzalloc(sizeof(struct snd_seq_kinstr_list), GFP_KERNEL);
 	if (list == NULL)
 		return NULL;
 	spin_lock_init(&list->lock);
@@ -87,11 +87,11 @@ snd_seq_kinstr_list_t *snd_seq_instr_list_new(void)
 	return list;
 }
 
-void snd_seq_instr_list_free(snd_seq_kinstr_list_t **list_ptr)
+void snd_seq_instr_list_free(struct snd_seq_kinstr_list **list_ptr)
 {
-	snd_seq_kinstr_list_t *list;
-	snd_seq_kinstr_t *instr;
-	snd_seq_kcluster_t *cluster;
+	struct snd_seq_kinstr_list *list;
+	struct snd_seq_kinstr *instr;
+	struct snd_seq_kcluster *cluster;
 	int idx;
 	unsigned long flags;
 
@@ -125,8 +125,8 @@ void snd_seq_instr_list_free(snd_seq_kinstr_list_t **list_ptr)
 	kfree(list);
 }
 
-static int instr_free_compare(snd_seq_kinstr_t *instr,
-			      snd_seq_instr_header_t *ifree,
+static int instr_free_compare(struct snd_seq_kinstr *instr,
+			      struct snd_seq_instr_header *ifree,
 			      unsigned int client)
 {
 	switch (ifree->cmd) {
@@ -160,12 +160,12 @@ static int instr_free_compare(snd_seq_kinstr_t *instr,
 	return 1;
 }
 
-int snd_seq_instr_list_free_cond(snd_seq_kinstr_list_t *list,
-			         snd_seq_instr_header_t *ifree,
+int snd_seq_instr_list_free_cond(struct snd_seq_kinstr_list *list,
+			         struct snd_seq_instr_header *ifree,
 			         int client,
 			         int atomic)
 {
-	snd_seq_kinstr_t *instr, *prev, *next, *flist;
+	struct snd_seq_kinstr *instr, *prev, *next, *flist;
 	int idx;
 	unsigned long flags;
 
@@ -209,7 +209,7 @@ int snd_seq_instr_list_free_cond(snd_seq_kinstr_list_t *list,
 	return 0;	
 }
 
-static int compute_hash_instr_key(snd_seq_instr_t *instr)
+static int compute_hash_instr_key(struct snd_seq_instr *instr)
 {
 	int result;
 	
@@ -233,7 +233,7 @@ static int compute_hash_cluster_key(snd_seq_instr_cluster_t cluster)
 }
 #endif
 
-static int compare_instr(snd_seq_instr_t *i1, snd_seq_instr_t *i2, int exact)
+static int compare_instr(struct snd_seq_instr *i1, struct snd_seq_instr *i2, int exact)
 {
 	if (exact) {
 		if (i1->cluster != i2->cluster ||
@@ -262,14 +262,14 @@ static int compare_instr(snd_seq_instr_t *i1, snd_seq_instr_t *i2, int exact)
 	}
 }
 
-snd_seq_kinstr_t *snd_seq_instr_find(snd_seq_kinstr_list_t *list,
-				     snd_seq_instr_t *instr,
-				     int exact,
-				     int follow_alias)
+struct snd_seq_kinstr *snd_seq_instr_find(struct snd_seq_kinstr_list *list,
+					  struct snd_seq_instr *instr,
+					  int exact,
+					  int follow_alias)
 {
 	unsigned long flags;
 	int depth = 0;
-	snd_seq_kinstr_t *result;
+	struct snd_seq_kinstr *result;
 
 	if (list == NULL || instr == NULL)
 		return NULL;
@@ -279,7 +279,7 @@ snd_seq_kinstr_t *snd_seq_instr_find(snd_seq_kinstr_list_t *list,
 	while (result) {
 		if (!compare_instr(&result->instr, instr, exact)) {
 			if (follow_alias && (result->type == SNDRV_SEQ_INSTR_ATYPE_ALIAS)) {
-				instr = (snd_seq_instr_t *)KINSTR_DATA(result);
+				instr = (struct snd_seq_instr *)KINSTR_DATA(result);
 				if (++depth > 10)
 					goto __not_found;
 				goto __again;
@@ -295,8 +295,8 @@ snd_seq_kinstr_t *snd_seq_instr_find(snd_seq_kinstr_list_t *list,
 	return NULL;
 }
 
-void snd_seq_instr_free_use(snd_seq_kinstr_list_t *list,
-			    snd_seq_kinstr_t *instr)
+void snd_seq_instr_free_use(struct snd_seq_kinstr_list *list,
+			    struct snd_seq_kinstr *instr)
 {
 	unsigned long flags;
 
@@ -311,7 +311,8 @@ void snd_seq_instr_free_use(snd_seq_kinstr_list_t *list,
 	spin_unlock_irqrestore(&list->lock, flags);
 }
 
-static snd_seq_kinstr_ops_t *instr_ops(snd_seq_kinstr_ops_t *ops, char *instr_type)
+static struct snd_seq_kinstr_ops *instr_ops(struct snd_seq_kinstr_ops *ops,
+					    char *instr_type)
 {
 	while (ops) {
 		if (!strcmp(ops->instr_type, instr_type))
@@ -321,11 +322,11 @@ static snd_seq_kinstr_ops_t *instr_ops(snd_seq_kinstr_ops_t *ops, char *instr_ty
 	return NULL;
 }
 
-static int instr_result(snd_seq_event_t *ev,
+static int instr_result(struct snd_seq_event *ev,
 			int type, int result,
 			int atomic)
 {
-	snd_seq_event_t sev;
+	struct snd_seq_event sev;
 	
 	memset(&sev, 0, sizeof(sev));
 	sev.type = SNDRV_SEQ_EVENT_RESULT;
@@ -345,9 +346,9 @@ static int instr_result(snd_seq_event_t *ev,
 	return snd_seq_kernel_client_dispatch(sev.source.client, &sev, atomic, 0);
 }
 
-static int instr_begin(snd_seq_kinstr_ops_t *ops,
-		       snd_seq_kinstr_list_t *list,
-		       snd_seq_event_t *ev,
+static int instr_begin(struct snd_seq_kinstr_ops *ops,
+		       struct snd_seq_kinstr_list *list,
+		       struct snd_seq_event *ev,
 		       int atomic, int hop)
 {
 	unsigned long flags;
@@ -362,9 +363,9 @@ static int instr_begin(snd_seq_kinstr_ops_t *ops,
 	return instr_result(ev, SNDRV_SEQ_EVENT_INSTR_BEGIN, 0, atomic);
 }
 
-static int instr_end(snd_seq_kinstr_ops_t *ops,
-		     snd_seq_kinstr_list_t *list,
-		     snd_seq_event_t *ev,
+static int instr_end(struct snd_seq_kinstr_ops *ops,
+		     struct snd_seq_kinstr_list *list,
+		     struct snd_seq_event *ev,
 		     int atomic, int hop)
 {
 	unsigned long flags;
@@ -380,54 +381,55 @@ static int instr_end(snd_seq_kinstr_ops_t *ops,
 	return instr_result(ev, SNDRV_SEQ_EVENT_INSTR_END, -EINVAL, atomic);
 }
 
-static int instr_info(snd_seq_kinstr_ops_t *ops,
-		      snd_seq_kinstr_list_t *list,
-		      snd_seq_event_t *ev,
+static int instr_info(struct snd_seq_kinstr_ops *ops,
+		      struct snd_seq_kinstr_list *list,
+		      struct snd_seq_event *ev,
 		      int atomic, int hop)
 {
 	return -ENXIO;
 }
 
-static int instr_format_info(snd_seq_kinstr_ops_t *ops,
-			     snd_seq_kinstr_list_t *list,
-			     snd_seq_event_t *ev,
+static int instr_format_info(struct snd_seq_kinstr_ops *ops,
+			     struct snd_seq_kinstr_list *list,
+			     struct snd_seq_event *ev,
 			     int atomic, int hop)
 {
 	return -ENXIO;
 }
 
-static int instr_reset(snd_seq_kinstr_ops_t *ops,
-		       snd_seq_kinstr_list_t *list,
-		       snd_seq_event_t *ev,
+static int instr_reset(struct snd_seq_kinstr_ops *ops,
+		       struct snd_seq_kinstr_list *list,
+		       struct snd_seq_event *ev,
 		       int atomic, int hop)
 {
 	return -ENXIO;
 }
 
-static int instr_status(snd_seq_kinstr_ops_t *ops,
-			snd_seq_kinstr_list_t *list,
-			snd_seq_event_t *ev,
+static int instr_status(struct snd_seq_kinstr_ops *ops,
+			struct snd_seq_kinstr_list *list,
+			struct snd_seq_event *ev,
 			int atomic, int hop)
 {
 	return -ENXIO;
 }
 
-static int instr_put(snd_seq_kinstr_ops_t *ops,
-		     snd_seq_kinstr_list_t *list,
-		     snd_seq_event_t *ev,
+static int instr_put(struct snd_seq_kinstr_ops *ops,
+		     struct snd_seq_kinstr_list *list,
+		     struct snd_seq_event *ev,
 		     int atomic, int hop)
 {
 	unsigned long flags;
-	snd_seq_instr_header_t put;
-	snd_seq_kinstr_t *instr;
+	struct snd_seq_instr_header put;
+	struct snd_seq_kinstr *instr;
 	int result = -EINVAL, len, key;
 
 	if ((ev->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARUSR)
 		goto __return;
 
-	if (ev->data.ext.len < sizeof(snd_seq_instr_header_t))
+	if (ev->data.ext.len < sizeof(struct snd_seq_instr_header))
 		goto __return;
-	if (copy_from_user(&put, (void __user *)ev->data.ext.ptr, sizeof(snd_seq_instr_header_t))) {
+	if (copy_from_user(&put, (void __user *)ev->data.ext.ptr,
+			   sizeof(struct snd_seq_instr_header))) {
 		result = -EFAULT;
 		goto __return;
 	}
@@ -449,7 +451,7 @@ static int instr_put(snd_seq_kinstr_ops_t *ops,
 	}
 	len = ops->add_len;
 	if (put.data.type == SNDRV_SEQ_INSTR_ATYPE_ALIAS)
-		len = sizeof(snd_seq_instr_t);
+		len = sizeof(struct snd_seq_instr);
 	instr = snd_seq_instr_new(len, atomic);
 	if (instr == NULL) {
 		snd_instr_unlock_ops(list);
@@ -463,8 +465,8 @@ static int instr_put(snd_seq_kinstr_ops_t *ops,
 	if (instr->type == SNDRV_SEQ_INSTR_ATYPE_DATA) {
 		result = ops->put(ops->private_data,
 				  instr,
-				  (void __user *)ev->data.ext.ptr + sizeof(snd_seq_instr_header_t),
-				  ev->data.ext.len - sizeof(snd_seq_instr_header_t),
+				  (void __user *)ev->data.ext.ptr + sizeof(struct snd_seq_instr_header),
+				  ev->data.ext.len - sizeof(struct snd_seq_instr_header),
 				  atomic,
 				  put.cmd);
 		if (result < 0) {
@@ -486,21 +488,21 @@ static int instr_put(snd_seq_kinstr_ops_t *ops,
 	return result;
 }
 
-static int instr_get(snd_seq_kinstr_ops_t *ops,
-		     snd_seq_kinstr_list_t *list,
-		     snd_seq_event_t *ev,
+static int instr_get(struct snd_seq_kinstr_ops *ops,
+		     struct snd_seq_kinstr_list *list,
+		     struct snd_seq_event *ev,
 		     int atomic, int hop)
 {
 	return -ENXIO;
 }
 
-static int instr_free(snd_seq_kinstr_ops_t *ops,
-		      snd_seq_kinstr_list_t *list,
-		      snd_seq_event_t *ev,
+static int instr_free(struct snd_seq_kinstr_ops *ops,
+		      struct snd_seq_kinstr_list *list,
+		      struct snd_seq_event *ev,
 		      int atomic, int hop)
 {
-	snd_seq_instr_header_t ifree;
-	snd_seq_kinstr_t *instr, *prev;
+	struct snd_seq_instr_header ifree;
+	struct snd_seq_kinstr *instr, *prev;
 	int result = -EINVAL;
 	unsigned long flags;
 	unsigned int hash;
@@ -508,9 +510,10 @@ static int instr_free(snd_seq_kinstr_ops_t *ops,
 	if ((ev->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARUSR)
 		goto __return;
 
-	if (ev->data.ext.len < sizeof(snd_seq_instr_header_t))
+	if (ev->data.ext.len < sizeof(struct snd_seq_instr_header))
 		goto __return;
-	if (copy_from_user(&ifree, (void __user *)ev->data.ext.ptr, sizeof(snd_seq_instr_header_t))) {
+	if (copy_from_user(&ifree, (void __user *)ev->data.ext.ptr,
+			   sizeof(struct snd_seq_instr_header))) {
 		result = -EFAULT;
 		goto __return;
 	}
@@ -548,7 +551,8 @@ static int instr_free(snd_seq_kinstr_ops_t *ops,
 			list->hash[hash] = instr->next;
 		}
 		if (instr->ops && instr->ops->notify)
-			instr->ops->notify(instr->ops->private_data, instr, SNDRV_SEQ_INSTR_NOTIFY_REMOVE);
+			instr->ops->notify(instr->ops->private_data, instr,
+					   SNDRV_SEQ_INSTR_NOTIFY_REMOVE);
 		while (instr->use) {
 			spin_unlock_irqrestore(&list->lock, flags);
 			schedule_timeout_interruptible(1);
@@ -565,25 +569,25 @@ static int instr_free(snd_seq_kinstr_ops_t *ops,
 	return result;
 }
 
-static int instr_list(snd_seq_kinstr_ops_t *ops,
-		      snd_seq_kinstr_list_t *list,
-		      snd_seq_event_t *ev,
+static int instr_list(struct snd_seq_kinstr_ops *ops,
+		      struct snd_seq_kinstr_list *list,
+		      struct snd_seq_event *ev,
 		      int atomic, int hop)
 {
 	return -ENXIO;
 }
 
-static int instr_cluster(snd_seq_kinstr_ops_t *ops,
-			 snd_seq_kinstr_list_t *list,
-			 snd_seq_event_t *ev,
+static int instr_cluster(struct snd_seq_kinstr_ops *ops,
+			 struct snd_seq_kinstr_list *list,
+			 struct snd_seq_event *ev,
 			 int atomic, int hop)
 {
 	return -ENXIO;
 }
 
-int snd_seq_instr_event(snd_seq_kinstr_ops_t *ops,
-			snd_seq_kinstr_list_t *list,
-			snd_seq_event_t *ev,
+int snd_seq_instr_event(struct snd_seq_kinstr_ops *ops,
+			struct snd_seq_kinstr_list *list,
+			struct snd_seq_event *ev,
 			int client,
 			int atomic,
 			int hop)

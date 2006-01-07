@@ -22,9 +22,8 @@
 #ifndef _UDP_H
 #define _UDP_H
 
-#include <linux/udp.h>
-#include <linux/ip.h>
 #include <linux/list.h>
+#include <net/inet_sock.h>
 #include <net/sock.h>
 #include <net/snmp.h>
 #include <linux/seq_file.h>
@@ -62,6 +61,7 @@ static inline int udp_lport_inuse(u16 num)
 
 extern struct proto udp_prot;
 
+struct sk_buff;
 
 extern void	udp_err(struct sk_buff *, u32);
 

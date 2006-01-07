@@ -40,7 +40,9 @@
  * @param value value
  * @param timeout timeout in centisenconds
  */
-static int mixart_wait_nice_for_register_value(mixart_mgr_t *mgr, u32 offset, int is_egal, u32 value, unsigned long timeout)
+static int mixart_wait_nice_for_register_value(struct mixart_mgr *mgr,
+					       u32 offset, int is_egal,
+					       u32 value, unsigned long timeout)
 {
 	unsigned long end_time = jiffies + (timeout * HZ / 100);
 	u32 read;
@@ -66,8 +68,6 @@ static int mixart_wait_nice_for_register_value(mixart_mgr_t *mgr, u32 offset, in
 /*
   structures needed to upload elf code packets 
  */
-typedef struct snd_mixart_elf32_ehdr snd_mixart_elf32_ehdr_t;
-
 struct snd_mixart_elf32_ehdr {
 	u8      e_ident[16];
 	u16     e_type;
@@ -85,8 +85,6 @@ struct snd_mixart_elf32_ehdr {
 	u16     e_shstrndx;
 };
 
-typedef struct snd_mixart_elf32_phdr snd_mixart_elf32_phdr_t;
-
 struct snd_mixart_elf32_phdr {
 	u32     p_type;
 	u32     p_offset;
@@ -98,19 +96,19 @@ struct snd_mixart_elf32_phdr {
 	u32     p_align;
 };
 
-static int mixart_load_elf(mixart_mgr_t *mgr, const struct firmware *dsp )
+static int mixart_load_elf(struct mixart_mgr *mgr, const struct firmware *dsp )
 {
 	char                    elf32_magic_number[4] = {0x7f,'E','L','F'};
-	snd_mixart_elf32_ehdr_t *elf_header;
+	struct snd_mixart_elf32_ehdr *elf_header;
 	int                     i;
 
-	elf_header = (snd_mixart_elf32_ehdr_t *)dsp->data;
+	elf_header = (struct snd_mixart_elf32_ehdr *)dsp->data;
 	for( i=0; i<4; i++ )
 		if ( elf32_magic_number[i] != elf_header->e_ident[i] )
 			return -EINVAL;
 
 	if( elf_header->e_phoff != 0 ) {
-		snd_mixart_elf32_phdr_t     elf_programheader;
+		struct snd_mixart_elf32_phdr     elf_programheader;
 
 		for( i=0; i < be16_to_cpu(elf_header->e_phnum); i++ ) {
 			u32 pos = be32_to_cpu(elf_header->e_phoff) + (u32)(i * be16_to_cpu(elf_header->e_phentsize));
@@ -137,14 +135,14 @@ static int mixart_load_elf(mixart_mgr_t *mgr, const struct firmware *dsp )
 #define MIXART_FIRST_ANA_AUDIO_ID       0
 #define MIXART_FIRST_DIG_AUDIO_ID       8
 
-static int mixart_enum_connectors(mixart_mgr_t *mgr)
+static int mixart_enum_connectors(struct mixart_mgr *mgr)
 {
 	u32 k;
 	int err;
-	mixart_msg_t request;
-	mixart_enum_connector_resp_t *connector;
-	mixart_audio_info_req_t  *audio_info_req;
-	mixart_audio_info_resp_t *audio_info;
+	struct mixart_msg request;
+	struct mixart_enum_connector_resp *connector;
+	struct mixart_audio_info_req  *audio_info_req;
+	struct mixart_audio_info_resp *audio_info;
 
 	connector = kmalloc(sizeof(*connector), GFP_KERNEL);
 	audio_info_req = kmalloc(sizeof(*audio_info_req), GFP_KERNEL);
@@ -159,7 +157,7 @@ static int mixart_enum_connectors(mixart_mgr_t *mgr)
 	audio_info_req->cd_max_level = MIXART_FLOAT____0_0_TO_HEX;
 
 	request.message_id = MSG_SYSTEM_ENUM_PLAY_CONNECTOR;
-	request.uid = (mixart_uid_t){0,0};  /* board num = 0 */
+	request.uid = (struct mixart_uid){0,0};  /* board num = 0 */
 	request.data = NULL;
 	request.size = 0;
 
@@ -171,7 +169,7 @@ static int mixart_enum_connectors(mixart_mgr_t *mgr)
 	}
 
 	for(k=0; k < connector->uid_count; k++) {
-		mixart_pipe_t* pipe;
+		struct mixart_pipe *pipe;
 
 		if(k < MIXART_FIRST_DIG_AUDIO_ID) {
 			pipe = &mgr->chip[k/2]->pipe_out_ana;
@@ -201,7 +199,7 @@ static int mixart_enum_connectors(mixart_mgr_t *mgr)
 	}
 
 	request.message_id = MSG_SYSTEM_ENUM_RECORD_CONNECTOR;
-	request.uid = (mixart_uid_t){0,0};  /* board num = 0 */
+	request.uid = (struct mixart_uid){0,0};  /* board num = 0 */
 	request.data = NULL;
 	request.size = 0;
 
@@ -213,7 +211,7 @@ static int mixart_enum_connectors(mixart_mgr_t *mgr)
 	}
 
 	for(k=0; k < connector->uid_count; k++) {
-		mixart_pipe_t* pipe;
+		struct mixart_pipe *pipe;
 
 		if(k < MIXART_FIRST_DIG_AUDIO_ID) {
 			pipe = &mgr->chip[k/2]->pipe_in_ana;
@@ -251,14 +249,14 @@ static int mixart_enum_connectors(mixart_mgr_t *mgr)
 	return err;
 }
 
-static int mixart_enum_physio(mixart_mgr_t *mgr)
+static int mixart_enum_physio(struct mixart_mgr *mgr)
 {
 	u32 k;
 	int err;
-	mixart_msg_t request;
-	mixart_uid_t get_console_mgr;
-	mixart_return_uid_t console_mgr;
-	mixart_uid_enumeration_t phys_io;
+	struct mixart_msg request;
+	struct mixart_uid get_console_mgr;
+	struct mixart_return_uid console_mgr;
+	struct mixart_uid_enumeration phys_io;
 
 	/* get the uid for the console manager */
 	get_console_mgr.object_id = 0;
@@ -280,7 +278,7 @@ static int mixart_enum_physio(mixart_mgr_t *mgr)
 	mgr->uid_console_manager = console_mgr.uid;
 
 	request.message_id = MSG_SYSTEM_ENUM_PHYSICAL_IO;
-	request.uid = (mixart_uid_t){0,0};
+	request.uid = (struct mixart_uid){0,0};
 	request.data = &console_mgr.uid;
 	request.size = sizeof(console_mgr.uid);
 
@@ -301,11 +299,11 @@ static int mixart_enum_physio(mixart_mgr_t *mgr)
 }
 
 
-static int mixart_first_init(mixart_mgr_t *mgr)
+static int mixart_first_init(struct mixart_mgr *mgr)
 {
 	u32 k;
 	int err;
-	mixart_msg_t request;
+	struct mixart_msg request;
 
 	if((err = mixart_enum_connectors(mgr)) < 0) return err;
 
@@ -314,7 +312,7 @@ static int mixart_first_init(mixart_mgr_t *mgr)
 	/* send a synchro command to card (necessary to do this before first MSG_STREAM_START_STREAM_GRP_PACKET) */
 	/* though why not here */
 	request.message_id = MSG_SYSTEM_SEND_SYNCHRO_CMD;
-	request.uid = (mixart_uid_t){0,0};
+	request.uid = (struct mixart_uid){0,0};
 	request.data = NULL;
 	request.size = 0;
 	/* this command has no data. response is a 32 bit status */
@@ -331,7 +329,7 @@ static int mixart_first_init(mixart_mgr_t *mgr)
 /* firmware base addresses (when hard coded) */
 #define MIXART_MOTHERBOARD_XLX_BASE_ADDRESS   0x00600000
 
-static int mixart_dsp_load(mixart_mgr_t* mgr, int index, const struct firmware *dsp)
+static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmware *dsp)
 {
 	int           err, card_index;
 	u32           status_xilinx, status_elf, status_daught;
@@ -513,7 +511,7 @@ static int mixart_dsp_load(mixart_mgr_t* mgr, int index, const struct firmware *
 
        	/* create devices and mixer in accordance with HW options*/
         for (card_index = 0; card_index < mgr->num_cards; card_index++) {
-		mixart_t *chip = mgr->chip[card_index];
+		struct snd_mixart *chip = mgr->chip[card_index];
 
 		if ((err = snd_mixart_create_pcm(chip)) < 0)
 			return err;
@@ -541,7 +539,7 @@ static int mixart_dsp_load(mixart_mgr_t* mgr, int index, const struct firmware *
 
 #ifdef SND_MIXART_FW_LOADER
 
-int snd_mixart_setup_firmware(mixart_mgr_t *mgr)
+int snd_mixart_setup_firmware(struct mixart_mgr *mgr)
 {
 	static char *fw_files[3] = {
 		"miXart8.xlx", "miXart8.elf", "miXart8AES.xlx"
@@ -573,19 +571,20 @@ int snd_mixart_setup_firmware(mixart_mgr_t *mgr)
 /* miXart hwdep interface id string */
 #define SND_MIXART_HWDEP_ID       "miXart Loader"
 
-static int mixart_hwdep_open(snd_hwdep_t *hw, struct file *file)
+static int mixart_hwdep_open(struct snd_hwdep *hw, struct file *file)
 {
 	return 0;
 }
 
-static int mixart_hwdep_release(snd_hwdep_t *hw, struct file *file)
+static int mixart_hwdep_release(struct snd_hwdep *hw, struct file *file)
 {
 	return 0;
 }
 
-static int mixart_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t *info)
+static int mixart_hwdep_dsp_status(struct snd_hwdep *hw,
+				   struct snd_hwdep_dsp_status *info)
 {
-	mixart_mgr_t *mgr = hw->private_data;
+	struct mixart_mgr *mgr = hw->private_data;
 
 	strcpy(info->id, "miXart");
         info->num_dsps = MIXART_HARDW_FILES_MAX_INDEX;
@@ -597,9 +596,10 @@ static int mixart_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t *info
 	return 0;
 }
 
-static int mixart_hwdep_dsp_load(snd_hwdep_t *hw, snd_hwdep_dsp_image_t *dsp)
+static int mixart_hwdep_dsp_load(struct snd_hwdep *hw,
+				 struct snd_hwdep_dsp_image *dsp)
 {
-	mixart_mgr_t* mgr = hw->private_data;
+	struct mixart_mgr* mgr = hw->private_data;
 	struct firmware fw;
 	int err;
 
@@ -622,10 +622,10 @@ static int mixart_hwdep_dsp_load(snd_hwdep_t *hw, snd_hwdep_dsp_image_t *dsp)
 	return err;
 }
 
-int snd_mixart_setup_firmware(mixart_mgr_t *mgr)
+int snd_mixart_setup_firmware(struct mixart_mgr *mgr)
 {
 	int err;
-	snd_hwdep_t *hw;
+	struct snd_hwdep *hw;
 
 	/* only create hwdep interface for first cardX (see "index" module parameter)*/
 	if ((err = snd_hwdep_new(mgr->chip[0]->card, SND_MIXART_HWDEP_ID, 0, &hw)) < 0)

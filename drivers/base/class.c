@@ -178,7 +178,7 @@ static void class_device_create_release(struct class_device *class_dev)
 }
 
 /* needed to allow these devices to have parent class devices */
-static int class_device_create_hotplug(struct class_device *class_dev,
+static int class_device_create_uevent(struct class_device *class_dev,
 				       char **envp, int num_envp,
 				       char *buffer, int buffer_size)
 {
@@ -331,7 +331,7 @@ static struct kobj_type ktype_class_device = {
 	.release	= class_dev_release,
 };
 
-static int class_hotplug_filter(struct kset *kset, struct kobject *kobj)
+static int class_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
 
@@ -343,14 +343,14 @@ static int class_hotplug_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static const char *class_hotplug_name(struct kset *kset, struct kobject *kobj)
+static const char *class_uevent_name(struct kset *kset, struct kobject *kobj)
 {
 	struct class_device *class_dev = to_class_dev(kobj);
 
 	return class_dev->class->name;
 }
 
-static int class_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
+static int class_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			 int num_envp, char *buffer, int buffer_size)
 {
 	struct class_device *class_dev = to_class_dev(kobj);
@@ -365,29 +365,29 @@ static int class_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 		struct device *dev = class_dev->dev;
 		char *path = kobject_get_path(&dev->kobj, GFP_KERNEL);
 
-		add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size,
-				    &length, "PHYSDEVPATH=%s", path);
+		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
+			       &length, "PHYSDEVPATH=%s", path);
 		kfree(path);
 
 		if (dev->bus)
-			add_hotplug_env_var(envp, num_envp, &i,
-					    buffer, buffer_size, &length,
-					    "PHYSDEVBUS=%s", dev->bus->name);
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVBUS=%s", dev->bus->name);
 
 		if (dev->driver)
-			add_hotplug_env_var(envp, num_envp, &i,
-					    buffer, buffer_size, &length,
-					    "PHYSDEVDRIVER=%s", dev->driver->name);
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVDRIVER=%s", dev->driver->name);
 	}
 
 	if (MAJOR(class_dev->devt)) {
-		add_hotplug_env_var(envp, num_envp, &i,
-				    buffer, buffer_size, &length,
-				    "MAJOR=%u", MAJOR(class_dev->devt));
+		add_uevent_var(envp, num_envp, &i,
+			       buffer, buffer_size, &length,
+			       "MAJOR=%u", MAJOR(class_dev->devt));
 
-		add_hotplug_env_var(envp, num_envp, &i,
-				    buffer, buffer_size, &length,
-				    "MINOR=%u", MINOR(class_dev->devt));
+		add_uevent_var(envp, num_envp, &i,
+			       buffer, buffer_size, &length,
+			       "MINOR=%u", MINOR(class_dev->devt));
 	}
 
 	/* terminate, set to next free slot, shrink available space */
@@ -397,30 +397,30 @@ static int class_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 	buffer = &buffer[length];
 	buffer_size -= length;
 
-	if (class_dev->hotplug) {
+	if (class_dev->uevent) {
 		/* have the class device specific function add its stuff */
-		retval = class_dev->hotplug(class_dev, envp, num_envp,
+		retval = class_dev->uevent(class_dev, envp, num_envp,
 					    buffer, buffer_size);
 		if (retval)
-			pr_debug("class_dev->hotplug() returned %d\n", retval);
-	} else if (class_dev->class->hotplug) {
+			pr_debug("class_dev->uevent() returned %d\n", retval);
+	} else if (class_dev->class->uevent) {
 		/* have the class specific function add its stuff */
-		retval = class_dev->class->hotplug(class_dev, envp, num_envp,
+		retval = class_dev->class->uevent(class_dev, envp, num_envp,
 						   buffer, buffer_size);
 		if (retval)
-			pr_debug("class->hotplug() returned %d\n", retval);
+			pr_debug("class->uevent() returned %d\n", retval);
 	}
 
 	return retval;
 }
 
-static struct kset_hotplug_ops class_hotplug_ops = {
-	.filter =	class_hotplug_filter,
-	.name =		class_hotplug_name,
-	.hotplug =	class_hotplug,
+static struct kset_uevent_ops class_uevent_ops = {
+	.filter =	class_uevent_filter,
+	.name =		class_uevent_name,
+	.uevent =	class_uevent,
 };
 
-static decl_subsys(class_obj, &ktype_class_device, &class_hotplug_ops);
+static decl_subsys(class_obj, &ktype_class_device, &class_uevent_ops);
 
 
 static int class_device_add_attrs(struct class_device * cd)
@@ -464,7 +464,7 @@ static ssize_t show_dev(struct class_device *class_dev, char *buf)
 static ssize_t store_uevent(struct class_device *class_dev,
 			    const char *buf, size_t count)
 {
-	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
+	kobject_uevent(&class_dev->kobj, KOBJ_ADD);
 	return count;
 }
 
@@ -559,7 +559,7 @@ int class_device_add(struct class_device *class_dev)
 				  class_name);
 	}
 
-	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
+	kobject_uevent(&class_dev->kobj, KOBJ_ADD);
 
 	/* notify any interfaces this device is now here */
 	if (parent_class) {
@@ -632,7 +632,7 @@ struct class_device *class_device_create(struct class *cls,
 	class_dev->class = cls;
 	class_dev->parent = parent;
 	class_dev->release = class_device_create_release;
-	class_dev->hotplug = class_device_create_hotplug;
+	class_dev->uevent = class_device_create_uevent;
 
 	va_start(args, fmt);
 	vsnprintf(class_dev->class_id, BUS_ID_SIZE, fmt, args);
@@ -674,7 +674,7 @@ void class_device_del(struct class_device *class_dev)
 		class_device_remove_file(class_dev, class_dev->devt_attr);
 	class_device_remove_attrs(class_dev);
 
-	kobject_hotplug(&class_dev->kobj, KOBJ_REMOVE);
+	kobject_uevent(&class_dev->kobj, KOBJ_REMOVE);
 	kobject_del(&class_dev->kobj);
 
 	class_device_put(parent_device);

@@ -41,7 +41,7 @@ module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
 #define dprintk1(lvl,fmt, args...) if (i2c_debug>=lvl) do {\
-			printk(fmt , ##args); } while (0)
+			printk(fmt, ##args); } while (0)
 #define dprintk2(lvl,fmt, args...) if (i2c_debug>=lvl) do{ \
 			printk(KERN_DEBUG "%s at %s: " fmt, \
 			dev->name, __FUNCTION__ , ##args); } while (0)
@@ -497,7 +497,6 @@ static struct i2c_adapter em28xx_adap_template = {
 
 static struct i2c_client em28xx_client_template = {
 	.name = "em28xx internal",
-	.flags = I2C_CLIENT_ALLOW_USE,
 };
 
 /* ----------------------------------------------------------- */

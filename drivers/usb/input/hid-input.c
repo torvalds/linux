@@ -39,7 +39,7 @@
 
 #define unk	KEY_UNKNOWN
 
-static unsigned char hid_keyboard[256] = {
+static const unsigned char hid_keyboard[256] = {
 	  0,  0,  0,  0, 30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38,
 	 50, 49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44,  2,  3,
 	  4,  5,  6,  7,  8,  9, 10, 11, 28,  1, 14, 15, 57, 12, 13, 26,
@@ -58,7 +58,7 @@ static unsigned char hid_keyboard[256] = {
 	150,158,159,128,136,177,178,176,142,152,173,140,unk,unk,unk,unk
 };
 
-static struct {
+static const struct {
 	__s32 x;
 	__s32 y;
 }  hid_hat_to_axis[] = {{ 0, 0}, { 0,-1}, { 1,-1}, { 1, 0}, { 1, 1}, { 0, 1}, {-1, 1}, {-1, 0}, {-1,-1}};
@@ -137,6 +137,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			switch (usage->hid & 0xffff) {
 				case 0xba: map_abs(ABS_RUDDER); break;
 				case 0xbb: map_abs(ABS_THROTTLE); break;
+				default:   goto ignore;
 			}
 			break;
 

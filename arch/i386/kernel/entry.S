@@ -657,6 +657,7 @@ ENTRY(spurious_interrupt_bug)
 	pushl $do_spurious_interrupt_bug
 	jmp error_code
 
+.section .rodata,"a"
 #include "syscall_table.S"
 
 syscall_table_size=(.-sys_call_table)

@@ -42,15 +42,16 @@ MODULE_PARM_DESC(debug, "Debugging messages\n\t\t\t0=Off (default), 1=On");
 #define cs53l32a_dbg(fmt, arg...) \
 	do { \
 		if (debug) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
+			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
+			       client->driver->driver.name, \
 			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
 	} while (0)
 
 #define cs53l32a_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
 		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 #define cs53l32a_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
 		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 static unsigned short normal_i2c[] = { 0x22 >> 1, I2C_CLIENT_END };
@@ -154,7 +155,6 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name) - 1, "cs53l32a");
 
 	cs53l32a_info("chip found @ 0x%x (%s)\n", address << 1, adapter->name);
@@ -216,13 +216,13 @@ static int cs53l32a_detach(struct i2c_client *client)
 
 /* i2c implementation */
 static struct i2c_driver i2c_driver = {
-	.name = "cs53l32a",
+	.driver = {
+		.name = "cs53l32a",
+	},
 	.id = I2C_DRIVERID_CS53L32A,
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = cs53l32a_probe,
 	.detach_client = cs53l32a_detach,
 	.command = cs53l32a_command,
-	.owner = THIS_MODULE,
 };
 
 

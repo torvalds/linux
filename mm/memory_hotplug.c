@@ -42,7 +42,6 @@ extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 				  int nr_pages);
 static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 {
-	struct pglist_data *pgdat = zone->zone_pgdat;
 	int nr_pages = PAGES_PER_SECTION;
 	int ret;
 
@@ -104,7 +103,7 @@ static void grow_pgdat_span(struct pglist_data *pgdat,
 		pgdat->node_start_pfn = start_pfn;
 
 	if (end_pfn > old_pgdat_end_pfn)
-		pgdat->node_spanned_pages = end_pfn - pgdat->node_spanned_pages;
+		pgdat->node_spanned_pages = end_pfn - pgdat->node_start_pfn;
 }
 
 int online_pages(unsigned long pfn, unsigned long nr_pages)

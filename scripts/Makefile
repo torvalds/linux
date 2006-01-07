@@ -19,4 +19,4 @@ subdir-$(CONFIG_MODVERSIONS) += genksyms
 subdir-$(CONFIG_MODULES)     += mod
 
 # Let clean descend into subdirs
-subdir-	+= basic lxdialog kconfig package
+subdir-	+= basic kconfig package

@@ -788,10 +788,10 @@ static int saa7191_command(struct i2c_client *client, unsigned int cmd,
 }
 
 static struct i2c_driver i2c_driver_saa7191 = {
-	.owner		= THIS_MODULE,
-	.name		= "saa7191",
+	.driver = {
+		.name 	= "saa7191",
+	},
 	.id		= I2C_DRIVERID_SAA7191,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter = saa7191_probe,
 	.detach_client	= saa7191_detach,
 	.command	= saa7191_command

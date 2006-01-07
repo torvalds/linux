@@ -358,7 +358,7 @@ static struct sysfs_ops disk_sysfs_ops = {
 static ssize_t disk_uevent_store(struct gendisk * disk,
 				 const char *buf, size_t count)
 {
-	kobject_hotplug(&disk->kobj, KOBJ_ADD);
+	kobject_uevent(&disk->kobj, KOBJ_ADD);
 	return count;
 }
 static ssize_t disk_dev_read(struct gendisk * disk, char *page)
@@ -455,14 +455,14 @@ static struct kobj_type ktype_block = {
 
 extern struct kobj_type ktype_part;
 
-static int block_hotplug_filter(struct kset *kset, struct kobject *kobj)
+static int block_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
 
 	return ((ktype == &ktype_block) || (ktype == &ktype_part));
 }
 
-static int block_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
+static int block_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 			 int num_envp, char *buffer, int buffer_size)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
@@ -474,40 +474,40 @@ static int block_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 
 	if (ktype == &ktype_block) {
 		disk = container_of(kobj, struct gendisk, kobj);
-		add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size,
-				    &length, "MINOR=%u", disk->first_minor);
+		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
+			       &length, "MINOR=%u", disk->first_minor);
 	} else if (ktype == &ktype_part) {
 		disk = container_of(kobj->parent, struct gendisk, kobj);
 		part = container_of(kobj, struct hd_struct, kobj);
-		add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size,
-				    &length, "MINOR=%u",
-				    disk->first_minor + part->partno);
+		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
+			       &length, "MINOR=%u",
+			       disk->first_minor + part->partno);
 	} else
 		return 0;
 
-	add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size, &length,
-			    "MAJOR=%u", disk->major);
+	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+		       "MAJOR=%u", disk->major);
 
 	/* add physical device, backing this device  */
 	physdev = disk->driverfs_dev;
 	if (physdev) {
 		char *path = kobject_get_path(&physdev->kobj, GFP_KERNEL);
 
-		add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size,
-				    &length, "PHYSDEVPATH=%s", path);
+		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
+			       &length, "PHYSDEVPATH=%s", path);
 		kfree(path);
 
 		if (physdev->bus)
-			add_hotplug_env_var(envp, num_envp, &i,
-					    buffer, buffer_size, &length,
-					    "PHYSDEVBUS=%s",
-					    physdev->bus->name);
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVBUS=%s",
+				       physdev->bus->name);
 
 		if (physdev->driver)
-			add_hotplug_env_var(envp, num_envp, &i,
-					    buffer, buffer_size, &length,
-					    "PHYSDEVDRIVER=%s",
-					    physdev->driver->name);
+			add_uevent_var(envp, num_envp, &i,
+				       buffer, buffer_size, &length,
+				       "PHYSDEVDRIVER=%s",
+				       physdev->driver->name);
 	}
 
 	/* terminate, set to next free slot, shrink available space */
@@ -520,13 +520,13 @@ static int block_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 	return 0;
 }
 
-static struct kset_hotplug_ops block_hotplug_ops = {
-	.filter		= block_hotplug_filter,
-	.hotplug	= block_hotplug,
+static struct kset_uevent_ops block_uevent_ops = {
+	.filter		= block_uevent_filter,
+	.uevent		= block_uevent,
 };
 
 /* declare block_subsys. */
-static decl_subsys(block, &ktype_block, &block_hotplug_ops);
+static decl_subsys(block, &ktype_block, &block_uevent_ops);
 
 
 /*

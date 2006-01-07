@@ -555,11 +555,12 @@ repeat:
 		page_cache_get(page);
 		if (TestSetPageLocked(page)) {
 			read_unlock_irq(&mapping->tree_lock);
-			lock_page(page);
+			__lock_page(page);
 			read_lock_irq(&mapping->tree_lock);
 
 			/* Has the page been truncated while we slept? */
-			if (page->mapping != mapping || page->index != offset) {
+			if (unlikely(page->mapping != mapping ||
+				     page->index != offset)) {
 				unlock_page(page);
 				page_cache_release(page);
 				goto repeat;
@@ -831,8 +832,13 @@ readpage:
 		/* Start the actual read. The read will unlock the page. */
 		error = mapping->a_ops->readpage(filp, page);
 
-		if (unlikely(error))
+		if (unlikely(error)) {
+			if (error == AOP_TRUNCATED_PAGE) {
+				page_cache_release(page);
+				goto find_page;
+			}
 			goto readpage_error;
+		}
 
 		if (!PageUptodate(page)) {
 			lock_page(page);
@@ -1152,26 +1158,24 @@ static int fastcall page_cache_read(struct file * file, unsigned long offset)
 {
 	struct address_space *mapping = file->f_mapping;
 	struct page *page; 
-	int error;
+	int ret;
 
-	page = page_cache_alloc_cold(mapping);
-	if (!page)
-		return -ENOMEM;
+	do {
+		page = page_cache_alloc_cold(mapping);
+		if (!page)
+			return -ENOMEM;
 
-	error = add_to_page_cache_lru(page, mapping, offset, GFP_KERNEL);
-	if (!error) {
-		error = mapping->a_ops->readpage(file, page);
+		ret = add_to_page_cache_lru(page, mapping, offset, GFP_KERNEL);
+		if (ret == 0)
+			ret = mapping->a_ops->readpage(file, page);
+		else if (ret == -EEXIST)
+			ret = 0; /* losing race to add is OK */
+
 		page_cache_release(page);
-		return error;
-	}
 
-	/*
-	 * We arrive here in the unlikely event that someone 
-	 * raced with us and added our page to the cache first
-	 * or we are out of memory for radix-tree nodes.
-	 */
-	page_cache_release(page);
-	return error == -EEXIST ? 0 : error;
+	} while (ret == AOP_TRUNCATED_PAGE);
+		
+	return ret;
 }
 
 #define MMAP_LOTSAMISS  (100)
@@ -1331,10 +1335,14 @@ page_not_uptodate:
 		goto success;
 	}
 
-	if (!mapping->a_ops->readpage(file, page)) {
+	error = mapping->a_ops->readpage(file, page);
+	if (!error) {
 		wait_on_page_locked(page);
 		if (PageUptodate(page))
 			goto success;
+	} else if (error == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto retry_find;
 	}
 
 	/*
@@ -1358,10 +1366,14 @@ page_not_uptodate:
 		goto success;
 	}
 	ClearPageError(page);
-	if (!mapping->a_ops->readpage(file, page)) {
+	error = mapping->a_ops->readpage(file, page);
+	if (!error) {
 		wait_on_page_locked(page);
 		if (PageUptodate(page))
 			goto success;
+	} else if (error == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto retry_find;
 	}
 
 	/*
@@ -1444,10 +1456,14 @@ page_not_uptodate:
 		goto success;
 	}
 
-	if (!mapping->a_ops->readpage(file, page)) {
+	error = mapping->a_ops->readpage(file, page);
+	if (!error) {
 		wait_on_page_locked(page);
 		if (PageUptodate(page))
 			goto success;
+	} else if (error == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto retry_find;
 	}
 
 	/*
@@ -1470,10 +1486,14 @@ page_not_uptodate:
 	}
 
 	ClearPageError(page);
-	if (!mapping->a_ops->readpage(file, page)) {
+	error = mapping->a_ops->readpage(file, page);
+	if (!error) {
 		wait_on_page_locked(page);
 		if (PageUptodate(page))
 			goto success;
+	} else if (error == AOP_TRUNCATED_PAGE) {
+		page_cache_release(page);
+		goto retry_find;
 	}
 
 	/*
@@ -1934,12 +1954,16 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 		status = a_ops->prepare_write(file, page, offset, offset+bytes);
 		if (unlikely(status)) {
 			loff_t isize = i_size_read(inode);
+
+			if (status != AOP_TRUNCATED_PAGE)
+				unlock_page(page);
+			page_cache_release(page);
+			if (status == AOP_TRUNCATED_PAGE)
+				continue;
 			/*
 			 * prepare_write() may have instantiated a few blocks
 			 * outside i_size.  Trim these off again.
 			 */
-			unlock_page(page);
-			page_cache_release(page);
 			if (pos + bytes > isize)
 				vmtruncate(inode, isize);
 			break;
@@ -1952,6 +1976,10 @@ generic_file_buffered_write(struct kiocb *iocb, const struct iovec *iov,
 						cur_iov, iov_base, bytes);
 		flush_dcache_page(page);
 		status = a_ops->commit_write(file, page, offset, offset+bytes);
+		if (status == AOP_TRUNCATED_PAGE) {
+			page_cache_release(page);
+			continue;
+		}
 		if (likely(copied > 0)) {
 			if (!status)
 				status = copied;

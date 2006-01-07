@@ -36,7 +36,7 @@ static DECLARE_WORK(key_cleanup_task, key_cleanup, NULL);
 DECLARE_RWSEM(key_construction_sem);
 
 /* any key who's type gets unegistered will be re-typed to this */
-struct key_type key_type_dead = {
+static struct key_type key_type_dead = {
 	.name		= "dead",
 };
 
@@ -240,9 +240,9 @@ static inline void key_alloc_serial(struct key *key)
 /*
  * allocate a key of the specified type
  * - update the user's quota to reflect the existence of the key
- * - called from a key-type operation with key_types_sem read-locked by either
- *   key_create_or_update() or by key_duplicate(); this prevents unregistration
- *   of the key type
+ * - called from a key-type operation with key_types_sem read-locked by
+ *   key_create_or_update()
+ *   - this prevents unregistration of the key type
  * - upon return the key is as yet uninstantiated; the caller needs to either
  *   instantiate the key or discard it before returning
  */
@@ -886,56 +886,6 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 } /* end key_update() */
 
 EXPORT_SYMBOL(key_update);
-
-/*****************************************************************************/
-/*
- * duplicate a key, potentially with a revised description
- * - must be supported by the keytype (keyrings for instance can be duplicated)
- */
-struct key *key_duplicate(struct key *source, const char *desc)
-{
-	struct key *key;
-	int ret;
-
-	key_check(source);
-
-	if (!desc)
-		desc = source->description;
-
-	down_read(&key_types_sem);
-
-	ret = -EINVAL;
-	if (!source->type->duplicate)
-		goto error;
-
-	/* allocate and instantiate a key */
-	key = key_alloc(source->type, desc, current->fsuid, current->fsgid,
-			source->perm, 0);
-	if (IS_ERR(key))
-		goto error_k;
-
-	down_read(&source->sem);
-	ret = key->type->duplicate(key, source);
-	up_read(&source->sem);
-	if (ret < 0)
-		goto error2;
-
-	atomic_inc(&key->user->nikeys);
-	set_bit(KEY_FLAG_INSTANTIATED, &key->flags);
-
- error_k:
-	up_read(&key_types_sem);
- out:
-	return key;
-
- error2:
-	key_put(key);
- error:
-	up_read(&key_types_sem);
-	key = ERR_PTR(ret);
-	goto out;
-
-} /* end key_duplicate() */
 
 /*****************************************************************************/
 /*

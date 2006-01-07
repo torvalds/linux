@@ -197,7 +197,6 @@ struct leo_par {
 	unsigned long		fbsize;
 
 	struct sbus_dev		*sdev;
-	struct list_head	list;
 };
 
 static void leo_wait(struct leo_lx_krn __iomem *lx_krn)

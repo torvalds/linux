@@ -550,11 +550,17 @@ void __init page_writeback_init(void)
 
 int do_writepages(struct address_space *mapping, struct writeback_control *wbc)
 {
+	int ret;
+
 	if (wbc->nr_to_write <= 0)
 		return 0;
+	wbc->for_writepages = 1;
 	if (mapping->a_ops->writepages)
-		return mapping->a_ops->writepages(mapping, wbc);
-	return generic_writepages(mapping, wbc);
+		ret =  mapping->a_ops->writepages(mapping, wbc);
+	else
+		ret = generic_writepages(mapping, wbc);
+	wbc->for_writepages = 0;
+	return ret;
 }
 
 /**

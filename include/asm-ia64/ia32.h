@@ -13,6 +13,8 @@
 
 # ifdef CONFIG_IA32_SUPPORT
 
+#define IA32_PAGE_OFFSET	0xc0000000
+
 extern void ia32_cpu_init (void);
 extern void ia32_mem_init (void);
 extern void ia32_gdt_init (void);

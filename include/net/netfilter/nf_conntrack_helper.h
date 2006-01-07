@@ -33,6 +33,8 @@ struct nf_conntrack_helper
 		    unsigned int protoff,
 		    struct nf_conn *ct,
 		    enum ip_conntrack_info conntrackinfo);
+
+	int (*to_nfattr)(struct sk_buff *skb, const struct nf_conn *ct);
 };
 
 extern int nf_conntrack_helper_register(struct nf_conntrack_helper *);

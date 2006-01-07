@@ -464,7 +464,6 @@ config NUMA
 	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI))
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
-	select SPARSEMEM_STATIC
 
 # Need comments to help the hapless user trying to turn on NUMA support
 comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
@@ -493,6 +492,10 @@ config HAVE_ARCH_ALLOC_REMAP
 	depends on NUMA
 	default y
 
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+	depends on (ARCH_SELECT_MEMORY_MODEL && X86_PC)
+
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
 	depends on NUMA
@@ -503,7 +506,8 @@ config ARCH_DISCONTIGMEM_DEFAULT
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on NUMA
+	depends on (NUMA || (X86_PC && EXPERIMENTAL))
+	select SPARSEMEM_STATIC
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y

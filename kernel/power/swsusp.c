@@ -30,8 +30,8 @@
  * Alex Badea <vampire@go.ro>:
  * Fixed runaway init
  *
- * Andreas Steinmetz <ast@domdv.de>:
- * Added encrypted suspend option
+ * Rafael J. Wysocki <rjw@sisk.pl>
+ * Added the swap map data structure and reworked the handling of swap
  *
  * More state savers are welcome. Especially for the scsi layer...
  *
@@ -67,44 +67,33 @@
 #include <asm/tlbflush.h>
 #include <asm/io.h>
 
-#include <linux/random.h>
-#include <linux/crypto.h>
-#include <asm/scatterlist.h>
-
 #include "power.h"
 
+/*
+ * Preferred image size in MB (tunable via /sys/power/image_size).
+ * When it is set to N, swsusp will do its best to ensure the image
+ * size will not exceed N MB, but if that is impossible, it will
+ * try to create the smallest image possible.
+ */
+unsigned int image_size = 500;
+
 #ifdef CONFIG_HIGHMEM
+unsigned int count_highmem_pages(void);
 int save_highmem(void);
 int restore_highmem(void);
 #else
 static int save_highmem(void) { return 0; }
 static int restore_highmem(void) { return 0; }
+static unsigned int count_highmem_pages(void) { return 0; }
 #endif
 
-#define CIPHER "aes"
-#define MAXKEY 32
-#define MAXIV  32
-
 extern char resume_file[];
-
-/* Local variables that should not be affected by save */
-unsigned int nr_copy_pages __nosavedata = 0;
-
-/* Suspend pagedir is allocated before final copy, therefore it
-   must be freed after resume
-
-   Warning: this is even more evil than it seems. Pagedirs this file
-   talks about are completely different from page directories used by
-   MMU hardware.
- */
-suspend_pagedir_t *pagedir_nosave __nosavedata = NULL;
 
 #define SWSUSP_SIG	"S1SUSPEND"
 
 static struct swsusp_header {
-	char reserved[PAGE_SIZE - 20 - MAXKEY - MAXIV - sizeof(swp_entry_t)];
-	u8 key_iv[MAXKEY+MAXIV];
-	swp_entry_t swsusp_info;
+	char reserved[PAGE_SIZE - 20 - sizeof(swp_entry_t)];
+	swp_entry_t image;
 	char	orig_sig[10];
 	char	sig[10];
 } __attribute__((packed, aligned(PAGE_SIZE))) swsusp_header;
@@ -115,140 +104,9 @@ static struct swsusp_info swsusp_info;
  * Saving part...
  */
 
-/* We memorize in swapfile_used what swap devices are used for suspension */
-#define SWAPFILE_UNUSED    0
-#define SWAPFILE_SUSPEND   1	/* This is the suspending device */
-#define SWAPFILE_IGNORED   2	/* Those are other swap devices ignored for suspension */
+static unsigned short root_swap = 0xffff;
 
-static unsigned short swapfile_used[MAX_SWAPFILES];
-static unsigned short root_swap;
-
-static int write_page(unsigned long addr, swp_entry_t *loc);
-static int bio_read_page(pgoff_t page_off, void *page);
-
-static u8 key_iv[MAXKEY+MAXIV];
-
-#ifdef CONFIG_SWSUSP_ENCRYPT
-
-static int crypto_init(int mode, void **mem)
-{
-	int error = 0;
-	int len;
-	char *modemsg;
-	struct crypto_tfm *tfm;
-
-	modemsg = mode ? "suspend not possible" : "resume not possible";
-
-	tfm = crypto_alloc_tfm(CIPHER, CRYPTO_TFM_MODE_CBC);
-	if(!tfm) {
-		printk(KERN_ERR "swsusp: no tfm, %s\n", modemsg);
-		error = -EINVAL;
-		goto out;
-	}
-
-	if(MAXKEY < crypto_tfm_alg_min_keysize(tfm)) {
-		printk(KERN_ERR "swsusp: key buffer too small, %s\n", modemsg);
-		error = -ENOKEY;
-		goto fail;
-	}
-
-	if (mode)
-		get_random_bytes(key_iv, MAXKEY+MAXIV);
-
-	len = crypto_tfm_alg_max_keysize(tfm);
-	if (len > MAXKEY)
-		len = MAXKEY;
-
-	if (crypto_cipher_setkey(tfm, key_iv, len)) {
-		printk(KERN_ERR "swsusp: key setup failure, %s\n", modemsg);
-		error = -EKEYREJECTED;
-		goto fail;
-	}
-
-	len = crypto_tfm_alg_ivsize(tfm);
-
-	if (MAXIV < len) {
-		printk(KERN_ERR "swsusp: iv buffer too small, %s\n", modemsg);
-		error = -EOVERFLOW;
-		goto fail;
-	}
-
-	crypto_cipher_set_iv(tfm, key_iv+MAXKEY, len);
-
-	*mem=(void *)tfm;
-
-	goto out;
-
-fail:	crypto_free_tfm(tfm);
-out:	return error;
-}
-
-static __inline__ void crypto_exit(void *mem)
-{
-	crypto_free_tfm((struct crypto_tfm *)mem);
-}
-
-static __inline__ int crypto_write(struct pbe *p, void *mem)
-{
-	int error = 0;
-	struct scatterlist src, dst;
-
-	src.page   = virt_to_page(p->address);
-	src.offset = 0;
-	src.length = PAGE_SIZE;
-	dst.page   = virt_to_page((void *)&swsusp_header);
-	dst.offset = 0;
-	dst.length = PAGE_SIZE;
-
-	error = crypto_cipher_encrypt((struct crypto_tfm *)mem, &dst, &src,
-					PAGE_SIZE);
-
-	if (!error)
-		error = write_page((unsigned long)&swsusp_header,
-				&(p->swap_address));
-	return error;
-}
-
-static __inline__ int crypto_read(struct pbe *p, void *mem)
-{
-	int error = 0;
-	struct scatterlist src, dst;
-
-	error = bio_read_page(swp_offset(p->swap_address), (void *)p->address);
-	if (!error) {
-		src.offset = 0;
-		src.length = PAGE_SIZE;
-		dst.offset = 0;
-		dst.length = PAGE_SIZE;
-		src.page = dst.page = virt_to_page((void *)p->address);
-
-		error = crypto_cipher_decrypt((struct crypto_tfm *)mem, &dst,
-						&src, PAGE_SIZE);
-	}
-	return error;
-}
-#else
-static __inline__ int crypto_init(int mode, void *mem)
-{
-	return 0;
-}
-
-static __inline__ void crypto_exit(void *mem)
-{
-}
-
-static __inline__ int crypto_write(struct pbe *p, void *mem)
-{
-	return write_page(p->address, &(p->swap_address));
-}
-
-static __inline__ int crypto_read(struct pbe *p, void *mem)
-{
-	return bio_read_page(swp_offset(p->swap_address), (void *)p->address);
-}
-#endif
-
-static int mark_swapfiles(swp_entry_t prev)
+static int mark_swapfiles(swp_entry_t start)
 {
 	int error;
 
@@ -259,8 +117,7 @@ static int mark_swapfiles(swp_entry_t prev)
 	    !memcmp("SWAPSPACE2",swsusp_header.sig, 10)) {
 		memcpy(swsusp_header.orig_sig,swsusp_header.sig, 10);
 		memcpy(swsusp_header.sig,SWSUSP_SIG, 10);
-		memcpy(swsusp_header.key_iv, key_iv, MAXKEY+MAXIV);
-		swsusp_header.swsusp_info = prev;
+		swsusp_header.image = start;
 		error = rw_swap_page_sync(WRITE,
 					  swp_entry(root_swap, 0),
 					  virt_to_page((unsigned long)
@@ -283,7 +140,7 @@ static int mark_swapfiles(swp_entry_t prev)
  * devfs, since the resume code can only recognize the form /dev/hda4,
  * but the suspend code would see the long name.)
  */
-static int is_resume_device(const struct swap_info_struct *swap_info)
+static inline int is_resume_device(const struct swap_info_struct *swap_info)
 {
 	struct file *file = swap_info->swap_file;
 	struct inode *inode = file->f_dentry->d_inode;
@@ -294,54 +151,22 @@ static int is_resume_device(const struct swap_info_struct *swap_info)
 
 static int swsusp_swap_check(void) /* This is called before saving image */
 {
-	int i, len;
+	int i;
 
-	len=strlen(resume_file);
-	root_swap = 0xFFFF;
-
+	if (!swsusp_resume_device)
+		return -ENODEV;
 	spin_lock(&swap_lock);
-	for (i=0; i<MAX_SWAPFILES; i++) {
-		if (!(swap_info[i].flags & SWP_WRITEOK)) {
-			swapfile_used[i]=SWAPFILE_UNUSED;
-		} else {
-			if (!len) {
-	    			printk(KERN_WARNING "resume= option should be used to set suspend device" );
-				if (root_swap == 0xFFFF) {
-					swapfile_used[i] = SWAPFILE_SUSPEND;
-					root_swap = i;
-				} else
-					swapfile_used[i] = SWAPFILE_IGNORED;
-			} else {
-	  			/* we ignore all swap devices that are not the resume_file */
-				if (is_resume_device(&swap_info[i])) {
-					swapfile_used[i] = SWAPFILE_SUSPEND;
-					root_swap = i;
-				} else {
-				  	swapfile_used[i] = SWAPFILE_IGNORED;
-				}
-			}
+	for (i = 0; i < MAX_SWAPFILES; i++) {
+		if (!(swap_info[i].flags & SWP_WRITEOK))
+			continue;
+		if (is_resume_device(swap_info + i)) {
+			spin_unlock(&swap_lock);
+			root_swap = i;
+			return 0;
 		}
 	}
 	spin_unlock(&swap_lock);
-	return (root_swap != 0xffff) ? 0 : -ENODEV;
-}
-
-/**
- * This is called after saving image so modification
- * will be lost after resume... and that's what we want.
- * we make the device unusable. A new call to
- * lock_swapdevices can unlock the devices.
- */
-static void lock_swapdevices(void)
-{
-	int i;
-
-	spin_lock(&swap_lock);
-	for (i = 0; i< MAX_SWAPFILES; i++)
-		if (swapfile_used[i] == SWAPFILE_IGNORED) {
-			swap_info[i].flags ^= SWP_WRITEOK;
-		}
-	spin_unlock(&swap_lock);
+	return -ENODEV;
 }
 
 /**
@@ -359,72 +184,217 @@ static void lock_swapdevices(void)
 static int write_page(unsigned long addr, swp_entry_t *loc)
 {
 	swp_entry_t entry;
-	int error = 0;
+	int error = -ENOSPC;
 
-	entry = get_swap_page();
-	if (swp_offset(entry) &&
-	    swapfile_used[swp_type(entry)] == SWAPFILE_SUSPEND) {
-		error = rw_swap_page_sync(WRITE, entry,
-					  virt_to_page(addr));
-		if (error == -EIO)
-			error = 0;
-		if (!error)
+	entry = get_swap_page_of_type(root_swap);
+	if (swp_offset(entry)) {
+		error = rw_swap_page_sync(WRITE, entry, virt_to_page(addr));
+		if (!error || error == -EIO)
 			*loc = entry;
-	} else
-		error = -ENOSPC;
+	}
 	return error;
 }
 
 /**
- *	data_free - Free the swap entries used by the saved image.
+ *	Swap map-handling functions
  *
- *	Walk the list of used swap entries and free each one.
- *	This is only used for cleanup when suspend fails.
+ *	The swap map is a data structure used for keeping track of each page
+ *	written to the swap.  It consists of many swap_map_page structures
+ *	that contain each an array of MAP_PAGE_SIZE swap entries.
+ *	These structures are linked together with the help of either the
+ *	.next (in memory) or the .next_swap (in swap) member.
+ *
+ *	The swap map is created during suspend.  At that time we need to keep
+ *	it in memory, because we have to free all of the allocated swap
+ *	entries if an error occurs.  The memory needed is preallocated
+ *	so that we know in advance if there's enough of it.
+ *
+ *	The first swap_map_page structure is filled with the swap entries that
+ *	correspond to the first MAP_PAGE_SIZE data pages written to swap and
+ *	so on.  After the all of the data pages have been written, the order
+ *	of the swap_map_page structures in the map is reversed so that they
+ *	can be read from swap in the original order.  This causes the data
+ *	pages to be loaded in exactly the same order in which they have been
+ *	saved.
+ *
+ *	During resume we only need to use one swap_map_page structure
+ *	at a time, which means that we only need to use two memory pages for
+ *	reading the image - one for reading the swap_map_page structures
+ *	and the second for reading the data pages from swap.
  */
-static void data_free(void)
-{
-	swp_entry_t entry;
-	struct pbe *p;
 
-	for_each_pbe (p, pagedir_nosave) {
-		entry = p->swap_address;
-		if (entry.val)
-			swap_free(entry);
-		else
-			break;
+#define MAP_PAGE_SIZE	((PAGE_SIZE - sizeof(swp_entry_t) - sizeof(void *)) \
+			/ sizeof(swp_entry_t))
+
+struct swap_map_page {
+	swp_entry_t		entries[MAP_PAGE_SIZE];
+	swp_entry_t		next_swap;
+	struct swap_map_page	*next;
+};
+
+static inline void free_swap_map(struct swap_map_page *swap_map)
+{
+	struct swap_map_page *swp;
+
+	while (swap_map) {
+		swp = swap_map->next;
+		free_page((unsigned long)swap_map);
+		swap_map = swp;
+	}
+}
+
+static struct swap_map_page *alloc_swap_map(unsigned int nr_pages)
+{
+	struct swap_map_page *swap_map, *swp;
+	unsigned n = 0;
+
+	if (!nr_pages)
+		return NULL;
+
+	pr_debug("alloc_swap_map(): nr_pages = %d\n", nr_pages);
+	swap_map = (struct swap_map_page *)get_zeroed_page(GFP_ATOMIC);
+	swp = swap_map;
+	for (n = MAP_PAGE_SIZE; n < nr_pages; n += MAP_PAGE_SIZE) {
+		swp->next = (struct swap_map_page *)get_zeroed_page(GFP_ATOMIC);
+		swp = swp->next;
+		if (!swp) {
+			free_swap_map(swap_map);
+			return NULL;
+		}
+	}
+	return swap_map;
+}
+
+/**
+ *	reverse_swap_map - reverse the order of pages in the swap map
+ *	@swap_map
+ */
+
+static inline struct swap_map_page *reverse_swap_map(struct swap_map_page *swap_map)
+{
+	struct swap_map_page *prev, *next;
+
+	prev = NULL;
+	while (swap_map) {
+		next = swap_map->next;
+		swap_map->next = prev;
+		prev = swap_map;
+		swap_map = next;
+	}
+	return prev;
+}
+
+/**
+ *	free_swap_map_entries - free the swap entries allocated to store
+ *	the swap map @swap_map (this is only called in case of an error)
+ */
+static inline void free_swap_map_entries(struct swap_map_page *swap_map)
+{
+	while (swap_map) {
+		if (swap_map->next_swap.val)
+			swap_free(swap_map->next_swap);
+		swap_map = swap_map->next;
 	}
 }
 
 /**
- *	data_write - Write saved image to swap.
- *
- *	Walk the list of pages in the image and sync each one to swap.
+ *	save_swap_map - save the swap map used for tracing the data pages
+ *	stored in the swap
  */
-static int data_write(void)
+
+static int save_swap_map(struct swap_map_page *swap_map, swp_entry_t *start)
 {
-	int error = 0, i = 0;
-	unsigned int mod = nr_copy_pages / 100;
-	struct pbe *p;
-	void *tfm;
+	swp_entry_t entry = (swp_entry_t){0};
+	int error;
 
-	if ((error = crypto_init(1, &tfm)))
-		return error;
-
-	if (!mod)
-		mod = 1;
-
-	printk( "Writing data to swap (%d pages)...     ", nr_copy_pages );
-	for_each_pbe (p, pagedir_nosave) {
-		if (!(i%mod))
-			printk( "\b\b\b\b%3d%%", i / mod );
-		if ((error = crypto_write(p, tfm))) {
-			crypto_exit(tfm);
+	while (swap_map) {
+		swap_map->next_swap = entry;
+		if ((error = write_page((unsigned long)swap_map, &entry)))
 			return error;
-		}
-		i++;
+		swap_map = swap_map->next;
 	}
-	printk("\b\b\b\bdone\n");
-	crypto_exit(tfm);
+	*start = entry;
+	return 0;
+}
+
+/**
+ *	free_image_entries - free the swap entries allocated to store
+ *	the image data pages (this is only called in case of an error)
+ */
+
+static inline void free_image_entries(struct swap_map_page *swp)
+{
+	unsigned k;
+
+	while (swp) {
+		for (k = 0; k < MAP_PAGE_SIZE; k++)
+			if (swp->entries[k].val)
+				swap_free(swp->entries[k]);
+		swp = swp->next;
+	}
+}
+
+/**
+ *	The swap_map_handle structure is used for handling the swap map in
+ *	a file-alike way
+ */
+
+struct swap_map_handle {
+	struct swap_map_page *cur;
+	unsigned int k;
+};
+
+static inline void init_swap_map_handle(struct swap_map_handle *handle,
+                                        struct swap_map_page *map)
+{
+	handle->cur = map;
+	handle->k = 0;
+}
+
+static inline int swap_map_write_page(struct swap_map_handle *handle,
+                                      unsigned long addr)
+{
+	int error;
+
+	error = write_page(addr, handle->cur->entries + handle->k);
+	if (error)
+		return error;
+	if (++handle->k >= MAP_PAGE_SIZE) {
+		handle->cur = handle->cur->next;
+		handle->k = 0;
+	}
+	return 0;
+}
+
+/**
+ *	save_image_data - save the data pages pointed to by the PBEs
+ *	from the list @pblist using the swap map handle @handle
+ *	(assume there are @nr_pages data pages to save)
+ */
+
+static int save_image_data(struct pbe *pblist,
+                           struct swap_map_handle *handle,
+                           unsigned int nr_pages)
+{
+	unsigned int m;
+	struct pbe *p;
+	int error = 0;
+
+	printk("Saving image data pages (%u pages) ...     ", nr_pages);
+	m = nr_pages / 100;
+	if (!m)
+		m = 1;
+	nr_pages = 0;
+	for_each_pbe (p, pblist) {
+		error = swap_map_write_page(handle, p->address);
+		if (error)
+			break;
+		if (!(nr_pages % m))
+			printk("\b\b\b\b%3d%%", nr_pages / m);
+		nr_pages++;
+	}
+	if (!error)
+		printk("\b\b\b\bdone\n");
 	return error;
 }
 
@@ -440,70 +410,70 @@ static void dump_info(void)
 	pr_debug(" swsusp: UTS Domain: %s\n",swsusp_info.uts.domainname);
 	pr_debug(" swsusp: CPUs: %d\n",swsusp_info.cpus);
 	pr_debug(" swsusp: Image: %ld Pages\n",swsusp_info.image_pages);
-	pr_debug(" swsusp: Pagedir: %ld Pages\n",swsusp_info.pagedir_pages);
+	pr_debug(" swsusp: Total: %ld Pages\n", swsusp_info.pages);
 }
 
-static void init_header(void)
+static void init_header(unsigned int nr_pages)
 {
 	memset(&swsusp_info, 0, sizeof(swsusp_info));
 	swsusp_info.version_code = LINUX_VERSION_CODE;
 	swsusp_info.num_physpages = num_physpages;
 	memcpy(&swsusp_info.uts, &system_utsname, sizeof(system_utsname));
 
-	swsusp_info.suspend_pagedir = pagedir_nosave;
 	swsusp_info.cpus = num_online_cpus();
-	swsusp_info.image_pages = nr_copy_pages;
+	swsusp_info.image_pages = nr_pages;
+	swsusp_info.pages = nr_pages +
+		((nr_pages * sizeof(long) + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
 }
 
-static int close_swap(void)
-{
-	swp_entry_t entry;
-	int error;
+/**
+ *	pack_orig_addresses - the .orig_address fields of the PBEs from the
+ *	list starting at @pbe are stored in the array @buf[] (1 page)
+ */
 
-	dump_info();
-	error = write_page((unsigned long)&swsusp_info, &entry);
-	if (!error) {
-		printk( "S" );
-		error = mark_swapfiles(entry);
-		printk( "|\n" );
+static inline struct pbe *pack_orig_addresses(unsigned long *buf,
+                                              struct pbe *pbe)
+{
+	int j;
+
+	for (j = 0; j < PAGE_SIZE / sizeof(long) && pbe; j++) {
+		buf[j] = pbe->orig_address;
+		pbe = pbe->next;
 	}
-	return error;
+	if (!pbe)
+		for (; j < PAGE_SIZE / sizeof(long); j++)
+			buf[j] = 0;
+	return pbe;
 }
 
 /**
- *	free_pagedir_entries - Free pages used by the page directory.
- *
- *	This is used during suspend for error recovery.
+ *	save_image_metadata - save the .orig_address fields of the PBEs
+ *	from the list @pblist using the swap map handle @handle
  */
 
-static void free_pagedir_entries(void)
+static int save_image_metadata(struct pbe *pblist,
+                               struct swap_map_handle *handle)
 {
-	int i;
-
-	for (i = 0; i < swsusp_info.pagedir_pages; i++)
-		swap_free(swsusp_info.pagedir[i]);
-}
-
-
-/**
- *	write_pagedir - Write the array of pages holding the page directory.
- *	@last:	Last swap entry we write (needed for header).
- */
-
-static int write_pagedir(void)
-{
-	int error = 0;
+	unsigned long *buf;
 	unsigned int n = 0;
-	struct pbe *pbe;
+	struct pbe *p;
+	int error = 0;
 
-	printk( "Writing pagedir...");
-	for_each_pb_page (pbe, pagedir_nosave) {
-		if ((error = write_page((unsigned long)pbe, &swsusp_info.pagedir[n++])))
-			return error;
+	printk("Saving image metadata ... ");
+	buf = (unsigned long *)get_zeroed_page(GFP_ATOMIC);
+	if (!buf)
+		return -ENOMEM;
+	p = pblist;
+	while (p) {
+		p = pack_orig_addresses(buf, p);
+		error = swap_map_write_page(handle, (unsigned long)buf);
+		if (error)
+			break;
+		n++;
 	}
-
-	swsusp_info.pagedir_pages = n;
-	printk("done (%u pages)\n", n);
+	free_page((unsigned long)buf);
+	if (!error)
+		printk("done (%u pages saved)\n", n);
 	return error;
 }
 
@@ -511,75 +481,125 @@ static int write_pagedir(void)
  *	enough_swap - Make sure we have enough swap to save the image.
  *
  *	Returns TRUE or FALSE after checking the total amount of swap
- *	space avaiable.
- *
- *	FIXME: si_swapinfo(&i) returns all swap devices information.
- *	We should only consider resume_device.
+ *	space avaiable from the resume partition.
  */
 
 static int enough_swap(unsigned int nr_pages)
 {
-	struct sysinfo i;
+	unsigned int free_swap = swap_info[root_swap].pages -
+		swap_info[root_swap].inuse_pages;
 
-	si_swapinfo(&i);
-	pr_debug("swsusp: available swap: %lu pages\n", i.freeswap);
-	return i.freeswap > (nr_pages + PAGES_FOR_IO +
+	pr_debug("swsusp: free swap pages: %u\n", free_swap);
+	return free_swap > (nr_pages + PAGES_FOR_IO +
 		(nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE);
 }
 
 /**
- *	write_suspend_image - Write entire image and metadata.
+ *	swsusp_write - Write entire image and metadata.
  *
+ *	It is important _NOT_ to umount filesystems at this point. We want
+ *	them synced (in case something goes wrong) but we DO not want to mark
+ *	filesystem clean: it is not. (And it does not matter, if we resume
+ *	correctly, we'll mark system clean, anyway.)
  */
-static int write_suspend_image(void)
+
+int swsusp_write(struct pbe *pblist, unsigned int nr_pages)
 {
+	struct swap_map_page *swap_map;
+	struct swap_map_handle handle;
+	swp_entry_t start;
 	int error;
 
-	if (!enough_swap(nr_copy_pages)) {
+	if ((error = swsusp_swap_check())) {
+		printk(KERN_ERR "swsusp: Cannot find swap device, try swapon -a.\n");
+		return error;
+	}
+	if (!enough_swap(nr_pages)) {
 		printk(KERN_ERR "swsusp: Not enough free swap\n");
 		return -ENOSPC;
 	}
 
-	init_header();
-	if ((error = data_write()))
-		goto FreeData;
+	init_header(nr_pages);
+	swap_map = alloc_swap_map(swsusp_info.pages);
+	if (!swap_map)
+		return -ENOMEM;
+	init_swap_map_handle(&handle, swap_map);
 
-	if ((error = write_pagedir()))
-		goto FreePagedir;
+	error = swap_map_write_page(&handle, (unsigned long)&swsusp_info);
+	if (!error)
+		error = save_image_metadata(pblist, &handle);
+	if (!error)
+		error = save_image_data(pblist, &handle, nr_pages);
+	if (error)
+		goto Free_image_entries;
 
-	if ((error = close_swap()))
-		goto FreePagedir;
- Done:
-	memset(key_iv, 0, MAXKEY+MAXIV);
+	swap_map = reverse_swap_map(swap_map);
+	error = save_swap_map(swap_map, &start);
+	if (error)
+		goto Free_map_entries;
+
+	dump_info();
+	printk( "S" );
+	error = mark_swapfiles(start);
+	printk( "|\n" );
+	if (error)
+		goto Free_map_entries;
+
+Free_swap_map:
+	free_swap_map(swap_map);
 	return error;
- FreePagedir:
-	free_pagedir_entries();
- FreeData:
-	data_free();
-	goto Done;
+
+Free_map_entries:
+	free_swap_map_entries(swap_map);
+Free_image_entries:
+	free_image_entries(swap_map);
+	goto Free_swap_map;
 }
 
-/* It is important _NOT_ to umount filesystems at this point. We want
- * them synced (in case something goes wrong) but we DO not want to mark
- * filesystem clean: it is not. (And it does not matter, if we resume
- * correctly, we'll mark system clean, anyway.)
+/**
+ *	swsusp_shrink_memory -  Try to free as much memory as needed
+ *
+ *	... but do not OOM-kill anyone
+ *
+ *	Notice: all userland should be stopped before it is called, or
+ *	livelock is possible.
  */
-int swsusp_write(void)
+
+#define SHRINK_BITE	10000
+
+int swsusp_shrink_memory(void)
 {
-	int error;
+	long size, tmp;
+	struct zone *zone;
+	unsigned long pages = 0;
+	unsigned int i = 0;
+	char *p = "-\\|/";
 
-	if ((error = swsusp_swap_check())) {
-		printk(KERN_ERR "swsusp: cannot find swap device, try swapon -a.\n");
-		return error;
-	}
-	lock_swapdevices();
-	error = write_suspend_image();
-	/* This will unlock ignored swap devices since writing is finished */
-	lock_swapdevices();
-	return error;
+	printk("Shrinking memory...  ");
+	do {
+		size = 2 * count_highmem_pages();
+		size += size / 50 + count_data_pages();
+		size += (size + PBES_PER_PAGE - 1) / PBES_PER_PAGE +
+			PAGES_FOR_IO;
+		tmp = size;
+		for_each_zone (zone)
+			if (!is_highmem(zone))
+				tmp -= zone->free_pages;
+		if (tmp > 0) {
+			tmp = shrink_all_memory(SHRINK_BITE);
+			if (!tmp)
+				return -ENOMEM;
+			pages += tmp;
+		} else if (size > (image_size * 1024 * 1024) / PAGE_SIZE) {
+			tmp = shrink_all_memory(SHRINK_BITE);
+			pages += tmp;
+		}
+		printk("\b%c", p[i++%4]);
+	} while (tmp > 0);
+	printk("\bdone (%lu pages freed)\n", pages);
+
+	return 0;
 }
-
-
 
 int swsusp_suspend(void)
 {
@@ -677,7 +697,6 @@ static void copy_page_backup_list(struct pbe *dst, struct pbe *src)
 	/* We assume both lists contain the same number of elements */
 	while (src) {
 		dst->orig_address = src->orig_address;
-		dst->swap_address = src->swap_address;
 		dst = dst->next;
 		src = src->next;
 	}
@@ -757,198 +776,224 @@ static int bio_write_page(pgoff_t page_off, void *page)
 	return submit(WRITE, page_off, page);
 }
 
-/*
- * Sanity check if this image makes sense with this kernel/swap context
- * I really don't think that it's foolproof but more than nothing..
+/**
+ *	The following functions allow us to read data using a swap map
+ *	in a file-alike way
  */
 
-static const char *sanity_check(void)
+static inline void release_swap_map_reader(struct swap_map_handle *handle)
 {
-	dump_info();
-	if (swsusp_info.version_code != LINUX_VERSION_CODE)
-		return "kernel version";
-	if (swsusp_info.num_physpages != num_physpages)
-		return "memory size";
-	if (strcmp(swsusp_info.uts.sysname,system_utsname.sysname))
-		return "system type";
-	if (strcmp(swsusp_info.uts.release,system_utsname.release))
-		return "kernel release";
-	if (strcmp(swsusp_info.uts.version,system_utsname.version))
-		return "version";
-	if (strcmp(swsusp_info.uts.machine,system_utsname.machine))
-		return "machine";
-#if 0
-	/* We can't use number of online CPUs when we use hotplug to remove them ;-))) */
-	if (swsusp_info.cpus != num_possible_cpus())
-		return "number of cpus";
-#endif
-	return NULL;
+	if (handle->cur)
+		free_page((unsigned long)handle->cur);
+	handle->cur = NULL;
 }
 
-
-static int check_header(void)
-{
-	const char *reason = NULL;
-	int error;
-
-	if ((error = bio_read_page(swp_offset(swsusp_header.swsusp_info), &swsusp_info)))
-		return error;
-
- 	/* Is this same machine? */
-	if ((reason = sanity_check())) {
-		printk(KERN_ERR "swsusp: Resume mismatch: %s\n",reason);
-		return -EPERM;
-	}
-	nr_copy_pages = swsusp_info.image_pages;
-	return error;
-}
-
-static int check_sig(void)
+static inline int get_swap_map_reader(struct swap_map_handle *handle,
+                                      swp_entry_t start)
 {
 	int error;
 
-	memset(&swsusp_header, 0, sizeof(swsusp_header));
-	if ((error = bio_read_page(0, &swsusp_header)))
-		return error;
-	if (!memcmp(SWSUSP_SIG, swsusp_header.sig, 10)) {
-		memcpy(swsusp_header.sig, swsusp_header.orig_sig, 10);
-		memcpy(key_iv, swsusp_header.key_iv, MAXKEY+MAXIV);
-		memset(swsusp_header.key_iv, 0, MAXKEY+MAXIV);
-
-		/*
-		 * Reset swap signature now.
-		 */
-		error = bio_write_page(0, &swsusp_header);
-	} else {
+	if (!swp_offset(start))
 		return -EINVAL;
-	}
-	if (!error)
-		pr_debug("swsusp: Signature found, resuming\n");
-	return error;
-}
-
-/**
- *	data_read - Read image pages from swap.
- *
- *	You do not need to check for overlaps, check_pagedir()
- *	already did that.
- */
-
-static int data_read(struct pbe *pblist)
-{
-	struct pbe *p;
-	int error = 0;
-	int i = 0;
-	int mod = swsusp_info.image_pages / 100;
-	void *tfm;
-
-	if ((error = crypto_init(0, &tfm)))
+	handle->cur = (struct swap_map_page *)get_zeroed_page(GFP_ATOMIC);
+	if (!handle->cur)
+		return -ENOMEM;
+	error = bio_read_page(swp_offset(start), handle->cur);
+	if (error) {
+		release_swap_map_reader(handle);
 		return error;
-
-	if (!mod)
-		mod = 1;
-
-	printk("swsusp: Reading image data (%lu pages):     ",
-			swsusp_info.image_pages);
-
-	for_each_pbe (p, pblist) {
-		if (!(i % mod))
-			printk("\b\b\b\b%3d%%", i / mod);
-
-		if ((error = crypto_read(p, tfm))) {
-			crypto_exit(tfm);
-			return error;
-		}
-
-		i++;
 	}
-	printk("\b\b\b\bdone\n");
-	crypto_exit(tfm);
-	return error;
-}
-
-/**
- *	read_pagedir - Read page backup list pages from swap
- */
-
-static int read_pagedir(struct pbe *pblist)
-{
-	struct pbe *pbpage, *p;
-	unsigned int i = 0;
-	int error;
-
-	if (!pblist)
-		return -EFAULT;
-
-	printk("swsusp: Reading pagedir (%lu pages)\n",
-			swsusp_info.pagedir_pages);
-
-	for_each_pb_page (pbpage, pblist) {
-		unsigned long offset = swp_offset(swsusp_info.pagedir[i++]);
-
-		error = -EFAULT;
-		if (offset) {
-			p = (pbpage + PB_PAGE_SKIP)->next;
-			error = bio_read_page(offset, (void *)pbpage);
-			(pbpage + PB_PAGE_SKIP)->next = p;
-		}
-		if (error)
-			break;
-	}
-
-	if (!error)
-		BUG_ON(i != swsusp_info.pagedir_pages);
-
-	return error;
-}
-
-
-static int check_suspend_image(void)
-{
-	int error = 0;
-
-	if ((error = check_sig()))
-		return error;
-
-	if ((error = check_header()))
-		return error;
-
+	handle->k = 0;
 	return 0;
 }
 
-static int read_suspend_image(void)
+static inline int swap_map_read_page(struct swap_map_handle *handle, void *buf)
 {
-	int error = 0;
+	unsigned long offset;
+	int error;
+
+	if (!handle->cur)
+		return -EINVAL;
+	offset = swp_offset(handle->cur->entries[handle->k]);
+	if (!offset)
+		return -EINVAL;
+	error = bio_read_page(offset, buf);
+	if (error)
+		return error;
+	if (++handle->k >= MAP_PAGE_SIZE) {
+		handle->k = 0;
+		offset = swp_offset(handle->cur->next_swap);
+		if (!offset)
+			release_swap_map_reader(handle);
+		else
+			error = bio_read_page(offset, handle->cur);
+	}
+	return error;
+}
+
+static int check_header(void)
+{
+	char *reason = NULL;
+
+	dump_info();
+	if (swsusp_info.version_code != LINUX_VERSION_CODE)
+		reason = "kernel version";
+	if (swsusp_info.num_physpages != num_physpages)
+		reason = "memory size";
+	if (strcmp(swsusp_info.uts.sysname,system_utsname.sysname))
+		reason = "system type";
+	if (strcmp(swsusp_info.uts.release,system_utsname.release))
+		reason = "kernel release";
+	if (strcmp(swsusp_info.uts.version,system_utsname.version))
+		reason = "version";
+	if (strcmp(swsusp_info.uts.machine,system_utsname.machine))
+		reason = "machine";
+	if (reason) {
+		printk(KERN_ERR "swsusp: Resume mismatch: %s\n", reason);
+		return -EPERM;
+	}
+	return 0;
+}
+
+/**
+ *	load_image_data - load the image data using the swap map handle
+ *	@handle and store them using the page backup list @pblist
+ *	(assume there are @nr_pages pages to load)
+ */
+
+static int load_image_data(struct pbe *pblist,
+                           struct swap_map_handle *handle,
+                           unsigned int nr_pages)
+{
+	int error;
+	unsigned int m;
 	struct pbe *p;
 
-	if (!(p = alloc_pagedir(nr_copy_pages, GFP_ATOMIC, 0)))
-		return -ENOMEM;
-
-	if ((error = read_pagedir(p)))
-		return error;
-	create_pbe_list(p, nr_copy_pages);
-	mark_unsafe_pages(p);
-	pagedir_nosave = alloc_pagedir(nr_copy_pages, GFP_ATOMIC, 1);
-	if (pagedir_nosave) {
-		create_pbe_list(pagedir_nosave, nr_copy_pages);
-		copy_page_backup_list(pagedir_nosave, p);
+	if (!pblist)
+		return -EINVAL;
+	printk("Loading image data pages (%u pages) ...     ", nr_pages);
+	m = nr_pages / 100;
+	if (!m)
+		m = 1;
+	nr_pages = 0;
+	p = pblist;
+	while (p) {
+		error = swap_map_read_page(handle, (void *)p->address);
+		if (error)
+			break;
+		p = p->next;
+		if (!(nr_pages % m))
+			printk("\b\b\b\b%3d%%", nr_pages / m);
+		nr_pages++;
 	}
-	free_pagedir(p);
-	if (!pagedir_nosave)
-		return -ENOMEM;
-
-	/* Allocate memory for the image and read the data from swap */
-
-	error = alloc_data_pages(pagedir_nosave, GFP_ATOMIC, 1);
-
 	if (!error)
-		error = data_read(pagedir_nosave);
-
+		printk("\b\b\b\bdone\n");
 	return error;
 }
 
 /**
- *      swsusp_check - Check for saved image in swap
+ *	unpack_orig_addresses - copy the elements of @buf[] (1 page) to
+ *	the PBEs in the list starting at @pbe
+ */
+
+static inline struct pbe *unpack_orig_addresses(unsigned long *buf,
+                                                struct pbe *pbe)
+{
+	int j;
+
+	for (j = 0; j < PAGE_SIZE / sizeof(long) && pbe; j++) {
+		pbe->orig_address = buf[j];
+		pbe = pbe->next;
+	}
+	return pbe;
+}
+
+/**
+ *	load_image_metadata - load the image metadata using the swap map
+ *	handle @handle and put them into the PBEs in the list @pblist
+ */
+
+static int load_image_metadata(struct pbe *pblist, struct swap_map_handle *handle)
+{
+	struct pbe *p;
+	unsigned long *buf;
+	unsigned int n = 0;
+	int error = 0;
+
+	printk("Loading image metadata ... ");
+	buf = (unsigned long *)get_zeroed_page(GFP_ATOMIC);
+	if (!buf)
+		return -ENOMEM;
+	p = pblist;
+	while (p) {
+		error = swap_map_read_page(handle, buf);
+		if (error)
+			break;
+		p = unpack_orig_addresses(buf, p);
+		n++;
+	}
+	free_page((unsigned long)buf);
+	if (!error)
+		printk("done (%u pages loaded)\n", n);
+	return error;
+}
+
+int swsusp_read(struct pbe **pblist_ptr)
+{
+	int error;
+	struct pbe *p, *pblist;
+	struct swap_map_handle handle;
+	unsigned int nr_pages;
+
+	if (IS_ERR(resume_bdev)) {
+		pr_debug("swsusp: block device not initialised\n");
+		return PTR_ERR(resume_bdev);
+	}
+
+	error = get_swap_map_reader(&handle, swsusp_header.image);
+	if (!error)
+		error = swap_map_read_page(&handle, &swsusp_info);
+	if (!error)
+		error = check_header();
+	if (error)
+		return error;
+	nr_pages = swsusp_info.image_pages;
+	p = alloc_pagedir(nr_pages, GFP_ATOMIC, 0);
+	if (!p)
+		return -ENOMEM;
+	error = load_image_metadata(p, &handle);
+	if (!error) {
+		mark_unsafe_pages(p);
+		pblist = alloc_pagedir(nr_pages, GFP_ATOMIC, 1);
+		if (pblist)
+			copy_page_backup_list(pblist, p);
+		free_pagedir(p);
+		if (!pblist)
+			error = -ENOMEM;
+
+		/* Allocate memory for the image and read the data from swap */
+		if (!error)
+			error = alloc_data_pages(pblist, GFP_ATOMIC, 1);
+		if (!error) {
+			release_eaten_pages();
+			error = load_image_data(pblist, &handle, nr_pages);
+		}
+		if (!error)
+			*pblist_ptr = pblist;
+	}
+	release_swap_map_reader(&handle);
+
+	blkdev_put(resume_bdev);
+
+	if (!error)
+		pr_debug("swsusp: Reading resume file was successful\n");
+	else
+		pr_debug("swsusp: Error %d resuming\n", error);
+	return error;
+}
+
+/**
+ *      swsusp_check - Check for swsusp signature in the resume device
  */
 
 int swsusp_check(void)
@@ -958,40 +1003,27 @@ int swsusp_check(void)
 	resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_READ);
 	if (!IS_ERR(resume_bdev)) {
 		set_blocksize(resume_bdev, PAGE_SIZE);
-		error = check_suspend_image();
+		memset(&swsusp_header, 0, sizeof(swsusp_header));
+		if ((error = bio_read_page(0, &swsusp_header)))
+			return error;
+		if (!memcmp(SWSUSP_SIG, swsusp_header.sig, 10)) {
+			memcpy(swsusp_header.sig, swsusp_header.orig_sig, 10);
+			/* Reset swap signature now */
+			error = bio_write_page(0, &swsusp_header);
+		} else {
+			return -EINVAL;
+		}
 		if (error)
-		    blkdev_put(resume_bdev);
-	} else
+			blkdev_put(resume_bdev);
+		else
+			pr_debug("swsusp: Signature found, resuming\n");
+	} else {
 		error = PTR_ERR(resume_bdev);
-
-	if (!error)
-		pr_debug("swsusp: resume file found\n");
-	else
-		pr_debug("swsusp: Error %d check for resume file\n", error);
-	return error;
-}
-
-/**
- *	swsusp_read - Read saved image from swap.
- */
-
-int swsusp_read(void)
-{
-	int error;
-
-	if (IS_ERR(resume_bdev)) {
-		pr_debug("swsusp: block device not initialised\n");
-		return PTR_ERR(resume_bdev);
 	}
 
-	error = read_suspend_image();
-	blkdev_put(resume_bdev);
-	memset(key_iv, 0, MAXKEY+MAXIV);
+	if (error)
+		pr_debug("swsusp: Error %d check for resume file\n", error);
 
-	if (!error)
-		pr_debug("swsusp: Reading resume file was successful\n");
-	else
-		pr_debug("swsusp: Error %d resuming\n", error);
 	return error;
 }
 

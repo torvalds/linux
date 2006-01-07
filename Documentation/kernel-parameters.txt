@@ -633,6 +633,14 @@ running once the system is up.
 	inport.irq=	[HW] Inport (ATI XL and Microsoft) busmouse driver
 			Format: <irq>
 
+	combined_mode=	[HW] control which driver uses IDE ports in combined
+			mode: legacy IDE driver, libata, or both
+			(in the libata case, libata.atapi_enabled=1 may be
+			useful as well).  Note that using the ide or libata
+			options may affect your device naming (e.g. by
+			changing hdc to sdb).
+			Format: combined (default), ide, or libata
+
 	inttest=	[IA64]
 
 	io7=		[HW] IO7 for Marvel based alpha systems
@@ -901,6 +909,14 @@ running once the system is up.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
 			See Documentation/nfsroot.txt.
+
+	nfs.callback_tcpport=
+			[NFS] set the TCP port on which the NFSv4 callback
+			channel should listen.
+
+	nfs.idmap_cache_timeout=
+			[NFS] set the maximum lifetime for idmapper cache
+			entries.
 
 	nmi_watchdog=	[KNL,BUGS=IA-32] Debugging features for SMP kernels
 

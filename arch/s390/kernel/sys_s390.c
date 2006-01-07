@@ -26,9 +26,7 @@
 #include <linux/mman.h>
 #include <linux/file.h>
 #include <linux/utsname.h>
-#ifdef CONFIG_ARCH_S390X
 #include <linux/personality.h>
-#endif /* CONFIG_ARCH_S390X */
 
 #include <asm/uaccess.h>
 #include <asm/ipc.h>
@@ -121,7 +119,7 @@ out:
 	return error;
 }
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 struct sel_arg_struct {
 	unsigned long n;
 	fd_set *inp, *outp, *exp;
@@ -138,7 +136,7 @@ asmlinkage long old_select(struct sel_arg_struct __user *arg)
 	return sys_select(a.n, a.inp, a.outp, a.exp, a.tvp);
 
 }
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls..
@@ -211,7 +209,7 @@ asmlinkage long sys_ipc(uint call, int first, unsigned long second,
 	return -EINVAL;
 }
 
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 asmlinkage long s390x_newuname(struct new_utsname __user *name)
 {
 	int ret = sys_newuname(name);
@@ -235,12 +233,12 @@ asmlinkage long s390x_personality(unsigned long personality)
 
 	return ret;
 }
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 
 /*
  * Wrapper function for sys_fadvise64/fadvise64_64
  */
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
 
 asmlinkage long
 s390_fadvise64(int fd, u32 offset_high, u32 offset_low, size_t len, int advice)

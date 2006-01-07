@@ -217,8 +217,7 @@ elf_core_copy_task_fpregs(struct task_struct *tsk, struct pt_regs *regs, elf_fpr
 	if (!tsk_used_math(tsk))
 		return 0;
 	if (!regs)
-		regs = (struct pt_regs *)tsk->thread.rsp0;
-	--regs;
+		regs = ((struct pt_regs *)tsk->thread.rsp0) - 1;
 	if (tsk == current)
 		unlazy_fpu(tsk);
 	set_fs(KERNEL_DS); 

@@ -11,7 +11,7 @@
 #include <asm/cio.h>
 #include "qeth_mpc.h"
 
-const char *VERSION_QETH_MPC_C = "$Revision: 1.12 $";
+const char *VERSION_QETH_MPC_C = "$Revision: 1.13 $";
 
 unsigned char IDX_ACTIVATE_READ[]={
 	0x00,0x00,0x80,0x00, 0x00,0x00,0x00,0x00,

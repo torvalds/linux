@@ -28,6 +28,7 @@
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/if_ether.h>
 
 #include <net/sock.h>
 #include <net/ip.h>
@@ -618,7 +619,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 
 		skb->mac.raw = skb->nh.raw;
 		skb->nh.raw = __pskb_pull(skb, offset);
-		skb_postpull_rcsum(skb, skb->mac.raw, offset);
+		skb_postpull_rcsum(skb, skb->h.raw, offset);
 		memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
 		skb->pkt_type = PACKET_HOST;
 #ifdef CONFIG_NET_IPGRE_BROADCAST
@@ -1140,7 +1141,7 @@ static void ipgre_tunnel_setup(struct net_device *dev)
 
 	dev->type		= ARPHRD_IPGRE;
 	dev->hard_header_len 	= LL_MAX_HEADER + sizeof(struct iphdr) + 4;
-	dev->mtu		= 1500 - sizeof(struct iphdr) - 4;
+	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr) - 4;
 	dev->flags		= IFF_NOARP;
 	dev->iflink		= 0;
 	dev->addr_len		= 4;
@@ -1152,7 +1153,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	struct ip_tunnel *tunnel;
 	struct iphdr *iph;
 	int hlen = LL_MAX_HEADER;
-	int mtu = 1500;
+	int mtu = ETH_DATA_LEN;
 	int addend = sizeof(struct iphdr) + 4;
 
 	tunnel = (struct ip_tunnel*)dev->priv;

@@ -422,7 +422,6 @@ static int saa6588_attach(struct i2c_adapter *adap, int addr, int kind)
 	s->timer.function = saa6588_timer;
 	s->timer.data = (unsigned long)s;
 	schedule_work(&s->work);
-
 	return 0;
 }
 
@@ -496,10 +495,10 @@ static int saa6588_command(struct i2c_client *client, unsigned int cmd,
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner = THIS_MODULE,
-	.name = "i2c saa6588 driver",
+	.driver = {
+		.name = "i2c saa6588 driver",
+	},
 	.id = -1,		/* FIXME */
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = saa6588_probe,
 	.detach_client = saa6588_detach,
 	.command = saa6588_command,
@@ -507,7 +506,6 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template = {
 	.name = "saa6588",
-	.flags = I2C_CLIENT_ALLOW_USE,
 	.driver = &driver,
 };
 

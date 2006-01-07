@@ -93,7 +93,7 @@ static kmem_cache_t *sn_cache;
 
 /* Highest zone. An specific allocation for a zone below that is not
    policied. */
-static int policy_zone;
+int policy_zone = ZONE_DMA;
 
 struct mempolicy default_policy = {
 	.refcnt = ATOMIC_INIT(1), /* never free it */
@@ -131,17 +131,8 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 	if (!zl)
 		return NULL;
 	num = 0;
-	for_each_node_mask(nd, *nodes) {
-		int k;
-		for (k = MAX_NR_ZONES-1; k >= 0; k--) {
-			struct zone *z = &NODE_DATA(nd)->node_zones[k];
-			if (!z->present_pages)
-				continue;
-			zl->zones[num++] = z;
-			if (k > policy_zone)
-				policy_zone = k;
-		}
-	}
+	for_each_node_mask(nd, *nodes)
+		zl->zones[num++] = &NODE_DATA(nd)->node_zones[policy_zone];
 	zl->zones[num] = NULL;
 	return zl;
 }
@@ -161,6 +152,10 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 	switch (mode) {
 	case MPOL_INTERLEAVE:
 		policy->v.nodes = *nodes;
+		if (nodes_weight(*nodes) == 0) {
+			kmem_cache_free(policy_cache, policy);
+			return ERR_PTR(-EINVAL);
+		}
 		break;
 	case MPOL_PREFERRED:
 		policy->v.preferred_node = first_node(*nodes);
@@ -781,6 +776,34 @@ static unsigned offset_il_node(struct mempolicy *pol,
 	return nid;
 }
 
+/* Determine a node number for interleave */
+static inline unsigned interleave_nid(struct mempolicy *pol,
+		 struct vm_area_struct *vma, unsigned long addr, int shift)
+{
+	if (vma) {
+		unsigned long off;
+
+		off = vma->vm_pgoff;
+		off += (addr - vma->vm_start) >> shift;
+		return offset_il_node(pol, vma, off);
+	} else
+		return interleave_nodes(pol);
+}
+
+/* Return a zonelist suitable for a huge page allocation. */
+struct zonelist *huge_zonelist(struct vm_area_struct *vma, unsigned long addr)
+{
+	struct mempolicy *pol = get_vma_policy(current, vma, addr);
+
+	if (pol->policy == MPOL_INTERLEAVE) {
+		unsigned nid;
+
+		nid = interleave_nid(pol, vma, addr, HPAGE_SHIFT);
+		return NODE_DATA(nid)->node_zonelists + gfp_zone(GFP_HIGHUSER);
+	}
+	return zonelist_policy(GFP_HIGHUSER, pol);
+}
+
 /* Allocate a page in interleaved policy.
    Own path because it needs to do special accounting. */
 static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
@@ -829,15 +852,8 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 
 	if (unlikely(pol->policy == MPOL_INTERLEAVE)) {
 		unsigned nid;
-		if (vma) {
-			unsigned long off;
-			off = vma->vm_pgoff;
-			off += (addr - vma->vm_start) >> PAGE_SHIFT;
-			nid = offset_il_node(pol, vma, off);
-		} else {
-			/* fall back to process interleaving */
-			nid = interleave_nodes(pol);
-		}
+
+		nid = interleave_nid(pol, vma, addr, PAGE_SHIFT);
 		return alloc_page_interleave(gfp, 0, nid);
 	}
 	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
@@ -933,54 +949,6 @@ void __mpol_free(struct mempolicy *p)
 		kfree(p->v.zonelist);
 	p->policy = MPOL_DEFAULT;
 	kmem_cache_free(policy_cache, p);
-}
-
-/*
- * Hugetlb policy. Same as above, just works with node numbers instead of
- * zonelists.
- */
-
-/* Find first node suitable for an allocation */
-int mpol_first_node(struct vm_area_struct *vma, unsigned long addr)
-{
-	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-
-	switch (pol->policy) {
-	case MPOL_DEFAULT:
-		return numa_node_id();
-	case MPOL_BIND:
-		return pol->v.zonelist->zones[0]->zone_pgdat->node_id;
-	case MPOL_INTERLEAVE:
-		return interleave_nodes(pol);
-	case MPOL_PREFERRED:
-		return pol->v.preferred_node >= 0 ?
-				pol->v.preferred_node : numa_node_id();
-	}
-	BUG();
-	return 0;
-}
-
-/* Find secondary valid nodes for an allocation */
-int mpol_node_valid(int nid, struct vm_area_struct *vma, unsigned long addr)
-{
-	struct mempolicy *pol = get_vma_policy(current, vma, addr);
-
-	switch (pol->policy) {
-	case MPOL_PREFERRED:
-	case MPOL_DEFAULT:
-	case MPOL_INTERLEAVE:
-		return 1;
-	case MPOL_BIND: {
-		struct zone **z;
-		for (z = pol->v.zonelist->zones; *z; z++)
-			if ((*z)->zone_pgdat->node_id == nid)
-				return 1;
-		return 0;
-	}
-	default:
-		BUG();
-		return 0;
-	}
 }
 
 /*

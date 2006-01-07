@@ -42,7 +42,10 @@ static unsigned int help(struct sk_buff **pskb,
 			 enum ip_conntrack_info ctinfo,
 			 struct ip_conntrack_expect *exp)
 {
-	exp->saved_proto.udp.port = exp->tuple.dst.u.tcp.port;
+	struct ip_conntrack *ct = exp->master;
+
+	exp->saved_proto.udp.port
+		= ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.udp.port;
 	exp->dir = IP_CT_DIR_REPLY;
 	exp->expectfn = ip_nat_follow_master;
 	if (ip_conntrack_expect_related(exp) != 0)

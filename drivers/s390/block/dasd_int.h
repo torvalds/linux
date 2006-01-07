@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.65 $
+ * $Revision: 1.68 $
  */
 
 #ifndef DASD_INT_H
@@ -208,6 +208,7 @@ struct dasd_ccw_req {
 
 /* per dasd_ccw_req flags */
 #define DASD_CQR_FLAGS_USE_ERP   0	/* use ERP for this request */
+#define DASD_CQR_FLAGS_FAILFAST  1	/* FAILFAST */
 
 /* Signature for error recovery functions. */
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);

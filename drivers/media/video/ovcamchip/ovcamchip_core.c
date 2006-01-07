@@ -410,11 +410,11 @@ static int ovcamchip_command(struct i2c_client *c, unsigned int cmd, void *arg)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner =		THIS_MODULE,
-	.name =			"ovcamchip",
+	.driver = {
+		.name =		"ovcamchip",
+	},
 	.id =			I2C_DRIVERID_OVCAMCHIP,
 	.class =		I2C_CLASS_CAM_DIGITAL,
-	.flags =		I2C_DF_NOTIFY,
 	.attach_adapter =	ovcamchip_attach,
 	.detach_client =	ovcamchip_detach,
 	.command =		ovcamchip_command,

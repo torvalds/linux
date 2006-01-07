@@ -853,7 +853,6 @@ static int cxacru_usb_probe(struct usb_interface *intf, const struct usb_device_
 }
 
 static struct usb_driver cxacru_usb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= cxacru_driver_name,
 	.probe		= cxacru_usb_probe,
 	.disconnect	= usbatm_usb_disconnect,

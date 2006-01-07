@@ -55,6 +55,9 @@ int hcd_buffer_create (struct usb_hcd *hcd)
 	char		name [16];
 	int 		i, size;
 
+	if (!hcd->self.controller->dma_mask)
+		return 0;
+
 	for (i = 0; i < HCD_BUFFER_POOLS; i++) { 
 		if (!(size = pool_max [i]))
 			continue;

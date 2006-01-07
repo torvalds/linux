@@ -1146,7 +1146,6 @@ static int revalidate_allvol(ctlr_info_t *host)
 				del_gendisk(disk);
 			if (q)
 				blk_cleanup_queue(q);
-			put_disk(disk);
 		}
 	}
 
@@ -1465,9 +1464,10 @@ static int deregister_disk(struct gendisk *disk, drive_info_struct *drv,
 			request_queue_t *q = disk->queue;
 			if (disk->flags & GENHD_FL_UP)
 				del_gendisk(disk);
-			if (q)	
+			if (q) {
 				blk_cleanup_queue(q);
-			put_disk(disk);	
+				drv->queue = NULL;
+			}
 		}
 	}
 
@@ -2310,7 +2310,7 @@ static inline void complete_command( ctlr_info_t *h, CommandList_struct *cmd,
 	printk("Done with %p\n", cmd->rq);
 #endif /* CCISS_DEBUG */ 
 
-	end_that_request_last(cmd->rq);
+	end_that_request_last(cmd->rq, status ? 1 : -EIO);
 	cmd_free(h,cmd,1);
 }
 
@@ -3243,7 +3243,6 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 				del_gendisk(disk);
 			if (q)
 				blk_cleanup_queue(q);
-			put_disk(disk);
 		}
 	}
 

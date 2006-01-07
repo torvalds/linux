@@ -40,6 +40,7 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 #include <asm/semaphore.h>
+
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 
@@ -277,9 +278,10 @@ static int ir_detach(struct i2c_client *client);
 static int ir_probe(struct i2c_adapter *adap);
 
 static struct i2c_driver driver = {
-	.name           = "ir remote kbd driver",
-	.id             = I2C_DRIVERID_I2C_IR,
-	.flags          = I2C_DF_NOTIFY,
+	.driver = {
+		.name   = "ir remote kbd driver",
+	},
+	.id             = I2C_DRIVERID_INFRARED,
 	.attach_adapter = ir_probe,
 	.detach_client  = ir_detach,
 };
@@ -296,15 +298,15 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	char *name;
 	int ir_type;
-        struct IR_i2c *ir;
+	struct IR_i2c *ir;
 	struct input_dev *input_dev;
 
-	ir = kzalloc(sizeof(struct IR_i2c), GFP_KERNEL);
+	ir = kzalloc(sizeof(struct IR_i2c),GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ir || !input_dev) {
 		kfree(ir);
 		input_free_device(input_dev);
-                return -ENOMEM;
+		return -ENOMEM;
 	}
 
 	ir->c = client_template;
@@ -360,7 +362,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	/* register i2c device
 	 * At device register, IR codes may be changed to be
 	 * board dependent.
-	*/
+	 */
 	i2c_attach_client(&ir->c);
 
 	/* If IR not supported or disabled, unregisters driver */

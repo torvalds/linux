@@ -934,7 +934,6 @@ static struct usb_device_id catc_id_table [] = {
 MODULE_DEVICE_TABLE(usb, catc_id_table);
 
 static struct usb_driver catc_driver = {
-	.owner =	THIS_MODULE,
 	.name =		driver_name,
 	.probe =	catc_probe,
 	.disconnect =	catc_disconnect,

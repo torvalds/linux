@@ -83,6 +83,7 @@ struct snd_card_als100 {
 	struct pnp_dev *dev;
 	struct pnp_dev *devmpu;
 	struct pnp_dev *devopl;
+	struct snd_sb *chip;
 };
 
 static struct pnp_card_device_id snd_als100_pnpids[] = {
@@ -203,15 +204,15 @@ static int __init snd_card_als100_probe(int dev,
 					const struct pnp_card_device_id *pid)
 {
 	int error;
-	sb_t *chip;
-	snd_card_t *card;
+	struct snd_sb *chip;
+	struct snd_card *card;
 	struct snd_card_als100 *acard;
-	opl3_t *opl3;
+	struct snd_opl3 *opl3;
 
 	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 				 sizeof(struct snd_card_als100))) == NULL)
 		return -ENOMEM;
-	acard = (struct snd_card_als100 *)card->private_data;
+	acard = card->private_data;
 
 	if ((error = snd_card_als100_pnp(dev, acard, pcard, pid))) {
 		snd_card_free(card);
@@ -228,6 +229,7 @@ static int __init snd_card_als100_probe(int dev,
 		snd_card_free(card);
 		return error;
 	}
+	acard->chip = chip;
 
 	strcpy(card->driver, "ALS100");
 	strcpy(card->shortname, "Avance Logic ALS100");
@@ -299,11 +301,35 @@ static int __devinit snd_als100_pnp_detect(struct pnp_card_link *card,
 
 static void __devexit snd_als100_pnp_remove(struct pnp_card_link * pcard)
 {
-	snd_card_t *card = (snd_card_t *) pnp_get_card_drvdata(pcard);
-
-	snd_card_disconnect(card);
-	snd_card_free_in_thread(card);
+	snd_card_free(pnp_get_card_drvdata(pcard));
+	pnp_set_card_drvdata(pcard, NULL);
 }
+
+#ifdef CONFIG_PM
+static int snd_als100_pnp_suspend(struct pnp_card_link *pcard, pm_message_t state)
+{
+	struct snd_card *card = pnp_get_card_drvdata(pcard);
+	struct snd_card_als100 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	snd_pcm_suspend_all(chip->pcm);
+	snd_sbmixer_suspend(chip);
+	return 0;
+}
+
+static int snd_als100_pnp_resume(struct pnp_card_link *pcard)
+{
+	struct snd_card *card = pnp_get_card_drvdata(pcard);
+	struct snd_card_als100 *acard = card->private_data;
+	struct snd_sb *chip = acard->chip;
+
+	snd_sbdsp_reset(chip);
+	snd_sbmixer_resume(chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+	return 0;
+}
+#endif
 
 static struct pnp_card_driver als100_pnpc_driver = {
 	.flags          = PNP_DRIVER_RES_DISABLE,
@@ -311,20 +337,25 @@ static struct pnp_card_driver als100_pnpc_driver = {
         .id_table       = snd_als100_pnpids,
         .probe          = snd_als100_pnp_detect,
         .remove         = __devexit_p(snd_als100_pnp_remove),
+#ifdef CONFIG_PM
+	.suspend	= snd_als100_pnp_suspend,
+	.resume		= snd_als100_pnp_resume,
+#endif
 };
 
 static int __init alsa_card_als100_init(void)
 {
-	int cards = 0;
+	int cards;
 
-	cards += pnp_register_card_driver(&als100_pnpc_driver);
-#ifdef MODULE
-	if (!cards) {
+	cards = pnp_register_card_driver(&als100_pnpc_driver);
+	if (cards <= 0) {
 		pnp_unregister_card_driver(&als100_pnpc_driver);
+#ifdef MODULE
 		snd_printk(KERN_ERR "no ALS100 based soundcards found\n");
-	}
 #endif
-	return cards ? 0 : -ENODEV;
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static void __exit alsa_card_als100_exit(void)

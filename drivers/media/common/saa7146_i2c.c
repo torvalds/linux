@@ -276,8 +276,8 @@ int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, in
 	int i = 0, count = 0;
 	u32* buffer = dev->d_i2c.cpu_addr;
 	int err = 0;
-        int address_err = 0;
-        int short_delay = 0;
+	int address_err = 0;
+	int short_delay = 0;
 
 	if (down_interruptible (&dev->i2c_lock))
 		return -ERESTARTSYS;
@@ -325,7 +325,7 @@ int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, in
 					if( 0 != (SAA7146_USE_I2C_IRQ & dev->ext->flags)) {
 						goto out;
 					}
-				        address_err++;
+					address_err++;
 				}
 				DEB_I2C(("error while sending message(s). starting again.\n"));
 				break;
@@ -336,14 +336,14 @@ int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, in
 			break;
 		}
 
-	        /* delay a bit before retrying */
-	        msleep(10);
+		/* delay a bit before retrying */
+		msleep(10);
 
 	} while (err != num && retries--);
 
-        /* if every retry had an address error, exit right away */
-        if (address_err == retries) {
-	        goto out;
+	/* if every retry had an address error, exit right away */
+	if (address_err == retries) {
+		goto out;
 	}
 
 	/* if any things had to be read, get the results */

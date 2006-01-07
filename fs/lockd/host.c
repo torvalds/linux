@@ -177,7 +177,7 @@ nlm_bind_host(struct nlm_host *host)
 	if ((clnt = host->h_rpcclnt) != NULL) {
 		xprt = clnt->cl_xprt;
 		if (time_after_eq(jiffies, host->h_nextrebind)) {
-			clnt->cl_port = 0;
+			rpc_force_rebind(clnt);
 			host->h_nextrebind = jiffies + NLM_HOST_REBIND;
 			dprintk("lockd: next rebind in %ld jiffies\n",
 					host->h_nextrebind - jiffies);
@@ -217,7 +217,7 @@ nlm_rebind_host(struct nlm_host *host)
 {
 	dprintk("lockd: rebind host %s\n", host->h_name);
 	if (host->h_rpcclnt && time_after_eq(jiffies, host->h_nextrebind)) {
-		host->h_rpcclnt->cl_port = 0;
+		rpc_force_rebind(host->h_rpcclnt);
 		host->h_nextrebind = jiffies + NLM_HOST_REBIND;
 	}
 }

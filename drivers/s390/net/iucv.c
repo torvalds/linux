@@ -1,5 +1,5 @@
 /* 
- * $Id: iucv.c,v 1.45 2005/04/26 22:59:06 braunu Exp $
+ * $Id: iucv.c,v 1.47 2005/11/21 11:35:22 mschwide Exp $
  *
  * IUCV network driver
  *
@@ -29,7 +29,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * RELEASE-TAG: IUCV lowlevel driver $Revision: 1.45 $
+ * RELEASE-TAG: IUCV lowlevel driver $Revision: 1.47 $
  *
  */
 
@@ -54,7 +54,7 @@
 #include <asm/s390_ext.h>
 #include <asm/ebcdic.h>
 #include <asm/smp.h>
-#include <asm/ccwdev.h> //for root device stuff
+#include <asm/s390_rdev.h>
 
 /* FLAGS:
  * All flags are defined in the field IPFLAGS1 of each function
@@ -355,7 +355,7 @@ do { \
 static void
 iucv_banner(void)
 {
-	char vbuf[] = "$Revision: 1.45 $";
+	char vbuf[] = "$Revision: 1.47 $";
 	char *version = vbuf;
 
 	if ((version = strchr(version, ':'))) {
@@ -477,7 +477,7 @@ grab_param(void)
 		ptr++;
 		if (ptr >= iucv_param_pool + PARAM_POOL_SIZE)
 			ptr = iucv_param_pool;
-	} while (atomic_compare_and_swap(0, 1, &ptr->in_use));
+	} while (atomic_cmpxchg(&ptr->in_use, 0, 1) != 0);
 	hint = ptr - iucv_param_pool;
 
 	memset(&ptr->param, 0, sizeof(ptr->param));

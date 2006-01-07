@@ -123,6 +123,7 @@ typedef enum {
     e1000_bus_width_32,
     e1000_bus_width_64,
     e1000_bus_width_pciex_1,
+    e1000_bus_width_pciex_2,
     e1000_bus_width_pciex_4,
     e1000_bus_width_reserved
 } e1000_bus_width;
@@ -149,6 +150,7 @@ typedef enum {
     e1000_igp_cable_length_90  = 90,
     e1000_igp_cable_length_100 = 100,
     e1000_igp_cable_length_110 = 110,
+    e1000_igp_cable_length_115 = 115,
     e1000_igp_cable_length_120 = 120,
     e1000_igp_cable_length_130 = 130,
     e1000_igp_cable_length_140 = 140,
@@ -1457,6 +1459,7 @@ struct e1000_hw {
 #define E1000_EECD_AUPDEN    0x00100000 /* Enable Autonomous FLASH update */
 #define E1000_EECD_SHADV     0x00200000 /* Shadow RAM Data Valid */
 #define E1000_EECD_SEC1VAL   0x00400000 /* Sector One Valid */
+#define E1000_EECD_SECVAL_SHIFT      22
 #define E1000_STM_OPCODE     0xDB00
 #define E1000_HICR_FW_RESET  0xC0
 
@@ -1951,7 +1954,6 @@ struct e1000_host_command_info {
 
 #define E1000_MDALIGN          4096
 
-#define E1000_GCR_BEM32                 0x00400000
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
 /* Function Active and Power State to MNG */
 #define E1000_FACTPS_FUNC0_POWER_STATE_MASK         0x00000003

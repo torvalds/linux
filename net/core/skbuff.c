@@ -135,17 +135,13 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
 struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 			    int fclone)
 {
+	struct skb_shared_info *shinfo;
 	struct sk_buff *skb;
 	u8 *data;
 
 	/* Get the HEAD */
-	if (fclone)
-		skb = kmem_cache_alloc(skbuff_fclone_cache,
-				       gfp_mask & ~__GFP_DMA);
-	else
-		skb = kmem_cache_alloc(skbuff_head_cache,
-				       gfp_mask & ~__GFP_DMA);
-
+	skb = kmem_cache_alloc(fclone ? skbuff_fclone_cache : skbuff_head_cache,
+				gfp_mask & ~__GFP_DMA);
 	if (!skb)
 		goto out;
 
@@ -162,6 +158,16 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	skb->data = data;
 	skb->tail = data;
 	skb->end  = data + size;
+	/* make sure we initialize shinfo sequentially */
+	shinfo = skb_shinfo(skb);
+	atomic_set(&shinfo->dataref, 1);
+	shinfo->nr_frags  = 0;
+	shinfo->tso_size = 0;
+	shinfo->tso_segs = 0;
+	shinfo->ufo_size = 0;
+	shinfo->ip6_frag_id = 0;
+	shinfo->frag_list = NULL;
+
 	if (fclone) {
 		struct sk_buff *child = skb + 1;
 		atomic_t *fclone_ref = (atomic_t *) (child + 1);
@@ -171,13 +177,6 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 
 		child->fclone = SKB_FCLONE_UNAVAILABLE;
 	}
-	atomic_set(&(skb_shinfo(skb)->dataref), 1);
-	skb_shinfo(skb)->nr_frags  = 0;
-	skb_shinfo(skb)->tso_size = 0;
-	skb_shinfo(skb)->tso_segs = 0;
-	skb_shinfo(skb)->frag_list = NULL;
-	skb_shinfo(skb)->ufo_size = 0;
-	skb_shinfo(skb)->ip6_frag_id = 0;
 out:
 	return skb;
 nodata:
@@ -1725,7 +1724,7 @@ unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
  * of the skb if any page alloc fails user this procedure returns  -ENOMEM
  */
 int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
-			int getfrag(void *from, char *to, int offset,
+			int (*getfrag)(void *from, char *to, int offset,
 					int len, int odd, struct sk_buff *skb),
 			void *from, int length)
 {

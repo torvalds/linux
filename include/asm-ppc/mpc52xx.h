@@ -29,6 +29,17 @@ struct pt_regs;
 #endif /* __ASSEMBLY__ */
 
 
+#ifdef CONFIG_PCI
+#define _IO_BASE	isa_io_base
+#define _ISA_MEM_BASE	isa_mem_base
+#define PCI_DRAM_OFFSET	pci_dram_offset
+#else
+#define _IO_BASE	0
+#define _ISA_MEM_BASE	0
+#define PCI_DRAM_OFFSET	0
+#endif
+
+
 /* ======================================================================== */
 /* PPC Sys devices definition                                               */
 /* ======================================================================== */
@@ -107,7 +118,7 @@ enum ppc_sys_devices {
 #define MPC52xx_SDMA_IRQ_NUM	17
 #define MPC52xx_PERP_IRQ_NUM	23
 
-#define MPC52xx_CRIT_IRQ_BASE	0
+#define MPC52xx_CRIT_IRQ_BASE	1
 #define MPC52xx_MAIN_IRQ_BASE	(MPC52xx_CRIT_IRQ_BASE + MPC52xx_CRIT_IRQ_NUM)
 #define MPC52xx_SDMA_IRQ_BASE	(MPC52xx_MAIN_IRQ_BASE + MPC52xx_MAIN_IRQ_NUM)
 #define MPC52xx_PERP_IRQ_BASE	(MPC52xx_SDMA_IRQ_BASE + MPC52xx_SDMA_IRQ_NUM)

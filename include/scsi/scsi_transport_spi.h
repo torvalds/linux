@@ -24,6 +24,9 @@
 #include <linux/transport_class.h>
 
 struct scsi_transport_template;
+struct scsi_target;
+struct scsi_device;
+struct Scsi_Host;
 
 struct spi_transport_attrs {
 	int period;		/* value in the PPR/SDTR command */
@@ -143,5 +146,6 @@ void spi_release_transport(struct scsi_transport_template *);
 void spi_schedule_dv_device(struct scsi_device *);
 void spi_dv_device(struct scsi_device *);
 void spi_display_xfer_agreement(struct scsi_target *);
+int spi_print_msg(const unsigned char *);
 
 #endif /* SCSI_TRANSPORT_SPI_H */

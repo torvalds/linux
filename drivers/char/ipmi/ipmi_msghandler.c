@@ -787,7 +787,6 @@ int ipmi_destroy_user(ipmi_user_t user)
 	int              i;
 	unsigned long    flags;
 	struct cmd_rcvr  *rcvr;
-	struct list_head *entry1, *entry2;
 	struct cmd_rcvr  *rcvrs = NULL;
 
 	user->valid = 1;
@@ -812,8 +811,7 @@ int ipmi_destroy_user(ipmi_user_t user)
 	 * synchronize_rcu()) then free everything in that list.
 	 */
 	down(&intf->cmd_rcvrs_lock);
-	list_for_each_safe_rcu(entry1, entry2, &intf->cmd_rcvrs) {
-		rcvr = list_entry(entry1, struct cmd_rcvr, link);
+	list_for_each_entry_rcu(rcvr, &intf->cmd_rcvrs, link) {
 		if (rcvr->user == user) {
 			list_del_rcu(&rcvr->link);
 			rcvr->next = rcvrs;
@@ -2986,7 +2984,7 @@ static void send_panic_events(char *str)
 	msg.cmd = 2; /* Platform event command. */
 	msg.data = data;
 	msg.data_len = 8;
-	data[0] = 0x21; /* Kernel generator ID, IPMI table 5-4 */
+	data[0] = 0x41; /* Kernel generator ID, IPMI table 5-4 */
 	data[1] = 0x03; /* This is for IPMI 1.0. */
 	data[2] = 0x20; /* OS Critical Stop, IPMI table 36-3 */
 	data[4] = 0x6f; /* Sensor specific, IPMI table 36-1 */

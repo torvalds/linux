@@ -58,6 +58,7 @@
 #endif
 #include <linux/kmod.h>
 
+#include <net/arp.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/ip_fib.h>

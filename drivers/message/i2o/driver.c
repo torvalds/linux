@@ -61,12 +61,10 @@ static int i2o_bus_match(struct device *dev, struct device_driver *drv)
 };
 
 /* I2O bus type */
-extern struct device_attribute i2o_device_attrs[];
-
 struct bus_type i2o_bus_type = {
 	.name = "i2o",
 	.match = i2o_bus_match,
-	.dev_attrs = i2o_device_attrs,
+	.dev_attrs = i2o_device_attrs
 };
 
 /**
@@ -219,14 +217,14 @@ int i2o_driver_dispatch(struct i2o_controller *c, u32 m)
 		/* cut of header from message size (in 32-bit words) */
 		size = (le32_to_cpu(msg->u.head[0]) >> 16) - 5;
 
-		evt = kmalloc(size * 4 + sizeof(*evt), GFP_ATOMIC | __GFP_ZERO);
+		evt = kzalloc(size * 4 + sizeof(*evt), GFP_ATOMIC);
 		if (!evt)
 			return -ENOMEM;
 
 		evt->size = size;
 		evt->tcntxt = le32_to_cpu(msg->u.s.tcntxt);
 		evt->event_indicator = le32_to_cpu(msg->body[0]);
-		memcpy(&evt->tcntxt, &msg->u.s.tcntxt, size * 4);
+		memcpy(&evt->data, &msg->body[1], size * 4);
 
 		list_for_each_entry_safe(dev, tmp, &c->devices, list)
 		    if (dev->lct_data.tid == tid) {
@@ -349,11 +347,9 @@ int __init i2o_driver_init(void)
 	osm_info("max drivers = %d\n", i2o_max_drivers);
 
 	i2o_drivers =
-	    kmalloc(i2o_max_drivers * sizeof(*i2o_drivers), GFP_KERNEL);
+	    kzalloc(i2o_max_drivers * sizeof(*i2o_drivers), GFP_KERNEL);
 	if (!i2o_drivers)
 		return -ENOMEM;
-
-	memset(i2o_drivers, 0, i2o_max_drivers * sizeof(*i2o_drivers));
 
 	rc = bus_register(&i2o_bus_type);
 

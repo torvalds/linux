@@ -238,20 +238,22 @@ struct NCR_700_Host_Parameters {
 #ifdef CONFIG_53C700_LE_ON_BE
 #define bE	(hostdata->force_le_on_be ? 0 : 3)
 #define	bSWAP	(hostdata->force_le_on_be)
-/* This is terrible, but there's no raw version of ioread32.  That means
- * that on a be board we swap twice (once in ioread32 and once again to 
- * get the value correct) */
-#define bS_to_io(x)	((hostdata->force_le_on_be) ? (x) : cpu_to_le32(x))
+#define bEBus	(!hostdata->force_le_on_be)
 #elif defined(__BIG_ENDIAN)
 #define bE	3
 #define bSWAP	0
-#define bS_to_io(x)	(x)
 #elif defined(__LITTLE_ENDIAN)
 #define bE	0
 #define bSWAP	0
-#define bS_to_io(x)	(x)
 #else
 #error "__BIG_ENDIAN or __LITTLE_ENDIAN must be defined, did you include byteorder.h?"
+#endif
+#ifndef bEBus
+#ifdef CONFIG_53C700_BE_BUS
+#define bEBus	1
+#else
+#define bEBus	0
+#endif
 #endif
 #define bS_to_cpu(x)	(bSWAP ? le32_to_cpu(x) : (x))
 #define bS_to_host(x)	(bSWAP ? cpu_to_le32(x) : (x))
@@ -466,14 +468,15 @@ NCR_700_readl(struct Scsi_Host *host, __u32 reg)
 {
 	const struct NCR_700_Host_Parameters *hostdata
 		= (struct NCR_700_Host_Parameters *)host->hostdata[0];
-	__u32 value = ioread32(hostdata->base + reg);
+	__u32 value = bEBus ? ioread32be(hostdata->base + reg) :
+		ioread32(hostdata->base + reg);
 #if 1
 	/* sanity check the register */
 	if((reg & 0x3) != 0)
 		BUG();
 #endif
 
-	return bS_to_io(value);
+	return value;
 }
 
 static inline void
@@ -497,7 +500,8 @@ NCR_700_writel(__u32 value, struct Scsi_Host *host, __u32 reg)
 		BUG();
 #endif
 
-	iowrite32(bS_to_io(value), hostdata->base + reg);
+	bEBus ? iowrite32be(value, hostdata->base + reg): 
+		iowrite32(value, hostdata->base + reg);
 }
 
 #endif

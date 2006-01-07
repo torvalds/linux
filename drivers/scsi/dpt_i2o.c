@@ -660,7 +660,12 @@ static int adpt_abort(struct scsi_cmnd * cmd)
 	msg[2] = 0;
 	msg[3]= 0; 
 	msg[4] = (u32)cmd;
-	if( (rcode = adpt_i2o_post_wait(pHba, msg, sizeof(msg), FOREVER)) != 0){
+	if (pHba->host)
+		spin_lock_irq(pHba->host->host_lock);
+	rcode = adpt_i2o_post_wait(pHba, msg, sizeof(msg), FOREVER);
+	if (pHba->host)
+		spin_unlock_irq(pHba->host->host_lock);
+	if (rcode != 0) {
 		if(rcode == -EOPNOTSUPP ){
 			printk(KERN_INFO"%s: Abort cmd not supported\n",pHba->name);
 			return FAILED;
@@ -697,10 +702,15 @@ static int adpt_device_reset(struct scsi_cmnd* cmd)
 	msg[2] = 0;
 	msg[3] = 0;
 
+	if (pHba->host)
+		spin_lock_irq(pHba->host->host_lock);
 	old_state = d->state;
 	d->state |= DPTI_DEV_RESET;
-	if( (rcode = adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER)) ){
-		d->state = old_state;
+	rcode = adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER);
+	d->state = old_state;
+	if (pHba->host)
+		spin_unlock_irq(pHba->host->host_lock);
+	if (rcode != 0) {
 		if(rcode == -EOPNOTSUPP ){
 			printk(KERN_INFO"%s: Device reset not supported\n",pHba->name);
 			return FAILED;
@@ -708,7 +718,6 @@ static int adpt_device_reset(struct scsi_cmnd* cmd)
 		printk(KERN_INFO"%s: Device reset failed\n",pHba->name);
 		return FAILED;
 	} else {
-		d->state = old_state;
 		printk(KERN_INFO"%s: Device reset successful\n",pHba->name);
 		return SUCCESS;
 	}
@@ -721,6 +730,7 @@ static int adpt_bus_reset(struct scsi_cmnd* cmd)
 {
 	adpt_hba* pHba;
 	u32 msg[4];
+	u32 rcode;
 
 	pHba = (adpt_hba*)cmd->device->host->hostdata[0];
 	memset(msg, 0, sizeof(msg));
@@ -729,7 +739,12 @@ static int adpt_bus_reset(struct scsi_cmnd* cmd)
 	msg[1] = (I2O_HBA_BUS_RESET<<24|HOST_TID<<12|pHba->channel[cmd->device->channel].tid);
 	msg[2] = 0;
 	msg[3] = 0;
-	if(adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER) ){
+	if (pHba->host)
+		spin_lock_irq(pHba->host->host_lock);
+	rcode = adpt_i2o_post_wait(pHba, msg,sizeof(msg), FOREVER);
+	if (pHba->host)
+		spin_unlock_irq(pHba->host->host_lock);
+	if (rcode != 0) {
 		printk(KERN_WARNING"%s: Bus reset failed.\n",pHba->name);
 		return FAILED;
 	} else {

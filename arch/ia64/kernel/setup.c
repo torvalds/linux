@@ -43,6 +43,7 @@
 #include <linux/initrd.h>
 #include <linux/platform.h>
 #include <linux/pm.h>
+#include <linux/cpufreq.h>
 
 #include <asm/ia32.h>
 #include <asm/machvec.h>
@@ -517,6 +518,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 	char family[32], features[128], *cp, sep;
 	struct cpuinfo_ia64 *c = v;
 	unsigned long mask;
+	unsigned long proc_freq;
 	int i;
 
 	mask = c->features;
@@ -549,6 +551,10 @@ show_cpuinfo (struct seq_file *m, void *v)
 		sprintf(cp, " 0x%lx", mask);
 	}
 
+	proc_freq = cpufreq_quick_get(cpunum);
+	if (!proc_freq)
+		proc_freq = c->proc_freq / 1000;
+
 	seq_printf(m,
 		   "processor  : %d\n"
 		   "vendor     : %s\n"
@@ -565,7 +571,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   "BogoMIPS   : %lu.%02lu\n",
 		   cpunum, c->vendor, family, c->model, c->revision, c->archrev,
 		   features, c->ppn, c->number,
-		   c->proc_freq / 1000000, c->proc_freq % 1000000,
+		   proc_freq / 1000, proc_freq % 1000,
 		   c->itc_freq / 1000000, c->itc_freq % 1000000,
 		   lpj*HZ/500000, (lpj*HZ/5000) % 100);
 #ifdef CONFIG_SMP

@@ -349,6 +349,11 @@ void print_bad_pte(struct vm_area_struct *vma, pte_t pte, unsigned long vaddr)
 	dump_stack();
 }
 
+static inline int is_cow_mapping(unsigned int flags)
+{
+	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+}
+
 /*
  * This function gets the "struct page" associated with a pte.
  *
@@ -376,6 +381,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 	if (vma->vm_flags & VM_PFNMAP) {
 		unsigned long off = (addr - vma->vm_start) >> PAGE_SHIFT;
 		if (pfn == vma->vm_pgoff + off)
+			return NULL;
+		if (!is_cow_mapping(vma->vm_flags))
 			return NULL;
 	}
 
@@ -437,7 +444,7 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * If it's a COW mapping, write protect it both
 	 * in the parent and the child
 	 */
-	if ((vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE) {
+	if (is_cow_mapping(vm_flags)) {
 		ptep_set_wrprotect(src_mm, addr, src_pte);
 		pte = *src_pte;
 	}
@@ -567,7 +574,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * readonly mappings. The tradeoff is that copy_page_range is more
 	 * efficient than faulting.
 	 */
-	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_PFNMAP))) {
+	if (!(vma->vm_flags & (VM_HUGETLB|VM_NONLINEAR|VM_PFNMAP|VM_INSERTPAGE))) {
 		if (!vma->anon_vma)
 			return 0;
 	}
@@ -1002,7 +1009,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			continue;
 		}
 
-		if (!vma || (vma->vm_flags & VM_IO)
+		if (!vma || (vma->vm_flags & (VM_IO | VM_PFNMAP))
 				|| !(vm_flags & vma->vm_flags))
 			return i ? : -EFAULT;
 
@@ -1221,53 +1228,10 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr, struct page *
 		return -EFAULT;
 	if (!page_count(page))
 		return -EINVAL;
+	vma->vm_flags |= VM_INSERTPAGE;
 	return insert_page(vma->vm_mm, addr, page, vma->vm_page_prot);
 }
 EXPORT_SYMBOL(vm_insert_page);
-
-/*
- * Somebody does a pfn remapping that doesn't actually work as a vma.
- *
- * Do it as individual pages instead, and warn about it. It's bad form,
- * and very inefficient.
- */
-static int incomplete_pfn_remap(struct vm_area_struct *vma,
-		unsigned long start, unsigned long end,
-		unsigned long pfn, pgprot_t prot)
-{
-	static int warn = 10;
-	struct page *page;
-	int retval;
-
-	if (!(vma->vm_flags & VM_INCOMPLETE)) {
-		if (warn) {
-			warn--;
-			printk("%s does an incomplete pfn remapping", current->comm);
-			dump_stack();
-		}
-	}
-	vma->vm_flags |= VM_INCOMPLETE | VM_IO | VM_RESERVED;
-
-	if (start < vma->vm_start || end > vma->vm_end)
-		return -EINVAL;
-
-	if (!pfn_valid(pfn))
-		return -EINVAL;
-
-	page = pfn_to_page(pfn);
-	if (!PageReserved(page))
-		return -EINVAL;
-
-	retval = 0;
-	while (start < end) {
-		retval = insert_page(vma->vm_mm, start, page, prot);
-		if (retval < 0)
-			break;
-		start += PAGE_SIZE;
-		page++;
-	}
-	return retval;
-}
 
 /*
  * maps a range of physical memory into the requested pages. the old
@@ -1343,9 +1307,6 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	struct mm_struct *mm = vma->vm_mm;
 	int err;
 
-	if (addr != vma->vm_start || end != vma->vm_end)
-		return incomplete_pfn_remap(vma, addr, end, pfn, prot);
-
 	/*
 	 * Physically remapped pages are special. Tell the
 	 * rest of the world about it:
@@ -1359,9 +1320,18 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 *   VM_PFNMAP tells the core MM that the base pages are just
 	 *	raw PFN mappings, and do not have a "struct page" associated
 	 *	with them.
+	 *
+	 * There's a horrible special case to handle copy-on-write
+	 * behaviour that some programs depend on. We mark the "original"
+	 * un-COW'ed pages by matching them up with "vma->vm_pgoff".
 	 */
+	if (is_cow_mapping(vma->vm_flags)) {
+		if (addr != vma->vm_start || end != vma->vm_end)
+			return -EINVAL;
+		vma->vm_pgoff = pfn;
+	}
+
 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
-	vma->vm_pgoff = pfn;
 
 	BUG_ON(addr >= end);
 	pfn -= addr >> PAGE_SHIFT;
@@ -1528,7 +1498,7 @@ gotten:
 		update_mmu_cache(vma, address, entry);
 		lazy_mmu_prot_update(entry);
 		lru_cache_add_active(new_page);
-		page_add_anon_rmap(new_page, vma, address);
+		page_add_new_anon_rmap(new_page, vma, address);
 
 		/* Free the old page.. */
 		new_page = old_page;
@@ -1800,8 +1770,31 @@ out_big:
 out_busy:
 	return -ETXTBSY;
 }
-
 EXPORT_SYMBOL(vmtruncate);
+
+int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
+{
+	struct address_space *mapping = inode->i_mapping;
+
+	/*
+	 * If the underlying filesystem is not going to provide
+	 * a way to truncate a range of blocks (punch a hole) -
+	 * we should return failure right now.
+	 */
+	if (!inode->i_op || !inode->i_op->truncate_range)
+		return -ENOSYS;
+
+	down(&inode->i_sem);
+	down_write(&inode->i_alloc_sem);
+	unmap_mapping_range(mapping, offset, (end - offset), 1);
+	truncate_inode_pages_range(mapping, offset, end);
+	inode->i_op->truncate_range(inode, offset, end);
+	up_write(&inode->i_alloc_sem);
+	up(&inode->i_sem);
+
+	return 0;
+}
+EXPORT_SYMBOL(vmtruncate_range);
 
 /* 
  * Primitive swap readahead code. We simply read an aligned block of
@@ -1984,8 +1977,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			goto release;
 		inc_mm_counter(mm, anon_rss);
 		lru_cache_add_active(page);
-		SetPageReferenced(page);
-		page_add_anon_rmap(page, vma, address);
+		page_add_new_anon_rmap(page, vma, address);
 	} else {
 		/* Map the ZERO_PAGE - vm_page_prot is readonly */
 		page = ZERO_PAGE(address);
@@ -2116,7 +2108,7 @@ retry:
 		if (anon) {
 			inc_mm_counter(mm, anon_rss);
 			lru_cache_add_active(new_page);
-			page_add_anon_rmap(new_page, vma, address);
+			page_add_new_anon_rmap(new_page, vma, address);
 		} else {
 			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(new_page);

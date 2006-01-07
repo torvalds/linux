@@ -33,6 +33,8 @@
 #include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/moduleparam.h>
@@ -116,10 +118,10 @@ MODULE_PARM_DESC(adaptor, "Type of adaptor.");
 #define SERIAL_MODE_OUTPUT_TRIGGERED	(1 << 3)
 
 typedef struct _snd_uart16550 {
-	snd_card_t *card;
-	snd_rawmidi_t *rmidi;
-	snd_rawmidi_substream_t *midi_output[SNDRV_SERIAL_MAX_OUTS];
-	snd_rawmidi_substream_t *midi_input[SNDRV_SERIAL_MAX_INS];
+	struct snd_card *card;
+	struct snd_rawmidi *rmidi;
+	struct snd_rawmidi_substream *midi_output[SNDRV_SERIAL_MAX_OUTS];
+	struct snd_rawmidi_substream *midi_input[SNDRV_SERIAL_MAX_INS];
 
 	int filemode;		//open status of file
 
@@ -166,7 +168,7 @@ typedef struct _snd_uart16550 {
 
 } snd_uart16550_t;
 
-static snd_card_t *snd_serial_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct platform_device *devices[SNDRV_CARDS];
 
 static inline void snd_uart16550_add_timer(snd_uart16550_t *uart)
 {
@@ -509,7 +511,7 @@ static void snd_uart16550_do_close(snd_uart16550_t * uart)
 	}
 }
 
-static int snd_uart16550_input_open(snd_rawmidi_substream_t * substream)
+static int snd_uart16550_input_open(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	snd_uart16550_t *uart = substream->rmidi->private_data;
@@ -523,7 +525,7 @@ static int snd_uart16550_input_open(snd_rawmidi_substream_t * substream)
 	return 0;
 }
 
-static int snd_uart16550_input_close(snd_rawmidi_substream_t * substream)
+static int snd_uart16550_input_close(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	snd_uart16550_t *uart = substream->rmidi->private_data;
@@ -537,7 +539,7 @@ static int snd_uart16550_input_close(snd_rawmidi_substream_t * substream)
 	return 0;
 }
 
-static void snd_uart16550_input_trigger(snd_rawmidi_substream_t * substream, int up)
+static void snd_uart16550_input_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	unsigned long flags;
 	snd_uart16550_t *uart = substream->rmidi->private_data;
@@ -551,7 +553,7 @@ static void snd_uart16550_input_trigger(snd_rawmidi_substream_t * substream, int
 	spin_unlock_irqrestore(&uart->open_lock, flags);
 }
 
-static int snd_uart16550_output_open(snd_rawmidi_substream_t * substream)
+static int snd_uart16550_output_open(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	snd_uart16550_t *uart = substream->rmidi->private_data;
@@ -565,7 +567,7 @@ static int snd_uart16550_output_open(snd_rawmidi_substream_t * substream)
 	return 0;
 };
 
-static int snd_uart16550_output_close(snd_rawmidi_substream_t * substream)
+static int snd_uart16550_output_close(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	snd_uart16550_t *uart = substream->rmidi->private_data;
@@ -603,7 +605,7 @@ static inline int snd_uart16550_write_buffer(snd_uart16550_t *uart, unsigned cha
 		return 0;
 }
 
-static int snd_uart16550_output_byte(snd_uart16550_t *uart, snd_rawmidi_substream_t * substream, unsigned char midi_byte)
+static int snd_uart16550_output_byte(snd_uart16550_t *uart, struct snd_rawmidi_substream *substream, unsigned char midi_byte)
 {
 	if (uart->buff_in_count == 0                            /* Buffer empty? */
 	    && ((uart->adaptor != SNDRV_SERIAL_MS124W_SA &&
@@ -636,7 +638,7 @@ static int snd_uart16550_output_byte(snd_uart16550_t *uart, snd_rawmidi_substrea
 	return 1;
 }
 
-static void snd_uart16550_output_write(snd_rawmidi_substream_t * substream)
+static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 {
 	unsigned long flags;
 	unsigned char midi_byte, addr_byte;
@@ -715,7 +717,7 @@ static void snd_uart16550_output_write(snd_rawmidi_substream_t * substream)
 	spin_unlock_irqrestore(&uart->open_lock, flags);
 }
 
-static void snd_uart16550_output_trigger(snd_rawmidi_substream_t * substream, int up)
+static void snd_uart16550_output_trigger(struct snd_rawmidi_substream *substream, int up)
 {
 	unsigned long flags;
 	snd_uart16550_t *uart = substream->rmidi->private_data;
@@ -731,14 +733,14 @@ static void snd_uart16550_output_trigger(snd_rawmidi_substream_t * substream, in
 		snd_uart16550_output_write(substream);
 }
 
-static snd_rawmidi_ops_t snd_uart16550_output =
+static struct snd_rawmidi_ops snd_uart16550_output =
 {
 	.open =		snd_uart16550_output_open,
 	.close =	snd_uart16550_output_close,
 	.trigger =	snd_uart16550_output_trigger,
 };
 
-static snd_rawmidi_ops_t snd_uart16550_input =
+static struct snd_rawmidi_ops snd_uart16550_input =
 {
 	.open =		snd_uart16550_input_open,
 	.close =	snd_uart16550_input_close,
@@ -754,13 +756,13 @@ static int snd_uart16550_free(snd_uart16550_t *uart)
 	return 0;
 };
 
-static int snd_uart16550_dev_free(snd_device_t *device)
+static int snd_uart16550_dev_free(struct snd_device *device)
 {
 	snd_uart16550_t *uart = device->device_data;
 	return snd_uart16550_free(uart);
 }
 
-static int __init snd_uart16550_create(snd_card_t * card,
+static int __init snd_uart16550_create(struct snd_card *card,
 				       unsigned long iobase,
 				       int irq,
 				       unsigned int speed,
@@ -769,7 +771,7 @@ static int __init snd_uart16550_create(snd_card_t * card,
 				       int droponfull,
 				       snd_uart16550_t **ruart)
 {
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free =	snd_uart16550_dev_free,
 	};
 	snd_uart16550_t *uart;
@@ -838,19 +840,19 @@ static int __init snd_uart16550_create(snd_card_t * card,
 	return 0;
 }
 
-static void __init snd_uart16550_substreams(snd_rawmidi_str_t *stream)
+static void __init snd_uart16550_substreams(struct snd_rawmidi_str *stream)
 {
 	struct list_head *list;
 
 	list_for_each(list, &stream->substreams) {
-		snd_rawmidi_substream_t *substream = list_entry(list, snd_rawmidi_substream_t, list);
+		struct snd_rawmidi_substream *substream = list_entry(list, struct snd_rawmidi_substream, list);
 		sprintf(substream->name, "Serial MIDI %d", substream->number + 1);
 	}
 }
 
-static int __init snd_uart16550_rmidi(snd_uart16550_t *uart, int device, int outs, int ins, snd_rawmidi_t **rmidi)
+static int __init snd_uart16550_rmidi(snd_uart16550_t *uart, int device, int outs, int ins, struct snd_rawmidi **rmidi)
 {
-	snd_rawmidi_t *rrawmidi;
+	struct snd_rawmidi *rrawmidi;
 	int err;
 
 	if ((err = snd_rawmidi_new(uart->card, "UART Serial MIDI", device, outs, ins, &rrawmidi)) < 0)
@@ -869,14 +871,12 @@ static int __init snd_uart16550_rmidi(snd_uart16550_t *uart, int device, int out
 	return 0;
 }
 
-static int __init snd_serial_probe(int dev)
+static int __init snd_serial_probe(struct platform_device *devptr)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	snd_uart16550_t *uart;
 	int err;
-
-	if (!enable[dev])
-		return -ENOENT;
+	int dev = devptr->id;
 
 	switch (adaptor[dev]) {
 	case SNDRV_SERIAL_SOUNDCANVAS:
@@ -942,13 +942,12 @@ static int __init snd_serial_probe(int dev)
 		adaptor_names[uart->adaptor],
 		uart->drop_on_full);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto _err;
+	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) < 0)
 		goto _err;
 
-	snd_serial_cards[dev] = card;
+	platform_set_drvdata(devptr, card);
 	return 0;
 
  _err:
@@ -956,33 +955,68 @@ static int __init snd_serial_probe(int dev)
 	return err;
 }
 
+static int snd_serial_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#define SND_SERIAL_DRIVER	"snd_serial_u16550"
+
+static struct platform_driver snd_serial_driver = {
+	.probe		= snd_serial_probe,
+	.remove		= snd_serial_remove,
+	.driver		= {
+		.name	= SND_SERIAL_DRIVER
+	},
+};
+
+static void __init_or_module snd_serial_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_serial_driver);
+}
+
 static int __init alsa_card_serial_init(void)
 {
-	int dev = 0;
-	int cards = 0;
+	int i, cards, err;
 
-	for (dev = 0; dev < SNDRV_CARDS; dev++) {
-		if (snd_serial_probe(dev) == 0)
-			cards++;
+	if ((err = platform_driver_register(&snd_serial_driver)) < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(SND_SERIAL_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
+		}
+		devices[i] = device;
+		cards++;
 	}
-
-	if (cards == 0) {
+	if (! cards) {
 #ifdef MODULE
 		printk(KERN_ERR "serial midi soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_serial_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_serial_exit(void)
 {
-	int dev;
-
-	for (dev = 0; dev < SNDRV_CARDS; dev++) {
-		if (snd_serial_cards[dev] != NULL)
-			snd_card_free(snd_serial_cards[dev]);
-	}
+	snd_serial_unregister_all();
 }
 
 module_init(alsa_card_serial_init)

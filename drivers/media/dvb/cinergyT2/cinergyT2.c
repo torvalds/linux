@@ -60,7 +60,7 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 #define dprintk(level, args...)						\
 do {									\
 	if ((debug & level)) {						\
-		printk("%s: %s(): ", __stringify(KBUILD_MODNAME),	\
+		printk("%s: %s(): ", KBUILD_MODNAME,			\
 		       __FUNCTION__);					\
 		printk(args); }						\
 } while (0)
@@ -986,7 +986,6 @@ static const struct usb_device_id cinergyt2_table [] __devinitdata = {
 MODULE_DEVICE_TABLE(usb, cinergyt2_table);
 
 static struct usb_driver cinergyt2_driver = {
-	.owner	= THIS_MODULE,
 	.name	= "cinergyT2",
 	.probe	= cinergyt2_probe,
 	.disconnect	= cinergyt2_disconnect,

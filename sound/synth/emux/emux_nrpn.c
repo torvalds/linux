@@ -27,11 +27,11 @@
  */
 
 /* NRPN / CC -> Emu8000 parameter converter */
-typedef struct {
+struct nrpn_conv_table {
 	int control;
 	int effect;
 	int (*convert)(int val);
-} nrpn_conv_table;
+};
 
 /* effect sensitivity */
 
@@ -48,8 +48,9 @@ typedef struct {
  * convert NRPN/control values
  */
 
-static int send_converted_effect(nrpn_conv_table *table, int num_tables,
-				 snd_emux_port_t *port, snd_midi_channel_t *chan,
+static int send_converted_effect(struct nrpn_conv_table *table, int num_tables,
+				 struct snd_emux_port *port,
+				 struct snd_midi_channel *chan,
 				 int type, int val, int mode)
 {
 	int i, cval;
@@ -178,7 +179,7 @@ static int fx_conv_Q(int val)
 }
 
 
-static nrpn_conv_table awe_effects[] =
+static struct nrpn_conv_table awe_effects[] =
 {
 	{ 0, EMUX_FX_LFO1_DELAY,	fx_lfo1_delay},
 	{ 1, EMUX_FX_LFO1_FREQ,	fx_lfo1_freq},
@@ -265,7 +266,7 @@ static int gs_vib_delay(int val)
 	return -(val - 64) * gs_sense[FX_VIBDELAY] / 50;
 }
 
-static nrpn_conv_table gs_effects[] =
+static struct nrpn_conv_table gs_effects[] =
 {
 	{32, EMUX_FX_CUTOFF,	gs_cutoff},
 	{33, EMUX_FX_FILTERQ,	gs_filterQ},
@@ -282,9 +283,10 @@ static nrpn_conv_table gs_effects[] =
  * NRPN events
  */
 void
-snd_emux_nrpn(void *p, snd_midi_channel_t *chan, snd_midi_channel_set_t *chset)
+snd_emux_nrpn(void *p, struct snd_midi_channel *chan,
+	      struct snd_midi_channel_set *chset)
 {
-	snd_emux_port_t *port;
+	struct snd_emux_port *port;
 
 	port = p;
 	snd_assert(port != NULL, return);
@@ -348,7 +350,7 @@ static int xg_release(int val)
 	return -(val - 64) * xg_sense[FX_RELEASE] / 64;
 }
 
-static nrpn_conv_table xg_effects[] =
+static struct nrpn_conv_table xg_effects[] =
 {
 	{71, EMUX_FX_CUTOFF,	xg_cutoff},
 	{74, EMUX_FX_FILTERQ,	xg_filterQ},
@@ -357,7 +359,8 @@ static nrpn_conv_table xg_effects[] =
 };
 
 int
-snd_emux_xg_control(snd_emux_port_t *port, snd_midi_channel_t *chan, int param)
+snd_emux_xg_control(struct snd_emux_port *port, struct snd_midi_channel *chan,
+		    int param)
 {
 	return send_converted_effect(xg_effects, ARRAY_SIZE(xg_effects),
 				     port, chan, param,
@@ -369,10 +372,11 @@ snd_emux_xg_control(snd_emux_port_t *port, snd_midi_channel_t *chan, int param)
  * receive sysex
  */
 void
-snd_emux_sysex(void *p, unsigned char *buf, int len, int parsed, snd_midi_channel_set_t *chset)
+snd_emux_sysex(void *p, unsigned char *buf, int len, int parsed,
+	       struct snd_midi_channel_set *chset)
 {
-	snd_emux_port_t *port;
-	snd_emux_t *emu;
+	struct snd_emux_port *port;
+	struct snd_emux *emu;
 
 	port = p;
 	snd_assert(port != NULL, return);

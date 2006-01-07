@@ -97,19 +97,12 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 	if (len >= DATA_MAX)
 		len = DATA_MAX;
 
-	/*
-	 * Bulk is easy to shortcut reliably. 
-	 * XXX Other pipe types need consideration. Currently, we overdo it
-	 * and collect garbage for them: better more than less.
-	 */
-	if (usb_pipebulk(pipe) || usb_pipecontrol(pipe)) {
-		if (usb_pipein(pipe)) {
-			if (ev_type == 'S')
-				return '<';
-		} else {
-			if (ev_type == 'C')
-				return '>';
-		}
+	if (usb_pipein(pipe)) {
+		if (ev_type == 'S')
+			return '<';
+	} else {
+		if (ev_type == 'C')
+			return '>';
 	}
 
 	/*

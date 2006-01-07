@@ -70,6 +70,9 @@ enum {
 	PDC_HAS_PATA		= (1 << 1), /* PDC20375 has PATA */
 
 	PDC_RESET		= (1 << 11), /* HDMA reset */
+
+	PDC_COMMON_FLAGS	= ATA_FLAG_NO_LEGACY | ATA_FLAG_SRST |
+				  ATA_FLAG_MMIO | ATA_FLAG_NO_ATAPI,
 };
 
 
@@ -111,7 +114,6 @@ static struct scsi_host_template pdc_ata_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
 	.bios_param		= ata_std_bios_param,
-	.ordered_flush		= 1,
 };
 
 static const struct ata_port_operations pdc_sata_ops = {
@@ -158,12 +160,11 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.host_stop		= ata_pci_host_stop,
 };
 
-static struct ata_port_info pdc_port_info[] = {
+static const struct ata_port_info pdc_port_info[] = {
 	/* board_2037x */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -173,8 +174,7 @@ static struct ata_port_info pdc_port_info[] = {
 	/* board_20319 */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
-				  ATA_FLAG_SRST | ATA_FLAG_MMIO,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SATA,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -184,8 +184,7 @@ static struct ata_port_info pdc_port_info[] = {
 	/* board_20619 */
 	{
 		.sht		= &pdc_ata_sht,
-		.host_flags	= ATA_FLAG_NO_LEGACY | ATA_FLAG_SRST |
-				  ATA_FLAG_MMIO | ATA_FLAG_SLAVE_POSS,
+		.host_flags	= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f, /* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= 0x7f, /* udma0-6 ; FIXME */
@@ -401,7 +400,8 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	case ATA_PROT_NODATA:
 		printk(KERN_ERR "ata%u: command timeout\n", ap->id);
 		drv_stat = ata_wait_idle(ap);
-		ata_qc_complete(qc, __ac_err_mask(drv_stat));
+		qc->err_mask |= __ac_err_mask(drv_stat);
+		ata_qc_complete(qc);
 		break;
 
 	default:
@@ -410,7 +410,8 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		printk(KERN_ERR "ata%u: unknown timeout, cmd 0x%x stat 0x%x\n",
 		       ap->id, qc->tf.command, drv_stat);
 
-		ata_qc_complete(qc, ac_err_mask(drv_stat));
+		qc->err_mask |= ac_err_mask(drv_stat);
+		ata_qc_complete(qc);
 		break;
 	}
 
@@ -422,21 +423,21 @@ out:
 static inline unsigned int pdc_host_intr( struct ata_port *ap,
                                           struct ata_queued_cmd *qc)
 {
-	unsigned int handled = 0, err_mask = 0;
+	unsigned int handled = 0;
 	u32 tmp;
 	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr + PDC_GLOBAL_CTL;
 
 	tmp = readl(mmio);
 	if (tmp & PDC_ERR_MASK) {
-		err_mask = AC_ERR_DEV;
+		qc->err_mask |= AC_ERR_DEV;
 		pdc_reset_port(ap);
 	}
 
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
-		err_mask |= ac_err_mask(ata_wait_idle(ap));
-		ata_qc_complete(qc, err_mask);
+		qc->err_mask |= ac_err_mask(ata_wait_idle(ap));
+		ata_qc_complete(qc);
 		handled = 1;
 		break;
 
@@ -703,7 +704,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		probe_ent->port[3].scr_addr = base + 0x700;
 		break;
 	case board_2037x:
-       		probe_ent->n_ports = 2;
+		probe_ent->n_ports = 2;
 		break;
 	case board_20619:
 		probe_ent->n_ports = 4;
@@ -713,7 +714,7 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 		probe_ent->port[2].scr_addr = base + 0x600;
 		probe_ent->port[3].scr_addr = base + 0x700;
-                break;
+		break;
 	default:
 		BUG();
 		break;

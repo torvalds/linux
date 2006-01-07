@@ -366,6 +366,8 @@ int request_irq(unsigned int irq,
 	action->next = NULL;
 	action->dev_id = dev_id;
 
+	select_smp_affinity(irq);
+
 	retval = setup_irq(irq, action);
 	if (retval)
 		kfree(action);

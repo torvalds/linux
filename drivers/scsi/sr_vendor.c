@@ -68,8 +68,8 @@ void sr_vendor_init(Scsi_CD *cd)
 #ifndef CONFIG_BLK_DEV_SR_VENDOR
 	cd->vendor = VENDOR_SCSI3;
 #else
-	char *vendor = cd->device->vendor;
-	char *model = cd->device->model;
+	const char *vendor = cd->device->vendor;
+	const char *model = cd->device->model;
 	
 	/* default */
 	cd->vendor = VENDOR_SCSI3;

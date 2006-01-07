@@ -142,8 +142,7 @@ swiotlb_init_with_default_size (size_t default_size)
 	/*
 	 * Get IO TLB memory from the low pages
 	 */
-	io_tlb_start = alloc_bootmem_low_pages_limit(io_tlb_nslabs *
-					     (1 << IO_TLB_SHIFT), 0x100000000);
+	io_tlb_start = alloc_bootmem_low_pages(io_tlb_nslabs * (1 << IO_TLB_SHIFT));
 	if (!io_tlb_start)
 		panic("Cannot allocate SWIOTLB buffer");
 	io_tlb_end = io_tlb_start + io_tlb_nslabs * (1 << IO_TLB_SHIFT);
@@ -704,8 +703,9 @@ swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
 		addr = SG_ENT_VIRT_ADDRESS(sg);
 		dev_addr = virt_to_phys(addr);
 		if (swiotlb_force || address_needs_mapping(hwdev, dev_addr)) {
-			sg->dma_address = (dma_addr_t) virt_to_phys(map_single(hwdev, addr, sg->length, dir));
-			if (!sg->dma_address) {
+			void *map = map_single(hwdev, addr, sg->length, dir);
+			sg->dma_address = virt_to_bus(map);
+			if (!map) {
 				/* Don't panic here, we expect map_sg users
 				   to do proper error handling. */
 				swiotlb_full(hwdev, sg->length, dir, 0);

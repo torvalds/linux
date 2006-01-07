@@ -163,7 +163,7 @@ extern unsigned int kobjsize(const void *objp);
 #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
 #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
 #define VM_MAPPED_COPY	0x01000000	/* T if mapped copy of data (nommu mmap) */
-#define VM_INCOMPLETE	0x02000000	/* Strange partial PFN mapping marker */
+#define VM_INSERTPAGE	0x02000000	/* The vma has had "vm_insert_page()" done on it */
 
 #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
 #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
@@ -634,13 +634,37 @@ struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
 int shmem_lock(struct file *file, int lock, struct user_struct *user);
 #else
 #define shmem_nopage filemap_nopage
-#define shmem_lock(a, b, c) 	({0;})	/* always in memory, no need to lock */
-#define shmem_set_policy(a, b)	(0)
-#define shmem_get_policy(a, b)	(NULL)
+
+static inline int shmem_lock(struct file *file, int lock,
+			     struct user_struct *user)
+{
+	return 0;
+}
+
+static inline int shmem_set_policy(struct vm_area_struct *vma,
+				   struct mempolicy *new)
+{
+	return 0;
+}
+
+static inline struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
+						 unsigned long addr)
+{
+	return NULL;
+}
 #endif
 struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags);
+extern int shmem_mmap(struct file *file, struct vm_area_struct *vma);
 
 int shmem_zero_setup(struct vm_area_struct *);
+
+#ifndef CONFIG_MMU
+extern unsigned long shmem_get_unmapped_area(struct file *file,
+					     unsigned long addr,
+					     unsigned long len,
+					     unsigned long pgoff,
+					     unsigned long flags);
+#endif
 
 static inline int can_do_mlock(void)
 {
@@ -690,14 +714,31 @@ static inline void unmap_shared_mapping_range(struct address_space *mapping,
 }
 
 extern int vmtruncate(struct inode * inode, loff_t offset);
+extern int vmtruncate_range(struct inode * inode, loff_t offset, loff_t end);
 extern int install_page(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, struct page *page, pgprot_t prot);
 extern int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long addr, unsigned long pgoff, pgprot_t prot);
-extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma, unsigned long address, int write_access);
 
-static inline int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma, unsigned long address, int write_access)
+#ifdef CONFIG_MMU
+extern int __handle_mm_fault(struct mm_struct *mm,struct vm_area_struct *vma,
+			unsigned long address, int write_access);
+
+static inline int handle_mm_fault(struct mm_struct *mm,
+			struct vm_area_struct *vma, unsigned long address,
+			int write_access)
 {
-	return __handle_mm_fault(mm, vma, address, write_access) & (~VM_FAULT_WRITE);
+	return __handle_mm_fault(mm, vma, address, write_access) &
+				(~VM_FAULT_WRITE);
 }
+#else
+static inline int handle_mm_fault(struct mm_struct *mm,
+			struct vm_area_struct *vma, unsigned long address,
+			int write_access)
+{
+	/* should never happen if there's no MMU */
+	BUG();
+	return VM_FAULT_SIGBUS;
+}
+#endif
 
 extern int make_pages_present(unsigned long addr, unsigned long end);
 extern int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, int len, int write);
@@ -896,6 +937,8 @@ extern unsigned long do_brk(unsigned long, unsigned long);
 /* filemap.c */
 extern unsigned long page_unuse(struct page *);
 extern void truncate_inode_pages(struct address_space *, loff_t);
+extern void truncate_inode_pages_range(struct address_space *,
+				       loff_t lstart, loff_t lend);
 
 /* generic vm_area_ops exported for stackable file systems */
 extern struct page *filemap_nopage(struct vm_area_struct *, unsigned long, int *);

@@ -44,7 +44,7 @@
  */
 
 /* send 8 bits */
-static void ap_cs8427_write_byte(ice1712_t *ice, unsigned char data, unsigned char tmp)
+static void ap_cs8427_write_byte(struct snd_ice1712 *ice, unsigned char data, unsigned char tmp)
 {
 	int idx;
 
@@ -61,7 +61,7 @@ static void ap_cs8427_write_byte(ice1712_t *ice, unsigned char data, unsigned ch
 }
 
 /* read 8 bits */
-static unsigned char ap_cs8427_read_byte(ice1712_t *ice, unsigned char tmp)
+static unsigned char ap_cs8427_read_byte(struct snd_ice1712 *ice, unsigned char tmp)
 {
 	unsigned char data = 0;
 	int idx;
@@ -80,7 +80,7 @@ static unsigned char ap_cs8427_read_byte(ice1712_t *ice, unsigned char tmp)
 }
 
 /* assert chip select */
-static unsigned char ap_cs8427_codec_select(ice1712_t *ice)
+static unsigned char ap_cs8427_codec_select(struct snd_ice1712 *ice)
 {
 	unsigned char tmp;
 	tmp = snd_ice1712_read(ice, ICE1712_IREG_GPIO_DATA);
@@ -105,7 +105,7 @@ static unsigned char ap_cs8427_codec_select(ice1712_t *ice)
 }
 
 /* deassert chip select */
-static void ap_cs8427_codec_deassert(ice1712_t *ice, unsigned char tmp)
+static void ap_cs8427_codec_deassert(struct snd_ice1712 *ice, unsigned char tmp)
 {
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_DELTA1010LT:
@@ -124,9 +124,9 @@ static void ap_cs8427_codec_deassert(ice1712_t *ice, unsigned char tmp)
 }
 
 /* sequential write */
-static int ap_cs8427_sendbytes(snd_i2c_device_t *device, unsigned char *bytes, int count)
+static int ap_cs8427_sendbytes(struct snd_i2c_device *device, unsigned char *bytes, int count)
 {
-	ice1712_t *ice = device->bus->private_data;
+	struct snd_ice1712 *ice = device->bus->private_data;
 	int res = count;
 	unsigned char tmp;
 
@@ -141,9 +141,9 @@ static int ap_cs8427_sendbytes(snd_i2c_device_t *device, unsigned char *bytes, i
 }
 
 /* sequential read */
-static int ap_cs8427_readbytes(snd_i2c_device_t *device, unsigned char *bytes, int count)
+static int ap_cs8427_readbytes(struct snd_i2c_device *device, unsigned char *bytes, int count)
 {
-	ice1712_t *ice = device->bus->private_data;
+	struct snd_ice1712 *ice = device->bus->private_data;
 	int res = count;
 	unsigned char tmp;
 	
@@ -157,14 +157,14 @@ static int ap_cs8427_readbytes(snd_i2c_device_t *device, unsigned char *bytes, i
 	return res;
 }
 
-static int ap_cs8427_probeaddr(snd_i2c_bus_t *bus, unsigned short addr)
+static int ap_cs8427_probeaddr(struct snd_i2c_bus *bus, unsigned short addr)
 {
 	if (addr == 0x10)
 		return 1;
 	return -ENOENT;
 }
 
-static snd_i2c_ops_t ap_cs8427_i2c_ops = {
+static struct snd_i2c_ops ap_cs8427_i2c_ops = {
 	.sendbytes = ap_cs8427_sendbytes,
 	.readbytes = ap_cs8427_readbytes,
 	.probeaddr = ap_cs8427_probeaddr,
@@ -173,7 +173,7 @@ static snd_i2c_ops_t ap_cs8427_i2c_ops = {
 /*
  */
 
-static void snd_ice1712_delta_cs8403_spdif_write(ice1712_t *ice, unsigned char bits)
+static void snd_ice1712_delta_cs8403_spdif_write(struct snd_ice1712 *ice, unsigned char bits)
 {
 	unsigned char tmp, mask1, mask2;
 	int idx;
@@ -198,12 +198,12 @@ static void snd_ice1712_delta_cs8403_spdif_write(ice1712_t *ice, unsigned char b
 }
 
 
-static void delta_spdif_default_get(ice1712_t *ice, snd_ctl_elem_value_t * ucontrol)
+static void delta_spdif_default_get(struct snd_ice1712 *ice, struct snd_ctl_elem_value *ucontrol)
 {
 	snd_cs8403_decode_spdif_bits(&ucontrol->value.iec958, ice->spdif.cs8403_bits);
 }
 
-static int delta_spdif_default_put(ice1712_t *ice, snd_ctl_elem_value_t * ucontrol)
+static int delta_spdif_default_put(struct snd_ice1712 *ice, struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned int val;
 	int change;
@@ -221,12 +221,12 @@ static int delta_spdif_default_put(ice1712_t *ice, snd_ctl_elem_value_t * ucontr
 	return change;
 }
 
-static void delta_spdif_stream_get(ice1712_t *ice, snd_ctl_elem_value_t * ucontrol)
+static void delta_spdif_stream_get(struct snd_ice1712 *ice, struct snd_ctl_elem_value *ucontrol)
 {
 	snd_cs8403_decode_spdif_bits(&ucontrol->value.iec958, ice->spdif.cs8403_stream_bits);
 }
 
-static int delta_spdif_stream_put(ice1712_t *ice, snd_ctl_elem_value_t * ucontrol)
+static int delta_spdif_stream_put(struct snd_ice1712 *ice, struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned int val;
 	int change;
@@ -248,10 +248,10 @@ static int delta_spdif_stream_put(ice1712_t *ice, snd_ctl_elem_value_t * ucontro
 /*
  * AK4524 on Delta 44 and 66 to choose the chip mask
  */
-static void delta_ak4524_lock(akm4xxx_t *ak, int chip)
+static void delta_ak4524_lock(struct snd_akm4xxx *ak, int chip)
 {
         struct snd_ak4xxx_private *priv = (void *)ak->private_value[0];
-        ice1712_t *ice = ak->private_data[0];
+        struct snd_ice1712 *ice = ak->private_data[0];
 
 	snd_ice1712_save_gpio_status(ice);
 	priv->cs_mask =
@@ -262,10 +262,10 @@ static void delta_ak4524_lock(akm4xxx_t *ak, int chip)
 /*
  * AK4524 on Delta1010LT to choose the chip address
  */
-static void delta1010lt_ak4524_lock(akm4xxx_t *ak, int chip)
+static void delta1010lt_ak4524_lock(struct snd_akm4xxx *ak, int chip)
 {
         struct snd_ak4xxx_private *priv = (void *)ak->private_value[0];
-        ice1712_t *ice = ak->private_data[0];
+        struct snd_ice1712 *ice = ak->private_data[0];
 
 	snd_ice1712_save_gpio_status(ice);
 	priv->cs_mask = ICE1712_DELTA_1010LT_CS;
@@ -275,10 +275,10 @@ static void delta1010lt_ak4524_lock(akm4xxx_t *ak, int chip)
 /*
  * AK4528 on VX442 to choose the chip mask
  */
-static void vx442_ak4524_lock(akm4xxx_t *ak, int chip)
+static void vx442_ak4524_lock(struct snd_akm4xxx *ak, int chip)
 {
         struct snd_ak4xxx_private *priv = (void *)ak->private_value[0];
-        ice1712_t *ice = ak->private_data[0];
+        struct snd_ice1712 *ice = ak->private_data[0];
 
 	snd_ice1712_save_gpio_status(ice);
 	priv->cs_mask =
@@ -289,7 +289,7 @@ static void vx442_ak4524_lock(akm4xxx_t *ak, int chip)
 /*
  * change the DFS bit according rate for Delta1010
  */
-static void delta_1010_set_rate_val(ice1712_t *ice, unsigned int rate)
+static void delta_1010_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 {
 	unsigned char tmp, tmp2;
 
@@ -309,10 +309,10 @@ static void delta_1010_set_rate_val(ice1712_t *ice, unsigned int rate)
 /*
  * change the rate of AK4524 on Delta 44/66, AP, 1010LT
  */
-static void delta_ak4524_set_rate_val(akm4xxx_t *ak, unsigned int rate)
+static void delta_ak4524_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
 	unsigned char tmp, tmp2;
-	ice1712_t *ice = ak->private_data[0];
+	struct snd_ice1712 *ice = ak->private_data[0];
 
 	if (rate == 0)	/* no hint - S/PDIF input is master, simply return */
 		return;
@@ -341,7 +341,7 @@ static void delta_ak4524_set_rate_val(akm4xxx_t *ak, unsigned int rate)
 /*
  * change the rate of AK4524 on VX442
  */
-static void vx442_ak4524_set_rate_val(akm4xxx_t *ak, unsigned int rate)
+static void vx442_ak4524_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
 	unsigned char val;
 
@@ -361,13 +361,13 @@ static void vx442_ak4524_set_rate_val(akm4xxx_t *ak, unsigned int rate)
  */
 
 /* open callback */
-static void delta_open_spdif(ice1712_t *ice, snd_pcm_substream_t * substream)
+static void delta_open_spdif(struct snd_ice1712 *ice, struct snd_pcm_substream *substream)
 {
 	ice->spdif.cs8403_stream_bits = ice->spdif.cs8403_bits;
 }
 
 /* set up */
-static void delta_setup_spdif(ice1712_t *ice, int rate)
+static void delta_setup_spdif(struct snd_ice1712 *ice, int rate)
 {
 	unsigned long flags;
 	unsigned int tmp;
@@ -396,7 +396,7 @@ static void delta_setup_spdif(ice1712_t *ice, int rate)
  * initialize the chips on M-Audio cards
  */
 
-static akm4xxx_t akm_audiophile __devinitdata = {
+static struct snd_akm4xxx akm_audiophile __devinitdata = {
 	.type = SND_AK4528,
 	.num_adcs = 2,
 	.num_dacs = 2,
@@ -417,7 +417,7 @@ static struct snd_ak4xxx_private akm_audiophile_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static akm4xxx_t akm_delta410 __devinitdata = {
+static struct snd_akm4xxx akm_delta410 __devinitdata = {
 	.type = SND_AK4529,
 	.num_adcs = 2,
 	.num_dacs = 8,
@@ -438,7 +438,7 @@ static struct snd_ak4xxx_private akm_delta410_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static akm4xxx_t akm_delta1010lt __devinitdata = {
+static struct snd_akm4xxx akm_delta1010lt __devinitdata = {
 	.type = SND_AK4524,
 	.num_adcs = 8,
 	.num_dacs = 8,
@@ -460,7 +460,7 @@ static struct snd_ak4xxx_private akm_delta1010lt_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static akm4xxx_t akm_delta44 __devinitdata = {
+static struct snd_akm4xxx akm_delta44 __devinitdata = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
 	.num_dacs = 4,
@@ -482,7 +482,7 @@ static struct snd_ak4xxx_private akm_delta44_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static akm4xxx_t akm_vx442 __devinitdata = {
+static struct snd_akm4xxx akm_vx442 __devinitdata = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
 	.num_dacs = 4,
@@ -504,10 +504,10 @@ static struct snd_ak4xxx_private akm_vx442_priv __devinitdata = {
 	.mask_flags = 0,
 };
 
-static int __devinit snd_ice1712_delta_init(ice1712_t *ice)
+static int __devinit snd_ice1712_delta_init(struct snd_ice1712 *ice)
 {
 	int err;
-	akm4xxx_t *ak;
+	struct snd_akm4xxx *ak;
 
 	/* determine I2C, DACs and ADCs */
 	switch (ice->eeprom.subvendor) {
@@ -582,7 +582,7 @@ static int __devinit snd_ice1712_delta_init(ice1712_t *ice)
 	}
 
 	/* second stage of initialization, analog parts and others */
-	ak = ice->akm = kmalloc(sizeof(akm4xxx_t), GFP_KERNEL);
+	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
 	if (! ak)
 		return -ENOMEM;
 	ice->akm_codecs = 1;
@@ -617,19 +617,19 @@ static int __devinit snd_ice1712_delta_init(ice1712_t *ice)
  * additional controls for M-Audio cards
  */
 
-static snd_kcontrol_new_t snd_ice1712_delta1010_wordclock_select __devinitdata =
+static struct snd_kcontrol_new snd_ice1712_delta1010_wordclock_select __devinitdata =
 ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "Word Clock Sync", 0, ICE1712_DELTA_WORD_CLOCK_SELECT, 1, 0);
-static snd_kcontrol_new_t snd_ice1712_delta1010lt_wordclock_select __devinitdata =
+static struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_select __devinitdata =
 ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "Word Clock Sync", 0, ICE1712_DELTA_1010LT_WORDCLOCK, 1, 0);
-static snd_kcontrol_new_t snd_ice1712_delta1010_wordclock_status __devinitdata =
+static struct snd_kcontrol_new snd_ice1712_delta1010_wordclock_status __devinitdata =
 ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "Word Clock Status", 0, ICE1712_DELTA_WORD_CLOCK_STATUS, 1, SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE);
-static snd_kcontrol_new_t snd_ice1712_deltadio2496_spdif_in_select __devinitdata =
+static struct snd_kcontrol_new snd_ice1712_deltadio2496_spdif_in_select __devinitdata =
 ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "IEC958 Input Optical", 0, ICE1712_DELTA_SPDIF_INPUT_SELECT, 0, 0);
-static snd_kcontrol_new_t snd_ice1712_delta_spdif_in_status __devinitdata =
+static struct snd_kcontrol_new snd_ice1712_delta_spdif_in_status __devinitdata =
 ICE1712_GPIO(SNDRV_CTL_ELEM_IFACE_MIXER, "Delta IEC958 Input Status", 0, ICE1712_DELTA_SPDIF_IN_STAT, 1, SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE);
 
 
-static int __devinit snd_ice1712_delta_add_controls(ice1712_t *ice)
+static int __devinit snd_ice1712_delta_add_controls(struct snd_ice1712 *ice)
 {
 	int err;
 

@@ -860,24 +860,6 @@ The structure has a number of fields, some of which are mandatory:
      It is safe to sleep in this method.
 
 
- (*) int (*duplicate)(struct key *key, const struct key *source);
-
-     If this type of key can be duplicated, then this method should be
-     provided. It is called to copy the payload attached to the source into the
-     new key. The data length on the new key will have been updated and the
-     quota adjusted already.
-
-     This method will be called with the source key's semaphore read-locked to
-     prevent its payload from being changed, thus RCU constraints need not be
-     applied to the source key.
-
-     This method does not have to lock the destination key in order to attach a
-     payload. The fact that KEY_FLAG_INSTANTIATED is not set in key->flags
-     prevents anything else from gaining access to the key.
-
-     It is safe to sleep in this method.
-
-
  (*) int (*update)(struct key *key, const void *data, size_t datalen);
 
      If this type of key can be updated, then this method should be provided.

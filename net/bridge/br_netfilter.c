@@ -26,6 +26,7 @@
 #include <linux/ip.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/netfilter_bridge.h>
@@ -33,8 +34,11 @@
 #include <linux/netfilter_ipv6.h>
 #include <linux/netfilter_arp.h>
 #include <linux/in_route.h>
+
 #include <net/ip.h>
 #include <net/ipv6.h>
+#include <net/route.h>
+
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
 #include "br_private.h"
@@ -295,7 +299,7 @@ static int check_hbh_len(struct sk_buff *skb)
 	len -= 2;
 
 	while (len > 0) {
-		int optlen = raw[off+1]+2;
+		int optlen = skb->nh.raw[off+1]+2;
 
 		switch (skb->nh.raw[off]) {
 		case IPV6_TLV_PAD0:
@@ -308,18 +312,15 @@ static int check_hbh_len(struct sk_buff *skb)
 		case IPV6_TLV_JUMBO:
 			if (skb->nh.raw[off+1] != 4 || (off&3) != 2)
 				goto bad;
-
 			pkt_len = ntohl(*(u32*)(skb->nh.raw+off+2));
-
+			if (pkt_len <= IPV6_MAXPLEN ||
+			    skb->nh.ipv6h->payload_len)
+				goto bad;
 			if (pkt_len > skb->len - sizeof(struct ipv6hdr))
 				goto bad;
-			if (pkt_len + sizeof(struct ipv6hdr) < skb->len) {
-				if (__pskb_trim(skb,
-				    pkt_len + sizeof(struct ipv6hdr)))
-					goto bad;
-				if (skb->ip_summed == CHECKSUM_HW)
-					skb->ip_summed = CHECKSUM_NONE;
-			}
+			if (pskb_trim_rcsum(skb,
+			    pkt_len+sizeof(struct ipv6hdr)))
+				goto bad;
 			break;
 		default:
 			if (optlen > len)
@@ -372,6 +373,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (hdr->nexthdr == NEXTHDR_HOP && check_hbh_len(skb))
 			goto inhdr_error;
 
+ 	nf_bridge_put(skb->nf_bridge);
 	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
 		return NF_DROP;
 	setup_pre_routing(skb);
@@ -392,8 +394,9 @@ inhdr_error:
  * target in particular.  Save the original destination IP
  * address to be able to detect DNAT afterwards. */
 static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
-   const struct net_device *in, const struct net_device *out,
-   int (*okfn)(struct sk_buff *))
+				      const struct net_device *in,
+				      const struct net_device *out,
+				      int (*okfn)(struct sk_buff *))
 {
 	struct iphdr *iph;
 	__u32 len;
@@ -410,8 +413,10 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 			goto out;
 
 		if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+			u8 *vhdr = skb->data;
 			skb_pull(skb, VLAN_HLEN);
-			(skb)->nh.raw += VLAN_HLEN;
+			skb_postpull_rcsum(skb, vhdr, VLAN_HLEN);
+			skb->nh.raw += VLAN_HLEN;
 		}
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
@@ -427,8 +432,10 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 		goto out;
 
 	if (skb->protocol == __constant_htons(ETH_P_8021Q)) {
+		u8 *vhdr = skb->data;
 		skb_pull(skb, VLAN_HLEN);
-		(skb)->nh.raw += VLAN_HLEN;
+		skb_postpull_rcsum(skb, vhdr, VLAN_HLEN);
+		skb->nh.raw += VLAN_HLEN;
 	}
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
@@ -455,6 +462,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff **pskb,
 			skb->ip_summed = CHECKSUM_NONE;
 	}
 
+ 	nf_bridge_put(skb->nf_bridge);
 	if ((nf_bridge = nf_bridge_alloc(skb)) == NULL)
 		return NF_DROP;
 	setup_pre_routing(skb);

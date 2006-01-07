@@ -95,8 +95,8 @@ struct si3054_spec {
 #define PRIVATE_REG(val) ((val>>16)&0xffff)
 #define PRIVATE_MASK(val) (val&0xffff)
 
-static int si3054_switch_info(snd_kcontrol_t *kcontrol,
-		               snd_ctl_elem_info_t *uinfo)
+static int si3054_switch_info(struct snd_kcontrol *kcontrol,
+		               struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->count = 1;
@@ -105,8 +105,8 @@ static int si3054_switch_info(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static int si3054_switch_get(snd_kcontrol_t *kcontrol,
-		               snd_ctl_elem_value_t *uvalue)
+static int si3054_switch_get(struct snd_kcontrol *kcontrol,
+		               struct snd_ctl_elem_value *uvalue)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	u16 reg  = PRIVATE_REG(kcontrol->private_value);
@@ -115,8 +115,8 @@ static int si3054_switch_get(snd_kcontrol_t *kcontrol,
 	return 0;
 }
 
-static int si3054_switch_put(snd_kcontrol_t *kcontrol,
-		               snd_ctl_elem_value_t *uvalue)
+static int si3054_switch_put(struct snd_kcontrol *kcontrol,
+		               struct snd_ctl_elem_value *uvalue)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	u16 reg  = PRIVATE_REG(kcontrol->private_value);
@@ -138,7 +138,7 @@ static int si3054_switch_put(snd_kcontrol_t *kcontrol,
 }
 		
 
-static snd_kcontrol_new_t si3054_modem_mixer[] = {
+static struct snd_kcontrol_new si3054_modem_mixer[] = {
 	SI3054_KCONTROL("Off-hook Switch", SI3054_GPIO_CONTROL, SI3054_GPIO_OH),
 	SI3054_KCONTROL("Caller ID Switch", SI3054_GPIO_CONTROL, SI3054_GPIO_CID),
 	{}
@@ -158,7 +158,7 @@ static int si3054_pcm_prepare(struct hda_pcm_stream *hinfo,
 			      struct hda_codec *codec,
 			      unsigned int stream_tag,
 			      unsigned int format,
-			      snd_pcm_substream_t *substream)
+			      struct snd_pcm_substream *substream)
 {
 	u16 val;
 
@@ -175,10 +175,10 @@ static int si3054_pcm_prepare(struct hda_pcm_stream *hinfo,
 
 static int si3054_pcm_open(struct hda_pcm_stream *hinfo,
 			   struct hda_codec *codec,
-			    snd_pcm_substream_t *substream)
+			    struct snd_pcm_substream *substream)
 {
 	static unsigned int rates[] = { 8000, 9600, 16000 };
-	static snd_pcm_hw_constraint_list_t hw_constraints_rates = {
+	static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 		.count = ARRAY_SIZE(rates),
 		.list = rates,
 		.mask = 0,
@@ -295,6 +295,7 @@ static int patch_si3054(struct hda_codec *codec)
  * patch entries
  */
 struct hda_codec_preset snd_hda_preset_si3054[] = {
+ 	{ .id = 0x163c3055, .name = "Si3054", .patch = patch_si3054 },
  	{ .id = 0x163c3155, .name = "Si3054", .patch = patch_si3054 },
 	{}
 };

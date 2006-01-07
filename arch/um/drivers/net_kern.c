@@ -34,7 +34,7 @@
 #define DRIVER_NAME "uml-netdev"
 
 static DEFINE_SPINLOCK(opened_lock);
-LIST_HEAD(opened);
+static LIST_HEAD(opened);
 
 static int uml_net_rx(struct net_device *dev)
 {
@@ -150,6 +150,7 @@ static int uml_net_close(struct net_device *dev)
 	if(lp->close != NULL)
 		(*lp->close)(lp->fd, &lp->user);
 	lp->fd = -1;
+	list_del(&lp->list);
 
 	spin_unlock(&lp->lock);
 	return 0;
@@ -266,7 +267,7 @@ void uml_net_user_timer_expire(unsigned long _conn)
 }
 
 static DEFINE_SPINLOCK(devices_lock);
-static struct list_head devices = LIST_HEAD_INIT(devices);
+static LIST_HEAD(devices);
 
 static struct platform_driver uml_net_driver = {
 	.driver = {
@@ -586,7 +587,7 @@ static int net_config(char *str)
 	err = eth_parse(str, &n, &str);
 	if(err) return(err);
 
-	str = uml_strdup(str);
+	str = kstrdup(str, GFP_KERNEL);
 	if(str == NULL){
 		printk(KERN_ERR "net_config failed to strdup string\n");
 		return(-1);
@@ -715,6 +716,7 @@ static void close_devices(void)
 
 	list_for_each(ele, &opened){
 		lp = list_entry(ele, struct uml_net_private, list);
+		free_irq(lp->dev->irq, lp->dev);
 		if((lp->close != NULL) && (lp->fd >= 0))
 			(*lp->close)(lp->fd, &lp->user);
 		if(lp->remove != NULL) (*lp->remove)(&lp->user);

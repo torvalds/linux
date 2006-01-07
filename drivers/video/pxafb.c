@@ -1396,7 +1396,8 @@ static struct platform_driver pxafb_driver = {
 int __devinit pxafb_setup(char *options)
 {
 # ifdef CONFIG_FB_PXA_PARAMETERS
-	strlcpy(g_options, options, sizeof(g_options));
+	if (options)
+		strlcpy(g_options, options, sizeof(g_options));
 # endif
 	return 0;
 }

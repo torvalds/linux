@@ -71,8 +71,8 @@
  */
 #define MD_PATCHLEVEL_VERSION           3
 
-extern int register_md_personality (int p_num, mdk_personality_t *p);
-extern int unregister_md_personality (int p_num);
+extern int register_md_personality (struct mdk_personality *p);
+extern int unregister_md_personality (struct mdk_personality *p);
 extern mdk_thread_t * md_register_thread (void (*run) (mddev_t *mddev),
 				mddev_t *mddev, const char *name);
 extern void md_unregister_thread (mdk_thread_t *thread);

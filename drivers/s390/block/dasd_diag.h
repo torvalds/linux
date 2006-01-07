@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.8 $
+ * $Revision: 1.9 $
  */
 
 #define MDSK_WRITE_REQ 0x01
@@ -44,29 +44,8 @@ struct dasd_diag_characteristics {
 	u8 rdev_features;
 } __attribute__ ((packed, aligned(4)));
 
-struct dasd_diag_cms_label {
-	u8 label_id[4];
-	u8 vol_id[6];
-	u16 version_id;
-	u32 block_size;
-	u32 origin_ptr;
-	u32 usable_count;
-	u32 formatted_count;
-	u32 block_count;
-	u32 used_count;
-	u32 fst_size;
-	u32 fst_count;
-	u8 format_date[6];
-	u8 reserved1[2];
-	u32 disk_offset;
-	u32 map_block;
-	u32 hblk_disp;
-	u32 user_disp;
-	u8 reserved2[4];
-	u8 segment_name[8];
-} __attribute__ ((packed));
 
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 #define DASD_DIAG_FLAGA_DEFAULT		DASD_DIAG_FLAGA_FORMAT_64BIT
 
 typedef u64 blocknum_t;
@@ -107,7 +86,7 @@ struct dasd_diag_rw_io {
 	struct dasd_diag_bio *bio_list;
 	u8  spare4[8];
 } __attribute__ ((packed, aligned(8)));
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 #define DASD_DIAG_FLAGA_DEFAULT		0x0
 
 typedef u32 blocknum_t;
@@ -146,4 +125,4 @@ struct dasd_diag_rw_io {
 	u32 interrupt_params;
 	u8 spare3[20];
 } __attribute__ ((packed, aligned(8)));
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */

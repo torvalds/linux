@@ -235,7 +235,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 	/* Save access registers to new thread structure. */
 	save_access_regs(&p->thread.acrs[0]);
 
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
         /*
 	 * save fprs to current->thread.fp_regs to merge them with
 	 * the emulated registers and then copy the result to the child.
@@ -247,7 +247,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS)
 		p->thread.acrs[0] = regs->gprs[6];
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	/* Save the fpu registers to new thread structure. */
 	save_fp_regs(&p->thread.fp_regs);
         p->thread.user_seg = __pa((unsigned long) p->mm->pgd) | _REGION_TABLE;
@@ -260,7 +260,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 			p->thread.acrs[1] = (unsigned int) regs->gprs[6];
 		}
 	}
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 	/* start new process with ar4 pointing to the correct address space */
 	p->thread.mm_segment = get_fs();
         /* Don't copy debug registers */
@@ -339,16 +339,16 @@ out:
  */
 int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 {
-#ifndef CONFIG_ARCH_S390X
+#ifndef CONFIG_64BIT
         /*
 	 * save fprs to current->thread.fp_regs to merge them with
 	 * the emulated registers and then copy the result to the dump.
 	 */
 	save_fp_regs(&current->thread.fp_regs);
 	memcpy(fpregs, &current->thread.fp_regs, sizeof(s390_fp_regs));
-#else /* CONFIG_ARCH_S390X */
+#else /* CONFIG_64BIT */
 	save_fp_regs(fpregs);
-#endif /* CONFIG_ARCH_S390X */
+#endif /* CONFIG_64BIT */
 	return 1;
 }
 

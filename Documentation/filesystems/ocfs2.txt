@@ -1,0 +1,55 @@
+OCFS2 filesystem
+==================
+OCFS2 is a general purpose extent based shared disk cluster file
+system with many similarities to ext3. It supports 64 bit inode
+numbers, and has automatically extending metadata groups which may
+also make it attractive for non-clustered use.
+
+You'll want to install the ocfs2-tools package in order to at least
+get "mount.ocfs2" and "ocfs2_hb_ctl".
+
+Project web page:    http://oss.oracle.com/projects/ocfs2
+Tools web page:      http://oss.oracle.com/projects/ocfs2-tools
+OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
+
+All code copyright 2005 Oracle except when otherwise noted.
+
+CREDITS:
+Lots of code taken from ext3 and other projects.
+
+Authors in alphabetical order:
+Joel Becker   <joel.becker@oracle.com>
+Zach Brown    <zach.brown@oracle.com>
+Mark Fasheh   <mark.fasheh@oracle.com>
+Kurt Hackel   <kurt.hackel@oracle.com>
+Sunil Mushran <sunil.mushran@oracle.com>
+Manish Singh  <manish.singh@oracle.com>
+
+Caveats
+=======
+Features which OCFS2 does not support yet:
+	- sparse files
+	- extended attributes
+	- shared writeable mmap
+	- loopback is supported, but data written will not
+	  be cluster coherent.
+	- quotas
+	- cluster aware flock
+	- Directory change notification (F_NOTIFY)
+	- Distributed Caching (F_SETLEASE/F_GETLEASE/break_lease)
+	- POSIX ACLs
+	- readpages / writepages (not user visible)
+
+Mount options
+=============
+
+OCFS2 supports the following mount options:
+(*) == default
+
+barrier=1		This enables/disables barriers. barrier=0 disables it,
+			barrier=1 enables it.
+errors=remount-ro(*)	Remount the filesystem read-only on an error.
+errors=panic		Panic and halt the machine if an error occurs.
+intr		(*)	Allow signals to interrupt cluster operations.
+nointr			Do not allow signals to interrupt cluster
+			operations.

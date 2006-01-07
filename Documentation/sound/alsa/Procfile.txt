@@ -138,6 +138,22 @@ card*/codec97#0/ac97#?-?+regs
 	# echo 02 9f1f > /proc/asound/card0/codec97#0/ac97#0-0+regs
 
 
+USB Audio Streams
+-----------------
+
+card*/stream*
+	Shows the assignment and the current status of each audio stream
+	of the given card.  This information is very useful for debugging.
+
+
+HD-Audio Codecs
+---------------
+
+card*/codec#*
+	Shows the general codec information and the attribute of each
+	widget node.
+
+
 Sequencer Information
 ---------------------
 

@@ -2,7 +2,7 @@
  *
  *			Linux MegaRAID device driver
  *
- * Copyright © 2002  LSI Logic Corporation.
+ * Copyright (c) 2002  LSI Logic Corporation.
  *
  *	   This program is free software; you can redistribute it and/or
  *	   modify it under the terms of the GNU General Public License
@@ -17,7 +17,8 @@
  * Copyright (c) 2003  Christoph Hellwig  <hch@lst.de>
  *	  - new-style, hotplug-aware pci probing and scsi registration
  *
- * Version : v2.00.3 (Feb 19, 2003) - Atul Mukker <Atul.Mukker@lsil.com>
+ * Version : v2.00.4 Mon Nov 14 14:02:43 EST 2005 - Seokmann Ju
+ * 						<Seokmann.Ju@lsil.com>
  *
  * Description: Linux device driver for LSI Logic MegaRAID controller
  *
@@ -51,10 +52,10 @@
 
 #include "megaraid.h"
 
-#define MEGARAID_MODULE_VERSION "2.00.3"
+#define MEGARAID_MODULE_VERSION "2.00.4"
 
-MODULE_AUTHOR ("LSI Logic Corporation");
-MODULE_DESCRIPTION ("LSI Logic MegaRAID driver");
+MODULE_AUTHOR ("sju@lsil.com");
+MODULE_DESCRIPTION ("LSI Logic MegaRAID legacy driver");
 MODULE_LICENSE ("GPL");
 MODULE_VERSION(MEGARAID_MODULE_VERSION);
 
@@ -664,7 +665,7 @@ mega_build_cmd(adapter_t *adapter, Scsi_Cmnd *cmd, int *busy)
 					sg->offset;
 			} else
 				buf = cmd->request_buffer;
-			memset(cmd->request_buffer, 0, cmd->cmnd[4]);
+			memset(buf, 0, cmd->cmnd[4]);
 			if (cmd->use_sg) {
 				struct scatterlist *sg;
 
@@ -4553,7 +4554,7 @@ mega_internal_done(Scsi_Cmnd *scmd)
 static struct scsi_host_template megaraid_template = {
 	.module				= THIS_MODULE,
 	.name				= "MegaRAID",
-	.proc_name			= "megaraid",
+	.proc_name			= "megaraid_legacy",
 	.info				= megaraid_info,
 	.queuecommand			= megaraid_queue,	
 	.bios_param			= megaraid_biosparam,
@@ -5037,21 +5038,11 @@ megaraid_shutdown(struct pci_dev *pdev)
 }
 
 static struct pci_device_id megaraid_pci_tbl[] = {
-	{PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_DISCOVERY,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_PERC4_DI,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, BOARD_64BIT},
-	{PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_PERC4_QC_VERDE,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, BOARD_64BIT},
 	{PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID2,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_AMI, PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_AMI_MEGARAID3,
-		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_AMI_MEGARAID3,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
 };
@@ -5095,7 +5086,7 @@ static int __init megaraid_init(void)
 	 * First argument (major) to register_chrdev implies a dynamic
 	 * major number allocation.
 	 */
-	major = register_chrdev(0, "megadev", &megadev_fops);
+	major = register_chrdev(0, "megadev_legacy", &megadev_fops);
 	if (!major) {
 		printk(KERN_WARNING
 				"megaraid: failed to register char device\n");
@@ -5109,7 +5100,7 @@ static void __exit megaraid_exit(void)
 	/*
 	 * Unregister the character device interface to the driver.
 	 */
-	unregister_chrdev(major, "megadev");
+	unregister_chrdev(major, "megadev_legacy");
 
 	pci_unregister_driver(&megaraid_pci_driver);
 

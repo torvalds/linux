@@ -118,16 +118,14 @@ struct pcmcia_socket;
 struct pccard_operations {
 	int (*init)(struct pcmcia_socket *sock);
 	int (*suspend)(struct pcmcia_socket *sock);
-	int (*register_callback)(struct pcmcia_socket *sock, void (*handler)(void *, unsigned int), void * info);
 	int (*get_status)(struct pcmcia_socket *sock, u_int *value);
-	int (*get_socket)(struct pcmcia_socket *sock, socket_state_t *state);
 	int (*set_socket)(struct pcmcia_socket *sock, socket_state_t *state);
 	int (*set_io_map)(struct pcmcia_socket *sock, struct pccard_io_map *io);
 	int (*set_mem_map)(struct pcmcia_socket *sock, struct pccard_mem_map *mem);
 };
 
 struct pccard_resource_ops {
-	void	(*validate_mem)		(struct pcmcia_socket *s);
+	int	(*validate_mem)		(struct pcmcia_socket *s);
 	int	(*adjust_io_region)	(struct resource *res,
 					 unsigned long r_start,
 					 unsigned long r_end,

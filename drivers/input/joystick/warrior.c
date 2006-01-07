@@ -172,7 +172,7 @@ static int warrior_connect(struct serio *serio, struct serio_driver *drv)
 	input_set_abs_params(input_dev, ABS_Y, -64, 64, 0, 8);
 	input_set_abs_params(input_dev, ABS_THROTTLE, -112, 112, 0, 0);
 	input_set_abs_params(input_dev, ABS_HAT0X, -1, 1, 0, 0);
-	input_set_abs_params(input_dev, ABS_HAT0X, -1, 1, 0, 0);
+	input_set_abs_params(input_dev, ABS_HAT0Y, -1, 1, 0, 0);
 
 	serio_set_drvdata(serio, warrior);
 

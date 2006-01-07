@@ -37,7 +37,6 @@
 void default_idle(void)
 {
 	void (*powersave)(void);
-	int cpu = smp_processor_id();
 
 	powersave = ppc_md.power_save;
 
@@ -47,7 +46,8 @@ void default_idle(void)
 #ifdef CONFIG_SMP
 		else {
 			set_thread_flag(TIF_POLLING_NRFLAG);
-			while (!need_resched() && !cpu_is_offline(cpu))
+			while (!need_resched() &&
+					!cpu_is_offline(smp_processor_id()))
 				barrier();
 			clear_thread_flag(TIF_POLLING_NRFLAG);
 		}

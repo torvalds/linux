@@ -53,6 +53,7 @@
 #include <linux/errno.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/if_ether.h>
 #include <net/dst.h>
 #include <net/arp.h>
 #include <net/sock.h>
@@ -162,7 +163,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb_pull(skb,ETH_HLEN);
 	eth = eth_hdr(skb);
 	
-	if (*eth->h_dest&1) {
+	if (is_multicast_ether_addr(eth->h_dest)) {
 		if (!compare_ether_addr(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
@@ -251,7 +252,7 @@ static int eth_mac_addr(struct net_device *dev, void *p)
 
 static int eth_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if ((new_mtu < 68) || (new_mtu > 1500))
+	if (new_mtu < 68 || new_mtu > ETH_DATA_LEN)
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
@@ -272,7 +273,7 @@ void ether_setup(struct net_device *dev)
 
 	dev->type		= ARPHRD_ETHER;
 	dev->hard_header_len 	= ETH_HLEN;
-	dev->mtu		= 1500; /* eth_mtu */
+	dev->mtu		= ETH_DATA_LEN;
 	dev->addr_len		= ETH_ALEN;
 	dev->tx_queue_len	= 1000;	/* Ethernet wants good queues */	
 	dev->flags		= IFF_BROADCAST|IFF_MULTICAST;

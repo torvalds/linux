@@ -30,19 +30,19 @@
  *  Basic linear conversion plugin
  */
  
-typedef struct linear_private_data {
+struct linear_priv {
 	int conv;
-} linear_t;
+};
 
-static void convert(snd_pcm_plugin_t *plugin,
-		    const snd_pcm_plugin_channel_t *src_channels,
-		    snd_pcm_plugin_channel_t *dst_channels,
+static void convert(struct snd_pcm_plugin *plugin,
+		    const struct snd_pcm_plugin_channel *src_channels,
+		    struct snd_pcm_plugin_channel *dst_channels,
 		    snd_pcm_uframes_t frames)
 {
 #define CONV_LABELS
 #include "plugin_ops.h"
 #undef CONV_LABELS
-	linear_t *data = (linear_t *)plugin->extra_data;
+	struct linear_priv *data = (struct linear_priv *)plugin->extra_data;
 	void *conv = conv_labels[data->conv];
 	int channel;
 	int nchannels = plugin->src_format.channels;
@@ -75,15 +75,15 @@ static void convert(snd_pcm_plugin_t *plugin,
 	}
 }
 
-static snd_pcm_sframes_t linear_transfer(snd_pcm_plugin_t *plugin,
-			       const snd_pcm_plugin_channel_t *src_channels,
-			       snd_pcm_plugin_channel_t *dst_channels,
+static snd_pcm_sframes_t linear_transfer(struct snd_pcm_plugin *plugin,
+			       const struct snd_pcm_plugin_channel *src_channels,
+			       struct snd_pcm_plugin_channel *dst_channels,
 			       snd_pcm_uframes_t frames)
 {
-	linear_t *data;
+	struct linear_priv *data;
 
 	snd_assert(plugin != NULL && src_channels != NULL && dst_channels != NULL, return -ENXIO);
-	data = (linear_t *)plugin->extra_data;
+	data = (struct linear_priv *)plugin->extra_data;
 	if (frames == 0)
 		return 0;
 #ifdef CONFIG_SND_DEBUG
@@ -128,14 +128,14 @@ int conv_index(int src_format, int dst_format)
 	return src_width * 32 + src_endian * 16 + sign * 8 + dst_width * 2 + dst_endian;
 }
 
-int snd_pcm_plugin_build_linear(snd_pcm_plug_t *plug,
-				snd_pcm_plugin_format_t *src_format,
-				snd_pcm_plugin_format_t *dst_format,
-				snd_pcm_plugin_t **r_plugin)
+int snd_pcm_plugin_build_linear(struct snd_pcm_substream *plug,
+				struct snd_pcm_plugin_format *src_format,
+				struct snd_pcm_plugin_format *dst_format,
+				struct snd_pcm_plugin **r_plugin)
 {
 	int err;
-	struct linear_private_data *data;
-	snd_pcm_plugin_t *plugin;
+	struct linear_priv *data;
+	struct snd_pcm_plugin *plugin;
 
 	snd_assert(r_plugin != NULL, return -ENXIO);
 	*r_plugin = NULL;
@@ -147,10 +147,10 @@ int snd_pcm_plugin_build_linear(snd_pcm_plug_t *plug,
 
 	err = snd_pcm_plugin_build(plug, "linear format conversion",
 				   src_format, dst_format,
-				   sizeof(linear_t), &plugin);
+				   sizeof(struct linear_priv), &plugin);
 	if (err < 0)
 		return err;
-	data = (linear_t *)plugin->extra_data;
+	data = (struct linear_priv *)plugin->extra_data;
 	data->conv = conv_index(src_format->format, dst_format->format);
 	plugin->transfer = linear_transfer;
 	*r_plugin = plugin;

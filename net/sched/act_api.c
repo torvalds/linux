@@ -34,7 +34,7 @@
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
-#if 1 /* control */
+#if 0 /* control */
 #define DPRINTK(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define DPRINTK(format, args...)

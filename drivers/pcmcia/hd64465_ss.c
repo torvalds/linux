@@ -417,18 +417,6 @@ static int hs_get_status(struct pcmcia_socket *s, u_int *value)
 
 /*============================================================*/
 
-static int hs_get_socket(struct pcmcia_socket *s, socket_state_t *state)
-{
-    	hs_socket_t *sp = container_of(s, struct hs_socket_t, socket);
-
-    	DPRINTK("hs_get_socket(%d)\n", sock);
-	
-	*state = sp->state;
-	return 0;
-}
-
-/*============================================================*/
-
 static int hs_set_socket(struct pcmcia_socket *s, socket_state_t *state)
 {
     	hs_socket_t *sp = container_of(s, struct hs_socket_t, socket);
@@ -749,7 +737,6 @@ static irqreturn_t hs_interrupt(int irq, void *dev, struct pt_regs *regs)
 static struct pccard_operations hs_operations = {
 	.init			= hs_init,
 	.get_status		= hs_get_status,
-	.get_socket		= hs_get_socket,
 	.set_socket		= hs_set_socket,
 	.set_io_map		= hs_set_io_map,
 	.set_mem_map		= hs_set_mem_map,

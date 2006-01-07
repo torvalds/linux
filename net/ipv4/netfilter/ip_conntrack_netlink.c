@@ -79,6 +79,7 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 		      const struct ip_conntrack_tuple *tuple)
 {
 	struct nfattr *nest_parms;
+	int ret;
 	
 	nest_parms = NFA_NEST(skb, CTA_TUPLE_IP);
 	NFA_PUT(skb, CTA_IP_V4_SRC, sizeof(u_int32_t), &tuple->src.ip);
@@ -86,10 +87,10 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 	NFA_NEST_END(skb, nest_parms);
 
 	nest_parms = NFA_NEST(skb, CTA_TUPLE_PROTO);
-	ctnetlink_dump_tuples_proto(skb, tuple);
+	ret = ctnetlink_dump_tuples_proto(skb, tuple);
 	NFA_NEST_END(skb, nest_parms);
 
-	return 0;
+	return ret;
 
 nfattr_failure:
 	return -1;
@@ -160,7 +161,7 @@ ctnetlink_dump_helpinfo(struct sk_buff *skb, const struct ip_conntrack *ct)
 		return 0;
 		
 	nest_helper = NFA_NEST(skb, CTA_HELP);
-	NFA_PUT(skb, CTA_HELP_NAME, CTA_HELP_MAXNAMESIZE, &ct->helper->name);
+	NFA_PUT(skb, CTA_HELP_NAME, strlen(ct->helper->name), ct->helper->name);
 
 	if (ct->helper->to_nfattr)
 		ct->helper->to_nfattr(skb, ct);
@@ -229,7 +230,7 @@ nfattr_failure:
 static inline int
 ctnetlink_dump_use(struct sk_buff *skb, const struct ip_conntrack *ct)
 {
-	unsigned int use = htonl(atomic_read(&ct->ct_general.use));
+	u_int32_t use = htonl(atomic_read(&ct->ct_general.use));
 	
 	NFA_PUT(skb, CTA_USE, sizeof(u_int32_t), &use);
 	return 0;
@@ -311,29 +312,22 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	if (events & IPCT_DESTROY) {
 		type = IPCTNL_MSG_CT_DELETE;
 		group = NFNLGRP_CONNTRACK_DESTROY;
-		goto alloc_skb;
-	}
-	if (events & (IPCT_NEW | IPCT_RELATED)) {
+	} else if (events & (IPCT_NEW | IPCT_RELATED)) {
 		type = IPCTNL_MSG_CT_NEW;
 		flags = NLM_F_CREATE|NLM_F_EXCL;
 		/* dump everything */
 		events = ~0UL;
 		group = NFNLGRP_CONNTRACK_NEW;
-		goto alloc_skb;
-	}
-	if (events & (IPCT_STATUS |
+	} else if (events & (IPCT_STATUS |
 		      IPCT_PROTOINFO |
 		      IPCT_HELPER |
 		      IPCT_HELPINFO |
 		      IPCT_NATINFO)) {
 		type = IPCTNL_MSG_CT_NEW;
 		group = NFNLGRP_CONNTRACK_UPDATE;
-		goto alloc_skb;
-	} 
+	} else 
+		return NOTIFY_DONE;
 	
-	return NOTIFY_DONE;
-
-alloc_skb:
   /* FIXME: Check if there are any listeners before, don't hurt performance */
 	
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
@@ -503,7 +497,7 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 }
 
 static const size_t cta_min_proto[CTA_PROTO_MAX] = {
-	[CTA_PROTO_NUM-1]	= sizeof(u_int16_t),
+	[CTA_PROTO_NUM-1]	= sizeof(u_int8_t),
 	[CTA_PROTO_SRC_PORT-1]	= sizeof(u_int16_t),
 	[CTA_PROTO_DST_PORT-1]	= sizeof(u_int16_t),
 	[CTA_PROTO_ICMP_TYPE-1]	= sizeof(u_int8_t),
@@ -528,7 +522,7 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 
 	if (!tb[CTA_PROTO_NUM-1])
 		return -EINVAL;
-	tuple->dst.protonum = *(u_int16_t *)NFA_DATA(tb[CTA_PROTO_NUM-1]);
+	tuple->dst.protonum = *(u_int8_t *)NFA_DATA(tb[CTA_PROTO_NUM-1]);
 
 	proto = ip_conntrack_proto_find_get(tuple->dst.protonum);
 
@@ -728,11 +722,9 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			return -ENOENT;
 		}
 	}	
-	if (del_timer(&ct->timeout)) {
-		ip_conntrack_put(ct);
+	if (del_timer(&ct->timeout))
 		ct->timeout.function((unsigned long)ct);
-		return 0;
-	}
+
 	ip_conntrack_put(ct);
 	DEBUGP("leaving\n");
 
@@ -877,7 +869,7 @@ ctnetlink_change_status(struct ip_conntrack *ct, struct nfattr *cda[])
 		DEBUGP("NAT status: %lu\n", 
 		       status & (IPS_NAT_MASK | IPS_NAT_DONE_MASK));
 		
-		if (ip_nat_initialized(ct, hooknum))
+		if (ip_nat_initialized(ct, HOOK2MANIP(hooknum)))
 			return -EEXIST;
 		ip_nat_setup_info(ct, &range, hooknum);
 
@@ -1039,6 +1031,11 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 			return err;
 	}
 
+#if defined(CONFIG_IP_NF_CONNTRACK_MARK)
+	if (cda[CTA_MARK-1])
+		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
+#endif
+
 	ct->helper = ip_conntrack_helper_find_get(rtuple);
 
 	add_timer(&ct->timeout);
@@ -1046,11 +1043,6 @@ ctnetlink_create_conntrack(struct nfattr *cda[],
 
 	if (ct->helper)
 		ip_conntrack_helper_put(ct->helper);
-
-#if defined(CONFIG_IP_NF_CONNTRACK_MARK)
-	if (cda[CTA_MARK-1])
-		ct->mark = ntohl(*(u_int32_t *)NFA_DATA(cda[CTA_MARK-1]));
-#endif
 
 	DEBUGP("conntrack with id %u inserted\n", ct->id);
 	return 0;
@@ -1211,7 +1203,6 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 	unsigned int type;
 	unsigned char *b;
 	int flags = 0;
-	u16 proto;
 
 	if (events & IPEXP_NEW) {
 		type = IPCTNL_MSG_EXP_NEW;
@@ -1238,7 +1229,6 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 		goto nfattr_failure;
 
 	nlh->nlmsg_len = skb->tail - b;
-	proto = exp->tuple.dst.protonum;
 	nfnetlink_send(skb, 0, NFNLGRP_CONNTRACK_EXP_NEW, 0);
 	return NOTIFY_DONE;
 

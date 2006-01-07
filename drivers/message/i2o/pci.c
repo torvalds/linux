@@ -303,6 +303,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	struct i2o_controller *c;
 	int rc;
 	struct pci_dev *i960 = NULL;
+	int pci_dev_busy = 0;
 
 	printk(KERN_INFO "i2o: Checking for PCI I2O controllers...\n");
 
@@ -338,7 +339,7 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 		       pci_name(pdev));
 
 	c->pdev = pdev;
-	c->device.parent = get_device(&pdev->dev);
+	c->device.parent = &pdev->dev;
 
 	/* Cards that fall apart if you hit them with large I/O loads... */
 	if (pdev->vendor == PCI_VENDOR_ID_NCR && pdev->device == 0x0630) {
@@ -395,6 +396,8 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	if ((rc = i2o_pci_alloc(c))) {
 		printk(KERN_ERR "%s: DMA / IO allocation for I2O controller "
 		       " failed\n", c->name);
+		if (rc == -ENODEV)
+			pci_dev_busy = 1;
 		goto free_controller;
 	}
 
@@ -406,8 +409,6 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 
 	if ((rc = i2o_iop_add(c)))
 		goto uninstall;
-
-	get_device(&c->device);
 
 	if (i960)
 		pci_write_config_word(i960, 0x42, 0x03ff);
@@ -421,11 +422,11 @@ static int __devinit i2o_pci_probe(struct pci_dev *pdev,
 	i2o_pci_free(c);
 
       free_controller:
-	put_device(c->device.parent);
 	i2o_iop_free(c);
 
       disable:
-	pci_disable_device(pdev);
+	if (!pci_dev_busy)
+		pci_disable_device(pdev);
 
 	return rc;
 }
@@ -450,7 +451,6 @@ static void __devexit i2o_pci_remove(struct pci_dev *pdev)
 
 	printk(KERN_INFO "%s: Controller removed.\n", c->name);
 
-	put_device(c->device.parent);
 	put_device(&c->device);
 };
 
@@ -479,4 +479,5 @@ void __exit i2o_pci_exit(void)
 {
 	pci_unregister_driver(&i2o_pci_driver);
 };
+
 MODULE_DEVICE_TABLE(pci, i2o_pci_ids);

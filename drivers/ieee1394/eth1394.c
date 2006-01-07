@@ -88,9 +88,6 @@
 	printk(KERN_ERR "%s:%s[%d]: " fmt "\n", driver_name, __FUNCTION__, __LINE__, ## args)
 #define TRACE() printk(KERN_ERR "%s:%s[%d] ---- TRACE\n", driver_name, __FUNCTION__, __LINE__)
 
-static char version[] __devinitdata =
-	"$Rev: 1312 $ Ben Collins <bcollins@debian.org>";
-
 struct fragment_info {
 	struct list_head list;
 	int offset;
@@ -355,12 +352,12 @@ static int eth1394_probe(struct device *dev)
 	if (!hi)
 		return -ENOENT;
 
-	new_node = kmalloc(sizeof(struct eth1394_node_ref),
+	new_node = kmalloc(sizeof(*new_node),
 			   in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (!new_node)
 		return -ENOMEM;
 
-	node_info = kmalloc(sizeof(struct eth1394_node_info),
+	node_info = kmalloc(sizeof(*node_info),
 			    in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (!node_info) {
 		kfree(new_node);
@@ -436,12 +433,12 @@ static int eth1394_update(struct unit_directory *ud)
 	node = eth1394_find_node(&priv->ip_node_list, ud);
 
 	if (!node) {
-		node = kmalloc(sizeof(struct eth1394_node_ref),
+		node = kmalloc(sizeof(*node),
 			       in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 		if (!node)
 			return -ENOMEM;
 
-		node_info = kmalloc(sizeof(struct eth1394_node_info),
+		node_info = kmalloc(sizeof(*node_info),
 				    in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 		if (!node_info) {
 			kfree(node);
@@ -566,7 +563,6 @@ static void ether1394_add_host (struct hpsb_host *host)
 	struct eth1394_host_info *hi = NULL;
 	struct net_device *dev = NULL;
 	struct eth1394_priv *priv;
-	static int version_printed = 0;
 	u64 fifo_addr;
 
 	if (!(host->config_roms & HPSB_CONFIG_ROM_ENTRY_IP1394))
@@ -580,9 +576,6 @@ static void ether1394_add_host (struct hpsb_host *host)
 							 -1, -1);
 	if (fifo_addr == ~0ULL)
 		goto out;
-
-	if (version_printed++ == 0)
-		ETH1394_PRINT_G (KERN_INFO, "%s\n", version);
 
 	/* We should really have our own alloc_hpsbdev() function in
 	 * net_init.c instead of calling the one for ethernet then hijacking
@@ -1021,7 +1014,7 @@ static inline int new_fragment(struct list_head *frag_info, int offset, int len)
 		}
 	}
 
-	new = kmalloc(sizeof(struct fragment_info), GFP_ATOMIC);
+	new = kmalloc(sizeof(*new), GFP_ATOMIC);
 	if (!new)
 		return -ENOMEM;
 
@@ -1040,7 +1033,7 @@ static inline int new_partial_datagram(struct net_device *dev,
 {
 	struct partial_datagram *new;
 
-	new = kmalloc(sizeof(struct partial_datagram), GFP_ATOMIC);
+	new = kmalloc(sizeof(*new), GFP_ATOMIC);
 	if (!new)
 		return -ENOMEM;
 
@@ -1768,7 +1761,6 @@ fail:
 static void ether1394_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strcpy (info->driver, driver_name);
-	strcpy (info->version, "$Rev: 1312 $");
 	/* FIXME XXX provide sane businfo */
 	strcpy (info->bus_info, "ieee1394");
 }

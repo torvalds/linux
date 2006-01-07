@@ -1,12 +1,13 @@
 #ifndef S390_CIO_IOASM_H
 #define S390_CIO_IOASM_H
 
+#include "schid.h"
+
 /*
  * TPI info structure
  */
 struct tpi_info {
-	__u32 reserved1	 : 16;	 /* reserved 0x00000001 */
-	__u32 irq	 : 16;	 /* aka. subchannel number */
+	struct subchannel_id schid;
 	__u32 intparm;		 /* interruption parameter */
 	__u32 adapter_IO : 1;
 	__u32 reserved2	 : 1;
@@ -21,7 +22,8 @@ struct tpi_info {
  * Some S390 specific IO instructions as inline
  */
 
-static inline int stsch(int irq, volatile struct schib *addr)
+static inline int stsch(struct subchannel_id schid,
+			    volatile struct schib *addr)
 {
 	int ccode;
 
@@ -31,38 +33,24 @@ static inline int stsch(int irq, volatile struct schib *addr)
 		"   ipm	  %0\n"
 		"   srl	  %0,28"
 		: "=d" (ccode)
-		: "d" (irq | 0x10000), "a" (addr)
+		: "d" (schid), "a" (addr), "m" (*addr)
 		: "cc", "1" );
 	return ccode;
 }
 
-static inline int msch(int irq, volatile struct schib *addr)
-{
-	int ccode;
-
-	__asm__ __volatile__(
-		"   lr	  1,%1\n"
-		"   msch  0(%2)\n"
-		"   ipm	  %0\n"
-		"   srl	  %0,28"
-		: "=d" (ccode)
-		: "d" (irq | 0x10000L), "a" (addr)
-		: "cc", "1" );
-	return ccode;
-}
-
-static inline int msch_err(int irq, volatile struct schib *addr)
+static inline int stsch_err(struct subchannel_id schid,
+				volatile struct schib *addr)
 {
 	int ccode;
 
 	__asm__ __volatile__(
 		"    lhi  %0,%3\n"
 		"    lr	  1,%1\n"
-		"    msch 0(%2)\n"
+		"    stsch 0(%2)\n"
 		"0:  ipm  %0\n"
 		"    srl  %0,28\n"
 		"1:\n"
-#ifdef CONFIG_ARCH_S390X
+#ifdef CONFIG_64BIT
 		".section __ex_table,\"a\"\n"
 		"   .align 8\n"
 		"   .quad 0b,1b\n"
@@ -74,12 +62,58 @@ static inline int msch_err(int irq, volatile struct schib *addr)
 		".previous"
 #endif
 		: "=&d" (ccode)
-		: "d" (irq | 0x10000L), "a" (addr), "K" (-EIO)
+		: "d" (schid), "a" (addr), "K" (-EIO), "m" (*addr)
 		: "cc", "1" );
 	return ccode;
 }
 
-static inline int tsch(int irq, volatile struct irb *addr)
+static inline int msch(struct subchannel_id schid,
+			   volatile struct schib *addr)
+{
+	int ccode;
+
+	__asm__ __volatile__(
+		"   lr	  1,%1\n"
+		"   msch  0(%2)\n"
+		"   ipm	  %0\n"
+		"   srl	  %0,28"
+		: "=d" (ccode)
+		: "d" (schid), "a" (addr), "m" (*addr)
+		: "cc", "1" );
+	return ccode;
+}
+
+static inline int msch_err(struct subchannel_id schid,
+			       volatile struct schib *addr)
+{
+	int ccode;
+
+	__asm__ __volatile__(
+		"    lhi  %0,%3\n"
+		"    lr	  1,%1\n"
+		"    msch 0(%2)\n"
+		"0:  ipm  %0\n"
+		"    srl  %0,28\n"
+		"1:\n"
+#ifdef CONFIG_64BIT
+		".section __ex_table,\"a\"\n"
+		"   .align 8\n"
+		"   .quad 0b,1b\n"
+		".previous"
+#else
+		".section __ex_table,\"a\"\n"
+		"   .align 4\n"
+		"   .long 0b,1b\n"
+		".previous"
+#endif
+		: "=&d" (ccode)
+		: "d" (schid), "a" (addr), "K" (-EIO), "m" (*addr)
+		: "cc", "1" );
+	return ccode;
+}
+
+static inline int tsch(struct subchannel_id schid,
+			   volatile struct irb *addr)
 {
 	int ccode;
 
@@ -89,7 +123,7 @@ static inline int tsch(int irq, volatile struct irb *addr)
 		"   ipm	  %0\n"
 		"   srl	  %0,28"
 		: "=d" (ccode)
-		: "d" (irq | 0x10000L), "a" (addr)
+		: "d" (schid), "a" (addr), "m" (*addr)
 		: "cc", "1" );
 	return ccode;
 }
@@ -103,12 +137,13 @@ static inline int tpi( volatile struct tpi_info *addr)
 		"   ipm	  %0\n"
 		"   srl	  %0,28"
 		: "=d" (ccode)
-		: "a" (addr)
+		: "a" (addr), "m" (*addr)
 		: "cc", "1" );
 	return ccode;
 }
 
-static inline int ssch(int irq, volatile struct orb *addr)
+static inline int ssch(struct subchannel_id schid,
+			   volatile struct orb *addr)
 {
 	int ccode;
 
@@ -118,12 +153,12 @@ static inline int ssch(int irq, volatile struct orb *addr)
 		"   ipm	  %0\n"
 		"   srl	  %0,28"
 		: "=d" (ccode)
-		: "d" (irq | 0x10000L), "a" (addr)
+		: "d" (schid), "a" (addr), "m" (*addr)
 		: "cc", "1" );
 	return ccode;
 }
 
-static inline int rsch(int irq)
+static inline int rsch(struct subchannel_id schid)
 {
 	int ccode;
 
@@ -133,12 +168,12 @@ static inline int rsch(int irq)
 		"   ipm	  %0\n"
 		"   srl	  %0,28"
 		: "=d" (ccode)
-		: "d" (irq | 0x10000L)
+		: "d" (schid)
 		: "cc", "1" );
 	return ccode;
 }
 
-static inline int csch(int irq)
+static inline int csch(struct subchannel_id schid)
 {
 	int ccode;
 
@@ -148,12 +183,12 @@ static inline int csch(int irq)
 		"   ipm	  %0\n"
 		"   srl	  %0,28"
 		: "=d" (ccode)
-		: "d" (irq | 0x10000L)
+		: "d" (schid)
 		: "cc", "1" );
 	return ccode;
 }
 
-static inline int hsch(int irq)
+static inline int hsch(struct subchannel_id schid)
 {
 	int ccode;
 
@@ -163,12 +198,12 @@ static inline int hsch(int irq)
 		"   ipm	  %0\n"
 		"   srl	  %0,28"
 		: "=d" (ccode)
-		: "d" (irq | 0x10000L)
+		: "d" (schid)
 		: "cc", "1" );
 	return ccode;
 }
 
-static inline int xsch(int irq)
+static inline int xsch(struct subchannel_id schid)
 {
 	int ccode;
 
@@ -178,21 +213,22 @@ static inline int xsch(int irq)
 		"   ipm	  %0\n"
 		"   srl	  %0,28"
 		: "=d" (ccode)
-		: "d" (irq | 0x10000L)
+		: "d" (schid)
 		: "cc", "1" );
 	return ccode;
 }
 
 static inline int chsc(void *chsc_area)
 {
+	typedef struct { char _[4096]; } addr_type;
 	int cc;
 
 	__asm__ __volatile__ (
-		".insn	rre,0xb25f0000,%1,0	\n\t"
+		".insn	rre,0xb25f0000,%2,0	\n\t"
 		"ipm	%0	\n\t"
 		"srl	%0,28	\n\t"
-		: "=d" (cc)
-		: "d" (chsc_area)
+		: "=d" (cc), "=m" (*(addr_type *) chsc_area)
+		: "d" (chsc_area), "m" (*(addr_type *) chsc_area)
 		: "cc" );
 
 	return cc;

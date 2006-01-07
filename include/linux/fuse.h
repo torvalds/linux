@@ -14,7 +14,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 3
+#define FUSE_KERNEL_MINOR_VERSION 5
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -53,6 +53,9 @@ struct fuse_kstatfs {
 	__u64	ffree;
 	__u32	bsize;
 	__u32	namelen;
+	__u32	frsize;
+	__u32	padding;
+	__u32	spare[6];
 };
 
 #define FATTR_MODE	(1 << 0)
@@ -105,12 +108,8 @@ enum fuse_opcode {
 	FUSE_CREATE        = 35
 };
 
-/* Conservative buffer size for the client */
-#define FUSE_MAX_IN 8192
-
-#define FUSE_NAME_MAX 1024
-#define FUSE_SYMLINK_MAX 4096
-#define FUSE_XATTR_SIZE_MAX 4096
+/* The read buffer is required to be at least 8k, but may be much larger */
+#define FUSE_MIN_READ_BUFFER 8192
 
 struct fuse_entry_out {
 	__u64	nodeid;		/* Inode ID */
@@ -213,6 +212,8 @@ struct fuse_write_out {
 	__u32	padding;
 };
 
+#define FUSE_COMPAT_STATFS_SIZE 48
+
 struct fuse_statfs_out {
 	struct fuse_kstatfs st;
 };
@@ -243,9 +244,16 @@ struct fuse_access_in {
 	__u32	padding;
 };
 
-struct fuse_init_in_out {
+struct fuse_init_in {
 	__u32	major;
 	__u32	minor;
+};
+
+struct fuse_init_out {
+	__u32	major;
+	__u32	minor;
+	__u32	unused[3];
+	__u32	max_write;
 };
 
 struct fuse_in_header {

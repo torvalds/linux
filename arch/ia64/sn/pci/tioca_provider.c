@@ -38,10 +38,10 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	uint64_t offset;
 	struct page *tmp;
 	struct tioca_common *tioca_common;
-	struct tioca *ca_base;
+	struct tioca __iomem *ca_base;
 
 	tioca_common = tioca_kern->ca_common;
-	ca_base = (struct tioca *)tioca_common->ca_common.bs_base;
+	ca_base = (struct tioca __iomem *)tioca_common->ca_common.bs_base;
 
 	if (list_empty(tioca_kern->ca_devices))
 		return 0;
@@ -215,7 +215,7 @@ tioca_fastwrite_enable(struct tioca_kernel *tioca_kern)
 {
 	int cap_ptr;
 	uint32_t reg;
-	struct tioca *tioca_base;
+	struct tioca __iomem *tioca_base;
 	struct pci_dev *pdev;
 	struct tioca_common *common;
 
@@ -257,7 +257,7 @@ tioca_fastwrite_enable(struct tioca_kernel *tioca_kern)
 	 * Set ca's fw to match
 	 */
 
-	tioca_base = (struct tioca *)common->ca_common.bs_base;
+	tioca_base = (struct tioca __iomem*)common->ca_common.bs_base;
 	__sn_setq_relaxed(&tioca_base->ca_control1, CA_AGP_FW_ENABLE);
 }
 
@@ -322,7 +322,7 @@ static uint64_t
 tioca_dma_d48(struct pci_dev *pdev, uint64_t paddr)
 {
 	struct tioca_common *tioca_common;
-	struct tioca *ca_base;
+	struct tioca __iomem *ca_base;
 	uint64_t ct_addr;
 	dma_addr_t bus_addr;
 	uint32_t node_upper;
@@ -330,7 +330,7 @@ tioca_dma_d48(struct pci_dev *pdev, uint64_t paddr)
 	struct pcidev_info *pcidev_info = SN_PCIDEV_INFO(pdev);
 
 	tioca_common = (struct tioca_common *)pcidev_info->pdi_pcibus_info;
-	ca_base = (struct tioca *)tioca_common->ca_common.bs_base;
+	ca_base = (struct tioca __iomem *)tioca_common->ca_common.bs_base;
 
 	ct_addr = PHYS_TO_TIODMA(paddr);
 	if (!ct_addr)

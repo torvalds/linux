@@ -37,11 +37,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifdef __FreeBSD__
-#include <dev/sym/sym_glue.h>
-#else
 #include "sym_glue.h"
-#endif
 
 /*
  *  Simple power of two buddy-like generic allocator.

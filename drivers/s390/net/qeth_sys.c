@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.58 $)
+ * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.60 $)
  *
  * Linux on zSeries OSA Express and HiperSockets support
  * This file contains code related to sysfs.
@@ -20,7 +20,7 @@
 #include "qeth_mpc.h"
 #include "qeth_fs.h"
 
-const char *VERSION_QETH_SYS_C = "$Revision: 1.58 $";
+const char *VERSION_QETH_SYS_C = "$Revision: 1.60 $";
 
 /*****************************************************************************/
 /*                                                                           */
@@ -160,7 +160,7 @@ qeth_dev_portname_store(struct device *dev, struct device_attribute *attr, const
 		return -EPERM;
 
 	tmp = strsep((char **) &buf, "\n");
-	if ((strlen(tmp) > 8) || (strlen(tmp) < 2))
+	if ((strlen(tmp) > 8) || (strlen(tmp) == 0))
 		return -EINVAL;
 
 	card->info.portname[0] = strlen(tmp);

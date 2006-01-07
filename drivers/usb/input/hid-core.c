@@ -893,8 +893,10 @@ static int hid_input_report(int type, struct urb *urb, int interrupt, struct pt_
 
 	size = ((report->size - 1) >> 3) + 1;
 
-	if (len < size)
+	if (len < size) {
 		dbg("report %d is too short, (%d < %d)", report->id, len, size);
+		memset(data + len, 0, size - len);
+	}
 
 	if (hid->claimed & HID_CLAIMED_HIDDEV)
 		hiddev_report_event(hid, report);
@@ -1452,7 +1454,7 @@ void hid_init_reports(struct hid_device *hid)
  * Alphabetically sorted blacklist by quirk type.
  */
 
-static struct hid_blacklist {
+static const struct hid_blacklist {
 	__u16 idVendor;
 	__u16 idProduct;
 	unsigned quirks;
@@ -1928,7 +1930,6 @@ static struct usb_device_id hid_usb_ids [] = {
 MODULE_DEVICE_TABLE (usb, hid_usb_ids);
 
 static struct usb_driver hid_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbhid",
 	.probe =	hid_probe,
 	.disconnect =	hid_disconnect,

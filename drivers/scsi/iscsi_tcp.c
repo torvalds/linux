@@ -49,7 +49,7 @@ MODULE_AUTHOR("Dmitry Yusupov <dmitry_yus@yahoo.com>, "
 	      "Alex Aizman <itn780@yahoo.com>");
 MODULE_DESCRIPTION("iSCSI/TCP data-path");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("0:4.409");
+MODULE_VERSION("0:4.445");
 /* #define DEBUG_TCP */
 /* #define DEBUG_SCSI */
 #define DEBUG_ASSERT
@@ -581,10 +581,16 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 		crypto_digest_digest(conn->rx_tfm, &sg, 1, (u8 *)&cdgst);
 		rdgst = *(uint32_t*)((char*)hdr + sizeof(struct iscsi_hdr) +
 				     conn->in.ahslen);
+		if (cdgst != rdgst) {
+			printk(KERN_ERR "iscsi_tcp: itt %x: hdrdgst error "
+			       "recv 0x%x calc 0x%x\n", conn->in.itt, rdgst,
+			       cdgst);
+			return ISCSI_ERR_HDR_DGST;
+		}
 	}
 
 	/* save opcode for later */
-	conn->in.opcode = hdr->opcode;
+	conn->in.opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 
 	/* verify itt (itt encoding: age+cid+itt) */
 	if (hdr->itt != cpu_to_be32(ISCSI_RESERVED_TAG)) {
@@ -610,13 +616,6 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 		  conn->in.ahslen, conn->in.datalen);
 
 	if (conn->in.itt < session->cmds_max) {
-		if (conn->hdrdgst_en && cdgst != rdgst) {
-			printk(KERN_ERR "iscsi_tcp: itt %x: hdrdgst error "
-			       "recv 0x%x calc 0x%x\n", conn->in.itt, rdgst,
-			       cdgst);
-			return ISCSI_ERR_HDR_DGST;
-		}
-
 		ctask = (struct iscsi_cmd_task *)session->cmds[conn->in.itt];
 
 		if (!ctask->sc) {
@@ -642,9 +641,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 		switch(conn->in.opcode) {
 		case ISCSI_OP_SCSI_CMD_RSP:
 			BUG_ON((void*)ctask != ctask->sc->SCp.ptr);
-			if (ctask->hdr.flags & ISCSI_FLAG_CMD_WRITE)
-				rc = iscsi_cmd_rsp(conn, ctask);
-			else if (!conn->in.datalen)
+			if (!conn->in.datalen)
 				rc = iscsi_cmd_rsp(conn, ctask);
 			else
 				/*
@@ -666,8 +663,7 @@ iscsi_hdr_recv(struct iscsi_conn *conn)
 			break;
 		case ISCSI_OP_R2T:
 			BUG_ON((void*)ctask != ctask->sc->SCp.ptr);
-			if (ctask->hdr.flags & ISCSI_FLAG_CMD_WRITE &&
-			    ctask->sc->sc_data_direction == DMA_TO_DEVICE)
+			if (ctask->sc->sc_data_direction == DMA_TO_DEVICE)
 				rc = iscsi_r2t_rsp(conn, ctask);
 			else
 				rc = ISCSI_ERR_PROTO;
@@ -906,11 +902,20 @@ partial_sg_digest_update(struct iscsi_conn *conn, struct scatterlist *sg,
 	crypto_digest_update(conn->data_rx_tfm, &temp, 1);
 }
 
+static void
+iscsi_recv_digest_update(struct iscsi_conn *conn, char* buf, int len)
+{
+	struct scatterlist tmp;
+
+	sg_init_one(&tmp, buf, len);
+	crypto_digest_update(conn->data_rx_tfm, &tmp, 1);
+}
+
 static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 {
 	struct iscsi_cmd_task *ctask = conn->in.ctask;
 	struct scsi_cmnd *sc = ctask->sc;
-	struct scatterlist tmp, *sg;
+	struct scatterlist *sg;
 	int i, offset, rc = 0;
 
 	BUG_ON((void*)ctask != sc->SCp.ptr);
@@ -924,10 +929,8 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 				      sc->request_bufflen, ctask->data_offset);
 		if (rc == -EAGAIN)
 			return rc;
-		if (conn->datadgst_en) {
-			sg_init_one(&tmp, sc->request_buffer, i);
-			crypto_digest_update(conn->data_rx_tfm, &tmp, 1);
-		}
+		if (conn->datadgst_en) 
+			iscsi_recv_digest_update(conn, sc->request_buffer, i);
 		rc = 0;
 		goto done;
 	}
@@ -1021,6 +1024,9 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		conn->in.hdr = &conn->hdr;
 		conn->senselen = (conn->data[0] << 8) | conn->data[1];
 		rc = iscsi_cmd_rsp(conn, conn->in.ctask);
+		if (!rc && conn->datadgst_en) 
+			iscsi_recv_digest_update(conn, conn->data,
+						 conn->in.datalen);
 	}
 	break;
 	case ISCSI_OP_TEXT_RSP:
@@ -1045,6 +1051,11 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		rc = iscsi_recv_pdu(iscsi_handle(conn), conn->in.hdr,
 				    conn->data, conn->in.datalen);
 
+		if (!rc && conn->datadgst_en && 
+			conn->in.opcode != ISCSI_OP_LOGIN_RSP)
+			iscsi_recv_digest_update(conn, conn->data,
+			  			conn->in.datalen);
+
 		if (mtask && conn->login_mtask != mtask) {
 			spin_lock(&session->lock);
 			__kfifo_put(session->mgmtpool.queue, (void*)&mtask,
@@ -1053,6 +1064,8 @@ iscsi_data_recv(struct iscsi_conn *conn)
 		}
 	}
 	break;
+	case ISCSI_OP_ASYNC_EVENT:
+	case ISCSI_OP_REJECT:
 	default:
 		BUG_ON(1);
 	}
@@ -1114,8 +1127,7 @@ more:
 		 */
 		rc = iscsi_hdr_recv(conn);
 		if (!rc && conn->in.datalen) {
-			if (conn->datadgst_en &&
-			    conn->in.opcode == ISCSI_OP_SCSI_DATA_IN) {
+			if (conn->datadgst_en) {
 				BUG_ON(!conn->data_rx_tfm);
 				crypto_digest_init(conn->data_rx_tfm);
 			}
@@ -1127,26 +1139,24 @@ more:
 	}
 
 	if (conn->in_progress == IN_PROGRESS_DDIGEST_RECV) {
+		uint32_t recv_digest;
 		debug_tcp("extra data_recv offset %d copy %d\n",
 			  conn->in.offset, conn->in.copy);
-		if (conn->in.opcode == ISCSI_OP_SCSI_DATA_IN) {
-			uint32_t recv_digest;
-			skb_copy_bits(conn->in.skb, conn->in.offset,
-				      &recv_digest, 4);
-			conn->in.offset += 4;
-			conn->in.copy -= 4;
-			if (recv_digest != conn->in.datadgst) {
-				debug_tcp("iscsi_tcp: data digest error!"
-					  "0x%x != 0x%x\n", recv_digest,
-					  conn->in.datadgst);
-				iscsi_conn_failure(conn, ISCSI_ERR_DATA_DGST);
-				return 0;
-			} else {
-				debug_tcp("iscsi_tcp: data digest match!"
-					  "0x%x == 0x%x\n", recv_digest,
-					  conn->in.datadgst);
-				conn->in_progress = IN_PROGRESS_WAIT_HEADER;
-			}
+		skb_copy_bits(conn->in.skb, conn->in.offset,
+				&recv_digest, 4);
+		conn->in.offset += 4;
+		conn->in.copy -= 4;
+		if (recv_digest != conn->in.datadgst) {
+			debug_tcp("iscsi_tcp: data digest error!"
+				  "0x%x != 0x%x\n", recv_digest,
+				  conn->in.datadgst);
+			iscsi_conn_failure(conn, ISCSI_ERR_DATA_DGST);
+			return 0;
+		} else {
+			debug_tcp("iscsi_tcp: data digest match!"
+				  "0x%x == 0x%x\n", recv_digest,
+				  conn->in.datadgst);
+			conn->in_progress = IN_PROGRESS_WAIT_HEADER;
 		}
 	}
 
@@ -1167,8 +1177,7 @@ more:
 		}
 		conn->in.copy -= conn->in.padding;
 		conn->in.offset += conn->in.padding;
-		if (conn->datadgst_en &&
-		    conn->in.opcode == ISCSI_OP_SCSI_DATA_IN) {
+		if (conn->datadgst_en) {
 			if (conn->in.padding) {
 				debug_tcp("padding -> %d\n", conn->in.padding);
 				memset(pad, 0, conn->in.padding);
@@ -1237,8 +1246,9 @@ iscsi_tcp_state_change(struct sock *sk)
 	conn = (struct iscsi_conn*)sk->sk_user_data;
 	session = conn->session;
 
-	if (sk->sk_state == TCP_CLOSE_WAIT ||
-	    sk->sk_state == TCP_CLOSE) {
+	if ((sk->sk_state == TCP_CLOSE_WAIT ||
+	     sk->sk_state == TCP_CLOSE) &&
+	    !atomic_read(&sk->sk_rmem_alloc)) {
 		debug_tcp("iscsi_tcp_state_change: TCP_CLOSE|TCP_CLOSE_WAIT\n");
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 	}
@@ -2389,6 +2399,15 @@ fault:
 }
 
 static int
+iscsi_change_queue_depth(struct scsi_device *sdev, int depth)
+{
+	if (depth > ISCSI_MAX_CMD_PER_LUN)
+		depth = ISCSI_MAX_CMD_PER_LUN;
+	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), depth);
+	return sdev->queue_depth;
+}
+
+static int
 iscsi_pool_init(struct iscsi_queue *q, int max, void ***items, int item_size)
 {
 	int i;
@@ -2853,8 +2872,11 @@ iscsi_conn_stop(iscsi_connh_t connh, int flag)
 		 * in hdr_extract() and will be re-negotiated at
 		 * set_param() time.
 		 */
-		if (flag == STOP_CONN_RECOVER)
+		if (flag == STOP_CONN_RECOVER) {
 			conn->hdr_size = sizeof(struct iscsi_hdr);
+			conn->hdrdgst_en = 0;
+			conn->datadgst_en = 0;
+		}
 	}
 	up(&conn->xmitsema);
 }
@@ -3247,13 +3269,14 @@ iscsi_r2tpool_free(struct iscsi_session *session)
 static struct scsi_host_template iscsi_sht = {
 	.name			= "iSCSI Initiator over TCP/IP, v."
 				  ISCSI_VERSION_STR,
-        .queuecommand           = iscsi_queuecommand,
+	.queuecommand           = iscsi_queuecommand,
+	.change_queue_depth	= iscsi_change_queue_depth,
 	.can_queue		= ISCSI_XMIT_CMDS_MAX - 1,
 	.sg_tablesize		= ISCSI_SG_TABLESIZE,
-	.cmd_per_lun		= ISCSI_CMD_PER_LUN,
-        .eh_abort_handler       = iscsi_eh_abort,
-        .eh_host_reset_handler	= iscsi_eh_host_reset,
-        .use_clustering         = DISABLE_CLUSTERING,
+	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
+	.eh_abort_handler       = iscsi_eh_abort,
+	.eh_host_reset_handler	= iscsi_eh_host_reset,
+	.use_clustering         = DISABLE_CLUSTERING,
 	.proc_name		= "iscsi_tcp",
 	.this_id		= -1,
 };
@@ -3368,7 +3391,7 @@ iscsi_conn_set_param(iscsi_connh_t connh, enum iscsi_param param,
 	switch(param) {
 	case ISCSI_PARAM_MAX_RECV_DLENGTH: {
 		char *saveptr = conn->data;
-		int flags = GFP_KERNEL;
+		gfp_t flags = GFP_KERNEL;
 
 		if (conn->data_size >= value) {
 			conn->max_recv_dlength = value;

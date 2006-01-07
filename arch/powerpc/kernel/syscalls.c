@@ -247,7 +247,7 @@ long ppc64_personality(unsigned long personality)
 #define OVERRIDE_MACHINE    0
 #endif
 
-static inline int override_machine(char *mach)
+static inline int override_machine(char __user *mach)
 {
 	if (OVERRIDE_MACHINE) {
 		/* change ppc64 to ppc */

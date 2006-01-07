@@ -61,20 +61,20 @@ char snd_opl3_regmap[MAX_OPL2_VOICES][4] =
 /*
  * prototypes
  */
-static int snd_opl3_play_note(opl3_t * opl3, snd_dm_fm_note_t * note);
-static int snd_opl3_set_voice(opl3_t * opl3, snd_dm_fm_voice_t * voice);
-static int snd_opl3_set_params(opl3_t * opl3, snd_dm_fm_params_t * params);
-static int snd_opl3_set_mode(opl3_t * opl3, int mode);
-static int snd_opl3_set_connection(opl3_t * opl3, int connection);
+static int snd_opl3_play_note(struct snd_opl3 * opl3, struct snd_dm_fm_note * note);
+static int snd_opl3_set_voice(struct snd_opl3 * opl3, struct snd_dm_fm_voice * voice);
+static int snd_opl3_set_params(struct snd_opl3 * opl3, struct snd_dm_fm_params * params);
+static int snd_opl3_set_mode(struct snd_opl3 * opl3, int mode);
+static int snd_opl3_set_connection(struct snd_opl3 * opl3, int connection);
 
 /* ------------------------------ */
 
 /*
  * open the device exclusively
  */
-int snd_opl3_open(snd_hwdep_t * hw, struct file *file)
+int snd_opl3_open(struct snd_hwdep * hw, struct file *file)
 {
-	opl3_t *opl3 = hw->private_data;
+	struct snd_opl3 *opl3 = hw->private_data;
 
 	down(&opl3->access_mutex);
 	if (opl3->used) {
@@ -90,10 +90,10 @@ int snd_opl3_open(snd_hwdep_t * hw, struct file *file)
 /*
  * ioctl for hwdep device:
  */
-int snd_opl3_ioctl(snd_hwdep_t * hw, struct file *file,
+int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 		   unsigned int cmd, unsigned long arg)
 {
-	opl3_t *opl3 = hw->private_data;
+	struct snd_opl3 *opl3 = hw->private_data;
 	void __user *argp = (void __user *)arg;
 
 	snd_assert(opl3 != NULL, return -EINVAL);
@@ -102,11 +102,11 @@ int snd_opl3_ioctl(snd_hwdep_t * hw, struct file *file,
 		/* get information */
 	case SNDRV_DM_FM_IOCTL_INFO:
 		{
-			snd_dm_fm_info_t info;
+			struct snd_dm_fm_info info;
 
 			info.fm_mode = opl3->fm_mode;
 			info.rhythm = opl3->rhythm;
-			if (copy_to_user(argp, &info, sizeof(snd_dm_fm_info_t)))
+			if (copy_to_user(argp, &info, sizeof(struct snd_dm_fm_info)))
 				return -EFAULT;
 			return 0;
 		}
@@ -123,8 +123,8 @@ int snd_opl3_ioctl(snd_hwdep_t * hw, struct file *file,
 	case SNDRV_DM_FM_OSS_IOCTL_PLAY_NOTE:
 #endif
 		{
-			snd_dm_fm_note_t note;
-			if (copy_from_user(&note, argp, sizeof(snd_dm_fm_note_t)))
+			struct snd_dm_fm_note note;
+			if (copy_from_user(&note, argp, sizeof(struct snd_dm_fm_note)))
 				return -EFAULT;
 			return snd_opl3_play_note(opl3, &note);
 		}
@@ -134,8 +134,8 @@ int snd_opl3_ioctl(snd_hwdep_t * hw, struct file *file,
 	case SNDRV_DM_FM_OSS_IOCTL_SET_VOICE:
 #endif
 		{
-			snd_dm_fm_voice_t voice;
-			if (copy_from_user(&voice, argp, sizeof(snd_dm_fm_voice_t)))
+			struct snd_dm_fm_voice voice;
+			if (copy_from_user(&voice, argp, sizeof(struct snd_dm_fm_voice)))
 				return -EFAULT;
 			return snd_opl3_set_voice(opl3, &voice);
 		}
@@ -145,8 +145,8 @@ int snd_opl3_ioctl(snd_hwdep_t * hw, struct file *file,
 	case SNDRV_DM_FM_OSS_IOCTL_SET_PARAMS:
 #endif
 		{
-			snd_dm_fm_params_t params;
-			if (copy_from_user(&params, argp, sizeof(snd_dm_fm_params_t)))
+			struct snd_dm_fm_params params;
+			if (copy_from_user(&params, argp, sizeof(struct snd_dm_fm_params)))
 				return -EFAULT;
 			return snd_opl3_set_params(opl3, &params);
 		}
@@ -174,9 +174,9 @@ int snd_opl3_ioctl(snd_hwdep_t * hw, struct file *file,
 /*
  * close the device
  */
-int snd_opl3_release(snd_hwdep_t * hw, struct file *file)
+int snd_opl3_release(struct snd_hwdep * hw, struct file *file)
 {
-	opl3_t *opl3 = hw->private_data;
+	struct snd_opl3 *opl3 = hw->private_data;
 
 	snd_opl3_reset(opl3);
 	down(&opl3->access_mutex);
@@ -188,7 +188,7 @@ int snd_opl3_release(snd_hwdep_t * hw, struct file *file)
 
 /* ------------------------------ */
 
-void snd_opl3_reset(opl3_t * opl3)
+void snd_opl3_reset(struct snd_opl3 * opl3)
 {
 	unsigned short opl3_reg;
 
@@ -229,7 +229,7 @@ void snd_opl3_reset(opl3_t * opl3)
 }
 
 
-static int snd_opl3_play_note(opl3_t * opl3, snd_dm_fm_note_t * note)
+static int snd_opl3_play_note(struct snd_opl3 * opl3, struct snd_dm_fm_note * note)
 {
 	unsigned short reg_side;
 	unsigned char voice_offset;
@@ -276,7 +276,7 @@ static int snd_opl3_play_note(opl3_t * opl3, snd_dm_fm_note_t * note)
 }
 
 
-static int snd_opl3_set_voice(opl3_t * opl3, snd_dm_fm_voice_t * voice)
+static int snd_opl3_set_voice(struct snd_opl3 * opl3, struct snd_dm_fm_voice * voice)
 {
 	unsigned short reg_side;
 	unsigned char op_offset;
@@ -378,7 +378,7 @@ static int snd_opl3_set_voice(opl3_t * opl3, snd_dm_fm_voice_t * voice)
 	return 0;
 }
 
-static int snd_opl3_set_params(opl3_t * opl3, snd_dm_fm_params_t * params)
+static int snd_opl3_set_params(struct snd_opl3 * opl3, struct snd_dm_fm_params * params)
 {
 	unsigned char reg_val;
 
@@ -418,7 +418,7 @@ static int snd_opl3_set_params(opl3_t * opl3, snd_dm_fm_params_t * params)
 	return 0;
 }
 
-static int snd_opl3_set_mode(opl3_t * opl3, int mode)
+static int snd_opl3_set_mode(struct snd_opl3 * opl3, int mode)
 {
 	if ((mode == SNDRV_DM_FM_MODE_OPL3) && (opl3->hardware < OPL3_HW_OPL3))
 		return -EINVAL;
@@ -430,7 +430,7 @@ static int snd_opl3_set_mode(opl3_t * opl3, int mode)
 	return 0;
 }
 
-static int snd_opl3_set_connection(opl3_t * opl3, int connection)
+static int snd_opl3_set_connection(struct snd_opl3 * opl3, int connection)
 {
 	unsigned char reg_val;
 

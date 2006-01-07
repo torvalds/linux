@@ -31,6 +31,7 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 #include <linux/list.h>
+#include <linux/seq_file.h>
 
 static DEFINE_RWLOCK(ip_ct_gre_lock);
 #define ASSERT_READ_LOCK(x)

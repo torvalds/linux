@@ -36,7 +36,7 @@ extern void pcc_iowrite_word(int, unsigned long, void *, size_t, size_t, int);
 
 static inline void *_port2addr(unsigned long port)
 {
-	return (void *)(port | (NONCACHE_OFFSET));
+	return (void *)(port | NONCACHE_OFFSET);
 }
 
 /*
@@ -44,8 +44,8 @@ static inline void *_port2addr(unsigned long port)
  * from 0x10000000 to 0x13ffffff on physical address.
  * The base address of LAN controller(LAN91C111) is 0x300.
  */
-#define LAN_IOSTART	0xa0000300
-#define LAN_IOEND	0xa0000320
+#define LAN_IOSTART	(0x300 | NONCACHE_OFFSET)
+#define LAN_IOEND	(0x320 | NONCACHE_OFFSET)
 static inline void *_port2addr_ne(unsigned long port)
 {
 	return (void *)(port + 0x10000000);

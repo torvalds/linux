@@ -2,7 +2,9 @@
 # Cryptographic API
 #
 
-obj-$(CONFIG_CRYPTO_SHA1_Z990) += sha1_z990.o
-obj-$(CONFIG_CRYPTO_DES_Z990) += des_z990.o des_check_key.o
+obj-$(CONFIG_CRYPTO_SHA1_S390) += sha1_s390.o
+obj-$(CONFIG_CRYPTO_SHA256_S390) += sha256_s390.o
+obj-$(CONFIG_CRYPTO_DES_S390) += des_s390.o des_check_key.o
+obj-$(CONFIG_CRYPTO_AES_S390) += aes_s390.o
 
-obj-$(CONFIG_CRYPTO_TEST) += crypt_z990_query.o
+obj-$(CONFIG_CRYPTO_TEST) += crypt_s390_query.o

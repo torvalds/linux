@@ -14,14 +14,14 @@
 
 #include <asm/qeth.h>
 
-#define VERSION_QETH_MPC_H "$Revision: 1.44 $"
+#define VERSION_QETH_MPC_H "$Revision: 1.46 $"
 
 extern const char *VERSION_QETH_MPC_C;
 
 #define IPA_PDU_HEADER_SIZE	0x40
 #define QETH_IPA_PDU_LEN_TOTAL(buffer) (buffer+0x0e)
 #define QETH_IPA_PDU_LEN_PDU1(buffer) (buffer+0x26)
-#define QETH_IPA_PDU_LEN_PDU2(buffer) (buffer+0x2a)
+#define QETH_IPA_PDU_LEN_PDU2(buffer) (buffer+0x29)
 #define QETH_IPA_PDU_LEN_PDU3(buffer) (buffer+0x3a)
 
 extern unsigned char IPA_PDU_HEADER[];

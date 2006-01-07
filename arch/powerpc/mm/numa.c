@@ -125,7 +125,7 @@ void __init get_region(unsigned int nid, unsigned long *start_pfn,
 
 	/* We didnt find a matching region, return start/end as 0 */
 	if (*start_pfn == -1UL)
-		start_pfn = 0;
+		*start_pfn = 0;
 }
 
 static inline void map_cpu_to_node(int cpu, int node)

@@ -422,10 +422,15 @@ static int scsi_eh_completed_normally(struct scsi_cmnd *scmd)
  **/
 static void scsi_eh_done(struct scsi_cmnd *scmd)
 {
+	struct completion     *eh_action;
+
 	SCSI_LOG_ERROR_RECOVERY(3,
 		printk("%s scmd: %p result: %x\n",
 			__FUNCTION__, scmd, scmd->result));
-	complete(scmd->device->host->eh_action);
+
+	eh_action = scmd->device->host->eh_action;
+	if (eh_action)
+		complete(eh_action);
 }
 
 /**
@@ -1315,23 +1320,6 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 }
 
 /**
- * scsi_eh_lock_done - done function for eh door lock request
- * @scmd:	SCSI command block for the door lock request
- *
- * Notes:
- * 	We completed the asynchronous door lock request, and it has either
- * 	locked the door or failed.  We must free the command structures
- * 	associated with this request.
- **/
-static void scsi_eh_lock_done(struct scsi_cmnd *scmd)
-{
-	struct scsi_request *sreq = scmd->sc_request;
-
-	scsi_release_request(sreq);
-}
-
-
-/**
  * scsi_eh_lock_door - Prevent medium removal for the specified device
  * @sdev:	SCSI device to prevent medium removal
  *
@@ -1353,29 +1341,17 @@ static void scsi_eh_lock_done(struct scsi_cmnd *scmd)
  **/
 static void scsi_eh_lock_door(struct scsi_device *sdev)
 {
-	struct scsi_request *sreq = scsi_allocate_request(sdev, GFP_KERNEL);
+	unsigned char cmnd[MAX_COMMAND_SIZE];
 
-	if (unlikely(!sreq)) {
-		printk(KERN_ERR "%s: request allocate failed,"
-		       "prevent media removal cmd not sent\n", __FUNCTION__);
-		return;
-	}
+	cmnd[0] = ALLOW_MEDIUM_REMOVAL;
+	cmnd[1] = 0;
+	cmnd[2] = 0;
+	cmnd[3] = 0;
+	cmnd[4] = SCSI_REMOVAL_PREVENT;
+	cmnd[5] = 0;
 
-	sreq->sr_cmnd[0] = ALLOW_MEDIUM_REMOVAL;
-	sreq->sr_cmnd[1] = 0;
-	sreq->sr_cmnd[2] = 0;
-	sreq->sr_cmnd[3] = 0;
-	sreq->sr_cmnd[4] = SCSI_REMOVAL_PREVENT;
-	sreq->sr_cmnd[5] = 0;
-	sreq->sr_data_direction = DMA_NONE;
-	sreq->sr_bufflen = 0;
-	sreq->sr_buffer = NULL;
-	sreq->sr_allowed = 5;
-	sreq->sr_done = scsi_eh_lock_done;
-	sreq->sr_timeout_per_command = 10 * HZ;
-	sreq->sr_cmd_len = COMMAND_SIZE(sreq->sr_cmnd[0]);
-
-	scsi_insert_special_req(sreq, 1);
+	scsi_execute_async(sdev, cmnd, DMA_NONE, NULL, 0, 0, 10 * HZ,
+			   5, NULL, NULL, GFP_KERNEL);
 }
 
 

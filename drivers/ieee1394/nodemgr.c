@@ -121,8 +121,8 @@ struct host_info {
 };
 
 static int nodemgr_bus_match(struct device * dev, struct device_driver * drv);
-static int nodemgr_hotplug(struct class_device *cdev, char **envp, int num_envp,
-			   char *buffer, int buffer_size);
+static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+			  char *buffer, int buffer_size);
 static void nodemgr_resume_ne(struct node_entry *ne);
 static void nodemgr_remove_ne(struct node_entry *ne);
 static struct node_entry *find_entry_by_guid(u64 guid);
@@ -162,7 +162,7 @@ static void ud_cls_release(struct class_device *class_dev)
 static struct class nodemgr_ud_class = {
 	.name		= "ieee1394",
 	.release	= ud_cls_release,
-	.hotplug	= nodemgr_hotplug,
+	.uevent		= nodemgr_uevent,
 };
 
 static struct hpsb_highlevel nodemgr_highlevel;
@@ -743,21 +743,20 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 					      unsigned int generation)
 {
 	struct hpsb_host *host = hi->host;
-        struct node_entry *ne;
+	struct node_entry *ne;
 
-	ne = kmalloc(sizeof(struct node_entry), GFP_KERNEL);
-        if (!ne) return NULL;
-
-	memset(ne, 0, sizeof(struct node_entry));
+	ne = kzalloc(sizeof(*ne), GFP_KERNEL);
+	if (!ne)
+		return NULL;
 
 	ne->tpool = &host->tpool[nodeid & NODE_MASK];
 
-        ne->host = host;
-        ne->nodeid = nodeid;
+	ne->host = host;
+	ne->nodeid = nodeid;
 	ne->generation = generation;
 	ne->needs_probe = 1;
 
-        ne->guid = guid;
+	ne->guid = guid;
 	ne->guid_vendor_id = (guid >> 40) & 0xffffff;
 	ne->guid_vendor_oui = nodemgr_find_oui_name(ne->guid_vendor_id);
 	ne->csr = csr;
@@ -787,7 +786,7 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 		   (host->node_id == nodeid) ? "Host" : "Node",
 		   NODE_BUS_ARGS(host, nodeid), (unsigned long long)guid);
 
-        return ne;
+	return ne;
 }
 
 
@@ -872,11 +871,9 @@ static struct unit_directory *nodemgr_process_unit_directory
 	struct csr1212_keyval *kv;
 	u8 last_key_id = 0;
 
-	ud = kmalloc(sizeof(struct unit_directory), GFP_KERNEL);
+	ud = kzalloc(sizeof(*ud), GFP_KERNEL);
 	if (!ud)
 		goto unit_directory_error;
-
-	memset (ud, 0, sizeof(struct unit_directory));
 
 	ud->ne = ne;
 	ud->ignore_driver = ignore_drivers;
@@ -937,10 +934,10 @@ static struct unit_directory *nodemgr_process_unit_directory
 			/* Logical Unit Number */
 			if (kv->key.type == CSR1212_KV_TYPE_IMMEDIATE) {
 				if (ud->flags & UNIT_DIRECTORY_HAS_LUN) {
-					ud_child = kmalloc(sizeof(struct unit_directory), GFP_KERNEL);
+					ud_child = kmalloc(sizeof(*ud_child), GFP_KERNEL);
 					if (!ud_child)
 						goto unit_directory_error;
-					memcpy(ud_child, ud, sizeof(struct unit_directory));
+					memcpy(ud_child, ud, sizeof(*ud_child));
 					nodemgr_register_device(ne, ud_child, &ne->device);
 					ud_child = NULL;
 					
@@ -966,7 +963,7 @@ static struct unit_directory *nodemgr_process_unit_directory
 				if (ud_child == NULL)
 					break;
 				
-				/* inherit unspecified values so hotplug picks it up */
+				/* inherit unspecified values, the driver core picks it up */
 				if ((ud->flags & UNIT_DIRECTORY_MODEL_ID) &&
 				    !(ud_child->flags & UNIT_DIRECTORY_MODEL_ID))
 				{
@@ -1062,8 +1059,8 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 
 #ifdef CONFIG_HOTPLUG
 
-static int nodemgr_hotplug(struct class_device *cdev, char **envp, int num_envp,
-			   char *buffer, int buffer_size)
+static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+			  char *buffer, int buffer_size)
 {
 	struct unit_directory *ud;
 	int i = 0;
@@ -1112,8 +1109,8 @@ do {								\
 
 #else
 
-static int nodemgr_hotplug(struct class_device *cdev, char **envp, int num_envp,
-			   char *buffer, int buffer_size)
+static int nodemgr_uevent(struct class_device *cdev, char **envp, int num_envp,
+			  char *buffer, int buffer_size)
 {
 	return -ENODEV;
 }
@@ -1200,7 +1197,7 @@ static void nodemgr_node_scan_one(struct host_info *hi,
 	struct csr1212_csr *csr;
 	struct nodemgr_csr_info *ci;
 
-	ci = kmalloc(sizeof(struct nodemgr_csr_info), GFP_KERNEL);
+	ci = kmalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci)
 		return;
 
@@ -1349,6 +1346,33 @@ static void nodemgr_update_pdrv(struct node_entry *ne)
 }
 
 
+/* Write the BROADCAST_CHANNEL as per IEEE1394a 8.3.2.3.11 and 8.4.2.3.  This
+ * seems like an optional service but in the end it is practically mandatory
+ * as a consequence of these clauses.
+ *
+ * Note that we cannot do a broadcast write to all nodes at once because some
+ * pre-1394a devices would hang. */
+static void nodemgr_irm_write_bc(struct node_entry *ne, int generation)
+{
+	const u64 bc_addr = (CSR_REGISTER_BASE | CSR_BROADCAST_CHANNEL);
+	quadlet_t bc_remote, bc_local;
+	int ret;
+
+	if (!ne->host->is_irm || ne->generation != generation ||
+	    ne->nodeid == ne->host->node_id)
+		return;
+
+	bc_local = cpu_to_be32(ne->host->csr.broadcast_channel);
+
+	/* Check if the register is implemented and 1394a compliant. */
+	ret = hpsb_read(ne->host, ne->nodeid, generation, bc_addr, &bc_remote,
+			sizeof(bc_remote));
+	if (!ret && bc_remote & cpu_to_be32(0x80000000) &&
+	    bc_remote != bc_local)
+		hpsb_node_write(ne, bc_addr, &bc_local, sizeof(bc_local));
+}
+
+
 static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int generation)
 {
 	struct device *dev;
@@ -1359,6 +1383,8 @@ static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int ge
 	dev = get_device(&ne->device);
 	if (!dev)
 		return;
+
+	nodemgr_irm_write_bc(ne, generation);
 
 	/* If "needs_probe", then this is either a new or changed node we
 	 * rescan totally. If the generation matches for an existing node
@@ -1381,14 +1407,28 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	struct hpsb_host *host = hi->host;
 	struct class *class = &nodemgr_ne_class;
 	struct class_device *cdev;
+	struct node_entry *ne;
 
 	/* Do some processing of the nodes we've probed. This pulls them
 	 * into the sysfs layer if needed, and can result in processing of
 	 * unit-directories, or just updating the node and it's
-	 * unit-directories. */
+	 * unit-directories.
+	 *
+	 * Run updates before probes. Usually, updates are time-critical
+	 * while probes are time-consuming. (Well, those probes need some
+	 * improvement...) */
+
 	down_read(&class->subsys.rwsem);
-	list_for_each_entry(cdev, &class->children, node)
-		nodemgr_probe_ne(hi, container_of(cdev, struct node_entry, class_dev), generation);
+	list_for_each_entry(cdev, &class->children, node) {
+		ne = container_of(cdev, struct node_entry, class_dev);
+		if (!ne->needs_probe)
+			nodemgr_probe_ne(hi, ne, generation);
+	}
+	list_for_each_entry(cdev, &class->children, node) {
+		ne = container_of(cdev, struct node_entry, class_dev);
+		if (ne->needs_probe)
+			nodemgr_probe_ne(hi, ne, generation);
+	}
         up_read(&class->subsys.rwsem);
 
 
@@ -1413,9 +1453,26 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	return;
 }
 
-/* Because we are a 1394a-2000 compliant IRM, we need to inform all the other
- * nodes of the broadcast channel.  (Really we're only setting the validity
- * bit). Other IRM responsibilities go in here as well. */
+static int nodemgr_send_resume_packet(struct hpsb_host *host)
+{
+	struct hpsb_packet *packet;
+	int ret = 1;
+
+	packet = hpsb_make_phypacket(host,
+			EXTPHYPACKET_TYPE_RESUME |
+			NODEID_TO_NODE(host->node_id) << PHYPACKET_PORT_SHIFT);
+	if (packet) {
+		packet->no_waiter = 1;
+		packet->generation = get_hpsb_generation(host);
+		ret = hpsb_send_packet(packet);
+	}
+	if (ret)
+		HPSB_WARN("fw-host%d: Failed to broadcast resume packet",
+			  host->id);
+	return ret;
+}
+
+/* Perform a few high-level IRM responsibilities. */
 static int nodemgr_do_irm_duties(struct hpsb_host *host, int cycles)
 {
 	quadlet_t bc;
@@ -1424,13 +1481,8 @@ static int nodemgr_do_irm_duties(struct hpsb_host *host, int cycles)
 	if (!host->is_irm || host->irm_id == (nodeid_t)-1)
 		return 1;
 
-	host->csr.broadcast_channel |= 0x40000000;  /* set validity bit */
-
-	bc = cpu_to_be32(host->csr.broadcast_channel);
-
-	hpsb_write(host, LOCAL_BUS | ALL_NODES, get_hpsb_generation(host),
-		   (CSR_REGISTER_BASE | CSR_BROADCAST_CHANNEL),
-		   &bc, sizeof(quadlet_t));
+	/* We are a 1394a-2000 compliant IRM. Set the validity bit. */
+	host->csr.broadcast_channel |= 0x40000000;
 
 	/* If there is no bus manager then we should set the root node's
 	 * force_root bit to promote bus stability per the 1394
@@ -1462,6 +1514,13 @@ static int nodemgr_do_irm_duties(struct hpsb_host *host, int cycles)
 			return 0;
 		}
 	}
+
+	/* Some devices suspend their ports while being connected to an inactive
+	 * host adapter, i.e. if connected before the low-level driver is
+	 * loaded.  They become visible either when physically unplugged and
+	 * replugged, or when receiving a resume packet.  Send one once. */
+	if (!host->resume_packet_sent && !nodemgr_send_resume_packet(host))
+		host->resume_packet_sent = 1;
 
 	return 1;
 }
@@ -1571,8 +1630,8 @@ static int nodemgr_host_thread(void *__hi)
 
 		/* Scan our nodes to get the bus options and create node
 		 * entries. This does not do the sysfs stuff, since that
-		 * would trigger hotplug callbacks and such, which is a
-		 * bad idea at this point. */
+		 * would trigger uevents and such, which is a bad idea at
+		 * this point. */
 		nodemgr_node_scan(hi, generation);
 
 		/* This actually does the full probe, with sysfs

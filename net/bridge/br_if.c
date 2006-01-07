@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
+#include <linux/if_ether.h>
 #include <net/sock.h>
 
 #include "br_private.h"
@@ -32,9 +33,8 @@
  * ethtool, use ethtool_ops.  Also, since driver might sleep need to
  * not be holding any locks.
  */
-static int br_initial_port_cost(struct net_device *dev)
+static int port_cost(struct net_device *dev)
 {
-
 	struct ethtool_cmd ecmd = { ETHTOOL_GSET };
 	struct ifreq ifr;
 	mm_segment_t old_fs;
@@ -58,10 +58,6 @@ static int br_initial_port_cost(struct net_device *dev)
 			return 2;
 		case SPEED_10:
 			return 100;
-		default:
-			pr_info("bridge: can't decode speed from %s: %d\n",
-				dev->name, ecmd.speed);
-			return 100;
 		}
 	}
 
@@ -73,6 +69,35 @@ static int br_initial_port_cost(struct net_device *dev)
 		return 2500;
 
 	return 100;	/* assume old 10Mbps */
+}
+
+
+/*
+ * Check for port carrier transistions.
+ * Called from work queue to allow for calling functions that
+ * might sleep (such as speed check), and to debounce.
+ */
+static void port_carrier_check(void *arg)
+{
+	struct net_bridge_port *p = arg;
+
+	rtnl_lock();
+	if (netif_carrier_ok(p->dev)) {
+		u32 cost = port_cost(p->dev);
+
+		spin_lock_bh(&p->br->lock);
+		if (p->state == BR_STATE_DISABLED) {
+			p->path_cost = cost;
+			br_stp_enable_port(p);
+		}
+		spin_unlock_bh(&p->br->lock);
+	} else {
+		spin_lock_bh(&p->br->lock);
+		if (p->state != BR_STATE_DISABLED)
+			br_stp_disable_port(p);
+		spin_unlock_bh(&p->br->lock);
+	}
+	rtnl_unlock();
 }
 
 static void destroy_nbp(struct net_bridge_port *p)
@@ -101,6 +126,9 @@ static void del_nbp(struct net_bridge_port *p)
 
 	dev->br_port = NULL;
 	dev_set_promiscuity(dev, -1);
+
+	cancel_delayed_work(&p->carrier_check);
+	flush_scheduled_work();
 
 	spin_lock_bh(&br->lock);
 	br_stp_disable_port(p);
@@ -155,6 +183,7 @@ static struct net_device *new_bridge_dev(const char *name)
 	br->bridge_id.prio[1] = 0x00;
 	memset(br->bridge_id.addr, 0, ETH_ALEN);
 
+	br->feature_mask = dev->features;
 	br->stp_enabled = 0;
 	br->designated_root = br->bridge_id;
 	br->root_path_cost = 0;
@@ -195,10 +224,9 @@ static int find_portno(struct net_bridge *br)
 	return (index >= BR_MAX_PORTS) ? -EXFULL : index;
 }
 
-/* called with RTNL */
+/* called with RTNL but without bridge lock */
 static struct net_bridge_port *new_nbp(struct net_bridge *br, 
-				       struct net_device *dev,
-				       unsigned long cost)
+				       struct net_device *dev)
 {
 	int index;
 	struct net_bridge_port *p;
@@ -215,12 +243,13 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->br = br;
 	dev_hold(dev);
 	p->dev = dev;
-	p->path_cost = cost;
+	p->path_cost = port_cost(dev);
  	p->priority = 0x8000 >> BR_PORT_BITS;
 	dev->br_port = p;
 	p->port_no = index;
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
+	INIT_WORK(&p->carrier_check, port_carrier_check, p);
 	kobject_init(&p->kobj);
 
 	return p;
@@ -295,7 +324,7 @@ int br_del_bridge(const char *name)
 	return ret;
 }
 
-/* Mtu of the bridge pseudo-device 1500 or the minimum of the ports */
+/* MTU of the bridge pseudo-device: ETH_DATA_LEN or the minimum of the ports */
 int br_min_mtu(const struct net_bridge *br)
 {
 	const struct net_bridge_port *p;
@@ -304,7 +333,7 @@ int br_min_mtu(const struct net_bridge *br)
 	ASSERT_RTNL();
 
 	if (list_empty(&br->port_list))
-		mtu = 1500;
+		mtu = ETH_DATA_LEN;
 	else {
 		list_for_each_entry(p, &br->port_list, list) {
 			if (!mtu  || p->dev->mtu < mtu)
@@ -322,9 +351,8 @@ void br_features_recompute(struct net_bridge *br)
 	struct net_bridge_port *p;
 	unsigned long features, checksum;
 
-	features = NETIF_F_SG | NETIF_F_FRAGLIST 
-		| NETIF_F_HIGHDMA | NETIF_F_TSO;
-	checksum = NETIF_F_IP_CSUM;	/* least commmon subset */
+	features = br->feature_mask &~ NETIF_F_IP_CSUM;
+	checksum = br->feature_mask & NETIF_F_IP_CSUM;
 
 	list_for_each_entry(p, &br->port_list, list) {
 		if (!(p->dev->features 
@@ -351,7 +379,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (dev->br_port != NULL)
 		return -EBUSY;
 
-	if (IS_ERR(p = new_nbp(br, dev, br_initial_port_cost(dev))))
+	if (IS_ERR(p = new_nbp(br, dev)))
 		return PTR_ERR(p);
 
  	if ((err = br_fdb_insert(br, p, dev->dev_addr)))

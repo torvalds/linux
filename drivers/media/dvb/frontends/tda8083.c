@@ -66,13 +66,13 @@ static int tda8083_writereg (struct tda8083_state* state, u8 reg, u8 data)
 	u8 buf [] = { reg, data };
 	struct i2c_msg msg = { .addr = state->config->demod_address, .flags = 0, .buf = buf, .len = 2 };
 
-        ret = i2c_transfer(state->i2c, &msg, 1);
+	ret = i2c_transfer(state->i2c, &msg, 1);
 
-        if (ret != 1)
-                dprintk ("%s: writereg error (reg %02x, ret == %i)\n",
+	if (ret != 1)
+		dprintk ("%s: writereg error (reg %02x, ret == %i)\n",
 			__FUNCTION__, reg, ret);
 
-        return (ret != 1) ? -1 : 0;
+	return (ret != 1) ? -1 : 0;
 }
 
 static int tda8083_readregs (struct tda8083_state* state, u8 reg1, u8 *b, u8 len)
@@ -87,7 +87,7 @@ static int tda8083_readregs (struct tda8083_state* state, u8 reg1, u8 *b, u8 len
 		dprintk ("%s: readreg error (reg %02x, ret == %i)\n",
 			__FUNCTION__, reg1, ret);
 
-        return ret == 2 ? 0 : -1;
+	return ret == 2 ? 0 : -1;
 }
 
 static inline u8 tda8083_readreg (struct tda8083_state* state, u8 reg)
@@ -132,14 +132,14 @@ static fe_code_rate_t tda8083_get_fec (struct tda8083_state* state)
 
 static int tda8083_set_symbolrate (struct tda8083_state* state, u32 srate)
 {
-        u32 ratio;
+	u32 ratio;
 	u32 tmp;
 	u8 filter;
 
 	if (srate > 32000000)
-                srate = 32000000;
-        if (srate < 500000)
-                srate = 500000;
+		srate = 32000000;
+	if (srate < 500000)
+		srate = 500000;
 
 	filter = 0;
 	if (srate < 24000000)
@@ -174,7 +174,7 @@ static void tda8083_wait_diseqc_fifo (struct tda8083_state* state, int timeout)
 	unsigned long start = jiffies;
 
 	while (jiffies - start < timeout &&
-               !(tda8083_readreg(state, 0x02) & 0x80))
+	       !(tda8083_readreg(state, 0x02) & 0x80))
 	{
 		msleep(50);
 	};

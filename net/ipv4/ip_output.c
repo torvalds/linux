@@ -202,13 +202,11 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 
 static inline int ip_finish_output(struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dst->dev;
-
-	skb->dev = dev;
-	skb->protocol = htons(ETH_P_IP);
-
-	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, dev,
-		       ip_finish_output2);
+	if (skb->len > dst_mtu(skb->dst) &&
+	    !(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
+		return ip_fragment(skb, ip_finish_output2);
+	else
+		return ip_finish_output2(skb);
 }
 
 int ip_mc_output(struct sk_buff *skb)
@@ -265,21 +263,21 @@ int ip_mc_output(struct sk_buff *skb)
 				newskb->dev, ip_dev_loopback_xmit);
 	}
 
-	if (skb->len > dst_mtu(&rt->u.dst))
-		return ip_fragment(skb, ip_finish_output);
-	else
-		return ip_finish_output(skb);
+	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, skb->dev,
+		       ip_finish_output);
 }
 
 int ip_output(struct sk_buff *skb)
 {
+	struct net_device *dev = skb->dst->dev;
+
 	IP_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
 
-	if (skb->len > dst_mtu(skb->dst) &&
-		!(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
-		return ip_fragment(skb, ip_finish_output);
-	else
-		return ip_finish_output(skb);
+	skb->dev = dev;
+	skb->protocol = htons(ETH_P_IP);
+
+	return NF_HOOK(PF_INET, NF_IP_POST_ROUTING, skb, NULL, dev,
+		       ip_finish_output);
 }
 
 int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
@@ -420,7 +418,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	struct sk_buff *skb2;
 	unsigned int mtu, hlen, left, len, ll_rs;
 	int offset;
-	int not_last_frag;
+	__be16 not_last_frag;
 	struct rtable *rt = (struct rtable*)skb->dst;
 	int err = 0;
 
@@ -445,6 +443,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 
 	hlen = iph->ihl * 4;
 	mtu = dst_mtu(&rt->u.dst) - hlen;	/* Size of data space */
+	IPCB(skb)->flags |= IPSKB_FRAG_COMPLETE;
 
 	/* When frag_list is given, use it. First, check its validity:
 	 * some transformers could create wrong frag_list or break existing
@@ -1181,7 +1180,7 @@ int ip_push_pending_frames(struct sock *sk)
 	struct ip_options *opt = NULL;
 	struct rtable *rt = inet->cork.rt;
 	struct iphdr *iph;
-	int df = 0;
+	__be16 df = 0;
 	__u8 ttl;
 	int err = 0;
 

@@ -32,7 +32,7 @@ struct mconsole_reply {
 
 struct mconsole_notify {
 	u32 magic;
-	u32 version;	
+	u32 version;
 	enum { MCONSOLE_SOCKET, MCONSOLE_PANIC, MCONSOLE_HANG,
 	       MCONSOLE_USER_NOTIFY } type;
 	u32 len;
@@ -66,7 +66,9 @@ struct mc_request
 extern char mconsole_socket_name[];
 
 extern int mconsole_unlink_socket(void);
-extern int mconsole_reply(struct mc_request *req, char *reply, int err,
+extern int mconsole_reply_len(struct mc_request *req, const char *reply,
+			      int len, int err, int more);
+extern int mconsole_reply(struct mc_request *req, const char *str, int err,
 			  int more);
 
 extern void mconsole_version(struct mc_request *req);
@@ -84,7 +86,7 @@ extern void mconsole_proc(struct mc_request *req);
 extern void mconsole_stack(struct mc_request *req);
 
 extern int mconsole_get_request(int fd, struct mc_request *req);
-extern int mconsole_notify(char *sock_name, int type, const void *data, 
+extern int mconsole_notify(char *sock_name, int type, const void *data,
 			   int len);
 extern char *mconsole_notify_socket(void);
 extern void lock_notify(void);

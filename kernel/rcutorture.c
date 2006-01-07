@@ -409,9 +409,8 @@ rcu_torture_cleanup(void)
 	stats_task = NULL;
 
 	/* Wait for all RCU callbacks to fire.  */
+	rcu_barrier();
 
-	for (i = 0; i < RCU_TORTURE_PIPE_LEN; i++)
-		synchronize_rcu();
 	rcu_torture_stats_print();  /* -After- the stats thread is stopped! */
 	printk(KERN_ALERT TORTURE_FLAG
 	       "--- End of test: %s\n",

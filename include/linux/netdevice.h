@@ -684,6 +684,7 @@ extern int		netif_rx(struct sk_buff *skb);
 extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
+extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(unsigned int cmd, void __user *);
 extern int		dev_ethtool(struct ifreq *);
 extern unsigned		dev_get_flags(const struct net_device *);
@@ -801,12 +802,16 @@ static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
 	return (1 << debug_value) - 1;
 }
 
-/* Schedule rx intr now? */
+/* Test if receive needs to be scheduled */
+static inline int __netif_rx_schedule_prep(struct net_device *dev)
+{
+	return !test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state);
+}
 
+/* Test if receive needs to be scheduled but only if up */
 static inline int netif_rx_schedule_prep(struct net_device *dev)
 {
-	return netif_running(dev) &&
-		!test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state);
+	return netif_running(dev) && __netif_rx_schedule_prep(dev);
 }
 
 /* Add interface to tail of rx poll list. This assumes that _prep has

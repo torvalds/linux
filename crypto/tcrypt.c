@@ -805,6 +805,8 @@ static void do_test(void)
 		//AES
 		test_cipher ("aes", MODE_ECB, ENCRYPT, aes_enc_tv_template, AES_ENC_TEST_VECTORS);
 		test_cipher ("aes", MODE_ECB, DECRYPT, aes_dec_tv_template, AES_DEC_TEST_VECTORS);
+		test_cipher ("aes", MODE_CBC, ENCRYPT, aes_cbc_enc_tv_template, AES_CBC_ENC_TEST_VECTORS);
+		test_cipher ("aes", MODE_CBC, DECRYPT, aes_cbc_dec_tv_template, AES_CBC_DEC_TEST_VECTORS);
 
 		//CAST5
 		test_cipher ("cast5", MODE_ECB, ENCRYPT, cast5_enc_tv_template, CAST5_ENC_TEST_VECTORS);
@@ -910,6 +912,8 @@ static void do_test(void)
 	case 10:
 		test_cipher ("aes", MODE_ECB, ENCRYPT, aes_enc_tv_template, AES_ENC_TEST_VECTORS);
 		test_cipher ("aes", MODE_ECB, DECRYPT, aes_dec_tv_template, AES_DEC_TEST_VECTORS);
+		test_cipher ("aes", MODE_CBC, ENCRYPT, aes_cbc_enc_tv_template, AES_CBC_ENC_TEST_VECTORS);
+		test_cipher ("aes", MODE_CBC, DECRYPT, aes_cbc_dec_tv_template, AES_CBC_DEC_TEST_VECTORS);
 		break;
 
 	case 11:

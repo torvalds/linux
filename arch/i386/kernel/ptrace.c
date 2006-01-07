@@ -32,9 +32,12 @@
  * in exit.c or in signal.c.
  */
 
-/* determines which flags the user has access to. */
-/* 1 = access 0 = no access */
-#define FLAG_MASK 0x00044dd5
+/*
+ * Determines which flags the user has access to [1 = access, 0 = no access].
+ * Prohibits changing ID(21), VIP(20), VIF(19), VM(17), IOPL(12-13), IF(9).
+ * Also masks reserved bits (31-22, 15, 5, 3, 1).
+ */
+#define FLAG_MASK 0x00054dd5
 
 /* set's the trap flag. */
 #define TRAP_FLAG 0x100

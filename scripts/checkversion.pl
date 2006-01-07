@@ -3,7 +3,7 @@
 # checkversion find uses of LINUX_VERSION_CODE, KERNEL_VERSION, or
 # UTS_RELEASE without including <linux/version.h>, or cases of
 # including <linux/version.h> that don't need it.
-# Copyright (C) 2003, Randy Dunlap <rddunlap@osdl.org>
+# Copyright (C) 2003, Randy Dunlap <rdunlap@xenotime.net>
 
 $| = 1;
 

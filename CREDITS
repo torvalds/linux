@@ -1883,6 +1883,7 @@ N: Jaya Kumar
 E: jayalk@intworks.biz
 W: http://www.intworks.biz
 D: Arc monochrome LCD framebuffer driver, x86 reboot fixups
+D: pirq addr, CS5535 alsa audio driver
 S: Gurgaon, India
 S: Kuala Lumpur, Malaysia
 

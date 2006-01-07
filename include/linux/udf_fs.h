@@ -13,11 +13,6 @@
  *    http://www.osta.org/ *    http://www.ecma.ch/
  *    http://www.iso.org/
  *
- * CONTACTS
- *	E-mail regarding any portion of the Linux UDF file system should be
- *	directed to the development team mailing list (run by majordomo):
- *		linux_udf@hpesjro.fc.hp.com
- *
  * COPYRIGHT
  *	This file is distributed under the terms of the GNU General Public
  *	License (GPL). Copies of the GPL can be obtained from:

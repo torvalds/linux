@@ -59,7 +59,7 @@ MODULE_PARM_DESC(debug, " Set the default Debug level.  Default: 0 (Off) - (0-1)
 #define dprintk(num, format, args...) \
 	do { \
 		if (debug >= num) \
-			printk(format , ##args); \
+			printk(format, ##args); \
 	} while (0)
 
 /* ----------------------------------------------------------------------- */
@@ -494,7 +494,6 @@ saa711x_detect_client (struct i2c_adapter *adapter,
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa711x;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	strlcpy(I2C_NAME(client), "saa711x", sizeof(I2C_NAME(client)));
 	decoder = kmalloc(sizeof(struct saa711x), GFP_KERNEL);
 	if (decoder == NULL) {
@@ -565,11 +564,11 @@ saa711x_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_saa711x = {
-	.owner = THIS_MODULE,
-	.name = "saa711x",
+	.driver = {
+		.name = "saa711x",
+	},
 
 	.id = I2C_DRIVERID_SAA711X,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = saa711x_attach_adapter,
 	.detach_client = saa711x_detach_client,

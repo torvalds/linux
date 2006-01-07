@@ -40,7 +40,6 @@ extern void scsi_exit_hosts(void);
 extern int scsi_dispatch_cmd(struct scsi_cmnd *cmd);
 extern int scsi_setup_command_freelist(struct Scsi_Host *shost);
 extern void scsi_destroy_command_freelist(struct Scsi_Host *shost);
-extern int scsi_insert_special_req(struct scsi_request *sreq, int);
 extern void scsi_init_cmd_from_req(struct scsi_cmnd *cmd,
 		struct scsi_request *sreq);
 extern void __scsi_release_request(struct scsi_request *sreq);
@@ -57,7 +56,8 @@ static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 
 /* scsi_devinfo.c */
 extern int scsi_get_device_flags(struct scsi_device *sdev,
-				 unsigned char *vendor, unsigned char *model);
+				 const unsigned char *vendor,
+				 const unsigned char *model);
 extern int __init scsi_init_devinfo(void);
 extern void scsi_exit_devinfo(void);
 

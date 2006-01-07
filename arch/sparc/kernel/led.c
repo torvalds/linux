@@ -55,7 +55,7 @@ static int led_read_proc(char *buf, char **start, off_t offset, int count,
 	return len;
 }
 
-static int led_write_proc(struct file *file, const char *buffer,
+static int led_write_proc(struct file *file, const char __user *buffer,
 			  unsigned long count, void *data)
 {
 	char *buf = NULL;

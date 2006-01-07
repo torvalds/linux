@@ -717,27 +717,33 @@ nfsd_close(struct file *filp)
  * As this calls fsync (not fdatasync) there is no need for a write_inode
  * after it.
  */
-static inline void nfsd_dosync(struct file *filp, struct dentry *dp,
-			       struct file_operations *fop)
+static inline int nfsd_dosync(struct file *filp, struct dentry *dp,
+			      struct file_operations *fop)
 {
 	struct inode *inode = dp->d_inode;
 	int (*fsync) (struct file *, struct dentry *, int);
+	int err = nfs_ok;
 
 	filemap_fdatawrite(inode->i_mapping);
 	if (fop && (fsync = fop->fsync))
-		fsync(filp, dp, 0);
+		err=fsync(filp, dp, 0);
 	filemap_fdatawait(inode->i_mapping);
+
+	return nfserrno(err);
 }
 	
 
-static void
+static int
 nfsd_sync(struct file *filp)
 {
+        int err;
 	struct inode *inode = filp->f_dentry->d_inode;
 	dprintk("nfsd: sync file %s\n", filp->f_dentry->d_name.name);
 	down(&inode->i_sem);
-	nfsd_dosync(filp, filp->f_dentry, filp->f_op);
+	err=nfsd_dosync(filp, filp->f_dentry, filp->f_op);
 	up(&inode->i_sem);
+
+	return err;
 }
 
 void
@@ -874,6 +880,16 @@ out:
 	return err;
 }
 
+static void kill_suid(struct dentry *dentry)
+{
+	struct iattr	ia;
+	ia.ia_valid = ATTR_KILL_SUID | ATTR_KILL_SGID;
+
+	down(&dentry->d_inode->i_sem);
+	notify_change(dentry, &ia);
+	up(&dentry->d_inode->i_sem);
+}
+
 static inline int
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
@@ -927,14 +943,8 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	}
 
 	/* clear setuid/setgid flag after write */
-	if (err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID))) {
-		struct iattr	ia;
-		ia.ia_valid = ATTR_KILL_SUID | ATTR_KILL_SGID;
-
-		down(&inode->i_sem);
-		notify_change(dentry, &ia);
-		up(&inode->i_sem);
-	}
+	if (err >= 0 && (inode->i_mode & (S_ISUID | S_ISGID)))
+		kill_suid(dentry);
 
 	if (err >= 0 && stable) {
 		static ino_t	last_ino;
@@ -962,7 +972,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 
 			if (inode->i_state & I_DIRTY) {
 				dprintk("nfsd: write sync %d\n", current->pid);
-				nfsd_sync(file);
+				err=nfsd_sync(file);
 			}
 #if 0
 			wake_up(&inode->i_wait);
@@ -1066,7 +1076,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return err;
 	if (EX_ISSYNC(fhp->fh_export)) {
 		if (file->f_op && file->f_op->fsync) {
-			nfsd_sync(file);
+			err = nfsd_sync(file);
 		} else {
 			err = nfserr_notsupp;
 		}

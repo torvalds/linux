@@ -502,8 +502,8 @@ void pci_dev_put(struct pci_dev *dev)
 }
 
 #ifndef CONFIG_HOTPLUG
-int pci_hotplug (struct device *dev, char **envp, int num_envp,
-		 char *buffer, int buffer_size)
+int pci_uevent(struct device *dev, char **envp, int num_envp,
+	       char *buffer, int buffer_size)
 {
 	return -ENODEV;
 }
@@ -512,7 +512,7 @@ int pci_hotplug (struct device *dev, char **envp, int num_envp,
 struct bus_type pci_bus_type = {
 	.name		= "pci",
 	.match		= pci_bus_match,
-	.hotplug	= pci_hotplug,
+	.uevent		= pci_uevent,
 	.suspend	= pci_device_suspend,
 	.resume		= pci_device_resume,
 	.dev_attrs	= pci_dev_attrs,

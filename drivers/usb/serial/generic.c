@@ -68,11 +68,11 @@ static int generic_probe(struct usb_interface *interface,
 }
 
 static struct usb_driver generic_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbserial_generic",
 	.probe =	generic_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	generic_serial_ids,
+	.no_dynamic_id = 	1,
 };
 #endif
 

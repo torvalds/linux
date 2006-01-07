@@ -396,6 +396,22 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 	}
 }
 
+int ata_scsi_device_resume(struct scsi_device *sdev)
+{
+	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
+	struct ata_device *dev = &ap->device[sdev->id];
+
+	return ata_device_resume(ap, dev);
+}
+
+int ata_scsi_device_suspend(struct scsi_device *sdev)
+{
+	struct ata_port *ap = (struct ata_port *) &sdev->host->hostdata[0];
+	struct ata_device *dev = &ap->device[sdev->id];
+
+	return ata_device_suspend(ap, dev);
+}
+
 /**
  *	ata_to_sense_error - convert ATA error to SCSI error
  *	@id: ATA device number
@@ -418,7 +434,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 	int i;
 
 	/* Based on the 3ware driver translation table */
-	static unsigned char sense_table[][4] = {
+	static const unsigned char sense_table[][4] = {
 		/* BBD|ECC|ID|MAR */
 		{0xd1, 		ABORTED_COMMAND, 0x00, 0x00}, 	// Device busy                  Aborted command
 		/* BBD|ECC|ID */
@@ -449,7 +465,7 @@ void ata_to_sense_error(unsigned id, u8 drv_stat, u8 drv_err, u8 *sk, u8 *asc,
 		{0x80, 		MEDIUM_ERROR, 0x11, 0x04}, 	// Block marked bad		  Medium error, unrecovered read error
 		{0xFF, 0xFF, 0xFF, 0xFF}, // END mark
 	};
-	static unsigned char stat_table[][4] = {
+	static const unsigned char stat_table[][4] = {
 		/* Must be first because BUSY means no other bits valid */
 		{0x80, 		ABORTED_COMMAND, 0x47, 0x00},	// Busy, fake parity for now
 		{0x20, 		HARDWARE_ERROR,  0x00, 0x00}, 	// Device fault
@@ -1080,11 +1096,13 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 	    scsicmd[0] == WRITE_16)
 		tf->flags |= ATA_TFLAG_WRITE;
 
-	/* Calculate the SCSI LBA and transfer length. */
+	/* Calculate the SCSI LBA, transfer length and FUA. */
 	switch (scsicmd[0]) {
 	case READ_10:
 	case WRITE_10:
 		scsi_10_lba_len(scsicmd, &block, &n_block);
+		if (unlikely(scsicmd[1] & (1 << 3)))
+			tf->flags |= ATA_TFLAG_FUA;
 		break;
 	case READ_6:
 	case WRITE_6:
@@ -1099,6 +1117,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 	case READ_16:
 	case WRITE_16:
 		scsi_16_lba_len(scsicmd, &block, &n_block);
+		if (unlikely(scsicmd[1] & (1 << 3)))
+			tf->flags |= ATA_TFLAG_FUA;
 		break;
 	default:
 		DPRINTK("no-byte command\n");
@@ -1142,7 +1162,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 			tf->device |= (block >> 24) & 0xf;
 		}
 
-		ata_rwcmd_protocol(qc);
+		if (unlikely(ata_rwcmd_protocol(qc) < 0))
+			goto invalid_fld;
 
 		qc->nsect = n_block;
 		tf->nsect = n_block & 0xff;
@@ -1160,7 +1181,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		if ((block >> 28) || (n_block > 256))
 			goto out_of_range;
 
-		ata_rwcmd_protocol(qc);
+		if (unlikely(ata_rwcmd_protocol(qc) < 0))
+			goto invalid_fld;
 
 		/* Convert LBA to CHS */
 		track = (u32)block / dev->sectors;
@@ -1203,12 +1225,11 @@ nothing_to_do:
 	return 1;
 }
 
-static int ata_scsi_qc_complete(struct ata_queued_cmd *qc,
-				unsigned int err_mask)
+static int ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 	u8 *cdb = cmd->cmnd;
- 	int need_sense = (err_mask != 0);
+ 	int need_sense = (qc->err_mask != 0);
 
 	/* For ATA pass thru (SAT) commands, generate a sense block if
 	 * user mandated it or if there's an error.  Note that if we
@@ -1532,7 +1553,7 @@ unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf,
 	return 0;
 }
 
-static const char *inq_83_str = "Linux ATA-SCSI simulator";
+static const char * const inq_83_str = "Linux ATA-SCSI simulator";
 
 /**
  *	ata_scsiop_inq_83 - Simulate INQUIRY EVPD page 83, device identity
@@ -1696,6 +1717,7 @@ static unsigned int ata_msense_rw_recovery(u8 **ptr_io, const u8 *last)
 unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 				  unsigned int buflen)
 {
+	struct ata_device *dev = args->dev;
 	u8 *scsicmd = args->cmd->cmnd, *p, *last;
 	const u8 sat_blk_desc[] = {
 		0, 0, 0, 0,	/* number of blocks: sat unspecified */
@@ -1704,6 +1726,7 @@ unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 	};
 	u8 pg, spg;
 	unsigned int ebd, page_control, six_byte, output_len, alloc_len, minlen;
+	u8 dpofua;
 
 	VPRINTK("ENTER\n");
 
@@ -1772,9 +1795,17 @@ unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 
 	if (minlen < 1)
 		return 0;
+
+	dpofua = 0;
+	if (ata_id_has_fua(args->id) && dev->flags & ATA_DFLAG_LBA48 &&
+	    (!(dev->flags & ATA_DFLAG_PIO) || dev->multi_count))
+		dpofua = 1 << 4;
+
 	if (six_byte) {
 		output_len--;
 		rbuf[0] = output_len;
+		if (minlen > 2)
+			rbuf[2] |= dpofua;
 		if (ebd) {
 			if (minlen > 3)
 				rbuf[3] = sizeof(sat_blk_desc);
@@ -1787,6 +1818,8 @@ unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf,
 		rbuf[0] = output_len >> 8;
 		if (minlen > 1)
 			rbuf[1] = output_len;
+		if (minlen > 3)
+			rbuf[3] |= dpofua;
 		if (ebd) {
 			if (minlen > 7)
 				rbuf[7] = sizeof(sat_blk_desc);
@@ -1955,9 +1988,9 @@ void ata_scsi_badcmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *), u8
 	done(cmd);
 }
 
-static int atapi_sense_complete(struct ata_queued_cmd *qc,unsigned int err_mask)
+static int atapi_sense_complete(struct ata_queued_cmd *qc)
 {
-	if (err_mask && ((err_mask & AC_ERR_DEV) == 0))
+	if (qc->err_mask && ((qc->err_mask & AC_ERR_DEV) == 0))
 		/* FIXME: not quite right; we don't want the
 		 * translation of taskfile registers into
 		 * a sense descriptors, since that's only
@@ -2015,15 +2048,18 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	qc->complete_fn = atapi_sense_complete;
 
-	if (ata_qc_issue(qc))
-		ata_qc_complete(qc, AC_ERR_OTHER);
+	if (ata_qc_issue(qc)) {
+		qc->err_mask |= AC_ERR_OTHER;
+		ata_qc_complete(qc);
+	}
 
 	DPRINTK("EXIT\n");
 }
 
-static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
+static int atapi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
+	unsigned int err_mask = qc->err_mask;
 
 	VPRINTK("ENTER, err_mask 0x%X\n", err_mask);
 
@@ -2044,7 +2080,7 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	else {
 		u8 *scsicmd = cmd->cmnd;
 
-		if (scsicmd[0] == INQUIRY) {
+		if ((scsicmd[0] == INQUIRY) && ((scsicmd[1] & 0x03) == 0)) {
 			u8 *buf = NULL;
 			unsigned int buflen;
 
@@ -2057,9 +2093,6 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 	 * to indicate to the Linux scsi midlayer this is a modern
 	 * device.  2) Ensure response data format / ATAPI information
 	 * are always correct.
-	 */
-	/* FIXME: do we ever override EVPD pages and the like, with
-	 * this code?
 	 */
 			if (buf[2] == 0) {
 				buf[2] = 0x5;
@@ -2173,9 +2206,12 @@ ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 	if (unlikely(!ata_dev_present(dev)))
 		return NULL;
 
-	if (!atapi_enabled) {
-		if (unlikely(dev->class == ATA_DEV_ATAPI))
+	if (!atapi_enabled || (ap->flags & ATA_FLAG_NO_ATAPI)) {
+		if (unlikely(dev->class == ATA_DEV_ATAPI)) {
+			printk(KERN_WARNING "ata%u(%u): WARNING: ATAPI is %s, device ignored.\n",
+			       ap->id, dev->devno, atapi_enabled ? "not supported with this driver" : "disabled");
 			return NULL;
+		}
 	}
 
 	return dev;
@@ -2444,7 +2480,7 @@ int ata_scsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 		if (xlat_func)
 			ata_scsi_translate(ap, dev, cmd, done, xlat_func);
 		else
-			ata_scsi_simulate(dev->id, cmd, done);
+			ata_scsi_simulate(ap, dev, cmd, done);
 	} else
 		ata_scsi_translate(ap, dev, cmd, done, atapi_xlat);
 
@@ -2467,14 +2503,16 @@ out_unlock:
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_scsi_simulate(u16 *id,
+void ata_scsi_simulate(struct ata_port *ap, struct ata_device *dev,
 		      struct scsi_cmnd *cmd,
 		      void (*done)(struct scsi_cmnd *))
 {
 	struct ata_scsi_args args;
 	const u8 *scsicmd = cmd->cmnd;
 
-	args.id = id;
+	args.ap = ap;
+	args.dev = dev;
+	args.id = dev->id;
 	args.cmd = cmd;
 	args.done = done;
 

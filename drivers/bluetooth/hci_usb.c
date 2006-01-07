@@ -1044,7 +1044,6 @@ static void hci_usb_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver hci_usb_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "hci_usb",
 	.probe		= hci_usb_probe,
 	.disconnect	= hci_usb_disconnect,

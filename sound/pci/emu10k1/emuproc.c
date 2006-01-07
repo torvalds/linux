@@ -32,8 +32,9 @@
 #include <sound/emu10k1.h>
 #include "p16v.h"
 
-static void snd_emu10k1_proc_spdif_status(emu10k1_t * emu,
-					  snd_info_buffer_t * buffer,
+#ifdef CONFIG_PROC_FS
+static void snd_emu10k1_proc_spdif_status(struct snd_emu10k1 * emu,
+					  struct snd_info_buffer *buffer,
 					  char *title,
 					  int status_reg,
 					  int rate_reg)
@@ -75,8 +76,8 @@ static void snd_emu10k1_proc_spdif_status(emu10k1_t * emu,
 
 }
 
-static void snd_emu10k1_proc_read(snd_info_entry_t *entry, 
-				  snd_info_buffer_t * buffer)
+static void snd_emu10k1_proc_read(struct snd_info_entry *entry, 
+				  struct snd_info_buffer *buffer)
 {
 	/* FIXME - output names are in emufx.c too */
 	static char *creative_outs[32] = {
@@ -181,7 +182,7 @@ static void snd_emu10k1_proc_read(snd_info_entry_t *entry,
 		/* 63 */ "FXBUS2_31"
 	};
 
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 	unsigned int val, val1;
 	int nefx = emu->audigy ? 64 : 32;
 	char **outputs = emu->audigy ? audigy_outs : creative_outs;
@@ -232,10 +233,10 @@ static void snd_emu10k1_proc_read(snd_info_entry_t *entry,
 		snd_iprintf(buffer, "  Output %02i [%s]\n", idx, outputs[idx]);
 }
 
-static void snd_emu10k1_proc_spdif_read(snd_info_entry_t *entry, 
-				  snd_info_buffer_t * buffer)
+static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry, 
+				  struct snd_info_buffer *buffer)
 {
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 	snd_emu10k1_proc_spdif_status(emu, buffer, "CD-ROM S/PDIF In", CDCS, CDSRCS);
 	snd_emu10k1_proc_spdif_status(emu, buffer, "Optical or Coax S/PDIF In", GPSCS, GPSRCS);
 #if 0
@@ -246,11 +247,11 @@ static void snd_emu10k1_proc_spdif_read(snd_info_entry_t *entry,
 #endif
 }
 
-static void snd_emu10k1_proc_rates_read(snd_info_entry_t *entry, 
-				  snd_info_buffer_t * buffer)
+static void snd_emu10k1_proc_rates_read(struct snd_info_entry *entry, 
+				  struct snd_info_buffer *buffer)
 {
 	static int samplerate[8] = { 44100, 48000, 96000, 192000, 4, 5, 6, 7 };
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 	unsigned int val, tmp, n;
 	val = snd_emu10k1_ptr20_read(emu, CAPTURE_RATE_STATUS, 0);
 	tmp = (val >> 16) & 0x8;
@@ -261,11 +262,11 @@ static void snd_emu10k1_proc_rates_read(snd_info_entry_t *entry,
 	}
 }
 
-static void snd_emu10k1_proc_acode_read(snd_info_entry_t *entry, 
-				        snd_info_buffer_t * buffer)
+static void snd_emu10k1_proc_acode_read(struct snd_info_entry *entry, 
+				        struct snd_info_buffer *buffer)
 {
 	u32 pc;
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 
 	snd_iprintf(buffer, "FX8010 Instruction List '%s'\n", emu->fx8010.name);
 	snd_iprintf(buffer, "  Code dump      :\n");
@@ -304,12 +305,13 @@ static void snd_emu10k1_proc_acode_read(snd_info_entry_t *entry,
 #define TOTAL_SIZE_CODE		(0x200*8)
 #define A_TOTAL_SIZE_CODE	(0x400*8)
 
-static long snd_emu10k1_fx8010_read(snd_info_entry_t *entry, void *file_private_data,
+static long snd_emu10k1_fx8010_read(struct snd_info_entry *entry,
+				    void *file_private_data,
 				    struct file *file, char __user *buf,
 				    unsigned long count, unsigned long pos)
 {
 	long size;
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 	unsigned int offset;
 	int tram_addr = 0;
 	
@@ -349,11 +351,11 @@ static long snd_emu10k1_fx8010_read(snd_info_entry_t *entry, void *file_private_
 	return 0;
 }
 
-static void snd_emu10k1_proc_voices_read(snd_info_entry_t *entry, 
-				  snd_info_buffer_t * buffer)
+static void snd_emu10k1_proc_voices_read(struct snd_info_entry *entry, 
+				  struct snd_info_buffer *buffer)
 {
-	emu10k1_t *emu = entry->private_data;
-	emu10k1_voice_t *voice;
+	struct snd_emu10k1 *emu = entry->private_data;
+	struct snd_emu10k1_voice *voice;
 	int idx;
 	
 	snd_iprintf(buffer, "ch\tuse\tpcm\tefx\tsynth\tmidi\n");
@@ -370,10 +372,10 @@ static void snd_emu10k1_proc_voices_read(snd_info_entry_t *entry,
 }
 
 #ifdef CONFIG_SND_DEBUG
-static void snd_emu_proc_io_reg_read(snd_info_entry_t *entry,
-				     snd_info_buffer_t * buffer)
+static void snd_emu_proc_io_reg_read(struct snd_info_entry *entry,
+				     struct snd_info_buffer *buffer)
 {
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 	unsigned long value;
 	unsigned long flags;
 	int i;
@@ -386,10 +388,10 @@ static void snd_emu_proc_io_reg_read(snd_info_entry_t *entry,
 	}
 }
 
-static void snd_emu_proc_io_reg_write(snd_info_entry_t *entry,
-                                      snd_info_buffer_t * buffer)
+static void snd_emu_proc_io_reg_write(struct snd_info_entry *entry,
+                                      struct snd_info_buffer *buffer)
 {
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 	unsigned long flags;
 	char line[64];
 	u32 reg, val;
@@ -404,7 +406,7 @@ static void snd_emu_proc_io_reg_write(snd_info_entry_t *entry,
 	}
 }
 
-static unsigned int snd_ptr_read(emu10k1_t * emu,
+static unsigned int snd_ptr_read(struct snd_emu10k1 * emu,
 				 unsigned int iobase,
 				 unsigned int reg,
 				 unsigned int chn)
@@ -421,7 +423,7 @@ static unsigned int snd_ptr_read(emu10k1_t * emu,
 	return val;
 }
 
-static void snd_ptr_write(emu10k1_t *emu,
+static void snd_ptr_write(struct snd_emu10k1 *emu,
 			  unsigned int iobase,
 			  unsigned int reg,
 			  unsigned int chn,
@@ -439,13 +441,13 @@ static void snd_ptr_write(emu10k1_t *emu,
 }
 
 
-static void snd_emu_proc_ptr_reg_read(snd_info_entry_t *entry,
-				      snd_info_buffer_t * buffer, int iobase, int offset, int length, int voices)
+static void snd_emu_proc_ptr_reg_read(struct snd_info_entry *entry,
+				      struct snd_info_buffer *buffer, int iobase, int offset, int length, int voices)
 {
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 	unsigned long value;
 	int i,j;
-	if (offset+length > 0x80) {
+	if (offset+length > 0xa0) {
 		snd_iprintf(buffer, "Input values out of range\n");
 		return;
 	}
@@ -463,55 +465,61 @@ static void snd_emu_proc_ptr_reg_read(snd_info_entry_t *entry,
 	}
 }
 
-static void snd_emu_proc_ptr_reg_write(snd_info_entry_t *entry,
-				       snd_info_buffer_t * buffer, int iobase)
+static void snd_emu_proc_ptr_reg_write(struct snd_info_entry *entry,
+				       struct snd_info_buffer *buffer, int iobase)
 {
-	emu10k1_t *emu = entry->private_data;
+	struct snd_emu10k1 *emu = entry->private_data;
 	char line[64];
 	unsigned int reg, channel_id , val;
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x %x", &reg, &channel_id, &val) != 3)
 			continue;
-		if ((reg < 0x80) && (reg >=0) && (val <= 0xffffffff) && (channel_id >=0) && (channel_id <= 3) )
+		if ((reg < 0xa0) && (reg >=0) && (val <= 0xffffffff) && (channel_id >=0) && (channel_id <= 3) )
 			snd_ptr_write(emu, iobase, reg, channel_id, val);
 	}
 }
 
-static void snd_emu_proc_ptr_reg_write00(snd_info_entry_t *entry,
-					 snd_info_buffer_t * buffer)
+static void snd_emu_proc_ptr_reg_write00(struct snd_info_entry *entry,
+					 struct snd_info_buffer *buffer)
 {
 	snd_emu_proc_ptr_reg_write(entry, buffer, 0);
 }
 
-static void snd_emu_proc_ptr_reg_write20(snd_info_entry_t *entry,
-					 snd_info_buffer_t * buffer)
+static void snd_emu_proc_ptr_reg_write20(struct snd_info_entry *entry,
+					 struct snd_info_buffer *buffer)
 {
 	snd_emu_proc_ptr_reg_write(entry, buffer, 0x20);
 }
 	
 
-static void snd_emu_proc_ptr_reg_read00a(snd_info_entry_t *entry,
-					 snd_info_buffer_t * buffer)
+static void snd_emu_proc_ptr_reg_read00a(struct snd_info_entry *entry,
+					 struct snd_info_buffer *buffer)
 {
 	snd_emu_proc_ptr_reg_read(entry, buffer, 0, 0, 0x40, 64);
 }
 
-static void snd_emu_proc_ptr_reg_read00b(snd_info_entry_t *entry,
-					 snd_info_buffer_t * buffer)
+static void snd_emu_proc_ptr_reg_read00b(struct snd_info_entry *entry,
+					 struct snd_info_buffer *buffer)
 {
 	snd_emu_proc_ptr_reg_read(entry, buffer, 0, 0x40, 0x40, 64);
 }
 
-static void snd_emu_proc_ptr_reg_read20a(snd_info_entry_t *entry,
-					 snd_info_buffer_t * buffer)
+static void snd_emu_proc_ptr_reg_read20a(struct snd_info_entry *entry,
+					 struct snd_info_buffer *buffer)
 {
 	snd_emu_proc_ptr_reg_read(entry, buffer, 0x20, 0, 0x40, 4);
 }
 
-static void snd_emu_proc_ptr_reg_read20b(snd_info_entry_t *entry,
-					 snd_info_buffer_t * buffer)
+static void snd_emu_proc_ptr_reg_read20b(struct snd_info_entry *entry,
+					 struct snd_info_buffer *buffer)
 {
 	snd_emu_proc_ptr_reg_read(entry, buffer, 0x20, 0x40, 0x40, 4);
+}
+
+static void snd_emu_proc_ptr_reg_read20c(struct snd_info_entry *entry,
+					 struct snd_info_buffer * buffer)
+{
+	snd_emu_proc_ptr_reg_read(entry, buffer, 0x20, 0x80, 0x20, 4);
 }
 #endif
 
@@ -519,9 +527,9 @@ static struct snd_info_entry_ops snd_emu10k1_proc_ops_fx8010 = {
 	.read = snd_emu10k1_fx8010_read,
 };
 
-int __devinit snd_emu10k1_proc_init(emu10k1_t * emu)
+int __devinit snd_emu10k1_proc_init(struct snd_emu10k1 * emu)
 {
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 #ifdef CONFIG_SND_DEBUG
 	if (! snd_card_proc_new(emu->card, "io_regs", &entry)) {
 		snd_info_set_text_ops(entry, emu, 1024, snd_emu_proc_io_reg_read);
@@ -549,6 +557,12 @@ int __devinit snd_emu10k1_proc_init(emu10k1_t * emu)
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs20b", &entry)) {
 		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20b);
+		entry->c.text.write_size = 64;
+		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
+		entry->mode |= S_IWUSR;
+	}
+	if (! snd_card_proc_new(emu->card, "ptr_regs20c", &entry)) {
+		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20c);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
 		entry->mode |= S_IWUSR;
@@ -607,3 +621,4 @@ int __devinit snd_emu10k1_proc_init(emu10k1_t * emu)
 	}
 	return 0;
 }
+#endif /* CONFIG_PROC_FS */

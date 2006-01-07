@@ -80,7 +80,7 @@ static int mmc_bus_match(struct device *dev, struct device_driver *drv)
 }
 
 static int
-mmc_bus_hotplug(struct device *dev, char **envp, int num_envp, char *buf,
+mmc_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
 		int buf_size)
 {
 	struct mmc_card *card = dev_to_mmc_card(dev);
@@ -140,7 +140,7 @@ static struct bus_type mmc_bus_type = {
 	.name		= "mmc",
 	.dev_attrs	= mmc_dev_attrs,
 	.match		= mmc_bus_match,
-	.hotplug	= mmc_bus_hotplug,
+	.uevent		= mmc_bus_uevent,
 	.suspend	= mmc_bus_suspend,
 	.resume		= mmc_bus_resume,
 };

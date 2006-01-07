@@ -28,15 +28,15 @@ MODULE_AUTHOR("Takashi Iwai");
 MODULE_DESCRIPTION("Generic memory management routines for soundcard memory allocation");
 MODULE_LICENSE("GPL");
 
-#define get_memblk(p)	list_entry(p, snd_util_memblk_t, list)
+#define get_memblk(p)	list_entry(p, struct snd_util_memblk, list)
 
 /*
  * create a new memory manager
  */
-snd_util_memhdr_t *
+struct snd_util_memhdr *
 snd_util_memhdr_new(int memsize)
 {
-	snd_util_memhdr_t *hdr;
+	struct snd_util_memhdr *hdr;
 
 	hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
 	if (hdr == NULL)
@@ -51,7 +51,7 @@ snd_util_memhdr_new(int memsize)
 /*
  * free a memory manager
  */
-void snd_util_memhdr_free(snd_util_memhdr_t *hdr)
+void snd_util_memhdr_free(struct snd_util_memhdr *hdr)
 {
 	struct list_head *p;
 
@@ -67,11 +67,11 @@ void snd_util_memhdr_free(snd_util_memhdr_t *hdr)
 /*
  * allocate a memory block (without mutex)
  */
-snd_util_memblk_t *
-__snd_util_mem_alloc(snd_util_memhdr_t *hdr, int size)
+struct snd_util_memblk *
+__snd_util_mem_alloc(struct snd_util_memhdr *hdr, int size)
 {
-	snd_util_memblk_t *blk;
-	snd_util_unit_t units, prev_offset;
+	struct snd_util_memblk *blk;
+	unsigned int units, prev_offset;
 	struct list_head *p;
 
 	snd_assert(hdr != NULL, return NULL);
@@ -104,20 +104,21 @@ __found:
  * create a new memory block with the given size
  * the block is linked next to prev
  */
-snd_util_memblk_t *
-__snd_util_memblk_new(snd_util_memhdr_t *hdr, snd_util_unit_t units,
+struct snd_util_memblk *
+__snd_util_memblk_new(struct snd_util_memhdr *hdr, unsigned int units,
 		      struct list_head *prev)
 {
-	snd_util_memblk_t *blk;
+	struct snd_util_memblk *blk;
 
-	blk = kmalloc(sizeof(snd_util_memblk_t) + hdr->block_extra_size, GFP_KERNEL);
+	blk = kmalloc(sizeof(struct snd_util_memblk) + hdr->block_extra_size,
+		      GFP_KERNEL);
 	if (blk == NULL)
 		return NULL;
 
 	if (! prev || prev == &hdr->block)
 		blk->offset = 0;
 	else {
-		snd_util_memblk_t *p = get_memblk(prev);
+		struct snd_util_memblk *p = get_memblk(prev);
 		blk->offset = p->offset + p->size;
 	}
 	blk->size = units;
@@ -131,10 +132,10 @@ __snd_util_memblk_new(snd_util_memhdr_t *hdr, snd_util_unit_t units,
 /*
  * allocate a memory block (with mutex)
  */
-snd_util_memblk_t *
-snd_util_mem_alloc(snd_util_memhdr_t *hdr, int size)
+struct snd_util_memblk *
+snd_util_mem_alloc(struct snd_util_memhdr *hdr, int size)
 {
-	snd_util_memblk_t *blk;
+	struct snd_util_memblk *blk;
 	down(&hdr->block_mutex);
 	blk = __snd_util_mem_alloc(hdr, size);
 	up(&hdr->block_mutex);
@@ -147,7 +148,7 @@ snd_util_mem_alloc(snd_util_memhdr_t *hdr, int size)
  * (without mutex)
  */
 void
-__snd_util_mem_free(snd_util_memhdr_t *hdr, snd_util_memblk_t *blk)
+__snd_util_mem_free(struct snd_util_memhdr *hdr, struct snd_util_memblk *blk)
 {
 	list_del(&blk->list);
 	hdr->nblocks--;
@@ -158,7 +159,7 @@ __snd_util_mem_free(snd_util_memhdr_t *hdr, snd_util_memblk_t *blk)
 /*
  * free a memory block (with mutex)
  */
-int snd_util_mem_free(snd_util_memhdr_t *hdr, snd_util_memblk_t *blk)
+int snd_util_mem_free(struct snd_util_memhdr *hdr, struct snd_util_memblk *blk)
 {
 	snd_assert(hdr && blk, return -EINVAL);
 
@@ -171,7 +172,7 @@ int snd_util_mem_free(snd_util_memhdr_t *hdr, snd_util_memblk_t *blk)
 /*
  * return available memory size
  */
-int snd_util_mem_avail(snd_util_memhdr_t *hdr)
+int snd_util_mem_avail(struct snd_util_memhdr *hdr)
 {
 	unsigned int size;
 	down(&hdr->block_mutex);

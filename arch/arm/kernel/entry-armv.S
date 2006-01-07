@@ -614,6 +614,47 @@ __kuser_helper_start:
 /*
  * Reference prototype:
  *
+ *	void __kernel_memory_barrier(void)
+ *
+ * Input:
+ *
+ *	lr = return address
+ *
+ * Output:
+ *
+ *	none
+ *
+ * Clobbered:
+ *
+ *	the Z flag might be lost
+ *
+ * Definition and user space usage example:
+ *
+ *	typedef void (__kernel_dmb_t)(void);
+ *	#define __kernel_dmb (*(__kernel_dmb_t *)0xffff0fa0)
+ *
+ * Apply any needed memory barrier to preserve consistency with data modified
+ * manually and __kuser_cmpxchg usage.
+ *
+ * This could be used as follows:
+ *
+ * #define __kernel_dmb() \
+ *         asm volatile ( "mov r0, #0xffff0fff; mov lr, pc; sub pc, r0, #95" \
+ *	        : : : "lr","cc" )
+ */
+
+__kuser_memory_barrier:				@ 0xffff0fa0
+
+#if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_SMP)
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
+	mov	pc, lr
+
+	.align	5
+
+/*
+ * Reference prototype:
+ *
  *	int __kernel_cmpxchg(int oldval, int newval, int *ptr)
  *
  * Input:
@@ -641,6 +682,8 @@ __kuser_helper_start:
  * Return zero if *ptr was changed or non-zero if no exchange happened.
  * The C flag is also set if *ptr was changed to allow for assembly
  * optimization in the calling code.
+ *
+ * Note: this routine already includes memory barriers as needed.
  *
  * For example, a user space atomic_add implementation could look like this:
  *
@@ -698,10 +741,16 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 
 #else
 
+#ifdef CONFIG_SMP
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
 	ldrex	r3, [r2]
 	subs	r3, r3, r0
 	strexeq	r3, r1, [r2]
 	rsbs	r0, r3, #0
+#ifdef CONFIG_SMP
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#endif
 	mov	pc, lr
 
 #endif

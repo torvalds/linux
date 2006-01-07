@@ -130,6 +130,7 @@ extern int elv_try_last_merge(request_queue_t *, struct bio *);
 #define ELEVATOR_INSERT_FRONT	1
 #define ELEVATOR_INSERT_BACK	2
 #define ELEVATOR_INSERT_SORT	3
+#define ELEVATOR_INSERT_REQUEUE	4
 
 /*
  * return values from elevator_may_queue_fn

@@ -188,7 +188,7 @@ config VIDEO_ZORAN
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called zr36067.
- 
+
 config VIDEO_ZORAN_BUZ
 	tristate "Iomega Buz support"
 	depends on VIDEO_ZORAN
@@ -204,8 +204,8 @@ config VIDEO_ZORAN_DC10
 
 config VIDEO_ZORAN_DC30
 	tristate "Pinnacle/Miro DC30(+) support"
- 	depends on VIDEO_ZORAN
- 	help
+	depends on VIDEO_ZORAN
+	help
 	  Support for the Pinnacle/Miro DC30(+) MJPEG capture/playback
 	  card. This also supports really old DC10 cards based on the
 	  zr36050 MJPEG codec and zr36016 VFE.
@@ -260,7 +260,7 @@ config VIDEO_MXB
 	---help---
 	  This is a video4linux driver for the 'Multimedia eXtension Board'
 	  TV card by Siemens-Nixdorf.
-	  
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxb.
 
@@ -274,7 +274,7 @@ config VIDEO_DPC
 	  for SAA7146 bases boards, so if you have some unsupported
 	  saa7146 based, analog video card, chances are good that it
 	  will work with this skeleton driver.
-	  
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called dpc7146.
 
@@ -285,7 +285,7 @@ config VIDEO_HEXIUM_ORION
 	---help---
 	  This is a video4linux driver for the Hexium HV-PCI6 and
 	  Orion frame grabber cards by Hexium.
-	  
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_orion.
 
@@ -297,7 +297,7 @@ config VIDEO_HEXIUM_GEMINI
 	  This is a video4linux driver for the Hexium Gemini frame
 	  grabber card by Hexium. Please note that the Gemini Dual
 	  card is *not* fully supported.
-	  
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_gemini.
 

@@ -270,7 +270,13 @@ static void wake_futex(struct futex_q *q)
 	/*
 	 * The waiting task can free the futex_q as soon as this is written,
 	 * without taking any locks.  This must come last.
+	 *
+	 * A memory barrier is required here to prevent the following store
+	 * to lock_ptr from getting ahead of the wakeup. Clearing the lock
+	 * at the end of wake_up_all() does not prevent this store from
+	 * moving.
 	 */
+	wmb();
 	q->lock_ptr = NULL;
 }
 
@@ -349,6 +355,13 @@ retry:
 		spin_unlock(&bh1->lock);
 		if (bh1 != bh2)
 			spin_unlock(&bh2->lock);
+
+#ifndef CONFIG_MMU
+		/* we don't get EFAULT from MMU faults if we don't have an MMU,
+		 * but we might get them from range checking */
+		ret = op_ret;
+		goto out;
+#endif
 
 		if (unlikely(op_ret != -EFAULT)) {
 			ret = op_ret;

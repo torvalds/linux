@@ -31,7 +31,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define dprintk(num, format, args...) \
 	do { \
 		if (debug >= num) \
-			printk(format , ##args); \
+			printk(format, ##args); \
 	} while (0)
 
 /* supported controls */
@@ -714,7 +714,6 @@ static struct i2c_driver driver;
 
 static struct i2c_client client_template = {
 	.name = "(unset)",
-	.flags = I2C_CLIENT_ALLOW_USE,
 	.driver = &driver,
 };
 
@@ -770,7 +769,6 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 
 	if (debug > 1)
 		dump_reg(client);
-
 	return 0;
 }
 
@@ -802,12 +800,12 @@ static int tvp5150_detach_client(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner = THIS_MODULE,
-	.name = "tvp5150",
+	.driver = {
+		.name = "tvp5150",
+	},
 
 	/* FIXME */
 	.id = I2C_DRIVERID_SAA7110,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = tvp5150_attach_adapter,
 	.detach_client = tvp5150_detach_client,

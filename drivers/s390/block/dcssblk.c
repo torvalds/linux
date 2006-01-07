@@ -15,7 +15,7 @@
 #include <asm/io.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
-#include <asm/ccwdev.h> 	// for s390_root_dev_(un)register()
+#include <asm/s390_rdev.h>
 
 //#define DCSSBLK_DEBUG		/* Debug messages on/off */
 #define DCSSBLK_NAME "dcssblk"

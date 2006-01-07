@@ -159,7 +159,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_PEN) | BIT(BTN_TOUCH);
 	input_dev->mscbit[0] |= BIT(MSC_SERIAL);
 	input_set_abs_params(input_dev, ABS_X, 0, 0x2000, 4, 0);
-	input_set_abs_params(input_dev, ABS_X, 0, 0x1750, 4, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, 0x1750, 4, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 0xff, 0, 0);
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
@@ -197,7 +197,6 @@ static void kbtab_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver kbtab_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"kbtab",
 	.probe =	kbtab_probe,
 	.disconnect =	kbtab_disconnect,

@@ -903,6 +903,12 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	unsigned long start_eip;
 	unsigned short nmi_high = 0, nmi_low = 0;
 
+	if (!cpu_gdt_descr[cpu].address &&
+	    !(cpu_gdt_descr[cpu].address = get_zeroed_page(GFP_KERNEL))) {
+		printk("Failed to allocate GDT for CPU %d\n", cpu);
+		return 1;
+	}
+
 	++cpucount;
 
 	/*
@@ -1338,8 +1344,7 @@ int __cpu_disable(void)
 	if (cpu == 0)
 		return -EBUSY;
 
-	/* We enable the timer again on the exit path of the death loop */
-	disable_APIC_timer();
+	clear_local_APIC();
 	/* Allow any queued timer interrupts to get serviced */
 	local_irq_enable();
 	mdelay(1);

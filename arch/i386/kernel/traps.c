@@ -306,14 +306,17 @@ void die(const char * str, struct pt_regs * regs, long err)
 		.lock_owner_depth =	0
 	};
 	static int die_counter;
+	unsigned long flags;
 
 	if (die.lock_owner != raw_smp_processor_id()) {
 		console_verbose();
-		spin_lock_irq(&die.lock);
+		spin_lock_irqsave(&die.lock, flags);
 		die.lock_owner = smp_processor_id();
 		die.lock_owner_depth = 0;
 		bust_spinlocks(1);
 	}
+	else
+		local_save_flags(flags);
 
 	if (++die.lock_owner_depth < 3) {
 		int nl = 0;
@@ -340,7 +343,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
-	spin_unlock_irq(&die.lock);
+	spin_unlock_irqrestore(&die.lock, flags);
 
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
@@ -452,7 +455,7 @@ DO_VM86_ERROR( 3, SIGTRAP, "int3", int3)
 #endif
 DO_VM86_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_VM86_ERROR( 5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO( 6, SIGILL,  "invalid operand", invalid_op, ILL_ILLOPN, regs->eip)
+DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->eip)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
@@ -649,13 +652,6 @@ fastcall void do_nmi(struct pt_regs * regs, long error_code)
 	nmi_enter();
 
 	cpu = smp_processor_id();
-
-#ifdef CONFIG_HOTPLUG_CPU
-	if (!cpu_online(cpu)) {
-		nmi_exit();
-		return;
-	}
-#endif
 
 	++nmi_count(cpu);
 
@@ -1082,9 +1078,9 @@ void __init trap_init(void)
 	set_trap_gate(0,&divide_error);
 	set_intr_gate(1,&debug);
 	set_intr_gate(2,&nmi);
-	set_system_intr_gate(3, &int3); /* int3-5 can be called from all */
+	set_system_intr_gate(3, &int3); /* int3/4 can be called from all */
 	set_system_gate(4,&overflow);
-	set_system_gate(5,&bounds);
+	set_trap_gate(5,&bounds);
 	set_trap_gate(6,&invalid_op);
 	set_trap_gate(7,&device_not_available);
 	set_task_gate(8,GDT_ENTRY_DOUBLEFAULT_TSS);
@@ -1101,6 +1097,28 @@ void __init trap_init(void)
 	set_trap_gate(18,&machine_check);
 #endif
 	set_trap_gate(19,&simd_coprocessor_error);
+
+	if (cpu_has_fxsr) {
+		/*
+		 * Verify that the FXSAVE/FXRSTOR data will be 16-byte aligned.
+		 * Generates a compile-time "error: zero width for bit-field" if
+		 * the alignment is wrong.
+		 */
+		struct fxsrAlignAssert {
+			int _:!(offsetof(struct task_struct,
+					thread.i387.fxsave) & 15);
+		};
+
+		printk(KERN_INFO "Enabling fast FPU save and restore... ");
+		set_in_cr4(X86_CR4_OSFXSR);
+		printk("done.\n");
+	}
+	if (cpu_has_xmm) {
+		printk(KERN_INFO "Enabling unmasked SIMD FPU exception "
+				"support... ");
+		set_in_cr4(X86_CR4_OSXMMEXCPT);
+		printk("done.\n");
+	}
 
 	set_system_gate(SYSCALL_VECTOR,&system_call);
 

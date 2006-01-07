@@ -31,6 +31,7 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kobject.h>
 #include <linux/net.h>
 #include <linux/sysrq.h>
 #include <linux/highuid.h>
@@ -83,9 +84,6 @@ static int ngroups_max = NGROUPS_MAX;
 #ifdef CONFIG_KMOD
 extern char modprobe_path[];
 #endif
-#ifdef CONFIG_HOTPLUG
-extern char hotplug_path[];
-#endif
 #ifdef CONFIG_CHR_DEV_SG
 extern int sg_big_buff;
 #endif
@@ -110,7 +108,7 @@ extern int pwrsw_enabled;
 extern int unaligned_enabled;
 #endif
 
-#ifdef CONFIG_ARCH_S390
+#ifdef CONFIG_S390
 #ifdef CONFIG_MATHEMU
 extern int sysctl_ieee_emulation_warnings;
 #endif
@@ -397,8 +395,8 @@ static ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_HOTPLUG,
 		.procname	= "hotplug",
-		.data		= &hotplug_path,
-		.maxlen		= HOTPLUG_PATH_LEN,
+		.data		= &uevent_helper,
+		.maxlen		= UEVENT_HELPER_PATH_LEN,
 		.mode		= 0644,
 		.proc_handler	= &proc_dostring,
 		.strategy	= &sysctl_string,
@@ -544,7 +542,7 @@ static ctl_table kern_table[] = {
 		.extra1		= &minolduid,
 		.extra2		= &maxolduid,
 	},
-#ifdef CONFIG_ARCH_S390
+#ifdef CONFIG_S390
 #ifdef CONFIG_MATHEMU
 	{
 		.ctl_name	= KERN_IEEE_EMULATION_WARNINGS,
@@ -646,7 +644,7 @@ static ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
-#if defined(CONFIG_ARCH_S390)
+#if defined(CONFIG_S390)
 	{
 		.ctl_name	= KERN_SPIN_RETRY,
 		.procname	= "spin_retry",
@@ -2192,29 +2190,32 @@ int sysctl_string(ctl_table *table, int __user *name, int nlen,
 		  void __user *oldval, size_t __user *oldlenp,
 		  void __user *newval, size_t newlen, void **context)
 {
-	size_t l, len;
-	
 	if (!table->data || !table->maxlen) 
 		return -ENOTDIR;
 	
 	if (oldval && oldlenp) {
-		if (get_user(len, oldlenp))
+		size_t bufsize;
+		if (get_user(bufsize, oldlenp))
 			return -EFAULT;
-		if (len) {
-			l = strlen(table->data);
-			if (len > l) len = l;
-			if (len >= table->maxlen)
+		if (bufsize) {
+			size_t len = strlen(table->data), copied;
+
+			/* This shouldn't trigger for a well-formed sysctl */
+			if (len > table->maxlen)
 				len = table->maxlen;
-			if(copy_to_user(oldval, table->data, len))
+
+			/* Copy up to a max of bufsize-1 bytes of the string */
+			copied = (len >= bufsize) ? bufsize - 1 : len;
+
+			if (copy_to_user(oldval, table->data, copied) ||
+			    put_user(0, (char __user *)(oldval + copied)))
 				return -EFAULT;
-			if(put_user(0, ((char __user *) oldval) + len))
-				return -EFAULT;
-			if(put_user(len, oldlenp))
+			if (put_user(len, oldlenp))
 				return -EFAULT;
 		}
 	}
 	if (newval && newlen) {
-		len = newlen;
+		size_t len = newlen;
 		if (len > table->maxlen)
 			len = table->maxlen;
 		if(copy_from_user(table->data, newval, len))
@@ -2223,7 +2224,7 @@ int sysctl_string(ctl_table *table, int __user *name, int nlen,
 			len--;
 		((char *) table->data)[len] = 0;
 	}
-	return 0;
+	return 1;
 }
 
 /*

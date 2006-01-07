@@ -53,51 +53,51 @@ enum dmxdev_state {
 };
 
 struct dmxdev_buffer {
-        u8 *data;
-        int size;
-        int pread;
-        int pwrite;
+	u8 *data;
+	int size;
+	int pread;
+	int pwrite;
 	wait_queue_head_t queue;
-        int error;
+	int error;
 };
 
 struct dmxdev_filter {
 	struct dvb_device *dvbdev;
 
-        union {
-	        struct dmx_section_filter *sec;
+	union {
+		struct dmx_section_filter *sec;
 	} filter;
 
-        union {
-                struct dmx_ts_feed *ts;
-                struct dmx_section_feed *sec;
+	union {
+		struct dmx_ts_feed *ts;
+		struct dmx_section_feed *sec;
 	} feed;
 
-        union {
-	        struct dmx_sct_filter_params sec;
-	        struct dmx_pes_filter_params pes;
+	union {
+		struct dmx_sct_filter_params sec;
+		struct dmx_pes_filter_params pes;
 	} params;
 
-        int type;
-        enum dmxdev_state state;
-        struct dmxdev *dev;
-        struct dmxdev_buffer buffer;
+	int type;
+	enum dmxdev_state state;
+	struct dmxdev *dev;
+	struct dmxdev_buffer buffer;
 
 	struct semaphore mutex;
 
-        /* only for sections */
-        struct timer_list timer;
-        int todo;
-        u8 secheader[3];
+	/* only for sections */
+	struct timer_list timer;
+	int todo;
+	u8 secheader[3];
 
-        u16 pid;
+	u16 pid;
 };
 
 
 struct dmxdev_dvr {
-        int state;
-        struct dmxdev *dev;
-        struct dmxdev_buffer buffer;
+	int state;
+	struct dmxdev *dev;
+	struct dmxdev_buffer buffer;
 };
 
 
@@ -105,16 +105,16 @@ struct dmxdev {
 	struct dvb_device *dvbdev;
 	struct dvb_device *dvr_dvbdev;
 
-        struct dmxdev_filter *filter;
-        struct dmxdev_dvr *dvr;
-        struct dmx_demux *demux;
+	struct dmxdev_filter *filter;
+	struct dmxdev_dvr *dvr;
+	struct dmx_demux *demux;
 
-        int filternum;
-        int capabilities;
+	int filternum;
+	int capabilities;
 #define DMXDEV_CAP_DUPLEX 1
-        struct dmx_frontend *dvr_orig_fe;
+	struct dmx_frontend *dvr_orig_fe;
 
-        struct dmxdev_buffer dvr_buffer;
+	struct dmxdev_buffer dvr_buffer;
 #define DVR_BUFFER_SIZE (10*188*1024)
 
 	struct semaphore mutex;
