@@ -832,7 +832,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->h.raw = skb->nh.raw;
 	skb->nh.raw = skb_push(skb, gre_hlen);
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-	IPCB(skb)->flags &= ~IPSKB_XFRM_TUNNEL_SIZE;
+	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE|IPSKB_XFRM_TRANSFORMED);
 	dst_release(skb->dst);
 	skb->dst = &rt->u.dst;
 

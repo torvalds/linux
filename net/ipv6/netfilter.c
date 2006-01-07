@@ -10,6 +10,7 @@
 #include <net/dst.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
+#include <net/xfrm.h>
 
 int ip6_route_me_harder(struct sk_buff *skb)
 {
@@ -21,10 +22,16 @@ int ip6_route_me_harder(struct sk_buff *skb)
 		{ .ip6_u =
 		  { .daddr = iph->daddr,
 		    .saddr = iph->saddr, } },
-		.proto = iph->nexthdr,
 	};
 
 	dst = ip6_route_output(skb->sk, &fl);
+
+#ifdef CONFIG_XFRM
+	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
+	    xfrm_decode_session(skb, &fl, AF_INET6) == 0)
+		if (xfrm_lookup(&skb->dst, &fl, skb->sk, 0))
+			return -1;
+#endif
 
 	if (dst->error) {
 		IP6_INC_STATS(IPSTATS_MIB_OUTNOROUTES);

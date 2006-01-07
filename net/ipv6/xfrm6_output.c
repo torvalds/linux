@@ -139,6 +139,7 @@ static int xfrm6_output_one(struct sk_buff *skb)
 		x = dst->xfrm;
 	} while (x && !x->props.mode);
 
+	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
 	err = 0;
 
 out_exit:

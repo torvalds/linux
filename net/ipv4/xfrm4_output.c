@@ -140,6 +140,7 @@ static int xfrm4_output_one(struct sk_buff *skb)
 		x = dst->xfrm;
 	} while (x && !x->props.mode);
 
+	IPCB(skb)->flags |= IPSKB_XFRM_TRANSFORMED;
 	err = 0;
 
 out_exit:
