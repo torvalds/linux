@@ -3,7 +3,7 @@
  * Echo the kernel .config file used to build the kernel
  *
  * Copyright (C) 2002 Khalid Aziz <khalid_aziz@hp.com>
- * Copyright (C) 2002 Randy Dunlap <rddunlap@osdl.org>
+ * Copyright (C) 2002 Randy Dunlap <rdunlap@xenotime.net>
  * Copyright (C) 2002 Al Stone <ahs3@fc.hp.com>
  * Copyright (C) 2002 Hewlett-Packard Company
  *

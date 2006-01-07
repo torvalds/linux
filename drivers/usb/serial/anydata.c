@@ -27,11 +27,11 @@ static int buffer_size;
 static int debug;
 
 static struct usb_driver anydata_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"anydata",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 static int anydata_open(struct usb_serial_port *port, struct file *filp)

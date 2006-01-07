@@ -65,7 +65,7 @@ static int tiocx_match(struct device *dev, struct device_driver *drv)
 
 }
 
-static int tiocx_hotplug(struct device *dev, char **envp, int num_envp,
+static int tiocx_uevent(struct device *dev, char **envp, int num_envp,
 			 char *buffer, int buffer_size)
 {
 	return -ENODEV;
@@ -79,7 +79,7 @@ static void tiocx_bus_release(struct device *dev)
 struct bus_type tiocx_bus_type = {
 	.name = "tiocx",
 	.match = tiocx_match,
-	.hotplug = tiocx_hotplug,
+	.uevent = tiocx_uevent,
 };
 
 /**

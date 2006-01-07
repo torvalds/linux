@@ -1550,8 +1550,10 @@ go_ahead:
 	}
 	nfs_inode_return_delegation(old_inode);
 
-	if (new_inode)
+	if (new_inode != NULL) {
+		nfs_inode_return_delegation(new_inode);
 		d_delete(new_dentry);
+	}
 
 	nfs_begin_data_update(old_dir);
 	nfs_begin_data_update(new_dir);

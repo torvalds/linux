@@ -537,7 +537,7 @@ static unsigned char IMAGE_ARRAY_NAME[] = {
 
 };
 
-static struct edge_firmware_version_info IMAGE_VERSION_NAME = {
+static const struct edge_firmware_version_info IMAGE_VERSION_NAME = {
 	2, 0, 3 };		// Major, Minor, Build
 
 #undef IMAGE_VERSION_NAME

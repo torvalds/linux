@@ -110,7 +110,6 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->cookie_life.tv_sec = sp->assocparams.sasoc_cookie_life / 1000;
 	asoc->cookie_life.tv_usec = (sp->assocparams.sasoc_cookie_life % 1000)
 					* 1000;
-	asoc->pmtu = 0;
 	asoc->frag_point = 0;
 
 	/* Set the association max_retrans and RTO values from the
@@ -122,6 +121,25 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->rto_min = msecs_to_jiffies(sp->rtoinfo.srto_min);
 
 	asoc->overall_error_count = 0;
+
+	/* Initialize the association's heartbeat interval based on the
+	 * sock configured value.
+	 */
+	asoc->hbinterval = msecs_to_jiffies(sp->hbinterval);
+
+	/* Initialize path max retrans value. */
+	asoc->pathmaxrxt = sp->pathmaxrxt;
+
+	/* Initialize default path MTU. */
+	asoc->pathmtu = sp->pathmtu;
+
+	/* Set association default SACK delay */
+	asoc->sackdelay = msecs_to_jiffies(sp->sackdelay);
+
+	/* Set the association default flags controlling
+	 * Heartbeat, SACK delay, and Path MTU Discovery.
+	 */
+	asoc->param_flags = sp->param_flags;
 
 	/* Initialize the maximum mumber of new data packets that can be sent
 	 * in a burst.
@@ -144,8 +162,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 		= 5 * asoc->rto_max;
 
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
-	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] =
-		SCTP_DEFAULT_TIMEOUT_SACK;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = asoc->sackdelay;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
 		sp->autoclose * HZ;
 	
@@ -540,23 +557,46 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	sctp_transport_set_owner(peer, asoc);
 
+	/* Initialize the peer's heartbeat interval based on the
+	 * association configured value.
+	 */
+	peer->hbinterval = asoc->hbinterval;
+
+	/* Set the path max_retrans.  */
+	peer->pathmaxrxt = asoc->pathmaxrxt;
+
+	/* Initialize the peer's SACK delay timeout based on the
+	 * association configured value.
+	 */
+	peer->sackdelay = asoc->sackdelay;
+
+	/* Enable/disable heartbeat, SACK delay, and path MTU discovery
+	 * based on association setting.
+	 */
+	peer->param_flags = asoc->param_flags;
+
 	/* Initialize the pmtu of the transport. */
-	sctp_transport_pmtu(peer);
+	if (peer->param_flags & SPP_PMTUD_ENABLE)
+		sctp_transport_pmtu(peer);
+	else if (asoc->pathmtu)
+		peer->pathmtu = asoc->pathmtu;
+	else
+		peer->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 
 	/* If this is the first transport addr on this association,
 	 * initialize the association PMTU to the peer's PMTU.
 	 * If not and the current association PMTU is higher than the new
 	 * peer's PMTU, reset the association PMTU to the new peer's PMTU.
 	 */
-	if (asoc->pmtu)
-		asoc->pmtu = min_t(int, peer->pmtu, asoc->pmtu);
+	if (asoc->pathmtu)
+		asoc->pathmtu = min_t(int, peer->pathmtu, asoc->pathmtu);
 	else
-		asoc->pmtu = peer->pmtu;
+		asoc->pathmtu = peer->pathmtu;
 
 	SCTP_DEBUG_PRINTK("sctp_assoc_add_peer:association %p PMTU set to "
-			  "%d\n", asoc, asoc->pmtu);
+			  "%d\n", asoc, asoc->pathmtu);
 
-	asoc->frag_point = sctp_frag_point(sp, asoc->pmtu);
+	asoc->frag_point = sctp_frag_point(sp, asoc->pathmtu);
 
 	/* The asoc->peer.port might not be meaningful yet, but
 	 * initialize the packet structure anyway.
@@ -574,7 +614,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 	 *   (for example, implementations MAY use the size of the
 	 *   receiver advertised window).
 	 */
-	peer->cwnd = min(4*asoc->pmtu, max_t(__u32, 2*asoc->pmtu, 4380));
+	peer->cwnd = min(4*asoc->pathmtu, max_t(__u32, 2*asoc->pathmtu, 4380));
 
 	/* At this point, we may not have the receiver's advertised window,
 	 * so initialize ssthresh to the default value and it will be set
@@ -584,17 +624,6 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	peer->partial_bytes_acked = 0;
 	peer->flight_size = 0;
-
-	/* By default, enable heartbeat for peer address. */
-	peer->hb_allowed = 1;
-
-	/* Initialize the peer's heartbeat interval based on the
-	 * sock configured value.
-	 */
-	peer->hb_interval = msecs_to_jiffies(sp->paddrparam.spp_hbinterval);
-
-	/* Set the path max_retrans.  */
-	peer->max_retrans = sp->paddrparam.spp_pathmaxrxt;
 
 	/* Set the transport's RTO.initial value */
 	peer->rto = asoc->rto_initial;
@@ -1155,18 +1184,18 @@ void sctp_assoc_sync_pmtu(struct sctp_association *asoc)
 	/* Get the lowest pmtu of all the transports. */
 	list_for_each(pos, &asoc->peer.transport_addr_list) {
 		t = list_entry(pos, struct sctp_transport, transports);
-		if (!pmtu || (t->pmtu < pmtu))
-			pmtu = t->pmtu;
+		if (!pmtu || (t->pathmtu < pmtu))
+			pmtu = t->pathmtu;
 	}
 
 	if (pmtu) {
 		struct sctp_sock *sp = sctp_sk(asoc->base.sk);
-		asoc->pmtu = pmtu;
+		asoc->pathmtu = pmtu;
 		asoc->frag_point = sctp_frag_point(sp, pmtu);
 	}
 
 	SCTP_DEBUG_PRINTK("%s: asoc:%p, pmtu:%d, frag_point:%d\n",
-			  __FUNCTION__, asoc, asoc->pmtu, asoc->frag_point);
+			  __FUNCTION__, asoc, asoc->pathmtu, asoc->frag_point);
 }
 
 /* Should we send a SACK to update our peer? */
@@ -1179,7 +1208,7 @@ static inline int sctp_peer_needs_update(struct sctp_association *asoc)
 	case SCTP_STATE_SHUTDOWN_SENT:
 		if ((asoc->rwnd > asoc->a_rwnd) &&
 		    ((asoc->rwnd - asoc->a_rwnd) >=
-		     min_t(__u32, (asoc->base.sk->sk_rcvbuf >> 1), asoc->pmtu)))
+		     min_t(__u32, (asoc->base.sk->sk_rcvbuf >> 1), asoc->pathmtu)))
 			return 1;
 		break;
 	default:

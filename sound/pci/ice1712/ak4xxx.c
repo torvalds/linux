@@ -34,16 +34,16 @@ MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("ICEnsemble ICE17xx <-> AK4xxx AD/DA chip interface");
 MODULE_LICENSE("GPL");
 
-static void snd_ice1712_akm4xxx_lock(akm4xxx_t *ak, int chip)
+static void snd_ice1712_akm4xxx_lock(struct snd_akm4xxx *ak, int chip)
 {
-	ice1712_t *ice = ak->private_data[0];
+	struct snd_ice1712 *ice = ak->private_data[0];
 
 	snd_ice1712_save_gpio_status(ice);
 }
 
-static void snd_ice1712_akm4xxx_unlock(akm4xxx_t *ak, int chip)
+static void snd_ice1712_akm4xxx_unlock(struct snd_akm4xxx *ak, int chip)
 {
-	ice1712_t *ice = ak->private_data[0];
+	struct snd_ice1712 *ice = ak->private_data[0];
 
 	snd_ice1712_restore_gpio_status(ice);
 }
@@ -51,14 +51,14 @@ static void snd_ice1712_akm4xxx_unlock(akm4xxx_t *ak, int chip)
 /*
  * write AK4xxx register
  */
-static void snd_ice1712_akm4xxx_write(akm4xxx_t *ak, int chip,
+static void snd_ice1712_akm4xxx_write(struct snd_akm4xxx *ak, int chip,
 				      unsigned char addr, unsigned char data)
 {
 	unsigned int tmp;
 	int idx;
 	unsigned int addrdata;
 	struct snd_ak4xxx_private *priv = (void *)ak->private_value[0];
-	ice1712_t *ice = ak->private_data[0];
+	struct snd_ice1712 *ice = ak->private_data[0];
 
 	snd_assert(chip >= 0 && chip < 4, return);
 
@@ -119,10 +119,10 @@ static void snd_ice1712_akm4xxx_write(akm4xxx_t *ak, int chip,
 }
 
 /*
- * initialize the akm4xxx_t record with the template
+ * initialize the struct snd_akm4xxx record with the template
  */
-int snd_ice1712_akm4xxx_init(akm4xxx_t *ak, const akm4xxx_t *temp,
-			     const struct snd_ak4xxx_private *_priv, ice1712_t *ice)
+int snd_ice1712_akm4xxx_init(struct snd_akm4xxx *ak, const struct snd_akm4xxx *temp,
+			     const struct snd_ak4xxx_private *_priv, struct snd_ice1712 *ice)
 {
 	struct snd_ak4xxx_private *priv;
 
@@ -148,13 +148,13 @@ int snd_ice1712_akm4xxx_init(akm4xxx_t *ak, const akm4xxx_t *temp,
 	return 0;
 }
 
-void snd_ice1712_akm4xxx_free(ice1712_t *ice)
+void snd_ice1712_akm4xxx_free(struct snd_ice1712 *ice)
 {
 	unsigned int akidx;
 	if (ice->akm == NULL)
 		return;
 	for (akidx = 0; akidx < ice->akm_codecs; akidx++) {
-		akm4xxx_t *ak = &ice->akm[akidx];
+		struct snd_akm4xxx *ak = &ice->akm[akidx];
 		kfree((void*)ak->private_value[0]);
 	}
 	kfree(ice->akm);
@@ -163,13 +163,13 @@ void snd_ice1712_akm4xxx_free(ice1712_t *ice)
 /*
  * build AK4xxx controls
  */
-int snd_ice1712_akm4xxx_build_controls(ice1712_t *ice)
+int snd_ice1712_akm4xxx_build_controls(struct snd_ice1712 *ice)
 {
 	unsigned int akidx;
 	int err;
 
 	for (akidx = 0; akidx < ice->akm_codecs; akidx++) {
-		akm4xxx_t *ak = &ice->akm[akidx];
+		struct snd_akm4xxx *ak = &ice->akm[akidx];
 		err = snd_akm4xxx_build_controls(ak);
 		if (err < 0)
 			return err;

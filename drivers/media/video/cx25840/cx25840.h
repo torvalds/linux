@@ -27,15 +27,16 @@
 extern int cx25840_debug;
 
 #define cx25840_dbg(fmt, arg...) do { if (cx25840_debug) \
-	printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_INFO "%s debug %d-%04x: " fmt, \
+	       client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 #define cx25840_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 #define cx25840_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 #define CX25840_CID_CARDTYPE (V4L2_CID_PRIVATE_BASE+0)

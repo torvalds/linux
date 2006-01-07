@@ -147,9 +147,8 @@ MODULE_PARM_DESC(load_all, "Allow to load the non-whitelisted cards");
 /* SYNC, one WRITE per line, one extra WRITE per page boundary, SYNC, JUMP */
 #define MAX_RISC_SIZE ((1 + 255 + (PAGE_ALIGN(255 * 4092) / PAGE_SIZE - 1) + 1 + 1) * 8)
 
-typedef struct snd_bt87x bt87x_t;
 struct snd_bt87x {
-	snd_card_t *card;
+	struct snd_card *card;
 	struct pci_dev *pci;
 
 	void __iomem *mmio;
@@ -159,7 +158,7 @@ struct snd_bt87x {
 
 	spinlock_t reg_lock;
 	long opened;
-	snd_pcm_substream_t *substream;
+	struct snd_pcm_substream *substream;
 
 	struct snd_dma_buffer dma_risc;
 	unsigned int line_bytes;
@@ -175,17 +174,17 @@ struct snd_bt87x {
 
 enum { DEVICE_DIGITAL, DEVICE_ANALOG };
 
-static inline u32 snd_bt87x_readl(bt87x_t *chip, u32 reg)
+static inline u32 snd_bt87x_readl(struct snd_bt87x *chip, u32 reg)
 {
 	return readl(chip->mmio + reg);
 }
 
-static inline void snd_bt87x_writel(bt87x_t *chip, u32 reg, u32 value)
+static inline void snd_bt87x_writel(struct snd_bt87x *chip, u32 reg, u32 value)
 {
 	writel(value, chip->mmio + reg);
 }
 
-static int snd_bt87x_create_risc(bt87x_t *chip, snd_pcm_substream_t *substream,
+static int snd_bt87x_create_risc(struct snd_bt87x *chip, struct snd_pcm_substream *substream,
 			       	 unsigned int periods, unsigned int period_bytes)
 {
 	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
@@ -235,7 +234,7 @@ static int snd_bt87x_create_risc(bt87x_t *chip, snd_pcm_substream_t *substream,
 	return 0;
 }
 
-static void snd_bt87x_free_risc(bt87x_t *chip)
+static void snd_bt87x_free_risc(struct snd_bt87x *chip)
 {
 	if (chip->dma_risc.area) {
 		snd_dma_free_pages(&chip->dma_risc);
@@ -243,7 +242,7 @@ static void snd_bt87x_free_risc(bt87x_t *chip)
 	}
 }
 
-static void snd_bt87x_pci_error(bt87x_t *chip, unsigned int status)
+static void snd_bt87x_pci_error(struct snd_bt87x *chip, unsigned int status)
 {
 	u16 pci_status;
 
@@ -272,7 +271,7 @@ static void snd_bt87x_pci_error(bt87x_t *chip, unsigned int status)
 
 static irqreturn_t snd_bt87x_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
-	bt87x_t *chip = dev_id;
+	struct snd_bt87x *chip = dev_id;
 	unsigned int status, irq_status;
 
 	status = snd_bt87x_readl(chip, REG_INT_STAT);
@@ -305,7 +304,7 @@ static irqreturn_t snd_bt87x_interrupt(int irq, void *dev_id, struct pt_regs *re
 	return IRQ_HANDLED;
 }
 
-static snd_pcm_hardware_t snd_bt87x_digital_hw = {
+static struct snd_pcm_hardware snd_bt87x_digital_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -321,7 +320,7 @@ static snd_pcm_hardware_t snd_bt87x_digital_hw = {
 	.periods_max = 255,
 };
 
-static snd_pcm_hardware_t snd_bt87x_analog_hw = {
+static struct snd_pcm_hardware snd_bt87x_analog_hw = {
 	.info = SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -339,7 +338,7 @@ static snd_pcm_hardware_t snd_bt87x_analog_hw = {
 	.periods_max = 255,
 };
 
-static int snd_bt87x_set_digital_hw(bt87x_t *chip, snd_pcm_runtime_t *runtime)
+static int snd_bt87x_set_digital_hw(struct snd_bt87x *chip, struct snd_pcm_runtime *runtime)
 {
 	static struct {
 		int rate;
@@ -368,15 +367,15 @@ static int snd_bt87x_set_digital_hw(bt87x_t *chip, snd_pcm_runtime_t *runtime)
 	return 0;
 }
 
-static int snd_bt87x_set_analog_hw(bt87x_t *chip, snd_pcm_runtime_t *runtime)
+static int snd_bt87x_set_analog_hw(struct snd_bt87x *chip, struct snd_pcm_runtime *runtime)
 {
-	static ratnum_t analog_clock = {
+	static struct snd_ratnum analog_clock = {
 		.num = ANALOG_CLOCK,
 		.den_min = CLOCK_DIV_MIN,
 		.den_max = CLOCK_DIV_MAX,
 		.den_step = 1
 	};
-	static snd_pcm_hw_constraint_ratnums_t constraint_rates = {
+	static struct snd_pcm_hw_constraint_ratnums constraint_rates = {
 		.nrats = 1,
 		.rats = &analog_clock
 	};
@@ -387,10 +386,10 @@ static int snd_bt87x_set_analog_hw(bt87x_t *chip, snd_pcm_runtime_t *runtime)
 					     &constraint_rates);
 }
 
-static int snd_bt87x_pcm_open(snd_pcm_substream_t *substream)
+static int snd_bt87x_pcm_open(struct snd_pcm_substream *substream)
 {
-	bt87x_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
 	if (test_and_set_bit(0, &chip->opened))
@@ -416,9 +415,9 @@ _error:
 	return err;
 }
 
-static int snd_bt87x_close(snd_pcm_substream_t *substream)
+static int snd_bt87x_close(struct snd_pcm_substream *substream)
 {
-	bt87x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
 
 	chip->substream = NULL;
 	clear_bit(0, &chip->opened);
@@ -426,10 +425,10 @@ static int snd_bt87x_close(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static int snd_bt87x_hw_params(snd_pcm_substream_t *substream,
-			       snd_pcm_hw_params_t *hw_params)
+static int snd_bt87x_hw_params(struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *hw_params)
 {
-	bt87x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
 	int err;
 
 	err = snd_pcm_lib_malloc_pages(substream,
@@ -441,19 +440,19 @@ static int snd_bt87x_hw_params(snd_pcm_substream_t *substream,
 				     params_period_bytes(hw_params));
 }
 
-static int snd_bt87x_hw_free(snd_pcm_substream_t *substream)
+static int snd_bt87x_hw_free(struct snd_pcm_substream *substream)
 {
-	bt87x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
 
 	snd_bt87x_free_risc(chip);
 	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
-static int snd_bt87x_prepare(snd_pcm_substream_t *substream)
+static int snd_bt87x_prepare(struct snd_pcm_substream *substream)
 {
-	bt87x_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	int decimation;
 
 	spin_lock_irq(&chip->reg_lock);
@@ -467,7 +466,7 @@ static int snd_bt87x_prepare(snd_pcm_substream_t *substream)
 	return 0;
 }
 
-static int snd_bt87x_start(bt87x_t *chip)
+static int snd_bt87x_start(struct snd_bt87x *chip)
 {
 	spin_lock(&chip->reg_lock);
 	chip->current_line = 0;
@@ -481,7 +480,7 @@ static int snd_bt87x_start(bt87x_t *chip)
 	return 0;
 }
 
-static int snd_bt87x_stop(bt87x_t *chip)
+static int snd_bt87x_stop(struct snd_bt87x *chip)
 {
 	spin_lock(&chip->reg_lock);
 	chip->reg_control &= ~(CTL_FIFO_ENABLE | CTL_RISC_ENABLE | CTL_ACAP_EN);
@@ -492,9 +491,9 @@ static int snd_bt87x_stop(bt87x_t *chip)
 	return 0;
 }
 
-static int snd_bt87x_trigger(snd_pcm_substream_t *substream, int cmd)
+static int snd_bt87x_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	bt87x_t *chip = snd_pcm_substream_chip(substream);
+	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -506,15 +505,15 @@ static int snd_bt87x_trigger(snd_pcm_substream_t *substream, int cmd)
 	}
 }
 
-static snd_pcm_uframes_t snd_bt87x_pointer(snd_pcm_substream_t *substream)
+static snd_pcm_uframes_t snd_bt87x_pointer(struct snd_pcm_substream *substream)
 {
-	bt87x_t *chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t *runtime = substream->runtime;
+	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	return (snd_pcm_uframes_t)bytes_to_frames(runtime, chip->current_line * chip->line_bytes);
 }
 
-static snd_pcm_ops_t snd_bt87x_pcm_ops = {
+static struct snd_pcm_ops snd_bt87x_pcm_ops = {
 	.open = snd_bt87x_pcm_open,
 	.close = snd_bt87x_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -526,7 +525,8 @@ static snd_pcm_ops_t snd_bt87x_pcm_ops = {
 	.page = snd_pcm_sgbuf_ops_page,
 };
 
-static int snd_bt87x_capture_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *info)
+static int snd_bt87x_capture_volume_info(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *info)
 {
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	info->count = 1;
@@ -535,17 +535,19 @@ static int snd_bt87x_capture_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_bt87x_capture_volume_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *value)
+static int snd_bt87x_capture_volume_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *value)
 {
-	bt87x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_bt87x *chip = snd_kcontrol_chip(kcontrol);
 
 	value->value.integer.value[0] = (chip->reg_control & CTL_A_GAIN_MASK) >> CTL_A_GAIN_SHIFT;
 	return 0;
 }
 
-static int snd_bt87x_capture_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *value)
+static int snd_bt87x_capture_volume_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *value)
 {
-	bt87x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_bt87x *chip = snd_kcontrol_chip(kcontrol);
 	u32 old_control;
 	int changed;
 
@@ -559,7 +561,7 @@ static int snd_bt87x_capture_volume_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 	return changed;
 }
 
-static snd_kcontrol_new_t snd_bt87x_capture_volume = {
+static struct snd_kcontrol_new snd_bt87x_capture_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Volume",
 	.info = snd_bt87x_capture_volume_info,
@@ -567,7 +569,8 @@ static snd_kcontrol_new_t snd_bt87x_capture_volume = {
 	.put = snd_bt87x_capture_volume_put,
 };
 
-static int snd_bt87x_capture_boost_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *info)
+static int snd_bt87x_capture_boost_info(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_info *info)
 {
 	info->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	info->count = 1;
@@ -576,17 +579,19 @@ static int snd_bt87x_capture_boost_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_i
 	return 0;
 }
 
-static int snd_bt87x_capture_boost_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *value)
+static int snd_bt87x_capture_boost_get(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *value)
 {
-	bt87x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_bt87x *chip = snd_kcontrol_chip(kcontrol);
 
 	value->value.integer.value[0] = !! (chip->reg_control & CTL_A_G2X);
 	return 0;
 }
 
-static int snd_bt87x_capture_boost_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *value)
+static int snd_bt87x_capture_boost_put(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *value)
 {
-	bt87x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_bt87x *chip = snd_kcontrol_chip(kcontrol);
 	u32 old_control;
 	int changed;
 
@@ -600,7 +605,7 @@ static int snd_bt87x_capture_boost_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_va
 	return changed;
 }
 
-static snd_kcontrol_new_t snd_bt87x_capture_boost = {
+static struct snd_kcontrol_new snd_bt87x_capture_boost = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Boost",
 	.info = snd_bt87x_capture_boost_info,
@@ -608,7 +613,8 @@ static snd_kcontrol_new_t snd_bt87x_capture_boost = {
 	.put = snd_bt87x_capture_boost_put,
 };
 
-static int snd_bt87x_capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *info)
+static int snd_bt87x_capture_source_info(struct snd_kcontrol *kcontrol,
+					 struct snd_ctl_elem_info *info)
 {
 	static char *texts[3] = {"TV Tuner", "FM", "Mic/Line"};
 
@@ -621,17 +627,19 @@ static int snd_bt87x_capture_source_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_
 	return 0;
 }
 
-static int snd_bt87x_capture_source_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *value)
+static int snd_bt87x_capture_source_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *value)
 {
-	bt87x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_bt87x *chip = snd_kcontrol_chip(kcontrol);
 
 	value->value.enumerated.item[0] = (chip->reg_control & CTL_A_SEL_MASK) >> CTL_A_SEL_SHIFT;
 	return 0;
 }
 
-static int snd_bt87x_capture_source_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *value)
+static int snd_bt87x_capture_source_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *value)
 {
-	bt87x_t *chip = snd_kcontrol_chip(kcontrol);
+	struct snd_bt87x *chip = snd_kcontrol_chip(kcontrol);
 	u32 old_control;
 	int changed;
 
@@ -645,7 +653,7 @@ static int snd_bt87x_capture_source_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_v
 	return changed;
 }
 
-static snd_kcontrol_new_t snd_bt87x_capture_source = {
+static struct snd_kcontrol_new snd_bt87x_capture_source = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Source",
 	.info = snd_bt87x_capture_source_info,
@@ -653,7 +661,7 @@ static snd_kcontrol_new_t snd_bt87x_capture_source = {
 	.put = snd_bt87x_capture_source_put,
 };
 
-static int snd_bt87x_free(bt87x_t *chip)
+static int snd_bt87x_free(struct snd_bt87x *chip)
 {
 	if (chip->mmio) {
 		snd_bt87x_stop(chip);
@@ -670,16 +678,16 @@ static int snd_bt87x_free(bt87x_t *chip)
 	return 0;
 }
 
-static int snd_bt87x_dev_free(snd_device_t *device)
+static int snd_bt87x_dev_free(struct snd_device *device)
 {
-	bt87x_t *chip = device->device_data;
+	struct snd_bt87x *chip = device->device_data;
 	return snd_bt87x_free(chip);
 }
 
-static int __devinit snd_bt87x_pcm(bt87x_t *chip, int device, char *name)
+static int __devinit snd_bt87x_pcm(struct snd_bt87x *chip, int device, char *name)
 {
 	int err;
-	snd_pcm_t *pcm;
+	struct snd_pcm *pcm;
 
 	err = snd_pcm_new(chip->card, name, device, 0, 1, &pcm);
 	if (err < 0)
@@ -694,13 +702,13 @@ static int __devinit snd_bt87x_pcm(bt87x_t *chip, int device, char *name)
 							(255 * 4092 + 1023) & ~1023);
 }
 
-static int __devinit snd_bt87x_create(snd_card_t *card,
+static int __devinit snd_bt87x_create(struct snd_card *card,
 				      struct pci_dev *pci,
-				      bt87x_t **rchip)
+				      struct snd_bt87x **rchip)
 {
-	bt87x_t *chip;
+	struct snd_bt87x *chip;
 	int err;
-	static snd_device_ops_t ops = {
+	static struct snd_device_ops ops = {
 		.dev_free = snd_bt87x_dev_free
 	};
 
@@ -823,8 +831,8 @@ static int __devinit snd_bt87x_probe(struct pci_dev *pci,
 				     const struct pci_device_id *pci_id)
 {
 	static int dev;
-	snd_card_t *card;
-	bt87x_t *chip;
+	struct snd_card *card;
+	struct snd_bt87x *chip;
 	int err, rate;
 
 	rate = pci_id->driver_data;

@@ -148,7 +148,6 @@ static void led_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver led_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"usbled",
 	.probe =	led_probe,
 	.disconnect =	led_disconnect,

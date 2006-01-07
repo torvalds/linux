@@ -79,9 +79,7 @@ extern  void nfs_clear_page_writeback(struct nfs_page *req);
 static inline int
 nfs_lock_request_dontget(struct nfs_page *req)
 {
-	if (test_and_set_bit(PG_BUSY, &req->wb_flags))
-		return 0;
-	return 1;
+	return !test_and_set_bit(PG_BUSY, &req->wb_flags);
 }
 
 /*
@@ -125,9 +123,7 @@ nfs_list_remove_request(struct nfs_page *req)
 static inline int
 nfs_defer_commit(struct nfs_page *req)
 {
-	if (test_and_set_bit(PG_NEED_COMMIT, &req->wb_flags))
-		return 0;
-	return 1;
+	return !test_and_set_bit(PG_NEED_COMMIT, &req->wb_flags);
 }
 
 static inline void
@@ -141,9 +137,7 @@ nfs_clear_commit(struct nfs_page *req)
 static inline int
 nfs_defer_reschedule(struct nfs_page *req)
 {
-	if (test_and_set_bit(PG_NEED_RESCHED, &req->wb_flags))
-		return 0;
-	return 1;
+	return !test_and_set_bit(PG_NEED_RESCHED, &req->wb_flags);
 }
 
 static inline void

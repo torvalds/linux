@@ -7,7 +7,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.47 $
+ * $Revision: 1.50 $
  *
  * i/o controls for the dasd driver.
  */
@@ -351,6 +351,9 @@ dasd_ioctl_read_profile(struct block_device *bdev, int no, long args)
 	device = bdev->bd_disk->private_data;
 	if (device == NULL)
 		return -ENODEV;
+
+	if (dasd_profile_level == DASD_PROFILE_OFF)
+		return -EIO;
 
 	if (copy_to_user((long __user *) args, (long *) &device->profile,
 			 sizeof (struct dasd_profile_info_t)))

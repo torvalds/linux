@@ -313,7 +313,8 @@ int bio_get_nr_vecs(struct block_device *bdev)
 }
 
 static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
-			  *page, unsigned int len, unsigned int offset)
+			  *page, unsigned int len, unsigned int offset,
+			  unsigned short max_sectors)
 {
 	int retried_segments = 0;
 	struct bio_vec *bvec;
@@ -324,10 +325,31 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 	if (unlikely(bio_flagged(bio, BIO_CLONED)))
 		return 0;
 
-	if (bio->bi_vcnt >= bio->bi_max_vecs)
+	if (((bio->bi_size + len) >> 9) > max_sectors)
 		return 0;
 
-	if (((bio->bi_size + len) >> 9) > q->max_sectors)
+	/*
+	 * For filesystems with a blocksize smaller than the pagesize
+	 * we will often be called with the same page as last time and
+	 * a consecutive offset.  Optimize this special case.
+	 */
+	if (bio->bi_vcnt > 0) {
+		struct bio_vec *prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
+
+		if (page == prev->bv_page &&
+		    offset == prev->bv_offset + prev->bv_len) {
+			prev->bv_len += len;
+			if (q->merge_bvec_fn &&
+			    q->merge_bvec_fn(q, bio, prev) < len) {
+				prev->bv_len -= len;
+				return 0;
+			}
+
+			goto done;
+		}
+	}
+
+	if (bio->bi_vcnt >= bio->bi_max_vecs)
 		return 0;
 
 	/*
@@ -381,8 +403,28 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 	bio->bi_vcnt++;
 	bio->bi_phys_segments++;
 	bio->bi_hw_segments++;
+ done:
 	bio->bi_size += len;
 	return len;
+}
+
+/**
+ *	bio_add_pc_page	-	attempt to add page to bio
+ *	@bio: destination bio
+ *	@page: page to add
+ *	@len: vec entry length
+ *	@offset: vec entry offset
+ *
+ *	Attempt to add a page to the bio_vec maplist. This can fail for a
+ *	number of reasons, such as the bio being full or target block
+ *	device limitations. The target block device must allow bio's
+ *      smaller than PAGE_SIZE, so it is always possible to add a single
+ *      page to an empty bio. This should only be used by REQ_PC bios.
+ */
+int bio_add_pc_page(request_queue_t *q, struct bio *bio, struct page *page,
+		    unsigned int len, unsigned int offset)
+{
+	return __bio_add_page(q, bio, page, len, offset, q->max_hw_sectors);
 }
 
 /**
@@ -401,8 +443,8 @@ static int __bio_add_page(request_queue_t *q, struct bio *bio, struct page
 int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
 		 unsigned int offset)
 {
-	return __bio_add_page(bdev_get_queue(bio->bi_bdev), bio, page,
-			      len, offset);
+	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+	return __bio_add_page(q, bio, page, len, offset, q->max_sectors);
 }
 
 struct bio_map_data {
@@ -514,7 +556,7 @@ struct bio *bio_copy_user(request_queue_t *q, unsigned long uaddr,
 			break;
 		}
 
-		if (__bio_add_page(q, bio, page, bytes, 0) < bytes) {
+		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes) {
 			ret = -EINVAL;
 			break;
 		}
@@ -628,7 +670,8 @@ static struct bio *__bio_map_user_iov(request_queue_t *q,
 			/*
 			 * sorry...
 			 */
-			if (__bio_add_page(q, bio, pages[j], bytes, offset) < bytes)
+			if (bio_add_pc_page(q, bio, pages[j], bytes, offset) <
+					    bytes)
 				break;
 
 			len -= bytes;
@@ -801,8 +844,8 @@ static struct bio *__bio_map_kern(request_queue_t *q, void *data,
 		if (bytes > len)
 			bytes = len;
 
-		if (__bio_add_page(q, bio, virt_to_page(data), bytes,
-				   offset) < bytes)
+		if (bio_add_pc_page(q, bio, virt_to_page(data), bytes,
+				    offset) < bytes)
 			break;
 
 		data += bytes;
@@ -1228,6 +1271,7 @@ EXPORT_SYMBOL(bio_clone);
 EXPORT_SYMBOL(bio_phys_segments);
 EXPORT_SYMBOL(bio_hw_segments);
 EXPORT_SYMBOL(bio_add_page);
+EXPORT_SYMBOL(bio_add_pc_page);
 EXPORT_SYMBOL(bio_get_nr_vecs);
 EXPORT_SYMBOL(bio_map_user);
 EXPORT_SYMBOL(bio_unmap_user);

@@ -188,11 +188,13 @@ struct e1000_tx_ring {
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
 
-	struct e1000_buffer previous_buffer_info;
 	spinlock_t tx_lock;
 	uint16_t tdh;
 	uint16_t tdt;
 	uint64_t pkt;
+
+	boolean_t last_tx_tso;
+
 };
 
 struct e1000_rx_ring {

@@ -171,10 +171,9 @@ static int __init mst_pcmcia_init(void)
 {
 	int ret;
 
-	mst_pcmcia_device = kmalloc(sizeof(*mst_pcmcia_device), GFP_KERNEL);
+	mst_pcmcia_device = kzalloc(sizeof(*mst_pcmcia_device), GFP_KERNEL);
 	if (!mst_pcmcia_device)
 		return -ENOMEM;
-	memset(mst_pcmcia_device, 0, sizeof(*mst_pcmcia_device));
 	mst_pcmcia_device->name = "pxa2xx-pcmcia";
 	mst_pcmcia_device->dev.platform_data = &mst_pcmcia_ops;
 

@@ -159,4 +159,5 @@ static inline int __atomic24_sub(int i, atomic24_t *v)
 
 #endif /* !(__KERNEL__) */
 
+#include <asm-generic/atomic.h>
 #endif /* !(__ARCH_SPARC_ATOMIC__) */

@@ -720,6 +720,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 		   ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			disc = (ndlp->nlp_flag & NLP_NPR_2B_DISC);
 		}
@@ -869,6 +870,7 @@ lpfc_cmpl_els_prli(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 		   ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			goto out;
 		}
@@ -1054,6 +1056,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 		   ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			disc = (ndlp->nlp_flag & NLP_NPR_2B_DISC);
 		}
@@ -1205,6 +1208,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 		   ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			goto out;
 		}

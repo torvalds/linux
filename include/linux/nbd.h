@@ -37,9 +37,13 @@ enum {
 /* userspace doesn't need the nbd_device structure */
 #ifdef __KERNEL__
 
+#include <linux/wait.h>
+
 /* values for flags field */
 #define NBD_READ_ONLY 0x0001
 #define NBD_WRITE_NOCHK 0x0002
+
+struct request;
 
 struct nbd_device {
 	int flags;
@@ -47,8 +51,12 @@ struct nbd_device {
 	struct socket * sock;
 	struct file * file; 	/* If == NULL, device is not ready, yet	*/
 	int magic;
+
 	spinlock_t queue_lock;
 	struct list_head queue_head;/* Requests are added here...	*/
+	struct request *active_req;
+	wait_queue_head_t active_wq;
+
 	struct semaphore tx_lock;
 	struct gendisk *disk;
 	int blksize;

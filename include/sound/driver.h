@@ -28,7 +28,12 @@
 
 #include <linux/config.h>
 
-#define SNDRV_CARDS		8	/* number of supported soundcards - don't change - minor numbers */
+/* number of supported soundcards */
+#ifdef CONFIG_SND_DYNAMIC_MINORS
+#define SNDRV_CARDS 32
+#else
+#define SNDRV_CARDS 8		/* don't change - minor numbers */
+#endif
 
 #ifndef CONFIG_SND_MAJOR	/* standard configuration */
 #define CONFIG_SND_MAJOR	116

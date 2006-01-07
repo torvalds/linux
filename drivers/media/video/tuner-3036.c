@@ -175,10 +175,10 @@ tuner_probe(struct i2c_adapter *adap)
 static struct i2c_driver 
 i2c_driver_tuner = 
 {
-	.owner		=	THIS_MODULE,
-	.name		=	"sab3036",
+	.driver = {
+		.name	=	"sab3036",
+	},
 	.id		=	I2C_DRIVERID_SAB3036,
-        .flags		=	I2C_DF_NOTIFY,
 	.attach_adapter =	tuner_probe,
 	.detach_client  =	tuner_detach,
 	.command	=	tuner_command

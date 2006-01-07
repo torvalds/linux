@@ -228,18 +228,16 @@ static void mptsas_print_expander_pg1(SasExpanderPage1_t *pg1)
  * implement ->target_alloc.
  */
 static int
-mptsas_slave_alloc(struct scsi_device *device)
+mptsas_slave_alloc(struct scsi_device *sdev)
 {
-	struct Scsi_Host	*host = device->host;
+	struct Scsi_Host	*host = sdev->host;
 	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
 	struct sas_rphy		*rphy;
 	struct mptsas_portinfo	*p;
+	VirtTarget		*vtarget;
 	VirtDevice		*vdev;
-	uint			target = device->id;
+	struct scsi_target 	*starget;
 	int i;
-
-	if ((vdev = hd->Targets[target]) != NULL)
-		goto out;
 
 	vdev = kmalloc(sizeof(VirtDevice), GFP_KERNEL);
 	if (!vdev) {
@@ -247,12 +245,18 @@ mptsas_slave_alloc(struct scsi_device *device)
 				hd->ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
-
 	memset(vdev, 0, sizeof(VirtDevice));
-	vdev->tflags = MPT_TARGET_FLAGS_Q_YES|MPT_TARGET_FLAGS_VALID_INQUIRY;
 	vdev->ioc_id = hd->ioc->id;
+	sdev->hostdata = vdev;
+	starget = scsi_target(sdev);
+	vtarget = starget->hostdata;
+	vdev->vtarget = vtarget;
+	if (vtarget->num_luns == 0) {
+		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES|MPT_TARGET_FLAGS_VALID_INQUIRY;
+		hd->Targets[sdev->id] = vtarget;
+	}
 
-	rphy = dev_to_rphy(device->sdev_target->dev.parent);
+	rphy = dev_to_rphy(sdev->sdev_target->dev.parent);
 	list_for_each_entry(p, &hd->ioc->sas_topology, list) {
 		for (i = 0; i < p->num_phys; i++) {
 			if (p->phy_info[i].attached.sas_address ==
@@ -260,7 +264,7 @@ mptsas_slave_alloc(struct scsi_device *device)
 				vdev->target_id =
 					p->phy_info[i].attached.target;
 				vdev->bus_id = p->phy_info[i].attached.bus;
-				hd->Targets[device->id] = vdev;
+				vdev->lun = sdev->lun;
 				goto out;
 			}
 		}
@@ -271,19 +275,24 @@ mptsas_slave_alloc(struct scsi_device *device)
 	return -ENODEV;
 
  out:
-	vdev->num_luns++;
-	device->hostdata = vdev;
+	vtarget->ioc_id = vdev->ioc_id;
+	vtarget->target_id = vdev->target_id;
+	vtarget->bus_id = vdev->bus_id;
+	vtarget->num_luns++;
 	return 0;
 }
 
 static struct scsi_host_template mptsas_driver_template = {
+	.module				= THIS_MODULE,
 	.proc_name			= "mptsas",
 	.proc_info			= mptscsih_proc_info,
 	.name				= "MPT SPI Host",
 	.info				= mptscsih_info,
 	.queuecommand			= mptscsih_qcmd,
+	.target_alloc			= mptscsih_target_alloc,
 	.slave_alloc			= mptsas_slave_alloc,
 	.slave_configure		= mptscsih_slave_configure,
+	.target_destroy			= mptscsih_target_destroy,
 	.slave_destroy			= mptscsih_slave_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
 	.eh_abort_handler		= mptscsih_abort,
@@ -986,7 +995,6 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc, int *index)
 		goto out_free_port_info;
 
 	list_add_tail(&port_info->list, &ioc->sas_topology);
-
 	for (i = 0; i < port_info->num_phys; i++) {
 		mptsas_sas_phy_pg0(ioc, &port_info->phy_info[i],
 			(MPI_SAS_PHY_PGAD_FORM_PHY_NUMBER <<
@@ -1133,13 +1141,15 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(MYIOC_s_WARN_FMT
 		  "Skipping because it's not operational!\n",
 		  ioc->name);
-		return -ENODEV;
+		error = -ENODEV;
+		goto out_mptsas_probe;
 	}
 
 	if (!ioc->active) {
 		printk(MYIOC_s_WARN_FMT "Skipping because it's disabled!\n",
 		  ioc->name);
-		return -ENODEV;
+		error = -ENODEV;
+		goto out_mptsas_probe;
 	}
 
 	/*  Sanity check - ensure at least 1 port is INITIATOR capable
@@ -1163,7 +1173,8 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(MYIOC_s_WARN_FMT
 			"Unable to register controller with SCSI subsystem\n",
 			ioc->name);
-                return -1;
+		error = -1;
+		goto out_mptsas_probe;
         }
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
@@ -1237,7 +1248,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mem = kmalloc(sz, GFP_ATOMIC);
 	if (mem == NULL) {
 		error = -ENOMEM;
-		goto mptsas_probe_failed;
+		goto out_mptsas_probe;
 	}
 
 	memset(mem, 0, sz);
@@ -1255,14 +1266,14 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mem = kmalloc(sz, GFP_ATOMIC);
 	if (mem == NULL) {
 		error = -ENOMEM;
-		goto mptsas_probe_failed;
+		goto out_mptsas_probe;
 	}
 
 	memset(mem, 0, sz);
-	hd->Targets = (VirtDevice **) mem;
+	hd->Targets = (VirtTarget **) mem;
 
 	dprintk((KERN_INFO
-	  "  Targets @ %p, sz=%d\n", hd->Targets, sz));
+	  "  vtarget @ %p, sz=%d\n", hd->Targets, sz));
 
 	/* Clear the TM flags
 	 */
@@ -1308,14 +1319,14 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (error) {
 		dprintk((KERN_ERR MYNAM
 		  "scsi_add_host failed\n"));
-		goto mptsas_probe_failed;
+		goto out_mptsas_probe;
 	}
 
 	mptsas_scan_sas_topology(ioc);
 
 	return 0;
 
-mptsas_probe_failed:
+out_mptsas_probe:
 
 	mptscsih_remove(pdev);
 	return error;

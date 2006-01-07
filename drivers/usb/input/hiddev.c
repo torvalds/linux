@@ -826,7 +826,6 @@ static int hiddev_usbd_probe(struct usb_interface *intf,
 
 
 static /* const */ struct usb_driver hiddev_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"hiddev",
 	.probe =	hiddev_usbd_probe,
 };

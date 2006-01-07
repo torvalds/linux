@@ -194,7 +194,6 @@ static struct scsi_host_template pdc_sata_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
 	.bios_param		= ata_std_bios_param,
-	.ordered_flush		= 1,
 };
 
 static const struct ata_port_operations pdc_20621_ops = {
@@ -215,7 +214,7 @@ static const struct ata_port_operations pdc_20621_ops = {
 	.host_stop		= pdc20621_host_stop,
 };
 
-static struct ata_port_info pdc_port_info[] = {
+static const struct ata_port_info pdc_port_info[] = {
 	/* board_20621 */
 	{
 		.sht		= &pdc_sata_sht,
@@ -719,7 +718,8 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 			VPRINTK("ata%u: read hdma, 0x%x 0x%x\n", ap->id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 			/* get drive status; clear intr; complete txn */
-			ata_qc_complete(qc, ac_err_mask(ata_wait_idle(ap)));
+			qc->err_mask |= ac_err_mask(ata_wait_idle(ap));
+			ata_qc_complete(qc);
 			pdc20621_pop_hdma(qc);
 		}
 
@@ -757,7 +757,8 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 			VPRINTK("ata%u: write ata, 0x%x 0x%x\n", ap->id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 			/* get drive status; clear intr; complete txn */
-			ata_qc_complete(qc, ac_err_mask(ata_wait_idle(ap)));
+			qc->err_mask |= ac_err_mask(ata_wait_idle(ap));
+			ata_qc_complete(qc);
 			pdc20621_pop_hdma(qc);
 		}
 		handled = 1;
@@ -767,7 +768,8 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 
 		status = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 		DPRINTK("BUS_NODATA (drv_stat 0x%X)\n", status);
-		ata_qc_complete(qc, ac_err_mask(status));
+		qc->err_mask |= ac_err_mask(status);
+		ata_qc_complete(qc);
 		handled = 1;
 
 	} else {
@@ -882,7 +884,8 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
 		printk(KERN_ERR "ata%u: command timeout\n", ap->id);
-		ata_qc_complete(qc, __ac_err_mask(ata_wait_idle(ap)));
+		qc->err_mask |= __ac_err_mask(ata_wait_idle(ap));
+		ata_qc_complete(qc);
 		break;
 
 	default:
@@ -891,7 +894,8 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		printk(KERN_ERR "ata%u: unknown timeout, cmd 0x%x stat 0x%x\n",
 		       ap->id, qc->tf.command, drv_stat);
 
-		ata_qc_complete(qc, ac_err_mask(drv_stat));
+		qc->err_mask |= ac_err_mask(drv_stat);
+		ata_qc_complete(qc);
 		break;
 	}
 

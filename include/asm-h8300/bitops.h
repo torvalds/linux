@@ -406,5 +406,6 @@ found_middle:
 #endif /* __KERNEL__ */
 
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 #endif /* _H8300_BITOPS_H */

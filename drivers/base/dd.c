@@ -65,7 +65,8 @@ void device_bind_driver(struct device * dev)
  *	This function returns 1 if a match is found, an error if one
  *	occurs (that is not -ENODEV or -ENXIO), and 0 otherwise.
  *
- *	This function must be called with @dev->sem held.
+ *	This function must be called with @dev->sem held.  When called
+ *	for a USB interface, @dev->parent->sem must be held as well.
  */
 int driver_probe_device(struct device_driver * drv, struct device * dev)
 {
@@ -123,6 +124,8 @@ static int __device_attach(struct device_driver * drv, void * data)
  *
  *	Returns 1 if the device was bound to a driver;
  *	0 if no matching device was found; error code otherwise.
+ *
+ *	When called for a USB interface, @dev->parent->sem must be held.
  */
 int device_attach(struct device * dev)
 {
@@ -152,10 +155,14 @@ static int __driver_attach(struct device * dev, void * data)
 	 * is an error.
 	 */
 
+	if (dev->parent)	/* Needed for USB */
+		down(&dev->parent->sem);
 	down(&dev->sem);
 	if (!dev->driver)
 		driver_probe_device(drv, dev);
 	up(&dev->sem);
+	if (dev->parent)
+		up(&dev->parent->sem);
 
 	return 0;
 }
@@ -181,6 +188,8 @@ void driver_attach(struct device_driver * drv)
  *	Manually detach device from driver.
  *
  *	__device_release_driver() must be called with @dev->sem held.
+ *	When called for a USB interface, @dev->parent->sem must be held
+ *	as well.
  */
 
 static void __device_release_driver(struct device * dev)
@@ -233,10 +242,14 @@ void driver_detach(struct device_driver * drv)
 		get_device(dev);
 		spin_unlock(&drv->klist_devices.k_lock);
 
+		if (dev->parent)	/* Needed for USB */
+			down(&dev->parent->sem);
 		down(&dev->sem);
 		if (dev->driver == drv)
 			__device_release_driver(dev);
 		up(&dev->sem);
+		if (dev->parent)
+			up(&dev->parent->sem);
 		put_device(dev);
 	}
 }

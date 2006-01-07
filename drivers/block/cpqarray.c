@@ -1036,7 +1036,7 @@ static inline void complete_command(cmdlist_t *cmd, int timeout)
 	complete_buffers(cmd->rq->bio, ok);
 
         DBGPX(printk("Done with %p\n", cmd->rq););
-	end_that_request_last(cmd->rq);
+	end_that_request_last(cmd->rq, ok ? 1 : -EIO);
 }
 
 /*

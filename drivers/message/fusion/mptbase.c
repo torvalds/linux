@@ -313,13 +313,13 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 		u32	 log_info = le32_to_cpu(mr->u.reply.IOCLogInfo);
 		if (ioc->bus_type == FC)
 			mpt_fc_log_info(ioc, log_info);
-		else if (ioc->bus_type == SCSI)
+		else if (ioc->bus_type == SPI)
 			mpt_sp_log_info(ioc, log_info);
 		else if (ioc->bus_type == SAS)
 			mpt_sas_log_info(ioc, log_info);
 	}
 	if (ioc_stat & MPI_IOCSTATUS_MASK) {
-		if (ioc->bus_type == SCSI &&
+		if (ioc->bus_type == SPI &&
 		    cb_idx != mpt_stm_index &&
 		    cb_idx != mpt_lan_index)
 			mpt_sp_ioc_info(ioc, (u32)ioc_stat, mf);
@@ -1376,7 +1376,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_53C1030) {
 		ioc->prod_name = "LSI53C1030";
-		ioc->bus_type = SCSI;
+		ioc->bus_type = SPI;
 		/* 1030 Chip Fix. Disable Split transactions
 		 * for PCIX. Set MOST bits to zero if Rev < C0( = 8).
 		 */
@@ -1389,7 +1389,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_1030_53C1035) {
 		ioc->prod_name = "LSI53C1035";
-		ioc->bus_type = SCSI;
+		ioc->bus_type = SPI;
 	}
 	else if (pdev->device == MPI_MANUFACTPAGE_DEVID_SAS1064) {
 		ioc->prod_name = "LSISAS1064";
@@ -3042,7 +3042,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 	/* Clear the internal flash bad bit - autoincrementing register,
 	 * so must do two writes.
 	 */
-	if (ioc->bus_type == SCSI) {
+	if (ioc->bus_type == SPI) {
 		/*
 		 * 1030 and 1035 H/W errata, workaround to access
 		 * the ClearFlashBadSignatureBit
@@ -3152,7 +3152,7 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 	int cnt,cntdn;
 
 	dinitprintk((KERN_WARNING MYNAM ": KickStarting %s!\n", ioc->name));
-	if (ioc->bus_type == SCSI) {
+	if (ioc->bus_type == SPI) {
 		/* Always issue a Msg Unit Reset first. This will clear some
 		 * SCSI bus hang conditions.
 		 */
@@ -3580,7 +3580,7 @@ initChainBuffers(MPT_ADAPTER *ioc)
 	dinitprintk((KERN_INFO MYNAM ": %s Now numSGE=%d num_sge=%d num_chain=%d\n",
 		ioc->name, numSGE, num_sge, num_chain));
 
-	if (ioc->bus_type == SCSI)
+	if (ioc->bus_type == SPI)
 		num_chain *= MPT_SCSI_CAN_QUEUE;
 	else
 		num_chain *= MPT_FC_CAN_QUEUE;

@@ -23,10 +23,12 @@
 #include <linux/buffer_head.h>
 #include <linux/bitops.h>
 
+#if 0
 int qnx4_new_block(struct super_block *sb)
 {
 	return 0;
 }
+#endif  /*  0  */
 
 static void count_bits(register const char *bmPart, register int size,
 		       int *const tf)

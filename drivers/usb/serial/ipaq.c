@@ -542,11 +542,11 @@ static struct usb_device_id ipaq_id_table [] = {
 MODULE_DEVICE_TABLE (usb, ipaq_id_table);
 
 static struct usb_driver ipaq_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"ipaq",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	ipaq_id_table,
+	.no_dynamic_id = 	1,
 };
 
 

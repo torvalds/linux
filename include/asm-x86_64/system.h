@@ -315,6 +315,8 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #define local_irq_enable()	__asm__ __volatile__("sti": : :"memory")
 /* used in the idle loop; sti takes one instruction cycle to complete */
 #define safe_halt()		__asm__ __volatile__("sti; hlt": : :"memory")
+/* used when interrupts are already enabled or to shutdown the processor */
+#define halt()			__asm__ __volatile__("hlt": : :"memory")
 
 #define irqs_disabled()			\
 ({					\

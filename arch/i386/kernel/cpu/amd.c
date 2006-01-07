@@ -161,8 +161,13 @@ static void __init init_amd(struct cpuinfo_x86 *c)
 					set_bit(X86_FEATURE_K6_MTRR, c->x86_capability);
 				break;
 			}
-			break;
 
+			if (c->x86_model == 10) {
+				/* AMD Geode LX is model 10 */
+				/* placeholder for any needed mods */
+				break;
+			}
+			break;
 		case 6: /* An Athlon/Duron */
  
 			/* Bit 15 of Athlon specific MSR 15, needs to be 0

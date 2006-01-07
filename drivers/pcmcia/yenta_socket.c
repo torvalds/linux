@@ -49,7 +49,13 @@ MODULE_PARM_DESC(pwr_irqs_off, "Force IRQs off during power-on of slot. Use only
 #define to_cycles(ns)	((ns)/120)
 #define to_ns(cycles)	((cycles)*120)
 
+/**
+ * yenta PCI irq probing.
+ * currently only used in the TI/EnE initialization code
+ */
+#ifdef CONFIG_YENTA_TI
 static int yenta_probe_cb_irq(struct yenta_socket *socket);
+#endif
 
 
 static unsigned int override_bios;
@@ -221,95 +227,6 @@ static int yenta_get_status(struct pcmcia_socket *sock, unsigned int *value)
 	}
 
 	*value = val;
-	return 0;
-}
-
-static void yenta_get_power(struct yenta_socket *socket, socket_state_t *state)
-{
-	if (!(cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) &&
-	    (socket->flags & YENTA_16BIT_POWER_EXCA)) {
-		u8 reg, vcc, vpp;
-
-		reg = exca_readb(socket, I365_POWER);
-		vcc = reg & I365_VCC_MASK;
-		vpp = reg & I365_VPP1_MASK;
-		state->Vcc = state->Vpp = 0;
-
-		if (socket->flags & YENTA_16BIT_POWER_DF) {
-			if (vcc == I365_VCC_3V)
-				state->Vcc = 33;
-			if (vcc == I365_VCC_5V)
-				state->Vcc = 50;
-			if (vpp == I365_VPP1_5V)
-				state->Vpp = state->Vcc;
-			if (vpp == I365_VPP1_12V)
-				state->Vpp = 120;
-		} else {
-			if (reg & I365_VCC_5V) {
-				state->Vcc = 50;
-				if (vpp == I365_VPP1_5V)
-					state->Vpp = 50;
-				if (vpp == I365_VPP1_12V)
-					state->Vpp = 120;
-			}
-		}
-	} else {
-		u32 control;
-
-		control = cb_readl(socket, CB_SOCKET_CONTROL);
-
-		switch (control & CB_SC_VCC_MASK) {
-		case CB_SC_VCC_5V: state->Vcc = 50; break;
-		case CB_SC_VCC_3V: state->Vcc = 33; break;
-		default: state->Vcc = 0;
-		}
-
-		switch (control & CB_SC_VPP_MASK) {
-		case CB_SC_VPP_12V: state->Vpp = 120; break;
-		case CB_SC_VPP_5V: state->Vpp = 50; break;
-		case CB_SC_VPP_3V: state->Vpp = 33; break;
-		default: state->Vpp = 0;
-		}
-	}
-}
-
-static int yenta_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
-	u8 reg;
-	u32 control;
-
-	control = cb_readl(socket, CB_SOCKET_CONTROL);
-
-	yenta_get_power(socket, state);
-	state->io_irq = socket->io_irq;
-
-	if (cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) {
-		u16 bridge = config_readw(socket, CB_BRIDGE_CONTROL);
-		if (bridge & CB_BRIDGE_CRST)
-			state->flags |= SS_RESET;
-		return 0;
-	}
-
-	/* 16-bit card state.. */
-	reg = exca_readb(socket, I365_POWER);
-	state->flags = (reg & I365_PWR_AUTO) ? SS_PWR_AUTO : 0;
-	state->flags |= (reg & I365_PWR_OUT) ? SS_OUTPUT_ENA : 0;
-
-	reg = exca_readb(socket, I365_INTCTL);
-	state->flags |= (reg & I365_PC_RESET) ? 0 : SS_RESET;
-	state->flags |= (reg & I365_PC_IOCARD) ? SS_IOCARD : 0;
-
-	reg = exca_readb(socket, I365_CSCINT);
-	state->csc_mask = (reg & I365_CSC_DETECT) ? SS_DETECT : 0;
-	if (state->flags & SS_IOCARD) {
-		state->csc_mask |= (reg & I365_CSC_STSCHG) ? SS_STSCHG : 0;
-	} else {
-		state->csc_mask |= (reg & I365_CSC_BVD1) ? SS_BATDEAD : 0;
-		state->csc_mask |= (reg & I365_CSC_BVD2) ? SS_BATWARN : 0;
-		state->csc_mask |= (reg & I365_CSC_READY) ? SS_READY : 0;
-	}
-
 	return 0;
 }
 
@@ -531,6 +448,9 @@ static irqreturn_t yenta_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	csc = exca_readb(socket, I365_CSC);
 
+	if (!(cb_event || csc))
+		return IRQ_NONE;
+
 	events = (cb_event & (CB_CD1EVENT | CB_CD2EVENT)) ? SS_DETECT : 0 ;
 	events |= (csc & I365_CSC_DETECT) ? SS_DETECT : 0;
 	if (exca_readb(socket, I365_INTCTL) & I365_PC_IOCARD) {
@@ -544,10 +464,7 @@ static irqreturn_t yenta_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (events)
 		pcmcia_parse_events(&socket->socket, events);
 
-	if (cb_event || csc)
-		return IRQ_HANDLED;
-
-	return IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 static void yenta_interrupt_wrapper(unsigned long data)
@@ -828,17 +745,24 @@ static struct pccard_operations yenta_socket_operations = {
 	.init			= yenta_sock_init,
 	.suspend		= yenta_sock_suspend,
 	.get_status		= yenta_get_status,
-	.get_socket		= yenta_get_socket,
 	.set_socket		= yenta_set_socket,
 	.set_io_map		= yenta_set_io_map,
 	.set_mem_map		= yenta_set_mem_map,
 };
 
 
+#ifdef CONFIG_YENTA_TI
 #include "ti113x.h"
+#endif
+#ifdef CONFIG_YENTA_RICOH
 #include "ricoh.h"
+#endif
+#ifdef CONFIG_YENTA_TOSHIBA
 #include "topic.h"
+#endif
+#ifdef CONFIG_YENTA_O2
 #include "o2micro.h"
+#endif
 
 enum {
 	CARDBUS_TYPE_DEFAULT = -1,
@@ -858,6 +782,7 @@ enum {
  * initialization sequences etc details. List them here..
  */
 static struct cardbus_type cardbus_type[] = {
+#ifdef CONFIG_YENTA_TI
 	[CARDBUS_TYPE_TI]	= {
 		.override	= ti_override,
 		.save_state	= ti_save_state,
@@ -882,27 +807,36 @@ static struct cardbus_type cardbus_type[] = {
 		.restore_state	= ti_restore_state,
 		.sock_init	= ti_init,
 	},
+#endif
+#ifdef CONFIG_YENTA_RICOH
 	[CARDBUS_TYPE_RICOH]	= {
 		.override	= ricoh_override,
 		.save_state	= ricoh_save_state,
 		.restore_state	= ricoh_restore_state,
 	},
+#endif
+#ifdef CONFIG_YENTA_TOSHIBA
 	[CARDBUS_TYPE_TOPIC95]	= {
 		.override	= topic95_override,
 	},
 	[CARDBUS_TYPE_TOPIC97]	= {
 		.override	= topic97_override,
 	},
+#endif
+#ifdef CONFIG_YENTA_O2
 	[CARDBUS_TYPE_O2MICRO]	= {
 		.override	= o2micro_override,
 		.restore_state	= o2micro_restore_state,
 	},
+#endif
+#ifdef CONFIG_YENTA_TI
 	[CARDBUS_TYPE_ENE]	= {
 		.override	= ene_override,
 		.save_state	= ti_save_state,
 		.restore_state	= ti_restore_state,
 		.sock_init	= ti_init,
 	},
+#endif
 };
 
 
@@ -947,6 +881,12 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 	return mask;
 }
 
+
+/**
+ * yenta PCI irq probing.
+ * currently only used in the TI/EnE initialization code
+ */
+#ifdef CONFIG_YENTA_TI
 
 /* interrupt handler, only used during probing */
 static irqreturn_t yenta_probe_handler(int irq, void *dev_id, struct pt_regs *regs)
@@ -1000,6 +940,7 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 	return (int) socket->probe_status;
 }
 
+#endif /* CONFIG_YENTA_TI */
 
 
 /*
@@ -1078,10 +1019,9 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 		return -ENODEV;
 	}
 
-	socket = kmalloc(sizeof(struct yenta_socket), GFP_KERNEL);
+	socket = kzalloc(sizeof(struct yenta_socket), GFP_KERNEL);
 	if (!socket)
 		return -ENOMEM;
-	memset(socket, 0, sizeof(*socket));
 
 	/* prepare pcmcia_socket */
 	socket->socket.ops = &yenta_socket_operations;
@@ -1263,6 +1203,7 @@ static struct pci_device_id yenta_table [] = {
 	 * advanced overrides instead.  (I can't get the
 	 * data sheets for these devices. --rmk)
 	 */
+#ifdef CONFIG_YENTA_TI
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1210, TI),
 
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1130, TI113X),
@@ -1305,18 +1246,25 @@ static struct pci_device_id yenta_table [] = {
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1225, ENE),
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1410, ENE),
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1420, ENE),
+#endif /* CONFIG_YENTA_TI */
 
+#ifdef CONFIG_YENTA_RICOH
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C465, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C466, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C475, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C476, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C478, RICOH),
+#endif
 
+#ifdef CONFIG_YENTA_TOSHIBA
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95, TOPIC95),
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC97, TOPIC97),
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC100, TOPIC97),
+#endif
 
+#ifdef CONFIG_YENTA_O2
 	CB_ID(PCI_VENDOR_ID_O2, PCI_ANY_ID, O2MICRO),
+#endif
 
 	/* match any cardbus bridge */
 	CB_ID(PCI_ANY_ID, PCI_ANY_ID, DEFAULT),

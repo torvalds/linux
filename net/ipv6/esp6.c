@@ -36,6 +36,7 @@
 #include <linux/random.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
+#include <net/protocol.h>
 #include <linux/icmpv6.h>
 
 static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)

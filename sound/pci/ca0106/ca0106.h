@@ -554,37 +554,36 @@
 
 #include "ca_midi.h"
 
-typedef struct snd_ca0106_channel ca0106_channel_t;
-typedef struct snd_ca0106 ca0106_t;
-typedef struct snd_ca0106_pcm ca0106_pcm_t;
+struct snd_ca0106;
 
 struct snd_ca0106_channel {
-	ca0106_t *emu;
+	struct snd_ca0106 *emu;
 	int number;
 	int use;
-	void (*interrupt)(ca0106_t *emu, ca0106_channel_t *channel);
-	ca0106_pcm_t *epcm;
+	void (*interrupt)(struct snd_ca0106 *emu, struct snd_ca0106_channel *channel);
+	struct snd_ca0106_pcm *epcm;
 };
 
 struct snd_ca0106_pcm {
-	ca0106_t *emu;
-	snd_pcm_substream_t *substream;
+	struct snd_ca0106 *emu;
+	struct snd_pcm_substream *substream;
         int channel_id;
 	unsigned short running;
 };
 
-typedef struct {
+struct snd_ca0106_details {
         u32 serial;
         char * name;
         int ac97;
 	int gpio_type;
 	int i2c_adc;
-} ca0106_details_t;
+	int spi_dac;
+};
 
 // definition of the chip-specific record
 struct snd_ca0106 {
-	snd_card_t *card;
-	ca0106_details_t *details;
+	struct snd_card *card;
+	struct snd_ca0106_details *details;
 	struct pci_dev *pci;
 
 	unsigned long port;
@@ -597,11 +596,11 @@ struct snd_ca0106 {
 
 	spinlock_t emu_lock;
 
-	ac97_t *ac97;
-	snd_pcm_t *pcm;
+	struct snd_ac97 *ac97;
+	struct snd_pcm *pcm;
 
-	ca0106_channel_t playback_channels[4];
-	ca0106_channel_t capture_channels[4];
+	struct snd_ca0106_channel playback_channels[4];
+	struct snd_ca0106_channel capture_channels[4];
 	u32 spdif_bits[4];             /* s/pdif out setup */
 	int spdif_enable;
 	int capture_source;
@@ -609,22 +608,22 @@ struct snd_ca0106 {
 
 	struct snd_dma_buffer buffer;
 
-	ca_midi_t midi;
-	ca_midi_t midi2;
+	struct snd_ca_midi midi;
+	struct snd_ca_midi midi2;
 };
 
-int __devinit snd_ca0106_mixer(ca0106_t *emu);
-int __devinit snd_ca0106_proc_init(ca0106_t * emu);
+int snd_ca0106_mixer(struct snd_ca0106 *emu);
+int snd_ca0106_proc_init(struct snd_ca0106 * emu);
 
-unsigned int snd_ca0106_ptr_read(ca0106_t * emu, 
-					  unsigned int reg, 
-					  unsigned int chn);
+unsigned int snd_ca0106_ptr_read(struct snd_ca0106 * emu, 
+				 unsigned int reg, 
+				 unsigned int chn);
 
-void snd_ca0106_ptr_write(ca0106_t *emu, 
-				   unsigned int reg, 
-				   unsigned int chn, 
-				   unsigned int data);
+void snd_ca0106_ptr_write(struct snd_ca0106 *emu, 
+			  unsigned int reg, 
+			  unsigned int chn, 
+			  unsigned int data);
 
-int snd_ca0106_i2c_write(ca0106_t *emu, u32 reg, u32 value);
+int snd_ca0106_i2c_write(struct snd_ca0106 *emu, u32 reg, u32 value);
 
 

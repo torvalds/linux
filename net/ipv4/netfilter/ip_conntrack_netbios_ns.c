@@ -37,7 +37,7 @@ MODULE_DESCRIPTION("NetBIOS name service broadcast connection tracking helper");
 MODULE_LICENSE("GPL");
 
 static unsigned int timeout = 3;
-module_param(timeout, int, 0600);
+module_param(timeout, uint, 0400);
 MODULE_PARM_DESC(timeout, "timeout for master connection/replies in seconds");
 
 static int help(struct sk_buff **pskb,

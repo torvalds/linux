@@ -773,7 +773,6 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_cx25840;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name) - 1, "cx25840");
 
 	cx25840_dbg("detecting cx25840 client on address 0x%x\n", address << 1);
@@ -844,15 +843,15 @@ static int cx25840_detach_client(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_cx25840 = {
-	.name = "cx25840",
+	.driver = {
+		.name = "cx25840",
+	},
 
 	.id = I2C_DRIVERID_CX25840,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = cx25840_attach_adapter,
 	.detach_client = cx25840_detach_client,
 	.command = cx25840_command,
-	.owner = THIS_MODULE,
 };
 
 

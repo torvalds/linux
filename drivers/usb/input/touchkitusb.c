@@ -1,7 +1,7 @@
 /******************************************************************************
  * touchkitusb.c  --  Driver for eGalax TouchKit USB Touchscreens
  *
- * Copyright (C) 2004 by Daniel Ritz
+ * Copyright (C) 2004-2005 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
  *
  * This program is free software; you can redistribute it and/or
@@ -41,15 +41,13 @@
 #define TOUCHKIT_MAX_YC			0x07ff
 #define TOUCHKIT_YC_FUZZ		0x0
 #define TOUCHKIT_YC_FLAT		0x0
-#define TOUCHKIT_REPORT_DATA_SIZE	8
+#define TOUCHKIT_REPORT_DATA_SIZE	16
 
 #define TOUCHKIT_DOWN			0x01
-#define TOUCHKIT_POINT_TOUCH		0x81
-#define TOUCHKIT_POINT_NOTOUCH		0x80
 
-#define TOUCHKIT_GET_TOUCHED(dat)	((((dat)[0]) & TOUCHKIT_DOWN) ? 1 : 0)
-#define TOUCHKIT_GET_X(dat)		(((dat)[3] << 7) | (dat)[4])
-#define TOUCHKIT_GET_Y(dat)		(((dat)[1] << 7) | (dat)[2])
+#define TOUCHKIT_PKT_TYPE_MASK		0xFE
+#define TOUCHKIT_PKT_TYPE_REPT		0x80
+#define TOUCHKIT_PKT_TYPE_DIAG		0x0A
 
 #define DRIVER_VERSION			"v0.1"
 #define DRIVER_AUTHOR			"Daniel Ritz <daniel.ritz@gmx.ch>"
@@ -62,6 +60,8 @@ MODULE_PARM_DESC(swap_xy, "If set X and Y axes are swapped.");
 struct touchkit_usb {
 	unsigned char *data;
 	dma_addr_t data_dma;
+	char buffer[TOUCHKIT_REPORT_DATA_SIZE];
+	int buf_len;
 	struct urb *irq;
 	struct usb_device *udev;
 	struct input_dev *input;
@@ -77,11 +77,128 @@ static struct usb_device_id touchkit_devices[] = {
 	{}
 };
 
+/* helpers to read the data */
+static inline int touchkit_get_touched(char *data)
+{
+	return (data[0] & TOUCHKIT_DOWN) ? 1 : 0;
+}
+
+static inline int touchkit_get_x(char *data)
+{
+	return ((data[3] & 0x0F) << 7) | (data[4] & 0x7F);
+}
+
+static inline int touchkit_get_y(char *data)
+{
+	return ((data[1] & 0x0F) << 7) | (data[2] & 0x7F);
+}
+
+
+/* processes one input packet. */
+static void touchkit_process_pkt(struct touchkit_usb *touchkit,
+                                 struct pt_regs *regs, char *pkt)
+{
+	int x, y;
+
+	/* only process report packets */
+	if ((pkt[0] & TOUCHKIT_PKT_TYPE_MASK) != TOUCHKIT_PKT_TYPE_REPT)
+		return;
+
+	if (swap_xy) {
+		y = touchkit_get_x(pkt);
+		x = touchkit_get_y(pkt);
+	} else {
+		x = touchkit_get_x(pkt);
+		y = touchkit_get_y(pkt);
+	}
+
+	input_regs(touchkit->input, regs);
+	input_report_key(touchkit->input, BTN_TOUCH, touchkit_get_touched(pkt));
+	input_report_abs(touchkit->input, ABS_X, x);
+	input_report_abs(touchkit->input, ABS_Y, y);
+	input_sync(touchkit->input);
+}
+
+
+static int touchkit_get_pkt_len(char *buf)
+{
+	switch (buf[0] & TOUCHKIT_PKT_TYPE_MASK) {
+	case TOUCHKIT_PKT_TYPE_REPT:
+		return 5;
+
+	case TOUCHKIT_PKT_TYPE_DIAG:
+		return buf[1] + 2;
+	}
+
+	return 0;
+}
+
+static void touchkit_process(struct touchkit_usb *touchkit, int len,
+                             struct pt_regs *regs)
+{
+	char *buffer;
+	int pkt_len, buf_len, pos;
+
+	/* if the buffer contains data, append */
+	if (unlikely(touchkit->buf_len)) {
+		int tmp;
+
+		/* if only 1 byte in buffer, add another one to get length */
+		if (touchkit->buf_len == 1)
+			touchkit->buffer[1] = touchkit->data[0];
+
+		pkt_len = touchkit_get_pkt_len(touchkit->buffer);
+
+		/* unknown packet: drop everything */
+		if (!pkt_len)
+			return;
+
+		/* append, process */
+		tmp = pkt_len - touchkit->buf_len;
+		memcpy(touchkit->buffer + touchkit->buf_len, touchkit->data, tmp);
+		touchkit_process_pkt(touchkit, regs, touchkit->buffer);
+
+		buffer = touchkit->data + tmp;
+		buf_len = len - tmp;
+	} else {
+		buffer = touchkit->data;
+		buf_len = len;
+	}
+
+	/* only one byte left in buffer */
+	if (unlikely(buf_len == 1)) {
+		touchkit->buffer[0] = buffer[0];
+		touchkit->buf_len = 1;
+		return;
+	}
+
+	/* loop over the buffer */
+	pos = 0;
+	while (pos < buf_len) {
+		/* get packet len */
+		pkt_len = touchkit_get_pkt_len(buffer + pos);
+
+		/* unknown packet: drop everything */
+		if (unlikely(!pkt_len))
+			return;
+
+		/* full packet: process */
+		if (likely(pkt_len <= buf_len)) {
+			touchkit_process_pkt(touchkit, regs, buffer + pos);
+		} else {
+			/* incomplete packet: save in buffer */
+			memcpy(touchkit->buffer, buffer + pos, buf_len - pos);
+			touchkit->buf_len = buf_len - pos;
+		}
+		pos += pkt_len;
+	}
+}
+
+
 static void touchkit_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct touchkit_usb *touchkit = urb->context;
 	int retval;
-	int x, y;
 
 	switch (urb->status) {
 	case 0:
@@ -105,20 +222,7 @@ static void touchkit_irq(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	if (swap_xy) {
-		y = TOUCHKIT_GET_X(touchkit->data);
-		x = TOUCHKIT_GET_Y(touchkit->data);
-	} else {
-		x = TOUCHKIT_GET_X(touchkit->data);
-		y = TOUCHKIT_GET_Y(touchkit->data);
-	}
-
-	input_regs(touchkit->input, regs);
-	input_report_key(touchkit->input, BTN_TOUCH,
-	                 TOUCHKIT_GET_TOUCHED(touchkit->data));
-	input_report_abs(touchkit->input, ABS_X, x);
-	input_report_abs(touchkit->input, ABS_Y, y);
-	input_sync(touchkit->input);
+	touchkit_process(touchkit, urb->actual_length, regs);
 
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -267,7 +371,6 @@ static void touchkit_disconnect(struct usb_interface *intf)
 MODULE_DEVICE_TABLE(usb, touchkit_devices);
 
 static struct usb_driver touchkit_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "touchkitusb",
 	.probe		= touchkit_probe,
 	.disconnect	= touchkit_disconnect,

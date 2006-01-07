@@ -388,9 +388,6 @@ static char *version =
 DRV_NAME " " DRV_VERSION " (Roger C. Pao)";
 #endif
 
-static dev_info_t dev_info="nmclan_cs";
-static dev_link_t *dev_list;
-
 static char *if_names[]={
     "Auto", "10baseT", "BNC",
 };
@@ -422,8 +419,6 @@ Function Prototypes
 
 static void nmclan_config(dev_link_t *link);
 static void nmclan_release(dev_link_t *link);
-static int nmclan_event(event_t event, int priority,
-			event_callback_args_t *args);
 
 static void nmclan_reset(struct net_device *dev);
 static int mace_config(struct net_device *dev, struct ifmap *map);
@@ -439,8 +434,7 @@ static void set_multicast_list(struct net_device *dev);
 static struct ethtool_ops netdev_ethtool_ops;
 
 
-static dev_link_t *nmclan_attach(void);
-static void nmclan_detach(dev_link_t *);
+static void nmclan_detach(struct pcmcia_device *p_dev);
 
 /* ----------------------------------------------------------------------------
 nmclan_attach
@@ -449,13 +443,11 @@ nmclan_attach
 	Services.
 ---------------------------------------------------------------------------- */
 
-static dev_link_t *nmclan_attach(void)
+static int nmclan_attach(struct pcmcia_device *p_dev)
 {
     mace_private *lp;
     dev_link_t *link;
     struct net_device *dev;
-    client_reg_t client_reg;
-    int ret;
 
     DEBUG(0, "nmclan_attach()\n");
     DEBUG(1, "%s\n", rcsid);
@@ -463,7 +455,7 @@ static dev_link_t *nmclan_attach(void)
     /* Create new ethernet device */
     dev = alloc_etherdev(sizeof(mace_private));
     if (!dev)
-	return NULL;
+	    return -ENOMEM;
     lp = netdev_priv(dev);
     link = &lp->link;
     link->priv = dev;
@@ -497,20 +489,13 @@ static dev_link_t *nmclan_attach(void)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	nmclan_detach(link);
-	return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    nmclan_config(link);
+
+    return 0;
 } /* nmclan_attach */
 
 /* ----------------------------------------------------------------------------
@@ -521,18 +506,12 @@ nmclan_detach
 	when the device is released.
 ---------------------------------------------------------------------------- */
 
-static void nmclan_detach(dev_link_t *link)
+static void nmclan_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
 
     DEBUG(0, "nmclan_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -540,11 +519,6 @@ static void nmclan_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
 	nmclan_release(link);
 
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
     free_netdev(dev);
 } /* nmclan_detach */
 
@@ -801,59 +775,39 @@ static void nmclan_release(dev_link_t *link)
   link->state &= ~DEV_CONFIG;
 }
 
-/* ----------------------------------------------------------------------------
-nmclan_event
-	The card status event handler.  Mostly, this schedules other
-	stuff to run after an event is received.  A CARD_REMOVAL event
-	also sets some flags to discourage the net drivers from trying
-	to talk to the card any more.
----------------------------------------------------------------------------- */
-static int nmclan_event(event_t event, int priority,
-		       event_callback_args_t *args)
+static int nmclan_suspend(struct pcmcia_device *p_dev)
 {
-  dev_link_t *link = args->client_data;
-  struct net_device *dev = link->priv;
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
 
-  DEBUG(1, "nmclan_event(0x%06x)\n", event);
-
-  switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-      link->state &= ~DEV_PRESENT;
-      if (link->state & DEV_CONFIG)
-	netif_device_detach(dev);
-      break;
-    case CS_EVENT_CARD_INSERTION:
-      link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-      nmclan_config(link);
-      break;
-    case CS_EVENT_PM_SUSPEND:
-      link->state |= DEV_SUSPEND;
-      /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-      if (link->state & DEV_CONFIG) {
-	if (link->open)
-	  netif_device_detach(dev);
-	pcmcia_release_configuration(link->handle);
-      }
-      break;
-    case CS_EVENT_PM_RESUME:
-      link->state &= ~DEV_SUSPEND;
-      /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-      if (link->state & DEV_CONFIG) {
-	pcmcia_request_configuration(link->handle, &link->conf);
-	if (link->open) {
-	  nmclan_reset(dev);
-	  netif_device_attach(dev);
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
 	}
-      }
-      break;
-    case CS_EVENT_RESET_REQUEST:
-      return 1;
-      break;
-  }
-  return 0;
-} /* nmclan_event */
+
+
+	return 0;
+}
+
+static int nmclan_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			nmclan_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
 
 /* ----------------------------------------------------------------------------
 nmclan_reset
@@ -1681,10 +1635,11 @@ static struct pcmcia_driver nmclan_cs_driver = {
 	.drv		= {
 		.name	= "nmclan_cs",
 	},
-	.attach		= nmclan_attach,
-	.event		= nmclan_event,
-	.detach		= nmclan_detach,
+	.probe		= nmclan_attach,
+	.remove		= nmclan_detach,
 	.id_table       = nmclan_ids,
+	.suspend	= nmclan_suspend,
+	.resume		= nmclan_resume,
 };
 
 static int __init init_nmclan_cs(void)
@@ -1695,7 +1650,6 @@ static int __init init_nmclan_cs(void)
 static void __exit exit_nmclan_cs(void)
 {
 	pcmcia_unregister_driver(&nmclan_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_nmclan_cs);

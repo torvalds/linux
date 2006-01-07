@@ -332,6 +332,7 @@ static inline unsigned long __ffs(unsigned long word)
  */
 
 #define fls(x) generic_fls(x)
+#define fls64(x)   generic_fls64(x)
 
 /*
  * ffs: find first bit set. This is defined the same way as
@@ -351,6 +352,7 @@ static inline unsigned long __ffs(unsigned long word)
 #define fls(x) \
 	( __builtin_constant_p(x) ? generic_fls(x) : \
 	  ({ int __r; asm("clz\t%0, %1" : "=r"(__r) : "r"(x) : "cc"); 32-__r; }) )
+#define fls64(x)   generic_fls64(x)
 #define ffs(x) ({ unsigned long __t = (x); fls(__t & -__t); })
 #define __ffs(x) (ffs(x) - 1)
 #define ffz(x) __ffs( ~(x) )

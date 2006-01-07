@@ -18,19 +18,6 @@
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
- *
- * Changes:
- *
- * 2003/05/01 - Tsippy Mendelson <tsippy.mendelson at intel dot com> and
- *		Amir Noam <amir.noam at intel dot com>
- *	- Added support for lacp_rate module param.
- *
- * 2003/05/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Renamed bond_3ad_link_status_changed() to
- *	  bond_3ad_handle_link_change() for compatibility with TLB.
- *
- * 2003/12/01 - Shmulik Hen <shmulik.hen at intel dot com>
- *	- Code cleanup and style changes
  */
 
 #ifndef __BOND_3AD_H__

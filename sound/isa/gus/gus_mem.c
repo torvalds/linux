@@ -27,11 +27,11 @@
 #include <sound/info.h>
 
 #ifdef CONFIG_SND_DEBUG
-static void snd_gf1_mem_info_read(snd_info_entry_t *entry, 
-				  snd_info_buffer_t * buffer);
+static void snd_gf1_mem_info_read(struct snd_info_entry *entry, 
+				  struct snd_info_buffer *buffer);
 #endif
 
-void snd_gf1_mem_lock(snd_gf1_mem_t * alloc, int xup)
+void snd_gf1_mem_lock(struct snd_gf1_mem * alloc, int xup)
 {
 	if (!xup) {
 		down(&alloc->memory_mutex);
@@ -40,12 +40,12 @@ void snd_gf1_mem_lock(snd_gf1_mem_t * alloc, int xup)
 	}
 }
 
-static snd_gf1_mem_block_t *snd_gf1_mem_xalloc(snd_gf1_mem_t * alloc,
-					       snd_gf1_mem_block_t * block)
+static struct snd_gf1_mem_block *snd_gf1_mem_xalloc(struct snd_gf1_mem * alloc,
+					       struct snd_gf1_mem_block * block)
 {
-	snd_gf1_mem_block_t *pblock, *nblock;
+	struct snd_gf1_mem_block *pblock, *nblock;
 
-	nblock = (snd_gf1_mem_block_t *) kmalloc(sizeof(snd_gf1_mem_block_t), GFP_KERNEL);
+	nblock = kmalloc(sizeof(struct snd_gf1_mem_block), GFP_KERNEL);
 	if (nblock == NULL)
 		return NULL;
 	*nblock = *block;
@@ -76,7 +76,7 @@ static snd_gf1_mem_block_t *snd_gf1_mem_xalloc(snd_gf1_mem_t * alloc,
 	return nblock;
 }
 
-int snd_gf1_mem_xfree(snd_gf1_mem_t * alloc, snd_gf1_mem_block_t * block)
+int snd_gf1_mem_xfree(struct snd_gf1_mem * alloc, struct snd_gf1_mem_block * block)
 {
 	if (block->share) {	/* ok.. shared block */
 		block->share--;
@@ -106,10 +106,10 @@ int snd_gf1_mem_xfree(snd_gf1_mem_t * alloc, snd_gf1_mem_block_t * block)
 	return 0;
 }
 
-static snd_gf1_mem_block_t *snd_gf1_mem_look(snd_gf1_mem_t * alloc,
+static struct snd_gf1_mem_block *snd_gf1_mem_look(struct snd_gf1_mem * alloc,
 					     unsigned int address)
 {
-	snd_gf1_mem_block_t *block;
+	struct snd_gf1_mem_block *block;
 
 	for (block = alloc->first; block; block = block->next) {
 		if (block->ptr == address) {
@@ -119,10 +119,10 @@ static snd_gf1_mem_block_t *snd_gf1_mem_look(snd_gf1_mem_t * alloc,
 	return NULL;
 }
 
-static snd_gf1_mem_block_t *snd_gf1_mem_share(snd_gf1_mem_t * alloc,
+static struct snd_gf1_mem_block *snd_gf1_mem_share(struct snd_gf1_mem * alloc,
 					      unsigned int *share_id)
 {
-	snd_gf1_mem_block_t *block;
+	struct snd_gf1_mem_block *block;
 
 	if (!share_id[0] && !share_id[1] &&
 	    !share_id[2] && !share_id[3])
@@ -133,14 +133,14 @@ static snd_gf1_mem_block_t *snd_gf1_mem_share(snd_gf1_mem_t * alloc,
 	return NULL;
 }
 
-static int snd_gf1_mem_find(snd_gf1_mem_t * alloc,
-			    snd_gf1_mem_block_t * block,
+static int snd_gf1_mem_find(struct snd_gf1_mem * alloc,
+			    struct snd_gf1_mem_block * block,
 			    unsigned int size, int w_16, int align)
 {
-	snd_gf1_bank_info_t *info = w_16 ? alloc->banks_16 : alloc->banks_8;
+	struct snd_gf1_bank_info *info = w_16 ? alloc->banks_16 : alloc->banks_8;
 	unsigned int idx, boundary;
 	int size1;
-	snd_gf1_mem_block_t *pblock;
+	struct snd_gf1_mem_block *pblock;
 	unsigned int ptr1, ptr2;
 
 	align--;
@@ -186,11 +186,11 @@ static int snd_gf1_mem_find(snd_gf1_mem_t * alloc,
 	return -ENOMEM;
 }
 
-snd_gf1_mem_block_t *snd_gf1_mem_alloc(snd_gf1_mem_t * alloc, int owner,
+struct snd_gf1_mem_block *snd_gf1_mem_alloc(struct snd_gf1_mem * alloc, int owner,
 				       char *name, int size, int w_16, int align,
 				       unsigned int *share_id)
 {
-	snd_gf1_mem_block_t block, *nblock;
+	struct snd_gf1_mem_block block, *nblock;
 
 	snd_gf1_mem_lock(alloc, 0);
 	if (share_id != NULL) {
@@ -220,10 +220,10 @@ snd_gf1_mem_block_t *snd_gf1_mem_alloc(snd_gf1_mem_t * alloc, int owner,
 	return nblock;
 }
 
-int snd_gf1_mem_free(snd_gf1_mem_t * alloc, unsigned int address)
+int snd_gf1_mem_free(struct snd_gf1_mem * alloc, unsigned int address)
 {
 	int result;
-	snd_gf1_mem_block_t *block;
+	struct snd_gf1_mem_block *block;
 
 	snd_gf1_mem_lock(alloc, 0);
 	if ((block = snd_gf1_mem_look(alloc, address)) != NULL) {
@@ -235,12 +235,12 @@ int snd_gf1_mem_free(snd_gf1_mem_t * alloc, unsigned int address)
 	return -EINVAL;
 }
 
-int snd_gf1_mem_init(snd_gus_card_t * gus)
+int snd_gf1_mem_init(struct snd_gus_card * gus)
 {
-	snd_gf1_mem_t *alloc;
-	snd_gf1_mem_block_t block;
+	struct snd_gf1_mem *alloc;
+	struct snd_gf1_mem_block block;
 #ifdef CONFIG_SND_DEBUG
-	snd_info_entry_t *entry;
+	struct snd_info_entry *entry;
 #endif
 
 	alloc = &gus->gf1.mem_alloc;
@@ -272,10 +272,10 @@ int snd_gf1_mem_init(snd_gus_card_t * gus)
 	return 0;
 }
 
-int snd_gf1_mem_done(snd_gus_card_t * gus)
+int snd_gf1_mem_done(struct snd_gus_card * gus)
 {
-	snd_gf1_mem_t *alloc;
-	snd_gf1_mem_block_t *block, *nblock;
+	struct snd_gf1_mem *alloc;
+	struct snd_gf1_mem_block *block, *nblock;
 
 	alloc = &gus->gf1.mem_alloc;
 	block = alloc->first;
@@ -288,12 +288,12 @@ int snd_gf1_mem_done(snd_gus_card_t * gus)
 }
 
 #ifdef CONFIG_SND_DEBUG
-static void snd_gf1_mem_info_read(snd_info_entry_t *entry, 
-				  snd_info_buffer_t * buffer)
+static void snd_gf1_mem_info_read(struct snd_info_entry *entry, 
+				  struct snd_info_buffer *buffer)
 {
-	snd_gus_card_t *gus;
-	snd_gf1_mem_t *alloc;
-	snd_gf1_mem_block_t *block;
+	struct snd_gus_card *gus;
+	struct snd_gf1_mem *alloc;
+	struct snd_gf1_mem_block *block;
 	unsigned int total, used;
 	int i;
 

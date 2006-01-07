@@ -46,8 +46,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/stddef.h>
-#include <linux/pm.h>
-#include <linux/pm_legacy.h>
 #include <linux/isapnp.h>
 #include <linux/pnp.h>
 #include <linux/spinlock.h>
@@ -105,9 +103,6 @@ typedef struct
 	int             irq_ok;
 	mixer_ents     *mix_devices;
 	int             mixer_output_port;
-
-	/* Power management */
-	struct		pm_dev *pmdev;
 } ad1848_info;
 
 typedef struct ad1848_port_info
@@ -201,7 +196,6 @@ static void     ad1848_halt(int dev);
 static void     ad1848_halt_input(int dev);
 static void     ad1848_halt_output(int dev);
 static void     ad1848_trigger(int dev, int bits);
-static int	ad1848_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data);
 
 #ifndef EXCLUDE_TIMERS
 static int ad1848_tmr_install(int dev);
@@ -2027,10 +2021,6 @@ int ad1848_init (char *name, struct resource *ports, int irq, int dma_playback,
 
 	nr_ad1848_devs++;
 
-	devc->pmdev = pm_register(PM_ISA_DEV, my_dev, ad1848_pm_callback);
-	if (devc->pmdev)
-		devc->pmdev->data = devc;
-
 	ad1848_init_hw(devc);
 
 	if (irq > 0)
@@ -2196,9 +2186,6 @@ void ad1848_unload(int io_base, int irq, int dma_playback, int dma_capture, int 
 		mixer = audio_devs[devc->dev_no]->mixer_dev;
 		if(mixer>=0)
 			sound_unload_mixerdev(mixer);
-
-		if (devc->pmdev)
-			pm_unregister(devc->pmdev);
 
 		nr_ad1848_devs--;
 		for ( ; i < nr_ad1848_devs ; i++)
@@ -2810,85 +2797,6 @@ static int ad1848_tmr_install(int dev)
 	return 1;
 }
 #endif /* EXCLUDE_TIMERS */
-
-static int ad1848_suspend(ad1848_info *devc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&devc->lock,flags);
-
-	ad_mute(devc);
-	
-	spin_unlock_irqrestore(&devc->lock,flags);
-	return 0;
-}
-
-static int ad1848_resume(ad1848_info *devc)
-{
-	int mixer_levels[32], i;
-
-	/* Thinkpad is a bit more of PITA than normal. The BIOS tends to
-	   restore it in a different config to the one we use.  Need to
-	   fix this somehow */
-
-	/* store old mixer levels */
-	memcpy(mixer_levels, devc->levels, sizeof (mixer_levels));  
-	ad1848_init_hw(devc);
-
-	/* restore mixer levels */
-	for (i = 0; i < 32; i++)
-		ad1848_mixer_set(devc, devc->dev_no, mixer_levels[i]);
-
-	if (!devc->subtype) {
-		static signed char interrupt_bits[12] = { -1, -1, -1, -1, -1, 0x00, -1, 0x08, -1, 0x10, 0x18, 0x20 };
-		static char dma_bits[4] = { 1, 2, 0, 3 };
-		unsigned long flags;
-		signed char bits;
-		char dma2_bit = 0;
-
-		int config_port = devc->base + 0;
-
-		bits = interrupt_bits[devc->irq];
-		if (bits == -1) {
-			printk(KERN_ERR "MSS: Bad IRQ %d\n", devc->irq);
-			return -1;
-		}
-
-		spin_lock_irqsave(&devc->lock,flags);
-	
-		outb((bits | 0x40), config_port); 
-
-		if (devc->dma2 != -1 && devc->dma2 != devc->dma1)
-			if ( (devc->dma1 == 0 && devc->dma2 == 1) ||
-			     (devc->dma1 == 1 && devc->dma2 == 0) ||
-			     (devc->dma1 == 3 && devc->dma2 == 0))
-				dma2_bit = 0x04;
-
-		outb((bits | dma_bits[devc->dma1] | dma2_bit), config_port);
-		spin_unlock_irqrestore(&devc->lock,flags);
-	}
-
-	return 0;
-}
-
-static int ad1848_pm_callback(struct pm_dev *dev, pm_request_t rqst, void *data) 
-{
-	ad1848_info *devc = dev->data;
-	if (devc) {
-		DEB(printk("ad1848: pm event received: 0x%x\n", rqst));
-
-		switch (rqst) {
-		case PM_SUSPEND:
-			ad1848_suspend(devc);
-			break;
-		case PM_RESUME:
-			ad1848_resume(devc);
-			break;
-		}
-	}
-	return 0;
-}
-
 
 EXPORT_SYMBOL(ad1848_detect);
 EXPORT_SYMBOL(ad1848_init);

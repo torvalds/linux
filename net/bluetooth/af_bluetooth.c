@@ -287,10 +287,9 @@ int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 		timeo = schedule_timeout(timeo);
 		lock_sock(sk);
 
-		if (sk->sk_err) {
-			err = sock_error(sk);
+		err = sock_error(sk);
+		if (err)
 			break;
-		}
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk->sk_sleep, &wait);

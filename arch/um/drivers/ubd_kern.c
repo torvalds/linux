@@ -706,7 +706,7 @@ static int ubd_config(char *str)
 {
 	int n, err;
 
-	str = uml_strdup(str);
+	str = kstrdup(str, GFP_KERNEL);
 	if(str == NULL){
 		printk(KERN_ERR "ubd_config failed to strdup string\n");
 		return(1);
@@ -1387,15 +1387,6 @@ int io_thread(void *arg)
 			printk("io_thread - write failed, fd = %d, err = %d\n",
 			       kernel_fd, -n);
 	}
-}
 
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
+	return 0;
+}

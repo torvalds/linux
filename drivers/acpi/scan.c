@@ -78,7 +78,7 @@ static struct kobj_type ktype_acpi_ns = {
 	.release = acpi_device_release,
 };
 
-static int namespace_hotplug(struct kset *kset, struct kobject *kobj,
+static int namespace_uevent(struct kset *kset, struct kobject *kobj,
 			     char **envp, int num_envp, char *buffer,
 			     int buffer_size)
 {
@@ -89,8 +89,8 @@ static int namespace_hotplug(struct kset *kset, struct kobject *kobj,
 	if (!dev->driver)
 		return 0;
 
-	if (add_hotplug_env_var(envp, num_envp, &i, buffer, buffer_size, &len,
-				"PHYSDEVDRIVER=%s", dev->driver->name))
+	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
+			   "PHYSDEVDRIVER=%s", dev->driver->name))
 		return -ENOMEM;
 
 	envp[i] = NULL;
@@ -98,8 +98,8 @@ static int namespace_hotplug(struct kset *kset, struct kobject *kobj,
 	return 0;
 }
 
-static struct kset_hotplug_ops namespace_hotplug_ops = {
-	.hotplug = &namespace_hotplug,
+static struct kset_uevent_ops namespace_uevent_ops = {
+	.uevent = &namespace_uevent,
 };
 
 static struct kset acpi_namespace_kset = {
@@ -108,7 +108,7 @@ static struct kset acpi_namespace_kset = {
 		 },
 	.subsys = &acpi_subsys,
 	.ktype = &ktype_acpi_ns,
-	.hotplug_ops = &namespace_hotplug_ops,
+	.uevent_ops = &namespace_uevent_ops,
 };
 
 static void acpi_device_register(struct acpi_device *device,
@@ -347,7 +347,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 }
 
 /* --------------------------------------------------------------------------
-		ACPI hotplug sysfs device file support
+		ACPI sysfs device file support
    -------------------------------------------------------------------------- */
 static ssize_t acpi_eject_store(struct acpi_device *device,
 				const char *buf, size_t count);

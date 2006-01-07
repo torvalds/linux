@@ -123,7 +123,6 @@ nsm_create(void)
 	if (IS_ERR(clnt))
 		goto out_err;
 	clnt->cl_softrtry = 1;
-	clnt->cl_chatty   = 1;
 	clnt->cl_oneshot  = 1;
 	return clnt;
 

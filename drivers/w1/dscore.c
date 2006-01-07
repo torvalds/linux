@@ -52,7 +52,6 @@ static int ds_send_control_cmd(struct ds_device *, u16, u16);
 
 
 static struct usb_driver ds_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"DS9490R",
 	.probe =	ds_probe,
 	.disconnect =	ds_disconnect,

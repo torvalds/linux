@@ -19,7 +19,7 @@ typedef void (*sys_call_ptr_t)(void);
 
 extern void sys_ni_syscall(void);
 
-sys_call_ptr_t sys_call_table[__NR_syscall_max+1] __cacheline_aligned = { 
+const sys_call_ptr_t sys_call_table[__NR_syscall_max+1] = {
 	/* Smells like a like a compiler bug -- it doesn't work when the & below is removed. */ 
 	[0 ... __NR_syscall_max] = &sys_ni_syscall,
 #include <asm-x86_64/unistd.h>

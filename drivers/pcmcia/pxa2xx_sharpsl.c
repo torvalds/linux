@@ -264,11 +264,10 @@ static int __init sharpsl_pcmcia_init(void)
 	int ret;
 
 	sharpsl_pcmcia_ops.nr=platform_scoop_config->num_devs;
-	sharpsl_pcmcia_device = kmalloc(sizeof(*sharpsl_pcmcia_device), GFP_KERNEL);
+	sharpsl_pcmcia_device = kzalloc(sizeof(*sharpsl_pcmcia_device), GFP_KERNEL);
 	if (!sharpsl_pcmcia_device)
 		return -ENOMEM;
 
-	memset(sharpsl_pcmcia_device, 0, sizeof(*sharpsl_pcmcia_device));
 	sharpsl_pcmcia_device->name = "pxa2xx-pcmcia";
 	sharpsl_pcmcia_device->dev.platform_data = &sharpsl_pcmcia_ops;
 	sharpsl_pcmcia_device->dev.parent=platform_scoop_config->devs[0].dev;

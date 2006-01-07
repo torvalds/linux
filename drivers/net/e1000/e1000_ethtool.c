@@ -562,10 +562,29 @@ e1000_get_drvinfo(struct net_device *netdev,
                        struct ethtool_drvinfo *drvinfo)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	char firmware_version[32];
+	uint16_t eeprom_data;
 
 	strncpy(drvinfo->driver,  e1000_driver_name, 32);
 	strncpy(drvinfo->version, e1000_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
+	
+	/* EEPROM image version # is reported as firware version # for
+	 * 8257{1|2|3} controllers */
+	e1000_read_eeprom(&adapter->hw, 5, 1, &eeprom_data);
+	switch (adapter->hw.mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+	case e1000_82573:
+		sprintf(firmware_version, "%d.%d-%d", 
+			(eeprom_data & 0xF000) >> 12,
+			(eeprom_data & 0x0FF0) >> 4,
+			eeprom_data & 0x000F);
+		break;
+	default:
+		sprintf(firmware_version, "n/a");
+	}
+
+	strncpy(drvinfo->fw_version, firmware_version, 32);
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
 	drvinfo->n_stats = E1000_STATS_LEN;
 	drvinfo->testinfo_len = E1000_TEST_LEN;
@@ -960,13 +979,21 @@ e1000_free_desc_rings(struct e1000_adapter *adapter)
 		}
 	}
 
-	if(txdr->desc)
+	if(txdr->desc) {
 		pci_free_consistent(pdev, txdr->size, txdr->desc, txdr->dma);
-	if(rxdr->desc)
+		txdr->desc = NULL;
+	}
+	if(rxdr->desc) {
 		pci_free_consistent(pdev, rxdr->size, rxdr->desc, rxdr->dma);
+		rxdr->desc = NULL;
+	}
 
 	kfree(txdr->buffer_info);
+	txdr->buffer_info = NULL;
+
 	kfree(rxdr->buffer_info);
+	rxdr->buffer_info = NULL;
+
 	return;
 }
 
@@ -1301,21 +1328,32 @@ static int
 e1000_setup_loopback_test(struct e1000_adapter *adapter)
 {
 	uint32_t rctl;
+	struct e1000_hw *hw = &adapter->hw;
 
-	if(adapter->hw.media_type == e1000_media_type_fiber ||
-	   adapter->hw.media_type == e1000_media_type_internal_serdes) {
-		if(adapter->hw.mac_type == e1000_82545 ||
-		   adapter->hw.mac_type == e1000_82546 ||
-		   adapter->hw.mac_type == e1000_82545_rev_3 ||
-		   adapter->hw.mac_type == e1000_82546_rev_3)
+	if (hw->media_type == e1000_media_type_fiber ||
+	   hw->media_type == e1000_media_type_internal_serdes) {
+		switch (hw->mac_type) {
+		case e1000_82545:
+		case e1000_82546:
+		case e1000_82545_rev_3:
+		case e1000_82546_rev_3:
 			return e1000_set_phy_loopback(adapter);
-		else {
-			rctl = E1000_READ_REG(&adapter->hw, RCTL);
+			break;
+		case e1000_82571:
+		case e1000_82572:
+#define E1000_SERDES_LB_ON 0x410
+			e1000_set_phy_loopback(adapter);
+			E1000_WRITE_REG(hw, SCTL, E1000_SERDES_LB_ON);
+			msec_delay(10);
+			return 0;
+			break;
+		default:
+			rctl = E1000_READ_REG(hw, RCTL);
 			rctl |= E1000_RCTL_LBM_TCVR;
-			E1000_WRITE_REG(&adapter->hw, RCTL, rctl);
+			E1000_WRITE_REG(hw, RCTL, rctl);
 			return 0;
 		}
-	} else if(adapter->hw.media_type == e1000_media_type_copper)
+	} else if (hw->media_type == e1000_media_type_copper)
 		return e1000_set_phy_loopback(adapter);
 
 	return 7;
@@ -1326,25 +1364,36 @@ e1000_loopback_cleanup(struct e1000_adapter *adapter)
 {
 	uint32_t rctl;
 	uint16_t phy_reg;
+	struct e1000_hw *hw = &adapter->hw;
 
 	rctl = E1000_READ_REG(&adapter->hw, RCTL);
 	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
 	E1000_WRITE_REG(&adapter->hw, RCTL, rctl);
 
-	if(adapter->hw.media_type == e1000_media_type_copper ||
-	   ((adapter->hw.media_type == e1000_media_type_fiber ||
-	     adapter->hw.media_type == e1000_media_type_internal_serdes) &&
-	    (adapter->hw.mac_type == e1000_82545 ||
-	     adapter->hw.mac_type == e1000_82546 ||
-	     adapter->hw.mac_type == e1000_82545_rev_3 ||
-	     adapter->hw.mac_type == e1000_82546_rev_3))) {
-		adapter->hw.autoneg = TRUE;
-		e1000_read_phy_reg(&adapter->hw, PHY_CTRL, &phy_reg);
-		if(phy_reg & MII_CR_LOOPBACK) {
-			phy_reg &= ~MII_CR_LOOPBACK;
-			e1000_write_phy_reg(&adapter->hw, PHY_CTRL, phy_reg);
-			e1000_phy_reset(&adapter->hw);
+	switch (hw->mac_type) {
+	case e1000_82571:
+	case e1000_82572:
+		if (hw->media_type == e1000_media_type_fiber ||
+		   hw->media_type == e1000_media_type_internal_serdes){
+#define E1000_SERDES_LB_OFF 0x400
+			E1000_WRITE_REG(hw, SCTL, E1000_SERDES_LB_OFF);
+			msec_delay(10);
+			break;
 		}
+		/* fall thru for Cu adapters */
+	case e1000_82545:
+	case e1000_82546:
+	case e1000_82545_rev_3:
+	case e1000_82546_rev_3:
+	default:
+		hw->autoneg = TRUE;
+		e1000_read_phy_reg(hw, PHY_CTRL, &phy_reg);
+		if (phy_reg & MII_CR_LOOPBACK) {
+			phy_reg &= ~MII_CR_LOOPBACK;
+			e1000_write_phy_reg(hw, PHY_CTRL, phy_reg);
+			e1000_phy_reset(hw);
+		}
+		break;
 	}
 }
 
@@ -1440,9 +1489,11 @@ static int
 e1000_loopback_test(struct e1000_adapter *adapter, uint64_t *data)
 {
 	if((*data = e1000_setup_desc_rings(adapter))) goto err_loopback;
-	if((*data = e1000_setup_loopback_test(adapter))) goto err_loopback;
+	if((*data = e1000_setup_loopback_test(adapter)))
+		goto err_loopback_setup;
 	*data = e1000_run_loopback_test(adapter);
 	e1000_loopback_cleanup(adapter);
+err_loopback_setup:
 	e1000_free_desc_rings(adapter);
 err_loopback:
 	return *data;
@@ -1670,6 +1721,14 @@ e1000_phys_id(struct net_device *netdev, uint32_t data)
 		mod_timer(&adapter->blink_timer, jiffies);
 		msleep_interruptible(data * 1000);
 		del_timer_sync(&adapter->blink_timer);
+	}
+	else if(adapter->hw.mac_type < e1000_82573) {
+		E1000_WRITE_REG(&adapter->hw, LEDCTL, (E1000_LEDCTL_LED2_BLINK_RATE |
+			E1000_LEDCTL_LED0_BLINK | E1000_LEDCTL_LED2_BLINK |
+			(E1000_LEDCTL_MODE_LED_ON << E1000_LEDCTL_LED2_MODE_SHIFT) |
+			(E1000_LEDCTL_MODE_LINK_ACTIVITY << E1000_LEDCTL_LED0_MODE_SHIFT) |
+			(E1000_LEDCTL_MODE_LED_OFF << E1000_LEDCTL_LED1_MODE_SHIFT)));
+		msleep_interruptible(data * 1000);
 	}
 	else {
 		E1000_WRITE_REG(&adapter->hw, LEDCTL, (E1000_LEDCTL_LED2_BLINK_RATE |

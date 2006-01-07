@@ -193,14 +193,6 @@ struct key_type {
 	 */
 	int (*instantiate)(struct key *key, const void *data, size_t datalen);
 
-	/* duplicate a key of this type (optional)
-	 * - the source key will be locked against change
-	 * - the new description will be attached
-	 * - the quota will have been adjusted automatically from
-	 *   source->quotalen
-	 */
-	int (*duplicate)(struct key *key, const struct key *source);
-
 	/* update a key of this type (optional)
 	 * - this method should call key_payload_reserve() to recalculate the
 	 *   quota consumption

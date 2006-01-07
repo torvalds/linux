@@ -25,9 +25,9 @@ routines, a client structure specific information like the actual I2C
 address.
 
 static struct i2c_driver foo_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "Foo version 2.3 driver",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "foo",
+	},
 	.attach_adapter	= &foo_attach_adapter,
 	.detach_client	= &foo_detach_client,
 	.command	= &foo_command /* may be NULL */
@@ -35,10 +35,6 @@ static struct i2c_driver foo_driver = {
  
 The name field must match the driver name, including the case. It must not
 contain spaces, and may be up to 31 characters long.
-
-Don't worry about the flags field; just put I2C_DF_NOTIFY into it. This
-means that your driver will be notified when new adapters are found.
-This is almost always what you want.
 
 All other fields are for call-back functions which will be explained 
 below.
@@ -496,17 +492,13 @@ Note that some functions are marked by `__init', and some data structures
 by `__init_data'.  Hose functions and structures can be removed after
 kernel booting (or module loading) is completed.
 
+
 Command function
 ================
 
 A generic ioctl-like function call back is supported. You will seldom
-need this. You may even set it to NULL.
-
-  /* No commands defined */
-  int foo_command(struct i2c_client *client, unsigned int cmd, void *arg)
-  {
-    return 0;
-  }
+need this, and its use is deprecated anyway, so newer design should not
+use it. Set it to NULL.
 
 
 Sending and receiving

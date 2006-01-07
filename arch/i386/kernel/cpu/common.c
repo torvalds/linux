@@ -18,9 +18,6 @@
 
 #include "cpu.h"
 
-DEFINE_PER_CPU(struct desc_struct, cpu_gdt_table[GDT_ENTRIES]);
-EXPORT_PER_CPU_SYMBOL(cpu_gdt_table);
-
 DEFINE_PER_CPU(unsigned char, cpu_16bit_stack[CPU_16BIT_STACK_SIZE]);
 EXPORT_PER_CPU_SYMBOL(cpu_16bit_stack);
 
@@ -597,11 +594,6 @@ void __devinit cpu_init(void)
 
 	load_gdt(&cpu_gdt_descr[cpu]);
 	load_idt(&idt_descr);
-
-	/*
-	 * Delete NT
-	 */
-	__asm__("pushfl ; andl $0xffffbfff,(%esp) ; popfl");
 
 	/*
 	 * Set up and load the per-CPU TSS and LDT

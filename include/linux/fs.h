@@ -302,6 +302,37 @@ struct iattr {
  */
 #include <linux/quota.h>
 
+/** 
+ * enum positive_aop_returns - aop return codes with specific semantics
+ *
+ * @AOP_WRITEPAGE_ACTIVATE: Informs the caller that page writeback has
+ * 			    completed, that the page is still locked, and
+ * 			    should be considered active.  The VM uses this hint
+ * 			    to return the page to the active list -- it won't
+ * 			    be a candidate for writeback again in the near
+ * 			    future.  Other callers must be careful to unlock
+ * 			    the page if they get this return.  Returned by
+ * 			    writepage(); 
+ *
+ * @AOP_TRUNCATED_PAGE: The AOP method that was handed a locked page has
+ *  			unlocked it and the page might have been truncated.
+ *  			The caller should back up to acquiring a new page and
+ *  			trying again.  The aop will be taking reasonable
+ *  			precautions not to livelock.  If the caller held a page
+ *  			reference, it should drop it before retrying.  Returned
+ *  			by readpage(), prepare_write(), and commit_write().
+ *
+ * address_space_operation functions return these large constants to indicate
+ * special semantics to the caller.  These are much larger than the bytes in a
+ * page to allow for functions that return the number of bytes operated on in a
+ * given page.
+ */
+
+enum positive_aop_returns {
+	AOP_WRITEPAGE_ACTIVATE	= 0x80000,
+	AOP_TRUNCATED_PAGE	= 0x80001,
+};
+
 /*
  * oh the beauties of C type declarations.
  */
@@ -729,7 +760,7 @@ extern struct file_lock *posix_test_lock(struct file *, struct file_lock *);
 extern int posix_lock_file(struct file *, struct file_lock *);
 extern int posix_lock_file_wait(struct file *, struct file_lock *);
 extern void posix_block_lock(struct file_lock *, struct file_lock *);
-extern void posix_unblock_lock(struct file *, struct file_lock *);
+extern int posix_unblock_lock(struct file *, struct file_lock *);
 extern int posix_locks_deadlock(struct file_lock *, struct file_lock *);
 extern int flock_lock_file_wait(struct file *filp, struct file_lock *fl);
 extern int __break_lease(struct inode *inode, unsigned int flags);
@@ -1019,6 +1050,7 @@ struct inode_operations {
 	ssize_t (*getxattr) (struct dentry *, const char *, void *, size_t);
 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
 	int (*removexattr) (struct dentry *, const char *);
+	void (*truncate_range)(struct inode *, loff_t, loff_t);
 };
 
 struct seq_file;

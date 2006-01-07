@@ -250,7 +250,6 @@ static void itmtouch_disconnect(struct usb_interface *intf)
 MODULE_DEVICE_TABLE(usb, itmtouch_ids);
 
 static struct usb_driver itmtouch_driver = {
-	.owner =        THIS_MODULE,
 	.name =         "itmtouch",
 	.probe =        itmtouch_probe,
 	.disconnect =   itmtouch_disconnect,

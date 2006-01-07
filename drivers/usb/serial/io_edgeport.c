@@ -184,7 +184,7 @@ struct divisor_table_entry {
 // These assume a 3.6864MHz crystal, the standard /16, and
 // MCR.7 = 0.
 //
-static struct divisor_table_entry divisor_table[] = {
+static const struct divisor_table_entry divisor_table[] = {
 	{   50,		4608},  
 	{   75,		3072},  
 	{   110,	2095},		/* 2094.545455 => 230450   => .0217 % over */
@@ -242,11 +242,11 @@ static void edge_shutdown		(struct usb_serial *serial);
 #include "io_tables.h"	/* all of the devices that this driver supports */
 
 static struct usb_driver io_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"io_edgeport",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 /* function prototypes for all of our local functions */
@@ -2353,7 +2353,7 @@ static int calc_baud_rate_divisor (int baudrate, int *divisor)
 
 	dbg("%s - %d", __FUNCTION__, baudrate);
 
-	for (i = 0; i < NUM_ENTRIES(divisor_table); i++) {
+	for (i = 0; i < ARRAY_SIZE(divisor_table); i++) {
 		if ( divisor_table[i].BaudRate == baudrate ) {
 			*divisor = divisor_table[i].Divisor;
 			return 0;

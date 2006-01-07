@@ -118,5 +118,6 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 #define smp_mb__before_atomic_inc()	barrier()
 #define smp_mb__after_atomic_inc()	barrier()
 
+#include <asm-generic/atomic.h>
 #endif
 #endif

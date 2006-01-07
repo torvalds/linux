@@ -216,6 +216,8 @@ static int write_sigio_thread(void *unused)
 				       "err = %d\n", -n);
 		}
 	}
+
+	return 0;
 }
 
 static int need_poll(int n)

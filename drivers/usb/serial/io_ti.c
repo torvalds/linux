@@ -216,11 +216,11 @@ static struct usb_device_id id_table_combined [] = {
 MODULE_DEVICE_TABLE (usb, id_table_combined);
 
 static struct usb_driver io_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"io_ti",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 
@@ -2843,7 +2843,7 @@ static struct edge_buf *edge_buf_alloc(unsigned int size)
  * Free the buffer and all associated memory.
  */
 
-void edge_buf_free(struct edge_buf *eb)
+static void edge_buf_free(struct edge_buf *eb)
 {
 	if (eb) {
 		kfree(eb->buf_buf);

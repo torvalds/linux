@@ -211,6 +211,26 @@ noswap:
 	return (swp_entry_t) {0};
 }
 
+swp_entry_t get_swap_page_of_type(int type)
+{
+	struct swap_info_struct *si;
+	pgoff_t offset;
+
+	spin_lock(&swap_lock);
+	si = swap_info + type;
+	if (si->flags & SWP_WRITEOK) {
+		nr_swap_pages--;
+		offset = scan_swap_map(si);
+		if (offset) {
+			spin_unlock(&swap_lock);
+			return swp_entry(type, offset);
+		}
+		nr_swap_pages++;
+	}
+	spin_unlock(&swap_lock);
+	return (swp_entry_t) {0};
+}
+
 static struct swap_info_struct * swap_info_get(swp_entry_t entry)
 {
 	struct swap_info_struct * p;

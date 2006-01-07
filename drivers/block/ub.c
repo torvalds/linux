@@ -9,7 +9,6 @@
  *
  * TODO (sorted by decreasing priority)
  *  -- Kill first_open (Al Viro fixed the block layer now)
- *  -- Do resets with usb_device_reset (needs a thread context, use khubd)
  *  -- set readonly flag for CDs, set removable flag for CF readers
  *  -- do inquiry and verify we got a disk and not a tape (for LUN mismatch)
  *  -- special case some senses, e.g. 3a/0 -> no media present, reduce retries
@@ -29,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/usb_usual.h>
 #include <linux/blkdev.h>
 #include <linux/devfs_fs_kernel.h>
 #include <linux/timer.h>
@@ -107,16 +107,6 @@
  */
 
 /*
- * Definitions which have to be scattered once we understand the layout better.
- */
-
-/* Transport (despite PR in the name) */
-#define US_PR_BULK	0x50		/* bulk only */
-
-/* Protocol */
-#define US_SC_SCSI	0x06		/* Transparent */
-
-/*
  * This many LUNs per USB device.
  * Every one of them takes a host, see UB_MAX_HOSTS.
  */
@@ -125,7 +115,7 @@
 /*
  */
 
-#define UB_MINORS_PER_MAJOR	8
+#define UB_PARTS_PER_LUN      8
 
 #define UB_MAX_CDB_SIZE      16		/* Corresponds to Bulk */
 
@@ -245,6 +235,13 @@ struct ub_scsi_cmd {
 	void *back;
 };
 
+struct ub_request {
+	struct request *rq;
+	unsigned int current_try;
+	unsigned int nsg;		/* sgv[nsg] */
+	struct scatterlist sgv[UB_MAX_REQ_SG];
+};
+
 /*
  */
 struct ub_capacity {
@@ -340,6 +337,8 @@ struct ub_lun {
 	int readonly;
 	int first_open;			/* Kludge. See ub_bd_open. */
 
+	struct ub_request urq;
+
 	/* Use Ingo's mempool if or when we have more than one command. */
 	/*
 	 * Currently we never need more than one command for the whole device.
@@ -360,6 +359,7 @@ struct ub_dev {
 	atomic_t poison;		/* The USB device is disconnected */
 	int openc;			/* protected by ub_lock! */
 					/* kref is too implicit for our taste */
+	int reset;			/* Reset is running */
 	unsigned int tagcnt;
 	char name[12];
 	struct usb_device *dev;
@@ -387,6 +387,9 @@ struct ub_dev {
 	struct bulk_cs_wrap work_bcs;
 	struct usb_ctrlrequest work_cr;
 
+	struct work_struct reset_work;
+	wait_queue_head_t reset_wait;
+
 	int sg_stat[6];
 	struct ub_scsi_trace tr;
 };
@@ -395,12 +398,14 @@ struct ub_dev {
  */
 static void ub_cleanup(struct ub_dev *sc);
 static int ub_request_fn_1(struct ub_lun *lun, struct request *rq);
-static int ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
-    struct ub_scsi_cmd *cmd, struct request *rq);
-static int ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
-    struct ub_scsi_cmd *cmd, struct request *rq);
+static void ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
+    struct ub_scsi_cmd *cmd, struct ub_request *urq);
+static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
+    struct ub_scsi_cmd *cmd, struct ub_request *urq);
 static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
 static void ub_end_rq(struct request *rq, int uptodate);
+static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
+    struct ub_request *urq, struct ub_scsi_cmd *cmd);
 static int ub_submit_scsi(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
 static void ub_urb_complete(struct urb *urb, struct pt_regs *pt);
 static void ub_scsi_action(unsigned long _dev);
@@ -415,6 +420,8 @@ static void ub_state_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd);
 static int ub_submit_clear_stall(struct ub_dev *sc, struct ub_scsi_cmd *cmd,
     int stalled_pipe);
 static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd);
+static void ub_reset_enter(struct ub_dev *sc);
+static void ub_reset_task(void *arg);
 static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun);
 static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
     struct ub_capacity *ret);
@@ -422,13 +429,18 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum);
 
 /*
  */
+#ifdef CONFIG_USB_LIBUSUAL
+
+#define ub_usb_ids  storage_usb_ids
+#else
+
 static struct usb_device_id ub_usb_ids[] = {
-	// { USB_DEVICE_VER(0x0781, 0x0002, 0x0009, 0x0009) },	/* SDDR-31 */
 	{ USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, US_SC_SCSI, US_PR_BULK) },
 	{ }
 };
 
 MODULE_DEVICE_TABLE(usb, ub_usb_ids);
+#endif /* CONFIG_USB_LIBUSUAL */
 
 /*
  * Find me a way to identify "next free minor" for add_disk(),
@@ -521,6 +533,9 @@ static ssize_t ub_diag_show(struct device *dev, struct device_attribute *attr,
 	cnt = 0;
 	spin_lock_irqsave(&sc->lock, flags);
 
+	cnt += sprintf(page + cnt,
+	    "poison %d reset %d\n",
+	    atomic_read(&sc->poison), sc->reset);
 	cnt += sprintf(page + cnt,
 	    "qlen %d qmax %d\n",
 	    sc->cmd_queue.qlen, sc->cmd_queue.qmax);
@@ -770,7 +785,8 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 {
 	struct ub_dev *sc = lun->udev;
 	struct ub_scsi_cmd *cmd;
-	int rc;
+	struct ub_request *urq;
+	int n_elem;
 
 	if (atomic_read(&sc->poison) || lun->changed) {
 		blkdev_dequeue_request(rq);
@@ -778,65 +794,70 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 		return 0;
 	}
 
+	if (lun->urq.rq != NULL)
+		return -1;
 	if ((cmd = ub_get_cmd(lun)) == NULL)
 		return -1;
 	memset(cmd, 0, sizeof(struct ub_scsi_cmd));
 
 	blkdev_dequeue_request(rq);
-	if (blk_pc_request(rq)) {
-		rc = ub_cmd_build_packet(sc, lun, cmd, rq);
-	} else {
-		rc = ub_cmd_build_block(sc, lun, cmd, rq);
-	}
-	if (rc != 0) {
-		ub_put_cmd(lun, cmd);
-		ub_end_rq(rq, 0);
-		return 0;
-	}
-	cmd->state = UB_CMDST_INIT;
-	cmd->lun = lun;
-	cmd->done = ub_rw_cmd_done;
-	cmd->back = rq;
 
-	cmd->tag = sc->tagcnt++;
-	if (ub_submit_scsi(sc, cmd) != 0) {
-		ub_put_cmd(lun, cmd);
-		ub_end_rq(rq, 0);
-		return 0;
-	}
-
-	return 0;
-}
-
-static int ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
-    struct ub_scsi_cmd *cmd, struct request *rq)
-{
-	int ub_dir;
-	int n_elem;
-	unsigned int block, nblks;
-
-	if (rq_data_dir(rq) == WRITE)
-		ub_dir = UB_DIR_WRITE;
-	else
-		ub_dir = UB_DIR_READ;
-	cmd->dir = ub_dir;
+	urq = &lun->urq;
+	memset(urq, 0, sizeof(struct ub_request));
+	urq->rq = rq;
 
 	/*
 	 * get scatterlist from block layer
 	 */
-	n_elem = blk_rq_map_sg(lun->disk->queue, rq, &cmd->sgv[0]);
-	if (n_elem <= 0) {
+	n_elem = blk_rq_map_sg(lun->disk->queue, rq, &urq->sgv[0]);
+	if (n_elem < 0) {
 		printk(KERN_INFO "%s: failed request map (%d)\n",
-		    sc->name, n_elem); /* P3 */
-		return -1;		/* request with no s/g entries? */
+		    lun->name, n_elem); /* P3 */
+		goto drop;
 	}
 	if (n_elem > UB_MAX_REQ_SG) {	/* Paranoia */
 		printk(KERN_WARNING "%s: request with %d segments\n",
-		    sc->name, n_elem);
-		return -1;
+		    lun->name, n_elem);
+		goto drop;
 	}
-	cmd->nsg = n_elem;
+	urq->nsg = n_elem;
 	sc->sg_stat[n_elem < 5 ? n_elem : 5]++;
+
+	if (blk_pc_request(rq)) {
+		ub_cmd_build_packet(sc, lun, cmd, urq);
+	} else {
+		ub_cmd_build_block(sc, lun, cmd, urq);
+	}
+	cmd->state = UB_CMDST_INIT;
+	cmd->lun = lun;
+	cmd->done = ub_rw_cmd_done;
+	cmd->back = urq;
+
+	cmd->tag = sc->tagcnt++;
+	if (ub_submit_scsi(sc, cmd) != 0)
+		goto drop;
+
+	return 0;
+
+drop:
+	ub_put_cmd(lun, cmd);
+	ub_end_rq(rq, 0);
+	return 0;
+}
+
+static void ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
+    struct ub_scsi_cmd *cmd, struct ub_request *urq)
+{
+	struct request *rq = urq->rq;
+	unsigned int block, nblks;
+
+	if (rq_data_dir(rq) == WRITE)
+		cmd->dir = UB_DIR_WRITE;
+	else
+		cmd->dir = UB_DIR_READ;
+
+	cmd->nsg = urq->nsg;
+	memcpy(cmd->sgv, urq->sgv, sizeof(struct scatterlist) * cmd->nsg);
 
 	/*
 	 * build the command
@@ -847,7 +868,7 @@ static int ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
 	block = rq->sector >> lun->capacity.bshift;
 	nblks = rq->nr_sectors >> lun->capacity.bshift;
 
-	cmd->cdb[0] = (ub_dir == UB_DIR_READ)? READ_10: WRITE_10;
+	cmd->cdb[0] = (cmd->dir == UB_DIR_READ)? READ_10: WRITE_10;
 	/* 10-byte uses 4 bytes of LBA: 2147483648KB, 2097152MB, 2048GB */
 	cmd->cdb[2] = block >> 24;
 	cmd->cdb[3] = block >> 16;
@@ -858,14 +879,12 @@ static int ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->cdb_len = 10;
 
 	cmd->len = rq->nr_sectors * 512;
-
-	return 0;
 }
 
-static int ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
-    struct ub_scsi_cmd *cmd, struct request *rq)
+static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
+    struct ub_scsi_cmd *cmd, struct ub_request *urq)
 {
-	int n_elem;
+	struct request *rq = urq->rq;
 
 	if (rq->data_len == 0) {
 		cmd->dir = UB_DIR_NONE;
@@ -874,39 +893,25 @@ static int ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
 			cmd->dir = UB_DIR_WRITE;
 		else
 			cmd->dir = UB_DIR_READ;
-
 	}
 
-	/*
-	 * get scatterlist from block layer
-	 */
-	n_elem = blk_rq_map_sg(lun->disk->queue, rq, &cmd->sgv[0]);
-	if (n_elem < 0) {
-		printk(KERN_INFO "%s: failed request map (%d)\n",
-		    sc->name, n_elem); /* P3 */
-		return -1;
-	}
-	if (n_elem > UB_MAX_REQ_SG) {	/* Paranoia */
-		printk(KERN_WARNING "%s: request with %d segments\n",
-		    sc->name, n_elem);
-		return -1;
-	}
-	cmd->nsg = n_elem;
-	sc->sg_stat[n_elem < 5 ? n_elem : 5]++;
+	cmd->nsg = urq->nsg;
+	memcpy(cmd->sgv, urq->sgv, sizeof(struct scatterlist) * cmd->nsg);
 
 	memcpy(&cmd->cdb, rq->cmd, rq->cmd_len);
 	cmd->cdb_len = rq->cmd_len;
 
 	cmd->len = rq->data_len;
-
-	return 0;
 }
 
 static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 {
-	struct request *rq = cmd->back;
 	struct ub_lun *lun = cmd->lun;
+	struct ub_request *urq = cmd->back;
+	struct request *rq;
 	int uptodate;
+
+	rq = urq->rq;
 
 	if (cmd->error == 0) {
 		uptodate = 1;
@@ -928,8 +933,15 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 				rq->errors = SAM_STAT_CHECK_CONDITION;
 			else
 				rq->errors = DID_ERROR << 16;
+		} else {
+			if (cmd->error == -EIO) {
+				if (ub_rw_cmd_retry(sc, lun, urq, cmd) == 0)
+					return;
+			}
 		}
 	}
+
+	urq->rq = NULL;
 
 	ub_put_cmd(lun, cmd);
 	ub_end_rq(rq, uptodate);
@@ -938,11 +950,43 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 
 static void ub_end_rq(struct request *rq, int uptodate)
 {
-	int rc;
+	end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
+	end_that_request_last(rq, uptodate);
+}
 
-	rc = end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
-	// assert(rc == 0);
-	end_that_request_last(rq);
+static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
+    struct ub_request *urq, struct ub_scsi_cmd *cmd)
+{
+
+	if (atomic_read(&sc->poison))
+		return -ENXIO;
+
+	ub_reset_enter(sc);
+
+	if (urq->current_try >= 3)
+		return -EIO;
+	urq->current_try++;
+	/* P3 */ printk("%s: dir %c len/act %d/%d "
+	    "[sense %x %02x %02x] retry %d\n",
+	    sc->name, UB_DIR_CHAR(cmd->dir), cmd->len, cmd->act_len,
+	    cmd->key, cmd->asc, cmd->ascq, urq->current_try);
+
+	memset(cmd, 0, sizeof(struct ub_scsi_cmd));
+	ub_cmd_build_block(sc, lun, cmd, urq);
+
+	cmd->state = UB_CMDST_INIT;
+	cmd->lun = lun;
+	cmd->done = ub_rw_cmd_done;
+	cmd->back = urq;
+
+	cmd->tag = sc->tagcnt++;
+
+#if 0 /* Wasteful */
+	return ub_submit_scsi(sc, cmd);
+#else
+	ub_cmdq_add(sc, cmd);
+	return 0;
+#endif
 }
 
 /*
@@ -1075,7 +1119,7 @@ static void ub_scsi_dispatch(struct ub_dev *sc)
 	struct ub_scsi_cmd *cmd;
 	int rc;
 
-	while ((cmd = ub_cmdq_peek(sc)) != NULL) {
+	while (!sc->reset && (cmd = ub_cmdq_peek(sc)) != NULL) {
 		if (cmd->state == UB_CMDST_DONE) {
 			ub_cmdq_pop(sc);
 			(*cmd->done)(sc, cmd);
@@ -1098,11 +1142,12 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 {
 	struct urb *urb = &sc->work_urb;
 	struct bulk_cs_wrap *bcs;
+	int len;
 	int rc;
 
 	if (atomic_read(&sc->poison)) {
-		/* A little too simplistic, I feel... */
-		goto Bad_End;
+		ub_state_done(sc, cmd, -ENODEV);
+		return;
 	}
 
 	if (cmd->state == UB_CMDST_CLEAR) {
@@ -1110,7 +1155,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			/*
 			 * STALL while clearning STALL.
 			 * The control pipe clears itself - nothing to do.
-			 * XXX Might try to reset the device here and retry.
 			 */
 			printk(KERN_NOTICE "%s: stall on control pipe\n",
 			    sc->name);
@@ -1129,11 +1173,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 
 	} else if (cmd->state == UB_CMDST_CLR2STS) {
 		if (urb->status == -EPIPE) {
-			/*
-			 * STALL while clearning STALL.
-			 * The control pipe clears itself - nothing to do.
-			 * XXX Might try to reset the device here and retry.
-			 */
 			printk(KERN_NOTICE "%s: stall on control pipe\n",
 			    sc->name);
 			goto Bad_End;
@@ -1151,11 +1190,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 
 	} else if (cmd->state == UB_CMDST_CLRRS) {
 		if (urb->status == -EPIPE) {
-			/*
-			 * STALL while clearning STALL.
-			 * The control pipe clears itself - nothing to do.
-			 * XXX Might try to reset the device here and retry.
-			 */
 			printk(KERN_NOTICE "%s: stall on control pipe\n",
 			    sc->name);
 			goto Bad_End;
@@ -1172,7 +1206,12 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		ub_state_stat_counted(sc, cmd);
 
 	} else if (cmd->state == UB_CMDST_CMD) {
-		if (urb->status == -EPIPE) {
+		switch (urb->status) {
+		case 0:
+			break;
+		case -EOVERFLOW:
+			goto Bad_End;
+		case -EPIPE:
 			rc = ub_submit_clear_stall(sc, cmd, sc->last_pipe);
 			if (rc != 0) {
 				printk(KERN_NOTICE "%s: "
@@ -1182,17 +1221,20 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 				 * This is typically ENOMEM or some other such shit.
 				 * Retrying is pointless. Just do Bad End on it...
 				 */
-				goto Bad_End;
+				ub_state_done(sc, cmd, rc);
+				return;
 			}
 			cmd->state = UB_CMDST_CLEAR;
 			ub_cmdtr_state(sc, cmd);
 			return;
-		}
-		if (urb->status != 0) {
+		case -ESHUTDOWN:	/* unplug */
+		case -EILSEQ:		/* unplug timeout on uhci */
+			ub_state_done(sc, cmd, -ENODEV);
+			return;
+		default:
 			goto Bad_End;
 		}
 		if (urb->actual_length != US_BULK_CB_WRAP_LEN) {
-			/* XXX Must do reset here to unconfuse the device */
 			goto Bad_End;
 		}
 
@@ -1211,11 +1253,8 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 				printk(KERN_NOTICE "%s: "
 				    "unable to submit clear (%d)\n",
 				    sc->name, rc);
-				/*
-				 * This is typically ENOMEM or some other such shit.
-				 * Retrying is pointless. Just do Bad End on it...
-				 */
-				goto Bad_End;
+				ub_state_done(sc, cmd, rc);
+				return;
 			}
 			cmd->state = UB_CMDST_CLR2STS;
 			ub_cmdtr_state(sc, cmd);
@@ -1224,14 +1263,50 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		if (urb->status == -EOVERFLOW) {
 			/*
 			 * A babble? Failure, but we must transfer CSW now.
-			 * XXX This is going to end in perpetual babble. Reset.
 			 */
 			cmd->error = -EOVERFLOW;	/* A cheap trick... */
 			ub_state_stat(sc, cmd);
 			return;
 		}
-		if (urb->status != 0)
-			goto Bad_End;
+
+		if (cmd->dir == UB_DIR_WRITE) {
+			/*
+			 * Do not continue writes in case of a failure.
+			 * Doing so would cause sectors to be mixed up,
+			 * which is worse than sectors lost.
+			 *
+			 * We must try to read the CSW, or many devices
+			 * get confused.
+			 */
+			len = urb->actual_length;
+			if (urb->status != 0 ||
+			    len != cmd->sgv[cmd->current_sg].length) {
+				cmd->act_len += len;
+				ub_cmdtr_act_len(sc, cmd);
+
+				cmd->error = -EIO;
+				ub_state_stat(sc, cmd);
+				return;
+			}
+
+		} else {
+			/*
+			 * If an error occurs on read, we record it, and
+			 * continue to fetch data in order to avoid bubble.
+			 *
+			 * As a small shortcut, we stop if we detect that
+			 * a CSW mixed into data.
+			 */
+			if (urb->status != 0)
+				cmd->error = -EIO;
+
+			len = urb->actual_length;
+			if (urb->status != 0 ||
+			    len != cmd->sgv[cmd->current_sg].length) {
+				if ((len & 0x1FF) == US_BULK_CS_WRAP_LEN)
+					goto Bad_End;
+			}
+		}
 
 		cmd->act_len += urb->actual_length;
 		ub_cmdtr_act_len(sc, cmd);
@@ -1249,11 +1324,8 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 				printk(KERN_NOTICE "%s: "
 				    "unable to submit clear (%d)\n",
 				    sc->name, rc);
-				/*
-				 * This is typically ENOMEM or some other such shit.
-				 * Retrying is pointless. Just do Bad End on it...
-				 */
-				goto Bad_End;
+				ub_state_done(sc, cmd, rc);
+				return;
 			}
 
 			/*
@@ -1266,14 +1338,8 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			ub_cmdtr_state(sc, cmd);
 			return;
 		}
-		if (urb->status == -EOVERFLOW) {
-			/*
-			 * XXX We are screwed here. Retrying is pointless,
-			 * because the pipelined data will not get in until
-			 * we read with a big enough buffer. We must reset XXX.
-			 */
-			goto Bad_End;
-		}
+
+		/* Catch everything, including -EOVERFLOW and other nasties. */
 		if (urb->status != 0)
 			goto Bad_End;
 
@@ -1319,15 +1385,15 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			return;
 		}
 
-		rc = le32_to_cpu(bcs->Residue);
-		if (rc != cmd->len - cmd->act_len) {
+		len = le32_to_cpu(bcs->Residue);
+		if (len != cmd->len - cmd->act_len) {
 			/*
 			 * It is all right to transfer less, the caller has
 			 * to check. But it's not all right if the device
 			 * counts disagree with our counts.
 			 */
 			/* P3 */ printk("%s: resid %d len %d act %d\n",
-			    sc->name, rc, cmd->len, cmd->act_len);
+			    sc->name, len, cmd->len, cmd->act_len);
 			goto Bad_End;
 		}
 
@@ -1338,13 +1404,13 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			ub_state_sense(sc, cmd);
 			return;
 		case US_BULK_STAT_PHASE:
-			/* XXX We must reset the transport here */
 			/* P3 */ printk("%s: status PHASE\n", sc->name);
 			goto Bad_End;
 		default:
 			printk(KERN_INFO "%s: unknown CSW status 0x%x\n",
 			    sc->name, bcs->Status);
-			goto Bad_End;
+			ub_state_done(sc, cmd, -EINVAL);
+			return;
 		}
 
 		/* Not zeroing error to preserve a babble indicator */
@@ -1364,7 +1430,8 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		printk(KERN_WARNING "%s: "
 		    "wrong command state %d\n",
 		    sc->name, cmd->state);
-		goto Bad_End;
+		ub_state_done(sc, cmd, -EINVAL);
+		return;
 	}
 	return;
 
@@ -1609,6 +1676,93 @@ static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd)
 	cmd->ascq = sense[13];
 
 	ub_scsi_urb_compl(sc, cmd);
+}
+
+/*
+ * Reset management
+ */
+
+static void ub_reset_enter(struct ub_dev *sc)
+{
+
+	if (sc->reset) {
+		/* This happens often on multi-LUN devices. */
+		return;
+	}
+	sc->reset = 1;
+
+#if 0 /* Not needed because the disconnect waits for us. */
+	unsigned long flags;
+	spin_lock_irqsave(&ub_lock, flags);
+	sc->openc++;
+	spin_unlock_irqrestore(&ub_lock, flags);
+#endif
+
+#if 0 /* We let them stop themselves. */
+	struct list_head *p;
+	struct ub_lun *lun;
+	list_for_each(p, &sc->luns) {
+		lun = list_entry(p, struct ub_lun, link);
+		blk_stop_queue(lun->disk->queue);
+	}
+#endif
+
+	schedule_work(&sc->reset_work);
+}
+
+static void ub_reset_task(void *arg)
+{
+	struct ub_dev *sc = arg;
+	unsigned long flags;
+	struct list_head *p;
+	struct ub_lun *lun;
+	int lkr, rc;
+
+	if (!sc->reset) {
+		printk(KERN_WARNING "%s: Running reset unrequested\n",
+		    sc->name);
+		return;
+	}
+
+	if (atomic_read(&sc->poison)) {
+		printk(KERN_NOTICE "%s: Not resetting disconnected device\n",
+		    sc->name); /* P3 This floods. Remove soon. XXX */
+	} else if (sc->dev->actconfig->desc.bNumInterfaces != 1) {
+		printk(KERN_NOTICE "%s: Not resetting multi-interface device\n",
+		    sc->name); /* P3 This floods. Remove soon. XXX */
+	} else {
+		if ((lkr = usb_lock_device_for_reset(sc->dev, sc->intf)) < 0) {
+			printk(KERN_NOTICE
+			    "%s: usb_lock_device_for_reset failed (%d)\n",
+			    sc->name, lkr);
+		} else {
+			rc = usb_reset_device(sc->dev);
+			if (rc < 0) {
+				printk(KERN_NOTICE "%s: "
+				    "usb_lock_device_for_reset failed (%d)\n",
+				    sc->name, rc);
+			}
+
+			if (lkr)
+				usb_unlock_device(sc->dev);
+		}
+	}
+
+	/*
+	 * In theory, no commands can be running while reset is active,
+	 * so nobody can ask for another reset, and so we do not need any
+	 * queues of resets or anything. We do need a spinlock though,
+	 * to interact with block layer.
+	 */
+	spin_lock_irqsave(&sc->lock, flags);
+	sc->reset = 0;
+	tasklet_schedule(&sc->tasklet);
+	list_for_each(p, &sc->luns) {
+		lun = list_entry(p, struct ub_lun, link);
+		blk_start_queue(lun->disk->queue);
+	}
+	wake_up(&sc->reset_wait);
+	spin_unlock_irqrestore(&sc->lock, flags);
 }
 
 /*
@@ -2146,7 +2300,7 @@ static int ub_get_pipes(struct ub_dev *sc, struct usb_device *dev,
 	if (ep_in == NULL || ep_out == NULL) {
 		printk(KERN_NOTICE "%s: failed endpoint check\n",
 		    sc->name);
-		return -EIO;
+		return -ENODEV;
 	}
 
 	/* Calculate and store the pipe values */
@@ -2172,6 +2326,9 @@ static int ub_probe(struct usb_interface *intf,
 	int rc;
 	int i;
 
+	if (usb_usual_check_type(dev_id, USB_US_TYPE_UB))
+		return -ENXIO;
+
 	rc = -ENOMEM;
 	if ((sc = kmalloc(sizeof(struct ub_dev), GFP_KERNEL)) == NULL)
 		goto err_core;
@@ -2181,6 +2338,8 @@ static int ub_probe(struct usb_interface *intf,
 	usb_init_urb(&sc->work_urb);
 	tasklet_init(&sc->tasklet, ub_scsi_action, (unsigned long)sc);
 	atomic_set(&sc->poison, 0);
+	INIT_WORK(&sc->reset_work, ub_reset_task, sc);
+	init_waitqueue_head(&sc->reset_wait);
 
 	init_timer(&sc->work_timer);
 	sc->work_timer.data = (unsigned long) sc;
@@ -2201,7 +2360,8 @@ static int ub_probe(struct usb_interface *intf,
 
 	/* XXX Verify that we can handle the device (from descriptors) */
 
-	ub_get_pipes(sc, sc->dev, intf);
+	if (ub_get_pipes(sc, sc->dev, intf) != 0)
+		goto err_dev_desc;
 
 	if (device_create_file(&sc->intf->dev, &dev_attr_diag) != 0)
 		goto err_diag;
@@ -2272,6 +2432,7 @@ static int ub_probe(struct usb_interface *intf,
 
 	/* device_remove_file(&sc->intf->dev, &dev_attr_diag); */
 err_diag:
+err_dev_desc:
 	usb_set_intfdata(intf, NULL);
 	// usb_put_intf(sc->intf);
 	usb_put_dev(sc->dev);
@@ -2309,14 +2470,14 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	ub_revalidate(sc, lun);
 
 	rc = -ENOMEM;
-	if ((disk = alloc_disk(UB_MINORS_PER_MAJOR)) == NULL)
+	if ((disk = alloc_disk(UB_PARTS_PER_LUN)) == NULL)
 		goto err_diskalloc;
 
 	lun->disk = disk;
 	sprintf(disk->disk_name, DRV_NAME "%c", lun->id + 'a');
 	sprintf(disk->devfs_name, DEVFS_NAME "/%c", lun->id + 'a');
 	disk->major = UB_MAJOR;
-	disk->first_minor = lun->id * UB_MINORS_PER_MAJOR;
+	disk->first_minor = lun->id * UB_PARTS_PER_LUN;
 	disk->fops = &ub_bd_fops;
 	disk->private_data = lun;
 	disk->driverfs_dev = &sc->intf->dev;
@@ -2380,6 +2541,11 @@ static void ub_disconnect(struct usb_interface *intf)
 	atomic_set(&sc->poison, 1);
 
 	/*
+	 * Wait for reset to end, if any.
+	 */
+	wait_event(sc->reset_wait, !sc->reset);
+
+	/*
 	 * Blow away queued commands.
 	 *
 	 * Actually, this never works, because before we get here
@@ -2392,7 +2558,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	{
 		struct ub_scsi_cmd *cmd;
 		int cnt = 0;
-		while ((cmd = ub_cmdq_pop(sc)) != NULL) {
+		while ((cmd = ub_cmdq_peek(sc)) != NULL) {
 			cmd->error = -ENOTCONN;
 			cmd->state = UB_CMDST_DONE;
 			ub_cmdtr_state(sc, cmd);
@@ -2461,7 +2627,6 @@ static void ub_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver ub_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"ub",
 	.probe =	ub_probe,
 	.disconnect =	ub_disconnect,
@@ -2479,6 +2644,7 @@ static int __init ub_init(void)
 	if ((rc = usb_register(&ub_driver)) != 0)
 		goto err_register;
 
+	usb_usual_set_present(USB_US_TYPE_UB);
 	return 0;
 
 err_register:
@@ -2494,6 +2660,7 @@ static void __exit ub_exit(void)
 
 	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
+	usb_usual_clear_present(USB_US_TYPE_UB);
 }
 
 module_init(ub_init);

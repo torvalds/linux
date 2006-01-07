@@ -14,7 +14,7 @@
 #include <asm/m32r_mp_fpga.h>
 #elif defined(CONFIG_CHIP_VDEC2) || defined(CONFIG_CHIP_XNUX2) \
 	|| defined(CONFIG_CHIP_M32700) || defined(CONFIG_CHIP_M32102) \
-        || defined(CONFIG_CHIP_OPSP)
+        || defined(CONFIG_CHIP_OPSP) || defined(CONFIG_CHIP_M32104)
 #include <asm/m32102.h>
 #endif
 
@@ -42,6 +42,10 @@
 #if defined(CONFIG_PLAT_USRV)
 #include <asm/m32700ut/m32700ut_pld.h>
 #endif
+
+#if defined(CONFIG_PLAT_M32104UT)
+#include <asm/m32104ut/m32104ut_pld.h>
+#endif  /* CONFIG_PLAT_M32104 */
 
 /*
  * M32R Register
@@ -122,7 +126,7 @@
 
 #include <asm/page.h>
 #ifdef CONFIG_MMU
-#define NONCACHE_OFFSET  __PAGE_OFFSET+0x20000000
+#define NONCACHE_OFFSET  (__PAGE_OFFSET + 0x20000000)
 #else
 #define NONCACHE_OFFSET  __PAGE_OFFSET
 #endif /* CONFIG_MMU */

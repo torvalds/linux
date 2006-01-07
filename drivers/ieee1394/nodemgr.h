@@ -151,24 +151,6 @@ static inline int hpsb_node_entry_valid(struct node_entry *ne)
 }
 
 /*
- * Returns a node entry (which has its reference count incremented) or NULL if
- * the GUID in question is not known.  Getting a valid entry does not mean that
- * the node with this GUID is currently accessible (might be powered down).
- */
-struct node_entry *hpsb_guid_get_entry(u64 guid);
-
-/* Same as above, but use the nodeid to get an node entry. This is not
- * fool-proof by itself, since the nodeid can change.  */
-struct node_entry *hpsb_nodeid_get_entry(struct hpsb_host *host, nodeid_t nodeid);
-
-/*
- * If the entry refers to a local host, this function will return the pointer
- * to the hpsb_host structure.  It will return NULL otherwise.  Once you have
- * established it is a local host, you can use that knowledge from then on (the
- * GUID won't wander to an external node).  */
-struct hpsb_host *hpsb_get_host_by_ne(struct node_entry *ne);
-
-/*
  * This will fill in the given, pre-initialised hpsb_packet with the current
  * information from the node entry (host, node ID, generation number).  It will
  * return false if the node owning the GUID is not accessible (and not modify the

@@ -44,6 +44,7 @@
  *
  */
 #include <linux/config.h>
+#include <linux/in.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -53,6 +54,7 @@
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
 #include <linux/netfilter_ipv4/ip_nat_helper.h>
 #include <linux/ip.h>
+#include <linux/udp.h>
 #include <net/checksum.h>
 #include <net/udp.h>
 #include <asm/uaccess.h>

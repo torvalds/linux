@@ -626,7 +626,7 @@ struct net_device * dev_get_by_flags(unsigned short if_flags, unsigned short mas
  *	Network device names need to be valid file names to
  *	to allow sysfs to work
  */
-static int dev_valid_name(const char *name)
+int dev_valid_name(const char *name)
 {
 	return !(*name == '\0' 
 		 || !strcmp(name, ".")
@@ -3270,13 +3270,13 @@ EXPORT_SYMBOL(__dev_get_by_index);
 EXPORT_SYMBOL(__dev_get_by_name);
 EXPORT_SYMBOL(__dev_remove_pack);
 EXPORT_SYMBOL(__skb_linearize);
+EXPORT_SYMBOL(dev_valid_name);
 EXPORT_SYMBOL(dev_add_pack);
 EXPORT_SYMBOL(dev_alloc_name);
 EXPORT_SYMBOL(dev_close);
 EXPORT_SYMBOL(dev_get_by_flags);
 EXPORT_SYMBOL(dev_get_by_index);
 EXPORT_SYMBOL(dev_get_by_name);
-EXPORT_SYMBOL(dev_ioctl);
 EXPORT_SYMBOL(dev_open);
 EXPORT_SYMBOL(dev_queue_xmit);
 EXPORT_SYMBOL(dev_remove_pack);

@@ -33,6 +33,7 @@
 #include <asm/uaccess.h>
 #include <linux/init.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/if_ether.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>
@@ -720,7 +721,7 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 
 	dev->type		= ARPHRD_SIT;
 	dev->hard_header_len 	= LL_MAX_HEADER + sizeof(struct iphdr);
-	dev->mtu		= 1500 - sizeof(struct iphdr);
+	dev->mtu		= ETH_DATA_LEN - sizeof(struct iphdr);
 	dev->flags		= IFF_NOARP;
 	dev->iflink		= 0;
 	dev->addr_len		= 4;

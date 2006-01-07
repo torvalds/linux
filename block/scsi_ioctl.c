@@ -46,7 +46,7 @@ EXPORT_SYMBOL(scsi_command_size);
 
 static int sg_get_version(int __user *p)
 {
-	static int sg_version_num = 30527;
+	static const int sg_version_num = 30527;
 	return put_user(sg_version_num, p);
 }
 
@@ -233,7 +233,7 @@ static int sg_io(struct file *file, request_queue_t *q,
 	if (verify_command(file, cmd))
 		return -EPERM;
 
-	if (hdr->dxfer_len > (q->max_sectors << 9))
+	if (hdr->dxfer_len > (q->max_hw_sectors << 9))
 		return -EIO;
 
 	if (hdr->dxfer_len)

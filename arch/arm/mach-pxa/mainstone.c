@@ -43,6 +43,7 @@
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/irda.h>
+#include <asm/arch/ohci.h>
 
 #include "generic.h"
 
@@ -393,6 +394,25 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mst_flash_device[1],
 };
 
+static int mainstone_ohci_init(struct device *dev)
+{
+	/* setup Port1 GPIO pin. */
+	pxa_gpio_mode( 88 | GPIO_ALT_FN_1_IN);	/* USBHPWR1 */
+	pxa_gpio_mode( 89 | GPIO_ALT_FN_2_OUT);	/* USBHPEN1 */
+
+	/* Set the Power Control Polarity Low and Power Sense
+	   Polarity Low to active low. */
+	UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
+		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
+
+	return 0;
+}
+
+static struct pxaohci_platform_data mainstone_ohci_platform_data = {
+	.port_mode	= PMM_PERPORT_MODE,
+	.init		= mainstone_ohci_init,
+};
+
 static void __init mainstone_init(void)
 {
 	int SW7 = 0;  /* FIXME: get from SCR (Mst doc section 3.2.1.1) */
@@ -430,6 +450,7 @@ static void __init mainstone_init(void)
 
 	pxa_set_mci_info(&mainstone_mci_platform_data);
 	pxa_set_ficp_info(&mainstone_ficp_platform_data);
+	pxa_set_ohci_info(&mainstone_ohci_platform_data);
 }
 
 

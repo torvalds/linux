@@ -236,8 +236,9 @@ static struct pc87360_data *pc87360_update_device(struct device *dev);
  */
 
 static struct i2c_driver pc87360_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "pc87360",
+	.driver = {
+		.name	= "pc87360",
+	},
 	.attach_adapter	= pc87360_detect,
 	.detach_client	= pc87360_detach_client,
 };
@@ -798,7 +799,7 @@ static int pc87360_detect(struct i2c_adapter *adapter)
 	for (i = 0; i < 3; i++) {
 		if (((data->address[i] = extra_isa[i]))
 		 && !request_region(extra_isa[i], PC87360_EXTENT,
-		 		    pc87360_driver.name)) {
+		 		    pc87360_driver.driver.name)) {
 			dev_err(&new_client->dev, "Region 0x%x-0x%x already "
 				"in use!\n", extra_isa[i],
 				extra_isa[i]+PC87360_EXTENT-1);

@@ -102,10 +102,6 @@ static const char *version =
    currently have room for another Tx packet. */
 #define MEMORY_WAIT_TIME       	8
 
-static dev_info_t dev_info = "smc91c92_cs";
-
-static dev_link_t *dev_list;
-
 struct smc_private {
     dev_link_t			link;
     spinlock_t			lock;
@@ -281,12 +277,9 @@ enum RxCfg { RxAllMulti = 0x0004, RxPromisc = 0x0002,
 
 /*====================================================================*/
 
-static dev_link_t *smc91c92_attach(void);
-static void smc91c92_detach(dev_link_t *);
+static void smc91c92_detach(struct pcmcia_device *p_dev);
 static void smc91c92_config(dev_link_t *link);
 static void smc91c92_release(dev_link_t *link);
-static int smc91c92_event(event_t event, int priority,
-			  event_callback_args_t *args);
 
 static int smc_open(struct net_device *dev);
 static int smc_close(struct net_device *dev);
@@ -315,20 +308,18 @@ static struct ethtool_ops ethtool_ops;
 
 ======================================================================*/
 
-static dev_link_t *smc91c92_attach(void)
+static int smc91c92_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     struct smc_private *smc;
     dev_link_t *link;
     struct net_device *dev;
-    int ret;
 
     DEBUG(0, "smc91c92_attach()\n");
 
     /* Create new ethernet device */
     dev = alloc_etherdev(sizeof(struct smc_private));
     if (!dev)
-	return NULL;
+	return -ENOMEM;
     smc = netdev_priv(dev);
     link = &smc->link;
     link->priv = dev;
@@ -366,20 +357,13 @@ static dev_link_t *smc91c92_attach(void)
     smc->mii_if.phy_id_mask = 0x1f;
     smc->mii_if.reg_num_mask = 0x1f;
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	smc91c92_detach(link);
-	return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    smc91c92_config(link);
+
+    return 0;
 } /* smc91c92_attach */
 
 /*======================================================================
@@ -391,18 +375,12 @@ static dev_link_t *smc91c92_attach(void)
 
 ======================================================================*/
 
-static void smc91c92_detach(dev_link_t *link)
+static void smc91c92_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
 
     DEBUG(0, "smc91c92_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -410,11 +388,6 @@ static void smc91c92_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
 	smc91c92_release(link);
 
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
     free_netdev(dev);
 } /* smc91c92_detach */
 
@@ -895,6 +868,62 @@ free_cfg_mem:
    return rc;
 }
 
+static int smc91c92_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int smc91c92_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+	struct smc_private *smc = netdev_priv(dev);
+	int i;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if ((smc->manfid == MANFID_MEGAHERTZ) &&
+		    (smc->cardid == PRODID_MEGAHERTZ_EM3288))
+			mhz_3288_power(link);
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (smc->manfid == MANFID_MOTOROLA)
+			mot_config(link);
+		if ((smc->manfid == MANFID_OSITECH) &&
+		    (smc->cardid != PRODID_OSITECH_SEVEN)) {
+			/* Power up the card and enable interrupts */
+			set_bits(0x0300, dev->base_addr-0x10+OSITECH_AUI_PWR);
+			set_bits(0x0300, dev->base_addr-0x10+OSITECH_RESET_ISR);
+		}
+		if (((smc->manfid == MANFID_OSITECH) &&
+		     (smc->cardid == PRODID_OSITECH_SEVEN)) ||
+		    ((smc->manfid == MANFID_PSION) &&
+		     (smc->cardid == PRODID_PSION_NET100))) {
+			/* Download the Seven of Diamonds firmware */
+			for (i = 0; i < sizeof(__Xilinx7OD); i++) {
+				outb(__Xilinx7OD[i], link->io.BasePort1+2);
+				udelay(50);
+			}
+		}
+		if (link->open) {
+			smc_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
+
 /*======================================================================
 
     This verifies that the chip is some SMC91cXX variant, and returns
@@ -935,14 +964,12 @@ static int check_sig(dev_link_t *link)
     }
 
     if (width) {
-	event_callback_args_t args;
 	printk(KERN_INFO "smc91c92_cs: using 8-bit IO window.\n");
-	args.client_data = link;
-	smc91c92_event(CS_EVENT_RESET_PHYSICAL, 0, &args);
+	smc91c92_suspend(link->handle);
 	pcmcia_release_io(link->handle, &link->io);
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	pcmcia_request_io(link->handle, &link->io);
-	smc91c92_event(CS_EVENT_CARD_RESET, 0, &args);
+	smc91c92_resume(link->handle);
 	return check_sig(link);
     }
     return -ENODEV;
@@ -1169,82 +1196,6 @@ static void smc91c92_release(dev_link_t *link)
 
     link->state &= ~DEV_CONFIG;
 }
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
-
-static int smc91c92_event(event_t event, int priority,
-			  event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
-    struct smc_private *smc = netdev_priv(dev);
-    int i;
-
-    DEBUG(1, "smc91c92_event(0x%06x)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	smc91c92_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG) {
-	    if (link->open)
-		netif_device_detach(dev);
-	    pcmcia_release_configuration(link->handle);
-	}
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG) {
-	    if ((smc->manfid == MANFID_MEGAHERTZ) &&
-		(smc->cardid == PRODID_MEGAHERTZ_EM3288))
-		mhz_3288_power(link);
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (smc->manfid == MANFID_MOTOROLA)
-		mot_config(link);
-	    if ((smc->manfid == MANFID_OSITECH) &&
-		(smc->cardid != PRODID_OSITECH_SEVEN)) {
-		/* Power up the card and enable interrupts */
-		set_bits(0x0300, dev->base_addr-0x10+OSITECH_AUI_PWR);
-		set_bits(0x0300, dev->base_addr-0x10+OSITECH_RESET_ISR);
-	    }
-	    if (((smc->manfid == MANFID_OSITECH) &&
-	 	(smc->cardid == PRODID_OSITECH_SEVEN)) ||
-		((smc->manfid == MANFID_PSION) &&
-	 	(smc->cardid == PRODID_PSION_NET100))) {
-		/* Download the Seven of Diamonds firmware */
-		for (i = 0; i < sizeof(__Xilinx7OD); i++) {
-	    	    outb(__Xilinx7OD[i], link->io.BasePort1+2);
-	   	    udelay(50);
-		}
-	    }
-	    if (link->open) {
-		smc_reset(dev);
-		netif_device_attach(dev);
-	    }
-	}
-	break;
-    }
-    return 0;
-} /* smc91c92_event */
 
 /*======================================================================
 
@@ -2360,10 +2311,11 @@ static struct pcmcia_driver smc91c92_cs_driver = {
 	.drv		= {
 		.name	= "smc91c92_cs",
 	},
-	.attach		= smc91c92_attach,
-	.event		= smc91c92_event,
-	.detach		= smc91c92_detach,
+	.probe		= smc91c92_attach,
+	.remove		= smc91c92_detach,
 	.id_table       = smc91c92_ids,
+	.suspend	= smc91c92_suspend,
+	.resume		= smc91c92_resume,
 };
 
 static int __init init_smc91c92_cs(void)
@@ -2374,7 +2326,6 @@ static int __init init_smc91c92_cs(void)
 static void __exit exit_smc91c92_cs(void)
 {
 	pcmcia_unregister_driver(&smc91c92_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_smc91c92_cs);

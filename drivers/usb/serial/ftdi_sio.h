@@ -343,6 +343,13 @@
 #define XSENS_CONVERTER_7_PID	0xD38F
 
 /*
+ * Teratronik product ids.
+ * Submitted by O. Wölfelschneider.
+ */
+#define FTDI_TERATRONIK_VCP_PID	 0xEC88	/* Teratronik device (preferring VCP driver on windows) */
+#define FTDI_TERATRONIK_D2XX_PID 0xEC89	/* Teratronik device (preferring D2XX driver on windows) */
+
+/*
  * Evolution Robotics products (http://www.evolution.com/).
  * Submitted by Shawn M. Lavelle.
  */
@@ -351,6 +358,12 @@
 
 /* Pyramid Computer GmbH */
 #define FTDI_PYRAMID_PID	0xE6C8	/* Pyramid Appliance Display */
+
+/*
+ * Posiflex inc retail equipment (http://www.posiflex.com.tw)
+ */
+#define POSIFLEX_VID		0x0d3a  /* Vendor ID */
+#define POSIFLEX_PP7000_PID	0x0300  /* PP-7000II thermal printer */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
@@ -714,7 +727,7 @@ typedef enum {
  */
 
 /* FTDI_SIO_GET_MODEM_STATUS */
-/* Retreive the current value of the modem status register */
+/* Retrieve the current value of the modem status register */
 
 #define FTDI_SIO_GET_MODEM_STATUS_REQUEST_TYPE 0xc0
 #define FTDI_SIO_GET_MODEM_STATUS_REQUEST FTDI_SIO_GET_MODEM_STATUS

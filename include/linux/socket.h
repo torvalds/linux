@@ -27,7 +27,6 @@ struct __kernel_sockaddr_storage {
 #include <linux/compiler.h>		/* __user			*/
 
 extern int sysctl_somaxconn;
-extern void sock_init(void);
 #ifdef CONFIG_PROC_FS
 struct seq_file;
 extern void socket_seq_show(struct seq_file *seq);

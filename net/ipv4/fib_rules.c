@@ -33,6 +33,7 @@
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/proc_fs.h>

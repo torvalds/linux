@@ -45,7 +45,7 @@ static int amba_match(struct device *dev, struct device_driver *drv)
 }
 
 #ifdef CONFIG_HOTPLUG
-static int amba_hotplug(struct device *dev, char **envp, int nr_env, char *buf, int bufsz)
+static int amba_uevent(struct device *dev, char **envp, int nr_env, char *buf, int bufsz)
 {
 	struct amba_device *pcdev = to_amba_device(dev);
 
@@ -58,7 +58,7 @@ static int amba_hotplug(struct device *dev, char **envp, int nr_env, char *buf, 
 	return 0;
 }
 #else
-#define amba_hotplug NULL
+#define amba_uevent NULL
 #endif
 
 static int amba_suspend(struct device *dev, pm_message_t state)
@@ -88,7 +88,7 @@ static int amba_resume(struct device *dev)
 static struct bus_type amba_bustype = {
 	.name		= "amba",
 	.match		= amba_match,
-	.hotplug	= amba_hotplug,
+	.uevent		= amba_uevent,
 	.suspend	= amba_suspend,
 	.resume		= amba_resume,
 };

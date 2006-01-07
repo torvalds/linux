@@ -39,10 +39,15 @@ MODULE_DEVICE_TABLE (usb, skel_table);
 /* Get a minor range for your devices from the usb maintainer */
 #define USB_SKEL_MINOR_BASE	192
 
+/* our private defines. if this grows any larger, use your own .h file */
+#define MAX_TRANSFER		( PAGE_SIZE - 512 )
+#define WRITES_IN_FLIGHT	8
+
 /* Structure to hold all of our device specific stuff */
 struct usb_skel {
 	struct usb_device *	udev;			/* the usb device for this device */
 	struct usb_interface *	interface;		/* the interface for this device */
+	struct semaphore	limit_sem;		/* limiting the number of writes in progress */
 	unsigned char *		bulk_in_buffer;		/* the buffer to receive data */
 	size_t			bulk_in_size;		/* the size of the receive buffer */
 	__u8			bulk_in_endpointAddr;	/* the address of the bulk in endpoint */
@@ -152,6 +157,7 @@ static void skel_write_bulk_callback(struct urb *urb, struct pt_regs *regs)
 	/* free up our allocated buffer */
 	usb_buffer_free(urb->dev, urb->transfer_buffer_length, 
 			urb->transfer_buffer, urb->transfer_dma);
+	up(&dev->limit_sem);
 }
 
 static ssize_t skel_write(struct file *file, const char *user_buffer, size_t count, loff_t *ppos)
@@ -160,12 +166,19 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	int retval = 0;
 	struct urb *urb = NULL;
 	char *buf = NULL;
+	size_t writesize = min(count, (size_t)MAX_TRANSFER);
 
 	dev = (struct usb_skel *)file->private_data;
 
 	/* verify that we actually have some data to write */
 	if (count == 0)
 		goto exit;
+
+	/* limit the number of URBs in flight to stop a user from using up all RAM */
+	if (down_interruptible(&dev->limit_sem)) {
+		retval = -ERESTARTSYS;
+		goto exit;
+	}
 
 	/* create a urb, and a buffer for it, and copy the data to the urb */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -174,13 +187,13 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 		goto error;
 	}
 
-	buf = usb_buffer_alloc(dev->udev, count, GFP_KERNEL, &urb->transfer_dma);
+	buf = usb_buffer_alloc(dev->udev, writesize, GFP_KERNEL, &urb->transfer_dma);
 	if (!buf) {
 		retval = -ENOMEM;
 		goto error;
 	}
 
-	if (copy_from_user(buf, user_buffer, count)) {
+	if (copy_from_user(buf, user_buffer, writesize)) {
 		retval = -EFAULT;
 		goto error;
 	}
@@ -188,7 +201,7 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	/* initialize the urb properly */
 	usb_fill_bulk_urb(urb, dev->udev,
 			  usb_sndbulkpipe(dev->udev, dev->bulk_out_endpointAddr),
-			  buf, count, skel_write_bulk_callback, dev);
+			  buf, writesize, skel_write_bulk_callback, dev);
 	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	/* send the data out the bulk port */
@@ -202,11 +215,12 @@ static ssize_t skel_write(struct file *file, const char *user_buffer, size_t cou
 	usb_free_urb(urb);
 
 exit:
-	return count;
+	return writesize;
 
 error:
-	usb_buffer_free(dev->udev, count, buf, urb->transfer_dma);
+	usb_buffer_free(dev->udev, writesize, buf, urb->transfer_dma);
 	usb_free_urb(urb);
+	up(&dev->limit_sem);
 	return retval;
 }
 
@@ -238,13 +252,13 @@ static int skel_probe(struct usb_interface *interface, const struct usb_device_i
 	int retval = -ENOMEM;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		err("Out of memory");
 		goto error;
 	}
-	memset(dev, 0x00, sizeof(*dev));
 	kref_init(&dev->kref);
+	sema_init(&dev->limit_sem, WRITES_IN_FLIGHT);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
@@ -330,7 +344,6 @@ static void skel_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver skel_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"skeleton",
 	.probe =	skel_probe,
 	.disconnect =	skel_disconnect,

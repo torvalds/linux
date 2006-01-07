@@ -1147,6 +1147,63 @@ static int tcp_new(struct nf_conn *conntrack,
 		receiver->td_scale);
 	return 1;
 }
+
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
+
+static int tcp_to_nfattr(struct sk_buff *skb, struct nfattr *nfa,
+			 const struct nf_conn *ct)
+{
+	struct nfattr *nest_parms;
+	
+	read_lock_bh(&tcp_lock);
+	nest_parms = NFA_NEST(skb, CTA_PROTOINFO_TCP);
+	NFA_PUT(skb, CTA_PROTOINFO_TCP_STATE, sizeof(u_int8_t),
+		&ct->proto.tcp.state);
+	read_unlock_bh(&tcp_lock);
+
+	NFA_NEST_END(skb, nest_parms);
+
+	return 0;
+
+nfattr_failure:
+	read_unlock_bh(&tcp_lock);
+	return -1;
+}
+
+static const size_t cta_min_tcp[CTA_PROTOINFO_TCP_MAX] = {
+	[CTA_PROTOINFO_TCP_STATE-1]	= sizeof(u_int8_t),
+};
+
+static int nfattr_to_tcp(struct nfattr *cda[], struct nf_conn *ct)
+{
+	struct nfattr *attr = cda[CTA_PROTOINFO_TCP-1];
+	struct nfattr *tb[CTA_PROTOINFO_TCP_MAX];
+
+	/* updates could not contain anything about the private
+	 * protocol info, in that case skip the parsing */
+	if (!attr)
+		return 0;
+
+        nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr);
+
+	if (nfattr_bad_size(tb, CTA_PROTOINFO_TCP_MAX, cta_min_tcp))
+		return -EINVAL;
+
+	if (!tb[CTA_PROTOINFO_TCP_STATE-1])
+		return -EINVAL;
+
+	write_lock_bh(&tcp_lock);
+	ct->proto.tcp.state = 
+		*(u_int8_t *)NFA_DATA(tb[CTA_PROTOINFO_TCP_STATE-1]);
+	write_unlock_bh(&tcp_lock);
+
+	return 0;
+}
+#endif
   
 struct nf_conntrack_protocol nf_conntrack_protocol_tcp4 =
 {
@@ -1160,6 +1217,13 @@ struct nf_conntrack_protocol nf_conntrack_protocol_tcp4 =
 	.packet 		= tcp_packet,
 	.new 			= tcp_new,
 	.error			= tcp_error4,
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.to_nfattr		= tcp_to_nfattr,
+	.from_nfattr		= nfattr_to_tcp,
+	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
+	.nfattr_to_tuple	= nf_ct_port_nfattr_to_tuple,
+#endif
 };
 
 struct nf_conntrack_protocol nf_conntrack_protocol_tcp6 =
@@ -1174,6 +1238,13 @@ struct nf_conntrack_protocol nf_conntrack_protocol_tcp6 =
 	.packet 		= tcp_packet,
 	.new 			= tcp_new,
 	.error			= tcp_error6,
+#if defined(CONFIG_NF_CT_NETLINK) || \
+    defined(CONFIG_NF_CT_NETLINK_MODULE)
+	.to_nfattr		= tcp_to_nfattr,
+	.from_nfattr		= nfattr_to_tcp,
+	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
+	.nfattr_to_tuple	= nf_ct_port_nfattr_to_tuple,
+#endif
 };
 
 EXPORT_SYMBOL(nf_conntrack_protocol_tcp4);

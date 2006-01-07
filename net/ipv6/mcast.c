@@ -224,7 +224,7 @@ int ipv6_sock_mc_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 
 	mc_lst->ifindex = dev->ifindex;
 	mc_lst->sfmode = MCAST_EXCLUDE;
-	mc_lst->sflock = RW_LOCK_UNLOCKED;
+	rwlock_init(&mc_lst->sflock);
 	mc_lst->sflist = NULL;
 
 	/*

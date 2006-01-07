@@ -40,6 +40,7 @@
 
 #include <linux/slab.h>
 #include <asm/param.h>		/* for timeouts in units of HZ */
+#include <scsi/scsi_dbg.h>
 
 #include "sym_glue.h"
 #include "sym_nvram.h"
@@ -70,32 +71,12 @@ static void sym_printl_hex(u_char *p, int n)
 	printf (".\n");
 }
 
-/*
- *  Print out the content of a SCSI message.
- */
-static int sym_show_msg (u_char * msg)
-{
-	u_char i;
-	printf ("%x",*msg);
-	if (*msg==M_EXTENDED) {
-		for (i=1;i<8;i++) {
-			if (i-1>msg[1]) break;
-			printf ("-%x",msg[i]);
-		}
-		return (i+1);
-	} else if ((*msg & 0xf0) == 0x20) {
-		printf ("-%x",msg[1]);
-		return (2);
-	}
-	return (1);
-}
-
 static void sym_print_msg(struct sym_ccb *cp, char *label, u_char *msg)
 {
 	sym_print_addr(cp->cmd, "%s: ", label);
 
-	sym_show_msg(msg);
-	printf(".\n");
+	spi_print_msg(msg);
+	printf("\n");
 }
 
 static void sym_print_nego_msg(struct sym_hcb *np, int target, char *label, u_char *msg)
@@ -103,8 +84,8 @@ static void sym_print_nego_msg(struct sym_hcb *np, int target, char *label, u_ch
 	struct sym_tcb *tp = &np->target[target];
 	dev_info(&tp->starget->dev, "%s: ", label);
 
-	sym_show_msg(msg);
-	printf(".\n");
+	spi_print_msg(msg);
+	printf("\n");
 }
 
 /*
@@ -635,29 +616,6 @@ static __inline void sym_init_burst(struct sym_hcb *np, u_char bc)
 	}
 }
 
-
-/*
- * Print out the list of targets that have some flag disabled by user.
- */
-static void sym_print_targets_flag(struct sym_hcb *np, int mask, char *msg)
-{
-	int cnt;
-	int i;
-
-	for (cnt = 0, i = 0 ; i < SYM_CONF_MAX_TARGET ; i++) {
-		if (i == np->myaddr)
-			continue;
-		if (np->target[i].usrflags & mask) {
-			if (!cnt++)
-				printf("%s: %s disabled for targets",
-					sym_name(np), msg);
-			printf(" %d", i);
-		}
-	}
-	if (cnt)
-		printf(".\n");
-}
-
 /*
  *  Save initial settings of some IO registers.
  *  Assumed to have been set by BIOS.
@@ -962,7 +920,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 		tp->usrflags |= (SYM_DISC_ENABLED | SYM_TAGS_ENABLED);
 		tp->usrtags = SYM_SETUP_MAX_TAG;
 
-		sym_nvram_setup_target(np, i, nvram);
+		sym_nvram_setup_target(tp, i, nvram);
 
 		if (!tp->usrtags)
 			tp->usrflags &= ~SYM_TAGS_ENABLED;
@@ -1005,13 +963,6 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 			sym_name(np), np->rv_scntl3, np->rv_dmode, np->rv_dcntl,
 			np->rv_ctest3, np->rv_ctest4, np->rv_ctest5);
 	}
-	/*
-	 *  Let user be aware of targets that have some disable flags set.
-	 */
-	sym_print_targets_flag(np, SYM_SCAN_BOOT_DISABLED, "SCAN AT BOOT");
-	if (sym_verbose)
-		sym_print_targets_flag(np, SYM_SCAN_LUNS_DISABLED,
-				       "SCAN FOR LUNS");
 
 	return 0;
 }
@@ -1523,7 +1474,7 @@ static int sym_prepare_nego(struct sym_hcb *np, struct sym_ccb *cp, u_char *msgp
 /*
  *  Insert a job into the start queue.
  */
-void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
+static void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
 {
 	u_short	qidx;
 
@@ -3654,7 +3605,7 @@ static int sym_evaluate_dp(struct sym_hcb *np, struct sym_ccb *cp, u32 scr, int 
 	 *  If result is dp_sg = SYM_CONF_MAX_SG, then we are at the 
 	 *  end of the data.
 	 */
-	tmp = scr_to_cpu(sym_goalp(cp));
+	tmp = scr_to_cpu(cp->goalp);
 	dp_sg = SYM_CONF_MAX_SG;
 	if (dp_scr != tmp)
 		dp_sg -= (tmp - 8 - (int)dp_scr) / (2*4);
@@ -3761,7 +3712,7 @@ static void sym_modify_dp(struct sym_hcb *np, struct sym_tcb *tp, struct sym_ccb
 	 *  And our alchemy:) allows to easily calculate the data 
 	 *  script address we want to return for the next data phase.
 	 */
-	dp_ret = cpu_to_scr(sym_goalp(cp));
+	dp_ret = cpu_to_scr(cp->goalp);
 	dp_ret = dp_ret - 8 - (SYM_CONF_MAX_SG - dp_sg) * (2*4);
 
 	/*
@@ -3857,7 +3808,7 @@ int sym_compute_residual(struct sym_hcb *np, struct sym_ccb *cp)
 	 *  If all data has been transferred,
 	 *  there is no residual.
 	 */
-	if (cp->phys.head.lastp == sym_goalp(cp))
+	if (cp->phys.head.lastp == cp->goalp)
 		return resid;
 
 	/*
@@ -4664,30 +4615,7 @@ struct sym_ccb *sym_get_ccb (struct sym_hcb *np, struct scsi_cmnd *cmd, u_char t
 		goto out;
 	cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 
-#ifndef SYM_OPT_HANDLE_DEVICE_QUEUEING
-	/*
-	 *  If the LCB is not yet available and the LUN
-	 *  has been probed ok, try to allocate the LCB.
-	 */
-	if (!lp && sym_is_bit(tp->lun_map, ln)) {
-		lp = sym_alloc_lcb(np, tn, ln);
-		if (!lp)
-			goto out_free;
-	}
-#endif
-
-	/*
-	 *  If the LCB is not available here, then the 
-	 *  logical unit is not yet discovered. For those 
-	 *  ones only accept 1 SCSI IO per logical unit, 
-	 *  since we cannot allow disconnections.
-	 */
-	if (!lp) {
-		if (!sym_is_bit(tp->busy0_map, ln))
-			sym_set_bit(tp->busy0_map, ln);
-		else
-			goto out_free;
-	} else {
+	{
 		/*
 		 *  If we have been asked for a tagged command.
 		 */
@@ -4840,12 +4768,6 @@ void sym_free_ccb (struct sym_hcb *np, struct sym_ccb *cp)
 			lp->head.resel_sa =
 				cpu_to_scr(SCRIPTB_BA(np, resel_bad_lun));
 	}
-	/*
-	 *  Otherwise, we only accept 1 IO per LUN.
-	 *  Clear the bit that keeps track of this IO.
-	 */
-	else
-		sym_clr_bit(tp->busy0_map, cp->lun);
 
 	/*
 	 *  We donnot queue more than 1 ccb per target 
@@ -4997,20 +4919,7 @@ static void sym_init_tcb (struct sym_hcb *np, u_char tn)
 struct sym_lcb *sym_alloc_lcb (struct sym_hcb *np, u_char tn, u_char ln)
 {
 	struct sym_tcb *tp = &np->target[tn];
-	struct sym_lcb *lp = sym_lp(tp, ln);
-
-	/*
-	 *  Already done, just return.
-	 */
-	if (lp)
-		return lp;
-
-	/*
-	 *  Donnot allow LUN control block 
-	 *  allocation for not probed LUNs.
-	 */
-	if (!sym_is_bit(tp->lun_map, ln))
-		return NULL;
+	struct sym_lcb *lp = NULL;
 
 	/*
 	 *  Initialize the target control block if not yet.
@@ -5082,13 +4991,7 @@ struct sym_lcb *sym_alloc_lcb (struct sym_hcb *np, u_char tn, u_char ln)
 	lp->started_max   = SYM_CONF_MAX_TASK;
 	lp->started_limit = SYM_CONF_MAX_TASK;
 #endif
-	/*
-	 *  If we are busy, count the IO.
-	 */
-	if (sym_is_bit(tp->busy0_map, ln)) {
-		lp->busy_itl = 1;
-		sym_clr_bit(tp->busy0_map, ln);
-	}
+
 fail:
 	return lp;
 }
@@ -5101,12 +5004,6 @@ static void sym_alloc_lcb_tags (struct sym_hcb *np, u_char tn, u_char ln)
 	struct sym_tcb *tp = &np->target[tn];
 	struct sym_lcb *lp = sym_lp(tp, ln);
 	int i;
-
-	/*
-	 *  If LCB not available, try to allocate it.
-	 */
-	if (!lp && !(lp = sym_alloc_lcb(np, tn, ln)))
-		goto fail;
 
 	/*
 	 *  Allocate the task table and and the tag allocation 
@@ -5481,8 +5378,7 @@ finish:
 	/*
 	 *  Donnot start more than 1 command after an error.
 	 */
-	if (lp)
-		sym_start_next_ccbs(np, lp, 1);
+	sym_start_next_ccbs(np, lp, 1);
 #endif
 }
 
@@ -5521,17 +5417,11 @@ void sym_complete_ok (struct sym_hcb *np, struct sym_ccb *cp)
 	lp = sym_lp(tp, cp->lun);
 
 	/*
-	 *  Assume device discovered on first success.
-	 */
-	if (!lp)
-		sym_set_bit(tp->lun_map, cp->lun);
-
-	/*
 	 *  If all data have been transferred, given than no
 	 *  extended error did occur, there is no residual.
 	 */
 	resid = 0;
-	if (cp->phys.head.lastp != sym_goalp(cp))
+	if (cp->phys.head.lastp != cp->goalp)
 		resid = sym_compute_residual(np, cp);
 
 	/*
@@ -5550,15 +5440,6 @@ if (resid)
 	 *  Build result in CAM ccb.
 	 */
 	sym_set_cam_result_ok(cp, cmd, resid);
-
-#ifdef	SYM_OPT_SNIFF_INQUIRY
-	/*
-	 *  On standard INQUIRY response (EVPD and CmDt 
-	 *  not set), sniff out device capabilities.
-	 */
-	if (cp->cdb_buf[0] == INQUIRY && !(cp->cdb_buf[1] & 0x3))
-		sym_sniff_inquiry(np, cmd, resid);
-#endif
 
 #ifdef SYM_OPT_HANDLE_DEVICE_QUEUEING
 	/*
@@ -5587,7 +5468,7 @@ if (resid)
 	/*
 	 *  Requeue a couple of awaiting scsi commands.
 	 */
-	if (lp && !sym_que_empty(&lp->waiting_ccbq))
+	if (!sym_que_empty(&lp->waiting_ccbq))
 		sym_start_next_ccbs(np, lp, 2);
 #endif
 	/*
@@ -5830,8 +5711,7 @@ void sym_hcb_free(struct sym_hcb *np)
 	SYM_QUEHEAD *qp;
 	struct sym_ccb *cp;
 	struct sym_tcb *tp;
-	struct sym_lcb *lp;
-	int target, lun;
+	int target;
 
 	if (np->scriptz0)
 		sym_mfree_dma(np->scriptz0, np->scriptz_sz, "SCRIPTZ0");
@@ -5857,16 +5737,6 @@ void sym_hcb_free(struct sym_hcb *np)
 
 	for (target = 0; target < SYM_CONF_MAX_TARGET ; target++) {
 		tp = &np->target[target];
-		for (lun = 0 ; lun < SYM_CONF_MAX_LUN ; lun++) {
-			lp = sym_lp(tp, lun);
-			if (!lp)
-				continue;
-			if (lp->itlq_tbl)
-				sym_mfree_dma(lp->itlq_tbl, SYM_CONF_MAX_TASK*4,
-				       "ITLQ_TBL");
-			kfree(lp->cb_tags);
-			sym_mfree_dma(lp, sizeof(*lp), "LCB");
-		}
 #if SYM_CONF_MAX_LUN > 1
 		kfree(tp->lunmp);
 #endif 

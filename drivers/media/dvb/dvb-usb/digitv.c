@@ -233,7 +233,6 @@ static struct dvb_usb_properties digitv_properties = {
 };
 
 static struct usb_driver digitv_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "dvb_usb_digitv",
 	.probe		= digitv_probe,
 	.disconnect = dvb_usb_device_exit,

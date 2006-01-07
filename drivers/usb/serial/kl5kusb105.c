@@ -116,11 +116,11 @@ static struct usb_device_id id_table [] = {
 MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver kl5kusb105d_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"kl5kusb105d",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver kl5kusb105d_device = {

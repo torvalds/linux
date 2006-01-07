@@ -120,15 +120,8 @@ MODULE_LICENSE("GPL");
 
 static void com20020_config(dev_link_t *link);
 static void com20020_release(dev_link_t *link);
-static int com20020_event(event_t event, int priority,
-                       event_callback_args_t *args);
 
-static dev_info_t dev_info = "com20020_cs";
-
-static dev_link_t *com20020_attach(void);
-static void com20020_detach(dev_link_t *);
-
-static dev_link_t *dev_list;
+static void com20020_detach(struct pcmcia_device *p_dev);
 
 /*====================================================================*/
 
@@ -145,21 +138,19 @@ typedef struct com20020_dev_t {
 
 ======================================================================*/
 
-static dev_link_t *com20020_attach(void)
+static int com20020_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     com20020_dev_t *info;
     struct net_device *dev;
-    int ret;
     struct arcnet_local *lp;
-    
+
     DEBUG(0, "com20020_attach()\n");
 
     /* Create new network device */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
     if (!link)
-	return NULL;
+	return -ENOMEM;
 
     info = kmalloc(sizeof(struct com20020_dev_t), GFP_KERNEL);
     if (!info)
@@ -191,30 +182,19 @@ static dev_link_t *com20020_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
 
-
     link->irq.Instance = info->dev = dev;
     link->priv = info;
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-        cs_error(link->handle, RegisterClient, ret);
-        com20020_detach(link);
-        return NULL;
-    }
+    link->state |= DEV_PRESENT;
+    com20020_config(link);
 
-    return link;
+    return 0;
 
 fail_alloc_dev:
     kfree(info);
 fail_alloc_info:
     kfree(link);
-    return NULL;
+    return -ENOMEM;
 } /* com20020_attach */
 
 /*======================================================================
@@ -226,29 +206,21 @@ fail_alloc_info:
 
 ======================================================================*/
 
-static void com20020_detach(dev_link_t *link)
+static void com20020_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct com20020_dev_t *info = link->priv;
-    dev_link_t **linkp;
-    struct net_device *dev; 
-    
+    struct net_device *dev = info->dev;
+
     DEBUG(1,"detach...\n");
 
     DEBUG(0, "com20020_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-        if (*linkp == link) break;
-    if (*linkp == NULL)
-        return;
-
-    dev = info->dev;
 
     if (link->dev) {
 	DEBUG(1,"unregister...\n");
 
 	unregister_netdev(dev);
-	    
+
 	/*
 	 * this is necessary because we register our IRQ separately
 	 * from card services.
@@ -260,12 +232,8 @@ static void com20020_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
         com20020_release(link);
 
-    if (link->handle)
-        pcmcia_deregister_client(link->handle);
-
     /* Unlink device structure, free bits */
     DEBUG(1,"unlinking...\n");
-    *linkp = link->next;
     if (link->priv)
     {
 	dev = info->dev;
@@ -421,61 +389,41 @@ static void com20020_release(dev_link_t *link)
     link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
 }
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
-
-static int com20020_event(event_t event, int priority,
-			  event_callback_args_t *args)
+static int com20020_suspend(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = args->client_data;
-    com20020_dev_t *info = link->priv;
-    struct net_device *dev = info->dev;
+	dev_link_t *link = dev_to_instance(p_dev);
+	com20020_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
 
-    DEBUG(1, "com20020_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
-        if (link->state & DEV_CONFIG)
-            netif_device_detach(dev);
-        break;
-    case CS_EVENT_CARD_INSERTION:
-        link->state |= DEV_PRESENT;
-	com20020_config(link); 
-	break;
-    case CS_EVENT_PM_SUSPEND:
-        link->state |= DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
+	link->state |= DEV_SUSPEND;
         if (link->state & DEV_CONFIG) {
-            if (link->open) {
-                netif_device_detach(dev);
-            }
-            pcmcia_release_configuration(link->handle);
+		if (link->open) {
+			netif_device_detach(dev);
+		}
+		pcmcia_release_configuration(link->handle);
         }
-        break;
-    case CS_EVENT_PM_RESUME:
-        link->state &= ~DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_CARD_RESET:
+
+	return 0;
+}
+
+static int com20020_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	com20020_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
+
+	link->state &= ~DEV_SUSPEND;
         if (link->state & DEV_CONFIG) {
-            pcmcia_request_configuration(link->handle, &link->conf);
-            if (link->open) {
-		int ioaddr = dev->base_addr;
-		struct arcnet_local *lp = dev->priv;
-		ARCRESET;
-            }
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			int ioaddr = dev->base_addr;
+			struct arcnet_local *lp = dev->priv;
+			ARCRESET;
+		}
         }
-        break;
-    }
-    return 0;
-} /* com20020_event */
+
+	return 0;
+}
 
 static struct pcmcia_device_id com20020_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Contemporary Control Systems, Inc.", "PCM20 Arcnet Adapter", 0x59991666, 0x95dfffaf),
@@ -488,10 +436,11 @@ static struct pcmcia_driver com20020_cs_driver = {
 	.drv		= {
 		.name	= "com20020_cs",
 	},
-	.attach		= com20020_attach,
-	.event		= com20020_event,
-	.detach		= com20020_detach,
+	.probe		= com20020_attach,
+	.remove		= com20020_detach,
 	.id_table	= com20020_ids,
+	.suspend	= com20020_suspend,
+	.resume		= com20020_resume,
 };
 
 static int __init init_com20020_cs(void)
@@ -502,7 +451,6 @@ static int __init init_com20020_cs(void)
 static void __exit exit_com20020_cs(void)
 {
 	pcmcia_unregister_driver(&com20020_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_com20020_cs);

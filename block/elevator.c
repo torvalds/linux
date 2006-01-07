@@ -304,15 +304,7 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 
 	rq->flags &= ~REQ_STARTED;
 
-	/*
-	 * if this is the flush, requeue the original instead and drop the flush
-	 */
-	if (rq->flags & REQ_BAR_FLUSH) {
-		clear_bit(QUEUE_FLAG_FLUSH, &q->queue_flags);
-		rq = rq->end_io_data;
-	}
-
-	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+	__elv_add_request(q, rq, ELEVATOR_INSERT_REQUEUE, 0);
 }
 
 static void elv_drain_elevator(request_queue_t *q)
@@ -332,7 +324,18 @@ static void elv_drain_elevator(request_queue_t *q)
 void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		       int plug)
 {
+	struct list_head *pos;
+	unsigned ordseq;
+
+	if (q->ordcolor)
+		rq->flags |= REQ_ORDERED_COLOR;
+
 	if (rq->flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER)) {
+		/*
+		 * toggle ordered color
+		 */
+		q->ordcolor ^= 1;
+
 		/*
 		 * barriers implicitly indicate back insertion
 		 */
@@ -393,6 +396,30 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 		q->elevator->ops->elevator_add_req_fn(q, rq);
 		break;
 
+	case ELEVATOR_INSERT_REQUEUE:
+		/*
+		 * If ordered flush isn't in progress, we do front
+		 * insertion; otherwise, requests should be requeued
+		 * in ordseq order.
+		 */
+		rq->flags |= REQ_SOFTBARRIER;
+
+		if (q->ordseq == 0) {
+			list_add(&rq->queuelist, &q->queue_head);
+			break;
+		}
+
+		ordseq = blk_ordered_req_seq(rq);
+
+		list_for_each(pos, &q->queue_head) {
+			struct request *pos_rq = list_entry_rq(pos);
+			if (ordseq <= blk_ordered_req_seq(pos_rq))
+				break;
+		}
+
+		list_add_tail(&rq->queuelist, pos);
+		break;
+
 	default:
 		printk(KERN_ERR "%s: bad insertion point %d\n",
 		       __FUNCTION__, where);
@@ -422,25 +449,16 @@ static inline struct request *__elv_next_request(request_queue_t *q)
 {
 	struct request *rq;
 
-	if (unlikely(list_empty(&q->queue_head) &&
-		     !q->elevator->ops->elevator_dispatch_fn(q, 0)))
-		return NULL;
+	while (1) {
+		while (!list_empty(&q->queue_head)) {
+			rq = list_entry_rq(q->queue_head.next);
+			if (blk_do_ordered(q, &rq))
+				return rq;
+		}
 
-	rq = list_entry_rq(q->queue_head.next);
-
-	/*
-	 * if this is a barrier write and the device has to issue a
-	 * flush sequence to support it, check how far we are
-	 */
-	if (blk_fs_request(rq) && blk_barrier_rq(rq)) {
-		BUG_ON(q->ordered == QUEUE_ORDERED_NONE);
-
-		if (q->ordered == QUEUE_ORDERED_FLUSH &&
-		    !blk_barrier_preflush(rq))
-			rq = blk_start_pre_flush(q, rq);
+		if (!q->elevator->ops->elevator_dispatch_fn(q, 0))
+			return NULL;
 	}
-
-	return rq;
 }
 
 struct request *elv_next_request(request_queue_t *q)
@@ -498,7 +516,7 @@ struct request *elv_next_request(request_queue_t *q)
 			blkdev_dequeue_request(rq);
 			rq->flags |= REQ_QUIET;
 			end_that_request_chunk(rq, 0, nr_bytes);
-			end_that_request_last(rq);
+			end_that_request_last(rq, 0);
 		} else {
 			printk(KERN_ERR "%s: bad return=%d\n", __FUNCTION__,
 								ret);
@@ -593,7 +611,21 @@ void elv_completed_request(request_queue_t *q, struct request *rq)
 	 * request is released from the driver, io must be done
 	 */
 	if (blk_account_rq(rq)) {
+		struct request *first_rq = list_entry_rq(q->queue_head.next);
+
 		q->in_flight--;
+
+		/*
+		 * Check if the queue is waiting for fs requests to be
+		 * drained for flush sequence.
+		 */
+		if (q->ordseq && q->in_flight == 0 &&
+		    blk_ordered_cur_seq(q) == QUEUE_ORDSEQ_DRAIN &&
+		    blk_ordered_req_seq(first_rq) > QUEUE_ORDSEQ_DRAIN) {
+			blk_ordered_complete_seq(q, QUEUE_ORDSEQ_DRAIN, 0);
+			q->request_fn(q);
+		}
+
 		if (blk_sorted_rq(rq) && e->ops->elevator_completed_req_fn)
 			e->ops->elevator_completed_req_fn(q, rq);
 	}

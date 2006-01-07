@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/device.c
  *  bus driver for ccw devices
- *   $Revision: 1.131 $
+ *   $Revision: 1.137 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *			 IBM Corporation
@@ -59,7 +59,7 @@ ccw_bus_match (struct device * dev, struct device_driver * drv)
  * Heavily modeled on pci and usb hotplug.
  */
 static int
-ccw_hotplug (struct device *dev, char **envp, int num_envp,
+ccw_uevent (struct device *dev, char **envp, int num_envp,
 	     char *buffer, int buffer_size)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
@@ -110,7 +110,7 @@ ccw_hotplug (struct device *dev, char **envp, int num_envp,
 struct bus_type ccw_bus_type = {
 	.name  = "ccw",
 	.match = &ccw_bus_match,
-	.hotplug = &ccw_hotplug,
+	.uevent = &ccw_uevent,
 };
 
 static int io_subchannel_probe (struct device *);
@@ -374,7 +374,7 @@ online_store (struct device *dev, struct device_attribute *attr, const char *buf
 	int i, force, ret;
 	char *tmp;
 
-	if (atomic_compare_and_swap(0, 1, &cdev->private->onoff))
+	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
 		return -EAGAIN;
 
 	if (cdev->drv && !try_module_get(cdev->drv->owner)) {
@@ -535,7 +535,8 @@ ccw_device_register(struct ccw_device *cdev)
 }
 
 struct match_data {
-	unsigned int  devno;
+	unsigned int devno;
+	unsigned int ssid;
 	struct ccw_device * sibling;
 };
 
@@ -548,6 +549,7 @@ match_devno(struct device * dev, void * data)
 	cdev = to_ccwdev(dev);
 	if ((cdev->private->state == DEV_STATE_DISCONNECTED) &&
 	    (cdev->private->devno == d->devno) &&
+	    (cdev->private->ssid == d->ssid) &&
 	    (cdev != d->sibling)) {
 		cdev->private->state = DEV_STATE_NOT_OPER;
 		return 1;
@@ -556,11 +558,13 @@ match_devno(struct device * dev, void * data)
 }
 
 static struct ccw_device *
-get_disc_ccwdev_by_devno(unsigned int devno, struct ccw_device *sibling)
+get_disc_ccwdev_by_devno(unsigned int devno, unsigned int ssid,
+			 struct ccw_device *sibling)
 {
 	struct device *dev;
 	struct match_data data = {
-		.devno  = devno,
+		.devno   = devno,
+		.ssid    = ssid,
 		.sibling = sibling,
 	};
 
@@ -616,13 +620,13 @@ ccw_device_do_unreg_rereg(void *data)
 
 		need_rename = 1;
 		other_cdev = get_disc_ccwdev_by_devno(sch->schib.pmcw.dev,
-						      cdev);
+						      sch->schid.ssid, cdev);
 		if (other_cdev) {
 			struct subchannel *other_sch;
 
 			other_sch = to_subchannel(other_cdev->dev.parent);
 			if (get_device(&other_sch->dev)) {
-				stsch(other_sch->irq, &other_sch->schib);
+				stsch(other_sch->schid, &other_sch->schib);
 				if (other_sch->schib.pmcw.dnv) {
 					other_sch->schib.pmcw.intparm = 0;
 					cio_modify(other_sch);
@@ -639,8 +643,8 @@ ccw_device_do_unreg_rereg(void *data)
 	if (test_and_clear_bit(1, &cdev->private->registered))
 		device_del(&cdev->dev);
 	if (need_rename)
-		snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.0.%04x",
-			  sch->schib.pmcw.dev);
+		snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x",
+			  sch->schid.ssid, sch->schib.pmcw.dev);
 	PREPARE_WORK(&cdev->private->kick_work,
 		     ccw_device_add_changed, (void *)cdev);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
@@ -769,18 +773,20 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	sch->dev.driver_data = cdev;
 	sch->driver = &io_subchannel_driver;
 	cdev->ccwlock = &sch->lock;
+
 	/* Init private data. */
 	priv = cdev->private;
 	priv->devno = sch->schib.pmcw.dev;
-	priv->irq = sch->irq;
+	priv->ssid = sch->schid.ssid;
+	priv->sch_no = sch->schid.sch_no;
 	priv->state = DEV_STATE_NOT_OPER;
 	INIT_LIST_HEAD(&priv->cmb_list);
 	init_waitqueue_head(&priv->wait_q);
 	init_timer(&priv->timer);
 
 	/* Set an initial name for the device. */
-	snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.0.%04x",
-		  sch->schib.pmcw.dev);
+	snprintf (cdev->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x",
+		  sch->schid.ssid, sch->schib.pmcw.dev);
 
 	/* Increase counter of devices currently in recognition. */
 	atomic_inc(&ccw_device_init_count);
@@ -951,7 +957,7 @@ io_subchannel_shutdown(struct device *dev)
 	sch = to_subchannel(dev);
 	cdev = dev->driver_data;
 
-	if (cio_is_console(sch->irq))
+	if (cio_is_console(sch->schid))
 		return;
 	if (!sch->schib.pmcw.ena)
 		/* Nothing to do. */
@@ -986,10 +992,6 @@ ccw_device_console_enable (struct ccw_device *cdev, struct subchannel *sch)
 	cdev->dev = (struct device) {
 		.parent = &sch->dev,
 	};
-	/* Initialize the subchannel structure */
-	sch->dev.parent = &css_bus_device;
-	sch->dev.bus = &css_bus_type;
-
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc)
 		return rc;
@@ -1146,6 +1148,16 @@ ccw_driver_unregister (struct ccw_driver *cdriver)
 	driver_unregister(&cdriver->driver);
 }
 
+/* Helper func for qdio. */
+struct subchannel_id
+ccw_device_get_subchannel_id(struct ccw_device *cdev)
+{
+	struct subchannel *sch;
+
+	sch = to_subchannel(cdev->dev.parent);
+	return sch->schid;
+}
+
 MODULE_LICENSE("GPL");
 EXPORT_SYMBOL(ccw_device_set_online);
 EXPORT_SYMBOL(ccw_device_set_offline);
@@ -1155,3 +1167,4 @@ EXPORT_SYMBOL(get_ccwdev_by_busid);
 EXPORT_SYMBOL(ccw_bus_type);
 EXPORT_SYMBOL(ccw_device_work);
 EXPORT_SYMBOL(ccw_device_notify_work);
+EXPORT_SYMBOL_GPL(ccw_device_get_subchannel_id);

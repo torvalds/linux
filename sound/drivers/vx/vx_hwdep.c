@@ -30,7 +30,7 @@
 
 #ifdef SND_VX_FW_LOADER
 
-int snd_vx_setup_firmware(vx_core_t *chip)
+int snd_vx_setup_firmware(struct vx_core *chip)
 {
 	static char *fw_files[VX_TYPE_NUMS][4] = {
 		[VX_TYPE_BOARD] = {
@@ -95,7 +95,7 @@ int snd_vx_setup_firmware(vx_core_t *chip)
 }
 
 /* exported */
-void snd_vx_free_firmware(vx_core_t *chip)
+void snd_vx_free_firmware(struct vx_core *chip)
 {
 #ifdef CONFIG_PM
 	int i;
@@ -106,17 +106,18 @@ void snd_vx_free_firmware(vx_core_t *chip)
 
 #else /* old style firmware loading */
 
-static int vx_hwdep_open(snd_hwdep_t *hw, struct file *file)
+static int vx_hwdep_open(struct snd_hwdep *hw, struct file *file)
 {
 	return 0;
 }
 
-static int vx_hwdep_release(snd_hwdep_t *hw, struct file *file)
+static int vx_hwdep_release(struct snd_hwdep *hw, struct file *file)
 {
 	return 0;
 }
 
-static int vx_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t *info)
+static int vx_hwdep_dsp_status(struct snd_hwdep *hw,
+			       struct snd_hwdep_dsp_status *info)
 {
 	static char *type_ids[VX_TYPE_NUMS] = {
 		[VX_TYPE_BOARD] = "vxboard",
@@ -125,7 +126,7 @@ static int vx_hwdep_dsp_status(snd_hwdep_t *hw, snd_hwdep_dsp_status_t *info)
 		[VX_TYPE_VXPOCKET] = "vxpocket",
 		[VX_TYPE_VXP440] = "vxp440",
 	};
-	vx_core_t *vx = hw->private_data;
+	struct vx_core *vx = hw->private_data;
 
 	snd_assert(type_ids[vx->type], return -EINVAL);
 	strcpy(info->id, type_ids[vx->type]);
@@ -147,9 +148,10 @@ static void free_fw(const struct firmware *fw)
 	}
 }
 
-static int vx_hwdep_dsp_load(snd_hwdep_t *hw, snd_hwdep_dsp_image_t *dsp)
+static int vx_hwdep_dsp_load(struct snd_hwdep *hw,
+			     struct snd_hwdep_dsp_image *dsp)
 {
-	vx_core_t *vx = hw->private_data;
+	struct vx_core *vx = hw->private_data;
 	int index, err;
 	struct firmware *fw;
 
@@ -216,10 +218,10 @@ static int vx_hwdep_dsp_load(snd_hwdep_t *hw, snd_hwdep_dsp_image_t *dsp)
 
 
 /* exported */
-int snd_vx_setup_firmware(vx_core_t *chip)
+int snd_vx_setup_firmware(struct vx_core *chip)
 {
 	int err;
-	snd_hwdep_t *hw;
+	struct snd_hwdep *hw;
 
 	if ((err = snd_hwdep_new(chip->card, SND_VX_HWDEP_ID, 0, &hw)) < 0)
 		return err;
@@ -238,7 +240,7 @@ int snd_vx_setup_firmware(vx_core_t *chip)
 }
 
 /* exported */
-void snd_vx_free_firmware(vx_core_t *chip)
+void snd_vx_free_firmware(struct vx_core *chip)
 {
 #ifdef CONFIG_PM
 	int i;

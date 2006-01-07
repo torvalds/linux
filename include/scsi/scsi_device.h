@@ -79,9 +79,9 @@ struct scsi_device {
 	char inq_periph_qual;	/* PQ from INQUIRY data */	
 	unsigned char inquiry_len;	/* valid bytes in 'inquiry' */
 	unsigned char * inquiry;	/* INQUIRY response data */
-	char * vendor;		/* [back_compat] point into 'inquiry' ... */
-	char * model;		/* ... after scan; point to static string */
-	char * rev;		/* ... "nullnullnullnull" before scan */
+	const char * vendor;		/* [back_compat] point into 'inquiry' ... */
+	const char * model;		/* ... after scan; point to static string */
+	const char * rev;		/* ... "nullnullnullnull" before scan */
 	unsigned char current_tag;	/* current tag */
 	struct scsi_target      *sdev_target;   /* used only for single_lun */
 
@@ -274,6 +274,12 @@ extern int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 extern int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 			    int data_direction, void *buffer, unsigned bufflen,
 			    struct scsi_sense_hdr *, int timeout, int retries);
+extern int scsi_execute_async(struct scsi_device *sdev,
+			      const unsigned char *cmd, int data_direction,
+			      void *buffer, unsigned bufflen, int use_sg,
+			      int timeout, int retries, void *privdata,
+			      void (*done)(void *, char *, int, int),
+			      gfp_t gfp);
 
 static inline unsigned int sdev_channel(struct scsi_device *sdev)
 {

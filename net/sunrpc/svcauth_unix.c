@@ -101,10 +101,22 @@ static void ip_map_put(struct cache_head *item, struct cache_detail *cd)
 	}
 }
 
+#if IP_HASHBITS == 8
+/* hash_long on a 64 bit machine is currently REALLY BAD for
+ * IP addresses in reverse-endian (i.e. on a little-endian machine).
+ * So use a trivial but reliable hash instead
+ */
+static inline int hash_ip(unsigned long ip)
+{
+	int hash = ip ^ (ip>>16);
+	return (hash ^ (hash>>8)) & 0xff;
+}
+#endif
+
 static inline int ip_map_hash(struct ip_map *item)
 {
 	return hash_str(item->m_class, IP_HASHBITS) ^ 
-		hash_long((unsigned long)item->m_addr.s_addr, IP_HASHBITS);
+		hash_ip((unsigned long)item->m_addr.s_addr);
 }
 static inline int ip_map_match(struct ip_map *item, struct ip_map *tmp)
 {

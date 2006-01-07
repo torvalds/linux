@@ -53,6 +53,11 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
 
+	if (p->state == BR_STATE_LEARNING) {
+		kfree_skb(skb);
+		goto out;
+	}
+
 	if (br->dev->flags & IFF_PROMISC) {
 		struct sk_buff *skb2;
 
@@ -63,7 +68,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		}
 	}
 
-	if (dest[0] & 1) {
+	if (is_multicast_ether_addr(dest)) {
 		br_flood_forward(br, skb, !passedup);
 		if (!passedup)
 			br_pass_frame_up(br, skb);
@@ -107,9 +112,6 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto err;
 
-	if (p->state == BR_STATE_LEARNING)
-		br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
-
 	if (p->br->stp_enabled &&
 	    !memcmp(dest, bridge_ula, 5) &&
 	    !(dest[5] & 0xF0)) {
@@ -118,9 +120,10 @@ int br_handle_frame(struct net_bridge_port *p, struct sk_buff **pskb)
 				NULL, br_stp_handle_bpdu);
 			return 1;
 		}
+		goto err;
 	}
 
-	else if (p->state == BR_STATE_FORWARDING) {
+	if (p->state == BR_STATE_FORWARDING || p->state == BR_STATE_LEARNING) {
 		if (br_should_route_hook) {
 			if (br_should_route_hook(pskb)) 
 				return 0;

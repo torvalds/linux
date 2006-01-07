@@ -306,7 +306,6 @@ servo_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_driver servo_driver = {
-	.owner = THIS_MODULE,
 	.name = "phidgetservo",
 	.probe = servo_probe,
 	.disconnect = servo_disconnect,

@@ -21,7 +21,7 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
-static struct {
+static const struct {
 	enum scsi_device_state	value;
 	char			*name;
 } sdev_states[] = {
@@ -48,7 +48,7 @@ const char *scsi_device_state_name(enum scsi_device_state state)
 	return name;
 }
 
-static struct {
+static const struct {
 	enum scsi_host_state	value;
 	char			*name;
 } shost_states[] = {
@@ -263,9 +263,40 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 	return (sdp->inq_periph_qual == SCSI_INQ_PQ_CON)? 1: 0;
 }
 
+static int scsi_bus_suspend(struct device * dev, pm_message_t state)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct scsi_host_template *sht = sdev->host->hostt;
+	int err;
+
+	err = scsi_device_quiesce(sdev);
+	if (err)
+		return err;
+
+	if (sht->suspend)
+		err = sht->suspend(sdev);
+
+	return err;
+}
+
+static int scsi_bus_resume(struct device * dev)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct scsi_host_template *sht = sdev->host->hostt;
+	int err = 0;
+
+	if (sht->resume)
+		err = sht->resume(sdev);
+
+	scsi_device_resume(sdev);
+	return err;
+}
+
 struct bus_type scsi_bus_type = {
         .name		= "scsi",
         .match		= scsi_bus_match,
+	.suspend	= scsi_bus_suspend,
+	.resume		= scsi_bus_resume,
 };
 
 int scsi_sysfs_register(void)

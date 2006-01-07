@@ -27,15 +27,7 @@
  */
 #define irq2port(x) (M32R_ICU_CR1_PORTL + ((x - 1) * sizeof(unsigned long)))
 
-#ifndef CONFIG_SMP
-typedef struct {
-	unsigned long icucr;  /* ICU Control Register */
-} icu_data_t;
-static icu_data_t icu_data[OPSPUT_NUM_CPU_IRQ];
-#else
 icu_data_t icu_data[OPSPUT_NUM_CPU_IRQ];
-#endif /* CONFIG_SMP */
-
 
 static void disable_opsput_irq(unsigned int irq)
 {

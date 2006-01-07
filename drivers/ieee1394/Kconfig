@@ -169,27 +169,4 @@ config IEEE1394_RAWIO
 	  To compile this driver as a module, say M here: the
 	  module will be called raw1394.
 
-config IEEE1394_CMP
-	tristate "IEC61883-1 Plug support"
-	depends on IEEE1394
-	help
-	  This option enables the Connection Management Procedures
-	  (IEC61883-1) driver, which implements input and output plugs.
-
-	  To compile this driver as a module, say M here: the
-	  module will be called cmp.
-
-config IEEE1394_AMDTP
-	tristate "IEC61883-6 (Audio transmission) support"
-	depends on IEEE1394 && IEEE1394_OHCI1394 && IEEE1394_CMP
-	help
-	  This option enables the Audio & Music Data Transmission Protocol
-	  (IEC61883-6) driver, which implements audio transmission over
-	  IEEE1394.
-
-	  The userspace interface is documented in amdtp.h.
-
-	  To compile this driver as a module, say M here: the
-	  module will be called amdtp.
-
 endmenu

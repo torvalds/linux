@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/types.h>
 #include <net/checksum.h>
@@ -53,7 +54,7 @@ match(const struct sk_buff *skb,
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
 
-	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_AUTH) < 0)
+	if (ipv6_find_hdr(skb, &ptr, NEXTHDR_AUTH, NULL) < 0)
 		return 0;
 
 	ah = skb_header_pointer(skb, ptr, sizeof(_ah), &_ah);

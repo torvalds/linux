@@ -33,18 +33,18 @@
 
 /*
  */
-static void calc_alsa_tempo(seq_oss_timer_t *timer);
-static int send_timer_event(seq_oss_devinfo_t *dp, int type, int value);
+static void calc_alsa_tempo(struct seq_oss_timer *timer);
+static int send_timer_event(struct seq_oss_devinfo *dp, int type, int value);
 
 
 /*
  * create and register a new timer.
  * if queue is not started yet, start it.
  */
-seq_oss_timer_t *
-snd_seq_oss_timer_new(seq_oss_devinfo_t *dp)
+struct seq_oss_timer *
+snd_seq_oss_timer_new(struct seq_oss_devinfo *dp)
 {
-	seq_oss_timer_t *rec;
+	struct seq_oss_timer *rec;
 
 	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
 	if (rec == NULL)
@@ -67,7 +67,7 @@ snd_seq_oss_timer_new(seq_oss_devinfo_t *dp)
  * if no more timer exists, stop the queue.
  */
 void
-snd_seq_oss_timer_delete(seq_oss_timer_t *rec)
+snd_seq_oss_timer_delete(struct seq_oss_timer *rec)
 {
 	if (rec) {
 		snd_seq_oss_timer_stop(rec);
@@ -82,7 +82,7 @@ snd_seq_oss_timer_delete(seq_oss_timer_t *rec)
  *        0 : not a timer event -- enqueue this event
  */
 int
-snd_seq_oss_process_timer_event(seq_oss_timer_t *rec, evrec_t *ev)
+snd_seq_oss_process_timer_event(struct seq_oss_timer *rec, union evrec *ev)
 {
 	abstime_t parm = ev->t.time;
 
@@ -125,7 +125,7 @@ snd_seq_oss_process_timer_event(seq_oss_timer_t *rec, evrec_t *ev)
  * convert tempo units
  */
 static void
-calc_alsa_tempo(seq_oss_timer_t *timer)
+calc_alsa_tempo(struct seq_oss_timer *timer)
 {
 	timer->tempo = (60 * 1000000) / timer->oss_tempo;
 	timer->ppq = timer->oss_timebase;
@@ -136,9 +136,9 @@ calc_alsa_tempo(seq_oss_timer_t *timer)
  * dispatch a timer event
  */
 static int
-send_timer_event(seq_oss_devinfo_t *dp, int type, int value)
+send_timer_event(struct seq_oss_devinfo *dp, int type, int value)
 {
-	snd_seq_event_t ev;
+	struct snd_seq_event ev;
 
 	memset(&ev, 0, sizeof(ev));
 	ev.type = type;
@@ -156,10 +156,10 @@ send_timer_event(seq_oss_devinfo_t *dp, int type, int value)
  * set queue tempo and start queue
  */
 int
-snd_seq_oss_timer_start(seq_oss_timer_t *timer)
+snd_seq_oss_timer_start(struct seq_oss_timer *timer)
 {
-	seq_oss_devinfo_t *dp = timer->dp;
-	snd_seq_queue_tempo_t tmprec;
+	struct seq_oss_devinfo *dp = timer->dp;
+	struct snd_seq_queue_tempo tmprec;
 
 	if (timer->running)
 		snd_seq_oss_timer_stop(timer);
@@ -181,7 +181,7 @@ snd_seq_oss_timer_start(seq_oss_timer_t *timer)
  * stop queue
  */
 int
-snd_seq_oss_timer_stop(seq_oss_timer_t *timer)
+snd_seq_oss_timer_stop(struct seq_oss_timer *timer)
 {
 	if (! timer->running)
 		return 0;
@@ -195,7 +195,7 @@ snd_seq_oss_timer_stop(seq_oss_timer_t *timer)
  * continue queue
  */
 int
-snd_seq_oss_timer_continue(seq_oss_timer_t *timer)
+snd_seq_oss_timer_continue(struct seq_oss_timer *timer)
 {
 	if (timer->running)
 		return 0;
@@ -209,7 +209,7 @@ snd_seq_oss_timer_continue(seq_oss_timer_t *timer)
  * change queue tempo
  */
 int
-snd_seq_oss_timer_tempo(seq_oss_timer_t *timer, int value)
+snd_seq_oss_timer_tempo(struct seq_oss_timer *timer, int value)
 {
 	if (value < MIN_OSS_TEMPO)
 		value = MIN_OSS_TEMPO;
@@ -227,7 +227,7 @@ snd_seq_oss_timer_tempo(seq_oss_timer_t *timer, int value)
  * ioctls
  */
 int
-snd_seq_oss_timer_ioctl(seq_oss_timer_t *timer, unsigned int cmd, int __user *arg)
+snd_seq_oss_timer_ioctl(struct seq_oss_timer *timer, unsigned int cmd, int __user *arg)
 {
 	int value;
 

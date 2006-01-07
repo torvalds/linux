@@ -45,6 +45,8 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
 #include <linux/moduleparam.h>
 #include <sound/core.h>
 #include <sound/seq_kernel.h>
@@ -59,7 +61,7 @@ MODULE_DESCRIPTION("Dummy soundcard for virtual rawmidi devices");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ALSA,Virtual rawmidi device}}");
 
-#define MAX_MIDI_DEVICES	8
+#define MAX_MIDI_DEVICES	4
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -73,24 +75,23 @@ MODULE_PARM_DESC(id, "ID string for virmidi soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable this soundcard.");
 module_param_array(midi_devs, int, NULL, 0444);
-MODULE_PARM_DESC(midi_devs, "MIDI devices # (1-8)");
+MODULE_PARM_DESC(midi_devs, "MIDI devices # (1-4)");
 
-typedef struct snd_card_virmidi {
-	snd_card_t *card;
-	snd_rawmidi_t *midi[MAX_MIDI_DEVICES];
-} snd_card_virmidi_t;
+struct snd_card_virmidi {
+	struct snd_card *card;
+	struct snd_rawmidi *midi[MAX_MIDI_DEVICES];
+};
 
-static snd_card_t *snd_virmidi_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
+static struct platform_device *devices[SNDRV_CARDS];
 
 
-static int __init snd_card_virmidi_probe(int dev)
+static int __init snd_virmidi_probe(struct platform_device *devptr)
 {
-	snd_card_t *card;
+	struct snd_card *card;
 	struct snd_card_virmidi *vmidi;
 	int idx, err;
+	int dev = devptr->id;
 
-	if (!enable[dev])
-		return -ENODEV;
 	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 			    sizeof(struct snd_card_virmidi));
 	if (card == NULL)
@@ -103,8 +104,8 @@ static int __init snd_card_virmidi_probe(int dev)
 		midi_devs[dev] = MAX_MIDI_DEVICES;
 	}
 	for (idx = 0; idx < midi_devs[dev]; idx++) {
-		snd_rawmidi_t *rmidi;
-		snd_virmidi_dev_t *rdev;
+		struct snd_rawmidi *rmidi;
+		struct snd_virmidi_dev *rdev;
 		if ((err = snd_virmidi_new(card, idx, &rmidi)) < 0)
 			goto __nodev;
 		rdev = rmidi->private_data;
@@ -117,11 +118,10 @@ static int __init snd_card_virmidi_probe(int dev)
 	strcpy(card->shortname, "VirMIDI");
 	sprintf(card->longname, "Virtual MIDI Card %i", dev + 1);
 
-	if ((err = snd_card_set_generic_dev(card)) < 0)
-		goto __nodev;
+	snd_card_set_dev(card, &devptr->dev);
 
 	if ((err = snd_card_register(card)) == 0) {
-		snd_virmidi_cards[dev] = card;
+		platform_set_drvdata(devptr, card);
 		return 0;
 	}
       __nodev:
@@ -129,34 +129,68 @@ static int __init snd_card_virmidi_probe(int dev)
 	return err;
 }
 
+static int snd_virmidi_remove(struct platform_device *devptr)
+{
+	snd_card_free(platform_get_drvdata(devptr));
+	platform_set_drvdata(devptr, NULL);
+	return 0;
+}
+
+#define SND_VIRMIDI_DRIVER	"snd_virmidi"
+
+static struct platform_driver snd_virmidi_driver = {
+	.probe		= snd_virmidi_probe,
+	.remove		= snd_virmidi_remove,
+	.driver		= {
+		.name	= SND_VIRMIDI_DRIVER
+	},
+};
+
+static void __init_or_module snd_virmidi_unregister_all(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(devices); ++i)
+		platform_device_unregister(devices[i]);
+	platform_driver_unregister(&snd_virmidi_driver);
+}
+
 static int __init alsa_card_virmidi_init(void)
 {
-	int dev, cards;
+	int i, cards, err;
 
-	for (dev = cards = 0; dev < SNDRV_CARDS && enable[dev]; dev++) {
-		if (snd_card_virmidi_probe(dev) < 0) {
-#ifdef MODULE
-			printk(KERN_ERR "Card-VirMIDI #%i not found or device busy\n", dev + 1);
-#endif
-			break;
+	if ((err = platform_driver_register(&snd_virmidi_driver)) < 0)
+		return err;
+
+	cards = 0;
+	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+		struct platform_device *device;
+		device = platform_device_register_simple(SND_VIRMIDI_DRIVER,
+							 i, NULL, 0);
+		if (IS_ERR(device)) {
+			err = PTR_ERR(device);
+			goto errout;
 		}
+		devices[i] = device;
 		cards++;
 	}
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "Card-VirMIDI soundcard not found or device busy\n");
 #endif
-		return -ENODEV;
+		err = -ENODEV;
+		goto errout;
 	}
 	return 0;
+
+ errout:
+	snd_virmidi_unregister_all();
+	return err;
 }
 
 static void __exit alsa_card_virmidi_exit(void)
 {
-	int dev;
-
-	for (dev = 0; dev < SNDRV_CARDS; dev++)
-		snd_card_free(snd_virmidi_cards[dev]);
+	snd_virmidi_unregister_all();
 }
 
 module_init(alsa_card_virmidi_init)

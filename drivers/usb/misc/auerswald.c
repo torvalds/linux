@@ -767,7 +767,7 @@ static int auerbuf_setup (pauerbufctl_t bcp, unsigned int numElements, unsigned 
 	        memset (bep, 0, sizeof (auerbuf_t));
                 bep->list = bcp;
                 INIT_LIST_HEAD (&bep->buff_list);
-                bep->bufp = (char *) kmalloc (bufsize, GFP_KERNEL);
+                bep->bufp = kmalloc (bufsize, GFP_KERNEL);
                 if (!bep->bufp)
 			goto bl_fail;
                 bep->dr = (struct usb_ctrlrequest *) kmalloc (sizeof (struct usb_ctrlrequest), GFP_KERNEL);
@@ -1123,7 +1123,7 @@ static int auerswald_int_open (pauerswald_t cp)
                 }
         }
         if (!cp->intbufp) {
-                cp->intbufp = (char *) kmalloc (irqsize, GFP_KERNEL);
+                cp->intbufp = kmalloc (irqsize, GFP_KERNEL);
                 if (!cp->intbufp) {
                         ret = -ENOMEM;
                         goto intoend;
@@ -2103,7 +2103,6 @@ MODULE_DEVICE_TABLE (usb, auerswald_ids);
 
 /* Standard usb driver struct */
 static struct usb_driver auerswald_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"auerswald",
 	.probe =	auerswald_probe,
 	.disconnect =	auerswald_disconnect,

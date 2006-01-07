@@ -16,5 +16,6 @@ obj-$(CONFIG_PLAT_M32700UT)	+= setup_m32700ut.o io_m32700ut.o
 obj-$(CONFIG_PLAT_OPSPUT)	+= setup_opsput.o io_opsput.o
 obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_PLAT_OAKS32R)	+= setup_oaks32r.o io_oaks32r.o
+obj-$(CONFIG_PLAT_M32104UT)	+= setup_m32104ut.o io_m32104ut.o
 
 EXTRA_AFLAGS	:= -traditional

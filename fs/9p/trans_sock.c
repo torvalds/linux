@@ -26,6 +26,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/in.h>
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/ipv6.h>

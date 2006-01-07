@@ -162,9 +162,8 @@ get_sb() method fills in is the "s_op" field. This is a pointer to
 a "struct super_operations" which describes the next level of the
 filesystem implementation.
 
-Usually, a filesystem uses generic one of the generic get_sb()
-implementations and provides a fill_super() method instead. The
-generic methods are:
+Usually, a filesystem uses one of the generic get_sb() implementations
+and provides a fill_super() method instead. The generic methods are:
 
   get_sb_bdev: mount a filesystem residing on a block device
 

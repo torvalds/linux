@@ -269,6 +269,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 		result = speedstep_get_freqs(speedstep_processor,
 				&speedstep_freqs[SPEEDSTEP_LOW].frequency,
 				&speedstep_freqs[SPEEDSTEP_HIGH].frequency,
+				NULL,
 				&speedstep_set_state);
 
 		if (result) {

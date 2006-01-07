@@ -359,7 +359,7 @@ int avtab_read_item(void *fp, u32 vers, struct avtab *a,
 			return -1;
 		}
 
-		for (i = 0; i < sizeof(spec_order)/sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(spec_order); i++) {
 			if (val & spec_order[i]) {
 				key.specified = spec_order[i] | enabled;
 				datum.data = le32_to_cpu(buf32[items++]);

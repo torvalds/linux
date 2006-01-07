@@ -452,7 +452,6 @@ static int atp_resume(struct usb_interface *iface)
 }
 
 static struct usb_driver atp_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "appletouch",
 	.probe		= atp_probe,
 	.disconnect	= atp_disconnect,

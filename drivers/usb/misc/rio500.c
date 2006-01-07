@@ -465,14 +465,14 @@ static int probe_rio(struct usb_interface *intf,
 
 	rio->rio_dev = dev;
 
-	if (!(rio->obuf = (char *) kmalloc(OBUF_SIZE, GFP_KERNEL))) {
+	if (!(rio->obuf = kmalloc(OBUF_SIZE, GFP_KERNEL))) {
 		err("probe_rio: Not enough memory for the output buffer");
 		usb_deregister_dev(intf, &usb_rio_class);
 		return -ENOMEM;
 	}
 	dbg("probe_rio: obuf address:%p", rio->obuf);
 
-	if (!(rio->ibuf = (char *) kmalloc(IBUF_SIZE, GFP_KERNEL))) {
+	if (!(rio->ibuf = kmalloc(IBUF_SIZE, GFP_KERNEL))) {
 		err("probe_rio: Not enough memory for the input buffer");
 		usb_deregister_dev(intf, &usb_rio_class);
 		kfree(rio->obuf);
@@ -522,7 +522,6 @@ static struct usb_device_id rio_table [] = {
 MODULE_DEVICE_TABLE (usb, rio_table);
 
 static struct usb_driver rio_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"rio500",
 	.probe =	probe_rio,
 	.disconnect =	disconnect_rio,

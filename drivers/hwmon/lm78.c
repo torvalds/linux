@@ -164,17 +164,18 @@ static void lm78_init_client(struct i2c_client *client);
 
 
 static struct i2c_driver lm78_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "lm78",
+	.driver = {
+		.name	= "lm78",
+	},
 	.id		= I2C_DRIVERID_LM78,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= lm78_attach_adapter,
 	.detach_client	= lm78_detach_client,
 };
 
 static struct i2c_driver lm78_isa_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "lm78-isa",
+	.driver = {
+		.name	= "lm78-isa",
+	},
 	.attach_adapter	= lm78_isa_attach_adapter,
 	.detach_client	= lm78_detach_client,
 };
@@ -497,7 +498,7 @@ static int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* Reserve the ISA region */
 	if (is_isa)
 		if (!request_region(address, LM78_EXTENT,
-				    lm78_isa_driver.name)) {
+				    lm78_isa_driver.driver.name)) {
 			err = -EBUSY;
 			goto ERROR0;
 		}

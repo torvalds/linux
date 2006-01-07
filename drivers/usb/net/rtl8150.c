@@ -177,7 +177,6 @@ static int rtl8150_probe(struct usb_interface *intf,
 static const char driver_name [] = "rtl8150";
 
 static struct usb_driver rtl8150_driver = {
-	.owner =	THIS_MODULE,
 	.name =		driver_name,
 	.probe =	rtl8150_probe,
 	.disconnect =	rtl8150_disconnect,

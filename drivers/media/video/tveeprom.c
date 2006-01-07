@@ -751,7 +751,6 @@ tveeprom_detect_client(struct i2c_adapter *adapter,
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_tveeprom;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name), "tveeprom");
 	i2c_attach_client(client);
 
@@ -779,10 +778,10 @@ tveeprom_detach_client (struct i2c_client *client)
 }
 
 static struct i2c_driver i2c_driver_tveeprom = {
-	.owner          = THIS_MODULE,
-	.name           = "tveeprom",
+	.driver = {
+		.name   = "tveeprom",
+	},
 	.id             = I2C_DRIVERID_TVEEPROM,
-	.flags          = I2C_DF_NOTIFY,
 	.attach_adapter = tveeprom_attach_adapter,
 	.detach_client  = tveeprom_detach_client,
 	.command        = tveeprom_command,

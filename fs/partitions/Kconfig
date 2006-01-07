@@ -85,7 +85,7 @@ config ATARI_PARTITION
 
 config IBM_PARTITION
 	bool "IBM disk label and partition support"
-	depends on PARTITION_ADVANCED && ARCH_S390
+	depends on PARTITION_ADVANCED && S390
 	help
 	  Say Y here if you would like to be able to read the hard disk
 	  partition table format used by IBM DASD disks operating under CMS.

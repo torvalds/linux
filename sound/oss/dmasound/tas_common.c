@@ -47,9 +47,9 @@ static int tas_attach_adapter(struct i2c_adapter *);
 static int tas_detach_client(struct i2c_client *);
 
 struct i2c_driver tas_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "tas",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "tas",
+	},
 	.attach_adapter	= tas_attach_adapter,
 	.detach_client	= tas_detach_client,
 };

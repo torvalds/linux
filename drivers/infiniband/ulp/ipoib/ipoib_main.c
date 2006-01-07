@@ -47,6 +47,8 @@
 #include <linux/ip.h>
 #include <linux/in.h>
 
+#include <net/dst.h>
+
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("IP-over-InfiniBand net driver");
 MODULE_LICENSE("Dual BSD/GPL");
