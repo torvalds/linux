@@ -15,6 +15,7 @@
 #ifndef __ASM_ARM_BYTEORDER_H
 #define __ASM_ARM_BYTEORDER_H
 
+#include <linux/compiler.h>
 #include <asm/types.h>
 
 static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
