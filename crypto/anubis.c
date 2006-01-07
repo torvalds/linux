@@ -677,6 +677,7 @@ static struct crypto_alg anubis_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	ANUBIS_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct anubis_ctx),
+	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(anubis_alg.cra_list),
 	.cra_u			=	{ .cipher = {

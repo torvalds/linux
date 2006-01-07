@@ -857,6 +857,7 @@ static struct crypto_alg khazad_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	KHAZAD_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof (struct khazad_ctx),
+	.cra_alignmask		=	7,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(khazad_alg.cra_list),
 	.cra_u			=	{ .cipher = {

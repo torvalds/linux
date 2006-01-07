@@ -513,6 +513,7 @@ static struct crypto_alg alg = {
 	.cra_flags = CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize = CAST6_BLOCK_SIZE,
 	.cra_ctxsize = sizeof(struct cast6_ctx),
+	.cra_alignmask = 3,
 	.cra_module = THIS_MODULE,
 	.cra_list = LIST_HEAD_INIT(alg.cra_list),
 	.cra_u = {
