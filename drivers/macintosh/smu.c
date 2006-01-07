@@ -584,34 +584,14 @@ core_initcall(smu_late_init);
  * sysfs visibility
  */
 
-static void smu_create_i2c(struct device_node *np)
-{
-	char name[32];
-	u32 *reg = (u32 *)get_property(np, "reg", NULL);
-
-	if (reg != NULL) {
-		sprintf(name, "smu-i2c-%02x", *reg);
-		of_platform_device_create(np, name, &smu->of_dev->dev);
-	}
-}
-
 static void smu_expose_childs(void *unused)
 {
-	struct device_node *np, *gp;
+	struct device_node *np;
 
-	for (np = NULL; (np = of_get_next_child(smu->of_node, np)) != NULL;) {
-		if (device_is_compatible(np, "smu-i2c-control")) {
-			gp = NULL;
-			while ((gp = of_get_next_child(np, gp)) != NULL)
-				if (device_is_compatible(gp, "i2c-bus"))
-					smu_create_i2c(gp);
-		} else if (device_is_compatible(np, "smu-i2c"))
-			smu_create_i2c(np);
+	for (np = NULL; (np = of_get_next_child(smu->of_node, np)) != NULL;)
 		if (device_is_compatible(np, "smu-sensors"))
 			of_platform_device_create(np, "smu-sensors",
 						  &smu->of_dev->dev);
-	}
-
 }
 
 static DECLARE_WORK(smu_expose_childs_work, smu_expose_childs, NULL);

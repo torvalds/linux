@@ -70,6 +70,7 @@ extern struct device_node *pmac_i2c_get_controller(struct pmac_i2c_bus *bus);
 extern struct device_node *pmac_i2c_get_bus_node(struct pmac_i2c_bus *bus);
 extern int pmac_i2c_get_type(struct pmac_i2c_bus *bus);
 extern int pmac_i2c_get_flags(struct pmac_i2c_bus *bus);
+extern int pmac_i2c_get_channel(struct pmac_i2c_bus *bus);
 
 /* i2c layer adapter attach/detach */
 extern void pmac_i2c_attach_adapter(struct pmac_i2c_bus *bus,
@@ -77,6 +78,7 @@ extern void pmac_i2c_attach_adapter(struct pmac_i2c_bus *bus,
 extern void pmac_i2c_detach_adapter(struct pmac_i2c_bus *bus,
 				    struct i2c_adapter *adapter);
 extern struct i2c_adapter *pmac_i2c_get_adapter(struct pmac_i2c_bus *bus);
+extern struct pmac_i2c_bus *pmac_i2c_adapter_to_bus(struct i2c_adapter *adapter);
 
 /* March a device or bus with an i2c adapter structure, to be used by drivers
  * to match device-tree nodes with i2c adapters during adapter discovery

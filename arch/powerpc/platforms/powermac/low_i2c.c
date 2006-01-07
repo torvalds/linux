@@ -39,6 +39,10 @@
 #include <linux/pmu.h>
 #include <linux/delay.h>
 #include <linux/completion.h>
+#include <linux/platform_device.h>
+#include <linux/interrupt.h>
+#include <linux/completion.h>
+#include <linux/timer.h>
 #include <asm/keylargo.h>
 #include <asm/uninorth.h>
 #include <asm/io.h>
@@ -63,6 +67,9 @@
 #define DBG_LOW(x...)
 #endif
 
+
+static int pmac_i2c_force_poll = 1;
+
 /*
  * A bus structure. Each bus in the system has such a structure associated.
  */
@@ -80,6 +87,7 @@ struct pmac_i2c_bus
 	struct semaphore	sem;
 	int			opened;
 	int			polled;		/* open mode */
+	struct platform_device	*platform_dev;
 
 	/* ops */
 	int (*open)(struct pmac_i2c_bus *bus);
@@ -101,6 +109,16 @@ struct pmac_i2c_host_kw
 	void __iomem		*base;		/* register base address */
 	int			bsteps;		/* register stepping */
 	int			speed;		/* speed */
+	int			irq;
+	u8			*data;
+	unsigned		len;
+	int			state;
+	int			rw;
+	int			polled;
+	int			result;
+	struct completion	complete;
+	spinlock_t		lock;
+	struct timer_list	timeout_timer;
 };
 
 /* Register indices */
@@ -115,6 +133,8 @@ typedef enum {
 	reg_data
 } reg_t;
 
+/* The Tumbler audio equalizer can be really slow sometimes */
+#define KW_POLL_TIMEOUT		(2*HZ)
 
 /* Mode register */
 #define KW_I2C_MODE_100KHZ	0x00
@@ -158,8 +178,9 @@ enum {
 };
 
 #define WRONG_STATE(name) do {\
-		printk(KERN_DEBUG "KW: wrong state. Got %s, state: %s (isr: %02x)\n", \
-		       name, __kw_state_names[state], isr); \
+		printk(KERN_DEBUG "KW: wrong state. Got %s, state: %s " \
+		       "(isr: %02x)\n",	\
+		       name, __kw_state_names[host->state], isr); \
 	} while(0)
 
 static const char *__kw_state_names[] = {
@@ -171,23 +192,22 @@ static const char *__kw_state_names[] = {
 	"state_dead"
 };
 
-static inline u8 __kw_read_reg(struct pmac_i2c_bus *bus, reg_t reg)
+static inline u8 __kw_read_reg(struct pmac_i2c_host_kw *host, reg_t reg)
 {
-	struct pmac_i2c_host_kw *host = bus->hostdata;
 	return readb(host->base + (((unsigned int)reg) << host->bsteps));
 }
 
-static inline void __kw_write_reg(struct pmac_i2c_bus *bus, reg_t reg, u8 val)
+static inline void __kw_write_reg(struct pmac_i2c_host_kw *host,
+				  reg_t reg, u8 val)
 {
-	struct pmac_i2c_host_kw *host = bus->hostdata;
 	writeb(val, host->base + (((unsigned)reg) << host->bsteps));
-	(void)__kw_read_reg(bus, reg_subaddr);
+	(void)__kw_read_reg(host, reg_subaddr);
 }
 
-#define kw_write_reg(reg, val)	__kw_write_reg(bus, reg, val)
-#define kw_read_reg(reg)	__kw_read_reg(bus, reg)
+#define kw_write_reg(reg, val)	__kw_write_reg(host, reg, val)
+#define kw_read_reg(reg)	__kw_read_reg(host, reg)
 
-static u8 kw_i2c_wait_interrupt(struct pmac_i2c_bus* bus)
+static u8 kw_i2c_wait_interrupt(struct pmac_i2c_host_kw *host)
 {
 	int i, j;
 	u8 isr;
@@ -201,8 +221,8 @@ static u8 kw_i2c_wait_interrupt(struct pmac_i2c_bus* bus)
 		 * on udelay nor schedule when in polled mode !
 		 * For now, just use a bogus loop....
 		 */
-		if (bus->polled) {
-			for (j = 1; j < 1000000; j++)
+		if (host->polled) {
+			for (j = 1; j < 100000; j++)
 				mb();
 		} else
 			msleep(1);
@@ -210,86 +230,99 @@ static u8 kw_i2c_wait_interrupt(struct pmac_i2c_bus* bus)
 	return isr;
 }
 
-static int kw_i2c_handle_interrupt(struct pmac_i2c_bus *bus, int state, int rw,
-				   int *rc, u8 **data, int *len, u8 isr)
+static void kw_i2c_handle_interrupt(struct pmac_i2c_host_kw *host, u8 isr)
 {
 	u8 ack;
 
 	DBG_LOW("kw_handle_interrupt(%s, isr: %x)\n",
-		__kw_state_names[state], isr);
+		__kw_state_names[host->state], isr);
+
+	if (host->state == state_idle) {
+		printk(KERN_WARNING "low_i2c: Keywest got an out of state"
+		       " interrupt, ignoring\n");
+		kw_write_reg(reg_isr, isr);
+		return;
+	}
 
 	if (isr == 0) {
-		if (state != state_stop) {
+		if (host->state != state_stop) {
 			DBG_LOW("KW: Timeout !\n");
-			*rc = -EIO;
+			host->result = -EIO;
 			goto stop;
 		}
-		if (state == state_stop) {
+		if (host->state == state_stop) {
 			ack = kw_read_reg(reg_status);
-			if (!(ack & KW_I2C_STAT_BUSY)) {
-				state = state_idle;
-				kw_write_reg(reg_ier, 0x00);
-			}
+			if (ack & KW_I2C_STAT_BUSY)
+				kw_write_reg(reg_status, 0);
+			host->state = state_idle;
+			kw_write_reg(reg_ier, 0x00);
+			if (!host->polled)
+				complete(&host->complete);
 		}
-		return state;
+		return;
 	}
 
 	if (isr & KW_I2C_IRQ_ADDR) {
 		ack = kw_read_reg(reg_status);
-		if (state != state_addr) {
+		if (host->state != state_addr) {
 			kw_write_reg(reg_isr, KW_I2C_IRQ_ADDR);
 			WRONG_STATE("KW_I2C_IRQ_ADDR"); 
-			*rc = -EIO;
+			host->result = -EIO;
 			goto stop;
 		}
 		if ((ack & KW_I2C_STAT_LAST_AAK) == 0) {
-			*rc = -ENODEV;
+			host->result = -ENODEV;
 			DBG_LOW("KW: NAK on address\n");
-			return state_stop;		     
+			host->state = state_stop;
+			return;
 		} else {
-			if (rw) {
-				state = state_read;
-				if (*len > 1)
+			if (host->len == 0) {
+				kw_write_reg(reg_isr, KW_I2C_IRQ_ADDR);
+				goto stop;
+			}
+			if (host->rw) {
+				host->state = state_read;
+				if (host->len > 1)
 					kw_write_reg(reg_control,
 						     KW_I2C_CTL_AAK);
 			} else {
-				state = state_write;
-				kw_write_reg(reg_data, **data);
-				(*data)++; (*len)--;
+				host->state = state_write;
+				kw_write_reg(reg_data, *(host->data++));
+				host->len--;
 			}
 		}
 		kw_write_reg(reg_isr, KW_I2C_IRQ_ADDR);
 	}
 
 	if (isr & KW_I2C_IRQ_DATA) {
-		if (state == state_read) {
-			**data = kw_read_reg(reg_data);
-			(*data)++; (*len)--;
+		if (host->state == state_read) {
+			*(host->data++) = kw_read_reg(reg_data);
+			host->len--;
 			kw_write_reg(reg_isr, KW_I2C_IRQ_DATA);
-			if ((*len) == 0)
-				state = state_stop;
-			else if ((*len) == 1)
+			if (host->len == 0)
+				host->state = state_stop;
+			else if (host->len == 1)
 				kw_write_reg(reg_control, 0);
-		} else if (state == state_write) {
+		} else if (host->state == state_write) {
 			ack = kw_read_reg(reg_status);
 			if ((ack & KW_I2C_STAT_LAST_AAK) == 0) {
 				DBG_LOW("KW: nack on data write\n");
-				*rc = -EIO;
+				host->result = -EIO;
 				goto stop;
-			} else if (*len) {
-				kw_write_reg(reg_data, **data);
-				(*data)++; (*len)--;
+			} else if (host->len) {
+				kw_write_reg(reg_data, *(host->data++));
+				host->len--;
 			} else {
 				kw_write_reg(reg_control, KW_I2C_CTL_STOP);
-				state = state_stop;
-				*rc = 0;
+				host->state = state_stop;
+				host->result = 0;
 			}
 			kw_write_reg(reg_isr, KW_I2C_IRQ_DATA);
 		} else {
 			kw_write_reg(reg_isr, KW_I2C_IRQ_DATA);
 			WRONG_STATE("KW_I2C_IRQ_DATA"); 
-			if (state != state_stop) {
-				*rc = -EIO;
+			if (host->state != state_stop) {
+				host->result = -EIO;
 				goto stop;
 			}
 		}
@@ -297,21 +330,54 @@ static int kw_i2c_handle_interrupt(struct pmac_i2c_bus *bus, int state, int rw,
 
 	if (isr & KW_I2C_IRQ_STOP) {
 		kw_write_reg(reg_isr, KW_I2C_IRQ_STOP);
-		if (state != state_stop) {
+		if (host->state != state_stop) {
 			WRONG_STATE("KW_I2C_IRQ_STOP");
-			*rc = -EIO;
+			host->result = -EIO;
 		}
-		return state_idle;
+		host->state = state_idle;
+		if (!host->polled)
+			complete(&host->complete);
 	}
 
 	if (isr & KW_I2C_IRQ_START)
 		kw_write_reg(reg_isr, KW_I2C_IRQ_START);
 
-	return state;
-
+	return;
  stop:
 	kw_write_reg(reg_control, KW_I2C_CTL_STOP);	
-	return state_stop;
+	host->state = state_stop;
+	return;
+}
+
+/* Interrupt handler */
+static irqreturn_t kw_i2c_irq(int irq, void *dev_id, struct pt_regs *regs)
+{
+	struct pmac_i2c_host_kw *host = dev_id;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	del_timer(&host->timeout_timer);
+	kw_i2c_handle_interrupt(host, kw_read_reg(reg_isr));
+	if (host->state != state_idle) {
+		host->timeout_timer.expires = jiffies + KW_POLL_TIMEOUT;
+		add_timer(&host->timeout_timer);
+	}
+	spin_unlock_irqrestore(&host->lock, flags);
+	return IRQ_HANDLED;
+}
+
+static void kw_i2c_timeout(unsigned long data)
+{
+	struct pmac_i2c_host_kw *host = (struct pmac_i2c_host_kw *)data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&host->lock, flags);
+	kw_i2c_handle_interrupt(host, kw_read_reg(reg_isr));
+	if (host->state != state_idle) {
+		host->timeout_timer.expires = jiffies + KW_POLL_TIMEOUT;
+		add_timer(&host->timeout_timer);
+	}
+	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static int kw_i2c_open(struct pmac_i2c_bus *bus)
@@ -332,8 +398,7 @@ static int kw_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 {
 	struct pmac_i2c_host_kw *host = bus->hostdata;
 	u8 mode_reg = host->speed;
-	int state = state_addr;
-	int rc = 0;
+	int use_irq = host->irq != NO_IRQ && !bus->polled;
 
 	/* Setup mode & subaddress if any */
 	switch(bus->mode) {
@@ -371,18 +436,50 @@ static int kw_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	    || (mode_reg & KW_I2C_MODE_MODE_MASK) == KW_I2C_MODE_COMBINED)
 		kw_write_reg(reg_subaddr, subaddr);
 
-	/* Start sending address & disable interrupt*/
-	kw_write_reg(reg_ier, 0 /*KW_I2C_IRQ_MASK*/);
-	kw_write_reg(reg_control, KW_I2C_CTL_XADDR);
+	/* Prepare for async operations */
+	host->data = data;
+	host->len = len;
+	host->state = state_addr;
+	host->result = 0;
+	host->rw = (addrdir & 1);
+	host->polled = bus->polled;
 
-	/* State machine, to turn into an interrupt handler in the future */
-	while(state != state_idle) {
-		u8 isr = kw_i2c_wait_interrupt(bus);
-		state = kw_i2c_handle_interrupt(bus, state, addrdir & 1, &rc,
-						&data, &len, isr);
+	/* Enable interrupt if not using polled mode and interrupt is
+	 * available
+	 */
+	if (use_irq) {
+		/* Clear completion */
+		INIT_COMPLETION(host->complete);
+		/* Ack stale interrupts */
+		kw_write_reg(reg_isr, kw_read_reg(reg_isr));
+		/* Arm timeout */
+		host->timeout_timer.expires = jiffies + KW_POLL_TIMEOUT;
+		add_timer(&host->timeout_timer);
+		/* Enable emission */
+		kw_write_reg(reg_ier, KW_I2C_IRQ_MASK);
 	}
 
-	return rc;
+	/* Start sending address */
+	kw_write_reg(reg_control, KW_I2C_CTL_XADDR);
+
+	/* Wait for completion */
+	if (use_irq)
+		wait_for_completion(&host->complete);
+	else {
+		while(host->state != state_idle) {
+			unsigned long flags;
+
+			u8 isr = kw_i2c_wait_interrupt(host);
+			spin_lock_irqsave(&host->lock, flags);
+			kw_i2c_handle_interrupt(host, isr);
+			spin_unlock_irqrestore(&host->lock, flags);
+		}
+	}
+
+	/* Disable emission */
+	kw_write_reg(reg_ier, 0);
+
+	return host->result;
 }
 
 static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
@@ -409,6 +506,12 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 		return NULL;
 	}
 	init_MUTEX(&host->mutex);
+	init_completion(&host->complete);
+	spin_lock_init(&host->lock);
+	init_timer(&host->timeout_timer);
+	host->timeout_timer.function = kw_i2c_timeout;
+	host->timeout_timer.data = (unsigned long)host;
+
 	psteps = (u32 *)get_property(np, "AAPL,address-step", NULL);
 	steps = psteps ? (*psteps) : 0x10;
 	for (host->bsteps = 0; (steps & 0x01) == 0; host->bsteps++)
@@ -427,9 +530,28 @@ static struct pmac_i2c_host_kw *__init kw_i2c_host_init(struct device_node *np)
 		host->speed = KW_I2C_MODE_25KHZ;
 		break;
 	}	
+	if (np->n_intrs > 0)
+		host->irq = np->intrs[0].line;
+	else
+		host->irq = NO_IRQ;
 
-	printk(KERN_INFO "KeyWest i2c @0x%08x %s\n", *addrp, np->full_name);
 	host->base = ioremap((*addrp), 0x1000);
+	if (host->base == NULL) {
+		printk(KERN_ERR "low_i2c: Can't map registers for %s\n",
+		       np->full_name);
+		kfree(host);
+		return NULL;
+	}
+
+	/* Make sure IRA is disabled */
+	kw_write_reg(reg_ier, 0);
+
+	/* Request chip interrupt */
+	if (request_irq(host->irq, kw_i2c_irq, SA_SHIRQ, "keywest i2c", host))
+		host->irq = NO_IRQ;
+
+	printk(KERN_INFO "KeyWest i2c @0x%08x irq %d %s\n",
+	       *addrp, host->irq, np->full_name);
 
 	return host;
 }
@@ -591,7 +713,7 @@ static int pmu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 		req->nbytes = sizeof(struct pmu_i2c_hdr) + 1;
 		req->done = pmu_i2c_complete;
 		req->arg = &comp;
-		if (!read) {
+		if (!read && len) {
 			memcpy(hdr->data, data, len);
 			req->nbytes += len;
 		}
@@ -637,7 +759,8 @@ static int pmu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 				       " bytes, expected %d !\n", rlen, len);
 				return -EIO;
 			}
-			memcpy(data, &req->reply[1], len);
+			if (len)
+				memcpy(data, &req->reply[1], len);
 			return 0;
 		}
 	}
@@ -713,6 +836,10 @@ static int smu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	int read = addrdir & 1;
 	int rc = 0;
 
+	if ((read && len > SMU_I2C_READ_MAX) ||
+	    ((!read) && len > SMU_I2C_WRITE_MAX))
+		return -EINVAL;
+
 	memset(cmd, 0, sizeof(struct smu_i2c_cmd));
 	cmd->info.bus = bus->channel;
 	cmd->info.devaddr = addrdir;
@@ -740,7 +867,7 @@ static int smu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	default:
 		return -EINVAL;
 	}
-	if (!read)
+	if (!read && len)
 		memcpy(cmd->info.data, data, len);
 
 	init_completion(&comp);
@@ -752,7 +879,7 @@ static int smu_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 	wait_for_completion(&comp);
 	rc = cmd->status;
 
-	if (read)
+	if (read && len)
 		memcpy(data, cmd->info.data, len);
 	return rc < 0 ? rc : 0;
 }
@@ -767,7 +894,7 @@ static void __init smu_i2c_probe(void)
 	if (!smu_present())
 		return;
 
-	controller = of_find_node_by_name(NULL, "smu_i2c_control");
+	controller = of_find_node_by_name(NULL, "smu-i2c-control");
 	if (controller == NULL)
 		controller = of_find_node_by_name(NULL, "smu");
 	if (controller == NULL)
@@ -884,6 +1011,13 @@ int pmac_i2c_get_flags(struct pmac_i2c_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_get_flags);
 
+int pmac_i2c_get_channel(struct pmac_i2c_bus *bus)
+{
+	return bus->channel;
+}
+EXPORT_SYMBOL_GPL(pmac_i2c_get_channel);
+
+
 void pmac_i2c_attach_adapter(struct pmac_i2c_bus *bus,
 			     struct i2c_adapter *adapter)
 {
@@ -905,6 +1039,17 @@ struct i2c_adapter *pmac_i2c_get_adapter(struct pmac_i2c_bus *bus)
 	return bus->adapter;
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_get_adapter);
+
+struct pmac_i2c_bus *pmac_i2c_adapter_to_bus(struct i2c_adapter *adapter)
+{
+	struct pmac_i2c_bus *bus;
+
+	list_for_each_entry(bus, &pmac_i2c_busses, link)
+		if (bus->adapter == adapter)
+			return bus;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(pmac_i2c_adapter_to_bus);
 
 extern int pmac_i2c_match_adapter(struct device_node *dev,
 				  struct i2c_adapter *adapter)
@@ -956,7 +1101,7 @@ int pmac_i2c_open(struct pmac_i2c_bus *bus, int polled)
 	int rc;
 
 	down(&bus->sem);
-	bus->polled = polled;
+	bus->polled = polled || pmac_i2c_force_poll;
 	bus->opened = 1;
 	bus->mode = pmac_i2c_mode_std;
 	if (bus->open && (rc = bus->open(bus)) != 0) {
@@ -1034,14 +1179,43 @@ int __init pmac_i2c_init(void)
 	kw_i2c_probe();
 
 #ifdef CONFIG_ADB_PMU
+	/* Probe PMU i2c busses */
 	pmu_i2c_probe();
 #endif
 
 #ifdef CONFIG_PMAC_SMU
+	/* Probe SMU i2c busses */
 	smu_i2c_probe();
 #endif
-
 	return 0;
 }
 arch_initcall(pmac_i2c_init);
 
+/* Since pmac_i2c_init can be called too early for the platform device
+ * registration, we need to do it at a later time. In our case, subsys
+ * happens to fit well, though I agree it's a bit of a hack...
+ */
+static int __init pmac_i2c_create_platform_devices(void)
+{
+	struct pmac_i2c_bus *bus;
+	int i = 0;
+
+	/* In the case where we are initialized from smp_init(), we must
+	 * not use the timer (and thus the irq). It's safe from now on
+	 * though
+	 */
+	pmac_i2c_force_poll = 0;
+
+	/* Create platform devices */
+	list_for_each_entry(bus, &pmac_i2c_busses, link) {
+		bus->platform_dev =
+			platform_device_alloc("i2c-powermac", i++);
+		if (bus->platform_dev == NULL)
+			return -ENOMEM;
+		bus->platform_dev->dev.platform_data = bus;
+		platform_device_add(bus->platform_dev);
+	}
+
+	return 0;
+}
+subsys_initcall(pmac_i2c_create_platform_devices);
