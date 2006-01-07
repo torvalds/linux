@@ -988,7 +988,7 @@ int __init init_ocfs2_extent_maps(void)
 	return 0;
 }
 
-void __exit exit_ocfs2_extent_maps(void)
+void exit_ocfs2_extent_maps(void)
 {
 	kmem_cache_destroy(ocfs2_em_ent_cachep);
 }
