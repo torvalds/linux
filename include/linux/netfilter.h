@@ -295,7 +295,22 @@ extern struct proc_dir_entry *proc_net_netfilter;
 
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, skb, indev, outdev, okfn) (okfn)(skb)
+static inline int nf_hook_thresh(int pf, unsigned int hook,
+				 struct sk_buff **pskb,
+				 struct net_device *indev,
+				 struct net_device *outdev,
+				 int (*okfn)(struct sk_buff *), int thresh)
+{
+	return okfn(*pskb);
+}
+static inline int nf_hook(int pf, unsigned int hook, struct sk_buff **pskb,
+			  struct net_device *indev, struct net_device *outdev,
+			  int (*okfn)(struct sk_buff *))
+{
+	return okfn(*pskb);
+}
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
+struct flowi;
 static inline void
 nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family) {}
 #endif /*CONFIG_NETFILTER*/
