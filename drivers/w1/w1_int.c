@@ -208,5 +208,3 @@ void w1_remove_master_device(struct w1_bus_master *bm)
 
 EXPORT_SYMBOL(w1_add_master_device);
 EXPORT_SYMBOL(w1_remove_master_device);
-
-MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_W1);
