@@ -482,7 +482,7 @@ static void __devinit smp_core99_take_timebase(void)
 /*
  * G5s enable/disable the timebase via an i2c-connected clock chip.
  */
-static struct device_node *pmac_tb_clock_chip_host;
+static struct pmac_i2c_bus *pmac_tb_clock_chip_host;
 static u8 pmac_tb_pulsar_addr;
 
 static void smp_core99_cypress_tb_freeze(int freeze)
@@ -493,20 +493,20 @@ static void smp_core99_cypress_tb_freeze(int freeze)
 	/* Strangely, the device-tree says address is 0xd2, but darwin
 	 * accesses 0xd0 ...
 	 */
-	pmac_low_i2c_setmode(pmac_tb_clock_chip_host,
-			     pmac_low_i2c_mode_combined);
-	rc = pmac_low_i2c_xfer(pmac_tb_clock_chip_host,
-			       0xd0 | pmac_low_i2c_read,
-			       0x81, &data, 1);
+	pmac_i2c_setmode(pmac_tb_clock_chip_host,
+			 pmac_i2c_mode_combined);
+	rc = pmac_i2c_xfer(pmac_tb_clock_chip_host,
+			   0xd0 | pmac_i2c_read,
+			   1, 0x81, &data, 1);
 	if (rc != 0)
 		goto bail;
 
 	data = (data & 0xf3) | (freeze ? 0x00 : 0x0c);
 
-       	pmac_low_i2c_setmode(pmac_tb_clock_chip_host, pmac_low_i2c_mode_stdsub);
-	rc = pmac_low_i2c_xfer(pmac_tb_clock_chip_host,
-			       0xd0 | pmac_low_i2c_write,
-			       0x81, &data, 1);
+       	pmac_i2c_setmode(pmac_tb_clock_chip_host, pmac_i2c_mode_stdsub);
+	rc = pmac_i2c_xfer(pmac_tb_clock_chip_host,
+			   0xd0 | pmac_i2c_write,
+			   1, 0x81, &data, 1);
 
  bail:
 	if (rc != 0) {
@@ -522,20 +522,20 @@ static void smp_core99_pulsar_tb_freeze(int freeze)
 	u8 data;
 	int rc;
 
-	pmac_low_i2c_setmode(pmac_tb_clock_chip_host,
-			     pmac_low_i2c_mode_combined);
-	rc = pmac_low_i2c_xfer(pmac_tb_clock_chip_host,
-			       pmac_tb_pulsar_addr | pmac_low_i2c_read,
-			       0x2e, &data, 1);
+	pmac_i2c_setmode(pmac_tb_clock_chip_host,
+			 pmac_i2c_mode_combined);
+	rc = pmac_i2c_xfer(pmac_tb_clock_chip_host,
+			   pmac_tb_pulsar_addr | pmac_i2c_read,
+			   1, 0x2e, &data, 1);
 	if (rc != 0)
 		goto bail;
 
 	data = (data & 0x88) | (freeze ? 0x11 : 0x22);
 
-	pmac_low_i2c_setmode(pmac_tb_clock_chip_host, pmac_low_i2c_mode_stdsub);
-	rc = pmac_low_i2c_xfer(pmac_tb_clock_chip_host,
-			       pmac_tb_pulsar_addr | pmac_low_i2c_write,
-			       0x2e, &data, 1);
+	pmac_i2c_setmode(pmac_tb_clock_chip_host, pmac_i2c_mode_stdsub);
+	rc = pmac_i2c_xfer(pmac_tb_clock_chip_host,
+			   pmac_tb_pulsar_addr | pmac_i2c_write,
+			   1, 0x2e, &data, 1);
  bail:
 	if (rc != 0) {
 		printk(KERN_ERR "Pulsar Timebase %s rc: %d\n",
@@ -560,13 +560,15 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 		if (!ok)
 			continue;
 
+		pmac_tb_clock_chip_host = pmac_i2c_find_bus(cc);
+		if (pmac_tb_clock_chip_host == NULL)
+			continue;
 		reg = (u32 *)get_property(cc, "reg", NULL);
 		if (reg == NULL)
 			continue;
-
 		switch (*reg) {
 		case 0xd2:
-			if (device_is_compatible(cc, "pulsar-legacy-slewing")) {
+			if (device_is_compatible(cc,"pulsar-legacy-slewing")) {
 				pmac_tb_freeze = smp_core99_pulsar_tb_freeze;
 				pmac_tb_pulsar_addr = 0xd2;
 				name = "Pulsar";
@@ -585,30 +587,19 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 			break;
 	}
 	if (pmac_tb_freeze != NULL) {
-		struct device_node *p = of_get_parent(cc);
-		of_node_put(cc);
-		while(p && strcmp(p->type, "i2c")) {
-			cc = of_get_parent(p);
-			of_node_put(p);
-			p = cc;
-		}
-		if (p == NULL)
-			goto no_i2c_sync;
 		/* Open i2c bus for synchronous access */
-		if (pmac_low_i2c_open(p, 0)) {
-			printk(KERN_ERR "Failed top open i2c bus %s for clock"
-			       " sync, fallback to software sync !\n",
-			       p->full_name);
-			of_node_put(p);
+		if (pmac_i2c_open(pmac_tb_clock_chip_host, 1)) {
+			printk(KERN_ERR "Failed top open i2c bus for clock"
+			       " sync, fallback to software sync !\n");
 			goto no_i2c_sync;
 		}
-		pmac_tb_clock_chip_host = p;
 		printk(KERN_INFO "Processor timebase sync using %s i2c clock\n",
 		       name);
 		return;
 	}
  no_i2c_sync:
 	pmac_tb_freeze = NULL;
+	pmac_tb_clock_chip_host = NULL;
 }
 
 #endif /* CONFIG_PPC64 */
@@ -752,8 +743,18 @@ static int __init smp_core99_probe(void)
 	if (ncpus <= 1)
 		return 1;
 
+	/* We need to perform some early initialisations before we can start
+	 * setting up SMP as we are running before initcalls
+	 */
+	pmac_i2c_init();
+
+	/* Setup various bits like timebase sync method, ability to nap, ... */
 	smp_core99_setup(ncpus);
+
+	/* Install IPIs */
 	mpic_request_ipis();
+
+	/* Collect l2cr and l3cr values from CPU 0 */
 	core99_init_caches(0);
 
 	return ncpus;
@@ -817,7 +818,7 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 
 		/* Close i2c bus if it was used for tb sync */
 		if (pmac_tb_clock_chip_host) {
-			pmac_low_i2c_close(pmac_tb_clock_chip_host);
+			pmac_i2c_close(pmac_tb_clock_chip_host);
 			pmac_tb_clock_chip_host	= NULL;
 		}
 

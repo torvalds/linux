@@ -1677,124 +1677,6 @@ intrepid_shutdown(struct macio_chip *macio, int sleep_mode)
 }
 
 
-void pmac_tweak_clock_spreading(int enable)
-{
-	struct macio_chip *macio = &macio_chips[0];
-
-	/* Hack for doing clock spreading on some machines PowerBooks and
-	 * iBooks. This implements the "platform-do-clockspreading" OF
-	 * property as decoded manually on various models. For safety, we also
-	 * check the product ID in the device-tree in cases we'll whack the i2c
-	 * chip to make reasonably sure we won't set wrong values in there
-	 *
-	 * Of course, ultimately, we have to implement a real parser for
-	 * the platform-do-* stuff...
-	 */
-
-	if (macio->type == macio_intrepid) {
-		struct device_node *clock =
-			of_find_node_by_path("/uni-n@f8000000/hw-clock");
-		if (clock && get_property(clock, "platform-do-clockspreading",
-					  NULL)) {
-			printk(KERN_INFO "%sabling clock spreading on Intrepid"
-			       " ASIC\n", enable ? "En" : "Dis");
-			if (enable)
-				UN_OUT(UNI_N_CLOCK_SPREADING, 2);
-			else
-				UN_OUT(UNI_N_CLOCK_SPREADING, 0);
-			mdelay(40);
-		}
-		of_node_put(clock);
-	}
-
-	while (machine_is_compatible("PowerBook5,2") ||
-	       machine_is_compatible("PowerBook5,3") ||
-	       machine_is_compatible("PowerBook6,2") ||
-	       machine_is_compatible("PowerBook6,3")) {
-		struct device_node *ui2c = of_find_node_by_type(NULL, "i2c");
-		struct device_node *dt = of_find_node_by_name(NULL, "device-tree");
-		u8 buffer[9];
-		u32 *productID;
-		int i, rc, changed = 0;
-
-		if (dt == NULL)
-			break;
-		productID = (u32 *)get_property(dt, "pid#", NULL);
-		if (productID == NULL)
-			break;
-		while(ui2c) {
-			struct device_node *p = of_get_parent(ui2c);
-			if (p && !strcmp(p->name, "uni-n"))
-				break;
-			ui2c = of_find_node_by_type(ui2c, "i2c");
-		}
-		if (ui2c == NULL)
-			break;
-		DBG("Trying to bump clock speed for PID: %08x...\n", *productID);
-		rc = pmac_low_i2c_open(ui2c, 1);
-		if (rc != 0)
-			break;
-		pmac_low_i2c_setmode(ui2c, pmac_low_i2c_mode_combined);
-		rc = pmac_low_i2c_xfer(ui2c, 0xd2 | pmac_low_i2c_read, 0x80, buffer, 9);
-		DBG("read result: %d,", rc);
-		if (rc != 0) {
-			pmac_low_i2c_close(ui2c);
-			break;
-		}
-		for (i=0; i<9; i++)
-			DBG(" %02x", buffer[i]);
-		DBG("\n");
-
-		switch(*productID) {
-		case 0x1182:	/* AlBook 12" rev 2 */
-		case 0x1183:	/* iBook G4 12" */
-			buffer[0] = (buffer[0] & 0x8f) | 0x70;
-			buffer[2] = (buffer[2] & 0x7f) | 0x00;
-			buffer[5] = (buffer[5] & 0x80) | 0x31;
-			buffer[6] = (buffer[6] & 0x40) | 0xb0;
-			buffer[7] = (buffer[7] & 0x00) | (enable ? 0xc0 : 0xba);
-			buffer[8] = (buffer[8] & 0x00) | 0x30;
-			changed = 1;
-			break;
-		case 0x3142:	/* AlBook 15" (ATI M10) */
-		case 0x3143:	/* AlBook 17" (ATI M10) */
-			buffer[0] = (buffer[0] & 0xaf) | 0x50;
-			buffer[2] = (buffer[2] & 0x7f) | 0x00;
-			buffer[5] = (buffer[5] & 0x80) | 0x31;
-			buffer[6] = (buffer[6] & 0x40) | 0xb0;
-			buffer[7] = (buffer[7] & 0x00) | (enable ? 0xd0 : 0xc0);
-			buffer[8] = (buffer[8] & 0x00) | 0x30;
-			changed = 1;
-			break;
-		default:
-			DBG("i2c-hwclock: Machine model not handled\n");
-			break;
-		}
-		if (!changed) {
-			pmac_low_i2c_close(ui2c);
-			break;
-		}
-		printk(KERN_INFO "%sabling clock spreading on i2c clock chip\n",
-		       enable ? "En" : "Dis");
-
-		pmac_low_i2c_setmode(ui2c, pmac_low_i2c_mode_stdsub);
-		rc = pmac_low_i2c_xfer(ui2c, 0xd2 | pmac_low_i2c_write, 0x80, buffer, 9);
-		DBG("write result: %d,", rc);
-		pmac_low_i2c_setmode(ui2c, pmac_low_i2c_mode_combined);
-		rc = pmac_low_i2c_xfer(ui2c, 0xd2 | pmac_low_i2c_read, 0x80, buffer, 9);
-		DBG("read result: %d,", rc);
-		if (rc != 0) {
-			pmac_low_i2c_close(ui2c);
-			break;
-		}
-		for (i=0; i<9; i++)
-			DBG(" %02x", buffer[i]);
-		pmac_low_i2c_close(ui2c);
-		break;
-	}
-}
-
-
 static int
 core99_sleep(void)
 {
@@ -2980,12 +2862,6 @@ set_initial_features(void)
 		MACIO_BIC(HEATHROW_FCR, HRW_SOUND_POWER_N);
 	}
 
-	/* Some machine models need the clock chip to be properly setup for
-	 * clock spreading now. This should be a platform function but we
-	 * don't do these at the moment
-	 */
-	pmac_tweak_clock_spreading(1);
-
 #endif /* CONFIG_POWER4 */
 
 	/* On all machines, switch modem & serial ports off */
@@ -3012,9 +2888,6 @@ pmac_feature_init(void)
 		printk(KERN_WARNING "No mac-io chip found\n");
 		return;
 	}
-
-	/* Setup low-level i2c stuffs */
-	pmac_init_low_i2c();
 
 	/* Probe machine type */
 	if (probe_motherboard())

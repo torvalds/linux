@@ -94,6 +94,8 @@ struct smu_device {
 static struct smu_device	*smu;
 static DECLARE_MUTEX(smu_part_access);
 
+static void smu_i2c_retry(unsigned long data);
+
 /*
  * SMU driver low level stuff
  */
@@ -469,7 +471,6 @@ int __init smu_init (void)
 	smu->of_node = np;
 	smu->db_irq = NO_IRQ;
 	smu->msg_irq = NO_IRQ;
-	init_timer(&smu->i2c_timer);
 
 	/* smu_cmdbuf_abs is in the low 2G of RAM, can be converted to a
 	 * 32 bits value safely
@@ -544,6 +545,10 @@ static int smu_late_init(void)
 	if (!smu)
 		return 0;
 
+	init_timer(&smu->i2c_timer);
+	smu->i2c_timer.function = smu_i2c_retry;
+	smu->i2c_timer.data = (unsigned long)smu;
+
 	/*
 	 * Try to request the interrupts
 	 */
@@ -570,28 +575,41 @@ static int smu_late_init(void)
 
 	return 0;
 }
-arch_initcall(smu_late_init);
+/* This has to be before arch_initcall as the low i2c stuff relies on the
+ * above having been done before we reach arch_initcalls
+ */
+core_initcall(smu_late_init);
 
 /*
  * sysfs visibility
  */
 
+static void smu_create_i2c(struct device_node *np)
+{
+	char name[32];
+	u32 *reg = (u32 *)get_property(np, "reg", NULL);
+
+	if (reg != NULL) {
+		sprintf(name, "smu-i2c-%02x", *reg);
+		of_platform_device_create(np, name, &smu->of_dev->dev);
+	}
+}
+
 static void smu_expose_childs(void *unused)
 {
-	struct device_node *np;
+	struct device_node *np, *gp;
 
 	for (np = NULL; (np = of_get_next_child(smu->of_node, np)) != NULL;) {
-		if (device_is_compatible(np, "smu-i2c")) {
-			char name[32];
-			u32 *reg = (u32 *)get_property(np, "reg", NULL);
-
-			if (reg == NULL)
-				continue;
-			sprintf(name, "smu-i2c-%02x", *reg);
-			of_platform_device_create(np, name, &smu->of_dev->dev);
-		}
+		if (device_is_compatible(np, "smu-i2c-control")) {
+			gp = NULL;
+			while ((gp = of_get_next_child(np, gp)) != NULL)
+				if (device_is_compatible(gp, "i2c-bus"))
+					smu_create_i2c(gp);
+		} else if (device_is_compatible(np, "smu-i2c"))
+			smu_create_i2c(np);
 		if (device_is_compatible(np, "smu-sensors"))
-			of_platform_device_create(np, "smu-sensors", &smu->of_dev->dev);
+			of_platform_device_create(np, "smu-sensors",
+						  &smu->of_dev->dev);
 	}
 
 }
@@ -712,13 +730,13 @@ static void smu_i2c_complete_command(struct smu_i2c_cmd *cmd, int fail)
 
 static void smu_i2c_retry(unsigned long data)
 {
-	struct smu_i2c_cmd	*cmd = (struct smu_i2c_cmd *)data;
+	struct smu_i2c_cmd	*cmd = smu->cmd_i2c_cur;
 
 	DPRINTK("SMU: i2c failure, requeuing...\n");
 
 	/* requeue command simply by resetting reply_len */
 	cmd->pdata[0] = 0xff;
-	cmd->scmd.reply_len = 0x10;
+	cmd->scmd.reply_len = sizeof(cmd->pdata);
 	smu_queue_cmd(&cmd->scmd);
 }
 
@@ -747,10 +765,8 @@ static void smu_i2c_low_completion(struct smu_cmd *scmd, void *misc)
 	 */
 	if (fail && --cmd->retries > 0) {
 		DPRINTK("SMU: i2c failure, starting timer...\n");
-		smu->i2c_timer.function = smu_i2c_retry;
-		smu->i2c_timer.data = (unsigned long)cmd;
-		smu->i2c_timer.expires = jiffies + msecs_to_jiffies(5);
-		add_timer(&smu->i2c_timer);
+		BUG_ON(cmd != smu->cmd_i2c_cur);
+		mod_timer(&smu->i2c_timer, jiffies + msecs_to_jiffies(5));
 		return;
 	}
 
@@ -764,7 +780,7 @@ static void smu_i2c_low_completion(struct smu_cmd *scmd, void *misc)
 
 	/* Ok, initial command complete, now poll status */
 	scmd->reply_buf = cmd->pdata;
-	scmd->reply_len = 0x10;
+	scmd->reply_len = sizeof(cmd->pdata);
 	scmd->data_buf = cmd->pdata;
 	scmd->data_len = 1;
 	cmd->pdata[0] = 0;
@@ -786,7 +802,7 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 	cmd->scmd.done = smu_i2c_low_completion;
 	cmd->scmd.misc = cmd;
 	cmd->scmd.reply_buf = cmd->pdata;
-	cmd->scmd.reply_len = 0x10;
+	cmd->scmd.reply_len = sizeof(cmd->pdata);
 	cmd->scmd.data_buf = (u8 *)(char *)&cmd->info;
 	cmd->scmd.status = 1;
 	cmd->stage = 0;

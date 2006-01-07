@@ -652,27 +652,22 @@ static int __init pmac_declare_of_platform_devices(void)
 {
 	struct device_node *np, *npp;
 
-	np = find_devices("uni-n");
-	if (np) {
-		for (np = np->child; np != NULL; np = np->sibling)
-			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "uni-n-i2c",
-							  NULL);
-				break;
-			}
-	}
-	np = find_devices("valkyrie");
+	np = of_find_node_by_name(NULL, "valkyrie");
 	if (np)
 		of_platform_device_create(np, "valkyrie", NULL);
-	np = find_devices("platinum");
+	np = of_find_node_by_name(NULL, "platinum");
 	if (np)
 		of_platform_device_create(np, "platinum", NULL);
-
-	npp = of_find_node_by_name(NULL, "u3");
+	npp = of_find_node_by_name(NULL, "uni-n");
+	if (npp == NULL)
+		npp = of_find_node_by_name(NULL, "u3");
+	if (npp == NULL)
+		npp = of_find_node_by_name(NULL, "u4");
 	if (npp) {
 		for (np = NULL; (np = of_get_next_child(npp, np)) != NULL;) {
 			if (strncmp(np->name, "i2c", 3) == 0) {
-				of_platform_device_create(np, "u3-i2c", NULL);
+				of_platform_device_create(np, "uni-n-i2c",
+							  NULL);
 				of_node_put(np);
 				break;
 			}

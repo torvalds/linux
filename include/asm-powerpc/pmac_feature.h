@@ -318,10 +318,6 @@ extern void pmac_register_agp_pm(struct pci_dev *bridge,
 extern void pmac_suspend_agp_for_card(struct pci_dev *dev);
 extern void pmac_resume_agp_for_card(struct pci_dev *dev);
 
-/* Used by the via-pmu driver for suspend/resume
- */
-extern void pmac_tweak_clock_spreading(int enable);
-
 /*
  * The part below is for use by macio_asic.c only, do not rely
  * on the data structures or constants below in a normal driver

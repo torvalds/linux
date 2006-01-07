@@ -197,7 +197,6 @@ static int pmu_adb_reset_bus(void);
 #endif /* CONFIG_ADB */
 
 static int init_pmu(void);
-static int pmu_queue_request(struct adb_request *req);
 static void pmu_start(void);
 static irqreturn_t via_pmu_interrupt(int irq, void *arg, struct pt_regs *regs);
 static irqreturn_t gpio1_interrupt(int irq, void *arg, struct pt_regs *regs);
@@ -1802,258 +1801,6 @@ pmu_present(void)
 	return via != 0;
 }
 
-struct pmu_i2c_hdr {
-	u8	bus;
-	u8	mode;
-	u8	bus2;
-	u8	address;
-	u8	sub_addr;
-	u8	comb_addr;
-	u8	count;
-};
-
-int
-pmu_i2c_combined_read(int bus, int addr, int subaddr,  u8* data, int len)
-{
-	struct adb_request	req;
-	struct pmu_i2c_hdr	*hdr = (struct pmu_i2c_hdr *)&req.data[1];
-	int retry;
-	int rc;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		hdr->bus = bus;
-		hdr->address = addr & 0xfe;
-		hdr->mode = PMU_I2C_MODE_COMBINED;
-		hdr->bus2 = 0;
-		hdr->sub_addr = subaddr;
-		hdr->comb_addr = addr | 1;
-		hdr->count = len;
-		
-		req.nbytes = sizeof(struct pmu_i2c_hdr) + 1;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		req.reply[0] = 0xff;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			break;
-		mdelay(15);
-	}
-	if (req.reply[0] != PMU_I2C_STATUS_OK)
-		return -1;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		mdelay(15);
-
-		hdr->bus = PMU_I2C_BUS_STATUS;
-		req.reply[0] = 0xff;
-		
-		req.nbytes = 2;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_DATAREAD) {
-			memcpy(data, &req.reply[1], req.reply_len - 1);
-			return req.reply_len - 1;
-		}
-	}
-	return -1;
-}
-
-int
-pmu_i2c_stdsub_write(int bus, int addr, int subaddr,  u8* data, int len)
-{
-	struct adb_request	req;
-	struct pmu_i2c_hdr	*hdr = (struct pmu_i2c_hdr *)&req.data[1];
-	int retry;
-	int rc;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		hdr->bus = bus;
-		hdr->address = addr & 0xfe;
-		hdr->mode = PMU_I2C_MODE_STDSUB;
-		hdr->bus2 = 0;
-		hdr->sub_addr = subaddr;
-		hdr->comb_addr = addr & 0xfe;
-		hdr->count = len;
-
-		req.data[0] = PMU_I2C_CMD;
-		memcpy(&req.data[sizeof(struct pmu_i2c_hdr) + 1], data, len);
-		req.nbytes = sizeof(struct pmu_i2c_hdr) + len + 1;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.reply[0] = 0xff;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			break;
-		mdelay(15);
-	}
-	if (req.reply[0] != PMU_I2C_STATUS_OK)
-		return -1;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		mdelay(15);
-
-		hdr->bus = PMU_I2C_BUS_STATUS;
-		req.reply[0] = 0xff;
-		
-		req.nbytes = 2;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			return len;
-	}
-	return -1;
-}
-
-int
-pmu_i2c_simple_read(int bus, int addr,  u8* data, int len)
-{
-	struct adb_request	req;
-	struct pmu_i2c_hdr	*hdr = (struct pmu_i2c_hdr *)&req.data[1];
-	int retry;
-	int rc;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		hdr->bus = bus;
-		hdr->address = addr | 1;
-		hdr->mode = PMU_I2C_MODE_SIMPLE;
-		hdr->bus2 = 0;
-		hdr->sub_addr = 0;
-		hdr->comb_addr = 0;
-		hdr->count = len;
-
-		req.data[0] = PMU_I2C_CMD;
-		req.nbytes = sizeof(struct pmu_i2c_hdr) + 1;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.reply[0] = 0xff;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			break;
-		mdelay(15);
-	}
-	if (req.reply[0] != PMU_I2C_STATUS_OK)
-		return -1;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		mdelay(15);
-
-		hdr->bus = PMU_I2C_BUS_STATUS;
-		req.reply[0] = 0xff;
-		
-		req.nbytes = 2;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_DATAREAD) {
-			memcpy(data, &req.reply[1], req.reply_len - 1);
-			return req.reply_len - 1;
-		}
-	}
-	return -1;
-}
-
-int
-pmu_i2c_simple_write(int bus, int addr,  u8* data, int len)
-{
-	struct adb_request	req;
-	struct pmu_i2c_hdr	*hdr = (struct pmu_i2c_hdr *)&req.data[1];
-	int retry;
-	int rc;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		hdr->bus = bus;
-		hdr->address = addr & 0xfe;
-		hdr->mode = PMU_I2C_MODE_SIMPLE;
-		hdr->bus2 = 0;
-		hdr->sub_addr = 0;
-		hdr->comb_addr = 0;
-		hdr->count = len;
-
-		req.data[0] = PMU_I2C_CMD;
-		memcpy(&req.data[sizeof(struct pmu_i2c_hdr) + 1], data, len);
-		req.nbytes = sizeof(struct pmu_i2c_hdr) + len + 1;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.reply[0] = 0xff;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			break;
-		mdelay(15);
-	}
-	if (req.reply[0] != PMU_I2C_STATUS_OK)
-		return -1;
-
-	for (retry=0; retry<16; retry++) {
-		memset(&req, 0, sizeof(req));
-
-		mdelay(15);
-
-		hdr->bus = PMU_I2C_BUS_STATUS;
-		req.reply[0] = 0xff;
-		
-		req.nbytes = 2;
-		req.reply_expected = 0;
-		req.reply_len = 0;
-		req.data[0] = PMU_I2C_CMD;
-		rc = pmu_queue_request(&req);
-		if (rc)
-			return rc;
-		while(!req.complete)
-			pmu_poll();
-		if (req.reply[0] == PMU_I2C_STATUS_OK)
-			return len;
-	}
-	return -1;
-}
-
 #ifdef CONFIG_PM
 
 static LIST_HEAD(sleep_notifiers);
@@ -2358,9 +2105,6 @@ pmac_suspend_devices(void)
 		return -EBUSY;
 	}
 
-	/* Disable clock spreading on some machines */
-	pmac_tweak_clock_spreading(0);
-
 	/* Stop preemption */
 	preempt_disable();
 
@@ -2430,9 +2174,6 @@ pmac_wakeup_devices(void)
 	local_irq_enable();
 	mdelay(10);
 	preempt_enable();
-
-	/* Re-enable clock spreading on some machines */
-	pmac_tweak_clock_spreading(1);
 
 	/* Resume devices */
 	device_resume();
@@ -3150,16 +2891,13 @@ static int __init init_pmu_sysfs(void)
 subsys_initcall(init_pmu_sysfs);
 
 EXPORT_SYMBOL(pmu_request);
+EXPORT_SYMBOL(pmu_queue_request);
 EXPORT_SYMBOL(pmu_poll);
 EXPORT_SYMBOL(pmu_poll_adb);
 EXPORT_SYMBOL(pmu_wait_complete);
 EXPORT_SYMBOL(pmu_suspend);
 EXPORT_SYMBOL(pmu_resume);
 EXPORT_SYMBOL(pmu_unlock);
-EXPORT_SYMBOL(pmu_i2c_combined_read);
-EXPORT_SYMBOL(pmu_i2c_stdsub_write);
-EXPORT_SYMBOL(pmu_i2c_simple_read);
-EXPORT_SYMBOL(pmu_i2c_simple_write);
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 EXPORT_SYMBOL(pmu_enable_irled);
 EXPORT_SYMBOL(pmu_battery_count);

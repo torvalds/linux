@@ -103,8 +103,8 @@ static s32 smu_smbus_xfer(	struct i2c_adapter*	adap,
 		cmd.info.subaddr[1] = 0;
 		cmd.info.subaddr[2] = 0;
 		if (!read) {
-			cmd.info.data[0] = data->byte & 0xff;
-			cmd.info.data[1] = (data->byte >> 8) & 0xff;
+			cmd.info.data[0] = data->word & 0xff;
+			cmd.info.data[1] = (data->word >> 8) & 0xff;
 		}
 		break;
 	/* Note that these are broken vs. the expected smbus API where
@@ -116,7 +116,7 @@ static s32 smu_smbus_xfer(	struct i2c_adapter*	adap,
         case I2C_SMBUS_BLOCK_DATA:
 		cmd.info.type = SMU_I2C_TRANSFER_STDSUB;
 		cmd.info.datalen = data->block[0] + 1;
-		if (cmd.info.datalen > 6)
+		if (cmd.info.datalen > (SMU_I2C_WRITE_MAX + 1))
 			return -EINVAL;
 		if (!read)
 			memcpy(cmd.info.data, data->block, cmd.info.datalen);
@@ -273,7 +273,13 @@ static int dispose_iface(struct device *dev)
 static int create_iface_of_platform(struct of_device* dev,
 				    const struct of_device_id *match)
 {
-	return create_iface(dev->node, &dev->dev);
+	struct device_node *node = dev->node;
+
+	if (device_is_compatible(node, "smu-i2c") ||
+	    (node->parent != NULL &&
+	     device_is_compatible(node->parent, "smu-i2c-control")))
+		return create_iface(node, &dev->dev);
+	return -ENODEV;
 }
 
 
@@ -287,6 +293,9 @@ static struct of_device_id i2c_smu_match[] =
 {
 	{
 		.compatible	= "smu-i2c",
+	},
+	{
+		.compatible	= "i2c-bus",
 	},
 	{},
 };

@@ -358,6 +358,9 @@ extern unsigned long smu_cmdbuf_abs;
  * Kenrel asynchronous i2c interface
  */
 
+#define SMU_I2C_READ_MAX	0x1d
+#define SMU_I2C_WRITE_MAX	0x15
+
 /* SMU i2c header, exactly matches i2c header on wire */
 struct smu_i2c_param
 {
@@ -368,11 +371,8 @@ struct smu_i2c_param
 	u8	subaddr[3];	/* subaddress */
 	u8	caddr;		/* combined address, filled by SMU driver */
 	u8	datalen;	/* length of transfer */
-	u8	data[7];	/* data */
+	u8	data[SMU_I2C_READ_MAX];	/* data */
 };
-
-#define SMU_I2C_READ_MAX	0x0d
-#define SMU_I2C_WRITE_MAX	0x05
 
 struct smu_i2c_cmd
 {
@@ -387,7 +387,7 @@ struct smu_i2c_cmd
 	int			read;
 	int			stage;
 	int			retries;
-	u8			pdata[0x10];
+	u8			pdata[32];
 	struct list_head	link;
 };
 
@@ -519,7 +519,7 @@ struct smu_sdbp_cpupiddata {
  * if not found. The data format is described below
  */
 extern struct smu_sdbp_header *smu_get_sdb_partition(int id,
-						     unsigned int *size);
+					unsigned int *size);
 
 #endif /* __KERNEL__ */
 
