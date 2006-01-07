@@ -998,6 +998,8 @@ running once the system is up.
 
 	nowb		[ARM]
 
+	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
+
 	opl3=		[HW,OSS]
 			Format: <io>
 

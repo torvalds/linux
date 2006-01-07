@@ -95,6 +95,16 @@ config SERIAL_8250_NR_UARTS
 	  PCI enumeration and any ports that may be added at run-time
 	  via hot-plug, or any ISA multi-port serial cards.
 
+config SERIAL_8250_RUNTIME_UARTS
+	int "Number of 8250/16550 serial ports to register at runtime"
+	depends on SERIAL_8250
+	default "4"
+	help
+	  Set this to the maximum number of serial ports you want
+	  the kernel to register at boot time.  This can be overriden
+	  with the module parameter "nr_uarts", or boot-time parameter
+	  8250.nr_uarts
+
 config SERIAL_8250_EXTENDED
 	bool "Extended 8250/16550 serial driver options"
 	depends on SERIAL_8250
