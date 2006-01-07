@@ -282,10 +282,11 @@ SK_U32 Val)		/* pointer to store the read value */
  * Description:
  *	This function initialize the PCI resources and IO
  *
- * Returns: N/A
- *	
+ * Returns:
+ *	0 - indicate everything worked ok.
+ *	!= 0 - error indication
  */
-int SkGeInitPCI(SK_AC *pAC)
+static __devinit int SkGeInitPCI(SK_AC *pAC)
 {
 	struct SK_NET_DEVICE *dev = pAC->dev[0];
 	struct pci_dev *pdev = pAC->PciDev;
@@ -492,7 +493,7 @@ module_param_array(AutoSizing, charp, NULL, 0);
  *	0, if everything is ok
  *	!=0, on error
  */
-static int __init SkGeBoardInit(struct SK_NET_DEVICE *dev, SK_AC *pAC)
+static int __devinit SkGeBoardInit(struct SK_NET_DEVICE *dev, SK_AC *pAC)
 {
 short	i;
 unsigned long Flags;
@@ -633,8 +634,7 @@ SK_BOOL	DualNet;
  *	SK_TRUE, if all memory could be allocated
  *	SK_FALSE, if not
  */
-static SK_BOOL BoardAllocMem(
-SK_AC	*pAC)
+static __devinit SK_BOOL BoardAllocMem(SK_AC	*pAC)
 {
 caddr_t		pDescrMem;	/* pointer to descriptor memory area */
 size_t		AllocLength;	/* length of complete descriptor area */
@@ -727,8 +727,7 @@ size_t		AllocLength;	/* length of complete descriptor area */
  *
  * Returns:	N/A
  */
-static void BoardInitMem(
-SK_AC	*pAC)	/* pointer to adapter context */
+static __devinit void BoardInitMem(SK_AC *pAC)
 {
 int	i;		/* loop counter */
 int	RxDescrSize;	/* the size of a rx descriptor rounded up to alignment*/
