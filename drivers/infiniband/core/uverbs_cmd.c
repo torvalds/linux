@@ -1454,6 +1454,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	attr.sl 	       = cmd.attr.sl;
 	attr.src_path_bits     = cmd.attr.src_path_bits;
 	attr.static_rate       = cmd.attr.static_rate;
+	attr.ah_flags          = cmd.attr.is_global ? IB_AH_GRH : 0;
 	attr.port_num 	       = cmd.attr.port_num;
 	attr.grh.flow_label    = cmd.attr.grh.flow_label;
 	attr.grh.sgid_index    = cmd.attr.grh.sgid_index;
