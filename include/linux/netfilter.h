@@ -274,6 +274,20 @@ struct nf_queue_rerouter {
 extern int nf_register_queue_rerouter(int pf, struct nf_queue_rerouter *rer);
 extern int nf_unregister_queue_rerouter(int pf);
 
+#include <net/flow.h>
+extern void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
+
+static inline void
+nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family)
+{
+#ifdef CONFIG_IP_NF_NAT_NEEDED
+	void (*decodefn)(struct sk_buff *, struct flowi *);
+
+	if (family == AF_INET && (decodefn = ip_nat_decode_session) != NULL)
+		decodefn(skb, fl);
+#endif
+}
+
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
 extern struct proc_dir_entry *proc_net_netfilter;
@@ -282,6 +296,8 @@ extern struct proc_dir_entry *proc_net_netfilter;
 #else /* !CONFIG_NETFILTER */
 #define NF_HOOK(pf, hook, skb, indev, outdev, okfn) (okfn)(skb)
 static inline void nf_ct_attach(struct sk_buff *new, struct sk_buff *skb) {}
+static inline void
+nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl, int family) {}
 #endif /*CONFIG_NETFILTER*/
 
 #endif /*__KERNEL__*/

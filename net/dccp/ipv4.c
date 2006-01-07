@@ -986,6 +986,7 @@ int dccp_v4_rcv(struct sk_buff *skb)
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
+	nf_reset(skb);
 
 	return sk_receive_skb(sk, skb);
 
@@ -1099,7 +1100,6 @@ int dccp_v4_destroy_sock(struct sock *sk)
 		kfree_skb(sk->sk_send_head);
 		sk->sk_send_head = NULL;
 	}
-	nf_reset(skb);
 
 	/* Clean up a referenced DCCP bind bucket. */
 	if (inet_csk(sk)->icsk_bind_hash != NULL)

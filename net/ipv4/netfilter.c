@@ -86,6 +86,9 @@ int ip_route_me_harder(struct sk_buff **pskb)
 }
 EXPORT_SYMBOL(ip_route_me_harder);
 
+void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);
+EXPORT_SYMBOL(ip_nat_decode_session);
+
 /*
  * Extra routing may needed on local out, as the QUEUE target never
  * returns control to the table.
