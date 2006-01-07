@@ -292,17 +292,12 @@ static __devinit int SkGeInitPCI(SK_AC *pAC)
 	struct pci_dev *pdev = pAC->PciDev;
 	int retval;
 
-	if (pci_enable_device(pdev) != 0) {
-		return 1;
-	}
-
 	dev->mem_start = pci_resource_start (pdev, 0);
 	pci_set_master(pdev);
 
-	if (pci_request_regions(pdev, "sk98lin") != 0) {
-		retval = 2;
-		goto out_disable;
-	}
+	retval = pci_request_regions(pdev, "sk98lin");
+	if (retval)
+		goto out;
 
 #ifdef SK_BIG_ENDIAN
 	/*
@@ -321,9 +316,8 @@ static __devinit int SkGeInitPCI(SK_AC *pAC)
 	 * Remap the regs into kernel space.
 	 */
 	pAC->IoBase = ioremap_nocache(dev->mem_start, 0x4000);
-
-	if (!pAC->IoBase){
-		retval = 3;
+	if (!pAC->IoBase) {
+		retval = -EIO;
 		goto out_release;
 	}
 
@@ -331,8 +325,7 @@ static __devinit int SkGeInitPCI(SK_AC *pAC)
 
  out_release:
 	pci_release_regions(pdev);
- out_disable:
-	pci_disable_device(pdev);
+ out:
 	return retval;
 }
 
