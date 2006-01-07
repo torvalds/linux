@@ -11,6 +11,8 @@
 
 #include <linux/module.h>
 #include <linux/string.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter_ipv6.h>
 #include <net/dsfield.h>
 #include <net/inet_ecn.h>
 #include <net/ip.h>
@@ -121,6 +123,8 @@ int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi)
 	skb->sp->len += xfrm_nr;
 	skb->ip_summed = CHECKSUM_NONE;
 
+	nf_reset(skb);
+
 	if (decaps) {
 		if (!(skb->dev->flags&IFF_LOOPBACK)) {
 			dst_release(skb->dst);
@@ -129,7 +133,16 @@ int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi)
 		netif_rx(skb);
 		return -1;
 	} else {
+#ifdef CONFIG_NETFILTER
+		skb->nh.ipv6h->payload_len = htons(skb->len);
+		__skb_push(skb, skb->data - skb->nh.raw);
+
+		NF_HOOK(PF_INET6, NF_IP6_PRE_ROUTING, skb, skb->dev, NULL,
+		        ip6_rcv_finish);
+		return -1;
+#else
 		return 1;
+#endif
 	}
 
 drop_unlock:
