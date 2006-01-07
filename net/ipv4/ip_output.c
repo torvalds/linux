@@ -202,6 +202,11 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 
 static inline int ip_finish_output(struct sk_buff *skb)
 {
+#if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
+	/* Policy lookup after SNAT yielded a new policy */
+	if (skb->dst->xfrm != NULL)
+		return xfrm4_output_finish(skb);
+#endif
 	if (skb->len > dst_mtu(skb->dst) &&
 	    !(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
 		return ip_fragment(skb, ip_finish_output2);

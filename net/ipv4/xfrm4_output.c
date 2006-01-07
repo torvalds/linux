@@ -152,7 +152,7 @@ error_nolock:
 	goto out_exit;
 }
 
-static int xfrm4_output_finish(struct sk_buff *skb)
+int xfrm4_output_finish(struct sk_buff *skb)
 {
 	int err;
 
