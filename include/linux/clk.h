@@ -1,5 +1,5 @@
 /*
- *  linux/include/asm-arm/hardware/clock.h
+ *  linux/include/linux/clk.h
  *
  *  Copyright (C) 2004 ARM Limited.
  *  Written by Deep Blue Solutions Limited.
@@ -33,6 +33,8 @@ struct clk;
  * uses @dev and @id to determine the clock consumer, and thereby
  * the clock producer.  (IOW, @id may be identical strings, but
  * clk_get may return different clock producers depending on @dev.)
+ *
+ * Drivers must assume that the clock source is not enabled.
  */
 struct clk *clk_get(struct device *dev, const char *id);
 
@@ -49,22 +51,16 @@ int clk_enable(struct clk *clk);
 /**
  * clk_disable - inform the system when the clock source is no longer required.
  * @clk: clock source
+ *
+ * Inform the system that a clock source is no longer required by
+ * a driver and may be shut down.
+ *
+ * Implementation detail: if the clock source is shared between
+ * multiple drivers, clk_enable() calls must be balanced by the
+ * same number of clk_disable() calls for the clock source to be
+ * disabled.
  */
 void clk_disable(struct clk *clk);
-
-/**
- * clk_use - increment the use count
- * @clk: clock source
- *
- * Returns success (0) or negative errno.
- */
-int clk_use(struct clk *clk);
-
-/**
- * clk_unuse - decrement the use count
- * @clk: clock source
- */
-void clk_unuse(struct clk *clk);
 
 /**
  * clk_get_rate - obtain the current clock rate (in Hz) for a clock source.
@@ -76,6 +72,10 @@ unsigned long clk_get_rate(struct clk *clk);
 /**
  * clk_put	- "free" the clock source
  * @clk: clock source
+ *
+ * Note: drivers must ensure that all clk_enable calls made on this
+ * clock source are balanced by clk_disable calls prior to calling
+ * this function.
  */
 void clk_put(struct clk *clk);
 

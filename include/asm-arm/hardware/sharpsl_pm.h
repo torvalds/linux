@@ -1,0 +1,94 @@
+/*
+ * SharpSL Battery/PM Driver
+ *
+ * Copyright (c) 2004-2005 Richard Purdie
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ */
+
+#include <linux/interrupt.h>
+
+struct sharpsl_charger_machinfo {
+	void (*init)(void);
+	void (*exit)(void);
+	int gpio_acin;
+	int gpio_batfull;
+	int gpio_batlock;
+	int gpio_fatal;
+	void (*discharge)(int);
+	void (*discharge1)(int);
+	void (*charge)(int);
+	void (*measure_temp)(int);
+	void (*presuspend)(void);
+	void (*postsuspend)(void);
+	unsigned long (*read_devdata)(int);
+#define SHARPSL_BATT_VOLT       1
+#define SHARPSL_BATT_TEMP       2
+#define SHARPSL_ACIN_VOLT       3
+#define SHARPSL_STATUS_ACIN     4
+#define SHARPSL_STATUS_LOCK     5
+#define SHARPSL_STATUS_CHRGFULL 6
+#define SHARPSL_STATUS_FATAL    7
+	unsigned long (*charger_wakeup)(void);
+	int (*should_wakeup)(unsigned int resume_on_alarm);
+	int bat_levels;
+	struct battery_thresh *bat_levels_noac;
+	struct battery_thresh *bat_levels_acin;
+	int status_high_acin;
+	int status_low_acin;
+	int status_high_noac;
+	int status_low_noac;
+};
+
+struct battery_thresh {
+	int voltage;
+	int percentage;
+};
+
+struct battery_stat {
+	int ac_status;         /* APM AC Present/Not Present */
+	int mainbat_status;    /* APM Main Battery Status */
+	int mainbat_percent;   /* Main Battery Percentage Charge */
+	int mainbat_voltage;   /* Main Battery Voltage */
+};
+
+struct sharpsl_pm_status {
+	struct device *dev;
+	struct timer_list ac_timer;
+	struct timer_list chrg_full_timer;
+
+	int charge_mode;
+#define CHRG_ERROR    (-1)
+#define CHRG_OFF      (0)
+#define CHRG_ON       (1)
+#define CHRG_DONE     (2)
+
+	unsigned int flags;
+#define SHARPSL_SUSPENDED       (1 << 0)  /* Device is Suspended */
+#define SHARPSL_ALARM_ACTIVE    (1 << 1)  /* Alarm is for charging event (not user) */
+#define SHARPSL_BL_LIMIT        (1 << 2)  /* Backlight Intensity Limited */
+#define SHARPSL_APM_QUEUED      (1 << 3)  /* APM Event Queued */
+#define SHARPSL_DO_OFFLINE_CHRG (1 << 4)  /* Trigger the offline charger */
+
+	int full_count;
+	unsigned long charge_start_time;
+	struct sharpsl_charger_machinfo *machinfo;
+	struct battery_stat battstat;
+};
+
+extern struct sharpsl_pm_status sharpsl_pm;
+
+
+#define SHARPSL_LED_ERROR  2
+#define SHARPSL_LED_ON     1
+#define SHARPSL_LED_OFF    0
+
+void sharpsl_battery_kick(void);
+void sharpsl_pm_led(int val);
+irqreturn_t sharpsl_ac_isr(int irq, void *dev_id, struct pt_regs *fp);
+irqreturn_t sharpsl_chrg_full_isr(int irq, void *dev_id, struct pt_regs *fp);
+irqreturn_t sharpsl_fatal_isr(int irq, void *dev_id, struct pt_regs *fp);
+

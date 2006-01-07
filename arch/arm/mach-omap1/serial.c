@@ -17,10 +17,10 @@
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/board.h>
 #include <asm/arch/mux.h>

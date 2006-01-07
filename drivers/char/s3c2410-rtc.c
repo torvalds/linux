@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/uaccess.h>
@@ -33,7 +34,6 @@
 
 #include <asm/mach/time.h>
 
-#include <asm/hardware/clock.h>
 #include <asm/arch/regs-rtc.h>
 
 /* need this for the RTC_AF definitions */

@@ -18,8 +18,6 @@
 #include <asm/memory.h>
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
-#include <asm/hardware.h>		/* should be moved into entry-macro.S */
-#include <asm/arch/irqs.h>		/* should be moved into entry-macro.S */
 #include <asm/arch/entry-macro.S>
 
 #include "entry-header.S"

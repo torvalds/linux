@@ -427,6 +427,12 @@ static void __init mainstone_init(void)
 	printk(KERN_NOTICE "Mainstone configured to boot from %s\n",
 	       mst_flash_data[0].name);
 
+	/* system bus arbiter setting
+	 * - Core_Park
+	 * - LCD_wt:DMA_wt:CORE_Wt = 2:3:4
+	 */
+	ARB_CNTRL = ARB_CORE_PARK | 0x234;
+
 	/*
 	 * On Mainstone, we route AC97_SYSCLK via GPIO45 to
 	 * the audio daughter card

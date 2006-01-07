@@ -9,10 +9,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/init.h>
+#include <linux/mmzone.h>
 #include <linux/bootmem.h>
 
 #if MAX_NUMNODES != 4 && MAX_NUMNODES != 16

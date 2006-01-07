@@ -13,9 +13,9 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/semaphore.h>
-#include <asm/hardware/clock.h>
 #include <asm/hardware/icst307.h>
 
 #include "clock.h"
@@ -56,17 +56,6 @@ void clk_disable(struct clk *clk)
 {
 }
 EXPORT_SYMBOL(clk_disable);
-
-int clk_use(struct clk *clk)
-{
-	return 0;
-}
-EXPORT_SYMBOL(clk_use);
-
-void clk_unuse(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_unuse);
 
 unsigned long clk_get_rate(struct clk *clk)
 {

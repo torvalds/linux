@@ -19,7 +19,6 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/tlbflush.h>
 
 #define CONSISTENT_BASE	(0xffc00000)

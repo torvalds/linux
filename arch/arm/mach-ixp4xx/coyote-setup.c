@@ -14,6 +14,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -30,8 +31,6 @@ static struct flash_platform_data coyote_flash_data = {
 };
 
 static struct resource coyote_flash_resource = {
-	.start		= COYOTE_FLASH_BASE,
-	.end		= COYOTE_FLASH_BASE + COYOTE_FLASH_SIZE - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -81,6 +80,11 @@ static struct platform_device *coyote_devices[] __initdata = {
 
 static void __init coyote_init(void)
 {
+	ixp4xx_sys_init();
+
+	coyote_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
+	coyote_flash_resource.end = IXP4XX_EXP_BUS_BASE(0) + SZ_32M - 1;
+
 	*IXP4XX_EXP_CS0 |= IXP4XX_FLASH_WRITABLE;
 	*IXP4XX_EXP_CS1 = *IXP4XX_EXP_CS0;
 
@@ -91,8 +95,6 @@ static void __init coyote_init(void)
 		coyote_uart_data[0].irq = IRQ_IXP4XX_UART1;
 	}
 
-
-	ixp4xx_sys_init();
 	platform_add_devices(coyote_devices, ARRAY_SIZE(coyote_devices));
 }
 

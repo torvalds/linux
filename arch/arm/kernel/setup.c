@@ -26,8 +26,6 @@
 
 #include <asm/cpu.h>
 #include <asm/elf.h>
-#include <asm/hardware.h>
-#include <asm/io.h>
 #include <asm/procinfo.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>

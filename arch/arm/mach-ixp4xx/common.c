@@ -142,6 +142,8 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 	*int_reg &= ~(IXP4XX_GPIO_STYLE_CLEAR <<
 	    		(line * IXP4XX_GPIO_STYLE_SIZE));
 
+	*IXP4XX_GPIO_GPISR = (1 << line);
+
 	/* Set the new style */
 	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
 
@@ -169,7 +171,7 @@ static void ixp4xx_irq_ack(unsigned int irq)
 	int line = (irq < 32) ? irq2gpio[irq] : -1;
 
 	if (line >= 0)
-		gpio_line_isr_clear(line);
+		*IXP4XX_GPIO_GPISR = (1 << line);
 }
 
 /*
@@ -330,11 +332,27 @@ static struct platform_device *ixp46x_devices[] __initdata = {
 	&ixp46x_i2c_controller
 };
 
+unsigned long ixp4xx_exp_bus_size;
+
 void __init ixp4xx_sys_init(void)
 {
+	ixp4xx_exp_bus_size = SZ_16M;
+
 	if (cpu_is_ixp46x()) {
+		int region;
+
 		platform_add_devices(ixp46x_devices,
 				ARRAY_SIZE(ixp46x_devices));
+
+		for (region = 0; region < 7; region++) {
+			if((*(IXP4XX_EXP_REG(0x4 * region)) & 0x200)) {
+				ixp4xx_exp_bus_size = SZ_32M;
+				break;
+			}
+		}
 	}
+
+	printk("IXP4xx: Using %uMiB expansion bus window size\n",
+			ixp4xx_exp_bus_size >> 20);
 }
 

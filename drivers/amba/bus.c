@@ -12,10 +12,10 @@
 #include <linux/device.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/amba/bus.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware/amba.h>
 #include <asm/sizes.h>
 
 #define to_amba_device(d)	container_of(d, struct amba_device, dev)

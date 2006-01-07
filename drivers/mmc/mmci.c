@@ -19,14 +19,14 @@
 #include <linux/highmem.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/protocol.h>
+#include <linux/amba/bus.h>
+#include <linux/clk.h>
 
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/scatterlist.h>
 #include <asm/sizes.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/clock.h>
 #include <asm/mach/mmc.h>
 
 #include "mmci.h"
@@ -494,13 +494,9 @@ static int mmci_probe(struct amba_device *dev, void *id)
 		goto host_free;
 	}
 
-	ret = clk_use(host->clk);
-	if (ret)
-		goto clk_free;
-
 	ret = clk_enable(host->clk);
 	if (ret)
-		goto clk_unuse;
+		goto clk_free;
 
 	host->plat = plat;
 	host->mclk = clk_get_rate(host->clk);
@@ -573,8 +569,6 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	iounmap(host->base);
  clk_disable:
 	clk_disable(host->clk);
- clk_unuse:
-	clk_unuse(host->clk);
  clk_free:
 	clk_put(host->clk);
  host_free:
@@ -609,7 +603,6 @@ static int mmci_remove(struct amba_device *dev)
 
 		iounmap(host->base);
 		clk_disable(host->clk);
-		clk_unuse(host->clk);
 		clk_put(host->clk);
 
 		mmc_free_host(mmc);

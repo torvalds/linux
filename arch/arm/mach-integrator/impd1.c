@@ -18,11 +18,11 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/clcd.h>
 
 #include <asm/io.h>
 #include <asm/hardware/icst525.h>
-#include <asm/hardware/amba.h>
-#include <asm/hardware/amba_clcd.h>
 #include <asm/arch/lm.h>
 #include <asm/arch/impd1.h>
 #include <asm/sizes.h>

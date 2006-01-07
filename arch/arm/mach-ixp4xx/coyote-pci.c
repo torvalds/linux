@@ -33,9 +33,6 @@ void __init coyote_pci_preinit(void)
 	set_irq_type(IRQ_COYOTE_PCI_SLOT0, IRQT_LOW);
 	set_irq_type(IRQ_COYOTE_PCI_SLOT1, IRQT_LOW);
 
-	gpio_line_isr_clear(COYOTE_PCI_SLOT0_PIN);
-	gpio_line_isr_clear(COYOTE_PCI_SLOT1_PIN);
-
 	ixp4xx_pci_preinit();
 }
 

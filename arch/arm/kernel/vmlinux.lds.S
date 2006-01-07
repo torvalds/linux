@@ -17,15 +17,13 @@ jiffies = jiffies_64;
 jiffies = jiffies_64 + 4;
 #endif
 
-#ifdef CONFIG_XIP_KERNEL
-#define TEXTADDR  XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
-#else
-#define TEXTADDR  KERNEL_RAM_ADDR
-#endif
-
 SECTIONS
 {
-	. = TEXTADDR;
+#ifdef CONFIG_XIP_KERNEL
+	. = XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR);
+#else
+	. = PAGE_OFFSET + TEXT_OFFSET;
+#endif
 	.init : {			/* Init code and data		*/
 		_stext = .;
 			_sinittext = .;
@@ -104,7 +102,7 @@ SECTIONS
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */
-	. = KERNEL_RAM_ADDR;
+	. = PAGE_OFFSET + TEXT_OFFSET;
 #else
 	. = ALIGN(THREAD_SIZE);
 	__data_loc = .;

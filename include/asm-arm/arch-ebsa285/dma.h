@@ -10,11 +10,6 @@
 #define __ASM_ARCH_DMA_H
 
 /*
- * This is the maximum DMA address that can be DMAd to.
- */
-#define MAX_DMA_ADDRESS		0xffffffff
-
-/*
  * The 21285 has two internal DMA channels; we call these 8 and 9.
  * On CATS hardware we have an additional eight ISA dma channels
  * numbered 0..7.

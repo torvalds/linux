@@ -112,12 +112,14 @@ config IWMMXT
 config PXA_SHARP_C7xx
 	bool
 	select PXA_SSP
+	select SHARPSL_PM
 	help
 	  Enable support for all Sharp C7xx models
 
 config PXA_SHARP_Cxx00
 	bool
 	select PXA_SSP
+	select SHARPSL_PM
 	help
 	  Enable common support for Sharp Cxx00 models
 
