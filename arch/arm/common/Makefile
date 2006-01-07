@@ -3,7 +3,6 @@
 #
 
 obj-y				+= rtctime.o
-obj-$(CONFIG_ARM_AMBA)		+= amba.o
 obj-$(CONFIG_ARM_GIC)		+= gic.o
 obj-$(CONFIG_ICST525)		+= icst525.o
 obj-$(CONFIG_ICST307)		+= icst307.o
