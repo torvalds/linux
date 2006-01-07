@@ -4807,14 +4807,13 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	}
 
 	pNet = netdev_priv(dev);
-	pNet->pAC = kmalloc(sizeof(SK_AC), GFP_KERNEL);
+	pNet->pAC = kzalloc(sizeof(SK_AC), GFP_KERNEL);
 	if (!pNet->pAC) {
 		printk(KERN_ERR "Unable to allocate adapter "
 		       "structure!\n");
 		goto out_free_netdev;
 	}
 
-	memset(pNet->pAC, 0, sizeof(SK_AC));
 	pAC = pNet->pAC;
 	pAC->PciDev = pdev;
 
