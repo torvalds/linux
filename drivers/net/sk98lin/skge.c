@@ -4899,15 +4899,17 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 
 	boards_found++;
 
+	pci_set_drvdata(pdev, dev);
+
 	/* More then one port found */
 	if ((pAC->GIni.GIMacsFound == 2 ) && (pAC->RlmtNets == 2)) {
-		if ((dev = alloc_etherdev(sizeof(DEV_NET))) == 0) {
-			printk(KERN_ERR "Unable to allocate etherdev "
+		dev = alloc_etherdev(sizeof(DEV_NET));
+		if (!dev) {
+			printk(KERN_ERR "sk98lin: unable to allocate etherdev "
 				"structure!\n");
-			goto out;
+			goto single_port;
 		}
 
-		pAC->dev[1]   = dev;
 		pNet          = netdev_priv(dev);
 		pNet->PortNr  = 1;
 		pNet->NetNr   = 1;
@@ -4939,19 +4941,24 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		if (using_dac)
 			dev->features |= NETIF_F_HIGHDMA;
 
-		if (register_netdev(dev)) {
-			printk(KERN_ERR "sk98lin: Could not register device for seconf port.\n");
+		error = register_netdev(dev);
+		if (error) {
+			printk(KERN_ERR "sk98lin: Could not register device"
+			       " for second port. (%d)\n", error);
 			free_netdev(dev);
-			pAC->dev[1] = pAC->dev[0];
-		} else {
-			memcpy(&dev->dev_addr,
-					&pAC->Addr.Net[1].CurrentMacAddress, 6);
-			memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
-	
-			printk("%s: %s\n", dev->name, DeviceStr);
-			printk("      PrefPort:B  RlmtMode:Dual Check Link State\n");
+			goto single_port;
 		}
+
+		pAC->dev[1]   = dev;
+		memcpy(&dev->dev_addr,
+		       &pAC->Addr.Net[1].CurrentMacAddress, 6);
+		memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
+
+		printk("%s: %s\n", dev->name, DeviceStr);
+		printk("      PrefPort:B  RlmtMode:Dual Check Link State\n");
 	}
+
+single_port:
 
 	/* Save the hardware revision */
 	pAC->HWRevision = (((pAC->GIni.GIPciHwRev >> 4) & 0x0F)*10) +
@@ -4964,7 +4971,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 	memset(&pAC->PnmiBackup, 0, sizeof(SK_PNMI_STRUCT_DATA));
 	memcpy(&pAC->PnmiBackup, &pAC->PnmiStruct, sizeof(SK_PNMI_STRUCT_DATA));
 
-	pci_set_drvdata(pdev, dev);
 	return 0;
 
  out_free_resources:
