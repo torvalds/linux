@@ -7,6 +7,7 @@
  *
  */
 
+#include <asm/hardware/sharpsl_pm.h>
 
 /*
  * SharpSL SSP Driver

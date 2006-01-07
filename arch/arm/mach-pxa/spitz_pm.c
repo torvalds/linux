@@ -21,7 +21,6 @@
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/hardware/scoop.h>
-#include <asm/hardware/sharpsl_pm.h>
 
 #include <asm/arch/sharpsl.h>
 #include <asm/arch/spitz.h>

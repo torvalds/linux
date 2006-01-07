@@ -27,7 +27,6 @@
 #include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/sharpsl.h>
-#include <asm/hardware/sharpsl_pm.h>
 #include "sharpsl.h"
 
 struct battery_thresh spitz_battery_levels_acin[] = {
