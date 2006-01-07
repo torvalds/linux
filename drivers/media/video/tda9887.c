@@ -819,14 +819,12 @@ static int tda9887_resume(struct device * dev)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner          = THIS_MODULE,
-	.name           = "i2c tda9887 driver",
 	.id             = -1, /* FIXME */
-	.flags          = I2C_DF_NOTIFY,
 	.attach_adapter = tda9887_probe,
 	.detach_client  = tda9887_detach,
 	.command        = tda9887_command,
 	.driver = {
+		.name    = "i2c tda9887 driver",
 		.suspend = tda9887_suspend,
 		.resume  = tda9887_resume,
 	},
@@ -834,7 +832,6 @@ static struct i2c_driver driver = {
 static struct i2c_client client_template =
 {
 	.name      = "tda9887",
-	.flags     = I2C_CLIENT_ALLOW_USE,
 	.driver    = &driver,
 };
 

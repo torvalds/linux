@@ -1958,22 +1958,18 @@ EXPORT_SYMBOL(posix_block_lock);
  *
  *	lockd needs to block waiting for locks.
  */
-void
+int
 posix_unblock_lock(struct file *filp, struct file_lock *waiter)
 {
-	/* 
-	 * A remote machine may cancel the lock request after it's been
-	 * granted locally.  If that happens, we need to delete the lock.
-	 */
+	int status = 0;
+
 	lock_kernel();
-	if (waiter->fl_next) {
+	if (waiter->fl_next)
 		__locks_delete_block(waiter);
-		unlock_kernel();
-	} else {
-		unlock_kernel();
-		waiter->fl_type = F_UNLCK;
-		posix_lock_file(filp, waiter);
-	}
+	else
+		status = -ENOENT;
+	unlock_kernel();
+	return status;
 }
 
 EXPORT_SYMBOL(posix_unblock_lock);

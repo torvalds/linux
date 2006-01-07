@@ -1311,7 +1311,7 @@ zoran_open (struct inode *inode,
 		res = -ENODEV;
 		goto open_unlock_and_return;
 	}
-	if (!try_module_get(zr->decoder->driver->owner)) {
+	if (!try_module_get(zr->decoder->driver->driver.owner)) {
 		dprintk(1,
 			KERN_ERR
 			"%s: failed to grab ownership of i2c decoder\n",
@@ -1321,13 +1321,13 @@ zoran_open (struct inode *inode,
 		goto open_unlock_and_return;
 	}
 	if (zr->encoder &&
-	    !try_module_get(zr->encoder->driver->owner)) {
+	    !try_module_get(zr->encoder->driver->driver.owner)) {
 		dprintk(1,
 			KERN_ERR
 			"%s: failed to grab ownership of i2c encoder\n",
 			ZR_DEVNAME(zr));
 		res = -EIO;
-		module_put(zr->decoder->driver->owner);
+		module_put(zr->decoder->driver->driver.owner);
 		module_put(THIS_MODULE);
 		goto open_unlock_and_return;
 	}
@@ -1393,9 +1393,9 @@ zoran_open (struct inode *inode,
 open_unlock_and_return:
 	/* if we grabbed locks, release them accordingly */
 	if (have_module_locks) {
-		module_put(zr->decoder->driver->owner);
+		module_put(zr->decoder->driver->driver.owner);
 		if (zr->encoder) {
-			module_put(zr->encoder->driver->owner);
+			module_put(zr->encoder->driver->driver.owner);
 		}
 		module_put(THIS_MODULE);
 	}
@@ -1461,9 +1461,9 @@ zoran_close (struct inode *inode,
 	kfree(fh);
 
 	/* release locks on the i2c modules */
-	module_put(zr->decoder->driver->owner);
+	module_put(zr->decoder->driver->driver.owner);
 	if (zr->encoder) {
-		 module_put(zr->encoder->driver->owner);
+		 module_put(zr->encoder->driver->driver.owner);
 	}
 	module_put(THIS_MODULE);
 

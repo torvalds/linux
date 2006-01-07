@@ -714,7 +714,6 @@ static struct i2c_driver driver;
 
 static struct i2c_client client_template = {
 	.name = "(unset)",
-	.flags = I2C_CLIENT_ALLOW_USE,
 	.driver = &driver,
 };
 
@@ -801,12 +800,12 @@ static int tvp5150_detach_client(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner = THIS_MODULE,
-	.name = "tvp5150",
+	.driver = {
+		.name = "tvp5150",
+	},
 
 	/* FIXME */
 	.id = I2C_DRIVERID_SAA7110,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = tvp5150_attach_adapter,
 	.detach_client = tvp5150_detach_client,

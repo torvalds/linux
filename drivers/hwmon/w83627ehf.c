@@ -676,7 +676,7 @@ static int w83627ehf_detect(struct i2c_adapter *adapter)
 	int i, err = 0;
 
 	if (!request_region(address + REGION_OFFSET, REGION_LENGTH,
-	                    w83627ehf_driver.name)) {
+	                    w83627ehf_driver.driver.name)) {
 		err = -EBUSY;
 		goto exit;
 	}
@@ -785,8 +785,9 @@ static int w83627ehf_detach_client(struct i2c_client *client)
 }
 
 static struct i2c_driver w83627ehf_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "w83627ehf",
+	.driver = {
+		.name	= "w83627ehf",
+	},
 	.attach_adapter	= w83627ehf_detect,
 	.detach_client	= w83627ehf_detach_client,
 };

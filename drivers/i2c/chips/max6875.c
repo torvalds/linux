@@ -67,9 +67,9 @@ static int max6875_detach_client(struct i2c_client *client);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver max6875_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "max6875",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "max6875",
+	},
 	.attach_adapter	= max6875_attach_adapter,
 	.detach_client	= max6875_detach_client,
 };

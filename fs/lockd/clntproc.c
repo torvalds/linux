@@ -26,10 +26,11 @@
 static int	nlmclnt_test(struct nlm_rqst *, struct file_lock *);
 static int	nlmclnt_lock(struct nlm_rqst *, struct file_lock *);
 static int	nlmclnt_unlock(struct nlm_rqst *, struct file_lock *);
-static void	nlmclnt_unlock_callback(struct rpc_task *);
-static void	nlmclnt_cancel_callback(struct rpc_task *);
 static int	nlm_stat_to_errno(u32 stat);
 static void	nlmclnt_locks_init_private(struct file_lock *fl, struct nlm_host *host);
+
+static const struct rpc_call_ops nlmclnt_unlock_ops;
+static const struct rpc_call_ops nlmclnt_cancel_ops;
 
 /*
  * Cookie counter for NLM requests
@@ -221,8 +222,7 @@ nlmclnt_proc(struct inode *inode, int cmd, struct file_lock *fl)
 			goto done;
 		}
 		clnt->cl_softrtry = nfssrv->client->cl_softrtry;
-		clnt->cl_intr     = nfssrv->client->cl_intr;
-		clnt->cl_chatty   = nfssrv->client->cl_chatty;
+		clnt->cl_intr = nfssrv->client->cl_intr;
 	}
 
 	/* Keep the old signal mask */
@@ -399,8 +399,7 @@ in_grace_period:
 /*
  * Generic NLM call, async version.
  */
-int
-nlmsvc_async_call(struct nlm_rqst *req, u32 proc, rpc_action callback)
+int nlmsvc_async_call(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
 {
 	struct nlm_host	*host = req->a_host;
 	struct rpc_clnt	*clnt;
@@ -419,13 +418,12 @@ nlmsvc_async_call(struct nlm_rqst *req, u32 proc, rpc_action callback)
 	msg.rpc_proc = &clnt->cl_procinfo[proc];
 
         /* bootstrap and kick off the async RPC call */
-        status = rpc_call_async(clnt, &msg, RPC_TASK_ASYNC, callback, req);
+        status = rpc_call_async(clnt, &msg, RPC_TASK_ASYNC, tk_ops, req);
 
 	return status;
 }
 
-static int
-nlmclnt_async_call(struct nlm_rqst *req, u32 proc, rpc_action callback)
+static int nlmclnt_async_call(struct nlm_rqst *req, u32 proc, const struct rpc_call_ops *tk_ops)
 {
 	struct nlm_host	*host = req->a_host;
 	struct rpc_clnt	*clnt;
@@ -448,7 +446,7 @@ nlmclnt_async_call(struct nlm_rqst *req, u32 proc, rpc_action callback)
 	/* Increment host refcount */
 	nlm_get_host(host);
         /* bootstrap and kick off the async RPC call */
-        status = rpc_call_async(clnt, &msg, RPC_TASK_ASYNC, callback, req);
+        status = rpc_call_async(clnt, &msg, RPC_TASK_ASYNC, tk_ops, req);
 	if (status < 0)
 		nlm_release_host(host);
 	return status;
@@ -664,7 +662,7 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 
 	if (req->a_flags & RPC_TASK_ASYNC) {
 		status = nlmclnt_async_call(req, NLMPROC_UNLOCK,
-					nlmclnt_unlock_callback);
+					&nlmclnt_unlock_ops);
 		/* Hrmf... Do the unlock early since locks_remove_posix()
 		 * really expects us to free the lock synchronously */
 		do_vfs_lock(fl);
@@ -692,10 +690,9 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	return -ENOLCK;
 }
 
-static void
-nlmclnt_unlock_callback(struct rpc_task *task)
+static void nlmclnt_unlock_callback(struct rpc_task *task, void *data)
 {
-	struct nlm_rqst	*req = (struct nlm_rqst *) task->tk_calldata;
+	struct nlm_rqst	*req = data;
 	int		status = req->a_res.status;
 
 	if (RPC_ASSASSINATED(task))
@@ -721,6 +718,10 @@ die:
  retry_unlock:
 	rpc_restart_call(task);
 }
+
+static const struct rpc_call_ops nlmclnt_unlock_ops = {
+	.rpc_call_done = nlmclnt_unlock_callback,
+};
 
 /*
  * Cancel a blocked lock request.
@@ -750,8 +751,7 @@ nlmclnt_cancel(struct nlm_host *host, struct file_lock *fl)
 
 	nlmclnt_setlockargs(req, fl);
 
-	status = nlmclnt_async_call(req, NLMPROC_CANCEL,
-					nlmclnt_cancel_callback);
+	status = nlmclnt_async_call(req, NLMPROC_CANCEL, &nlmclnt_cancel_ops);
 	if (status < 0) {
 		nlmclnt_release_lockargs(req);
 		kfree(req);
@@ -765,10 +765,9 @@ nlmclnt_cancel(struct nlm_host *host, struct file_lock *fl)
 	return status;
 }
 
-static void
-nlmclnt_cancel_callback(struct rpc_task *task)
+static void nlmclnt_cancel_callback(struct rpc_task *task, void *data)
 {
-	struct nlm_rqst	*req = (struct nlm_rqst *) task->tk_calldata;
+	struct nlm_rqst	*req = data;
 
 	if (RPC_ASSASSINATED(task))
 		goto die;
@@ -806,6 +805,10 @@ retry_cancel:
 	rpc_restart_call(task);
 	rpc_delay(task, 30 * HZ);
 }
+
+static const struct rpc_call_ops nlmclnt_cancel_ops = {
+	.rpc_call_done = nlmclnt_cancel_callback,
+};
 
 /*
  * Convert an NLM status code to a generic kernel errno

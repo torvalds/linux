@@ -133,8 +133,8 @@ HOSTCFLAGS_zconf.tab.o	:= -I$(src)
 HOSTLOADLIBES_qconf	= $(KC_QT_LIBS) -ldl
 HOSTCXXFLAGS_qconf.o	= $(KC_QT_CFLAGS) -D LKC_DIRECT_LINK
 
-HOSTLOADLIBES_gconf	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --libs`
-HOSTCFLAGS_gconf.o	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --cflags` \
+HOSTLOADLIBES_gconf	= `pkg-config --libs gtk+-2.0 gmodule-2.0 libglade-2.0`
+HOSTCFLAGS_gconf.o	= `pkg-config --cflags gtk+-2.0 gmodule-2.0 libglade-2.0` \
                           -D LKC_DIRECT_LINK
 
 $(obj)/qconf.o: $(obj)/.tmp_qtcheck
@@ -193,8 +193,8 @@ ifeq ($(gconf-target),1)
 
 # GTK needs some extra effort, too...
 $(obj)/.tmp_gtkcheck:
-	@if `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --exists`; then		\
-		if `pkg-config gtk+-2.0 --atleast-version=2.0.0`; then			\
+	@if `pkg-config --exists gtk+-2.0 gmodule-2.0 libglade-2.0`; then		\
+		if `pkg-config --atleast-version=2.0.0 gtk+-2.0`; then			\
 			touch $@;								\
 		else									\
 			echo "*"; 							\

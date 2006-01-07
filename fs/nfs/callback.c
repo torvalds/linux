@@ -34,6 +34,7 @@ static struct nfs_callback_data nfs_callback_info;
 static DECLARE_MUTEX(nfs_callback_sema);
 static struct svc_program nfs4_callback_program;
 
+unsigned int nfs_callback_set_tcpport;
 unsigned short nfs_callback_tcpport;
 
 /*
@@ -98,7 +99,7 @@ int nfs_callback_up(void)
 	if (!serv)
 		goto out_err;
 	/* FIXME: We don't want to register this socket with the portmapper */
-	ret = svc_makesock(serv, IPPROTO_TCP, 0);
+	ret = svc_makesock(serv, IPPROTO_TCP, nfs_callback_set_tcpport);
 	if (ret < 0)
 		goto out_destroy;
 	if (!list_empty(&serv->sv_permsocks)) {

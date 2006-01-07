@@ -501,7 +501,6 @@ saa7110_detect_client (struct i2c_adapter *adapter,
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa7110;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	strlcpy(I2C_NAME(client), "saa7110", sizeof(I2C_NAME(client)));
 
 	decoder = kmalloc(sizeof(struct saa7110), GFP_KERNEL);
@@ -587,11 +586,11 @@ saa7110_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_saa7110 = {
-	.owner = THIS_MODULE,
-	.name = "saa7110",
+	.driver = {
+		.name = "saa7110",
+	},
 
 	.id = I2C_DRIVERID_SAA7110,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = saa7110_attach_adapter,
 	.detach_client = saa7110_detach_client,

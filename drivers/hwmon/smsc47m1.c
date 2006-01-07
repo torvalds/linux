@@ -126,8 +126,9 @@ static struct smsc47m1_data *smsc47m1_update_device(struct device *dev,
 
 
 static struct i2c_driver smsc47m1_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "smsc47m1",
+	.driver = {
+		.name	= "smsc47m1",
+	},
 	.attach_adapter	= smsc47m1_detect,
 	.detach_client	= smsc47m1_detach_client,
 };
@@ -394,7 +395,7 @@ static int smsc47m1_detect(struct i2c_adapter *adapter)
 	int err = 0;
 	int fan1, fan2, pwm1, pwm2;
 
-	if (!request_region(address, SMSC_EXTENT, smsc47m1_driver.name)) {
+	if (!request_region(address, SMSC_EXTENT, smsc47m1_driver.driver.name)) {
 		dev_err(&adapter->dev, "Region 0x%x already in use!\n", address);
 		return -EBUSY;
 	}

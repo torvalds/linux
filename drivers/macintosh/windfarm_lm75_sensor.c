@@ -47,9 +47,9 @@ static int wf_lm75_attach(struct i2c_adapter *adapter);
 static int wf_lm75_detach(struct i2c_client *client);
 
 static struct i2c_driver wf_lm75_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "wf_lm75",
-	.flags		= I2C_DF_NOTIFY,
+	.driver = {
+		.name	= "wf_lm75",
+	},
 	.attach_adapter	= wf_lm75_attach,
 	.detach_client	= wf_lm75_detach,
 };

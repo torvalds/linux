@@ -69,7 +69,8 @@ MODULE_PARM_DESC(test_image, "test_image (0-1)");
 #define saa7127_dbg(fmt, arg...) \
 	do { \
 		if (debug >= 1) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
+			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
+			       client->driver->driver.name, \
 			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
 	} while (0)
 
@@ -77,15 +78,16 @@ MODULE_PARM_DESC(test_image, "test_image (0-1)");
 #define saa7127_dbg_highvol(fmt, arg...) \
 	do { \
 		if (debug == 2) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
+			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
+			       client->driver->driver.name, \
 			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
 	} while (0)
 
 #define saa7127_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 #define saa7127_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
 	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
@@ -719,7 +721,6 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_saa7127;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name) - 1, "saa7127");
 
 	saa7127_dbg("detecting saa7127 client on address 0x%x\n", address << 1);
@@ -819,13 +820,13 @@ static int saa7127_detach(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_saa7127 = {
-	.name = "saa7127",
+	.driver = {
+		.name = "saa7127",
+	},
 	.id = I2C_DRIVERID_SAA7127,
-	.flags = I2C_DF_NOTIFY,
 	.attach_adapter = saa7127_probe,
 	.detach_client = saa7127_detach,
 	.command = saa7127_command,
-	.owner = THIS_MODULE,
 };
 
 

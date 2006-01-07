@@ -473,7 +473,6 @@ static char version[] __initdata = VERSION;
 
 static int pktgen_remove_device(struct pktgen_thread* t, struct pktgen_dev *i);
 static int pktgen_add_device(struct pktgen_thread* t, const char* ifname);
-static struct pktgen_thread* pktgen_find_thread(const char* name);
 static struct pktgen_dev *pktgen_find_dev(struct pktgen_thread* t, const char* ifname);
 static int pktgen_device_event(struct notifier_block *, unsigned long, void *);
 static void pktgen_run_all_threads(void);
@@ -2883,7 +2882,7 @@ static int pktgen_add_device(struct pktgen_thread *t, const char* ifname)
 	return add_dev_to_thread(t, pkt_dev);
 }
 
-static struct pktgen_thread *pktgen_find_thread(const char* name) 
+static struct pktgen_thread * __init pktgen_find_thread(const char* name) 
 {
         struct pktgen_thread *t = NULL;
 
@@ -2900,7 +2899,7 @@ static struct pktgen_thread *pktgen_find_thread(const char* name)
         return t;
 }
 
-static int pktgen_create_thread(const char* name, int cpu) 
+static int __init pktgen_create_thread(const char* name, int cpu) 
 {
         struct pktgen_thread *t = NULL;
 	struct proc_dir_entry *pe;

@@ -631,7 +631,6 @@ vpx3220_detect_client (struct i2c_adapter *adapter,
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &vpx3220_i2c_driver;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 
 	/* Check for manufacture ID and part number */
 	if (kind < 0) {
@@ -722,11 +721,11 @@ vpx3220_attach_adapter (struct i2c_adapter *adapter)
  */
 
 static struct i2c_driver vpx3220_i2c_driver = {
-	.owner = THIS_MODULE,
-	.name = "vpx3220",
+	.driver = {
+		.name = "vpx3220",
+	},
 
 	.id = I2C_DRIVERID_VPX3220,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = vpx3220_attach_adapter,
 	.detach_client = vpx3220_detach_client,

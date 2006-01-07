@@ -41,7 +41,8 @@
 
 static void	nlmsvc_insert_block(struct nlm_block *block, unsigned long);
 static int	nlmsvc_remove_block(struct nlm_block *block);
-static void	nlmsvc_grant_callback(struct rpc_task *task);
+
+static const struct rpc_call_ops nlmsvc_grant_ops;
 
 /*
  * The list of blocked locks to retry
@@ -226,31 +227,27 @@ failed:
  * It is the caller's responsibility to check whether the file
  * can be closed hereafter.
  */
-static void
+static int
 nlmsvc_delete_block(struct nlm_block *block, int unlock)
 {
 	struct file_lock	*fl = &block->b_call.a_args.lock.fl;
 	struct nlm_file		*file = block->b_file;
 	struct nlm_block	**bp;
+	int status = 0;
 
 	dprintk("lockd: deleting block %p...\n", block);
 
 	/* Remove block from list */
 	nlmsvc_remove_block(block);
-	if (fl->fl_next)
-		posix_unblock_lock(file->f_file, fl);
-	if (unlock) {
-		fl->fl_type = F_UNLCK;
-		posix_lock_file(file->f_file, fl);
-		block->b_granted = 0;
-	}
+	if (unlock)
+		status = posix_unblock_lock(file->f_file, fl);
 
 	/* If the block is in the middle of a GRANT callback,
 	 * don't kill it yet. */
 	if (block->b_incall) {
 		nlmsvc_insert_block(block, NLM_NEVER);
 		block->b_done = 1;
-		return;
+		return status;
 	}
 
 	/* Remove block from file's list of blocks */
@@ -265,6 +262,7 @@ nlmsvc_delete_block(struct nlm_block *block, int unlock)
 		nlm_release_host(block->b_host);
 	nlmclnt_freegrantargs(&block->b_call);
 	kfree(block);
+	return status;
 }
 
 /*
@@ -275,6 +273,7 @@ int
 nlmsvc_traverse_blocks(struct nlm_host *host, struct nlm_file *file, int action)
 {
 	struct nlm_block	*block, *next;
+	/* XXX: Will everything get cleaned up if we don't unlock here? */
 
 	down(&file->f_sema);
 	for (block = file->f_blocks; block; block = next) {
@@ -444,6 +443,7 @@ u32
 nlmsvc_cancel_blocked(struct nlm_file *file, struct nlm_lock *lock)
 {
 	struct nlm_block	*block;
+	int status = 0;
 
 	dprintk("lockd: nlmsvc_cancel(%s/%ld, pi=%d, %Ld-%Ld)\n",
 				file->f_file->f_dentry->d_inode->i_sb->s_id,
@@ -454,9 +454,9 @@ nlmsvc_cancel_blocked(struct nlm_file *file, struct nlm_lock *lock)
 
 	down(&file->f_sema);
 	if ((block = nlmsvc_lookup_block(file, lock, 1)) != NULL)
-		nlmsvc_delete_block(block, 1);
+		status = nlmsvc_delete_block(block, 1);
 	up(&file->f_sema);
-	return nlm_granted;
+	return status ? nlm_lck_denied : nlm_granted;
 }
 
 /*
@@ -562,7 +562,7 @@ callback:
 	/* Call the client */
 	nlm_get_host(block->b_call.a_host);
 	if (nlmsvc_async_call(&block->b_call, NLMPROC_GRANTED_MSG,
-						nlmsvc_grant_callback) < 0)
+						&nlmsvc_grant_ops) < 0)
 		nlm_release_host(block->b_call.a_host);
 	up(&file->f_sema);
 }
@@ -575,10 +575,9 @@ callback:
  * chain once more in order to have it removed by lockd itself (which can
  * then sleep on the file semaphore without disrupting e.g. the nfs client).
  */
-static void
-nlmsvc_grant_callback(struct rpc_task *task)
+static void nlmsvc_grant_callback(struct rpc_task *task, void *data)
 {
-	struct nlm_rqst		*call = (struct nlm_rqst *) task->tk_calldata;
+	struct nlm_rqst		*call = data;
 	struct nlm_block	*block;
 	unsigned long		timeout;
 	struct sockaddr_in	*peer_addr = RPC_PEERADDR(task->tk_client);
@@ -614,6 +613,10 @@ nlmsvc_grant_callback(struct rpc_task *task)
 	nlm_release_host(call->a_host);
 }
 
+static const struct rpc_call_ops nlmsvc_grant_ops = {
+	.rpc_call_done = nlmsvc_grant_callback,
+};
+
 /*
  * We received a GRANT_RES callback. Try to find the corresponding
  * block.
@@ -633,11 +636,12 @@ nlmsvc_grant_reply(struct svc_rqst *rqstp, struct nlm_cookie *cookie, u32 status
 
 	file->f_count++;
 	down(&file->f_sema);
-	if ((block = nlmsvc_find_block(cookie,&rqstp->rq_addr)) != NULL) {
+	block = nlmsvc_find_block(cookie, &rqstp->rq_addr);
+	if (block) {
 		if (status == NLM_LCK_DENIED_GRACE_PERIOD) {
 			/* Try again in a couple of seconds */
 			nlmsvc_insert_block(block, 10 * HZ);
-			block = NULL;
+			up(&file->f_sema);
 		} else {
 			/* Lock is now held by client, or has been rejected.
 			 * In both cases, the block should be removed. */
@@ -648,8 +652,6 @@ nlmsvc_grant_reply(struct svc_rqst *rqstp, struct nlm_cookie *cookie, u32 status
 				nlmsvc_delete_block(block, 1);
 		}
 	}
-	if (!block)
-		up(&file->f_sema);
 	nlm_release_file(file);
 }
 

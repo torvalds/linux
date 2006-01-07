@@ -354,7 +354,9 @@ nlm4svc_decode_reboot(struct svc_rqst *rqstp, u32 *p, struct nlm_reboot *argp)
 		return 0;
 	argp->state = ntohl(*p++);
 	/* Preserve the address in network byte order */
-	argp->addr = *p++;
+	argp->addr  = *p++;
+	argp->vers  = *p++;
+	argp->proto = *p++;
 	return xdr_argsize_check(rqstp, p);
 }
 

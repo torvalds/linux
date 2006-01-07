@@ -535,7 +535,6 @@ bt819_detect_client (struct i2c_adapter *adapter,
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_bt819;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 
 	decoder = kmalloc(sizeof(struct bt819), GFP_KERNEL);
 	if (decoder == NULL) {
@@ -623,11 +622,11 @@ bt819_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_bt819 = {
-	.owner = THIS_MODULE,
-	.name = "bt819",
+	.driver = {
+		.name = "bt819",
+	},
 
 	.id = I2C_DRIVERID_BT819,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = bt819_attach_adapter,
 	.detach_client = bt819_detach_client,

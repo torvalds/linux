@@ -4,6 +4,16 @@
 #include <linux/sunrpc/xprt.h>
 #include <linux/nfsacl.h>
 
+/*
+ * To change the maximum rsize and wsize supported by the NFS client, adjust
+ * NFS_MAX_FILE_IO_SIZE.  64KB is a typical maximum, but some servers can
+ * support a megabyte or more.  The default is left at 4096 bytes, which is
+ * reasonable for NFS over UDP.
+ */
+#define NFS_MAX_FILE_IO_SIZE	(1048576U)
+#define NFS_DEF_FILE_IO_SIZE	(4096U)
+#define NFS_MIN_FILE_IO_SIZE	(1024U)
+
 struct nfs4_fsid {
 	__u64 major;
 	__u64 minor;
@@ -137,7 +147,7 @@ struct nfs_openres {
  */
 struct nfs_open_confirmargs {
 	const struct nfs_fh *	fh;
-	nfs4_stateid            stateid;
+	nfs4_stateid *		stateid;
 	struct nfs_seqid *	seqid;
 };
 
@@ -165,66 +175,62 @@ struct nfs_closeres {
  *  * Arguments to the lock,lockt, and locku call.
  *   */
 struct nfs_lowner {
-	__u64           clientid;
-	u32                     id;
+	__u64			clientid;
+	u32			id;
 };
 
-struct nfs_lock_opargs {
+struct nfs_lock_args {
+	struct nfs_fh *		fh;
+	struct file_lock *	fl;
 	struct nfs_seqid *	lock_seqid;
 	nfs4_stateid *		lock_stateid;
 	struct nfs_seqid *	open_seqid;
 	nfs4_stateid *		open_stateid;
-	struct nfs_lowner       lock_owner;
-	__u32                   reclaim;
-	__u32                   new_lock_owner;
+	struct nfs_lowner	lock_owner;
+	unsigned char		block : 1;
+	unsigned char		reclaim : 1;
+	unsigned char		new_lock_owner : 1;
 };
 
-struct nfs_locku_opargs {
+struct nfs_lock_res {
+	nfs4_stateid			stateid;
+};
+
+struct nfs_locku_args {
+	struct nfs_fh *		fh;
+	struct file_lock *	fl;
 	struct nfs_seqid *	seqid;
 	nfs4_stateid *		stateid;
 };
 
-struct nfs_lockargs {
-	struct nfs_fh *         fh;
-	__u32                   type;
-	__u64                   offset; 
-	__u64                   length; 
-	union {
-		struct nfs_lock_opargs  *lock;    /* LOCK  */
-		struct nfs_lowner       *lockt;  /* LOCKT */
-		struct nfs_locku_opargs *locku;  /* LOCKU */
-	} u;
+struct nfs_locku_res {
+	nfs4_stateid			stateid;
 };
 
-struct nfs_lock_denied {
-	__u64                   offset;
-	__u64                   length;
-	__u32                   type;
-	struct nfs_lowner   	owner;
+struct nfs_lockt_args {
+	struct nfs_fh *		fh;
+	struct file_lock *	fl;
+	struct nfs_lowner	lock_owner;
 };
 
-struct nfs_lockres {
-	union {
-		nfs4_stateid            stateid;/* LOCK success, LOCKU */
-		struct nfs_lock_denied  denied; /* LOCK failed, LOCKT success */
-	} u;
-	const struct nfs_server *	server;
+struct nfs_lockt_res {
+	struct file_lock *	denied; /* LOCK, LOCKT failed */
 };
 
 struct nfs4_delegreturnargs {
 	const struct nfs_fh *fhandle;
 	const nfs4_stateid *stateid;
+	const u32 * bitmask;
+};
+
+struct nfs4_delegreturnres {
+	struct nfs_fattr * fattr;
+	const struct nfs_server *server;
 };
 
 /*
  * Arguments to the read call.
  */
-
-#define NFS_READ_MAXIOV		(9U)
-#if (NFS_READ_MAXIOV > (MAX_IOVEC -2))
-#error "NFS_READ_MAXIOV is too large"
-#endif
-
 struct nfs_readargs {
 	struct nfs_fh *		fh;
 	struct nfs_open_context *context;
@@ -243,11 +249,6 @@ struct nfs_readres {
 /*
  * Arguments to the write call.
  */
-#define NFS_WRITE_MAXIOV	(9U)
-#if (NFS_WRITE_MAXIOV > (MAX_IOVEC -2))
-#error "NFS_WRITE_MAXIOV is too large"
-#endif
-
 struct nfs_writeargs {
 	struct nfs_fh *		fh;
 	struct nfs_open_context *context;
@@ -678,6 +679,8 @@ struct nfs4_server_caps_res {
 
 struct nfs_page;
 
+#define NFS_PAGEVEC_SIZE	(8U)
+
 struct nfs_read_data {
 	int			flags;
 	struct rpc_task		task;
@@ -686,13 +689,14 @@ struct nfs_read_data {
 	struct nfs_fattr	fattr;	/* fattr storage */
 	struct list_head	pages;	/* Coalesced read requests */
 	struct nfs_page		*req;	/* multi ops per nfs_page */
-	struct page		*pagevec[NFS_READ_MAXIOV];
+	struct page		**pagevec;
 	struct nfs_readargs args;
 	struct nfs_readres  res;
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
 	void (*complete) (struct nfs_read_data *, int);
+	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
 };
 
 struct nfs_write_data {
@@ -704,13 +708,14 @@ struct nfs_write_data {
 	struct nfs_writeverf	verf;
 	struct list_head	pages;		/* Coalesced requests we wish to flush */
 	struct nfs_page		*req;		/* multi ops per nfs_page */
-	struct page		*pagevec[NFS_WRITE_MAXIOV];
+	struct page		**pagevec;
 	struct nfs_writeargs	args;		/* argument struct */
 	struct nfs_writeres	res;		/* result struct */
 #ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
 	void (*complete) (struct nfs_write_data *, int);
+	struct page		*page_array[NFS_PAGEVEC_SIZE + 1];
 };
 
 struct nfs_access_entry;

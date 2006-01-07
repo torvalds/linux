@@ -802,6 +802,7 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh, void **xfr
 	excl = nlh->nlmsg_type == XFRM_MSG_NEWPOLICY;
 	err = xfrm_policy_insert(p->dir, xp, excl);
 	if (err) {
+		security_xfrm_policy_free(xp);
 		kfree(xp);
 		return err;
 	}

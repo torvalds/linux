@@ -1533,12 +1533,12 @@ static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 		}
 	} else {
 		DBG(4, "Rejected client [%s] with driver [%s]", 
-		    client->name, client->driver->name)
+		    client->name, client->driver->driver.name)
 		return -EINVAL;
 	}
 
 	DBG(5, "I2C attach client [%s] with driver [%s]",
-	    client->name, client->driver->name)
+	    client->name, client->driver->driver.name)
 
 	return 0;
 }
