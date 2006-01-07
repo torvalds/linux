@@ -594,12 +594,17 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 	if (cmd.comp_vector >= file->device->num_comp_vectors)
 		return -EINVAL;
 
-	if (cmd.comp_channel >= 0)
-		ev_file = ib_uverbs_lookup_comp_file(cmd.comp_channel);
-
 	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)
 		return -ENOMEM;
+
+	if (cmd.comp_channel >= 0) {
+		ev_file = ib_uverbs_lookup_comp_file(cmd.comp_channel);
+		if (!ev_file) {
+			ret = -EINVAL;
+			goto err;
+		}
+	}
 
 	uobj->uobject.user_handle   = cmd.user_handle;
 	uobj->uobject.context       = file->ucontext;
@@ -664,6 +669,8 @@ err_up:
 	ib_destroy_cq(cq);
 
 err:
+	if (ev_file)
+		ib_uverbs_release_ucq(file, ev_file, uobj);
 	kfree(uobj);
 	return ret;
 }
