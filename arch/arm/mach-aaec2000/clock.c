@@ -15,9 +15,9 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/string.h>
+#include <linux/clk.h>
 
 #include <asm/semaphore.h>
-#include <asm/hardware/clock.h>
 
 #include "clock.h"
 

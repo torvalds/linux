@@ -19,6 +19,7 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/delay.h>
 #include <asm/io.h>
@@ -29,8 +30,6 @@
 #include <asm/arch/irqs.h>
 #include <asm/arch/dsp_common.h>
 #include <asm/arch/mcbsp.h>
-
-#include <asm/hardware/clock.h>
 
 #ifdef CONFIG_MCBSP_DEBUG
 #define DBG(x...)	printk(x)

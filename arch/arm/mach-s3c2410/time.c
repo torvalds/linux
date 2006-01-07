@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/system.h>
 #include <asm/leds.h>
@@ -35,7 +36,6 @@
 #include <asm/arch/regs-timer.h>
 #include <asm/arch/regs-irq.h>
 #include <asm/mach/time.h>
-#include <asm/hardware/clock.h>
 
 #include "clock.h"
 #include "cpu.h"

@@ -53,6 +53,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -60,7 +61,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/regs-nand.h>
 #include <asm/arch/nand.h>

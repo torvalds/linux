@@ -34,12 +34,12 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#include <asm/hardware/clock.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-iic.h>
 #include <asm/arch/iic.h>

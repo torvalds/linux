@@ -72,12 +72,12 @@
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 
 #include <asm/hardware.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>

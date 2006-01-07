@@ -46,12 +46,12 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/clk.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
 #include <asm/arch/map.h>
-#include <asm/hardware/clock.h>
 
 #undef S3C24XX_VA_WATCHDOG
 #define S3C24XX_VA_WATCHDOG (0)

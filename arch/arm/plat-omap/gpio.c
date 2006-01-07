@@ -19,9 +19,9 @@
 #include <linux/ptrace.h>
 #include <linux/sysdev.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
-#include <asm/hardware/clock.h>
 #include <asm/irq.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/gpio.h>

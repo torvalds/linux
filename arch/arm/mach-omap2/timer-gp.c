@@ -21,10 +21,11 @@
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
+#include <linux/clk.h>
+
 #include <asm/mach/time.h>
 #include <asm/delay.h>
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 
 #define OMAP2_GP_TIMER1_BASE	0x48028000
 #define OMAP2_GP_TIMER2_BASE	0x4802a000

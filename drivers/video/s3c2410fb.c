@@ -87,6 +87,7 @@
 #include <linux/workqueue.h>
 #include <linux/wait.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -96,7 +97,6 @@
 #include <asm/arch/regs-lcd.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/fb.h>
-#include <asm/hardware/clock.h>
 
 #ifdef CONFIG_PM
 #include <linux/pm.h>

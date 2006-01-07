@@ -16,9 +16,9 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/hardware/clock.h>
 
 #include <asm/arch/usb.h>
 #include <asm/arch/clock.h>

@@ -21,10 +21,10 @@
 #include <linux/err.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware/clock.h>
 
 #define KMI_BASE	(kmi->base)
 

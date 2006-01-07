@@ -23,9 +23,9 @@
 #include <linux/list.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/clk.h>
 
 #include <asm/sizes.h>
-#include <asm/hardware/clock.h>
 
 #define to_clcd(info)	container_of(info, struct clcd_fb, fb)
 

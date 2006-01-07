@@ -49,10 +49,10 @@
 #include <linux/serial.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/hardware/clock.h>
 
 #define UART_NR			14
 

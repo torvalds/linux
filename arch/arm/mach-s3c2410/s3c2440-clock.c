@@ -29,16 +29,15 @@
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/sysdev.h>
-
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/clk.h>
 
 #include <asm/hardware.h>
 #include <asm/atomic.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#include <asm/hardware/clock.h>
 #include <asm/arch/regs-clock.h>
 
 #include "clock.h"
