@@ -1456,13 +1456,11 @@ static int __devinit wbsd_scan(struct wbsd_host* host)
 	 * Iterate through all ports, all codes to
 	 * find hardware that is in our known list.
 	 */
-	for (i = 0;i < sizeof(config_ports)/sizeof(int);i++)
-	{
+	for (i = 0; i < ARRAY_SIZE(config_ports); i++) {
 		if (!request_region(config_ports[i], 2, DRIVER_NAME))
 			continue;
 
-		for (j = 0;j < sizeof(unlock_codes)/sizeof(int);j++)
-		{
+		for (j = 0; j < ARRAY_SIZE(unlock_codes); j++) {
 			id = 0xFFFF;
 
 			host->config = config_ports[i];
@@ -1478,8 +1476,7 @@ static int __devinit wbsd_scan(struct wbsd_host* host)
 
 			wbsd_lock_config(host);
 
-			for (k = 0;k < sizeof(valid_ids)/sizeof(int);k++)
-			{
+			for (k = 0; k < ARRAY_SIZE(valid_ids); k++) {
 				if (id == valid_ids[k])
 				{
 					host->chip_id = id;
@@ -2090,10 +2087,20 @@ static int __init wbsd_drv_init(void)
 		if (result < 0)
 			return result;
 
-		wbsd_device = platform_device_register_simple(DRIVER_NAME, -1,
-			NULL, 0);
-		if (IS_ERR(wbsd_device))
-			return PTR_ERR(wbsd_device);
+		wbsd_device = platform_device_alloc(DRIVER_NAME, -1);
+		if (!wbsd_device)
+		{
+			platform_driver_unregister(&wbsd_driver);
+			return -ENOMEM;
+		}
+
+		result = platform_device_add(wbsd_device);
+		if (result)
+		{
+			platform_device_put(wbsd_device);
+			platform_driver_unregister(&wbsd_driver);
+			return result;
+		}
 	}
 
 	return 0;
