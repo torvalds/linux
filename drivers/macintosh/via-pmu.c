@@ -55,6 +55,8 @@
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/pmac_feature.h>
+#include <asm/pmac_pfunc.h>
+#include <asm/pmac_low_i2c.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/cputable.h>
@@ -2105,6 +2107,10 @@ pmac_suspend_devices(void)
 		return -EBUSY;
 	}
 
+	/* Call platform functions marked "on sleep" */
+	pmac_pfunc_i2c_suspend();
+	pmac_pfunc_base_suspend();
+
 	/* Stop preemption */
 	preempt_disable();
 
@@ -2174,6 +2180,10 @@ pmac_wakeup_devices(void)
 	local_irq_enable();
 	mdelay(10);
 	preempt_enable();
+
+	/* Call platform functions marked "on wake" */
+	pmac_pfunc_base_resume();
+	pmac_pfunc_i2c_resume();
 
 	/* Resume devices */
 	device_resume();

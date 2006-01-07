@@ -52,8 +52,9 @@
 #include <asm/cacheflush.h>
 #include <asm/keylargo.h>
 #include <asm/pmac_low_i2c.h>
+#include <asm/pmac_pfunc.h>
 
-#undef DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -62,6 +63,7 @@
 #endif
 
 extern void __secondary_start_pmac_0(void);
+extern int pmac_pfunc_base_install(void);
 
 #ifdef CONFIG_PPC32
 
@@ -602,11 +604,29 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 	pmac_tb_clock_chip_host = NULL;
 }
 
-#endif /* CONFIG_PPC64 */
 
 
 /*
- * SMP G4 and newer G5 use a GPIO to enable/disable the timebase.
+ * Newer G5s uses a platform function
+ */
+
+static void smp_core99_pfunc_tb_freeze(int freeze)
+{
+	struct device_node *cpus;
+	struct pmf_args args;
+
+	cpus = of_find_node_by_path("/cpus");
+	BUG_ON(cpus == NULL);
+	args.count = 1;
+	args.u[0].v = !freeze;
+	pmf_call_function(cpus, "cpu-timebase", &args);
+	of_node_put(cpus);
+}
+
+#else /* CONFIG_PPC64 */
+
+/*
+ * SMP G4 use a GPIO to enable/disable the timebase.
  */
 
 static unsigned int core99_tb_gpio;	/* Timebase freeze GPIO */
@@ -619,6 +639,9 @@ static void smp_core99_gpio_tb_freeze(int freeze)
 		pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, core99_tb_gpio, 0);
 	pmac_call_feature(PMAC_FTR_READ_GPIO, NULL, core99_tb_gpio, 0);
 }
+
+
+#endif /* !CONFIG_PPC64 */
 
 /* L2 and L3 cache settings to pass from CPU0 to CPU1 on G4 cpus */
 volatile static long int core99_l2_cache;
@@ -665,19 +688,15 @@ static void __init smp_core99_setup(int ncpus)
 	    machine_is_compatible("RackMac3,1"))
 		smp_core99_setup_i2c_hwsync(ncpus);
 
-	/* GPIO based HW sync on recent G5s */
+	/* pfunc based HW sync on recent G5s */
 	if (pmac_tb_freeze == NULL) {
-		struct device_node *np =
-			of_find_node_by_name(NULL, "timebase-enable");
-		u32 *reg = (u32 *)get_property(np, "reg", NULL);
-
-		if (np && reg && !strcmp(np->type, "gpio")) {
-			core99_tb_gpio = *reg;
-			if (core99_tb_gpio < 0x50)
-				core99_tb_gpio += 0x50;
-			pmac_tb_freeze = smp_core99_gpio_tb_freeze;
+		struct device_node *cpus =
+			of_find_node_by_path("/cpus");
+		if (cpus &&
+		    get_property(cpus, "platform-cpu-timebase", NULL)) {
+			pmac_tb_freeze = smp_core99_pfunc_tb_freeze;
 			printk(KERN_INFO "Processor timebase sync using"
-			       " GPIO 0x%02x\n", core99_tb_gpio);
+			       " platform function\n");
 		}
 	}
 
@@ -746,6 +765,7 @@ static int __init smp_core99_probe(void)
 	/* We need to perform some early initialisations before we can start
 	 * setting up SMP as we are running before initcalls
 	 */
+	pmac_pfunc_base_install();
 	pmac_i2c_init();
 
 	/* Setup various bits like timebase sync method, ability to nap, ... */

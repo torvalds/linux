@@ -58,12 +58,11 @@ extern int powersave_lowspeed;
 extern int powersave_nap;
 extern struct device_node *k2_skiplist[2];
 
-
 /*
  * We use a single global lock to protect accesses. Each driver has
  * to take care of its own locking
  */
-static DEFINE_SPINLOCK(feature_lock);
+DEFINE_SPINLOCK(feature_lock);
 
 #define LOCK(flags)	spin_lock_irqsave(&feature_lock, flags);
 #define UNLOCK(flags)	spin_unlock_irqrestore(&feature_lock, flags);
@@ -106,22 +105,12 @@ static const char *macio_names[] =
 };
 
 
+struct device_node *uninorth_node;
+u32 __iomem *uninorth_base;
 
-/*
- * Uninorth reg. access. Note that Uni-N regs are big endian
- */
-
-#define UN_REG(r)	(uninorth_base + ((r) >> 2))
-#define UN_IN(r)	(in_be32(UN_REG(r)))
-#define UN_OUT(r,v)	(out_be32(UN_REG(r), (v)))
-#define UN_BIS(r,v)	(UN_OUT((r), UN_IN(r) | (v)))
-#define UN_BIC(r,v)	(UN_OUT((r), UN_IN(r) & ~(v)))
-
-static struct device_node *uninorth_node;
-static u32 __iomem *uninorth_base;
 static u32 uninorth_rev;
 static int uninorth_maj;
-static void __iomem *u3_ht;
+static void __iomem *u3_ht_base;
 
 /*
  * For each motherboard family, we have a table of functions pointers
@@ -1560,8 +1549,10 @@ void g5_phy_disable_cpu1(void)
 
 #ifndef CONFIG_POWER4
 
-static void
-keylargo_shutdown(struct macio_chip *macio, int sleep_mode)
+
+#ifdef CONFIG_PM
+
+static void keylargo_shutdown(struct macio_chip *macio, int sleep_mode)
 {
 	u32 temp;
 
@@ -1614,8 +1605,7 @@ keylargo_shutdown(struct macio_chip *macio, int sleep_mode)
 	(void)MACIO_IN32(KEYLARGO_FCR0); mdelay(1);
 }
 
-static void
-pangea_shutdown(struct macio_chip *macio, int sleep_mode)
+static void pangea_shutdown(struct macio_chip *macio, int sleep_mode)
 {
 	u32 temp;
 
@@ -1648,8 +1638,7 @@ pangea_shutdown(struct macio_chip *macio, int sleep_mode)
 	(void)MACIO_IN32(KEYLARGO_FCR0); mdelay(1);
 }
 
-static void
-intrepid_shutdown(struct macio_chip *macio, int sleep_mode)
+static void intrepid_shutdown(struct macio_chip *macio, int sleep_mode)
 {
 	u32 temp;
 
@@ -1833,6 +1822,8 @@ core99_wake_up(void)
 	return 0;
 }
 
+#endif /* CONFIG_PM */
+
 static long
 core99_sleep_state(struct device_node *node, long param, long value)
 {
@@ -1854,10 +1845,13 @@ core99_sleep_state(struct device_node *node, long param, long value)
 	if ((pmac_mb.board_flags & PMAC_MB_CAN_SLEEP) == 0)
 		return -EPERM;
 
+#ifdef CONFIG_PM
 	if (value == 1)
 		return core99_sleep();
 	else if (value == 0)
 		return core99_wake_up();
+
+#endif /* CONFIG_PM */
 	return 0;
 }
 
@@ -1981,7 +1975,9 @@ static struct feature_table_entry core99_features[] = {
 	{ PMAC_FTR_USB_ENABLE,		core99_usb_enable },
 	{ PMAC_FTR_1394_ENABLE,		core99_firewire_enable },
 	{ PMAC_FTR_1394_CABLE_POWER,	core99_firewire_cable_power },
+#ifdef CONFIG_PM
 	{ PMAC_FTR_SLEEP_STATE,		core99_sleep_state },
+#endif
 #ifdef CONFIG_SMP
 	{ PMAC_FTR_RESET_CPU,		core99_reset_cpu },
 #endif /* CONFIG_SMP */
@@ -2572,7 +2568,7 @@ static void __init probe_uninorth(void)
 	uninorth_base = ioremap(address, 0x40000);
 	uninorth_rev = in_be32(UN_REG(UNI_N_VERSION));
 	if (uninorth_maj == 3 || uninorth_maj == 4)
-		u3_ht = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
+		u3_ht_base = ioremap(address + U3_HT_CONFIG_BASE, 0x1000);
 
 	printk(KERN_INFO "Found %s memory controller & host bridge"
 	       " @ 0x%08x revision: 0x%02x\n", uninorth_maj == 3 ? "U3" :
@@ -2921,9 +2917,9 @@ void __init pmac_check_ht_link(void)
 	u8	px_bus, px_devfn;
 	struct pci_controller *px_hose;
 
-	(void)in_be32(u3_ht + U3_HT_LINK_COMMAND);
-	ucfg = cfg = in_be32(u3_ht + U3_HT_LINK_CONFIG);
-	ufreq = freq = in_be32(u3_ht + U3_HT_LINK_FREQ);
+	(void)in_be32(u3_ht_base + U3_HT_LINK_COMMAND);
+	ucfg = cfg = in_be32(u3_ht_base + U3_HT_LINK_CONFIG);
+	ufreq = freq = in_be32(u3_ht_base + U3_HT_LINK_FREQ);
 	dump_HT_speeds("U3 HyperTransport", cfg, freq);
 
 	pcix_node = of_find_compatible_node(NULL, "pci", "pci-x");

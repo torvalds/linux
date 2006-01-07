@@ -374,5 +374,24 @@ extern struct macio_chip* macio_find(struct device_node* child, int type);
 #define MACIO_IN8(r)		(in_8(MACIO_FCR8(macio,r)))
 #define MACIO_OUT8(r,v)		(out_8(MACIO_FCR8(macio,r), (v)))
 
+/*
+ * Those are exported by pmac feature for internal use by arch code
+ * only like the platform function callbacks, do not use directly in drivers
+ */
+extern spinlock_t feature_lock;
+extern struct device_node *uninorth_node;
+extern u32 __iomem *uninorth_base;
+
+/*
+ * Uninorth reg. access. Note that Uni-N regs are big endian
+ */
+
+#define UN_REG(r)	(uninorth_base + ((r) >> 2))
+#define UN_IN(r)	(in_be32(UN_REG(r)))
+#define UN_OUT(r,v)	(out_be32(UN_REG(r), (v)))
+#define UN_BIS(r,v)	(UN_OUT((r), UN_IN(r) | (v)))
+#define UN_BIC(r,v)	(UN_OUT((r), UN_IN(r) & ~(v)))
+
+
 #endif /* __PPC_ASM_PMAC_FEATURE_H */
 #endif /* __KERNEL__ */

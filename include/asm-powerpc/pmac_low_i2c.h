@@ -99,6 +99,9 @@ extern int pmac_i2c_setmode(struct pmac_i2c_bus *bus, int mode);
 extern int pmac_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 			 u32 subaddr, u8 *data,  int len);
 
+/* Suspend/resume code called by via-pmu directly for now */
+extern void pmac_pfunc_i2c_suspend(void);
+extern void pmac_pfunc_i2c_resume(void);
 
 #endif /* __KERNEL__ */
 #endif /* __PMAC_LOW_I2C_H__ */

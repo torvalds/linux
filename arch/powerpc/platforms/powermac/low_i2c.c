@@ -49,6 +49,7 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smu.h>
+#include <asm/pmac_pfunc.h>
 #include <asm/pmac_low_i2c.h>
 
 #ifdef DEBUG
@@ -1162,9 +1163,291 @@ int pmac_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
 }
 EXPORT_SYMBOL_GPL(pmac_i2c_xfer);
 
+/* some quirks for platform function decoding */
+enum {
+	pmac_i2c_quirk_invmask = 0x00000001u,
+};
+
+static void pmac_i2c_devscan(void (*callback)(struct device_node *dev,
+					      int quirks))
+{
+	struct pmac_i2c_bus *bus;
+	struct device_node *np;
+	static struct whitelist_ent {
+		char *name;
+		char *compatible;
+		int quirks;
+	} whitelist[] = {
+		/* XXX Study device-tree's & apple drivers are get the quirks
+		 * right !
+		 */
+		{ "i2c-hwclock", NULL, pmac_i2c_quirk_invmask },
+		{ "i2c-cpu-voltage", NULL, 0},
+		{  "temp-monitor", NULL, 0 },
+		{  "supply-monitor", NULL, 0 },
+		{ NULL, NULL, 0 },
+	};
+
+	/* Only some devices need to have platform functions instanciated
+	 * here. For now, we have a table. Others, like 9554 i2c GPIOs used
+	 * on Xserve, if we ever do a driver for them, will use their own
+	 * platform function instance
+	 */
+	list_for_each_entry(bus, &pmac_i2c_busses, link) {
+		for (np = NULL;
+		     (np = of_get_next_child(bus->busnode, np)) != NULL;) {
+			struct whitelist_ent *p;
+			/* If multibus, check if device is on that bus */
+			if (bus->flags & pmac_i2c_multibus)
+				if (bus != pmac_i2c_find_bus(np))
+					continue;
+			for (p = whitelist; p->name != NULL; p++) {
+				if (strcmp(np->name, p->name))
+					continue;
+				if (p->compatible &&
+				    !device_is_compatible(np, p->compatible))
+					continue;
+				callback(np, p->quirks);
+				break;
+			}
+		}
+	}
+}
+
+#define MAX_I2C_DATA	64
+
+struct pmac_i2c_pf_inst
+{
+	struct pmac_i2c_bus	*bus;
+	u8			addr;
+	u8			buffer[MAX_I2C_DATA];
+	u8			scratch[MAX_I2C_DATA];
+	int			bytes;
+	int			quirks;
+};
+
+static void* pmac_i2c_do_begin(struct pmf_function *func, struct pmf_args *args)
+{
+	struct pmac_i2c_pf_inst *inst;
+	struct pmac_i2c_bus	*bus;
+
+	bus = pmac_i2c_find_bus(func->node);
+	if (bus == NULL) {
+		printk(KERN_ERR "low_i2c: Can't find bus for %s (pfunc)\n",
+		       func->node->full_name);
+		return NULL;
+	}
+	if (pmac_i2c_open(bus, 0)) {
+		printk(KERN_ERR "low_i2c: Can't open i2c bus for %s (pfunc)\n",
+		       func->node->full_name);
+		return NULL;
+	}
+
+	/* XXX might need GFP_ATOMIC when called during the suspend process,
+	 * but then, there are already lots of issues with suspending when
+	 * near OOM that need to be resolved, the allocator itself should
+	 * probably make GFP_NOIO implicit during suspend
+	 */
+	inst = kzalloc(sizeof(struct pmac_i2c_pf_inst), GFP_KERNEL);
+	if (inst == NULL) {
+		pmac_i2c_close(bus);
+		return NULL;
+	}
+	inst->bus = bus;
+	inst->addr = pmac_i2c_get_dev_addr(func->node);
+	inst->quirks = (int)(long)func->driver_data;
+	return inst;
+}
+
+static void pmac_i2c_do_end(struct pmf_function *func, void *instdata)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+
+	if (inst == NULL)
+		return;
+	pmac_i2c_close(inst->bus);
+	if (inst)
+		kfree(inst);
+}
+
+static int pmac_i2c_do_read(PMF_STD_ARGS, u32 len)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+
+	inst->bytes = len;
+	return pmac_i2c_xfer(inst->bus, inst->addr | pmac_i2c_read, 0, 0,
+			     inst->buffer, len);
+}
+
+static int pmac_i2c_do_write(PMF_STD_ARGS, u32 len, const u8 *data)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+
+	return pmac_i2c_xfer(inst->bus, inst->addr | pmac_i2c_write, 0, 0,
+			     (u8 *)data, len);
+}
+
+/* This function is used to do the masking & OR'ing for the "rmw" type
+ * callbacks. Ze should apply the mask and OR in the values in the
+ * buffer before writing back. The problem is that it seems that
+ * various darwin drivers implement the mask/or differently, thus
+ * we need to check the quirks first
+ */
+static void pmac_i2c_do_apply_rmw(struct pmac_i2c_pf_inst *inst,
+				  u32 len, const u8 *mask, const u8 *val)
+{
+	int i;
+
+	if (inst->quirks & pmac_i2c_quirk_invmask) {
+		for (i = 0; i < len; i ++)
+			inst->scratch[i] = (inst->buffer[i] & mask[i]) | val[i];
+	} else {
+		for (i = 0; i < len; i ++)
+			inst->scratch[i] = (inst->buffer[i] & ~mask[i])
+				| (val[i] & mask[i]);
+	}
+}
+
+static int pmac_i2c_do_rmw(PMF_STD_ARGS, u32 masklen, u32 valuelen,
+			   u32 totallen, const u8 *maskdata,
+			   const u8 *valuedata)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+
+	if (masklen > inst->bytes || valuelen > inst->bytes ||
+	    totallen > inst->bytes || valuelen > masklen)
+		return -EINVAL;
+
+	pmac_i2c_do_apply_rmw(inst, masklen, maskdata, valuedata);
+
+	return pmac_i2c_xfer(inst->bus, inst->addr | pmac_i2c_write, 0, 0,
+			     inst->scratch, totallen);
+}
+
+static int pmac_i2c_do_read_sub(PMF_STD_ARGS, u8 subaddr, u32 len)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+
+	inst->bytes = len;
+	return pmac_i2c_xfer(inst->bus, inst->addr | pmac_i2c_read, 1, subaddr,
+			     inst->buffer, len);
+}
+
+static int pmac_i2c_do_write_sub(PMF_STD_ARGS, u8 subaddr, u32 len,
+				     const u8 *data)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+
+	return pmac_i2c_xfer(inst->bus, inst->addr | pmac_i2c_write, 1,
+			     subaddr, (u8 *)data, len);
+}
+
+static int pmac_i2c_do_set_mode(PMF_STD_ARGS, int mode)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+
+	return pmac_i2c_setmode(inst->bus, mode);
+}
+
+static int pmac_i2c_do_rmw_sub(PMF_STD_ARGS, u8 subaddr, u32 masklen,
+			       u32 valuelen, u32 totallen, const u8 *maskdata,
+			       const u8 *valuedata)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+
+	if (masklen > inst->bytes || valuelen > inst->bytes ||
+	    totallen > inst->bytes || valuelen > masklen)
+		return -EINVAL;
+
+	pmac_i2c_do_apply_rmw(inst, masklen, maskdata, valuedata);
+
+	return pmac_i2c_xfer(inst->bus, inst->addr | pmac_i2c_write, 1,
+			     subaddr, inst->scratch, totallen);
+}
+
+static int pmac_i2c_do_mask_and_comp(PMF_STD_ARGS, u32 len,
+				     const u8 *maskdata,
+				     const u8 *valuedata)
+{
+	struct pmac_i2c_pf_inst *inst = instdata;
+	int i, match;
+
+	/* Get return value pointer, it's assumed to be a u32 */
+	if (!args || !args->count || !args->u[0].p)
+		return -EINVAL;
+
+	/* Check buffer */
+	if (len > inst->bytes)
+		return -EINVAL;
+
+	for (i = 0, match = 1; match && i < len; i ++)
+		if ((inst->buffer[i] & maskdata[i]) != valuedata[i])
+			match = 0;
+	*args->u[0].p = match;
+	return 0;
+}
+
+static int pmac_i2c_do_delay(PMF_STD_ARGS, u32 duration)
+{
+	msleep((duration + 999) / 1000);
+	return 0;
+}
+
+
+static struct pmf_handlers pmac_i2c_pfunc_handlers = {
+	.begin			= pmac_i2c_do_begin,
+	.end			= pmac_i2c_do_end,
+	.read_i2c		= pmac_i2c_do_read,
+	.write_i2c		= pmac_i2c_do_write,
+	.rmw_i2c		= pmac_i2c_do_rmw,
+	.read_i2c_sub		= pmac_i2c_do_read_sub,
+	.write_i2c_sub		= pmac_i2c_do_write_sub,
+	.rmw_i2c_sub		= pmac_i2c_do_rmw_sub,
+	.set_i2c_mode		= pmac_i2c_do_set_mode,
+	.mask_and_compare	= pmac_i2c_do_mask_and_comp,
+	.delay			= pmac_i2c_do_delay,
+};
+
+static void __init pmac_i2c_dev_create(struct device_node *np, int quirks)
+{
+	DBG("dev_create(%s)\n", np->full_name);
+
+	pmf_register_driver(np, &pmac_i2c_pfunc_handlers,
+			    (void *)(long)quirks);
+}
+
+static void __init pmac_i2c_dev_init(struct device_node *np, int quirks)
+{
+	DBG("dev_create(%s)\n", np->full_name);
+
+	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_INIT, NULL);
+}
+
+static void pmac_i2c_dev_suspend(struct device_node *np, int quirks)
+{
+	DBG("dev_suspend(%s)\n", np->full_name);
+	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_SLEEP, NULL);
+}
+
+static void pmac_i2c_dev_resume(struct device_node *np, int quirks)
+{
+	DBG("dev_resume(%s)\n", np->full_name);
+	pmf_do_functions(np, NULL, 0, PMF_FLAGS_ON_WAKE, NULL);
+}
+
+void pmac_pfunc_i2c_suspend(void)
+{
+	pmac_i2c_devscan(pmac_i2c_dev_suspend);
+}
+
+void pmac_pfunc_i2c_resume(void)
+{
+	pmac_i2c_devscan(pmac_i2c_dev_resume);
+}
+
 /*
- * Initialize us: probe all i2c busses on the machine and instantiate
- * busses.
+ * Initialize us: probe all i2c busses on the machine, instantiate
+ * busses and platform functions as needed.
  */
 /* This is non-static as it might be called early by smp code */
 int __init pmac_i2c_init(void)
@@ -1187,6 +1470,10 @@ int __init pmac_i2c_init(void)
 	/* Probe SMU i2c busses */
 	smu_i2c_probe();
 #endif
+
+	/* Now add plaform functions for some known devices */
+	pmac_i2c_devscan(pmac_i2c_dev_create);
+
 	return 0;
 }
 arch_initcall(pmac_i2c_init);
@@ -1215,6 +1502,9 @@ static int __init pmac_i2c_create_platform_devices(void)
 		bus->platform_dev->dev.platform_data = bus;
 		platform_device_add(bus->platform_dev);
 	}
+
+	/* Now call platform "init" functions */
+	pmac_i2c_devscan(pmac_i2c_dev_init);
 
 	return 0;
 }
