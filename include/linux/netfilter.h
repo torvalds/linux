@@ -168,6 +168,37 @@ void nf_log_packet(int pf,
 		   const struct net_device *out,
 		   struct nf_loginfo *li,
 		   const char *fmt, ...);
+
+int nf_hook_slow(int pf, unsigned int hook, struct sk_buff **pskb,
+		 struct net_device *indev, struct net_device *outdev,
+		 int (*okfn)(struct sk_buff *), int thresh);
+
+/**
+ *	nf_hook_thresh - call a netfilter hook
+ *	
+ *	Returns 1 if the hook has allowed the packet to pass.  The function
+ *	okfn must be invoked by the caller in this case.  Any other return
+ *	value indicates the packet has been consumed by the hook.
+ */
+static inline int nf_hook_thresh(int pf, unsigned int hook,
+				 struct sk_buff **pskb,
+				 struct net_device *indev,
+				 struct net_device *outdev,
+				 int (*okfn)(struct sk_buff *), int thresh)
+{
+#ifndef CONFIG_NETFILTER_DEBUG
+	if (list_empty(&nf_hooks[pf][hook]))
+		return 1;
+#endif
+	return nf_hook_slow(pf, hook, pskb, indev, outdev, okfn, thresh);
+}
+
+static inline int nf_hook(int pf, unsigned int hook, struct sk_buff **pskb,
+			  struct net_device *indev, struct net_device *outdev,
+			  int (*okfn)(struct sk_buff *))
+{
+	return nf_hook_thresh(pf, hook, pskb, indev, outdev, okfn, INT_MIN);
+}
                    
 /* Activate hook; either okfn or kfree_skb called, unless a hook
    returns NF_STOLEN (in which case, it's up to the hook to deal with
@@ -188,35 +219,17 @@ void nf_log_packet(int pf,
 
 /* This is gross, but inline doesn't cut it for avoiding the function
    call in fast path: gcc doesn't inline (needs value tracking?). --RR */
-#ifdef CONFIG_NETFILTER_DEBUG
-#define NF_HOOK(pf, hook, skb, indev, outdev, okfn)			       \
-({int __ret;								       \
-if ((__ret=nf_hook_slow(pf, hook, &(skb), indev, outdev, okfn, INT_MIN)) == 1) \
-	__ret = (okfn)(skb);						       \
-__ret;})
-#define NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, thresh)	       \
-({int __ret;								       \
-if ((__ret=nf_hook_slow(pf, hook, &(skb), indev, outdev, okfn, thresh)) == 1)  \
-	__ret = (okfn)(skb);						       \
-__ret;})
-#else
-#define NF_HOOK(pf, hook, skb, indev, outdev, okfn)			       \
-({int __ret;								       \
-if (list_empty(&nf_hooks[pf][hook]) ||					       \
-    (__ret=nf_hook_slow(pf, hook, &(skb), indev, outdev, okfn, INT_MIN)) == 1) \
-	__ret = (okfn)(skb);						       \
-__ret;})
-#define NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, thresh)	       \
-({int __ret;								       \
-if (list_empty(&nf_hooks[pf][hook]) ||					       \
-    (__ret=nf_hook_slow(pf, hook, &(skb), indev, outdev, okfn, thresh)) == 1)  \
-	__ret = (okfn)(skb);						       \
-__ret;})
-#endif
 
-int nf_hook_slow(int pf, unsigned int hook, struct sk_buff **pskb,
-		 struct net_device *indev, struct net_device *outdev,
-		 int (*okfn)(struct sk_buff *), int thresh);
+/* HX: It's slightly less gross now. */
+
+#define NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, thresh)	       \
+({int __ret;								       \
+if ((__ret=nf_hook_thresh(pf, hook, &(skb), indev, outdev, okfn, thresh)) == 1)\
+	__ret = (okfn)(skb);						       \
+__ret;})
+
+#define NF_HOOK(pf, hook, skb, indev, outdev, okfn) \
+	NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, INT_MIN)
 
 /* Call setsockopt() */
 int nf_setsockopt(struct sock *sk, int pf, int optval, char __user *opt, 
