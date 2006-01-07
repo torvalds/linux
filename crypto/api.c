@@ -251,7 +251,7 @@ int crypto_register_alg(struct crypto_alg *alg)
 	if (alg->cra_alignmask & alg->cra_blocksize)
 		return -EINVAL;
 
-	if (alg->cra_blocksize > PAGE_SIZE)
+	if (alg->cra_blocksize > PAGE_SIZE / 8)
 		return -EINVAL;
 
 	if (alg->cra_priority < 0)
