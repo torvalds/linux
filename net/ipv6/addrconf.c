@@ -1228,7 +1228,7 @@ int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 
 /* Gets referenced address, destroys ifaddr */
 
-void addrconf_dad_stop(struct inet6_ifaddr *ifp)
+static void addrconf_dad_stop(struct inet6_ifaddr *ifp)
 {
 	if (ifp->flags&IFA_F_PERMANENT) {
 		spin_lock_bh(&ifp->lock);
