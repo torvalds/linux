@@ -817,7 +817,7 @@ static ssize_t kmsg_write(struct file * file, const char __user * buf,
 			  size_t count, loff_t *ppos)
 {
 	char *tmp;
-	int ret;
+	ssize_t ret;
 
 	tmp = kmalloc(count + 1, GFP_KERNEL);
 	if (tmp == NULL)
@@ -826,6 +826,9 @@ static ssize_t kmsg_write(struct file * file, const char __user * buf,
 	if (!copy_from_user(tmp, buf, count)) {
 		tmp[count] = 0;
 		ret = printk("%s", tmp);
+		if (ret > count)
+			/* printk can add a prefix */
+			ret = count;
 	}
 	kfree(tmp);
 	return ret;
