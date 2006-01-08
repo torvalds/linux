@@ -77,6 +77,9 @@ asmlinkage long compat_sys_keyctl(u32 option,
 	case KEYCTL_SET_TIMEOUT:
 		return keyctl_set_timeout(arg2, arg3);
 
+	case KEYCTL_ASSUME_AUTHORITY:
+		return keyctl_assume_authority(arg2);
+
 	default:
 		return -EOPNOTSUPP;
 	}

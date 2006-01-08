@@ -481,51 +481,6 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 
 /*****************************************************************************/
 /*
- * search for an instantiation authorisation key matching a target key
- * - the RCU read lock must be held by the caller
- * - a target_id of zero specifies any valid token
- */
-struct key *keyring_search_instkey(struct key *keyring,
-				   key_serial_t target_id)
-{
-	struct request_key_auth *rka;
-	struct keyring_list *klist;
-	struct key *instkey;
-	int loop;
-
-	klist = rcu_dereference(keyring->payload.subscriptions);
-	if (klist) {
-		for (loop = 0; loop < klist->nkeys; loop++) {
-			instkey = klist->keys[loop];
-
-			if (instkey->type != &key_type_request_key_auth)
-				continue;
-
-			rka = instkey->payload.data;
-			if (target_id && rka->target_key->serial != target_id)
-				continue;
-
-			/* the auth key is revoked during instantiation */
-			if (!test_bit(KEY_FLAG_REVOKED, &instkey->flags))
-				goto found;
-
-			instkey = ERR_PTR(-EKEYREVOKED);
-			goto error;
-		}
-	}
-
-	instkey = ERR_PTR(-EACCES);
-	goto error;
-
-found:
-	atomic_inc(&instkey->usage);
-error:
-	return instkey;
-
-} /* end keyring_search_instkey() */
-
-/*****************************************************************************/
-/*
  * find a keyring with the specified name
  * - all named keyrings are searched
  * - only find keyrings with search permission for the process
