@@ -217,7 +217,7 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	return err;
 }
 
-static inline long do_sys_truncate(const char __user * path, loff_t length)
+static long do_sys_truncate(const char __user * path, loff_t length)
 {
 	struct nameidata nd;
 	struct inode * inode;
@@ -283,7 +283,7 @@ asmlinkage long sys_truncate(const char __user * path, unsigned long length)
 	return do_sys_truncate(path, (long)length);
 }
 
-static inline long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
 	struct inode * inode;
 	struct dentry *dentry;
@@ -971,7 +971,7 @@ out:
 
 EXPORT_SYMBOL(get_unused_fd);
 
-static inline void __put_unused_fd(struct files_struct *files, unsigned int fd)
+static void __put_unused_fd(struct files_struct *files, unsigned int fd)
 {
 	struct fdtable *fdt = files_fdtable(files);
 	__FD_CLR(fd, fdt->open_fds);
