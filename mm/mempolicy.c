@@ -1131,6 +1131,15 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 }
 EXPORT_SYMBOL(alloc_pages_current);
 
+/*
+ * If mpol_copy() sees current->cpuset == cpuset_being_rebound, then it
+ * rebinds the mempolicy its copying by calling mpol_rebind_policy()
+ * with the mems_allowed returned by cpuset_mems_allowed().  This
+ * keeps mempolicies cpuset relative after its cpuset moves.  See
+ * further kernel/cpuset.c update_nodemask().
+ */
+void *cpuset_being_rebound;
+
 /* Slow path of a mempolicy copy */
 struct mempolicy *__mpol_copy(struct mempolicy *old)
 {
@@ -1138,6 +1147,10 @@ struct mempolicy *__mpol_copy(struct mempolicy *old)
 
 	if (!new)
 		return ERR_PTR(-ENOMEM);
+	if (current_cpuset_is_being_rebound()) {
+		nodemask_t mems = cpuset_mems_allowed(current);
+		mpol_rebind_policy(old, &mems);
+	}
 	*new = *old;
 	atomic_set(&new->refcnt, 1);
 	if (new->policy == MPOL_BIND) {
@@ -1478,6 +1491,22 @@ void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
 void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
 {
 	mpol_rebind_policy(tsk->mempolicy, new);
+}
+
+/*
+ * Rebind each vma in mm to new nodemask.
+ *
+ * Call holding a reference to mm.  Takes mm->mmap_sem during call.
+ */
+
+void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
+{
+	struct vm_area_struct *vma;
+
+	down_write(&mm->mmap_sem);
+	for (vma = mm->mmap; vma; vma = vma->vm_next)
+		mpol_rebind_policy(vma->vm_policy, new);
+	up_write(&mm->mmap_sem);
 }
 
 /*

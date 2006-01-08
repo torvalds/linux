@@ -812,12 +812,24 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 }
 
 /*
+ * Handle user request to change the 'mems' memory placement
+ * of a cpuset.  Needs to validate the request, update the
+ * cpusets mems_allowed and mems_generation, and for each
+ * task in the cpuset, rebind any vma mempolicies.
+ *
  * Call with manage_sem held.  May take callback_sem during call.
+ * Will take tasklist_lock, scan tasklist for tasks in cpuset cs,
+ * lock each such tasks mm->mmap_sem, scan its vma's and rebind
+ * their mempolicies to the cpusets new mems_allowed.
  */
 
 static int update_nodemask(struct cpuset *cs, char *buf)
 {
 	struct cpuset trialcs;
+	struct task_struct *g, *p;
+	struct mm_struct **mmarray;
+	int i, n, ntasks;
+	int fudge;
 	int retval;
 
 	trialcs = *cs;
@@ -839,6 +851,76 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	cs->mems_generation = atomic_read(&cpuset_mems_generation);
 	up(&callback_sem);
 
+	set_cpuset_being_rebound(cs);		/* causes mpol_copy() rebind */
+
+	fudge = 10;				/* spare mmarray[] slots */
+	fudge += cpus_weight(cs->cpus_allowed);	/* imagine one fork-bomb/cpu */
+	retval = -ENOMEM;
+
+	/*
+	 * Allocate mmarray[] to hold mm reference for each task
+	 * in cpuset cs.  Can't kmalloc GFP_KERNEL while holding
+	 * tasklist_lock.  We could use GFP_ATOMIC, but with a
+	 * few more lines of code, we can retry until we get a big
+	 * enough mmarray[] w/o using GFP_ATOMIC.
+	 */
+	while (1) {
+		ntasks = atomic_read(&cs->count);	/* guess */
+		ntasks += fudge;
+		mmarray = kmalloc(ntasks * sizeof(*mmarray), GFP_KERNEL);
+		if (!mmarray)
+			goto done;
+		write_lock_irq(&tasklist_lock);		/* block fork */
+		if (atomic_read(&cs->count) <= ntasks)
+			break;				/* got enough */
+		write_unlock_irq(&tasklist_lock);	/* try again */
+		kfree(mmarray);
+	}
+
+	n = 0;
+
+	/* Load up mmarray[] with mm reference for each task in cpuset. */
+	do_each_thread(g, p) {
+		struct mm_struct *mm;
+
+		if (n >= ntasks) {
+			printk(KERN_WARNING
+				"Cpuset mempolicy rebind incomplete.\n");
+			continue;
+		}
+		if (p->cpuset != cs)
+			continue;
+		mm = get_task_mm(p);
+		if (!mm)
+			continue;
+		mmarray[n++] = mm;
+	} while_each_thread(g, p);
+	write_unlock_irq(&tasklist_lock);
+
+	/*
+	 * Now that we've dropped the tasklist spinlock, we can
+	 * rebind the vma mempolicies of each mm in mmarray[] to their
+	 * new cpuset, and release that mm.  The mpol_rebind_mm()
+	 * call takes mmap_sem, which we couldn't take while holding
+	 * tasklist_lock.  Forks can happen again now - the mpol_copy()
+	 * cpuset_being_rebound check will catch such forks, and rebind
+	 * their vma mempolicies too.  Because we still hold the global
+	 * cpuset manage_sem, we know that no other rebind effort will
+	 * be contending for the global variable cpuset_being_rebound.
+	 * It's ok if we rebind the same mm twice; mpol_rebind_mm()
+	 * is idempotent.
+	 */
+	for (i = 0; i < n; i++) {
+		struct mm_struct *mm = mmarray[i];
+
+		mpol_rebind_mm(mm, &cs->mems_allowed);
+		mmput(mm);
+	}
+
+	/* We're done rebinding vma's to this cpusets new mems_allowed. */
+	kfree(mmarray);
+	set_cpuset_being_rebound(NULL);
+	retval = 0;
 done:
 	return retval;
 }
@@ -1011,6 +1093,7 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	struct cpuset *oldcs;
 	cpumask_t cpus;
 	nodemask_t from, to;
+	struct mm_struct *mm;
 
 	if (sscanf(pidbuf, "%d", &pid) != 1)
 		return -EIO;
@@ -1060,6 +1143,13 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	to = cs->mems_allowed;
 
 	up(&callback_sem);
+
+	mm = get_task_mm(tsk);
+	if (mm) {
+		mpol_rebind_mm(mm, &to);
+		mmput(mm);
+	}
+
 	if (is_memory_migrate(cs))
 		do_migrate_pages(tsk->mm, &from, &to, MPOL_MF_MOVE_ALL);
 	put_task_struct(tsk);
