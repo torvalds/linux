@@ -101,6 +101,11 @@ static inline int valid_phys_addr_range(unsigned long addr, size_t *count)
 
 	return 1;
 }
+
+static inline int valid_mmap_phys_addr_range(unsigned long addr, size_t *size)
+{
+	return 1;
+}
 #endif
 
 /*
@@ -244,15 +249,20 @@ static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)
 {
+	size_t size = vma->vm_end - vma->vm_start;
+
+	if (!valid_mmap_phys_addr_range(vma->vm_pgoff << PAGE_SHIFT, &size))
+		return -EINVAL;
+
 	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_pgoff,
-						 vma->vm_end - vma->vm_start,
+						 size,
 						 vma->vm_page_prot);
 
 	/* Remap-pfn-range will mark the range VM_IO and VM_RESERVED */
 	if (remap_pfn_range(vma,
 			    vma->vm_start,
 			    vma->vm_pgoff,
-			    vma->vm_end-vma->vm_start,
+			    size,
 			    vma->vm_page_prot))
 		return -EAGAIN;
 	return 0;
