@@ -597,7 +597,7 @@ void drain_remote_pages(void)
 		if (zone->zone_pgdat->node_id == numa_node_id())
 			continue;
 
-		pset = zone->pageset[smp_processor_id()];
+		pset = zone_pcp(zone, smp_processor_id());
 		for (i = 0; i < ARRAY_SIZE(pset->pcp); i++) {
 			struct per_cpu_pages *pcp;
 
@@ -1881,12 +1881,12 @@ static int __devinit process_zones(int cpu)
 
 	for_each_zone(zone) {
 
-		zone->pageset[cpu] = kmalloc_node(sizeof(struct per_cpu_pageset),
+		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
 					 GFP_KERNEL, cpu_to_node(cpu));
-		if (!zone->pageset[cpu])
+		if (!zone_pcp(zone, cpu))
 			goto bad;
 
-		setup_pageset(zone->pageset[cpu], zone_batchsize(zone));
+		setup_pageset(zone_pcp(zone, cpu), zone_batchsize(zone));
 
 		if (percpu_pagelist_fraction)
 			setup_pagelist_highmark(zone_pcp(zone, cpu),
@@ -1898,8 +1898,8 @@ bad:
 	for_each_zone(dzone) {
 		if (dzone == zone)
 			break;
-		kfree(dzone->pageset[cpu]);
-		dzone->pageset[cpu] = NULL;
+		kfree(zone_pcp(dzone, cpu));
+		zone_pcp(dzone, cpu) = NULL;
 	}
 	return -ENOMEM;
 }
@@ -1984,7 +1984,7 @@ static __devinit void zone_pcp_init(struct zone *zone)
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 #ifdef CONFIG_NUMA
 		/* Early boot. Slab allocator not functional yet */
-		zone->pageset[cpu] = &boot_pageset[cpu];
+		zone_pcp(zone, cpu) = &boot_pageset[cpu];
 		setup_pageset(&boot_pageset[cpu],0);
 #else
 		setup_pageset(zone_pcp(zone,cpu), batch);
@@ -2227,7 +2227,7 @@ static int zoneinfo_show(struct seq_file *m, void *arg)
 		seq_printf(m,
 			   ")"
 			   "\n  pagesets");
-		for (i = 0; i < ARRAY_SIZE(zone->pageset); i++) {
+		for_each_online_cpu(i) {
 			struct per_cpu_pageset *pageset;
 			int j;
 
