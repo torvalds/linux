@@ -22,6 +22,11 @@ journal=inum		When a journal already exists, this option is
 			the inode which will represent the ext3 file
 			system's journal file.
 
+journal_dev=devnum	When the external journal device's major/minor numbers
+			have changed, this option allows to specify the new
+			journal location. The journal device is identified
+			through its new major/minor numbers encoded in devnum.
+
 noload			Don't load the journal on mounting.
 
 data=journal		All data are committed into the journal prior
