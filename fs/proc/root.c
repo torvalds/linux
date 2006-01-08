@@ -18,6 +18,8 @@
 #include <linux/bitops.h>
 #include <linux/smp_lock.h>
 
+#include "internal.h"
+
 struct proc_dir_entry *proc_net, *proc_net_stat, *proc_bus, *proc_root_fs, *proc_root_driver;
 
 #ifdef CONFIG_SYSCTL
@@ -36,7 +38,6 @@ static struct file_system_type proc_fs_type = {
 	.kill_sb	= kill_anon_super,
 };
 
-extern int __init proc_init_inodecache(void);
 void __init proc_root_init(void)
 {
 	int err = proc_init_inodecache();
