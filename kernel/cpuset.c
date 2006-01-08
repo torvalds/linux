@@ -1750,16 +1750,6 @@ done:
 }
 
 /**
- * cpuset_restrict_to_mems_allowed - limit nodes to current mems_allowed
- * @nodes: pointer to a node bitmap that is and-ed with mems_allowed
- */
-void cpuset_restrict_to_mems_allowed(unsigned long *nodes)
-{
-	bitmap_and(nodes, nodes, nodes_addr(current->mems_allowed),
-							MAX_NUMNODES);
-}
-
-/**
  * cpuset_zonelist_valid_mems_allowed - check zonelist vs. curremt mems_allowed
  * @zl: the zonelist to be checked
  *

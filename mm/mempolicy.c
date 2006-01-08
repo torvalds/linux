@@ -387,10 +387,9 @@ static int contextualize_policy(int mode, nodemask_t *nodes)
 	if (!nodes)
 		return 0;
 
-	/* Update current mems_allowed */
 	cpuset_update_current_mems_allowed();
-	/* Ignore nodes not set in current->mems_allowed */
-	cpuset_restrict_to_mems_allowed(nodes->bits);
+	if (!cpuset_nodes_subset_current_mems_allowed(*nodes))
+		return -EINVAL;
 	return mpol_check_policy(mode, nodes);
 }
 
