@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -362,6 +362,11 @@ int linux_main(int argc, char **argv)
 
 	uml_start = CHOOSE_MODE_PROC(set_task_sizes_tt, set_task_sizes_skas, 0,
 				     &host_task_size, &task_size);
+
+	/*
+ 	 * Setting up handlers to 'sig_info' struct
+ 	 */
+	os_fill_handlinfo(handlinfo_kern);
 
 	brk_start = (unsigned long) sbrk(0);
 	CHOOSE_MODE_PROC(before_mem_tt, before_mem_skas, brk_start);

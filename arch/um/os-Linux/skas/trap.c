@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 - 2003 Jeff Dike (jdike@addtoit.com)
  * Licensed under the GPL
  */
@@ -19,7 +19,7 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
 {
 	struct sigcontext *sc = sc_ptr;
 	struct skas_regs *r;
-	struct signal_info *info;
+	void (*handler)(int, union uml_pt_regs *);
 	int save_errno = errno;
 	int save_user;
 
@@ -41,10 +41,15 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
         }
 
 	change_sig(SIGUSR1, 1);
-	info = &sig_info[sig];
-	if(!info->is_irq) unblock_signals();
 
-	(*info->handler)(sig, (union uml_pt_regs *) r);
+	handler = sig_info[sig];
+
+	/* unblock SIGALRM, SIGVTALRM, SIGIO if sig isn't IRQ signal */
+	if (sig != SIGIO && sig != SIGWINCH &&
+	    sig != SIGVTALRM && sig != SIGALRM)
+		unblock_signals();
+
+	handler(sig, (union uml_pt_regs *) r);
 
 	errno = save_errno;
 	r->is_user = save_user;
@@ -54,25 +59,15 @@ extern int ptrace_faultinfo;
 
 void user_signal(int sig, union uml_pt_regs *regs, int pid)
 {
-	struct signal_info *info;
+	void (*handler)(int, union uml_pt_regs *);
         int segv = ((sig == SIGFPE) || (sig == SIGSEGV) || (sig == SIGBUS) ||
                     (sig == SIGILL) || (sig == SIGTRAP));
 
 	if (segv)
 		get_skas_faultinfo(pid, &regs->skas.faultinfo);
-	info = &sig_info[sig];
-	(*info->handler)(sig, regs);
+
+	handler = sig_info[sig];
+	handler(sig, (union uml_pt_regs *) regs);
 
 	unblock_signals();
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

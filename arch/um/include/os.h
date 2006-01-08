@@ -9,6 +9,8 @@
 #include "uml-config.h"
 #include "asm/types.h"
 #include "../os/include/file.h"
+#include "sysdep/ptrace.h"
+#include "kern_util.h"
 
 #define OS_TYPE_FILE 1 
 #define OS_TYPE_DIR 2 
@@ -228,5 +230,9 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
+
+/* trap.c */
+extern void os_fill_handlinfo(struct kern_handlers h);
+extern void do_longjmp(void *p, int val);
 
 #endif
