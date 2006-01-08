@@ -1526,6 +1526,10 @@ static void chroot_fs_refs(struct nameidata *old_nd, struct nameidata *new_nd)
  * pointed to by put_old must yield the same directory as new_root. No other
  * file system may be mounted on put_old. After all, new_root is a mountpoint.
  *
+ * Also, the current root cannot be on the 'rootfs' (initial ramfs) filesystem.
+ * See Documentation/filesystems/ramfs-rootfs-initramfs.txt for alternatives
+ * in this situation.
+ *
  * Notes:
  *  - we don't move root/cwd if they are not at the root (reason: if something
  *    cared enough to change them, it's probably wrong to force them elsewhere)
