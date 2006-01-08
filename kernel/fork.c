@@ -811,9 +811,6 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	sig->it_prof_expires = cputime_zero;
 	sig->it_prof_incr = cputime_zero;
 
-	sig->tty = current->signal->tty;
-	sig->pgrp = process_group(current);
-	sig->session = current->signal->session;
 	sig->leader = 0;	/* session leadership doesn't inherit */
 	sig->tty_old_pgrp = 0;
 
@@ -1136,14 +1133,14 @@ static task_t *copy_process(unsigned long clone_flags,
 	attach_pid(p, PIDTYPE_PID, p->pid);
 	attach_pid(p, PIDTYPE_TGID, p->tgid);
 	if (thread_group_leader(p)) {
+		p->signal->tty = current->signal->tty;
+		p->signal->pgrp = process_group(current);
+		p->signal->session = current->signal->session;
 		attach_pid(p, PIDTYPE_PGID, process_group(p));
 		attach_pid(p, PIDTYPE_SID, p->signal->session);
 		if (p->pid)
 			__get_cpu_var(process_counts)++;
 	}
-
-	if (!current->signal->tty && p->signal->tty)
-		p->signal->tty = NULL;
 
 	nr_threads++;
 	total_forks++;
