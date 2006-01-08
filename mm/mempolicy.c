@@ -259,8 +259,11 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 		if (flags & MPOL_MF_STATS)
 			gather_stats(page, private);
-		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) {
+			spin_unlock(ptl);
 			migrate_page_add(vma, page, private, flags);
+			spin_lock(ptl);
+		}
 		else
 			break;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
