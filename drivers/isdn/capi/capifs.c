@@ -17,6 +17,8 @@
 #include <linux/ctype.h>
 #include <linux/sched.h>	/* current */
 
+#include "capifs.h"
+
 MODULE_DESCRIPTION("CAPI4Linux: /dev/capi/ filesystem");
 MODULE_AUTHOR("Carsten Paeth");
 MODULE_LICENSE("GPL");

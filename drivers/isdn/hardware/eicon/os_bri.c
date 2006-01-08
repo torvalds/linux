@@ -16,6 +16,7 @@
 #include "diva_pci.h"
 #include "mi_pc.h"
 #include "pc_maint.h"
+#include "dsrv_bri.h"
 
 /*
 **  IMPORTS
