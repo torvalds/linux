@@ -295,7 +295,8 @@ static int fat_bmap_cluster(struct inode *inode, int cluster)
 	return dclus;
 }
 
-int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys)
+int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
+	     unsigned long *mapped_blocks)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
@@ -303,9 +304,12 @@ int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys)
 	int cluster, offset;
 
 	*phys = 0;
+	*mapped_blocks = 0;
 	if ((sbi->fat_bits != 32) && (inode->i_ino == MSDOS_ROOT_INO)) {
-		if (sector < (sbi->dir_entries >> sbi->dir_per_block_bits))
+		if (sector < (sbi->dir_entries >> sbi->dir_per_block_bits)) {
 			*phys = sector + sbi->dir_start;
+			*mapped_blocks = 1;
+		}
 		return 0;
 	}
 	last_block = (MSDOS_I(inode)->mmu_private + (sb->s_blocksize - 1))
@@ -318,7 +322,11 @@ int fat_bmap(struct inode *inode, sector_t sector, sector_t *phys)
 	cluster = fat_bmap_cluster(inode, cluster);
 	if (cluster < 0)
 		return cluster;
-	else if (cluster)
+	else if (cluster) {
 		*phys = fat_clus_to_blknr(sbi, cluster) + offset;
+		*mapped_blocks = sbi->sec_per_clus - offset;
+		if (*mapped_blocks > last_block - sector)
+			*mapped_blocks = last_block - sector;
+	}
 	return 0;
 }

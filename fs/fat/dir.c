@@ -68,8 +68,8 @@ static int fat__get_entry(struct inode *dir, loff_t *pos,
 {
 	struct super_block *sb = dir->i_sb;
 	sector_t phys, iblock;
-	int offset;
-	int err;
+	unsigned long mapped_blocks;
+	int err, offset;
 
 next:
 	if (*bh)
@@ -77,7 +77,7 @@ next:
 
 	*bh = NULL;
 	iblock = *pos >> sb->s_blocksize_bits;
-	err = fat_bmap(dir, iblock, &phys);
+	err = fat_bmap(dir, iblock, &phys, &mapped_blocks);
 	if (err || !phys)
 		return -1;	/* beyond EOF or error */
 
