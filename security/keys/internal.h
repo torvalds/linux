@@ -136,6 +136,7 @@ extern long keyctl_instantiate_key(key_serial_t, const void __user *,
 				   size_t, key_serial_t);
 extern long keyctl_negate_key(key_serial_t, unsigned, key_serial_t);
 extern long keyctl_set_reqkey_keyring(int);
+extern long keyctl_set_timeout(key_serial_t, unsigned);
 
 
 /*

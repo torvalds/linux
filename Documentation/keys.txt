@@ -498,7 +498,7 @@ The keyctl syscall functions are:
      keyring is full, error ENFILE will result.
 
      The link procedure checks the nesting of the keyrings, returning ELOOP if
-     it appears to deep or EDEADLK if the link would introduce a cycle.
+     it appears too deep or EDEADLK if the link would introduce a cycle.
 
 
  (*) Unlink a key or keyring from another keyring:
@@ -626,6 +626,19 @@ The keyctl syscall functions are:
      [1] The default default is: the thread keyring if there is one, otherwise
      the process keyring if there is one, otherwise the session keyring if
      there is one, otherwise the user default session keyring.
+
+
+ (*) Set the timeout on a key.
+
+	long keyctl(KEYCTL_SET_TIMEOUT, key_serial_t key, unsigned timeout);
+
+     This sets or clears the timeout on a key. The timeout can be 0 to clear
+     the timeout or a number of seconds to set the expiry time that far into
+     the future.
+
+     The process must have attribute modification access on a key to set its
+     timeout. Timeouts may not be set with this function on negative, revoked
+     or expired keys.
 
 
 ===============

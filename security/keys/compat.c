@@ -74,6 +74,9 @@ asmlinkage long compat_sys_keyctl(u32 option,
 	case KEYCTL_SET_REQKEY_KEYRING:
 		return keyctl_set_reqkey_keyring(arg2);
 
+	case KEYCTL_SET_TIMEOUT:
+		return keyctl_set_timeout(arg2, arg3);
+
 	default:
 		return -EOPNOTSUPP;
 	}

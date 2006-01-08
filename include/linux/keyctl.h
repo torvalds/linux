@@ -46,5 +46,6 @@
 #define KEYCTL_INSTANTIATE		12	/* instantiate a partially constructed key */
 #define KEYCTL_NEGATE			13	/* negate a partially constructed key */
 #define KEYCTL_SET_REQKEY_KEYRING	14	/* set default request-key keyring */
+#define KEYCTL_SET_TIMEOUT		15	/* set key timeout */
 
 #endif /*  _LINUX_KEYCTL_H */
