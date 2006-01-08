@@ -279,10 +279,9 @@ static inline void subbuf_start_reserve(struct rchan_buf *buf,
 }
 
 /*
- * exported relayfs file operations, fs/relayfs/inode.c
+ * exported relay file operations, fs/relayfs/inode.c
  */
-
-extern struct file_operations relayfs_file_operations;
+extern struct file_operations relay_file_operations;
 
 #endif /* _LINUX_RELAYFS_FS_H */
 

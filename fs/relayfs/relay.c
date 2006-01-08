@@ -90,7 +90,7 @@ static struct dentry *create_buf_file_default_callback(const char *filename,
 						       int *is_global)
 {
 	return relayfs_create_file(filename, parent, mode,
-				   &relayfs_file_operations, buf);
+				   &relay_file_operations, buf);
 }
 
 /*
