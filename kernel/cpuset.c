@@ -54,7 +54,7 @@
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
 
-#define CPUSET_SUPER_MAGIC 		0x27e0eb
+#define CPUSET_SUPER_MAGIC		0x27e0eb
 
 /* See "Frequency meter" comments, below. */
 
@@ -154,9 +154,6 @@ static struct cpuset top_cpuset = {
 	.count = ATOMIC_INIT(0),
 	.sibling = LIST_HEAD_INIT(top_cpuset.sibling),
 	.children = LIST_HEAD_INIT(top_cpuset.children),
-	.parent = NULL,
-	.dentry = NULL,
-	.mems_generation = 0,
 };
 
 static struct vfsmount *cpuset_mount;
@@ -1341,7 +1338,7 @@ static int cpuset_create_file(struct dentry *dentry, int mode)
 
 /*
  *	cpuset_create_dir - create a directory for an object.
- *	cs: 	the cpuset we create the directory for.
+ *	cs:	the cpuset we create the directory for.
  *		It must have a valid ->parent field
  *		And we are going to fill its ->dentry field.
  *	name:	The name to give to the cpuset directory. Will be copied.
@@ -2049,7 +2046,7 @@ done:
  * cpuset file 'memory_pressure_enabled' in the root cpuset.
  */
 
-int cpuset_memory_pressure_enabled;
+int cpuset_memory_pressure_enabled __read_mostly;
 
 /**
  * cpuset_memory_pressure_bump - keep stats of per-cpuset reclaims.
