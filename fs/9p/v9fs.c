@@ -37,7 +37,6 @@
 #include "v9fs_vfs.h"
 #include "transport.h"
 #include "mux.h"
-#include "conv.h"
 
 /* TODO: sysfs or debugfs interface */
 int v9fs_debug_level = 0;	/* feature-rific global debug level  */
@@ -353,7 +352,7 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 		}
 
 		/* Really should check for 9P1 and report error */
-		if (!strcmp(fcall->params.rversion.version, "9P2000.u")) {
+		if (!v9fs_str_compare("9P2000.u", &fcall->params.rversion.version)) {
 			dprintk(DEBUG_9P, "9P2000 UNIX extensions enabled\n");
 			v9ses->extended = 1;
 		} else {

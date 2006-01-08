@@ -37,8 +37,8 @@
 #include "debug.h"
 #include "v9fs.h"
 #include "9p.h"
-#include "v9fs_vfs.h"
 #include "conv.h"
+#include "v9fs_vfs.h"
 #include "fid.h"
 
 /**
@@ -77,16 +77,12 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	unsigned int i, n, s;
 	int fid = -1;
 	int ret = 0;
-	struct v9fs_stat *mi = NULL;
+	struct v9fs_stat stat;
 	int over = 0;
 
 	dprintk(DEBUG_VFS, "name %s\n", filp->f_dentry->d_name.name);
 
 	fid = file->fid;
-
-	mi = kmalloc(v9ses->maxdata, GFP_KERNEL);
-	if (!mi)
-		return -ENOMEM;
 
 	if (file->rdir_fcall && (filp->f_pos != file->rdir_pos)) {
 		kfree(file->rdir_fcall);
@@ -99,18 +95,18 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		while (i < n) {
 			s = v9fs_deserialize_stat(
 				file->rdir_fcall->params.rread.data + i,
-				n - i, mi, v9ses->maxdata, v9ses->extended);
+				n - i, &stat, v9ses->extended);
 
 			if (s == 0) {
 				dprintk(DEBUG_ERROR,
-					"error while deserializing mistat\n");
+					"error while deserializing stat\n");
 				ret = -EIO;
 				goto FreeStructs;
 			}
 
-			over = filldir(dirent, mi->name, strlen(mi->name),
-				    filp->f_pos, v9fs_qid2ino(&mi->qid),
-				    dt_type(mi));
+			over = filldir(dirent, stat.name.str, stat.name.len,
+				    filp->f_pos, v9fs_qid2ino(&stat.qid),
+				    dt_type(&stat));
 
 			if (over) {
 				file->rdir_fpos = i;
@@ -130,7 +126,7 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	while (!over) {
 		ret = v9fs_t_read(v9ses, fid, filp->f_pos,
-					    v9ses->maxdata-V9FS_IOHDRSZ, &fcall);
+			v9ses->maxdata-V9FS_IOHDRSZ, &fcall);
 		if (ret < 0) {
 			dprintk(DEBUG_ERROR, "error while reading: %d: %p\n",
 				ret, fcall);
@@ -142,17 +138,17 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		i = 0;
 		while (i < n) {
 			s = v9fs_deserialize_stat(fcall->params.rread.data + i,
-				n - i, mi, v9ses->maxdata, v9ses->extended);
+				n - i, &stat, v9ses->extended);
 
 			if (s == 0) {
 				dprintk(DEBUG_ERROR,
-					"error while deserializing mistat\n");
+					"error while deserializing stat\n");
 				return -EIO;
 			}
 
-			over = filldir(dirent, mi->name, strlen(mi->name),
-				    filp->f_pos, v9fs_qid2ino(&mi->qid),
-				    dt_type(mi));
+			over = filldir(dirent, stat.name.str, stat.name.len,
+				    filp->f_pos, v9fs_qid2ino(&stat.qid),
+				    dt_type(&stat));
 
 			if (over) {
 				file->rdir_fcall = fcall;
@@ -171,7 +167,6 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
       FreeStructs:
 	kfree(fcall);
-	kfree(mi);
 	return ret;
 }
 

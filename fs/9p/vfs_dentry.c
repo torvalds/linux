@@ -40,7 +40,6 @@
 #include "v9fs.h"
 #include "9p.h"
 #include "v9fs_vfs.h"
-#include "conv.h"
 #include "fid.h"
 
 /**
@@ -108,7 +107,8 @@ void v9fs_dentry_release(struct dentry *dentry)
 			err = v9fs_t_clunk(current_fid->v9ses, current_fid->fid);
 
 			if (err < 0)
-				dprintk(DEBUG_ERROR, "clunk failed: %d\n", err);
+				dprintk(DEBUG_ERROR, "clunk failed: %d name %s\n",
+					err, dentry->d_iname);
 
 			v9fs_fid_destroy(current_fid);
 		}

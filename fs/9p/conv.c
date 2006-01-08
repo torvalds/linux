@@ -30,7 +30,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/idr.h>
-
+#include <asm/uaccess.h>
 #include "debug.h"
 #include "v9fs.h"
 #include "9p.h"
@@ -45,6 +45,37 @@ struct cbuf {
 	unsigned char *ep;
 };
 
+char *v9fs_str_copy(char *buf, int buflen, struct v9fs_str *str)
+{
+	int n;
+
+	if (buflen < str->len)
+		n = buflen;
+	else
+		n = str->len;
+
+	memmove(buf, str->str, n - 1);
+
+	return buf;
+}
+
+int v9fs_str_compare(char *buf, struct v9fs_str *str)
+{
+	int n, ret;
+
+	ret = strncmp(buf, str->str, str->len);
+
+	if (!ret) {
+		n = strlen(buf);
+		if (n < str->len)
+			ret = -1;
+		else if (n > str->len)
+			ret = 1;
+	}
+
+	return ret;
+}
+
 static inline void buf_init(struct cbuf *buf, void *data, int datalen)
 {
 	buf->sp = buf->p = data;
@@ -58,12 +89,12 @@ static inline int buf_check_overflow(struct cbuf *buf)
 
 static inline int buf_check_size(struct cbuf *buf, int len)
 {
-	if (buf->p+len > buf->ep) {
-		if (buf->p < buf->ep) {
-			eprintk(KERN_ERR, "buffer overflow\n");
-			buf->p = buf->ep + 1;
-			return 0;
-		}
+	if (buf->p + len > buf->ep && buf->p < buf->ep) {
+		eprintk(KERN_ERR, "buffer overflow: want %d has %d\n",
+			len, (int)(buf->ep - buf->p));
+		dump_stack();
+		buf->p = buf->ep + 1;
+		return 0;
 	}
 
 	return 1;
@@ -127,14 +158,6 @@ static inline void buf_put_string(struct cbuf *buf, const char *s)
 	buf_put_stringn(buf, s, strlen(s));
 }
 
-static inline void buf_put_data(struct cbuf *buf, void *data, u32 datalen)
-{
-	if (buf_check_size(buf, datalen)) {
-		memcpy(buf->p, data, datalen);
-		buf->p += datalen;
-	}
-}
-
 static inline u8 buf_get_int8(struct cbuf *buf)
 {
 	u8 ret = 0;
@@ -183,85 +206,37 @@ static inline u64 buf_get_int64(struct cbuf *buf)
 	return ret;
 }
 
-static inline int
-buf_get_string(struct cbuf *buf, char *data, unsigned int datalen)
+static inline void buf_get_str(struct cbuf *buf, struct v9fs_str *vstr)
 {
-	u16 len = 0;
-
-	len = buf_get_int16(buf);
-	if (!buf_check_overflow(buf) && buf_check_size(buf, len) && len+1>datalen) {
-		memcpy(data, buf->p, len);
-		data[len] = 0;
-		buf->p += len;
-		len++;
+	vstr->len = buf_get_int16(buf);
+	if (!buf_check_overflow(buf) && buf_check_size(buf, vstr->len)) {
+		vstr->str = buf->p;
+		buf->p += vstr->len;
+	} else {
+		vstr->len = 0;
+		vstr->str = NULL;
 	}
-
-	return len;
 }
 
-static inline char *buf_get_stringb(struct cbuf *buf, struct cbuf *sbuf)
+static inline void buf_get_qid(struct cbuf *bufp, struct v9fs_qid *qid)
 {
-	char *ret;
-	u16 len;
-
-	ret = NULL;
-	len = buf_get_int16(buf);
-
-	if (!buf_check_overflow(buf) && buf_check_size(buf, len) &&
-		buf_check_size(sbuf, len + 1)) {
-
-		memcpy(sbuf->p, buf->p, len);
-		sbuf->p[len] = 0;
-		ret = sbuf->p;
-		buf->p += len;
-		sbuf->p += len + 1;
-	}
-
-	return ret;
-}
-
-static inline int buf_get_data(struct cbuf *buf, void *data, int datalen)
-{
-	int ret = 0;
-
-	if (buf_check_size(buf, datalen)) {
-		memcpy(data, buf->p, datalen);
-		buf->p += datalen;
-		ret = datalen;
-	}
-
-	return ret;
-}
-
-static inline void *buf_get_datab(struct cbuf *buf, struct cbuf *dbuf,
-				  int datalen)
-{
-	char *ret = NULL;
-	int n = 0;
-
-	if (buf_check_size(dbuf, datalen)) {
-		n = buf_get_data(buf, dbuf->p, datalen);
-		if (n > 0) {
-			ret = dbuf->p;
-			dbuf->p += n;
-		}
-	}
-
-	return ret;
+	qid->type = buf_get_int8(bufp);
+	qid->version = buf_get_int32(bufp);
+	qid->path = buf_get_int64(bufp);
 }
 
 /**
- * v9fs_size_stat - calculate the size of a variable length stat struct
+ * v9fs_size_wstat - calculate the size of a variable length stat struct
  * @stat: metadata (stat) structure
  * @extended: non-zero if 9P2000.u
  *
  */
 
-static int v9fs_size_stat(struct v9fs_stat *stat, int extended)
+static int v9fs_size_wstat(struct v9fs_wstat *wstat, int extended)
 {
 	int size = 0;
 
-	if (stat == NULL) {
+	if (wstat == NULL) {
 		eprintk(KERN_ERR, "v9fs_size_stat: got a NULL stat pointer\n");
 		return 0;
 	}
@@ -278,81 +253,38 @@ static int v9fs_size_stat(struct v9fs_stat *stat, int extended)
 	    8 +			/* length[8] */
 	    8;			/* minimum sum of string lengths */
 
-	if (stat->name)
-		size += strlen(stat->name);
-	if (stat->uid)
-		size += strlen(stat->uid);
-	if (stat->gid)
-		size += strlen(stat->gid);
-	if (stat->muid)
-		size += strlen(stat->muid);
+	if (wstat->name)
+		size += strlen(wstat->name);
+	if (wstat->uid)
+		size += strlen(wstat->uid);
+	if (wstat->gid)
+		size += strlen(wstat->gid);
+	if (wstat->muid)
+		size += strlen(wstat->muid);
 
 	if (extended) {
 		size += 4 +	/* n_uid[4] */
 		    4 +		/* n_gid[4] */
 		    4 +		/* n_muid[4] */
 		    2;		/* string length of extension[4] */
-		if (stat->extension)
-			size += strlen(stat->extension);
+		if (wstat->extension)
+			size += strlen(wstat->extension);
 	}
 
 	return size;
 }
 
 /**
- * serialize_stat - safely format a stat structure for transmission
- * @stat: metadata (stat) structure
- * @bufp: buffer to serialize structure into
- * @extended: non-zero if 9P2000.u
- *
- */
-
-static int
-serialize_stat(struct v9fs_stat *stat, struct cbuf *bufp, int extended)
-{
-	buf_put_int16(bufp, stat->size);
-	buf_put_int16(bufp, stat->type);
-	buf_put_int32(bufp, stat->dev);
-	buf_put_int8(bufp, stat->qid.type);
-	buf_put_int32(bufp, stat->qid.version);
-	buf_put_int64(bufp, stat->qid.path);
-	buf_put_int32(bufp, stat->mode);
-	buf_put_int32(bufp, stat->atime);
-	buf_put_int32(bufp, stat->mtime);
-	buf_put_int64(bufp, stat->length);
-
-	buf_put_string(bufp, stat->name);
-	buf_put_string(bufp, stat->uid);
-	buf_put_string(bufp, stat->gid);
-	buf_put_string(bufp, stat->muid);
-
-	if (extended) {
-		buf_put_string(bufp, stat->extension);
-		buf_put_int32(bufp, stat->n_uid);
-		buf_put_int32(bufp, stat->n_gid);
-		buf_put_int32(bufp, stat->n_muid);
-	}
-
-	if (buf_check_overflow(bufp))
-		return 0;
-
-	return stat->size;
-}
-
-/**
- * deserialize_stat - safely decode a recieved metadata (stat) structure
+ * buf_get_stat - safely decode a recieved metadata (stat) structure
  * @bufp: buffer to deserialize
  * @stat: metadata (stat) structure
- * @dbufp: buffer to deserialize variable strings into
  * @extended: non-zero if 9P2000.u
  *
  */
 
-static inline int
-deserialize_stat(struct cbuf *bufp, struct v9fs_stat *stat,
-		 struct cbuf *dbufp, int extended)
+static inline void
+buf_get_stat(struct cbuf *bufp, struct v9fs_stat *stat, int extended)
 {
-
 	stat->size = buf_get_int16(bufp);
 	stat->type = buf_get_int16(bufp);
 	stat->dev = buf_get_int32(bufp);
@@ -363,45 +295,17 @@ deserialize_stat(struct cbuf *bufp, struct v9fs_stat *stat,
 	stat->atime = buf_get_int32(bufp);
 	stat->mtime = buf_get_int32(bufp);
 	stat->length = buf_get_int64(bufp);
-	stat->name = buf_get_stringb(bufp, dbufp);
-	stat->uid = buf_get_stringb(bufp, dbufp);
-	stat->gid = buf_get_stringb(bufp, dbufp);
-	stat->muid = buf_get_stringb(bufp, dbufp);
+	buf_get_str(bufp, &stat->name);
+	buf_get_str(bufp, &stat->uid);
+	buf_get_str(bufp, &stat->gid);
+	buf_get_str(bufp, &stat->muid);
 
 	if (extended) {
-		stat->extension = buf_get_stringb(bufp, dbufp);
+		buf_get_str(bufp, &stat->extension);
 		stat->n_uid = buf_get_int32(bufp);
 		stat->n_gid = buf_get_int32(bufp);
 		stat->n_muid = buf_get_int32(bufp);
 	}
-
-	if (buf_check_overflow(bufp) || buf_check_overflow(dbufp))
-		return 0;
-
-	return stat->size + 2;
-}
-
-/**
- * deserialize_statb - wrapper for decoding a received metadata structure
- * @bufp: buffer to deserialize
- * @dbufp: buffer to deserialize variable strings into
- * @extended: non-zero if 9P2000.u
- *
- */
-
-static inline struct v9fs_stat *deserialize_statb(struct cbuf *bufp,
-						  struct cbuf *dbufp,
-						  int extended)
-{
-	struct v9fs_stat *ret = buf_alloc(dbufp, sizeof(struct v9fs_stat));
-
-	if (ret) {
-		int n = deserialize_stat(bufp, ret, dbufp, extended);
-		if (n <= 0)
-			return NULL;
-	}
-
-	return ret;
 }
 
 /**
@@ -409,194 +313,27 @@ static inline struct v9fs_stat *deserialize_statb(struct cbuf *bufp,
  * @buf: buffer to deserialize
  * @buflen: length of received buffer
  * @stat: metadata structure to decode into
- * @statlen: length of destination metadata structure
  * @extended: non-zero if 9P2000.u
  *
- */
-
-int v9fs_deserialize_stat(void *buf, u32 buflen, struct v9fs_stat *stat,
-			  u32 statlen, int extended)
-{
-	struct cbuf buffer;
-	struct cbuf *bufp = &buffer;
-	struct cbuf dbuffer;
-	struct cbuf *dbufp = &dbuffer;
-
-	buf_init(bufp, buf, buflen);
-	buf_init(dbufp, (char *)stat + sizeof(struct v9fs_stat),
-		 statlen - sizeof(struct v9fs_stat));
-
-	return deserialize_stat(bufp, stat, dbufp, extended);
-}
-
-static inline int v9fs_size_fcall(struct v9fs_fcall *fcall, int extended)
-{
-	int size = 4 + 1 + 2;	/* size[4] msg[1] tag[2] */
-	int i = 0;
-
-	switch (fcall->id) {
-	default:
-		eprintk(KERN_ERR, "bad msg type %d\n", fcall->id);
-		return 0;
-	case TVERSION:		/* msize[4] version[s] */
-		size += 4 + 2 + strlen(fcall->params.tversion.version);
-		break;
-	case TAUTH:		/* afid[4] uname[s] aname[s] */
-		size += 4 + 2 + strlen(fcall->params.tauth.uname) +
-		    2 + strlen(fcall->params.tauth.aname);
-		break;
-	case TFLUSH:		/* oldtag[2] */
-		size += 2;
-		break;
-	case TATTACH:		/* fid[4] afid[4] uname[s] aname[s] */
-		size += 4 + 4 + 2 + strlen(fcall->params.tattach.uname) +
-		    2 + strlen(fcall->params.tattach.aname);
-		break;
-	case TWALK:		/* fid[4] newfid[4] nwname[2] nwname*(wname[s]) */
-		size += 4 + 4 + 2;
-		/* now compute total for the array of names */
-		for (i = 0; i < fcall->params.twalk.nwname; i++)
-			size += 2 + strlen(fcall->params.twalk.wnames[i]);
-		break;
-	case TOPEN:		/* fid[4] mode[1] */
-		size += 4 + 1;
-		break;
-	case TCREATE:		/* fid[4] name[s] perm[4] mode[1] */
-		size += 4 + 2 + strlen(fcall->params.tcreate.name) + 4 + 1;
-		break;
-	case TREAD:		/* fid[4] offset[8] count[4] */
-		size += 4 + 8 + 4;
-		break;
-	case TWRITE:		/* fid[4] offset[8] count[4] data[count] */
-		size += 4 + 8 + 4 + fcall->params.twrite.count;
-		break;
-	case TCLUNK:		/* fid[4] */
-		size += 4;
-		break;
-	case TREMOVE:		/* fid[4] */
-		size += 4;
-		break;
-	case TSTAT:		/* fid[4] */
-		size += 4;
-		break;
-	case TWSTAT:		/* fid[4] stat[n] */
-		fcall->params.twstat.stat->size =
-		    v9fs_size_stat(fcall->params.twstat.stat, extended);
-		size += 4 + 2 + 2 + fcall->params.twstat.stat->size;
-	}
-	return size;
-}
-
-/*
- * v9fs_serialize_fcall - marshall fcall struct into a packet
- * @fcall: structure to convert
- * @data: buffer to serialize fcall into
- * @datalen: length of buffer to serialize fcall into
- * @extended: non-zero if 9P2000.u
- *
+ * Note: stat will point to the buf region.
  */
 
 int
-v9fs_serialize_fcall(struct v9fs_fcall *fcall, void *data, u32 datalen,
-		     int extended)
+v9fs_deserialize_stat(void *buf, u32 buflen, struct v9fs_stat *stat,
+		int extended)
 {
-	int i = 0;
-	struct v9fs_stat *stat = NULL;
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
+	unsigned char *p;
 
-	buf_init(bufp, data, datalen);
+	buf_init(bufp, buf, buflen);
+	p = bufp->p;
+	buf_get_stat(bufp, stat, extended);
 
-	if (!fcall) {
-		eprintk(KERN_ERR, "no fcall\n");
-		return -EINVAL;
-	}
-
-	fcall->size = v9fs_size_fcall(fcall, extended);
-
-	buf_put_int32(bufp, fcall->size);
-	buf_put_int8(bufp, fcall->id);
-	buf_put_int16(bufp, fcall->tag);
-
-	dprintk(DEBUG_CONV, "size %d id %d tag %d\n", fcall->size, fcall->id,
-		fcall->tag);
-
-	/* now encode it */
-	switch (fcall->id) {
-	default:
-		eprintk(KERN_ERR, "bad msg type: %d\n", fcall->id);
-		return -EPROTO;
-	case TVERSION:
-		buf_put_int32(bufp, fcall->params.tversion.msize);
-		buf_put_string(bufp, fcall->params.tversion.version);
-		break;
-	case TAUTH:
-		buf_put_int32(bufp, fcall->params.tauth.afid);
-		buf_put_string(bufp, fcall->params.tauth.uname);
-		buf_put_string(bufp, fcall->params.tauth.aname);
-		break;
-	case TFLUSH:
-		buf_put_int16(bufp, fcall->params.tflush.oldtag);
-		break;
-	case TATTACH:
-		buf_put_int32(bufp, fcall->params.tattach.fid);
-		buf_put_int32(bufp, fcall->params.tattach.afid);
-		buf_put_string(bufp, fcall->params.tattach.uname);
-		buf_put_string(bufp, fcall->params.tattach.aname);
-		break;
-	case TWALK:
-		buf_put_int32(bufp, fcall->params.twalk.fid);
-		buf_put_int32(bufp, fcall->params.twalk.newfid);
-		buf_put_int16(bufp, fcall->params.twalk.nwname);
-		for (i = 0; i < fcall->params.twalk.nwname; i++)
-			buf_put_string(bufp, fcall->params.twalk.wnames[i]);
-		break;
-	case TOPEN:
-		buf_put_int32(bufp, fcall->params.topen.fid);
-		buf_put_int8(bufp, fcall->params.topen.mode);
-		break;
-	case TCREATE:
-		buf_put_int32(bufp, fcall->params.tcreate.fid);
-		buf_put_string(bufp, fcall->params.tcreate.name);
-		buf_put_int32(bufp, fcall->params.tcreate.perm);
-		buf_put_int8(bufp, fcall->params.tcreate.mode);
-		break;
-	case TREAD:
-		buf_put_int32(bufp, fcall->params.tread.fid);
-		buf_put_int64(bufp, fcall->params.tread.offset);
-		buf_put_int32(bufp, fcall->params.tread.count);
-		break;
-	case TWRITE:
-		buf_put_int32(bufp, fcall->params.twrite.fid);
-		buf_put_int64(bufp, fcall->params.twrite.offset);
-		buf_put_int32(bufp, fcall->params.twrite.count);
-		buf_put_data(bufp, fcall->params.twrite.data,
-			     fcall->params.twrite.count);
-		break;
-	case TCLUNK:
-		buf_put_int32(bufp, fcall->params.tclunk.fid);
-		break;
-	case TREMOVE:
-		buf_put_int32(bufp, fcall->params.tremove.fid);
-		break;
-	case TSTAT:
-		buf_put_int32(bufp, fcall->params.tstat.fid);
-		break;
-	case TWSTAT:
-		buf_put_int32(bufp, fcall->params.twstat.fid);
-		stat = fcall->params.twstat.stat;
-
-		buf_put_int16(bufp, stat->size + 2);
-		serialize_stat(stat, bufp, extended);
-		break;
-	}
-
-	if (buf_check_overflow(bufp)) {
-		dprintk(DEBUG_ERROR, "buffer overflow\n");
-		return -EIO;
-	}
-
-	return fcall->size;
+	if (buf_check_overflow(bufp))
+		return 0;
+	else
+		return bufp->p - p;
 }
 
 /**
@@ -611,18 +348,14 @@ v9fs_serialize_fcall(struct v9fs_fcall *fcall, void *data, u32 datalen,
 
 int
 v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
-		       int rcalllen, int extended)
+		       int extended)
 {
 
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
-	struct cbuf dbuffer;
-	struct cbuf *dbufp = &dbuffer;
 	int i = 0;
 
 	buf_init(bufp, buf, buflen);
-	buf_init(dbufp, (char *)rcall + sizeof(struct v9fs_fcall),
-		 rcalllen - sizeof(struct v9fs_fcall));
 
 	rcall->size = buf_get_int32(bufp);
 	rcall->id = buf_get_int8(bufp);
@@ -630,13 +363,14 @@ v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
 
 	dprintk(DEBUG_CONV, "size %d id %d tag %d\n", rcall->size, rcall->id,
 		rcall->tag);
+
 	switch (rcall->id) {
 	default:
 		eprintk(KERN_ERR, "unknown message type: %d\n", rcall->id);
 		return -EPROTO;
 	case RVERSION:
 		rcall->params.rversion.msize = buf_get_int32(bufp);
-		rcall->params.rversion.version = buf_get_stringb(bufp, dbufp);
+		buf_get_str(bufp, &rcall->params.rversion.version);
 		break;
 	case RFLUSH:
 		break;
@@ -647,40 +381,27 @@ v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
 		break;
 	case RWALK:
 		rcall->params.rwalk.nwqid = buf_get_int16(bufp);
-		if (rcall->params.rwalk.nwqid > 16) {
-			eprintk(KERN_ERR, "Rwalk with more than 16 qids: %d\n",
-				rcall->params.rwalk.nwqid);
+		if (rcall->params.rwalk.nwqid > V9FS_MAXWELEM) {
+			eprintk(KERN_ERR, "Rwalk with more than %d qids: %d\n",
+				V9FS_MAXWELEM, rcall->params.rwalk.nwqid);
 			return -EPROTO;
 		}
 
-		rcall->params.rwalk.wqids = buf_alloc(dbufp,
-		      rcall->params.rwalk.nwqid * sizeof(struct v9fs_qid));
-		if (rcall->params.rwalk.wqids)
-			for (i = 0; i < rcall->params.rwalk.nwqid; i++) {
-				rcall->params.rwalk.wqids[i].type =
-				    buf_get_int8(bufp);
-				rcall->params.rwalk.wqids[i].version =
-				    buf_get_int16(bufp);
-				rcall->params.rwalk.wqids[i].path =
-				    buf_get_int64(bufp);
-			}
+		for (i = 0; i < rcall->params.rwalk.nwqid; i++)
+			buf_get_qid(bufp, &rcall->params.rwalk.wqids[i]);
 		break;
 	case ROPEN:
-		rcall->params.ropen.qid.type = buf_get_int8(bufp);
-		rcall->params.ropen.qid.version = buf_get_int32(bufp);
-		rcall->params.ropen.qid.path = buf_get_int64(bufp);
+		buf_get_qid(bufp, &rcall->params.ropen.qid);
 		rcall->params.ropen.iounit = buf_get_int32(bufp);
 		break;
 	case RCREATE:
-		rcall->params.rcreate.qid.type = buf_get_int8(bufp);
-		rcall->params.rcreate.qid.version = buf_get_int32(bufp);
-		rcall->params.rcreate.qid.path = buf_get_int64(bufp);
+		buf_get_qid(bufp, &rcall->params.rcreate.qid);
 		rcall->params.rcreate.iounit = buf_get_int32(bufp);
 		break;
 	case RREAD:
 		rcall->params.rread.count = buf_get_int32(bufp);
-		rcall->params.rread.data = buf_get_datab(bufp, dbufp,
-			rcall->params.rread.count);
+		rcall->params.rread.data = bufp->p;
+		buf_check_size(bufp, rcall->params.rread.count);
 		break;
 	case RWRITE:
 		rcall->params.rwrite.count = buf_get_int32(bufp);
@@ -691,22 +412,442 @@ v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
 		break;
 	case RSTAT:
 		buf_get_int16(bufp);
-		rcall->params.rstat.stat =
-		    deserialize_statb(bufp, dbufp, extended);
+		buf_get_stat(bufp, &rcall->params.rstat.stat, extended);
 		break;
 	case RWSTAT:
 		break;
 	case RERROR:
-		rcall->params.rerror.error = buf_get_stringb(bufp, dbufp);
+		buf_get_str(bufp, &rcall->params.rerror.error);
 		if (extended)
 			rcall->params.rerror.errno = buf_get_int16(bufp);
 		break;
 	}
 
-	if (buf_check_overflow(bufp) || buf_check_overflow(dbufp)) {
+	if (buf_check_overflow(bufp)) {
 		dprintk(DEBUG_ERROR, "buffer overflow\n");
 		return -EIO;
 	}
 
-	return rcall->size;
+	return bufp->p - bufp->sp;
+}
+
+static inline void v9fs_put_int8(struct cbuf *bufp, u8 val, u8 * p)
+{
+	*p = val;
+	buf_put_int8(bufp, val);
+}
+
+static inline void v9fs_put_int16(struct cbuf *bufp, u16 val, u16 * p)
+{
+	*p = val;
+	buf_put_int16(bufp, val);
+}
+
+static inline void v9fs_put_int32(struct cbuf *bufp, u32 val, u32 * p)
+{
+	*p = val;
+	buf_put_int32(bufp, val);
+}
+
+static inline void v9fs_put_int64(struct cbuf *bufp, u64 val, u64 * p)
+{
+	*p = val;
+	buf_put_int64(bufp, val);
+}
+
+static inline void
+v9fs_put_str(struct cbuf *bufp, char *data, struct v9fs_str *str)
+{
+	if (data) {
+		str->len = strlen(data);
+		str->str = bufp->p;
+	} else {
+		str->len = 0;
+		str->str = NULL;
+	}
+
+	buf_put_stringn(bufp, data, str->len);
+}
+
+static inline int
+v9fs_put_user_data(struct cbuf *bufp, const char __user * data, int count,
+		   unsigned char **pdata)
+{
+	*pdata = buf_alloc(bufp, count);
+	return copy_from_user(*pdata, data, count);
+}
+
+static void
+v9fs_put_wstat(struct cbuf *bufp, struct v9fs_wstat *wstat,
+	       struct v9fs_stat *stat, int statsz, int extended)
+{
+	v9fs_put_int16(bufp, statsz, &stat->size);
+	v9fs_put_int16(bufp, wstat->type, &stat->type);
+	v9fs_put_int32(bufp, wstat->dev, &stat->dev);
+	v9fs_put_int8(bufp, wstat->qid.type, &stat->qid.type);
+	v9fs_put_int32(bufp, wstat->qid.version, &stat->qid.version);
+	v9fs_put_int64(bufp, wstat->qid.path, &stat->qid.path);
+	v9fs_put_int32(bufp, wstat->mode, &stat->mode);
+	v9fs_put_int32(bufp, wstat->atime, &stat->atime);
+	v9fs_put_int32(bufp, wstat->mtime, &stat->mtime);
+	v9fs_put_int64(bufp, wstat->length, &stat->length);
+
+	v9fs_put_str(bufp, wstat->name, &stat->name);
+	v9fs_put_str(bufp, wstat->uid, &stat->uid);
+	v9fs_put_str(bufp, wstat->gid, &stat->gid);
+	v9fs_put_str(bufp, wstat->muid, &stat->muid);
+
+	if (extended) {
+		v9fs_put_str(bufp, wstat->extension, &stat->extension);
+		v9fs_put_int32(bufp, wstat->n_uid, &stat->n_uid);
+		v9fs_put_int32(bufp, wstat->n_gid, &stat->n_gid);
+		v9fs_put_int32(bufp, wstat->n_muid, &stat->n_muid);
+	}
+}
+
+static struct v9fs_fcall *
+v9fs_create_common(struct cbuf *bufp, u32 size, u8 id)
+{
+	struct v9fs_fcall *fc;
+
+	size += 4 + 1 + 2;	/* size[4] id[1] tag[2] */
+	fc = kmalloc(sizeof(struct v9fs_fcall) + size, GFP_KERNEL);
+	if (!fc)
+		return ERR_PTR(-ENOMEM);
+
+	fc->sdata = (char *)fc + sizeof(*fc);
+
+	buf_init(bufp, (char *)fc->sdata, size);
+	v9fs_put_int32(bufp, size, &fc->size);
+	v9fs_put_int8(bufp, id, &fc->id);
+	v9fs_put_int16(bufp, V9FS_NOTAG, &fc->tag);
+
+	return fc;
+}
+
+void v9fs_set_tag(struct v9fs_fcall *fc, u16 tag)
+{
+	*(__le16 *) (fc->sdata + 5) = cpu_to_le16(tag);
+}
+
+struct v9fs_fcall *v9fs_create_tversion(u32 msize, char *version)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4 + 2 + strlen(version);	/* msize[4] version[s] */
+	fc = v9fs_create_common(bufp, size, TVERSION);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, msize, &fc->params.tversion.msize);
+	v9fs_put_str(bufp, version, &fc->params.tversion.version);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_tauth(u32 afid, char *uname, char *aname)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4 + 2 + strlen(uname) + 2 + strlen(aname);	/* afid[4] uname[s] aname[s] */
+	fc = v9fs_create_common(bufp, size, TAUTH);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, afid, &fc->params.tauth.afid);
+	v9fs_put_str(bufp, uname, &fc->params.tauth.uname);
+	v9fs_put_str(bufp, aname, &fc->params.tauth.aname);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *
+v9fs_create_tattach(u32 fid, u32 afid, char *uname, char *aname)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4 + 4 + 2 + strlen(uname) + 2 + strlen(aname);	/* fid[4] afid[4] uname[s] aname[s] */
+	fc = v9fs_create_common(bufp, size, TATTACH);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.tattach.fid);
+	v9fs_put_int32(bufp, afid, &fc->params.tattach.afid);
+	v9fs_put_str(bufp, uname, &fc->params.tattach.uname);
+	v9fs_put_str(bufp, aname, &fc->params.tattach.aname);
+
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_tflush(u16 oldtag)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 2;		/* oldtag[2] */
+	fc = v9fs_create_common(bufp, size, TFLUSH);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int16(bufp, oldtag, &fc->params.tflush.oldtag);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_twalk(u32 fid, u32 newfid, u16 nwname,
+				     char **wnames)
+{
+	int i, size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	if (nwname > V9FS_MAXWELEM) {
+		dprintk(DEBUG_ERROR, "nwname > %d\n", V9FS_MAXWELEM);
+		return NULL;
+	}
+
+	size = 4 + 4 + 2;	/* fid[4] newfid[4] nwname[2] ... */
+	for (i = 0; i < nwname; i++) {
+		size += 2 + strlen(wnames[i]);	/* wname[s] */
+	}
+
+	fc = v9fs_create_common(bufp, size, TWALK);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.twalk.fid);
+	v9fs_put_int32(bufp, newfid, &fc->params.twalk.newfid);
+	v9fs_put_int16(bufp, nwname, &fc->params.twalk.nwname);
+	for (i = 0; i < nwname; i++) {
+		v9fs_put_str(bufp, wnames[i], &fc->params.twalk.wnames[i]);
+	}
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_topen(u32 fid, u8 mode)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4 + 1;		/* fid[4] mode[1] */
+	fc = v9fs_create_common(bufp, size, TOPEN);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.topen.fid);
+	v9fs_put_int8(bufp, mode, &fc->params.topen.mode);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4 + 2 + strlen(name) + 4 + 1;	/* fid[4] name[s] perm[4] mode[1] */
+	fc = v9fs_create_common(bufp, size, TCREATE);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.tcreate.fid);
+	v9fs_put_str(bufp, name, &fc->params.tcreate.name);
+	v9fs_put_int32(bufp, perm, &fc->params.tcreate.perm);
+	v9fs_put_int8(bufp, mode, &fc->params.tcreate.mode);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_tread(u32 fid, u64 offset, u32 count)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4 + 8 + 4;	/* fid[4] offset[8] count[4] */
+	fc = v9fs_create_common(bufp, size, TREAD);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.tread.fid);
+	v9fs_put_int64(bufp, offset, &fc->params.tread.offset);
+	v9fs_put_int32(bufp, count, &fc->params.tread.count);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_twrite(u32 fid, u64 offset, u32 count,
+				      const char __user * data)
+{
+	int size, err;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4 + 8 + 4 + count;	/* fid[4] offset[8] count[4] data[count] */
+	fc = v9fs_create_common(bufp, size, TWRITE);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.twrite.fid);
+	v9fs_put_int64(bufp, offset, &fc->params.twrite.offset);
+	v9fs_put_int32(bufp, count, &fc->params.twrite.count);
+	err = v9fs_put_user_data(bufp, data, count, &fc->params.twrite.data);
+	if (err) {
+		kfree(fc);
+		fc = ERR_PTR(err);
+	}
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_tclunk(u32 fid)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4;		/* fid[4] */
+	fc = v9fs_create_common(bufp, size, TCLUNK);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.tclunk.fid);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_tremove(u32 fid)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4;		/* fid[4] */
+	fc = v9fs_create_common(bufp, size, TREMOVE);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.tremove.fid);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_tstat(u32 fid)
+{
+	int size;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	size = 4;		/* fid[4] */
+	fc = v9fs_create_common(bufp, size, TSTAT);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.tstat.fid);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
+}
+
+struct v9fs_fcall *v9fs_create_twstat(u32 fid, struct v9fs_wstat *wstat,
+				      int extended)
+{
+	int size, statsz;
+	struct v9fs_fcall *fc;
+	struct cbuf buffer;
+	struct cbuf *bufp = &buffer;
+
+	statsz = v9fs_size_wstat(wstat, extended);
+	size = 4 + 2 + 2 + statsz;	/* fid[4] stat[n] */
+	fc = v9fs_create_common(bufp, size, TWSTAT);
+	if (IS_ERR(fc))
+		goto error;
+
+	v9fs_put_int32(bufp, fid, &fc->params.twstat.fid);
+	buf_put_int16(bufp, statsz + 2);
+	v9fs_put_wstat(bufp, wstat, &fc->params.twstat.stat, statsz, extended);
+
+	if (buf_check_overflow(bufp)) {
+		kfree(fc);
+		fc = ERR_PTR(-ENOMEM);
+	}
+      error:
+	return fc;
 }

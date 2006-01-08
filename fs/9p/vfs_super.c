@@ -44,7 +44,6 @@
 #include "v9fs.h"
 #include "9p.h"
 #include "v9fs_vfs.h"
-#include "conv.h"
 #include "fid.h"
 
 static void v9fs_clear_inode(struct inode *);
@@ -123,10 +122,11 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	dprintk(DEBUG_VFS, " \n");
 
-	v9ses = kcalloc(1, sizeof(struct v9fs_session_info), GFP_KERNEL);
+	v9ses = kmalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
 		return ERR_PTR(-ENOMEM);
 
+	memset(v9ses, 0, sizeof(struct v9fs_session_info));
 	if ((newfid = v9fs_session_init(v9ses, dev_name, data)) < 0) {
 		dprintk(DEBUG_ERROR, "problem initiating session\n");
 		kfree(v9ses);
@@ -168,10 +168,10 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 			goto put_back_sb;
 		}
 
-		root_fid->qid = fcall->params.rstat.stat->qid;
+		root_fid->qid = fcall->params.rstat.stat.qid;
 		root->d_inode->i_ino =
-		    v9fs_qid2ino(&fcall->params.rstat.stat->qid);
-		v9fs_mistat2inode(fcall->params.rstat.stat, root->d_inode, sb);
+		    v9fs_qid2ino(&fcall->params.rstat.stat.qid);
+		v9fs_stat2inode(&fcall->params.rstat.stat, root->d_inode, sb);
 	}
 
 	kfree(fcall);

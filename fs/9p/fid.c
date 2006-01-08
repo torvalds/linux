@@ -31,9 +31,6 @@
 #include "v9fs.h"
 #include "9p.h"
 #include "v9fs_vfs.h"
-#include "transport.h"
-#include "mux.h"
-#include "conv.h"
 #include "fid.h"
 
 /**

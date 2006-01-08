@@ -110,7 +110,6 @@ static int v9fs_sock_send(struct v9fs_transport *trans, void *v, int len)
 	if (!(ts->filp->f_flags & O_NONBLOCK))
 		dprintk(DEBUG_ERROR, "blocking write ...\n");
 
-	dump_data(v, len);
 	oldfs = get_fs();
 	set_fs(get_ds());
 	ret = vfs_write(ts->filp, (void __user *)v, len, &ts->filp->f_pos);

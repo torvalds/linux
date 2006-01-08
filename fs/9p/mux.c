@@ -35,8 +35,8 @@
 #include "debug.h"
 #include "v9fs.h"
 #include "9p.h"
-#include "transport.h"
 #include "conv.h"
+#include "transport.h"
 #include "mux.h"
 
 #define ERREQFLUSH	1
@@ -74,6 +74,7 @@ struct v9fs_mux_data {
 	wait_queue_head_t equeue;
 	struct list_head req_list;
 	struct list_head unsent_req_list;
+	struct v9fs_fcall *rcall;
 	int rpos;
 	char *rbuf;
 	int wpos;
@@ -101,11 +102,15 @@ struct v9fs_mux_rpc {
 	wait_queue_head_t wqueue;
 };
 
+extern int v9fs_errstr2errno(char *str, int len);
+
 static int v9fs_poll_proc(void *);
 static void v9fs_read_work(void *);
 static void v9fs_write_work(void *);
 static void v9fs_pollwait(struct file *filp, wait_queue_head_t * wait_address,
 			  poll_table * p);
+static u16 v9fs_mux_get_tag(struct v9fs_mux_data *);
+static void v9fs_mux_put_tag(struct v9fs_mux_data *, u16);
 
 static DECLARE_MUTEX(v9fs_mux_task_lock);
 static struct workqueue_struct *v9fs_mux_wq;
@@ -166,8 +171,9 @@ static void v9fs_mux_poll_start(struct v9fs_mux_data *m)
 			if (v9fs_mux_poll_tasks[i].task == NULL) {
 				vpt = &v9fs_mux_poll_tasks[i];
 				dprintk(DEBUG_MUX, "create proc %p\n", vpt);
-				vpt->task = kthread_create(v9fs_poll_proc,
-					vpt, "v9fs-poll");
+				vpt->task =
+				    kthread_create(v9fs_poll_proc, vpt,
+						   "v9fs-poll");
 				INIT_LIST_HEAD(&vpt->mux_list);
 				vpt->muxnum = 0;
 				v9fs_mux_poll_task_num++;
@@ -253,7 +259,7 @@ struct v9fs_mux_data *v9fs_mux_init(struct v9fs_transport *trans, int msize,
 	struct v9fs_mux_data *m, *mtmp;
 
 	dprintk(DEBUG_MUX, "transport %p msize %d\n", trans, msize);
-	m = kmalloc(sizeof(struct v9fs_mux_data) + 2 * msize, GFP_KERNEL);
+	m = kmalloc(sizeof(struct v9fs_mux_data), GFP_KERNEL);
 	if (!m)
 		return ERR_PTR(-ENOMEM);
 
@@ -268,10 +274,11 @@ struct v9fs_mux_data *v9fs_mux_init(struct v9fs_transport *trans, int msize,
 	init_waitqueue_head(&m->equeue);
 	INIT_LIST_HEAD(&m->req_list);
 	INIT_LIST_HEAD(&m->unsent_req_list);
+	m->rcall = NULL;
 	m->rpos = 0;
-	m->rbuf = (char *)m + sizeof(struct v9fs_mux_data);
+	m->rbuf = NULL;
 	m->wpos = m->wsize = 0;
-	m->wbuf = m->rbuf + msize;
+	m->wbuf = NULL;
 	INIT_WORK(&m->rq, v9fs_read_work, m);
 	INIT_WORK(&m->wq, v9fs_write_work, m);
 	m->wsched = 0;
@@ -427,29 +434,6 @@ static int v9fs_poll_proc(void *a)
 	return 0;
 }
 
-static inline int v9fs_write_req(struct v9fs_mux_data *m, struct v9fs_req *req)
-{
-	int n;
-
-	list_move_tail(&req->req_list, &m->req_list);
-	n = v9fs_serialize_fcall(req->tcall, m->wbuf, m->msize, *m->extended);
-	if (n < 0) {
-		req->err = n;
-		list_del(&req->req_list);
-		if (req->cb) {
-			spin_unlock(&m->lock);
-			(*req->cb) (req->cba, req->tcall, req->rcall, req->err);
-			req->cb = NULL;
-			spin_lock(&m->lock);
-		} else
-			kfree(req->rcall);
-
-		kfree(req);
-	}
-
-	return n;
-}
-
 /**
  * v9fs_write_work - called when a transport can send some data
  */
@@ -457,7 +441,7 @@ static void v9fs_write_work(void *a)
 {
 	int n, err;
 	struct v9fs_mux_data *m;
-	struct v9fs_req *req, *rtmp;
+	struct v9fs_req *req;
 
 	m = a;
 
@@ -472,17 +456,15 @@ static void v9fs_write_work(void *a)
 			return;
 		}
 
-		err = 0;
 		spin_lock(&m->lock);
-		list_for_each_entry_safe(req, rtmp, &m->unsent_req_list,
-					 req_list) {
-			err = v9fs_write_req(m, req);
-			if (err > 0)
-				break;
-		}
-
-		m->wsize = err;
+		req =
+		    list_entry(m->unsent_req_list.next, struct v9fs_req,
+			       req_list);
+		list_move_tail(&req->req_list, &m->req_list);
+		m->wbuf = req->tcall->sdata;
+		m->wsize = req->tcall->size;
 		m->wpos = 0;
+		dump_data(m->wbuf, m->wsize);
 		spin_unlock(&m->lock);
 	}
 
@@ -526,24 +508,23 @@ static void v9fs_write_work(void *a)
 static void process_request(struct v9fs_mux_data *m, struct v9fs_req *req)
 {
 	int ecode, tag;
-	char *ename;
+	struct v9fs_str *ename;
 
 	tag = req->tag;
 	if (req->rcall->id == RERROR && !req->err) {
 		ecode = req->rcall->params.rerror.errno;
-		ename = req->rcall->params.rerror.error;
+		ename = &req->rcall->params.rerror.error;
 
-		dprintk(DEBUG_MUX, "Rerror %s\n", ename);
+		dprintk(DEBUG_MUX, "Rerror %.*s\n", ename->len, ename->str);
 
 		if (*m->extended)
 			req->err = -ecode;
 
 		if (!req->err) {
-			req->err = v9fs_errstr2errno(ename);
+			req->err = v9fs_errstr2errno(ename->str, ename->len);
 
 			if (!req->err) {	/* string match failed */
-				dprintk(DEBUG_ERROR, "unknown error: %s\n",
-					ename);
+				PRINT_FCALL_ERROR("unknown error", req->rcall);
 			}
 
 			if (!req->err)
@@ -565,8 +546,7 @@ static void process_request(struct v9fs_mux_data *m, struct v9fs_req *req)
 	} else
 		kfree(req->rcall);
 
-	if (tag != V9FS_NOTAG)
-		v9fs_put_idpool(tag, &m->tidpool);
+	v9fs_mux_put_tag(m, tag);
 
 	wake_up(&m->equeue);
 	kfree(req);
@@ -577,10 +557,11 @@ static void process_request(struct v9fs_mux_data *m, struct v9fs_req *req)
  */
 static void v9fs_read_work(void *a)
 {
-	int n, err, rcallen;
+	int n, err;
 	struct v9fs_mux_data *m;
 	struct v9fs_req *req, *rptr, *rreq;
 	struct v9fs_fcall *rcall;
+	char *rbuf;
 
 	m = a;
 
@@ -589,6 +570,19 @@ static void v9fs_read_work(void *a)
 
 	rcall = NULL;
 	dprintk(DEBUG_MUX, "start mux %p pos %d\n", m, m->rpos);
+
+	if (!m->rcall) {
+		m->rcall =
+		    kmalloc(sizeof(struct v9fs_fcall) + m->msize, GFP_KERNEL);
+		if (!m->rcall) {
+			err = -ENOMEM;
+			goto error;
+		}
+
+		m->rbuf = (char *)m->rcall + sizeof(struct v9fs_fcall);
+		m->rpos = 0;
+	}
+
 	clear_bit(Rpending, &m->wsched);
 	err = m->trans->read(m->trans, m->rbuf + m->rpos, m->msize - m->rpos);
 	dprintk(DEBUG_MUX, "mux %p got %d bytes\n", m, err);
@@ -613,19 +607,30 @@ static void v9fs_read_work(void *a)
 		if (m->rpos < n)
 			break;
 
-		rcallen = n + V9FS_FCALLHDRSZ;
-		rcall = kmalloc(rcallen, GFP_KERNEL);
-		if (!rcall) {
-			err = -ENOMEM;
+		dump_data(m->rbuf, n);
+		err =
+		    v9fs_deserialize_fcall(m->rbuf, n, m->rcall, *m->extended);
+		if (err < 0) {
 			goto error;
 		}
 
-		dump_data(m->rbuf, n);
-		err = v9fs_deserialize_fcall(m->rbuf, n, rcall, rcallen,
-					     *m->extended);
-		if (err < 0) {
-			kfree(rcall);
-			goto error;
+		rcall = m->rcall;
+		rbuf = m->rbuf;
+		if (m->rpos > n) {
+			m->rcall = kmalloc(sizeof(struct v9fs_fcall) + m->msize,
+					   GFP_KERNEL);
+			if (!m->rcall) {
+				err = -ENOMEM;
+				goto error;
+			}
+
+			m->rbuf = (char *)m->rcall + sizeof(struct v9fs_fcall);
+			memmove(m->rbuf, rbuf + n, m->rpos - n);
+			m->rpos -= n;
+		} else {
+			m->rcall = NULL;
+			m->rbuf = NULL;
+			m->rpos = 0;
 		}
 
 		dprintk(DEBUG_MUX, "mux %p fcall id %d tag %d\n", m, rcall->id,
@@ -642,6 +647,7 @@ static void v9fs_read_work(void *a)
 				process_request(m, req);
 				break;
 			}
+
 		}
 
 		if (!req) {
@@ -652,10 +658,6 @@ static void v9fs_read_work(void *a)
 					m, rcall->id, rcall->tag);
 			kfree(rcall);
 		}
-
-		if (m->rpos > n)
-			memmove(m->rbuf, m->rbuf + n, m->rpos - n);
-		m->rpos -= n;
 	}
 
 	if (!list_empty(&m->req_list)) {
@@ -710,12 +712,13 @@ static struct v9fs_req *v9fs_send_request(struct v9fs_mux_data *m,
 	if (tc->id == TVERSION)
 		n = V9FS_NOTAG;
 	else
-		n = v9fs_get_idpool(&m->tidpool);
+		n = v9fs_mux_get_tag(m);
 
 	if (n < 0)
 		return ERR_PTR(-ENOMEM);
 
-	tc->tag = n;
+	v9fs_set_tag(tc, n);
+
 	req->tag = n;
 	req->tcall = tc;
 	req->rcall = NULL;
@@ -773,9 +776,7 @@ v9fs_mux_flush_cb(void *a, struct v9fs_fcall *tc, struct v9fs_fcall *rc,
 	if (!cb)
 		spin_unlock(&m->lock);
 
-	if (v9fs_check_idpool(tag, &m->tidpool))
-		v9fs_put_idpool(tag, &m->tidpool);
-
+	v9fs_mux_put_tag(m, tag);
 	kfree(tc);
 	kfree(rc);
 }
@@ -787,10 +788,7 @@ v9fs_mux_flush_request(struct v9fs_mux_data *m, struct v9fs_req *req)
 
 	dprintk(DEBUG_MUX, "mux %p req %p tag %d\n", m, req, req->tag);
 
-	fc = kmalloc(sizeof(struct v9fs_fcall), GFP_KERNEL);
-	fc->id = TFLUSH;
-	fc->params.tflush.oldtag = req->tag;
-
+	fc = v9fs_create_tflush(req->tag);
 	v9fs_send_request(m, fc, v9fs_mux_flush_cb, m);
 }
 
@@ -938,4 +936,21 @@ void v9fs_mux_cancel(struct v9fs_mux_data *m, int err)
 	}
 
 	wake_up(&m->equeue);
+}
+
+static u16 v9fs_mux_get_tag(struct v9fs_mux_data *m)
+{
+	int tag;
+
+	tag = v9fs_get_idpool(&m->tidpool);
+	if (tag < 0)
+		return V9FS_NOTAG;
+	else
+		return (u16) tag;
+}
+
+static void v9fs_mux_put_tag(struct v9fs_mux_data *m, u16 tag)
+{
+	if (tag != V9FS_NOTAG && v9fs_check_idpool(tag, &m->tidpool))
+		v9fs_put_idpool(tag, &m->tidpool);
 }
