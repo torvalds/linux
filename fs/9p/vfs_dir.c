@@ -193,8 +193,7 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 		fid->fid);
 	fidnum = fid->fid;
 
-	filemap_fdatawrite(inode->i_mapping);
-	filemap_fdatawait(inode->i_mapping);
+	filemap_write_and_wait(inode->i_mapping);
 
 	if (fidnum >= 0) {
 		dprintk(DEBUG_VFS, "fidopen: %d v9f->fid: %d\n", fid->fidopen,

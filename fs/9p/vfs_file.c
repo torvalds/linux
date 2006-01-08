@@ -165,8 +165,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 		return -ENOLCK;
 
 	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
-		filemap_fdatawrite(inode->i_mapping);
-		filemap_fdatawait(inode->i_mapping);
+		filemap_write_and_wait(inode->i_mapping);
 		invalidate_inode_pages(&inode->i_data);
 	}
 

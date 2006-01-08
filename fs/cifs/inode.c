@@ -1148,8 +1148,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	/* BB check if we need to refresh inode from server now ? BB */
 
 	/* need to flush data before changing file size on server */
-	filemap_fdatawrite(direntry->d_inode->i_mapping);
-	filemap_fdatawait(direntry->d_inode->i_mapping);
+	filemap_write_and_wait(direntry->d_inode->i_mapping);
 
 	if (attrs->ia_valid & ATTR_SIZE) {
 		/* To avoid spurious oplock breaks from server, in the case of
