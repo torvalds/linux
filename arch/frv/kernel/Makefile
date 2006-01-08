@@ -21,3 +21,4 @@ obj-$(CONFIG_PM)		+= pm.o cmode.o
 obj-$(CONFIG_MB93093_PDK)	+= pm-mb93093.o
 obj-$(CONFIG_SYSCTL)		+= sysctl.o
 obj-$(CONFIG_FUTEX)		+= futex.o
+obj-$(CONFIG_MODULES)		+= module.o
