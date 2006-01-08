@@ -175,6 +175,9 @@ extern int try_to_free_pages(struct zone **, gfp_t);
 extern int shrink_all_memory(int);
 extern int vm_swappiness;
 
+extern int isolate_lru_page(struct page *p);
+extern int putback_lru_pages(struct list_head *l);
+
 #ifdef CONFIG_MMU
 /* linux/mm/shmem.c */
 extern int shmem_unuse(swp_entry_t entry, struct page *page);

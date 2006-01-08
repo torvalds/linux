@@ -593,25 +593,65 @@ static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
 		page = lru_to_page(src);
 		prefetchw_prev_lru_page(page, src, flags);
 
-		if (!TestClearPageLRU(page))
-			BUG();
-		list_del(&page->lru);
-		if (get_page_testone(page)) {
-			/*
-			 * It is being freed elsewhere
-			 */
-			__put_page(page);
-			SetPageLRU(page);
-			list_add(&page->lru, src);
-			continue;
-		} else {
-			list_add(&page->lru, dst);
+		switch (__isolate_lru_page(page)) {
+		case 1:
+			/* Succeeded to isolate page */
+			list_move(&page->lru, dst);
 			nr_taken++;
+			break;
+		case -ENOENT:
+			/* Not possible to isolate */
+			list_move(&page->lru, src);
+			break;
+		default:
+			BUG();
 		}
 	}
 
 	*scanned = scan;
 	return nr_taken;
+}
+
+static void lru_add_drain_per_cpu(void *dummy)
+{
+	lru_add_drain();
+}
+
+/*
+ * Isolate one page from the LRU lists and put it on the
+ * indicated list. Do necessary cache draining if the
+ * page is not on the LRU lists yet.
+ *
+ * Result:
+ *  0 = page not on LRU list
+ *  1 = page removed from LRU list and added to the specified list.
+ * -ENOENT = page is being freed elsewhere.
+ */
+int isolate_lru_page(struct page *page)
+{
+	int rc = 0;
+	struct zone *zone = page_zone(page);
+
+redo:
+	spin_lock_irq(&zone->lru_lock);
+	rc = __isolate_lru_page(page);
+	if (rc == 1) {
+		if (PageActive(page))
+			del_page_from_active_list(zone, page);
+		else
+			del_page_from_inactive_list(zone, page);
+	}
+	spin_unlock_irq(&zone->lru_lock);
+	if (rc == 0) {
+		/*
+		 * Maybe this page is still waiting for a cpu to drain it
+		 * from one of the lru lists?
+		 */
+		rc = schedule_on_each_cpu(lru_add_drain_per_cpu, NULL);
+		if (rc == 0 && PageLRU(page))
+			goto redo;
+	}
+	return rc;
 }
 
 /*
@@ -677,6 +717,40 @@ static void shrink_cache(struct zone *zone, struct scan_control *sc)
 	spin_unlock_irq(&zone->lru_lock);
 done:
 	pagevec_release(&pvec);
+}
+
+static inline void move_to_lru(struct page *page)
+{
+	list_del(&page->lru);
+	if (PageActive(page)) {
+		/*
+		 * lru_cache_add_active checks that
+		 * the PG_active bit is off.
+		 */
+		ClearPageActive(page);
+		lru_cache_add_active(page);
+	} else {
+		lru_cache_add(page);
+	}
+	put_page(page);
+}
+
+/*
+ * Add isolated pages on the list back to the LRU
+ *
+ * returns the number of pages put back.
+ */
+int putback_lru_pages(struct list_head *l)
+{
+	struct page *page;
+	struct page *page2;
+	int count = 0;
+
+	list_for_each_entry_safe(page, page2, l, lru) {
+		move_to_lru(page);
+		count++;
+	}
+	return count;
 }
 
 /*
