@@ -143,7 +143,7 @@ Here's a summary of the API relayfs provides to in-kernel clients:
     subbuf_start(buf, subbuf, prev_subbuf, prev_padding)
     buf_mapped(buf, filp)
     buf_unmapped(buf, filp)
-    create_buf_file(filename, parent, mode, buf)
+    create_buf_file(filename, parent, mode, buf, is_global)
     remove_buf_file(dentry)
 
   helper functions:
@@ -366,6 +366,25 @@ exist in the same filesystem the new relay file is created in.  If
 create_buf_file() is defined, remove_buf_file() must also be defined;
 it's responsible for deleting the file(s) created in create_buf_file()
 and is called during relay_close().
+
+The create_buf_file() implementation can also be defined in such a way
+as to allow the creation of a single 'global' buffer instead of the
+default per-cpu set.  This can be useful for applications interested
+mainly in seeing the relative ordering of system-wide events without
+the need to bother with saving explicit timestamps for the purpose of
+merging/sorting per-cpu files in a postprocessing step.
+
+To have relay_open() create a global buffer, the create_buf_file()
+implementation should set the value of the is_global outparam to a
+non-zero value in addition to creating the file that will be used to
+represent the single buffer.  In the case of a global buffer,
+create_buf_file() and remove_buf_file() will be called only once.  The
+normal channel-writing functions e.g. relay_write() can still be used
+- writes from any cpu will transparently end up in the global buffer -
+but since it is a global buffer, callers should make sure they use the
+proper locking for such a buffer, either by wrapping writes in a
+spinlock, or by copying a write function from relayfs_fs.h and
+creating a local version that internally does the proper locking.
 
 See the 'exported-relayfile' examples in the relay-apps tarball for
 examples of creating and using relay files in debugfs.
