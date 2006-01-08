@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/msdos_fs.h>
 #include <linux/pagemap.h>
+#include <linux/mpage.h>
 #include <linux/buffer_head.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
@@ -90,9 +91,21 @@ static int fat_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page, fat_get_block, wbc);
 }
 
+static int fat_writepages(struct address_space *mapping,
+			  struct writeback_control *wbc)
+{
+	return mpage_writepages(mapping, wbc, fat_get_block);
+}
+
 static int fat_readpage(struct file *file, struct page *page)
 {
-	return block_read_full_page(page, fat_get_block);
+	return mpage_readpage(page, fat_get_block);
+}
+
+static int fat_readpages(struct file *file, struct address_space *mapping,
+			 struct list_head *pages, unsigned nr_pages)
+{
+	return mpage_readpages(mapping, pages, nr_pages, fat_get_block);
 }
 
 static int fat_prepare_write(struct file *file, struct page *page,
@@ -122,7 +135,9 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 
 static struct address_space_operations fat_aops = {
 	.readpage	= fat_readpage,
+	.readpages	= fat_readpages,
 	.writepage	= fat_writepage,
+	.writepages	= fat_writepages,
 	.sync_page	= block_sync_page,
 	.prepare_write	= fat_prepare_write,
 	.commit_write	= fat_commit_write,
