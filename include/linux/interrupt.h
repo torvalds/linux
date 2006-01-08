@@ -79,7 +79,7 @@ static inline void __deprecated save_flags(unsigned long *x)
 {
 	local_save_flags(*x);
 }
-#define save_flags(x) save_flags(&x);
+#define save_flags(x) save_flags(&x)
 static inline void __deprecated restore_flags(unsigned long x)
 {
 	local_irq_restore(x);
