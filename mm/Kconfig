@@ -132,3 +132,10 @@ config SPLIT_PTLOCK_CPUS
 	default "4096" if ARM && !CPU_CACHE_VIPT
 	default "4096" if PARISC && !PA20
 	default "4"
+
+#
+# support for page migration
+#
+config MIGRATION
+	def_bool y if NUMA || SPARSEMEM || DISCONTIGMEM
+	depends on SWAP

@@ -178,7 +178,9 @@ extern int vm_swappiness;
 extern int isolate_lru_page(struct page *p);
 extern int putback_lru_pages(struct list_head *l);
 
+#ifdef CONFIG_MIGRATION
 extern int migrate_pages(struct list_head *l, struct list_head *t);
+#endif
 
 #ifdef CONFIG_MMU
 /* linux/mm/shmem.c */

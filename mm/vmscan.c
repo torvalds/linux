@@ -568,6 +568,7 @@ keep:
 	return reclaimed;
 }
 
+#ifdef CONFIG_MIGRATION
 /*
  * swapout a single page
  * page is locked upon entry, unlocked on exit
@@ -656,8 +657,9 @@ redo:
 
 		/*
 		 * Skip locked pages during the first two passes to give the
-		 * functions holding the lock time to release the page. Later we use
-		 * lock_page to have a higher chance of acquiring the lock.
+		 * functions holding the lock time to release the page. Later we
+		 * use lock_page() to have a higher chance of acquiring the
+		 * lock.
 		 */
 		if (pass > 2)
 			lock_page(page);
@@ -669,15 +671,15 @@ redo:
 		 * Only wait on writeback if we have already done a pass where
 		 * we we may have triggered writeouts for lots of pages.
 		 */
-		if (pass > 0)
+		if (pass > 0) {
 			wait_on_page_writeback(page);
-		else
+		} else {
 			if (PageWriteback(page)) {
 				unlock_page(page);
 				goto retry_later;
 			}
+		}
 
-#ifdef CONFIG_SWAP
 		if (PageAnon(page) && !PageSwapCache(page)) {
 			if (!add_to_swap(page)) {
 				unlock_page(page);
@@ -686,16 +688,15 @@ redo:
 				continue;
 			}
 		}
-#endif /* CONFIG_SWAP */
 
 		/*
 		 * Page is properly locked and writeback is complete.
 		 * Try to migrate the page.
 		 */
-		if (swap_page(page)) {
+		if (!swap_page(page))
+			continue;
 retry_later:
-			retry++;
-		}
+		retry++;
 	}
 	if (retry && pass++ < 10)
 		goto redo;
@@ -708,6 +709,7 @@ retry_later:
 
 	return nr_failed + retry;
 }
+#endif
 
 /*
  * zone->lru_lock is heavily contended.  Some of the functions that
