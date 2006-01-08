@@ -1883,7 +1883,6 @@ bad:
 
 static inline void free_zone_pagesets(int cpu)
 {
-#ifdef CONFIG_NUMA
 	struct zone *zone;
 
 	for_each_zone(zone) {
@@ -1892,7 +1891,6 @@ static inline void free_zone_pagesets(int cpu)
 		zone_pcp(zone, cpu) = NULL;
 		kfree(pset);
 	}
-#endif
 }
 
 static int __devinit pageset_cpuup_callback(struct notifier_block *nfb,
