@@ -309,6 +309,15 @@ config BUG
           option for embedded systems with no facilities for reporting errors.
           Just say Y.
 
+config DOUBLEFAULT
+	depends X86
+	default y if X86
+	bool "Enable doublefault exception handler" if EMBEDDED
+	help
+          This option allows trapping of rare doublefault exceptions that
+          would otherwise cause a system to silently reboot. Disabling this
+          option saves about 4k.
+
 config BASE_FULL
 	default y
 	bool "Enable full-sized data structures for core" if EMBEDDED
