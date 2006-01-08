@@ -351,17 +351,17 @@ writeword(unsigned long base_addr, int portno, int value)
 }
 
 static int
-readreg(struct net_device *dev, int portno)
+readreg(struct net_device *dev, int regno)
 {
-	outw(portno, dev->base_addr + ADD_PORT);
-	return inw(dev->base_addr + DATA_PORT);
+	writeword(dev->base_addr, ADD_PORT, regno);
+	return readword(dev->base_addr, DATA_PORT);
 }
 
 static void
-writereg(struct net_device *dev, int portno, int value)
+writereg(struct net_device *dev, int regno, int value)
 {
-	outw(portno, dev->base_addr + ADD_PORT);
-	outw(value, dev->base_addr + DATA_PORT);
+	writeword(dev->base_addr, ADD_PORT, regno);
+	writeword(dev->base_addr, DATA_PORT, value);
 }
 
 static int __init
