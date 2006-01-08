@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
+#include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <asm/atomic.h>

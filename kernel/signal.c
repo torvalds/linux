@@ -329,13 +329,20 @@ void __exit_sighand(struct task_struct *tsk)
 	/* Ok, we're done with the signal handlers */
 	tsk->sighand = NULL;
 	if (atomic_dec_and_test(&sighand->count))
-		kmem_cache_free(sighand_cachep, sighand);
+		sighand_free(sighand);
 }
 
 void exit_sighand(struct task_struct *tsk)
 {
 	write_lock_irq(&tasklist_lock);
-	__exit_sighand(tsk);
+	rcu_read_lock();
+	if (tsk->sighand != NULL) {
+		struct sighand_struct *sighand = rcu_dereference(tsk->sighand);
+		spin_lock(&sighand->siglock);
+		__exit_sighand(tsk);
+		spin_unlock(&sighand->siglock);
+	}
+	rcu_read_unlock();
 	write_unlock_irq(&tasklist_lock);
 }
 
@@ -345,12 +352,14 @@ void exit_sighand(struct task_struct *tsk)
 void __exit_signal(struct task_struct *tsk)
 {
 	struct signal_struct * sig = tsk->signal;
-	struct sighand_struct * sighand = tsk->sighand;
+	struct sighand_struct * sighand;
 
 	if (!sig)
 		BUG();
 	if (!atomic_read(&sig->count))
 		BUG();
+	rcu_read_lock();
+	sighand = rcu_dereference(tsk->sighand);
 	spin_lock(&sighand->siglock);
 	posix_cpu_timers_exit(tsk);
 	if (atomic_dec_and_test(&sig->count)) {
@@ -358,6 +367,7 @@ void __exit_signal(struct task_struct *tsk)
 		if (tsk == sig->curr_target)
 			sig->curr_target = next_thread(tsk);
 		tsk->signal = NULL;
+		__exit_sighand(tsk);
 		spin_unlock(&sighand->siglock);
 		flush_sigqueue(&sig->shared_pending);
 	} else {
@@ -389,9 +399,11 @@ void __exit_signal(struct task_struct *tsk)
 		sig->nvcsw += tsk->nvcsw;
 		sig->nivcsw += tsk->nivcsw;
 		sig->sched_time += tsk->sched_time;
+		__exit_sighand(tsk);
 		spin_unlock(&sighand->siglock);
 		sig = NULL;	/* Marker for below.  */
 	}
+	rcu_read_unlock();
 	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
 	flush_sigqueue(&tsk->pending);
 	if (sig) {
@@ -1080,18 +1092,28 @@ void zap_other_threads(struct task_struct *p)
 }
 
 /*
- * Must be called with the tasklist_lock held for reading!
+ * Must be called under rcu_read_lock() or with tasklist_lock read-held.
  */
 int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 {
 	unsigned long flags;
+	struct sighand_struct *sp;
 	int ret;
 
+retry:
 	ret = check_kill_permission(sig, info, p);
-	if (!ret && sig && p->sighand) {
-		spin_lock_irqsave(&p->sighand->siglock, flags);
+	if (!ret && sig && (sp = p->sighand)) {
+		if (!get_task_struct_rcu(p))
+			return -ESRCH;
+		spin_lock_irqsave(&sp->siglock, flags);
+		if (p->sighand != sp) {
+			spin_unlock_irqrestore(&sp->siglock, flags);
+			put_task_struct(p);
+			goto retry;
+		}
 		ret = __group_send_sig_info(sig, info, p);
-		spin_unlock_irqrestore(&p->sighand->siglock, flags);
+		spin_unlock_irqrestore(&sp->siglock, flags);
+		put_task_struct(p);
 	}
 
 	return ret;
@@ -1136,14 +1158,21 @@ int
 kill_proc_info(int sig, struct siginfo *info, pid_t pid)
 {
 	int error;
+	int acquired_tasklist_lock = 0;
 	struct task_struct *p;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
+	if (unlikely(sig_kernel_stop(sig) || sig == SIGCONT)) {
+		read_lock(&tasklist_lock);
+		acquired_tasklist_lock = 1;
+	}
 	p = find_task_by_pid(pid);
 	error = -ESRCH;
 	if (p)
 		error = group_send_sig_info(sig, info, p);
-	read_unlock(&tasklist_lock);
+	if (unlikely(acquired_tasklist_lock))
+		read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	return error;
 }
 
@@ -1355,16 +1384,54 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 {
 	unsigned long flags;
 	int ret = 0;
+	struct sighand_struct *sh;
 
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
-	read_lock(&tasklist_lock);
+
+	/*
+	 * The rcu based delayed sighand destroy makes it possible to
+	 * run this without tasklist lock held. The task struct itself
+	 * cannot go away as create_timer did get_task_struct().
+	 *
+	 * We return -1, when the task is marked exiting, so
+	 * posix_timer_event can redirect it to the group leader
+	 */
+	rcu_read_lock();
 
 	if (unlikely(p->flags & PF_EXITING)) {
 		ret = -1;
 		goto out_err;
 	}
 
-	spin_lock_irqsave(&p->sighand->siglock, flags);
+retry:
+	sh = rcu_dereference(p->sighand);
+
+	spin_lock_irqsave(&sh->siglock, flags);
+	if (p->sighand != sh) {
+		/* We raced with exec() in a multithreaded process... */
+		spin_unlock_irqrestore(&sh->siglock, flags);
+		goto retry;
+	}
+
+	/*
+	 * We do the check here again to handle the following scenario:
+	 *
+	 * CPU 0		CPU 1
+	 * send_sigqueue
+	 * check PF_EXITING
+	 * interrupt		exit code running
+	 *			__exit_signal
+	 *			lock sighand->siglock
+	 *			unlock sighand->siglock
+	 * lock sh->siglock
+	 * add(tsk->pending) 	flush_sigqueue(tsk->pending)
+	 *
+	 */
+
+	if (unlikely(p->flags & PF_EXITING)) {
+		ret = -1;
+		goto out;
+	}
 
 	if (unlikely(!list_empty(&q->list))) {
 		/*
@@ -1388,9 +1455,9 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 		signal_wake_up(p, sig == SIGKILL);
 
 out:
-	spin_unlock_irqrestore(&p->sighand->siglock, flags);
+	spin_unlock_irqrestore(&sh->siglock, flags);
 out_err:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return ret;
 }
@@ -1402,7 +1469,9 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	int ret = 0;
 
 	BUG_ON(!(q->flags & SIGQUEUE_PREALLOC));
+
 	read_lock(&tasklist_lock);
+	/* Since it_lock is held, p->sighand cannot be NULL. */
 	spin_lock_irqsave(&p->sighand->siglock, flags);
 	handle_stop_signal(sig, p);
 
@@ -1436,7 +1505,7 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 out:
 	spin_unlock_irqrestore(&p->sighand->siglock, flags);
 	read_unlock(&tasklist_lock);
-	return(ret);
+	return ret;
 }
 
 /*

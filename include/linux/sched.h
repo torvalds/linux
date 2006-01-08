@@ -34,6 +34,7 @@
 #include <linux/percpu.h>
 #include <linux/topology.h>
 #include <linux/seccomp.h>
+#include <linux/rcupdate.h>
 
 #include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
 
@@ -350,7 +351,15 @@ struct sighand_struct {
 	atomic_t		count;
 	struct k_sigaction	action[_NSIG];
 	spinlock_t		siglock;
+	struct rcu_head		rcu;
 };
+
+extern void sighand_free_cb(struct rcu_head *rhp);
+
+static inline void sighand_free(struct sighand_struct *sp)
+{
+	call_rcu(&sp->rcu, sighand_free_cb);
+}
 
 /*
  * NOTE! "signal_struct" does not have it's own
@@ -844,6 +853,7 @@ struct task_struct {
 	int cpuset_mems_generation;
 #endif
 	atomic_t fs_excl;	/* holding fs exclusive resources */
+	struct rcu_head rcu;
 };
 
 static inline pid_t process_group(struct task_struct *tsk)
@@ -867,8 +877,26 @@ static inline int pid_alive(struct task_struct *p)
 extern void free_task(struct task_struct *tsk);
 extern void __put_task_struct(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
-#define put_task_struct(tsk) \
-do { if (atomic_dec_and_test(&(tsk)->usage)) __put_task_struct(tsk); } while(0)
+
+static inline int get_task_struct_rcu(struct task_struct *t)
+{
+	int oldusage;
+
+	do {
+		oldusage = atomic_read(&t->usage);
+		if (oldusage == 0)
+			return 0;
+	} while (cmpxchg(&t->usage.counter, oldusage, oldusage+1) != oldusage);
+	return 1;
+}
+
+extern void __put_task_struct_cb(struct rcu_head *rhp);
+
+static inline void put_task_struct(struct task_struct *t)
+{
+	if (atomic_dec_and_test(&t->usage))
+		call_rcu(&t->rcu, __put_task_struct_cb);
+}
 
 /*
  * Per process flags
