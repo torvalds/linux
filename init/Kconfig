@@ -237,6 +237,16 @@ config UID16
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
 
+config VM86
+	depends X86
+	default y
+	bool "Enable VM86 support" if EMBEDDED
+	help
+          This option is required by programs like DOSEMU to run 16-bit legacy
+	  code on X86 processors. It also may be needed by software like
+          XFree86 to initialize some video cards via BIOS. Disabling this
+          option saves about 6k.
+
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (Look out for broken compilers!)"
 	default y

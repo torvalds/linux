@@ -102,6 +102,8 @@ cond_syscall(sys_setresgid16);
 cond_syscall(sys_setresuid16);
 cond_syscall(sys_setreuid16);
 cond_syscall(sys_setuid16);
+cond_syscall(sys_vm86old);
+cond_syscall(sys_vm86);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);
