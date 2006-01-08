@@ -345,19 +345,15 @@ static irqreturn_t ads7846_irq(int irq, void *handle, struct pt_regs *regs)
 
 /*--------------------------------------------------------------------------*/
 
-/* non-empty "extra" is needed before 2.6.14-git5 or so */
-#define	EXTRA	//	, u32 level
-#define	EXTRA2	//	, 0
-
 static int
-ads7846_suspend(struct device *dev, pm_message_t message EXTRA)
+ads7846_suspend(struct spi_device *spi, pm_message_t message)
 {
-	struct ads7846 *ts = dev_get_drvdata(dev);
+	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
 	unsigned long	flags;
 
 	spin_lock_irqsave(&ts->lock, flags);
 
-	ts->spi->dev.power.power_state = message;
+	spi->dev.power.power_state = message;
 
 	/* are we waiting for IRQ, or polling? */
 	if (!ts->pendown) {
@@ -387,36 +383,35 @@ ads7846_suspend(struct device *dev, pm_message_t message EXTRA)
 	return 0;
 }
 
-static int ads7846_resume(struct device *dev EXTRA)
+static int ads7846_resume(struct spi_device *spi)
 {
-	struct ads7846 *ts = dev_get_drvdata(dev);
+	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
 
 	ts->irq_disabled = 0;
 	enable_irq(ts->spi->irq);
-	dev->power.power_state = PMSG_ON;
+	spi->dev.power.power_state = PMSG_ON;
 	return 0;
 }
 
-static int __init ads7846_probe(struct device *dev)
+static int __devinit ads7846_probe(struct spi_device *spi)
 {
-	struct spi_device		*spi = to_spi_device(dev);
 	struct ads7846			*ts;
-	struct ads7846_platform_data	*pdata = dev->platform_data;
+	struct ads7846_platform_data	*pdata = spi->dev.platform_data;
 	struct spi_transfer		*x;
 
 	if (!spi->irq) {
-		dev_dbg(dev, "no IRQ?\n");
+		dev_dbg(&spi->dev, "no IRQ?\n");
 		return -ENODEV;
 	}
 
 	if (!pdata) {
-		dev_dbg(dev, "no platform data?\n");
+		dev_dbg(&spi->dev, "no platform data?\n");
 		return -ENODEV;
 	}
 
 	/* don't exceed max specified sample rate */
 	if (spi->max_speed_hz > (125000 * 16)) {
-		dev_dbg(dev, "f(sample) %d KHz?\n",
+		dev_dbg(&spi->dev, "f(sample) %d KHz?\n",
 				(spi->max_speed_hz/16)/1000);
 		return -EINVAL;
 	}
@@ -430,7 +425,7 @@ static int __init ads7846_probe(struct device *dev)
 	if (!(ts = kzalloc(sizeof(struct ads7846), GFP_KERNEL)))
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, ts);
+	dev_set_drvdata(&spi->dev, ts);
 
 	ts->spi = spi;
 	spi->dev.power.power_state = PMSG_ON;
@@ -445,9 +440,9 @@ static int __init ads7846_probe(struct device *dev)
 
 	init_input_dev(&ts->input);
 
-	ts->input.dev = dev;
+	ts->input.dev = &spi->dev;
 	ts->input.name = "ADS784x Touchscreen";
-	snprintf(ts->phys, sizeof ts->phys, "%s/input0", dev->bus_id);
+	snprintf(ts->phys, sizeof ts->phys, "%s/input0", spi->dev.bus_id);
 	ts->input.phys = ts->phys;
 
 	ts->input.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
@@ -511,65 +506,68 @@ static int __init ads7846_probe(struct device *dev)
 	ts->msg.context = ts;
 
 	if (request_irq(spi->irq, ads7846_irq, SA_SAMPLE_RANDOM,
-				dev->bus_id, ts)) {
-		dev_dbg(dev, "irq %d busy?\n", spi->irq);
+				spi->dev.bus_id, ts)) {
+		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
 		input_unregister_device(&ts->input);
 		kfree(ts);
 		return -EBUSY;
 	}
 	set_irq_type(spi->irq, IRQT_FALLING);
 
-	dev_info(dev, "touchscreen, irq %d\n", spi->irq);
+	dev_info(&spi->dev, "touchscreen, irq %d\n", spi->irq);
 
 	/* take a first sample, leaving nPENIRQ active; avoid
 	 * the touchscreen, in case it's not connected.
 	 */
-	(void) ads7846_read12_ser(dev,
+	(void) ads7846_read12_ser(&spi->dev,
 			  READ_12BIT_SER(vaux) | ADS_PD10_ALL_ON);
 
 	/* ads7843/7845 don't have temperature sensors, and
 	 * use the other sensors a bit differently too
 	 */
 	if (ts->model == 7846) {
-		device_create_file(dev, &dev_attr_temp0);
-		device_create_file(dev, &dev_attr_temp1);
+		device_create_file(&spi->dev, &dev_attr_temp0);
+		device_create_file(&spi->dev, &dev_attr_temp1);
 	}
 	if (ts->model != 7845)
-		device_create_file(dev, &dev_attr_vbatt);
-	device_create_file(dev, &dev_attr_vaux);
+		device_create_file(&spi->dev, &dev_attr_vbatt);
+	device_create_file(&spi->dev, &dev_attr_vaux);
 
 	return 0;
 }
 
-static int __exit ads7846_remove(struct device *dev)
+static int __devexit ads7846_remove(struct spi_device *spi)
 {
-	struct ads7846		*ts = dev_get_drvdata(dev);
+	struct ads7846		*ts = dev_get_drvdata(&spi->dev);
 
-	ads7846_suspend(dev, PMSG_SUSPEND EXTRA2);
+	ads7846_suspend(spi, PMSG_SUSPEND);
 	free_irq(ts->spi->irq, ts);
 	if (ts->irq_disabled)
 		enable_irq(ts->spi->irq);
 
 	if (ts->model == 7846) {
-		device_remove_file(dev, &dev_attr_temp0);
-		device_remove_file(dev, &dev_attr_temp1);
+		device_remove_file(&spi->dev, &dev_attr_temp0);
+		device_remove_file(&spi->dev, &dev_attr_temp1);
 	}
 	if (ts->model != 7845)
-		device_remove_file(dev, &dev_attr_vbatt);
-	device_remove_file(dev, &dev_attr_vaux);
+		device_remove_file(&spi->dev, &dev_attr_vbatt);
+	device_remove_file(&spi->dev, &dev_attr_vaux);
 
 	input_unregister_device(&ts->input);
 	kfree(ts);
 
-	dev_dbg(dev, "unregistered touchscreen\n");
+	dev_dbg(&spi->dev, "unregistered touchscreen\n");
 	return 0;
 }
 
-static struct device_driver ads7846_driver = {
-	.name		= "ads7846",
-	.bus		= &spi_bus_type,
+static struct spi_driver ads7846_driver = {
+	.driver = {
+		.name	= "ads7846",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
 	.probe		= ads7846_probe,
-	.remove		= __exit_p(ads7846_remove),
+	.remove		= __devexit_p(ads7846_remove),
 	.suspend	= ads7846_suspend,
 	.resume		= ads7846_resume,
 };
@@ -594,18 +592,20 @@ static int __init ads7846_init(void)
 	// PXA:
 	// also Dell Axim X50
 	// also HP iPaq H191x/H192x/H415x/H435x
-	// also Intel Lubbock (alternate to UCB1400)
+	// also Intel Lubbock (additional to UCB1400; as temperature sensor)
 	// also Sharp Zaurus C7xx, C8xx (corgi/sheperd/husky)
+
+	// Atmel at91sam9261-EK uses ads7843
 
 	// also various AMD Au1x00 devel boards
 
-	return driver_register(&ads7846_driver);
+	return spi_register_driver(&ads7846_driver);
 }
 module_init(ads7846_init);
 
 static void __exit ads7846_exit(void)
 {
-	driver_unregister(&ads7846_driver);
+	spi_unregister_driver(&ads7846_driver);
 
 #ifdef	CONFIG_ARCH_OMAP
 	if (machine_is_omap_osk()) {
