@@ -429,6 +429,36 @@ static void rcu_process_callbacks(unsigned long unused)
 				&__get_cpu_var(rcu_bh_data));
 }
 
+static int __rcu_pending(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
+{
+	/* This cpu has pending rcu entries and the grace period
+	 * for them has completed.
+	 */
+	if (rdp->curlist && !rcu_batch_before(rcp->completed, rdp->batch))
+		return 1;
+
+	/* This cpu has no pending entries, but there are new entries */
+	if (!rdp->curlist && rdp->nxtlist)
+		return 1;
+
+	/* This cpu has finished callbacks to invoke */
+	if (rdp->donelist)
+		return 1;
+
+	/* The rcu core waits for a quiescent state from the cpu */
+	if (rdp->quiescbatch != rcp->cur || rdp->qs_pending)
+		return 1;
+
+	/* nothing to do */
+	return 0;
+}
+
+int rcu_pending(int cpu)
+{
+	return __rcu_pending(&rcu_ctrlblk, &per_cpu(rcu_data, cpu)) ||
+		__rcu_pending(&rcu_bh_ctrlblk, &per_cpu(rcu_bh_data, cpu));
+}
+
 void rcu_check_callbacks(int cpu, int user)
 {
 	if (user || 
