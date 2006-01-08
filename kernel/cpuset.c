@@ -1821,14 +1821,12 @@ void cpuset_fork(struct task_struct *child)
  *
  * We don't need to task_lock() this reference to tsk->cpuset,
  * because tsk is already marked PF_EXITING, so attach_task() won't
- * mess with it.
+ * mess with it, or task is a failed fork, never visible to attach_task.
  **/
 
 void cpuset_exit(struct task_struct *tsk)
 {
 	struct cpuset *cs;
-
-	BUG_ON(!(tsk->flags & PF_EXITING));
 
 	cs = tsk->cpuset;
 	tsk->cpuset = NULL;

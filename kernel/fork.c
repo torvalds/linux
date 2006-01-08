@@ -972,12 +972,13 @@ static task_t *copy_process(unsigned long clone_flags,
 	p->io_context = NULL;
 	p->io_wait = NULL;
 	p->audit_context = NULL;
+	cpuset_fork(p);
 #ifdef CONFIG_NUMA
  	p->mempolicy = mpol_copy(p->mempolicy);
  	if (IS_ERR(p->mempolicy)) {
  		retval = PTR_ERR(p->mempolicy);
  		p->mempolicy = NULL;
- 		goto bad_fork_cleanup;
+ 		goto bad_fork_cleanup_cpuset;
  	}
 #endif
 
@@ -1148,7 +1149,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	total_forks++;
 	write_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
-	cpuset_fork(p);
 	retval = 0;
 
 fork_out:
@@ -1180,7 +1180,9 @@ bad_fork_cleanup_security:
 bad_fork_cleanup_policy:
 #ifdef CONFIG_NUMA
 	mpol_free(p->mempolicy);
+bad_fork_cleanup_cpuset:
 #endif
+	cpuset_exit(p);
 bad_fork_cleanup:
 	if (p->binfmt)
 		module_put(p->binfmt->module);
