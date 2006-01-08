@@ -41,7 +41,7 @@
 #define uint(x) xuint(x)
 #define xuint(x) __le ## x
 
-extern inline int find_next_one_bit (void * addr, int size, int offset)
+static inline int find_next_one_bit (void * addr, int size, int offset)
 {
 	uintBPL_t * p = ((uintBPL_t *) addr) + (offset / BITS_PER_LONG);
 	int result = offset & ~(BITS_PER_LONG-1);
