@@ -39,6 +39,7 @@
 #include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/proc_fs.h>
+#include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -248,6 +249,11 @@ static struct super_block *cpuset_sb;
  * a tasks cpuset pointer we use task_lock(), which acts on a spinlock
  * (task->alloc_lock) already in the task_struct routinely used for
  * such matters.
+ *
+ * P.S.  One more locking exception.  RCU is used to guard the
+ * update of a tasks cpuset pointer by attach_task() and the
+ * access of task->cpuset->mems_generation via that pointer in
+ * the routine cpuset_update_task_memory_state().
  */
 
 static DECLARE_MUTEX(manage_sem);
@@ -610,12 +616,24 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
  * cpuset pointer.  This routine also might acquire callback_sem and
  * current->mm->mmap_sem during call.
  *
- * The task_lock() is required to dereference current->cpuset safely.
- * Without it, we could pick up the pointer value of current->cpuset
- * in one instruction, and then attach_task could give us a different
- * cpuset, and then the cpuset we had could be removed and freed,
- * and then on our next instruction, we could dereference a no longer
- * valid cpuset pointer to get its mems_generation field.
+ * Reading current->cpuset->mems_generation doesn't need task_lock
+ * to guard the current->cpuset derefence, because it is guarded
+ * from concurrent freeing of current->cpuset by attach_task(),
+ * using RCU.
+ *
+ * The rcu_dereference() is technically probably not needed,
+ * as I don't actually mind if I see a new cpuset pointer but
+ * an old value of mems_generation.  However this really only
+ * matters on alpha systems using cpusets heavily.  If I dropped
+ * that rcu_dereference(), it would save them a memory barrier.
+ * For all other arch's, rcu_dereference is a no-op anyway, and for
+ * alpha systems not using cpusets, another planned optimization,
+ * avoiding the rcu critical section for tasks in the root cpuset
+ * which is statically allocated, so can't vanish, will make this
+ * irrelevant.  Better to use RCU as intended, than to engage in
+ * some cute trick to save a memory barrier that is impossible to
+ * test, for alpha systems using cpusets heavily, which might not
+ * even exist.
  *
  * This routine is needed to update the per-task mems_allowed data,
  * within the tasks context, when it is trying to allocate memory
@@ -627,11 +645,12 @@ void cpuset_update_task_memory_state()
 {
 	int my_cpusets_mem_gen;
 	struct task_struct *tsk = current;
-	struct cpuset *cs = tsk->cpuset;
+	struct cpuset *cs;
 
-	task_lock(tsk);
+	rcu_read_lock();
+	cs = rcu_dereference(tsk->cpuset);
 	my_cpusets_mem_gen = cs->mems_generation;
-	task_unlock(tsk);
+	rcu_read_unlock();
 
 	if (my_cpusets_mem_gen != tsk->cpuset_mems_generation) {
 		down(&callback_sem);
@@ -1131,7 +1150,7 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 		return -ESRCH;
 	}
 	atomic_inc(&cs->count);
-	tsk->cpuset = cs;
+	rcu_assign_pointer(tsk->cpuset, cs);
 	task_unlock(tsk);
 
 	guarantee_online_cpus(cs, &cpus);
@@ -1151,6 +1170,7 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	if (is_memory_migrate(cs))
 		do_migrate_pages(tsk->mm, &from, &to, MPOL_MF_MOVE_ALL);
 	put_task_struct(tsk);
+	synchronize_rcu();
 	if (atomic_dec_and_test(&oldcs->count))
 		check_for_release(oldcs, ppathbuf);
 	return 0;
