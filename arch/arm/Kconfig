@@ -103,13 +103,6 @@ config ARCH_EBSA110
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
-config ARCH_CAMELOT
-	bool "Epxa10db"
-	help
-	  This enables support for Altera's Excalibur XA10 development board.
-	  If you would like to build your kernel to run on one of these boards
-	  then you must say 'Y' here. Otherwise say 'N'
-
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select FOOTBRIDGE
@@ -220,8 +213,6 @@ config ARCH_AAEC2000
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
-
-source "arch/arm/mach-epxa10db/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
