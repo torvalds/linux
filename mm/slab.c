@@ -854,7 +854,6 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 	struct kmem_list3 *l3 = NULL;
 	int node = cpu_to_node(cpu);
 	int memsize = sizeof(struct kmem_list3);
-	struct array_cache *nc = NULL;
 
 	switch (action) {
 	case CPU_UP_PREPARE:
@@ -891,6 +890,8 @@ static int __devinit cpuup_callback(struct notifier_block *nfb,
 		/* Now we can go ahead with allocating the shared array's
 		   & array cache's */
 		list_for_each_entry(cachep, &cache_chain, next) {
+			struct array_cache *nc;
+
 			nc = alloc_arraycache(node, cachep->limit,
 					      cachep->batchcount);
 			if (!nc)
