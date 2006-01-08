@@ -1204,6 +1204,7 @@ static void __get_page_state(struct page_state *ret, int nr, cpumask_t *cpumask)
 	int cpu = 0;
 
 	memset(ret, 0, sizeof(*ret));
+	cpus_and(*cpumask, *cpumask, cpu_online_map);
 
 	cpu = first_cpu(*cpumask);
 	while (cpu < NR_CPUS) {
@@ -1256,7 +1257,7 @@ unsigned long read_page_state_offset(unsigned long offset)
 	unsigned long ret = 0;
 	int cpu;
 
-	for_each_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		unsigned long in;
 
 		in = (unsigned long)&per_cpu(page_states, cpu) + offset;
