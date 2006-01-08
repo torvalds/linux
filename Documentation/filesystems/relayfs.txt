@@ -44,30 +44,41 @@ relayfs can operate in a mode where it will overwrite data not yet
 collected by userspace, and not wait for it to consume it.
 
 relayfs itself does not provide for communication of such data between
-userspace and kernel, allowing the kernel side to remain simple and not
-impose a single interface on userspace. It does provide a separate
-helper though, described below.
+userspace and kernel, allowing the kernel side to remain simple and
+not impose a single interface on userspace. It does provide a set of
+examples and a separate helper though, described below.
 
-klog, relay-app & librelay
-==========================
+klog and relay-apps example code
+================================
 
-relayfs itself is ready to use, but to make things easier, two
-additional systems are provided.  klog is a simple wrapper to make
-writing formatted text or raw data to a channel simpler, regardless of
-whether a channel to write into exists or not, or whether relayfs is
-compiled into the kernel or is configured as a module.  relay-app is
-the kernel counterpart of userspace librelay.c, combined these two
-files provide glue to easily stream data to disk, without having to
-bother with housekeeping.  klog and relay-app can be used together,
-with klog providing high-level logging functions to the kernel and
-relay-app taking care of kernel-user control and disk-logging chores.
+relayfs itself is ready to use, but to make things easier, a couple
+simple utility functions and a set of examples are provided.
 
-It is possible to use relayfs without relay-app & librelay, but you'll
-have to implement communication between userspace and kernel, allowing
-both to convey the state of buffers (full, empty, amount of padding).
+The relay-apps example tarball, available on the relayfs sourceforge
+site, contains a set of self-contained examples, each consisting of a
+pair of .c files containing boilerplate code for each of the user and
+kernel sides of a relayfs application; combined these two sets of
+boilerplate code provide glue to easily stream data to disk, without
+having to bother with mundane housekeeping chores.
 
-klog, relay-app and librelay can be found in the relay-apps tarball on
-http://relayfs.sourceforge.net
+The 'klog debugging functions' patch (klog.patch in the relay-apps
+tarball) provides a couple of high-level logging functions to the
+kernel which allow writing formatted text or raw data to a channel,
+regardless of whether a channel to write into exists or not, or
+whether relayfs is compiled into the kernel or is configured as a
+module.  These functions allow you to put unconditional 'trace'
+statements anywhere in the kernel or kernel modules; only when there
+is a 'klog handler' registered will data actually be logged (see the
+klog and kleak examples for details).
+
+It is of course possible to use relayfs from scratch i.e. without
+using any of the relay-apps example code or klog, but you'll have to
+implement communication between userspace and kernel, allowing both to
+convey the state of buffers (full, empty, amount of padding).
+
+klog and the relay-apps examples can be found in the relay-apps
+tarball on http://relayfs.sourceforge.net
+
 
 The relayfs user space API
 ==========================
