@@ -10,6 +10,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/module.h>
 
 int find_next_bit(const unsigned long *addr, int size, int offset)
 {
@@ -53,3 +54,5 @@ int find_next_bit(const unsigned long *addr, int size, int offset)
 
 	return offset;
 }
+
+EXPORT_SYMBOL(find_next_bit);
