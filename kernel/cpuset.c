@@ -56,6 +56,15 @@
 
 #define CPUSET_SUPER_MAGIC 		0x27e0eb
 
+/* See "Frequency meter" comments, below. */
+
+struct fmeter {
+	int cnt;		/* unprocessed events count */
+	int val;		/* most recent output value */
+	time_t time;		/* clock (secs) when val computed */
+	spinlock_t lock;	/* guards read or write of above */
+};
+
 struct cpuset {
 	unsigned long flags;		/* "unsigned long" so bitops work */
 	cpumask_t cpus_allowed;		/* CPUs allowed to tasks in cpuset */
@@ -80,7 +89,9 @@ struct cpuset {
 	 * Copy of global cpuset_mems_generation as of the most
 	 * recent time this cpuset changed its mems_allowed.
 	 */
-	 int mems_generation;
+	int mems_generation;
+
+	struct fmeter fmeter;		/* memory_pressure filter */
 };
 
 /* bits in struct cpuset flags field */
@@ -149,7 +160,7 @@ static struct cpuset top_cpuset = {
 };
 
 static struct vfsmount *cpuset_mount;
-static struct super_block *cpuset_sb = NULL;
+static struct super_block *cpuset_sb;
 
 /*
  * We have two global cpuset semaphores below.  They can nest.
@@ -807,6 +818,19 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 }
 
 /*
+ * Call with manage_sem held.
+ */
+
+static int update_memory_pressure_enabled(struct cpuset *cs, char *buf)
+{
+	if (simple_strtoul(buf, NULL, 10) != 0)
+		cpuset_memory_pressure_enabled = 1;
+	else
+		cpuset_memory_pressure_enabled = 0;
+	return 0;
+}
+
+/*
  * update_flag - read a 0 or a 1 in a file and update associated flag
  * bit:	the bit to update (CS_CPU_EXCLUSIVE, CS_MEM_EXCLUSIVE,
  *				CS_NOTIFY_ON_RELEASE, CS_MEMORY_MIGRATE)
@@ -845,6 +869,104 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs, char *buf)
 	if (cpu_exclusive_changed)
                 update_cpu_domains(cs);
 	return 0;
+}
+
+/*
+ * Frequency meter - How fast is some event occuring?
+ *
+ * These routines manage a digitally filtered, constant time based,
+ * event frequency meter.  There are four routines:
+ *   fmeter_init() - initialize a frequency meter.
+ *   fmeter_markevent() - called each time the event happens.
+ *   fmeter_getrate() - returns the recent rate of such events.
+ *   fmeter_update() - internal routine used to update fmeter.
+ *
+ * A common data structure is passed to each of these routines,
+ * which is used to keep track of the state required to manage the
+ * frequency meter and its digital filter.
+ *
+ * The filter works on the number of events marked per unit time.
+ * The filter is single-pole low-pass recursive (IIR).  The time unit
+ * is 1 second.  Arithmetic is done using 32-bit integers scaled to
+ * simulate 3 decimal digits of precision (multiplied by 1000).
+ *
+ * With an FM_COEF of 933, and a time base of 1 second, the filter
+ * has a half-life of 10 seconds, meaning that if the events quit
+ * happening, then the rate returned from the fmeter_getrate()
+ * will be cut in half each 10 seconds, until it converges to zero.
+ *
+ * It is not worth doing a real infinitely recursive filter.  If more
+ * than FM_MAXTICKS ticks have elapsed since the last filter event,
+ * just compute FM_MAXTICKS ticks worth, by which point the level
+ * will be stable.
+ *
+ * Limit the count of unprocessed events to FM_MAXCNT, so as to avoid
+ * arithmetic overflow in the fmeter_update() routine.
+ *
+ * Given the simple 32 bit integer arithmetic used, this meter works
+ * best for reporting rates between one per millisecond (msec) and
+ * one per 32 (approx) seconds.  At constant rates faster than one
+ * per msec it maxes out at values just under 1,000,000.  At constant
+ * rates between one per msec, and one per second it will stabilize
+ * to a value N*1000, where N is the rate of events per second.
+ * At constant rates between one per second and one per 32 seconds,
+ * it will be choppy, moving up on the seconds that have an event,
+ * and then decaying until the next event.  At rates slower than
+ * about one in 32 seconds, it decays all the way back to zero between
+ * each event.
+ */
+
+#define FM_COEF 933		/* coefficient for half-life of 10 secs */
+#define FM_MAXTICKS ((time_t)99) /* useless computing more ticks than this */
+#define FM_MAXCNT 1000000	/* limit cnt to avoid overflow */
+#define FM_SCALE 1000		/* faux fixed point scale */
+
+/* Initialize a frequency meter */
+static void fmeter_init(struct fmeter *fmp)
+{
+	fmp->cnt = 0;
+	fmp->val = 0;
+	fmp->time = 0;
+	spin_lock_init(&fmp->lock);
+}
+
+/* Internal meter update - process cnt events and update value */
+static void fmeter_update(struct fmeter *fmp)
+{
+	time_t now = get_seconds();
+	time_t ticks = now - fmp->time;
+
+	if (ticks == 0)
+		return;
+
+	ticks = min(FM_MAXTICKS, ticks);
+	while (ticks-- > 0)
+		fmp->val = (FM_COEF * fmp->val) / FM_SCALE;
+	fmp->time = now;
+
+	fmp->val += ((FM_SCALE - FM_COEF) * fmp->cnt) / FM_SCALE;
+	fmp->cnt = 0;
+}
+
+/* Process any previous ticks, then bump cnt by one (times scale). */
+static void fmeter_markevent(struct fmeter *fmp)
+{
+	spin_lock(&fmp->lock);
+	fmeter_update(fmp);
+	fmp->cnt = min(FM_MAXCNT, fmp->cnt + FM_SCALE);
+	spin_unlock(&fmp->lock);
+}
+
+/* Process any previous ticks, then return current value. */
+static int fmeter_getrate(struct fmeter *fmp)
+{
+	int val;
+
+	spin_lock(&fmp->lock);
+	fmeter_update(fmp);
+	val = fmp->val;
+	spin_unlock(&fmp->lock);
+	return val;
 }
 
 /*
@@ -931,6 +1053,8 @@ typedef enum {
 	FILE_CPU_EXCLUSIVE,
 	FILE_MEM_EXCLUSIVE,
 	FILE_NOTIFY_ON_RELEASE,
+	FILE_MEMORY_PRESSURE_ENABLED,
+	FILE_MEMORY_PRESSURE,
 	FILE_TASKLIST,
 } cpuset_filetype_t;
 
@@ -983,6 +1107,12 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 		break;
 	case FILE_MEMORY_MIGRATE:
 		retval = update_flag(CS_MEMORY_MIGRATE, cs, buffer);
+		break;
+	case FILE_MEMORY_PRESSURE_ENABLED:
+		retval = update_memory_pressure_enabled(cs, buffer);
+		break;
+	case FILE_MEMORY_PRESSURE:
+		retval = -EACCES;
 		break;
 	case FILE_TASKLIST:
 		retval = attach_task(cs, buffer, &pathbuf);
@@ -1086,6 +1216,12 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 		break;
 	case FILE_MEMORY_MIGRATE:
 		*s++ = is_memory_migrate(cs) ? '1' : '0';
+		break;
+	case FILE_MEMORY_PRESSURE_ENABLED:
+		*s++ = cpuset_memory_pressure_enabled ? '1' : '0';
+		break;
+	case FILE_MEMORY_PRESSURE:
+		s += sprintf(s, "%d", fmeter_getrate(&cs->fmeter));
 		break;
 	default:
 		retval = -EINVAL;
@@ -1440,6 +1576,16 @@ static struct cftype cft_memory_migrate = {
 	.private = FILE_MEMORY_MIGRATE,
 };
 
+static struct cftype cft_memory_pressure_enabled = {
+	.name = "memory_pressure_enabled",
+	.private = FILE_MEMORY_PRESSURE_ENABLED,
+};
+
+static struct cftype cft_memory_pressure = {
+	.name = "memory_pressure",
+	.private = FILE_MEMORY_PRESSURE,
+};
+
 static int cpuset_populate_dir(struct dentry *cs_dentry)
 {
 	int err;
@@ -1455,6 +1601,8 @@ static int cpuset_populate_dir(struct dentry *cs_dentry)
 	if ((err = cpuset_add_file(cs_dentry, &cft_notify_on_release)) < 0)
 		return err;
 	if ((err = cpuset_add_file(cs_dentry, &cft_memory_migrate)) < 0)
+		return err;
+	if ((err = cpuset_add_file(cs_dentry, &cft_memory_pressure)) < 0)
 		return err;
 	if ((err = cpuset_add_file(cs_dentry, &cft_tasks)) < 0)
 		return err;
@@ -1491,6 +1639,7 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 	INIT_LIST_HEAD(&cs->children);
 	atomic_inc(&cpuset_mems_generation);
 	cs->mems_generation = atomic_read(&cpuset_mems_generation);
+	fmeter_init(&cs->fmeter);
 
 	cs->parent = parent;
 
@@ -1580,6 +1729,7 @@ int __init cpuset_init(void)
 	top_cpuset.cpus_allowed = CPU_MASK_ALL;
 	top_cpuset.mems_allowed = NODE_MASK_ALL;
 
+	fmeter_init(&top_cpuset.fmeter);
 	atomic_inc(&cpuset_mems_generation);
 	top_cpuset.mems_generation = atomic_read(&cpuset_mems_generation);
 
@@ -1601,6 +1751,9 @@ int __init cpuset_init(void)
 	top_cpuset.dentry = root;
 	root->d_inode->i_op = &cpuset_dir_inode_operations;
 	err = cpuset_populate_dir(root);
+	/* memory_pressure_enabled is in root cpuset only */
+	if (err == 0)
+		err = cpuset_add_file(root, &cft_memory_pressure_enabled);
 out:
 	return err;
 }
@@ -1888,6 +2041,42 @@ done:
 	up(&callback_sem);
 
 	return overlap;
+}
+
+/*
+ * Collection of memory_pressure is suppressed unless
+ * this flag is enabled by writing "1" to the special
+ * cpuset file 'memory_pressure_enabled' in the root cpuset.
+ */
+
+int cpuset_memory_pressure_enabled;
+
+/**
+ * cpuset_memory_pressure_bump - keep stats of per-cpuset reclaims.
+ *
+ * Keep a running average of the rate of synchronous (direct)
+ * page reclaim efforts initiated by tasks in each cpuset.
+ *
+ * This represents the rate at which some task in the cpuset
+ * ran low on memory on all nodes it was allowed to use, and
+ * had to enter the kernels page reclaim code in an effort to
+ * create more free memory by tossing clean pages or swapping
+ * or writing dirty pages.
+ *
+ * Display to user space in the per-cpuset read-only file
+ * "memory_pressure".  Value displayed is an integer
+ * representing the recent rate of entry into the synchronous
+ * (direct) page reclaim by any task attached to the cpuset.
+ **/
+
+void __cpuset_memory_pressure_bump(void)
+{
+	struct cpuset *cs;
+
+	task_lock(current);
+	cs = current->cpuset;
+	fmeter_markevent(&cs->fmeter);
+	task_unlock(current);
 }
 
 /*

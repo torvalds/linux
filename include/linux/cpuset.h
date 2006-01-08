@@ -26,6 +26,15 @@ void cpuset_update_current_mems_allowed(void);
 int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl);
 extern int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask);
 extern int cpuset_excl_nodes_overlap(const struct task_struct *p);
+
+#define cpuset_memory_pressure_bump() 				\
+	do {							\
+		if (cpuset_memory_pressure_enabled)		\
+			__cpuset_memory_pressure_bump();	\
+	} while (0)
+extern int cpuset_memory_pressure_enabled;
+extern void __cpuset_memory_pressure_bump(void);
+
 extern struct file_operations proc_cpuset_operations;
 extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
 
@@ -59,6 +68,8 @@ static inline int cpuset_excl_nodes_overlap(const struct task_struct *p)
 {
 	return 1;
 }
+
+static inline void cpuset_memory_pressure_bump(void) {}
 
 static inline char *cpuset_task_status_allowed(struct task_struct *task,
 							char *buffer)
