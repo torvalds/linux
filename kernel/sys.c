@@ -1090,10 +1090,11 @@ asmlinkage long sys_times(struct tms __user * tbuf)
 asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 {
 	struct task_struct *p;
+	struct task_struct *group_leader = current->group_leader;
 	int err = -EINVAL;
 
 	if (!pid)
-		pid = current->pid;
+		pid = group_leader->pid;
 	if (!pgid)
 		pgid = pid;
 	if (pgid < 0)
@@ -1113,16 +1114,16 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 	if (!thread_group_leader(p))
 		goto out;
 
-	if (p->parent == current || p->real_parent == current) {
+	if (p->parent == current || p->real_parent == group_leader) {
 		err = -EPERM;
-		if (p->signal->session != current->signal->session)
+		if (p->signal->session != group_leader->signal->session)
 			goto out;
 		err = -EACCES;
 		if (p->did_exec)
 			goto out;
 	} else {
 		err = -ESRCH;
-		if (p != current)
+		if (p != group_leader)
 			goto out;
 	}
 
@@ -1134,7 +1135,7 @@ asmlinkage long sys_setpgid(pid_t pid, pid_t pgid)
 		struct task_struct *p;
 
 		do_each_task_pid(pgid, PIDTYPE_PGID, p) {
-			if (p->signal->session == current->signal->session)
+			if (p->signal->session == group_leader->signal->session)
 				goto ok_pgid;
 		} while_each_task_pid(pgid, PIDTYPE_PGID, p);
 		goto out;
