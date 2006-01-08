@@ -274,6 +274,11 @@ config GPREL_DATA_NONE
 
 endchoice
 
+config FRV_ONCPU_SERIAL
+	bool "Use on-CPU serial ports"
+	select SERIAL_8250
+	default y
+
 config PCI
 	bool "Use PCI"
 	depends on MB93090_MB00
