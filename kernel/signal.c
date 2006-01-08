@@ -364,8 +364,6 @@ void __exit_signal(struct task_struct *tsk)
 	posix_cpu_timers_exit(tsk);
 	if (atomic_dec_and_test(&sig->count)) {
 		posix_cpu_timers_exit_group(tsk);
-		if (tsk == sig->curr_target)
-			sig->curr_target = next_thread(tsk);
 		tsk->signal = NULL;
 		__exit_sighand(tsk);
 		spin_unlock(&sighand->siglock);
