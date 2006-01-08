@@ -689,6 +689,11 @@ redo:
 	list_for_each_entry_safe(page, page2, l, lru) {
 		cond_resched();
 
+		if (page_count(page) == 1) {
+			/* page was freed from under us. So we are done. */
+			move_to_lru(page);
+			continue;
+		}
 		/*
 		 * Skip locked pages during the first two passes to give the
 		 * functions holding the lock time to release the page. Later we
