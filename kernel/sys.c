@@ -1692,7 +1692,10 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 	if (unlikely(!p->signal))
 		return;
 
+	utime = stime = cputime_zero;
+
 	switch (who) {
+		case RUSAGE_BOTH:
 		case RUSAGE_CHILDREN:
 			spin_lock_irqsave(&p->sighand->siglock, flags);
 			utime = p->signal->cutime;
@@ -1702,22 +1705,11 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 			r->ru_minflt = p->signal->cmin_flt;
 			r->ru_majflt = p->signal->cmaj_flt;
 			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-			cputime_to_timeval(utime, &r->ru_utime);
-			cputime_to_timeval(stime, &r->ru_stime);
-			break;
+
+			if (who == RUSAGE_CHILDREN)
+				break;
+
 		case RUSAGE_SELF:
-			spin_lock_irqsave(&p->sighand->siglock, flags);
-			utime = stime = cputime_zero;
-			goto sum_group;
-		case RUSAGE_BOTH:
-			spin_lock_irqsave(&p->sighand->siglock, flags);
-			utime = p->signal->cutime;
-			stime = p->signal->cstime;
-			r->ru_nvcsw = p->signal->cnvcsw;
-			r->ru_nivcsw = p->signal->cnivcsw;
-			r->ru_minflt = p->signal->cmin_flt;
-			r->ru_majflt = p->signal->cmaj_flt;
-		sum_group:
 			utime = cputime_add(utime, p->signal->utime);
 			stime = cputime_add(stime, p->signal->stime);
 			r->ru_nvcsw += p->signal->nvcsw;
@@ -1734,13 +1726,14 @@ static void k_getrusage(struct task_struct *p, int who, struct rusage *r)
 				r->ru_majflt += t->maj_flt;
 				t = next_thread(t);
 			} while (t != p);
-			spin_unlock_irqrestore(&p->sighand->siglock, flags);
-			cputime_to_timeval(utime, &r->ru_utime);
-			cputime_to_timeval(stime, &r->ru_stime);
 			break;
+
 		default:
 			BUG();
 	}
+
+	cputime_to_timeval(utime, &r->ru_utime);
+	cputime_to_timeval(stime, &r->ru_stime);
 }
 
 int getrusage(struct task_struct *p, int who, struct rusage __user *ru)
