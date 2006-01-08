@@ -387,7 +387,7 @@ static int contextualize_policy(int mode, nodemask_t *nodes)
 	if (!nodes)
 		return 0;
 
-	cpuset_update_current_mems_allowed();
+	cpuset_update_task_memory_state();
 	if (!cpuset_nodes_subset_current_mems_allowed(*nodes))
 		return -EINVAL;
 	return mpol_check_policy(mode, nodes);
@@ -461,7 +461,7 @@ long do_get_mempolicy(int *policy, nodemask_t *nmask,
 	struct vm_area_struct *vma = NULL;
 	struct mempolicy *pol = current->mempolicy;
 
-	cpuset_update_current_mems_allowed();
+	cpuset_update_task_memory_state();
 	if (flags & ~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR))
 		return -EINVAL;
 	if (flags & MPOL_F_ADDR) {
@@ -1089,7 +1089,7 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 {
 	struct mempolicy *pol = get_vma_policy(current, vma, addr);
 
-	cpuset_update_current_mems_allowed();
+	cpuset_update_task_memory_state();
 
 	if (unlikely(pol->policy == MPOL_INTERLEAVE)) {
 		unsigned nid;
@@ -1115,7 +1115,7 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
  *	interrupt context and apply the current process NUMA policy.
  *	Returns NULL when no page can be allocated.
  *
- *	Don't call cpuset_update_current_mems_allowed() unless
+ *	Don't call cpuset_update_task_memory_state() unless
  *	1) it's ok to take cpuset_sem (can WAIT), and
  *	2) allocating for current task (not interrupt).
  */
@@ -1124,7 +1124,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)
 	struct mempolicy *pol = current->mempolicy;
 
 	if ((gfp & __GFP_WAIT) && !in_interrupt())
-		cpuset_update_current_mems_allowed();
+		cpuset_update_task_memory_state();
 	if (!pol || in_interrupt())
 		pol = &default_policy;
 	if (pol->policy == MPOL_INTERLEAVE)

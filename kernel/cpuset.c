@@ -584,13 +584,26 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
 	BUG_ON(!nodes_intersects(*pmask, node_online_map));
 }
 
-/*
- * Refresh current tasks mems_allowed and mems_generation from current
- * tasks cpuset.
+/**
+ * cpuset_update_task_memory_state - update task memory placement
  *
- * Call without callback_sem or task_lock() held.  May be called with
- * or without manage_sem held.  Will acquire task_lock() and might
- * acquire callback_sem during call.
+ * If the current tasks cpusets mems_allowed changed behind our
+ * backs, update current->mems_allowed, mems_generation and task NUMA
+ * mempolicy to the new value.
+ *
+ * Task mempolicy is updated by rebinding it relative to the
+ * current->cpuset if a task has its memory placement changed.
+ * Do not call this routine if in_interrupt().
+ *
+ * Call without callback_sem or task_lock() held.  May be called
+ * with or without manage_sem held.  Except in early boot or
+ * an exiting task, when tsk->cpuset is NULL, this routine will
+ * acquire task_lock().  We don't need to use task_lock to guard
+ * against another task changing a non-NULL cpuset pointer to NULL,
+ * as that is only done by a task on itself, and if the current task
+ * is here, it is not simultaneously in the exit code NULL'ing its
+ * cpuset pointer.  This routine also might acquire callback_sem and
+ * current->mm->mmap_sem during call.
  *
  * The task_lock() is required to dereference current->cpuset safely.
  * Without it, we could pick up the pointer value of current->cpuset
@@ -605,32 +618,36 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
  * task has been modifying its cpuset.
  */
 
-static void refresh_mems(void)
+void cpuset_update_task_memory_state()
 {
 	int my_cpusets_mem_gen;
+	struct task_struct *tsk = current;
+	struct cpuset *cs = tsk->cpuset;
 
-	task_lock(current);
-	my_cpusets_mem_gen = current->cpuset->mems_generation;
-	task_unlock(current);
+	if (unlikely(!cs))
+		return;
 
-	if (current->cpuset_mems_generation != my_cpusets_mem_gen) {
-		struct cpuset *cs;
-		nodemask_t oldmem = current->mems_allowed;
+	task_lock(tsk);
+	my_cpusets_mem_gen = cs->mems_generation;
+	task_unlock(tsk);
+
+	if (my_cpusets_mem_gen != tsk->cpuset_mems_generation) {
+		nodemask_t oldmem = tsk->mems_allowed;
 		int migrate;
 
 		down(&callback_sem);
-		task_lock(current);
-		cs = current->cpuset;
+		task_lock(tsk);
+		cs = tsk->cpuset;	/* Maybe changed when task not locked */
 		migrate = is_memory_migrate(cs);
-		guarantee_online_mems(cs, &current->mems_allowed);
-		current->cpuset_mems_generation = cs->mems_generation;
-		task_unlock(current);
+		guarantee_online_mems(cs, &tsk->mems_allowed);
+		tsk->cpuset_mems_generation = cs->mems_generation;
+		task_unlock(tsk);
 		up(&callback_sem);
-		if (!nodes_equal(oldmem, current->mems_allowed)) {
-			numa_policy_rebind(&oldmem, &current->mems_allowed);
+		numa_policy_rebind(&oldmem, &tsk->mems_allowed);
+		if (!nodes_equal(oldmem, tsk->mems_allowed)) {
 			if (migrate) {
-				do_migrate_pages(current->mm, &oldmem,
-					&current->mems_allowed,
+				do_migrate_pages(tsk->mm, &oldmem,
+					&tsk->mems_allowed,
 					MPOL_MF_MOVE_ALL);
 			}
 		}
@@ -1630,7 +1647,7 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 		return -ENOMEM;
 
 	down(&manage_sem);
-	refresh_mems();
+	cpuset_update_task_memory_state();
 	cs->flags = 0;
 	if (notify_on_release(parent))
 		set_bit(CS_NOTIFY_ON_RELEASE, &cs->flags);
@@ -1688,7 +1705,7 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	/* the vfs holds both inode->i_sem already */
 
 	down(&manage_sem);
-	refresh_mems();
+	cpuset_update_task_memory_state();
 	if (atomic_read(&cs->count) > 0) {
 		up(&manage_sem);
 		return -EBUSY;
@@ -1870,36 +1887,6 @@ cpumask_t cpuset_cpus_allowed(const struct task_struct *tsk)
 void cpuset_init_current_mems_allowed(void)
 {
 	current->mems_allowed = NODE_MASK_ALL;
-}
-
-/**
- * cpuset_update_current_mems_allowed - update mems parameters to new values
- *
- * If the current tasks cpusets mems_allowed changed behind our backs,
- * update current->mems_allowed and mems_generation to the new value.
- * Do not call this routine if in_interrupt().
- *
- * Call without callback_sem or task_lock() held.  May be called
- * with or without manage_sem held.  Unless exiting, it will acquire
- * task_lock().  Also might acquire callback_sem during call to
- * refresh_mems().
- */
-
-void cpuset_update_current_mems_allowed(void)
-{
-	struct cpuset *cs;
-	int need_to_refresh = 0;
-
-	task_lock(current);
-	cs = current->cpuset;
-	if (!cs)
-		goto done;
-	if (current->cpuset_mems_generation != cs->mems_generation)
-		need_to_refresh = 1;
-done:
-	task_unlock(current);
-	if (need_to_refresh)
-		refresh_mems();
 }
 
 /**

@@ -20,7 +20,7 @@ extern void cpuset_fork(struct task_struct *p);
 extern void cpuset_exit(struct task_struct *p);
 extern cpumask_t cpuset_cpus_allowed(const struct task_struct *p);
 void cpuset_init_current_mems_allowed(void);
-void cpuset_update_current_mems_allowed(void);
+void cpuset_update_task_memory_state(void);
 #define cpuset_nodes_subset_current_mems_allowed(nodes) \
 		nodes_subset((nodes), current->mems_allowed)
 int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl);
@@ -51,7 +51,7 @@ static inline cpumask_t cpuset_cpus_allowed(struct task_struct *p)
 }
 
 static inline void cpuset_init_current_mems_allowed(void) {}
-static inline void cpuset_update_current_mems_allowed(void) {}
+static inline void cpuset_update_task_memory_state(void) {}
 #define cpuset_nodes_subset_current_mems_allowed(nodes) (1)
 
 static inline int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl)
