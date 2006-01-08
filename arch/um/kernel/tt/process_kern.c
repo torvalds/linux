@@ -13,7 +13,6 @@
 #include "asm/ptrace.h"
 #include "asm/tlbflush.h"
 #include "irq_user.h"
-#include "signal_user.h"
 #include "kern_util.h"
 #include "user_util.h"
 #include "os.h"

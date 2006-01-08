@@ -22,7 +22,6 @@
 #include "asm/ucontext.h"
 #include "kern_util.h"
 #include "signal_kern.h"
-#include "signal_user.h"
 #include "kern.h"
 #include "frame_kern.h"
 #include "sigcontext.h"

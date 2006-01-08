@@ -219,4 +219,14 @@ extern int umid_file_name(char *name, char *buf, int len);
 extern int set_umid(char *name);
 extern char *get_umid(void);
 
+/* signal.c */
+extern void set_sigstack(void *sig_stack, int size);
+extern void remove_sigstack(void);
+extern void set_handler(int sig, void (*handler)(int), int flags, ...);
+extern int change_sig(int signal, int on);
+extern void block_signals(void);
+extern void unblock_signals(void);
+extern int get_signals(void);
+extern int set_signals(int enable);
+
 #endif

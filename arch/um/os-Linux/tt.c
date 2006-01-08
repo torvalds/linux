@@ -23,7 +23,6 @@
 #include "kern_util.h"
 #include "user.h"
 #include "signal_kern.h"
-#include "signal_user.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/sigcontext.h"
 #include "irq_user.h"

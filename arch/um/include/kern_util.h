@@ -51,8 +51,6 @@ extern void timer_handler(int sig, union uml_pt_regs *regs);
 extern int set_signals(int enable);
 extern void force_sigbus(void);
 extern int pid_to_processor_id(int pid);
-extern void block_signals(void);
-extern void unblock_signals(void);
 extern void deliver_signals(void *t);
 extern int next_syscall_index(int max);
 extern int next_trap_index(int max);

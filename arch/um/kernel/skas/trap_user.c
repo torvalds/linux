@@ -5,7 +5,6 @@
 
 #include <signal.h>
 #include <errno.h>
-#include "signal_user.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "task.h"
@@ -14,6 +13,7 @@
 #include "ptrace_user.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/ptrace_user.h"
+#include "os.h"
 
 void sig_handler_common_skas(int sig, void *sc_ptr)
 {

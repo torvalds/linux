@@ -17,7 +17,6 @@
 #include "sigcontext.h"
 #include "sysdep/sigcontext.h"
 #include "irq_user.h"
-#include "signal_user.h"
 #include "time_user.h"
 #include "task.h"
 #include "mode.h"

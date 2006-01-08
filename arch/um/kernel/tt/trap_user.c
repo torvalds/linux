@@ -8,11 +8,11 @@
 #include <signal.h>
 #include "sysdep/ptrace.h"
 #include "sysdep/sigcontext.h"
-#include "signal_user.h"
 #include "user_util.h"
 #include "kern_util.h"
 #include "task.h"
 #include "tt.h"
+#include "os.h"
 
 void sig_handler_common_tt(int sig, void *sc_ptr)
 {

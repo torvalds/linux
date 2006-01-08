@@ -36,7 +36,6 @@
 #include "kern_util.h"
 #include "kern.h"
 #include "signal_kern.h"
-#include "signal_user.h"
 #include "init.h"
 #include "irq_user.h"
 #include "mem_user.h"
