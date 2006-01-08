@@ -935,8 +935,8 @@ asmlinkage long compat_sys_mbind(compat_ulong_t start, compat_ulong_t len,
 #endif
 
 /* Return effective policy for a VMA */
-struct mempolicy *
-get_vma_policy(struct task_struct *task, struct vm_area_struct *vma, unsigned long addr)
+static struct mempolicy * get_vma_policy(struct task_struct *task,
+		struct vm_area_struct *vma, unsigned long addr)
 {
 	struct mempolicy *pol = task->mempolicy;
 
