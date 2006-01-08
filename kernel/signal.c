@@ -1220,8 +1220,7 @@ int kill_proc_info_as_uid(int sig, struct siginfo *info, pid_t pid,
 		ret = -ESRCH;
 		goto out_unlock;
 	}
-	if ((!info || ((unsigned long)info != 1 &&
-			(unsigned long)info != 2 && SI_FROMUSER(info)))
+	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
 	    && (euid != p->suid) && (euid != p->uid)
 	    && (uid != p->suid) && (uid != p->uid)) {
 		ret = -EPERM;
