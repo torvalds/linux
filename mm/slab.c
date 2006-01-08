@@ -2944,9 +2944,8 @@ EXPORT_SYMBOL(__kmalloc);
  * Objects should be dereferenced using the per_cpu_ptr macro only.
  *
  * @size: how many bytes of memory are required.
- * @align: the alignment, which can't be greater than SMP_CACHE_BYTES.
  */
-void *__alloc_percpu(size_t size, size_t align)
+void *__alloc_percpu(size_t size)
 {
 	int i;
 	struct percpu_data *pdata = kmalloc(sizeof (*pdata), GFP_KERNEL);
