@@ -148,12 +148,12 @@ static void v9fs_fd_close(struct v9fs_transport *trans)
 	if (!trans)
 		return;
 
-	trans->status = Disconnected;
-	ts = trans->priv;
+	ts = xchg(&trans->priv, NULL);
 
 	if (!ts)
 		return;
 
+	trans->status = Disconnected;
 	if (ts->in_file)
 		fput(ts->in_file);
 
