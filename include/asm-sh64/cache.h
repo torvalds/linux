@@ -20,8 +20,6 @@
 #define L1_CACHE_ALIGN_MASK	(~(L1_CACHE_BYTES - 1))
 #define L1_CACHE_ALIGN(x)	(((x)+(L1_CACHE_BYTES - 1)) & L1_CACHE_ALIGN_MASK)
 #define L1_CACHE_SIZE_BYTES	(L1_CACHE_BYTES << 10)
-/* Largest L1 which this arch supports */
-#define L1_CACHE_SHIFT_MAX	5
 
 #ifdef MODULE
 #define __cacheline_aligned __attribute__((__aligned__(L1_CACHE_BYTES)))

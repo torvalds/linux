@@ -150,7 +150,7 @@ dma_get_cache_alignment(void)
 {
 	/* no easy way to get cache size on all x86, so return the
 	 * maximum possible, to be safe */
-	return (1 << L1_CACHE_SHIFT_MAX);
+	return (1 << INTERNODE_CACHE_SHIFT);
 }
 
 #define dma_is_consistent(d)	(1)
