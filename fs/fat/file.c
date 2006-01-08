@@ -11,6 +11,7 @@
 #include <linux/msdos_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
+#include <linux/writeback.h>
 
 int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		      unsigned int cmd, unsigned long arg)
@@ -124,6 +125,24 @@ struct file_operations fat_file_operations = {
 	.sendfile	= generic_file_sendfile,
 };
 
+static int fat_cont_expand(struct inode *inode, loff_t size)
+{
+	struct address_space *mapping = inode->i_mapping;
+	loff_t start = inode->i_size, count = size - inode->i_size;
+	int err;
+
+	err = generic_cont_expand_simple(inode, size);
+	if (err)
+		goto out;
+
+	inode->i_ctime = inode->i_mtime = CURRENT_TIME_SEC;
+	mark_inode_dirty(inode);
+	if (IS_SYNC(inode))
+		err = sync_page_range_nolock(inode, mapping, start, count);
+out:
+	return err;
+}
+
 int fat_notify_change(struct dentry *dentry, struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
@@ -132,11 +151,17 @@ int fat_notify_change(struct dentry *dentry, struct iattr *attr)
 
 	lock_kernel();
 
-	/* FAT cannot truncate to a longer file */
+	/*
+	 * Expand the file. Since inode_setattr() updates ->i_size
+	 * before calling the ->truncate(), but FAT needs to fill the
+	 * hole before it.
+	 */
 	if (attr->ia_valid & ATTR_SIZE) {
 		if (attr->ia_size > inode->i_size) {
-			error = -EPERM;
-			goto out;
+			error = fat_cont_expand(inode, attr->ia_size);
+			if (error || attr->ia_valid == ATTR_SIZE)
+				goto out;
+			attr->ia_valid &= ~ATTR_SIZE;
 		}
 	}
 
