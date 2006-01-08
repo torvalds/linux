@@ -441,12 +441,11 @@ int jumpshot_transport(struct scsi_cmnd * srb, struct us_data *us)
 	};
 
 	if (!us->extra) {
-		us->extra = kmalloc(sizeof(struct jumpshot_info), GFP_NOIO);
+		us->extra = kzalloc(sizeof(struct jumpshot_info), GFP_NOIO);
 		if (!us->extra) {
 			US_DEBUGP("jumpshot_transport:  Gah! Can't allocate storage for jumpshot info struct!\n");
 			return USB_STOR_TRANSPORT_ERROR;
 		}
-		memset(us->extra, 0, sizeof(struct jumpshot_info));
 		us->extra_destructor = jumpshot_info_destructor;
 	}
 
