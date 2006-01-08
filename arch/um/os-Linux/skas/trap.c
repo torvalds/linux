@@ -34,11 +34,11 @@ void sig_handler_common_skas(int sig, void *sc_ptr)
 	r = &TASK_REGS(get_current())->skas;
 	save_user = r->is_user;
 	r->is_user = 0;
-        if ( sig == SIGFPE || sig == SIGSEGV ||
-             sig == SIGBUS || sig == SIGILL ||
-             sig == SIGTRAP ) {
-                GET_FAULTINFO_FROM_SC(r->faultinfo, sc);
-        }
+	if ( sig == SIGFPE || sig == SIGSEGV ||
+	     sig == SIGBUS || sig == SIGILL ||
+	     sig == SIGTRAP ) {
+		GET_FAULTINFO_FROM_SC(r->faultinfo, sc);
+	}
 
 	change_sig(SIGUSR1, 1);
 
@@ -60,8 +60,8 @@ extern int ptrace_faultinfo;
 void user_signal(int sig, union uml_pt_regs *regs, int pid)
 {
 	void (*handler)(int, union uml_pt_regs *);
-        int segv = ((sig == SIGFPE) || (sig == SIGSEGV) || (sig == SIGBUS) ||
-                    (sig == SIGILL) || (sig == SIGTRAP));
+	int segv = ((sig == SIGFPE) || (sig == SIGSEGV) || (sig == SIGBUS) ||
+		    (sig == SIGILL) || (sig == SIGTRAP));
 
 	if (segv)
 		get_skas_faultinfo(pid, &regs->skas.faultinfo);
