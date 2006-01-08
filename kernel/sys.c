@@ -489,6 +489,12 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 	                magic2 != LINUX_REBOOT_MAGIC2C))
 		return -EINVAL;
 
+	/* Instead of trying to make the power_off code look like
+	 * halt when pm_power_off is not set do it the easy way.
+	 */
+	if ((cmd == LINUX_REBOOT_CMD_POWER_OFF) && !pm_power_off)
+		cmd = LINUX_REBOOT_CMD_HALT;
+
 	lock_kernel();
 	switch (cmd) {
 	case LINUX_REBOOT_CMD_RESTART:
