@@ -419,6 +419,25 @@ int schedule_delayed_work_on(int cpu,
 	return ret;
 }
 
+int schedule_on_each_cpu(void (*func) (void *info), void *info)
+{
+	int cpu;
+	struct work_struct *work;
+
+	work = kmalloc(NR_CPUS * sizeof(struct work_struct), GFP_KERNEL);
+
+	if (!work)
+		return -ENOMEM;
+	for_each_online_cpu(cpu) {
+		INIT_WORK(work + cpu, func, info);
+		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu),
+				work + cpu);
+	}
+	flush_workqueue(keventd_wq);
+	kfree(work);
+	return 0;
+}
+
 void flush_scheduled_work(void)
 {
 	flush_workqueue(keventd_wq);
