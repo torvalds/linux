@@ -718,7 +718,7 @@ static struct platform_driver giu_device_driver = {
 	},
 };
 
-static int __devinit vr41xx_giu_init(void)
+static int __init vr41xx_giu_init(void)
 {
 	int retval;
 
@@ -733,7 +733,7 @@ static int __devinit vr41xx_giu_init(void)
 	return retval;
 }
 
-static void __devexit vr41xx_giu_exit(void)
+static void __exit vr41xx_giu_exit(void)
 {
 	platform_driver_unregister(&giu_device_driver);
 
