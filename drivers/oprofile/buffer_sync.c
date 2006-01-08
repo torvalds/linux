@@ -43,13 +43,16 @@ static void process_task_mortuary(void);
  * list for processing. Only after two full buffer syncs
  * does the task eventually get freed, because by then
  * we are sure we will not reference it again.
+ * Can be invoked from softirq via RCU callback due to
+ * call_rcu() of the task struct, hence the _irqsave.
  */
 static int task_free_notify(struct notifier_block * self, unsigned long val, void * data)
 {
+	unsigned long flags;
 	struct task_struct * task = data;
-	spin_lock(&task_mortuary);
+	spin_lock_irqsave(&task_mortuary, flags);
 	list_add(&task->tasks, &dying_tasks);
-	spin_unlock(&task_mortuary);
+	spin_unlock_irqrestore(&task_mortuary, flags);
 	return NOTIFY_OK;
 }
 
@@ -431,25 +434,22 @@ static void increment_tail(struct oprofile_cpu_buffer * b)
  */
 static void process_task_mortuary(void)
 {
-	struct list_head * pos;
-	struct list_head * pos2;
+	unsigned long flags;
+	LIST_HEAD(local_dead_tasks);
 	struct task_struct * task;
+	struct task_struct * ttask;
 
-	spin_lock(&task_mortuary);
+	spin_lock_irqsave(&task_mortuary, flags);
 
-	list_for_each_safe(pos, pos2, &dead_tasks) {
-		task = list_entry(pos, struct task_struct, tasks);
+	list_splice_init(&dead_tasks, &local_dead_tasks);
+	list_splice_init(&dying_tasks, &dead_tasks);
+
+	spin_unlock_irqrestore(&task_mortuary, flags);
+
+	list_for_each_entry_safe(task, ttask, &local_dead_tasks, tasks) {
 		list_del(&task->tasks);
 		free_task(task);
 	}
-
-	list_for_each_safe(pos, pos2, &dying_tasks) {
-		task = list_entry(pos, struct task_struct, tasks);
-		list_del(&task->tasks);
-		list_add_tail(&task->tasks, &dead_tasks);
-	}
-
-	spin_unlock(&task_mortuary);
 }
 
 
