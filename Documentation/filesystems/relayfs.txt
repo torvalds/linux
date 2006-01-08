@@ -125,6 +125,8 @@ Here's a summary of the API relayfs provides to in-kernel clients:
     relay_reset(chan)
     relayfs_create_dir(name, parent)
     relayfs_remove_dir(dentry)
+    relayfs_create_file(name, parent, mode, fops, data)
+    relayfs_remove_file(dentry)
 
   channel management typically called on instigation of userspace:
 
@@ -319,6 +321,27 @@ longer any references to any of the channel buffers.  relay_flush()
 forces a sub-buffer switch on all the channel buffers, and can be used
 to finalize and process the last sub-buffers before the channel is
 closed.
+
+Creating non-relay files
+------------------------
+
+relay_open() automatically creates files in the relayfs filesystem to
+represent the per-cpu kernel buffers; it's often useful for
+applications to be able to create their own files alongside the relay
+files in the relayfs filesystem as well e.g. 'control' files much like
+those created in /proc or debugfs for similar purposes, used to
+communicate control information between the kernel and user sides of a
+relayfs application.  For this purpose the relayfs_create_file() and
+relayfs_remove_file() API functions exist.  For relayfs_create_file(),
+the caller passes in a set of user-defined file operations to be used
+for the file and an optional void * to a user-specified data item,
+which will be accessible via inode->u.generic_ip (see the relay-apps
+tarball for examples).  The file_operations are a required parameter
+to relayfs_create_file() and thus the semantics of these files are
+completely defined by the caller.
+
+See the relay-apps tarball at http://relayfs.sourceforge.net for
+examples of how these non-relay files are meant to be used.
 
 Misc
 ----
