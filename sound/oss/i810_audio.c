@@ -3359,12 +3359,6 @@ static int __devinit i810_probe(struct pci_dev *pci_dev, const struct pci_device
 		goto out_region2;
 	}
 
-	if (request_irq(card->irq, &i810_interrupt, SA_SHIRQ,
-			card_names[pci_id->driver_data], card)) {
-		printk(KERN_ERR "i810_audio: unable to allocate irq %d\n", card->irq);
-		goto out_pio;
-	}
-
 	if (card->use_mmio) {
 		if (request_mem_region(card->ac97base_mmio_phys, 512, "ich_audio MMBAR")) {
 			if ((card->ac97base_mmio = ioremap(card->ac97base_mmio_phys, 512))) { /*@FIXME can ioremap fail? don't know (jsaw) */
@@ -3395,10 +3389,8 @@ static int __devinit i810_probe(struct pci_dev *pci_dev, const struct pci_device
 	}
 
 	/* initialize AC97 codec and register /dev/mixer */
-	if (i810_ac97_init(card) <= 0) {
-		free_irq(card->irq, card);
+	if (i810_ac97_init(card) <= 0)
 		goto out_iospace;
-	}
 	pci_set_drvdata(pci_dev, card);
 
 	if(clocking == 0) {
@@ -3410,7 +3402,6 @@ static int __devinit i810_probe(struct pci_dev *pci_dev, const struct pci_device
 	if ((card->dev_audio = register_sound_dsp(&i810_audio_fops, -1)) < 0) {
 		int i;
 		printk(KERN_ERR "i810_audio: couldn't register DSP device!\n");
-		free_irq(card->irq, card);
 		for (i = 0; i < NR_AC97; i++)
 		if (card->ac97_codec[i] != NULL) {
 			unregister_sound_mixer(card->ac97_codec[i]->dev_mixer);
@@ -3418,6 +3409,13 @@ static int __devinit i810_probe(struct pci_dev *pci_dev, const struct pci_device
 		}
 		goto out_iospace;
 	}
+
+	if (request_irq(card->irq, &i810_interrupt, SA_SHIRQ,
+			card_names[pci_id->driver_data], card)) {
+		printk(KERN_ERR "i810_audio: unable to allocate irq %d\n", card->irq);
+		goto out_iospace;
+	}
+
 
  	card->initializing = 0;
 	return 0;
