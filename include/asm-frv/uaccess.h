@@ -180,16 +180,16 @@ do {						\
 									\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
-		__get_user_asm(__gu_err, __gu_val, ptr, "ub", "=r");	\
+		__get_user_asm(__gu_err, *(u8*)&__gu_val, ptr, "ub", "=r"); \
 		break;							\
 	case 2:								\
-		__get_user_asm(__gu_err, __gu_val, ptr, "uh", "=r");	\
+		__get_user_asm(__gu_err, *(u16*)&__gu_val, ptr, "uh", "=r"); \
 		break;							\
 	case 4:								\
-		__get_user_asm(__gu_err, __gu_val, ptr, "", "=r");	\
+		__get_user_asm(__gu_err, *(u32*)&__gu_val, ptr, "", "=r"); \
 		break;							\
 	case 8:								\
-		__get_user_asm(__gu_err, __gu_val, ptr, "d", "=e");	\
+		__get_user_asm(__gu_err, *(u64*)&__gu_val, ptr, "d", "=e"); \
 		break;							\
 	default:							\
 		__gu_err = __get_user_bad();				\
