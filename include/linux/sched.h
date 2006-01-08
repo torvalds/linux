@@ -878,18 +878,6 @@ extern void free_task(struct task_struct *tsk);
 extern void __put_task_struct(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
 
-static inline int get_task_struct_rcu(struct task_struct *t)
-{
-	int oldusage;
-
-	do {
-		oldusage = atomic_read(&t->usage);
-		if (oldusage == 0)
-			return 0;
-	} while (cmpxchg(&t->usage.counter, oldusage, oldusage+1) != oldusage);
-	return 1;
-}
-
 extern void __put_task_struct_cb(struct rcu_head *rhp);
 
 static inline void put_task_struct(struct task_struct *t)
