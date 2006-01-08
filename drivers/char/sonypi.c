@@ -510,6 +510,11 @@ static struct sonypi_device {
 #define SONYPI_ACPI_ACTIVE 0
 #endif				/* CONFIG_ACPI */
 
+#ifdef CONFIG_ACPI
+static struct acpi_device *sonypi_acpi_device;
+static int acpi_enabled;
+#endif
+
 static int sonypi_ec_write(u8 addr, u8 value)
 {
 #ifdef CONFIG_ACPI_EC
@@ -863,6 +868,11 @@ found:
 	if (useinput)
 		sonypi_report_input_event(event);
 
+#ifdef CONFIG_ACPI
+	if (acpi_enabled)
+		acpi_bus_generate_event(sonypi_acpi_device, 1, event);
+#endif
+
 	kfifo_put(sonypi_device.fifo, (unsigned char *)&event, sizeof(event));
 	kill_fasync(&sonypi_device.fifo_async, SIGIO, POLL_IN);
 	wake_up_interruptible(&sonypi_device.fifo_proc_list);
@@ -1163,6 +1173,32 @@ static int sonypi_disable(void)
 
 	return 0;
 }
+
+#ifdef CONFIG_ACPI
+static int sonypi_acpi_add(struct acpi_device *device)
+{
+	sonypi_acpi_device = device;
+	strcpy(acpi_device_name(device), "Sony laptop hotkeys");
+	strcpy(acpi_device_class(device), "sony/hotkey");
+	return 0;
+}
+
+static int sonypi_acpi_remove(struct acpi_device *device, int type)
+{
+	sonypi_acpi_device = NULL;
+	return 0;
+}
+
+static struct acpi_driver sonypi_acpi_driver = {
+	.name           = "sonypi",
+	.class          = "hkey",
+	.ids            = "SNY6001",
+	.ops            = {
+		           .add = sonypi_acpi_add,
+			   .remove = sonypi_acpi_remove,
+	},
+};
+#endif
 
 static int __devinit sonypi_create_input_devices(void)
 {
@@ -1511,6 +1547,11 @@ static int __init sonypi_init(void)
 	if (error)
 		goto err_free_device;
 
+#ifdef CONFIG_ACPI
+	if (acpi_bus_register_driver(&sonypi_acpi_driver) > 0)
+		acpi_enabled = 1;
+#endif
+
 	return 0;
 
  err_free_device:
@@ -1522,6 +1563,10 @@ static int __init sonypi_init(void)
 
 static void __exit sonypi_exit(void)
 {
+#ifdef CONFIG_ACPI
+	if (acpi_enabled)
+		acpi_bus_unregister_driver(&sonypi_acpi_driver);
+#endif
 	platform_device_unregister(sonypi_platform_device);
 	platform_driver_unregister(&sonypi_driver);
 	printk(KERN_INFO "sonypi: removed.\n");
