@@ -65,20 +65,6 @@ struct rchan
 };
 
 /*
- * Relayfs inode
- */
-struct relayfs_inode_info
-{
-	struct inode vfs_inode;
-	void *data;
-};
-
-static inline struct relayfs_inode_info *RELAYFS_I(struct inode *inode)
-{
-	return container_of(inode, struct relayfs_inode_info, vfs_inode);
-}
-
-/*
  * Relay channel client callbacks
  */
 struct rchan_callbacks

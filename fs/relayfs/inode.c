@@ -26,7 +26,6 @@
 
 static struct vfsmount *		relayfs_mount;
 static int				relayfs_mount_count;
-static kmem_cache_t *			relayfs_inode_cachep;
 
 static struct backing_dev_info		relayfs_backing_dev_info = {
 	.ra_pages	= 0,	/* No readahead */
@@ -499,34 +498,6 @@ out:
 	return ret;
 }
 
-/**
- *	relayfs alloc_inode() implementation
- */
-static struct inode *relayfs_alloc_inode(struct super_block *sb)
-{
-	struct relayfs_inode_info *p = kmem_cache_alloc(relayfs_inode_cachep, SLAB_KERNEL);
-	if (!p)
-		return NULL;
-	p->data = NULL;
-
-	return &p->vfs_inode;
-}
-
-/**
- *	relayfs destroy_inode() implementation
- */
-static void relayfs_destroy_inode(struct inode *inode)
-{
-	kmem_cache_free(relayfs_inode_cachep, RELAYFS_I(inode));
-}
-
-static void init_once(void *p, kmem_cache_t *cachep, unsigned long flags)
-{
-	struct relayfs_inode_info *i = p;
-	if ((flags & (SLAB_CTOR_VERIFY | SLAB_CTOR_CONSTRUCTOR)) == SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(&i->vfs_inode);
-}
-
 struct file_operations relayfs_file_operations = {
 	.open		= relayfs_open,
 	.poll		= relayfs_poll,
@@ -539,8 +510,6 @@ struct file_operations relayfs_file_operations = {
 static struct super_operations relayfs_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
-	.alloc_inode	= relayfs_alloc_inode,
-	.destroy_inode	= relayfs_destroy_inode,
 };
 
 static int relayfs_fill_super(struct super_block * sb, void * data, int silent)
@@ -584,25 +553,12 @@ static struct file_system_type relayfs_fs_type = {
 
 static int __init init_relayfs_fs(void)
 {
-	int err;
-
-	relayfs_inode_cachep = kmem_cache_create("relayfs_inode_cache",
-				sizeof(struct relayfs_inode_info), 0,
-				0, init_once, NULL);
-	if (!relayfs_inode_cachep)
-		return -ENOMEM;
-
-	err = register_filesystem(&relayfs_fs_type);
-	if (err)
-		kmem_cache_destroy(relayfs_inode_cachep);
-
-	return err;
+	return register_filesystem(&relayfs_fs_type);
 }
 
 static void __exit exit_relayfs_fs(void)
 {
 	unregister_filesystem(&relayfs_fs_type);
-	kmem_cache_destroy(relayfs_inode_cachep);
 }
 
 module_init(init_relayfs_fs)
