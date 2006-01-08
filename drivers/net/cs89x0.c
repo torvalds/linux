@@ -378,6 +378,34 @@ writeword(unsigned long base_addr, int portno, int value)
 #endif
 #endif
 
+static void
+readwords(unsigned long base_addr, int portno, void *buf, int length)
+{
+	u8 *buf8 = (u8 *)buf;
+
+	do {
+		u32 tmp32;
+
+		tmp32 = readword(base_addr, portno);
+		*buf8++ = (u8)tmp32;
+		*buf8++ = (u8)(tmp32 >> 8);
+	} while (--length);
+}
+
+static void
+writewords(unsigned long base_addr, int portno, void *buf, int length)
+{
+	u8 *buf8 = (u8 *)buf;
+
+	do {
+		u32 tmp32;
+
+		tmp32 = *buf8++;
+		tmp32 |= (*buf8++) << 8;
+		writeword(base_addr, portno, tmp32);
+	} while (--length);
+}
+
 static int
 readreg(struct net_device *dev, int regno)
 {
@@ -1143,7 +1171,7 @@ send_test_pkt(struct net_device *dev)
 		return 0;	/* this shouldn't happen */
 
 	/* Write the contents of the packet */
-	outsw(dev->base_addr + TX_FRAME_PORT,test_packet,(ETH_ZLEN+1) >>1);
+	writewords(dev->base_addr, TX_FRAME_PORT,test_packet,(ETH_ZLEN+1) >>1);
 
 	if (net_debug > 1) printk("Sending test packet ");
 	/* wait a couple of jiffies for packet to be received */
@@ -1500,7 +1528,7 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 		return 1;
 	}
 	/* Write the contents of the packet */
-	outsw(dev->base_addr + TX_FRAME_PORT,skb->data,(skb->len+1) >>1);
+	writewords(dev->base_addr, TX_FRAME_PORT,skb->data,(skb->len+1) >>1);
 	spin_unlock_irq(&lp->lock);
 	lp->stats.tx_bytes += skb->len;
 	dev->trans_start = jiffies;
@@ -1654,7 +1682,7 @@ net_rx(struct net_device *dev)
 	skb_reserve(skb, 2);	/* longword align L3 header */
 	skb->dev = dev;
 
-	insw(ioaddr + RX_FRAME_PORT, skb_put(skb, length), length >> 1);
+	readwords(ioaddr, RX_FRAME_PORT, skb_put(skb, length), length >> 1);
 	if (length & 1)
 		skb->data[length-1] = readword(ioaddr, RX_FRAME_PORT);
 
