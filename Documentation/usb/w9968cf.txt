@@ -57,16 +57,12 @@ based cameras should be supported as well.
 The driver is divided into two modules: the basic one, "w9968cf", is needed for
 the supported devices to work; the second one, "w9968cf-vpp", is an optional
 module, which provides some useful video post-processing functions like video
-decoding, up-scaling and colour conversions. Once the driver is installed,
-every time an application tries to open a recognized device, "w9968cf" checks
-the presence of the "w9968cf-vpp" module and loads it automatically by default.
+decoding, up-scaling and colour conversions.
 
-Please keep in mind that official kernels do not include the second module for
-performance purposes. However it is always recommended to download and install
-the latest and complete release of the driver, replacing the existing one, if
-present: it will be still even possible not to load the "w9968cf-vpp" module at
-all, if you ever want to. Another important missing feature of the version in
-the official Linux 2.4 kernels is the writeable /proc filesystem interface.
+Note that the official kernels do neither include nor support the second
+module for performance purposes. Therefore, it is always recommended to
+download and install the latest and complete release of the driver,
+replacing the existing one, if present.
 
 The latest and full-featured version of the W996[87]CF driver can be found at:
 http://www.linux-projects.org. Please refer to the documentation included in
@@ -200,22 +196,6 @@ Default:         1
 Note:            The kernel must be compiled with the CONFIG_KMOD option
                  enabled for the 'ovcamchip' module to be loaded and for
                  this parameter to be present.
--------------------------------------------------------------------------------
-Name:           vppmod_load
-Type:           bool
-Syntax:         <0|1>
-Description:    Automatic 'w9968cf-vpp' module loading: 0 disabled, 1 enabled.
-                If enabled, every time an application attempts to open a
-                camera, 'insmod' searches for the video post-processing module
-                in the system and loads it automatically (if present).
-                The optional 'w9968cf-vpp' module adds extra image manipulation
-                capabilities to the 'w9968cf' module,like software up-scaling,
-                colour conversions and video decompression for very high frame
-                rates.
-Default:        1
-Note:           The kernel must be compiled with the CONFIG_KMOD option
-                enabled for the 'w9968cf-vpp' module to be loaded and for
-                this parameter to be present.
 -------------------------------------------------------------------------------
 Name:           simcams 
 Type:           int 
