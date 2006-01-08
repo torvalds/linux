@@ -26,6 +26,9 @@
 #include "mconsole_kern.h"
 #include "mem.h"
 #include "mem_kern.h"
+#include "sysdep/sigcontext.h"
+#include "sysdep/ptrace.h"
+#include "os.h"
 #ifdef CONFIG_MODE_SKAS
 #include "skas.h"
 #endif
@@ -124,6 +127,17 @@ out_of_memory:
 		goto survive;
 	}
 	goto out;
+}
+
+void segv_handler(int sig, union uml_pt_regs *regs)
+{
+	struct faultinfo * fi = UPT_FAULTINFO(regs);
+
+	if(UPT_IS_USER(regs) && !SEGV_IS_FIXABLE(fi)){
+		bad_segv(*fi, UPT_IP(regs));
+		return;
+	}
+	segv(*fi, UPT_IP(regs), UPT_IS_USER(regs), regs);
 }
 
 struct kern_handlers handlinfo_kern = {
