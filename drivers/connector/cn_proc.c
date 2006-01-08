@@ -34,14 +34,14 @@
 static atomic_t proc_event_num_listeners = ATOMIC_INIT(0);
 static struct cb_id cn_proc_event_id = { CN_IDX_PROC, CN_VAL_PROC };
 
-/* proc_counts is used as the sequence number of the netlink message */
+/* proc_event_counts is used as the sequence number of the netlink message */
 static DEFINE_PER_CPU(__u32, proc_event_counts) = { 0 };
 
 static inline void get_seq(__u32 *ts, int *cpu)
 {
 	*ts = get_cpu_var(proc_event_counts)++;
 	*cpu = smp_processor_id();
-	put_cpu_var(proc_counts);
+	put_cpu_var(proc_event_counts);
 }
 
 void proc_fork_connector(struct task_struct *task)
