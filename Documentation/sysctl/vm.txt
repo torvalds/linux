@@ -26,12 +26,13 @@ Currently, these files are in /proc/sys/vm:
 - min_free_kbytes
 - laptop_mode
 - block_dump
+- drop-caches
 
 ==============================================================
 
 dirty_ratio, dirty_background_ratio, dirty_expire_centisecs,
 dirty_writeback_centisecs, vfs_cache_pressure, laptop_mode,
-block_dump, swap_token_timeout:
+block_dump, swap_token_timeout, drop-caches:
 
 See Documentation/filesystems/proc.txt
 

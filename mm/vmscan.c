@@ -180,8 +180,7 @@ EXPORT_SYMBOL(remove_shrinker);
  *
  * Returns the number of slab objects which we shrunk.
  */
-static int shrink_slab(unsigned long scanned, gfp_t gfp_mask,
-			unsigned long lru_pages)
+int shrink_slab(unsigned long scanned, gfp_t gfp_mask, unsigned long lru_pages)
 {
 	struct shrinker *shrinker;
 	int ret = 0;
