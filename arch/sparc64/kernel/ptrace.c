@@ -198,39 +198,15 @@ asmlinkage void do_ptrace(struct pt_regs *regs)
 	}
 #endif
 	if (request == PTRACE_TRACEME) {
-		int ret;
-
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED) {
-			pt_error_return(regs, EPERM);
-			goto out;
-		}
-		ret = security_ptrace(current->parent, current);
-		if (ret) {
-			pt_error_return(regs, -ret);
-			goto out;
-		}
-
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
+		ret = ptrace_traceme();
 		pt_succ_return(regs, 0);
 		goto out;
 	}
-#ifndef ALLOW_INIT_TRACING
-	if (pid == 1) {
-		/* Can't dork with init. */
-		pt_error_return(regs, EPERM);
-		goto out;
-	}
-#endif
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
 
-	if (!child) {
-		pt_error_return(regs, ESRCH);
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
+		pt_error_return(regs, -ret);
 		goto out;
 	}
 

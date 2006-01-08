@@ -80,6 +80,8 @@
 
 
 extern long arch_ptrace(struct task_struct *child, long request, long addr, long data);
+extern struct task_struct *ptrace_get_task_struct(pid_t pid);
+extern int ptrace_traceme(void);
 extern int ptrace_readdata(struct task_struct *tsk, unsigned long src, char __user *dst, int len);
 extern int ptrace_writedata(struct task_struct *tsk, char __user *src, unsigned long dst, int len);
 extern int ptrace_attach(struct task_struct *tsk);

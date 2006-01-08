@@ -1761,21 +1761,15 @@ sys32_ptrace (int request, pid_t pid, unsigned int addr, unsigned int data)
 
 	lock_kernel();
 	if (request == PTRACE_TRACEME) {
-		ret = sys_ptrace(request, pid, addr, data);
+		ret = ptrace_traceme();
 		goto out;
 	}
 
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
 		goto out;
-	ret = -EPERM;
-	if (pid == 1)		/* no messing around with init! */
-		goto out_tsk;
+	}
 
 	if (request == PTRACE_ATTACH) {
 		ret = sys_ptrace(request, pid, addr, data);

@@ -712,35 +712,18 @@ sys_ptrace(long request, long pid, long addr, long data)
 	int ret;
 
 	lock_kernel();
-
 	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		ret = -EPERM;
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		ret = security_ptrace(current->parent, current);
-		if (ret)
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
+		 ret = ptrace_traceme();
+		 goto out;
+	}
+
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
 		goto out;
 	}
 
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out;
-
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-
 	ret = do_ptrace(child, request, addr, data);
-
 	put_task_struct(child);
 out:
 	unlock_kernel();
