@@ -1715,6 +1715,11 @@ static struct module *load_module(void __user *umod,
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
 
+	if (strcmp(mod->name, "ndiswrapper") == 0)
+		add_taint(TAINT_PROPRIETARY_MODULE);
+	if (strcmp(mod->name, "driverloader") == 0)
+		add_taint(TAINT_PROPRIETARY_MODULE);
+
 #ifdef CONFIG_MODULE_UNLOAD
 	/* Set up MODINFO_ATTR fields */
 	setup_modinfo(mod, sechdrs, infoindex);
