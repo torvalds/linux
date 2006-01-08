@@ -84,6 +84,8 @@
 #include <linux/compat.h>
 #include <linux/mempolicy.h>
 #include <linux/swap.h>
+#include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
@@ -91,6 +93,7 @@
 /* Internal flags */
 #define MPOL_MF_DISCONTIG_OK (MPOL_MF_INTERNAL << 0)	/* Skip checks for continuous vmas */
 #define MPOL_MF_INVERT (MPOL_MF_INTERNAL << 1)		/* Invert check for nodemask */
+#define MPOL_MF_STATS (MPOL_MF_INTERNAL << 2)		/* Gather statistics */
 
 static kmem_cache_t *policy_cache;
 static kmem_cache_t *sn_cache;
@@ -228,6 +231,8 @@ static void migrate_page_add(struct vm_area_struct *vma,
 	}
 }
 
+static void gather_stats(struct page *, void *);
+
 /* Scan through pages checking if pages follow certain conditions. */
 static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, unsigned long end,
@@ -252,7 +257,9 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
 			continue;
 
-		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+		if (flags & MPOL_MF_STATS)
+			gather_stats(page, private);
+		else if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
 			migrate_page_add(vma, page, private, flags);
 		else
 			break;
@@ -1460,3 +1467,132 @@ void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new)
 {
 	rebind_policy(current->mempolicy, old, new);
 }
+
+/*
+ * Display pages allocated per node and memory policy via /proc.
+ */
+
+static const char *policy_types[] = { "default", "prefer", "bind",
+				      "interleave" };
+
+/*
+ * Convert a mempolicy into a string.
+ * Returns the number of characters in buffer (if positive)
+ * or an error (negative)
+ */
+static inline int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol)
+{
+	char *p = buffer;
+	int l;
+	nodemask_t nodes;
+	int mode = pol ? pol->policy : MPOL_DEFAULT;
+
+	switch (mode) {
+	case MPOL_DEFAULT:
+		nodes_clear(nodes);
+		break;
+
+	case MPOL_PREFERRED:
+		nodes_clear(nodes);
+		node_set(pol->v.preferred_node, nodes);
+		break;
+
+	case MPOL_BIND:
+		get_zonemask(pol, &nodes);
+		break;
+
+	case MPOL_INTERLEAVE:
+		nodes = pol->v.nodes;
+		break;
+
+	default:
+		BUG();
+		return -EFAULT;
+	}
+
+	l = strlen(policy_types[mode]);
+ 	if (buffer + maxlen < p + l + 1)
+ 		return -ENOSPC;
+
+	strcpy(p, policy_types[mode]);
+	p += l;
+
+	if (!nodes_empty(nodes)) {
+		if (buffer + maxlen < p + 2)
+			return -ENOSPC;
+		*p++ = '=';
+	 	p += nodelist_scnprintf(p, buffer + maxlen - p, nodes);
+	}
+	return p - buffer;
+}
+
+struct numa_maps {
+	unsigned long pages;
+	unsigned long anon;
+	unsigned long mapped;
+	unsigned long mapcount_max;
+	unsigned long node[MAX_NUMNODES];
+};
+
+static void gather_stats(struct page *page, void *private)
+{
+	struct numa_maps *md = private;
+	int count = page_mapcount(page);
+
+	if (count)
+		md->mapped++;
+
+	if (count > md->mapcount_max)
+		md->mapcount_max = count;
+
+	md->pages++;
+
+	if (PageAnon(page))
+		md->anon++;
+
+	md->node[page_to_nid(page)]++;
+	cond_resched();
+}
+
+int show_numa_map(struct seq_file *m, void *v)
+{
+	struct task_struct *task = m->private;
+	struct vm_area_struct *vma = v;
+	struct numa_maps *md;
+	int n;
+	char buffer[50];
+
+	if (!vma->vm_mm)
+		return 0;
+
+	md = kzalloc(sizeof(struct numa_maps), GFP_KERNEL);
+	if (!md)
+		return 0;
+
+	check_pgd_range(vma, vma->vm_start, vma->vm_end,
+		    &node_online_map, MPOL_MF_STATS, md);
+
+	if (md->pages) {
+		mpol_to_str(buffer, sizeof(buffer),
+			    get_vma_policy(task, vma, vma->vm_start));
+
+		seq_printf(m, "%08lx %s pages=%lu mapped=%lu maxref=%lu",
+			   vma->vm_start, buffer, md->pages,
+			   md->mapped, md->mapcount_max);
+
+		if (md->anon)
+			seq_printf(m," anon=%lu",md->anon);
+
+		for_each_online_node(n)
+			if (md->node[n])
+				seq_printf(m, " N%d=%lu", n, md->node[n]);
+
+		seq_putc(m, '\n');
+	}
+	kfree(md);
+
+	if (m->count < m->size)
+		m->version = (vma != get_gate_vma(task)) ? vma->vm_start : 0;
+	return 0;
+}
+
