@@ -808,7 +808,6 @@ struct super_block {
 	struct list_head	s_list;		/* Keep this first */
 	dev_t			s_dev;		/* search index; _not_ kdev_t */
 	unsigned long		s_blocksize;
-	unsigned long		s_old_blocksize;
 	unsigned char		s_blocksize_bits;
 	unsigned char		s_dirt;
 	unsigned long long	s_maxbytes;	/* Max file size */
