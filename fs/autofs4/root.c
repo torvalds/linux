@@ -143,7 +143,8 @@ static int autofs4_dcache_readdir(struct file * filp, void * dirent, filldir_t f
 			}
 
 			while(1) {
-				struct dentry *de = list_entry(list, struct dentry, d_child);
+				struct dentry *de = list_entry(list,
+						struct dentry, d_u.d_child);
 
 				if (!d_unhashed(de) && de->d_inode) {
 					spin_unlock(&dcache_lock);

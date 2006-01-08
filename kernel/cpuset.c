@@ -331,7 +331,7 @@ static void cpuset_d_remove_dir(struct dentry *dentry)
 	spin_lock(&dcache_lock);
 	node = dentry->d_subdirs.next;
 	while (node != &dentry->d_subdirs) {
-		struct dentry *d = list_entry(node, struct dentry, d_child);
+		struct dentry *d = list_entry(node, struct dentry, d_u.d_child);
 		list_del_init(node);
 		if (d->d_inode) {
 			d = dget_locked(d);
@@ -343,7 +343,7 @@ static void cpuset_d_remove_dir(struct dentry *dentry)
 		}
 		node = dentry->d_subdirs.next;
 	}
-	list_del_init(&dentry->d_child);
+	list_del_init(&dentry->d_u.d_child);
 	spin_unlock(&dcache_lock);
 	remove_dir(dentry);
 }

@@ -186,7 +186,7 @@ static void update_bus(struct dentry *bus)
 
 	down(&bus->d_inode->i_sem);
 
-	list_for_each_entry(dev, &bus->d_subdirs, d_child)
+	list_for_each_entry(dev, &bus->d_subdirs, d_u.d_child)
 		if (dev->d_inode)
 			update_dev(dev);
 
@@ -203,7 +203,7 @@ static void update_sb(struct super_block *sb)
 
 	down(&root->d_inode->i_sem);
 
-	list_for_each_entry(bus, &root->d_subdirs, d_child) {
+	list_for_each_entry(bus, &root->d_subdirs, d_u.d_child) {
 		if (bus->d_inode) {
 			switch (S_IFMT & bus->d_inode->i_mode) {
 			case S_IFDIR:
@@ -319,7 +319,7 @@ static int usbfs_empty (struct dentry *dentry)
 	spin_lock(&dcache_lock);
 
 	list_for_each(list, &dentry->d_subdirs) {
-		struct dentry *de = list_entry(list, struct dentry, d_child);
+		struct dentry *de = list_entry(list, struct dentry, d_u.d_child);
 		if (usbfs_positive(de)) {
 			spin_unlock(&dcache_lock);
 			return 0;
