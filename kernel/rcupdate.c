@@ -236,12 +236,8 @@ static void rcu_do_batch(struct rcu_data *rdp)
  * active batch and the batch to be registered has not already occurred.
  * Caller must hold rcu_state.lock.
  */
-static void rcu_start_batch(struct rcu_ctrlblk *rcp, struct rcu_state *rsp,
-				int next_pending)
+static void rcu_start_batch(struct rcu_ctrlblk *rcp, struct rcu_state *rsp)
 {
-	if (next_pending)
-		rcp->next_pending = 1;
-
 	if (rcp->next_pending &&
 			rcp->completed == rcp->cur) {
 		rcp->next_pending = 0;
@@ -275,7 +271,7 @@ static void cpu_quiet(int cpu, struct rcu_ctrlblk *rcp, struct rcu_state *rsp)
 	if (cpus_empty(rsp->cpumask)) {
 		/* batch completed ! */
 		rcp->completed = rcp->cur;
-		rcu_start_batch(rcp, rsp, 0);
+		rcu_start_batch(rcp, rsp);
 	}
 }
 
@@ -410,7 +406,8 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 		if (!rcp->next_pending) {
 			/* and start it/schedule start if it's a new batch */
 			spin_lock(&rsp->lock);
-			rcu_start_batch(rcp, rsp, 1);
+			rcp->next_pending = 1;
+			rcu_start_batch(rcp, rsp);
 			spin_unlock(&rsp->lock);
 		}
 	} else {
