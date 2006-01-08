@@ -102,8 +102,6 @@ struct v9fs_mux_rpc {
 	wait_queue_head_t wqueue;
 };
 
-extern int v9fs_errstr2errno(char *str, int len);
-
 static int v9fs_poll_proc(void *);
 static void v9fs_read_work(void *);
 static void v9fs_write_work(void *);
@@ -119,7 +117,7 @@ static int v9fs_mux_num;
 static int v9fs_mux_poll_task_num;
 static struct v9fs_mux_poll_task v9fs_mux_poll_tasks[100];
 
-void v9fs_mux_global_init(void)
+int v9fs_mux_global_init(void)
 {
 	int i;
 
@@ -127,6 +125,10 @@ void v9fs_mux_global_init(void)
 		v9fs_mux_poll_tasks[i].task = NULL;
 
 	v9fs_mux_wq = create_workqueue("v9fs");
+	if (!v9fs_mux_wq)
+		return -ENOMEM;
+
+	return 0;
 }
 
 void v9fs_mux_global_exit(void)
@@ -156,10 +158,11 @@ inline int v9fs_mux_calc_poll_procs(int muxnum)
 	return n;
 }
 
-static void v9fs_mux_poll_start(struct v9fs_mux_data *m)
+static int v9fs_mux_poll_start(struct v9fs_mux_data *m)
 {
 	int i, n;
 	struct v9fs_mux_poll_task *vpt, *vptlast;
+	struct task_struct *pproc;
 
 	dprintk(DEBUG_MUX, "mux %p muxnum %d procnum %d\n", m, v9fs_mux_num,
 		v9fs_mux_poll_task_num);
@@ -171,13 +174,16 @@ static void v9fs_mux_poll_start(struct v9fs_mux_data *m)
 			if (v9fs_mux_poll_tasks[i].task == NULL) {
 				vpt = &v9fs_mux_poll_tasks[i];
 				dprintk(DEBUG_MUX, "create proc %p\n", vpt);
-				vpt->task =
-				    kthread_create(v9fs_poll_proc, vpt,
+				pproc = kthread_create(v9fs_poll_proc, vpt,
 						   "v9fs-poll");
-				INIT_LIST_HEAD(&vpt->mux_list);
-				vpt->muxnum = 0;
-				v9fs_mux_poll_task_num++;
-				wake_up_process(vpt->task);
+
+				if (!IS_ERR(pproc)) {
+					vpt->task = pproc;
+					INIT_LIST_HEAD(&vpt->mux_list);
+					vpt->muxnum = 0;
+					v9fs_mux_poll_task_num++;
+					wake_up_process(vpt->task);
+				}
 				break;
 			}
 		}
@@ -207,16 +213,21 @@ static void v9fs_mux_poll_start(struct v9fs_mux_data *m)
 	}
 
 	if (i >= ARRAY_SIZE(v9fs_mux_poll_tasks)) {
+		if (vptlast == NULL)
+			return -ENOMEM;
+
 		dprintk(DEBUG_MUX, "put in proc %d\n", i);
 		list_add(&m->mux_list, &vptlast->mux_list);
 		vptlast->muxnum++;
-		m->poll_task = vpt;
+		m->poll_task = vptlast;
 		memset(&m->poll_waddr, 0, sizeof(m->poll_waddr));
 		init_poll_funcptr(&m->pt, v9fs_pollwait);
 	}
 
 	v9fs_mux_num++;
 	down(&v9fs_mux_task_lock);
+
+	return 0;
 }
 
 static void v9fs_mux_poll_stop(struct v9fs_mux_data *m)
@@ -283,7 +294,10 @@ struct v9fs_mux_data *v9fs_mux_init(struct v9fs_transport *trans, int msize,
 	INIT_WORK(&m->wq, v9fs_write_work, m);
 	m->wsched = 0;
 	memset(&m->poll_waddr, 0, sizeof(m->poll_waddr));
-	v9fs_mux_poll_start(m);
+	m->poll_task = NULL;
+	n = v9fs_mux_poll_start(m);
+	if (n)
+		return ERR_PTR(n);
 
 	n = trans->poll(trans, &m->pt);
 	if (n & POLLIN) {

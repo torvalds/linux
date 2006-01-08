@@ -45,37 +45,6 @@ struct cbuf {
 	unsigned char *ep;
 };
 
-char *v9fs_str_copy(char *buf, int buflen, struct v9fs_str *str)
-{
-	int n;
-
-	if (buflen < str->len)
-		n = buflen;
-	else
-		n = str->len;
-
-	memmove(buf, str->str, n - 1);
-
-	return buf;
-}
-
-int v9fs_str_compare(char *buf, struct v9fs_str *str)
-{
-	int n, ret;
-
-	ret = strncmp(buf, str->str, str->len);
-
-	if (!ret) {
-		n = strlen(buf);
-		if (n < str->len)
-			ret = -1;
-		else if (n > str->len)
-			ret = 1;
-	}
-
-	return ret;
-}
-
 static inline void buf_init(struct cbuf *buf, void *data, int datalen)
 {
 	buf->sp = buf->p = data;
@@ -89,11 +58,14 @@ static inline int buf_check_overflow(struct cbuf *buf)
 
 static inline int buf_check_size(struct cbuf *buf, int len)
 {
-	if (buf->p + len > buf->ep && buf->p < buf->ep) {
-		eprintk(KERN_ERR, "buffer overflow: want %d has %d\n",
-			len, (int)(buf->ep - buf->p));
-		dump_stack();
-		buf->p = buf->ep + 1;
+	if (buf->p + len > buf->ep) {
+		if (buf->p < buf->ep) {
+			eprintk(KERN_ERR, "buffer overflow: want %d has %d\n",
+				len, (int)(buf->ep - buf->p));
+			dump_stack();
+			buf->p = buf->ep + 1;
+		}
+
 		return 0;
 	}
 
@@ -527,6 +499,7 @@ v9fs_create_common(struct cbuf *bufp, u32 size, u8 id)
 
 void v9fs_set_tag(struct v9fs_fcall *fc, u16 tag)
 {
+	fc->tag = tag;
 	*(__le16 *) (fc->sdata + 5) = cpu_to_le16(tag);
 }
 

@@ -269,6 +269,7 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 	int n = 0;
 	int newfid = -1;
 	int retval = -EINVAL;
+	struct v9fs_str *version;
 
 	v9ses->name = __getname();
 	if (!v9ses->name)
@@ -351,13 +352,16 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 			goto FreeFcall;
 		}
 
-		/* Really should check for 9P1 and report error */
-		if (!v9fs_str_compare("9P2000.u", &fcall->params.rversion.version)) {
+		version = &fcall->params.rversion.version;
+		if (version->len==8 && !memcmp(version->str, "9P2000.u", 8)) {
 			dprintk(DEBUG_9P, "9P2000 UNIX extensions enabled\n");
 			v9ses->extended = 1;
-		} else {
+		} else if (version->len==6 && !memcmp(version->str, "9P2000", 6)) {
 			dprintk(DEBUG_9P, "9P2000 legacy mode enabled\n");
 			v9ses->extended = 0;
+		} else {
+			retval = -EREMOTEIO;
+			goto FreeFcall;
 		}
 
 		n = fcall->params.rversion.msize;
@@ -449,12 +453,17 @@ extern int v9fs_error_init(void);
 
 static int __init init_v9fs(void)
 {
+	int ret;
+
 	v9fs_error_init();
 
 	printk(KERN_INFO "Installing v9fs 9P2000 file system support\n");
 
-	v9fs_mux_global_init();
-	return register_filesystem(&v9fs_fs_type);
+	ret = v9fs_mux_global_init();
+	if (!ret)
+		ret = register_filesystem(&v9fs_fs_type);
+
+	return ret;
 }
 
 /**

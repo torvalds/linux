@@ -340,9 +340,6 @@ struct v9fs_fcall {
 	fcall?fcall->params.rerror.error.len:0, \
 	fcall?fcall->params.rerror.error.str:"");
 
-char *v9fs_str_copy(char *buf, int buflen, struct v9fs_str *str);
-int v9fs_str_compare(char *buf, struct v9fs_str *str);
-
 int v9fs_t_version(struct v9fs_session_info *v9ses, u32 msize,
 		   char *version, struct v9fs_fcall **rcall);
 

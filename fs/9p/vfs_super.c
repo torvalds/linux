@@ -122,11 +122,10 @@ static struct super_block *v9fs_get_sb(struct file_system_type
 
 	dprintk(DEBUG_VFS, " \n");
 
-	v9ses = kmalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
+	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
 		return ERR_PTR(-ENOMEM);
 
-	memset(v9ses, 0, sizeof(struct v9fs_session_info));
 	if ((newfid = v9fs_session_init(v9ses, dev_name, data)) < 0) {
 		dprintk(DEBUG_ERROR, "problem initiating session\n");
 		kfree(v9ses);

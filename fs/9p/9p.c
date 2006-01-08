@@ -86,7 +86,6 @@ v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
 	dprintk(DEBUG_9P, "uname '%s' aname '%s' fid %d afid %d\n", uname,
 		aname, fid, afid);
 
-	ret = -ENOMEM;
 	tc = v9fs_create_tattach(fid, afid, uname, aname);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
@@ -136,7 +135,6 @@ v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid)
 
 	dprintk(DEBUG_9P, "fid %d\n", fid);
 
-	ret = -ENOMEM;
 	rc = NULL;
 	tc = v9fs_create_tclunk(fid);
 	if (!IS_ERR(tc))
@@ -165,7 +163,6 @@ int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag)
 
 	dprintk(DEBUG_9P, "oldtag %d\n", oldtag);
 
-	ret = -ENOMEM;
 	tc = v9fs_create_tflush(oldtag);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, NULL);
@@ -221,7 +218,6 @@ v9fs_t_wstat(struct v9fs_session_info *v9ses, u32 fid,
 
 	dprintk(DEBUG_9P, "fid %d\n", fid);
 
-	ret = -ENOMEM;
 	tc = v9fs_create_twstat(fid, wstat, v9ses->extended);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
@@ -259,7 +255,6 @@ v9fs_t_walk(struct v9fs_session_info *v9ses, u32 fid, u32 newfid,
 	else
 		nwname = 0;
 
-	ret = -ENOMEM;
 	tc = v9fs_create_twalk(fid, newfid, nwname, &name);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
@@ -289,7 +284,6 @@ v9fs_t_open(struct v9fs_session_info *v9ses, u32 fid, u8 mode,
 
 	dprintk(DEBUG_9P, "fid %d mode %d\n", fid, mode);
 
-	ret = -ENOMEM;
 	tc = v9fs_create_topen(fid, mode);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
@@ -317,7 +311,6 @@ v9fs_t_remove(struct v9fs_session_info *v9ses, u32 fid,
 
 	dprintk(DEBUG_9P, "fid %d\n", fid);
 
-	ret = -ENOMEM;
 	tc = v9fs_create_tremove(fid);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
@@ -349,7 +342,6 @@ v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name,
 	dprintk(DEBUG_9P, "fid %d name '%s' perm %x mode %d\n",
 		fid, name, perm, mode);
 
-	ret = -ENOMEM;
 	tc = v9fs_create_tcreate(fid, name, perm, mode);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, rcp);
@@ -380,7 +372,6 @@ v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid, u64 offset,
 	dprintk(DEBUG_9P, "fid %d offset 0x%llux count 0x%x\n", fid,
 		(long long unsigned) offset, count);
 
-	ret = -ENOMEM;
 	tc = v9fs_create_tread(fid, offset, count);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, &rc);
@@ -418,7 +409,6 @@ v9fs_t_write(struct v9fs_session_info *v9ses, u32 fid, u64 offset, u32 count,
 	dprintk(DEBUG_9P, "fid %d offset 0x%llux count 0x%x\n", fid,
 		(long long unsigned) offset, count);
 
-	ret = -ENOMEM;
 	tc = v9fs_create_twrite(fid, offset, count, data);
 	if (!IS_ERR(tc)) {
 		ret = v9fs_mux_rpc(v9ses->mux, tc, &rc);

@@ -40,7 +40,7 @@ struct v9fs_mux_data;
 typedef void (*v9fs_mux_req_callback)(void *a, struct v9fs_fcall *tc,
 	struct v9fs_fcall *rc, int err);
 
-void v9fs_mux_global_init(void);
+int v9fs_mux_global_init(void);
 void v9fs_mux_global_exit(void);
 
 struct v9fs_mux_data *v9fs_mux_init(struct v9fs_transport *trans, int msize,
@@ -55,3 +55,4 @@ int v9fs_mux_rpcnb(struct v9fs_mux_data *m, struct v9fs_fcall *tc,
 
 void v9fs_mux_flush(struct v9fs_mux_data *m, int sendflush);
 void v9fs_mux_cancel(struct v9fs_mux_data *m, int err);
+int v9fs_errstr2errno(char *errstr, int len);

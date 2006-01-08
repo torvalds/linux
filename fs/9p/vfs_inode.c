@@ -768,6 +768,7 @@ void
 v9fs_stat2inode(struct v9fs_stat *stat, struct inode *inode,
 	struct super_block *sb)
 {
+	int n;
 	char ext[32];
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
@@ -791,7 +792,11 @@ v9fs_stat2inode(struct v9fs_stat *stat, struct inode *inode,
 		int major = -1;
 		int minor = -1;
 
-		v9fs_str_copy(ext, sizeof(ext), &stat->extension);
+		n = stat->extension.len;
+		if (n > sizeof(ext)-1)
+			n = sizeof(ext)-1;
+		memmove(ext, stat->extension.str, n);
+		ext[n] = 0;
 		sscanf(ext, "%c %u %u", &type, &major, &minor);
 		switch (type) {
 		case 'c':
