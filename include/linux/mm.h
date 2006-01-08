@@ -308,7 +308,7 @@ struct page {
  */
 #define get_page_testone(p)	atomic_inc_and_test(&(p)->_count)
 
-#define set_page_count(p,v) 	atomic_set(&(p)->_count, v - 1)
+#define set_page_count(p,v) 	atomic_set(&(p)->_count, (v) - 1)
 #define __put_page(p)		atomic_dec(&(p)->_count)
 
 extern void FASTCALL(__page_cache_release(struct page *));
