@@ -4,7 +4,7 @@
 struct dentry *relayfs_create_file(const char *name,
 				   struct dentry *parent,
 				   int mode,
-				   struct rchan *chan);
+				   void *data);
 extern int relayfs_remove(struct dentry *dentry);
 extern int relay_buf_empty(struct rchan_buf *buf);
 extern void relay_destroy_channel(struct kref *kref);

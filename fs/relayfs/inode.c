@@ -34,23 +34,13 @@ static struct backing_dev_info		relayfs_backing_dev_info = {
 };
 
 static struct inode *relayfs_get_inode(struct super_block *sb, int mode,
-				       struct rchan *chan)
+				       void *data)
 {
-	struct rchan_buf *buf = NULL;
 	struct inode *inode;
 
-	if (S_ISREG(mode)) {
-		BUG_ON(!chan);
-		buf = relay_create_buf(chan);
-		if (!buf)
-			return NULL;
-	}
-
 	inode = new_inode(sb);
-	if (!inode) {
-		relay_destroy_buf(buf);
+	if (!inode)
 		return NULL;
-	}
 
 	inode->i_mode = mode;
 	inode->i_uid = 0;
@@ -62,7 +52,7 @@ static struct inode *relayfs_get_inode(struct super_block *sb, int mode,
 	switch (mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_fop = &relayfs_file_operations;
-		RELAYFS_I(inode)->buf = buf;
+		RELAYFS_I(inode)->buf = data;
 		break;
 	case S_IFDIR:
 		inode->i_op = &simple_dir_inode_operations;
@@ -83,7 +73,7 @@ static struct inode *relayfs_get_inode(struct super_block *sb, int mode,
  *	@name: the name of the file to create
  *	@parent: parent directory
  *	@mode: mode
- *	@chan: relay channel associated with the file
+ *	@data: user-associated data for this file
  *
  *	Returns the new dentry, NULL on failure
  *
@@ -92,7 +82,7 @@ static struct inode *relayfs_get_inode(struct super_block *sb, int mode,
 static struct dentry *relayfs_create_entry(const char *name,
 					   struct dentry *parent,
 					   int mode,
-					   struct rchan *chan)
+					   void *data)
 {
 	struct dentry *d;
 	struct inode *inode;
@@ -127,7 +117,7 @@ static struct dentry *relayfs_create_entry(const char *name,
 		goto release_mount;
 	}
 
-	inode = relayfs_get_inode(parent->d_inode->i_sb, mode, chan);
+	inode = relayfs_get_inode(parent->d_inode->i_sb, mode, data);
 	if (!inode) {
 		d = NULL;
 		goto release_mount;
@@ -155,20 +145,20 @@ exit:
  *	@name: the name of the file to create
  *	@parent: parent directory
  *	@mode: mode, if not specied the default perms are used
- *	@chan: channel associated with the file
+ *	@data: user-associated data for this file
  *
  *	Returns file dentry if successful, NULL otherwise.
  *
  *	The file will be created user r on behalf of current user.
  */
 struct dentry *relayfs_create_file(const char *name, struct dentry *parent,
-				   int mode, struct rchan *chan)
+				   int mode, void *data)
 {
 	if (!mode)
 		mode = S_IRUSR;
 	mode = (mode & S_IALLUGO) | S_IFREG;
 
-	return relayfs_create_entry(name, parent, mode, chan);
+	return relayfs_create_entry(name, parent, mode, data);
 }
 
 /**
@@ -505,9 +495,6 @@ static struct inode *relayfs_alloc_inode(struct super_block *sb)
  */
 static void relayfs_destroy_inode(struct inode *inode)
 {
-	if (RELAYFS_I(inode)->buf)
-		relay_destroy_buf(RELAYFS_I(inode)->buf);
-
 	kmem_cache_free(relayfs_inode_cachep, RELAYFS_I(inode));
 }
 

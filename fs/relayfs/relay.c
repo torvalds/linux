@@ -171,12 +171,17 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan,
 	struct rchan_buf *buf;
 	struct dentry *dentry;
 
-	/* Create file in fs */
-	dentry = relayfs_create_file(filename, parent, S_IRUSR, chan);
-	if (!dentry)
-		return NULL;
+ 	buf = relay_create_buf(chan);
+ 	if (!buf)
+ 		return NULL;
 
-	buf = RELAYFS_I(dentry->d_inode)->buf;
+	/* Create file in fs */
+	dentry = relayfs_create_file(filename, parent, S_IRUSR, buf);
+ 	if (!dentry) {
+ 		relay_destroy_buf(buf);
+		return NULL;
+ 	}
+
 	buf->dentry = dentry;
 	__relay_reset(buf, 1);
 
