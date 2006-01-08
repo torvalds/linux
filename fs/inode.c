@@ -770,7 +770,7 @@ EXPORT_SYMBOL(igrab);
  *
  * Note, @test is called with the inode_lock held, so can't sleep.
  */
-static inline struct inode *ifind(struct super_block *sb,
+static struct inode *ifind(struct super_block *sb,
 		struct hlist_head *head, int (*test)(struct inode *, void *),
 		void *data, const int wait)
 {
@@ -804,7 +804,7 @@ static inline struct inode *ifind(struct super_block *sb,
  *
  * Otherwise NULL is returned.
  */
-static inline struct inode *ifind_fast(struct super_block *sb,
+static struct inode *ifind_fast(struct super_block *sb,
 		struct hlist_head *head, unsigned long ino)
 {
 	struct inode *inode;
