@@ -1278,19 +1278,6 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 	up(&ide_setting_sem);
 
 	switch (cmd) {
-		case HDIO_GETGEO:
-		{
-			struct hd_geometry geom;
-			if (!p || (drive->media != ide_disk && drive->media != ide_floppy)) return -EINVAL;
-			geom.heads = drive->bios_head;
-			geom.sectors = drive->bios_sect;
-			geom.cylinders = (u16)drive->bios_cyl; /* truncate */
-			geom.start = get_start_sect(bdev);
-			if (copy_to_user(p, &geom, sizeof(struct hd_geometry)))
-				return -EFAULT;
-			return 0;
-		}
-
 		case HDIO_OBSOLETE_IDENTITY:
 		case HDIO_GET_IDENTITY:
 			if (bdev != bdev->bd_contains)

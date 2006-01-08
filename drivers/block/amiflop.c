@@ -1424,6 +1424,16 @@ static void do_fd_request(request_queue_t * q)
 	redo_fd_request();
 }
 
+static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	int drive = MINOR(bdev->bd_dev) & 3;
+
+	geo->heads = unit[drive].type->heads;
+	geo->sectors = unit[drive].dtype->sects * unit[drive].type->sect_mult;
+	geo->cylinders = unit[drive].type->tracks;
+	return 0;
+}
+
 static int fd_ioctl(struct inode *inode, struct file *filp,
 		    unsigned int cmd, unsigned long param)
 {
@@ -1431,18 +1441,6 @@ static int fd_ioctl(struct inode *inode, struct file *filp,
 	static struct floppy_struct getprm;
 
 	switch(cmd){
-	case HDIO_GETGEO:
-	{
-		struct hd_geometry loc;
-		loc.heads = unit[drive].type->heads;
-		loc.sectors = unit[drive].dtype->sects * unit[drive].type->sect_mult;
-		loc.cylinders = unit[drive].type->tracks;
-		loc.start = 0;
-		if (copy_to_user((void *)param, (void *)&loc,
-				 sizeof(struct hd_geometry)))
-			return -EFAULT;
-		break;
-	}
 	case FDFMTBEG:
 		get_fdc(drive);
 		if (fd_ref[drive] > 1) {
@@ -1652,6 +1650,7 @@ static struct block_device_operations floppy_fops = {
 	.open		= floppy_open,
 	.release	= floppy_release,
 	.ioctl		= fd_ioctl,
+	.getgeo		= fd_getgeo,
 	.media_changed	= amiga_floppy_change,
 };
 

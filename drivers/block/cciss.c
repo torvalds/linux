@@ -153,6 +153,7 @@ static int cciss_open(struct inode *inode, struct file *filep);
 static int cciss_release(struct inode *inode, struct file *filep);
 static int cciss_ioctl(struct inode *inode, struct file *filep, 
 		unsigned int cmd, unsigned long arg);
+static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static int revalidate_allvol(ctlr_info_t *host);
 static int cciss_revalidate(struct gendisk *disk);
@@ -194,6 +195,7 @@ static struct block_device_operations cciss_fops  = {
 	.open		= cciss_open, 
 	.release       	= cciss_release,
         .ioctl		= cciss_ioctl,
+        .getgeo		= cciss_getgeo,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = cciss_compat_ioctl,
 #endif
@@ -633,6 +635,20 @@ static int cciss_ioctl32_big_passthru(struct file *file, unsigned cmd, unsigned 
 	return err;
 }
 #endif
+
+static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	drive_info_struct *drv = get_drv(bdev->bd_disk);
+
+	if (!drv->cylinders)
+		return -ENXIO;
+
+	geo->heads = drv->heads;
+	geo->sectors = drv->sectors;
+	geo->cylinders = drv->cylinders;
+	return 0;
+}
+
 /*
  * ioctl 
  */
@@ -651,21 +667,6 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 #endif /* CCISS_DEBUG */ 
 	
 	switch(cmd) {
-	case HDIO_GETGEO:
-	{
-                struct hd_geometry driver_geo;
-                if (drv->cylinders) {
-                        driver_geo.heads = drv->heads;
-                        driver_geo.sectors = drv->sectors;
-                        driver_geo.cylinders = drv->cylinders;
-                } else
-			return -ENXIO;
-                driver_geo.start= get_start_sect(inode->i_bdev);
-                if (copy_to_user(argp, &driver_geo, sizeof(struct hd_geometry)))
-                        return  -EFAULT;
-                return(0);
-	}
-
 	case CCISS_GETPCIINFO:
 	{
 		cciss_pci_info_struct pciinfo;

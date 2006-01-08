@@ -128,9 +128,12 @@ static DEFINE_SPINLOCK(xd_lock);
 
 static struct gendisk *xd_gendisk[2];
 
+static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
+
 static struct block_device_operations xd_fops = {
 	.owner	= THIS_MODULE,
 	.ioctl	= xd_ioctl,
+	.getgeo = xd_getgeo,
 };
 static DECLARE_WAIT_QUEUE_HEAD(xd_wait_int);
 static u_char xd_drives, xd_irq = 5, xd_dma = 3, xd_maxsectors;
@@ -330,22 +333,20 @@ static void do_xd_request (request_queue_t * q)
 	}
 }
 
+static int xd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	XD_INFO *p = bdev->bd_disk->private_data;
+
+	geo->heads = p->heads;
+	geo->sectors = p->sectors;
+	geo->cylinders = p->cylinders;
+	return 0;
+}
+
 /* xd_ioctl: handle device ioctl's */
 static int xd_ioctl (struct inode *inode,struct file *file,u_int cmd,u_long arg)
 {
-	XD_INFO *p = inode->i_bdev->bd_disk->private_data;
-
 	switch (cmd) {
-		case HDIO_GETGEO:
-		{
-			struct hd_geometry g;
-			struct hd_geometry __user *geom= (void __user *)arg;
-			g.heads = p->heads;
-			g.sectors = p->sectors;
-			g.cylinders = p->cylinders;
-			g.start = get_start_sect(inode->i_bdev);
-			return copy_to_user(geom, &g, sizeof(g)) ? -EFAULT : 0;
-		}
 		case HDIO_SET_DMA:
 			if (!capable(CAP_SYS_ADMIN)) return -EACCES;
 			if (xdc_busy) return -EBUSY;

@@ -407,8 +407,7 @@ struct carm_array_info {
 
 static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
 static void carm_remove_one (struct pci_dev *pdev);
-static int carm_bdev_ioctl(struct inode *ino, struct file *fil,
-			   unsigned int cmd, unsigned long arg);
+static int carm_bdev_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static struct pci_device_id carm_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x8000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, },
@@ -426,7 +425,7 @@ static struct pci_driver carm_driver = {
 
 static struct block_device_operations carm_bd_ops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= carm_bdev_ioctl,
+	.getgeo		= carm_bdev_getgeo,
 };
 
 static unsigned int carm_host_id;
@@ -434,32 +433,14 @@ static unsigned long carm_major_alloc;
 
 
 
-static int carm_bdev_ioctl(struct inode *ino, struct file *fil,
-			   unsigned int cmd, unsigned long arg)
+static int carm_bdev_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	void __user *usermem = (void __user *) arg;
-	struct carm_port *port = ino->i_bdev->bd_disk->private_data;
-	struct hd_geometry geom;
+	struct carm_port *port = bdev->bd_disk->private_data;
 
-	switch (cmd) {
-	case HDIO_GETGEO:
-		if (!usermem)
-			return -EINVAL;
-
-		geom.heads = (u8) port->dev_geom_head;
-		geom.sectors = (u8) port->dev_geom_sect;
-		geom.cylinders = port->dev_geom_cyl;
-		geom.start = get_start_sect(ino->i_bdev);
-
-		if (copy_to_user(usermem, &geom, sizeof(geom)))
-			return -EFAULT;
-		return 0;
-
-	default:
-		break;
-	}
-
-	return -EOPNOTSUPP;
+	geo->heads = (u8) port->dev_geom_head;
+	geo->sectors = (u8) port->dev_geom_sect;
+	geo->cylinders = port->dev_geom_cyl;
+	return 0;
 }
 
 static const u32 msg_sizes[] = { 32, 64, 128, CARM_MSG_SIZE };

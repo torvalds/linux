@@ -486,33 +486,6 @@ dasd_ioctl_set_ro(struct block_device *bdev, int no, long args)
 }
 
 /*
- * Return disk geometry.
- */
-static int
-dasd_ioctl_getgeo(struct block_device *bdev, int no, long args)
-{
-	struct hd_geometry geo = { 0, };
-	struct dasd_device *device;
-
-	device =  bdev->bd_disk->private_data;
-	if (device == NULL)
-		return -ENODEV;
-
-	if (device == NULL || device->discipline == NULL ||
-	    device->discipline->fill_geometry == NULL)
-		return -EINVAL;
-
-	geo = (struct hd_geometry) {};
-	device->discipline->fill_geometry(device, &geo);
-	geo.start = get_start_sect(bdev) >> device->s2b_shift;
-	if (copy_to_user((struct hd_geometry __user *) args, &geo,
-			 sizeof (struct hd_geometry)))
-		return -EFAULT;
-
-	return 0;
-}
-
-/*
  * List of static ioctls.
  */
 static struct { int no; dasd_ioctl_fn_t fn; } dasd_ioctls[] =
@@ -528,7 +501,6 @@ static struct { int no; dasd_ioctl_fn_t fn; } dasd_ioctls[] =
 	{ BIODASDPRRST, dasd_ioctl_reset_profile },
 	{ BLKROSET, dasd_ioctl_set_ro },
 	{ DASDAPIVER, dasd_ioctl_api_version },
-	{ HDIO_GETGEO, dasd_ioctl_getgeo },
 	{ -1, NULL }
 };
 

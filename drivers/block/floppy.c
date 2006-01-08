@@ -3445,6 +3445,23 @@ static int get_floppy_geometry(int drive, int type, struct floppy_struct **g)
 	return 0;
 }
 
+static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	int drive = (long)bdev->bd_disk->private_data;
+	int type = ITYPE(drive_state[drive].fd_device);
+	struct floppy_struct *g;
+	int ret;
+
+	ret = get_floppy_geometry(drive, type, &g);
+	if (ret)
+		return ret;
+
+	geo->heads = g->head;
+	geo->sectors = g->sect;
+	geo->cylinders = g->track;
+	return 0;
+}
+
 static int fd_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		    unsigned long param)
 {
@@ -3472,23 +3489,6 @@ static int fd_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		DPRINT("obsolete eject ioctl\n");
 		DPRINT("please use floppycontrol --eject\n");
 		cmd = FDEJECT;
-	}
-
-	/* generic block device ioctls */
-	switch (cmd) {
-		/* the following have been inspired by the corresponding
-		 * code for other block devices. */
-		struct floppy_struct *g;
-	case HDIO_GETGEO:
-		{
-			struct hd_geometry loc;
-			ECALL(get_floppy_geometry(drive, type, &g));
-			loc.heads = g->head;
-			loc.sectors = g->sect;
-			loc.cylinders = g->track;
-			loc.start = 0;
-			return _COPYOUT(loc);
-		}
 	}
 
 	/* convert the old style command into a new style command */
@@ -3938,6 +3938,7 @@ static struct block_device_operations floppy_fops = {
 	.open		= floppy_open,
 	.release	= floppy_release,
 	.ioctl		= fd_ioctl,
+	.getgeo		= fd_getgeo,
 	.media_changed	= check_floppy_change,
 	.revalidate_disk = floppy_revalidate,
 };

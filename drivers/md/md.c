@@ -3598,12 +3598,21 @@ static int set_disk_faulty(mddev_t *mddev, dev_t dev)
 	return 0;
 }
 
+static int md_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	mddev_t *mddev = bdev->bd_disk->private_data;
+
+	geo->heads = 2;
+	geo->sectors = 4;
+	geo->cylinders = get_capacity(mddev->gendisk) / 8;
+	return 0;
+}
+
 static int md_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	int err = 0;
 	void __user *argp = (void __user *)arg;
-	struct hd_geometry __user *loc = argp;
 	mddev_t *mddev = NULL;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -3765,24 +3774,6 @@ static int md_ioctl(struct inode *inode, struct file *file,
 	 * 4 sectors (with a BIG number of cylinders...). This drives
 	 * dosfs just mad... ;-)
 	 */
-		case HDIO_GETGEO:
-			if (!loc) {
-				err = -EINVAL;
-				goto abort_unlock;
-			}
-			err = put_user (2, (char __user *) &loc->heads);
-			if (err)
-				goto abort_unlock;
-			err = put_user (4, (char __user *) &loc->sectors);
-			if (err)
-				goto abort_unlock;
-			err = put_user(get_capacity(mddev->gendisk)/8,
-					(short __user *) &loc->cylinders);
-			if (err)
-				goto abort_unlock;
-			err = put_user (get_start_sect(inode->i_bdev),
-						(long __user *) &loc->start);
-			goto done_unlock;
 	}
 
 	/*
@@ -3911,6 +3902,7 @@ static struct block_device_operations md_fops =
 	.open		= md_open,
 	.release	= md_release,
 	.ioctl		= md_ioctl,
+	.getgeo		= md_getgeo,
 	.media_changed	= md_media_changed,
 	.revalidate_disk= md_revalidate,
 };

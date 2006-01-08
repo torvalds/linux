@@ -2031,6 +2031,17 @@ static int idefloppy_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int idefloppy_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct ide_floppy_obj *floppy = ide_floppy_g(bdev->bd_disk);
+	ide_drive_t *drive = floppy->drive;
+
+	geo->heads = drive->bios_head;
+	geo->sectors = drive->bios_sect;
+	geo->cylinders = (u16)drive->bios_cyl; /* truncate */
+	return 0;
+}
+
 static int idefloppy_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
@@ -2120,6 +2131,7 @@ static struct block_device_operations idefloppy_ops = {
 	.open		= idefloppy_open,
 	.release	= idefloppy_release,
 	.ioctl		= idefloppy_ioctl,
+	.getgeo		= idefloppy_getgeo,
 	.media_changed	= idefloppy_media_changed,
 	.revalidate_disk= idefloppy_revalidate_disk
 };

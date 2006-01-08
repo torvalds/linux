@@ -247,43 +247,17 @@ static int viodasd_release(struct inode *ino, struct file *fil)
 
 /* External ioctl entry point.
  */
-static int viodasd_ioctl(struct inode *ino, struct file *fil,
-			 unsigned int cmd, unsigned long arg)
+static int viodasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	unsigned char sectors;
-	unsigned char heads;
-	unsigned short cylinders;
-	struct hd_geometry *geo;
-	struct gendisk *gendisk;
-	struct viodasd_device *d;
+	struct gendisk *disk = bdev->bd_disk;
+	struct viodasd_device *d = disk->private_data;
 
-	switch (cmd) {
-	case HDIO_GETGEO:
-		geo = (struct hd_geometry *)arg;
-		if (geo == NULL)
-			return -EINVAL;
-		if (!access_ok(VERIFY_WRITE, geo, sizeof(*geo)))
-			return -EFAULT;
-		gendisk = ino->i_bdev->bd_disk;
-		d = gendisk->private_data;
-		sectors = d->sectors;
-		if (sectors == 0)
-			sectors = 32;
-		heads = d->tracks;
-		if (heads == 0)
-			heads = 64;
-		cylinders = d->cylinders;
-		if (cylinders == 0)
-			cylinders = get_capacity(gendisk) / (sectors * heads);
-		if (__put_user(sectors, &geo->sectors) ||
-		    __put_user(heads, &geo->heads) ||
-		    __put_user(cylinders, &geo->cylinders) ||
-		    __put_user(get_start_sect(ino->i_bdev), &geo->start))
-			return -EFAULT;
-		return 0;
-	}
+	geo->sectors = d->sectors ? d->sectors : 0;
+	geo->heads = d->tracks ? d->tracks  : 64;
+	geo->cylinders = d->cylinders ? d->cylinders :
+		get_capacity(disk) / (geo->cylinders * geo->heads);
 
-	return -EINVAL;
+	return 0;
 }
 
 /*
@@ -293,7 +267,7 @@ static struct block_device_operations viodasd_fops = {
 	.owner = THIS_MODULE,
 	.open = viodasd_open,
 	.release = viodasd_release,
-	.ioctl = viodasd_ioctl,
+	.getgeo = viodasd_getgeo,
 };
 
 /*
