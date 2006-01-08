@@ -38,11 +38,11 @@ extern unsigned int cycx_debug;
 /* Data Structures */
 /* X.25 Command Block. */
 struct cycx_x25_cmd {
-	u16 command PACKED;
-	u16 link    PACKED; /* values: 0 or 1 */
-	u16 len     PACKED; /* values: 0 thru 0x205 (517) */
-	u32 buf     PACKED;
-};
+	u16 command;
+	u16 link;	/* values: 0 or 1 */
+	u16 len;	/* values: 0 thru 0x205 (517) */
+	u32 buf;
+} PACKED;
 
 /* Defines for the 'command' field. */
 #define X25_CONNECT_REQUEST             0x4401
@@ -92,34 +92,34 @@ struct cycx_x25_cmd {
  *	@flags - see dosx25.doc, in portuguese, for details
  */
 struct cycx_x25_config {
-	u8  link	PACKED;
-	u8  speed	PACKED;
-	u8  clock	PACKED;
-	u8  n2		PACKED;
-	u8  n2win	PACKED;
-	u8  n3win	PACKED;
-	u8  nvc		PACKED;
-	u8  pktlen	PACKED;
-	u8  locaddr	PACKED;
-	u8  remaddr	PACKED;
-	u16 t1		PACKED;
-	u16 t2		PACKED;
-	u8  t21		PACKED;
-	u8  npvc	PACKED;
-	u8  t23		PACKED;
-	u8  flags	PACKED;
-};
+	u8  link;
+	u8  speed;
+	u8  clock;
+	u8  n2;
+	u8  n2win;
+	u8  n3win;
+	u8  nvc;
+	u8  pktlen;
+	u8  locaddr;
+	u8  remaddr;
+	u16 t1;
+	u16 t2;
+	u8  t21;
+	u8  npvc;
+	u8  t23;
+	u8  flags;
+} PACKED;
 
 struct cycx_x25_stats {
-	u16 rx_crc_errors	PACKED;
-	u16 rx_over_errors	PACKED;
-	u16 n2_tx_frames 	PACKED;
-	u16 n2_rx_frames 	PACKED;
-	u16 tx_timeouts 	PACKED;
-	u16 rx_timeouts 	PACKED;
-	u16 n3_tx_packets 	PACKED;
-	u16 n3_rx_packets 	PACKED;
-	u16 tx_aborts	 	PACKED;
-	u16 rx_aborts	 	PACKED;
-};
+	u16 rx_crc_errors;
+	u16 rx_over_errors;
+	u16 n2_tx_frames;
+	u16 n2_rx_frames;
+	u16 tx_timeouts;
+	u16 rx_timeouts;
+	u16 n3_tx_packets;
+	u16 n3_rx_packets;
+	u16 tx_aborts;
+	u16 rx_aborts;
+} PACKED;
 #endif	/* _CYCX_X25_H */

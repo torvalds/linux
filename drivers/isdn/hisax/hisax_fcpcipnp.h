@@ -12,17 +12,17 @@ enum {
 
 struct hdlc_stat_reg {
 #ifdef __BIG_ENDIAN
-	u_char fill __attribute__((packed));
-	u_char mode __attribute__((packed));
-	u_char xml  __attribute__((packed));
-	u_char cmd  __attribute__((packed));
+	u_char fill;
+	u_char mode;
+	u_char xml;
+	u_char cmd;
 #else
-	u_char cmd  __attribute__((packed));
-	u_char xml  __attribute__((packed));
-	u_char mode __attribute__((packed));
-	u_char fill __attribute__((packed));
+	u_char cmd;
+	u_char xml;
+	u_char mode;
+	u_char fill;
 #endif
-};
+} __attribute__((packed));
 
 struct fritz_bcs {
 	struct hisax_b_if b_if;
