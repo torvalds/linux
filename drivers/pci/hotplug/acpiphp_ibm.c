@@ -302,7 +302,7 @@ static int ibm_get_table_from_acpi(char **bufp)
 	}
 
 	package = (union acpi_object *) buffer.pointer;
-	if(!(package) ||
+	if (!(package) ||
 			(package->type != ACPI_TYPE_PACKAGE) ||
 			!(package->package.elements)) {
 		err("%s:  Invalid APCI object\n", __FUNCTION__);
@@ -405,7 +405,7 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 	}
 	info.hardware_id.value[sizeof(info.hardware_id.value) - 1] = '\0';
 
-	if(info.current_status && (info.valid & ACPI_VALID_HID) &&
+	if (info.current_status && (info.valid & ACPI_VALID_HID) &&
 			(!strcmp(info.hardware_id.value, IBM_HARDWARE_ID1) ||
 			!strcmp(info.hardware_id.value, IBM_HARDWARE_ID2))) {
 		dbg("found hardware: %s, handle: %p\n", info.hardware_id.value,
@@ -449,13 +449,11 @@ static int __init ibm_acpiphp_init(void)
 	}
 
 	ibm_note.device = device;
-	status = acpi_install_notify_handler(
-			ibm_acpi_handle,
-			ACPI_DEVICE_NOTIFY,
-			ibm_handle_events,
+	status = acpi_install_notify_handler(ibm_acpi_handle,
+			ACPI_DEVICE_NOTIFY, ibm_handle_events,
 			&ibm_note);
 	if (ACPI_FAILURE(status)) {
-		err("%s:  Failed to register notification handler\n",
+		err("%s: Failed to register notification handler\n",
 				__FUNCTION__);
 		retval = -EBUSY;
 		goto init_cleanup;
@@ -482,14 +480,13 @@ static void __exit ibm_acpiphp_exit(void)
 	if (acpiphp_unregister_attention(&ibm_attention_info))
 		err("%s: attention info deregistration failed", __FUNCTION__);
 
-	   status = acpi_remove_notify_handler(
+	status = acpi_remove_notify_handler(
 			   ibm_acpi_handle,
 			   ACPI_DEVICE_NOTIFY,
 			   ibm_handle_events);
-	   if (ACPI_FAILURE(status))
-		   err("%s:  Notification handler removal failed\n",
-				   __FUNCTION__);
-	// remove the /sys entries
+	if (ACPI_FAILURE(status))
+		err("%s: Notification handler removal failed\n", __FUNCTION__);
+	/* remove the /sys entries */
 	if (sysfs_remove_bin_file(sysdir, &ibm_apci_table_attr))
 		err("%s: removal of sysfs file apci_table failed\n",
 				__FUNCTION__);

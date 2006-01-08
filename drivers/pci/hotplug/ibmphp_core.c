@@ -235,12 +235,12 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 {
 	int rc = 0;
 	struct slot *pslot;
-	u8 cmd;
+	u8 cmd = 0x00;     /* avoid compiler warning */
 
 	debug("set_attention_status - Entry hotplug_slot[%lx] value[%x]\n",
 			(ulong) hotplug_slot, value);
 	ibmphp_lock_operations();
-	cmd = 0x00;     // avoid compiler warning
+
 
 	if (hotplug_slot) {
 		switch (value) {
