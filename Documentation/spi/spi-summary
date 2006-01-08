@@ -115,6 +115,9 @@ shows up in sysfs in several locations:
    /sys/devices/.../CTLR/spiB.C ... spi_device for on bus "B",
 	chipselect C, accessed through CTLR.
 
+   /sys/devices/.../CTLR/spiB.C/modalias ... identifies the driver
+	that should be used with this device (for hotplug/coldplug)
+
    /sys/bus/spi/devices/spiB.C ... symlink to the physical
    	spiB-C device
 
@@ -247,6 +250,12 @@ driver is registered:
 
 Like with other static board-specific setup, you won't unregister those.
 
+The widely used "card" style computers bundle memory, cpu, and little else
+onto a card that's maybe just thirty square centimeters.  On such systems,
+your arch/.../mach-.../board-*.c file would primarily provide information
+about the devices on the mainboard into which such a card is plugged.  That
+certainly includes SPI devices hooked up through the card connectors!
+
 
 NON-STATIC CONFIGURATIONS
 
@@ -257,6 +266,10 @@ For those cases you might need to use use spi_busnum_to_master() to look
 up the spi bus master, and will likely need spi_new_device() to provide the
 board info based on the board that was hotplugged.  Of course, you'd later
 call at least spi_unregister_device() when that board is removed.
+
+When Linux includes support for MMC/SD/SDIO/DataFlash cards through SPI, those
+configurations will also be dynamic.  Fortunately, those devices all support
+basic device identification probes, so that support should hotplug normally.
 
 
 How do I write an "SPI Protocol Driver"?

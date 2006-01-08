@@ -378,7 +378,9 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 			spi_sync(flash->spi, &m);
 
-			*retlen += m.actual_length - sizeof(flash->command);
+			if (retlen)
+				*retlen += m.actual_length
+					- sizeof(flash->command);
 	        }
  	}
 

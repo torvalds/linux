@@ -508,7 +508,7 @@ add_dataflash(struct spi_device *spi, char *name,
 			priv->partitioned = 1;
 			return add_mtd_partitions(device, parts, nr_parts);
 		}
-	} else if (pdata->nr_parts)
+	} else if (pdata && pdata->nr_parts)
 		dev_warn(&spi->dev, "ignoring %d default partitions on %s\n",
 				pdata->nr_parts, device->name);
 
