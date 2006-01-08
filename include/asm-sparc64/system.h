@@ -193,11 +193,7 @@ do {						\
 	 * not preserve it's value.  Hairy, but it lets us remove 2 loads
 	 * and 2 stores in this critical code path.  -DaveM
 	 */
-#if __GNUC__ >= 3
 #define EXTRA_CLOBBER ,"%l1"
-#else
-#define EXTRA_CLOBBER
-#endif
 #define switch_to(prev, next, last)					\
 do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 		unsigned long __tmp;					\

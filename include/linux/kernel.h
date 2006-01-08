@@ -316,8 +316,6 @@ extern int randomize_va_space;
 #endif
 
 /* Trap pasters of __FUNCTION__ at compile-time */
-#if __GNUC__ > 2 || __GNUC_MINOR__ >= 95
 #define __FUNCTION__ (__func__)
-#endif
 
 #endif

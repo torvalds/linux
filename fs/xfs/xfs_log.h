@@ -30,13 +30,7 @@
  * By comparing each compnent, we don't have to worry about extra
  * endian issues in treating two 32 bit numbers as one 64 bit number
  */
-static
-#if defined(__GNUC__) && (__GNUC__ == 2) && ( (__GNUC_MINOR__ == 95) || (__GNUC_MINOR__ == 96))
-__attribute__((unused))	/* gcc 2.95, 2.96 miscompile this when inlined */
-#else
-__inline__
-#endif
-xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
+static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 {
 	if (CYCLE_LSN(lsn1) != CYCLE_LSN(lsn2))
 		return (CYCLE_LSN(lsn1)<CYCLE_LSN(lsn2))? -999 : 999;

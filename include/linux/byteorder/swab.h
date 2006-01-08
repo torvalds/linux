@@ -110,7 +110,7 @@
 /*
  * Allow constant folding
  */
-#if defined(__GNUC__) && (__GNUC__ >= 2) && defined(__OPTIMIZE__)
+#if defined(__GNUC__) && defined(__OPTIMIZE__)
 #  define __swab16(x) \
 (__builtin_constant_p((__u16)(x)) ? \
  ___swab16((x)) : \

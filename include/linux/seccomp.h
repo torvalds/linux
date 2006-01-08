@@ -26,11 +26,7 @@ static inline int has_secure_computing(struct thread_info *ti)
 
 #else /* CONFIG_SECCOMP */
 
-#if (__GNUC__ > 2)
-  typedef struct { } seccomp_t;
-#else
-  typedef struct { int gcc_is_buggy; } seccomp_t;
-#endif
+typedef struct { } seccomp_t;
 
 #define secure_computing(x) do { } while (0)
 /* static inline to preserve typechecking */

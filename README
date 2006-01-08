@@ -183,11 +183,8 @@ CONFIGURING the kernel:
 
 COMPILING the kernel:
 
- - Make sure you have gcc 2.95.3 available.
-   gcc 2.91.66 (egcs-1.1.2), and gcc 2.7.2.3 are known to miscompile
-   some parts of the kernel, and are *no longer supported*.
-   Also remember to upgrade your binutils package (for as/ld/nm and company)
-   if necessary. For more information, refer to Documentation/Changes.
+ - Make sure you have at least gcc 3.2 available.
+   For more information, refer to Documentation/Changes.
 
    Please note that you can still run a.out user programs with this kernel.
 

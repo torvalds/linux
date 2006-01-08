@@ -191,9 +191,7 @@ char *v4l2_type_names[] = {
 };
 
 char *v4l2_ioctl_names[256] = {
-#if __GNUC__ >= 3
 	[0 ... 255]                      = "UNKNOWN",
-#endif
 	[_IOC_NR(VIDIOC_QUERYCAP)]       = "VIDIOC_QUERYCAP",
 	[_IOC_NR(VIDIOC_RESERVED)]       = "VIDIOC_RESERVED",
 	[_IOC_NR(VIDIOC_ENUM_FMT)]       = "VIDIOC_ENUM_FMT",

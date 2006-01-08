@@ -630,10 +630,6 @@ config REGPARM
 	and passes the first three arguments of a function call in registers.
 	This will probably break binary only modules.
 
-	This feature is only enabled for gcc-3.0 and later - earlier compilers
-	generate incorrect output with certain kernel constructs when
-	-mregparm=3 is used.
-
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
