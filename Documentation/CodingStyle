@@ -444,10 +444,13 @@ ISBN 0-201-61586-X.
 URL: http://cm.bell-labs.com/cm/cs/tpop/
 
 GNU manuals - where in compliance with K&R and this text - for cpp, gcc,
-gcc internals and indent, all available from http://www.gnu.org
+gcc internals and indent, all available from http://www.gnu.org/manual/
 
 WG14 is the international standardization working group for the programming
-language C, URL: http://std.dkuug.dk/JTC1/SC22/WG14/
+language C, URL: http://www.open-std.org/JTC1/SC22/WG14/
+
+Kernel CodingStyle, by greg@kroah.com at OLS 2002:
+http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/
 
 --
 Last updated on 16 February 2004 by a community effort on LKML.
