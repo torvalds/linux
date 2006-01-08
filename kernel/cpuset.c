@@ -603,9 +603,7 @@ static void guarantee_online_mems(const struct cpuset *cs, nodemask_t *pmask)
  * Do not call this routine if in_interrupt().
  *
  * Call without callback_sem or task_lock() held.  May be called
- * with or without manage_sem held.  Except in early boot or
- * an exiting task, when tsk->cpuset is NULL, this routine will
- * acquire task_lock().  We don't need to use task_lock to guard
+ * with or without manage_sem held.  Doesn't need task_lock to guard
  * against another task changing a non-NULL cpuset pointer to NULL,
  * as that is only done by a task on itself, and if the current task
  * is here, it is not simultaneously in the exit code NULL'ing its
@@ -630,9 +628,6 @@ void cpuset_update_task_memory_state()
 	int my_cpusets_mem_gen;
 	struct task_struct *tsk = current;
 	struct cpuset *cs = tsk->cpuset;
-
-	if (unlikely(!cs))
-		return;
 
 	task_lock(tsk);
 	my_cpusets_mem_gen = cs->mems_generation;
@@ -1833,6 +1828,21 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 		check_for_release(parent, &pathbuf);
 	up(&manage_sem);
 	cpuset_release_agent(pathbuf);
+	return 0;
+}
+
+/*
+ * cpuset_init_early - just enough so that the calls to
+ * cpuset_update_task_memory_state() in early init code
+ * are harmless.
+ */
+
+int __init cpuset_init_early(void)
+{
+	struct task_struct *tsk = current;
+
+	tsk->cpuset = &top_cpuset;
+	tsk->cpuset->mems_generation = atomic_read(&cpuset_mems_generation);
 	return 0;
 }
 

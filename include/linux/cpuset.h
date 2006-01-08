@@ -16,6 +16,7 @@
 
 extern int number_of_cpusets;	/* How many cpusets are defined in system? */
 
+extern int cpuset_init_early(void);
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
 extern void cpuset_fork(struct task_struct *p);
@@ -49,6 +50,7 @@ extern char *cpuset_task_status_allowed(struct task_struct *task, char *buffer);
 
 #else /* !CONFIG_CPUSETS */
 
+static inline int cpuset_init_early(void) { return 0; }
 static inline int cpuset_init(void) { return 0; }
 static inline void cpuset_init_smp(void) {}
 static inline void cpuset_fork(struct task_struct *p) {}
