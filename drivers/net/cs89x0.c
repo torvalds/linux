@@ -353,15 +353,15 @@ writereg(struct net_device *dev, int portno, int value)
 }
 
 static int
-readword(struct net_device *dev, int portno)
+readword(unsigned long base_addr, int portno)
 {
-	return inw(dev->base_addr + portno);
+	return inw(base_addr + portno);
 }
 
 static void
-writeword(struct net_device *dev, int portno, int value)
+writeword(unsigned long base_addr, int portno, int value)
 {
-	outw(value, dev->base_addr + portno);
+	outw(value, base_addr + portno);
 }
 
 static int __init
@@ -1104,8 +1104,8 @@ send_test_pkt(struct net_device *dev)
 	memcpy(test_packet,          dev->dev_addr, ETH_ALEN);
 	memcpy(test_packet+ETH_ALEN, dev->dev_addr, ETH_ALEN);
 
-        writeword(dev, TX_CMD_PORT, TX_AFTER_ALL);
-        writeword(dev, TX_LEN_PORT, ETH_ZLEN);
+        writeword(dev->base_addr, TX_CMD_PORT, TX_AFTER_ALL);
+        writeword(dev->base_addr, TX_LEN_PORT, ETH_ZLEN);
 
 	/* Test to see if the chip has allocated memory for the packet */
 	while (jiffies - timenow < 5)
@@ -1457,8 +1457,8 @@ static int net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* initiate a transmit sequence */
-	writeword(dev, TX_CMD_PORT, lp->send_cmd);
-	writeword(dev, TX_LEN_PORT, skb->len);
+	writeword(dev->base_addr, TX_CMD_PORT, lp->send_cmd);
+	writeword(dev->base_addr, TX_LEN_PORT, skb->len);
 
 	/* Test to see if the chip has allocated memory for the packet */
 	if ((readreg(dev, PP_BusST) & READY_FOR_TX_NOW) == 0) {
@@ -1512,7 +1512,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id, struct pt_regs * regs)
            course, if you're on a slow machine, and packets are arriving
            faster than you can read them off, you're screwed.  Hasta la
            vista, baby!  */
-	while ((status = readword(dev, ISQ_PORT))) {
+	while ((status = readword(dev->base_addr, ISQ_PORT))) {
 		if (net_debug > 4)printk("%s: event=%04x\n", dev->name, status);
 		handled = 1;
 		switch(status & ISQ_EVENT_MASK) {
