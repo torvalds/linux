@@ -60,8 +60,8 @@ struct spi_device {
 	u8			mode;
 #define	SPI_CPHA	0x01			/* clock phase */
 #define	SPI_CPOL	0x02			/* clock polarity */
-#define	SPI_MODE_0	(0|0)
-#define	SPI_MODE_1	(0|SPI_CPHA)		/* (original MicroWire) */
+#define	SPI_MODE_0	(0|0)			/* (original MicroWire) */
+#define	SPI_MODE_1	(0|SPI_CPHA)
 #define	SPI_MODE_2	(SPI_CPOL|0)
 #define	SPI_MODE_3	(SPI_CPOL|SPI_CPHA)
 #define	SPI_CS_HIGH	0x04			/* chipselect active high? */
@@ -209,6 +209,30 @@ struct spi_master {
 	void			(*cleanup)(const struct spi_device *spi);
 };
 
+static inline void *spi_master_get_devdata(struct spi_master *master)
+{
+	return class_get_devdata(&master->cdev);
+}
+
+static inline void spi_master_set_devdata(struct spi_master *master, void *data)
+{
+	class_set_devdata(&master->cdev, data);
+}
+
+static inline struct spi_master *spi_master_get(struct spi_master *master)
+{
+	if (!master || !class_device_get(&master->cdev))
+		return NULL;
+	return master;
+}
+
+static inline void spi_master_put(struct spi_master *master)
+{
+	if (master)
+		class_device_put(&master->cdev);
+}
+
+
 /* the spi driver core manages memory for the spi_master classdev */
 extern struct spi_master *
 spi_alloc_master(struct device *host, unsigned size);
@@ -271,11 +295,17 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * stay selected until the next transfer.  This is purely a performance
  * hint; the controller driver may need to select a different device
  * for the next message.
+ *
+ * The code that submits an spi_message (and its spi_transfers)
+ * to the lower layers is responsible for managing its memory.
+ * Zero-initialize every field you don't set up explicitly, to
+ * insulate against future API updates.
  */
 struct spi_transfer {
 	/* it's ok if tx_buf == rx_buf (right?)
 	 * for MicroWire, one buffer must be null
-	 * buffers must work with dma_*map_single() calls
+	 * buffers must work with dma_*map_single() calls, unless
+	 *   spi_message.is_dma_mapped reports a pre-existing mapping
 	 */
 	const void	*tx_buf;
 	void		*rx_buf;
@@ -302,6 +332,11 @@ struct spi_transfer {
  * @status: zero for success, else negative errno
  * @queue: for use by whichever driver currently owns the message
  * @state: for use by whichever driver currently owns the message
+ *
+ * The code that submits an spi_message (and its spi_transfers)
+ * to the lower layers is responsible for managing its memory.
+ * Zero-initialize every field you don't set up explicitly, to
+ * insulate against future API updates.
  */
 struct spi_message {
 	struct spi_transfer	*transfers;
@@ -336,6 +371,29 @@ struct spi_message {
 	void			*state;
 };
 
+/* It's fine to embed message and transaction structures in other data
+ * structures so long as you don't free them while they're in use.
+ */
+
+static inline struct spi_message *spi_message_alloc(unsigned ntrans, gfp_t flags)
+{
+	struct spi_message *m;
+
+	m = kzalloc(sizeof(struct spi_message)
+			+ ntrans * sizeof(struct spi_transfer),
+			flags);
+	if (m) {
+		m->transfers = (void *)(m + 1);
+		m->n_transfer = ntrans;
+	}
+	return m;
+}
+
+static inline void spi_message_free(struct spi_message *m)
+{
+	kfree(m);
+}
+
 /**
  * spi_setup -- setup SPI mode and clock rate
  * @spi: the device whose settings are being modified
@@ -363,7 +421,10 @@ spi_setup(struct spi_device *spi)
  * The completion callback is invoked in a context which can't sleep.
  * Before that invocation, the value of message->status is undefined.
  * When the callback is issued, message->status holds either zero (to
- * indicate complete success) or a negative error code.
+ * indicate complete success) or a negative error code.  After that
+ * callback returns, the driver which issued the transfer request may
+ * deallocate the associated memory; it's no longer in use by any SPI
+ * core or controller driver code.
  *
  * Note that although all messages to a spi_device are handled in
  * FIFO order, messages may go to different devices in other orders.
@@ -445,6 +506,7 @@ spi_read(struct spi_device *spi, u8 *buf, size_t len)
 	return spi_sync(spi, &m);
 }
 
+/* this copies txbuf and rxbuf data; for small transfers only! */
 extern int spi_write_then_read(struct spi_device *spi,
 		const u8 *txbuf, unsigned n_tx,
 		u8 *rxbuf, unsigned n_rx);
@@ -555,8 +617,9 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
 
 
 /* If you're hotplugging an adapter with devices (parport, usb, etc)
- * use spi_new_device() to describe each device.  You would then call
- * spi_unregister_device() to start making that device vanish.
+ * use spi_new_device() to describe each device.  You can also call
+ * spi_unregister_device() to start making that device vanish, but
+ * normally that would be handled by spi_unregister_master().
  */
 extern struct spi_device *
 spi_new_device(struct spi_master *, struct spi_board_info *);

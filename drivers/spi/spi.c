@@ -38,7 +38,7 @@ static void spidev_release(struct device *dev)
 	if (spi->master->cleanup)
 		spi->master->cleanup(spi);
 
-	class_device_put(&spi->master->cdev);
+	spi_master_put(spi->master);
 	kfree(dev);
 }
 
@@ -90,7 +90,7 @@ static int spi_suspend(struct device *dev, pm_message_t message)
 	int			value;
 	struct spi_driver	*drv = to_spi_driver(dev->driver);
 
-	if (!drv || !drv->suspend)
+	if (!drv->suspend)
 		return 0;
 
 	/* suspend will stop irqs and dma; no more i/o */
@@ -105,7 +105,7 @@ static int spi_resume(struct device *dev)
 	int			value;
 	struct spi_driver	*drv = to_spi_driver(dev->driver);
 
-	if (!drv || !drv->resume)
+	if (!drv->resume)
 		return 0;
 
 	/* resume may restart the i/o queue */
@@ -198,7 +198,7 @@ spi_new_device(struct spi_master *master, struct spi_board_info *chip)
 
 	/* NOTE:  caller did any chip->bus_num checks necessary */
 
-	if (!class_device_get(&master->cdev))
+	if (!spi_master_get(master))
 		return NULL;
 
 	proxy = kzalloc(sizeof *proxy, GFP_KERNEL);
@@ -244,7 +244,7 @@ spi_new_device(struct spi_master *master, struct spi_board_info *chip)
 	return proxy;
 
 fail:
-	class_device_put(&master->cdev);
+	spi_master_put(master);
 	kfree(proxy);
 	return NULL;
 }
@@ -324,8 +324,6 @@ static void spi_master_release(struct class_device *cdev)
 	struct spi_master *master;
 
 	master = container_of(cdev, struct spi_master, cdev);
-	put_device(master->cdev.dev);
-	master->cdev.dev = NULL;
 	kfree(master);
 }
 
@@ -339,8 +337,9 @@ static struct class spi_master_class = {
 /**
  * spi_alloc_master - allocate SPI master controller
  * @dev: the controller, possibly using the platform_bus
- * @size: how much driver-private data to preallocate; a pointer to this
- * 	memory in the class_data field of the returned class_device
+ * @size: how much driver-private data to preallocate; the pointer to this
+ * 	memory is in the class_data field of the returned class_device,
+ *	accessible with spi_master_get_devdata().
  *
  * This call is used only by SPI master controller drivers, which are the
  * only ones directly touching chip registers.  It's how they allocate
@@ -350,13 +349,16 @@ static struct class spi_master_class = {
  * master structure on success, else NULL.
  *
  * The caller is responsible for assigning the bus number and initializing
- * the master's methods before calling spi_add_master(), or else (on error)
- * calling class_device_put() to prevent a memory leak.
+ * the master's methods before calling spi_add_master(); and (after errors
+ * adding the device) calling spi_master_put() to prevent a memory leak.
  */
 struct spi_master * __init_or_module
 spi_alloc_master(struct device *dev, unsigned size)
 {
 	struct spi_master	*master;
+
+	if (!dev)
+		return NULL;
 
 	master = kzalloc(size + sizeof *master, SLAB_KERNEL);
 	if (!master)
@@ -365,7 +367,7 @@ spi_alloc_master(struct device *dev, unsigned size)
 	class_device_initialize(&master->cdev);
 	master->cdev.class = &spi_master_class;
 	master->cdev.dev = get_device(dev);
-	class_set_devdata(&master->cdev, &master[1]);
+	spi_master_set_devdata(master, &master[1]);
 
 	return master;
 }
@@ -387,6 +389,8 @@ EXPORT_SYMBOL_GPL(spi_alloc_master);
  *
  * This must be called from context that can sleep.  It returns zero on
  * success, else a negative error code (dropping the master's refcount).
+ * After a successful return, the caller is responsible for calling
+ * spi_unregister_master().
  */
 int __init_or_module
 spi_register_master(struct spi_master *master)
@@ -395,6 +399,9 @@ spi_register_master(struct spi_master *master)
 	struct device		*dev = master->cdev.dev;
 	int			status = -ENODEV;
 	int			dynamic = 0;
+
+	if (!dev)
+		return -ENODEV;
 
 	/* convention:  dynamically assigned bus IDs count down from the max */
 	if (master->bus_num == 0) {
@@ -425,7 +432,7 @@ EXPORT_SYMBOL_GPL(spi_register_master);
 static int __unregister(struct device *dev, void *unused)
 {
 	/* note: before about 2.6.14-rc1 this would corrupt memory: */
-	device_unregister(dev);
+	spi_unregister_device(to_spi_device(dev));
 	return 0;
 }
 
@@ -440,8 +447,9 @@ static int __unregister(struct device *dev, void *unused)
  */
 void spi_unregister_master(struct spi_master *master)
 {
-	class_device_unregister(&master->cdev);
 	(void) device_for_each_child(master->cdev.dev, NULL, __unregister);
+	class_device_unregister(&master->cdev);
+	master->cdev.dev = NULL;
 }
 EXPORT_SYMBOL_GPL(spi_unregister_master);
 
@@ -487,6 +495,9 @@ EXPORT_SYMBOL_GPL(spi_busnum_to_master);
  * by leaving it selected in anticipation that the next message will go
  * to the same chip.  (That may increase power usage.)
  *
+ * Also, the caller is guaranteeing that the memory associated with the
+ * message will not be freed before this call returns.
+ *
  * The return value is a negative error code if the message could not be
  * submitted, else zero.  When the value is zero, then message->status is
  * also defined:  it's the completion code for the transfer, either zero
@@ -524,9 +535,9 @@ static u8	*buf;
  * is zero for success, else a negative errno status code.
  * This call may only be used from a context that may sleep.
  *
- * Parameters to this routine are always copied using a small buffer,
- * large transfers should use use spi_{async,sync}() calls with
- * dma-safe buffers.
+ * Parameters to this routine are always copied using a small buffer;
+ * performance-sensitive or bulk transfer code should instead use
+ * spi_{async,sync}() calls with dma-safe buffers.
  */
 int spi_write_then_read(struct spi_device *spi,
 		const u8 *txbuf, unsigned n_tx,

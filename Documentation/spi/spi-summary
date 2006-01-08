@@ -363,6 +363,22 @@ upper boundaries might include sysfs (especially for sensor readings),
 the input layer, ALSA, networking, MTD, the character device framework,
 or other Linux subsystems.
 
+Note that there are two types of memory your driver must manage as part
+of interacting with SPI devices.
+
+  - I/O buffers use the usual Linux rules, and must be DMA-safe.
+    You'd normally allocate them from the heap or free page pool.
+    Don't use the stack, or anything that's declared "static".
+
+  - The spi_message and spi_transfer metadata used to glue those
+    I/O buffers into a group of protocol transactions.  These can
+    be allocated anywhere it's convenient, including as part of
+    other allocate-once driver data structures.  Zero-init these.
+
+If you like, spi_message_alloc() and spi_message_free() convenience
+routines are available to allocate and zero-initialize an spi_message
+with several transfers.
+
 
 How do I write an "SPI Master Controller Driver"?
 -------------------------------------------------
