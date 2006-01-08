@@ -53,6 +53,7 @@ struct pglist_data *pgdat_list __read_mostly;
 unsigned long totalram_pages __read_mostly;
 unsigned long totalhigh_pages __read_mostly;
 long nr_swap_pages;
+int percpu_pagelist_fraction;
 
 static void fastcall free_hot_cold_page(struct page *page, int cold);
 
@@ -1831,6 +1832,24 @@ inline void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
 	INIT_LIST_HEAD(&pcp->list);
 }
 
+/*
+ * setup_pagelist_highmark() sets the high water mark for hot per_cpu_pagelist
+ * to the value high for the pageset p.
+ */
+
+static void setup_pagelist_highmark(struct per_cpu_pageset *p,
+				unsigned long high)
+{
+	struct per_cpu_pages *pcp;
+
+	pcp = &p->pcp[0]; /* hot list */
+	pcp->high = high;
+	pcp->batch = max(1UL, high/4);
+	if ((high/4) > (PAGE_SHIFT * 8))
+		pcp->batch = PAGE_SHIFT * 8;
+}
+
+
 #ifdef CONFIG_NUMA
 /*
  * Boot pageset table. One per cpu which is going to be used for all
@@ -1868,6 +1887,10 @@ static int __devinit process_zones(int cpu)
 			goto bad;
 
 		setup_pageset(zone->pageset[cpu], zone_batchsize(zone));
+
+		if (percpu_pagelist_fraction)
+			setup_pagelist_highmark(zone_pcp(zone, cpu),
+			 	(zone->present_pages / percpu_pagelist_fraction));
 	}
 
 	return 0;
@@ -2564,6 +2587,32 @@ int lowmem_reserve_ratio_sysctl_handler(ctl_table *table, int write,
 {
 	proc_dointvec_minmax(table, write, file, buffer, length, ppos);
 	setup_per_zone_lowmem_reserve();
+	return 0;
+}
+
+/*
+ * percpu_pagelist_fraction - changes the pcp->high for each zone on each
+ * cpu.  It is the fraction of total pages in each zone that a hot per cpu pagelist
+ * can have before it gets flushed back to buddy allocator.
+ */
+
+int percpu_pagelist_fraction_sysctl_handler(ctl_table *table, int write,
+	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
+{
+	struct zone *zone;
+	unsigned int cpu;
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, file, buffer, length, ppos);
+	if (!write || (ret == -EINVAL))
+		return ret;
+	for_each_zone(zone) {
+		for_each_online_cpu(cpu) {
+			unsigned long  high;
+			high = zone->present_pages / percpu_pagelist_fraction;
+			setup_pagelist_highmark(zone_pcp(zone, cpu), high);
+		}
+	}
 	return 0;
 }
 

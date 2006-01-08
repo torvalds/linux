@@ -69,6 +69,7 @@ extern int printk_ratelimit_jiffies;
 extern int printk_ratelimit_burst;
 extern int pid_max_min, pid_max_max;
 extern int sysctl_drop_caches;
+extern int percpu_pagelist_fraction;
 
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
 int unknown_nmi_panic;
@@ -79,6 +80,7 @@ extern int proc_unknown_nmi_panic(ctl_table *, int, struct file *,
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
 static int maxolduid = 65535;
 static int minolduid;
+static int min_percpu_pagelist_fract = 8;
 
 static int ngroups_max = NGROUPS_MAX;
 
@@ -793,6 +795,16 @@ static ctl_table vm_table[] = {
 		.proc_handler	= &min_free_kbytes_sysctl_handler,
 		.strategy	= &sysctl_intvec,
 		.extra1		= &zero,
+	},
+	{
+		.ctl_name	= VM_PERCPU_PAGELIST_FRACTION,
+		.procname	= "percpu_pagelist_fraction",
+		.data		= &percpu_pagelist_fraction,
+		.maxlen		= sizeof(percpu_pagelist_fraction),
+		.mode		= 0644,
+		.proc_handler	= &percpu_pagelist_fraction_sysctl_handler,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_percpu_pagelist_fract,
 	},
 #ifdef CONFIG_MMU
 	{
