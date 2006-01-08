@@ -153,6 +153,7 @@ extern struct dentry *relayfs_create_file(const char *name,
 					  int mode,
 					  struct file_operations *fops,
 					  void *data);
+extern int relayfs_remove_file(struct dentry *dentry);
 
 /**
  *	relay_write - write data into the channel

@@ -225,6 +225,17 @@ int relayfs_remove(struct dentry *dentry)
 }
 
 /**
+ *	relayfs_remove_file - remove a file from relay filesystem
+ *	@dentry: directory dentry
+ *
+ *	Returns 0 if successful, negative otherwise.
+ */
+int relayfs_remove_file(struct dentry *dentry)
+{
+	return relayfs_remove(dentry);
+}
+
+/**
  *	relayfs_remove_dir - remove a directory in the relay filesystem
  *	@dentry: directory dentry
  *
@@ -600,6 +611,7 @@ EXPORT_SYMBOL_GPL(relayfs_file_operations);
 EXPORT_SYMBOL_GPL(relayfs_create_dir);
 EXPORT_SYMBOL_GPL(relayfs_remove_dir);
 EXPORT_SYMBOL_GPL(relayfs_create_file);
+EXPORT_SYMBOL_GPL(relayfs_remove_file);
 
 MODULE_AUTHOR("Tom Zanussi <zanussi@us.ibm.com> and Karim Yaghmour <karim@opersys.com>");
 MODULE_DESCRIPTION("Relay Filesystem");
