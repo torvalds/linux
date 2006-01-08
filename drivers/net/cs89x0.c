@@ -339,6 +339,18 @@ out:
 #endif
 
 static int
+readword(unsigned long base_addr, int portno)
+{
+	return inw(base_addr + portno);
+}
+
+static void
+writeword(unsigned long base_addr, int portno, int value)
+{
+	outw(value, base_addr + portno);
+}
+
+static int
 readreg(struct net_device *dev, int portno)
 {
 	outw(portno, dev->base_addr + ADD_PORT);
@@ -350,18 +362,6 @@ writereg(struct net_device *dev, int portno, int value)
 {
 	outw(portno, dev->base_addr + ADD_PORT);
 	outw(value, dev->base_addr + DATA_PORT);
-}
-
-static int
-readword(unsigned long base_addr, int portno)
-{
-	return inw(base_addr + portno);
-}
-
-static void
-writeword(unsigned long base_addr, int portno, int value)
-{
-	outw(value, base_addr + portno);
 }
 
 static int __init
