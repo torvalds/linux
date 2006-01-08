@@ -643,7 +643,7 @@ void cpuset_update_task_memory_state()
 		tsk->cpuset_mems_generation = cs->mems_generation;
 		task_unlock(tsk);
 		up(&callback_sem);
-		numa_policy_rebind(&oldmem, &tsk->mems_allowed);
+		mpol_rebind_task(tsk, &tsk->mems_allowed);
 		if (!nodes_equal(oldmem, tsk->mems_allowed)) {
 			if (migrate) {
 				do_migrate_pages(tsk->mm, &oldmem,

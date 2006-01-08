@@ -180,6 +180,7 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 		break;
 	}
 	policy->policy = mode;
+	policy->cpuset_mems_allowed = cpuset_mems_allowed(current);
 	return policy;
 }
 
@@ -1411,25 +1412,31 @@ void numa_default_policy(void)
 }
 
 /* Migrate a policy to a different set of nodes */
-static void rebind_policy(struct mempolicy *pol, const nodemask_t *old,
-							const nodemask_t *new)
+void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask)
 {
+	nodemask_t *mpolmask;
 	nodemask_t tmp;
 
 	if (!pol)
+		return;
+	mpolmask = &pol->cpuset_mems_allowed;
+	if (nodes_equal(*mpolmask, *newmask))
 		return;
 
 	switch (pol->policy) {
 	case MPOL_DEFAULT:
 		break;
 	case MPOL_INTERLEAVE:
-		nodes_remap(tmp, pol->v.nodes, *old, *new);
+		nodes_remap(tmp, pol->v.nodes, *mpolmask, *newmask);
 		pol->v.nodes = tmp;
-		current->il_next = node_remap(current->il_next, *old, *new);
+		*mpolmask = *newmask;
+		current->il_next = node_remap(current->il_next,
+						*mpolmask, *newmask);
 		break;
 	case MPOL_PREFERRED:
 		pol->v.preferred_node = node_remap(pol->v.preferred_node,
-								*old, *new);
+						*mpolmask, *newmask);
+		*mpolmask = *newmask;
 		break;
 	case MPOL_BIND: {
 		nodemask_t nodes;
@@ -1439,7 +1446,7 @@ static void rebind_policy(struct mempolicy *pol, const nodemask_t *old,
 		nodes_clear(nodes);
 		for (z = pol->v.zonelist->zones; *z; z++)
 			node_set((*z)->zone_pgdat->node_id, nodes);
-		nodes_remap(tmp, nodes, *old, *new);
+		nodes_remap(tmp, nodes, *mpolmask, *newmask);
 		nodes = tmp;
 
 		zonelist = bind_zonelist(&nodes);
@@ -1454,6 +1461,7 @@ static void rebind_policy(struct mempolicy *pol, const nodemask_t *old,
 			kfree(pol->v.zonelist);
 			pol->v.zonelist = zonelist;
 		}
+		*mpolmask = *newmask;
 		break;
 	}
 	default:
@@ -1463,14 +1471,13 @@ static void rebind_policy(struct mempolicy *pol, const nodemask_t *old,
 }
 
 /*
- * Someone moved this task to different nodes.  Fixup mempolicies.
- *
- * TODO - fixup current->mm->vma and shmfs/tmpfs/hugetlbfs policies as well,
- * once we have a cpuset mechanism to mark which cpuset subtree is migrating.
+ * Wrapper for mpol_rebind_policy() that just requires task
+ * pointer, and updates task mempolicy.
  */
-void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new)
+
+void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
 {
-	rebind_policy(current->mempolicy, old, new);
+	mpol_rebind_policy(tsk->mempolicy, new);
 }
 
 /*

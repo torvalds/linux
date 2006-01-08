@@ -68,6 +68,7 @@ struct mempolicy {
 		nodemask_t	 nodes;		/* interleave */
 		/* undefined for default */
 	} v;
+	nodemask_t cpuset_mems_allowed;	/* mempolicy relative to these nodes */
 };
 
 /*
@@ -146,7 +147,9 @@ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
-extern void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new);
+extern void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *new);
+extern void mpol_rebind_task(struct task_struct *tsk,
+					const nodemask_t *new);
 extern struct mempolicy default_policy;
 extern struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 		unsigned long addr);
@@ -221,7 +224,12 @@ static inline void numa_default_policy(void)
 {
 }
 
-static inline void numa_policy_rebind(const nodemask_t *old,
+static inline void mpol_rebind_policy(struct mempolicy *pol,
+					const nodemask_t *new)
+{
+}
+
+static inline void mpol_rebind_task(struct task_struct *tsk,
 					const nodemask_t *new)
 {
 }
