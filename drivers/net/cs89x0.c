@@ -491,8 +491,8 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 
 #ifdef CONFIG_SH_HICOSH4
 	/* truely reset the chip */
-	outw(0x0114, ioaddr + ADD_PORT);
-	outw(0x0040, ioaddr + DATA_PORT);
+	writeword(ioaddr, ADD_PORT, 0x0114);
+	writeword(ioaddr, DATA_PORT, 0x0040);
 #endif
 
 	/* if they give us an odd I/O address, then do ONE write to
@@ -503,24 +503,24 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 		if (net_debug > 1)
 			printk(KERN_INFO "%s: odd ioaddr 0x%x\n", dev->name, ioaddr);
 	        if ((ioaddr & 2) != 2)
-	        	if ((inw((ioaddr & ~3)+ ADD_PORT) & ADD_MASK) != ADD_SIG) {
+	        	if ((readword(ioaddr & ~3, ADD_PORT) & ADD_MASK) != ADD_SIG) {
 				printk(KERN_ERR "%s: bad signature 0x%x\n",
-					dev->name, inw((ioaddr & ~3)+ ADD_PORT));
+					dev->name, readword(ioaddr & ~3, ADD_PORT));
 		        	retval = -ENODEV;
 				goto out2;
 			}
 	}
-	printk(KERN_DEBUG "PP_addr at %x: 0x%x\n",
-			ioaddr + ADD_PORT, inw(ioaddr + ADD_PORT));
+	printk(KERN_DEBUG "PP_addr at %x[%x]: 0x%x\n",
+			ioaddr, ADD_PORT, readword(ioaddr, ADD_PORT));
 
 	ioaddr &= ~3;
-	outw(PP_ChipID, ioaddr + ADD_PORT);
+	writeword(ioaddr, ADD_PORT, PP_ChipID);
 
-	tmp = inw(ioaddr + DATA_PORT);
+	tmp = readword(ioaddr, DATA_PORT);
 	if (tmp != CHIP_EISA_ID_SIG) {
-		printk(KERN_DEBUG "%s: incorrect signature at %x: 0x%x!="
+		printk(KERN_DEBUG "%s: incorrect signature at %x[%x]: 0x%x!="
 			CHIP_EISA_ID_SIG_STR "\n",
-			dev->name, ioaddr + DATA_PORT, tmp);
+			dev->name, ioaddr, DATA_PORT, tmp);
   		retval = -ENODEV;
   		goto out2;
 	}
@@ -790,7 +790,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 		goto out3;
 	return 0;
 out3:
-	outw(PP_ChipID, dev->base_addr + ADD_PORT);
+	writeword(dev->base_addr, ADD_PORT, PP_ChipID);
 out2:
 	release_region(ioaddr & ~3, NETCARD_IO_EXTENT);
 out1:
@@ -970,11 +970,11 @@ void  __init reset_chip(struct net_device *dev)
 #ifndef CONFIG_ARCH_IXDP2X01
 	if (lp->chip_type != CS8900) {
 		/* Hardware problem requires PNP registers to be reconfigured after a reset */
-		outw(PP_CS8920_ISAINT, ioaddr + ADD_PORT);
+		writeword(ioaddr, ADD_PORT, PP_CS8920_ISAINT);
 		outb(dev->irq, ioaddr + DATA_PORT);
 		outb(0,      ioaddr + DATA_PORT + 1);
 
-		outw(PP_CS8920_ISAMemB, ioaddr + ADD_PORT);
+		writeword(ioaddr, ADD_PORT, PP_CS8920_ISAMemB);
 		outb((dev->mem_start >> 16) & 0xff, ioaddr + DATA_PORT);
 		outb((dev->mem_start >> 8) & 0xff,   ioaddr + DATA_PORT + 1);
 	}
@@ -1606,8 +1606,8 @@ net_rx(struct net_device *dev)
 	int status, length;
 
 	int ioaddr = dev->base_addr;
-	status = inw(ioaddr + RX_FRAME_PORT);
-	length = inw(ioaddr + RX_FRAME_PORT);
+	status = readword(ioaddr, RX_FRAME_PORT);
+	length = readword(ioaddr, RX_FRAME_PORT);
 
 	if ((status & RX_OK) == 0) {
 		count_rx_errors(status, lp);
@@ -1628,7 +1628,7 @@ net_rx(struct net_device *dev)
 
 	insw(ioaddr + RX_FRAME_PORT, skb_put(skb, length), length >> 1);
 	if (length & 1)
-		skb->data[length-1] = inw(ioaddr + RX_FRAME_PORT);
+		skb->data[length-1] = readword(ioaddr, RX_FRAME_PORT);
 
 	if (net_debug > 3) {
 		printk(	"%s: received %d byte packet of type %x\n",
@@ -1901,7 +1901,7 @@ void
 cleanup_module(void)
 {
 	unregister_netdev(dev_cs89x0);
-	outw(PP_ChipID, dev_cs89x0->base_addr + ADD_PORT);
+	writeword(dev_cs89x0->base_addr, ADD_PORT, PP_ChipID);
 	release_region(dev_cs89x0->base_addr, NETCARD_IO_EXTENT);
 	free_netdev(dev_cs89x0);
 }
