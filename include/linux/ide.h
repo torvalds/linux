@@ -801,7 +801,7 @@ typedef struct hwif_s {
 	unsigned dma;
 
 	void (*led_act)(void *data, int rw);
-} ____cacheline_maxaligned_in_smp ide_hwif_t;
+} ____cacheline_internodealigned_in_smp ide_hwif_t;
 
 /*
  *  internal ide interrupt handler type

@@ -38,7 +38,7 @@ struct pglist_data;
 #if defined(CONFIG_SMP)
 struct zone_padding {
 	char x[0];
-} ____cacheline_maxaligned_in_smp;
+} ____cacheline_internodealigned_in_smp;
 #define ZONE_PADDING(name)	struct zone_padding name;
 #else
 #define ZONE_PADDING(name)
@@ -233,7 +233,7 @@ struct zone {
 	 * rarely used fields:
 	 */
 	char			*name;
-} ____cacheline_maxaligned_in_smp;
+} ____cacheline_internodealigned_in_smp;
 
 
 /*
