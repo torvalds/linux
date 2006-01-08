@@ -451,7 +451,7 @@ EXPORT_SYMBOL(may_umount);
 void release_mounts(struct list_head *head)
 {
 	struct vfsmount *mnt;
-	while(!list_empty(head)) {
+	while (!list_empty(head)) {
 		mnt = list_entry(head->next, struct vfsmount, mnt_hash);
 		list_del_init(&mnt->mnt_hash);
 		if (mnt->mnt_parent != mnt) {

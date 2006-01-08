@@ -22,7 +22,8 @@
 #define MNT_NOEXEC	0x04
 #define MNT_SHARED	0x10	/* if the vfsmount is a shared mount */
 #define MNT_UNBINDABLE	0x20	/* if the vfsmount is a unbindable mount */
-#define MNT_PNODE_MASK	0x30	/* propogation flag mask */
+
+#define MNT_PNODE_MASK	(MNT_SHARED | MNT_UNBINDABLE)
 
 struct vfsmount {
 	struct list_head mnt_hash;
