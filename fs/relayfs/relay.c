@@ -86,7 +86,8 @@ static void buf_unmapped_default_callback(struct rchan_buf *buf,
 static struct dentry *create_buf_file_default_callback(const char *filename,
 						       struct dentry *parent,
 						       int mode,
-						       struct rchan_buf *buf)
+						       struct rchan_buf *buf,
+						       int *is_global)
 {
 	return relayfs_create_file(filename, parent, mode,
 				   &relayfs_file_operations, buf);
@@ -170,14 +171,16 @@ static inline void __relay_reset(struct rchan_buf *buf, unsigned int init)
 void relay_reset(struct rchan *chan)
 {
 	unsigned int i;
+	struct rchan_buf *prev = NULL;
 
 	if (!chan)
 		return;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (!chan->buf[i])
-			continue;
+		if (!chan->buf[i] || chan->buf[i] == prev)
+			break;
 		__relay_reset(chan->buf[i], 0);
+		prev = chan->buf[i];
 	}
 }
 
@@ -188,10 +191,14 @@ void relay_reset(struct rchan *chan)
  */
 static struct rchan_buf *relay_open_buf(struct rchan *chan,
 					const char *filename,
-					struct dentry *parent)
+					struct dentry *parent,
+					int *is_global)
 {
 	struct rchan_buf *buf;
 	struct dentry *dentry;
+
+	if (*is_global)
+		return chan->buf[0];
 
  	buf = relay_create_buf(chan);
  	if (!buf)
@@ -199,7 +206,7 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan,
 
 	/* Create file in fs */
  	dentry = chan->cb->create_buf_file(filename, parent, S_IRUSR,
- 					   buf);
+ 					   buf, is_global);
  	if (!dentry) {
  		relay_destroy_buf(buf);
 		return NULL;
@@ -273,6 +280,7 @@ struct rchan *relay_open(const char *base_filename,
 	unsigned int i;
 	struct rchan *chan;
 	char *tmpname;
+	int is_global = 0;
 
 	if (!base_filename)
 		return NULL;
@@ -297,7 +305,8 @@ struct rchan *relay_open(const char *base_filename,
 
 	for_each_online_cpu(i) {
 		sprintf(tmpname, "%s%d", base_filename, i);
-		chan->buf[i] = relay_open_buf(chan, tmpname, parent);
+		chan->buf[i] = relay_open_buf(chan, tmpname, parent,
+					      &is_global);
 		chan->buf[i]->cpu = i;
 		if (!chan->buf[i])
 			goto free_bufs;
@@ -311,6 +320,8 @@ free_bufs:
 		if (!chan->buf[i])
 			break;
 		relay_close_buf(chan->buf[i]);
+		if (is_global)
+			break;
 	}
 	kfree(tmpname);
 
@@ -420,14 +431,16 @@ void relay_destroy_channel(struct kref *kref)
 void relay_close(struct rchan *chan)
 {
 	unsigned int i;
+	struct rchan_buf *prev = NULL;
 
 	if (!chan)
 		return;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (!chan->buf[i])
-			continue;
+		if (!chan->buf[i] || chan->buf[i] == prev)
+			break;
 		relay_close_buf(chan->buf[i]);
+		prev = chan->buf[i];
 	}
 
 	if (chan->last_toobig)
@@ -447,14 +460,16 @@ void relay_close(struct rchan *chan)
 void relay_flush(struct rchan *chan)
 {
 	unsigned int i;
+	struct rchan_buf *prev = NULL;
 
 	if (!chan)
 		return;
 
 	for (i = 0; i < NR_CPUS; i++) {
-		if (!chan->buf[i])
-			continue;
+		if (!chan->buf[i] || chan->buf[i] == prev)
+			break;
 		relay_switch_subbuf(chan->buf[i], 0);
+		prev = chan->buf[i];
 	}
 }
 
