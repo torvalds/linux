@@ -670,10 +670,10 @@ retry:
  * list. The direct migration patchset
  * extends this function to avoid the use of swap.
  */
-int migrate_pages(struct list_head *l, struct list_head *t)
+int migrate_pages(struct list_head *from, struct list_head *to,
+		  struct list_head *moved, struct list_head *failed)
 {
 	int retry;
-	LIST_HEAD(failed);
 	int nr_failed = 0;
 	int pass = 0;
 	struct page *page;
@@ -686,12 +686,12 @@ int migrate_pages(struct list_head *l, struct list_head *t)
 redo:
 	retry = 0;
 
-	list_for_each_entry_safe(page, page2, l, lru) {
+	list_for_each_entry_safe(page, page2, from, lru) {
 		cond_resched();
 
 		if (page_count(page) == 1) {
 			/* page was freed from under us. So we are done. */
-			move_to_lru(page);
+			list_move(&page->lru, moved);
 			continue;
 		}
 		/*
@@ -722,7 +722,7 @@ redo:
 		if (PageAnon(page) && !PageSwapCache(page)) {
 			if (!add_to_swap(page, GFP_KERNEL)) {
 				unlock_page(page);
-				list_move(&page->lru, &failed);
+				list_move(&page->lru, failed);
 				nr_failed++;
 				continue;
 			}
@@ -732,8 +732,10 @@ redo:
 		 * Page is properly locked and writeback is complete.
 		 * Try to migrate the page.
 		 */
-		if (!swap_page(page))
+		if (!swap_page(page)) {
+			list_move(&page->lru, moved);
 			continue;
+		}
 retry_later:
 		retry++;
 	}
@@ -742,9 +744,6 @@ retry_later:
 
 	if (!swapwrite)
 		current->flags &= ~PF_SWAPWRITE;
-
-	if (!list_empty(&failed))
-		list_splice(&failed, l);
 
 	return nr_failed + retry;
 }

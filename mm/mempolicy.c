@@ -429,6 +429,19 @@ static int contextualize_policy(int mode, nodemask_t *nodes)
 	return mpol_check_policy(mode, nodes);
 }
 
+static int swap_pages(struct list_head *pagelist)
+{
+	LIST_HEAD(moved);
+	LIST_HEAD(failed);
+	int n;
+
+	n = migrate_pages(pagelist, NULL, &moved, &failed);
+	putback_lru_pages(&failed);
+	putback_lru_pages(&moved);
+
+	return n;
+}
+
 long do_mbind(unsigned long start, unsigned long len,
 		unsigned long mode, nodemask_t *nmask, unsigned long flags)
 {
@@ -481,10 +494,13 @@ long do_mbind(unsigned long start, unsigned long len,
 	      (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) ? &pagelist : NULL);
 	err = PTR_ERR(vma);
 	if (!IS_ERR(vma)) {
+		int nr_failed = 0;
+
 		err = mbind_range(vma, start, end, new);
 		if (!list_empty(&pagelist))
-			migrate_pages(&pagelist, NULL);
-		if (!err && !list_empty(&pagelist) && (flags & MPOL_MF_STRICT))
+			nr_failed = swap_pages(&pagelist);
+
+		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
 			err = -EIO;
 	}
 	if (!list_empty(&pagelist))
@@ -635,11 +651,12 @@ int do_migrate_pages(struct mm_struct *mm,
 	down_read(&mm->mmap_sem);
 	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nodes,
 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+
 	if (!list_empty(&pagelist)) {
-		migrate_pages(&pagelist, NULL);
-		if (!list_empty(&pagelist))
-			count = putback_lru_pages(&pagelist);
+		count = swap_pages(&pagelist);
+		putback_lru_pages(&pagelist);
 	}
+
 	up_read(&mm->mmap_sem);
 	return count;
 }
