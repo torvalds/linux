@@ -19,7 +19,6 @@
 
 struct percpu_data {
 	void *ptrs[NR_CPUS];
-	void *blkp;
 };
 
 /* 
