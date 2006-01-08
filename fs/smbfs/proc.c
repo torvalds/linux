@@ -3113,7 +3113,7 @@ smb_proc_setattr_unix(struct dentry *d, struct iattr *attr,
 	LSET(data, 32, SMB_TIME_NO_CHANGE);
 	LSET(data, 40, SMB_UID_NO_CHANGE);
 	LSET(data, 48, SMB_GID_NO_CHANGE);
-	LSET(data, 56, smb_filetype_from_mode(attr->ia_mode));
+	DSET(data, 56, smb_filetype_from_mode(attr->ia_mode));
 	LSET(data, 60, major);
 	LSET(data, 68, minor);
 	LSET(data, 76, 0);
