@@ -83,6 +83,25 @@ cond_syscall(sys_inotify_init);
 cond_syscall(sys_inotify_add_watch);
 cond_syscall(sys_inotify_rm_watch);
 cond_syscall(sys_migrate_pages);
+cond_syscall(sys_chown16);
+cond_syscall(sys_fchown16);
+cond_syscall(sys_getegid16);
+cond_syscall(sys_geteuid16);
+cond_syscall(sys_getgid16);
+cond_syscall(sys_getgroups16);
+cond_syscall(sys_getresgid16);
+cond_syscall(sys_getresuid16);
+cond_syscall(sys_getuid16);
+cond_syscall(sys_lchown16);
+cond_syscall(sys_setfsgid16);
+cond_syscall(sys_setfsuid16);
+cond_syscall(sys_setgid16);
+cond_syscall(sys_setgroups16);
+cond_syscall(sys_setregid16);
+cond_syscall(sys_setresgid16);
+cond_syscall(sys_setresuid16);
+cond_syscall(sys_setreuid16);
+cond_syscall(sys_setuid16);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);

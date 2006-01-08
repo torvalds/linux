@@ -22,10 +22,6 @@ config SBUS
 config PCI
 	bool
 
-config UID16
-	bool
-	default y
-
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y

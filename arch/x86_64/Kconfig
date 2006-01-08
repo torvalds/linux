@@ -542,11 +542,6 @@ config SYSVIPC_COMPAT
 	depends on COMPAT && SYSVIPC
 	default y
 
-config UID16
-	bool
-	depends on IA32_EMULATION
-	default y
-
 endmenu
 
 source "net/Kconfig"
