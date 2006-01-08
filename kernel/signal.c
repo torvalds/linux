@@ -625,6 +625,33 @@ void signal_wake_up(struct task_struct *t, int resume)
  * Returns 1 if any signals were found.
  *
  * All callers must be holding the siglock.
+ *
+ * This version takes a sigset mask and looks at all signals,
+ * not just those in the first mask word.
+ */
+static int rm_from_queue_full(sigset_t *mask, struct sigpending *s)
+{
+	struct sigqueue *q, *n;
+	sigset_t m;
+
+	sigandsets(&m, mask, &s->signal);
+	if (sigisemptyset(&m))
+		return 0;
+
+	signandsets(&s->signal, &s->signal, mask);
+	list_for_each_entry_safe(q, n, &s->list, list) {
+		if (sigismember(mask, q->info.si_signo)) {
+			list_del_init(&q->list);
+			__sigqueue_free(q);
+		}
+	}
+	return 1;
+}
+/*
+ * Remove signals in mask from the pending set and queue.
+ * Returns 1 if any signals were found.
+ *
+ * All callers must be holding the siglock.
  */
 static int rm_from_queue(unsigned long mask, struct sigpending *s)
 {
@@ -2408,6 +2435,7 @@ int
 do_sigaction(int sig, const struct k_sigaction *act, struct k_sigaction *oact)
 {
 	struct k_sigaction *k;
+	sigset_t mask;
 
 	if (!valid_signal(sig) || sig < 1 || (act && sig_kernel_only(sig)))
 		return -EINVAL;
@@ -2455,9 +2483,11 @@ do_sigaction(int sig, const struct k_sigaction *act, struct k_sigaction *oact)
 			*k = *act;
 			sigdelsetmask(&k->sa.sa_mask,
 				      sigmask(SIGKILL) | sigmask(SIGSTOP));
-			rm_from_queue(sigmask(sig), &t->signal->shared_pending);
+			sigemptyset(&mask);
+			sigaddset(&mask, sig);
+			rm_from_queue_full(&mask, &t->signal->shared_pending);
 			do {
-				rm_from_queue(sigmask(sig), &t->pending);
+				rm_from_queue_full(&mask, &t->pending);
 				recalc_sigpending_tsk(t);
 				t = next_thread(t);
 			} while (t != current);

@@ -94,6 +94,23 @@ static inline int sigfindinword(unsigned long word)
 
 #endif /* __HAVE_ARCH_SIG_BITOPS */
 
+static inline int sigisemptyset(sigset_t *set)
+{
+	extern void _NSIG_WORDS_is_unsupported_size(void);
+	switch (_NSIG_WORDS) {
+	case 4:
+		return (set->sig[3] | set->sig[2] |
+			set->sig[1] | set->sig[0]) == 0;
+	case 2:
+		return (set->sig[1] | set->sig[0]) == 0;
+	case 1:
+		return set->sig[0] == 0;
+	default:
+		_NSIG_WORDS_is_unsupported_size();
+		return 0;
+	}
+}
+
 #define sigmask(sig)	(1UL << ((sig) - 1))
 
 #ifndef __HAVE_ARCH_SIG_SETOPS
