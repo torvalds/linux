@@ -308,7 +308,7 @@ static inline int page_is_buddy(struct page *page, int order)
  * -- wli
  */
 
-static inline void __free_pages_bulk (struct page *page,
+static inline void __free_one_page(struct page *page,
 		struct zone *zone, unsigned int order)
 {
 	unsigned long page_idx;
@@ -383,40 +383,42 @@ static inline int free_pages_check(struct page *page)
  * And clear the zone's pages_scanned counter, to hold off the "all pages are
  * pinned" detection logic.
  */
-static int
-free_pages_bulk(struct zone *zone, int count,
-		struct list_head *list, unsigned int order)
+static void free_pages_bulk(struct zone *zone, int count,
+					struct list_head *list, int order)
 {
-	struct page *page = NULL;
-	int ret = 0;
-
 	spin_lock(&zone->lock);
 	zone->all_unreclaimable = 0;
 	zone->pages_scanned = 0;
-	while (!list_empty(list) && count--) {
+	while (count--) {
+		struct page *page;
+
+		BUG_ON(list_empty(list));
 		page = list_entry(list->prev, struct page, lru);
-		/* have to delete it as __free_pages_bulk list manipulates */
+		/* have to delete it as __free_one_page list manipulates */
 		list_del(&page->lru);
-		__free_pages_bulk(page, zone, order);
-		ret++;
+		__free_one_page(page, zone, order);
 	}
 	spin_unlock(&zone->lock);
-	return ret;
 }
 
-void __free_pages_ok(struct page *page, unsigned int order)
+static void free_one_page(struct zone *zone, struct page *page, int order)
+{
+	LIST_HEAD(list);
+	list_add(&page->lru, &list);
+	free_pages_bulk(zone, 1, &list, order);
+}
+
+static void __free_pages_ok(struct page *page, unsigned int order)
 {
 	unsigned long flags;
-	LIST_HEAD(list);
 	int i;
 	int reserved = 0;
 
 	arch_free_page(page, order);
 
 #ifndef CONFIG_MMU
-	if (order > 0)
-		for (i = 1 ; i < (1 << order) ; ++i)
-			__put_page(page + i);
+	for (i = 1 ; i < (1 << order) ; ++i)
+		__put_page(page + i);
 #endif
 
 	for (i = 0 ; i < (1 << order) ; ++i)
@@ -424,11 +426,10 @@ void __free_pages_ok(struct page *page, unsigned int order)
 	if (reserved)
 		return;
 
-	list_add(&page->lru, &list);
-	kernel_map_pages(page, 1<<order, 0);
+	kernel_map_pages(page, 1 << order, 0);
 	local_irq_save(flags);
 	__mod_page_state(pgfree, 1 << order);
-	free_pages_bulk(page_zone(page), 1, &list, order);
+	free_one_page(page_zone(page), page, order);
 	local_irq_restore(flags);
 }
 
@@ -602,9 +603,8 @@ void drain_remote_pages(void)
 			struct per_cpu_pages *pcp;
 
 			pcp = &pset->pcp[i];
-			if (pcp->count)
-				pcp->count -= free_pages_bulk(zone, pcp->count,
-						&pcp->list, 0);
+			free_pages_bulk(zone, pcp->count, &pcp->list, 0);
+			pcp->count = 0;
 		}
 	}
 	local_irq_restore(flags);
@@ -627,8 +627,8 @@ static void __drain_pages(unsigned int cpu)
 
 			pcp = &pset->pcp[i];
 			local_irq_save(flags);
-			pcp->count -= free_pages_bulk(zone, pcp->count,
-						&pcp->list, 0);
+			free_pages_bulk(zone, pcp->count, &pcp->list, 0);
+			pcp->count = 0;
 			local_irq_restore(flags);
 		}
 	}
@@ -719,8 +719,10 @@ static void fastcall free_hot_cold_page(struct page *page, int cold)
 	__inc_page_state(pgfree);
 	list_add(&page->lru, &pcp->list);
 	pcp->count++;
-	if (pcp->count >= pcp->high)
-		pcp->count -= free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
+	if (pcp->count >= pcp->high) {
+		free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
+		pcp->count -= pcp->batch;
+	}
 	local_irq_restore(flags);
 	put_cpu();
 }
@@ -759,7 +761,7 @@ static struct page *buffered_rmqueue(struct zonelist *zonelist,
 
 again:
 	cpu  = get_cpu();
-	if (order == 0) {
+	if (likely(order == 0)) {
 		struct per_cpu_pages *pcp;
 
 		pcp = &zone_pcp(zone, cpu)->pcp[cold];
