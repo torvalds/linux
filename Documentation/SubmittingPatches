@@ -386,6 +386,9 @@ a diffstat, to show what files have changed, and the number of inserted
 and deleted lines per file.  A diffstat is especially useful on bigger
 patches.  Other comments relevant only to the moment or the maintainer,
 not suitable for the permanent changelog, should also go here.
+Use diffstat options "-p 1 -w 70" so that filenames are listed from the
+top of the kernel source tree and don't use too much horizontal space
+(easily fit in 80 columns, maybe with some indentation).
 
 See more details on the proper patch format in the following
 references.
