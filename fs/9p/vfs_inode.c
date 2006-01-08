@@ -318,6 +318,7 @@ v9fs_create(struct inode *dir,
 	int result = 0;
 	unsigned int iounit = 0;
 	int wfidno = -1;
+	int err;
 
 	perm = unixmode2p9mode(v9ses, perm);
 
@@ -356,6 +357,7 @@ v9fs_create(struct inode *dir,
 	}
 
 	kfree(fcall);
+	fcall = NULL;
 
 	result = v9fs_t_create(v9ses, newfid, (char *)file_dentry->d_name.name,
 			       perm, open_mode, &fcall);
@@ -369,16 +371,23 @@ v9fs_create(struct inode *dir,
 	iounit = fcall->params.rcreate.iounit;
 	qid = fcall->params.rcreate.qid;
 	kfree(fcall);
+	fcall = NULL;
 
-	fid = v9fs_fid_create(file_dentry, v9ses, newfid, 1);
-	dprintk(DEBUG_VFS, "fid %p %d\n", fid, fid->fidcreate);
-	if (!fid) {
-		result = -ENOMEM;
-		goto CleanUpFid;
+	if (!(perm&V9FS_DMDIR)) {
+		fid = v9fs_fid_create(file_dentry, v9ses, newfid, 1);
+		dprintk(DEBUG_VFS, "fid %p %d\n", fid, fid->fidcreate);
+		if (!fid) {
+			result = -ENOMEM;
+			goto CleanUpFid;
+		}
+
+		fid->qid = qid;
+		fid->iounit = iounit;
+	} else {
+		err = v9fs_t_clunk(v9ses, newfid);
+		if (err < 0)
+			dprintk(DEBUG_ERROR, "clunk for mkdir failed: %d\n", err);
 	}
-
-	fid->qid = qid;
-	fid->iounit = iounit;
 
 	/* walk to the newly created file and put the fid in the dentry */
 	wfidno = v9fs_get_idpool(&v9ses->fidpool);
@@ -388,18 +397,19 @@ v9fs_create(struct inode *dir,
 	}
 
 	result = v9fs_t_walk(v9ses, dirfidnum, wfidno,
-		(char *) file_dentry->d_name.name, NULL);
+		(char *) file_dentry->d_name.name, &fcall);
 	if (result < 0) {
 		dprintk(DEBUG_ERROR, "clone error: %s\n", FCALL_ERROR(fcall));
 		v9fs_put_idpool(wfidno, &v9ses->fidpool);
 		wfidno = -1;
 		goto CleanUpFid;
 	}
+	kfree(fcall);
+	fcall = NULL;
 
 	if (!v9fs_fid_create(file_dentry, v9ses, wfidno, 0)) {
-		if (!v9fs_t_clunk(v9ses, newfid, &fcall)) {
-			v9fs_put_idpool(wfidno, &v9ses->fidpool);
-		}
+		v9fs_t_clunk(v9ses, newfid);
+		v9fs_put_idpool(wfidno, &v9ses->fidpool);
 
 		goto CleanUpFid;
 	}
@@ -431,40 +441,21 @@ v9fs_create(struct inode *dir,
 	file_dentry->d_op = &v9fs_dentry_operations;
 	d_instantiate(file_dentry, file_inode);
 
-	if (perm & V9FS_DMDIR) {
-		if (!v9fs_t_clunk(v9ses, newfid, &fcall))
-			v9fs_put_idpool(newfid, &v9ses->fidpool);
-		else
-			dprintk(DEBUG_ERROR, "clunk for mkdir failed: %s\n",
-				FCALL_ERROR(fcall));
-		kfree(fcall);
-		fid->fidopen = 0;
-		fid->fidcreate = 0;
-		d_drop(file_dentry);
-	}
-
 	return 0;
 
       CleanUpFid:
 	kfree(fcall);
+	fcall = NULL;
 
 	if (newfid >= 0) {
-		if (!v9fs_t_clunk(v9ses, newfid, &fcall))
-			v9fs_put_idpool(newfid, &v9ses->fidpool);
-		else
-			dprintk(DEBUG_ERROR, "clunk failed: %s\n",
-				FCALL_ERROR(fcall));
-
-		kfree(fcall);
+ 		err = v9fs_t_clunk(v9ses, newfid);
+ 		if (err < 0)
+ 			dprintk(DEBUG_ERROR, "clunk failed: %d\n", err);
 	}
 	if (wfidno >= 0) {
-		if (!v9fs_t_clunk(v9ses, wfidno, &fcall))
-			v9fs_put_idpool(wfidno, &v9ses->fidpool);
-		else
-			dprintk(DEBUG_ERROR, "clunk failed: %s\n",
-				FCALL_ERROR(fcall));
-
-		kfree(fcall);
+ 		err = v9fs_t_clunk(v9ses, wfidno);
+ 		if (err < 0)
+ 			dprintk(DEBUG_ERROR, "clunk failed: %d\n", err);
 	}
 	return result;
 }
@@ -972,6 +963,7 @@ v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
+	int err;
 
 	dprintk(DEBUG_VFS, " %lu,%s,%s\n", dir->i_ino, dentry->d_name.name,
 		symname);
@@ -1004,9 +996,9 @@ v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 
 	kfree(fcall);
 
-	if (v9fs_t_clunk(v9ses, newfid->fid, &fcall)) {
-		dprintk(DEBUG_ERROR, "clunk for symlink failed: %s\n",
-			FCALL_ERROR(fcall));
+	err = v9fs_t_clunk(v9ses, newfid->fid);
+	if (err < 0) {
+		dprintk(DEBUG_ERROR, "clunk for symlink failed: %d\n", err);
 		goto FreeFcall;
 	}
 
@@ -1180,6 +1172,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct v9fs_fid *oldfid = v9fs_fid_lookup(old_dentry);
 	struct v9fs_fid *newfid = NULL;
 	char *symname = __getname();
+	int err;
 
 	dprintk(DEBUG_VFS, " %lu,%s,%s\n", dir->i_ino, dentry->d_name.name,
 		old_dentry->d_name.name);
@@ -1216,9 +1209,10 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	kfree(fcall);
 
-	if (v9fs_t_clunk(v9ses, newfid->fid, &fcall)) {
-		dprintk(DEBUG_ERROR, "clunk for symlink failed: %s\n",
-			FCALL_ERROR(fcall));
+	err = v9fs_t_clunk(v9ses, newfid->fid);
+
+	if (err < 0) {
+		dprintk(DEBUG_ERROR, "clunk for symlink failed: %d\n", err);
 		goto FreeMem;
 	}
 
@@ -1252,6 +1246,7 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	struct v9fs_fcall *fcall = NULL;
 	struct v9fs_stat *mistat = kmalloc(v9ses->maxdata, GFP_KERNEL);
 	char *symname = __getname();
+	int err;
 
 	dprintk(DEBUG_VFS, " %lu,%s mode: %x MAJOR: %u MINOR: %u\n", dir->i_ino,
 		dentry->d_name.name, mode, MAJOR(rdev), MINOR(rdev));
@@ -1310,9 +1305,9 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	/* need to update dcache so we show up */
 	kfree(fcall);
 
-	if (v9fs_t_clunk(v9ses, newfid->fid, &fcall)) {
-		dprintk(DEBUG_ERROR, "clunk for symlink failed: %s\n",
-			FCALL_ERROR(fcall));
+	err = v9fs_t_clunk(v9ses, newfid->fid);
+	if (err < 0) {
+		dprintk(DEBUG_ERROR, "clunk for symlink failed: %d\n", err);
 		goto FreeMem;
 	}
 

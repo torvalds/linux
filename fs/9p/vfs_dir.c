@@ -74,7 +74,7 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
 	struct v9fs_fid *file = filp->private_data;
-	unsigned int i, n;
+	unsigned int i, n, s;
 	int fid = -1;
 	int ret = 0;
 	struct v9fs_stat *mi = NULL;
@@ -97,9 +97,9 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		n = file->rdir_fcall->params.rread.count;
 		i = file->rdir_fpos;
 		while (i < n) {
-			int s = v9fs_deserialize_stat(v9ses,
-				  file->rdir_fcall->params.rread.data + i,
-			          n - i, mi, v9ses->maxdata);
+			s = v9fs_deserialize_stat(
+				file->rdir_fcall->params.rread.data + i,
+				n - i, mi, v9ses->maxdata, v9ses->extended);
 
 			if (s == 0) {
 				dprintk(DEBUG_ERROR,
@@ -141,9 +141,8 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		n = ret;
 		i = 0;
 		while (i < n) {
-			int s = v9fs_deserialize_stat(v9ses,
-			          fcall->params.rread.data + i, n - i, mi,
-			          v9ses->maxdata);
+			s = v9fs_deserialize_stat(fcall->params.rread.data + i,
+				n - i, mi, v9ses->maxdata, v9ses->extended);
 
 			if (s == 0) {
 				dprintk(DEBUG_ERROR,
@@ -199,10 +198,8 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 		dprintk(DEBUG_VFS, "fidopen: %d v9f->fid: %d\n", fid->fidopen,
 			fid->fid);
 
-		if (v9fs_t_clunk(v9ses, fidnum, NULL))
+		if (v9fs_t_clunk(v9ses, fidnum))
 			dprintk(DEBUG_ERROR, "clunk failed\n");
-
-		v9fs_put_idpool(fid->fid, &v9ses->fidpool);
 
 		kfree(fid->rdir_fcall);
 		kfree(fid);

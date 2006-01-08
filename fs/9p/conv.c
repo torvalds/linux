@@ -208,7 +208,7 @@ static inline char *buf_get_stringb(struct cbuf *buf, struct cbuf *sbuf)
 	len = buf_get_int16(buf);
 
 	if (!buf_check_overflow(buf) && buf_check_size(buf, len) &&
-		buf_check_size(sbuf, len+1)) {
+		buf_check_size(sbuf, len + 1)) {
 
 		memcpy(sbuf->p, buf->p, len);
 		sbuf->p[len] = 0;
@@ -252,13 +252,12 @@ static inline void *buf_get_datab(struct cbuf *buf, struct cbuf *dbuf,
 
 /**
  * v9fs_size_stat - calculate the size of a variable length stat struct
- * @v9ses: session information
  * @stat: metadata (stat) structure
+ * @extended: non-zero if 9P2000.u
  *
  */
 
-static int v9fs_size_stat(struct v9fs_session_info *v9ses,
-			  struct v9fs_stat *stat)
+static int v9fs_size_stat(struct v9fs_stat *stat, int extended)
 {
 	int size = 0;
 
@@ -288,7 +287,7 @@ static int v9fs_size_stat(struct v9fs_session_info *v9ses,
 	if (stat->muid)
 		size += strlen(stat->muid);
 
-	if (v9ses->extended) {
+	if (extended) {
 		size += 4 +	/* n_uid[4] */
 		    4 +		/* n_gid[4] */
 		    4 +		/* n_muid[4] */
@@ -302,15 +301,14 @@ static int v9fs_size_stat(struct v9fs_session_info *v9ses,
 
 /**
  * serialize_stat - safely format a stat structure for transmission
- * @v9ses: session info
  * @stat: metadata (stat) structure
  * @bufp: buffer to serialize structure into
+ * @extended: non-zero if 9P2000.u
  *
  */
 
 static int
-serialize_stat(struct v9fs_session_info *v9ses, struct v9fs_stat *stat,
-	       struct cbuf *bufp)
+serialize_stat(struct v9fs_stat *stat, struct cbuf *bufp, int extended)
 {
 	buf_put_int16(bufp, stat->size);
 	buf_put_int16(bufp, stat->type);
@@ -328,7 +326,7 @@ serialize_stat(struct v9fs_session_info *v9ses, struct v9fs_stat *stat,
 	buf_put_string(bufp, stat->gid);
 	buf_put_string(bufp, stat->muid);
 
-	if (v9ses->extended) {
+	if (extended) {
 		buf_put_string(bufp, stat->extension);
 		buf_put_int32(bufp, stat->n_uid);
 		buf_put_int32(bufp, stat->n_gid);
@@ -343,16 +341,16 @@ serialize_stat(struct v9fs_session_info *v9ses, struct v9fs_stat *stat,
 
 /**
  * deserialize_stat - safely decode a recieved metadata (stat) structure
- * @v9ses: session info
  * @bufp: buffer to deserialize
  * @stat: metadata (stat) structure
  * @dbufp: buffer to deserialize variable strings into
+ * @extended: non-zero if 9P2000.u
  *
  */
 
 static inline int
-deserialize_stat(struct v9fs_session_info *v9ses, struct cbuf *bufp,
-		 struct v9fs_stat *stat, struct cbuf *dbufp)
+deserialize_stat(struct cbuf *bufp, struct v9fs_stat *stat,
+		 struct cbuf *dbufp, int extended)
 {
 
 	stat->size = buf_get_int16(bufp);
@@ -370,7 +368,7 @@ deserialize_stat(struct v9fs_session_info *v9ses, struct cbuf *bufp,
 	stat->gid = buf_get_stringb(bufp, dbufp);
 	stat->muid = buf_get_stringb(bufp, dbufp);
 
-	if (v9ses->extended) {
+	if (extended) {
 		stat->extension = buf_get_stringb(bufp, dbufp);
 		stat->n_uid = buf_get_int32(bufp);
 		stat->n_gid = buf_get_int32(bufp);
@@ -385,20 +383,20 @@ deserialize_stat(struct v9fs_session_info *v9ses, struct cbuf *bufp,
 
 /**
  * deserialize_statb - wrapper for decoding a received metadata structure
- * @v9ses: session info
  * @bufp: buffer to deserialize
  * @dbufp: buffer to deserialize variable strings into
+ * @extended: non-zero if 9P2000.u
  *
  */
 
-static inline struct v9fs_stat *deserialize_statb(struct v9fs_session_info
-						  *v9ses, struct cbuf *bufp,
-						  struct cbuf *dbufp)
+static inline struct v9fs_stat *deserialize_statb(struct cbuf *bufp,
+						  struct cbuf *dbufp,
+						  int extended)
 {
 	struct v9fs_stat *ret = buf_alloc(dbufp, sizeof(struct v9fs_stat));
 
 	if (ret) {
-		int n = deserialize_stat(v9ses, bufp, ret, dbufp);
+		int n = deserialize_stat(bufp, ret, dbufp, extended);
 		if (n <= 0)
 			return NULL;
 	}
@@ -408,17 +406,16 @@ static inline struct v9fs_stat *deserialize_statb(struct v9fs_session_info
 
 /**
  * v9fs_deserialize_stat - decode a received metadata structure
- * @v9ses: session info
  * @buf: buffer to deserialize
  * @buflen: length of received buffer
  * @stat: metadata structure to decode into
  * @statlen: length of destination metadata structure
+ * @extended: non-zero if 9P2000.u
  *
  */
 
-int
-v9fs_deserialize_stat(struct v9fs_session_info *v9ses, void *buf,
-		      u32 buflen, struct v9fs_stat *stat, u32 statlen)
+int v9fs_deserialize_stat(void *buf, u32 buflen, struct v9fs_stat *stat,
+			  u32 statlen, int extended)
 {
 	struct cbuf buffer;
 	struct cbuf *bufp = &buffer;
@@ -429,11 +426,10 @@ v9fs_deserialize_stat(struct v9fs_session_info *v9ses, void *buf,
 	buf_init(dbufp, (char *)stat + sizeof(struct v9fs_stat),
 		 statlen - sizeof(struct v9fs_stat));
 
-	return deserialize_stat(v9ses, bufp, stat, dbufp);
+	return deserialize_stat(bufp, stat, dbufp, extended);
 }
 
-static inline int
-v9fs_size_fcall(struct v9fs_session_info *v9ses, struct v9fs_fcall *fcall)
+static inline int v9fs_size_fcall(struct v9fs_fcall *fcall, int extended)
 {
 	int size = 4 + 1 + 2;	/* size[4] msg[1] tag[2] */
 	int i = 0;
@@ -485,7 +481,7 @@ v9fs_size_fcall(struct v9fs_session_info *v9ses, struct v9fs_fcall *fcall)
 		break;
 	case TWSTAT:		/* fid[4] stat[n] */
 		fcall->params.twstat.stat->size =
-		    v9fs_size_stat(v9ses, fcall->params.twstat.stat);
+		    v9fs_size_stat(fcall->params.twstat.stat, extended);
 		size += 4 + 2 + 2 + fcall->params.twstat.stat->size;
 	}
 	return size;
@@ -493,16 +489,16 @@ v9fs_size_fcall(struct v9fs_session_info *v9ses, struct v9fs_fcall *fcall)
 
 /*
  * v9fs_serialize_fcall - marshall fcall struct into a packet
- * @v9ses: session information
  * @fcall: structure to convert
  * @data: buffer to serialize fcall into
  * @datalen: length of buffer to serialize fcall into
+ * @extended: non-zero if 9P2000.u
  *
  */
 
 int
-v9fs_serialize_fcall(struct v9fs_session_info *v9ses, struct v9fs_fcall *fcall,
-		     void *data, u32 datalen)
+v9fs_serialize_fcall(struct v9fs_fcall *fcall, void *data, u32 datalen,
+		     int extended)
 {
 	int i = 0;
 	struct v9fs_stat *stat = NULL;
@@ -516,7 +512,7 @@ v9fs_serialize_fcall(struct v9fs_session_info *v9ses, struct v9fs_fcall *fcall,
 		return -EINVAL;
 	}
 
-	fcall->size = v9fs_size_fcall(v9ses, fcall);
+	fcall->size = v9fs_size_fcall(fcall, extended);
 
 	buf_put_int32(bufp, fcall->size);
 	buf_put_int8(bufp, fcall->id);
@@ -591,31 +587,31 @@ v9fs_serialize_fcall(struct v9fs_session_info *v9ses, struct v9fs_fcall *fcall,
 		stat = fcall->params.twstat.stat;
 
 		buf_put_int16(bufp, stat->size + 2);
-		serialize_stat(v9ses, stat, bufp);
+		serialize_stat(stat, bufp, extended);
 		break;
 	}
 
-	if (buf_check_overflow(bufp))
+	if (buf_check_overflow(bufp)) {
+		dprintk(DEBUG_ERROR, "buffer overflow\n");
 		return -EIO;
+	}
 
 	return fcall->size;
 }
 
 /**
  * deserialize_fcall - unmarshal a response
- * @v9ses: session information
- * @msgsize: size of rcall message
  * @buf: recieved buffer
  * @buflen: length of received buffer
  * @rcall: fcall structure to populate
  * @rcalllen: length of fcall structure to populate
+ * @extended: non-zero if 9P2000.u
  *
  */
 
 int
-v9fs_deserialize_fcall(struct v9fs_session_info *v9ses, u32 msgsize,
-		       void *buf, u32 buflen, struct v9fs_fcall *rcall,
-		       int rcalllen)
+v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
+		       int rcalllen, int extended)
 {
 
 	struct cbuf buffer;
@@ -628,7 +624,7 @@ v9fs_deserialize_fcall(struct v9fs_session_info *v9ses, u32 msgsize,
 	buf_init(dbufp, (char *)rcall + sizeof(struct v9fs_fcall),
 		 rcalllen - sizeof(struct v9fs_fcall));
 
-	rcall->size = msgsize;
+	rcall->size = buf_get_int32(bufp);
 	rcall->id = buf_get_int8(bufp);
 	rcall->tag = buf_get_int16(bufp);
 
@@ -651,6 +647,12 @@ v9fs_deserialize_fcall(struct v9fs_session_info *v9ses, u32 msgsize,
 		break;
 	case RWALK:
 		rcall->params.rwalk.nwqid = buf_get_int16(bufp);
+		if (rcall->params.rwalk.nwqid > 16) {
+			eprintk(KERN_ERR, "Rwalk with more than 16 qids: %d\n",
+				rcall->params.rwalk.nwqid);
+			return -EPROTO;
+		}
+
 		rcall->params.rwalk.wqids = buf_alloc(dbufp,
 		      rcall->params.rwalk.nwqid * sizeof(struct v9fs_qid));
 		if (rcall->params.rwalk.wqids)
@@ -690,19 +692,21 @@ v9fs_deserialize_fcall(struct v9fs_session_info *v9ses, u32 msgsize,
 	case RSTAT:
 		buf_get_int16(bufp);
 		rcall->params.rstat.stat =
-		    deserialize_statb(v9ses, bufp, dbufp);
+		    deserialize_statb(bufp, dbufp, extended);
 		break;
 	case RWSTAT:
 		break;
 	case RERROR:
 		rcall->params.rerror.error = buf_get_stringb(bufp, dbufp);
-		if (v9ses->extended)
+		if (extended)
 			rcall->params.rerror.errno = buf_get_int16(bufp);
 		break;
 	}
 
-	if (buf_check_overflow(bufp) || buf_check_overflow(dbufp))
+	if (buf_check_overflow(bufp) || buf_check_overflow(dbufp)) {
+		dprintk(DEBUG_ERROR, "buffer overflow\n");
 		return -EIO;
+	}
 
 	return rcall->size;
 }

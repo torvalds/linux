@@ -100,6 +100,9 @@ enum {
 	V9FS_QTFILE = 0x00,
 };
 
+#define V9FS_NOTAG	(u16)(~0)
+#define V9FS_NOFID	(u32)(~0)
+
 /* ample room for Twrite/Rread header (iounit) */
 #define V9FS_IOHDRSZ	24
 
@@ -303,6 +306,9 @@ struct v9fs_fcall {
 	} params;
 };
 
+#define V9FS_FCALLHDRSZ (sizeof(struct v9fs_fcall) + \
+	sizeof(struct v9fs_stat) + 16*sizeof(struct v9fs_qid) + 16)
+
 #define FCALL_ERROR(fcall) (fcall ? fcall->params.rerror.error : "")
 
 int v9fs_t_version(struct v9fs_session_info *v9ses, u32 msize,
@@ -311,8 +317,7 @@ int v9fs_t_version(struct v9fs_session_info *v9ses, u32 msize,
 int v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
 		  u32 fid, u32 afid, struct v9fs_fcall **rcall);
 
-int v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid,
-		 struct v9fs_fcall **rcall);
+int v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid);
 
 int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 oldtag);
 

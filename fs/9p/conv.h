@@ -24,13 +24,12 @@
  *
  */
 
-int v9fs_deserialize_stat(struct v9fs_session_info *, void *buf,
-			  u32 buflen, struct v9fs_stat *stat, u32 statlen);
-int v9fs_serialize_fcall(struct v9fs_session_info *, struct v9fs_fcall *tcall,
-			 void *buf, u32 buflen);
-int v9fs_deserialize_fcall(struct v9fs_session_info *, u32 msglen,
-			   void *buf, u32 buflen, struct v9fs_fcall *rcall,
-			   int rcalllen);
+int v9fs_deserialize_stat(void *buf, u32 buflen, struct v9fs_stat *stat,
+	u32 statlen, int extended);
+int v9fs_serialize_fcall(struct v9fs_fcall *tcall, void *buf, u32 buflen,
+	int extended);
+int v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
+	int rcalllen, int extended);
 
 /* this one is actually in error.c right now */
 int v9fs_errstr2errno(char *errstr);

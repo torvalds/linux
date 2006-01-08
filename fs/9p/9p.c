@@ -52,10 +52,11 @@ v9fs_t_version(struct v9fs_session_info *v9ses, u32 msize,
 
 	dprintk(DEBUG_9P, "msize: %d version: %s\n", msize, version);
 	msg.id = TVERSION;
+	msg.tag = ~0;
 	msg.params.tversion.msize = msize;
 	msg.params.tversion.version = version;
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	return v9fs_mux_rpc(v9ses->mux, &msg, fcall);
 }
 
 /**
@@ -83,7 +84,30 @@ v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
 	msg.params.tattach.uname = uname;
 	msg.params.tattach.aname = aname;
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	return v9fs_mux_rpc(v9ses->mux, &msg, fcall);
+}
+
+static void v9fs_t_clunk_cb(void *a, struct v9fs_fcall *tc,
+	struct v9fs_fcall *rc, int err)
+{
+	int fid;
+	struct v9fs_session_info *v9ses;
+
+	if (err)
+		return;
+
+	fid = tc->params.tclunk.fid;
+	kfree(tc);
+
+	if (!rc)
+		return;
+
+	dprintk(DEBUG_9P, "tcall id %d rcall id %d\n", tc->id, rc->id);
+	v9ses = a;
+	if (rc->id == RCLUNK)
+		v9fs_put_idpool(fid, &v9ses->fidpool);
+
+	kfree(rc);
 }
 
 /**
@@ -93,18 +117,24 @@ v9fs_t_attach(struct v9fs_session_info *v9ses, char *uname, char *aname,
  * @fcall: pointer to response fcall pointer
  *
  */
-
 int
-v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid,
-	     struct v9fs_fcall **fcall)
+v9fs_t_clunk(struct v9fs_session_info *v9ses, u32 fid)
 {
-	struct v9fs_fcall msg;
+	int err;
+	struct v9fs_fcall *tc, *rc;
+
+	tc = kmalloc(sizeof(struct v9fs_fcall), GFP_KERNEL);
 
 	dprintk(DEBUG_9P, "fid %d\n", fid);
-	msg.id = TCLUNK;
-	msg.params.tclunk.fid = fid;
+	tc->id = TCLUNK;
+	tc->params.tclunk.fid = fid;
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	err = v9fs_mux_rpc(v9ses->mux, tc, &rc);
+	if (err >= 0) {
+		v9fs_t_clunk_cb(v9ses, tc, rc, 0);
+	}
+
+	return err;
 }
 
 /**
@@ -121,7 +151,7 @@ int v9fs_t_flush(struct v9fs_session_info *v9ses, u16 tag)
 	dprintk(DEBUG_9P, "oldtag %d\n", tag);
 	msg.id = TFLUSH;
 	msg.params.tflush.oldtag = tag;
-	return v9fs_mux_rpc(v9ses, &msg, NULL);
+	return v9fs_mux_rpc(v9ses->mux, &msg, NULL);
 }
 
 /**
@@ -143,7 +173,7 @@ v9fs_t_stat(struct v9fs_session_info *v9ses, u32 fid, struct v9fs_fcall **fcall)
 
 	msg.id = TSTAT;
 	msg.params.tstat.fid = fid;
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	return v9fs_mux_rpc(v9ses->mux, &msg, fcall);
 }
 
 /**
@@ -166,7 +196,7 @@ v9fs_t_wstat(struct v9fs_session_info *v9ses, u32 fid,
 	msg.params.twstat.fid = fid;
 	msg.params.twstat.stat = stat;
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	return v9fs_mux_rpc(v9ses->mux, &msg, fcall);
 }
 
 /**
@@ -199,7 +229,7 @@ v9fs_t_walk(struct v9fs_session_info *v9ses, u32 fid, u32 newfid,
 		msg.params.twalk.nwname = 0;
 	}
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	return v9fs_mux_rpc(v9ses->mux, &msg, fcall);
 }
 
 /**
@@ -217,14 +247,14 @@ v9fs_t_open(struct v9fs_session_info *v9ses, u32 fid, u8 mode,
 	    struct v9fs_fcall **fcall)
 {
 	struct v9fs_fcall msg;
-	long errorno = -1;
+	int errorno = -1;
 
 	dprintk(DEBUG_9P, "fid %d mode %d\n", fid, mode);
 	msg.id = TOPEN;
 	msg.params.topen.fid = fid;
 	msg.params.topen.mode = mode;
 
-	errorno = v9fs_mux_rpc(v9ses, &msg, fcall);
+	errorno = v9fs_mux_rpc(v9ses->mux, &msg, fcall);
 
 	return errorno;
 }
@@ -246,7 +276,7 @@ v9fs_t_remove(struct v9fs_session_info *v9ses, u32 fid,
 	dprintk(DEBUG_9P, "fid %d\n", fid);
 	msg.id = TREMOVE;
 	msg.params.tremove.fid = fid;
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	return v9fs_mux_rpc(v9ses->mux, &msg, fcall);
 }
 
 /**
@@ -275,7 +305,7 @@ v9fs_t_create(struct v9fs_session_info *v9ses, u32 fid, char *name,
 	msg.params.tcreate.perm = perm;
 	msg.params.tcreate.mode = mode;
 
-	return v9fs_mux_rpc(v9ses, &msg, fcall);
+	return v9fs_mux_rpc(v9ses->mux, &msg, fcall);
 }
 
 /**
@@ -302,7 +332,7 @@ v9fs_t_read(struct v9fs_session_info *v9ses, u32 fid, u64 offset,
 	msg.params.tread.fid = fid;
 	msg.params.tread.offset = offset;
 	msg.params.tread.count = count;
-	errorno = v9fs_mux_rpc(v9ses, &msg, &rc);
+	errorno = v9fs_mux_rpc(v9ses->mux, &msg, &rc);
 
 	if (!errorno) {
 		errorno = rc->params.rread.count;
@@ -345,7 +375,7 @@ v9fs_t_write(struct v9fs_session_info *v9ses, u32 fid,
 	msg.params.twrite.count = count;
 	msg.params.twrite.data = data;
 
-	errorno = v9fs_mux_rpc(v9ses, &msg, &rc);
+	errorno = v9fs_mux_rpc(v9ses->mux, &msg, &rc);
 
 	if (!errorno)
 		errorno = rc->params.rwrite.count;

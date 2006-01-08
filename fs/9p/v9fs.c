@@ -213,7 +213,8 @@ retry:
 		return -1;
 	}
 
-	error = idr_get_new(&p->pool, NULL, &i);
+	/* no need to store exactly p, we just need something non-null */
+	error = idr_get_new(&p->pool, p, &i);
 	up(&p->lock);
 
 	if (error == -EAGAIN)
@@ -240,6 +241,16 @@ void v9fs_put_idpool(int id, struct v9fs_idpool *p)
 	}
 	idr_remove(&p->pool, id);
 	up(&p->lock);
+}
+
+/**
+ * v9fs_check_idpool - check if the specified id is available
+ * @id - id to check
+ * @p - pool
+ */
+int v9fs_check_idpool(int id, struct v9fs_idpool *p)
+{
+	return idr_find(&p->pool, id) != NULL;
 }
 
 /**
@@ -281,9 +292,6 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 	/* id pools that are session-dependent: FIDs and TIDs */
 	idr_init(&v9ses->fidpool.pool);
 	init_MUTEX(&v9ses->fidpool.lock);
-	idr_init(&v9ses->tidpool.pool);
-	init_MUTEX(&v9ses->tidpool.lock);
-
 
 	switch (v9ses->proto) {
 	case PROTO_TCP:
@@ -320,7 +328,12 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 	v9ses->shutdown = 0;
 	v9ses->session_hung = 0;
 
-	if ((retval = v9fs_mux_init(v9ses, dev_name)) < 0) {
+	v9ses->mux = v9fs_mux_init(v9ses->transport, v9ses->maxdata + V9FS_IOHDRSZ,
+		&v9ses->extended);
+
+	if (IS_ERR(v9ses->mux)) {
+		retval = PTR_ERR(v9ses->mux);
+		v9ses->mux = NULL;
 		dprintk(DEBUG_ERROR, "problem initializing mux\n");
 		goto SessCleanUp;
 	}
@@ -381,7 +394,7 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 	}
 
 	if (v9ses->afid != ~0) {
-		if (v9fs_t_clunk(v9ses, v9ses->afid, NULL))
+		if (v9fs_t_clunk(v9ses, v9ses->afid))
 			dprintk(DEBUG_ERROR, "clunk failed\n");
 	}
 
@@ -403,13 +416,16 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 
 void v9fs_session_close(struct v9fs_session_info *v9ses)
 {
-	if (v9ses->recvproc) {
-		send_sig(SIGKILL, v9ses->recvproc, 1);
-		wait_for_completion(&v9ses->proccmpl);
+	if (v9ses->mux) {
+		v9fs_mux_destroy(v9ses->mux);
+		v9ses->mux = NULL;
 	}
 
-	if (v9ses->transport)
+	if (v9ses->transport) {
 		v9ses->transport->close(v9ses->transport);
+		kfree(v9ses->transport);
+		v9ses->transport = NULL;
+	}
 
 	__putname(v9ses->name);
 	__putname(v9ses->remotename);
@@ -420,8 +436,9 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
  * 	and cancel all pending requests.
  */
 void v9fs_session_cancel(struct v9fs_session_info *v9ses) {
+	dprintk(DEBUG_ERROR, "cancel session %p\n", v9ses);
 	v9ses->transport->status = Disconnected;
-	v9fs_mux_cancel_requests(v9ses, -EIO);
+	v9fs_mux_cancel(v9ses->mux, -EIO);
 }
 
 extern int v9fs_error_init(void);
@@ -437,6 +454,7 @@ static int __init init_v9fs(void)
 
 	printk(KERN_INFO "Installing v9fs 9P2000 file system support\n");
 
+	v9fs_mux_global_init();
 	return register_filesystem(&v9fs_fs_type);
 }
 
@@ -447,6 +465,7 @@ static int __init init_v9fs(void)
 
 static void __exit exit_v9fs(void)
 {
+	v9fs_mux_global_exit();
 	unregister_filesystem(&v9fs_fs_type);
 }
 
