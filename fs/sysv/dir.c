@@ -103,7 +103,7 @@ static int sysv_readdir(struct file * filp, void * dirent, filldir_t filldir)
 			offset = (char *)de - kaddr;
 
 			over = filldir(dirent, name, strnlen(name,SYSV_NAMELEN),
-					(n<<PAGE_CACHE_SHIFT) | offset,
+					((loff_t)n<<PAGE_CACHE_SHIFT) | offset,
 					fs16_to_cpu(SYSV_SB(sb), de->inode),
 					DT_UNKNOWN);
 			if (over) {
@@ -115,7 +115,7 @@ static int sysv_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	}
 
 done:
-	filp->f_pos = (n << PAGE_CACHE_SHIFT) | offset;
+	filp->f_pos = ((loff_t)n << PAGE_CACHE_SHIFT) | offset;
 	unlock_kernel();
 	return 0;
 }

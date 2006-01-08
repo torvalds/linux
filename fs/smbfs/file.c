@@ -209,8 +209,8 @@ smb_updatepage(struct file *file, struct page *page, unsigned long offset,
 {
 	struct dentry *dentry = file->f_dentry;
 
-	DEBUG1("(%s/%s %d@%ld)\n", DENTRY_PATH(dentry), 
-	       count, (page->index << PAGE_CACHE_SHIFT)+offset);
+	DEBUG1("(%s/%s %d@%lld)\n", DENTRY_PATH(dentry), count,
+		((unsigned long long)page->index << PAGE_CACHE_SHIFT) + offset);
 
 	return smb_writepage_sync(dentry->d_inode, page, offset, count);
 }
