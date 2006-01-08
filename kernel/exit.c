@@ -925,7 +925,6 @@ do_group_exit(int exit_code)
 			/* Another thread got here before we took the lock.  */
 			exit_code = sig->group_exit_code;
 		else {
-			sig->flags = SIGNAL_GROUP_EXIT;
 			sig->group_exit_code = exit_code;
 			zap_other_threads(current);
 		}
