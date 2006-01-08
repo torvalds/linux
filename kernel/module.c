@@ -958,7 +958,6 @@ static unsigned long resolve_symbol(Elf_Shdr *sechdrs,
 	unsigned long ret;
 	const unsigned long *crc;
 
-	spin_lock_irq(&modlist_lock);
 	ret = __find_symbol(name, &owner, &crc, mod->license_gplok);
 	if (ret) {
 		/* use_module can fail due to OOM, or module unloading */
@@ -966,7 +965,6 @@ static unsigned long resolve_symbol(Elf_Shdr *sechdrs,
 		    !use_module(mod, owner))
 			ret = 0;
 	}
-	spin_unlock_irq(&modlist_lock);
 	return ret;
 }
 
