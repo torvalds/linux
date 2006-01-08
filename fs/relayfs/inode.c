@@ -54,7 +54,8 @@ static struct inode *relayfs_get_inode(struct super_block *sb,
 	switch (mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_fop = fops;
-		RELAYFS_I(inode)->data = data;
+		if (data)
+			inode->u.generic_ip = data;
 		break;
 	case S_IFDIR:
 		inode->i_op = &simple_dir_inode_operations;
@@ -255,8 +256,9 @@ int relayfs_remove_dir(struct dentry *dentry)
  */
 static int relayfs_open(struct inode *inode, struct file *filp)
 {
-	struct rchan_buf *buf = RELAYFS_I(inode)->data;
+	struct rchan_buf *buf = inode->u.generic_ip;
 	kref_get(&buf->kref);
+	filp->private_data = buf;
 
 	return 0;
 }
@@ -270,8 +272,8 @@ static int relayfs_open(struct inode *inode, struct file *filp)
  */
 static int relayfs_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct inode *inode = filp->f_dentry->d_inode;
-	return relay_mmap_buf(RELAYFS_I(inode)->data, vma);
+	struct rchan_buf *buf = filp->private_data;
+	return relay_mmap_buf(buf, vma);
 }
 
 /**
@@ -284,8 +286,7 @@ static int relayfs_mmap(struct file *filp, struct vm_area_struct *vma)
 static unsigned int relayfs_poll(struct file *filp, poll_table *wait)
 {
 	unsigned int mask = 0;
-	struct inode *inode = filp->f_dentry->d_inode;
-	struct rchan_buf *buf = RELAYFS_I(inode)->data;
+	struct rchan_buf *buf = filp->private_data;
 
 	if (buf->finalized)
 		return POLLERR;
@@ -309,7 +310,7 @@ static unsigned int relayfs_poll(struct file *filp, poll_table *wait)
  */
 static int relayfs_release(struct inode *inode, struct file *filp)
 {
-	struct rchan_buf *buf = RELAYFS_I(inode)->data;
+	struct rchan_buf *buf = filp->private_data;
 	kref_put(&buf->kref, relay_remove_buf);
 
 	return 0;
@@ -470,8 +471,8 @@ static ssize_t relayfs_read(struct file *filp,
 			    size_t count,
 			    loff_t *ppos)
 {
+	struct rchan_buf *buf = filp->private_data;
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct rchan_buf *buf = RELAYFS_I(inode)->data;
 	size_t read_start, avail;
 	ssize_t ret = 0;
 	void *from;
