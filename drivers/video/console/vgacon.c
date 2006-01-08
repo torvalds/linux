@@ -503,9 +503,15 @@ static int vgacon_doresize(struct vc_data *c,
 {
 	unsigned long flags;
 	unsigned int scanlines = height * c->vc_font.height;
-	u8 scanlines_lo, r7, vsync_end, mode;
+	u8 scanlines_lo, r7, vsync_end, mode, max_scan;
 
 	spin_lock_irqsave(&vga_lock, flags);
+
+	outb_p(VGA_CRTC_MAX_SCAN, vga_video_port_reg);
+	max_scan = inb_p(vga_video_port_val);
+
+	if (max_scan & 0x80)
+		scanlines <<= 1;
 
 	outb_p(VGA_CRTC_MODE, vga_video_port_reg);
 	mode = inb_p(vga_video_port_val);
