@@ -639,25 +639,14 @@ void cpuset_update_task_memory_state()
 	task_unlock(tsk);
 
 	if (my_cpusets_mem_gen != tsk->cpuset_mems_generation) {
-		nodemask_t oldmem = tsk->mems_allowed;
-		int migrate;
-
 		down(&callback_sem);
 		task_lock(tsk);
 		cs = tsk->cpuset;	/* Maybe changed when task not locked */
-		migrate = is_memory_migrate(cs);
 		guarantee_online_mems(cs, &tsk->mems_allowed);
 		tsk->cpuset_mems_generation = cs->mems_generation;
 		task_unlock(tsk);
 		up(&callback_sem);
 		mpol_rebind_task(tsk, &tsk->mems_allowed);
-		if (!nodes_equal(oldmem, tsk->mems_allowed)) {
-			if (migrate) {
-				do_migrate_pages(tsk->mm, &oldmem,
-					&tsk->mems_allowed,
-					MPOL_MF_MOVE_ALL);
-			}
-		}
 	}
 }
 
@@ -815,7 +804,9 @@ static int update_cpumask(struct cpuset *cs, char *buf)
  * Handle user request to change the 'mems' memory placement
  * of a cpuset.  Needs to validate the request, update the
  * cpusets mems_allowed and mems_generation, and for each
- * task in the cpuset, rebind any vma mempolicies.
+ * task in the cpuset, rebind any vma mempolicies and if
+ * the cpuset is marked 'memory_migrate', migrate the tasks
+ * pages to the new memory.
  *
  * Call with manage_sem held.  May take callback_sem during call.
  * Will take tasklist_lock, scan tasklist for tasks in cpuset cs,
@@ -826,9 +817,11 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 static int update_nodemask(struct cpuset *cs, char *buf)
 {
 	struct cpuset trialcs;
+	nodemask_t oldmem;
 	struct task_struct *g, *p;
 	struct mm_struct **mmarray;
 	int i, n, ntasks;
+	int migrate;
 	int fudge;
 	int retval;
 
@@ -837,6 +830,11 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	if (retval < 0)
 		goto done;
 	nodes_and(trialcs.mems_allowed, trialcs.mems_allowed, node_online_map);
+	oldmem = cs->mems_allowed;
+	if (nodes_equal(oldmem, trialcs.mems_allowed)) {
+		retval = 0;		/* Too easy - nothing to do */
+		goto done;
+	}
 	if (nodes_empty(trialcs.mems_allowed)) {
 		retval = -ENOSPC;
 		goto done;
@@ -908,12 +906,17 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	 * cpuset manage_sem, we know that no other rebind effort will
 	 * be contending for the global variable cpuset_being_rebound.
 	 * It's ok if we rebind the same mm twice; mpol_rebind_mm()
-	 * is idempotent.
+	 * is idempotent.  Also migrate pages in each mm to new nodes.
 	 */
+	migrate = is_memory_migrate(cs);
 	for (i = 0; i < n; i++) {
 		struct mm_struct *mm = mmarray[i];
 
 		mpol_rebind_mm(mm, &cs->mems_allowed);
+		if (migrate) {
+			do_migrate_pages(mm, &oldmem, &cs->mems_allowed,
+							MPOL_MF_MOVE_ALL);
+		}
 		mmput(mm);
 	}
 
