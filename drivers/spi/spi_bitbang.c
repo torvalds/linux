@@ -146,6 +146,9 @@ int spi_bitbang_setup(struct spi_device *spi)
 	struct spi_bitbang_cs	*cs = spi->controller_state;
 	struct spi_bitbang	*bitbang;
 
+	if (!spi->max_speed_hz)
+		return -EINVAL;
+
 	if (!cs) {
 		cs = kzalloc(sizeof *cs, SLAB_KERNEL);
 		if (!cs)
@@ -172,13 +175,8 @@ int spi_bitbang_setup(struct spi_device *spi)
 	if (!cs->txrx_word)
 		return -EINVAL;
 
-	if (!spi->max_speed_hz)
-		spi->max_speed_hz = 500 * 1000;
-
-	/* nsecs = max(50, (clock period)/2), be optimistic */
+	/* nsecs = (clock period)/2 */
 	cs->nsecs = (1000000000/2) / (spi->max_speed_hz);
-	if (cs->nsecs < 50)
-		cs->nsecs = 50;
 	if (cs->nsecs > MAX_UDELAY_MS * 1000)
 		return -EINVAL;
 
@@ -194,7 +192,7 @@ int spi_bitbang_setup(struct spi_device *spi)
 	/* deselect chip (low or high) */
 	spin_lock(&bitbang->lock);
 	if (!bitbang->busy) {
-		bitbang->chipselect(spi, 0);
+		bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
 		ndelay(cs->nsecs);
 	}
 	spin_unlock(&bitbang->lock);
@@ -244,9 +242,9 @@ static void bitbang_work(void *_bitbang)
 		struct spi_message	*m;
 		struct spi_device	*spi;
 		unsigned		nsecs;
-		struct spi_transfer	*t;
+		struct spi_transfer	*t = NULL;
 		unsigned		tmp;
-		unsigned		chipselect;
+		unsigned		cs_change;
 		int			status;
 
 		m = container_of(bitbang->queue.next, struct spi_message,
@@ -254,37 +252,49 @@ static void bitbang_work(void *_bitbang)
 		list_del_init(&m->queue);
 		spin_unlock_irqrestore(&bitbang->lock, flags);
 
-// FIXME this is made-up
-nsecs = 100;
+		/* FIXME this is made-up ... the correct value is known to
+		 * word-at-a-time bitbang code, and presumably chipselect()
+		 * should enforce these requirements too?
+		 */
+		nsecs = 100;
 
 		spi = m->spi;
-		t = m->transfers;
 		tmp = 0;
-		chipselect = 0;
+		cs_change = 1;
 		status = 0;
 
-		for (;;t++) {
+		list_for_each_entry (t, &m->transfers, transfer_list) {
 			if (bitbang->shutdown) {
 				status = -ESHUTDOWN;
 				break;
 			}
 
-			/* set up default clock polarity, and activate chip */
-			if (!chipselect) {
-				bitbang->chipselect(spi, 1);
+			/* set up default clock polarity, and activate chip;
+			 * this implicitly updates clock and spi modes as
+			 * previously recorded for this device via setup().
+			 * (and also deselects any other chip that might be
+			 * selected ...)
+			 */
+			if (cs_change) {
+				bitbang->chipselect(spi, BITBANG_CS_ACTIVE);
 				ndelay(nsecs);
 			}
+			cs_change = t->cs_change;
 			if (!t->tx_buf && !t->rx_buf && t->len) {
 				status = -EINVAL;
 				break;
 			}
 
-			/* transfer data */
+			/* transfer data.  the lower level code handles any
+			 * new dma mappings it needs. our caller always gave
+			 * us dma-safe buffers.
+			 */
 			if (t->len) {
-				/* FIXME if bitbang->use_dma, dma_map_single()
-				 * before the transfer, and dma_unmap_single()
-				 * afterwards, for either or both buffers...
+				/* REVISIT dma API still needs a designated
+				 * DMA_ADDR_INVALID; ~0 might be better.
 				 */
+				if (!m->is_dma_mapped)
+					t->rx_dma = t->tx_dma = 0;
 				status = bitbang->txrx_bufs(spi, t);
 			}
 			if (status != t->len) {
@@ -299,29 +309,31 @@ nsecs = 100;
 			if (t->delay_usecs)
 				udelay(t->delay_usecs);
 
-			tmp++;
-			if (tmp >= m->n_transfer)
+			if (!cs_change)
+				continue;
+			if (t->transfer_list.next == &m->transfers)
 				break;
 
-			chipselect = !t->cs_change;
-			if (chipselect);
-				continue;
-
-			bitbang->chipselect(spi, 0);
-
-			/* REVISIT do we want the udelay here instead? */
-			msleep(1);
+			/* sometimes a short mid-message deselect of the chip
+			 * may be needed to terminate a mode or command
+			 */
+			ndelay(nsecs);
+			bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
+			ndelay(nsecs);
 		}
-
-		tmp = m->n_transfer - 1;
-		tmp = m->transfers[tmp].cs_change;
 
 		m->status = status;
 		m->complete(m->context);
 
-		ndelay(2 * nsecs);
-		bitbang->chipselect(spi, status == 0 && tmp);
-		ndelay(nsecs);
+		/* normally deactivate chipselect ... unless no error and
+		 * cs_change has hinted that the next message will probably
+		 * be for this chip too.
+		 */
+		if (!(status == 0 && cs_change)) {
+			ndelay(nsecs);
+			bitbang->chipselect(spi, BITBANG_CS_INACTIVE);
+			ndelay(nsecs);
+		}
 
 		spin_lock_irqsave(&bitbang->lock, flags);
 	}

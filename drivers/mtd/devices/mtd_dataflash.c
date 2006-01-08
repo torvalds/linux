@@ -147,7 +147,7 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct dataflash	*priv = (struct dataflash *)mtd->priv;
 	struct spi_device	*spi = priv->spi;
-	struct spi_transfer	x[1] = { { .tx_dma = 0, }, };
+	struct spi_transfer	x = { .tx_dma = 0, };
 	struct spi_message	msg;
 	unsigned		blocksize = priv->page_size << 3;
 	u8			*command;
@@ -162,10 +162,11 @@ static int dataflash_erase(struct mtd_info *mtd, struct erase_info *instr)
 			|| (instr->addr % priv->page_size) != 0)
 		return -EINVAL;
 
-	x[0].tx_buf = command = priv->command;
-	x[0].len = 4;
-	msg.transfers = x;
-	msg.n_transfer = 1;
+	spi_message_init(&msg);
+
+	x.tx_buf = command = priv->command;
+	x.len = 4;
+	spi_message_add_tail(&x, &msg);
 
 	down(&priv->lock);
 	while (instr->len > 0) {
@@ -256,12 +257,15 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	DEBUG(MTD_DEBUG_LEVEL3, "READ: (%x) %x %x %x\n",
 		command[0], command[1], command[2], command[3]);
 
+	spi_message_init(&msg);
+
 	x[0].tx_buf = command;
 	x[0].len = 8;
+	spi_message_add_tail(&x[0], &msg);
+
 	x[1].rx_buf = buf;
 	x[1].len = len;
-	msg.transfers = x;
-	msg.n_transfer = 2;
+	spi_message_add_tail(&x[1], &msg);
 
 	down(&priv->lock);
 
@@ -320,9 +324,11 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if ((to + len) > mtd->size)
 		return -EINVAL;
 
+	spi_message_init(&msg);
+
 	x[0].tx_buf = command = priv->command;
 	x[0].len = 4;
-	msg.transfers = x;
+	spi_message_add_tail(&x[0], &msg);
 
 	pageaddr = ((unsigned)to / priv->page_size);
 	offset = ((unsigned)to % priv->page_size);
@@ -364,7 +370,6 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 			DEBUG(MTD_DEBUG_LEVEL3, "TRANSFER: (%x) %x %x %x\n",
 				command[0], command[1], command[2], command[3]);
 
-			msg.n_transfer = 1;
 			status = spi_sync(spi, &msg);
 			if (status < 0)
 				DEBUG(MTD_DEBUG_LEVEL1, "%s: xfer %u -> %d \n",
@@ -385,13 +390,15 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		x[1].tx_buf = writebuf;
 		x[1].len = writelen;
-		msg.n_transfer = 2;
+		spi_message_add_tail(x + 1, &msg);
 		status = spi_sync(spi, &msg);
+		spi_transfer_del(x + 1);
 		if (status < 0)
 			DEBUG(MTD_DEBUG_LEVEL1, "%s: pgm %u/%u -> %d \n",
 				spi->dev.bus_id, addr, writelen, status);
 
 		(void) dataflash_waitready(priv->spi);
+
 
 #ifdef	CONFIG_DATAFLASH_WRITE_VERIFY
 
@@ -405,7 +412,6 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		DEBUG(MTD_DEBUG_LEVEL3, "COMPARE: (%x) %x %x %x\n",
 			command[0], command[1], command[2], command[3]);
 
-		msg.n_transfer = 1;
 		status = spi_sync(spi, &msg);
 		if (status < 0)
 			DEBUG(MTD_DEBUG_LEVEL1, "%s: compare %u -> %d \n",

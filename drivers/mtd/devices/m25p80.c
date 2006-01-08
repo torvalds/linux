@@ -245,6 +245,21 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	if (from + len > flash->mtd.size)
 		return -EINVAL;
 
+	spi_message_init(&m);
+	memset(t, 0, (sizeof t));
+
+	t[0].tx_buf = flash->command;
+	t[0].len = sizeof(flash->command);
+	spi_message_add_tail(&t[0], &m);
+
+	t[1].rx_buf = buf;
+	t[1].len = len;
+	spi_message_add_tail(&t[1], &m);
+
+	/* Byte count starts at zero. */
+	if (retlen)
+		*retlen = 0;
+
 	down(&flash->lock);
 
 	/* Wait till previous write/erase is done. */
@@ -254,8 +269,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 		return 1;
 	}
 
-	memset(t, 0, (sizeof t));
-
 	/* NOTE:  OPCODE_FAST_READ (if available) is faster... */
 
 	/* Set up the write data buffer. */
@@ -263,19 +276,6 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	flash->command[1] = from >> 16;
 	flash->command[2] = from >> 8;
 	flash->command[3] = from;
-
-	/* Byte count starts at zero. */
-	if (retlen)
-		*retlen = 0;
-
-	t[0].tx_buf = flash->command;
-	t[0].len = sizeof(flash->command);
-
-	t[1].rx_buf = buf;
-	t[1].len = len;
-
-	m.transfers = t;
-	m.n_transfer = 2;
 
 	spi_sync(flash->spi, &m);
 
@@ -313,6 +313,16 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (to + len > flash->mtd.size)
 		return -EINVAL;
 
+	spi_message_init(&m);
+	memset(t, 0, (sizeof t));
+
+	t[0].tx_buf = flash->command;
+	t[0].len = sizeof(flash->command);
+	spi_message_add_tail(&t[0], &m);
+
+	t[1].tx_buf = buf;
+	spi_message_add_tail(&t[1], &m);
+
   	down(&flash->lock);
 
 	/* Wait until finished previous write command. */
@@ -321,26 +331,17 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	write_enable(flash);
 
-	memset(t, 0, (sizeof t));
-
 	/* Set up the opcode in the write buffer. */
 	flash->command[0] = OPCODE_PP;
 	flash->command[1] = to >> 16;
 	flash->command[2] = to >> 8;
 	flash->command[3] = to;
 
-	t[0].tx_buf = flash->command;
-	t[0].len = sizeof(flash->command);
-
-	m.transfers = t;
-	m.n_transfer = 2;
-
 	/* what page do we start with? */
 	page_offset = to % FLASH_PAGESIZE;
 
 	/* do all the bytes fit onto one page? */
 	if (page_offset + len <= FLASH_PAGESIZE) {
-		t[1].tx_buf = buf;
 		t[1].len = len;
 
 		spi_sync(flash->spi, &m);
@@ -352,7 +353,6 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 		/* the size of data remaining on the first page */
 		page_size = FLASH_PAGESIZE - page_offset;
 
-		t[1].tx_buf = buf;
 		t[1].len = page_size;
 		spi_sync(flash->spi, &m);
 

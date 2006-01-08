@@ -557,6 +557,17 @@ int spi_write_then_read(struct spi_device *spi,
 	if ((n_tx + n_rx) > SPI_BUFSIZ)
 		return -EINVAL;
 
+	spi_message_init(&message);
+	memset(x, 0, sizeof x);
+	if (n_tx) {
+		x[0].len = n_tx;
+		spi_message_add_tail(&x[0], &message);
+	}
+	if (n_rx) {
+		x[1].len = n_rx;
+		spi_message_add_tail(&x[1], &message);
+	}
+
 	/* ... unless someone else is using the pre-allocated buffer */
 	if (down_trylock(&lock)) {
 		local_buf = kmalloc(SPI_BUFSIZ, GFP_KERNEL);
@@ -565,18 +576,11 @@ int spi_write_then_read(struct spi_device *spi,
 	} else
 		local_buf = buf;
 
-	memset(x, 0, sizeof x);
-
 	memcpy(local_buf, txbuf, n_tx);
 	x[0].tx_buf = local_buf;
-	x[0].len = n_tx;
-
 	x[1].rx_buf = local_buf + n_tx;
-	x[1].len = n_rx;
 
 	/* do the i/o */
-	message.transfers = x;
-	message.n_transfer = ARRAY_SIZE(x);
 	status = spi_sync(spi, &message);
 	if (status == 0) {
 		memcpy(rxbuf, x[1].rx_buf, n_rx);

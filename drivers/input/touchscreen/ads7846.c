@@ -155,9 +155,12 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	struct ser_req		*req = kzalloc(sizeof *req, SLAB_KERNEL);
 	int			status;
 	int			sample;
+	int 			i;
 
 	if (!req)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&req->msg.transfers);
 
 	/* activate reference, so it has time to settle; */
 	req->xfer[0].tx_buf = &ref_on;
@@ -192,8 +195,8 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	/* group all the transfers together, so we can't interfere with
 	 * reading touchscreen state; disable penirq while sampling
 	 */
-	req->msg.transfers = req->xfer;
-	req->msg.n_transfer = 6;
+	for (i = 0; i < 6; i++)
+		spi_message_add_tail(&req->xfer[i], &req->msg);
 
 	disable_irq(spi->irq);
 	status = spi_sync(spi, &req->msg);
@@ -398,6 +401,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	struct ads7846			*ts;
 	struct ads7846_platform_data	*pdata = spi->dev.platform_data;
 	struct spi_transfer		*x;
+	int				i;
 
 	if (!spi->irq) {
 		dev_dbg(&spi->dev, "no IRQ?\n");
@@ -500,8 +504,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 
 	CS_CHANGE(x[-1]);
 
-	ts->msg.transfers = ts->xfer;
-	ts->msg.n_transfer = x - ts->xfer;
+	for (i = 0; i < x - ts->xfer; i++)
+		spi_message_add_tail(&ts->xfer[i], &ts->msg);
 	ts->msg.complete = ads7846_rx;
 	ts->msg.context = ts;
 

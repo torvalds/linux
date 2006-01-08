@@ -263,15 +263,16 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
 
 /**
  * struct spi_transfer - a read/write buffer pair
- * @tx_buf: data to be written (dma-safe address), or NULL
- * @rx_buf: data to be read (dma-safe address), or NULL
- * @tx_dma: DMA address of buffer, if spi_message.is_dma_mapped
- * @rx_dma: DMA address of buffer, if spi_message.is_dma_mapped
+ * @tx_buf: data to be written (dma-safe memory), or NULL
+ * @rx_buf: data to be read (dma-safe memory), or NULL
+ * @tx_dma: DMA address of tx_buf, if spi_message.is_dma_mapped
+ * @rx_dma: DMA address of rx_buf, if spi_message.is_dma_mapped
  * @len: size of rx and tx buffers (in bytes)
  * @cs_change: affects chipselect after this transfer completes
  * @delay_usecs: microseconds to delay after this transfer before
  * 	(optionally) changing the chipselect status, then starting
  * 	the next transfer or completing this spi_message.
+ * @transfer_list: transfers are sequenced through spi_message.transfers
  *
  * SPI transfers always write the same number of bytes as they read.
  * Protocol drivers should always provide rx_buf and/or tx_buf.
@@ -279,11 +280,16 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * the data being transferred; that may reduce overhead, when the
  * underlying driver uses dma.
  *
- * All SPI transfers start with the relevant chipselect active.  Drivers
- * can change behavior of the chipselect after the transfer finishes
- * (including any mandatory delay).  The normal behavior is to leave it
- * selected, except for the last transfer in a message.  Setting cs_change
- * allows two additional behavior options:
+ * If the transmit buffer is null, undefined data will be shifted out
+ * while filling rx_buf.  If the receive buffer is null, the data
+ * shifted in will be discarded.  Only "len" bytes shift out (or in).
+ * It's an error to try to shift out a partial word.  (For example, by
+ * shifting out three bytes with word size of sixteen or twenty bits;
+ * the former uses two bytes per word, the latter uses four bytes.)
+ *
+ * All SPI transfers start with the relevant chipselect active.  Normally
+ * it stays selected until after the last transfer in a message.  Drivers
+ * can affect the chipselect signal using cs_change:
  *
  * (i) If the transfer isn't the last one in the message, this flag is
  * used to make the chipselect briefly go inactive in the middle of the
@@ -299,7 +305,8 @@ extern struct spi_master *spi_busnum_to_master(u16 busnum);
  * The code that submits an spi_message (and its spi_transfers)
  * to the lower layers is responsible for managing its memory.
  * Zero-initialize every field you don't set up explicitly, to
- * insulate against future API updates.
+ * insulate against future API updates.  After you submit a message
+ * and its transfers, ignore them until its completion callback.
  */
 struct spi_transfer {
 	/* it's ok if tx_buf == rx_buf (right?)
@@ -316,12 +323,13 @@ struct spi_transfer {
 
 	unsigned	cs_change:1;
 	u16		delay_usecs;
+
+	struct list_head transfer_list;
 };
 
 /**
  * struct spi_message - one multi-segment SPI transaction
- * @transfers: the segements of the transaction
- * @n_transfer: how many segments
+ * @transfers: list of transfer segments in this transaction
  * @spi: SPI device to which the transaction is queued
  * @is_dma_mapped: if true, the caller provided both dma and cpu virtual
  *	addresses for each transfer buffer
@@ -333,14 +341,22 @@ struct spi_transfer {
  * @queue: for use by whichever driver currently owns the message
  * @state: for use by whichever driver currently owns the message
  *
+ * An spi_message is used to execute an atomic sequence of data transfers,
+ * each represented by a struct spi_transfer.  The sequence is "atomic"
+ * in the sense that no other spi_message may use that SPI bus until that
+ * sequence completes.  On some systems, many such sequences can execute as
+ * as single programmed DMA transfer.  On all systems, these messages are
+ * queued, and might complete after transactions to other devices.  Messages
+ * sent to a given spi_device are alway executed in FIFO order.
+ *
  * The code that submits an spi_message (and its spi_transfers)
  * to the lower layers is responsible for managing its memory.
  * Zero-initialize every field you don't set up explicitly, to
- * insulate against future API updates.
+ * insulate against future API updates.  After you submit a message
+ * and its transfers, ignore them until its completion callback.
  */
 struct spi_message {
-	struct spi_transfer	*transfers;
-	unsigned		n_transfer;
+	struct list_head 	transfers;
 
 	struct spi_device	*spi;
 
@@ -371,6 +387,24 @@ struct spi_message {
 	void			*state;
 };
 
+static inline void spi_message_init(struct spi_message *m)
+{
+	memset(m, 0, sizeof *m);
+	INIT_LIST_HEAD(&m->transfers);
+}
+
+static inline void
+spi_message_add_tail(struct spi_transfer *t, struct spi_message *m)
+{
+	list_add_tail(&t->transfer_list, &m->transfers);
+}
+
+static inline void
+spi_transfer_del(struct spi_transfer *t)
+{
+	list_del(&t->transfer_list);
+}
+
 /* It's fine to embed message and transaction structures in other data
  * structures so long as you don't free them while they're in use.
  */
@@ -383,8 +417,12 @@ static inline struct spi_message *spi_message_alloc(unsigned ntrans, gfp_t flags
 			+ ntrans * sizeof(struct spi_transfer),
 			flags);
 	if (m) {
-		m->transfers = (void *)(m + 1);
-		m->n_transfer = ntrans;
+		int i;
+		struct spi_transfer *t = (struct spi_transfer *)(m + 1);
+
+		INIT_LIST_HEAD(&m->transfers);
+		for (i = 0; i < ntrans; i++, t++)
+			spi_message_add_tail(t, m);
 	}
 	return m;
 }
@@ -402,6 +440,8 @@ static inline void spi_message_free(struct spi_message *m)
  * device doesn't work with the mode 0 default.  They may likewise need
  * to update clock rates or word sizes from initial values.  This function
  * changes those settings, and must be called from a context that can sleep.
+ * The changes take effect the next time the device is selected and data
+ * is transferred to or from it.
  */
 static inline int
 spi_setup(struct spi_device *spi)
@@ -468,15 +508,12 @@ spi_write(struct spi_device *spi, const u8 *buf, size_t len)
 {
 	struct spi_transfer	t = {
 			.tx_buf		= buf,
-			.rx_buf		= NULL,
 			.len		= len,
-			.cs_change	= 0,
 		};
-	struct spi_message	m = {
-			.transfers	= &t,
-			.n_transfer	= 1,
-		};
+	struct spi_message	m;
 
+	spi_message_init(&m);
+	spi_message_add_tail(&t, &m);
 	return spi_sync(spi, &m);
 }
 
@@ -493,16 +530,13 @@ static inline int
 spi_read(struct spi_device *spi, u8 *buf, size_t len)
 {
 	struct spi_transfer	t = {
-			.tx_buf		= NULL,
 			.rx_buf		= buf,
 			.len		= len,
-			.cs_change	= 0,
 		};
-	struct spi_message	m = {
-			.transfers	= &t,
-			.n_transfer	= 1,
-		};
+	struct spi_message	m;
 
+	spi_message_init(&m);
+	spi_message_add_tail(&t, &m);
 	return spi_sync(spi, &m);
 }
 

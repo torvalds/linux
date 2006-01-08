@@ -31,8 +31,15 @@ struct spi_bitbang {
 	struct spi_master	*master;
 
 	void	(*chipselect)(struct spi_device *spi, int is_on);
+#define	BITBANG_CS_ACTIVE	1	/* normally nCS, active low */
+#define	BITBANG_CS_INACTIVE	0
 
+	/* txrx_bufs() may handle dma mapping for transfers that don't
+	 * already have one (transfer.{tx,rx}_dma is zero), or use PIO
+	 */
 	int	(*txrx_bufs)(struct spi_device *spi, struct spi_transfer *t);
+
+	/* txrx_word[SPI_MODE_*]() just looks like a shift register */
 	u32	(*txrx_word[4])(struct spi_device *spi,
 			unsigned nsecs,
 			u32 word, u8 bits);
