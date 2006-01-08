@@ -235,6 +235,13 @@ static inline struct zonelist *huge_zonelist(struct vm_area_struct *vma,
 	return NODE_DATA(0)->node_zonelists + gfp_zone(GFP_HIGHUSER);
 }
 
+static inline int do_migrate_pages(struct mm_struct *mm,
+			const nodemask_t *from_nodes,
+			const nodemask_t *to_nodes, int flags)
+{
+	return 0;
+}
+
 static inline void check_highest_zone(int k)
 {
 }

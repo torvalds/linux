@@ -87,6 +87,7 @@ struct cpuset {
 typedef enum {
 	CS_CPU_EXCLUSIVE,
 	CS_MEM_EXCLUSIVE,
+	CS_MEMORY_MIGRATE,
 	CS_REMOVED,
 	CS_NOTIFY_ON_RELEASE
 } cpuset_flagbits_t;
@@ -110,6 +111,11 @@ static inline int is_removed(const struct cpuset *cs)
 static inline int notify_on_release(const struct cpuset *cs)
 {
 	return !!test_bit(CS_NOTIFY_ON_RELEASE, &cs->flags);
+}
+
+static inline int is_memory_migrate(const struct cpuset *cs)
+{
+	return !!test_bit(CS_MEMORY_MIGRATE, &cs->flags);
 }
 
 /*
@@ -602,16 +608,24 @@ static void refresh_mems(void)
 	if (current->cpuset_mems_generation != my_cpusets_mem_gen) {
 		struct cpuset *cs;
 		nodemask_t oldmem = current->mems_allowed;
+		int migrate;
 
 		down(&callback_sem);
 		task_lock(current);
 		cs = current->cpuset;
+		migrate = is_memory_migrate(cs);
 		guarantee_online_mems(cs, &current->mems_allowed);
 		current->cpuset_mems_generation = cs->mems_generation;
 		task_unlock(current);
 		up(&callback_sem);
-		if (!nodes_equal(oldmem, current->mems_allowed))
+		if (!nodes_equal(oldmem, current->mems_allowed)) {
 			numa_policy_rebind(&oldmem, &current->mems_allowed);
+			if (migrate) {
+				do_migrate_pages(current->mm, &oldmem,
+					&current->mems_allowed,
+					MPOL_MF_MOVE_ALL);
+			}
+		}
 	}
 }
 
@@ -795,7 +809,7 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 /*
  * update_flag - read a 0 or a 1 in a file and update associated flag
  * bit:	the bit to update (CS_CPU_EXCLUSIVE, CS_MEM_EXCLUSIVE,
- *						CS_NOTIFY_ON_RELEASE)
+ *				CS_NOTIFY_ON_RELEASE, CS_MEMORY_MIGRATE)
  * cs:	the cpuset to update
  * buf:	the buffer where we read the 0 or 1
  *
@@ -848,6 +862,7 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	struct task_struct *tsk;
 	struct cpuset *oldcs;
 	cpumask_t cpus;
+	nodemask_t from, to;
 
 	if (sscanf(pidbuf, "%d", &pid) != 1)
 		return -EIO;
@@ -893,7 +908,12 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 	guarantee_online_cpus(cs, &cpus);
 	set_cpus_allowed(tsk, cpus);
 
+	from = oldcs->mems_allowed;
+	to = cs->mems_allowed;
+
 	up(&callback_sem);
+	if (is_memory_migrate(cs))
+		do_migrate_pages(tsk->mm, &from, &to, MPOL_MF_MOVE_ALL);
 	put_task_struct(tsk);
 	if (atomic_dec_and_test(&oldcs->count))
 		check_for_release(oldcs, ppathbuf);
@@ -905,6 +925,7 @@ static int attach_task(struct cpuset *cs, char *pidbuf, char **ppathbuf)
 typedef enum {
 	FILE_ROOT,
 	FILE_DIR,
+	FILE_MEMORY_MIGRATE,
 	FILE_CPULIST,
 	FILE_MEMLIST,
 	FILE_CPU_EXCLUSIVE,
@@ -959,6 +980,9 @@ static ssize_t cpuset_common_file_write(struct file *file, const char __user *us
 		break;
 	case FILE_NOTIFY_ON_RELEASE:
 		retval = update_flag(CS_NOTIFY_ON_RELEASE, cs, buffer);
+		break;
+	case FILE_MEMORY_MIGRATE:
+		retval = update_flag(CS_MEMORY_MIGRATE, cs, buffer);
 		break;
 	case FILE_TASKLIST:
 		retval = attach_task(cs, buffer, &pathbuf);
@@ -1059,6 +1083,9 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 		break;
 	case FILE_NOTIFY_ON_RELEASE:
 		*s++ = notify_on_release(cs) ? '1' : '0';
+		break;
+	case FILE_MEMORY_MIGRATE:
+		*s++ = is_memory_migrate(cs) ? '1' : '0';
 		break;
 	default:
 		retval = -EINVAL;
@@ -1408,6 +1435,11 @@ static struct cftype cft_notify_on_release = {
 	.private = FILE_NOTIFY_ON_RELEASE,
 };
 
+static struct cftype cft_memory_migrate = {
+	.name = "memory_migrate",
+	.private = FILE_MEMORY_MIGRATE,
+};
+
 static int cpuset_populate_dir(struct dentry *cs_dentry)
 {
 	int err;
@@ -1421,6 +1453,8 @@ static int cpuset_populate_dir(struct dentry *cs_dentry)
 	if ((err = cpuset_add_file(cs_dentry, &cft_mem_exclusive)) < 0)
 		return err;
 	if ((err = cpuset_add_file(cs_dentry, &cft_notify_on_release)) < 0)
+		return err;
+	if ((err = cpuset_add_file(cs_dentry, &cft_memory_migrate)) < 0)
 		return err;
 	if ((err = cpuset_add_file(cs_dentry, &cft_tasks)) < 0)
 		return err;

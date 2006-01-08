@@ -192,6 +192,7 @@ containing the following files describing that cpuset:
 
  - cpus: list of CPUs in that cpuset
  - mems: list of Memory Nodes in that cpuset
+ - memory_migrate flag: if set, move pages to cpusets nodes
  - cpu_exclusive flag: is cpu placement exclusive?
  - mem_exclusive flag: is memory placement exclusive?
  - tasks: list of tasks (by pid) attached to that cpuset
@@ -276,6 +277,30 @@ but the processor placement is not updated, until that tasks pid is
 rewritten to the 'tasks' file of its cpuset.  This is done to avoid
 impacting the scheduler code in the kernel with a check for changes
 in a tasks processor placement.
+
+Normally, once a page is allocated (given a physical page
+of main memory) then that page stays on whatever node it
+was allocated, so long as it remains allocated, even if the
+cpusets memory placement policy 'mems' subsequently changes.
+If the cpuset flag file 'memory_migrate' is set true, then when
+tasks are attached to that cpuset, any pages that task had
+allocated to it on nodes in its previous cpuset are migrated
+to the tasks new cpuset.  Depending on the implementation,
+this migration may either be done by swapping the page out,
+so that the next time the page is referenced, it will be paged
+into the tasks new cpuset, usually on the node where it was
+referenced, or this migration may be done by directly copying
+the pages from the tasks previous cpuset to the new cpuset,
+where possible to the same node, relative to the new cpuset,
+as the node that held the page, relative to the old cpuset.
+Also if 'memory_migrate' is set true, then if that cpusets
+'mems' file is modified, pages allocated to tasks in that
+cpuset, that were on nodes in the previous setting of 'mems',
+will be moved to nodes in the new setting of 'mems.'  Again,
+depending on the implementation, this might be done by swapping,
+or by direct copying.  In either case, pages that were not in
+the tasks prior cpuset, or in the cpusets prior 'mems' setting,
+will not be moved.
 
 There is an exception to the above.  If hotplug functionality is used
 to remove all the CPUs that are currently assigned to a cpuset,
