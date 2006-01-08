@@ -606,10 +606,6 @@ int putback_lru_pages(struct list_head *l)
 /*
  * swapout a single page
  * page is locked upon entry, unlocked on exit
- *
- * return codes:
- *	0 = complete
- *	1 = retry
  */
 static int swap_page(struct page *page)
 {
@@ -650,7 +646,7 @@ unlock_retry:
 	unlock_page(page);
 
 retry:
-	return 1;
+	return -EAGAIN;
 }
 /*
  * migrate_pages
@@ -669,6 +665,8 @@ retry:
  * is only swapping out pages and never touches the second
  * list. The direct migration patchset
  * extends this function to avoid the use of swap.
+ *
+ * Return: Number of pages not migrated when "to" ran empty.
  */
 int migrate_pages(struct list_head *from, struct list_head *to,
 		  struct list_head *moved, struct list_head *failed)
@@ -679,6 +677,7 @@ int migrate_pages(struct list_head *from, struct list_head *to,
 	struct page *page;
 	struct page *page2;
 	int swapwrite = current->flags & PF_SWAPWRITE;
+	int rc;
 
 	if (!swapwrite)
 		current->flags |= PF_SWAPWRITE;
@@ -689,22 +688,23 @@ redo:
 	list_for_each_entry_safe(page, page2, from, lru) {
 		cond_resched();
 
-		if (page_count(page) == 1) {
+		rc = 0;
+		if (page_count(page) == 1)
 			/* page was freed from under us. So we are done. */
-			list_move(&page->lru, moved);
-			continue;
-		}
+			goto next;
+
 		/*
 		 * Skip locked pages during the first two passes to give the
 		 * functions holding the lock time to release the page. Later we
 		 * use lock_page() to have a higher chance of acquiring the
 		 * lock.
 		 */
+		rc = -EAGAIN;
 		if (pass > 2)
 			lock_page(page);
 		else
 			if (TestSetPageLocked(page))
-				goto retry_later;
+				goto next;
 
 		/*
 		 * Only wait on writeback if we have already done a pass where
@@ -713,18 +713,19 @@ redo:
 		if (pass > 0) {
 			wait_on_page_writeback(page);
 		} else {
-			if (PageWriteback(page)) {
-				unlock_page(page);
-				goto retry_later;
-			}
+			if (PageWriteback(page))
+				goto unlock_page;
 		}
 
+		/*
+		 * Anonymous pages must have swap cache references otherwise
+		 * the information contained in the page maps cannot be
+		 * preserved.
+		 */
 		if (PageAnon(page) && !PageSwapCache(page)) {
 			if (!add_to_swap(page, GFP_KERNEL)) {
-				unlock_page(page);
-				list_move(&page->lru, failed);
-				nr_failed++;
-				continue;
+				rc = -ENOMEM;
+				goto unlock_page;
 			}
 		}
 
@@ -732,12 +733,23 @@ redo:
 		 * Page is properly locked and writeback is complete.
 		 * Try to migrate the page.
 		 */
-		if (!swap_page(page)) {
+		rc = swap_page(page);
+		goto next;
+
+unlock_page:
+		unlock_page(page);
+
+next:
+		if (rc == -EAGAIN) {
+			retry++;
+		} else if (rc) {
+			/* Permanent failure */
+			list_move(&page->lru, failed);
+			nr_failed++;
+		} else {
+			/* Success */
 			list_move(&page->lru, moved);
-			continue;
 		}
-retry_later:
-		retry++;
 	}
 	if (retry && pass++ < 10)
 		goto redo;
