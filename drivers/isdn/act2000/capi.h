@@ -330,7 +330,7 @@ typedef struct actcapi_msg {
 	} msg;
 } actcapi_msg;
 
-extern __inline__ unsigned short
+static inline unsigned short
 actcapi_nextsmsg(act2000_card *card)
 {
 	unsigned long flags;
