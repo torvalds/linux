@@ -152,6 +152,20 @@ static inline int tag_get(struct radix_tree_node *node, int tag, int offset)
 }
 
 /*
+ * Returns 1 if any slot in the node has this tag set.
+ * Otherwise returns 0.
+ */
+static inline int any_tag_set(struct radix_tree_node *node, int tag)
+{
+	int idx;
+	for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
+		if (node->tags[tag][idx])
+			return 1;
+	}
+	return 0;
+}
+
+/*
  *	Return the maximum key which can be store into a
  *	radix tree with height HEIGHT.
  */
@@ -185,15 +199,9 @@ static int radix_tree_extend(struct radix_tree_root *root, unsigned long index)
 	 * into the newly-pushed top-level node(s)
 	 */
 	for (tag = 0; tag < RADIX_TREE_TAGS; tag++) {
-		int idx;
-
 		tags[tag] = 0;
-		for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
-			if (root->rnode->tags[tag][idx]) {
-				tags[tag] = 1;
-				break;
-			}
-		}
+		if (any_tag_set(root->rnode, tag))
+			tags[tag] = 1;
 	}
 
 	do {
@@ -427,13 +435,9 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
 		goto out;
 
 	do {
-		int idx;
-
 		tag_clear(pathp->node, tag, pathp->offset);
-		for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
-			if (pathp->node->tags[tag][idx])
-				goto out;
-		}
+		if (any_tag_set(pathp->node, tag))
+			goto out;
 		pathp--;
 	} while (pathp->node);
 out:
@@ -729,19 +733,14 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 
 		nr_cleared_tags = RADIX_TREE_TAGS;
 		for (tag = 0; tag < RADIX_TREE_TAGS; tag++) {
-			int idx;
-
 			if (tags[tag])
 				continue;
 
 			tag_clear(pathp->node, tag, pathp->offset);
 
-			for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
-				if (pathp->node->tags[tag][idx]) {
-					tags[tag] = 1;
-					nr_cleared_tags--;
-					break;
-				}
+			if (any_tag_set(pathp->node, tag)) {
+				tags[tag] = 1;
+				nr_cleared_tags--;
 			}
 		}
 		pathp--;
@@ -770,15 +769,11 @@ EXPORT_SYMBOL(radix_tree_delete);
  */
 int radix_tree_tagged(struct radix_tree_root *root, int tag)
 {
-	int idx;
-
-	if (!root->rnode)
-		return 0;
-	for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
-		if (root->rnode->tags[tag][idx])
-			return 1;
-	}
-	return 0;
+  	struct radix_tree_node *rnode;
+  	rnode = root->rnode;
+  	if (!rnode)
+  		return 0;
+	return any_tag_set(rnode, tag);
 }
 EXPORT_SYMBOL(radix_tree_tagged);
 
