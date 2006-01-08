@@ -338,6 +338,32 @@ out:
 }
 #endif
 
+#if defined(CONFIG_ARCH_IXDP2X01)
+static int
+readword(unsigned long base_addr, int portno)
+{
+	return (u16)__raw_readl(base_addr + (portno << 1));
+}
+
+static void
+writeword(unsigned long base_addr, int portno, int value)
+{
+	__raw_writel((u16)value, base_addr + (portno << 1));
+}
+#else
+#if defined(CONFIG_ARCH_PNX0501)
+static int
+readword(unsigned long base_addr, int portno)
+{
+	return inw(base_addr + (portno << 1));
+}
+
+static void
+writeword(unsigned long base_addr, int portno, int value)
+{
+	outw(value, base_addr + (portno << 1));
+}
+#else
 static int
 readword(unsigned long base_addr, int portno)
 {
@@ -349,6 +375,8 @@ writeword(unsigned long base_addr, int portno, int value)
 {
 	outw(value, base_addr + portno);
 }
+#endif
+#endif
 
 static int
 readreg(struct net_device *dev, int regno)
