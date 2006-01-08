@@ -1146,11 +1146,6 @@ static task_t *copy_process(unsigned long clone_flags,
 	total_forks++;
 	write_unlock_irq(&tasklist_lock);
 	proc_fork_connector(p);
-	retval = 0;
-
-fork_out:
-	if (retval)
-		return ERR_PTR(retval);
 	return p;
 
 bad_fork_cleanup_namespace:
@@ -1191,7 +1186,8 @@ bad_fork_cleanup_count:
 	free_uid(p->user);
 bad_fork_free:
 	free_task(p);
-	goto fork_out;
+fork_out:
+	return ERR_PTR(retval);
 }
 
 struct pt_regs * __devinit __attribute__((weak)) idle_regs(struct pt_regs *regs)
