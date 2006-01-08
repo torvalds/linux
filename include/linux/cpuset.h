@@ -14,6 +14,8 @@
 
 #ifdef CONFIG_CPUSETS
 
+extern int number_of_cpusets;	/* How many cpusets are defined in system? */
+
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
 extern void cpuset_fork(struct task_struct *p);
@@ -25,7 +27,13 @@ void cpuset_update_task_memory_state(void);
 #define cpuset_nodes_subset_current_mems_allowed(nodes) \
 		nodes_subset((nodes), current->mems_allowed)
 int cpuset_zonelist_valid_mems_allowed(struct zonelist *zl);
-extern int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask);
+
+extern int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask);
+static int inline cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+{
+	return number_of_cpusets <= 1 || __cpuset_zone_allowed(z, gfp_mask);
+}
+
 extern int cpuset_excl_nodes_overlap(const struct task_struct *p);
 
 #define cpuset_memory_pressure_bump() 				\

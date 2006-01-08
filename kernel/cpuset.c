@@ -56,6 +56,13 @@
 
 #define CPUSET_SUPER_MAGIC		0x27e0eb
 
+/*
+ * Tracks how many cpusets are currently defined in system.
+ * When there is only one cpuset (the root cpuset) we can
+ * short circuit some hooks.
+ */
+int number_of_cpusets;
+
 /* See "Frequency meter" comments, below. */
 
 struct fmeter {
@@ -1664,6 +1671,7 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 
 	down(&callback_sem);
 	list_add(&cs->sibling, &cs->parent->children);
+	number_of_cpusets++;
 	up(&callback_sem);
 
 	err = cpuset_create_dir(cs, name, mode);
@@ -1726,6 +1734,7 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	spin_unlock(&d->d_lock);
 	cpuset_d_remove_dir(d);
 	dput(d);
+	number_of_cpusets--;
 	up(&callback_sem);
 	if (list_empty(&parent->children))
 		check_for_release(parent, &pathbuf);
@@ -1769,6 +1778,7 @@ int __init cpuset_init(void)
 	root->d_inode->i_nlink++;
 	top_cpuset.dentry = root;
 	root->d_inode->i_op = &cpuset_dir_inode_operations;
+	number_of_cpusets = 1;
 	err = cpuset_populate_dir(root);
 	/* memory_pressure_enabled is in root cpuset only */
 	if (err == 0)
@@ -1982,7 +1992,7 @@ static const struct cpuset *nearest_exclusive_ancestor(const struct cpuset *cs)
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
  **/
 
-int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
+int __cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 {
 	int node;			/* node that zone z is on */
 	const struct cpuset *cs;	/* current cpuset ancestors */
