@@ -1,18 +1,19 @@
 Overview of Linux kernel SPI support
 ====================================
 
-22-Nov-2005
+02-Dec-2005
 
 What is SPI?
 ------------
-The "Serial Peripheral Interface" (SPI) is a four-wire point-to-point
-serial link used to connect microcontrollers to sensors and memory.
+The "Serial Peripheral Interface" (SPI) is a synchronous four wire serial
+link used to connect microcontrollers to sensors, memory, and peripherals.
 
 The three signal wires hold a clock (SCLK, often on the order of 10 MHz),
 and parallel data lines with "Master Out, Slave In" (MOSI) or "Master In,
 Slave Out" (MISO) signals.  (Other names are also used.)  There are four
 clocking modes through which data is exchanged; mode-0 and mode-3 are most
-commonly used.
+commonly used.  Each clock cycle shifts data out and data in; the clock
+doesn't cycle except when there is data to shift.
 
 SPI masters may use a "chip select" line to activate a given SPI slave
 device, so those three signal wires may be connected to several chips
@@ -79,11 +80,18 @@ The <linux/spi/spi.h> header file includes kerneldoc, as does the
 main source code, and you should certainly read that.  This is just
 an overview, so you get the big picture before the details.
 
+SPI requests always go into I/O queues.  Requests for a given SPI device
+are always executed in FIFO order, and complete asynchronously through
+completion callbacks.  There are also some simple synchronous wrappers
+for those calls, including ones for common transaction types like writing
+a command and then reading its response.
+
 There are two types of SPI driver, here called:
 
   Controller drivers ... these are often built in to System-On-Chip
 	processors, and often support both Master and Slave roles.
 	These drivers touch hardware registers and may use DMA.
+	Or they can be PIO bitbangers, needing just GPIO pins.
 
   Protocol drivers ... these pass messages through the controller
 	driver to communicate with a Slave or Master device on the
@@ -115,11 +123,6 @@ shows up in sysfs in several locations:
    /sys/class/spi_master/spiB ... class device for the controller
 	managing bus "B".  All the spiB.* devices share the same
 	physical SPI bus segment, with SCLK, MOSI, and MISO.
-
-The basic I/O primitive submits an asynchronous message to an I/O queue
-maintained by the controller driver.  A completion callback is issued
-asynchronously when the data transfer(s) in that message completes.
-There are also some simple synchronous wrappers for those calls.
 
 
 How does board-specific init code declare SPI devices?
@@ -263,33 +266,40 @@ would just be another kernel driver, probably offering some lowlevel
 access through aio_read(), aio_write(), and ioctl() calls and using the
 standard userspace sysfs mechanisms to bind to a given SPI device.
 
-SPI protocol drivers are normal device drivers, with no more wrapper
-than needed by platform devices:
+SPI protocol drivers somewhat resemble platform device drivers:
 
-	static struct device_driver CHIP_driver = {
-		.name		= "CHIP",
-		.bus		= &spi_bus_type,
+	static struct spi_driver CHIP_driver = {
+		.driver = {
+			.name		= "CHIP",
+			.bus		= &spi_bus_type,
+			.owner		= THIS_MODULE,
+		},
+
 		.probe		= CHIP_probe,
-		.remove		= __exit_p(CHIP_remove),
+		.remove		= __devexit_p(CHIP_remove),
 		.suspend	= CHIP_suspend,
 		.resume		= CHIP_resume,
 	};
 
-The SPI core will autmatically attempt to bind this driver to any SPI
+The driver core will autmatically attempt to bind this driver to any SPI
 device whose board_info gave a modalias of "CHIP".  Your probe() code
 might look like this unless you're creating a class_device:
 
-	static int __init CHIP_probe(struct device *dev)
+	static int __devinit CHIP_probe(struct spi_device *spi)
 	{
-		struct spi_device		*spi = to_spi_device(dev);
 		struct CHIP			*chip;
-		struct CHIP_platform_data	*pdata = dev->platform_data;
+		struct CHIP_platform_data	*pdata;
+
+		/* assuming the driver requires board-specific data: */
+		pdata = &spi->dev.platform_data;
+		if (!pdata)
+			return -ENODEV;
 
 		/* get memory for driver's per-chip state */
 		chip = kzalloc(sizeof *chip, GFP_KERNEL);
 		if (!chip)
 			return -ENOMEM;
-		dev_set_drvdata(dev, chip);
+		dev_set_drvdata(&spi->dev, chip);
 
 		... etc
 		return 0;
@@ -328,6 +338,8 @@ the driver guarantees that it won't submit any more such messages.
   - The basic I/O primitive is spi_async().  Async requests may be
     issued in any context (irq handler, task, etc) and completion
     is reported using a callback provided with the message.
+    After any detected error, the chip is deselected and processing
+    of that spi_message is aborted.
 
   - There are also synchronous wrappers like spi_sync(), and wrappers
     like spi_read(), spi_write(), and spi_write_then_read().  These

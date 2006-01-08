@@ -26,13 +26,9 @@
 #include <linux/spi/spi.h>
 
 
-/* SPI bustype and spi_master class are registered during early boot,
- * usually before board init code provides the SPI device tables, and
- * are available later when driver init code needs them.
- *
- * Drivers for SPI devices started out like those for platform bus
- * devices.  But both have changed in 2.6.15; maybe this should get
- * an "spi_driver" structure at some point (not currently needed)
+/* SPI bustype and spi_master class are registered after board init code
+ * provides the SPI device tables, ensuring that both are present by the
+ * time controller driver registration causes spi_devices to "enumerate".
  */
 static void spidev_release(struct device *dev)
 {
@@ -83,10 +79,7 @@ static int spi_uevent(struct device *dev, char **envp, int num_envp,
 
 #ifdef	CONFIG_PM
 
-/* Suspend/resume in "struct device_driver" don't really need that
- * strange third parameter, so we just make it a constant and expect
- * SPI drivers to ignore it just like most platform drivers do.
- *
+/*
  * NOTE:  the suspend() method for an spi_master controller driver
  * should verify that all its child devices are marked as suspended;
  * suspend requests delivered through sysfs power/state files don't
@@ -94,13 +87,14 @@ static int spi_uevent(struct device *dev, char **envp, int num_envp,
  */
 static int spi_suspend(struct device *dev, pm_message_t message)
 {
-	int	value;
+	int			value;
+	struct spi_driver	*drv = to_spi_driver(dev->driver);
 
-	if (!dev->driver || !dev->driver->suspend)
+	if (!drv || !drv->suspend)
 		return 0;
 
 	/* suspend will stop irqs and dma; no more i/o */
-	value = dev->driver->suspend(dev, message);
+	value = drv->suspend(to_spi_device(dev), message);
 	if (value == 0)
 		dev->power.power_state = message;
 	return value;
@@ -108,13 +102,14 @@ static int spi_suspend(struct device *dev, pm_message_t message)
 
 static int spi_resume(struct device *dev)
 {
-	int	value;
+	int			value;
+	struct spi_driver	*drv = to_spi_driver(dev->driver);
 
-	if (!dev->driver || !dev->driver->resume)
+	if (!drv || !drv->resume)
 		return 0;
 
 	/* resume may restart the i/o queue */
-	value = dev->driver->resume(dev);
+	value = drv->resume(to_spi_device(dev));
 	if (value == 0)
 		dev->power.power_state = PMSG_ON;
 	return value;
@@ -134,6 +129,41 @@ struct bus_type spi_bus_type = {
 	.resume		= spi_resume,
 };
 EXPORT_SYMBOL_GPL(spi_bus_type);
+
+
+static int spi_drv_probe(struct device *dev)
+{
+	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+
+	return sdrv->probe(to_spi_device(dev));
+}
+
+static int spi_drv_remove(struct device *dev)
+{
+	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+
+	return sdrv->remove(to_spi_device(dev));
+}
+
+static void spi_drv_shutdown(struct device *dev)
+{
+	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
+
+	sdrv->shutdown(to_spi_device(dev));
+}
+
+int spi_register_driver(struct spi_driver *sdrv)
+{
+	sdrv->driver.bus = &spi_bus_type;
+	if (sdrv->probe)
+		sdrv->driver.probe = spi_drv_probe;
+	if (sdrv->remove)
+		sdrv->driver.remove = spi_drv_remove;
+	if (sdrv->shutdown)
+		sdrv->driver.shutdown = spi_drv_shutdown;
+	return driver_register(&sdrv->driver);
+}
+EXPORT_SYMBOL_GPL(spi_register_driver);
 
 /*-------------------------------------------------------------------------*/
 
@@ -208,13 +238,15 @@ spi_new_device(struct spi_master *master, struct spi_board_info *chip)
 	if (status < 0) {
 		dev_dbg(dev, "can't %s %s, status %d\n",
 				"add", proxy->dev.bus_id, status);
-fail:
-		class_device_put(&master->cdev);
-		kfree(proxy);
-		return NULL;
+		goto fail;
 	}
 	dev_dbg(dev, "registered child %s\n", proxy->dev.bus_id);
 	return proxy;
+
+fail:
+	class_device_put(&master->cdev);
+	kfree(proxy);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(spi_new_device);
 
@@ -237,11 +269,11 @@ spi_register_board_info(struct spi_board_info const *info, unsigned n)
 {
 	struct boardinfo	*bi;
 
-	bi = kmalloc (sizeof (*bi) + n * sizeof (*info), GFP_KERNEL);
+	bi = kmalloc(sizeof(*bi) + n * sizeof *info, GFP_KERNEL);
 	if (!bi)
 		return -ENOMEM;
 	bi->n_board_info = n;
-	memcpy(bi->board_info, info, n * sizeof (*info));
+	memcpy(bi->board_info, info, n * sizeof *info);
 
 	down(&board_lock);
 	list_add_tail(&bi->list, &board_list);
@@ -330,6 +362,7 @@ spi_alloc_master(struct device *dev, unsigned size)
 	if (!master)
 		return NULL;
 
+	class_device_initialize(&master->cdev);
 	master->cdev.class = &spi_master_class;
 	master->cdev.dev = get_device(dev);
 	class_set_devdata(&master->cdev, &master[1]);
@@ -366,7 +399,7 @@ spi_register_master(struct spi_master *master)
 	/* convention:  dynamically assigned bus IDs count down from the max */
 	if (master->bus_num == 0) {
 		master->bus_num = atomic_dec_return(&dyn_bus_id);
-		dynamic = 0;
+		dynamic = 1;
 	}
 
 	/* register the device, then userspace will see it.
@@ -374,11 +407,9 @@ spi_register_master(struct spi_master *master)
 	 */
 	snprintf(master->cdev.class_id, sizeof master->cdev.class_id,
 		"spi%u", master->bus_num);
-	status = class_device_register(&master->cdev);
-	if (status < 0) {
-		class_device_put(&master->cdev);
+	status = class_device_add(&master->cdev);
+	if (status < 0)
 		goto done;
-	}
 	dev_dbg(dev, "registered master %s%s\n", master->cdev.class_id,
 			dynamic ? " (dynamic)" : "");
 
@@ -491,6 +522,7 @@ static u8	*buf;
  * This performs a half duplex MicroWire style transaction with the
  * device, sending txbuf and then reading rxbuf.  The return value
  * is zero for success, else a negative errno status code.
+ * This call may only be used from a context that may sleep.
  *
  * Parameters to this routine are always copied using a small buffer,
  * large transfers should use use spi_{async,sync}() calls with
@@ -553,16 +585,38 @@ EXPORT_SYMBOL_GPL(spi_write_then_read);
 
 static int __init spi_init(void)
 {
-	buf = kmalloc(SPI_BUFSIZ, SLAB_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	int	status;
 
-	bus_register(&spi_bus_type);
-	class_register(&spi_master_class);
+	buf = kmalloc(SPI_BUFSIZ, SLAB_KERNEL);
+	if (!buf) {
+		status = -ENOMEM;
+		goto err0;
+	}
+
+	status = bus_register(&spi_bus_type);
+	if (status < 0)
+		goto err1;
+
+	status = class_register(&spi_master_class);
+	if (status < 0)
+		goto err2;
 	return 0;
+
+err2:
+	bus_unregister(&spi_bus_type);
+err1:
+	kfree(buf);
+	buf = NULL;
+err0:
+	return status;
 }
+
 /* board_info is normally registered in arch_initcall(),
  * but even essential drivers wait till later
+ *
+ * REVISIT only boardinfo really needs static linking. the rest (device and
+ * driver registration) _could_ be dynamically linked (modular) ... costs
+ * include needing to have boardinfo data structures be much more public.
  */
 subsys_initcall(spi_init);
 
