@@ -495,6 +495,7 @@ static void mmc_decode_cid(struct mmc_card *card)
 
 		case 2: /* MMC v2.0 - v2.2 */
 		case 3: /* MMC v3.1 - v3.3 */
+		case 4: /* MMC v4 */
 			card->cid.manfid	= UNSTUFF_BITS(resp, 120, 8);
 			card->cid.oemid		= UNSTUFF_BITS(resp, 104, 16);
 			card->cid.prod_name[0]	= UNSTUFF_BITS(resp, 96, 8);
