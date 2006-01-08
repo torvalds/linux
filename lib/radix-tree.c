@@ -253,7 +253,7 @@ int radix_tree_insert(struct radix_tree_root *root,
 	shift = (height-1) * RADIX_TREE_MAP_SHIFT;
 
 	offset = 0;			/* uninitialised var warning */
-	while (height > 0) {
+	do {
 		if (slot == NULL) {
 			/* Have to add a child node.  */
 			if (!(slot = radix_tree_node_alloc(root)))
@@ -271,18 +271,16 @@ int radix_tree_insert(struct radix_tree_root *root,
 		slot = node->slots[offset];
 		shift -= RADIX_TREE_MAP_SHIFT;
 		height--;
-	}
+	} while (height > 0);
 
 	if (slot != NULL)
 		return -EEXIST;
 
-	if (node) {
-		node->count++;
-		node->slots[offset] = item;
-		BUG_ON(tag_get(node, 0, offset));
-		BUG_ON(tag_get(node, 1, offset));
-	} else
-		root->rnode = item;
+	BUG_ON(!node);
+	node->count++;
+	node->slots[offset] = item;
+	BUG_ON(tag_get(node, 0, offset));
+	BUG_ON(tag_get(node, 1, offset));
 
 	return 0;
 }
@@ -680,6 +678,29 @@ radix_tree_gang_lookup_tag(struct radix_tree_root *root, void **results,
 EXPORT_SYMBOL(radix_tree_gang_lookup_tag);
 
 /**
+ *	radix_tree_shrink    -    shrink height of a radix tree to minimal
+ *	@root		radix tree root
+ */
+static inline void radix_tree_shrink(struct radix_tree_root *root)
+{
+	/* try to shrink tree height */
+	while (root->height > 1 &&
+			root->rnode->count == 1 &&
+			root->rnode->slots[0]) {
+		struct radix_tree_node *to_free = root->rnode;
+
+		root->rnode = to_free->slots[0];
+		root->height--;
+		/* must only free zeroed nodes into the slab */
+		tag_clear(to_free, 0, 0);
+		tag_clear(to_free, 1, 0);
+		to_free->slots[0] = NULL;
+		to_free->count = 0;
+		radix_tree_node_free(to_free);
+	}
+}
+
+/**
  *	radix_tree_delete    -    delete an item from a radix tree
  *	@root:		radix tree root
  *	@index:		index key
@@ -755,8 +776,13 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 	/* Now free the nodes we do not need anymore */
 	for (pathp = orig_pathp; pathp->node; pathp--) {
 		pathp->node->slots[pathp->offset] = NULL;
-		if (--pathp->node->count)
+		pathp->node->count--;
+
+		if (pathp->node->count) {
+			if (pathp->node == root->rnode)
+				radix_tree_shrink(root);
 			goto out;
+		}
 
 		/* Node with zero slots in use so free it */
 		radix_tree_node_free(pathp->node);
