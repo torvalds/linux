@@ -39,8 +39,8 @@ include $(srctree)/arch/i386/Makefile.cpu
 
 # -mregparm=3 works ok on gcc-3.0 and later
 #
-GCC_VERSION			:= $(call cc-version)
-cflags-$(CONFIG_REGPARM) 	+= $(shell if [ $(GCC_VERSION) -ge 0300 ] ; then echo "-mregparm=3"; fi ;)
+cflags-$(CONFIG_REGPARM) += $(shell if [ $(call cc-version) -ge 0300 ] ; then \
+                            echo "-mregparm=3"; fi ;)
 
 # Disable unit-at-a-time mode, it makes gcc use a lot more stack
 # due to the lack of sharing of stacklots.
