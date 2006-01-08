@@ -62,7 +62,7 @@
  * When there is only one cpuset (the root cpuset) we can
  * short circuit some hooks.
  */
-int number_of_cpusets;
+int number_of_cpusets __read_mostly;
 
 /* See "Frequency meter" comments, below. */
 
