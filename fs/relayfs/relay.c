@@ -176,7 +176,8 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan,
  		return NULL;
 
 	/* Create file in fs */
-	dentry = relayfs_create_file(filename, parent, S_IRUSR, buf);
+	dentry = relayfs_create_file(filename, parent, S_IRUSR,
+				     &relayfs_file_operations, buf);
  	if (!dentry) {
  		relay_destroy_buf(buf);
 		return NULL;

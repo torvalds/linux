@@ -70,7 +70,7 @@ struct rchan
 struct relayfs_inode_info
 {
 	struct inode vfs_inode;
-	struct rchan_buf *buf;
+	void *data;
 };
 
 static inline struct relayfs_inode_info *RELAYFS_I(struct inode *inode)
@@ -148,6 +148,11 @@ extern size_t relay_switch_subbuf(struct rchan_buf *buf,
 extern struct dentry *relayfs_create_dir(const char *name,
 					 struct dentry *parent);
 extern int relayfs_remove_dir(struct dentry *dentry);
+extern struct dentry *relayfs_create_file(const char *name,
+					  struct dentry *parent,
+					  int mode,
+					  struct file_operations *fops,
+					  void *data);
 
 /**
  *	relay_write - write data into the channel

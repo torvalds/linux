@@ -33,7 +33,9 @@ static struct backing_dev_info		relayfs_backing_dev_info = {
 	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
 };
 
-static struct inode *relayfs_get_inode(struct super_block *sb, int mode,
+static struct inode *relayfs_get_inode(struct super_block *sb,
+				       int mode,
+ 				       struct file_operations *fops,
 				       void *data)
 {
 	struct inode *inode;
@@ -51,8 +53,8 @@ static struct inode *relayfs_get_inode(struct super_block *sb, int mode,
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	switch (mode & S_IFMT) {
 	case S_IFREG:
-		inode->i_fop = &relayfs_file_operations;
-		RELAYFS_I(inode)->buf = data;
+		inode->i_fop = fops;
+		RELAYFS_I(inode)->data = data;
 		break;
 	case S_IFDIR:
 		inode->i_op = &simple_dir_inode_operations;
@@ -73,6 +75,7 @@ static struct inode *relayfs_get_inode(struct super_block *sb, int mode,
  *	@name: the name of the file to create
  *	@parent: parent directory
  *	@mode: mode
+ *	@fops: file operations to use for the file
  *	@data: user-associated data for this file
  *
  *	Returns the new dentry, NULL on failure
@@ -82,6 +85,7 @@ static struct inode *relayfs_get_inode(struct super_block *sb, int mode,
 static struct dentry *relayfs_create_entry(const char *name,
 					   struct dentry *parent,
 					   int mode,
+					   struct file_operations *fops,
 					   void *data)
 {
 	struct dentry *d;
@@ -117,7 +121,7 @@ static struct dentry *relayfs_create_entry(const char *name,
 		goto release_mount;
 	}
 
-	inode = relayfs_get_inode(parent->d_inode->i_sb, mode, data);
+	inode = relayfs_get_inode(parent->d_inode->i_sb, mode, fops, data);
 	if (!inode) {
 		d = NULL;
 		goto release_mount;
@@ -145,20 +149,26 @@ exit:
  *	@name: the name of the file to create
  *	@parent: parent directory
  *	@mode: mode, if not specied the default perms are used
+ *	@fops: file operations to use for the file
  *	@data: user-associated data for this file
  *
  *	Returns file dentry if successful, NULL otherwise.
  *
  *	The file will be created user r on behalf of current user.
  */
-struct dentry *relayfs_create_file(const char *name, struct dentry *parent,
-				   int mode, void *data)
+struct dentry *relayfs_create_file(const char *name,
+				   struct dentry *parent,
+				   int mode,
+				   struct file_operations *fops,
+				   void *data)
 {
+	BUG_ON(!fops);
+
 	if (!mode)
 		mode = S_IRUSR;
 	mode = (mode & S_IALLUGO) | S_IFREG;
 
-	return relayfs_create_entry(name, parent, mode, data);
+	return relayfs_create_entry(name, parent, mode, fops, data);
 }
 
 /**
@@ -173,7 +183,7 @@ struct dentry *relayfs_create_file(const char *name, struct dentry *parent,
 struct dentry *relayfs_create_dir(const char *name, struct dentry *parent)
 {
 	int mode = S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO;
-	return relayfs_create_entry(name, parent, mode, NULL);
+	return relayfs_create_entry(name, parent, mode, NULL, NULL);
 }
 
 /**
@@ -234,7 +244,7 @@ int relayfs_remove_dir(struct dentry *dentry)
  */
 static int relayfs_open(struct inode *inode, struct file *filp)
 {
-	struct rchan_buf *buf = RELAYFS_I(inode)->buf;
+	struct rchan_buf *buf = RELAYFS_I(inode)->data;
 	kref_get(&buf->kref);
 
 	return 0;
@@ -250,7 +260,7 @@ static int relayfs_open(struct inode *inode, struct file *filp)
 static int relayfs_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
-	return relay_mmap_buf(RELAYFS_I(inode)->buf, vma);
+	return relay_mmap_buf(RELAYFS_I(inode)->data, vma);
 }
 
 /**
@@ -264,7 +274,7 @@ static unsigned int relayfs_poll(struct file *filp, poll_table *wait)
 {
 	unsigned int mask = 0;
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct rchan_buf *buf = RELAYFS_I(inode)->buf;
+	struct rchan_buf *buf = RELAYFS_I(inode)->data;
 
 	if (buf->finalized)
 		return POLLERR;
@@ -288,7 +298,7 @@ static unsigned int relayfs_poll(struct file *filp, poll_table *wait)
  */
 static int relayfs_release(struct inode *inode, struct file *filp)
 {
-	struct rchan_buf *buf = RELAYFS_I(inode)->buf;
+	struct rchan_buf *buf = RELAYFS_I(inode)->data;
 	kref_put(&buf->kref, relay_remove_buf);
 
 	return 0;
@@ -450,7 +460,7 @@ static ssize_t relayfs_read(struct file *filp,
 			    loff_t *ppos)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
-	struct rchan_buf *buf = RELAYFS_I(inode)->buf;
+	struct rchan_buf *buf = RELAYFS_I(inode)->data;
 	size_t read_start, avail;
 	ssize_t ret = 0;
 	void *from;
@@ -485,7 +495,7 @@ static struct inode *relayfs_alloc_inode(struct super_block *sb)
 	struct relayfs_inode_info *p = kmem_cache_alloc(relayfs_inode_cachep, SLAB_KERNEL);
 	if (!p)
 		return NULL;
-	p->buf = NULL;
+	p->data = NULL;
 
 	return &p->vfs_inode;
 }
@@ -531,7 +541,7 @@ static int relayfs_fill_super(struct super_block * sb, void * data, int silent)
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = RELAYFS_MAGIC;
 	sb->s_op = &relayfs_ops;
-	inode = relayfs_get_inode(sb, mode, NULL);
+	inode = relayfs_get_inode(sb, mode, NULL, NULL);
 
 	if (!inode)
 		return -ENOMEM;
@@ -589,6 +599,7 @@ module_exit(exit_relayfs_fs)
 EXPORT_SYMBOL_GPL(relayfs_file_operations);
 EXPORT_SYMBOL_GPL(relayfs_create_dir);
 EXPORT_SYMBOL_GPL(relayfs_remove_dir);
+EXPORT_SYMBOL_GPL(relayfs_create_file);
 
 MODULE_AUTHOR("Tom Zanussi <zanussi@us.ibm.com> and Karim Yaghmour <karim@opersys.com>");
 MODULE_DESCRIPTION("Relay Filesystem");
