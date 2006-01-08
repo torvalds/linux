@@ -684,15 +684,31 @@ static void keyring_link_rcu_disposal(struct rcu_head *rcu)
 
 /*****************************************************************************/
 /*
+ * dispose of a keyring list after the RCU grace period, freeing the unlinked
+ * key
+ */
+static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
+{
+	struct keyring_list *klist =
+		container_of(rcu, struct keyring_list, rcu);
+
+	key_put(klist->keys[klist->delkey]);
+	kfree(klist);
+
+} /* end keyring_unlink_rcu_disposal() */
+
+/*****************************************************************************/
+/*
  * link a key into to a keyring
  * - must be called with the keyring's semaphore write-locked
+ * - discard already extant link to matching key if there is one
  */
 int __key_link(struct key *keyring, struct key *key)
 {
 	struct keyring_list *klist, *nklist;
 	unsigned max;
 	size_t size;
-	int ret;
+	int loop, ret;
 
 	ret = -EKEYREVOKED;
 	if (test_bit(KEY_FLAG_REVOKED, &keyring->flags))
@@ -714,6 +730,48 @@ int __key_link(struct key *keyring, struct key *key)
 			goto error2;
 	}
 
+	/* see if there's a matching key we can displace */
+	klist = keyring->payload.subscriptions;
+
+	if (klist && klist->nkeys > 0) {
+		struct key_type *type = key->type;
+
+		for (loop = klist->nkeys - 1; loop >= 0; loop--) {
+			if (klist->keys[loop]->type == type &&
+			    strcmp(klist->keys[loop]->description,
+				   key->description) == 0
+			    ) {
+				/* found a match - replace with new key */
+				size = sizeof(struct key *) * klist->maxkeys;
+				size += sizeof(*klist);
+				BUG_ON(size > PAGE_SIZE);
+
+				ret = -ENOMEM;
+				nklist = kmalloc(size, GFP_KERNEL);
+				if (!nklist)
+					goto error2;
+
+				memcpy(nklist, klist, size);
+
+				/* replace matched key */
+				atomic_inc(&key->usage);
+				nklist->keys[loop] = key;
+
+				rcu_assign_pointer(
+					keyring->payload.subscriptions,
+					nklist);
+
+				/* dispose of the old keyring list and the
+				 * displaced key */
+				klist->delkey = loop;
+				call_rcu(&klist->rcu,
+					 keyring_unlink_rcu_disposal);
+
+				goto done;
+			}
+		}
+	}
+
 	/* check that we aren't going to overrun the user's quota */
 	ret = key_payload_reserve(keyring,
 				  keyring->datalen + KEYQUOTA_LINK_BYTES);
@@ -730,8 +788,6 @@ int __key_link(struct key *keyring, struct key *key)
 		smp_wmb();
 		klist->nkeys++;
 		smp_wmb();
-
-		ret = 0;
 	}
 	else {
 		/* grow the key list */
@@ -769,16 +825,16 @@ int __key_link(struct key *keyring, struct key *key)
 		/* dispose of the old keyring list */
 		if (klist)
 			call_rcu(&klist->rcu, keyring_link_rcu_disposal);
-
-		ret = 0;
 	}
 
- error2:
+done:
+	ret = 0;
+error2:
 	up_write(&keyring_serialise_link_sem);
- error:
+error:
 	return ret;
 
- error3:
+error3:
 	/* undo the quota changes */
 	key_payload_reserve(keyring,
 			    keyring->datalen - KEYQUOTA_LINK_BYTES);
@@ -806,21 +862,6 @@ int key_link(struct key *keyring, struct key *key)
 } /* end key_link() */
 
 EXPORT_SYMBOL(key_link);
-
-/*****************************************************************************/
-/*
- * dispose of a keyring list after the RCU grace period, freeing the unlinked
- * key
- */
-static void keyring_unlink_rcu_disposal(struct rcu_head *rcu)
-{
-	struct keyring_list *klist =
-		container_of(rcu, struct keyring_list, rcu);
-
-	key_put(klist->keys[klist->delkey]);
-	kfree(klist);
-
-} /* end keyring_unlink_rcu_disposal() */
 
 /*****************************************************************************/
 /*

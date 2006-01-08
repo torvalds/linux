@@ -500,6 +500,10 @@ The keyctl syscall functions are:
      The link procedure checks the nesting of the keyrings, returning ELOOP if
      it appears too deep or EDEADLK if the link would introduce a cycle.
 
+     Any links within the keyring to keys that match the new key in terms of
+     type and description will be discarded from the keyring as the new one is
+     added.
+
 
  (*) Unlink a key or keyring from another keyring:
 
