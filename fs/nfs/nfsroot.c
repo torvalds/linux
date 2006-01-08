@@ -275,7 +275,9 @@ static int __init root_nfs_parse(char *name, char *buf)
 			case Opt_noacl:
 				nfs_data.flags |= NFS_MOUNT_NOACL;
 				break;
-			default : 
+			default:
+				printk(KERN_WARNING "Root-NFS: unknown "
+					"option: %s\n", p);
 				return 0;
 		}
 	}
