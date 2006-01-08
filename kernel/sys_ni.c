@@ -82,6 +82,7 @@ cond_syscall(compat_sys_socketcall);
 cond_syscall(sys_inotify_init);
 cond_syscall(sys_inotify_add_watch);
 cond_syscall(sys_inotify_rm_watch);
+cond_syscall(sys_migrate_pages);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);

@@ -571,8 +571,10 @@ __SYSCALL(__NR_inotify_init, sys_inotify_init)
 __SYSCALL(__NR_inotify_add_watch, sys_inotify_add_watch)
 #define __NR_inotify_rm_watch	255
 __SYSCALL(__NR_inotify_rm_watch, sys_inotify_rm_watch)
+#define __NR_migrate_pages	256
+__SYSCALL(__NR_migrate_pages, sys_migrate_pages)
 
-#define __NR_syscall_max __NR_inotify_rm_watch
+#define __NR_syscall_max __NR_migrate_pages
 #ifndef __NO_STUBS
 
 /* user-visible error numbers are in the range -1 - -4095 */

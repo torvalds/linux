@@ -162,6 +162,9 @@ static inline void check_highest_zone(int k)
 		policy_zone = k;
 }
 
+int do_migrate_pages(struct mm_struct *mm,
+	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags);
+
 #else
 
 struct mempolicy {};

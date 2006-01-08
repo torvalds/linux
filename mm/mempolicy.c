@@ -615,11 +615,41 @@ long do_get_mempolicy(int *policy, nodemask_t *nmask,
 }
 
 /*
+ * For now migrate_pages simply swaps out the pages from nodes that are in
+ * the source set but not in the target set. In the future, we would
+ * want a function that moves pages between the two nodesets in such
+ * a way as to preserve the physical layout as much as possible.
+ *
+ * Returns the number of page that could not be moved.
+ */
+int do_migrate_pages(struct mm_struct *mm,
+	const nodemask_t *from_nodes, const nodemask_t *to_nodes, int flags)
+{
+	LIST_HEAD(pagelist);
+	int count = 0;
+	nodemask_t nodes;
+
+	nodes_andnot(nodes, *from_nodes, *to_nodes);
+	nodes_complement(nodes, nodes);
+
+	down_read(&mm->mmap_sem);
+	check_range(mm, mm->mmap->vm_start, TASK_SIZE, &nodes,
+			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+	if (!list_empty(&pagelist)) {
+		migrate_pages(&pagelist, NULL);
+		if (!list_empty(&pagelist))
+			count = putback_lru_pages(&pagelist);
+	}
+	up_read(&mm->mmap_sem);
+	return count;
+}
+
+/*
  * User space interface with variable sized bitmaps for nodelists.
  */
 
 /* Copy a node mask from user space. */
-static int get_nodes(nodemask_t *nodes, unsigned long __user *nmask,
+static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
 		     unsigned long maxnode)
 {
 	unsigned long k;
@@ -707,6 +737,68 @@ asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
 		return err;
 	return do_set_mempolicy(mode, &nodes);
 }
+
+/* Macro needed until Paul implements this function in kernel/cpusets.c */
+#define cpuset_mems_allowed(task) node_online_map
+
+asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
+		const unsigned long __user *old_nodes,
+		const unsigned long __user *new_nodes)
+{
+	struct mm_struct *mm;
+	struct task_struct *task;
+	nodemask_t old;
+	nodemask_t new;
+	nodemask_t task_nodes;
+	int err;
+
+	err = get_nodes(&old, old_nodes, maxnode);
+	if (err)
+		return err;
+
+	err = get_nodes(&new, new_nodes, maxnode);
+	if (err)
+		return err;
+
+	/* Find the mm_struct */
+	read_lock(&tasklist_lock);
+	task = pid ? find_task_by_pid(pid) : current;
+	if (!task) {
+		read_unlock(&tasklist_lock);
+		return -ESRCH;
+	}
+	mm = get_task_mm(task);
+	read_unlock(&tasklist_lock);
+
+	if (!mm)
+		return -EINVAL;
+
+	/*
+	 * Check if this process has the right to modify the specified
+	 * process. The right exists if the process has administrative
+	 * capabilities, superuser priviledges or the same
+	 * userid as the target process.
+	 */
+	if ((current->euid != task->suid) && (current->euid != task->uid) &&
+	    (current->uid != task->suid) && (current->uid != task->uid) &&
+	    !capable(CAP_SYS_ADMIN)) {
+		err = -EPERM;
+		goto out;
+	}
+
+	task_nodes = cpuset_mems_allowed(task);
+	/* Is the user allowed to access the target nodes? */
+	if (!nodes_subset(new, task_nodes) && !capable(CAP_SYS_ADMIN)) {
+		err = -EPERM;
+		goto out;
+	}
+
+	err = do_migrate_pages(mm, &old, &new, MPOL_MF_MOVE);
+out:
+	mmput(mm);
+	return err;
+}
+
 
 /* Retrieve NUMA policy */
 asmlinkage long sys_get_mempolicy(int __user *policy,
