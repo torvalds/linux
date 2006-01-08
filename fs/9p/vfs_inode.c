@@ -385,13 +385,14 @@ v9fs_create(struct inode *dir,
 		fid->iounit = iounit;
 	} else {
 		err = v9fs_t_clunk(v9ses, newfid);
+		newfid = -1;
 		if (err < 0)
 			dprintk(DEBUG_ERROR, "clunk for mkdir failed: %d\n", err);
 	}
 
 	/* walk to the newly created file and put the fid in the dentry */
 	wfidno = v9fs_get_idpool(&v9ses->fidpool);
-	if (newfid < 0) {
+	if (wfidno < 0) {
 		eprintk(KERN_WARNING, "no free fids available\n");
 		return -ENOSPC;
 	}
@@ -408,7 +409,6 @@ v9fs_create(struct inode *dir,
 	fcall = NULL;
 
 	if (!v9fs_fid_create(file_dentry, v9ses, wfidno, 0)) {
-		v9fs_t_clunk(v9ses, newfid);
 		v9fs_put_idpool(wfidno, &v9ses->fidpool);
 
 		goto CleanUpFid;
@@ -419,7 +419,7 @@ v9fs_create(struct inode *dir,
 	    (perm & V9FS_DMDEVICE))
 		return 0;
 
-	result = v9fs_t_stat(v9ses, newfid, &fcall);
+	result = v9fs_t_stat(v9ses, wfidno, &fcall);
 	if (result < 0) {
 		dprintk(DEBUG_ERROR, "stat error: %s(%d)\n", FCALL_ERROR(fcall),
 			result);
