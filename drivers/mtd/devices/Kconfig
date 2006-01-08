@@ -55,6 +55,14 @@ config MTD_DATAFLASH
 	  Sometimes DataFlash chips are packaged inside MMC-format
 	  cards; at this writing, the MMC stack won't handle those.
 
+config MTD_M25P80
+	tristate "Support for M25 SPI Flash"
+	depends on MTD && SPI_MASTER && EXPERIMENTAL
+	help
+	  This enables access to ST M25P80 and similar SPI flash chips,
+	  used for program and data storage.  Set up your spi devices
+	  with the right board-specific platform data.
+
 config MTD_SLRAM
 	tristate "Uncached system RAM"
 	depends on MTD
