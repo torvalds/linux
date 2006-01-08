@@ -18,7 +18,8 @@ extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
 extern void cpuset_fork(struct task_struct *p);
 extern void cpuset_exit(struct task_struct *p);
-extern cpumask_t cpuset_cpus_allowed(const struct task_struct *p);
+extern cpumask_t cpuset_cpus_allowed(struct task_struct *p);
+extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
 void cpuset_init_current_mems_allowed(void);
 void cpuset_update_task_memory_state(void);
 #define cpuset_nodes_subset_current_mems_allowed(nodes) \
@@ -48,6 +49,11 @@ static inline void cpuset_exit(struct task_struct *p) {}
 static inline cpumask_t cpuset_cpus_allowed(struct task_struct *p)
 {
 	return cpu_possible_map;
+}
+
+static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
+{
+	return node_possible_map;
 }
 
 static inline void cpuset_init_current_mems_allowed(void) {}

@@ -1871,14 +1871,14 @@ void cpuset_exit(struct task_struct *tsk)
  * tasks cpuset.
  **/
 
-cpumask_t cpuset_cpus_allowed(const struct task_struct *tsk)
+cpumask_t cpuset_cpus_allowed(struct task_struct *tsk)
 {
 	cpumask_t mask;
 
 	down(&callback_sem);
-	task_lock((struct task_struct *)tsk);
+	task_lock(tsk);
 	guarantee_online_cpus(tsk->cpuset, &mask);
-	task_unlock((struct task_struct *)tsk);
+	task_unlock(tsk);
 	up(&callback_sem);
 
 	return mask;
@@ -1887,6 +1887,29 @@ cpumask_t cpuset_cpus_allowed(const struct task_struct *tsk)
 void cpuset_init_current_mems_allowed(void)
 {
 	current->mems_allowed = NODE_MASK_ALL;
+}
+
+/**
+ * cpuset_mems_allowed - return mems_allowed mask from a tasks cpuset.
+ * @tsk: pointer to task_struct from which to obtain cpuset->mems_allowed.
+ *
+ * Description: Returns the nodemask_t mems_allowed of the cpuset
+ * attached to the specified @tsk.  Guaranteed to return some non-empty
+ * subset of node_online_map, even if this means going outside the
+ * tasks cpuset.
+ **/
+
+nodemask_t cpuset_mems_allowed(struct task_struct *tsk)
+{
+	nodemask_t mask;
+
+	down(&callback_sem);
+	task_lock(tsk);
+	guarantee_online_mems(tsk->cpuset, &mask);
+	task_unlock(tsk);
+	up(&callback_sem);
+
+	return mask;
 }
 
 /**

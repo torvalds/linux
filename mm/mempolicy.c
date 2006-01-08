@@ -772,9 +772,6 @@ asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
 	return do_set_mempolicy(mode, &nodes);
 }
 
-/* Macro needed until Paul implements this function in kernel/cpusets.c */
-#define cpuset_mems_allowed(task) node_online_map
-
 asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 		const unsigned long __user *old_nodes,
 		const unsigned long __user *new_nodes)
