@@ -83,8 +83,13 @@
 #include <linux/init.h>
 #include <linux/compat.h>
 #include <linux/mempolicy.h>
+#include <linux/swap.h>
+
 #include <asm/tlbflush.h>
 #include <asm/uaccess.h>
+
+/* Internal MPOL_MF_xxx flags */
+#define MPOL_MF_DISCONTIG_OK (MPOL_MF_INTERNAL << 0)	/* Skip checks for continuous vmas */
 
 static kmem_cache_t *policy_cache;
 static kmem_cache_t *sn_cache;
@@ -174,9 +179,59 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 	return policy;
 }
 
+/* Check if we are the only process mapping the page in question */
+static inline int single_mm_mapping(struct mm_struct *mm,
+			struct address_space *mapping)
+{
+	struct vm_area_struct *vma;
+	struct prio_tree_iter iter;
+	int rc = 1;
+
+	spin_lock(&mapping->i_mmap_lock);
+	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, 0, ULONG_MAX)
+		if (mm != vma->vm_mm) {
+			rc = 0;
+			goto out;
+		}
+	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared.vm_set.list)
+		if (mm != vma->vm_mm) {
+			rc = 0;
+			goto out;
+		}
+out:
+	spin_unlock(&mapping->i_mmap_lock);
+	return rc;
+}
+
+/*
+ * Add a page to be migrated to the pagelist
+ */
+static void migrate_page_add(struct vm_area_struct *vma,
+	struct page *page, struct list_head *pagelist, unsigned long flags)
+{
+	/*
+	 * Avoid migrating a page that is shared by others and not writable.
+	 */
+	if ((flags & MPOL_MF_MOVE_ALL) || !page->mapping || PageAnon(page) ||
+	    mapping_writably_mapped(page->mapping) ||
+	    single_mm_mapping(vma->vm_mm, page->mapping)) {
+		int rc = isolate_lru_page(page);
+
+		if (rc == 1)
+			list_add(&page->lru, pagelist);
+		/*
+		 * If the isolate attempt was not successful then we just
+		 * encountered an unswappable page. Something must be wrong.
+	 	 */
+		WARN_ON(rc == 0);
+	}
+}
+
 /* Ensure all existing pages follow the policy. */
 static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long addr, unsigned long end, nodemask_t *nodes)
+		unsigned long addr, unsigned long end,
+		const nodemask_t *nodes, unsigned long flags,
+		struct list_head *pagelist)
 {
 	pte_t *orig_pte;
 	pte_t *pte;
@@ -193,15 +248,21 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		if (!page)
 			continue;
 		nid = page_to_nid(page);
-		if (!node_isset(nid, *nodes))
-			break;
+		if (!node_isset(nid, *nodes)) {
+			if (pagelist)
+				migrate_page_add(vma, page, pagelist, flags);
+			else
+				break;
+		}
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap_unlock(orig_pte, ptl);
 	return addr != end;
 }
 
 static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
-		unsigned long addr, unsigned long end, nodemask_t *nodes)
+		unsigned long addr, unsigned long end,
+		const nodemask_t *nodes, unsigned long flags,
+		struct list_head *pagelist)
 {
 	pmd_t *pmd;
 	unsigned long next;
@@ -211,14 +272,17 @@ static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
-		if (check_pte_range(vma, pmd, addr, next, nodes))
+		if (check_pte_range(vma, pmd, addr, next, nodes,
+				    flags, pagelist))
 			return -EIO;
 	} while (pmd++, addr = next, addr != end);
 	return 0;
 }
 
 static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
-		unsigned long addr, unsigned long end, nodemask_t *nodes)
+		unsigned long addr, unsigned long end,
+		const nodemask_t *nodes, unsigned long flags,
+		struct list_head *pagelist)
 {
 	pud_t *pud;
 	unsigned long next;
@@ -228,14 +292,17 @@ static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		if (check_pmd_range(vma, pud, addr, next, nodes))
+		if (check_pmd_range(vma, pud, addr, next, nodes,
+				    flags, pagelist))
 			return -EIO;
 	} while (pud++, addr = next, addr != end);
 	return 0;
 }
 
 static inline int check_pgd_range(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long end, nodemask_t *nodes)
+		unsigned long addr, unsigned long end,
+		const nodemask_t *nodes, unsigned long flags,
+		struct list_head *pagelist)
 {
 	pgd_t *pgd;
 	unsigned long next;
@@ -245,16 +312,31 @@ static inline int check_pgd_range(struct vm_area_struct *vma,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		if (check_pud_range(vma, pgd, addr, next, nodes))
+		if (check_pud_range(vma, pgd, addr, next, nodes,
+				    flags, pagelist))
 			return -EIO;
 	} while (pgd++, addr = next, addr != end);
 	return 0;
 }
 
-/* Step 1: check the range */
+/* Check if a vma is migratable */
+static inline int vma_migratable(struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & (
+		VM_LOCKED|VM_IO|VM_HUGETLB|VM_PFNMAP))
+		return 0;
+	return 1;
+}
+
+/*
+ * Check if all pages in a range are on a set of nodes.
+ * If pagelist != NULL then isolate pages from the LRU and
+ * put them on the pagelist.
+ */
 static struct vm_area_struct *
 check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
-	    nodemask_t *nodes, unsigned long flags)
+		const nodemask_t *nodes, unsigned long flags,
+		struct list_head *pagelist)
 {
 	int err;
 	struct vm_area_struct *first, *vma, *prev;
@@ -264,17 +346,24 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 		return ERR_PTR(-EFAULT);
 	prev = NULL;
 	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
-		if (!vma->vm_next && vma->vm_end < end)
-			return ERR_PTR(-EFAULT);
-		if (prev && prev->vm_end < vma->vm_start)
-			return ERR_PTR(-EFAULT);
-		if ((flags & MPOL_MF_STRICT) && !is_vm_hugetlb_page(vma)) {
+		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
+			if (!vma->vm_next && vma->vm_end < end)
+				return ERR_PTR(-EFAULT);
+			if (prev && prev->vm_end < vma->vm_start)
+				return ERR_PTR(-EFAULT);
+		}
+		if (!is_vm_hugetlb_page(vma) &&
+		    ((flags & MPOL_MF_STRICT) ||
+		     ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
+				vma_migratable(vma)))) {
 			unsigned long endvma = vma->vm_end;
+
 			if (endvma > end)
 				endvma = end;
 			if (vma->vm_start > start)
 				start = vma->vm_start;
-			err = check_pgd_range(vma, start, endvma, nodes);
+			err = check_pgd_range(vma, start, endvma, nodes,
+						flags, pagelist);
 			if (err) {
 				first = ERR_PTR(err);
 				break;
@@ -348,33 +437,59 @@ long do_mbind(unsigned long start, unsigned long len,
 	struct mempolicy *new;
 	unsigned long end;
 	int err;
+	LIST_HEAD(pagelist);
 
-	if ((flags & ~(unsigned long)(MPOL_MF_STRICT)) || mode > MPOL_MAX)
+	if ((flags & ~(unsigned long)(MPOL_MF_STRICT|MPOL_MF_MOVE|MPOL_MF_MOVE_ALL))
+	    || mode > MPOL_MAX)
 		return -EINVAL;
+	if ((flags & MPOL_MF_MOVE_ALL) && !capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
 	if (start & ~PAGE_MASK)
 		return -EINVAL;
+
 	if (mode == MPOL_DEFAULT)
 		flags &= ~MPOL_MF_STRICT;
+
 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
 	end = start + len;
+
 	if (end < start)
 		return -EINVAL;
 	if (end == start)
 		return 0;
+
 	if (mpol_check_policy(mode, nmask))
 		return -EINVAL;
+
 	new = mpol_new(mode, nmask);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
+
+	/*
+	 * If we are using the default policy then operation
+	 * on discontinuous address spaces is okay after all
+	 */
+	if (!new)
+		flags |= MPOL_MF_DISCONTIG_OK;
 
 	PDprintk("mbind %lx-%lx mode:%ld nodes:%lx\n",start,start+len,
 			mode,nodes_addr(nodes)[0]);
 
 	down_write(&mm->mmap_sem);
-	vma = check_range(mm, start, end, nmask, flags);
+	vma = check_range(mm, start, end, nmask, flags,
+	      (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) ? &pagelist : NULL);
 	err = PTR_ERR(vma);
-	if (!IS_ERR(vma))
+	if (!IS_ERR(vma)) {
 		err = mbind_range(vma, start, end, new);
+		if (!list_empty(&pagelist))
+			migrate_pages(&pagelist, NULL);
+		if (!err && !list_empty(&pagelist) && (flags & MPOL_MF_STRICT))
+			err = -EIO;
+	}
+	if (!list_empty(&pagelist))
+		putback_lru_pages(&pagelist);
+
 	up_write(&mm->mmap_sem);
 	mpol_free(new);
 	return err;
