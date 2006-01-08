@@ -3118,7 +3118,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	 * 8 controller support.
 	 */
 	if (i < MAX_CTLR_ORIG)
-		hba[i]->major = MAJOR_NR + i;
+		hba[i]->major = COMPAQ_CISS_MAJOR + i;
 	rc = register_blkdev(hba[i]->major, hba[i]->devname);
 	if(rc == -EBUSY || rc == -EINVAL) {
 		printk(KERN_ERR

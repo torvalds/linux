@@ -13,8 +13,6 @@
 #define IO_OK		0
 #define IO_ERROR	1
 
-#define MAJOR_NR COMPAQ_CISS_MAJOR
-
 struct ctlr_info;
 typedef struct ctlr_info ctlr_info_t;
 
