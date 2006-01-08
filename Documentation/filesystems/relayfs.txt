@@ -143,6 +143,8 @@ Here's a summary of the API relayfs provides to in-kernel clients:
     subbuf_start(buf, subbuf, prev_subbuf, prev_padding)
     buf_mapped(buf, filp)
     buf_unmapped(buf, filp)
+    create_buf_file(filename, parent, mode, buf)
+    remove_buf_file(dentry)
 
   helper functions:
 
@@ -342,6 +344,31 @@ completely defined by the caller.
 
 See the relay-apps tarball at http://relayfs.sourceforge.net for
 examples of how these non-relay files are meant to be used.
+
+Creating relay files in other filesystems
+-----------------------------------------
+
+By default of course, relay_open() creates relay files in the relayfs
+filesystem.  Because relay_file_operations is exported, however, it's
+also possible to create and use relay files in other pseudo-filesytems
+such as debugfs.
+
+For this purpose, two callback functions are provided,
+create_buf_file() and remove_buf_file().  create_buf_file() is called
+once for each per-cpu buffer from relay_open() to allow the client to
+create a file to be used to represent the corresponding buffer; if
+this callback is not defined, the default implementation will create
+and return a file in the relayfs filesystem to represent the buffer.
+The callback should return the dentry of the file created to represent
+the relay buffer.  Note that the parent directory passed to
+relay_open() (and passed along to the callback), if specified, must
+exist in the same filesystem the new relay file is created in.  If
+create_buf_file() is defined, remove_buf_file() must also be defined;
+it's responsible for deleting the file(s) created in create_buf_file()
+and is called during relay_close().
+
+See the 'exported-relayfile' examples in the relay-apps tarball for
+examples of creating and using relay files in debugfs.
 
 Misc
 ----
