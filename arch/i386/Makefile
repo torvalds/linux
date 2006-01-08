@@ -103,7 +103,7 @@ AFLAGS += $(mflags-y)
 boot := arch/i386/boot
 
 .PHONY: zImage bzImage compressed zlilo bzlilo \
-	zdisk bzdisk fdimage fdimage144 fdimage288 install kernel_install
+	zdisk bzdisk fdimage fdimage144 fdimage288 install
 
 all: bzImage
 
@@ -125,8 +125,7 @@ zdisk bzdisk: vmlinux
 fdimage fdimage144 fdimage288: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) $@
 
-install: vmlinux
-install kernel_install:
+install:
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
 
 archclean:
