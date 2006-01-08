@@ -268,9 +268,7 @@ static inline int is_page_cache_freeable(struct page *page)
 
 static int may_write_to_queue(struct backing_dev_info *bdi)
 {
-	if (current_is_kswapd())
-		return 1;
-	if (current_is_pdflush())	/* This is unlikely, but why not... */
+	if (current->flags & PF_SWAPWRITE)
 		return 1;
 	if (!bdi_write_congested(bdi))
 		return 1;
@@ -1299,7 +1297,7 @@ static int kswapd(void *p)
 	 * us from recursively trying to free more memory as we're
 	 * trying to free the first piece of memory in the first place).
 	 */
-	tsk->flags |= PF_MEMALLOC|PF_KSWAPD;
+	tsk->flags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
 
 	order = 0;
 	for ( ; ; ) {
