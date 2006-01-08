@@ -19,6 +19,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/signal.h>
 
 #include <asm/mach-au1x00/au1000.h>
 
