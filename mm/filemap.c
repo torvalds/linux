@@ -280,7 +280,7 @@ static int wait_on_page_writeback_range(struct address_space *mapping,
  * it is otherwise livelockable.
  */
 int sync_page_range(struct inode *inode, struct address_space *mapping,
-			loff_t pos, size_t count)
+			loff_t pos, loff_t count)
 {
 	pgoff_t start = pos >> PAGE_CACHE_SHIFT;
 	pgoff_t end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
@@ -305,9 +305,8 @@ EXPORT_SYMBOL(sync_page_range);
  * as it forces O_SYNC writers to different parts of the same file
  * to be serialised right until io completion.
  */
-static int sync_page_range_nolock(struct inode *inode,
-				  struct address_space *mapping,
-				  loff_t pos, size_t count)
+int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
+			   loff_t pos, loff_t count)
 {
 	pgoff_t start = pos >> PAGE_CACHE_SHIFT;
 	pgoff_t end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
@@ -322,6 +321,7 @@ static int sync_page_range_nolock(struct inode *inode,
 		ret = wait_on_page_writeback_range(mapping, start, end);
 	return ret;
 }
+EXPORT_SYMBOL(sync_page_range_nolock);
 
 /**
  * filemap_fdatawait - walk the list of under-writeback pages of the given
