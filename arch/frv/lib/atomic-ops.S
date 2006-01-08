@@ -129,48 +129,6 @@ atomic_sub_return:
 
 ###############################################################################
 #
-# uint8_t __xchg_8(uint8_t i, uint8_t *v)
-#
-###############################################################################
-	.globl		__xchg_8
-        .type		__xchg_8,@function
-__xchg_8:
-	or.p		gr8,gr8,gr10
-0:
-	orcc		gr0,gr0,gr0,icc3		/* set ICC3.Z */
-	ckeq		icc3,cc7
-	ldub.p		@(gr9,gr0),gr8			/* LD.P/ORCR must be atomic */
-	orcr		cc7,cc7,cc3			/* set CC3 to true */
-	cstb.p		gr10,@(gr9,gr0)		,cc3,#1
-	corcc		gr29,gr29,gr0		,cc3,#1	/* clear ICC3.Z if store happens */
-	beq		icc3,#0,0b
-	bralr
-
-	.size		__xchg_8, .-__xchg_8
-
-###############################################################################
-#
-# uint16_t __xchg_16(uint16_t i, uint16_t *v)
-#
-###############################################################################
-	.globl		__xchg_16
-        .type		__xchg_16,@function
-__xchg_16:
-	or.p		gr8,gr8,gr10
-0:
-	orcc		gr0,gr0,gr0,icc3		/* set ICC3.Z */
-	ckeq		icc3,cc7
-	lduh.p		@(gr9,gr0),gr8			/* LD.P/ORCR must be atomic */
-	orcr		cc7,cc7,cc3			/* set CC3 to true */
-	csth.p		gr10,@(gr9,gr0)		,cc3,#1
-	corcc		gr29,gr29,gr0		,cc3,#1	/* clear ICC3.Z if store happens */
-	beq		icc3,#0,0b
-	bralr
-
-	.size		__xchg_16, .-__xchg_16
-
-###############################################################################
-#
 # uint32_t __xchg_32(uint32_t i, uint32_t *v)
 #
 ###############################################################################
@@ -189,56 +147,6 @@ __xchg_32:
 	bralr
 
 	.size		__xchg_32, .-__xchg_32
-
-###############################################################################
-#
-# uint8_t __cmpxchg_8(uint8_t *v, uint8_t test, uint8_t new)
-#
-###############################################################################
-	.globl		__cmpxchg_8
-        .type		__cmpxchg_8,@function
-__cmpxchg_8:
-	or.p		gr8,gr8,gr11
-0:
-	orcc		gr0,gr0,gr0,icc3
-	ckeq		icc3,cc7
-	ldub.p		@(gr11,gr0),gr8
-	orcr		cc7,cc7,cc3
-	sub		gr8,gr9,gr7
-	sllicc		gr7,#24,gr0,icc0
-	bne		icc0,#0,1f
-	cstb.p		gr10,@(gr11,gr0)	,cc3,#1
-	corcc		gr29,gr29,gr0		,cc3,#1
-	beq		icc3,#0,0b
-1:
-	bralr
-
-	.size		__cmpxchg_8, .-__cmpxchg_8
-
-###############################################################################
-#
-# uint16_t __cmpxchg_16(uint16_t *v, uint16_t test, uint16_t new)
-#
-###############################################################################
-	.globl		__cmpxchg_16
-        .type		__cmpxchg_16,@function
-__cmpxchg_16:
-	or.p		gr8,gr8,gr11
-0:
-	orcc		gr0,gr0,gr0,icc3
-	ckeq		icc3,cc7
-	lduh.p		@(gr11,gr0),gr8
-	orcr		cc7,cc7,cc3
-	sub		gr8,gr9,gr7
-	sllicc		gr7,#16,gr0,icc0
-	bne		icc0,#0,1f
-	csth.p		gr10,@(gr11,gr0)	,cc3,#1
-	corcc		gr29,gr29,gr0		,cc3,#1
-	beq		icc3,#0,0b
-1:
-	bralr
-
-	.size		__cmpxchg_16, .-__cmpxchg_16
 
 ###############################################################################
 #
