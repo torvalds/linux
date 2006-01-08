@@ -31,7 +31,7 @@ static int verify_group_input(struct super_block *sb,
 	unsigned start = le32_to_cpu(es->s_blocks_count);
 	unsigned end = start + input->blocks_count;
 	unsigned group = input->group;
-	unsigned itend = input->inode_table + EXT3_SB(sb)->s_itb_per_group;
+	unsigned itend = input->inode_table + sbi->s_itb_per_group;
 	unsigned overhead = ext3_bg_has_super(sb, group) ?
 		(1 + ext3_bg_num_gdb(sb, group) +
 		 le16_to_cpu(es->s_reserved_gdt_blocks)) : 0;
@@ -764,7 +764,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	}
 
 	lock_super(sb);
-	if (input->group != EXT3_SB(sb)->s_groups_count) {
+	if (input->group != sbi->s_groups_count) {
 		ext3_warning(sb, __FUNCTION__,
 			     "multiple resizers run on filesystem!");
 		err = -EBUSY;
@@ -799,7 +799,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	 * data.  So we need to be careful to set all of the relevant
 	 * group descriptor data etc. *before* we enable the group.
 	 *
-	 * The key field here is EXT3_SB(sb)->s_groups_count: as long as
+	 * The key field here is sbi->s_groups_count: as long as
 	 * that retains its old value, nobody is going to access the new
 	 * group.
 	 *
@@ -859,7 +859,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	smp_wmb();
 
 	/* Update the global fs size fields */
-	EXT3_SB(sb)->s_groups_count++;
+	sbi->s_groups_count++;
 
 	ext3_journal_dirty_metadata(handle, primary);
 
@@ -874,7 +874,7 @@ int ext3_group_add(struct super_block *sb, struct ext3_new_group_data *input)
 	percpu_counter_mod(&sbi->s_freeinodes_counter,
 			   EXT3_INODES_PER_GROUP(sb));
 
-	ext3_journal_dirty_metadata(handle, EXT3_SB(sb)->s_sbh);
+	ext3_journal_dirty_metadata(handle, sbi->s_sbh);
 	sb->s_dirt = 1;
 
 exit_journal:
