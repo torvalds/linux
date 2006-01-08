@@ -45,8 +45,8 @@ static inline void fat_dir_readahead(struct inode *dir, sector_t iblock,
 	if ((sbi->fat_bits != 32) && (dir->i_ino == MSDOS_ROOT_INO))
 		return;
 
-	bh = sb_getblk(sb, phys);
-	if (bh && !buffer_uptodate(bh)) {
+	bh = sb_find_get_block(sb, phys);
+	if (bh == NULL || !buffer_uptodate(bh)) {
 		for (sec = 0; sec < sbi->sec_per_clus; sec++)
 			sb_breadahead(sb, phys + sec);
 	}
