@@ -58,7 +58,7 @@ extern int dump_fpu (struct pt_regs *, elf_fpregset_t *);
  * If we don't support core dumping, then supply a NULL so we
  * don't even try.
  */
-#ifdef USE_ELF_CORE_DUMP
+#if defined(USE_ELF_CORE_DUMP) && defined(CONFIG_ELF_CORE)
 static int elf_core_dump(long signr, struct pt_regs * regs, struct file * file);
 #else
 #define elf_core_dump	NULL
@@ -1113,7 +1113,7 @@ out:
  * Note that some platforms still use traditional core dumps and not
  * the ELF core dump.  Each platform can select it as appropriate.
  */
-#ifdef USE_ELF_CORE_DUMP
+#if defined(USE_ELF_CORE_DUMP) && defined(CONFIG_ELF_CORE)
 
 /*
  * ELF core dumper

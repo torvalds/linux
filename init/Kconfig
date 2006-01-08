@@ -327,6 +327,12 @@ config DOUBLEFAULT
           would otherwise cause a system to silently reboot. Disabling this
           option saves about 4k.
 
+config ELF_CORE
+	default y
+	bool "Enable ELF core dumps" if EMBEDDED
+	help
+	  Enable support for generating core dumps. Disabling saves about 4k.
+
 config BASE_FULL
 	default y
 	bool "Enable full-sized data structures for core" if EMBEDDED
