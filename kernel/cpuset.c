@@ -799,18 +799,23 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	trialcs = *cs;
 	retval = nodelist_parse(buf, trialcs.mems_allowed);
 	if (retval < 0)
-		return retval;
+		goto done;
 	nodes_and(trialcs.mems_allowed, trialcs.mems_allowed, node_online_map);
-	if (nodes_empty(trialcs.mems_allowed))
-		return -ENOSPC;
-	retval = validate_change(cs, &trialcs);
-	if (retval == 0) {
-		down(&callback_sem);
-		cs->mems_allowed = trialcs.mems_allowed;
-		atomic_inc(&cpuset_mems_generation);
-		cs->mems_generation = atomic_read(&cpuset_mems_generation);
-		up(&callback_sem);
+	if (nodes_empty(trialcs.mems_allowed)) {
+		retval = -ENOSPC;
+		goto done;
 	}
+	retval = validate_change(cs, &trialcs);
+	if (retval < 0)
+		goto done;
+
+	down(&callback_sem);
+	cs->mems_allowed = trialcs.mems_allowed;
+	atomic_inc(&cpuset_mems_generation);
+	cs->mems_generation = atomic_read(&cpuset_mems_generation);
+	up(&callback_sem);
+
+done:
 	return retval;
 }
 
