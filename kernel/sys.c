@@ -1215,24 +1215,22 @@ asmlinkage long sys_getsid(pid_t pid)
 
 asmlinkage long sys_setsid(void)
 {
+	struct task_struct *group_leader = current->group_leader;
 	struct pid *pid;
 	int err = -EPERM;
-
-	if (!thread_group_leader(current))
-		return -EINVAL;
 
 	down(&tty_sem);
 	write_lock_irq(&tasklist_lock);
 
-	pid = find_pid(PIDTYPE_PGID, current->pid);
+	pid = find_pid(PIDTYPE_PGID, group_leader->pid);
 	if (pid)
 		goto out;
 
-	current->signal->leader = 1;
-	__set_special_pids(current->pid, current->pid);
-	current->signal->tty = NULL;
-	current->signal->tty_old_pgrp = 0;
-	err = process_group(current);
+	group_leader->signal->leader = 1;
+	__set_special_pids(group_leader->pid, group_leader->pid);
+	group_leader->signal->tty = NULL;
+	group_leader->signal->tty_old_pgrp = 0;
+	err = process_group(group_leader);
 out:
 	write_unlock_irq(&tasklist_lock);
 	up(&tty_sem);

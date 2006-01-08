@@ -257,7 +257,7 @@ static inline void reparent_to_init(void)
 
 void __set_special_pids(pid_t session, pid_t pgrp)
 {
-	struct task_struct *curr = current;
+	struct task_struct *curr = current->group_leader;
 
 	if (curr->signal->session != session) {
 		detach_pid(curr, PIDTYPE_SID);
