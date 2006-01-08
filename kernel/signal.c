@@ -1102,18 +1102,19 @@ int group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 
 retry:
 	ret = check_kill_permission(sig, info, p);
-	if (!ret && sig && (sp = p->sighand)) {
-		if (!get_task_struct_rcu(p))
-			return -ESRCH;
+	if (!ret && sig && (sp = rcu_dereference(p->sighand))) {
 		spin_lock_irqsave(&sp->siglock, flags);
 		if (p->sighand != sp) {
 			spin_unlock_irqrestore(&sp->siglock, flags);
-			put_task_struct(p);
 			goto retry;
+		}
+		if ((atomic_read(&sp->count) == 0) ||
+				(atomic_read(&p->usage) == 0)) {
+			spin_unlock_irqrestore(&sp->siglock, flags);
+			return -ESRCH;
 		}
 		ret = __group_send_sig_info(sig, info, p);
 		spin_unlock_irqrestore(&sp->siglock, flags);
-		put_task_struct(p);
 	}
 
 	return ret;
