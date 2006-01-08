@@ -418,7 +418,7 @@ EODir:
 	return err;
 }
 
-EXPORT_SYMBOL(fat_search_long);
+EXPORT_SYMBOL_GPL(fat_search_long);
 
 struct fat_ioctl_filldir_callback {
 	struct dirent __user *dirent;
@@ -780,7 +780,7 @@ int fat_get_dotdot_entry(struct inode *dir, struct buffer_head **bh,
 	return -ENOENT;
 }
 
-EXPORT_SYMBOL(fat_get_dotdot_entry);
+EXPORT_SYMBOL_GPL(fat_get_dotdot_entry);
 
 /* See if directory is empty */
 int fat_dir_empty(struct inode *dir)
@@ -803,7 +803,7 @@ int fat_dir_empty(struct inode *dir)
 	return result;
 }
 
-EXPORT_SYMBOL(fat_dir_empty);
+EXPORT_SYMBOL_GPL(fat_dir_empty);
 
 /*
  * fat_subdirs counts the number of sub-directories of dir. It can be run
@@ -849,7 +849,7 @@ int fat_scan(struct inode *dir, const unsigned char *name,
 	return -ENOENT;
 }
 
-EXPORT_SYMBOL(fat_scan);
+EXPORT_SYMBOL_GPL(fat_scan);
 
 static int __fat_remove_entries(struct inode *dir, loff_t pos, int nr_slots)
 {
@@ -936,7 +936,7 @@ int fat_remove_entries(struct inode *dir, struct fat_slot_info *sinfo)
 	return 0;
 }
 
-EXPORT_SYMBOL(fat_remove_entries);
+EXPORT_SYMBOL_GPL(fat_remove_entries);
 
 static int fat_zeroed_cluster(struct inode *dir, sector_t blknr, int nr_used,
 			      struct buffer_head **bhs, int nr_bhs)
@@ -1048,7 +1048,7 @@ error:
 	return err;
 }
 
-EXPORT_SYMBOL(fat_alloc_new_dir);
+EXPORT_SYMBOL_GPL(fat_alloc_new_dir);
 
 static int fat_add_new_entries(struct inode *dir, void *slots, int nr_slots,
 			       int *nr_cluster, struct msdos_dir_entry **de,
@@ -1264,4 +1264,4 @@ error_remove:
 	return err;
 }
 
-EXPORT_SYMBOL(fat_add_entries);
+EXPORT_SYMBOL_GPL(fat_add_entries);

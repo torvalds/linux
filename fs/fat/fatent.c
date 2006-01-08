@@ -581,7 +581,7 @@ error:
 	return err;
 }
 
-EXPORT_SYMBOL(fat_free_clusters);
+EXPORT_SYMBOL_GPL(fat_free_clusters);
 
 int fat_count_free_clusters(struct super_block *sb)
 {

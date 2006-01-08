@@ -173,7 +173,7 @@ out:
 	return error;
 }
 
-EXPORT_SYMBOL(fat_notify_change);
+EXPORT_SYMBOL_GPL(fat_notify_change);
 
 /* Free all clusters after the skip'th cluster. */
 static int fat_free(struct inode *inode, int skip)

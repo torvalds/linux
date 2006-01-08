@@ -197,7 +197,7 @@ void fat_attach(struct inode *inode, loff_t i_pos)
 	spin_unlock(&sbi->inode_hash_lock);
 }
 
-EXPORT_SYMBOL(fat_attach);
+EXPORT_SYMBOL_GPL(fat_attach);
 
 void fat_detach(struct inode *inode)
 {
@@ -208,7 +208,7 @@ void fat_detach(struct inode *inode)
 	spin_unlock(&sbi->inode_hash_lock);
 }
 
-EXPORT_SYMBOL(fat_detach);
+EXPORT_SYMBOL_GPL(fat_detach);
 
 struct inode *fat_iget(struct super_block *sb, loff_t i_pos)
 {
@@ -362,7 +362,7 @@ out:
 	return inode;
 }
 
-EXPORT_SYMBOL(fat_build_inode);
+EXPORT_SYMBOL_GPL(fat_build_inode);
 
 static void fat_delete_inode(struct inode *inode)
 {
@@ -557,7 +557,7 @@ int fat_sync_inode(struct inode *inode)
 	return fat_write_inode(inode, 1);
 }
 
-EXPORT_SYMBOL(fat_sync_inode);
+EXPORT_SYMBOL_GPL(fat_sync_inode);
 
 static int fat_show_options(struct seq_file *m, struct vfsmount *mnt);
 static struct super_operations fat_sops = {
@@ -1368,7 +1368,7 @@ out_fail:
 	return error;
 }
 
-EXPORT_SYMBOL(fat_fill_super);
+EXPORT_SYMBOL_GPL(fat_fill_super);
 
 int __init fat_cache_init(void);
 void fat_cache_destroy(void);
