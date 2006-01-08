@@ -374,12 +374,17 @@ static void fat_clear_inode(struct inode *inode)
 	unlock_kernel();
 }
 
-static void fat_put_super(struct super_block *sb)
+static void fat_write_super(struct super_block *sb)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	sb->s_dirt = 0;
 
 	if (!(sb->s_flags & MS_RDONLY))
 		fat_clusters_flush(sb);
+}
+
+static void fat_put_super(struct super_block *sb)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
 	if (sbi->nls_disk) {
 		unload_nls(sbi->nls_disk);
@@ -546,6 +551,7 @@ static struct super_operations fat_sops = {
 	.write_inode	= fat_write_inode,
 	.delete_inode	= fat_delete_inode,
 	.put_super	= fat_put_super,
+	.write_super	= fat_write_super,
 	.statfs		= fat_statfs,
 	.clear_inode	= fat_clear_inode,
 	.remount_fs	= fat_remount,

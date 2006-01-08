@@ -67,8 +67,6 @@ void fat_clusters_flush(struct super_block *sb)
 		if (sbi->prev_free != -1)
 			fsinfo->next_cluster = cpu_to_le32(sbi->prev_free);
 		mark_buffer_dirty(bh);
-		if (sb->s_flags & MS_SYNCHRONOUS)
-			sync_dirty_buffer(bh);
 	}
 	brelse(bh);
 }
