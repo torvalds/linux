@@ -83,7 +83,7 @@ config KERNEL_HALF_GIGS
         of physical memory.
 
 config MODE_SKAS
-	bool "Separate Kernel Address Space support"
+	bool "Separate Kernel Address Space support" if MODE_TT
 	default y
 	help
 	This option controls whether skas (separate kernel address space)
