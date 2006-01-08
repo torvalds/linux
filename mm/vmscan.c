@@ -458,7 +458,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 		 * Try to allocate it some swap space here.
 		 */
 		if (PageAnon(page) && !PageSwapCache(page)) {
-			if (!add_to_swap(page))
+			if (!add_to_swap(page, GFP_ATOMIC))
 				goto activate_locked;
 		}
 #endif /* CONFIG_SWAP */
@@ -715,7 +715,7 @@ redo:
 		}
 
 		if (PageAnon(page) && !PageSwapCache(page)) {
-			if (!add_to_swap(page)) {
+			if (!add_to_swap(page, GFP_KERNEL)) {
 				unlock_page(page);
 				list_move(&page->lru, &failed);
 				nr_failed++;
