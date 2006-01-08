@@ -72,11 +72,11 @@ static ctlr_info_t *hba[MAX_CTLR];
 
 static int eisa[8];
 
-#define NR_PRODUCTS (sizeof(products)/sizeof(struct board_type))
+#define NR_PRODUCTS ARRAY_SIZE(products)
 
 /*  board_id = Subsystem Device ID & Vendor ID
  *  product = Marketing Name for the board
- *  access = Address of the struct of function pointers 
+ *  access = Address of the struct of function pointers
  */
 static struct board_type products[] = {
 	{ 0x0040110E, "IDA",			&smart1_access },

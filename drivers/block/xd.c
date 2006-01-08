@@ -279,11 +279,11 @@ static u_char __init xd_detect (u_char *controller, unsigned int *address)
 		return(1);
 	}
 
-	for (i = 0; i < (sizeof(xd_bases) / sizeof(xd_bases[0])); i++) {
+	for (i = 0; i < ARRAY_SIZE(xd_bases); i++) {
 		void __iomem *p = ioremap(xd_bases[i], 0x2000);
 		if (!p)
 			continue;
-		for (j = 1; j < (sizeof(xd_sigs) / sizeof(xd_sigs[0])); j++) {
+		for (j = 1; j < ARRAY_SIZE(xd_sigs); j++) {
 			const char *s = xd_sigs[j].string;
 			if (check_signature(p + xd_sigs[j].offset, s, strlen(s))) {
 				*controller = j;
@@ -1018,7 +1018,7 @@ static void __init do_xd_setup (int *integers)
 		case 2: if ((integers[2] > 0) && (integers[2] < 16))
 				xd_irq = integers[2];
 		case 1: xd_override = 1;
-			if ((integers[1] >= 0) && (integers[1] < (sizeof(xd_sigs) / sizeof(xd_sigs[0]))))
+			if ((integers[1] >= 0) && (integers[1] < ARRAY_SIZE(xd_sigs)))
 				xd_type = integers[1];
 		case 0: break;
 		default:printk("xd: too many parameters for xd\n");

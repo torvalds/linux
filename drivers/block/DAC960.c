@@ -3760,7 +3760,7 @@ static void DAC960_V1_ProcessCompletedCommand(DAC960_Command_T *Command)
 	      if (SenseKey == DAC960_SenseKey_VendorSpecific &&
 		  AdditionalSenseCode == 0x80 &&
 		  AdditionalSenseCodeQualifier <
-		  sizeof(DAC960_EventMessages) / sizeof(char *))
+		  ARRAY_SIZE(DAC960_EventMessages))
 		DAC960_Critical("Physical Device %d:%d %s\n", Controller,
 				EventLogEntry->Channel,
 				EventLogEntry->TargetID,

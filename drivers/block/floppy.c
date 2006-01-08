@@ -479,7 +479,6 @@ static struct floppy_struct floppy_type[32] = {
 	{ 3200,20,2,80,0,0x1C,0x00,0xCF,0x2C,"H1600" }, /* 31 1.6MB 3.5"    */
 };
 
-#define	NUMBER(x)	(sizeof(x) / sizeof(*(x)))
 #define SECTSIZE (_FD_SECTSIZE(*floppy))
 
 /* Auto-detection: Disk type used until the next media change occurs. */
@@ -3645,7 +3644,7 @@ static void __init config_types(void)
 		const char *name = NULL;
 		static char temparea[32];
 
-		if (type < NUMBER(default_drive_params)) {
+		if (type < ARRAY_SIZE(default_drive_params)) {
 			params = &default_drive_params[type].params;
 			if (type) {
 				name = default_drive_params[type].name;
@@ -3961,7 +3960,7 @@ static void __init register_devfs_entries(int drive)
 {
 	int base_minor = (drive < 4) ? drive : (124 + drive);
 
-	if (UDP->cmos < NUMBER(default_drive_params)) {
+	if (UDP->cmos < ARRAY_SIZE(default_drive_params)) {
 		int i = 0;
 		do {
 			int minor = base_minor + (table_sup[UDP->cmos][i] << 2);
@@ -4219,7 +4218,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 	    !(allowed_drive_mask & (1 << drive)) ||
 	    fdc_state[FDC(drive)].version == FDC_NONE)
 		return NULL;
-	if (((*part >> 2) & 0x1f) >= NUMBER(floppy_type))
+	if (((*part >> 2) & 0x1f) >= ARRAY_SIZE(floppy_type))
 		return NULL;
 	*part = 0;
 	return get_disk(disks[drive]);
@@ -4571,7 +4570,7 @@ static void unregister_devfs_entries(int drive)
 {
 	int i;
 
-	if (UDP->cmos < NUMBER(default_drive_params)) {
+	if (UDP->cmos < ARRAY_SIZE(default_drive_params)) {
 		i = 0;
 		do {
 			devfs_remove("floppy/%d%s", drive,

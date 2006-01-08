@@ -131,7 +131,7 @@ static struct fd_drive_type drive_types[] = {
 { FD_DD_5,	"DD 5.25", 40, 2, 14716, 13630, 1, 40, 81, 6, 30, 2},
 { FD_NODRIVE, "No Drive", 0, 0,     0,     0, 0,  0,  0,  0,  0, 0}
 };
-static int num_dr_types = sizeof(drive_types) / sizeof(drive_types[0]);
+static int num_dr_types = ARRAY_SIZE(drive_types);
 
 static int amiga_read(int), dos_read(int);
 static void amiga_write(int), dos_write(int);

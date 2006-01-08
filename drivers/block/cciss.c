@@ -103,7 +103,7 @@ static const struct pci_device_id cciss_pci_device_id[] = {
 };
 MODULE_DEVICE_TABLE(pci, cciss_pci_device_id);
 
-#define NR_PRODUCTS (sizeof(products)/sizeof(struct board_type))
+#define NR_PRODUCTS ARRAY_SIZE(products)
 
 /*  board_id = Subsystem Device ID & Vendor ID
  *  product = Marketing Name for the board
@@ -2833,7 +2833,7 @@ static int cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 	c->board_id = board_id;
 
 #ifdef CCISS_DEBUG
-	print_cfg_table(c->cfgtable); 
+	print_cfg_table(c->cfgtable);
 #endif /* CCISS_DEBUG */
 
 	for(i=0; i<NR_PRODUCTS; i++) {
