@@ -137,18 +137,17 @@ out:
 
 static inline void tag_set(struct radix_tree_node *node, int tag, int offset)
 {
-	if (!test_bit(offset, &node->tags[tag][0]))
-		__set_bit(offset, &node->tags[tag][0]);
+	__set_bit(offset, node->tags[tag]);
 }
 
 static inline void tag_clear(struct radix_tree_node *node, int tag, int offset)
 {
-	__clear_bit(offset, &node->tags[tag][0]);
+	__clear_bit(offset, node->tags[tag]);
 }
 
 static inline int tag_get(struct radix_tree_node *node, int tag, int offset)
 {
-	return test_bit(offset, &node->tags[tag][0]);
+	return test_bit(offset, node->tags[tag]);
 }
 
 /*
@@ -375,7 +374,8 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
 		int offset;
 
 		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-		tag_set(slot, tag, offset);
+		if (!tag_get(slot, tag, offset))
+			tag_set(slot, tag, offset);
 		slot = slot->slots[offset];
 		BUG_ON(slot == NULL);
 		shift -= RADIX_TREE_MAP_SHIFT;
@@ -435,6 +435,8 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
 		goto out;
 
 	do {
+		if (!tag_get(pathp->node, tag, pathp->offset))
+			goto out;
 		tag_clear(pathp->node, tag, pathp->offset);
 		if (any_tag_set(pathp->node, tag))
 			goto out;
@@ -695,6 +697,8 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 	void *ret = NULL;
 	char tags[RADIX_TREE_TAGS];
 	int nr_cleared_tags;
+	int tag;
+	int offset;
 
 	height = root->height;
 	if (index > radix_tree_maxindex(height))
@@ -705,16 +709,14 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 	slot = root->rnode;
 
 	for ( ; height > 0; height--) {
-		int offset;
-
 		if (slot == NULL)
 			goto out;
 
-		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-		pathp[1].offset = offset;
-		pathp[1].node = slot;
-		slot = slot->slots[offset];
 		pathp++;
+		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
+		pathp->offset = offset;
+		pathp->node = slot;
+		slot = slot->slots[offset];
 		shift -= RADIX_TREE_MAP_SHIFT;
 	}
 
@@ -727,24 +729,28 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
 	/*
 	 * Clear all tags associated with the just-deleted item
 	 */
-	memset(tags, 0, sizeof(tags));
-	do {
-		int tag;
+	nr_cleared_tags = 0;
+	for (tag = 0; tag < RADIX_TREE_TAGS; tag++) {
+		if (tag_get(pathp->node, tag, pathp->offset)) {
+			tag_clear(pathp->node, tag, pathp->offset);
+			tags[tag] = 0;
+			nr_cleared_tags++;
+		} else
+			tags[tag] = 1;
+	}
 
-		nr_cleared_tags = RADIX_TREE_TAGS;
+	for (pathp--; nr_cleared_tags && pathp->node; pathp--) {
 		for (tag = 0; tag < RADIX_TREE_TAGS; tag++) {
 			if (tags[tag])
 				continue;
 
 			tag_clear(pathp->node, tag, pathp->offset);
-
 			if (any_tag_set(pathp->node, tag)) {
 				tags[tag] = 1;
 				nr_cleared_tags--;
 			}
 		}
-		pathp--;
-	} while (pathp->node && nr_cleared_tags);
+	}
 
 	/* Now free the nodes we do not need anymore */
 	for (pathp = orig_pathp; pathp->node; pathp--) {
