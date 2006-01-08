@@ -80,11 +80,33 @@ static void buf_unmapped_default_callback(struct rchan_buf *buf,
 {
 }
 
+/*
+ * create_buf_file_create() default callback.  Creates file to represent buf.
+ */
+static struct dentry *create_buf_file_default_callback(const char *filename,
+						       struct dentry *parent,
+						       int mode,
+						       struct rchan_buf *buf)
+{
+	return relayfs_create_file(filename, parent, mode,
+				   &relayfs_file_operations, buf);
+}
+
+/*
+ * remove_buf_file() default callback.  Removes file representing relay buffer.
+ */
+static int remove_buf_file_default_callback(struct dentry *dentry)
+{
+	return relayfs_remove(dentry);
+}
+
 /* relay channel default callbacks */
 static struct rchan_callbacks default_channel_callbacks = {
 	.subbuf_start = subbuf_start_default_callback,
 	.buf_mapped = buf_mapped_default_callback,
 	.buf_unmapped = buf_unmapped_default_callback,
+	.create_buf_file = create_buf_file_default_callback,
+	.remove_buf_file = remove_buf_file_default_callback,
 };
 
 /**
@@ -176,8 +198,8 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan,
  		return NULL;
 
 	/* Create file in fs */
-	dentry = relayfs_create_file(filename, parent, S_IRUSR,
-				     &relayfs_file_operations, buf);
+ 	dentry = chan->cb->create_buf_file(filename, parent, S_IRUSR,
+ 					   buf);
  	if (!dentry) {
  		relay_destroy_buf(buf);
 		return NULL;
@@ -220,6 +242,10 @@ static inline void setup_callbacks(struct rchan *chan,
 		cb->buf_mapped = buf_mapped_default_callback;
 	if (!cb->buf_unmapped)
 		cb->buf_unmapped = buf_unmapped_default_callback;
+	if (!cb->create_buf_file)
+		cb->create_buf_file = create_buf_file_default_callback;
+	if (!cb->remove_buf_file)
+		cb->remove_buf_file = remove_buf_file_default_callback;
 	chan->cb = cb;
 }
 
