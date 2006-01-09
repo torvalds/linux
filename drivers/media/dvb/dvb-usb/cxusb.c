@@ -15,6 +15,7 @@
  * part
  *
  * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de)
+ * Copyright (C) 2005 Michael Krufky (mkrufky@m1k.net)
  * Copyright (C) 2006 Chris Pascoe (c.pascoe@itee.uq.edu.au)
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -163,17 +164,17 @@ static int cxusb_streaming_ctrl(struct dvb_usb_device *d, int onoff)
 static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
-	u8 irCode[4];
+	u8 ircode[4];
 	int i;
 
-	cxusb_ctrl_msg(d, CMD_GET_IR_CODE, NULL, 0, irCode, 4);
+	cxusb_ctrl_msg(d, CMD_GET_IR_CODE, NULL, 0, ircode, 4);
 
 	*event = 0;
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
-		if (keymap[i].custom == irCode[2] &&
-		    keymap[i].data == irCode[3]) {
+		if (keymap[i].custom == ircode[2] &&
+		    keymap[i].data == ircode[3]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 
@@ -183,6 +184,54 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 
 	return 0;
 }
+
+struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
+	{ 0xfe, 0x02, KEY_TV },
+	{ 0xfe, 0x0e, KEY_MP3 },
+	{ 0xfe, 0x1a, KEY_DVD },
+	{ 0xfe, 0x1e, KEY_FAVORITES },
+	{ 0xfe, 0x16, KEY_SETUP },
+	{ 0xfe, 0x46, KEY_POWER2 },
+	{ 0xfe, 0x0a, KEY_EPG },
+	{ 0xfe, 0x49, KEY_BACK },
+	{ 0xfe, 0x4d, KEY_MENU },
+	{ 0xfe, 0x51, KEY_UP },
+	{ 0xfe, 0x5b, KEY_LEFT },
+	{ 0xfe, 0x5f, KEY_RIGHT },
+	{ 0xfe, 0x53, KEY_DOWN },
+	{ 0xfe, 0x5e, KEY_OK },
+	{ 0xfe, 0x59, KEY_INFO },
+	{ 0xfe, 0x55, KEY_TAB },
+	{ 0xfe, 0x0f, KEY_PREVIOUSSONG },/* Replay */
+	{ 0xfe, 0x12, KEY_NEXTSONG },	/* Skip */
+	{ 0xfe, 0x42, KEY_ENTER	 },	/* Windows/Start */
+	{ 0xfe, 0x15, KEY_VOLUMEUP },
+	{ 0xfe, 0x05, KEY_VOLUMEDOWN },
+	{ 0xfe, 0x11, KEY_CHANNELUP },
+	{ 0xfe, 0x09, KEY_CHANNELDOWN },
+	{ 0xfe, 0x52, KEY_CAMERA },
+	{ 0xfe, 0x5a, KEY_TUNER },	/* Live */
+	{ 0xfe, 0x19, KEY_OPEN },
+	{ 0xfe, 0x0b, KEY_1 },
+	{ 0xfe, 0x17, KEY_2 },
+	{ 0xfe, 0x1b, KEY_3 },
+	{ 0xfe, 0x07, KEY_4 },
+	{ 0xfe, 0x50, KEY_5 },
+	{ 0xfe, 0x54, KEY_6 },
+	{ 0xfe, 0x48, KEY_7 },
+	{ 0xfe, 0x4c, KEY_8 },
+	{ 0xfe, 0x58, KEY_9 },
+	{ 0xfe, 0x13, KEY_ANGLE },	/* Aspect */
+	{ 0xfe, 0x03, KEY_0 },
+	{ 0xfe, 0x1f, KEY_ZOOM },
+	{ 0xfe, 0x43, KEY_REWIND },
+	{ 0xfe, 0x47, KEY_PLAYPAUSE },
+	{ 0xfe, 0x4f, KEY_FASTFORWARD },
+	{ 0xfe, 0x57, KEY_MUTE },
+	{ 0xfe, 0x0d, KEY_STOP },
+	{ 0xfe, 0x01, KEY_RECORD },
+	{ 0xfe, 0x4e, KEY_POWER },
+};
 
 static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
 {
@@ -304,8 +353,7 @@ static int cxusb_probe(struct usb_interface *intf,
 {
 	if (dvb_usb_device_init(intf,&cxusb_medion_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&cxusb_bluebird_lgh064f_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_dee1601_properties,THIS_MODULE,NULL) == 0
-		){
+		dvb_usb_device_init(intf,&cxusb_bluebird_dee1601_properties,THIS_MODULE,NULL) == 0) {
 		return 0;
 	}
 
@@ -395,54 +443,6 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 			{ &cxusb_table[2], NULL },
 		},
 	}
-};
-
-struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
-	{ 0xfe, 0x02, KEY_TV },
-	{ 0xfe, 0x0e, KEY_MP3 },
-	{ 0xfe, 0x1a, KEY_DVD },
-	{ 0xfe, 0x1e, KEY_FAVORITES },
-	{ 0xfe, 0x16, KEY_SETUP },
-	{ 0xfe, 0x46, KEY_POWER2 },
-	{ 0xfe, 0x0a, KEY_EPG },
-	{ 0xfe, 0x49, KEY_BACK },
-	{ 0xfe, 0x4d, KEY_MENU },
-	{ 0xfe, 0x51, KEY_UP },
-	{ 0xfe, 0x5b, KEY_LEFT },
-	{ 0xfe, 0x5f, KEY_RIGHT },
-	{ 0xfe, 0x53, KEY_DOWN },
-	{ 0xfe, 0x5e, KEY_OK },
-	{ 0xfe, 0x59, KEY_INFO },
-	{ 0xfe, 0x55, KEY_TAB },
-	{ 0xfe, 0x0f, KEY_PREVIOUSSONG },/* Replay */
-	{ 0xfe, 0x12, KEY_NEXTSONG },	/* Skip */
-	{ 0xfe, 0x42, KEY_ENTER	 },	/* Windows/Start */
-	{ 0xfe, 0x15, KEY_VOLUMEUP },
-	{ 0xfe, 0x05, KEY_VOLUMEDOWN },
-	{ 0xfe, 0x11, KEY_CHANNELUP },
-	{ 0xfe, 0x09, KEY_CHANNELDOWN },
-	{ 0xfe, 0x52, KEY_CAMERA },
-	{ 0xfe, 0x5a, KEY_TUNER },	/* Live */
-	{ 0xfe, 0x19, KEY_OPEN },
-	{ 0xfe, 0x0b, KEY_1 },
-	{ 0xfe, 0x17, KEY_2 },
-	{ 0xfe, 0x1b, KEY_3 },
-	{ 0xfe, 0x07, KEY_4 },
-	{ 0xfe, 0x50, KEY_5 },
-	{ 0xfe, 0x54, KEY_6 },
-	{ 0xfe, 0x48, KEY_7 },
-	{ 0xfe, 0x4c, KEY_8 },
-	{ 0xfe, 0x58, KEY_9 },
-	{ 0xfe, 0x13, KEY_ANGLE },	/* Aspect */
-	{ 0xfe, 0x03, KEY_0 },
-	{ 0xfe, 0x1f, KEY_ZOOM },
-	{ 0xfe, 0x43, KEY_REWIND },
-	{ 0xfe, 0x47, KEY_PLAYPAUSE },
-	{ 0xfe, 0x4f, KEY_FASTFORWARD },
-	{ 0xfe, 0x57, KEY_MUTE },
-	{ 0xfe, 0x0d, KEY_STOP },
-	{ 0xfe, 0x01, KEY_RECORD },
-	{ 0xfe, 0x4e, KEY_POWER },
 };
 
 static struct dvb_usb_properties cxusb_bluebird_dee1601_properties = {
