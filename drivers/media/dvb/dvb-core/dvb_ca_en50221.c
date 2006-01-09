@@ -1745,9 +1745,7 @@ void dvb_ca_en50221_release(struct dvb_ca_en50221 *pubca)
 
 	for (i = 0; i < ca->slot_count; i++) {
 		dvb_ca_en50221_slot_shutdown(ca, i);
-		if (ca->slot_info[i].rx_buffer.data != NULL) {
-			vfree(ca->slot_info[i].rx_buffer.data);
-		}
+		vfree(ca->slot_info[i].rx_buffer.data);
 	}
 	kfree(ca->slot_info);
 	dvb_unregister_device(ca->dvbdev);
