@@ -45,7 +45,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/kthread.h>
@@ -53,8 +52,25 @@
 #include <asm/semaphore.h>
 #include <asm/pgtable.h>
 
+#include <linux/videodev.h>
 #include <media/audiochip.h>
 #include "msp3400.h"
+
+/* ---------------------------------------------------------------------- */
+
+#define I2C_MSP3400C       0x80
+#define I2C_MSP3400C_ALT   0x88
+
+#define I2C_MSP3400C_DEM   0x10
+#define I2C_MSP3400C_DFP   0x12
+
+/* Addresses to scan */
+static unsigned short normal_i2c[] = {
+	I2C_MSP3400C      >> 1,
+	I2C_MSP3400C_ALT  >> 1,
+	I2C_CLIENT_END
+};
+I2C_CLIENT_INSMOD;
 
 #define msp3400_dbg(fmt, arg...) \
 	do { \
@@ -180,21 +196,6 @@ MODULE_PARM_DESC(standard, "Specify audio standard: 32 = NTSC, 64 = radio, Defau
 MODULE_PARM_DESC(amsound, "Hardwire AM sound at 6.5Hz (France), FM can autoscan");
 MODULE_PARM_DESC(dolby, "Activates Dolby processsing");
 
-/* ---------------------------------------------------------------------- */
-
-#define I2C_MSP3400C       0x80
-#define I2C_MSP3400C_ALT   0x88
-
-#define I2C_MSP3400C_DEM   0x10
-#define I2C_MSP3400C_DFP   0x12
-
-/* Addresses to scan */
-static unsigned short normal_i2c[] = {
-	I2C_MSP3400C      >> 1,
-	I2C_MSP3400C_ALT  >> 1,
-	I2C_CLIENT_END
-};
-I2C_CLIENT_INSMOD;
 
 MODULE_DESCRIPTION("device driver for msp34xx TV sound processor");
 MODULE_AUTHOR("Gerd Knorr");
@@ -713,8 +714,6 @@ msp3400c_print_mode(struct i2c_client *client)
 	}
 }
 
-#define MSP3400_MAX 4
-static struct i2c_client *msps[MSP3400_MAX];
 static void msp3400c_restore_dfp(struct i2c_client *client)
 {
 	struct msp3400c *msp = i2c_get_clientdata(client);
@@ -1563,40 +1562,6 @@ static void msp_wake_thread(struct i2c_client *client)
 	wake_up_interruptible(&msp->wq);
 }
 
-static int msp_detach(struct i2c_client *client)
-{
-	struct msp3400c *msp  = i2c_get_clientdata(client);
-	int i;
-
-	/* shutdown control thread */
-	if (msp->kthread) {
-		msp->restart = 1;
-		kthread_stop(msp->kthread);
-	}
-	msp3400c_reset(client);
-
-	/* update our own array */
-	for (i = 0; i < MSP3400_MAX; i++) {
-		if (client == msps[i]) {
-			msps[i] = NULL;
-			break;
-		}
-	}
-
-	i2c_detach_client(client);
-
-	kfree(msp);
-	kfree(client);
-	return 0;
-}
-
-static int msp_probe(struct i2c_adapter *adap)
-{
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adap, &addr_data, msp_attach);
-	return 0;
-}
-
 /* ----------------------------------------------------------------------- */
 
 static int mode_v4l2_to_v4l1(int rxsubchans)
@@ -2147,8 +2112,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			else
 				msp->i2s_mode=0;
 		}
-		msp3400_dbg("Setting audio out on msp34xx to input %i, mode %i\n",
-						a->index,msp->i2s_mode);
+		msp3400_dbg("Setting audio out on msp34xx to input %i, mode %i\n",a->index,msp->i2s_mode);
 		msp3400c_set_scart(client,msp->in_scart,a->index+1);
 
 		break;
@@ -2196,7 +2160,7 @@ static int msp_suspend(struct device * dev, pm_message_t state)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 
-	msp3400_dbg("msp34xx: suspend\n");
+	msp3400_dbg("suspend\n");
 	msp3400c_reset(client);
 	return 0;
 }
@@ -2205,7 +2169,7 @@ static int msp_resume(struct device * dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 
-	msp3400_dbg("msp34xx: resume\n");
+	msp3400_dbg("resume\n");
 	msp_wake_thread(client);
 	return 0;
 }
