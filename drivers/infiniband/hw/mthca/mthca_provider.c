@@ -45,6 +45,14 @@
 #include "mthca_user.h"
 #include "mthca_memfree.h"
 
+static void init_query_mad(struct ib_smp *mad)
+{
+	mad->base_version  = 1;
+	mad->mgmt_class    = IB_MGMT_CLASS_SUBN_LID_ROUTED;
+	mad->class_version = 1;
+	mad->method    	   = IB_MGMT_METHOD_GET;
+}
+
 static int mthca_query_device(struct ib_device *ibdev,
 			      struct ib_device_attr *props)
 {
@@ -64,11 +72,8 @@ static int mthca_query_device(struct ib_device *ibdev,
 
 	props->fw_ver              = mdev->fw_ver;
 
-	in_mad->base_version       = 1;
-	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	in_mad->class_version  	   = 1;
-	in_mad->method         	   = IB_MGMT_METHOD_GET;
-	in_mad->attr_id   	   = IB_SMP_ATTR_NODE_INFO;
+	init_query_mad(in_mad);
+	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
 
 	err = mthca_MAD_IFC(mdev, 1, 1,
 			    1, NULL, NULL, in_mad, out_mad,
@@ -134,12 +139,9 @@ static int mthca_query_port(struct ib_device *ibdev,
 
 	memset(props, 0, sizeof *props);
 
-	in_mad->base_version       = 1;
-	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	in_mad->class_version  	   = 1;
-	in_mad->method         	   = IB_MGMT_METHOD_GET;
-	in_mad->attr_id   	   = IB_SMP_ATTR_PORT_INFO;
-	in_mad->attr_mod           = cpu_to_be32(port);
+	init_query_mad(in_mad);
+	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
+	in_mad->attr_mod = cpu_to_be32(port);
 
 	err = mthca_MAD_IFC(to_mdev(ibdev), 1, 1,
 			    port, NULL, NULL, in_mad, out_mad,
@@ -223,12 +225,9 @@ static int mthca_query_pkey(struct ib_device *ibdev,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	in_mad->base_version       = 1;
-	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	in_mad->class_version  	   = 1;
-	in_mad->method         	   = IB_MGMT_METHOD_GET;
-	in_mad->attr_id   	   = IB_SMP_ATTR_PKEY_TABLE;
-	in_mad->attr_mod           = cpu_to_be32(index / 32);
+	init_query_mad(in_mad);
+	in_mad->attr_id  = IB_SMP_ATTR_PKEY_TABLE;
+	in_mad->attr_mod = cpu_to_be32(index / 32);
 
 	err = mthca_MAD_IFC(to_mdev(ibdev), 1, 1,
 			    port, NULL, NULL, in_mad, out_mad,
@@ -261,12 +260,9 @@ static int mthca_query_gid(struct ib_device *ibdev, u8 port,
 	if (!in_mad || !out_mad)
 		goto out;
 
-	in_mad->base_version       = 1;
-	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	in_mad->class_version  	   = 1;
-	in_mad->method         	   = IB_MGMT_METHOD_GET;
-	in_mad->attr_id   	   = IB_SMP_ATTR_PORT_INFO;
-	in_mad->attr_mod           = cpu_to_be32(port);
+	init_query_mad(in_mad);
+	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
+	in_mad->attr_mod = cpu_to_be32(port);
 
 	err = mthca_MAD_IFC(to_mdev(ibdev), 1, 1,
 			    port, NULL, NULL, in_mad, out_mad,
@@ -280,13 +276,9 @@ static int mthca_query_gid(struct ib_device *ibdev, u8 port,
 
 	memcpy(gid->raw, out_mad->data + 8, 8);
 
-	memset(in_mad, 0, sizeof *in_mad);
-	in_mad->base_version       = 1;
-	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	in_mad->class_version  	   = 1;
-	in_mad->method         	   = IB_MGMT_METHOD_GET;
-	in_mad->attr_id   	   = IB_SMP_ATTR_GUID_INFO;
-	in_mad->attr_mod           = cpu_to_be32(index / 8);
+	init_query_mad(in_mad);
+	in_mad->attr_id  = IB_SMP_ATTR_GUID_INFO;
+	in_mad->attr_mod = cpu_to_be32(index / 8);
 
 	err = mthca_MAD_IFC(to_mdev(ibdev), 1, 1,
 			    port, NULL, NULL, in_mad, out_mad,
