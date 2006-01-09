@@ -23,7 +23,7 @@ use IO::Handle;
 
 @components = ( "sp8870", "sp887x", "tda10045", "tda10046", "av7110", "dec2000t",
 		"dec2540t", "dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
-		"or51211", "or51132_qam", "or51132_vsb");
+		"or51211", "or51132_qam", "or51132_vsb", "bluebird");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -310,6 +310,19 @@ sub or51132_vsb {
     verify($fwfile, $hash);
 
     $fwfile;
+}
+
+sub bluebird {
+	my $url = "http://www.linuxtv.org/~mkrufky/dvb-usb-bluebird-01.fw";
+	my $outfile = "dvb-usb-bluebird-01.fw";
+	my $hash = "658397cb9eba9101af9031302671f49d";
+
+	checkstandard();
+
+	wgetfile($outfile, $url);
+	verify($outfile,$hash);
+
+	$outfile;
 }
 
 # ---------------------------------------------------------------

@@ -27,6 +27,7 @@
  *   DViCO FusionHDTV 3 Gold-T
  *   DViCO FusionHDTV 5 Gold
  *   DViCO FusionHDTV 5 Lite
+ *   DViCO FusionHDTV 5 USB Gold
  *   Air2PC/AirStar 2 ATSC 3rd generation (HD5000)
  *
  * TODO:
