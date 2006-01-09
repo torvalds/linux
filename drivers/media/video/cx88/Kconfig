@@ -29,6 +29,21 @@ config VIDEO_CX88_DVB
 	  You must also select one or more DVB/ATSC demodulators.
 	  If you are unsure which you need, choose all of them.
 
+config VIDEO_CX88_ALSA
+	tristate "ALSA DMA audio support"
+	depends on VIDEO_CX88 && SND
+	select SND_PCM_OSS
+	---help---
+	  This is a video4linux driver for direct (DMA) audio on
+	  Conexant 2388x based TV cards.
+	  It only works with boards with function 01 enabled.
+	  To check if your board supports, use lspci -n.
+	  If supported, you should see 1471:8801 or 1471:8811
+	  PCI device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx88-alsa.
+
 config VIDEO_CX88_DVB_ALL_FRONTENDS
 	bool "Build all supported frontends for cx2388x based TV cards"
 	default y

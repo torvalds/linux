@@ -238,9 +238,9 @@ cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf)
  *    channel  22    (u video)  -  2.0k
  *    channel  23    (v video)  -  2.0k
  *    channel  24    (vbi)      -  4.0k
- *    channels 25+26 (audio)    -  0.5k
+ *    channels 25+26 (audio)    -  4.0k
  *    channel  28    (mpeg)     -  4.0k
- *    TOTAL                     = 25.5k
+ *    TOTAL                     = 29.0k
  *
  * Every channel has 160 bytes control data (64 bytes instruction
  * queue and 6 CDT entries), which is close to 2k total.
@@ -306,7 +306,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.ctrl_start = 0x180680,
 		.cdt        = 0x180680 + 64,
 		.fifo_start = 0x185400,
-		.fifo_size  = 0x000200,
+		.fifo_size  = 0x001000,
 		.ptr1_reg   = MO_DMA25_PTR1,
 		.ptr2_reg   = MO_DMA25_PTR2,
 		.cnt1_reg   = MO_DMA25_CNT1,
@@ -318,7 +318,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.ctrl_start = 0x180720,
 		.cdt        = 0x180680 + 64,  /* same as audio IN */
 		.fifo_start = 0x185400,       /* same as audio IN */
-		.fifo_size  = 0x000200,       /* same as audio IN */
+		.fifo_size  = 0x001000,       /* same as audio IN */
 		.ptr1_reg   = MO_DMA26_PTR1,
 		.ptr2_reg   = MO_DMA26_PTR2,
 		.cnt1_reg   = MO_DMA26_CNT1,
@@ -329,7 +329,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.cmds_start = 0x180200,
 		.ctrl_start = 0x1807C0,
 		.cdt        = 0x1807C0 + 64,
-		.fifo_start = 0x185600,
+		.fifo_start = 0x186400,
 		.fifo_size  = 0x001000,
 		.ptr1_reg   = MO_DMA28_PTR1,
 		.ptr2_reg   = MO_DMA28_PTR2,
@@ -795,7 +795,6 @@ int cx88_start_audio_dma(struct cx88_core *core)
 
 	/* start dma */
 	cx_write(MO_AUD_DMACNTRL, 0x0003); /* Up and Down fifo enable */
-
 	return 0;
 }
 
