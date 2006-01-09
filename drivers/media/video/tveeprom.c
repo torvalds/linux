@@ -387,7 +387,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 	if ((eeprom_data[0] == 0x1a) && (eeprom_data[1] == 0xeb) &&
 			(eeprom_data[2] == 0x67) && (eeprom_data[3] == 0x95))
 		start=0xa0; /* Generic em28xx offset */
-	else if (((eeprom_data[0] & 0xf0) == 0x10) &&
+	else if (((eeprom_data[0] & 0xe1) == 0x01) &&
 					(eeprom_data[1] == 0x00) &&
 					(eeprom_data[2] == 0x00) &&
 					(eeprom_data[8] == 0x84))
