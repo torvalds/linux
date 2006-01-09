@@ -473,10 +473,8 @@ static void msp3400c_setvolume(struct i2c_client *client,
 	int vol = 0, val = 0, balance = 0;
 
 	if (!muted) {
-		/* 0x7f instead if 0x73 here has sound quality issues,
-		 * probably due to overmodulation + clipping ... */
 		vol = (left > right) ? left : right;
-		val = (vol * 0x73 / 65535) << 8;
+		val = (vol * 0x7f / 65535) << 8;
 	}
 	if (vol > 0) {
 		balance = ((right - left) * 127) / vol;
@@ -2351,21 +2349,12 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	/* done */
 	i2c_attach_client(client);
 
-	/* update our own array */
-	for (i = 0; i < MSP3400_MAX; i++) {
-		if (NULL == msps[i]) {
-			msps[i] = client;
-			break;
-		}
-	}
-
 	return 0;
 }
 
 static int msp_detach(struct i2c_client *client)
 {
 	struct msp3400c *msp  = i2c_get_clientdata(client);
-	int i;
 
 	/* shutdown control thread */
 	if (msp->kthread) {
@@ -2373,14 +2362,6 @@ static int msp_detach(struct i2c_client *client)
 		kthread_stop(msp->kthread);
 	}
 	msp3400c_reset(client);
-
-	/* update our own array */
-	for (i = 0; i < MSP3400_MAX; i++) {
-		if (client == msps[i]) {
-			msps[i] = NULL;
-			break;
-		}
-	}
 
 	i2c_detach_client(client);
 

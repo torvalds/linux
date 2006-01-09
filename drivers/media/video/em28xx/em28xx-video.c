@@ -1089,9 +1089,7 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 			if (dev->decoder == EM28XX_TVP5150) {
 				em28xx_i2c_call_clients(dev,cmd,arg);
 				return 0;
-			} else {
-
-			if (!dev->has_msp34xx){
+			} else if (!dev->has_msp34xx) {
 				for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
 					if (ctrl->id == em28xx_qctrl[i].id) {
 						if (ctrl->value <
