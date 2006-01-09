@@ -309,6 +309,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	return ret;
+	}
 }
 #else
 long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
