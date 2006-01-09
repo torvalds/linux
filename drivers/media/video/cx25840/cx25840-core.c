@@ -440,6 +440,9 @@ static int set_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_BALANCE:
 	case V4L2_CID_AUDIO_MUTE:
 		return cx25840_audio(client, VIDIOC_S_CTRL, ctrl);
+
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -564,12 +567,8 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 	struct v4l2_tuner *vt = arg;
-	int result = 0;
 
 	switch (cmd) {
-	case 0:
-		break;
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/* ioctls to allow direct access to the
 	 * cx25840 registers for testing */
@@ -600,8 +599,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		return cx25840_vbi(client, cmd, arg);
 
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		result = cx25840_audio(client, cmd, arg);
-		break;
+		return cx25840_audio(client, cmd, arg);
 
 	case VIDIOC_STREAMON:
 		cx25840_dbg("enable output\n");
@@ -620,19 +618,21 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		break;
 
 	case VIDIOC_G_CTRL:
-		result = get_v4lctrl(client, (struct v4l2_control *)arg);
-		break;
+		return get_v4lctrl(client, (struct v4l2_control *)arg);
 
 	case VIDIOC_S_CTRL:
-		result = set_v4lctrl(client, (struct v4l2_control *)arg);
-		break;
+		return set_v4lctrl(client, (struct v4l2_control *)arg);
 
 	case VIDIOC_G_STD:
 		*(v4l2_std_id *)arg = cx25840_get_v4lstd(client);
 		break;
 
 	case VIDIOC_S_STD:
-		result = set_v4lstd(client, *(v4l2_std_id *)arg);
+		state->radio = 0;
+		return set_v4lstd(client, *(v4l2_std_id *)arg);
+
+	case AUDC_SET_RADIO:
+		state->radio = 1;
 		break;
 
 	case VIDIOC_G_INPUT:
@@ -640,15 +640,13 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		break;
 
 	case VIDIOC_S_INPUT:
-		result = set_input(client, *(enum cx25840_video_input *)arg, state->aud_input);
-		break;
+		return set_input(client, *(enum cx25840_video_input *)arg, state->aud_input);
 
 	case VIDIOC_S_AUDIO:
 	{
 		struct v4l2_audio *input = arg;
 
-		result = set_input(client, state->vid_input, input->index);
-		break;
+		return set_input(client, state->vid_input, input->index);
 	}
 
 	case VIDIOC_G_AUDIO:
@@ -670,6 +668,9 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		u8 pref = cx25840_read(client, 0x809) & 0xf;
 		u8 vpres = cx25840_read(client, 0x80a) & 0x10;
 		int val = 0;
+
+		if (state->radio)
+			break;
 
 		vt->capability |=
 		    V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LANG1 |
@@ -725,12 +726,10 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		break;
 
 	case VIDIOC_G_FMT:
-		result = get_v4lfmt(client, (struct v4l2_format *)arg);
-		break;
+		return get_v4lfmt(client, (struct v4l2_format *)arg);
 
 	case VIDIOC_S_FMT:
-		result = set_v4lfmt(client, (struct v4l2_format *)arg);
-		break;
+		return set_v4lfmt(client, (struct v4l2_format *)arg);
 
 	case VIDIOC_INT_RESET:
 		cx25840_initialize(client, 0);
@@ -742,11 +741,10 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		break;
 
 	default:
-		cx25840_err("invalid ioctl %x\n", cmd);
 		return -EINVAL;
 	}
 
-	return result;
+	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

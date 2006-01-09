@@ -74,6 +74,7 @@ struct saa7115_state {
 	v4l2_std_id std;
 	int input;
 	int enable;
+	int radio;
 	int bright;
 	int contrast;
 	int hue;
@@ -634,6 +635,9 @@ static int saa7115_set_v4lctrl(struct i2c_client *client, struct v4l2_control *c
 		state->hue = ctrl->value;
 		saa7115_write(client, 0x0d, state->hue);
 		break;
+
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1043,6 +1047,8 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 		struct v4l2_tuner *vt = arg;
 		int status;
 
+		if (state->radio)
+			break;
 		status = saa7115_read(client, 0x1f);
 
 		saa7115_dbg("status: 0x%02x\n", status);
@@ -1065,7 +1071,12 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 		break;
 
 	case VIDIOC_S_STD:
+		state->radio = 0;
 		saa7115_set_v4lstd(client, *(v4l2_std_id *)arg);
+		break;
+
+	case AUDC_SET_RADIO:
+		state->radio = 1;
 		break;
 
 	case VIDIOC_G_INPUT:
@@ -1230,6 +1241,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->std = V4L2_STD_NTSC;
 	state->input = -1;
 	state->enable = 1;
+	state->radio = 0;
 	state->bright = 128;
 	state->contrast = 64;
 	state->hue = 0;

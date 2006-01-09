@@ -89,6 +89,7 @@ enum cx25840_audio_input {
 
 struct cx25840_state {
 	int pvr150_workaround;
+	int radio;
 	enum cx25840_video_input vid_input;
 	enum cx25840_audio_input aud_input;
 	u32 audclk_freq;
