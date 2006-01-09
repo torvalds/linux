@@ -441,7 +441,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		cx_set(MO_GP0_IO, 9);
 		mdelay(200);
 		dev->core->pll_addr = 0x61;
-		dev->core->pll_desc = &dvb_pll_thomson_dtt7611;
+		dev->core->pll_desc = &dvb_pll_thomson_dtt761x;
 		dev->dvb.frontend = lgdt330x_attach(&fusionhdtv_3_gold,
 						    &dev->core->i2c_adap);
 		}

@@ -708,7 +708,7 @@ struct cx88_board cx88_boards[] = {
 	},
 	[CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T] = {
 		.name           = "DViCO FusionHDTV 3 Gold-T",
-		.tuner_type     = TUNER_THOMSON_DTT7611,
+		.tuner_type     = TUNER_THOMSON_DTT761X,
 		.radio_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,

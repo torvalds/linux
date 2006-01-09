@@ -107,18 +107,19 @@ struct dvb_pll_desc dvb_pll_microtune_4042 = {
 };
 EXPORT_SYMBOL(dvb_pll_microtune_4042);
 
-struct dvb_pll_desc dvb_pll_thomson_dtt7611 = {
-	.name  = "Thomson dtt7611",
-	.min   =  44000000,
-	.max   = 958000000,
+struct dvb_pll_desc dvb_pll_thomson_dtt761x = {
+	/* DTT 7611 7611A 7612 7613 7613A 7614 7615 7615A */
+	.name  = "Thomson dtt761x",
+	.min   =  57000000,
+	.max   = 863000000,
 	.count = 3,
 	.entries = {
-		{ 157250000, 44000000, 62500, 0x8e, 0x39 },
-		{ 454000000, 44000000, 62500, 0x8e, 0x3a },
+		{ 147000000, 44000000, 62500, 0x8e, 0x39 },
+		{ 417000000, 44000000, 62500, 0x8e, 0x3a },
 		{ 999999999, 44000000, 62500, 0x8e, 0x3c },
 	},
 };
-EXPORT_SYMBOL(dvb_pll_thomson_dtt7611);
+EXPORT_SYMBOL(dvb_pll_thomson_dtt761x);
 
 struct dvb_pll_desc dvb_pll_unknown_1 = {
 	.name  = "unknown 1", /* used by dntv live dvb-t */

@@ -573,7 +573,7 @@ static struct tunertype tuners[] = {
 		.config = 0x8e,
 	},
 	[TUNER_THOMSON_DTT7610] = { /* THOMSON ATSC */
-		.name   = "Thomson DDT 7610 (ATSC/NTSC)",
+		.name   = "Thomson DTT 7610 (ATSC/NTSC)",
 		.thresh1= 16 * 157.25 /*MHz*/,
 		.thresh2= 16 * 454.00 /*MHz*/,
 		.VHF_L  = 0x39,
@@ -640,10 +640,11 @@ static struct tunertype tuners[] = {
 	},
 
 	/* 60-69 */
-	[TUNER_THOMSON_DTT7611] = { /* THOMSON ATSC */
-		.name   = "Thomson DDT 7611 (ATSC/NTSC)",
-		.thresh1= 16 * 157.25 /*MHz*/,
-		.thresh2= 16 * 454.00 /*MHz*/,
+	[TUNER_THOMSON_DTT761X] = { /* THOMSON ATSC */
+		/* DTT 7611 7611A 7612 7613 7613A 7614 7615 7615A */
+		.name   = "Thomson DTT 761X (ATSC/NTSC)",
+		.thresh1= 16 * 145.25 /*MHz*/,
+		.thresh2= 16 * 415.25 /*MHz*/,
 		.VHF_L  = 0x39,
 		.VHF_H  = 0x3a,
 		.UHF    = 0x3c,
