@@ -2139,7 +2139,6 @@ struct tvcard bttv_tvcards[] = {
 		.has_remote	= 1,
 		.gpiomask	= 0x1b,
 		.no_gpioirq     = 1,
-		.any_irq		= 1,
 	},
 	[BTTV_BOARD_PV143] = {
 		/* Jorge Boncompte - DTI2 <jorge@dti2.net> */
@@ -3412,8 +3411,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		btv->has_remote=1;
 	if (!bttv_tvcards[btv->c.type].no_gpioirq)
 		btv->gpioirq=1;
-	if (bttv_tvcards[btv->c.type].any_irq)
-		btv->any_irq = 1;
 	if (bttv_tvcards[btv->c.type].audio_hook)
 		btv->audio_hook=bttv_tvcards[btv->c.type].audio_hook;
 

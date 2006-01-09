@@ -3702,8 +3702,8 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 
 	btv=(struct bttv *)dev_id;
 
-	if (btv->any_irq)
-		handled = bttv_any_irq(&btv->c);
+	if (btv->custom_irq)
+		handled = btv->custom_irq(btv);
 
 	count=0;
 	while (1) {
@@ -3739,9 +3739,9 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 		if (astat&BT848_INT_VSYNC)
 			btv->field_count++;
 
-		if (astat & BT848_INT_GPINT) {
+		if ((astat & BT848_INT_GPINT) && btv->remote) {
 			wake_up(&btv->gpioq);
-			bttv_gpio_irq(&btv->c);
+			bttv_input_irq(btv);
 		}
 
 		if (astat & BT848_INT_I2CDONE) {
@@ -4070,6 +4070,8 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	if (bttv_tvcards[btv->c.type].has_dvb)
 		bttv_sub_add_device(&btv->c, "dvb");
 
+	bttv_input_init(btv);
+
 	/* everything is fine */
 	bttv_num++;
 	return 0;
@@ -4104,7 +4106,8 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 	/* tell gpio modules we are leaving ... */
 	btv->shutdown=1;
 	wake_up(&btv->gpioq);
-	bttv_sub_del_devices(&btv->c);
+	bttv_input_fini(btv);
+	//bttv_sub_del_devices(&btv->c);
 
 	/* unregister i2c_bus + input */
 	fini_bttv_i2c(btv);
