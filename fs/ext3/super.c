@@ -2150,7 +2150,7 @@ int ext3_force_commit(struct super_block *sb)
 
 static void ext3_write_super (struct super_block * sb)
 {
-	if (down_trylock(&sb->s_lock) == 0)
+	if (mutex_trylock(&sb->s_lock) != 0)
 		BUG();
 	sb->s_dirt = 0;
 }
