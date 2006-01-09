@@ -729,13 +729,13 @@ static int fat_dir_ioctl(struct inode * inode, struct file * filp,
 
 	buf.dirent = d1;
 	buf.result = 0;
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	ret = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
 		ret = __fat_readdir(inode, filp, &buf, fat_ioctl_filldir,
 				    short_only, both);
 	}
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	if (ret >= 0)
 		ret = buf.result;
 	return ret;

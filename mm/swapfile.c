@@ -1187,9 +1187,9 @@ asmlinkage long sys_swapoff(const char __user * specialfile)
 		set_blocksize(bdev, p->old_block_size);
 		bd_release(bdev);
 	} else {
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		inode->i_flags &= ~S_SWAPFILE;
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 	filp_close(swap_file, NULL);
 	err = 0;
@@ -1406,7 +1406,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		p->bdev = bdev;
 	} else if (S_ISREG(inode->i_mode)) {
 		p->bdev = inode->i_sb->s_bdev;
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		did_down = 1;
 		if (IS_SWAPFILE(inode)) {
 			error = -EBUSY;
@@ -1596,7 +1596,7 @@ out:
 	if (did_down) {
 		if (!error)
 			inode->i_flags |= S_SWAPFILE;
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 	return error;
 }

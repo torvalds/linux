@@ -122,7 +122,7 @@ const unsigned char * configfs_get_name(struct configfs_dirent *sd)
 
 /*
  * Unhashes the dentry corresponding to given configfs_dirent
- * Called with parent inode's i_sem held.
+ * Called with parent inode's i_mutex held.
  */
 void configfs_drop_dentry(struct configfs_dirent * sd, struct dentry * parent)
 {
@@ -145,7 +145,7 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 	struct configfs_dirent * sd;
 	struct configfs_dirent * parent_sd = dir->d_fsdata;
 
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;
@@ -156,7 +156,7 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 			break;
 		}
 	}
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 }
 
 

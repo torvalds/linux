@@ -254,7 +254,7 @@ xfs_read(
 	}
 
 	if (unlikely(ioflags & IO_ISDIRECT))
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
 	if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ) &&
@@ -286,7 +286,7 @@ xfs_read(
 
 unlock_isem:
 	if (unlikely(ioflags & IO_ISDIRECT))
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 
@@ -655,7 +655,7 @@ relock:
 		iolock = XFS_IOLOCK_EXCL;
 		locktype = VRWLOCK_WRITE;
 
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 	} else {
 		iolock = XFS_IOLOCK_SHARED;
 		locktype = VRWLOCK_WRITE_DIRECT;
@@ -686,7 +686,7 @@ start:
 		int		dmflags = FILP_DELAY_FLAG(file);
 
 		if (need_isem)
-			dmflags |= DM_FLAGS_ISEM;
+			dmflags |= DM_FLAGS_IMUX;
 
 		xfs_iunlock(xip, XFS_ILOCK_EXCL);
 		error = XFS_SEND_DATA(xip->i_mount, DM_EVENT_WRITE, vp,
@@ -772,7 +772,7 @@ retry:
 		if (need_isem) {
 			/* demote the lock now the cached pages are gone */
 			XFS_ILOCK_DEMOTE(mp, io, XFS_IOLOCK_EXCL);
-			up(&inode->i_sem);
+			mutex_unlock(&inode->i_mutex);
 
 			iolock = XFS_IOLOCK_SHARED;
 			locktype = VRWLOCK_WRITE_DIRECT;
@@ -817,14 +817,14 @@ retry:
 
 		xfs_rwunlock(bdp, locktype);
 		if (need_isem)
-			up(&inode->i_sem);
+			mutex_unlock(&inode->i_mutex);
 		error = XFS_SEND_NAMESP(xip->i_mount, DM_EVENT_NOSPACE, vp,
 				DM_RIGHT_NULL, vp, DM_RIGHT_NULL, NULL, NULL,
 				0, 0, 0); /* Delay flag intentionally  unused */
 		if (error)
 			goto out_nounlocks;
 		if (need_isem)
-			down(&inode->i_sem);
+			mutex_lock(&inode->i_mutex);
 		xfs_rwlock(bdp, locktype);
 		pos = xip->i_d.di_size;
 		ret = 0;
@@ -926,7 +926,7 @@ retry:
 	
 		xfs_rwunlock(bdp, locktype);
 		if (need_isem)
-			up(&inode->i_sem);
+			mutex_unlock(&inode->i_mutex);
 
 		error = sync_page_range(inode, mapping, pos, ret);
 		if (!error)
@@ -938,7 +938,7 @@ retry:
 	xfs_rwunlock(bdp, locktype);
  out_unlock_isem:
 	if (need_isem)
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
  out_nounlocks:
 	return -error;
 }

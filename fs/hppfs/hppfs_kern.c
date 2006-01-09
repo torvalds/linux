@@ -171,12 +171,12 @@ static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 
 	err = -ENOMEM;
 	parent = HPPFS_I(ino)->proc_dentry;
-	down(&parent->d_inode->i_sem);
+	mutex_lock(&parent->d_inode->i_mutex);
 	proc_dentry = d_lookup(parent, &dentry->d_name);
 	if(proc_dentry == NULL){
 		proc_dentry = d_alloc(parent, &dentry->d_name);
 		if(proc_dentry == NULL){
-			up(&parent->d_inode->i_sem);
+			mutex_unlock(&parent->d_inode->i_mutex);
 			goto out;
 		}
 		new = (*parent->d_inode->i_op->lookup)(parent->d_inode,
@@ -186,7 +186,7 @@ static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 			proc_dentry = new;
 		}
 	}
-	up(&parent->d_inode->i_sem);
+	mutex_unlock(&parent->d_inode->i_mutex);
 
 	if(IS_ERR(proc_dentry))
 		return(proc_dentry);

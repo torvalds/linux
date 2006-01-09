@@ -352,11 +352,11 @@ static long do_fsync(unsigned int fd, int datasync)
 	 * We need to protect against concurrent writers,
 	 * which could cause livelocks in fsync_buffers_list
 	 */
-	down(&mapping->host->i_sem);
+	mutex_lock(&mapping->host->i_mutex);
 	err = file->f_op->fsync(file, file->f_dentry, datasync);
 	if (!ret)
 		ret = err;
-	up(&mapping->host->i_sem);
+	mutex_unlock(&mapping->host->i_mutex);
 	err = filemap_fdatawait(mapping);
 	if (!ret)
 		ret = err;
@@ -2338,7 +2338,7 @@ int generic_commit_write(struct file *file, struct page *page,
 	__block_commit_write(inode,page,from,to);
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold i_sem.
+	 * cannot change under us because we hold i_mutex.
 	 */
 	if (pos > inode->i_size) {
 		i_size_write(inode, pos);

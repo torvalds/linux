@@ -660,7 +660,7 @@ asmlinkage long sys_mq_open(const char __user *u_name, int oflag, mode_t mode,
 	if (fd < 0)
 		goto out_putname;
 
-	down(&mqueue_mnt->mnt_root->d_inode->i_sem);
+	mutex_lock(&mqueue_mnt->mnt_root->d_inode->i_mutex);
 	dentry = lookup_one_len(name, mqueue_mnt->mnt_root, strlen(name));
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
@@ -697,7 +697,7 @@ out_putfd:
 out_err:
 	fd = error;
 out_upsem:
-	up(&mqueue_mnt->mnt_root->d_inode->i_sem);
+	mutex_unlock(&mqueue_mnt->mnt_root->d_inode->i_mutex);
 out_putname:
 	putname(name);
 	return fd;
@@ -714,7 +714,7 @@ asmlinkage long sys_mq_unlink(const char __user *u_name)
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
-	down(&mqueue_mnt->mnt_root->d_inode->i_sem);
+	mutex_lock(&mqueue_mnt->mnt_root->d_inode->i_mutex);
 	dentry = lookup_one_len(name, mqueue_mnt->mnt_root, strlen(name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
@@ -735,7 +735,7 @@ out_err:
 	dput(dentry);
 
 out_unlock:
-	up(&mqueue_mnt->mnt_root->d_inode->i_sem);
+	mutex_unlock(&mqueue_mnt->mnt_root->d_inode->i_mutex);
 	putname(name);
 	if (inode)
 		iput(inode);

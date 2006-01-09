@@ -211,9 +211,9 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 		newattrs.ia_valid |= ATTR_FILE;
 	}
 
-	down(&dentry->d_inode->i_sem);
+	mutex_lock(&dentry->d_inode->i_mutex);
 	err = notify_change(dentry, &newattrs);
-	up(&dentry->d_inode->i_sem);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	return err;
 }
 
@@ -398,9 +398,9 @@ asmlinkage long sys_utime(char __user * filename, struct utimbuf __user * times)
 		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
 			goto dput_and_out;
 	}
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	error = notify_change(nd.dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 dput_and_out:
 	path_release(&nd);
 out:
@@ -451,9 +451,9 @@ long do_utimes(char __user * filename, struct timeval * times)
 		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
 			goto dput_and_out;
 	}
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	error = notify_change(nd.dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 dput_and_out:
 	path_release(&nd);
 out:
@@ -620,13 +620,13 @@ asmlinkage long sys_fchmod(unsigned int fd, mode_t mode)
 	err = -EPERM;
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		goto out_putf;
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	err = notify_change(dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 
 out_putf:
 	fput(file);
@@ -654,13 +654,13 @@ asmlinkage long sys_chmod(const char __user * filename, mode_t mode)
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		goto dput_and_out;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	if (mode == (mode_t) -1)
 		mode = inode->i_mode;
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	error = notify_change(nd.dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 
 dput_and_out:
 	path_release(&nd);
@@ -696,9 +696,9 @@ static int chown_common(struct dentry * dentry, uid_t user, gid_t group)
 	}
 	if (!S_ISDIR(inode->i_mode))
 		newattrs.ia_valid |= ATTR_KILL_SUID|ATTR_KILL_SGID;
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	error = notify_change(dentry, &newattrs);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 out:
 	return error;
 }

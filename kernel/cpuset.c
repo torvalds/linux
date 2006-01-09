@@ -1513,7 +1513,7 @@ static int cpuset_add_file(struct dentry *dir, const struct cftype *cft)
 	struct dentry *dentry;
 	int error;
 
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	dentry = cpuset_get_dentry(dir, cft->name);
 	if (!IS_ERR(dentry)) {
 		error = cpuset_create_file(dentry, 0644 | S_IFREG);
@@ -1522,7 +1522,7 @@ static int cpuset_add_file(struct dentry *dir, const struct cftype *cft)
 		dput(dentry);
 	} else
 		error = PTR_ERR(dentry);
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 	return error;
 }
 
@@ -1793,7 +1793,7 @@ static long cpuset_create(struct cpuset *parent, const char *name, int mode)
 
 	/*
 	 * Release manage_sem before cpuset_populate_dir() because it
-	 * will down() this new directory's i_sem and if we race with
+	 * will down() this new directory's i_mutex and if we race with
 	 * another mkdir, we might deadlock.
 	 */
 	up(&manage_sem);
@@ -1812,7 +1812,7 @@ static int cpuset_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
 	struct cpuset *c_parent = dentry->d_parent->d_fsdata;
 
-	/* the vfs holds inode->i_sem already */
+	/* the vfs holds inode->i_mutex already */
 	return cpuset_create(c_parent, dentry->d_name.name, mode | S_IFDIR);
 }
 
@@ -1823,7 +1823,7 @@ static int cpuset_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	struct cpuset *parent;
 	char *pathbuf = NULL;
 
-	/* the vfs holds both inode->i_sem already */
+	/* the vfs holds both inode->i_mutex already */
 
 	down(&manage_sem);
 	cpuset_update_task_memory_state();

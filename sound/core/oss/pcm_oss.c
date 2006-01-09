@@ -2135,9 +2135,7 @@ static ssize_t snd_pcm_oss_write(struct file *file, const char __user *buf, size
 	substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 	if (substream == NULL)
 		return -ENXIO;
-	up(&file->f_dentry->d_inode->i_sem);
 	result = snd_pcm_oss_write1(substream, buf, count);
-	down(&file->f_dentry->d_inode->i_sem);
 #ifdef OSS_DEBUG
 	printk("pcm_oss: write %li bytes (wrote %li bytes)\n", (long)count, (long)result);
 #endif

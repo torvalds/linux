@@ -86,9 +86,9 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 
 	BUG_ON(!kobj || !kobj->dentry || !name);
 
-	down(&dentry->d_inode->i_sem);
+	mutex_lock(&dentry->d_inode->i_mutex);
 	error = sysfs_add_link(dentry, name, target);
-	up(&dentry->d_inode->i_sem);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	return error;
 }
 
@@ -177,4 +177,3 @@ struct inode_operations sysfs_symlink_inode_operations = {
 
 EXPORT_SYMBOL_GPL(sysfs_create_link);
 EXPORT_SYMBOL_GPL(sysfs_remove_link);
-

@@ -215,7 +215,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 	unsigned offset, bv_offs;
 	int len, ret;
 
-	down(&mapping->host->i_sem);
+	mutex_lock(&mapping->host->i_mutex);
 	index = pos >> PAGE_CACHE_SHIFT;
 	offset = pos & ((pgoff_t)PAGE_CACHE_SIZE - 1);
 	bv_offs = bvec->bv_offset;
@@ -278,7 +278,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 	}
 	ret = 0;
 out:
-	up(&mapping->host->i_sem);
+	mutex_unlock(&mapping->host->i_mutex);
 	return ret;
 unlock:
 	unlock_page(page);

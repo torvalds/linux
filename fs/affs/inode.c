@@ -244,10 +244,10 @@ affs_put_inode(struct inode *inode)
 	pr_debug("AFFS: put_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
 	affs_free_prealloc(inode);
 	if (atomic_read(&inode->i_count) == 1) {
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		if (inode->i_size != AFFS_I(inode)->mmu_private)
 			affs_truncate(inode);
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 }
 

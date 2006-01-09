@@ -1415,7 +1415,7 @@ jffs_file_write(struct file *filp, const char *buf, size_t count,
 	 * This will never trigger with sane page sizes.  leave it in
 	 * anyway, since I'm thinking about how to merge larger writes
 	 * (the current idea is to poke a thread that does the actual
-	 * I/O and starts by doing a down(&inode->i_sem).  then we
+	 * I/O and starts by doing a mutex_lock(&inode->i_mutex).  then we
 	 * would need to get the page cache pages and have a list of
 	 * I/O requests and do write-merging here.
 	 * -- prumpf

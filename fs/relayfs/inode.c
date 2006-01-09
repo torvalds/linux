@@ -109,7 +109,7 @@ static struct dentry *relayfs_create_entry(const char *name,
 	}
 
 	parent = dget(parent);
-	down(&parent->d_inode->i_sem);
+	mutex_lock(&parent->d_inode->i_mutex);
 	d = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(d)) {
 		d = NULL;
@@ -139,7 +139,7 @@ release_mount:
 	simple_release_fs(&relayfs_mount, &relayfs_mount_count);
 
 exit:
-	up(&parent->d_inode->i_sem);
+	mutex_unlock(&parent->d_inode->i_mutex);
 	dput(parent);
 	return d;
 }
@@ -204,7 +204,7 @@ int relayfs_remove(struct dentry *dentry)
 		return -EINVAL;
 
 	parent = dget(parent);
-	down(&parent->d_inode->i_sem);
+	mutex_lock(&parent->d_inode->i_mutex);
 	if (dentry->d_inode) {
 		if (S_ISDIR(dentry->d_inode->i_mode))
 			error = simple_rmdir(parent->d_inode, dentry);
@@ -215,7 +215,7 @@ int relayfs_remove(struct dentry *dentry)
 	}
 	if (!error)
 		dput(dentry);
-	up(&parent->d_inode->i_sem);
+	mutex_unlock(&parent->d_inode->i_mutex);
 	dput(parent);
 
 	if (!error)
@@ -476,7 +476,7 @@ static ssize_t relay_file_read(struct file *filp,
 	ssize_t ret = 0;
 	void *from;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	if(!relay_file_read_avail(buf, *ppos))
 		goto out;
 
@@ -494,7 +494,7 @@ static ssize_t relay_file_read(struct file *filp,
 	relay_file_read_consume(buf, read_start, count);
 	*ppos = relay_file_read_end_pos(buf, read_start, count);
 out:
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return ret;
 }
 

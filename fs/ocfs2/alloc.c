@@ -966,7 +966,7 @@ static int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	mlog_entry("start_blk = %"MLFu64", num_clusters = %u\n", start_blk,
 		   num_clusters);
 
-	BUG_ON(!down_trylock(&tl_inode->i_sem));
+	BUG_ON(mutex_trylock(&tl_inode->i_mutex));
 
 	start_cluster = ocfs2_blocks_to_clusters(osb->sb, start_blk);
 
@@ -1108,7 +1108,7 @@ bail:
 	return status;
 }
 
-/* Expects you to already be holding tl_inode->i_sem */
+/* Expects you to already be holding tl_inode->i_mutex */
 static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 {
 	int status;
@@ -1123,7 +1123,7 @@ static int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 
 	mlog_entry_void();
 
-	BUG_ON(!down_trylock(&tl_inode->i_sem));
+	BUG_ON(mutex_trylock(&tl_inode->i_mutex));
 
 	di = (struct ocfs2_dinode *) tl_bh->b_data;
 	tl = &di->id2.i_dealloc;
@@ -1198,9 +1198,9 @@ int ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 	int status;
 	struct inode *tl_inode = osb->osb_tl_inode;
 
-	down(&tl_inode->i_sem);
+	mutex_lock(&tl_inode->i_mutex);
 	status = __ocfs2_flush_truncate_log(osb);
-	up(&tl_inode->i_sem);
+	mutex_unlock(&tl_inode->i_mutex);
 
 	return status;
 }
@@ -1363,7 +1363,7 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 	mlog(0, "cleanup %u records from %"MLFu64"\n", num_recs,
 	     tl_copy->i_blkno);
 
-	down(&tl_inode->i_sem);
+	mutex_lock(&tl_inode->i_mutex);
 	for(i = 0; i < num_recs; i++) {
 		if (ocfs2_truncate_log_needs_flush(osb)) {
 			status = __ocfs2_flush_truncate_log(osb);
@@ -1395,7 +1395,7 @@ int ocfs2_complete_truncate_log_recovery(struct ocfs2_super *osb,
 	}
 
 bail_up:
-	up(&tl_inode->i_sem);
+	mutex_unlock(&tl_inode->i_mutex);
 
 	mlog_exit(status);
 	return status;
@@ -1840,7 +1840,7 @@ start:
 
 	mlog(0, "clusters_to_del = %u in this pass\n", clusters_to_del);
 
-	down(&tl_inode->i_sem);
+	mutex_lock(&tl_inode->i_mutex);
 	tl_sem = 1;
 	/* ocfs2_truncate_log_needs_flush guarantees us at least one
 	 * record is free for use. If there isn't any, we flush to get
@@ -1875,7 +1875,7 @@ start:
 		goto bail;
 	}
 
-	up(&tl_inode->i_sem);
+	mutex_unlock(&tl_inode->i_mutex);
 	tl_sem = 0;
 
 	ocfs2_commit_trans(handle);
@@ -1890,7 +1890,7 @@ bail:
 	ocfs2_schedule_truncate_log_flush(osb, 1);
 
 	if (tl_sem)
-		up(&tl_inode->i_sem);
+		mutex_unlock(&tl_inode->i_mutex);
 
 	if (handle)
 		ocfs2_commit_trans(handle);
@@ -1994,7 +1994,7 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 			goto bail;
 		}
 
-		down(&ext_alloc_inode->i_sem);
+		mutex_lock(&ext_alloc_inode->i_mutex);
 		(*tc)->tc_ext_alloc_inode = ext_alloc_inode;
 
 		status = ocfs2_meta_lock(ext_alloc_inode,
@@ -2026,7 +2026,7 @@ static void ocfs2_free_truncate_context(struct ocfs2_truncate_context *tc)
 		if (tc->tc_ext_alloc_locked)
 			ocfs2_meta_unlock(tc->tc_ext_alloc_inode, 1);
 
-		up(&tc->tc_ext_alloc_inode->i_sem);
+		mutex_unlock(&tc->tc_ext_alloc_inode->i_mutex);
 		iput(tc->tc_ext_alloc_inode);
 	}
 

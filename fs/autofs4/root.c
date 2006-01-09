@@ -489,9 +489,9 @@ static struct dentry *autofs4_lookup(struct inode *dir, struct dentry *dentry, s
 	d_add(dentry, NULL);
 
 	if (dentry->d_op && dentry->d_op->d_revalidate) {
-		up(&dir->i_sem);
+		mutex_unlock(&dir->i_mutex);
 		(dentry->d_op->d_revalidate)(dentry, nd);
-		down(&dir->i_sem);
+		mutex_lock(&dir->i_mutex);
 	}
 
 	/*
