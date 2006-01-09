@@ -1493,6 +1493,41 @@ static void scsi_kill_request(struct request *req, request_queue_t *q)
 	__scsi_done(cmd);
 }
 
+static void scsi_softirq_done(struct request *rq)
+{
+	struct scsi_cmnd *cmd = rq->completion_data;
+	unsigned long wait_for = cmd->allowed * cmd->timeout_per_command;
+	int disposition;
+
+	INIT_LIST_HEAD(&cmd->eh_entry);
+
+	disposition = scsi_decide_disposition(cmd);
+	if (disposition != SUCCESS &&
+	    time_before(cmd->jiffies_at_alloc + wait_for, jiffies)) {
+		sdev_printk(KERN_ERR, cmd->device,
+			    "timing out command, waited %lus\n",
+			    wait_for/HZ);
+		disposition = SUCCESS;
+	}
+			
+	scsi_log_completion(cmd, disposition);
+
+	switch (disposition) {
+		case SUCCESS:
+			scsi_finish_command(cmd);
+			break;
+		case NEEDS_RETRY:
+			scsi_retry_command(cmd);
+			break;
+		case ADD_TO_MLQUEUE:
+			scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
+			break;
+		default:
+			if (!scsi_eh_scmd_add(cmd, 0))
+				scsi_finish_command(cmd);
+	}
+}
+
 /*
  * Function:    scsi_request_fn()
  *
@@ -1667,6 +1702,7 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 	blk_queue_bounce_limit(q, scsi_calculate_bounce_limit(shost));
 	blk_queue_segment_boundary(q, shost->dma_boundary);
 	blk_queue_issue_flush_fn(q, scsi_issue_flush_fn);
+	blk_queue_softirq_done(q, scsi_softirq_done);
 
 	if (!shost->use_clustering)
 		clear_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
