@@ -87,15 +87,15 @@ static struct i2c_driver lm77_driver = {
 
 /* In the temperature registers, the low 3 bits are not part of the
    temperature values; they are the status bits. */
-static inline u16 LM77_TEMP_TO_REG(int temp)
+static inline s16 LM77_TEMP_TO_REG(int temp)
 {
 	int ntemp = SENSORS_LIMIT(temp, LM77_TEMP_MIN, LM77_TEMP_MAX);
-	return (u16)((ntemp / 500) * 8);
+	return (ntemp / 500) * 8;
 }
 
-static inline int LM77_TEMP_FROM_REG(u16 reg)
+static inline int LM77_TEMP_FROM_REG(s16 reg)
 {
-	return ((int)reg / 8) * 500;
+	return (reg / 8) * 500;
 }
 
 /* sysfs stuff */
