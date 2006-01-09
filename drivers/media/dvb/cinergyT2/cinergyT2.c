@@ -564,10 +564,15 @@ static int cinergyt2_ioctl (struct inode *inode, struct file *file,
 				(__u16 __user *) arg);
 
 	case FE_READ_UNCORRECTED_BLOCKS:
-		/* UNC are already converted to host byte order... */
-		return put_user(stat->uncorrected_block_count,
-				(__u32 __user *) arg);
+	{
+		uint32_t unc_count;
 
+		unc_count = stat->uncorrected_block_count;
+		stat->uncorrected_block_count = 0;
+
+		/* UNC are already converted to host byte order... */
+		return put_user(unc_count,(__u32 __user *) arg);
+	}
 	case FE_SET_FRONTEND:
 	{
 		struct dvbt_set_parameters_msg *param = &cinergyt2->param;
