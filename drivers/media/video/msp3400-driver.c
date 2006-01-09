@@ -106,9 +106,7 @@ MODULE_PARM_DESC(dolby, "Activates Dolby processsing");
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x80 >> 1, 0x88 >> 1, I2C_CLIENT_END };
-
 I2C_CLIENT_INSMOD;
-
 
 /* ----------------------------------------------------------------------- */
 /* functions for talking to the MSP3400C Sound processor                   */
@@ -975,7 +973,6 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	snprintf(client->name, sizeof(client->name) - 1, "msp3400");
 
 	if (msp_reset(client) == -1) {
@@ -1119,7 +1116,6 @@ static struct i2c_driver i2c_driver = {
 		.suspend = msp_suspend,
 		.resume  = msp_resume,
 	},
-	.owner          = THIS_MODULE,
 };
 
 static int __init msp3400_init_module(void)

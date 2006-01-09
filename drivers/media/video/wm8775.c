@@ -237,12 +237,10 @@ static struct i2c_driver i2c_driver = {
 	.driver = {
 		.name = "wm8775",
 	},
-
-	.id = I2C_DRIVERID_WM8775,
-
+	.id             = I2C_DRIVERID_WM8775,
 	.attach_adapter = wm8775_probe,
-	.detach_client = wm8775_detach,
-	.command = wm8775_command,
+	.detach_client  = wm8775_detach,
+	.command        = wm8775_command,
 };
 
 

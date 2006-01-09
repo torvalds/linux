@@ -107,7 +107,7 @@ static struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
 static struct i2c_adapter bttv_i2c_adap_sw_template = {
 	.owner             = THIS_MODULE,
 	.class             = I2C_CLASS_TV_ANALOG,
-	.name              = "bt848",
+	.name              = "bttv",
 	.id                = I2C_HW_B_BT848,
 	.client_register   = attach_inform,
 };
@@ -274,7 +274,7 @@ static struct i2c_algorithm bttv_algo = {
 };
 
 static struct i2c_adapter bttv_i2c_adap_hw_template = {
-	.owner         = THIS_MODULE,
+	.owner             = THIS_MODULE,
 	.class         = I2C_CLASS_TV_ANALOG,
 	.name          = "bt878",
 	.id            = I2C_HW_B_BT848 /* FIXME */,

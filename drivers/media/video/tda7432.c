@@ -341,8 +341,8 @@ static int tda7432_command(struct i2c_client *client,
 {
 	struct tda7432 *t = i2c_get_clientdata(client);
 	v4l_dbg(2,client,"In tda7432_command\n");
-        if (debug>1)
-                v4l_i2c_print_ioctl(client,cmd);
+	if (debug>1)
+		v4l_i2c_print_ioctl(client,cmd);
 
 	switch (cmd) {
 	/* --- v4l ioctls --- */
@@ -489,7 +489,7 @@ static int tda7432_command(struct i2c_client *client,
 
 static struct i2c_driver driver = {
 	.driver = {
-		.name    = "i2c tda7432 driver",
+		.name    = "tda7432",
 	},
 	.id              = I2C_DRIVERID_TDA7432,
 	.attach_adapter  = tda7432_probe,

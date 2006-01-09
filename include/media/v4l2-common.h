@@ -34,7 +34,7 @@
 #define v4l_printk(level, name, adapter, addr, fmt, arg...) \
 	printk(level "%s %d-%04x: " fmt, name, i2c_adapter_id(adapter), addr , ## arg)
 
-#define v4l_client_printk(level, client, fmt, arg...) 		     \
+#define v4l_client_printk(level, client, fmt, arg...)			    \
 	v4l_printk(level, (client)->driver->driver.name, (client)->adapter, \
 		   (client)->addr, fmt , ## arg)
 

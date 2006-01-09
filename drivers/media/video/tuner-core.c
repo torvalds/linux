@@ -805,10 +805,10 @@ static struct i2c_driver driver = {
 	.detach_client = tuner_detach,
 	.command = tuner_command,
 	.driver = {
-		   .name = "tuner",
-		   .suspend = tuner_suspend,
-		   .resume = tuner_resume,
-		   },
+		.name    = "tuner",
+		.suspend = tuner_suspend,
+		.resume  = tuner_resume,
+	},
 };
 static struct i2c_client client_template = {
 	.name = "(tuner unset)",

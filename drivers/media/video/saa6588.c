@@ -486,7 +486,7 @@ static int saa6588_command(struct i2c_client *client, unsigned int cmd,
 
 static struct i2c_driver driver = {
 	.driver = {
-		.name = "i2c saa6588 driver",
+		.name = "saa6588",
 	},
 	.id = -1,		/* FIXME */
 	.attach_adapter = saa6588_probe,

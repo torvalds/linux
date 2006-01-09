@@ -30,14 +30,15 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define tvp5150_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, c->driver->name, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, c->driver->driver.name, \
 	       i2c_adapter_id(c->adapter), c->addr , ## arg); } while (0)
 #define tvp5150_dbg(num, fmt, arg...) \
 	do { \
 		if (debug >= num) \
-			printk(KERN_DEBUG "%s debug %d-%04x: " fmt, c->driver->name, \
-			       i2c_adapter_id(c->adapter), c->addr , ## arg); \
-	} while (0)
+			printk(KERN_DEBUG "%s debug %d-%04x: " fmt,\
+				c->driver->driver.name, \
+				i2c_adapter_id(c->adapter), \
+				c->addr , ## arg); } while (0)
 
 /* supported controls */
 static struct v4l2_queryctrl tvp5150_qctrl[] = {
@@ -1137,9 +1138,7 @@ static struct i2c_driver driver = {
 	.driver = {
 		.name = "tvp5150",
 	},
-
-	/* FIXME */
-	.id = I2C_DRIVERID_SAA7110,
+	.id = I2C_DRIVERID_TVP5150,
 
 	.attach_adapter = tvp5150_attach_adapter,
 	.detach_client = tvp5150_detach_client,

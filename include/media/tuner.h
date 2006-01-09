@@ -214,7 +214,6 @@ extern int tea5767_autodetection(struct i2c_client *c);
 #define tuner_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
-
 #define tuner_info(fmt, arg...) do {\
 	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)

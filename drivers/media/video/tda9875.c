@@ -368,7 +368,7 @@ static int tda9875_command(struct i2c_client *client,
 
 static struct i2c_driver driver = {
 	.driver = {
-		.name   = "i2c tda9875 driver",
+		.name   = "tda9875",
 	},
 	.id             = I2C_DRIVERID_TDA9875,
 	.attach_adapter = tda9875_probe,

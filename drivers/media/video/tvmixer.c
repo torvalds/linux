@@ -227,13 +227,9 @@ static int tvmixer_release(struct inode *inode, struct file *file)
 }
 
 static struct i2c_driver driver = {
-#ifdef I2C_PEC
 	.driver = {
-		.name    = "tv card mixer driver",
+		.name    = "tvmixer",
 	},
-#else
-	.name            = "tv card mixer driver",
-#endif
 	.id              = I2C_DRIVERID_TVMIXER,
 	.detach_adapter  = tvmixer_adapters,
 	.attach_adapter  = tvmixer_adapters,
