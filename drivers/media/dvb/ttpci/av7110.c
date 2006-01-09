@@ -2314,8 +2314,10 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x000E: /* Hauppauge/TT Nexus-S rev 2.3 */
 			/* ALPS BSBE1 */
 			av7110->fe = stv0299_attach(&alps_bsbe1_config, &av7110->i2c_adap);
-			if (av7110->fe)
+			if (av7110->fe) {
 				av7110->fe->ops->set_voltage = lnbp21_set_voltage;
+				av7110->fe->ops->dishnetwork_send_legacy_command = NULL;
+			}
 			break;
 		}
 	}
