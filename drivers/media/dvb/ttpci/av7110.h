@@ -229,6 +229,9 @@ struct av7110 {
 	struct dvb_video_events  video_events;
 	video_size_t		 video_size;
 
+	u16			wssMode;
+	u16			wssData;
+
 	u32			ir_config;
 	u32			ir_command;
 	void			(*ir_handler)(struct av7110 *av7110, u32 ircom);

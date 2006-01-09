@@ -167,7 +167,8 @@ enum av7110_encoder_command {
 	LoadVidCode,
 	SetMonitorType,
 	SetPanScanType,
-	SetFreezeMode
+	SetFreezeMode,
+	SetWSSConfig
 };
 
 enum av7110_rec_play_state {
