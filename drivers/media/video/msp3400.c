@@ -1642,6 +1642,45 @@ static void msp_any_detect_stereo(struct i2c_client *client)
 	}
 }
 
+static struct v4l2_queryctrl msp34xx_qctrl[] = {
+	{
+		.id            = V4L2_CID_AUDIO_VOLUME,
+		.name          = "Volume",
+		.minimum       = 0,
+		.maximum       = 65535,
+		.step          = 65535/100,
+		.default_value = 58880,
+		.flags         = 0,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+	},{
+		.id            = V4L2_CID_AUDIO_MUTE,
+		.name          = "Mute",
+		.minimum       = 0,
+		.maximum       = 1,
+		.step          = 1,
+		.default_value = 1,
+		.flags         = 0,
+		.type          = V4L2_CTRL_TYPE_BOOLEAN,
+	},{
+		.id            = V4L2_CID_AUDIO_BASS,
+		.name          = "Bass",
+		.minimum       = 0,
+		.maximum       = 65535,
+		.step          = 65535/100,
+		.default_value = 32768,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+	},{
+		.id            = V4L2_CID_AUDIO_TREBLE,
+		.name          = "Treble",
+		.minimum       = 0,
+		.maximum       = 65535,
+		.step          = 65535/100,
+		.default_value = 32768,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+	},
+};
+
+
 static void msp_any_set_audmode(struct i2c_client *client, int audmode)
 {
 	struct msp3400c *msp  = i2c_get_clientdata(client);
@@ -1658,6 +1697,95 @@ static void msp_any_set_audmode(struct i2c_client *client, int audmode)
 	}
 }
 
+static int msp_get_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
+{
+	struct msp3400c *msp  = i2c_get_clientdata(client);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = msp->muted;
+		return 0;
+	case V4L2_CID_AUDIO_BALANCE:
+	{
+		int volume = MAX(msp->left, msp->right);
+
+		ctrl->value = (32768 * MIN(msp->left, msp->right)) /
+		    (volume ? volume : 1);
+		ctrl->value = (msp->left < msp->right) ?
+		    (65535 - ctrl->value) : ctrl->value;
+		if (0 == volume)
+			ctrl->value = 32768;
+		return 0;
+	}
+	case V4L2_CID_AUDIO_BASS:
+		ctrl->value = msp->bass;
+		return 0;
+	case V4L2_CID_AUDIO_TREBLE:
+		ctrl->value = msp->treble;
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = MAX(msp->left, msp->right);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int msp_set_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
+{
+	struct msp3400c *msp  = i2c_get_clientdata(client);
+	int set_volume=0, balance, volume;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->value>=0 && ctrl->value<2)
+			msp->muted = ctrl->value;
+		else
+			return -ERANGE;
+
+		msp3400c_setvolume(client, msp->muted, msp->left, msp->right);
+		return 0;
+	case V4L2_CID_AUDIO_BALANCE:
+		balance=ctrl->value;
+		volume = MAX(msp->left, msp->right);
+		set_volume=1;
+		break;
+	case V4L2_CID_AUDIO_BASS:
+		msp->bass=ctrl->value;
+		msp3400c_setbass(client, msp->bass);
+		return 0;
+	case V4L2_CID_AUDIO_TREBLE:
+		msp->treble=ctrl->value;
+		msp3400c_settreble(client, msp->treble);
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		volume = MAX(msp->left, msp->right);
+
+		balance = (32768 * MIN(msp->left, msp->right)) /
+					(volume ? volume : 1);
+		balance = (msp->left < msp->right) ?
+					(65535 - balance) : balance;
+		if (0 == volume)
+			balance = 32768;
+
+		volume=ctrl->value;
+		set_volume=1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (set_volume) {
+		msp->left = (MIN(65536 - balance, 32768) * volume) / 32768;
+		msp->right = (MIN(balance, 32768) * volume) / 32768;
+
+		msp3400_dbg("volume=%d, balance=%d, left=%d, right=%d",
+			volume,balance,msp->left,msp->right);
+
+		msp3400c_setvolume(client, msp->muted, msp->left, msp->right);
+	}
+	return 0;
+}
 
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
@@ -2026,6 +2154,37 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		msp3400c_set_scart(client,msp->in_scart,a->index+1);
 
 		break;
+	}
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *qc = arg;
+		int i;
+
+		msp3400_dbg("VIDIOC_QUERYCTRL");
+
+		for (i = 0; i < ARRAY_SIZE(msp34xx_qctrl); i++)
+			if (qc->id && qc->id ==  msp34xx_qctrl[i].id) {
+				memcpy(qc, &(msp34xx_qctrl[i]),
+					sizeof(*qc));
+				return 0;
+			}
+
+		return -EINVAL;
+	}
+	case VIDIOC_G_CTRL:
+	{
+		struct v4l2_control *ctrl = arg;
+		msp3400_dbg("VIDIOC_G_CTRL\n");
+
+		return msp_get_ctrl(client, ctrl);
+	}
+	case VIDIOC_S_CTRL:
+	{
+		struct v4l2_control *ctrl = arg;
+
+		msp3400_dbg("VIDIOC_S_CTRL\n");
+
+		return msp_set_ctrl(client, ctrl);
 	}
 
 	default:

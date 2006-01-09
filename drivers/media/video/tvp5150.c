@@ -37,24 +37,24 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 /* supported controls */
 static struct v4l2_queryctrl tvp5150_qctrl[] = {
 	{
-	 .id = V4L2_CID_BRIGHTNESS,
-	 .type = V4L2_CTRL_TYPE_INTEGER,
-	 .name = "Brightness",
-	 .minimum = 0,
-	 .maximum = 255,
-	 .step = 1,
-	 .default_value = 0,
-	 .flags = 0,
-	 }, {
-	     .id = V4L2_CID_CONTRAST,
-	     .type = V4L2_CTRL_TYPE_INTEGER,
-	     .name = "Contrast",
-	     .minimum = 0,
-	     .maximum = 255,
-	     .step = 0x1,
-	     .default_value = 0x10,
-	     .flags = 0,
-	     }, {
+		.id = V4L2_CID_BRIGHTNESS,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Brightness",
+		.minimum = 0,
+		.maximum = 255,
+		.step = 1,
+		.default_value = 0,
+		.flags = 0,
+	}, {
+		.id = V4L2_CID_CONTRAST,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Contrast",
+		.minimum = 0,
+		.maximum = 255,
+		.step = 0x1,
+		.default_value = 0x10,
+		.flags = 0,
+	}, {
 		 .id = V4L2_CID_SATURATION,
 		 .type = V4L2_CTRL_TYPE_INTEGER,
 		 .name = "Saturation",
@@ -63,16 +63,16 @@ static struct v4l2_queryctrl tvp5150_qctrl[] = {
 		 .step = 0x1,
 		 .default_value = 0x10,
 		 .flags = 0,
-		 }, {
-		     .id = V4L2_CID_HUE,
-		     .type = V4L2_CTRL_TYPE_INTEGER,
-		     .name = "Hue",
-		     .minimum = -128,
-		     .maximum = 127,
-		     .step = 0x1,
-		     .default_value = 0x10,
-		     .flags = 0,
-		     }
+	}, {
+		.id = V4L2_CID_HUE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Hue",
+		.minimum = -128,
+		.maximum = 127,
+		.step = 0x1,
+		.default_value = 0x10,
+		.flags = 0,
+	}
 };
 
 struct tvp5150 {
@@ -437,11 +437,24 @@ enum tvp5150_input {
 static inline void tvp5150_selmux(struct i2c_client *c,
 				  enum tvp5150_input input)
 {
+	int opmode=0;
+
 	struct tvp5150 *decoder = i2c_get_clientdata(c);
 
 	if (!decoder->enable)
 		input |= TVP5150_BLACK_SCREEN;
 
+	switch (input) {
+	case TVP5150_ANALOG_CH0:
+	case TVP5150_ANALOG_CH1:
+		opmode=0x30;		/* TV Mode */
+		break;
+	default:
+		opmode=0;		/* Auto Mode */
+		break;
+	}
+
+	tvp5150_write(c, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(c, TVP5150_VD_IN_SRC_SEL_1, input);
 };
 
@@ -498,9 +511,8 @@ static int tvp5150_get_ctrl(struct i2c_client *c, struct v4l2_control *ctrl)
 	case V4L2_CID_HUE:
 		ctrl->value = tvp5150_read(c, TVP5150_HUE_CTL);
 		return 0;
-	default:
-		return -EINVAL;
 	}
+	return -EINVAL;
 }
 
 static int tvp5150_set_ctrl(struct i2c_client *c, struct v4l2_control *ctrl)
@@ -520,9 +532,8 @@ static int tvp5150_set_ctrl(struct i2c_client *c, struct v4l2_control *ctrl)
 	case V4L2_CID_HUE:
 		tvp5150_write(c, TVP5150_HUE_CTL, ctrl->value);
 		return 0;
-	default:
-		return -EINVAL;
 	}
+	return -EINVAL;
 }
 
 /****************************************************************************
@@ -627,12 +638,11 @@ static int tvp5150_command(struct i2c_client *client,
 	case VIDIOC_QUERYCTRL:
 		{
 			struct v4l2_queryctrl *qc = arg;
-			u8 i, n;
+			int i;
 
 			dprintk(1, KERN_DEBUG "VIDIOC_QUERYCTRL");
 
-			n = sizeof(tvp5150_qctrl) / sizeof(tvp5150_qctrl[0]);
-			for (i = 0; i < n; i++)
+			for (i = 0; i < ARRAY_SIZE(tvp5150_qctrl); i++)
 				if (qc->id && qc->id == tvp5150_qctrl[i].id) {
 					memcpy(qc, &(tvp5150_qctrl[i]),
 					       sizeof(*qc));
@@ -648,7 +658,6 @@ static int tvp5150_command(struct i2c_client *client,
 
 			return tvp5150_get_ctrl(client, ctrl);
 		}
-	case VIDIOC_S_CTRL_OLD:	/* ??? */
 	case VIDIOC_S_CTRL:
 		{
 			struct v4l2_control *ctrl = arg;
