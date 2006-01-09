@@ -151,8 +151,8 @@ static int try_win(struct saa7146_dev *dev, struct v4l2_window *win)
 
 	if (V4L2_FIELD_ANY == field) {
 		field = (win->w.height > maxh/2)
-		        ? V4L2_FIELD_INTERLACED
-		        : V4L2_FIELD_TOP;
+			? V4L2_FIELD_INTERLACED
+			: V4L2_FIELD_TOP;
 		}
 	switch (field) {
 	case V4L2_FIELD_TOP:
@@ -1114,10 +1114,6 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 		return 0;
 	}
 	case VIDIOC_OVERLAY:
-
-
-
-
 	{
 		int on = *(int *)arg;
 		int err = 0;
@@ -1358,7 +1354,6 @@ static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	DEB_CAP(("vbuf:%p\n",vb));
 	saa7146_buffer_queue(fh->dev,&vv->video_q,buf);
 }
-
 
 static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {

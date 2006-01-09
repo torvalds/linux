@@ -69,7 +69,7 @@ static void video_release(struct class_device *cd)
 	struct video_device *vfd = container_of(cd, struct video_device, class_dev);
 
 #if 1
-	 /* needed until all drivers are fixed */
+	/* needed until all drivers are fixed */
 	if (!vfd->release)
 		return;
 #endif
@@ -339,11 +339,11 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	if (vfd->dev)
 		vfd->class_dev.dev = vfd->dev;
 	vfd->class_dev.class       = &video_class;
-	vfd->class_dev.devt       = MKDEV(VIDEO_MAJOR, vfd->minor);
+	vfd->class_dev.devt        = MKDEV(VIDEO_MAJOR, vfd->minor);
 	strlcpy(vfd->class_dev.class_id, vfd->devfs_name + 4, BUS_ID_SIZE);
 	class_device_register(&vfd->class_dev);
 	class_device_create_file(&vfd->class_dev,
-				 &class_device_attr_name);
+				&class_device_attr_name);
 
 #if 1
 	/* needed until all drivers are fixed */

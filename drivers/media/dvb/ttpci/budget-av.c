@@ -275,7 +275,7 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		// that is unreliable however, so try and read from IO memory
 		if (!cam_present)
 		{
-   			saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
+			saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
 			if (ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1) != -ETIMEDOUT)
 			{
 				cam_present = 1;

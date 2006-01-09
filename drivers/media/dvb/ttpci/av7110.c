@@ -2259,7 +2259,7 @@ static int frontend_init(struct av7110 *av7110)
 			}
 
 			// Try the grundig 29504-451
-		        av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
+			av7110->fe = tda8083_attach(&grundig_29504_451_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				av7110->fe->ops->diseqc_send_master_cmd = av7110_diseqc_send_master_cmd;
 				av7110->fe->ops->diseqc_send_burst = av7110_diseqc_send_burst;
@@ -2285,12 +2285,12 @@ static int frontend_init(struct av7110 *av7110)
 		case 0x0001: // Hauppauge/TT Nexus-T premium rev1.X
 
 			// ALPS TDLB7
-		        av7110->fe = sp8870_attach(&alps_tdlb7_config, &av7110->i2c_adap);
+			av7110->fe = sp8870_attach(&alps_tdlb7_config, &av7110->i2c_adap);
 			break;
 
 		case 0x0002: // Hauppauge/TT DVB-C premium rev2.X
 
-		        av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
+			av7110->fe = ves1820_attach(&alps_tdbe2_config, &av7110->i2c_adap, read_pwm(av7110));
 			break;
 
 		case 0x0006: /* Fujitsu-Siemens DVB-S rev 1.6 */

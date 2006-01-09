@@ -1182,7 +1182,7 @@ static void ttusb_dec_init_tasklet(struct ttusb_dec *dec)
 		     (unsigned long)dec);
 }
 
-static int ttusb_init_rc(struct ttusb_dec *dec)
+static int ttusb_init_rc( struct ttusb_dec *dec)
 {
 	struct input_dev *input_dev;
 	u8 b[] = { 0x00, 0x01 };
@@ -1203,13 +1203,12 @@ static int ttusb_init_rc(struct ttusb_dec *dec)
 	input_dev->keycode = rc_keys;
 
 	for (i = 0; i < ARRAY_SIZE(rc_keys); i++)
-		set_bit(rc_keys[i], input_dev->keybit);
+		  set_bit(rc_keys[i], input_dev->keybit);
 
 	input_register_device(input_dev);
 
 	if (usb_submit_urb(dec->irq_urb, GFP_KERNEL))
 		printk("%s: usb_submit_urb failed\n",__FUNCTION__);
-
 	/* enable irq pipe */
 	ttusb_dec_send_command(dec,0xb0,sizeof(b),b,NULL,NULL);
 

@@ -243,7 +243,7 @@ sub nxt2002 {
     my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
 
     checkstandard();
-    
+
     wgetfile($sourcefile, $url);
     unzip($sourcefile, $tmpdir);
     verify("$tmpdir/SkyNETU.sys", $hash);

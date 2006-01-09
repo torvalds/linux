@@ -332,6 +332,7 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 		BUG();
 		return 0;
 	}
+
 	return videobuf_mmap_mapper(q,vma);
 }
 

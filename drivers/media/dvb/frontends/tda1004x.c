@@ -289,10 +289,10 @@ static int tda10046h_set_bandwidth(struct tda1004x_state *state,
 	case BANDWIDTH_6_MHZ:
 		if (tda10046_clk53m)
 			tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_6mhz_53M,
-					          sizeof(bandwidth_6mhz_53M));
+						  sizeof(bandwidth_6mhz_53M));
 		else
 			tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_6mhz_48M,
-					          sizeof(bandwidth_6mhz_48M));
+						  sizeof(bandwidth_6mhz_48M));
 		if (state->config->if_freq == TDA10046_FREQ_045) {
 			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x0a);
 			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0xab);
@@ -302,10 +302,10 @@ static int tda10046h_set_bandwidth(struct tda1004x_state *state,
 	case BANDWIDTH_7_MHZ:
 		if (tda10046_clk53m)
 			tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_7mhz_53M,
-					          sizeof(bandwidth_7mhz_53M));
+						  sizeof(bandwidth_7mhz_53M));
 		else
 			tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_7mhz_48M,
-					          sizeof(bandwidth_7mhz_48M));
+						  sizeof(bandwidth_7mhz_48M));
 		if (state->config->if_freq == TDA10046_FREQ_045) {
 			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x0c);
 			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0x00);
@@ -315,10 +315,10 @@ static int tda10046h_set_bandwidth(struct tda1004x_state *state,
 	case BANDWIDTH_8_MHZ:
 		if (tda10046_clk53m)
 			tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_8mhz_53M,
-					          sizeof(bandwidth_8mhz_53M));
+						  sizeof(bandwidth_8mhz_53M));
 		else
 			tda1004x_write_buf(state, TDA10046H_TIME_WREF1, bandwidth_8mhz_48M,
-					          sizeof(bandwidth_8mhz_48M));
+						  sizeof(bandwidth_8mhz_48M));
 		if (state->config->if_freq == TDA10046_FREQ_045) {
 			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_MSB, 0x0d);
 			tda1004x_write_byteI(state, TDA10046H_FREQ_PHY2_LSB, 0x55);
