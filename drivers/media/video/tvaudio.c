@@ -46,16 +46,18 @@ MODULE_LICENSE("GPL");
 
 #define UNSET    (-1U)
 
-#define tvaudio_info(fmt, arg...) do {\
-	printk(KERN_INFO "tvaudio %d-%04x: " fmt, \
-			chip->c.adapter->nr, chip->c.addr , ##arg); } while (0)
-#define tvaudio_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "tvaudio %d-%04x: " fmt, \
-			chip->c.adapter->nr, chip->c.addr , ##arg); } while (0)
-#define tvaudio_dbg(fmt, arg...) do {\
-	if (debug) \
-		printk(KERN_INFO "tvaudio %d-%04x: " fmt, \
-			chip->c.adapter->nr, chip->c.addr , ##arg); } while (0)
+#define tvaudio_info(fmt, arg...) do { \
+	printk(KERN_INFO "%s %d-%04x: " fmt, chip->c.driver->name, \
+	       i2c_adapter_id(chip->c.adapter), chip->c.addr , ## arg); } while (0)
+#define tvaudio_warn(fmt, arg...) do { \
+	printk(KERN_WARNING "%s %d-%04x: " fmt, chip->c.driver->name, \
+	       i2c_adapter_id(chip->c.adapter), chip->c.addr , ## arg); } while (0)
+#define tvaudio_dbg(fmt, arg...) \
+	do { \
+		if (debug) \
+			printk(KERN_INFO "%s debug %d-%04x: " fmt, chip->c.driver->name, \
+			       i2c_adapter_id(chip->c.adapter), chip->c.addr , ## arg); \
+	} while (0)
 
 /* ---------------------------------------------------------------------- */
 /* our structs                                                            */
@@ -131,7 +133,7 @@ struct CHIPSTATE {
 	/* current settings */
 	__u16 left,right,treble,bass,mode;
 	int prevmode;
-	int norm;
+	int radio;
 
 	/* thread */
 	pid_t                tpid;
@@ -141,8 +143,6 @@ struct CHIPSTATE {
 	int                  done;
 	int                  watch_stereo;
 };
-
-#define VIDEO_MODE_RADIO 16      /* norm magic for radio mode */
 
 /* ---------------------------------------------------------------------- */
 /* i2c addresses                                                          */
@@ -301,7 +301,7 @@ static int chip_thread(void *data)
 		tvaudio_dbg("%s: thread wakeup\n", chip->c.name);
 
 		/* don't do anything for radio or if mode != auto */
-		if (chip->norm == VIDEO_MODE_RADIO || chip->mode != 0)
+		if (chip->radio || chip->mode != 0)
 			continue;
 
 		/* have a look what's going on */
@@ -1608,7 +1608,7 @@ static int chip_command(struct i2c_client *client,
 		break;
 
 	case AUDC_SET_RADIO:
-		chip->norm = VIDEO_MODE_RADIO;
+		chip->radio = 1;
 		chip->watch_stereo = 0;
 		/* del_timer(&chip->wt); */
 		break;
@@ -1634,7 +1634,7 @@ static int chip_command(struct i2c_client *client,
 			va->bass   = chip->bass;
 			va->treble = chip->treble;
 		}
-		if (chip->norm != VIDEO_MODE_RADIO) {
+		if (!chip->radio) {
 			if (desc->getmode)
 				va->mode = desc->getmode(chip);
 			else
@@ -1669,15 +1669,80 @@ static int chip_command(struct i2c_client *client,
 		}
 		break;
 	}
-	case VIDIOCSCHAN:
-	{
-		struct video_channel *vc = arg;
 
-		chip->norm = vc->norm;
+	case VIDIOC_S_TUNER:
+	{
+		struct v4l2_tuner *vt = arg;
+		int mode = 0;
+
+		switch (vt->audmode) {
+		case V4L2_TUNER_MODE_MONO:
+			mode = VIDEO_SOUND_MONO;
+			break;
+		case V4L2_TUNER_MODE_STEREO:
+			mode = VIDEO_SOUND_STEREO;
+			break;
+		case V4L2_TUNER_MODE_LANG1:
+			mode = VIDEO_SOUND_LANG1;
+			break;
+		case V4L2_TUNER_MODE_LANG2:
+			mode = VIDEO_SOUND_LANG2;
+			break;
+		default:
+			break;
+		}
+
+		if (desc->setmode && mode) {
+			chip->watch_stereo = 0;
+			/* del_timer(&chip->wt); */
+			chip->mode = mode;
+			desc->setmode(chip, mode);
+		}
 		break;
 	}
-	case VIDIOCSFREQ:
+
+	case VIDIOC_G_TUNER:
 	{
+		struct v4l2_tuner *vt = arg;
+		int mode = VIDEO_SOUND_MONO;
+
+		vt->audmode = 0;
+		vt->rxsubchans = 0;
+		vt->capability = V4L2_TUNER_CAP_STEREO |
+			V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
+		if (chip->radio)
+			break;
+
+		if (desc->getmode)
+			mode = desc->getmode(chip);
+
+		if (mode & VIDEO_SOUND_MONO)
+			vt->rxsubchans |= V4L2_TUNER_SUB_MONO;
+		if (mode & VIDEO_SOUND_STEREO)
+			vt->rxsubchans |= V4L2_TUNER_SUB_STEREO;
+		if (mode & VIDEO_SOUND_LANG1)
+			vt->rxsubchans |= V4L2_TUNER_SUB_LANG1 |
+					  V4L2_TUNER_SUB_LANG2;
+
+		mode = chip->mode;
+		if (mode & VIDEO_SOUND_MONO)
+			vt->audmode = V4L2_TUNER_MODE_MONO;
+		if (mode & VIDEO_SOUND_STEREO)
+			vt->audmode = V4L2_TUNER_MODE_STEREO;
+		if (mode & VIDEO_SOUND_LANG1)
+			vt->audmode = V4L2_TUNER_MODE_LANG1;
+		if (mode & VIDEO_SOUND_LANG2)
+			vt->audmode = V4L2_TUNER_MODE_LANG2;
+		break;
+	}
+
+	case VIDIOCSCHAN:
+	case VIDIOC_S_STD:
+		chip->radio = 0;
+		break;
+
+	case VIDIOCSFREQ:
+	case VIDIOC_S_FREQUENCY:
 		chip->mode = 0; /* automatic */
 		if (desc->checkmode) {
 			desc->setmode(chip,VIDEO_SOUND_MONO);
@@ -1686,7 +1751,7 @@ static int chip_command(struct i2c_client *client,
 			mod_timer(&chip->wt, jiffies+2*HZ);
 			/* the thread will call checkmode() later */
 		}
-	}
+		break;
 	}
 	return 0;
 }
