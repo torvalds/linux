@@ -58,9 +58,18 @@ struct dvb_frontend_ops {
 	int (*init)(struct dvb_frontend* fe);
 	int (*sleep)(struct dvb_frontend* fe);
 
+	/* if this is set, it overrides the default swzigzag */
+	int (*tune)(struct dvb_frontend* fe,
+		    struct dvb_frontend_parameters* params,
+		    unsigned int mode_flags,
+		    int *delay,
+		    fe_status_t *status);
+
+	/* these two are only used for the swzigzag code */
 	int (*set_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
-	int (*get_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 	int (*get_tune_settings)(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* settings);
+
+	int (*get_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 
 	int (*read_status)(struct dvb_frontend* fe, fe_status_t* status);
 	int (*read_ber)(struct dvb_frontend* fe, u32* ber);
