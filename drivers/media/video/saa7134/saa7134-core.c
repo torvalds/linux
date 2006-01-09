@@ -95,77 +95,6 @@ int (*dmasound_exit)(struct saa7134_dev *dev);
 #define dprintk(fmt, arg...)	if (core_debug) \
 	printk(KERN_DEBUG "%s/core: " fmt, dev->name , ## arg)
 
-/* ------------------------------------------------------------------ */
-/* debug help functions                                               */
-
-static const char *v4l1_ioctls[] = {
-	"0", "GCAP", "GCHAN", "SCHAN", "GTUNER", "STUNER", "GPICT", "SPICT",
-	"CCAPTURE", "GWIN", "SWIN", "GFBUF", "SFBUF", "KEY", "GFREQ",
-	"SFREQ", "GAUDIO", "SAUDIO", "SYNC", "MCAPTURE", "GMBUF", "GUNIT",
-	"GCAPTURE", "SCAPTURE", "SPLAYMODE", "SWRITEMODE", "GPLAYINFO",
-	"SMICROCODE", "GVBIFMT", "SVBIFMT" };
-#define V4L1_IOCTLS ARRAY_SIZE(v4l1_ioctls)
-
-static const char *v4l2_ioctls[] = {
-	"QUERYCAP", "1", "ENUM_PIXFMT", "ENUM_FBUFFMT", "G_FMT", "S_FMT",
-	"G_COMP", "S_COMP", "REQBUFS", "QUERYBUF", "G_FBUF", "S_FBUF",
-	"G_WIN", "S_WIN", "PREVIEW", "QBUF", "16", "DQBUF", "STREAMON",
-	"STREAMOFF", "G_PERF", "G_PARM", "S_PARM", "G_STD", "S_STD",
-	"ENUMSTD", "ENUMINPUT", "G_CTRL", "S_CTRL", "G_TUNER", "S_TUNER",
-	"G_FREQ", "S_FREQ", "G_AUDIO", "S_AUDIO", "35", "QUERYCTRL",
-	"QUERYMENU", "G_INPUT", "S_INPUT", "ENUMCVT", "41", "42", "43",
-	"44", "45",  "G_OUTPUT", "S_OUTPUT", "ENUMOUTPUT", "G_AUDOUT",
-	"S_AUDOUT", "ENUMFX", "G_EFFECT", "S_EFFECT", "G_MODULATOR",
-	"S_MODULATOR"
-};
-#define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
-
-static const char *osspcm_ioctls[] = {
-	"RESET", "SYNC", "SPEED", "STEREO", "GETBLKSIZE", "SETFMT",
-	"CHANNELS", "?", "POST", "SUBDIVIDE", "SETFRAGMENT", "GETFMTS",
-	"GETOSPACE", "GETISPACE", "NONBLOCK", "GETCAPS", "GET/SETTRIGGER",
-	"GETIPTR", "GETOPTR", "MAPINBUF", "MAPOUTBUF", "SETSYNCRO",
-	"SETDUPLEX", "GETODELAY"
-};
-#define OSSPCM_IOCTLS ARRAY_SIZE(v4l2_ioctls)
-
-void saa7134_print_ioctl(char *name, unsigned int cmd)
-{
-	char *dir;
-
-	switch (_IOC_DIR(cmd)) {
-	case _IOC_NONE:              dir = "--"; break;
-	case _IOC_READ:              dir = "r-"; break;
-	case _IOC_WRITE:             dir = "-w"; break;
-	case _IOC_READ | _IOC_WRITE: dir = "rw"; break;
-	default:                     dir = "??"; break;
-	}
-	switch (_IOC_TYPE(cmd)) {
-	case 'v':
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (v4l1, %s, VIDIOC%s)\n",
-		       name, cmd, dir, (_IOC_NR(cmd) < V4L1_IOCTLS) ?
-		       v4l1_ioctls[_IOC_NR(cmd)] : "???");
-		break;
-	case 'V':
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (v4l2, %s, VIDIOC_%s)\n",
-		       name, cmd, dir, (_IOC_NR(cmd) < V4L2_IOCTLS) ?
-		       v4l2_ioctls[_IOC_NR(cmd)] : "???");
-		break;
-	case 'P':
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (oss dsp, %s, SNDCTL_DSP_%s)\n",
-		       name, cmd, dir, (_IOC_NR(cmd) < OSSPCM_IOCTLS) ?
-		       osspcm_ioctls[_IOC_NR(cmd)] : "???");
-		break;
-	case 'M':
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (oss mixer, %s, #%d)\n",
-		       name, cmd, dir, _IOC_NR(cmd));
-		break;
-	default:
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (???, %s, #%d)\n",
-		       name, cmd, dir, _IOC_NR(cmd));
-	}
-}
-
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 {
 	unsigned long mode,status;
@@ -211,7 +140,7 @@ static int pending_call(struct notifier_block *self, unsigned long state,
 	return NOTIFY_DONE;
 }
 
-static int pending_registered;
+static int pending_registered=0;
 static struct notifier_block pending_notifier = {
 	.notifier_call = pending_call,
 };
@@ -610,11 +539,38 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 		    card_has_mpeg(dev))
 			saa7134_irq_ts_done(dev,status);
 
-		if ((report & (SAA7134_IRQ_REPORT_GPIO16 |
-			       SAA7134_IRQ_REPORT_GPIO18)) &&
-		    dev->remote)
-			saa7134_input_irq(dev);
+		if (report & SAA7134_IRQ_REPORT_GPIO16) {
+			switch (dev->has_remote) {
+				case SAA7134_REMOTE_GPIO:
+					if  (dev->remote->mask_keydown & 0x10000) {
+						saa7134_input_irq(dev);
+					}
+					break;
 
+				case SAA7134_REMOTE_I2C:
+					break;			/* FIXME: invoke I2C get_key() */
+
+				default:			/* GPIO16 not used by IR remote */
+					break;
+			}
+		}
+
+		if (report & SAA7134_IRQ_REPORT_GPIO18) {
+			switch (dev->has_remote) {
+				case SAA7134_REMOTE_GPIO:
+					if ((dev->remote->mask_keydown & 0x40000) ||
+					    (dev->remote->mask_keyup & 0x40000)) {
+						saa7134_input_irq(dev);
+					}
+					break;
+
+				case SAA7134_REMOTE_I2C:
+					break;			/* FIXME: invoke I2C get_key() */
+
+				default:			/* GPIO18 not used by IR remote */
+					break;
+			}
+		}
 	}
 
 	if (10 == loop) {
@@ -624,13 +580,16 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 			printk(KERN_WARNING "%s/irq: looping -- "
 			       "clearing PE (parity error!) enable bit\n",dev->name);
 			saa_clearl(SAA7134_IRQ2,SAA7134_IRQ2_INTE_PE);
-		} else if (report & (SAA7134_IRQ_REPORT_GPIO16 |
-				     SAA7134_IRQ_REPORT_GPIO18)) {
-			/* disable gpio IRQs */
+		} else if (report & SAA7134_IRQ_REPORT_GPIO16) {
+			/* disable gpio16 IRQ */
 			printk(KERN_WARNING "%s/irq: looping -- "
-			       "clearing GPIO enable bits\n",dev->name);
-			saa_clearl(SAA7134_IRQ2, (SAA7134_IRQ2_INTE_GPIO16 |
-						  SAA7134_IRQ2_INTE_GPIO18));
+			       "clearing GPIO16 enable bit\n",dev->name);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16);
+		} else if (report & SAA7134_IRQ_REPORT_GPIO18) {
+			/* disable gpio18 IRQs */
+			printk(KERN_WARNING "%s/irq: looping -- "
+			       "clearing GPIO18 enable bit\n",dev->name);
+			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
 		} else {
 			/* disable all irqs */
 			printk(KERN_WARNING "%s/irq: looping -- "
@@ -711,10 +670,14 @@ static int saa7134_hwinit2(struct saa7134_dev *dev)
 		SAA7134_IRQ2_INTE_PE      |
 		SAA7134_IRQ2_INTE_AR;
 
-	if (dev->has_remote == SAA7134_REMOTE_GPIO)
-		irq2_mask |= (SAA7134_IRQ2_INTE_GPIO18  |
-			      SAA7134_IRQ2_INTE_GPIO18A |
-			      SAA7134_IRQ2_INTE_GPIO16  );
+	if (dev->has_remote == SAA7134_REMOTE_GPIO) {
+		if (dev->remote->mask_keydown & 0x10000)
+			irq2_mask |= SAA7134_IRQ2_INTE_GPIO16;
+		else if (dev->remote->mask_keydown & 0x40000)
+			irq2_mask |= SAA7134_IRQ2_INTE_GPIO18;
+		else if (dev->remote->mask_keyup & 0x40000)
+			irq2_mask |= SAA7134_IRQ2_INTE_GPIO18A;
+	}
 
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, irq2_mask);
@@ -1156,7 +1119,7 @@ static int saa7134_init(void)
 	printk(KERN_INFO "saa7130/34: snapshot date %04d-%02d-%02d\n",
 	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
 #endif
-	return pci_module_init(&saa7134_pci_driver);
+	return pci_register_driver(&saa7134_pci_driver);
 }
 
 static void saa7134_fini(void)
@@ -1173,7 +1136,6 @@ module_exit(saa7134_fini);
 
 /* ----------------------------------------------------------- */
 
-EXPORT_SYMBOL(saa7134_print_ioctl);
 EXPORT_SYMBOL(saa7134_i2c_call_clients);
 EXPORT_SYMBOL(saa7134_devlist);
 EXPORT_SYMBOL(saa7134_boards);

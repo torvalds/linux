@@ -500,9 +500,9 @@ static ssize_t vbi_read(struct file *file, char __user *data, size_t count, loff
 }
 
 struct saa7146_use_ops saa7146_vbi_uops = {
-	.init 		= vbi_init,
-	.open 		= vbi_open,
+	.init		= vbi_init,
+	.open		= vbi_open,
 	.release	= vbi_close,
 	.irq_done	= vbi_irq_done,
-	.read 		= vbi_read,
+	.read		= vbi_read,
 };

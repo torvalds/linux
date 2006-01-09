@@ -40,6 +40,7 @@
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
+#include <media/v4l2-common.h>
 #include <media/audiochip.h>
 
 MODULE_DESCRIPTION("i2c Hauppauge eeprom decoder driver");
@@ -52,21 +53,19 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define STRM(array,i) (i < sizeof(array)/sizeof(char*) ? array[i] : "unknown")
 
-#define tveeprom_info(fmt, arg...) do {\
-	printk(KERN_INFO "tveeprom %d-%04x: " fmt, \
-			c->adapter->nr, c->addr , ##arg); } while (0)
-#define tveeprom_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "tveeprom %d-%04x: " fmt, \
-			c->adapter->nr, c->addr , ##arg); } while (0)
-#define tveeprom_dbg(fmt, arg...) do {\
+#define tveeprom_info(fmt, arg...) \
+	v4l_printk(KERN_INFO, "tveeprom", c->adapter, c->addr, fmt , ## arg)
+#define tveeprom_warn(fmt, arg...) \
+	v4l_printk(KERN_WARNING, "tveeprom", c->adapter, c->addr, fmt , ## arg)
+#define tveeprom_dbg(fmt, arg...) do { \
 	if (debug) \
-		printk(KERN_INFO "tveeprom %d-%04x: " fmt, \
-			c->adapter->nr, c->addr , ##arg); } while (0)
+		v4l_printk(KERN_DEBUG, "tveeprom", c->adapter, c->addr, fmt , ## arg); \
+	} while (0)
 
-
-/* ----------------------------------------------------------------------- */
-/* some hauppauge specific stuff                                           */
-
+/*
+ * The Hauppauge eeprom uses an 8bit field to determine which
+ * tuner formats the tuner supports.
+ */
 static struct HAUPPAUGE_TUNER_FMT
 {
 	int	id;
@@ -74,14 +73,14 @@ static struct HAUPPAUGE_TUNER_FMT
 }
 hauppauge_tuner_fmt[] =
 {
-	{ 0x00000000, " unknown1" },
-	{ 0x00000000, " unknown2" },
-	{ 0x00000007, " PAL(B/G)" },
-	{ 0x00001000, " NTSC(M)" },
-	{ 0x00000010, " PAL(I)" },
-	{ 0x00400000, " SECAM(L/L')" },
-	{ 0x00000e00, " PAL(D/K)" },
-	{ 0x03000000, " ATSC/DVB Digital" },
+	{ V4L2_STD_UNKNOWN," UNKNOWN" },
+	{ V4L2_STD_UNKNOWN," FM" },
+	{ V4L2_STD_PAL_BG, " PAL(B/G)" },
+	{ V4L2_STD_NTSC_M, " NTSC(M)" },
+	{ V4L2_STD_PAL_I,  " PAL(I)" },
+	{ V4L2_STD_SECAM_L," SECAM(L/L')" },
+	{ V4L2_STD_PAL_DK, " PAL(D/D1/K)" },
+	{ V4L2_STD_ATSC,   " ATSC/DVB Digital" },
 };
 
 /* This is the full list of possible tuners. Many thanks to Hauppauge for
@@ -387,7 +386,7 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 	if ((eeprom_data[0] == 0x1a) && (eeprom_data[1] == 0xeb) &&
 			(eeprom_data[2] == 0x67) && (eeprom_data[3] == 0x95))
 		start=0xa0; /* Generic em28xx offset */
-	else if (((eeprom_data[0] & 0xf0) == 0x10) &&
+	else if (((eeprom_data[0] & 0xe1) == 0x01) &&
 					(eeprom_data[1] == 0x00) &&
 					(eeprom_data[2] == 0x00) &&
 					(eeprom_data[8] == 0x84))

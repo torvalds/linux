@@ -38,6 +38,7 @@
 #include <asm/io.h>
 
 #include "bttvp.h"
+#include <media/v4l2-common.h>
 
 /* fwd decl */
 static void boot_msp34xx(struct bttv *btv, int pin);
@@ -291,6 +292,9 @@ static struct CARD {
 
 	/* likely broken, vendor id doesn't match the other magic views ...
 	 * { 0xa0fca04f, BTTV_BOARD_MAGICTVIEW063, "Guillemot Maxi TV Video 3" }, */
+
+	/* Duplicate PCI ID, reconfigure for this board during the eeprom read.
+	* { 0x13eb0070, BTTV_BOARD_HAUPPAUGE_IMPACTVCB,  "Hauppauge ImpactVCB" }, */
 
 	/* DVB cards (using pci function .1 for mpeg data xfer) */
 	{ 0x01010071, BTTV_BOARD_NEBULA_DIGITV, "Nebula Electronics DigiTV" },
@@ -2136,7 +2140,6 @@ struct tvcard bttv_tvcards[] = {
 		.has_remote	= 1,
 		.gpiomask	= 0x1b,
 		.no_gpioirq     = 1,
-		.any_irq		= 1,
 	},
 	[BTTV_BOARD_PV143] = {
 		/* Jorge Boncompte - DTI2 <jorge@dti2.net> */
@@ -2817,6 +2820,22 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_radio      = 1,
 	},
+	/* ---- card 0x8f ---------------------------------- */
+	[BTTV_BOARD_HAUPPAUGE_IMPACTVCB] = {
+		.name		= "Hauppauge ImpactVCB (bt878)",
+		.video_inputs	= 4,
+		.audio_inputs	= 0,
+		.tuner		= -1,
+		.svhs		= -1,
+		.gpiomask	= 0x0f, /* old: 7 */
+		.muxsel		= { 0, 1, 3, 2}, /* Composite 0-3 */
+		.no_msp34xx	= 1,
+		.no_tda9875     = 1,
+		.no_tda7432     = 1,
+		.tuner_type	= -1,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -3037,26 +3056,33 @@ static void miro_pinnacle_gpio(struct bttv *btv)
 		switch (id) {
 		case 1:
 			info = "PAL / mono";
+			btv->tda9887_conf = TDA9887_INTERCARRIER;
 			break;
 		case 2:
 			info = "PAL+SECAM / stereo";
 			btv->has_radio = 1;
+			btv->tda9887_conf = TDA9887_QSS;
 			break;
 		case 3:
 			info = "NTSC / stereo";
 			btv->has_radio = 1;
+			btv->tda9887_conf = TDA9887_QSS;
 			break;
 		case 4:
 			info = "PAL+SECAM / mono";
+			btv->tda9887_conf = TDA9887_QSS;
 			break;
 		case 5:
 			info = "NTSC / mono";
+			btv->tda9887_conf = TDA9887_INTERCARRIER;
 			break;
 		case 6:
 			info = "NTSC / stereo";
+			btv->tda9887_conf = TDA9887_INTERCARRIER;
 			break;
 		case 7:
 			info = "PAL / stereo";
+			btv->tda9887_conf = TDA9887_INTERCARRIER;
 			break;
 		default:
 			info = "oops: unknown card";
@@ -3067,8 +3093,7 @@ static void miro_pinnacle_gpio(struct bttv *btv)
 		printk(KERN_INFO
 		       "bttv%d: pinnacle/mt: id=%d info=\"%s\" radio=%s\n",
 		       btv->c.nr, id, info, btv->has_radio ? "yes" : "no");
-		btv->tuner_type  = 33;
-		btv->pinnacle_id = id;
+		btv->tuner_type = TUNER_MT2032;
 	}
 }
 
@@ -3370,9 +3395,9 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
 
-	if (btv->pinnacle_id != UNSET) {
-		bttv_call_i2c_clients(btv, AUDC_CONFIG_PINNACLE,
-							&btv->pinnacle_id);
+	if (btv->tda9887_conf) {
+		bttv_call_i2c_clients(btv, TDA9887_SET_CONFIG,
+							&btv->tda9887_conf);
 	}
 
 	btv->svhs = bttv_tvcards[btv->c.type].svhs;
@@ -3387,8 +3412,6 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		btv->has_remote=1;
 	if (!bttv_tvcards[btv->c.type].no_gpioirq)
 		btv->gpioirq=1;
-	if (bttv_tvcards[btv->c.type].any_irq)
-		btv->any_irq = 1;
 	if (bttv_tvcards[btv->c.type].audio_hook)
 		btv->audio_hook=bttv_tvcards[btv->c.type].audio_hook;
 
@@ -3424,7 +3447,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 
 	/* tuner modules */
 	tda9887 = 0;
-	if (btv->pinnacle_id != UNSET)
+	if (btv->tda9887_conf)
 		tda9887 = 1;
 	if (0 == tda9887 && 0 == bttv_tvcards[btv->c.type].has_dvb &&
 	    bttv_I2CRead(btv, I2C_TDA9887, "TDA9887") >=0)
@@ -3471,6 +3494,21 @@ static void __devinit hauppauge_eeprom(struct bttv *btv)
 	tveeprom_hauppauge_analog(&btv->i2c_client, &tv, eeprom_data);
 	btv->tuner_type = tv.tuner_type;
 	btv->has_radio  = tv.has_radio;
+
+	printk("bttv%d: Hauppauge eeprom indicates model#%d\n",
+		btv->c.nr, tv.model);
+
+	/*
+	 * Some of the 878 boards have duplicate PCI IDs. Switch the board
+	 * type based on model #.
+	 */
+	if(tv.model == 64900) {
+		printk("bttv%d: Switching board type from %s to %s\n",
+			btv->c.nr,
+			bttv_tvcards[btv->c.type].name,
+			bttv_tvcards[BTTV_BOARD_HAUPPAUGE_IMPACTVCB].name);
+		btv->c.type = BTTV_BOARD_HAUPPAUGE_IMPACTVCB;
+	}
 }
 
 static int terratec_active_radio_upgrade(struct bttv *btv)

@@ -16,6 +16,12 @@ config DVB_CX24110
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_CX24123
+	tristate "Conexant CX24123 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 config DVB_TDA8083
 	tristate "Philips TDA8083 based"
 	depends on DVB_CORE
@@ -50,18 +56,19 @@ comment "DVB-T (terrestrial) frontends"
 	depends on DVB_CORE
 
 config DVB_SP8870
- 	tristate "Spase sp8870 based"
+	tristate "Spase sp8870 based"
 	depends on DVB_CORE
 	select FW_LOADER
 	help
- 	  A DVB-T tuner module. Say Y when you want to support this frontend.
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 	  This driver needs external firmware. Please use the command
 	  "<kerneldir>/Documentation/dvb/get_dvb_firmware sp8870" to
-	  download/extract it, and then copy it to /usr/lib/hotplug/firmware.
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 config DVB_SP887X
- 	tristate "Spase sp887x based"
+	tristate "Spase sp887x based"
 	depends on DVB_CORE
 	select FW_LOADER
 	help
@@ -69,7 +76,8 @@ config DVB_SP887X
 
 	  This driver needs external firmware. Please use the command
 	  "<kerneldir>/Documentation/dvb/get_dvb_firmware sp887x" to
-	  download/extract it, and then copy it to /usr/lib/hotplug/firmware.
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 config DVB_CX22700
 	tristate "Conexant CX22700 based"
@@ -78,10 +86,10 @@ config DVB_CX22700
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_CX22702
- 	tristate "Conexant cx22702 demodulator (OFDM)"
- 	depends on DVB_CORE
- 	help
- 	  A DVB-T tuner module. Say Y when you want to support this frontend.
+	tristate "Conexant cx22702 demodulator (OFDM)"
+	depends on DVB_CORE
+	help
+	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 config DVB_L64781
 	tristate "LSI L64781"
@@ -98,8 +106,9 @@ config DVB_TDA1004X
 
 	  This driver needs external firmware. Please use the commands
 	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10045",
-  	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10046" to
-	  download/extract them, and then copy them to /usr/lib/hotplug/firmware.
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10046" to
+	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 config DVB_NXT6000
 	tristate "NxtWave Communications NXT6000 based"
@@ -140,13 +149,13 @@ config DVB_VES1820
 	tristate "VLSI VES1820 based"
 	depends on DVB_CORE
 	help
- 	  A DVB-C tuner module. Say Y when you want to support this frontend.
+	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
 config DVB_TDA10021
 	tristate "Philips TDA10021 based"
 	depends on DVB_CORE
 	help
- 	  A DVB-C tuner module. Say Y when you want to support this frontend.
+	  A DVB-C tuner module. Say Y when you want to support this frontend.
 
 config DVB_STV0297
 	tristate "ST STV0297 based"
@@ -164,6 +173,11 @@ config DVB_NXT2002
 	help
 	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
 
+	  This driver needs external firmware. Please use the command
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware nxt2002" to
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
+
 config DVB_NXT200X
 	tristate "Nextwave NXT2002/NXT2004 based"
 	depends on DVB_CORE
@@ -171,6 +185,12 @@ config DVB_NXT200X
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
+
+	  This driver needs external firmware. Please use the commands
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware nxt2002" and
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware nxt2004" to
+	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 config DVB_OR51211
 	tristate "or51211 based (pcHDTV HD2000 card)"

@@ -132,14 +132,22 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 {
 	u32 volume;
 
+#ifndef USING_CX88_ALSA
 	/* restart dma; This avoids buzz in NICAM and is good in others  */
 	cx88_stop_audio_dma(core);
+#endif
 	cx_write(AUD_RATE_THRES_DMD, 0x000000C0);
+#ifndef USING_CX88_ALSA
 	cx88_start_audio_dma(core);
+#endif
 
 	if (cx88_boards[core->board].blackbird) {
 		/* sets sound input from external adc */
-		cx_set(AUD_CTL, EN_I2SIN_ENABLE);
+		if (core->board == CX88_BOARD_HAUPPAUGE_ROSLYN)
+			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
+		else
+			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
+
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
 		/* 'pass-thru mode': this enables the i2s output to the mpeg encoder */

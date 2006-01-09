@@ -8,14 +8,15 @@ config DVB_TTUSB_DEC
 	  produced by Hauppauge, shipped under the brand name 'DEC2000-t'
 	  and 'DEC3000-s'.
 
-          Even if these devices have a MPEG decoder built in, they transmit
+	  Even if these devices have a MPEG decoder built in, they transmit
 	  only compressed MPEG data over the USB bus, so you need
 	  an external software decoder to watch TV on your computer.
 
-          This driver needs external firmware. Please use the commands
-          "<kerneldir>/Documentation/dvb/get_dvb_firmware dec2000t",
-          "<kerneldir>/Documentation/dvb/get_dvb_firmware dec2540t",
-          "<kerneldir>/Documentation/dvb/get_dvb_firmware dec3000s",
-          download/extract them, and then copy them to /usr/lib/hotplug/firmware.
+	  This driver needs external firmware. Please use the commands
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware dec2000t",
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware dec2540t",
+	  "<kerneldir>/Documentation/dvb/get_dvb_firmware dec3000s",
+	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 	  Say Y if you own such a device and want to use it.

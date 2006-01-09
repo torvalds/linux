@@ -230,6 +230,8 @@ int av7110_bootarm(struct av7110 *av7110)
 
 	dprintk(4, "%p\n", av7110);
 
+	av7110->arm_ready = 0;
+
 	saa7146_setgpio(dev, RESET_LINE, SAA7146_GPIO_OUTLO);
 
 	/* Disable DEBI and GPIO irq */
@@ -361,6 +363,7 @@ static int __av7110_send_fw_cmd(struct av7110 *av7110, u16* buf, int length)
 			break;
 		if (err) {
 			printk(KERN_ERR "dvb-ttpci: %s(): timeout waiting for COMMAND idle\n", __FUNCTION__);
+			av7110->arm_errors++;
 			return -ETIMEDOUT;
 		}
 		msleep(1);
@@ -1206,9 +1209,9 @@ int av7110_osd_capability(struct av7110 *av7110, osd_cap_t *cap)
 	switch (cap->cmd) {
 	case OSD_CAP_MEMSIZE:
 		if (FW_4M_SDRAM(av7110->arm_app))
-		        cap->val = 1000000;
+			cap->val = 1000000;
 		else
-		        cap->val = 92000;
+			cap->val = 92000;
 		return 0;
 	default:
 		return -EINVAL;

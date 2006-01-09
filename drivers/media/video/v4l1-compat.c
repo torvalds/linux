@@ -951,6 +951,10 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 			dprintk("VIDIOCGVBIFMT / VIDIOC_G_FMT: %d\n", err);
 			break;
 		}
+		if (fmt2->fmt.vbi.sample_format != V4L2_PIX_FMT_GREY) {
+			err = -EINVAL;
+			break;
+		}
 		memset(fmt, 0, sizeof(*fmt));
 		fmt->samples_per_line = fmt2->fmt.vbi.samples_per_line;
 		fmt->sampling_rate    = fmt2->fmt.vbi.sampling_rate;
@@ -965,6 +969,11 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	case VIDIOCSVBIFMT:
 	{
 		struct vbi_format      *fmt = arg;
+
+		if (VIDEO_PALETTE_RAW != fmt->sample_format) {
+			err = -EINVAL;
+			break;
+		}
 
 		fmt2 = kmalloc(sizeof(*fmt2),GFP_KERNEL);
 		memset(fmt2, 0, sizeof(*fmt2));
@@ -986,7 +995,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 
 		if (fmt2->fmt.vbi.samples_per_line != fmt->samples_per_line ||
 		    fmt2->fmt.vbi.sampling_rate    != fmt->sampling_rate    ||
-		    VIDEO_PALETTE_RAW              != fmt->sample_format    ||
+		    fmt2->fmt.vbi.sample_format    != V4L2_PIX_FMT_GREY     ||
 		    fmt2->fmt.vbi.start[0]         != fmt->start[0]         ||
 		    fmt2->fmt.vbi.count[0]         != fmt->count[0]         ||
 		    fmt2->fmt.vbi.start[1]         != fmt->start[1]         ||

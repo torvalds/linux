@@ -20,6 +20,9 @@ module_param(tv_antenna,        int, 0644);
 static unsigned int radio_antenna = 0;
 module_param(radio_antenna,     int, 0644);
 
+/* from tuner-core.c */
+extern int debug;
+
 /* ---------------------------------------------------------------------- */
 
 #define MT2032 0x04
@@ -401,7 +404,7 @@ static void mt2050_set_if_freq(struct i2c_client *c,unsigned int freq, unsigned 
 	div2a=(lo2/8)-1;
 	div2b=lo2-(div2a+1)*8;
 
-	if (tuner_debug > 1) {
+	if (debug > 1) {
 		tuner_dbg("lo1 lo2 = %d %d\n", lo1, lo2);
 		tuner_dbg("num1 num2 div1a div1b div2a div2b= %x %x %x %x %x %x\n",
 			  num1,num2,div1a,div1b,div2a,div2b);
@@ -417,7 +420,7 @@ static void mt2050_set_if_freq(struct i2c_client *c,unsigned int freq, unsigned 
 	buf[5]=div2a;
 	if(num2!=0) buf[5]=buf[5]|0x40;
 
-	if (tuner_debug > 1) {
+	if (debug > 1) {
 		int i;
 		tuner_dbg("bufs is: ");
 		for(i=0;i<6;i++)
@@ -494,11 +497,18 @@ int microtune_init(struct i2c_client *c)
 	t->tv_freq    = NULL;
 	t->radio_freq = NULL;
 	t->standby    = NULL;
+	if (t->std & V4L2_STD_525_60) {
+		tuner_dbg("pinnacle ntsc\n");
+		t->radio_if2 = 41300 * 1000;
+	} else {
+		tuner_dbg("pinnacle pal\n");
+		t->radio_if2 = 33300 * 1000;
+	}
 	name = "unknown";
 
 	i2c_master_send(c,buf,1);
 	i2c_master_recv(c,buf,21);
-	if (tuner_debug) {
+	if (debug) {
 		int i;
 		tuner_dbg("MT20xx hexdump:");
 		for(i=0;i<21;i++) {

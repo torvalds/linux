@@ -27,6 +27,7 @@
  *   DViCO FusionHDTV 3 Gold-T
  *   DViCO FusionHDTV 5 Gold
  *   DViCO FusionHDTV 5 Lite
+ *   DViCO FusionHDTV 5 USB Gold
  *   Air2PC/AirStar 2 ATSC 3rd generation (HD5000)
  *
  * TODO:
@@ -402,6 +403,8 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 		state->config->pll_set(fe, param);
 
 	/* Keep track of the new frequency */
+	/* FIXME this is the wrong way to do this...           */
+	/* The tuner is shared with the video4linux analog API */
 	state->current_frequency = param->frequency;
 
 	lgdt330x_SwReset(state);

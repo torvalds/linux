@@ -749,6 +749,7 @@ static struct file_operations ar_fops = {
 	.release	= video_exclusive_release,
 	.read		= ar_read,
 	.ioctl		= ar_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek		= no_llseek,
 };
 

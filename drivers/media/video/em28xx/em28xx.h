@@ -1,5 +1,5 @@
 /*
-   em28xx-cards.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
+   em28xx.h - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
 		      Ludovico Cavedon <cavedon@sssup.it>
@@ -216,6 +216,8 @@ struct em28xx {
 	unsigned int has_msp34xx:1;
 	unsigned int has_tda9887:1;
 
+	u32 i2s_speed;		/* I2S speed for audio digital stream */
+
 	enum em28xx_decoder decoder;
 
 	int tuner_type;		/* type of the tuner */
@@ -292,8 +294,6 @@ int em28xx_i2c_unregister(struct em28xx *dev);
 void em28xx_set_ir(struct em28xx * dev,struct IR_i2c *ir);
 
 /* Provided by em28xx-core.c */
-
-void em28xx_print_ioctl(char *name, unsigned int cmd);
 
 u32 em28xx_request_buffers(struct em28xx *dev, u32 count);
 void em28xx_queue_unusedframes(struct em28xx *dev);

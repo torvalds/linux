@@ -112,10 +112,10 @@ ssize_t dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len, in
 	split = (rbuf->pread + len > rbuf->size) ? rbuf->size - rbuf->pread : 0;
 	if (split > 0) {
 		if (!usermem)
-		        memcpy(buf, rbuf->data+rbuf->pread, split);
+			memcpy(buf, rbuf->data+rbuf->pread, split);
 		else
-		        if (copy_to_user(buf, rbuf->data+rbuf->pread, split))
-		                return -EFAULT;
+			if (copy_to_user(buf, rbuf->data+rbuf->pread, split))
+				return -EFAULT;
 		buf += split;
 		todo -= split;
 		rbuf->pread = 0;
@@ -124,7 +124,7 @@ ssize_t dvb_ringbuffer_read(struct dvb_ringbuffer *rbuf, u8 *buf, size_t len, in
 		memcpy(buf, rbuf->data+rbuf->pread, todo);
 	else
 		if (copy_to_user(buf, rbuf->data+rbuf->pread, todo))
-		        return -EFAULT;
+			return -EFAULT;
 
 	rbuf->pread = (rbuf->pread + todo) % rbuf->size;
 
@@ -167,7 +167,7 @@ ssize_t dvb_ringbuffer_pkt_write(struct dvb_ringbuffer *rbuf, u8* buf, size_t le
 }
 
 ssize_t dvb_ringbuffer_pkt_read(struct dvb_ringbuffer *rbuf, size_t idx,
-		                int offset, u8* buf, size_t len, int usermem)
+				int offset, u8* buf, size_t len, int usermem)
 {
 	size_t todo;
 	size_t split;
@@ -183,10 +183,10 @@ ssize_t dvb_ringbuffer_pkt_read(struct dvb_ringbuffer *rbuf, size_t idx,
 	split = ((idx + len) > rbuf->size) ? rbuf->size - idx : 0;
 	if (split > 0) {
 		if (!usermem)
-		        memcpy(buf, rbuf->data+idx, split);
+			memcpy(buf, rbuf->data+idx, split);
 		else
-		        if (copy_to_user(buf, rbuf->data+idx, split))
-		                return -EFAULT;
+			if (copy_to_user(buf, rbuf->data+idx, split))
+				return -EFAULT;
 		buf += split;
 		todo -= split;
 		idx = 0;
@@ -195,7 +195,7 @@ ssize_t dvb_ringbuffer_pkt_read(struct dvb_ringbuffer *rbuf, size_t idx,
 		memcpy(buf, rbuf->data+idx, todo);
 	else
 		if (copy_to_user(buf, rbuf->data+idx, todo))
-		        return -EFAULT;
+			return -EFAULT;
 
 	return len;
 }
@@ -209,12 +209,12 @@ void dvb_ringbuffer_pkt_dispose(struct dvb_ringbuffer *rbuf, size_t idx)
 	// clean up disposed packets
 	while(dvb_ringbuffer_avail(rbuf) > DVB_RINGBUFFER_PKTHDRSIZE) {
 		if (DVB_RINGBUFFER_PEEK(rbuf, 2) == PKT_DISPOSED) {
-		        pktlen = DVB_RINGBUFFER_PEEK(rbuf, 0) << 8;
-		        pktlen |= DVB_RINGBUFFER_PEEK(rbuf, 1);
-		        DVB_RINGBUFFER_SKIP(rbuf, pktlen + DVB_RINGBUFFER_PKTHDRSIZE);
+			pktlen = DVB_RINGBUFFER_PEEK(rbuf, 0) << 8;
+			pktlen |= DVB_RINGBUFFER_PEEK(rbuf, 1);
+			DVB_RINGBUFFER_SKIP(rbuf, pktlen + DVB_RINGBUFFER_PKTHDRSIZE);
 		} else {
-		        // first packet is not disposed, so we stop cleaning now
-		        break;
+			// first packet is not disposed, so we stop cleaning now
+			break;
 		}
 	}
 }
@@ -242,8 +242,8 @@ ssize_t dvb_ringbuffer_pkt_next(struct dvb_ringbuffer *rbuf, size_t idx, size_t*
 		curpktstatus = rbuf->data[(idx + 2) % rbuf->size];
 
 		if (curpktstatus == PKT_READY) {
-		        *pktlen = curpktlen;
-		        return idx;
+			*pktlen = curpktlen;
+			return idx;
 		}
 
 		consumed += curpktlen + DVB_RINGBUFFER_PKTHDRSIZE;

@@ -298,7 +298,7 @@ static int flexcop_fe_request_firmware(struct dvb_frontend* fe, const struct fir
 }
 
 static int lgdt3303_pll_set(struct dvb_frontend* fe,
-		            struct dvb_frontend_parameters* params)
+			    struct dvb_frontend_parameters* params)
 {
 	struct flexcop_device *fc = fe->dvb->priv;
 	u8 buf[4];
@@ -485,12 +485,16 @@ static struct stv0297_config alps_tdee4_stv0297_config = {
 /* try to figure out the frontend, each card/box can have on of the following list */
 int flexcop_frontend_init(struct flexcop_device *fc)
 {
+	struct dvb_frontend_ops *ops;
+
 	/* try the sky v2.6 (stv0299/Samsung tbmu24112(sl1935)) */
 	if ((fc->fe = stv0299_attach(&samsung_tbmu24112_config, &fc->i2c_adap)) != NULL) {
-		fc->fe->ops->set_voltage = flexcop_set_voltage;
+		ops = fc->fe->ops;
 
-		fc->fe_sleep             = fc->fe->ops->sleep;
-		fc->fe->ops->sleep       = flexcop_sleep;
+		ops->set_voltage = flexcop_set_voltage;
+
+		fc->fe_sleep             = ops->sleep;
+		ops->sleep               = flexcop_sleep;
 
 		fc->dev_type          = FC_SKY;
 		info("found the stv0299 at i2c address: 0x%02x",samsung_tbmu24112_config.demod_address);
@@ -522,15 +526,17 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	} else
 	/* try the sky v2.3 (vp310/Samsung tbdu18132(tsa5059)) */
 	if ((fc->fe = vp310_attach(&skystar23_samsung_tbdu18132_config, &fc->i2c_adap)) != NULL) {
-		fc->fe->ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;
-		fc->fe->ops->diseqc_send_burst      = flexcop_diseqc_send_burst;
-		fc->fe->ops->set_tone               = flexcop_set_tone;
-		fc->fe->ops->set_voltage            = flexcop_set_voltage;
+		ops = fc->fe->ops;
 
-		fc->fe_sleep                        = fc->fe->ops->sleep;
-		fc->fe->ops->sleep                  = flexcop_sleep;
+		ops->diseqc_send_master_cmd = flexcop_diseqc_send_master_cmd;
+		ops->diseqc_send_burst      = flexcop_diseqc_send_burst;
+		ops->set_tone               = flexcop_set_tone;
+		ops->set_voltage            = flexcop_set_voltage;
 
-		fc->dev_type                        = FC_SKY_OLD;
+		fc->fe_sleep                = ops->sleep;
+		ops->sleep                  = flexcop_sleep;
+
+		fc->dev_type                = FC_SKY_OLD;
 		info("found the vp310 (aka mt312) at i2c address: 0x%02x",skystar23_samsung_tbdu18132_config.demod_address);
 	}
 
@@ -540,8 +546,9 @@ int flexcop_frontend_init(struct flexcop_device *fc)
 	} else {
 		if (dvb_register_frontend(&fc->dvb_adapter, fc->fe)) {
 			err("frontend registration failed!");
-			if (fc->fe->ops->release != NULL)
-				fc->fe->ops->release(fc->fe);
+			ops = fc->fe->ops;
+			if (ops->release != NULL)
+				ops->release(fc->fe);
 			fc->fe = NULL;
 			return -EINVAL;
 		}

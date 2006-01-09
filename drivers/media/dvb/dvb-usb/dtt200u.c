@@ -151,7 +151,7 @@ static struct dvb_usb_properties dtt200u_properties = {
 		  .cold_ids = { &dtt200u_usb_table[0], NULL },
 		  .warm_ids = { &dtt200u_usb_table[1], NULL },
 		},
-		{ NULL },
+		{ 0 },
 	}
 };
 
@@ -160,7 +160,7 @@ static struct dvb_usb_properties wt220u_properties = {
 	.pid_filter_count = 15,
 
 	.usb_ctrl = CYPRESS_FX2,
-	.firmware = "dvb-usb-wt220u-01.fw",
+	.firmware = "dvb-usb-wt220u-02.fw",
 
 	.power_ctrl      = dtt200u_power_ctrl,
 	.streaming_ctrl  = dtt200u_streaming_ctrl,
@@ -192,7 +192,7 @@ static struct dvb_usb_properties wt220u_properties = {
 		  .cold_ids = { &dtt200u_usb_table[2], NULL },
 		  .warm_ids = { &dtt200u_usb_table[3], NULL },
 		},
-		{ NULL },
+		{ 0 },
 	}
 };
 

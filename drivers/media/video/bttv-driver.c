@@ -34,12 +34,13 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
+#include "bttvp.h"
+#include <media/v4l2-common.h>
+
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
-
-#include "bttvp.h"
 
 #include "rds.h"
 
@@ -210,6 +211,9 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x20,
 		.vbipack        = 255,
 		.sram           = 0,
+		/* ITU-R frame line number of the first VBI line
+		   we can capture, of the first and second field. */
+		.vbistart	= { 7,320 },
 	},{
 		.v4l2_id        = V4L2_STD_NTSC_M,
 		.name           = "NTSC",
@@ -226,6 +230,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x1a,
 		.vbipack        = 144,
 		.sram           = 1,
+		.vbistart	= { 10, 273 },
 	},{
 		.v4l2_id        = V4L2_STD_SECAM,
 		.name           = "SECAM",
@@ -242,6 +247,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x20,
 		.vbipack        = 255,
 		.sram           = 0, /* like PAL, correct? */
+		.vbistart	= { 7, 320 },
 	},{
 		.v4l2_id        = V4L2_STD_PAL_Nc,
 		.name           = "PAL-Nc",
@@ -258,6 +264,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x1a,
 		.vbipack        = 144,
 		.sram           = -1,
+		.vbistart	= { 7, 320 },
 	},{
 		.v4l2_id        = V4L2_STD_PAL_M,
 		.name           = "PAL-M",
@@ -274,6 +281,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x1a,
 		.vbipack        = 144,
 		.sram           = -1,
+		.vbistart	= { 10, 273 },
 	},{
 		.v4l2_id        = V4L2_STD_PAL_N,
 		.name           = "PAL-N",
@@ -290,6 +298,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x20,
 		.vbipack        = 144,
 		.sram           = -1,
+		.vbistart	= { 7, 320},
 	},{
 		.v4l2_id        = V4L2_STD_NTSC_M_JP,
 		.name           = "NTSC-JP",
@@ -306,6 +315,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x16,
 		.vbipack        = 144,
 		.sram           = -1,
+		.vbistart	= {10, 273},
 	},{
 		/* that one hopefully works with the strange timing
 		 * which video recorders produce when playing a NTSC
@@ -326,6 +336,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vbipack        = 255,
 		.vtotal         = 524,
 		.sram           = -1,
+		.vbistart	= { 10, 273 },
 	}
 };
 static const unsigned int BTTV_TVNORMS = ARRAY_SIZE(bttv_tvnorms);
@@ -1510,14 +1521,6 @@ static struct videobuf_queue_ops bttv_video_qops = {
 	.buf_release  = buffer_release,
 };
 
-static const char *v4l1_ioctls[] = {
-	"?", "CGAP", "GCHAN", "SCHAN", "GTUNER", "STUNER", "GPICT", "SPICT",
-	"CCAPTURE", "GWIN", "SWIN", "GFBUF", "SFBUF", "KEY", "GFREQ",
-	"SFREQ", "GAUDIO", "SAUDIO", "SYNC", "MCAPTURE", "GMBUF", "GUNIT",
-	"GCAPTURE", "SCAPTURE", "SPLAYMODE", "SWRITEMODE", "GPLAYINFO",
-	"SMICROCODE", "GVBIFMT", "SVBIFMT" };
-#define V4L1_IOCTLS ARRAY_SIZE(v4l1_ioctls)
-
 static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
@@ -2206,22 +2209,9 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	unsigned long flags;
 	int retval = 0;
 
-	if (bttv_debug > 1) {
-		switch (_IOC_TYPE(cmd)) {
-		case 'v':
-			printk("bttv%d: ioctl 0x%x (v4l1, VIDIOC%s)\n",
-			       btv->c.nr, cmd, (_IOC_NR(cmd) < V4L1_IOCTLS) ?
-			       v4l1_ioctls[_IOC_NR(cmd)] : "???");
-			break;
-		case 'V':
-			printk("bttv%d: ioctl 0x%x (v4l2, %s)\n",
-			       btv->c.nr, cmd,  v4l2_ioctl_names[_IOC_NR(cmd)]);
-			break;
-		default:
-			printk("bttv%d: ioctl 0x%x (???)\n",
-			       btv->c.nr, cmd);
-		}
-	}
+	if (bttv_debug > 1)
+		v4l_print_ioctl(btv->c.name, cmd);
+
 	if (btv->errors)
 		bttv_reinit_bt848(btv);
 
@@ -2570,10 +2560,10 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		fmt->count[0]         = fmt2.fmt.vbi.count[0];
 		fmt->start[1]         = fmt2.fmt.vbi.start[1];
 		fmt->count[1]         = fmt2.fmt.vbi.count[1];
-		if (fmt2.fmt.vbi.flags & VBI_UNSYNC)
-			fmt->flags   |= V4L2_VBI_UNSYNC;
-		if (fmt2.fmt.vbi.flags & VBI_INTERLACED)
-			fmt->flags   |= V4L2_VBI_INTERLACED;
+		if (fmt2.fmt.vbi.flags & V4L2_VBI_UNSYNC)
+			fmt->flags   |= VBI_UNSYNC;
+		if (fmt2.fmt.vbi.flags & V4L2_VBI_INTERLACED)
+			fmt->flags   |= VBI_INTERLACED;
 		return 0;
 	}
 	case VIDIOCSVBIFMT:
@@ -3120,6 +3110,7 @@ static struct file_operations bttv_fops =
 	.open	  = bttv_open,
 	.release  = bttv_release,
 	.ioctl	  = bttv_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek	  = no_llseek,
 	.read	  = bttv_read,
 	.mmap	  = bttv_mmap,
@@ -3229,6 +3220,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOCSFREQ:
 	case VIDIOCGAUDIO:
 	case VIDIOCSAUDIO:
+	case VIDIOC_LOG_STATUS:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
@@ -3701,8 +3693,8 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 
 	btv=(struct bttv *)dev_id;
 
-	if (btv->any_irq)
-		handled = bttv_any_irq(&btv->c);
+	if (btv->custom_irq)
+		handled = btv->custom_irq(btv);
 
 	count=0;
 	while (1) {
@@ -3738,9 +3730,9 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 		if (astat&BT848_INT_VSYNC)
 			btv->field_count++;
 
-		if (astat & BT848_INT_GPINT) {
+		if ((astat & BT848_INT_GPINT) && btv->remote) {
 			wake_up(&btv->gpioq);
-			bttv_gpio_irq(&btv->c);
+			bttv_input_irq(btv);
 		}
 
 		if (astat & BT848_INT_I2CDONE) {
@@ -3946,7 +3938,6 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 
 	btv->i2c_rc = -1;
 	btv->tuner_type  = UNSET;
-	btv->pinnacle_id = UNSET;
 	btv->new_input   = UNSET;
 	btv->has_radio=radio[btv->c.nr];
 
@@ -4065,10 +4056,10 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	}
 
 	/* add subdevices */
-	if (btv->has_remote)
-		bttv_sub_add_device(&btv->c, "remote");
 	if (bttv_tvcards[btv->c.type].has_dvb)
 		bttv_sub_add_device(&btv->c, "dvb");
+
+	bttv_input_init(btv);
 
 	/* everything is fine */
 	bttv_num++;
@@ -4104,6 +4095,7 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 	/* tell gpio modules we are leaving ... */
 	btv->shutdown=1;
 	wake_up(&btv->gpioq);
+	bttv_input_fini(btv);
 	bttv_sub_del_devices(&btv->c);
 
 	/* unregister i2c_bus + input */
@@ -4253,7 +4245,7 @@ static int bttv_init_module(void)
 	bttv_check_chipset();
 
 	bus_register(&bttv_sub_bus_type);
-	return pci_module_init(&bttv_pci_driver);
+	return pci_register_driver(&bttv_pci_driver);
 }
 
 static void bttv_cleanup_module(void)

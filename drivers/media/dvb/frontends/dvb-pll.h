@@ -25,7 +25,7 @@ extern struct dvb_pll_desc dvb_pll_thomson_dtt759x;
 extern struct dvb_pll_desc dvb_pll_thomson_dtt7610;
 extern struct dvb_pll_desc dvb_pll_lg_z201;
 extern struct dvb_pll_desc dvb_pll_microtune_4042;
-extern struct dvb_pll_desc dvb_pll_thomson_dtt7611;
+extern struct dvb_pll_desc dvb_pll_thomson_dtt761x;
 extern struct dvb_pll_desc dvb_pll_unknown_1;
 
 extern struct dvb_pll_desc dvb_pll_tua6010xs;

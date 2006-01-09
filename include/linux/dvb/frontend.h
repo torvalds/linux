@@ -240,6 +240,15 @@ struct dvb_frontend_event {
 };
 
 
+/**
+ * When set, this flag will disable any zigzagging or other "normal" tuning
+ * behaviour. Additionally, there will be no automatic monitoring of the lock
+ * status, and hence no frontend events will be generated. If a frontend device
+ * is closed, this flag will be automatically turned off when the device is
+ * reopened read-write.
+ */
+#define FE_TUNE_MODE_ONESHOT 0x01
+
 
 #define FE_GET_INFO		   _IOR('o', 61, struct dvb_frontend_info)
 
@@ -260,6 +269,7 @@ struct dvb_frontend_event {
 
 #define FE_SET_FRONTEND		   _IOW('o', 76, struct dvb_frontend_parameters)
 #define FE_GET_FRONTEND		   _IOR('o', 77, struct dvb_frontend_parameters)
+#define FE_SET_FRONTEND_TUNE_MODE  _IO('o', 81) /* unsigned int */
 #define FE_GET_EVENT		   _IOR('o', 78, struct dvb_frontend_event)
 
 #define FE_DISHNETWORK_SEND_LEGACY_CMD _IO('o', 80) /* unsigned int */

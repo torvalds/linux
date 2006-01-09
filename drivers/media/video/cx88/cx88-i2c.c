@@ -30,6 +30,7 @@
 #include <asm/io.h>
 
 #include "cx88.h"
+#include <media/v4l2-common.h>
 
 static unsigned int i2c_debug = 0;
 module_param(i2c_debug, int, 0644);
@@ -135,7 +136,17 @@ void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 {
 	if (0 != core->i2c_rc)
 		return;
-	i2c_clients_command(&core->i2c_adap, cmd, arg);
+
+	if (core->dvbdev) {
+		if (core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl)
+			core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl(core->dvbdev->dvb.frontend, 1);
+
+		i2c_clients_command(&core->i2c_adap, cmd, arg);
+
+		if (core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl)
+			core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl(core->dvbdev->dvb.frontend, 0);
+	} else
+		i2c_clients_command(&core->i2c_adap, cmd, arg);
 }
 
 static struct i2c_algo_bit_data cx8800_i2c_algo_template = {

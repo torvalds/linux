@@ -1974,6 +1974,7 @@ static struct file_operations saa_fops =
 	.open		= saa_open,
 	.release	= saa_release,
 	.ioctl		= saa_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.read		= saa_read,
 	.llseek		= no_llseek,
 	.write		= saa_write,

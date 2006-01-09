@@ -22,7 +22,7 @@
 
 #include "cx25840.h"
 
-static inline int odd_parity(u8 c)
+static int odd_parity(u8 c)
 {
 	c ^= (c >> 4);
 	c ^= (c >> 2);
@@ -31,7 +31,7 @@ static inline int odd_parity(u8 c)
 	return c & 1;
 }
 
-static inline int decode_vps(u8 * dst, u8 * p)
+static int decode_vps(u8 * dst, u8 * p)
 {
 	static const u8 biphase_tbl[] = {
 		0xf0, 0x78, 0x70, 0xf0, 0xb4, 0x3c, 0x34, 0xb4,

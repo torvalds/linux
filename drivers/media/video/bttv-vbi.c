@@ -31,6 +31,12 @@
 #include <asm/io.h>
 #include "bttvp.h"
 
+/* Offset from line sync pulse leading edge (0H) in 1 / sampling_rate:
+   bt8x8 /HRESET pulse starts at 0H and has length 64 / fCLKx1 (E|O_VTC
+   HSFMT = 0). VBI_HDELAY (always 0) is an offset from the trailing edge
+   of /HRESET in 1 / fCLKx1, and the sampling_rate tvnorm->Fsc is fCLKx2. */
+#define VBI_OFFSET ((64 + 0) * 2)
+
 #define VBI_DEFLINES 16
 #define VBI_MAXLINES 32
 
@@ -163,40 +169,30 @@ void bttv_vbi_setlines(struct bttv_fh *fh, struct bttv *btv, int lines)
 void bttv_vbi_try_fmt(struct bttv_fh *fh, struct v4l2_format *f)
 {
 	const struct bttv_tvnorm *tvnorm;
-	u32 start0,start1;
-	s32 count0,count1,count;
+	s64 count0,count1,count;
 
 	tvnorm = &bttv_tvnorms[fh->btv->tvnorm];
 	f->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	f->fmt.vbi.sampling_rate    = tvnorm->Fsc;
 	f->fmt.vbi.samples_per_line = 2048;
 	f->fmt.vbi.sample_format    = V4L2_PIX_FMT_GREY;
-	f->fmt.vbi.offset           = 244;
+	f->fmt.vbi.offset           = VBI_OFFSET;
 	f->fmt.vbi.flags            = 0;
-	switch (fh->btv->tvnorm) {
-	case 1: /* NTSC */
-		start0 = 10;
-		start1 = 273;
-		break;
-	case 0: /* PAL */
-	case 2: /* SECAM */
-	default:
-		start0 = 7;
-		start1 = 320;
-	}
 
-	count0 = (f->fmt.vbi.start[0] + f->fmt.vbi.count[0]) - start0;
-	count1 = (f->fmt.vbi.start[1] + f->fmt.vbi.count[1]) - start1;
-	count  = max(count0,count1);
-	if (count > VBI_MAXLINES)
-		count = VBI_MAXLINES;
-	if (count < 1)
-		count = 1;
+	/* s64 to prevent overflow. */
+	count0 = (s64) f->fmt.vbi.start[0] + f->fmt.vbi.count[0]
+		- tvnorm->vbistart[0];
+	count1 = (s64) f->fmt.vbi.start[1] + f->fmt.vbi.count[1]
+		- tvnorm->vbistart[1];
+	count  = clamp (max (count0, count1), 1LL, (s64) VBI_MAXLINES);
 
-	f->fmt.vbi.start[0] = start0;
-	f->fmt.vbi.start[1] = start1;
+	f->fmt.vbi.start[0] = tvnorm->vbistart[0];
+	f->fmt.vbi.start[1] = tvnorm->vbistart[1];
 	f->fmt.vbi.count[0] = count;
 	f->fmt.vbi.count[1] = count;
+
+	f->fmt.vbi.reserved[0] = 0;
+	f->fmt.vbi.reserved[1] = 0;
 }
 
 void bttv_vbi_get_fmt(struct bttv_fh *fh, struct v4l2_format *f)
@@ -209,21 +205,12 @@ void bttv_vbi_get_fmt(struct bttv_fh *fh, struct v4l2_format *f)
 	f->fmt.vbi.sampling_rate    = tvnorm->Fsc;
 	f->fmt.vbi.samples_per_line = 2048;
 	f->fmt.vbi.sample_format    = V4L2_PIX_FMT_GREY;
-	f->fmt.vbi.offset           = 244;
+	f->fmt.vbi.offset           = VBI_OFFSET;
+	f->fmt.vbi.start[0]         = tvnorm->vbistart[0];
+	f->fmt.vbi.start[1]         = tvnorm->vbistart[1];
 	f->fmt.vbi.count[0]         = fh->lines;
 	f->fmt.vbi.count[1]         = fh->lines;
 	f->fmt.vbi.flags            = 0;
-	switch (fh->btv->tvnorm) {
-	case 1: /* NTSC */
-		f->fmt.vbi.start[0] = 10;
-		f->fmt.vbi.start[1] = 273;
-		break;
-	case 0: /* PAL */
-	case 2: /* SECAM */
-	default:
-		f->fmt.vbi.start[0] = 7;
-		f->fmt.vbi.start[1] = 319;
-	}
 }
 
 /* ----------------------------------------------------------------------- */
