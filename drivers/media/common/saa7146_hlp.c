@@ -562,19 +562,26 @@ static void saa7146_set_position(struct saa7146_dev *dev, int w_x, int w_y, int 
 
 	int b_depth = vv->ov_fmt->depth;
 	int b_bpl = vv->ov_fb.fmt.bytesperline;
-	u32 base = (u32)vv->ov_fb.base;
+	/* The unsigned long cast is to remove a 64-bit compile warning since
+	   it looks like a 64-bit address is cast to a 32-bit value, even
+	   though the base pointer is really a 32-bit physical address that
+	   goes into a 32-bit DMA register.
+	   FIXME: might not work on some 64-bit platforms, but see the FIXME
+	   in struct v4l2_framebuffer (videodev2.h) for that.
+	 */
+	u32 base = (u32)(unsigned long)vv->ov_fb.base;
 
 	struct	saa7146_video_dma vdma1;
 
 	/* calculate memory offsets for picture, look if we shall top-down-flip */
 	vdma1.pitch	= 2*b_bpl;
 	if ( 0 == vv->vflip ) {
-		vdma1.base_even = (u32)base + (w_y * (vdma1.pitch/2)) + (w_x * (b_depth / 8));
+		vdma1.base_even = base + (w_y * (vdma1.pitch/2)) + (w_x * (b_depth / 8));
 		vdma1.base_odd  = vdma1.base_even + (vdma1.pitch / 2);
 		vdma1.prot_addr = vdma1.base_even + (w_height * (vdma1.pitch / 2));
 	}
 	else {
-		vdma1.base_even = (u32)base + ((w_y+w_height) * (vdma1.pitch/2)) + (w_x * (b_depth / 8));
+		vdma1.base_even = base + ((w_y+w_height) * (vdma1.pitch/2)) + (w_x * (b_depth / 8));
 		vdma1.base_odd  = vdma1.base_even - (vdma1.pitch / 2);
 		vdma1.prot_addr = vdma1.base_odd - (w_height * (vdma1.pitch / 2));
 	}
