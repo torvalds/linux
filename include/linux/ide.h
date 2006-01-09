@@ -1001,6 +1001,7 @@ extern int noautodma;
 
 extern int ide_end_request (ide_drive_t *drive, int uptodate, int nrsecs);
 extern int __ide_end_request (ide_drive_t *drive, struct request *rq, int uptodate, int nrsecs);
+extern void ide_softirq_done(struct request *rq);
 
 /*
  * This is used on exit from the driver to designate the next irq handler

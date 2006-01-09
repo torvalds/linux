@@ -55,9 +55,22 @@
 #include <asm/io.h>
 #include <asm/bitops.h>
 
+void ide_softirq_done(struct request *rq)
+{
+	request_queue_t *q = rq->q;
+
+	add_disk_randomness(rq->rq_disk);
+	end_that_request_chunk(rq, rq->errors, rq->data_len);
+
+	spin_lock_irq(q->queue_lock);
+	end_that_request_last(rq, rq->errors);
+	spin_unlock_irq(q->queue_lock);
+}
+
 int __ide_end_request(ide_drive_t *drive, struct request *rq, int uptodate,
 		      int nr_sectors)
 {
+	unsigned int nbytes;
 	int ret = 1;
 
 	BUG_ON(!(rq->flags & REQ_STARTED));
@@ -81,17 +94,28 @@ int __ide_end_request(ide_drive_t *drive, struct request *rq, int uptodate,
 		HWGROUP(drive)->hwif->ide_dma_on(drive);
 	}
 
-	if (!end_that_request_first(rq, uptodate, nr_sectors)) {
-		add_disk_randomness(rq->rq_disk);
-
-		if (blk_rq_tagged(rq))
-			blk_queue_end_tag(drive->queue, rq);
-
+	/*
+	 * For partial completions (or non fs/pc requests), use the regular
+	 * direct completion path.
+	 */
+	nbytes = nr_sectors << 9;
+	if (rq_all_done(rq, nbytes)) {
+		rq->errors = uptodate;
+		rq->data_len = nbytes;
 		blkdev_dequeue_request(rq);
 		HWGROUP(drive)->rq = NULL;
-		end_that_request_last(rq, uptodate);
+		blk_complete_request(rq);
 		ret = 0;
+	} else {
+		if (!end_that_request_first(rq, uptodate, nr_sectors)) {
+			add_disk_randomness(rq->rq_disk);
+			blkdev_dequeue_request(rq);
+			HWGROUP(drive)->rq = NULL;
+			end_that_request_last(rq, uptodate);
+			ret = 0;
+		}
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL(__ide_end_request);
@@ -113,6 +137,10 @@ int ide_end_request (ide_drive_t *drive, int uptodate, int nr_sectors)
 	unsigned long flags;
 	int ret = 1;
 
+	/*
+	 * room for locking improvements here, the calls below don't
+	 * need the queue lock held at all
+	 */
 	spin_lock_irqsave(&ide_lock, flags);
 	rq = HWGROUP(drive)->rq;
 
