@@ -1706,12 +1706,12 @@ static int chip_command(struct i2c_client *client,
 		struct v4l2_tuner *vt = arg;
 		int mode = VIDEO_SOUND_MONO;
 
+		if (chip->radio)
+			break;
 		vt->audmode = 0;
 		vt->rxsubchans = 0;
 		vt->capability = V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
-		if (chip->radio)
-			break;
 
 		if (desc->getmode)
 			mode = desc->getmode(chip);
