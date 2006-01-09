@@ -1,5 +1,5 @@
 /*
-   em28xx-cards.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
+   em28xx.h - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
 		      Ludovico Cavedon <cavedon@sssup.it>
