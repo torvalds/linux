@@ -39,6 +39,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <asm/div64.h>
 
 MODULE_DESCRIPTION("Philips SAA7114/SAA7115 video decoder driver");
 MODULE_AUTHOR("Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, Hans Verkuil");
@@ -78,7 +79,7 @@ struct saa7115_state {
 	int hue;
 	int sat;
 	enum v4l2_chip_ident ident;
-	enum v4l2_audio_clock_freq audclk_freq;
+	u32 audclk_freq;
 };
 
 /* ----------------------------------------------------------------------- */
@@ -469,80 +470,6 @@ static const unsigned char saa7115_init_misc[] = {
 	0x00, 0x00
 };
 
-/* ============== SAA7715 AUDIO settings ============= */
-
-/* 48.0 kHz */
-static const unsigned char saa7115_cfg_48_audio[] = {
-	0x34, 0xce,
-	0x35, 0xfb,
-	0x36, 0x30,
-	0x00, 0x00
-};
-
-/* 44.1 kHz */
-static const unsigned char saa7115_cfg_441_audio[] = {
-	0x34, 0xf2,
-	0x35, 0x00,
-	0x36, 0x2d,
-	0x00, 0x00
-};
-
-/* 32.0 kHz */
-static const unsigned char saa7115_cfg_32_audio[] = {
-	0x34, 0xdf,
-	0x35, 0xa7,
-	0x36, 0x20,
-	0x00, 0x00
-};
-
-/* 48.0 kHz 60hz */
-static const unsigned char saa7115_cfg_60hz_48_audio[] = {
-	0x30, 0xcd,
-	0x31, 0x20,
-	0x32, 0x03,
-	0x00, 0x00
-};
-
-/* 48.0 kHz 50hz */
-static const unsigned char saa7115_cfg_50hz_48_audio[] = {
-	0x30, 0x00,
-	0x31, 0xc0,
-	0x32, 0x03,
-	0x00, 0x00
-};
-
-/* 44.1 kHz 60hz */
-static const unsigned char saa7115_cfg_60hz_441_audio[] = {
-	0x30, 0xbc,
-	0x31, 0xdf,
-	0x32, 0x02,
-	0x00, 0x00
-};
-
-/* 44.1 kHz 50hz */
-static const unsigned char saa7115_cfg_50hz_441_audio[] = {
-	0x30, 0x00,
-	0x31, 0x72,
-	0x32, 0x03,
-	0x00, 0x00
-};
-
-/* 32.0 kHz 60hz */
-static const unsigned char saa7115_cfg_60hz_32_audio[] = {
-	0x30, 0xde,
-	0x31, 0x15,
-	0x32, 0x02,
-	0x00, 0x00
-};
-
-/* 32.0 kHz 50hz */
-static const unsigned char saa7115_cfg_50hz_32_audio[] = {
-	0x30, 0x00,
-	0x31, 0x80,
-	0x32, 0x02,
-	0x00, 0x00
-};
-
 static int saa7115_odd_parity(u8 c)
 {
 	c ^= (c >> 4);
@@ -627,40 +554,38 @@ static int saa7115_decode_wss(u8 * p)
 }
 
 
-static int saa7115_set_audio_clock_freq(struct i2c_client *client, enum v4l2_audio_clock_freq freq)
+static int saa7115_set_audio_clock_freq(struct i2c_client *client, u32 freq)
 {
 	struct saa7115_state *state = i2c_get_clientdata(client);
+	u32 acpf;
+	u32 acni;
+	u32 hz;
+	u64 f;
 
 	saa7115_dbg("set audio clock freq: %d\n", freq);
-	switch (freq) {
-		case V4L2_AUDCLK_32_KHZ:
-			saa7115_writeregs(client, saa7115_cfg_32_audio);
-			if (state->std & V4L2_STD_525_60) {
-				saa7115_writeregs(client, saa7115_cfg_60hz_32_audio);
-			} else {
-				saa7115_writeregs(client, saa7115_cfg_50hz_32_audio);
-			}
-			break;
-		case V4L2_AUDCLK_441_KHZ:
-			saa7115_writeregs(client, saa7115_cfg_441_audio);
-			if (state->std & V4L2_STD_525_60) {
-				saa7115_writeregs(client, saa7115_cfg_60hz_441_audio);
-			} else {
-				saa7115_writeregs(client, saa7115_cfg_50hz_441_audio);
-			}
-			break;
-		case V4L2_AUDCLK_48_KHZ:
-			saa7115_writeregs(client, saa7115_cfg_48_audio);
-			if (state->std & V4L2_STD_525_60) {
-				saa7115_writeregs(client, saa7115_cfg_60hz_48_audio);
-			} else {
-				saa7115_writeregs(client, saa7115_cfg_50hz_48_audio);
-			}
-			break;
-		default:
-			saa7115_dbg("invalid audio setting %d\n", freq);
-			return -EINVAL;
-	}
+
+	/* sanity check */
+	if (freq < 32000 || freq > 48000)
+		return -EINVAL;
+
+	/* hz is the refresh rate times 100 */
+	hz = (state->std & V4L2_STD_525_60) ? 5994 : 5000;
+	/* acpf = (256 * freq) / field_frequency == (256 * 100 * freq) / hz */
+	acpf = (25600 * freq) / hz;
+	/* acni = (256 * freq * 2^23) / crystal_frequency =
+		  (freq * 2^(8+23)) / crystal_frequency =
+		  (freq << 31) / 32.11 MHz */
+	f = freq;
+	f = f << 31;
+	do_div(f, 32110000);
+	acni = f;
+
+	saa7115_write(client, 0x30, acpf & 0xff);
+	saa7115_write(client, 0x31, (acpf >> 8) & 0xff);
+	saa7115_write(client, 0x32, (acpf >> 16) & 0x03);
+	saa7115_write(client, 0x34, acni & 0xff);
+	saa7115_write(client, 0x35, (acni >> 8) & 0xff);
+	saa7115_write(client, 0x36, (acni >> 16) & 0x3f);
 	state->audclk_freq = freq;
 	return 0;
 }
@@ -773,24 +698,17 @@ static v4l2_std_id saa7115_get_v4lstd(struct i2c_client *client)
 static void saa7115_log_status(struct i2c_client *client)
 {
 	struct saa7115_state *state = i2c_get_clientdata(client);
-	char *audfreq = "undefined";
 	int reg1e, reg1f;
 	int signalOk;
 	int vcr;
 
-	switch (state->audclk_freq) {
-		case V4L2_AUDCLK_32_KHZ:  audfreq = "32 kHz"; break;
-		case V4L2_AUDCLK_441_KHZ: audfreq = "44.1 kHz"; break;
-		case V4L2_AUDCLK_48_KHZ:  audfreq = "48 kHz"; break;
-	}
-
-	saa7115_info("Audio frequency: %s\n", audfreq);
+	saa7115_info("Audio frequency: %d Hz\n", state->audclk_freq);
 	if (client->name[6] == '4') {
 		/* status for the saa7114 */
 		reg1f = saa7115_read(client, 0x1f);
 		signalOk = (reg1f & 0xc1) == 0x81;
 		saa7115_info("Video signal:    %s\n", signalOk ? "ok" : "bad");
-		saa7115_info("Frequency:       %s\n", (reg1f & 0x20) ? "60Hz" : "50Hz");
+		saa7115_info("Frequency:       %s\n", (reg1f & 0x20) ? "60 Hz" : "50 Hz");
 		return;
 	}
 
@@ -807,7 +725,7 @@ static void saa7115_log_status(struct i2c_client *client)
 		saa7115_info("Input:           Composite %d\n", state->input);
 	}
 	saa7115_info("Video signal:    %s\n", signalOk ? (vcr ? "VCR" : "broadcast/DVD") : "bad");
-	saa7115_info("Frequency:       %s\n", (reg1f & 0x20) ? "60Hz" : "50Hz");
+	saa7115_info("Frequency:       %s\n", (reg1f & 0x20) ? "60 Hz" : "50 Hz");
 
 	switch (reg1e & 0x03) {
 		case 1:
@@ -1108,7 +1026,7 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 		return saa7115_get_v4lfmt(client, (struct v4l2_format *)arg);
 
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		return saa7115_set_audio_clock_freq(client, *(enum v4l2_audio_clock_freq *)arg);
+		return saa7115_set_audio_clock_freq(client, *(u32 *)arg);
 
 	case VIDIOC_G_TUNER:
 	{
@@ -1307,7 +1225,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->hue = 0;
 	state->sat = 64;
 	state->ident = (chip_id == 4) ? V4L2_IDENT_SAA7114 : V4L2_IDENT_SAA7115;
-	state->audclk_freq = V4L2_AUDCLK_48_KHZ;
+	state->audclk_freq = 48000;
 
 	saa7115_dbg("writing init values\n");
 
@@ -1317,8 +1235,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	saa7115_writeregs(client, saa7115_cfg_60hz_fullres_x);
 	saa7115_writeregs(client, saa7115_cfg_60hz_fullres_y);
 	saa7115_writeregs(client, saa7115_cfg_60hz_video);
-	saa7115_writeregs(client, saa7115_cfg_48_audio);
-	saa7115_writeregs(client, saa7115_cfg_60hz_48_audio);
+	saa7115_set_audio_clock_freq(client, state->audclk_freq);
 	saa7115_writeregs(client, saa7115_cfg_reset_scaler);
 
 	i2c_attach_client(client);

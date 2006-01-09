@@ -23,10 +23,12 @@
 
 #include "cx25840.h"
 
-inline static int set_audclk_freq(struct i2c_client *client,
-				 enum v4l2_audio_clock_freq freq)
+static int set_audclk_freq(struct i2c_client *client, u32 freq)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
+
+	if (freq != 32000 && freq != 44100 && freq != 48000)
+		return -EINVAL;
 
 	/* assert soft reset */
 	cx25840_and_or(client, 0x810, ~0x1, 0x01);
@@ -38,7 +40,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 	switch (state->audio_input) {
 	case AUDIO_TUNER:
 		switch (freq) {
-		case V4L2_AUDCLK_32_KHZ:
+		case 32000:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040610);
 
@@ -51,7 +53,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write4(client, 0x90c, 0x7ff70108);
 			break;
 
-		case V4L2_AUDCLK_441_KHZ:
+		case 44100:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040910);
 
@@ -64,7 +66,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write4(client, 0x90c, 0x596d0108);
 			break;
 
-		case V4L2_AUDCLK_48_KHZ:
+		case 48000:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040a10);
 
@@ -84,7 +86,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 	case AUDIO_INTERN:
 	case AUDIO_RADIO:
 		switch (freq) {
-		case V4L2_AUDCLK_32_KHZ:
+		case 32000:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f04081e);
 
@@ -103,7 +105,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write(client, 0x127, 0x54);
 			break;
 
-		case V4L2_AUDCLK_441_KHZ:
+		case 44100:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040918);
 
@@ -119,7 +121,7 @@ inline static int set_audclk_freq(struct i2c_client *client,
 			cx25840_write4(client, 0x90c, 0x85730108);
 			break;
 
-		case V4L2_AUDCLK_48_KHZ:
+		case 48000:
 			/* VID_PLL and AUX_PLL */
 			cx25840_write4(client, 0x108, 0x0f040a18);
 
@@ -317,7 +319,7 @@ int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
 	case AUDC_SET_INPUT:
 		return set_input(client, *(int *)arg);
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		return set_audclk_freq(client, *(enum v4l2_audio_clock_freq *)arg);
+		return set_audclk_freq(client, *(u32 *)arg);
 	case VIDIOC_G_CTRL:
 		switch (ctrl->id) {
 		case V4L2_CID_AUDIO_VOLUME:

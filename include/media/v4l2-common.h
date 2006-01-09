@@ -26,13 +26,6 @@
 #ifndef V4L2_COMMON_H_
 #define V4L2_COMMON_H_
 
-/* VIDIOC_INT_AUDIO_CLOCK_FREQ */
-enum v4l2_audio_clock_freq {
-	V4L2_AUDCLK_32_KHZ  = 32000,
-	V4L2_AUDCLK_441_KHZ = 44100,
-	V4L2_AUDCLK_48_KHZ  = 48000,
-};
-
 /* VIDIOC_INT_G_REGISTER and VIDIOC_INT_S_REGISTER */
 struct v4l2_register {
 	u32 i2c_id; 		/* I2C driver ID of the I2C chip. 0 for the I2C adapter. */
@@ -77,10 +70,12 @@ enum v4l2_chip_ident {
 /* Reset the I2C chip */
 #define VIDIOC_INT_RESET            	_IO  ('d', 102)
 
-/* Set the frequency of the audio clock output.
+/* Set the frequency (in Hz) of the audio clock output.
    Used to slave an audio processor to the video decoder, ensuring that audio
-   and video remain synchronized. */
-#define VIDIOC_INT_AUDIO_CLOCK_FREQ 	_IOR ('d', 103, enum v4l2_audio_clock_freq)
+   and video remain synchronized.
+   Usual values for the frequency are 48000, 44100 or 32000 Hz.
+   If the frequency is not supported, then -EINVAL is returned. */
+#define VIDIOC_INT_AUDIO_CLOCK_FREQ 	_IOW ('d', 103, u32)
 
 /* Video decoders that support sliced VBI need to implement this ioctl.
    Field p of the v4l2_sliced_vbi_line struct is set to the start of the VBI

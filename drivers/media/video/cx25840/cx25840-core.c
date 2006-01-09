@@ -802,7 +802,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	i2c_set_clientdata(client, state);
 	memset(state, 0, sizeof(struct cx25840_state));
 	state->input = CX25840_TUNER;
-	state->audclk_freq = V4L2_AUDCLK_48_KHZ;
+	state->audclk_freq = 48000;
 	state->audio_input = AUDIO_TUNER;
 	state->cardtype = CARDTYPE_PVR150;
 
@@ -1008,13 +1008,7 @@ static void log_status(struct i2c_client *client)
 	cx25840_info("Specified audio input:     %s\n",
 		    state->audio_input == 0 ? "Tuner" : "External");
 
-	switch (state->audclk_freq) {
-	case V4L2_AUDCLK_441_KHZ: p = "44.1 kHz"; break;
-	case V4L2_AUDCLK_48_KHZ: p = "48 kHz"; break;
-	case V4L2_AUDCLK_32_KHZ: p = "32 kHz"; break;
-	default: p = "undefined";
-	}
-	cx25840_info("Specified audioclock freq: %s\n", p);
+	cx25840_info("Specified audioclock freq: %d Hz\n", state->audclk_freq);
 
 	switch (pref_mode & 0xf) {
 	case 0: p = "mono/language A"; break;

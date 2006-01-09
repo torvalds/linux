@@ -65,7 +65,7 @@ struct cx25840_state {
 	enum cx25840_cardtype cardtype;
 	enum cx25840_input input;
 	int audio_input;
-	enum v4l2_audio_clock_freq audclk_freq;
+	u32 audclk_freq;
 };
 
 /* ----------------------------------------------------------------------- */
