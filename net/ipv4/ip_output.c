@@ -69,6 +69,7 @@
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/route.h>
+#include <net/xfrm.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/arp.h>
