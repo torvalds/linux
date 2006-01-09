@@ -402,7 +402,7 @@ static int netlink_create(struct socket *sock, int protocol)
 	groups = nl_table[protocol].groups;
 	netlink_unlock_table();
 
-	if ((err = __netlink_create(sock, protocol) < 0))
+	if ((err = __netlink_create(sock, protocol)) < 0)
 		goto out_module;
 
 	nlk = nlk_sk(sock->sk);
