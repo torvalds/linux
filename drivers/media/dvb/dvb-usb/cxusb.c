@@ -25,6 +25,7 @@
 #include "cxusb.h"
 
 #include "cx22702.h"
+#include "lgdt330x.h"
 
 /* debug */
 int dvb_usb_cxusb_debug;
@@ -165,17 +166,34 @@ struct cx22702_config cxusb_cx22702_config = {
 	.pll_set  = dvb_usb_pll_set_i2c,
 };
 
+struct lgdt330x_config cxusb_lgdt330x_config = {
+	.demod_address = 0x0e,
+	.demod_chip    = LGDT3303,
+	.pll_set       = dvb_usb_pll_set_i2c,
+};
+
 /* Callbacks for DVB USB */
-static int cxusb_tuner_attach(struct dvb_usb_device *d)
+static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_device *d)
 {
 	u8 bpll[4] = { 0x0b, 0xdc, 0x9c, 0xa0 };
 	d->pll_addr = 0x61;
-	memcpy(d->pll_init,bpll,4);
+	memcpy(d->pll_init, bpll, 4);
 	d->pll_desc = &dvb_pll_fmd1216me;
 	return 0;
 }
 
-static int cxusb_frontend_attach(struct dvb_usb_device *d)
+static int cxusb_lgh064f_tuner_attach(struct dvb_usb_device *d)
+{
+	u8 bpll[4] = { 0x00, 0x00, 0x18, 0x50 };
+	/* bpll[2] : unset bit 3, set bits 4&5
+	   bpll[3] : 0x50 - digital, 0x20 - analog */
+	d->pll_addr = 0x61;
+	memcpy(d->pll_init, bpll, 4);
+	d->pll_desc = &dvb_pll_tdvs_tua6034;
+	return 0;
+}
+
+static int cxusb_cx22702_frontend_attach(struct dvb_usb_device *d)
 {
 	u8 b;
 	if (usb_set_interface(d->udev,0,6) < 0)
@@ -189,22 +207,43 @@ static int cxusb_frontend_attach(struct dvb_usb_device *d)
 	return -EIO;
 }
 
+static int cxusb_lgdt330x_frontend_attach(struct dvb_usb_device *d)
+{
+	if (usb_set_interface(d->udev,0,0) < 0)
+		err("set interface failed");
+
+	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
+
+	if ((d->fe = lgdt330x_attach(&cxusb_lgdt330x_config, &d->i2c_adap)) != NULL)
+		return 0;
+
+	return -EIO;
+}
+
 /* DVB USB Driver stuff */
-static struct dvb_usb_properties cxusb_properties;
+static struct dvb_usb_properties cxusb_medion_properties;
+static struct dvb_usb_properties cxusb_bluebird_atsc_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&cxusb_properties,THIS_MODULE,NULL);
+	if (dvb_usb_device_init(intf,&cxusb_medion_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&cxusb_bluebird_atsc_properties,THIS_MODULE,NULL) == 0) {
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static struct usb_device_id cxusb_table [] = {
 		{ USB_DEVICE(USB_VID_MEDION, USB_PID_MEDION_MD95700) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LG064F_COLD) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LG064F_WARM) },
 		{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
 
-static struct dvb_usb_properties cxusb_properties = {
+static struct dvb_usb_properties cxusb_medion_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl = CYPRESS_FX2,
@@ -213,8 +252,8 @@ static struct dvb_usb_properties cxusb_properties = {
 
 	.streaming_ctrl   = cxusb_streaming_ctrl,
 	.power_ctrl       = cxusb_power_ctrl,
-	.frontend_attach  = cxusb_frontend_attach,
-	.tuner_attach     = cxusb_tuner_attach,
+	.frontend_attach  = cxusb_cx22702_frontend_attach,
+	.tuner_attach     = cxusb_fmd1216me_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
@@ -236,6 +275,43 @@ static struct dvb_usb_properties cxusb_properties = {
 		{   "Medion MD95700 (MDUSBTV-HYBRID)",
 			{ NULL },
 			{ &cxusb_table[0], NULL },
+		},
+	}
+};
+
+static struct dvb_usb_properties cxusb_bluebird_atsc_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl         = CYPRESS_FX2,
+	.firmware         = "dvb-usb-bluebird-atsc-01.fw",
+
+	.size_of_priv     = sizeof(struct cxusb_state),
+
+	.streaming_ctrl   = cxusb_streaming_ctrl,
+	.power_ctrl       = cxusb_power_ctrl,
+	.frontend_attach  = cxusb_lgdt330x_frontend_attach,
+	.tuner_attach     = cxusb_lgh064f_tuner_attach,
+
+	.i2c_algo         = &cxusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+	/* parameter for the MPEG2-data transfer */
+	.urb = {
+		.type = DVB_USB_BULK,
+		.count = 5,
+		.endpoint = 0x02,
+		.u = {
+			.bulk = {
+				.buffersize = 8192,
+			}
+		}
+	},
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "DViCO FusionHDTV5 USB Gold",
+			{ &cxusb_table[1], NULL },
+			{ &cxusb_table[2], NULL },
 		},
 	}
 };
