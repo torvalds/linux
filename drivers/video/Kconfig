@@ -1151,7 +1151,7 @@ config FB_VOODOO1
 
 config FB_CYBLA
 	tristate "Cyberblade/i1 support"
-	depends on FB && PCI
+	depends on FB && PCI && X86_32 && !64BIT
 	select FB_CFB_IMAGEBLIT
 	select VIDEO_SELECT
 	---help---

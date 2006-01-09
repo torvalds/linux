@@ -153,6 +153,10 @@
 #define GE04	(GEBase+0x04)	// source 2, p 111
 #define GE08	(GEBase+0x08)	// destination 1, p 111
 #define GE0C	(GEBase+0x0C)	// destination 2, p 112
+#define GE10	(GEBase+0x10)	// right view base & enable, p 112
+#define GE13	(GEBase+0x13)	// left view base & enable, p 112
+#define GE18	(GEBase+0x18)	// block write start address, p 112
+#define GE1C	(GEBase+0x1C)	// block write end address, p 112
 #define GE20	(GEBase+0x20)	// engine status, p 113
 #define GE24	(GEBase+0x24)	// reset all GE pointers
 #define GE44	(GEBase+0x44)	// command register, p 126
