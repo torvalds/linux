@@ -16,7 +16,7 @@
  15 -> DViCO FusionHDTV DVB-T1                             [18ac:db00]
  16 -> KWorld LTV883RF
  17 -> DViCO FusionHDTV 3 Gold-Q                           [18ac:d810]
- 18 -> Hauppauge Nova-T DVB-T                              [0070:9002]
+ 18 -> Hauppauge Nova-T DVB-T                              [0070:9002,0070:9001]
  19 -> Conexant DVB-T reference design                     [14f1:0187]
  20 -> Provideo PV259                                      [1540:2580]
  21 -> DViCO FusionHDTV DVB-T Plus                         [18ac:db10]

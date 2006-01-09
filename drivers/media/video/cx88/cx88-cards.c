@@ -1161,6 +1161,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x9802,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR1100LP,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9001,
+		.card      = CX88_BOARD_HAUPPAUGE_DVB_T1,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
