@@ -237,14 +237,14 @@ struct cpu_spec	cpu_specs[] = {
 	{	/* Power5 GS */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003b0000,
-		.cpu_name		= "POWER5 (gs)",
+		.cpu_name		= "POWER5+ (gs)",
 		.cpu_features		= CPU_FTRS_POWER5,
 		.cpu_user_features	= COMMON_USER_POWER5_PLUS,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.cpu_setup		= __setup_cpu_power4,
-		.oprofile_cpu_type	= "ppc64/power5",
+		.oprofile_cpu_type	= "ppc64/power5+",
 		.oprofile_type		= POWER4,
 	},
 	{	/* Cell Broadband Engine */
