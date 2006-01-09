@@ -3,7 +3,7 @@
  * device driver for Conexant 2388x based TV cards
  * MPEG Transport Stream (DVB) routines
  *
- * (c) 2004 Chris Pascoe <c.pascoe@itee.uq.edu.au>
+ * (c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -35,6 +35,9 @@
 #ifdef HAVE_MT352
 # include "mt352.h"
 # include "mt352_priv.h"
+# ifdef HAVE_VP3054_I2C
+#  include "cx88-vp3054-i2c.h"
+# endif
 #endif
 #ifdef HAVE_CX22702
 # include "cx22702.h"
@@ -108,7 +111,7 @@ static struct videobuf_queue_ops dvb_qops = {
 /* ------------------------------------------------------------------ */
 
 #ifdef HAVE_MT352
-static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
+static int generic_mt352_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x39 };
 	static u8 reset []         = { RESET,      0x80 };
@@ -166,7 +169,7 @@ static int mt352_pll_set(struct dvb_frontend* fe,
 
 static struct mt352_config dvico_fusionhdtv = {
 	.demod_address = 0x0F,
-	.demod_init    = dvico_fusionhdtv_demod_init,
+	.demod_init    = generic_mt352_demod_init,
 	.pll_set       = mt352_pll_set,
 };
 
@@ -175,6 +178,69 @@ static struct mt352_config dntv_live_dvbt_config = {
 	.demod_init    = dntv_live_dvbt_demod_init,
 	.pll_set       = mt352_pll_set,
 };
+
+#ifdef HAVE_VP3054_I2C
+static int philips_fmd1216_pll_init(struct dvb_frontend *fe)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+
+	/* this message is to set up ATC and ALC */
+	static u8 fmd1216_init[] = { 0x0b, 0xdc, 0x9c, 0xa0 };
+	struct i2c_msg msg =
+		{ .addr = dev->core->pll_addr, .flags = 0,
+		  .buf = fmd1216_init, .len = sizeof(fmd1216_init) };
+	int err;
+
+	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
+		if (err < 0)
+			return err;
+		else
+			return -EREMOTEIO;
+	}
+
+	return 0;
+}
+
+static int dntv_live_dvbt_pro_pll_set(struct dvb_frontend* fe,
+				      struct dvb_frontend_parameters* params,
+				      u8* pllbuf)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	struct i2c_msg msg =
+		{ .addr = dev->core->pll_addr, .flags = 0,
+		  .buf = pllbuf+1, .len = 4 };
+	int err;
+
+	/* Switch PLL to DVB mode */
+	err = philips_fmd1216_pll_init(fe);
+	if (err)
+		return err;
+
+	/* Tune PLL */
+	pllbuf[0] = dev->core->pll_addr << 1;
+	dvb_pll_configure(dev->core->pll_desc, pllbuf+1,
+			  params->frequency,
+			  params->u.ofdm.bandwidth);
+	if ((err = i2c_transfer(&dev->core->i2c_adap, &msg, 1)) != 1) {
+		printk(KERN_WARNING "cx88-dvb: %s error "
+			   "(addr %02x <- %02x, err = %i)\n",
+			   __FUNCTION__, pllbuf[0], pllbuf[1], err);
+		if (err < 0)
+			return err;
+		else
+			return -EREMOTEIO;
+	}
+
+	return 0;
+}
+
+static struct mt352_config dntv_live_dvbt_pro_config = {
+	.demod_address = 0x0f,
+	.no_tuner      = 1,
+	.demod_init    = generic_mt352_demod_init,
+	.pll_set       = dntv_live_dvbt_pro_pll_set,
+};
+#endif
 #endif
 
 #ifdef HAVE_CX22702
@@ -403,6 +469,16 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = mt352_attach(&dntv_live_dvbt_config,
 						 &dev->core->i2c_adap);
 		break;
+	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
+#ifdef HAVE_VP3054_I2C
+		dev->core->pll_addr = 0x61;
+		dev->core->pll_desc = &dvb_pll_fmd1216me;
+		dev->dvb.frontend = mt352_attach(&dntv_live_dvbt_pro_config,
+			&((struct vp3054_i2c_state *)dev->card_priv)->adap);
+#else
+		printk("%s: built without vp3054 support\n", dev->core->name);
+#endif
+		break;
 #endif
 #ifdef HAVE_OR51132
 	case CX88_BOARD_PCHDTV_HD3000:
@@ -532,6 +608,12 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 	if (0 != err)
 		goto fail_free;
 
+#ifdef HAVE_VP3054_I2C
+	err = vp3054_i2c_probe(dev);
+	if (0 != err)
+		goto fail_free;
+#endif
+
 	/* dvb stuff */
 	printk("%s/2: cx2388x based dvb card\n", core->name);
 	videobuf_queue_init(&dev->dvb.dvbq, &dvb_qops,
@@ -566,6 +648,10 @@ static void __devexit dvb_remove(struct pci_dev *pci_dev)
 
 	/* dvb */
 	videobuf_dvb_unregister(&dev->dvb);
+
+#ifdef HAVE_VP3054_I2C
+	vp3054_i2c_remove(dev);
+#endif
 
 	/* common */
 	cx8802_fini_common(dev);

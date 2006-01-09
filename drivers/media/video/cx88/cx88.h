@@ -184,6 +184,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_KWORLD_DVBS_100         39
 #define CX88_BOARD_HAUPPAUGE_HVR1100       40
 #define CX88_BOARD_HAUPPAUGE_HVR1100LP     41
+#define CX88_BOARD_DNTV_LIVE_DVB_T_PRO     42
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -422,6 +423,8 @@ struct cx8802_dev {
 	struct videobuf_dvb        dvb;
 	void*                      fe_handle;
 	int                        (*fe_release)(void *handle);
+
+	void			   *card_priv;
 	/* for switching modulation types */
 	unsigned char              ts_gen_cntrl;
 

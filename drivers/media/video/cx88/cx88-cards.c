@@ -982,6 +982,33 @@ struct cx88_board cx88_boards[] = {
 		/* fixme: Add radio support */
 		.dvb		= 1,
 	},
+	[CX88_BOARD_DNTV_LIVE_DVB_T_PRO] = {
+		.name           = "digitalnow DNTV Live! DVB-T Pro",
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE |
+				  TDA9887_PORT2_ACTIVE,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0xf80808,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0	= 0xf80808,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0	= 0xf80808,
+		}},
+		.radio = {
+			 .type  = CX88_RADIO,
+			 .gpio0 = 0xf80808,
+		},
+		.dvb            = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1165,6 +1192,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x9001,
 		.card      = CX88_BOARD_HAUPPAUGE_DVB_T1,
+	},{
+		.subvendor = 0x1822,
+		.subdevice = 0x0025,
+		.card      = CX88_BOARD_DNTV_LIVE_DVB_T_PRO,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1361,6 +1392,9 @@ void cx88_card_setup(struct cx88_core *core)
 		msleep(1);
 		cx_clear(MO_GP0_IO, 0x00000007);
 		cx_set(MO_GP2_IO, 0x00000101);
+		break;
+	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
+		cx_write(MO_GP0_IO, 0x00080808);
 		break;
 	case CX88_BOARD_ATI_HDTVWONDER:
 		if (0 == core->i2c_rc) {

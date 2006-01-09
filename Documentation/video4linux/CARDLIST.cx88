@@ -40,3 +40,4 @@
  39 -> KWorld DVB-S 100                                    [17de:08b2]
  40 -> Hauppauge WinTV-HVR1100 DVB-T/Hybrid                [0070:9400,0070:9402]
  41 -> Hauppauge WinTV-HVR1100 DVB-T/Hybrid (Low Profile)  [0070:9800,0070:9802]
+ 42 -> digitalnow DNTV Live! DVB-T Pro                     [1822:0025]
