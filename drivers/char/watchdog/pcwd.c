@@ -229,6 +229,83 @@ static inline void pcwd_check_temperature_support(void)
 		pcwd_private.supports_temp = 1;
 }
 
+static inline char *get_firmware(void)
+{
+	int one, ten, hund, minor;
+	char *ret;
+
+	ret = kmalloc(6, GFP_KERNEL);
+	if(ret == NULL)
+		return NULL;
+
+	if (set_command_mode()) {
+		one = send_isa_command(CMD_ISA_VERSION_INTEGER);
+		ten = send_isa_command(CMD_ISA_VERSION_TENTH);
+		hund = send_isa_command(CMD_ISA_VERSION_HUNDRETH);
+		minor = send_isa_command(CMD_ISA_VERSION_MINOR);
+		sprintf(ret, "%c.%c%c%c", one, ten, hund, minor);
+	}
+	else
+		sprintf(ret, "ERROR");
+
+	unset_command_mode();
+	return(ret);
+}
+
+static inline int pcwd_get_option_switches(void)
+{
+	int option_switches=0;
+
+	if (set_command_mode()) {
+		/* Get switch settings */
+		option_switches = send_isa_command(CMD_ISA_SWITCH_SETTINGS);
+	}
+
+	unset_command_mode();
+	return(option_switches);
+}
+
+static void pcwd_show_card_info(void)
+{
+	char *firmware;
+	int option_switches;
+
+	/* Get some extra info from the hardware (in command/debug/diag mode) */
+	if (pcwd_private.revision == PCWD_REVISION_A)
+		printk(KERN_INFO PFX "ISA-PC Watchdog (REV.A) detected at port 0x%04x\n", pcwd_private.io_addr);
+	else if (pcwd_private.revision == PCWD_REVISION_C) {
+		firmware = get_firmware();
+		printk(KERN_INFO PFX "ISA-PC Watchdog (REV.C) detected at port 0x%04x (Firmware version: %s)\n",
+			pcwd_private.io_addr, firmware);
+		kfree(firmware);
+		option_switches = pcwd_get_option_switches();
+		printk(KERN_INFO PFX "Option switches (0x%02x): Temperature Reset Enable=%s, Power On Delay=%s\n",
+			option_switches,
+			((option_switches & 0x10) ? "ON" : "OFF"),
+			((option_switches & 0x08) ? "ON" : "OFF"));
+
+		/* Reprogram internal heartbeat to 2 seconds */
+		if (set_command_mode()) {
+			send_isa_command(CMD_ISA_DELAY_TIME_2SECS);
+			unset_command_mode();
+		}
+	}
+
+	if (pcwd_private.supports_temp)
+		printk(KERN_INFO PFX "Temperature Option Detected\n");
+
+	if (pcwd_private.boot_status & WDIOF_CARDRESET)
+		printk(KERN_INFO PFX "Previous reboot was caused by the card\n");
+
+	if (pcwd_private.boot_status & WDIOF_OVERHEAT) {
+		printk(KERN_EMERG PFX "Card senses a CPU Overheat. Panicking!\n");
+		printk(KERN_EMERG PFX "CPU Overheat\n");
+	}
+
+	if (pcwd_private.boot_status == 0)
+		printk(KERN_INFO PFX "No previous trip detected - Cold boot or reset\n");
+}
+
 static void pcwd_timer_ping(unsigned long data)
 {
 	int wdrst_stat;
@@ -644,47 +721,9 @@ static inline int get_revision(void)
 	return r;
 }
 
-static inline char *get_firmware(void)
-{
-	int one, ten, hund, minor;
-	char *ret;
-
-	ret = kmalloc(6, GFP_KERNEL);
-	if(ret == NULL)
-		return NULL;
-
-	if (set_command_mode()) {
-		one = send_isa_command(CMD_ISA_VERSION_INTEGER);
-		ten = send_isa_command(CMD_ISA_VERSION_TENTH);
-		hund = send_isa_command(CMD_ISA_VERSION_HUNDRETH);
-		minor = send_isa_command(CMD_ISA_VERSION_MINOR);
-		sprintf(ret, "%c.%c%c%c", one, ten, hund, minor);
-	}
-	else
-		sprintf(ret, "ERROR");
-
-	unset_command_mode();
-	return(ret);
-}
-
-static inline int get_option_switches(void)
-{
-	int rv=0;
-
-	if (set_command_mode()) {
-		/* Get switch settings */
-		rv = send_isa_command(CMD_ISA_SWITCH_SETTINGS);
-	}
-
-	unset_command_mode();
-	return(rv);
-}
-
 static int __devinit pcwatchdog_init(int base_addr)
 {
 	int ret;
-	char *firmware;
-	int option_switches;
 
 	cards_found++;
 	if (cards_found == 1)
@@ -732,46 +771,8 @@ static int __devinit pcwatchdog_init(int base_addr)
 	/*  Check whether or not the card supports the temperature device */
 	pcwd_check_temperature_support();
 
-	/* Get some extra info from the hardware (in command/debug/diag mode) */
-	if (pcwd_private.revision == PCWD_REVISION_A)
-		printk(KERN_INFO PFX "ISA-PC Watchdog (REV.A) detected at port 0x%04x\n", pcwd_private.io_addr);
-	else if (pcwd_private.revision == PCWD_REVISION_C) {
-		firmware = get_firmware();
-		printk(KERN_INFO PFX "ISA-PC Watchdog (REV.C) detected at port 0x%04x (Firmware version: %s)\n",
-			pcwd_private.io_addr, firmware);
-		kfree(firmware);
-		option_switches = get_option_switches();
-		printk(KERN_INFO PFX "Option switches (0x%02x): Temperature Reset Enable=%s, Power On Delay=%s\n",
-			option_switches,
-			((option_switches & 0x10) ? "ON" : "OFF"),
-			((option_switches & 0x08) ? "ON" : "OFF"));
-
-		/* Reprogram internal heartbeat to 2 seconds */
-		if (set_command_mode()) {
-			send_isa_command(CMD_ISA_DELAY_TIME_2SECS);
-			unset_command_mode();
-		}
-	} else {
-		/* Should NEVER happen, unless get_revision() fails. */
-		printk(KERN_INFO PFX "Unable to get revision\n");
-		release_region(pcwd_private.io_addr, (pcwd_private.revision == PCWD_REVISION_A) ? 2 : 4);
-		pcwd_private.io_addr = 0x0000;
-		return -1;
-	}
-
-	if (pcwd_private.supports_temp)
-		printk(KERN_INFO PFX "Temperature Option Detected\n");
-
-	if (pcwd_private.boot_status & WDIOF_CARDRESET)
-		printk(KERN_INFO PFX "Previous reboot was caused by the card\n");
-
-	if (pcwd_private.boot_status & WDIOF_OVERHEAT) {
-		printk(KERN_EMERG PFX "Card senses a CPU Overheat. Panicking!\n");
-		printk(KERN_EMERG PFX "CPU Overheat\n");
-	}
-
-	if (pcwd_private.boot_status == 0)
-		printk(KERN_INFO PFX "No previous trip detected - Cold boot or reset\n");
+	/* Show info about the card itself */
+	pcwd_show_card_info();
 
 	/* Check that the heartbeat value is within it's range ; if not reset to the default */
 	if (pcwd_set_heartbeat(heartbeat)) {
