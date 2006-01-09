@@ -501,7 +501,8 @@ static int mt312_set_frontend(struct dvb_frontend* fe,
 	case ID_VP310:
 	// For now we will do this only for the VP310.
 	// It should be better for the mt312 as well, but tunning will be slower. ACCJr 09/29/03
-		if ((ret = mt312_readreg(state, CONFIG, &config_val) < 0))
+		ret = mt312_readreg(state, CONFIG, &config_val);
+		if (ret < 0)
 			return ret;
 		if (p->u.qpsk.symbol_rate >= 30000000) //Note that 30MS/s should use 90MHz
 		{

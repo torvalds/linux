@@ -411,7 +411,8 @@ int init_module(void)
 		printk("Couldn't find %s to plant kprobe\n", "do_fork");
 		return -1;
 	}
-	if ((ret = register_kprobe(&kp) < 0)) {
+	ret = register_kprobe(&kp);
+	if (ret < 0) {
 		printk("register_kprobe failed, returned %d\n", ret);
 		return -1;
 	}

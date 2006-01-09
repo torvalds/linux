@@ -1171,7 +1171,8 @@ static int __init vpe_module_init(void)
 		return -ENODEV;
 	}
 
-	if ((major = register_chrdev(0, module_name, &vpe_fops) < 0)) {
+	major = register_chrdev(0, module_name, &vpe_fops);
+	if (major < 0) {
 		printk("VPE loader: unable to register character device\n");
 		return major;
 	}
