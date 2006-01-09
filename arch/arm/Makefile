@@ -99,6 +99,7 @@ endif
  machine-$(CONFIG_ARCH_H720X)	   := h720x
  machine-$(CONFIG_ARCH_AAEC2000)   := aaec2000
  machine-$(CONFIG_ARCH_REALVIEW)   := realview
+ machine-$(CONFIG_ARCH_AT91RM9200) := at91rm9200
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

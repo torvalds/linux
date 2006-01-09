@@ -1,0 +1,54 @@
+if ARCH_AT91RM9200
+
+menu "AT91RM9200 Implementations"
+
+comment "AT91RM9200 Board Type"
+
+config ARCH_AT91RM9200DK
+	bool "Atmel AT91RM9200-DK Development board"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Atmel's AT91RM9200-DK Development board
+
+config MACH_AT91RM9200EK
+	bool "Atmel AT91RM9200-EK Evaluation Kit"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Atmel's AT91RM9200-EK Evaluation Kit
+
+config MACH_CSB337
+	bool "Cogent CSB337 board"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Cogent's CSB337 board
+
+config MACH_CSB637
+	bool "Cogent CSB637 board"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Cogent's CSB637 board
+
+config MACH_CARMEVA
+	bool "Conitec's ARM&EVA"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using Conitec's AT91RM9200-MCU-Module
+
+config MACH_KB9200
+	bool "KwikByte's KB920x"
+	depends on ARCH_AT91RM9200
+	help
+	  Select this if you are using KwikByte's KB920x board
+
+
+comment "AT91RM9200 Feature Selections"
+
+config AT91_PROGRAMMABLE_CLOCKS
+	bool "Programmable Clocks"
+	help
+	  Select this if you need to program one or more of the PCK0..PCK3
+	  programmable clock outputs.
+
+endmenu
+
+endif

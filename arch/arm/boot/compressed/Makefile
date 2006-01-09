@@ -46,6 +46,10 @@ ifeq ($(CONFIG_PXA_SHARPSL),y)
 OBJS		+= head-sharpsl.o
 endif
 
+ifeq ($(CONFIG_ARCH_AT91RM9200),y)
+OBJS		+= head-at91rm9200.o
+endif
+
 ifeq ($(CONFIG_DEBUG_ICEDCC),y)
 OBJS            += ice-dcc.o
 endif
