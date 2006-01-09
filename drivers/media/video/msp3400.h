@@ -6,40 +6,6 @@
 
 /* ---------------------------------------------------------------------- */
 
-#define msp_err(fmt, arg...) \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
-		i2c_adapter_id(client->adapter), client->addr , ## arg)
-#define msp_warn(fmt, arg...) \
-	printk(KERN_WARNING "%s %d-%04x: " fmt, client->driver->driver.name, \
-		i2c_adapter_id(client->adapter), client->addr , ## arg)
-#define msp_info(fmt, arg...) \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
-		i2c_adapter_id(client->adapter), client->addr , ## arg)
-
-/* level 1 debug. */
-#define msp_dbg1(fmt, arg...) \
-	do { \
-		if (debug) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->driver.name, \
-			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
-	} while (0)
-
-/* level 2 debug. */
-#define msp_dbg2(fmt, arg...) \
-	do { \
-		if (debug >= 2) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
-				i2c_adapter_id(client->adapter), client->addr , ## arg); \
-	} while (0)
-
-/* level 3 debug. Use with care. */
-#define msp_dbg3(fmt, arg...) \
-	do { \
-		if (debug >= 16) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, client->driver->name, \
-				i2c_adapter_id(client->adapter), client->addr , ## arg); \
-	} while (0)
-
 struct msp_matrix {
   int input;
   int output;

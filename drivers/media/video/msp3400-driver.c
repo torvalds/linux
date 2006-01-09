@@ -129,11 +129,11 @@ int msp_reset(struct i2c_client *client)
 		{ client->addr, I2C_M_RD, 2, read  },
 	};
 
-	msp_dbg3("msp_reset\n");
+	v4l_dbg(3, client, "msp_reset\n");
 	if (i2c_transfer(client->adapter, &reset[0], 1) != 1 ||
 	    i2c_transfer(client->adapter, &reset[1], 1) != 1 ||
 	    i2c_transfer(client->adapter, test, 2) != 2) {
-		msp_err("chip reset failed\n");
+		v4l_err(client, "chip reset failed\n");
 		return -1;
 	}
 	return 0;
@@ -156,18 +156,18 @@ static int msp_read(struct i2c_client *client, int dev, int addr)
 	for (err = 0; err < 3; err++) {
 		if (i2c_transfer(client->adapter, msgs, 2) == 2)
 			break;
-		msp_warn("I/O error #%d (read 0x%02x/0x%02x)\n", err,
+		v4l_warn(client, "I/O error #%d (read 0x%02x/0x%02x)\n", err,
 		       dev, addr);
 		current->state = TASK_INTERRUPTIBLE;
 		schedule_timeout(msecs_to_jiffies(10));
 	}
 	if (err == 3) {
-		msp_warn("giving up, resetting chip. Sound will go off, sorry folks :-|\n");
+		v4l_warn(client, "giving up, resetting chip. Sound will go off, sorry folks :-|\n");
 		msp_reset(client);
 		return -1;
 	}
 	retval = read[0] << 8 | read[1];
-	msp_dbg3("msp_read(0x%x, 0x%x): 0x%x\n", dev, addr, retval);
+	v4l_dbg(3, client, "msp_read(0x%x, 0x%x): 0x%x\n", dev, addr, retval);
 	return retval;
 }
 
@@ -192,17 +192,17 @@ static int msp_write(struct i2c_client *client, int dev, int addr, int val)
 	buffer[3] = val  >> 8;
 	buffer[4] = val  &  0xff;
 
-	msp_dbg3("msp_write(0x%x, 0x%x, 0x%x)\n", dev, addr, val);
+	v4l_dbg(3, client, "msp_write(0x%x, 0x%x, 0x%x)\n", dev, addr, val);
 	for (err = 0; err < 3; err++) {
 		if (i2c_master_send(client, buffer, 5) == 5)
 			break;
-		msp_warn("I/O error #%d (write 0x%02x/0x%02x)\n", err,
+		v4l_warn(client, "I/O error #%d (write 0x%02x/0x%02x)\n", err,
 		       dev, addr);
 		current->state = TASK_INTERRUPTIBLE;
 		schedule_timeout(msecs_to_jiffies(10));
 	}
 	if (err == 3) {
-		msp_warn("giving up, resetting chip. Sound will go off, sorry folks :-|\n");
+		v4l_warn(client, "giving up, resetting chip. Sound will go off, sorry folks :-|\n");
 		msp_reset(client);
 		return -1;
 	}
@@ -275,7 +275,7 @@ void msp_set_scart(struct i2c_client *client, int in, int out)
 	} else
 		state->acb = 0xf60; /* Mute Input and SCART 1 Output */
 
-	msp_dbg1("scart switch: %s => %d (ACB=0x%04x)\n",
+	v4l_dbg(1, client, "scart switch: %s => %d (ACB=0x%04x)\n",
 						scart_names[in], out, state->acb);
 	msp_write_dsp(client, 0x13, state->acb);
 
@@ -285,7 +285,7 @@ void msp_set_scart(struct i2c_client *client, int in, int out)
 
 void msp_set_mute(struct i2c_client *client)
 {
-	msp_dbg1("mute audio\n");
+	v4l_dbg(1, client, "mute audio\n");
 	msp_write_dsp(client, 0x0000, 0); /* loudspeaker */
 	msp_write_dsp(client, 0x0006, 0); /* headphones */
 }
@@ -302,7 +302,7 @@ void msp_set_audio(struct i2c_client *client)
 	bass = ((state->bass - 32768) * 0x60 / 65535) << 8;
 	treble = ((state->treble - 32768) * 0x60 / 65535) << 8;
 
-	msp_dbg1("mute=%s volume=%d balance=%d bass=%d treble=%d\n",
+	v4l_dbg(1, client, "mute=%s volume=%d balance=%d bass=%d treble=%d\n",
 		state->muted ? "on" : "off", state->volume, state->balance,
 		state->bass, state->treble);
 
@@ -318,7 +318,7 @@ int msp_modus(struct i2c_client *client, int norm)
 {
 	switch (norm) {
 	case VIDEO_MODE_PAL:
-		msp_dbg1("video mode selected to PAL\n");
+		v4l_dbg(1, client, "video mode selected to PAL\n");
 
 #if 1
 		/* experimental: not sure this works with all chip versions */
@@ -328,16 +328,16 @@ int msp_modus(struct i2c_client *client, int norm)
 		return 0x1003;
 #endif
 	case VIDEO_MODE_NTSC:  /* BTSC */
-		msp_dbg1("video mode selected to NTSC\n");
+		v4l_dbg(1, client, "video mode selected to NTSC\n");
 		return 0x2003;
 	case VIDEO_MODE_SECAM:
-		msp_dbg1("video mode selected to SECAM\n");
+		v4l_dbg(1, client, "video mode selected to SECAM\n");
 		return 0x0003;
 	case VIDEO_MODE_RADIO:
-		msp_dbg1("video mode selected to Radio\n");
+		v4l_dbg(1, client, "video mode selected to Radio\n");
 		return 0x0003;
 	case VIDEO_MODE_AUTO:
-		msp_dbg1("video mode selected to Auto\n");
+		v4l_dbg(1, client, "video mode selected to Auto\n");
 		return 0x2003;
 	default:
 		return 0x0003;
@@ -620,7 +620,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 	case AUDC_SET_RADIO:
 		state->norm = VIDEO_MODE_RADIO;
-		msp_dbg1("switching to radio mode\n");
+		v4l_dbg(1, client, "switching to radio mode\n");
 		state->watch_stereo = 0;
 		switch (state->opmode) {
 		case OPMODE_MANUAL:
@@ -875,7 +875,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (a->index < 0 || a->index > 2)
 			return -EINVAL;
 
-		msp_dbg1("Setting audio out on msp34xx to input %i\n", a->index);
+		v4l_dbg(1, client, "Setting audio out on msp34xx to input %i\n", a->index);
 		msp_set_scart(client, state->in_scart, a->index + 1);
 
 		break;
@@ -885,7 +885,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		u32 *a = (u32 *)arg;
 
-		msp_dbg1("Setting I2S speed to %d\n", *a);
+		v4l_dbg(1, client, "Setting I2S speed to %d\n", *a);
 
 		switch (*a) {
 			case 1024000:
@@ -921,16 +921,16 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 	case VIDIOC_LOG_STATUS:
 		msp_any_detect_stereo(client);
-		msp_info("%s rev1 = 0x%04x rev2 = 0x%04x\n",
+		v4l_info(client, "%s rev1 = 0x%04x rev2 = 0x%04x\n",
 				client->name, state->rev1, state->rev2);
-		msp_info("Audio:  volume %d balance %d bass %d treble %d%s\n",
+		v4l_info(client, "Audio:  volume %d balance %d bass %d treble %d%s\n",
 				state->volume, state->balance,
 				state->bass, state->treble,
 				state->muted ? " (muted)" : "");
-		msp_info("Mode:   %s (%s%s)\n", msp_standard_mode_name(state->mode),
+		v4l_info(client, "Mode:   %s (%s%s)\n", msp_standard_mode_name(state->mode),
 			(state->rxsubchans & V4L2_TUNER_SUB_STEREO) ? "stereo" : "mono",
 			(state->rxsubchans & V4L2_TUNER_SUB_LANG2) ? ", dual" : "");
-		msp_info("ACB:    0x%04x\n", state->acb);
+		v4l_info(client, "ACB:    0x%04x\n", state->acb);
 		break;
 
 	default:
@@ -944,7 +944,7 @@ static int msp_suspend(struct device * dev, pm_message_t state)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 
-	msp_dbg1("suspend\n");
+	v4l_dbg(1, client, "suspend\n");
 	msp_reset(client);
 	return 0;
 }
@@ -953,7 +953,7 @@ static int msp_resume(struct device * dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 
-	msp_dbg1("resume\n");
+	v4l_dbg(1, client, "resume\n");
 	msp_wake_thread(client);
 	return 0;
 }
@@ -979,7 +979,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	snprintf(client->name, sizeof(client->name) - 1, "msp3400");
 
 	if (msp_reset(client) == -1) {
-		msp_dbg1("msp3400 not found\n");
+		v4l_dbg(1, client, "msp3400 not found\n");
 		kfree(client);
 		return -1;
 	}
@@ -1005,9 +1005,9 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->rev1 = msp_read_dsp(client, 0x1e);
 	if (state->rev1 != -1)
 		state->rev2 = msp_read_dsp(client, 0x1f);
-	msp_dbg1("rev1=0x%04x, rev2=0x%04x\n", state->rev1, state->rev2);
+	v4l_dbg(1, client, "rev1=0x%04x, rev2=0x%04x\n", state->rev1, state->rev2);
 	if (state->rev1 == -1 || (state->rev1 == 0 && state->rev2 == 0)) {
-		msp_dbg1("not an msp3400 (cannot read chip version)\n");
+		v4l_dbg(1, client, "not an msp3400 (cannot read chip version)\n");
 		kfree(state);
 		kfree(client);
 		return -1;
@@ -1035,8 +1035,8 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* hello world :-) */
-	msp_info("%s found @ 0x%x (%s)\n", client->name, address << 1, adapter->name);
-	msp_info("%s ", client->name);
+	v4l_info(client, "%s found @ 0x%x (%s)\n", client->name, address << 1, adapter->name);
+	v4l_info(client, "%s ", client->name);
 	if (HAVE_NICAM(state) && HAVE_RADIO(state))
 		printk("supports nicam and radio, ");
 	else if (HAVE_NICAM(state))
@@ -1067,7 +1067,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 		state->kthread = kthread_run(thread_func, client, "msp34xx");
 
 		if (state->kthread == NULL)
-			msp_warn("kernel_thread() failed\n");
+			v4l_warn(client, "kernel_thread() failed\n");
 		msp_wake_thread(client);
 	}
 
