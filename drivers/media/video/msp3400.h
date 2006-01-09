@@ -63,6 +63,7 @@ struct msp_state {
 	int has_ntsc_jp_d_k3;
 	int has_scart4;
 	int has_scart23_in_scart2_out;
+	int has_scart2_out_volume;
 	int has_subwoofer;
 	int has_sound_processing;
 	int has_virtual_dolby_surround;
@@ -72,7 +73,6 @@ struct msp_state {
 	int opmode;
 	int mode;
 	v4l2_std_id std;
-	int stereo;
 	int nicam_on;
 	int acb;
 	int in_scart;
@@ -85,8 +85,8 @@ struct msp_state {
 	int audmode;
 	int rxsubchans;
 
-	int muted;
-	int volume, balance;
+	int volume, muted;
+	int balance, loudness;
 	int bass, treble;
 
 	/* thread */

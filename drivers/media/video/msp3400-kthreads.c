@@ -209,24 +209,10 @@ void msp3400c_setmode(struct i2c_client *client, int type)
 	}
 }
 
-/* given a bitmask of VIDEO_SOUND_XXX returns the "best" in the bitmask */
-static int msp3400c_best_video_sound(int rxsubchans)
-{
-	if (rxsubchans & V4L2_TUNER_SUB_STEREO)
-		return V4L2_TUNER_MODE_STEREO;
-	if (rxsubchans & V4L2_TUNER_SUB_LANG1)
-		return V4L2_TUNER_MODE_LANG1;
-	if (rxsubchans & V4L2_TUNER_SUB_LANG2)
-		return V4L2_TUNER_MODE_LANG2;
-	return V4L2_TUNER_MODE_MONO;
-}
-
 /* turn on/off nicam + stereo */
 void msp3400c_setstereo(struct i2c_client *client, int mode)
 {
-	static char *strmode[] = { "0", "mono", "stereo", "3",
-		"lang1", "5", "6", "7", "lang2"
-	};
+	static char *strmode[] = { "mono", "stereo", "lang2", "lang1" };
 	struct msp_state *state = i2c_get_clientdata(client);
 	int nicam = 0;		/* channel source: FM/AM or nicam */
 	int src = 0;
@@ -244,7 +230,7 @@ void msp3400c_setstereo(struct i2c_client *client, int mode)
 	switch (state->mode) {
 	case MSP_MODE_FM_TERRA:
 		v4l_dbg(1, client, "FM setstereo: %s\n", strmode[mode]);
-		msp3400c_setcarrier(client,state->second,state->main);
+		msp3400c_setcarrier(client, state->second, state->main);
 		switch (mode) {
 		case V4L2_TUNER_MODE_STEREO:
 			msp_write_dsp(client, 0x000e, 0x3001);
@@ -298,7 +284,7 @@ void msp3400c_setstereo(struct i2c_client *client, int mode)
 	}
 
 	/* switch audio */
-	switch (msp3400c_best_video_sound(mode)) {
+	switch (mode) {
 	case V4L2_TUNER_MODE_STEREO:
 		src = 0x0020 | nicam;
 		break;
@@ -330,6 +316,9 @@ void msp3400c_setstereo(struct i2c_client *client, int mode)
 		msp_write_dsp(client, 0x0009, src);
 		msp_write_dsp(client, 0x000a, src);
 		msp_write_dsp(client, 0x000b, src);
+		msp_write_dsp(client, 0x000c, src);
+		if (state->has_scart23_in_scart2_out)
+			msp_write_dsp(client, 0x0041, src);
 	}
 }
 
@@ -455,9 +444,9 @@ static void watch_stereo(struct i2c_client *client)
 	struct msp_state *state = i2c_get_clientdata(client);
 
 	if (autodetect_stereo(client)) {
-		if (state->stereo & V4L2_TUNER_MODE_STEREO)
+		if (state->rxsubchans & V4L2_TUNER_SUB_STEREO)
 			msp3400c_setstereo(client, V4L2_TUNER_MODE_STEREO);
-		else if (state->stereo & VIDEO_SOUND_LANG1)
+		else if (state->rxsubchans & V4L2_TUNER_SUB_LANG1)
 			msp3400c_setstereo(client, V4L2_TUNER_MODE_LANG1);
 		else
 			msp3400c_setstereo(client, V4L2_TUNER_MODE_MONO);
@@ -657,7 +646,7 @@ int msp3410d_thread(void *data)
 {
 	struct i2c_client *client = data;
 	struct msp_state *state = i2c_get_clientdata(client);
-	int mode,val,i,std;
+	int val, i, std;
 
 	v4l_dbg(1, client, "msp3410 daemon started\n");
 
@@ -687,10 +676,11 @@ int msp3410d_thread(void *data)
 			goto restart;
 
 		/* start autodetect */
-		mode = msp_modus(client);
-		std = (state->std & V4L2_STD_NTSC) ? 0x20 : 1;
-		msp_write_dem(client, 0x30, mode);
-		msp_write_dem(client, 0x20, std);
+		std = 1;
+		if (state->std & V4L2_STD_NTSC)
+			std = 0x20;
+		else
+			msp_write_dem(client, 0x20, std);
 		state->watch_stereo = 0;
 
 		if (debug)
@@ -703,7 +693,7 @@ int msp3410d_thread(void *data)
 		} else {
 			/* triggered autodetect */
 			for (;;) {
-				if (msp_sleep(state,100))
+				if (msp_sleep(state, 100))
 					goto restart;
 
 				/* check results */
