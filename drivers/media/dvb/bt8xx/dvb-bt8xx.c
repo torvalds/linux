@@ -615,11 +615,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 			dprintk ("dvb_bt8xx: lgdt330x detected\n");
 		break;
 
-#ifdef BTTV_BOARD_TWINHAN_VP3021
-	case BTTV_BOARD_TWINHAN_VP3021:
-#else
 	case BTTV_BOARD_NEBULA_DIGITV:
-#endif
 		/*
 		 * It is possible to determine the correct frontend using the I2C bus (see the Nebula SDK);
 		 * this would be a cleaner solution than trying each frontend in turn.
@@ -823,11 +819,7 @@ static int dvb_bt8xx_probe(struct device *dev)
 		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		break;
 
-#ifdef BTTV_BOARD_TWINHAN_VP3021
-	case BTTV_BOARD_TWINHAN_VP3021:
-#else
 	case BTTV_BOARD_NEBULA_DIGITV:
-#endif
 	case BTTV_BOARD_AVDVBT_761:
 		card->gpio_mode = (1 << 26) | (1 << 14) | (1 << 5);
 		card->op_sync_orin = 0;
