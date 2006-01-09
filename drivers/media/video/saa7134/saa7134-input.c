@@ -686,6 +686,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		polling	     = 50; // ms
 		break;
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
+	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
 	case SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII:
 		ir_codes     = videomate_tv_pvr_codes;
 		mask_keycode = 0x00003F;
