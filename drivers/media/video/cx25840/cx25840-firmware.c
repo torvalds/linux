@@ -15,7 +15,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -94,12 +93,22 @@ static inline int check_fw_load(struct i2c_client *client, int size)
 
 static inline int fw_write(struct i2c_client *client, u8 * data, int size)
 {
-	if (i2c_master_send(client, data, size) < size) {
+	int sent;
+
+	if ((sent = i2c_master_send(client, data, size)) < size) {
 
 		if (fastfw) {
 			cx25840_err("333MHz i2c firmware load failed\n");
 			fastfw = 0;
 			set_i2c_delay(client, 10);
+
+			if (sent > 2) {
+				u16 dl_addr = cx25840_read(client, 0x801) << 8;
+				dl_addr |= cx25840_read(client, 0x800);
+				dl_addr -= sent - 2;
+				cx25840_write(client, 0x801, dl_addr >> 8);
+				cx25840_write(client, 0x800, dl_addr & 0xff);
+			}
 
 			if (i2c_master_send(client, data, size) < size) {
 				cx25840_err
