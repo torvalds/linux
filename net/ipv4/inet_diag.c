@@ -50,9 +50,10 @@ static struct sock *idiagnl;
 #define INET_DIAG_PUT(skb, attrtype, attrlen) \
 	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
-static int inet_diag_fill(struct sk_buff *skb, struct sock *sk,
-			  int ext, u32 pid, u32 seq, u16 nlmsg_flags,
-			  const struct nlmsghdr *unlh)
+static int inet_csk_diag_fill(struct sock *sk,
+			      struct sk_buff *skb,
+			      int ext, u32 pid, u32 seq, u16 nlmsg_flags,
+			      const struct nlmsghdr *unlh)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
@@ -212,6 +213,17 @@ nlmsg_failure:
 	return -1;
 }
 
+static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
+			int ext, u32 pid, u32 seq, u16 nlmsg_flags,
+			const struct nlmsghdr *unlh)
+{
+	if (sk->sk_state == TCP_TIME_WAIT)
+		return inet_twsk_diag_fill((struct inet_timewait_sock *)sk,
+					   skb, ext, pid, seq, nlmsg_flags,
+					   unlh);
+	return inet_csk_diag_fill(sk, skb, ext, pid, seq, nlmsg_flags, unlh);
+}
+
 static int inet_diag_get_exact(struct sk_buff *in_skb,
 			       const struct nlmsghdr *nlh)
 {
@@ -263,7 +275,7 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	if (!rep)
 		goto out;
 
-	if (inet_diag_fill(rep, sk, req->idiag_ext,
+	if (sk_diag_fill(sk, rep, req->idiag_ext,
 			 NETLINK_CB(in_skb).pid,
 			 nlh->nlmsg_seq, 0, nlh) <= 0)
 		BUG();
@@ -442,8 +454,9 @@ static int inet_diag_bc_audit(const void *bytecode, int bytecode_len)
 	return len == 0 ? 0 : -EINVAL;
 }
 
-static int inet_diag_dump_sock(struct sk_buff *skb, struct sock *sk,
-			       struct netlink_callback *cb)
+static int inet_csk_diag_dump(struct sock *sk,
+			      struct sk_buff *skb,
+			      struct netlink_callback *cb)
 {
 	struct inet_diag_req *r = NLMSG_DATA(cb->nlh);
 
@@ -473,8 +486,9 @@ static int inet_diag_dump_sock(struct sk_buff *skb, struct sock *sk,
 			return 0;
 	}
 
-	return inet_diag_fill(skb, sk, r->idiag_ext, NETLINK_CB(cb->skb).pid,
-			      cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh);
+	return inet_csk_diag_fill(sk, skb, r->idiag_ext,
+				  NETLINK_CB(cb->skb).pid,
+				  cb->nlh->nlmsg_seq, NLM_F_MULTI, cb->nlh);
 }
 
 static int inet_twsk_diag_dump(struct inet_timewait_sock *tw,
@@ -694,7 +708,7 @@ static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 				    cb->args[3] > 0)
 					goto syn_recv;
 
-				if (inet_diag_dump_sock(skb, sk, cb) < 0) {
+				if (inet_csk_diag_dump(sk, skb, cb) < 0) {
 					inet_listen_unlock(hashinfo);
 					goto done;
 				}
@@ -750,7 +764,7 @@ skip_listen_ht:
 			if (r->id.idiag_dport != inet->dport &&
 			    r->id.idiag_dport)
 				goto next_normal;
-			if (inet_diag_dump_sock(skb, sk, cb) < 0) {
+			if (inet_csk_diag_dump(sk, skb, cb) < 0) {
 				read_unlock_bh(&head->lock);
 				goto done;
 			}
