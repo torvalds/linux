@@ -49,7 +49,6 @@
 #include <asm/hydra.h>
 #include <asm/sections.h>
 #include <asm/time.h>
-#include <asm/btext.h>
 #include <asm/i8259.h>
 #include <asm/mpic.h>
 #include <asm/rtas.h>
@@ -58,7 +57,6 @@
 #include "chrp.h"
 
 void rtas_indicator_progress(char *, unsigned short);
-void btext_progress(char *, unsigned short);
 
 int _chrp_type;
 EXPORT_SYMBOL(_chrp_type);
@@ -263,11 +261,6 @@ void __init chrp_setup_arch(void)
 		ppc_md.get_rtc_time	= rtas_get_rtc_time;
 		ppc_md.set_rtc_time	= rtas_set_rtc_time;
 	}
-
-#ifdef CONFIG_BOOTX_TEXT
-	if (ppc_md.progress == NULL && boot_text_mapped)
-		ppc_md.progress = btext_progress;
-#endif
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* this is fine for chrp */
@@ -522,12 +515,3 @@ void __init chrp_init(void)
 	smp_ops = &chrp_smp_ops;
 #endif /* CONFIG_SMP */
 }
-
-#ifdef CONFIG_BOOTX_TEXT
-void
-btext_progress(char *s, unsigned short hex)
-{
-	btext_drawstring(s);
-	btext_drawstring("\n");
-}
-#endif /* CONFIG_BOOTX_TEXT */

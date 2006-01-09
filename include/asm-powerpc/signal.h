@@ -2,10 +2,13 @@
 #define _ASM_POWERPC_SIGNAL_H
 
 #include <linux/types.h>
-#include <linux/config.h>
 
 #define _NSIG		64
-#define _NSIG_BPW	BITS_PER_LONG
+#ifdef __powerpc64__
+#define _NSIG_BPW	64
+#else
+#define _NSIG_BPW	32
+#endif
 #define _NSIG_WORDS	(_NSIG / _NSIG_BPW)
 
 typedef unsigned long old_sigset_t;		/* at least 32 bits */

@@ -19,6 +19,7 @@
 
 #ifndef _PPC64_EEH_H
 #define _PPC64_EEH_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 #include <linux/init.h>
@@ -57,6 +58,7 @@ void __init pci_addr_cache_build(void);
  * to finish the eeh setup for this device.
  */
 void eeh_add_device_early(struct device_node *);
+void eeh_add_device_tree_early(struct device_node *);
 void eeh_add_device_late(struct pci_dev *);
 
 /**
@@ -70,6 +72,15 @@ void eeh_add_device_late(struct pci_dev *);
  * i/o errors affecting this slot may leave this device unusable.
  */
 void eeh_remove_device(struct pci_dev *);
+
+/**
+ * eeh_remove_device_recursive - undo EEH for device & children.
+ * @dev: pci device to be removed
+ *
+ * As above, this removes the device; it also removes child
+ * pci devices as well.
+ */
+void eeh_remove_bus_device(struct pci_dev *);
 
 /**
  * EEH_POSSIBLE_ERROR() -- test for possible MMIO failure.
@@ -107,6 +118,9 @@ static inline void eeh_add_device_late(struct pci_dev *dev) { }
 
 static inline void eeh_remove_device(struct pci_dev *dev) { }
 
+static inline void eeh_add_device_tree_early(struct device_node *dn) { }
+
+static inline void eeh_remove_bus_device(struct pci_dev *dev) { }
 #define EEH_POSSIBLE_ERROR(val, type) (0)
 #define EEH_IO_ERROR_VALUE(size) (-1UL)
 #endif /* CONFIG_EEH */
@@ -363,4 +377,5 @@ static inline void eeh_insl_ns(unsigned long port, void * buf, int nl)
 		eeh_check_failure((void __iomem *)(port), *(u32*)buf);
 }
 
+#endif /* __KERNEL__ */
 #endif /* _PPC64_EEH_H */

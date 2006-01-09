@@ -450,7 +450,6 @@ int xmon_core(struct pt_regs *regs, int fromipi)
  leave:
 	cpu_clear(cpu, cpus_in_xmon);
 	xmon_fault_jmp[cpu] = NULL;
-
 #else
 	/* UP is simple... */
 	if (in_xmon) {
@@ -805,7 +804,10 @@ cmds(struct pt_regs *excp)
 			break;
 		case 'x':
 		case 'X':
+			return cmd;
 		case EOF:
+			printf(" <no input ...>\n");
+			mdelay(2000);
 			return cmd;
 		case '?':
 			printf(help_string);
@@ -1011,7 +1013,7 @@ static long check_bp_loc(unsigned long addr)
 	unsigned int instr;
 
 	addr &= ~3;
-	if (addr < KERNELBASE) {
+	if (!is_kernel_addr(addr)) {
 		printf("Breakpoints may only be placed at kernel addresses\n");
 		return 0;
 	}
@@ -1062,7 +1064,7 @@ bpt_cmds(void)
 		dabr.address = 0;
 		dabr.enabled = 0;
 		if (scanhex(&dabr.address)) {
-			if (dabr.address < KERNELBASE) {
+			if (!is_kernel_addr(dabr.address)) {
 				printf(badaddr);
 				break;
 			}

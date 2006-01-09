@@ -47,7 +47,7 @@ config PPC
 
 config EARLY_PRINTK
 	bool
-	default y if PPC64
+	default y
 
 config COMPAT
 	bool
@@ -297,6 +297,7 @@ config PPC_PMAC64
 	bool
 	depends on PPC_PMAC && POWER4
 	select U3_DART
+	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
 	default y
 
@@ -325,9 +326,7 @@ config PPC_CELL
 	select MMIO_NVRAM
 
 config PPC_OF
-	bool
-	depends on PPC_MULTIPLATFORM	# for now
-	default y
+	def_bool y
 
 config XICS
 	depends on PPC_PSERIES
@@ -376,10 +375,27 @@ config CELL_IIC
 	bool
 	default y
 
+config CRASH_DUMP
+	bool "kernel crash dumps (EXPERIMENTAL)"
+	depends on PPC_MULTIPLATFORM
+	depends on EXPERIMENTAL
+	help
+	  Build a kernel suitable for use as a kdump capture kernel.
+	  The kernel will be linked at a different address than normal, and
+	  so can only be used for Kdump.
+
+	  Don't change this unless you know what you are doing.
+
 config IBMVIO
 	depends on PPC_PSERIES || PPC_ISERIES
 	bool
 	default y
+
+config IBMEBUS
+	depends on PPC_PSERIES
+	bool "Support for GX bus based adapters"
+	help
+	  Bus device driver for GX bus based adapters.
 
 config PPC_MPC106
 	bool
@@ -472,6 +488,7 @@ source arch/powerpc/platforms/embedded6xx/Kconfig
 source arch/powerpc/platforms/4xx/Kconfig
 source arch/powerpc/platforms/85xx/Kconfig
 source arch/powerpc/platforms/8xx/Kconfig
+source arch/powerpc/platforms/cell/Kconfig
 
 menu "Kernel options"
 
@@ -575,11 +592,12 @@ config ARCH_SELECT_MEMORY_MODEL
 	depends on PPC64
 
 config ARCH_FLATMEM_ENABLE
-       def_bool y
-       depends on PPC64 && !NUMA
+	def_bool y
+	depends on (PPC64 && !NUMA) || PPC32
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
+	depends on PPC64
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y

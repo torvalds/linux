@@ -432,11 +432,12 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
 	struct Scsi_Host *host;
 	void *dma_cmd_space;
 	unsigned char *clkprop;
-	int proplen;
+	int proplen, rc = -ENODEV;
 
 	if (macio_resource_count(mdev) != 2 || macio_irq_count(mdev) != 2) {
-		printk(KERN_ERR "mac53c94: expected 2 addrs and intrs (got %d/%d)\n",
-		       node->n_addrs, node->n_intrs);
+		printk(KERN_ERR "mac53c94: expected 2 addrs and intrs"
+		       " (got %d/%d)\n",
+		       macio_resource_count(mdev), macio_irq_count(mdev));
 		return -ENODEV;
 	}
 
@@ -448,6 +449,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
        	host = scsi_host_alloc(&mac53c94_template, sizeof(struct fsc_state));
 	if (host == NULL) {
 		printk(KERN_ERR "mac53c94: couldn't register host");
+		rc = -ENOMEM;
 		goto out_release;
 	}
 
@@ -486,6 +488,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
        	if (dma_cmd_space == 0) {
        		printk(KERN_ERR "mac53c94: couldn't allocate dma "
        		       "command space for %s\n", node->full_name);
+		rc = -ENOMEM;
        		goto out_free;
        	}
 	state->dma_cmds = (struct dbdma_cmd *)DBDMA_ALIGN(dma_cmd_space);
@@ -495,18 +498,21 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
 
 	mac53c94_init(state);
 
-	if (request_irq(state->intr, do_mac53c94_interrupt, 0, "53C94", state)) {
+	if (request_irq(state->intr, do_mac53c94_interrupt, 0, "53C94",state)) {
 		printk(KERN_ERR "mac53C94: can't get irq %d for %s\n",
 		       state->intr, node->full_name);
 		goto out_free_dma;
 	}
 
-	/* XXX FIXME: handle failure */
-	scsi_add_host(host, &mdev->ofdev.dev);
-	scsi_scan_host(host);
+	rc = scsi_add_host(host, &mdev->ofdev.dev);
+	if (rc != 0)
+		goto out_release_irq;
 
+	scsi_scan_host(host);
 	return 0;
 
+ out_release_irq:
+	free_irq(state->intr, state);
  out_free_dma:
 	kfree(state->dma_cmd_space);
  out_free:
@@ -518,7 +524,7 @@ static int mac53c94_probe(struct macio_dev *mdev, const struct of_device_id *mat
  out_release:
 	macio_release_resources(mdev);
 
-	return  -ENODEV;
+	return rc;
 }
 
 static int mac53c94_remove(struct macio_dev *mdev)

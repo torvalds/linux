@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_DELAY_H
 #define _ASM_POWERPC_DELAY_H
+#ifdef __KERNEL__
 
 /*
  * Copyright 1996, Paul Mackerras.
@@ -16,4 +17,5 @@
 extern void __delay(unsigned long loops);
 extern void udelay(unsigned long usecs);
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_DELAY_H */

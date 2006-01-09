@@ -216,6 +216,8 @@ extern int remap_bus_range(struct pci_bus *bus);
 extern void pcibios_fixup_device_resources(struct pci_dev *dev,
 			struct pci_bus *bus);
 
+extern void pcibios_claim_one_bus(struct pci_bus *b);
+
 extern struct pci_controller *init_phb_dynamic(struct device_node *dn);
 
 extern struct pci_dev *of_create_pci_dev(struct device_node *node,

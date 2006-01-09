@@ -17,6 +17,7 @@
 #include <asm/page.h>
 #include <asm/lppaca.h>
 #include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
 
 
@@ -26,8 +27,7 @@ extern unsigned long __toc_start;
 
 /* The Paca is an array with one entry per processor.  Each contains an
  * lppaca, which contains the information shared between the
- * hypervisor and Linux.  Each also contains an ItLpRegSave area which
- * is used by the hypervisor to save registers.
+ * hypervisor and Linux.
  * On systems with hardware multi-threading, there are two threads
  * per processor.  The Paca array must contain an entry for each thread.
  * The VPD Areas will give a max logical processors = 2 * max physical
@@ -37,7 +37,6 @@ extern unsigned long __toc_start;
 #define PACA_INIT_COMMON(number, start, asrr, asrv)			    \
 	.lock_token = 0x8000,						    \
 	.paca_index = (number),		/* Paca Index */		    \
-	.default_decr = 0x00ff0000,	/* Initial Decr */		    \
 	.kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL,		    \
 	.stab_real = (asrr), 		/* Real pointer to segment table */ \
 	.stab_addr = (asrv),		/* Virt pointer to segment table */ \
@@ -57,11 +56,7 @@ extern unsigned long __toc_start;
 #ifdef CONFIG_PPC_ISERIES
 #define PACA_INIT_ISERIES(number)					    \
 	.lppaca_ptr = &paca[number].lppaca,				    \
-	.reg_save_ptr = &paca[number].reg_save,				    \
-	.reg_save = {							    \
-		.xDesc = 0xd397d9e2,	/* "LpRS" */			    \
-		.xSize = sizeof(struct ItLpRegSave)			    \
-	}
+	.reg_save_ptr = &iseries_reg_save[number],
 
 #define PACA_INIT(number)						    \
 {									    \

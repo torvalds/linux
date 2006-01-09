@@ -1,7 +1,6 @@
 #ifndef _ASM_POWERPC_SYNCH_H 
 #define _ASM_POWERPC_SYNCH_H 
-
-#include <linux/config.h>
+#ifdef __KERNEL__
 
 #ifdef __powerpc64__
 #define __SUBARCH_HAS_LWSYNC
@@ -47,5 +46,6 @@ static inline void isync(void)
 #define isync_on_smp()	__asm__ __volatile__("": : :"memory")
 #endif
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_SYNCH_H */
 

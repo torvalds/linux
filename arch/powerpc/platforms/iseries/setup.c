@@ -571,16 +571,6 @@ static void iSeries_show_cpuinfo(struct seq_file *m)
 
 /*
  * Document me.
- * and Implement me.
- */
-static int iSeries_get_irq(struct pt_regs *regs)
-{
-	/* -2 means ignore this interrupt */
-	return -2;
-}
-
-/*
- * Document me.
  */
 static void iSeries_restart(char *cmd)
 {

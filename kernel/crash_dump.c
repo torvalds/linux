@@ -14,10 +14,12 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
+#include <asm/kexec.h>
 
 /* Stores the physical address of elf header of crash image. */
 unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
 
+#ifndef HAVE_ARCH_COPY_OLDMEM_PAGE
 /**
  * copy_oldmem_page - copy one page from "oldmem"
  * @pfn: page frame number to be copied
@@ -59,3 +61,4 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 	kfree(page);
 	return csize;
 }
+#endif

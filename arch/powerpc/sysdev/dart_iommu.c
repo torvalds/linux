@@ -1,25 +1,27 @@
 /*
- * arch/powerpc/sysdev/u3_iommu.c
+ * arch/powerpc/sysdev/dart_iommu.c
  *
  * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
+ * Copyright (C) 2005 Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ *                    IBM Corporation
  *
  * Based on pSeries_iommu.c:
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen, IBM Corporation
  * Copyright (C) 2004 Olof Johansson <olof@lixom.net>, IBM Corporation
  *
- * Dynamic DMA mapping support, Apple U3 & IBM CPC925 "DART" iommu.
+ * Dynamic DMA mapping support, Apple U3, U4 & IBM CPC925 "DART" iommu.
  *
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
@@ -57,21 +59,22 @@ static unsigned long dart_tablesize;
 static u32 *dart_vbase;
 
 /* Mapped base address for the dart */
-static unsigned int *dart; 
+static unsigned int *__iomem dart;
 
 /* Dummy val that entries are set to when unused */
 static unsigned int dart_emptyval;
 
-static struct iommu_table iommu_table_u3;
-static int iommu_table_u3_inited;
+static struct iommu_table iommu_table_dart;
+static int iommu_table_dart_inited;
 static int dart_dirty;
+static int dart_is_u4;
 
 #define DBG(...)
 
 static inline void dart_tlb_invalidate_all(void)
 {
 	unsigned long l = 0;
-	unsigned int reg;
+	unsigned int reg, inv_bit;
 	unsigned long limit;
 
 	DBG("dart: flush\n");
@@ -81,29 +84,28 @@ static inline void dart_tlb_invalidate_all(void)
 	 *
 	 * Gotcha: Sometimes, the DART won't detect that the bit gets
 	 * set. If so, clear it and set it again.
-	 */ 
+	 */
 
 	limit = 0;
 
+	inv_bit = dart_is_u4 ? DART_CNTL_U4_FLUSHTLB : DART_CNTL_U3_FLUSHTLB;
 retry:
-	reg = in_be32((unsigned int *)dart+DARTCNTL);
-	reg |= DARTCNTL_FLUSHTLB;
-	out_be32((unsigned int *)dart+DARTCNTL, reg);
-
 	l = 0;
-	while ((in_be32((unsigned int *)dart+DARTCNTL) & DARTCNTL_FLUSHTLB) &&
-		l < (1L<<limit)) {
+	reg = DART_IN(DART_CNTL);
+	reg |= inv_bit;
+	DART_OUT(DART_CNTL, reg);
+
+	while ((DART_IN(DART_CNTL) & inv_bit) && l < (1L << limit))
 		l++;
-	}
-	if (l == (1L<<limit)) {
+	if (l == (1L << limit)) {
 		if (limit < 4) {
 			limit++;
-		        reg = in_be32((unsigned int *)dart+DARTCNTL);
-		        reg &= ~DARTCNTL_FLUSHTLB;
-		        out_be32((unsigned int *)dart+DARTCNTL, reg);
+		        reg = DART_IN(DART_CNTL);
+		        reg &= ~inv_bit;
+			DART_OUT(DART_CNTL, reg);
 			goto retry;
 		} else
-			panic("U3-DART: TLB did not flush after waiting a long "
+			panic("DART: TLB did not flush after waiting a long "
 			      "time. Buggy U3 ?");
 	}
 }
@@ -115,7 +117,7 @@ static void dart_flush(struct iommu_table *tbl)
 	dart_dirty = 0;
 }
 
-static void dart_build(struct iommu_table *tbl, long index, 
+static void dart_build(struct iommu_table *tbl, long index,
 		       long npages, unsigned long uaddr,
 		       enum dma_data_direction direction)
 {
@@ -128,7 +130,7 @@ static void dart_build(struct iommu_table *tbl, long index,
 	npages <<= DART_PAGE_FACTOR;
 
 	dp = ((unsigned int*)tbl->it_base) + index;
-	
+
 	/* On U3, all memory is contigous, so we can move this
 	 * out of the loop.
 	 */
@@ -148,7 +150,7 @@ static void dart_build(struct iommu_table *tbl, long index,
 static void dart_free(struct iommu_table *tbl, long index, long npages)
 {
 	unsigned int *dp;
-	
+
 	/* We don't worry about flushing the TLB cache. The only drawback of
 	 * not doing it is that we won't catch buggy device drivers doing
 	 * bad DMAs, but then no 32-bit architecture ever does either.
@@ -160,7 +162,7 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 	npages <<= DART_PAGE_FACTOR;
 
 	dp  = ((unsigned int *)tbl->it_base) + index;
-		
+
 	while (npages--)
 		*(dp++) = dart_emptyval;
 }
@@ -168,20 +170,25 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 
 static int dart_init(struct device_node *dart_node)
 {
-	unsigned int regword;
 	unsigned int i;
-	unsigned long tmp;
+	unsigned long tmp, base, size;
+	struct resource r;
 
 	if (dart_tablebase == 0 || dart_tablesize == 0) {
-		printk(KERN_INFO "U3-DART: table not allocated, using direct DMA\n");
+		printk(KERN_INFO "DART: table not allocated, using "
+		       "direct DMA\n");
 		return -ENODEV;
 	}
+
+	if (of_address_to_resource(dart_node, 0, &r))
+		panic("DART: can't get register base ! ");
 
 	/* Make sure nothing from the DART range remains in the CPU cache
 	 * from a previous mapping that existed before the kernel took
 	 * over
 	 */
-	flush_dcache_phys_range(dart_tablebase, dart_tablebase + dart_tablesize);
+	flush_dcache_phys_range(dart_tablebase,
+				dart_tablebase + dart_tablesize);
 
 	/* Allocate a spare page to map all invalid DART pages. We need to do
 	 * that to work around what looks like a problem with the HT bridge
@@ -189,21 +196,16 @@ static int dart_init(struct device_node *dart_node)
 	 */
 	tmp = lmb_alloc(DART_PAGE_SIZE, DART_PAGE_SIZE);
 	if (!tmp)
-		panic("U3-DART: Cannot allocate spare page!");
-	dart_emptyval = DARTMAP_VALID | ((tmp >> DART_PAGE_SHIFT) & DARTMAP_RPNMASK);
+		panic("DART: Cannot allocate spare page!");
+	dart_emptyval = DARTMAP_VALID | ((tmp >> DART_PAGE_SHIFT) &
+					 DARTMAP_RPNMASK);
 
-	/* Map in DART registers. FIXME: Use device node to get base address */
-	dart = ioremap(DART_BASE, 0x7000);
+	/* Map in DART registers */
+	dart = ioremap(r.start, r.end - r.start + 1);
 	if (dart == NULL)
-		panic("U3-DART: Cannot map registers!");
+		panic("DART: Cannot map registers!");
 
-	/* Set initial control register contents: table base, 
-	 * table size and enable bit
-	 */
-	regword = DARTCNTL_ENABLE | 
-		((dart_tablebase >> DART_PAGE_SHIFT) << DARTCNTL_BASE_SHIFT) |
-		(((dart_tablesize >> DART_PAGE_SHIFT) & DARTCNTL_SIZE_MASK)
-				 << DARTCNTL_SIZE_SHIFT);
+	/* Map in DART table */
 	dart_vbase = ioremap(virt_to_abs(dart_tablebase), dart_tablesize);
 
 	/* Fill initial table */
@@ -211,36 +213,50 @@ static int dart_init(struct device_node *dart_node)
 		dart_vbase[i] = dart_emptyval;
 
 	/* Initialize DART with table base and enable it. */
-	out_be32((unsigned int *)dart, regword);
+	base = dart_tablebase >> DART_PAGE_SHIFT;
+	size = dart_tablesize >> DART_PAGE_SHIFT;
+	if (dart_is_u4) {
+		size &= DART_SIZE_U4_SIZE_MASK;
+		DART_OUT(DART_BASE_U4, base);
+		DART_OUT(DART_SIZE_U4, size);
+		DART_OUT(DART_CNTL, DART_CNTL_U4_ENABLE);
+	} else {
+		size &= DART_CNTL_U3_SIZE_MASK;
+		DART_OUT(DART_CNTL,
+			 DART_CNTL_U3_ENABLE |
+			 (base << DART_CNTL_U3_BASE_SHIFT) |
+			 (size << DART_CNTL_U3_SIZE_SHIFT));
+	}
 
 	/* Invalidate DART to get rid of possible stale TLBs */
 	dart_tlb_invalidate_all();
 
-	printk(KERN_INFO "U3/CPC925 DART IOMMU initialized\n");
+	printk(KERN_INFO "DART IOMMU initialized for %s type chipset\n",
+	       dart_is_u4 ? "U4" : "U3");
 
 	return 0;
 }
 
-static void iommu_table_u3_setup(void)
+static void iommu_table_dart_setup(void)
 {
-	iommu_table_u3.it_busno = 0;
-	iommu_table_u3.it_offset = 0;
+	iommu_table_dart.it_busno = 0;
+	iommu_table_dart.it_offset = 0;
 	/* it_size is in number of entries */
-	iommu_table_u3.it_size = (dart_tablesize / sizeof(u32)) >> DART_PAGE_FACTOR;
+	iommu_table_dart.it_size = (dart_tablesize / sizeof(u32)) >> DART_PAGE_FACTOR;
 
 	/* Initialize the common IOMMU code */
-	iommu_table_u3.it_base = (unsigned long)dart_vbase;
-	iommu_table_u3.it_index = 0;
-	iommu_table_u3.it_blocksize = 1;
-	iommu_init_table(&iommu_table_u3);
+	iommu_table_dart.it_base = (unsigned long)dart_vbase;
+	iommu_table_dart.it_index = 0;
+	iommu_table_dart.it_blocksize = 1;
+	iommu_init_table(&iommu_table_dart);
 
 	/* Reserve the last page of the DART to avoid possible prefetch
 	 * past the DART mapped area
 	 */
-	set_bit(iommu_table_u3.it_size - 1, iommu_table_u3.it_map);
+	set_bit(iommu_table_dart.it_size - 1, iommu_table_dart.it_map);
 }
 
-static void iommu_dev_setup_u3(struct pci_dev *dev)
+static void iommu_dev_setup_dart(struct pci_dev *dev)
 {
 	struct device_node *dn;
 
@@ -254,35 +270,39 @@ static void iommu_dev_setup_u3(struct pci_dev *dev)
 	dn = pci_device_to_OF_node(dev);
 
 	if (dn)
-		PCI_DN(dn)->iommu_table = &iommu_table_u3;
+		PCI_DN(dn)->iommu_table = &iommu_table_dart;
 }
 
-static void iommu_bus_setup_u3(struct pci_bus *bus)
+static void iommu_bus_setup_dart(struct pci_bus *bus)
 {
 	struct device_node *dn;
 
-	if (!iommu_table_u3_inited) {
-		iommu_table_u3_inited = 1;
-		iommu_table_u3_setup();
+	if (!iommu_table_dart_inited) {
+		iommu_table_dart_inited = 1;
+		iommu_table_dart_setup();
 	}
 
 	dn = pci_bus_to_OF_node(bus);
 
 	if (dn)
-		PCI_DN(dn)->iommu_table = &iommu_table_u3;
+		PCI_DN(dn)->iommu_table = &iommu_table_dart;
 }
 
 static void iommu_dev_setup_null(struct pci_dev *dev) { }
 static void iommu_bus_setup_null(struct pci_bus *bus) { }
 
-void iommu_init_early_u3(void)
+void iommu_init_early_dart(void)
 {
 	struct device_node *dn;
 
 	/* Find the DART in the device-tree */
 	dn = of_find_compatible_node(NULL, "dart", "u3-dart");
-	if (dn == NULL)
-		return;
+	if (dn == NULL) {
+		dn = of_find_compatible_node(NULL, "dart", "u4-dart");
+		if (dn == NULL)
+			goto bail;
+		dart_is_u4 = 1;
+	}
 
 	/* Setup low level TCE operations for the core IOMMU code */
 	ppc_md.tce_build = dart_build;
@@ -290,24 +310,27 @@ void iommu_init_early_u3(void)
 	ppc_md.tce_flush = dart_flush;
 
 	/* Initialize the DART HW */
-	if (dart_init(dn)) {
-		/* If init failed, use direct iommu and null setup functions */
-		ppc_md.iommu_dev_setup = iommu_dev_setup_null;
-		ppc_md.iommu_bus_setup = iommu_bus_setup_null;
-
-		/* Setup pci_dma ops */
-		pci_direct_iommu_init();
-	} else {
-		ppc_md.iommu_dev_setup = iommu_dev_setup_u3;
-		ppc_md.iommu_bus_setup = iommu_bus_setup_u3;
+	if (dart_init(dn) == 0) {
+		ppc_md.iommu_dev_setup = iommu_dev_setup_dart;
+		ppc_md.iommu_bus_setup = iommu_bus_setup_dart;
 
 		/* Setup pci_dma ops */
 		pci_iommu_init();
+
+		return;
 	}
+
+ bail:
+	/* If init failed, use direct iommu and null setup functions */
+	ppc_md.iommu_dev_setup = iommu_dev_setup_null;
+	ppc_md.iommu_bus_setup = iommu_bus_setup_null;
+
+	/* Setup pci_dma ops */
+	pci_direct_iommu_init();
 }
 
 
-void __init alloc_u3_dart_table(void)
+void __init alloc_dart_table(void)
 {
 	/* Only reserve DART space if machine has more than 2GB of RAM
 	 * or if requested with iommu=on on cmdline.
@@ -323,5 +346,5 @@ void __init alloc_u3_dart_table(void)
 	dart_tablebase = (unsigned long)
 		abs_to_virt(lmb_alloc_base(1UL<<24, 1UL<<24, 0x80000000L));
 
-	printk(KERN_INFO "U3-DART allocated at: %lx\n", dart_tablebase);
+	printk(KERN_INFO "DART table allocated at: %lx\n", dart_tablebase);
 }

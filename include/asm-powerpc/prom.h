@@ -65,47 +65,9 @@ struct boot_param_header
 typedef u32 phandle;
 typedef u32 ihandle;
 
-struct address_range {
-	unsigned long space;
-	unsigned long address;
-	unsigned long size;
-};
-
 struct interrupt_info {
 	int	line;
 	int	sense;		/* +ve/-ve logic, edge or level, etc. */
-};
-
-struct pci_address {
-	u32 a_hi;
-	u32 a_mid;
-	u32 a_lo;
-};
-
-struct isa_address {
-	u32 a_hi;
-	u32 a_lo;
-};
-
-struct isa_range {
-	struct isa_address isa_addr;
-	struct pci_address pci_addr;
-	unsigned int size;
-};
-
-struct reg_property {
-	unsigned long address;
-	unsigned long size;
-};
-
-struct reg_property32 {
-	unsigned int address;
-	unsigned int size;
-};
-
-struct reg_property64 {
-	u64 address;
-	u64 size;
 };
 
 struct property {
@@ -120,8 +82,6 @@ struct device_node {
 	char	*type;
 	phandle	node;
 	phandle linux_phandle;
-	int	n_addrs;
-	struct	address_range *addrs;
 	int	n_intrs;
 	struct	interrupt_info *intrs;
 	char	*full_name;
@@ -222,6 +182,37 @@ extern void pci_create_OF_bus_map(void);
 extern struct resource *request_OF_resource(struct device_node* node,
 				int index, const char* name_postfix);
 extern int release_OF_resource(struct device_node* node, int index);
+
+
+/*
+ * OF address retreival & translation
+ */
+
+
+/* Translate an OF address block into a CPU physical address
+ */
+#define OF_BAD_ADDR	((u64)-1)
+extern u64 of_translate_address(struct device_node *np, u32 *addr);
+
+/* Extract an address from a device, returns the region size and
+ * the address space flags too. The PCI version uses a BAR number
+ * instead of an absolute index
+ */
+extern u32 *of_get_address(struct device_node *dev, int index,
+			   u64 *size, unsigned int *flags);
+extern u32 *of_get_pci_address(struct device_node *dev, int bar_no,
+			       u64 *size, unsigned int *flags);
+
+/* Get an address as a resource. Note that if your address is
+ * a PIO address, the conversion will fail if the physical address
+ * can't be internally converted to an IO token with
+ * pci_address_to_pio(), that is because it's either called to early
+ * or it can't be matched to any host bridge IO space
+ */
+extern int of_address_to_resource(struct device_node *dev, int index,
+				  struct resource *r);
+extern int of_pci_address_to_resource(struct device_node *dev, int bar,
+				      struct resource *r);
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */

@@ -20,6 +20,7 @@
 
 #ifndef ASM_PPC64_EEH_EVENT_H
 #define ASM_PPC64_EEH_EVENT_H
+#ifdef __KERNEL__
 
 /** EEH event -- structure holding pci controller data that describes
  *  a change in the isolation status of a PCI slot.  A pointer
@@ -49,4 +50,5 @@ int eeh_send_failure_event (struct device_node *dn,
                             int reset_state,
                             int time_unavail);
 
+#endif /* __KERNEL__ */
 #endif /* ASM_PPC64_EEH_EVENT_H */

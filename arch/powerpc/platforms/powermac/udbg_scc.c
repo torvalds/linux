@@ -25,7 +25,7 @@ extern void real_writeb(u8 data, volatile u8 __iomem *addr);
 static volatile u8 __iomem *sccc;
 static volatile u8 __iomem *sccd;
 
-static void udbg_scc_putc(unsigned char c)
+static void udbg_scc_putc(char c)
 {
 	if (sccc) {
 		while ((in_8(sccc) & SCC_TXRDY) == 0)
@@ -47,14 +47,14 @@ static int udbg_scc_getc_poll(void)
 	return -1;
 }
 
-static unsigned char udbg_scc_getc(void)
+static int udbg_scc_getc(void)
 {
 	if (sccc) {
 		while ((in_8(sccc) & SCC_RXRDY) == 0)
 			;
 		return in_8(sccd);
 	}
-	return 0;
+	return -1;
 }
 
 static unsigned char scc_inittab[] = {
@@ -67,38 +67,59 @@ static unsigned char scc_inittab[] = {
     3,  0xc1,		/* rx enable, 8 bits */
 };
 
-void udbg_init_scc(struct device_node *np)
+void udbg_scc_init(int force_scc)
 {
 	u32 *reg;
 	unsigned long addr;
+	struct device_node *stdout = NULL, *escc = NULL, *macio = NULL;
+	struct device_node *ch, *ch_def = NULL, *ch_a = NULL;
+	char *path;
 	int i, x;
 
-	if (np == NULL)
-		np = of_find_node_by_name(NULL, "escc");
-	if (np == NULL || np->parent == NULL)
-		return;
+	escc = of_find_node_by_name(NULL, "escc");
+	if (escc == NULL)
+		goto bail;
+	macio = of_get_parent(escc);
+	if (macio == NULL)
+		goto bail;
+	path = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
+	if (path != NULL)
+		stdout = of_find_node_by_path(path);
+	for (ch = NULL; (ch = of_get_next_child(escc, ch)) != NULL;) {
+		if (ch == stdout)
+			ch_def = of_node_get(ch);
+		if (strcmp(ch->name, "ch-a") == 0)
+			ch_a = of_node_get(ch);
+	}
+	if (ch_def == NULL && !force_scc)
+		goto bail;
 
-	udbg_printf("found SCC...\n");
+	ch = ch_def ? ch_def : ch_a;
+
 	/* Get address within mac-io ASIC */
-	reg = (u32 *)get_property(np, "reg", NULL);
+	reg = (u32 *)get_property(escc, "reg", NULL);
 	if (reg == NULL)
-		return;
+		goto bail;
 	addr = reg[0];
-	udbg_printf("local addr: %lx\n", addr);
+
 	/* Get address of mac-io PCI itself */
-	reg = (u32 *)get_property(np->parent, "assigned-addresses", NULL);
+	reg = (u32 *)get_property(macio, "assigned-addresses", NULL);
 	if (reg == NULL)
-		return;
+		goto bail;
 	addr += reg[2];
-	udbg_printf("final addr: %lx\n", addr);
+
+	/* Lock the serial port */
+	pmac_call_feature(PMAC_FTR_SCC_ENABLE, ch,
+			  PMAC_SCC_ASYNC | PMAC_SCC_FLAG_XMON, 1);
+
 
 	/* Setup for 57600 8N1 */
-	addr += 0x20;
+	if (ch == ch_a)
+		addr += 0x20;
 	sccc = (volatile u8 * __iomem) ioremap(addr & PAGE_MASK, PAGE_SIZE) ;
 	sccc += addr & ~PAGE_MASK;
 	sccd = sccc + 0x10;
 
-	udbg_printf("ioremap result sccc: %p\n", sccc);
 	mb();
 
 	for (i = 20000; i != 0; --i)
@@ -113,9 +134,17 @@ void udbg_init_scc(struct device_node *np)
 	udbg_getc_poll = udbg_scc_getc_poll;
 
 	udbg_puts("Hello World !\n");
+
+ bail:
+	of_node_put(macio);
+	of_node_put(escc);
+	of_node_put(stdout);
+	of_node_put(ch_def);
+	of_node_put(ch_a);
 }
 
-static void udbg_real_scc_putc(unsigned char c)
+#ifdef CONFIG_PPC64
+static void udbg_real_scc_putc(char c)
 {
 	while ((real_readb(sccc) & SCC_TXRDY) == 0)
 		;
@@ -133,3 +162,4 @@ void udbg_init_pmac_realmode(void)
 	udbg_getc = NULL;
 	udbg_getc_poll = NULL;
 }
+#endif /* CONFIG_PPC64 */

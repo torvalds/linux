@@ -82,10 +82,6 @@ EXPORT_SYMBOL(ppc_n_lost_interrupts);
 EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
 EXPORT_SYMBOL(DMA_MODE_READ);
 EXPORT_SYMBOL(DMA_MODE_WRITE);
-#if defined(CONFIG_PPC_PREP)
-EXPORT_SYMBOL(_prep_type);
-EXPORT_SYMBOL(ucSystemType);
-#endif
 
 #if !defined(__INLINE_BITOPS)
 EXPORT_SYMBOL(set_bit);
@@ -311,7 +307,6 @@ EXPORT_SYMBOL(__res);
 
 EXPORT_SYMBOL(next_mmu_context);
 EXPORT_SYMBOL(set_context);
-EXPORT_SYMBOL_GPL(__handle_mm_fault); /* For MOL */
 EXPORT_SYMBOL(disarm_decr);
 #ifdef CONFIG_PPC_STD_MMU
 extern long mol_trampoline;

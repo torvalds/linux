@@ -188,6 +188,11 @@ void __init MMU_init(void)
 
 	if (ppc_md.progress)
 		ppc_md.progress("MMU:exit", 0x211);
+
+	/* From now on, btext is no longer BAT mapped if it was at all */
+#ifdef CONFIG_BOOTX_TEXT
+	btext_unmap();
+#endif
 }
 
 /* This is only called until mem_init is done. */

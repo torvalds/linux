@@ -4,9 +4,11 @@
 /*
  * Definitions for talking to the SMU chip in newer G5 PowerMacs
  */
-
+#ifdef __KERNEL__
 #include <linux/config.h>
 #include <linux/list.h>
+#endif
+#include <linux/types.h>
 
 /*
  * Known SMU commands
@@ -356,6 +358,9 @@ extern unsigned long smu_cmdbuf_abs;
  * Kenrel asynchronous i2c interface
  */
 
+#define SMU_I2C_READ_MAX	0x1d
+#define SMU_I2C_WRITE_MAX	0x15
+
 /* SMU i2c header, exactly matches i2c header on wire */
 struct smu_i2c_param
 {
@@ -366,11 +371,8 @@ struct smu_i2c_param
 	u8	subaddr[3];	/* subaddress */
 	u8	caddr;		/* combined address, filled by SMU driver */
 	u8	datalen;	/* length of transfer */
-	u8	data[7];	/* data */
+	u8	data[SMU_I2C_READ_MAX];	/* data */
 };
-
-#define SMU_I2C_READ_MAX	0x0d
-#define SMU_I2C_WRITE_MAX	0x05
 
 struct smu_i2c_cmd
 {
@@ -385,7 +387,7 @@ struct smu_i2c_cmd
 	int			read;
 	int			stage;
 	int			retries;
-	u8			pdata[0x10];
+	u8			pdata[32];
 	struct list_head	link;
 };
 
@@ -487,8 +489,8 @@ struct smu_sdbp_slotspow {
 #define SMU_SDB_SENSORTREE_ID		0x25
 
 struct smu_sdbp_sensortree {
-	u8	model_id;
-	u8	unknown[3];
+	__u8	model_id;
+	__u8	unknown[3];
 };
 
 /* This partition contains CPU thermal control PID informations. So far
@@ -498,13 +500,13 @@ struct smu_sdbp_sensortree {
 #define SMU_SDB_CPUPIDDATA_ID		0x17
 
 struct smu_sdbp_cpupiddata {
-	u8	unknown1;
-	u8	target_temp_delta;
-	u8	unknown2;
-	u8	history_len;
-	s16	power_adj;
-	u16	max_power;
-	s32	gp,gr,gd;
+	__u8	unknown1;
+	__u8	target_temp_delta;
+	__u8	unknown2;
+	__u8	history_len;
+	__s16	power_adj;
+	__u16	max_power;
+	__s32	gp,gr,gd;
 };
 
 
@@ -517,7 +519,7 @@ struct smu_sdbp_cpupiddata {
  * if not found. The data format is described below
  */
 extern struct smu_sdbp_header *smu_get_sdb_partition(int id,
-						     unsigned int *size);
+					unsigned int *size);
 
 #endif /* __KERNEL__ */
 

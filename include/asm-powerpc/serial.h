@@ -15,4 +15,6 @@
 /* Default baud base if not found in device-tree */
 #define BASE_BAUD ( 1843200 / 16 )
 
+extern void find_legacy_serial_ports(void);
+
 #endif /* _PPC64_SERIAL_H */

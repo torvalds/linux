@@ -4,7 +4,6 @@
 #ifndef _ASM_POWERPC_SYSTEM_H
 #define _ASM_POWERPC_SYSTEM_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 
 #include <asm/hw_irq.h>
@@ -42,6 +41,7 @@
 #define set_mb(var, value)	do { var = value; mb(); } while (0)
 #define set_wmb(var, value)	do { var = value; wmb(); } while (0)
 
+#ifdef __KERNEL__
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
@@ -54,7 +54,6 @@
 #define smp_read_barrier_depends()	do { } while(0)
 #endif /* CONFIG_SMP */
 
-#ifdef __KERNEL__
 struct task_struct;
 struct pt_regs;
 

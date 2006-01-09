@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_TOPOLOGY_H
 #define _ASM_POWERPC_TOPOLOGY_H
+#ifdef __KERNEL__
 
 #include <linux/config.h>
 
@@ -55,10 +56,15 @@ static inline int node_to_first_cpu(int node)
 	.nr_balance_failed	= 0,			\
 }
 
+extern void __init dump_numa_cpu_topology(void);
+
 #else
+
+static inline void dump_numa_cpu_topology(void) {}
 
 #include <asm-generic/topology.h>
 
 #endif /* CONFIG_NUMA */
 
+#endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_TOPOLOGY_H */

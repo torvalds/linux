@@ -1,5 +1,6 @@
 #ifndef _POWERPC_RTAS_H
 #define _POWERPC_RTAS_H
+#ifdef __KERNEL__
 
 #include <linux/spinlock.h>
 #include <asm/page.h>
@@ -229,4 +230,5 @@ extern unsigned long rtas_rmo_buf;
 
 #define GLOBAL_INTERRUPT_QUEUE 9005
 
+#endif /* __KERNEL__ */
 #endif /* _POWERPC_RTAS_H */

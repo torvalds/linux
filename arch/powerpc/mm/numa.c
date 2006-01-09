@@ -37,6 +37,7 @@ EXPORT_SYMBOL(node_data);
 
 static bootmem_data_t __initdata plat_node_bdata[MAX_NUMNODES];
 static int min_common_depth;
+static int n_mem_addr_cells, n_mem_size_cells;
 
 /*
  * We need somewhere to store start/end/node for each region until we have
@@ -254,32 +255,20 @@ static int __init find_min_common_depth(void)
 	return depth;
 }
 
-static int __init get_mem_addr_cells(void)
+static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 {
 	struct device_node *memory = NULL;
-	int rc;
 
 	memory = of_find_node_by_type(memory, "memory");
 	if (!memory)
-		return 0; /* it won't matter */
+		panic("numa.c: No memory nodes found!");
 
-	rc = prom_n_addr_cells(memory);
-	return rc;
+	*n_addr_cells = prom_n_addr_cells(memory);
+	*n_size_cells = prom_n_size_cells(memory);
+	of_node_put(memory);
 }
 
-static int __init get_mem_size_cells(void)
-{
-	struct device_node *memory = NULL;
-	int rc;
-
-	memory = of_find_node_by_type(memory, "memory");
-	if (!memory)
-		return 0; /* it won't matter */
-	rc = prom_n_size_cells(memory);
-	return rc;
-}
-
-static unsigned long __init read_n_cells(int n, unsigned int **buf)
+static unsigned long __devinit read_n_cells(int n, unsigned int **buf)
 {
 	unsigned long result = 0;
 
@@ -386,7 +375,6 @@ static int __init parse_numa_properties(void)
 {
 	struct device_node *cpu = NULL;
 	struct device_node *memory = NULL;
-	int addr_cells, size_cells;
 	int max_domain;
 	unsigned long i;
 
@@ -425,8 +413,7 @@ static int __init parse_numa_properties(void)
 		}
 	}
 
-	addr_cells = get_mem_addr_cells();
-	size_cells = get_mem_size_cells();
+	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);
 	memory = NULL;
 	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
 		unsigned long start;
@@ -436,15 +423,21 @@ static int __init parse_numa_properties(void)
 		unsigned int *memcell_buf;
 		unsigned int len;
 
-		memcell_buf = (unsigned int *)get_property(memory, "reg", &len);
+		memcell_buf = (unsigned int *)get_property(memory,
+			"linux,usable-memory", &len);
+		if (!memcell_buf || len <= 0)
+			memcell_buf =
+				(unsigned int *)get_property(memory, "reg",
+					&len);
 		if (!memcell_buf || len <= 0)
 			continue;
 
-		ranges = memory->n_addrs;
+		/* ranges in cell */
+		ranges = (len >> 2) / (n_mem_addr_cells + n_mem_size_cells);
 new_range:
 		/* these are order-sensitive, and modify the buffer pointer */
-		start = read_n_cells(addr_cells, &memcell_buf);
-		size = read_n_cells(size_cells, &memcell_buf);
+		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
+		size = read_n_cells(n_mem_size_cells, &memcell_buf);
 
 		numa_domain = of_node_numa_domain(memory);
 
@@ -497,7 +490,41 @@ static void __init setup_nonnuma(void)
 	node_set_online(0);
 }
 
-static void __init dump_numa_topology(void)
+void __init dump_numa_cpu_topology(void)
+{
+	unsigned int node;
+	unsigned int cpu, count;
+
+	if (min_common_depth == -1 || !numa_enabled)
+		return;
+
+	for_each_online_node(node) {
+		printk(KERN_INFO "Node %d CPUs:", node);
+
+		count = 0;
+		/*
+		 * If we used a CPU iterator here we would miss printing
+		 * the holes in the cpumap.
+		 */
+		for (cpu = 0; cpu < NR_CPUS; cpu++) {
+			if (cpu_isset(cpu, numa_cpumask_lookup_table[node])) {
+				if (count == 0)
+					printk(" %u", cpu);
+				++count;
+			} else {
+				if (count > 1)
+					printk("-%u", cpu - 1);
+				count = 0;
+			}
+		}
+
+		if (count > 1)
+			printk("-%u", NR_CPUS - 1);
+		printk("\n");
+	}
+}
+
+static void __init dump_numa_memory_topology(void)
 {
 	unsigned int node;
 	unsigned int count;
@@ -529,7 +556,6 @@ static void __init dump_numa_topology(void)
 			printk("-0x%lx", i);
 		printk("\n");
 	}
-	return;
 }
 
 /*
@@ -591,7 +617,7 @@ void __init do_init_bootmem(void)
 	if (parse_numa_properties())
 		setup_nonnuma();
 	else
-		dump_numa_topology();
+		dump_numa_memory_topology();
 
 	register_cpu_notifier(&ppc64_numa_nb);
 
@@ -730,3 +756,60 @@ static int __init early_numa(char *p)
 	return 0;
 }
 early_param("numa", early_numa);
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+/*
+ * Find the node associated with a hot added memory section.  Section
+ * corresponds to a SPARSEMEM section, not an LMB.  It is assumed that
+ * sections are fully contained within a single LMB.
+ */
+int hot_add_scn_to_nid(unsigned long scn_addr)
+{
+	struct device_node *memory = NULL;
+	nodemask_t nodes;
+	int numa_domain = 0;
+
+	if (!numa_enabled || (min_common_depth < 0))
+		return numa_domain;
+
+	while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
+		unsigned long start, size;
+		int ranges;
+		unsigned int *memcell_buf;
+		unsigned int len;
+
+		memcell_buf = (unsigned int *)get_property(memory, "reg", &len);
+		if (!memcell_buf || len <= 0)
+			continue;
+
+		/* ranges in cell */
+		ranges = (len >> 2) / (n_mem_addr_cells + n_mem_size_cells);
+ha_new_range:
+		start = read_n_cells(n_mem_addr_cells, &memcell_buf);
+		size = read_n_cells(n_mem_size_cells, &memcell_buf);
+		numa_domain = of_node_numa_domain(memory);
+
+		/* Domains not present at boot default to 0 */
+		if (!node_online(numa_domain))
+			numa_domain = any_online_node(NODE_MASK_ALL);
+
+		if ((scn_addr >= start) && (scn_addr < (start + size))) {
+			of_node_put(memory);
+			goto got_numa_domain;
+		}
+
+		if (--ranges)		/* process all ranges in cell */
+			goto ha_new_range;
+	}
+	BUG();	/* section address should be found above */
+
+	/* Temporary code to ensure that returned node is not empty */
+got_numa_domain:
+	nodes_setall(nodes);
+	while (NODE_DATA(numa_domain)->node_spanned_pages == 0) {
+		node_clear(numa_domain, nodes);
+		numa_domain = any_online_node(nodes);
+	}
+	return numa_domain;
+}
+#endif /* CONFIG_MEMORY_HOTPLUG */

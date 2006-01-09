@@ -1,5 +1,6 @@
 #ifndef _PPC64_LMB_H
 #define _PPC64_LMB_H
+#ifdef __KERNEL__
 
 /*
  * Definitions for talking to the Open Firmware PROM on
@@ -78,4 +79,5 @@ lmb_end_pfn(struct lmb_region *type, unsigned long region_nr)
 	       lmb_size_pages(type, region_nr);
 }
 
+#endif /* __KERNEL__ */
 #endif /* _PPC64_LMB_H */

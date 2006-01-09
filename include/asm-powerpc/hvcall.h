@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_HVCALL_H
 #define _ASM_POWERPC_HVCALL_H
+#ifdef __KERNEL__
 
 #define HVSC			.long 0x44000022
 
@@ -170,4 +171,5 @@ long plpar_hcall_4out(unsigned long opcode,
 		      unsigned long *out4);
 
 #endif /* __ASSEMBLY__ */
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_HVCALL_H */

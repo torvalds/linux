@@ -80,80 +80,74 @@ static loff_t dev_nvram_llseek(struct file *file, loff_t offset, int origin)
 static ssize_t dev_nvram_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	ssize_t len;
-	char *tmp_buffer;
-	int size;
+	ssize_t ret;
+	char *tmp = NULL;
+	ssize_t size;
 
-	if (ppc_md.nvram_size == NULL)
-		return -ENODEV;
+	ret = -ENODEV;
+	if (!ppc_md.nvram_size)
+		goto out;
+
+	ret = 0;
 	size = ppc_md.nvram_size();
+	if (*ppos >= size || size < 0)
+		goto out;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
-		return -EFAULT;
-	if (*ppos >= size)
-		return 0;
-	if (count > size) 
-		count = size;
+	count = min_t(size_t, count, size - *ppos);
+	count = min(count, PAGE_SIZE);
 
-	tmp_buffer = (char *) kmalloc(count, GFP_KERNEL);
-	if (!tmp_buffer) {
-		printk(KERN_ERR "dev_read_nvram: kmalloc failed\n");
-		return -ENOMEM;
-	}
+	ret = -ENOMEM;
+	tmp = kmalloc(count, GFP_KERNEL);
+	if (!tmp)
+		goto out;
 
-	len = ppc_md.nvram_read(tmp_buffer, count, ppos);
-	if ((long)len <= 0) {
-		kfree(tmp_buffer);
-		return len;
-	}
+	ret = ppc_md.nvram_read(tmp, count, ppos);
+	if (ret <= 0)
+		goto out;
 
-	if (copy_to_user(buf, tmp_buffer, len)) {
-		kfree(tmp_buffer);
-		return -EFAULT;
-	}
+	if (copy_to_user(buf, tmp, ret))
+		ret = -EFAULT;
 
-	kfree(tmp_buffer);
-	return len;
+out:
+	kfree(tmp);
+	return ret;
 
 }
 
 static ssize_t dev_nvram_write(struct file *file, const char __user *buf,
-			   size_t count, loff_t *ppos)
+			  size_t count, loff_t *ppos)
 {
-	ssize_t len;
-	char * tmp_buffer;
-	int size;
+	ssize_t ret;
+	char *tmp = NULL;
+	ssize_t size;
 
-	if (ppc_md.nvram_size == NULL)
-		return -ENODEV;
+	ret = -ENODEV;
+	if (!ppc_md.nvram_size)
+		goto out;
+
+	ret = 0;
 	size = ppc_md.nvram_size();
+	if (*ppos >= size || size < 0)
+		goto out;
 
-	if (!access_ok(VERIFY_READ, buf, count))
-		return -EFAULT;
-	if (*ppos >= size)
-		return 0;
-	if (count > size)
-		count = size;
+	count = min_t(size_t, count, size - *ppos);
+	count = min(count, PAGE_SIZE);
 
-	tmp_buffer = (char *) kmalloc(count, GFP_KERNEL);
-	if (!tmp_buffer) {
-		printk(KERN_ERR "dev_nvram_write: kmalloc failed\n");
-		return -ENOMEM;
-	}
-	
-	if (copy_from_user(tmp_buffer, buf, count)) {
-		kfree(tmp_buffer);
-		return -EFAULT;
-	}
+	ret = -ENOMEM;
+	tmp = kmalloc(count, GFP_KERNEL);
+	if (!tmp)
+		goto out;
 
-	len = ppc_md.nvram_write(tmp_buffer, count, ppos);
-	if ((long)len <= 0) {
-		kfree(tmp_buffer);
-		return len;
-	}
+	ret = -EFAULT;
+	if (copy_from_user(tmp, buf, count))
+		goto out;
 
-	kfree(tmp_buffer);
-	return len;
+	ret = ppc_md.nvram_write(tmp, count, ppos);
+
+out:
+	kfree(tmp);
+	return ret;
+
 }
 
 static int dev_nvram_ioctl(struct inode *inode, struct file *file,

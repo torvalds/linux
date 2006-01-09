@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_BUG_H
 #define _ASM_POWERPC_BUG_H
+#ifdef __KERNEL__
 
 #include <asm/asm-compat.h>
 /*
@@ -67,4 +68,5 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 
 #include <asm-generic/bug.h>
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_BUG_H */

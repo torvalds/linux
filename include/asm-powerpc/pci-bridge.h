@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_PCI_BRIDGE_H
 #define _ASM_POWERPC_PCI_BRIDGE_H
+#ifdef __KERNEL__
 
 #ifndef CONFIG_PPC64
 #include <asm-ppc/pci-bridge.h>
@@ -125,8 +126,18 @@ static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 		return bus->sysdata; /* Must be root bus (PHB) */
 }
 
+/** Find the bus corresponding to the indicated device node */
+struct pci_bus * pcibios_find_pci_bus(struct device_node *dn);
+
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 					 struct device_node *dev, int primary);
+
+/** Remove all of the PCI devices under this bus */
+void pcibios_remove_pci_devices(struct pci_bus *bus);
+
+/** Discover new pci devices under this bus, and add them */
+void pcibios_add_pci_devices(struct pci_bus * bus);
+void pcibios_fixup_new_pci_devices(struct pci_bus *bus, int fix_bus);
 
 extern int pcibios_remove_root_bus(struct pci_controller *phb);
 
@@ -140,9 +151,21 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	return PCI_DN(busdn)->phb;
 }
 
+extern struct pci_controller*
+pci_find_hose_for_OF_device(struct device_node* node);
+
 extern struct pci_controller *
 pcibios_alloc_controller(struct device_node *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);
+
+#ifdef CONFIG_PCI
+extern unsigned long pci_address_to_pio(phys_addr_t address);
+#else
+static inline unsigned long pci_address_to_pio(phys_addr_t address)
+{
+	return (unsigned long)-1;
+}
+#endif
 
 /* Return values for ppc_md.pci_probe_mode function */
 #define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
@@ -150,4 +173,5 @@ extern void pcibios_free_controller(struct pci_controller *phb);
 #define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
 
 #endif /* CONFIG_PPC64 */
+#endif /* __KERNEL__ */
 #endif

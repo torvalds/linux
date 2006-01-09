@@ -81,4 +81,6 @@ struct ItLpRegSave {
 	u8	xRsvd3[176];	// Reserved			350-3FF
 };
 
+extern struct ItLpRegSave iseries_reg_save[];
+
 #endif /* _ITLPREGSAVE_H */

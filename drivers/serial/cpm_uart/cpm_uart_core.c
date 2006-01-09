@@ -608,7 +608,7 @@ static int cpm_uart_tx_pump(struct uart_port *port)
 
 		p = cpm2cpu_addr(bdp->cbd_bufaddr);
 
-		*p++ = xmit->buf[xmit->tail];
+		*p++ = port->x_char;
 		bdp->cbd_datlen = 1;
 		bdp->cbd_sc |= BD_SC_READY;
 		/* Get next BD. */

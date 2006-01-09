@@ -514,4 +514,9 @@ asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
 asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 			const unsigned long __user *from, const unsigned long __user *to);
 
+asmlinkage long sys_spu_run(int fd, __u32 __user *unpc,
+				 __u32 __user *ustatus);
+asmlinkage long sys_spu_create(const char __user *name,
+		unsigned int flags, mode_t mode);
+
 #endif

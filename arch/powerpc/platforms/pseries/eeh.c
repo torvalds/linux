@@ -1093,6 +1093,15 @@ void eeh_add_device_early(struct device_node *dn)
 }
 EXPORT_SYMBOL_GPL(eeh_add_device_early);
 
+void eeh_add_device_tree_early(struct device_node *dn)
+{
+	struct device_node *sib;
+	for (sib = dn->child; sib; sib = sib->sibling)
+		eeh_add_device_tree_early(sib);
+	eeh_add_device_early(dn);
+}
+EXPORT_SYMBOL_GPL(eeh_add_device_tree_early);
+
 /**
  * eeh_add_device_late - perform EEH initialization for the indicated pci device
  * @dev: pci device for which to set up EEH
@@ -1146,6 +1155,23 @@ void eeh_remove_device(struct pci_dev *dev)
 	pci_dev_put (dev);
 }
 EXPORT_SYMBOL_GPL(eeh_remove_device);
+
+void eeh_remove_bus_device(struct pci_dev *dev)
+{
+	eeh_remove_device(dev);
+	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
+		struct pci_bus *bus = dev->subordinate;
+		struct list_head *ln;
+		if (!bus)
+			return; 
+		for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
+			struct pci_dev *pdev = pci_dev_b(ln);
+			if (pdev)
+				eeh_remove_bus_device(pdev);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(eeh_remove_bus_device);
 
 static int proc_eeh_show(struct seq_file *m, void *v)
 {

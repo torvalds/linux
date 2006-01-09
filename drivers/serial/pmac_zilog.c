@@ -1431,11 +1431,14 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 		char	name[1];
 	} *slots;
 	int len;
+	struct resource r_ports, r_rxdma, r_txdma;
 
 	/*
 	 * Request & map chip registers
 	 */
-	uap->port.mapbase = np->addrs[0].address;
+	if (of_address_to_resource(np, 0, &r_ports))
+		return -ENODEV;
+	uap->port.mapbase = r_ports.start;
 	uap->port.membase = ioremap(uap->port.mapbase, 0x1000);
       
 	uap->control_reg = uap->port.membase;
@@ -1445,16 +1448,20 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 	 * Request & map DBDMA registers
 	 */
 #ifdef HAS_DBDMA
-	if (np->n_addrs >= 3 && np->n_intrs >= 3)
+	if (of_address_to_resource(np, 1, &r_txdma) == 0 &&
+	    of_address_to_resource(np, 2, &r_rxdma) == 0)
 		uap->flags |= PMACZILOG_FLAG_HAS_DMA;
+#else
+	memset(&r_txdma, 0, sizeof(struct resource));
+	memset(&r_rxdma, 0, sizeof(struct resource));
 #endif	
 	if (ZS_HAS_DMA(uap)) {
-		uap->tx_dma_regs = ioremap(np->addrs[np->n_addrs - 2].address, 0x1000);
+		uap->tx_dma_regs = ioremap(r_txdma.start, 0x100);
 		if (uap->tx_dma_regs == NULL) {	
 			uap->flags &= ~PMACZILOG_FLAG_HAS_DMA;
 			goto no_dma;
 		}
-		uap->rx_dma_regs = ioremap(np->addrs[np->n_addrs - 1].address, 0x1000);
+		uap->rx_dma_regs = ioremap(r_rxdma.start, 0x100);
 		if (uap->rx_dma_regs == NULL) {	
 			iounmap(uap->tx_dma_regs);
 			uap->tx_dma_regs = NULL;

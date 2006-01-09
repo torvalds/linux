@@ -223,6 +223,7 @@ static int offb_blank(int blank, struct fb_info *info)
 int __init offb_init(void)
 {
 	struct device_node *dp = NULL, *boot_disp = NULL;
+
 #if defined(CONFIG_BOOTX_TEXT) && defined(CONFIG_PPC32)
 	struct device_node *macos_display = NULL;
 #endif
@@ -234,60 +235,54 @@ int __init offb_init(void)
 	if (boot_infos != 0) {
 		unsigned long addr =
 		    (unsigned long) boot_infos->dispDeviceBase;
+		u32 *addrp;
+		u64 daddr, dsize;
+		unsigned int flags;
+
 		/* find the device node corresponding to the macos display */
 		while ((dp = of_find_node_by_type(dp, "display"))) {
 			int i;
-			/*
-			 * Grrr...  It looks like the MacOS ATI driver
-			 * munges the assigned-addresses property (but
-			 * the AAPL,address value is OK).
-			 */
-			if (strncmp(dp->name, "ATY,", 4) == 0
-			    && dp->n_addrs == 1) {
-				unsigned int *ap =
-				    (unsigned int *) get_property(dp,
-								  "AAPL,address",
-								  NULL);
-				if (ap != NULL) {
-					dp->addrs[0].address = *ap;
-					dp->addrs[0].size = 0x01000000;
-				}
-			}
 
 			/*
-			 * The LTPro on the Lombard powerbook has no addresses
-			 * on the display nodes, they are on their parent.
+			 * Look for an AAPL,address property first.
 			 */
-			if (dp->n_addrs == 0
-			    && device_is_compatible(dp, "ATY,264LTPro")) {
-				int na;
-				unsigned int *ap = (unsigned int *)
-				    get_property(dp, "AAPL,address", &na);
-				if (ap != 0)
-					for (na /= sizeof(unsigned int);
-					     na > 0; --na, ++ap)
-						if (*ap <= addr
-						    && addr <
-						    *ap + 0x1000000)
-							goto foundit;
+			unsigned int na;
+			unsigned int *ap =
+				(unsigned int *)get_property(dp, "AAPL,address",
+							     &na);
+			if (ap != 0) {
+				for (na /= sizeof(unsigned int); na > 0;
+				     --na, ++ap)
+					if (*ap <= addr &&
+					    addr < *ap + 0x1000000) {
+						macos_display = dp;
+						goto foundit;
+					}
 			}
 
 			/*
 			 * See if the display address is in one of the address
 			 * ranges for this display.
 			 */
-			for (i = 0; i < dp->n_addrs; ++i) {
-				if (dp->addrs[i].address <= addr
-				    && addr <
-				    dp->addrs[i].address +
-				    dp->addrs[i].size)
+			i = 0;
+			for (;;) {
+				addrp = of_get_address(dp, i++, &dsize, &flags);
+				if (addrp == NULL)
 					break;
+				if (!(flags & IORESOURCE_MEM))
+					continue;
+				daddr = of_translate_address(dp, addrp);
+				if (daddr == OF_BAD_ADDR)
+					continue;
+				if (daddr <= addr && addr < (daddr + dsize)) {
+					macos_display = dp;
+					goto foundit;
+				}
 			}
-			if (i < dp->n_addrs) {
-			      foundit:
+		foundit:
+			if (macos_display) {
 				printk(KERN_INFO "MacOS display is %s\n",
 				       dp->full_name);
-				macos_display = dp;
 				break;
 			}
 		}
@@ -326,8 +321,10 @@ static void __init offb_init_nodriver(struct device_node *dp)
 	int *pp, i;
 	unsigned int len;
 	int width = 640, height = 480, depth = 8, pitch;
-	unsigned int rsize, *up;
-	unsigned long address = 0;
+	unsigned int flags, rsize, *up;
+	u64 address = OF_BAD_ADDR;
+	u32 *addrp;
+	u64 asize;
 
 	if ((pp = (int *) get_property(dp, "depth", &len)) != NULL
 	    && len == sizeof(int))
@@ -363,7 +360,7 @@ static void __init offb_init_nodriver(struct device_node *dp)
                                break;
 	       }
                if (pdev) {
-                       for (i = 0; i < 6 && address == 0; i++) {
+                       for (i = 0; i < 6 && address == OF_BAD_ADDR; i++) {
                                if ((pci_resource_flags(pdev, i) &
 				    IORESOURCE_MEM) &&
 				   (pci_resource_len(pdev, i) >= rsize))
@@ -374,27 +371,33 @@ static void __init offb_init_nodriver(struct device_node *dp)
         }
 #endif /* CONFIG_PCI */
 
-	if (address == 0 &&
-	    (up = (unsigned *) get_property(dp, "address", &len)) != NULL &&
-	    len == sizeof(unsigned))
-		address = (u_long) * up;
-	if (address == 0) {
-		for (i = 0; i < dp->n_addrs; ++i)
-			if (dp->addrs[i].size >=
-			    pitch * height * depth / 8)
-				break;
-		if (i >= dp->n_addrs) {
+       /* This one is dodgy, we may drop it ... */
+       if (address == OF_BAD_ADDR &&
+	   (up = (unsigned *) get_property(dp, "address", &len)) != NULL &&
+	   len == sizeof(unsigned int))
+	       address = (u64) * up;
+
+       if (address == OF_BAD_ADDR) {
+	       for (i = 0; (addrp = of_get_address(dp, i, &asize, &flags))
+			    != NULL; i++) {
+		       if (!(flags & IORESOURCE_MEM))
+			       continue;
+		       if (asize >= pitch * height * depth / 8)
+			       break;
+	       }
+		if (addrp == NULL) {
 			printk(KERN_ERR
 			       "no framebuffer address found for %s\n",
 			       dp->full_name);
 			return;
 		}
-
-		address = (u_long) dp->addrs[i].address;
-
-#ifdef CONFIG_PPC64
-		address += ((struct pci_dn *)dp->data)->phb->pci_mem_offset;
-#endif
+		address = of_translate_address(dp, addrp);
+		if (address == OF_BAD_ADDR) {
+			printk(KERN_ERR
+			       "can't translate framebuffer address for %s\n",
+			       dp->full_name);
+			return;
+		}
 
 		/* kludge for valkyrie */
 		if (strcmp(dp->name, "valkyrie") == 0)
@@ -459,7 +462,9 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 
 	par->cmap_type = cmap_unknown;
 	if (depth == 8) {
-		/* XXX kludge for ati */
+
+		/* Palette hacks disabled for now */
+#if 0
 		if (dp && !strncmp(name, "ATY,Rage128", 11)) {
 			unsigned long regbase = dp->addrs[2].address;
 			par->cmap_adr = ioremap(regbase, 0x1FFF);
@@ -490,6 +495,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 			par->cmap_adr = ioremap(regbase + 0x6000, 0x1000);
 			par->cmap_type = cmap_gxt2000;
 		}
+#endif
 		fix->visual = par->cmap_adr ? FB_VISUAL_PSEUDOCOLOR
 		    : FB_VISUAL_STATIC_PSEUDOCOLOR;
 	} else

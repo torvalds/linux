@@ -94,6 +94,7 @@
 #define RFDI		.long 0x4c00004e	/* rfdi instruction */
 #define RFMCI		.long 0x4c00004c	/* rfmci instruction */
 
+#ifdef __KERNEL__
 #ifdef CONFIG_PPC64
 
 #define XGLUE(a,b) a##b
@@ -324,6 +325,8 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define MTMSRD(r)	mtmsr	r
 #define CLR_TOP32(r)
 #endif
+
+#endif /* __KERNEL__ */
 
 /* The boring bits... */
 

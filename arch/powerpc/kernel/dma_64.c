@@ -10,6 +10,7 @@
 /* Include the busses we support */
 #include <linux/pci.h>
 #include <asm/vio.h>
+#include <asm/ibmebus.h>
 #include <asm/scatterlist.h>
 #include <asm/bug.h>
 
@@ -22,6 +23,10 @@ static struct dma_mapping_ops *get_dma_ops(struct device *dev)
 #ifdef CONFIG_IBMVIO
 	if (dev->bus == &vio_bus_type)
 		return &vio_dma_ops;
+#endif
+#ifdef CONFIG_IBMEBUS
+	if (dev->bus == &ibmebus_bus_type)
+		return &ibmebus_dma_ops;
 #endif
 	return NULL;
 }
@@ -47,6 +52,10 @@ int dma_set_mask(struct device *dev, u64 dma_mask)
 	if (dev->bus == &vio_bus_type)
 		return -EIO;
 #endif /* CONFIG_IBMVIO */
+#ifdef CONFIG_IBMEBUS
+	if (dev->bus == &ibmebus_bus_type)
+		return -EIO;
+#endif
 	BUG();
 	return 0;
 }
