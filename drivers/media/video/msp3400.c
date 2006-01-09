@@ -166,8 +166,6 @@ struct msp3400c {
 	int                  watch_stereo:1;
 };
 
-#define MIN(a,b) (((a)>(b))?(b):(a))
-#define MAX(a,b) (((a)>(b))?(a):(b))
 #define HAVE_NICAM(msp)   (((msp->rev2>>8) & 0xff) != 00)
 #define HAVE_SIMPLE(msp)  ((msp->rev1      & 0xff) >= 'D'-'@')
 #define HAVE_SIMPLER(msp) ((msp->rev1      & 0xff) >= 'G'-'@')
@@ -1670,9 +1668,9 @@ static int msp_get_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 		return 0;
 	case V4L2_CID_AUDIO_BALANCE:
 	{
-		int volume = MAX(msp->left, msp->right);
+		int volume = max(msp->left, msp->right);
 
-		ctrl->value = (32768 * MIN(msp->left, msp->right)) /
+		ctrl->value = (32768 * min(msp->left, msp->right)) /
 		    (volume ? volume : 1);
 		ctrl->value = (msp->left < msp->right) ?
 		    (65535 - ctrl->value) : ctrl->value;
@@ -1687,7 +1685,7 @@ static int msp_get_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 		ctrl->value = msp->treble;
 		return 0;
 	case V4L2_CID_AUDIO_VOLUME:
-		ctrl->value = MAX(msp->left, msp->right);
+		ctrl->value = max(msp->left, msp->right);
 		return 0;
 	default:
 		return -EINVAL;
@@ -1710,7 +1708,7 @@ static int msp_set_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 		return 0;
 	case V4L2_CID_AUDIO_BALANCE:
 		balance=ctrl->value;
-		volume = MAX(msp->left, msp->right);
+		volume = max(msp->left, msp->right);
 		set_volume=1;
 		break;
 	case V4L2_CID_AUDIO_BASS:
@@ -1722,9 +1720,9 @@ static int msp_set_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 		msp3400c_settreble(client, msp->treble);
 		return 0;
 	case V4L2_CID_AUDIO_VOLUME:
-		volume = MAX(msp->left, msp->right);
+		volume = max(msp->left, msp->right);
 
-		balance = (32768 * MIN(msp->left, msp->right)) /
+		balance = (32768 * min(msp->left, msp->right)) /
 					(volume ? volume : 1);
 		balance = (msp->left < msp->right) ?
 					(65535 - balance) : balance;
@@ -1739,8 +1737,8 @@ static int msp_set_ctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 	}
 
 	if (set_volume) {
-		msp->left = (MIN(65536 - balance, 32768) * volume) / 32768;
-		msp->right = (MIN(balance, 32768) * volume) / 32768;
+		msp->left = (min(65536 - balance, 32768) * volume) / 32768;
+		msp->right = (min(balance, 32768) * volume) / 32768;
 
 		msp3400_dbg("volume=%d, balance=%d, left=%d, right=%d",
 			volume,balance,msp->left,msp->right);
@@ -1861,8 +1859,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		if (msp->muted)
 			va->flags |= VIDEO_AUDIO_MUTE;
-		va->volume = MAX(msp->left, msp->right);
-		va->balance = (32768 * MIN(msp->left, msp->right)) /
+		va->volume = max(msp->left, msp->right);
+		va->balance = (32768 * min(msp->left, msp->right)) /
 		    (va->volume ? va->volume : 1);
 		va->balance = (msp->left < msp->right) ?
 		    (65535 - va->balance) : va->balance;
@@ -1881,9 +1879,9 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		msp3400_dbg("VIDIOCSAUDIO\n");
 		msp->muted = (va->flags & VIDEO_AUDIO_MUTE);
-		msp->left = (MIN(65536 - va->balance, 32768) *
+		msp->left = (min(65536 - va->balance, 32768) *
 			     va->volume) / 32768;
-		msp->right = (MIN(va->balance, 32768) * va->volume) / 32768;
+		msp->right = (min((int)va->balance, 32768) * va->volume) / 32768;
 		msp->bass = va->bass;
 		msp->treble = va->treble;
 		msp3400_dbg("VIDIOCSAUDIO setting va->volume to %d\n",
