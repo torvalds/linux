@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
+#include <linux/completion.h>
 #include <linux/jiffies.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -57,7 +58,7 @@ static int ticks = 10000;
 /* some device data */
 
 static struct {
-	struct semaphore stop;
+	struct completion stop;
 	volatile int running;
 	struct timer_list timer;
 	volatile int queue;
@@ -85,7 +86,7 @@ static void cpu5wdt_trigger(unsigned long unused)
 	}
 	else {
 		/* ticks doesn't matter anyway */
-		up(&cpu5wdt_device.stop);
+		complete(&cpu5wdt_device.stop);
 	}
 
 }
@@ -239,7 +240,7 @@ static int __devinit cpu5wdt_init(void)
 	if ( !val )
 		printk(KERN_INFO PFX "sorry, was my fault\n");
 
-	init_MUTEX_LOCKED(&cpu5wdt_device.stop);
+	init_completion(&cpu5wdt_device.stop);
 	cpu5wdt_device.queue = 0;
 
 	clear_bit(0, &cpu5wdt_device.inuse);
@@ -269,7 +270,7 @@ static void __devexit cpu5wdt_exit(void)
 {
 	if ( cpu5wdt_device.queue ) {
 		cpu5wdt_device.queue = 0;
-		down(&cpu5wdt_device.stop);
+		wait_for_completion(&cpu5wdt_device.stop);
 	}
 
 	misc_deregister(&cpu5wdt_misc);
