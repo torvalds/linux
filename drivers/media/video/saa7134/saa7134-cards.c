@@ -2555,6 +2555,34 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		},
 	},
+	[SAA7134_BOARD_CINERGY250PCI] = {
+		/* remote-control does not work. The signal about a
+		   key press comes in via gpio, but the key code
+		   doesn't. Neither does it have an i2c remote control
+		   interface. */
+		.name           = "Terratec Cinergy 250 PCI TV",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask       = 0x80200000,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_svideo,  /* NOT tested */
+			.vmux = 8,
+			.amux = LINE1,
+		}},
+		.radio = {
+			.name   = name_radio,
+			.amux   = LINE1,
+			.gpio   = 0x0200000,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3001,6 +3029,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1462,
 		.subdevice    = 0x6231,
 		.driver_data  = SAA7134_BOARD_MSI_TVATANYWHERE_PLUS,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x153b,
+		.subdevice    = 0x1160,
+		.driver_data  = SAA7134_BOARD_CINERGY250PCI,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
