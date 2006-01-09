@@ -57,7 +57,6 @@ struct tda9887 {
 	v4l2_std_id        std;
 	enum tuner_mode    mode;
 	unsigned int       config;
-	unsigned int       pinnacle_id;
 	unsigned int       using_v4l2;
 	unsigned int 	   radio_mode;
 	unsigned char 	   data[4];
@@ -481,34 +480,6 @@ static int tda9887_set_config(struct tda9887 *t, char *buf)
 
 /* ---------------------------------------------------------------------- */
 
-static int tda9887_set_pinnacle(struct tda9887 *t, char *buf)
-{
-	unsigned int bCarrierMode = UNSET;
-
-	if (t->std & V4L2_STD_625_50) {
-		if ((1 == t->pinnacle_id) || (7 == t->pinnacle_id)) {
-			bCarrierMode = cIntercarrier;
-		} else {
-			bCarrierMode = cQSS;
-		}
-	}
-	if (t->std & V4L2_STD_525_60) {
-		if ((5 == t->pinnacle_id) || (6 == t->pinnacle_id)) {
-			bCarrierMode = cIntercarrier;
-		} else {
-			bCarrierMode = cQSS;
-		}
-	}
-
-	if (bCarrierMode != UNSET) {
-		buf[1] &= ~0x04;
-		buf[1] |= bCarrierMode;
-	}
-	return 0;
-}
-
-/* ---------------------------------------------------------------------- */
-
 static char pal[] = "-";
 module_param_string(pal, pal, sizeof(pal), 0644);
 static char secam[] = "-";
@@ -593,9 +564,6 @@ static int tda9887_configure(struct tda9887 *t)
 	t->data[1] |= cOutputPort1Inactive;
 	t->data[1] |= cOutputPort2Inactive;
 
-	if (UNSET != t->pinnacle_id) {
-		tda9887_set_pinnacle(t,t->data);
-	}
 	tda9887_set_config(t,t->data);
 	tda9887_set_insmod(t,t->data);
 
@@ -634,7 +602,6 @@ static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
 
 	t->client      = client_template;
 	t->std         = 0;
-	t->pinnacle_id = UNSET;
 	t->radio_mode = V4L2_TUNER_MODE_STEREO;
 
 	tda9887_info("chip found @ 0x%x (%s)\n", addr<<1, adap->name);
@@ -695,14 +662,6 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case TUNER_SET_STANDBY:
 	{
 		t->mode = T_STANDBY;
-		tda9887_configure(t);
-		break;
-	}
-	case AUDC_CONFIG_PINNACLE:
-	{
-		int *i = arg;
-
-		t->pinnacle_id = *i;
 		tda9887_configure(t);
 		break;
 	}

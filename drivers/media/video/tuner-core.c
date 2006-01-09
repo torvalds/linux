@@ -510,7 +510,6 @@ static void tuner_status(struct i2c_client *client)
 static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct tuner *t = i2c_get_clientdata(client);
-	unsigned int *iarg = (int *)arg;
 
 	switch (cmd) {
 	/* --- configuration --- */
@@ -533,18 +532,6 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				t->standby (client);
 			break;
 		}
-	case AUDC_CONFIG_PINNACLE:
-		switch (*iarg) {
-		case 2:
-			tuner_dbg("pinnacle pal\n");
-			t->radio_if2 = 33300 * 1000;
-			break;
-		case 3:
-			tuner_dbg("pinnacle ntsc\n");
-			t->radio_if2 = 41300 * 1000;
-			break;
-		}
-		break;
 	case VIDIOCSAUDIO:
 		if (check_mode(t, "VIDIOCSAUDIO") == EINVAL)
 			return 0;

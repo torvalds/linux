@@ -3947,7 +3947,6 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 
 	btv->i2c_rc = -1;
 	btv->tuner_type  = UNSET;
-	btv->pinnacle_id = UNSET;
 	btv->new_input   = UNSET;
 	btv->has_radio=radio[btv->c.nr];
 

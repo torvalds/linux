@@ -494,6 +494,13 @@ int microtune_init(struct i2c_client *c)
 	t->tv_freq    = NULL;
 	t->radio_freq = NULL;
 	t->standby    = NULL;
+	if (t->std & V4L2_STD_525_60) {
+		tuner_dbg("pinnacle ntsc\n");
+		t->radio_if2 = 41300 * 1000;
+	} else {
+		tuner_dbg("pinnacle pal\n");
+		t->radio_if2 = 33300 * 1000;
+	}
 	name = "unknown";
 
 	i2c_master_send(c,buf,1);

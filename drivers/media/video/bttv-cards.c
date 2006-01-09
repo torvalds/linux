@@ -3056,26 +3056,33 @@ static void miro_pinnacle_gpio(struct bttv *btv)
 		switch (id) {
 		case 1:
 			info = "PAL / mono";
+			btv->tda9887_conf = TDA9887_INTERCARRIER;
 			break;
 		case 2:
 			info = "PAL+SECAM / stereo";
 			btv->has_radio = 1;
+			btv->tda9887_conf = TDA9887_QSS;
 			break;
 		case 3:
 			info = "NTSC / stereo";
 			btv->has_radio = 1;
+			btv->tda9887_conf = TDA9887_QSS;
 			break;
 		case 4:
 			info = "PAL+SECAM / mono";
+			btv->tda9887_conf = TDA9887_QSS;
 			break;
 		case 5:
 			info = "NTSC / mono";
+			btv->tda9887_conf = TDA9887_INTERCARRIER;
 			break;
 		case 6:
 			info = "NTSC / stereo";
+			btv->tda9887_conf = TDA9887_INTERCARRIER;
 			break;
 		case 7:
 			info = "PAL / stereo";
+			btv->tda9887_conf = TDA9887_INTERCARRIER;
 			break;
 		default:
 			info = "oops: unknown card";
@@ -3086,8 +3093,7 @@ static void miro_pinnacle_gpio(struct bttv *btv)
 		printk(KERN_INFO
 		       "bttv%d: pinnacle/mt: id=%d info=\"%s\" radio=%s\n",
 		       btv->c.nr, id, info, btv->has_radio ? "yes" : "no");
-		btv->tuner_type  = 33;
-		btv->pinnacle_id = id;
+		btv->tuner_type = TUNER_MT2032;
 	}
 }
 
@@ -3389,9 +3395,9 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
 
-	if (btv->pinnacle_id != UNSET) {
-		bttv_call_i2c_clients(btv, AUDC_CONFIG_PINNACLE,
-							&btv->pinnacle_id);
+	if (btv->tda9887_conf) {
+		bttv_call_i2c_clients(btv, TDA9887_SET_CONFIG,
+							&btv->tda9887_conf);
 	}
 
 	btv->svhs = bttv_tvcards[btv->c.type].svhs;
@@ -3443,7 +3449,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 
 	/* tuner modules */
 	tda9887 = 0;
-	if (btv->pinnacle_id != UNSET)
+	if (btv->tda9887_conf)
 		tda9887 = 1;
 	if (0 == tda9887 && 0 == bttv_tvcards[btv->c.type].has_dvb &&
 	    bttv_I2CRead(btv, I2C_TDA9887, "TDA9887") >=0)
