@@ -85,6 +85,7 @@ struct dvb_frontend_ops {
 	int (*set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
 	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, int arg);
 	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned int cmd);
+	int (*i2c_gate_ctrl)(struct dvb_frontend* fe, int enable);
 };
 
 #define MAX_EVENT 8

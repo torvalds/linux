@@ -903,7 +903,6 @@ struct cx88_board cx88_boards[] = {
 		.radio_type	= UNSET,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
-		/* fixme: add the analog gpio stuff here */
 		.input		= {{
 			.type	= CX88_VMUX_DVB,
 			.vmux	= 0,
@@ -944,6 +943,43 @@ struct cx88_board cx88_boards[] = {
 			.type	= CX88_VMUX_SVIDEO,
 			.vmux	= 2,
 		}},
+		.dvb		= 1,
+	},
+	[CX88_BOARD_HAUPPAUGE_HVR1100] = {
+		.name		= "Hauppauge WinTV-HVR1100 DVB-T/Hybrid",
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input		= {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+		},{
+			.type	= CX88_VMUX_COMPOSITE1,
+			.vmux	= 1,
+		},{
+			.type	= CX88_VMUX_SVIDEO,
+			.vmux	= 2,
+		}},
+		/* fixme: Add radio support */
+		.dvb		= 1,
+	},
+	[CX88_BOARD_HAUPPAUGE_HVR1100LP] = {
+		.name		= "Hauppauge WinTV-HVR1100 DVB-T/Hybrid (Low Profile)",
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input		= {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+		},{
+			.type	= CX88_VMUX_COMPOSITE1,
+			.vmux	= 1,
+		}},
+		/* fixme: Add radio support */
 		.dvb		= 1,
 	},
 };
@@ -1109,6 +1145,22 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x17de,
 		.subdevice = 0x08b2,
 		.card      = CX88_BOARD_KWORLD_DVBS_100,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9400,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR1100,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9402,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR1100,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9800,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR1100LP,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9802,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR1100LP,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1140,9 +1192,6 @@ static void __devinit leadtek_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	       core->name, core->tuner_type, eeprom_data[0]);
 }
 
-
-/* ----------------------------------------------------------------------- */
-
 static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 {
 	struct tveeprom tv;
@@ -1161,7 +1210,9 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 90500: /* Nova-T-PCI (oem) */
 	case 90501: /* Nova-T-PCI (oem/IR) */
 	case 92000: /* Nova-SE2 (OEM, No Video or IR) */
-
+	case 94009: /* WinTV-HVR1100 (Video and IR Retail) */
+	case 94501: /* WinTV-HVR1100 (Video and IR OEM) */
+	case 98559: /* WinTV-HVR1100LP (Video no IR, Retail - Low Profile) */
 		/* known */
 		break;
 	default:
@@ -1279,6 +1330,8 @@ void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
+	case CX88_BOARD_HAUPPAUGE_HVR1100:
+	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
 		if (0 == core->i2c_rc)
 			hauppauge_eeprom(core,eeprom);
 		break;

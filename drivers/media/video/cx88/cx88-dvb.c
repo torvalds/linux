@@ -191,6 +191,12 @@ static struct cx22702_config hauppauge_novat_config = {
 	.pll_address   = 0x61,
 	.pll_desc      = &dvb_pll_thomson_dtt759x,
 };
+static struct cx22702_config hauppauge_hvr1100_config = {
+	.demod_address = 0x63,
+	.output_mode   = CX22702_SERIAL_OUTPUT,
+	.pll_address   = 0x61,
+	.pll_desc      = &dvb_pll_fmd1216me,
+};
 #endif
 
 #ifdef HAVE_OR51132
@@ -370,6 +376,11 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = cx22702_attach(&connexant_refboard_config,
 						   &dev->core->i2c_adap);
 		break;
+	case CX88_BOARD_HAUPPAUGE_HVR1100:
+	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
+		dev->dvb.frontend = cx22702_attach(&hauppauge_hvr1100_config,
+						   &dev->core->i2c_adap);
+		break;
 #endif
 #ifdef HAVE_MT352
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
@@ -532,6 +543,9 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 	err = dvb_register(dev);
 	if (0 != err)
 		goto fail_fini;
+
+	/* Maintain a reference to cx88-video can query the 8802 device. */
+	core->dvbdev = dev;
 	return 0;
 
  fail_fini:
@@ -546,6 +560,9 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 static void __devexit dvb_remove(struct pci_dev *pci_dev)
 {
 	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
+
+	/* Destroy any 8802 reference. */
+	dev->core->dvbdev = NULL;
 
 	/* dvb */
 	videobuf_dvb_unregister(&dev->dvb);

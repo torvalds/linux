@@ -182,6 +182,8 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1  37
 #define CX88_BOARD_HAUPPAUGE_NOVASE2_S1    38
 #define CX88_BOARD_KWORLD_DVBS_100         39
+#define CX88_BOARD_HAUPPAUGE_HVR1100       40
+#define CX88_BOARD_HAUPPAUGE_HVR1100LP     41
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -304,6 +306,9 @@ struct cx88_core {
 
 	/* various v4l controls */
 	u32                        freq;
+
+	/* cx88-video needs to access cx8802 for hybrid tuner pll access. */
+	struct cx8802_dev          *dvbdev;
 };
 
 struct cx8800_dev;
