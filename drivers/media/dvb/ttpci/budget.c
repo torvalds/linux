@@ -212,7 +212,7 @@ static int lnbp21_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
 	return 0;
 }
 
-static int lnbp21_enable_high_lnb_voltage(struct dvb_frontend* fe, int arg)
+static int lnbp21_enable_high_lnb_voltage(struct dvb_frontend* fe, long arg)
 {
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 	u8 buf;

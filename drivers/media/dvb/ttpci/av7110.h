@@ -262,7 +262,7 @@ struct av7110 {
 	int (*fe_diseqc_send_burst)(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd);
 	int (*fe_set_tone)(struct dvb_frontend* fe, fe_sec_tone_mode_t tone);
 	int (*fe_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
-	int (*fe_dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned int cmd);
+	int (*fe_dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned long cmd);
 	int (*fe_set_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };
 

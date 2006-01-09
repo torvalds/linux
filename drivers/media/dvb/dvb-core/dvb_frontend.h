@@ -83,8 +83,8 @@ struct dvb_frontend_ops {
 	int (*diseqc_send_burst)(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd);
 	int (*set_tone)(struct dvb_frontend* fe, fe_sec_tone_mode_t tone);
 	int (*set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
-	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, int arg);
-	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned int cmd);
+	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, long arg);
+	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned long cmd);
 	int (*i2c_gate_ctrl)(struct dvb_frontend* fe, int enable);
 };
 

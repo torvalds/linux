@@ -2215,7 +2215,7 @@ static int av7110_fe_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t volta
 	return ret;
 }
 
-static int av7110_fe_dishnetwork_send_legacy_command(struct dvb_frontend* fe, unsigned int cmd)
+static int av7110_fe_dishnetwork_send_legacy_command(struct dvb_frontend* fe, unsigned long cmd)
 {
 	struct av7110* av7110 = fe->dvb->priv;
 

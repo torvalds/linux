@@ -104,7 +104,7 @@ struct dvb_frontend_private {
 	unsigned int exit;
 	unsigned int wakeup;
 	fe_status_t status;
-	unsigned int tune_mode_flags;
+	unsigned long tune_mode_flags;
 	unsigned int delay;
 
 	/* swzigzag values */
@@ -808,13 +808,13 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			 * initialization, so parg is 8 bits and does not
 			 * include the initialization or start bit
 			 */
-			unsigned int cmd = ((unsigned long) parg) << 1;
+			unsigned long cmd = ((unsigned long) parg) << 1;
 			struct timeval nexttime;
 			struct timeval tv[10];
 			int i;
 			u8 last = 1;
 			if (dvb_frontend_debug)
-				printk("%s switch command: 0x%04x\n", __FUNCTION__, cmd);
+				printk("%s switch command: 0x%04lx\n", __FUNCTION__, cmd);
 			do_gettimeofday(&nexttime);
 			if (dvb_frontend_debug)
 				memcpy(&tv[0], &nexttime, sizeof(struct timeval));

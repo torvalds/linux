@@ -394,7 +394,7 @@ static int stv0299_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltag
 	};
 }
 
-static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, u32 cmd)
+static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long cmd)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
 	u8 reg0x08;
@@ -414,7 +414,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, u32 cmd)
 
 	cmd = cmd << 1;
 	if (debug_legacy_dish_switch)
-		printk ("%s switch command: 0x%04x\n",__FUNCTION__, cmd);
+		printk ("%s switch command: 0x%04lx\n",__FUNCTION__, cmd);
 
 	do_gettimeofday (&nexttime);
 	if (debug_legacy_dish_switch)

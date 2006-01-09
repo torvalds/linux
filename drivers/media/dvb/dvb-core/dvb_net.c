@@ -1222,7 +1222,7 @@ static int dvb_net_add_if(struct dvb_net *dvbnet, u16 pid, u8 feedtype)
 	return if_num;
 }
 
-static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned int num)
+static int dvb_net_remove_if(struct dvb_net *dvbnet, unsigned long num)
 {
 	struct net_device *net = dvbnet->device[num];
 	struct dvb_net_priv *priv;
