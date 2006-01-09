@@ -10,7 +10,6 @@
 
 #include <linux/config.h>
 #include <linux/input.h>
-#include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/firmware.h>
 

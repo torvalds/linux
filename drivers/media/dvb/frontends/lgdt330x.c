@@ -402,6 +402,8 @@ static int lgdt330x_set_parameters(struct dvb_frontend* fe,
 		state->config->pll_set(fe, param);
 
 	/* Keep track of the new frequency */
+	/* FIXME this is the wrong way to do this...           */
+	/* The tuner is shared with the video4linux analog API */
 	state->current_frequency = param->frequency;
 
 	lgdt330x_SwReset(state);
