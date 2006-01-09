@@ -223,6 +223,12 @@ static void unset_command_mode(void)
 	pcwd_private.command_mode = 0;
 }
 
+static inline void pcwd_check_temperature_support(void)
+{
+	if (inb(pcwd_private.io_addr) != 0xF0)
+		pcwd_private.supports_temp = 1;
+}
+
 static void pcwd_timer_ping(unsigned long data)
 {
 	int wdrst_stat;
@@ -623,12 +629,6 @@ static struct notifier_block pcwd_notifier = {
  *	Init & exit routines
  */
 
-static inline void get_support(void)
-{
-	if (inb(pcwd_private.io_addr) != 0xF0)
-		pcwd_private.supports_temp = 1;
-}
-
 static inline int get_revision(void)
 {
 	int r = PCWD_REVISION_C;
@@ -730,7 +730,7 @@ static int __devinit pcwatchdog_init(int base_addr)
 	pcwd_stop();
 
 	/*  Check whether or not the card supports the temperature device */
-	get_support();
+	pcwd_check_temperature_support();
 
 	/* Get some extra info from the hardware (in command/debug/diag mode) */
 	if (pcwd_private.revision == PCWD_REVISION_A)
