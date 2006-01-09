@@ -82,9 +82,9 @@
 #define TUNER_PHILIPS_FM1236_MK3	43
 
 #define TUNER_PHILIPS_4IN1		44	/* ATI TV Wonder Pro - Conexant */
-/* Microtune mergeged with Temic 12/31/1999 partially financed by Alps - these may be similar to Temic */
+/* Microtune merged with Temic 12/31/1999 partially financed by Alps - these may be similar to Temic */
 #define TUNER_MICROTUNE_4049FM5 	45
-#define TUNER_MICROTUNE_4042_FI5	46
+#define TUNER_PANASONIC_VP27		46
 #define TUNER_LG_NTSC_TAPE		47
 
 #define TUNER_TNF_8831BGFF		48

@@ -512,7 +512,7 @@ static struct tunertype tuners[] = {
 		.UHF    = 0x30,
 		.config = 0x8e,
 	},
-	[TUNER_MICROTUNE_4042_FI5] = { /* Panasonic NTSC */
+	[TUNER_PANASONIC_VP27] = { /* Panasonic NTSC */
 		.name   = "Panasonic VP27s/ENGE4324D",
 		.thresh1= 16 * 160.00 /*MHz*/,
 		.thresh2= 16 * 454.00 /*MHz*/,
