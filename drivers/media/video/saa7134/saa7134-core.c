@@ -1156,7 +1156,7 @@ static int saa7134_init(void)
 	printk(KERN_INFO "saa7130/34: snapshot date %04d-%02d-%02d\n",
 	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
 #endif
-	return pci_module_init(&saa7134_pci_driver);
+	return pci_register_driver(&saa7134_pci_driver);
 }
 
 static void saa7134_fini(void)
