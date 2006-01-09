@@ -55,7 +55,7 @@ static int mthca_query_device(struct ib_device *ibdev,
 
 	u8 status;
 
-	in_mad  = kmalloc(sizeof *in_mad, GFP_KERNEL);
+	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad)
 		goto out;
@@ -64,7 +64,6 @@ static int mthca_query_device(struct ib_device *ibdev,
 
 	props->fw_ver              = mdev->fw_ver;
 
-	memset(in_mad, 0, sizeof *in_mad);
 	in_mad->base_version       = 1;
 	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	in_mad->class_version  	   = 1;
@@ -128,14 +127,13 @@ static int mthca_query_port(struct ib_device *ibdev,
 	int err = -ENOMEM;
 	u8 status;
 
-	in_mad  = kmalloc(sizeof *in_mad, GFP_KERNEL);
+	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad)
 		goto out;
 
 	memset(props, 0, sizeof *props);
 
-	memset(in_mad, 0, sizeof *in_mad);
 	in_mad->base_version       = 1;
 	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	in_mad->class_version  	   = 1;
@@ -220,12 +218,11 @@ static int mthca_query_pkey(struct ib_device *ibdev,
 	int err = -ENOMEM;
 	u8 status;
 
-	in_mad  = kmalloc(sizeof *in_mad, GFP_KERNEL);
+	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad)
 		goto out;
 
-	memset(in_mad, 0, sizeof *in_mad);
 	in_mad->base_version       = 1;
 	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	in_mad->class_version  	   = 1;
@@ -259,12 +256,11 @@ static int mthca_query_gid(struct ib_device *ibdev, u8 port,
 	int err = -ENOMEM;
 	u8 status;
 
-	in_mad  = kmalloc(sizeof *in_mad, GFP_KERNEL);
+	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad)
 		goto out;
 
-	memset(in_mad, 0, sizeof *in_mad);
 	in_mad->base_version       = 1;
 	in_mad->mgmt_class     	   = IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	in_mad->class_version  	   = 1;
