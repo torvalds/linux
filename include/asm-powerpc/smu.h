@@ -22,7 +22,7 @@
 /*
  * Partition info commands
  *
- * These commands are used to retreive the sdb-partition-XX datas from
+ * These commands are used to retrieve the sdb-partition-XX datas from
  * the SMU. The lenght is always 2. First byte is the subcommand code
  * and second byte is the partition ID.
  *
@@ -225,7 +225,7 @@
  *
  * SMU_CMD_MISC_ee_GET_DATABLOCK_REC is used, among others, to
  * transfer blocks of data from the SMU. So far, I've decrypted it's
- * usage to retreive partition data. In order to do that, you have to
+ * usage to retrieve partition data. In order to do that, you have to
  * break your transfer in "chunks" since that command cannot transfer
  * more than a chunk at a time. The chunk size used by OF is 0xe bytes,
  * but it seems that the darwin driver will let you do 0x1e bytes if
@@ -556,7 +556,7 @@ struct smu_user_cmd_hdr
 	__u32		cmdtype;
 #define SMU_CMDTYPE_SMU			0	/* SMU command */
 #define SMU_CMDTYPE_WANTS_EVENTS	1	/* switch fd to events mode */
-#define SMU_CMDTYPE_GET_PARTITION	2	/* retreive an sdb partition */
+#define SMU_CMDTYPE_GET_PARTITION	2	/* retrieve an sdb partition */
 
 	__u8		cmd;			/* SMU command byte */
 	__u8		pad[3];			/* padding */

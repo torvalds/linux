@@ -357,7 +357,7 @@ static int cypress_serial_control (struct usb_serial_port *port, unsigned baud_m
 			} while (retval != 5 && retval != ENODEV);
 
 			if (retval != 5) {
-				err("%s - failed to retreive serial line settings - %d", __FUNCTION__, retval);
+				err("%s - failed to retrieve serial line settings - %d", __FUNCTION__, retval);
 				return retval;
 			} else {
 				spin_lock_irqsave(&priv->lock, flags);

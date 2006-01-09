@@ -632,7 +632,7 @@ void rtas_stop_self(void)
 }
 
 /*
- * Call early during boot, before mem init or bootmem, to retreive the RTAS
+ * Call early during boot, before mem init or bootmem, to retrieve the RTAS
  * informations from the device-tree and allocate the RMO buffer for userland
  * accesses.
  */
