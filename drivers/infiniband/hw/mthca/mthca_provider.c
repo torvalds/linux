@@ -783,23 +783,19 @@ static struct ib_mr *mthca_reg_phys_mr(struct ib_pd       *pd,
 	if ((*iova_start & ~PAGE_MASK) != (buffer_list[0].addr & ~PAGE_MASK))
 		return ERR_PTR(-EINVAL);
 
-	if (num_phys_buf > 1 &&
-	    ((buffer_list[0].addr + buffer_list[0].size) & ~PAGE_MASK))
-		return ERR_PTR(-EINVAL);
-
 	mask = 0;
 	total_size = 0;
 	for (i = 0; i < num_phys_buf; ++i) {
-		if (i != 0 && buffer_list[i].addr & ~PAGE_MASK)
-			return ERR_PTR(-EINVAL);
-		if (i != 0 && i != num_phys_buf - 1 &&
-		    (buffer_list[i].size & ~PAGE_MASK))
-			return ERR_PTR(-EINVAL);
+		if (i != 0)
+			mask |= buffer_list[i].addr;
+		if (i != num_phys_buf - 1)
+			mask |= buffer_list[i].addr + buffer_list[i].size;
 
 		total_size += buffer_list[i].size;
-		if (i > 0)
-			mask |= buffer_list[i].addr;
 	}
+
+	if (mask & ~PAGE_MASK)
+		return ERR_PTR(-EINVAL);
 
 	/* Find largest page shift we can use to cover buffers */
 	for (shift = PAGE_SHIFT; shift < 31; ++shift)
