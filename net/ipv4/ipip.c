@@ -244,7 +244,7 @@ static struct ip_tunnel * ipip_tunnel_locate(struct ip_tunnel_parm *parms, int c
 	if (dev == NULL)
 		return NULL;
 
-	nt = dev->priv;
+	nt = netdev_priv(dev);
 	SET_MODULE_OWNER(dev);
 	dev->init = ipip_tunnel_init;
 	nt->parms = *parms;
@@ -269,7 +269,7 @@ static void ipip_tunnel_uninit(struct net_device *dev)
 		tunnels_wc[0] = NULL;
 		write_unlock_bh(&ipip_lock);
 	} else
-		ipip_tunnel_unlink((struct ip_tunnel*)dev->priv);
+		ipip_tunnel_unlink(netdev_priv(dev));
 	dev_put(dev);
 }
 
@@ -443,7 +443,7 @@ out:
 		skb2->dst->ops->update_pmtu(skb2->dst, rel_info);
 		rel_info = htonl(rel_info);
 	} else if (type == ICMP_TIME_EXCEEDED) {
-		struct ip_tunnel *t = (struct ip_tunnel*)skb2->dev->priv;
+		struct ip_tunnel *t = netdev_priv(skb2->dev);
 		if (t->parms.iph.ttl) {
 			rel_type = ICMP_DEST_UNREACH;
 			rel_code = ICMP_HOST_UNREACH;
@@ -514,7 +514,7 @@ out:
 
 static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct ip_tunnel *tunnel = (struct ip_tunnel*)dev->priv;
+	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct net_device_stats *stats = &tunnel->stat;
 	struct iphdr  *tiph = &tunnel->parms.iph;
 	u8     tos = tunnel->parms.iph.tos;
@@ -674,7 +674,7 @@ ipip_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			t = ipip_tunnel_locate(&p, 0);
 		}
 		if (t == NULL)
-			t = (struct ip_tunnel*)dev->priv;
+			t = netdev_priv(dev);
 		memcpy(&p, &t->parms, sizeof(p));
 		if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
 			err = -EFAULT;
@@ -711,7 +711,7 @@ ipip_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 					err = -EINVAL;
 					break;
 				}
-				t = (struct ip_tunnel*)dev->priv;
+				t = netdev_priv(dev);
 				ipip_tunnel_unlink(t);
 				t->parms.iph.saddr = p.iph.saddr;
 				t->parms.iph.daddr = p.iph.daddr;
@@ -765,7 +765,7 @@ done:
 
 static struct net_device_stats *ipip_tunnel_get_stats(struct net_device *dev)
 {
-	return &(((struct ip_tunnel*)dev->priv)->stat);
+	return &(((struct ip_tunnel*)netdev_priv(dev))->stat);
 }
 
 static int ipip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
@@ -800,7 +800,7 @@ static int ipip_tunnel_init(struct net_device *dev)
 	struct ip_tunnel *tunnel;
 	struct iphdr *iph;
 
-	tunnel = (struct ip_tunnel*)dev->priv;
+	tunnel = netdev_priv(dev);
 	iph = &tunnel->parms.iph;
 
 	tunnel->dev = dev;
@@ -838,7 +838,7 @@ static int ipip_tunnel_init(struct net_device *dev)
 
 static int __init ipip_fb_tunnel_init(struct net_device *dev)
 {
-	struct ip_tunnel *tunnel = dev->priv;
+	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
 
 	tunnel->dev = dev;
