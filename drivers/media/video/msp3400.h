@@ -57,10 +57,21 @@ extern int stereo_threshold;
 
 struct msp_state {
 	int rev1, rev2;
+	int has_nicam;
+	int has_radio;
+	int has_headphones;
+	int has_ntsc_jp_d_k3;
+	int has_scart4;
+	int has_scart23_in_scart2_out;
+	int has_subwoofer;
+	int has_sound_processing;
+	int has_virtual_dolby_surround;
+	int has_dolby_pro_logic;
 
+	int radio;
 	int opmode;
 	int mode;
-	int norm;
+	v4l2_std_id std;
 	int stereo;
 	int nicam_on;
 	int acb;
@@ -85,11 +96,6 @@ struct msp_state {
 	int                  watch_stereo:1;
 };
 
-#define VIDEO_MODE_RADIO 16      /* norm magic for radio mode */
-
-#define HAVE_NICAM(state)   (((state->rev2 >> 8) & 0xff) != 0)
-#define HAVE_RADIO(state)   ((state->rev1 & 0x0f) >= 'G'-'@')
-
 /* msp3400-driver.c */
 int msp_write_dem(struct i2c_client *client, int addr, int val);
 int msp_write_dsp(struct i2c_client *client, int addr, int val);
@@ -99,8 +105,7 @@ int msp_reset(struct i2c_client *client);
 void msp_set_scart(struct i2c_client *client, int in, int out);
 void msp_set_mute(struct i2c_client *client);
 void msp_set_audio(struct i2c_client *client);
-int msp_modus(struct i2c_client *client, int norm);
-int msp_standard(int norm);
+int msp_modus(struct i2c_client *client);
 int msp_sleep(struct msp_state *state, int timeout);
 
 /* msp3400-kthreads.c */

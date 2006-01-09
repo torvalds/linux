@@ -312,10 +312,16 @@ void msp_set_audio(struct i2c_client *client)
 	msp_write_dsp(client, 0x0003, treble); /* loudspeaker */
 }
 
-int msp_modus(struct i2c_client *client, int norm)
+int msp_modus(struct i2c_client *client)
 {
-	switch (norm) {
-	case VIDEO_MODE_PAL:
+	struct msp_state *state = i2c_get_clientdata(client);
+
+	if (state->radio) {
+		v4l_dbg(1, client, "video mode selected to Radio\n");
+		return 0x0003;
+	}
+
+	if (state->std & V4L2_STD_PAL) {
 		v4l_dbg(1, client, "video mode selected to PAL\n");
 
 #if 1
@@ -325,37 +331,16 @@ int msp_modus(struct i2c_client *client, int norm)
 		/* previous value, try this if it breaks ... */
 		return 0x1003;
 #endif
-	case VIDEO_MODE_NTSC:  /* BTSC */
+	}
+	if (state->std & V4L2_STD_NTSC) {
 		v4l_dbg(1, client, "video mode selected to NTSC\n");
 		return 0x2003;
-	case VIDEO_MODE_SECAM:
+	}
+	if (state->std & V4L2_STD_SECAM) {
 		v4l_dbg(1, client, "video mode selected to SECAM\n");
 		return 0x0003;
-	case VIDEO_MODE_RADIO:
-		v4l_dbg(1, client, "video mode selected to Radio\n");
-		return 0x0003;
-	case VIDEO_MODE_AUTO:
-		v4l_dbg(1, client, "video mode selected to Auto\n");
-		return 0x2003;
-	default:
-		return 0x0003;
 	}
-}
-
-int msp_standard(int norm)
-{
-	switch (norm) {
-	case VIDEO_MODE_PAL:
-		return 1;
-	case VIDEO_MODE_NTSC:  /* BTSC */
-		return 0x0020;
-	case VIDEO_MODE_SECAM:
-		return 1;
-	case VIDEO_MODE_RADIO:
-		return 0x0040;
-	default:
-		return 1;
-	}
+	return 0x0003;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -617,7 +602,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 
 	case AUDC_SET_RADIO:
-		state->norm = VIDEO_MODE_RADIO;
+		state->radio = 1;
 		v4l_dbg(1, client, "switching to radio mode\n");
 		state->watch_stereo = 0;
 		switch (state->opmode) {
@@ -673,7 +658,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		state->treble = va->treble;
 		msp_set_audio(client);
 
-		if (va->mode != 0 && state->norm != VIDEO_MODE_RADIO)
+		if (va->mode != 0 && state->radio == 0)
 			msp_any_set_audmode(client, msp_mode_v4l1_to_v4l2(va->mode));
 		break;
 	}
@@ -682,7 +667,13 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		struct video_channel *vc = arg;
 
-		state->norm = vc->norm;
+		state->radio = 0;
+		if (vc->norm == VIDEO_MODE_PAL)
+			state->std = V4L2_STD_PAL;
+		else if (vc->norm == VIDEO_MODE_SECAM)
+			state->std = V4L2_STD_SECAM;
+		else
+			state->std = V4L2_STD_NTSC;
 		msp_wake_thread(client);
 		break;
 	}
@@ -709,15 +700,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		v4l2_std_id *id = arg;
 
-		/*FIXME: use V4L2 mode flags on msp3400 instead of V4L1*/
-		if (*id & V4L2_STD_PAL) {
-			state->norm = VIDEO_MODE_PAL;
-		} else if (*id & V4L2_STD_SECAM) {
-			state->norm = VIDEO_MODE_SECAM;
-		} else {
-			state->norm = VIDEO_MODE_NTSC;
-		}
-
+		state->std = *id;
+		state->radio = 0;
 		msp_wake_thread(client);
 		return 0;
 	}
@@ -965,6 +949,11 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	struct i2c_client *client;
 	struct msp_state *state;
 	int (*thread_func)(void *data) = NULL;
+	int msp_hard;
+	int msp_family;
+	int msp_revision;
+	int msp_product, msp_prod_hi, msp_prod_lo;
+	int msp_rom;
 
 	client = kmalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL)
@@ -989,7 +978,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	i2c_set_clientdata(client, state);
 
 	memset(state, 0, sizeof(*state));
-	state->norm = VIDEO_MODE_NTSC;
+	state->std = V4L2_STD_NTSC;
 	state->volume = 58880;	/* 0db gain */
 	state->balance = 32768;	/* 0db gain */
 	state->bass = 32768;
@@ -1012,20 +1001,45 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	msp_set_audio(client);
 
-	snprintf(client->name, sizeof(client->name), "MSP%c4%02d%c-%c%d",
-		 ((state->rev1 >> 4) & 0x0f) + '3',
-		 (state->rev2 >> 8) & 0xff,
-		 (state->rev1 & 0x0f) + '@',
-		 ((state->rev1 >> 8) & 0xff) + '@',
-		 state->rev2 & 0x1f);
+	msp_family = ((state->rev1 >> 4) & 0x0f) + 3;
+	msp_product = (state->rev2 >> 8) & 0xff;
+	msp_prod_hi = msp_product / 10;
+	msp_prod_lo = msp_product % 10;
+	msp_revision = (state->rev1 & 0x0f) + '@';
+	msp_hard = ((state->rev1 >> 8) & 0xff) + '@';
+	msp_rom = state->rev2 & 0x1f;
+	snprintf(client->name, sizeof(client->name), "MSP%d4%02d%c-%c%d",
+			msp_family, msp_product,
+			msp_revision, msp_hard, msp_rom);
+
+	/* Has NICAM support: all mspx41x and mspx45x products have NICAM */
+	state->has_nicam = msp_prod_hi == 1 || msp_prod_hi == 5;
+	/* Has radio support: was added with revision G */
+	state->has_radio = msp_revision >= 'G';
+	/* Has headphones output: not for stripped down products */
+	state->has_headphones = msp_prod_lo < 5;
+	/* Has scart4 input: not in pre D revisions, not in stripped D revs */
+	state->has_scart4 = msp_family >= 4 || (msp_revision >= 'D' && msp_prod_lo < 5);
+	/* Has scart2 and scart3 inputs and scart2 output: not in stripped
+	   down products of the '3' family */
+	state->has_scart23_in_scart2_out = msp_family >= 4 || msp_prod_lo < 5;
+	/* Has subwoofer output: not in pre-D revs and not in stripped down products */
+	state->has_subwoofer = msp_revision >= 'D' && msp_prod_lo < 5;
+	/* Has soundprocessing (bass/treble/balance/loudness/equalizer): not in
+	   stripped down products */
+	state->has_sound_processing = msp_prod_lo < 7;
+	/* Has Virtual Dolby Surround: only in msp34x1 */
+	state->has_virtual_dolby_surround = msp_revision == 'G' && msp_prod_lo == 1;
+	/* Has Virtual Dolby Surround & Dolby Pro Logic: only in msp34x2 */
+	state->has_dolby_pro_logic = msp_revision == 'G' && msp_prod_lo == 2;
 
 	state->opmode = opmode;
 	if (state->opmode == OPMODE_AUTO) {
 		/* MSP revision G and up have both autodetect and autoselect */
-		if ((state->rev1 & 0x0f) >= 'G'-'@')
+		if (msp_revision >= 'G')
 			state->opmode = OPMODE_AUTOSELECT;
 		/* MSP revision D and up have autodetect */
-		else if ((state->rev1 & 0x0f) >= 'D'-'@')
+		else if (msp_revision >= 'D')
 			state->opmode = OPMODE_AUTODETECT;
 		else
 			state->opmode = OPMODE_MANUAL;
@@ -1034,11 +1048,11 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	/* hello world :-) */
 	v4l_info(client, "%s found @ 0x%x (%s)\n", client->name, address << 1, adapter->name);
 	v4l_info(client, "%s ", client->name);
-	if (HAVE_NICAM(state) && HAVE_RADIO(state))
+	if (state->has_nicam && state->has_radio)
 		printk("supports nicam and radio, ");
-	else if (HAVE_NICAM(state))
+	else if (state->has_nicam)
 		printk("supports nicam, ");
-	else if (HAVE_RADIO(state))
+	else if (state->has_radio)
 		printk("supports radio, ");
 	printk("mode is ");
 

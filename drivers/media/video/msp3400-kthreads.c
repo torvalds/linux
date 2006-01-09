@@ -203,7 +203,7 @@ void msp3400c_setmode(struct i2c_client *client, int type)
 	msp_write_dsp(client, 0x000a, msp3400c_init_data[type].dsp_src);
 	msp_write_dsp(client, 0x000e, msp3400c_init_data[type].dsp_matrix);
 
-	if (HAVE_NICAM(state)) {
+	if (state->has_nicam) {
 		/* nicam prescale */
 		msp_write_dsp(client, 0x0010, 0x5a00); /* was: 0x3000 */
 	}
@@ -487,8 +487,7 @@ int msp3400c_thread(void *data)
 		if (kthread_should_stop())
 			break;
 
-		if (VIDEO_MODE_RADIO == state->norm ||
-		    MSP_MODE_EXTERN  == state->mode) {
+		if (state->radio || MSP_MODE_EXTERN == state->mode) {
 			/* no carrier scan, just unmute */
 			v4l_dbg(1, client, "thread: no carrier scan\n");
 			msp_set_audio(client);
@@ -510,7 +509,7 @@ int msp3400c_thread(void *data)
 		cd = msp3400c_carrier_detect_main;
 		count = ARRAY_SIZE(msp3400c_carrier_detect_main);
 
-		if (amsound && (state->norm == VIDEO_MODE_SECAM)) {
+		if (amsound && (state->std & V4L2_STD_SECAM)) {
 			/* autodetect doesn't work well with AM ... */
 			max1 = 3;
 			count = 0;
@@ -547,7 +546,7 @@ int msp3400c_thread(void *data)
 			break;
 		}
 
-		if (amsound && (state->norm == VIDEO_MODE_SECAM)) {
+		if (amsound && (state->std & V4L2_STD_SECAM)) {
 			/* autodetect doesn't work well with AM ... */
 			cd = NULL;
 			count = 0;
@@ -576,7 +575,7 @@ int msp3400c_thread(void *data)
 				state->nicam_on = 0;
 				msp3400c_setstereo(client, V4L2_TUNER_MODE_MONO);
 				state->watch_stereo = 1;
-			} else if (max2 == 1 && HAVE_NICAM(state)) {
+			} else if (max2 == 1 && state->has_nicam) {
 				/* B/G NICAM */
 				state->second = msp3400c_carrier_detect_55[max2].cdo;
 				msp3400c_setmode(client, MSP_MODE_FM_NICAM1);
@@ -603,8 +602,7 @@ int msp3400c_thread(void *data)
 				state->nicam_on = 0;
 				msp3400c_setstereo(client, V4L2_TUNER_MODE_MONO);
 				state->watch_stereo = 1;
-			} else if (max2 == 0 &&
-				   state->norm == VIDEO_MODE_SECAM) {
+			} else if (max2 == 0 && (state->std & V4L2_STD_SECAM)) {
 				/* L NICAM or AM-mono */
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_setmode(client, MSP_MODE_AM_NICAM);
@@ -614,7 +612,7 @@ int msp3400c_thread(void *data)
 				/* volume prescale for SCART (AM mono input) */
 				msp_write_dsp(client, 0x000d, 0x1900);
 				state->watch_stereo = 1;
-			} else if (max2 == 0 && HAVE_NICAM(state)) {
+			} else if (max2 == 0 && state->has_nicam) {
 				/* D/K NICAM */
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_setmode(client, MSP_MODE_FM_NICAM1);
@@ -689,8 +687,8 @@ int msp3410d_thread(void *data)
 			goto restart;
 
 		/* start autodetect */
-		mode = msp_modus(client, state->norm);
-		std  = msp_standard(state->norm);
+		mode = msp_modus(client);
+		std = (state->std & V4L2_STD_NTSC) ? 0x20 : 1;
 		msp_write_dem(client, 0x30, mode);
 		msp_write_dem(client, 0x20, std);
 		state->watch_stereo = 0;
@@ -723,7 +721,7 @@ int msp3410d_thread(void *data)
 		state->main   = msp_modelist[i].main;
 		state->second = msp_modelist[i].second;
 
-		if (amsound && (state->norm == VIDEO_MODE_SECAM) && (val != 0x0009)) {
+		if (amsound && (state->std & V4L2_STD_SECAM) && (val != 0x0009)) {
 			/* autodetection has failed, let backup */
 			v4l_dbg(1, client, "autodetection failed,"
 				" switching to backup mode: %s (0x%04x)\n",
@@ -767,12 +765,12 @@ int msp3410d_thread(void *data)
 			msp3400c_setstereo(client,V4L2_TUNER_MODE_STEREO);
 			break;
 		case 0x0040: /* FM radio */
-			state->mode   = MSP_MODE_FM_RADIO;
+			state->mode = MSP_MODE_FM_RADIO;
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
 			state->audmode = V4L2_TUNER_MODE_STEREO;
 			state->nicam_on = 0;
 			state->watch_stereo = 0;
-			/* not needed in theory if HAVE_RADIO(), but
+			/* not needed in theory if we have radio, but
 			   short programming enables carrier mute */
 			msp3400c_setmode(client,MSP_MODE_FM_RADIO);
 			msp3400c_setcarrier(client, MSP_CARRIER(10.7),
@@ -872,8 +870,11 @@ static int msp34xxg_reset(struct i2c_client *client)
 	msp_write_dem(client, 0x40, state->i2s_mode);
 
 	/* step-by-step initialisation, as described in the manual */
-	modus = msp_modus(client, state->norm);
-	std   = msp_standard(state->norm);
+	modus = msp_modus(client);
+	if (state->radio)
+		std = 0x40;
+	else
+		std = (state->std & V4L2_STD_NTSC) ? 0x20 : 1;
 	modus &= ~0x03; /* STATUS_CHANGE = 0 */
 	modus |= 0x01;  /* AUTOMATIC_SOUND_DETECTION = 1 */
 	if (msp_write_dem(client, 0x30, modus))
