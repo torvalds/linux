@@ -1440,6 +1440,7 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 		 * modem is ready for us.
 		 */
 		spin_lock_irq(&port->lock);
+		port->ops->enable_ms(port);
 		mctrl = port->ops->get_mctrl(port);
 		spin_unlock_irq(&port->lock);
 		if (mctrl & TIOCM_CAR)
