@@ -8,6 +8,10 @@
 #include <linux/videodev.h>
 #include <media/tuner.h>
 
+static int offset = 0;
+module_param(offset, int, 0666);
+MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
+
 /* ---------------------------------------------------------------------- */
 
 /* tv standard selection for Temic 4046 FM5
@@ -908,7 +912,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		IFPCoff = 623;
 	}
 
-	div=freq + IFPCoff;
+	div=freq + IFPCoff + offset;
 	if (t->type == TUNER_PHILIPS_SECAM && freq < t->freq) {
 		buffer[0] = tun->config;
 		buffer[1] = config;
