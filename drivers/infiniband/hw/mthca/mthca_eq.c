@@ -484,8 +484,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 				     u8 intr,
 				     struct mthca_eq *eq)
 {
-	int npages = (nent * MTHCA_EQ_ENTRY_SIZE + PAGE_SIZE - 1) /
-		PAGE_SIZE;
+	int npages;
 	u64 *dma_list = NULL;
 	dma_addr_t t;
 	struct mthca_mailbox *mailbox;
@@ -496,6 +495,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 
 	eq->dev  = dev;
 	eq->nent = roundup_pow_of_two(max(nent, 2));
+ 	npages = ALIGN(eq->nent * MTHCA_EQ_ENTRY_SIZE, PAGE_SIZE) / PAGE_SIZE;
 
 	eq->page_list = kmalloc(npages * sizeof *eq->page_list,
 				GFP_KERNEL);
