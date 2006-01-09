@@ -538,6 +538,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->polling = 1; /* ms */
 		break;
 	case CX88_BOARD_AVERTV_303:
+	case CX88_BOARD_AVERTV_STUDIO_303:
 		ir_codes         = ir_codes_avertv_303;
 		ir->gpio_addr    = MO_GP2_IO;
 		ir->mask_keycode = 0xfb;
