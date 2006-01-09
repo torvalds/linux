@@ -587,7 +587,7 @@ int av7110_init_analog_module(struct av7110 *av7110)
 
 	printk("dvb-ttpci: DVB-C analog module @ card %d detected, initializing MSP3400\n",
 		av7110->dvb_adapter.num);
-	av7110->adac_type = DVB_ADAC_MSP;
+	av7110->adac_type = DVB_ADAC_MSP34x0;
 	msleep(100); // the probing above resets the msp...
 	msp_readreg(av7110, MSP_RD_DSP, 0x001e, &version1);
 	msp_readreg(av7110, MSP_RD_DSP, 0x001f, &version2);

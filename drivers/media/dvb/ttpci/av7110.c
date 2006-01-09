@@ -133,7 +133,13 @@ static void init_av7110_av(struct av7110 *av7110)
 	/* remaining inits according to card and frontend type */
 	av7110->analog_tuner_flags = 0;
 	av7110->current_input = 0;
-	if (i2c_writereg(av7110, 0x20, 0x00, 0x00) == 1) {
+	if (dev->pci->subsystem_vendor == 0x13c2 && dev->pci->subsystem_device == 0x000a) {
+		printk("dvb-ttpci: MSP3415 audio DAC @ card %d\n",
+			av7110->dvb_adapter.num);
+		av7110->adac_type = DVB_ADAC_MSP34x5;
+		av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, ADSwitch, 1, 0); // SPDIF on
+	}
+	else if (i2c_writereg(av7110, 0x20, 0x00, 0x00) == 1) {
 		printk ("dvb-ttpci: Crystal audio DAC @ card %d detected\n",
 			av7110->dvb_adapter.num);
 		av7110->adac_type = DVB_ADAC_CRYSTAL;
@@ -156,10 +162,10 @@ static void init_av7110_av(struct av7110 *av7110)
 	else {
 		av7110->adac_type = adac;
 		printk("dvb-ttpci: adac type set to %d @ card %d\n",
-			av7110->dvb_adapter.num, av7110->adac_type);
+			av7110->adac_type, av7110->dvb_adapter.num);
 	}
 
-	if (av7110->adac_type == DVB_ADAC_NONE || av7110->adac_type == DVB_ADAC_MSP) {
+	if (av7110->adac_type == DVB_ADAC_NONE || av7110->adac_type == DVB_ADAC_MSP34x0) {
 		// switch DVB SCART on
 		ret = av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, MainSwitch, 1, 0);
 		if (ret < 0)

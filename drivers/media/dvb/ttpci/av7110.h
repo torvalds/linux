@@ -98,7 +98,8 @@ struct av7110 {
 	int adac_type;	       /* audio DAC type */
 #define DVB_ADAC_TI	  0
 #define DVB_ADAC_CRYSTAL  1
-#define DVB_ADAC_MSP	  2
+#define DVB_ADAC_MSP34x0  2
+#define DVB_ADAC_MSP34x5  3
 #define DVB_ADAC_NONE	 -1
 
 

@@ -309,7 +309,7 @@ int av7110_set_volume(struct av7110 *av7110, int volleft, int volright)
 		i2c_writereg(av7110, 0x20, 0x04, volright);
 		return 0;
 
-	case DVB_ADAC_MSP:
+	case DVB_ADAC_MSP34x0:
 		vol  = (volleft > volright) ? volleft : volright;
 		val	= (vol * 0x73 / 255) << 8;
 		if (vol > 0)
