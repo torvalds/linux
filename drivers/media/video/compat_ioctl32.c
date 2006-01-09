@@ -489,7 +489,7 @@ static int do_set_window(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 	}
 
-	return native_ioctl(file, VIDIOCSWIN, (unsigned long)p);
+	return native_ioctl(file, VIDIOCSWIN, (unsigned long)vw);
 }
 
 static int do_video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
