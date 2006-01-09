@@ -2584,6 +2584,41 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio   = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_FLYDVB_TRIO] = {
+		/* LifeView LR319 FlyDVB Trio */
+		/* Peter Missel <peter.missel@onlinehome.de> */
+		.name           = "LifeView FlyDVB Trio",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask	= 0x00200000,
+		.inputs         = {{
+			.name = name_tv,	/* Analog broadcast/cable TV */
+			.vmux = 1,
+			.amux = TV,
+			.gpio = 0x200000,	/* GPIO21=High for TV input */
+			.tv   = 1,
+		},{
+			.name = name_svideo,	/* S-Video signal on S-Video input */
+			.vmux = 8,
+			.amux = LINE2,
+		},{
+			.name = name_comp1,	/* Composite signal on S-Video input */
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,	/* Composite input */
+			.vmux = 3,
+			.amux = LINE2,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x000000,	/* GPIO21=Low for FM radio antenna */
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -3042,6 +3077,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x153b,
 		.subdevice    = 0x1160,
 		.driver_data  = SAA7134_BOARD_CINERGY250PCI,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,	/* SAA 7131E */
+		.subvendor    = 0x5168,
+		.subdevice    = 0x0319,
+		.driver_data  = SAA7134_BOARD_FLYDVB_TRIO,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
