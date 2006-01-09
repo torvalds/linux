@@ -66,7 +66,7 @@ struct elevator_type
 };
 
 /*
- * each queue has an elevator_queue assoicated with it
+ * each queue has an elevator_queue associated with it
  */
 struct elevator_queue
 {
