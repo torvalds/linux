@@ -57,22 +57,24 @@ extern int stereo_threshold;
 
 struct msp_state {
 	int rev1, rev2;
-	int has_nicam;
-	int has_radio;
-	int has_headphones;
-	int has_ntsc_jp_d_k3;
-	int has_scart4;
-	int has_scart23_in_scart2_out;
-	int has_scart2_out_volume;
-	int has_subwoofer;
-	int has_sound_processing;
-	int has_virtual_dolby_surround;
-	int has_dolby_pro_logic;
+	u8 has_nicam;
+	u8 has_radio;
+	u8 has_headphones;
+	u8 has_ntsc_jp_d_k3;
+	u8 has_scart4;
+	u8 has_scart23_in_scart2_out;
+	u8 has_scart2_out_volume;
+	u8 has_i2s_conf;
+	u8 has_subwoofer;
+	u8 has_sound_processing;
+	u8 has_virtual_dolby_surround;
+	u8 has_dolby_pro_logic;
 
 	int radio;
 	int opmode;
+	int std;
 	int mode;
-	v4l2_std_id std;
+	v4l2_std_id v4l2_std;
 	int nicam_on;
 	int acb;
 	int in_scart;
@@ -109,7 +111,7 @@ int msp_modus(struct i2c_client *client);
 int msp_sleep(struct msp_state *state, int timeout);
 
 /* msp3400-kthreads.c */
-const char *msp_standard_mode_name(int mode);
+const char *msp_standard_std_name(int std);
 void msp3400c_setcarrier(struct i2c_client *client, int cdo1, int cdo2);
 void msp3400c_setmode(struct i2c_client *client, int type);
 void msp3400c_setstereo(struct i2c_client *client, int mode);

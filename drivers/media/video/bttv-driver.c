@@ -3220,6 +3220,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOCSFREQ:
 	case VIDIOCGAUDIO:
 	case VIDIOCSAUDIO:
+	case VIDIOC_LOG_STATUS:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
