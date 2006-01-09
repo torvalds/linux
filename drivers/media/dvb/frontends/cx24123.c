@@ -487,8 +487,7 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 static int cx24123_pll_writereg(struct dvb_frontend* fe, struct dvb_frontend_parameters *p, u32 data)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
-
-	u8 timeout = 0;
+	unsigned long timeout;
 
 	/* align the 21 bytes into to bit23 boundary */
 	data = data << 3;
@@ -496,43 +495,37 @@ static int cx24123_pll_writereg(struct dvb_frontend* fe, struct dvb_frontend_par
 	/* Reset the demod pll word length to 0x15 bits */
 	cx24123_writereg(state, 0x21, 0x15);
 
-	timeout = 0;
 	/* write the msb 8 bits, wait for the send to be completed */
+	timeout = jiffies + msecs_to_jiffies(40);
 	cx24123_writereg(state, 0x22, (data >> 16) & 0xff);
-	while ( ( cx24123_readreg(state, 0x20) & 0x40 ) == 0 )
-	{
-		/* Safety - No reason why the write should not complete, and we never get here, avoid hang */
-		if (timeout++ >= 4) {
-			printk("%s:  demodulator is no longer responding, aborting.\n",__FUNCTION__);
+	while ((cx24123_readreg(state, 0x20) & 0x40) == 0) {
+		if (time_after(jiffies, timeout)) {
+			printk("%s:  demodulator is not responding, possibly hung, aborting.\n", __FUNCTION__);
 			return -EREMOTEIO;
 		}
-		msleep(500);
+		msleep(10);
 	}
 
-	timeout = 0;
 	/* send another 8 bytes, wait for the send to be completed */
+	timeout = jiffies + msecs_to_jiffies(40);
 	cx24123_writereg(state, 0x22, (data>>8) & 0xff );
-	while ( (cx24123_readreg(state, 0x20) & 0x40 ) == 0 )
-	{
-		/* Safety - No reason why the write should not complete, and we never get here, avoid hang */
-		if (timeout++ >= 4) {
-			printk("%s:  demodulator is not responding, possibly hung, aborting.\n",__FUNCTION__);
+	while ((cx24123_readreg(state, 0x20) & 0x40) == 0) {
+		if (time_after(jiffies, timeout)) {
+			printk("%s:  demodulator is not responding, possibly hung, aborting.\n", __FUNCTION__);
 			return -EREMOTEIO;
 		}
-		msleep(500);
+		msleep(10);
 	}
 
-	timeout = 0;
 	/* send the lower 5 bits of this byte, padded with 3 LBB, wait for the send to be completed */
+	timeout = jiffies + msecs_to_jiffies(40);
 	cx24123_writereg(state, 0x22, (data) & 0xff );
-	while ((cx24123_readreg(state, 0x20) & 0x80))
-	{
-		/* Safety - No reason why the write should not complete, and we never get here, avoid hang */
-		if (timeout++ >= 4) {
-			printk("%s:  demodulator is not responding, possibly hung, aborting.\n",__FUNCTION__);
+	while ((cx24123_readreg(state, 0x20) & 0x80)) {
+		if (time_after(jiffies, timeout)) {
+			printk("%s:  demodulator is not responding, possibly hung, aborting.\n", __FUNCTION__);
 			return -EREMOTEIO;
 		}
-		msleep(500);
+		msleep(10);
 	}
 
 	/* Trigger the demod to configure the tuner */
