@@ -87,38 +87,53 @@ static int wm8775_command(struct i2c_client *client, unsigned int cmd,
 			  void *arg)
 {
 	struct wm8775_state *state = i2c_get_clientdata(client);
-	int *input = arg;
+	struct v4l2_audio *input = arg;
+	struct v4l2_control *ctrl = arg;
 
 	switch (cmd) {
-	case AUDC_SET_INPUT:
+	case VIDIOC_S_AUDIO:
+		/* There are 4 inputs and one output. Zero or more inputs
+		   are multiplexed together to the output. Hence there are
+		   16 combinations.
+		   If only one input is active (the normal case) then the
+		   input values 1, 2, 4 or 8 should be used. */
+		if (input->index > 15) {
+			wm8775_err("Invalid input %d.\n", input->index);
+			return -EINVAL;
+		}
+		state->input = input->index;
+		if (state->muted)
+			break;
 		wm8775_write(client, R21, 0x0c0);
 		wm8775_write(client, R14, 0x1d4);
 		wm8775_write(client, R15, 0x1d4);
+		wm8775_write(client, R21, 0x100 + state->input);
+		break;
 
-		if (*input == AUDIO_RADIO) {
-			wm8775_write(client, R21, 0x108);
-			state->input = 8;
-			state->muted = 0;
-			break;
-		}
-		if (*input == AUDIO_MUTE) {
-			state->muted = 1;
-			break;
-		}
-		if (*input == AUDIO_UNMUTE) {
+	case VIDIOC_G_AUDIO:
+		memset(input, 0, sizeof(*input));
+		input->index = state->input;
+		break;
+
+	case VIDIOC_G_CTRL:
+		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
+			return -EINVAL;
+		ctrl->value = state->muted;
+		break;
+
+	case VIDIOC_S_CTRL:
+		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
+			return -EINVAL;
+		state->muted = ctrl->value;
+		wm8775_write(client, R21, 0x0c0);
+		wm8775_write(client, R14, 0x1d4);
+		wm8775_write(client, R15, 0x1d4);
+		if (!state->muted)
 			wm8775_write(client, R21, 0x100 + state->input);
-			state->muted = 0;
-			break;
-		}
-		/* All other inputs... */
-		wm8775_write(client, R21, 0x102);
-		state->input = 2;
-		state->muted = 0;
 		break;
 
 	case VIDIOC_LOG_STATUS:
-		wm8775_info("Input: %s%s\n",
-			    state->input == 8 ? "radio" : "default",
+		wm8775_info("Input: %d%s\n", state->input,
 			    state->muted ? " (muted)" : "");
 		break;
 
