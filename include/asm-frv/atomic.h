@@ -328,6 +328,7 @@ extern uint32_t __cmpxchg_32(uint32_t *v, uint32_t test, uint32_t new);
 #endif
 
 #define atomic_cmpxchg(v, old, new) (cmpxchg(&((v)->counter), old, new))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 #define atomic_add_unless(v, a, u)				\
 ({								\

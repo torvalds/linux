@@ -165,6 +165,7 @@ static __inline__ int atomic_read(const atomic_t *v)
 
 /* exported interface */
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 /**
  * atomic_add_unless - add unless the number is a given value

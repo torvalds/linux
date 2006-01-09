@@ -75,6 +75,8 @@ static __inline__ void atomic_set_mask(unsigned long mask, atomic_t * v)
 	       __CS_LOOP(v, mask, "or");
 }
 
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
+
 static __inline__ int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	__asm__ __volatile__("  cs   %0,%3,0(%2)\n"
