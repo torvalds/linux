@@ -1564,6 +1564,8 @@ static struct file_operations em28xx_v4l_fops = {
 	.poll = em28xx_v4l2_poll,
 	.mmap = em28xx_v4l2_mmap,
 	.llseek = no_llseek,
+	.compat_ioctl   = v4l_compat_ioctl32,
+
 };
 
 /******************************** usb interface *****************************************/
