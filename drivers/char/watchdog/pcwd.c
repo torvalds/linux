@@ -73,8 +73,13 @@
 #include <asm/io.h>		/* For inb/outb/... */
 
 /* Module and version information */
-#define WD_VER                  "1.16 (03/01/2006)"
-#define PFX			"pcwd: "
+#define WATCHDOG_VERSION "1.16"
+#define WATCHDOG_DATE "03 Jan 2006"
+#define WATCHDOG_DRIVER_NAME "ISA-PC Watchdog"
+#define WATCHDOG_NAME "pcwd"
+#define PFX WATCHDOG_NAME ": "
+#define DRIVER_VERSION WATCHDOG_DRIVER_NAME " driver, v" WATCHDOG_VERSION " (" WATCHDOG_DATE ")\n"
+#define WD_VER WATCHDOG_VERSION " (" WATCHDOG_DATE ")"
 
 /*
  * It should be noted that PCWD_REVISION_B was removed because A and B
