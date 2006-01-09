@@ -52,9 +52,8 @@ int dvb_usb_pll_init_i2c(struct dvb_frontend *fe)
 	struct i2c_msg msg = { .addr = d->pll_addr, .flags = 0, .buf = d->pll_init, .len = 4 };
 	int ret = 0;
 
-	/* if there is nothing to initialize */
-	if (d->pll_init[0] == 0x00 && d->pll_init[1] == 0x00 &&
-		d->pll_init[2] == 0x00 && d->pll_init[3] == 0x00)
+	/* if pll_desc is not used */
+	if (d->pll_desc == NULL)
 		return 0;
 
 	if (d->tuner_pass_ctrl)
@@ -79,6 +78,9 @@ EXPORT_SYMBOL(dvb_usb_pll_init_i2c);
 int dvb_usb_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep, u8 b[5])
 {
 	struct dvb_usb_device *d = fe->dvb->priv;
+
+	if (d->pll_desc == NULL)
+		return 0;
 
 	deb_pll("pll addr: %x, freq: %d %p\n",d->pll_addr,fep->frequency,d->pll_desc);
 
