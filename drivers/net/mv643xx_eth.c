@@ -6,7 +6,7 @@
  * Copyright (C) 2002 rabeeh@galileo.co.il
  *
  * Copyright (C) 2003 PMC-Sierra, Inc.,
- *	written by Manish Lachwani (lachwani@pmc-sierra.com)
+ *	written by Manish Lachwani
  *
  * Copyright (C) 2003 Ralf Baechle <ralf@linux-mips.org>
  *

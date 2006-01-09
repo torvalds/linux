@@ -278,14 +278,6 @@ static int __init do_ne2_probe(struct net_device *dev)
 	return -ENODEV;
 }
 
-static void cleanup_card(struct net_device *dev)
-{
-	mca_mark_as_unused(ei_status.priv);
-	mca_set_adapter_procfn( ei_status.priv, NULL, NULL);
-	free_irq(dev->irq, dev);
-	release_region(dev->base_addr, NE_IO_EXTENT);
-}
-
 #ifndef MODULE
 struct net_device * __init ne2_probe(int unit)
 {
@@ -810,6 +802,14 @@ int init_module(void)
 		return 0;
 	printk(KERN_WARNING "ne2.c: No NE/2 card found\n");
 	return -ENXIO;
+}
+
+static void cleanup_card(struct net_device *dev)
+{
+	mca_mark_as_unused(ei_status.priv);
+	mca_set_adapter_procfn( ei_status.priv, NULL, NULL);
+	free_irq(dev->irq, dev);
+	release_region(dev->base_addr, NE_IO_EXTENT);
 }
 
 void cleanup_module(void)

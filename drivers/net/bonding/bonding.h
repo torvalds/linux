@@ -205,7 +205,7 @@ struct bonding {
  *
  * Caller must hold bond lock for read
  */
-extern inline struct slave *bond_get_slave_by_dev(struct bonding *bond, struct net_device *slave_dev)
+static inline struct slave *bond_get_slave_by_dev(struct bonding *bond, struct net_device *slave_dev)
 {
 	struct slave *slave = NULL;
 	int i;
@@ -219,7 +219,7 @@ extern inline struct slave *bond_get_slave_by_dev(struct bonding *bond, struct n
 	return slave;
 }
 
-extern inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
+static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 {
 	if (!slave || !slave->dev->master) {
 		return NULL;
@@ -228,13 +228,13 @@ extern inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 	return (struct bonding *)slave->dev->master->priv;
 }
 
-extern inline void bond_set_slave_inactive_flags(struct slave *slave)
+static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
 	slave->state = BOND_STATE_BACKUP;
 	slave->dev->flags |= IFF_NOARP;
 }
 
-extern inline void bond_set_slave_active_flags(struct slave *slave)
+static inline void bond_set_slave_active_flags(struct slave *slave)
 {
 	slave->state = BOND_STATE_ACTIVE;
 	slave->dev->flags &= ~IFF_NOARP;

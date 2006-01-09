@@ -1697,7 +1697,6 @@ S: Maintained
 
 MARVELL MV64340 ETHERNET DRIVER
 P:	Manish Lachwani
-M:	Manish_Lachwani@pmc-sierra.com
 L:	linux-mips@linux-mips.org
 L:	netdev@vger.kernel.org
 S:	Supported

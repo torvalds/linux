@@ -110,6 +110,7 @@ struct emac_regs {
 #define EMAC_MR1_TFS_2K			0x00080000
 #define EMAC_MR1_TR0_MULT		0x00008000
 #define EMAC_MR1_JPSM			0x00000000
+#define EMAC_MR1_MWSW_001		0x00000000
 #define EMAC_MR1_BASE(opb)		(EMAC_MR1_TFS_2K | EMAC_MR1_TR0_MULT)
 #else
 #define EMAC_MR1_RFS_4K			0x00180000
@@ -130,7 +131,7 @@ struct emac_regs {
 					 (freq) <= 83  ? EMAC_MR1_OBCI_83 : \
 					 (freq) <= 100 ? EMAC_MR1_OBCI_100 : EMAC_MR1_OBCI_100P)
 #define EMAC_MR1_BASE(opb)		(EMAC_MR1_TFS_2K | EMAC_MR1_TR | \
-					 EMAC_MR1_MWSW_001 | EMAC_MR1_OBCI(opb))
+					 EMAC_MR1_OBCI(opb))
 #endif
 
 /* EMACx_TMR0 */
