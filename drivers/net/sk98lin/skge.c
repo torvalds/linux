@@ -2851,7 +2851,7 @@ unsigned long	Flags;			/* for spin lock */
  * Description:
  *	This function is called if an ioctl is issued on the device.
  *	There are three subfunction for reading, writing and test-writing
- *	the private MIB data structure (usefull for SysKonnect-internal tools).
+ *	the private MIB data structure (useful for SysKonnect-internal tools).
  *
  * Returns:
  *	0, if everything is ok

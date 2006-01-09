@@ -48,7 +48,7 @@ static int io = 0x384;
 static int radio_nr = -1;
 
 /* hw precision is 12.5 kHz
- * It is only usefull to give freq in intervall of 200 (=0.0125Mhz),
+ * It is only useful to give freq in intervall of 200 (=0.0125Mhz),
  * other bits will be truncated
  */
 #define RSF16_ENCODE(x)	((x)/200+856)
