@@ -125,7 +125,7 @@ int __devinit add_memory(u64 start, u64 size)
 	nid = hot_add_scn_to_nid(start);
 	pgdata = NODE_DATA(nid);
 
-	start += KERNELBASE;
+	start = __va(start);
 	create_section_mapping(start, start + size);
 
 	/* this should work for most non-highmem platforms */
