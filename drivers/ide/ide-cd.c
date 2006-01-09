@@ -1332,8 +1332,6 @@ static ide_startstop_t cdrom_start_read (ide_drive_t *drive, unsigned int block)
 	if (cdrom_read_from_buffer(drive))
 		return ide_stopped;
 
-	blk_attempt_remerge(drive->queue, rq);
-
 	/* Clear the local sector buffer. */
 	info->nsectors_buffered = 0;
 
@@ -1873,14 +1871,6 @@ static ide_startstop_t cdrom_start_write(ide_drive_t *drive, struct request *rq)
 		cdrom_end_request(drive, 0);
 		return ide_stopped;
 	}
-
-	/*
-	 * for dvd-ram and such media, it's a really big deal to get
-	 * big writes all the time. so scour the queue and attempt to
-	 * remerge requests, often the plugging will not have had time
-	 * to do this properly
-	 */
-	blk_attempt_remerge(drive->queue, rq);
 
 	info->nsectors_buffered = 0;
 

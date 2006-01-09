@@ -2734,30 +2734,6 @@ static inline int attempt_front_merge(request_queue_t *q, struct request *rq)
 	return 0;
 }
 
-/**
- * blk_attempt_remerge  - attempt to remerge active head with next request
- * @q:    The &request_queue_t belonging to the device
- * @rq:   The head request (usually)
- *
- * Description:
- *    For head-active devices, the queue can easily be unplugged so quickly
- *    that proper merging is not done on the front request. This may hurt
- *    performance greatly for some devices. The block layer cannot safely
- *    do merging on that first request for these queues, but the driver can
- *    call this function and make it happen any way. Only the driver knows
- *    when it is safe to do so.
- **/
-void blk_attempt_remerge(request_queue_t *q, struct request *rq)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	attempt_back_merge(q, rq);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-}
-
-EXPORT_SYMBOL(blk_attempt_remerge);
-
 static void init_request_from_bio(struct request *req, struct bio *bio)
 {
 	req->flags |= REQ_CMD;
