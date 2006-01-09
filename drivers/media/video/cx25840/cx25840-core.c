@@ -466,7 +466,7 @@ static int get_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 		ctrl->value = cx25840_read(client, 0x420) >> 1;
 		break;
 	case V4L2_CID_HUE:
-		ctrl->value = cx25840_read(client, 0x422);
+		ctrl->value = (s8)cx25840_read(client, 0x422);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_BASS:
