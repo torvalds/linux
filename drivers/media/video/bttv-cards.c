@@ -38,6 +38,7 @@
 #include <asm/io.h>
 
 #include "bttvp.h"
+#include <media/v4l2-common.h>
 
 /* fwd decl */
 static void boot_msp34xx(struct bttv *btv, int pin);

@@ -31,6 +31,7 @@
 
 #include "cx88.h"
 #include "dvb-pll.h"
+#include <media/v4l2-common.h>
 
 #ifdef HAVE_MT352
 # include "mt352.h"

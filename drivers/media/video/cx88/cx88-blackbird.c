@@ -32,6 +32,7 @@
 #include <linux/firmware.h>
 
 #include "cx88.h"
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("driver for cx2388x/cx23416 based mpeg encoder cards");
 MODULE_AUTHOR("Jelle Foks <jelle@foks.8m.com>, Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -1374,7 +1375,7 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 	struct cx88_core  *core = dev->core;
 
 	if (debug > 1)
-		cx88_print_ioctl(core->name,cmd);
+		v4l_print_ioctl(core->name,cmd);
 
 	switch (cmd) {
 

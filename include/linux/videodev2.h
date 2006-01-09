@@ -1116,7 +1116,6 @@ int v4l2_prio_check(struct v4l2_prio_state *global, enum v4l2_priority *local);
 /* names for fancy debug output */
 extern char *v4l2_field_names[];
 extern char *v4l2_type_names[];
-extern char *v4l2_ioctl_names[];
 
 /*  Compatibility layer interface  --  v4l1-compat module */
 typedef int (*v4l2_kioctl)(struct inode *inode, struct file *file,

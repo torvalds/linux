@@ -31,6 +31,7 @@
 #include <linux/smp_lock.h>
 
 #include <media/audiochip.h>
+#include <media/v4l2-common.h>
 
 #include "tvaudio.h"
 

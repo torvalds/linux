@@ -28,6 +28,7 @@
 #include <linux/video_decoder.h>
 
 #include "em28xx.h"
+#include <media/v4l2-common.h>
 #include <media/tuner.h>
 
 /* ----------------------------------------------------------- */

@@ -30,6 +30,7 @@
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
+#include <media/v4l2-common.h>
 
 /* ----------------------------------------------------------- */
 

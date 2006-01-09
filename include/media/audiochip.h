@@ -23,11 +23,6 @@ enum audiochip {
 
 /* ---------------------------------------------------------------------- */
 
-/* v4l device was opened in Radio mode */
-#define AUDC_SET_RADIO        _IO('m',2)
-/* select from TV,radio,extern,MUTE */
-#define AUDC_SET_INPUT        _IOW('m',17,int)
-
 /* audio inputs */
 #define AUDIO_TUNER        0x00
 #define AUDIO_RADIO        0x01

@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
 #include "bttvp.h"
+#include <media/v4l2-common.h>
 
 #include <linux/dma-mapping.h>
 
@@ -1520,14 +1521,6 @@ static struct videobuf_queue_ops bttv_video_qops = {
 	.buf_release  = buffer_release,
 };
 
-static const char *v4l1_ioctls[] = {
-	"?", "CGAP", "GCHAN", "SCHAN", "GTUNER", "STUNER", "GPICT", "SPICT",
-	"CCAPTURE", "GWIN", "SWIN", "GFBUF", "SFBUF", "KEY", "GFREQ",
-	"SFREQ", "GAUDIO", "SAUDIO", "SYNC", "MCAPTURE", "GMBUF", "GUNIT",
-	"GCAPTURE", "SCAPTURE", "SPLAYMODE", "SWRITEMODE", "GPLAYINFO",
-	"SMICROCODE", "GVBIFMT", "SVBIFMT" };
-#define V4L1_IOCTLS ARRAY_SIZE(v4l1_ioctls)
-
 static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
@@ -2216,22 +2209,9 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	unsigned long flags;
 	int retval = 0;
 
-	if (bttv_debug > 1) {
-		switch (_IOC_TYPE(cmd)) {
-		case 'v':
-			printk("bttv%d: ioctl 0x%x (v4l1, VIDIOC%s)\n",
-			       btv->c.nr, cmd, (_IOC_NR(cmd) < V4L1_IOCTLS) ?
-			       v4l1_ioctls[_IOC_NR(cmd)] : "???");
-			break;
-		case 'V':
-			printk("bttv%d: ioctl 0x%x (v4l2, %s)\n",
-			       btv->c.nr, cmd,  v4l2_ioctl_names[_IOC_NR(cmd)]);
-			break;
-		default:
-			printk("bttv%d: ioctl 0x%x (???)\n",
-			       btv->c.nr, cmd);
-		}
-	}
+	if (bttv_debug > 1)
+		v4l_print_ioctl(btv->c.name, cmd);
+
 	if (btv->errors)
 		bttv_reinit_bt848(btv);
 

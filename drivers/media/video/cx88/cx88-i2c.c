@@ -30,6 +30,7 @@
 #include <asm/io.h>
 
 #include "cx88.h"
+#include <media/v4l2-common.h>
 
 static unsigned int i2c_debug = 0;
 module_param(i2c_debug, int, 0644);

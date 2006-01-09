@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
-#include <media/audiochip.h>
+#include <media/v4l2-common.h>
 #include <media/tuner.h>
 
 

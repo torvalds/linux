@@ -26,6 +26,7 @@
 #include <media/saa7146_vv.h>
 #include <media/tuner.h>
 #include <linux/video_decoder.h>
+#include <media/v4l2-common.h>
 
 #include "mxb.h"
 #include "tea6415c.h"

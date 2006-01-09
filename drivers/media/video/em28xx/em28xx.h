@@ -295,8 +295,6 @@ void em28xx_set_ir(struct em28xx * dev,struct IR_i2c *ir);
 
 /* Provided by em28xx-core.c */
 
-void em28xx_print_ioctl(char *name, unsigned int cmd);
-
 u32 em28xx_request_buffers(struct em28xx *dev, u32 count);
 void em28xx_queue_unusedframes(struct em28xx *dev);
 void em28xx_release_buffers(struct em28xx *dev);

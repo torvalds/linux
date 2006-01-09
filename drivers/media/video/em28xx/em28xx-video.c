@@ -1269,7 +1269,7 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 		return -ENODEV;
 
 	if (video_debug > 1)
-		em28xx_print_ioctl(dev->name,cmd);
+		v4l_print_ioctl(dev->name,cmd);
 
 	switch (cmd) {
 

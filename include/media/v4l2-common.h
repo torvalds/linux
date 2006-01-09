@@ -63,6 +63,20 @@ enum v4l2_chip_ident {
 	V4L2_IDENT_CX25843 = 243,
 };
 
+/* audio ioctls */
+/* v4l device was opened in Radio mode */
+#define AUDC_SET_RADIO        _IO('d',88)
+/* select from TV,radio,extern,MUTE */
+#define AUDC_SET_INPUT        _IOW('d',89,int)
+
+/* tuner ioctls */
+/* Sets tuner type and its I2C addr */
+#define TUNER_SET_TYPE_ADDR          _IOW('d',90,int)
+/* Puts tuner on powersaving state, disabling it, except for i2c */
+#define TUNER_SET_STANDBY            _IOW('d',91,int)
+/* Sets tda9887 specific stuff, like port1, port2 and qss */
+#define TDA9887_SET_CONFIG           _IOW('d',92,int)
+
 /* only implemented if CONFIG_VIDEO_ADV_DEBUG is defined */
 #define	VIDIOC_INT_S_REGISTER 		_IOR ('d', 100, struct v4l2_register)
 #define	VIDIOC_INT_G_REGISTER 		_IOWR('d', 101, struct v4l2_register)
@@ -108,5 +122,16 @@ enum v4l2_chip_ident {
    If the frequency is not supported, then -EINVAL is returned. */
 #define VIDIOC_INT_I2S_CLOCK_FREQ 	_IOW ('d', 108, u32)
 
+/* Prints used ioctl */
+extern void v4l_printk_ioctl(unsigned int cmd);
+
+#define v4l_print_ioctl(name,cmd) do {\
+	printk(KERN_DEBUG "%s: ", name); \
+	v4l_printk_ioctl(cmd); } while (0)
+
+#define v4l_i2c_print_ioctl(client,cmd) do {\
+	printk(KERN_DEBUG "%s %d-%04x: ", (client)->driver->name, \
+			i2c_adapter_id((client)->adapter),(client)->addr); \
+	v4l_printk_ioctl(cmd); } while (0)
 
 #endif /* V4L2_COMMON_H_ */

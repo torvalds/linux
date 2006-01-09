@@ -33,6 +33,7 @@
 #include <asm/div64.h>
 
 #include "cx88.h"
+#include <media/v4l2-common.h>
 
 /* Include V4L1 specific functions. Should be removed soon */
 #include <linux/videodev.h>
@@ -1118,7 +1119,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	int err;
 
 	if (video_debug > 1)
-		cx88_print_ioctl(core->name,cmd);
+		v4l_print_ioctl(core->name,cmd);
 	switch (cmd) {
 
 	/* --- capabilities ------------------------------------------ */
@@ -1254,7 +1255,7 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 
 	dprintk( 1, "CORE IOCTL: 0x%x\n", cmd );
 	if (video_debug > 1)
-		cx88_print_ioctl(core->name,cmd);
+		v4l_print_ioctl(core->name,cmd);
 
 	switch (cmd) {
 	/* ---------- tv norms ---------- */
@@ -1474,7 +1475,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	struct cx88_core  *core = dev->core;
 
 	if (video_debug > 1)
-		cx88_print_ioctl(core->name,cmd);
+		v4l_print_ioctl(core->name,cmd);
 
 	switch (cmd) {
 	case VIDIOC_QUERYCAP:

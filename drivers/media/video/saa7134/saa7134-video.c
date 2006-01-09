@@ -29,6 +29,7 @@
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
+#include <media/v4l2-common.h>
 
 /* Include V4L1 specific functions. Should be removed soon */
 #include <linux/videodev.h>
@@ -1689,7 +1690,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	int err;
 
 	if (video_debug > 1)
-		saa7134_print_ioctl(dev->name,cmd);
+		v4l_print_ioctl(dev->name,cmd);
 
 	switch (cmd) {
 	case VIDIOC_S_CTRL:
@@ -2142,7 +2143,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	struct saa7134_dev *dev = fh->dev;
 
 	if (video_debug > 1)
-		saa7134_print_ioctl(dev->name,cmd);
+		v4l_print_ioctl(dev->name,cmd);
 	switch (cmd) {
 	case VIDIOC_QUERYCAP:
 	{

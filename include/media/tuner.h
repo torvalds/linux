@@ -115,10 +115,6 @@
 #define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
 #define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
 
-#define TUNER_SET_TYPE_ADDR          _IOW('T',3,int)
-#define TUNER_SET_STANDBY            _IOW('T',4,int)
-#define TDA9887_SET_CONFIG           _IOW('t',5,int)
-
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
 #define TDA9887_PORT1_INACTIVE 		(1<<1)

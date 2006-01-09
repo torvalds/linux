@@ -546,7 +546,6 @@ struct saa7134_dev {
 
 extern struct list_head  saa7134_devlist;
 
-void saa7134_print_ioctl(char *name, unsigned int cmd);
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg);
 
 #define SAA7134_PGTABLE_SIZE 4096

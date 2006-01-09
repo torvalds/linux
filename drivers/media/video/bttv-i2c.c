@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 
 #include "bttvp.h"
+#include <media/v4l2-common.h>
 #include <linux/jiffies.h>
 #include <asm/io.h>
 

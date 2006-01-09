@@ -20,6 +20,7 @@
 #include <linux/init.h>
 
 #include <media/tuner.h>
+#include <media/v4l2-common.h>
 #include <media/audiochip.h>
 
 #include "msp3400.h"
@@ -545,6 +546,9 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct tuner *t = i2c_get_clientdata(client);
 
+	if (tuner_debug>1)
+		v4l_i2c_print_ioctl(&(t->i2c),cmd);
+
 	switch (cmd) {
 	/* --- configuration --- */
 	case TUNER_SET_TYPE_ADDR:
@@ -575,9 +579,6 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		/* Should be implemented, since bttv calls it */
 		tuner_dbg("VIDIOCSAUDIO not implemented.\n");
 
-		break;
-	case MSP_SET_MATRIX:
-	case TDA9887_SET_CONFIG:
 		break;
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
@@ -763,11 +764,6 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 	case VIDIOC_LOG_STATUS:
 		tuner_status(client);
-		break;
-	default:
-		tuner_dbg("Unimplemented IOCTL 0x%08x(dir=%d,tp='%c',nr=%d,sz=%d)\n",
-					 cmd, _IOC_DIR(cmd), _IOC_TYPE(cmd),
-					_IOC_NR(cmd), _IOC_SIZE(cmd));
 		break;
 	}
 
