@@ -928,6 +928,24 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb		= 1,
 	},
+	[CX88_BOARD_KWORLD_DVBS_100] = {
+		.name		= "KWorld DVB-S 100",
+		.tuner_type	= TUNER_ABSENT,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input		= {{
+			.type	= CX88_VMUX_DVB,
+			.vmux	= 0,
+		},{
+			.type	= CX88_VMUX_COMPOSITE1,
+			.vmux	= 1,
+		},{
+			.type	= CX88_VMUX_SVIDEO,
+			.vmux	= 2,
+		}},
+		.dvb		= 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1087,6 +1105,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x9202,
 		.card      = CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1,
+	},{
+		.subvendor = 0x17de,
+		.subdevice = 0x08b2,
+		.card      = CX88_BOARD_KWORLD_DVBS_100,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1259,6 +1281,10 @@ void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		if (0 == core->i2c_rc)
 			hauppauge_eeprom(core,eeprom);
+		break;
+	case CX88_BOARD_KWORLD_DVBS_100:
+		cx_write(MO_GP0_IO, 0x000007f8);
+		cx_write(MO_GP1_IO, 0x00000001);
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
