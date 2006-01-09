@@ -222,13 +222,13 @@ static int cxusb_lgdt330x_frontend_attach(struct dvb_usb_device *d)
 
 /* DVB USB Driver stuff */
 static struct dvb_usb_properties cxusb_medion_properties;
-static struct dvb_usb_properties cxusb_bluebird_atsc_properties;
+static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	if (dvb_usb_device_init(intf,&cxusb_medion_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_atsc_properties,THIS_MODULE,NULL) == 0) {
+		dvb_usb_device_init(intf,&cxusb_bluebird_lgh064f_properties,THIS_MODULE,NULL) == 0) {
 		return 0;
 	}
 
@@ -279,7 +279,7 @@ static struct dvb_usb_properties cxusb_medion_properties = {
 	}
 };
 
-static struct dvb_usb_properties cxusb_bluebird_atsc_properties = {
+static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl         = CYPRESS_FX2,
