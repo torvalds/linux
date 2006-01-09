@@ -69,7 +69,6 @@
 #include <asm/system.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 
 static char version[] __initdata = "ether3 ethernet driver (c) 1995-2000 R.M.King v1.17\n";
 

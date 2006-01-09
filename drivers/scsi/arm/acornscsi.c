@@ -146,7 +146,6 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/ecard.h>
 
 #include "../scsi.h"
