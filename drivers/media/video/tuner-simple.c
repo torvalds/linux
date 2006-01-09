@@ -481,7 +481,7 @@ static struct tunertype tuners[] = {
 		.config = 0x8e,
 	},
 	[TUNER_PHILIPS_ATSC] = { /* Philips ATSC */
-		.name   = "Philips 1236D ATSC/NTSC daul in",
+		.name   = "Philips 1236D ATSC/NTSC dual in",
 		.thresh1= 16 * 157.25 /*MHz*/,
 		.thresh2= 16 * 454.00 /*MHz*/,
 		.VHF_L  = 0xa0,
