@@ -126,7 +126,7 @@ u32 em28xx_request_buffers(struct em28xx *dev, u32 count)
 	const size_t imagesize = PAGE_ALIGN(dev->frame_size);	/*needs to be page aligned cause the buffers can be mapped individually! */
 	void *buff = NULL;
 	u32 i;
-	em28xx_coredbg("requested %i buffers with size %zd", count, imagesize);
+	em28xx_coredbg("requested %i buffers with size %zi", count, imagesize);
 	if (count > EM28XX_NUM_FRAMES)
 		count = EM28XX_NUM_FRAMES;
 

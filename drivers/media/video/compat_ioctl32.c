@@ -2,6 +2,7 @@
 #include <linux/compat.h>
 #include <linux/videodev.h>
 #include <linux/module.h>
+#include <linux/smp_lock.h>
 
 #ifdef CONFIG_COMPAT
 struct video_tuner32 {
@@ -307,9 +308,8 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case _IOR('v' , BASE_VIDIOCPRIVATE+7, int):
 		ret = native_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 		break;
-
-	return ret;
 	}
+	return ret;
 }
 #else
 long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
