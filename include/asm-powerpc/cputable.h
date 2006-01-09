@@ -27,9 +27,16 @@
  * via the mkdefs mechanism.
  */
 struct cpu_spec;
-struct op_powerpc_model;
 
 typedef	void (*cpu_setup_t)(unsigned long offset, struct cpu_spec* spec);
+
+enum powerpc_oprofile_type {
+	INVALID = 0,
+	RS64 = 1,
+	POWER4 = 2,
+	G4 = 3,
+	BOOKE = 4,
+};
 
 struct cpu_spec {
 	/* CPU is matched via (PVR & pvr_mask) == pvr_value */
@@ -56,7 +63,7 @@ struct cpu_spec {
 	char		*oprofile_cpu_type;
 
 	/* Processor specific oprofile operations */
-	struct op_powerpc_model *oprofile_model;
+	enum powerpc_oprofile_type oprofile_type;
 };
 
 extern struct cpu_spec		*cur_cpu_spec;

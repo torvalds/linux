@@ -135,9 +135,31 @@ static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
-	if (!cur_cpu_spec->oprofile_model || !cur_cpu_spec->oprofile_cpu_type)
+	if (!cur_cpu_spec->oprofile_cpu_type)
 		return -ENODEV;
-	model = cur_cpu_spec->oprofile_model;
+
+	switch (cur_cpu_spec->oprofile_type) {
+#ifdef CONFIG_PPC64
+		case RS64:
+			model = &op_model_rs64;
+			break;
+		case POWER4:
+			model = &op_model_power4;
+			break;
+#else
+		case G4:
+			model = &op_model_7450;
+			break;
+#endif
+#ifdef CONFIG_FSL_BOOKE
+		case BOOKE:
+			model = &op_model_fsl_booke;
+			break;
+#endif
+		default:
+			return -ENODEV;
+	}
+
 	model->num_counters = cur_cpu_spec->num_pmcs;
 
 	ops->cpu_type = cur_cpu_spec->oprofile_cpu_type;
