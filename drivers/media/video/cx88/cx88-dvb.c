@@ -48,6 +48,9 @@
 #ifdef HAVE_NXT200X
 # include "nxt200x.h"
 #endif
+#ifdef HAVE_CX24123
+# include "cx24123.h"
+#endif
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -314,6 +317,21 @@ static struct nxt200x_config ati_hdtvwonder = {
 };
 #endif
 
+#ifdef HAVE_CX24123
+static int cx24123_set_ts_param(struct dvb_frontend* fe,
+	int is_punctured)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	dev->ts_gen_cntrl = 0x2;
+	return 0;
+}
+
+static struct cx24123_config hauppauge_novas_config = {
+	.demod_address = 0x55,
+	.set_ts_params = cx24123_set_ts_param,
+};
+#endif
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	/* init struct videobuf_dvb */
@@ -419,6 +437,13 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_ATI_HDTVWONDER:
 		dev->dvb.frontend = nxt200x_attach(&ati_hdtvwonder,
 						 &dev->core->i2c_adap);
+		break;
+#endif
+#ifdef HAVE_CX24123
+	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
+	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
+		dev->dvb.frontend = cx24123_attach(&hauppauge_novas_config,
+			&dev->core->i2c_adap);
 		break;
 #endif
 	default:

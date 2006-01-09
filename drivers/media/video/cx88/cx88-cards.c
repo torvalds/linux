@@ -897,6 +897,37 @@ struct cx88_board cx88_boards[] = {
 			.gpio3  = 0x0000,
 		}},
 	},
+	[CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1] = {
+		.name		= "Hauppauge Nova-S-Plus DVB-S",
+		.tuner_type	= TUNER_ABSENT,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		/* fixme: add the analog gpio stuff here */
+		.input		= {{
+			.type	= CX88_VMUX_DVB,
+			.vmux	= 0,
+		},{
+			.type	= CX88_VMUX_COMPOSITE1,
+			.vmux	= 1,
+		},{
+			.type	= CX88_VMUX_SVIDEO,
+			.vmux	= 2,
+		}},
+		.dvb		= 1,
+	},
+	[CX88_BOARD_HAUPPAUGE_NOVASE2_S1] = {
+		.name		= "Hauppauge Nova-SE2 DVB-S",
+		.tuner_type	= TUNER_ABSENT,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input		= {{
+			.type	= CX88_VMUX_DVB,
+			.vmux	= 0,
+		}},
+		.dvb		= 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1044,6 +1075,14 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1461,
 		.subdevice = 0x000a,
 		.card      = CX88_BOARD_AVERTV_303,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9200,
+		.card      = CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9202,
+		.card      = CX88_BOARD_HAUPPAUGE_NOVASE2_S1,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1211,6 +1250,8 @@ void cx88_card_setup(struct cx88_core *core)
 		if (0 == core->i2c_rc)
 			leadtek_eeprom(core,eeprom);
 		break;
+	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
+	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		if (0 == core->i2c_rc)
 			hauppauge_eeprom(core,eeprom);

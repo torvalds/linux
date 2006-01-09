@@ -16,5 +16,6 @@ extra-cflags-$(CONFIG_DVB_OR51132)   += -DHAVE_OR51132=1
 extra-cflags-$(CONFIG_DVB_LGDT330X)  += -DHAVE_LGDT330X=1
 extra-cflags-$(CONFIG_DVB_MT352)     += -DHAVE_MT352=1
 extra-cflags-$(CONFIG_DVB_NXT200X)   += -DHAVE_NXT200X=1
+extra-cflags-$(CONFIG_DVB_CX24123)   += -DHAVE_CX24123=1
 
 EXTRA_CFLAGS += $(extra-cflags-y) $(extra-cflags-m)
