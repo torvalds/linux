@@ -457,7 +457,7 @@ static int get_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 		ctrl->value = state->pvr150_workaround;
 		break;
 	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = cx25840_read(client, 0x414) + 128;
+		ctrl->value = (s8)cx25840_read(client, 0x414) + 128;
 		break;
 	case V4L2_CID_CONTRAST:
 		ctrl->value = cx25840_read(client, 0x415) >> 1;
