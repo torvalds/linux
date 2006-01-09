@@ -369,7 +369,7 @@ static int ttusb_dec_get_stb_state (struct ttusb_dec *dec, unsigned int *mode,
 
 static int ttusb_dec_audio_pes2ts_cb(void *priv, unsigned char *data)
 {
-	struct ttusb_dec *dec = (struct ttusb_dec *)priv;
+	struct ttusb_dec *dec = priv;
 
 	dec->audio_filter->feed->cb.ts(data, 188, NULL, 0,
 				       &dec->audio_filter->feed->feed.ts,
@@ -380,7 +380,7 @@ static int ttusb_dec_audio_pes2ts_cb(void *priv, unsigned char *data)
 
 static int ttusb_dec_video_pes2ts_cb(void *priv, unsigned char *data)
 {
-	struct ttusb_dec *dec = (struct ttusb_dec *)priv;
+	struct ttusb_dec *dec = priv;
 
 	dec->video_filter->feed->cb.ts(data, 188, NULL, 0,
 				       &dec->video_filter->feed->feed.ts,
@@ -965,8 +965,8 @@ static int ttusb_dec_start_ts_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	case DMX_TS_PES_TELETEXT:
 		dec->pid[DMX_PES_TELETEXT] = dvbdmxfeed->pid;
-		dprintk("  pes_type: DMX_TS_PES_TELETEXT\n");
-		break;
+		dprintk("  pes_type: DMX_TS_PES_TELETEXT(not supported)\n");
+		return -ENOSYS;
 
 	case DMX_TS_PES_PCR:
 		dprintk("  pes_type: DMX_TS_PES_PCR\n");
@@ -975,8 +975,8 @@ static int ttusb_dec_start_ts_feed(struct dvb_demux_feed *dvbdmxfeed)
 		break;
 
 	case DMX_TS_PES_OTHER:
-		dprintk("  pes_type: DMX_TS_PES_OTHER\n");
-		break;
+		dprintk("  pes_type: DMX_TS_PES_OTHER(not supported)\n");
+		return -ENOSYS;
 
 	default:
 		dprintk("  pes_type: unknown (%d)\n", dvbdmxfeed->pes_type);
@@ -1395,6 +1395,7 @@ static int ttusb_dec_init_stb(struct ttusb_dec *dec)
 			/* We can't trust the USB IDs that some firmwares
 			   give the box */
 			switch (model) {
+			case 0x00070001:
 			case 0x00070008:
 			case 0x0007000c:
 				ttusb_dec_set_model(dec, TTUSB_DEC3000S);
@@ -1588,7 +1589,7 @@ static int fe_send_command(struct dvb_frontend* fe, const u8 command,
 			   int param_length, const u8 params[],
 			   int *result_length, u8 cmd_result[])
 {
-	struct ttusb_dec* dec = (struct ttusb_dec*) fe->dvb->priv;
+	struct ttusb_dec* dec = fe->dvb->priv;
 	return ttusb_dec_send_command(dec, command, param_length, params, result_length, cmd_result);
 }
 
