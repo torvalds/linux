@@ -1078,11 +1078,15 @@ struct cx88_subid cx88_subids[] = {
 	},{
 		.subvendor = 0x0070,
 		.subdevice = 0x9200,
+		.card      = CX88_BOARD_HAUPPAUGE_NOVASE2_S1,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x9201,
 		.card      = CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1,
 	},{
 		.subvendor = 0x0070,
 		.subdevice = 0x9202,
-		.card      = CX88_BOARD_HAUPPAUGE_NOVASE2_S1,
+		.card      = CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);

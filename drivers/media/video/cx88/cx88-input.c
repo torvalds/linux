@@ -388,6 +388,8 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		break;
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
+	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
+	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 		ir_codes = ir_codes_hauppauge_new;
 		ir_type = IR_TYPE_RC5;
 		ir->sampling = 1;
@@ -567,6 +569,8 @@ void cx88_ir_irq(struct cx88_core *core)
 		break;
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
+	case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
+	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
 		ir_dprintk("biphase decoded: %x\n", ircode);
 		if ((ircode & 0xfffff000) != 0x3000)
