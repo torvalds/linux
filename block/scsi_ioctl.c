@@ -190,16 +190,21 @@ static int verify_command(struct file *file, unsigned char *cmd)
 		safe_for_write(GPCMD_SET_STREAMING),
 	};
 	unsigned char type = cmd_type[cmd[0]];
+	int has_write_perm = 0;
 
 	/* Anybody who can open the device can do a read-safe command */
 	if (type & CMD_READ_SAFE)
 		return 0;
 
+	/*
+	 * file can be NULL from ioctl_by_bdev()...
+	 */
+	if (file)
+		has_write_perm = file->f_mode & FMODE_WRITE;
+
 	/* Write-safe commands just require a writable open.. */
-	if (type & CMD_WRITE_SAFE) {
-		if (file->f_mode & FMODE_WRITE)
-			return 0;
-	}
+	if ((type & CMD_WRITE_SAFE) && has_write_perm)
+		return 0;
 
 	/* And root can do any command.. */
 	if (capable(CAP_SYS_RAWIO))
