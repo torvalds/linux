@@ -1051,18 +1051,22 @@ static unsigned int ata_pio_modes(const struct ata_device *adev)
 {
 	u16 modes;
 
-	/* Usual case. Word 53 indicates word 88 is valid */
-	if (adev->id[ATA_ID_FIELD_VALID] & (1 << 2)) {
+	/* Usual case. Word 53 indicates word 64 is valid */
+	if (adev->id[ATA_ID_FIELD_VALID] & (1 << 1)) {
 		modes = adev->id[ATA_ID_PIO_MODES] & 0x03;
 		modes <<= 3;
 		modes |= 0x7;
 		return modes;
 	}
 
-	/* If word 88 isn't valid then Word 51 holds the PIO timing number
-	   for the maximum. Turn it into a mask and return it */
-	modes = (2 << (adev->id[ATA_ID_OLD_PIO_MODES] & 0xFF)) - 1 ;
+	/* If word 64 isn't valid then Word 51 high byte holds the PIO timing
+	   number for the maximum. Turn it into a mask and return it */
+	modes = (2 << ((adev->id[ATA_ID_OLD_PIO_MODES] >> 8) & 0xFF)) - 1 ;
 	return modes;
+	/* But wait.. there's more. Design your standards by committee and
+	   you too can get a free iordy field to process. However its the 
+	   speeds not the modes that are supported... Note drivers using the
+	   timing API will get this right anyway */
 }
 
 struct ata_exec_internal_arg {
