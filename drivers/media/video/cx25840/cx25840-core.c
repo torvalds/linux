@@ -115,8 +115,8 @@ int cx25840_and_or(struct i2c_client *client, u16 addr, u8 and_mask,
 
 /* ----------------------------------------------------------------------- */
 
-static int set_input(struct i2c_client *, enum cx25840_input);
-static void input_change(struct i2c_client *);
+static int set_input(struct i2c_client *client, enum cx25840_video_input vid_input,
+						enum cx25840_audio_input aud_input);
 static void log_status(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
@@ -195,10 +195,8 @@ static void cx25840_initialize(struct i2c_client *client, int loadfw)
 	/* AC97 shift */
 	cx25840_write(client, 0x8cf, 0x0f);
 
-	/* (re)set video input */
-	set_input(client, state->input);
-	/* (re)set audio input */
-	cx25840_audio(client, AUDC_SET_INPUT, &state->audio_input);
+	/* (re)set input */
+	set_input(client, state->vid_input, state->aud_input);
 
 	/* start microcontroller */
 	cx25840_and_or(client, 0x803, ~0x10, 0x10);
@@ -223,7 +221,7 @@ static void input_change(struct i2c_client *client)
 		cx25840_write(client, 0x80b, 0x10);
 	} else if (std & V4L2_STD_NTSC) {
 		/* NTSC */
-		if (state->cardtype == CARDTYPE_PVR150_WORKAROUND) {
+		if (state->pvr150_workaround) {
 			/* Certain Hauppauge PVR150 models have a hardware bug
 			   that causes audio to drop out. For these models the
 			   audio standard must be set explicitly.
@@ -259,72 +257,68 @@ static void input_change(struct i2c_client *client)
 	}
 }
 
-static int set_input(struct i2c_client *client, enum cx25840_input input)
+static int set_input(struct i2c_client *client, enum cx25840_video_input vid_input,
+						enum cx25840_audio_input aud_input)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
+	u8 is_composite = (vid_input >= CX25840_COMPOSITE1 &&
+			   vid_input <= CX25840_COMPOSITE8);
+	u8 reg;
 
-	cx25840_dbg("decoder set input (%d)\n", input);
+	cx25840_dbg("decoder set video input %d, audio input %d\n",
+			vid_input, aud_input);
 
-	switch (input) {
-	case CX25840_TUNER:
-		cx25840_dbg("now setting Tuner input\n");
+	if (is_composite) {
+		reg = 0xf0 + (vid_input - CX25840_COMPOSITE1);
+	} else {
+		int luma = vid_input & 0xf0;
+		int chroma = vid_input & 0xf00;
 
-		if (state->cardtype == CARDTYPE_PVR150 ||
-		    state->cardtype == CARDTYPE_PVR150_WORKAROUND) {
-			/* CH_SEL_ADC2=1 */
-			cx25840_and_or(client, 0x102, ~0x2, 0x02);
+		if ((vid_input & ~0xff0) ||
+		    luma < CX25840_SVIDEO_LUMA1 || luma > CX25840_SVIDEO_LUMA4 ||
+		    chroma < CX25840_SVIDEO_CHROMA4 || chroma > CX25840_SVIDEO_CHROMA8) {
+			cx25840_err("0x%04x is not a valid video input!\n", vid_input);
+			return -EINVAL;
 		}
-
-		/* Video Input Control */
-		if (state->cardtype == CARDTYPE_PG600) {
-			cx25840_write(client, 0x103, 0x11);
+		reg = 0xf0 + ((luma - CX25840_SVIDEO_LUMA1) >> 4);
+		if (chroma >= CX25840_SVIDEO_CHROMA7) {
+			reg &= 0x3f;
+			reg |= (chroma - CX25840_SVIDEO_CHROMA7) >> 2;
 		} else {
-			cx25840_write(client, 0x103, 0x46);
+			reg &= 0xcf;
+			reg |= (chroma - CX25840_SVIDEO_CHROMA4) >> 4;
 		}
+	}
 
-		/* INPUT_MODE=0 */
-		cx25840_and_or(client, 0x401, ~0x6, 0x00);
+	switch (aud_input) {
+	case CX25840_AUDIO_SERIAL:
+		/* do nothing, use serial audio input */
 		break;
-
-	case CX25840_COMPOSITE0:
-	case CX25840_COMPOSITE1:
-		cx25840_dbg("now setting Composite input\n");
-
-		/* Video Input Control */
-		if (state->cardtype == CARDTYPE_PG600) {
-			cx25840_write(client, 0x103, 0x00);
-		} else {
-			cx25840_write(client, 0x103, 0x02);
-		}
-
-		/* INPUT_MODE=0 */
-		cx25840_and_or(client, 0x401, ~0x6, 0x00);
-		break;
-
-	case CX25840_SVIDEO0:
-	case CX25840_SVIDEO1:
-		cx25840_dbg("now setting S-Video input\n");
-
-		/* CH_SEL_ADC2=0 */
-		cx25840_and_or(client, 0x102, ~0x2, 0x00);
-
-		/* Video Input Control */
-		if (state->cardtype == CARDTYPE_PG600) {
-			cx25840_write(client, 0x103, 0x02);
-		} else {
-			cx25840_write(client, 0x103, 0x10);
-		}
-
-		/* INPUT_MODE=1 */
-		cx25840_and_or(client, 0x401, ~0x6, 0x02);
-		break;
+	case CX25840_AUDIO4: reg &= ~0x30; break;
+	case CX25840_AUDIO5: reg &= ~0x30; reg |= 0x10; break;
+	case CX25840_AUDIO6: reg &= ~0x30; reg |= 0x20; break;
+	case CX25840_AUDIO7: reg &= ~0xc0; break;
+	case CX25840_AUDIO8: reg &= ~0xc0; reg |= 0x40; break;
 
 	default:
-		cx25840_err("%d is not a valid input!\n", input);
+		cx25840_err("0x%04x is not a valid audio input!\n", aud_input);
 		return -EINVAL;
 	}
 
-	state->input = input;
+	cx25840_write(client, 0x103, reg);
+	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
+	cx25840_and_or(client, 0x401, ~0x6, is_composite ? 0 : 0x02);
+	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
+	cx25840_and_or(client, 0x102, ~0x2, (reg & 0x80) == 0 ? 2 : 0);
+	/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2 and CH3 */
+	if ((reg & 0xc0) != 0xc0 && (reg & 0x30) != 0x30)
+		cx25840_and_or(client, 0x102, ~0x4, 4);
+	else
+		cx25840_and_or(client, 0x102, ~0x4, 0);
+
+	state->vid_input = vid_input;
+	state->aud_input = aud_input;
+	cx25840_audio_set_path(client);
 	input_change(client);
 	return 0;
 }
@@ -395,18 +389,9 @@ static int set_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 	struct cx25840_state *state = i2c_get_clientdata(client);
 
 	switch (ctrl->id) {
-	case CX25840_CID_CARDTYPE:
-		switch (ctrl->value) {
-		case CARDTYPE_PVR150:
-		case CARDTYPE_PVR150_WORKAROUND:
-		case CARDTYPE_PG600:
-			state->cardtype = ctrl->value;
-			break;
-		default:
-			return -ERANGE;
-		}
-
-		set_input(client, state->input);
+	case CX25840_CID_ENABLE_PVR150_WORKAROUND:
+		state->pvr150_workaround = ctrl->value;
+		set_input(client, state->vid_input, state->aud_input);
 		break;
 
 	case V4L2_CID_BRIGHTNESS:
@@ -465,8 +450,8 @@ static int get_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 	struct cx25840_state *state = i2c_get_clientdata(client);
 
 	switch (ctrl->id) {
-	case CX25840_CID_CARDTYPE:
-		ctrl->value = state->cardtype;
+	case CX25840_CID_ENABLE_PVR150_WORKAROUND:
+		ctrl->value = state->pvr150_workaround;
 		break;
 	case V4L2_CID_BRIGHTNESS:
 		ctrl->value = cx25840_read(client, 0x414) + 128;
@@ -615,7 +600,6 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		return cx25840_vbi(client, cmd, arg);
 
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-	case AUDC_SET_INPUT:
 		result = cx25840_audio(client, cmd, arg);
 		break;
 
@@ -652,12 +636,29 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		break;
 
 	case VIDIOC_G_INPUT:
-		*(int *)arg = state->input;
+		*(int *)arg = state->vid_input;
 		break;
 
 	case VIDIOC_S_INPUT:
-		result = set_input(client, *(int *)arg);
+		result = set_input(client, *(enum cx25840_video_input *)arg, state->aud_input);
 		break;
+
+	case VIDIOC_S_AUDIO:
+	{
+		struct v4l2_audio *input = arg;
+
+		result = set_input(client, state->vid_input, input->index);
+		break;
+	}
+
+	case VIDIOC_G_AUDIO:
+	{
+		struct v4l2_audio *input = arg;
+
+		memset(input, 0, sizeof(*input));
+		input->index = state->aud_input;
+		break;
+	}
 
 	case VIDIOC_S_FREQUENCY:
 		input_change(client);
@@ -801,10 +802,10 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 
 	i2c_set_clientdata(client, state);
 	memset(state, 0, sizeof(struct cx25840_state));
-	state->input = CX25840_TUNER;
+	state->vid_input = CX25840_COMPOSITE7;
+	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
-	state->audio_input = AUDIO_TUNER;
-	state->cardtype = CARDTYPE_PVR150;
+	state->pvr150_workaround = 0;
 
 	cx25840_initialize(client, 1);
 
@@ -888,6 +889,8 @@ static void log_status(struct i2c_client *client)
 	u8 pref_mode = cx25840_read(client, 0x809);
 	u8 afc0 = cx25840_read(client, 0x80b);
 	u8 mute_ctl = cx25840_read(client, 0x8d3);
+	int vid_input = state->vid_input;
+	int aud_input = state->aud_input;
 	char *p;
 
 	cx25840_info("Video signal:              %spresent\n",
@@ -997,16 +1000,19 @@ static void log_status(struct i2c_client *client)
 	cx25840_info("Specified standard:        %s\n",
 		    vidfmt_sel ? fmt_strs[vidfmt_sel] : "automatic detection");
 
-	switch (state->input) {
-	case CX25840_COMPOSITE0: p = "Composite 0"; break;
-	case CX25840_COMPOSITE1: p = "Composite 1"; break;
-	case CX25840_SVIDEO0: p = "S-Video 0"; break;
-	case CX25840_SVIDEO1: p = "S-Video 1"; break;
-	case CX25840_TUNER: p = "Tuner"; break;
+	if (vid_input >= CX25840_COMPOSITE1 &&
+	    vid_input <= CX25840_COMPOSITE8) {
+		cx25840_info("Specified video input:     Composite %d\n",
+			vid_input - CX25840_COMPOSITE1 + 1);
+	} else {
+		cx25840_info("Specified video input:     S-Video (Luma In%d, Chroma In%d)\n",
+			(vid_input & 0xf0) >> 4, (vid_input & 0xf00) >> 8);
 	}
-	cx25840_info("Specified input:           %s\n", p);
-	cx25840_info("Specified audio input:     %s\n",
-		    state->audio_input == 0 ? "Tuner" : "External");
+	if (aud_input) {
+		cx25840_info("Specified audio input:     Tuner (In%d)\n", aud_input);
+	} else {
+		cx25840_info("Specified audio input:     External\n");
+	}
 
 	cx25840_info("Specified audioclock freq: %d Hz\n", state->audclk_freq);
 
