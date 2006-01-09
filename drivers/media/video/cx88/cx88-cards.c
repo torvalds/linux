@@ -1009,6 +1009,29 @@ struct cx88_board cx88_boards[] = {
 		},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_KWORLD_DVB_T_CX22702] = {
+		/* Kworld V-stream Xpert DVB-T with Thomson tuner */
+		/* DTT 7579 Conexant CX22702-19 Conexant CX2388x  */
+		/* Manenti Marco <marco_manenti@colman.it> */
+		.name           = "KWorld/VStream XPert DVB-T with cx22702",
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x0700,
+			.gpio2  = 0x0101,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x0700,
+			.gpio2  = 0x0101,
+		}},
+		.dvb            = 1,
+	},
+
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -1196,7 +1219,11 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1822,
 		.subdevice = 0x0025,
 		.card      = CX88_BOARD_DNTV_LIVE_DVB_T_PRO,
-	},
+	},{
+	       .subvendor = 0x17de,
+	       .subdevice = 0x08a1,
+	       .card      = CX88_BOARD_KWORLD_DVB_T_CX22702,
+       }
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
 

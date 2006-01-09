@@ -439,6 +439,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
 	case CX88_BOARD_CONEXANT_DVB_T1:
+	case CX88_BOARD_KWORLD_DVB_T_CX22702:
 	case CX88_BOARD_WINFAST_DTV1000:
 		dev->dvb.frontend = cx22702_attach(&connexant_refboard_config,
 						   &dev->core->i2c_adap);
