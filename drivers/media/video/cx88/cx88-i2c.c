@@ -136,10 +136,7 @@ void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 	if (0 != core->i2c_rc)
 		return;
 
-	if (core->dvbdev == NULL) {
-		i2c_clients_command(&core->i2c_adap, cmd, arg);
-	} else {
-
+	if (core->dvbdev) {
 		if (core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl)
 			core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl(core->dvbdev->dvb.frontend, 1);
 
@@ -147,8 +144,8 @@ void cx88_call_i2c_clients(struct cx88_core *core, unsigned int cmd, void *arg)
 
 		if (core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl)
 			core->dvbdev->dvb.frontend->ops->i2c_gate_ctrl(core->dvbdev->dvb.frontend, 0);
-	}
-
+	} else
+		i2c_clients_command(&core->i2c_adap, cmd, arg);
 }
 
 static struct i2c_algo_bit_data cx8800_i2c_algo_template = {
