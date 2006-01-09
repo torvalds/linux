@@ -126,6 +126,7 @@ static void bio_fs_destructor(struct bio *bio)
 inline void bio_init(struct bio *bio)
 {
 	bio->bi_next = NULL;
+	bio->bi_bdev = NULL;
 	bio->bi_flags = 1 << BIO_UPTODATE;
 	bio->bi_rw = 0;
 	bio->bi_vcnt = 0;
