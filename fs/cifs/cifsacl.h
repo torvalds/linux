@@ -34,3 +34,5 @@ struct cifs_sid {
 const cifs_sid sid_everyone = {1, 1, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0}};
 /* group users */
 const cifs_sid sid_user = {1, 2 , {0, 0, 0, 0, 0, 5}, {32, 545, 0, 0}};
+
+#endif /* _CIFSACL_H */
