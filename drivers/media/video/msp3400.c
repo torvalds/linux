@@ -157,9 +157,6 @@ struct msp3400c {
 #define HAVE_SIMPLER(msp) ((msp->rev1      & 0xff) >= 'G'-'@')
 #define HAVE_RADIO(msp)   ((msp->rev1      & 0xff) >= 'G'-'@')
 
-/* defined at the end of the source */
-extern struct i2c_client client_template;
-
 #define VIDEO_MODE_RADIO 16      /* norm magic for radio mode */
 
 /* ---------------------------------------------------------------------- */
@@ -1568,130 +1565,6 @@ static void msp_wake_thread(struct i2c_client *client)
 	wake_up_interruptible(&msp->wq);
 }
 
-static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
-{
-	struct msp3400c *msp;
-	struct i2c_client *client = &client_template;
-	int (*thread_func)(void *data) = NULL;
-	int i;
-
-	client_template.adapter = adap;
-	client_template.addr = addr;
-
-	if (-1 == msp3400c_reset(&client_template)) {
-		msp3400_dbg("no chip found\n");
-		return -1;
-	}
-
-	if (NULL == (client = kmalloc(sizeof(struct i2c_client),GFP_KERNEL)))
-		return -ENOMEM;
-	memcpy(client,&client_template,sizeof(struct i2c_client));
-	if (NULL == (msp = kmalloc(sizeof(struct msp3400c),GFP_KERNEL))) {
-		kfree(client);
-		return -ENOMEM;
-	}
-
-	memset(msp,0,sizeof(struct msp3400c));
-	msp->norm = VIDEO_MODE_NTSC;
-	msp->left = 58880;	/* 0db gain */
-	msp->right = 58880;	/* 0db gain */
-	msp->bass = 32768;
-	msp->treble = 32768;
-	msp->input = -1;
-	msp->muted = 0;
-	msp->i2s_mode = 0;
-	for (i = 0; i < DFP_COUNT; i++)
-		msp->dfp_regs[i] = -1;
-
-	i2c_set_clientdata(client, msp);
-	init_waitqueue_head(&msp->wq);
-
-	if (-1 == msp3400c_reset(client)) {
-		kfree(msp);
-		kfree(client);
-		msp3400_dbg("no chip found\n");
-		return -1;
-	}
-
-	msp->rev1 = msp3400c_read(client, I2C_MSP3400C_DFP, 0x1e);
-	if (-1 != msp->rev1)
-		msp->rev2 = msp3400c_read(client, I2C_MSP3400C_DFP, 0x1f);
-	if ((-1 == msp->rev1) || (0 == msp->rev1 && 0 == msp->rev2)) {
-		kfree(msp);
-		kfree(client);
-		msp3400_dbg("error while reading chip version\n");
-		return -1;
-	}
-	msp3400_dbg("rev1=0x%04x, rev2=0x%04x\n", msp->rev1, msp->rev2);
-
-	msp3400c_setvolume(client, msp->muted, msp->left, msp->right);
-
-	snprintf(client->name, sizeof(client->name), "MSP%c4%02d%c-%c%d",
-		 ((msp->rev1>>4)&0x0f) + '3',
-		 (msp->rev2>>8)&0xff, (msp->rev1&0x0f)+'@',
-		 ((msp->rev1>>8)&0xff)+'@', msp->rev2&0x1f);
-
-	msp->opmode = opmode;
-	if (OPMODE_AUTO == msp->opmode) {
-		if (HAVE_SIMPLER(msp))
-			msp->opmode = OPMODE_SIMPLER;
-		else if (HAVE_SIMPLE(msp))
-			msp->opmode = OPMODE_SIMPLE;
-		else
-			msp->opmode = OPMODE_MANUAL;
-	}
-
-	/* hello world :-) */
-	msp3400_info("chip=%s", client->name);
-	if (HAVE_NICAM(msp))
-		printk(" +nicam");
-	if (HAVE_SIMPLE(msp))
-		printk(" +simple");
-	if (HAVE_SIMPLER(msp))
-		printk(" +simpler");
-	if (HAVE_RADIO(msp))
-		printk(" +radio");
-
-	/* version-specific initialization */
-	switch (msp->opmode) {
-	case OPMODE_MANUAL:
-		printk(" mode=manual");
-		thread_func = msp3400c_thread;
-		break;
-	case OPMODE_SIMPLE:
-		printk(" mode=simple");
-		thread_func = msp3410d_thread;
-		break;
-	case OPMODE_SIMPLER:
-		printk(" mode=simpler");
-		thread_func = msp34xxg_thread;
-		break;
-	}
-	printk("\n");
-
-	/* startup control thread if needed */
-	if (thread_func) {
-		msp->kthread = kthread_run(thread_func, client, "msp34xx");
-
-		if (NULL == msp->kthread)
-			msp3400_warn("kernel_thread() failed\n");
-		msp_wake_thread(client);
-	}
-
-	/* done */
-	i2c_attach_client(client);
-
-	/* update our own array */
-	for (i = 0; i < MSP3400_MAX; i++) {
-		if (NULL == msps[i]) {
-			msps[i] = client;
-			break;
-		}
-	}
-
-	return 0;
-}
-
 static int msp_detach(struct i2c_client *client)
 {
 	struct msp3400c *msp  = i2c_get_clientdata(client);
@@ -2182,6 +2055,9 @@ static int msp_resume(struct device * dev)
 
 /* ----------------------------------------------------------------------- */
 
+static int msp_probe(struct i2c_adapter *adap);
+static int msp_detach(struct i2c_client *client);
+
 static struct i2c_driver driver = {
 	.owner          = THIS_MODULE,
 	.name           = "msp3400",
@@ -2202,6 +2078,168 @@ static struct i2c_client client_template =
 	.flags     = I2C_CLIENT_ALLOW_USE,
 	.driver    = &driver,
 };
+
+static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
+{
+	struct msp3400c *msp;
+	struct i2c_client *client = &client_template;
+	int (*thread_func)(void *data) = NULL;
+	int i;
+
+	client_template.adapter = adap;
+	client_template.addr = addr;
+
+	if (-1 == msp3400c_reset(&client_template)) {
+		msp3400_dbg("no chip found\n");
+		return -1;
+	}
+
+	if (NULL == (client = kmalloc(sizeof(struct i2c_client),GFP_KERNEL)))
+		return -ENOMEM;
+	memcpy(client,&client_template,sizeof(struct i2c_client));
+	if (NULL == (msp = kmalloc(sizeof(struct msp3400c),GFP_KERNEL))) {
+		kfree(client);
+		return -ENOMEM;
+	}
+
+	memset(msp,0,sizeof(struct msp3400c));
+	msp->norm = VIDEO_MODE_NTSC;
+	msp->left = 58880;	/* 0db gain */
+	msp->right = 58880;	/* 0db gain */
+	msp->bass = 32768;
+	msp->treble = 32768;
+	msp->input = -1;
+	msp->muted = 0;
+	msp->i2s_mode = 0;
+	for (i = 0; i < DFP_COUNT; i++)
+		msp->dfp_regs[i] = -1;
+
+	i2c_set_clientdata(client, msp);
+	init_waitqueue_head(&msp->wq);
+
+	if (-1 == msp3400c_reset(client)) {
+		kfree(msp);
+		kfree(client);
+		msp3400_dbg("no chip found\n");
+		return -1;
+	}
+
+	msp->rev1 = msp3400c_read(client, I2C_MSP3400C_DFP, 0x1e);
+	if (-1 != msp->rev1)
+		msp->rev2 = msp3400c_read(client, I2C_MSP3400C_DFP, 0x1f);
+	if ((-1 == msp->rev1) || (0 == msp->rev1 && 0 == msp->rev2)) {
+		kfree(msp);
+		kfree(client);
+		msp3400_dbg("error while reading chip version\n");
+		return -1;
+	}
+	msp3400_dbg("rev1=0x%04x, rev2=0x%04x\n", msp->rev1, msp->rev2);
+
+	msp3400c_setvolume(client, msp->muted, msp->left, msp->right);
+
+	snprintf(client->name, sizeof(client->name), "MSP%c4%02d%c-%c%d",
+		 ((msp->rev1>>4)&0x0f) + '3',
+		 (msp->rev2>>8)&0xff, (msp->rev1&0x0f)+'@',
+		 ((msp->rev1>>8)&0xff)+'@', msp->rev2&0x1f);
+
+	msp->opmode = opmode;
+	if (OPMODE_AUTO == msp->opmode) {
+		if (HAVE_SIMPLER(msp))
+			msp->opmode = OPMODE_SIMPLER;
+		else if (HAVE_SIMPLE(msp))
+			msp->opmode = OPMODE_SIMPLE;
+		else
+			msp->opmode = OPMODE_MANUAL;
+	}
+
+	/* hello world :-) */
+	msp3400_info("chip=%s", client->name);
+	if (HAVE_NICAM(msp))
+		printk(" +nicam");
+	if (HAVE_SIMPLE(msp))
+		printk(" +simple");
+	if (HAVE_SIMPLER(msp))
+		printk(" +simpler");
+	if (HAVE_RADIO(msp))
+		printk(" +radio");
+
+	/* version-specific initialization */
+	switch (msp->opmode) {
+	case OPMODE_MANUAL:
+		printk(" mode=manual");
+		thread_func = msp3400c_thread;
+		break;
+	case OPMODE_SIMPLE:
+		printk(" mode=simple");
+		thread_func = msp3410d_thread;
+		break;
+	case OPMODE_SIMPLER:
+		printk(" mode=simpler");
+		thread_func = msp34xxg_thread;
+		break;
+	}
+	printk("\n");
+
+	/* startup control thread if needed */
+	if (thread_func) {
+		msp->kthread = kthread_run(thread_func, client, "msp34xx");
+
+		if (NULL == msp->kthread)
+			msp3400_warn("kernel_thread() failed\n");
+		msp_wake_thread(client);
+	}
+
+	/* done */
+	i2c_attach_client(client);
+
+	/* update our own array */
+	for (i = 0; i < MSP3400_MAX; i++) {
+		if (NULL == msps[i]) {
+			msps[i] = client;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int msp_detach(struct i2c_client *client)
+{
+	struct msp3400c *msp  = i2c_get_clientdata(client);
+	int i;
+
+	/* shutdown control thread */
+	if (msp->kthread) {
+		msp->restart = 1;
+		kthread_stop(msp->kthread);
+	}
+	msp3400c_reset(client);
+
+	/* update our own array */
+	for (i = 0; i < MSP3400_MAX; i++) {
+		if (client == msps[i]) {
+			msps[i] = NULL;
+			break;
+		}
+	}
+
+	i2c_detach_client(client);
+
+	kfree(msp);
+	kfree(client);
+	return 0;
+}
+
+static int msp_probe(struct i2c_adapter *adap)
+{
+#ifdef I2C_CLASS_TV_ANALOG
+	if (adap->class & I2C_CLASS_TV_ANALOG)
+		return i2c_probe(adap, &addr_data, msp_attach);
+	return 0;
+#else
+	return i2c_probe(adap, &addr_data, msp_attach);
+#endif
+}
 
 static int __init msp3400_init_module(void)
 {
