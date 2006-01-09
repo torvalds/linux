@@ -210,6 +210,9 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x20,
 		.vbipack        = 255,
 		.sram           = 0,
+		/* ITU-R frame line number of the first VBI line
+		   we can capture, of the first and second field. */
+		.vbistart	= { 7,320 },
 	},{
 		.v4l2_id        = V4L2_STD_NTSC_M,
 		.name           = "NTSC",
@@ -226,6 +229,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x1a,
 		.vbipack        = 144,
 		.sram           = 1,
+		.vbistart	= { 10, 273 },
 	},{
 		.v4l2_id        = V4L2_STD_SECAM,
 		.name           = "SECAM",
@@ -242,6 +246,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x20,
 		.vbipack        = 255,
 		.sram           = 0, /* like PAL, correct? */
+		.vbistart	= { 7, 320 },
 	},{
 		.v4l2_id        = V4L2_STD_PAL_Nc,
 		.name           = "PAL-Nc",
@@ -258,6 +263,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x1a,
 		.vbipack        = 144,
 		.sram           = -1,
+		.vbistart	= { 7, 320 },
 	},{
 		.v4l2_id        = V4L2_STD_PAL_M,
 		.name           = "PAL-M",
@@ -274,6 +280,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x1a,
 		.vbipack        = 144,
 		.sram           = -1,
+		.vbistart	= { 10, 273 },
 	},{
 		.v4l2_id        = V4L2_STD_PAL_N,
 		.name           = "PAL-N",
@@ -290,6 +297,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x20,
 		.vbipack        = 144,
 		.sram           = -1,
+		.vbistart	= { 7, 320},
 	},{
 		.v4l2_id        = V4L2_STD_NTSC_M_JP,
 		.name           = "NTSC-JP",
@@ -306,6 +314,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vdelay         = 0x16,
 		.vbipack        = 144,
 		.sram           = -1,
+		.vbistart	= {10, 273},
 	},{
 		/* that one hopefully works with the strange timing
 		 * which video recorders produce when playing a NTSC
@@ -326,6 +335,7 @@ const struct bttv_tvnorm bttv_tvnorms[] = {
 		.vbipack        = 255,
 		.vtotal         = 524,
 		.sram           = -1,
+		.vbistart	= { 10, 273 },
 	}
 };
 static const unsigned int BTTV_TVNORMS = ARRAY_SIZE(bttv_tvnorms);
@@ -2570,10 +2580,10 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		fmt->count[0]         = fmt2.fmt.vbi.count[0];
 		fmt->start[1]         = fmt2.fmt.vbi.start[1];
 		fmt->count[1]         = fmt2.fmt.vbi.count[1];
-		if (fmt2.fmt.vbi.flags & VBI_UNSYNC)
-			fmt->flags   |= V4L2_VBI_UNSYNC;
-		if (fmt2.fmt.vbi.flags & VBI_INTERLACED)
-			fmt->flags   |= V4L2_VBI_INTERLACED;
+		if (fmt2.fmt.vbi.flags & V4L2_VBI_UNSYNC)
+			fmt->flags   |= VBI_UNSYNC;
+		if (fmt2.fmt.vbi.flags & V4L2_VBI_INTERLACED)
+			fmt->flags   |= VBI_INTERLACED;
 		return 0;
 	}
 	case VIDIOCSVBIFMT:

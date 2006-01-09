@@ -73,6 +73,8 @@
 
 #define UNSET (-1U)
 
+#define clamp(x, low, high) min (max (low, x), high)
+
 /* ---------------------------------------------------------- */
 
 struct bttv_tvnorm {
@@ -88,6 +90,9 @@ struct bttv_tvnorm {
 	u8    vbipack;
 	u16   vtotal;
 	int   sram;
+	/* ITU-R frame line number of the first VBI line we can
+	   capture, of the first and second field. */
+	u16   vbistart[2];
 };
 extern const struct bttv_tvnorm bttv_tvnorms[];
 
