@@ -87,22 +87,24 @@
 #define	PCWD_REVISION_C		2
 
 /*
- * These are the defines that describe the control status #1 bits for the
- * PC Watchdog card, revision A.
- */
+ * These are the defines that describe the control status bits for the
+ * PCI-PC Watchdog card.
+*/
+/* Port 1 : Control Status #1 for the PC Watchdog card, revision A. */
 #define WD_WDRST                0x01	/* Previously reset state */
 #define WD_T110                 0x02	/* Temperature overheat sense */
 #define WD_HRTBT                0x04	/* Heartbeat sense */
 #define WD_RLY2                 0x08	/* External relay triggered */
 #define WD_SRLY2                0x80	/* Software external relay triggered */
-
-/*
- * These are the defines that describe the control status #1 bits for the
- * PC Watchdog card, revision C.
- */
+/* Port 1 : Control Status #1 for the PC Watchdog card, revision C. */
 #define WD_REVC_WTRP            0x01	/* Watchdog Trip status */
 #define WD_REVC_HRBT            0x02	/* Watchdog Heartbeat */
 #define WD_REVC_TTRP            0x04	/* Temperature Trip status */
+/* Port 2 : Control Status #2 */
+#define WD_WDIS			0x10	/* Watchdog Disabled */
+#define WD_ENTP			0x20	/* Watchdog Enable Temperature Trip */
+#define WD_SSEL			0x40	/* Watchdog Switch Select (1:SW1 <-> 0:SW2) */
+#define WD_WCMD			0x80	/* Watchdog Command Mode */
 
 /* max. time we give an ISA watchdog card to process a command */
 /* 500ms for each 4 bit response (according to spec.) */
@@ -166,7 +168,7 @@ static int send_isa_command(int cmd)
 	int port0, last_port0;	/* Double read for stabilising */
 
 	/* The WCMD bit must be 1 and the command is only 4 bits in size */
-	control_status = (cmd & 0x0F) | 0x80;
+	control_status = (cmd & 0x0F) | WD_WCMD;
 	outb_p(control_status, pcwd_private.io_addr + 2);
 	udelay(ISA_COMMAND_TIMEOUT);
 
@@ -267,7 +269,7 @@ static int pcwd_start(void)
 		udelay(ISA_COMMAND_TIMEOUT);
 		stat_reg = inb_p(pcwd_private.io_addr + 2);
 		spin_unlock(&pcwd_private.io_lock);
-		if (stat_reg & 0x10) {
+		if (stat_reg & WD_WDIS) {
 			printk(KERN_INFO PFX "Could not start watchdog\n");
 			return -EIO;
 		}
@@ -291,7 +293,7 @@ static int pcwd_stop(void)
 		udelay(ISA_COMMAND_TIMEOUT);
 		stat_reg = inb_p(pcwd_private.io_addr + 2);
 		spin_unlock(&pcwd_private.io_lock);
-		if ((stat_reg & 0x10) == 0) {
+		if ((stat_reg & WD_WDIS) == 0) {
 			printk(KERN_INFO PFX "Could not stop watchdog\n");
 			return -EIO;
 		}
