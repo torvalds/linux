@@ -710,7 +710,8 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		desc->pending = 0;
 		desc->disable_depth = 1;
 
-		if (new->flags & SA_TRIGGER_MASK) {
+		if (new->flags & SA_TRIGGER_MASK &&
+		    desc->chip->set_type) {
 			unsigned int type = new->flags & SA_TRIGGER_MASK;
 			desc->chip->set_type(irq, type);
 		}
