@@ -258,6 +258,54 @@ static IR_KEYTAB_TYPE ir_codes_cinergy_1400[IR_KEYTAB_SIZE] = {
 
 /* ---------------------------------------------------------------------- */
 
+/* AVERTV STUDIO 303 Remote */
+static IR_KEYTAB_TYPE ir_codes_avertv_303[IR_KEYTAB_SIZE] = {
+	[ 0x2a ] = KEY_KP1,
+	[ 0x32 ] = KEY_KP2,
+	[ 0x3a ] = KEY_KP3,
+	[ 0x4a ] = KEY_KP4,
+	[ 0x52 ] = KEY_KP5,
+	[ 0x5a ] = KEY_KP6,
+	[ 0x6a ] = KEY_KP7,
+	[ 0x72 ] = KEY_KP8,
+	[ 0x7a ] = KEY_KP9,
+	[ 0x0e ] = KEY_KP0,
+
+	[ 0x02 ] = KEY_POWER,
+	[ 0x22 ] = KEY_VIDEO,
+	[ 0x42 ] = KEY_AUDIO,
+	[ 0x62 ] = KEY_ZOOM,
+	[ 0x0a ] = KEY_TV,
+	[ 0x12 ] = KEY_CD,
+	[ 0x1a ] = KEY_TEXT,
+
+	[ 0x16 ] = KEY_SUBTITLE,
+	[ 0x1e ] = KEY_REWIND,
+	[ 0x06 ] = KEY_PRINT,
+
+	[ 0x2e ] = KEY_SEARCH,
+	[ 0x36 ] = KEY_SLEEP,
+	[ 0x3e ] = KEY_SHUFFLE,
+	[ 0x26 ] = KEY_MUTE,
+
+	[ 0x4e ] = KEY_RECORD,
+	[ 0x56 ] = KEY_PAUSE,
+	[ 0x5e ] = KEY_STOP,
+	[ 0x46 ] = KEY_PLAY,
+
+	[ 0x6e ] = KEY_RED,
+	[ 0x0b ] = KEY_GREEN,
+	[ 0x66 ] = KEY_YELLOW,
+	[ 0x03 ] = KEY_BLUE,
+
+	[ 0x76 ] = KEY_LEFT,
+	[ 0x7e ] = KEY_RIGHT,
+	[ 0x13 ] = KEY_DOWN,
+	[ 0x1b ] = KEY_UP,
+};
+
+/* ---------------------------------------------------------------------- */
+
 struct cx88_IR {
 	struct cx88_core *core;
 	struct input_dev *input;
@@ -429,6 +477,13 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keycode = 0x1f;
 		ir->mask_keyup = 0x40;
 		ir->polling = 1; /* ms */
+		break;
+	case CX88_BOARD_AVERTV_303:
+		ir_codes         = ir_codes_avertv_303;
+		ir->gpio_addr    = MO_GP2_IO;
+		ir->mask_keycode = 0xfb;
+		ir->mask_keydown = 0x02;
+		ir->polling      = 50; /* ms */
 		break;
 	}
 
