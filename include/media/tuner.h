@@ -120,20 +120,25 @@
 #define TDA9887_SET_CONFIG           _IOW('t',5,int)
 
 /* tv card specific */
-# define TDA9887_PRESENT             (1<<0)
-# define TDA9887_PORT1_INACTIVE      (1<<1)
-# define TDA9887_PORT2_INACTIVE      (1<<2)
-# define TDA9887_QSS                 (1<<3)
-# define TDA9887_INTERCARRIER        (1<<4)
-# define TDA9887_PORT1_ACTIVE        (1<<5)
-# define TDA9887_PORT2_ACTIVE        (1<<6)
-# define TDA9887_INTERCARRIER_NTSC   (1<<7)
+#define TDA9887_PRESENT 		(1<<0)
+#define TDA9887_PORT1_INACTIVE 		(1<<1)
+#define TDA9887_PORT2_INACTIVE 		(1<<2)
+#define TDA9887_QSS 			(1<<3)
+#define TDA9887_INTERCARRIER 		(1<<4)
+#define TDA9887_PORT1_ACTIVE 		(1<<5)
+#define TDA9887_PORT2_ACTIVE 		(1<<6)
+#define TDA9887_INTERCARRIER_NTSC 	(1<<7)
+/* Tuner takeover point adjustment, in dB, -16 <= top <= 15 */
+#define TDA9887_TOP_MASK 		(0x3f << 8)
+#define TDA9887_TOP_SET 		(1 << 13)
+#define TDA9887_TOP(top) 		(TDA9887_TOP_SET | (((16 + (top)) & 0x1f) << 8))
+
 /* config options */
-# define TDA9887_DEEMPHASIS_MASK     (3<<16)
-# define TDA9887_DEEMPHASIS_NONE     (1<<16)
-# define TDA9887_DEEMPHASIS_50       (2<<16)
-# define TDA9887_DEEMPHASIS_75       (3<<16)
-# define TDA9887_AUTOMUTE            (1<<18)
+#define TDA9887_DEEMPHASIS_MASK 	(3<<16)
+#define TDA9887_DEEMPHASIS_NONE 	(1<<16)
+#define TDA9887_DEEMPHASIS_50 		(2<<16)
+#define TDA9887_DEEMPHASIS_75 		(3<<16)
+#define TDA9887_AUTOMUTE 		(1<<18)
 
 #ifdef __KERNEL__
 

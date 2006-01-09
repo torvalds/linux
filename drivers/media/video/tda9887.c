@@ -114,6 +114,9 @@ static struct i2c_client client_template;
 #define cAudioGain0             0x00    // bit c7
 #define cAudioGain6             0x80    // bit c7
 
+#define cTopMask                0x1f    // bit c0:4
+#define cTopPalSecamDefault	0x14 	// bit c0:4
+#define cTopNtscRadioDefault 	0x10 	// bit c0:4
 
 //// third reg (e)
 #define cAudioIF_4_5             0x00    // bit e0:1
@@ -145,13 +148,15 @@ static struct i2c_client client_template;
 
 static struct tvnorm tvnorms[] = {
 	{
-		.std   = V4L2_STD_PAL_BG,
-		.name  = "PAL-BG",
+		.std   = V4L2_STD_PAL_BG | V4L2_STD_PAL_H | V4L2_STD_PAL_N,
+		.name  = "PAL-BGHN",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
-		.e     = ( cAudioIF_5_5   |
+			   cDeemphasis50  |
+			   cTopPalSecamDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_5_5   |
 			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_PAL_I,
@@ -159,8 +164,10 @@ static struct tvnorm tvnorms[] = {
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
-		.e     = ( cAudioIF_6_0   |
+			   cDeemphasis50  |
+			   cTopPalSecamDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_6_0   |
 			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_PAL_DK,
@@ -168,23 +175,37 @@ static struct tvnorm tvnorms[] = {
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
-		.e     = ( cAudioIF_6_5   |
-			   cVideoIF_38_00 ),
+			   cDeemphasis50  |
+			   cTopPalSecamDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_6_5   |
+			   cVideoIF_38_90 ),
 	},{
-		.std   = V4L2_STD_PAL_M | V4L2_STD_PAL_N,
-		.name  = "PAL-M/N",
+		.std   = V4L2_STD_PAL_M | V4L2_STD_PAL_Nc,
+		.name  = "PAL-M/Nc",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis75  ),
-		.e     = ( cAudioIF_4_5   |
+			   cDeemphasis75  |
+			   cTopNtscRadioDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_4_5   |
 			   cVideoIF_45_75 ),
+	},{
+		.std   = V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H,
+		.name  = "SECAM-BGH",
+		.b     = ( cPositiveAmTV  |
+			   cQSS           ),
+		.c     = ( cTopPalSecamDefault),
+		.e     = ( cGating_36	  |
+			   cAudioIF_5_5   |
+			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_SECAM_L,
 		.name  = "SECAM-L",
 		.b     = ( cPositiveAmTV  |
 			   cQSS           ),
+		.c     = ( cTopPalSecamDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
@@ -194,6 +215,7 @@ static struct tvnorm tvnorms[] = {
 		.b     = ( cOutputPort2Inactive |
 			   cPositiveAmTV  |
 			   cQSS           ),
+		.c     = ( cTopPalSecamDefault),
 		.e     = ( cGating_36	  |
 			   cAudioIF_6_5   |
 			   cVideoIF_33_90 ),
@@ -203,26 +225,30 @@ static struct tvnorm tvnorms[] = {
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
-		.e     = ( cAudioIF_6_5   |
-			   cVideoIF_38_00 ),
+			   cDeemphasis50  |
+			   cTopPalSecamDefault),
+		.e     = ( cGating_36     |
+			   cAudioIF_6_5   |
+			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_NTSC_M,
 		.name  = "NTSC-M",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis75  ),
+			   cDeemphasis75  |
+			   cTopNtscRadioDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_45_75 ),
 	},{
 		.std   = V4L2_STD_NTSC_M_JP,
-		.name  = "NTSC-JP",
+		.name  = "NTSC-M-JP",
 		.b     = ( cNegativeFmTV  |
 			   cQSS           ),
 		.c     = ( cDeemphasisON  |
-			   cDeemphasis50  ),
+			   cDeemphasis50  |
+			   cTopNtscRadioDefault),
 		.e     = ( cGating_36     |
 			   cAudioIF_4_5   |
 			   cVideoIF_58_75 ),
@@ -234,8 +260,10 @@ static struct tvnorm radio_stereo = {
 	.b    = ( cFmRadio       |
 		  cQSS           ),
 	.c    = ( cDeemphasisOFF |
-		  cAudioGain6 ),
-	.e    = ( cAudioIF_5_5   |
+		  cAudioGain6    |
+		  cTopNtscRadioDefault),
+	.e    = ( cTunerGainLow  |
+		  cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
 };
 
@@ -244,8 +272,10 @@ static struct tvnorm radio_mono = {
 	.b    = ( cFmRadio       |
 		  cQSS           ),
 	.c    = ( cDeemphasisON  |
-		  cDeemphasis50),
-	.e    = ( cAudioIF_5_5   |
+		  cDeemphasis75  |
+		  cTopNtscRadioDefault),
+	.e    = ( cTunerGainLow  |
+		  cAudioIF_5_5   |
 		  cRadioIF_38_90 ),
 };
 
@@ -408,7 +438,8 @@ static int tda9887_set_tvnorm(struct tda9887 *t, char *buf)
 static unsigned int port1  = UNSET;
 static unsigned int port2  = UNSET;
 static unsigned int qss    = UNSET;
-static unsigned int adjust = 0x10;
+static unsigned int adjust = UNSET;
+
 module_param(port1, int, 0644);
 module_param(port2, int, 0644);
 module_param(qss, int, 0644);
@@ -436,8 +467,10 @@ static int tda9887_set_insmod(struct tda9887 *t, char *buf)
 			buf[1] &= ~cQSS;
 	}
 
-	if (adjust >= 0x00 && adjust < 0x20)
+	if (adjust >= 0x00 && adjust < 0x20) {
+		buf[2] &= ~cTopMask;
 		buf[2] |= adjust;
+	}
 	return 0;
 }
 
@@ -473,6 +506,10 @@ static int tda9887_set_config(struct tda9887 *t, char *buf)
 			break;
 		}
 	}
+	if (t->config & TDA9887_TOP_SET) {
+		buf[2] &= ~cTopMask;
+		buf[2] |= (t->config >> 8) & cTopMask;
+	}
 	if ((t->config & TDA9887_INTERCARRIER_NTSC) && (t->std & V4L2_STD_NTSC))
 		buf[1] &= ~cQSS;
 	return 0;
@@ -480,10 +517,13 @@ static int tda9887_set_config(struct tda9887 *t, char *buf)
 
 /* ---------------------------------------------------------------------- */
 
-static char pal[] = "-";
+static char pal[] = "--";
+static char secam[] = "--";
+static char ntsc[] = "-";
+
 module_param_string(pal, pal, sizeof(pal), 0644);
-static char secam[] = "-";
 module_param_string(secam, secam, sizeof(secam), 0644);
+module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
 
 static int tda9887_fixup_std(struct tda9887 *t)
 {
@@ -494,8 +534,17 @@ static int tda9887_fixup_std(struct tda9887 *t)
 		case 'B':
 		case 'g':
 		case 'G':
-			tda9887_dbg("insmod fixup: PAL => PAL-BG\n");
-			t->std = V4L2_STD_PAL_BG;
+		case 'h':
+		case 'H':
+		case 'n':
+		case 'N':
+			if (pal[1] == 'c' || pal[1] == 'C') {
+				tda9887_dbg("insmod fixup: PAL => PAL-Nc\n");
+				t->std = V4L2_STD_PAL_Nc;
+			} else {
+				tda9887_dbg("insmod fixup: PAL => PAL-BGHN\n");
+				t->std = V4L2_STD_PAL_BG | V4L2_STD_PAL_H | V4L2_STD_PAL_N;
+			}
 			break;
 		case 'i':
 		case 'I':
@@ -509,6 +558,11 @@ static int tda9887_fixup_std(struct tda9887 *t)
 			tda9887_dbg("insmod fixup: PAL => PAL-DK\n");
 			t->std = V4L2_STD_PAL_DK;
 			break;
+		case 'm':
+		case 'M':
+			tda9887_dbg("insmod fixup: PAL => PAL-M\n");
+			t->std = V4L2_STD_PAL_M;
+			break;
 		case '-':
 			/* default parameter, do nothing */
 			break;
@@ -519,6 +573,15 @@ static int tda9887_fixup_std(struct tda9887 *t)
 	}
 	if ((t->std & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
 		switch (secam[0]) {
+		case 'b':
+		case 'B':
+		case 'g':
+		case 'G':
+		case 'h':
+		case 'H':
+			tda9887_dbg("insmod fixup: SECAM => SECAM-BGH\n");
+			t->std = V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H;
+			break;
 		case 'd':
 		case 'D':
 		case 'k':
@@ -528,14 +591,39 @@ static int tda9887_fixup_std(struct tda9887 *t)
 			break;
 		case 'l':
 		case 'L':
-			tda9887_dbg("insmod fixup: SECAM => SECAM-L\n");
-			t->std = V4L2_STD_SECAM_L;
+			if (secam[1] == 'c' || secam[1] == 'C') {
+				tda9887_dbg("insmod fixup: SECAM => SECAM-L'\n");
+				t->std = V4L2_STD_SECAM_LC;
+			} else {
+				tda9887_dbg("insmod fixup: SECAM => SECAM-L\n");
+				t->std = V4L2_STD_SECAM_L;
+			}
 			break;
 		case '-':
 			/* default parameter, do nothing */
 			break;
 		default:
 			tda9887_info("secam= argument not recognised\n");
+			break;
+		}
+	}
+	if ((t->std & V4L2_STD_NTSC) == V4L2_STD_NTSC) {
+		switch (ntsc[0]) {
+		case 'm':
+		case 'M':
+			tda9887_dbg("insmod fixup: NTSC => NTSC-M\n");
+			t->std = V4L2_STD_NTSC_M;
+			break;
+		case 'j':
+		case 'J':
+			tda9887_dbg("insmod fixup: NTSC => NTSC_M_JP\n");
+			t->std = V4L2_STD_NTSC_M_JP;
+			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			tda9887_info("ntsc= argument not recognised\n");
 			break;
 		}
 	}
@@ -561,6 +649,19 @@ static int tda9887_configure(struct tda9887 *t)
 	memset(t->data,0,sizeof(t->data));
 	tda9887_set_tvnorm(t,t->data);
 
+	/* A note on the port settings:
+	   These settings tend to depend on the specifics of the board.
+	   By default they are set to inactive (bit value 1) by this driver,
+	   overwriting any changes made by the tvnorm. This means that it
+	   is the responsibility of the module using the tda9887 to set
+	   these values in case of changes in the tvnorm.
+	   In many cases port 2 should be made active (0) when selecting
+	   SECAM-L, and port 2 should remain inactive (1) for SECAM-L'.
+
+	   For the other standards the tda9887 application note says that
+	   the ports should be set to active (0), but, again, that may
+	   differ depending on the precise hardware configuration.
+	 */
 	t->data[1] |= cOutputPort1Inactive;
 	t->data[1] |= cOutputPort2Inactive;
 
@@ -570,7 +671,6 @@ static int tda9887_configure(struct tda9887 *t)
 	if (t->mode == T_STANDBY) {
 		t->data[1] |= cForcedMuteAudioON;
 	}
-
 
 	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
 		t->data[1],t->data[2],t->data[3]);
