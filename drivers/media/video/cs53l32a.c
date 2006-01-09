@@ -27,7 +27,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/videodev.h>
-#include <media/audiochip.h>
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
@@ -38,21 +38,6 @@ static int debug = 0;
 module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debugging messages\n\t\t\t0=Off (default), 1=On");
-
-#define cs53l32a_dbg(fmt, arg...) \
-	do { \
-		if (debug) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
-			       client->driver->driver.name, \
-			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
-	} while (0)
-
-#define cs53l32a_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
-		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-#define cs53l32a_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
-		i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 static unsigned short normal_i2c[] = { 0x22 >> 1, I2C_CLIENT_END };
 
@@ -84,7 +69,7 @@ static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
 		   the second goes through the PGA. Hence there are three
 		   possible inputs to choose from. */
 		if (input->index > 2) {
-			cs53l32a_err("Invalid input %d.\n", input->index);
+			v4l_err(client, "Invalid input %d.\n", input->index);
 			return -EINVAL;
 		}
 		cs53l32a_write(client, 0x01, 0x01 + (input->index << 4));
@@ -124,9 +109,9 @@ static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
 			u8 m = cs53l32a_read(client, 0x03);
 			s8 vol = cs53l32a_read(client, 0x04);
 
-			cs53l32a_info("Input:  %d%s\n", (v >> 4) & 3,
+			v4l_info(client, "Input:  %d%s\n", (v >> 4) & 3,
 				      (m & 0xC0) ? " (muted)" : "");
-			cs53l32a_info("Volume: %d dB\n", vol);
+			v4l_info(client, "Volume: %d dB\n", vol);
 			break;
 		}
 
@@ -166,12 +151,12 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->driver = &i2c_driver;
 	snprintf(client->name, sizeof(client->name) - 1, "cs53l32a");
 
-	cs53l32a_info("chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
 
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(client, i);
 
-		cs53l32a_dbg("Read Reg %d %02x\n", i, v);
+		v4l_dbg(1, client, "Read Reg %d %02x\n", i, v);
 	}
 
 	/* Set cs53l32a internal register for Adaptec 2010/2410 setup */
@@ -189,7 +174,7 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(client, i);
 
-		cs53l32a_dbg("Read Reg %d %02x\n", i, v);
+		v4l_dbg(1, client, "Read Reg %d %02x\n", i, v);
 	}
 
 	i2c_attach_client(client);

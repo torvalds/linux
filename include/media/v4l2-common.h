@@ -51,6 +51,7 @@
    parameter called 'debug'. */
 #define v4l_dbg(level, client, fmt, arg...)				     \
 	do { 								     \
+		extern int debug;					     \
 		if (debug >= (level))					     \
 			v4l_client_printk(KERN_DEBUG, client, fmt , ## arg); \
 	} while (0)

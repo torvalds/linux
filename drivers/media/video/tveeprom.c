@@ -40,6 +40,7 @@
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
+#include <media/v4l2-common.h>
 #include <media/audiochip.h>
 
 MODULE_DESCRIPTION("i2c Hauppauge eeprom decoder driver");
@@ -52,16 +53,14 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define STRM(array,i) (i < sizeof(array)/sizeof(char*) ? array[i] : "unknown")
 
-#define tveeprom_info(fmt, arg...) do {\
-	printk(KERN_INFO "tveeprom %d-%04x: " fmt, \
-			c->adapter->nr, c->addr , ##arg); } while (0)
-#define tveeprom_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "tveeprom %d-%04x: " fmt, \
-			c->adapter->nr, c->addr , ##arg); } while (0)
-#define tveeprom_dbg(fmt, arg...) do {\
+#define tveeprom_info(fmt, arg...) \
+	v4l_printk(KERN_INFO, "tveeprom", c->adapter, c->addr, fmt , ## arg)
+#define tveeprom_warn(fmt, arg...) \
+	v4l_printk(KERN_WARNING, "tveeprom", c->adapter, c->addr, fmt , ## arg)
+#define tveeprom_dbg(fmt, arg...) do { \
 	if (debug) \
-		printk(KERN_INFO "tveeprom %d-%04x: " fmt, \
-			c->adapter->nr, c->addr , ##arg); } while (0)
+		v4l_printk(KERN_DEBUG, "tveeprom", c->adapter, c->addr, fmt , ## arg); \
+	} while (0)
 
 /*
  * The Hauppauge eeprom uses an 8bit field to determine which

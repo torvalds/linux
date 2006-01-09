@@ -80,12 +80,12 @@ int stereo_threshold = 0x190; /* a2 threshold for stereo/bilingual
 module_param(opmode,           int, 0444);
 
 /* read-write */
-module_param(once,             int, 0644);
+module_param(once,             bool, 0644);
 module_param(debug,            int, 0644);
 module_param(stereo_threshold, int, 0644);
 module_param(standard,         int, 0644);
-module_param(amsound,          int, 0644);
-module_param(dolby,            int, 0644);
+module_param(amsound,          bool, 0644);
+module_param(dolby,            bool, 0644);
 
 MODULE_PARM_DESC(opmode, "Forces a MSP3400 opmode. 0=Manual, 1=Autodetect, 2=Autodetect and autoselect");
 MODULE_PARM_DESC(once, "No continuous stereo monitoring");

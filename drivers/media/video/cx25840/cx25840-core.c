@@ -43,11 +43,11 @@ MODULE_LICENSE("GPL");
 static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
 
 
-int cx25840_debug = 0;
+int debug = 0;
 
-module_param(cx25840_debug, bool, 0644);
+module_param(debug, bool, 0644);
 
-MODULE_PARM_DESC(cx25840_debug, "Debugging messages [0=Off (default) 1=On]");
+MODULE_PARM_DESC(debug, "Debugging messages [0=Off (default) 1=On]");
 
 I2C_CLIENT_INSMOD;
 
@@ -265,7 +265,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 			   vid_input <= CX25840_COMPOSITE8);
 	u8 reg;
 
-	cx25840_dbg("decoder set video input %d, audio input %d\n",
+	v4l_dbg(1, client, "decoder set video input %d, audio input %d\n",
 			vid_input, aud_input);
 
 	if (is_composite) {
@@ -277,7 +277,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		if ((vid_input & ~0xff0) ||
 		    luma < CX25840_SVIDEO_LUMA1 || luma > CX25840_SVIDEO_LUMA4 ||
 		    chroma < CX25840_SVIDEO_CHROMA4 || chroma > CX25840_SVIDEO_CHROMA8) {
-			cx25840_err("0x%04x is not a valid video input!\n", vid_input);
+			v4l_err(client, "0x%04x is not a valid video input!\n", vid_input);
 			return -EINVAL;
 		}
 		reg = 0xf0 + ((luma - CX25840_SVIDEO_LUMA1) >> 4);
@@ -301,7 +301,7 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 	case CX25840_AUDIO8: reg &= ~0xc0; reg |= 0x40; break;
 
 	default:
-		cx25840_err("0x%04x is not a valid audio input!\n", aud_input);
+		v4l_err(client, "0x%04x is not a valid audio input!\n", aud_input);
 		return -EINVAL;
 	}
 
@@ -396,7 +396,7 @@ static int set_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 
 	case V4L2_CID_BRIGHTNESS:
 		if (ctrl->value < 0 || ctrl->value > 255) {
-			cx25840_err("invalid brightness setting %d\n",
+			v4l_err(client, "invalid brightness setting %d\n",
 				    ctrl->value);
 			return -ERANGE;
 		}
@@ -406,7 +406,7 @@ static int set_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 
 	case V4L2_CID_CONTRAST:
 		if (ctrl->value < 0 || ctrl->value > 127) {
-			cx25840_err("invalid contrast setting %d\n",
+			v4l_err(client, "invalid contrast setting %d\n",
 				    ctrl->value);
 			return -ERANGE;
 		}
@@ -416,7 +416,7 @@ static int set_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 
 	case V4L2_CID_SATURATION:
 		if (ctrl->value < 0 || ctrl->value > 127) {
-			cx25840_err("invalid saturation setting %d\n",
+			v4l_err(client, "invalid saturation setting %d\n",
 				    ctrl->value);
 			return -ERANGE;
 		}
@@ -427,7 +427,7 @@ static int set_v4lctrl(struct i2c_client *client, struct v4l2_control *ctrl)
 
 	case V4L2_CID_HUE:
 		if (ctrl->value < -127 || ctrl->value > 127) {
-			cx25840_err("invalid hue setting %d\n", ctrl->value);
+			v4l_err(client, "invalid hue setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
 
@@ -515,7 +515,7 @@ static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 
 		if ((pix->width * 16 < Hsrc) || (Hsrc < pix->width) ||
 		    (Vlines * 8 < Vsrc) || (Vsrc < Vlines)) {
-			cx25840_err("%dx%d is not a valid size!\n",
+			v4l_err(client, "%dx%d is not a valid size!\n",
 				    pix->width, pix->height);
 			return -ERANGE;
 		}
@@ -533,7 +533,7 @@ static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 		else
 			filter = 3;
 
-		cx25840_dbg("decoder set size %dx%d -> scale  %ux%u\n",
+		v4l_dbg(1, client, "decoder set size %dx%d -> scale  %ux%u\n",
 			    pix->width, pix->height, HSC, VSC);
 
 		/* HSCALE=HSC */
@@ -602,13 +602,13 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		return cx25840_audio(client, cmd, arg);
 
 	case VIDIOC_STREAMON:
-		cx25840_dbg("enable output\n");
+		v4l_dbg(1, client, "enable output\n");
 		cx25840_write(client, 0x115, 0x8c);
 		cx25840_write(client, 0x116, 0x07);
 		break;
 
 	case VIDIOC_STREAMOFF:
-		cx25840_dbg("disable output\n");
+		v4l_dbg(1, client, "disable output\n");
 		cx25840_write(client, 0x115, 0x00);
 		cx25840_write(client, 0x116, 0x00);
 		break;
@@ -774,7 +774,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	client->driver = &i2c_driver_cx25840;
 	snprintf(client->name, sizeof(client->name) - 1, "cx25840");
 
-	cx25840_dbg("detecting cx25840 client on address 0x%x\n", address << 1);
+	v4l_dbg(1, client, "detecting cx25840 client on address 0x%x\n", address << 1);
 
 	device_id = cx25840_read(client, 0x101) << 8;
 	device_id |= cx25840_read(client, 0x100);
@@ -782,12 +782,12 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	/* The high byte of the device ID should be
 	 * 0x84 if chip is present */
 	if ((device_id & 0xff00) != 0x8400) {
-		cx25840_dbg("cx25840 not found\n");
+		v4l_dbg(1, client, "cx25840 not found\n");
 		kfree(client);
 		return 0;
 	}
 
-	cx25840_info("cx25%3x-2%x found @ 0x%x (%s)\n",
+	v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
 		    (device_id & 0xfff0) >> 4,
 		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : 3,
 		    address << 1, adapter->name);
@@ -891,9 +891,9 @@ static void log_status(struct i2c_client *client)
 	int aud_input = state->aud_input;
 	char *p;
 
-	cx25840_info("Video signal:              %spresent\n",
+	v4l_info(client, "Video signal:              %spresent\n",
 		    (microctrl_vidfmt & 0x10) ? "" : "not ");
-	cx25840_info("Detected format:           %s\n",
+	v4l_info(client, "Detected format:           %s\n",
 		    fmt_strs[gen_stat1 & 0xf]);
 
 	switch (mod_det_stat0) {
@@ -908,7 +908,7 @@ static void log_status(struct i2c_client *client)
 	case 0xfe: p = "forced mode"; break;
 	default: p = "not defined";
 	}
-	cx25840_info("Detected audio mode:       %s\n", p);
+	v4l_info(client, "Detected audio mode:       %s\n", p);
 
 	switch (mod_det_stat1) {
 	case 0x00: p = "not defined"; break;
@@ -934,10 +934,10 @@ static void log_status(struct i2c_client *client)
 	case 0xff: p = "no detected audio standard"; break;
 	default: p = "not defined";
 	}
-	cx25840_info("Detected audio standard:   %s\n", p);
-	cx25840_info("Audio muted:               %s\n",
+	v4l_info(client, "Detected audio standard:   %s\n", p);
+	v4l_info(client, "Audio muted:               %s\n",
 		    (mute_ctl & 0x2) ? "yes" : "no");
-	cx25840_info("Audio microcontroller:     %s\n",
+	v4l_info(client, "Audio microcontroller:     %s\n",
 		    (download_ctl & 0x10) ? "running" : "stopped");
 
 	switch (audio_config >> 4) {
@@ -959,7 +959,7 @@ static void log_status(struct i2c_client *client)
 	case 0x0f: p = "automatic detection"; break;
 	default: p = "undefined";
 	}
-	cx25840_info("Configured audio standard: %s\n", p);
+	v4l_info(client, "Configured audio standard: %s\n", p);
 
 	if ((audio_config >> 4) < 0xF) {
 		switch (audio_config & 0xF) {
@@ -976,7 +976,7 @@ static void log_status(struct i2c_client *client)
 		case 0x0a: p = "SAP"; break;
 		default: p = "undefined";
 		}
-		cx25840_info("Configured audio mode:     %s\n", p);
+		v4l_info(client, "Configured audio mode:     %s\n", p);
 	} else {
 		switch (audio_config & 0xF) {
 		case 0x00: p = "BG"; break;
@@ -992,27 +992,27 @@ static void log_status(struct i2c_client *client)
 		case 0x0f: p = "automatic standard and mode detection"; break;
 		default: p = "undefined";
 		}
-		cx25840_info("Configured audio system:   %s\n", p);
+		v4l_info(client, "Configured audio system:   %s\n", p);
 	}
 
-	cx25840_info("Specified standard:        %s\n",
+	v4l_info(client, "Specified standard:        %s\n",
 		    vidfmt_sel ? fmt_strs[vidfmt_sel] : "automatic detection");
 
 	if (vid_input >= CX25840_COMPOSITE1 &&
 	    vid_input <= CX25840_COMPOSITE8) {
-		cx25840_info("Specified video input:     Composite %d\n",
+		v4l_info(client, "Specified video input:     Composite %d\n",
 			vid_input - CX25840_COMPOSITE1 + 1);
 	} else {
-		cx25840_info("Specified video input:     S-Video (Luma In%d, Chroma In%d)\n",
+		v4l_info(client, "Specified video input:     S-Video (Luma In%d, Chroma In%d)\n",
 			(vid_input & 0xf0) >> 4, (vid_input & 0xf00) >> 8);
 	}
 	if (aud_input) {
-		cx25840_info("Specified audio input:     Tuner (In%d)\n", aud_input);
+		v4l_info(client, "Specified audio input:     Tuner (In%d)\n", aud_input);
 	} else {
-		cx25840_info("Specified audio input:     External\n");
+		v4l_info(client, "Specified audio input:     External\n");
 	}
 
-	cx25840_info("Specified audioclock freq: %d Hz\n", state->audclk_freq);
+	v4l_info(client, "Specified audioclock freq: %d Hz\n", state->audclk_freq);
 
 	switch (pref_mode & 0xf) {
 	case 0: p = "mono/language A"; break;
@@ -1025,7 +1025,7 @@ static void log_status(struct i2c_client *client)
 	case 7: p = "language AB"; break;
 	default: p = "undefined";
 	}
-	cx25840_info("Preferred audio mode:      %s\n", p);
+	v4l_info(client, "Preferred audio mode:      %s\n", p);
 
 	if ((audio_config & 0xf) == 0xf) {
 		switch ((afc0 >> 3) & 0x3) {
@@ -1034,7 +1034,7 @@ static void log_status(struct i2c_client *client)
 		case 2: p = "autodetect"; break;
 		default: p = "undefined";
 		}
-		cx25840_info("Selected 65 MHz format:    %s\n", p);
+		v4l_info(client, "Selected 65 MHz format:    %s\n", p);
 
 		switch (afc0 & 0x7) {
 		case 0: p = "chroma"; break;
@@ -1044,6 +1044,6 @@ static void log_status(struct i2c_client *client)
 		case 4: p = "autodetect"; break;
 		default: p = "undefined";
 		}
-		cx25840_info("Selected 45 MHz format:    %s\n", p);
+		v4l_info(client, "Selected 45 MHz format:    %s\n", p);
 	}
 }

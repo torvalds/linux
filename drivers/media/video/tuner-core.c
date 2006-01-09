@@ -23,8 +23,6 @@
 #include <media/v4l2-common.h>
 #include <media/audiochip.h>
 
-#include "msp3400.h"
-
 #define UNSET (-1U)
 
 /* standard i2c insmod options */
@@ -43,7 +41,8 @@ static unsigned int no_autodetect = 0;
 static unsigned int show_i2c = 0;
 
 /* insmod options used at runtime => read/write */
-unsigned int tuner_debug = 0;
+static unsigned int tuner_debug = 0;
+int debug = 0;
 
 static unsigned int tv_range[2] = { 44, 958 };
 static unsigned int radio_range[2] = { 65, 108 };
@@ -55,7 +54,9 @@ static char ntsc[] = "-";
 module_param(addr, int, 0444);
 module_param(no_autodetect, int, 0444);
 module_param(show_i2c, int, 0444);
-module_param(tuner_debug, int, 0644);
+/* Note: tuner_debug is deprecated and will be removed in 2.6.17 */
+module_param(tuner_debug, int, 0444);
+module_param(debug, int, 0644);
 
 module_param_string(pal, pal, sizeof(pal), 0644);
 module_param_string(secam, secam, sizeof(secam), 0644);
@@ -419,6 +420,11 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	t->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 	t->audmode = V4L2_TUNER_MODE_STEREO;
 	t->mode_mask = T_UNINITIALIZED;
+	if (tuner_debug) {
+		debug = tuner_debug;
+		printk(KERN_ERR "tuner: tuner_debug is deprecated and will be removed in 2.6.17.\n");
+		printk(KERN_ERR "tuner: use the debug option instead.\n");
+	}
 
 	if (show_i2c) {
 		unsigned char buffer[16];
@@ -546,7 +552,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct tuner *t = i2c_get_clientdata(client);
 
-	if (tuner_debug>1)
+	if (debug>1)
 		v4l_i2c_print_ioctl(&(t->i2c),cmd);
 
 	switch (cmd) {

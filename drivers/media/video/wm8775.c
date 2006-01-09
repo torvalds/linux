@@ -32,19 +32,11 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/videodev.h>
-#include <media/audiochip.h>
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
 MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
 MODULE_LICENSE("GPL");
-
-#define wm8775_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-#define wm8775_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-
 
 static unsigned short normal_i2c[] = { 0x36 >> 1, I2C_CLIENT_END };
 
@@ -69,7 +61,7 @@ static int wm8775_write(struct i2c_client *client, int reg, u16 val)
 	int i;
 
 	if (reg < 0 || reg >= TOT_REGS) {
-		wm8775_err("Invalid register R%d\n", reg);
+		v4l_err(client, "Invalid register R%d\n", reg);
 		return -1;
 	}
 
@@ -79,7 +71,7 @@ static int wm8775_write(struct i2c_client *client, int reg, u16 val)
 			return 0;
 		}
 	}
-	wm8775_err("I2C: cannot write %03x to register R%d\n", val, reg);
+	v4l_err(client, "I2C: cannot write %03x to register R%d\n", val, reg);
 	return -1;
 }
 
@@ -98,7 +90,7 @@ static int wm8775_command(struct i2c_client *client, unsigned int cmd,
 		   If only one input is active (the normal case) then the
 		   input values 1, 2, 4 or 8 should be used. */
 		if (input->index > 15) {
-			wm8775_err("Invalid input %d.\n", input->index);
+			v4l_err(client, "Invalid input %d.\n", input->index);
 			return -EINVAL;
 		}
 		state->input = input->index;
@@ -133,7 +125,7 @@ static int wm8775_command(struct i2c_client *client, unsigned int cmd,
 		break;
 
 	case VIDIOC_LOG_STATUS:
-		wm8775_info("Input: %d%s\n", state->input,
+		v4l_info(client, "Input: %d%s\n", state->input,
 			    state->muted ? " (muted)" : "");
 		break;
 
@@ -184,7 +176,7 @@ static int wm8775_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->driver = &i2c_driver;
 	snprintf(client->name, sizeof(client->name) - 1, "wm8775");
 
-	wm8775_info("chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
 
 	state = kmalloc(sizeof(struct wm8775_state), GFP_KERNEL);
 	if (state == NULL) {

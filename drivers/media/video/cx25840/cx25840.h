@@ -20,24 +20,8 @@
 #ifndef _CX25840_H_
 #define _CX25840_H_
 
-
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
-
-extern int cx25840_debug;
-
-#define cx25840_dbg(fmt, arg...) do { if (cx25840_debug) \
-	printk(KERN_INFO "%s debug %d-%04x: " fmt, \
-	       client->driver->driver.name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-
-#define cx25840_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-
-#define cx25840_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 /* ENABLE_PVR150_WORKAROUND activates a workaround for a hardware bug that is
    present in Hauppauge PVR-150 (and possibly PVR-500) cards that have

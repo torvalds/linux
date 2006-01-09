@@ -17,6 +17,9 @@
 
 #define PREFIX "TEA5767 "
 
+/* from tuner-core.c */
+extern int debug;
+
 /*****************************************************************************/
 
 /******************************
@@ -246,7 +249,7 @@ static void set_radio_freq(struct i2c_client *c, unsigned int frq)
 	if (5 != (rc = i2c_master_send(c, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
-	if (tuner_debug) {
+	if (debug) {
 		if (5 != (rc = i2c_master_recv(c, buffer, 5)))
 			tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 		else

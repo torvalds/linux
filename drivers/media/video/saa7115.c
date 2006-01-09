@@ -47,24 +47,9 @@ MODULE_AUTHOR("Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
 static int debug = 0;
-module_param(debug, int, 0644);
+module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
-
-#define saa7115_dbg(fmt,arg...) \
-	do { \
-		if (debug) \
-			printk(KERN_INFO "%s debug %d-%04x: " fmt, \
-			       client->driver->driver.name, \
-			       i2c_adapter_id(client->adapter), client->addr , ## arg); \
-	} while (0)
-
-#define saa7115_err(fmt, arg...) do { \
-	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->driver.name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
-#define saa7115_info(fmt, arg...) do { \
-	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->driver.name, \
-	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 static unsigned short normal_i2c[] = { 0x42 >> 1, 0x40 >> 1, I2C_CLIENT_END };
 
@@ -564,7 +549,7 @@ static int saa7115_set_audio_clock_freq(struct i2c_client *client, u32 freq)
 	u32 hz;
 	u64 f;
 
-	saa7115_dbg("set audio clock freq: %d\n", freq);
+	v4l_dbg(1, client, "set audio clock freq: %d\n", freq);
 
 	/* sanity check */
 	if (freq < 32000 || freq > 48000)
@@ -599,7 +584,7 @@ static int saa7115_set_v4lctrl(struct i2c_client *client, struct v4l2_control *c
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
 		if (ctrl->value < 0 || ctrl->value > 255) {
-			saa7115_err("invalid brightness setting %d\n", ctrl->value);
+			v4l_err(client, "invalid brightness setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
 
@@ -609,7 +594,7 @@ static int saa7115_set_v4lctrl(struct i2c_client *client, struct v4l2_control *c
 
 	case V4L2_CID_CONTRAST:
 		if (ctrl->value < 0 || ctrl->value > 127) {
-			saa7115_err("invalid contrast setting %d\n", ctrl->value);
+			v4l_err(client, "invalid contrast setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
 
@@ -619,7 +604,7 @@ static int saa7115_set_v4lctrl(struct i2c_client *client, struct v4l2_control *c
 
 	case V4L2_CID_SATURATION:
 		if (ctrl->value < 0 || ctrl->value > 127) {
-			saa7115_err("invalid saturation setting %d\n", ctrl->value);
+			v4l_err(client, "invalid saturation setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
 
@@ -629,7 +614,7 @@ static int saa7115_set_v4lctrl(struct i2c_client *client, struct v4l2_control *c
 
 	case V4L2_CID_HUE:
 		if (ctrl->value < -127 || ctrl->value > 127) {
-			saa7115_err("invalid hue setting %d\n", ctrl->value);
+			v4l_err(client, "invalid hue setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
 
@@ -685,10 +670,10 @@ static void saa7115_set_v4lstd(struct i2c_client *client, v4l2_std_id std)
 
 	// This works for NTSC-M, SECAM-L and the 50Hz PAL variants.
 	if (std & V4L2_STD_525_60) {
-		saa7115_dbg("decoder set standard 60 Hz\n");
+		v4l_dbg(1, client, "decoder set standard 60 Hz\n");
 		saa7115_writeregs(client, saa7115_cfg_60hz_video);
 	} else {
-		saa7115_dbg("decoder set standard 50 Hz\n");
+		v4l_dbg(1, client, "decoder set standard 50 Hz\n");
 		saa7115_writeregs(client, saa7115_cfg_50hz_video);
 	}
 
@@ -717,13 +702,13 @@ static void saa7115_log_status(struct i2c_client *client)
 	int signalOk;
 	int vcr;
 
-	saa7115_info("Audio frequency: %d Hz\n", state->audclk_freq);
+	v4l_info(client, "Audio frequency: %d Hz\n", state->audclk_freq);
 	if (client->name[6] == '4') {
 		/* status for the saa7114 */
 		reg1f = saa7115_read(client, 0x1f);
 		signalOk = (reg1f & 0xc1) == 0x81;
-		saa7115_info("Video signal:    %s\n", signalOk ? "ok" : "bad");
-		saa7115_info("Frequency:       %s\n", (reg1f & 0x20) ? "60 Hz" : "50 Hz");
+		v4l_info(client, "Video signal:    %s\n", signalOk ? "ok" : "bad");
+		v4l_info(client, "Frequency:       %s\n", (reg1f & 0x20) ? "60 Hz" : "50 Hz");
 		return;
 	}
 
@@ -735,25 +720,25 @@ static void saa7115_log_status(struct i2c_client *client)
 	vcr = !(reg1f & 0x10);
 
 	if (state->input >= 6) {
-		saa7115_info("Input:           S-Video %d\n", state->input - 6);
+		v4l_info(client, "Input:           S-Video %d\n", state->input - 6);
 	} else {
-		saa7115_info("Input:           Composite %d\n", state->input);
+		v4l_info(client, "Input:           Composite %d\n", state->input);
 	}
-	saa7115_info("Video signal:    %s\n", signalOk ? (vcr ? "VCR" : "broadcast/DVD") : "bad");
-	saa7115_info("Frequency:       %s\n", (reg1f & 0x20) ? "60 Hz" : "50 Hz");
+	v4l_info(client, "Video signal:    %s\n", signalOk ? (vcr ? "VCR" : "broadcast/DVD") : "bad");
+	v4l_info(client, "Frequency:       %s\n", (reg1f & 0x20) ? "60 Hz" : "50 Hz");
 
 	switch (reg1e & 0x03) {
 		case 1:
-			saa7115_info("Detected format: NTSC\n");
+			v4l_info(client, "Detected format: NTSC\n");
 			break;
 		case 2:
-			saa7115_info("Detected format: PAL\n");
+			v4l_info(client, "Detected format: PAL\n");
 			break;
 		case 3:
-			saa7115_info("Detected format: SECAM\n");
+			v4l_info(client, "Detected format: SECAM\n");
 			break;
 		default:
-			saa7115_info("Detected format: BW/No color\n");
+			v4l_info(client, "Detected format: BW/No color\n");
 			break;
 	}
 }
@@ -878,7 +863,7 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 
 	pix = &(fmt->fmt.pix);
 
-	saa7115_dbg("decoder set size\n");
+	v4l_dbg(1, client, "decoder set size\n");
 
 	/* FIXME need better bounds checking here */
 	if ((pix->width < 1) || (pix->width > 1440))
@@ -904,7 +889,7 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 		HPSC = HPSC ? HPSC : 1;
 		HFSC = (int)((1024 * 720) / (HPSC * pix->width));
 
-		saa7115_dbg("Hpsc: 0x%05x, Hfsc: 0x%05x\n", HPSC, HFSC);
+		v4l_dbg(1, client, "Hpsc: 0x%05x, Hfsc: 0x%05x\n", HPSC, HFSC);
 		/* FIXME hardcodes to "Task B"
 		 * write H prescaler integer */
 		saa7115_write(client, 0xd0, (u8) (HPSC & 0x3f));
@@ -918,10 +903,10 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 		saa7115_write(client, 0xDD, (u8) ((HFSC >> 9) & 0xff));
 	} else {
 		if (is_50hz) {
-			saa7115_dbg("Setting full 50hz width\n");
+			v4l_dbg(1, client, "Setting full 50hz width\n");
 			saa7115_writeregs(client, saa7115_cfg_50hz_fullres_x);
 		} else {
-			saa7115_dbg("Setting full 60hz width\n");
+			v4l_dbg(1, client, "Setting full 60hz width\n");
 			saa7115_writeregs(client, saa7115_cfg_60hz_fullres_x);
 		}
 	}
@@ -930,7 +915,7 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 
 	if (pix->height != Vsrc) {
 		VSCY = (int)((1024 * Vsrc) / pix->height);
-		saa7115_dbg("Vsrc: %d, Vscy: 0x%05x\n", Vsrc, VSCY);
+		v4l_dbg(1, client, "Vsrc: %d, Vscy: 0x%05x\n", Vsrc, VSCY);
 
 		/* Correct Contrast and Luminance */
 		saa7115_write(client, 0xd5, (u8) (64 * 1024 / VSCY));
@@ -944,10 +929,10 @@ static int saa7115_set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt
 		saa7115_write(client, 0xe3, (u8) ((VSCY >> 8) & 0xff));
 	} else {
 		if (is_50hz) {
-			saa7115_dbg("Setting full 50Hz height\n");
+			v4l_dbg(1, client, "Setting full 50Hz height\n");
 			saa7115_writeregs(client, saa7115_cfg_50hz_fullres_y);
 		} else {
-			saa7115_dbg("Setting full 60hz height\n");
+			v4l_dbg(1, client, "Setting full 60hz height\n");
 			saa7115_writeregs(client, saa7115_cfg_60hz_fullres_y);
 		}
 	}
@@ -1052,7 +1037,7 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 			break;
 		status = saa7115_read(client, 0x1f);
 
-		saa7115_dbg("status: 0x%02x\n", status);
+		v4l_dbg(1, client, "status: 0x%02x\n", status);
 		vt->signal = ((status & (1 << 6)) == 0) ? 0xffff : 0x0;
 		break;
 	}
@@ -1085,7 +1070,7 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 		break;
 
 	case VIDIOC_S_INPUT:
-		saa7115_dbg("decoder set input %d\n", *iarg);
+		v4l_dbg(1, client, "decoder set input %d\n", *iarg);
 		/* inputs from 0-9 are available */
 		if (*iarg < 0 || *iarg > 9) {
 			return -EINVAL;
@@ -1093,7 +1078,7 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 
 		if (state->input == *iarg)
 			break;
-		saa7115_dbg("now setting %s input\n",
+		v4l_dbg(1, client, "now setting %s input\n",
 			*iarg >= 6 ? "S-Video" : "Composite");
 		state->input = *iarg;
 
@@ -1110,7 +1095,7 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 
 	case VIDIOC_STREAMON:
 	case VIDIOC_STREAMOFF:
-		saa7115_dbg("%s output\n",
+		v4l_dbg(1, client, "%s output\n",
 			(cmd == VIDIOC_STREAMON) ? "enable" : "disable");
 
 		if (state->enable != (cmd == VIDIOC_STREAMON)) {
@@ -1124,7 +1109,7 @@ static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *ar
 		break;
 
 	case VIDIOC_INT_RESET:
-		saa7115_dbg("decoder RESET\n");
+		v4l_dbg(1, client, "decoder RESET\n");
 		saa7115_writeregs(client, saa7115_cfg_reset_scaler);
 		break;
 
@@ -1218,19 +1203,19 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	client->driver = &i2c_driver_saa7115;
 	snprintf(client->name, sizeof(client->name) - 1, "saa7115");
 
-	saa7115_dbg("detecting saa7115 client on address 0x%x\n", address << 1);
+	v4l_dbg(1, client, "detecting saa7115 client on address 0x%x\n", address << 1);
 
 	saa7115_write(client, 0, 5);
 	chip_id = saa7115_read(client, 0) & 0x0f;
 	if (chip_id != 4 && chip_id != 5) {
-		saa7115_dbg("saa7115 not found\n");
+		v4l_dbg(1, client, "saa7115 not found\n");
 		kfree(client);
 		return 0;
 	}
 	if (chip_id == 4) {
 		snprintf(client->name, sizeof(client->name) - 1, "saa7114");
 	}
-	saa7115_info("saa711%d found @ 0x%x (%s)\n", chip_id, address << 1, adapter->name);
+	v4l_info(client, "saa711%d found @ 0x%x (%s)\n", chip_id, address << 1, adapter->name);
 
 	state = kmalloc(sizeof(struct saa7115_state), GFP_KERNEL);
 	i2c_set_clientdata(client, state);
@@ -1250,7 +1235,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 	state->ident = (chip_id == 4) ? V4L2_IDENT_SAA7114 : V4L2_IDENT_SAA7115;
 	state->audclk_freq = 48000;
 
-	saa7115_dbg("writing init values\n");
+	v4l_dbg(1, client, "writing init values\n");
 
 	/* init to 60hz/48khz */
 	saa7115_writeregs(client, saa7115_init_auto_input);
@@ -1263,7 +1248,7 @@ static int saa7115_attach(struct i2c_adapter *adapter, int address, int kind)
 
 	i2c_attach_client(client);
 
-	saa7115_dbg("status: (1E) 0x%02x, (1F) 0x%02x\n",
+	v4l_dbg(1, client, "status: (1E) 0x%02x, (1F) 0x%02x\n",
 		saa7115_read(client, 0x1e), saa7115_read(client, 0x1f));
 
 	return 0;
