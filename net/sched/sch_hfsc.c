@@ -1227,7 +1227,7 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		if (cl->level == 0)
 			return cl;
 
-	*qerr = NET_XMIT_DROP;
+	*qerr = NET_XMIT_BYPASS;
 	tcf = q->root.filter_list;
 	while (tcf && (result = tc_classify(skb, tcf, &res)) >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
@@ -1643,7 +1643,7 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	cl = hfsc_classify(skb, sch, &err);
 	if (cl == NULL) {
-		if (err == NET_XMIT_DROP)
+		if (err == NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return err;
