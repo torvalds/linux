@@ -34,12 +34,12 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
+#include "bttvp.h"
+
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
-
-#include "bttvp.h"
 
 #include "rds.h"
 

@@ -28,10 +28,10 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/jiffies.h>
-#include <asm/io.h>
 
 #include "bttvp.h"
+#include <linux/jiffies.h>
+#include <asm/io.h>
 
 static struct i2c_algo_bit_data bttv_i2c_algo_bit_template;
 static struct i2c_adapter bttv_i2c_adap_sw_template;
