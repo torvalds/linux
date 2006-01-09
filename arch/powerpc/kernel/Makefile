@@ -12,8 +12,7 @@ CFLAGS_btext.o		+= -fPIC
 endif
 
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
-				   irq.o align.o signal_32.o pmc.o vdso.o \
-				   prom_parse.o
+				   irq.o align.o signal_32.o pmc.o vdso.o
 obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o systbl.o \
@@ -22,7 +21,7 @@ obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 obj-$(CONFIG_PPC64)		+= vdso64/
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
-obj-$(CONFIG_PPC_OF)		+= of_device.o
+obj-$(CONFIG_PPC_OF)		+= of_device.o prom_parse.o
 procfs-$(CONFIG_PPC64)		:= proc_ppc64.o
 obj-$(CONFIG_PROC_FS)		+= $(procfs-y)
 rtaspci-$(CONFIG_PPC64)		:= rtas_pci.o

@@ -329,9 +329,7 @@ config PPC_CELL
 	select MMIO_NVRAM
 
 config PPC_OF
-	bool
-	depends on PPC_MULTIPLATFORM	# for now
-	default y
+	def_bool y
 
 config XICS
 	depends on PPC_PSERIES
@@ -399,7 +397,6 @@ config IBMVIO
 config IBMEBUS
 	depends on PPC_PSERIES
 	bool "Support for GX bus based adapters"
-	default y
 	help
 	  Bus device driver for GX bus based adapters.
 

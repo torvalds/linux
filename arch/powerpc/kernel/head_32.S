@@ -120,10 +120,12 @@ __start:
  * because OF may have I/O devices mapped into that area
  * (particularly on CHRP).
  */
+#ifdef CONFIG_PPC_MULTIPLATFORM
 	cmpwi	0,r5,0
 	beq	1f
 	bl	prom_init
 	trap
+#endif
 
 /*
  * Check for BootX signature when supporting PowerMac and branch to
