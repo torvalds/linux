@@ -697,14 +697,14 @@ next_normal:
 		if (r->idiag_states & TCPF_TIME_WAIT) {
 			sk_for_each(sk, node,
 				    &hashinfo->ehash[i + hashinfo->ehash_size].chain) {
-				struct inet_sock *inet = inet_sk(sk);
+				const struct inet_timewait_sock *tw = inet_twsk(sk);
 
 				if (num < s_num)
 					goto next_dying;
-				if (r->id.idiag_sport != inet->sport &&
+				if (r->id.idiag_sport != tw->tw_sport &&
 				    r->id.idiag_sport)
 					goto next_dying;
-				if (r->id.idiag_dport != inet->dport &&
+				if (r->id.idiag_dport != tw->tw_dport &&
 				    r->id.idiag_dport)
 					goto next_dying;
 				if (inet_diag_dump_sock(skb, sk, cb) < 0) {
