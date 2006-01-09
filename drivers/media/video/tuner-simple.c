@@ -902,11 +902,12 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		171.2=16*10.70  FM Radio (at set_radio_freq)
 	*/
 
-	if (t->std & V4L2_STD_NTSC_M_JP) {
+	if (t->std == V4L2_STD_NTSC_M_JP) {
 		IFPCoff = 940;
-	} else if (t->std & V4L2_STD_MN) {
+	} else if ((t->std & V4L2_STD_MN) &&
+		  !(t->std & ~V4L2_STD_MN)) {
 		IFPCoff = 732;
-	} else if (t->std & V4L2_STD_SECAM_LC) {
+	} else if (t->std == V4L2_STD_SECAM_LC) {
 		IFPCoff = 543;
 	} else {
 		IFPCoff = 623;
