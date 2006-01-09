@@ -16,6 +16,12 @@ config DVB_CX24110
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_CX24123
+	tristate "Conexant CX24123 based"
+	depends on DVB_CORE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 config DVB_TDA8083
 	tristate "Philips TDA8083 based"
 	depends on DVB_CORE
