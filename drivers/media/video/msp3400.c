@@ -157,6 +157,9 @@ struct msp3400c {
 #define HAVE_SIMPLER(msp) ((msp->rev1      & 0xff) >= 'G'-'@')
 #define HAVE_RADIO(msp)   ((msp->rev1      & 0xff) >= 'G'-'@')
 
+/* defined at the end of the source */
+extern struct i2c_client client_template;
+
 #define VIDEO_MODE_RADIO 16      /* norm magic for radio mode */
 
 /* ---------------------------------------------------------------------- */
@@ -1553,33 +1556,17 @@ static void msp34xxg_set_audmode(struct i2c_client *client, int audmode)
 
 /* ----------------------------------------------------------------------- */
 
-static int msp_attach(struct i2c_adapter *adap, int addr, int kind);
-static int msp_detach(struct i2c_client *client);
-static int msp_probe(struct i2c_adapter *adap);
-static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg);
-
-static int msp_suspend(struct device * dev, pm_message_t state);
-static int msp_resume(struct device * dev);
-
-static void msp_wake_thread(struct i2c_client *client);
-
-static struct i2c_driver driver = {
-	.id             = I2C_DRIVERID_MSP3400,
-	.attach_adapter = msp_probe,
-	.detach_client  = msp_detach,
-	.command        = msp_command,
-	.driver = {
-		.name    = "i2c msp3400 driver",
-		.suspend = msp_suspend,
-		.resume  = msp_resume,
-	},
-};
-
-static struct i2c_client client_template =
+static void msp_wake_thread(struct i2c_client *client)
 {
-	.name      = "(unset)",
-	.driver    = &driver,
-};
+	struct msp3400c *msp  = i2c_get_clientdata(client);
+
+	if (NULL == msp->kthread)
+		return;
+	msp3400c_setvolume(client,msp->muted,0,0);
+	msp->watch_stereo = 0;
+	msp->restart = 1;
+	wake_up_interruptible(&msp->wq);
+}
 
 static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 {
@@ -1737,18 +1724,6 @@ static int msp_probe(struct i2c_adapter *adap)
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, msp_attach);
 	return 0;
-}
-
-static void msp_wake_thread(struct i2c_client *client)
-{
-	struct msp3400c *msp  = i2c_get_clientdata(client);
-
-	if (NULL == msp->kthread)
-		return;
-	msp3400c_setvolume(client,msp->muted,0,0);
-	msp->watch_stereo = 0;
-	msp->restart = 1;
-	wake_up_interruptible(&msp->wq);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -2206,6 +2181,27 @@ static int msp_resume(struct device * dev)
 }
 
 /* ----------------------------------------------------------------------- */
+
+static struct i2c_driver driver = {
+	.owner          = THIS_MODULE,
+	.name           = "msp3400",
+	.id             = I2C_DRIVERID_MSP3400,
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = msp_probe,
+	.detach_client  = msp_detach,
+	.command        = msp_command,
+	.driver = {
+		.suspend = msp_suspend,
+		.resume  = msp_resume,
+	},
+};
+
+static struct i2c_client client_template =
+{
+	.name      = "(unset)",
+	.flags     = I2C_CLIENT_ALLOW_USE,
+	.driver    = &driver,
+};
 
 static int __init msp3400_init_module(void)
 {
