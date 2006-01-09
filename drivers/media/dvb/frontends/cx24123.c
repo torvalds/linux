@@ -33,8 +33,8 @@ static int debug;
 		if (debug) printk (KERN_DEBUG "cx24123: " args); \
 	} while (0)
 
-struct cx24123_state {
-
+struct cx24123_state
+{
 	struct i2c_adapter* i2c;
 	struct dvb_frontend_ops ops;
 	const struct cx24123_config* config;
@@ -54,6 +54,148 @@ struct cx24123_state {
 	/* The Demod/Tuner can't easily provide these, we cache them */
 	u32 currentfreq;
 	u32 currentsymbolrate;
+};
+
+/* Various tuner defaults need to be established for a given symbol rate Sps */
+static struct
+{
+	u32 symbolrate_low;
+	u32 symbolrate_high;
+	u32 VCAslope;
+	u32 VCAoffset;
+	u32 VGA1offset;
+	u32 VGA2offset;
+	u32 VCAprogdata;
+	u32 VGAprogdata;
+} cx24123_AGC_vals[] =
+{
+	{
+		.symbolrate_low		= 1000000,
+		.symbolrate_high	= 4999999,
+		.VCAslope		= 0x07,
+		.VCAoffset		= 0x0f,
+		.VGA1offset		= 0x1f8,
+		.VGA2offset		= 0x1f8,
+		.VGAprogdata		= (2 << 18) | (0x1f8 << 9) | 0x1f8,
+		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x07,
+	},
+	{
+		.symbolrate_low		=  5000000,
+		.symbolrate_high	= 14999999,
+		.VCAslope		= 0x1f,
+		.VCAoffset		= 0x1f,
+		.VGA1offset		= 0x1e0,
+		.VGA2offset		= 0x180,
+		.VGAprogdata		= (2 << 18) | (0x180 << 9) | 0x1e0,
+		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x1f,
+	},
+	{
+		.symbolrate_low		= 15000000,
+		.symbolrate_high	= 45000000,
+		.VCAslope		= 0x3f,
+		.VCAoffset		= 0x3f,
+		.VGA1offset		= 0x180,
+		.VGA2offset		= 0x100,
+		.VGAprogdata		= (2 << 18) | (0x100 << 9) | 0x180,
+		.VCAprogdata		= (4 << 18) | (0x07 << 9) | 0x3f,
+	},
+};
+
+/*
+ * Various tuner defaults need to be established for a given frequency kHz.
+ * fixme: The bounds on the bands do not match the doc in real life.
+ * fixme: Some of them have been moved, other might need adjustment.
+ */
+static struct
+{
+	u32 freq_low;
+	u32 freq_high;
+	u32 bandselect;
+	u32 VCOdivider;
+	u32 VCOnumber;
+	u32 progdata;
+} cx24123_bandselect_vals[] =
+{
+	{
+		.freq_low	= 950000,
+		.freq_high	= 1018999,
+		.bandselect	= 0x40,
+		.VCOdivider	= 4,
+		.VCOnumber	= 7,
+		.progdata	= (0 << 18) | (0 << 9) | 0x40,
+	},
+	{
+		.freq_low	= 1019000,
+		.freq_high	= 1074999,
+		.bandselect	= 0x80,
+		.VCOdivider	= 4,
+		.VCOnumber	= 8,
+		.progdata	= (0 << 18) | (0 << 9) | 0x80,
+	},
+	{
+		.freq_low	= 1075000,
+		.freq_high	= 1227999,
+		.bandselect	= 0x01,
+		.VCOdivider	= 2,
+		.VCOnumber	= 1,
+		.progdata	= (0 << 18) | (1 << 9) | 0x01,
+	},
+	{
+		.freq_low	= 1228000,
+		.freq_high	= 1349999,
+		.bandselect	= 0x02,
+		.VCOdivider	= 2,
+		.VCOnumber	= 2,
+		.progdata	= (0 << 18) | (1 << 9) | 0x02,
+	},
+	{
+		.freq_low	= 1350000,
+		.freq_high	= 1481999,
+		.bandselect	= 0x04,
+		.VCOdivider	= 2,
+		.VCOnumber	= 3,
+		.progdata	= (0 << 18) | (1 << 9) | 0x04,
+	},
+	{
+		.freq_low	= 1482000,
+		.freq_high	= 1595999,
+		.bandselect	= 0x08,
+		.VCOdivider	= 2,
+		.VCOnumber	= 4,
+		.progdata	= (0 << 18) | (1 << 9) | 0x08,
+	},
+	{
+		.freq_low	= 1596000,
+		.freq_high	= 1717999,
+		.bandselect	= 0x10,
+		.VCOdivider	= 2,
+		.VCOnumber	= 5,
+		.progdata	= (0 << 18) | (1 << 9) | 0x10,
+	},
+	{
+		.freq_low	= 1718000,
+		.freq_high	= 1855999,
+		.bandselect	= 0x20,
+		.VCOdivider	= 2,
+		.VCOnumber	= 6,
+		.progdata	= (0 << 18) | (1 << 9) | 0x20,
+	},
+	{
+		.freq_low	= 1856000,
+		.freq_high	= 2035999,
+		.bandselect	= 0x40,
+		.VCOdivider	= 2,
+		.VCOnumber	= 7,
+		.progdata	= (0 << 18) | (1 << 9) | 0x40,
+	},
+	{
+		.freq_low	= 2036000,
+		.freq_high	= 2149999,
+		.bandselect	= 0x80,
+		.VCOdivider	= 2,
+		.VCOnumber	= 8,
+		.progdata	= (0 << 18) | (1 << 9) | 0x80,
+	},
 };
 
 static struct {
@@ -195,9 +337,9 @@ static int cx24123_get_inversion(struct cx24123_state* state, fe_spectral_invers
 	val = cx24123_readreg(state, 0x1b) >> 7;
 
 	if (val == 0)
-		*inversion=INVERSION_OFF;
+		*inversion = INVERSION_OFF;
 	else
-		*inversion=INVERSION_ON;
+		*inversion = INVERSION_ON;
 
 	return 0;
 }
@@ -205,12 +347,12 @@ static int cx24123_get_inversion(struct cx24123_state* state, fe_spectral_invers
 static int cx24123_set_fec(struct cx24123_state* state, fe_code_rate_t fec)
 {
 	if ( (fec < FEC_NONE) || (fec > FEC_AUTO) )
-		fec=FEC_AUTO;
+		fec = FEC_AUTO;
 
 	/* Hardware has 5/11 and 3/5 but are never unused */
 	switch (fec) {
 	case FEC_NONE:
-		return cx24123_writereg(state, 0x0f,0x01);
+		return cx24123_writereg(state, 0x0f, 0x01);
 	case FEC_1_2:
 		return cx24123_writereg(state, 0x0f, 0x02);
 	case FEC_2_3:
@@ -230,37 +372,41 @@ static int cx24123_set_fec(struct cx24123_state* state, fe_code_rate_t fec)
 
 static int cx24123_get_fec(struct cx24123_state* state, fe_code_rate_t *fec)
 {
+	int ret;
 	u8 val;
 
-	val = cx24123_readreg (state, 0x1b) & 0x07;
+	ret = cx24123_readreg (state, 0x1b);
+	if (ret < 0)
+		return ret;
+	val = ret & 0x07;
 	switch (val) {
 	case 1:
-		*fec=FEC_1_2;
-		return 0;
+		*fec = FEC_1_2;
+		break;
 	case 3:
-		*fec=FEC_2_3;
-		return 0;
+		*fec = FEC_2_3;
+		break;
 	case 4:
-		*fec=FEC_3_4;
-		return 0;
+		*fec = FEC_3_4;
+		break;
 	case 5:
-		*fec=FEC_4_5;
-		return 0;
+		*fec = FEC_4_5;
+		break;
 	case 6:
-		*fec=FEC_5_6;
-		return 0;
+		*fec = FEC_5_6;
+		break;
 	case 7:
-		*fec=FEC_7_8;
-		return 0;
-	case 2:	/* *fec=FEC_3_5; return 0; */
-	case 0:	/* *fec=FEC_5_11; return 0; */
-		*fec=FEC_AUTO;
-		return 0;
+		*fec = FEC_7_8;
+		break;
+	case 2:	/* *fec = FEC_3_5; break; */
+	case 0:	/* *fec = FEC_5_11; break; */
+		*fec = FEC_AUTO;
+		break;
 	default:
-		*fec=FEC_NONE; return 0;
+		*fec = FEC_NONE; // can't happen
 	}
 
-	return -EREMOTEIO;
+	return 0;
 }
 
 /* fixme: Symbol rates < 3MSps may not work because of precision loss */
@@ -268,14 +414,14 @@ static int cx24123_set_symbolrate(struct cx24123_state* state, u32 srate)
 {
 	u32 val;
 
-	val = (srate/1185)*100;
+	val = (srate / 1185) * 100;
 
 	/* Compensate for scaling up, by removing 17 symbols per 1Msps */
-	val = val - (17*(srate / 1000000));
+	val = val - (17 * (srate / 1000000));
 
-	cx24123_writereg(state, 0x08, (val >>16) & 0xff );
-	cx24123_writereg(state, 0x09, (val >> 8) & 0xff );
-	cx24123_writereg(state, 0x0a, (val     ) & 0xff );
+	cx24123_writereg(state, 0x08, (val >> 16) & 0xff );
+	cx24123_writereg(state, 0x09, (val >>  8) & 0xff );
+	cx24123_writereg(state, 0x0a, (val      ) & 0xff );
 
 	return 0;
 }
@@ -287,8 +433,8 @@ static int cx24123_set_symbolrate(struct cx24123_state* state, u32 srate)
 static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
 	struct cx24123_state *state = fe->demodulator_priv;
-	u32 ndiv=0, adiv=0, vco_div=0;
-	int i=0;
+	u32 ndiv = 0, adiv = 0, vco_div = 0;
+	int i = 0;
 
 	/* Defaults for low freq, low rate */
 	state->VCAarg = cx24123_AGC_vals[0].VCAprogdata;
@@ -297,7 +443,7 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	vco_div = cx24123_bandselect_vals[0].VCOdivider;
 
 	/* For the given symbolerate, determine the VCA and VGA programming bits */
-	for (i=0; i < sizeof(cx24123_AGC_vals) / sizeof(cx24123_AGC_vals[0]); i++)
+	for (i = 0; i < sizeof(cx24123_AGC_vals) / sizeof(cx24123_AGC_vals[0]); i++)
 	{
 		if ((cx24123_AGC_vals[i].symbolrate_low <= p->u.qpsk.symbol_rate) &&
 				(cx24123_AGC_vals[i].symbolrate_high >= p->u.qpsk.symbol_rate) ) {
@@ -307,7 +453,7 @@ static int cx24123_pll_calculate(struct dvb_frontend* fe, struct dvb_frontend_pa
 	}
 
 	/* For the given frequency, determine the bandselect programming bits */
-	for (i=0; i < sizeof(cx24123_bandselect_vals) / sizeof(cx24123_bandselect_vals[0]); i++)
+	for (i = 0; i < sizeof(cx24123_bandselect_vals) / sizeof(cx24123_bandselect_vals[0]); i++)
 	{
 		if ((cx24123_bandselect_vals[i].freq_low <= p->frequency) &&
 				(cx24123_bandselect_vals[i].freq_high >= p->frequency) ) {
@@ -340,7 +486,7 @@ static int cx24123_pll_writereg(struct dvb_frontend* fe, struct dvb_frontend_par
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 
-	u8 timeout=0;
+	u8 timeout = 0;
 
 	/* align the 21 bytes into to bit23 boundary */
 	data = data << 3;
@@ -348,9 +494,9 @@ static int cx24123_pll_writereg(struct dvb_frontend* fe, struct dvb_frontend_par
 	/* Reset the demod pll word length to 0x15 bits */
 	cx24123_writereg(state, 0x21, 0x15);
 
-	timeout=0;
+	timeout = 0;
 	/* write the msb 8 bits, wait for the send to be completed */
-	cx24123_writereg(state, 0x22, (data>>16) & 0xff);
+	cx24123_writereg(state, 0x22, (data >> 16) & 0xff);
 	while ( ( cx24123_readreg(state, 0x20) & 0x40 ) == 0 )
 	{
 		/* Safety - No reason why the write should not complete, and we never get here, avoid hang */
@@ -361,7 +507,7 @@ static int cx24123_pll_writereg(struct dvb_frontend* fe, struct dvb_frontend_par
 		msleep(500);
 	}
 
-	timeout=0;
+	timeout = 0;
 	/* send another 8 bytes, wait for the send to be completed */
 	cx24123_writereg(state, 0x22, (data>>8) & 0xff );
 	while ( (cx24123_readreg(state, 0x20) & 0x40 ) == 0 )
@@ -374,7 +520,7 @@ static int cx24123_pll_writereg(struct dvb_frontend* fe, struct dvb_frontend_par
 		msleep(500);
 	}
 
-	timeout=0;
+	timeout = 0;
 	/* send the lower 5 bits of this byte, padded with 3 LBB, wait for the send to be completed */
 	cx24123_writereg(state, 0x22, (data) & 0xff );
 	while ((cx24123_readreg(state, 0x20) & 0x80))
@@ -398,7 +544,7 @@ static int cx24123_pll_tune(struct dvb_frontend* fe, struct dvb_frontend_paramet
 {
 	struct cx24123_state *state = fe->demodulator_priv;
 
-	if (cx24123_pll_calculate(fe, p)!=0) {
+	if (cx24123_pll_calculate(fe, p) != 0) {
 		printk("%s: cx24123_pll_calcutate failed\n",__FUNCTION__);
 		return -EINVAL;
 	}
@@ -420,7 +566,7 @@ static int cx24123_initfe(struct dvb_frontend* fe)
 	int i;
 
 	/* Configure the demod to a good set of defaults */
-	for (i=0; i < sizeof(cx24123_regdata) / sizeof(cx24123_regdata[0]); i++)
+	for (i = 0; i < sizeof(cx24123_regdata) / sizeof(cx24123_regdata[0]); i++)
 		cx24123_writereg(state, cx24123_regdata[i].reg, cx24123_regdata[i].data);
 
 	if (state->config->pll_init)
@@ -452,7 +598,7 @@ static int cx24123_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage
 }
 
 static int cx24123_send_diseqc_msg(struct dvb_frontend* fe,
-						struct dvb_diseqc_master_cmd *cmd)
+				   struct dvb_diseqc_master_cmd *cmd)
 {
 	/* fixme: Implement diseqc */
 	printk("%s: No support yet\n",__FUNCTION__);
@@ -545,7 +691,7 @@ static int cx24123_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 		state->config->set_ts_params(fe, 0);
 
 	state->currentfreq=p->frequency;
-	state->currentsymbolrate=p->u.qpsk.symbol_rate;
+	state->currentsymbolrate = p->u.qpsk.symbol_rate;
 
 	cx24123_set_inversion(state, p->inversion);
 	cx24123_set_fec(state, p->u.qpsk.fec_inner);
@@ -553,7 +699,7 @@ static int cx24123_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	cx24123_pll_tune(fe, p);
 
 	/* Enable automatic aquisition and reset cycle */
-	cx24123_writereg(state, 0x03, (cx24123_readreg(state, 0x03) | 0x07) );
+	cx24123_writereg(state, 0x03, (cx24123_readreg(state, 0x03) | 0x07));
 	cx24123_writereg(state, 0x00, 0x10);
 	cx24123_writereg(state, 0x00, 0);
 
@@ -605,7 +751,8 @@ static void cx24123_release(struct dvb_frontend* fe)
 
 static struct dvb_frontend_ops cx24123_ops;
 
-struct dvb_frontend* cx24123_attach(const struct cx24123_config* config, struct i2c_adapter* i2c)
+struct dvb_frontend* cx24123_attach(const struct cx24123_config* config,
+				    struct i2c_adapter* i2c)
 {
 	struct cx24123_state* state = NULL;
 	int ret;
@@ -691,4 +838,3 @@ MODULE_AUTHOR("Steven Toth");
 MODULE_LICENSE("GPL");
 
 EXPORT_SYMBOL(cx24123_attach);
-
