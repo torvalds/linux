@@ -13,6 +13,7 @@
 #include <linux/rbtree.h>
 #include <linux/prio_tree.h>
 #include <linux/fs.h>
+#include <linux/mutex.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -1024,6 +1025,9 @@ static inline void vm_stat_account(struct mm_struct *mm,
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable)
 {
+	if (!PageHighMem(page) && !enable)
+		mutex_debug_check_no_locks_freed(page_address(page),
+						 page_address(page + numpages));
 }
 #endif
 

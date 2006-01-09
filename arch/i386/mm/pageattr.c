@@ -222,6 +222,10 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (PageHighMem(page))
 		return;
+	if (!enable)
+		mutex_debug_check_no_locks_freed(page_address(page),
+						 page_address(page+numpages));
+
 	/* the return value is ignored - the calls cannot fail,
 	 * large pages are disabled at boot time.
 	 */

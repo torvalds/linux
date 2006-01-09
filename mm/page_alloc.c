@@ -415,6 +415,9 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	int reserved = 0;
 
 	arch_free_page(page, order);
+	if (!PageHighMem(page))
+		mutex_debug_check_no_locks_freed(page_address(page),
+			page_address(page+(1<<order)));
 
 #ifndef CONFIG_MMU
 	for (i = 1 ; i < (1 << order) ; ++i)
