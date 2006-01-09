@@ -7,6 +7,15 @@ menu "Video For Linux"
 
 comment "Video Adapters"
 
+config VIDEO_ADV_DEBUG
+	bool "Enable advanced debug functionality"
+	depends on VIDEO_DEV
+	default n
+	---help---
+	  Say Y here to enable advanced debugging functionality on some
+	  V4L devices.
+	  In doubt, say N.
+
 config VIDEO_BT848
 	tristate "BT848 Video For Linux"
 	depends on VIDEO_DEV && PCI && I2C
@@ -343,12 +352,5 @@ config VIDEO_DECODER
 	---help---
 	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
 	  video decoders.
-
-config VIDEO_ADV_DEBUG
-	bool "Enable advanced debug functionality"
-	depends on VIDEO_DEV && VIDEO_DECODER && EXPERIMENTAL
-	---help---
-	  Say Y here to enable advanced debugging functionality in the
-	  SAA7115, SAA7127 and CX25840 video decoders.
 
 endmenu
