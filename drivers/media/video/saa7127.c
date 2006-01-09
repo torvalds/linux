@@ -787,11 +787,7 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 
 static int saa7127_probe(struct i2c_adapter *adapter)
 {
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adapter->class & I2C_CLASS_TV_ANALOG)
-#else
-	if (adapter->id == I2C_HW_B_BT848)
-#endif
 		return i2c_probe(adapter, &addr_data, saa7127_attach);
 	return 0;
 }

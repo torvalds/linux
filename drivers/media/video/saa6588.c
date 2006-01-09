@@ -427,18 +427,8 @@ static int saa6588_attach(struct i2c_adapter *adap, int addr, int kind)
 
 static int saa6588_probe(struct i2c_adapter *adap)
 {
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, saa6588_attach);
-#else
-	switch (adap->id) {
-	case I2C_HW_B_BT848:
-	case I2C_HW_B_RIVA:
-	case I2C_HW_SAA7134:
-		return i2c_probe(adap, &addr_data, saa6588_attach);
-		break;
-	}
-#endif
 	return 0;
 }
 

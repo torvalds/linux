@@ -815,11 +815,7 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 
 static int cx25840_attach_adapter(struct i2c_adapter *adapter)
 {
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adapter->class & I2C_CLASS_TV_ANALOG)
-#else
-	if (adapter->id == I2C_HW_B_BT848)
-#endif
 		return i2c_probe(adapter, &addr_data, &cx25840_detect_client);
 	return 0;
 }

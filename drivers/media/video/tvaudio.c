@@ -1563,17 +1563,8 @@ static int chip_probe(struct i2c_adapter *adap)
 	   because dedicated drivers are used */
 	if ((adap->id == I2C_HW_SAA7146))
 		return 0;
-#ifdef I2C_CLASS_TV_ANALOG
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, chip_attach);
-#else
-	switch (adap->id) {
-	case I2C_HW_B_BT848:
-	case I2C_HW_B_RIVA:
-	case I2C_HW_SAA7134:
-		return i2c_probe(adap, &addr_data, chip_attach);
-	}
-#endif
 	return 0;
 }
 

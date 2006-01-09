@@ -486,9 +486,7 @@ static struct i2c_adapter em28xx_adap_template = {
 	.inc_use = inc_use,
 	.dec_use = dec_use,
 #endif
-#ifdef I2C_CLASS_TV_ANALOG
 	.class = I2C_CLASS_TV_ANALOG,
-#endif
 	.name = "em28xx",
 	.id = I2C_HW_B_EM28XX,
 	.algo = &em28xx_algo,
