@@ -1237,14 +1237,14 @@ struct cx88_subid cx88_subids[] = {
 		.subdevice = 0x0025,
 		.card      = CX88_BOARD_DNTV_LIVE_DVB_T_PRO,
 	},{
-	       .subvendor = 0x17de,
-	       .subdevice = 0x08a1,
-	       .card      = CX88_BOARD_KWORLD_DVB_T_CX22702,
+		.subvendor = 0x17de,
+		.subdevice = 0x08a1,
+		.card      = CX88_BOARD_KWORLD_DVB_T_CX22702,
 	},{
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb50,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL,
-       }
+	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
 
