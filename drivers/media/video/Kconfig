@@ -342,6 +342,13 @@ config VIDEO_DECODER
 	depends on VIDEO_DEV && I2C && EXPERIMENTAL
 	---help---
 	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
-	  video  decoders.
+	  video decoders.
+
+config VIDEO_ADV_DEBUG
+	bool "Enable advanced debug functionality"
+	depends on VIDEO_DEV && VIDEO_DECODER && EXPERIMENTAL
+	---help---
+	  Say Y here to enable advanced debugging functionality in the
+	  SAA7115, SAA7127 and CX25840 video decoders.
 
 endmenu
