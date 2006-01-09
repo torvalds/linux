@@ -63,10 +63,10 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 		printk(KERN_INFO "tveeprom %d-%04x: " fmt, \
 			c->adapter->nr, c->addr , ##arg); } while (0)
 
-
-/* ----------------------------------------------------------------------- */
-/* some hauppauge specific stuff                                           */
-
+/*
+ * The Hauppauge eeprom uses an 8bit field to determine which
+ * tuner formats the tuner supports.
+ */
 static struct HAUPPAUGE_TUNER_FMT
 {
 	int	id;
@@ -74,14 +74,14 @@ static struct HAUPPAUGE_TUNER_FMT
 }
 hauppauge_tuner_fmt[] =
 {
-	{ 0x00000000, " unknown1" },
-	{ 0x00000000, " unknown2" },
-	{ 0x00000007, " PAL(B/G)" },
-	{ 0x00001000, " NTSC(M)" },
-	{ 0x00000010, " PAL(I)" },
-	{ 0x00400000, " SECAM(L/L')" },
-	{ 0x00000e00, " PAL(D/K)" },
-	{ 0x03000000, " ATSC/DVB Digital" },
+	{ V4L2_STD_UNKNOWN," UNKNOWN" },
+	{ V4L2_STD_UNKNOWN," FM" },
+	{ V4L2_STD_PAL_BG, " PAL(B/G)" },
+	{ V4L2_STD_NTSC_M, " NTSC(M)" },
+	{ V4L2_STD_PAL_I,  " PAL(I)" },
+	{ V4L2_STD_SECAM_L," SECAM(L/L')" },
+	{ V4L2_STD_PAL_DK, " PAL(D/D1/K)" },
+	{ V4L2_STD_ATSC,   " ATSC/DVB Digital" },
 };
 
 /* This is the full list of possible tuners. Many thanks to Hauppauge for
