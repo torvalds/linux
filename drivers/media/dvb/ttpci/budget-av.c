@@ -502,6 +502,140 @@ static int philips_su1278_ty_ci_pll_set(struct dvb_frontend *fe,
 	return 0;
 }
 
+#define MIN2(a,b) ((a) < (b) ? (a) : (b))
+#define MIN3(a,b,c) MIN2(MIN2(a,b),c)
+
+static int philips_su1278sh2_tua6100_pll_set(struct dvb_frontend *fe,
+					struct i2c_adapter *i2c,
+					struct dvb_frontend_parameters *params)
+{
+	u8 reg0 [2] = { 0x00, 0x00 };
+	u8 reg1 [4] = { 0x01, 0x00, 0x00, 0x00 };
+	u8 reg2 [3] = { 0x02, 0x00, 0x00 };
+	int _fband;
+	int first_ZF;
+	int R, A, N, P, M;
+	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = NULL,.len = 0 };
+	int freq = params->frequency;
+
+	first_ZF = (freq) / 1000;
+
+	if (abs(MIN2(abs(first_ZF-1190),abs(first_ZF-1790))) <
+		   abs(MIN3(abs(first_ZF-1202),abs(first_ZF-1542),abs(first_ZF-1890))))
+		_fband = 2;
+	else
+		_fband = 3;
+
+	if (_fband == 2) {
+		if (((first_ZF >= 950) && (first_ZF < 1350)) ||
+				    ((first_ZF >= 1430) && (first_ZF < 1950)))
+			reg0[1] = 0x07;
+		else if (((first_ZF >= 1350) && (first_ZF < 1430)) ||
+					 ((first_ZF >= 1950) && (first_ZF < 2150)))
+			reg0[1] = 0x0B;
+	}
+
+	if(_fband == 3) {
+		if (((first_ZF >= 950) && (first_ZF < 1350)) ||
+				    ((first_ZF >= 1455) && (first_ZF < 1950)))
+			reg0[1] = 0x07;
+		else if (((first_ZF >= 1350) && (first_ZF < 1420)) ||
+					 ((first_ZF >= 1950) && (first_ZF < 2150)))
+			reg0[1] = 0x0B;
+		else if ((first_ZF >= 1420) && (first_ZF < 1455))
+			reg0[1] = 0x0F;
+	}
+
+	if (first_ZF > 1525)
+		reg1[1] |= 0x80;
+	else
+		reg1[1] &= 0x7F;
+
+	if (_fband == 2) {
+		if (first_ZF > 1430) { /* 1430MHZ */
+			reg1[1] &= 0xCF; /* N2 */
+			reg2[1] &= 0xCF; /* R2 */
+			reg2[1] |= 0x10;
+		} else {
+			reg1[1] &= 0xCF; /* N2 */
+			reg1[1] |= 0x20;
+			reg2[1] &= 0xCF; /* R2 */
+			reg2[1] |= 0x10;
+		}
+	}
+
+	if (_fband == 3) {
+		if ((first_ZF >= 1455) &&
+				   (first_ZF < 1630)) {
+			reg1[1] &= 0xCF; /* N2 */
+			reg1[1] |= 0x20;
+			reg2[1] &= 0xCF; /* R2 */
+				   } else {
+					   if (first_ZF < 1455) {
+						   reg1[1] &= 0xCF; /* N2 */
+						   reg1[1] |= 0x20;
+						   reg2[1] &= 0xCF; /* R2 */
+						   reg2[1] |= 0x10;
+					   } else {
+						   if (first_ZF >= 1630) {
+							   reg1[1] &= 0xCF; /* N2 */
+							   reg2[1] &= 0xCF; /* R2 */
+							   reg2[1] |= 0x10;
+						   }
+					   }
+				   }
+	}
+
+	/* set ports, enable P0 for symbol rates > 4Ms/s */
+	if (params->u.qpsk.symbol_rate >= 4000000)
+		reg1[1] |= 0x0c;
+	else
+		reg1[1] |= 0x04;
+
+	reg2[1] |= 0x0c;
+
+	R = 64;
+	A = 64;
+	P = 64;	 //32
+
+	M = (freq * R) / 4;		/* in Mhz */
+	N = (M - A * 1000) / (P * 1000);
+
+	reg1[1] |= (N >> 9) & 0x03;
+	reg1[2]	 = (N >> 1) & 0xff;
+	reg1[3]	 = (N << 7) & 0x80;
+
+	reg2[1] |= (R >> 8) & 0x03;
+	reg2[2]	 = R & 0xFF;	/* R */
+
+	reg1[3] |= A & 0x7f;	/* A */
+
+	if (P == 64)
+		reg1[1] |= 0x40; /* Prescaler 64/65 */
+
+	reg0[1] |= 0x03;
+
+	/* already enabled - do not reenable i2c repeater or TX fails */
+	msg.buf = reg0;
+	msg.len = sizeof(reg0);
+	if (i2c_transfer(i2c, &msg, 1) != 1)
+		return -EIO;
+
+	stv0299_enable_plli2c(fe);
+	msg.buf = reg1;
+	msg.len = sizeof(reg1);
+	if (i2c_transfer(i2c, &msg, 1) != 1)
+		return -EIO;
+
+	stv0299_enable_plli2c(fe);
+	msg.buf = reg2;
+	msg.len = sizeof(reg2);
+	if (i2c_transfer(i2c, &msg, 1) != 1)
+		return -EIO;
+
+	return 0;
+}
+
 static u8 typhoon_cinergy1200s_inittab[] = {
 	0x01, 0x15,
 	0x02, 0x30,
@@ -571,6 +705,18 @@ static struct stv0299_config cinergy_1200s_config = {
 	.pll_set = philips_su1278_ty_ci_pll_set,
 };
 
+static struct stv0299_config cinergy_1200s_1894_0010_config = {
+	.demod_address = 0x68,
+	.inittab = typhoon_cinergy1200s_inittab,
+	.mclk = 88000000UL,
+	.invert = 1,
+	.skip_reinit = 0,
+	.lock_output = STV0229_LOCKOUTPUT_1,
+	.volt13_op0_op1 = STV0299_VOLT13_OP0,
+	.min_delay_ms = 100,
+	.set_symbol_rate = philips_su1278_ty_ci_set_symbol_rate,
+	.pll_set = philips_su1278sh2_tua6100_pll_set,
+};
 
 static int philips_cu1216_pll_set(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)
 {
@@ -767,6 +913,15 @@ static void frontend_init(struct budget_av *budget_av)
 	switch (saa->pci->subsystem_device) {
 
 	case SUBID_DVBS_KNC1:
+		if (saa->pci->subsystem_vendor == 0x1894) {
+			fe = stv0299_attach(&cinergy_1200s_1894_0010_config,
+					     &budget_av->budget.i2c_adap);
+		} else {
+			fe = stv0299_attach(&typhoon_config,
+					     &budget_av->budget.i2c_adap);
+		}
+		break;
+
 	case SUBID_DVBS_KNC1_PLUS:
 	case SUBID_DVBS_TYPHOON:
 		fe = stv0299_attach(&typhoon_config,
@@ -1021,6 +1176,7 @@ MAKE_BUDGET_INFO(cin1200t, "Terratec Cinergy 1200 DVB-T", BUDGET_CIN1200T);
 static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x4f56),
 	MAKE_EXTENSION_PCI(knc1s, 0x1131, 0x0010),
+	MAKE_EXTENSION_PCI(knc1s, 0x1894, 0x0010),
 	MAKE_EXTENSION_PCI(knc1sp, 0x1131, 0x0011),
 	MAKE_EXTENSION_PCI(knc1c, 0x1894, 0x0020),
 	MAKE_EXTENSION_PCI(knc1cp, 0x1894, 0x0021),

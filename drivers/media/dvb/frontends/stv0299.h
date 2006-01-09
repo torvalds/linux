@@ -94,6 +94,7 @@ struct stv0299_config
 };
 
 extern int stv0299_writereg (struct dvb_frontend* fe, u8 reg, u8 data);
+extern int stv0299_enable_plli2c (struct dvb_frontend* fe);
 
 extern struct dvb_frontend* stv0299_attach(const struct stv0299_config* config,
 					   struct i2c_adapter* i2c);

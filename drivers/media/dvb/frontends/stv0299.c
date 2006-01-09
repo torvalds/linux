@@ -131,6 +131,13 @@ static int stv0299_readregs (struct stv0299_state* state, u8 reg1, u8 *b, u8 len
 	return ret == 2 ? 0 : ret;
 }
 
+int stv0299_enable_plli2c (struct dvb_frontend* fe)
+{
+	struct stv0299_state* state = fe->demodulator_priv;
+
+	return stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
+}
+
 static int stv0299_set_FEC (struct stv0299_state* state, fe_code_rate_t fec)
 {
 	dprintk ("%s\n", __FUNCTION__);
@@ -717,5 +724,6 @@ MODULE_AUTHOR("Ralph Metzler, Holger Waechtler, Peter Schildmann, Felix Domke, "
 	      "Andreas Oberritter, Andrew de Quincey, Kenneth Aafløy");
 MODULE_LICENSE("GPL");
 
+EXPORT_SYMBOL(stv0299_enable_plli2c);
 EXPORT_SYMBOL(stv0299_writereg);
 EXPORT_SYMBOL(stv0299_attach);
