@@ -720,6 +720,8 @@ static struct dvb_device dvbdev_osd = {
 static inline int SetPIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 			  u16 subpid, u16 pcrpid)
 {
+	u16 aflags = 0;
+
 	dprintk(4, "%p\n", av7110);
 
 	if (vpid == 0x1fff || apid == 0x1fff ||
@@ -731,8 +733,11 @@ static inline int SetPIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 		av7110->pids[DMX_PES_PCR] = 0;
 	}
 
-	return av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, MultiPID, 5,
-			     pcrpid, vpid, apid, ttpid, subpid);
+	if (av7110->audiostate.bypass_mode)
+		aflags |= 0x8000;
+
+	return av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, MultiPID, 6,
+			     pcrpid, vpid, apid, ttpid, subpid, aflags);
 }
 
 int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
