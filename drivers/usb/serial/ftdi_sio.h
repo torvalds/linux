@@ -370,6 +370,12 @@
 #define POSIFLEX_VID		0x0d3a  /* Vendor ID */
 #define POSIFLEX_PP7000_PID	0x0300  /* PP-7000II thermal printer */
 
+/*
+ * Westrex International devices submitted by Cory Lee
+ */
+#define FTDI_WESTREX_MODEL_777_PID	0xDC00	/* Model 777 */
+#define FTDI_WESTREX_MODEL_8900F_PID	0xDC01	/* Model 8900F */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
