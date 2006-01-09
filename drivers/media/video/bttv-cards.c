@@ -292,6 +292,9 @@ static struct CARD {
 	/* likely broken, vendor id doesn't match the other magic views ...
 	 * { 0xa0fca04f, BTTV_BOARD_MAGICTVIEW063, "Guillemot Maxi TV Video 3" }, */
 
+	/* Duplicate PCI ID, reconfigure for this board during the eeprom read.
+	* { 0x13eb0070, BTTV_BOARD_HAUPPAUGE_IMPACTVCB,  "Hauppauge ImpactVCB" }, */
+
 	/* DVB cards (using pci function .1 for mpeg data xfer) */
 	{ 0x01010071, BTTV_BOARD_NEBULA_DIGITV, "Nebula Electronics DigiTV" },
 	{ 0x07611461, BTTV_BOARD_AVDVBT_761,    "AverMedia AverTV DVB-T 761" },
@@ -2817,6 +2820,22 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_radio      = 1,
 	},
+	/* ---- card 0x8f ---------------------------------- */
+	[BTTV_BOARD_HAUPPAUGE_IMPACTVCB] = {
+		.name		= "Hauppauge ImpactVCB (bt878)",
+		.video_inputs	= 4,
+		.audio_inputs	= 0,
+		.tuner		= -1,
+		.svhs		= -1,
+		.gpiomask	= 0x0f, /* old: 7 */
+		.muxsel		= { 0, 1, 3, 2}, /* Composite 0-3 */
+		.no_msp34xx	= 1,
+		.no_tda9875     = 1,
+		.no_tda7432     = 1,
+		.tuner_type	= -1,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
@@ -3471,6 +3490,21 @@ static void __devinit hauppauge_eeprom(struct bttv *btv)
 	tveeprom_hauppauge_analog(&btv->i2c_client, &tv, eeprom_data);
 	btv->tuner_type = tv.tuner_type;
 	btv->has_radio  = tv.has_radio;
+
+	printk("bttv%d: Hauppauge eeprom indicates model#%d\n",
+		btv->c.nr, tv.model);
+
+	/*
+	 * Some of the 878 boards have duplicate PCI IDs. Switch the board
+	 * type based on model #.
+	 */
+	if(tv.model == 64900) {
+		printk("bttv%d: Switching board type from %s to %s\n",
+			btv->c.nr,
+			bttv_tvcards[btv->c.type].name,
+			bttv_tvcards[BTTV_BOARD_HAUPPAUGE_IMPACTVCB].name);
+		btv->c.type = BTTV_BOARD_HAUPPAUGE_IMPACTVCB;
+	}
 }
 
 static int terratec_active_radio_upgrade(struct bttv *btv)

@@ -163,6 +163,7 @@
 #define BTTV_BOARD_OSPREY440               0x8c
 #define BTTV_BOARD_ASOUND_SKYEYE	   0x8d
 #define BTTV_BOARD_SABRENT_TVFM   	   0x8e
+#define BTTV_BOARD_HAUPPAUGE_IMPACTVCB     0x8f
 
 /* i2c address list */
 #define I2C_TSA5522        0xc2
