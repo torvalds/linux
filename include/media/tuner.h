@@ -202,15 +202,15 @@ extern int tea5767_autodetection(struct i2c_client *c);
 
 #define tuner_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
-			t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
+			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
+
 #define tuner_info(fmt, arg...) do {\
 	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
-			t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
+			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 #define tuner_dbg(fmt, arg...) do {\
 	if (tuner_debug) \
-		printk(KERN_DEBUG "%s %d-%04x: " fmt, \
-			t->i2c.driver->driver.name, \
-			t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
+		printk(KERN_DEBUG "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
+			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
 #endif /* __KERNEL__ */
 

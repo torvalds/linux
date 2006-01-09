@@ -645,7 +645,7 @@ int bttv_input_init(struct bttv *btv)
 
 	/* all done */
 	input_register_device(btv->remote->dev);
-	printk(DEVNAME ": %s detected at %s\n",ir->dev->name,ir->dev->phys);
+	printk(DEVNAME ": %s detected at %s\n",ir->name,ir->phys);
 
 	/* the remote isn't as bouncy as a keyboard */
 	ir->dev->rep[REP_DELAY] = repeat_delay;

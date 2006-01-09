@@ -38,21 +38,27 @@ I2C_CLIENT_INSMOD;
 
 /* insmod options used at init time => read/only */
 static unsigned int addr = 0;
-module_param(addr, int, 0444);
-
 static unsigned int no_autodetect = 0;
-module_param(no_autodetect, int, 0444);
-
 static unsigned int show_i2c = 0;
-module_param(show_i2c, int, 0444);
 
 /* insmod options used at runtime => read/write */
 unsigned int tuner_debug = 0;
-module_param(tuner_debug, int, 0644);
 
 static unsigned int tv_range[2] = { 44, 958 };
 static unsigned int radio_range[2] = { 65, 108 };
 
+static char pal[] = "--";
+static char secam[] = "--";
+static char ntsc[] = "-";
+
+module_param(addr, int, 0444);
+module_param(no_autodetect, int, 0444);
+module_param(show_i2c, int, 0444);
+module_param(tuner_debug, int, 0644);
+
+module_param_string(pal, pal, sizeof(pal), 0644);
+module_param_string(secam, secam, sizeof(secam), 0644);
+module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
 module_param_array(tv_range, int, NULL, 0644);
 module_param_array(radio_range, int, NULL, 0644);
 
@@ -249,11 +255,6 @@ static inline int check_mode(struct tuner *t, char *cmd)
 	return 0;
 }
 
-static char pal[] = "-";
-module_param_string(pal, pal, sizeof(pal), 0644);
-static char secam[] = "--";
-module_param_string(secam, secam, sizeof(secam), 0644);
-
 /* get more precise norm info from insmod option */
 static int tuner_fixup_std(struct tuner *t)
 {
@@ -285,8 +286,13 @@ static int tuner_fixup_std(struct tuner *t)
 			break;
 		case 'N':
 		case 'n':
-			tuner_dbg ("insmod fixup: PAL => PAL-N\n");
-			t->std = V4L2_STD_PAL_N;
+			if (pal[1] == 'c' || pal[1] == 'C') {
+				tuner_dbg("insmod fixup: PAL => PAL-Nc\n");
+				t->std = V4L2_STD_PAL_Nc;
+			} else {
+				tuner_dbg ("insmod fixup: PAL => PAL-N\n");
+				t->std = V4L2_STD_PAL_N;
+			}
 			break;
 		case '-':
 			/* default parameter, do nothing */
@@ -298,6 +304,15 @@ static int tuner_fixup_std(struct tuner *t)
 	}
 	if ((t->std & V4L2_STD_SECAM) == V4L2_STD_SECAM) {
 		switch (secam[0]) {
+		case 'b':
+		case 'B':
+		case 'g':
+		case 'G':
+		case 'h':
+		case 'H':
+			tuner_dbg("insmod fixup: SECAM => SECAM-BGH\n");
+			t->std = V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H;
+			break;
 		case 'd':
 		case 'D':
 		case 'k':
@@ -324,9 +339,60 @@ static int tuner_fixup_std(struct tuner *t)
 		}
 	}
 
+	if ((t->std & V4L2_STD_NTSC) == V4L2_STD_NTSC) {
+		switch (ntsc[0]) {
+		case 'm':
+		case 'M':
+			tuner_dbg("insmod fixup: NTSC => NTSC-M\n");
+			t->std = V4L2_STD_NTSC_M;
+			break;
+		case 'j':
+		case 'J':
+			tuner_dbg("insmod fixup: NTSC => NTSC_M_JP\n");
+			t->std = V4L2_STD_NTSC_M_JP;
+			break;
+		case '-':
+			/* default parameter, do nothing */
+			break;
+		default:
+			tuner_info("ntsc= argument not recognised\n");
+			break;
+		}
+	}
 	return 0;
 }
 
+static void tuner_status(struct i2c_client *client)
+{
+	struct tuner *t = i2c_get_clientdata(client);
+	unsigned long freq, freq_fraction;
+	const char *p;
+
+	switch (t->mode) {
+		case V4L2_TUNER_RADIO: 	    p = "radio"; break;
+		case V4L2_TUNER_ANALOG_TV:  p = "analog TV"; break;
+		case V4L2_TUNER_DIGITAL_TV: p = "digital TV"; break;
+		default: p = "undefined"; break;
+	}
+	if (t->mode == V4L2_TUNER_RADIO) {
+		freq = t->freq / 16000;
+		freq_fraction = (t->freq % 16000) * 100 / 16000;
+	} else {
+		freq = t->freq / 16;
+		freq_fraction = (t->freq % 16) * 100 / 16;
+	}
+	tuner_info("Tuner mode:      %s\n", p);
+	tuner_info("Frequency:       %lu.%02lu MHz\n", freq, freq_fraction);
+	tuner_info("Standard:        0x%08llx\n", t->std);
+	if (t->mode == V4L2_TUNER_RADIO) {
+		if (t->has_signal) {
+			tuner_info("Signal strength: %d\n", t->has_signal(client));
+		}
+		if (t->is_stereo) {
+			tuner_info("Stereo:          %s\n", t->is_stereo(client) ? "yes" : "no");
+		}
+	}
+}
 /* ---------------------------------------------------------------------- */
 
 /* static var Used only in tuner_attach and tuner_probe */
@@ -473,38 +539,6 @@ static inline int check_v4l2(struct tuner *t)
 		return EINVAL;
 	}
 	return 0;
-}
-
-static void tuner_status(struct i2c_client *client)
-{
-	struct tuner *t = i2c_get_clientdata(client);
-	unsigned long freq, freq_fraction;
-	const char *p;
-
-	switch (t->mode) {
-		case V4L2_TUNER_RADIO: 	    p = "radio"; break;
-		case V4L2_TUNER_ANALOG_TV:  p = "analog TV"; break;
-		case V4L2_TUNER_DIGITAL_TV: p = "digital TV"; break;
-		default: p = "undefined"; break;
-	}
-	if (t->mode == V4L2_TUNER_RADIO) {
-		freq = t->freq / 16000;
-		freq_fraction = (t->freq % 16000) * 100 / 16000;
-	} else {
-		freq = t->freq / 16;
-		freq_fraction = (t->freq % 16) * 100 / 16;
-	}
-	tuner_info("Tuner mode:      %s\n", p);
-	tuner_info("Frequency:       %lu.%02lu MHz\n", freq, freq_fraction);
-	tuner_info("Standard:        0x%08llx\n", t->std);
-	if (t->mode == V4L2_TUNER_RADIO) {
-		if (t->has_signal) {
-			tuner_info("Signal strength: %d\n", t->has_signal(client));
-		}
-		if (t->is_stereo) {
-			tuner_info("Stereo:          %s\n", t->is_stereo(client) ? "yes" : "no");
-		}
-	}
 }
 
 static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
