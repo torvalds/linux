@@ -791,8 +791,7 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len, int realloc)
 		int end = offset + skb_shinfo(skb)->frags[i].size;
 		if (end > len) {
 			if (skb_cloned(skb)) {
-				if (!realloc)
-					BUG();
+				BUG_ON(!realloc);
 				if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
 					return -ENOMEM;
 			}
@@ -894,8 +893,7 @@ unsigned char *__pskb_pull_tail(struct sk_buff *skb, int delta)
 		struct sk_buff *insp = NULL;
 
 		do {
-			if (!list)
-				BUG();
+			BUG_ON(!list);
 
 			if (list->len <= eat) {
 				/* Eaten as whole. */
@@ -1199,8 +1197,7 @@ unsigned int skb_checksum(const struct sk_buff *skb, int offset,
 			start = end;
 		}
 	}
-	if (len)
-		BUG();
+	BUG_ON(len);
 
 	return csum;
 }
@@ -1282,8 +1279,7 @@ unsigned int skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 			start = end;
 		}
 	}
-	if (len)
-		BUG();
+	BUG_ON(len);
 	return csum;
 }
 
@@ -1297,8 +1293,7 @@ void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 	else
 		csstart = skb_headlen(skb);
 
-	if (csstart > skb_headlen(skb))
-		BUG();
+	BUG_ON(csstart > skb_headlen(skb));
 
 	memcpy(to, skb->data, csstart);
 

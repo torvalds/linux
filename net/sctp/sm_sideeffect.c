@@ -1250,8 +1250,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_TIMER_START:
 			timer = &asoc->timers[cmd->obj.to];
 			timeout = asoc->timeouts[cmd->obj.to];
-			if (!timeout)
-				BUG();
+			BUG_ON(!timeout);
 
 			timer->expires = jiffies + timeout;
 			sctp_association_hold(asoc);

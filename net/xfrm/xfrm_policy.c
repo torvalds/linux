@@ -248,11 +248,9 @@ EXPORT_SYMBOL(xfrm_policy_alloc);
 
 void __xfrm_policy_destroy(struct xfrm_policy *policy)
 {
-	if (!policy->dead)
-		BUG();
+	BUG_ON(!policy->dead);
 
-	if (policy->bundles)
-		BUG();
+	BUG_ON(policy->bundles);
 
 	if (del_timer(&policy->timer))
 		BUG();

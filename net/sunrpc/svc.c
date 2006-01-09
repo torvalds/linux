@@ -122,8 +122,7 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 	rqstp->rq_argused = 0;
 	rqstp->rq_resused = 0;
 	arghi = 0;
-	if (pages > RPCSVC_MAXPAGES)
-		BUG();
+	BUG_ON(pages > RPCSVC_MAXPAGES);
 	while (pages) {
 		struct page *p = alloc_page(GFP_KERNEL);
 		if (!p)

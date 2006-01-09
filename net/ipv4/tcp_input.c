@@ -3347,7 +3347,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 			int offset = start - TCP_SKB_CB(skb)->seq;
 			int size = TCP_SKB_CB(skb)->end_seq - start;
 
-			if (offset < 0) BUG();
+			BUG_ON(offset < 0);
 			if (size > 0) {
 				size = min(copy, size);
 				if (skb_copy_bits(skb, offset, skb_put(nskb, size), size))
