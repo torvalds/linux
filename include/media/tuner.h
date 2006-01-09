@@ -115,28 +115,6 @@
 #define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
 #define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
 
-#define NOTUNER 0
-#define PAL     1	/* PAL_BG */
-#define PAL_I   2
-#define NTSC    3
-#define SECAM   4
-#define ATSC    5
-#define RADIO   6
-
-#define NoTuner 0
-#define Philips 1
-#define TEMIC   2
-#define Sony    3
-#define Alps    4
-#define LGINNOTEK 5
-#define SHARP   6
-#define Samsung 7
-#define Microtune 8
-#define HITACHI 9
-#define Panasonic 10
-#define TCL     11
-#define THOMSON 12
-
 #define TUNER_SET_TYPE_ADDR          _IOW('T',3,int)
 #define TUNER_SET_STANDBY            _IOW('T',4,int)
 #define TDA9887_SET_CONFIG           _IOW('t',5,int)
