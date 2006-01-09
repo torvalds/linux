@@ -2493,7 +2493,7 @@ sg_page_malloc(int rqSz, int lowDma, int *retSzp)
 	}
 	if (resp) {
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
-			memset(resp, 0, resSz);
+			memset(page_address(resp), 0, resSz);
 		if (retSzp)
 			*retSzp = resSz;
 	}
