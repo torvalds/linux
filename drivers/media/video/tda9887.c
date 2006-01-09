@@ -796,7 +796,7 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	}
 	case VIDIOC_LOG_STATUS:
 	{
-		tda9887_info("Data bytes: b=%02x c=%02x e=%02x\n", t->data[1], t->data[2], t->data[3]);
+		tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", t->data[1], t->data[2], t->data[3]);
 		break;
 	}
 	default:

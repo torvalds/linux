@@ -475,6 +475,38 @@ static inline int check_v4l2(struct tuner *t)
 	return 0;
 }
 
+static void tuner_status(struct i2c_client *client)
+{
+	struct tuner *t = i2c_get_clientdata(client);
+	unsigned long freq, freq_fraction;
+	const char *p;
+
+	switch (t->mode) {
+		case V4L2_TUNER_RADIO: 	    p = "radio"; break;
+		case V4L2_TUNER_ANALOG_TV:  p = "analog TV"; break;
+		case V4L2_TUNER_DIGITAL_TV: p = "digital TV"; break;
+		default: p = "undefined"; break;
+	}
+	if (t->mode == V4L2_TUNER_RADIO) {
+		freq = t->freq / 16000;
+		freq_fraction = (t->freq % 16000) * 100 / 16000;
+	} else {
+		freq = t->freq / 16;
+		freq_fraction = (t->freq % 16) * 100 / 16;
+	}
+	tuner_info("Tuner mode:      %s\n", p);
+	tuner_info("Frequency:       %lu.%02lu MHz\n", freq, freq_fraction);
+	tuner_info("Standard:        0x%08llx\n", t->std);
+	if (t->mode == V4L2_TUNER_RADIO) {
+		if (t->has_signal) {
+			tuner_info("Signal strength: %d\n", t->has_signal(client));
+		}
+		if (t->is_stereo) {
+			tuner_info("Stereo:          %s\n", t->is_stereo(client) ? "yes" : "no");
+		}
+	}
+}
+
 static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct tuner *t = i2c_get_clientdata(client);
@@ -708,6 +740,9 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			}
 			break;
 		}
+	case VIDIOC_LOG_STATUS:
+		tuner_status(client);
+		break;
 	default:
 		tuner_dbg("Unimplemented IOCTL 0x%08x(dir=%d,tp='%c',nr=%d,sz=%d)\n",
 					 cmd, _IOC_DIR(cmd), _IOC_TYPE(cmd),
