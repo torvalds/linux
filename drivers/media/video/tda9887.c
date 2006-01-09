@@ -190,6 +190,15 @@ static struct tvnorm tvnorms[] = {
 			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
 	},{
+		.std   = V4L2_STD_SECAM_LC,
+		.name  = "SECAM-L'",
+		.b     = ( cOutputPort2Inactive |
+			   cPositiveAmTV  |
+			   cQSS           ),
+		.e     = ( cGating_36	  |
+			   cAudioIF_6_5   |
+			   cVideoIF_33_90 ),
+	},{
 		.std   = V4L2_STD_SECAM_DK,
 		.name  = "SECAM-DK",
 		.b     = ( cNegativeFmTV  |

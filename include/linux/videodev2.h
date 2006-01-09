@@ -642,6 +642,12 @@ typedef __u64 v4l2_std_id;
 #define V4L2_STD_ATSC_8_VSB     ((v4l2_std_id)0x01000000)
 #define V4L2_STD_ATSC_16_VSB    ((v4l2_std_id)0x02000000)
 
+/* some merged standards */
+#define V4L2_STD_MN	(V4L2_STD_PAL_M|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|V4L2_STD_NTSC)
+#define V4L2_STD_B	(V4L2_STD_PAL_B|V4L2_STD_PAL_B1|V4L2_STD_SECAM_B)
+#define V4L2_STD_GH	(V4L2_STD_PAL_G|V4L2_STD_PAL_H|V4L2_STD_SECAM_G|V4L2_STD_SECAM_H)
+#define V4L2_STD_DK	(V4L2_STD_PAL_DK|V4L2_STD_SECAM_DK)
+
 /* some common needed stuff */
 #define V4L2_STD_PAL_BG		(V4L2_STD_PAL_B		|\
 				 V4L2_STD_PAL_B1	|\
@@ -662,7 +668,8 @@ typedef __u64 v4l2_std_id;
 				 V4L2_STD_SECAM_G	|\
 				 V4L2_STD_SECAM_H	|\
 				 V4L2_STD_SECAM_DK	|\
-				 V4L2_STD_SECAM_L)
+				 V4L2_STD_SECAM_L       |\
+				 V4L2_STD_SECAM_LC)
 
 #define V4L2_STD_525_60		(V4L2_STD_PAL_M		|\
 				 V4L2_STD_PAL_60	|\
@@ -1117,9 +1124,11 @@ typedef int (*v4l2_kioctl)(struct inode *inode, struct file *file,
 			   unsigned int cmd, void *arg);
 int v4l_compat_translate_ioctl(struct inode *inode, struct file *file,
 			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
+
 /* 32 Bits compatibility layer for 64 bits processors */
 extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
 				unsigned long arg);
+
 
 #endif /* __KERNEL__ */
 #endif /* __LINUX_VIDEODEV2_H */
