@@ -668,7 +668,7 @@ void bttv_input_fini(struct bttv *btv)
 	if (btv->remote->rc5_gpio) {
 		u32 gpio;
 
-		del_timer(&btv->remote->timer_end);
+		del_timer_sync(&btv->remote->timer_end);
 		flush_scheduled_work();
 
 		gpio = bttv_gpio_read(&btv->c);
