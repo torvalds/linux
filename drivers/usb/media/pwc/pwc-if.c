@@ -154,6 +154,7 @@ static struct file_operations pwc_fops = {
 	.poll =		pwc_video_poll,
 	.mmap =		pwc_video_mmap,
 	.ioctl =        pwc_video_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.llseek =       no_llseek,
 };
 static struct video_device pwc_template = {

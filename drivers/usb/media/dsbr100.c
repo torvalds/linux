@@ -127,6 +127,7 @@ static struct file_operations usb_dsbr100_fops = {
 	.open =		usb_dsbr100_open,
 	.release =     	usb_dsbr100_close,
 	.ioctl =        usb_dsbr100_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.llseek =       no_llseek,
 };
 

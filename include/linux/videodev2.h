@@ -1117,6 +1117,9 @@ typedef int (*v4l2_kioctl)(struct inode *inode, struct file *file,
 			   unsigned int cmd, void *arg);
 int v4l_compat_translate_ioctl(struct inode *inode, struct file *file,
 			       int cmd, void *arg, v4l2_kioctl driver_ioctl);
+/* 32 Bits compatibility layer for 64 bits processors */
+extern long v4l_compat_ioctl32(struct file *file, unsigned int cmd,
+				unsigned long arg);
 
 #endif /* __KERNEL__ */
 #endif /* __LINUX_VIDEODEV2_H */

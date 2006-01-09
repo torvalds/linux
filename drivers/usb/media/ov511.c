@@ -4774,6 +4774,7 @@ static struct file_operations ov511_fops = {
 	.read =		ov51x_v4l1_read,
 	.mmap =		ov51x_v4l1_mmap,
 	.ioctl =	ov51x_v4l1_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.llseek =	no_llseek,
 };
 

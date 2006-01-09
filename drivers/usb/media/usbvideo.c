@@ -953,6 +953,7 @@ static struct file_operations usbvideo_fops = {
 	.read =   usbvideo_v4l_read,
 	.mmap =   usbvideo_v4l_mmap,
 	.ioctl =  usbvideo_v4l_ioctl,
+	.compat_ioctl = v4l_compat_ioctl32,
 	.llseek = no_llseek,
 };
 static const struct video_device usbvideo_template = {

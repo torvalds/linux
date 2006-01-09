@@ -687,6 +687,7 @@ static struct file_operations qcam_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl          = qcam_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.read		= qcam_read,
 	.llseek         = no_llseek,
 };

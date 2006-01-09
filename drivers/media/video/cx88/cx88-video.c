@@ -1740,6 +1740,7 @@ static struct file_operations video_fops =
 	.poll          = video_poll,
 	.mmap	       = video_mmap,
 	.ioctl	       = video_ioctl,
+	.compat_ioctl  = v4l_compat_ioctl32,
 	.llseek        = no_llseek,
 };
 
@@ -1767,6 +1768,7 @@ static struct file_operations radio_fops =
 	.open          = video_open,
 	.release       = video_release,
 	.ioctl         = radio_ioctl,
+	.compat_ioctl  = v4l_compat_ioctl32,
 	.llseek        = no_llseek,
 };
 

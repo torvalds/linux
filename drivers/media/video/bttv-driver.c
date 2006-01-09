@@ -3120,6 +3120,7 @@ static struct file_operations bttv_fops =
 	.open	  = bttv_open,
 	.release  = bttv_release,
 	.ioctl	  = bttv_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek	  = no_llseek,
 	.read	  = bttv_read,
 	.mmap	  = bttv_mmap,

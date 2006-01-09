@@ -80,6 +80,7 @@ static struct file_operations maxiradio_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl	        = radio_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
 static struct video_device maxiradio_radio =
