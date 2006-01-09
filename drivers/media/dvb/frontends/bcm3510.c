@@ -255,7 +255,7 @@ static int bcm3510_bert_reset(struct bcm3510_state *st)
 	bcm3510_register_value b;
 	int ret;
 
-	if ((ret < bcm3510_readB(st,0xfa,&b)) < 0)
+	if ((ret = bcm3510_readB(st,0xfa,&b)) < 0)
 		return ret;
 
 	b.BERCTL_fa.RESYNC = 0; bcm3510_writeB(st,0xfa,b);
