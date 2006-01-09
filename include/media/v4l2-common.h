@@ -107,4 +107,11 @@ enum v4l2_chip_ident {
    be made. */
 #define VIDIOC_INT_G_CHIP_IDENT		_IOR ('d', 107, enum v4l2_chip_ident *)
 
+/* Sets I2S speed in bps. This is used to provide a standard way to select I2S
+   clock used by driving digital audio streams at some board designs.
+   Usual values for the frequency are 1024000 and 2048000.
+   If the frequency is not supported, then -EINVAL is returned. */
+#define VIDIOC_INT_I2S_CLOCK_FREQ 	_IOW ('d', 108, u32)
+
+
 #endif /* V4L2_COMMON_H_ */

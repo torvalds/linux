@@ -216,6 +216,8 @@ struct em28xx {
 	unsigned int has_msp34xx:1;
 	unsigned int has_tda9887:1;
 
+	u32 i2s_speed;		/* I2S speed for audio digital stream */
+
 	enum em28xx_decoder decoder;
 
 	int tuner_type;		/* type of the tuner */

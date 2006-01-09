@@ -30,6 +30,7 @@
 #include <media/tuner.h>
 #include <media/audiochip.h>
 #include <media/tveeprom.h>
+#include <media/v4l2-common.h>
 #include "msp3400.h"
 
 #include "em28xx.h"
@@ -261,7 +262,6 @@ void em28xx_card_setup(struct em28xx *dev)
 	/* request some modules */
 	if (dev->model == EM2820_BOARD_HAUPPAUGE_WINTV_USB_2) {
 		struct tveeprom tv;
-		struct v4l2_audioout ao;
 #ifdef CONFIG_MODULES
 		request_module("tveeprom");
 		request_module("ir-kbd-i2c");
@@ -274,12 +274,8 @@ void em28xx_card_setup(struct em28xx *dev)
 
 		dev->tuner_type= tv.tuner_type;
 		if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
+			dev->i2s_speed=2048000;
 			dev->has_msp34xx=1;
-			memset (&ao,0,sizeof(ao));
-
-			ao.index=2;
-			ao.mode=V4L2_AUDMODE_32BITS;
-			em28xx_i2c_call_clients(dev, VIDIOC_S_AUDOUT, &ao);
 		} else
 			dev->has_msp34xx=0;
 	}

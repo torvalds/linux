@@ -287,6 +287,8 @@ static void video_mux(struct em28xx *dev, int index)
 	em28xx_videodbg("Setting input index=%d, vmux=%d, amux=%d\n",index,input,dev->ctl_ainput);
 
 	if (dev->has_msp34xx) {
+		if (dev->i2s_speed)
+			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ, &dev->i2s_speed);
 		em28xx_i2c_call_clients(dev, VIDIOC_S_AUDIO, &dev->ctl_ainput);
 		ainput = EM28XX_AUDIO_SRC_TUNER;
 		em28xx_audio_source(dev, ainput);

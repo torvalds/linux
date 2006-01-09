@@ -54,6 +54,7 @@
 
 #include <linux/videodev.h>
 #include <media/audiochip.h>
+#include <media/v4l2-common.h>
 #include "msp3400.h"
 
 /* ---------------------------------------------------------------------- */
@@ -2104,23 +2105,36 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (a->index<0||a->index>2)
 			return -EINVAL;
 
-		if (a->index==2) {
-			if (a->mode == V4L2_AUDMODE_32BITS)
-				msp->i2s_mode=1;
-			else
-				msp->i2s_mode=0;
-		}
-		msp3400_dbg("Setting audio out on msp34xx to input %i, mode %i\n",a->index,msp->i2s_mode);
+		msp3400_dbg("Setting audio out on msp34xx to input %i\n",a->index);
 		msp3400c_set_scart(client,msp->in_scart,a->index+1);
 
 		break;
 	}
+	case VIDIOC_INT_I2S_CLOCK_FREQ:
+	{
+		u32 *a=(u32 *)arg;
+
+		msp3400_dbg("Setting I2S speed to %d\n",*a);
+
+		switch (*a) {
+			case 1024000:
+				msp->i2s_mode=0;
+				break;
+			case 2048000:
+				msp->i2s_mode=1;
+				break;
+			default:
+				return -EINVAL;
+		}
+		break;
+	}
+
 	case VIDIOC_QUERYCTRL:
 	{
 		struct v4l2_queryctrl *qc = arg;
 		int i;
 
-		msp3400_dbg("VIDIOC_QUERYCTRL");
+		msp3400_dbg("VIDIOC_QUERYCTRL\n");
 
 		for (i = 0; i < ARRAY_SIZE(msp34xx_qctrl); i++)
 			if (qc->id && qc->id ==  msp34xx_qctrl[i].id) {

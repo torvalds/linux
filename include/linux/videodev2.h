@@ -895,7 +895,6 @@ struct v4l2_audio
 
 /*  Flags for the 'mode' field */
 #define V4L2_AUDMODE_AVL		0x00001
-#define V4L2_AUDMODE_32BITS		0x00002
 
 struct v4l2_audioout
 {
