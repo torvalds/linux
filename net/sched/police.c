@@ -407,7 +407,7 @@ police_cleanup_module(void)
 module_init(police_init_module);
 module_exit(police_cleanup_module);
 
-#endif
+#else /* CONFIG_NET_CLS_ACT */
 
 struct tcf_police * tcf_police_locate(struct rtattr *rta, struct rtattr *est)
 {
@@ -544,6 +544,7 @@ int tcf_police(struct sk_buff *skb, struct tcf_police *p)
 	spin_unlock(&p->lock);
 	return p->action;
 }
+EXPORT_SYMBOL(tcf_police);
 
 int tcf_police_dump(struct sk_buff *skb, struct tcf_police *p)
 {
@@ -600,13 +601,4 @@ errout:
 	return -1;
 }
 
-
-EXPORT_SYMBOL(tcf_police);
-EXPORT_SYMBOL(tcf_police_destroy);
-EXPORT_SYMBOL(tcf_police_dump);
-EXPORT_SYMBOL(tcf_police_dump_stats);
-EXPORT_SYMBOL(tcf_police_hash);
-EXPORT_SYMBOL(tcf_police_ht);
-EXPORT_SYMBOL(tcf_police_locate);
-EXPORT_SYMBOL(tcf_police_lookup);
-EXPORT_SYMBOL(tcf_police_new_index);
+#endif /* CONFIG_NET_CLS_ACT */
