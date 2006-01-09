@@ -127,7 +127,7 @@ static int ciintf_read_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int ad
 	saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTHI);
 	udelay(1);
 
-	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 0xfff, 1, 0, 0);
+	result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, address & 0xfff, 1, 0, 1);
 
 	if (result == -ETIMEDOUT)
 		budget_av->slot_status = 0;
@@ -145,7 +145,7 @@ static int ciintf_write_attribute_mem(struct dvb_ca_en50221 *ca, int slot, int a
 	saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTHI);
 	udelay(1);
 
-	result = ttpci_budget_debiwrite(&budget_av->budget, DEBICICAM, address & 0xfff, 1, value, 0, 0);
+	result = ttpci_budget_debiwrite(&budget_av->budget, DEBICICAM, address & 0xfff, 1, value, 0, 1);
 
 	if (result == -ETIMEDOUT)
 		budget_av->slot_status = 0;
@@ -192,7 +192,7 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 {
 	struct budget_av *budget_av = (struct budget_av *) ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
-	int timeout = 500; // 5 seconds (4.4.6 Ready)
+	int timeout = 50; // 5 seconds (4.4.6 Ready)
 
 	if (slot != 0)
 		return -EINVAL;
@@ -256,19 +256,37 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 {
 	struct budget_av *budget_av = (struct budget_av *) ca->data;
 	struct saa7146_dev *saa = budget_av->budget.dev;
+	int cam_present = 0;
 
 	if (slot != 0)
 		return -EINVAL;
 
-	if (!budget_av->slot_status) {
+	if (!budget_av->slot_status)
+	{
+		// first of all test the card detect line
 		saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 		udelay(1);
 		if (saa7146_read(saa, PSR) & MASK_06)
 		{
+			cam_present = 1;
+		}
+		saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
+
+		// that is unreliable however, so try and read from IO memory
+		if (!cam_present)
+		{
+   			saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
+			if (ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1) != -ETIMEDOUT)
+			{
+				cam_present = 1;
+			}
+		}
+
+		// did we find something?
+		if (cam_present) {
 			printk(KERN_INFO "budget-av: cam inserted\n");
 			budget_av->slot_status = 1;
 		}
-		saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
 	} else if (!open) {
 		saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
 		if (ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1) == -ETIMEDOUT)
