@@ -226,8 +226,10 @@
  * Definitions for ATIK Instruments astronomical USB based cameras
  * Check it at http://www.atik-instruments.com/
  */
-#define FTDI_ATIK_ATK16_PID	0xDF30	/* ATIK ATK-16 Camera */
-#define FTDI_ATIK_ATK16HR_PID	0xDF31	/* ATIK ATK-16HR Camera */
+#define FTDI_ATIK_ATK16_PID	0xDF30	/* ATIK ATK-16 Grayscale Camera */
+#define FTDI_ATIK_ATK16C_PID	0xDF32	/* ATIK ATK-16C Colour Camera */
+#define FTDI_ATIK_ATK16HR_PID	0xDF31	/* ATIK ATK-16HR Grayscale Camera */
+#define FTDI_ATIK_ATK16HRC_PID	0xDF33	/* ATIK ATK-16HRC Colour Camera */
 
 /*
  * Protego product ids
