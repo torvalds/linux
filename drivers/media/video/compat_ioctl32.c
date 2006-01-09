@@ -1,6 +1,7 @@
 #include <linux/config.h>
 #include <linux/compat.h>
 #include <linux/videodev.h>
+#include <linux/module.h>
 
 #ifdef CONFIG_COMPAT
 struct video_tuner32 {
@@ -274,7 +275,7 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 	case VIDIOCGFBUF32:
 	case VIDIOCSFBUF32:
 	case VIDIOCGFREQ32:
-	case VIDIOCSFREQ32
+	case VIDIOCSFREQ32:
 		ret = do_video_ioctl(file, cmd, arg);
 		break;
 
