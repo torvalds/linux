@@ -313,7 +313,7 @@ sub or51132_vsb {
 }
 
 sub bluebird {
-	my $url = "http://www.linuxtv.org/~mkrufky/dvb-usb-bluebird-01.fw";
+	my $url = "http://www.linuxtv.org/download/dvb/firmware/dvb-usb-bluebird-01.fw";
 	my $outfile = "dvb-usb-bluebird-01.fw";
 	my $hash = "658397cb9eba9101af9031302671f49d";
 
