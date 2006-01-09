@@ -1506,11 +1506,13 @@ _STATIC(__mmu_off)
  *
  */
 _GLOBAL(__start_initialization_multiplatform)
+#ifdef CONFIG_PPC_MULTIPLATFORM
 	/*
 	 * Are we booted from a PROM Of-type client-interface ?
 	 */
 	cmpldi	cr0,r5,0
 	bne	.__boot_from_prom		/* yes -> prom */
+#endif
 
 	/* Save parameters */
 	mr	r31,r3
@@ -1531,6 +1533,7 @@ _GLOBAL(__start_initialization_multiplatform)
 	bl	.__mmu_off
 	b	.__after_prom_start
 
+#ifdef CONFIG_PPC_MULTIPLATFORM
 _STATIC(__boot_from_prom)
 	/* Save parameters */
 	mr	r31,r3
@@ -1563,6 +1566,7 @@ _STATIC(__boot_from_prom)
 	bl	.prom_init
 	/* We never return */
 	trap
+#endif
 
 /*
  * At this point, r3 contains the physical address we are running at,
