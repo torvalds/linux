@@ -913,6 +913,13 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	}
 
 	div=freq + IFPCoff + offset;
+
+	tuner_dbg("Freq= %d.%02d MHz, V_IF=%d.%02d MHz, Offset=%d.%02d MHz, div=%0d\n",
+					freq / 16, freq % 16 * 100 / 16,
+					IFPCoff / 16, IFPCoff % 16 * 100 / 16,
+					offset / 16, offset % 16 * 100 / 16,
+					div);
+
 	if (t->type == TUNER_PHILIPS_SECAM && freq < t->freq) {
 		buffer[0] = tun->config;
 		buffer[1] = config;
