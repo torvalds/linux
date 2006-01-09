@@ -50,6 +50,10 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
  * Powermanagement idle function, if any..
  */
 void (*pm_idle)(void) = NULL;
+EXPORT_SYMBOL(pm_idle);
+
+void (*pm_power_off)(void) = NULL;
+EXPORT_SYMBOL(pm_power_off);
 
 void disable_hlt(void)
 {

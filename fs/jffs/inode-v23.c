@@ -757,7 +757,7 @@ jffs_do_readpage_nolock(struct file *file, struct page *page)
 
 	read_len = 0;
 	result = 0;
-	offset = page->index << PAGE_CACHE_SHIFT;
+	offset = page_offset(page);
 
 	kmap(page);
 	buf = page_address(page);
@@ -1545,7 +1545,7 @@ jffs_commit_write(struct file *filp, struct page *page,
 {
        void *addr = page_address(page) + from;
        /* XXX: PAGE_CACHE_SHIFT or PAGE_SHIFT */
-       loff_t pos = (page->index<<PAGE_CACHE_SHIFT) + from;
+       loff_t pos = page_offset(page) + from;
 
        return jffs_file_write(filp, addr, to-from, &pos);
 } /* jffs_commit_write() */

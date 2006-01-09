@@ -8,6 +8,7 @@
  * edit all arch specific atomic.h files.
  */
 
+#include <asm/types.h>
 
 /*
  * Suppport for atomic_long_t

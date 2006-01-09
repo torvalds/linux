@@ -12,6 +12,8 @@
 #include "mode.h"
 #include "choose-mode.h"
 
+void (*pm_power_off)(void);
+
 #ifdef CONFIG_SMP
 static void kill_idlers(int me)
 {

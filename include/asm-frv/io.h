@@ -18,6 +18,7 @@
 #ifdef __KERNEL__
 
 #include <linux/config.h>
+#include <linux/types.h>
 #include <asm/virtconvert.h>
 #include <asm/string.h>
 #include <asm/mb-regs.h>
@@ -103,6 +104,8 @@ static inline void __insl(unsigned long addr, void *buf, int len, int swap)
 	else
 		__insl_sw(addr, buf, len);
 }
+
+#define mmiowb() mb()
 
 /*
  *	make the short names macros so specific devices
@@ -209,6 +212,10 @@ static inline uint32_t readl(const volatile void __iomem *addr)
 	return ret;
 }
 
+#define readb_relaxed readb
+#define readw_relaxed readw
+#define readl_relaxed readl
+
 static inline void writeb(uint8_t datum, volatile void __iomem *addr)
 {
 	__builtin_write8((volatile uint8_t __force *) addr, datum);
@@ -268,9 +275,104 @@ static inline void __iomem *ioremap_fullcache(unsigned long physaddr, unsigned l
 
 extern void iounmap(void __iomem *addr);
 
+static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
+{
+	return (void __iomem *) port;
+}
+
+static inline void ioport_unmap(void __iomem *p)
+{
+}
+
 static inline void flush_write_buffers(void)
 {
 	__asm__ __volatile__ ("membar" : : :"memory");
+}
+
+/*
+ * do appropriate I/O accesses for token type
+ */
+static inline unsigned int ioread8(void __iomem *p)
+{
+	return __builtin_read8(p);
+}
+
+static inline unsigned int ioread16(void __iomem *p)
+{
+	uint16_t ret = __builtin_read16(p);
+	if (__is_PCI_addr(p))
+		ret = _swapw(ret);
+	return ret;
+}
+
+static inline unsigned int ioread32(void __iomem *p)
+{
+	uint32_t ret = __builtin_read32(p);
+	if (__is_PCI_addr(p))
+		ret = _swapl(ret);
+	return ret;
+}
+
+static inline void iowrite8(u8 val, void __iomem *p)
+{
+	__builtin_write8(p, val);
+	if (__is_PCI_MEM(p))
+		__flush_PCI_writes();
+}
+
+static inline void iowrite16(u16 val, void __iomem *p)
+{
+	if (__is_PCI_addr(p))
+		val = _swapw(val);
+	__builtin_write16(p, val);
+	if (__is_PCI_MEM(p))
+		__flush_PCI_writes();
+}
+
+static inline void iowrite32(u32 val, void __iomem *p)
+{
+	if (__is_PCI_addr(p))
+		val = _swapl(val);
+	__builtin_write32(p, val);
+	if (__is_PCI_MEM(p))
+		__flush_PCI_writes();
+}
+
+static inline void ioread8_rep(void __iomem *p, void *dst, unsigned long count)
+{
+	io_insb((unsigned long) p, dst, count);
+}
+
+static inline void ioread16_rep(void __iomem *p, void *dst, unsigned long count)
+{
+	io_insw((unsigned long) p, dst, count);
+}
+
+static inline void ioread32_rep(void __iomem *p, void *dst, unsigned long count)
+{
+	__insl_ns((unsigned long) p, dst, count);
+}
+
+static inline void iowrite8_rep(void __iomem *p, const void *src, unsigned long count)
+{
+	io_outsb((unsigned long) p, src, count);
+}
+
+static inline void iowrite16_rep(void __iomem *p, const void *src, unsigned long count)
+{
+	io_outsw((unsigned long) p, src, count);
+}
+
+static inline void iowrite32_rep(void __iomem *p, const void *src, unsigned long count)
+{
+	__outsl_ns((unsigned long) p, src, count);
+}
+
+/* Create a virtual mapping cookie for a PCI BAR (memory or IO) */
+struct pci_dev;
+extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
+static inline void pci_iounmap(struct pci_dev *dev, void __iomem *p)
+{
 }
 
 
@@ -284,6 +386,27 @@ static inline void flush_write_buffers(void)
  * Convert a virtual cached pointer to an uncached pointer
  */
 #define xlate_dev_kmem_ptr(p)	p
+
+/*
+ * Check BIOS signature
+ */
+static inline int check_signature(volatile void __iomem *io_addr,
+				  const unsigned char *signature, int length)
+{
+	int retval = 0;
+
+	do {
+		if (readb(io_addr) != *signature)
+			goto out;
+		io_addr++;
+		signature++;
+		length--;
+	} while (length);
+
+	retval = 1;
+out:
+	return retval;
+}
 
 #endif /* __KERNEL__ */
 

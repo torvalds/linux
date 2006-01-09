@@ -280,7 +280,7 @@ static int wait_on_page_writeback_range(struct address_space *mapping,
  * it is otherwise livelockable.
  */
 int sync_page_range(struct inode *inode, struct address_space *mapping,
-			loff_t pos, size_t count)
+			loff_t pos, loff_t count)
 {
 	pgoff_t start = pos >> PAGE_CACHE_SHIFT;
 	pgoff_t end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
@@ -305,9 +305,8 @@ EXPORT_SYMBOL(sync_page_range);
  * as it forces O_SYNC writers to different parts of the same file
  * to be serialised right until io completion.
  */
-static int sync_page_range_nolock(struct inode *inode,
-				  struct address_space *mapping,
-				  loff_t pos, size_t count)
+int sync_page_range_nolock(struct inode *inode, struct address_space *mapping,
+			   loff_t pos, loff_t count)
 {
 	pgoff_t start = pos >> PAGE_CACHE_SHIFT;
 	pgoff_t end = (pos + count - 1) >> PAGE_CACHE_SHIFT;
@@ -322,6 +321,7 @@ static int sync_page_range_nolock(struct inode *inode,
 		ret = wait_on_page_writeback_range(mapping, start, end);
 	return ret;
 }
+EXPORT_SYMBOL(sync_page_range_nolock);
 
 /**
  * filemap_fdatawait - walk the list of under-writeback pages of the given
@@ -343,30 +343,44 @@ EXPORT_SYMBOL(filemap_fdatawait);
 
 int filemap_write_and_wait(struct address_space *mapping)
 {
-	int retval = 0;
+	int err = 0;
 
 	if (mapping->nrpages) {
-		retval = filemap_fdatawrite(mapping);
-		if (retval == 0)
-			retval = filemap_fdatawait(mapping);
+		err = filemap_fdatawrite(mapping);
+		/*
+		 * Even if the above returned error, the pages may be
+		 * written partially (e.g. -ENOSPC), so we wait for it.
+		 * But the -EIO is special case, it may indicate the worst
+		 * thing (e.g. bug) happened, so we avoid waiting for it.
+		 */
+		if (err != -EIO) {
+			int err2 = filemap_fdatawait(mapping);
+			if (!err)
+				err = err2;
+		}
 	}
-	return retval;
+	return err;
 }
+EXPORT_SYMBOL(filemap_write_and_wait);
 
 int filemap_write_and_wait_range(struct address_space *mapping,
 				 loff_t lstart, loff_t lend)
 {
-	int retval = 0;
+	int err = 0;
 
 	if (mapping->nrpages) {
-		retval = __filemap_fdatawrite_range(mapping, lstart, lend,
-						    WB_SYNC_ALL);
-		if (retval == 0)
-			retval = wait_on_page_writeback_range(mapping,
-						    lstart >> PAGE_CACHE_SHIFT,
-						    lend >> PAGE_CACHE_SHIFT);
+		err = __filemap_fdatawrite_range(mapping, lstart, lend,
+						 WB_SYNC_ALL);
+		/* See comment of filemap_write_and_wait() */
+		if (err != -EIO) {
+			int err2 = wait_on_page_writeback_range(mapping,
+						lstart >> PAGE_CACHE_SHIFT,
+						lend >> PAGE_CACHE_SHIFT);
+			if (!err)
+				err = err2;
+		}
 	}
-	return retval;
+	return err;
 }
 
 /*

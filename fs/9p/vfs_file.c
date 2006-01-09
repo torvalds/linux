@@ -32,6 +32,7 @@
 #include <linux/string.h>
 #include <linux/smp_lock.h>
 #include <linux/inet.h>
+#include <linux/version.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
 #include <linux/idr.h>
@@ -117,9 +118,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 		result = v9fs_t_open(v9ses, newfid, open_mode, &fcall);
 		if (result < 0) {
-			dprintk(DEBUG_ERROR,
-				"open failed, open_mode 0x%x: %s\n", open_mode,
-				FCALL_ERROR(fcall));
+			PRINT_FCALL_ERROR("open failed", fcall);
 			kfree(fcall);
 			return result;
 		}
@@ -165,8 +164,7 @@ static int v9fs_file_lock(struct file *filp, int cmd, struct file_lock *fl)
 		return -ENOLCK;
 
 	if ((IS_SETLK(cmd) || IS_SETLKW(cmd)) && fl->fl_type != F_UNLCK) {
-		filemap_fdatawrite(inode->i_mapping);
-		filemap_fdatawait(inode->i_mapping);
+		filemap_write_and_wait(inode->i_mapping);
 		invalidate_inode_pages(&inode->i_data);
 	}
 
@@ -257,7 +255,6 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	int result = -EIO;
 	int rsize = 0;
 	int total = 0;
-	char *buf;
 
 	dprintk(DEBUG_VFS, "data %p count %d offset %x\n", data, (int)count,
 		(int)*offset);
@@ -265,28 +262,14 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	if (v9fid->iounit != 0 && rsize > v9fid->iounit)
 		rsize = v9fid->iounit;
 
-	buf = kmalloc(v9ses->maxdata - V9FS_IOHDRSZ, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
 	do {
 		if (count < rsize)
 			rsize = count;
 
-		result = copy_from_user(buf, data, rsize);
-		if (result) {
-			dprintk(DEBUG_ERROR, "Problem copying from user\n");
-			kfree(buf);
-			return -EFAULT;
-		}
-
-		dump_data(buf, rsize);
-		result = v9fs_t_write(v9ses, fid, *offset, rsize, buf, &fcall);
+		result = v9fs_t_write(v9ses, fid, *offset, rsize, data, &fcall);
 		if (result < 0) {
-			eprintk(KERN_ERR, "error while writing: %s(%d)\n",
-				FCALL_ERROR(fcall), result);
+			PRINT_FCALL_ERROR("error while writing", fcall);
 			kfree(fcall);
-			kfree(buf);
 			return result;
 		} else
 			*offset += result;
@@ -306,7 +289,6 @@ v9fs_file_write(struct file *filp, const char __user * data,
 		total += result;
 	} while (count);
 
-	kfree(buf);
 	return total;
 }
 

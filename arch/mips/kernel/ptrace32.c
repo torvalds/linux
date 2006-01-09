@@ -57,30 +57,16 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 	       (unsigned long) data);
 #endif
 	lock_kernel();
-	ret = -EPERM;
 	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		if ((ret = security_ptrace(current->parent, current)))
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
+		ret = ptrace_traceme();
 		goto out;
 	}
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
 
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out_tsk;
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child)) {
+		ret = PTR_ERR(child);
+		goto out;
+	}
 
 	if (request == PTRACE_ATTACH) {
 		ret = ptrace_attach(child);

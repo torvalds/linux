@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/device.h>
+#include <linux/string.h>
 #include <linux/rio.h>
 
 extern int __rio_local_read_config_32(struct rio_mport *port, u32 offset,

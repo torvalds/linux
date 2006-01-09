@@ -58,7 +58,7 @@ extern int dump_fpu (struct pt_regs *, elf_fpregset_t *);
  * If we don't support core dumping, then supply a NULL so we
  * don't even try.
  */
-#ifdef USE_ELF_CORE_DUMP
+#if defined(USE_ELF_CORE_DUMP) && defined(CONFIG_ELF_CORE)
 static int elf_core_dump(long signr, struct pt_regs * regs, struct file * file);
 #else
 #define elf_core_dump	NULL
@@ -288,11 +288,17 @@ static unsigned long elf_map(struct file *filep, unsigned long addr,
 			struct elf_phdr *eppnt, int prot, int type)
 {
 	unsigned long map_addr;
+	unsigned long pageoffset = ELF_PAGEOFFSET(eppnt->p_vaddr);
 
 	down_write(&current->mm->mmap_sem);
-	map_addr = do_mmap(filep, ELF_PAGESTART(addr),
-			   eppnt->p_filesz + ELF_PAGEOFFSET(eppnt->p_vaddr), prot, type,
-			   eppnt->p_offset - ELF_PAGEOFFSET(eppnt->p_vaddr));
+	/* mmap() will return -EINVAL if given a zero size, but a
+	 * segment with zero filesize is perfectly valid */
+	if (eppnt->p_filesz + pageoffset)
+		map_addr = do_mmap(filep, ELF_PAGESTART(addr),
+				   eppnt->p_filesz + pageoffset, prot, type,
+				   eppnt->p_offset - pageoffset);
+	else
+		map_addr = ELF_PAGESTART(addr);
 	up_write(&current->mm->mmap_sem);
 	return(map_addr);
 }
@@ -1107,7 +1113,7 @@ out:
  * Note that some platforms still use traditional core dumps and not
  * the ELF core dump.  Each platform can select it as appropriate.
  */
-#ifdef USE_ELF_CORE_DUMP
+#if defined(USE_ELF_CORE_DUMP) && defined(CONFIG_ELF_CORE)
 
 /*
  * ELF core dumper

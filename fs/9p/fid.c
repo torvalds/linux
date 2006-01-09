@@ -31,9 +31,6 @@
 #include "v9fs.h"
 #include "9p.h"
 #include "v9fs_vfs.h"
-#include "transport.h"
-#include "mux.h"
-#include "conv.h"
 #include "fid.h"
 
 /**
@@ -164,7 +161,7 @@ static struct v9fs_fid *v9fs_fid_walk_up(struct dentry *dentry)
 	return v9fs_fid_create(dentry, v9ses, fidnum, 0);
 
 clunk_fid:
-	v9fs_t_clunk(v9ses, fidnum, NULL);
+	v9fs_t_clunk(v9ses, fidnum);
 	return ERR_PTR(err);
 }
 

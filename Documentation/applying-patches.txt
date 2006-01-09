@@ -2,7 +2,8 @@
 	Applying Patches To The Linux Kernel
 	------------------------------------
 
-	(Written by Jesper Juhl, August 2005)
+	Original by: Jesper Juhl, August 2005
+	Last update: 2005-12-02
 
 
 
@@ -118,7 +119,7 @@ wrong.
 
 When patch encounters a change that it can't fix up with fuzz it rejects it
 outright and leaves a file with a .rej extension (a reject file). You can
-read this file to see exactely what change couldn't be applied, so you can
+read this file to see exactly what change couldn't be applied, so you can
 go fix it up by hand if you wish.
 
 If you don't have any third party patches applied to your kernel source, but
@@ -127,7 +128,7 @@ and have made no modifications yourself to the source files, then you should
 never see a fuzz or reject message from patch. If you do see such messages
 anyway, then there's a high risk that either your local source tree or the
 patch file is corrupted in some way. In that case you should probably try
-redownloading the patch and if things are still not OK then you'd be advised
+re-downloading the patch and if things are still not OK then you'd be advised
 to start with a fresh tree downloaded in full from kernel.org.
 
 Let's look a bit more at some of the messages patch can produce.
@@ -180,9 +181,11 @@ wish to apply.
 
 Are there any alternatives to `patch'?
 ---
- Yes there are alternatives. You can use the `interdiff' program
-(http://cyberelk.net/tim/patchutils/) to generate a patch representing the
-differences between two patches and then apply the result.
+ Yes there are alternatives.
+
+ You can use the `interdiff' program (http://cyberelk.net/tim/patchutils/) to
+generate a patch representing the differences between two patches and then
+apply the result.
 This will let you move from something like 2.6.12.2 to 2.6.12.3 in a single
 step. The -z flag to interdiff will even let you feed it patches in gzip or
 bzip2 compressed form directly without the use of zcat or bzcat or manual
@@ -197,7 +200,7 @@ do the additional steps since interdiff can get things wrong in some cases.
  Another alternative is `ketchup', which is a python script for automatic
 downloading and applying of patches (http://www.selenic.com/ketchup/).
 
-Other nice tools are diffstat which shows a summary of changes made by a
+ Other nice tools are diffstat which shows a summary of changes made by a
 patch, lsdiff which displays a short listing of affected files in a patch
 file, along with (optionally) the line numbers of the start of each patch
 and grepdiff which displays a list of the files modified by a patch where
@@ -258,7 +261,7 @@ $ patch -p1 -R < ../patch-2.6.11.1	# revert the 2.6.11.1 patch
 					# source dir is now 2.6.11
 $ patch -p1 < ../patch-2.6.12		# apply new 2.6.12 patch
 $ cd ..
-$ mv linux-2.6.11.1 inux-2.6.12		# rename source dir
+$ mv linux-2.6.11.1 linux-2.6.12		# rename source dir
 
 
 The 2.6.x.y kernels
@@ -433,7 +436,11 @@ $ cd ..
 $ mv linux-2.6.12-mm1 linux-2.6.13-rc3-mm3	# rename the source dir
 
 
-This concludes this list of explanations of the various kernel trees and I
-hope you are now crystal clear on how to apply the various patches and help
-testing the kernel.
+This concludes this list of explanations of the various kernel trees.
+I hope you are now clear on how to apply the various patches and help testing
+the kernel.
+
+Thank you's to Randy Dunlap, Rolf Eike Beer, Linus Torvalds, Bodo Eggert,
+Johannes Stezenbach, Grant Coady, Pavel Machek and others that I may have
+forgotten for their reviews and contributions to this document.
 

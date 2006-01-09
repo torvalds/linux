@@ -113,31 +113,18 @@ static int mmc_blk_release(struct inode *inode, struct file *filp)
 }
 
 static int
-mmc_blk_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+mmc_blk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct block_device *bdev = inode->i_bdev;
-
-	if (cmd == HDIO_GETGEO) {
-		struct hd_geometry geo;
-
-		memset(&geo, 0, sizeof(struct hd_geometry));
-
-		geo.cylinders	= get_capacity(bdev->bd_disk) / (4 * 16);
-		geo.heads	= 4;
-		geo.sectors	= 16;
-		geo.start	= get_start_sect(bdev);
-
-		return copy_to_user((void __user *)arg, &geo, sizeof(geo))
-			? -EFAULT : 0;
-	}
-
-	return -ENOTTY;
+	geo->cylinders = get_capacity(bdev->bd_disk) / (4 * 16);
+	geo->heads = 4;
+	geo->sectors = 16;
+	return 0;
 }
 
 static struct block_device_operations mmc_bdops = {
 	.open			= mmc_blk_open,
 	.release		= mmc_blk_release,
-	.ioctl			= mmc_blk_ioctl,
+	.getgeo			= mmc_blk_getgeo,
 	.owner			= THIS_MODULE,
 };
 

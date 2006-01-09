@@ -109,10 +109,10 @@ bootstrap:
 	$(Q)$(MAKEBOOT) bootstrap
 
 archmrproper:
-	$(Q)$(MAKE) -C arch/frv/boot mrproper
+	$(Q)$(MAKE) $(build)=arch/frv/boot mrproper
 
 archclean:
-	$(Q)$(MAKE) -C arch/frv/boot clean
+	$(Q)$(MAKE) $(build)=arch/frv/boot clean
 
 archdep: scripts/mkdep symlinks
-	$(Q)$(MAKE) -C arch/frv/boot dep
+	$(Q)$(MAKE) $(build)=arch/frv/boot dep

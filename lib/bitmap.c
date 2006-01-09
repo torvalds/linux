@@ -519,7 +519,7 @@ EXPORT_SYMBOL(bitmap_parselist);
  *
  * Map the bit at position @pos in @buf (of length @bits) to the
  * ordinal of which set bit it is.  If it is not set or if @pos
- * is not a valid bit position, map to zero (0).
+ * is not a valid bit position, map to -1.
  *
  * If for example, just bits 4 through 7 are set in @buf, then @pos
  * values 4 through 7 will get mapped to 0 through 3, respectively,
@@ -531,18 +531,19 @@ EXPORT_SYMBOL(bitmap_parselist);
  */
 static int bitmap_pos_to_ord(const unsigned long *buf, int pos, int bits)
 {
-	int ord = 0;
+	int i, ord;
 
-	if (pos >= 0 && pos < bits) {
-		int i;
+	if (pos < 0 || pos >= bits || !test_bit(pos, buf))
+		return -1;
 
-		for (i = find_first_bit(buf, bits);
-		     i < pos;
-		     i = find_next_bit(buf, bits, i + 1))
-	     		ord++;
-		if (i > pos)
-			ord = 0;
+	i = find_first_bit(buf, bits);
+	ord = 0;
+	while (i < pos) {
+		i = find_next_bit(buf, bits, i + 1);
+	     	ord++;
 	}
+	BUG_ON(i != pos);
+
 	return ord;
 }
 
@@ -553,11 +554,12 @@ static int bitmap_pos_to_ord(const unsigned long *buf, int pos, int bits)
  *	@bits: number of valid bit positions in @buf
  *
  * Map the ordinal offset of bit @ord in @buf to its position in @buf.
- * If @ord is not the ordinal offset of a set bit in @buf, map to zero (0).
+ * Value of @ord should be in range 0 <= @ord < weight(buf), else
+ * results are undefined.
  *
  * If for example, just bits 4 through 7 are set in @buf, then @ord
  * values 0 through 3 will get mapped to 4 through 7, respectively,
- * and all other @ord valuds will get mapped to 0.  When @ord value 3
+ * and all other @ord values return undefined values.  When @ord value 3
  * gets mapped to (returns) @pos value 7 in this example, that means
  * that the 3rd set bit (starting with 0th) is at position 7 in @buf.
  *
@@ -583,8 +585,8 @@ static int bitmap_ord_to_pos(const unsigned long *buf, int ord, int bits)
 
 /**
  * bitmap_remap - Apply map defined by a pair of bitmaps to another bitmap
- *	@src: subset to be remapped
  *	@dst: remapped result
+ *	@src: subset to be remapped
  *	@old: defines domain of map
  *	@new: defines range of map
  *	@bits: number of bits in each of these bitmaps
@@ -596,49 +598,42 @@ static int bitmap_ord_to_pos(const unsigned long *buf, int ord, int bits)
  * weight of @old, map the position of the n-th set bit in @old to
  * the position of the m-th set bit in @new, where m == n % w.
  *
- * If either of the @old and @new bitmaps are empty, or if@src and @dst
- * point to the same location, then this routine does nothing.
+ * If either of the @old and @new bitmaps are empty, or if @src and
+ * @dst point to the same location, then this routine copies @src
+ * to @dst.
  *
- * The positions of unset bits in @old are mapped to the position of
- * the first set bit in @new.
+ * The positions of unset bits in @old are mapped to themselves
+ * (the identify map).
  *
  * Apply the above specified mapping to @src, placing the result in
  * @dst, clearing any bits previously set in @dst.
  *
- * The resulting value of @dst will have either the same weight as
- * @src, or less weight in the general case that the mapping wasn't
- * injective due to the weight of @new being less than that of @old.
- * The resulting value of @dst will never have greater weight than
- * that of @src, except perhaps in the case that one of the above
- * conditions was not met and this routine just returned.
- *
  * For example, lets say that @old has bits 4 through 7 set, and
  * @new has bits 12 through 15 set.  This defines the mapping of bit
  * position 4 to 12, 5 to 13, 6 to 14 and 7 to 15, and of all other
- * bit positions to 12 (the first set bit in @new.  So if say @src
- * comes into this routine with bits 1, 5 and 7 set, then @dst should
- * leave with bits 12, 13 and 15 set.
+ * bit positions unchanged.  So if say @src comes into this routine
+ * with bits 1, 5 and 7 set, then @dst should leave with bits 1,
+ * 13 and 15 set.
  */
 void bitmap_remap(unsigned long *dst, const unsigned long *src,
 		const unsigned long *old, const unsigned long *new,
 		int bits)
 {
-	int s;
+	int oldbit, w;
 
-	if (bitmap_weight(old, bits) == 0)
-		return;
-	if (bitmap_weight(new, bits) == 0)
-		return;
 	if (dst == src)		/* following doesn't handle inplace remaps */
 		return;
-
 	bitmap_zero(dst, bits);
-	for (s = find_first_bit(src, bits);
-	     s < bits;
-	     s = find_next_bit(src, bits, s + 1)) {
-	     	int x = bitmap_pos_to_ord(old, s, bits);
-		int y = bitmap_ord_to_pos(new, x, bits);
-		set_bit(y, dst);
+
+	w = bitmap_weight(new, bits);
+	for (oldbit = find_first_bit(src, bits);
+	     oldbit < bits;
+	     oldbit = find_next_bit(src, bits, oldbit + 1)) {
+	     	int n = bitmap_pos_to_ord(old, oldbit, bits);
+		if (n < 0 || w == 0)
+			set_bit(oldbit, dst);	/* identity map */
+		else
+			set_bit(bitmap_ord_to_pos(new, n % w, bits), dst);
 	}
 }
 EXPORT_SYMBOL(bitmap_remap);
@@ -657,8 +652,8 @@ EXPORT_SYMBOL(bitmap_remap);
  * weight of @old, map the position of the n-th set bit in @old to
  * the position of the m-th set bit in @new, where m == n % w.
  *
- * The positions of unset bits in @old are mapped to the position of
- * the first set bit in @new.
+ * The positions of unset bits in @old are mapped to themselves
+ * (the identify map).
  *
  * Apply the above specified mapping to bit position @oldbit, returning
  * the new bit position.
@@ -666,14 +661,18 @@ EXPORT_SYMBOL(bitmap_remap);
  * For example, lets say that @old has bits 4 through 7 set, and
  * @new has bits 12 through 15 set.  This defines the mapping of bit
  * position 4 to 12, 5 to 13, 6 to 14 and 7 to 15, and of all other
- * bit positions to 12 (the first set bit in @new.  So if say @oldbit
- * is 5, then this routine returns 13.
+ * bit positions unchanged.  So if say @oldbit is 5, then this routine
+ * returns 13.
  */
 int bitmap_bitremap(int oldbit, const unsigned long *old,
 				const unsigned long *new, int bits)
 {
-	int x = bitmap_pos_to_ord(old, oldbit, bits);
-	return bitmap_ord_to_pos(new, x, bits);
+	int w = bitmap_weight(new, bits);
+	int n = bitmap_pos_to_ord(old, oldbit, bits);
+	if (n < 0 || w == 0)
+		return oldbit;
+	else
+		return bitmap_ord_to_pos(new, n % w, bits);
 }
 EXPORT_SYMBOL(bitmap_bitremap);
 

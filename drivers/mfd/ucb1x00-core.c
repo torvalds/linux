@@ -27,7 +27,6 @@
 
 #include <asm/dma.h>
 #include <asm/hardware.h>
-#include <asm/irq.h>
 
 #include "ucb1x00.h"
 
@@ -507,14 +506,14 @@ static int ucb1x00_probe(struct mcp *mcp)
 		goto err_free;
 	}
 
-	ret = request_irq(ucb->irq, ucb1x00_irq, 0, "UCB1x00", ucb);
+	ret = request_irq(ucb->irq, ucb1x00_irq, SA_TRIGGER_RISING,
+			  "UCB1x00", ucb);
 	if (ret) {
 		printk(KERN_ERR "ucb1x00: unable to grab irq%d: %d\n",
 			ucb->irq, ret);
 		goto err_free;
 	}
 
-	set_irq_type(ucb->irq, IRQT_RISING);
 	mcp_set_drvdata(mcp, ucb);
 
 	ret = class_device_register(&ucb->cdev);

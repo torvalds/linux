@@ -177,6 +177,8 @@ struct key {
 /*
  * kernel managed key type definition
  */
+typedef int (*request_key_actor_t)(struct key *key, struct key *authkey, const char *op);
+
 struct key_type {
 	/* name of the type */
 	const char *name;
@@ -217,6 +219,16 @@ struct key_type {
 	 * - shouldn't do the copy if the buffer is NULL
 	 */
 	long (*read)(const struct key *key, char __user *buffer, size_t buflen);
+
+	/* handle request_key() for this type instead of invoking
+	 * /sbin/request-key (optional)
+	 * - key is the key to instantiate
+	 * - authkey is the authority to assume when instantiating this key
+	 * - op is the operation to be done, usually "create"
+	 * - the call must not return until the instantiation process has run
+	 *   its course
+	 */
+	request_key_actor_t request_key;
 
 	/* internal fields */
 	struct list_head	link;		/* link in types list */

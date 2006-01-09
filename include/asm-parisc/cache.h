@@ -28,7 +28,6 @@
 #define L1_CACHE_ALIGN(x)       (((x)+(L1_CACHE_BYTES-1))&~(L1_CACHE_BYTES-1))
 
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
-#define L1_CACHE_SHIFT_MAX 5	/* largest L1 which this arch supports */
 
 extern void flush_data_cache_local(void);  /* flushes local data-cache only */
 extern void flush_instruction_cache_local(void); /* flushes local code-cache only */

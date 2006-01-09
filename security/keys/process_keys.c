@@ -270,9 +270,14 @@ int copy_thread_group_keys(struct task_struct *tsk)
 int copy_keys(unsigned long clone_flags, struct task_struct *tsk)
 {
 	key_check(tsk->thread_keyring);
+	key_check(tsk->request_key_auth);
 
 	/* no thread keyring yet */
 	tsk->thread_keyring = NULL;
+
+	/* copy the request_key() authorisation for this thread */
+	key_get(tsk->request_key_auth);
+
 	return 0;
 
 } /* end copy_keys() */
@@ -290,11 +295,12 @@ void exit_thread_group_keys(struct signal_struct *tg)
 
 /*****************************************************************************/
 /*
- * dispose of keys upon thread exit
+ * dispose of per-thread keys upon thread exit
  */
 void exit_keys(struct task_struct *tsk)
 {
 	key_put(tsk->thread_keyring);
+	key_put(tsk->request_key_auth);
 
 } /* end exit_keys() */
 
@@ -382,7 +388,7 @@ key_ref_t search_process_keyrings(struct key_type *type,
 				  struct task_struct *context)
 {
 	struct request_key_auth *rka;
-	key_ref_t key_ref, ret, err, instkey_ref;
+	key_ref_t key_ref, ret, err;
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -461,44 +467,6 @@ key_ref_t search_process_keyrings(struct key_type *type,
 			err = key_ref;
 			break;
 		}
-
-		/* if this process has a session keyring and that has an
-		 * instantiation authorisation key in the bottom level, then we
-		 * also search the keyrings of the process mentioned there */
-		if (context != current)
-			goto no_key;
-
-		rcu_read_lock();
-		instkey_ref = __keyring_search_one(
-			make_key_ref(rcu_dereference(
-					     context->signal->session_keyring),
-				     1),
-			&key_type_request_key_auth, NULL, 0);
-		rcu_read_unlock();
-
-		if (IS_ERR(instkey_ref))
-			goto no_key;
-
-		rka = key_ref_to_ptr(instkey_ref)->payload.data;
-
-		key_ref = search_process_keyrings(type, description, match,
-						  rka->context);
-		key_ref_put(instkey_ref);
-
-		if (!IS_ERR(key_ref))
-			goto found;
-
-		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
-			if (ret)
-				break;
-		case -ENOKEY: /* negative key */
-			ret = key_ref;
-			break;
-		default:
-			err = key_ref;
-			break;
-		}
 	}
 	/* or search the user-session keyring */
 	else {
@@ -521,8 +489,36 @@ key_ref_t search_process_keyrings(struct key_type *type,
 		}
 	}
 
+	/* if this process has an instantiation authorisation key, then we also
+	 * search the keyrings of the process mentioned there
+	 * - we don't permit access to request_key auth keys via this method
+	 */
+	if (context->request_key_auth &&
+	    context == current &&
+	    type != &key_type_request_key_auth &&
+	    key_validate(context->request_key_auth) == 0
+	    ) {
+		rka = context->request_key_auth->payload.data;
 
-no_key:
+		key_ref = search_process_keyrings(type, description, match,
+						  rka->context);
+
+		if (!IS_ERR(key_ref))
+			goto found;
+
+		switch (PTR_ERR(key_ref)) {
+		case -EAGAIN: /* no key */
+			if (ret)
+				break;
+		case -ENOKEY: /* negative key */
+			ret = key_ref;
+			break;
+		default:
+			err = key_ref;
+			break;
+		}
+	}
+
 	/* no key - decide on the error we're going to go for */
 	key_ref = ret ? ret : err;
 
@@ -627,6 +623,15 @@ key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
 		/* group keyrings are not yet supported */
 		key = ERR_PTR(-EINVAL);
 		goto error;
+
+	case KEY_SPEC_REQKEY_AUTH_KEY:
+		key = context->request_key_auth;
+		if (!key)
+			goto error;
+
+		atomic_inc(&key->usage);
+		key_ref = make_key_ref(key, 1);
+		break;
 
 	default:
 		key_ref = ERR_PTR(-EINVAL);

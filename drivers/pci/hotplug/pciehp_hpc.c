@@ -30,6 +30,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/signal.h>
+#include <linux/jiffies.h>
+#include <linux/timer.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 

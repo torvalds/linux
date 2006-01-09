@@ -31,7 +31,6 @@
 #include "proc_mm.h"
 #include "skas_ptrace.h"
 #include "chan_user.h"
-#include "signal_user.h"
 #include "registers.h"
 #include "mem.h"
 #include "uml-config.h"
@@ -512,16 +511,6 @@ int start_idle_thread(void *stack, void *switch_buf_ptr, void **fork_buf_ptr)
                 panic("Bad sigsetjmp return in start_idle_thread - %d\n", n);
 	}
 	siglongjmp(**switch_buf, 1);
-}
-
-void remove_sigstack(void)
-{
-	stack_t stack = ((stack_t) { .ss_flags	= SS_DISABLE,
-				     .ss_sp	= NULL,
-				     .ss_size	= 0 });
-
-	if(sigaltstack(&stack, NULL) != 0)
-		panic("disabling signal stack failed, errno = %d\n", errno);
 }
 
 void initial_thread_cb_skas(void (*proc)(void *), void *arg)

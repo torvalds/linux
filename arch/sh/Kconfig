@@ -14,10 +14,6 @@ config SUPERH
 	  gaming console.  The SuperH port has a home page at
 	  <http://www.linux-sh.org/>.
 
-config UID16
-	bool
-	default y
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y

@@ -644,10 +644,7 @@ int nfs_sync_mapping(struct address_space *mapping)
 	if (mapping->nrpages == 0)
 		return 0;
 	unmap_mapping_range(mapping, 0, 0, 0);
-	ret = filemap_fdatawrite(mapping);
-	if (ret != 0)
-		goto out;
-	ret = filemap_fdatawait(mapping);
+	ret = filemap_write_and_wait(mapping);
 	if (ret != 0)
 		goto out;
 	ret = nfs_wb_all(mapping->host);
@@ -864,8 +861,7 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	nfs_begin_data_update(inode);
 	/* Write all dirty data if we're changing file permissions or size */
 	if ((attr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID|ATTR_SIZE)) != 0) {
-		if (filemap_fdatawrite(inode->i_mapping) == 0)
-			filemap_fdatawait(inode->i_mapping);
+		filemap_write_and_wait(inode->i_mapping);
 		nfs_wb_all(inode);
 	}
 	/*

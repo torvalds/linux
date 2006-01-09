@@ -10,7 +10,6 @@
 #include "asm/uaccess.h"
 #include "asm/unistd.h"
 #include "frame_kern.h"
-#include "signal_user.h"
 #include "sigcontext.h"
 #include "registers.h"
 #include "mode.h"

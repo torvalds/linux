@@ -1476,7 +1476,7 @@ static int ext3_dx_add_entry(handle_t *handle, struct dentry *dentry,
 		if (levels && (dx_get_count(frames->entries) ==
 			       dx_get_limit(frames->entries))) {
 			ext3_warning(sb, __FUNCTION__,
-				     "Directory index full!\n");
+				     "Directory index full!");
 			err = -ENOSPC;
 			goto cleanup;
 		}

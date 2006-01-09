@@ -22,10 +22,6 @@ config SBUS
 config PCI
 	bool
 
-config UID16
-	bool
-	default y
-
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -83,7 +79,7 @@ config KERNEL_HALF_GIGS
         of physical memory.
 
 config MODE_SKAS
-	bool "Separate Kernel Address Space support"
+	bool "Separate Kernel Address Space support" if MODE_TT
 	default y
 	help
 	This option controls whether skas (separate kernel address space)

@@ -495,7 +495,7 @@ rpc_depopulate(struct dentry *parent)
 repeat:
 	spin_lock(&dcache_lock);
 	list_for_each_safe(pos, next, &parent->d_subdirs) {
-		dentry = list_entry(pos, struct dentry, d_child);
+		dentry = list_entry(pos, struct dentry, d_u.d_child);
 		spin_lock(&dentry->d_lock);
 		if (!d_unhashed(dentry)) {
 			dget_locked(dentry);

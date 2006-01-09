@@ -146,7 +146,7 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_us
 	return rc;
 
 out:
-	*ctxp = 0;
+	*ctxp = NULL;
 	kfree(ctx);
 	return rc;
 }

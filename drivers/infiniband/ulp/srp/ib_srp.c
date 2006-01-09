@@ -39,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/parser.h>
 #include <linux/random.h>
+#include <linux/jiffies.h>
 
 #include <asm/atomic.h>
 

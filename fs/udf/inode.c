@@ -1957,11 +1957,6 @@ int8_t inode_bmap(struct inode *inode, int block, kernel_lb_addr *bloc, uint32_t
 		printk(KERN_ERR "udf: inode_bmap: block < 0\n");
 		return -1;
 	}
-	if (!inode)
-	{
-		printk(KERN_ERR "udf: inode_bmap: NULL inode\n");
-		return -1;
-	}
 
 	*extoffset = 0;
 	*elen = 0;

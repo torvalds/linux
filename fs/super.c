@@ -700,8 +700,7 @@ struct super_block *get_sb_bdev(struct file_system_type *fs_type,
 
 		s->s_flags = flags;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
-		s->s_old_blocksize = block_size(bdev);
-		sb_set_blocksize(s, s->s_old_blocksize);
+		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, data, flags & MS_VERBOSE ? 1 : 0);
 		if (error) {
 			up_write(&s->s_umount);

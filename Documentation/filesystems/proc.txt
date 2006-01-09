@@ -1302,6 +1302,23 @@ VM has token based thrashing control mechanism and uses the token to prevent
 unnecessary page faults in thrashing situation. The unit of the value is
 second. The value would be useful to tune thrashing behavior.
 
+drop_caches
+-----------
+
+Writing to this will cause the kernel to drop clean caches, dentries and
+inodes from memory, causing that memory to become free.
+
+To free pagecache:
+	echo 1 > /proc/sys/vm/drop_caches
+To free dentries and inodes:
+	echo 2 > /proc/sys/vm/drop_caches
+To free pagecache, dentries and inodes:
+	echo 3 > /proc/sys/vm/drop_caches
+
+As this is a non-destructive operation and dirty objects are not freeable, the
+user should run `sync' first.
+
+
 2.5 /proc/sys/dev - Device specific parameters
 ----------------------------------------------
 

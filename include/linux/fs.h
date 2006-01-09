@@ -9,7 +9,6 @@
 #include <linux/config.h>
 #include <linux/limits.h>
 #include <linux/ioctl.h>
-#include <linux/rcuref.h>
 
 /*
  * It's silly to have NR_OPEN bigger than NR_FILE, but you can change
@@ -104,11 +103,11 @@ extern int dir_notify_enable;
 #define MS_MOVE		8192
 #define MS_REC		16384
 #define MS_VERBOSE	32768
+#define MS_POSIXACL	(1<<16)	/* VFS does not apply the umask */
 #define MS_UNBINDABLE	(1<<17)	/* change to unbindable */
 #define MS_PRIVATE	(1<<18)	/* change to private */
 #define MS_SLAVE	(1<<19)	/* change to slave */
 #define MS_SHARED	(1<<20)	/* change to shared */
-#define MS_POSIXACL	(1<<16)	/* VFS does not apply the umask */
 #define MS_ACTIVE	(1<<30)
 #define MS_NOUSER	(1<<31)
 
@@ -225,6 +224,7 @@ extern int dir_notify_enable;
 #include <asm/semaphore.h>
 #include <asm/byteorder.h>
 
+struct hd_geometry;
 struct iovec;
 struct nameidata;
 struct kiocb;
@@ -653,7 +653,7 @@ extern spinlock_t files_lock;
 #define file_list_lock() spin_lock(&files_lock);
 #define file_list_unlock() spin_unlock(&files_lock);
 
-#define get_file(x)	rcuref_inc(&(x)->f_count)
+#define get_file(x)	atomic_inc(&(x)->f_count)
 #define file_count(x)	atomic_read(&(x)->f_count)
 
 #define	MAX_NON_LFS	((1UL<<31) - 1)
@@ -808,7 +808,6 @@ struct super_block {
 	struct list_head	s_list;		/* Keep this first */
 	dev_t			s_dev;		/* search index; _not_ kdev_t */
 	unsigned long		s_blocksize;
-	unsigned long		s_old_blocksize;
 	unsigned char		s_blocksize_bits;
 	unsigned char		s_dirt;
 	unsigned long long	s_maxbytes;	/* Max file size */
@@ -963,6 +962,7 @@ struct block_device_operations {
 	int (*direct_access) (struct block_device *, sector_t, unsigned long *);
 	int (*media_changed) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
+	int (*getgeo)(struct block_device *, struct hd_geometry *);
 	struct module *owner;
 };
 
@@ -1345,7 +1345,8 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 
 /* fs/open.c */
 
-extern int do_truncate(struct dentry *, loff_t start, struct file *filp);
+extern int do_truncate(struct dentry *, loff_t start, unsigned int time_attrs,
+		       struct file *filp);
 extern long do_sys_open(const char __user *filename, int flags, int mode);
 extern struct file *filp_open(const char *, int, int);
 extern struct file * dentry_open(struct dentry *, struct vfsmount *, int);

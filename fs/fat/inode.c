@@ -18,10 +18,12 @@
 #include <linux/seq_file.h>
 #include <linux/msdos_fs.h>
 #include <linux/pagemap.h>
+#include <linux/mpage.h>
 #include <linux/buffer_head.h>
 #include <linux/mount.h>
 #include <linux/vfs.h>
 #include <linux/parser.h>
+#include <linux/uio.h>
 #include <asm/unaligned.h>
 
 #ifndef CONFIG_FAT_DEFAULT_IOCHARSET
@@ -48,41 +50,75 @@ static int fat_add_cluster(struct inode *inode)
 	return err;
 }
 
-static int fat_get_block(struct inode *inode, sector_t iblock,
-			 struct buffer_head *bh_result, int create)
+static int __fat_get_blocks(struct inode *inode, sector_t iblock,
+			    unsigned long *max_blocks,
+			    struct buffer_head *bh_result, int create)
 {
 	struct super_block *sb = inode->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	sector_t phys;
-	int err;
+	unsigned long mapped_blocks;
+	int err, offset;
 
-	err = fat_bmap(inode, iblock, &phys);
+	err = fat_bmap(inode, iblock, &phys, &mapped_blocks);
 	if (err)
 		return err;
 	if (phys) {
 		map_bh(bh_result, sb, phys);
+		*max_blocks = min(mapped_blocks, *max_blocks);
 		return 0;
 	}
 	if (!create)
 		return 0;
+
 	if (iblock != MSDOS_I(inode)->mmu_private >> sb->s_blocksize_bits) {
 		fat_fs_panic(sb, "corrupted file size (i_pos %lld, %lld)",
 			     MSDOS_I(inode)->i_pos, MSDOS_I(inode)->mmu_private);
 		return -EIO;
 	}
-	if (!((unsigned long)iblock & (MSDOS_SB(sb)->sec_per_clus - 1))) {
+
+	offset = (unsigned long)iblock & (sbi->sec_per_clus - 1);
+	if (!offset) {
+		/* TODO: multiple cluster allocation would be desirable. */
 		err = fat_add_cluster(inode);
 		if (err)
 			return err;
 	}
-	MSDOS_I(inode)->mmu_private += sb->s_blocksize;
-	err = fat_bmap(inode, iblock, &phys);
+	/* available blocks on this cluster */
+	mapped_blocks = sbi->sec_per_clus - offset;
+
+	*max_blocks = min(mapped_blocks, *max_blocks);
+	MSDOS_I(inode)->mmu_private += *max_blocks << sb->s_blocksize_bits;
+
+	err = fat_bmap(inode, iblock, &phys, &mapped_blocks);
 	if (err)
 		return err;
-	if (!phys)
-		BUG();
+	BUG_ON(!phys);
+	BUG_ON(*max_blocks != mapped_blocks);
 	set_buffer_new(bh_result);
 	map_bh(bh_result, sb, phys);
 	return 0;
+}
+
+static int fat_get_blocks(struct inode *inode, sector_t iblock,
+			  unsigned long max_blocks,
+			  struct buffer_head *bh_result, int create)
+{
+	struct super_block *sb = inode->i_sb;
+	int err;
+
+	err = __fat_get_blocks(inode, iblock, &max_blocks, bh_result, create);
+	if (err)
+		return err;
+	bh_result->b_size = max_blocks << sb->s_blocksize_bits;
+	return 0;
+}
+
+static int fat_get_block(struct inode *inode, sector_t iblock,
+			 struct buffer_head *bh_result, int create)
+{
+	unsigned long max_blocks = 1;
+	return __fat_get_blocks(inode, iblock, &max_blocks, bh_result, create);
 }
 
 static int fat_writepage(struct page *page, struct writeback_control *wbc)
@@ -90,9 +126,21 @@ static int fat_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page, fat_get_block, wbc);
 }
 
+static int fat_writepages(struct address_space *mapping,
+			  struct writeback_control *wbc)
+{
+	return mpage_writepages(mapping, wbc, fat_get_block);
+}
+
 static int fat_readpage(struct file *file, struct page *page)
 {
-	return block_read_full_page(page, fat_get_block);
+	return mpage_readpage(page, fat_get_block);
+}
+
+static int fat_readpages(struct file *file, struct address_space *mapping,
+			 struct list_head *pages, unsigned nr_pages)
+{
+	return mpage_readpages(mapping, pages, nr_pages, fat_get_block);
 }
 
 static int fat_prepare_write(struct file *file, struct page *page,
@@ -115,6 +163,34 @@ static int fat_commit_write(struct file *file, struct page *page,
 	return err;
 }
 
+static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
+			     const struct iovec *iov,
+			     loff_t offset, unsigned long nr_segs)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+
+	if (rw == WRITE) {
+		/*
+		 * FIXME: blockdev_direct_IO() doesn't use ->prepare_write(),
+		 * so we need to update the ->mmu_private to block boundary.
+		 *
+		 * But we must fill the remaining area or hole by nul for
+		 * updating ->mmu_private.
+		 */
+		loff_t size = offset + iov_length(iov, nr_segs);
+		if (MSDOS_I(inode)->mmu_private < size)
+			return -EINVAL;
+	}
+
+	/*
+	 * FAT need to use the DIO_LOCKING for avoiding the race
+	 * condition of fat_get_block() and ->truncate().
+	 */
+	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
+				  offset, nr_segs, fat_get_blocks, NULL);
+}
+
 static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping, block, fat_get_block);
@@ -122,10 +198,13 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 
 static struct address_space_operations fat_aops = {
 	.readpage	= fat_readpage,
+	.readpages	= fat_readpages,
 	.writepage	= fat_writepage,
+	.writepages	= fat_writepages,
 	.sync_page	= block_sync_page,
 	.prepare_write	= fat_prepare_write,
 	.commit_write	= fat_commit_write,
+	.direct_IO	= fat_direct_IO,
 	.bmap		= _fat_bmap
 };
 
@@ -182,7 +261,7 @@ void fat_attach(struct inode *inode, loff_t i_pos)
 	spin_unlock(&sbi->inode_hash_lock);
 }
 
-EXPORT_SYMBOL(fat_attach);
+EXPORT_SYMBOL_GPL(fat_attach);
 
 void fat_detach(struct inode *inode)
 {
@@ -193,7 +272,7 @@ void fat_detach(struct inode *inode)
 	spin_unlock(&sbi->inode_hash_lock);
 }
 
-EXPORT_SYMBOL(fat_detach);
+EXPORT_SYMBOL_GPL(fat_detach);
 
 struct inode *fat_iget(struct super_block *sb, loff_t i_pos)
 {
@@ -347,7 +426,7 @@ out:
 	return inode;
 }
 
-EXPORT_SYMBOL(fat_build_inode);
+EXPORT_SYMBOL_GPL(fat_build_inode);
 
 static void fat_delete_inode(struct inode *inode)
 {
@@ -374,12 +453,17 @@ static void fat_clear_inode(struct inode *inode)
 	unlock_kernel();
 }
 
-static void fat_put_super(struct super_block *sb)
+static void fat_write_super(struct super_block *sb)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	sb->s_dirt = 0;
 
 	if (!(sb->s_flags & MS_RDONLY))
 		fat_clusters_flush(sb);
+}
+
+static void fat_put_super(struct super_block *sb)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 
 	if (sbi->nls_disk) {
 		unload_nls(sbi->nls_disk);
@@ -537,7 +621,7 @@ int fat_sync_inode(struct inode *inode)
 	return fat_write_inode(inode, 1);
 }
 
-EXPORT_SYMBOL(fat_sync_inode);
+EXPORT_SYMBOL_GPL(fat_sync_inode);
 
 static int fat_show_options(struct seq_file *m, struct vfsmount *mnt);
 static struct super_operations fat_sops = {
@@ -546,6 +630,7 @@ static struct super_operations fat_sops = {
 	.write_inode	= fat_write_inode,
 	.delete_inode	= fat_delete_inode,
 	.put_super	= fat_put_super,
+	.write_super	= fat_write_super,
 	.statfs		= fat_statfs,
 	.clear_inode	= fat_clear_inode,
 	.remount_fs	= fat_remount,
@@ -1347,7 +1432,7 @@ out_fail:
 	return error;
 }
 
-EXPORT_SYMBOL(fat_fill_super);
+EXPORT_SYMBOL_GPL(fat_fill_super);
 
 int __init fat_cache_init(void);
 void fat_cache_destroy(void);

@@ -1491,7 +1491,7 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 		if (!error) {
 			DQUOT_INIT(inode);
 			
-			error = do_truncate(dentry, 0, NULL);
+			error = do_truncate(dentry, 0, ATTR_MTIME|ATTR_CTIME, NULL);
 		}
 		put_write_access(inode);
 		if (error)

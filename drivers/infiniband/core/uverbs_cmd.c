@@ -489,6 +489,7 @@ err_idr:
 
 err_unreg:
 	ib_dereg_mr(mr);
+	atomic_dec(&pd->usecnt);
 
 err_up:
 	up(&ib_uverbs_idr_mutex);
@@ -593,12 +594,17 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 	if (cmd.comp_vector >= file->device->num_comp_vectors)
 		return -EINVAL;
 
-	if (cmd.comp_channel >= 0)
-		ev_file = ib_uverbs_lookup_comp_file(cmd.comp_channel);
-
 	uobj = kmalloc(sizeof *uobj, GFP_KERNEL);
 	if (!uobj)
 		return -ENOMEM;
+
+	if (cmd.comp_channel >= 0) {
+		ev_file = ib_uverbs_lookup_comp_file(cmd.comp_channel);
+		if (!ev_file) {
+			ret = -EINVAL;
+			goto err;
+		}
+	}
 
 	uobj->uobject.user_handle   = cmd.user_handle;
 	uobj->uobject.context       = file->ucontext;
@@ -663,6 +669,8 @@ err_up:
 	ib_destroy_cq(cq);
 
 err:
+	if (ev_file)
+		ib_uverbs_release_ucq(file, ev_file, uobj);
 	kfree(uobj);
 	return ret;
 }
@@ -935,6 +943,11 @@ err_idr:
 
 err_destroy:
 	ib_destroy_qp(qp);
+	atomic_dec(&pd->usecnt);
+	atomic_dec(&attr.send_cq->usecnt);
+	atomic_dec(&attr.recv_cq->usecnt);
+	if (attr.srq)
+		atomic_dec(&attr.srq->usecnt);
 
 err_up:
 	up(&ib_uverbs_idr_mutex);
@@ -1448,6 +1461,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	attr.sl 	       = cmd.attr.sl;
 	attr.src_path_bits     = cmd.attr.src_path_bits;
 	attr.static_rate       = cmd.attr.static_rate;
+	attr.ah_flags          = cmd.attr.is_global ? IB_AH_GRH : 0;
 	attr.port_num 	       = cmd.attr.port_num;
 	attr.grh.flow_label    = cmd.attr.grh.flow_label;
 	attr.grh.sgid_index    = cmd.attr.grh.sgid_index;
@@ -1729,6 +1743,7 @@ err_idr:
 
 err_destroy:
 	ib_destroy_srq(srq);
+	atomic_dec(&pd->usecnt);
 
 err_up:
 	up(&ib_uverbs_idr_mutex);

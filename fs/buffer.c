@@ -153,14 +153,8 @@ int sync_blockdev(struct block_device *bdev)
 {
 	int ret = 0;
 
-	if (bdev) {
-		int err;
-
-		ret = filemap_fdatawrite(bdev->bd_inode->i_mapping);
-		err = filemap_fdatawait(bdev->bd_inode->i_mapping);
-		if (!ret)
-			ret = err;
-	}
+	if (bdev)
+		ret = filemap_write_and_wait(bdev->bd_inode->i_mapping);
 	return ret;
 }
 EXPORT_SYMBOL(sync_blockdev);
@@ -1768,7 +1762,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 	 * handle that here by just cleaning them.
 	 */
 
-	block = page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
 	head = page_buffers(page);
 	bh = head;
 
@@ -2160,11 +2154,12 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
  * truncates.  Uses prepare/commit_write to allow the filesystem to
  * deal with the hole.  
  */
-int generic_cont_expand(struct inode *inode, loff_t size)
+static int __generic_cont_expand(struct inode *inode, loff_t size,
+				 pgoff_t index, unsigned int offset)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
-	unsigned long index, offset, limit;
+	unsigned long limit;
 	int err;
 
 	err = -EFBIG;
@@ -2176,30 +2171,60 @@ int generic_cont_expand(struct inode *inode, loff_t size)
 	if (size > inode->i_sb->s_maxbytes)
 		goto out;
 
-	offset = (size & (PAGE_CACHE_SIZE-1)); /* Within page */
-
-	/* ugh.  in prepare/commit_write, if from==to==start of block, we 
-	** skip the prepare.  make sure we never send an offset for the start
-	** of a block
-	*/
-	if ((offset & (inode->i_sb->s_blocksize - 1)) == 0) {
-		offset++;
-	}
-	index = size >> PAGE_CACHE_SHIFT;
 	err = -ENOMEM;
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		goto out;
 	err = mapping->a_ops->prepare_write(NULL, page, offset, offset);
-	if (!err) {
-		err = mapping->a_ops->commit_write(NULL, page, offset, offset);
+	if (err) {
+		/*
+		 * ->prepare_write() may have instantiated a few blocks
+		 * outside i_size.  Trim these off again.
+		 */
+		unlock_page(page);
+		page_cache_release(page);
+		vmtruncate(inode, inode->i_size);
+		goto out;
 	}
+
+	err = mapping->a_ops->commit_write(NULL, page, offset, offset);
+
 	unlock_page(page);
 	page_cache_release(page);
 	if (err > 0)
 		err = 0;
 out:
 	return err;
+}
+
+int generic_cont_expand(struct inode *inode, loff_t size)
+{
+	pgoff_t index;
+	unsigned int offset;
+
+	offset = (size & (PAGE_CACHE_SIZE - 1)); /* Within page */
+
+	/* ugh.  in prepare/commit_write, if from==to==start of block, we
+	** skip the prepare.  make sure we never send an offset for the start
+	** of a block
+	*/
+	if ((offset & (inode->i_sb->s_blocksize - 1)) == 0) {
+		/* caller must handle this extra byte. */
+		offset++;
+	}
+	index = size >> PAGE_CACHE_SHIFT;
+
+	return __generic_cont_expand(inode, size, index, offset);
+}
+
+int generic_cont_expand_simple(struct inode *inode, loff_t size)
+{
+	loff_t pos = size - 1;
+	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	unsigned int offset = (pos & (PAGE_CACHE_SIZE - 1)) + 1;
+
+	/* prepare/commit_write can handle even if from==to==start of block. */
+	return __generic_cont_expand(inode, size, index, offset);
 }
 
 /*
@@ -2610,7 +2635,7 @@ int block_truncate_page(struct address_space *mapping,
 	pgoff_t index = from >> PAGE_CACHE_SHIFT;
 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
 	unsigned blocksize;
-	pgoff_t iblock;
+	sector_t iblock;
 	unsigned length, pos;
 	struct inode *inode = mapping->host;
 	struct page *page;
@@ -2626,7 +2651,7 @@ int block_truncate_page(struct address_space *mapping,
 		return 0;
 
 	length = blocksize - length;
-	iblock = index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
+	iblock = (sector_t)index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
 	
 	page = grab_cache_page(mapping, index);
 	err = -ENOMEM;
@@ -3145,6 +3170,7 @@ EXPORT_SYMBOL(fsync_bdev);
 EXPORT_SYMBOL(generic_block_bmap);
 EXPORT_SYMBOL(generic_commit_write);
 EXPORT_SYMBOL(generic_cont_expand);
+EXPORT_SYMBOL(generic_cont_expand_simple);
 EXPORT_SYMBOL(init_buffer);
 EXPORT_SYMBOL(invalidate_bdev);
 EXPORT_SYMBOL(ll_rw_block);

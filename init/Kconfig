@@ -228,6 +228,25 @@ config CPUSETS
 
 source "usr/Kconfig"
 
+config UID16
+	bool "Enable 16-bit UID system calls" if EMBEDDED
+	depends !ALPHA && !PPC && !PPC64 && !PARISC && !V850 && !ARCH_S390X
+	depends !X86_64 || IA32_EMULATION
+	depends !SPARC64 || SPARC32_COMPAT
+	default y
+	help
+	  This enables the legacy 16-bit UID syscall wrappers.
+
+config VM86
+	depends X86
+	default y
+	bool "Enable VM86 support" if EMBEDDED
+	help
+          This option is required by programs like DOSEMU to run 16-bit legacy
+	  code on X86 processors. It also may be needed by software like
+          XFree86 to initialize some video cards via BIOS. Disabling this
+          option saves about 6k.
+
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (Look out for broken compilers!)"
 	default y
@@ -309,6 +328,21 @@ config BUG
           option for embedded systems with no facilities for reporting errors.
           Just say Y.
 
+config DOUBLEFAULT
+	depends X86
+	default y if X86
+	bool "Enable doublefault exception handler" if EMBEDDED
+	help
+          This option allows trapping of rare doublefault exceptions that
+          would otherwise cause a system to silently reboot. Disabling this
+          option saves about 4k.
+
+config ELF_CORE
+	default y
+	bool "Enable ELF core dumps" if EMBEDDED
+	help
+	  Enable support for generating core dumps. Disabling saves about 4k.
+
 config BASE_FULL
 	default y
 	bool "Enable full-sized data structures for core" if EMBEDDED
@@ -380,6 +414,15 @@ config CC_ALIGN_JUMPS
 	  no dummy operations need be executed.
 	  Zero means use compiler's default.
 
+config SLAB
+	default y
+	bool "Use full SLAB allocator" if EMBEDDED
+	help
+	  Disabling this replaces the advanced SLAB allocator and
+	  kmalloc support with the drastically simpler SLOB allocator.
+	  SLOB is more space efficient but does not scale well and is
+	  more susceptible to fragmentation.
+
 endmenu		# General setup
 
 config TINY_SHMEM
@@ -390,6 +433,10 @@ config BASE_SMALL
 	int
 	default 0 if BASE_FULL
 	default 1 if !BASE_FULL
+
+config SLOB
+	default !SLAB
+	bool
 
 menu "Loadable module support"
 

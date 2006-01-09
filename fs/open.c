@@ -194,7 +194,8 @@ out:
 	return error;
 }
 
-int do_truncate(struct dentry *dentry, loff_t length, struct file *filp)
+int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
+	struct file *filp)
 {
 	int err;
 	struct iattr newattrs;
@@ -204,7 +205,7 @@ int do_truncate(struct dentry *dentry, loff_t length, struct file *filp)
 		return -EINVAL;
 
 	newattrs.ia_size = length;
-	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
+	newattrs.ia_valid = ATTR_SIZE | time_attrs;
 	if (filp) {
 		newattrs.ia_file = filp;
 		newattrs.ia_valid |= ATTR_FILE;
@@ -216,7 +217,7 @@ int do_truncate(struct dentry *dentry, loff_t length, struct file *filp)
 	return err;
 }
 
-static inline long do_sys_truncate(const char __user * path, loff_t length)
+static long do_sys_truncate(const char __user * path, loff_t length)
 {
 	struct nameidata nd;
 	struct inode * inode;
@@ -266,7 +267,7 @@ static inline long do_sys_truncate(const char __user * path, loff_t length)
 	error = locks_verify_truncate(inode, NULL, length);
 	if (!error) {
 		DQUOT_INIT(inode);
-		error = do_truncate(nd.dentry, length, NULL);
+		error = do_truncate(nd.dentry, length, 0, NULL);
 	}
 	put_write_access(inode);
 
@@ -282,7 +283,7 @@ asmlinkage long sys_truncate(const char __user * path, unsigned long length)
 	return do_sys_truncate(path, (long)length);
 }
 
-static inline long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
 	struct inode * inode;
 	struct dentry *dentry;
@@ -318,7 +319,7 @@ static inline long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 
 	error = locks_verify_truncate(inode, file, length);
 	if (!error)
-		error = do_truncate(dentry, length, file);
+		error = do_truncate(dentry, length, 0, file);
 out_putf:
 	fput(file);
 out:
@@ -970,7 +971,7 @@ out:
 
 EXPORT_SYMBOL(get_unused_fd);
 
-static inline void __put_unused_fd(struct files_struct *files, unsigned int fd)
+static void __put_unused_fd(struct files_struct *files, unsigned int fd)
 {
 	struct fdtable *fdt = files_fdtable(files);
 	__FD_CLR(fd, fdt->open_fds);

@@ -72,7 +72,6 @@ repeat:
 		__ptrace_unlink(p);
 	BUG_ON(!list_empty(&p->ptrace_list) || !list_empty(&p->ptrace_children));
 	__exit_signal(p);
-	__exit_sighand(p);
 	/*
 	 * Note that the fastpath in sys_times depends on __exit_signal having
 	 * updated the counters before a task is removed from the tasklist of
@@ -258,7 +257,7 @@ static inline void reparent_to_init(void)
 
 void __set_special_pids(pid_t session, pid_t pgrp)
 {
-	struct task_struct *curr = current;
+	struct task_struct *curr = current->group_leader;
 
 	if (curr->signal->session != session) {
 		detach_pid(curr, PIDTYPE_SID);
@@ -926,7 +925,6 @@ do_group_exit(int exit_code)
 			/* Another thread got here before we took the lock.  */
 			exit_code = sig->group_exit_code;
 		else {
-			sig->flags = SIGNAL_GROUP_EXIT;
 			sig->group_exit_code = exit_code;
 			zap_other_threads(current);
 		}

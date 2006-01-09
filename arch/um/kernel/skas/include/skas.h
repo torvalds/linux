@@ -22,7 +22,6 @@ extern int start_idle_thread(void *stack, void *switch_buf_ptr,
 extern int user_thread(unsigned long stack, int flags);
 extern void userspace(union uml_pt_regs *regs);
 extern void new_thread_proc(void *stack, void (*handler)(int sig));
-extern void remove_sigstack(void);
 extern void new_thread_handler(int sig);
 extern void handle_syscall(union uml_pt_regs *regs);
 extern int map(struct mm_id * mm_idp, unsigned long virt,

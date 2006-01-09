@@ -787,6 +787,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	/* register those serial ports that are available */
+#ifdef CONFIG_FRV_ONCPU_SERIAL
 #ifndef CONFIG_GDBSTUB_UART0
 	__reg(UART0_BASE + UART_IER * 8) = 0;
 	early_serial_setup(&__frv_uart0);
@@ -794,6 +795,7 @@ void __init setup_arch(char **cmdline_p)
 #ifndef CONFIG_GDBSTUB_UART1
 	__reg(UART1_BASE + UART_IER * 8) = 0;
 	early_serial_setup(&__frv_uart1);
+#endif
 #endif
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)

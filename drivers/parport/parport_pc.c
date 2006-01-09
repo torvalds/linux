@@ -2371,8 +2371,10 @@ void parport_pc_unregister_port (struct parport *p)
 	spin_lock(&ports_lock);
 	list_del_init(&priv->list);
 	spin_unlock(&ports_lock);
+#if defined(CONFIG_PARPORT_PC_FIFO) && defined(HAS_DMA)
 	if (p->dma != PARPORT_DMA_NONE)
 		free_dma(p->dma);
+#endif
 	if (p->irq != PARPORT_IRQ_NONE)
 		free_irq(p->irq, p);
 	release_region(p->base, 3);
@@ -2380,13 +2382,11 @@ void parport_pc_unregister_port (struct parport *p)
 		release_region(p->base + 3, p->size - 3);
 	if (p->modes & PARPORT_MODE_ECP)
 		release_region(p->base_hi, 3);
-#ifdef CONFIG_PARPORT_PC_FIFO
-#ifdef HAS_DMA
+#if defined(CONFIG_PARPORT_PC_FIFO) && defined(HAS_DMA)
 	if (priv->dma_buf)
 		pci_free_consistent(priv->dev, PAGE_SIZE,
 				    priv->dma_buf,
 				    priv->dma_handle);
-#endif
 #endif
 	kfree (p->private_data);
 	parport_put_port(p);

@@ -48,7 +48,7 @@
 
 
 
-static inline int ip6_rcv_finish( struct sk_buff *skb) 
+inline int ip6_rcv_finish( struct sk_buff *skb) 
 {
 	if (skb->dst == NULL)
 		ip6_route_input(skb);
@@ -97,6 +97,9 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if (hdr->version != 6)
 		goto err;
 
+	skb->h.raw = (u8 *)(hdr + 1);
+	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
+
 	pkt_len = ntohs(hdr->payload_len);
 
 	/* pkt_len may be zero if Jumbo payload option is present */
@@ -111,8 +114,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	}
 
 	if (hdr->nexthdr == NEXTHDR_HOP) {
-		skb->h.raw = (u8*)(hdr+1);
-		if (ipv6_parse_hopopts(skb, offsetof(struct ipv6hdr, nexthdr)) < 0) {
+		if (ipv6_parse_hopopts(skb, IP6CB(skb)->nhoff) < 0) {
 			IP6_INC_STATS_BH(IPSTATS_MIB_INHDRERRORS);
 			return 0;
 		}
@@ -143,26 +145,15 @@ static inline int ip6_input_finish(struct sk_buff *skb)
 	int nexthdr;
 	u8 hash;
 
-	skb->h.raw = skb->nh.raw + sizeof(struct ipv6hdr);
-
 	/*
 	 *	Parse extension headers
 	 */
-
-	nexthdr = skb->nh.ipv6h->nexthdr;
-	nhoff = offsetof(struct ipv6hdr, nexthdr);
-
-	/* Skip hop-by-hop options, they are already parsed. */
-	if (nexthdr == NEXTHDR_HOP) {
-		nhoff = sizeof(struct ipv6hdr);
-		nexthdr = skb->h.raw[0];
-		skb->h.raw += (skb->h.raw[1]+1)<<3;
-	}
 
 	rcu_read_lock();
 resubmit:
 	if (!pskb_pull(skb, skb->h.raw - skb->data))
 		goto discard;
+	nhoff = IP6CB(skb)->nhoff;
 	nexthdr = skb->nh.raw[nhoff];
 
 	raw_sk = sk_head(&raw_v6_htable[nexthdr & (MAX_INET_PROTOS - 1)]);
@@ -194,7 +185,7 @@ resubmit:
 		    !xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) 
 			goto discard;
 		
-		ret = ipprot->handler(&skb, &nhoff);
+		ret = ipprot->handler(&skb);
 		if (ret > 0)
 			goto resubmit;
 		else if (ret == 0)

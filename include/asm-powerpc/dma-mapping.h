@@ -229,7 +229,7 @@ static inline int dma_get_cache_alignment(void)
 #ifdef CONFIG_PPC64
 	/* no easy way to get cache size on all processors, so return
 	 * the maximum possible, to be safe */
-	return (1 << L1_CACHE_SHIFT_MAX);
+	return (1 << INTERNODE_CACHE_SHIFT);
 #else
 	/*
 	 * Each processor family will define its own L1_CACHE_SHIFT,

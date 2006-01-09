@@ -302,8 +302,7 @@ int dbSync(struct inode *ipbmap)
 	/*
 	 * write out dirty pages of bmap
 	 */
-	filemap_fdatawrite(ipbmap->i_mapping);
-	filemap_fdatawait(ipbmap->i_mapping);
+	filemap_write_and_wait(ipbmap->i_mapping);
 
 	diWriteSpecial(ipbmap, 0);
 

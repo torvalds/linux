@@ -181,7 +181,7 @@ static struct {
 	{  6, TYPE_HD },	/* 31: H1640    <- was H1600 == h1600 for PC */
 };
 
-#define NUM_DISK_MINORS (sizeof(minor2disktype)/sizeof(*minor2disktype))
+#define NUM_DISK_MINORS ARRAY_SIZE(minor2disktype)
 
 /*
  * Maximum disk size (in kilobytes). This default is used whenever the

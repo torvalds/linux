@@ -84,13 +84,13 @@ static void usb_simtec_enableoc(struct s3c2410_hcd_info *info, int on)
 	int ret;
 
 	if (on) {
-		ret = request_irq(IRQ_USBOC, usb_simtec_ocirq, SA_INTERRUPT,
+		ret = request_irq(IRQ_USBOC, usb_simtec_ocirq,
+				  SA_INTERRUPT | SA_TRIGGER_RISING |
+				   SA_TRIGGER_FALLING,
 				  "USB Over-current", info);
 		if (ret != 0) {
 			printk(KERN_ERR "failed to request usb oc irq\n");
 		}
-
-		set_irq_type(IRQ_USBOC, IRQT_BOTHEDGE);
 	} else {
 		free_irq(IRQ_USBOC, info);
 	}

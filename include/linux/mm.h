@@ -223,24 +223,27 @@ struct page {
 					 * & limit reverse map searches.
 					 */
 	union {
-		unsigned long private;	/* Mapping-private opaque data:
-					 * usually used for buffer_heads
-					 * if PagePrivate set; used for
-					 * swp_entry_t if PageSwapCache
-					 * When page is free, this indicates
-					 * order in the buddy system.
-					 */
+	    struct {
+		unsigned long private;		/* Mapping-private opaque data:
+					 	 * usually used for buffer_heads
+						 * if PagePrivate set; used for
+						 * swp_entry_t if PageSwapCache.
+						 * When page is free, this
+						 * indicates order in the buddy
+						 * system.
+						 */
+		struct address_space *mapping;	/* If low bit clear, points to
+						 * inode address_space, or NULL.
+						 * If page mapped as anonymous
+						 * memory, low bit is set, and
+						 * it points to anon_vma object:
+						 * see PAGE_MAPPING_ANON below.
+						 */
+	    };
 #if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
-		spinlock_t ptl;
+	    spinlock_t ptl;
 #endif
-	} u;
-	struct address_space *mapping;	/* If low bit clear, points to
-					 * inode address_space, or NULL.
-					 * If page mapped as anonymous
-					 * memory, low bit is set, and
-					 * it points to anon_vma object:
-					 * see PAGE_MAPPING_ANON below.
-					 */
+	};
 	pgoff_t index;			/* Our offset within mapping. */
 	struct list_head lru;		/* Pageout list, eg. active_list
 					 * protected by zone->lru_lock !
@@ -261,8 +264,8 @@ struct page {
 #endif /* WANT_PAGE_VIRTUAL */
 };
 
-#define page_private(page)		((page)->u.private)
-#define set_page_private(page, v)	((page)->u.private = (v))
+#define page_private(page)		((page)->private)
+#define set_page_private(page, v)	((page)->private = (v))
 
 /*
  * FIXME: take this include out, include page-flags.h in
@@ -308,7 +311,7 @@ struct page {
  */
 #define get_page_testone(p)	atomic_inc_and_test(&(p)->_count)
 
-#define set_page_count(p,v) 	atomic_set(&(p)->_count, v - 1)
+#define set_page_count(p,v) 	atomic_set(&(p)->_count, (v) - 1)
 #define __put_page(p)		atomic_dec(&(p)->_count)
 
 extern void FASTCALL(__page_cache_release(struct page *));
@@ -815,7 +818,7 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
  * overflow into the next struct page (as it might with DEBUG_SPINLOCK).
  * When freeing, reset page->mapping so free_pages_check won't complain.
  */
-#define __pte_lockptr(page)	&((page)->u.ptl)
+#define __pte_lockptr(page)	&((page)->ptl)
 #define pte_lock_init(_page)	do {					\
 	spin_lock_init(__pte_lockptr(_page));				\
 } while (0)
@@ -1035,6 +1038,13 @@ int in_gate_area_no_task(unsigned long addr);
 
 /* /proc/<pid>/oom_adj set to -17 protects from the oom-killer */
 #define OOM_DISABLE -17
+
+int drop_caches_sysctl_handler(struct ctl_table *, int, struct file *,
+					void __user *, size_t *, loff_t *);
+int shrink_slab(unsigned long scanned, gfp_t gfp_mask,
+			unsigned long lru_pages);
+void drop_pagecache(void);
+void drop_slab(void);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

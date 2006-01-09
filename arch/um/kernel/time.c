@@ -14,9 +14,9 @@
 #include "kern_util.h"
 #include "user.h"
 #include "process.h"
-#include "signal_user.h"
 #include "time_user.h"
 #include "kern_constants.h"
+#include "os.h"
 
 /* XXX This really needs to be declared and initialized in a kernel file since
  * it's in <linux/time.h>

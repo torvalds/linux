@@ -1,8 +1,9 @@
 /*
  * linux/fs/9p/conv.h
  *
- * 9P protocol conversion definitions
+ * 9P protocol conversion definitions.
  *
+ *  Copyright (C) 2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004 by Eric Van Hensbergen <ericvh@gmail.com>
  *  Copyright (C) 2002 by Ron Minnich <rminnich@lanl.gov>
  *
@@ -24,13 +25,27 @@
  *
  */
 
-int v9fs_deserialize_stat(struct v9fs_session_info *, void *buf,
-			  u32 buflen, struct v9fs_stat *stat, u32 statlen);
-int v9fs_serialize_fcall(struct v9fs_session_info *, struct v9fs_fcall *tcall,
-			 void *buf, u32 buflen);
-int v9fs_deserialize_fcall(struct v9fs_session_info *, u32 msglen,
-			   void *buf, u32 buflen, struct v9fs_fcall *rcall,
-			   int rcalllen);
+int v9fs_deserialize_stat(void *buf, u32 buflen, struct v9fs_stat *stat,
+	int extended);
+int v9fs_deserialize_fcall(void *buf, u32 buflen, struct v9fs_fcall *rcall,
+	int extended);
 
-/* this one is actually in error.c right now */
-int v9fs_errstr2errno(char *errstr);
+void v9fs_set_tag(struct v9fs_fcall *fc, u16 tag);
+
+struct v9fs_fcall *v9fs_create_tversion(u32 msize, char *version);
+struct v9fs_fcall *v9fs_create_tauth(u32 afid, char *uname, char *aname);
+struct v9fs_fcall *v9fs_create_tattach(u32 fid, u32 afid, char *uname,
+	char *aname);
+struct v9fs_fcall *v9fs_create_tflush(u16 oldtag);
+struct v9fs_fcall *v9fs_create_twalk(u32 fid, u32 newfid, u16 nwname,
+	char **wnames);
+struct v9fs_fcall *v9fs_create_topen(u32 fid, u8 mode);
+struct v9fs_fcall *v9fs_create_tcreate(u32 fid, char *name, u32 perm, u8 mode);
+struct v9fs_fcall *v9fs_create_tread(u32 fid, u64 offset, u32 count);
+struct v9fs_fcall *v9fs_create_twrite(u32 fid, u64 offset, u32 count,
+	const char __user *data);
+struct v9fs_fcall *v9fs_create_tclunk(u32 fid);
+struct v9fs_fcall *v9fs_create_tremove(u32 fid);
+struct v9fs_fcall *v9fs_create_tstat(u32 fid);
+struct v9fs_fcall *v9fs_create_twstat(u32 fid, struct v9fs_wstat *wstat,
+	int extended);

@@ -73,3 +73,35 @@ use_these_perms:
 } /* end key_task_permission() */
 
 EXPORT_SYMBOL(key_task_permission);
+
+/*****************************************************************************/
+/*
+ * validate a key
+ */
+int key_validate(struct key *key)
+{
+	struct timespec now;
+	int ret = 0;
+
+	if (key) {
+		/* check it's still accessible */
+		ret = -EKEYREVOKED;
+		if (test_bit(KEY_FLAG_REVOKED, &key->flags) ||
+		    test_bit(KEY_FLAG_DEAD, &key->flags))
+			goto error;
+
+		/* check it hasn't expired */
+		ret = 0;
+		if (key->expiry) {
+			now = current_kernel_time();
+			if (now.tv_sec >= key->expiry)
+				ret = -EKEYEXPIRED;
+		}
+	}
+
+ error:
+	return ret;
+
+} /* end key_validate() */
+
+EXPORT_SYMBOL(key_validate);

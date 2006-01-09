@@ -1130,6 +1130,17 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int idedisk_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct ide_disk_obj *idkp = ide_disk_g(bdev->bd_disk);
+	ide_drive_t *drive = idkp->drive;
+
+	geo->heads = drive->bios_head;
+	geo->sectors = drive->bios_sect;
+	geo->cylinders = (u16)drive->bios_cyl; /* truncate */
+	return 0;
+}
+
 static int idedisk_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
@@ -1164,6 +1175,7 @@ static struct block_device_operations idedisk_ops = {
 	.open		= idedisk_open,
 	.release	= idedisk_release,
 	.ioctl		= idedisk_ioctl,
+	.getgeo		= idedisk_getgeo,
 	.media_changed	= idedisk_media_changed,
 	.revalidate_disk= idedisk_revalidate_disk
 };

@@ -67,20 +67,12 @@ EXPORT_SYMBOL(inode_change_ok);
 int inode_setattr(struct inode * inode, struct iattr * attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
-	int error = 0;
 
-	if (ia_valid & ATTR_SIZE) {
-		if (attr->ia_size != i_size_read(inode)) {
-			error = vmtruncate(inode, attr->ia_size);
-			if (error || (ia_valid == ATTR_SIZE))
-				goto out;
-		} else {
-			/*
-			 * We skipped the truncate but must still update
-			 * timestamps
-			 */
-			ia_valid |= ATTR_MTIME|ATTR_CTIME;
-		}
+	if (ia_valid & ATTR_SIZE &&
+	    attr->ia_size != i_size_read(inode)) {
+		int error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
 	}
 
 	if (ia_valid & ATTR_UID)
@@ -104,8 +96,8 @@ int inode_setattr(struct inode * inode, struct iattr * attr)
 		inode->i_mode = mode;
 	}
 	mark_inode_dirty(inode);
-out:
-	return error;
+
+	return 0;
 }
 EXPORT_SYMBOL(inode_setattr);
 

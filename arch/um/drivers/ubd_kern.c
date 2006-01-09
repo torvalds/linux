@@ -117,6 +117,7 @@ static int ubd_open(struct inode * inode, struct file * filp);
 static int ubd_release(struct inode * inode, struct file * file);
 static int ubd_ioctl(struct inode * inode, struct file * file,
 		     unsigned int cmd, unsigned long arg);
+static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 #define MAX_DEV (8)
 
@@ -125,6 +126,7 @@ static struct block_device_operations ubd_blops = {
         .open		= ubd_open,
         .release	= ubd_release,
         .ioctl		= ubd_ioctl,
+	.getgeo		= ubd_getgeo,
 };
 
 /* Protected by the queue_lock */
@@ -1058,6 +1060,16 @@ static void do_ubd_request(request_queue_t *q)
 	}
 }
 
+static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
+{
+	struct ubd *dev = bdev->bd_disk->private_data;
+
+	geo->heads = 128;
+	geo->sectors = 32;
+	geo->cylinders = dev->size / (128 * 32 * 512);
+	return 0;
+}
+
 static int ubd_ioctl(struct inode * inode, struct file * file,
 		     unsigned int cmd, unsigned long arg)
 {
@@ -1070,16 +1082,7 @@ static int ubd_ioctl(struct inode * inode, struct file * file,
 	};
 
 	switch (cmd) {
-	        struct hd_geometry g;
 		struct cdrom_volctrl volume;
-	case HDIO_GETGEO:
-		if(!loc) return(-EINVAL);
-		g.heads = 128;
-		g.sectors = 32;
-		g.cylinders = dev->size / (128 * 32 * 512);
-		g.start = get_start_sect(inode->i_bdev);
-		return(copy_to_user(loc, &g, sizeof(g)) ? -EFAULT : 0);
-
 	case HDIO_GET_IDENTITY:
 		ubd_id.cyls = dev->size / (128 * 32 * 512);
 		if(copy_to_user((char __user *) arg, (char *) &ubd_id,

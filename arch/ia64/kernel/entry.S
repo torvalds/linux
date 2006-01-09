@@ -1600,5 +1600,6 @@ sys_call_table:
 	data8 sys_inotify_init
 	data8 sys_inotify_add_watch
 	data8 sys_inotify_rm_watch
+	data8 sys_migrate_pages			// 1280
 
 	.org sys_call_table + 8*NR_syscalls	// guard against failures to increase NR_syscalls

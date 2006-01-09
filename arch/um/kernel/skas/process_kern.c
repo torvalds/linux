@@ -14,7 +14,6 @@
 #include "asm/atomic.h"
 #include "kern_util.h"
 #include "time_user.h"
-#include "signal_user.h"
 #include "skas.h"
 #include "os.h"
 #include "user_util.h"

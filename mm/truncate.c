@@ -249,7 +249,6 @@ unlock:
 				break;
 		}
 		pagevec_release(&pvec);
-		cond_resched();
 	}
 	return ret;
 }

@@ -43,6 +43,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/timer.h>
 #include <asm/semaphore.h>
 
 #include "mthca_provider.h"

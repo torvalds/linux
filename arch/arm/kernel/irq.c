@@ -684,8 +684,12 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	spin_lock_irqsave(&irq_controller_lock, flags);
 	p = &desc->action;
 	if ((old = *p) != NULL) {
-		/* Can't share interrupts unless both agree to */
-		if (!(old->flags & new->flags & SA_SHIRQ)) {
+		/*
+		 * Can't share interrupts unless both agree to and are
+		 * the same type.
+		 */
+		if (!(old->flags & new->flags & SA_SHIRQ) ||
+		    (~old->flags & new->flags) & SA_TRIGGER_MASK) {
 			spin_unlock_irqrestore(&irq_controller_lock, flags);
 			return -EBUSY;
 		}
@@ -705,6 +709,12 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		desc->running = 0;
 		desc->pending = 0;
 		desc->disable_depth = 1;
+
+		if (new->flags & SA_TRIGGER_MASK) {
+			unsigned int type = new->flags & SA_TRIGGER_MASK;
+			desc->chip->set_type(irq, type);
+		}
+
 		if (!desc->noautoenable) {
 			desc->disable_depth = 0;
 			desc->chip->unmask(irq);

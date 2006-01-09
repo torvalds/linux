@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/wait.h>
+#include <linux/completion.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>

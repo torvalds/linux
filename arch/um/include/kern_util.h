@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000, 2001, 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -9,6 +9,19 @@
 #include "linux/threads.h"
 #include "sysdep/ptrace.h"
 #include "sysdep/faultinfo.h"
+
+typedef void (*kern_hndl)(int, union uml_pt_regs *);
+
+struct kern_handlers {
+	kern_hndl relay_signal;
+	kern_hndl winch;
+	kern_hndl bus_handler;
+	kern_hndl page_fault;
+	kern_hndl sigio_handler;
+	kern_hndl timer_handler;
+};
+
+extern struct kern_handlers handlinfo_kern;
 
 extern int ncpus;
 extern char *linux_prog;
@@ -51,8 +64,6 @@ extern void timer_handler(int sig, union uml_pt_regs *regs);
 extern int set_signals(int enable);
 extern void force_sigbus(void);
 extern int pid_to_processor_id(int pid);
-extern void block_signals(void);
-extern void unblock_signals(void);
 extern void deliver_signals(void *t);
 extern int next_syscall_index(int max);
 extern int next_trap_index(int max);
@@ -111,6 +122,8 @@ extern void arch_switch(void);
 extern void free_irq(unsigned int, void *);
 extern int um_in_interrupt(void);
 extern int cpu(void);
+extern void segv_handler(int sig, union uml_pt_regs *regs);
+extern void sigio_handler(int sig, union uml_pt_regs *regs);
 
 #endif
 

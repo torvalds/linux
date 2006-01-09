@@ -524,6 +524,7 @@ static void ax_encaps(struct net_device *dev, unsigned char *icp, int len)
 	ax->dev->trans_start = jiffies;
 	ax->xleft = count - actual;
 	ax->xhead = ax->xbuff + actual;
+	spin_unlock_bh(&ax->buflock);
 }
 
 /* Encapsulate an AX.25 packet and kick it into a TTY queue. */

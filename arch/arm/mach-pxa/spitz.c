@@ -296,14 +296,13 @@ static int spitz_mci_init(struct device *dev, irqreturn_t (*spitz_detect_int)(in
 
 	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
-	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int, SA_INTERRUPT,
-			     "MMC card detect", data);
+	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int,
+			  SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+			  "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "spitz_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
 		return -1;
 	}
-
-	set_irq_type(SPITZ_IRQ_GPIO_nSD_DETECT, IRQT_BOTHEDGE);
 
 	return 0;
 }

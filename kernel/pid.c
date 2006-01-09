@@ -136,7 +136,7 @@ struct pid * fastcall find_pid(enum pid_type type, int nr)
 	struct hlist_node *elem;
 	struct pid *pid;
 
-	hlist_for_each_entry(pid, elem,
+	hlist_for_each_entry_rcu(pid, elem,
 			&pid_hash[type][pid_hashfn(nr)], pid_chain) {
 		if (pid->nr == nr)
 			return pid;
@@ -150,15 +150,15 @@ int fastcall attach_pid(task_t *task, enum pid_type type, int nr)
 
 	task_pid = &task->pids[type];
 	pid = find_pid(type, nr);
+	task_pid->nr = nr;
 	if (pid == NULL) {
-		hlist_add_head(&task_pid->pid_chain,
-				&pid_hash[type][pid_hashfn(nr)]);
 		INIT_LIST_HEAD(&task_pid->pid_list);
+		hlist_add_head_rcu(&task_pid->pid_chain,
+				   &pid_hash[type][pid_hashfn(nr)]);
 	} else {
 		INIT_HLIST_NODE(&task_pid->pid_chain);
-		list_add_tail(&task_pid->pid_list, &pid->pid_list);
+		list_add_tail_rcu(&task_pid->pid_list, &pid->pid_list);
 	}
-	task_pid->nr = nr;
 
 	return 0;
 }
@@ -170,20 +170,20 @@ static fastcall int __detach_pid(task_t *task, enum pid_type type)
 
 	pid = &task->pids[type];
 	if (!hlist_unhashed(&pid->pid_chain)) {
-		hlist_del(&pid->pid_chain);
 
-		if (list_empty(&pid->pid_list))
+		if (list_empty(&pid->pid_list)) {
 			nr = pid->nr;
-		else {
+			hlist_del_rcu(&pid->pid_chain);
+		} else {
 			pid_next = list_entry(pid->pid_list.next,
 						struct pid, pid_list);
 			/* insert next pid from pid_list to hash */
-			hlist_add_head(&pid_next->pid_chain,
-				&pid_hash[type][pid_hashfn(pid_next->nr)]);
+			hlist_replace_rcu(&pid->pid_chain,
+					  &pid_next->pid_chain);
 		}
 	}
 
-	list_del(&pid->pid_list);
+	list_del_rcu(&pid->pid_list);
 	pid->nr = 0;
 
 	return nr;

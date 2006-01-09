@@ -986,6 +986,7 @@ int dccp_v4_rcv(struct sk_buff *skb)
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
+	nf_reset(skb);
 
 	return sk_receive_skb(sk, skb);
 

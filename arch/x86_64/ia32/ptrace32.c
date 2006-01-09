@@ -196,36 +196,6 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 #undef R32
 
-static struct task_struct *find_target(int request, int pid, int *err)
-{ 
-	struct task_struct *child;
-
-	*err = -EPERM; 
-	if (pid == 1)
-		return NULL; 
-
-	*err = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (child) { 
-		*err = -EPERM;
-		if (child->pid == 1) 
-			goto out;
-		*err = ptrace_check_attach(child, request == PTRACE_KILL); 
-		if (*err < 0) 
-			goto out;
-		return child; 
-	} 
- out:
-	if (child)
-	put_task_struct(child);
-	return NULL; 
-	
-} 
-
 asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 {
 	struct task_struct *child;
@@ -254,9 +224,16 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		break;
 	} 
 
-	child = find_target(request, pid, &ret);
-	if (!child)
-		return ret;
+	if (request == PTRACE_TRACEME)
+		return ptrace_traceme();
+
+	child = ptrace_get_task_struct(pid);
+	if (IS_ERR(child))
+		return PTR_ERR(child);
+
+	ret = ptrace_check_attach(child, request == PTRACE_KILL);
+	if (ret < 0)
+		goto out;
 
 	childregs = (struct pt_regs *)(child->thread.rsp0 - sizeof(struct pt_regs)); 
 
@@ -373,6 +350,7 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		break;
 	}
 
+ out:
 	put_task_struct(child);
 	return ret;
 }

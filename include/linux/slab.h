@@ -53,6 +53,8 @@ typedef struct kmem_cache kmem_cache_t;
 #define SLAB_CTOR_ATOMIC	0x002UL		/* tell constructor it can't sleep */
 #define	SLAB_CTOR_VERIFY	0x004UL		/* tell constructor it's a verify call */
 
+#ifndef CONFIG_SLOB
+
 /* prototypes */
 extern void __init kmem_cache_init(void);
 
@@ -133,6 +135,39 @@ static inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 
 extern int FASTCALL(kmem_cache_reap(int));
 extern int FASTCALL(kmem_ptr_validate(kmem_cache_t *cachep, void *ptr));
+
+#else /* CONFIG_SLOB */
+
+/* SLOB allocator routines */
+
+void kmem_cache_init(void);
+struct kmem_cache *kmem_find_general_cachep(size_t, gfp_t gfpflags);
+struct kmem_cache *kmem_cache_create(const char *c, size_t, size_t,
+	unsigned long,
+	void (*)(void *, struct kmem_cache *, unsigned long),
+	void (*)(void *, struct kmem_cache *, unsigned long));
+int kmem_cache_destroy(struct kmem_cache *c);
+void *kmem_cache_alloc(struct kmem_cache *c, gfp_t flags);
+void kmem_cache_free(struct kmem_cache *c, void *b);
+const char *kmem_cache_name(struct kmem_cache *);
+void *kmalloc(size_t size, gfp_t flags);
+void *kzalloc(size_t size, gfp_t flags);
+void kfree(const void *m);
+unsigned int ksize(const void *m);
+unsigned int kmem_cache_size(struct kmem_cache *c);
+
+static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+{
+	return kzalloc(n * size, flags);
+}
+
+#define kmem_cache_shrink(d) (0)
+#define kmem_cache_reap(a)
+#define kmem_ptr_validate(a, b) (0)
+#define kmem_cache_alloc_node(c, f, n) kmem_cache_alloc(c, f)
+#define kmalloc_node(s, f, n) kmalloc(s, f)
+
+#endif /* CONFIG_SLOB */
 
 /* System wide caches */
 extern kmem_cache_t	*vm_area_cachep;

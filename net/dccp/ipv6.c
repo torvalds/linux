@@ -27,6 +27,7 @@
 #include <net/ipv6.h>
 #include <net/protocol.h>
 #include <net/transp_v6.h>
+#include <net/ip6_checksum.h>
 #include <net/xfrm.h>
 
 #include "dccp.h"
@@ -1028,7 +1029,7 @@ discard:
 	return 0;
 }
 
-static int dccp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int dccp_v6_rcv(struct sk_buff **pskb)
 {
 	const struct dccp_hdr *dh;
 	struct sk_buff *skb = *pskb;

@@ -68,6 +68,9 @@ do {									\
 #define __is_PCI_MEM(addr) \
 	((unsigned long)(addr) - __region_PCI_MEM < 0x08000000UL)
 
+#define __is_PCI_addr(addr) \
+	((unsigned long)(addr) - __region_PCI_IO < 0x0c000000UL)
+
 #define __get_CLKSW()	({ *(volatile unsigned long *)(__region_CS2 + 0x0130000cUL) & 0xffUL; })
 #define __get_CLKIN()	(__get_CLKSW() * 125U * 100000U / 24U)
 
@@ -149,6 +152,7 @@ do {									\
 
 #define __is_PCI_IO(addr)	0	/* no PCI */
 #define __is_PCI_MEM(addr)	0
+#define __is_PCI_addr(addr)	0
 #define __region_PCI_IO		0
 #define __region_PCI_MEM	0
 #define __flush_PCI_writes()	do { } while(0)

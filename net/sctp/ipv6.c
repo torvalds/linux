@@ -905,7 +905,7 @@ static struct inet_protosw sctpv6_stream_protosw = {
 	.flags         = SCTP_PROTOSW_FLAG,
 };
 
-static int sctp6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
+static int sctp6_rcv(struct sk_buff **pskb)
 {
 	return sctp_rcv(*pskb) ? -1 : 0;
 }

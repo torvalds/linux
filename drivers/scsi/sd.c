@@ -527,7 +527,7 @@ static int sd_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int sd_hdio_getgeo(struct block_device *bdev, struct hd_geometry __user *loc)
+static int sd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct scsi_disk *sdkp = scsi_disk(bdev->bd_disk);
 	struct scsi_device *sdp = sdkp->device;
@@ -545,15 +545,9 @@ static int sd_hdio_getgeo(struct block_device *bdev, struct hd_geometry __user *
 	else
 		scsicam_bios_param(bdev, sdkp->capacity, diskinfo);
 
-	if (put_user(diskinfo[0], &loc->heads))
-		return -EFAULT;
-	if (put_user(diskinfo[1], &loc->sectors))
-		return -EFAULT;
-	if (put_user(diskinfo[2], &loc->cylinders))
-		return -EFAULT;
-	if (put_user((unsigned)get_start_sect(bdev),
-	             (unsigned long __user *)&loc->start))
-		return -EFAULT;
+	geo->heads = diskinfo[0];
+	geo->sectors = diskinfo[1];
+	geo->cylinders = diskinfo[2];
 	return 0;
 }
 
@@ -592,12 +586,6 @@ static int sd_ioctl(struct inode * inode, struct file * filp,
 	error = scsi_nonblockable_ioctl(sdp, cmd, p, filp);
 	if (!scsi_block_when_processing_errors(sdp) || !error)
 		return error;
-
-	if (cmd == HDIO_GETGEO) {
-		if (!arg)
-			return -EINVAL;
-		return sd_hdio_getgeo(bdev, p);
-	}
 
 	/*
 	 * Send SCSI addressing ioctls directly to mid level, send other
@@ -800,6 +788,7 @@ static struct block_device_operations sd_fops = {
 	.open			= sd_open,
 	.release		= sd_release,
 	.ioctl			= sd_ioctl,
+	.getgeo			= sd_getgeo,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sd_compat_ioctl,
 #endif

@@ -12,6 +12,7 @@
 #include <linux/nodemask.h>
 #include <linux/pagemap.h>
 #include <linux/mempolicy.h>
+#include <linux/cpuset.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -48,7 +49,8 @@ static struct page *dequeue_huge_page(struct vm_area_struct *vma,
 
 	for (z = zonelist->zones; *z; z++) {
 		nid = (*z)->zone_pgdat->node_id;
-		if (!list_empty(&hugepage_freelists[nid]))
+		if (cpuset_zone_allowed(*z, GFP_HIGHUSER) &&
+		    !list_empty(&hugepage_freelists[nid]))
 			break;
 	}
 

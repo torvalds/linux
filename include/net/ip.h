@@ -37,11 +37,10 @@ struct inet_skb_parm
 	struct ip_options	opt;		/* Compiled IP options		*/
 	unsigned char		flags;
 
-#define IPSKB_MASQUERADED	1
-#define IPSKB_TRANSLATED	2
-#define IPSKB_FORWARDED		4
-#define IPSKB_XFRM_TUNNEL_SIZE	8
-#define IPSKB_FRAG_COMPLETE	16
+#define IPSKB_FORWARDED		1
+#define IPSKB_XFRM_TUNNEL_SIZE	2
+#define IPSKB_XFRM_TRANSFORMED	4
+#define IPSKB_FRAG_COMPLETE	8
 };
 
 struct ipcm_cookie
@@ -95,7 +94,6 @@ extern int		ip_local_deliver(struct sk_buff *skb);
 extern int		ip_mr_input(struct sk_buff *skb);
 extern int		ip_output(struct sk_buff *skb);
 extern int		ip_mc_output(struct sk_buff *skb);
-extern int		ip_fragment(struct sk_buff *skb, int (*out)(struct sk_buff*));
 extern int		ip_do_nat(struct sk_buff *skb);
 extern void		ip_send_check(struct iphdr *ip);
 extern int		ip_queue_xmit(struct sk_buff *skb, int ipfragok);

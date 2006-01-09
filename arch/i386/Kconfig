@@ -29,10 +29,6 @@ config MMU
 config SBUS
 	bool
 
-config UID16
-	bool
-	default y
-
 config GENERIC_ISA_DMA
 	bool
 	default y
@@ -630,10 +626,6 @@ config REGPARM
 	and passes the first three arguments of a function call in registers.
 	This will probably break binary only modules.
 
-	This feature is only enabled for gcc-3.0 and later - earlier compilers
-	generate incorrect output with certain kernel constructs when
-	-mregparm=3 is used.
-
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
 	depends on PROC_FS
@@ -703,7 +695,7 @@ depends on PM && !X86_VISWS
 
 config APM
 	tristate "APM (Advanced Power Management) BIOS support"
-	depends on PM && PM_LEGACY
+	depends on PM
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with

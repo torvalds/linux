@@ -760,7 +760,7 @@ no_thread_group:
 		spin_lock(&oldsighand->siglock);
 		spin_lock(&newsighand->siglock);
 
-		current->sighand = newsighand;
+		rcu_assign_pointer(current->sighand, newsighand);
 		recalc_sigpending();
 
 		spin_unlock(&newsighand->siglock);
@@ -768,7 +768,7 @@ no_thread_group:
 		write_unlock_irq(&tasklist_lock);
 
 		if (atomic_dec_and_test(&oldsighand->count))
-			kmem_cache_free(sighand_cachep, oldsighand);
+			sighand_free(oldsighand);
 	}
 
 	BUG_ON(!thread_group_leader(current));
@@ -1462,6 +1462,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	if (!(current->signal->flags & SIGNAL_GROUP_EXIT)) {
 		current->signal->flags = SIGNAL_GROUP_EXIT;
 		current->signal->group_exit_code = exit_code;
+		current->signal->group_stop_count = 0;
 		retval = 0;
 	}
 	spin_unlock_irq(&current->sighand->siglock);
@@ -1477,7 +1478,6 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	 * Clear any false indication of pending signals that might
 	 * be seen by the filesystem code called to write the core file.
 	 */
-	current->signal->group_stop_count = 0;
 	clear_thread_flag(TIF_SIGPENDING);
 
 	if (current->signal->rlim[RLIMIT_CORE].rlim_cur < binfmt->min_coredump)
@@ -1505,7 +1505,7 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		goto close_fail;
 	if (!file->f_op->write)
 		goto close_fail;
-	if (do_truncate(file->f_dentry, 0, file) != 0)
+	if (do_truncate(file->f_dentry, 0, 0, file) != 0)
 		goto close_fail;
 
 	retval = binfmt->core_dump(signr, regs, file);

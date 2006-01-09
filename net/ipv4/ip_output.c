@@ -85,6 +85,8 @@
 
 int sysctl_ip_default_ttl = IPDEFTTL;
 
+static int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*));
+
 /* Generate a checksum for an outgoing IP datagram. */
 __inline__ void ip_send_check(struct iphdr *iph)
 {
@@ -202,6 +204,11 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 
 static inline int ip_finish_output(struct sk_buff *skb)
 {
+#if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
+	/* Policy lookup after SNAT yielded a new policy */
+	if (skb->dst->xfrm != NULL)
+		return xfrm4_output_finish(skb);
+#endif
 	if (skb->len > dst_mtu(skb->dst) &&
 	    !(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
 		return ip_fragment(skb, ip_finish_output2);
@@ -409,7 +416,7 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
  *	single device frame, and queue such a frame for sending.
  */
 
-int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
+static int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 {
 	struct iphdr *iph;
 	int raw = 0;
@@ -1391,7 +1398,6 @@ void __init ip_init(void)
 #endif
 }
 
-EXPORT_SYMBOL(ip_fragment);
 EXPORT_SYMBOL(ip_generic_getfrag);
 EXPORT_SYMBOL(ip_queue_xmit);
 EXPORT_SYMBOL(ip_send_check);

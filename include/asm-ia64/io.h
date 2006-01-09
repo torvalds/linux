@@ -89,6 +89,7 @@ phys_to_virt (unsigned long address)
 
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 extern int valid_phys_addr_range (unsigned long addr, size_t *count); /* efi.c */
+extern int valid_mmap_phys_addr_range (unsigned long addr, size_t *count);
 
 /*
  * The following two macros are deprecated and scheduled for removal.

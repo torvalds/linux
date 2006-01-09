@@ -175,6 +175,13 @@ extern int try_to_free_pages(struct zone **, gfp_t);
 extern int shrink_all_memory(int);
 extern int vm_swappiness;
 
+#ifdef CONFIG_MIGRATION
+extern int isolate_lru_page(struct page *p);
+extern int putback_lru_pages(struct list_head *l);
+extern int migrate_pages(struct list_head *l, struct list_head *t,
+		struct list_head *moved, struct list_head *failed);
+#endif
+
 #ifdef CONFIG_MMU
 /* linux/mm/shmem.c */
 extern int shmem_unuse(swp_entry_t entry, struct page *page);
@@ -192,7 +199,7 @@ extern int rw_swap_page_sync(int, swp_entry_t, struct page *);
 extern struct address_space swapper_space;
 #define total_swapcache_pages  swapper_space.nrpages
 extern void show_swap_cache_info(void);
-extern int add_to_swap(struct page *);
+extern int add_to_swap(struct page *, gfp_t);
 extern void __delete_from_swap_cache(struct page *);
 extern void delete_from_swap_cache(struct page *);
 extern int move_to_swap_cache(struct page *, swp_entry_t);

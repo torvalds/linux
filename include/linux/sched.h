@@ -34,6 +34,7 @@
 #include <linux/percpu.h>
 #include <linux/topology.h>
 #include <linux/seccomp.h>
+#include <linux/rcupdate.h>
 
 #include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
 
@@ -350,7 +351,15 @@ struct sighand_struct {
 	atomic_t		count;
 	struct k_sigaction	action[_NSIG];
 	spinlock_t		siglock;
+	struct rcu_head		rcu;
 };
+
+extern void sighand_free_cb(struct rcu_head *rhp);
+
+static inline void sighand_free(struct sighand_struct *sp)
+{
+	call_rcu(&sp->rcu, sighand_free_cb);
+}
 
 /*
  * NOTE! "signal_struct" does not have it's own
@@ -762,6 +771,7 @@ struct task_struct {
 	unsigned keep_capabilities:1;
 	struct user_struct *user;
 #ifdef CONFIG_KEYS
+	struct key *request_key_auth;	/* assumed request_key authority */
 	struct key *thread_keyring;	/* keyring private to this thread */
 	unsigned char jit_keyring;	/* default keyring to attach requested keys to */
 #endif
@@ -844,6 +854,7 @@ struct task_struct {
 	int cpuset_mems_generation;
 #endif
 	atomic_t fs_excl;	/* holding fs exclusive resources */
+	struct rcu_head rcu;
 };
 
 static inline pid_t process_group(struct task_struct *tsk)
@@ -867,8 +878,14 @@ static inline int pid_alive(struct task_struct *p)
 extern void free_task(struct task_struct *tsk);
 extern void __put_task_struct(struct task_struct *tsk);
 #define get_task_struct(tsk) do { atomic_inc(&(tsk)->usage); } while(0)
-#define put_task_struct(tsk) \
-do { if (atomic_dec_and_test(&(tsk)->usage)) __put_task_struct(tsk); } while(0)
+
+extern void __put_task_struct_cb(struct rcu_head *rhp);
+
+static inline void put_task_struct(struct task_struct *t)
+{
+	if (atomic_dec_and_test(&t->usage))
+		call_rcu(&t->rcu, __put_task_struct_cb);
+}
 
 /*
  * Per process flags
@@ -895,6 +912,7 @@ do { if (atomic_dec_and_test(&(tsk)->usage)) __put_task_struct(tsk); } while(0)
 #define PF_SYNCWRITE	0x00200000	/* I am doing a sync write */
 #define PF_BORROWED_MM	0x00400000	/* I am a kthread doing use_mm */
 #define PF_RANDOMIZE	0x00800000	/* randomize virtual address space */
+#define PF_SWAPWRITE	0x01000000	/* Allowed to write to swap */
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other

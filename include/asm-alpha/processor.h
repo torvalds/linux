@@ -77,7 +77,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define spin_lock_prefetch(lock)  	do { } while (0)
 #endif
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1)
 extern inline void prefetch(const void *ptr)  
 { 
 	__builtin_prefetch(ptr, 0, 3);
@@ -94,25 +93,5 @@ extern inline void spin_lock_prefetch(const void *ptr)
 	__builtin_prefetch(ptr, 1, 3);
 }
 #endif
-
-#else
-extern inline void prefetch(const void *ptr)  
-{ 
-	__asm__ ("ldl $31,%0" : : "m"(*(char *)ptr)); 
-}
-
-extern inline void prefetchw(const void *ptr)  
-{
-	__asm__ ("ldq $31,%0" : : "m"(*(char *)ptr)); 
-}
-
-#ifdef CONFIG_SMP
-extern inline void spin_lock_prefetch(const void *ptr)  
-{
-	__asm__ ("ldq $31,%0" : : "m"(*(char *)ptr)); 
-}
-#endif
-
-#endif /* GCC 3.1 */
 
 #endif /* __ASM_ALPHA_PROCESSOR_H */

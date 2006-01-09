@@ -233,7 +233,7 @@ void *mthca_table_find(struct mthca_icm_table *table, int obj)
 		for (i = 0; i < chunk->npages; ++i) {
 			if (chunk->mem[i].length >= offset) {
 				page = chunk->mem[i].page;
-				break;
+				goto out;
 			}
 			offset -= chunk->mem[i].length;
 		}
@@ -485,6 +485,8 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 			put_page(db_tab->page[i].mem.page);
 		}
 	}
+
+	kfree(db_tab);
 }
 
 int mthca_alloc_db(struct mthca_dev *dev, enum mthca_db_type type,

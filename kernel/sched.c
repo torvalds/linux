@@ -176,6 +176,13 @@ static unsigned int task_timeslice(task_t *p)
 #define task_hot(p, now, sd) ((long long) ((now) - (p)->last_ran)	\
 				< (long long) (sd)->cache_hot_time)
 
+void __put_task_struct_cb(struct rcu_head *rhp)
+{
+	__put_task_struct(container_of(rhp, struct task_struct, rcu));
+}
+
+EXPORT_SYMBOL_GPL(__put_task_struct_cb);
+
 /*
  * These are the runqueue data structures:
  */

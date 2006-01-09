@@ -451,7 +451,7 @@ EXPORT_SYMBOL(may_umount);
 void release_mounts(struct list_head *head)
 {
 	struct vfsmount *mnt;
-	while(!list_empty(head)) {
+	while (!list_empty(head)) {
 		mnt = list_entry(head->next, struct vfsmount, mnt_hash);
 		list_del_init(&mnt->mnt_hash);
 		if (mnt->mnt_parent != mnt) {
@@ -1525,6 +1525,10 @@ static void chroot_fs_refs(struct nameidata *old_nd, struct nameidata *new_nd)
  * underneath new_root,  i.e. adding a non-zero number of /.. to the string
  * pointed to by put_old must yield the same directory as new_root. No other
  * file system may be mounted on put_old. After all, new_root is a mountpoint.
+ *
+ * Also, the current root cannot be on the 'rootfs' (initial ramfs) filesystem.
+ * See Documentation/filesystems/ramfs-rootfs-initramfs.txt for alternatives
+ * in this situation.
  *
  * Notes:
  *  - we don't move root/cwd if they are not at the root (reason: if something
