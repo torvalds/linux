@@ -487,10 +487,11 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_add_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-		if (!err)
-			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				  "auid=%u added an audit rule\n", loginuid);
-		else
+		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+			"auid=%u add rule to list=%d res=%d\n",
+			loginuid, entry->rule.listnr, !err);
+
+		if (err)
 			audit_free_rule(entry);
 		break;
 	case AUDIT_DEL:
@@ -504,9 +505,10 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 
 		err = audit_del_rule(entry,
 				     &audit_filter_list[entry->rule.listnr]);
-		if (!err)
-			audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
-				  "auid=%u removed an audit rule\n", loginuid);
+		audit_log(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE,
+			"auid=%u remove rule from list=%d res=%d\n",
+			loginuid, entry->rule.listnr, !err);
+
 		audit_free_rule(entry);
 		break;
 	default:

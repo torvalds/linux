@@ -240,7 +240,7 @@ struct audit_rule_data {
 	__u32		flags;	/* AUDIT_PER_{TASK,CALL}, AUDIT_PREPEND */
 	__u32		action;	/* AUDIT_NEVER, AUDIT_POSSIBLE, AUDIT_ALWAYS */
 	__u32		field_count;
-	__u32		mask[AUDIT_BITMASK_SIZE];
+	__u32		mask[AUDIT_BITMASK_SIZE]; /* syscall(s) affected */
 	__u32		fields[AUDIT_MAX_FIELDS];
 	__u32		values[AUDIT_MAX_FIELDS];
 	__u32		fieldflags[AUDIT_MAX_FIELDS];
