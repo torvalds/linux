@@ -2923,6 +2923,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1421,
+		.subdevice    = 0x0351,		/* PCI version, new revision */
+		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1421,
 		.subdevice    = 0x0370,		/* cardbus version */
 		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
 	},{
