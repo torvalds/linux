@@ -209,7 +209,7 @@ static int cxusb_cx22702_frontend_attach(struct dvb_usb_device *d)
 
 static int cxusb_lgdt330x_frontend_attach(struct dvb_usb_device *d)
 {
-	if (usb_set_interface(d->udev,0,0) < 0)
+	if (usb_set_interface(d->udev,0,7) < 0)
 		err("set interface failed");
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
@@ -283,7 +283,9 @@ static struct dvb_usb_properties cxusb_bluebird_atsc_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl         = CYPRESS_FX2,
-	.firmware         = "dvb-usb-bluebird-atsc-01.fw",
+	.firmware         = "dvb-usb-bluebird-01.fw",
+	/* use usb alt setting 0 for EP4 transfer (dvb-t),
+	   use usb alt setting 7 for EP2 transfer (atsc) */
 
 	.size_of_priv     = sizeof(struct cxusb_state),
 
