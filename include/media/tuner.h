@@ -150,10 +150,26 @@ enum tuner_mode {
 	T_STANDBY	= 1 << 31
 };
 
+/* Older boards only had a single tuner device. Nowadays multiple tuner
+   devices may be present on a single board. Using TUNER_SET_TYPE_ADDR
+   to pass the tuner_setup structure it is possible to setup each tuner
+   device in turn.
+
+   Since multiple devices may be present it is no longer sufficient to
+   send a command to a single i2c device. Instead you should broadcast
+   the command to all i2c devices.
+
+   By setting the mode_mask correctly you can select which commands are
+   accepted by a specific tuner device. For example, set mode_mask to
+   T_RADIO if the device is a radio-only tuner. That specific tuner will
+   only accept commands when the tuner is in radio mode and ignore them
+   when the tuner is set to TV mode.
+ */
+
 struct tuner_setup {
-	unsigned short	addr;
-	unsigned int	type;
-	unsigned int	mode_mask;
+	unsigned short	addr; 	/* I2C address */
+	unsigned int	type;   /* Tuner type */
+	unsigned int	mode_mask;  /* Allowed tuner modes */
 };
 
 struct tuner {
