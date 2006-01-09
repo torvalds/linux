@@ -26,9 +26,8 @@
 #include <linux/input.h>
 #include <linux/pci.h>
 
-#include <media/ir-common.h>
-
 #include "bttv.h"
+#include <media/ir-common.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -672,6 +671,8 @@ static int ir_probe(struct device *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(sub->core->pci));
 
+	ir->input = input_dev;
+	ir->sub = sub;
 	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
@@ -685,9 +686,6 @@ static int ir_probe(struct device *dev)
 		input_dev->id.product = sub->core->pci->device;
 	}
 	input_dev->cdev.dev = &sub->core->pci->dev;
-
-	ir->input = input_dev;
-	ir->sub = sub;
 
 	if (ir->polling) {
 		INIT_WORK(&ir->work, ir_work, ir);

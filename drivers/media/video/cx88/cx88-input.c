@@ -29,9 +29,8 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
-#include <media/ir-common.h>
-
 #include "cx88.h"
+#include <media/ir-common.h>
 
 /* ---------------------------------------------------------------------- */
 

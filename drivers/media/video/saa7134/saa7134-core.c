@@ -211,7 +211,7 @@ static int pending_call(struct notifier_block *self, unsigned long state,
 	return NOTIFY_DONE;
 }
 
-static int pending_registered;
+static int pending_registered=0;
 static struct notifier_block pending_notifier = {
 	.notifier_call = pending_call,
 };

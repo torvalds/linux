@@ -68,7 +68,8 @@ static void video_release(struct class_device *cd)
 {
 	struct video_device *vfd = container_of(cd, struct video_device, class_dev);
 
-#if 1 /* needed until all drivers are fixed */
+#if 1
+	 /* needed until all drivers are fixed */
 	if (!vfd->release)
 		return;
 #endif
@@ -344,7 +345,8 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 	class_device_create_file(&vfd->class_dev,
 				 &class_device_attr_name);
 
-#if 1 /* needed until all drivers are fixed */
+#if 1
+	/* needed until all drivers are fixed */
 	if (!vfd->release)
 		printk(KERN_WARNING "videodev: \"%s\" has no release callback. "
 		       "Please fix your driver for proper sysfs support, see "

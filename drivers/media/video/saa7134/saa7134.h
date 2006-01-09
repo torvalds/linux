@@ -37,6 +37,9 @@
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/video-buf.h>
+#include <sound/driver.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
 #include <media/video-buf-dvb.h>
 
 #ifndef TRUE
@@ -46,10 +49,6 @@
 # define FALSE (1==0)
 #endif
 #define UNSET (-1U)
-
-#include <sound/driver.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
 
 /* ----------------------------------------------------------- */
 /* enums                                                       */
