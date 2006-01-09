@@ -201,11 +201,10 @@ tcf_ipt_cleanup(struct tc_action *a, int bind)
 }
 
 static int
-tcf_ipt(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
+tcf_ipt(struct sk_buff *skb, struct tc_action *a, struct tcf_result *res)
 {
 	int ret = 0, result = 0;
 	struct tcf_ipt *p = PRIV(a, ipt);
-	struct sk_buff *skb = *pskb;
 
 	if (skb_cloned(skb)) {
 		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
@@ -222,6 +221,9 @@ tcf_ipt(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
 	 worry later - danger - this API seems to have changed
 	 from earlier kernels */
 
+	/* iptables targets take a double skb pointer in case the skb
+	 * needs to be replaced. We don't own the skb, so this must not
+	 * happen. The pskb_expand_head above should make sure of this */
 	ret = p->t->u.kernel.target->target(&skb, skb->dev, NULL,
 					    p->hook, p->t->data, NULL);
 	switch (ret) {

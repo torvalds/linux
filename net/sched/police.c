@@ -284,11 +284,10 @@ static int tcf_act_police_cleanup(struct tc_action *a, int bind)
 	return 0;
 }
 
-static int tcf_act_police(struct sk_buff **pskb, struct tc_action *a,
+static int tcf_act_police(struct sk_buff *skb, struct tc_action *a,
                           struct tcf_result *res)
 {
 	psched_time_t now;
-	struct sk_buff *skb = *pskb;
 	struct tcf_police *p = PRIV(a);
 	long toks;
 	long ptoks = 0;

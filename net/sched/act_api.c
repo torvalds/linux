@@ -165,7 +165,7 @@ int tcf_action_exec(struct sk_buff *skb, struct tc_action *act,
 	while ((a = act) != NULL) {
 repeat:
 		if (a->ops && a->ops->act) {
-			ret = a->ops->act(&skb, a, res);
+			ret = a->ops->act(skb, a, res);
 			if (TC_MUNGED & skb->tc_verd) {
 				/* copied already, allow trampling */
 				skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
