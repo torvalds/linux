@@ -245,10 +245,12 @@ tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,int bind, int ref)
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tm.expires);
 	RTA_PUT(skb, TCA_PEDIT_TM, sizeof(t), &t);
+	kfree(opt);
 	return skb->len;
 
 rtattr_failure:
 	skb_trim(skb, b - skb->data);
+	kfree(opt);
 	return -1;
 }
 
