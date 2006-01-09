@@ -74,50 +74,59 @@ static int cs53l32a_read(struct i2c_client *client, u8 reg)
 static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
 			    void *arg)
 {
-	int *input = arg;
+	struct v4l2_audio *input = arg;
+	struct v4l2_control *ctrl = arg;
 
 	switch (cmd) {
-	case AUDC_SET_INPUT:
-		switch (*input) {
-		case AUDIO_TUNER:
-			cs53l32a_write(client, 0x01, 0x01);
-			break;
-		case AUDIO_EXTERN:
-			cs53l32a_write(client, 0x01, 0x21);
-			break;
-		case AUDIO_MUTE:
-			cs53l32a_write(client, 0x03, 0xF0);
-			break;
-		case AUDIO_UNMUTE:
-			cs53l32a_write(client, 0x03, 0x30);
-			break;
-		default:
-			cs53l32a_err("Invalid input %d.\n", *input);
+	case VIDIOC_S_AUDIO:
+		/* There are 2 physical inputs, but the second input can be
+		   placed in two modes, the first mode bypasses the PGA (gain),
+		   the second goes through the PGA. Hence there are three
+		   possible inputs to choose from. */
+		if (input->index > 2) {
+			cs53l32a_err("Invalid input %d.\n", input->index);
 			return -EINVAL;
 		}
+		cs53l32a_write(client, 0x01, 0x01 + (input->index << 4));
+		break;
+
+	case VIDIOC_G_AUDIO:
+		memset(input, 0, sizeof(*input));
+		input->index = (cs53l32a_read(client, 0x01) >> 4) & 3;
+		break;
+
+	case VIDIOC_G_CTRL:
+		if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
+			ctrl->value = (cs53l32a_read(client, 0x03) & 0xc0) != 0;
+			break;
+		}
+		if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
+			return -EINVAL;
+		ctrl->value = (s8)cs53l32a_read(client, 0x04);
 		break;
 
 	case VIDIOC_S_CTRL:
-		{
-			struct v4l2_control *ctrl = arg;
-
-			if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
-				return -EINVAL;
-			if (ctrl->value > 12 || ctrl->value < -90)
-				return -EINVAL;
-			cs53l32a_write(client, 0x04, (u8) ctrl->value);
-			cs53l32a_write(client, 0x05, (u8) ctrl->value);
+		if (ctrl->id == V4L2_CID_AUDIO_MUTE) {
+			cs53l32a_write(client, 0x03, ctrl->value ? 0xf0 : 0x30);
 			break;
 		}
+		if (ctrl->id != V4L2_CID_AUDIO_VOLUME)
+			return -EINVAL;
+		if (ctrl->value > 12 || ctrl->value < -96)
+			return -EINVAL;
+		cs53l32a_write(client, 0x04, (u8) ctrl->value);
+		cs53l32a_write(client, 0x05, (u8) ctrl->value);
+		break;
 
 	case VIDIOC_LOG_STATUS:
 		{
 			u8 v = cs53l32a_read(client, 0x01);
 			u8 m = cs53l32a_read(client, 0x03);
+			s8 vol = cs53l32a_read(client, 0x04);
 
-			cs53l32a_info("Input: %s%s\n",
-				      v == 0x21 ? "external line in" : "tuner",
+			cs53l32a_info("Input:  %d%s\n", (v >> 4) & 3,
 				      (m & 0xC0) ? " (muted)" : "");
+			cs53l32a_info("Volume: %d dB\n", vol);
 			break;
 		}
 
