@@ -187,7 +187,13 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			brq.data.flags |= MMC_DATA_WRITE;
 			brq.data.blocks = 1;
 		}
-		brq.mrq.stop = brq.data.blocks > 1 ? &brq.stop : NULL;
+
+		if (brq.data.blocks > 1) {
+			brq.data.flags |= MMC_DATA_MULTI;
+			brq.mrq.stop = &brq.stop;
+		} else {
+			brq.mrq.stop = NULL;
+		}
 
 		brq.data.sg = mq->sg;
 		brq.data.sg_len = blk_rq_map_sg(req->q, req, brq.data.sg);
