@@ -112,7 +112,7 @@ static struct videobuf_queue_ops dvb_qops = {
 /* ------------------------------------------------------------------ */
 
 #ifdef HAVE_MT352
-static int generic_mt352_demod_init(struct dvb_frontend* fe)
+static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x39 };
 	static u8 reset []         = { RESET,      0x80 };
@@ -191,7 +191,7 @@ static int mt352_pll_set(struct dvb_frontend* fe,
 
 static struct mt352_config dvico_fusionhdtv = {
 	.demod_address = 0x0F,
-	.demod_init    = generic_mt352_demod_init,
+	.demod_init    = dvico_fusionhdtv_demod_init,
 	.pll_set       = mt352_pll_set,
 };
 
@@ -208,6 +208,29 @@ static struct mt352_config dvico_fusionhdtv_dual = {
 };
 
 #ifdef HAVE_VP3054_I2C
+static int dntv_live_dvbt_pro_demod_init(struct dvb_frontend* fe)
+{
+	static u8 clock_config []  = { 0x89, 0x38, 0x38 };
+	static u8 reset []         = { 0x50, 0x80 };
+	static u8 adc_ctl_1_cfg [] = { 0x8E, 0x40 };
+	static u8 agc_cfg []       = { 0x67, 0x10, 0x20, 0x00, 0xFF, 0xFF,
+				       0x00, 0xFF, 0x00, 0x40, 0x40 };
+	static u8 dntv_extra[]     = { 0xB5, 0x7A };
+	static u8 capt_range_cfg[] = { 0x75, 0x32 };
+
+	mt352_write(fe, clock_config,   sizeof(clock_config));
+	udelay(2000);
+	mt352_write(fe, reset,          sizeof(reset));
+	mt352_write(fe, adc_ctl_1_cfg,  sizeof(adc_ctl_1_cfg));
+
+	mt352_write(fe, agc_cfg,        sizeof(agc_cfg));
+	udelay(2000);
+	mt352_write(fe, dntv_extra,     sizeof(dntv_extra));
+	mt352_write(fe, capt_range_cfg, sizeof(capt_range_cfg));
+
+	return 0;
+}
+
 static int philips_fmd1216_pll_init(struct dvb_frontend *fe)
 {
 	struct cx8802_dev *dev= fe->dvb->priv;
@@ -265,7 +288,7 @@ static int dntv_live_dvbt_pro_pll_set(struct dvb_frontend* fe,
 static struct mt352_config dntv_live_dvbt_pro_config = {
 	.demod_address = 0x0f,
 	.no_tuner      = 1,
-	.demod_init    = generic_mt352_demod_init,
+	.demod_init    = dntv_live_dvbt_pro_demod_init,
 	.pll_set       = dntv_live_dvbt_pro_pll_set,
 };
 #endif
