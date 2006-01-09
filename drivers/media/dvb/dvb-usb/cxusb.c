@@ -26,6 +26,8 @@
 
 #include "cx22702.h"
 #include "lgdt330x.h"
+#include "mt352.h"
+#include "mt352_priv.h"
 
 /* debug */
 int dvb_usb_cxusb_debug;
@@ -157,6 +159,27 @@ static int cxusb_streaming_ctrl(struct dvb_usb_device *d, int onoff)
 	return 0;
 }
 
+static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
+{
+	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x38 };
+	static u8 reset []         = { RESET,      0x80 };
+	static u8 adc_ctl_1_cfg [] = { ADC_CTL_1,  0x40 };
+	static u8 agc_cfg []       = { AGC_TARGET, 0x28, 0x20 };
+	static u8 gpp_ctl_cfg []   = { GPP_CTL,    0x33 };
+	static u8 capt_range_cfg[] = { CAPT_RANGE, 0x32 };
+
+	mt352_write(fe, clock_config,   sizeof(clock_config));
+	udelay(200);
+	mt352_write(fe, reset,          sizeof(reset));
+	mt352_write(fe, adc_ctl_1_cfg,  sizeof(adc_ctl_1_cfg));
+
+	mt352_write(fe, agc_cfg,        sizeof(agc_cfg));
+	mt352_write(fe, gpp_ctl_cfg,    sizeof(gpp_ctl_cfg));
+	mt352_write(fe, capt_range_cfg, sizeof(capt_range_cfg));
+
+	return 0;
+}
+
 struct cx22702_config cxusb_cx22702_config = {
 	.demod_address = 0x63,
 
@@ -170,6 +193,12 @@ struct lgdt330x_config cxusb_lgdt330x_config = {
 	.demod_address = 0x0e,
 	.demod_chip    = LGDT3303,
 	.pll_set       = dvb_usb_pll_set_i2c,
+};
+
+struct mt352_config cxusb_dee1601_config = {
+	.demod_address = 0x0f,
+	.demod_init    = cxusb_dee1601_demod_init,
+	.pll_set       = dvb_usb_pll_set,
 };
 
 /* Callbacks for DVB USB */
@@ -190,6 +219,13 @@ static int cxusb_lgh064f_tuner_attach(struct dvb_usb_device *d)
 	d->pll_addr = 0x61;
 	memcpy(d->pll_init, bpll, 4);
 	d->pll_desc = &dvb_pll_tdvs_tua6034;
+	return 0;
+}
+
+static int cxusb_dee1601_tuner_attach(struct dvb_usb_device *d)
+{
+	d->pll_addr = 0x61;
+	d->pll_desc = &dvb_pll_thomson_dtt7579;
 	return 0;
 }
 
@@ -220,15 +256,31 @@ static int cxusb_lgdt330x_frontend_attach(struct dvb_usb_device *d)
 	return -EIO;
 }
 
+static int cxusb_dee1601_frontend_attach(struct dvb_usb_device *d)
+{
+	if (usb_set_interface(d->udev,0,0) < 0)
+		err("set interface failed");
+
+	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
+
+	if ((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL)
+		return 0;
+
+	return -EIO;
+}
+
 /* DVB USB Driver stuff */
 static struct dvb_usb_properties cxusb_medion_properties;
 static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties;
+static struct dvb_usb_properties cxusb_bluebird_dee1601_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	if (dvb_usb_device_init(intf,&cxusb_medion_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_lgh064f_properties,THIS_MODULE,NULL) == 0) {
+		dvb_usb_device_init(intf,&cxusb_bluebird_lgh064f_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&cxusb_bluebird_dee1601_properties,THIS_MODULE,NULL) == 0
+		){
 		return 0;
 	}
 
@@ -239,6 +291,8 @@ static struct usb_device_id cxusb_table [] = {
 		{ USB_DEVICE(USB_VID_MEDION, USB_PID_MEDION_MD95700) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LG064F_COLD) },
 		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_LG064F_WARM) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DEE1601_COLD) },
+		{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DEE1601_WARM) },
 		{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -314,6 +368,45 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 		{   "DViCO FusionHDTV5 USB Gold",
 			{ &cxusb_table[1], NULL },
 			{ &cxusb_table[2], NULL },
+		},
+	}
+};
+
+static struct dvb_usb_properties cxusb_bluebird_dee1601_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl         = CYPRESS_FX2,
+	.firmware         = "dvb-usb-bluebird-01.fw",
+	/* use usb alt setting 0 for EP4 transfer (dvb-t),
+	   use usb alt setting 7 for EP2 transfer (atsc) */
+
+	.size_of_priv     = sizeof(struct cxusb_state),
+
+	.streaming_ctrl   = cxusb_streaming_ctrl,
+	.power_ctrl       = cxusb_power_ctrl,
+	.frontend_attach  = cxusb_dee1601_frontend_attach,
+	.tuner_attach     = cxusb_dee1601_tuner_attach,
+
+	.i2c_algo         = &cxusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+	/* parameter for the MPEG2-data transfer */
+	.urb = {
+		.type = DVB_USB_BULK,
+		.count = 5,
+		.endpoint = 0x04,
+		.u = {
+			.bulk = {
+				.buffersize = 8192,
+			}
+		}
+	},
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "DViCO FusionHDTV DVB-T Dual USB",
+			{ &cxusb_table[3], NULL },
+			{ &cxusb_table[4], NULL },
 		},
 	}
 };

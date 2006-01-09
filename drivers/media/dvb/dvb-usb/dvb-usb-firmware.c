@@ -74,6 +74,27 @@ static int usb_cypress_load_firmware(struct usb_device *udev, const struct firmw
 	return ret;
 }
 
+/*
+ * DViCO bluebird firmware needs the "warm" product ID to be patched into the
+ * firmware file before download.
+ */
+#define BLUEBIRD_01_ID_OFFSET 6638
+static int dvb_usb_patch_dvico_firmware(struct usb_device *udev, const struct firmware *fw)
+{
+	if (fw->size < BLUEBIRD_01_ID_OFFSET + 4)
+		return -EINVAL;
+
+	if (fw->data[BLUEBIRD_01_ID_OFFSET] == (USB_VID_DVICO & 0xff) &&
+	    fw->data[BLUEBIRD_01_ID_OFFSET + 1] == USB_VID_DVICO >> 8) {
+		fw->data[BLUEBIRD_01_ID_OFFSET + 2] = udev->descriptor.idProduct + 1;
+		fw->data[BLUEBIRD_01_ID_OFFSET + 3] = udev->descriptor.idProduct >> 8;
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 int dvb_usb_download_firmware(struct usb_device *udev, struct dvb_usb_properties *props)
 {
 	int ret;
@@ -87,6 +108,12 @@ int dvb_usb_download_firmware(struct usb_device *udev, struct dvb_usb_properties
 	}
 
 	info("downloading firmware from file '%s'",props->firmware);
+
+	if (le16_to_cpu(udev->descriptor.idVendor) == USB_VID_DVICO) {
+		ret = dvb_usb_patch_dvico_firmware(udev, fw);
+		if (ret != 0)
+			warn("this firmware file not recognised");
+	}
 
 	switch (props->usb_ctrl) {
 		case CYPRESS_AN2135:
