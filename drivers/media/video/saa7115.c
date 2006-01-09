@@ -801,6 +801,11 @@ static void saa7115_log_status(struct i2c_client *client)
 	signalOk = (reg1f & 0xc1) == 0x81 && (reg1e & 0xc0) == 0x80;
 	vcr = !(reg1f & 0x10);
 
+	if (state->input >= 6) {
+		saa7115_info("Input:           S-Video %d\n", state->input - 6);
+	} else {
+		saa7115_info("Input:           Composite %d\n", state->input);
+	}
 	saa7115_info("Video signal:    %s\n", signalOk ? (vcr ? "VCR" : "broadcast/DVD") : "bad");
 	saa7115_info("Frequency:       %s\n", (reg1f & 0x20) ? "60Hz" : "50Hz");
 
