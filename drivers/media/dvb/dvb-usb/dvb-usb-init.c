@@ -138,6 +138,9 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties
 
 	int ret = -ENOMEM,cold=0;
 
+	if (du != NULL)
+		*du = NULL;
+
 	if ((desc = dvb_usb_find_device(udev,props,&cold)) == NULL) {
 		deb_err("something went very wrong, device was not found in current device list - let's see what comes next.\n");
 		return -ENODEV;
