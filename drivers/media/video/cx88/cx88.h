@@ -285,6 +285,9 @@ struct cx88_core {
 	unsigned int               tda9887_conf;
 	unsigned int               has_radio;
 
+	/* Supported V4L _STD_ tuner formats */
+	unsigned int               tuner_formats;
+
 	/* config info -- dvb */
 	struct dvb_pll_desc        *pll_desc;
 	unsigned int               pll_addr;

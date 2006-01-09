@@ -611,12 +611,12 @@ struct cx88_board cx88_boards[] = {
 		.input          = {{
 			.type   = CX88_VMUX_TELEVISION,
 			.vmux   = 0,
-			.gpio0  = 0xed12,  /* internal decoder */
+			.gpio0  = 0xed1a,
 			.gpio2  = 0x00ff,
 		},{
 			.type   = CX88_VMUX_DEBUG,
 			.vmux   = 0,
-			.gpio0  = 0xff01,  /* mono from tuner chip */
+			.gpio0  = 0xff01,
 		},{
 			.type   = CX88_VMUX_COMPOSITE1,
 			.vmux   = 1,
@@ -1202,11 +1202,13 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 
 	tveeprom_hauppauge_analog(&core->i2c_client, &tv, eeprom_data);
 	core->tuner_type = tv.tuner_type;
+	core->tuner_formats = tv.tuner_formats;
 	core->has_radio  = tv.has_radio;
 
 	/* Make sure we support the board model */
 	switch (tv.model)
 	{
+	case 28552: /* WinTV-PVR 'Roslyn' (No IR) */
 	case 90002: /* Nova-T-PCI (9002) */
 	case 92001: /* Nova-S-Plus (Video and IR) */
 	case 92002: /* Nova-S-Plus (Video and IR) */
