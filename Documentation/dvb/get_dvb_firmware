@@ -34,7 +34,11 @@ for ($i=0; $i < scalar(@components); $i++) {
     if ($cid eq $components[$i]) {
 	$outfile = eval($cid);
 	die $@ if $@;
-	print STDERR "Firmware $outfile extracted successfully. Now copy it to either /lib/firmware or /usr/lib/hotplug/firmware/ (depending on your hotplug version).\n";
+	print STDERR <<EOF;
+Firmware $outfile extracted successfully.
+Now copy it to either /usr/lib/hotplug/firmware or /lib/firmware
+(depending on configuration of firmware hotplug).
+EOF
 	exit(0);
     }
 }

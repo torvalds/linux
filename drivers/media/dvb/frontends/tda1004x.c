@@ -23,7 +23,8 @@
  * This driver needs external firmware. Please use the commands
  * "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10045",
  * "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10046" to
- * download/extract them, and then copy them to /usr/lib/hotplug/firmware.
+ * download/extract them, and then copy them to /usr/lib/hotplug/firmware
+ * or /lib/firmware (depending on configuration of firmware hotplug).
  */
 #define TDA10045_DEFAULT_FIRMWARE "dvb-fe-tda10045.fw"
 #define TDA10046_DEFAULT_FIRMWARE "dvb-fe-tda10046.fw"

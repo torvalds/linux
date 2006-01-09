@@ -64,7 +64,8 @@ config DVB_SP8870
 
 	  This driver needs external firmware. Please use the command
 	  "<kerneldir>/Documentation/dvb/get_dvb_firmware sp8870" to
-	  download/extract it, and then copy it to /usr/lib/hotplug/firmware.
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 config DVB_SP887X
 	tristate "Spase sp887x based"
@@ -75,7 +76,8 @@ config DVB_SP887X
 
 	  This driver needs external firmware. Please use the command
 	  "<kerneldir>/Documentation/dvb/get_dvb_firmware sp887x" to
-	  download/extract it, and then copy it to /usr/lib/hotplug/firmware.
+	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 config DVB_CX22700
 	tristate "Conexant CX22700 based"
@@ -105,7 +107,8 @@ config DVB_TDA1004X
 	  This driver needs external firmware. Please use the commands
 	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10045",
 	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10046" to
-	  download/extract them, and then copy them to /usr/lib/hotplug/firmware.
+	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
+	  or /lib/firmware (depending on configuration of firmware hotplug).
 
 config DVB_NXT6000
 	tristate "NxtWave Communications NXT6000 based"
