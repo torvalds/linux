@@ -11,7 +11,7 @@
  * design, so it can be reused for the "analogue-only" device (if it will
  * appear at all).
  *
- * Use the cx25840-driver for the analogue part
+ * TODO: Use the cx25840-driver for the analogue part
  *
  * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de)
  * Copyright (C) 2005 Michael Krufky (mkrufky@m1k.net)
