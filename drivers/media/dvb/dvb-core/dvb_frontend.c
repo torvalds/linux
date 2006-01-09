@@ -788,7 +788,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	case FE_DISHNETWORK_SEND_LEGACY_CMD:
 		if (fe->ops->dishnetwork_send_legacy_command) {
-			err = fe->ops->dishnetwork_send_legacy_command(fe, (unsigned int) parg);
+			err = fe->ops->dishnetwork_send_legacy_command(fe, (unsigned long) parg);
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		} else if (fe->ops->set_voltage) {
@@ -808,7 +808,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			 * initialization, so parg is 8 bits and does not
 			 * include the initialization or start bit
 			 */
-			unsigned int cmd = ((unsigned int) parg) << 1;
+			unsigned int cmd = ((unsigned long) parg) << 1;
 			struct timeval nexttime;
 			struct timeval tv[10];
 			int i;
@@ -855,7 +855,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	case FE_ENABLE_HIGH_LNB_VOLTAGE:
 		if (fe->ops->enable_high_lnb_voltage)
-			err = fe->ops->enable_high_lnb_voltage(fe, (int) parg);
+			err = fe->ops->enable_high_lnb_voltage(fe, (long) parg);
 		break;
 
 	case FE_SET_FRONTEND: {
@@ -934,7 +934,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case FE_SET_FRONTEND_TUNE_MODE:
-		fepriv->tune_mode_flags = (unsigned int) parg;
+		fepriv->tune_mode_flags = (unsigned long) parg;
 		break;
 	};
 

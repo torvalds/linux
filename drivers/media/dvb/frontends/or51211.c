@@ -112,7 +112,7 @@ static int or51211_load_firmware (struct dvb_frontend* fe,
 	u8 tudata[585];
 	int i;
 
-	dprintk("Firmware is %d bytes\n",fw->size);
+	dprintk("Firmware is %zd bytes\n",fw->size);
 
 	/* Get eprom data */
 	tudata[0] = 17;

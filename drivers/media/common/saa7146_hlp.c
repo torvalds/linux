@@ -562,7 +562,7 @@ static void saa7146_set_position(struct saa7146_dev *dev, int w_x, int w_y, int 
 
 	int b_depth = vv->ov_fmt->depth;
 	int b_bpl = vv->ov_fb.fmt.bytesperline;
-	u32 base = (u32)vv->ov_fb.base;
+	u32 base = (u32)(unsigned long)vv->ov_fb.base;
 
 	struct	saa7146_video_dma vdma1;
 
