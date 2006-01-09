@@ -11,8 +11,7 @@
  * design, so it can be reused for the "analogue-only" device (if it will
  * appear at all).
  *
- * TODO: check if the cx25840-driver (from ivtv) can be used for the analogue
- * part
+ * Use the cx25840-driver for the analogue part
  *
  * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de)
  * Copyright (C) 2005 Michael Krufky (mkrufky@m1k.net)
@@ -343,6 +342,30 @@ static int cxusb_dee1601_frontend_attach(struct dvb_usb_device *d)
 	return -EIO;
 }
 
+/*
+ * DViCO bluebird firmware needs the "warm" product ID to be patched into the
+ * firmware file before download.
+ */
+
+#define BLUEBIRD_01_ID_OFFSET 6638
+static int bluebird_patch_dvico_firmware_download(struct usb_device *udev, const struct firmware *fw)
+{
+	if (fw->size < BLUEBIRD_01_ID_OFFSET + 4)
+		return -EINVAL;
+
+	if (fw->data[BLUEBIRD_01_ID_OFFSET] == (USB_VID_DVICO & 0xff) &&
+	    fw->data[BLUEBIRD_01_ID_OFFSET + 1] == USB_VID_DVICO >> 8) {
+
+		/* FIXME: are we allowed to change the fw-data ? */
+		fw->data[BLUEBIRD_01_ID_OFFSET + 2] = udev->descriptor.idProduct + 1;
+		fw->data[BLUEBIRD_01_ID_OFFSET + 3] = udev->descriptor.idProduct >> 8;
+
+		return usb_cypress_load_firmware(udev,fw,CYPRESS_FX2);
+	}
+
+	return -EINVAL;
+}
+
 /* DVB USB Driver stuff */
 static struct dvb_usb_properties cxusb_medion_properties;
 static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties;
@@ -409,8 +432,9 @@ static struct dvb_usb_properties cxusb_medion_properties = {
 static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
-	.usb_ctrl         = CYPRESS_FX2,
-	.firmware         = "dvb-usb-bluebird-01.fw",
+	.usb_ctrl          = DEVICE_SPECIFIC,
+	.firmware          = "dvb-usb-bluebird-01.fw",
+	.download_firmware = bluebird_patch_dvico_firmware_download,
 	/* use usb alt setting 0 for EP4 transfer (dvb-t),
 	   use usb alt setting 7 for EP2 transfer (atsc) */
 
@@ -448,8 +472,9 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 static struct dvb_usb_properties cxusb_bluebird_dee1601_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
-	.usb_ctrl         = CYPRESS_FX2,
-	.firmware         = "dvb-usb-bluebird-01.fw",
+	.usb_ctrl          = DEVICE_SPECIFIC,
+	.firmware          = "dvb-usb-bluebird-01.fw",
+	.download_firmware = bluebird_patch_dvico_firmware_download,
 	/* use usb alt setting 0 for EP4 transfer (dvb-t),
 	   use usb alt setting 7 for EP2 transfer (atsc) */
 
