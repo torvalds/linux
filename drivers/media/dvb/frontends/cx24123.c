@@ -3,6 +3,8 @@
 
     Copyright (C) 2005 Steven Toth <stoth@hauppauge.com>
 
+    Support for KWorld DVB-S 100 by Vadim Catana <skystar@moldova.cc>
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -573,7 +575,8 @@ static int cx24123_initfe(struct dvb_frontend* fe)
 		state->config->pll_init(fe);
 
 	/* Configure the LNB for 14V */
-	cx24123_writelnbreg(state, 0x0, 0x2a);
+	if (state->config->use_isl6421)
+		cx24123_writelnbreg(state, 0x0, 0x2a);
 
 	return 0;
 }
@@ -583,18 +586,49 @@ static int cx24123_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage
 	struct cx24123_state *state = fe->demodulator_priv;
 	u8 val;
 
-	val = cx24123_readlnbreg(state, 0x0);
+	switch (state->config->use_isl6421) {
 
-	switch (voltage) {
-	case SEC_VOLTAGE_13:
-		return cx24123_writelnbreg(state, 0x0, val & 0x32); /* V 13v */
-	case SEC_VOLTAGE_18:
-		return cx24123_writelnbreg(state, 0x0, val | 0x04); /* H 18v */
-	case SEC_VOLTAGE_OFF:
-		return cx24123_writelnbreg(state, 0x0, val & 0x30);
-	default:
-		return -EINVAL;
-	};
+	case 1:
+
+		val = cx24123_readlnbreg(state, 0x0);
+
+		switch (voltage) {
+		case SEC_VOLTAGE_13:
+			return cx24123_writelnbreg(state, 0x0, val & 0x32); /* V 13v */
+		case SEC_VOLTAGE_18:
+			return cx24123_writelnbreg(state, 0x0, val | 0x04); /* H 18v */
+		case SEC_VOLTAGE_OFF:
+			return cx24123_writelnbreg(state, 0x0, val & 0x30);
+		default:
+			return -EINVAL;
+		};
+
+	case 0:
+
+		val = cx24123_readreg(state, 0x29);
+
+		switch (voltage) {
+		case SEC_VOLTAGE_13:
+			dprintk("%s: setting voltage 13V\n", __FUNCTION__);
+			if (state->config->enable_lnb_voltage)
+				state->config->enable_lnb_voltage(fe, 1);
+			return cx24123_writereg(state, 0x29, val | 0x80);
+		case SEC_VOLTAGE_18:
+			dprintk("%s: setting voltage 18V\n", __FUNCTION__);
+			if (state->config->enable_lnb_voltage)
+				state->config->enable_lnb_voltage(fe, 1);
+			return cx24123_writereg(state, 0x29, val & 0x7f);
+		case SEC_VOLTAGE_OFF:
+			dprintk("%s: setting voltage off\n", __FUNCTION__);
+			if (state->config->enable_lnb_voltage)
+				state->config->enable_lnb_voltage(fe, 0);
+			return 0;
+		default:
+			return -EINVAL;
+		};
+	}
+
+	return 0;
 }
 
 static int cx24123_send_diseqc_msg(struct dvb_frontend* fe,
@@ -729,17 +763,39 @@ static int cx24123_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
 	struct cx24123_state *state = fe->demodulator_priv;
 	u8 val;
 
-	val = cx24123_readlnbreg(state, 0x0);
+	switch (state->config->use_isl6421) {
+	case 1:
 
-	switch (tone) {
-	case SEC_TONE_ON:
-		return cx24123_writelnbreg(state, 0x0, val | 0x10);
-	case SEC_TONE_OFF:
-		return cx24123_writelnbreg(state, 0x0, val & 0x2f);
-	default:
-		printk("%s: CASE reached default with tone=%d\n", __FUNCTION__, tone);
-		return -EINVAL;
+		val = cx24123_readlnbreg(state, 0x0);
+
+		switch (tone) {
+		case SEC_TONE_ON:
+			return cx24123_writelnbreg(state, 0x0, val | 0x10);
+		case SEC_TONE_OFF:
+			return cx24123_writelnbreg(state, 0x0, val & 0x2f);
+		default:
+			printk("%s: CASE reached default with tone=%d\n", __FUNCTION__, tone);
+			return -EINVAL;
+		}
+
+	case 0:
+
+		val = cx24123_readreg(state, 0x29);
+
+		switch (tone) {
+		case SEC_TONE_ON:
+			dprintk("%s: setting tone on\n", __FUNCTION__);
+			return cx24123_writereg(state, 0x29, val | 0x10);
+		case SEC_TONE_OFF:
+			dprintk("%s: setting tone off\n",__FUNCTION__);
+			return cx24123_writereg(state, 0x29, val & 0xef);
+		default:
+			printk("%s: CASE reached default with tone=%d\n", __FUNCTION__, tone);
+			return -EINVAL;
+		}
 	}
+
+	return 0;
 }
 
 static void cx24123_release(struct dvb_frontend* fe)
