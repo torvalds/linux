@@ -26,6 +26,8 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
+#include <linux/interrupt.h>
+#include <linux/cpu.h>
 
 /*
  * for max sense size
@@ -61,12 +63,14 @@ static wait_queue_head_t congestion_wqh[2] = {
 /*
  * Controlling structure to kblockd
  */
-static struct workqueue_struct *kblockd_workqueue; 
+static struct workqueue_struct *kblockd_workqueue;
 
 unsigned long blk_max_low_pfn, blk_max_pfn;
 
 EXPORT_SYMBOL(blk_max_low_pfn);
 EXPORT_SYMBOL(blk_max_pfn);
+
+static DEFINE_PER_CPU(struct list_head, blk_cpu_done);
 
 /* Amount of time in which a process may batch requests */
 #define BLK_BATCH_TIME	(HZ/50UL)
@@ -206,6 +210,13 @@ void blk_queue_merge_bvec(request_queue_t *q, merge_bvec_fn *mbfn)
 
 EXPORT_SYMBOL(blk_queue_merge_bvec);
 
+void blk_queue_softirq_done(request_queue_t *q, softirq_done_fn *fn)
+{
+	q->softirq_done_fn = fn;
+}
+
+EXPORT_SYMBOL(blk_queue_softirq_done);
+
 /**
  * blk_queue_make_request - define an alternate make_request function for a device
  * @q:  the request queue for the device to be affected
@@ -269,6 +280,7 @@ EXPORT_SYMBOL(blk_queue_make_request);
 static inline void rq_init(request_queue_t *q, struct request *rq)
 {
 	INIT_LIST_HEAD(&rq->queuelist);
+	INIT_LIST_HEAD(&rq->donelist);
 
 	rq->errors = 0;
 	rq->rq_status = RQ_ACTIVE;
@@ -285,6 +297,7 @@ static inline void rq_init(request_queue_t *q, struct request *rq)
 	rq->sense = NULL;
 	rq->end_io = NULL;
 	rq->end_io_data = NULL;
+	rq->completion_data = NULL;
 }
 
 /**
@@ -3262,6 +3275,87 @@ int end_that_request_chunk(struct request *req, int uptodate, int nr_bytes)
 EXPORT_SYMBOL(end_that_request_chunk);
 
 /*
+ * splice the completion data to a local structure and hand off to
+ * process_completion_queue() to complete the requests
+ */
+static void blk_done_softirq(struct softirq_action *h)
+{
+	struct list_head *cpu_list;
+	LIST_HEAD(local_list);
+
+	local_irq_disable();
+	cpu_list = &__get_cpu_var(blk_cpu_done);
+	list_splice_init(cpu_list, &local_list);
+	local_irq_enable();
+
+	while (!list_empty(&local_list)) {
+		struct request *rq = list_entry(local_list.next, struct request, donelist);
+
+		list_del_init(&rq->donelist);
+		rq->q->softirq_done_fn(rq);
+	}
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
+			  void *hcpu)
+{
+	/*
+	 * If a CPU goes away, splice its entries to the current CPU
+	 * and trigger a run of the softirq
+	 */
+	if (action == CPU_DEAD) {
+		int cpu = (unsigned long) hcpu;
+
+		local_irq_disable();
+		list_splice_init(&per_cpu(blk_cpu_done, cpu),
+				 &__get_cpu_var(blk_cpu_done));
+		raise_softirq_irqoff(BLOCK_SOFTIRQ);
+		local_irq_enable();
+	}
+
+	return NOTIFY_OK;
+}
+
+
+static struct notifier_block __devinitdata blk_cpu_notifier = {
+	.notifier_call	= blk_cpu_notify,
+};
+
+#endif /* CONFIG_HOTPLUG_CPU */
+
+/**
+ * blk_complete_request - end I/O on a request
+ * @req:      the request being processed
+ *
+ * Description:
+ *     Ends all I/O on a request. It does not handle partial completions,
+ *     unless the driver actually implements this in its completionc callback
+ *     through requeueing. Theh actual completion happens out-of-order,
+ *     through a softirq handler. The user must have registered a completion
+ *     callback through blk_queue_softirq_done().
+ **/
+
+void blk_complete_request(struct request *req)
+{
+	struct list_head *cpu_list;
+	unsigned long flags;
+
+	BUG_ON(!req->q->softirq_done_fn);
+		
+	local_irq_save(flags);
+
+	cpu_list = &__get_cpu_var(blk_cpu_done);
+	list_add_tail(&req->donelist, cpu_list);
+	raise_softirq_irqoff(BLOCK_SOFTIRQ);
+
+	local_irq_restore(flags);
+}
+
+EXPORT_SYMBOL(blk_complete_request);
+	
+/*
  * queue lock must be held
  */
 void end_that_request_last(struct request *req, int uptodate)
@@ -3339,6 +3433,8 @@ EXPORT_SYMBOL(kblockd_flush);
 
 int __init blk_dev_init(void)
 {
+	int i;
+
 	kblockd_workqueue = create_workqueue("kblockd");
 	if (!kblockd_workqueue)
 		panic("Failed to create kblockd\n");
@@ -3351,6 +3447,14 @@ int __init blk_dev_init(void)
 
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
 			sizeof(struct io_context), 0, SLAB_PANIC, NULL, NULL);
+
+	for (i = 0; i < NR_CPUS; i++)
+		INIT_LIST_HEAD(&per_cpu(blk_cpu_done, i));
+
+	open_softirq(BLOCK_SOFTIRQ, blk_done_softirq, NULL);
+#ifdef CONFIG_HOTPLUG_CPU
+	register_cpu_notifier(&blk_cpu_notifier);
+#endif
 
 	blk_max_low_pfn = max_low_pfn;
 	blk_max_pfn = max_pfn;

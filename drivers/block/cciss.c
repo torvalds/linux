@@ -2178,16 +2178,48 @@ static inline void resend_cciss_cmd( ctlr_info_t *h, CommandList_struct *c)
 
 	start_io(h);
 }
+
+static void cciss_softirq_done(struct request *rq)
+{
+	CommandList_struct *cmd = rq->completion_data;
+	ctlr_info_t *h = hba[cmd->ctlr];
+	u64bit temp64;
+	int i, ddir;
+
+	if (cmd->Request.Type.Direction == XFER_READ)
+		ddir = PCI_DMA_FROMDEVICE;
+	else
+		ddir = PCI_DMA_TODEVICE;
+
+	/* command did not need to be retried */
+	/* unmap the DMA mapping for all the scatter gather elements */
+	for(i=0; i<cmd->Header.SGList; i++) {
+		temp64.val32.lower = cmd->SG[i].Addr.lower;
+		temp64.val32.upper = cmd->SG[i].Addr.upper;
+		pci_unmap_page(h->pdev, temp64.val, cmd->SG[i].Len, ddir);
+	}
+
+	complete_buffers(rq->bio, rq->errors);
+
+#ifdef CCISS_DEBUG
+	printk("Done with %p\n", rq);
+#endif /* CCISS_DEBUG */ 
+
+	spin_lock_irq(&h->lock);
+	end_that_request_last(rq, rq->errors);
+	cmd_free(h, cmd,1);
+	spin_unlock_irq(&h->lock);
+}
+
 /* checks the status of the job and calls complete buffers to mark all 
- * buffers for the completed job. 
+ * buffers for the completed job. Note that this function does not need
+ * to hold the hba/queue lock.
  */ 
 static inline void complete_command( ctlr_info_t *h, CommandList_struct *cmd,
 		int timeout)
 {
 	int status = 1;
-	int i;
 	int retry_cmd = 0;
-	u64bit temp64;
 		
 	if (timeout)
 		status = 0; 
@@ -2295,24 +2327,10 @@ static inline void complete_command( ctlr_info_t *h, CommandList_struct *cmd,
 		resend_cciss_cmd(h,cmd);
 		return;
 	}	
-	/* command did not need to be retried */
-	/* unmap the DMA mapping for all the scatter gather elements */
-	for(i=0; i<cmd->Header.SGList; i++) {
-		temp64.val32.lower = cmd->SG[i].Addr.lower;
-		temp64.val32.upper = cmd->SG[i].Addr.upper;
-		pci_unmap_page(hba[cmd->ctlr]->pdev,
-			temp64.val, cmd->SG[i].Len,
-			(cmd->Request.Type.Direction == XFER_READ) ?
-				PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE);
-	}
-	complete_buffers(cmd->rq->bio, status);
 
-#ifdef CCISS_DEBUG
-	printk("Done with %p\n", cmd->rq);
-#endif /* CCISS_DEBUG */ 
-
-	end_that_request_last(cmd->rq, status ? 1 : -EIO);
-	cmd_free(h,cmd,1);
+	cmd->rq->completion_data = cmd;
+	cmd->rq->errors = status;
+	blk_complete_request(cmd->rq);
 }
 
 /* 
@@ -3199,15 +3217,17 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 		drv->queue = q;
 
 		q->backing_dev_info.ra_pages = READ_AHEAD;
-	blk_queue_bounce_limit(q, hba[i]->pdev->dma_mask);
+		blk_queue_bounce_limit(q, hba[i]->pdev->dma_mask);
 
-	/* This is a hardware imposed limit. */
-	blk_queue_max_hw_segments(q, MAXSGENTRIES);
+		/* This is a hardware imposed limit. */
+		blk_queue_max_hw_segments(q, MAXSGENTRIES);
 
-	/* This is a limit in the driver and could be eliminated. */
-	blk_queue_max_phys_segments(q, MAXSGENTRIES);
+		/* This is a limit in the driver and could be eliminated. */
+		blk_queue_max_phys_segments(q, MAXSGENTRIES);
 
-	blk_queue_max_sectors(q, 512);
+		blk_queue_max_sectors(q, 512);
+
+		blk_queue_softirq_done(q, cciss_softirq_done);
 
 		q->queuedata = hba[i];
 		sprintf(disk->disk_name, "cciss/c%dd%d", i, j);

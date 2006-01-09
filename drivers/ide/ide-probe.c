@@ -1011,6 +1011,8 @@ static int ide_init_queue(ide_drive_t *drive)
 	blk_queue_max_hw_segments(q, max_sg_entries);
 	blk_queue_max_phys_segments(q, max_sg_entries);
 
+	blk_queue_softirq_done(q, ide_softirq_done);
+
 	/* assign drive queue */
 	drive->queue = q;
 
