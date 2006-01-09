@@ -4075,8 +4075,6 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	}
 
 	/* add subdevices */
-	if (btv->has_remote)
-		bttv_sub_add_device(&btv->c, "remote");
 	if (bttv_tvcards[btv->c.type].has_dvb)
 		bttv_sub_add_device(&btv->c, "dvb");
 
@@ -4117,7 +4115,7 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 	btv->shutdown=1;
 	wake_up(&btv->gpioq);
 	bttv_input_fini(btv);
-	//bttv_sub_del_devices(&btv->c);
+	bttv_sub_del_devices(&btv->c);
 
 	/* unregister i2c_bus + input */
 	fini_bttv_i2c(btv);
