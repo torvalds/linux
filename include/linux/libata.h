@@ -499,6 +499,8 @@ extern int ata_scsi_slave_config(struct scsi_device *sdev);
 /*
  * Timing helpers
  */
+
+extern unsigned int ata_pio_need_iordy(const struct ata_device *);
 extern int ata_timing_compute(struct ata_device *, unsigned short,
 			      struct ata_timing *, int, int);
 extern void ata_timing_merge(const struct ata_timing *,

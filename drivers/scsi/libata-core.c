@@ -1169,6 +1169,39 @@ ata_exec_internal(struct ata_port *ap, struct ata_device *dev,
 }
 
 /**
+ *	ata_pio_need_iordy	-	check if iordy needed
+ *	@adev: ATA device
+ *
+ *	Check if the current speed of the device requires IORDY. Used
+ *	by various controllers for chip configuration.
+ */
+
+unsigned int ata_pio_need_iordy(const struct ata_device *adev)
+{
+	int pio;
+	int speed = adev->pio_mode - XFER_PIO_0;
+
+	if (speed < 2)
+		return 0;
+	if (speed > 2)
+		return 1;
+		
+	/* If we have no drive specific rule, then PIO 2 is non IORDY */
+
+	if (adev->id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE */
+		pio = adev->id[ATA_ID_EIDE_PIO];
+		/* Is the speed faster than the drive allows non IORDY ? */
+		if (pio) {
+			/* This is cycle times not frequency - watch the logic! */
+			if (pio > 240)	/* PIO2 is 240nS per cycle */
+				return 1;
+			return 0;
+		}
+	}
+	return 0;
+}
+
+/**
  *	ata_dev_identify - obtain IDENTIFY x DEVICE page
  *	@ap: port on which device we wish to probe resides
  *	@device: device bus address, starting at zero
@@ -5126,6 +5159,7 @@ EXPORT_SYMBOL_GPL(ata_dev_id_string);
 EXPORT_SYMBOL_GPL(ata_dev_config);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
+EXPORT_SYMBOL_GPL(ata_pio_need_iordy);
 EXPORT_SYMBOL_GPL(ata_timing_compute);
 EXPORT_SYMBOL_GPL(ata_timing_merge);
 
