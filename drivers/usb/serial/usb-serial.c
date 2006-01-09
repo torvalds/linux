@@ -584,7 +584,7 @@ static struct usb_serial_driver *search_serial_device(struct usb_interface *ifac
 	const struct usb_device_id *id;
 	struct usb_serial_driver *t;
 
-	/* List trough know devices and see if the usb id matches */
+	/* Check if the usb id matches a known device */
 	list_for_each(p, &usb_serial_driver_list) {
 		t = list_entry(p, struct usb_serial_driver, driver_list);
 		id = usb_match_id(iface, t->id_table);

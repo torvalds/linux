@@ -347,7 +347,7 @@ static void led_LCD_driver(unsigned char leds)
    ** 
    ** led_get_net_activity()
    ** 
-   ** calculate if there was TX- or RX-troughput on the network interfaces
+   ** calculate if there was TX- or RX-throughput on the network interfaces
    ** (analog to dev_get_info() from net/core/dev.c)
    **   
  */

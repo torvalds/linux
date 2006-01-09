@@ -32,7 +32,7 @@ History:
  18 mrt 1995: 0.24 Working background read-ahead. (still problems)
  26 mrt 1995: 0.25 Multi-session ioctl added (kernel v1.2).
               Statistics implemented, though separate stats206.h.
-	      Accessible trough ioctl 0x1000 (just a number).
+	      Accessible through ioctl 0x1000 (just a number).
 	      Hard to choose between v1.2 development and 1.1.75.
 	      Bottom-half doesn't work with 1.2...
 	      0.25a: fixed... typo. Still problems...
