@@ -1031,6 +1031,23 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL] = {
+		.name           = "DViCO FusionHDTV DVB-T Dual Digital",
+		.tuner_type     = TUNER_ABSENT, /* No analog tuner */
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x000027df,
+		 },{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x000027df,
+		}},
+		.dvb            = 1,
+	},
 
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
@@ -1223,6 +1240,10 @@ struct cx88_subid cx88_subids[] = {
 	       .subvendor = 0x17de,
 	       .subdevice = 0x08a1,
 	       .card      = CX88_BOARD_KWORLD_DVB_T_CX22702,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xdb50,
+		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL,
        }
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1405,6 +1426,7 @@ void cx88_card_setup(struct cx88_core *core)
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1:
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS:
+	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL:
 		/* GPIO0:0 is hooked to mt352 reset pin */
 		cx_set(MO_GP0_IO, 0x00000101);
 		cx_clear(MO_GP0_IO, 0x00000001);
