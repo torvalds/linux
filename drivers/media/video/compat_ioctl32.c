@@ -316,3 +316,5 @@ long v4l_compat_ioctl32(struct file *file, unsigned int cmd, unsigned long arg)
 }
 #endif
 EXPORT_SYMBOL_GPL(v4l_compat_ioctl32);
+
+MODULE_LICENSE("GPL");
