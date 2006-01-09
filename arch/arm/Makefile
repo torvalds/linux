@@ -84,7 +84,6 @@ endif
  machine-$(CONFIG_ARCH_PXA)	   := pxa
  machine-$(CONFIG_ARCH_L7200)	   := l7200
  machine-$(CONFIG_ARCH_INTEGRATOR) := integrator
- machine-$(CONFIG_ARCH_CAMELOT)	   := epxa10db
  textofs-$(CONFIG_ARCH_CLPS711X)   := 0x00028000
  machine-$(CONFIG_ARCH_CLPS711X)   := clps711x
  machine-$(CONFIG_ARCH_IOP3XX)	   := iop3xx
@@ -100,6 +99,7 @@ endif
  machine-$(CONFIG_ARCH_H720X)	   := h720x
  machine-$(CONFIG_ARCH_AAEC2000)   := aaec2000
  machine-$(CONFIG_ARCH_REALVIEW)   := realview
+ machine-$(CONFIG_ARCH_AT91RM9200) := at91rm9200
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

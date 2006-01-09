@@ -50,7 +50,6 @@
 #include <asm/system.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 
 #include "../8390.h"
 

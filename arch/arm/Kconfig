@@ -99,13 +99,6 @@ config ARCH_EBSA110
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
 
-config ARCH_CAMELOT
-	bool "Epxa10db"
-	help
-	  This enables support for Altera's Excalibur XA10 development board.
-	  If you would like to build your kernel to run on one of these boards
-	  then you must say 'Y' here. Otherwise say 'N'
-
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	select FOOTBRIDGE
@@ -213,11 +206,15 @@ config ARCH_AAEC2000
 	help
 	  This enables support for systems based on the Agilent AAEC-2000
 
+config ARCH_AT91RM9200
+	bool "AT91RM9200"
+	help
+	  Say Y here if you intend to run this kernel on an AT91RM9200-based
+	  board.
+
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
-
-source "arch/arm/mach-epxa10db/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
@@ -252,6 +249,8 @@ source "arch/arm/mach-versatile/Kconfig"
 source "arch/arm/mach-aaec2000/Kconfig"
 
 source "arch/arm/mach-realview/Kconfig"
+
+source "arch/arm/mach-at91rm9200/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -418,7 +417,8 @@ config LEDS
 		   ARCH_EBSA285 || ARCH_IMX || ARCH_INTEGRATOR || \
 		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
-		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE
+		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
+		   ARCH_AT91RM9200
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.

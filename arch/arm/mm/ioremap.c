@@ -86,11 +86,12 @@ remap_area_pmd(pmd_t * pmd, unsigned long address, unsigned long size,
 }
 
 static int
-remap_area_pages(unsigned long start, unsigned long phys_addr,
+remap_area_pages(unsigned long start, unsigned long pfn,
 		 unsigned long size, unsigned long flags)
 {
 	unsigned long address = start;
 	unsigned long end = start + size;
+	unsigned long phys_addr = __pfn_to_phys(pfn);
 	int err = 0;
 	pgd_t * dir;
 
@@ -130,36 +131,44 @@ remap_area_pages(unsigned long start, unsigned long phys_addr,
  * mapping.  See include/asm-arm/proc-armv/pgtable.h for more information.
  */
 void __iomem *
+__ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
+	      unsigned long flags)
+{
+	unsigned long addr;
+ 	struct vm_struct * area;
+
+ 	area = get_vm_area(size, VM_IOREMAP);
+ 	if (!area)
+ 		return NULL;
+ 	addr = (unsigned long)area->addr;
+ 	if (remap_area_pages(addr, pfn, size, flags)) {
+ 		vfree(addr);
+ 		return NULL;
+ 	}
+ 	return (void __iomem *) (offset + (char *)addr);
+}
+EXPORT_SYMBOL(__ioremap_pfn);
+
+void __iomem *
 __ioremap(unsigned long phys_addr, size_t size, unsigned long flags)
 {
-	void * addr;
-	struct vm_struct * area;
-	unsigned long offset, last_addr;
+	unsigned long last_addr;
+ 	unsigned long offset = phys_addr & ~PAGE_MASK;
+ 	unsigned long pfn = __phys_to_pfn(phys_addr);
 
-	/* Don't allow wraparound or zero size */
+ 	/*
+ 	 * Don't allow wraparound or zero size
+	 */
 	last_addr = phys_addr + size - 1;
 	if (!size || last_addr < phys_addr)
 		return NULL;
 
 	/*
-	 * Mappings have to be page-aligned
+ 	 * Page align the mapping size
 	 */
-	offset = phys_addr & ~PAGE_MASK;
-	phys_addr &= PAGE_MASK;
 	size = PAGE_ALIGN(last_addr + 1) - phys_addr;
 
-	/*
-	 * Ok, go for it..
-	 */
-	area = get_vm_area(size, VM_IOREMAP);
-	if (!area)
-		return NULL;
-	addr = area->addr;
-	if (remap_area_pages((unsigned long) addr, phys_addr, size, flags)) {
-		vfree(addr);
-		return NULL;
-	}
-	return (void __iomem *) (offset + (char *)addr);
+ 	return __ioremap_pfn(pfn, offset, size, flags);
 }
 EXPORT_SYMBOL(__ioremap);
 
