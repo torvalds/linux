@@ -246,6 +246,15 @@ struct av7110 {
 
 	struct dvb_frontend* fe;
 	fe_status_t fe_status;
+
+	/* crash recovery */
+	void				(*recover)(struct av7110* av7110);
+	struct dvb_frontend_parameters	saved_fe_params;
+	fe_sec_voltage_t		saved_voltage;
+	fe_sec_tone_mode_t		saved_tone;
+	struct dvb_diseqc_master_cmd	saved_master_cmd;
+	fe_sec_mini_cmd_t		saved_minicmd;
+
 	int (*fe_init)(struct dvb_frontend* fe);
 	int (*fe_read_status)(struct dvb_frontend* fe, fe_status_t* status);
 	int (*fe_diseqc_reset_overload)(struct dvb_frontend* fe);
