@@ -37,7 +37,7 @@ module_param(firmware, charp, 0444);
 MODULE_PARM_DESC(fastfw, "Load firmware fast [0=100MHz 1=333MHz (default)]");
 MODULE_PARM_DESC(firmware, "Firmware image [default: " FWFILE "]");
 
-static inline void set_i2c_delay(struct i2c_client *client, int delay)
+static void set_i2c_delay(struct i2c_client *client, int delay)
 {
 	struct i2c_algo_bit_data *algod = client->adapter->algo_data;
 
@@ -51,7 +51,7 @@ static inline void set_i2c_delay(struct i2c_client *client, int delay)
 	}
 }
 
-static inline void start_fw_load(struct i2c_client *client)
+static void start_fw_load(struct i2c_client *client)
 {
 	/* DL_ADDR_LB=0 DL_ADDR_HB=0 */
 	cx25840_write(client, 0x800, 0x00);
@@ -65,7 +65,7 @@ static inline void start_fw_load(struct i2c_client *client)
 		set_i2c_delay(client, 3);
 }
 
-static inline void end_fw_load(struct i2c_client *client)
+static void end_fw_load(struct i2c_client *client)
 {
 	if (fastfw)
 		set_i2c_delay(client, 10);
@@ -76,7 +76,7 @@ static inline void end_fw_load(struct i2c_client *client)
 	cx25840_write(client, 0x803, 0x03);
 }
 
-static inline int check_fw_load(struct i2c_client *client, int size)
+static int check_fw_load(struct i2c_client *client, int size)
 {
 	/* DL_ADDR_HB DL_ADDR_LB */
 	int s = cx25840_read(client, 0x801) << 8;
@@ -91,7 +91,7 @@ static inline int check_fw_load(struct i2c_client *client, int size)
 	return 0;
 }
 
-static inline int fw_write(struct i2c_client *client, u8 * data, int size)
+static int fw_write(struct i2c_client *client, u8 * data, int size)
 {
 	int sent;
 

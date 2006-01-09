@@ -170,7 +170,7 @@ void cx25840_audio_set_path(struct i2c_client *client)
 	set_audclk_freq(client, state->audclk_freq);
 }
 
-inline static int get_volume(struct i2c_client *client)
+static int get_volume(struct i2c_client *client)
 {
 	/* Volume runs +18dB to -96dB in 1/2dB steps
 	 * change to fit the msp3400 -114dB to +12dB range */
@@ -181,7 +181,7 @@ inline static int get_volume(struct i2c_client *client)
 	return vol << 9;
 }
 
-inline static void set_volume(struct i2c_client *client, int volume)
+static void set_volume(struct i2c_client *client, int volume)
 {
 	/* First convert the volume to msp3400 values (0-127) */
 	int vol = volume >> 9;
@@ -198,7 +198,7 @@ inline static void set_volume(struct i2c_client *client, int volume)
 	cx25840_write(client, 0x8d4, 228 - (vol * 2));
 }
 
-inline static int get_bass(struct i2c_client *client)
+static int get_bass(struct i2c_client *client)
 {
 	/* bass is 49 steps +12dB to -12dB */
 
@@ -208,13 +208,13 @@ inline static int get_bass(struct i2c_client *client)
 	return bass;
 }
 
-inline static void set_bass(struct i2c_client *client, int bass)
+static void set_bass(struct i2c_client *client, int bass)
 {
 	/* PATH1_EQ_BASS_VOL */
 	cx25840_and_or(client, 0x8d9, ~0x3f, 48 - (bass * 48 / 0xffff));
 }
 
-inline static int get_treble(struct i2c_client *client)
+static int get_treble(struct i2c_client *client)
 {
 	/* treble is 49 steps +12dB to -12dB */
 
@@ -224,13 +224,13 @@ inline static int get_treble(struct i2c_client *client)
 	return treble;
 }
 
-inline static void set_treble(struct i2c_client *client, int treble)
+static void set_treble(struct i2c_client *client, int treble)
 {
 	/* PATH1_EQ_TREBLE_VOL */
 	cx25840_and_or(client, 0x8db, ~0x3f, 48 - (treble * 48 / 0xffff));
 }
 
-inline static int get_balance(struct i2c_client *client)
+static int get_balance(struct i2c_client *client)
 {
 	/* balance is 7 bit, 0 to -96dB */
 
@@ -244,7 +244,7 @@ inline static int get_balance(struct i2c_client *client)
 	return balance << 8;
 }
 
-inline static void set_balance(struct i2c_client *client, int balance)
+static void set_balance(struct i2c_client *client, int balance)
 {
 	int bal = balance >> 8;
 	if (bal > 0x80) {
@@ -260,13 +260,13 @@ inline static void set_balance(struct i2c_client *client, int balance)
 	}
 }
 
-inline static int get_mute(struct i2c_client *client)
+static int get_mute(struct i2c_client *client)
 {
 	/* check SRC1_MUTE_EN */
 	return cx25840_read(client, 0x8d3) & 0x2 ? 1 : 0;
 }
 
-inline static void set_mute(struct i2c_client *client, int mute)
+static void set_mute(struct i2c_client *client, int mute)
 {
 	struct cx25840_state *state = i2c_get_clientdata(client);
 

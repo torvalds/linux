@@ -121,7 +121,7 @@ static void log_status(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
 
-static inline void init_dll1(struct i2c_client *client)
+static void init_dll1(struct i2c_client *client)
 {
 	/* This is the Hauppauge sequence used to
 	 * initialize the Delay Lock Loop 1 (ADC DLL). */
@@ -135,7 +135,7 @@ static inline void init_dll1(struct i2c_client *client)
 	cx25840_write(client, 0x15b, 0x10);
 }
 
-static inline void init_dll2(struct i2c_client *client)
+static void init_dll2(struct i2c_client *client)
 {
 	/* This is the Hauppauge sequence used to
 	 * initialize the Delay Lock Loop 2 (ADC DLL). */
@@ -562,6 +562,91 @@ static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 
 /* ----------------------------------------------------------------------- */
 
+static struct v4l2_queryctrl cx25840_qctrl[] = {
+	{
+		.id            = V4L2_CID_BRIGHTNESS,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "Brightness",
+		.minimum       = 0,
+		.maximum       = 255,
+		.step          = 1,
+		.default_value = 128,
+		.flags         = 0,
+	}, {
+		.id            = V4L2_CID_CONTRAST,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "Contrast",
+		.minimum       = 0,
+		.maximum       = 255,
+		.step          = 1,
+		.default_value = 64,
+		.flags         = 0,
+	}, {
+		.id            = V4L2_CID_SATURATION,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "Saturation",
+		.minimum       = 0,
+		.maximum       = 255,
+		.step          = 1,
+		.default_value = 64,
+		.flags         = 0,
+	}, {
+		.id            = V4L2_CID_HUE,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "Hue",
+		.minimum       = -128,
+		.maximum       = 127,
+		.step          = 1,
+		.default_value = 0,
+		.flags 	       = 0,
+	}, {
+		.id            = V4L2_CID_AUDIO_VOLUME,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "Volume",
+		.minimum       = 0,
+		.maximum       = 65535,
+		.step          = 65535/100,
+		.default_value = 58880,
+		.flags         = 0,
+	}, {
+		.id            = V4L2_CID_AUDIO_BALANCE,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "Balance",
+		.minimum       = 0,
+		.maximum       = 65535,
+		.step          = 65535/100,
+		.default_value = 32768,
+		.flags         = 0,
+	}, {
+		.id            = V4L2_CID_AUDIO_MUTE,
+		.type          = V4L2_CTRL_TYPE_BOOLEAN,
+		.name          = "Mute",
+		.minimum       = 0,
+		.maximum       = 1,
+		.step          = 1,
+		.default_value = 1,
+		.flags         = 0,
+	}, {
+		.id            = V4L2_CID_AUDIO_BASS,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "Bass",
+		.minimum       = 0,
+		.maximum       = 65535,
+		.step          = 65535/100,
+		.default_value = 32768,
+	}, {
+		.id            = V4L2_CID_AUDIO_TREBLE,
+		.type          = V4L2_CTRL_TYPE_INTEGER,
+		.name          = "Treble",
+		.minimum       = 0,
+		.maximum       = 65535,
+		.step          = 65535/100,
+		.default_value = 32768,
+	},
+};
+
+/* ----------------------------------------------------------------------- */
+
 static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 			   void *arg)
 {
@@ -622,6 +707,19 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 
 	case VIDIOC_S_CTRL:
 		return set_v4lctrl(client, (struct v4l2_control *)arg);
+
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *qc = arg;
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(cx25840_qctrl); i++)
+			if (qc->id && qc->id == cx25840_qctrl[i].id) {
+				memcpy(qc, &cx25840_qctrl[i], sizeof(*qc));
+				return 0;
+			}
+		return -EINVAL;
+	}
 
 	case VIDIOC_G_STD:
 		*(v4l2_std_id *)arg = cx25840_get_v4lstd(client);
