@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 #include <asm/scatterlist.h>
 #include <asm/byteorder.h>
@@ -235,39 +236,17 @@ static void
 sha512_final(void *ctx, u8 *hash)
 {
         struct sha512_ctx *sctx = ctx;
-	
         static u8 padding[128] = { 0x80, };
-
-        u32 t;
-	u64 t2;
-        u8 bits[128];
+	__be64 *dst = (__be64 *)hash;
+	__be32 bits[4];
 	unsigned int index, pad_len;
-	int i, j;
-
-        index = pad_len = t = i = j = 0;
-        t2 = 0;
+	int i;
 
 	/* Save number of bits */
-	t = sctx->count[0];
-	bits[15] = t; t>>=8;
-	bits[14] = t; t>>=8;
-	bits[13] = t; t>>=8;
-	bits[12] = t; 
-	t = sctx->count[1];
-	bits[11] = t; t>>=8;
-	bits[10] = t; t>>=8;
-	bits[9 ] = t; t>>=8;
-	bits[8 ] = t; 
-	t = sctx->count[2];
-	bits[7 ] = t; t>>=8;
-	bits[6 ] = t; t>>=8;
-	bits[5 ] = t; t>>=8;
-	bits[4 ] = t; 
-	t = sctx->count[3];
-	bits[3 ] = t; t>>=8;
-	bits[2 ] = t; t>>=8;
-	bits[1 ] = t; t>>=8;
-	bits[0 ] = t; 
+	bits[3] = cpu_to_be32(sctx->count[0]);
+	bits[2] = cpu_to_be32(sctx->count[1]);
+	bits[1] = cpu_to_be32(sctx->count[2]);
+	bits[0] = cpu_to_be32(sctx->count[3]);
 
 	/* Pad out to 112 mod 128. */
 	index = (sctx->count[0] >> 3) & 0x7f;
@@ -275,21 +254,12 @@ sha512_final(void *ctx, u8 *hash)
 	sha512_update(sctx, padding, pad_len);
 
 	/* Append length (before padding) */
-	sha512_update(sctx, bits, 16);
+	sha512_update(sctx, (const u8 *)bits, sizeof(bits));
 
 	/* Store state in digest */
-	for (i = j = 0; i < 8; i++, j += 8) {
-		t2 = sctx->state[i];
-		hash[j+7] = (char)t2 & 0xff; t2>>=8;
-		hash[j+6] = (char)t2 & 0xff; t2>>=8;
-		hash[j+5] = (char)t2 & 0xff; t2>>=8;
-		hash[j+4] = (char)t2 & 0xff; t2>>=8;
-		hash[j+3] = (char)t2 & 0xff; t2>>=8;
-		hash[j+2] = (char)t2 & 0xff; t2>>=8;
-		hash[j+1] = (char)t2 & 0xff; t2>>=8;
-		hash[j  ] = (char)t2 & 0xff;
-	}
-	
+	for (i = 0; i < 8; i++)
+		dst[i] = cpu_to_be64(sctx->state[i]);
+
 	/* Zeroize sensitive information. */
 	memset(sctx, 0, sizeof(struct sha512_ctx));
 }

@@ -130,10 +130,9 @@ tcf_pedit_cleanup(struct tc_action *a, int bind)
 }
 
 static int
-tcf_pedit(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
+tcf_pedit(struct sk_buff *skb, struct tc_action *a, struct tcf_result *res)
 {
 	struct tcf_pedit *p = PRIV(a, pedit);
-	struct sk_buff *skb = *pskb;
 	int i, munged = 0;
 	u8 *pptr;
 
@@ -246,10 +245,12 @@ tcf_pedit_dump(struct sk_buff *skb, struct tc_action *a,int bind, int ref)
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tm.expires);
 	RTA_PUT(skb, TCA_PEDIT_TM, sizeof(t), &t);
+	kfree(opt);
 	return skb->len;
 
 rtattr_failure:
 	skb_trim(skb, b - skb->data);
+	kfree(opt);
 	return -1;
 }
 

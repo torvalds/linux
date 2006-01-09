@@ -24,6 +24,7 @@
 #include <linux/crypto.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/types.h>
 #include <asm/byteorder.h>
 
 #define MD4_DIGEST_SIZE		16

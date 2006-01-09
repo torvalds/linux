@@ -1092,15 +1092,12 @@ int skb_checksum_help(struct sk_buff *skb, int inward)
 			goto out;
 	}
 
-	if (offset > (int)skb->len)
-		BUG();
+	BUG_ON(offset > (int)skb->len);
 	csum = skb_checksum(skb, offset, skb->len-offset, 0);
 
 	offset = skb->tail - skb->h.raw;
-	if (offset <= 0)
-		BUG();
-	if (skb->csum + 2 > offset)
-		BUG();
+	BUG_ON(offset <= 0);
+	BUG_ON(skb->csum + 2 > offset);
 
 	*(u16*)(skb->h.raw + skb->csum) = csum_fold(csum);
 	skb->ip_summed = CHECKSUM_NONE;

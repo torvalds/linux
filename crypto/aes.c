@@ -73,9 +73,6 @@ byte(const u32 x, const unsigned n)
 	return x >> (n << 3);
 }
 
-#define u32_in(x) le32_to_cpu(*(const u32 *)(x))
-#define u32_out(to, from) (*(u32 *)(to) = cpu_to_le32(from))
-
 struct aes_ctx {
 	int key_length;
 	u32 E[60];
@@ -256,6 +253,7 @@ static int
 aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 {
 	struct aes_ctx *ctx = ctx_arg;
+	const __le32 *key = (const __le32 *)in_key;
 	u32 i, t, u, v, w;
 
 	if (key_len != 16 && key_len != 24 && key_len != 32) {
@@ -265,10 +263,10 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 
 	ctx->key_length = key_len;
 
-	E_KEY[0] = u32_in (in_key);
-	E_KEY[1] = u32_in (in_key + 4);
-	E_KEY[2] = u32_in (in_key + 8);
-	E_KEY[3] = u32_in (in_key + 12);
+	E_KEY[0] = le32_to_cpu(key[0]);
+	E_KEY[1] = le32_to_cpu(key[1]);
+	E_KEY[2] = le32_to_cpu(key[2]);
+	E_KEY[3] = le32_to_cpu(key[3]);
 
 	switch (key_len) {
 	case 16:
@@ -278,17 +276,17 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 		break;
 
 	case 24:
-		E_KEY[4] = u32_in (in_key + 16);
-		t = E_KEY[5] = u32_in (in_key + 20);
+		E_KEY[4] = le32_to_cpu(key[4]);
+		t = E_KEY[5] = le32_to_cpu(key[5]);
 		for (i = 0; i < 8; ++i)
 			loop6 (i);
 		break;
 
 	case 32:
-		E_KEY[4] = u32_in (in_key + 16);
-		E_KEY[5] = u32_in (in_key + 20);
-		E_KEY[6] = u32_in (in_key + 24);
-		t = E_KEY[7] = u32_in (in_key + 28);
+		E_KEY[4] = le32_to_cpu(key[4]);
+		E_KEY[5] = le32_to_cpu(key[5]);
+		E_KEY[6] = le32_to_cpu(key[6]);
+		t = E_KEY[7] = le32_to_cpu(key[7]);
 		for (i = 0; i < 7; ++i)
 			loop8 (i);
 		break;
@@ -324,13 +322,15 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 static void aes_encrypt(void *ctx_arg, u8 *out, const u8 *in)
 {
 	const struct aes_ctx *ctx = ctx_arg;
+	const __le32 *src = (const __le32 *)in;
+	__le32 *dst = (__le32 *)out;
 	u32 b0[4], b1[4];
 	const u32 *kp = E_KEY + 4;
 
-	b0[0] = u32_in (in) ^ E_KEY[0];
-	b0[1] = u32_in (in + 4) ^ E_KEY[1];
-	b0[2] = u32_in (in + 8) ^ E_KEY[2];
-	b0[3] = u32_in (in + 12) ^ E_KEY[3];
+	b0[0] = le32_to_cpu(src[0]) ^ E_KEY[0];
+	b0[1] = le32_to_cpu(src[1]) ^ E_KEY[1];
+	b0[2] = le32_to_cpu(src[2]) ^ E_KEY[2];
+	b0[3] = le32_to_cpu(src[3]) ^ E_KEY[3];
 
 	if (ctx->key_length > 24) {
 		f_nround (b1, b0, kp);
@@ -353,10 +353,10 @@ static void aes_encrypt(void *ctx_arg, u8 *out, const u8 *in)
 	f_nround (b1, b0, kp);
 	f_lround (b0, b1, kp);
 
-	u32_out (out, b0[0]);
-	u32_out (out + 4, b0[1]);
-	u32_out (out + 8, b0[2]);
-	u32_out (out + 12, b0[3]);
+	dst[0] = cpu_to_le32(b0[0]);
+	dst[1] = cpu_to_le32(b0[1]);
+	dst[2] = cpu_to_le32(b0[2]);
+	dst[3] = cpu_to_le32(b0[3]);
 }
 
 /* decrypt a block of text */
@@ -377,14 +377,16 @@ static void aes_encrypt(void *ctx_arg, u8 *out, const u8 *in)
 static void aes_decrypt(void *ctx_arg, u8 *out, const u8 *in)
 {
 	const struct aes_ctx *ctx = ctx_arg;
+	const __le32 *src = (const __le32 *)in;
+	__le32 *dst = (__le32 *)out;
 	u32 b0[4], b1[4];
 	const int key_len = ctx->key_length;
 	const u32 *kp = D_KEY + key_len + 20;
 
-	b0[0] = u32_in (in) ^ E_KEY[key_len + 24];
-	b0[1] = u32_in (in + 4) ^ E_KEY[key_len + 25];
-	b0[2] = u32_in (in + 8) ^ E_KEY[key_len + 26];
-	b0[3] = u32_in (in + 12) ^ E_KEY[key_len + 27];
+	b0[0] = le32_to_cpu(src[0]) ^ E_KEY[key_len + 24];
+	b0[1] = le32_to_cpu(src[1]) ^ E_KEY[key_len + 25];
+	b0[2] = le32_to_cpu(src[2]) ^ E_KEY[key_len + 26];
+	b0[3] = le32_to_cpu(src[3]) ^ E_KEY[key_len + 27];
 
 	if (key_len > 24) {
 		i_nround (b1, b0, kp);
@@ -407,18 +409,21 @@ static void aes_decrypt(void *ctx_arg, u8 *out, const u8 *in)
 	i_nround (b1, b0, kp);
 	i_lround (b0, b1, kp);
 
-	u32_out (out, b0[0]);
-	u32_out (out + 4, b0[1]);
-	u32_out (out + 8, b0[2]);
-	u32_out (out + 12, b0[3]);
+	dst[0] = cpu_to_le32(b0[0]);
+	dst[1] = cpu_to_le32(b0[1]);
+	dst[2] = cpu_to_le32(b0[2]);
+	dst[3] = cpu_to_le32(b0[3]);
 }
 
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
+	.cra_driver_name	=	"aes-generic",
+	.cra_priority		=	100,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct aes_ctx),
+	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(aes_alg.cra_list),
 	.cra_u			=	{

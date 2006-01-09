@@ -44,9 +44,8 @@ static DEFINE_RWLOCK(simp_lock);
 #include <net/pkt_act.h>
 #include <net/act_generic.h>
 
-static int tcf_simp(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
+static int tcf_simp(struct sk_buff *skb, struct tc_action *a, struct tcf_result *res)
 {
-	struct sk_buff *skb = *pskb;
 	struct tcf_defact *p = PRIV(a, defact);
 
 	spin_lock(&p->lock);

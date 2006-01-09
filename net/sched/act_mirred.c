@@ -158,12 +158,11 @@ tcf_mirred_cleanup(struct tc_action *a, int bind)
 }
 
 static int
-tcf_mirred(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
+tcf_mirred(struct sk_buff *skb, struct tc_action *a, struct tcf_result *res)
 {
 	struct tcf_mirred *p = PRIV(a, mirred);
 	struct net_device *dev;
 	struct sk_buff *skb2 = NULL;
-	struct sk_buff *skb = *pskb;
 	u32 at = G_TC_AT(skb->tc_verd);
 
 	spin_lock(&p->lock);
