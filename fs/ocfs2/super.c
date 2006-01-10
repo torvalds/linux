@@ -932,7 +932,7 @@ static void ocfs2_inode_init_once(void *data,
 		oi->ip_dir_start_lookup = 0;
 
 		init_rwsem(&oi->ip_alloc_sem);
-		init_MUTEX(&(oi->ip_io_sem));
+		mutex_init(&oi->ip_io_mutex);
 
 		oi->ip_blkno = 0ULL;
 		oi->ip_clusters = 0;

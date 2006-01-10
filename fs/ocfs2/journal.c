@@ -401,7 +401,7 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	 * j_trans_barrier for us. */
 	ocfs2_set_inode_lock_trans(OCFS2_SB(inode->i_sb)->journal, inode);
 
-	down(&OCFS2_I(inode)->ip_io_sem);
+	mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
 	switch (type) {
 	case OCFS2_JOURNAL_ACCESS_CREATE:
 	case OCFS2_JOURNAL_ACCESS_WRITE:
@@ -416,7 +416,7 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 		status = -EINVAL;
 		mlog(ML_ERROR, "Uknown access type!\n");
 	}
-	up(&OCFS2_I(inode)->ip_io_sem);
+	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 
 	if (status < 0)
 		mlog(ML_ERROR, "Error %d getting %d access to buffer!\n",
