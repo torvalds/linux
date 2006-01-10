@@ -42,6 +42,7 @@
 #include <linux/pci_ids.h>
 #include <linux/resource.h>
 #include <linux/unistd.h>
+#include <linux/console.h>
 
 #include <asm/io.h>
 #include <asm/div64.h>
@@ -1517,35 +1518,28 @@ static int i810fb_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct i810fb_par *par = info->par;
-	int blank = 0, prev_state = par->cur_state;
-
-	if (state.event == prev_state)
-		return 0;
 
 	par->cur_state = state.event;
 
-	switch (state.event) {
-	case 1:
-		blank = VESA_VSYNC_SUSPEND;
-		break;
-	case 2:
-		blank = VESA_HSYNC_SUSPEND;
-		break;
-	case 3:
-		blank = VESA_POWERDOWN;
-		break;
-	default:
-		return -EINVAL;
+	if (state.event == PM_EVENT_FREEZE) {
+		dev->dev.power.power_state = state;
+		return 0;
 	}
-	info->fbops->fb_blank(blank, info);
 
-	if (!prev_state) { 
-		agp_unbind_memory(par->i810_gtt.i810_fb_memory);
-		agp_unbind_memory(par->i810_gtt.i810_cursor_memory);
-		pci_disable_device(dev);
-	}
+	acquire_console_sem();
+	fb_set_suspend(info, 1);
+
+	if (info->fbops->fb_sync)
+		info->fbops->fb_sync(info);
+
+	i810fb_blank(FB_BLANK_POWERDOWN, info);
+	agp_unbind_memory(par->i810_gtt.i810_fb_memory);
+	agp_unbind_memory(par->i810_gtt.i810_cursor_memory);
+
 	pci_save_state(dev);
+	pci_disable_device(dev);
 	pci_set_power_state(dev, pci_choose_state(dev, state));
+	release_console_sem();
 
 	return 0;
 }
@@ -1554,22 +1548,28 @@ static int i810fb_resume(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
 	struct i810fb_par *par = info->par;
+	int cur_state = par->cur_state;
 
-	if (par->cur_state == 0)
+	par->cur_state = PM_EVENT_ON;
+
+	if (cur_state == PM_EVENT_FREEZE) {
+		pci_set_power_state(dev, PCI_D0);
 		return 0;
+	}
 
-	pci_restore_state(dev);
+	acquire_console_sem();
 	pci_set_power_state(dev, PCI_D0);
+	pci_restore_state(dev);
 	pci_enable_device(dev);
+	pci_set_master(dev);
 	agp_bind_memory(par->i810_gtt.i810_fb_memory,
 			par->fb.offset);
 	agp_bind_memory(par->i810_gtt.i810_cursor_memory,
 			par->cursor_heap.offset);
-
+	i810fb_set_par(info);
+	fb_set_suspend (info, 0);
 	info->fbops->fb_blank(VESA_NO_BLANKING, info);
-
-	par->cur_state = 0;
-
+	release_console_sem();
 	return 0;
 }
 /***********************************************************************
