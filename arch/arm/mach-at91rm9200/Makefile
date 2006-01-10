@@ -8,8 +8,8 @@ obj-n		:=
 obj-		:=
 
 # Board-specific support
-#obj-$(CONFIG_ARCH_AT91RM9200DK)	+= board-dk.o
-#obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-ek.o
+obj-$(CONFIG_ARCH_AT91RM9200DK)	+= board-dk.o
+obj-$(CONFIG_MACH_AT91RM9200EK)	+= board-ek.o
 #obj-$(CONFIG_MACH_CSB337)	+= board-csb337.o
 #obj-$(CONFIG_MACH_CSB637)	+= board-csb637.o
 #obj-$(CONFIG_MACH_CARMEVA)	+= board-carmeva.o
