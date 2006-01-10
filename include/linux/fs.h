@@ -1716,7 +1716,7 @@ extern ssize_t simple_read_from_buffer(void __user *, size_t, loff_t *, const vo
 extern int inode_change_ok(struct inode *, struct iattr *);
 extern int __must_check inode_setattr(struct inode *, struct iattr *);
 
-extern void inode_update_time(struct inode *inode, int ctime_too);
+extern void file_update_time(struct file *file);
 
 static inline ino_t parent_ino(struct dentry *dentry)
 {

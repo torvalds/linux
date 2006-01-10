@@ -347,7 +347,7 @@ out:
 		kill_fasync(PIPE_FASYNC_READERS(*inode), SIGIO, POLL_IN);
 	}
 	if (ret > 0)
-		inode_update_time(inode, 1);	/* mtime and ctime */
+		file_update_time(filp);
 	return ret;
 }
 

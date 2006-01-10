@@ -2173,7 +2173,7 @@ static ssize_t ntfs_file_aio_write_nolock(struct kiocb *iocb,
 	err = remove_suid(file->f_dentry);
 	if (err)
 		goto out;
-	inode_update_time(inode, 1);
+	file_update_time(file);
 	written = ntfs_file_buffered_write(iocb, iov, nr_segs, pos, ppos,
 			count);
 out:

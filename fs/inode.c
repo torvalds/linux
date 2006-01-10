@@ -1204,16 +1204,20 @@ void update_atime(struct inode *inode)
 EXPORT_SYMBOL(update_atime);
 
 /**
- *	inode_update_time	-	update mtime and ctime time
- *	@inode: inode accessed
- *	@ctime_too: update ctime too
+ *	file_update_time	-	update mtime and ctime time
+ *	@file: file accessed
  *
- *	Update the mtime time on an inode and mark it for writeback.
- *	When ctime_too is specified update the ctime too.
+ *	Update the mtime and ctime members of an inode and mark the inode
+ *	for writeback.  Note that this function is meant exclusively for
+ *	usage in the file write path of filesystems, and filesystems may
+ *	choose to explicitly ignore update via this function with the
+ *	S_NOCTIME inode flag, e.g. for network filesystem where these
+ *	timestamps are handled by the server.
  */
 
-void inode_update_time(struct inode *inode, int ctime_too)
+void file_update_time(struct file *file)
 {
+	struct inode *inode = file->f_dentry->d_inode;
 	struct timespec now;
 	int sync_it = 0;
 
@@ -1227,16 +1231,15 @@ void inode_update_time(struct inode *inode, int ctime_too)
 		sync_it = 1;
 	inode->i_mtime = now;
 
-	if (ctime_too) {
-		if (!timespec_equal(&inode->i_ctime, &now))
-			sync_it = 1;
-		inode->i_ctime = now;
-	}
+	if (!timespec_equal(&inode->i_ctime, &now))
+		sync_it = 1;
+	inode->i_ctime = now;
+
 	if (sync_it)
 		mark_inode_dirty_sync(inode);
 }
 
-EXPORT_SYMBOL(inode_update_time);
+EXPORT_SYMBOL(file_update_time);
 
 int inode_needs_sync(struct inode *inode)
 {

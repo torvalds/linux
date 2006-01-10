@@ -1360,7 +1360,7 @@ static ssize_t reiserfs_file_write(struct file *file,	/* the file we are going t
 	if (res)
 		goto out;
 
-	inode_update_time(inode, 1);	/* Both mtime and ctime */
+	file_update_time(file);
 
 	// Ok, we are done with all the checks.
 

@@ -2767,7 +2767,25 @@ unm_done:
 	up_write(&ni->runlist.lock);
 done:
 	/* Update the mtime and ctime on the base inode. */
-	inode_update_time(VFS_I(base_ni), 1);
+	/* normally ->truncate shouldn't update ctime or mtime,
+	 * but ntfs did before so it got a copy & paste version
+	 * of file_update_time.  one day someone should fix this
+	 * for real.
+	 */
+	if (!IS_NOCMTIME(VFS_I(base_ni)) && !IS_RDONLY(VFS_I(base_ni))) {
+		struct timespec now = current_fs_time(VFS_I(base_ni)->i_sb);
+		int sync_it = 0;
+
+		if (!timespec_equal(&VFS_I(base_ni)->i_mtime, &now) ||
+		    !timespec_equal(&VFS_I(base_ni)->i_ctime, &now))
+			sync_it = 1;
+		VFS_I(base_ni)->i_mtime = now;
+		VFS_I(base_ni)->i_ctime = now;
+
+		if (sync_it)
+			mark_inode_dirty_sync(VFS_I(base_ni));
+	}
+
 	if (likely(!err)) {
 		NInoClearTruncateFailed(ni);
 		ntfs_debug("Done.");

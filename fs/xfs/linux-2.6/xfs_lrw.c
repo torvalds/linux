@@ -713,7 +713,7 @@ start:
 	}
 
 	if (likely(!(ioflags & IO_INVIS))) {
-		inode_update_time(inode, 1);
+		file_update_time(file);
 		xfs_ichgtime_fast(xip, inode,
 				  XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	}
