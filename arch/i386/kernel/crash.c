@@ -108,8 +108,10 @@ static void crash_setup_regs(struct pt_regs *newregs, struct pt_regs *oldregs)
 {
 	memcpy(newregs, oldregs, sizeof(*newregs));
 	newregs->esp = (unsigned long)&(oldregs->esp);
-	__asm__ __volatile__("xorl %eax, %eax;");
-	__asm__ __volatile__ ("movw %%ss, %%ax;" :"=a"(newregs->xss));
+	__asm__ __volatile__(
+			"xorl %%eax, %%eax\n\t"
+			"movw %%ss, %%ax\n\t"
+			:"=a"(newregs->xss));
 }
 
 /* We may have saved_regs from where the error came from
