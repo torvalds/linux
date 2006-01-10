@@ -28,7 +28,13 @@ do {									\
 									\
 	__asm__ __volatile__(						\
 		LOCK	"   decl (%%eax)	\n"			\
-			"   js "#fail_fn"	\n"			\
+			"   js 2f		\n"			\
+			"1:			\n"			\
+									\
+		LOCK_SECTION_START("")					\
+			"2: call "#fail_fn"	\n"			\
+			"   jmp 1b		\n"			\
+		LOCK_SECTION_END					\
 									\
 		:"=a" (dummy)						\
 		: "a" (count)						\
@@ -78,7 +84,13 @@ do {									\
 									\
 	__asm__ __volatile__(						\
 		LOCK	"   incl (%%eax)	\n"			\
-			"   jle "#fail_fn"	\n"			\
+			"   jle 2f		\n"			\
+			"1:			\n"			\
+									\
+		LOCK_SECTION_START("")					\
+			"2: call "#fail_fn"	\n"			\
+			"   jmp 1b		\n"			\
+		LOCK_SECTION_END					\
 									\
 		:"=a" (dummy)						\
 		: "a" (count)						\

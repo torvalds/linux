@@ -84,12 +84,6 @@ void fastcall __sched mutex_lock(struct mutex *lock)
 	/*
 	 * The locking fastpath is the 1->0 transition from
 	 * 'unlocked' into 'locked' state.
-	 *
-	 * NOTE: if asm/mutex.h is included, then some architectures
-	 * rely on mutex_lock() having _no other code_ here but this
-	 * fastpath. That allows the assembly fastpath to do
-	 * tail-merging optimizations. (If you want to put testcode
-	 * here, do it under #ifndef CONFIG_MUTEX_DEBUG.)
 	 */
 	__mutex_fastpath_lock(&lock->count, __mutex_lock_slowpath);
 }
@@ -115,8 +109,6 @@ void fastcall __sched mutex_unlock(struct mutex *lock)
 	/*
 	 * The unlocking fastpath is the 0->1 transition from 'locked'
 	 * into 'unlocked' state:
-	 *
-	 * NOTE: no other code must be here - see mutex_lock() .
 	 */
 	__mutex_fastpath_unlock(&lock->count, __mutex_unlock_slowpath);
 }
@@ -261,7 +253,6 @@ __mutex_lock_interruptible_slowpath(atomic_t *lock_count __IP_DECL__);
  */
 int fastcall __sched mutex_lock_interruptible(struct mutex *lock)
 {
-	/* NOTE: no other code must be here - see mutex_lock() */
 	return __mutex_fastpath_lock_retval
 			(&lock->count, __mutex_lock_interruptible_slowpath);
 }
