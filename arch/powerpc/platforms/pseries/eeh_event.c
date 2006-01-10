@@ -21,6 +21,7 @@
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <asm/eeh_event.h>
+#include <asm/ppc-pci.h>
 
 /** Overview:
  *  EEH error states may be detected within exception handlers;
@@ -35,31 +36,6 @@ static spinlock_t eeh_eventlist_lock = SPIN_LOCK_UNLOCKED;
 LIST_HEAD(eeh_eventlist);
 static void eeh_thread_launcher(void *);
 DECLARE_WORK(eeh_event_wq, eeh_thread_launcher, NULL);
-
-/**
- * eeh_panic - call panic() for an eeh event that cannot be handled.
- * The philosophy of this routine is that it is better to panic and
- * halt the OS than it is to risk possible data corruption by
- * oblivious device drivers that don't know better.
- *
- * @dev pci device that had an eeh event
- * @reset_state current reset state of the device slot
- */
-static void eeh_panic(struct pci_dev *dev, int reset_state)
-{
-	/*
-	 * Since the panic_on_oops sysctl is used to halt the system
-	 * in light of potential corruption, we can use it here.
-	 */
-	if (panic_on_oops) {
-		panic("EEH: MMIO failure (%d) on device:%s\n", reset_state,
-		      pci_name(dev));
-	}
-	else {
-		printk(KERN_INFO "EEH: Ignored MMIO failure (%d) on device:%s\n",
-		       reset_state, pci_name(dev));
-	}
-}
 
 /**
  * eeh_event_handler - dispatch EEH events.  The detection of a frozen
@@ -82,10 +58,16 @@ static int eeh_event_handler(void * dummy)
 
 		spin_lock_irqsave(&eeh_eventlist_lock, flags);
 		event = NULL;
+
+		/* Unqueue the event, get ready to process. */
 		if (!list_empty(&eeh_eventlist)) {
 			event = list_entry(eeh_eventlist.next, struct eeh_event, list);
 			list_del(&event->list);
 		}
+		
+		if (event)
+			eeh_mark_slot(event->dn, EEH_MODE_RECOVERING);
+
 		spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
 		if (event == NULL)
 			break;
@@ -93,8 +75,11 @@ static int eeh_event_handler(void * dummy)
 		printk(KERN_INFO "EEH: Detected PCI bus error on device %s\n",
 		       pci_name(event->dev));
 
-		eeh_panic (event->dev, event->state);
+		handle_eeh_events(event);
 
+		eeh_clear_slot(event->dn, EEH_MODE_RECOVERING);
+
+		pci_dev_put(event->dev);
 		kfree(event);
 	}
 
@@ -122,7 +107,7 @@ static void eeh_thread_launcher(void *dummy)
  */
 int eeh_send_failure_event (struct device_node *dn,
                             struct pci_dev *dev,
-                            int state,
+                            enum pci_channel_state state,
                             int time_unavail)
 {
 	unsigned long flags;

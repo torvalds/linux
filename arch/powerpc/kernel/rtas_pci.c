@@ -72,7 +72,7 @@ static int of_device_available(struct device_node * dn)
         return 0;
 }
 
-static int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
+int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 {
 	int returnval = -1;
 	unsigned long buid, addr;

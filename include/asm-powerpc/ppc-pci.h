@@ -52,6 +52,21 @@ extern unsigned long pci_probe_only;
 
 /* ---- EEH internal-use-only related routines ---- */
 #ifdef CONFIG_EEH
+
+void pci_addr_cache_insert_device(struct pci_dev *dev);
+void pci_addr_cache_remove_device(struct pci_dev *dev);
+void pci_addr_cache_build(void);
+struct pci_dev *pci_get_device_by_addr(unsigned long addr);
+
+/**
+ * eeh_slot_error_detail -- record and EEH error condition to the log
+ * @severity: 1 if temporary, 2 if permanent failure.
+ *
+ * Obtains the the EEH error details from the RTAS subsystem,
+ * and then logs these details with the RTAS error log system.
+ */
+void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
+
 /**
  * rtas_set_slot_reset -- unfreeze a frozen slot
  *
@@ -59,8 +74,10 @@ extern unsigned long pci_probe_only;
  * does this by asserting the PCI #RST line for 1/8th of
  * a second; this routine will sleep while the adapter is
  * being reset.
+ *
+ * Returns a non-zero value if the reset failed.
  */
-void rtas_set_slot_reset (struct pci_dn *);
+int rtas_set_slot_reset (struct pci_dn *);
 
 /** 
  * eeh_restore_bars - Restore device configuration info.
@@ -84,6 +101,7 @@ void eeh_restore_bars(struct pci_dn *);
 void rtas_configure_bridge(struct pci_dn *);
 
 int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
+int rtas_read_config(struct pci_dn *, int where, int size, u32 *val);
 
 /**
  * mark and clear slots: find "partition endpoint" PE and set or 
@@ -91,6 +109,9 @@ int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
  */
 void eeh_mark_slot (struct device_node *dn, int mode_flag);
 void eeh_clear_slot (struct device_node *dn, int mode_flag);
+
+/* Find the associated "Partiationable Endpoint" PE */
+struct device_node * find_device_pe(struct device_node *dn);
 
 #endif
 

@@ -381,7 +381,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	dev->subsystem_vendor = get_int_prop(node, "subsystem-vendor-id", 0);
 	dev->subsystem_device = get_int_prop(node, "subsystem-id", 0);
 
-	dev->cfg_size = 256; /*pci_cfg_space_size(dev);*/
+	dev->cfg_size = pci_cfg_space_size(dev);
 
 	sprintf(pci_name(dev), "%04x:%02x:%02x.%d", pci_domain_nr(bus),
 		dev->bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));

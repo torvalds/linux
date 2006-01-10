@@ -71,9 +71,6 @@
 #define DBG(fmt...)
 #endif
 
-extern void generic_find_legacy_serial_ports(u64 *physport,
-		unsigned int *default_speed);
-
 static void maple_restart(char *cmd)
 {
 	unsigned int maple_nvram_base;

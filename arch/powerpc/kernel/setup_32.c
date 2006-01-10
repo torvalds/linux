@@ -299,9 +299,7 @@ void __init setup_arch(char **cmdline_p)
 	if (ppc_md.init_early)
 		ppc_md.init_early();
 
-#ifdef CONFIG_SERIAL_8250
 	find_legacy_serial_ports();
-#endif
 	finish_device_tree();
 
 	smp_setup_cpu_maps();
