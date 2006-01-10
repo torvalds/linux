@@ -564,28 +564,6 @@ void getnstimeofday(struct timespec *tv)
 EXPORT_SYMBOL_GPL(getnstimeofday);
 #endif
 
-void getnstimestamp(struct timespec *ts)
-{
-	unsigned int seq;
-	struct timespec wall2mono;
-
-	/* synchronize with settimeofday() changes */
-	do {
-		seq = read_seqbegin(&xtime_lock);
-		getnstimeofday(ts);
-		wall2mono = wall_to_monotonic;
-	} while(unlikely(read_seqretry(&xtime_lock, seq)));
-
-	/* adjust to monotonicaly-increasing values */
-	ts->tv_sec += wall2mono.tv_sec;
-	ts->tv_nsec += wall2mono.tv_nsec;
-	while (unlikely(ts->tv_nsec >= NSEC_PER_SEC)) {
-		ts->tv_nsec -= NSEC_PER_SEC;
-		ts->tv_sec++;
-	}
-}
-EXPORT_SYMBOL_GPL(getnstimestamp);
-
 /* Converts Gregorian date to seconds since 1970-01-01 00:00:00.
  * Assumes input in normal date format, i.e. 1980-12-31 23:59:59
  * => year=1980, mon=12, day=31, hour=23, min=59, sec=59.
