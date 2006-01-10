@@ -38,9 +38,11 @@ static __inline__ int timespec_equal(struct timespec *a, struct timespec *b)
 	return (a->tv_sec == b->tv_sec) && (a->tv_nsec == b->tv_nsec);
 } 
 
-extern unsigned long mktime (unsigned int year, unsigned int mon,
-			     unsigned int day, unsigned int hour,
-			     unsigned int min, unsigned int sec);
+extern unsigned long mktime(const unsigned int year, const unsigned int mon,
+			    const unsigned int day, const unsigned int hour,
+			    const unsigned int min, const unsigned int sec);
+
+extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
 
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
@@ -50,8 +52,6 @@ static inline unsigned long get_seconds(void)
 { 
 	return xtime.tv_sec;
 }
-
-extern void set_normalized_timespec (struct timespec *ts, time_t sec, long nsec);
 
 struct timespec current_kernel_time(void);
 

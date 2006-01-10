@@ -599,12 +599,15 @@ EXPORT_SYMBOL_GPL(getnstimestamp);
  * will already get problems at other places on 2038-01-19 03:14:08)
  */
 unsigned long
-mktime (unsigned int year, unsigned int mon,
-	unsigned int day, unsigned int hour,
-	unsigned int min, unsigned int sec)
+mktime(const unsigned int year0, const unsigned int mon0,
+       const unsigned int day, const unsigned int hour,
+       const unsigned int min, const unsigned int sec)
 {
-	if (0 >= (int) (mon -= 2)) {	/* 1..12 -> 11,12,1..10 */
-		mon += 12;		/* Puts Feb last since it has leap day */
+	unsigned int mon = mon0, year = year0;
+
+	/* 1..12 -> 11,12,1..10 */
+	if (0 >= (int) (mon -= 2)) {
+		mon += 12;	/* Puts Feb last since it has leap day */
 		year -= 1;
 	}
 
@@ -630,7 +633,7 @@ mktime (unsigned int year, unsigned int mon,
  * 	0 <= tv_nsec < NSEC_PER_SEC
  * For negative values only the tv_sec field is negative !
  */
-void set_normalized_timespec (struct timespec *ts, time_t sec, long nsec)
+void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec)
 {
 	while (nsec >= NSEC_PER_SEC) {
 		nsec -= NSEC_PER_SEC;
