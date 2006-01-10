@@ -91,6 +91,7 @@ struct pm2fb_par
 	u32		mem_config;	/* MemConfig reg at probe */
 	u32		mem_control;	/* MemControl reg at probe */
 	u32		boot_address;	/* BootAddress reg at probe */
+	u32             palette[16];
 };
 
 /*
@@ -674,7 +675,7 @@ static int pm2fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
  */
 static int pm2fb_set_par(struct fb_info *info)
 {
-	struct pm2fb_par *par = (struct pm2fb_par *) info->par;
+	struct pm2fb_par *par = info->par;
 	u32 pixclock;
 	u32 width, height, depth;
 	u32 hsstart, hsend, hbend, htotal;
@@ -854,7 +855,7 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
-	struct pm2fb_par *par = (struct pm2fb_par *) info->par;
+	struct pm2fb_par *par = info->par;
 
 	if (regno >= info->cmap.len)  /* no. of hw registers */
 		return 1;
@@ -929,7 +930,7 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
    		case 16:
 		case 24:
 		case 32:	
-           		((u32*)(info->pseudo_palette))[regno] = v;
+           		par->palette[regno] = v;
 			break;
 		}
 		return 0;
@@ -955,7 +956,7 @@ static int pm2fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 static int pm2fb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
-	struct pm2fb_par *p = (struct pm2fb_par *) info->par;
+	struct pm2fb_par *p = info->par;
 	u32 base;
 	u32 depth;
 	u32 xres;
@@ -987,7 +988,7 @@ static int pm2fb_pan_display(struct fb_var_screeninfo *var,
  */
 static int pm2fb_blank(int blank_mode, struct fb_info *info)
 {
-	struct pm2fb_par *par = (struct pm2fb_par *) info->par;
+	struct pm2fb_par *par = info->par;
 	u32 video = par->video;
 
 	DPRINTK("blank_mode %d\n", blank_mode);
@@ -1054,8 +1055,7 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 {
 	struct pm2fb_par *default_par;
 	struct fb_info *info;
-	int size, err;
-	int err_retval = -ENXIO;
+	int err, err_retval = -ENXIO;
 
 	err = pci_enable_device(pdev);
 	if ( err ) {
@@ -1063,11 +1063,10 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 		return err;
 	}
 
-	size = sizeof(struct pm2fb_par) + 256 * sizeof(u32);
-	info = framebuffer_alloc(size, &pdev->dev);
+	info = framebuffer_alloc(sizeof(struct pm2fb_par), &pdev->dev);
 	if ( !info )
 		return -ENOMEM;
-	default_par = (struct pm2fb_par *) info->par;
+	default_par = info->par;
 
 	switch (pdev->device) {
 	case  PCI_DEVICE_ID_TI_TVP4020:
@@ -1171,7 +1170,7 @@ static int __devinit pm2fb_probe(struct pci_dev *pdev,
 
 	info->fbops		= &pm2fb_ops;
 	info->fix		= pm2fb_fix; 	
-	info->pseudo_palette	= (void *)(default_par + 1); 
+	info->pseudo_palette	= default_par->palette;
 	info->flags		= FBINFO_DEFAULT |
                                   FBINFO_HWACCEL_YPAN;
 
