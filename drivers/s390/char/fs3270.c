@@ -319,9 +319,8 @@ fs3270_write(struct file *filp, const char *data, size_t count, loff_t *off)
 /*
  * process ioctl commands for the tube driver
  */
-static int
-fs3270_ioctl(struct inode *inode, struct file *filp,
-	     unsigned int cmd, unsigned long arg)
+static long
+fs3270_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct fs3270 *fp;
 	struct raw3270_iocb iocb;
@@ -331,6 +330,7 @@ fs3270_ioctl(struct inode *inode, struct file *filp,
 	if (!fp)
 		return -ENODEV;
 	rc = 0;
+	lock_kernel();
 	switch (cmd) {
 	case TUBICMD:
 		fp->read_command = arg;
@@ -356,6 +356,7 @@ fs3270_ioctl(struct inode *inode, struct file *filp,
 			rc = -EFAULT;
 		break;
 	}
+	unlock_kernel();
 	return rc;
 }
 
@@ -491,12 +492,13 @@ fs3270_close(struct inode *inode, struct file *filp)
 }
 
 static struct file_operations fs3270_fops = {
-	.owner	 = THIS_MODULE,		/* owner */
-	.read	 = fs3270_read,		/* read */
-	.write	 = fs3270_write,	/* write */
-	.ioctl	 = fs3270_ioctl,	/* ioctl */
-	.open	 = fs3270_open,		/* open */
-	.release = fs3270_close,	/* release */
+	.owner		 = THIS_MODULE,		/* owner */
+	.read		 = fs3270_read,		/* read */
+	.write		 = fs3270_write,	/* write */
+	.unlocked_ioctl	 = fs3270_ioctl,	/* ioctl */
+	.compat_ioctl	 = fs3270_ioctl,	/* ioctl */
+	.open	 	= fs3270_open,		/* open */
+	.release 	= fs3270_close,		/* release */
 };
 
 /*
