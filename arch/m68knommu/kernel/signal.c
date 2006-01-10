@@ -285,6 +285,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, void *fp,
 	regs->d1 = context.sc_d1;
 	regs->a0 = context.sc_a0;
 	regs->a1 = context.sc_a1;
+	((struct switch_stack *)regs - 1)->a5 = context.sc_a5;
 	regs->sr = (regs->sr & 0xff00) | (context.sc_sr & 0xff);
 	regs->pc = context.sc_pc;
 	regs->orig_d0 = -1;		/* disable syscall checks */
@@ -498,6 +499,7 @@ static void setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 	sc->sc_d1 = regs->d1;
 	sc->sc_a0 = regs->a0;
 	sc->sc_a1 = regs->a1;
+	sc->sc_a5 = ((struct switch_stack *)regs - 1)->a5;
 	sc->sc_sr = regs->sr;
 	sc->sc_pc = regs->pc;
 	sc->sc_formatvec = regs->format << 12 | regs->vector;
@@ -597,6 +599,9 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 	/* Set up registers for signal handler */
 	wrusp ((unsigned long) frame);
 	regs->pc = (unsigned long) ka->sa.sa_handler;
+	((struct switch_stack *)regs - 1)->a5 = current->mm->start_data;
+	regs->format = 0x4; /*set format byte to make stack appear modulo 4 
+						which it will be when doing the rte */
 
 adjust_stack:
 	/* Prepare to skip over the extra stuff in the exception frame.  */
@@ -664,6 +669,9 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up registers for signal handler */
 	wrusp ((unsigned long) frame);
 	regs->pc = (unsigned long) ka->sa.sa_handler;
+	((struct switch_stack *)regs - 1)->a5 = current->mm->start_data;
+	regs->format = 0x4; /*set format byte to make stack appear modulo 4 
+						which it will be when doing the rte */
 
 adjust_stack:
 	/* Prepare to skip over the extra stuff in the exception frame.  */
