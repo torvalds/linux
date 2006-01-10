@@ -182,11 +182,6 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 	igrab(dir);
 	hlist_add_head(&inode->i_hash, &HFSPLUS_SB(sb).rsrc_inodes);
 	mark_inode_dirty(inode);
-	{
-	void hfsplus_inode_check(struct super_block *sb);
-	atomic_inc(&HFSPLUS_SB(sb).inode_cnt);
-	hfsplus_inode_check(sb);
-	}
 out:
 	d_add(dentry, inode);
 	return NULL;
@@ -317,11 +312,6 @@ struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
 	if (!inode)
 		return NULL;
 
-	{
-	void hfsplus_inode_check(struct super_block *sb);
-	atomic_inc(&HFSPLUS_SB(sb).inode_cnt);
-	hfsplus_inode_check(sb);
-	}
 	inode->i_ino = HFSPLUS_SB(sb).next_cnid++;
 	inode->i_mode = mode;
 	inode->i_uid = current->fsuid;
