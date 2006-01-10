@@ -284,6 +284,16 @@ static struct pci_device_id nvidiafb_pci_tbl[] = {
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_GEFORCE_6200,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCIE_DEVICE_ID_NVIDIA_GEFORCE_6800_ALT1,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCIE_DEVICE_ID_NVIDIA_GEFORCE_6600_ALT1,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCIE_DEVICE_ID_NVIDIA_GEFORCE_6600_ALT2,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCIE_DEVICE_ID_NVIDIA_GEFORCE_6200_ALT1,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCIE_DEVICE_ID_NVIDIA_GEFORCE_6800_GT,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NVIDIA, 0x0252,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NVIDIA, 0x0313,
@@ -1448,11 +1458,34 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 	return nvidiafb_check_var(&info->var, info);
 }
 
-static u32 __devinit nvidia_get_arch(struct pci_dev *pd)
+static u32 __devinit nvidia_get_chipset(struct fb_info *info)
 {
+	struct nvidia_par *par = info->par;
+	u32 id = (par->pci_dev->vendor << 16) | par->pci_dev->device;
+
+	printk("nvidiafb: PCI id - %x\n", id);
+	if ((id & 0xfff0) == 0x00f0) {
+		/* pci-e */
+		printk("nvidiafb: PCI-E card\n");
+		id = NV_RD32(par->REGS, 0x1800);
+
+		if ((id & 0x0000ffff) == 0x000010DE)
+			id = 0x10DE0000 | (id >> 16);
+		else if ((id & 0xffff0000) == 0xDE100000) /* wrong endian */
+			id = 0x10DE0000 | ((id << 8) & 0x0000ff00) |
+                            ((id >> 8) & 0x000000ff);
+	}
+
+	printk("nvidiafb: Actual id - %x\n", id);
+	return id;
+}
+
+static u32 __devinit nvidia_get_arch(struct fb_info *info)
+{
+	struct nvidia_par *par = info->par;
 	u32 arch = 0;
 
-	switch (pd->device & 0x0ff0) {
+	switch (par->Chipset & 0x0ff0) {
 	case 0x0100:		/* GeForce 256 */
 	case 0x0110:		/* GeForce2 MX */
 	case 0x0150:		/* GeForce2 */
@@ -1535,18 +1568,6 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 		goto err_out_request;
 	}
 
-	par->Architecture = nvidia_get_arch(pd);
-
-	par->Chipset = (pd->vendor << 16) | pd->device;
-	printk(KERN_INFO PFX "nVidia device/chipset %X\n", par->Chipset);
-
-	if (par->Architecture == 0) {
-		printk(KERN_ERR PFX "unknown NV_ARCH\n");
-		goto err_out_free_base0;
-	}
-
-	sprintf(nvidiafb_fix.id, "NV%x", (pd->device & 0x0ff0) >> 4);
-
 	par->FlatPanel = flatpanel;
 	if (flatpanel == 1)
 		printk(KERN_INFO PFX "flatpanel support enabled\n");
@@ -1571,6 +1592,17 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 		printk(KERN_ERR PFX "cannot ioremap MMIO base\n");
 		goto err_out_free_base0;
 	}
+
+	par->Chipset = nvidia_get_chipset(info);
+	printk(KERN_INFO PFX "nVidia device/chipset %X\n", par->Chipset);
+	par->Architecture = nvidia_get_arch(info);
+
+	if (par->Architecture == 0) {
+		printk(KERN_ERR PFX "unknown NV_ARCH\n");
+		goto err_out_arch;
+	}
+
+	sprintf(nvidiafb_fix.id, "NV%x", (pd->device & 0x0ff0) >> 4);
 
 	NVCommonSetup(info);
 
@@ -1647,21 +1679,22 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	NVTRACE_LEAVE();
 	return 0;
 
-      err_out_iounmap_fb:
+err_out_iounmap_fb:
 	iounmap(info->screen_base);
-      err_out_free_base1:
+err_out_free_base1:
 	fb_destroy_modedb(info->monspecs.modedb);
 	nvidia_delete_i2c_busses(par);
+err_out_arch:
 	iounmap(par->REGS);
-      err_out_free_base0:
+err_out_free_base0:
 	pci_release_regions(pd);
-      err_out_request:
+err_out_request:
 	pci_disable_device(pd);
-      err_out_enable:
+err_out_enable:
 	kfree(info->pixmap.addr);
-      err_out_kfree:
+err_out_kfree:
 	framebuffer_release(info);
-      err_out:
+err_out:
 	return -ENODEV;
 }
 
