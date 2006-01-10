@@ -552,7 +552,7 @@ static inline void modify_gpio(void __iomem *reg,
  * s3c2410fb_init_registers - Initialise all LCD-related registers
  */
 
-int s3c2410fb_init_registers(struct s3c2410fb_info *fbi)
+static int s3c2410fb_init_registers(struct s3c2410fb_info *fbi)
 {
 	unsigned long flags;
 
@@ -634,7 +634,7 @@ static irqreturn_t s3c2410fb_irq(int irq, void *dev_id, struct pt_regs *r)
 
 static char driver_name[]="s3c2410fb";
 
-int __init s3c2410fb_probe(struct platform_device *pdev)
+static int __init s3c2410fb_probe(struct platform_device *pdev)
 {
 	struct s3c2410fb_info *info;
 	struct fb_info	   *fbinfo;
@@ -666,8 +666,6 @@ int __init s3c2410fb_probe(struct platform_device *pdev)
 	info = fbinfo->par;
 	info->fb = fbinfo;
 	platform_set_drvdata(pdev, fbinfo);
-
-	s3c2410fb_init_registers(info);
 
 	dprintk("devinit\n");
 
@@ -701,8 +699,8 @@ int __init s3c2410fb_probe(struct platform_device *pdev)
 	fbinfo->var.yres_virtual    = mach_info->yres.defval;
 	fbinfo->var.bits_per_pixel  = mach_info->bpp.defval;
 
-	fbinfo->var.upper_margin    = S3C2410_LCDCON2_GET_VBPD(mregs->lcdcon2) +1;
-	fbinfo->var.lower_margin    = S3C2410_LCDCON2_GET_VFPD(mregs->lcdcon2) +1;
+	fbinfo->var.upper_margin    = S3C2410_LCDCON2_GET_VBPD(mregs->lcdcon2) + 1;
+	fbinfo->var.lower_margin    = S3C2410_LCDCON2_GET_VFPD(mregs->lcdcon2) + 1;
 	fbinfo->var.vsync_len	    = S3C2410_LCDCON2_GET_VSPW(mregs->lcdcon2) + 1;
 
 	fbinfo->var.left_margin	    = S3C2410_LCDCON3_GET_HFPD(mregs->lcdcon3) + 1;
