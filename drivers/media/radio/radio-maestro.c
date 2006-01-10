@@ -93,7 +93,6 @@ static struct file_operations maestro_fops = {
 };
 
 static struct video_device maestro_radio = {
-	.owner		= THIS_MODULE,
 	.name		= "Maestro radio",
 	.type		= VID_TYPE_TUNER,
 	.hardware	= VID_HARDWARE_SF16MI,
