@@ -1082,6 +1082,8 @@ static struct {
 	{ USB_ID(0x0582, 0x004d), 0, "%s MIDI" },
 	{ USB_ID(0x0582, 0x004d), 1, "%s 1" },
 	{ USB_ID(0x0582, 0x004d), 2, "%s 2" },
+	/* Edirol UM-3EX */
+	{ USB_ID(0x0582, 0x009a), 3, "%s Control" },
 	/* M-Audio MidiSport 8x8 */
 	{ USB_ID(0x0763, 0x1031), 8, "%s Control" },
 	{ USB_ID(0x0763, 0x1033), 8, "%s Control" },
@@ -1092,8 +1094,6 @@ static struct {
 	{ USB_ID(0x086a, 0x0001), 8, "%s Broadcast" },
 	{ USB_ID(0x086a, 0x0002), 8, "%s Broadcast" },
 	{ USB_ID(0x086a, 0x0003), 4, "%s Broadcast" },
-	/* Edirol UM-3ex */
-	{ USB_ID(0x0582, 0x009a), 3, "%s Control" },
 };
 
 static void snd_usbmidi_init_substream(struct snd_usb_midi* umidi,
