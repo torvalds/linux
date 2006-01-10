@@ -230,9 +230,7 @@ source "usr/Kconfig"
 
 config UID16
 	bool "Enable 16-bit UID system calls" if EMBEDDED
-	depends !ALPHA && !PPC && !PPC64 && !PARISC && !V850 && !ARCH_S390X
-	depends !X86_64 || IA32_EMULATION
-	depends !SPARC64 || SPARC32_COMPAT
+	depends on ARM || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && SPARC32_COMPAT) || UML || (X86_64 && IA32_EMULATION)
 	default y
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.

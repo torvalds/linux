@@ -27,11 +27,6 @@ config S390
 	bool
 	default y
 
-config UID16
-	bool
-	default y
-	depends on !64BIT
-
 source "init/Kconfig"
 
 menu "Base setup"
