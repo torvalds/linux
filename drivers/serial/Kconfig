@@ -280,6 +280,40 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
+config SERIAL_AT91
+	bool "AT91RM9200 serial port support"
+	depends on ARM && ARCH_AT91RM9200
+	select SERIAL_CORE
+	help
+	  This enables the driver for the on-chip UARTs of the AT91RM9200
+	  processor.
+
+config SERIAL_AT91_CONSOLE
+	bool "Support for console on AT91RM9200 serial port"
+	depends on SERIAL_AT91=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Say Y here if you wish to use a UART on the AT91RM9200 as the system
+	  console (the system console is the device which receives all kernel
+	  messages and warnings and which allows logins in single user mode).
+
+config SERIAL_AT91_TTYAT
+	bool "Install as device ttyAT0-4 instead of ttyS0-4"
+	depends on SERIAL_AT91=y
+	help
+	  Say Y here if you wish to have the five internal AT91RM9200 UARTs
+	  appear as /dev/ttyAT0-4 (major 240, minor 0-4) instead of the
+	  normal /dev/ttyS0-4 (major 4, minor 64-68). This is necessary if
+	  you also want other UARTs, such as external 8250/16C550 compatible
+	  UARTs.
+	  The ttySn nodes are legally reserved for the 8250 serial driver
+	  but are often misused by other serial drivers.
+
+	  To use this, you should create suitable ttyATn device nodes in
+	  /dev/, and pass "console=ttyATn" to the kernel.
+
+	  Say Y if you have an external 8250/16C550 UART.  If unsure, say N.
+
 config SERIAL_CLPS711X
 	tristate "CLPS711X serial port support"
 	depends on ARM && ARCH_CLPS711X
