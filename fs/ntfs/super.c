@@ -443,8 +443,8 @@ static int ntfs_remount(struct super_block *sb, int *flags, char *opt)
 
 	ntfs_debug("Entering with remount options string: %s", opt);
 #ifndef NTFS_RW
-	/* For read-only compiled driver, enforce all read-only flags. */
-	*flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+	/* For read-only compiled driver, enforce read-only flag. */
+	*flags |= MS_RDONLY;
 #else /* NTFS_RW */
 	/*
 	 * For the read-write compiled driver, if we are remounting read-write,
@@ -1721,7 +1721,7 @@ static BOOL load_system_files(ntfs_volume *vol)
 						es3);
 				goto iput_mirr_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s",
 					!vol->mftmirr_ino ? es1 : es2, es3);
 		} else
@@ -1837,7 +1837,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_vol_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -1874,7 +1874,7 @@ get_ctx_vol_failed:
 				}
 				goto iput_logfile_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -1919,7 +1919,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_root_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -1943,7 +1943,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		/*
 		 * Do not set NVolErrors() because ntfs_remount() might manage
 		 * to set the dirty flag in which case all would be well.
@@ -1970,7 +1970,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif
@@ -1989,7 +1989,7 @@ get_ctx_vol_failed:
 			goto iput_root_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
@@ -2030,7 +2030,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_quota_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2053,7 +2053,7 @@ get_ctx_vol_failed:
 			goto iput_quota_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		NVolSetErrors(vol);
 	}
 	/*
@@ -2074,7 +2074,7 @@ get_ctx_vol_failed:
 						es1, es2);
 				goto iput_usnjrnl_err_out;
 			}
-			sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+			sb->s_flags |= MS_RDONLY;
 			ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
 		} else
 			ntfs_warning(sb, "%s.  Will not be able to remount "
@@ -2097,7 +2097,7 @@ get_ctx_vol_failed:
 			goto iput_usnjrnl_err_out;
 		}
 		ntfs_error(sb, "%s.  Mounting read-only%s", es1, es2);
-		sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+		sb->s_flags |= MS_RDONLY;
 		NVolSetErrors(vol);
 	}
 #endif /* NTFS_RW */
@@ -2689,7 +2689,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 
 	ntfs_debug("Entering.");
 #ifndef NTFS_RW
-	sb->s_flags |= MS_RDONLY | MS_NOATIME | MS_NODIRATIME;
+	sb->s_flags |= MS_RDONLY;
 #endif /* ! NTFS_RW */
 	/* Allocate a new ntfs_volume and place it in sb->s_fs_info. */
 	sb->s_fs_info = kmalloc(sizeof(ntfs_volume), GFP_NOFS);
