@@ -13,7 +13,6 @@
  * (C) 2003 - 2005	Dominik Brodowski
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>

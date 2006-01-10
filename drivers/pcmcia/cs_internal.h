@@ -15,7 +15,6 @@
 #ifndef _LINUX_CS_INTERNAL_H
 #define _LINUX_CS_INTERNAL_H
 
-#include <linux/config.h>
 #include <linux/kref.h>
 
 /* Flags in client state */
