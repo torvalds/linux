@@ -193,6 +193,7 @@ void savagefb_create_i2c_busses(struct fb_info *info)
 		par->chan.algo.getscl = prosavage_gpio_getscl;
 		break;
 	case FB_ACCEL_SAVAGE4:
+	case FB_ACCEL_SAVAGE2000:
 		par->chan.reg         = 0xff20;
 		par->chan.ioaddr      = par->mmio.vbase;
 		par->chan.algo.setsda = savage4_gpio_setsda;
