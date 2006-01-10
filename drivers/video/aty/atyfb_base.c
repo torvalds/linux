@@ -380,11 +380,12 @@ static struct {
 #ifdef CONFIG_FB_ATY_CT
 	{ PCI_CHIP_MACH64CT, "ATI264CT (Mach64 CT)", 135, 60, 60, 0, ATI_CHIP_264CT },
 	{ PCI_CHIP_MACH64ET, "ATI264ET (Mach64 ET)", 135, 60, 60, 0, ATI_CHIP_264ET },
-	{ PCI_CHIP_MACH64VT, "ATI264VT? (Mach64 VT)", 170, 67, 67, 80, ATI_CHIP_264VT },
+
+	{ PCI_CHIP_MACH64VT, "ATI264VT (Mach64 VT)", 170, 67, 67, 80, ATI_CHIP_264VT },
 	{ PCI_CHIP_MACH64GT, "3D RAGE (Mach64 GT)", 135, 63, 63, 80, ATI_CHIP_264GT },
-	/* FIXME { ...ATI_264GU, maybe ATI_CHIP_264GTDVD }, */
-	{ PCI_CHIP_MACH64GU, "3D RAGE II+ (Mach64 GTB)", 200, 67, 67, 100, ATI_CHIP_264GTB  },
-	{ PCI_CHIP_MACH64VU, "ATI264VTB (Mach64 VU)", 200, 67, 67, 80, ATI_CHIP_264VT3 },
+
+	{ PCI_CHIP_MACH64VU, "ATI264VT3 (Mach64 VU)", 200, 67, 67, 80, ATI_CHIP_264VT3 },
+	{ PCI_CHIP_MACH64GU, "3D RAGE II+ (Mach64 GU)", 200, 67, 67, 100, ATI_CHIP_264GTB },
 
 	{ PCI_CHIP_MACH64LT, "3D RAGE LT (Mach64 LT)", 135, 63, 63, 0, ATI_CHIP_264LT },
 	 /* FIXME chipset maybe ATI_CHIP_264LTPRO ? */
@@ -460,44 +461,63 @@ static int __devinit correct_chipset(struct atyfb_par *par)
 #endif
 #ifdef CONFIG_FB_ATY_CT
 	case PCI_CHIP_MACH64VT:
-		rev &= 0xc7;
-		if(rev == 0x00) {
-			name = "ATI264VTA3 (Mach64 VT)";
-			par->pll_limits.pll_max = 170;
-			par->pll_limits.mclk = 67;
-			par->pll_limits.xclk = 67;
-			par->pll_limits.ecp_max = 80;
-			par->features = ATI_CHIP_264VT;
-		} else if(rev == 0x40) {
-			name = "ATI264VTA4 (Mach64 VT)";
-			par->pll_limits.pll_max = 200;
-			par->pll_limits.mclk = 67;
-			par->pll_limits.xclk = 67;
-			par->pll_limits.ecp_max = 80;
-			par->features = ATI_CHIP_264VT | M64F_MAGIC_POSTDIV;
-		} else {
-			name = "ATI264VTB (Mach64 VT)";
+		switch (rev & 0x07) {
+		case 0x00:
+			switch (rev & 0xc0) {
+			case 0x00:
+				name = "ATI264VT (A3) (Mach64 VT)";
+				par->pll_limits.pll_max = 170;
+				par->pll_limits.mclk = 67;
+				par->pll_limits.xclk = 67;
+				par->pll_limits.ecp_max = 80;
+				par->features = ATI_CHIP_264VT;
+				break;
+			case 0x40:
+				name = "ATI264VT2 (A4) (Mach64 VT)";
+				par->pll_limits.pll_max = 200;
+				par->pll_limits.mclk = 67;
+				par->pll_limits.xclk = 67;
+				par->pll_limits.ecp_max = 80;
+				par->features = ATI_CHIP_264VT | M64F_MAGIC_POSTDIV;
+				break;
+			}
+			break;
+		case 0x01:
+			name = "ATI264VT3 (B1) (Mach64 VT)";
 			par->pll_limits.pll_max = 200;
 			par->pll_limits.mclk = 67;
 			par->pll_limits.xclk = 67;
 			par->pll_limits.ecp_max = 80;
 			par->features = ATI_CHIP_264VTB;
+			break;
+		case 0x02:
+			name = "ATI264VT3 (B2) (Mach64 VT)";
+			par->pll_limits.pll_max = 200;
+			par->pll_limits.mclk = 67;
+			par->pll_limits.xclk = 67;
+			par->pll_limits.ecp_max = 80;
+			par->features = ATI_CHIP_264VT3;
+			break;
 		}
 		break;
 	case PCI_CHIP_MACH64GT:
-		rev &= 0x07;
-		if(rev == 0x01) {
+		switch (rev & 0x07) {
+		case 0x01:
+			name = "3D RAGE II (Mach64 GT)";
 			par->pll_limits.pll_max = 170;
 			par->pll_limits.mclk = 67;
 			par->pll_limits.xclk = 67;
 			par->pll_limits.ecp_max = 80;
 			par->features = ATI_CHIP_264GTB;
-		} else if(rev == 0x02) {
+			break;
+		case 0x02:
+			name = "3D RAGE II+ (Mach64 GT)";
 			par->pll_limits.pll_max = 200;
 			par->pll_limits.mclk = 67;
 			par->pll_limits.xclk = 67;
 			par->pll_limits.ecp_max = 100;
 			par->features = ATI_CHIP_264GTB;
+			break;
 		}
 		break;
 #endif
