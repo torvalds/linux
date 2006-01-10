@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -59,7 +59,7 @@
 #include <asm/sn/sn_sal.h>
 #include <asm/kdebug.h>
 #include <asm/uaccess.h>
-#include "xpc.h"
+#include <asm/sn/xpc.h>
 
 
 /* define two XPC debug device structures to be used with dev_dbg() et al */

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -11,8 +11,8 @@
  * Cross Partition Communication (XPC) structures and macros.
  */
 
-#ifndef _IA64_SN_KERNEL_XPC_H
-#define _IA64_SN_KERNEL_XPC_H
+#ifndef _ASM_IA64_SN_XPC_H
+#define _ASM_IA64_SN_XPC_H
 
 
 #include <linux/config.h>
@@ -1270,5 +1270,5 @@ xpc_check_for_channel_activity(struct xpc_partition *part)
 }
 
 
-#endif /* _IA64_SN_KERNEL_XPC_H */
+#endif /* _ASM_IA64_SN_XPC_H */
 
