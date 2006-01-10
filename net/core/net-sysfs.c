@@ -16,6 +16,7 @@
 #include <net/sock.h>
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
+#include <net/iw_handler.h>
 
 #define to_class_dev(obj) container_of(obj,struct class_device,kobj)
 #define to_net_dev(class) container_of(class, struct net_device, class_dev)
@@ -294,13 +295,19 @@ static ssize_t wireless_show(struct class_device *cd, char *buf,
 					       char *))
 {
 	struct net_device *dev = to_net_dev(cd);
-	const struct iw_statistics *iw;
+	const struct iw_statistics *iw = NULL;
 	ssize_t ret = -EINVAL;
 	
 	read_lock(&dev_base_lock);
-	if (dev_isalive(dev) && dev->get_wireless_stats 
-	    && (iw = dev->get_wireless_stats(dev)) != NULL) 
-		ret = (*format)(iw, buf);
+	if (dev_isalive(dev)) {
+		if(dev->wireless_handlers &&
+		   dev->wireless_handlers->get_wireless_stats)
+			iw = dev->wireless_handlers->get_wireless_stats(dev);
+		else if (dev->get_wireless_stats)
+			iw = dev->get_wireless_stats(dev);
+		if (iw != NULL)
+			ret = (*format)(iw, buf);
+	}
 	read_unlock(&dev_base_lock);
 
 	return ret;
@@ -402,7 +409,8 @@ void netdev_unregister_sysfs(struct net_device * net)
 		sysfs_remove_group(&class_dev->kobj, &netstat_group);
 
 #ifdef WIRELESS_EXT
-	if (net->get_wireless_stats)
+	if (net->get_wireless_stats || (net->wireless_handlers &&
+			net->wireless_handlers->get_wireless_stats))
 		sysfs_remove_group(&class_dev->kobj, &wireless_group);
 #endif
 	class_device_del(class_dev);
@@ -427,10 +435,12 @@ int netdev_register_sysfs(struct net_device *net)
 		goto out_unreg; 
 
 #ifdef WIRELESS_EXT
-	if (net->get_wireless_stats &&
-	    (ret = sysfs_create_group(&class_dev->kobj, &wireless_group)))
-		goto out_cleanup; 
-
+	if (net->get_wireless_stats || (net->wireless_handlers &&
+			net->wireless_handlers->get_wireless_stats)) {
+		ret = sysfs_create_group(&class_dev->kobj, &wireless_group);
+		if (ret)
+			goto out_cleanup;
+	}
 	return 0;
 out_cleanup:
 	if (net->get_stats)
