@@ -29,28 +29,28 @@
 
 #define DRIVER_VERSION	"0.05"
 
-#define GPIO_DATA       0x60   /* port offset from ESS_IO_BASE */
+#define GPIO_DATA	0x60   /* port offset from ESS_IO_BASE */
 
 #define IO_MASK		4      /* mask      register offset from GPIO_DATA
 				bits 1=unmask write to given bit */
 #define IO_DIR		8      /* direction register offset from GPIO_DATA
 				bits 0/1=read/write direction */
 
-#define GPIO6           0x0040 /* mask bits for GPIO lines */
-#define GPIO7           0x0080
-#define GPIO8           0x0100
-#define GPIO9           0x0200
+#define GPIO6		0x0040 /* mask bits for GPIO lines */
+#define GPIO7		0x0080
+#define GPIO8		0x0100
+#define GPIO9		0x0200
 
-#define STR_DATA        GPIO6  /* radio TEA5757 pins and GPIO bits */
-#define STR_CLK         GPIO7
-#define STR_WREN        GPIO8
-#define STR_MOST        GPIO9
+#define STR_DATA	GPIO6  /* radio TEA5757 pins and GPIO bits */
+#define STR_CLK		GPIO7
+#define STR_WREN	GPIO8
+#define STR_MOST	GPIO9
 
 #define FREQ_LO		 50*16000
 #define FREQ_HI		150*16000
 
-#define FREQ_IF         171200 /* 10.7*16000   */
-#define FREQ_STEP       200    /* 12.5*16      */
+#define FREQ_IF		171200 /* 10.7*16000   */
+#define FREQ_STEP	200    /* 12.5*16      */
 
 #define FREQ2BITS(x)	((((unsigned int)(x)+FREQ_IF+(FREQ_STEP<<1))\
 			/(FREQ_STEP<<2))<<2) /* (x==fmhz*16*1000) -> bits */
@@ -61,7 +61,7 @@ static int radio_nr = -1;
 module_param(radio_nr, int, 0);
 
 static int radio_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg);
+	unsigned int cmd, unsigned long arg);
 static int maestro_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void maestro_remove(struct pci_dev *pdev);
 
@@ -92,22 +92,20 @@ static struct file_operations maestro_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device maestro_radio=
-{
+static struct video_device maestro_radio = {
 	.owner		= THIS_MODULE,
 	.name		= "Maestro radio",
 	.type		= VID_TYPE_TUNER,
 	.hardware	= VID_HARDWARE_SF16MI,
-	.fops           = &maestro_fops,
+	.fops		= &maestro_fops,
 };
 
-struct radio_device
-{
+struct radio_device {
 	__u16	io,	/* base of Maestro card radio io (GPIO_DATA)*/
 		muted,	/* VIDEO_AUDIO_MUTE */
 		stereo,	/* VIDEO_TUNER_STEREO_ON */	
 		tuned;	/* signal strength (0 or 0xffff) */
-	struct  semaphore lock;
+	struct	semaphore lock;
 };
 
 static __u32 radio_bits_get(struct radio_device *dev)
@@ -115,6 +113,7 @@ static __u32 radio_bits_get(struct radio_device *dev)
 	register __u16 io=dev->io, l, rdata;
 	register __u32 data=0;
 	__u16 omask;
+
 	omask = inw(io + IO_MASK);
 	outw(~(STR_CLK | STR_WREN), io + IO_MASK);
 	outw(0, io);
@@ -137,10 +136,13 @@ static __u32 radio_bits_get(struct radio_device *dev)
 				data++;
 		udelay(2);
 	}
+
 	if(dev->muted)
 		outw(STR_WREN, io);
+
 	udelay(4);
 	outw(omask, io + IO_MASK);
+
 	return data & 0x3ffe;
 }
 
@@ -148,6 +150,7 @@ static void radio_bits_set(struct radio_device *dev, __u32 data)
 {
 	register __u16 io=dev->io, l, bits;
 	__u16 omask, odir;
+
 	omask = inw(io + IO_MASK);
 	odir  = (inw(io + IO_DIR) & ~STR_DATA) | (STR_CLK | STR_WREN);
 	outw(odir | STR_DATA, io + IO_DIR);
@@ -163,8 +166,10 @@ static void radio_bits_set(struct radio_device *dev, __u32 data)
 		outw(bits, io);			/* LO level */
 		udelay(4);
 	}
+
 	if(!dev->muted)
 		outw(0, io);
+
 	udelay(4);
 	outw(omask, io + IO_MASK);
 	outw(odir, io + IO_DIR);
@@ -172,108 +177,103 @@ static void radio_bits_set(struct radio_device *dev, __u32 data)
 }
 
 static inline int radio_function(struct inode *inode, struct file *file,
-				 unsigned int cmd, void *arg)
+	unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
-	struct radio_device *card=dev->priv;
-	
-	switch(cmd) {
-		case VIDIOCGCAP: {
-			struct video_capability *v = arg;
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "Maestro radio");
-			v->type=VID_TYPE_TUNER;
-			v->channels=v->audios=1;
+	struct radio_device *card = dev->priv;
+
+	switch (cmd) {
+	case VIDIOCGCAP: {
+		struct video_capability *v = arg;
+		memset(v, 0, sizeof(*v));
+		strcpy(v->name, "Maestro radio");
+		v->type = VID_TYPE_TUNER;
+		v->channels = v->audios = 1;
+		return 0;
+	} case VIDIOCGTUNER: {
+		struct video_tuner *v = arg;
+		if (v->tuner)
+			return -EINVAL;
+		(void)radio_bits_get(card);
+		v->flags = VIDEO_TUNER_LOW | card->stereo;
+		v->signal = card->tuned;
+		strcpy(v->name, "FM");
+		v->rangelow = FREQ_LO;
+		v->rangehigh = FREQ_HI;
+		v->mode = VIDEO_MODE_AUTO;
+		return 0;
+	} case VIDIOCSTUNER: {
+		struct video_tuner *v = arg;
+		if (v->tuner != 0)
+			return -EINVAL;
+		return 0;
+	} case VIDIOCGFREQ: {
+		unsigned long *freq = arg;
+		*freq = BITS2FREQ(radio_bits_get(card));
+		return 0;
+	} case VIDIOCSFREQ: {
+		unsigned long *freq = arg;
+		if (*freq < FREQ_LO || *freq > FREQ_HI)
+			return -EINVAL;
+		radio_bits_set(card, FREQ2BITS(*freq));
+		return 0;
+	} case VIDIOCGAUDIO: {
+		struct video_audio *v = arg;
+		memset(v, 0, sizeof(*v));
+		strcpy(v->name, "Radio");
+		v->flags = VIDEO_AUDIO_MUTABLE | card->muted;
+		v->mode = VIDEO_SOUND_STEREO;
+		return 0;
+	} case VIDIOCSAUDIO: {
+		struct video_audio *v = arg;
+		if (v->audio)
+			return -EINVAL;
+		{
+			register __u16 io = card->io;
+			register __u16 omask = inw(io + IO_MASK);
+			outw(~STR_WREN, io + IO_MASK);
+			outw((card->muted = v->flags & VIDEO_AUDIO_MUTE) ?
+				STR_WREN : 0, io);
+			udelay(4);
+			outw(omask, io + IO_MASK);
+			msleep(125);
 			return 0;
 		}
-		case VIDIOCGTUNER: {
-			struct video_tuner *v = arg;
-			if(v->tuner)
-				return -EINVAL;
-			(void)radio_bits_get(card);
-			v->flags = VIDEO_TUNER_LOW | card->stereo;
-			v->signal = card->tuned;
-			strcpy(v->name, "FM");
-			v->rangelow = FREQ_LO;
-			v->rangehigh = FREQ_HI;
-			v->mode = VIDEO_MODE_AUTO;
-		        return 0;
-		}
-		case VIDIOCSTUNER: {
-			struct video_tuner *v = arg;
-			if(v->tuner!=0)
-				return -EINVAL;
-			return 0;
-		}
-		case VIDIOCGFREQ: {
-			unsigned long *freq = arg;
-			*freq = BITS2FREQ(radio_bits_get(card));
-			return 0;
-		}
-		case VIDIOCSFREQ: {
-			unsigned long *freq = arg;
-			if (*freq<FREQ_LO || *freq>FREQ_HI )
-				return -EINVAL;
-			radio_bits_set(card, FREQ2BITS(*freq));
-			return 0;
-		}
-		case VIDIOCGAUDIO: {	
-			struct video_audio *v = arg;
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "Radio");
-			v->flags=VIDEO_AUDIO_MUTABLE | card->muted;
-			v->mode=VIDEO_SOUND_STEREO;
-			return 0;		
-		}
-		case VIDIOCSAUDIO: {
-			struct video_audio *v = arg;
-			if(v->audio)
-				return -EINVAL;
-			{
-				register __u16 io=card->io;
-				register __u16 omask = inw(io + IO_MASK);
-				outw(~STR_WREN, io + IO_MASK);
-				outw((card->muted = v->flags & VIDEO_AUDIO_MUTE)
-				     ? STR_WREN : 0, io);
-				udelay(4);
-				outw(omask, io + IO_MASK);
-				msleep(125);
-				return 0;
-			}
-		}
-		case VIDIOCGUNIT: {
-			struct video_unit *v = arg;
-			v->video=VIDEO_NO_UNIT;
-			v->vbi=VIDEO_NO_UNIT;
-			v->radio=dev->minor;
-			v->audio=0;
-			v->teletext=VIDEO_NO_UNIT;
-			return 0;		
-		}
-		default: return -ENOIOCTLCMD;
+	} case VIDIOCGUNIT: {
+		struct video_unit *v = arg;
+		v->video = VIDEO_NO_UNIT;
+		v->vbi = VIDEO_NO_UNIT;
+		v->radio = dev->minor;
+		v->audio = 0;
+		v->teletext = VIDEO_NO_UNIT;
+		return 0;
+	} default:
+		return -ENOIOCTLCMD;
 	}
 }
 
 static int radio_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+	unsigned int cmd, unsigned long arg)
 {
 	struct video_device *dev = video_devdata(file);
-	struct radio_device *card=dev->priv;
+	struct radio_device *card = dev->priv;
 	int ret;
 
 	down(&card->lock);
 	ret = video_usercopy(inode, file, cmd, arg, radio_function);
 	up(&card->lock);
+
 	return ret;
 }
 
 static __u16 __devinit radio_power_on(struct radio_device *dev)
 {
-	register __u16 io=dev->io;
+	register __u16 io = dev->io;
 	register __u32 ofreq;
 	__u16 omask, odir;
+
 	omask = inw(io + IO_MASK);
-	odir  = (inw(io + IO_DIR) & ~STR_DATA) | (STR_CLK | STR_WREN);
+	odir = (inw(io + IO_DIR) & ~STR_DATA) | (STR_CLK | STR_WREN);
 	outw(odir & ~STR_WREN, io + IO_DIR);
 	dev->muted = inw(io) & STR_WREN ? 0 : VIDEO_AUDIO_MUTE;
 	outw(odir, io + IO_DIR);
@@ -282,9 +282,11 @@ static __u16 __devinit radio_power_on(struct radio_device *dev)
 	udelay(16);
 	outw(omask, io + IO_MASK);
 	ofreq = radio_bits_get(dev);
-	if((ofreq<FREQ2BITS(FREQ_LO)) || (ofreq>FREQ2BITS(FREQ_HI)))
+
+	if ((ofreq < FREQ2BITS(FREQ_LO)) || (ofreq > FREQ2BITS(FREQ_HI)))
 		ofreq = FREQ2BITS(FREQ_LO);
 	radio_bits_set(dev, ofreq);
+
 	return (ofreq == radio_bits_get(dev));
 }
 
@@ -335,7 +337,7 @@ static int __devinit maestro_probe(struct pci_dev *pdev,
 	}
 
 	dev_info(&pdev->dev, "version " DRIVER_VERSION " time " __TIME__ "  "
-		__DATE__ "\n");
+		 __DATE__ "\n");
 	dev_info(&pdev->dev, "radio chip initialized\n");
 
 	return 0;
@@ -357,10 +359,6 @@ static void __devexit maestro_remove(struct pci_dev *pdev)
 	video_unregister_device(vdev);
 }
 
-MODULE_AUTHOR("Adam Tlalka, atlka@pg.gda.pl");
-MODULE_DESCRIPTION("Radio driver for the Maestro PCI sound card radio.");
-MODULE_LICENSE("GPL");
-
 static int __init maestro_radio_init(void)
 {
 	int retval = pci_register_driver(&maestro_r_driver);
@@ -378,3 +376,7 @@ static void __exit maestro_radio_exit(void)
 
 module_init(maestro_radio_init);
 module_exit(maestro_radio_exit);
+
+MODULE_AUTHOR("Adam Tlalka, atlka@pg.gda.pl");
+MODULE_DESCRIPTION("Radio driver for the Maestro PCI sound card radio.");
+MODULE_LICENSE("GPL");
