@@ -497,12 +497,6 @@ reiserfs_xattr_set(struct inode *inode, const char *name, const void *buffer,
 	struct iattr newattrs;
 	__u32 xahash = 0;
 
-	if (IS_RDONLY(inode))
-		return -EROFS;
-
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return -EPERM;
-
 	if (get_inode_sd_version(inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
@@ -758,9 +752,6 @@ int reiserfs_xattr_del(struct inode *inode, const char *name)
 	struct dentry *dir;
 	int err;
 
-	if (IS_RDONLY(inode))
-		return -EROFS;
-
 	dir = open_xa_dir(inode, FL_READONLY);
 	if (IS_ERR(dir)) {
 		err = PTR_ERR(dir);
@@ -984,12 +975,6 @@ reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	    get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
-	if (IS_RDONLY(dentry->d_inode))
-		return -EROFS;
-
-	if (IS_IMMUTABLE(dentry->d_inode) || IS_APPEND(dentry->d_inode))
-		return -EROFS;
-
 	reiserfs_write_lock_xattr_i(dentry->d_inode);
 	lock = !has_xattr_dir(dentry->d_inode);
 	if (lock)
@@ -1018,12 +1003,6 @@ int reiserfs_removexattr(struct dentry *dentry, const char *name)
 	if (!xah || !reiserfs_xattrs(dentry->d_sb) ||
 	    get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
-
-	if (IS_RDONLY(dentry->d_inode))
-		return -EROFS;
-
-	if (IS_IMMUTABLE(dentry->d_inode) || IS_APPEND(dentry->d_inode))
-		return -EPERM;
 
 	reiserfs_write_lock_xattr_i(dentry->d_inode);
 	reiserfs_read_lock_xattrs(dentry->d_sb);
