@@ -967,16 +967,6 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		vdisplay = yres;
 		if(vmode & FB_VMODE_DOUBLE)
 			vdisplay <<= 1;
-		if(vmode & FB_VMODE_INTERLACED) {
-			vdisplay >>= 1;
-
-			/* The prefered mode for the LCD is not interlaced, so disable it if
-			   it was enabled. For doublescan there is no problem, because we can
-			   compensate for it in the hardware stretching (we stretch half as much)
-			 */
-			vmode &= ~FB_VMODE_INTERLACED;
-			/*crtc->gen_cntl &= ~CRTC_INTERLACE_EN;*/
-		}
 		crtc->gen_cntl &= ~(CRTC2_EN | CRTC2_PIX_WIDTH);
 		crtc->lcd_gen_cntl &= ~(HORZ_DIVBY2_EN | DIS_HOR_CRT_DIVBY2 |
 			/*TVCLK_PM_EN | VCLK_DAC_PM_EN |*/
