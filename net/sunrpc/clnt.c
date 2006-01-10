@@ -269,7 +269,7 @@ rpc_shutdown_client(struct rpc_clnt *clnt)
 		clnt->cl_dead = 0;
 		rpc_killall_tasks(clnt);
 		wait_event_timeout(destroy_wait,
-			atomic_read(&clnt->cl_users) > 0, 1*HZ);
+			!atomic_read(&clnt->cl_users), 1*HZ);
 	}
 
 	if (atomic_read(&clnt->cl_users) < 0) {
