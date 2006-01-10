@@ -14,7 +14,7 @@ obj-y :=	open.o read_write.o file_table.o buffer.o  bio.o super.o \
 
 obj-$(CONFIG_INOTIFY)		+= inotify.o
 obj-$(CONFIG_EPOLL)		+= eventpoll.o
-obj-$(CONFIG_COMPAT)		+= compat.o
+obj-$(CONFIG_COMPAT)		+= compat.o compat_ioctl.o
 
 nfsd-$(CONFIG_NFSD)		:= nfsctl.o
 obj-y				+= $(nfsd-y) $(nfsd-m)

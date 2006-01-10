@@ -2,14 +2,6 @@
  * compatible types passed or none at all... Please include
  * only stuff that is compatible on *all architectures*.
  */
-#ifndef COMPATIBLE_IOCTL /* pointer to compatible structure or no argument */
-#define COMPATIBLE_IOCTL(cmd)  HANDLE_IOCTL((cmd),(ioctl_trans_handler_t)sys_ioctl)
-#endif
-
-#ifndef ULONG_IOCTL /* argument is an unsigned long integer, not a pointer */
-#define ULONG_IOCTL(cmd)  HANDLE_IOCTL((cmd),(ioctl_trans_handler_t)sys_ioctl)
-#endif
-
 
 COMPATIBLE_IOCTL(0x4B50)   /* KDGHWCLK - not in the kernel, but don't complain */
 COMPATIBLE_IOCTL(0x4B51)   /* KDSHWCLK - not in the kernel, but don't complain */

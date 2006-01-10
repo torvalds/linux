@@ -16,7 +16,7 @@ obj-y		:= process.o setup.o cpu.o idprom.o \
 obj-$(CONFIG_PCI)	 += ebus.o isa.o pci_common.o pci_iommu.o \
 			    pci_psycho.o pci_sabre.o pci_schizo.o
 obj-$(CONFIG_SMP)	 += smp.o trampoline.o
-obj-$(CONFIG_SPARC32_COMPAT) += sys32.o sys_sparc32.o signal32.o ioctl32.o
+obj-$(CONFIG_SPARC32_COMPAT) += sys32.o sys_sparc32.o signal32.o
 obj-$(CONFIG_BINFMT_ELF32) += binfmt_elf32.o
 obj-$(CONFIG_BINFMT_AOUT32) += binfmt_aout32.o
 obj-$(CONFIG_MODULES) += module.o
@@ -40,5 +40,3 @@ endif
 
 head.o: head.S ttable.S itlb_base.S dtlb_base.S dtlb_backend.S dtlb_prot.S \
 	etrap.S rtrap.S winfixup.S entry.S
-
-CFLAGS_ioctl32.o += -Ifs/

@@ -10,7 +10,6 @@
  * ioctls.
  */
 
-#ifdef INCLUDES
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/compat.h>
@@ -81,13 +80,9 @@
 #include <linux/capi.h>
 
 #include <scsi/scsi.h>
-/* Ugly hack. */
-#undef __KERNEL__
 #include <scsi/scsi_ioctl.h>
-#define __KERNEL__
 #include <scsi/sg.h>
 
-#include <asm/types.h>
 #include <asm/uaccess.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
@@ -95,7 +90,6 @@
 #include <linux/watchdog.h>
 #include <linux/dm-ioctl.h>
 
-#include <asm/module.h>
 #include <linux/soundcard.h>
 #include <linux/lp.h>
 #include <linux/ppdev.h>
@@ -128,11 +122,6 @@
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/video.h>
 
-#undef INCLUDES
-#endif
-
-#ifdef CODE
-
 /* Aiee. Someone does not find a difference between int and long */
 #define EXT2_IOC32_GETFLAGS               _IOR('f', 1, int)
 #define EXT2_IOC32_SETFLAGS               _IOW('f', 2, int)
@@ -147,6 +136,12 @@
 
 #define EXT2_IOC32_GETVERSION             _IOR('v', 1, int)
 #define EXT2_IOC32_SETVERSION             _IOW('v', 2, int)
+
+static int do_ioctl32_pointer(unsigned int fd, unsigned int cmd,
+			      unsigned long arg, struct file *f)
+{
+	return sys_ioctl(fd, cmd, (unsigned long)compat_ptr(arg));
+}
 
 static int w_long(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
@@ -2705,10 +2700,20 @@ static int do_ncp_setprivatedata(unsigned int fd, unsigned int cmd, unsigned lon
 }
 #endif
 
-#undef CODE
-#endif
+#define HANDLE_IOCTL(cmd,handler) \
+	{ (cmd), (ioctl_trans_handler_t)(handler) },
 
-#ifdef DECLARES
+/* pointer to compatible structure or no argument */
+#define COMPATIBLE_IOCTL(cmd) \
+	{ (cmd), do_ioctl32_pointer },
+
+/* argument is an unsigned long integer, not a pointer */
+#define ULONG_IOCTL(cmd) \
+	{ (cmd), (ioctl_trans_handler_t)sys_ioctl },
+
+
+struct ioctl_trans ioctl_start[] = {
+#include <linux/compat_ioctl.h>
 HANDLE_IOCTL(MEMREADOOB32, mtd_rw_oob)
 HANDLE_IOCTL(MEMWRITEOOB32, mtd_rw_oob)
 #ifdef CONFIG_NET
@@ -2921,6 +2926,6 @@ HANDLE_IOCTL(DMX_GET_EVENT, do_dmx_get_event)
 HANDLE_IOCTL(VIDEO_GET_EVENT, do_video_get_event)
 HANDLE_IOCTL(VIDEO_STILLPICTURE, do_video_stillpicture)
 HANDLE_IOCTL(VIDEO_SET_SPU_PALETTE, do_video_set_spu_palette)
+};
 
-#undef DECLARES
-#endif
+int ioctl_table_size = ARRAY_SIZE(ioctl_start);
