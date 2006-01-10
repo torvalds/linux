@@ -619,6 +619,8 @@ mktime(const unsigned int year0, const unsigned int mon0,
 	)*60 + sec; /* finally seconds */
 }
 
+EXPORT_SYMBOL(mktime);
+
 /**
  * set_normalized_timespec - set timespec sec and nsec parts and normalize
  *
