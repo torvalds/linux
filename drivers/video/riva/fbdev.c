@@ -1209,32 +1209,8 @@ static int rivafb_pan_display(struct fb_var_screeninfo *var,
 	unsigned int base;
 
 	NVTRACE_ENTER();
-	if (var->xoffset > (var->xres_virtual - var->xres))
-		return -EINVAL;
-	if (var->yoffset > (var->yres_virtual - var->yres))
-		return -EINVAL;
-
-	if (var->vmode & FB_VMODE_YWRAP) {
-		if (var->yoffset < 0
-		    || var->yoffset >= info->var.yres_virtual
-		    || var->xoffset) return -EINVAL;
-	} else {
-		if (var->xoffset + info->var.xres > info->var.xres_virtual ||
-		    var->yoffset + info->var.yres > info->var.yres_virtual)
-			return -EINVAL;
-	}
-
 	base = var->yoffset * info->fix.line_length + var->xoffset;
-
 	par->riva.SetStartAddress(&par->riva, base);
-
-	info->var.xoffset = var->xoffset;
-	info->var.yoffset = var->yoffset;
-
-	if (var->vmode & FB_VMODE_YWRAP)
-		info->var.vmode |= FB_VMODE_YWRAP;
-	else
-		info->var.vmode &= ~FB_VMODE_YWRAP;
 	NVTRACE_LEAVE();
 	return 0;
 }
