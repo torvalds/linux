@@ -100,10 +100,6 @@ EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umoddi3);
 EXPORT_SYMBOL(__umodsi3);
 
-#ifdef MAGIC_ROM_PTR
-EXPORT_SYMBOL(is_in_rom);
-#endif
-
 EXPORT_SYMBOL(h8300_reserved_gpio);
 EXPORT_SYMBOL(h8300_free_gpio);
 EXPORT_SYMBOL(h8300_set_gpio_dir);
