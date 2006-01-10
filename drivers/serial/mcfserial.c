@@ -1516,7 +1516,7 @@ static void mcfrs_irqinit(struct mcf_serial *info)
 
 	icrp = (volatile unsigned char *) (MCF_MBAR + MCFICM_INTC0 +
 		MCFINTC_ICR0 + MCFINT_UART0 + info->line);
-	*icrp = 0x33; /* UART0 with level 6, priority 3 */
+	*icrp = 0x30 + info->line; /* level 6, line based priority */
 
 	imrp = (volatile unsigned long *) (MCF_MBAR + MCFICM_INTC0 +
 		MCFINTC_IMRL);
