@@ -65,20 +65,3 @@ The default is to disallow mandatory locking. The intention is that
 mandatory locking only be enabled on a local filesystem as the specific need
 arises.
 
-Until an updated version of mount(8) becomes available you may have to apply
-this patch to the mount sources (based on the version distributed with Rick
-Faith's util-linux-2.5 package):
-
-*** mount.c.orig	Sat Jun  8 09:14:31 1996
---- mount.c	Sat Jun  8 09:13:02 1996
-***************
-*** 100,105 ****
---- 100,107 ----
-    { "noauto",	0, MS_NOAUTO	},	/* Can  only be mounted explicitly */
-    { "user",	0, MS_USER	},	/* Allow ordinary user to mount */
-    { "nouser",	1, MS_USER	},	/* Forbid ordinary user to mount */
-+   { "mand",	0, MS_MANDLOCK	},	/* Allow mandatory locks on this FS */
-+   { "nomand",	1, MS_MANDLOCK	},	/* Forbid mandatory locks on this FS */
-    /* add new options here */
-  #ifdef MS_NOSUB
-    { "sub",	1, MS_NOSUB	},	/* allow submounts */
