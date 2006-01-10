@@ -7,7 +7,7 @@
 #include <asm/uaccess.h>
 #include <linux/errno.h>
 
-static int check_clock(clockid_t which_clock)
+static int check_clock(const clockid_t which_clock)
 {
 	int error = 0;
 	struct task_struct *p;
@@ -31,7 +31,7 @@ static int check_clock(clockid_t which_clock)
 }
 
 static inline union cpu_time_count
-timespec_to_sample(clockid_t which_clock, const struct timespec *tp)
+timespec_to_sample(const clockid_t which_clock, const struct timespec *tp)
 {
 	union cpu_time_count ret;
 	ret.sched = 0;		/* high half always zero when .cpu used */
@@ -43,7 +43,7 @@ timespec_to_sample(clockid_t which_clock, const struct timespec *tp)
 	return ret;
 }
 
-static void sample_to_timespec(clockid_t which_clock,
+static void sample_to_timespec(const clockid_t which_clock,
 			       union cpu_time_count cpu,
 			       struct timespec *tp)
 {
@@ -55,7 +55,7 @@ static void sample_to_timespec(clockid_t which_clock,
 	}
 }
 
-static inline int cpu_time_before(clockid_t which_clock,
+static inline int cpu_time_before(const clockid_t which_clock,
 				  union cpu_time_count now,
 				  union cpu_time_count then)
 {
@@ -65,7 +65,7 @@ static inline int cpu_time_before(clockid_t which_clock,
 		return cputime_lt(now.cpu, then.cpu);
 	}
 }
-static inline void cpu_time_add(clockid_t which_clock,
+static inline void cpu_time_add(const clockid_t which_clock,
 				union cpu_time_count *acc,
 			        union cpu_time_count val)
 {
@@ -75,7 +75,7 @@ static inline void cpu_time_add(clockid_t which_clock,
 		acc->cpu = cputime_add(acc->cpu, val.cpu);
 	}
 }
-static inline union cpu_time_count cpu_time_sub(clockid_t which_clock,
+static inline union cpu_time_count cpu_time_sub(const clockid_t which_clock,
 						union cpu_time_count a,
 						union cpu_time_count b)
 {
@@ -151,7 +151,7 @@ static inline unsigned long long sched_ns(struct task_struct *p)
 	return (p == current) ? current_sched_time(p) : p->sched_time;
 }
 
-int posix_cpu_clock_getres(clockid_t which_clock, struct timespec *tp)
+int posix_cpu_clock_getres(const clockid_t which_clock, struct timespec *tp)
 {
 	int error = check_clock(which_clock);
 	if (!error) {
@@ -169,7 +169,7 @@ int posix_cpu_clock_getres(clockid_t which_clock, struct timespec *tp)
 	return error;
 }
 
-int posix_cpu_clock_set(clockid_t which_clock, const struct timespec *tp)
+int posix_cpu_clock_set(const clockid_t which_clock, const struct timespec *tp)
 {
 	/*
 	 * You can never reset a CPU clock, but we check for other errors
@@ -186,7 +186,7 @@ int posix_cpu_clock_set(clockid_t which_clock, const struct timespec *tp)
 /*
  * Sample a per-thread clock for the given task.
  */
-static int cpu_clock_sample(clockid_t which_clock, struct task_struct *p,
+static int cpu_clock_sample(const clockid_t which_clock, struct task_struct *p,
 			    union cpu_time_count *cpu)
 {
 	switch (CPUCLOCK_WHICH(which_clock)) {
@@ -248,7 +248,7 @@ static int cpu_clock_sample_group_locked(unsigned int clock_idx,
  * Sample a process (thread group) clock for the given group_leader task.
  * Must be called with tasklist_lock held for reading.
  */
-static int cpu_clock_sample_group(clockid_t which_clock,
+static int cpu_clock_sample_group(const clockid_t which_clock,
 				  struct task_struct *p,
 				  union cpu_time_count *cpu)
 {
@@ -262,7 +262,7 @@ static int cpu_clock_sample_group(clockid_t which_clock,
 }
 
 
-int posix_cpu_clock_get(clockid_t which_clock, struct timespec *tp)
+int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 {
 	const pid_t pid = CPUCLOCK_PID(which_clock);
 	int error = -EINVAL;
@@ -1399,7 +1399,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 
 static long posix_cpu_clock_nanosleep_restart(struct restart_block *);
 
-int posix_cpu_nsleep(clockid_t which_clock, int flags,
+int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 		     struct timespec *rqtp)
 {
 	struct restart_block *restart_block =
@@ -1503,11 +1503,13 @@ posix_cpu_clock_nanosleep_restart(struct restart_block *restart_block)
 #define PROCESS_CLOCK	MAKE_PROCESS_CPUCLOCK(0, CPUCLOCK_SCHED)
 #define THREAD_CLOCK	MAKE_THREAD_CPUCLOCK(0, CPUCLOCK_SCHED)
 
-static int process_cpu_clock_getres(clockid_t which_clock, struct timespec *tp)
+static int process_cpu_clock_getres(const clockid_t which_clock,
+				    struct timespec *tp)
 {
 	return posix_cpu_clock_getres(PROCESS_CLOCK, tp);
 }
-static int process_cpu_clock_get(clockid_t which_clock, struct timespec *tp)
+static int process_cpu_clock_get(const clockid_t which_clock,
+				 struct timespec *tp)
 {
 	return posix_cpu_clock_get(PROCESS_CLOCK, tp);
 }
@@ -1516,16 +1518,18 @@ static int process_cpu_timer_create(struct k_itimer *timer)
 	timer->it_clock = PROCESS_CLOCK;
 	return posix_cpu_timer_create(timer);
 }
-static int process_cpu_nsleep(clockid_t which_clock, int flags,
+static int process_cpu_nsleep(const clockid_t which_clock, int flags,
 			      struct timespec *rqtp)
 {
 	return posix_cpu_nsleep(PROCESS_CLOCK, flags, rqtp);
 }
-static int thread_cpu_clock_getres(clockid_t which_clock, struct timespec *tp)
+static int thread_cpu_clock_getres(const clockid_t which_clock,
+				   struct timespec *tp)
 {
 	return posix_cpu_clock_getres(THREAD_CLOCK, tp);
 }
-static int thread_cpu_clock_get(clockid_t which_clock, struct timespec *tp)
+static int thread_cpu_clock_get(const clockid_t which_clock,
+				struct timespec *tp)
 {
 	return posix_cpu_clock_get(THREAD_CLOCK, tp);
 }
@@ -1534,7 +1538,7 @@ static int thread_cpu_timer_create(struct k_itimer *timer)
 	timer->it_clock = THREAD_CLOCK;
 	return posix_cpu_timer_create(timer);
 }
-static int thread_cpu_nsleep(clockid_t which_clock, int flags,
+static int thread_cpu_nsleep(const clockid_t which_clock, int flags,
 			      struct timespec *rqtp)
 {
 	return -EINVAL;

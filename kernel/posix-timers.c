@@ -151,7 +151,7 @@ static void posix_timer_fn(unsigned long);
 static u64 do_posix_clock_monotonic_gettime_parts(
 	struct timespec *tp, struct timespec *mo);
 int do_posix_clock_monotonic_gettime(struct timespec *tp);
-static int do_posix_clock_monotonic_get(clockid_t, struct timespec *tp);
+static int do_posix_clock_monotonic_get(const clockid_t, struct timespec *tp);
 
 static struct k_itimer *lock_timer(timer_t timer_id, unsigned long *flags);
 
@@ -176,7 +176,7 @@ static inline void unlock_timer(struct k_itimer *timr, unsigned long flags)
  * the function pointer CALL in struct k_clock.
  */
 
-static inline int common_clock_getres(clockid_t which_clock,
+static inline int common_clock_getres(const clockid_t which_clock,
 				      struct timespec *tp)
 {
 	tp->tv_sec = 0;
@@ -184,13 +184,15 @@ static inline int common_clock_getres(clockid_t which_clock,
 	return 0;
 }
 
-static inline int common_clock_get(clockid_t which_clock, struct timespec *tp)
+static inline int common_clock_get(const clockid_t which_clock,
+				   struct timespec *tp)
 {
 	getnstimeofday(tp);
 	return 0;
 }
 
-static inline int common_clock_set(clockid_t which_clock, struct timespec *tp)
+static inline int common_clock_set(const clockid_t which_clock,
+				   struct timespec *tp)
 {
 	return do_sys_settimeofday(tp, NULL);
 }
@@ -207,7 +209,7 @@ static inline int common_timer_create(struct k_itimer *new_timer)
 /*
  * These ones are defined below.
  */
-static int common_nsleep(clockid_t, int flags, struct timespec *t);
+static int common_nsleep(const clockid_t, int flags, struct timespec *t);
 static void common_timer_get(struct k_itimer *, struct itimerspec *);
 static int common_timer_set(struct k_itimer *, int,
 			    struct itimerspec *, struct itimerspec *);
@@ -216,7 +218,7 @@ static int common_timer_del(struct k_itimer *timer);
 /*
  * Return nonzero iff we know a priori this clockid_t value is bogus.
  */
-static inline int invalid_clockid(clockid_t which_clock)
+static inline int invalid_clockid(const clockid_t which_clock)
 {
 	if (which_clock < 0)	/* CPU clock, posix_cpu_* will check it */
 		return 0;
@@ -522,7 +524,7 @@ static inline struct task_struct * good_sigevent(sigevent_t * event)
 	return rtn;
 }
 
-void register_posix_clock(clockid_t clock_id, struct k_clock *new_clock)
+void register_posix_clock(const clockid_t clock_id, struct k_clock *new_clock)
 {
 	if ((unsigned) clock_id >= MAX_CLOCKS) {
 		printk("POSIX clock register failed for clock_id %d\n",
@@ -568,7 +570,7 @@ static void release_posix_timer(struct k_itimer *tmr, int it_id_set)
 /* Create a POSIX.1b interval timer. */
 
 asmlinkage long
-sys_timer_create(clockid_t which_clock,
+sys_timer_create(const clockid_t which_clock,
 		 struct sigevent __user *timer_event_spec,
 		 timer_t __user * created_timer_id)
 {
@@ -1195,7 +1197,8 @@ static u64 do_posix_clock_monotonic_gettime_parts(
 	return jiff;
 }
 
-static int do_posix_clock_monotonic_get(clockid_t clock, struct timespec *tp)
+static int do_posix_clock_monotonic_get(const clockid_t clock,
+					struct timespec *tp)
 {
 	struct timespec wall_to_mono;
 
@@ -1212,7 +1215,7 @@ int do_posix_clock_monotonic_gettime(struct timespec *tp)
 	return do_posix_clock_monotonic_get(CLOCK_MONOTONIC, tp);
 }
 
-int do_posix_clock_nosettime(clockid_t clockid, struct timespec *tp)
+int do_posix_clock_nosettime(const clockid_t clockid, struct timespec *tp)
 {
 	return -EINVAL;
 }
@@ -1224,7 +1227,8 @@ int do_posix_clock_notimer_create(struct k_itimer *timer)
 }
 EXPORT_SYMBOL_GPL(do_posix_clock_notimer_create);
 
-int do_posix_clock_nonanosleep(clockid_t clock, int flags, struct timespec *t)
+int do_posix_clock_nonanosleep(const clockid_t clock, int flags,
+			       struct timespec *t)
 {
 #ifndef ENOTSUP
 	return -EOPNOTSUPP;	/* aka ENOTSUP in userland for POSIX */
@@ -1234,8 +1238,8 @@ int do_posix_clock_nonanosleep(clockid_t clock, int flags, struct timespec *t)
 }
 EXPORT_SYMBOL_GPL(do_posix_clock_nonanosleep);
 
-asmlinkage long
-sys_clock_settime(clockid_t which_clock, const struct timespec __user *tp)
+asmlinkage long sys_clock_settime(const clockid_t which_clock,
+				  const struct timespec __user *tp)
 {
 	struct timespec new_tp;
 
@@ -1248,7 +1252,7 @@ sys_clock_settime(clockid_t which_clock, const struct timespec __user *tp)
 }
 
 asmlinkage long
-sys_clock_gettime(clockid_t which_clock, struct timespec __user *tp)
+sys_clock_gettime(const clockid_t which_clock, struct timespec __user *tp)
 {
 	struct timespec kernel_tp;
 	int error;
@@ -1265,7 +1269,7 @@ sys_clock_gettime(clockid_t which_clock, struct timespec __user *tp)
 }
 
 asmlinkage long
-sys_clock_getres(clockid_t which_clock, struct timespec __user *tp)
+sys_clock_getres(const clockid_t which_clock, struct timespec __user *tp)
 {
 	struct timespec rtn_tp;
 	int error;
@@ -1387,7 +1391,7 @@ void clock_was_set(void)
 long clock_nanosleep_restart(struct restart_block *restart_block);
 
 asmlinkage long
-sys_clock_nanosleep(clockid_t which_clock, int flags,
+sys_clock_nanosleep(const clockid_t which_clock, int flags,
 		    const struct timespec __user *rqtp,
 		    struct timespec __user *rmtp)
 {
@@ -1419,7 +1423,7 @@ sys_clock_nanosleep(clockid_t which_clock, int flags,
 }
 
 
-static int common_nsleep(clockid_t which_clock,
+static int common_nsleep(const clockid_t which_clock,
 			 int flags, struct timespec *tsave)
 {
 	struct timespec t, dum;
