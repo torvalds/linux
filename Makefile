@@ -141,24 +141,6 @@ VPATH		:= $(srctree)
 
 export srctree objtree VPATH TOPDIR
 
-nullstring :=
-space      := $(nullstring) # end of line
-
-# Take the contents of any files called localversion* and the config
-# variable CONFIG_LOCALVERSION and append them to KERNELRELEASE. Be
-# careful not to include files twice if building in the source
-# directory. LOCALVERSION from the command line override all of this
-
-localver := $(objtree)/localversion* $(srctree)/localversion*
-localver := $(sort $(wildcard $(localver)))
-# skip backup files (containing '~')
-localver := $(foreach f, $(localver), $(if $(findstring ~, $(f)),,$(f)))
-
-LOCALVERSION = $(subst $(space),, \
-	       $(shell cat /dev/null $(localver)) \
-	       $(patsubst "%",%,$(CONFIG_LOCALVERSION)))
-
-KERNELRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)$(LOCALVERSION)
 
 # SUBARCH tells the usermode build what the underlying arch is.  That is set
 # first, and if a usermode build is happening, the "ARCH=um" on the command
@@ -353,7 +335,10 @@ CFLAGS 		:= -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -ffreestanding
 AFLAGS		:= -D__ASSEMBLY__
 
-export	VERSION PATCHLEVEL SUBLEVEL EXTRAVERSION LOCALVERSION KERNELRELEASE \
+# Read KERNELRELEASE from .kernelrelease (if it exists)
+KERNELRELEASE = $(shell cat .kernelrelease 2> /dev/null)
+
+export	VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE \
 	ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC \
 	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE \
 	HOSTCXX HOSTCXXFLAGS LDFLAGS_MODULE CHECK CHECKFLAGS
@@ -550,26 +535,6 @@ export KBUILD_IMAGE ?= vmlinux
 # INSTALL_PATH specifies where to place the updated kernel and system map
 # images. Default is /boot, but you can set it to other values
 export	INSTALL_PATH ?= /boot
-
-# If CONFIG_LOCALVERSION_AUTO is set, we automatically perform some tests
-# and try to determine if the current source tree is a release tree, of any sort,
-# or if is a pure development tree.
-#
-# A 'release tree' is any tree with a git TAG associated
-# with it.  The primary goal of this is to make it safe for a native
-# git/CVS/SVN user to build a release tree (i.e, 2.6.9) and also to
-# continue developing against the current Linus tree, without having the Linus
-# tree overwrite the 2.6.9 tree when installed.
-#
-# Currently, only git is supported.
-# Other SCMs can edit scripts/setlocalversion and add the appropriate
-# checks as needed.
-
-
-ifdef CONFIG_LOCALVERSION_AUTO
-	localversion-auto := $(shell $(PERL) $(srctree)/scripts/setlocalversion $(srctree))
-	LOCALVERSION := $(LOCALVERSION)$(localversion-auto)
-endif
 
 #
 # INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
@@ -782,6 +747,50 @@ $(sort $(vmlinux-init) $(vmlinux-main)) $(vmlinux-lds): $(vmlinux-dirs) ;
 $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
+# Build the kernel release string
+# The KERNELRELEASE is stored in a file named .kernelrelease
+# to be used when executing for example make install or make modules_install
+#
+# Take the contents of any files called localversion* and the config
+# variable CONFIG_LOCALVERSION and append them to KERNELRELEASE.
+# LOCALVERSION from the command line override all of this
+
+nullstring :=
+space      := $(nullstring) # end of line
+
+___localver = $(objtree)/localversion* $(srctree)/localversion*
+__localver  = $(sort $(wildcard $(___localver)))
+# skip backup files (containing '~')
+_localver = $(foreach f, $(__localver), $(if $(findstring ~, $(f)),,$(f)))
+
+localver = $(subst $(space),, \
+	   $(shell cat /dev/null $(_localver)) \
+	   $(patsubst "%",%,$(CONFIG_LOCALVERSION)))
+	       
+# If CONFIG_LOCALVERSION_AUTO is set scripts/setlocalversion is called
+# and if the SCM is know a tag from the SCM is appended.
+# The appended tag is determinded by the SCM used.
+#
+# Currently, only git is supported.
+# Other SCMs can edit scripts/setlocalversion and add the appropriate
+# checks as needed.
+ifdef CONFIG_LOCALVERSION_AUTO
+	_localver-auto = $(shell $(CONFIG_SHELL) \
+	                  $(srctree)/scripts/setlocalversion $(srctree))
+	localver-auto  = $(LOCALVERSION)$(_localver-auto)
+endif
+
+localver-full = $(localver)$(localver-auto)
+
+# Store (new) KERNELRELASE string in .kernelrelease
+kernelrelease = \
+       $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)$(localver-full)
+.kernelrelease: FORCE
+	$(Q)rm -f .kernelrelease
+	$(Q)echo $(kernelrelease) > .kernelrelease
+	$(Q)echo "  Building kernel $(kernelrelease)"
+
+
 # Things we need to do before we recursively start building the kernel
 # or the modules are listed in "prepare".
 # A multi level approach is used. prepareN is processed before prepareN-1.
@@ -798,8 +807,7 @@ $(vmlinux-dirs): prepare scripts
 # and if so do:
 # 1) Check that make has not been executed in the kernel src $(srctree)
 # 2) Create the include2 directory, used for the second asm symlink
-
-prepare3:
+prepare3: .kernelrelease
 ifneq ($(KBUILD_SRC),)
 	@echo '  Using $(srctree) as source for kernel'
 	$(Q)if [ -f $(srctree)/.config ]; then \
@@ -984,9 +992,9 @@ CLEAN_FILES +=	vmlinux System.map \
 
 # Directories & files removed with 'make mrproper'
 MRPROPER_DIRS  += include/config include2
-MRPROPER_FILES += .config .config.old include/asm .version \
+MRPROPER_FILES += .config .config.old include/asm .version .old_version \
                   include/linux/autoconf.h include/linux/version.h \
-                  Module.symvers tags TAGS cscope*
+		  .kernelrelease Module.symvers tags TAGS cscope*
 
 # clean - Delete most, but leave enough to build external modules
 #
@@ -1072,6 +1080,7 @@ help:
 	@echo  '  tags/TAGS	  - Generate tags file for editors'
 	@echo  '  cscope	  - Generate cscope index'
 	@echo  '  kernelrelease	  - Output the release version string'
+	@echo  '  kernelversion	  - Output the version stored in Makefile'
 	@echo  ''
 	@echo  'Static analysers'
 	@echo  '  buildcheck      - List dangling references to vmlinux discarded sections'
@@ -1293,6 +1302,8 @@ checkstack:
 
 kernelrelease:
 	@echo $(KERNELRELEASE)
+kernelversion:
+	@echo $(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
 
 # FIXME Should go into a make.lib or something 
 # ===========================================================================

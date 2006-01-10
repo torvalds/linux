@@ -17,6 +17,6 @@ if head=`git rev-parse --verify HEAD 2>/dev/null`; then
 
 	# Are there uncommitted changes?
 	if git diff-files | read dummy; then
-		printf '%s' -git_dirty
+		printf '%s' -dirty
 	fi
 fi
