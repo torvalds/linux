@@ -92,11 +92,11 @@ static void call_bios(struct regs *regs)
 	preempt_enable();
 }
 
-static size_t __init locate_wistron_bios(void __iomem *base)
+static ssize_t __init locate_wistron_bios(void __iomem *base)
 {
 	static const unsigned char __initdata signature[] =
 		{ 0x42, 0x21, 0x55, 0x30 };
-	size_t offset;
+	ssize_t offset;
 
 	for (offset = 0; offset < 0x10000; offset += 0x10) {
 		if (check_signature(base + offset, signature,
@@ -109,7 +109,7 @@ static size_t __init locate_wistron_bios(void __iomem *base)
 static int __init map_bios(void)
 {
 	void __iomem *base;
-	size_t offset;
+	ssize_t offset;
 	u32 entry_point;
 
 	base = ioremap(0xF0000, 0x10000); /* Can't fail */
