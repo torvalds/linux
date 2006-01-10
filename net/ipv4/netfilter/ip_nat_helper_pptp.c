@@ -299,8 +299,6 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 	u_int16_t msg, new_cid = 0, new_pcid;
 	unsigned int pcid_off, cid_off = 0;
 
-	int ret = NF_ACCEPT, rv;
-
 	new_pcid = htons(nat_pptp_info->pns_call_id);
 
 	switch (msg = ntohs(ctlh->messageType)) {
@@ -345,32 +343,24 @@ pptp_inbound_pkt(struct sk_buff **pskb,
 	/* mangle packet */
 	DEBUGP("altering peer call id from 0x%04x to 0x%04x\n",
 		ntohs(*(u_int16_t *)pptpReq + pcid_off), ntohs(new_pcid));
-	
-	rv = ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
-	                              pcid_off + sizeof(struct pptp_pkt_hdr) +
-				      sizeof(struct PptpControlHeader),
-				      sizeof(new_pcid), (char *)&new_pcid, 
-				      sizeof(new_pcid));
-	if (rv != NF_ACCEPT) 
-		return rv;
+
+	if (ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
+	                             pcid_off + sizeof(struct pptp_pkt_hdr) +
+				     sizeof(struct PptpControlHeader),
+				     sizeof(new_pcid), (char *)&new_pcid,
+				     sizeof(new_pcid)) == 0)
+		return NF_DROP;
 
 	if (new_cid) {
 		DEBUGP("altering call id from 0x%04x to 0x%04x\n",
 			ntohs(*(u_int16_t *)pptpReq + cid_off), ntohs(new_cid));
-		rv = ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
-		                              cid_off + sizeof(struct pptp_pkt_hdr) +
-					      sizeof(struct PptpControlHeader),
-					      sizeof(new_cid), (char *)&new_cid, 
-					      sizeof(new_cid));
-		if (rv != NF_ACCEPT)
-			return rv;
+		if (ip_nat_mangle_tcp_packet(pskb, ct, ctinfo,
+		                             cid_off + sizeof(struct pptp_pkt_hdr) +
+					     sizeof(struct PptpControlHeader),
+					     sizeof(new_cid), (char *)&new_cid,
+					     sizeof(new_cid)) == 0)
+			return NF_DROP;
 	}
-
-	/* check for earlier return value of 'switch' above */
-	if (ret != NF_ACCEPT)
-		return ret;
-
-	/* great, at least we don't need to resize packets */
 	return NF_ACCEPT;
 }
 
