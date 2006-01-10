@@ -317,7 +317,7 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 /**
  * snd_printd - debug printk
- * @format: format string
+ * @fmt: format string
  *
  * Compiled only when Works like snd_printk() for debugging purpose.
  * Ignored when CONFIG_SND_DEBUG is not set.
@@ -331,7 +331,6 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 /**
  * snd_assert - run-time assertion macro
  * @expr: expression
- * @args...: the action
  *
  * This macro checks the expression in run-time and invokes the commands
  * given in the rest arguments if the assertion is failed.
