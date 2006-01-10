@@ -477,8 +477,8 @@ static int __init input_proc_init(void)
 
 	entry->owner = THIS_MODULE;
 	input_fileops = *entry->proc_fops;
+	input_fileops.poll = input_devices_poll;
 	entry->proc_fops = &input_fileops;
-	entry->proc_fops->poll = input_devices_poll;
 
 	entry = create_proc_read_entry("handlers", 0, proc_bus_input_dir, input_handlers_read, NULL);
 	if (!entry)

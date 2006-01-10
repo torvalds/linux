@@ -270,6 +270,7 @@ int ibmasm_init_remote_input_dev(struct service_processor *sp)
 
  err_unregister_mouse_dev:
 	input_unregister_device(mouse_dev);
+	mouse_dev = NULL; /* so we don't try to free it again below */
  err_free_devices:
 	input_free_device(mouse_dev);
 	input_free_device(keybd_dev);
