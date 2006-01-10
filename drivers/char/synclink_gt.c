@@ -75,7 +75,6 @@
 #include <linux/workqueue.h>
 #include <linux/hdlc.h>
 
-#include <asm/serial.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
