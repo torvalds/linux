@@ -995,7 +995,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 		        || (!test_bit(IPS_ASSURED_BIT, &conntrack->status)
 		            && conntrack->proto.tcp.last_index == TCP_ACK_SET))
 		    && ntohl(th->ack_seq) == conntrack->proto.tcp.last_end) {
-			/* RST sent to invalid SYN or ACK we had let trough
+			/* RST sent to invalid SYN or ACK we had let through
 			 * at a) and c) above:
 			 *
 			 * a) SYN was in window then
@@ -1006,7 +1006,7 @@ static int tcp_packet(struct ip_conntrack *conntrack,
 			 * segments we ignored. */
 			goto in_window;
 		}
-		/* Just fall trough */
+		/* Just fall through */
 	default:
 		/* Keep compilers happy. */
 		break;

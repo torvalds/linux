@@ -184,7 +184,7 @@ static void __init omap_perseus2_map_io(void)
 	omap_writel(0x00000088, OMAP730_FLASH_ACFG_0);
 
 	/*
-	 * Ethernet support trough the debug board
+	 * Ethernet support through the debug board
 	 * CS1 timings setup
 	 */
 	omap_writel(0x0000fff3, OMAP730_FLASH_CFG_1);

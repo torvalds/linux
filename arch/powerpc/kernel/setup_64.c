@@ -438,7 +438,7 @@ void __init setup_system(void)
 
 	/*
 	 * Fill the ppc64_caches & systemcfg structures with informations
-	 * retreived from the device-tree. Need to be called before
+	 * retrieved from the device-tree. Need to be called before
 	 * finish_device_tree() since the later requires some of the
 	 * informations filled up here to properly parse the interrupt
 	 * tree.

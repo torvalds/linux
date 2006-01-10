@@ -630,12 +630,12 @@ static int read_eeprom(int cpu, struct mpu_data *out)
 	sprintf(nodename, "/u3@0,f8000000/i2c@f8001000/cpuid@a%d", cpu ? 2 : 0);
 	np = of_find_node_by_path(nodename);
 	if (np == NULL) {
-		printk(KERN_ERR "therm_pm72: Failed to retreive cpuid node from device-tree\n");
+		printk(KERN_ERR "therm_pm72: Failed to retrieve cpuid node from device-tree\n");
 		return -ENODEV;
 	}
 	data = (u8 *)get_property(np, "cpuid", &len);
 	if (data == NULL) {
-		printk(KERN_ERR "therm_pm72: Failed to retreive cpuid property from device-tree\n");
+		printk(KERN_ERR "therm_pm72: Failed to retrieve cpuid property from device-tree\n");
 		of_node_put(np);
 		return -ENODEV;
 	}

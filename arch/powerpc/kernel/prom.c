@@ -972,7 +972,7 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif
 
 #ifdef CONFIG_PPC_RTAS
-	/* To help early debugging via the front panel, we retreive a minimal
+	/* To help early debugging via the front panel, we retrieve a minimal
 	 * set of RTAS infos now if available
 	 */
 	{

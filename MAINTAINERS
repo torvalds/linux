@@ -546,13 +546,6 @@ W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
-BUSLOGIC SCSI DRIVER
-P:	Leonard N. Zubkoff
-M:	Leonard N. Zubkoff <lnz@dandelion.com>
-L:	linux-scsi@vger.kernel.org
-W:	http://www.dandelion.com/Linux/
-S:	Maintained
-
 COMMON INTERNET FILE SYSTEM (CIFS)
 P:	Steve French
 M:	sfrench@samba.org

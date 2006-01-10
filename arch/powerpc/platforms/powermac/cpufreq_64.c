@@ -80,7 +80,7 @@ static struct freq_attr* g5_cpu_freqs_attr[] = {
 };
 
 /* Power mode data is an array of the 32 bits PCR values to use for
- * the various frequencies, retreived from the device-tree
+ * the various frequencies, retrieved from the device-tree
  */
 static u32 *g5_pmode_data;
 static int g5_pmode_max;

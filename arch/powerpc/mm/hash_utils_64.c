@@ -368,7 +368,7 @@ static unsigned long __init htab_get_table_size(void)
 	unsigned long mem_size, rnd_mem_size, pteg_count;
 
 	/* If hash size isn't already provided by the platform, we try to
-	 * retreive it from the device-tree. If it's not there neither, we
+	 * retrieve it from the device-tree. If it's not there neither, we
 	 * calculate it now based on the total RAM size
 	 */
 	if (ppc64_pft_size == 0)

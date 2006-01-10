@@ -663,7 +663,7 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 }
 
 /**
- * v9fs_vfs_getattr - retreive file metadata
+ * v9fs_vfs_getattr - retrieve file metadata
  * @mnt - mount information
  * @dentry - file to get attributes on
  * @stat - metadata structure to populate

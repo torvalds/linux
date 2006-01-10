@@ -1598,7 +1598,7 @@ do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     switch(cmd) {
       case SIOCGMIIPHY:		/* Get the address of the PHY in use. */
 	data[0] = 0;		/* we have only this address */
-	/* fall trough */
+	/* fall through */
       case SIOCGMIIREG:		/* Read the specified MII register. */
 	data[3] = mii_rd(ioaddr, data[0] & 0x1f, data[1] & 0x1f);
 	break;
