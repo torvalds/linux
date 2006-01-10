@@ -7058,7 +7058,7 @@ static BOOLEAN mgsl_register_test( struct mgsl_struct *info )
 {
 	static unsigned short BitPatterns[] =
 		{ 0x0000, 0xffff, 0xaaaa, 0x5555, 0x1234, 0x6969, 0x9696, 0x0f0f };
-	static unsigned int Patterncount = sizeof(BitPatterns)/sizeof(unsigned short);
+	static unsigned int Patterncount = ARRAY_SIZE(BitPatterns);
 	unsigned int i;
 	BOOLEAN rc = TRUE;
 	unsigned long flags;
@@ -7501,9 +7501,9 @@ static int mgsl_adapter_test( struct mgsl_struct *info )
  */
 static BOOLEAN mgsl_memory_test( struct mgsl_struct *info )
 {
-	static unsigned long BitPatterns[] = { 0x0, 0x55555555, 0xaaaaaaaa,
-											0x66666666, 0x99999999, 0xffffffff, 0x12345678 };
-	unsigned long Patterncount = sizeof(BitPatterns)/sizeof(unsigned long);
+	static unsigned long BitPatterns[] =
+		{ 0x0, 0x55555555, 0xaaaaaaaa, 0x66666666, 0x99999999, 0xffffffff, 0x12345678 };
+	unsigned long Patterncount = ARRAY_SIZE(BitPatterns);
 	unsigned long i;
 	unsigned long TestLimit = SHARED_MEM_ADDRESS_SIZE/sizeof(unsigned long);
 	unsigned long * TestAddr;

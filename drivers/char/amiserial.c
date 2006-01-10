@@ -116,7 +116,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 
 static struct serial_state rs_table[1];
 
-#define NR_PORTS	(sizeof(rs_table)/sizeof(struct serial_state))
+#define NR_PORTS ARRAY_SIZE(rs_table)
 
 /*
  * tmp_buf is used as a temporary buffer by serial_write.  We need to

@@ -135,7 +135,7 @@ static stlconf_t	stli_brdconf[] = {
 	/*{ BRD_ECP, 0x2a0, 0, 0xcc000, 0, 0 },*/
 };
 
-static int	stli_nrbrds = sizeof(stli_brdconf) / sizeof(stlconf_t);
+static int	stli_nrbrds = ARRAY_SIZE(stli_brdconf);
 
 /*
  *	There is some experimental EISA board detection code in this driver.
@@ -406,7 +406,7 @@ static unsigned long	stli_eisamemprobeaddrs[] = {
 	0xff000000, 0xff010000, 0xff020000, 0xff030000,
 };
 
-static int	stli_eisamempsize = sizeof(stli_eisamemprobeaddrs) / sizeof(unsigned long);
+static int	stli_eisamempsize = ARRAY_SIZE(stli_eisamemprobeaddrs);
 
 /*
  *	Define the Stallion PCI vendor and device IDs.
@@ -899,15 +899,13 @@ static void stli_argbrds(void)
 {
 	stlconf_t	conf;
 	stlibrd_t	*brdp;
-	int		nrargs, i;
+	int		i;
 
 #ifdef DEBUG
 	printk("stli_argbrds()\n");
 #endif
 
-	nrargs = sizeof(stli_brdsp) / sizeof(char **);
-
-	for (i = stli_nrbrds; (i < nrargs); i++) {
+	for (i = stli_nrbrds; i < ARRAY_SIZE(stli_brdsp); i++) {
 		memset(&conf, 0, sizeof(conf));
 		if (stli_parsebrd(&conf, stli_brdsp[i]) == 0)
 			continue;
@@ -967,7 +965,7 @@ static unsigned long stli_atol(char *str)
 static int stli_parsebrd(stlconf_t *confp, char **argp)
 {
 	char	*sp;
-	int	nrbrdnames, i;
+	int	i;
 
 #ifdef DEBUG
 	printk("stli_parsebrd(confp=%x,argp=%x)\n", (int) confp, (int) argp);
@@ -979,14 +977,13 @@ static int stli_parsebrd(stlconf_t *confp, char **argp)
 	for (sp = argp[0], i = 0; ((*sp != 0) && (i < 25)); sp++, i++)
 		*sp = TOLOWER(*sp);
 
-	nrbrdnames = sizeof(stli_brdstr) / sizeof(stlibrdtype_t);
-	for (i = 0; (i < nrbrdnames); i++) {
+	for (i = 0; i < ARRAY_SIZE(stli_brdstr); i++) {
 		if (strcmp(stli_brdstr[i].name, argp[0]) == 0)
 			break;
 	}
-	if (i >= nrbrdnames) {
+	if (i == ARRAY_SIZE(stli_brdstr)) {
 		printk("STALLION: unknown board name, %s?\n", argp[0]);
-		return(0);
+		return 0;
 	}
 
 	confp->brdtype = stli_brdstr[i].type;

@@ -813,7 +813,7 @@ static int mxser_init(void)
 
 	/* start finding PCI board here */
 #ifdef CONFIG_PCI
-	n = (sizeof(mxser_pcibrds) / sizeof(mxser_pcibrds[0])) - 1;
+	n = ARRAY_SIZE(mxser_pcibrds) - 1;
 	index = 0;
 	b = 0;
 	while (b < n) {

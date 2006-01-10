@@ -448,7 +448,7 @@ static int __init moxa_init(void)
 #ifdef CONFIG_PCI
 	{
 		struct pci_dev *p = NULL;
-		int n = (sizeof(moxa_pcibrds) / sizeof(moxa_pcibrds[0])) - 1;
+		int n = ARRAY_SIZE(moxa_pcibrds) - 1;
 		i = 0;
 		while (i < n) {
 			while ((p = pci_get_device(moxa_pcibrds[i].vendor, moxa_pcibrds[i].device, p))!=NULL)

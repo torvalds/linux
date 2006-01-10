@@ -127,7 +127,7 @@ struct resource rtc_resource[2] = {
 		.flags	= IORESOURCE_MEM,	},
 };
 
-#define RTC_NUM_RESOURCES	sizeof(rtc_resource) / sizeof(struct resource)
+#define RTC_NUM_RESOURCES	ARRAY_SIZE(rtc_resource)
 
 static inline unsigned long read_elapsed_second(void)
 {

@@ -103,7 +103,7 @@ static stlconf_t	stl_brdconf[] = {
 	/*{ BRD_EASYIO, 0x2a0, 0, 0, 10, 0 },*/
 };
 
-static int	stl_nrbrds = sizeof(stl_brdconf) / sizeof(stlconf_t);
+static int	stl_nrbrds = ARRAY_SIZE(stl_brdconf);
 
 /*****************************************************************************/
 
@@ -424,7 +424,7 @@ static stlpcibrd_t	stl_pcibrds[] = {
 	{ PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_87410, BRD_ECHPCI },
 };
 
-static int	stl_nrpcibrds = sizeof(stl_pcibrds) / sizeof(stlpcibrd_t);
+static int	stl_nrpcibrds = ARRAY_SIZE(stl_pcibrds);
 
 #endif
 
@@ -704,7 +704,7 @@ static unsigned int	sc26198_baudtable[] = {
 	230400, 460800, 921600
 };
 
-#define	SC26198_NRBAUDS		(sizeof(sc26198_baudtable) / sizeof(unsigned int))
+#define	SC26198_NRBAUDS		ARRAY_SIZE(sc26198_baudtable)
 
 /*****************************************************************************/
 
@@ -901,7 +901,7 @@ static unsigned long stl_atol(char *str)
 static int stl_parsebrd(stlconf_t *confp, char **argp)
 {
 	char	*sp;
-	int	nrbrdnames, i;
+	int	i;
 
 #ifdef DEBUG
 	printk("stl_parsebrd(confp=%x,argp=%x)\n", (int) confp, (int) argp);
@@ -913,14 +913,13 @@ static int stl_parsebrd(stlconf_t *confp, char **argp)
 	for (sp = argp[0], i = 0; ((*sp != 0) && (i < 25)); sp++, i++)
 		*sp = TOLOWER(*sp);
 
-	nrbrdnames = sizeof(stl_brdstr) / sizeof(stlbrdtype_t);
-	for (i = 0; (i < nrbrdnames); i++) {
+	for (i = 0; i < ARRAY_SIZE(stl_brdstr); i++) {
 		if (strcmp(stl_brdstr[i].name, argp[0]) == 0)
 			break;
 	}
-	if (i >= nrbrdnames) {
+	if (i == ARRAY_SIZE(stl_brdstr)) {
 		printk("STALLION: unknown board name, %s?\n", argp[0]);
-		return(0);
+		return 0;
 	}
 
 	confp->brdtype = stl_brdstr[i].type;

@@ -4005,7 +4005,7 @@ BOOLEAN register_test(MGSLPC_INFO *info)
 {
 	static unsigned char patterns[] = 
 	    { 0x00, 0xff, 0xaa, 0x55, 0x69, 0x96, 0x0f };
-	static unsigned int count = sizeof(patterns) / sizeof(patterns[0]);
+	static unsigned int count = ARRAY_SIZE(patterns);
 	unsigned int i;
 	BOOLEAN rc = TRUE;
 	unsigned long flags;
@@ -4016,7 +4016,7 @@ BOOLEAN register_test(MGSLPC_INFO *info)
 	for (i = 0; i < count; i++) {
 		write_reg(info, XAD1, patterns[i]);
 		write_reg(info, XAD2, patterns[(i + 1) % count]);
-		if ((read_reg(info, XAD1) != patterns[i]) || 
+		if ((read_reg(info, XAD1) != patterns[i]) ||
 		    (read_reg(info, XAD2) != patterns[(i + 1) % count])) {
 			rc = FALSE;
 			break;

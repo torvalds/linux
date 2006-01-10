@@ -723,7 +723,7 @@ static unsigned int cy_isa_addresses[] = {
         0xDE000,
         0,0,0,0,0,0,0,0
 };
-#define NR_ISA_ADDRS (sizeof(cy_isa_addresses)/sizeof(unsigned char*))
+#define NR_ISA_ADDRS ARRAY_SIZE(cy_isa_addresses)
 
 #ifdef MODULE
 static long maddr[NR_CARDS] = { 0, };

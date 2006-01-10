@@ -345,9 +345,9 @@ static int si_probe_addrs[]= {0xc0000, 0xd0000, 0xe0000,
                               0xc8000, 0xd8000, 0xe8000, 0xa0000};
 static int si1_probe_addrs[]= { 0xd0000};
 
-#define NR_SX_ADDRS (sizeof(sx_probe_addrs)/sizeof (int))
-#define NR_SI_ADDRS (sizeof(si_probe_addrs)/sizeof (int))
-#define NR_SI1_ADDRS (sizeof(si1_probe_addrs)/sizeof (int))
+#define NR_SX_ADDRS ARRAY_SIZE(sx_probe_addrs)
+#define NR_SI_ADDRS ARRAY_SIZE(si_probe_addrs)
+#define NR_SI1_ADDRS ARRAY_SIZE(si1_probe_addrs)
 
 
 /* Set the mask to all-ones. This alas, only supports 32 interrupts. 

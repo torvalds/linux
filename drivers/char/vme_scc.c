@@ -875,13 +875,13 @@ static int scc_open (struct tty_struct * tty, struct file * filp)
 		local_irq_save(flags);
 #if defined(CONFIG_MVME147_SCC) || defined(CONFIG_MVME162_SCC)
 		if (MACH_IS_MVME147 || MACH_IS_MVME16x) {
-			for (i=0; i<sizeof(mvme_init_tab)/sizeof(*mvme_init_tab); ++i)
+			for (i = 0; i < ARRAY_SIZE(mvme_init_tab); ++i)
 				SCCwrite(mvme_init_tab[i].reg, mvme_init_tab[i].val);
 		}
 #endif
 #if defined(CONFIG_BVME6000_SCC)
 		if (MACH_IS_BVME6000) {
-			for (i=0; i<sizeof(bvme_init_tab)/sizeof(*bvme_init_tab); ++i)
+			for (i = 0; i < ARRAY_SIZE(bvme_init_tab); ++i)
 				SCCwrite(bvme_init_tab[i].reg, bvme_init_tab[i].val);
 		}
 #endif

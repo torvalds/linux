@@ -117,7 +117,7 @@ struct cyclades_port cy_port[] = {
         {-1 },      /* ttyS2 */
         {-1 },      /* ttyS3 */
 };
-#define NR_PORTS        (sizeof(cy_port)/sizeof(struct cyclades_port))
+#define NR_PORTS        ARRAY_SIZE(cy_port)
 
 /*
  * tmp_buf is used as a temporary buffer by serial_write.  We need to
