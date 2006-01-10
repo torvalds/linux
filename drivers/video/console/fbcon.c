@@ -1965,7 +1965,8 @@ static __inline__ void updatescrollmode(struct display *p,
 		divides(ypan, vc->vc_font.height) && vyres > yres;
 	int good_wrap = (cap & FBINFO_HWACCEL_YWRAP) &&
 		divides(ywrap, vc->vc_font.height) &&
-		divides(vc->vc_font.height, vyres);
+		divides(vc->vc_font.height, vyres) &&
+		divides(vc->vc_font.height, yres);
 	int reading_fast = cap & FBINFO_READS_FAST;
 	int fast_copyarea = (cap & FBINFO_HWACCEL_COPYAREA) &&
 		!(cap & FBINFO_HWACCEL_DISABLED);
