@@ -35,7 +35,6 @@
 #include <asm/checksum.h>
 #include <asm/mach-types.h>
 
-extern void dump_thread(struct pt_regs *, struct user *);
 extern int dump_fpu(struct pt_regs *, struct user_fp_struct *);
 extern void inswb(unsigned int port, void *to, int len);
 extern void outswb(unsigned int port, const void *to, int len);

@@ -29,7 +29,6 @@
 #include <asm/delay.h>
 #include <asm/irq.h>
 
-extern void dump_thread(struct pt_regs *, struct user *);
 extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 
 #if 0
@@ -41,7 +40,6 @@ EXPORT_SYMBOL(drive_info);
 #endif
 
 /* platform dependent support */
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(enable_irq);

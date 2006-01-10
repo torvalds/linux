@@ -82,8 +82,6 @@ extern int __lshrdi3(int, int);
 extern int __muldi3(int, int);
 extern int __divdi3(int, int);
 
-extern void dump_thread(struct pt_regs *, struct user *);
-
 /* Private functions with odd calling conventions. */
 extern void ___atomic24_add(void);
 extern void ___atomic24_sub(void);

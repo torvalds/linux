@@ -352,27 +352,6 @@ int dump_fpu (struct pt_regs * regs, s390_fp_regs *fpregs)
 	return 1;
 }
 
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-
-/* changed the size calculations - should hopefully work better. lbt */
-	dump->magic = CMAGIC;
-	dump->start_code = 0;
-	dump->start_stack = regs->gprs[15] & ~(PAGE_SIZE - 1);
-	dump->u_tsize = current->mm->end_code >> PAGE_SHIFT;
-	dump->u_dsize = (current->mm->brk + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	dump->u_dsize -= dump->u_tsize;
-	dump->u_ssize = 0;
-	if (dump->start_stack < TASK_SIZE)
-		dump->u_ssize = (TASK_SIZE - dump->start_stack) >> PAGE_SHIFT;
-	memcpy(&dump->regs, regs, sizeof(s390_regs));
-	dump_fpu (regs, &dump->regs.fp_regs);
-	dump->regs.per_info = current->thread.per_info;
-}
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	struct stack_frame *sf, *low, *high;

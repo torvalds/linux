@@ -89,7 +89,6 @@ extern struct task_struct *alloc_task_struct(void);
 
 extern void release_thread(struct task_struct *);
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-extern void dump_thread(struct pt_regs *regs, struct user *u);
 
 static inline void prepare_to_copy(struct task_struct *tsk)
 {

@@ -94,7 +94,6 @@ extern void (*prom_palette)(int);
 
 extern int __ashrdi3(int, int);
 
-extern void dump_thread(struct pt_regs *, struct user *);
 extern int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs);
 
 extern unsigned long phys_base;
@@ -241,7 +240,6 @@ EXPORT_SYMBOL(io_remap_pfn_range);
 EXPORT_SYMBOL(_sigpause_common);
 EXPORT_SYMBOL(verify_compat_iovec);
 
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(dump_fpu);
 EXPORT_SYMBOL(pte_alloc_one_kernel);
 #ifndef CONFIG_SMP

@@ -47,6 +47,8 @@ extern int console_printk[];
 #define default_console_loglevel (console_printk[3])
 
 struct completion;
+struct pt_regs;
+struct user;
 
 /**
  * might_sleep - annotation for functions that can sleep
@@ -122,6 +124,8 @@ extern unsigned long long memparse(char *ptr, char **retptr);
 extern int __kernel_text_address(unsigned long addr);
 extern int kernel_text_address(unsigned long addr);
 extern int session_of_pgrp(int pgrp);
+
+extern void dump_thread(struct pt_regs *regs, struct user *dump);
 
 #ifdef CONFIG_PRINTK
 asmlinkage int vprintk(const char *fmt, va_list args)

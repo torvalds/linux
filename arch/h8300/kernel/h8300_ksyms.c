@@ -22,11 +22,8 @@
 //asmlinkage long long __lshrdi3 (long long, int);
 extern char h8300_debug_device[];
 
-extern void dump_thread(struct pt_regs *, struct user *);
-
 /* platform dependent support */
 
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);

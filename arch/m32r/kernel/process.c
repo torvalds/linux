@@ -261,14 +261,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long spu,
 }
 
 /*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-	/* M32R_FIXME */
-}
-
-/*
  * Capture the user space registers if the task is not running (in user space)
  */
 int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)

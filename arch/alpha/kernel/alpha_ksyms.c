@@ -40,7 +40,6 @@
 #include <asm/unistd.h>
 
 extern struct hwrpb_struct *hwrpb;
-extern void dump_thread(struct pt_regs *, struct user *);
 extern spinlock_t rtc_lock;
 
 /* these are C runtime functions with special calling conventions: */

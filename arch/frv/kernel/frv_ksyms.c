@@ -18,7 +18,6 @@
 #include <asm/hardirq.h>
 #include <asm/cacheflush.h>
 
-extern void dump_thread(struct pt_regs *, struct user *);
 extern long __memcpy_user(void *dst, const void *src, size_t count);
 extern long __memset_user(void *dst, const void *src, size_t count);
 
@@ -27,7 +26,6 @@ extern long __memset_user(void *dst, const void *src, size_t count);
 EXPORT_SYMBOL(__ioremap);
 EXPORT_SYMBOL(iounmap);
 
-EXPORT_SYMBOL(dump_thread);
 EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);

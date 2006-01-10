@@ -305,26 +305,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	return 0;
 }
 
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-	dump->magic = CMAGIC;
-	dump->start_code = current->mm->start_code;
-	dump->start_data  = current->mm->start_data;
-	dump->start_stack = regs->regs[15] & ~(PAGE_SIZE - 1);
-	dump->u_tsize = (current->mm->end_code - dump->start_code) >> PAGE_SHIFT;
-	dump->u_dsize = (current->mm->brk + (PAGE_SIZE-1) - dump->start_data) >> PAGE_SHIFT;
-	dump->u_ssize = (current->mm->start_stack - dump->start_stack +
-			 PAGE_SIZE - 1) >> PAGE_SHIFT;
-	/* Debug registers will come here. */
-
-	dump->regs = *regs;
-
-	dump->u_fpvalid = dump_fpu(regs, &dump->fpu);
-}
-
 /* Tracing by user break controller.  */
 static void
 ubc_set_tracing(int asid, unsigned long pc)

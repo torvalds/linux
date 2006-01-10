@@ -208,34 +208,6 @@ int copy_thread(int nr, unsigned long clone_flags,
 }
 
 /*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs * regs, struct user * dump)
-{
-/* changed the size calculations - should hopefully work better. lbt */
-	dump->magic = CMAGIC;
-	dump->start_code = 0;
-	dump->start_stack = rdusp() & ~(PAGE_SIZE - 1);
-	dump->u_tsize = ((unsigned long) current->mm->end_code) >> PAGE_SHIFT;
-	dump->u_dsize = ((unsigned long) (current->mm->brk +
-					  (PAGE_SIZE-1))) >> PAGE_SHIFT;
-	dump->u_dsize -= dump->u_tsize;
-	dump->u_ssize = 0;
-
-	dump->u_ar0 = (struct user_regs_struct *)(((int)(&dump->regs)) -((int)(dump)));
-	dump->regs.er0 = regs->er0;
-	dump->regs.er1 = regs->er1;
-	dump->regs.er2 = regs->er2;
-	dump->regs.er3 = regs->er3;
-	dump->regs.er4 = regs->er4;
-	dump->regs.er5 = regs->er5;
-	dump->regs.er6 = regs->er6;
-	dump->regs.orig_er0 = regs->orig_er0;
-	dump->regs.ccr = regs->ccr;
-	dump->regs.pc  = regs->pc;
-}
-
-/*
  * sys_execve() executes a new program.
  */
 asmlinkage int sys_execve(char *name, char **argv, char **envp,int dummy,...)

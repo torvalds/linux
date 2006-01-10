@@ -77,8 +77,6 @@ static int load_flat_shared_library(int id, struct lib_info *p);
 static int load_flat_binary(struct linux_binprm *, struct pt_regs * regs);
 static int flat_core_dump(long signr, struct pt_regs * regs, struct file *file);
 
-extern void dump_thread(struct pt_regs *, struct user *);
-
 static struct linux_binfmt flat_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_flat_binary,

@@ -164,30 +164,6 @@ int copy_thread (int nr, unsigned long clone_flags,
 }
 
 /*
- * fill in the user structure for a core dump..
- */
-void dump_thread (struct pt_regs *regs, struct user *dump)
-{
-#if 0  /* Later.  XXX */
-	dump->magic = CMAGIC;
-	dump->start_code = 0;
-	dump->start_stack = regs->gpr[GPR_SP];
-	dump->u_tsize = ((unsigned long) current->mm->end_code) >> PAGE_SHIFT;
-	dump->u_dsize = ((unsigned long) (current->mm->brk +
-					  (PAGE_SIZE-1))) >> PAGE_SHIFT;
-	dump->u_dsize -= dump->u_tsize;
-	dump->u_ssize = 0;
-
-	if (dump->start_stack < TASK_SIZE)
-		dump->u_ssize = ((unsigned long) (TASK_SIZE - dump->start_stack)) >> PAGE_SHIFT;
-
-	dump->u_ar0 = (struct user_regs_struct *)((int)&dump->regs - (int)dump);
-	dump->regs = *regs;
-	dump->u_fpvalid = 0;
-#endif
-}
-
-/*
  * sys_execve() executes a new program.
  */
 int sys_execve (char *name, char **argv, char **envp, struct pt_regs *regs)
