@@ -66,15 +66,6 @@ static int vesafb_pan_display(struct fb_var_screeninfo *var,
 #ifdef __i386__
 	int offset;
 
-	if (!ypan)
-		return -EINVAL;
-	if (var->xoffset)
-		return -EINVAL;
-	if (var->yoffset > var->yres_virtual)
-		return -EINVAL;
-	if ((ypan==1) && var->yoffset+var->yres > var->yres_virtual)
-		return -EINVAL;
-
 	offset = (var->yoffset * info->fix.line_length + var->xoffset) / 4;
 
         __asm__ __volatile__(
