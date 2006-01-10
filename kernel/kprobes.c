@@ -431,7 +431,7 @@ static int __kprobes register_aggr_kprobe(struct kprobe *old_p,
 		copy_kprobe(old_p, p);
 		ret = add_new_kprobe(old_p, p);
 	} else {
-		ap = kcalloc(1, sizeof(struct kprobe), GFP_KERNEL);
+		ap = kzalloc(sizeof(struct kprobe), GFP_KERNEL);
 		if (!ap)
 			return -ENOMEM;
 		add_aggr_kprobe(ap, old_p);
