@@ -105,6 +105,7 @@ extern unsigned long nr_iowait(void);
 #include <linux/param.h>
 #include <linux/resource.h>
 #include <linux/timer.h>
+#include <linux/hrtimer.h>
 
 #include <asm/processor.h>
 
@@ -398,8 +399,8 @@ struct signal_struct {
 	struct list_head posix_timers;
 
 	/* ITIMER_REAL timer for the process */
-	struct timer_list real_timer;
-	unsigned long it_real_value, it_real_incr;
+	struct hrtimer real_timer;
+	ktime_t it_real_incr;
 
 	/* ITIMER_PROF and ITIMER_VIRTUAL timers for the process */
 	cputime_t it_prof_expires, it_virt_expires;

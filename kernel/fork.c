@@ -801,10 +801,10 @@ static inline int copy_signal(unsigned long clone_flags, struct task_struct * ts
 	init_sigpending(&sig->shared_pending);
 	INIT_LIST_HEAD(&sig->posix_timers);
 
-	sig->it_real_value = sig->it_real_incr = 0;
+	hrtimer_init(&sig->real_timer, CLOCK_MONOTONIC);
+	sig->it_real_incr.tv64 = 0;
 	sig->real_timer.function = it_real_fn;
-	sig->real_timer.data = (unsigned long) tsk;
-	init_timer(&sig->real_timer);
+	sig->real_timer.data = tsk;
 
 	sig->it_virt_expires = cputime_zero;
 	sig->it_virt_incr = cputime_zero;
