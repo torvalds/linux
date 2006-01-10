@@ -1234,6 +1234,7 @@ fb_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	if (!try_module_get(info->fbops->owner))
 		return -ENODEV;
+	file->private_data = info;
 	if (info->fbops->fb_open) {
 		res = info->fbops->fb_open(info,1);
 		if (res)
@@ -1245,11 +1246,9 @@ fb_open(struct inode *inode, struct file *file)
 static int 
 fb_release(struct inode *inode, struct file *file)
 {
-	int fbidx = iminor(inode);
-	struct fb_info *info;
+	struct fb_info * const info = file->private_data;
 
 	lock_kernel();
-	info = registered_fb[fbidx];
 	if (info->fbops->fb_release)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);
