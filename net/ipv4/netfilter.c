@@ -1,16 +1,8 @@
 /* IPv4 specific functions of netfilter core */
-
-#include <linux/config.h>
-#ifdef CONFIG_NETFILTER
-
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
-
 #include <linux/ip.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/icmp.h>
 #include <net/route.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
@@ -146,5 +138,3 @@ static void fini(void)
 
 module_init(init);
 module_exit(fini);
-
-#endif /* CONFIG_NETFILTER */
