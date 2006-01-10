@@ -154,6 +154,9 @@ int do_sys_settimeofday(struct timespec *tv, struct timezone *tz)
 	static int firsttime = 1;
 	int error = 0;
 
+	if (!timespec_valid(tv))
+		return -EINVAL;
+
 	error = security_settime(tv, tz);
 	if (error)
 		return error;
