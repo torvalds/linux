@@ -412,7 +412,7 @@ config PPC_MPC106
 
 config GENERIC_TBSYNC
 	bool
-	default y if CONFIG_PPC32 && CONFIG_SMP
+	default y if PPC32 && SMP
 	default n
 
 source "drivers/cpufreq/Kconfig"
