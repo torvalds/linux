@@ -2803,6 +2803,8 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 				fbcon_update_softback(vc);
 		}
 	}
+
+	ops->p = &fb_display[ops->currcon];
 }
 
 static int fbcon_mode_deleted(struct fb_info *info,
