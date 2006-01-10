@@ -186,7 +186,6 @@ struct pcmcia_socket {
 	u_short				lock_count;
 	pccard_mem_map			cis_mem;
 	void __iomem 			*cis_virt;
-	struct config_t			*config;
 	struct {
 		u_int			AssignedIRQ;
 		u_int			Config;

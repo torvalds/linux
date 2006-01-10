@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
 #include <linux/firmware.h>
+#include <linux/kref.h>
 
 #define IN_CARD_SERVICES
 #include <pcmcia/cs_types.h>
@@ -343,12 +344,19 @@ void pcmcia_put_dev(struct pcmcia_device *p_dev)
 		put_device(&p_dev->dev);
 }
 
+static void pcmcia_release_function(struct kref *ref)
+{
+	struct config_t *c = container_of(ref, struct config_t, ref);
+	kfree(c);
+}
+
 static void pcmcia_release_dev(struct device *dev)
 {
 	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
 	ds_dbg(1, "releasing dev %p\n", p_dev);
 	pcmcia_put_socket(p_dev->socket);
 	kfree(p_dev->devname);
+	kref_put(&p_dev->function_config->ref, pcmcia_release_function);
 	kfree(p_dev);
 }
 
@@ -377,29 +385,13 @@ static int pcmcia_device_probe(struct device * dev)
 	p_drv = to_pcmcia_drv(dev->driver);
 	s = p_dev->socket;
 
-	if ((!p_drv->probe) || (!try_module_get(p_drv->owner))) {
+	if ((!p_drv->probe) || (!p_dev->function_config) ||
+	    (!try_module_get(p_drv->owner))) {
 		ret = -EINVAL;
 		goto put_dev;
 	}
 
 	p_dev->state &= ~CLIENT_UNBOUND;
-
-	/* set up the device configuration, if it hasn't been done before */
-	if (!s->functions) {
-		cistpl_longlink_mfc_t mfc;
-		if (pccard_read_tuple(s, p_dev->func, CISTPL_LONGLINK_MFC,
-				      &mfc) == CS_SUCCESS)
-			s->functions = mfc.nfn;
-		else
-			s->functions = 1;
-		s->config = kzalloc(sizeof(config_t) * s->functions,
-				    GFP_KERNEL);
-		if (!s->config) {
-			ret = -ENOMEM;
-			goto put_module;
-		}
-	}
-	p_dev->function_config = &s->config[p_dev->func];
 
 	ret = p_drv->probe(p_dev);
 	if (ret)
@@ -576,7 +568,7 @@ static DECLARE_MUTEX(device_add_lock);
 
 struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
 {
-	struct pcmcia_device *p_dev;
+	struct pcmcia_device *p_dev, *tmp_dev;
 	unsigned long flags;
 	int bus_id_len;
 
@@ -597,6 +589,8 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	p_dev->socket = s;
 	p_dev->device_no = (s->device_count++);
 	p_dev->func   = function;
+	if (s->functions < function)
+		s->functions = function;
 
 	p_dev->dev.bus = &pcmcia_bus_type;
 	p_dev->dev.parent = s->dev.dev;
@@ -611,27 +605,49 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	/* compat */
 	p_dev->state = CLIENT_UNBOUND;
 
-	/* Add to the list in pcmcia_bus_socket */
+
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+
+	/*
+	 * p_dev->function_config must be the same for all card functions.
+	 * Note that this is serialized by the device_add_lock, so that
+	 * only one such struct will be created.
+	 */
+        list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
+                if (p_dev->func == tmp_dev->func) {
+			p_dev->function_config = tmp_dev->function_config;
+			kref_get(&p_dev->function_config->ref);
+		}
+
+	/* Add to the list in pcmcia_bus_socket */
 	list_add_tail(&p_dev->socket_device_list, &s->devices_list);
+
 	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
+	if (!p_dev->function_config) {
+		p_dev->function_config = kzalloc(sizeof(struct config_t),
+						 GFP_KERNEL);
+		if (!p_dev->function_config)
+			goto err_unreg;
+		kref_init(&p_dev->function_config->ref);
+	}
 
 	printk(KERN_NOTICE "pcmcia: registering new device %s\n",
 	       p_dev->devname);
 
 	pcmcia_device_query(p_dev);
 
-	if (device_register(&p_dev->dev)) {
-		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
-		list_del(&p_dev->socket_device_list);
-		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
-
-		goto err_free;
-       }
+	if (device_register(&p_dev->dev))
+		goto err_unreg;
 
 	up(&device_add_lock);
 
 	return p_dev;
+
+ err_unreg:
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	list_del(&p_dev->socket_device_list);
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
 
  err_free:
 	kfree(p_dev->devname);

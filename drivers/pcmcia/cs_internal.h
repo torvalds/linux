@@ -16,6 +16,7 @@
 #define _LINUX_CS_INTERNAL_H
 
 #include <linux/config.h>
+#include <linux/kref.h>
 
 /* Flags in client state */
 #define CLIENT_CONFIG_LOCKED	0x0001
@@ -40,6 +41,7 @@ typedef struct region_t {
 
 /* Each card function gets one of these guys */
 typedef struct config_t {
+	struct kref	ref;
     u_int		state;
     u_int		Attributes;
     u_int		IntType;

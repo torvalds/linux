@@ -406,8 +406,6 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	cb_free(s);
 #endif
 	s->functions = 0;
-	kfree(s->config);
-	s->config = NULL;
 
 	s->ops->get_status(s, &status);
 	if (status & SS_POWERON) {
