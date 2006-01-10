@@ -3,6 +3,7 @@
 
 #include <asm/fixmap.h>
 #include <asm/ptrace.h>
+#include <asm/string.h>
 
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
