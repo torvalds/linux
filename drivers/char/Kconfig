@@ -936,6 +936,15 @@ config SCx200_GPIO
 
 	  If compiled as a module, it will be called scx200_gpio.
 
+config CS5535_GPIO
+	tristate "AMD CS5535/CS5536 GPIO (Geode Companion Device)"
+	depends on X86_32
+	help
+	  Give userspace access to the GPIO pins on the AMD CS5535 and
+	  CS5536 Geode companion devices.
+
+	  If compiled as a module, it will be called cs5535_gpio.
+
 config GPIO_VR41XX
 	tristate "NEC VR4100 series General-purpose I/O Unit support"
 	depends on CPU_VR41XX
