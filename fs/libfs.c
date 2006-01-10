@@ -74,7 +74,7 @@ int dcache_dir_close(struct inode *inode, struct file *file)
 
 loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 {
-	down(&file->f_dentry->d_inode->i_sem);
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 	switch (origin) {
 		case 1:
 			offset += file->f_pos;
@@ -82,7 +82,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			if (offset >= 0)
 				break;
 		default:
-			up(&file->f_dentry->d_inode->i_sem);
+			mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 			return -EINVAL;
 	}
 	if (offset != file->f_pos) {
@@ -106,7 +106,7 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int origin)
 			spin_unlock(&dcache_lock);
 		}
 	}
-	up(&file->f_dentry->d_inode->i_sem);
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return offset;
 }
 
@@ -356,7 +356,7 @@ int simple_commit_write(struct file *file, struct page *page,
 
 	/*
 	 * No need to use i_size_read() here, the i_size
-	 * cannot change under us because we hold the i_sem.
+	 * cannot change under us because we hold the i_mutex.
 	 */
 	if (pos > inode->i_size)
 		i_size_write(inode, pos);

@@ -29,6 +29,7 @@
 #include <linux/syscalls.h>
 #include <linux/signal.h>
 #include <linux/cn_proc.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -869,6 +870,10 @@ fastcall NORET_TYPE void do_exit(long code)
 	mpol_free(tsk->mempolicy);
 	tsk->mempolicy = NULL;
 #endif
+	/*
+	 * If DEBUG_MUTEXES is on, make sure we are holding no locks:
+	 */
+	mutex_debug_check_no_locks_held(tsk);
 
 	/* PF_DEAD causes final put_task_struct after we schedule. */
 	preempt_disable();

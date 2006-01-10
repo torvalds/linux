@@ -201,7 +201,7 @@ const unsigned char * sysfs_get_name(struct sysfs_dirent *sd)
 
 /*
  * Unhashes the dentry corresponding to given sysfs_dirent
- * Called with parent inode's i_sem held.
+ * Called with parent inode's i_mutex held.
  */
 void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
 {
@@ -232,7 +232,7 @@ void sysfs_hash_and_remove(struct dentry * dir, const char * name)
 		/* no inode means this hasn't been made visible yet */
 		return;
 
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;
@@ -243,7 +243,5 @@ void sysfs_hash_and_remove(struct dentry * dir, const char * name)
 			break;
 		}
 	}
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 }
-
-

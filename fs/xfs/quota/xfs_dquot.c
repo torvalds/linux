@@ -104,7 +104,7 @@ xfs_qm_dqinit(
 	 */
 	if (brandnewdquot) {
 		dqp->dq_flnext = dqp->dq_flprev = dqp;
-		mutex_init(&dqp->q_qlock,  MUTEX_DEFAULT, "xdq");
+		mutex_init(&dqp->q_qlock);
 		initnsema(&dqp->q_flock, 1, "fdq");
 		sv_init(&dqp->q_pinwait, SV_DEFAULT, "pdq");
 
@@ -1382,7 +1382,7 @@ void
 xfs_dqlock(
 	xfs_dquot_t *dqp)
 {
-	mutex_lock(&(dqp->q_qlock), PINOD);
+	mutex_lock(&(dqp->q_qlock));
 }
 
 void

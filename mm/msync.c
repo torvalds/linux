@@ -137,7 +137,7 @@ static int msync_interval(struct vm_area_struct *vma,
 			ret = filemap_fdatawrite(mapping);
 			if (file->f_op && file->f_op->fsync) {
 				/*
-				 * We don't take i_sem here because mmap_sem
+				 * We don't take i_mutex here because mmap_sem
 				 * is already held.
 				 */
 				err = file->f_op->fsync(file,file->f_dentry,1);

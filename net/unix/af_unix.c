@@ -784,7 +784,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		err = vfs_mknod(nd.dentry->d_inode, dentry, mode, 0);
 		if (err)
 			goto out_mknod_dput;
-		up(&nd.dentry->d_inode->i_sem);
+		mutex_unlock(&nd.dentry->d_inode->i_mutex);
 		dput(nd.dentry);
 		nd.dentry = dentry;
 
@@ -823,7 +823,7 @@ out:
 out_mknod_dput:
 	dput(dentry);
 out_mknod_unlock:
-	up(&nd.dentry->d_inode->i_sem);
+	mutex_unlock(&nd.dentry->d_inode->i_mutex);
 	path_release(&nd);
 out_mknod_parent:
 	if (err==-EEXIST)

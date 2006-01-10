@@ -25,7 +25,7 @@ proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 	loff_t new = -1;
 	struct inode *inode = file->f_dentry->d_inode;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	switch (whence) {
 	case 0:
 		new = off;
@@ -41,7 +41,7 @@ proc_bus_pci_lseek(struct file *file, loff_t off, int whence)
 		new = -EINVAL;
 	else
 		file->f_pos = new;
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return new;
 }
 

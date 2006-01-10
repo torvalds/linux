@@ -814,7 +814,7 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 		return -ENOTDIR;
 
 	err = -ENOENT;
-	down(&nd->dentry->d_inode->i_sem);
+	mutex_lock(&nd->dentry->d_inode->i_mutex);
 	if (IS_DEADDIR(nd->dentry->d_inode))
 		goto out_unlock;
 
@@ -826,7 +826,7 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 	if (IS_ROOT(nd->dentry) || !d_unhashed(nd->dentry))
 		err = attach_recursive_mnt(mnt, nd, NULL);
 out_unlock:
-	up(&nd->dentry->d_inode->i_sem);
+	mutex_unlock(&nd->dentry->d_inode->i_mutex);
 	if (!err)
 		security_sb_post_addmount(mnt, nd);
 	return err;
@@ -962,7 +962,7 @@ static int do_move_mount(struct nameidata *nd, char *old_name)
 		goto out;
 
 	err = -ENOENT;
-	down(&nd->dentry->d_inode->i_sem);
+	mutex_lock(&nd->dentry->d_inode->i_mutex);
 	if (IS_DEADDIR(nd->dentry->d_inode))
 		goto out1;
 
@@ -1004,7 +1004,7 @@ static int do_move_mount(struct nameidata *nd, char *old_name)
 	list_del_init(&old_nd.mnt->mnt_expire);
 	spin_unlock(&vfsmount_lock);
 out1:
-	up(&nd->dentry->d_inode->i_sem);
+	mutex_unlock(&nd->dentry->d_inode->i_mutex);
 out:
 	up_write(&namespace_sem);
 	if (!err)
@@ -1573,7 +1573,7 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 	user_nd.dentry = dget(current->fs->root);
 	read_unlock(&current->fs->lock);
 	down_write(&namespace_sem);
-	down(&old_nd.dentry->d_inode->i_sem);
+	mutex_lock(&old_nd.dentry->d_inode->i_mutex);
 	error = -EINVAL;
 	if (IS_MNT_SHARED(old_nd.mnt) ||
 		IS_MNT_SHARED(new_nd.mnt->mnt_parent) ||
@@ -1626,7 +1626,7 @@ asmlinkage long sys_pivot_root(const char __user * new_root,
 	path_release(&root_parent);
 	path_release(&parent_nd);
 out2:
-	up(&old_nd.dentry->d_inode->i_sem);
+	mutex_unlock(&old_nd.dentry->d_inode->i_mutex);
 	up_write(&namespace_sem);
 	path_release(&user_nd);
 	path_release(&old_nd);

@@ -325,7 +325,7 @@ cleanup:
 /*
  * Inode operation listxattr()
  *
- * dentry->d_inode->i_sem: don't care
+ * dentry->d_inode->i_mutex: don't care
  */
 ssize_t
 ext2_listxattr(struct dentry *dentry, char *buffer, size_t size)

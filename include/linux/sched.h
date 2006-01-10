@@ -817,6 +817,11 @@ struct task_struct {
 /* Protection of proc_dentry: nesting proc_lock, dcache_lock, write_lock_irq(&tasklist_lock); */
 	spinlock_t proc_lock;
 
+#ifdef CONFIG_DEBUG_MUTEXES
+	/* mutex deadlock detection */
+	struct mutex_waiter *blocked_on;
+#endif
+
 /* journalling filesystem info */
 	void *journal_info;
 

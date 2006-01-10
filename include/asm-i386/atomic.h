@@ -216,6 +216,7 @@ static __inline__ int atomic_sub_return(int i, atomic_t *v)
 }
 
 #define atomic_cmpxchg(v, old, new) ((int)cmpxchg(&((v)->counter), old, new))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 /**
  * atomic_add_unless - add unless the number is a given value

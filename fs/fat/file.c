@@ -41,7 +41,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		if (err)
 			return err;
 
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 
 		if (IS_RDONLY(inode)) {
 			err = -EROFS;
@@ -103,7 +103,7 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		MSDOS_I(inode)->i_attrs = attr & ATTR_UNUSED;
 		mark_inode_dirty(inode);
 	up:
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 		return err;
 	}
 	default:

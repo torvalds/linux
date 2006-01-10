@@ -1532,7 +1532,7 @@ int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
  * NOTE to self: No changes in the attribute list are required to move from
  *		 a resident to a non-resident attribute.
  *
- * Locking: - The caller must hold i_sem on the inode.
+ * Locking: - The caller must hold i_mutex on the inode.
  */
 int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 {
@@ -1728,7 +1728,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 	/*
 	 * This needs to be last since the address space operations ->readpage
 	 * and ->writepage can run concurrently with us as they are not
-	 * serialized on i_sem.  Note, we are not allowed to fail once we flip
+	 * serialized on i_mutex.  Note, we are not allowed to fail once we flip
 	 * this switch, which is another reason to do this last.
 	 */
 	NInoSetNonResident(ni);

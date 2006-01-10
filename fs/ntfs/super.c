@@ -1213,10 +1213,10 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 	 * Find the inode number for the hibernation file by looking up the
 	 * filename hiberfil.sys in the root directory.
 	 */
-	down(&vol->root_ino->i_sem);
+	mutex_lock(&vol->root_ino->i_mutex);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->root_ino), hiberfil, 12,
 			&name);
-	up(&vol->root_ino->i_sem);
+	mutex_unlock(&vol->root_ino->i_mutex);
 	if (IS_ERR_MREF(mref)) {
 		ret = MREF_ERR(mref);
 		/* If the file does not exist, Windows is not hibernated. */
@@ -1307,10 +1307,10 @@ static BOOL load_and_init_quota(ntfs_volume *vol)
 	 * Find the inode number for the quota file by looking up the filename
 	 * $Quota in the extended system files directory $Extend.
 	 */
-	down(&vol->extend_ino->i_sem);
+	mutex_lock(&vol->extend_ino->i_mutex);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), Quota, 6,
 			&name);
-	up(&vol->extend_ino->i_sem);
+	mutex_unlock(&vol->extend_ino->i_mutex);
 	if (IS_ERR_MREF(mref)) {
 		/*
 		 * If the file does not exist, quotas are disabled and have
@@ -1390,10 +1390,10 @@ static BOOL load_and_init_usnjrnl(ntfs_volume *vol)
 	 * Find the inode number for the transaction log file by looking up the
 	 * filename $UsnJrnl in the extended system files directory $Extend.
 	 */
-	down(&vol->extend_ino->i_sem);
+	mutex_lock(&vol->extend_ino->i_mutex);
 	mref = ntfs_lookup_inode_by_name(NTFS_I(vol->extend_ino), UsnJrnl, 8,
 			&name);
-	up(&vol->extend_ino->i_sem);
+	mutex_unlock(&vol->extend_ino->i_mutex);
 	if (IS_ERR_MREF(mref)) {
 		/*
 		 * If the file does not exist, transaction logging is disabled,
@@ -2312,9 +2312,9 @@ static void ntfs_put_super(struct super_block *sb)
 	if (!list_empty(&sb->s_dirty)) {
 		const char *s1, *s2;
 
-		down(&vol->mft_ino->i_sem);
+		mutex_lock(&vol->mft_ino->i_mutex);
 		truncate_inode_pages(vol->mft_ino->i_mapping, 0);
-		up(&vol->mft_ino->i_sem);
+		mutex_unlock(&vol->mft_ino->i_mutex);
 		write_inode_now(vol->mft_ino, 1);
 		if (!list_empty(&sb->s_dirty)) {
 			static const char *_s1 = "inodes";

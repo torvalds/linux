@@ -20,13 +20,13 @@
 /*
  * Lock ordering in mm:
  *
- * inode->i_sem	(while writing or truncating, not reading or faulting)
+ * inode->i_mutex	(while writing or truncating, not reading or faulting)
  *   inode->i_alloc_sem
  *
  * When a page fault occurs in writing from user to file, down_read
- * of mmap_sem nests within i_sem; in sys_msync, i_sem nests within
- * down_read of mmap_sem; i_sem and down_write of mmap_sem are never
- * taken together; in truncation, i_sem is taken outermost.
+ * of mmap_sem nests within i_mutex; in sys_msync, i_mutex nests within
+ * down_read of mmap_sem; i_mutex and down_write of mmap_sem are never
+ * taken together; in truncation, i_mutex is taken outermost.
  *
  * mm->mmap_sem
  *   page->flags PG_locked (lock_page)

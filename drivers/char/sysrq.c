@@ -153,6 +153,21 @@ static struct sysrq_key_op sysrq_mountro_op = {
 
 /* END SYNC SYSRQ HANDLERS BLOCK */
 
+#ifdef CONFIG_DEBUG_MUTEXES
+
+static void
+sysrq_handle_showlocks(int key, struct pt_regs *pt_regs, struct tty_struct *tty)
+{
+	mutex_debug_show_all_locks();
+}
+
+static struct sysrq_key_op sysrq_showlocks_op = {
+	.handler	= sysrq_handle_showlocks,
+	.help_msg	= "show-all-locks(D)",
+	.action_msg	= "Show Locks Held",
+};
+
+#endif
 
 /* SHOW SYSRQ HANDLERS BLOCK */
 
@@ -294,7 +309,11 @@ static struct sysrq_key_op *sysrq_key_table[SYSRQ_KEY_TABLE_LENGTH] = {
 #else
 /* c */	NULL,
 #endif
+#ifdef CONFIG_DEBUG_MUTEXES
+/* d */ &sysrq_showlocks_op,
+#else
 /* d */ NULL,
+#endif
 /* e */	&sysrq_term_op,
 /* f */	&sysrq_moom_op,
 /* g */	NULL,

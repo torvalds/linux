@@ -19,7 +19,7 @@
 #define __XFS_SUPPORT_MUTEX_H__
 
 #include <linux/spinlock.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 /*
  * Map the mutex'es from IRIX to Linux semaphores.
@@ -28,12 +28,8 @@
  * callers.
  */
 #define MUTEX_DEFAULT		0x0
-typedef struct semaphore	mutex_t;
 
-#define mutex_init(lock, type, name)		sema_init(lock, 1)
-#define mutex_destroy(lock)			sema_init(lock, -99)
-#define mutex_lock(lock, num)			down(lock)
-#define mutex_trylock(lock)			(down_trylock(lock) ? 0 : 1)
-#define mutex_unlock(lock)			up(lock)
+typedef struct mutex		mutex_t;
+//#define mutex_destroy(lock)			do{}while(0)
 
 #endif /* __XFS_SUPPORT_MUTEX_H__ */

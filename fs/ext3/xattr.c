@@ -140,7 +140,7 @@ ext3_xattr_handler(int name_index)
 /*
  * Inode operation listxattr()
  *
- * dentry->d_inode->i_sem: don't care
+ * dentry->d_inode->i_mutex: don't care
  */
 ssize_t
 ext3_listxattr(struct dentry *dentry, char *buffer, size_t size)

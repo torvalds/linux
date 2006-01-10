@@ -1152,7 +1152,7 @@ static ssize_t ext2_quota_write(struct super_block *sb, int type,
 	struct buffer_head tmp_bh;
 	struct buffer_head *bh;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
 				sb->s_blocksize - offset : towrite;
@@ -1189,7 +1189,7 @@ out:
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(inode);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return len - towrite;
 }
 

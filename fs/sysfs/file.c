@@ -364,9 +364,9 @@ int sysfs_add_file(struct dentry * dir, const struct attribute * attr, int type)
 	umode_t mode = (attr->mode & S_IALLUGO) | S_IFREG;
 	int error = 0;
 
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	error = sysfs_make_dirent(parent_sd, NULL, (void *) attr, mode, type);
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 
 	return error;
 }
@@ -398,7 +398,7 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 	struct dentry * victim;
 	int res = -ENOENT;
 
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	victim = lookup_one_len(attr->name, dir, strlen(attr->name));
 	if (!IS_ERR(victim)) {
 		/* make sure dentry is really there */
@@ -420,7 +420,7 @@ int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
 		 */
 		dput(victim);
 	}
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 
 	return res;
 }
@@ -441,22 +441,22 @@ int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 	struct iattr newattrs;
 	int res = -ENOENT;
 
-	down(&dir->d_inode->i_sem);
+	mutex_lock(&dir->d_inode->i_mutex);
 	victim = lookup_one_len(attr->name, dir, strlen(attr->name));
 	if (!IS_ERR(victim)) {
 		if (victim->d_inode &&
 		    (victim->d_parent->d_inode == dir->d_inode)) {
 			inode = victim->d_inode;
-			down(&inode->i_sem);
+			mutex_lock(&inode->i_mutex);
 			newattrs.ia_mode = (mode & S_IALLUGO) |
 						(inode->i_mode & ~S_IALLUGO);
 			newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 			res = notify_change(victim, &newattrs);
-			up(&inode->i_sem);
+			mutex_unlock(&inode->i_mutex);
 		}
 		dput(victim);
 	}
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 
 	return res;
 }
@@ -480,4 +480,3 @@ void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr)
 EXPORT_SYMBOL_GPL(sysfs_create_file);
 EXPORT_SYMBOL_GPL(sysfs_remove_file);
 EXPORT_SYMBOL_GPL(sysfs_update_file);
-

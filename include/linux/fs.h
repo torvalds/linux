@@ -219,6 +219,7 @@ extern int dir_notify_enable;
 #include <linux/prio_tree.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/mutex.h>
 
 #include <asm/atomic.h>
 #include <asm/semaphore.h>
@@ -484,7 +485,7 @@ struct inode {
 	unsigned long		i_blocks;
 	unsigned short          i_bytes;
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
-	struct semaphore	i_sem;
+	struct mutex		i_mutex;
 	struct rw_semaphore	i_alloc_sem;
 	struct inode_operations	*i_op;
 	struct file_operations	*i_fop;	/* former ->i_op->default_file_ops */
@@ -820,7 +821,7 @@ struct super_block {
 	unsigned long		s_magic;
 	struct dentry		*s_root;
 	struct rw_semaphore	s_umount;
-	struct semaphore	s_lock;
+	struct mutex		s_lock;
 	int			s_count;
 	int			s_syncing;
 	int			s_need_sync_fs;
@@ -892,13 +893,13 @@ static inline int has_fs_excl(void)
 static inline void lock_super(struct super_block * sb)
 {
 	get_fs_excl();
-	down(&sb->s_lock);
+	mutex_lock(&sb->s_lock);
 }
 
 static inline void unlock_super(struct super_block * sb)
 {
 	put_fs_excl();
-	up(&sb->s_lock);
+	mutex_unlock(&sb->s_lock);
 }
 
 /*
@@ -1191,7 +1192,7 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc);
  *    directory.  The name should be stored in the @name (with the
  *    understanding that it is already pointing to a a %NAME_MAX+1 sized
  *    buffer.   get_name() should return %0 on success, a negative error code
- *    or error.  @get_name will be called without @parent->i_sem held.
+ *    or error.  @get_name will be called without @parent->i_mutex held.
  *
  * get_parent:
  *    @get_parent should find the parent directory for the given @child which
@@ -1213,7 +1214,7 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc);
  *    nfsd_find_fh_dentry() in either the @obj or @parent parameters.
  *
  * Locking rules:
- *    get_parent is called with child->d_inode->i_sem down
+ *    get_parent is called with child->d_inode->i_mutex down
  *    get_name is not (which is possibly inconsistent)
  */
 

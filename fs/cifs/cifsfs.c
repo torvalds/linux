@@ -860,9 +860,9 @@ static int cifs_oplock_thread(void * dummyarg)
 				DeleteOplockQEntry(oplock_item);
 				/* can not grab inode sem here since it would
 				deadlock when oplock received on delete 
-				since vfs_unlink holds the i_sem across
+				since vfs_unlink holds the i_mutex across
 				the call */
-				/* down(&inode->i_sem);*/
+				/* mutex_lock(&inode->i_mutex);*/
 				if (S_ISREG(inode->i_mode)) {
 					rc = filemap_fdatawrite(inode->i_mapping);
 					if(CIFS_I(inode)->clientCanCacheRead == 0) {
@@ -871,7 +871,7 @@ static int cifs_oplock_thread(void * dummyarg)
 					}
 				} else
 					rc = 0;
-				/* up(&inode->i_sem);*/
+				/* mutex_unlock(&inode->i_mutex);*/
 				if (rc)
 					CIFS_I(inode)->write_behind_rc = rc;
 				cFYI(1,("Oplock flush inode %p rc %d",inode,rc));

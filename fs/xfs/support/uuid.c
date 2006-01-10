@@ -24,7 +24,7 @@ static uuid_t	*uuid_table;
 void
 uuid_init(void)
 {
-	mutex_init(&uuid_monitor, MUTEX_DEFAULT, "uuid_monitor");
+	mutex_init(&uuid_monitor);
 }
 
 /*
@@ -94,7 +94,7 @@ uuid_table_insert(uuid_t *uuid)
 {
 	int	i, hole;
 
-	mutex_lock(&uuid_monitor, PVFS);
+	mutex_lock(&uuid_monitor);
 	for (i = 0, hole = -1; i < uuid_table_size; i++) {
 		if (uuid_is_nil(&uuid_table[i])) {
 			hole = i;
@@ -122,7 +122,7 @@ uuid_table_remove(uuid_t *uuid)
 {
 	int	i;
 
-	mutex_lock(&uuid_monitor, PVFS);
+	mutex_lock(&uuid_monitor);
 	for (i = 0; i < uuid_table_size; i++) {
 		if (uuid_is_nil(&uuid_table[i]))
 			continue;

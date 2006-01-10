@@ -69,7 +69,7 @@ ntfschar I30[5] = { const_cpu_to_le16('$'), const_cpu_to_le16('I'),
  * work but we don't care for how quickly one can access them. This also fixes
  * the dcache aliasing issues.
  *
- * Locking:  - Caller must hold i_sem on the directory.
+ * Locking:  - Caller must hold i_mutex on the directory.
  *	     - Each page cache page in the index allocation mapping must be
  *	       locked whilst being accessed otherwise we may find a corrupt
  *	       page due to it being under ->writepage at the moment which
@@ -1085,11 +1085,11 @@ static inline int ntfs_filldir(ntfs_volume *vol, loff_t fpos,
  * While this will return the names in random order this doesn't matter for
  * ->readdir but OTOH results in a faster ->readdir.
  *
- * VFS calls ->readdir without BKL but with i_sem held. This protects the VFS
+ * VFS calls ->readdir without BKL but with i_mutex held. This protects the VFS
  * parts (e.g. ->f_pos and ->i_size, and it also protects against directory
  * modifications).
  *
- * Locking:  - Caller must hold i_sem on the directory.
+ * Locking:  - Caller must hold i_mutex on the directory.
  *	     - Each page cache page in the index allocation mapping must be
  *	       locked whilst being accessed otherwise we may find a corrupt
  *	       page due to it being under ->writepage at the moment which
@@ -1520,7 +1520,7 @@ static int ntfs_dir_open(struct inode *vi, struct file *filp)
  * Note: In the past @filp could be NULL so we ignore it as we don't need it
  * anyway.
  *
- * Locking: Caller must hold i_sem on the inode.
+ * Locking: Caller must hold i_mutex on the inode.
  *
  * TODO: We should probably also write all attribute/index inodes associated
  * with this inode but since we have no simple way of getting to them we ignore

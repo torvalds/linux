@@ -4386,6 +4386,7 @@ void show_state(void)
 	} while_each_thread(g, p);
 
 	read_unlock(&tasklist_lock);
+	mutex_debug_show_all_locks();
 }
 
 /**

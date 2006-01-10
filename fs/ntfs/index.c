@@ -32,7 +32,7 @@
  * Allocate a new index context, initialize it with @idx_ni and return it.
  * Return NULL if allocation failed.
  *
- * Locking:  Caller must hold i_sem on the index inode.
+ * Locking:  Caller must hold i_mutex on the index inode.
  */
 ntfs_index_context *ntfs_index_ctx_get(ntfs_inode *idx_ni)
 {
@@ -50,7 +50,7 @@ ntfs_index_context *ntfs_index_ctx_get(ntfs_inode *idx_ni)
  *
  * Release the index context @ictx, releasing all associated resources.
  *
- * Locking:  Caller must hold i_sem on the index inode.
+ * Locking:  Caller must hold i_mutex on the index inode.
  */
 void ntfs_index_ctx_put(ntfs_index_context *ictx)
 {
@@ -106,7 +106,7 @@ void ntfs_index_ctx_put(ntfs_index_context *ictx)
  * or ntfs_index_entry_write() before the call to ntfs_index_ctx_put() to
  * ensure that the changes are written to disk.
  *
- * Locking:  - Caller must hold i_sem on the index inode.
+ * Locking:  - Caller must hold i_mutex on the index inode.
  *	     - Each page cache page in the index allocation mapping must be
  *	       locked whilst being accessed otherwise we may find a corrupt
  *	       page due to it being under ->writepage at the moment which

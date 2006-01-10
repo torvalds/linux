@@ -485,10 +485,10 @@ static int ocfs2_remove_inode(struct inode *inode,
 		goto bail;
 	}
 
-	down(&inode_alloc_inode->i_sem);
+	mutex_lock(&inode_alloc_inode->i_mutex);
 	status = ocfs2_meta_lock(inode_alloc_inode, NULL, &inode_alloc_bh, 1);
 	if (status < 0) {
-		up(&inode_alloc_inode->i_sem);
+		mutex_unlock(&inode_alloc_inode->i_mutex);
 
 		mlog_errno(status);
 		goto bail;
@@ -536,7 +536,7 @@ bail_commit:
 	ocfs2_commit_trans(handle);
 bail_unlock:
 	ocfs2_meta_unlock(inode_alloc_inode, 1);
-	up(&inode_alloc_inode->i_sem);
+	mutex_unlock(&inode_alloc_inode->i_mutex);
 	brelse(inode_alloc_bh);
 bail:
 	iput(inode_alloc_inode);
@@ -567,10 +567,10 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	/* Lock the orphan dir. The lock will be held for the entire
 	 * delete_inode operation. We do this now to avoid races with
 	 * recovery completion on other nodes. */
-	down(&orphan_dir_inode->i_sem);
+	mutex_lock(&orphan_dir_inode->i_mutex);
 	status = ocfs2_meta_lock(orphan_dir_inode, NULL, &orphan_dir_bh, 1);
 	if (status < 0) {
-		up(&orphan_dir_inode->i_sem);
+		mutex_unlock(&orphan_dir_inode->i_mutex);
 
 		mlog_errno(status);
 		goto bail;
@@ -593,7 +593,7 @@ static int ocfs2_wipe_inode(struct inode *inode,
 
 bail_unlock_dir:
 	ocfs2_meta_unlock(orphan_dir_inode, 1);
-	up(&orphan_dir_inode->i_sem);
+	mutex_unlock(&orphan_dir_inode->i_mutex);
 	brelse(orphan_dir_bh);
 bail:
 	iput(orphan_dir_inode);

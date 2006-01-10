@@ -1370,7 +1370,7 @@ shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t
 	if (!access_ok(VERIFY_READ, buf, count))
 		return -EFAULT;
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 
 	pos = *ppos;
 	written = 0;
@@ -1455,7 +1455,7 @@ shmem_file_write(struct file *file, const char __user *buf, size_t count, loff_t
 	if (written)
 		err = written;
 out:
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 
@@ -1491,7 +1491,7 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
 
 		/*
 		 * We must evaluate after, since reads (unlike writes)
-		 * are called without i_sem protection against truncate
+		 * are called without i_mutex protection against truncate
 		 */
 		nr = PAGE_CACHE_SIZE;
 		i_size = i_size_read(inode);

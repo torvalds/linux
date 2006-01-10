@@ -51,7 +51,7 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 		}
 	}
 
-	down(&d->d_inode->i_sem);
+	mutex_lock(&d->d_inode->i_mutex);
 	error = security_inode_setxattr(d, kname, kvalue, size, flags);
 	if (error)
 		goto out;
@@ -73,7 +73,7 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 			fsnotify_xattr(d);
 	}
 out:
-	up(&d->d_inode->i_sem);
+	mutex_unlock(&d->d_inode->i_mutex);
 	kfree(kvalue);
 	return error;
 }
@@ -323,9 +323,9 @@ removexattr(struct dentry *d, char __user *name)
 		error = security_inode_removexattr(d, kname);
 		if (error)
 			goto out;
-		down(&d->d_inode->i_sem);
+		mutex_lock(&d->d_inode->i_mutex);
 		error = d->d_inode->i_op->removexattr(d, kname);
-		up(&d->d_inode->i_sem);
+		mutex_unlock(&d->d_inode->i_mutex);
 		if (!error)
 			fsnotify_xattr(d);
 	}

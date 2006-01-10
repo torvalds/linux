@@ -334,7 +334,7 @@ int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 
 	status = ocfs2_read_block(osb, OCFS2_I(inode)->ip_blkno,
 				  &alloc_bh, 0, inode);
@@ -367,7 +367,7 @@ bail:
 		brelse(alloc_bh);
 
 	if (inode) {
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 		iput(inode);
 	}
 
@@ -446,7 +446,7 @@ bail:
 
 /*
  * make sure we've got at least bitswanted contiguous bits in the
- * local alloc. You lose them when you drop i_sem.
+ * local alloc. You lose them when you drop i_mutex.
  *
  * We will add ourselves to the transaction passed in, but may start
  * our own in order to shift windows.

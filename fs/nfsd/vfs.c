@@ -390,12 +390,12 @@ set_nfsv4_acl_one(struct dentry *dentry, struct posix_acl *pacl, char *key)
 
 	error = -EOPNOTSUPP;
 	if (inode->i_op && inode->i_op->setxattr) {
-		down(&inode->i_sem);
+		mutex_lock(&inode->i_mutex);
 		security_inode_setxattr(dentry, key, buf, len, 0);
 		error = inode->i_op->setxattr(dentry, key, buf, len, 0);
 		if (!error)
 			security_inode_post_setxattr(dentry, key, buf, len, 0);
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 	}
 out:
 	kfree(buf);
@@ -739,9 +739,9 @@ nfsd_sync(struct file *filp)
         int err;
 	struct inode *inode = filp->f_dentry->d_inode;
 	dprintk("nfsd: sync file %s\n", filp->f_dentry->d_name.name);
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	err=nfsd_dosync(filp, filp->f_dentry, filp->f_op);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 
 	return err;
 }
@@ -885,9 +885,9 @@ static void kill_suid(struct dentry *dentry)
 	struct iattr	ia;
 	ia.ia_valid = ATTR_KILL_SUID | ATTR_KILL_SGID;
 
-	down(&dentry->d_inode->i_sem);
+	mutex_lock(&dentry->d_inode->i_mutex);
 	notify_change(dentry, &ia);
-	up(&dentry->d_inode->i_sem);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 }
 
 static inline int

@@ -216,7 +216,7 @@ void ocfs2_handle_add_inode(struct ocfs2_journal_handle *handle,
 	atomic_inc(&inode->i_count);
 
 	/* we're obviously changing it... */
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 
 	/* sanity check */
 	BUG_ON(OCFS2_I(inode)->ip_handle);
@@ -241,7 +241,7 @@ static void ocfs2_handle_unlock_inodes(struct ocfs2_journal_handle *handle)
 		OCFS2_I(inode)->ip_handle = NULL;
 		list_del_init(&OCFS2_I(inode)->ip_handle_list);
 
-		up(&inode->i_sem);
+		mutex_unlock(&inode->i_mutex);
 		iput(inode);
 	}
 }
@@ -1433,10 +1433,10 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		goto out;
 	}
 
-	down(&orphan_dir_inode->i_sem);
+	mutex_lock(&orphan_dir_inode->i_mutex);
 	status = ocfs2_meta_lock(orphan_dir_inode, NULL, NULL, 0);
 	if (status < 0) {
-		up(&orphan_dir_inode->i_sem);
+		mutex_unlock(&orphan_dir_inode->i_mutex);
 		mlog_errno(status);
 		goto out;
 	}
@@ -1451,7 +1451,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		if (!bh)
 			status = -EINVAL;
 		if (status < 0) {
-			up(&orphan_dir_inode->i_sem);
+			mutex_unlock(&orphan_dir_inode->i_mutex);
 			if (bh)
 				brelse(bh);
 			mlog_errno(status);
@@ -1465,7 +1465,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 
 			if (!ocfs2_check_dir_entry(orphan_dir_inode,
 						  de, bh, local)) {
-				up(&orphan_dir_inode->i_sem);
+				mutex_unlock(&orphan_dir_inode->i_mutex);
 				status = -EINVAL;
 				mlog_errno(status);
 				brelse(bh);
@@ -1509,7 +1509,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		}
 		brelse(bh);
 	}
-	up(&orphan_dir_inode->i_sem);
+	mutex_unlock(&orphan_dir_inode->i_mutex);
 
 	ocfs2_meta_unlock(orphan_dir_inode, 0);
 	have_disk_lock = 0;

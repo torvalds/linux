@@ -32,19 +32,19 @@ static loff_t hpfs_dir_lseek(struct file *filp, loff_t off, int whence)
 
 	/*printk("dir lseek\n");*/
 	if (new_off == 0 || new_off == 1 || new_off == 11 || new_off == 12 || new_off == 13) goto ok;
-	down(&i->i_sem);
+	mutex_lock(&i->i_mutex);
 	pos = ((loff_t) hpfs_de_as_down_as_possible(s, hpfs_inode->i_dno) << 4) + 1;
 	while (pos != new_off) {
 		if (map_pos_dirent(i, &pos, &qbh)) hpfs_brelse4(&qbh);
 		else goto fail;
 		if (pos == 12) goto fail;
 	}
-	up(&i->i_sem);
+	mutex_unlock(&i->i_mutex);
 ok:
 	unlock_kernel();
 	return filp->f_pos = new_off;
 fail:
-	up(&i->i_sem);
+	mutex_unlock(&i->i_mutex);
 	/*printk("illegal lseek: %016llx\n", new_off);*/
 	unlock_kernel();
 	return -ESPIPE;

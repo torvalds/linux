@@ -169,7 +169,7 @@ static match_table_t tokens = {
  */
 static void ocfs2_write_super(struct super_block *sb)
 {
-	if (down_trylock(&sb->s_lock) == 0)
+	if (mutex_trylock(&sb->s_lock) != 0)
 		BUG();
 	sb->s_dirt = 0;
 }

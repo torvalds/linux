@@ -653,7 +653,7 @@ static struct config_group *o2nm_cluster_group_make_group(struct config_group *g
 	struct config_group *o2hb_group = NULL, *ret = NULL;
 	void *defs = NULL;
 
-	/* this runs under the parent dir's i_sem; there can be only
+	/* this runs under the parent dir's i_mutex; there can be only
 	 * one caller in here at a time */
 	if (o2nm_single_cluster)
 		goto out; /* ENOSPC */

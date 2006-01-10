@@ -2125,13 +2125,13 @@ void ntfs_put_inode(struct inode *vi)
 		ntfs_inode *ni = NTFS_I(vi);
 		if (NInoIndexAllocPresent(ni)) {
 			struct inode *bvi = NULL;
-			down(&vi->i_sem);
+			mutex_lock(&vi->i_mutex);
 			if (atomic_read(&vi->i_count) == 2) {
 				bvi = ni->itype.index.bmp_ino;
 				if (bvi)
 					ni->itype.index.bmp_ino = NULL;
 			}
-			up(&vi->i_sem);
+			mutex_unlock(&vi->i_mutex);
 			if (bvi)
 				iput(bvi);
 		}
@@ -2311,7 +2311,7 @@ static const char *es = "  Leaving inconsistent metadata.  Unmount and run "
  *
  * Returns 0 on success or -errno on error.
  *
- * Called with ->i_sem held.  In all but one case ->i_alloc_sem is held for
+ * Called with ->i_mutex held.  In all but one case ->i_alloc_sem is held for
  * writing.  The only case in the kernel where ->i_alloc_sem is not held is
  * mm/filemap.c::generic_file_buffered_write() where vmtruncate() is called
  * with the current i_size as the offset.  The analogous place in NTFS is in
@@ -2831,7 +2831,7 @@ void ntfs_truncate_vfs(struct inode *vi) {
  * We also abort all changes of user, group, and mode as we do not implement
  * the NTFS ACLs yet.
  *
- * Called with ->i_sem held.  For the ATTR_SIZE (i.e. ->truncate) case, also
+ * Called with ->i_mutex held.  For the ATTR_SIZE (i.e. ->truncate) case, also
  * called with ->i_alloc_sem held for writing.
  *
  * Basically this is a copy of generic notify_change() and inode_setattr()

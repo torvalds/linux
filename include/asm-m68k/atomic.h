@@ -140,6 +140,7 @@ static inline void atomic_set_mask(unsigned long mask, unsigned long *v)
 }
 
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 #define atomic_add_unless(v, a, u)				\
 ({								\

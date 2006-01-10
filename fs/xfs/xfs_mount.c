@@ -117,7 +117,7 @@ xfs_mount_init(void)
 
 	AIL_LOCKINIT(&mp->m_ail_lock, "xfs_ail");
 	spinlock_init(&mp->m_sb_lock, "xfs_sb");
-	mutex_init(&mp->m_ilock, MUTEX_DEFAULT, "xfs_ilock");
+	mutex_init(&mp->m_ilock);
 	initnsema(&mp->m_growlock, 1, "xfs_grow");
 	/*
 	 * Initialize the AIL.

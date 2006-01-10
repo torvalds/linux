@@ -72,7 +72,7 @@ static struct super_block *alloc_super(void)
 		INIT_HLIST_HEAD(&s->s_anon);
 		INIT_LIST_HEAD(&s->s_inodes);
 		init_rwsem(&s->s_umount);
-		sema_init(&s->s_lock, 1);
+		mutex_init(&s->s_lock);
 		down_write(&s->s_umount);
 		s->s_count = S_BIAS;
 		atomic_set(&s->s_active, 1);

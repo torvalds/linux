@@ -2150,7 +2150,7 @@ int ext3_force_commit(struct super_block *sb)
 
 static void ext3_write_super (struct super_block * sb)
 {
-	if (down_trylock(&sb->s_lock) == 0)
+	if (mutex_trylock(&sb->s_lock) != 0)
 		BUG();
 	sb->s_dirt = 0;
 }
@@ -2601,7 +2601,7 @@ static ssize_t ext3_quota_write(struct super_block *sb, int type,
 	struct buffer_head *bh;
 	handle_t *handle = journal_current_handle();
 
-	down(&inode->i_sem);
+	mutex_lock(&inode->i_mutex);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
 				sb->s_blocksize - offset : towrite;
@@ -2644,7 +2644,7 @@ out:
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	ext3_mark_inode_dirty(handle, inode);
-	up(&inode->i_sem);
+	mutex_unlock(&inode->i_mutex);
 	return len - towrite;
 }
 

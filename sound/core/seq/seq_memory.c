@@ -32,10 +32,6 @@
 #include "seq_info.h"
 #include "seq_lock.h"
 
-/* semaphore in struct file record */
-#define semaphore_of(fp)	((fp)->f_dentry->d_inode->i_sem)
-
-
 static inline int snd_seq_pool_available(struct snd_seq_pool *pool)
 {
 	return pool->total_elements - atomic_read(&pool->counter);

@@ -979,6 +979,10 @@ static task_t *copy_process(unsigned long clone_flags,
  	}
 #endif
 
+#ifdef CONFIG_DEBUG_MUTEXES
+	p->blocked_on = NULL; /* not blocked yet */
+#endif
+
 	p->tgid = p->pid;
 	if (clone_flags & CLONE_THREAD)
 		p->tgid = current->tgid;

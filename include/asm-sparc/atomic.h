@@ -20,6 +20,7 @@ typedef struct { volatile int counter; } atomic_t;
 
 extern int __atomic_add_return(int, atomic_t *);
 extern int atomic_cmpxchg(atomic_t *, int, int);
+#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 extern int atomic_add_unless(atomic_t *, int, int);
 extern void atomic_set(atomic_t *, int);
 
