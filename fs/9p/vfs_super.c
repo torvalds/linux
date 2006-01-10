@@ -91,7 +91,7 @@ v9fs_fill_super(struct super_block *sb, struct v9fs_session_info *v9ses,
 	sb->s_op = &v9fs_super_ops;
 
 	sb->s_flags = flags | MS_ACTIVE | MS_SYNCHRONOUS | MS_DIRSYNC |
-	    MS_NODIRATIME | MS_NOATIME;
+	    MS_NOATIME;
 }
 
 /**
