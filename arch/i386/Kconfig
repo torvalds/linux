@@ -1060,3 +1060,7 @@ config X86_TRAMPOLINE
 	bool
 	depends on X86_SMP || (X86_VOYAGER && SMP)
 	default y
+
+config KTIME_SCALAR
+	bool
+	default y
