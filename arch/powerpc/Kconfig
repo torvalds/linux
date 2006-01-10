@@ -275,6 +275,7 @@ config PPC_PSERIES
 	select PPC_I8259
 	select PPC_RTAS
 	select RTAS_ERROR_LOGGING
+	select PPC_UDBG_16550
 	default y
 
 config PPC_CHRP
@@ -284,6 +285,7 @@ config PPC_CHRP
 	select PPC_INDIRECT_PCI
 	select PPC_RTAS
 	select PPC_MPC106
+	select PPC_UDBG_16550
 	default y
 
 config PPC_PMAC
@@ -306,6 +308,7 @@ config PPC_PREP
 	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
+	select PPC_UDBG_16550
 	default y
 
 config PPC_MAPLE
@@ -314,6 +317,7 @@ config PPC_MAPLE
 	select U3_DART
 	select MPIC_BROKEN_U3
 	select GENERIC_TBSYNC
+	select PPC_UDBG_16550
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
@@ -324,6 +328,7 @@ config PPC_CELL
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_RTAS
 	select MMIO_NVRAM
+	select PPC_UDBG_16550
 
 config PPC_OF
 	def_bool y
@@ -369,6 +374,10 @@ config MPIC_BROKEN_U3
 	bool
 	depends on PPC_MAPLE
 	default y
+
+config PPC_UDBG_16550
+	bool
+	default n
 
 config CELL_IIC
 	depends on PPC_CELL
