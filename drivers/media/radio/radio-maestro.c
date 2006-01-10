@@ -180,7 +180,7 @@ static inline int radio_function(struct inode *inode, struct file *file,
 	unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
-	struct radio_device *card = dev->priv;
+	struct radio_device *card = video_get_drvdata(dev);
 
 	switch (cmd) {
 	case VIDIOCGCAP: {
@@ -256,7 +256,7 @@ static int radio_ioctl(struct inode *inode, struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
 	struct video_device *dev = video_devdata(file);
-	struct radio_device *card = dev->priv;
+	struct radio_device *card = video_get_drvdata(dev);
 	int ret;
 
 	down(&card->lock);
