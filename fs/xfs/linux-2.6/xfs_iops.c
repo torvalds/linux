@@ -54,6 +54,9 @@
 #include <linux/xattr.h>
 #include <linux/namei.h>
 
+#define IS_NOATIME(inode) ((inode->i_sb->s_flags & MS_NOATIME) ||	\
+	(S_ISDIR(inode->i_mode) && inode->i_sb->s_flags & MS_NODIRATIME))
+
 /*
  * Change the requested timestamp in the given inode.
  * We don't lock across timestamp updates, and we don't log them but

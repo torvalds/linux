@@ -22,6 +22,7 @@
 #include <linux/cdev.h>
 #include <linux/bootmem.h>
 #include <linux/inotify.h>
+#include <linux/mount.h>
 
 /*
  * This is needed for the following functions:
@@ -1189,12 +1190,20 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 	struct inode *inode = dentry->d_inode;
 	struct timespec now;
 
-	/* per-mountpoint checks will go here */
-	if (IS_NOATIME(inode))
-		return;
-	if (IS_NODIRATIME(inode) && S_ISDIR(inode->i_mode))
-		return;
 	if (IS_RDONLY(inode))
+		return;
+
+	if ((inode->i_flags & S_NOATIME) ||
+	    (inode->i_sb->s_flags & MS_NOATIME) ||
+	    ((inode->i_sb->s_flags & MS_NODIRATIME) && S_ISDIR(inode->i_mode)))
+		return;
+
+	/*
+	 * We may have a NULL vfsmount when coming from NFSD
+	 */
+	if (mnt &&
+	    ((mnt->mnt_flags & MNT_NOATIME) ||
+	     ((mnt->mnt_flags & MNT_NODIRATIME) && S_ISDIR(inode->i_mode))))
 		return;
 
 	now = current_fs_time(inode->i_sb);
