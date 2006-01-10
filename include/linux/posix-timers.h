@@ -81,7 +81,7 @@ struct k_clock {
 	int (*clock_get) (const clockid_t which_clock, struct timespec * tp);
 	int (*timer_create) (struct k_itimer *timer);
 	int (*nsleep) (const clockid_t which_clock, int flags,
-		       struct timespec *);
+		       struct timespec *, struct timespec __user *);
 	int (*timer_set) (struct k_itimer * timr, int flags,
 			  struct itimerspec * new_setting,
 			  struct itimerspec * old_setting);
@@ -95,7 +95,8 @@ void register_posix_clock(const clockid_t clock_id, struct k_clock *new_clock);
 
 /* error handlers for timer_create, nanosleep and settime */
 int do_posix_clock_notimer_create(struct k_itimer *timer);
-int do_posix_clock_nonanosleep(const clockid_t, int flags, struct timespec *);
+int do_posix_clock_nonanosleep(const clockid_t, int flags, struct timespec *,
+			       struct timespec __user *);
 int do_posix_clock_nosettime(const clockid_t, struct timespec *tp);
 
 /* function to call to trigger timer event */
@@ -129,7 +130,7 @@ int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *ts);
 int posix_cpu_clock_set(const clockid_t which_clock, const struct timespec *ts);
 int posix_cpu_timer_create(struct k_itimer *timer);
 int posix_cpu_nsleep(const clockid_t which_clock, int flags,
-		     struct timespec *ts);
+		     struct timespec *rqtp, struct timespec __user *rmtp);
 int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 			struct itimerspec *new, struct itimerspec *old);
 int posix_cpu_timer_del(struct k_itimer *timer);

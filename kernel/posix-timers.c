@@ -209,7 +209,8 @@ static inline int common_timer_create(struct k_itimer *new_timer)
 /*
  * These ones are defined below.
  */
-static int common_nsleep(const clockid_t, int flags, struct timespec *t);
+static int common_nsleep(const clockid_t, int flags, struct timespec *t,
+			 struct timespec __user *rmtp);
 static void common_timer_get(struct k_itimer *, struct itimerspec *);
 static int common_timer_set(struct k_itimer *, int,
 			    struct itimerspec *, struct itimerspec *);
@@ -1227,7 +1228,7 @@ int do_posix_clock_notimer_create(struct k_itimer *timer)
 EXPORT_SYMBOL_GPL(do_posix_clock_notimer_create);
 
 int do_posix_clock_nonanosleep(const clockid_t clock, int flags,
-			       struct timespec *t)
+			       struct timespec *t, struct timespec __user *r)
 {
 #ifndef ENOTSUP
 	return -EOPNOTSUPP;	/* aka ENOTSUP in userland for POSIX */
@@ -1387,7 +1388,28 @@ void clock_was_set(void)
 	up(&clock_was_set_lock);
 }
 
-long clock_nanosleep_restart(struct restart_block *restart_block);
+/*
+ * nanosleep for monotonic and realtime clocks
+ */
+static int common_nsleep(const clockid_t which_clock, int flags,
+			 struct timespec *tsave, struct timespec __user *rmtp)
+{
+	int mode = flags & TIMER_ABSTIME ? HRTIMER_ABS : HRTIMER_REL;
+	int clockid = which_clock;
+
+	switch (which_clock) {
+	case CLOCK_REALTIME:
+		/* Posix madness. Only absolute timers on clock realtime
+		   are affected by clock set. */
+		if (mode == HRTIMER_ABS)
+			clockid = CLOCK_MONOTONIC;
+	case CLOCK_MONOTONIC:
+		break;
+	default:
+		return -EINVAL;
+	}
+	return hrtimer_nanosleep(tsave, rmtp, mode, clockid);
+}
 
 asmlinkage long
 sys_clock_nanosleep(const clockid_t which_clock, int flags,
@@ -1395,9 +1417,6 @@ sys_clock_nanosleep(const clockid_t which_clock, int flags,
 		    struct timespec __user *rmtp)
 {
 	struct timespec t;
-	struct restart_block *restart_block =
-	    &(current_thread_info()->restart_block);
-	int ret;
 
 	if (invalid_clockid(which_clock))
 		return -EINVAL;
@@ -1408,122 +1427,6 @@ sys_clock_nanosleep(const clockid_t which_clock, int flags,
 	if (!timespec_valid(&t))
 		return -EINVAL;
 
-	/*
-	 * Do this here as nsleep function does not have the real address.
-	 */
-	restart_block->arg1 = (unsigned long)rmtp;
-
-	ret = CLOCK_DISPATCH(which_clock, nsleep, (which_clock, flags, &t));
-
-	if ((ret == -ERESTART_RESTARTBLOCK) && rmtp &&
-					copy_to_user(rmtp, &t, sizeof (t)))
-		return -EFAULT;
-	return ret;
-}
-
-
-static int common_nsleep(const clockid_t which_clock,
-			 int flags, struct timespec *tsave)
-{
-	struct timespec t, dum;
-	DECLARE_WAITQUEUE(abs_wqueue, current);
-	u64 rq_time = (u64)0;
-	s64 left;
-	int abs;
-	struct restart_block *restart_block =
-	    &current_thread_info()->restart_block;
-
-	abs_wqueue.flags = 0;
-	abs = flags & TIMER_ABSTIME;
-
-	if (restart_block->fn == clock_nanosleep_restart) {
-		/*
-		 * Interrupted by a non-delivered signal, pick up remaining
-		 * time and continue.  Remaining time is in arg2 & 3.
-		 */
-		restart_block->fn = do_no_restart_syscall;
-
-		rq_time = restart_block->arg3;
-		rq_time = (rq_time << 32) + restart_block->arg2;
-		if (!rq_time)
-			return -EINTR;
-		left = rq_time - get_jiffies_64();
-		if (left <= (s64)0)
-			return 0;	/* Already passed */
-	}
-
-	if (abs && (posix_clocks[which_clock].clock_get !=
-			    posix_clocks[CLOCK_MONOTONIC].clock_get))
-		add_wait_queue(&nanosleep_abs_wqueue, &abs_wqueue);
-
-	do {
-		t = *tsave;
-		if (abs || !rq_time) {
-			adjust_abs_time(&posix_clocks[which_clock], &t, abs,
-					&rq_time, &dum);
-		}
-
-		left = rq_time - get_jiffies_64();
-		if (left >= (s64)MAX_JIFFY_OFFSET)
-			left = (s64)MAX_JIFFY_OFFSET;
-		if (left < (s64)0)
-			break;
-
-		schedule_timeout_interruptible(left);
-
-		left = rq_time - get_jiffies_64();
-	} while (left > (s64)0 && !test_thread_flag(TIF_SIGPENDING));
-
-	if (abs_wqueue.task_list.next)
-		finish_wait(&nanosleep_abs_wqueue, &abs_wqueue);
-
-	if (left > (s64)0) {
-
-		/*
-		 * Always restart abs calls from scratch to pick up any
-		 * clock shifting that happened while we are away.
-		 */
-		if (abs)
-			return -ERESTARTNOHAND;
-
-		left *= TICK_NSEC;
-		tsave->tv_sec = div_long_long_rem(left, 
-						  NSEC_PER_SEC, 
-						  &tsave->tv_nsec);
-		/*
-		 * Restart works by saving the time remaing in 
-		 * arg2 & 3 (it is 64-bits of jiffies).  The other
-		 * info we need is the clock_id (saved in arg0). 
-		 * The sys_call interface needs the users 
-		 * timespec return address which _it_ saves in arg1.
-		 * Since we have cast the nanosleep call to a clock_nanosleep
-		 * both can be restarted with the same code.
-		 */
-		restart_block->fn = clock_nanosleep_restart;
-		restart_block->arg0 = which_clock;
-		/*
-		 * Caller sets arg1
-		 */
-		restart_block->arg2 = rq_time & 0xffffffffLL;
-		restart_block->arg3 = rq_time >> 32;
-
-		return -ERESTART_RESTARTBLOCK;
-	}
-
-	return 0;
-}
-/*
- * This will restart clock_nanosleep.
- */
-long
-clock_nanosleep_restart(struct restart_block *restart_block)
-{
-	struct timespec t;
-	int ret = common_nsleep(restart_block->arg0, 0, &t);
-
-	if ((ret == -ERESTART_RESTARTBLOCK) && restart_block->arg1 &&
-	    copy_to_user((struct timespec __user *)(restart_block->arg1), &t,
-			 sizeof (t)))
-		return -EFAULT;
-	return ret;
+	return CLOCK_DISPATCH(which_clock, nsleep,
+			      (which_clock, flags, &t, rmtp));
 }
