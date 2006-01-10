@@ -459,4 +459,3 @@ void fastcall mutex_destroy(struct mutex *lock)
 }
 
 EXPORT_SYMBOL_GPL(mutex_destroy);
-

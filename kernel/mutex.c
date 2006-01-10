@@ -202,7 +202,7 @@ __mutex_lock_slowpath(atomic_t *lock_count __IP_DECL__)
 static fastcall noinline void
 __mutex_unlock_slowpath(atomic_t *lock_count __IP_DECL__)
 {
-        struct mutex *lock = container_of(lock_count, struct mutex, count);
+	struct mutex *lock = container_of(lock_count, struct mutex, count);
 
 	DEBUG_WARN_ON(lock->owner != current_thread_info());
 
@@ -313,6 +313,3 @@ int fastcall mutex_trylock(struct mutex *lock)
 }
 
 EXPORT_SYMBOL(mutex_trylock);
-
-
-
