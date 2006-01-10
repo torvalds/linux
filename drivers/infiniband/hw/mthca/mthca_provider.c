@@ -33,7 +33,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: mthca_provider.c 1397 2004-12-28 05:09:00Z roland $
+ * $Id: mthca_provider.c 4859 2006-01-09 21:55:10Z roland $
  */
 
 #include <rdma/ib_smi.h>
@@ -91,7 +91,6 @@ static int mthca_query_device(struct ib_device *ibdev,
 	props->vendor_part_id      = be16_to_cpup((__be16 *) (out_mad->data + 30));
 	props->hw_ver              = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&props->sys_image_guid, out_mad->data +  4, 8);
-	memcpy(&props->node_guid,      out_mad->data + 12, 8);
 
 	props->max_mr_size         = ~0ull;
 	props->page_size_cap       = mdev->limits.page_size_cap;
@@ -1054,10 +1053,47 @@ static struct class_device_attribute *mthca_class_attributes[] = {
 	&class_device_attr_board_id
 };
 
+static int mthca_init_node_data(struct mthca_dev *dev)
+{
+	struct ib_smp *in_mad  = NULL;
+	struct ib_smp *out_mad = NULL;
+	int err = -ENOMEM;
+	u8 status;
+
+	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
+	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	if (!in_mad || !out_mad)
+		goto out;
+
+	init_query_mad(in_mad);
+	in_mad->attr_id = IB_SMP_ATTR_NODE_INFO;
+
+	err = mthca_MAD_IFC(dev, 1, 1,
+			    1, NULL, NULL, in_mad, out_mad,
+			    &status);
+	if (err)
+		goto out;
+	if (status) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	memcpy(&dev->ib_dev.node_guid, out_mad->data + 12, 8);
+
+out:
+	kfree(in_mad);
+	kfree(out_mad);
+	return err;
+}
+
 int mthca_register_device(struct mthca_dev *dev)
 {
 	int ret;
 	int i;
+
+	ret = mthca_init_node_data(dev);
+	if (ret)
+		return ret;
 
 	strlcpy(dev->ib_dev.name, "mthca%d", IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner                = THIS_MODULE;

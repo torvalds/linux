@@ -157,7 +157,7 @@ ssize_t ib_uverbs_query_device(struct ib_uverbs_file *file,
 	memset(&resp, 0, sizeof resp);
 
 	resp.fw_ver 		       = attr.fw_ver;
-	resp.node_guid 		       = attr.node_guid;
+	resp.node_guid 		       = file->device->ib_dev->node_guid;
 	resp.sys_image_guid 	       = attr.sys_image_guid;
 	resp.max_mr_size 	       = attr.max_mr_size;
 	resp.page_size_cap 	       = attr.page_size_cap;
