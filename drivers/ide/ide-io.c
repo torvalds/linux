@@ -60,10 +60,10 @@ void ide_softirq_done(struct request *rq)
 	request_queue_t *q = rq->q;
 
 	add_disk_randomness(rq->rq_disk);
-	end_that_request_chunk(rq, rq->errors, rq->data_len);
+	end_that_request_chunk(rq, 1, rq->data_len);
 
 	spin_lock_irq(q->queue_lock);
-	end_that_request_last(rq, rq->errors);
+	end_that_request_last(rq, 1);
 	spin_unlock_irq(q->queue_lock);
 }
 
@@ -96,11 +96,12 @@ int __ide_end_request(ide_drive_t *drive, struct request *rq, int uptodate,
 
 	/*
 	 * For partial completions (or non fs/pc requests), use the regular
-	 * direct completion path.
+	 * direct completion path. Same thing for requests that failed, to
+	 * preserve the ->errors value we use the normal completion path
+	 * for those
 	 */
 	nbytes = nr_sectors << 9;
-	if (rq_all_done(rq, nbytes)) {
-		rq->errors = uptodate;
+	if (!rq->errors && rq_all_done(rq, nbytes)) {
 		rq->data_len = nbytes;
 		blkdev_dequeue_request(rq);
 		HWGROUP(drive)->rq = NULL;
