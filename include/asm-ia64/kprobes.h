@@ -115,7 +115,6 @@ static inline void arch_copy_kprobe(struct kprobe *p)
 {
 }
 
-#ifdef CONFIG_KPROBES
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
 
@@ -124,11 +123,4 @@ static inline void jprobe_return(void)
 {
 }
 
-#else				/* !CONFIG_KPROBES */
-static inline int kprobe_exceptions_notify(struct notifier_block *self,
-					   unsigned long val, void *data)
-{
-	return 0;
-}
-#endif
 #endif				/* _ASM_KPROBES_H */
