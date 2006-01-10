@@ -428,6 +428,7 @@ static int noaccel __devinitdata = 0;
 static int noscale __devinitdata = 0;
 static int paneltweak __devinitdata = 0;
 static int vram __devinitdata = 0;
+static int bpp __devinitdata = 8;
 #ifdef CONFIG_MTRR
 static int nomtrr __devinitdata = 0;
 #endif
@@ -1392,24 +1393,36 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 				 info->monspecs.modedb_len, &info->modelist);
 	fb_var_to_videomode(&modedb, &nvidiafb_default_var);
 
+	switch (bpp) {
+	case 0 ... 8:
+		bpp = 8;
+		break;
+	case 9 ... 16:
+		bpp = 16;
+		break;
+	default:
+		bpp = 32;
+		break;
+	}
+
 	if (specs->modedb != NULL) {
 		struct fb_videomode *modedb;
 
 		modedb = fb_find_best_display(specs, &info->modelist);
 		fb_videomode_to_var(&nvidiafb_default_var, modedb);
-		nvidiafb_default_var.bits_per_pixel = 8;
+		nvidiafb_default_var.bits_per_pixel = bpp;
 	} else if (par->fpWidth && par->fpHeight) {
 		char buf[16];
 
 		memset(buf, 0, 16);
 		snprintf(buf, 15, "%dx%dMR", par->fpWidth, par->fpHeight);
 		fb_find_mode(&nvidiafb_default_var, info, buf, specs->modedb,
-			     specs->modedb_len, &modedb, 8);
+			     specs->modedb_len, &modedb, bpp);
 	}
 
 	if (mode_option)
 		fb_find_mode(&nvidiafb_default_var, info, mode_option,
-			     specs->modedb, specs->modedb_len, &modedb, 8);
+			     specs->modedb, specs->modedb_len, &modedb, bpp);
 
 	info->var = nvidiafb_default_var;
 	info->fix.visual = (info->var.bits_per_pixel == 8) ?
@@ -1769,6 +1782,8 @@ static int __devinit nvidiafb_setup(char *options)
 #endif
 		} else if (!strncmp(this_opt, "fpdither:", 9)) {
 			fpdither = simple_strtol(this_opt+9, NULL, 0);
+		} else if (!strncmp(this_opt, "bpp:", 4)) {
+			bpp = simple_strtoul(this_opt+4, NULL, 0);
 		} else
 			mode_option = this_opt;
 	}
@@ -1846,7 +1861,9 @@ MODULE_PARM_DESC(vram,
 		 "(default=0 - remap entire memory)");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Specify initial video mode");
-
+module_param(bpp, int, 0);
+MODULE_PARM_DESC(bpp, "pixel width in bits"
+		 "(default=8)");
 #ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disables MTRR support (0 or 1=disabled) "
