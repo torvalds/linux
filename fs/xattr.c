@@ -20,12 +20,57 @@
 #include <asm/uaccess.h>
 
 
+/*
+ * Check permissions for extended attribute access.  This is a bit complicated
+ * because different namespaces have very different rules.
+ */
+static int
+xattr_permission(struct inode *inode, const char *name, int mask)
+{
+	/*
+	 * We can never set or remove an extended attribute on a read-only
+	 * filesystem  or on an immutable / append-only inode.
+	 */
+	if (mask & MAY_WRITE) {
+		if (IS_RDONLY(inode))
+			return -EROFS;
+		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
+			return -EPERM;
+	}
+
+	/*
+	 * No restriction for security.* and system.* from the VFS.  Decision
+	 * on these is left to the underlying filesystem / security module.
+	 */
+	if (!strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) ||
+	    !strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		return 0;
+
+	/*
+	 * The trusted.* namespace can only accessed by a privilegued user.
+	 */
+	if (!strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN))
+		return (capable(CAP_SYS_ADMIN) ? 0 : -EPERM);
+
+	if (!strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN)) {
+		if (!S_ISREG(inode->i_mode) &&
+		    (!S_ISDIR(inode->i_mode) || inode->i_mode & S_ISVTX))
+			return -EPERM;
+	}
+
+	return permission(inode, mask, NULL);
+}
+
 int
 vfs_setxattr(struct dentry *dentry, char *name, void *value,
 		size_t size, int flags)
 {
 	struct inode *inode = dentry->d_inode;
 	int error;
+
+	error = xattr_permission(inode, name, MAY_WRITE);
+	if (error)
+		return error;
 
 	mutex_lock(&inode->i_mutex);
 	error = security_inode_setxattr(dentry, name, value, size, flags);
@@ -40,8 +85,8 @@ vfs_setxattr(struct dentry *dentry, char *name, void *value,
 						     size, flags);
 		}
 	} else if (!strncmp(name, XATTR_SECURITY_PREFIX,
-				sizeof XATTR_SECURITY_PREFIX - 1)) {
-		const char *suffix = name + sizeof XATTR_SECURITY_PREFIX - 1;
+				XATTR_SECURITY_PREFIX_LEN)) {
+		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
 		error = security_inode_setsecurity(inode, suffix, value,
 						   size, flags);
 		if (!error)
@@ -59,6 +104,10 @@ vfs_getxattr(struct dentry *dentry, char *name, void *value, size_t size)
 	struct inode *inode = dentry->d_inode;
 	int error;
 
+	error = xattr_permission(inode, name, MAY_READ);
+	if (error)
+		return error;
+
 	error = security_inode_getxattr(dentry, name);
 	if (error)
 		return error;
@@ -69,8 +118,8 @@ vfs_getxattr(struct dentry *dentry, char *name, void *value, size_t size)
 		error = -EOPNOTSUPP;
 
 	if (!strncmp(name, XATTR_SECURITY_PREFIX,
-				sizeof XATTR_SECURITY_PREFIX - 1)) {
-		const char *suffix = name + sizeof XATTR_SECURITY_PREFIX - 1;
+				XATTR_SECURITY_PREFIX_LEN)) {
+		const char *suffix = name + XATTR_SECURITY_PREFIX_LEN;
 		int ret = security_inode_getsecurity(inode, suffix, value,
 						     size, error);
 		/*
@@ -93,6 +142,10 @@ vfs_removexattr(struct dentry *dentry, char *name)
 
 	if (!inode->i_op->removexattr)
 		return -EOPNOTSUPP;
+
+	error = xattr_permission(inode, name, MAY_WRITE);
+	if (error)
+		return error;
 
 	error = security_inode_removexattr(dentry, name);
 	if (error)
