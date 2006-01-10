@@ -43,7 +43,7 @@
 #include <asm/kdebug.h>
 
 void jprobe_return_end(void);
-void __kprobes arch_copy_kprobe(struct kprobe *p);
+static void __kprobes arch_copy_kprobe(struct kprobe *p);
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -180,7 +180,7 @@ static inline s32 *is_riprel(u8 *insn)
 	return NULL;
 }
 
-void __kprobes arch_copy_kprobe(struct kprobe *p)
+static void __kprobes arch_copy_kprobe(struct kprobe *p)
 {
 	s32 *ripdisp;
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE);

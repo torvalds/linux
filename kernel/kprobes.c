@@ -431,7 +431,7 @@ static int __kprobes register_aggr_kprobe(struct kprobe *old_p,
 		copy_kprobe(old_p, p);
 		ret = add_new_kprobe(old_p, p);
 	} else {
-		ap = kcalloc(1, sizeof(struct kprobe), GFP_ATOMIC);
+		ap = kcalloc(1, sizeof(struct kprobe), GFP_KERNEL);
 		if (!ap)
 			return -ENOMEM;
 		add_aggr_kprobe(ap, old_p);
@@ -491,7 +491,8 @@ out:
 void __kprobes unregister_kprobe(struct kprobe *p)
 {
 	struct module *mod;
-	struct kprobe *old_p, *cleanup_p;
+	struct kprobe *old_p, *list_p;
+	int cleanup_p;
 
 	down(&kprobe_mutex);
 	old_p = get_kprobe(p->addr);
@@ -499,22 +500,25 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 		up(&kprobe_mutex);
 		return;
 	}
-
-	if ((old_p->pre_handler == aggr_pre_handler) &&
+	if (p != old_p) {
+		list_for_each_entry_rcu(list_p, &old_p->list, list)
+			if (list_p == p)
+			/* kprobe p is a valid probe */
+				goto valid_p;
+		up(&kprobe_mutex);
+		return;
+	}
+valid_p:
+	if ((old_p == p) || ((old_p->pre_handler == aggr_pre_handler) &&
 		(p->list.next == &old_p->list) &&
-		(p->list.prev == &old_p->list)) {
-		/* Only one element in the aggregate list */
+		(p->list.prev == &old_p->list))) {
+		/* Only probe on the hash list */
 		arch_disarm_kprobe(p);
 		hlist_del_rcu(&old_p->hlist);
-		cleanup_p = old_p;
-	} else if (old_p == p) {
-		/* Only one kprobe element in the hash list */
-		arch_disarm_kprobe(p);
-		hlist_del_rcu(&p->hlist);
-		cleanup_p = p;
+		cleanup_p = 1;
 	} else {
 		list_del_rcu(&p->list);
-		cleanup_p = NULL;
+		cleanup_p = 0;
 	}
 
 	up(&kprobe_mutex);
@@ -524,7 +528,7 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 		module_put(mod);
 
 	if (cleanup_p) {
-		if (cleanup_p->pre_handler == aggr_pre_handler) {
+		if (p != old_p) {
 			list_del_rcu(&p->list);
 			kfree(old_p);
 		}

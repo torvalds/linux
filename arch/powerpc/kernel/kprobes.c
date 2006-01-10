@@ -35,7 +35,6 @@
 #include <asm/kdebug.h>
 #include <asm/sstep.h>
 
-static DECLARE_MUTEX(kprobe_mutex);
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
@@ -54,9 +53,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 
 	/* insn must be on a special executable page on ppc64 */
 	if (!ret) {
-		down(&kprobe_mutex);
 		p->ainsn.insn = get_insn_slot();
-		up(&kprobe_mutex);
 		if (!p->ainsn.insn)
 			ret = -ENOMEM;
 	}
