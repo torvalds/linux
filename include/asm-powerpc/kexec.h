@@ -55,6 +55,12 @@ extern void default_machine_crash_shutdown(struct pt_regs *regs);
 
 #endif /* !CONFIG_KEXEC */
 
+/*
+ * Provide a dummy definition to avoid build failures. Will remain
+ * empty till crash dump support is enabled.
+ */
+static inline void crash_setup_regs(struct pt_regs *newregs,
+					struct pt_regs *oldregs) { }
 #endif /* ! __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_KEXEC_H */

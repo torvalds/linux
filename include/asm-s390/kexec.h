@@ -36,4 +36,8 @@
 
 #define MAX_NOTE_BYTES 1024
 
+/* Provide a dummy definition to avoid build failures. */
+static inline void crash_setup_regs(struct pt_regs *newregs,
+					struct pt_regs *oldregs) { }
+
 #endif /*_S390_KEXEC_H */
