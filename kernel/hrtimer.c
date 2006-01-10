@@ -707,6 +707,20 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 	return -ERESTART_RESTARTBLOCK;
 }
 
+asmlinkage long
+sys_nanosleep(struct timespec __user *rqtp, struct timespec __user *rmtp)
+{
+	struct timespec tu;
+
+	if (copy_from_user(&tu, rqtp, sizeof(tu)))
+		return -EFAULT;
+
+	if (!timespec_valid(&tu))
+		return -EINVAL;
+
+	return hrtimer_nanosleep(&tu, rmtp, HRTIMER_REL, CLOCK_MONOTONIC);
+}
+
 /*
  * Functions related to boot-time initialization:
  */
