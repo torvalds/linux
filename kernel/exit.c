@@ -1071,6 +1071,9 @@ static int wait_task_zombie(task_t *p, int noreap,
 	}
 
 	if (likely(p->real_parent == p->parent) && likely(p->signal)) {
+		struct signal_struct *psig;
+		struct signal_struct *sig;
+
 		/*
 		 * The resource counters for the group leader are in its
 		 * own task_struct.  Those for dead threads in the group
@@ -1087,24 +1090,26 @@ static int wait_task_zombie(task_t *p, int noreap,
 		 * here reaping other children at the same time.
 		 */
 		spin_lock_irq(&p->parent->sighand->siglock);
-		p->parent->signal->cutime =
-			cputime_add(p->parent->signal->cutime,
+		psig = p->parent->signal;
+		sig = p->signal;
+		psig->cutime =
+			cputime_add(psig->cutime,
 			cputime_add(p->utime,
-			cputime_add(p->signal->utime,
-				    p->signal->cutime)));
-		p->parent->signal->cstime =
-			cputime_add(p->parent->signal->cstime,
+			cputime_add(sig->utime,
+				    sig->cutime)));
+		psig->cstime =
+			cputime_add(psig->cstime,
 			cputime_add(p->stime,
-			cputime_add(p->signal->stime,
-				    p->signal->cstime)));
-		p->parent->signal->cmin_flt +=
-			p->min_flt + p->signal->min_flt + p->signal->cmin_flt;
-		p->parent->signal->cmaj_flt +=
-			p->maj_flt + p->signal->maj_flt + p->signal->cmaj_flt;
-		p->parent->signal->cnvcsw +=
-			p->nvcsw + p->signal->nvcsw + p->signal->cnvcsw;
-		p->parent->signal->cnivcsw +=
-			p->nivcsw + p->signal->nivcsw + p->signal->cnivcsw;
+			cputime_add(sig->stime,
+				    sig->cstime)));
+		psig->cmin_flt +=
+			p->min_flt + sig->min_flt + sig->cmin_flt;
+		psig->cmaj_flt +=
+			p->maj_flt + sig->maj_flt + sig->cmaj_flt;
+		psig->cnvcsw +=
+			p->nvcsw + sig->nvcsw + sig->cnvcsw;
+		psig->cnivcsw +=
+			p->nivcsw + sig->nivcsw + sig->cnivcsw;
 		spin_unlock_irq(&p->parent->sighand->siglock);
 	}
 
