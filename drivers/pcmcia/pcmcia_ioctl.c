@@ -70,10 +70,26 @@ extern int ds_pc_debug;
 #define ds_dbg(lvl, fmt, arg...) do { } while (0)
 #endif
 
+static struct pcmcia_device *get_pcmcia_device(struct pcmcia_socket *s,
+						unsigned int function)
+{
+	struct pcmcia_device *p_dev = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+	list_for_each_entry(p_dev, &s->devices_list, socket_device_list) {
+		if (p_dev->func == function) {
+			spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+			return pcmcia_get_dev(p_dev);
+		}
+	}
+	spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+	return NULL;
+}
 
 /* backwards-compatible accessing of driver --- by name! */
 
-static struct pcmcia_driver * get_pcmcia_driver (dev_info_t *dev_info)
+static struct pcmcia_driver *get_pcmcia_driver(dev_info_t *dev_info)
 {
 	struct device_driver *drv;
 	struct pcmcia_driver *p_drv;
@@ -583,9 +599,11 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	if (buf->config.Function &&
 	   (buf->config.Function >= s->functions))
 	    ret = CS_BAD_ARGS;
-	else
-	    ret = pccard_get_configuration_info(s,
-			buf->config.Function, &buf->config);
+	else {
+	    struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->config.Function);
+	    ret = pccard_get_configuration_info(s, p_dev, &buf->config);
+	    pcmcia_put_dev(p_dev);
+	}
 	break;
     case DS_GET_FIRST_TUPLE:
 	down(&s->skt_sem);
@@ -609,12 +627,15 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	ret = pccard_reset_card(s);
 	break;
     case DS_GET_STATUS:
-	if (buf->status.Function &&
-	   (buf->status.Function >= s->functions))
-	    ret = CS_BAD_ARGS;
-	else
-	ret = pccard_get_status(s, buf->status.Function, &buf->status);
-	break;
+	    if (buf->status.Function &&
+		(buf->status.Function >= s->functions))
+		    ret = CS_BAD_ARGS;
+	    else {
+		    struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->status.Function);
+		    ret = pccard_get_status(s, p_dev, &buf->status);
+		    pcmcia_put_dev(p_dev);
+	    }
+	    break;
     case DS_VALIDATE_CIS:
 	down(&s->skt_sem);
 	pcmcia_validate_mem(s);
@@ -638,12 +659,16 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	    err = -EPERM;
 	    goto free_out;
 	}
-	if (buf->conf_reg.Function &&
-	   (buf->conf_reg.Function >= s->functions))
-	    ret = CS_BAD_ARGS;
-	else
-	    ret = pccard_access_configuration_register(s,
-			buf->conf_reg.Function, &buf->conf_reg);
+
+	ret = CS_BAD_ARGS;
+
+	if (!(buf->conf_reg.Function &&
+	     (buf->conf_reg.Function >= s->functions))) {
+		struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->conf_reg.Function);
+		if (p_dev)
+			ret = pcmcia_access_configuration_register(p_dev, &buf->conf_reg);
+		pcmcia_put_dev(p_dev);
+	}
 	break;
     case DS_GET_FIRST_REGION:
     case DS_GET_NEXT_REGION:

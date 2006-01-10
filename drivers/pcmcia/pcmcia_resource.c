@@ -165,21 +165,19 @@ static void release_io_space(struct pcmcia_socket *s, ioaddr_t base,
  * this and the tuple reading services.
  */
 
-int pccard_access_configuration_register(struct pcmcia_socket *s,
-					 unsigned int function,
+int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 					 conf_reg_t *reg)
 {
+	struct pcmcia_socket *s;
 	config_t *c;
 	int addr;
 	u_char val;
 
-	if (!s || !s->config)
+	if (!p_dev || !p_dev->function_config)
 		return CS_NO_CARD;
 
-	c = &s->config[function];
-
-	if (c == NULL)
-		return CS_NO_CARD;
+	s = p_dev->socket;
+	c = p_dev->function_config;
 
 	if (!(c->state & CONFIG_LOCKED))
 		return CS_CONFIGURATION_LOCKED;
@@ -200,20 +198,12 @@ int pccard_access_configuration_register(struct pcmcia_socket *s,
 		break;
 	}
 	return CS_SUCCESS;
-} /* pccard_access_configuration_register */
-
-int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
-					 conf_reg_t *reg)
-{
-	return pccard_access_configuration_register(p_dev->socket,
-						    p_dev->func, reg);
-}
+} /* pcmcia_access_configuration_register */
 EXPORT_SYMBOL(pcmcia_access_configuration_register);
 
 
-
 int pccard_get_configuration_info(struct pcmcia_socket *s,
-				  unsigned int function,
+				  struct pcmcia_device *p_dev,
 				  config_info_t *config)
 {
 	config_t *c;
@@ -221,7 +211,7 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
 
-	config->Function = function;
+	config->Function = p_dev->func;
 
 #ifdef CONFIG_CARDBUS
 	if (s->state & SOCKET_CARDBUS) {
@@ -242,7 +232,7 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 	}
 #endif
 
-	c = (s->config != NULL) ? &s->config[function] : NULL;
+	c = (p_dev) ? p_dev->function_config : NULL;
 
 	if ((c == NULL) || !(c->state & CONFIG_LOCKED)) {
 		config->Attributes = 0;
@@ -271,7 +261,7 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 int pcmcia_get_configuration_info(struct pcmcia_device *p_dev,
 				  config_info_t *config)
 {
-	return pccard_get_configuration_info(p_dev->socket, p_dev->func,
+	return pccard_get_configuration_info(p_dev->socket, p_dev,
 					     config);
 }
 EXPORT_SYMBOL(pcmcia_get_configuration_info);
@@ -317,7 +307,7 @@ EXPORT_SYMBOL(pcmcia_get_window);
  * SocketState yet: I haven't seen any point for it.
  */
 
-int pccard_get_status(struct pcmcia_socket *s, unsigned int function,
+int pccard_get_status(struct pcmcia_socket *s, struct pcmcia_device *p_dev,
 		      cs_status_t *status)
 {
 	config_t *c;
@@ -334,7 +324,8 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function,
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
 
-	c = (s->config != NULL) ? &s->config[function] : NULL;
+	c = (p_dev) ? p_dev->function_config : NULL;
+
 	if ((c != NULL) && (c->state & CONFIG_LOCKED) &&
 	    (c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
 		u_char reg;
@@ -370,9 +361,9 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function,
 	return CS_SUCCESS;
 } /* pccard_get_status */
 
-int pcmcia_get_status(client_handle_t handle, cs_status_t *status)
+int pcmcia_get_status(struct pcmcia_device *p_dev, cs_status_t *status)
 {
-	return pccard_get_status(handle->socket, handle->func, status);
+	return pccard_get_status(p_dev->socket, p_dev, status);
 }
 EXPORT_SYMBOL(pcmcia_get_status);
 
