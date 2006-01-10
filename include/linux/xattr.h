@@ -25,6 +25,10 @@ struct xattr_handler {
 		   size_t size, int flags);
 };
 
+ssize_t vfs_getxattr(struct dentry *, char *, void *, size_t);
+int vfs_setxattr(struct dentry *, char *, void *, size_t, int);
+int vfs_removexattr(struct dentry *, char *);
+
 ssize_t generic_getxattr(struct dentry *dentry, const char *name, void *buffer, size_t size);
 ssize_t generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size);
 int generic_setxattr(struct dentry *dentry, const char *name, const void *value, size_t size, int flags);
