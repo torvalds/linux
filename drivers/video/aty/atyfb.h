@@ -354,6 +354,5 @@ static inline void wait_for_idle(struct atyfb_par *par)
 
 extern void aty_reset_engine(const struct atyfb_par *par);
 extern void aty_init_engine(struct atyfb_par *par, struct fb_info *info);
-extern int  atyfb_xl_init(struct fb_info *info);
 extern void aty_st_pll_ct(int offset, u8 val, const struct atyfb_par *par);
 extern u8   aty_ld_pll_ct(int offset, const struct atyfb_par *par);
