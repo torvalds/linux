@@ -399,17 +399,6 @@ config X86_MCE_AMD
 	   Additional support for AMD specific MCE features such as
 	   the DRAM Error Threshold.
 
-config PHYSICAL_START
-	hex "Physical address where the kernel is loaded" if EMBEDDED
-	default "0x100000"
-	help
-	  This gives the physical address where the kernel is loaded.
-	  Primarily used in the case of kexec on panic where the
-	  fail safe kernel needs to run at a different address than
-	  the panic-ed kernel.
-
-	  Don't change this unless you know what you are doing.
-
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -429,10 +418,28 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
-	depends on EMBEDDED
 	depends on EXPERIMENTAL
 	help
 		Generate crash dump after being started by kexec.
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+	default "0x1000000" if CRASH_DUMP
+	default "0x100000"
+	help
+	  This gives the physical address where the kernel is loaded. Normally
+	  for regular kernels this value is 0x100000 (1MB). But in the case
+	  of kexec on panic the fail safe kernel needs to run at a different
+	  address than the panic-ed kernel. This option is used to set the load
+	  address for kernels used to capture crash dump on being kexec'ed
+	  after panic. The default value for crash dump kernels is
+	  0x1000000 (16MB). This can also be set based on the "X" value as
+	  specified in the "crashkernel=YM@XM" command line boot parameter
+	  passed to the panic-ed kernel. Typically this parameter is set as
+	  crashkernel=64M@16M. Please take a look at
+	  Documentation/kdump/kdump.txt for more details about crash dumps.
+
+	  Don't change this unless you know what you are doing.
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
