@@ -27,8 +27,8 @@
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack_protocol.h>
 
-unsigned long nf_ct_udp_timeout = 30*HZ;
-unsigned long nf_ct_udp_timeout_stream = 180*HZ;
+unsigned int nf_ct_udp_timeout = 30*HZ;
+unsigned int nf_ct_udp_timeout_stream = 180*HZ;
 
 static int udp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,

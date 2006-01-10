@@ -544,28 +544,28 @@ extern int ip_conntrack_max;
 extern unsigned int ip_conntrack_htable_size;
 
 /* From ip_conntrack_proto_tcp.c */
-extern unsigned long ip_ct_tcp_timeout_syn_sent;
-extern unsigned long ip_ct_tcp_timeout_syn_recv;
-extern unsigned long ip_ct_tcp_timeout_established;
-extern unsigned long ip_ct_tcp_timeout_fin_wait;
-extern unsigned long ip_ct_tcp_timeout_close_wait;
-extern unsigned long ip_ct_tcp_timeout_last_ack;
-extern unsigned long ip_ct_tcp_timeout_time_wait;
-extern unsigned long ip_ct_tcp_timeout_close;
-extern unsigned long ip_ct_tcp_timeout_max_retrans;
+extern unsigned int ip_ct_tcp_timeout_syn_sent;
+extern unsigned int ip_ct_tcp_timeout_syn_recv;
+extern unsigned int ip_ct_tcp_timeout_established;
+extern unsigned int ip_ct_tcp_timeout_fin_wait;
+extern unsigned int ip_ct_tcp_timeout_close_wait;
+extern unsigned int ip_ct_tcp_timeout_last_ack;
+extern unsigned int ip_ct_tcp_timeout_time_wait;
+extern unsigned int ip_ct_tcp_timeout_close;
+extern unsigned int ip_ct_tcp_timeout_max_retrans;
 extern int ip_ct_tcp_loose;
 extern int ip_ct_tcp_be_liberal;
 extern int ip_ct_tcp_max_retrans;
 
 /* From ip_conntrack_proto_udp.c */
-extern unsigned long ip_ct_udp_timeout;
-extern unsigned long ip_ct_udp_timeout_stream;
+extern unsigned int ip_ct_udp_timeout;
+extern unsigned int ip_ct_udp_timeout_stream;
 
 /* From ip_conntrack_proto_icmp.c */
-extern unsigned long ip_ct_icmp_timeout;
+extern unsigned int ip_ct_icmp_timeout;
 
 /* From ip_conntrack_proto_icmp.c */
-extern unsigned long ip_ct_generic_timeout;
+extern unsigned int ip_ct_generic_timeout;
 
 /* Log invalid packets of a given protocol */
 static int log_invalid_proto_min = 0;
