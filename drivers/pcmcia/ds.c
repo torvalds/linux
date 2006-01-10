@@ -399,6 +399,7 @@ static int pcmcia_device_probe(struct device * dev)
 			goto put_module;
 		}
 	}
+	p_dev->function_config = &s->config[p_dev->func];
 
 	ret = p_drv->probe(p_dev);
 	if (ret)

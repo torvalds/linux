@@ -372,9 +372,7 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function,
 
 int pcmcia_get_status(client_handle_t handle, cs_status_t *status)
 {
-	struct pcmcia_socket *s;
-	s = SOCKET(handle);
-	return pccard_get_status(s, handle->func, status);
+	return pccard_get_status(handle->socket, handle->func, status);
 }
 EXPORT_SYMBOL(pcmcia_get_status);
 
@@ -422,7 +420,8 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	config_t *c;
 
 	s = p_dev->socket;
-	c = CONFIG(p_dev);
+	c = p_dev->function_config;
+
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
 	if (!(c->state & CONFIG_LOCKED))
@@ -470,7 +469,7 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 	p_dev->state &= ~CLIENT_CONFIG_LOCKED;
 
 	if (!(p_dev->state & CLIENT_STALE)) {
-		config_t *c = CONFIG(p_dev);
+		config_t *c = p_dev->function_config;
 		if (--(s->lock_count) == 0) {
 			s->socket.flags = SS_OUTPUT_ENA;   /* Is this correct? */
 			s->socket.Vpp = 0;
@@ -512,7 +511,7 @@ int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 	p_dev->state &= ~CLIENT_IO_REQ;
 
 	if (!(p_dev->state & CLIENT_STALE)) {
-		config_t *c = CONFIG(p_dev);
+		config_t *c = p_dev->function_config;
 		if (c->state & CONFIG_LOCKED)
 			return CS_CONFIGURATION_LOCKED;
 		if ((c->io.BasePort1 != req->BasePort1) ||
@@ -540,7 +539,7 @@ int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	p_dev->state &= ~CLIENT_IRQ_REQ;
 
 	if (!(p_dev->state & CLIENT_STALE)) {
-		config_t *c = CONFIG(p_dev);
+		config_t *c= p_dev->function_config;
 		if (c->state & CONFIG_LOCKED)
 			return CS_CONFIGURATION_LOCKED;
 		if (c->irq.Attributes != req->Attributes)
@@ -610,7 +609,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 
 	if (req->IntType & INT_CARDBUS)
 		return CS_UNSUPPORTED_MODE;
-	c = CONFIG(p_dev);
+	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
 		return CS_CONFIGURATION_LOCKED;
 
@@ -730,7 +729,7 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 
 	if (!req)
 		return CS_UNSUPPORTED_MODE;
-	c = CONFIG(p_dev);
+	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
 		return CS_CONFIGURATION_LOCKED;
 	if (c->state & CONFIG_IO_REQ)
@@ -786,7 +785,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
-	c = CONFIG(p_dev);
+	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
 		return CS_CONFIGURATION_LOCKED;
 	if (c->state & CONFIG_IRQ_REQ)

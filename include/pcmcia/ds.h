@@ -131,6 +131,7 @@ typedef struct dev_link_t {
 
 
 struct pcmcia_socket;
+struct config_t;
 
 struct pcmcia_driver {
 	int (*probe)		(struct pcmcia_device *dev);
@@ -160,6 +161,7 @@ struct pcmcia_device {
 	/* the hardware "function" device; certain subdevices can
 	 * share one hardware "function" device. */
 	u8			func;
+	struct config_t*	function_config;
 
 	struct list_head	socket_device_list;
 

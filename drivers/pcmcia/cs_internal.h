@@ -94,12 +94,6 @@ static inline void cs_socket_put(struct pcmcia_socket *skt)
 	}
 }
 
-#define CHECK_SOCKET(s) \
-    (((s) >= sockets) || (socket_table[s]->ops == NULL))
-
-#define SOCKET(h) (h->socket)
-#define CONFIG(h) (&SOCKET(h)->config[(h)->func])
-
 /* In cardbus.c */
 int cb_alloc(struct pcmcia_socket *s);
 void cb_free(struct pcmcia_socket *s);
