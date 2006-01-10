@@ -530,6 +530,8 @@ xfs_attrmulti_attr_set(
 	char			*kbuf;
 	int			error = EFAULT;
 
+	if (IS_RDONLY(&vp->v_inode))
+		return -EROFS;
 	if (IS_IMMUTABLE(&vp->v_inode) || IS_APPEND(&vp->v_inode))
 		return EPERM;
 	if (len > XATTR_SIZE_MAX)
@@ -557,6 +559,9 @@ xfs_attrmulti_attr_remove(
 {
 	int			error;
 
+
+	if (IS_RDONLY(&vp->v_inode))
+		return -EROFS;
 	if (IS_IMMUTABLE(&vp->v_inode) || IS_APPEND(&vp->v_inode))
 		return EPERM;
 
