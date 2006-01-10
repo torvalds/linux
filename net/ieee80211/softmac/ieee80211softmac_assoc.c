@@ -349,7 +349,10 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 {
 	struct ieee80211softmac_device *mac = ieee80211_priv(dev);
 	unsigned long flags;
-	/* FIXME: check that this frame is from the right AP!! */
+	if (memcmp(disassoc->header.addr2, mac->associnfo.bssid, ETH_ALEN))
+		return 0;
+	if (memcmp(disassoc->header.addr1, mac->dev->dev_addr, ETH_ALEN))
+		return 0;
 	dprintk(KERN_INFO PFX "got disassoc frame\n");
 	netif_carrier_off(dev);
 	spin_lock_irqsave(&mac->lock, flags);
