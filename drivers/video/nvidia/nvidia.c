@@ -1485,6 +1485,8 @@ static u32 __devinit nvidia_get_arch(struct pci_dev *pd)
 	case 0x0210:
 	case 0x0220:
 	case 0x0230:
+	case 0x0290:
+	case 0x0390:
 		arch = NV_ARCH_40;
 		break;
 	case 0x0020:		/* TNT, TNT2 */
@@ -1581,10 +1583,15 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	if (par->FbMapSize > 64 * 1024 * 1024)
 		par->FbMapSize = 64 * 1024 * 1024;
 
-	par->FbUsableSize = par->FbMapSize - (128 * 1024);
+	if(par->Architecture >= NV_ARCH_40)
+  	        par->FbUsableSize = par->FbMapSize - (560 * 1024);
+	else
+		par->FbUsableSize = par->FbMapSize - (128 * 1024);
 	par->ScratchBufferSize = (par->Architecture < NV_ARCH_10) ? 8 * 1024 :
 	    16 * 1024;
 	par->ScratchBufferStart = par->FbUsableSize - par->ScratchBufferSize;
+	par->CursorStart = par->FbUsableSize + (32 * 1024);
+
 	info->screen_base = ioremap(nvidiafb_fix.smem_start, par->FbMapSize);
 	info->screen_size = par->FbUsableSize;
 	nvidiafb_fix.smem_len = par->RamAmountKBytes * 1024;

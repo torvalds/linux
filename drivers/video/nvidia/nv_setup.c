@@ -285,7 +285,6 @@ static void nv10GetConfig(struct nvidia_par *par)
 			par->CrystalFreqKHz = 27000;
 	}
 
-	par->CursorStart = (par->RamAmountKBytes - 96) * 1024;
 	par->CURSOR = NULL;	/* can't set this here */
 	par->MinVClockFreqKHz = 12000;
 	par->MaxVClockFreqKHz = par->twoStagePLL ? 400000 : 350000;
@@ -382,6 +381,8 @@ void NVCommonSetup(struct fb_info *info)
 	case 0x0146:
 	case 0x0147:
 	case 0x0148:
+	case 0x0098:
+	case 0x0099:
 		mobile = 1;
 		break;
 	default:
