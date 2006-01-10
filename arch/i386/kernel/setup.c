@@ -898,7 +898,7 @@ static void __init parse_cmdline_early (char ** cmdline_p)
 			}
 		}
 #endif
-#ifdef CONFIG_CRASH_DUMP
+#ifdef CONFIG_PROC_VMCORE
 		/* elfcorehdr= specifies the location of elf core header
 		 * stored by the crashed kernel.
 		 */

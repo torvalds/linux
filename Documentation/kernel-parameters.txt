@@ -475,10 +475,11 @@ running once the system is up.
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
-	elfcorehdr=	[IA-32]
+	elfcorehdr=	[IA-32, X86_64]
 			Specifies physical address of start of kernel core
-			image elf header.
-			See Documentation/kdump.txt for details.
+			image elf header. Generally kexec loader will
+			pass this option to capture kernel.
+			See Documentation/kdump/kdump.txt for details.
 
 	enforcing	[SELINUX] Set initial enforcing status.
 			Format: {"0" | "1"}

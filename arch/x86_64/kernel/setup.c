@@ -35,6 +35,7 @@
 #include <asm/processor.h>
 #include <linux/console.h>
 #include <linux/seq_file.h>
+#include <linux/crash_dump.h>
 #include <linux/root_dev.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
@@ -418,6 +419,14 @@ static __init void parse_cmdline_early (char ** cmdline_p)
 		}
 #endif
 
+#ifdef CONFIG_PROC_VMCORE
+		/* elfcorehdr= specifies the location of elf core header
+		 * stored by the crashed kernel. This option will be passed
+		 * by kexec loader to the capture kernel.
+		 */
+		else if(!memcmp(from, "elfcorehdr=", 11))
+			elfcorehdr_addr = memparse(from+11, &from);
+#endif
 	next_char:
 		c = *(from++);
 		if (!c)
