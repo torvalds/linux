@@ -1047,7 +1047,35 @@ xpc_do_exit(enum xpc_retval reason)
 
 
 /*
- * Called when the system is about to be either restarted or halted.
+ * This function is called when the system is being rebooted.
+ */
+static int
+xpc_system_reboot(struct notifier_block *nb, unsigned long event, void *unused)
+{
+	enum xpc_retval reason;
+
+
+	switch (event) {
+	case SYS_RESTART:
+		reason = xpcSystemReboot;
+		break;
+	case SYS_HALT:
+		reason = xpcSystemHalt;
+		break;
+	case SYS_POWER_OFF:
+		reason = xpcSystemPoweroff;
+		break;
+	default:
+		reason = xpcSystemGoingDown;
+	}
+
+	xpc_do_exit(reason);
+	return NOTIFY_DONE;
+}
+
+
+/*
+ * Notify other partitions to disengage from all references to our memory.
  */
 static void
 xpc_die_disengage(void)
@@ -1119,34 +1147,6 @@ xpc_die_disengage(void)
 						sn_rtc_cycles_per_second);
 		}
 	}
-}
-
-
-/*
- * This function is called when the system is being rebooted.
- */
-static int
-xpc_system_reboot(struct notifier_block *nb, unsigned long event, void *unused)
-{
-	enum xpc_retval reason;
-
-
-	switch (event) {
-	case SYS_RESTART:
-		reason = xpcSystemReboot;
-		break;
-	case SYS_HALT:
-		reason = xpcSystemHalt;
-		break;
-	case SYS_POWER_OFF:
-		reason = xpcSystemPoweroff;
-		break;
-	default:
-		reason = xpcSystemGoingDown;
-	}
-
-	xpc_do_exit(reason);
-	return NOTIFY_DONE;
 }
 
 
