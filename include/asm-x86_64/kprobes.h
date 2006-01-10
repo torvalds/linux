@@ -27,6 +27,8 @@
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
 
+#define  __ARCH_WANT_KPROBES_INSN_SLOT
+
 struct pt_regs;
 
 typedef u8 kprobe_opcode_t;

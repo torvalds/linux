@@ -52,6 +52,7 @@ static DEFINE_SPINLOCK(kprobe_lock);	/* Protects kprobe_table */
 DEFINE_SPINLOCK(kretprobe_lock);	/* Protects kretprobe_inst_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 
+#ifdef __ARCH_WANT_KPROBES_INSN_SLOT
 /*
  * kprobe->ainsn.insn points to the copy of the instruction to be
  * single-stepped. x86_64, POWER4 and above have no-exec support and
@@ -151,6 +152,7 @@ void __kprobes free_insn_slot(kprobe_opcode_t *slot)
 		}
 	}
 }
+#endif
 
 /* We have preemption disabled.. so it is safe to use __ versions */
 static inline void set_kprobe_instance(struct kprobe *kp)
