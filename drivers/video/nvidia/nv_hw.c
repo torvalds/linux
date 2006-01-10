@@ -52,6 +52,7 @@
 #include <linux/pci.h>
 #include "nv_type.h"
 #include "nv_local.h"
+#include "nv_proto.h"
 
 void NVLockUnlock(struct nvidia_par *par, int Lock)
 {

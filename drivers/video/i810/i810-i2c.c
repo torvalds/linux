@@ -17,6 +17,7 @@
 #include <linux/fb.h>
 #include "i810.h"
 #include "i810_regs.h"
+#include "i810_main.h"
 #include "../edid.h"
 
 #define I810_DDC 0x50

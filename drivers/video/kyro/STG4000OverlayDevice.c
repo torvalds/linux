@@ -14,6 +14,7 @@
 #include <linux/types.h>
 
 #include "STG4000Reg.h"
+#include "STG4000Interface.h"
 
 /* HW Defines */
 

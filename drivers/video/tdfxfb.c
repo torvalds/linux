@@ -1312,7 +1312,7 @@ out_err:
 }
 
 #ifndef MODULE
-void tdfxfb_setup(char *options)
+static void tdfxfb_setup(char *options)
 {
 	char* this_opt;
 

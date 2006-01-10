@@ -14,6 +14,7 @@
 
 #include "i810_regs.h"
 #include "i810.h"
+#include "i810_main.h"
 
 static u32 i810fb_rop[] = {
 	COLOR_COPY_ROP, /* ROP_COPY */
