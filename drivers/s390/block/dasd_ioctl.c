@@ -118,6 +118,18 @@ dasd_ioctl(struct inode *inp, struct file *filp,
 	return -EINVAL;
 }
 
+long
+dasd_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int rval;
+
+	lock_kernel();
+	rval = dasd_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
+	unlock_kernel();
+
+	return (rval == -EINVAL) ? -ENOIOCTLCMD : rval;
+}
+
 static int
 dasd_ioctl_api_version(struct block_device *bdev, int no, long args)
 {
