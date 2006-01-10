@@ -109,9 +109,18 @@
 #define GUI_RESERVE	(1 * PAGE_SIZE)
 
 /* FIXME: remove the FAIL definition */
-#define FAIL(msg) do { printk(KERN_CRIT "atyfb: " msg "\n"); return -EINVAL; } while (0)
-#define FAIL_MAX(msg, x, _max_) do { if(x > _max_) { printk(KERN_CRIT "atyfb: " msg " %x(%x)\n", x, _max_); return -EINVAL; } } while (0)
-
+#define FAIL(msg) do { \
+	if (!(var->activate & FB_ACTIVATE_TEST)) \
+		printk(KERN_CRIT "atyfb: " msg "\n"); \
+	return -EINVAL; \
+} while (0)
+#define FAIL_MAX(msg, x, _max_) do { \
+	if (x > _max_) { \
+		if (!(var->activate & FB_ACTIVATE_TEST)) \
+			printk(KERN_CRIT "atyfb: " msg " %x(%x)\n", x, _max_); \
+		return -EINVAL; \
+	} \
+} while (0)
 #ifdef DEBUG
 #define DPRINTK(fmt, args...)	printk(KERN_DEBUG "atyfb: " fmt, ## args)
 #else
@@ -840,11 +849,14 @@ static int aty_var_to_crtc(const struct fb_info *info,
 			   know if one is connected. So it's better to fail then.
 			 */
 			if (crtc->lcd_gen_cntl & CRT_ON) {
-				PRINTKI("Disable LCD panel, because video mode does not fit.\n");
+				if (!(var->activate & FB_ACTIVATE_TEST))
+					PRINTKI("Disable LCD panel, because video mode does not fit.\n");
 				crtc->lcd_gen_cntl &= ~LCD_ON;
 				/*aty_st_lcd(LCD_GEN_CNTL, crtc->lcd_gen_cntl, par);*/
 			} else {
-				FAIL("Video mode exceeds size of LCD panel.\nConnect this computer to a conventional monitor if you really need this mode.");
+				if (!(var->activate & FB_ACTIVATE_TEST))
+					PRINTKE("Video mode exceeds size of LCD panel.\nConnect this computer to a conventional monitor if you really need this mode.\n");
+				return -EINVAL;
 			}
 		}
 	}
@@ -1184,7 +1196,8 @@ static int aty_crtc_to_var(const struct crtc *crtc, struct fb_var_screeninfo *va
 		var->transp.length = 8;
 		break;
 	default:
-		FAIL("Invalid pixel width");
+		PRINTKE("Invalid pixel width\n");
+		return -EINVAL;
 	}
 
 	/* output */
@@ -1241,7 +1254,8 @@ static int atyfb_set_par(struct fb_info *info)
 	pixclock = atyfb_get_pixclock(var, par);
 
 	if (pixclock == 0) {
-		FAIL("Invalid pixclock");
+		PRINTKE("Invalid pixclock\n");
+		return -EINVAL;
 	} else {
 		if((err = par->pll_ops->var_to_pll(info, pixclock, var->bits_per_pixel, &par->pll)))
 			return err;
@@ -1446,7 +1460,9 @@ static int atyfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	pixclock = atyfb_get_pixclock(var, par);
 
 	if (pixclock == 0) {
-		FAIL("Invalid pixclock");
+		if (!(var->activate & FB_ACTIVATE_TEST))
+			PRINTKE("Invalid pixclock\n");
+		return -EINVAL;
 	} else {
 		if((err = par->pll_ops->var_to_pll(info, pixclock, var->bits_per_pixel, &pll)))
 			return err;
