@@ -528,10 +528,9 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
 	unsigned char *block;
 	int num = 0, i;
 
-	mode = kmalloc(50 * sizeof(struct fb_videomode), GFP_KERNEL);
+	mode = kzalloc(50 * sizeof(struct fb_videomode), GFP_KERNEL);
 	if (mode == NULL)
 		return NULL;
-	memset(mode, 0, 50 * sizeof(struct fb_videomode));
 
 	if (edid == NULL || !edid_checksum(edid) || 
 	    !edid_check_header(edid)) {

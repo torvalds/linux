@@ -43,10 +43,11 @@ struct fb_info *framebuffer_alloc(size_t size, struct device *dev)
 	if (size)
 		fb_info_size += PADDING;
 
-	p = kmalloc(fb_info_size + size, GFP_KERNEL);
+	p = kzalloc(fb_info_size + size, GFP_KERNEL);
+
 	if (!p)
 		return NULL;
-	memset(p, 0, fb_info_size + size);
+
 	info = (struct fb_info *) p;
 
 	if (size)
