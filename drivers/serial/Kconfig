@@ -860,7 +860,7 @@ config SERIAL_VR41XX_CONSOLE
 
 config SERIAL_JSM
         tristate "Digi International NEO PCI Support"
-	depends on PCI
+	depends on PCI && BROKEN
         select SERIAL_CORE
         help
           This is a driver for Digi International's Neo series
