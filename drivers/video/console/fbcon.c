@@ -687,13 +687,12 @@ static int con2fb_acquire_newinfo(struct vc_data *vc, struct fb_info *info,
 		err = -ENODEV;
 
 	if (!err) {
-		ops = kmalloc(sizeof(struct fbcon_ops), GFP_KERNEL);
+		ops = kzalloc(sizeof(struct fbcon_ops), GFP_KERNEL);
 		if (!ops)
 			err = -ENOMEM;
 	}
 
 	if (!err) {
-		memset(ops, 0, sizeof(struct fbcon_ops));
 		info->fbcon_par = ops;
 		set_blitting_type(vc, info);
 	}
@@ -919,13 +918,12 @@ static const char *fbcon_startup(void)
 		return NULL;
 	}
 
-	ops = kmalloc(sizeof(struct fbcon_ops), GFP_KERNEL);
+	ops = kzalloc(sizeof(struct fbcon_ops), GFP_KERNEL);
 	if (!ops) {
 		module_put(owner);
 		return NULL;
 	}
 
-	memset(ops, 0, sizeof(struct fbcon_ops));
 	ops->currcon = -1;
 	ops->graphics = 1;
 	ops->cur_rotate = -1;
@@ -1408,16 +1406,13 @@ static __inline__ void ypan_up_redraw(struct vc_data *vc, int t, int count)
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct display *p = &fb_display[vc->vc_num];
-	int redraw = 0;
 
 	p->yscroll += count;
+
 	if (p->yscroll > p->vrows - vc->vc_rows) {
 		p->yscroll -= p->vrows - vc->vc_rows;
-		redraw = 1;
-	}
-
-	if (redraw)
 		fbcon_redraw_move(vc, p, t + count, vc->vc_rows - count, t);
+	}
 
 	ops->var.xoffset = 0;
 	ops->var.yoffset = p->yscroll * vc->vc_font.height;
@@ -1459,16 +1454,13 @@ static __inline__ void ypan_down_redraw(struct vc_data *vc, int t, int count)
 	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
 	struct fbcon_ops *ops = info->fbcon_par;
 	struct display *p = &fb_display[vc->vc_num];
-	int redraw = 0;
 
 	p->yscroll -= count;
+
 	if (p->yscroll < 0) {
 		p->yscroll += p->vrows - vc->vc_rows;
-		redraw = 1;
-	}
-
-	if (redraw)
 		fbcon_redraw_move(vc, p, t, vc->vc_rows - count, t + count);
+	}
 
 	ops->var.xoffset = 0;
 	ops->var.yoffset = p->yscroll * vc->vc_font.height;
@@ -2105,8 +2097,11 @@ static int fbcon_switch(struct vc_data *vc)
 				 info->flags & FBINFO_MISC_ALWAYS_SETPAR)) {
 		if (info->fbops->fb_set_par)
 			info->fbops->fb_set_par(info);
-		fbcon_del_cursor_timer(old_info);
-		fbcon_add_cursor_timer(info);
+
+		if (old_info != info) {
+			fbcon_del_cursor_timer(old_info);
+			fbcon_add_cursor_timer(info);
+		}
 	}
 
 	set_blitting_type(vc, info);
