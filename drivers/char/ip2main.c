@@ -172,7 +172,7 @@ static int Fip_firmware_size;
 /* Private (static) functions */
 static int  ip2_open(PTTY, struct file *);
 static void ip2_close(PTTY, struct file *);
-static int  ip2_write(PTTY, int, const unsigned char *, int);
+static int  ip2_write(PTTY, const unsigned char *, int);
 static void ip2_putchar(PTTY, unsigned char);
 static void ip2_flush_chars(PTTY);
 static int  ip2_write_room(PTTY);
@@ -1713,7 +1713,7 @@ ip2_hangup ( PTTY tty )
 /*                                                                            */
 /******************************************************************************/
 static int
-ip2_write( PTTY tty, int user, const unsigned char *pData, int count)
+ip2_write( PTTY tty, const unsigned char *pData, int count)
 {
 	i2ChanStrPtr  pCh = tty->driver_data;
 	int bytesSent = 0;
@@ -1726,7 +1726,7 @@ ip2_write( PTTY tty, int user, const unsigned char *pData, int count)
 
 	/* This is the actual move bit. Make sure it does what we need!!!!! */
 	WRITE_LOCK_IRQSAVE(&pCh->Pbuf_spinlock,flags);
-	bytesSent = i2Output( pCh, pData, count, user );
+	bytesSent = i2Output( pCh, pData, count, 0 );
 	WRITE_UNLOCK_IRQRESTORE(&pCh->Pbuf_spinlock,flags);
 
 	ip2trace (CHANN, ITRC_WRITE, ITRC_RETURN, 1, bytesSent );
@@ -2001,7 +2001,9 @@ ip2_stop ( PTTY tty )
 static int ip2_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	i2ChanStrPtr pCh = DevTable[tty->index];
+#ifdef	ENABLE_DSSNOW
 	wait_queue_t wait;
+#endif
 
 	if (pCh == NULL)
 		return -ENODEV;
@@ -2089,15 +2091,17 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 {
 	wait_queue_t wait;
 	i2ChanStrPtr pCh = DevTable[tty->index];
+	i2eBordStrPtr pB;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
 	struct serial_icounter_struct __user *p_cuser;
 	int rc = 0;
 	unsigned long flags;
 	void __user *argp = (void __user *)arg;
 
-	if ( pCh == NULL ) {
+	if ( pCh == NULL )
 		return -ENODEV;
-	}
+
+	pB = pCh->pMyBord;
 
 	ip2trace (CHANN, ITRC_IOCTL, ITRC_ENTER, 2, cmd, arg );
 
@@ -2206,9 +2210,9 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 	 * for masking). Caller should use TIOCGICOUNT to see which one it was
 	 */
 	case TIOCMIWAIT:
-		save_flags(flags);cli();
+		WRITE_LOCK_IRQSAVE(&pB->read_fifo_spinlock, flags);
 		cprev = pCh->icount;	 /* note the counters on entry */
-		restore_flags(flags);
+		WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock, flags);
 		i2QueueCommands(PTYPE_BYPASS, pCh, 100, 4, 
 						CMD_DCD_REP, CMD_CTS_REP, CMD_DSR_REP, CMD_RI_REP);
 		init_waitqueue_entry(&wait, current);
@@ -2228,9 +2232,9 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 				rc = -ERESTARTSYS;
 				break;
 			}
-			save_flags(flags);cli();
+			WRITE_LOCK_IRQSAVE(&pB->read_fifo_spinlock, flags);
 			cnow = pCh->icount; /* atomic copy */
-			restore_flags(flags);
+			WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock, flags);
 			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
 				cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
 				rc =  -EIO; /* no change => rc */
@@ -2268,9 +2272,9 @@ ip2_ioctl ( PTTY tty, struct file *pFile, UINT cmd, ULONG arg )
 	case TIOCGICOUNT:
 		ip2trace (CHANN, ITRC_IOCTL, 11, 1, rc );
 
-		save_flags(flags);cli();
+		WRITE_LOCK_IRQSAVE(&pB->read_fifo_spinlock, flags);
 		cnow = pCh->icount;
-		restore_flags(flags);
+		WRITE_UNLOCK_IRQRESTORE(&pB->read_fifo_spinlock, flags);
 		p_cuser = argp;
 		rc = put_user(cnow.cts, &p_cuser->cts);
 		rc = put_user(cnow.dsr, &p_cuser->dsr);
