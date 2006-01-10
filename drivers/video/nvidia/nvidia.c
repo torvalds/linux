@@ -485,7 +485,7 @@ static int nvidia_backlight_levels[] = {
 
 static int nvidia_set_backlight_enable(int on, int level, void *data)
 {
-	struct nvidia_par *par = (struct nvidia_par *)data;
+	struct nvidia_par *par = data;
 	u32 tmp_pcrt, tmp_pmc, fpcontrol;
 
 	tmp_pmc = NV_RD32(par->PMC, 0x10F0) & 0x0000FFFF;
@@ -1515,7 +1515,7 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	if (!info)
 		goto err_out;
 
-	par = (struct nvidia_par *)info->par;
+	par = info->par;
 	par->pci_dev = pd;
 
 	info->pixmap.addr = kmalloc(8 * 1024, GFP_KERNEL);
@@ -1811,6 +1811,9 @@ module_param(vram, int, 0);
 MODULE_PARM_DESC(vram,
 		 "amount of framebuffer memory to remap in MiB"
 		 "(default=0 - remap entire memory)");
+module_param(mode_option, charp, 0);
+MODULE_PARM_DESC(mode_option, "Specify initial video mode");
+
 #ifdef CONFIG_MTRR
 module_param(nomtrr, bool, 0);
 MODULE_PARM_DESC(nomtrr, "Disables MTRR support (0 or 1=disabled) "

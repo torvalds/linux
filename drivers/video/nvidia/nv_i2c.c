@@ -46,7 +46,7 @@ static void nvidia_gpio_setscl(void *data, int state)
 
 static void nvidia_gpio_setsda(void *data, int state)
 {
-	struct nvidia_i2c_chan *chan = (struct nvidia_i2c_chan *)data;
+	struct nvidia_i2c_chan *chan = data;
 	struct nvidia_par *par = chan->par;
 	u32 val;
 
@@ -64,7 +64,7 @@ static void nvidia_gpio_setsda(void *data, int state)
 
 static int nvidia_gpio_getscl(void *data)
 {
-	struct nvidia_i2c_chan *chan = (struct nvidia_i2c_chan *)data;
+	struct nvidia_i2c_chan *chan = data;
 	struct nvidia_par *par = chan->par;
 	u32 val = 0;
 
@@ -79,7 +79,7 @@ static int nvidia_gpio_getscl(void *data)
 
 static int nvidia_gpio_getsda(void *data)
 {
-	struct nvidia_i2c_chan *chan = (struct nvidia_i2c_chan *)data;
+	struct nvidia_i2c_chan *chan = data;
 	struct nvidia_par *par = chan->par;
 	u32 val = 0;
 
