@@ -338,7 +338,7 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function,
 	if ((c != NULL) && (c->state & CONFIG_LOCKED) &&
 	    (c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
 		u_char reg;
-		if (c->Present & PRESENT_PIN_REPLACE) {
+		if (c->CardValues & PRESENT_PIN_REPLACE) {
 			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
 			status->CardState |=
 				(reg & PRR_WP_STATUS) ? CS_EVENT_WRITE_PROTECT : 0;
@@ -352,7 +352,7 @@ int pccard_get_status(struct pcmcia_socket *s, unsigned int function,
 			/* No PRR?  Then assume we're always ready */
 			status->CardState |= CS_EVENT_READY_CHANGE;
 		}
-		if (c->Present & PRESENT_EXT_STATUS) {
+		if (c->CardValues & PRESENT_EXT_STATUS) {
 			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_ESR)>>1, 1, &reg);
 			status->CardState |=
 				(reg & ESR_REQ_ATTN) ? CS_EVENT_REQUEST_ATTENTION : 0;
@@ -643,7 +643,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 
 	/* Set up CIS configuration registers */
 	base = c->ConfigBase = req->ConfigBase;
-	c->Present = c->CardValues = req->Present;
+	c->CardValues = req->Present;
 	if (req->Present & PRESENT_COPY) {
 		c->Copy = req->Copy;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_SCR)>>1, 1, &c->Copy);

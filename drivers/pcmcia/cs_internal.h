@@ -45,7 +45,6 @@ typedef struct config_t {
     u_int		IntType;
     u_int		ConfigBase;
     u_char		Status, Pin, Copy, Option, ExtStatus;
-    u_int		Present;
     u_int		CardValues;
     io_req_t		io;
     struct {
