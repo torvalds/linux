@@ -271,6 +271,9 @@ void __devinit pcibios_claim_one_bus(struct pci_bus *b)
 	list_for_each_entry(child_bus, &b->children, node)
 		pcibios_claim_one_bus(child_bus);
 }
+#ifdef CONFIG_HOTPLUG
+EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
+#endif
 
 #ifndef CONFIG_PPC_ISERIES
 static void __init pcibios_claim_of_setup(void)
