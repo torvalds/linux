@@ -127,8 +127,6 @@ struct resource rtc_resource[2] = {
 		.flags	= IORESOURCE_MEM,	},
 };
 
-#define RTC_NUM_RESOURCES	ARRAY_SIZE(rtc_resource)
-
 static inline unsigned long read_elapsed_second(void)
 {
 	unsigned long first_low, first_mid, first_high;
@@ -686,7 +684,8 @@ static int __devinit vr41xx_rtc_init(void)
 		break;
 	}
 
-	rtc_platform_device = platform_device_register_simple("RTC", -1, rtc_resource, RTC_NUM_RESOURCES);
+	rtc_platform_device = platform_device_register_simple("RTC", -1,
+			      rtc_resource, ARRAY_SIZE(rtc_resource));
 	if (IS_ERR(rtc_platform_device))
 		return PTR_ERR(rtc_platform_device);
 
