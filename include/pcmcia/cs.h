@@ -109,17 +109,6 @@ typedef struct client_req_t {
 
 #define CLIENT_THIS_SOCKET	0x01
 
-/* For RegisterClient */
-typedef struct client_reg_t {
-    dev_info_t	*dev_info;
-    u_int	Attributes;  /* UNUSED */
-    u_int	EventMask;
-    int		(*event_handler)(event_t event, int priority,
-				 event_callback_args_t *);
-    event_callback_args_t event_callback_args;
-    u_int	Version;
-} client_reg_t;
-
 /* ModifyConfiguration */
 typedef struct modconf_t {
     u_int	Attributes;
