@@ -67,7 +67,7 @@ module_param(spia_peddr, int, 0);
 /*
  * Define partitions for flash device
  */
-const static struct mtd_partition partition_info[] = {
+static const struct mtd_partition partition_info[] = {
 	{
 		.name	= "SPIA flash partition 1",
 		.offset	= 0,
