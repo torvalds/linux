@@ -115,6 +115,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 
 #include <asm/io.h>
 
@@ -1499,7 +1500,7 @@ static int hp100_start_xmit_bm(struct sk_buff *skb, struct net_device *dev)
 		printk("hp100: %s: start_xmit_bm: No TX PDL available.\n", dev->name);
 #endif
 		/* not waited long enough since last tx? */
-		if (jiffies - dev->trans_start < HZ)
+		if (time_before(jiffies, dev->trans_start + HZ))
 			return -EAGAIN;
 
 		if (hp100_check_lan(dev))
@@ -1652,7 +1653,7 @@ static int hp100_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk("hp100: %s: start_xmit: tx free mem = 0x%x\n", dev->name, i);
 #endif
 		/* not waited long enough since last failed tx try? */
-		if (jiffies - dev->trans_start < HZ) {
+		if (time_before(jiffies, dev->trans_start + HZ)) {
 #ifdef HP100_DEBUG
 			printk("hp100: %s: trans_start timing problem\n",
 			       dev->name);

@@ -52,6 +52,7 @@
 #include <net/arp.h>
 #include <linux/init.h>
 #include <linux/arcdevice.h>
+#include <linux/jiffies.h>
 
 /* "do nothing" functions for protocol drivers */
 static void null_rx(struct net_device *dev, int bufnum,
@@ -733,7 +734,7 @@ static void arcnet_timeout(struct net_device *dev)
 	
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	if (jiffies - lp->last_timeout > 10*HZ) {
+	if (time_after(jiffies, lp->last_timeout + 10*HZ)) {
 		BUGMSG(D_EXTRA, "tx timed out%s (status=%Xh, intmask=%Xh, dest=%02Xh)\n",
 		       msg, status, lp->intmask, lp->lasttrans_dest);
 		lp->last_timeout = jiffies;
