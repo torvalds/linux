@@ -82,6 +82,9 @@ struct device *xpc_part = &xpc_part_dbg_subname;
 struct device *xpc_chan = &xpc_chan_dbg_subname;
 
 
+static int xpc_kdebug_ignore;
+
+
 /* systune related variables for /proc/sys directories */
 
 static int xpc_hb_interval = XPC_HB_DEFAULT_INTERVAL;
@@ -1148,7 +1151,12 @@ xpc_system_reboot(struct notifier_block *nb, unsigned long event, void *unused)
 
 
 /*
- * This function is called when the system is being rebooted.
+ * This function is called when the system is being restarted or halted due
+ * to some sort of system failure. If this is the case we need to notify the
+ * other partitions to disengage from all references to our memory.
+ * This function can also be called when our heartbeater could be offlined
+ * for a time. In this case we need to notify other partitions to not worry
+ * about the lack of a heartbeat.
  */
 static int
 xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
@@ -1158,11 +1166,25 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *unused)
 	case DIE_MACHINE_HALT:
 		xpc_die_disengage();
 		break;
+
+	case DIE_KDEBUG_ENTER:
+		/* Should lack of heartbeat be ignored by other partitions? */
+		if (!xpc_kdebug_ignore) {
+			break;
+		}
+		/* fall through */
 	case DIE_MCA_MONARCH_ENTER:
 	case DIE_INIT_MONARCH_ENTER:
 		xpc_vars->heartbeat++;
 		xpc_vars->heartbeat_offline = 1;
 		break;
+
+	case DIE_KDEBUG_LEAVE:
+		/* Is lack of heartbeat being ignored by other partitions? */
+		if (!xpc_kdebug_ignore) {
+			break;
+		}
+		/* fall through */
 	case DIE_MCA_MONARCH_LEAVE:
 	case DIE_INIT_MONARCH_LEAVE:
 		xpc_vars->heartbeat++;
@@ -1386,4 +1408,8 @@ MODULE_PARM_DESC(xpc_hb_check_interval, "Number of seconds between "
 module_param(xpc_disengage_request_timelimit, int, 0);
 MODULE_PARM_DESC(xpc_disengage_request_timelimit, "Number of seconds to wait "
 		"for disengage request to complete.");
+
+module_param(xpc_kdebug_ignore, int, 0);
+MODULE_PARM_DESC(xpc_kdebug_ignore, "Should lack of heartbeat be ignored by "
+		"other partitions when dropping into kdebug.");
 
