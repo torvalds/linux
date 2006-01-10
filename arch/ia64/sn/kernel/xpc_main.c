@@ -1022,11 +1022,13 @@ xpc_do_exit(enum xpc_retval reason)
 	del_timer_sync(&xpc_hb_timer);
 	DBUG_ON(xpc_vars->heartbeating_to_mask != 0);
 
-	/* take ourselves off of the reboot_notifier_list */
-	(void) unregister_reboot_notifier(&xpc_reboot_notifier);
+	if (reason == xpcUnloading) {
+		/* take ourselves off of the reboot_notifier_list */
+		(void) unregister_reboot_notifier(&xpc_reboot_notifier);
 
-	/* take ourselves off of the die_notifier list */
-	(void) unregister_die_notifier(&xpc_die_notifier);
+		/* take ourselves off of the die_notifier list */
+		(void) unregister_die_notifier(&xpc_die_notifier);
+	}
 
 	/* close down protections for IPI operations */
 	xpc_restrict_IPI_ops();
