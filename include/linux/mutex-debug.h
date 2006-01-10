@@ -1,6 +1,8 @@
 #ifndef __LINUX_MUTEX_DEBUG_H
 #define __LINUX_MUTEX_DEBUG_H
 
+#include <linux/linkage.h>
+
 /*
  * Mutexes - debugging helpers:
  */
