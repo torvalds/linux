@@ -492,6 +492,28 @@ static ssize_t show_name(struct class_device *class_device, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%s\n", fb_info->fix.id);
 }
 
+static ssize_t store_fbstate(struct class_device *class_device,
+			const char *buf, size_t count)
+{
+	struct fb_info *fb_info = class_get_devdata(class_device);
+	u32 state;
+	char *last = NULL;
+
+	state = simple_strtoul(buf, &last, 0);
+
+	acquire_console_sem();
+	fb_set_suspend(fb_info, (int)state);
+	release_console_sem();
+
+	return count;
+}
+
+static ssize_t show_fbstate(struct class_device *class_device, char *buf)
+{
+	struct fb_info *fb_info = class_get_devdata(class_device);
+	return snprintf(buf, PAGE_SIZE, "%d\n", fb_info->state);
+}
+
 static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(bits_per_pixel, S_IRUGO|S_IWUSR, show_bpp, store_bpp),
 	__ATTR(blank, S_IRUGO|S_IWUSR, show_blank, store_blank),
@@ -507,6 +529,7 @@ static struct class_device_attribute class_device_attrs[] = {
 	__ATTR(rotate, S_IRUGO|S_IWUSR, show_rotate, store_rotate),
 	__ATTR(con_rotate, S_IRUGO|S_IWUSR, show_con_rotate, store_con_rotate),
 	__ATTR(con_rotate_all, S_IWUSR, NULL, store_con_rotate_all),
+	__ATTR(state, S_IRUGO|S_IWUSR, show_fbstate, store_fbstate),
 };
 
 int fb_init_class_device(struct fb_info *fb_info)
