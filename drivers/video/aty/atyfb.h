@@ -50,6 +50,7 @@ struct pll_info {
 	int sclk, mclk, mclk_pm, xclk;
 	int ref_div;
 	int ref_clk;
+	int ecp_max;
 };
 
 typedef struct {
