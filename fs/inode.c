@@ -1176,17 +1176,20 @@ sector_t bmap(struct inode * inode, sector_t block)
 EXPORT_SYMBOL(bmap);
 
 /**
- *	update_atime	-	update the access time
+ *	touch_atime	-	update the access time
+ *	@mnt: mount the inode is accessed on
  *	@inode: inode accessed
  *
  *	Update the accessed time on an inode and mark it for writeback.
  *	This function automatically handles read only file systems and media,
  *	as well as the "noatime" flag and inode specific "noatime" markers.
  */
-void update_atime(struct inode *inode)
+void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 {
+	struct inode *inode = dentry->d_inode;
 	struct timespec now;
 
+	/* per-mountpoint checks will go here */
 	if (IS_NOATIME(inode))
 		return;
 	if (IS_NODIRATIME(inode) && S_ISDIR(inode->i_mode))
@@ -1201,7 +1204,7 @@ void update_atime(struct inode *inode)
 	}
 }
 
-EXPORT_SYMBOL(update_atime);
+EXPORT_SYMBOL(touch_atime);
 
 /**
  *	file_update_time	-	update mtime and ctime time

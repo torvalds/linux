@@ -235,9 +235,6 @@ struct kstatfs;
 struct vm_area_struct;
 struct vfsmount;
 
-/* Used to be a macro which just called the function, now just a function */
-extern void update_atime (struct inode *);
-
 extern void __init inode_init(unsigned long);
 extern void __init inode_init_early(void);
 extern void __init mnt_init(unsigned long);
@@ -1118,12 +1115,7 @@ static inline void mark_inode_dirty_sync(struct inode *inode)
 	__mark_inode_dirty(inode, I_DIRTY_SYNC);
 }
 
-static inline void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
-{
-	/* per-mountpoint checks will go here */
-	update_atime(dentry->d_inode);
-}
-
+extern void touch_atime(struct vfsmount *mnt, struct dentry *dentry);
 static inline void file_accessed(struct file *file)
 {
 	if (!(file->f_flags & O_NOATIME))
