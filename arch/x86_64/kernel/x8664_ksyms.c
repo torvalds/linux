@@ -13,7 +13,6 @@
 #include <linux/string.h>
 #include <linux/syscalls.h>
 #include <linux/tty.h>
-#include <linux/ioctl32.h>
 
 #include <asm/semaphore.h>
 #include <asm/processor.h>

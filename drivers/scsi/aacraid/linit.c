@@ -46,7 +46,6 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
-#include <linux/ioctl32.h>
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
 #include <asm/semaphore.h>

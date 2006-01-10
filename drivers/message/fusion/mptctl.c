@@ -2585,8 +2585,6 @@ static struct miscdevice mptctl_miscdev = {
 
 #ifdef CONFIG_COMPAT
 
-#include <linux/ioctl32.h>
-
 static int
 compat_mptfwxfer_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long arg)

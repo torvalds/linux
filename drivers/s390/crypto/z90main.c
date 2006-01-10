@@ -30,7 +30,6 @@
 #include <linux/delay.h>       // mdelay
 #include <linux/init.h>
 #include <linux/interrupt.h>   // for tasklets
-#include <linux/ioctl32.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>

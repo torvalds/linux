@@ -80,7 +80,6 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/poll.h>
-#include <linux/ioctl32.h>
 #include <linux/compat.h>
 #include <linux/cdev.h>
 #include <asm/uaccess.h>
