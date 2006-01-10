@@ -350,6 +350,7 @@ ieee80211softmac_handle_disassoc(struct net_device * dev,
 	spin_lock_irqsave(&mac->lock, flags);
 	mac->associnfo.bssvalid = 0;
 	mac->associated = 0;
+	schedule_work(&mac->associnfo.work);
 	spin_unlock_irqrestore(&mac->lock, flags);
 	
 	return 0;
