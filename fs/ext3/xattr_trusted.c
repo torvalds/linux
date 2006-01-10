@@ -39,8 +39,6 @@ ext3_xattr_trusted_get(struct inode *inode, const char *name,
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	return ext3_xattr_get(inode, EXT3_XATTR_INDEX_TRUSTED, name,
 			      buffer, size);
 }
@@ -51,8 +49,6 @@ ext3_xattr_trusted_set(struct inode *inode, const char *name,
 {
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	return ext3_xattr_set(inode, EXT3_XATTR_INDEX_TRUSTED, name,
 			      value, size, flags);
 }

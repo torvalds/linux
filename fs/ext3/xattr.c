@@ -946,10 +946,6 @@ ext3_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
 	};
 	int error;
 
-	if (IS_RDONLY(inode))
-		return -EROFS;
-	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-		return -EPERM;
 	if (!name)
 		return -EINVAL;
 	if (strlen(name) > 255)
