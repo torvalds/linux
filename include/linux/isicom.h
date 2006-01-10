@@ -98,9 +98,6 @@ typedef	struct	{
 #define		ISICOM_INITIATE_XONXOFF	0x04
 #define		ISICOM_RESPOND_XONXOFF	0x08
 
-#define InterruptTheCard(base) (outw(0,(base)+0xc)) 
-#define ClearInterrupt(base) (inw((base)+0x0a))	
-
 #define	BOARD(line)  (((line) >> 4) & 0x3)
 
 	/*	isi kill queue bitmap	*/
