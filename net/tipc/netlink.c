@@ -80,6 +80,8 @@ static int family_registered = 0;
 
 int netlink_start(void)
 {
+
+
 	if (genl_register_family(&family))
 		goto err;
 
@@ -88,7 +90,7 @@ int netlink_start(void)
 	if (genl_register_ops(&family, &ops))
 		goto err_unregister;
 
-	return 0;
+        return 0;
 
  err_unregister:
 	genl_unregister_family(&family);

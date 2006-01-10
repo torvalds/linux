@@ -258,32 +258,8 @@ void disc_update_link_req(struct link_req *req)
 
 static void disc_timeout(struct link_req *req) 
 {
-	struct tipc_msg *msg = buf_msg(req->buf);
-
 	spin_lock_bh(&req->bearer->publ.lock);
 
-#if 0
-	/* CURRENTLY DON'T SUPPORT INTER-ZONE LINKS */
-	u32 dest_domain = msg_dest_domain(msg);
-	int stop = 0;
-	if (!in_scope(dest_domain, tipc_own_addr)) {
-		struct _zone *z_ptr = zone_find(dest_domain);
-
-		if (z_ptr && (z_ptr->links >= msg_req_links(msg)))
-			stop = 1;
-		if (req->timer_intv >= 32000)
-			stop = 1;
-	}
-	if (stop) {
-		k_cancel_timer(&req->timer);
-		buf_discard(req->buf);
-		kfree(req);
-		spin_unlock_bh(&req->bearer->publ.lock);
-		return;
-	}
-#endif
-
-	msg_dbg(msg,"SEND:");
 	req->bearer->media->send_msg(req->buf, &req->bearer->publ, &req->dest);
 
 	if ((req->timer_intv == TIPC_LINK_REQ_SLOW) ||
@@ -291,8 +267,8 @@ static void disc_timeout(struct link_req *req)
 		/* leave timer interval "as is" if already at a "normal" rate */
 	} else {
 		req->timer_intv *= 2;
-		if (req->timer_intv > TIPC_LINK_REQ_FAST)
-			req->timer_intv = TIPC_LINK_REQ_FAST;
+		if (req->timer_intv > TIPC_LINK_REQ_SLOW)
+			req->timer_intv = TIPC_LINK_REQ_SLOW;
 		if ((req->timer_intv == TIPC_LINK_REQ_FAST) && 
 		    (req->bearer->nodes.count))
 			req->timer_intv = TIPC_LINK_REQ_SLOW;
