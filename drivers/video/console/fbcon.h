@@ -62,12 +62,10 @@ struct fbcon_ops {
 		      int fg, int bg);
 	void (*clear_margins)(struct vc_data *vc, struct fb_info *info,
 			      int bottom_only);
-	void (*cursor)(struct vc_data *vc, struct fb_info *info,
-		       struct display *p, int mode, int softback_lines,
-		       int fg, int bg);
+	void (*cursor)(struct vc_data *vc, struct fb_info *info, int mode,
+		       int softback_lines, int fg, int bg);
 	int  (*update_start)(struct fb_info *info);
-	int  (*rotate_font)(struct fb_info *info, struct vc_data *vc,
-			    struct display *p);
+	int  (*rotate_font)(struct fb_info *info, struct vc_data *vc);
 	struct fb_var_screeninfo var;  /* copy of the current fb_var_screeninfo */
 	struct timer_list cursor_timer; /* Cursor timer */
 	struct fb_cursor cursor_state;
@@ -173,8 +171,7 @@ struct fbcon_ops {
 #define SCROLL_PAN_REDRAW  0x005
 
 #ifdef CONFIG_FB_TILEBLITTING
-extern void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info,
-			      struct display *p, struct fbcon_ops *ops);
+extern void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info);
 #endif
 extern void fbcon_set_bitops(struct fbcon_ops *ops);
 extern int  soft_cursor(struct fb_info *info, struct fb_cursor *cursor);
