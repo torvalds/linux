@@ -712,8 +712,7 @@ out:
  */
 static int good_timespec(const struct timespec *ts)
 {
-	if ((!ts) || (ts->tv_sec < 0) ||
-			((unsigned) ts->tv_nsec >= NSEC_PER_SEC))
+	if ((!ts) || !timespec_valid(ts))
 		return 0;
 	return 1;
 }
@@ -1406,7 +1405,7 @@ sys_clock_nanosleep(const clockid_t which_clock, int flags,
 	if (copy_from_user(&t, rqtp, sizeof (struct timespec)))
 		return -EFAULT;
 
-	if ((unsigned) t.tv_nsec >= NSEC_PER_SEC || t.tv_sec < 0)
+	if (!timespec_valid(&t))
 		return -EINVAL;
 
 	/*

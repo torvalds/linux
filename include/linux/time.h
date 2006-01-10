@@ -44,6 +44,12 @@ extern unsigned long mktime(const unsigned int year, const unsigned int mon,
 
 extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
 
+/*
+ * Returns true if the timespec is norm, false if denorm:
+ */
+#define timespec_valid(ts) \
+	(((ts)->tv_sec >= 0) && (((unsigned) (ts)->tv_nsec) < NSEC_PER_SEC))
+
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
 extern seqlock_t xtime_lock;
