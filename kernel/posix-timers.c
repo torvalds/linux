@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/time.h>
+#include <linux/calc64.h>
 
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
@@ -48,15 +49,6 @@
 #include <linux/workqueue.h>
 #include <linux/module.h>
 
-#ifndef div_long_long_rem
-#include <asm/div64.h>
-
-#define div_long_long_rem(dividend,divisor,remainder) ({ \
-		       u64 result = dividend;		\
-		       *remainder = do_div(result,divisor); \
-		       result; })
-
-#endif
 #define CLOCK_REALTIME_RES TICK_NSEC  /* In nano seconds. */
 
 static inline u64  mpy_l_X_l_ll(unsigned long mpy1,unsigned long mpy2)
