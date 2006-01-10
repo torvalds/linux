@@ -266,4 +266,19 @@ static inline u64 ktime_to_ns(const ktime_t kt)
 
 #endif
 
+/*
+ * The resolution of the clocks. The resolution value is returned in
+ * the clock_getres() system call to give application programmers an
+ * idea of the (in)accuracy of timers. Timer values are rounded up to
+ * this resolution values.
+ */
+#define KTIME_REALTIME_RES	(NSEC_PER_SEC/HZ)
+#define KTIME_MONOTONIC_RES	(NSEC_PER_SEC/HZ)
+
+/* Get the monotonic time in timespec format: */
+extern void ktime_get_ts(struct timespec *ts);
+
+/* Get the real (wall-) time in timespec format: */
+#define ktime_get_real_ts(ts)	getnstimeofday(ts)
+
 #endif
