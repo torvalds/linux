@@ -780,9 +780,11 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 					&priv->multicast_tree);
 
 			list_add_tail(&priv->broadcast->list, &remove_list);
-		}
-
-		priv->broadcast = nmcast;
+			priv->broadcast = nmcast;
+		} else
+			ipoib_warn(priv, "could not reallocate broadcast group "
+                        	          IPOIB_GID_FMT "\n",
+                                	  IPOIB_GID_ARG(priv->broadcast->mcmember.mgid));
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
