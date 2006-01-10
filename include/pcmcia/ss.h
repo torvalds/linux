@@ -18,6 +18,7 @@
 #include <linux/config.h>
 #include <linux/device.h>
 #include <linux/sched.h>	/* task_struct, completion */
+#include <linux/mutex.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -240,7 +241,7 @@ struct pcmcia_socket {
 #endif
 
 	/* state thread */
-	struct semaphore		skt_sem;	/* protects socket h/w state */
+	struct mutex			skt_mutex;	/* protects socket h/w state */
 
 	struct task_struct		*thread;
 	struct completion		thread_done;

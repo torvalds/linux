@@ -564,7 +564,7 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
  * won't work, this doesn't matter much at the moment: the driver core doesn't
  * support it either.
  */
-static DECLARE_MUTEX(device_add_lock);
+static DEFINE_MUTEX(device_add_lock);
 
 struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
 {
@@ -576,7 +576,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	if (!s)
 		return NULL;
 
-	down(&device_add_lock);
+	mutex_lock(&device_add_lock);
 
 	/* max of 2 devices per card */
 	if (s->device_count == 2)
@@ -640,7 +640,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	if (device_register(&p_dev->dev))
 		goto err_unreg;
 
-	up(&device_add_lock);
+	mutex_unlock(&device_add_lock);
 
 	return p_dev;
 
@@ -654,7 +654,7 @@ struct pcmcia_device * pcmcia_device_add(struct pcmcia_socket *s, unsigned int f
 	kfree(p_dev);
 	s->device_count--;
  err_put:
-	up(&device_add_lock);
+	mutex_unlock(&device_add_lock);
 	pcmcia_put_socket(s);
 
 	return NULL;
@@ -713,7 +713,7 @@ static void pcmcia_bus_rescan(struct pcmcia_socket *skt)
 	int no_devices=0;
 	unsigned long flags;
 
-	/* must be called with skt_sem held */
+	/* must be called with skt_mutex held */
 	spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
 	if (list_empty(&skt->devices_list))
 		no_devices=1;
@@ -999,9 +999,9 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 	if (!count)
 		return -EINVAL;
 
-	down(&p_dev->socket->skt_sem);
+	mutex_lock(&p_dev->socket->skt_mutex);
 	p_dev->allow_func_id_match = 1;
-	up(&p_dev->socket->skt_sem);
+	mutex_unlock(&p_dev->socket->skt_mutex);
 
 	bus_rescan_devices(&pcmcia_bus_type);
 

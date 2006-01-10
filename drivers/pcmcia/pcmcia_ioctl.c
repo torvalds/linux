@@ -269,9 +269,9 @@ rescan:
 	/*
 	 * Prevent this racing with a card insertion.
 	 */
-	down(&s->skt_sem);
+	mutex_lock(&s->skt_mutex);
 	bus_rescan_devices(&pcmcia_bus_type);
-	up(&s->skt_sem);
+	mutex_unlock(&s->skt_mutex);
 
 	/* check whether the driver indeed matched. I don't care if this
 	 * is racy or not, because it can only happen on cardmgr access
@@ -606,9 +606,9 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	}
 	break;
     case DS_GET_FIRST_TUPLE:
-	down(&s->skt_sem);
+	mutex_lock(&s->skt_mutex);
 	pcmcia_validate_mem(s);
-	up(&s->skt_sem);
+	mutex_unlock(&s->skt_mutex);
 	ret = pccard_get_first_tuple(s, BIND_FN_ALL, &buf->tuple);
 	break;
     case DS_GET_NEXT_TUPLE:
@@ -637,9 +637,9 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	    }
 	    break;
     case DS_VALIDATE_CIS:
-	down(&s->skt_sem);
+	mutex_lock(&s->skt_mutex);
 	pcmcia_validate_mem(s);
-	up(&s->skt_sem);
+	mutex_unlock(&s->skt_mutex);
 	ret = pccard_validate_cis(s, BIND_FN_ALL, &buf->cisinfo);
 	break;
     case DS_SUSPEND_CARD:
