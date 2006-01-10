@@ -48,7 +48,7 @@
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 
-static DECLARE_MUTEX(kprobe_mutex);	/* Protects kprobe_table */
+DECLARE_MUTEX(kprobe_mutex);		/* Protects kprobe_table */
 DEFINE_SPINLOCK(kretprobe_lock);	/* Protects kretprobe_inst_table */
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 
@@ -532,7 +532,7 @@ valid_p:
 			list_del_rcu(&p->list);
 			kfree(old_p);
 		}
-		arch_remove_kprobe(p, &kprobe_mutex);
+		arch_remove_kprobe(p);
 	}
 }
 

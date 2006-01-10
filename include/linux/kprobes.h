@@ -149,6 +149,7 @@ struct kretprobe_instance {
 };
 
 extern spinlock_t kretprobe_lock;
+extern struct semaphore kprobe_mutex;
 extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_arm_kprobe(struct kprobe *p);
 extern void arch_disarm_kprobe(struct kprobe *p);

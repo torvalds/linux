@@ -220,11 +220,11 @@ void __kprobes arch_disarm_kprobe(struct kprobe *p)
 			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
 }
 
-void __kprobes arch_remove_kprobe(struct kprobe *p, struct semaphore *s)
+void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
-	down(s);
+	down(&kprobe_mutex);
 	free_insn_slot(p->ainsn.insn);
-	up(s);
+	up(&kprobe_mutex);
 }
 
 static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)

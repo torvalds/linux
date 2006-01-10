@@ -89,7 +89,7 @@ struct kprobe_ctlblk {
 #define IP_RELATIVE_PREDICT_OPCODE	(7)
 #define LONG_BRANCH_OPCODE		(0xC)
 #define LONG_CALL_OPCODE		(0xD)
-#define arch_remove_kprobe(p, s)	do { } while(0)
+#define arch_remove_kprobe(p)		do {} while (0)
 
 typedef struct kprobe_opcode {
 	bundle_t bundle;

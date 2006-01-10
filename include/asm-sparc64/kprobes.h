@@ -12,7 +12,7 @@ typedef u32 kprobe_opcode_t;
 #define MAX_INSN_SIZE 2
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)pentry
-#define arch_remove_kprobe(p, s)	do { } while(0)
+#define arch_remove_kprobe(p)	do {} while (0)
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {

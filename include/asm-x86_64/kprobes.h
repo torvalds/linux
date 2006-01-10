@@ -30,6 +30,7 @@
 #define  __ARCH_WANT_KPROBES_INSN_SLOT
 
 struct pt_regs;
+struct kprobe;
 
 typedef u8 kprobe_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0xcc
@@ -44,6 +45,7 @@ typedef u8 kprobe_opcode_t;
 #define ARCH_SUPPORTS_KRETPROBES
 
 void kretprobe_trampoline(void);
+extern void arch_remove_kprobe(struct kprobe *p);
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
@@ -78,7 +80,6 @@ static inline void restore_interrupts(struct pt_regs *regs)
 		local_irq_enable();
 }
 
-extern void arch_remove_kprobe(struct kprobe *p, struct semaphore *s);
 extern int post_kprobe_handler(struct pt_regs *regs);
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_handler(struct pt_regs *regs);
