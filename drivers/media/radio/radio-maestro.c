@@ -101,18 +101,18 @@ static struct video_device maestro_radio = {
 };
 
 struct radio_device {
-	__u16	io,	/* base of Maestro card radio io (GPIO_DATA)*/
+	u16	io,	/* base of Maestro card radio io (GPIO_DATA)*/
 		muted,	/* VIDEO_AUDIO_MUTE */
 		stereo,	/* VIDEO_TUNER_STEREO_ON */	
 		tuned;	/* signal strength (0 or 0xffff) */
 	struct	semaphore lock;
 };
 
-static __u32 radio_bits_get(struct radio_device *dev)
+static u32 radio_bits_get(struct radio_device *dev)
 {
-	register __u16 io=dev->io, l, rdata;
-	register __u32 data=0;
-	__u16 omask;
+	register u16 io=dev->io, l, rdata;
+	register u32 data=0;
+	u16 omask;
 
 	omask = inw(io + IO_MASK);
 	outw(~(STR_CLK | STR_WREN), io + IO_MASK);
@@ -146,10 +146,10 @@ static __u32 radio_bits_get(struct radio_device *dev)
 	return data & 0x3ffe;
 }
 
-static void radio_bits_set(struct radio_device *dev, __u32 data)
+static void radio_bits_set(struct radio_device *dev, u32 data)
 {
-	register __u16 io=dev->io, l, bits;
-	__u16 omask, odir;
+	register u16 io=dev->io, l, bits;
+	u16 omask, odir;
 
 	omask = inw(io + IO_MASK);
 	odir  = (inw(io + IO_DIR) & ~STR_DATA) | (STR_CLK | STR_WREN);
@@ -229,8 +229,8 @@ static inline int radio_function(struct inode *inode, struct file *file,
 		if (v->audio)
 			return -EINVAL;
 		{
-			register __u16 io = card->io;
-			register __u16 omask = inw(io + IO_MASK);
+			register u16 io = card->io;
+			register u16 omask = inw(io + IO_MASK);
 			outw(~STR_WREN, io + IO_MASK);
 			outw((card->muted = v->flags & VIDEO_AUDIO_MUTE) ?
 				STR_WREN : 0, io);
@@ -266,11 +266,11 @@ static int radio_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static __u16 __devinit radio_power_on(struct radio_device *dev)
+static u16 __devinit radio_power_on(struct radio_device *dev)
 {
-	register __u16 io = dev->io;
-	register __u32 ofreq;
-	__u16 omask, odir;
+	register u16 io = dev->io;
+	register u32 ofreq;
+	u16 omask, odir;
 
 	omask = inw(io + IO_MASK);
 	odir = (inw(io + IO_DIR) & ~STR_DATA) | (STR_CLK | STR_WREN);
