@@ -652,6 +652,42 @@ void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec)
 	ts->tv_nsec = nsec;
 }
 
+/**
+ * ns_to_timespec - Convert nanoseconds to timespec
+ * @nsec:       the nanoseconds value to be converted
+ *
+ * Returns the timespec representation of the nsec parameter.
+ */
+inline struct timespec ns_to_timespec(const nsec_t nsec)
+{
+	struct timespec ts;
+
+	if (nsec)
+		ts.tv_sec = div_long_long_rem_signed(nsec, NSEC_PER_SEC,
+						     &ts.tv_nsec);
+	else
+		ts.tv_sec = ts.tv_nsec = 0;
+
+	return ts;
+}
+
+/**
+ * ns_to_timeval - Convert nanoseconds to timeval
+ * @nsec:       the nanoseconds value to be converted
+ *
+ * Returns the timeval representation of the nsec parameter.
+ */
+struct timeval ns_to_timeval(const nsec_t nsec)
+{
+	struct timespec ts = ns_to_timespec(nsec);
+	struct timeval tv;
+
+	tv.tv_sec = ts.tv_sec;
+	tv.tv_usec = (suseconds_t) ts.tv_nsec / 1000;
+
+	return tv;
+}
+
 #if (BITS_PER_LONG < 64)
 u64 get_jiffies_64(void)
 {

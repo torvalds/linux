@@ -50,6 +50,12 @@ extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
 #define timespec_valid(ts) \
 	(((ts)->tv_sec >= 0) && (((unsigned) (ts)->tv_nsec) < NSEC_PER_SEC))
 
+/*
+ * 64-bit nanosec type. Large enough to span 292+ years in nanosecond
+ * resolution. Ought to be enough for a while.
+ */
+typedef s64 nsec_t;
+
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
 extern seqlock_t xtime_lock;
@@ -78,6 +84,47 @@ extern void getnstimeofday(struct timespec *tv);
 extern void getnstimestamp(struct timespec *ts);
 
 extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
+
+/**
+ * timespec_to_ns - Convert timespec to nanoseconds
+ * @ts:		pointer to the timespec variable to be converted
+ *
+ * Returns the scalar nanosecond representation of the timespec
+ * parameter.
+ */
+static inline nsec_t timespec_to_ns(const struct timespec *ts)
+{
+	return ((nsec_t) ts->tv_sec * NSEC_PER_SEC) + ts->tv_nsec;
+}
+
+/**
+ * timeval_to_ns - Convert timeval to nanoseconds
+ * @ts:		pointer to the timeval variable to be converted
+ *
+ * Returns the scalar nanosecond representation of the timeval
+ * parameter.
+ */
+static inline nsec_t timeval_to_ns(const struct timeval *tv)
+{
+	return ((nsec_t) tv->tv_sec * NSEC_PER_SEC) +
+		tv->tv_usec * NSEC_PER_USEC;
+}
+
+/**
+ * ns_to_timespec - Convert nanoseconds to timespec
+ * @nsec:	the nanoseconds value to be converted
+ *
+ * Returns the timespec representation of the nsec parameter.
+ */
+extern struct timespec ns_to_timespec(const nsec_t nsec);
+
+/**
+ * ns_to_timeval - Convert nanoseconds to timeval
+ * @nsec:	the nanoseconds value to be converted
+ *
+ * Returns the timeval representation of the nsec parameter.
+ */
+extern struct timeval ns_to_timeval(const nsec_t nsec);
 
 #endif /* __KERNEL__ */
 
