@@ -73,8 +73,7 @@ struct timespec current_kernel_time(void);
 extern void do_gettimeofday(struct timeval *tv);
 extern int do_settimeofday(struct timespec *tv);
 extern int do_sys_settimeofday(struct timespec *tv, struct timezone *tz);
-extern void clock_was_set(void); // call whenever the clock is set
-extern int do_posix_clock_monotonic_gettime(struct timespec *tp);
+#define do_posix_clock_monotonic_gettime(ts) ktime_get_ts(ts)
 extern long do_utimes(char __user *filename, struct timeval *times);
 struct itimerval;
 extern int do_setitimer(int which, struct itimerval *value,

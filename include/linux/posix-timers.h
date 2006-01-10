@@ -51,12 +51,8 @@ struct k_itimer {
 	struct sigqueue *sigq;		/* signal queue entry. */
 	union {
 		struct {
-			struct timer_list timer;
-			/* clock abs_timer_list: */
-			struct list_head abs_timer_entry;
-			/* wall_to_monotonic used when set: */
-			struct timespec wall_to_prev;
-			unsigned long incr; /* interval in jiffies */
+			struct hrtimer timer;
+			ktime_t interval;
 		} real;
 		struct cpu_timer_list cpu;
 		struct {
@@ -68,15 +64,9 @@ struct k_itimer {
 	} it;
 };
 
-struct k_clock_abs {
-	struct list_head list;
-	spinlock_t lock;
-};
-
 struct k_clock {
 	int res;		/* in nanoseconds */
 	int (*clock_getres) (const clockid_t which_clock, struct timespec *tp);
-	struct k_clock_abs *abs_struct;
 	int (*clock_set) (const clockid_t which_clock, struct timespec * tp);
 	int (*clock_get) (const clockid_t which_clock, struct timespec * tp);
 	int (*timer_create) (struct k_itimer *timer);
@@ -101,29 +91,6 @@ int do_posix_clock_nosettime(const clockid_t, struct timespec *tp);
 
 /* function to call to trigger timer event */
 int posix_timer_event(struct k_itimer *timr, int si_private);
-
-struct now_struct {
-	unsigned long jiffies;
-};
-
-#define posix_get_now(now) \
-	do { (now)->jiffies = jiffies; } while (0)
-
-#define posix_time_before(timer, now) \
-                      time_before((timer)->expires, (now)->jiffies)
-
-#define posix_bump_timer(timr, now)					\
-	do {								\
-		long delta, orun;					\
-									\
-		delta = (now).jiffies - (timr)->it.real.timer.expires;	\
-		if (delta >= 0) {					\
-			orun = 1 + (delta / (timr)->it.real.incr);	\
-			(timr)->it.real.timer.expires +=		\
-				orun * (timr)->it.real.incr;		\
-			(timr)->it_overrun += orun;			\
-		}							\
-	} while (0)
 
 int posix_cpu_clock_getres(const clockid_t which_clock, struct timespec *ts);
 int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *ts);

@@ -93,6 +93,13 @@ struct hrtimer_base {
 	struct hrtimer		*curr_timer;
 };
 
+/*
+ * clock_was_set() is a NOP for non- high-resolution systems. The
+ * time-sorted order guarantees that a timer does not expire early and
+ * is expired in the next softirq when the clock was advanced.
+ */
+#define clock_was_set()		do { } while (0)
+
 /* Exported timer functions: */
 
 /* Initialize timers: */
