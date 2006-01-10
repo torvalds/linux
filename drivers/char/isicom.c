@@ -115,6 +115,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <linux/termios.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
@@ -773,6 +774,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id,
 	unsigned short base, header, word_count, count;
 	unsigned char channel;
 	short byte_count;
+	unsigned char *rp;
 	
 	card = (struct isi_board *) dev_id;
 
@@ -903,14 +905,10 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id,
 				break;
 				
 			case 1:	/* Received Break !!!	 */
-				if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-					break;
-				*tty->flip.flag_buf_ptr++ = TTY_BREAK;
-				*tty->flip.char_buf_ptr++ = 0;
-				tty->flip.count++;
+				tty_insert_flip_char(tty, 0, TTY_BREAK);
 				if (port->flags & ASYNC_SAK)
 					do_SAK(tty);
-				schedule_delayed_work(&tty->flip.work, 1);
+				tty_flip_buffer_push(tty);
 				break;
 				
 			case 2:	/* Statistics		 */
@@ -923,23 +921,19 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id,
 		}	 
 	}
 	else {				/* Data   Packet */
-		count = min_t(unsigned short, byte_count, (TTY_FLIPBUF_SIZE - tty->flip.count));
+
+		count = tty_prepare_flip_string(tty, &rp, byte_count & ~1);
 #ifdef ISICOM_DEBUG
 		printk(KERN_DEBUG "ISICOM: Intr: Can rx %d of %d bytes.\n", 
 					count, byte_count);
 #endif			
 		word_count = count >> 1;
-		insw(base, tty->flip.char_buf_ptr, word_count);
-		tty->flip.char_buf_ptr += (word_count << 1);		
+		insw(base, rp, word_count);
 		byte_count -= (word_count << 1);
 		if (count & 0x0001) {
-			*tty->flip.char_buf_ptr++ = (char)(inw(base) & 0xff);
+			tty_insert_flip_char(tty,  inw(base) & 0xff, TTY_NORMAL);
 			byte_count -= 2;
 		}	
-		memset(tty->flip.flag_buf_ptr, 0, count);
-		tty->flip.flag_buf_ptr += count;
-		tty->flip.count += count;
-		
 		if (byte_count > 0) {
 			printk(KERN_DEBUG "ISICOM: Intr(0x%x:%d): Flip buffer overflow! dropping bytes...\n",
 					base, channel+1);
@@ -948,7 +942,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id,
 				byte_count -= 2;
 			}
 		}
-		schedule_delayed_work(&tty->flip.work, 1);
+		tty_flip_buffer_push(tty);
 	}
 	if (card->isa == YES)
 		ClearInterrupt(base);

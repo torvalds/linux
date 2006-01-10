@@ -186,9 +186,6 @@ static void tty_receive_char(struct tty_struct *tty, char ch)
 		}
 	}
 
-	if((tty->flip.flag_buf_ptr == NULL) ||
-	   (tty->flip.char_buf_ptr == NULL))
-		return;
 	tty_insert_flip_char(tty, ch, TTY_NORMAL);
 }
 
@@ -653,8 +650,7 @@ void chan_interrupt(struct list_head *chans, struct work_struct *task,
 		chan = list_entry(ele, struct chan, list);
 		if(!chan->input || (chan->ops->read == NULL)) continue;
 		do {
-			if((tty != NULL) &&
-			   (tty->flip.count >= TTY_FLIPBUF_SIZE)){
+			if (tty && !tty_buffer_request_room(tty, 1)) {
 				schedule_delayed_work(task, 1);
 				goto out;
 			}

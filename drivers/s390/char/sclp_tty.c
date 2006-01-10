@@ -13,6 +13,7 @@
 #include <linux/kmod.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
+#include <linux/tty_flip.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
@@ -496,25 +497,19 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 	case CTRLCHAR_SYSRQ:
 		break;
 	case CTRLCHAR_CTRL:
-		sclp_tty->flip.count++;
-		*sclp_tty->flip.flag_buf_ptr++ = TTY_NORMAL;
-		*sclp_tty->flip.char_buf_ptr++ = cchar;
+		tty_insert_flip_char(sclp_tty, cchar, TTY_NORMAL);
 		tty_flip_buffer_push(sclp_tty);
 		break;
 	case CTRLCHAR_NONE:
 		/* send (normal) input to line discipline */
-		memcpy(sclp_tty->flip.char_buf_ptr, buf, count);
 		if (count < 2 ||
-		    (strncmp ((const char *) buf + count - 2, "^n", 2) &&
-		     strncmp ((const char *) buf + count - 2, "\0252n", 2))) {
-			sclp_tty->flip.char_buf_ptr[count] = '\n';
-			count++;
+		    (strncmp((const char *) buf + count - 2, "^n", 2) &&
+		     strncmp((const char *) buf + count - 2, "\252n", 2))) {
+			/* add the auto \n */
+			tty_insert_flip_string(sclp_tty, buf, count);
+			tty_insert_flip_char(sclp_tty, '\n', TTY_NORMAL);
 		} else
-			count -= 2;
-		memset(sclp_tty->flip.flag_buf_ptr, TTY_NORMAL, count);
-		sclp_tty->flip.char_buf_ptr += count;
-		sclp_tty->flip.flag_buf_ptr += count;
-		sclp_tty->flip.count += count;
+			tty_insert_flip_string(sclp_tty, buf, count - 2);
 		tty_flip_buffer_push(sclp_tty);
 		break;
 	}

@@ -154,15 +154,6 @@ pl010_rx_chars(struct uart_port *port)
 
 	status = UART_GET_FR(port);
 	while (UART_RX_DATA(status) && max_count--) {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts.
-			 */
-		}
-
 		ch = UART_GET_CHAR(port);
 		flag = TTY_NORMAL;
 

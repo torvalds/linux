@@ -1142,19 +1142,6 @@ receive_chars(struct uart_8250_port *up, int *status, struct pt_regs *regs)
 	char flag;
 
 	do {
-		/* The following is not allowed by the tty layer and
-		   unsafe. It should be fixed ASAP */
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			if (tty->low_latency) {
-				spin_unlock(&up->port.lock);
-				tty_flip_buffer_push(tty);
-				spin_lock(&up->port.lock);
-			}
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts
-			 */
-		}
 		ch = serial_inp(up, UART_RX);
 		flag = TTY_NORMAL;
 		up->port.icount.rx++;

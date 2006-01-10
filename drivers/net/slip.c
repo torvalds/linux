@@ -651,11 +651,6 @@ static void sl_setup(struct net_device *dev)
  ******************************************/
 
 
-static int slip_receive_room(struct tty_struct *tty)
-{
-	return 65536;  /* We can handle an infinite amount of data. :-) */
-}
-
 /*
  * Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
@@ -869,10 +864,6 @@ static int slip_open(struct tty_struct *tty)
 	sl->line = tty_devnum(tty);
 	sl->pid = current->pid;
 	
-	/* FIXME: already done before we were called - seems this can go */
-	if (tty->driver->flush_buffer)
-		tty->driver->flush_buffer(tty);
-		
 	if (!test_bit(SLF_INUSE, &sl->flags)) {
 		/* Perform the low-level SLIP initialization. */
 		if ((err = sl_alloc_bufs(sl, SL_MTU)) != 0)
@@ -897,6 +888,7 @@ static int slip_open(struct tty_struct *tty)
 
 	/* Done.  We have linked the TTY line to a channel. */
 	rtnl_unlock();
+	tty->receive_room = 65536;	/* We don't flow control */
 	return sl->dev->base_addr;
 
 err_free_bufs:
@@ -1329,7 +1321,6 @@ static struct tty_ldisc	sl_ldisc = {
 	.close	 	= slip_close,
 	.ioctl		= slip_ioctl,
 	.receive_buf	= slip_receive_buf,
-	.receive_room	= slip_receive_room,
 	.write_wakeup	= slip_write_wakeup,
 };
 

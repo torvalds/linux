@@ -51,16 +51,22 @@
  */
 #define TTY_FLIPBUF_SIZE 512
 
-struct tty_flip_buffer {
+struct tty_buffer {
+	struct tty_buffer *next;
+	char *char_buf_ptr;
+	unsigned char *flag_buf_ptr;
+	int used;
+	int size;
+	/* Data points here */
+	unsigned long data[0];
+};
+
+struct tty_bufhead {
 	struct work_struct		work;
 	struct semaphore pty_sem;
-	char		*char_buf_ptr;
-	unsigned char	*flag_buf_ptr;
-	int		count;
-	int		buf_num;
-	unsigned char	char_buf[2*TTY_FLIPBUF_SIZE];
-	char		flag_buf[2*TTY_FLIPBUF_SIZE];
-	unsigned char	slop[4]; /* N.B. bug overwrites buffer by 1 */
+	struct tty_buffer *head;	/* Queue head */
+	struct tty_buffer *tail;	/* Active buffer */
+	struct tty_buffer *free;	/* Free queue head */
 };
 /*
  * The pty uses char_buf and flag_buf as a contiguous buffer
@@ -186,10 +192,11 @@ struct tty_struct {
 	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
 	unsigned char low_latency:1, warned:1;
 	unsigned char ctrl_status;
+	unsigned int receive_room;	/* Bytes free for queue */
 
 	struct tty_struct *link;
 	struct fasync_struct *fasync;
-	struct tty_flip_buffer flip;
+	struct tty_bufhead buf;
 	int max_flip_cnt;
 	int alt_speed;		/* For magic substitution of 38400 bps */
 	wait_queue_head_t write_wait;

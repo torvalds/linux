@@ -1982,7 +1982,7 @@ static void mxser_receive_chars(struct mxser_struct *info, int *status)
 
 	spin_lock_irqsave(&info->slock, flags);
 
-	recv_room = tty->ldisc.receive_room(tty);
+	recv_room = tty->receive_room;
 	if ((recv_room == 0) && (!info->ldisc_stop_rx)) {
 		//mxser_throttle(tty);
 		mxser_stoprx(tty);

@@ -323,16 +323,6 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id, struct pt_regs *regs)
 		if (s3c24xx_serial_rx_fifocnt(ourport, ufstat) == 0)
 			break;
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-
-			/*
-			 * If this failed then we will throw away the
-			 * bytes but must do so to clear interrupts
-			 */
-		}
-
 		uerstat = rd_regl(port, S3C2410_UERSTAT);
 		ch = rd_regb(port, S3C2410_URXH);
 

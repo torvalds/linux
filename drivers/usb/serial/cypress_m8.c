@@ -1263,12 +1263,10 @@ static void cypress_read_int_callback(struct urb *urb, struct pt_regs *regs)
 
 	/* process read if there is data other than line status */
 	if (tty && (bytes > i)) {
+		bytes = tty_buffer_request_room(tty, bytes);
 		for (; i < bytes ; ++i) {
 			dbg("pushing byte number %d - %d - %c", i, data[i],
 					data[i]);
-			if(tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
 			tty_insert_flip_char(tty, data[i], tty_flag);
 		}
 		tty_flip_buffer_push(port->tty);

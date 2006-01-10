@@ -1865,20 +1865,14 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty, unsigned c
 	int cnt;
 
 	do {
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			tty_flip_buffer_push(tty);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				dev_err(dev, "%s - dropping data, %d bytes lost\n",
-					__FUNCTION__, length);
-				return;
-			}
+		cnt = tty_buffer_request_room(tty, length);
+		if (cnt < length) {
+			dev_err(dev, "%s - dropping data, %d bytes lost\n",
+				__FUNCTION__, length - cnt);
+			if(cnt == 0)
+				break;
 		}
-		cnt = min(length, TTY_FLIPBUF_SIZE - tty->flip.count);
-		memcpy(tty->flip.char_buf_ptr, data, cnt);
-		memset(tty->flip.flag_buf_ptr, 0, cnt);
-		tty->flip.char_buf_ptr += cnt;
-		tty->flip.flag_buf_ptr += cnt;
-		tty->flip.count += cnt;
+		tty_insert_flip_string(tty, data, cnt);
 		data += cnt;
 		length -= cnt;
 	} while (length > 0);

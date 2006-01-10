@@ -1271,6 +1271,7 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 	unsigned int len;
 	struct gs_port *port;
 	int ret;
+	struct tty_struct *tty;
 
 	/* TEMPORARY -- only port 0 is supported right now */
 	port = dev->dev_port[0];
@@ -1290,7 +1291,10 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 		goto exit;
 	}
 
-	if (port->port_tty == NULL) {
+
+	tty = port->port_tty;
+
+	if (tty == NULL) {
 		printk(KERN_ERR "gs_recv_packet: port=%d, NULL tty pointer\n",
 			port->port_num);
 		ret = -EIO;
@@ -1304,20 +1308,13 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 		goto exit;
 	}
 
-	len = (unsigned int)(TTY_FLIPBUF_SIZE - port->port_tty->flip.count);
-	if (len < size)
-		size = len;
-
-	if (size > 0) {
-		memcpy(port->port_tty->flip.char_buf_ptr, packet, size);
-		port->port_tty->flip.char_buf_ptr += size;
-		port->port_tty->flip.count += size;
+	len = tty_buffer_request_room(tty, size);
+	if (len > 0) {
+		tty_insert_flip_string(tty, packet, len);
 		tty_flip_buffer_push(port->port_tty);
 		wake_up_interruptible(&port->port_tty->read_wait);
 	}
-
 	ret = 0;
-
 exit:
 	spin_unlock(&port->port_lock);
 	return ret;

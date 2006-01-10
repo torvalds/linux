@@ -371,11 +371,6 @@ static inline void receive_chars(struct uart_port *port, uint8_t *status,
 	lsr = *status;
 
 	do {
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			if (tty->low_latency)
-				tty_flip_buffer_push(tty);
-		}
-
 		ch = siu_read(port, UART_RX);
 		port->icount.rx++;
 		flag = TTY_NORMAL;

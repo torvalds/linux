@@ -1007,8 +1007,9 @@ static void rx_ready_hdlc(MGSLPC_INFO *info, int eom)
 
 static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 {
-	unsigned char data, status;
+	unsigned char data, status, flag;
 	int fifo_count;
+	int work = 0;
  	struct tty_struct *tty = info->tty;
  	struct mgsl_icount *icount = &info->icount;
 
@@ -1023,20 +1024,16 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 			fifo_count = 32;
 	} else
 		fifo_count = 32;
-	
+
+	tty_buffer_request_room(tty, fifo_count);
 	/* Flush received async data to receive data buffer. */ 
 	while (fifo_count) {
 		data   = read_reg(info, CHA + RXFIFO);
 		status = read_reg(info, CHA + RXFIFO);
 		fifo_count -= 2;
 
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-			break;
-			
-		*tty->flip.char_buf_ptr = data;
 		icount->rx++;
-		
-		*tty->flip.flag_buf_ptr = 0;
+		flag = TTY_NORMAL;
 
 		// if no frameing/crc error then save data
 		// BIT7:parity error
@@ -1055,26 +1052,23 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 			status &= info->read_status_mask;
 
 			if (status & BIT7)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (status & BIT6)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 		}
-		
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
+		work += tty_insert_flip_char(tty, data, flag);
 	}
 	issue_command(info, CHA, CMD_RXFIFO);
 
 	if (debug_level >= DEBUG_LEVEL_ISR) {
-		printk("%s(%d):rx_ready_async count=%d\n",
-			__FILE__,__LINE__,tty->flip.count);
+		printk("%s(%d):rx_ready_async",
+			__FILE__,__LINE__);
 		printk("%s(%d):rx=%d brk=%d parity=%d frame=%d overrun=%d\n",
 			__FILE__,__LINE__,icount->rx,icount->brk,
 			icount->parity,icount->frame,icount->overrun);
 	}
 			
-	if (tty->flip.count)
+	if (work)
 		tty_flip_buffer_push(tty);
 }
 

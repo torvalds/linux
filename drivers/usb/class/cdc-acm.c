@@ -335,14 +335,9 @@ next_buffer:
 
 	dbg("acm_rx_tasklet: procesing buf 0x%p, size = %d\n", buf, buf->size);
 
-	for (i = 0; i < buf->size && !acm->throttle; i++) {
-		/* if we insert more than TTY_FLIPBUF_SIZE characters,
-		   we drop them. */
-		if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-			tty_flip_buffer_push(tty);
- 		}
-		tty_insert_flip_char(tty, buf->base[i], 0);
- 	}
+	tty_buffer_request_room(tty, buf->size);
+	if (!acm->throttle)
+		tty_insert_flip_string(tty, buf->base, buf->size);
 	tty_flip_buffer_push(tty);
 
 	spin_lock(&acm->throttle_lock);

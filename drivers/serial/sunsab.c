@@ -159,21 +159,14 @@ receive_chars(struct uart_sunsab_port *up,
 		saw_console_brk = 1;
 
 	for (i = 0; i < count; i++) {
-		unsigned char ch = buf[i];
+		unsigned char ch = buf[i], flag;
 
 		if (tty == NULL) {
 			uart_handle_sysrq_char(&up->port, ch, regs);
 			continue;
 		}
 
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			tty->flip.work.func((void *)tty);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				return tty; // if TTY_DONT_FLIP is set
-		}
-
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = TTY_NORMAL;
+		flag = TTY_NORMAL;
 		up->port.icount.rx++;
 
 		if (unlikely(stat->sreg.isr0 & (SAB82532_ISR0_PERR |
@@ -209,34 +202,21 @@ receive_chars(struct uart_sunsab_port *up,
 			stat->sreg.isr1 &= ((up->port.read_status_mask >> 8) & 0xff);
 
 			if (stat->sreg.isr1 & SAB82532_ISR1_BRK) {
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 			} else if (stat->sreg.isr0 & SAB82532_ISR0_PERR)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (stat->sreg.isr0 & SAB82532_ISR0_FERR)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 		}
 
 		if (uart_handle_sysrq_char(&up->port, ch, regs))
 			continue;
 
 		if ((stat->sreg.isr0 & (up->port.ignore_status_mask & 0xff)) == 0 &&
-		    (stat->sreg.isr1 & ((up->port.ignore_status_mask >> 8) & 0xff)) == 0){
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
-		if ((stat->sreg.isr0 & SAB82532_ISR0_RFO) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			/*
-			 * Overrun is special, since it's reported
-			 * immediately, and doesn't affect the current
-			 * character.
-			 */
-			*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
+		    (stat->sreg.isr1 & ((up->port.ignore_status_mask >> 8) & 0xff)) == 0)
+			tty_insert_flip_char(tty, ch, flag);
+		if (stat->sreg.isr0 & SAB82532_ISR0_RFO)
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	}
 
 	if (saw_console_brk)

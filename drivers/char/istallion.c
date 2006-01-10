@@ -2711,17 +2711,13 @@ static void stli_read(stlibrd_t *brdp, stliport_t *portp)
 		stlen = size - tail;
 	}
 
-	len = MIN(len, (TTY_FLIPBUF_SIZE - tty->flip.count));
+	len = tty_buffer_request_room(tty, len);
+	/* FIXME : iomap ? */
 	shbuf = (volatile char *) EBRDGETMEMPTR(brdp, portp->rxoffset);
 
 	while (len > 0) {
 		stlen = MIN(len, stlen);
-		memcpy(tty->flip.char_buf_ptr, (char *) (shbuf + tail), stlen);
-		memset(tty->flip.flag_buf_ptr, 0, stlen);
-		tty->flip.char_buf_ptr += stlen;
-		tty->flip.flag_buf_ptr += stlen;
-		tty->flip.count += stlen;
-
+		tty_insert_flip_string(tty, (char *)(shbuf + tail), stlen);
 		len -= stlen;
 		tail += stlen;
 		if (tail >= size) {
@@ -2906,16 +2902,12 @@ static int stli_hostcmd(stlibrd_t *brdp, stliport_t *portp)
 
 		if ((nt.data & DT_RXBREAK) && (portp->rxmarkmsk & BRKINT)) {
 			if (tty != (struct tty_struct *) NULL) {
-				if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-					tty->flip.count++;
-					*tty->flip.flag_buf_ptr++ = TTY_BREAK;
-					*tty->flip.char_buf_ptr++ = 0;
-					if (portp->flags & ASYNC_SAK) {
-						do_SAK(tty);
-						EBRDENABLE(brdp);
-					}
-					tty_schedule_flip(tty);
+				tty_insert_flip_char(tty, 0, TTY_BREAK);
+				if (portp->flags & ASYNC_SAK) {
+					do_SAK(tty);
+					EBRDENABLE(brdp);
 				}
+				tty_schedule_flip(tty);
 			}
 		}
 
@@ -4940,7 +4932,7 @@ static int stli_portcmdstats(stliport_t *portp)
 	if (portp->tty != (struct tty_struct *) NULL) {
 		if (portp->tty->driver_data == portp) {
 			stli_comstats.ttystate = portp->tty->flags;
-			stli_comstats.rxbuffered = portp->tty->flip.count;
+			stli_comstats.rxbuffered = -1 /*portp->tty->flip.count*/;
 			if (portp->tty->termios != (struct termios *) NULL) {
 				stli_comstats.cflags = portp->tty->termios->c_cflag;
 				stli_comstats.iflags = portp->tty->termios->c_iflag;

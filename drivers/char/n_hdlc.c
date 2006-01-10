@@ -212,7 +212,6 @@ static struct tty_ldisc n_hdlc_ldisc = {
 	.ioctl		= n_hdlc_tty_ioctl,
 	.poll		= n_hdlc_tty_poll,
 	.receive_buf	= n_hdlc_tty_receive,
-	.receive_room	= n_hdlc_tty_room,
 	.write_wakeup	= n_hdlc_tty_wakeup,
 };
 
@@ -337,6 +336,7 @@ static int n_hdlc_tty_open (struct tty_struct *tty)
 		
 	tty->disc_data = n_hdlc;
 	n_hdlc->tty    = tty;
+	tty->receive_room = 65536;
 	
 #if defined(TTY_NO_WRITE_SPLIT)
 	/* change tty_io write() to not split large writes into 8K chunks */
@@ -476,22 +476,6 @@ static void n_hdlc_tty_wakeup(struct tty_struct *tty)
 	n_hdlc_send_frames (n_hdlc, tty);
 		
 }	/* end of n_hdlc_tty_wakeup() */
-
-/**
- * n_hdlc_tty_room - Return the amount of space left in the receiver's buffer
- * @tty	- pointer to associated tty instance data
- *
- * Callback function from tty driver. Return the amount of space left in the
- * receiver's buffer to decide if remote transmitter is to be throttled.
- */
-static int n_hdlc_tty_room(struct tty_struct *tty)
-{
-	if (debuglevel >= DEBUG_LEVEL_INFO)	
-		printk("%s(%d)n_hdlc_tty_room() called\n",__FILE__,__LINE__);
-	/* always return a larger number to prevent */
-	/* throttling of remote transmitter. */
-	return 65536;
-}	/* end of n_hdlc_tty_root() */
 
 /**
  * n_hdlc_tty_receive - Called by tty driver when receive data is available

@@ -265,8 +265,9 @@ static _INLINE_ void receive_chars(struct async_struct *info)
         int status;
 	int serdatr;
 	struct tty_struct *tty = info->tty;
-	unsigned char ch;
+	unsigned char ch, flag;
 	struct	async_icount *icount;
+	int oe = 0;
 
 	icount = &info->state->icount;
 
@@ -282,15 +283,12 @@ static _INLINE_ void receive_chars(struct async_struct *info)
 	    status |= UART_LSR_OE;
 
 	ch = serdatr & 0xff;
-	if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-	  goto ignore_char;
-	*tty->flip.char_buf_ptr = ch;
 	icount->rx++;
 
 #ifdef SERIAL_DEBUG_INTR
 	printk("DR%02x:%02x...", ch, status);
 #endif
-	*tty->flip.flag_buf_ptr = 0;
+	flag = TTY_NORMAL;
 
 	/*
 	 * We don't handle parity or frame errors - but I have left
@@ -319,7 +317,7 @@ static _INLINE_ void receive_chars(struct async_struct *info)
 	   * should be ignored.
 	   */
 	  if (status & info->ignore_status_mask)
-	    goto ignore_char;
+	    goto out;
 
 	  status &= info->read_status_mask;
 
@@ -327,33 +325,28 @@ static _INLINE_ void receive_chars(struct async_struct *info)
 #ifdef SERIAL_DEBUG_INTR
 	    printk("handling break....");
 #endif
-	    *tty->flip.flag_buf_ptr = TTY_BREAK;
+	    flag = TTY_BREAK;
 	    if (info->flags & ASYNC_SAK)
 	      do_SAK(tty);
 	  } else if (status & UART_LSR_PE)
-	    *tty->flip.flag_buf_ptr = TTY_PARITY;
+	    flag = TTY_PARITY;
 	  else if (status & UART_LSR_FE)
-	    *tty->flip.flag_buf_ptr = TTY_FRAME;
+	    flag = TTY_FRAME;
 	  if (status & UART_LSR_OE) {
 	    /*
 	     * Overrun is special, since it's
 	     * reported immediately, and doesn't
 	     * affect the current character
 	     */
-	    if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-	      tty->flip.count++;
-	      tty->flip.flag_buf_ptr++;
-	      tty->flip.char_buf_ptr++;
-	      *tty->flip.flag_buf_ptr = TTY_OVERRUN;
-	    }
+	     oe = 1;
 	  }
 	}
-	tty->flip.flag_buf_ptr++;
-	tty->flip.char_buf_ptr++;
-	tty->flip.count++;
- ignore_char:
-
+	tty_insert_flip_char(tty, ch, flag);
+	if (oe == 1)
+		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	tty_flip_buffer_push(tty);
+out:
+	return;
 }
 
 static _INLINE_ void transmit_chars(struct async_struct *info)

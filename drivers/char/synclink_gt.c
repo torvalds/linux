@@ -1749,6 +1749,9 @@ static void rx_async(struct slgt_info *info)
 	unsigned char status;
 	struct slgt_desc *bufs = info->rbufs;
 	int i, count;
+	int chars = 0;
+	int stat;
+	unsigned char ch;
 
 	start = end = info->rbuf_current;
 
@@ -1760,15 +1763,14 @@ static void rx_async(struct slgt_info *info)
 		DBGDATA(info, p, count, "rx");
 
 		for(i=0 ; i < count; i+=2, p+=2) {
-			if (tty) {
-				if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-					tty_flip_buffer_push(tty);
-				if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-					break;
-				*tty->flip.char_buf_ptr = *p;
-				*tty->flip.flag_buf_ptr = 0;
+			if (tty && chars) {
+				tty_flip_buffer_push(tty);
+				chars = 0;
 			}
+			ch = *p;
 			icount->rx++;
+
+			stat = 0;
 
 			if ((status = *(p+1) & (BIT9 + BIT8))) {
 				if (status & BIT9)
@@ -1778,17 +1780,14 @@ static void rx_async(struct slgt_info *info)
 				/* discard char if tty control flags say so */
 				if (status & info->ignore_status_mask)
 					continue;
-				if (tty) {
-					if (status & BIT9)
-						*tty->flip.flag_buf_ptr = TTY_PARITY;
-					else if (status & BIT8)
-						*tty->flip.flag_buf_ptr = TTY_FRAME;
-				}
+				if (status & BIT9)
+					stat = TTY_PARITY;
+				else if (status & BIT8)
+					stat = TTY_FRAME;
 			}
 			if (tty) {
-				tty->flip.flag_buf_ptr++;
-				tty->flip.char_buf_ptr++;
-				tty->flip.count++;
+				tty_insert_flip_char(tty, ch, stat);
+				chars++;
 			}
 		}
 
@@ -1811,7 +1810,7 @@ static void rx_async(struct slgt_info *info)
 			break;
 	}
 
-	if (tty && tty->flip.count)
+	if (tty && chars)
 		tty_flip_buffer_push(tty);
 }
 
@@ -2029,7 +2028,7 @@ static void isr_serial(struct slgt_info *info)
 			if (info->tty) {
 				if (!(status & info->ignore_status_mask)) {
 					if (info->read_status_mask & MASK_BREAK) {
-						*info->tty->flip.flag_buf_ptr = TTY_BREAK;
+						tty_insert_flip_char(info->tty, 0, TTY_BREAK);
 						if (info->flags & ASYNC_SAK)
 							do_SAK(info->tty);
 					}

@@ -434,13 +434,7 @@ static irqreturn_t scc_rx_int(int irq, void *data, struct pt_regs *fp)
 		SCCwrite_NB(COMMAND_REG, CR_HIGHEST_IUS_RESET);
 		return IRQ_HANDLED;
 	}
-	if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = 0;
-		tty->flip.flag_buf_ptr++;
-		tty->flip.char_buf_ptr++;
-		tty->flip.count++;
-	}
+	tty_insert_flip_char(tty, ch, 0);
 
 	/* Check if another character is already ready; in that case, the
 	 * spcond_int() function must be used, because this character may have an
@@ -487,13 +481,7 @@ static irqreturn_t scc_spcond_int(int irq, void *data, struct pt_regs *fp)
 		else
 			err = 0;
 
-		if (tty->flip.count < TTY_FLIPBUF_SIZE) {
-			*tty->flip.char_buf_ptr = ch;
-			*tty->flip.flag_buf_ptr = err;
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
+		tty_insert_flip_char(tty, ch, err);
 
 		/* ++TeSche: *All* errors have to be cleared manually,
 		 * else the condition persists for the next chars

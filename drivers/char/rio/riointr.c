@@ -38,6 +38,7 @@ static char *_riointr_c_sccs_ = "@(#)riointr.c	1.2";
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
 #include <asm/io.h>
 #include <asm/system.h>
 #include <asm/string.h>
@@ -560,6 +561,7 @@ struct Port *		PortP;
   struct PKT *PacketP;
   register uint	DataCnt;
   uchar *	ptr;
+  unsigned char *buf;
   int copied =0;
 
   static int intCount, RxIntCnt;
@@ -657,8 +659,7 @@ struct Port *		PortP;
 	  ** and available space.
 	  */
 			
-	  transCount = min_t(unsigned int, PacketP->len & PKT_LEN_MASK,
-			   TTY_FLIPBUF_SIZE - TtyP->flip.count);
+	  transCount = tty_buffer_request_room(TtyP, PacketP->len & PKT_LEN_MASK);
 	  rio_dprintk (RIO_DEBUG_REC,  "port %d: Copy %d bytes\n", 
 				      PortP->PortNum, transCount);
 	  /*
@@ -678,9 +679,8 @@ struct Port *		PortP;
 #endif
 	  ptr = (uchar *) PacketP->data + PortP->RxDataStart;
 
-	  rio_memcpy_fromio (TtyP->flip.char_buf_ptr, ptr, transCount);
-	  memset(TtyP->flip.flag_buf_ptr, TTY_NORMAL, transCount);
-
+	  tty_prepare_flip_string(TtyP, &buf, transCount);
+	  rio_memcpy_fromio (buf, ptr, transCount);
 #ifdef STATS
 	  /*
 	  ** keep a count for statistical purposes
@@ -690,9 +690,6 @@ struct Port *		PortP;
 	  PortP->RxDataStart	+= transCount;
 	  PacketP->len		-= transCount;
 	  copied += transCount;
-	  TtyP->flip.count += transCount;
-	  TtyP->flip.char_buf_ptr += transCount;
-	  TtyP->flip.flag_buf_ptr += transCount;
 
 
 #ifdef ___DEBUG_IT___

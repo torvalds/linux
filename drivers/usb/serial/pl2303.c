@@ -924,16 +924,12 @@ static void pl2303_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 
 	tty = port->tty;
 	if (tty && urb->actual_length) {
+		tty_buffer_request_room(tty, urb->actual_length + 1);
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-
-		for (i = 0; i < urb->actual_length; ++i) {
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
+		for (i = 0; i < urb->actual_length; ++i)
 			tty_insert_flip_char (tty, data[i], tty_flag);
-		}
 		tty_flip_buffer_push (tty);
 	}
 

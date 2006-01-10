@@ -210,10 +210,9 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap,
 					    struct pt_regs *regs)
 {
 	struct tty_struct *tty = NULL;
-	unsigned char ch, r1, drop, error;
+	unsigned char ch, r1, drop, error, flag;
 	int loops = 0;
 
- retry:
 	/* The interrupt can be enabled when the port isn't open, typically
 	 * that happens when using one port is open and the other closed (stale
 	 * interrupt) or when one port is used as a console.
@@ -245,20 +244,6 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap,
 	while (1) {
 		error = 0;
 		drop = 0;
-
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			/* Have to drop the lock here */
-			pmz_debug("pmz: flip overflow\n");
-			spin_unlock(&uap->port.lock);
-			tty->flip.work.func((void *)tty);
-			spin_lock(&uap->port.lock);
-			if (tty->flip.count >= TTY_FLIPBUF_SIZE)
-				drop = 1;
-			if (ZS_IS_ASLEEP(uap))
-				return NULL;
-			if (!ZS_IS_OPEN(uap))
-				goto retry;
-		}
 
 		r1 = read_zsreg(uap, R1);
 		ch = read_zsdata(uap);
@@ -295,8 +280,7 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap,
 		if (drop)
 			goto next_char;
 
-		*tty->flip.char_buf_ptr = ch;
-		*tty->flip.flag_buf_ptr = TTY_NORMAL;
+		flag = TTY_NORMAL;
 		uap->port.icount.rx++;
 
 		if (r1 & (PAR_ERR | Rx_OVR | CRC_ERR | BRK_ABRT)) {
@@ -316,26 +300,19 @@ static struct tty_struct *pmz_receive_chars(struct uart_pmac_port *uap,
 				uap->port.icount.overrun++;
 			r1 &= uap->port.read_status_mask;
 			if (r1 & BRK_ABRT)
-				*tty->flip.flag_buf_ptr = TTY_BREAK;
+				flag = TTY_BREAK;
 			else if (r1 & PAR_ERR)
-				*tty->flip.flag_buf_ptr = TTY_PARITY;
+				flag = TTY_PARITY;
 			else if (r1 & CRC_ERR)
-				*tty->flip.flag_buf_ptr = TTY_FRAME;
+				flag = TTY_FRAME;
 		}
 
 		if (uap->port.ignore_status_mask == 0xff ||
 		    (r1 & uap->port.ignore_status_mask) == 0) {
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
+		    	tty_insert_flip_char(tty, ch, flag);
 		}
-		if ((r1 & Rx_OVR) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			*tty->flip.flag_buf_ptr = TTY_OVERRUN;
-			tty->flip.flag_buf_ptr++;
-			tty->flip.char_buf_ptr++;
-			tty->flip.count++;
-		}
+		if (r1 & Rx_OVR)
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	next_char:
 		/* We can get stuck in an infinite loop getting char 0 when the
 		 * line is in a wrong HW state, we break that here.

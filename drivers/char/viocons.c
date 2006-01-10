@@ -993,11 +993,10 @@ static void vioHandleData(struct HvLpEvent *event)
 		 * Don't attempt to copy more data into the buffer than we
 		 * have room for because it would fail without indication.
 		 */
-		if ((tty->flip.count + 1) > TTY_FLIPBUF_SIZE) {
+		if(tty_insert_flip_char(tty, cevent->data[index], TTY_NORMAL) == 0) {
 			printk(VIOCONS_KERN_WARN "input buffer overflow!\n");
 			break;
 		}
-		tty_insert_flip_char(tty, cevent->data[index], TTY_NORMAL);
 	}
 
 	/* if cevent->len == 0 then no data was added to the buffer and flip.count == 0 */

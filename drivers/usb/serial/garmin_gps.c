@@ -275,23 +275,14 @@ static void send_to_tty(struct usb_serial_port *port,
                         char *data, unsigned int actual_length)
 {
 	struct tty_struct *tty = port->tty;
-	int i;
 
 	if (tty && actual_length) {
 
 		usb_serial_debug_data(debug, &port->dev, 
 					__FUNCTION__, actual_length, data);
 
-		for (i = 0; i < actual_length ; ++i) {
-			/* if we insert more than TTY_FLIPBUF_SIZE characters,
-			   we drop them. */
-			if(tty->flip.count >= TTY_FLIPBUF_SIZE) {
-				tty_flip_buffer_push(tty);
-			}
-			/* this doesn't actually push the data through unless
-			   tty->low_latency is set */
-			tty_insert_flip_char(tty, data[i], 0);
-		}
+		tty_buffer_request_room(tty, actual_length);
+		tty_insert_flip_string(tty, data, actual_length);
 		tty_flip_buffer_push(tty);
 	}
 }
