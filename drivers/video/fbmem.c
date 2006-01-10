@@ -589,17 +589,19 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		return info->fbops->fb_read(file, buf, count, ppos);
 	
 	total_size = info->screen_size;
+
 	if (total_size == 0)
 		total_size = info->fix.smem_len;
 
 	if (p >= total_size)
-	    return 0;
+		return 0;
+
 	if (count >= total_size)
-	    count = total_size;
+		count = total_size;
+
 	if (count + p > total_size)
 		count = total_size - p;
 
-	cnt = 0;
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
 	if (!buffer)
@@ -636,6 +638,7 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	}
 
 	kfree(buffer);
+
 	return (err) ? err : cnt;
 }
 
@@ -648,7 +651,7 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	struct fb_info *info = registered_fb[fbidx];
 	u32 *buffer, *src;
 	u32 __iomem *dst;
-	int c, i, cnt = 0, err;
+	int c, i, cnt = 0, err = 0;
 	unsigned long total_size;
 
 	if (!info || !info->screen_base)
@@ -661,19 +664,19 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		return info->fbops->fb_write(file, buf, count, ppos);
 	
 	total_size = info->screen_size;
+
 	if (total_size == 0)
 		total_size = info->fix.smem_len;
 
 	if (p > total_size)
-	    return -ENOSPC;
+		return 0;
+
 	if (count >= total_size)
-	    count = total_size;
-	err = 0;
-	if (count + p > total_size) {
-	    count = total_size - p;
-	    err = -ENOSPC;
-	}
-	cnt = 0;
+		count = total_size;
+
+	if (count + p > total_size)
+		count = total_size - p;
+
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
 	if (!buffer)
@@ -687,12 +690,15 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	while (count) {
 		c = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		src = buffer;
+
 		if (copy_from_user(src, buf, c)) {
 			err = -EFAULT;
 			break;
 		}
+
 		for (i = c >> 2; i--; )
 			fb_writel(*src++, dst++);
+
 		if (c & 3) {
 			u8 *src8 = (u8 *) src;
 			u8 __iomem *dst8 = (u8 __iomem *) dst;
@@ -702,11 +708,13 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 
 			dst = (u32 __iomem *) dst8;
 		}
+
 		*ppos += c;
 		buf += c;
 		cnt += c;
 		count -= c;
 	}
+
 	kfree(buffer);
 
 	return (err) ? err : cnt;
