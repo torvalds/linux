@@ -608,7 +608,7 @@ ia32_sys_call_table:
 	.quad sys_epoll_wait
 	.quad sys_remap_file_pages
 	.quad sys_set_tid_address
-	.quad sys32_timer_create
+	.quad compat_sys_timer_create
 	.quad compat_sys_timer_settime	/* 260 */
 	.quad compat_sys_timer_gettime
 	.quad sys_timer_getoverrun

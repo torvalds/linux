@@ -2553,34 +2553,6 @@ sys32_get_thread_area (struct ia32_user_desc __user *u_info)
 	return 0;
 }
 
-asmlinkage long
-sys32_timer_create(u32 clock, struct compat_sigevent __user *se32, timer_t __user *timer_id)
-{
-	struct sigevent se;
-	mm_segment_t oldfs;
-	timer_t t;
-	long err;
-
-	if (se32 == NULL)
-		return sys_timer_create(clock, NULL, timer_id);
-
-	if (get_compat_sigevent(&se, se32))
-		return -EFAULT;
-
-	if (!access_ok(VERIFY_WRITE,timer_id,sizeof(timer_t)))
-		return -EFAULT;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	err = sys_timer_create(clock, (struct sigevent __user *) &se, (timer_t __user *) &t);
-	set_fs(oldfs);
-
-	if (!err)
-		err = __put_user (t, timer_id);
-
-	return err;
-}
-
 long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high, 
 			__u32 len_low, __u32 len_high, int advice)
 { 

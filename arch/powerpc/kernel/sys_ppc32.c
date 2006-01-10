@@ -956,38 +956,6 @@ long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
 			     advice);
 }
 
-long ppc32_timer_create(clockid_t clock,
-			struct compat_sigevent __user *ev32,
-			timer_t __user *timer_id)
-{
-	sigevent_t event;
-	timer_t t;
-	long err;
-	mm_segment_t savefs;
-
-	if (ev32 == NULL)
-		return sys_timer_create(clock, NULL, timer_id);
-
-	if (get_compat_sigevent(&event, ev32))
-		return -EFAULT;
-
-	if (!access_ok(VERIFY_WRITE, timer_id, sizeof(timer_t)))
-		return -EFAULT;
-
-	savefs = get_fs();
-	set_fs(KERNEL_DS);
-	/* The __user pointer casts are valid due to the set_fs() */
-	err = sys_timer_create(clock,
-		(sigevent_t __user *) &event,
-		(timer_t __user *) &t);
-	set_fs(savefs);
-
-	if (err == 0)
-		err = __put_user(t, timer_id);
-
-	return err;
-}
-
 asmlinkage long compat_sys_add_key(const char __user *_type,
 			      const char __user *_description,
 			      const void __user *_payload,

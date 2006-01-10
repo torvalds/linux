@@ -1014,38 +1014,6 @@ asmlinkage long sys32_clone(struct pt_regs regs)
 }
 
 /*
- * Wrapper function for sys_timer_create.
- */
-extern asmlinkage long
-sys_timer_create(clockid_t, struct sigevent *, timer_t *);
-
-asmlinkage long
-sys32_timer_create(clockid_t which_clock, struct compat_sigevent *se32,
-		timer_t *timer_id)
-{
-	struct sigevent se;
-	timer_t ktimer_id;
-	mm_segment_t old_fs;
-	long ret;
-
-	if (se32 == NULL)
-		return sys_timer_create(which_clock, NULL, timer_id);
-
-	if (get_compat_sigevent(&se, se32))
-		return -EFAULT;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sys_timer_create(which_clock, &se, &ktimer_id);
-	set_fs(old_fs);
-
-	if (!ret)
-		ret = put_user (ktimer_id, timer_id);
-
-	return ret;
-}
-
-/*
  * 31 bit emulation wrapper functions for sys_fadvise64/fadvise64_64.
  * These need to rewrite the advise values for POSIX_FADV_{DONTNEED,NOREUSE}
  * because the 31 bit values differ from the 64 bit values.
