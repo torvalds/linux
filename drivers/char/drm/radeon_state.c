@@ -1651,7 +1651,7 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 			if (tex->height == 1) {
 				if (tex_width >= 64 || tex_width <= 16) {
 					RADEON_COPY_MT(buffer, data,
-						 tex_width * sizeof(u32));
+						(int)(tex_width * sizeof(u32)));
 				} else if (tex_width == 32) {
 					RADEON_COPY_MT(buffer, data, 16);
 					RADEON_COPY_MT(buffer + 8,
@@ -1659,7 +1659,7 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 				}
 			} else if (tex_width >= 64 || tex_width == 16) {
 				RADEON_COPY_MT(buffer, data,
-					       dwords * sizeof(u32));
+					       (int)(dwords * sizeof(u32)));
 			} else if (tex_width < 16) {
 				for (i = 0; i < tex->height; i++) {
 					RADEON_COPY_MT(buffer, data, tex_width);
@@ -1687,7 +1687,7 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 				 * can upload it directly.
 				 */
 				RADEON_COPY_MT(buffer, data,
-					       dwords * sizeof(u32));
+					       (int)(dwords * sizeof(u32)));
 			} else {
 				/* Texture image width is less than the minimum, so we
 				 * need to pad out each image scanline to the minimum
