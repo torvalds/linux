@@ -199,7 +199,7 @@ The rationale is:
     modifications are prevented
 - saves the compiler work to optimize redundant code away ;)
 
-int fun(int )
+int fun(int a)
 {
 	int result = 0;
 	char *buffer = kmalloc(SIZE);
