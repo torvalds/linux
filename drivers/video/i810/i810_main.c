@@ -776,7 +776,7 @@ static void i810_load_cursor_image(int width, int height, u8 *data,
 
 static void i810_load_cursor_colors(int fg, int bg, struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 	u8 red, green, blue, trans, temp;
 
@@ -949,7 +949,7 @@ static void set_color_bitfields(struct fb_var_screeninfo *var)
 static int i810_check_params(struct fb_var_screeninfo *var, 
 			     struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	int line_length, vidmem, mode_valid = 0, retval = 0;
 	u32 vyres = var->yres_virtual, vxres = var->xres_virtual;
 	/*
@@ -1043,7 +1043,7 @@ static int i810_check_params(struct fb_var_screeninfo *var,
  */
 static int encode_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
     	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
 
@@ -1154,7 +1154,7 @@ static void decode_var(const struct fb_var_screeninfo *var,
 static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue, 
 			    u8 *transp, struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 	u8 temp;
 
@@ -1193,7 +1193,7 @@ static int i810fb_getcolreg(u8 regno, u8 *red, u8 *green, u8 *blue,
 
 static int i810fb_open(struct fb_info *info, int user)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u32 count = atomic_read(&par->use_count);
 	
 	if (count == 0) {
@@ -1212,7 +1212,7 @@ static int i810fb_open(struct fb_info *info, int user)
 
 static int i810fb_release(struct fb_info *info, int user)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u32 count;
 	
 	count = atomic_read(&par->use_count);
@@ -1234,7 +1234,7 @@ static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp, 
 			    struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 	u8 temp;
 	int i;
@@ -1328,7 +1328,7 @@ static int i810fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 static int i810fb_pan_display(struct fb_var_screeninfo *var, 
 			      struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u32 total;
 	
 	total = var->xoffset * par->depth + 
@@ -1340,7 +1340,7 @@ static int i810fb_pan_display(struct fb_var_screeninfo *var,
 
 static int i810fb_blank (int blank_mode, struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 	int mode = 0, pwr, scr_off = 0;
 	
@@ -1385,7 +1385,7 @@ static int i810fb_blank (int blank_mode, struct fb_info *info)
 
 static int i810fb_set_par(struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
 	decode_var(&info->var, par);
 	i810_load_regs(par);
@@ -1429,7 +1429,7 @@ static int i810fb_check_var(struct fb_var_screeninfo *var,
 
 static int i810fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
-	struct i810fb_par *par = (struct i810fb_par *)info->par;
+	struct i810fb_par *par = info->par;
 	u8 __iomem *mmio = par->mmio_start_virtual;
 
 	if (!par->dev_flags & LOCKUP)
@@ -1516,7 +1516,7 @@ static struct fb_ops i810fb_ops __devinitdata = {
 static int i810fb_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	int blank = 0, prev_state = par->cur_state;
 
 	if (state.event == prev_state)
@@ -1553,7 +1553,7 @@ static int i810fb_suspend(struct pci_dev *dev, pm_message_t state)
 static int i810fb_resume(struct pci_dev *dev) 
 {
 	struct fb_info *info = pci_get_drvdata(dev);
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
 	if (par->cur_state == 0)
 		return 0;
@@ -1610,7 +1610,7 @@ static void __devinit i810_fix_offsets(struct i810fb_par *par)
 
 static int __devinit i810_alloc_agp_mem(struct fb_info *info)
 {
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 	int size;
 	struct agp_bridge_data *bridge;
 	
@@ -2074,7 +2074,7 @@ static void i810fb_release_resource(struct fb_info *info,
 static void __exit i810fb_remove_pci(struct pci_dev *dev)
 {
 	struct fb_info *info = pci_get_drvdata(dev);
-	struct i810fb_par *par = (struct i810fb_par *) info->par;
+	struct i810fb_par *par = info->par;
 
 	unregister_framebuffer(info);  
 	i810fb_release_resource(info, par);
