@@ -581,6 +581,133 @@ void hrtimer_run_queues(void)
 }
 
 /*
+ * Sleep related functions:
+ */
+
+/**
+ * schedule_hrtimer - sleep until timeout
+ *
+ * @timer:	hrtimer variable initialized with the correct clock base
+ * @mode:	timeout value is abs/rel
+ *
+ * Make the current task sleep until @timeout is
+ * elapsed.
+ *
+ * You can set the task state as follows -
+ *
+ * %TASK_UNINTERRUPTIBLE - at least @timeout is guaranteed to
+ * pass before the routine returns. The routine will return 0
+ *
+ * %TASK_INTERRUPTIBLE - the routine may return early if a signal is
+ * delivered to the current task. In this case the remaining time
+ * will be returned
+ *
+ * The current task state is guaranteed to be TASK_RUNNING when this
+ * routine returns.
+ */
+static ktime_t __sched
+schedule_hrtimer(struct hrtimer *timer, const enum hrtimer_mode mode)
+{
+	/* fn stays NULL, meaning single-shot wakeup: */
+	timer->data = current;
+
+	hrtimer_start(timer, timer->expires, mode);
+
+	schedule();
+	hrtimer_cancel(timer);
+
+	/* Return the remaining time: */
+	if (timer->state != HRTIMER_EXPIRED)
+		return ktime_sub(timer->expires, timer->base->get_time());
+	else
+		return (ktime_t) {.tv64 = 0 };
+}
+
+static inline ktime_t __sched
+schedule_hrtimer_interruptible(struct hrtimer *timer,
+			       const enum hrtimer_mode mode)
+{
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	return schedule_hrtimer(timer, mode);
+}
+
+static long __sched
+nanosleep_restart(struct restart_block *restart, clockid_t clockid)
+{
+	struct timespec __user *rmtp, tu;
+	void *rfn_save = restart->fn;
+	struct hrtimer timer;
+	ktime_t rem;
+
+	restart->fn = do_no_restart_syscall;
+
+	hrtimer_init(&timer, clockid);
+
+	timer.expires.tv64 = ((u64)restart->arg1 << 32) | (u64) restart->arg0;
+
+	rem = schedule_hrtimer_interruptible(&timer, HRTIMER_ABS);
+
+	if (rem.tv64 <= 0)
+		return 0;
+
+	rmtp = (struct timespec __user *) restart->arg2;
+	tu = ktime_to_timespec(rem);
+	if (rmtp && copy_to_user(rmtp, &tu, sizeof(tu)))
+		return -EFAULT;
+
+	restart->fn = rfn_save;
+
+	/* The other values in restart are already filled in */
+	return -ERESTART_RESTARTBLOCK;
+}
+
+static long __sched nanosleep_restart_mono(struct restart_block *restart)
+{
+	return nanosleep_restart(restart, CLOCK_MONOTONIC);
+}
+
+static long __sched nanosleep_restart_real(struct restart_block *restart)
+{
+	return nanosleep_restart(restart, CLOCK_REALTIME);
+}
+
+long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
+		       const enum hrtimer_mode mode, const clockid_t clockid)
+{
+	struct restart_block *restart;
+	struct hrtimer timer;
+	struct timespec tu;
+	ktime_t rem;
+
+	hrtimer_init(&timer, clockid);
+
+	timer.expires = timespec_to_ktime(*rqtp);
+
+	rem = schedule_hrtimer_interruptible(&timer, mode);
+	if (rem.tv64 <= 0)
+		return 0;
+
+	/* Absolute timers do not update the rmtp value: */
+	if (mode == HRTIMER_ABS)
+		return -ERESTARTNOHAND;
+
+	tu = ktime_to_timespec(rem);
+
+	if (rmtp && copy_to_user(rmtp, &tu, sizeof(tu)))
+		return -EFAULT;
+
+	restart = &current_thread_info()->restart_block;
+	restart->fn = (clockid == CLOCK_MONOTONIC) ?
+		nanosleep_restart_mono : nanosleep_restart_real;
+	restart->arg0 = timer.expires.tv64 & 0xFFFFFFFF;
+	restart->arg1 = timer.expires.tv64 >> 32;
+	restart->arg2 = (unsigned long) rmtp;
+
+	return -ERESTART_RESTARTBLOCK;
+}
+
+/*
  * Functions related to boot-time initialization:
  */
 static void __devinit init_hrtimers_cpu(int cpu)
