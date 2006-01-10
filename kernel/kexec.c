@@ -1057,7 +1057,9 @@ void crash_kexec(struct pt_regs *regs)
 	if (!locked) {
 		image = xchg(&kexec_crash_image, NULL);
 		if (image) {
-			machine_crash_shutdown(regs);
+			struct pt_regs fixed_regs;
+			crash_setup_regs(&fixed_regs, regs);
+			machine_crash_shutdown(&fixed_regs);
 			machine_kexec(image);
 		}
 		xchg(&kexec_lock, 0);
