@@ -290,7 +290,7 @@ static __inline__ int find_next_zero_bit (const void * addr, int size, int offse
 	tmp = *p;
 
 found_first:
-	tmp |= ~0UL >> size;
+	tmp |= ~0UL << size;
 found_middle:
 	return result + ffz(tmp);
 }
