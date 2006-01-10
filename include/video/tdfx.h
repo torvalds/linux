@@ -140,52 +140,52 @@
 #ifdef __KERNEL__
 
 struct banshee_reg {
-  /* VGA rubbish */
-  unsigned char att[21];
-  unsigned char crt[25];
-  unsigned char gra[ 9];
-  unsigned char misc[1];
-  unsigned char seq[ 5];
+	/* VGA rubbish */
+	unsigned char att[21];
+	unsigned char crt[25];
+	unsigned char gra[ 9];
+	unsigned char misc[1];
+	unsigned char seq[ 5];
 
-  /* Banshee extensions */
-  unsigned char ext[2];
-  unsigned long vidcfg;
-  unsigned long vidpll;
-  unsigned long mempll;
-  unsigned long gfxpll;
-  unsigned long dacmode;
-  unsigned long vgainit0;
-  unsigned long vgainit1;
-  unsigned long screensize;
-  unsigned long stride;
-  unsigned long cursloc;
-  unsigned long curspataddr;
-  unsigned long cursc0;
-  unsigned long cursc1;
-  unsigned long startaddr;
-  unsigned long clip0min;
-  unsigned long clip0max;
-  unsigned long clip1min;
-  unsigned long clip1max;
-  unsigned long srcbase;
-  unsigned long dstbase;
-  unsigned long miscinit0;	
+	/* Banshee extensions */
+	unsigned char ext[2];
+	unsigned long vidcfg;
+	unsigned long vidpll;
+	unsigned long mempll;
+	unsigned long gfxpll;
+	unsigned long dacmode;
+	unsigned long vgainit0;
+	unsigned long vgainit1;
+	unsigned long screensize;
+	unsigned long stride;
+	unsigned long cursloc;
+	unsigned long curspataddr;
+	unsigned long cursc0;
+	unsigned long cursc1;
+	unsigned long startaddr;
+	unsigned long clip0min;
+	unsigned long clip0max;
+	unsigned long clip1min;
+	unsigned long clip1max;
+	unsigned long srcbase;
+	unsigned long dstbase;
+	unsigned long miscinit0;
 };
 
 struct tdfx_par {
-  u32 max_pixclock;
+	u32 max_pixclock;
+	u32 palette[16];
+	void __iomem *regbase_virt;
+	unsigned long iobase;
+	u32 baseline;
 
-  void __iomem *regbase_virt;
-  unsigned long iobase;
-  u32 baseline;
+	struct {
+		int w,u,d;
+		unsigned long enable,disable;
+		struct timer_list timer;
+	} hwcursor;
 
-  struct {
-     int w,u,d;
-     unsigned long enable,disable;
-     struct timer_list timer;
-  } hwcursor; 
-
-  spinlock_t DAClock;
+	spinlock_t DAClock;
 };
 
 #endif /* __KERNEL__ */
