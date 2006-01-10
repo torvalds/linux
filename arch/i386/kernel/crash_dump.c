@@ -5,21 +5,14 @@
  *	Copyright (C) IBM Corporation, 2004. All rights reserved
  */
 
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
-#include <linux/proc_fs.h>
-#include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/crash_dump.h>
 
-#include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/kexec.h>
 
-/* Stores the physical address of elf header of crash image. */
-unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
+static void *kdump_buf_page;
 
-#ifndef HAVE_ARCH_COPY_OLDMEM_PAGE
 /**
  * copy_oldmem_page - copy one page from "oldmem"
  * @pfn: page frame number to be copied
@@ -32,33 +25,50 @@ unsigned long long elfcorehdr_addr = ELFCORE_ADDR_MAX;
  *
  * Copy a page from "oldmem". For this page, there is no pte mapped
  * in the current kernel. We stitch up a pte, similar to kmap_atomic.
+ *
+ * Calling copy_to_user() in atomic context is not desirable. Hence first
+ * copying the data to a pre-allocated kernel page and then copying to user
+ * space in non-atomic context.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
-				size_t csize, unsigned long offset, int userbuf)
+                               size_t csize, unsigned long offset, int userbuf)
 {
-	void *page, *vaddr;
+	void  *vaddr;
 
 	if (!csize)
 		return 0;
 
-	page = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
-
 	vaddr = kmap_atomic_pfn(pfn, KM_PTE0);
-	copy_page(page, vaddr);
-	kunmap_atomic(vaddr, KM_PTE0);
 
-	if (userbuf) {
-		if (copy_to_user(buf, (page + offset), csize)) {
-			kfree(page);
+	if (!userbuf) {
+		memcpy(buf, (vaddr + offset), csize);
+		kunmap_atomic(vaddr, KM_PTE0);
+	} else {
+		if (!kdump_buf_page) {
+			printk(KERN_WARNING "Kdump: Kdump buffer page not"
+				" allocated\n");
 			return -EFAULT;
 		}
-	} else {
-		memcpy(buf, (page + offset), csize);
+		copy_page(kdump_buf_page, vaddr);
+		kunmap_atomic(vaddr, KM_PTE0);
+		if (copy_to_user(buf, (kdump_buf_page + offset), csize))
+			return -EFAULT;
 	}
 
-	kfree(page);
 	return csize;
 }
-#endif
+
+static int __init kdump_buf_page_init(void)
+{
+	int ret = 0;
+
+	kdump_buf_page = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!kdump_buf_page) {
+		printk(KERN_WARNING "Kdump: Failed to allocate kdump buffer"
+			 " page\n");
+		ret = -ENOMEM;
+	}
+
+	return ret;
+}
+arch_initcall(kdump_buf_page_init);
