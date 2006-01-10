@@ -1077,9 +1077,8 @@ static int aty_var_to_crtc(const struct fb_info *info,
 #endif /* CONFIG_FB_ATY_GENERIC_LCD */
 
 	if (M64_HAS(MAGIC_FIFO)) {
-		/* Not VTB/GTB */
-		/* FIXME: magic FIFO values */
-		crtc->gen_cntl |= (aty_ld_le32(CRTC_GEN_CNTL, par) & CRTC2_PIX_WIDTH);
+		/* FIXME: display FIFO low watermark values */
+		crtc->gen_cntl |= (aty_ld_le32(CRTC_GEN_CNTL, par) & CRTC_FIFO_LWM);
 	}
 	crtc->dp_pix_width = dp_pix_width;
 	crtc->dp_chain_mask = dp_chain_mask;
