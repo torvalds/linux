@@ -125,6 +125,8 @@ extern struct kimage *kexec_image;
 /* Location of a reserved region to hold the crash kernel.
  */
 extern struct resource crashk_res;
+typedef u32 note_buf_t[MAX_NOTE_BYTES/4];
+extern note_buf_t *crash_notes;
 
 #else /* !CONFIG_KEXEC */
 struct pt_regs;

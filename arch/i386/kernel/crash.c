@@ -25,7 +25,6 @@
 #include <mach_ipi.h>
 
 
-note_buf_t crash_notes[NR_CPUS];
 /* This keeps a track of which one is crashing cpu. */
 static int crashing_cpu;
 
@@ -72,7 +71,9 @@ static void crash_save_this_cpu(struct pt_regs *regs, int cpu)
 	 * squirrelled away.  ELF notes happen to provide
 	 * all of that that no need to invent something new.
 	 */
-	buf = &crash_notes[cpu][0];
+	buf = (u32*)per_cpu_ptr(crash_notes, cpu);
+	if (!buf)
+		return;
 	memset(&prstatus, 0, sizeof(prstatus));
 	prstatus.pr_pid = current->pid;
 	elf_core_copy_regs(&prstatus.pr_reg, regs);

@@ -38,9 +38,6 @@
 #ifdef CONFIG_KEXEC
 
 #define MAX_NOTE_BYTES 1024
-typedef u32 note_buf_t[MAX_NOTE_BYTES / sizeof(u32)];
-
-extern note_buf_t crash_notes[];
 
 #ifdef __powerpc64__
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
