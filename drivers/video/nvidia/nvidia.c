@@ -1617,7 +1617,8 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
 	sprintf(nvidiafb_fix.id, "NV%x", (pd->device & 0x0ff0) >> 4);
 
-	NVCommonSetup(info);
+	if (NVCommonSetup(info))
+		goto err_out_arch;
 
 	par->FbAddress = nvidiafb_fix.smem_start;
 	par->FbMapSize = par->RamAmountKBytes * 1024;

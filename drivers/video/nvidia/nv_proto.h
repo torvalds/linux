@@ -4,7 +4,7 @@
 #define __NV_PROTO_H__
 
 /* in nv_setup.c */
-void NVCommonSetup(struct fb_info *info);
+int NVCommonSetup(struct fb_info *info);
 void NVWriteCrtc(struct nvidia_par *par, u8 index, u8 value);
 u8 NVReadCrtc(struct nvidia_par *par, u8 index);
 void NVWriteGr(struct nvidia_par *par, u8 index, u8 value);
