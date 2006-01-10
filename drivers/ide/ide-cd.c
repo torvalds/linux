@@ -2895,6 +2895,8 @@ static int ide_cdrom_register (ide_drive_t *drive, int nslots)
 		devinfo->mask |= CDC_CLOSE_TRAY;
 	if (!CDROM_CONFIG_FLAGS(drive)->mo_drive)
 		devinfo->mask |= CDC_MO_DRIVE;
+	if (!CDROM_CONFIG_FLAGS(drive)->ram)
+		devinfo->mask |= CDC_RAM;
 
 	devinfo->disk = info->disk;
 	return register_cdrom(devinfo);
