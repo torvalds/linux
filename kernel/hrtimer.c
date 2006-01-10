@@ -108,6 +108,7 @@ void ktime_get_ts(struct timespec *ts)
 	set_normalized_timespec(ts, ts->tv_sec + tomono.tv_sec,
 				ts->tv_nsec + tomono.tv_nsec);
 }
+EXPORT_SYMBOL_GPL(ktime_get_ts);
 
 /*
  * Functions and macros which are different for UP/SMP systems are kept in a
